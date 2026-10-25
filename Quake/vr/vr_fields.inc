@@ -31,14 +31,31 @@ QVR_FIELD(loadportpos)
 QVR_FIELD(vr_pouch_kind)
 QVR_FIELD(vr_pouch_count)
 QVR_FIELD(stl_hud) // the stealth gem's readings (QC vr_stealth.qc; STAT_QVR_STEALTH)
+QVR_FIELD(vr_ad_hud)     // AD support: AD's artifacts, debuffs and custom keys held (QC vr_ad_items.qc; STAT_QVR_ADHUD)
+QVR_FIELD(vr_ad_hudkeys) // AD support: the custom keys' HUD skins (STAT_QVR_ADKEYS)
+QVR_FIELD(vr_ad_hudtime) // AD support: the soonest artifact's seconds left (STAT_QVR_ADTIME)
+QVR_FIELD(vr_ad_tint)    // AD support: AD's screen tint's colour (QC vr_ad_player.qc VR_AD_Tint; STAT_QVR_ADTINT)
+QVR_FIELD(vr_ad_tintden) // AD support: its density, plus 256 for a cinematic camera's fade (STAT_QVR_ADTINTDEN)
+QVR_FIELD(vr_ad_hudart1)   // AD support: the gadget's AD page: the artifacts' seconds left (STAT_QVR_ADART1, ADART2)
+QVR_FIELD(vr_ad_hudart2)
+QVR_FIELD(vr_ad_huddebuff) // AD support: ... the debuffs (STAT_QVR_ADDEBUFF)
+QVR_FIELD(vr_ad_hudup)     // AD support: ... the carried weapons' upgrades (STAT_QVR_ADUPGRADES)
+QVR_FIELD(vr_ad_skyfog)    // AD support: the sky fog AD set, + 1 (QC vr_ad_bridge.qc VR_AD_SkyFog; STAT_QVR_ADSKYFOG)
+QVR_FIELD(vr_climb_ladder) // AD support: a ladder's volume, climbed by hand (QC vr_ad_player.qc; vr_climb.cpp ladderHold)
 QVR_FIELD(offloadportpos)
 QVR_FIELD(loadportaxis) // the way a round lies going in at each gun's port (vr_reload.qc VR_Reload_LooseFrame)
 QVR_FIELD(offloadportaxis)
 QVR_FIELD(loadportface) // and the way its opening faces
 QVR_FIELD(offloadportface)
+QVR_FIELD(launchofs) // where a held gun's projectile leaves from, from its muzzle in the shot's frame (vr_adcrossbow.cpp)
+QVR_FIELD(offlaunchofs)
 QVR_FIELD(vr_ammo_pass) // a loose round passing through a player's guns to their ports: the hands (vr_reload.qc; vr_box3d.cpp reachSkips)
 QVR_FIELD(vr_ammo_passer) // and the player
 QVR_FIELD(vr_ammo_passgun) // a loose round passing through a gun lying about to its port: that gun (vr_reload.qc VR_Reload_PropsFrame; vr_box3d.cpp preSolve)
+QVR_FIELD(vr_ammo_wid)   // a magazine: the gun it fits (vr_reload.qc; 0 not one): its loot beam's fullness (vr_server.cpp, U_QVR_WEAPONUID)
+QVR_FIELD(vr_ammo_count) // and its rounds
+QVR_FIELD(vr_ammo_cap)   // and the rounds it holds full (0: unknown, an older save's)
+QVR_FIELD(carry_player)  // a box or round carried in a hand (vr_carry.qc): who carries it (no loot beam while carried)
 QVR_FIELD(magboxpos) // the main hand's gun's attached magazine, a box: its middle and half-axes (vr_reload.qc)
 QVR_FIELD(magboxx)
 QVR_FIELD(magboxy)
@@ -47,12 +64,23 @@ QVR_FIELD(offmagboxpos)
 QVR_FIELD(offmagboxx)
 QVR_FIELD(offmagboxy)
 QVR_FIELD(offmagboxz)
+QVR_FIELD(ammopouchpos) // where the rounds stand in the ammo pouch, a box: its middle and half-axes, z up along them (vr_reload.qc pouch reloading)
+QVR_FIELD(ammopouchx)
+QVR_FIELD(ammopouchy)
+QVR_FIELD(ammopouchz)
 QVR_FIELD(shotrot)
 QVR_FIELD(offshotrot)
 QVR_FIELD(vrbits0)
+QVR_FIELD(mainhand_lastgrabtime)    // the grips pressed and let go (QC VR_HandGrabUtil_StartedHandGrabbing): vr_physics.cpp gripStarted
+QVR_FIELD(offhand_lastgrabtime)
+QVR_FIELD(mainhand_lastreleasetime)
+QVR_FIELD(offhand_lastreleasetime)
 QVR_FIELD(offhand_hotspot)
 QVR_FIELD(sawcord)
+QVR_FIELD(vr_flatscreen) // this player plays flatscreen (-flatscreenmode: his client's move; vr_server.cpp): QC VR_FlatPlay
 QVR_FIELD(handdrop)
+QVR_FIELD(vr_stand) // the head's height, a share of his standing (calibrated) eye height (1 standing; vr_server.cpp): QC's shoulder charge
+QVR_FIELD(vr_posetime) // the client's poses' time (VrMove::poseClock): QC vr_melee.qc VR_Melee_Track
 QVR_FIELD(mainhand_hotspot)
 QVR_FIELD(button3)
 
@@ -71,6 +99,8 @@ QVR_FIELD(vr_spin)
 QVR_FIELD(vr_pickup_spin) // a weapon pickup drawn as its prop (no EF_ROTATE): drawn spinning as a pickup while not a rigid body (U_QVR_SPIN)
 QVR_FIELD(vr_impact) // a prop's hits (vr_box3d.cpp): .void(float speed) called with how hard it hit something (m/s)
 QVR_FIELD(throwhit) // QVR_THROWHIT_NEVER_HIT (0) while a thrown thing's throw lasts (vr_box3d.cpp's hit box)
+QVR_FIELD(throwstabilize)    // a thrown weapon's settling after it lands: degrees a think towards lying flat (vr_propthink.cpp)
+QVR_FIELD(throwstabilizedim) // ... and which of its angles (0 pitch, 1 yaw, 2 roll)
 QVR_FIELD(vr_blocksight) // a solid prop monsters can't see through (a crate, an explosive box: sightblocked, vr_crates.cpp)
 QVR_FIELD(vr_shot_radius)  // a grenade shots set off (vr_hitmodel.cpp VR_ShotTargetClip): the half size of the cube shots meet round its middle; 0 none
 QVR_FIELD(vr_shot_ownfrom) // and when its owner's own shots start to meet it (not as it leaves his launcher or hand)
@@ -144,14 +174,29 @@ QVR_FIELD(fg_state)
 QVR_FIELD(fg_player)
 QVR_FIELD(fg_hand)
 QVR_FIELD(mainhand_held) // carrying (vr_carry.qc), drawn in the hand (vr_held.cpp)
+QVR_FIELD(carry_portal) // held through a portal: its remote pose is not constrained against the local torso
+QVR_FIELD(carry_rigid) // solid carried prop (2): torso collision and locomotion load
 QVR_FIELD(carry_offset) // a held prop's origin in the hand (vr_carry.qc), kept at a regrip (vr_grip.cpp)
 QVR_FIELD(offhand_held)
+QVR_FIELD(vr_carry_items) // the hands carrying a thing to put away (vr_carry.qc VR_Carry_IsCollectable): STAT_QVR_CARRYITEM
 QVR_FIELD(carry_teleported) // until then what the hands carry follows them from the player (vr_carry.qc VR_Carry_FollowTeleported): set by the VR teleport
+QVR_FIELD(vr_hot_hud)   // the hands' incandescent blades' glow (vr_hotblade.qc VR_HotBlade_Hud; STAT_QVR_HOTBLADE: vr_meleehud.cpp)
+QVR_FIELD(vr_hot_hud2)  // the holsters' (STAT_QVR_HOTBLADEHOLSTER)
+QVR_FIELD(vr_magbind0)  // magnetic holsters (vr_magholster.qc): each holster's bound weapon's id (0 none; STAT_QVR_MAGBIND0: vr_magholster.cpp)
+QVR_FIELD(vr_magbind1)
+QVR_FIELD(vr_magbind2)
+QVR_FIELD(vr_magbind3)
+QVR_FIELD(vr_magbind4)
+QVR_FIELD(vr_magbind5)
+QVR_FIELD(vr_hot_glow)  // a weapon prop's glow 0..1 (vr_hotblade.qc VR_HotBlade_Lying; sent in U_QVR_WEAPONUID's top bits: vr_hotblade.cpp)
 QVR_FIELD(vr_melee_hud) // parry stamina and the counter's window, for the gadget and the counter glow (vr_melee.qc VR_Melee_Hud; vr_meleehud.cpp)
+QVR_FIELD(vr_projectile) // a projectile (QC VR_Proj_Mark): a small MOVETYPE_FLY one's or a grenade's move meets corpses, gibs and knocked-down bodies (VR_HitModelMoveFlags: MOVE_HITGIBS)
 QVR_FIELD(vr_hitclass) // precise hits (vr_hitmodel.cpp): a projectile's class for its tolerance (0 a gun's, 1 the grappling hook's; -1: boxes)
+QVR_FIELD(vr_hit_extra) // precise hits: a drawn part of this monster of its own (an entity, not solid: the Armagon's torso) its shots meet as its
 QVR_FIELD(vr_stamina_used) // the stamina pool (vr_melee.qc): what is spent, when last, its coming back traced; climbing drains it (vr_climb.cpp)
 QVR_FIELD(vr_stamina_time)
 QVR_FIELD(vr_stamina_said)
+QVR_FIELD(vr_heavy_move) // holding a very heavy melee weapon (the hammer, the mace: vr_melee.qc VR_HeavyMelee_Frame): the move speed's share (0 or 1: full)
 QVR_FIELD(vr_climb_drain) // 1 while a hang drains the pool (the gadget shows it: VR_Melee_Hud)
 QVR_FIELD(vr_climb_knockoff) // set by the QC: a blast or a shove knocks the player off its holds (vr_climb.cpp lets go, keeps the velocity)
 QVR_FIELD(vr_foegrab_hands) // set by the engine on a player: the hands holding an enemy (vr_foegrab.cpp), bit 1 the off hand, 2 the main: no melee blows from them
@@ -159,9 +204,20 @@ QVR_FIELD(vr_foegrab_hold) // set by the engine on a monster: how firmly hands h
 QVR_FIELD(vr_foegrab_letgo) // set by the QC on a monster: every hand holding it lets go (a shove breaking free, vr_foegrab_shove 1)
 QVR_FIELD(vr_mg3_infected) // Dawn of the Machine's infected monster (QC combat.qc): the throw's "infected" kind (vr_foegrab.cpp)
 QVR_FIELD(vr_eshove_speed) // a player's slide from an enemy's shove, units/s (QC vr_enemyshove.qc; 0 none): what his hands hold is carried along (vr_foegrab.cpp)
+QVR_FIELD(vr_blow_time) // a player's last landed melee blow, shove or bash: its server time (QC vr_melee.qc): bullet time's screen tap waits (vr_bullettime_tap_blow_quiet)
+QVR_FIELD(vr_bullettime_spent) // bullet time's meter used up (0 full, 1 empty), kept on the player for saves and the next level (QC parm74): vr_bullettime.cpp
+QVR_FIELD(vr_bullettime_earned) // the damage the player dealt living monsters since the engine took it (QC VR_BulletTime_Earn): earned bullet time
 QVR_FIELD(vr_sgib) // a small gib: when it was made (QC vr_smallgibs.qc; vr_box3d.cpp: its blow grace, vr_smallgibs_blow_grace)
 QVR_FIELD(vr_sgib_id) // its serial (vr_smallgibs_trace's lines)
 QVR_FIELD(vr_monster_drop) // a weapon or backpack a monster dropped: when (QC vr_carry.qc; vr_box3d.cpp: made inside a body it passes through it, vr_prop_drop_pass_inside)
+QVR_FIELD(vr_fuellink) // AD support: a fuelled gun lying about's tank, the tank's gun; a flail lying about's head, the head's flail (QC vr_ad_enemyguns.qc, vr_ad_melee.qc; vr_box3d.cpp syncPropRopes)
+QVR_FIELD(vr_hosecut) // AD support: a gun lying about whose hose a blade cut, or the tank cut free of it: when (QC vr_ad_enemyguns.qc "Cutting the hose"; 0 not); its hose's stub drawn (vr_adtank.cpp)
+QVR_FIELD(vr_flail_head) // AD support: a player's main hand's flail's head, after the last step (vr_box3d_flail.cpp; 0 none); QC VR_FlailHead_Taken: where the head lying about was, the hand taking its flail
+QVR_FIELD(vr_flail_headvel) // ... its velocity (units/s)
+QVR_FIELD(vr_flail_offhead) // ... the off hand's
+QVR_FIELD(vr_flail_offheadvel)
+QVR_FIELD(vr_flail_taken) // ... QC: when the main hand took a flail lying about with its head (vr_flail_head its place then): the hand's head made there (vr_box3d_flail.cpp make)
+QVR_FIELD(vr_flail_offtaken)
 QVR_FIELD(vr_prop_mass) // a prop's own mass, kg (0: its model's, Held Object Offsets): a small gib (QC vr_smallgibs.qc; vr_box3d.cpp massSetting)
 QVR_FIELD(vr_xdebris) // an explosion's chunk (vr_explosiondebris.cpp): when it was made (its entry's check; 0: not one)
 QVR_FIELD(attack_finished) // slow motion with the player in its own time (vr_timescale.cpp: vr_sandevistan, vr_timescale_move_realtime): its timers set in its frame run in its time
@@ -172,10 +228,16 @@ QVR_FIELD(vr_corpse) // 1 dying, 2 a corpse lying still (QC combat.qc VR_Corpse_
 QVR_FIELD(vr_corpse_placed) // a mapper's corpse (QC vr_mg_corpses.qc): 1 asleep (no ragdoll), 2 woken by a player near (vr_box3d.cpp)
 QVR_FIELD(vr_gib) // a gib or head (QC): not a corpse (vr_box3d.cpp)
 QVR_FIELD(vr_headless) // its head cut off (QC vr_decap.qc): its ragdoll is made headless, a saved game's too (vr_box3d.cpp)
+QVR_FIELD(vr_necksnapped) // its ragdoll's neck snapped (vr_box3d_knockdown.cpp ragdollNeckSnapped): a saved game's made loose again
 QVR_FIELD(vr_limbcut) // the ragdoll bones cut off (bits; QC vr_limbs.qc, ROUND21.md "Limb gore"): made so again in a saved game (vr_box3d.cpp)
+QVR_FIELD(mdl) // the model an Arcane Dimensions monster takes as it appears (QC defs.qc, ad_monsters.qc): its kind's limbs made as the map loads (vr_limbmodel.cpp prebuild)
+QVR_FIELD(vr_death_hit) // where the blow that killed a monster struck it (QC combat.qc VR_Ragdoll_NoteDeathHit: 1 head, 2 limb, 3 leg, 0 body, -1 unknown): an active death's collapse or held wound (vr_box3d.cpp, vr_ragactive.cpp)
+QVR_FIELD(vr_death_hitpos) // ... and the point, from its origin as it died ('0 0 0' unknown)
 QVR_FIELD(vr_deathdoll) // a player's ragdoll body's player (an entity; QC vr_deathdoll.qc) (vr_deathview.cpp: the camera follows its head)
 QVR_FIELD(vr_deathdoll_body) // a dead player's ragdoll body (an entity; QC vr_deathdoll.qc): he is not sent to the others while it is (sv_main.c)
 QVR_FIELD(vr_knockdown) // a monster knocked down by a shove (QC vr_knockdown.qc): 1 a ragdoll while alive (vr_box3d.cpp), 2 getting up
+QVR_FIELD(vr_bloodied) // it has bled (QC vr_wounds.qc VR_Wound_Hit: a wound that bleeds, not a shove's): a live ragdoll's limbs flung bleed (box3d::limbsBleed)
+QVR_FIELD(vr_depleted) // a weapon prop that can never be fired again: a single-use enemy gun, empty (QC vr_enemyguns.qc): no loot beam (vr_server.cpp, bit 31 of its id)
 QVR_FIELD(vr_shock_until) // lightning killed it or struck it dead (QC vr_shock.qc): its ragdoll convulses until then (vr_box3d.cpp, "Shocked ragdolls")
 QVR_FIELD(vr_shock_len) // ... the shock's length (s): the convulsions fade over it
 
@@ -185,8 +247,30 @@ QVR_FIELD(vr_dummy_kind)
 // When the entity was made (ED_Alloc: VR_OnEdictAlloc, vr_cheats.cpp): the map's own and those placed as it loads
 // before its first second is out; vr_scene_clean props (QC VR_Scene_Clean) removes the loose props made later.
 QVR_FIELD(vr_born)
+// A monster's Monster Health multiplier, set once as it first appears (VR_MonsterHealth_Frame, vr_mgroups.cpp; 0 not yet).
+QVR_FIELD(vr_hpscale)
 QVR_FIELD(vr_gate_crossed) // a missile carried through a teleporter: when (VR_PortalToss); it meets its owner (VR_PortalHitsOwner)
 
 // Quake's drawing extensions, set by the engine on what it makes (vr_explosiondebris.cpp: a chunk's size and its fade).
 QVR_FIELD(alpha)
 QVR_FIELD(scale)
+
+// A monster in a melee attack: when (QC/fight.qc ai_charge and kin): kept out of the player's head (vr_bodycontact.cpp).
+QVR_FIELD(vr_melee_time)
+// Show Melee Arcs (vr_enemy_melee_arc_show; QC/fight.qc VR_MeleeArc_ShowFrame): a melee monster's arc and reach, drawn (vr_bodycontact.cpp).
+QVR_FIELD(vr_melee_arc)
+QVR_FIELD(vr_melee_arc_wide)
+QVR_FIELD(vr_melee_reach)
+QVR_FIELD(vr_melee_shown)
+// Show Aim Cones (vr_enemy_aim_show; QC/vr_aimcone.qc VR_AimCone_ShowFrame): a ranged monster's aim and fire cones, drawn (vr_bodycontact.cpp).
+QVR_FIELD(vr_aim_cone)
+QVR_FIELD(vr_aim_fire)
+QVR_FIELD(vr_aim_shown)
+QVR_FIELD(vr_aim_holding)
+// Seamless teleporters (vr_portals.cpp): a gravity-glove flight's teleporter (QC vr_fields.qc), a monster's route
+// through one (QC vr_portal_ai.qc).
+QVR_FIELD(fg_portal)
+QVR_FIELD(vr_ai_gate)
+// The setup map's option screens (vr_setup.cpp): a button's label board's top (QC buttons.qc), its rest place (pos1).
+QVR_FIELD(vr_button_label_top)
+QVR_FIELD(pos1)

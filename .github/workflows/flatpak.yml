@@ -1,0 +1,67 @@
+# The portable Linux build: a Flatpak bundle of Quake VR (Release) on every push, kept as a workflow artifact
+# (docs/vr-port/LINUX.md, "Flatpak"; the manifest: Misc/linux/flatpak/io.github.vittorioromeo.QuakeVR.yml). No release
+# is published. Install the downloaded bundle with: flatpak install --user QuakeVR-<branch>-<hash>.flatpak
+name: Flatpak
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch replaces the running build.
+concurrency:
+  group: flatpak-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flatpak:
+    name: Flatpak bundle (x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    container:
+      # flatpak-builder and the freedesktop runtime and SDK preinstalled (the maintained successor of the
+      # bilelmoussaoui/flatpak-github-actions images, which stop at 24.08). The tag is the manifest's runtime-version.
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-25.08
+      # bubblewrap (flatpak-builder's sandbox) needs it.
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # The whole history without file contents: the build number is the commit count (qvr_buildinfo.cmake).
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Name and build number
+        id: meta
+        shell: bash
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          short="${GITHUB_SHA::7}"
+          # The bundle's name: the branch (any "/" made "-") and the commit.
+          name="QuakeVR-${GITHUB_REF_NAME//\//-}-${short}"
+          # The engine's build number and hash (the Flatpak builds a copy without .git: Quake/vr/qvr_buildinfo.cmake).
+          echo "$(git rev-list --count HEAD) ${short}" > .qvr-buildinfo
+          echo "name=${name}" >> "$GITHUB_OUTPUT"
+          echo "Bundle ${name}.flatpak, build $(cat .qvr-buildinfo)"
+
+      - name: Build the Flatpak
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6.8
+        with:
+          manifest-path: Misc/linux/flatpak/io.github.vittorioromeo.QuakeVR.yml
+          bundle: ${{ steps.meta.outputs.name }}.flatpak
+          # Downloads, the OpenXR loader and fteqcc stay cached until the manifest changes; Quake VR itself always builds.
+          cache-key: flatpak-builder-${{ hashFiles('Misc/linux/flatpak/io.github.vittorioromeo.QuakeVR.yml') }}
+          upload-artifact: false
+
+      - name: Upload the bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.meta.outputs.name }}
+          path: ${{ steps.meta.outputs.name }}.flatpak
+          if-no-files-found: error
+          # A Flatpak bundle is compressed already.
+          compression-level: 0
+          retention-days: 30

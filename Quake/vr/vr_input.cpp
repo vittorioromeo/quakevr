@@ -15,6 +15,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_chainsaw.hpp"
+#include "vr_magholster.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_input.hpp"
@@ -22,10 +23,17 @@
 #include "vr_main.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
+#include "vr_holstersetup.hpp"
+#include "vr_bladeedit.hpp"
+#include "vr_poselive.hpp"
+#include "vr_posestudio.hpp"
 #include "vr_posing.hpp"
+#include "vr_progs.hpp"
 #include "vr_voicenotes.hpp"
+#include "vr_seated.hpp"
 #include "vr_timescale.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_holsterzones.hpp"
 #include "vr_toolgun.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
@@ -368,14 +376,27 @@ void turn(float x)
     }
 }
 
-// Once a frame, after the sticks: the comfort vignette's target (moving: the stick's push; turning: smooth turning's, or
-// a snap's pulse, at once), eased in quickly and out more slowly.
+// How fast an enemy's shove slides you now (QC vr_enemyshove.qc .vr_eshove_speed; 0 .. 1: a run's 320 units/s and
+// more), the local player's on this machine's server (a coop guest's own slide is the host's to read: none here).
+[[nodiscard]] float shoveSlide()
+{
+    if(!sv.active || svs.maxclients < 1 || svs.clients[0].edict == nullptr)
+    {
+        return 0.f;
+    }
+    const float speed = qvr::progs::fieldFloatOr(svs.clients[0].edict, qvr::progs::fields().vr_eshove_speed, 0.f);
+    return za::min(1.f, za::max(0.f, speed / 320.f));
+}
+
+// Once a frame, after the sticks: the comfort vignette's target (moving: the stick's push, or an enemy's shove sliding
+// you: ROUND22.md, "The vore shoves you"; turning: smooth turning's, or a snap's pulse, at once), eased in quickly and
+// out more slowly.
 void updateComfort()
 {
     ComfortMotion& c = comfortMotion;
     const int mode = static_cast<int>(vr_comfort_vignette.value);
     const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
-    const float moving = mode == 1 || mode == 2 ? za::min(1.f, glm::length(moveAxes)) : 0.f;
+    const float moving = mode == 1 || mode == 2 ? za::min(1.f, za::max(glm::length(moveAxes), shoveSlide())) : 0.f;
     const float turning = mode == 1 || mode == 3 ? za::max(c.turn, c.snapPulse > 0.f ? 1.f : 0.f) : 0.f;
     const float target = key_dest == key_game ? za::max(moving, turning) : 0.f;
     const float tau = target > c.amount ? 0.08f : 0.25f;
@@ -566,6 +587,24 @@ void update(const InputState& tracked)
                     logButton(h, b, now, b.key[h], "the menu gesture (vr_menu_button)");
                     continue;
                 }
+                // Holster Setup takes every button while it runs (vr_holstersetup.cpp): nothing reaches the game.
+                if(holstersetup::button(h, posingButton(b.button), now))
+                {
+                    logButton(h, b, now, b.key[h], "Holster Setup");
+                    continue;
+                }
+                // So does Edit Blade Shape (vr_bladeedit.cpp).
+                if(bladeedit::button(h, posingButton(b.button), now))
+                {
+                    logButton(h, b, now, b.key[h], "Edit Blade Shape");
+                    continue;
+                }
+                // And the Pose Studio (vr_posestudio.cpp): the grips, triggers, B/Y (not A/X or the sticks: you walk).
+                if(posestudio::button(h, posingButton(b.button), now))
+                {
+                    logButton(h, b, now, b.key[h], "the Pose Studio");
+                    continue;
+                }
                 // The weapon posing mode takes the buttons pressed while it runs (vr_posing.cpp).
                 if(posing::button(h, posingButton(b.button), now))
                 {
@@ -594,11 +633,31 @@ void update(const InputState& tracked)
                     logButton(h, b, now, b.key[h], "the motion recorder");
                     continue;
                 }
+                // At a holster with a weapon in it (or one bound), the magnetic holsters' bind button binds it to the
+                // holster or unbinds it (vr_magholster_button; vr_magholster.cpp): its key is never sent.
+                if(magholster::button(h, b.button, now))
+                {
+                    logButton(h, b, now, b.key[h], "the magnetic holsters");
+                    continue;
+                }
+                // A stick press chosen for the seated crouch toggle (vr_seated_crouch_button) does only that.
+                if(b.button == &HandInput::stickClick && seated::stickPress(h, now))
+                {
+                    logButton(h, b, now, b.key[h], "the crouch toggle");
+                    continue;
+                }
                 // A stick press chosen to start bullet time (vr_bullettime_trigger) does only that in the game; its
                 // bound key (LTHUMB: +speed, RTHUMB: +reloadmain by default) is never sent.
                 if(b.button == &HandInput::stickClick && bullettime::stickPress(h, now))
                 {
                     logButton(h, b, now, b.key[h], "bullet time");
+                    continue;
+                }
+                // A grip in a holster zone switched to dragging takes hold of it (vr_holster_zone_<kind>_drag): never the
+                // game's (no gun drawn or put away there).
+                if(b.button == &HandInput::grip && zones::dragGrip(h, now))
+                {
+                    logButton(h, b, now, b.key[h], "a holster zone's drag");
                     continue;
                 }
                 // An empty hand at the cord's handle of the chainsaw in the other takes the cord (vr_chainsaw.cpp).
@@ -626,6 +685,12 @@ void update(const InputState& tracked)
                         continue;
                     }
                 }
+                // A grip on the menu panel's frame takes hold of it (vr_menu_grab).
+                if(b.button == &HandInput::grip && menuui::gripButton(h, now))
+                {
+                    logButton(h, b, now, b.key[h], "the menu panel's grab");
+                    continue;
+                }
                 // A trigger pointing at the menu is its mouse button.
                 const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];
                 logButton(h, b, now, key, nullptr);
@@ -650,7 +715,10 @@ void update(const InputState& tracked)
         const bool menuNow = in.hands[h].menu || menuGestures.press[h];
         const bool menuBefore = menuGestures.menuWas[h];
         menuGestures.menuWas[h] = menuNow;
-        if(menuNow == menuBefore || !posing::button(h, posing::Button::Menu, menuNow))
+        if(menuNow == menuBefore ||
+            (!holstersetup::button(h, posing::Button::Menu, menuNow) && !bladeedit::button(h, posing::Button::Menu, menuNow) &&
+                !posestudio::button(h, posing::Button::Menu, menuNow) &&
+                !posing::button(h, posing::Button::Menu, menuNow)))
         {
             menuButton(h, menuNow, menuBefore, menuGestures.press[h] ? menuGestures.source[h] : "menu button");
         }
@@ -659,6 +727,7 @@ void update(const InputState& tracked)
     // A grip pressed on the way to the flashlight takes it as the hand comes to rest there: the game saw the press,
     // it sees the grip let go now (the release is the flashlight's).
     flashlight::lateGrips();
+    zones::dragFrame(); // (a holster zone held by a hand follows it)
     for(int g = 0; g < HAND_COUNT; g++)
     {
         if(flashlight::tookGrip(g))
@@ -673,6 +742,10 @@ void update(const InputState& tracked)
         // The off hand's stick navigates and changes values (the arrow keys). The main hand's only
         // scrolls (on a page with a scrollbar) or moves the selection up and down: its left and
         // right do nothing, so that navigating never changes a setting by accident (round 20).
+        if(glm::length(off.stick) > 0.3f || glm::length(main.stick) > 0.3f)
+        {
+            menuui::sticksPushed(); // (a grip held on the panel is the fine modifier, not its grab)
+        }
         const bool scrolls = menuui::scrollStick(main.stick.y);
         if(scrolls && za::fabs(main.stick.y) > 0.3f)
         {
@@ -693,15 +766,46 @@ void update(const InputState& tracked)
         stickKey(stickKeys[3], stick.x, true);
         moveAxes = glm::vec2{0.f};
     }
+    else if(poselive::sticksTaken())
+    {
+        // The Pose Studio's Live mode paused: either stick left or right scrubs its tape (no walking, no turning).
+        for(StickKey& k : stickKeys)
+        {
+            stickKey(k, 0.f, false);
+        }
+        moveAxes = glm::vec2{0.f};
+        poselive::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
+    }
     else if(toolgun::sticksTaken())
     {
-        // The toolgun's X/A held: the sticks move and turn what it places or holds (no walking, no turning).
+        // The toolgun's physgun holding something, or its X/A held: the sticks move and turn what it holds or places (no
+        // walking, no turning).
         for(StickKey& k : stickKeys)
         {
             stickKey(k, 0.f, false);
         }
         moveAxes = glm::vec2{0.f};
         toolgun::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
+    }
+    else if(holstersetup::active())
+    {
+        // Holster Setup: the player stands still (the game paused); the stick of a hand holding a holster resizes it.
+        for(StickKey& k : stickKeys)
+        {
+            stickKey(k, 0.f, false);
+        }
+        moveAxes = glm::vec2{0.f};
+        holstersetup::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
+    }
+    else if(bladeedit::active())
+    {
+        // Edit Blade Shape: the player stands still while the hands shape the blade.
+        for(StickKey& k : stickKeys)
+        {
+            stickKey(k, 0.f, false);
+        }
+        moveAxes = glm::vec2{0.f};
+        bladeedit::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
     }
     else if(posing::active())
     {
@@ -759,8 +863,8 @@ bool primaryHeld(int hand)
 // analog, moves at cl_forwardspeed in every direction (as the old engine did). The server steers by
 // the head (.v_viewangle): with
 // vr_movement_mode 1 the stick moves relative to the head; with 0 it moves where the moving hand
-// (hands::moveHand) points, with 2 the left hand, 3 the right hand, expressed relative to the head. Either way, pointing it up or down while
-// pushing forward swims up or down (from the old engine's VR_Move).
+// (hands::moveHand) points, with 2 the left hand, 3 the right hand, expressed relative to the head. Either way, pointing what
+// steers (the head in mode 1, else that hand) up or down while pushing forward swims up or down (from the old engine's VR_Move).
 extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove)
 {
     if(moveAxes == glm::vec2{0.f})
@@ -776,10 +880,10 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
     float side = moveAxes.x;
 
     const int mode = static_cast<int>(vr_movement_mode.value);
+    // 2 the left hand, 3 the right hand; 0 the moving stick's (1: the head steers).
+    const int hand = mode == 2 ? HAND_OFF : mode == 3 ? HAND_MAIN : hands::moveHand();
     if(s.valid && mode != 1)
     {
-        // 2 the left hand, 3 the right hand; 0 the moving stick's.
-        const int hand = mode == 2 ? HAND_OFF : mode == 3 ? HAND_MAIN : hands::moveHand();
         glm::vec3 lfwd, lright, lup;
         hands::angleVectors(s.rot[hand], lfwd, lright, lup);
 
@@ -812,7 +916,9 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
 
     if(s.valid)
     {
-        *upmove += cl_upspeed.value * moveAxes.y * hands::forward(s.rot[hands::moveHand()]).z * speedScale;
+        // Swimming up or down follows what steers: the head (mode 1) or the steering hand.
+        const glm::vec3 steerFwd = mode == 1 ? hands::forward(s.headAngles) : hands::forward(s.rot[hand]);
+        *upmove += cl_upspeed.value * moveAxes.y * steerFwd.z * speedScale;
     }
 }
 
@@ -826,7 +932,8 @@ bool jumping = false; // roomscaleJump: the jump key held (the head rising)
 
 void roomscaleJump(const hands::State& s)
 {
-    const bool rising = vr_roomscale_jump.value && vrActive() && s.valid && key_dest == key_game && !posing::active() &&
+    // (Seated: never; sitting up quickly would raise the head over the standing height: vr_seated.hpp.)
+    const bool rising = vr_roomscale_jump.value && !seated::active() && vrActive() && s.valid && key_dest == key_game && !posing::active() && !holstersetup::active() &&
                         s.headVel.z > vr_roomscale_jump_threshold.value && s.headHeight > vr_height_calibration.value;
     if(rising != jumping)
     {

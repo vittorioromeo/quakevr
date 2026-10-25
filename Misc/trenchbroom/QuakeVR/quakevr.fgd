@@ -176,6 +176,7 @@
 		16 : "Laser rifle (an enforcer's; its own shots)"
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
+		29 : "Nail pistol (Quake VR; a full magazine)"
 	]
 	weaponflags(choices) : "Variant" : 0 : "The weapon's variant: its alternative ammunition (Dissolution of Eternity's), or the hell knight's sword." =
 	[
@@ -543,6 +544,11 @@ Floats at torso height in VR (vr_item_float_height); taken by a hand's grip."
 [
 ]
 
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_hammer : "Arcane Dimensions' name for its Shadow Axe (weapon_upgrade_axe), in its maps."
+[
+]
+
 @PointClass base(Weapon) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/g_laserg.mdl" }) =
 	weapon_laser_gun : "Laser cannon (Scourge of Armagon)
 
@@ -570,6 +576,20 @@ hand's grip. Its sounds come from the Scourge of Armagon's files (hipnotic)."
 	weapon_nailgun : "Nailgun
 
 Floats at torso height in VR (vr_item_float_height); taken by a hand's grip."
+[
+]
+
+@PointClass base(Weapon) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/v_nailpistol.mdl" }) =
+	weapon_nailpistol : "Nail pistol (Quake VR)
+
+Quake VR's own sidearm: one-handed and semi-automatic (a shot each pull of the trigger), fast, precise nails from a
+12-round magazine in its grip, fed from your nails (immersive reloading: the magazine ejected, a new one from the ammo
+pouch slapped up into the grip). Picked up as the other weapons are, with 24 nails. Its own model lies there."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_plasmagun : "Arcane Dimensions' name for its Plasma Gun (weapon_upgrade_lg), in its maps."
 [
 ]
 
@@ -630,6 +650,26 @@ freezes, scales and joins things, and its menu (B or Y) has the cheats. It drops
 floor, a physics object as func_weapon_grabbable's weapons (the same as one with weapon 19). It uses no ammunition."
 [
 	angles(string) : "Pitch yaw roll" :  : "How it lies before it falls (none: any way)."
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_upgrade_axe : "Arcane Dimensions' Shadow Axe, in its maps (vr_ad_bridge.qc): the axe, and every axe you hold hits as AD's (35 for 20)."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_upgrade_ghook : "Arcane Dimensions' grappling hook: Quake VR's is the player's own (Movement > Grappling Hook); nothing to pick up."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_upgrade_lg : "Arcane Dimensions' Plasma Gun, in its maps (vr_ad_bridge.qc): the lightning gun, and every one you hold fires AD's plasma bolts."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 0, 16 16 56) =
+	weapon_upgrade_ssg : "Arcane Dimensions' Widowmaker, in its maps (vr_ad_bridge.qc): the super shotgun, and every one you hold fires AD's 21 pellets for 3 shells; reloaded at the hip."
+[
 ]
 
 //
@@ -796,6 +836,17 @@ are physics objects: carried by hand, taken at a holster or by walking over them
 		1 : "Rotten" : 0
 		2 : "Megahealth" : 0
 	]
+]
+
+@PointClass color(76 76 255) size(-8 -8 0, 8 8 32) =
+	item_healthgem : "The health vial's old name (Arcane Dimensions)."
+[
+]
+
+@PointClass color(76 76 255) size(-8 -8 0, 8 8 32) =
+	item_healthvial : "2-5 health (Arcane Dimensions; needs its data)."
+[
+	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
 ]
 
 @PointClass color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/horn.mdl" }) =
@@ -1408,6 +1459,25 @@ delay - seconds after first sighting before it attacks (default 10)"
 	]
 ]
 
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 40) =
+	monster_vr_enforcer : "An armed enforcer (experimental): an enforcer holding one of your weapons (its laser rifle's place). 'weapon': its weapon (as monster_vr_grunt's: WID_*, -1 its fists, 0 or unset: one from the pool). 'weaponflags': that weapon's flags.
+'weapon2', 'weaponflags2': a second one-handed weapon in its left hand (as monster_vr_grunt's)."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+]
+
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 40) =
+	monster_vr_grunt : "An armed grunt (experimental): a grunt holding one of your weapons. 'weapon': its weapon (WID_*: 2 axe, 4 shotgun, 5 super shotgun, 6 nailgun, 7 super nailgun, 8 grenade launcher, 10 rocket launcher, 11 thunderbolt, 13 sword, 14 chainsaw, 15 grunt's rifle, 16 laser rifle, 17 crowbar; with Arcane Dimensions' data 20 AD rocket launcher, 21 AD grenade launcher, 22 plasma rifle, 23 defender's shotgun, 25 centurion's plasma gun, 26 flamethrower, 27 poison sprayer, 28 crossbow, 101 Shadow Axe, 102 Widowmaker, 103 Plasma Gun, 111..116 AD's swords, hammer and mace, 118 Dark Prince's sword, 119 justice knight's, 120 judicator's; with Rogue's data 117 Phantom sword; -1 its fists; 0 or unset: one from the pool). 'weaponflags': that weapon's flags. 'weapon2', 'weaponflags2': a second weapon in its left hand (both one-handed: 2 axe, 13 sword, 17 crowbar, 101 Shadow Axe, 111..114 and 117..120 AD's swords; else one weapon)."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+]
+
 @PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/wizard.mdl" }) =
 	monster_wizard : "Scrag (wizard)
 
@@ -1477,7 +1547,7 @@ Candle Default light value is 200 Default style is 0"
 [
 ]
 
-@PointClass color(0 255 0) size(-10 -10 -40, 10 10 40) model({ "path": "progs/flame3.mdl" }) =
+@PointClass color(0 255 0) size(-10 -10 -40, 10 10 40) =
 	light_flame_gas : "Owned campaign gas flare: two translucent flame3 models; its flame can relight a held VR torch and burn tracked hands."
 [
 	spawnflags(flags) =
@@ -2532,6 +2602,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		16 : "Laser rifle (an enforcer's; its own shots)"
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
+		29 : "Nail pistol (Quake VR; a full magazine)"
 	]
 ]
 

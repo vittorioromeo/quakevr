@@ -382,7 +382,7 @@ void consoleMouse(float x, float y)
 void openConsolePage()
 {
     const int target = pageIndex(pageConsole);
-    if(m_state == m_vr && page == target)
+    if(m_state == m_vr && ui().page == target)
     {
         S_LocalSound("misc/menu1.wav");
         return;

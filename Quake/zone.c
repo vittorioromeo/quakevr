@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // zone.c
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 
 // QVR: 32 MiB (was 4): the zone holds every cvar's value and default (Quake VR has tens of thousands: the per-weapon and
 // per-prop settings) and every command's arguments; a full zone is a Sys_Error ("Z_Malloc: failed"). Usage: vr_limits.
@@ -120,6 +121,7 @@ void Z_Free (void *ptr)
 	if (block->tag == 0)
 		Sys_Error ("Z_Free: freed a freed pointer");
 
+	VR_TracyFree(ptr);
 	block->tag = 0;		// mark as free
 	zone_used -= block->size; // QVR: (vr_limits)
 
@@ -204,6 +206,7 @@ static void *Z_TagMalloc (int size, int tag)
 // marker for memory trash testing
 	*(int *)((byte *)base + base->size - 4) = ZONEID;
 
+	VR_TracyAlloc(base + 1, base->size, 0, 0);
 	return (void *) ((byte *)base + sizeof(memblock_t));
 }
 
@@ -354,6 +357,7 @@ typedef struct hunkseg_s
 #define LASTSEG			(hunk_segments[hunk_numsegments-1])
 
 static int				hunk_low_used;
+static int				hunk_keep_mark; // QVR: Hunk_KeepLoaded: frees stop here
 static int				hunk_numsegments;
 static hunkseg_t		*hunk_segments[MAX_SEGMENTS];
 
@@ -641,6 +645,7 @@ static void *Hunk_AllocInternal (int size, const char *name, hunkflags_t flags)
 
 	seg = hunk_segments[i];
 	h = (hunk_t *) (SEG_MEM (seg) + hunk_low_used - seg->base);
+	VR_TracyAllocationWindow(1); // cache relocation can call tracing while this new header is not initialized
 	hunk_low_used += size;
 	seg->used = hunk_low_used - seg->base;
 
@@ -656,6 +661,8 @@ static void *Hunk_AllocInternal (int size, const char *name, hunkflags_t flags)
 	else
 		h->name[0] = '\0';
 
+	VR_TracyAllocationWindow(0);
+	VR_TracyAlloc(h + 1, h->size, 1, hunk_low_used);
 	return (void *)(h+1);
 }
 
@@ -729,9 +736,45 @@ void Hunk_FreeToLowMark (int mark)
 	if (mark < 0 || mark > hunk_low_used)
 		Sys_Error ("Hunk_FreeToLowMark: bad mark %i", mark);
 
+	// QVR: never under a model kept on the hunk (Hunk_KeepLoaded): one loaded inside this temporary allocation (a late
+	// precache from QuakeC run in a touch or a push, which hold their lists here) stays, and the list under it until the
+	// map's end (Hunk_ClearKeep)
+	if (mark < hunk_keep_mark && hunk_keep_mark <= hunk_low_used)
+	{
+		Con_DPrintf ("Hunk_FreeToLowMark: %i bytes held under a model loaded inside them, until the map's end\n",
+			hunk_keep_mark - mark);
+		mark = hunk_keep_mark;
+	}
+
+	VR_TracyHunkReset(mark);
 	hunk_low_used = mark;
 	for (i = Hunk_SegForOfs (hunk_low_used); i < hunk_numsegments; i++)
 		hunk_segments[i]->used = q_max (0, hunk_low_used - hunk_segments[i]->base);
+}
+
+/*
+===================
+Hunk_KeepLoaded -- QVR
+
+A model whose data stays on the hunk (a sprite, a brush model) was just loaded: nothing frees under it until
+Hunk_ClearKeep. Quake loads them only with the map, with no temporary allocation open; Quake VR also loads them during
+play (a late precache: VR_LatePrecacheModel), maybe from QuakeC called while one is open (SV_TouchLinks, VR_TouchLinks,
+SV_PushMove keep their lists on the hunk), whose free would otherwise hand the model's memory to the cache.
+===================
+*/
+void Hunk_KeepLoaded (void)
+{
+	hunk_keep_mark = hunk_low_used;
+}
+
+/*
+===================
+Hunk_ClearKeep -- QVR: the memory is cleared (Host_ClearMemory), the models with it
+===================
+*/
+void Hunk_ClearKeep (void)
+{
+	hunk_keep_mark = 0;
 }
 
 char *Hunk_Strdup (const char *s, const char *name)
@@ -784,6 +827,7 @@ void Cache_Move ( cache_system_t *c)
 		Q_memcpy (new_cs->name, c->name, sizeof(new_cs->name));
 		Cache_Free (c->user, false); //johnfitz -- added second argument
 		new_cs->user->data = (void *)(new_cs+1);
+		VR_TracyAlloc(new_cs + 1, new_cs->size, 2, 0);
 	}
 	else
 	{
@@ -802,6 +846,7 @@ Throw things out until the hunk can be expanded to the given point
 */
 void Cache_FreeLow (int new_low_hunk)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	cache_system_t	*c;
 	hunkseg_t		*seg;
 	int				ofs;
@@ -933,6 +978,7 @@ Throw everything out, so new data will be demand cached
 */
 void Cache_Flush (void)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	while (cache_head.next != &cache_head)
 		Cache_Free ( cache_head.next->user, true); // reclaim the space //johnfitz -- added second argument
 }
@@ -944,6 +990,7 @@ Cache_FlushExcept -- QVR: Cache_Flush, but the entries `keep` accepts stay (a ca
 */
 void Cache_FlushExcept (qboolean (*keep) (cache_user_t *c))
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	cache_system_t	*cs, *next;
 
 	for (cs = cache_head.next; cs != &cache_head; cs = next)
@@ -1004,12 +1051,14 @@ Frees the memory and removes it from the LRU list
 */
 void Cache_Free (cache_user_t *c, qboolean freetextures) //johnfitz -- added second argument
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	Zone_CheckThread ();
 	cache_system_t	*cs;
 
 	if (!c->data)
 		Sys_Error ("Cache_Free: not allocated");
 
+	VR_TracyFree(c->data);
 	cs = ((cache_system_t *)c->data) - 1;
 
 	cs->prev->next = cs->next;
@@ -1054,11 +1103,23 @@ void *Cache_Check (cache_user_t *c)
 
 /*
 ==============
+Cache_Peek -- QVR: the data, or NULL; the LRU left alone, so any thread may (the sound mix on the thread pool, S_MixKick:
+the main thread frees, moves or allocates only after joining it)
+==============
+*/
+void *Cache_Peek (const cache_user_t *c)
+{
+	return c->data;
+}
+
+/*
+==============
 Cache_Alloc
 ==============
 */
 void *Cache_Alloc (cache_user_t *c, int size, const char *name)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	Zone_CheckThread ();
 	cache_system_t	*cs;
 
@@ -1089,6 +1150,7 @@ void *Cache_Alloc (cache_user_t *c, int size, const char *name)
 		Cache_Free (cache_head.lru_prev->user, true); //johnfitz -- added second argument
 	}
 
+	VR_TracyAlloc(c->data, cs->size, 2, 0);
 	return Cache_Check (c);
 }
 
@@ -1148,3 +1210,73 @@ void Memory_Init (void *buf, int size)
 	Cmd_AddCommand ("hunk_print", Hunk_Print_f); //johnfitz
 }
 
+
+#ifdef QVR_TRACY
+// Called only when starting a memory session, before allocator mutation. Physical block sizes include headers.
+void Memory_TracySnapshot(void)
+{
+    memblock_t *b;
+    cache_system_t *c;
+    int i, ofs;
+    if(mainzone)
+        for(b = mainzone->blocklist.next; b != &mainzone->blocklist; b = b->next)
+            if(b->tag) VR_TracyAlloc(b + 1, b->size, 0, 0);
+    for(i = 0; i < hunk_numsegments; ++i)
+        for(ofs = 0; ofs < hunk_segments[i]->used;)
+        {
+            hunk_t *h = (hunk_t *)(SEG_MEM(hunk_segments[i]) + ofs);
+            if(h->size <= 0) break; // unused padding between segments
+            ofs += h->size;
+            VR_TracyAlloc(h + 1, h->size, 1, hunk_segments[i]->base + ofs);
+        }
+    if(cache_head.next)
+        for(c = cache_head.next; c != &cache_head; c = c->next)
+            if(c->user) VR_TracyAlloc(c + 1, c->size, 2, 0);
+    VR_TracyPlot("Zone physical bytes", zone_used);
+    VR_TracyPlot("Hunk physical bytes", hunk_low_used);
+}
+#endif
+
+#ifdef QVR_TRACY
+void Memory_TracyPlots(void)
+{
+    cache_system_t *c;
+    double bytes = 0;
+    for(c = cache_head.next; c && c != &cache_head; c = c->next) bytes += c->size;
+    VR_TracyPlot("Zone physical bytes", zone_used);
+    VR_TracyPlot("Hunk physical bytes", hunk_low_used);
+    VR_TracyPlot("Cache physical bytes", bytes);
+}
+#endif
+
+#ifdef QVR_TRACY
+// Independent live allocator traversal reconciles the event ledger, including reset/move/realloc boundaries.
+void Memory_TracyValidate(void)
+{
+    memblock_t *b;
+    cache_system_t *c;
+    unsigned long long count[3] = {0}, bytes[3] = {0};
+    int i, ofs;
+    if(mainzone)
+        for(b = mainzone->blocklist.next; b != &mainzone->blocklist; b = b->next)
+            if(b->tag) { ++count[0]; bytes[0] += b->size; }
+    for(i = 0; i < hunk_numsegments; ++i)
+        for(ofs = 0; ofs < hunk_segments[i]->used;)
+        {
+            hunk_t *h = (hunk_t *)(SEG_MEM(hunk_segments[i]) + ofs);
+            if(h->size <= 0) break;
+            ofs += h->size;
+            ++count[1]; bytes[1] += h->size;
+        }
+    if(cache_head.next)
+        for(c = cache_head.next; c != &cache_head; c = c->next)
+            if(c->user) { ++count[2]; bytes[2] += c->size; }
+    for(i = 0; i < 3; ++i) VR_TracyCheckPool(i, count[i], bytes[i]);
+}
+int Memory_TracyCacheMove(cache_user_t *c)
+{
+    void *old = c->data;
+    Cache_Move(((cache_system_t *)old) - 1);
+    return c->data && c->data != old;
+}
+#endif

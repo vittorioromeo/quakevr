@@ -637,6 +637,7 @@ void() oldnew_spam_touch =
     }
     else if(other.health)
     {
+        VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         T_Damage(other, self.owner, self, 10);
         mg3_shub_spamhits = mg3_shub_spamhits + 1;
         remove(self);
@@ -796,6 +797,7 @@ void() blast_touch =
     }
     if(other.solid == SOLID_TRIGGER)
         return; // trigger field, do nothing
+    VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
     if(other.health)
         T_Damage(other, self, self.owner, 15);
     remove(self);
@@ -960,8 +962,10 @@ void() eye_touch =
         return;
     if(other == self.owner)
         return;
+    VR_Proj_Begin(QVR_PROJ_BOLT, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
     if(other.health)
         T_Damage(other, self, self.owner, 500);
+    VR_Proj_End();
 };
 
 entity(vector org) MG3_Shub_SeekerEye =
@@ -974,6 +978,7 @@ entity(vector org) MG3_Shub_SeekerEye =
     setsize(e, VEC_HULL2_MIN, VEC_HULL2_MAX);
     e.solid = SOLID_SLIDEBOX;
     e.movetype = MOVETYPE_FLY;
+    VR_Proj_Mark(e); // (a projectile: it meets corpses, gibs, knocked-down bodies: weapons.qc)
     e.takedamage = DAMAGE_AIM;
     e.think = eye_chase;
     e.th_run = eye_chase;
@@ -1014,6 +1019,7 @@ void() sphere_mis_touch =
         remove(self);
         return;
     }
+    VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
     if(other.takedamage)
         T_Damage(other, self, self.owner, 18);
     remove(self);

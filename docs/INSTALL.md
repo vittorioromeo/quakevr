@@ -439,7 +439,7 @@ only comes back after restarting SteamVR or Virtual Desktop too, it's them.
 
 ## Troubleshooting and bug reports
 
-**If the game crashes, or VR doesn't start, run the Start menu's Quake VR Unleashed (Diagnostics) shortcut and send us
+**If the game crashes, or VR doesn't start, run the Start menu's Quake VR Unleashed (diagnostics) shortcut and send us
 the folder it names.** You can also add `-diagnostics` to the command line, or use `QuakeVR.bat -diagnostics` for a
 zip install. Play until the problem happens, then quit. The game puts everything a report needs in one folder,
 `quakevr\diagnostics\<date>_<time>`, and opens that folder when you quit:

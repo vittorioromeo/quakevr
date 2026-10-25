@@ -38,6 +38,27 @@ enum class Material : int
 };
 
 [[nodiscard]] Material materialOf(const char* texture);
+
+// Small helpers (also vr_crates.cpp's): FNV-1a of a string, a line through the level only (no entities), the contents
+// at a point.
+[[nodiscard]] uint64_t hashString(const char* s, uint64_t h = 1469598103934665603ull);
+
+// What a map-start plan (the rocks', the crates') is made from, hashed: equal keys make the same plan, so a restart of
+// the map (a death in AD: their 200-250 ms) takes the last one again (vr_place_keep). planKey: the map (its name, the
+// game directory, the world's geometry, textures and light), the settings (every vr_crate*, vr_debris* and vr_place_*
+// cvar, vr_world_scale, the player count), the entities' boxes as the plan finds them (obstacles), the edicts' count;
+// each planner adds its models' sizes and skins (add).
+struct PlanKey
+{
+    uint64_t h = 1469598103934665603ull;
+    uint64_t parts[4]{}; // (vr_debug_crates, vr_debug_debris: the key after the settings, the map, the entities, all)
+    void add(const void* data, za::SizeT bytes);
+    void add(float v) { add(&v, sizeof(v)); }
+    void add(int v) { add(&v, sizeof(v)); }
+    void add(const char* s);
+};
+[[nodiscard]] trace_t traceLine(const glm::vec3& a, const glm::vec3& b);
+[[nodiscard]] int contents(const glm::vec3& p);
 [[nodiscard]] const char* materialName(Material m);
 
 // What entities a piece (or a crate: vr_crates.cpp) keeps away from: their boxes, grown by a margin.
@@ -51,6 +72,7 @@ struct Obstacle
 // (doors, lifts and whatever moves 48 units and as far as they go; teleporters, changelevels, starts 64; other triggers
 // 24; items, weapons, monsters, explosive boxes, torches 40; anything else with a model or a solid 24) and `extra`.
 void gatherObstacles(za::Vector<Obstacle>& out, float extra = 0.f);
+[[nodiscard]] PlanKey planKey(const za::Vector<Obstacle>& obstacles);
 
 // A number the map's worldspawn sets for Quake VR (`key`: "_vr_debris", "_vr_crates", "_vr_tips_repeat"), `absent` if
 // it has none. (QC cannot read these: the engine drops the keys that start with '_' as it spawns the entities.)

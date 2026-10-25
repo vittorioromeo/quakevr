@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_world.c: world model rendering
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 extern cvar_t gl_fullbrights, r_oldskyleaf, r_showtris; //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
@@ -47,9 +48,14 @@ typedef struct gpumark_frame_s {
 	GLuint		oldskyleaf;
 	GLuint		framecount;
 	GLuint		padding[3];
+	vec3_t		vieworg2;	// QVR: single-pass stereo: the other eye's (a surface either eye faces is kept); else vieworg
+	GLuint		padding2;
 } gpumark_frame_t;
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
+
+static byte *r_stereovis; // QVR: single-pass stereo: both eyes' PVS (R_MarkSurfaces)
+static size_t r_stereovissize;
 
 /*
 ===============
@@ -77,6 +83,10 @@ static void R_MarkVisSurfaces (byte* vis)
 	frame.vieworg[0] = r_refdef.vieworg[0];
 	frame.vieworg[1] = r_refdef.vieworg[1];
 	frame.vieworg[2] = r_refdef.vieworg[2];
+	VectorCopy (frame.vieworg, frame.vieworg2); // QVR
+	if (VR_StereoSinglePhase () == 1)
+		VR_StereoSingleEyeOrigin (1, frame.vieworg2);
+	frame.padding2 = 0;
 	frame.oldskyleaf = r_oldskyleaf.value != 0.f;
 	frame.framecount = r_framecount;
 
@@ -84,22 +94,30 @@ static void R_MarkVisSurfaces (byte* vis)
 	COMPILE_TIME_ASSERT (vis_alignment_must_be_multiple_of_uint, (VIS_ALIGN & 3) == 0);
 	vissize = (vissize + VIS_ALIGN_MASK) & ~VIS_ALIGN_MASK; // round up
 
+	GL_BeginGroup ("cs: clear indirect draws"); // QVR: (vr_gl_markers)
 	GL_UseProgram (glprogs.clear_indirect);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 1, gl_bmodel_indirect_buffer, 0, cl.worldmodel->texofs[TEXTYPE_COUNT] * sizeof(bmodel_draw_indirect_t));
 	GL_DispatchComputeFunc ((cl.worldmodel->texofs[TEXTYPE_COUNT] + 63) / 64, 1, 1);
 	GL_MemoryBarrierFunc (GL_SHADER_STORAGE_BARRIER_BIT);
+	GL_EndGroup (); // QVR
 
 	GL_UseProgram (glprogs.cull_mark);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, gl_bmodel_ibo, 0, gl_bmodel_ibo_size);
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, vis, vissize, &buf, &ofs);
+#ifdef QVR_TRACY
+	for (i = 0; i < (cl.worldmodel->numleafs + 7) >> 3; i++) // QVR: profile (the Tracy plot: the leaves this view's PVS holds)
+		vr_profcounts.worldleaves += __builtin_popcount (vis[i]);
+#endif
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 3, buf, (GLintptr)ofs, vissize);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 4, gl_bmodel_marksurf_buffer, 0, gl_bmodel_marksurf_buffer_size);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_surf_buffer, 0, cl.worldmodel->numsurfaces * sizeof(bmodel_gpu_surf_t));
 	GL_Upload (GL_UNIFORM_BUFFER, &frame, sizeof(frame), &buf, &ofs);
 	GL_BindBufferRange (GL_UNIFORM_BUFFER, 1, buf, (GLintptr)ofs, sizeof(frame));
 
+	GL_BeginGroup ("cs: cull and mark world surfaces"); // QVR: (vr_gl_markers)
 	GL_DispatchComputeFunc ((nummark + 63) / 64, 1, 1);
 	GL_MemoryBarrierFunc (GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT | GL_ELEMENT_ARRAY_BARRIER_BIT);
+	GL_EndGroup (); // QVR
 
 	GL_EndGroup ();
 }
@@ -109,31 +127,60 @@ static void R_MarkVisSurfaces (byte* vis)
 R_MarkSurfaces
 ===============
 */
-void R_MarkSurfaces (void)
+static byte *R_ChooseVis (mleaf_t *viewleaf, const vec3_t origin) // QVR: (split out: single-pass stereo's other eye)
 {
-	byte		*vis;
 	int			i;
 	qboolean	nearwaterportal;
 
 	// check this leaf for water portals
 	// TODO: loop through all water surfs and use distance to leaf cullbox
 	nearwaterportal = false;
-	for (i=0; i < r_viewleaf->nummarksurfaces; i++)
-		if (cl.worldmodel->surfaces[r_viewleaf->firstmarksurface[i]].flags & SURF_DRAWTURB)
+	for (i=0; i < viewleaf->nummarksurfaces; i++)
+		if (cl.worldmodel->surfaces[viewleaf->firstmarksurface[i]].flags & SURF_DRAWTURB)
 			nearwaterportal = true;
 
 	// choose vis data
-	if (r_novis.value || r_viewleaf->contents == CONTENTS_SOLID || r_viewleaf->contents == CONTENTS_SKY)
-		vis = Mod_NoVisPVS (cl.worldmodel);
+	if (r_novis.value || viewleaf->contents == CONTENTS_SOLID || viewleaf->contents == CONTENTS_SKY)
+		return Mod_NoVisPVS (cl.worldmodel);
 	else if (nearwaterportal)
 	{
 		vec3_t pvsorigin;
-		VectorCopy (r_origin, pvsorigin);
+		VectorCopy (origin, pvsorigin);
 		VR_PortalPVSOrigin (pvsorigin); // QVR: through a teleporter, round the destination, not the camera behind it
-		vis = SV_FatPVS (pvsorigin, cl.worldmodel);
+		return SV_FatPVS (pvsorigin, cl.worldmodel);
 	}
 	else
-		vis = Mod_LeafPVS (r_viewleaf, cl.worldmodel);
+		return Mod_LeafPVS (viewleaf, cl.worldmodel);
+}
+
+void R_MarkSurfaces (void)
+{
+	byte		*vis;
+
+	vis = R_ChooseVis (r_viewleaf, r_origin);
+	if (VR_StereoSinglePhase () == 1) // QVR: single-pass stereo: what either eye's leaf sees
+	{
+		vec3_t		other;
+		mleaf_t		*otherleaf;
+		VR_StereoSingleEyeOrigin (1, other);
+		otherleaf = Mod_PointInLeaf (other, cl.worldmodel);
+		if (otherleaf != r_viewleaf)
+		{
+			size_t i, size = (((cl.worldmodel->numleafs + 7) >> 3) + VIS_ALIGN_MASK) & ~VIS_ALIGN_MASK; // (as the vis buffers)
+			byte *othervis;
+			if (r_stereovissize < size)
+			{
+				free (r_stereovis);
+				r_stereovis = (byte *) malloc (size);
+				r_stereovissize = size;
+			}
+			memcpy (r_stereovis, vis, size);
+			othervis = R_ChooseVis (otherleaf, other);
+			for (i = 0; i < size; i++)
+				r_stereovis[i] |= othervis[i];
+			vis = r_stereovis;
+		}
+	}
 
 	r_visframecount++;
 
@@ -169,6 +216,7 @@ typedef struct bmodel_gpu_instance_s {
 	float		woundbox[4];	// QVR: its box's centre, 1 / its largest side
 	float		retro[4];	// QVR: retro textures (vr/vr_retro.h): its set (VR_RetroInstance)
 	float		portalclip[4];
+	float		prevworld[12];	// QVR: its matrix one frame ago (temporal AA's motion vectors: vr/vr_temporal.cpp)
 } bmodel_gpu_instance_t;
 
 typedef struct bmodel_bindless_gpu_call_s {
@@ -181,7 +229,7 @@ typedef struct bmodel_bindless_gpu_call_s {
 	GLuint64	padding;	// QVR: (uvclamp on 16 bytes, as std430 places it)
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
-	GLfloat		extmat[4];	// QVR: the external maps' numbers (VR_ExtMapsCall)
+	GLfloat		extmat[4];	// QVR: x/w generated normal/height multipliers; y/z external sheen/hardness
 	GLfloat		retro[4];	// QVR: retro textures (VR_RetroCall): the texture's Quake size, its set
 } bmodel_bindless_gpu_call_t;
 
@@ -192,7 +240,7 @@ typedef struct bmodel_bound_gpu_call_s {
 	GLint		padding;
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
-	GLfloat		extmat[4];	// QVR: the external maps' numbers (VR_ExtMapsCall)
+	GLfloat		extmat[4];	// QVR: x/w generated normal/height multipliers; y/z external sheen/hardness
 	GLfloat		retro[4];	// QVR: retro textures (VR_RetroCall)
 } bmodel_bound_gpu_call_t;
 
@@ -215,6 +263,7 @@ static union {
 static bmodel_gpu_call_remap_t		bmodel_call_remap[MAX_BMODEL_DRAWS];
 static int							num_bmodel_calls;
 static GLuint						bmodel_batch_program;
+static int							bmodel_relief_filter; // QVR: R_AddBModelCall keeps 0 every call, 1 only those with parallax relief, 2 only those without (R_DrawSolidSplit)
 
 /*
 =============
@@ -231,6 +280,11 @@ static void R_BModelMatrix (entity_t *ent, float mat[16]) // QVR: (R_PaintBrushW
 	R_EntityMatrix (mat, ent->origin, angles, ent == &cl_entities[0] ? ENTSCALE_DEFAULT : ent->scale);
 	if (ent != &cl_entities[0]) // QVR
 		VR_BrushTransform (ent, mat); // QVR
+}
+
+void VR_BModelMatrix (entity_t *ent, float mat[16]) // QVR: (vr/vr_permdecals.cpp: a mark on a door into its own space)
+{
+	R_BModelMatrix (ent, mat);
 }
 
 // QVR: a brush prop (not a map's door or lift) drawn split by a teleporter (vr/vr_portals.cpp): R_SortEntities keeps it
@@ -254,14 +308,15 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	R_BModelMatrix (ent, mat); // QVR: (shared with R_PaintBrushWounds)
 
 	MatrixTranspose4x3 (mat, inst->world);
+	VR_TemporalBrushPrev (ent, inst->world, inst->prevworld); // QVR
 
-	inst->alpha = ent->alpha == ENTALPHA_DEFAULT ? -1.f : ENTALPHA_DECODE (ent->alpha);
+	inst->alpha =ent->alpha == ENTALPHA_DEFAULT ? -1.f : ENTALPHA_DECODE (ent->alpha);
 	memset (&inst->padding, 0, sizeof(inst->padding));
 	inst->padding[0] = ent == &cl_entities[0] ? 0.f : VR_EntityGlow (ent); // QVR: the shader's glow
 	inst->padding[1] = VR_ParallaxDepth (ent, mat, NULL, 1); // QVR: its parallax depth in units (vr_parallax)
 	inst->padding[2] = ent == &cl_entities[0] ? 0.f : VR_BrushAOSelf (ent); // QVR: its own dynamic occlusion group (vr/vr_ao.cpp)
 	VR_RetroInstance (ent, inst->retro); // QVR: retro textures (vr/vr_retro.cpp)
-	inst->retro[3] = ent == &cl_entities[0] ? 1.f : 0.f; // QVR: the world: its decals (vr/vr_decals.cpp, QVR_WORLD_FS_DECALS)
+	inst->retro[3] = ent == &cl_entities[0] || VR_IsRuntimeBrushModel (ent->model) ? 1.f : 0.f; // QVR: the world and the boxes made in the game (vr/vr_brushes.cpp): their decals (vr/vr_decals.cpp, QVR_WORLD_FS_DECALS)
 	if (ent == &cl_entities[0]) // QVR: a held prop's blood (vr/vr_wounds.cpp)
 	{
 		memset (inst->wound, 0, sizeof (inst->wound));
@@ -359,6 +414,7 @@ static void R_FlushBModelCalls (void)
 
 	GL_ReserveDeviceMemory (GL_DRAW_INDIRECT_BUFFER, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls, &cmdbuf, &dstcmdofs);
 
+	GL_BeginGroup ("cs: gather indirect draws"); // QVR: (vr_gl_markers)
 	GL_UseProgram (glprogs.gather_indirect);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 5, gl_bmodel_indirect_buffer, 0, gl_bmodel_indirect_buffer_size);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 6, cmdbuf, dstcmdofs, sizeof (bmodel_draw_indirect_t) * num_bmodel_calls);
@@ -366,6 +422,7 @@ static void R_FlushBModelCalls (void)
 	GL_BindBufferRange  (GL_SHADER_STORAGE_BUFFER, 7, buf, (GLintptr)ofs, sizeof (bmodel_call_remap[0]) * num_bmodel_calls);
 	GL_DispatchComputeFunc ((num_bmodel_calls + 63) / 64, 1, 1);
 	GL_MemoryBarrierFunc (GL_COMMAND_BARRIER_BIT);
+	GL_EndGroup (); // QVR
 
 	GL_UseProgram (bmodel_batch_program);
 	VR_RetroBind (QVR_RETRO_LUT_UNIT_WORLD); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
@@ -378,6 +435,7 @@ static void R_FlushBModelCalls (void)
 	GL_VertexAttribIPointerFunc (3, 4, GL_UNSIGNED_BYTE, sizeof (glvert_t), (void *) offsetof (glvert_t, styles));
 	GL_VertexAttribPointerFunc (4, 1, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, swellpin));
 	GL_VertexAttribPointerFunc (5, 3, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, centre));
+	GL_VertexAttribPointerFunc (6, 4, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, grime)); // QVR: the permanent decals' layer (enabled while it is read: R_DrawBrushModels_Real)
 
 	if (gl_bindless_able)
 	{
@@ -446,7 +504,10 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 
 	nm = TexMgr_NormalMap (tx); // QVR: or an external pack's, its specular map, its glow hidden (vr/vr_extmaps.cpp)
 	extflags = VR_ExtMapsCall (tx && t ? t : NULL, &nm, &spec, &fb, extmat);
-	flags = zfix | ((fb != NULL) << 1) | ((r_fullbright_cheatsafe != false) << 2) | extflags;
+	VR_PBRStrength (nm, &extmat[0], &extmat[3]); // QVR: independent component provenance after authored pack selection
+	if (bmodel_relief_filter && (extmat[3] > 0.f) != (bmodel_relief_filter == 1)) // QVR: the depth write's split (R_DrawSolidSplit): extmat[3] the relief's height (the shader's in_pdepth: 0 none)
+		return;
+	flags =zfix | ((fb != NULL) << 1) | ((r_fullbright_cheatsafe != false) << 2) | extflags;
 	if (t && TEXTYPE_ISLIQUID (t->type)) // QVR: the liquid's kind for its look (gl_shaders.h LiquidKind)
 		flags |= (t->type - TEXTYPE_FIRSTLIQUID + 1) << 3;
 	alpha = t ? GL_WaterAlphaForTextureType (t->type) : 1.f;
@@ -493,28 +554,116 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 
 /*
 =============
+R_WorldFragments_f
+
+QVR: vr_world_fragments [passes] (a debug tool: Debug > Profiling and Memory): over the next passes (16) of the opaque
+world and brush models, the fragments their depth pre-pass and their shading pass run the fragment shader on
+(pipeline statistics), and the shading pass's kept ones (samples passed): shaded over kept is the shading wasted on
+hidden pixels (whether the depth-writing programs still reject them early: vr_parallax_depth_write). Each
+pass's counts are read at once (a stall: for measuring counts, not times).
+=============
+*/
+#define QVR_GL_FRAGMENT_SHADER_INVOCATIONS 0x82F4 // GL 4.6 / ARB_pipeline_statistics_query
+typedef struct
+{
+	int		left, passes;
+	GLuint	queries[2];		// fragment shader invocations, samples passed
+	double	prepass, shaded, kept;
+	int		splits;			// the passes drawn split (R_DrawSolidSplit)
+} worldfragments_t;
+static worldfragments_t worldfragments;
+
+void R_WorldFragments_f (void)
+{
+	if (worldfragments.queries[0])
+		GL_DeleteQueriesFunc (2, worldfragments.queries);
+	memset (&worldfragments, 0, sizeof (worldfragments));
+	GL_GenQueriesFunc (2, worldfragments.queries);
+	worldfragments.left = Cmd_Argc () > 1 ? q_max (1, atoi (Cmd_Argv (1))) : 16;
+	Con_Printf ("vr_world_fragments: counting the next %d opaque world passes\n", worldfragments.left);
+}
+
+static void R_WorldFragmentsBegin (qboolean shading)
+{
+	if (worldfragments.left <= 0)
+		return;
+	GL_BeginQueryFunc (QVR_GL_FRAGMENT_SHADER_INVOCATIONS, worldfragments.queries[0]);
+	if (shading)
+		GL_BeginQueryFunc (GL_SAMPLES_PASSED, worldfragments.queries[1]);
+}
+
+static void R_WorldFragmentsEnd (qboolean shading)
+{
+	GLuint64 invocations = 0, samples = 0;
+	if (worldfragments.left <= 0)
+		return;
+	GL_EndQueryFunc (QVR_GL_FRAGMENT_SHADER_INVOCATIONS);
+	GL_GetQueryObjectui64vFunc (worldfragments.queries[0], GL_QUERY_RESULT, &invocations);
+	if (!shading)
+	{
+		worldfragments.prepass += (double)invocations;
+		return;
+	}
+	GL_EndQueryFunc (GL_SAMPLES_PASSED);
+	GL_GetQueryObjectui64vFunc (worldfragments.queries[1], GL_QUERY_RESULT, &samples);
+	worldfragments.shaded += (double)invocations;
+	worldfragments.kept += (double)samples;
+	worldfragments.passes++;
+	if (--worldfragments.left > 0)
+		return;
+	Con_Printf ("vr_world_fragments: %d passes (pdo %d, split %d at %.0f): a pass's pre-pass shaded %.0f, "
+		"shading shaded %.0f, kept %.0f: shaded/kept %.3f\n", worldfragments.passes, r_framedata.parallax2[3] > 0.f ? 1 : 0,
+		worldfragments.splits, r_framedata.parallax3[1],
+		worldfragments.prepass / worldfragments.passes,
+		worldfragments.shaded / worldfragments.passes, worldfragments.kept / worldfragments.passes,
+		worldfragments.shaded / q_max (worldfragments.kept, 1.0));
+	GL_DeleteQueriesFunc (2, worldfragments.queries);
+	worldfragments.queries[0] = worldfragments.queries[1] = 0;
+}
+
+/*
+=============
 R_ChooseBModelProgram
 =============
 */
-static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean pdo)
+static int R_WorldDither (void)
 {
 	extern cvar_t r_softemu_lightmap_banding;
-	int dither;
 
 	switch (softemu)
 	{
 	case SOFTEMU_BANDED:
-		dither = r_softemu_lightmap_banding.value != 0.f ? 2 : 1;
-		break;
+		return r_softemu_lightmap_banding.value != 0.f ? 2 : 1;
 
 	case SOFTEMU_COARSE:
-		dither = r_softemu_lightmap_banding.value > 0.f ? 2 : 1;
-		break;
+		return r_softemu_lightmap_banding.value > 0.f ? 2 : 1;
 
 	default:
-		dither = r_softemu_lightmap_banding.value > 0.f ? 2 : 0;
-		break;
+		return r_softemu_lightmap_banding.value > 0.f ? 2 : 0;
 	}
+}
+
+/*
+=============
+R_PrewarmDecalPrograms
+
+QVR: the world's programs with the decals' retro textures' code, made in the map's load (vr/vr_decals.cpp prepare) when
+the decals have a retro set: made by the first mark's frame instead, they were the first punch's hitch (8 ms on the main
+thread; ROUND22.md, "Gore hitches"). Once a session (kept until a video restart). Only the opaque world's (`pdo`: the
+parallax's depth written, as R_DrawBrushModels_Real picks it): the translucent brush models' (non-pdo, OIT) are made
+when first drawn with marks about, as before (1.6-1.7 s each here, uncached by the driver: too long for every load).
+=============
+*/
+void R_PrewarmDecalPrograms (qboolean pdo)
+{
+	GL_WorldDecalRetroProgram (0, R_WorldDither (), pdo);
+	if (pdo) // its plain twin too: the depth write's split draws the far and flat surfaces with it (R_DrawSolidSplit)
+		GL_WorldDecalRetroProgram (0, R_WorldDither (), false);
+}
+
+static GLuint R_ChooseBModelProgram (qboolean oit, qboolean alphatest, qboolean pdo)
+{
+	const int dither = R_WorldDither ();
 	if (!alphatest && r_framedata.decalclock[3] > 0.5f) // QVR: the decals with retro textures (VR_DecalsFrame: their set)
 		return GL_WorldDecalRetroProgram (oit, dither, pdo && !oit);
 	if (pdo && !oit && !alphatest) // QVR: the opaque world writing its parallax hits' depth (vr_parallax_depth_write)
@@ -535,6 +684,47 @@ static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin
 
 /*
 =============
+R_DrawSolidSplit
+
+QVR: the opaque world's draws with the parallax depth write (vr_parallax_depth_write) split three ways, `reliefprog`
+writing gl_FragDepth, `flatprog` not. This NVIDIA driver runs every fragment of a program that writes gl_FragDepth
+(no early depth test, whatever its layout), so the pre-pass's depth saved it nothing and the costly shading ran on
+every hidden pixel too (2.5-3.2x the pixels kept in ad_tfuma; ROUND22.md, "Parallax depth write's cost"). Here only
+the textures with relief (extmat[3] > 0), nearer than Parallax3.y in view depth (GL_CLIP_DISTANCE2, the world vertex
+shader), go to `reliefprog`; the same textures further away, and the textures without relief, to `flatprog`, whose
+fragments the driver still rejects early. The picture is the same: further than the parallax's reach and without
+relief, `reliefprog` writes the surface's own depth too. Parallax3.y 0 (no split): all to `reliefprog`, as before.
+=============
+*/
+static void R_DrawSolidSplit (entity_t **ents, int count, textype_t texbegin, textype_t texend, GLuint reliefprog, GLuint flatprog)
+{
+	if (r_framedata.parallax3[1] <= 0.f || reliefprog == flatprog)
+	{
+		R_ResetBModelCalls (reliefprog);
+		R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
+		R_FlushBModelCalls ();
+		return;
+	}
+	if (worldfragments.left > 0) // (vr_world_fragments)
+		worldfragments.splits++;
+	glEnable (GL_CLIP_DISTANCE2);
+	bmodel_relief_filter = 1;
+	R_ResetBModelCalls (reliefprog); // the relief, near
+	R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
+	R_FlushBModelCalls ();
+	R_ResetBModelCalls (flatprog); // the relief, far
+	R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
+	R_FlushBModelCalls ();
+	glDisable (GL_CLIP_DISTANCE2);
+	bmodel_relief_filter = 2;
+	R_ResetBModelCalls (flatprog); // no relief
+	R_AddBModelPassCalls (ents, count, texbegin, texend, BP_SOLID);
+	R_FlushBModelCalls ();
+	bmodel_relief_filter = 0;
+}
+
+/*
+=============
 R_DrawBrushModels_Real
 =============
 */
@@ -544,6 +734,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	int totalinst;
 	unsigned state;
 	GLuint program;
+	GLuint flatprog = 0; // QVR: the opaque pass's plain program beside the depth-writing one (R_DrawSolidSplit)
 	GLuint buf;
 	GLbyte *ofs;
 	textype_t texbegin, texend;
@@ -559,7 +750,10 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 		count = countof(bmodel_instances);
 	}
 
+	VR_TracyBegin ("brush program and instance fill", 0); // QVR: (profiling builds)
 	oit = translucent && R_GetEffectiveAlphaMode () == ALPHAMODE_OIT;
+	if (oit) // QVR: the OIT targets cleared at their first draw (vr_oit_lazy_clear)
+		R_PrepareOITDraw (3);
 	switch (pass)
 	{
 	default:
@@ -567,6 +761,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 		texbegin = 0;
 		texend = TEXTYPE_CUTOUT;
 		program = R_ChooseBModelProgram (oit, false, !translucent && r_framedata.parallax2[3] > 0.f); // QVR: pdo
+		flatprog = !translucent && r_framedata.parallax3[1] > 0.f ? R_ChooseBModelProgram (oit, false, false) : program; // QVR: the depth write's split (R_DrawSolidSplit)
 		break;
 	case BP_ALPHATEST:
 		texbegin = TEXTYPE_CUTOUT;
@@ -611,6 +806,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 				bmodel_gpu_instance_t* copy = &bmodel_instances[totalinst++];
 				*copy = *inst;
 				MatrixTranspose4x3 (mapped, copy->world);
+				memcpy (copy->prevworld, copy->world, sizeof (copy->world)); // QVR: (the gate's other side: no motion of its own)
 				memcpy(inst->portalclip, source, sizeof(source));
 				memcpy(copy->portalclip, dest, sizeof(dest));
 				bmodel_portal_counts[i] = 2;
@@ -619,13 +815,15 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	}
 
 
+	VR_TracyEnd (); // QVR
 	if (!totalinst)
 		return;
 
+	VR_TracyBegin ("brush state and instances upload", 0); // QVR: (profiling builds; a first use's program link shows here)
 	if (pass <= BP_ALPHATEST || pass == BP_SHOWTRIS)
 		glEnable (GL_CLIP_DISTANCE1);
 	// setup state
-	state = GLS_CULL_BACK | GLS_ATTRIBS(4);
+	state = GLS_CULL_BACK | GLS_ATTRIBS(pass == BP_SOLID && VR_PermDecalsOn () ? 7 : 4); // QVR: 7: the permanent decals' layer (attribute 6; vr/vr_permdecals.cpp)
 	if (!translucent)
 		state |= GLS_BLEND_OPAQUE;
 	else
@@ -651,23 +849,45 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * totalinst);
+	VR_TracyEnd (); // QVR
 
 	// QVR: the opaque world and brush models' depth first (the same draws, depth only), so that their costly shading
 	// (parallax, bumps, the lights' shadows) runs once a pixel, for the nearest surface only, not for the ones drawn
 	// over later. The vertex shader's gl_Position is invariant: the same depths, which the shading pass then passes.
 	if (pass == BP_SOLID && !translucent)
 	{
-		R_ResetBModelCalls (r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo : glprogs.world_depth); // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write)
+		VR_GPUZoneBegin ("depth prepass"); // QVR: a GL debug group (vr_gl_markers); profiling builds: a GPU zone with vr_tracy_gpu_detail
+		GLuint depthprog = r_framedata.parallax2[3] > 0.f ? glprogs.world_depth_pdo : glprogs.world_depth; // QVR: with pixel depth offset, as far as the parallax hits can be (vr_parallax_depth_write)
 		glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-		R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
-		R_FlushBModelCalls ();
+		R_WorldFragmentsBegin (false); // QVR: (vr_world_fragments)
+		R_DrawSolidSplit (ents, count, texbegin, texend, depthprog, flatprog != program ? glprogs.world_depth : depthprog); // QVR: split as the shading is
+		R_WorldFragmentsEnd (false); // QVR
 		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		R_ResetBModelCalls (program);
+		VR_GPUZoneEnd ();
 	}
 
-	R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
-
-	R_FlushBModelCalls ();
+	// QVR: the shading (profiling builds: a GPU zone with vr_tracy_gpu_detail): the opaque pass's holds the parallax,
+	// the carved decals' march, the bumps, the PBR and the lights' shadows, all in the one world shader
+	VR_GPUZoneBegin (pass == BP_SOLID ? (translucent ? "shading: translucent" : "shading: opaque (parallax, carved decals)") :
+		pass == BP_ALPHATEST ? "shading: fences" : pass == BP_SHOWTRIS ? "shading: showtris" : "shading: sky");
+	if (pass == BP_SOLID && !translucent)
+		R_WorldFragmentsBegin (true); // QVR: (vr_world_fragments)
+	if (pass == BP_SOLID && !translucent) // QVR: the depth write's split (R_DrawSolidSplit)
+	{
+		VR_TemporalMotionWrites (1); // QVR: moving brush models' motion vectors (vr/vr_temporal.cpp)
+		R_DrawSolidSplit (ents, count, texbegin, texend, program, flatprog);
+	}
+	else
+	{
+		R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
+		VR_TemporalMotionWrites (pass <= BP_ALPHATEST && !translucent); // QVR: moving brush models' motion vectors (vr/vr_temporal.cpp)
+		R_FlushBModelCalls ();
+	}
+	VR_TemporalMotionWrites (0); // QVR
+	if (pass == BP_SOLID && !translucent)
+		R_WorldFragmentsEnd (true); // QVR
+	VR_GPUZoneEnd (); // QVR
 	glDisable (GL_CLIP_DISTANCE1);
 	if (a2c) // QVR
 	{
@@ -882,6 +1102,8 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	GL_BindNative (GL_TEXTURE8, GL_TEXTURE_2D, scenedepth); // QVR
 	GL_BindNative (GL_TEXTURE16, GL_TEXTURE_CUBE_MAP, VR_WaterCubeTexture ()); // QVR: the room reflected (LiquidCube; vr/vr_envmap.cpp)
 	GL_BindNative (GL_TEXTURE17, GL_TEXTURE_2D_ARRAY, VR_PortalTexture ()); // QVR: where a teleporter leads (PortalScene; vr/vr_portals.cpp)
+	if (oit) // QVR: the OIT targets cleared at their first draw (vr_oit_lazy_clear), after the passes above
+		R_PrepareOITDraw (4);
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);
@@ -922,10 +1144,12 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		baseinst += numinst;
 	}
 
+	VR_TemporalMotionWrites (!translucent); // QVR: opaque liquids flagged in the motion target (vr/vr_temporal.cpp)
 	R_FlushBModelCalls ();
 
 	if (meshinst >= 0) // QVR
 		R_DrawLiquidMesh (meshinst, translucent, state);
+	VR_TemporalMotionWrites (0); // QVR
 
 	GL_EndGroup ();
 }

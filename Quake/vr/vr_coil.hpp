@@ -12,6 +12,7 @@
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 
 
@@ -29,6 +30,10 @@ struct Style
     float wireRadius{0.0019f}; // metres, the wire's thickness / 2
     glm::vec3 albedo{0.1f};
     float length{0.f}; // metres, the line's relaxed length (0: the coil's turns touching, at least 64)
+    // Newtons a metre the whole line is stretched by (its weight: 0.3 N): the flashlight's springy cord 1.5; a chain
+    // hanging loose off one end, the magnetic holsters' lanyard, stiff (20: it hangs its own length).
+    float stiffness{1.5f};
+    float airDamping{1.5f}; // per second, against its swing relative to its ends
     // A chain instead (round 21, the flashlight's: NOTES.md start_2026-10-03_02-19-12, Quake's look): links of square
     // bar along the same line, each a hexagon of wireRadius half-thickness, its faces flat-shaded (gfx::drawTube's
     // `flat`), the same at every distance, each turned a quarter round from the last, paid out of the first end (the
@@ -38,6 +43,10 @@ struct Style
     float linkLength{0.016f}; // metres, a link's inside length (the chain's pitch)
     float linkWidth{0.008f};  // metres, its inside width
     glm::vec3 rust{0.3f, 0.14f, 0.06f};
+    // A chain of iron that neither stretches nor springs (the magnetic holsters'): its nodes held their relaxed spacing
+    // apart (position-based: unconditionally stable, whatever the frame rate) instead of springs (`stiffness` unused).
+    // Springs stiff enough to hold a short chain's length (weight / stiffness: 1.2 cm at 25) blew up at 90 Hz.
+    bool rigid{false};
 };
 
 // The coiled cord as an old telephone's (the flashlight's Coiled, vr_flashlight_cord 2; the cell cords'): 64 turns of
@@ -74,14 +83,23 @@ public:
         return glm::length(d) > 1e-6f ? glm::normalize(d) : glm::vec3{0.f, 0.f, 1.f};
     }
 
+    // Instead of update: the line given, its nodes `p[0 .. n - 1]` (world, at least 2) simulated elsewhere (the magnetic
+    // holsters' tether, vr_verlet.hpp: any number of them), drawn in `style`. (update after it starts afresh.)
+    void shape(const glm::vec3* p, za::SizeT n, const Style& style);
+
     // Not drawn this frame: starts afresh when drawn again.
     void hide() { valid_ = false; }
 
     [[nodiscard]] bool visible() const { return valid_; }
 
     // Its rings for gfx::drawTube, lit, and the sides round them, seen from `eye` (the detail: fewer further away).
-    // False: nothing to draw. Once a frame, for both eyes.
-    [[nodiscard]] bool build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& sides) const;
+    // False: nothing to draw. Once a frame, for both eyes. A chain with `linksUpTo` (units along the line from its first
+    // end, at least 0) and `tail`: its links only that far, then a plain thin line along the same curve to the second
+    // end (its rings in `tail`, lineSides round, not flat; empty when every link is drawn), starting in the last link
+    // drawn (no gap).
+    [[nodiscard]] bool build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& sides, float linksUpTo = -1.f,
+        za::Vector<gfx::TubeRing>* tail = nullptr) const;
+    static constexpr int lineSides = 4;
 
     [[nodiscard]] const glm::vec3& albedo() const { return style_.albedo; }
     [[nodiscard]] const glm::vec3& rust() const { return style_.rust; }
@@ -91,9 +109,16 @@ public:
     [[nodiscard]] int rings() const { return rings_; }
     [[nodiscard]] int links() const { return links_; }
     [[nodiscard]] float length() const { return length_; } // the line's, metres
+    [[nodiscard]] float tailLength() const { return tailLength_; } // the last build's plain line's, metres (0: none)
+
+    // The simulated nodes (world), and the springs' worst stretch or squeeze from their relaxed length, a share of it
+    // (vr_magholster_chain_log).
+    [[nodiscard]] const za::Vector<glm::vec3>& nodes() const { return pos_; }
+    [[nodiscard]] float springError() const;
 
 private:
     void reset(const glm::vec3& a, const glm::vec3& b);
+    void stepRigid(float h, float rest, const glm::vec3& gravityUnits, const glm::vec3& vb, bool aLoose);
 
     Style style_;
     bool valid_{false};
@@ -103,6 +128,8 @@ private:
     mutable int rings_{0};
     mutable int links_{0};
     mutable float length_{0.f};
+    mutable float tailLength_{0.f};
+    float lastRest_{0.f}; // a rigid chain's spacing last frame (units; 0: afresh)
 };
 
 } // namespace qvr::coil

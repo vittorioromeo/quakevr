@@ -1,0 +1,49 @@
+// vr_bodycontact.hpp -- the player's body against monsters' (ROUND22.md, "Closer to enemies"): his hands couldn't reach
+// an enemy's neck or head before the two boxes met.
+//
+// - vr_body_monster_inset (units, 0..12; Combat > Holding Enemies > Body Inset): where a player's move meets a monster's
+//   box, or a monster's move a player's, each box is that much narrower on each level side (both: twice as close face to
+//   face). Only those two, each with its own box (a QC trace with another box is Quake's): the map, brush models, props,
+//   corpses, monsters against monsters, shots, missiles, precise hits and melee keep their boxes.
+// - vr_foegrab_step_in (Combat > Holding Enemies > Step In): while a hand of a player holds an enemy (vr_foegrab.cpp),
+//   his body and that enemy's don't meet at all, both ways: he steps in and brings the other hand to its head.
+//   vr_foegrab_step_in_depth (... > Step In Depth; 0: no cap) caps his own moves: they meet the pair's hull with its
+//   level sides that much further in, a solid body there (he slides along it, never walks through); the held enemy's
+//   moves (follow, pull, a throw) still pass, and deeper than the cap already he gets out as below.
+// - Either on, a player and a monster already overlapping (a hold let go of, the inset made smaller, a monster stepped
+//   into) never stick: a move of either that doesn't take them deeper in (from where it starts, along all of it) passes
+//   (Quake's start-solid would have stopped every move, SV_CheckStuck lifted him), and serverFrame pushes them apart,
+//   the monster first (pushSpeed units/s), the player for what it can't take (a wall behind it, a ledge).
+//
+// Server; world.c calls through vr_api.h (VR_BodyContact*).
+
+#pragma once
+
+#include "vr_engine.hpp"
+
+namespace qvr::bodycontact
+{
+
+void init(); // registers vr_body_contact_status
+
+// Server: a player and a monster overlapping (neither held by the other, stepped in) pushed apart a little
+// (VR_ServerFrameEnd).
+void serverFrame();
+
+// The level gap between a player's body and a monster's as their moves meet (units; 0 touching or overlapping): his box
+// and its as the hull code narrows them (vr_hull_ent_width, vr_mhull_ents), each inset (vr_body_monster_inset). QC's
+// boxes are Quake's 32 wide: 16 units more each way face to face with the defaults. The shoulder charge's contact (QC
+// bodygap).
+[[nodiscard]] float levelGap(edict_t* player, edict_t* monster);
+
+// Show Melee Arcs (vr_enemy_melee_arc_show): each melee monster after a player that QC (fight.qc VR_MeleeArc_ShowFrame)
+// set this frame: its arc and reach on the floor (red: its enemy inside; orange: inside only its sweeping blows';
+// green: outside), its numbers above it facing `eye`. The view's (vr_view.cpp), from what serverFrame gathered.
+void meleeArcDraw(const glm::vec3& eye);
+
+// Show Aim Cones (vr_enemy_aim_show): each ranged monster after a player that QC (vr_aimcone.qc VR_AimCone_ShowFrame)
+// set this frame: its aim cone (red: its enemy inside; green: outside) and fire cone past it (orange: its enemy there)
+// at its middle, its numbers above it facing `eye`. The view's (vr_view.cpp), from what serverFrame gathered.
+void aimConeDraw(const glm::vec3& eye);
+
+} // namespace qvr::bodycontact

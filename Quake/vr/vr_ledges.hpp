@@ -10,6 +10,12 @@
 #include "vr_zancle.hpp"
 
 
+namespace qvr::box3d
+{
+struct ClimbShape;
+struct ClimbBody;
+} // namespace qvr::box3d
+
 namespace qvr::ledges
 {
 
@@ -69,6 +75,7 @@ public:
     // How it was made: faces looked at, lip pieces found on them, lines they joined into, the ledges, the time.
     int faces{0}, pieces{0}, lines{0};
     double ms{0.0};
+    za::U32 serial{0}; // which map of the cache it is (each one made a new number: alive)
     [[nodiscard]] size_t bytes() const;
 
     void finish(); // the grid, once the edges are in
@@ -80,13 +87,36 @@ private:
     mutable uint32_t stamp{0};
 };
 
-// The ledge map of a brush model (the world, or one of its inline models, "*N"); nullptr for any other model. Made
-// the first time it's asked for (the world's and its inline models' when the map loads, with Climbing on), kept until
-// the map changes.
+// A solid prop's ledges as it lies now (vr_climb_props; vr_climb.cpp, "Holds on props"), in world space: each edge of
+// its convex pieces' walkable tops (normal z at least minTopNormal) where the face beyond it falls away (not walkable
+// too), with one sample: where the drop starts (half a unit out, or as far as its own side flares out under the lip
+// over minDrop; past edgeReach: no ledge) and the top's depth at its middle. Those whose box touches mins..maxs,
+// appended to `out` (its grid not made: nearby() finds none of them). The checks when a hold is taken see the rest (the
+// room over it, the drop, other props). Its edict number `num` per ledge appended to `nums`.
+void propLedges(int num, const box3d::ClimbShape& shape, const box3d::ClimbBody& body, const glm::vec3& mins,
+    const glm::vec3& maxs, Map& out, za::Vector<int>& nums);
+
+// The heap memory a map holds (a scratch map's: vr_mem.hpp).
+[[nodiscard]] inline za::SizeT heldBytes(const Map& m)
+{
+    return m.bytes() - sizeof(Map);
+}
+
+// The ledge map of a brush model (the world, one of its inline models, "*N", or a runtime brush's: vr_brushes.cpp);
+// nullptr for any other model. Made the first time it's asked for (the world's and its inline models' when the map
+// loads, with Climbing on), kept until the map changes (a runtime brush's: until it changes, forget).
 [[nodiscard]] const Map* of(const qmodel_t* model);
 
-// Counts the times the maps were dropped (a new world model): a Map* kept from an older count is gone.
+// A runtime brush's model made again (vr_brushes.cpp): its map dropped (made again when asked for), and forgets() counts
+// it (a Map* kept may be that one: alive says).
+void forget(const qmodel_t* model);
+
+// Counts the times all the maps were dropped (a new world model): a Map* kept from an older count is gone.
 [[nodiscard]] int generation();
+// Counts the times one map was dropped (forget); while it is unchanged, every Map* kept since is still good.
+[[nodiscard]] int forgets();
+// Whether `m`, made as `serial` (Map::serial), is still one of the maps (a Map* of an older forgets()).
+[[nodiscard]] bool alive(const Map* m, za::U32 serial);
 
 // Server: the map has loaded (VR_OnSpawnServerAfterLoad).
 void afterLoad();

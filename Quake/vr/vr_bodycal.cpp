@@ -2,6 +2,7 @@
 
 #include "vr_bodycal.hpp"
 #include "vr_avatar.hpp"
+#include "vr_bodytrack.hpp"
 #include "vr_cvars.hpp"
 #include "vr_files.hpp"
 #include "vr_hands.hpp"
@@ -12,6 +13,7 @@
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
 #include "vr_still.hpp"
+#include "vr_setup.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -83,7 +85,7 @@ struct StepInfo
 };
 
 constexpr StepInfo steps[StepCount] = {
-    {"stand", "Stand Tall", "Stand up straight, look ahead.\nArms straight down at your sides,\nshoulders relaxed.",
+    {"stand", "Stand Tall", "Stand up straight, look ahead.\nArms straight down at your sides,\nshoulders relaxed. Hold still.",
         "Your eye height, and how high your shoulders are over your straight arms.", Kind::Static, 0.f},
     {"tpose", "T-Pose", "Arms straight out to the sides,\nlevel with your shoulders,\npalms down. Look ahead.",
         "Your arms' reach to the sides: how far apart your shoulders are.", Kind::Static, 0.f},
@@ -129,6 +131,8 @@ struct Raw
     glm::mat3 hand[2]{glm::mat3{1.f}, glm::mat3{1.f}}; // the drawn empty hand's axes: towards the fingers, the thumb, the back
     glm::vec3 grip[2]{};
     glm::mat3 gripRot[2]{glm::mat3{1.f}, glm::mat3{1.f}}; // the controller's grip pose: forward, left, up
+    bool tracked{false};       // body tracking's joints (the world, as the wrists) came with it: track
+    bodytrack::Sample track{}; // (recorded whatever vr_bodycal_track says: a refit can take them or not)
 };
 
 // The same in the chest's frame (forward, left, up; real metres from the chest joint): the body standing upright under
@@ -170,6 +174,27 @@ struct StepQuality
     za::String note;
 };
 
+// Body tracking's measurements (measureTracking), cm, and how they went into the result.
+struct TrackResult
+{
+    bool valid{false};   // the arms measured (enough tracked samples)
+    bool used{false};    // blended in (vr_bodycal_track)
+    float blend{0.f};    // vr_bodycal_track_weight then
+    float samples{0.f};  // the tracked samples' weight kept (a held pose's capture counts as 20 frames)
+    float kept{1.f};     // the share of it kept (the outliers dropped)
+    float upper{0.f};    // the tracked shoulder to the tracked elbow
+    float fore{0.f};     // the tracked elbow to the drawn wrist (as our forearm is: what Elbow Fit makes it)
+    float foreReal{0.f}; // the tracked elbow to the tracked wrist
+    float width{0.f};    // the tracked shoulders apart
+    float widthDiff{0.f}; // ... less our shoulders' in the same poses
+    float torso{0.f};    // the hips to the neck
+    float leg[2]{};      // the hip to the knee to the ankle (generated: a weak prior, shown only)
+    bool wristValid[2]{};
+    glm::vec3 wristOff[2]{}; // the tracked wrist from the drawn one, along the controller: forward, left, up
+    float upperFit{0.f}, foreFit{0.f}, widthFit{0.f}; // ours, before the blend
+    float blendUpper{0.f}, blendFore{0.f}, blendWidth{0.f}; // the blend each took (less where it disagrees with ours)
+};
+
 struct Result
 {
     bool valid{false};
@@ -194,6 +219,7 @@ struct Result
     float rms{0.f};
     float dropped{0.f};
     int iterations{0};
+    TrackResult track;
     za::String when;
 };
 
@@ -982,6 +1008,173 @@ constexpr float wristsNeed = 8.f;   // degrees
     return rms <= 1.f && kept >= 0.85f ? Good : Fair;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// Body tracking's measurements: the tracked joints recorded with the poses (where the headset sends them), each length a
+// robust weighted mean over the samples: each sample weighted by its joints' weights (the source's confidence; a joint
+// the headset only guesses, as Quest 3's legs, much less: bodytrack::GUESSED_WEIGHT), a held pose's capture counting as
+// many frames, and those more than three spreads (1.48 MADs) off the weighted median dropped.
+
+struct Weighted
+{
+    float v;
+    float w;
+};
+
+constexpr float trackMinWeight = 10.f;  // the samples' weight needed for a length (half a held pose's)
+constexpr float trackCaptureWeight = 20.f; // a held pose's capture (captureWeight squared)
+constexpr float trackWristGate = 0.15f; // metres: a tracked wrist further than this from the drawn one: not that sample's arm
+constexpr float trackAgree = 0.15f;     // a tracked length this share off ours blends in fully...
+constexpr float trackDisagree = 0.3f;   // ... this far off, not at all
+
+[[nodiscard]] float weightedMedian(za::Vector<Weighted>& xs, double total)
+{
+    za::quickSort(xs.begin(), xs.end(), [](const Weighted& a, const Weighted& b) { return a.v < b.v; });
+    double run = 0.0;
+    for(const Weighted& x : xs)
+    {
+        run += x.w;
+        if(run >= 0.5 * total)
+        {
+            return x.v;
+        }
+    }
+    return xs.back().v;
+}
+
+// The weighted mean of `xs` without its outliers (`floor`: the least spread allowed, in its units); false with too little
+// weight. `keptWeight`, `totalWeight` add up what was kept and what came.
+[[nodiscard]] bool robustMean(za::Vector<Weighted> xs, float floor, float& mean, double& keptWeight, double& totalWeight)
+{
+    double total = 0.0;
+    for(const Weighted& x : xs)
+    {
+        total += x.w;
+    }
+    if(total < trackMinWeight)
+    {
+        return false;
+    }
+    const float median = weightedMedian(xs, total);
+    za::Vector<Weighted> dev;
+    dev.reserve(xs.size());
+    for(const Weighted& x : xs)
+    {
+        dev.pushBack({za::abs(x.v - median), x.w});
+    }
+    const float cut = za::max(floor, 3.f * 1.4826f * weightedMedian(dev, total));
+    double sum = 0.0, kept = 0.0;
+    for(const Weighted& x : xs)
+    {
+        if(za::abs(x.v - median) <= cut)
+        {
+            sum += static_cast<double>(x.v) * x.w;
+            kept += x.w;
+        }
+    }
+    if(kept <= 0.0)
+    {
+        return false;
+    }
+    mean = static_cast<float>(sum / kept);
+    keptWeight += kept;
+    totalWeight += total;
+    return true;
+}
+
+// From the poses' tracked samples (`locals` their wrists in the chest's frame, frame by frame) and the fitted body `m`.
+[[nodiscard]] TrackResult measureTracking(const za::Vector<Local> (&locals)[StepCount], const avatar::ShoulderModel& m)
+{
+    using namespace bodytrack;
+    TrackResult t;
+    const float m2u = units::metresToUnits();
+    za::Vector<Weighted> upper, fore, foreReal, width, widthDiff, torso, leg[2], wristOff[2][3];
+    for(int st = 0; st < StepCount; st++)
+    {
+        const StepData& d = ses.data[st];
+        if(!d.taken || d.raw.empty() || locals[st].size() != d.raw.size())
+        {
+            continue;
+        }
+        const bool held = steps[st].kind == Kind::Static;
+        const size_t every = held ? 1 : za::max<size_t>(1, d.raw.size() / 240);
+        for(size_t i = 0; i < d.raw.size(); i += every)
+        {
+            const Raw& r = d.raw[i];
+            if(!r.tracked)
+            {
+                continue;
+            }
+            const Sample& s = r.track;
+            const float k = held ? trackCaptureWeight : 1.f;
+            const auto w2 = [&](int a, int b) { return k * za::min(s.weight[a], s.weight[b]); };
+            const auto len = [&](const glm::vec3& a, const glm::vec3& b) { return glm::distance(a, b) / m2u * 100.f; };
+            bool armOk[2]{};
+            for(int side = 0; side < 2; side++)
+            {
+                const int sh = CalShoulderL + side, el = CalElbowL + side, wr = CalWristL + side;
+                const glm::vec3 off = (s.pos[wr] - r.wrist[side]) / m2u;
+                armOk[side] = s.weight[wr] > 0.f && glm::length(off) <= trackWristGate;
+                if(!armOk[side])
+                {
+                    continue;
+                }
+                upper.pushBack({len(s.pos[sh], s.pos[el]), w2(sh, el)});
+                fore.pushBack({len(s.pos[el], r.wrist[side]), w2(el, wr)});
+                foreReal.pushBack({len(s.pos[el], s.pos[wr]), w2(el, wr)});
+                const glm::vec3 g = glm::transpose(r.gripRot[side]) * off * 100.f; // forward, left, up
+                for(int c = 0; c < 3; c++)
+                {
+                    wristOff[side][c].pushBack({g[c], k * s.weight[wr]});
+                }
+                const int hip = CalHipL + side, knee = CalKneeL + side, ank = CalAnkleL + side;
+                leg[side].pushBack({len(s.pos[hip], s.pos[knee]) + len(s.pos[knee], s.pos[ank]),
+                    k * za::min(s.weight[hip], za::min(s.weight[knee], s.weight[ank]))});
+            }
+            if(armOk[0] && armOk[1])
+            {
+                const float tw = len(s.pos[CalShoulderL], s.pos[CalShoulderR]);
+                const float ow = glm::distance(avatar::shoulderInChest(0, locals[st][i].wrist[0], m),
+                                     avatar::shoulderInChest(1, locals[st][i].wrist[1], m)) *
+                                 100.f;
+                width.pushBack({tw, w2(CalShoulderL, CalShoulderR)});
+                widthDiff.pushBack({tw - ow, w2(CalShoulderL, CalShoulderR)});
+            }
+            torso.pushBack({len(s.pos[CalHips], s.pos[CalNeck]), w2(CalHips, CalNeck)});
+        }
+    }
+    double kept = 0.0, total = 0.0, ignore = 0.0;
+    t.valid = robustMean(upper, 1.f, t.upper, kept, total) && robustMean(fore, 1.f, t.fore, kept, total);
+    t.samples = static_cast<float>(kept / 2.0);
+    t.kept = total > 0.0 ? static_cast<float>(kept / total) : 1.f;
+    double ik = 0.0;
+    if(!robustMean(foreReal, 1.f, t.foreReal, ik, ignore))
+    {
+        t.foreReal = 0.f;
+    }
+    if(!robustMean(width, 1.f, t.width, ik, ignore) || !robustMean(widthDiff, 1.f, t.widthDiff, ik, ignore))
+    {
+        t.width = t.widthDiff = 0.f;
+    }
+    if(!robustMean(torso, 1.f, t.torso, ik, ignore))
+    {
+        t.torso = 0.f;
+    }
+    for(int side = 0; side < 2; side++)
+    {
+        // (Generated legs weigh GUESSED_WEIGHT a frame: shown once enough of them add up, never applied.)
+        if(!robustMean(leg[side], 1.f, t.leg[side], ik, ignore))
+        {
+            t.leg[side] = 0.f;
+        }
+        t.wristValid[side] = true;
+        for(int c = 0; c < 3; c++)
+        {
+            t.wristValid[side] = robustMean(wristOff[side][c], 0.5f, t.wristOff[side][c], ik, ignore) && t.wristValid[side];
+        }
+    }
+    return t;
+}
+
 void analyse()
 {
     Result r;
@@ -1241,6 +1434,50 @@ void analyse()
         r.trusted = r.trusted && r.quality[st].grade != Redo;
     }
 
+    // Body tracking (vr_bodycal_track): the tracked arm bones and shoulders' width blended into ours by
+    // vr_bodycal_track_weight (the headset may scale its skeleton to your height: not all of it). The width goes in as
+    // the shoulders further out (each by half), the fit's other measurements as they are.
+    TrackResult& tr = r.track;
+    tr = measureTracking(locals, modelOf(p, r.scale));
+    tr.upperFit = r.upper;
+    tr.foreFit = r.fore;
+    tr.widthFit = 2.f * r.eyeToShoulder.z;
+    tr.blend = CLAMP(0.f, vr_bodycal_track_weight.value, 1.f);
+    tr.used = r.valid && tr.valid && vr_bodycal_track.value != 0.f && tr.blend > 0.f;
+    // A sanity check against ours: a tracked length within trackAgree of ours blends in fully, one off by
+    // trackDisagree or more not at all (a space, scale or wrist mismatch, not a body); its weight eased between.
+    const auto agree = [](float ours, float tracked) {
+        const float off = ours > 1.f ? za::abs(tracked / ours - 1.f) : 1.f;
+        const float u = CLAMP(0.f, (off - trackAgree) / (trackDisagree - trackAgree), 1.f);
+        return 1.f - u * u * (3.f - 2.f * u);
+    };
+    tr.blendUpper = tr.blend * agree(tr.upperFit, tr.upper);
+    tr.blendFore = tr.blend * agree(tr.foreFit, tr.fore);
+    tr.blendWidth = tr.width > 0.f ? tr.blend * agree(tr.widthFit, tr.widthFit + tr.widthDiff) : 0.f;
+    tr.used = tr.used && tr.blendUpper + tr.blendFore + tr.blendWidth > 0.f;
+    if(tr.used)
+    {
+        r.upper = glm::mix(r.upper, tr.upper, tr.blendUpper);
+        r.fore = glm::mix(r.fore, tr.fore, tr.blendFore);
+        za::Array<double, ParamCount> q = p;
+        q[PFore] = r.fore * 0.01;
+        q[PReach] = (r.upper + r.fore) * 0.01;
+        if(tr.width > 0.f)
+        {
+            // Our shoulders' width against vr_bodycal_shoulders_out, near the fit's (cm a metre).
+            const float w0 = 2.f * eyeToShoulder(modelOf(q, r.scale), r.eyeHeight).z;
+            za::Array<double, ParamCount> q1 = q;
+            q1[POut] += 0.01;
+            const float slope = (2.f * eyeToShoulder(modelOf(q1, r.scale), r.eyeHeight).z - w0) / 0.01f;
+            if(za::abs(slope) > 1.f)
+            {
+                q[POut] += CLAMP(-0.1f, tr.widthDiff * tr.blendWidth / slope, 0.1f);
+            }
+        }
+        r.offset.z = static_cast<float>(q[POut]);
+        r.eyeToShoulder = eyeToShoulder(modelOf(q, r.scale), r.eyeHeight);
+    }
+
     char stamp[32];
     const time_t t = time(nullptr);
     strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M", localtime(&t));
@@ -1303,6 +1540,8 @@ void write(const za::Vector<Setting>& list)
 }
 
 za::Vector<Setting> originals;   // the settings before the preview
+za::String heightBeforeStand;     // vr_height_calibration before this run's Stand Tall set it ("": not set): Apply's Undo
+                                  // and history take it back
 bool previewOn = false;           // the result's values set for the preview
 bool calibratedBefore = false;    // the settings before the preview: calibrated, tweaked (the page's note)
 bool tweakedBefore = false;
@@ -1631,6 +1870,18 @@ void saveSession()
                 }
             }
             fprintf(f, "\n");
+            // t: body tracking's joints with it (bodytrack::CalJoint's order: metres, world / units per metre, and each
+            // one's weight).
+            if(r.tracked)
+            {
+                fprintf(f, "t");
+                for(int j = 0; j < bodytrack::CalJointCount; j++)
+                {
+                    const glm::vec3 p = r.track.pos[j] / m2u;
+                    fprintf(f, "  %.5f %.5f %.5f %.3f", p.x, p.y, p.z, r.track.weight[j]);
+                }
+                fprintf(f, "\n");
+            }
         }
         // (A synthetic session's samples, already in the chest's frame.)
         for(const Local& l : d.local)
@@ -1753,6 +2004,24 @@ void saveSession()
             if(w)
             {
                 s.data[st].raw.pushBack(r);
+            }
+        }
+        else if(key == "t" && st >= 0 && !s.data[st].raw.empty())
+        {
+            Raw& r = s.data[st].raw.back();
+            bodytrack::Sample t;
+            bool any = false;
+            for(int j = 0; j < bodytrack::CalJointCount; j++)
+            {
+                glm::vec3 v;
+                w >> v.x >> v.y >> v.z >> t.weight[j];
+                t.pos[j] = v * m2u;
+                any = any || t.weight[j] > 0.f;
+            }
+            if(w && any)
+            {
+                r.track = t;
+                r.tracked = true;
             }
         }
         else if(key == "l" && st >= 0)
@@ -1934,8 +2203,11 @@ bool begin(za::Vector<int> todo, int returnPage)
 // Why the pose held isn't the step's (empty: it is), from the averaged frame.
 [[nodiscard]] za::String wrongPose(int step, const Raw& r)
 {
-    const Local l = toLocal(r, ses.yaw, ses.eyeHeight);
-    Settings now = current(ses.eyeHeight);
+    // Stand Tall is the first measurement of the height (VR Calibration has no height step before it): its pose is
+    // judged at the height held, not the setting's.
+    const float eyeH = step == Stand && r.headHeight > 0.5f ? r.headHeight : ses.eyeHeight;
+    const Local l = toLocal(r, ses.yaw, eyeH);
+    Settings now = current(eyeH);
     const avatar::ShoulderModel m = modelOf(now);
     const float reach = now.upper + now.fore;
     const char* sides[2] = {"left", "right"};
@@ -1998,10 +2270,12 @@ bool begin(za::Vector<int> todo, int returnPage)
         r.grip[side] = s.gripPos[hand];
         r.gripRot[side] = axesOf(s.gripRot[hand]);
     }
+    r.tracked = bodytrack::sample(r.track);
     return r;
 }
 
-// The average of frames (positions averaged, axes of the middle one).
+// The average of frames (positions averaged, axes of the middle one; each tracked joint over the frames that have it,
+// by its weight, the weight the mean of all the frames').
 [[nodiscard]] Raw average(const za::Vector<Raw>& rs)
 {
     Raw m = rs[rs.size() / 2];
@@ -2012,6 +2286,9 @@ bool begin(za::Vector<int> todo, int returnPage)
     {
         m.wrist[side] = m.grip[side] = glm::vec3{0.f};
     }
+    m.tracked = false;
+    m.track = bodytrack::Sample{};
+    glm::vec3 jointSum[bodytrack::CalJointCount]{};
     for(const Raw& r : rs)
     {
         m.head += r.head * k;
@@ -2020,6 +2297,23 @@ bool begin(za::Vector<int> todo, int returnPage)
         {
             m.wrist[side] += r.wrist[side] * k;
             m.grip[side] += r.grip[side] * k;
+        }
+        if(r.tracked)
+        {
+            for(int j = 0; j < bodytrack::CalJointCount; j++)
+            {
+                jointSum[j] += r.track.pos[j] * r.track.weight[j];
+                m.track.weight[j] += r.track.weight[j];
+            }
+        }
+    }
+    for(int j = 0; j < bodytrack::CalJointCount; j++)
+    {
+        if(m.track.weight[j] > 0.f)
+        {
+            m.track.pos[j] = jointSum[j] / m.track.weight[j];
+            m.track.weight[j] *= k;
+            m.tracked = true;
         }
     }
     return m;
@@ -2169,9 +2463,10 @@ void drawText(const hands::State& s, int step, double now)
     }
     text += va("\n%s: stop", input::menuButtonName());
     const float m2u = units::metresToUnits();
-    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
+    const float yaw = setup::viewTextYaw(s); // (smoothed, as VR Calibration's other texts)
+    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, yaw, 0.f});
     const glm::vec3 at = s.head + fwd * (0.9f * m2u) - glm::vec3{0.f, 0.f, 0.18f * m2u};
-    text3d::queueOverlay(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.045f);
+    text3d::queueOverlay(text, at, glm::vec3{0.f, yaw, 0.f}, 0.045f);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -2216,6 +2511,14 @@ void print_f()
             r.eyeToShoulder.y, r.eyeToShoulder.z, r.rms, r.dropped, r.wristOff[0], r.wristOffHand[0].x, r.wristOffHand[0].y,
             r.wristOffHand[0].z, r.wristRms[0], r.wristOff[1], r.wristOffHand[1].x, r.wristOffHand[1].y, r.wristOffHand[1].z,
             r.wristRms[1], r.iterations);
+        const TrackResult& t = r.track;
+        Con_Printf("bodycal track: took upper %.2f fore %.2f width %.2f\n", t.blendUpper, t.blendFore, t.blendWidth);
+        Con_Printf("bodycal track: valid %d used %d blend %.2f samples %.0f kept %.3f; upper %.2f (ours %.2f) fore %.2f (ours "
+                   "%.2f, to the tracked wrist %.2f); apart %.2f (ours %.2f, %+.2f in the same poses); torso %.2f; legs %.2f "
+                   "%.2f; wrist off L %.2f %.2f %.2f R %.2f %.2f %.2f cm (fwd left up)\n",
+            t.valid, t.used, t.blend, t.samples, t.kept, t.upper, t.upperFit, t.fore, t.foreFit, t.foreReal, t.width,
+            t.widthFit, t.widthDiff, t.torso, t.leg[0], t.leg[1], t.wristOff[0].x, t.wristOff[0].y, t.wristOff[0].z,
+            t.wristOff[1].x, t.wristOff[1].y, t.wristOff[1].z);
         for(int i = 0; i < StepCount; i++)
         {
             const StepQuality& q = r.quality[i];
@@ -2372,6 +2675,7 @@ bool restart(int returnPage)
     }
     ses.seated = seated;
     ses.eyeHeight = units::eyeHeight();
+    heightBeforeStand = za::String{}; // a new run
     result = Result{};
     return begin(allSteps(seated), returnPage);
 }
@@ -2398,6 +2702,13 @@ void apply()
     }
     setPreview(false);
     const za::Vector<Setting> list = candidate();
+    // The Height as it was before Stand Tall set it at its capture, for Undo and the history (put back for the snapshots
+    // only: the list's write below sets the new one again in the same frame).
+    if(!heightBeforeStand.empty())
+    {
+        Cvar_SetQuick(&vr_height_calibration, heightBeforeStand.cStr());
+        heightBeforeStand = za::String{};
+    }
     const za::String before = historyText();
     saveUndo(snapshot(list));
     write(list);
@@ -2607,6 +2918,16 @@ const char* statusLine(int i)
             add(va("Drawn wrists %.1f, %.1f cm off", r.wristOff[0], r.wristOff[1]));
         }
         add(va("Fit: %.1f cm, %.0f%% of samples dropped", r.rms, 100.f * r.dropped));
+        if(const TrackResult& t = r.track; t.valid)
+        {
+            const bool partly = t.used && za::min(t.blendUpper, za::min(t.blendFore, t.blendWidth)) < t.blend - 0.01f;
+            add(!t.used    ? za::String(vr_bodycal_track.value != 0.f ? "Body tracking: too far off ours, not used"
+                                                                       : "Body tracking: measured, not used")
+                : partly ? za::String(va("Body tracking: up to %.0f%% (some off ours)", 100.f * t.blend))
+                         : za::String(va("Body tracking: %.0f%% blended in", 100.f * t.blend)));
+            add(va(" arms %.1f + %.1f, apart %.1f cm", t.upper, t.fore, t.width));
+            add(va(" torso %.1f cm, wrists %.1f, %.1f cm off", t.torso, glm::length(t.wristOff[0]), glm::length(t.wristOff[1])));
+        }
         if(!applied)
         {
             add(va("Old arms reached %.1f cm stretched", (r.upperNow + r.foreNow) * r.stretchNow));
@@ -2878,6 +3199,18 @@ void viewFrame(const hands::State& s)
     if(step == Stand)
     {
         ses.eyeHeight = capture.headHeight; // the chest frames of the steps after it
+        // Standing, the Height at once (the author's call, round 22): kept whatever happens to the steps after it (poses
+        // that don't agree, Cancel, a skip or a stop), as VR Calibration's separate height step set it; an applied result
+        // sets it again. It also restarts the learnt standing height (vr_hands.cpp senseLean).
+        if(!ses.seated && capture.headHeight >= 0.8f && capture.headHeight <= 2.4f)
+        {
+            if(heightBeforeStand.empty())
+            {
+                heightBeforeStand = vr_height_calibration.string; // once a run (a redo keeps the first)
+            }
+            Cvar_SetValueQuick(&vr_height_calibration, capture.headHeight);
+            Con_Printf("Body Calibration: height set: your eyes at %.2f m (Stand Tall)\n", capture.headHeight);
+        }
     }
     ses.gotIt = now;
     S_LocalSound("weapons/pkup.wav");
@@ -2954,59 +3287,6 @@ void split(const float (&old)[7], float (&measured)[7], float (&tweak)[7])
             tweak[i] = cal ? 0.f : old[i] - defaultOf(i);
         }
     }
-}
-
-// An Undo saved before the split ("vr_body_upper_arm 0;...;"): the same settings in the new ones.
-void migrateUndo()
-{
-    bool oldNames = false; // (the old names end in a space there: "vr_body_forearm " isn't in "vr_body_forearm_twist")
-    for(const Split& sp : splits())
-    {
-        const char* at = ZA_STRSTR(vr_bodycal_undo.string, sp.old->name);
-        oldNames = oldNames || (at && at[ZA_STRLEN(sp.old->name)] == ' ');
-    }
-    if(!oldNames)
-    {
-        return;
-    }
-    const za::String text = vr_bodycal_undo.string;
-    float old[7], measured[7], tweak[7];
-    for(int i = 0; i < 7; i++)
-    {
-        old[i] = ZA_FLOAT_NAN;
-        measured[i] = 0.f; // what the Undo puts back is complete: nothing measured, no tweak, unless it says
-        tweak[i] = 0.f;
-    }
-    za::String rest;
-    files::forPieces(text, ';', [&](za::StringView item) {
-        files::Words w{item};
-        za::String name, value;
-        if(!(w >> name >> value))
-        {
-            return;
-        }
-        bool known = false;
-        for(int i = 0; i < 7; i++)
-        {
-            if(name == splits()[i].old->name)
-            {
-                old[i] = static_cast<float>(atof(value.cStr()));
-                known = true;
-            }
-        }
-        if(!known)
-        {
-            rest += name + " " + value + ";";
-        }
-    });
-    split(old, measured, tweak);
-    for(int i = 0; i < 7; i++)
-    {
-        rest += za::String(splits()[i].measured->name) + " " + number(measured[i]) + ";";
-        rest += za::String(splits()[i].tweak->name) + " " + number(tweak[i]) + ";";
-    }
-    Con_DPrintf("VR: vr_bodycal_undo in the new settings: %s\n", rest.cStr());
-    Cvar_SetQuick(&vr_bodycal_undo, rest.cStr());
 }
 
 } // namespace
@@ -3103,7 +3383,6 @@ const char* measuredLine(int i)
 
 void migrate()
 {
-    migrateUndo();
     bool any = false;
     float old[7], measured[7], tweak[7];
     for(int i = 0; i < 7; i++)

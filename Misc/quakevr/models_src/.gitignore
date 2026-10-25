@@ -1,0 +1,3 @@
+# Blender's backups of a saved .blend, and Python's caches of the export scripts.
+*.blend1
+__pycache__/

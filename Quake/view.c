@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // view.c -- player eye positioning
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 /*
 
@@ -488,6 +489,8 @@ void V_CalcBlend (void)
 		g = g*(1-a2) + cl.cshifts[j].destcolor[1]*a2;
 		b = b*(1-a2) + cl.cshifts[j].destcolor[2]*a2;
 	}
+	if (gl_cshiftpercent.value && !cl.intermission)
+		VR_AD_TintBlend (&r, &g, &b, &a, gl_cshiftpercent.value); // QVR: AD support: Arcane Dimensions' screen tint (vr_ad.cpp)
 
 	v_blend[0] = r/255.0;
 	v_blend[1] = g/255.0;
@@ -579,6 +582,7 @@ void V_PolyBlend (void)
 	GL_UseProgram (glprogs.viewblend);
 	GL_SetState (GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
 	GL_Uniform4fvFunc (0, 1, v_blend);
+	VR_BloodBind (); // QVR: zero when no peripheral effect is active
 
 	glDrawArrays (GL_TRIANGLES, 0, 3);
 
@@ -893,6 +897,8 @@ void V_CalcRefdef (void)
 
 	if (chase_active.value)
 		Chase_UpdateForDrawing (); //johnfitz
+
+	VR_RagtoolView (r_refdef.vieworg, r_refdef.viewangles); // QVR: the ragdoll tool's orbit camera
 }
 
 /*
@@ -928,10 +934,13 @@ The view's refdef and the view entities, without drawing (V_RenderView; VR_Headl
 */
 void V_SetupView (void) // QVR
 {
-	if (cl.intermission)
-		V_CalcIntermissionRefdef ();
-	else if (!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
-		V_CalcRefdef ();
+	{
+		VR_TRACY_SCOPE ("view: calc refdef"); // QVR: profiling builds only
+		if (cl.intermission)
+			V_CalcIntermissionRefdef ();
+		else if (!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
+			V_CalcRefdef ();
+	}
 
 	//johnfitz -- removed lcd code
 
@@ -943,12 +952,24 @@ void V_RenderView (void)
 	if (con_forcedup)
 		return;
 
-	V_SetupView (); // QVR: split out
-	VR_RenderPortalForView (); // each eye, flat-screen and spectator use their own portal view
+	if (!VR_StereoSingleViewReady ()) // QVR: single-pass stereo: the eye's view was set up before the multiview pass
+		V_SetupView (); // QVR: split out
+	{
+		VR_TRACY_SCOPE ("view: portals for view"); // QVR: profiling builds only
+		VR_RenderPortalForView (); // each eye, flat-screen and spectator use their own portal view
+	}
 
-	R_RenderView ();
+	{
+		VR_TRACY_SCOPE ("view: R_RenderView"); // QVR: profiling builds only
+		R_RenderView ();
+	}
 
-	V_PolyBlend (); //johnfitz -- moved here from R_Renderview ();
+	VR_RagtoolOverlay (); // QVR: the ragdoll tool's lines over the flat view (in a headset: the eye's UI pass)
+
+	{
+		VR_TRACY_SCOPE ("view: poly blend"); // QVR: profiling builds only
+		V_PolyBlend (); //johnfitz -- moved here from R_Renderview ();
+	}
 }
 
 /*

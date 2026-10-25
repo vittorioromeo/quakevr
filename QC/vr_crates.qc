@@ -87,7 +87,8 @@ void() barrel_explode; // (misc.qc)
 float(entity e) VR_Prop_Metal =
 {
     return e.th_die == barrel_explode || e.classname == "explo_box" || e.classname == "misc_explobox" ||
-           e.classname == "misc_explobox2";
+           e.classname == "misc_explobox2" ||
+           e.classname == "vr_fueltank" || e.classname == "vr_fueltank_worn"; // (the flamethrowers' tanks: never blood)
 };
 
 // Wood: a crate, a piece of one (not an explosive box: metal, VR_Prop_Metal). Shot or struck, it throws splinters, not
@@ -175,7 +176,8 @@ string(string a, string b, string c, string d) VR_Pick4 =
 float(entity e) VR_Hit_Armoured =
 {
     string c = e.classname;
-    return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_enforcer" || c == "monster_ranged_knight";
+    return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_enforcer" || c == "monster_ranged_knight" ||
+           (e.vr_ad_mon & VR_ADM_ARMOUR); // AD support: AD's monsters in plate (vr_ad_monsters.qc)
 };
 
 // The second layer of a blunt blow (a fist, a gun's butt, a headbutt, a gib, a prop or a weapon struck or thrown into
@@ -367,12 +369,8 @@ void(float xSpeed) VR_SolidProp_Impact =
             {
                 spawn_touchblood(dmg);
             }
-            float pop = VR_Decap_ThrownArm(other, self, thrower, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
-            T_Damage(other, self, thrower, dmg);
-            if(pop)
-            {
-                VR_Decap_After(other);
-            }
+            float pop = VR_Dismember_ThrownArm(other, self, thrower, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
+            VR_Decap_Damage(other, self, thrower, dmg, pop);
             self.vr_fling_hit = time; // (not hit again as a flung prop as it bounces off: VR_FLING_REHIT)
             self.owner = world; // (as above)
             self.vr_throw_self = 0;
@@ -472,8 +470,9 @@ void(entity xBox, float xHands) VR_Crate_SlamReleased =
 };
 
 // A crate's hardest hit of a frame (Box3D's): what it met thrown or flung (VR_SolidProp_Impact), and itself: from 70% of
-// Breaks On Impact (vr_crate_impact) it takes its health times (speed / that)^2, so at it, it breaks (dropped from about
-// 85 units; the upper crate of a stack falling off the lower lands at about 10 m/s and doesn't).
+// Breaks On Impact (vr_crate_impact) the impact rule (VR_Prop_Impact) at speed / that: (2i - 1) of its full health (40%
+// at 70%; before, i^2: 49%), so at it, it breaks (dropped from about 85 units; the upper crate of a stack falling off the
+// lower lands at about 10 m/s and doesn't).
 void(float xSpeed) VR_Crate_Impact =
 {
     VR_SolidProp_Impact(xSpeed);
@@ -502,9 +501,8 @@ void(float xSpeed) VR_Crate_Impact =
     {
         return;
     }
-    float r = xSpeed / threshold;
-    dprint(sprintf("crate at %v: hit %s at %.1f m/s: %.1f\n", self.origin, other.classname, xSpeed, self.max_health * r * r));
-    T_Damage(self, world, world, self.max_health * r * r);
+    VR_Prop_Impact(self, xSpeed / threshold, self.velocity, sprintf("hit %s at %.1f m/s",
+        other == world ? "the level" : other.classname, xSpeed), world);
 };
 
 // Hurt, not broken: a knock of wood, at most every 0.1 s.
@@ -671,16 +669,23 @@ void(entity xPiece) VR_CratePiece_BurnAway =
     VR_CratePiece_Gone(xPiece);
 };
 
-// Its damage, from T_Damage (instead of Quake's): any hit bursts it. Held, it takes none.
+// Its damage, from T_Damage (instead of Quake's): it wears its health (1: a shot, a blast bursts it; a blow or a smash by
+// the impact rule, VR_Prop_Impact, may only wear it), and bursts once it is gone. Held, it takes none (but being smashed
+// into something: VR_Prop_HeldSmash).
 float(entity targ, entity inflictor, entity attacker, float damage) VR_CratePiece_Damage =
 {
-    if(targ.carry_player != world || damage <= 0 || !targ.takedamage)
+    if((targ.carry_player != world && !vr_prop_held_hit) || damage <= 0 || !targ.takedamage)
     {
         return FALSE;
     }
     if(VR_Burn_JustLit(targ))
     {
         return TRUE; // set on fire by this very hit (a lava nail, a thrown torch): it burns, it doesn't burst
+    }
+    targ.health = targ.health - damage;
+    if(targ.health > 0)
+    {
+        return TRUE;
     }
     vector dir = '0 0 0';
     if(inflictor != world && inflictor != targ)
@@ -696,13 +701,16 @@ void() VR_CratePiece_Die =
     VR_CratePiece_Burst(self, '0 0 0');
 };
 
-// Struck by a hand or a weapon at a swing's speed (VR_Carry_Nudge; vr_melee_speed): it bursts. Not by the hand that just
-// let go of it (a throw's follow-through).
+// Struck by a hand or a weapon's touch at a swing's speed (VR_Carry_Nudge; vr_melee_speed): the impact rule (VR_Prop_Impact)
+// at the hand's speed against it (at most its own) over its break speed (vr_prop_break_piece): it bursts, or softer is
+// worn and pushed by the hand (the nudge goes on). One tap is one hit (with the blow: VR_GIB_HIT_GAP). Not by the hand
+// that just let go of it (a throw's follow-through).
 void(entity xPlayer, float xHand, entity xPiece) VR_CratePiece_Struck =
 {
-    float speed = vlen(VRGetEntHandVel(xPlayer, xHand));
+    vector handVel = VRGetEntHandVel(xPlayer, xHand);
+    float speed = min(vlen(handVel), vlen(handVel - xPiece.velocity * (1 / VRMetersToUnits())));
     if(speed < max(0.1, cvar_hget(cvarh_vr_melee_speed)) || !xPiece.takedamage ||
-       (xPiece.carry_letgo == xPlayer && time < xPiece.carry_letgo_time + 0.4))
+       (xPiece.carry_letgo == xPlayer && time < xPiece.carry_letgo_time + 0.4) || time < xPiece.vr_gib_hittime + VR_GIB_HIT_GAP)
     {
         return;
     }
@@ -710,7 +718,24 @@ void(entity xPlayer, float xHand, entity xPiece) VR_CratePiece_Struck =
     {
         return; // a lit torch's swing: set on fire
     }
-    T_Damage(xPiece, xPlayer, xPlayer, 5);
+    xPiece.vr_gib_hittime = time;
+    VR_Prop_Impact(xPiece, speed / VR_Prop_BreakSpeed(xPiece, VR_PROPK_PIECE), normalize(handVel),
+        sprintf("the %s hand's touch at %.2f m/s", xHand == cVR_MainHand ? "main" : "off", speed), xPlayer);
+};
+
+// Its Box3D hit (.vr_impact, at `xSpeed` m/s): thrown by a player (within VR_THROWN_BOX_TIME), as hard as Thrown Pieces
+// Burst (vr_crate_piece_impact) it bursts, from half it is worn (the impact rule). Falling from a broken crate, or
+// dropped, nothing.
+void(float xSpeed) VR_CratePiece_Impact =
+{
+    float hard = cvar_hget(cvarh_vr_crate_piece_impact);
+    if(hard <= 0 || self.carry_player != world || !self.carry_thrown || time - self.carry_thrown > VR_THROWN_BOX_TIME ||
+       !(self.carry_letgo.flags & FL_CLIENT) || xSpeed < hard * 0.5)
+    {
+        return;
+    }
+    VR_Prop_Impact(self, xSpeed / hard, self.velocity, sprintf("thrown, hit %s at %.1f m/s",
+        other == world ? "the level" : other.classname, xSpeed), world);
 };
 
 // Armed a moment after it is made (not burst by the rest of the blow that broke its crate); then, past its time (Pieces
@@ -761,6 +786,7 @@ void(entity p) VR_CratePiece_Setup =
     SetThrownWeaponDealDamage(p, FALSE);
     SetThrownWeaponDisappearOnHit(p, FALSE);
     VR_Carry_Setup(p); // carried, nudged, thrown; a rigid body (vr_rigid 1)
+    p.vr_impact = VR_CratePiece_Impact;
     p.health = 1;
     p.takedamage = DAMAGE_NO; // armed in a moment (VR_CratePiece_Think)
     p.th_die = VR_CratePiece_Die;
@@ -1054,33 +1080,6 @@ void() vr_barrel =
     self.flags = self.flags | FL_ONGROUND;
     self.groundentity = world;
     VR_Crate_Setup(self, 1); // (a small crate's health, pieces and sounds)
-};
-
-// A test crate (vr_test_spawn 107, 108, 109: Debug > Tests > Thing): `kind` at `at`, turned by `yaw`; `stacked`: a small
-// one on it, turned 20 degrees and off its middle by 3 units.
-entity(vector at, float kind, float yaw, float stacked) VR_Crate_TestSpawn =
-{
-    entity e = spawn();
-    setmodel(e, kind == 2 ? "progs/vr_crate2.mdl" : "progs/vr_crate1.mdl");
-    e.angles = '0 1 0' * yaw;
-    setorigin(e, at);
-    crateplace(e);
-    VR_Crate_Setup(e, kind);
-    dprint(sprintf("test spawn: crate at %v, box %v .. %v, health %.0f\n", e.origin, e.mins, e.maxs, e.health));
-    if(stacked)
-    {
-        entity top = spawn();
-        setmodel(top, "progs/vr_crate1.mdl");
-        top.angles = '0 1 0' * (yaw + 20);
-        setorigin(top, at + '3 0 0');
-        crateplace(top);
-        // Its bottom on the lower one's top (their boxes: absmin and absmax are a unit wider each way, which left a gap
-        // of 2 units the asleep top never fell across: NOTES.md vrfiringrange_2026-10-01_11-44-23).
-        setorigin(top, [top.origin_x, top.origin_y, e.origin_z + e.maxs_z - top.mins_z + 0.05]);
-        VR_Crate_Setup(top, 1);
-        dprint(sprintf("test spawn: a crate on it at %v\n", top.origin));
-    }
-    return e;
 };
 
 // Every server frame (StartFrame): at the first of a new map, the crates.

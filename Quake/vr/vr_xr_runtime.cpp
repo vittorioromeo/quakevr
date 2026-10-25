@@ -2,6 +2,7 @@
 // (vr_xr_runtime.hpp).
 
 #include "vr_xr_runtime.hpp"
+#include "vr_runlogs.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -9,6 +10,11 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <tlhelp32.h>
+#else
+#include <dirent.h>
+#include <limits.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #endif
 
 #include <ctype.h>
@@ -42,6 +48,35 @@ struct Known
     const char* usualPlace;
 };
 
+#ifndef _WIN32
+// Linux: SteamVR's runtime (Monado, WiVRn and the rest: Other, found as the active runtime).
+constexpr Known known[] = {
+    {Kind::SteamVR, "SteamVR", "steamxr_linux64.json", {"vrserver", "vrcompositor"}, "running",
+        "~/.steam/steam/steamapps/common/SteamVR/steamxr_linux64.json"},
+};
+
+// The game's architecture as the OpenXR loader names it (manifests' <name>.<arch>.json, active_runtime.<arch>.json),
+// with its ELF class and machine (e_machine).
+#if defined(__x86_64__)
+constexpr const char* ourArch = "x86_64";
+constexpr int ourElfMachine = 62; // EM_X86_64
+#elif defined(__i386__)
+constexpr const char* ourArch = "i686";
+constexpr int ourElfMachine = 3; // EM_386
+#elif defined(__aarch64__)
+constexpr const char* ourArch = "aarch64";
+constexpr int ourElfMachine = 183; // EM_AARCH64
+#elif defined(__arm__)
+constexpr const char* ourArch = "armv7a-vfp";
+constexpr int ourElfMachine = 40; // EM_ARM
+#else
+constexpr const char* ourArch = "unknown";
+constexpr int ourElfMachine = 0; // (not checked)
+#endif
+// The loader spec's architecture names.
+constexpr const char* loaderArches[] = {"x86_64", "i686", "aarch64", "armv7a-vfp", "armv5te", "mips64", "mips", "ppc64",
+    "ppc64el", "s390x", "hppa", "alpha", "ia64", "m68k", "riscv64", "sparc64"};
+#else
 constexpr Known known[] = {
     {Kind::VirtualDesktop, "Virtual Desktop (VDXR)", "virtualdesktop-openxr.json", {"virtualdesktop.streamer.exe", nullptr},
         "Streamer running", "C:\\Program Files\\Virtual Desktop Streamer\\OpenXR\\virtualdesktop-openxr.json"},
@@ -50,6 +85,7 @@ constexpr Known known[] = {
     {Kind::Meta, "Meta (Oculus)", "oculus_openxr_64.json", {"ovrserver_x64.exe", nullptr}, "OVRServer running",
         "C:\\Program Files\\Oculus\\Support\\oculus-runtime\\oculus_openxr_64.json"},
 };
+#endif
 
 [[nodiscard]] const Known* knownOf(Kind kind)
 {
@@ -115,8 +151,8 @@ constexpr Known known[] = {
     const DWORD attributes = GetFileAttributesA(path);
     return attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY);
 #else
-    (void)path;
-    return false;
+    struct stat st{};
+    return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 #endif
 }
 
@@ -365,6 +401,87 @@ struct Environment
         }
         CloseHandle(snapshot);
     }
+#else
+    // Linux (the loader's search, OpenXR loader spec "Linux active runtime location"): active_runtime.json in
+    // $XDG_CONFIG_HOME (~/.config), then each of $XDG_CONFIG_DIRS (/etc/xdg), then /etc; usually a symlink to the
+    // runtime's manifest, named by its target. Available: the manifests in /usr/share/openxr/1 and
+    // /usr/local/share/openxr/1 (where the runtimes install theirs: there is no registry of them).
+    char path[PATH_MAX];
+    za::Vector<za::String> configDirs;
+    const char* home = getenv("HOME");
+    const char* configHome = getenv("XDG_CONFIG_HOME");
+    if(configHome && configHome[0])
+    {
+        configDirs.pushBack(za::String{configHome});
+    }
+    else if(home)
+    {
+        configDirs.pushBack(za::String{va("%s/.config", home)});
+    }
+    const char* xdgDirs = getenv("XDG_CONFIG_DIRS");
+    for(const za::String& d : splitList(xdgDirs && xdgDirs[0] ? xdgDirs : "/etc/xdg"))
+    {
+        configDirs.pushBack(d);
+    }
+    configDirs.pushBack(za::String{"/etc"});
+    // (In each folder the loader reads active_runtime.<arch>.json first, then active_runtime.json: loader 1.0.29+.)
+    for(const za::String& d : configDirs)
+    {
+        const char* archFile = va("%s/openxr/1/active_runtime.%s.json", d.cStr(), ourArch);
+        const char* file = fileExists(archFile) ? archFile : va("%s/openxr/1/active_runtime.json", d.cStr());
+        if(fileExists(file))
+        {
+            env.active = realpath(file, path) ? path : file;
+            break;
+        }
+    }
+    for(const char* dir : {"/usr/share/openxr/1", "/usr/local/share/openxr/1"})
+    {
+        if(DIR* d = opendir(dir))
+        {
+            while(const dirent* e = readdir(d))
+            {
+                const size_t n = strlen(e->d_name);
+                if(n > 5 && !strcmp(e->d_name + n - 5, ".json") && strncmp(e->d_name, "active_runtime.", 15))
+                {
+                    env.available.pushBack(za::String{va("%s/%s", dir, e->d_name)});
+                }
+            }
+            closedir(d);
+        }
+    }
+    // The known runtimes' processes: /proc/<pid>/comm (the executable's name, at most 15 characters).
+    if(DIR* proc = opendir("/proc"))
+    {
+        while(const dirent* e = readdir(proc))
+        {
+            if(e->d_name[0] < '0' || e->d_name[0] > '9')
+            {
+                continue;
+            }
+            char comm[64] = "";
+            if(FILE* f = fopen(va("/proc/%s/comm", e->d_name), "rb"))
+            {
+                if(!fgets(comm, sizeof(comm), f))
+                {
+                    comm[0] = 0;
+                }
+                fclose(f);
+            }
+            comm[strcspn(comm, "\r\n")] = 0;
+            for(const Known& k : known)
+            {
+                for(const char* process : k.processes)
+                {
+                    if(process && comm[0] && !strcmp(comm, process))
+                    {
+                        env.processes.pushBack(za::String{process});
+                    }
+                }
+            }
+        }
+        closedir(proc);
+    }
 #endif
     return env;
 }
@@ -397,8 +514,14 @@ struct Installed
     Kind kind;
     bool active;
     const char* running; // its app's process, or null
-    bool exists;
+    bool exists;         // (false too for another architecture's)
+    za::String foreign;  // why it is another architecture's ("" when it is ours: Linux)
 };
+
+// Linux: why a runtime manifest is for another architecture than the game's ("" when it is ours or unknown): its name's
+// architecture (openxr_wivrn.i686.json, the loader spec's <name>.<arch>.json) or its library's ELF class and machine.
+// The loader skips those; tried, they fail (XR_ERROR_RUNTIME_UNAVAILABLE). (Windows: "".)
+[[nodiscard]] za::String foreignArch(const char* manifest);
 
 [[nodiscard]] za::Vector<Installed> installedRuntimes(const Environment& env)
 {
@@ -416,8 +539,10 @@ struct Installed
             }
         }
         const Kind kind = kindOf(manifest);
+        za::String foreign = foreignArch(manifest);
+        const bool exists = fileExists(manifest) && foreign.empty();
         list.pushBack(Installed{za::String{manifest}, kind, !env.active.empty() && sameFile(manifest, env.active.cStr()),
-            runningProcess(env, kind), fileExists(manifest)});
+            runningProcess(env, kind), exists, static_cast<za::String&&>(foreign)});
     };
     for(const za::String& m : env.available)
     {
@@ -435,9 +560,17 @@ struct Installed
             {
                 listed = listed || i.kind == k.kind;
             }
-            if(!listed && fileExists(k.usualPlace))
+#ifndef _WIN32
+            // (Linux: the usual place under the home folder)
+            const char* home = getenv("HOME");
+            const za::String place = k.usualPlace[0] == '~' && home ? za::String{home} + (k.usualPlace + 1)
+                                                                    : za::String{k.usualPlace};
+#else
+            const za::String place{k.usualPlace};
+#endif
+            if(!listed && fileExists(place.cStr()))
             {
-                add(k.usualPlace);
+                add(place.cStr());
             }
         }
     }
@@ -542,6 +675,7 @@ struct State
     za::String status;    // statusLine()
     bool logging = false; // since the backend's first start: lines go to the log too
     bool logStarted = false;
+    za::String videoNote; // what beforeVideoInit did (Linux), in each start's log
 };
 State state;
 
@@ -569,6 +703,7 @@ void logText(const char* text, bool always = false)
         fputs(text, f);
         fclose(f);
     }
+    runlogs::append("qvr_openxr.txt", text); // (the run's copy, kept with its logs: vr_runlogs.cpp)
 }
 
 // +vr_xr_runtime on the command line (the shortcut's or the debugger's arguments): its value, or null.
@@ -648,9 +783,10 @@ void logText(const char* text, bool always = false)
                 manifest = i.manifest;
             }
         }
-        if(manifest.empty() && !env.test)
+        const Known* k = knownOf(kind); // null for VDXR on Linux (known[] has only SteamVR there)
+        if(manifest.empty() && !env.test && k)
         {
-            manifest = knownOf(kind)->usualPlace;
+            manifest = k->usualPlace;
         }
     }
     else if(mode == 3)
@@ -729,12 +865,83 @@ struct ApiLayer
     bool registryOff = false;
 };
 
-// The disable_environment variables vr_xr_api_layers 0 set (cleared again with 1).
+// The disable_environment variables the game set (vr_xr_api_layers 0, vr_xr_skip_incompatible_layers 1: cleared again
+// at each start, then set as those say), and those of them set for a known incompatibility.
 za::Vector<za::String> layerVarsSet;
+za::Vector<za::String> skippedVarsSet;
+
+// The implicit layers known not to work with this game (it renders with OpenGL): turned off by their own switch
+// (vr_xr_skip_incompatible_layers 1), as each manifest's "name" says. Add to it as players report them.
+struct IncompatibleLayer
+{
+    const char* name;
+    const char* why;
+};
+
+constexpr IncompatibleLayer incompatibleLayers[] = {
+    {"XR_APILAYER_NOVENDOR_OBSMirror",
+        "OBS's OpenXR mirror supports Direct3D 11/12 only, not OpenGL (with VDXR it crashed in xrEnumerateSwapchainImages: 1.0.1)"},
+};
+
+// Why a layer is skipped ("" when it isn't known to be incompatible).
+[[nodiscard]] const char* incompatibility(const ApiLayer& layer)
+{
+    for(const IncompatibleLayer& known : incompatibleLayers)
+    {
+        if(!q_strcasecmp(layer.name.cStr(), known.name))
+        {
+            return known.why;
+        }
+    }
+    return "";
+}
+
+// A layer from its manifest (name, its variables, its library).
+[[nodiscard]] ApiLayer readLayer(const char* manifest, bool registryOff)
+{
+    ApiLayer layer;
+    layer.manifest = manifest;
+    layer.registryOff = registryOff;
+    if(FILE* f = fopen(manifest, "rb"))
+    {
+        char text[8192];
+        const size_t n = fread(text, 1, sizeof(text) - 1, f);
+        fclose(f);
+        text[n] = 0;
+        layer.name = jsonString(text, "name");
+        layer.disableVar = jsonString(text, "disable_environment");
+        layer.enableVar = jsonString(text, "enable_environment");
+        layer.library = libraryOf(manifest);
+    }
+    return layer;
+}
 
 [[nodiscard]] za::Vector<ApiLayer> implicitLayers()
 {
     za::Vector<ApiLayer> layers;
+    // The test environment: vr_xr_test_layers' manifests instead of the registry's (docs/vr-port/TESTING.md).
+    if(vr_xr_test.value != 0.f)
+    {
+        za::String manifest;
+        for(const char* c = vr_xr_test_layers.string;; c++)
+        {
+            if(*c && *c != ',')
+            {
+                manifest += *c;
+                continue;
+            }
+            if(!manifest.empty())
+            {
+                layers.pushBack(readLayer(manifest.cStr(), false));
+            }
+            manifest = "";
+            if(!*c)
+            {
+                break;
+            }
+        }
+        return layers;
+    }
     for(HKEY root : {HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER})
     {
         HKEY key = nullptr;
@@ -758,21 +965,7 @@ za::Vector<za::String> layerVarsSet;
             {
                 continue;
             }
-            ApiLayer layer;
-            layer.manifest = name;
-            layer.registryOff = type == REG_DWORD && off != 0;
-            if(FILE* f = fopen(name, "rb"))
-            {
-                char text[8192];
-                const size_t n = fread(text, 1, sizeof(text) - 1, f);
-                fclose(f);
-                text[n] = 0;
-                layer.name = jsonString(text, "name");
-                layer.disableVar = jsonString(text, "disable_environment");
-                layer.enableVar = jsonString(text, "enable_environment");
-                layer.library = libraryOf(name);
-            }
-            layers.pushBack(static_cast<ApiLayer&&>(layer));
+            layers.pushBack(readLayer(name, type == REG_DWORD && off != 0));
         }
         RegCloseKey(key);
     }
@@ -791,25 +984,58 @@ void setEnv(const char* var, const char* value)
     _putenv_s(var, value ? value : "");
 }
 
-// vr_xr_api_layers 0: each layer's disable_environment variable set; 1: the ones the game set cleared.
+// Before each xrCreateInstance (the loader reads the variables then): the ones the game set before cleared, then
+// vr_xr_api_layers 0: every implicit layer's disable_environment variable set; else, with
+// vr_xr_skip_incompatible_layers 1, the known incompatible layers' (each said, to the console and qvr_openxr.txt). A
+// variable set outside the game is left as it is.
 void applyLayerSwitch(const za::Vector<ApiLayer>& layers)
 {
-    const bool off = vr_xr_api_layers.value == 0.f;
-    if(!off)
+    for(const za::String& var : layerVarsSet)
     {
-        for(const za::String& var : layerVarsSet)
-        {
-            setEnv(var.cStr(), nullptr);
-        }
-        layerVarsSet.clear();
-        return;
+        setEnv(var.cStr(), nullptr);
     }
+    layerVarsSet.clear();
+    skippedVarsSet.clear();
+    const bool allOff = vr_xr_api_layers.value == 0.f;
+    const bool skip = vr_xr_skip_incompatible_layers.value != 0.f;
     for(const ApiLayer& layer : layers)
     {
-        if(!layer.disableVar.empty() && !envSet(layer.disableVar))
+        const char* why = incompatibility(layer);
+        if(!allOff && (!skip || !why[0]))
         {
-            setEnv(layer.disableVar.cStr(), "1");
-            layerVarsSet.pushBack(layer.disableVar);
+            if(why[0] && !layer.registryOff)
+            {
+                note("OpenXR: API layer %s allowed (vr_xr_skip_incompatible_layers 0), though known not to work: %s\n",
+                    layer.name.cStr(), why);
+            }
+            continue;
+        }
+        const char* name = layer.name.empty() ? layer.manifest.cStr() : layer.name.cStr();
+        if(layer.registryOff || envSet(layer.disableVar))
+        {
+            if(why[0] && !allOff)
+            {
+                note("OpenXR: API layer %s: off already (%s)\n", name, layer.registryOff ? "its registry value" : "its variable");
+            }
+            continue;
+        }
+        if(layer.disableVar.empty())
+        {
+            if(why[0])
+            {
+                note("OpenXR: API layer %s is known not to work (%s), but its manifest has no disable_environment: not "
+                     "skipped\n",
+                    name, why);
+            }
+            continue;
+        }
+        setEnv(layer.disableVar.cStr(), "1");
+        layerVarsSet.pushBack(layer.disableVar);
+        if(why[0] && !allOff)
+        {
+            skippedVarsSet.pushBack(layer.disableVar);
+            note("OpenXR: API layer %s skipped: %s (%s=1 set; vr_xr_skip_incompatible_layers 0 allows it)\n", name, why,
+                layer.disableVar.cStr());
         }
     }
 }
@@ -828,15 +1054,27 @@ void applyLayerSwitch(const za::Vector<ApiLayer>& layers)
     if(envSet(layer.disableVar))
     {
         bool ours = false;
+        bool skipped = false;
         for(const za::String& var : layerVarsSet)
         {
             ours = ours || var == layer.disableVar;
         }
-        return va("off (%s set%s)", layer.disableVar.cStr(), ours ? " by vr_xr_api_layers 0" : "");
+        for(const za::String& var : skippedVarsSet)
+        {
+            skipped = skipped || var == layer.disableVar;
+        }
+        return va("off (%s set%s)", layer.disableVar.cStr(),
+            skipped ? " by vr_xr_skip_incompatible_layers 1: known not to work with OpenGL"
+            : ours  ? " by vr_xr_api_layers 0"
+                    : "");
     }
     if(!layer.enableVar.empty() && !envSet(layer.enableVar))
     {
         return va("off (only with %s set)", layer.enableVar.cStr());
+    }
+    if(incompatibility(layer)[0] && !layer.disableVar.empty() && vr_xr_skip_incompatible_layers.value != 0.f)
+    {
+        return "ON now; skipped at each VR start (vr_xr_skip_incompatible_layers 1: known not to work with OpenGL)";
     }
     return layer.disableVar.empty() ? "ON (no switch to turn it off)" : "ON";
 }
@@ -878,6 +1116,10 @@ void foreignModules(za::Vector<za::String>& lines, za::String& summary)
 {
     char windows[MAX_PATH] = "";
     GetWindowsDirectoryA(windows, sizeof(windows));
+    if(windows[0] && windows[strlen(windows) - 1] != '\\')
+    {
+        q_strlcat(windows, "\\", sizeof(windows)); // "C:\Windows\" so "C:\WindowsApps\..." is not a system DLL
+    }
     char exeDir[MAX_PATH] = "";
     GetModuleFileNameA(nullptr, exeDir, sizeof(exeDir));
     if(char* slash = strrchr(exeDir, '\\'))
@@ -932,9 +1174,11 @@ void foreignModules(za::Vector<za::String>& lines, za::String& summary)
 // through NVIDIA's GL/D3D interop) and unloads it with itself; NVIDIA's OpenGL driver thread then reads d3d11.dll's
 // memory and the game crashes (the author's crashes of 2026-10-09 switching from VDXR: an access violation in
 // nvapi64_impl.dll called from nvoglv64.dll's thread, reading the unloaded d3d11.dll's memory).
+#ifdef _WIN32
 constexpr const char* graphicsModules[] = {"d3d11.dll", "dxgi.dll", "d3d12.dll", "vulkan-1.dll"};
 constexpr size_t graphicsModuleCount = sizeof(graphicsModules) / sizeof(graphicsModules[0]);
 bool graphicsModuleKept[graphicsModuleCount] = {};
+#endif
 
 // What Auto sees and the order it would try the runtimes in (vr_xr_runtime_explain; the log of each start).
 void describe()
@@ -1001,7 +1245,9 @@ void describe()
         const bool idleSteamVR = vr_xr_runtime.value == 4.f && i.exists && i.kind == Kind::SteamVR && !i.running &&
                                  !i.active && !planned;
         note("  installed: %s%s%s%s\n", labelOf(i.manifest.cStr()).cStr(), i.active ? ", the system's active" : "",
-            i.exists ? "" : ", NOT FOUND (left out)",
+            i.exists              ? ""
+            : !i.foreign.empty() ? va(", %s: left out", i.foreign.cStr())
+                                 : ", NOT FOUND (left out)",
             idleSteamVR ? ", not running: left out (it would start SteamVR; vr_xr_runtime_fallback 2 tries it)" : "");
         note("     %s\n", i.manifest.cStr());
     }
@@ -1078,6 +1324,65 @@ void explain_f()
     return library;
 }
 
+za::String foreignArch(const char* manifest)
+{
+#ifdef _WIN32
+    (void)manifest;
+    return za::String{};
+#else
+    // Its name: <name>.<arch>.json.
+    const char* name = fileName(manifest);
+    const size_t n = strlen(name);
+    if(n > 5 && !q_strcasecmp(name + n - 5, ".json"))
+    {
+        const char* end = name + n - 5;
+        const char* dot = end;
+        while(dot > name && dot[-1] != '.')
+        {
+            dot--;
+        }
+        if(dot > name)
+        {
+            const za::String suffix{dot, static_cast<za::SizeT>(end - dot)};
+            for(const char* arch : loaderArches)
+            {
+                if(suffix == za::StringView{arch} && strcmp(arch, ourArch) != 0)
+                {
+                    return za::String{va("for %s (the game is %s)", arch, ourArch)};
+                }
+            }
+        }
+    }
+    // Its library's ELF header: class (byte 4: 1 32-bit, 2 64-bit) and machine (bytes 18-19, little-endian).
+    const za::String library = libraryOf(manifest);
+    FILE* f = library.empty() ? nullptr : fopen(library.cStr(), "rb");
+    if(!f)
+    {
+        return za::String{};
+    }
+    unsigned char header[20] = {};
+    const size_t got = fread(header, 1, sizeof(header), f);
+    fclose(f);
+    if(got < sizeof(header) || header[0] != 0x7f || header[1] != 'E' || header[2] != 'L' || header[3] != 'F')
+    {
+        return za::String{};
+    }
+    const int bits = header[4] == 1 ? 32 : header[4] == 2 ? 64 : 0;
+    const int machine = header[18] | (header[19] << 8);
+    if(bits && bits != static_cast<int>(sizeof(void*) * 8))
+    {
+        return za::String{va("its library is %d-bit (the game is %d-bit): %s", bits, static_cast<int>(sizeof(void*) * 8),
+            library.cStr())};
+    }
+    if(ourElfMachine && header[5] == 1 && machine != ourElfMachine)
+    {
+        return za::String{va("its library is for another CPU (ELF machine %d, the game's %d): %s", machine, ourElfMachine,
+            library.cStr())};
+    }
+    return za::String{};
+#endif
+}
+
 } // namespace
 
 const char* logPath()
@@ -1111,6 +1416,10 @@ void beginLog()
         args += com_argv[i];
     }
     logText(va("command line: %s\n", args.cStr()));
+    if(!state.videoNote.empty())
+    {
+        logText(state.videoNote.cStr());
+    }
     const char* env = getenv("XR_RUNTIME_JSON");
     logText(va("XR_RUNTIME_JSON now (the game's last attempt's, or the starting one): %s\n", env && env[0] ? env : "not set"));
     describe();
@@ -1193,6 +1502,51 @@ bool isSteamVR(const Attempt& attempt)
     return !attempt.manifest.empty() && kindOf(attempt.manifest.cStr()) == Kind::SteamVR;
 }
 
+void beforeVideoInit()
+{
+#ifndef _WIN32
+    auto set = [](const char* name) {
+        const char* v = getenv(name);
+        return v && v[0];
+    };
+    const char* why = nullptr;
+    if(set("SDL_VIDEODRIVER") || set("SDL_VIDEO_DRIVER") || set("SDL_VIDEO_X11_FORCE_EGL") || set("SDL_VIDEO_FORCE_EGL"))
+    {
+        why = "the player's SDL variables kept";
+    }
+    else if(!set("DISPLAY"))
+    {
+        why = "no X server (DISPLAY not set): SDL's choice kept";
+    }
+    if(!why)
+    {
+        const Environment env = environment();
+        const Plan p = makePlan(env, installedRuntimes(env));
+        bool steam = false;
+        for(const Attempt& a : p.attempts)
+        {
+            const bool loaderSteam = a.manifest.empty() && !env.active.empty() && kindOf(env.active.cStr()) == Kind::SteamVR;
+            steam = steam || isSteamVR(a) || loaderSteam;
+        }
+        if(steam)
+        {
+            setenv("SDL_VIDEODRIVER", "x11", 1);
+            setenv("SDL_VIDEO_DRIVER", "x11", 1);
+            setenv("SDL_VIDEO_X11_FORCE_EGL", "0", 1);
+            setenv("SDL_VIDEO_FORCE_EGL", "0", 1);
+            why = "SDL asked for X11 with GLX (SDL_VIDEODRIVER=x11, SDL_VIDEO_X11_FORCE_EGL=0): the start may try SteamVR, "
+                  "whose OpenXR binds GLX contexts only";
+        }
+        else
+        {
+            why = "SDL's choice kept (no SteamVR in the plan: an EGL context binds with XR_MNDX_egl_enable)";
+        }
+    }
+    state.videoNote = va("OpenXR: before video init: %s\n", why);
+    Con_Printf("%s", state.videoNote.cStr());
+#endif
+}
+
 void registerCommands()
 {
     checkOutside();
@@ -1216,6 +1570,15 @@ void use(const Plan& plan, const Attempt& attempt)
 #ifdef _WIN32
     setEnv("XR_RUNTIME_JSON", value);
     applyLayerSwitch(implicitLayers());
+#else
+    if(value)
+    {
+        setenv("XR_RUNTIME_JSON", value, 1);
+    }
+    else
+    {
+        unsetenv("XR_RUNTIME_JSON");
+    }
 #endif
     note("OpenXR: trying %s (%s): %s\n", attempt.label.cStr(), attempt.reason.cStr(),
         value ? value : "the system's active runtime");

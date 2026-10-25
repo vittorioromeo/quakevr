@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // snd_dma.c -- main control for any streaming sound output device
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 #include "snd_codec.h"
 #include "bgmusic.h"
 
@@ -43,6 +44,7 @@ void S_SetUnderwaterIntensity (float intensity);
 
 channel_t	snd_channels[MAX_CHANNELS];
 int		total_channels;
+static void S_Cutoffs_f (void); // QVR: snd_cutoffs (below)
 
 static int	snd_blocked = 0;
 static qboolean	snd_initialized = false;
@@ -73,6 +75,7 @@ int S_KnownSfxCount (void) { return num_sfx; } // QVR (vr_limits)
 // copies (vr_snd_fullband)
 void S_SfxMemory (int *loaded, int *heldBytes, int *fullBytes)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	int i;
 	*loaded = *heldBytes = *fullBytes = 0;
 	for (i = 0; i < num_sfx; i++)
@@ -110,10 +113,63 @@ static	cvar_t	ambient_fade = {"ambient_fade", "100", CVAR_NONE};
 static	cvar_t	snd_noextraupdate = {"snd_noextraupdate", "0", CVAR_NONE};
 static	cvar_t	snd_show = {"snd_show", "0", CVAR_NONE};
 static	cvar_t	_snd_mixahead = {"_snd_mixahead", "0.1", CVAR_ARCHIVE};
+// QVR: the mix-ahead painted on the game's thread pool while the screen updates (S_MixKick: R_RenderScene's S_ExtraUpdate
+// was it), joined before anything else touches the sound (S_MixJoin); 0: in R_RenderScene on the main thread, as it was
+cvar_t		snd_mixasync = {"snd_mixasync", "1", CVAR_NONE};
 
+// QVR: the pool's mix (S_MixKick .. S_MixJoin) and the mix-ahead's margin, since start-up or `snd_mixstats reset`.
+// Written by S_Update_ on either thread (never both at once: the main thread joins first); read on the main thread.
+typedef struct
+{
+	qboolean	posted;		// a mix on the pool, not joined yet (the main thread's)
+	int		kicks;		// mixes posted to the pool
+	int		waits;		// joins that waited over 50 microseconds for it
+	double		jobms;		// the posted mixes' time, summed (on whichever thread ran them)
+	double		waitms;		// the joins' time, summed (the main thread's cost besides the kick)
+	int		paints;		// S_Update_ calls that painted
+	int		underruns;	// ... that found the device past what was painted (it played old samples: a glitch)
+	int		minlead;	// sample pairs painted ahead of the device at a paint's start, the least (-1: none yet)
+} sndmixstats_t;
+static sndmixstats_t	snd_mixstats = {false, 0, 0, 0.0, 0.0, 0, 0, -1};
+// QVR: snd_mixstats: the joins that found a mix posted, by where (S_MixJoin's __FILE__ and __LINE__)
+typedef struct
+{
+	const char	*file;
+	int		line, joins, waits;
+	double		ms;
+} sndjoinsite_t;
+#define SND_JOINSITES	32
+static sndjoinsite_t	snd_joinsites[SND_JOINSITES];
+
+
+// QVR: snd_mixstats [reset]: the pool's mix (snd_mixasync) and the mix-ahead's margin since the last reset
+static void S_MixStats_f (void)
+{
+	const double rate = shm && shm->speed ? shm->speed / 1000.0 : 1.0;
+	int i;
+	S_MixJoin ();
+	Con_Printf ("snd_mixstats: async %g, %d mixes posted (%.3f ms each on the pool), joins %.4f ms each (%d waited), "
+		"%d paints, %d underruns, least lead %.1f ms (mixahead %g)\n", snd_mixasync.value, snd_mixstats.kicks,
+		snd_mixstats.kicks ? snd_mixstats.jobms / snd_mixstats.kicks : 0.0,
+		snd_mixstats.kicks ? snd_mixstats.waitms / snd_mixstats.kicks : 0.0, snd_mixstats.waits, snd_mixstats.paints,
+		snd_mixstats.underruns, snd_mixstats.minlead >= 0 ? snd_mixstats.minlead / rate : -1.0, _snd_mixahead.value);
+	for (i = 0; i < SND_JOINSITES && snd_joinsites[i].file; i++)
+	{
+		const sndjoinsite_t *s = &snd_joinsites[i];
+		Con_Printf ("  joined at %s:%d: %d (%d waited, %.4f ms each)\n", COM_SkipPath (s->file), s->line, s->joins,
+			s->waits, s->ms / s->joins);
+	}
+	if (Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "reset"))
+	{
+		sndmixstats_t fresh = {false, 0, 0, 0.0, 0.0, 0, 0, -1};
+		snd_mixstats = fresh;
+		memset (snd_joinsites, 0, sizeof (snd_joinsites));
+	}
+}
 
 static void S_SoundInfo_f (void)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	if (!sound_started || !shm)
 	{
 		Con_Printf ("sound system not started\n");
@@ -132,11 +188,13 @@ static void S_SoundInfo_f (void)
 
 static void SND_Callback_sfxvolume (cvar_t *var)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	SND_InitScaletable ();
 }
 
 static void SND_Callback_snd_filterquality (cvar_t *var)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	if (snd_filterquality.value < 1 || snd_filterquality.value > 5)
 	{
 		Con_Printf ("snd_filterquality must be between 1 and 5\n");
@@ -193,6 +251,9 @@ void S_Init (void)
 	Cvar_RegisterVariable(&snd_noextraupdate);
 	Cvar_RegisterVariable(&snd_show);
 	Cvar_RegisterVariable(&_snd_mixahead);
+	Cvar_RegisterVariable(&snd_mixasync); // QVR
+	Cmd_AddCommand("snd_mixstats", S_MixStats_f); // QVR
+	Cmd_AddCommand("snd_cutoffs", S_Cutoffs_f); // QVR: the sounds cut off by others
 	Cvar_RegisterVariable(&sndspeed);
 	Cvar_RegisterVariable(&snd_mixspeed);
 	Cvar_RegisterVariable(&snd_filterquality);
@@ -259,6 +320,7 @@ void S_Init (void)
 // =======================================================================
 void S_Shutdown (void)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	if (!sound_started)
 		return;
 
@@ -322,6 +384,7 @@ S_TouchSound
 */
 void S_TouchSound (const char *name)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	sfx_t	*sfx;
 
 	if (!sound_started)
@@ -339,6 +402,7 @@ S_PrecacheSound
 */
 sfx_t *S_PrecacheSound (const char *name)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	sfx_t	*sfx;
 
 	if (!sound_started || nosound.value)
@@ -363,6 +427,45 @@ SND_PickChannel
 picks a channel based on priorities, empty slots, number of channels
 =================
 */
+// QVR: the sounds still playing that a new one cut off (snd_cutoffs; ROUND22.md, "Sounds cutting each other off"):
+// replaced on their entity's own channel, or taken as the oldest when no channel was free (and of those, the player's).
+static int cutSameChannel, cutNoFreeChannel, cutPlayer;
+static qboolean cutLog;
+
+static void S_CountCutoff (const channel_t *ch, int entnum, int entchannel, const sfx_t *by)
+{
+	const qboolean same = !S_AUTOCHANNEL (entchannel) && ch->entnum == entnum &&
+		(ch->entchannel == entchannel || entchannel == -1); // (-1: a local sound, which took any of the entity's before)
+	if (same)
+		cutSameChannel++;
+	else
+		cutNoFreeChannel++;
+	if (ch->entnum == cl.viewentity)
+		cutPlayer++;
+	if (cutLog)
+		Con_Printf ("snd_cutoffs: %s (entity %d channel %d) cut off by %s (%s)\n", ch->sfx->name, ch->entnum, ch->entchannel,
+			by->name, entchannel == -1 && same ? "a local sound" : same ? "same channel" : "no free channel");
+}
+
+// snd_cutoffs [reset | log]: the counts; "reset" zeroes them; "log" prints each cut-off from now on (again: stops).
+static void S_Cutoffs_f (void)
+{
+	if (Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "reset"))
+	{
+		cutSameChannel = cutNoFreeChannel = cutPlayer = 0;
+		Con_Printf ("snd_cutoffs: reset\n");
+		return;
+	}
+	if (Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "log"))
+	{
+		cutLog = !cutLog;
+		Con_Printf ("snd_cutoffs: logging %s\n", cutLog ? "on" : "off");
+		return;
+	}
+	Con_Printf ("snd_cutoffs: %d same channel, %d no free channel, %d of them the player's\n", cutSameChannel,
+		cutNoFreeChannel, cutPlayer);
+}
+
 channel_t *SND_PickChannel (int entnum, int entchannel)
 {
 	int	ch_idx;
@@ -374,9 +477,11 @@ channel_t *SND_PickChannel (int entnum, int entchannel)
 	life_left = 0x7fffffff;
 	for (ch_idx = NUM_AMBIENTS; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; ch_idx++)
 	{
-		if (!S_AUTOCHANNEL (entchannel)	// channel 0 never overrides (QVR: nor the hands')
+		// QVR: nor a local sound (-1: S_LocalSound's, the menus', the gadgets'), which took the player's first channel,
+		// whatever played on it (a hard landing's "hnng" cut off by a menu's click; ROUND22.md, "Sounds cut off: the audit")
+		if (!S_AUTOCHANNEL (entchannel) && entchannel != -1	// channel 0 never overrides (QVR: nor the hands')
 			&& snd_channels[ch_idx].entnum == entnum
-			&& (snd_channels[ch_idx].entchannel == entchannel || entchannel == -1) )
+			&& snd_channels[ch_idx].entchannel == entchannel)
 		{	// always override sound from same entity
 			first_to_die = ch_idx;
 			break;
@@ -464,6 +569,7 @@ void S_StartSound (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float 
 
 void S_StartSoundPitch (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float fvol, float attenuation, float pitch)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	channel_t	*target_chan, *check;
 	sfxcache_t	*sc;
 	sfx_t		*old_sfx;
@@ -486,6 +592,8 @@ void S_StartSoundPitch (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, f
 	target_chan = SND_PickChannel(entnum, entchannel);
 	if (!target_chan)
 		return;
+	if (target_chan->sfx && target_chan->end > paintedtime) // QVR: a sound still playing cut off (snd_cutoffs)
+		S_CountCutoff (target_chan, entnum, entchannel, sfx);
 
 // keep track of the old sound playing on this channel (for demo rewinding)
 	old_sfx = NULL;
@@ -566,6 +674,7 @@ void S_StartSoundPitch (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, f
 
 void S_StopSound (int entnum, int entchannel)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	int	i;
 
 	for (i = 0; i < MAX_DYNAMIC_CHANNELS; i++)
@@ -582,6 +691,7 @@ void S_StopSound (int entnum, int entchannel)
 
 void S_StopAllSounds (qboolean clear)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	int		i;
 
 	if (!sound_started)
@@ -609,6 +719,7 @@ static void S_StopAllSoundsC (void)
 
 void S_ClearBuffer (void)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	int		clear;
 
 	if (!sound_started || !shm)
@@ -640,6 +751,7 @@ S_StaticSound
 */
 void S_StaticSound (sfx_t *sfx, vec3_t origin, float vol, float attenuation)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	channel_t	*ss;
 	sfxcache_t		*sc;
 
@@ -775,6 +887,7 @@ Expects data in signed 16 bit, or unsigned
 */
 void S_RawSamples (int samples, int rate, int width, int channels, byte *data, float volume)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	int i;
 	int src, dst;
 	float scale;
@@ -857,6 +970,8 @@ Called once each time through the main loop
 */
 void S_Update (vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
+	VR_TRACY_SCOPE("Audio update");
 	int			i, j;
 	int			total;
 	channel_t	*ch;
@@ -998,9 +1113,78 @@ static void GetSoundtime (void)
 
 void S_ExtraUpdate (void)
 {
+	S_MixJoin (); // QVR
 	if (snd_noextraupdate.value)
 		return;		// don't pollute timings
 	S_Update_();
+}
+
+// QVR: the mix-ahead painted on the thread pool while the screen updates (snd_mixasync; vr/vr_audio.cpp VR_SndJobPost;
+// docs/vr-port/ROUND22.md, "Sound mix off the render path"), where R_RenderScene's S_ExtraUpdate painted it
+static void S_MixJob (void *unused)
+{
+	const double t0 = Sys_DoubleTime ();
+	(void) unused;
+	S_Update_ ();
+	snd_mixstats.jobms += (Sys_DoubleTime () - t0) * 1000.0;
+}
+
+void S_MixKick (qboolean extra)
+{
+	int		i;
+	channel_t	*ch;
+
+	if (snd_mixstats.posted || snd_noextraupdate.value)
+		return; // (one on the pool at a time: the render's call finds the screen update's posted)
+	if (!snd_mixasync.value || !sound_started || snd_blocked > 0)
+	{
+		if (extra)
+			S_ExtraUpdate ();
+		return;
+	}
+	// The playing sounds' samples in memory, at the head of the cache's LRU: a load is the main thread's (S_LoadSound
+	// off it only looks), and every channel playing has its sound loaded already (S_StartSound), so this finds them.
+	for (i = 0, ch = snd_channels; i < total_channels; i++, ch++)
+	{
+		if (ch->sfx)
+			S_LoadSound (ch->sfx);
+	}
+	snd_mixstats.posted = VR_SndJobPost (S_MixJob) != 0;
+	if (!snd_mixstats.posted)
+	{
+		if (extra)
+			S_ExtraUpdate (); // (no thread pool)
+		return;
+	}
+	snd_mixstats.kicks++;
+}
+
+void S_MixJoinAt (const char *file, int line)
+{
+	double	t0, ms;
+	int	i;
+
+	if (!VR_OnMainThread () || !snd_mixstats.posted)
+		return;
+	t0 = Sys_DoubleTime ();
+	snd_mixstats.posted = false;
+	VR_SndJobWait ();
+	ms = (Sys_DoubleTime () - t0) * 1000.0;
+	snd_mixstats.waitms += ms;
+	if (ms > 0.05)
+		snd_mixstats.waits++;
+	for (i = 0; i < SND_JOINSITES; i++) // (snd_mixstats: who joined)
+	{
+		sndjoinsite_t *s = &snd_joinsites[i];
+		if (s->file && (s->line != line || strcmp (s->file, file)))
+			continue;
+		s->file = file;
+		s->line = line;
+		s->joins++;
+		s->waits += ms > 0.05;
+		s->ms += ms;
+		break;
+	}
 }
 
 static void S_Update_ (void)
@@ -1019,11 +1203,15 @@ static void S_Update_ (void)
 	GetSoundtime();
 
 // check to make sure that we haven't overshot
+	snd_mixstats.paints++; // QVR: snd_mixstats
 	if (paintedtime < soundtime)
 	{
 	//	Con_Printf ("S_Update_ : overflow\n");
+		snd_mixstats.underruns++; // QVR
 		paintedtime = soundtime;
 	}
+	else if (snd_mixstats.minlead < 0 || paintedtime - soundtime < snd_mixstats.minlead) // QVR
+		snd_mixstats.minlead = paintedtime - soundtime;
 
 // mix ahead of current position
 	endtime = soundtime + (unsigned int)(_snd_mixahead.value * shm->speed);
@@ -1038,6 +1226,7 @@ static void S_Update_ (void)
 
 void S_BlockSound (void)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 /* FIXME: do we really need the blocking at the
  * driver level?
  */
@@ -1052,6 +1241,7 @@ void S_BlockSound (void)
 
 void S_UnblockSound (void)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	if (!sound_started || !snd_blocked)
 		return;
 	if (snd_blocked == 1)			/* --snd_blocked == 0 */
@@ -1116,6 +1306,7 @@ static void S_PlayVol (void)
 
 static void S_SoundList (void)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	int		i;
 	sfx_t	*sfx;
 	sfxcache_t	*sc;
@@ -1141,6 +1332,7 @@ static void S_SoundList (void)
 
 void S_LocalSound (const char *name)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	sfx_t	*sfx;
 
 	if (nosound.value)

@@ -2314,9 +2314,10 @@ void SCR_UpdateScreen (void)
 
 	GL_EndGroup ();
 
-	if (VR_DebugGLState ()) // QVR: the texture bind cache checked against GL, and the clip rectangle off
+	if (VR_DebugGLState ()) // QVR: the texture bind cache and framebuffer bindings checked against GL, the clip rectangle off
 	{
 		GL_CheckBindCache ();
+		GL_CheckBoundFramebuffers ("frame end");
 		if (glIsEnabled (GL_SCISSOR_TEST))
 			Con_Printf ("glstate: clip rectangle left on at the frame's end\n");
 	}

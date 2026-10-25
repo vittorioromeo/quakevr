@@ -551,7 +551,7 @@ random()
 */
 cvar_t sv_gameplayfix_random = {"sv_gameplayfix_random", "1", CVAR_ARCHIVE};
 cvar_t sv_random_seed = {"sv_random_seed", "0", CVAR_NONE}; // QVR: the server's random numbers' seed at each map load (tests: the same AI every run; 0: the clock's; vr_srvrandom.cpp)
-static void PF_random (void)
+float PR_RandomNumber (void) // QVR: random()'s number, for the engine's natives of QuakeC too (vr_propthink.cpp)
 {
 	float		num;
 	int		r = VR_ProbeRandom (); // QVR: the probes' own numbers (the server's stream left as it was)
@@ -563,7 +563,12 @@ static void PF_random (void)
 	else
 		num = (r & 0x7fff) / ((float)0x7fff);
 
-	G_FLOAT(OFS_RETURN) = num;
+	return num;
+}
+
+static void PF_random (void)
+{
+	G_FLOAT(OFS_RETURN) = PR_RandomNumber (); // QVR: the number in PR_RandomNumber
 }
 
 /*

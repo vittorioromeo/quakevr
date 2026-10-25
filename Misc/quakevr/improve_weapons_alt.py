@@ -27,12 +27,12 @@
 # - v_multi.mdl was modelled apart (improve_weapons3.py builds it as its own launcher).
 #
 # So an alternate is built by the same builder as its normal model, from its own source: first moved
-# by the offset between the two models' hand anchor vertices (so that its hand's model space is the
+# by the offset between the two models' hand anchors' vertices (so that its hand's model space is the
 # normal one's: every part lands where it does on the normal gun, and the hand is at the same place),
 # with the builder's vertex indices translated to the alternate's (VertexMap). Then its vr_weapons.inc
-# slot is set up from the normal slot (align_slot): the same settings, but for the anchor indices
-# (the engine's strip order of the alternate's own triangles), the hand offsets (from its own anchor
-# vertex to the same hand) and the weapon offsets (compensating the header's origin, about which the
+# slot is set up from the normal slot (align_slot): the same settings, but for the anchors (the
+# points of the alternate's vertices matching the normal one's), the hand offsets (from its own anchor
+# to the same hand) and the weapon offsets (compensating the header's origin, about which the
 # weapon's Scale applies). Normal and alternate are then drawn in the same place, the hand on the same
 # grip; switching the ammo only changes the paint.
 
@@ -40,14 +40,13 @@ import math
 import os
 import re
 
-from improve_weapons import K, Mdl, fmt, strip_order
+from improve_weapons import K, Mdl, fmt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "src_models")
 INC = os.path.join(HERE, "..", "..", "Quake", "vr", "vr_weapons.inc")
 
-ANCHORS = ["HandAnchorVertex", "MuzzleAnchorVertex", "TwoHHandAnchorVertex", "WpnButtonAnchorVertex",
-           "WpnTextAnchorVertex"]
+ANCHORS = ["HandAnchor", "MuzzleAnchor", "TwoHHandAnchor", "WpnButtonAnchor", "WpnTextAnchor"]
 
 
 # ----------------------------------------------------------------------------
@@ -126,10 +125,9 @@ def translate(model, d):
 
 
 def prepare(normal, alt, hand_vertex):
-    """The alternate moved onto the normal model (by the offset between their hand anchor vertices),
+    """The alternate moved onto the normal model (by the offset between their hand anchors' vertices),
     and the vertex map. Prints what was measured."""
     vmap = vertex_map(normal, alt)
-    vmap.order = strip_order(normal.tris)  # the normal model's anchor indices -> its vertices
     d = tuple(_positions(alt)[vmap(hand_vertex)][k] - _positions(normal)[hand_vertex][k] for k in range(3))
     translate(alt, d)
     P, Q = _positions(normal), _positions(alt)
@@ -144,7 +142,7 @@ def prepare(normal, alt, hand_vertex):
 
 def slot_defaults():
     slots = {}
-    for slot, key, value in re.findall(r'QVR_WEAPON_DEFAULT\((\d+), (\w+), "([^"]*)"\)', open(INC).read()):
+    for slot, key, value in re.findall(r'QVR_WEAPON_(?:DEFAULT|UNINHERITED)\((\d+), (\w+), "([^"]*)"\)', open(INC).read()):
         slots.setdefault(int(slot), {})[key] = value
     return slots
 
@@ -155,7 +153,7 @@ def _num(x):
 
 def align_slot(out_dir, normal_name, alt_name, normal_slot, alt_slot, normal_changes, vmap, counts):
     """The alternate's vr_weapons.inc slot from the normal one (its defaults, with `normal_changes`,
-    the settings its builder printed this run): the same, but the anchor indices, the hand offsets and
+    the settings its builder printed this run): the same, but the anchors, the hand offsets and
     the weapon offsets, so that the two models are drawn in the same place with the hand at the same
     place. `vmap` and `counts` (the two sources' vertex counts): the builders keep the old vertices'
     indices and append the same new parts in the same order. Prints the lines that change."""
@@ -166,8 +164,14 @@ def align_slot(out_dir, normal_name, alt_name, normal_slot, alt_slot, normal_cha
     N = Mdl(open(os.path.join(out_dir, normal_name), "rb").read())
     A = Mdl(open(os.path.join(out_dir, alt_name), "rb").read())
     assert len(A.st) - counts[1] >= len(N.st) - counts[0], "not the same parts"
-    on, oa = strip_order(N.tris), strip_order(A.tris)
+    import anchors
+    nm, am = anchors.Mesh(os.path.join(out_dir, normal_name)), anchors.Mesh(os.path.join(out_dir, alt_name))
     frames = range(min(len(N.frames), len(A.frames)))
+
+    def vertex_of(text):
+        """The normal model's vertex an anchor is on (the corner it binds to)."""
+        b = nm.bind(text)
+        return b.verts[b.weights.index(max(b.weights))]
 
     def match(v):
         """The alternate's vertex that is the normal one's: the same old vertex, or the same new one."""
@@ -177,15 +181,15 @@ def align_slot(out_dir, normal_name, alt_name, normal_slot, alt_slot, normal_cha
     new = {k: v for k, v in n.items() if k != "ID"}
     report = []
     for key in ANCHORS:
-        v = on[int(float(n[key]))]
+        v = vertex_of(n[key])
         w = match(v)
-        new[key] = str(oa.index(w))
-        report.append("%s %s -> %s (%.2f, %.2f)" % (key[:-12] or "Hand", n[key], new[key], math.dist(N.frames[0][1][v], A.frames[0][1][w]),
+        new[key] = anchors.vertex_text(am, w)
+        report.append("%s %s -> %s (%.2f, %.2f)" % (key[:-6] or "Hand", n[key], new[key], math.dist(N.frames[0][1][v], A.frames[0][1][w]),
                                                    max(math.dist(N.frames[f][1][v], A.frames[f][1][w]) for f in frames)))
 
     sw = float(n["Scale"])
-    hand_n = N.frames[0][1][on[int(float(n["HandAnchorVertex"]))]]
-    hand_a = A.frames[0][1][oa[int(new["HandAnchorVertex"])]]
+    hand_n = N.frames[0][1][vertex_of(n["HandAnchor"])]
+    hand_a = A.frames[0][1][match(vertex_of(n["HandAnchor"]))]
     offs_n = [float(n["HandOffset" + c]) for c in "XYZ"]
     p0 = [hand_n[k] + offs_n[k] / (K * sw) for k in range(3)]
     for k, c in enumerate("XYZ"):
@@ -211,7 +215,7 @@ def align_slot(out_dir, normal_name, alt_name, normal_slot, alt_slot, normal_cha
 # ----------------------------------------------------------------------------
 # The rocket launcher's alternate (improve_weapons.py builds the others' in its main)
 
-RL_HAND_ANCHOR = 12  # v_rock2.mdl's hand anchor index (improve_weapons.py's build_rocket_launcher)
+RL_HAND_VERTEX = 75  # v_rock2.mdl's hand anchor's vertex (improve_weapons.py's build_rocket_launcher)
 
 
 def rocket_launcher(out_dir, normal_settings):
@@ -223,7 +227,7 @@ def rocket_launcher(out_dir, normal_settings):
     alt = Mdl(open(os.path.join(SRC, "v_multi2.mdl"), "rb").read())
     print("v_multi2.mdl (the alternate of v_rock2.mdl):")
     counts = (len(normal.st), len(alt.st))
-    vmap = prepare(normal, alt, strip_order(normal.tris)[RL_HAND_ANCHOR])
+    vmap = prepare(normal, alt, RL_HAND_VERTEX)
     _, _, model = improve_weapons.build_rocket_launcher(out_dir, alt=(alt, "v_multi2.mdl"))
     print("  %d vertices, %d triangles, %d frames" % (len(model.st), len(model.tris), len(model.frames)))
     return align_slot(out_dir, "v_rock2.mdl", "v_multi2.mdl", 6, 14, normal_settings, vmap, counts)

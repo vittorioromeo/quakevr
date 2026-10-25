@@ -9,6 +9,8 @@
 #include "vr_retro.h"
 #include "vr_retro.hpp"
 #include "vr_foveated.hpp"
+#include "vr_particles.hpp"
+#include "vr_units.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -24,6 +26,12 @@
 #include "Zancle/String/ToString.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_zancle.hpp"
+
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
 
 #include <string.h>
 
@@ -97,8 +105,22 @@ in float soft;
 in float viewDepth;
 in vec3 worldPos;
 out vec4 result;
+#ifdef PARTICLE_WASTE
+// vr_debug_particle_waste: each slot's fragments shaded, visible, and more than faint (readParticleWaste). Early tests
+// declared, as the plain shader gets them (no depth written): only the fragments it would shade are counted.
+layout(early_fragment_tests) in;
+layout(std430, binding = 13) buffer ParticleWaste
+{
+    uint wasteCounts[];
+};
+layout(location = 93) uniform float WasteFaint;
+flat in int wasteSlot;
+#endif
 #if RETRO
 layout(location = 9) uniform int RetroSet; // retro textures' set (vr_retro.h; 0 none): blocks in world units
+#endif
+#ifdef PARTICLE_PLAIN
+flat in float particlePlain; // (the particles' vertex shader: 1, never through retro textures)
 #endif
 #ifdef PARTICLE_RETRO_GRID
 flat in vec3 particleGridScale;
@@ -310,6 +332,9 @@ vec4 hologram()
 }
 void main()
 {
+#ifdef PARTICLE_WASTE
+    atomicAdd(wasteCounts[wasteSlot * 3], 1u);
+#endif
 #if MODE == 2
     // Derivatives before any discard. Half-resolution has no hardware scene-depth test;
     // reject covered fragments before their retro texture/palette work.
@@ -342,6 +367,10 @@ void main()
     RetroBeginParticle(duvdx, duvdy, dpdx, dpdy);
 #else
     RetroBegin(float(RetroSet), vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));
+#endif
+#ifdef PARTICLE_PLAIN
+    if(particlePlain > 0.5)
+        Retro = 0;
 #endif
     if(Retro > 0)
     {
@@ -377,7 +406,7 @@ void main()
 #else
     result = color;
 #endif
-#if BLENDED
+#if BLENDED && !defined(PARTICLE_WASTE)
     if(result == vec4(0.0))
         discard;
 #endif
@@ -400,6 +429,14 @@ void main()
         float f = clamp((texelFetch(SceneDistances, p, 0).r - viewDepth) / soft, 0.0, 1.0);
         result *= f * f * (3.0 - 2.0 * f);
     }
+#endif
+#ifdef PARTICLE_WASTE
+    // What it adds over the scene (premultiplied): at most its largest channel.
+    float shown = max(max(result.r, result.g), max(result.b, result.a));
+    if(shown >= 0.5 / 255.0)
+        atomicAdd(wasteCounts[wasteSlot * 3 + 1], 1u);
+    if(shown >= WasteFaint)
+        atomicAdd(wasteCounts[wasteSlot * 3 + 2], 1u);
 #endif
 }
 )";
@@ -444,6 +481,14 @@ layout(location = 14) uniform vec2 Trim; // enable, world block size (0 plain)
 layout(location = 20) uniform vec4 Support[16]; // guarded base-level support in atlas UVs
 #endif
 layout(location = 12) uniform float LargePixels;  // large: half across at least this many of them
+// Near the eye (vr_particle_near_fade, _near_cull): x fading from this far (units), y nothing nearer; z: none larger
+// across than this part of the view's height (vr_particle_max_screen, 0 no cap), shrunk round its centre.
+layout(location = 90) uniform vec3 NearFade;
+layout(location = 91) uniform vec2 ViewSize;      // the scene's viewport, in PixelScale's pixels
+#ifdef PARTICLE_WASTE
+layout(location = 92) uniform float WasteBig;     // vr_debug_particle_waste_big: big from this part of the view
+flat out int wasteSlot;
+#endif
 struct Particle
 {
     vec4 orgHalf;   // org, half size
@@ -466,6 +511,9 @@ out vec3 worldPos;
 layout(binding = 0) uniform sampler2D Tex;
 flat out vec3 particleGridScale;
 #endif
+#ifdef PARTICLE_PLAIN
+flat out float particlePlain; // 1: its texture read smoothly, never through retro textures (the shore's spray)
+#endif
 // The six corners (two triangles): down left, up left, up right, down left, up right, down right.
 const vec2 signs[6] = vec2[6](vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, 1.0));
 void main()
@@ -475,6 +523,9 @@ void main()
     if(Reverse > 0)
         index = Reverse - 1 - index;
     Particle p = particles[index];
+#ifdef PARTICLE_PLAIN
+    particlePlain = p.flags.w;
+#endif
     int corner = gl_VertexID % 6;
     vec3 org = p.orgHalf.xyz;
     float h = p.orgHalf.w;
@@ -511,10 +562,45 @@ void main()
             u *= k;
         }
     }
+    // Faded out near the eye (premultiplied: all four), none at all nearer than NearFade.y.
+    vec4 tint = p.color;
+    float eyeDistance = distance(org, Eye);
+    bool gone = eyeDistance < NearFade.y;
+    if(!gone && eyeDistance < NearFade.x)
+    {
+        float f = clamp((eyeDistance - NearFade.y) / max(NearFade.x - NearFade.y, 1e-3), 0.0, 1.0);
+        tint *= f * f * (3.0 - 2.0 * f);
+    }
+    // No larger than NearFade.z of the view's height across (its half: half of that), about its centre.
+    vec4 centre = MVP * vec4(o, 1.0);
+    float halfPixels = max(length(r), length(u)) * PixelScale; // at distance 1
+    if(NearFade.z > 0.0 && centre.w > 0.0 && halfPixels > NearFade.z * 0.5 * ViewSize.y * centre.w)
+    {
+        float k = NearFade.z * 0.5 * ViewSize.y * centre.w / halfPixels;
+        r *= k;
+        u *= k;
+    }
+#ifdef PARTICLE_WASTE
+    {
+        float across = PixelScale / max(centre.w, 1e-4);
+        bool big = centre.w > 0.0 && 4.0 * length(r) * length(u) * across * across >= WasteBig * ViewSize.x * ViewSize.y;
+        wasteSlot = clamp(int(p.flags.z), 0, 31) * 2 + (big ? 1 : 0);
+    }
+#endif
+    if(gone)
+    {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0); // nothing: its six corners at one point, outside the view
+        uv = vec2(0.0);
+        color = vec4(0.0);
+        soft = 0.0;
+        worldPos = o;
+        viewDepth = 0.0;
+        return;
+    }
     if(Pass != 0)
     {
         // Large or small by its size in the scene's pixels (the same in both passes: each drawn in one).
-        vec4 mid = MVP * vec4(o, 1.0);
+        vec4 mid = centre;
         bool large = mid.w > 0.0 && max(length(r), length(u)) * PixelScale >= LargePixels * mid.w;
         if(large != (Pass == 2))
         {
@@ -586,7 +672,7 @@ void main()
 #endif
     vec3 pos = o + u * sg.x + r * sg.y;
     uv = sampleUV;
-    color = p.color;
+    color = tint;
     soft = p.csSoft.z;
     worldPos = pos;
     gl_Position = MVP * vec4(pos, 1.0);
@@ -597,8 +683,12 @@ void main()
 glm::vec4 particleSupport[16]{};
 glm::vec2 particleAtlasSize{1.f};
 
-GLuint particleProgram[11]{}; // 0 plain, 1 reference, 2 plain half, 3/4 general fast full/half, 5/6 centre-near full/half
-bool particleProgramFailed[11]{};
+// [waste: vr_debug_particle_waste's counting variants][0 plain, 1 reference, 2 plain half, 3/4 general fast full/half,
+// 5/6 centre-near full/half, 7-10 trimmed]
+GLuint particleProgram[2][11]{};
+bool particleProgramFailed[2][11]{};
+GLuint particleWasteBuffer = 0; // vr_debug_particle_waste's counts (particleWasteSlots x 3), made on its first draw
+bool particleWasteCounted = false; // drawn into since the last readParticleWaste
 
 // drawParticlesHalf's: its target (two, for the eyes' size and the spectator camera's), and the pass blending it into
 // the scene.
@@ -610,6 +700,7 @@ struct HalfTarget
 };
 HalfTarget halfTargets[2];
 int halfTargetNext = 0;
+int halfTargetsMadeCount = 0; // (vr_frame_log: made again each frame, they would thrash)
 GLuint halfCompositeProgram = 0;
 bool halfCompositeFailed = false;
 GLuint halfDepthCompositeProgram = 0; // vr_particle_halfres_upsample's (halfDepthCompositeFs)
@@ -617,7 +708,9 @@ bool halfDepthCompositeFailed = false;
 // Its framebuffer: the scene's colour alone (its depth is read), attached at each use (GL reuses a deleted texture's
 // name: the scene's targets made again at another size can come back under the same one).
 GLuint halfCompositeFbo = 0;
-GLuint halfCompositeColor = 0; // the colour texture last found complete with it (checked once a texture)
+// The colour textures last found complete with it (checked once a texture): two, as single-pass stereo gives each eye
+// its own.
+GLuint halfCompositeColor[2] = {};
 constexpr float halfDepthTolerance = 0.1f; // a texel is at a pixel's distance within this much of it (and 8 units) of the nearest
 
 // drawReverseOrder's (vr_particle_saturate): the particles composited in reverse order ("under": the last drawn,
@@ -756,6 +849,7 @@ layout(location = 7) uniform vec3 Key;
 layout(location = 8) uniform int Sides;
 layout(location = 9) uniform vec3 Rust;
 layout(location = 10) uniform int Flat; // faceted: the sides turned half a side, each quad lit by its face's normal
+layout(location = 11) uniform float Alpha; // (below 1: blended, drawTube's `alpha`)
 struct Ring
 {
     vec4 mid;
@@ -800,7 +894,7 @@ void main()
     float rust = clamp(g.ambient.w, 0.0, 1.0); // (a chain's links: rusted that much, grimy by lamp.w)
     float sheen = 0.45 * (1.0 - 0.85 * rust) * (1.0 - g.lamp.w) * x * dot(g.ambient.rgb + g.lamp.rgb, vec3(0.3333));
     vec3 albedo = mix(Albedo, Rust, rust) * (1.0 - g.lamp.w);
-    color = vec4(clamp(albedo * light + vec3(sheen), 0.0, 1.0), 1.0);
+    color = vec4(clamp(albedo * light + vec3(sheen), 0.0, 1.0), Alpha);
     uv = vec2(0.0);
     soft = 0.0;
     gl_Position = MVP * vec4(pos, 1.0);
@@ -810,6 +904,23 @@ void main()
 
 GLuint tubeProgram = 0;
 bool tubeProgramFailed = false;
+bool tubeFirstDrawn = false; // (prepareTube: drawn once in the load; developer 1 prints the first draw's time)
+bool tubeWarming = false;
+
+// The tube's program, compiled at its first use (prepareTube: in the map's load). False if it failed.
+bool ensureTubeProgram()
+{
+    if(!tubeProgram && !tubeProgramFailed)
+    {
+        const double start = Sys_DoubleTime();
+        const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Color)) +
+                                     "\n#define BLENDED 0\n" + fragmentShader;
+        tubeProgram = glProgram(tubeVertexShader, fragment.cStr(), "vr tube");
+        tubeProgramFailed = !tubeProgram;
+        Con_DPrintf("VR: tube: program made in %.2f ms\n", (Sys_DoubleTime() - start) * 1000.0);
+    }
+    return tubeProgram != 0;
+}
 
 // The bent mesh (BentDraw, drawBent): gl_VertexID's copy and mesh vertex; the curve's sample at its arc length by a
 // binary search (the samples' pos.w), interpolated, extrapolated along the end segments past the ends.
@@ -1169,6 +1280,17 @@ void upload(StorageBuffer& b, const void* data, za::SizeT bytes)
     GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
+void update(StorageBuffer& b, const void* data, za::SizeT offset, za::SizeT bytes)
+{
+    if(!b.buffer || bytes == 0 || offset + bytes > b.size)
+    {
+        return;
+    }
+    GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, b.buffer);
+    GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(bytes), data);
+    GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
 void bindStorage(unsigned binding, const StorageBuffer& b)
 {
     if(b.buffer && b.size > 0)
@@ -1220,6 +1342,36 @@ ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles, bool t
 
 namespace
 {
+using GetBufferSubDataFn = void(APIENTRY*)(GLenum, GLintptr, GLsizeiptr, void*);
+GetBufferSubDataFn particleWasteGet = nullptr; // (readParticleWaste: looked up on its first use)
+} // namespace
+
+bool readParticleWaste(za::Span<za::U32> counts)
+{
+    if(!particleWasteBuffer || !particleWasteCounted || counts.size() < static_cast<za::SizeT>(particleWasteSlots * 3))
+    {
+        return false;
+    }
+    if(!particleWasteGet)
+    {
+        particleWasteGet = reinterpret_cast<GetBufferSubDataFn>(SDL_GL_GetProcAddress("glGetBufferSubData"));
+    }
+    if(!particleWasteGet)
+    {
+        return false;
+    }
+    const auto bytes = static_cast<GLsizeiptr>(particleWasteSlots * 3 * sizeof(za::U32));
+    GL_MemoryBarrierFunc(GL_BUFFER_UPDATE_BARRIER_BIT);
+    GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, particleWasteBuffer);
+    particleWasteGet(GL_SHADER_STORAGE_BUFFER, 0, bytes, counts.data());
+    const za::Vector<za::U32> zero(static_cast<za::SizeT>(particleWasteSlots * 3), 0u);
+    GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, 0, bytes, zero.data());
+    particleWasteCounted = false;
+    return true;
+}
+
+namespace
+{
 
 // Lazy, bounded variants: reference, general fast and centre-near fast retro, plus nonretro full/half.
 [[nodiscard]] GLuint particleProgramFor(int which)
@@ -1227,12 +1379,23 @@ namespace
     const int variant = which;
     constexpr int base[11] = {0, 1, 2, 3, 4, 5, 6, 0, 2, 5, 6};
     which = base[variant];
-    GLuint& program = particleProgram[variant];
-    if(!program && !particleProgramFailed[variant])
+    const int waste = vr_debug_particle_waste.value != 0.f ? 1 : 0;
+    GLuint& program = particleProgram[waste][variant];
+    if(!program && !particleProgramFailed[waste][variant])
     {
         za::String fs = fragmentFor(static_cast<int>(Shade::Texture), true, which == 1 || which >= 3);
         za::String vs = particleVertexShader;
         if(variant >= 7) vs.insert(vs.find('\n') + 1, "#define PARTICLE_TRIM 1\n");
+        if(waste)
+        {
+            fs.insert(fs.find('\n') + 1, "#define PARTICLE_WASTE 1\n");
+            vs.insert(vs.find('\n') + 1, "#define PARTICLE_WASTE 1\n");
+        }
+        if(which == 1 || which >= 3) // (retro: a particle may skip it, flags.w)
+        {
+            fs.insert(fs.find('\n') + 1, "#define PARTICLE_PLAIN 1\n");
+            vs.insert(vs.find('\n') + 1, "#define PARTICLE_PLAIN 1\n");
+        }
         if(which >= 3)
         {
             fs.insert(fs.find('\n') + 1, "#define PARTICLE_RETRO_GRID 1\n");
@@ -1251,7 +1414,7 @@ namespace
             which == 2 ? "vr particles (half size)" : which == 3 ? "vr particles (retro fast)" :
             which == 4 ? "vr particles (retro fast half size)" : which == 5 ? "vr particles (retro centre near)" :
             "vr particles (retro centre near half size)");
-        particleProgramFailed[variant] = !program;
+        particleProgramFailed[waste][variant] = !program;
     }
     return program;
 }
@@ -1439,6 +1602,28 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     GL_Uniform1fFunc(12, split.largePixels);
     GL_Uniform1iFunc(15, 0);
     {
+        // Near the eye: faded from vr_particle_near_fade cm to vr_particle_near_cull, none nearer; vr_particle_max_screen.
+        const auto [cull, fade] = particles::nearLimits();
+        GL_Uniform3fFunc(90, fade, cull, za::clamp(vr_particle_max_screen.value, 0.f, 4.f));
+        GL_Uniform2fFunc(91, split.viewWidth, split.viewHeight);
+    }
+    bool waste = false;
+    for(const GLuint p : particleProgram[1]) waste |= p != 0 && p == program;
+    if(waste)
+    {
+        if(!particleWasteBuffer)
+        {
+            const za::Vector<za::U32> zero(static_cast<za::SizeT>(particleWasteSlots * 3), 0u);
+            particleWasteBuffer = GL_CreateBuffer(GL_SHADER_STORAGE_BUFFER, GL_DYNAMIC_READ, "vr particle waste",
+                zero.size() * sizeof(za::U32), zero.data());
+        }
+        GL_Uniform1fFunc(92, za::max(0.f, vr_debug_particle_waste_big.value));
+        GL_Uniform1fFunc(93, za::max(0.f, vr_debug_particle_waste_alpha.value));
+        GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 13, particleWasteBuffer, 0,
+            static_cast<GLsizeiptr>(particleWasteSlots * 3 * sizeof(za::U32)));
+        particleWasteCounted = true;
+    }
+    {
         // The teleporters shown in this view: what is behind one, through its aperture, is hidden (the fragment shader).
         float plane[8][4], lo[8][4], hi[8][4];
         VR_PortalFrameData(plane, lo, hi);
@@ -1453,8 +1638,11 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
             GL_Uniform4fvFunc(82, count, &hi[0][0]);
         }
     }
-    const bool trimmed = program == particleProgram[7] || program == particleProgram[8] ||
-        program == particleProgram[9] || program == particleProgram[10];
+    bool trimmed = false;
+    for(const auto& row : particleProgram)
+    {
+        trimmed |= program == row[7] || program == row[8] || program == row[9] || program == row[10];
+    }
     if(trimmed)
     {
         unsigned trimColor = 0, trimDepth = 0;
@@ -1516,10 +1704,11 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
             return false;
         }
         GL_GenFramebuffersFunc(1, &halfCompositeFbo);
+        GL_LabelNewFramebuffer(halfCompositeFbo, "half composite");
     }
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, halfCompositeFbo);
     GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color, 0);
-    if(color != halfCompositeColor)
+    if(color != halfCompositeColor[0] && color != halfCompositeColor[1])
     {
         // (A glCheckFramebufferStatus waits for the driver's thread: once a colour texture.)
         if(GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -1528,7 +1717,8 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
             GL_BindFramebufferFunc(GL_FRAMEBUFFER, sceneFbo);
             return false;
         }
-        halfCompositeColor = color;
+        halfCompositeColor[1] = halfCompositeColor[0];
+        halfCompositeColor[0] = color;
     }
     foveated::shadeBoundAsScene(true); // its pixels are the scene's: shaded at its rates (vr_foveated), as before
     GL_UseProgram(halfDepthCompositeProgram);
@@ -1562,6 +1752,11 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
     }
     drawParticlesWith(program, batch, pull, state.depthTest, state.retro, texture, pass, split, state.sceneDistances,
         state.sceneDistances != 0, false, reverse);
+}
+
+int halfTargetsMade()
+{
+    return halfTargetsMadeCount;
 }
 
 bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
@@ -1598,6 +1793,7 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
     {
         target = &halfTargets[halfTargetNext];
         halfTargetNext ^= 1;
+        ++halfTargetsMadeCount;
         if(target->texture)
         {
             GL_DeleteFramebuffersFunc(1, &target->fbo);
@@ -1672,26 +1868,23 @@ TubeBatch uploadTube(za::Span<const TubeRing> rings)
     return {buf, reinterpret_cast<za::SizeT>(ofs), rings.size(), gl_frameres_serial};
 }
 
-void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key, const glm::vec3& rust, bool flat)
+void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key, const glm::vec3& rust, bool flat,
+    float alpha)
 {
     if(batch.count < 2 || !batch.buffer || sides < 3)
     {
         return;
     }
     checkUploadFrame("tube", batch.serial);
-    if(!tubeProgram && !tubeProgramFailed)
-    {
-        const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Color)) +
-                                     "\n#define BLENDED 0\n" + fragmentShader;
-        tubeProgram = glProgram(tubeVertexShader, fragment.cStr(), "vr tube");
-        tubeProgramFailed = !tubeProgram;
-    }
-    if(!tubeProgram)
+    if(!ensureTubeProgram())
     {
         return;
     }
+    const double firstStart = tubeFirstDrawn ? 0.0 : Sys_DoubleTime(); // (developer 1: the first draw's CPU time)
     GL_UseProgram(tubeProgram);
-    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_OPAQUE);
+    const bool blended = alpha < 1.f;
+    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | (blended ? GLS_BLEND_ALPHA | GLS_NO_ZWRITE : GLS_BLEND_OPAQUE));
+    GL_Uniform1fFunc(11, za::clamp(alpha, 0.f, 1.f));
     const glm::mat4 mvp = sceneViewProjection();
     glm::vec3 eye, right, up;
     sceneCamera(eye, right, up);
@@ -1715,6 +1908,31 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
     {
         GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, savedBuffer, savedOffset, savedSize);
     }
+    if(!tubeFirstDrawn)
+    {
+        tubeFirstDrawn = true;
+        Con_DPrintf("VR: tube: first draw %.2f ms (%s)\n", (Sys_DoubleTime() - firstStart) * 1000.0,
+            tubeWarming ? "the load's warm-up" : "in play");
+    }
+}
+
+void prepareTube()
+{
+    // The cords' program (the torch's, the chainsaw's, the cells', the holsters' chains) made and drawn once in the load:
+    // its first use in play cost a 25.6 ms frame (Tracy qvr_gpu1: "flashlight cord draw", the compile and the driver's
+    // first draw). The draw is two rings of radius 0: no pixel.
+    if(!ensureTubeProgram() || tubeFirstDrawn)
+    {
+        return;
+    }
+    TubeRing rings[2]{};
+    rings[0].along = rings[1].along = glm::vec4{0.f, 0.f, 1.f, 0.f};
+    rings[0].across = rings[1].across = glm::vec4{1.f, 0.f, 0.f, 0.f};
+    rings[1].mid = glm::vec4{0.f, 0.f, 1.f, 0.f};
+    const TubeBatch batch = uploadTube(rings);
+    tubeWarming = true;
+    drawTube(batch, 3, glm::vec3{0.f}, glm::vec3{0.f, 0.f, 1.f});
+    tubeWarming = false;
 }
 
 BentBatch uploadBent(za::Span<const glm::vec4> data)
@@ -1875,6 +2093,7 @@ void ensureTarget(Target& target, int width, int height, bool mipmaps, const cha
     if(!fbo)
     {
         GL_GenFramebuffersFunc(1, &fbo);
+        GL_LabelNewFramebuffer(fbo, "vr canvas");
     }
 
     glGenTextures(1, &texture);
@@ -2028,6 +2247,7 @@ void copy(const Target& target, Texture image)
     if(!copyFbo)
     {
         GL_GenFramebuffersFunc(1, &copyFbo);
+        GL_LabelNewFramebuffer(copyFbo, "vr copy");
     }
 
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, copyFbo);

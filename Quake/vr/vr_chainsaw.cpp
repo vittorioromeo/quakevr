@@ -104,6 +104,30 @@ struct State
 };
 State st;
 
+// The cord's hint (vr_chainsaw_cord_hint; Vittorio, 2026-10-19: a player never found that the chainsaw starts by its
+// cord): the seated handle of a chainsaw in a hand dangles about its seat, drawn on its own (the saw without it), a
+// damped spring the saw's motion swings (the handle lagging behind its seat's changes of speed), swaying a little at rest.
+// Until a cord is first pulled (mode 1: the game's player remembers it, QC .vr_saw_cord_pulled), or always (mode 2).
+constexpr float dangleOmega = 2.2f * glm::two_pi<float>(); // the spring's own frequency (2.2 Hz)
+constexpr float dangleDamping = 0.15f;                       // its damping ratio: a few swings before it settles
+constexpr float dangleCarry = 0.25f;  // the share of the seat's change of speed the handle lags by (1: a free mass)
+constexpr float dangleMost = 0.02f;   // metres: the most it moves off its seat
+constexpr float dangleIdle = 0.004f;  // metres: its sway at rest
+constexpr float dangleTilt = 12.f;    // degrees it rocks at dangleMost (its top the way it moved)
+constexpr float dangleJump = 0.5f;    // metres the seat moved in a frame: a jump (a teleport), no swing
+struct Dangle
+{
+    int hand{-1};          // the chainsaw's hand its handle dangles on this frame (-1 none)
+    glm::vec3 off{0.f};    // the handle's offset from its seat by the swing (world units, across the saw's up)
+    glm::vec3 rate{0.f};   // ... its rate (units/s)
+    glm::vec3 lastSeat{0.f}, lastSeatVel{0.f};
+    double time{-1.0};     // vr_gametime of the last step (-1: start afresh)
+    float now{0.f};        // cm off its seat this frame (the swing and the sway)
+    float peak{0.f};       // cm, the most since vr_chainsaw_cord_info
+};
+Dangle dangle;
+bool pulledHere = false; // a cord pulled in this session: the memory when the game is not this program's (a remote server)
+
 coil::Cord cord;
 
 struct CordDraw
@@ -359,6 +383,145 @@ void debugLog(const char* what, int hand, float ext, float speed)
     }
 }
 
+// The game's player's QC .vr_saw_cord_pulled (this program's own game, single player), nullptr else.
+[[nodiscard]] eval_t* pulledField()
+{
+    return sv.active && svs.maxclients == 1 && qcvm->num_edicts > 1 ? GetEdictFieldValueByName(EDICT_NUM(1), "vr_saw_cord_pulled")
+                                                                    : nullptr;
+}
+
+// Whether a chainsaw's cord has been pulled yet (the cord's hint stops): the game's player's memory, else this session's.
+[[nodiscard]] bool pulledOnce()
+{
+    if(!sv.active || svs.maxclients != 1)
+    {
+        return pulledHere;
+    }
+    qcvm_t* previous;
+    PR_PushQCVM(&sv.qcvm, &previous);
+    const eval_t* field = pulledField();
+    const bool pulled = field ? field->_float != 0.f : pulledHere;
+    PR_PopQCVM(previous);
+    return pulled;
+}
+
+// A cord pulled (a good pull or a weak one), or vr_chainsaw_cord_pulled: remembered (saved with the game, carried to the
+// next level by parm50: QC client.qc).
+void setPulled(bool pulled)
+{
+    pulledHere = pulled;
+    if(sv.active && svs.maxclients == 1)
+    {
+        qcvm_t* previous;
+        PR_PushQCVM(&sv.qcvm, &previous);
+        if(eval_t* field = pulledField())
+        {
+            field->_float = pulled ? 1.f : 0.f;
+        }
+        PR_PopQCVM(previous);
+    }
+}
+
+// The cord's hint this frame (no cord held nor flying back): the hand whose chainsaw's handle dangles (-1 none), its
+// handle placed (st.handlePos, st.handleTurn, st.drawHandle).
+int dangleStep()
+{
+    const float mode = vr_chainsaw_cord_hint.value;
+    int hand = -1;
+    if(mode >= 1.f && vr_chainsaw_model_handle.value && handle.solo)
+    {
+        hand = st.sawDrawn[HAND_MAIN] ? HAND_MAIN : st.sawDrawn[HAND_OFF] ? HAND_OFF : -1;
+    }
+    const view::ViewEntity* ve = hand >= 0 ? sawIn(hand) : nullptr;
+    if(!ve || (mode < 2.f && pulledOnce()))
+    {
+        dangle.hand = -1;
+        dangle.time = -1.0;
+        dangle.now = 0.f;
+        return -1;
+    }
+    const glm::vec3 seat = st.seatWorld[hand];
+    const glm::vec3 xs = glm::normalize(view::modelPoint(*ve, handle.seat + glm::vec3{1.f, 0.f, 0.f}) - seat);
+    const glm::vec3 up = glm::normalize(view::modelPoint(*ve, handle.seat + glm::vec3{0.f, 0.f, 1.f}) - seat);
+    const double now = vr_gametime;
+    const float most = metres(dangleMost);
+    const auto flat = [&up](const glm::vec3& v) { return v - up * glm::dot(v, up); };
+    if(dangle.time < 0.0 || hand != dangle.hand || now < dangle.time || glm::distance(seat, dangle.lastSeat) > metres(dangleJump))
+    {
+        dangle.off = dangle.rate = dangle.lastSeatVel = glm::vec3{0.f};
+        dangle.lastSeat = seat;
+    }
+    else if(const float dt = static_cast<float>(za::min(now - dangle.time, 0.05)); dt > 0.f)
+    {
+        const glm::vec3 seatVel = (seat - dangle.lastSeat) / dt;
+        dangle.rate -= flat(seatVel - dangle.lastSeatVel) * dangleCarry; // (the handle lags behind)
+        const int n = za::clamp(static_cast<int>(za::ceil(dt * 240.f)), 1, 12);
+        const float h = dt / static_cast<float>(n);
+        for(int i = 0; i < n; i++)
+        {
+            const glm::vec3 acc = -(dangleOmega * dangleOmega) * dangle.off - (2.f * dangleDamping * dangleOmega) * dangle.rate;
+            dangle.rate += acc * h;
+            dangle.off += dangle.rate * h;
+        }
+        dangle.off = flat(dangle.off);
+        dangle.rate = flat(dangle.rate);
+        if(const float l = glm::length(dangle.off); l > most)
+        {
+            const glm::vec3 out = dangle.off / l;
+            dangle.off = out * most;
+            dangle.rate -= out * za::max(0.f, glm::dot(dangle.rate, out));
+        }
+        dangle.lastSeat = seat;
+        dangle.lastSeatVel = seatVel;
+    }
+    dangle.time = now;
+    dangle.hand = hand;
+
+    // At rest, a slow sway (two out-of-step sines across the saw's up).
+    const float t = static_cast<float>(za::fmod(now, 1000.0));
+    const glm::vec3 across = glm::normalize(glm::cross(up, xs));
+    glm::vec3 total = dangle.off + metres(dangleIdle) * (xs * za::sin(glm::two_pi<float>() * 0.9f * t) +
+                                                            across * (0.6f * za::sin(glm::two_pi<float>() * 0.63f * t + 1.1f)));
+    if(const float l = glm::length(total); l > most)
+    {
+        total *= most / l;
+    }
+    const float l = glm::length(total);
+    dangle.now = l / units::metresToUnits() * 100.f;
+    dangle.peak = za::max(dangle.peak, dangle.now);
+    st.handlePos = seat + total;
+    st.handleAxis = xs;
+    const glm::vec3 axis = glm::cross(up, total);
+    st.handleTurn = glm::length(axis) > 1e-6f
+                        ? glm::mat3_cast(glm::angleAxis(glm::radians(dangleTilt * l / most), glm::normalize(axis)))
+                        : glm::mat3{1.f};
+    st.drawHandle = true;
+    return hand;
+}
+
+// vr_chainsaw_cord_info: the cord's hint's state.
+void cordInfo_f()
+{
+    Con_Printf("chainsaw cord hint: %s; a cord %s pulled yet (%s); dangling on %s, %.2f cm off its seat now, the most %.2f cm "
+               "since the last\n",
+        vr_chainsaw_cord_hint.value >= 2.f ? "always" : vr_chainsaw_cord_hint.value >= 1.f ? "until the first pull" : "off",
+        pulledOnce() ? "was" : "was not", sv.active && svs.maxclients == 1 ? "the game's" : "this session's",
+        dangle.hand < 0 ? "no hand" : dangle.hand == HAND_MAIN ? "the main hand" : "the off hand", dangle.now, dangle.peak);
+    dangle.peak = 0.f;
+}
+
+// vr_chainsaw_cord_pulled 0|1: as if a cord had been pulled (1) or never (0).
+void cordPulled_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_chainsaw_cord_pulled 0|1: %d\n", pulledOnce() ? 1 : 0);
+        return;
+    }
+    setPulled(Q_atoi(Cmd_Argv(1)) != 0);
+    Con_Printf("vr_chainsaw_cord_pulled: %d\n", pulledOnce() ? 1 : 0);
+}
+
 // vr_chainsaw_fit: where the main hand's fist is in the chainsaw's model space (placing the model's grip there).
 void fit_f()
 {
@@ -411,11 +574,14 @@ void fit_f()
 void init()
 {
     Cmd_AddCommand("vr_chainsaw_fit", fit_f);
+    Cmd_AddCommand("vr_chainsaw_cord_info", cordInfo_f);
+    Cmd_AddCommand("vr_chainsaw_cord_pulled", cordPulled_f);
 }
 
 void reset()
 {
     st = State{};
+    dangle = Dangle{};
     handle = Handle{}; // (keyed by a model: a new map may load it elsewhere)
     cord.hide();
 }
@@ -579,7 +745,12 @@ void setupView(const hands::State& s)
         st.retractHand = -1;
     }
 
-    const int sawHand = st.holder >= 0 ? 1 - st.holder : st.retractHand;
+    const int sawHand = st.holder >= 0 ? 1 - st.holder : st.retractHand >= 0 ? st.retractHand : dangleStep();
+    if(st.holder >= 0 || st.retractHand >= 0)
+    {
+        dangle.hand = -1;
+        dangle.time = -1.0;
+    }
     if(sawHand < 0)
     {
         cord.hide();
@@ -609,6 +780,7 @@ void setupView(const hands::State& s)
                 st.pulledBy = h;
                 debugLog("pulled", h, ext, st.peakSpeed);
                 pullFeedback(sawHand, 1.f);
+                setPulled(true); // (the cord's hint stops)
             }
             else
             {
@@ -616,6 +788,7 @@ void setupView(const hands::State& s)
                 // The server never hears of it: its sound here (the cord's zip, the engine turned over, not firing).
                 S_StartSound(cl.viewentity, -1, S_PrecacheSound(weakPullSound), vec3_origin, 0.7f, 1.f);
                 pullFeedback(sawHand, weakPullShare);
+                setPulled(true);
             }
         }
         else if(!st.armed && ext < need * rearm)
@@ -677,9 +850,19 @@ void setupView(const hands::State& s)
     }
 }
 
+bool handleOff(int hand, int& frame)
+{
+    if(dangle.hand != hand || !st.drawHandle || st.holder >= 0 || st.retractHand >= 0)
+    {
+        return false;
+    }
+    frame = pulledFrame;
+    return true;
+}
+
 bool handleEntity(const view::ViewEntity*& saw, glm::vec3& origin, glm::vec3& angles, int& frame)
 {
-    const int sawHand = st.holder >= 0 ? 1 - st.holder : st.retractHand;
+    const int sawHand = st.holder >= 0 ? 1 - st.holder : st.retractHand >= 0 ? st.retractHand : dangle.hand;
     if(!st.drawHandle || sawHand < 0 || !st.sawDrawn[sawHand] || !vr_chainsaw_model_handle.value)
     {
         return false;

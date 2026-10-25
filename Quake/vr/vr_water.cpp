@@ -45,6 +45,12 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 
 extern "C" size_t gl_bmodel_vbo_size; // r_brush.c
 
@@ -87,6 +93,105 @@ bool wetLeaf(const qmodel_t* m, const mleaf_t* leaf)
     }
     return liquid || !tele;
 }
+
+// A box of the volume's cells (each axis lo to hi, hi excluded).
+struct CellBox
+{
+    int lo[3];
+    int hi[3];
+};
+
+// What buildVolume fills its texels by: the cells' centres (as the point test takes them) and what they go to.
+struct VolumeFill
+{
+    qmodel_t* m;
+    const za::Vector<char>& wet;
+    za::Vector<unsigned char>& texels;
+    int nx, ny;
+    float cell;
+
+    // The centre of cell `i` along `axis`: the very float the point test was given (the same expression).
+    [[nodiscard]] float centre(int axis, int i) const
+    {
+        return volumeOrigin[axis] + (i + 0.5f) * cell;
+    }
+
+    void set(int x, int y, int z, const mleaf_t* leaf) const
+    {
+        const za::PtrDiffT li = leaf - m->leafs;
+        texels[(static_cast<za::SizeT>(z) * ny + y) * nx + x] = li >= 0 && li <= m->numleafs && wet[li] ? 255 : 0;
+    }
+
+    // The cells of `box`, from `node` down: a whole box goes to the side of a node's plane all its centres are on,
+    // the whole box takes a leaf's; one the plane may cut is halved, down to a cell, which takes the point test's own
+    // leaf (Mod_PointInLeaf from the root). The texels a point test of every cell gave (FNV hash: developer 1), in
+    // a few thousand box tests and the cells along the planes' cuts instead of a descent for each of up to 4M cells.
+    void fill(const mnode_t* node, const CellBox& box) const
+    {
+        while(node->contents >= 0)
+        {
+            // The plane's distance over the box's centres (a linear function: the extremes at its corners, the centres
+            // growing with the index along each axis), in double; a float's test (DotProduct less dist) is within
+            // `slack` of it.
+            const mplane_t* plane = node->plane;
+            double lo = -static_cast<double>(plane->dist), hi = lo, size = za::abs(static_cast<double>(plane->dist));
+            for(int a = 0; a < 3; a++)
+            {
+                const double n = plane->normal[a];
+                const double c0 = centre(a, box.lo[a]), c1 = centre(a, box.hi[a] - 1);
+                lo += za::min(n * c0, n * c1);
+                hi += za::max(n * c0, n * c1);
+                size += za::max(za::abs(n * c0), za::abs(n * c1));
+            }
+            const double slack = size * 1e-5 + 1e-6; // (the float test's rounding: a few times 2^-24 of `size`)
+            if(lo > slack)
+            {
+                node = node->children[0]; // all in front (d > 0)
+            }
+            else if(hi < -slack)
+            {
+                node = node->children[1]; // all behind
+            }
+            else
+            {
+                int widest = 0;
+                for(int a = 1; a < 3; a++)
+                {
+                    if(box.hi[a] - box.lo[a] > box.hi[widest] - box.lo[widest])
+                    {
+                        widest = a;
+                    }
+                }
+                if(box.hi[widest] - box.lo[widest] == 1)
+                {
+                    // One cell on (or about) the plane: the point test itself.
+                    vec3_t p = {centre(0, box.lo[0]), centre(1, box.lo[1]), centre(2, box.lo[2])};
+                    set(box.lo[0], box.lo[1], box.lo[2], Mod_PointInLeaf(p, m));
+                    return;
+                }
+                const int mid = (box.lo[widest] + box.hi[widest]) / 2;
+                CellBox half = box;
+                half.hi[widest] = mid;
+                fill(node, half);
+                half = box;
+                half.lo[widest] = mid;
+                fill(node, half);
+                return;
+            }
+        }
+        const mleaf_t* leaf = reinterpret_cast<const mleaf_t*>(node);
+        for(int z = box.lo[2]; z < box.hi[2]; z++)
+        {
+            for(int y = box.lo[1]; y < box.hi[1]; y++)
+            {
+                for(int x = box.lo[0]; x < box.hi[0]; x++)
+                {
+                    set(x, y, z, leaf);
+                }
+            }
+        }
+    }
+};
 
 jobs::Site layersSite{"water volume"}; // (its parallelFor: vr_jobs_sites)
 jobs::Site meshSite{"water mesh"};      // (buildMesh's rims and faces, a face at a time: vr_jobs_sites)
@@ -148,28 +253,14 @@ void buildVolume(qmodel_t* m)
 
     const int nx = dims[0], ny = dims[1], nz = dims[2];
     za::Vector<unsigned char> texels(static_cast<za::SizeT>(nx) * ny * nz);
-    // Up to 4M points in the BSP tree (80-90 ms for e1m1 on one thread): the layers shared out among the game's threads
-    // (vr_jobs.hpp), each writing its own (Mod_PointInLeaf only reads the model), all done before the upload. The same
+    // Up to 4M cells, each the leaf its centre is in (a descent of the BSP tree each: 80-90 ms for e1m1 on one thread,
+    // before 2026-10-12): boxes of cells down the tree instead (VolumeFill::fill), the layers shared out among the
+    // game's threads (vr_jobs.hpp), each writing its own (the model only read), all done before the upload. The same
     // texels.
-    const auto layers = [&](int z0, int z1) {
-        for(int z = z0; z < z1; z++)
-        {
-            for(int y = 0; y < ny; y++)
-            {
-                for(int x = 0; x < nx; x++)
-                {
-                    vec3_t p = {volumeOrigin[0] + (x + 0.5f) * cell, volumeOrigin[1] + (y + 0.5f) * cell,
-                        volumeOrigin[2] + (z + 0.5f) * cell};
-                    const za::PtrDiffT li = Mod_PointInLeaf(p, m) - m->leafs;
-                    texels[(static_cast<za::SizeT>(z) * ny + y) * nx + x] =
-                        li >= 0 && li <= m->numleafs && wet[li] ? 255 : 0;
-                }
-            }
-        }
-    };
+    const VolumeFill volume{m, wet, texels, nx, ny, cell};
     const za::Clock clock;
     jobs::parallelFor(layersSite, static_cast<za::SizeT>(nz), 1, [&](za::SizeT z0, za::SizeT z1) {
-        layers(static_cast<int>(z0), static_cast<int>(z1));
+        volume.fill(m->nodes, CellBox{{0, 0, static_cast<int>(z0)}, {nx, ny, static_cast<int>(z1)}});
     });
     const double ms = static_cast<double>(clock.getElapsedTime().asMicroseconds()) / 1e3;
     za::U32 hash = 2166136261u; // (FNV-1a: the same texels whatever the threads, developer 1)
@@ -291,11 +382,12 @@ int distancesFrame = -1; // r_framecount the current one is for (one a view: eac
 // This view's distances from the depth texture `source` (made now if not yet: then `restore` puts back the framebuffer
 // drawn to), 0 if there is none.
 // What makeDistances last sized its target for, per slot (the eyes', the spectator camera's).
+// (Each eye's, as single-pass stereo gives each eye its own depth texture; the spectator camera's.)
 struct SizedDistances
 {
-    GLuint source[2] = {0, 0};
-    GLint sourceWidth[2] = {0, 0}, sourceHeight[2] = {0, 0};
-    int vidWidth[2] = {0, 0}, vidHeight[2] = {0, 0};
+    GLuint source[3] = {};
+    GLint sourceWidth[3] = {}, sourceHeight[3] = {};
+    int vidWidth[3] = {}, vidHeight[3] = {};
 };
 SizedDistances sizedDistances;
 
@@ -337,18 +429,15 @@ GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())
     // come back under the same name.
     // (One for the eyes' size, one for the spectator camera's.)
     const int slot = stereo::isSpectator() ? 1 : 0;
-    GLuint(&sizedSourceFor)[2] = sizedDistances.source;
-    GLint(&sourceWidthFor)[2] = sizedDistances.sourceWidth;
-    GLint(&sourceHeightFor)[2] = sizedDistances.sourceHeight;
-    int(&sizedVidWidthFor)[2] = sizedDistances.vidWidth;
-    int(&sizedVidHeightFor)[2] = sizedDistances.vidHeight;
-    GLuint& sizedSource = sizedSourceFor[slot];
-    GLint& sourceWidth = sourceWidthFor[slot];
-    GLint& sourceHeight = sourceHeightFor[slot];
-    if(source != sizedSource || vid.width != sizedVidWidthFor[slot] || vid.height != sizedVidHeightFor[slot])
+    const int sized = stereo::isSpectator() ? 2 : stereo::eye() & 1;
+    GLuint& sizedSource = sizedDistances.source[sized];
+    GLint& sourceWidth = sizedDistances.sourceWidth[sized];
+    GLint& sourceHeight = sizedDistances.sourceHeight[sized];
+    if(source != sizedSource || vid.width != sizedDistances.vidWidth[sized] ||
+        vid.height != sizedDistances.vidHeight[sized])
     {
-        sizedVidWidthFor[slot] = vid.width;
-        sizedVidHeightFor[slot] = vid.height;
+        sizedDistances.vidWidth[sized] = vid.width;
+        sizedDistances.vidHeight[sized] = vid.height;
         GL_BindNative(GL_TEXTURE0, sourceTarget, source);
         glGetTexLevelParameteriv(sourceTarget, 0, GL_TEXTURE_WIDTH, &sourceWidth);
         glGetTexLevelParameteriv(sourceTarget, 0, GL_TEXTURE_HEIGHT, &sourceHeight);
@@ -475,6 +564,7 @@ struct Mesh
     za::Vector<unsigned> ranges;
     za::Vector<int> texBegin, texEnd;
     za::Vector<LavaTop> lava; // the heat haze's (vr_haze.cpp)
+    za::Vector<ShoreSegment> shore; // the shore's foam particles' (vr_particles.cpp shoreFoam)
     unsigned generation = 0;   // made anew each build
 };
 Mesh mesh;
@@ -852,6 +942,7 @@ void freeMesh()
     mesh.faces.clear();
     mesh.leaves.clear();
     mesh.lava.clear();
+    mesh.shore.clear();
     mesh.generation++;
     mesh.built = false;
 }
@@ -1192,6 +1283,21 @@ void buildMesh(qmodel_t* m, float cell)
             out.lava = static_cast<int>(mesh.lava.size());
             mesh.lava.pushBack(ZA_MOVE(top));
         }
+        if(f.level && !f.submerged && f.normal[2] > 0.f)
+        {
+            // the shore along this top's rim (into the liquid: left of a->b on a face wound CCW in xy)
+            const int liquid = tex->type == TEXTYPE_LAVA ? 1 : tex->type == TEXTYPE_SLIME ? 2 : 0;
+            for(const Segment& r : faceRims[static_cast<za::SizeT>(fi)])
+            {
+                const glm::vec2 d = r.b - r.a;
+                const float len = glm::length(d);
+                if(len >= 0.5f)
+                {
+                    mesh.shore.pushBack(ShoreSegment{r.a, r.b, glm::vec2(-d.y, d.x) / len * f.winding, f.poly[0].z,
+                        static_cast<int>(mesh.faces.size()), liquid});
+                }
+            }
+        }
 
         out.full = fullTotal;
         out.fullCount = static_cast<unsigned>(f.level ? fm.full.size() : fm.flat.size());
@@ -1442,28 +1548,6 @@ constexpr Look looks[3] = {
 
 } // namespace
 
-void applyPreset(int preset)
-{
-    // off: Quake's; low: the surfaces' look without refraction or caustics; medium and up: everything
-    const bool on = preset > 0;
-    const bool more = preset > 1;
-    const auto set = [](cvar_t& var, bool enabled) { Cvar_SetQuick(&var, enabled ? var.default_string : "0"); };
-    set(vr_water_waves, on);
-    set(vr_water_fresnel, on);
-    set(vr_water_reflections, on);
-    set(vr_water_glints, on);
-    set(vr_water_lava_glow, on);
-    set(vr_water_underwater, on);
-    set(vr_water_wobble, on);
-    set(vr_water_refraction, more);
-    set(vr_portals, more); // the teleporters' views (vr_portals.cpp): the scene again, Medium and up
-    set(vr_water_caustics, more);
-    set(vr_water_geo_waves, more);
-    set(vr_water_foam, more);
-    set(vr_water_ripples, more);
-    haze::applyPreset(preset); // the heat haze (vr_haze.cpp)
-}
-
 const za::Vector<LavaTop>& lavaTops(unsigned& generation)
 {
     generation = mesh.built ? mesh.generation : 0;
@@ -1474,6 +1558,76 @@ bool lavaTopInPvs(const LavaTop& top)
 {
     return top.face >= 0 && static_cast<za::SizeT>(top.face) < mesh.faces.size() &&
            mesh.faces[static_cast<za::SizeT>(top.face)].pvsFrame == r_framecount;
+}
+
+const za::Vector<ShoreSegment>& shoreSegments(unsigned& generation)
+{
+    generation = mesh.built ? mesh.generation : 0;
+    return mesh.shore;
+}
+
+bool shoreSeen(const ShoreSegment& s)
+{
+    // (the particles run once a frame, before its views: the last frame's, every eye and the spectator)
+    return s.face >= 0 && static_cast<za::SizeT>(s.face) < mesh.faces.size() &&
+           mesh.faces[static_cast<za::SizeT>(s.face)].pvsFrame >= r_framecount - 6;
+}
+
+namespace
+{
+
+// Each liquid's foam settings (FoamLook), water's, lava's, slime's.
+struct FoamCvars
+{
+    cvar_t *on, *opacity, *frequency, *strength, *breathe, *breatheSpeed, *breatheIrregularity, *red, *green, *blue,
+        *particles, *particleLife, *particleOpacity, *particleSize, *particleShore, *edge;
+};
+const FoamCvars foamCvars[3] = {
+    {&vr_water_foam_on, &vr_water_foam_opacity, &vr_water_foam_frequency, &vr_water_foam_strength, &vr_water_foam_breathe,
+        &vr_water_foam_breathe_speed, &vr_water_foam_breathe_irregularity, &vr_water_foam_red, &vr_water_foam_green,
+        &vr_water_foam_blue, &vr_water_foam_particles, &vr_water_foam_particle_life, &vr_water_foam_particle_opacity,
+        &vr_water_foam_particle_size, &vr_water_foam_particle_shore, &vr_water_foam_edge},
+    {&vr_lava_foam_on, &vr_lava_foam_opacity, &vr_lava_foam_frequency, &vr_lava_foam_strength, &vr_lava_foam_breathe,
+        &vr_lava_foam_breathe_speed, &vr_lava_foam_breathe_irregularity, &vr_lava_foam_red, &vr_lava_foam_green,
+        &vr_lava_foam_blue, &vr_lava_foam_particles, &vr_lava_foam_particle_life, &vr_lava_foam_particle_opacity,
+        &vr_lava_foam_particle_size, &vr_lava_foam_particle_shore, &vr_lava_foam_edge},
+    {&vr_slime_foam_on, &vr_slime_foam_opacity, &vr_slime_foam_frequency, &vr_slime_foam_strength, &vr_slime_foam_breathe,
+        &vr_slime_foam_breathe_speed, &vr_slime_foam_breathe_irregularity, &vr_slime_foam_red, &vr_slime_foam_green,
+        &vr_slime_foam_blue, &vr_slime_foam_particles, &vr_slime_foam_particle_life, &vr_slime_foam_particle_opacity,
+        &vr_slime_foam_particle_size, &vr_slime_foam_particle_shore, &vr_slime_foam_edge},
+};
+
+} // namespace
+
+FoamLook foamLook(int liquid)
+{
+    const FoamCvars& v = foamCvars[za::clamp(liquid, 0, 2)];
+    FoamLook l;
+    l.opacity = za::clamp(v.opacity->value, 0.f, 1.5f);
+    l.on = vr_water_foam.value > 0.f && v.on->value != 0.f && l.opacity > 0.f;
+    l.frequency = za::clamp(v.frequency->value, 0.25f, 4.f);
+    l.strength = za::clamp(v.strength->value, 0.25f, 3.f);
+    l.breathe = za::clamp(v.breathe->value, 0.f, 1.f);
+    l.breatheSpeed = za::clamp(v.breatheSpeed->value, 0.1f, 4.f);
+    l.breatheIrregularity = za::clamp(v.breatheIrregularity->value, 0.f, 1.f);
+    l.color = {za::clamp(v.red->value, 0.f, 2.f), za::clamp(v.green->value, 0.f, 2.f), za::clamp(v.blue->value, 0.f, 2.f)};
+    l.particles = za::clamp(v.particles->value, 0.f, 4.f);
+    l.particleLife = za::clamp(v.particleLife->value, 0.2f, 4.f);
+    l.particleOpacity = za::clamp(v.particleOpacity->value, 0.f, 1.f);
+    l.particleSize = za::clamp(v.particleSize->value, 0.25f, 4.f);
+    l.particleShore = za::clamp(v.particleShore->value, -4.f, 16.f);
+    l.edge = za::clamp(v.edge->value, 0.f, 12.f);
+    return l;
+}
+
+int foamLiquid(int contents)
+{
+    return contents == CONTENTS_LAVA ? 1 : contents == CONTENTS_SLIME ? 2 : 0;
+}
+
+int foamContents(int liquid)
+{
+    return liquid == 1 ? CONTENTS_LAVA : liquid == 2 ? CONTENTS_SLIME : CONTENTS_WATER;
 }
 
 // ----------------------------------------------------------------------------
@@ -1618,6 +1772,251 @@ float rippleSpeed(int contents)
 {
     const float speed = za::clamp(vr_water_ripple_speed.value, 1.f, 500.f);
     return speed * (contents == CONTENTS_LAVA ? 0.35f : contents == CONTENTS_SLIME ? 0.7f : 1.f); // as LiquidRipples
+}
+
+// ----------------------------------------------------------------------------
+// Blood in the liquids (vr_water_blood): what bleeds into water or slime (addBlood: a hit, a gib's burst, a corpse, a
+// wounded body or you standing in it, a bloody prop washed) leaves a cloud on the surface above it, kept here (at most
+// kMaxBlood; a new one inside a living one strengthens that one instead, and the weakest gives way when all are taken)
+// and put in each view's frame data: its centre, the surface's height, its radius now (spreading as the square root of
+// its age, 8 units to 60 over 20 seconds, bigger for more blood) and its strength now (fading out over
+// vr_water_blood_time). The liquid shaders (vr_glsl.h, LiquidBlood) mix a dark red into the surface there.
+
+namespace
+{
+
+constexpr int kMaxBlood = 16; // vr_glsl.h's BloodAt
+constexpr float kMaxBloodStrength = 1.5f;
+
+struct BloodCloud
+{
+    glm::vec2 at{0.f};
+    float z = 0.f;
+    float size = 1.f;     // its radius's multiplier
+    float peak = 0.f;     // its strength as of `fadeFrom` (0: none)
+    double born = 0.0;    // (its spreading)
+    double fadeFrom = 0.0; // (its fading: from its last top-up)
+    const qmodel_t* world = nullptr;
+};
+za::Array<BloodCloud, kMaxBlood> bloodClouds;
+int bloodAdded = 0, bloodMerged = 0; // since the map began (vr_water_blood_info)
+
+[[nodiscard]] float bloodLife()
+{
+    return za::clamp(vr_water_blood_time.value, 2.f, 120.f);
+}
+
+// Its strength `t` on the client's clock (0: gone), without its first half second's rise.
+[[nodiscard]] float bloodStrength(const BloodCloud& c, double t)
+{
+    if(c.peak <= 0.f || c.world != cl.worldmodel)
+    {
+        return 0.f;
+    }
+    const float u = static_cast<float>(t - c.fadeFrom) / bloodLife();
+    return u >= 1.f ? 0.f : c.peak * za::pow(1.f - za::max(u, 0.f), 1.3f);
+}
+
+[[nodiscard]] float bloodRadius(const BloodCloud& c, double t)
+{
+    const float age = za::max(static_cast<float>(t - c.born), 0.f);
+    return c.size * (8.f + 52.f * za::sqrt(za::min(age / 20.f, 1.5f)));
+}
+
+[[nodiscard]] int liquidContents(const glm::vec3& p)
+{
+    vec3_t v{p.x, p.y, p.z};
+    const int c = Mod_PointInLeaf(v, cl.worldmodel)->contents;
+    return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ? c : 0;
+}
+
+// Halving between a wet `wet` and a dry `dry` point (one above the other): the surface.
+[[nodiscard]] glm::vec3 halve(glm::vec3 wet, glm::vec3 dry)
+{
+    for(int i = 0; i < 6; i++)
+    {
+        const glm::vec3 mid = (wet + dry) * 0.5f;
+        (liquidContents(mid) ? wet : dry) = mid;
+    }
+    return (wet + dry) * 0.5f;
+}
+
+// This view's blood clouds into the frame data (the ones still there, packed).
+void fillBlood()
+{
+    int n = 0;
+    const float mult = za::clamp(vr_water_blood.value, 0.f, 2.f);
+    for(BloodCloud& c : bloodClouds)
+    {
+        const float s = bloodStrength(c, cl.time);
+        if(s <= 0.f)
+        {
+            c.peak = 0.f; // gone (or a map's before this one)
+            continue;
+        }
+        if(mult <= 0.f)
+        {
+            continue;
+        }
+        const float rise = glm::smoothstep(0.f, 0.5f, static_cast<float>(cl.time - c.born));
+        float* at = r_framedata.bloodat[n];
+        at[0] = c.at.x;
+        at[1] = c.at.y;
+        at[2] = c.z;
+        at[3] = bloodRadius(c, cl.time);
+        r_framedata.bloodamp[n >> 2][n & 3] = s * rise * mult;
+        n++;
+    }
+    r_framedata.bloodinfo[0] = static_cast<float>(n);
+}
+
+} // namespace
+
+void addBloodAt(const glm::vec3& surface, float amount)
+{
+    if(vr_water_blood.value <= 0.f || !cl.worldmodel || amount <= 0.f)
+    {
+        return;
+    }
+    amount = za::min(amount, kMaxBloodStrength);
+    // Into a living one it falls in: that one stronger (its spreading goes on).
+    for(BloodCloud& c : bloodClouds)
+    {
+        const float s = bloodStrength(c, cl.time);
+        if(s > 0.f && za::abs(c.z - surface.z) < 8.f && glm::distance(c.at, glm::vec2{surface}) < bloodRadius(c, cl.time) * 0.8f + 12.f)
+        {
+            c.peak = za::min(s + amount * 0.6f, kMaxBloodStrength);
+            c.fadeFrom = cl.time;
+            bloodMerged++;
+            return;
+        }
+    }
+    // Else in the place of the weakest now (one gone first).
+    BloodCloud* slot = &bloodClouds[0];
+    float weakest = 1e9f;
+    for(BloodCloud& c : bloodClouds)
+    {
+        const float s = bloodStrength(c, cl.time);
+        if(s < weakest)
+        {
+            weakest = s;
+            slot = &c;
+        }
+    }
+    *slot = {glm::vec2{surface}, surface.z, za::clamp(za::sqrt(amount), 0.6f, 1.4f), amount, cl.time, cl.time, cl.worldmodel};
+    bloodAdded++;
+    if(developer.value >= 2)
+    {
+        Con_Printf("VR water blood: %.1f %.1f %.1f, %.2f\n", surface.x, surface.y, surface.z, amount);
+    }
+}
+
+bool addBlood(const glm::vec3& at, float amount, float above, float* surfaceZ)
+{
+    if(vr_water_blood.value <= 0.f || !cl.worldmodel || amount <= 0.f)
+    {
+        return false;
+    }
+    QVR_PROFILE("water blood");
+    glm::vec3 surface;
+    if(const int c = liquidContents(at))
+    {
+        if(c == CONTENTS_LAVA)
+        {
+            return true; // (in a liquid, none on it)
+        }
+        // Up to the surface, at most 192 units (deeper, or under a ceiling: none on it).
+        glm::vec3 wet = at;
+        bool found = false;
+        for(float d = 16.f; d <= 192.f && !found; d += 16.f)
+        {
+            const glm::vec3 q = at + glm::vec3{0.f, 0.f, d};
+            if(liquidContents(q))
+            {
+                wet = q;
+                continue;
+            }
+            vec3_t v{q.x, q.y, q.z};
+            if(Mod_PointInLeaf(v, cl.worldmodel)->contents != CONTENTS_EMPTY)
+            {
+                return true;
+            }
+            surface = halve(wet, q);
+            found = true;
+        }
+        if(!found)
+        {
+            return true;
+        }
+    }
+    else
+    {
+        // A little above a surface: blood falling onto it.
+        const glm::vec3 below = at - glm::vec3{0.f, 0.f, above};
+        const int c2 = above > 0.f ? liquidContents(below) : 0;
+        if(!c2 || c2 == CONTENTS_LAVA)
+        {
+            return false;
+        }
+        surface = halve(below, at);
+    }
+    if(surfaceZ)
+    {
+        *surfaceZ = surface.z;
+    }
+    if(VR_NoLiquidEffects(cl.worldmodel, &surface.x))
+    {
+        return true;
+    }
+    addBloodAt(surface, amount);
+    return true;
+}
+
+bool bloodInLiquid(const glm::vec3& at)
+{
+    return vr_water_blood.value > 0.f && cl.worldmodel && liquidContents(at) != 0;
+}
+
+void bloodTest_f()
+{
+    vec3_t fwd, right, up;
+    AngleVectors(r_refdef.viewangles, fwd, right, up);
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const float dist = Cmd_Argc() > 1 ? static_cast<float>(atof(Cmd_Argv(1))) : 96.f;
+    const float amount = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 1.f;
+    // Down from that far ahead (at the eye's height) to the first liquid, 512 units at most.
+    const glm::vec3 ahead = eye + glm::vec3{fwd[0], fwd[1], 0.f} * dist;
+    for(float d = 0.f; d <= 512.f; d += 8.f)
+    {
+        const glm::vec3 p = ahead - glm::vec3{0.f, 0.f, d};
+        if(liquidContents(p))
+        {
+            const int before = bloodAdded + bloodMerged;
+            (void)addBlood(p, amount, 0.f);
+            Con_Printf("vr_water_blood_test: %s at %.0f %.0f %.0f\n", bloodAdded + bloodMerged > before ? "a cloud" : "none",
+                static_cast<double>(p.x), static_cast<double>(p.y), static_cast<double>(p.z));
+            return;
+        }
+    }
+    Con_Printf("vr_water_blood_test: no liquid below a point %.0f units ahead\n", static_cast<double>(dist));
+}
+
+void bloodInfo_f()
+{
+    int live = 0;
+    for(const BloodCloud& c : bloodClouds)
+    {
+        const float s = bloodStrength(c, cl.time);
+        if(s <= 0.f)
+        {
+            continue;
+        }
+        live++;
+        Con_Printf("  %.0f %.0f %.0f: radius %.1f, strength %.2f, %.1f s old\n", static_cast<double>(c.at.x),
+            static_cast<double>(c.at.y), static_cast<double>(c.z), static_cast<double>(bloodRadius(c, cl.time)),
+            static_cast<double>(s), cl.time - c.born);
+    }
+    Con_Printf("vr_water_blood_info: %d clouds (%d added, %d merged since the map began)\n", live, bloodAdded, bloodMerged);
 }
 
 namespace
@@ -1786,6 +2185,7 @@ void sceneDepthChanged()
 void prepare()
 {
     const double t0 = Sys_DoubleTime();
+    bloodAdded = bloodMerged = 0; // (the clouds of the map before: gone by their world)
     ensureVolume();
     const double t1 = Sys_DoubleTime();
     (void)ensureMesh();
@@ -1862,6 +2262,7 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     // the geometric waves' height (0 off): the swells in the shading of every liquid, the mesh's vertices raised by them
     r_framedata.water2[3] = vr_water_geo_waves.value > 0.f ? za::clamp(vr_water_geo_amplitude.value, 0.f, 24.f) : 0.f;
     water::fillRipples(); // the splashes' ripples (vr_water_ripples)
+    water::fillBlood();   // blood in the liquids (vr_water_blood)
     for(int a = 0; a < 3; a++)
     {
         r_framedata.causticsorigin[a] = water::volumeOrigin[a];
@@ -1871,6 +2272,18 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     // The shoreline foam (vr_water_foam); the scene's distances for the refraction and the foam (VR_WaterSceneDepth:
     // made as liquids draw), if the scene's depth can be read.
     r_framedata.water3[0] = za::clamp(vr_water_foam.value, 0.f, 2.f);
+    for(int i = 0; i < 3; i++) // each liquid's look (water, lava, slime)
+    {
+        const water::FoamLook l = water::foamLook(i);
+        const float look[3][4] = {{l.on ? l.opacity : 0.f, l.frequency, l.strength, l.edge}, {l.color.r, l.color.g, l.color.b, 0.f},
+            {l.breathe, l.breatheSpeed, l.breatheIrregularity, 0.f}};
+        for(int a = 0; a < 4; a++)
+        {
+            r_framedata.foam[i][a] = look[0][a];
+            r_framedata.foamcolor[i][a] = look[1][a];
+            r_framedata.foambreath[i][a] = look[2][a];
+        }
+    }
     envmap::waterFrameData(r_framedata.watercube, r_framedata.watercube2, liquid); // the room reflected (vr_envmap.cpp)
     VR_PortalFrameData(r_framedata.portalplane, r_framedata.portalmin, r_framedata.portalmax); // teleporters (vr_portals.cpp)
     r_framedata.teleportlook[0] = vr_teleporters.value > 0.f ? za::clamp(
@@ -1998,6 +2411,13 @@ extern "C" void VR_WaterMeshBind(void)
     GL_VertexAttribPointerFunc(4, 1, GL_FLOAT, GL_FALSE, sizeof(MeshVert), reinterpret_cast<void*>(offsetof(MeshVert, pin)));
 }
 
+// Water, slime or lava, or one of the currents (the contents a leaf or a point is in).
+[[nodiscard]] static bool isLiquidContents(int c)
+{
+    return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ||
+           (c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN);
+}
+
 // Quake BSP has no separate teleport medium: the *teleport brush is stored as water.
 // Recognise its own leaves/faces, retaining actual pools (including mixed liquid/teleport leaves).
 extern "C" int VR_NoLiquidEffects(qmodel_t* model, const float* point)
@@ -2018,15 +2438,12 @@ extern "C" int VR_NoLiquidEffects(qmodel_t* model, const float* point)
         for(int a = 0; a < 3; a++) { within &= point[a] >= surface.mins[a]-2.f && point[a] <= surface.maxs[a]+2.f; }
         if(within) { return 1; }
     }
-    const int c = leaf->contents;
-    return tele && !liquid && (c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ||
-        (c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN));
+    return tele && !liquid && isLiquidContents(leaf->contents);
 }
 
 extern "C" int VR_LiquidContents(qmodel_t* model, const float* point, int contents)
 {
-    if(contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA ||
-       (contents <= CONTENTS_CURRENT_0 && contents >= CONTENTS_CURRENT_DOWN))
+    if(isLiquidContents(contents))
     {
         return VR_NoLiquidEffects(model, point) ? CONTENTS_EMPTY : contents;
     }

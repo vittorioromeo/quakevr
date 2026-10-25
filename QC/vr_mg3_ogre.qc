@@ -108,6 +108,7 @@ void() MG3_OgreMissileTouch =
     if(self.vr_mg3_close_until > time)
     {
         spawn_touchblood(18);
+        VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         T_Damage(other, self, self.owner, 20);
         WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
         WriteByte(MSG_BROADCAST, TE_KNIGHTSPIKE);
@@ -163,7 +164,7 @@ void() MG3_OgreFireRocket =
     missile.movetype = MOVETYPE_FLYMISSILE;
     missile.solid = SOLID_BBOX;
     missile.classname = "ogre_missile";
-    missile.velocity = v;
+    missile.velocity = VR_AimCone_Bend(v, VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
     missile.angles = vectoangles(missile.velocity);
     missile.touch = MG3_OgreMissileTouch;
     missile.vr_mg3_close_until = time + 0.2;

@@ -19,9 +19,15 @@ void() info_intermission =
     MG3_RuneRemoved(); // Dawn of the Machine: a view only with so many runes (vr_mg3_defs.qc)
 };
 
+// Magnetic holsters (vr_magholster.qc): the bound weapons lying about home before the level ends; the bindings carried.
+void() VR_MagHolster_EncodeParms;
+void() VR_MagHolster_DecodeParms;
+
 void() SetChangeParms =
 {
+    if(AD_SetChangeParms()) return; // AD support: AD's level state (parm57..72), an exit's inventory reset (vr_ad_bridge.qc)
     MG3_EncodeParms(); // (Dawn of the Machine's upgrades: kept even by the SetNewParms below, vr_mg3_defs.qc)
+    VR_MagHolster_EncodeParms(); // (parm73: the bound weapons home first, so the holsters' parms below have them)
 
     if(self.health <= 0)
     {
@@ -151,9 +157,13 @@ void() SetChangeParms =
     parm47 = self.holsterweaponinst4.wi_uid;
     parm48 = self.holsterweaponinst5.wi_uid;
     parm49 = qvr_weaponinst_next;
+    parm64 = AD_PackWeaponUpgrades(self); // AD support: the carried weapons' upgrades (vr_ad_bridge.qc)
+    WeaponInst_PackHot(self); // (the blades still glowing: parm65..72)
     parm39 = self.weaponclipsize;
-    parm50 = self.vr_flashlight_state;
+    parm50 = self.vr_flashlight_state; // (bits 0..18: the engine's lamp; bit 19: a chainsaw's cord pulled)
+    if(self.vr_saw_cord_pulled) parm50 = parm50 + VR_PARM50_SAW_CORD_PULLED;
     parm40 = self.weaponclipsize2;
+    parm74 = self.vr_bullettime_spent; // (bullet time's meter, kept from level to level: vr_bullettime.cpp)
 };
 
 void() OnSpawnServerBeforeLoad =
@@ -180,10 +190,29 @@ void() OnSpawnServerAfterLoad =
     }
 }
 
+void() VR_Crackles_AfterLoad; // (vr_burning.qc)
+
 void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
+    SUB_DoLater(VR_Crackles_AfterLoad, 0.1); // the torches' and fires' crackles started again (sounds are not saved)
     VR_Tips_Reapply(); // (TRIGGERED tips used before the save: shown again)
+    AD_LoadedGame(); // AD support: the loaded game's Evil skill choice, an older save's upgrades (vr_ad_player.qc)
+    VR_ADGun_LegacyWorld(); // AD support: an older save's eliminator's plasma guns the centurion's (vr_ad_enemyguns.qc)
+    // The load's pause/loading screens often arrive with neither controller gripping. Protect only the weapons
+    // restored in the hands, starting in game time (the server stays paused until the client is ready).
+    entity p = find(world, classname, "player");
+    while(p)
+    {
+        p.vr_weapon_load_until = time + max(0, cvar("vr_weapon_load_grace"));
+        p.vr_weapon_load_main = VRGetEntWeaponInst(p, cVR_MainHand);
+        p.vr_weapon_load_off = VRGetEntWeaponInst(p, cVR_OffHand);
+        // AD support: the AD weapons in its hands and holsters made and precached again (precached late in the saved
+        // game; the hands' model fields name them, which the load's model rebinding doesn't cover: SV_ModelIndex fails)
+        VR_ADGun_EnsureCarried(p);
+        VR_ADMelee_EnsureCarried(p);
+        p = find(p, classname, "player");
+    }
 }
 
 void() SetNewParms =
@@ -292,7 +321,11 @@ void() SetNewParms =
     parm47 = 0;
     parm48 = 0;
     parm49 = qvr_weaponinst_next;
+    parm64 = 0; // (AD support: no upgrades)
+    parm65 = 0; parm66 = 0; parm67 = 0; parm68 = 0; parm69 = 0; parm70 = 0; parm71 = 0; parm72 = 0; // (cold)
     parm50 = 0;
+    parm73 = 0; // (no magnetic holster bindings)
+    parm74 = 0; // (bullet time's meter full)
 };
 
 void() DecodeLevelParms =
@@ -304,14 +337,14 @@ void() DecodeLevelParms =
         SetNewParms();
     }
 
-    if(!deathmatch)
+    if(!deathmatch && !AD_Rules()) // AD support: AD's hub keeps the inventory (AD_DecodeLevelParms)
     {
         if(world.model == "maps/start.bsp")
             SetNewParms();        // take away all stuff on starting new episode
     }
 
     // HIPNOTIC
-    if(world.model == "maps/start.bsp")
+    if(world.model == "maps/start.bsp" && !AD_Rules()) // (AD support, as above)
         SetNewParms();      // take away all stuff on starting new episode
     if(world.model == "maps/hip1m1.bsp")
         SetNewParms();      // take away all stuff on starting new episode
@@ -362,6 +395,7 @@ void() DecodeLevelParms =
     MG3_BloodyNightmareLevel();
     MG3_BloodyNightmareStrip();
     VR_Trailer_StripParms(); // QVR: the trailer scene starts empty-handed (vr_trailer.qc)
+    AD_DecodeLevelParms(); // AD support: AD's worldspawn inventory keys and map variables in an AD map (vr_ad_bridge.qc)
 
     self.items = parm1;
     self.health = parm2;
@@ -393,7 +427,9 @@ void() DecodeLevelParms =
     // The weapons' records (vr_weaponinst.qc): their magazines, and their ids where free (a coop player respawning
     // with the level's start parms while his old weapon still lies about gets a new one).
     qvr_weaponinst_next = max(qvr_weaponinst_next, parm49);
-    self.vr_flashlight_state = parm50;
+    self.vr_saw_cord_pulled = parm50 >= VR_PARM50_SAW_CORD_PULLED;
+    self.vr_flashlight_state = parm50 - (self.vr_saw_cord_pulled ? VR_PARM50_SAW_CORD_PULLED : 0);
+    self.vr_bullettime_spent = parm74;
     MG3_DecodeParms(); // (parm51..56: Dawn of the Machine's upgrades and bloody weapons, vr_mg3_defs.qc)
     self.max_health = VR_MaxHealth(self); // (with them: upstream sets it here)
     if(MG3_Campaign() && self.health > self.max_health) { self.health = self.max_health; }
@@ -405,6 +441,10 @@ void() DecodeLevelParms =
     self.holsterweaponinst3 = WeaponInst_Carried(self.holsterweapon3, parm36, parm46);
     self.holsterweaponinst4 = WeaponInst_Carried(self.holsterweapon4, parm37, parm47);
     self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
+    AD_UnpackWeaponUpgrades(self, parm64); // AD support: their upgrades (vr_ad_bridge.qc)
+    WeaponInst_UnpackHot(self);
+    VR_MagHolster_DecodeParms(); // (parm73: the bindings, to the carried weapons' records)
+    VR_ADGun_EnsureCarried(self); // AD support: AD soldiers' guns carried here precached (vr_ad_enemyguns.qc)
 
     // ------------------------------------------------------------------------
     // Mission packs:
@@ -430,14 +470,17 @@ void() DecodeLevelParms =
     // (A gun carried by its foregrip is held normally in a new level: the client's pose is gone.)
     // (Nor a grappling hook's tag: its hook stayed in the last level.)
     // (Nor a chainsaw's running engine: it starts again with its cord.)
-    self.weaponflags = VR_Grapple_StripTag(parm23 - (parm23 & (QVR_WPNFLAG_FOREGRIP_CARRIED | QVR_WPNFLAG_SAW_STATE)));
-    self.weaponflags2 = VR_Grapple_StripTag(parm24 - (parm24 & (QVR_WPNFLAG_FOREGRIP_CARRIED | QVR_WPNFLAG_SAW_STATE)));
-    self.holsterweaponflags0 = VR_Grapple_StripTag(parm25);
-    self.holsterweaponflags1 = VR_Grapple_StripTag(parm26);
-    self.holsterweaponflags2 = VR_Grapple_StripTag(parm27);
-    self.holsterweaponflags3 = VR_Grapple_StripTag(parm28);
-    self.holsterweaponflags4 = VR_Grapple_StripTag(parm29);
-    self.holsterweaponflags5 = VR_Grapple_StripTag(parm30);
+    // (A grapple's only: those bits are an AD sword's kind, vr_ad_guns_defs.qc.)
+    float handOnly = QVR_WPNFLAG_FOREGRIP_CARRIED | QVR_WPNFLAG_SAW_STATE;
+    self.weaponflags = VR_Grapple_StripTagOf(self.weapon, parm23 - (parm23 & handOnly));
+    self.weaponflags2 = VR_Grapple_StripTagOf(self.weapon2, parm24 - (parm24 & handOnly));
+    self.holsterweaponflags0 = VR_Grapple_StripTagOf(self.holsterweapon0, parm25);
+    self.holsterweaponflags1 = VR_Grapple_StripTagOf(self.holsterweapon1, parm26);
+    self.holsterweaponflags2 = VR_Grapple_StripTagOf(self.holsterweapon2, parm27);
+    self.holsterweaponflags3 = VR_Grapple_StripTagOf(self.holsterweapon3, parm28);
+    self.holsterweaponflags4 = VR_Grapple_StripTagOf(self.holsterweapon4, parm29);
+    self.holsterweaponflags5 = VR_Grapple_StripTagOf(self.holsterweapon5, parm30);
+    VR_ADMelee_EnsureCarried(self); // AD support: AD melee weapons carried here precached (vr_ad_melee.qc)
 };
 
 /*
@@ -520,7 +563,7 @@ void() ExitIntermission =
             MG_intermissiontext = "";
             return;
         }
-        if((cvar("vr_campaign") >= 3 && cvar("vr_campaign") <= 5) && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
+        if(MG_WorldCampaign() && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
         if(world.model == "maps/e1m7.bsp")
         {
             WriteByte(MSG_ALL, SVC_CDTRACK);
@@ -614,7 +657,7 @@ void() ExitIntermission =
 
     if(intermission_running == 3)
     {
-        if((cvar("vr_campaign") >= 3 && cvar("vr_campaign") <= 5) && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
+        if(MG_WorldCampaign() && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
         if(!cvar_hget(cvarh_registered))
         {    // shareware episode has been completed, go to sell screen
             WriteByte(MSG_ALL, SVC_SELLSCREEN);
@@ -734,6 +777,7 @@ void() changelevel_touch =
 {
     if(other.classname != "player")
         return;
+    if(!AD_ChangelevelTouch()) return; // AD support: AD's exits off until triggered, its on-exit rules (vr_ad_bridge.qc)
 
     float noexit;
     noexit = cvar_hget(cvarh_noexit);
@@ -793,6 +837,7 @@ When the player touches this, he gets sent to the map listed in the "map" variab
 */
 void() trigger_changelevel =
 {
+    AD_ChangelevelSpawn(); // AD support: AD's exit keys in an AD map (vr_ad_bridge.qc)
     if(!self.map)
         objerror ("changelevel trigger doesn't have map");
 
@@ -813,6 +858,11 @@ void() set_suicide_frame;
 
 // called by ClientKill and DeadThink
 nosave float vr_restart_queued; // VR: respawn's "restart" asked for (a new server starts it at 0 again)
+// VR: the death menu (the engine's: menu.c M_CheckDeathMenu, M_Autosaves_Key): set by the engine while it holds the
+// respawn; a press while held (the engine opens the menu); its Respawn chosen (PlayerDeathThink respawns)
+nosave float vr_death_menu_hold;
+nosave float vr_death_menu_asked;
+nosave float vr_death_menu_respawn;
 
 void() respawn =
 {
@@ -932,6 +982,7 @@ entity() SelectSpawnPoint =
 {
     entity spot;
     if(MGH_Active()) { spot=MGH_SelectSpawn(); if(spot) return spot; }
+    spot = AD_SelectSpawnPoint(); if(spot) return spot; // AD support: AD's spawn points in an AD map (vr_ad_bridge.qc)
     entity thing;
     float  pcount;
 
@@ -1084,6 +1135,8 @@ PutClientInServer
 called each time a player is spawned
 ============
 */
+void() VR_Toolgun_SpawnInHolster; // (vr_toolgun.qc)
+
 void() PutClientInServer =
 {
     entity spot;
@@ -1205,6 +1258,7 @@ void() PutClientInServer =
     self.offloadportpos = self.origin;
     self.magboxx = self.magboxy = self.magboxz = '0 0 0'; // (no magazine, until a move says)
     self.offmagboxx = self.offmagboxy = self.offmagboxz = '0 0 0';
+    self.ammopouchx = self.ammopouchy = self.ammopouchz = '0 0 0'; // (no ammo pouch, until a move says)
 
     self.handvel = '0 0 0';
     self.offhandvel = '0 0 0';
@@ -1241,6 +1295,9 @@ void() PutClientInServer =
         readytime = time + 0.5;
     }
     if(MGH_Active()) { MGH_horde_set_keys(self); MGH_ResetHunger(self); }
+    AD_PlayerSpawned(); // AD support: what AD's code reads of a player, in an AD map (vr_ad_bridge.qc)
+    AD_UpgradesToWeapons(self); // AD support: an older game's upgrades (the player's) onto his weapons (vr_ad_bridge.qc)
+    VR_Toolgun_SpawnInHolster(); // vr_debug_spawn_toolgun (vr_toolgun.qc)
 };
 
 void() SpawnAllAmmoBoxWeapons =
@@ -1427,6 +1484,18 @@ void() PlayerDeathThink =
             self.velocity = forward * normalize(self.velocity);
     }
 
+    // VR: the death menu's Respawn (menu.c M_Autosaves_Key): as a press did
+    if(vr_death_menu_respawn)
+    {
+        vr_death_menu_respawn = FALSE;
+        self.button0 = 0;
+        self.button1 = 0;
+        self.button2 = 0;
+        if(MGH_Active()) { MGH_DeathThink(); return; }
+        respawn();
+        return;
+    }
+
 // wait for all buttons released
     if(self.deadflag == DEAD_DEAD)
     {
@@ -1443,6 +1512,14 @@ void() PlayerDeathThink =
     self.button0 = 0;
     self.button1 = 0;
     self.button2 = 0;
+    // VR: single player with the death menu (vr_death_menu): a press opens it (the engine: menu.c M_CheckDeathMenu), and
+    // only its choices respawn (author's note 2026-10-22); released and pressed again to ask again
+    if(vr_death_menu_hold)
+    {
+        vr_death_menu_asked = TRUE;
+        self.deadflag = DEAD_DEAD;
+        return;
+    }
     // MG1 Horde (official client.qc): the same release-then-press gate, then a team wipe restarts the arena.
     if(MGH_Active()) { MGH_DeathThink(); return; }
     respawn();
@@ -1475,6 +1552,8 @@ void() PlayerJump =
 
         return;
     }
+
+    if(AD_JumpBoots()) return; // AD support: AD's Jump Boots' jumps, in the air too (vr_ad_items.qc)
 
     if(!(self.flags & FL_ONGROUND))
         return;
@@ -1565,7 +1644,8 @@ void() WaterMove =
 
     if(self.watertype == CONTENT_LAVA)
     {    // do damage
-        if(self.dmgtime < time && self.lavasuit_finished <= time) // (the lava suit: none, MG3)
+        if(self.dmgtime < time && self.lavasuit_finished <= time && // (the lava suit: none, MG3)
+           !AD_LavaShield(self)) // AD support: nor with AD's Lava Shield (vr_ad_items.qc)
         {
             if(self.radsuit_finished > time)
                 self.dmgtime = time + 1;
@@ -1755,6 +1835,7 @@ void() PlayerPreThink =
 
     // HONEY
     fog_updateAll();
+    AD_PlayerPreThink(); // AD support: AD's ladders in an AD map (vr_ad_bridge.qc)
 
     if(intermission_running)
     {
@@ -1874,8 +1955,9 @@ void() PlayerPreThink =
 
     // The grappling hooks of the guns in the hands and the holsters (vr_grapple.qc)
     VR_Grapple_PlayerFrame();
+    VR_NailPistol_PlayerFrame(); // its trigger re-armed, its slide, its smoke (vr_nailpistol.qc)
 
-    // Slid by a grunt's or an enforcer's shove (vr_enemyshove.qc)
+    // Slid by a grunt's, an enforcer's or a vore's shove (vr_enemyshove.qc)
     VR_EnemyShove_PlayerFrame();
 };
 
@@ -2257,11 +2339,32 @@ void() PlayerPostThink =
     VR_ShotImpacts(); // QVR: projectiles fired from inside what they hit meet it (weapons.qc)
 
 // check to see if player landed and play landing sound
-    if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
+    // QVR: landing on a living monster crushes the part under your feet (vr_ragimpact.qc): on the floor (a ragdoll), or
+    // stopped short in the air on a standing one's top (Quake never sets FL_ONGROUND on a monster). Cushioned: no fall
+    // damage (vr_ragimpact_crush_cushion). Slower landings than Quake's count too (a jump from the same level, about 270
+    // units/s): down to the crush's or the stomp's least speed, the lower (a soft landing's jump_flag zeroed below).
+    float crushCushion = FALSE;
+    float crushGate = max(100, min(cvar_hget(cvarh_vr_ragimpact_crush_speed), cvar_hget(cvarh_vr_ragimpact_stomp_speed)));
+    if((self.jump_flag <= -crushGate) && (self.health > 0) &&
+       ((self.flags & FL_ONGROUND) || (self.velocity_z > (self.jump_flag * 0.5))))
+    {
+        float onFloor = (self.flags & FL_ONGROUND) ? TRUE : FALSE;
+        if(VR_RagImpact_Crush(self, -self.jump_flag, onFloor))
+        {
+            crushCushion = cvar_hget(cvarh_vr_ragimpact_crush_cushion) != 0;
+        }
+    }
+    // QVR: landing on small gibs pops them (vr_smallgibs.qc; from vr_smallgibs_stomp_speed).
+    if(self.jump_flag < 0 && (self.flags & FL_ONGROUND) && self.health > 0)
+    {
+        VR_SmallGib_Stomp(self, -self.jump_flag);
+    }
+    if(AD_PlayerLanded()) {} // AD support: AD's fall rules in an AD map (vr_ad_bridge.qc)
+    else if((self.jump_flag < -300) && (self.flags & FL_ONGROUND) && (self.health > 0))
     {
         if(self.watertype == CONTENT_WATER)
             sound(self, CHAN_BODY, "player/h2ojump.wav", 1, ATTN_NORM);
-        else if(self.jump_flag < -650)
+        else if(self.jump_flag < -650 && !crushCushion)
         {
             T_Damage(self, world, world, 5);
             sound(self, CHAN_VOICE, "player/land2.wav", 1, ATTN_NORM);
@@ -2274,11 +2377,14 @@ void() PlayerPostThink =
 
         self.jump_flag = 0;
     }
+    if((self.flags & FL_ONGROUND) && self.jump_flag < 0) // QVR: a soft landing counted once (the crush's gate, above)
+        self.jump_flag = 0;
 
     if(!(self.flags & FL_ONGROUND))
         self.jump_flag = self.velocity_z;
 
     CheckPowerups();
+    AD_PlayerPostThink(); // AD support: AD's first frame, spawn targets and debuffs in an AD map (vr_ad_bridge.qc)
     VR_Grapple_GunFrames(); // QVR: a grappling gun whose hook is out drawn empty (vr_grapple.qc)
     VR_Stealth_PlayerFrame(); // QVR: his running heard, his touch felt, how lit he is (vr_stealth.qc)
 };
@@ -2669,7 +2775,7 @@ void(entity targ, entity attacker) ClientObituary =
                 if(attacker.classname == "monster_oldone" || MG3_Shub_Is(attacker) || MG3_Shub_IsChild(attacker)) // (QVR: MG3's and her eyes)
                     bprint(" became one with Shub-Niggurath\n");
                 if(attacker.classname == "monster_shalrath")
-                    bprint(" was exploded by a Vore\n");
+                    bprint(attacker.vr_eshove_striking ? " was swatted by a Vore\n" : " was exploded by a Vore\n"); // (QVR: its shove)
                 if(attacker.classname == "monster_shambler")
                     bprint(" was smashed by a Shambler\n");
                 if(attacker.classname == "monster_tarbaby")
@@ -2924,54 +3030,84 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
     return FALSE;
 }
 
+// The blow of `xHand` VR_Melee_Strike (or VR_Melee_StrikeMore) found, in mh_c_*: dealt by the weapon in that hand.
+void(float xHand) VR_Melee_Deal =
+{
+    entity b = VR_Blow(xHand);
+    // Each thing struck sounds (a swing through two monsters sounds twice).
+    float spent = VRGetMeleeHitSoundPlayed(xHand);    if(spent && b.mh_c_ent != b.mh_hit_ent)
+    {
+        VRSetMeleeHitSoundPlayed(xHand, FALSE);
+    }
+
+    if(b.mh_c_ent.vr_gib)
+    {
+        // A loose gib or head (vr_melee.qc sweeps them since round 21's melee fixes): it bursts as a held one does.
+        VR_Gib_Blow(xHand, b.mh_c_ent, b.mh_speed, b.mh_c_pos, b.mh_c_dir);
+    }
+    else if(VR_Melee_CorpseTarget(b.mh_c_ent))
+    {
+        // A corpse the sweep crossed (one swing, many things): VR_Corpse_StrikeFrame's blow, where the blade met it.
+        float blunt = (b.mh_kind == VR_MKIND_POMMEL) || ((VRGetEntWeapon(self, xHand) == WID_SWORD) &&
+                      VR_ADMelee_Blunt(VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand))));
+        VR_Corpse_Struck(xHand, b.mh_c_ent, b.mh_c_pos, b.mh_c_dir, b.mh_speed, blunt);
+        VRSetMeleeHitSoundPlayed(xHand, TRUE);
+    }
+    else
+    {
+        VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
+        vr_melee_blunt = ((b.mh_kind == VR_MKIND_POMMEL) || // its own sound (VR_Melee_HitSound)
+                         ((VRGetEntWeapon(self, xHand) == WID_SWORD) && // AD support: a hammer, a mace (vr_ad_guns_defs.qc)
+                          VR_ADMelee_Blunt(VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand)))));
+        vr_melee_slap = b.mh_kind == VR_MKIND_SLAP; // a slap's sound, no blood or gore (W_FistMelee, vr_smallgibs.qc)
+        vr_sgib_at = b.mh_c_pos; // where small gibs are torn out (vr_smallgibs.qc)
+        vr_melee_blowhand = xHand + 1; // a prop it breaks by the impact rule (T_Damage_VRMelee, VR_Prop_BlowDamage)
+        if(!DoXHandMelee(xHand, WID_FIST, "", W_FistMelee))
+            if(!DoXHandMelee(xHand, WID_AXE, "", W_FireAxe))
+                if(!DoXHandMelee(xHand, WID_MJOLNIR, "", HIP_FireMjolnir))
+                if(!DoXHandMelee(xHand, WID_SWORD, "", W_SwordMelee))
+                if(!DoXHandMelee(xHand, WID_CHAINSAW, "", W_ChainsawMelee))
+                if(!DoXHandMelee(xHand, WID_CROWBAR, "", W_CrowbarMelee))
+                if(!DoXHandMelee(xHand, WID_SUPERAXE, "", W_SuperAxeMelee)) // vr_mg3_weapons.qc
+                    DoXHandMeleeImpl(xHand, "", W_GunMelee);
+        vr_melee_blowhand = 0;
+        vr_melee_blunt = FALSE;
+        vr_melee_slap = FALSE;
+        vr_sgib_at = '0 0 0';
+        VR_ClearHitKind();
+    }
+
+    if(VRGetMeleeHitSoundPlayed(xHand))
+    {
+        // It landed.
+        VR_Melee_Landed(xHand);
+    }
+};
+
+// The blows of `xHand` this frame (vr_melee.qc VR_Melee_Strike): the first, and with one swing, many things
+// (vr_melee_multi) every other thing, and the world, the same sweep crossed.
+void(float xHand) VR_Melee_DealAll =
+{
+    VR_Melee_Deal(xHand);
+    float more;
+    for(more = 0; (more < VR_MELEE_MULTI_LIST + 1) && VR_Melee_StrikeMore(xHand); ++more)
+    {
+        VR_Melee_Deal(xHand);
+    }
+};
+
 void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInMelee,
      float* xMeleeHitSoundPlayed) PlayerVRMeleeImpl =
 {
     // The blow this frame (vr_melee.qc): a part of what the hand holds swept into something, fast enough, as the kind
     // of blow its part and motion make; the hands in a bash's push don't strike, and each thing is struck once a motion.
-    if(VRHandsTracked(self) && time >= xInMelee && VR_Melee_Strike(xHand))
+    // One swing, many things (VR_Melee_Multi): every thing it crosses, each once, and no pause after a blow (each thing
+    // struck once a motion: a body crossed the frame after the floor is struck).
+    if(VRHandsTracked(self) && (time >= xInMelee || VR_Melee_Multi(VR_Blow(xHand))) && VR_Melee_Strike(xHand))
     {
-        entity b = VR_Blow(xHand);
-        // Each thing struck sounds (a swing through two monsters sounds twice).
-        float spent = VRGetMeleeHitSoundPlayed(xHand);
-        if(spent && b.mh_c_ent != b.mh_hit_ent)
-        {
-            VRSetMeleeHitSoundPlayed(xHand, FALSE);
-        }
-
-        if(b.mh_c_ent.vr_gib)
-        {
-            // A loose gib or head (vr_melee.qc sweeps them since round 21's melee fixes): it bursts as a held one does.
-            VR_Gib_Blow(xHand, b.mh_c_ent, b.mh_speed, b.mh_c_pos, b.mh_c_dir);
-        }
-        else
-        {
-            VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
-            vr_melee_blunt = b.mh_kind == VR_MKIND_POMMEL; // its own sound (VR_Melee_HitSound)
-            vr_melee_slap = b.mh_kind == VR_MKIND_SLAP; // a slap's sound, no blood or gore (W_FistMelee, vr_smallgibs.qc)
-            vr_sgib_at = b.mh_c_pos; // where small gibs are torn out (vr_smallgibs.qc)
-            if(!DoXHandMelee(xHand, WID_FIST, "", W_FistMelee))
-                if(!DoXHandMelee(xHand, WID_AXE, "", W_FireAxe))
-                    if(!DoXHandMelee(xHand, WID_MJOLNIR, "", HIP_FireMjolnir))
-                    if(!DoXHandMelee(xHand, WID_SWORD, "", W_SwordMelee))
-                    if(!DoXHandMelee(xHand, WID_CHAINSAW, "", W_ChainsawMelee))
-                    if(!DoXHandMelee(xHand, WID_CROWBAR, "", W_CrowbarMelee))
-                    if(!DoXHandMelee(xHand, WID_SUPERAXE, "", W_SuperAxeMelee)) // vr_mg3_weapons.qc
-                        DoXHandMeleeImpl(xHand, "", W_GunMelee);
-            vr_melee_blunt = FALSE;
-            vr_melee_slap = FALSE;
-            vr_sgib_at = '0 0 0';
-            VR_ClearHitKind();
-        }
-
+        VR_Melee_DealAll(xHand);
         *xOutMeleeAttackFinished = time + 0.1;
         *xOutInMelee = time + 0.02;
-
-        if(VRGetMeleeHitSoundPlayed(xHand))
-        {
-            // It landed.
-            VR_Melee_Landed(xHand);
-        }
     }
 
     VR_Grenade_CatchCheck(xHand, VR_Blow(xHand)); // an empty hand not striking catches a grenade in flight (vr_grenade.qc)
@@ -3100,14 +3236,18 @@ void() PlayerVRMeleeHeadbutt =
     VR_Headbutt_Hit(threshold);
 }
 
+void() VR_KdTrig_Tackle; // (vr_kdtrig.qc)
+
 void() PlayerVRMelee =
 {
     PlayerVRMeleeHeadbutt();
     VR_Heartbeat();
     VR_Melee_Frame(); // both hands' new poses (vr_melee.qc)
+    VR_HotBlade_Frame(); // the blades in a flame heat, in water cool (vr_hotblade.qc)
     VR_Buttons_WeaponFrame(); // a held weapon touching a wall button presses it, all of it (buttons.qc)
     VR_Gib_HeldFrame(); // a gib held in one hand struck by the other (vr_carry.qc)
     VR_Bash();
+    VR_KdTrig_Tackle(); // running into a monster in a guard or a shove (the ragdoll triggers' Tackles)
 
     PlayerVRMeleeImpl(
         cVR_MainHand,

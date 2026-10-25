@@ -1,0 +1,10 @@
+# agrunt_fall: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed grunts next to you and the pool, to shove down
+map vrtesthall
+start 150 -264 40 0
+god
+notarget
+spawn "Armed Grunt: Shotgun" 40 70
+spawn "Armed Grunt: Axe" 40 -70
+spawn "Armed Grunt: Nailgun" 45 0
+hint Shove one over: it falls with its weapon still in its hand. While it lies there, grab the weapon (yours at once) or hit it (knocked away). Throw one off the ledge into the pool or fling it hard: it drops its weapon.

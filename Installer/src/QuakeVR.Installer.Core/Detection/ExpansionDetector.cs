@@ -37,6 +37,9 @@ public static class ExpansionDetector
         new("dopa", "Dimension of the Past", NativeReady: true, SoloOnly: true, InBaseDirs: false),
         new("mg1", "Dimension of the Machine", NativeReady: true, SoloOnly: true, InBaseDirs: false),
         new("mg3", "Dawn of the Machine", NativeReady: true, SoloOnly: true, InBaseDirs: false),
+        // Arcane Dimensions (ARCANE_DIMENSIONS.md): found in the owned roots (a base dir's ad folder included); the
+        // engine also refuses a release other than 1.80 patch 1, which this table does not check.
+        new("ad", "Arcane Dimensions", NativeReady: false, SoloOnly: true, InBaseDirs: false),
     ];
 
     /// <summary>The store roots of <c>ownedRoots</c>, lowest priority first.</summary>

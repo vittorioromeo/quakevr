@@ -50,7 +50,7 @@ void(float xHand) W_FireSuperLavaSpikes =
     dir = v_forward;
 
     newmis = launch_lava_spike(VRGetMuzzlePos(xHand), dir);
-    VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.velocity += vrProjectileVelocity(xHand, 1.0);
     newmis.touch = superlavaspike_touch;
     newmis.vr_shot_push_kind = QVR_SHOTPUSH_SUPERNAIL;
@@ -89,7 +89,7 @@ void(float xHand, float ox) W_FireLavaSpikes =
 
     dir = v_forward;
     newmis = launch_lava_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
-    VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.velocity += vrProjectileVelocity(xHand, 1.0);
 
     self.punchangle_x = -2;
@@ -119,10 +119,10 @@ void() lavaspike_touch =
         return;
     }
 
-    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
-
+    // VR: every projectile's hit (weapons.qc VR_Proj_Begin): the prop or ragdoll it hit (or flew through) pushed,
+    // where it struck, a corpse's head or limb worn, a kill at the head or a limb popped by chance.
+    VR_Proj_Begin(QVR_PROJ_BOLT, 9);
     makeforward_mdl(self.angles);
-    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
 
     // hit something that bleeds
     if(other.takedamage)
@@ -168,6 +168,7 @@ void() lavaspike_touch =
         WriteVec3(MSG_BROADCAST, self.origin);
     }
 
+    VR_Proj_End();
     remove(self);
 
 };
@@ -189,10 +190,10 @@ void() superlavaspike_touch =
         return;
     }
 
-    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
-
+    // VR: every projectile's hit (weapons.qc VR_Proj_Begin): the prop or ragdoll it hit (or flew through) pushed,
+    // where it struck, a corpse's head or limb worn, a kill at the head or a limb popped by chance.
+    VR_Proj_Begin(QVR_PROJ_BOLT, 18);
     makeforward_mdl(self.angles);
-    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
 
     // hit something that bleeds
     if(other.takedamage)
@@ -233,6 +234,7 @@ void() superlavaspike_touch =
         WriteVec3(MSG_BROADCAST, self.origin);
     }
 
+    VR_Proj_End();
     remove(self);
 
 };

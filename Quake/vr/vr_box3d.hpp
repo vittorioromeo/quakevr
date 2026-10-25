@@ -6,7 +6,15 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/FunctionRef.hpp"
+
+namespace qvr::ragactive
+{
+struct State; // (vr_ragactive.hpp)
+}
 
 namespace qvr::box3d
 {
@@ -22,9 +30,11 @@ void noteServerPhysicsStart();
 
 // A hand's push on the prop `ent` at `at` (world units): that point gets at least `velocity`'s speed along it (an impulse
 // there: pushed high, a tall box tips; pushed low, it slides). `pusherMass` (kg, 0: none): what pushes has that mass, so
-// the point gets only the share of two masses meeting (a light hand barely moves a heavy box). False if it is not a
-// Box3D prop.
-bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass = 0.f);
+// the point gets only the share of two masses meeting (a light hand barely moves a heavy box). `restitution` (0..1):
+// it comes off that much faster than the point's meeting speed (a blow's bounce); `most` (m/s, 0: none): the point's
+// gain at most. False if it is not a Box3D prop.
+bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pusherMass = 0.f, float restitution = 0.f,
+    float most = 0.f);
 
 // A shot from `start` to `end` (world units): the first loose prop it passes through pushed (push) where it goes in, with
 // `velocity` and `pusherMass` (a pellet, a nail: Quake's traces pass through the pickups lying about, SOLID_TRIGGER).
@@ -51,6 +61,12 @@ int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity
 // shapenearest, vr_reload.qc's magazine and super shotgun hits).
 [[nodiscard]] bool shapeNearest(int num, const glm::vec3& a, const glm::vec3& b, glm::vec3& out);
 
+// The faces of edict `num`'s convex hulls (a prop's, loose or held), in its own frame (its origin, along its axes): each
+// face's outward normal (xyz) and its distance from the origin along it (w, world units), into `planes` (at most
+// `maxPlanes`); `hullEnds[k]` where hull k's faces end (at most `maxHulls`, `hulls` of them). Its other shapes are
+// left out. 0 faces: no body, or no hull (the grip fit's shape: vr_gripfit.cpp).
+int hullPlanes(int num, glm::vec4* planes, int maxPlanes, int* hullEnds, int maxHulls, int& hulls);
+
 // Whether edict `num` is one of Box3D's props (its shape is what sightRay meets).
 [[nodiscard]] bool isBox3DProp(int num);
 
@@ -76,9 +92,13 @@ void reset();
 // A map entity made by its spawn function (`classname`) at `origin`, turned `angles` (set before it: a monster's
 // ideal_yaw is taken from them), its "model" `model` and the float field `key` set to `value` first when given (a rock's
 // model, func_weapon_grabbable's weapon). Null if there is no such spawn function, or it removed itself. vr_physics_spawn's
-// and the toolgun's.
+// and the toolgun's. An item is placed at once (QC VR_SpawnLive_Finish): its final size and place from its first frame.
+// `probe`: made only to be looked at and removed at once (the toolgun's ghost: QC vr_spawn_live 2). `weaponFlags`:
+// its "weaponflags" when not 0 (a grabbable weapon's: an AD melee weapon's kind). `key2`: a second float field set to
+// `value2` (an armed monster's left hand's "weapon2").
 edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::vec3& angles, const char* model = nullptr,
-    const char* key = nullptr, float value = 0.f);
+    const char* key = nullptr, float value = 0.f, bool probe = false, float weaponFlags = 0.f, const char* key2 = nullptr,
+    float value2 = 0.f);
 
 // The toolgun's (vr_toolgun.cpp). A prop pinned is a kinematic body where its entity is (as a pickup hanging), until
 // unpinned: frozen, or moved by the physgun's beam (its entity moved, its body follows and pushes the others). Edict
@@ -106,6 +126,29 @@ int removeToolJoints(int num); // `num`'s (0: all); how many
 void forEachToolJoint(za::FunctionRef<void(const glm::vec3& atA, const glm::vec3& atB, ToolJoint kind)> fn);
 void toolForget(int num);
 
+// AD support: the fuelled guns' tanks lying about, each held to its gun by a rope (QC vr_ad_enemyguns.qc "Fuel tanks";
+// vr_box3d.cpp syncPropRopes): each pair found at the last step, its gun's and tank's edict numbers, the rope's most
+// (units) and whether its joint is made now (both bodies there). The server's; the hose drawn between them reads it
+// (vr_adtank.cpp: a listen server's).
+void forEachFuelRope(za::FunctionRef<void(int gun, int tank, float length, bool joined)> fn);
+// AD support: the death sergeant's flails lying about, each head held to its handle by its chain's rope (QC vr_ad_melee.qc
+// "The flail lying about"; syncPropRopes): the handle's and head's edict numbers, the rope's most (units, the handle's
+// tip to the head's ring), whether its joint is made now, and how far apart its ends are now (units; -1 not joined).
+// The server's; the chain drawn between them reads it (vr_adtank.cpp's world lines: a listen server's).
+void forEachFlailRope(za::FunctionRef<void(int handle, int head, float length, bool joined, float apart)> fn);
+
+// AD support: the death sergeant's flail's head of client `client`'s hand `hand` (1 the main hand) as the last step left
+// it, and its chain's anchor (the handle's end), world units; false if that hand holds none (vr_box3d_flail.cpp). The
+// server's; the view draws it (vr_flail.cpp: a listen server's).
+[[nodiscard]] bool flailHead(int client, int hand, glm::vec3& pos, glm::quat& rot, glm::vec3& anchor);
+// ... and as the view draws it at the client's time `time` (cl.time, the entities' lerp): its middle from its anchor and
+// its turn, both in the play space's frame (turned back by the player's play space turn, QC .vryaw, at each step),
+// interpolated between the steps about that time (vr_flail_smooth; vr_flail.cpp puts it on the hand as drawn).
+[[nodiscard]] bool flailHeadAt(int client, int hand, double time, glm::vec3& off, glm::quat& rot);
+// vr_flail_info: the heads' stats since the last (frames held, the chain's most stretch, the frames the level stood
+// between the handle and the head, the fastest, hits dealt); then cleared.
+void flailInfo_f();
+
 // An explosion of `damage` at `at` (T_RadiusDamage's, through the physicsblast builtin): the props within its reach
 // that it sees are thrown.
 void blast(const glm::vec3& at, float damage);
@@ -115,9 +158,28 @@ void blast(const glm::vec3& at, float damage);
 // monsters (orange), players (cyan), pickups hanging (grey); a prop's centre of mass, and an awake one's contact
 // points (red: pressed in; pink: apart). The local server's (a listen server: nothing on a client of another).
 void debugDraw();
+// vr_ragdoll_active_debug: the active ragdolls' targets (vr_ragactive.hpp debugDraw): drawn with or without the shapes.
+void activeRagdollDraw();
+// vr_struggle_debug: a panel over each struggling enemy (vr_box3d_struggle.cpp), turned to `eye` (world units).
+void struggleDraw(const glm::vec3& eye);
+// A voice note's context (vr_notectx.cpp): the limb edict `player`'s `hand` (0 the off hand, 1 the main) holds, a line
+// ("monster_army #34 part head, alive (knocked down), struggling 2.1 s: effort ..."), "" none. Also, without a hold, an
+// edict's ragdoll's state (`num` > 0: "ragdoll, struggling ..."; "" no ragdoll).
+[[nodiscard]] za::String noteRagdollHold(int player, int hand);
+[[nodiscard]] za::String noteRagdoll(int num);
 
 // The profiler's counts: Box3D's bodies, those awake, the contacts the solver works on (0 without a world).
 void profileCounts(int& bodies, int& awake, int& contacts);
+// The awake bodies by what they are (the bench's counts: what keeps the solver busy).
+struct AwakeKinds
+{
+    int ragdollsLiving{0}, ragdollsDead{0}; // ragdolls (living: a knocked-down or staggering monster)
+    int ragLivingAwake{0}, ragDeadAwake{0}; // their awake parts
+    int gibsAwake{0};                       // gibs and heads (props whose model is a gib's)
+    int propsAwake{0};                      // other props and pushable corpses
+    int otherAwake{0};                      // the rest (held, actors, players: kinematic ones Box3D counts awake)
+};
+void profileAwakeKinds(AwakeKinds& out);
 
 // The grappling hook's rope (vr_ropesim.cpp) against what it can't pass through: the world's mesh, the doors and lifts,
 // the props (not the entities `skipA` and `skipB`, 0: none; the rope's ends). A sphere of `radius` cast from `from` to
@@ -160,6 +222,9 @@ bool contactPoint(int num, glm::vec3& point);
 // open hand, the fist, the held weapon) or its sphere where the contact holds it up (its normal points up into it). For
 // the drawn hands (vr_modelcollide.cpp): a thing lying on the palm doesn't push the hand away.
 [[nodiscard]] bool restsOnHand(int num, int player, int hand);
+// Units hand `hand` ([0] off, [1] main) of client `player` is held back from where it is tracked, pressed into a prop
+// with nowhere to go (vr_box3d_press_back): its bodies are there, and the view draws it there (0 without Box3D's world).
+[[nodiscard]] glm::vec3 pressOffset(int player, int hand);
 // A held prop `num` (its drawn box) moved from `fromPos` turned `fromRot` to `toPos` turned `toRot` (its origin, as its
 // entity's) kept out of the level (the world and its brush entities; vr_carry2h.cpp): `toPos` as far along the move as its
 // box stays out of it (overlap tests), then slid along what it met axis by axis; `toRot` the old turn if the new one would put it in. Already a
@@ -170,17 +235,112 @@ bool holdClear(int num, const glm::vec3& fromPos, const glm::quat& fromRot, glm:
 // The loose prop nearest the first player (its edict number; 0 none): the tests' "nearest".
 [[nodiscard]] int nearestProp();
 
+// Climbing props (vr_climb_props; vr_climb.cpp, "Holds on props"). A loose solid prop's shape: its body's convex pieces'
+// faces in its body's frame (units: a point p there is at turn * p + origin, ClimbBody), made once for its body and
+// kept while it is (a body made again: made again).
+struct ClimbShape
+{
+    struct Face
+    {
+        glm::vec3 normal{0.f, 0.f, 1.f}; // outwards
+        int first{0}, count{0};          // its corners (corner[first .. first + count): round it)
+    };
+    za::Vector<glm::vec3> points;
+    za::Vector<int> corner; // per corner of a face: its point,
+    za::Vector<int> across; // and the face over the edge from it to the face's next corner
+    za::Vector<Face> faces;
+};
+[[nodiscard]] za::SizeT heldBytes(const ClimbShape& s);
+// A prop's body now (world units).
+struct ClimbBody
+{
+    glm::vec3 origin{0.f};
+    glm::mat3 turn{1.f};
+    glm::vec3 centre{0.f};   // its centre of mass,
+    glm::vec3 velocity{0.f}; // its velocity (units/s),
+    glm::vec3 spin{0.f};     // and spin (rad/s, world)
+    float mass{0.f};         // kg (propMass)
+    bool fixed{false};       // not moved by forces (pinned: a kinematic body)
+    bool asleep{false};
+    // The velocity of the point `p` (units) on it.
+    [[nodiscard]] glm::vec3 pointVelocity(const glm::vec3& p) const
+    {
+        return velocity + glm::cross(spin, p - centre);
+    }
+};
+// The loose solid prop `num`'s shape (Box3D's prop, SOLID_BBOX: a crate, a barrel, an explosive box; not one in a hand,
+// a ragdoll or a corpse), its body now into `body`; null if it is not one (or without Box3D's world).
+[[nodiscard]] const ClimbShape* climbShape(int num, ClimbBody& body);
+// Its body alone (false: not one, as climbShape).
+[[nodiscard]] bool climbBody(int num, ClimbBody& body);
+// A climbing hand's pull on the prop `num` (a light one): the weight of `kg` (Box3D's gravity: Quake's) along `dir` (unit,
+// world) at `at` (units), through this frame's step.
+void climbPull(int num, const glm::vec3& at, const glm::vec3& dir, float kg);
+// Whether the line from `from` to `to` (units) meets a solid prop's shape (one climbShape takes), other than `skip`.
+[[nodiscard]] bool climbRay(const glm::vec3& from, const glm::vec3& to, int skip = 0);
+// As castProps, against the solid props only (the ones climbShape takes) and none skipped; or `inside`: `from` is in one
+// already (true, `hit` not set; `from` and `to` the same: only that). The climbing feet's traces (vr_avatar.cpp). False: none met (or no Box3D world).
+[[nodiscard]] bool propTrace(const glm::vec3& from, const glm::vec3& to, PropHit& hit, bool& inside);
+
 // Ragdolls (vr_ragdoll; vr_box3d.cpp, "Ragdolls"). Whether edict `num` is one.
 [[nodiscard]] bool isRagdoll(int num);
+// The ragdoll tests (vr_ragtest.cpp, vr_ragdoll_act): whether `ent` is of a kind whose ragdoll is driven (vr_ragdoll_active's
+// classes: grunts, enforcers, knights, death knights, ogres, zombies); edict `num`'s ragdoll's drive (null: no ragdoll).
+[[nodiscard]] bool activeKind(const edict_t* ent);
+[[nodiscard]] const ragactive::State* activeState(int num);
 // Knockdowns (vr_knockdown; vr_box3d.cpp "Knockdowns"; QC vr_knockdown.qc). Whether `ent` can be one (a monster with a rig,
 // ragdolls on); its ragdoll made now, alive (.vr_knockdown 1, touchable and not solid); its getting up: the get-up's
 // first frame fitted to how it lies (frameA, or frameB if that fits better; -1 none), room for its box mins..maxs found
 // within `range`, its ragdoll gone and blended into its animation: 0 no room (it stays down), else 1 or 2 (the frame
 // chosen), its origin and yaw set there.
+// With vr_ragdoll_active_getup (its kind's: vr_ragdoll_active's classes; not in a liquid nor `anywhere`) its body
+// rises through its get-up first: -1 while it does (the QC asks again; not asked for 0.35 s, it slumps), then 3 or 4
+// (risen: 1 or 2 plus 2), standing in its get-up's last frame, handed back to the animated monster.
 [[nodiscard]] bool canRagdoll(edict_t* ent);
 bool ragdollKnockdown(edict_t* ent);
 int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, const glm::vec3& maxs, float range,
     bool anywhere = false);
+// Active staggers (vr_ragdoll_active_stagger; ROUND22.md, "Active ragdolls: stagger, judo, get-up"). Whether a shove
+// makes `ent` stagger (its kind's, ragdolls on); its stagger begun (its ragdoll just made by ragdollKnockdown: shoved
+// along level `dir` with `push`, its `balance` 0..1, carried `reach` units by the shove standing); how it goes: 1
+// staggering, 0 fallen (a knockdown now; or no ragdoll), 2 recovered (handed back to the animated monster standing, box
+// mins..maxs, .vr_knockdown 2).
+[[nodiscard]] bool ragdollCanStagger(edict_t* ent);
+// A drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; QC VR_Knockdown_Drown): whether `ent` can (its
+// kind driven alive, vr_ragdoll_active_liquids on); its knockdown's ragdoll just made: its living swim to begin frantic
+// (false: no ragdoll).
+[[nodiscard]] bool ragdollCanDrown(edict_t* ent);
+bool ragdollDrowning(edict_t* ent);
+// Its neck snapped (vr_foegrab.cpp neckSnap; vr_foegrab_necksnap_loose): `ent`'s ragdoll's neck joints (its head's, up to
+// its chest) set loose (wide cone and twist, no spring, a little friction), never driven again: its head flops. False:
+// no ragdoll, no head, or the option off.
+bool ragdollNeckSnapped(edict_t* ent);
+// Ragdoll `num`'s head against its chest now (degrees): the swing off its joint's rest direction and the twist about
+// it (the outermost neck joint's). False: none.
+bool ragdollNeckAngle(int num, float& swing, float& twist);
+// A living knockdown lifted off its feet by a player's two hands (vr_foegrab.cpp's lift): `on`, its ragdoll flails (as in
+// lava: ragactive::beginFlail; only the kinds driven alive); off, it stops (its strengths fade). False: not begun (no
+// ragdoll, not an active kind, swimming), or (off) it wasn't flailing.
+bool ragdollFlail(edict_t* ent, bool on);
+// A living monster's ragdoll (of the active classes) guarding its head from a blow coming from `at` (units) for `hold`
+// s: its arms up before its face (vr_ragdoll_active_guard; QC VR_Guard_Raise). False: it can't.
+bool ragdollGuard(edict_t* ent, const glm::vec3& at, float hold);
+// `farther`: its travel's limit (4 m) times this (at least 1; a two-hand shove's hands, a running shove: QC VR_Bash_Hit).
+bool ragdollStagger(edict_t* ent, const glm::vec3& dir, float push, float balance, float reach, float recoverAt = -1.f,
+    bool sure = false, float farther = 1.f);
+int ragdollStaggered(edict_t* ent, const glm::vec3& mins, const glm::vec3& maxs);
+// A two-hand throw's fall (after ragdollTopple): its arms bracing, its torso curling, the parts nearest `palms` (units,
+// `count` of them) slack a moment; its legs keep their tone `legsHold` s (ragactive::beginFall: a leg sweep's). False: no
+// ragdoll.
+bool ragdollThrown(edict_t* ent, const glm::vec3& dir, const glm::vec3* palms, int count, float legsHold = 0.f);
+// `ent`'s ragdoll is thrown now (the ragdoll triggers' Thrown Body: QC VR_KdTrig_BodyHit as it strikes a living
+// monster); with `velocity` (units/s, not zero) every part of it is set going at that first (ragdollfling: the tests').
+// False: no ragdoll.
+bool ragdollMarkThrown(edict_t* ent, const glm::vec3* velocity = nullptr);
+// `ent`'s ragdoll passes through player `player`'s (entity number) hands' bodies (and his body: vr_box3d_throw_grace_body)
+// for `seconds` from now at least (a throw's grace, as a thrown prop's: vr_box3d_throw_grace; a later call may lengthen
+// it, never shorten it). False: no ragdoll.
+bool ragdollGrace(edict_t* ent, int player, float seconds);
 // The two-hand throw's topple (vr_foegrab_throw_topple; ROUND21.md, "Holding enemies"): `ent`'s ragdoll (just made by
 // ragdollKnockdown) turned over about its feet towards level `dir`, a sweep: its parts' shared launch (the throw's push and
 // lift) shared out by height (the feet none, the top all), `topple` rad/s about the level axis through its feet across
@@ -203,7 +363,8 @@ bool ragdollTopple(edict_t* ent, const glm::vec3& dir, float topple, float spin,
 // gravity-like curve, landing flat at a quarter), never faster than `maxSpin` rad/s, its feet `lag` of the travel behind.
 // `ledge`: shoved over one: pushed whole (its level launch times `keep`, at least `minSpeed` u/s) and turned `topple`
 // rad/s about the floor under its feet (ragdollTopple's whole), kept going so until it has gone `reach` units (past the
-// edge) or dropped, its turn kept at `topple` until it leans `angle`, never faster than `maxSpin`, until it lands.
+// edge) or dropped, its turn kept at `topple` until it leans `angle`, never faster than `maxSpin`, until it lands; past
+// the edge, its middle's speed along the shove eased down to `over` times the kept speed (1 or more: left as it is).
 // False: no ragdoll.
 struct RagdollShove
 {
@@ -217,6 +378,7 @@ struct RagdollShove
     float minSpeed{80.f};
     float reach{0.f};
     float topple{0.f};
+    float over{1.f};
 };
 bool ragdollShove(edict_t* ent, const glm::vec3& dir, const RagdollShove& p);
 // Tests (the throw's trace): `num`'s ragdoll's pelvis, head (its rig's head, else its highest part) and feet (the middle of
@@ -228,7 +390,37 @@ bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet)
 // off hand, 1 the main). grab: take the limb of `corpse` the hand is on; release: let go (the limb keeps `velocity`,
 // units/s).
 bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
+// The armed monsters' tug-of-war (QC ragdolltug; vr_box3d_ragparts.cpp tugRagdoll): what 0 begin (the hand holds the
+// limb nearest `grip` at the weapon's lever, `force` N at most, its arm pulling at `strength`), 1 the hold's pull (N; -1
+// none), 2 over (its stagger up again `strength` s on).
+float ragdollTug(edict_t* ent, edict_t* player, int hand, int what, const glm::vec3& grip, float strength, float force);
+// A soft hold (vr_foegrab.cpp: an enemy thrown or lifted, held on): hand `hand` (QC's) of `player` holds the limb of
+// `ent`'s ragdoll nearest it, within `reach` units of its surface, by a spring of at most `force` N at `hertz`, let go of
+// when the limb lags `stuck` units off for half a second. The QC's held field must name `ent` (else it ends next step);
+// let go of as any (ragdollRelease). `head`: its head's part instead of the nearest, if not cut off and its middle within
+// `reach` and 12 units more (the neck snap's: the hands held its head). `torso` (a lift): its chest or pelvis instead of
+// an arm across it (an enforcer's forearms before his chest, his rifle in both hands), the torso's surface within 10
+// units more than the arm's (else that arm: lifted by it, it hung slack and could not flail).
+bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck,
+    bool head = false, bool torso = false);
+// That soft hold's most force (N), changed to `force` unless it is < 0, and its spring's rate to `hertz` (Hz) unless it
+// is <= 0 (the leg pull's: firmed up once it lies, to drag it); -1 if the hand has no soft hold (none, or the usual hold
+// of a hand taking a limb: vr_ragdoll_grab_force's).
+float ragdollHoldForce(edict_t* player, int hand, float force = -1.f, float hertz = 0.f);
+// What `ent`'s ragdoll weighs (N: its parts' masses, its cut ones not, times the world's gravity); 0: no ragdoll.
+[[nodiscard]] float ragdollWeight(edict_t* ent);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
+// The toolgun's physgun on a ragdoll (vr_toolgun.cpp; vr_toolgun_physgun_ragdoll; vr_box3d_ragparts.cpp, "The physgun's
+// hold"): a spring from the beam's point to the part of edict `num`'s ragdoll the beam from `from` along `dir` (unit)
+// meets first within `range` units (none: the part nearest `fallback`), at that point; the part and the distance along the
+// beam to it out. False: not a ragdoll. Move: its target each frame (units); false, the hold is over (the ragdoll gone,
+// the part cut off, the world made again). Release: let go, the part keeps at least `velocity` (units/s) along it.
+// Points (tests): the held point and the ragdoll's root part's middle now (units); false: none held.
+bool physgunRagdollGrab(int num, const glm::vec3& from, const glm::vec3& dir, float range, const glm::vec3& fallback, int& part,
+    float& distance);
+bool physgunRagdollMove(const glm::vec3& target);
+void physgunRagdollRelease(const glm::vec3& velocity);
+bool physgunRagdollPoints(glm::vec3& grip, glm::vec3& root);
 // 0 nothing, 1 holding a limb; the distance (units) from the hand to the limb's held point (-1: none).
 [[nodiscard]] int ragdollHeld(edict_t* player, int hand);
 [[nodiscard]] float ragdollHandReach(edict_t* player, int hand);
@@ -244,13 +436,21 @@ struct RagdollHold
     glm::quat turn{1.f, 0.f, 0.f, 0.f};
 };
 [[nodiscard]] bool ragdollHold(int player, int hand, RagdollHold& out);
+// Where on the ragdoll that hand's hold grips now (its anchor on the part, world units): the neck snap's head zone test
+// (vr_foegrab.cpp ragdollNeckCheck). False: no ragdoll hold.
+[[nodiscard]] bool ragdollHoldPoint(int player, int hand, glm::vec3& out);
 // A limb's point (flames on a ragdoll: vr_burning.qc): the limb nearest `at` (-1: not a ragdoll); a point into a limb's
 // space (units) and back.
-[[nodiscard]] int ragdollBone(int num, const glm::vec3& at);
-// Tests (vr_mock_hand_to ... ragdoll): the middle of part `part` (-1: the one nearest `from`; -2 its head) of the ragdoll nearest `from`
-// (units); its edict number,
-// 0 if none (or no such part).
-int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out);
+[[nodiscard]] int ragdollBone(int num, const glm::vec3& at, float within = -1.f); // (within >= 0: -1 when farther)
+// Ragdolls in a world box (the buzzsaw's blade: QC rogue_buzzsaw.qc): the lowest edict number above `after` whose
+// ragdoll has a part in lo..hi (0 none); the first part of edict `num`'s after `after` in it (-1 none), `at` its point
+// nearest the box's middle.
+[[nodiscard]] int ragdollInBox(const glm::vec3& lo, const glm::vec3& hi, int after);
+[[nodiscard]] int ragdollPartInBox(int num, const glm::vec3& lo, const glm::vec3& hi, int after, glm::vec3& at);
+// Tests (vr_mock_hand_to ... ragdoll): the middle of part `part` (-1: the one nearest `from`; -2 its head; -4 the first
+// whose bone's name begins with `name`, e.g. "shin_r": rigs number their parts differently) of the ragdoll nearest
+// `from` (units); its edict number, 0 if none (or no such part).
+int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out, const char* name = nullptr);
 [[nodiscard]] glm::vec3 ragdollPoint(int num, int bone, const glm::vec3& p, bool toWorld);
 
 // Decapitation (ROUND21.md, "Decapitation"; QC vr_decap.qc). `ent`'s ragdoll loses its head (its rig's head bone and the
@@ -273,6 +473,10 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
 // where it stands), then the nearest of that bone's own joint and its children's; its rig's head for the head's bones;
 // -1 the torso (or nothing); -2 no rig.
 [[nodiscard]] int limbAt(edict_t* ent, const glm::vec3& at);
+// The bone of `ent`'s rig whose vertex is nearest `at` (as drawn, as limbAt finds it), `name` its rig's name for it
+// ("shin_l", "thigh_r"; the leg grabs: vr_foegrab.cpp legPartAt), `end` (if given) its far end as drawn (a thigh's: its
+// knee); -1 none (no rig).
+[[nodiscard]] int boneAt(edict_t* ent, const glm::vec3& at, const char** name, glm::vec3* end = nullptr);
 // `ent`'s limbs: 0 its limb joints not cut (bits; not the head's), 1 its head's bones, 2 its bones cut off, 3 its head
 // bone (~0 none), 4 the bones a cut at `bone` would take now, 5 `bone`'s parent.
 [[nodiscard]] uint32_t limbInfo(edict_t* ent, int what, int bone);
@@ -296,6 +500,9 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
 // 1 if `at` (units) is on the head of edict `num`'s ragdoll (its part nearest, or within a few units of the neck: `neck`
 // units if more, the melee's vr_decap_neck), 0 not (or no head), -1 not a ragdoll.
 [[nodiscard]] int ragdollHeadAt(int num, const glm::vec3& at, float neck = 0.f);
+// The neck of edict `num`'s ragdoll now (the neck snap's): `joint` its head's joint (units), `axis` the way from it to its
+// head's middle (unit: the neck's line as it lies), `head` that middle. False: no ragdoll, or no head (or cut off).
+bool ragdollNeck(int num, glm::vec3& joint, glm::vec3& axis, glm::vec3& head);
 // The guns' convex pieces this session (vr_gun_pieces_cache): read from the disk, cut, files written (Setup's
 // preparation reports them: vr_prepare.cpp).
 struct GunPiecesCount

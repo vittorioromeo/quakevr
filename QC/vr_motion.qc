@@ -20,6 +20,7 @@
 void(string kind, string sub, float hand, float value, vector at, entity targ, string detail) motionevent = #0;
 void(float hand, vector at, string name) motionpoint = #0;
 void(string key, vector value) motionvalue = #0;
+void() VR_KdTrig_ChargeSample; // (vr_kdtrig.qc)
 
 // An event (see above): what (`xKind`: melee, bash, parrybash, shove, headbutt, stroke, push, parry,
 // deflect) and its kind (`xSub`), the hand (-1: both or none), a value (damage, or a blow's strength),
@@ -212,6 +213,8 @@ void(entity xTarget) VR_Motion_Sample =
 
     motionvalue("m_blow", [vlen(bm.mh_vfar), vlen(bm.mh_vgrip), meleerun(bm, FALSE)]);
     motionvalue("o_blow", [vlen(bo.mh_vfar), vlen(bo.mh_vgrip), meleerun(bo, FALSE)]);
+
+    VR_KdTrig_ChargeSample(); // (the shoulder charge's pose: `charge`, `charge_ok`)
 };
 
 // Playback (vr_motion_play): `self`'s hand `xHand` holds weapon `xWid` (WID_*, WID_FIST: empty) with

@@ -12,7 +12,9 @@
 // - Down: touchable, not solid, .vr_knockdown 1: the engine makes its ragdoll at once from the frame it is drawn in, its
 //   weapon welded in its hand. Hits land on the ragdoll (its limbs as drawn; the hands' blows too, as a live one's:
 //   beheading and limbs, vr_melee.qc VR_Melee_BoxTarget) and it reacts as it does (its pain sounds,
-//   blood; no pain frames: T_DamageImpl keeps its frame and think), each keeping it down vr_knockdown_hit_time longer.
+//   blood; no pain frames: T_DamageImpl keeps its frame and think), each keeping it down at least vr_knockdown_hit_time
+//   after it; a hand holding it (dragging, lifting) keeps it down while held and vr_knockdown_keep_time after; never past
+//   vr_knockdown_keep_max s down in all, its own timer never cut short (VR_Knockdown_Keep).
 //   It is grabbed, pushed and thrown as a dead one's. Killed there, it screams and its death code runs at once (its
 //   drops; Killed: VR_Knockdown_FastForwardDeath): the ragdoll stays as it lies. Gibbed, it gibs; beheaded or its head
 //   blown off, the ragdoll goes on headless. Thrown or dropped down there, it takes fall damage as a standing monster does
@@ -27,6 +29,73 @@
 //   their lowest (the grunt's painb, the enforcer's paind, the zombie's and mummy's paine, the ogre's paind, the
 //   rottweiler's painb, the knight's painb), at vr_knockdown_getup_speed; a monster with none (the death knight, the
 //   fiend, the shambler, the gremlin) plays a death backwards (of two, the one whose end fits how it lies). Then it runs.
+
+// Shoved (vr_ragdoll_active_stagger): staggering as a ragdoll (the engine's; VR_Knockdown_Try), not yet down nor up.
+.float vr_kd_stagger;
+.float vr_kd_parry;   // its stagger a parry's (vr_kdtrig.qc VR_Parry_Ragdoll): its recovery ends the parry's
+.float vr_kd_due;  // when its own timer runs out (vr_kd_until as it went down, before anything kept it down)
+.float vr_kd_rise; // its timer ran out: its get-up begun (nothing keeps it down from then)
+
+// Kept down (the author, 2026-10-16: "if I keep interacting with it, I should increase that limit up to a maximum"):
+// knocked-down `m`, a hit, a stomp or a hand on it (xWhat) now, stays down at least xFor s more, past its own timer, but
+// never more than vr_knockdown_keep_max s down in all; its own timer never cut short. Left alone, it gets up on its own
+// time, or xFor after the last if that has passed. Not once its get-up began, nor a staggering one, nor a corpse.
+// Its monster group's toughness (Combat > Monster Groups, "Toughness"; the Mini Bosses' and Elite Knights' below 1):
+// every chance to knock `m` down times this (a sure knockdown too: by this chance), and its time down times this.
+float(entity m) VR_KD_Scale =
+{
+    return max(0, monstergroupget(m, MGP_KDSCALE));
+};
+float(entity m) VR_KD_DownScale =
+{
+    return max(0.05, monstergroupget(m, MGP_DOWNTIME));
+};
+// A sure knockdown (over a ledge, unaware, from behind) of `m` still is: by its group's Knockdown Chance below 1.
+float(entity m) VR_KD_SureRoll =
+{
+    float k = VR_KD_Scale(m);
+    return k >= 1 || random() < k;
+};
+
+void(entity m, float xFor, string xWhat) VR_Knockdown_Keep =
+{
+    float most = cvar_hget(cvarh_vr_knockdown_keep_max) * VR_KD_DownScale(m);
+    xFor = xFor * VR_KD_DownScale(m);
+    if(m.health <= 0 || m.vr_knockdown != 1 || m.vr_kd_stagger || m.vr_kd_rise || xFor <= 0 || most <= 0)
+    {
+        return;
+    }
+    float until = min(m.vr_kd_since + most, time + xFor);
+    if(until <= m.vr_kd_until)
+    {
+        return;
+    }
+    // (Held: asked every think. Printed at vr_knockdown_debug 2 only, or when it first keeps it past its own timer.)
+    float dbg = cvar_hget(cvarh_vr_knockdown_debug);
+    if(dbg >= 2 || (dbg && (xWhat != "held" || m.vr_kd_until <= m.vr_kd_due)))
+    {
+        dprint(sprintf("knockdown: %s kept down (%s): up in %.2f s at the soonest, %.2f s down so far (its own %.2f s, "
+            "most %.2f s)\n", m.classname, xWhat, until - time, time - m.vr_kd_since, m.vr_kd_due - m.vr_kd_since, most));
+    }
+    m.vr_kd_until = until;
+};
+
+// A player's hand holds `m` (dragging it, lifting it).
+float(entity m) VR_Knockdown_Held =
+{
+    for(entity p = find(world, classname, "player"); p != world; p = find(p, classname, "player"))
+    {
+        if(VR_Carry_Held(p, cVR_MainHand) == m || VR_Carry_Held(p, cVR_OffHand) == m)
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+.float vr_kd_balance; // its balance (VR_Knockdown_Try), and the shove's way: a loaded game's stagger begun again
+.vector vr_kd_dir;
+float VR_KD_STAGGER_SLOPE = 2.5; // a stagger's balance: 0.5 + this x (the roll - the knockdown's chance), 0 .. 1
+float VR_KD_STAGGER_MOST = 8;    // s: a stagger still on this long after it began goes down (its ragdoll lost)
 
 // Its class's chance and get-up: its own (from frame xFrame, the lowest of its fall-and-rise, its frame function xGetup on).
 void(float xChanceH, float xFrame, void() xGetup) VR_Knockdown_SetupOwn =
@@ -49,7 +118,8 @@ void(float xChanceH, float xLastA, float xFirstA, float xLastB, float xFirstB) V
 
 float() VR_Knockdown_Interval =
 {
-    return 0.1 / min(10, max(0.1, cvar_hget(cvarh_vr_knockdown_getup_speed)));
+    // (self the monster getting up: times its monster group's Get-Up Speed.)
+    return 0.1 / min(10, max(0.1, cvar_hget(cvarh_vr_knockdown_getup_speed) * max(0.1, monstergroupget(self, MGP_GETUP))));
 };
 
 // Its body gone (a dead one's, or one killed to make room): as a corpse is removed.
@@ -76,6 +146,7 @@ float(entity e) VR_PlacedCorpse_Near =
 
 // Room for one more ragdoll (vr_ragdoll_max): the oldest dead ragdoll goes first, else the oldest knocked-down monster
 // (but `xFor`) is killed and goes. FALSE: none can.
+float vr_kd_room_dead_only; // (VR_KdTrig_Room: only a dead body goes)
 float(entity xFor) VR_Knockdown_MakeRoom =
 {
     float most = cvar("vr_ragdoll_max");
@@ -133,7 +204,7 @@ float(entity xFor) VR_Knockdown_MakeRoom =
                 VR_Knockdown_RemoveBody(dead);
             }
         }
-        else if(alive != world)
+        else if(alive != world && !vr_kd_room_dead_only) // (a situational knockdown's room: never a living one killed)
         {
             if(cvar_hget(cvarh_vr_knockdown_debug))
             {
@@ -175,6 +246,19 @@ void() VR_Knockdown_FastForwardDeath =
     }
 };
 
+// The training dummy (self) is up: no AI, back to its training pose (the caller sets the next think).
+void() VR_Knockdown_EaseDummy =
+{
+    self.think = vr_dummy_think;
+    self.movetype = MOVETYPE_NONE;
+    self.vr_dummy_painframe = 0;
+    if(cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("knockdown: %s eased up, back in its training pose after %.1f s\n", self.classname,
+            time - self.vr_kd_since));
+    }
+};
+
 // Getting up, a death backwards (self): a frame back each step to its first, then it runs.
 void() VR_Knockdown_Reverse =
 {
@@ -187,6 +271,15 @@ void() VR_Knockdown_Reverse =
         self.vr_knockdown = 0;
         self.think = self.th_run;
         self.nextthink = time + 0.1;
+        if(VR_IsDummy(self)) // (the training dummy: no AI, back to its training pose; VR_Knockdown_Stand)
+        {
+            VR_Knockdown_EaseDummy();
+            return;
+        }
+        if(self.vr_ad_mon)
+        {
+            VR_AD_RunNow(); // AD support: AD's monsters run by AD's th_run (vr_ad_monsters.qc)
+        }
         return;
     }
     self.frame = self.frame - 1;
@@ -208,9 +301,16 @@ void() VR_Knockdown_Step =
     {
         return;
     }
-    if(self.think == self.th_run || self.think == f)
+    // (The training dummy has no th_run: its enemy's, kept, ends its get-up instead.)
+    if(self.think == self.th_run || self.think == f || VR_AD_IsRunning(self) || // (AD support: AD's th_run)
+       (VR_IsDummy(self) && self.think == self.vr_dummy_th_run))
     {
         self.vr_knockdown = 0; // (its run goes on at its own pace)
+        if(VR_IsDummy(self)) // (the training dummy: no AI, back to its training pose)
+        {
+            VR_Knockdown_EaseDummy();
+            self.nextthink = time + 0.05;
+        }
         return;
     }
     self.vr_kd_next = self.think;
@@ -218,17 +318,72 @@ void() VR_Knockdown_Step =
     self.nextthink = time + VR_Knockdown_Interval();
 };
 
-// Up from the ragdoll (self): solid again, standing, its get-up playing. xWhich: the frame the engine chose (1 or 2;
-// 0: no ragdoll to blend from, up where it is).
-void(float xWhich) VR_Knockdown_Stand =
+// Standing again (self): solid, its box and movement back, still, on the ground.
+void() VR_Knockdown_Upright =
 {
-    self.vr_knockdown = 2;
     self.solid = SOLID_SLIDEBOX;
     self.movetype = self.vr_kd_movetype;
     setsize(self, self.vr_kd_mins, self.vr_kd_maxs);
     setorigin(self, self.origin);
     self.velocity = '0 0 0';
     self.flags = self.flags | FL_ONGROUND;
+    // (Stood a little over a slope, its box lifted clear of it, or forced up anywhere: it drops onto the floor.)
+    tracebox(self.origin, self.mins, self.maxs, self.origin - '0 0 2', FALSE, self);
+    if(trace_fraction >= 1 && !trace_startsolid)
+    {
+        self.flags = self.flags - (self.flags & FL_ONGROUND);
+    }
+};
+
+// Up on its feet already (self; the engine handed its ragdoll back standing: a stagger recovered, its body risen through
+// its get-up, vr_ragdoll_active_stagger and _getup): its AI on at once. xWhat: for vr_knockdown_debug.
+void(string xWhat) VR_Knockdown_Afoot =
+{
+    VR_Knockdown_Upright();
+    self.vr_knockdown = 0;
+    self.vr_kd_stagger = 0;
+    VR_Manhandle_Shaken(self); // (just back on its feet: a hand's hold may knock it down again a moment)
+    // (Its run; the training dummy (a grunt with neither run nor AI) back to standing.)
+    self.think = self.th_run;
+    if(VR_IsDummy(self))
+    {
+        self.think = vr_dummy_think;
+        self.movetype = MOVETYPE_NONE;
+        self.vr_dummy_painframe = 0;
+    }
+    else if(self.vr_ad_mon)
+    {
+        VR_AD_RunNow(); // AD support: AD's monsters run by AD's th_run (its own th_run none: it stood frozen)
+    }
+    else if(!self.think)
+    {
+        self.think = self.th_stand;
+    }
+    if(!self.think)
+    {
+        self.think = SUB_Null;
+    }
+    self.nextthink = time + 0.1;
+    if(cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("knockdown: %s %s after %.1f s\n", self.classname, xWhat, time - self.vr_kd_since));
+    }
+};
+
+// Up from the ragdoll (self): solid again, standing, its get-up playing. xWhich: the frame the engine chose (1 or 2;
+// 0: no ragdoll to blend from, up where it is).
+void(float xWhich) VR_Knockdown_Stand =
+{
+    self.vr_knockdown = 2;
+    VR_Knockdown_Upright();
+    // (The training dummy too: it eases up through its get-up or its death backwards; VR_Knockdown_Step and _Reverse
+    // hand it back to its idle callback, its practice pose/home, where a monster's would run.) One made before its
+    // enemy's run was kept (an older save) can't tell its get-up's end: straight back to its training pose.
+    if(VR_IsDummy(self) && self.vr_kd_getup && !self.vr_dummy_th_run)
+    {
+        VR_Knockdown_Afoot("returns to its training pose");
+        return;
+    }
     if(cvar_hget(cvarh_vr_knockdown_debug))
     {
         dprint(sprintf("knockdown: %s gets up after %.1f s\n", self.classname, time - self.vr_kd_since));
@@ -258,9 +413,79 @@ void() VR_Knockdown_Think =
     }
     self.think = VR_Knockdown_Think;
     self.nextthink = time + 0.1;
+    if(self.vr_kd_stagger)
+    {
+        // Staggering (the engine's ragdoll, pinned up): on, back on its feet (its AI on), or gone over (down from now).
+        float st = ragdollstaggered(self, self.vr_kd_mins, self.vr_kd_maxs);
+        // (Never on for long: a loaded game's whose ragdoll is never made again goes down.)
+        if(st == 1 && (time - self.vr_kd_since < VR_KD_STAGGER_MOST || self.vr_ag_tug_rag)) // (a tug's: its own end)
+        {
+            self.nextthink = time + 0.05;
+            return;
+        }
+        if(st == 2)
+        {
+            if(self.vr_kd_parry) // (a parry's: VR_Parry_Ragdoll, as VR_Parry_Recover ends the pose's)
+            {
+                self.vr_kd_parry = 0;
+                self.vr_parry_stagger_until = 0;
+                self.vr_melee_begun = 0;
+                self.attack_state = AS_STRAIGHT;
+                dprint(sprintf("parry interrupt: %s recovered (a ragdoll's stagger, %.2f s)\n", self.classname,
+                    time - self.vr_kd_since));
+            }
+            VR_Knockdown_Afoot("recovers from its stagger");
+            return;
+        }
+        // A loaded game's (its ragdoll made again as it was drawn, its stagger not): begun again where it stands, no
+        // push, its balance as it was (it recovers, or gives way after its steps' time).
+        if(st == 3 && ragdollstagger(self, self.vr_kd_dir, 0, self.vr_kd_balance, 0))
+        {
+            self.vr_kd_since = time;
+            if(cvar_hget(cvarh_vr_knockdown_debug))
+            {
+                dprint(sprintf("knockdown: %s's stagger begun again (a loaded game), balance %.2f\n", self.classname,
+                    self.vr_kd_balance));
+            }
+            self.nextthink = time + 0.05;
+            return;
+        }
+        self.vr_kd_stagger = 0;
+        if(self.vr_kd_parry)
+        {
+            self.vr_kd_parry = 0;
+            dprint(sprintf("parry interrupt: %s went down from a ragdoll's stagger after %.2f s\n", self.classname,
+                time - self.vr_kd_since));
+        }
+        float lo = max(0, cvar_hget(cvarh_vr_knockdown_time_min)) * VR_KD_DownScale(self);
+        float hi = max(lo, cvar_hget(cvarh_vr_knockdown_time_max) * VR_KD_DownScale(self));
+        self.vr_kd_since = time;
+        self.vr_kd_until = time + lo + random() * (hi - lo);
+        self.vr_kd_due = self.vr_kd_until;
+        self.vr_kd_rise = 0;
+        if(cvar_hget(cvarh_vr_knockdown_debug))
+        {
+            dprint(sprintf("knockdown: %s staggered and fell: down %.1f s\n", self.classname, self.vr_kd_until - time));
+        }
+        return;
+    }
+    // (A hand on it, dragging or lifting it: kept down while held and vr_knockdown_keep_time after.)
+    if(!self.vr_kd_rise && VR_Knockdown_Held(self))
+    {
+        VR_Knockdown_Keep(self, cvar_hget(cvarh_vr_knockdown_keep_time), "held");
+    }
     if(time < self.vr_kd_until)
     {
         return;
+    }
+    if(!self.vr_kd_rise)
+    {
+        self.vr_kd_rise = 1;
+        if(cvar_hget(cvarh_vr_knockdown_debug))
+        {
+            dprint(sprintf("knockdown: %s's get-up due after %.2f s down (its own timer %.2f s)\n", self.classname,
+                time - self.vr_kd_since, self.vr_kd_due - self.vr_kd_since));
+        }
     }
     if(!isragdoll(self))
     {
@@ -278,6 +503,19 @@ void() VR_Knockdown_Think =
     }
     float search = max(0, cvar_hget(cvarh_vr_knockdown_search));
     float which = ragdollgetup(self, self.vr_kd_frame, self.vr_kd_frame2, self.vr_kd_mins, self.vr_kd_maxs, search);
+    if(which < 0)
+    {
+        // (Its body rising through its get-up: asked again until it stands. Or held in a liquid by a hand: it stays
+        // down, its give-up in the liquid timed from when it is let go of.)
+        self.vr_kd_wet_since = 0;
+        self.nextthink = time + 0.05;
+        return;
+    }
+    if(which >= 3)
+    {
+        VR_Knockdown_Afoot("rises through its get-up");
+        return;
+    }
     float floating = FALSE;
     if(!which)
     {
@@ -298,6 +536,20 @@ void() VR_Knockdown_Think =
         else
         {
             self.vr_kd_wet_since = 0;
+            // No room to stand (a slope steeper than vr_knockdown_getup_slope it slides on, a cramped spot): down this
+            // long since it went down (vr_knockdown_getup_force), it stands up where it lies, forced (never a ragdoll
+            // for ever; ROUND22.md, "Knocked down on a slope").
+            float force = cvar_hget(cvarh_vr_knockdown_getup_force);
+            if(force > 0 && time >= self.vr_kd_since + force)
+            {
+                which = ragdollgetup(self, self.vr_kd_frame, self.vr_kd_frame2, self.vr_kd_mins, self.vr_kd_maxs,
+                    max(48, search), TRUE);
+                if(which && cvar_hget(cvarh_vr_knockdown_debug))
+                {
+                    dprint(sprintf("knockdown: %s forced up after %.2f s down (no room to stand)\n", self.classname,
+                        time - self.vr_kd_since));
+                }
+            }
         }
         if(!which)
         {
@@ -326,6 +578,8 @@ float(entity e) VR_Knockdown_Start =
         remove(e.vr_shove); // (its slide: the ragdoll is thrown instead)
     }
     e.vr_shove = world;
+    e.vr_kd_stagger = 0;
+    e.vr_kd_parry = 0;
     e.vr_kd_mins = e.mins;
     e.vr_kd_maxs = e.maxs;
     e.vr_kd_movetype = e.movetype;
@@ -340,16 +594,80 @@ float(entity e) VR_Knockdown_Start =
         e.solid = oldSolid;
         return FALSE;
     }
-    float lo = max(0, cvar_hget(cvarh_vr_knockdown_time_min));
-    float hi = max(lo, cvar_hget(cvarh_vr_knockdown_time_max));
+    float lo = max(0, cvar_hget(cvarh_vr_knockdown_time_min)) * VR_KD_DownScale(e);
+    float hi = max(lo, cvar_hget(cvarh_vr_knockdown_time_max) * VR_KD_DownScale(e));
     e.vr_kd_since = time;
     e.vr_kd_until = time + lo + random() * (hi - lo);
+    e.vr_kd_due = e.vr_kd_until;
+    e.vr_kd_rise = 0;
     e.think = VR_Knockdown_Think;
     e.nextthink = time + 0.1;
     return TRUE;
 };
 
-float VR_KD_LEDGE_STEP = 8;    // units between the points along its way where the ground under it is looked for
+// A zombie's own fall (BACKLOG "Zombies stuck knocked down"; ROUND22.md, "Zombies fall as ragdolls"): Quake's,
+// Rogue's, Hipnotic's and Dawn of the Machine's zombies (zombie_pain), AD's zombies, mummies and zombie knight
+// (VR_AD_ZombiePain). The stock fall lay there not solid, out of reach of shots, and got up only where it fit (it could
+// stay down for good, untouchable). Instead `e`, put down by xBy's hit, falls away from xBy as a knockdown's ragdoll
+// (room made from the dead only): grabbed, dragged, hit, beheaded or gibbed down there (its own rules: only a hit of 60
+// gibs it), up through its get-up after the knockdown's time. FALSE: no ragdoll (ragdolls off, no room): the stock fall.
+float VR_KD_ZOMBIE_PUSH = 0.6;  // the topple's push (a two-hand shove's 1)
+float VR_KD_ZOMBIE_REACH = 16;  // and its carry, units
+float(entity e, entity xBy) VR_Knockdown_ZombieFall =
+{
+    if(e.health <= 0 || e.vr_knockdown || e.vr_corpse || !e.vr_kd_chance_h || !canragdoll(e))
+    {
+        return FALSE;
+    }
+    vr_kd_room_dead_only = TRUE;
+    float room = VR_Knockdown_MakeRoom(e);
+    vr_kd_room_dead_only = FALSE;
+    if(!room || !VR_Knockdown_Start(e))
+    {
+        return FALSE;
+    }
+    vector way = e.origin - xBy.origin;
+    way_z = 0;
+    if(xBy == world || xBy == e || vlen(way) < 1)
+    {
+        makevectors(e.angles);
+        way = '0 0 0' - v_forward;
+    }
+    ragdollshovetopple(e, normalize(way), VR_KD_ZOMBIE_PUSH, FALSE, VR_KD_ZOMBIE_REACH);
+    if(cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("knockdown: %s falls as a ragdoll (its own fall): down %.1f s\n", e.classname,
+            e.vr_kd_until - time));
+    }
+    return TRUE;
+};
+
+// `e`, standing with its head under water, out of breath (vr_liquids.qc's first drowning tick): by
+// vr_ragdoll_active_drown's chance it struggles as a ragdoll (knocked down: the engine's living swim paddles, its strokes
+// frantic at first, its head up, towards where it can stand; it gets up there as any knockdown in water). TRUE if it
+// does (that tick's damage spared). Only the kinds driven alive (ragdolldrown: the active classes, Swim and Flail on).
+float(entity e) VR_Knockdown_Drown =
+{
+    if(!cvar_hget(cvarh_vr_knockdown) || e.health <= 0 || e.vr_knockdown || !e.vr_kd_chance_h ||
+       (e.flags & (FL_FLY | FL_SWIM)) || !(e.flags & FL_MONSTER) || random() >= cvar_hget(cvarh_vr_ragdoll_active_drown) ||
+       !ragdolldrown(e, 0))
+    {
+        return FALSE;
+    }
+    if(!VR_Knockdown_MakeRoom(e) || !VR_Knockdown_Start(e))
+    {
+        return FALSE;
+    }
+    ragdolldrown(e, 1);
+    if(cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("knockdown: %s drowning: it struggles as a ragdoll, down %.1f s\n", e.classname,
+            e.vr_kd_until - time));
+    }
+    return TRUE;
+};
+
+float VR_KD_LEDGE_STEP = 8;   // units between the points along its way where the ground under it is looked for
 float vr_kd_ledge_past;        // VR_Knockdown_Ledge's last edge found: units along the shove to past it (its half width on)
 
 // How far the shove that just landed on `e` (its velocity VR_Push's: along the shove, and the hop) carries it standing:
@@ -447,6 +765,34 @@ float(entity e) VR_Knockdown_Ledge =
     return FALSE;
 };
 
+// `e` (its push just landed: VR_Push) staggering as a ragdoll along xForward (vr_ragdoll_active_stagger; the caller asked
+// ragdollcanstagger): xPush the push (two hands 1), xBalance 0 about to fall .. 1 steady. Its ragdoll made (room for it
+// first); one that cannot stagger topples over. FALSE: no room, no ragdoll (it stands as it was).
+// (A shove's, VR_Knockdown_Try; a strong hit's, vr_hitstagger.qc.) Its travel's limit times vr_kd_stagger_far (VR_Bash_Hit's;
+// 0: 1).
+float(entity e, vector xForward, float xPush, float xBalance) VR_Knockdown_Stagger =
+{
+    if(!VR_Knockdown_MakeRoom(e))
+    {
+        return FALSE;
+    }
+    float slide = VR_Shove_Reach(e); // (before its launch is cut: the shove's own)
+    if(!VR_Knockdown_Start(e))
+    {
+        return FALSE;
+    }
+    if(ragdollstagger(e, xForward, xPush, xBalance, slide, 0, 0, max(1, vr_kd_stagger_far)))
+    {
+        e.vr_kd_stagger = 1;
+        e.vr_kd_balance = xBalance;
+        e.vr_kd_dir = xForward;
+        e.nextthink = time + 0.05;
+        return TRUE;
+    }
+    ragdollshovetopple(e, xForward, xPush, FALSE, slide);
+    return TRUE;
+};
+
 // A shove (or a bash) by self (a player) that landed on `e` (VR_Bash_Hit): by chance it knocks it down. xKind: the hit's
 // (QVR_HITKIND_SHOVE or _BASH); xHand -1: both hands; xPush: its push (VR_Shove_HandsPush: two hands 1, one 0.7, a counter more,
 // tired less): down, its ragdoll is carried on along xForward and topples over its feet (ragdollshovetopple:
@@ -454,11 +800,14 @@ float(entity e) VR_Knockdown_Ledge =
 float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try =
 {
     if(!cvar_hget(cvarh_vr_knockdown) || !(self.flags & FL_CLIENT) || e.health <= 0 || e.vr_knockdown || !e.vr_kd_chance_h ||
-       (e.flags & (FL_FLY | FL_SWIM)) || !(e.flags & FL_MONSTER) || !canragdoll(e))
+       (e.flags & (FL_FLY | FL_SWIM)) || !(e.flags & FL_MONSTER) || !canragdoll(e) ||
+       (VR_IsDummy(e) && cvar_hget(cvarh_vr_dummy_anchored)))
     {
         return FALSE;
     }
-    float base = cvar_hget(e.vr_kd_chance_h);
+    VR_Manhandle_Shaken(e); // (a hand's hold may knock it down a moment: vr_foegrab_manhandle_stagger)
+    // (Its monster group's: vr_knockdown_chance_<group>; a heavy group's times its poise factor, combat.qc VR_Poise_Factor.)
+    float base = monstergroupget(e, MGP_SHOVE) * VR_Poise_Factor(e);
     float chance = base * max(0, cvar_hget(cvarh_vr_knockdown_chance));
     float full = e.max_health > 0 ? e.max_health : e.health;
     float lost = full > 0 ? min(1, max(0, 1 - e.health / full)) : 0;
@@ -476,19 +825,40 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
         float left = most > 0 ? VR_Stamina_Left(self) / most : 1;
         stamina = max(0, 1 - max(0, cvar_hget(cvarh_vr_knockdown_stamina)) * (1 - left));
     }
-    chance = chance * stamina;
-    // Shoved over a ledge (VR_Knockdown_Ledge): down for sure, if this shove could knock it down at all.
-    float ledge = chance > 0 && VR_Knockdown_Ledge(e);
+    chance = chance * stamina * VR_KD_Scale(e); // (its group's Knockdown Chance: the Mini Bosses' half)
+    // Shoved over a ledge (VR_Knockdown_Ledge): down for sure, if this shove could knock it down at all (a tough
+    // group's: by its Knockdown Chance).
+    float ledge = chance > 0 && VR_Knockdown_Ledge(e) && VR_KD_SureRoll(e);
+    // Unaware of the shover or shoved from behind (vr_knockdown_surprise; VR_Bash_Hit took it): down for sure (a stagger
+    // that gives way after its steps), if this shove could knock it down at all (likewise).
+    float surprise = (chance > 0 && VR_KD_SureRoll(e)) ? vr_kd_surprise : 0;
     float roll = random();
+    // A stagger (vr_ragdoll_active_stagger; not over a ledge): every shove that could knock it down makes it stagger as a
+    // ragdoll, its balance by the roll against the chance (below it: likely to go over), the shove's push on it; it falls
+    // (down, as below) or recovers (VR_Knockdown_Think: back on its feet, fighting).
+    if(chance > 0 && !ledge && ragdollcanstagger(e))
+    {
+        float balance = surprise ? 0 : min(1, max(0, 0.5 + (roll - chance) * VR_KD_STAGGER_SLOPE));
+        if(cvar_hget(cvarh_vr_knockdown_debug))
+        {
+            dprint(sprintf("knockdown: %s %s (%s): base %.2f, health %g of %g, stamina x%.2f",
+                xKind == QVR_HITKIND_SHOVE ? "shove" : "bash", e.classname, xHand == -1 ? "two hands" : "one hand", base,
+                e.health, full, stamina));
+            dprint(sprintf(": chance %.2f, roll %.2f: a stagger, balance %.2f%s\n", chance, roll, balance,
+                surprise == 1 ? " (unaware: down)" : surprise == 2 ? " (from behind: down)" : ""));
+        }
+        return VR_Knockdown_Stagger(e, xForward, xPush, balance);
+    }
     if(cvar_hget(cvarh_vr_knockdown_debug))
     {
         dprint(sprintf("knockdown: %s %s (%s): base %.2f, health %g of %g, stamina x%.2f",
             xKind == QVR_HITKIND_SHOVE ? "shove" : "bash", e.classname, xHand == -1 ? "two hands" : "one hand", base, e.health,
             full, stamina));
-        dprint(sprintf(": chance %.2f%s, roll %.2f%s\n", chance, ledge ? " (over a ledge: down)" : "", roll,
-            (ledge || roll < chance) ? ": down" : ""));
+        dprint(sprintf(": chance %.2f%s, roll %.2f%s\n", chance,
+            ledge ? " (over a ledge: down)" : surprise ? " (surprised: down)" : "", roll,
+            (ledge || surprise || roll < chance) ? ": down" : ""));
     }
-    if(roll >= chance && !ledge)
+    if(roll >= chance && !ledge && !surprise)
     {
         return FALSE;
     }
@@ -514,138 +884,59 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
 // monster, standing, knocked down or dead (the ledge tests' clean slate between trials), 21 and 22 shove the nearest with
 // one hand and with two (its chance as a real shove's: vr_knockdown_chance 100 for sure; its topple traced with
 // vr_knockdown_debug).
-void(float xMode) VR_Knockdown_Test =
+// vr_knockdown_test 10 (Debug > Combat, "Why Can't I Knock It Down?"): why a shove, a throw or a lift of the nearest
+// living monster `m` makes no ragdoll now: each gate VR_Knockdown_Try and VR_FoeGrab_Lift test, and the ragdoll pool as
+// VR_Knockdown_MakeRoom counts it (the ragdolls it can free and those it cannot), side-effect free.
+void(entity m) VR_Knockdown_WhyNot =
 {
-    if(xMode == 20)
+    float most = cvar("vr_ragdoll_max");
+    dprint(sprintf("whynot: %s health %g, vr_knockdown %g, chance handle %g, flags fly/swim %g", m.classname, m.health,
+        m.vr_knockdown, m.vr_kd_chance_h, m.flags & (FL_FLY | FL_SWIM))); // (sprintf: 8 arguments at most)
+    dprint(sprintf(", monster group %g's chance %g x vr_knockdown_chance %g\n", monstergroup(m),
+        monstergroupget(m, MGP_SHOVE), cvar_hget(cvarh_vr_knockdown_chance)));
+    dprint(sprintf("whynot: vr_knockdown %g, canragdoll %g, ragdollcanstagger %g, isragdoll %g, dummy anchored %g, stamina %g of %g\n",
+        cvar_hget(cvarh_vr_knockdown), canragdoll(m), ragdollcanstagger(m), isragdoll(m),
+        VR_IsDummy(m) && cvar_hget(cvarh_vr_dummy_anchored), VR_Stamina_On() ? VR_Stamina_Left(self) : -1, VR_Stamina_Max()));
+    float count = 0;
+    float freeable = 0;
+    for(entity x = nextent(world); x; x = nextent(x))
     {
-        float removed = 0;
-        entity next = world;
-        for(entity mon = nextent(world); mon; mon = next)
+        if(x == m || !isragdoll(x) || x.vr_corpse_placed == 1)
         {
-            next = nextent(mon);
-            if(mon.flags & FL_MONSTER)
+            continue;
+        }
+        count = count + 1;
+        string why;
+        if(x.health <= 0)
+        {
+            if(VR_DeathDoll_InUse(x))
             {
-                if(mon.vr_shove != world && mon.vr_shove.classname == "vr_shove" && mon.vr_shove.owner == mon)
-                {
-                    remove(mon.vr_shove);
-                }
-                VR_Knockdown_RemoveBody(mon);
-                removed = removed + 1;
+                why = "kept: a dead player's body";
+            }
+            else if(x.vr_corpse_placed && VR_PlacedCorpse_Near(x))
+            {
+                why = "kept: a placed corpse near you";
+            }
+            else
+            {
+                why = "dead: can go";
+                freeable = freeable + 1;
             }
         }
-        dprint(sprintf("knockdown test: %g monsters removed\n", removed));
-        return;
-    }
-    // Feedback regression probes: 6 lists bodies and their breathing point;
-    // 7 moves a living knockdown to the player (underwater test); 8 fires a
-    // real nail at the nearest living monster at one health.
-    if(xMode >= 6 && xMode <= 8)
-    {
-        entity m = VR_Decap_TestTarget(TRUE);
-        if(xMode == 7)
+        else if(x.vr_knockdown == 1)
         {
-            m = world;
-            float nearest = 999999;
-            for(entity down = nextent(world); down; down = nextent(down))
-            {
-                float distance = vlen(down.origin - self.origin);
-                if(down.vr_knockdown == 1 && down.health > 0 && distance < nearest)
-                {
-                    m = down;
-                    nearest = distance;
-                }
-            }
+            why = "knocked down: can be killed for room";
+            freeable = freeable + 1;
         }
-        if(xMode == 7 && m != world)
+        else
         {
-            setorigin(m, self.origin);
-            m.velocity = '0 0 0';
-            m.vr_kd_until = time + 60;
+            why = "ALIVE, not knocked down: never freed";
         }
-        if(xMode == 8 && m != world)
-        {
-            m.health = 1;
-            VR_Test_Fire(1, (m.absmin + m.absmax) * 0.5);
-        }
-        for(entity body = nextent(world); body; body = nextent(body))
-        {
-            if((body.flags & FL_MONSTER) && !body.vr_gib)
-            {
-                float level = VR_Liquid_Level(body);
-                dprint(sprintf("bodycheck: %s health=%g ragdoll=%g headless=%g knocked=%g water=%g type=%g\n",
-                    body.classname, body.health, isragdoll(body), body.vr_headless, body.vr_knockdown,
-                    level, vr_liquid_type));
-                dprint(sprintf("breathcheck: %s breath=%g at=%v\n", body.classname, body.vr_liquid_air - time, body.origin));
-            }
-        }
-        return;
+        dprint(sprintf("whynot:   ragdoll %s at %v health %g, vr_knockdown %g: %s\n", x.classname, x.origin, x.health,
+            x.vr_knockdown, why));
     }
-    entity best = world;
-    float bestDist = 999999;
-    entity x = nextent(world);
-    while(x)
-    {
-        if((x.flags & FL_MONSTER) && x.health > 0)
-        {
-            float d = vlen(x.origin - self.origin);
-            if(xMode == 5)
-            {
-                dprint(sprintf("knockdown: %s: state %g, health %g, ragdoll %g, at %v\n", x.classname,
-                    x.vr_knockdown, x.health, isragdoll(x), x.origin));
-            }
-            else if(xMode == 1)
-            {
-                if(x.vr_knockdown == 1)
-                {
-                    x.vr_kd_until = time;
-                }
-            }
-            else if(d < bestDist && ((xMode == 0 || xMode == 21 || xMode == 22) ? (!x.vr_knockdown && x.vr_kd_chance_h) :
-                                               x.vr_knockdown == 1))
-            {
-                best = x;
-                bestDist = d;
-            }
-        }
-        x = nextent(x);
-    }
-    if(xMode == 1 || xMode == 5)
-    {
-        return;
-    }
-    if(best == world)
-    {
-        dprint("knockdown test: no monster\n");
-        return;
-    }
-    if(xMode == 21 || xMode == 22)
-    {
-        // 21, 22: a one- or two-handed open-palm shove of the nearest (VR_Bash_Hit, as a real one: its push, its stagger,
-        // its chance; vr_knockdown_chance 100 for a sure knockdown), fresh (not tired).
-        vector away = best.origin - self.origin;
-        away_z = 0;
-        vr_bash_exhaust_dmg = 0;
-        vr_bash_exhaust_push = 0;
-        float two = xMode == 22;
-        dprint(sprintf("knockdown test: %s shove of %s\n", two ? "two-handed" : "one-handed", best.classname));
-        VR_Bash_Hit(best, best.origin, normalize(away), QVR_HITKIND_SHOVE, two ? -1 : cVR_MainHand,
-            two ? 1 : VR_BASH_ONE_DAMAGE, VR_Shove_HandsPush(two));
-        return;
-    }
-    if(xMode == 0)
-    {
-        if(!(canragdoll(best)) || !VR_Knockdown_MakeRoom(best))
-        {
-            dprint(sprintf("knockdown test: %s cannot be knocked down\n", best.classname));
-            return;
-        }
-        vector dir = normalize(best.origin - self.origin);
-        dir_z = 0;
-        best.velocity = normalize(dir) * 220 + '0 0 120';
-        dprint(sprintf("knockdown test: %s down: %g\n", best.classname, VR_Knockdown_Start(best)));
-        return;
-    }
-    float dmg = xMode == 2 ? 5 : (xMode == 3 ? best.health : best.health + 200);
-    dprint(sprintf("knockdown test: %s hit for %g\n", best.classname, dmg));
-    T_Damage(best, self, self, dmg);
+    dprint(sprintf("whynot: ragdolls %g of vr_ragdoll_max %g, %g can be freed: %s\n", count, most, freeable,
+        (most >= 1 && (count < most || freeable > 0)) ? "room" : "NO ROOM (no shove, throw or lift makes a ragdoll)"));
 };
+
+void() VR_Buzzsaw_Test; // (rogue_buzzsaw.qc)

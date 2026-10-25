@@ -1,0 +1,27 @@
+# model_prepass: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A big fight: a dozen monsters among crates, items and a gun on the floor; the wrist profiler on
+map vrtesthall
+god
+cvar vr_profile 2
+give "Super Shotgun" main
+cmd impulse 9
+spawn "Wooden Crate" 120 -60
+spawn "Barrel" 120 60
+spawn "Large Crate" 160 200
+spawn "Health" 90 -120
+spawn "Shells" 90 120
+spawn "Green Armour" 140 0
+spawn "Nailgun" 70 30
+spawn "Grunt" 420 -200
+spawn "Grunt" 420 -100
+spawn "Enforcer" 420 0
+spawn "Grunt" 420 100
+spawn "Enforcer" 420 200
+spawn "Knight" 500 -150
+spawn "Death Knight" 500 -50
+spawn "Ogre" 500 50
+spawn "Knight" 500 150
+spawn "Fiend" 580 -100
+spawn "Shambler" 580 60
+spawn "Zombie" 580 200
+hint Fight them: monsters, props, gibs and items should look as before; Debug > Profiling and Memory > Model Depth Pre-pass flips it, the wrist profiler shows its share

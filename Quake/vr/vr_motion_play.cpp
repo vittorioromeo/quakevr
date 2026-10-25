@@ -11,7 +11,9 @@
 // vr_motion_eval plays many takes, each in the map loaded afresh (the same start every time: nothing
 // left from the one before), and checks each one's events against quakevr/motions/expect.cfg.
 
+#include "vr_anchor.hpp"
 #include "vr_angvel.hpp"
+#include "vr_avatar.hpp"
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
 #include "vr_motion_review.hpp"
@@ -60,6 +62,7 @@ namespace qvr::motion
 
 Row captureRow(bool tick, double svDt); // vr_motion.cpp: this frame's row, as the recorder makes it
 za::String resolveTake(const za::String& arg);
+za::String weaponSettingsLine(); // vr_motion.cpp: the header's "weapon settings" line as it would be written now
 
 namespace
 {
@@ -123,13 +126,16 @@ struct Take
     float yaw0{0.f};
     bool hasTicks{false};
     bool hasPlayYaw{false};
+    bool hasXrTime{false}; // the frames' poses' own times (xr_time, in tracking.time): the runtime's, steadier than dt
     bool hasWeapons{false};
     bool dummyAttacks{false}; // recorded with the training dummy striking back (the header's "dummy attacks: on")
     za::Vector<Frame> frames;
     size_t firstRec{0};
 };
 
-[[nodiscard]] za::Vector<za::String> split(za::StringView s, char sep)
+} // namespace
+
+za::Vector<za::String> split(za::StringView s, char sep)
 {
     za::Vector<za::String> out;
     za::String cur;
@@ -148,6 +154,9 @@ struct Take
     out.pushBack(cur);
     return out;
 }
+
+namespace
+{
 
 [[nodiscard]] za::String trim(za::StringView s)
 {
@@ -266,6 +275,11 @@ struct Take
             take.hasTicks = true;
             fr.tick = num("sv_tick", 0.0) != 0.0;
             fr.svDt = num("sv_dt", 0.0);
+        }
+        if(has("xr_time"))
+        {
+            take.hasXrTime = true;
+            fr.tracking.time = num("xr_time", 0.0);
         }
         if(has("play_yaw"))
         {
@@ -420,7 +434,8 @@ struct Take
     static constexpr const char* placing[] = {"vr_world_scale", "vr_height_calibration", "vr_floor_offset", "vr_stick_swap",
         "vr_gunangle", "vr_gunyaw", "vr_offhandpitch", "vr_offhandyaw", "vr_handcal_", "vr_gunmodel", "vr_weapon_grip_mode", "vr_2h_",
         "vr_lean_", "vr_roomscale_", "vr_body_", "vr_throw_release", "vr_throw_grab_press", "vr_wofs_",
-        "vr_controller_legacy_pose", "vr_weapon_cycle_mode", "vr_hull_", "vr_dummy_gore", "vr_dummy_type", "vr_dummy_health"};
+        "vr_controller_legacy_pose", "vr_weapon_cycle_mode", "vr_hull_", "vr_dummy_gore", "vr_dummy_type", "vr_dummy_health",
+        "vr_dummy_anchored"};
     // (Every setting the QC's melee, damage and hit reactions read.)
     static constexpr const char* meleeOnes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
@@ -442,6 +457,27 @@ struct Take
             }
         }
     }
+    return false;
+}
+
+// A weapon anchor (vr_wofs_<key>_av_NN: vr_weapons.inc's *_av keys, vr_anchor.hpp's text).
+[[nodiscard]] bool anchorSetting(const za::String& name)
+{
+    return name.rfind("vr_wofs_", 0) == 0 && name.find("_av_") != za::StringView::nPos;
+}
+
+// A weapon anchor's value as a take's header has it, as the setting's text: the header writes its spaces as '_'
+// (vr_motion.cpp weaponSettings). Not three numbers (false): a take from before the anchors (a vertex index of the old
+// strip order) or a broken header: the default, as the settings' migration 41 converted the configs' indices (each
+// default is its old default index's point).
+[[nodiscard]] bool decodeAnchor(const cvar_t& var, za::String& value)
+{
+    za::replace(value.begin(), value.end(), '_', ' ');
+    if(anchor::isAnchor(value.cStr()))
+    {
+        return true;
+    }
+    value = var.default_string;
     return false;
 }
 
@@ -471,6 +507,7 @@ void collectSettings(const za::String& value, bool pairs, za::Vector<za::Pair<za
 }
 
 za::Vector<za::Pair<cvar_t*, za::String>> savedSettings; // the values before a playback
+za::String setupFoegrab; // vr_foegrab's value, held off during the setup (startPlayback); "" when not
 
 // The training dummies as the take's enemy now (QC VR_Dummy_RetypeAll: vr_dummy_type, just applied), before the take
 // is placed against one: each stands as a new entity (its box and origin its enemy's).
@@ -553,28 +590,42 @@ void applySettings(const Take& take, bool melee)
     {
         list.emplaceBack("vr_dummy_gore", "0");
     }
+    // A take from before the dummy that stays put (vr_dummy_anchored): shoved, staggered and knocked down, as then.
+    if(!za::anyOf(list.begin(), list.end(), [](const auto& kv) { return kv.first == "vr_dummy_anchored"; }))
+    {
+        list.emplaceBack("vr_dummy_anchored", "0");
+    }
     // A take from before the training dummy's enemies and health (vr_dummy_type, vr_dummy_health): a grunt, of a grunt's
     // health, as then.
     for(const char* name : {"vr_dummy_type", "vr_dummy_health"})
     {
         if(!za::anyOf(list.begin(), list.end(), [&](const auto& kv) { return kv.first == name; }))
         {
-            list.emplaceBack(name, Cvar_FindVar(name) ? Cvar_FindVar(name)->default_string : "0");
+            const cvar_t* var = Cvar_FindVar(name);
+            list.emplaceBack(name, var ? var->default_string : "0");
         }
     }
     if(melee)
     {
         collectSettings(h("melee settings"), false, list);
     }
-    int applied = 0;
-    for(const auto& [name, value] : list)
+    int applied = 0, notAnchors = 0;
+    for(auto& [name, value] : list)
     {
         if(!placingSetting(name, melee))
         {
             continue;
         }
         cvar_t* var = Cvar_FindVar(name.cStr());
-        if(!var || !strcmp(var->string, value.cStr()))
+        if(!var)
+        {
+            continue;
+        }
+        if(anchorSetting(name) && !decodeAnchor(*var, value))
+        {
+            notAnchors++;
+        }
+        if(!strcmp(var->string, value.cStr()))
         {
             continue;
         }
@@ -586,6 +637,12 @@ void applySettings(const Take& take, bool melee)
     {
         Con_DPrintf("vr_motion_play: %d settings as recorded\n", applied);
     }
+    if(notAnchors)
+    {
+        Con_Printf("Warning: vr_motion_play: %d weapon anchors of the take are not points (a take from before the anchors): "
+                   "their defaults instead\n",
+            notAnchors);
+    }
 }
 
 void restoreSettings()
@@ -595,6 +652,7 @@ void restoreSettings()
         Cvar_SetQuick(cvar, value.cStr());
     }
     savedSettings.clear();
+    setupFoegrab.clear();
 }
 
 // ----------------------------------------------------------------------------
@@ -639,7 +697,55 @@ struct Options
     bool quiet{false};
     float rate{0.f};      // resampled to this many frames a second (0: the take's own frames)
     float jitter{0.f};    // with rate: each frame's time off by up to this fraction of a frame (a headset's timing)
+    int stutter{0};       // with rate: every this many frames one is dropped (the frame before lasts two; 0 none)
+    // Tests (Misc/quakevr/melee_wall_takes.sh): the take's monster put at a point, not at a target (`at <x y z yaw>`:
+    // the player in front of it as a thing there facing `yaw` would have him, as for another target), and the main
+    // hand's weapon another (`weapon <id>`, QC WID_*; -1 the take's).
+    bool atSet{false};
+    glm::vec3 at{0.f};
+    float atYaw{0.f};
+    int weapon{-1};
 };
+
+// The test options shared by vr_motion_play and vr_motion_eval (`at`, `weapon`): whether Cmd_Argv(i) is one (its
+// arguments taken: `i` moved past them).
+[[nodiscard]] bool parseTestOption(int& i, Options& o)
+{
+    const char* a = Cmd_Argv(i);
+    if(!q_strcasecmp(a, "at") && i + 4 < Cmd_Argc())
+    {
+        o.atSet = true;
+        o.at = glm::vec3{Q_atof(Cmd_Argv(i + 1)), Q_atof(Cmd_Argv(i + 2)), Q_atof(Cmd_Argv(i + 3))};
+        o.atYaw = Q_atof(Cmd_Argv(i + 4));
+        i += 4;
+        return true;
+    }
+    if(!q_strcasecmp(a, "weapon") && i + 1 < Cmd_Argc())
+    {
+        o.weapon = Q_atoi(Cmd_Argv(++i));
+        return true;
+    }
+    return false;
+}
+
+// The same options from a vr_motion_eval list line's text after its take ("at <x y z yaw> weapon <id>").
+void applyLineOptions(const char* s, Options& o)
+{
+    float x, y, z, yaw;
+    const char* at = strstr(s, "at ");
+    if(at && sscanf(at + 3, "%f %f %f %f", &x, &y, &z, &yaw) == 4)
+    {
+        o.atSet = true;
+        o.at = glm::vec3{x, y, z};
+        o.atYaw = yaw;
+    }
+    int id;
+    const char* w = strstr(s, "weapon ");
+    if(w && sscanf(w + 7, "%d", &id) == 1)
+    {
+        o.weapon = id;
+    }
+}
 
 // A repeatable jitter: frame k's time off by up to `amount` frames (a hash of k: the same every run), none for frame 0.
 [[nodiscard]] double frameJitter(za::U64 k, double amount)
@@ -662,8 +768,9 @@ struct Options
 // (positions and velocities linearly, orientations by slerp), the controls and the rest from the frame before;
 // the server frames left to the engine (its 72 Hz ticks, as with a headset at that rate). `jitter`: each frame's time
 // off by up to that fraction of a frame (frameJitter), as a headset's frame times vary around its rate. The take's events
-// stay at their times, for the report.
-void resample(Take& take, float hz, float jitter)
+// stay at their times, for the report. `stutter`: every this many frames one is dropped (a missed frame: the one before
+// it shown twice as long), as a headset that can't keep up.
+void resample(Take& take, float hz, float jitter, int stutter)
 {
     za::Vector<Frame> out;
     const za::Vector<Frame>& in = take.frames;
@@ -679,6 +786,10 @@ void resample(Take& take, float hz, float jitter)
         if(t > tEnd + 1e-9)
         {
             break;
+        }
+        if(stutter > 1 && k > 0 && k % static_cast<za::U64>(stutter) == 0)
+        {
+            continue; // (dropped: the next frame's dt spans two)
         }
         while(j + 1 < in.size() && in[j + 1].t <= t)
         {
@@ -716,6 +827,7 @@ void resample(Take& take, float hz, float jitter)
     }
     take.frames = ZA_MOVE(out);
     take.hasTicks = false;
+    take.hasXrTime = false; // (the frames at their resampled times: realtime is theirs)
     take.firstRec = 0;
     for(size_t i = 0; i < take.frames.size(); i++)
     {
@@ -744,6 +856,7 @@ struct Report
     int recFrames{0};
     int wid[HAND_COUNT]{};
     za::String targetClass;
+    za::String targetName; // its classname (the training dummy's: its enemy's, as the melee's events name it)
     za::String warnings;
     bool ok{false};
 };
@@ -767,6 +880,7 @@ bool launchRequest = false;
 bool equipRequest = false;
 double wallStart = 0.0;
 double playClock = 0.0; // the take's time played so far
+double xrOffset = 0.0;  // a take with xr_time: realtime less its first played frame's (the poses' times on our clock)
 za::Vector<Row> replayRows;
 void (*onDone)(const Report&) = nullptr; // the evaluation's
 
@@ -820,11 +934,12 @@ void workOutPlacement(edict_t* player)
 {
     const Frame& f0 = take.frames.front();
     const glm::vec3 here{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    edict_t* target = findTarget(opts.target, f0.hasMon ? f0.monClass : za::String{}, here);
+    edict_t* target = opts.atSet ? nullptr : findTarget(opts.target, f0.hasMon ? f0.monClass : za::String{}, here);
     targetEnt = target ? NUM_FOR_EDICT(target) : 0;
     report.targetClass = target ? progs::targetClass(target) : "";
+    report.targetName = target ? PR_GetString(target->v.classname) : "";
     placed = true;
-    if(!target || !opts.place)
+    if((!target && !opts.atSet) || !opts.place)
     {
         delta = opts.yawSet ? opts.yaw - take.yaw0 : 0.f;
         placeOrigin = here;
@@ -834,10 +949,10 @@ void workOutPlacement(edict_t* player)
         }
         return;
     }
-    const glm::vec3 tOrigin{target->v.origin[0], target->v.origin[1], target->v.origin[2]};
-    const float tYaw = target->v.angles[1];
+    const glm::vec3 tOrigin = opts.atSet ? opts.at : glm::vec3{target->v.origin[0], target->v.origin[1], target->v.origin[2]};
+    const float tYaw = opts.atSet ? opts.atYaw : target->v.angles[1];
 
-    if(f0.hasMon && f0.hasMonW && f0.hasOrg && !opts.yawSet && f0.monClass == report.targetClass)
+    if(!opts.atSet && f0.hasMon && f0.hasMonW && f0.hasOrg && !opts.yawSet && f0.monClass == report.targetClass)
     {
         // The same kind of target: as recorded, moved with it but not turned (its box doesn't turn: the
         // training dummy's yaw changes as it is hit, which must not turn the take about it).
@@ -897,11 +1012,12 @@ void placePlayer(edict_t* player)
         }
     }
     // Into the target (a take recorded in noclip, or a synthetic take against a box turned another way):
-    // stepped back from it until the boxes are apart.
-    if(!free && targetEnt > 0)
+    // stepped back from it until the boxes are apart (from a point given, `at`: from a wall there, as one stands).
+    if(!free && (targetEnt > 0 || opts.atSet))
     {
-        edict_t* t = EDICT_NUM(targetEnt);
-        glm::vec3 away{placeOrigin.x - t->v.origin[0], placeOrigin.y - t->v.origin[1], 0.f};
+        const glm::vec3 t = opts.atSet ? opts.at
+                                       : glm::vec3{EDICT_NUM(targetEnt)->v.origin[0], EDICT_NUM(targetEnt)->v.origin[1], 0.f};
+        glm::vec3 away{placeOrigin.x - t.x, placeOrigin.y - t.y, 0.f};
         away = glm::length(away) > 0.01f ? glm::normalize(away) : glm::vec3{1.f, 0.f, 0.f};
         for(float back = 0.5f; back <= 32.f && !free; back += 0.5f)
         {
@@ -944,7 +1060,7 @@ void equip(edict_t* player)
         pr_global_struct->self = EDICT_TO_PROG(player);
         pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
         G_FLOAT(OFS_PARM0) = static_cast<float>(h);
-        G_FLOAT(OFS_PARM1) = static_cast<float>(f0.wid[h]);
+        G_FLOAT(OFS_PARM1) = static_cast<float>(h == HAND_MAIN && opts.weapon >= 0 ? opts.weapon : f0.wid[h]);
         G_FLOAT(OFS_PARM2) = static_cast<float>(f0.wflags[h]);
         PR_ExecuteProgram(fn);
     }
@@ -1095,7 +1211,8 @@ struct Match
     {
         const Event& e = events[i];
         if(hitsAndPushes && !isHit(e) && e.kind != "push" && e.kind != "parry" && e.kind != "deflect" && e.kind != "strike" &&
-           e.kind != "decap")
+           e.kind != "decap" && e.kind != "necksnap" && e.kind != "legsweep" &&
+           e.kind != "lift" && e.kind != "judothrow" && e.kind != "shouldercharge")
         {
             continue;
         }
@@ -1221,7 +1338,7 @@ void stopPlayback(const char* why)
     }
     if(!sv.active || !svs.clients[0].active || !progs::bindings().isVrProgs || !hands::current().valid)
     {
-        Con_Printf("vr_motion_play: load a map first (map vrfiringrange)\n");
+        Con_Printf("vr_motion_play: load a map first (map vrmelee-recording)\n");
         return false;
     }
     // A take whose player is moving as it starts (walking into place with the stick, pushed back by the last
@@ -1246,7 +1363,7 @@ void stopPlayback(const char* why)
     }
     if(o.rate > 0.f)
     {
-        resample(t, za::clamp(o.rate, 20.f, 500.f), o.jitter);
+        resample(t, za::clamp(o.rate, 20.f, 500.f), o.jitter, o.stutter);
     }
     take = ZA_MOVE(t);
     opts = o;
@@ -1266,7 +1383,7 @@ void stopPlayback(const char* why)
     }
     for(const int h : {HAND_MAIN, HAND_OFF})
     {
-        report.wid[h] = take.frames[take.firstRec].wid[h];
+        report.wid[h] = h == HAND_MAIN && opts.weapon >= 0 ? opts.weapon : take.frames[take.firstRec].wid[h];
     }
     applySettings(take, opts.recorded);
     // The training dummy's attacks off (put back afterwards): in a replay it strikes only as the take has it.
@@ -1281,7 +1398,20 @@ void stopPlayback(const char* why)
         savedSettings.emplaceBack(&vr_dummy_gib, vr_dummy_gib.string);
         Cvar_SetQuick(&vr_dummy_gib, "0");
     }
+    // Nor held (vr_foegrab) by a grip the setup closes beside it: in the take that hand had held its weapon since long
+    // before (an axe gripped by a hand next to the dummy took the dummy instead, and the axe fell). Back on as the take
+    // plays: a grip already closed doesn't take hold later.
+    if(vr_foegrab.value != 0.f)
+    {
+        savedSettings.emplaceBack(&vr_foegrab, vr_foegrab.string);
+        setupFoegrab = vr_foegrab.string;
+        Cvar_SetQuick(&vr_foegrab, "0");
+    }
     retypeDummies();
+    // Nothing left from what played before (the last take's head is not a step into this one): a take plays the same
+    // after any other, or alone (vr_motion_eval's shards).
+    hands::resetForPlayback();
+    avatar::resetMotion(); // (the holsters and pouches go with the body: a grip in them takes what is there)
     strikeNext = 0;
     strikesDone = 0;
     state = State::Setup;
@@ -1301,14 +1431,15 @@ void stopPlayback(const char* why)
     return true;
 }
 
-// vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] [save] [recorded] [quiet]
+// vr_motion_play <take> [map <name>] [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] [save] [recorded] [quiet]
+// [at <x> <y> <z> <yaw>] [weapon <id>] (Options)
 // vr_motion_play stop
 void play_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("usage: vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] "
-                   "[save] [recorded] [quiet]; vr_motion_play stop\n");
+        Con_Printf("usage: vr_motion_play <take> [map <name>] [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] "
+                   "[save] [recorded] [quiet] [at <x> <y> <z> <yaw>] [weapon <id>]; vr_motion_play stop\n");
         return;
     }
     if(!q_strcasecmp(Cmd_Argv(1), "stop"))
@@ -1317,10 +1448,15 @@ void play_f()
         return;
     }
     Options o;
+    za::String playMap = "vrmelee-recording";
     for(int i = 2; i < Cmd_Argc(); i++)
     {
         const char* a = Cmd_Argv(i);
-        if(!q_strcasecmp(a, "target") && i + 1 < Cmd_Argc())
+        if(!q_strcasecmp(a, "map") && i + 1 < Cmd_Argc())
+        {
+            playMap = Cmd_Argv(++i);
+        }
+        else if(!q_strcasecmp(a, "target") && i + 1 < Cmd_Argc())
         {
             o.target = Cmd_Argv(++i);
         }
@@ -1357,6 +1493,9 @@ void play_f()
         {
             o.quiet = true;
         }
+        else if(parseTestOption(i, o))
+        {
+        }
         else
         {
             Con_Printf("vr_motion_play: unknown option \"%s\"\n", a);
@@ -1373,6 +1512,33 @@ void play_f()
     if(path.empty())
     {
         Con_Printf("vr_motion_play: no take \"%s\" (in motions/, the game folder, or a path)\n", Cmd_Argv(1));
+        return;
+    }
+    // The room is loaded only for a plain replay: `noplace` (where you stand) and `target` (a thing a script spawned,
+    // an entity number) refer to the map already running, so a script's map and setup are kept (a map given still wins).
+    bool mapGiven = false;
+    for(int i = 2; i < Cmd_Argc(); i++)
+    {
+        mapGiven = mapGiven || !q_strcasecmp(Cmd_Argv(i), "map");
+    }
+    const bool keepMap = sv.active && !mapGiven && (!o.place || !o.target.empty());
+    const Backend* be = backend();
+    if(be && strcmp(be->name(), "mock") == 0 && !keepMap && (!sv.active || q_strcasecmp(cl.mapname, playMap.cStr()) != 0))
+    {
+        if(!COM_FileExists(va("maps/%s.bsp", playMap.cStr()), nullptr))
+        {
+            Con_Printf("vr_motion_play: cannot find map %s\n", playMap.cStr());
+            return;
+        }
+        // Direct replay and Review Takes use the same room as evaluation. The take's placement
+        // remains relative to its target; its header and hand settings are left intact.
+        za::String script = "map " + playMap + '\n';
+        for(int i = 0; i < 60; i++)
+        {
+            script += "wait\n";
+        }
+        script += za::String{Cmd_Argv(0)} + " " + Cmd_Args() + '\n';
+        Cbuf_InsertText(script.cStr());
         return;
     }
     (void)startPlayback(path, o);
@@ -1434,7 +1600,10 @@ double hostFrameTime(double time)
         // frames' times jittered, not their lengths: no drift).
         const double jitter = za::clamp(static_cast<double>(vr_fixed_frames_jitter.value), 0.0, 0.45);
         fixedFrameCount++;
-        return fixedFrameDt() * (1.0 + frameJitter(fixedFrameCount, jitter) - frameJitter(fixedFrameCount - 1, jitter));
+        // vr_fixed_frames_stutter: every this many frames one dropped (this one twice as long).
+        const za::U64 stutter = static_cast<za::U64>(za::max(vr_fixed_frames_stutter.value, 0.f));
+        const double frames = stutter > 1 && fixedFrameCount % stutter == 0 ? 2.0 : 1.0;
+        return fixedFrameDt() * (frames + frameJitter(fixedFrameCount, jitter) - frameJitter(fixedFrameCount - 1, jitter));
     }
     if(state == State::Setup || state == State::Post)
     {
@@ -1533,6 +1702,16 @@ void playAfterTracking(TrackingState& tracking, FrameState& frame)
     tracking = f.tracking;
     za::copy(grips, grips + za::getArraySize(grips), tracking.gripInHand);
     tracking.time = realtime;
+    if(state == State::Play && take.hasXrTime)
+    {
+        // The poses at their recorded times (the runtime's: a frame's dt is when the game ran it, jittered by a
+        // millisecond; the melee measures speeds over the poses' times, hands::State::poseTime).
+        if(cur == 0)
+        {
+            xrOffset = realtime - f.tracking.time;
+        }
+        tracking.time = f.tracking.time + xrOffset;
+    }
     if(state == State::Setup)
     {
         tracking.input = setupInput();
@@ -1641,6 +1820,11 @@ void playFrameEnd(za::Vector<Event>& events, bool tick, double svDt)
                     }
                 }
                 state = State::Play;
+                if(!setupFoegrab.empty())
+                {
+                    Cvar_SetQuick(&vr_foegrab, setupFoegrab.cStr()); // (held off for the setup: startPlayback)
+                    setupFoegrab.clear();
+                }
                 nextFrame = 0;
                 wallStart = Sys_DoubleTime();
                 playClock = 0.0;
@@ -1840,7 +2024,7 @@ void loadExpectations()
         case 16: return "gun";
         case 17: return "crowbar"; // a melee weapon (QC VR_MTHING_CROWBAR)
         case 18: return "superaxe"; // Dawn of the Machine's Super Axe (QC vr_mg3_weapons.qc; VR_MTHING_AXE)
-        default: return wid >= 4 && wid <= 12 ? "gun" : "other";
+        default: return (wid >= 4 && wid <= 12) || (wid >= 20 && wid <= 28) ? "gun" : "other"; // (20-28: AD's soldiers' guns, the crossbow knight's)
     }
 }
 
@@ -1968,7 +2152,9 @@ void judge(const Report& r, const Expectation* e, Result& out)
         {
             for(const za::String& item : e->required)
             {
-                if(matchesItem(ev, item) && (!isHit(ev) || ev.target == r.targetClass))
+                // (A hit names the classname of what it struck: the training dummy as its enemy, vr_dummy_type.)
+                if(matchesItem(ev, item) && (!isHit(ev) || ev.target == r.targetClass ||
+                                                    (!r.targetName.empty() && ev.target == r.targetName)))
                 {
                     any = true;
                 }
@@ -2050,8 +2236,9 @@ enum class Eval
 
 Eval evalState = Eval::Idle;
 za::Vector<za::String> evalFiles;
+za::Vector<za::String> evalFileOpts; // a list line's test options after its take ("<take> | at <x y z yaw> weapon <id>")
 size_t evalIndex = 0;
-za::String evalMap = "vrfiringrange";
+za::String evalMap = "vrmelee-recording";
 za::String evalOut;
 Options evalOpts;
 int evalWait = 0;
@@ -2125,6 +2312,10 @@ void evalDone(const Report& r)
     Result res;
     res.path = evalIndex < evalFiles.size() ? evalFiles[evalIndex] : r.file;
     res.file = r.file;
+    if(evalIndex < evalFileOpts.size() && !evalFileOpts[evalIndex].empty())
+    {
+        res.file += " | " + evalFileOpts[evalIndex]; // (the same take at several spots: told apart)
+    }
     za::String label = take.label;
     res.label = label;
     const Expectation* e = nullptr;
@@ -2230,10 +2421,16 @@ void writeResults()
     Con_Printf("vr_motion_eval: the table is %s\n", f ? path.cStr() : "(could not be written)");
 
     // Each take's verdict next to it (eval_status.csv: what Review Takes lists), from an evaluation as the takes are
-    // judged: the current melee settings, the takes' own rate, the firing range.
-    if(evalOpts.rate > 0.f || evalOpts.recorded || q_strcasecmp(evalMap.cStr(), "vrfiringrange") != 0)
+    // judged: the current melee settings, the takes' own rate, the melee recording room.
+    bool lineOpts = false;
+    for(const za::String& s : evalFileOpts)
     {
-        Con_Printf("vr_motion_eval: (not the takes' verdicts: rate, recorded or another map; eval_status.csv unchanged)\n");
+        lineOpts = lineOpts || !s.empty();
+    }
+    if(evalOpts.rate > 0.f || evalOpts.recorded || evalOpts.atSet || evalOpts.weapon >= 0 || lineOpts || q_strcasecmp(evalMap.cStr(), "vrmelee-recording") != 0)
+    {
+        Con_Printf("vr_motion_eval: (not the takes' verdicts: rate, recorded, another map, at or weapon; eval_status.csv "
+                   "unchanged)\n");
     }
     else
     {
@@ -2292,7 +2489,12 @@ void evalFrame()
         quietLoad(false);
         fixedLoading = false;
         onDone = evalDone;
-        if(!startPlayback(evalFiles[evalIndex], evalOpts))
+        Options o = evalOpts;
+        if(evalIndex < evalFileOpts.size())
+        {
+            applyLineOptions(evalFileOpts[evalIndex].cStr(), o);
+        }
+        if(!startPlayback(evalFiles[evalIndex], o))
         {
             Result res;
             res.path = evalFiles[evalIndex];
@@ -2369,7 +2571,7 @@ void evalFrame()
 }
 
 // vr_motion_eval [<folder, pattern or take>] [list <file>] [map <name>] [out <file>] [rate <hz> [jitter <fraction>]] [save] [recorded] [verbose]
-// [watch] [progress <file>] [quit];
+// [watch] [progress <file>] [at <x> <y> <z> <yaw>] [weapon <id>] [quit];
 // vr_motion_eval stop
 void eval_f()
 {
@@ -2405,7 +2607,12 @@ void eval_f()
     evalOpts = Options{};
     evalProgress.clear();
     evalOpts.quiet = true;
-    evalMap = "vrfiringrange";
+    // (vr_motion_eval_rate, _jitter, _stutter: the defaults of its rate, jitter and stutter options: an eval script's
+    // takes replayed at another headset's rate, eval.sh's EVAL_PRE.)
+    evalOpts.rate = vr_motion_eval_rate.value;
+    evalOpts.jitter = vr_motion_eval_jitter.value;
+    evalOpts.stutter = static_cast<int>(vr_motion_eval_stutter.value);
+    evalMap = "vrmelee-recording";
     evalOut.clear();
     evalQuit = false;
     for(int i = 1; i < Cmd_Argc(); i++)
@@ -2426,6 +2633,10 @@ void eval_f()
         else if(!q_strcasecmp(a, "jitter") && i + 1 < Cmd_Argc())
         {
             evalOpts.jitter = Q_atof(Cmd_Argv(++i));
+        }
+        else if(!q_strcasecmp(a, "stutter") && i + 1 < Cmd_Argc())
+        {
+            evalOpts.stutter = Q_atoi(Cmd_Argv(++i));
         }
         else if(!q_strcasecmp(a, "save"))
         {
@@ -2455,6 +2666,9 @@ void eval_f()
         {
             evalProgress = Cmd_Argv(++i);
         }
+        else if(parseTestOption(i, evalOpts))
+        {
+        }
         else if(arg.empty())
         {
             arg = a;
@@ -2476,10 +2690,26 @@ void eval_f()
             return;
         }
         evalFiles.clear();
+        evalFileOpts.clear();
         files::forLines(text, [](za::StringView line) {
             while(line.endsWith('\r') || line.endsWith(' '))
             {
                 line.removeSuffix(1);
+            }
+            // "<take> | <test options>" (Options' at, weapon): that take with them.
+            za::StringView lineOpts;
+            if(const size_t bar = line.find('|'); bar != za::StringView::nPos)
+            {
+                lineOpts = line.substrByPosLen(bar + 1);
+                line = line.substrByPosLen(0, bar);
+                while(line.endsWith(' '))
+                {
+                    line.removeSuffix(1);
+                }
+                while(lineOpts.startsWith(' '))
+                {
+                    lineOpts.removePrefix(1);
+                }
             }
             if(line.empty())
             {
@@ -2489,6 +2719,7 @@ void eval_f()
             if(files::isFile(p.cStr()))
             {
                 evalFiles.pushBack(p);
+                evalFileOpts.pushBack(za::String{lineOpts});
             }
             else
             {
@@ -2499,6 +2730,7 @@ void eval_f()
     else
     {
         evalFiles = collectTakes(arg);
+        evalFileOpts.clear();
     }
     if(evalFiles.empty())
     {
@@ -2518,6 +2750,44 @@ void eval_f()
     Con_Printf("vr_motion_eval: %d takes, each in %s\n", static_cast<int>(evalFiles.size()), evalMap.cStr());
 }
 
+// vr_motion_header_check: the weapon anchors through a take's header and back (the "weapon settings" line as written now,
+// read as a playback reads it: each the same text), and an old take's vertex index and a broken value (their defaults).
+void headerCheck_f()
+{
+    za::Vector<za::Pair<za::String, za::String>> list;
+    collectSettings(weaponSettingsLine(), false, list);
+    int anchors = 0, wrong = 0;
+    const cvar_t* some = nullptr;
+    for(auto& [name, value] : list)
+    {
+        const cvar_t* var = anchorSetting(name) ? Cvar_FindVar(name.cStr()) : nullptr;
+        if(!var)
+        {
+            continue;
+        }
+        anchors++;
+        some = var;
+        if(!decodeAnchor(*var, value) || strcmp(value.cStr(), var->string) != 0)
+        {
+            if(wrong++ == 0)
+            {
+                Con_Printf("vr_motion_header_check: %s \"%s\" read back as \"%s\"\n", name.cStr(), var->string, value.cStr());
+            }
+        }
+    }
+    int oldOk = 0;
+    if(some)
+    {
+        for(const char* old : {"614", "30.3762", ""})
+        {
+            za::String value = old;
+            oldOk += !decodeAnchor(*some, value) && value == some->default_string;
+        }
+    }
+    Con_Printf("vr_motion_header_check: %d anchors, %d read back wrong; old or broken values to the default: %d of 3 (%s)\n",
+        anchors, wrong, oldOk, anchors > 0 && wrong == 0 && oldOk == 3 ? "PASS" : "FAIL");
+}
+
 } // namespace
 
 bool evaluating()
@@ -2529,6 +2799,7 @@ void initPlayback()
 {
     Cmd_AddCommand("vr_motion_play", play_f);
     Cmd_AddCommand("vr_motion_eval", eval_f);
+    Cmd_AddCommand("vr_motion_header_check", headerCheck_f);
 }
 
 } // namespace qvr::motion

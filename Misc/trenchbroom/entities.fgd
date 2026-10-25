@@ -15,6 +15,15 @@
 //! internal trigger_reactivate       id leftover: never used, sets nothing up
 //! internal monster_spikemine        Hipnotic leftover: an unfinished copy of the fiend (trap_spike_mine is the mine)
 //! internal vr_dummy_attack_toggle_show  a helper of vr_dummy_attack_toggle: shows its label, not a map entity
+//! internal vr_ag_atk1             an armed monster's aim frame (vr_armedgrunt.qc: its row's frames, vr_armedmon.qc)
+//! internal vr_ag_reload1          an armed monster's reload frame (vr_armedgrunt.qc)
+//! internal vr_ag_swing1           an armed monster's gun-butt frame (vr_armedgrunt.qc)
+//! internal vr_ag_take1            an armed monster's pickup frame (vr_armedgrunt.qc)
+//! internal vr_ag_take2            an armed monster's old pickup frame, kept for saved games (vr_armedgrunt.qc)
+//! internal vr_ag_take3            an armed monster's old pickup frame, kept for saved games (vr_armedgrunt.qc)
+//! internal vr_ag_take4            an armed monster's old pickup frame, kept for saved games (vr_armedgrunt.qc)
+//! internal vr_ag_take5            an armed monster's old pickup frame, kept for saved games (vr_armedgrunt.qc)
+//! internal vr_ag_take6            an armed monster's old pickup frame, kept for saved games (vr_armedgrunt.qc)
 
 // Entities with no spawn function: the compilers' and the editor's.
 //! editor func_group
@@ -123,6 +132,7 @@
 		16 : "Laser rifle (an enforcer's; its own shots)"
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
+		29 : "Nail pistol (Quake VR; a full magazine)"
 	]
 	weaponflags(choices) : "Variant" : 0 : "The weapon's variant: its alternative ammunition (Dissolution of Eternity's), or the hell knight's sword." =
 	[
@@ -610,6 +620,13 @@ floor, a physics object as func_weapon_grabbable's weapons (the same as one with
 	angles(string) : "Pitch yaw roll" : : "How it lies before it falls (none: any way)."
 ]
 
+@PointClass base(Weapon) size(-16 -16 0, 16 16 32) color(0 128 204) model({ "path": "progs/v_nailpistol.mdl" }) = weapon_nailpistol : "Nail pistol (Quake VR)
+
+Quake VR's own sidearm: one-handed and semi-automatic (a shot each pull of the trigger), fast, precise nails from a
+12-round magazine in its grip, fed from your nails (immersive reloading: the magazine ejected, a new one from the ammo
+pouch slapped up into the grip). Picked up as the other weapons are, with 24 nails. Its own model lies there."
+[]
+
 @PointClass base(Appearflags) size(-16 -16 0, 16 16 32) color(0 128 204) model({ "path": "progs/v_crowbar.mdl" }) = weapon_crowbar : "Crowbar (Quake VR)
 
 A steel crowbar lying ready to be picked up: a melee weapon, held in one hand or two (the other hand below the first on
@@ -662,6 +679,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		16 : "Laser rifle (an enforcer's; its own shots)"
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
+		29 : "Nail pistol (Quake VR; a full magazine)"
 	]
 ]
 

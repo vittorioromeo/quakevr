@@ -72,6 +72,11 @@ const Blade blades[] = {
     {modelmeta::Id::VAxe,
         {{{{20.13f, -0.12f, 15.81f}, {24.18f, -0.10f, 27.30f}, axeOut}, {{-3.00f, -0.10f, 24.50f}, {1.27f, -0.07f, 35.52f}, -axeOut}}},
         {10.79f, 0.f, 25.58f}, {0.2f, 0.f, -3.55f}},
+    // AD support: the Shadow Axe (vr_adweapons.cpp, laid on the axe's handle; vr_adweapon_models prints its edge): one
+    // bit, its crescent's edge from 17.08 to 22.11 out (its two edges the same).
+    {modelmeta::Id::AdVrAxe,
+        {{{{17.08f, 0.11f, 11.64f}, {22.11f, -0.04f, 26.36f}, axeOut}, {{17.08f, 0.11f, 11.64f}, {22.11f, -0.04f, 26.36f}, axeOut}}},
+        {9.71f, 0.f, 22.58f}, {0.2f, 0.f, -3.55f}},
 };
 
 // The kinds of thing it is in (.vr_stick_kind).
@@ -257,6 +262,7 @@ constexpr za::SizeT maxSamples = 256;
     return s;
 }
 
+// (The cache is keyed on the model alone: bladeOf gives one blade a model, so `blade` is implied by it.)
 [[nodiscard]] const za::Vector<Sample>& samplesOf(const qmodel_t* model, const Blade& blade)
 {
     za::Vector<Sample>& out = cache.samples;
@@ -589,7 +595,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     const bool touched = box3d::contactPoint(NUM_FOR_EDICT(ent), touch);
     const glm::vec3 dv = vel - lastVel;
     const float fall = sv_gravity.value * dt * 1.5f;
-    const bool changed = f.vr_stick_vel >= 0 && lastVel != glm::vec3{0.f} &&
+    const bool changed = lastVel != glm::vec3{0.f} &&
                          (glm::length(glm::vec2{dv.x, dv.y}) > 25.f || dv.z > 25.f || dv.z < -fall - 25.f);
     if(touched || changed)
     {
@@ -605,7 +611,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     {
         return false;
     }
-    const func_t stuckFn = findFunction("VR_AxeStick_Stuck");
+    const func_t stuckFn = bindings().AxeStick_Stuck;
     if(!stuckFn)
     {
         return false; // (progs without the feature)

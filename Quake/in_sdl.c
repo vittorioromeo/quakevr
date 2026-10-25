@@ -1626,6 +1626,11 @@ void IN_SendKeyEvents (void)
 	int key;
 	qboolean down;
 
+	// QVR: in the headset the sounds play on without the window's focus (the player is in the headset, not at the
+	// desktop): never blocked then, nor left blocked from a flat screen's lost focus as VR starts
+	if (VR_IsActive () && !windowhasfocus)
+		S_UnblockSound ();
+
 	while (SDL_PollEvent(&event))
 	{
 		switch (event.type)
@@ -1640,7 +1645,8 @@ void IN_SendKeyEvents (void)
 			else if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
 			{
 				windowhasfocus = false;
-				S_BlockSound();
+				if (!VR_IsActive ()) // QVR: see above
+					S_BlockSound();
 				Sys_ActivateKeyFilter(false);
 			}
 			else if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)

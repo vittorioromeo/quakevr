@@ -14,7 +14,7 @@ QVR_PROP_KEY(Inertia, "inertia", "1")        // times the inertia of its box: ho
 QVR_PROP_KEY(ComX, "com_x", "0")             // units off the middle of its drawn box, in its model's axes: its
 QVR_PROP_KEY(ComY, "com_y", "0")             // centre of mass (a torch's head, a hammer's)
 QVR_PROP_KEY(ComZ, "com_z", "0")
-QVR_PROP_KEY(Throw, "throw", "0")            // times the hand's throw; 0: from the mass (vr_weight_throw_mass)
+QVR_PROP_KEY(Throw, "throw", "0")            // times the hand's throw; 0: all of it, limited by its mass (throws by weight)
 QVR_PROP_KEY(GripMode, "grip", "0")          // how it sits in the hand (vr_grip.hpp): 0 where taken; 1 fixed (Grip X..Roll);
                                              // 2 in the palm (a rock); 3 along the handle (a torch)
 QVR_PROP_KEY(GripX, "grip_x", "0")           // Grip Mode 1: the model's origin in the right hand's frame, units (x forward,
@@ -317,6 +317,13 @@ QVR_PROP_DEFAULT(48, FingerCurlIndex, "0.5")
 QVR_PROP_DEFAULT(48, FingerCurlMiddle, "0.55")
 QVR_PROP_DEFAULT(48, FingerCurlRing, "0.9")
 QVR_PROP_DEFAULT(48, FingerCurlPinky, "0.95")
+// The shells and the magazines below are light and blunt: thrown, a quarter of a thing's damage (Throw Damage x; the
+// author's 2026-10-22 note: a magazine broke a crate in two throws; configVersion 179 gives it to configs saved before).
+QVR_PROP_DEFAULT(48, ThrowDamage, "0.25")
+QVR_PROP_DEFAULT(49, ThrowDamage, "0.25")
+QVR_PROP_DEFAULT(50, ThrowDamage, "0.25")
+QVR_PROP_DEFAULT(51, ThrowDamage, "0.25")
+QVR_PROP_DEFAULT(52, ThrowDamage, "0.25")
 QVR_PROP_DEFAULT(49, ID, "progs/vr_shell_pair.mdl")
 QVR_PROP_DEFAULT(49, Mass, "0.08")
 QVR_PROP_DEFAULT(49, Size, "1.25")
@@ -349,7 +356,7 @@ QVR_PROP_DEFAULT(50, Size, "0.55")
 QVR_PROP_DEFAULT(50, GripX, "-2.13")
 QVR_PROP_DEFAULT(50, GripY, "0.05")
 QVR_PROP_DEFAULT(50, GripZ, "-3.05")
-QVR_PROP_DEFAULT(50, Overlap, "0.4")
+QVR_PROP_DEFAULT(50, Overlap, "0.385") // the author's (2026-10-22: the pinky kept out of it; configVersion 179)
 QVR_PROP_DEFAULT(51, ID, "progs/vr_mag_snail.mdl")
 QVR_PROP_DEFAULT(51, Mass, "0.7")
 QVR_PROP_DEFAULT(51, TwoHands, "0")
@@ -368,6 +375,19 @@ QVR_PROP_DEFAULT(52, GripX, "-2.6")
 QVR_PROP_DEFAULT(52, GripY, "0.07")
 QVR_PROP_DEFAULT(52, GripZ, "-3.73")
 QVR_PROP_DEFAULT(52, Overlap, "0.4")
+// The nail pistol's magazine (make_nailpistol_mags.py; QC vr_nailpistol.qc): held as the nailgun's, a little smaller (the
+// pistol's Scale 0.45 to its Size 0.52, as the nailgun's 0.48 to 0.55) and lighter. configVersion 200 gives the slot to
+// configs saved before (vr_props.cpp shippedSlots).
+QVR_PROP_DEFAULT(56, ID, "progs/vr_mag_npistol.mdl")
+QVR_PROP_DEFAULT(56, Mass, "0.25")
+QVR_PROP_DEFAULT(56, TwoHands, "0")
+QVR_PROP_DEFAULT(56, GripMode, "1")
+QVR_PROP_DEFAULT(56, Size, "0.52")
+QVR_PROP_DEFAULT(56, GripX, "-1.8")
+QVR_PROP_DEFAULT(56, GripY, "0.05")
+QVR_PROP_DEFAULT(56, GripZ, "-2.6")
+QVR_PROP_DEFAULT(56, Overlap, "0.385")
+QVR_PROP_DEFAULT(56, ThrowDamage, "0.25")
 // Immersive reloading's launcher rounds (QC vr_reload.qc, "Front-loaded launchers"; make_rounds.py: their own models at
 // Size 1, so missile.mdl, grenade.mdl and proxbomb.mdl keep their sizes in flight): the rocket held along the fist (Along
 // the Handle) by the nose half of its middle, its butt free below the little finger to go into the muzzle; the
@@ -389,4 +409,14 @@ QVR_PROP_DEFAULT(55, ID, "progs/proxbomb.mdl")
 QVR_PROP_DEFAULT(55, Mass, "1.2")
 QVR_PROP_DEFAULT(55, TwoHands, "0")
 QVR_PROP_DEFAULT(55, GripMode, "2")
+// Arcane Dimensions' health vial (and gem: QC vr_ad_items.qc item_healthvial, AD's progs/health_5.mdl): in the palm (the
+// author's Held Object Offsets of 2026-10-22, his config's slot 63). configVersion 183 gives the slot to configs saved
+// before (takeShippedSlots: only a free one, or one already the vial's).
+QVR_PROP_DEFAULT(62, ID, "progs/health_5.mdl")
+QVR_PROP_DEFAULT(62, GripMode, "2")
+// Arcane Dimensions' death fury's head (progs/h_dfury.mdl): 0.65 of its size to fit the monster (the author's note of
+// 2026-10-23), a head's mass. configVersion 187 gives the slot to configs saved before (takeShippedSlots).
+QVR_PROP_DEFAULT(64, ID, "progs/h_dfury.mdl")
+QVR_PROP_DEFAULT(64, Size, "0.65")
+QVR_PROP_DEFAULT(64, Mass, "-1")
 #endif

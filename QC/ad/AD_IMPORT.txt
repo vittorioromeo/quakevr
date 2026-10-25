@@ -1,0 +1,185 @@
+Arcane Dimensions import (Misc/quakevr/ad_import.py); regenerate, never edit.
+Source: ad_v1_80p1final.zip, ad_1_8.fgd 2fdaef42f02c37370b36bd973e9ebfe08827f5847e26b4c250dd9b521a6b8431, pak0.pak 117caa759bf9f161599ff693f561c68954519eda9cefb719a97cd5c1cd863ef3, pak2.pak 4c82e0347952b38b0265fd34e0c3c3a6b6b4bea17642d18bf4189a97d93dd0f1
+Files (AD's progs.src order): 139 imported, skipped csqc_hudvanilla.qc; headers filtered: csqc_defs.qc, csqc_hudad.qc, defs.qc, dpextensions.qc
+Header statements kept: csqc_defs.qc 11/136, csqc_hudad.qc 2/139, defs.qc 293/499, dpextensions.qc 20/409
+AD system names not kept (the engine's entry points: AD's are renamed, the engine never calls them): ClientConnect, ClientDisconnect, ClientKill, PlayerPostThink, PlayerPreThink, PutClientInServer, SetChangeParms, SetNewParms, StartFrame, main
+Builtins kept (Quake VR declares them): 76
+Builtins by name (#0, ad_builtins.qc): 11: addstat, bitshift, getsurfacenearpoint, getsurfacetexture, particleeffectnum, pointparticles, strncasecmp, strstrofs, te_explosion2, te_particlerain, te_particlesnow
+Builtins renamed (the name is Quake VR's for something else): none
+Standard builtins under AD's own names (number kept, ad_<name>): centerprint_builtin=#73 (Quake VR's frik_big_centerprint), centerprint_msg=#73 (Quake VR's frik_big_centerprint), centerprint_msg3=#73 (Quake VR's frik_big_centerprint), centerprint_msg4=#73 (Quake VR's frik_big_centerprint), centerprint_msg7=#73 (Quake VR's frik_big_centerprint), checkextension=#99 (Quake VR's frik_checkextension), fclose=#111 (Quake VR's close), fopen=#110 (Quake VR's open), fputs=#113 (Quake VR's write), movetogoal_builtin=#67 (Quake VR's movetogoal), strcat=#115 (another signature than Quake VR's: string(string,string,...) / string(string,string)), walkmove_builtin=#32 (Quake VR's walkmove)
+Map-key fields shared with Quake VR (same name and type, bare): 43: aflag, alpha, angles, cnt, count, deathtype, delay, dest1, dest2, distance, dmg, event, finalangle, fog_density, frame, gravity, healamount, height, jump_flag, killtarget, lefty, lip, mangle, map, mdl, noise4, path, pos1, pos2, rotate, skin, speed, state, style, super_damage_finished, super_time, t_length, t_width, volume, wad, wait, waitmin, worldtype
+Map-key fields renamed ad_<key> (no Quake VR field, or another type; in an AD map the engine fills them from the key, pr_edict.c): 242
+  of them a type clash: color (AD vector, Quake VR float), target2 (AD string, Quake VR entity), target3 (AD string, Quake VR entity)
+  alphastart, angleblend, angletarget, angrytarget, attack_chance, attack_count, attack_instant, attack_lifetime, attack_rage, attack_sniper, bbmaxs, bbmins, bboxtype, bleedcolour, bodyfadeaway, bodyflrcheck, bodyonflrtrig, bodyphased, bodystatic, bossminbase, bosswave, bosswaveqty, bosswaveuse, brkavel, brkdelaydamage, brkfade, brkgravity, brkimpsound, brkmdltype, brkmondmg, brkobj1, brkobj2, brkobj3, brkobj4, brkobjects, brkpuff, brksound, brktrigjump, brktrigmissile, brktrignoplayer, brkveladd, brkvelbase, brkvol, cameratarget, ckeyhint, color, compilerstyle_start, controltarget, cooponly, corner_event, corner_pause, corner_pstate, corner_route, corner_speed, corner_switch, counttarget, customkey, customstyle_string, death_dmg, deathtarget, debuglvl, delay2, delaymonstercount, distmax, distmin, dmgskill, dpp_flame, dpp_name, dpp_rnd, dpp_vel, dpp_wait, estate, estate_trigger, exactskin, faceangle, fall_dmg, fall_dmgwater, fall_speeddebug, focalpoint, fog_colour, fog_dpextra, frame_box, frame_override, frameloop, framestart, gib1dmg, gib1exp, gib1frame, gib1mdl, gib1skin, gib1sound, gib1soundx, gib2frame, gib2mdl, gib2skin, gib2sound, gib2soundx, gib3frame, gib3mdl, gib3skin, gib3sound, gib3soundx, gibAnimTimer, gibAnimfinal, gibAnimstart, gibmaxs, gibmins, gibondeath, gibpartbase, gibpartchance, gibpartlife, gibpartoffset, gibpartrnd, gibpartstyle, gibtype, gibvel, give_weapons, hazard_dmg, headmdl, idletimer, ignore_monjump, infightextra, item_tossvel, jump_height, jumpdist, jumprange, knight_defskin, locksounds, mapvar_update, mega_health, message2, message3, message4, midstart, minion_maxcount, minion_maxtrigger, miniontarget, modeltarget, movespeed, nightmare, no_axestart, no_bigprojectiles, no_deadbody, no_item_offset, no_item_rotate, no_liquiddmg, no_moncountdevmsg, no_sgcasing, no_sgprojectile, no_surfacecheck, no_trackondeath, no_zaware, nodebuginfo, noinfighting, nomonstercount, noradiusdmg, normalangle, pain_ignore, part_active, part_exitpuff, part_exitsound, part_life, part_limit, part_movetype, part_ofs, part_style, part_vel, part_velbase, part_velrand, part_velrot, part_veltype, part_vol, particlemax, passive_state, persistentkey, plasmagun_dmg, poisonous, pos3, progspawnlist, proj_attqty, proj_limit, randomskin, reset_health, resist_cells, resist_nails, resist_rockets, resist_shells, respawn_count, respawn_time, respawn_trig, returntarget, rotateangles, rotateloop, sightgroup, sighttarget, skin_override, skinloop, skinstart, skybox, skyfog_density, spawn_base, spawn_rand, spawndelay, spawnnosight, spr_frame, spr_name1, spr_name2, spr_name3, sprite_particles, startingpose, startmsg, startspawn2, switchoverride, switchshadstyle, take_weapons, target2, target3, targetback, teledest, telefixangle, tetherrange, tethertarget, tethertimer, timertarget, turretclosing, turrethealth, turrethealth2, turretlocked, turretopening, turrettarget, turrettarget2, upgrade_axe, upgrade_ghook, upgrade_lg, upgrade_ssg, wait2, waitmin2, waitmin3, wakeup_angle, wakeup_dist, wakeup_timer, water_alpha
+Beam temp entities given Quake VR's beam id byte after WriteEntity (mechanical): 17
+Reviewed patches: 10 precedence, 38 bridge hooks (VR_AD_*, QC/vr_ad_bridge.qc):
+  func_buttons.qc: bridge: AD VR touch, carry and rung-only climbing
+  triggers.qc: bridge: AD VR touch, carry and rung-only climbing
+  items.qc: bridge: AD VR touch, carry and rung-only climbing
+  items.qc: bridge: AD VR touch, carry and rung-only climbing
+  world.qc: bridge: AD's Fitz path (sprite particles, no CSQC stats); our engine's extensions are not AD's
+  world.qc: bridge: never the player's r_wateralpha; the engine reads the water_alpha key (gl_rmisc.c)
+  globalfog.qc: bridge: fog by svc_fog (stuffed commands are filtered), as MG's
+  targets.qc: bridge: a trigger_skybox's sky by svc_skybox to every client (not console text to one)
+  globalfog.qc: bridge: the sky fog by the player's STAT_QVR_ADSKYFOG (not the player's r_skyfog)
+  ai_combat.qc: bridge: Quake VR's own entities (the player, our monsters) take damage by our T_Damage
+  ai_combat.qc: bridge: our hit hooks on AD's monsters (damage numbers, gore, small gibs, wounds)
+  ai_pathcorner.qc: bridge: our monsters follow AD's path_corners as ours (t_movetarget)
+  items.qc: bridge: never AD's weapon pickup on a Quake VR player (it sets .weapon, our hands' weapon id); ours are Quake VR's
+  weapons.qc: bridge: Quake VR players keep both hands' weapon models and ammo ids after AD ammo/backpack pickups
+  ai_projectiles.qc: bridge: the pellet damage settings (vr_ad_pellet_damage, Weapon Damage)
+  items.qc: bridge: the Sharp Shooter's and Nail Piercer's Quad bit (AD's shared HUD icon) is Quake VR's Quad itself (its tint, icon, glow): not given
+  client_debuff.qc: bridge: AD's burning is Quake VR's (decision 24): its fire on the player, AD's time and damage
+  func.qc: bridge: the hub's skill choice; Evil as Nightmare plus vr_ad_evil
+  triggers.qc: bridge: trigger_setskill; Evil as Nightmare plus vr_ad_evil
+  settings.qc: bridge: AD's Evil flag restored; Evil as Nightmare plus vr_ad_evil
+  triggers.qc: bridge: the ladder's volume climbed by hand (Quake VR's climbing, decision 26)
+  ai_subs.qc: bridge: a crouched VR player seen at his real eyes (vr_crouch_sight)
+  ai_checkattack.qc: bridge: a crouched VR player seen at his real eyes (vr_crouch_sight)
+  client_evilmode.qc: bridge: Evil as Nightmare plus vr_ad_evil
+  client_debuff.qc: bridge: the debuff tint cleared (VR_AD_Tint)
+  client_debuff.qc: bridge: the debuff's colour (VR_AD_Tint)
+  client_cshift.qc: bridge: the tint cleared (VR_AD_Tint)
+  misc_textbook.qc: bridge: the book's dark background (VR_AD_Tint)
+  misc_textbook.qc: bridge: the book's background cleared (VR_AD_Tint)
+  misc_camera.qc: bridge: the cinematic camera's fades (VR_AD_Tint, not scaled by Screen Tints)
+  monsters.qc: bridge: the Shadow Axe's long pain, from the blow's mark (AD_AxeMark: the axe's upgrade is its own)
+  triggers_states.qc: bridge: a trigger's upgrade_axe/ssg/lg keys: an upgraded weapon carried (VR_AD_HasUpgrade)
+  monsters.qc: bridge: the monster's Quake VR data by its class (head zone, knockdown, corpse, parries)
+  ai_combat.qc: bridge: a knocked-down monster's frame and think kept from AD's reaction (put back by VR_AD_PainDown); the blow's inflictor for the highlight log
+  ai_combat.qc: bridge: knocked down: no pain animation (its ragdoll), longer down
+  ai_combat.qc: bridge: Quake VR's dying around AD's death function (beheading, limbs, knockdown's death, corpse, gore)
+  mon_bossicegolem.qc: bridge: the ice golem (a boss: no monster_start) registered as it wakes
+  monsters.qc: bridge: the body touchable, not a trigger (its ragdoll and corpse are Quake VR's)
+  mon_pyro.qc: Quake VR: the pyro's flames look like the player's
+  mon_pyro.qc: Quake VR: the pyro's flames go out in water
+  lights.qc light_torch_small_walltorch: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  lights.qc light_flame_large_yellow: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  lights.qc light_flame_small_yellow: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  lights.qc light_flame_pyre: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  lights.qc light_flame_brazier_short: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  lights.qc light_flame_brazier_tall: bridge: its flame heats blades and lights torches again (vr_walltorch.qc)
+  ai_subs.qc FindTarget: bridge: stealth: the meter drains, beams, torches and bodies seen (Hostile now: found)
+  ai_subs.qc FindTarget: bridge: stealth: a player is seen by the suspicion meter, not at once
+  ai_subs.qc FoundTarget: bridge: stealth: Hostile (Alert no more; the monsters near told)
+  ai_subs.qc FoundHuntTarget: bridge: stealth: Hostile (Alert no more; the monsters near told)
+  ai_states.qc ai_stand: bridge: stealth: Alert: turning to look, searching
+  ai_states.qc ai_walk: bridge: stealth: Alert: walking to what it noticed, or back to its post
+  ai_states.qc ai_run: bridge: stealth: lost him a while: Alert, to where it saw him last
+  ai_states.qc ai_walk: bridge: hit reactions: struck a moment ago, shorter steps (a leg hit: a limp)
+  ai_states.qc ai_run: bridge: hit reactions: struck a moment ago, shorter steps (a leg hit: a limp)
+  ai_gibs.qc monster_ThrowGib: bridge: gibbed: Quake VR's gore, small gibs and limbs
+  ai_gibs.qc ThrowGib: bridge: its gibs and head Quake VR's props (grabbed, rigid bodies, burst by damage)
+  ai_subs.qc ai_charge: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front
+  ai_subs.qc ai_chargenoturn: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front
+  ai_subs.qc ai_charge_side: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
+  ai_subs.qc ai_charge_side: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front
+  ai_subs.qc ai_charge_side: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
+  ai_subs.qc ai_charge_front: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
+  ai_subs.qc ai_charge_front: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front
+  ai_subs.qc ai_charge_front: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
+  ai_subs.qc ai_melee: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
+  ai_subs.qc ai_meleesmash: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
+  ai_subs.qc ai_checkmelee: Quake VR: melee arc (fight.qc VR_MeleeReach): the reach grows with size
+  mon_zombiek.qc zombiek_melee: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
+  mon_demon.qc Demon_Claw: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
+  ai_subs.qc ai_forward: Quake VR: melee space (fight.qc VR_MeleeSpace_Step): kept out of the player's head
+  mon_demon.qc Demon_Claw: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front
+  mon_drole.qc drole_claw: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front
+  mon_minotaur.qc mino_claw: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front
+  mon_seeker.qc seek_punch: Quake VR: melee arc (fight.qc): the swing's turn held, its hits only in front
+  ai_projectiles.qc Touch_PlasmaProjectile: Quake VR: an electric bolt's hit crackles
+  ai_projectiles.qc Touch_PlasmaProjectile: Quake VR: an electric bolt electrocutes
+  ai_projectiles.qc launch_plasma: Quake VR: an electric bolt's muzzle crackles, it strikes bodies
+  mon_pyro.qc pyroflame_touch: Quake VR: the pyro's flames poison monsters too (the attacker credited: vr_dmgcredit.qc)
+  mon_pyro.qc pyroflame_touch: Quake VR: the pyro's and fumigator's flames draw no blood
+  mon_pyro.qc pyroflame_touch: Quake VR: the pyro's and fumigator's flames draw no blood (its end)
+  mon_pyro.qc pyroflame_spawn: Quake VR: the pyro's flames look like the player's
+  lights.qc setup_light_sound: Quake VR: a torch made live by the toolgun keeps its sound
+  lights.qc setup_light_static: Quake VR: a torch made live by the toolgun is not made static
+  mon_pyro.qc pyroflame_touch: Quake VR: the pyro's flames scorch where they strike
+  ai_projectiles.qc Touch_PlasmaProjectile: Quake VR: a plasma bolt's hit (VR_Proj_Begin)
+  ai_projectiles.qc Touch_PlasmaProjectile: Quake VR: a plasma bolt's hit (VR_Proj_End)
+  ai_projectiles.qc Touch_Projectile: Quake VR: a bolt's, laser's or lump's hit (VR_Proj_Begin)
+  ai_projectiles.qc Touch_Projectile: Quake VR: a bolt's, laser's or lump's hit (VR_Proj_End)
+  ai_projectiles.qc Touch_HomingMissile: Quake VR: a homing missile's hit (VR_Proj_Begin)
+  ai_projectiles.qc Touch_HomingMissile: Quake VR: a homing missile's hit (VR_Proj_End)
+  ai_projectiles.qc Touch_Missile: Quake VR: a missile's hit (VR_Proj_Begin)
+  ai_projectiles.qc Touch_Missile: Quake VR: a missile's hit (VR_Proj_End)
+  ai_projectiles.qc Touch_Grenade: Quake VR: a grenade's hit (VR_Proj_Begin)
+  ai_projectiles.qc Touch_Grenade: Quake VR: a grenade's hit (VR_Proj_End)
+  ai_projectiles.qc launch_plasma: Quake VR: its projectile meets bodies (VR_Proj_Mark)
+  ai_projectiles.qc launch_projectile: Quake VR: its projectile meets bodies (VR_Proj_Mark)
+  ai_projectiles.qc Launch_Missile: Quake VR: its projectile meets bodies (VR_Proj_Mark)
+  ai_projectiles.qc Launch_Grenade: Quake VR: its projectile meets bodies (VR_Proj_Mark)
+  ai_projectiles.qc launch_plasma: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  ai_projectiles.qc launch_projectile: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  ai_projectiles.qc Launch_Missile: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  ai_projectiles.qc Launch_Grenade: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  ai_projectiles.qc Launch_Shells: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  weapons.qc FireBullets: Quake VR: aim cone (vr_aimcone.qc): a monster's shot bent to its facing's aim cone
+  mon_zombie.qc zombie_wakeup: bridge: a zombie killed whole (beheaded, a limb cut) never gets up
+  mon_zombiek.qc zombiek_wakeup: bridge: a zombie killed whole (beheaded, a limb cut) never gets up
+  ai_combat.qc T_RadiusDamage: bridge: AD's explosions throw props and ragdolls (physicsblast)
+  ai_subs.qc: if (!ai_checkmelee(MONAI_MELEEFRONT,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  ai_subs.qc: if (!ai_checkmelee(self.meleerange, MONAI_MELEEZTALL)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  ai_subs.qc: if (!ai_checkmelee(MONAI_MELEESIDE,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_demon.qc: if (!ai_checkmelee(MONAI_MELEEDEMON,FALSE) ||: melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_dguardquoth.qc: if (ai_checkmelee(MONAI_MELEEDGUARDQ,FALSE) && CanDamage: melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_drole.qc: if (!ai_checkmelee(MONAI_MELEEDROLE1,MONAI_MELEEZTALL): melee arc hit test (VR_MeleeArc_Hits(side != 0))
+  mon_freddie.qc: if (!ai_checkmelee(self.meleerange, MONAI_MELEEZTALL)): melee arc hit test (VR_MeleeArc_Hits(side != 0))
+  mon_minotaur.qc: if (!ai_checkmelee(MONAI_MELEEMINOTAUR, MONAI_MELEEZTALL) ||: melee arc hit test (VR_MeleeArc_Hits(side != 0))
+  mon_ogre.qc: if (!ai_checkmelee(self.meleerange,FALSE)): melee arc hit test (VR_MeleeArc_Hits(!vr_melee_ahead))
+  mon_seeker.qc: if (!ai_checkmelee(MONAI_MELEESEEKER, MONAI_MELEEZTALL)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_shambler.qc: if (!ai_checkmelee(MONAI_MELEESHAM, MONAI_MELEEZTALL)): melee arc hit test (VR_MeleeArc_Hits(side != 0))
+  mon_dog.qc: if (!ai_checkmelee(MONAI_MELEEDOG,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_fish.qc: if (!ai_checkmelee(MONAI_MELEEFISH,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_lostsoul.qc: if (!ai_checkmelee(MONAI_MELEELOSTSOUL,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_scorpion.qc: if (!ai_checkmelee(MONAI_MELEESCORPION,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_spider.qc: if (!ai_checkmelee(MONAI_MELEESPIDER,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_steelclaw.qc: if (!ai_checkmelee(MONAI_MELEESTEELCLAW,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_swampling.qc: if (!ai_checkmelee(MONAI_MELEESWAMPLING,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_voreling.qc: if (!ai_checkmelee(MONAI_MELEEVORELING,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_xmas_elf.qc: if (!ai_checkmelee(MONAI_MELEEELF,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_xmas_raindeer.qc: if (!ai_checkmelee(MONAI_MELEERAINDEER,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_xmas_santa.qc: if (!ai_checkmelee(MONAI_MELEESANTA,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  mon_xmas_snowman.qc: if (!ai_checkmelee(MONAI_MELEESNOWMAN,FALSE)): melee arc hit test (VR_MeleeArc_Hits(FALSE))
+  ai_checkattack.qc: 21 melee launches behind VR_MeleeArc_Launch
+  mon_soldier.qc army_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_soldier.qc army_fire_rocket: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_soldier.qc army_plasma_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_soldier.qc army_grenade_atk5: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_enforcer.qc enforcer_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_enforcer.qc defender_ssg: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_enforcer.qc eliminator_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_enforcer.qc def_atkgl6: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_centurion.qc cent_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_ogre.qc OgreFireNails: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_ogre.qc ogre_shoot4: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_hknight.qc hknight_magicc6: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_hknight.qc hknight_magica7: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_hknight.qc hknight_magicb7: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_dknight.qc dknight_magicc6: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_gargoyle.qc garg_fbthrow: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_drole.qc drole_fire: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_dguardquoth.qc dguardq_fireball: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_golem.qc golem_magic13: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_wizard.qc Wiz_FastFire: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_shambler.qc sham_lightning: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_dcrossbow.qc dcrossbow_shot: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_eel.qc eel_plasma: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_jim.qc jim_laser: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_jim.qc jim_rocket: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_gaunt.qc gaunt_plasma: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_zombie.qc zombie_atta12: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_zombie.qc zombie_attb13: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_zombie.qc zombie_attc11: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_spider.qc spider_spit8: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_swampling.qc swampling_spit4: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_voreling.qc voreling_spit4: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_minotaur.qc mino_magic8: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_skullwiz.qc skullw_attack6: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_scorpion.qc pinch_tail7: aim cone wait (VR_AimCone_Wait, WIDE)
+  mon_dlord.qc dlord_magica7: aim cone wait (VR_AimCone_Wait, NARROW)
+  mon_dlord.qc dlord_magicb9: aim cone wait (VR_AimCone_Wait, NARROW)
+  ai_projectiles.qc: unique Touch_Bullet prepare/hit, Launch_Bullet enemy speed/flight origin, Launch_Missile/Launch_Grenade VR ordnance hooks (function-boundary checked)

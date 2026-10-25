@@ -1,13 +1,12 @@
 // vr_diagnostics.cpp -- diagnostics mode (1.0.1): everything a bug report needs, in one folder.
 //
-// "-diagnostics" on the command line (from the first console line; the installer's "Quake VR Unleashed (Diagnostics)"
+// "-diagnostics" on the command line (from the first console line; the installer's "Quake VR Unleashed (diagnostics)"
 // shortcut), or "vr_diagnostics 1" (from the next start, once the config is read: VID_Init), turns on, for that run:
 //   - <game folder>/diagnostics/<date>_<time>/, printed at the start and at the end (opened in Explorer at a quit);
-//   - console.log: the console, from the first line (-diagnostics) or from the window's creation (the cvar);
+//   - console.log, openxr_debug.log, system.txt: copies of the run's own (every run keeps them: vr_runlogs.cpp, in
+//     <game folder>/logs/<date>_<time>; in diagnostics mode the messenger's verbose messages too);
 //   - gl_debug.log: a debug GL context (SDL_GL_CONTEXT_DEBUG_FLAG) and synchronous GL debug output, every message with
 //     its source, type, id and severity; each id's first 10, then every 100th, with counts (a summary at the end);
-//   - openxr_debug.log: the XR_EXT_debug_utils messenger (all severities and types: the loader's and the runtime's
-//     messages), the context checks;
 //   - openxr_validation.log: Khronos' core validation layer (shipped in quakevr/xr_layers/, enabled only here: every
 //     OpenXR call the game makes checked against the specification; useValidationLayer, vr_backend_openxr.cpp);
 //   - debug_output.log: whatever the process says to a debugger (OutputDebugString): the OpenXR loader's log
@@ -20,6 +19,7 @@
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_runlogs.hpp"
 #include "vr_xr_runtime.hpp"
 
 #include <cstdarg>
@@ -36,7 +36,6 @@ using namespace qvr;
 
 extern "C" char com_gamedir[];
 extern "C" void Sys_mkdir(const char* path);
-extern "C" void LOG_Reopen(const char* path);
 
 namespace
 {
@@ -46,7 +45,7 @@ constexpr unsigned firstShown = 10; // each id's first messages logged, then eve
 
 struct IdCount
 {
-    unsigned key = 0; // the GL id, or the XR message id's hash (0: free)
+    unsigned key = 0; // the GL id (0: free)
     unsigned count = 0;
     char what[96]{};  // for the summary
 };
@@ -58,15 +57,12 @@ struct State
     char why[64]{};
     char dir[1024]{};
     FILE* gl = nullptr;
-    FILE* xr = nullptr;
     FILE* debugOut = nullptr; // debug_output.log
     unsigned glTotal = 0;
-    unsigned xrTotal = 0;
     IdCount glIds[idSlots]{};
-    IdCount xrIds[idSlots]{};
     time_t began = 0;
 #ifdef _WIN32
-    SRWLOCK lock = SRWLOCK_INIT; // the XR messenger can be called from a runtime's thread
+    SRWLOCK lock = SRWLOCK_INIT; // debug_output.log is written from any thread
 #endif
 };
 State diag;
@@ -112,7 +108,7 @@ void writeSummaryLine(const char* text)
     }
 }
 
-// The slot of a key (GL id, XR id hash), and whether this occurrence is logged.
+// The slot of a key (GL id), and whether this occurrence is logged.
 bool countId(IdCount* ids, unsigned key, const char* what, unsigned& count)
 {
     key = key ? key : 1u;
@@ -132,16 +128,6 @@ bool countId(IdCount* ids, unsigned key, const char* what, unsigned& count)
     }
     count = 0;
     return true; // (the table full: every one logged)
-}
-
-unsigned hashText(const char* text)
-{
-    unsigned h = 2166136261u;
-    for(const char* c = text ? text : ""; *c; c++)
-    {
-        h = (h ^ static_cast<unsigned char>(*c)) * 16777619u;
-    }
-    return h;
 }
 
 #ifdef _WIN32
@@ -249,60 +235,20 @@ void useValidationLayer()
     q_snprintf(line, sizeof(line), "XR_API_LAYER_PATH: %s (the OpenXR core validation layer: openxr_validation.log)\n", joined);
     writeSummaryLine(line);
 }
+#endif
 
-// A copy of src (when it exists and was written since the run began, or always) into the folder as name.
-void copyIn(const char* src, const char* name, bool always)
-{
-    WIN32_FILE_ATTRIBUTE_DATA data;
-    if(!GetFileAttributesExA(src, GetFileExInfoStandard, &data))
-    {
-        return;
-    }
-    ULARGE_INTEGER t;
-    t.LowPart = data.ftLastWriteTime.dwLowDateTime;
-    t.HighPart = data.ftLastWriteTime.dwHighDateTime;
-    const time_t written = static_cast<time_t>(t.QuadPart / 10000000ull - 11644473600ull);
-    if(!always && written + 60 < diag.began)
-    {
-        writeSummaryLine(va("  %s: not written during this run, not copied\n", src));
-        return;
-    }
-    char dst[1200];
-    q_snprintf(dst, sizeof(dst), "%s/%s", diag.dir, name);
-    const BOOL ok = CopyFileA(src, dst, FALSE);
-    writeSummaryLine(va("  %s -> %s%s\n", src, name, ok ? "" : " (FAILED: in use?)"));
-}
-
+// The run's own logs (vr_runlogs.cpp: console.log, openxr_debug.log, system.txt) and the runtimes' (written during the
+// run), gl_startup.log and qvr_openxr.txt, copied into the folder.
 void copyLogs()
 {
     writeSummaryLine("Logs copied:\n");
-    char path[1200];
-    q_snprintf(path, sizeof(path), "%s/crash/gl_startup.log", com_gamedir);
-    copyIn(path, "gl_startup.log", true);
-    copyIn(xrruntime::logPath(), "qvr_openxr.txt", false);
-    // SteamVR: under Steam's folder (the registry's SteamPath).
-    char steam[MAX_PATH] = "";
-    DWORD size = sizeof(steam);
-    if(RegGetValueA(HKEY_CURRENT_USER, "Software\\Valve\\Steam", "SteamPath", RRF_RT_REG_SZ, nullptr, steam, &size) ==
-        ERROR_SUCCESS)
+    for(const char* name : {"console.log", "openxr_debug.log", "system.txt"})
     {
-        for(const char* log : {"vrserver.txt", "vrcompositor.txt", "vrmonitor.txt", "vrclient_ironwail.txt", "vrstartup.txt"})
-        {
-            q_snprintf(path, sizeof(path), "%s/logs/%s", steam, log);
-            copyIn(path, va("steamvr_%s", log), false);
-        }
+        runlogs::copyRunFile(name, diag.dir);
+        writeSummaryLine(va("  logs/.../%s -> %s\n", name, name));
     }
-    // Virtual Desktop: VDXR's log and the Streamer's, in %ProgramData%\Virtual Desktop (seen on the author's PC).
-    char programData[MAX_PATH] = "";
-    if(GetEnvironmentVariableA("ProgramData", programData, sizeof(programData)))
-    {
-        q_snprintf(path, sizeof(path), "%s\\Virtual Desktop\\OpenXR.log", programData);
-        copyIn(path, "vdxr_OpenXR.log", false);
-        q_snprintf(path, sizeof(path), "%s\\Virtual Desktop\\StreamerLog.txt", programData);
-        copyIn(path, "vd_StreamerLog.txt", false);
-    }
+    runlogs::copyRuntimeLogs(diag.dir, diag.began, writeSummaryLine);
 }
-#endif
 
 void writeIdSummary(FILE* f, const IdCount* ids, unsigned total, const char* what)
 {
@@ -328,7 +274,7 @@ void status_f()
         return;
     }
     Con_Printf("Diagnostics mode on (%s): %s\n", diag.why, diag.dir);
-    Con_Printf("  GL debug messages: %u; OpenXR debug messages: %u\n", diag.glTotal, diag.xrTotal);
+    Con_Printf("  GL debug messages: %u; OpenXR debug messages: %u\n", diag.glTotal, runlogs::xrMessages());
 }
 
 } // namespace
@@ -364,24 +310,18 @@ extern "C" void VR_DiagnosticsBegin(void)
 #ifdef _WIN32
         fprintf(f, "Command line: %s\n", GetCommandLineA());
 #endif
-        fprintf(f, "Files: console.log, gl_debug.log, openxr_debug.log, openxr_validation.log (once VR starts), "
-                   "debug_output.log, crash/ (if it crashed), and the "
-                   "logs copied at the end (listed below)\n");
+        fprintf(f, "Files: gl_debug.log, openxr_validation.log (once VR starts), debug_output.log, crash/ (if it "
+                   "crashed), and the logs copied at the end (listed below: the run's console.log, openxr_debug.log and "
+                   "system.txt, from %s)\n",
+            runlogs::dir());
         fclose(f);
     }
-    q_snprintf(path, sizeof(path), "%s/console.log", diag.dir);
-    LOG_Reopen(path);
     diag.gl = openLog("gl_debug.log");
-    diag.xr = openLog("openxr_debug.log");
     if(diag.gl)
     {
         fprintf(diag.gl, "# GL debug output (a debug context, synchronous): time, source, type, id, severity, message; "
                          "each id's first %u, then every 100th\n",
             firstShown);
-    }
-    if(diag.xr)
-    {
-        fputs("# OpenXR: the debug utils messenger's messages (loader and runtime), the backend's checks\n", diag.xr);
     }
     VR_SetCrashDir(diag.dir); // (the reports in <folder>/crash)
 #ifdef _WIN32
@@ -425,35 +365,7 @@ extern "C" void VR_DiagnosticsGL(unsigned source, unsigned type, unsigned id, un
     }
 }
 
-// (From any thread: a runtime calls its messenger from its own; no va() here.)
-extern "C" void VR_DiagnosticsXr(const char* severity, const char* messageId, const char* function, const char* message)
-{
-    if(!diag.xr)
-    {
-        return;
-    }
-    char what[96];
-    q_snprintf(what, sizeof(what), "%s %s", messageId ? messageId : "-", function ? function : "-");
-    lock();
-    diag.xrTotal++;
-    unsigned count = 0;
-    if(countId(diag.xrIds, hashText(messageId) ^ hashText(function), what, count))
-    {
-        fprintf(diag.xr, "%9.3f [%s] %s (%u so far): %s\n", Sys_DoubleTime(), severity ? severity : "?", what, count,
-            message ? message : "");
-    }
-    unlock();
-}
-
-extern "C" void VR_DiagnosticsNote(const char* line)
-{
-    if(diag.xr && line)
-    {
-        lock();
-        fprintf(diag.xr, "%9.3f %s", Sys_DoubleTime(), line);
-        unlock();
-    }
-}
+// (VR_DiagnosticsXr and VR_DiagnosticsNote: vr_runlogs.cpp, every run's openxr_debug.log.)
 
 // Host_Shutdown (crashed 0) and the crash handler (1): the summaries, the logs copied, the folder named.
 extern "C" void VR_DiagnosticsEnd(int crashed)
@@ -464,25 +376,13 @@ extern "C" void VR_DiagnosticsEnd(int crashed)
     }
     diag.ended = true;
     writeIdSummary(diag.gl, diag.glIds, diag.glTotal, "GL debug");
-    writeIdSummary(diag.xr, diag.xrIds, diag.xrTotal, "OpenXR debug");
     writeSummaryLine(va("Ended: %s, %.0f s after the start\n", crashed ? "a crash (crash/ has the report)" : "a quit or an error",
         difftime(time(nullptr), diag.began)));
-#ifdef _WIN32
     copyLogs();
-#endif
     if(!crashed)
     {
         Con_Printf("Diagnostics: everything is in %s\n", diag.dir);
-#ifdef _WIN32
-        if(!getenv("QVR_NO_ERROR_DIALOG") && !getenv("QVR_TEST_HIDDEN"))
-        {
-            char full[MAX_PATH];
-            if(GetFullPathNameA(diag.dir, sizeof(full), full, nullptr))
-            {
-                ShellExecuteA(nullptr, "open", full, nullptr, nullptr, SW_SHOWNORMAL);
-            }
-        }
-#endif
+        runlogs::openFolder(diag.dir); // (Explorer, xdg-open; not in a test run)
     }
 }
 

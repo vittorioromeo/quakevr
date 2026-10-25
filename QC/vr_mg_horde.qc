@@ -25,6 +25,7 @@
 .float MGH_reviving;
 .float MGH_powerup_expire;
 .float MGH_corpse_expire;
+.float MGH_expiring; // (set with either expiry: MGH_PowerupFrame walks only these, with findflags)
 entity MGH_horde_ent;
 float MGH_initial_serverflags;
 nosave float MGH_restart_queued; // a team wipe queues one arena restart (the press can last several frames)
@@ -1798,7 +1799,7 @@ void() MGH_horde_spawn_powerup =
 
 		//powerup.velocity_x = crandom() * 64;
 		//powerup.velocity_y = crandom() * 64;
-		powerup.touch = MGH_powerup_touch; powerup.handtouch=MGH_powerup_touch; powerup.carry_use=MGH_powerup_touch; powerup.MGH_powerup_expire=time+14;
+		powerup.touch = MGH_powerup_touch; powerup.handtouch=MGH_powerup_touch; powerup.carry_use=MGH_powerup_touch; powerup.MGH_powerup_expire=time+14; powerup.MGH_expiring=TRUE;
 		powerup.think = SUB_Null;
 		powerup.nextthink = 0;
 
@@ -1957,15 +1958,15 @@ void(entity attacker) MGH_Kill = {
   attacker.MGH_killspree++; attacker.MGH_killtime=time+2;
   if(attacker.MGH_killspree >= 2) sprint(attacker,sprintf("Horde kill streak: %g\n",attacker.MGH_killspree));
  }
- self.MGH_corpse_expire=time+11+random()*5;
+ self.MGH_corpse_expire=time+11+random()*5; self.MGH_expiring=TRUE;
  MGH_horde_spawn_powerup();
  MGH_remote_wavecheck();
 };
 
 void() MGH_PowerupFrame = {
  if(!MGH_Active()) return;
- entity e=nextent(world); while(e) {
-  entity next=nextent(e);
+ entity e=findflags(world,MGH_expiring,1); while(e) {
+  entity next=findflags(e,MGH_expiring,1);
   if(e.MGH_corpse_expire > 0 && e.health <= 0) {
    if(time >= e.MGH_corpse_expire) { VR_Carry_Forget(e); VR_Head_StopFlies(e); remove(e); e=next; continue; }
    else if(time > e.MGH_corpse_expire-1) e.alpha=e.MGH_corpse_expire-time;

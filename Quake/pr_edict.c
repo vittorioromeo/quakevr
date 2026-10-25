@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_edict.c -- entity dictionary
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 
 extern edict_t **bbox_linked;
 
@@ -324,6 +325,20 @@ static ddef_t *ED_FindField (const char *name)
 	return NULL;
 }
 
+// AD support: the field AD's imported QuakeC has for a map key Quake VR has no field of that type for: ad_<key>
+// (QC/ad/AD_IMPORT.txt; Arcane Dimensions, vr_ad.cpp). In a map played by AD's rules; elsewhere only for a key no
+// field of Quake VR's has (AD's artifacts, pickups and ladders spawn in any map).
+static ddef_t *ED_FindADKeyField (const char *keyname, ddef_t *ours)
+{
+	ddef_t *ad;
+	ad = ED_FindField (va ("ad_%s", keyname));
+	if (!VR_AD_RulesOn ())
+		return ours ? NULL : ad; // (outside AD's rules: only a key no field of Quake VR's takes, for AD's entities there)
+	if (!ad || (ours && (ours->type & ~DEF_SAVEGLOBAL) == (ad->type & ~DEF_SAVEGLOBAL)))
+		return NULL; // (none, or the same key both ways: Quake VR's field is the key's)
+	return ad;
+}
+
 /*
 ============
 ED_FindFieldOffset
@@ -365,6 +380,45 @@ static ddef_t *ED_FindGlobal (const char *name)
 	return NULL;
 }
 
+// QVR: the server's QC float global `name` (0 without a server or such a global): the death menu reads
+// vr_restart_queued (a respawn under way: menu.c M_CheckDeathMenu)
+float PR_ServerGlobalFloat (const char *name)
+{
+	qcvm_t	*oldvm;
+	ddef_t	*def;
+	float	value = 0.f;
+
+	if (!sv.active || !sv.qcvm.progs)
+		return 0.f;
+	PR_PushQCVM (&sv.qcvm, &oldvm);
+	def = ED_FindGlobal (name);
+	if (def && (def->type & ~DEF_SAVEGLOBAL) == ev_float && def->ofs < qcvm->progs->numglobals)
+		value = G_FLOAT (def->ofs);
+	PR_PopQCVM (oldvm);
+	return value;
+}
+
+// QVR: sets the server's QC float global `name` (nothing without a server or such a global): the death menu's
+// vr_death_menu_hold, vr_death_menu_asked and vr_death_menu_respawn (menu.c M_CheckDeathMenu, client.qc PlayerDeathThink)
+qboolean PR_SetServerGlobalFloat (const char *name, float value)
+{
+	qcvm_t	*oldvm;
+	ddef_t	*def;
+	qboolean found = false;
+
+	if (!sv.active || !sv.qcvm.progs)
+		return false;
+	PR_PushQCVM (&sv.qcvm, &oldvm);
+	def = ED_FindGlobal (name);
+	if (def && (def->type & ~DEF_SAVEGLOBAL) == ev_float && def->ofs < qcvm->progs->numglobals)
+	{
+		G_FLOAT (def->ofs) = value;
+		found = true;
+	}
+	PR_PopQCVM (oldvm);
+	return found;
+}
+
 
 /*
 ============
@@ -391,6 +445,12 @@ static dfunction_t *ED_FindFunction (const char *fn_name)
 			return func;
 	}
 	return NULL;
+}
+
+// QVR: ED_FindFunction for the VR module (vr_ad.cpp: AD support, which classnames only AD's QuakeC spawns)
+dfunction_t *VR_ED_FindFunction (const char *fn_name)
+{
+	return ED_FindFunction (fn_name);
 }
 
 /*
@@ -688,16 +748,12 @@ Returns true if the field should be printed by the edict command:
 */
 qboolean ED_IsRelevantField (edict_t *ed, ddef_t *d)
 {
-	const char	*name;
-	size_t		l;
 	int			*v;
 	int			type;
 	int			i;
 
-	name = PR_GetString (d->s_name);
-	l = strlen (name);
-	if (l > 1 && name[l - 2] == '_')
-		return false;	// skip _x, _y, _z vars
+	if (!(d->type & DEF_SAVEGLOBAL))
+		return false;	// skip _x, _y, _z vars (VR: only a vector's; PR_FindSavegameFields)
 
 	type = d->type & ~DEF_SAVEGLOBAL;
 	if (type >= NUM_TYPE_SIZES)
@@ -1407,6 +1463,12 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		//johnfitz
 
 		key = ED_FindField (keyname);
+		if (qcvm == &sv.qcvm) // AD support: in an AD map, AD's field takes a key Quake VR has none (of that type) for
+		{
+			ddef_t *adkey = ED_FindADKeyField (keyname, key);
+			if (adkey)
+				key = adkey;
+		}
 		if (!key)
 		{
 			//johnfitz -- HACK -- suppress error becuase fog/sky/alpha fields might not be mentioned in defs.qc
@@ -1570,6 +1632,16 @@ void ED_LoadFromFile (const char *data)
 //
 	// look for the spawn function
 		func = ED_FindFunction (classname);
+		// AD support: in a map played by Arcane Dimensions' rules, AD's version of the classname (its QuakeC's
+		// ad_<classname>) where AD owns it (vr_ad.cpp VR_AD_OwnsClassname; ARCANE_DIMENSIONS.md 5.4)
+		if (VR_AD_RulesOn ())
+		{
+			dfunction_t *adfunc = ED_FindFunction (va ("ad_%s", classname));
+			if (adfunc && VR_AD_OwnsClassname (classname, func != NULL))
+				func = adfunc;
+		}
+		else if (!func && VR_AD_SpawnsOutside (classname)) // AD support: AD's artifacts, pickups, ladders in any map (vr_ad.cpp)
+			func = ED_FindFunction (va ("ad_%s", classname));
 
 		if (!func)
 		{
@@ -1972,15 +2044,40 @@ PR_FindSavegameFields
 Determines which fields should be stored in savefiles
 ===============
 */
+// VR: whether the field is a vector field's _x, _y or _z (a float named so, at that vector's offset plus 0, 1 or 2):
+// saved as part of the vector. The stock test (any name whose next-to-last character is '_') also dropped plain fields
+// such as vr_kd_chance_h from every save, so a loaded game's monsters had no knockdown chance and no shove, leg grab or
+// lift made an active ragdoll (ROUND22.md, "No active ragdolls after a load").
+static qboolean PR_IsVectorComponentField (const ddef_t *field)
+{
+	const char *name = PR_GetString (field->s_name);
+	size_t len = strlen (name);
+	int axis, i;
+	if (len < 3 || name[len - 2] != '_' || (field->type & ~DEF_SAVEGLOBAL) != ev_float)
+		return false;
+	axis = name[len - 1] - 'x';
+	if (axis < 0 || axis > 2)
+		return false;
+	for (i = 1; i < qcvm->progs->numfielddefs; i++)
+	{
+		const ddef_t *v = &qcvm->fielddefs[i];
+		if ((v->type & ~DEF_SAVEGLOBAL) == ev_vector && v->ofs + axis == field->ofs)
+		{
+			const char *vname = PR_GetString (v->s_name);
+			if (strlen (vname) == len - 2 && !strncmp (vname, name, len - 2))
+				return true;
+		}
+	}
+	return false;
+}
+
 static void PR_FindSavegameFields (void)
 {
 	int i;
 	for (i = 1; i < qcvm->progs->numfielddefs; i++)
 	{
 		ddef_t *field = &qcvm->fielddefs[i];
-		const char *name = PR_GetString (field->s_name);
-		size_t len = strlen (name);
-		if (len < 2 || name[len - 2] != '_') // skip _x, _y, _z vars
+		if (!PR_IsVectorComponentField (field)) // skip _x, _y, _z vars
 			field->type |= DEF_SAVEGLOBAL;
 	}
 }
@@ -2265,6 +2362,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 	qcvm->effects_mask = PR_FindSupportedEffects ();
 
 	VR_OnProgsLoaded (); // QVR
+	VR_TracyQCProgs (); // QVR: Tracy builds only; after VR_OnProgsLoaded bound the VR builtins
 
 	return true;
 }
@@ -2298,6 +2396,7 @@ void PR_Init (void)
 	Cmd_AddCommand ("profile", PR_Profile_f);
 	Cmd_AddCommand ("profile_qc", PR_ProfileQC_f); // QVR: per-function time (vr_qcprofile)
 	Cvar_RegisterVariable (&vr_qcprofile);
+	VR_QCExec_Init (); // QVR: vr_qcexec, vr_qcexec_bench
 	Cvar_RegisterVariable (&nomonsters);
 	Cvar_SetCallback (&nomonsters, ED_Nomonsters_f);
 	Cvar_RegisterVariable (&gamecfg);
@@ -2511,6 +2610,8 @@ void SaveData_Fill (savedata_t *save)
 	save->skill = current_skill;
 	save->time = qcvm->time;
 	VR_SaveContext (save->vrcontext, sizeof (save->vrcontext)); // QVR: the campaign, the map package, the titles
+	save->vrbrushes = VR_SaveBrushLines (); // QVR: the runtime brushes (vr/vr_brushes.cpp)
+	save->vrdecals = VR_SaveDecalLines (); // QVR: the permanent decals (vr/vr_permdecals.cpp)
 
 	/* determine buffer size */
 	size = sizeof (*save->knownstrings) * qcvm->numknownstrings;
@@ -2524,6 +2625,8 @@ void SaveData_Fill (savedata_t *save)
 	// QVR: the model precache list
 	for (i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
 		size += strlen (sv.model_precache[i]) + 1;
+	for (i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++) // QVR: and the sound precache list
+		size += strlen (sv.sound_precache[i]) + 1;
 
 	for (i = 0; i < qcvm->numknownstrings; i++)
 	{
@@ -2583,6 +2686,16 @@ void SaveData_Fill (savedata_t *save)
 		ofs += len;
 		save->nummodels = i;
 	}
+	/* QVR: the sound precache list (the late ones, precached mid-game, are precached again at the load) */
+	save->numsounds = 0;
+	for (i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
+	{
+		int len = strlen (sv.sound_precache[i]) + 1;
+		save->sounds[i] = (const char *) (save->buffer + ofs);
+		memcpy (save->buffer + ofs, sv.sound_precache[i], len);
+		ofs += len;
+		save->numsounds = i;
+	}
 	save->progscrc = qcvm->crc;
 
 	/* known strings (contents) */
@@ -2623,6 +2736,13 @@ void SaveData_WriteHeader (savedata_t *save)
 	for (i = 1; i <= save->nummodels; i++)
 		fprintf (save->file, "// qvr_model %d %s\n", i, save->models[i]);
 	fputs (save->vrcontext, save->file); // QVR: // qvr_campaign, qvr_package, ... (vr_continue.cpp)
+	// QVR: the sound list, after the context (the save menu reads the context from the file's head)
+	for (i = 1; i <= save->numsounds; i++)
+		fprintf (save->file, "// qvr_sound %s\n", save->sounds[i]);
+	if (save->vrbrushes)
+		fputs (save->vrbrushes, save->file); // QVR: // qvrb lines: the runtime brushes
+	if (save->vrdecals)
+		fputs (save->vrdecals, save->file); // QVR: // qvrdecals and qvrd lines: the permanent decals
 
 	ED_WriteGlobals (save);
 }

@@ -52,11 +52,15 @@ void() VR_EnemyGuns_Precache =
 
 float(float xWid) VR_IsEnemyGun =
 {
-    return xWid == WID_GRUNTGUN || xWid == WID_ENFRIFLE;
+    return xWid == WID_GRUNTGUN || xWid == WID_ENFRIFLE || VR_IsADGun(xWid); // (AD support: AD's soldiers' guns)
 };
 
 string(float xWid) VR_EnemyGun_Name =
 {
+    if(VR_IsADGun(xWid))
+    {
+        return VR_ADGun_Name(xWid); // AD support
+    }
     if(xWid == WID_GRUNTGUN)
     {
         return cvar_hget(cvarh_vr_grunt_burst) ? "grunt's burst rifle" : "grunt's shotgun";
@@ -225,7 +229,6 @@ void(float xHand) VR_FireBurstRound =
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.08, 110, 0.6);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
-    self.damage_weapon = IT_SHOTGUN; // HONEY
 };
 
 // id's shotgun (vr_grunt_burst 0): as W_FireShotgun, from its own shells.
@@ -239,7 +242,6 @@ void(float xHand) VR_FireGruntGun =
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.25, 70, 0.75);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
-    self.damage_weapon = IT_SHOTGUN; // HONEY
 };
 
 // A rifle's laser strikes: as your nails (spike_touch), what takes damage takes vr_enfrifle_damage (positional: a head
@@ -257,29 +259,21 @@ void() VR_RifleLaser_Touch =
     }
 
     sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
-    VR_ShotPush_Touch(); // the prop it hit (or flew through) pushed
-
-    makeforward_mdl(self.angles);
-    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
+    // Every projectile's hit (weapons.qc VR_Proj_Begin): the prop or ragdoll it hit (or flew through) pushed, where it
+    // struck (a head more), a kill at the head or a limb popped by chance as an enemy's bolt (vr_decap_pop_laser).
+    VR_Proj_Begin(QVR_PROJ_LASER, self.vr_laser_damage);
 
     float bleed = FALSE;
     if(other.takedamage)
     {
         float before = other.health;
-        vector hitAt = trace_ent == other ? trace_endpos : self.origin;
-        vector hitDir = v_forward;
-        float dmg = self.vr_laser_damage * PositionalDamageFactor(PositionalDamage(trace_ent, trace_endpos, v_forward));
-        // (A kill at the head or a limb pops it by chance, as an enemy's bolt: vr_decap_pop_laser, vr_limbs.qc.)
-        float pop = VR_Decap_LaserArm(other, self.owner, hitAt, hitDir, dmg);
+        float dmg = self.vr_laser_damage * vr_proj_factor;
         if(T_Damage(other, self, self.owner, dmg))
         {
             spawn_touchblood(dmg);
             bleed = TRUE;
         }
-        if(pop)
-        {
-            VR_Decap_After(other);
-        }
+        VR_Proj_End();
         if(cvar_hget(cvarh_vr_debug_shots))
         {
             dprint(sprintf("rifle laser: hit %s (%s) at %g at %v, %g damage, health %g -> %g\n", other.classname,
@@ -315,7 +309,7 @@ void(float xHand) VR_FireEnforcerRifle =
     laser.angles = vectoangles(laser.velocity);
     laser.touch = VR_RifleLaser_Touch;
     laser.classname = "rifle_laser";
-    VR_ShotPlace(laser, xHand);
+    VR_ShotLaunched(laser, xHand);
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.2, 90, 0.6);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1); // its smoke, as your other guns'
@@ -480,6 +474,7 @@ void(float xHand) VR_BurstRound =
 // let go; the burst ends with the clip, or with the gun leaving the hand.
 void(float xHand) VR_EnemyGuns_Frame =
 {
+    VR_ADGun_Frame(xHand); // AD support: a flamethrower's stream ending (vr_ad_enemyguns.qc)
     float left = VR_GetBurstLeft(xHand);
     if(left < 1)
     {
@@ -501,6 +496,7 @@ void(float xHand) VR_EnemyGuns_Frame =
 // W_AttackImpl for an enemy gun: a shot from its clip, or the empty click.
 void(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinished) VR_EnemyGun_Attack =
 {
+    if(VR_ADGun_Attack(xHand, xWeapon, xAttackFinished, xOutAttackFinished)) { return; } // AD support (vr_ad_enemyguns.qc)
     if(VRGetWeaponClip(xHand) < 1)
     {
         if(time > xAttackFinished)

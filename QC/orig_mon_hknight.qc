@@ -70,12 +70,13 @@ void(float offset) hknight_shot =
 // set missile speed
     vec = normalize(v_forward);
     vec_z = 0 - vec_z + (random() - 0.5)*0.1;
+    vec = VR_AimCone_Bend(vec, VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     newmis = launch_spike (org, vec);
     newmis.classname = "knightspike";
     setmodel(newmis, "progs/k_spike.mdl");
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
-    newmis.velocity = vec * MG3_HknightSpikeSpeed(); // QVR: 300; Dawn of the Machine's Bloody Nightmare 500
+    newmis.velocity = vec * AD_MonsterSpeed(MG3_HknightSpikeSpeed(), AD_PROJ_HKNIGHT); // QVR: 300; Dawn of the Machine's Bloody Nightmare 500; AD support: AD's for the skill (vr_ad_bridge.qc)
     sound(self, CHAN_WEAPON, "hknight/attack1.wav", 1, ATTN_NORM);
 };
 
@@ -167,7 +168,7 @@ void()    hknight_run8    =[    $run8,        hknight_run1    ] {ai_run(13);};
 
 void()    hknight_pain1    =[    $pain1,        hknight_pain2    ]
     {
-        if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+        if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
             sound(self, CHAN_VOICE, VR_StatueFile("statue/pain.wav", "hknight/pain1.wav"), 1, ATTN_NORM);
         else
             sound(self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
@@ -207,7 +208,7 @@ void()    hknight_dieb9    =[    $deathb9,    hknight_dieb9    ] {monster_check_
 void() hknight_die =
 {
     // VR: its sword falls from its hand (its death frames are drawn without it), gibbed or not.
-    if(!(!MG_WorldCampaign() && (self.spawnflags & 2)))
+    if(!(!VR_OtherFlags() && (self.spawnflags & 2)))
     {
         VR_DropKnightSword(TRUE);
     }
@@ -218,7 +219,7 @@ void() hknight_die =
         sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead("progs/h_hellkn.mdl", self.health);
 
-        if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+        if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
         {
             ThrowGib(VR_StatueFile("progs/statgib1.mdl", "progs/vr_rock1.mdl"), self.health);
             ThrowGib(VR_StatueFile("progs/statgib2.mdl", "progs/vr_rock2.mdl"), self.health);
@@ -235,7 +236,7 @@ void() hknight_die =
     }
 
     // regular death
-    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+    if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
         sound(self, CHAN_VOICE, VR_StatueFile("statue/death.wav", "hknight/death1.wav"), 1, ATTN_NORM);
     else
         sound(self, CHAN_VOICE, "hknight/death1.wav", 1, ATTN_NORM);
@@ -287,7 +288,9 @@ void()    hknight_magicc2 =[    $magicc2,    hknight_magicc3    ] {ai_face();};
 void()    hknight_magicc3 =[    $magicc3,    hknight_magicc4    ] {ai_face();};
 void()    hknight_magicc4 =[    $magicc4,    hknight_magicc5    ] {ai_face();};
 void()    hknight_magicc5 =[    $magicc5,    hknight_magicc6    ] {ai_face();};
-void()    hknight_magicc6 =[    $magicc6,    hknight_magicc7    ] {hknight_shot(-2);};
+void()    hknight_magicc6 =[    $magicc6,    hknight_magicc7    ] {
+    if(VR_AimCone_Wait(hknight_magicc6, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+hknight_shot(-2);};
 void()    hknight_magicc7 =[    $magicc7,    hknight_magicc8    ] {hknight_shot(-1);};
 void()    hknight_magicc8 =[    $magicc8,    hknight_magicc9    ] {hknight_shot(0);};
 void()    hknight_magicc9 =[    $magicc9,    hknight_magicc10] {hknight_shot(1);};
@@ -381,7 +384,7 @@ void() hk_idle_sound =
 {
     if(random() < 0.2)
     {
-        if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+        if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
             sound(self, CHAN_VOICE, VR_StatueFile("statue/idle.wav", "hknight/idle.wav"), 1, ATTN_IDLE);
         else
             sound(self, CHAN_VOICE, "hknight/idle.wav", 1, ATTN_NORM);
@@ -393,7 +396,7 @@ void(entity attacker, float damage) hknight_pain =
     if(self.pain_finished > time)
         return;
 
-    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+    if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
         sound(self, CHAN_VOICE, VR_StatueFile("statue/pain.wav", "hknight/pain1.wav"), 1, ATTN_NORM);
     else
         sound(self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
@@ -479,7 +482,7 @@ void() monster_hell_knight =
     precache_model2("progs/k_spike.mdl");
     precache_model2("progs/h_hellkn.mdl");
 
-    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+    if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
     {
         precache_model(VR_StatueFile("progs/statgib1.mdl", "progs/vr_rock1.mdl"));
         precache_model(VR_StatueFile("progs/statgib2.mdl", "progs/vr_rock2.mdl"));
@@ -507,7 +510,7 @@ void() monster_hell_knight =
     precache_sound("knight/sword2.wav");
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -516,7 +519,7 @@ void() monster_hell_knight =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = hell_knight_start;
         return;
@@ -528,7 +531,7 @@ void() monster_hell_knight =
     setmodel(self, "progs/hknight.mdl");
     setsize(self, '-12 -12 -24', '12 12 36');
 
-    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
+    if(!VR_OtherFlags() && (self.spawnflags & 2)) // statue
     {
         if(self.frame == 0)
             self.frame = 73;

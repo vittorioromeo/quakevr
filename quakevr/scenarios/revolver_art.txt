@@ -1,0 +1,11 @@
+# revolver_art: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The heavy revolver's art
+# (Misc/quakevr/models_src/revolver/README.md) before it is a weapon: its preview model (six shells chambered) floats
+# ahead at a held weapon's size, the shotgun lies on the floor just beyond it for scale. revolver_art_open shows it with
+# the cylinder swung out, revolver_art_cocked with the hammer back.
+title Heavy revolver art preview, next to the shotgun
+map vrtesthall
+god
+notarget
+spawn "Shotgun" 64 -14
+cmd alias revolver_art "vr_physics_spawn viewthing reach; viewmodel progs/vr_revolver_preview.mdl"; alias revolver_art_open "revolver_art; viewframe 1"; alias revolver_art_cocked "revolver_art; viewframe 2"; revolver_art
+hint The heavy revolver's art (not a weapon yet) floats ahead at the size it would be in your hand; the shotgun lies beyond it. Walk around it. Console: revolver_art_open (cylinder swung out), revolver_art_cocked (hammer back), revolver_art (rest). The Debug menu's Tools page shows it too.

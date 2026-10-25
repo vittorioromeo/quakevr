@@ -86,7 +86,7 @@ void() zombie_stand15    =[    $stand15,        zombie_stand1    ] {ai_stand();}
 // with an added check for enemies if they're sneaky types...
 void() zombie_lurk =
 {
-    if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_SNEAKY))
+    if(!VR_OtherFlags() && (self.spawnflags & SPAWN_SNEAKY))
     {
         // not pausing before attack, but looking for player.
         if(!self.pain_finished)
@@ -187,8 +187,10 @@ void() ZombieGrenadeTouch =
     }
     if(other.takedamage)
     {
+        VR_Proj_Begin(QVR_PROJ_BOLT, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         T_Damage(other, self, self.owner, 10);
         sound(self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
+        VR_Proj_End();
         remove(self);
         return;
     }
@@ -226,9 +228,10 @@ void(vector st) ZombieFireGrenade =
 
     if(!VR_AI_ShotReady(org)) { remove(missile); return; }
     missile.velocity = normalize(VR_AI_Origin(self.enemy) - org);
-    missile.velocity = missile.velocity * 600;
+    missile.velocity = missile.velocity * AD_MonsterSpeed(600, AD_PROJ_ZOMBIE); // AD support: AD's speed for the skill by the Projectile Rules (vr_ad_bridge.qc)
     missile.velocity_z = 200;
     VR_Lob_Aim(missile, org); // QVR: at the enemy's height (vr_ogre_aim_height)
+    missile.velocity = VR_AimCone_Bend(missile.velocity, VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     missile.avelocity = '3000 1000 2000';
 
@@ -256,7 +259,9 @@ void() zombie_atta9        =[    $atta9,        zombie_atta10    ] {ai_face();};
 void() zombie_atta10    =[    $atta10,    zombie_atta11    ] {ai_face();};
 void() zombie_atta11    =[    $atta11,    zombie_atta12    ] {ai_face();};
 void() zombie_atta12    =[    $atta12,    zombie_atta13    ] {ai_face();};
-void() zombie_atta13    =[    $atta13,    zombie_run1    ] {ai_face();ZombieFireGrenade('-10 -22 30');};
+void() zombie_atta13    =[    $atta13,    zombie_run1    ] {
+    if(VR_AimCone_Wait(zombie_atta13, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+ai_face();ZombieFireGrenade('-10 -22 30');};
 
 void() zombie_attb1        =[    $attb1,        zombie_attb2    ] {ai_face();};
 void() zombie_attb2        =[    $attb2,        zombie_attb3    ] {ai_face();};
@@ -271,7 +276,9 @@ void() zombie_attb10    =[    $attb10,    zombie_attb11    ] {ai_face();};
 void() zombie_attb11    =[    $attb11,    zombie_attb12    ] {ai_face();};
 void() zombie_attb12    =[    $attb12,    zombie_attb13    ] {ai_face();};
 void() zombie_attb13    =[    $attb13,    zombie_attb14    ] {ai_face();};
-void() zombie_attb14    =[    $attb13,    zombie_run1    ] {ai_face();ZombieFireGrenade('-10 -24 29');};
+void() zombie_attb14    =[    $attb13,    zombie_run1    ] {
+    if(VR_AimCone_Wait(zombie_attb14, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+ai_face();ZombieFireGrenade('-10 -24 29');};
 
 void() zombie_attc1        =[    $attc1,        zombie_attc2    ] {ai_face();};
 void() zombie_attc2        =[    $attc2,        zombie_attc3    ] {ai_face();};
@@ -284,7 +291,9 @@ void() zombie_attc8        =[    $attc8,        zombie_attc9    ] {ai_face();};
 void() zombie_attc9        =[    $attc9,        zombie_attc10    ] {ai_face();};
 void() zombie_attc10    =[    $attc10,    zombie_attc11    ] {ai_face();};
 void() zombie_attc11    =[    $attc11,    zombie_attc12    ] {ai_face();};
-void() zombie_attc12    =[    $attc12,    zombie_run1        ] {ai_face();ZombieFireGrenade('-12 -19 29');};
+void() zombie_attc12    =[    $attc12,    zombie_run1        ] {
+    if(VR_AimCone_Wait(zombie_attc12, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+ai_face();ZombieFireGrenade('-12 -19 29');};
 
 void() zombie_missile =
 {
@@ -399,6 +408,13 @@ void() zombie_paind12    =[    $paind12,    zombie_paind13    ] {};
 void() zombie_paind13    =[    $paind13,    zombie_run1    ] {};
 
 void() mg3_zombie_hang1 =[    $paine1,    mg3_zombie_hang1 ] {}; // (Dawn of the Machine's hanging zombie: vr_mg3_bn.qc)
+// QVR: lying after the stock fall (no ragdoll: zombie_fall), or waiting for room to get up: solid, a lying body's box
+// (a lying-spawned zombie's), so shots and blows reach it (stock: SOLID_NOT, a zombie out of reach until it rose).
+void() zombie_lie =
+{
+    setsize(self, '-16 -16 -24', '16 16 -16');
+    self.solid = SOLID_SLIDEBOX;
+};
 void() zombie_paine1    =[    $paine1,    zombie_paine2    ]
 {
     sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
@@ -415,7 +431,7 @@ void() zombie_paine9    =[    $paine9,    zombie_paine10    ] {ai_pain(2);};
 void() zombie_paine10    =[    $paine10,    zombie_paine11    ]
 {
     sound(self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
-    self.solid = SOLID_NOT;
+    zombie_lie(); // QVR: lying in reach of shots (stock: not solid, only an explosion's blast could reach it)
 
     // HONEY
     self.wad = ZOMBIE_ONGROUND;
@@ -437,7 +453,7 @@ void() zombie_paine12    =[    $paine12,    zombie_paine13    ]
     if(!walkmove(0, 0))
     {
         self.think = zombie_paine11;
-        self.solid = SOLID_NOT;
+        zombie_lie(); // QVR: (stock: not solid; it could lie there for good, untouchable)
         return;
     }
 
@@ -491,6 +507,20 @@ A hit of less than 10 points of damage (winged by a shotgun) will be ignored.
 FIXME: don't use pain_finished because of nightmare hack
 =================
 */
+// QVR: down (BACKLOG "Zombies stuck knocked down"): as a knockdown's active ragdoll (vr_knockdown.qc
+// VR_Knockdown_ZombieFall: hit, grabbed, beheaded and gibbed down there, up through its get-up, paine13 on); with no
+// ragdoll (ragdolls off, no room) the stock fall, lying solid, in reach of shots (zombie_paine10, _paine12).
+void(entity attacker) zombie_fall =
+{
+    self.inpain = 2;
+    if(VR_Knockdown_ZombieFall(self, attacker))
+    {
+        sound(self, CHAN_VOICE, "zombie/z_pain.wav", 1, ATTN_NORM);
+        return;
+    }
+    zombie_paine1();
+};
+
 void(entity attacker, float take) zombie_pain =
 {
     float r;
@@ -503,11 +533,15 @@ void(entity attacker, float take) zombie_pain =
     if(self.inpain == 2)
         return;            // down on ground, so don't reset any counters
 
+    // QVR: down already as a ragdoll, or getting up from one (a shove's, a hit's: vr_knockdown.qc): it stays so
+    // (T_DamageImpl keeps its frame and think).
+    if(self.vr_knockdown)
+        return;
+
 // go down immediately if a big enough hit
     if(take >= 25)
     {
-        self.inpain = 2;
-        zombie_paine1();
+        zombie_fall(attacker);
         return;
     }
 
@@ -521,8 +555,7 @@ void(entity attacker, float take) zombie_pain =
     if(self.pain_finished > time)
     {
 // hit again, so drop down
-        self.inpain = 2;
-        zombie_paine1();
+        zombie_fall(attacker);
         return;
     }
 
@@ -721,7 +754,7 @@ void() monster_zombie =
     monster_zombie_precache();
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
         self.cnt = -1;
     }
 
@@ -742,7 +775,7 @@ void() monster_zombie =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = zombie_start2;
         return;
@@ -765,7 +798,7 @@ void() monster_zombie =
         setsize(self, '-16 -16 -24', '16 16 40');
         mg3_zombie_hang1();
     }
-    else if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_LYING))
+    else if(!VR_OtherFlags() && (self.spawnflags & SPAWN_LYING))
     {
         self.solid = SOLID_NOT;
         self.th_stand = zombie_sleep;
@@ -776,12 +809,12 @@ void() monster_zombie =
         setsize(self, '-16 -16 -24', '16 16 -16');
 
         // HOLY HACK, BATMAN! - Don't blame me. Check out FindTarget in ai.qc!
-        if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_AMBUSH))
+        if(!VR_OtherFlags() && (self.spawnflags & SPAWN_AMBUSH))
             self.spawnflags = SPAWN_LYING;
 
         walkmonster_start();
     }
-    else if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_SNEAKY))
+    else if(!VR_OtherFlags() && (self.spawnflags & SPAWN_SNEAKY))
     {
         self.movetype = MOVETYPE_NONE;
         self.solid = SOLID_NOT;
@@ -805,13 +838,13 @@ void() monster_zombie =
     }
     else
     {
-        if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_AMBUSH))
+        if(!VR_OtherFlags() && (self.spawnflags & SPAWN_AMBUSH))
             self.spawnflags = SPAWN_LYING;
         walkmonster_start();
     }
 
    //HIPNOTIC
-   if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_LYINGDOWN))
+   if(!VR_OtherFlags() && (self.spawnflags & SPAWN_LYINGDOWN))
       {
       self.th_stand = zombie_lay;
       }

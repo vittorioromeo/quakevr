@@ -65,51 +65,51 @@
   "part": "mdl skins after 0"
  },
  "quakevr/progs/gib_brain1.mdl": {
-  "sha256": "4d47ee40270b03fbec95d840d4018962c025b815c9a5e95779dd543c0186ca19",
+  "sha256": "6588cbcf5039abe535e3f667e6e51d92f855cf11b78ed554200c842747f5a56f",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain1.mdl_0.png": {
-  "sha256": "8ffc1eabd810cd6cd4fc3b0c6c745c48d409ea263f1adfd20952cd73d0158c15",
+  "sha256": "a4422b8ea734996ee78ba0c83d72ca80c8a384b8dd6d5d62ebc41fe5656eb6e3",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain1.mdl_0_norm.png": {
-  "sha256": "e7cee9c71285ab3e40ef43d6eb21ffd88401b569a1d1c8c7009a8242769f7670",
+  "sha256": "ebed195d3437da53d10d91b87b0537534f01f7b4bdae9b2472c5f16ba939451c",
   "by": "bake_normals.py"
  },
  "quakevr/progs/gib_brain1.mdl_1.png": {
-  "sha256": "edb0005d4ca67469ef61b42dec6bb7b0e2e2b2a3d81b57df037656eb8f1aacf6",
+  "sha256": "ff9e9abc480c6cda661c52ee98efb4c3157c20ad952344eac2062662072169da",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain2.mdl": {
-  "sha256": "058b7d8aa2e5db157388766b5782f6ef39e5091e7f9b7cffa2a6c42e120efce5",
+  "sha256": "9bc70b48f4961c79848c3edceb30e5c7eba42b30c130ad1a051de016a1768995",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain2.mdl_0.png": {
-  "sha256": "1ee30dbd1f203b8c2880224b56e992ec0a2318e54af7d53dd31b98c7ca3e81a1",
+  "sha256": "783848cb8692c872b0448cbd00e1eeb00006329487a9bb10c8b95e7766281b9d",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain2.mdl_0_norm.png": {
-  "sha256": "6bc42d0ed42483a870a093c335d8930b9153b86e4784c5c98dcc5d673766a83f",
+  "sha256": "dd61cdf2e13399dd15c88a0da6e4766cdce04dafe7553aa52ff12d7fe93e4ee9",
   "by": "bake_normals.py"
  },
  "quakevr/progs/gib_brain2.mdl_1.png": {
-  "sha256": "a811c2c7de20f3d92f4ca9c9493c307183f2c4bf289d59717b4ac7b402c1b258",
+  "sha256": "6bd45339c77c2cf4d41ca60a3ce428172b6d64c5e32cd944bba088b72b5694c0",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain3.mdl": {
-  "sha256": "434daea5a487fa5bcfc9830135aec797cda57a96650921dfe3d00f3a3bea1afd",
+  "sha256": "c31ac555e91a6dfb1b85cef5db2308a27bc35c7ccabfa19eb921888f1648aee4",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain3.mdl_0.png": {
-  "sha256": "d2292138f5aa12a7aa01b458d43c869c6445003b103a088ec88b708f7b8fe5a5",
+  "sha256": "7960847724a822147f0f30498060a59457a1ae9b013679df86632a2ee33a8a7f",
   "by": "make_brains.py"
  },
  "quakevr/progs/gib_brain3.mdl_0_norm.png": {
-  "sha256": "5acdd2bc7a9b803a25ec9e4790b02812b18ffd977fd8ec514b0dc5e34fd9cfd7",
+  "sha256": "b03baa24a967dcdb747068bb89d5c00c593df22a1fe82a037d72ec0d91409185",
   "by": "bake_normals.py"
  },
  "quakevr/progs/gib_brain3.mdl_1.png": {
-  "sha256": "7df907c74fd70ea848ef53b0912ec6f060d6440bc245d76cdd4c7682d857f845",
+  "sha256": "3aa9044c56e58758d89f9782eee167d0efbf2a1a54f84030ae2354a52d5c27a4",
   "by": "make_brains.py"
  },
  "quakevr/progs/grenade.mdl": {
@@ -137,6 +137,14 @@
  "quakevr/progs/hand_rig_00_00.lmp": {
   "sha256": "9a75a25c252d2f060e7bb35e3831dda4d03d95f2ee294efe4b1a000090fe6dfa",
   "by": "make_hand_rig.py"
+ },
+ "quakevr/progs/hand_rig_00_00_glove.png": {
+  "sha256": "1498f3c537a8a0c0f118aaffbc9f6f18c29b20df26f7bbbb0a06fc02aa93a617",
+  "by": "make_glove_paint.py"
+ },
+ "quakevr/progs/hand_rig_00_00_glove_height.png": {
+  "sha256": "91b10106ec8f1f26712c918524cacc5480066afb3777712174e6283c2284f36f",
+  "by": "make_glove_paint.py"
  },
  "quakevr/progs/hand_rig_00_00_norm.png": {
   "sha256": "acb9f9db7b1e4ab98623068b351cf3a4dd5f12315fd125356e0777efc6aadfbb",
@@ -171,6 +179,10 @@
   "sha256": "2c2355e9e9c66df95b326c720b61e1ca277b194afe73c78ae7f2bcb4271a2333",
   "by": "make_grenade_skins.py",
   "part": "mdl skins after 0"
+ },
+ "quakevr/progs/shalrath.mdl": {
+  "sha256": "36208a88477808ad141baff36bc6b7854c9c42bf3766e0616afe861aca92e207",
+  "by": "make_voreshove.py"
  },
  "quakevr/progs/soldier.mdl": {
   "sha256": "36cc9c8ba2b919d993f1a1206772075b457dda42933895be701cee2e0e6ce92a",
@@ -576,6 +588,10 @@
   "sha256": "b78db8ea8eb2952d571ffb70db4cc12d44fceffb574c1528031a59a54d032ac6",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/vr_mag_npistol.mdl": {
+  "sha256": "396614e17a30bbe557d623ccc988cf1c4d58537869b9d5e09d797a58422cf30c",
+  "by": "make_nailpistol_mags.py"
+ },
  "quakevr/progs/vr_mag_on_v_lava.mdl": {
   "sha256": "c781342fe2ae06050dd3a4ef7e6605d8ba67bccbed87178abeee7f260e9bca84",
   "by": "make_mags.py"
@@ -615,6 +631,10 @@
  "quakevr/progs/vr_mag_on_v_nail2.mdl_0_norm.png": {
   "sha256": "8cff29af6383ac242bfe16de3a74338f9de3214f154b5305f06c6bf5887106f3",
   "by": "bake_normals.py"
+ },
+ "quakevr/progs/vr_mag_on_v_nailpistol.mdl": {
+  "sha256": "0fbf69c60c3bef9892e436d7bc5a4b6c1a32067c5daaf3153a52e39837ab6501",
+  "by": "make_nailpistol_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_plasma.mdl": {
   "sha256": "c0d2f61859bb70dae838f7c7da18ca1937b295b53984fac4e4f76b88a757655f",
@@ -1004,12 +1024,16 @@
   "sha256": "0914be4ec715d4ec06e08a0901864c3caffcc9db48101ed4216b898772514a9d",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/vr_tooth.mdl": {
+  "sha256": "0349beeea9771d2f41715ea5b764787dbc98c4c5cf537b5b441d346754413809",
+  "by": "make_teeth.py"
+ },
  "quakevr/progs/vrbody.md5anim": {
   "sha256": "19dd491a8500c297e93ee278c3c1e9a6c3d7948a585ef87747c5349a1e0858db",
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody.md5mesh": {
-  "sha256": "860718f2447e31b865c4c5328f1d08f9bef866b41ec39cf6ea930dabac1c851a",
+  "sha256": "789ed9eb3d16fd6369fb8df38bef71f3549a8a6bdb9414e0bd181a9570feda7d",
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody.mdl": {
@@ -1021,7 +1045,7 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_00_00_norm.png": {
-  "sha256": "d2e23b8f6f4d80bdc018876e7bf0c547c56be479f38acf335b69ccac063159dd",
+  "sha256": "063d6997cfba4e00ede4a8612bb1177aa6eac82096dfdef70f3c2136deb4f93e",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrbody_01_00.tga": {
@@ -1041,7 +1065,7 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_04_00_norm.png": {
-  "sha256": "810f6b47803eff823b785bb6cbf32dfce56d266551440b1473ae793ade073967",
+  "sha256": "09f9785f5d2c3311b2c4cb44496d60e2785dae004e893c307fc2191e62dc2921",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrbody_05_00.tga": {
@@ -1088,15 +1112,39 @@
   "sha256": "da37c3ced4c70e72260526d0229f6b692fc3b48a5eddb6275aad4701f0186838",
   "by": "make_vrbody.py"
  },
+ "quakevr/progs/vrbody_bare.md5anim": {
+  "sha256": "af242dfd065a2c637c578808ce94a37fb873545dea68258ee06bef2052e87c67",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_bare.md5mesh": {
+  "sha256": "2e25e4b0c65945d8e8e094400d4a0ce4ec62f838a43bc0db12f8506c0e97f63f",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_bare.mdl": {
+  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
+  "by": "make_vrbody.py"
+ },
  "quakevr/progs/vrbody_brawny.md5anim": {
   "sha256": "febebb4eb52067b3f857d4a038738f76491223d23ace1f5ebf87264e912afbc1",
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_brawny.md5mesh": {
-  "sha256": "ceed2878e4e74d9c3f7a1684de8f78c84dc9f4cb35adc99b704718ae1d8b7cda",
+  "sha256": "8db8c6e3977c46afabb4ffb151ea3816e668d6590b851fcebdf66cfe9b1d05d8",
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_brawny.mdl": {
+  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_brawny_bare.md5anim": {
+  "sha256": "155d1b19cb3395361351e452b9e8f278aeaec5adafa45a6315d0a7262401e58d",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_brawny_bare.md5mesh": {
+  "sha256": "f1ac2207a2a1ab65183e216e0d192a86793625f3ac969dbc3a670a0fd0dddea5",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_brawny_bare.mdl": {
   "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
   "by": "make_vrbody.py"
  },
@@ -1105,10 +1153,22 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_lean.md5mesh": {
-  "sha256": "4e2b12319503fbf73c19fd3947eea5d0c5c5190e9a918bcbed3ce05766ca1a9f",
+  "sha256": "98f208e4c1a8df005eb305e64e5a83f7250d1f189d5dfca7c0fa145dfa0675b1",
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrbody_lean.mdl": {
+  "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_lean_bare.md5anim": {
+  "sha256": "781180f56adf54096edbffd0e6fb6bf4674772cb960f6a4c80dda25b66600f4b",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_lean_bare.md5mesh": {
+  "sha256": "9ce9046ee452090c79105faf53026790a7d3721e5819c7193ea9851280832b4c",
+  "by": "make_vrbody.py"
+ },
+ "quakevr/progs/vrbody_lean_bare.mdl": {
   "sha256": "d8938abe0fdf324d7dd03e04ba16c29b3e7150bb9f14606bcd653ca36f5aacc6",
   "by": "make_vrbody.py"
  },
@@ -1165,7 +1225,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrpouch_ammo.mdl": {
-  "sha256": "59877132173c92c9c9df35ebf51277472828feabfd8f5c1ae9cd5c9c675686b0",
+  "sha256": "5fdef4f1747fc616e0ec138538b5f366f41269ed98a56611504ca788632d299d",
   "by": "make_ammo_pouch.py"
  },
  "quakevr/progs/vrpouch_ammo.mdl_0_norm.png": {
@@ -1208,20 +1268,116 @@
   "sha256": "7af8661ab78c6480d42ab78129ca7dc1749807cd9847b85e705b0e1a19e2f1f3",
   "by": "make_gadget_sounds.py"
  },
+ "quakevr/sound/vr/gore/choke1.wav": {
+  "sha256": "a06fc0759a43ac40841e8c216ee5724499034dbafd8eaf3a6d0c8815b812371f",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/choke2.wav": {
+  "sha256": "5f595de3e0eac34b292fa0894115189f0adc53616528f312f20e229f33997d64",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/drip1.wav": {
+  "sha256": "aea34a25d833e954ca8572a89eabaff9f202b6d49f83410f787cac1b92b128b7",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/drip2.wav": {
+  "sha256": "a393bf3e29ebaf2cb3969b1d09cfdf7fa9f84268cef6237ce5015b786a6bfc89",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/drip3.wav": {
+  "sha256": "10b4ac1f124d831c4177b63ef0106334ed43f23fab6592582932e26d416df609",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/pour1.wav": {
+  "sha256": "b051bda6bff470a42973363f7740b2fe65fca91a30f538361688ce0160444f3f",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/pour2.wav": {
+  "sha256": "249926820371870726b04fccb6f23015a2d30c1f375baf33948b37eb90bfaa90",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/slap1.wav": {
+  "sha256": "c86a4b3b8144797d12415fe869d75c6037ad4ea9fafb4aadd6708a25cf5a7ff1",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/slap2.wav": {
+  "sha256": "2eeacfa6b6e2b63e7334a11952c93b44107a00b22c205efeae318ecee75e06a0",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/slap3.wav": {
+  "sha256": "0da1a5de862d1136df440c945170f0bf8063e9e0e7bee44ca57b299072271926",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/splash1.wav": {
+  "sha256": "8d0b83f419b69a9e42c5f1f4844ad4ca0e751516001664575bb6a96893f687ac",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/splash2.wav": {
+  "sha256": "f66f2c14b68df41cab279c278be4bfbb6a1e5f1c0936c7d8ae7a66a42f9bce8b",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/splash3.wav": {
+  "sha256": "a435e132e0c1646e5e9651cd93b10d25f6091bbb8e0c9dcf68c5e7c832076ce8",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/spurt1.wav": {
+  "sha256": "455117d879d2b87e91bb1d4fbe99c395ab57c772b14e1fcd88b20c7ae53e2b43",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/spurt2.wav": {
+  "sha256": "52190abfa9df7eec2b2ce594c73ff3f129259222680729cfd34c19d6e95b559d",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/spurt3.wav": {
+  "sha256": "6396b263e28c2e4893f5fc955b6889c301a1e39c2392181b149d2c69ce216a78",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/squelch1.wav": {
+  "sha256": "317598682f8fd0adddf36f347e511902e783447f857063648bc3c2f2052b6376",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/squelch2.wav": {
+  "sha256": "a02e51c76970e91ddcb6c1c056881e14b0befa04752171a730201f8ff368ed74",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/squelch3.wav": {
+  "sha256": "e5b1a03b023c574e81280d2db45a431c544da00085e82c455f74aab286a5363f",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/step1.wav": {
+  "sha256": "2117f53e4ddd28399e915af3241ee7b8c11de1538cbf87730e40582ab0f11967",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/step2.wav": {
+  "sha256": "b836a01b9dba5d1c80a17ff487bdec3128a0e8dc8188516c16e0e1f85b0044a0",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/step3.wav": {
+  "sha256": "32b8f4311c243e654100632140a4e52964dd50772e237b00e0f4254f0838601c",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/tear1.wav": {
+  "sha256": "d44ed310fb67795401595164f6ec2621bfe8fa201b631c460f25cdf202c67e26",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/gore/tear2.wav": {
+  "sha256": "623adfe884c0a624f6c5e8571301873e38336fa6d7ecb965630695b4cb1a1da4",
+  "by": "make_gore_sounds.py"
+ },
+ "quakevr/sound/vr/magholster_draw.wav": {
+  "sha256": "c8ec956e379fa7f381dba869d2072c820919bbc900efb14c52cbd7d849510e18",
+  "by": "make_magholster_sounds.py"
+ },
+ "quakevr/sound/vr/magholster_zip.wav": {
+  "sha256": "87e7e6db9d451e02ecd0c20f6d47ca4ce0f6a2bee450496b48c456305c6fe46e",
+  "by": "make_magholster_sounds.py"
+ },
  "quakevr/sound/vr/phys/flesh_h1.wav": {
   "sha256": "f7e51ffe13f63f3a8313647337df4853b93967a4cd611d7c01bcb95fc547ad41",
   "by": "make_physics_sounds.py"
  },
  "quakevr/sound/vr/phys/flesh_h2.wav": {
   "sha256": "ee2ce98a6b436119846f7b561dc291b86f5aeaac876b63442e20a687af6ea5d7",
-  "by": "make_physics_sounds.py"
- },
- "quakevr/sound/vr/phys/flesh_h3.wav": {
-  "sha256": "4600cddd7d2efad5c38425d9ba82449b24dff9e16d835babb4be201bee3e13b9",
-  "by": "make_physics_sounds.py"
- },
- "quakevr/sound/vr/phys/flesh_h4.wav": {
-  "sha256": "5bf4333bca3d09dd95738df9a6e376ec2bc5e93b2d6d30d52d288fb01c55724b",
   "by": "make_physics_sounds.py"
  },
  "quakevr/sound/vr/phys/flesh_m1.wav": {
@@ -1491,5 +1647,77 @@
  "quakevr/textures/vr/detail_wood.png": {
   "sha256": "256de31228fc61ec99437e58724613aa53853b8b6d3f8fb66f4e83f13b1a8fcb",
   "by": "make_detail.py"
+ },
+ "scratch/gore_out/choke1.wav": {
+  "sha256": "02821837226cbc148d55c939b11656f0312efd6837af77cbca766d8f0e22c982",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/choke2.wav": {
+  "sha256": "9cd72bdee29403d3a6f79e68c85f53281b10781c0ed3ea3e1b881e2006e91e96",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/pour1.wav": {
+  "sha256": "b051bda6bff470a42973363f7740b2fe65fca91a30f538361688ce0160444f3f",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/pour2.wav": {
+  "sha256": "249926820371870726b04fccb6f23015a2d30c1f375baf33948b37eb90bfaa90",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/slap1.wav": {
+  "sha256": "5dd3529cb619da97e5467b94925f01629dd9ae3b6bba92ea940e070a43728cdf",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/slap2.wav": {
+  "sha256": "ce310c429b47d8a35cd56c67481dc38a3329901543143d3da997c3cff38989c2",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/slap3.wav": {
+  "sha256": "284bd10a7734656de58cf3492ede7a5cde13abc160d0365d9580a60052a28535",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/spurt1.wav": {
+  "sha256": "feb15a660f8cc8958ccdc63d24738eb9bf9c5093b3b1523d86b71f8bddc6c91b",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/spurt2.wav": {
+  "sha256": "0b8b408259102870f526569329048ff14aadf1903b264899a3c8fc8889dbacf5",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/spurt3.wav": {
+  "sha256": "48cb6acbee9c8e8b1cf7987159675e49a1d6b814dfeaf9cac336620393de6ee3",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/squelch1.wav": {
+  "sha256": "ccbcd20b517936243a58693da55f0325894996213eed1104d5af04ac127fb708",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/squelch2.wav": {
+  "sha256": "a02e51c76970e91ddcb6c1c056881e14b0befa04752171a730201f8ff368ed74",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/squelch3.wav": {
+  "sha256": "e51de88386cc6de0ee04dd2d2883476508e81a01677525a861a85034a36b4eaa",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/step1.wav": {
+  "sha256": "25949647f38c37d66cae6e1fe288f40d7797b95397409d4019ea56e69f5f3bb2",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/step2.wav": {
+  "sha256": "7e1ba03abdbf5b4a1dd697963ee377c94ac16a23106e55cd68f90b7958c6b1c9",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/step3.wav": {
+  "sha256": "969f2cb8535583dc34a9f9ec8c4294fcf96a22280dcb9a7bda759bb6e9cba090",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/tear1.wav": {
+  "sha256": "6da096df3b250a0d3efa73910bbbc8db4dbd980f36551434a9052f2b0ac3d796",
+  "by": "make_gore_sounds.py"
+ },
+ "scratch/gore_out/tear2.wav": {
+  "sha256": "997dd75d454ed6a710cd1c65dc691d8085e9a3d0f939d4608ae043745f3633c4",
+  "by": "make_gore_sounds.py"
  }
 }

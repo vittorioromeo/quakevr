@@ -109,7 +109,9 @@ check $L "manual 1: VDXR whatever runs" "CASE manual1" "choice: Virtual Desktop 
 check $L "manual 2: SteamVR" "CASE manual2" "choice: SteamVR: SteamVR - chosen in the menu"
 check $L "manual 3: the manifest" "CASE manual3" "choice: Manifest: other_openxr.json - chosen in the menu"
 check $L "manual 1, VDXR not installed: the system's" "CASE manual1missing" "choice: Virtual Desktop \(VDXR\): Meta \(Oculus\) - Virtual Desktop \(VDXR\) not found"
-check $L "migration: 0 -> Auto" "MIGRATED0" "\"vr_xr_runtime\" is \"4\""
+# (A version-107 config is pre-1.0.0: since 2026-10-16 resetOldConfig resets it, but the runtime is a personal setting
+# and is kept as it was, 0 too.)
+check $L "migration: pre-1.0.0 0 kept (personal)" "MIGRATED0" "\"vr_xr_runtime\" is \"0\""
 check $L "migration: 1 kept" "MIGRATED1" "\"vr_xr_runtime\" is \"1\""
 
 # 2. The fallback for real, through the loader: the fake runtimes, VD's and Meta's without a headset (xrGetSystem fails),
@@ -399,7 +401,7 @@ unset FAKEXR_HEADSET FAKEXR_REJECT_PATH
 # vr_startgame's check (vr_bindings_check here) sets vr_bindings.cfg again.
 bash "$KIT/run.sh" "$NAME" -Script "bind LTRIGGER +jump;unbind LSHOULDER;unbind RSHOULDER;vr_bindings_check;wait5;bind LSHOULDER;bind RSHOULDER;bind LTRIGGER;toggleconsole;quit" \
     -Filter "grab on any controller key|LSHOULDER|RSHOULDER|LTRIGGER" > "$OUT/guard.log"
-check "$OUT/guard.log" "gamepad bindings: the VR ones set again" "no grab on any controller key \(LTRIGGER \"\+jump\"" \
+check "$OUT/guard.log" "gamepad bindings: the VR ones set again" "no grab on (any controller key|either controller's keys) \(LTRIGGER \"\+jump\"" \
     "\"LSHOULDER\" = \"\+graboff\"" "\"RSHOULDER\" = \"\+grabmain\"" "\"LTRIGGER\" = \"\+offhandattack\""
 # 10. The runtime ending the session (FAKEXR_END at xrWaitFrame 150, ROUND22.md "Exit from the runtime's menu"): exit (the
 # player quit the game from SteamVR's dashboard: STOPPING, then EXITING after xrEndSession): the game quits at once

@@ -33,6 +33,7 @@ void(float offsetAngle) MiniGrenadeLaunch =
 
     missile = spawn();
     missile.owner = self.owner;
+    VR_DamageCredit_Inherit(missile, self); // (a bomblet's credit: its multi grenade's)
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
     missile.classname = "MiniGrenade";
@@ -86,6 +87,7 @@ void() MultiGrenadeTouch =
     {
         if(self.classname == "MiniGrenade")
         {
+            VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
             MiniGrenadeExplode();
         }
         else
@@ -170,7 +172,7 @@ void(float xHand) W_FireMultiGrenade =
     setmodel(missile, "progs/mervup.mdl");
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
-    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_GrenShot_Make(missile); // QVR: a shot sets it off (vr_grenade_shoot; vr_grenade.qc)
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
@@ -232,6 +234,7 @@ void() MultiRocketTouch =
         return;
     }
 
+    VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
     MultiRocketExplode();
 };
 
@@ -316,7 +319,7 @@ void(float xHand, float offset, float frameNum) MultiRocketLaunch =
 
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
-    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
 
     if(coop || deathmatch)
     {
@@ -392,8 +395,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
 
     e1 = e2 = world;
 
-    // HONEY
-    self.damage_weapon = IT_LIGHTNING;
+    // (The discharge's credit is `from`'s, the bolt's: its plasma gun's, VR_ShotLaunched; vr_dmgcredit.qc.)
 
     traceline(p1, p2, MOVE_HITMODEL, self); // VR: monsters' models (vr_hit_precise)
     if(trace_ent.takedamage)
@@ -487,6 +489,7 @@ void() PlasmaTouch =
     damg = (80 + random()*20) * plasmaScale;
 
     sound(self, CHAN_WEAPON, "plasma/explode.wav", 1, ATTN_NORM);
+    VR_Proj_Begin(QVR_PROJ_BLAST, damg); // VR: every projectile's hit (weapons.qc: its blast pops and pushes)
 
     if(other.health)
     {
@@ -495,6 +498,7 @@ void() PlasmaTouch =
         T_Damage(other, self, self.owner, damg);
     }
 
+    VR_Proj_End();
     // don't do radius damage to the other, because all the damage
     // was done in the impact
     T_RadiusDamage(self, self.owner, 70 * plasmaScale, other);
@@ -584,6 +588,7 @@ void(float xHand) W_FirePlasma =
         self.ammo_plasma = 0;
 
         discharged = 1;
+        VR_DamageCredit_FromHand(self, self, xHand); // (the discharge's inflictor: the player)
         T_RadiusDamage(self, self, 35*cells, world);
         discharged = 0;
 
@@ -601,5 +606,5 @@ void(float xHand) W_FirePlasma =
 
     makevectors(VRGetWeaponFireRot(xHand));
     dir = v_forward;
-    VR_ShotPlace(launch_plasma(VRGetMuzzlePos(xHand), dir), xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(launch_plasma(VRGetMuzzlePos(xHand), dir), xHand); // behind what the muzzle is inside (VR_ShotPlace)
 };

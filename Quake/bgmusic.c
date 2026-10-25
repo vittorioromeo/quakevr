@@ -507,6 +507,7 @@ static void BGM_UpdateStream (void)
 
 void BGM_Update (void)
 {
+	S_MixJoin (); // QVR: the pool's mix (S_MixKick) done first
 	if (old_volume != bgmvolume.value)
 	{
 		if (bgmvolume.value < 0)

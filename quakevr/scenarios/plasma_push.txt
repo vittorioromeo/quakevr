@@ -1,0 +1,10 @@
+# plasma_push: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title The AD Plasma Gun, crates and corpses to blast
+map vrtesthall
+god
+give "AD Plasma Gun" main
+spawn "Wooden Crate" 300 0
+spawn "Wooden Crate" 300 60
+spawn "Grunt Corpse" 320 160
+spawn "Ogre Corpse" 360 -60
+spawn "Barrel" 280 240

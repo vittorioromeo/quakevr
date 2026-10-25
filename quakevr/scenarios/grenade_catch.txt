@@ -1,0 +1,7 @@
+# grenade_catch: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Two awake ogres down the hall lobbing grenades at you, hands empty
+map vrtesthall
+god
+spawn "Ogre" 480 -60
+spawn "Ogre" 520 80
+hint Catch an ogre's grenade in the air with an open hand and throw it back before it blows

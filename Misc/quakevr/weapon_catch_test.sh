@@ -6,7 +6,7 @@
 # vr_debug_carry 2 printing the server's fist gap, developer 1 the take (vr_box3d_hand_props 0: the hand doesn't push it):
 #   1. in the air (sv_gravity 0, so it floats; not resting on anything): not taken while the fist is off it (no slack),
 #      taken once the fist touches it (gap <= 0).
-#   2. the same with vr_weapon_grab_box 1 (the old catch): taken from 12 cm over it (by the boxes, the fist far off).
+#   2. (retired 2026-10-16 with vr_weapon_grab_box: the old box catch, taken from 12 cm over it, is gone.)
 #   3. lying on the floor (vrfiringrange): taken with the fist within vr_weapon_grab_slack (set to 5 cm here: the shipped
 #      0 since 2026-10-08, the author's, leaves only the handle's leniency) of it
 #      (vr_weapon_grab_handle_leniency 0: the crowbar is gripped at its middle, its handle).
@@ -17,22 +17,25 @@
 # lowered onto its middle often passed beside the bar, the fist never touching it (1.2-12 cm at its closest; check 1
 # failed in most runs). Seed 1 lays it as before (taken at -0.05 cm); seeds 2, 3, 4 and 6 do not.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}; SEED=${SEED:-1}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 fail=0
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 run() { # <setup> <heights>: the server's gap (cm) at each take ("taken <gap> <allowed>"), and "first <gap>" the gap seen first
     local S="vr_fixed_frames 1;sv_random_seed $SEED;$1;developer 1;vr_debug_carry 2;vr_box3d_hand_props 0"
     for h in $2; do S="$S;vr_mock_hand_to main weapon 0.5 $h;wait6;+grabmain;vr_mock_button main grip 1;wait3;-grabmain;vr_mock_button main grip 0;wait15"; done
-    bash $KIT/run.sh $AGENT -Script "$S;toggleconsole;quit" -Filter "weapon: Crowbar taken|grab: main hand, thrown|rror" 2>&1 |
+    tb_run_sh -Script "$S;toggleconsole;quit" -Filter "weapon: Crowbar taken|grab: main hand, thrown|rror" 2>&1 |
         awk '/the fist/{match($0, /, -?[0-9.]+ cm/); g=substr($0, RSTART+2, RLENGTH-5); match($0, /allowed [0-9.]+/); a=substr($0, RSTART+8, RLENGTH-8); if(!f){print "first " g; f=1}}
              /taken into/{print "taken " g " " a; exit} /rror/{print "error"}'
 }
 AIR="map e1m1;wait60;sv_gravity 0;impulse 217;wait30"
-log=$(run "$AIR" "12 9 6 4 2 1 0 -1 -2 -3")
+# (vr_weapon_catch_handle_leniency 0: since the mid-air catches (0660bdf2f) a weapon in the air is taken at its handle
+# with that much more, 6 cm; the hand here is lowered onto the crowbar's middle, within vr_weapon_grab_anywhere_min of
+# its handle, and was taken 5.5 cm off it (allowed 6). Off, the check is the fist's own again.)
+log=$(run "vr_weapon_catch_handle_leniency 0;$AIR" "12 9 6 4 2 1 0 -1 -2 -3")
 t=$(echo "$log" | grep "^taken")
 check $(echo "$t" | awk '{print ($2 <= 0 && $3 == 0) ? 1 : 0}') "in the air: taken only with the fist on it, no slack ($t)"
-log=$(run "vr_weapon_grab_box 1;$AIR" "12")
-t=$(echo "$log" | grep "^taken")
-check $([ -n "$t" ] && echo 1 || echo 0) "in the air, vr_weapon_grab_box 1: the old catch takes it from 12 cm over it ($t)"
 FLOOR="vr_weapon_grab_slack 5;vr_weapon_grab_handle_leniency 0;map vrfiringrange;wait60;setpos 221.2 -656.7 41 0 0 0;wait10;impulse 217;wait90;setpos 250 -656.7 41 0 0 0;wait10"
 log=$(run "$FLOOR" "12 9 6 4 2 0 -1 -2")
 t=$(echo "$log" | grep "^taken")
@@ -46,7 +49,7 @@ check $(echo "$log" | grep -q "error" && echo 0 || echo 1) "no error"
 handle() { # <setup> <heights in units over the handle>: "taken <gap> <allowed>", "allowed <first allowed>"
     local S="vr_weapon_grab_slack 5;sv_random_seed $SEED;map e1m1;wait60;developer 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 154;wait3;vr_test_weaponinst 7;impulse 120;wait3;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10;vr_reload_test 20;impulse 125;wait120;vr_mock_hand off -0.15 1.0 -0.40 0 0 0;wait10;vr_mock_walk_to nearest thrown_weapon 30;wait200;vr_mock_walk_to off;wait10;$1;vr_debug_carry 2"
     for h in $2; do S="$S;vr_mock_hand_to off nearest thrown_weapon $h;wait6;+graboff;vr_mock_button off grip 1;wait3;-graboff;vr_mock_button off grip 0;wait15"; done
-    bash $KIT/run.sh $AGENT -Script "$S;toggleconsole;quit" -Filter "Shotgun taken into|grab: off hand, thrown|rror" 2>&1 |
+    tb_run_sh -Script "$S;toggleconsole;quit" -Filter "Shotgun taken into|grab: off hand, thrown|rror" 2>&1 |
         awk '/the fist/{match($0, /, -?[0-9.]+ cm/); g=substr($0, RSTART+2, RLENGTH-5); match($0, /allowed [0-9.]+/); a=substr($0, RSTART+8, RLENGTH-8); if(!f){print "allowed " a; f=1}}
              /taken into/{print "taken " g " " a; exit} /rror/{print "error"}'
 }
@@ -64,3 +67,6 @@ check $(echo "$t" | awk '{print ($2 <= 10 && $3 == 10) ? 1 : 0}') "lying shotgun
 log=$(handle_retry "vr_weapon_grab_handle_leniency 0" "6 4" allowed "taken -")
 check $(echo "$log" | grep -q "^allowed 5.00" && ! echo "$log" | grep -q "^taken" && echo 1 || echo 0) "leniency 0: the slack's 5 cm alone at the handle, not taken from 10 cm over it ($(echo "$log" | paste -sd' '))"
 exit $fail
+}
+source "$(dirname "$0")/testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

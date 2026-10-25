@@ -1,12 +1,15 @@
 // vr_gore.cpp -- see vr_gore.hpp.
 
 #include "vr_gore.hpp"
+#include "vr_bloodstream.hpp"
+#include "vr_goresound.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
 #include "vr_engine.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 #include "vr_ring.hpp"
+#include "vr_water.hpp"
 #include "vr_wounds.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
@@ -99,6 +102,9 @@ struct Ray
     float dripChance;   // a mark on the ceiling drips
     float streakChance; // a mark on a wall runs down it
     bool big;           // a burst's (splotches head on)
+    float aspect = 1.f; // > 1: a back-splatter's thin streak (its length over its width), flying fast
+    glm::vec3 axis{0.f}; // (a back-splatter's) the shot's line
+    bool wet = false;    // let under water (vr_water_blood): slowed, short, its mark smaller and late
 };
 
 constexpr za::SizeT maxRays = 320;
@@ -181,9 +187,25 @@ bool fall(const glm::vec3& p, float dropSize, const glm::vec3& color, float mark
 {
     glm::vec3 where, normal;
     float f;
-    if(landings.size() >= maxLandings || inLiquid(p) || !decals::trace(p, p - glm::vec3{0.f, 0.f, 768.f}, where, normal, f))
+    if(inLiquid(p))
+    {
+        // Let in the liquid (you wading, bleeding): a cloud on its surface (vr_water_blood), no drop.
+        (void)water::addBlood(p, 0.12f * dropSize, 0.f);
+        return false;
+    }
+    if(landings.size() >= maxLandings || !decals::trace(p, p - glm::vec3{0.f, 0.f, 768.f}, where, normal, f))
     {
         return false;
+    }
+    if(inLiquid(where + normal * 2.f))
+    {
+        // Into a liquid on its way down: gone at its surface, a cloud there (no mark under it).
+        float surface = where.z;
+        if(water::addBlood(where + normal * 2.f, 0.15f * dropSize, 0.f, &surface) && surface > where.z && surface < p.z)
+        {
+            particles::bloodDrip(p, za::sqrt(2.f * (p.z - surface) / gravity()), surface, dropSize, color);
+        }
+        return true;
     }
     const float h = za::max(0.f, p.z - where.z);
     const float t = za::sqrt(2.f * h / gravity());
@@ -213,7 +235,7 @@ void drip(Source& s)
 // goes (to the floor), showing after `delay`, running down over a few seconds.
 void streak(const glm::vec3& where, const glm::vec3& n, float width, float delay)
 {
-    glm::vec3 down = glm::vec3{0.f, 0.f, -1.f} - n * n.z;
+    glm::vec3 down = glm::vec3{0.f, 0.f, -1.f} + n * n.z; // straight down projected into the wall's plane
     if(glm::length(down) < 0.5f || width < 2.f)
     {
         return;
@@ -263,22 +285,32 @@ void cast(const Ray& r)
     {
         return;
     }
-    // It shows as the blood would arrive; wider the further it flew.
-    const float delay = flight / 450.f;
-    const float size = r.size * (0.8f + 0.4f * f);
-    // Head on, a splat all round; glancing, a spray along the way it went.
-    const bool headOn = za::fabs(glm::dot(r.dir, n)) > 0.85f;
+    // It shows as the blood would arrive; wider the further it flew. (Under water: drifting there, slowly, less of it.)
+    const float delay = r.wet ? 1.f + flight / 40.f : flight / (r.aspect > 1.f ? 1400.f : 450.f);
+    const float size = r.size * (0.8f + 0.4f * f) * (r.wet ? 0.6f : 1.f);
+    // Head on, a splat all round; glancing, a spray along the way it went. A back-splatter's streak: a long thin spray
+    // along its line, longer the more glancing (head on, a short one).
+    const float cosine = za::fabs(glm::dot(r.dir, n));
+    const bool headOn = cosine > 0.85f;
     MarkOptions o;
     o.along = r.dir;
     o.delay = delay;
     o.darken = 0.2f;
-    const bool placed = decals::place(headOn || r.big ? Mark::Splotch : Mark::Splatter, where, n, size, o);
+    if(r.aspect > 1.f)
+    {
+        // Drawn out along its way on the surface, and away from the shot's own line (head on: streaks radiating from
+        // where the line meets the wall, as real back-spatter; glancing: long along the way it flew).
+        o.along = r.dir + (r.dir - r.axis) * 8.f;
+        o.aspect = r.aspect * za::clamp(1.3f - 0.5f * cosine, 0.8f, 1.3f);
+    }
+    const bool placed =
+        decals::place(r.aspect > 1.f ? Mark::Splatter : headOn || r.big ? Mark::Splotch : Mark::Splatter, where, n, size, o);
     if(developer.value >= 2)
     {
         Con_Printf("gore: blood %.0f units %s, a %.0f-unit mark on (%.1f %.1f %.1f)%s\n", flight, f < 1.f ? "on" : "then down",
             size, n.x, n.y, n.z, placed ? "" : ": none fits");
     }
-    if(!placed)
+    if(!placed || r.wet)
     {
         return;
     }
@@ -358,7 +390,7 @@ enum HitKind
 void hit(const glm::vec3& org, const glm::vec3& dir, int damage, int kind, int lvl)
 {
     const float mult = za::clamp(vr_gore_spray.value, 0.f, 4.f);
-    if(mult <= 0.f || damage <= 0)
+    if(damage <= 0)
     {
         return;
     }
@@ -374,14 +406,42 @@ void hit(const glm::vec3& org, const glm::vec3& dir, int damage, int kind, int l
         Con_Printf("gore: hit for %d (kind %d): %d lines of blood\n", damage, kind, count);
     }
     const float spread = kind == HitPellets ? 0.45f : kind == HitRadial ? 1.1f : kind == HitMelee ? 0.5f : 0.3f;
-    const float reach = za::min(96.f + damage * 1.5f, 200.f) * (lvl >= 2 ? 1.f : 0.8f);
+    // Under water (vr_water_blood; one test a hit): the blood stops short, its marks smaller and late (Ray::wet).
+    const bool wet = water::bloodInLiquid(org);
+    const float reach = za::min(96.f + damage * 1.5f, 200.f) * (lvl >= 2 ? 1.f : 0.8f) * (wet ? 0.3f : 1.f);
     const float size = za::clamp(28.f + damage * 1.2f, 28.f, 96.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
     for(int i = 0; i < count; i++)
     {
         // Behind the hit, spreading, falling a little.
         const glm::vec3 r = d + onSphere() * (spread * rnd(0.3f, 1.f)) + glm::vec3{0.f, 0.f, -0.25f};
-        queue({org, glm::normalize(r), reach * rnd(0.6f, 1.f), size * rnd(0.7f, 1.3f), lvl >= 2 ? 0.35f : 0.1f,
-            lvl >= 2 ? 0.5f : 0.15f, false});
+        Ray ray{org, glm::normalize(r), reach * rnd(0.6f, 1.f), size * rnd(0.7f, 1.3f), lvl >= 2 ? 0.35f : 0.1f,
+            lvl >= 2 ? 0.5f : 0.15f, false};
+        ray.wet = wet;
+        queue(ray);
+    }
+
+    // Back-splatter: thin long streaks thrown on along the shot's line onto what is behind, reaching as far and as many
+    // as the hit is hard (a shotgun's pellets close, a big hit across the room). (None under water.)
+    const float back = za::clamp(vr_gore_backsplatter.value, 0.f, 4.f);
+    if(back > 0.f && kind != HitRadial && kind != HitMelee && !wet)
+    {
+        const int streaks = za::min(16, stochastic(back * za::min(12.f, 2.f + damage / 6.f)));
+        const float distance = za::clamp(vr_gore_backsplatter_reach.value, 0.f, 4.f) *
+                          (kind == HitPellets ? za::clamp(60.f + damage * 1.5f, 60.f, 160.f) : za::clamp(80.f + damage * 4.f, 80.f, 480.f));
+        const float cone = kind == HitPellets ? 0.2f : 0.12f;
+        for(int i = 0; i < streaks; i++)
+        {
+            const glm::vec3 r = d + onSphere() * (cone * rnd(0.2f, 1.f)) + glm::vec3{0.f, 0.f, -0.04f};
+            const float width = rnd(3.5f, 7.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.75f) * za::clamp(0.8f + damage / 80.f, 0.8f, 1.5f);
+            Ray ray{org + d * 4.f, glm::normalize(r), distance * rnd(0.6f, 1.f), width, 0.f, lvl >= 2 ? 0.25f : 0.f, false};
+            ray.aspect = rnd(4.f, 8.f);
+            ray.axis = d;
+            queue(ray);
+        }
+        if(developer.value >= 2)
+        {
+            Con_Printf("gore: back-splatter %d streaks, reach %.0f\n", streaks, distance);
+        }
     }
 }
 
@@ -391,19 +451,22 @@ void burst(const glm::vec3& org, const glm::vec3& dir, float size, int lvl)
     const float mult = za::clamp(vr_gore_spray.value, 0.f, 4.f);
     const int count = stochastic((lvl >= 2 ? 14.f : 5.f) * scale * mult);
     const glm::vec3 d = glm::length(dir) > 0.1f ? glm::normalize(dir) : glm::vec3{0.f};
-    const float reach = lvl >= 2 ? 170.f : 120.f;
+    const bool wet = water::bloodInLiquid(org); // (under water: short, smaller and late; Ray::wet)
+    const float reach = (lvl >= 2 ? 170.f : 120.f) * (wet ? 0.3f : 1.f);
     // Where the blow drives it (a gib thrown at a wall: that wall), a big splat first, dripping
     // from a ceiling.
     if(glm::dot(d, d) > 0.f && mult > 0.f)
     {
-        queue({org, d, 64.f, rnd(56.f, 80.f) * za::sqrt(scale) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f), 1.f,
-            lvl >= 2 ? 1.f : 0.3f, true});
+        Ray ray{org, d, wet ? 32.f : 64.f, rnd(56.f, 80.f) * za::sqrt(scale) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f), 1.f,
+            lvl >= 2 ? 1.f : 0.3f, true};
+        ray.wet = wet;
+        queue(ray);
     }
     for(int i = 0; i < count; i++)
     {
         glm::vec3 r;
         float range = reach;
-        if(lvl >= 2 && i < count / 4)
+        if(lvl >= 2 && i < count / 4 && !wet)
         {
             r = glm::vec3{0.f, 0.f, 1.f} + onSphere() * 0.5f; // up, onto the ceiling
             range = 320.f;
@@ -418,7 +481,9 @@ void burst(const glm::vec3& org, const glm::vec3& dir, float size, int lvl)
             r.z *= 0.8f;
         }
         const float s = rnd(32.f, 56.f) * za::sqrt(scale) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
-        queue({org, glm::normalize(r), range * rnd(0.6f, 1.f), s, lvl >= 2 ? 1.f : 0.4f, lvl >= 2 ? 0.6f : 0.2f, (i % 3) == 0});
+        Ray ray{org, glm::normalize(r), range * rnd(0.6f, 1.f), s, lvl >= 2 ? 1.f : 0.4f, lvl >= 2 ? 0.6f : 0.2f, (i % 3) == 0};
+        ray.wet = wet;
+        queue(ray);
     }
 
     // A pool under it, spreading.
@@ -529,6 +594,16 @@ bool event(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
         const float at[3]{org.x, org.y, org.z};
         wounds::burst(at, static_cast<float>(count) / 10.f);
     }
+    // A gibbing or a corpse in a liquid, or just over one: a cloud on it (vr_water_blood; the hits' come with their
+    // blood particles, vr_particles.cpp).
+    if(preset == EventBurst)
+    {
+        (void)water::addBlood(org, za::clamp(static_cast<float>(count) / 10.f, 0.7f, 2.f) * 0.7f, 32.f);
+    }
+    else if(preset == EventCorpse)
+    {
+        (void)water::addBlood(org, 0.8f, 40.f);
+    }
     const int lvl = level();
     if(lvl <= 0 || !vr_decals.value || !cl.worldmodel)
     {
@@ -544,6 +619,11 @@ bool event(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
     return true;
 }
 
+void wallRun(const glm::vec3& where, const glm::vec3& normal, float width)
+{
+    streak(where, normal, width, 0.f);
+}
+
 bool gibImpact(const glm::vec3& where, const glm::vec3& normal, float strength, const glm::vec3& velocity)
 {
     const int lvl = level();
@@ -551,6 +631,7 @@ bool gibImpact(const glm::vec3& where, const glm::vec3& normal, float strength, 
     {
         return false;
     }
+    goresound::gibHit(where, normal, strength); // (a wall's or a ceiling's wet slap)
     const float size = za::clamp(24.f + strength * 0.05f, 24.f, 64.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
     MarkOptions o;
     o.along = velocity;
@@ -687,6 +768,10 @@ void frame()
                 decals::place(Mark::Drop, l.where, l.normal, l.size);
             }
             particles::bloodSpecks(l.where, l.normal, 3, l.color);
+            if(cl.time - l.time < 0.5)
+            {
+                goresound::drip(l.where, 1.f); // (not one long overdue: a time jump)
+            }
         }
         landings[i] = landings.back();
         landings.popBack();
@@ -718,7 +803,9 @@ void test_f()
     }
     else
     {
-        hit(org, dir, Cmd_Argc() > 1 ? za::max(1, atoi(Cmd_Argv(1))) : 40, HitShot, lvl);
+        // (vr_gore_test <damage> pellets: as a shotgun blast's; its back-splatter close.)
+        const bool pellets = Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "pellets");
+        hit(org, dir, Cmd_Argc() > 1 ? za::max(1, atoi(Cmd_Argv(1))) : 40, pellets ? HitPellets : HitShot, lvl);
     }
 }
 
@@ -731,6 +818,7 @@ void clear()
     playerTime = -1.0;
     playerOwed = 0.f;
     playerBurst = 0.f;
+    bloodstream::clear();
 }
 
 void count()
@@ -738,6 +826,7 @@ void count()
     Con_Printf("gore (vr_gore %d): %d lines of blood queued, %d dripping, %d drops falling, %d pools to come\n", level(),
         static_cast<int>(rays.size()), static_cast<int>(sources.size()), static_cast<int>(landings.size()),
         static_cast<int>(pending.size()));
+    bloodstream::count();
 }
 
 } // namespace qvr::gore

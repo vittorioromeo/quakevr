@@ -1,0 +1,9 @@
+# flames_bodies: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title The flamethrower; grunts, an ogre and a corpse to set alight
+map vrtesthall
+god
+give "AD Flamethrower" main
+spawn "Grunt" 260 0
+spawn "Grunt" 420 160
+spawn "Ogre" 500 -40
+spawn "Grunt Corpse" 180 120

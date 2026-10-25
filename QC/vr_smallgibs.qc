@@ -34,6 +34,7 @@
 .float vr_sgib_sawtime;   // (a monster or corpse) when the chainsaw last tore one out of it
 .float vr_sgib_sit;       // what tore it out (QVR_SGIB_SIT_*: the tests)
 .float vr_sgib_brain;     // a brain chunk (VR_SmallGib_Brains)
+.float vr_sgib_tooth;     // a tooth (vr_teeth.qc: VR_SmallGib_SpawnAs's xBrain 2)
 .float vr_sgib_mult;      // (a head cut off: VR_Decap_ThrowHead) the enemy it came from's small gib count multiplier,
 .float vr_sgib_brains_mult; // and its brain chunk multiplier: bursting the head later still counts them (VR_SmallGib_Mult)
 .float vr_sgib_multset;   // they are stored on it (a head is not the monster: its .th_die is gone)
@@ -112,6 +113,7 @@ void() VR_SmallGib_Precache =
     precache_model("progs/gib_brain1.mdl"); // brain chunks (make_brains.py)
     precache_model("progs/gib_brain2.mdl");
     precache_model("progs/gib_brain3.mdl");
+    precache_model("progs/vr_tooth.mdl"); // teeth (make_teeth.py, vr_teeth.qc)
 };
 
 string(float xSmall) VR_Gib_SquishSound =
@@ -295,6 +297,8 @@ float() VR_SmallGib_MakeRoom =
 // A small gib
 
 void() VR_SmallGib_Think;
+void() VR_Tooth_Touch;       // (vr_teeth.qc)
+float() VRMetersToUnits;     // (weapons.qc)
 
 // Quake's bounce (which passes through monsters) in its grace, a rigid body after it (VR_SmallGib_Rigid): landing in
 // it, not yet (Box3D would push it out of the body it came from).
@@ -350,7 +354,14 @@ entity(vector org, vector vel, entity from, float xBrain) VR_SmallGib_SpawnAs =
     float smin = max(0.05, cvar_hget(cvarh_vr_smallgibs_size_min));
     float smax = max(smin, cvar_hget(cvarh_vr_smallgibs_size_max));
     float s = VR_SmallGib_RockSize() * (smin + random() * (smax - smin));
-    if(xBrain)
+    if(xBrain == 2)
+    {
+        // A tooth (vr_teeth.qc): its own model, its size in cm.
+        setmodel(g, "progs/vr_tooth.mdl");
+        g.vr_sgib_tooth = TRUE;
+        s = max(0.2, cvar_hget(cvarh_vr_teeth_size)) * 0.01 * VRMetersToUnits();
+    }
+    else if(xBrain)
     {
         float k = floor(random() * 3);
         setmodel(g, k < 1 ? "progs/gib_brain1.mdl" : (k < 2 ? "progs/gib_brain2.mdl" : "progs/gib_brain3.mdl"));
@@ -365,7 +376,7 @@ entity(vector org, vector vel, entity from, float xBrain) VR_SmallGib_SpawnAs =
     vector lo = modelbounds(g, 0);
     vector hi = modelbounds(g, 1);
     vector d = hi - lo;
-    s = s / max(1, max(d_x, max(d_y, d_z)));
+    s = s / max(xBrain == 2 ? 0.1 : 1, max(d_x, max(d_y, d_z))); // (a tooth's model is a unit long)
     g.model_scale = '1 1 1' * (s - 1);
     setorigin(g, org);
     g.velocity = vel;
@@ -377,9 +388,17 @@ entity(vector org, vector vel, entity from, float xBrain) VR_SmallGib_SpawnAs =
     g.flags = 0;
     g.vr_sgib = time;
     g.vr_prop_mass = max(0.05, cvar_hget(xBrain ? cvarh_vr_smallgibs_brains_mass : cvarh_vr_smallgibs_mass));
+    if(xBrain == 2)
+    {
+        g.vr_prop_mass = max(0.005, cvar_hget(cvarh_vr_teeth_mass));
+    }
     VR_MakeGibGrabbable(g); // (vr_grab_gibs: else a bouncing thing that only fades)
     setsize(g, lo * s, hi * s);
-    if(g.vr_gib)
+    if(g.vr_gib && xBrain == 2)
+    {
+        g.touch = VR_Tooth_Touch; // (no squish, no blood, never sticks to a wall)
+    }
+    else if(g.vr_gib)
     {
         g.touch = VR_SmallGib_Touch;
         if(cvar_hget(cvarh_vr_smallgibs_destroy))
@@ -401,7 +420,7 @@ entity(vector org, vector vel, entity from, float xBrain) VR_SmallGib_SpawnAs =
 
     vr_sgib_serial++;
     vr_sgib_made++;
-    vr_sgib_brains_made = vr_sgib_brains_made + (xBrain ? 1 : 0);
+    vr_sgib_brains_made = vr_sgib_brains_made + (xBrain == 1 ? 1 : 0);
     vr_sgib_live++;
     g.vr_sgib_id = vr_sgib_serial;
     vr_sgib_ring[slot] = g;
@@ -442,7 +461,12 @@ void() VR_SmallGib_Think =
     if(self.vr_sgib_grace && time >= self.vr_sgib_grace)
     {
         self.vr_sgib_grace = 0;
-        self.owner = world;
+        // (The body it came from no longer its owner; not the player holding it or who threw it: taken and thrown
+        // within its grace (in bullet time, its game time slowed), a throw's owner went at once and it hit him, bursting.)
+        if(self.owner != self.carry_player && self.owner != self.carry_letgo)
+        {
+            self.owner = world;
+        }
         VR_SmallGib_Rigid(self);
     }
     if(self.carry_player != world)
@@ -628,6 +652,10 @@ float(entity inflictor, entity attacker) VR_SmallGib_Kind =
             return QVR_SGIB_OTHER; // lightning
         }
         return QVR_SGIB_SHOTS;
+    }
+    if(inflictor.classname == "buzzsaw")
+    {
+        return QVR_SGIB_SAW; // Rogue's buzzsaw trap (its own inflictor and attacker): a saw (rogue_buzzsaw.qc)
     }
     if(inflictor == world || inflictor == attacker)
     {
@@ -969,9 +997,9 @@ void(entity targ, entity inflictor, entity attacker, float xDamage) VR_SmallGib_
         vr_sgib_blastby = attacker;
         return;
     }
-    if(vr_hitkind == QVR_HITKIND_MELEE && vr_melee_slap)
+    if(VR_HitBloodless())
     {
-        return; // a slap tears nothing out (vr_melee_slap)
+        return; // a slap, a shove or a bash tears nothing out (vr_melee_slap, combat.qc VR_HitBloodless)
     }
     vector at = vr_hitpos;
     if(vr_hitkind == QVR_HITKIND_MELEE && vr_sgib_at != '0 0 0')
@@ -1125,4 +1153,47 @@ void(vector org, vector xDir, float xPop, entity xFrom) VR_SmallGib_Brains =
     float n = floor(max(0, cvar_hget(xPop ? cvarh_vr_smallgibs_brains_pop : cvarh_vr_smallgibs_brains_burst)) + 0.5);
     dprint(sprintf("smallgib: brains: %d (%s)\n", n, xPop ? "a head pop" : "a head gib burst"));
     VR_SmallGib_BurstOf(org, xDir, n, TRUE, xFrom);
+};
+
+// ----------------------------------------------------------------------------
+// Popped underfoot
+
+float VR_SGIB_STOMP_REACH = 12; // units: a small gib's box this near the middle of his feet (level) is under them
+float VR_SGIB_STOMP_ABOVE = 6;  // units: its top no lower than this under his soles,
+float VR_SGIB_STOMP_BELOW = 4;  // and its bottom no higher than this over them
+
+// Player `p` landing at xSpeed units/s (client.qc PlayerPostThink, the frame he lands: a jump, a drop, a stomp onto it;
+// the author's 2026-10-22 note): vr_smallgibs_stomp_speed or faster pops the small gibs under his feet, meat and brain
+// chunks (VR_Gib_Burst: a puff of blood and the gib sound, as a shot pops one), not teeth, not one in a hand. Only on a
+// landing: a find of a few units round his feet, nothing a frame.
+void(entity p, float xSpeed) VR_SmallGib_Stomp =
+{
+    if(!cvar_hget(cvarh_vr_smallgibs_stomp) || xSpeed < cvar_hget(cvarh_vr_smallgibs_stomp_speed))
+    {
+        return;
+    }
+    vector feet = p.origin + '0 0 1' * p.mins_z;
+    float n = 0;
+    for(entity g = findradius(feet, VR_SGIB_STOMP_REACH + 24); g; g = g.chain)
+    {
+        if(!g.vr_sgib || !g.vr_sgib_id || g.vr_sgib_tooth || g.carry_player != world ||
+           g.absmax_z < feet_z - VR_SGIB_STOMP_ABOVE || g.absmin_z > feet_z + VR_SGIB_STOMP_BELOW)
+        {
+            continue;
+        }
+        float gx = max(0, max(g.absmin_x - feet_x, feet_x - g.absmax_x));
+        float gy = max(0, max(g.absmin_y - feet_y, feet_y - g.absmax_y));
+        if(gx * gx + gy * gy > VR_SGIB_STOMP_REACH * VR_SGIB_STOMP_REACH)
+        {
+            continue;
+        }
+        vector away = (g.absmin + g.absmax) * 0.5 - feet;
+        away_z = 0;
+        VR_Gib_Burst(g, normalize(away) + '0 0 0.5');
+        n = n + 1;
+    }
+    if(n > 0)
+    {
+        dprint(sprintf("smallgib: %d popped underfoot (landed at %.0f u/s)\n", n, xSpeed));
+    }
 };

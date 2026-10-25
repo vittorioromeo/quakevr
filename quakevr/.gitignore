@@ -13,6 +13,8 @@
 /maps/autosave/
 /screenshots/
 /notes/
+/proposed_defaults/
+/ragtool/
 /motions/*
 !/motions/expect.cfg
 !/motions/suspects.cfg
@@ -22,11 +24,14 @@
 /bodycal/
 /bodycal_history.txt
 /eyeshots/
+/agglitch/
 /relit/
 /envmap.tga
 /checklist_ticks.txt
 /tips_seen.txt
 /tips_seen.txt.tmp
+/graphics_my_settings.cfg
+/graphics_my_settings.cfg.tmp
 /search_recent.txt
 /textures_ext/
 /retro_overrides.txt
@@ -38,6 +43,10 @@
 # ironwail.cfg.baseline, ironwail.cfg.from-tests, dated backups)
 *.sav
 *.sav.addon
+# The player's runtime brushes kept for a map (vr_brush_save: brushes/<map>.brushes), and brush_test.py's map with
+# them baked in (vr_brush_bake_write)
+/brushes/
+/maps/brushbake_*
 /ironwail.cfg.*
 # What the engine writes for debugging and tests (vr_highlights, vr_portals_shot, vr_wounds, the traces' cvars,
 # vr_decal_atlas, the grasp dump, -condebug)
@@ -46,6 +55,7 @@
 /wounds/
 /*_trace.txt
 /weight_test.csv
+/bodytrack_dump*.csv
 /decal_atlas.png
 /grasp_dump.obj
 /qconsole.log
@@ -61,6 +71,9 @@
 /crash/
 # Diagnostics mode's folders (vr_diagnostics.cpp: quakevr/diagnostics/<date>_<time>/)
 /diagnostics/
+# Every run's logs and the bug reports (vr_runlogs.cpp: quakevr/logs/<date>_<time>/, quakevr/bugreports/<date>_<time>.zip)
+/logs/
+/bugreports/
 # Doom on the wrist gadget (vr_doom): its settings and saves, and the player's own WADs dropped in
 /doom/*.cfg
 /doom/savegame/

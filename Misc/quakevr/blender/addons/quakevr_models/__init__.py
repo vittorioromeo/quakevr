@@ -105,10 +105,6 @@ class QVR_OT_export_mdl(bpy.types.Operator, ExportHelper):
                        description="If vertices are past the model's box (its byte grid), make the grid coarser so "
                                    "they fit (every vertex moves a little, the anchors too). Off: the export refuses "
                                    "and selects them")
-    allow_remap: BoolProperty(name="Remap Anchors", default=False,
-                              description="If deleted or changed triangles make an anchor index name another vertex, "
-                                          "write the model anyway and print the new indices to set. Off: the export "
-                                          "refuses")
     bake_normals: BoolProperty(name="Bake Normal Map", default=True,
                                description="Bake its normal map again from the exported model (<model>.mdl_0_norm.png"
                                            ": its bevels, seams and tiles' relief; bake_normals.py). A map painted or "
@@ -126,7 +122,7 @@ class QVR_OT_export_mdl(bpy.types.Operator, ExportHelper):
             self.report({'ERROR'}, "no model to export: import one first (File > Import > Quake VR Model)")
             return {'CANCELLED'}
         try:
-            lines, moved, renamed = MB.export_mdl(context, ob, self.filepath, self.report, self.grow, self.allow_remap)
+            lines, moved = MB.export_mdl(context, ob, self.filepath, self.report, self.grow)
         except (MB.ExportError, mdl.MdlError, OSError) as e:
             self.report({'ERROR'}, str(e))
             return {'CANCELLED'}
@@ -136,16 +132,16 @@ class QVR_OT_export_mdl(bpy.types.Operator, ExportHelper):
         holes = [l for l in lines if "HOLES" in l]
         model = os.path.basename(ob.get("qvr_source") or self.filepath)  # the model it was read as
         special = model.lower() in checks.CHECKS
-        if moved or renamed or holes:
-            what = ", ".join(sorted({m[0] for m in moved} | {r[0] for r in renamed}))
+        if moved or holes:
+            what = ", ".join(sorted({m[0] for m in moved}))
             if special and moved:
                 msg = "CHECK: %s. The engine can't follow this from the model: the report says what to change" % what
             else:
                 msg = "ANCHORS MOVED: %s. Your weapon poses hang off them: check them in the game" % what if (
-                    moved or renamed) else "new holes in the model"
+                    moved) else "new holes in the model"
             self.report({'WARNING'}, msg + " (the report: Text Editor > %s)" % REPORT_TEXT)
             popup(context, "Quake VR: " + msg, [l for l in lines if l.strip().startswith(
-                ("MOVED", "RENAMED", "OVER", "strip", "vr_wofs", "OPEN", "CRACK", "FLIPPED", "holes", "after",
+                ("MOVED", "OVER", "vr_wofs", "OPEN", "CRACK", "FLIPPED", "holes", "after",
                  "CHECK", "lens", "changed"))])
         elif special:
             lens = [l.strip() for l in lines if l.strip().startswith("lens ")]
@@ -153,7 +149,7 @@ class QVR_OT_export_mdl(bpy.types.Operator, ExportHelper):
                 "the engine reads its lens: %s; " % lens[0][len("lens "):].split(":")[0].strip() if lens else
                 "checks passed, ", os.path.splitext(model)[0]))
         else:
-            self.report({'INFO'}, "anchors unchanged, no new holes; in the game: vr_model_reload")
+            self.report({'INFO'}, "anchors in place, no new holes; in the game: vr_model_reload")
         return {'FINISHED'}
 
 

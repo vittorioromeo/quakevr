@@ -12,7 +12,7 @@ just constant angles.
 */
 void() SetMovedir =
 {
-    if(MG_WorldCampaign() && self.movedir != '0 0 0') { self.angles = '0 0 0'; return; }
+    if(MG_ExplicitMoveDir()) { self.angles = '0 0 0'; return; }
     if(self.angles == '0 -1 0')
         self.movedir = '0 0 1';
     else if(self.angles == '0 -2 0')
@@ -198,6 +198,35 @@ void() DelayThink =
     remove(self);
 };
 
+// One killtarget's victim (SUB_UseTargets): a live monster is killed by the activator, anything else removed; Honey's
+// and the MG maps' rules on top.
+void(entity t) Honey_KillTarget =
+{
+    if(t.delayedThink) remove(t.delayedThink);
+    if(t.classname == "func_button"){
+        if(t.spawnflags & 1){ //Disableable button spawnflag
+            button_disable(t);
+        }else{
+            remove(t);
+        }
+    }else if(t.classname == "func_door_secret"){
+        //Honey hack to stop a secret door killed mid-move to play its noise endlessly
+        //dprint("killed func_door_secret\n");
+        if(t.velocity != '0 0 0')
+            sound(t, CHAN_VOICE, t.noise3, 1, ATTN_NORM);
+        remove(t);
+    }else if(t.flags & FL_MONSTER && t.health > 0){
+        Killed (t, activator);
+    }else{
+        remove (t);
+    }
+};
+
+void(entity t) SUB_KillTarget =
+{
+    if(MG_WorldCampaign()) MG_KillTarget(t); else Honey_KillTarget(t);
+};
+
 /*
 ==============================
 SUB_UseTargets
@@ -220,6 +249,8 @@ match (string)self.target and call their .use function
 void() SUB_UseTargets =
 {
     entity t, stemp, otemp, act;
+
+    AD_ShareActivator(); // AD support: AD's entities it fires read AD's activator (vr_ad_bridge.qc)
 
 //
 // check for a delay
@@ -270,27 +301,7 @@ void() SUB_UseTargets =
         t = find(world, targetname, self.killtarget);
         while(t)
         {
-            // HONEY
-            if(!MG_WorldCampaign() && t.delayedThink) remove(t.delayedThink);
-            if(!MG_WorldCampaign() && t.classname == "func_button"){
-                if(t.spawnflags & 1){ //Disableable button spawnflag
-                    button_disable(t);
-                }else{
-                    remove(t);
-                }
-            }else if(!MG_WorldCampaign() && t.classname == "func_door_secret"){
-                //Honey hack to stop a secret door killed mid-move to play its noise endlessly
-                //dprint("killed func_door_secret\n");
-                if(t.velocity != '0 0 0')
-                    sound(t, CHAN_VOICE, t.noise3, 1, ATTN_NORM);
-                remove(t);
-            }else if(MG_WorldCampaign() && t.MG_deferred){
-                MG_MonsterKillDeferred(t, activator);
-            }else if(t.flags & FL_MONSTER && t.health > 0){
-                Killed (t, activator);
-            }else{
-                remove (t);
-            }
+            SUB_KillTarget(t);
             t = find(t, targetname, self.killtarget);
         }
     }

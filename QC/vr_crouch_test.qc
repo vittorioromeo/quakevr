@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_crouch_test.qc -- the crouched box's shots test (Debug > Tests > Crouch Shots; ROUND21.md, "Crouching: a smaller
 // box"). `vr_crouch_test <n>`: a grunt put 280 units ahead of the first player (as he faces, short of a wall), facing
 // him, fires n bullets at him without spread, as its own attack aims them (army_fire's aim at his origin, then
@@ -76,3 +77,4 @@ void() VR_CrouchTest_Frame =
     VR_CrouchTest_Run();
     cvar_set("vr_crouch_test", "0");
 };
+#endif

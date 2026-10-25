@@ -78,6 +78,7 @@ void() MG3_DemoGrenadeTouch =
     }
     if(other.takedamage == DAMAGE_AIM)
     {
+        VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         MG3_DemoGrenadeExplode();
         return;
     }

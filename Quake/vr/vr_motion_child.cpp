@@ -214,11 +214,13 @@ bool running()
     {
         return false;
     }
-    if(waitpid(pid, &status, WNOHANG) == 0)
+    const pid_t r = waitpid(pid, &status, WNOHANG);
+    if(r == 0)
     {
         return true;
     }
-    exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+    exitCode = r > 0 && WIFEXITED(status) ? WEXITSTATUS(status) : -1; // r < 0: the status is unknown
+
     pid = 0;
     return false;
 #endif

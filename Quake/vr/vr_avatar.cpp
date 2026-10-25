@@ -7,11 +7,15 @@
 #include "vr_units.hpp"
 #include "vr_backend.hpp"
 #include "vr_bodycal.hpp"
+#include "vr_bodytrack.hpp"
+#include "vr_box3d.hpp"
+#include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
 #include "vr_motion.hpp"
 #include "vr_profile.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_seated.hpp"
 #include "vr_view.hpp"
 
 #include "Zancle/Container/Array.hpp"
@@ -23,6 +27,7 @@
 #include "Zancle/Math/Copysign.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Remainder.hpp"
@@ -224,6 +229,7 @@ struct Bone
 struct Body
 {
     float m2w{1.f};    // world units per metre of the modelled body
+    float legM2w{1.f}; // ... of its legs, hip to ankle (m2w times the leg fit: legFit)
     float floorZ{0.f};
     glm::vec3 fwd{FWD};
     glm::vec3 left{0.f, 1.f, 0.f};
@@ -239,6 +245,9 @@ struct Body
                           glm::angleAxis(glm::radians(roll), b.fwd));
 }
 
+// Climbing's weight (Climbing::weight, 0 .. 1), for solveTorso: the lean taken out while climbing.
+float climbHang = 0.f;
+
 // World position of `joint` from its posed parent.
 [[nodiscard]] glm::vec3 childPos(const Body& b, int joint)
 {
@@ -246,6 +255,34 @@ struct Body
     glm::vec3 o = localOffset(joint) * (b.m2w * p.size);
     o.x *= p.stretch;
     return p.pos + p.rot * o;
+}
+
+// The legs fitted to the height you stand at (vr_body_leg_fit; ROUND22.md, "Body and Equipment"). The body is scaled to
+// the Height setting (vr_height_calibration) and hangs from the head: standing taller than it (a Height set low), the
+// legs were too short and the feet hung in the air (eyes at 1.70 m, Height 1.55: the ankles 23 cm up), standing lower
+// (a Height set high) the knees stayed bent and the body crouched; Body Calibration fixed it only by measuring the
+// height again. Here the legs (hip to ankle; the feet keep the body's size) are lengthened or shortened so that, at the
+// height the headset sees you stand at (hands::State::standingHeight, learnt as Leaning Detection learns it: it rises
+// quickly as you stand up straighter, settles slowly), the feet reach the floor with the knees straight, between 0.75
+// and 1.3 times; the crouch is measured from there too. Sets b.legM2w; returns how much higher than the scaled body
+// that stands (world units). Seated, with the reference poses (standingHeight their own height) or off: none.
+[[nodiscard]] float legFit(const hands::State& s, Body& b)
+{
+    b.legM2w = b.m2w;
+    const float m2u = units::metresToUnits();
+    const float scaledFor = b.m2w / m2u * units::modelEyeHeight; // the eye height the body is scaled to
+    if(!vr_body_leg_fit.value || seated::active() || s.standingHeight <= 0.f)
+    {
+        return 0.f;
+    }
+    const float leg = (boneLength(ThighL, ThighL + 1) + boneLength(ThighL + 1, ThighL + 2)) * b.m2w;
+    if(leg <= 0.f)
+    {
+        return 0.f;
+    }
+    const float fit = CLAMP(0.75f, 1.f + (s.standingHeight - scaledFor) * m2u / leg, 1.3f);
+    b.legM2w = b.m2w * fit;
+    return (fit - 1.f) * leg;
 }
 
 // The spine from the head. The top of the neck is found behind and below the eyes. A crouch lowers
@@ -265,6 +302,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     const Bind& bd = bind();
     b.m2w = units::metresToUnits() * (scale > 0.f ? scale : units::bodyScale());
     b.floorZ = s.head.z - s.headHeight * units::metresToUnits();
+    const float standLift = legFit(s, b);
 
     glm::vec3 right, up;
     hands::angleVectors({0.f, s.bodyYaw, 0.f}, b.fwd, right, up);
@@ -279,7 +317,10 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     // The lean's tilt: how far out it swings the top of the neck (at most as far as the head has gone down allows, and
     // a fifth of the lean always in the hips), and how much of the drop below the calibrated height that takes; the
     // rest is a crouch.
-    const glm::vec3 leanOff{s.lean.x, s.lean.y, 0.f};
+    // Climbing (updateClimbing, last frame's), the body hangs under the head, by the face, not leant back over the box's
+    // middle: its feet within reach of footholds (not the reference poses).
+    const float leanKeep = crouchPose ? 1.f - climbHang : 1.f;
+    const glm::vec3 leanOff{s.lean.x * leanKeep, s.lean.y * leanKeep, 0.f};
     const float leanLen = glm::length(leanOff);
     float tiltReach = 0.f;
     if(leanLen > 0.01f)
@@ -293,13 +334,24 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         const float sure = vr_lean_detect.value > 0.f ? s.leanHold : 1.f;
         tiltReach = sure * za::min(leanLen * 0.8f, allowed, 0.7f * torsoLen);
     }
+    // Body tracking (vr_bodytrack.cpp; not the reference poses): the tracked spine's tilt blended in, which then also
+    // tells the crouch from the lean (the drop it does not explain is a crouch) and replaces the crouch's own tilt.
+    const bodytrack::Trunk tracked = crouchPose ? bodytrack::trunk() : bodytrack::Trunk{};
+    glm::vec3 leanDir = leanLen > 0.01f ? leanOff / leanLen : b.fwd;
+    if(tracked.weight > 0.f)
+    {
+        const glm::vec3 v = glm::mix(leanDir * tiltReach, tracked.dir * (torsoLen * za::sin(tracked.tilt)), tracked.weight);
+        tiltReach = za::min(glm::length(v), 0.95f * torsoLen);
+        leanDir = tiltReach > 1e-4f ? glm::normalize(v) : leanDir;
+    }
     const float tiltDrop = torsoLen - za::sqrt(torsoLen * torsoLen - tiltReach * tiltReach);
 
     // How deep the crouch is: 0 standing, 1 with the pelvis at squatting height.
-    const float standZ = b.floorZ + bd.pos[Pelvis].z * b.m2w;
-    const float squatZ = b.floorZ + 0.3f * b.m2w;
+    // (Standing: as high as the height you stand at, the legs fitted to it: legFit.)
+    const float standZ = b.floorZ + standLift + bd.pos[Pelvis].z * b.m2w;
+    const float squatZ = b.floorZ + 0.3f * b.legM2w;
     const auto depthUnder = [&](const glm::vec3& neck) {
-        const float headDrop = za::max(0.f, b.floorZ + bd.pos[Head].z * b.m2w - neck.z);
+        const float headDrop = za::max(0.f, b.floorZ + standLift + bd.pos[Head].z * b.m2w - neck.z);
         const float drop = za::max(0.f, headDrop - tiltDrop);
         return standZ > squatZ ? za::min(1.f, drop / (standZ - squatZ)) : 0.f;
     };
@@ -311,7 +363,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     const glm::vec3 top = standingTop - (hf * vr_body_crouch_eye_forward.value + hu * vr_body_crouch_eye_up.value) * (w * b.m2w);
     const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
     const float crouch = depthUnder(top);
-    const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch;
+    const float tilt = glm::radians(CLAMP(0.f, vr_body_crouch_tilt.value, 80.f)) * crouch * (1.f - tracked.weight);
     float pelvisZ = za::max(top0.z - torsoLen * za::cos(tilt), squatZ);
     pelvisZ = za::min(pelvisZ, top0.z - 0.3f * torsoLen); // lying down: keep the back from folding over
     const float dz = top0.z - pelvisZ;
@@ -330,7 +382,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
     {
         const glm::vec3 spine = top0 - pelvis0;
         const float angle = za::asin(za::min(1.f, tiltReach / za::max(glm::length(spine), 1e-3f)));
-        turn = glm::mat3_cast(glm::angleAxis(angle, safeNormalize(glm::cross(UP, leanOff / leanLen), b.left)));
+        turn = glm::mat3_cast(glm::angleAxis(angle, safeNormalize(glm::cross(UP, leanDir), b.left)));
     }
     const glm::vec3 pelvis = top - turn * (top0 - pelvis0);
 
@@ -367,6 +419,37 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f, bool crouchPo
         sp.rot = torsoTurn * sp.rot;
         c.pos = sp.pos + torsoTurn * chestFromSpine;
         c.rot = torsoTurn * c.rot;
+    }
+    // The tracked chest's twist from the hips (the hips face bodyYaw: bodytrack::bodyYaw), half in the spine.
+    if(tracked.weight > 0.f && tracked.twist != 0.f)
+    {
+        const glm::vec3 axis = safeNormalize(c.pos - p.pos, UP);
+        const glm::mat3 half = glm::mat3_cast(glm::angleAxis(glm::radians(0.5f * tracked.twist * tracked.weight), axis));
+        const glm::vec3 chestFromSpine = c.pos - sp.pos;
+        sp.rot = half * sp.rot;
+        c.pos = sp.pos + half * chestFromSpine;
+        c.rot = half * half * c.rot;
+    }
+    // And the trunk swung about the top of the neck until the spine (the pelvis to the neck) has the tracked tilt from its
+    // upright direction (what the crouched pose's own turns and moves left), by the torso weight.
+    if(tracked.weight > 0.f)
+    {
+        const glm::vec3 upright = safeNormalize(UP * torsoLen + back);
+        const glm::vec3 tiltAxis = safeNormalize(glm::cross(UP, tracked.dir), b.left);
+        const glm::vec3 want = glm::angleAxis(tracked.tilt, tiltAxis) * upright;
+        const glm::vec3 now = safeNormalize(top - p.pos);
+        const glm::vec3 axis = glm::cross(now, want);
+        const float s = glm::length(axis);
+        if(s > 1e-5f)
+        {
+            const float angle = za::atan2(s, glm::dot(now, want)) * tracked.weight;
+            const glm::mat3 swing = glm::mat3_cast(glm::angleAxis(angle, axis / s));
+            for(Bone* bone : {&p, &sp, &c})
+            {
+                bone->pos = top + swing * (bone->pos - top);
+                bone->rot = swing * bone->rot;
+            }
+        }
     }
 
     // The neck spans the rest of the way to the top of the neck; the head sits there. Neither is
@@ -510,6 +593,15 @@ ArmCostTrace costTrace;
         return c;
     };
 
+    // A swing's cost is at least its own term (the wrist's strain and the lift's are never negative): a swing whose own
+    // term is no less than the best cost so far cannot beat it, and is not tried (the same result, far fewer tries while
+    // the wrist is within its reach). The same expression as cost's: rounding keeps the sum no less than it.
+    const bool prune = strainWeight >= 0.f;
+    const auto swingAlone = [&](float swivel) {
+        const float s = swivel / glm::radians(45.f);
+        return swingWeight * s * s;
+    };
+
     // The least cost within `reach` steps of `step` from `from`, then finer about it, and last the least of the
     // parabola through it and its neighbours (so that the elbow moves smoothly as the hand does).
     const auto search = [&](float from, float step, int reach, float& found) {
@@ -521,7 +613,7 @@ ArmCostTrace costTrace;
             for(int i = -reach; i <= reach; i++)
             {
                 const float swivel = at + step * static_cast<float>(i);
-                if(i == 0 || za::abs(swivel) > most)
+                if(i == 0 || za::abs(swivel) > most || (prune && swingAlone(swivel) >= bestCost))
                 {
                     continue;
                 }
@@ -560,6 +652,19 @@ ArmCostTrace costTrace;
 // with no body drawn (solveArms: the wrist gadget's forearm) keep the elbow where its pole puts it, as a real forearm
 // stays while the hand bends; there is no drawn arm to spare a strained wrist.
 bool easeWrists = true;
+
+// The body being posed has bare forearms (vrbody*_bare: vr_body_bracers 0), their ends fitted round the jointed hand
+// (make_vrbody.py: hand_ring), which the wrist and hand bones scale with the hand as drawn (solveArm).
+bool bareArms = false;
+
+// make_vrbody.py's HAND_UNIT: metres of the modelled body a hand unit at the default sizes, the size the bare
+// forearms' ends are fitted to the hand at.
+// The bare forearms' constants are generated by make_vrbody.py (vr_bodybare.inc).
+namespace bodybare
+{
+#include "vr_bodybare.inc"
+} // namespace bodybare
+constexpr float handUnit = bodybare::handUnit;
 
 // vr_debug_arm: a drawn arm's IK, in the body's axes (forward, left, up; cm from the chest) and in the tracking
 // space's (metres from the head: right, up, back; to set up vr_mock_hand poses): the shoulder, the elbow (and where
@@ -711,6 +816,16 @@ struct ArmEase
 };
 ArmEase armEase;
 
+// Body tracking's fit of the arm (vr_bodytrack_arm_fit): the clavicle turns at most this far (degrees) towards the
+// tracked shoulder, and it and each arm bone keep within 1 / vr_bodytrack_arm_fit_stretch to vr_bodytrack_arm_fit_stretch
+// of their lengths to reach the tracked shoulder and elbow (ROUND22.md, "Elbow fit on real data": Meta's skeleton is
+// its own, wider and longer-armed than ours, and its wrists are not ours: 0.8 to 1.25 left the elbow 7 to 12 cm off).
+constexpr float trackedShoulderTurn = 60.f;
+[[nodiscard]] float trackedBoneLong()
+{
+    return CLAMP(1.f, vr_bodytrack_arm_fit_stretch.value, 3.f);
+}
+
 void solveArm(Body& b, int side, const HandPose& handPose)
 {
     const Bind& bd = bind();
@@ -756,6 +871,39 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     c.rot = clavicleTurn(wrist - restShoulder, lateral, cUp, cFwd, armLen, bodycal::shoulderRise(),
                 bodycal::shoulderSwing(), lengths.calibrated) *
             rest;
+
+    // Body tracking (vr_bodytrack_arm_fit, by the arm weight): the clavicle turns on, about the base of the neck, to take
+    // the shoulder towards the tracked one (a shrug, the shoulder forward or back), by up to trackedShoulderTurn.
+    glm::vec3 trackedShoulder{0.f};
+    glm::vec3 trackedElbow{0.f};
+    float trackedFit = 0.f;
+    bodytrack::ArmFit fitReport; // (vr_bodytrack_stats, vr_bodytrack_dump)
+    if(easeWrists && bodytrack::trackedArm(side, trackedShoulder, trackedElbow, trackedFit))
+    {
+        fitReport.weight = trackedFit;
+        const glm::vec3 from = safeNormalize(c.rot * localOffset(upper), lateral);
+        const glm::vec3 to = trackedShoulder - c.pos;
+        const glm::vec3 axis = glm::cross(from, to);
+        if(glm::length(to) > 1e-4f && glm::length(axis) > 1e-6f)
+        {
+            const float angle = glm::acos(CLAMP(-1.f, glm::dot(from, glm::normalize(to)), 1.f));
+            fitReport.turnLimited = angle > glm::radians(trackedShoulderTurn);
+            const float turn = za::min(angle, glm::radians(trackedShoulderTurn)) * trackedFit;
+            c.rot = glm::mat3_cast(glm::angleAxis(turn, glm::normalize(axis))) * c.rot;
+        }
+        // ... and lengthens or shortens (within the arm bones' shares) to put it there: the tracked shoulders may
+        // be wider or narrower than ours.
+        const glm::vec3 o = localOffset(upper) * b.m2w;
+        const glm::vec3 along = c.rot * glm::vec3{o.x, 0.f, 0.f};
+        const glm::vec3 fixedPart = c.pos + c.rot * glm::vec3{0.f, o.y, o.z};
+        if(const float l2 = glm::dot(along, along); l2 > 1e-8f)
+        {
+            const float want = glm::dot(trackedShoulder - fixedPart, along) / l2;
+            const float s = CLAMP(1.f / trackedBoneLong(), want, trackedBoneLong());
+            fitReport.clavicleClamped = s != want;
+            c.stretch = glm::mix(1.f, s, trackedFit);
+        }
+    }
 
     // The arm: the elbow points down, somewhat out and back, and away from the thumb (turning the palm up brings the
     // elbow in). It may stretch a little to reach.
@@ -873,6 +1021,12 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     }
     lastSwivel[side] = swivel;
 
+    // Body tracking (vr_bodytrack.cpp): the elbow swung round to the tracked elbow's side (the hand stays).
+    if(easeWrists)
+    {
+        bodytrack::swivelElbow(side, u.pos, wrist, elbow, bend);
+    }
+
     // An elbow in the torso (the hand across the chest, the pole down and back) swings out of it about the same line,
     // as little as takes it out (vr_body_collide_elbows: the torso's capsules, vr_selfcollide.cpp), eased as above.
     float(&lastOut)[2] = armEase.out;
@@ -895,6 +1049,40 @@ void solveArm(Body& b, int side, const HandPose& handPose)
             elbow = centre + q * (elbow - centre);
             bend = q * bend;
         }
+    }
+
+    // Body tracking (vr_bodytrack_arm_fit): the elbow onto the tracked elbow itself (the swivel above took it only to its
+    // side, on our arm's lengths from our shoulder): the upper arm and forearm take the lengths that put it there (each
+    // within trackedBoneLong's shares of its own), the hand still on the controller. Last, over the guesses and
+    // the torso's push: the tracked elbow is where the real one is.
+    if(trackedFit > 0.f)
+    {
+        const glm::vec3 target = glm::mix(elbow, trackedElbow, trackedFit);
+        const float wantA = glm::distance(target, u.pos), wantL = glm::distance(wrist, target);
+        const float longest = trackedBoneLong();
+        float fa = CLAMP(a / longest, wantA, a * longest);
+        float fl = CLAMP(l / longest, wantL, l * longest);
+        fitReport.upperClamped = fa != wantA;
+        fitReport.foreClamped = fl != wantL;
+        const float reach = za::min(glm::distance(wrist, u.pos), a + l); // (as far as the arm reached before)
+        if(fa + fl < reach)
+        {
+            const float k = reach / (fa + fl);
+            fa *= k;
+            fl *= k;
+        }
+        glm::vec3 fitBend;
+        elbow = twoBone(u.pos, wrist, fa, fl, target - u.pos, bend, fitBend);
+        bend = fitBend;
+        fitReport.upperShare = fa / za::max(1e-4f, a);
+        fitReport.foreShare = fl / za::max(1e-4f, l);
+        fitReport.miss = glm::distance(elbow, trackedElbow);
+        a = fa;
+        l = fl;
+    }
+    if(easeWrists)
+    {
+        bodytrack::armFitted(side, fitReport);
     }
 
     if(easeWrists && vr_debug_arm.value != 0.f)
@@ -970,6 +1158,15 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     h = Bone{};
     h.pos = elbow + foreDir * l;
     h.rot = handRot;
+
+    // Bare forearms: their ends, fitted round the hand at the default sizes, as big as the hand is drawn against the
+    // body (the hand bone's axes are the hand's: x its x, y its y either way, z its -z); the wrist's ring across.
+    if(bareArms && handPose.unit.x > 0.f)
+    {
+        const glm::vec3 grow = glm::clamp(handPose.unit / (b.m2w * handUnit), glm::vec3{0.5f}, glm::vec3{2.f});
+        h.shape = glm::mat3{glm::vec3{grow.x, 0.f, 0.f}, glm::vec3{0.f, grow.y, 0.f}, glm::vec3{0.f, 0.f, grow.z}};
+        w.shape = w.shape * glm::mat3{glm::vec3{1.f, 0.f, 0.f}, glm::vec3{0.f, grow.y, 0.f}, glm::vec3{0.f, 0.f, grow.z}};
+    }
 }
 
 // The legs' clock: seconds since they were last posed (0 the first time, and for a second pose in
@@ -989,8 +1186,9 @@ double legsPosedAt = -1.0; // legsDeltaTime's last call (vr_gametime; -1: never)
 // take turns: one on the ground going back under the body, the other swinging forward, lifted,
 // along the direction of travel. The cadence follows the speed over the stride (so the planted
 // foot keeps up with the ground), but only up to a natural rate (vr_body_step_rate steps per
-// second at full running speed, somewhat fewer walking): Quake moves far faster than anyone
-// walks, and legs spinning to keep up look silly. Strides lengthen and the feet lift higher with
+// second at full running speed, somewhat fewer walking; at speed a person's cadence there,
+// vr_body_step_run): Quake moves far faster than anyone walks, and legs spinning to keep up
+// with a stride as short as the legs' look silly. Strides lengthen and the feet lift higher with
 // speed, less so sideways and backwards; the whole of it eases in and out as the player starts
 // and stops, and the feet tuck up in the air. The legs' IK does the knees.
 struct Gait
@@ -1004,6 +1202,10 @@ struct Gait
 };
 
 Gait gait;
+
+// Each foot's touchdowns so far (side 0 the left): the walk's (its swing ending) and the standing steps' (Skeleton::steps,
+// the bloody footprints' steps).
+unsigned footSteps[2]{0u, 0u};
 
 // Full running speed (Quake's 320 units per second), in metres per second of the body at
 // vr_world_scale 1.
@@ -1131,11 +1333,27 @@ void updateGait(const Body& b, float dt)
                       za::max(0.3f, 1.f - 0.2f * wade);
         gait.lift = 0.07f + 0.07f * run + 0.1f * wade;
 
-        // Steps per second: as many as it takes to cover the ground, up to the cap.
+        // Steps per second: as many as it takes to cover the ground, up to the cap. At speed the cap rises to a person's
+        // cadence there (the footprints' steps: a run's 5-6 a second), as far as vr_body_step_run says (0: the cap
+        // alone, the legs stepping half as often as the prints at a run); the planted foot slides less, not more.
         const float cap =
             CLAMP(0.5f, vr_body_step_rate.value, 6.f) * (0.7f + 0.3f * run) * za::max(0.3f, 1.f - 0.3f * wade);
-        const float rate = za::min(speed / gait.stride, cap);
+        const float person = speed / personStep(speed) * za::max(0.3f, 1.f - 0.3f * wade);
+        const float rate = za::min(speed / gait.stride, za::max(cap, CLAMP(0.f, vr_body_step_run.value, 1.5f) * person));
+        const float before = gait.phase;
         gait.phase = za::fmod(gait.phase + rate * dt * glm::pi<float>(), glm::two_pi<float>());
+        // A foot's swing ends (its cycle wraps: the left's at the phase's wrap, the right's at half of it): a touchdown.
+        if(gait.amount > 0.5f)
+        {
+            if(gait.phase < before)
+            {
+                footSteps[0]++;
+            }
+            if(before < glm::pi<float>() && (gait.phase >= glm::pi<float>() || gait.phase < before))
+            {
+                footSteps[1]++;
+            }
+        }
     }
 }
 
@@ -1285,6 +1503,7 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
         {
             f.step = -1.f;
             f.lift = 0.f;
+            footSteps[side]++;
             stance.follow = stance.follow == side ? -1 : 1 - side;
         }
         return;
@@ -1349,6 +1568,542 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
     return hip + dir * (reach * bent);
 }
 
+// Climbing (vr_body_climb_feet; BACKLOG "Climbing leg animation"): while a hand holds on (climb::heldAt), each foot
+// finds a foothold below its hip, within reach (findFoothold: a handful of traces, only when it looks for one; through
+// the level and, vr_body_climb_feet_props, the physics props' shapes as they lie: footTrace): a
+// ledge's, a rung's or the floor's top, else a spot on the face in front of it (at the 16-unit spacing of a flat
+// ladder's rungs), else none: it hangs, a little bent, swinging slightly and trailing the body's motion. A foot on a
+// hold stays where it is in the world while the body moves, until it is out of reach (the leg stretched, the knee
+// pressed into the chest, too far to the side) or, climbing up, left low; it then steps to a new hold on a short arc
+// out from the face, the other foot waiting for it (they take turns). Only drawn: nothing collides.
+struct ClimbFoot
+{
+    glm::vec3 at{0.f};            // the hold: where the ankle goes (world)
+    glm::vec3 from{0.f};          // stepping: where the ankle left from
+    glm::vec3 now{0.f};           // where the ankle is aimed now
+    glm::vec3 fwd{1.f, 0.f, 0.f}; // on a hold: the foot's forward (into the face)
+    float step{-1.f};             // stepping: 0 .. 1; below 0 on its hold or hanging
+    bool held{false};             // on a hold (or stepping to one); false: hanging
+    int kind{0};                  // its hold: 1 the face, 2 a top (a ledge, a rung, the floor)
+    float retry{0.f};             // hanging: seconds before it looks again
+    int serial{0};                // counts its holds (the logs: one hold's slip)
+    float flat{0.f};              // 1 flat on a hold .. 0 pointed, hanging (stepping off a hold: easing)
+};
+
+struct Climbing
+{
+    float weight{0.f};            // 0 .. 1, eased in and out
+    glm::vec3 in{1.f, 0.f, 0.f};  // into the face (horizontal), from the holds
+    glm::vec3 holdMid{0.f};       // the holds' middle
+    float rise{0.f};              // metres a second the hips rise, smoothed
+    glm::vec3 lastHips{0.f};
+    bool hipsValid{false};
+    float sway{0.f};              // radians, the hanging legs' slow swing
+    glm::vec3 lag{0.f};           // the hanging feet's lag behind the body's motion (world)
+    za::Array<ClimbFoot, 2> feet{};
+    int lastStep{-1};             // the foot that took the last hold
+    int traces{0};                // this frame's (the logs)
+    double updateMs{0.0};         // this frame's updateClimbing (vr_debug_climb_feet 2)
+};
+
+Climbing climbing;
+
+constexpr float CLIMB_STEP_TIME = 0.35f; // seconds a step to a new hold takes (vr_body_climb_feet_speed 1)
+constexpr float CLIMB_STEP_OUT = 0.12f;  // metres the stepping foot swings out from the face past its own length (its toes clear the lips)
+constexpr float CLIMB_RUNGS = 16.f;      // units: a face's spots at this spacing (a flat ladder's rungs)
+
+[[nodiscard]] float smooth01(float x)
+{
+    return x * x * (3.f - 2.f * x);
+}
+
+struct FootHit
+{
+    bool hit{false};   // met a surface (and didn't start in one)
+    bool solid{false}; // started in one
+    float frac{1.f};
+    glm::vec3 pos{0.f};
+    glm::vec3 normal{0.f};
+};
+
+// A point trace on the listen server (the world and brush models, the player passed through); none without one.
+[[nodiscard]] FootHit footTrace(const glm::vec3& a, const glm::vec3& z)
+{
+    FootHit h;
+    if(!sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
+    {
+        return h;
+    }
+    climbing.traces++;
+    vec3_t va{a.x, a.y, a.z};
+    vec3_t vz{z.x, z.y, z.z};
+    qcvm_t* old = nullptr;
+    PR_PushQCVM(&sv.qcvm, &old); // (drawing: the client's VM, or none, is in)
+    const trace_t tr = SV_Move(va, vec3_origin, vec3_origin, vz, MOVE_NOMONSTERS, svs.clients[0].edict);
+    h.solid = tr.startsolid || tr.allsolid;
+    h.hit = !h.solid && tr.fraction < 1.f;
+    h.frac = tr.fraction;
+    h.pos = {tr.endpos[0], tr.endpos[1], tr.endpos[2]};
+    h.normal = {tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2]};
+    // The physics props' shapes as they lie (a crate climbed: its top and its faces; the trace above passes them by), up
+    // to where the level stopped it.
+    box3d::PropHit p;
+    bool inside = false;
+    if(!h.solid && vr_body_climb_feet_props.value != 0.f && box3d::propTrace(a, h.pos, p, inside))
+    {
+        if(inside)
+        {
+            h.solid = true;
+            h.hit = false;
+        }
+        else
+        {
+            h.hit = true;
+            h.frac *= p.fraction;
+            h.pos = p.point;
+            h.normal = p.normal;
+        }
+    }
+    PR_PopQCVM(old);
+    return h;
+}
+
+[[nodiscard]] float legLength(int side)
+{
+    const int thigh = side == 0 ? ThighL : ThighR;
+    return boneLength(thigh, thigh + 1) + boneLength(thigh + 1, thigh + 2);
+}
+
+// The foot's length ahead of the ankle (metres, flat) and the ankle's height over the sole.
+[[nodiscard]] float toeLength(int side)
+{
+    const int foot = side == 0 ? FootL : FootR;
+    const glm::vec3 toe = bind().toe[side] - bind().pos[foot];
+    return glm::length(glm::vec2{toe.x, toe.y});
+}
+
+[[nodiscard]] float ankleHeight(int side)
+{
+    return bind().pos[side == 0 ? FootL : FootR].z;
+}
+
+// The foot of `side`'s side (outward from the body, flat) while climbing.
+[[nodiscard]] glm::vec3 climbOutward(int side)
+{
+    const glm::vec3 across{-climbing.in.y, climbing.in.x, 0.f}; // left of the way in
+    return side == 0 ? across : -across;
+}
+
+// A foothold for the foot of `side`, its hip at `hip`: where the ankle goes (`at`), its kind (1 the face, 2 a top) and
+// the way the foot points (`fwd`, into the face). Looks straight in at the preferred height (half the leg below the hip
+// climbing up, more hanging) and, missing, towards the holds (a pillar, a pipe); then down just inside what it met
+// from higher up (its top) and just in front of it from the preferred height (a ledge or a rung sticking out lower;
+// the holds' plane when nothing was met: a free-standing ladder's rungs); the top nearest the preferred height wins,
+// else the face. The toes kept out of the face; out of reach or inside something: none.
+[[nodiscard]] bool findFoothold(const Body& b, int side, const glm::vec3& hip, glm::vec3& at, int& kind, glm::vec3& fwd)
+{
+    const Climbing& c = climbing;
+    const float u = b.m2w;
+    const float leg = legLength(side) * b.legM2w;
+    const float reach = CLAMP(0.5f, vr_body_climb_feet_reach.value, 1.2f);
+    const bool up = c.rise > 0.08f;
+    const float zTop = hip.z - 0.25f * leg;
+    const float zPref = hip.z - (up ? 0.5f : 0.6f) * leg * za::min(1.f, reach);
+    const float zBot = hip.z - 0.92f * leg * reach;
+    const float toe = toeLength(side) * u;
+    const float ankle = ankleHeight(side) * u;
+    const glm::vec3 col = glm::vec3{hip.x, hip.y, 0.f} + climbOutward(side) * (0.05f * u);
+    const glm::vec3 p0{col.x, col.y, zPref};
+    const float range = 1.f * u;
+
+    // The face ahead.
+    glm::vec3 dir = c.in;
+    FootHit face = footTrace(p0, p0 + dir * range);
+    if(face.solid)
+    {
+        return false; // the hip's column in something (over a top): no room for a foot
+    }
+    if(!face.hit)
+    {
+        const glm::vec3 toMid{c.holdMid.x - p0.x, c.holdMid.y - p0.y, 0.f};
+        const float len = glm::length(toMid);
+        if(len > 1.f && glm::dot(toMid / len, c.in) > 0.5f && glm::dot(toMid / len, c.in) < 0.99f)
+        {
+            dir = toMid / len;
+            face = footTrace(p0, p0 + dir * range);
+        }
+    }
+    const float planeDepth = CLAMP(0.f, glm::dot(c.holdMid - p0, dir), range); // the holds' lip
+    const float depth = face.hit ? face.frac * range : planeDepth;
+    const float maxReach = 0.97f * leg;
+    // Within reach, and far enough under the hip for how far out it is (a hold almost level with the hips, far out, has
+    // the legs sticking out straight: no support).
+    const auto usable = [&](const glm::vec3& ankleAt) {
+        const glm::vec3 d = ankleAt - hip;
+        return glm::length(d) <= maxReach && -d.z >= 0.45f * glm::length(glm::vec2{d.x, d.y});
+    };
+
+    // Tops (the first under the highest a foot goes): just inside what was met, or at the holds' lip if that is nearer (a
+    // ladder's or a rung wall's rungs, in front of the wall); then in front of what was met, from the preferred height
+    // down (a ledge sticking out lower). Not usable: not one.
+    float bestZ = 0.f;
+    float bestScore = 1e9f;
+    glm::vec3 bestCol{0.f};
+    const auto consider = [&](const FootHit& h, const glm::vec3& column) {
+        const glm::vec3 ankleAt = glm::vec3{column.x, column.y, h.pos.z + ankle} - dir * (toe * 0.45f);
+        if(h.hit && h.normal.z > 0.7f && h.pos.z >= zBot && h.pos.z <= zTop && usable(ankleAt))
+        {
+            const float score = za::abs(h.pos.z - zPref) * (h.pos.z > zPref ? 0.7f : 1.f); // climbing up: a higher one
+            if(score < bestScore)
+            {
+                bestScore = score;
+                bestZ = h.pos.z;
+                bestCol = column;
+            }
+        }
+    };
+    {
+        const glm::vec3 inside = p0 + dir * za::min(depth + 3.f, planeDepth + 2.f);
+        consider(footTrace({inside.x, inside.y, zTop}, {inside.x, inside.y, zBot}), inside);
+    }
+    if(face.hit && depth > 2.f)
+    {
+        const glm::vec3 front = p0 + dir * (depth - 1.5f);
+        consider(footTrace({front.x, front.y, zPref}, {front.x, front.y, zBot}), front);
+    }
+
+    // The foot out of the face: traced in from behind the heel to past the toes, just over the sole and just over the
+    // ankle (a face at a rung's underside); met, the foot back that much. Starting in something, or then not usable:
+    // false.
+    const auto place = [&](glm::vec3& p) {
+        float pull = 0.f;
+        for(const float z : {p.z - ankle + 1.5f, p.z + 1.5f})
+        {
+            const glm::vec3 a{p.x, p.y, z};
+            const FootHit h = footTrace(a - dir * toe, a + dir * (toe + 1.f));
+            if(h.solid)
+            {
+                return false;
+            }
+            if(h.hit)
+            {
+                pull = za::max(pull, (1.f - h.frac) * (2.f * toe + 1.f));
+            }
+        }
+        p -= dir * pull;
+        return usable(p);
+    };
+
+    fwd = dir;
+    if(bestScore < 1e8f)
+    {
+        // The ball of the foot on the top's edge.
+        at = glm::vec3{bestCol.x, bestCol.y, bestZ + ankle} - dir * (toe * 0.45f);
+        kind = 2;
+        return place(at);
+    }
+    if(face.hit && za::abs(face.normal.z) < 0.6f)
+    {
+        // At the spacing's height under the preferred (the knee less high), else the preferred, else the spacing's over
+        // it.
+        const float lo = CLAMP(zBot + ankle, za::floor(zPref / CLIMB_RUNGS) * CLIMB_RUNGS, zTop);
+        kind = 1;
+        for(const float z : {lo, CLAMP(zBot + ankle, zPref, zTop), CLAMP(zBot + ankle, lo + CLIMB_RUNGS, zTop)})
+        {
+            at = glm::vec3{face.pos.x, face.pos.y, z} - dir * toe;
+            if(place(at))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    return false;
+}
+
+// Whether the player climbs (a hand on a hold): the holds' middle and the way into their face.
+[[nodiscard]] bool climbHolds(const Body& b, glm::vec3& mid, glm::vec3& in)
+{
+    int n = 0;
+    glm::vec3 sumAt{0.f}, sumOut{0.f};
+    for(int hand = 0; hand < 2; hand++)
+    {
+        glm::vec3 at, out;
+        if(climb::heldAt(hand, at, out))
+        {
+            sumAt += at;
+            sumOut += out;
+            n++;
+        }
+    }
+    if(n == 0)
+    {
+        return false;
+    }
+    mid = sumAt / static_cast<float>(n);
+    in = -safeNormalize(glm::vec3{sumOut.x, sumOut.y, 0.f}, -b.fwd);
+    return true;
+}
+
+// Where a hanging foot goes: under its hip, the knee a little bent, a little ahead (towards the face), swinging slowly
+// and trailing the body's motion.
+[[nodiscard]] glm::vec3 hangingFoot(const Body& b, int side, const glm::vec3& hip)
+{
+    const float u = b.m2w;
+    const float leg = legLength(side) * b.legM2w;
+    const float swing = za::sin(climbing.sway + (side == 0 ? 0.f : 2.1f));
+    return hip - UP * (0.92f * leg) + climbing.in * ((0.1f + 0.04f * swing) * u) + climbOutward(side) * (0.03f * u) -
+           climbing.lag;
+}
+
+void updateClimbing(const Body& b, float dt, bool legs)
+{
+    QVR_PROFILE("avatar climb feet");
+    Climbing& c = climbing;
+    c.traces = 0;
+    glm::vec3 mid, in;
+    const bool on = legs && vr_body_climb_feet.value != 0.f && climbHolds(b, mid, in);
+    // Off: the weight waits while a foot steps out from the face off its hold (the toes clear of the lip first).
+    bool steppingOut = false;
+    for(const ClimbFoot& f : c.feet)
+    {
+        steppingOut = steppingOut || (!f.held && f.step >= 0.f && f.step < 0.3f) || (!on && f.held);
+    }
+    c.weight = on ? za::min(1.f, c.weight + dt * 5.f) : steppingOut ? c.weight : za::max(0.f, c.weight - dt * 3.f);
+    climbHang = c.weight;
+    if(!on && c.weight <= 0.f)
+    {
+        for(ClimbFoot& f : c.feet)
+        {
+            f.held = false;
+            f.step = -1.f;
+        }
+        c.hipsValid = false;
+        return;
+    }
+    if(on)
+    {
+        c.in = in;
+        c.holdMid = mid;
+    }
+    else
+    {
+        // Let go (a fall, a mantle): the feet step off their holds to hang (out from the face first), easing back to
+        // the legs' own pose.
+        for(ClimbFoot& f : c.feet)
+        {
+            if(f.held)
+            {
+                f.from = f.now;
+                f.held = false;
+                f.step = 0.f;
+            }
+            f.retry = 1.f;
+        }
+    }
+
+    const glm::vec3 hips = (childPos(b, ThighL) + childPos(b, ThighR)) * 0.5f;
+    const bool jumped = c.hipsValid && glm::distance(hips, c.lastHips) > legLength(0) * b.m2w; // a teleport
+    if(c.hipsValid && dt > 0.f && !jumped)
+    {
+        const glm::vec3 v = (hips - c.lastHips) / dt;
+        c.rise += (v.z / b.m2w - c.rise) * (1.f - za::exp(-4.f * dt));
+        const glm::vec3 flat{v.x, v.y, 0.f};
+        const glm::vec3 lagTo = flat * 0.08f;
+        const float maxLag = 0.2f * b.m2w;
+        c.lag += ((glm::length(lagTo) > maxLag ? lagTo * (maxLag / glm::length(lagTo)) : lagTo) - c.lag) *
+                 (1.f - za::exp(-5.f * dt));
+    }
+    if(!c.hipsValid || jumped)
+    {
+        for(ClimbFoot& f : c.feet)
+        {
+            f.held = false;
+            f.step = -1.f;
+            f.retry = 0.f;
+        }
+        c.rise = 0.f;
+        c.lag = glm::vec3{0.f};
+    }
+    c.lastHips = hips;
+    c.hipsValid = true;
+    c.sway = za::fmod(c.sway + dt * 1.6f, glm::two_pi<float>());
+
+    // Which feet want a new hold.
+    const float reach = CLAMP(0.5f, vr_body_climb_feet_reach.value, 1.2f);
+    const float speed = CLAMP(0.3f, vr_body_climb_feet_speed.value, 3.f);
+    za::Array<bool, 2> want{false, false};
+    za::Array<glm::vec3, 2> hip;
+    for(int side = 0; side < 2; side++)
+    {
+        ClimbFoot& f = c.feet[side];
+        hip[side] = childPos(b, side == 0 ? ThighL : ThighR);
+        const float leg = legLength(side) * b.legM2w;
+        if(f.step >= 0.f)
+        {
+            f.step = za::min(1.f, f.step + dt * speed / CLIMB_STEP_TIME);
+            if(f.step >= 1.f)
+            {
+                f.step = -1.f;
+            }
+        }
+        else if(f.held)
+        {
+            const glm::vec3 d = f.at - hip[side];
+            const ClimbFoot& other = c.feet[1 - side];
+            f.retry -= dt;
+            const bool over = glm::length(d) > 0.98f * leg;
+            if(over && other.step >= 0.f)
+            {
+                // Out of reach while the other steps: it lets go (and looks again once the other is done).
+                f.from = f.now;
+                f.held = false;
+                f.step = 0.f;
+                f.retry = 0.f;
+                continue;
+            }
+            want[side] = over || (f.retry <= 0.f && (d.z > -0.15f * leg ||
+                         za::abs(glm::dot(f.at - hips, climbOutward(0))) > 0.45f * b.m2w ||
+                         (c.rise > 0.08f && d.z < -0.8f * leg * reach && other.held && other.step < 0.f)));
+        }
+        else
+        {
+            f.retry -= dt;
+            want[side] = f.retry <= 0.f;
+        }
+    }
+
+    // One foot at a time: the one whose hold is worse off (hanging first, then the lower), not the one that just went.
+    int seek = -1;
+    if(c.feet[0].step < 0.f && c.feet[1].step < 0.f)
+    {
+        if(want[0] && want[1])
+        {
+            const bool held0 = c.feet[0].held, held1 = c.feet[1].held;
+            seek = held0 != held1 ? (held0 ? 1 : 0)
+                 : c.lastStep >= 0 ? 1 - c.lastStep
+                                   : (c.feet[0].at.z <= c.feet[1].at.z ? 0 : 1);
+        }
+        else
+        {
+            seek = want[0] ? 0 : want[1] ? 1 : -1;
+        }
+    }
+    else
+    {
+        // The other is stepping: a hanging foot may still look (both feet off their holds at the start).
+        for(int side = 0; side < 2; side++)
+        {
+            if(want[side] && !c.feet[side].held && c.feet[1 - side].step >= 0.f && c.feet[1 - side].step > 0.5f)
+            {
+                seek = side;
+            }
+        }
+    }
+
+    if(seek >= 0)
+    {
+        ClimbFoot& f = c.feet[seek];
+        const double t0 = vr_debug_climb_feet.value ? Sys_DoubleTime() : 0.0;
+        const int traces0 = c.traces;
+        glm::vec3 at{0.f}, fwd{0.f};
+        int kind = 0;
+        const bool found = findFoothold(b, seek, hip[seek], at, kind, fwd);
+        const glm::vec3 was = f.held || f.step >= 0.f ? f.now : hangingFoot(b, seek, hip[seek]);
+        if(found && f.held && glm::distance(at, f.at) < 3.f)
+        {
+            f.retry = 0.2f; // the same hold again: it stays (and looks again later)
+        }
+        else if(found)
+        {
+            f.from = was;
+            f.at = at;
+            f.fwd = fwd;
+            f.kind = kind;
+            f.step = 0.f;
+            f.held = true;
+            f.serial++;
+            c.lastStep = seek;
+        }
+        else
+        {
+            // None: it hangs (easing there from a hold).
+            f.from = was;
+            f.step = f.held ? 0.f : f.step;
+            f.held = false;
+            f.retry = 0.25f;
+        }
+        if(vr_debug_climb_feet.value)
+        {
+            const float u = b.m2w;
+            Con_Printf("climbfoot %s %s %.1f %.1f %.1f (hip %.1f %.1f %.1f): %.0f cm under the hip, %.0f cm in; %d traces, "
+                       "%.3f ms\n",
+                seek == 0 ? "L" : "R", !found ? "none" : kind == 2 ? "top" : "face", at.x, at.y, at.z, hip[seek].x,
+                hip[seek].y, hip[seek].z,
+                found ? (hip[seek].z - at.z) / u * 100.f : 0.f, found ? glm::dot(at - hip[seek], c.in) / u * 100.f : 0.f,
+                c.traces - traces0, (Sys_DoubleTime() - t0) * 1000.0);
+        }
+    }
+
+    // Where each ankle is aimed.
+    for(int side = 0; side < 2; side++)
+    {
+        ClimbFoot& f = c.feet[side];
+        // A step (to a hold, or off one to hang): out from the face first, across, then in onto the hold, so that the
+        // toes clear the lip left and the one above.
+        const glm::vec3 to = f.held ? f.at : hangingFoot(b, side, hip[side]);
+        if(f.step >= 0.f)
+        {
+            const float s = f.step;
+            const float outW = smooth01(za::min(1.f, za::min(s / 0.3f, (1.f - s) / 0.25f)));
+            const float e = smooth01(CLAMP(0.f, (s - 0.15f) / 0.65f, 1.f));
+            const float out = (f.held ? 1.f : 1.f - e) * outW * (toeLength(side) + CLIMB_STEP_OUT) * b.m2w;
+            f.now = glm::mix(f.from, to, e) - f.fwd * out + UP * (za::sin(glm::pi<float>() * s) * 0.03f * b.m2w);
+            f.flat = f.held ? 1.f : 1.f - e;
+        }
+        else
+        {
+            f.now = to;
+            f.flat = f.held ? 1.f : 0.f;
+        }
+    }
+}
+
+// The climbing feet each frame (vr_debug_climb_feet 2): each foot's state (0 hanging, 1 on its hold, 2 stepping), its
+// hold's number, where the drawn ankle is and whether the ankle or the toes are inside something.
+void logClimbing(const Body& b)
+{
+    if(vr_debug_climb_feet.value < 2.f || climbing.weight <= 0.f)
+    {
+        return;
+    }
+    char line[256];
+    int n = q_snprintf(line, sizeof(line), "climbfeet %.3f w %.2f rise %.2f us %.1f", cl.time, climbing.weight,
+        climbing.rise, climbing.updateMs * 1000.0);
+    for(int side = 0; side < 2; side++)
+    {
+        const ClimbFoot& f = climbing.feet[side];
+        const Bone& bone = b.bones[side == 0 ? FootL : FootR];
+        const glm::vec3 tip = bone.pos + bone.rot[0] * (toeLength(side) * b.m2w);
+        const bool inside = footTrace(bone.pos, bone.pos).solid || footTrace(tip, tip).solid;
+        const int state = !f.held ? 0 : f.step >= 0.f ? 2 : 1;
+        n += q_snprintf(line + n, sizeof(line) - static_cast<size_t>(n), " %s %d %d %.2f %.2f %.2f %d", side == 0 ? "L" : "R",
+            state, f.serial, bone.pos.x, bone.pos.y, bone.pos.z, inside ? 1 : 0);
+    }
+    Con_Printf("%s\n", line);
+    if(vr_debug_climb_feet.value >= 3.f)
+    {
+        for(const ClimbFoot& f : climbing.feet)
+        {
+            if(f.held)
+            {
+                lines::point(f.at, 1.2f, {0.2f, 1.f, 0.3f, 0.9f});
+                lines::line(f.now, f.at, 0.3f, {0.2f, 1.f, 0.3f, 0.6f}, {0.2f, 1.f, 0.3f, 0.9f});
+            }
+        }
+    }
+}
+
 // Legs from the hips to the feet where they stand (updateStance) and walk (the gait), the knees
 // over the toes, floating behind the body swimming (swimFoot); collapsed when not shown. `still`
 // gets the thigh's rotation with the legs standing still under the body instead (the feet where
@@ -1384,8 +2139,8 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
     const glm::vec3 footFwd = yawForward(ft.yaw);
     const glm::vec3 footLeft{-footFwd.y, footFwd.x, 0.f};
     const glm::vec3 outward = side == 0 ? footLeft : -footLeft;
-    const float a = boneLength(thigh, calf) * b.m2w;
-    const float l = boneLength(calf, foot) * b.m2w;
+    const float a = boneLength(thigh, calf) * b.legM2w;
+    const float l = boneLength(calf, foot) * b.legM2w;
     const float footZ = b.floorZ + bd.pos[foot].z * b.m2w;
 
     // Standing still: the knee over the foot, both straight ahead.
@@ -1406,6 +2161,21 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
         target = glm::mix(target, swimFoot(b, side, t.pos, a + l), swim);
         kneeDir = safeNormalize(glm::mix(kneeDir, b.fwd, swim), b.fwd);
     }
+    // Climbing: to its foothold or hanging (updateClimbing), the knee towards the face and a little out (hanging, a
+    // little forward).
+    const float climbW = climbing.weight;
+    const ClimbFoot& cf = climbing.feet[side];
+    if(climbW > 1e-3f)
+    {
+        target = glm::mix(target, cf.now, climbW);
+        const glm::vec3 out = climbOutward(side);
+        const glm::vec3 pole = cf.held ? climbing.in + out * 0.35f + UP * 0.15f : climbing.in * 0.6f + b.fwd * 0.4f + out * 0.1f;
+        kneeDir = safeNormalize(glm::mix(kneeDir, safeNormalize(pole, b.fwd), climbW), b.fwd);
+    }
+    // Body tracking's generated legs (vr_bodytrack_legs), less what climbing and swimming take, and (vr_bodytrack_legs_walk)
+    // what the walk, the run and the air take: moving, the gait drives the legs; standing still, the tracked legs show.
+    const float gaitOver = vr_bodytrack_legs_walk.value != 0.f ? za::max(gait.amount, gait.air) : 0.f;
+    bodytrack::leg(side, t.pos, a + l, footZ, (1.f - climbW) * (1.f - swim) * (1.f - gaitOver), target, kneeDir);
 
     glm::vec3 bend;
     const glm::vec3 knee = twoBone(t.pos, target, a, l, kneeDir + outward * 0.1f, kneeDir, bend);
@@ -1425,6 +2195,16 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
         const glm::mat3 pointed = basis(shinDir + bend * 0.35f, bend);
         f.rot = glm::mat3_cast(glm::slerp(glm::quat_cast(f.rot), glm::quat_cast(pointed), swim));
     }
+    if(climbW > 1e-3f)
+    {
+        // On a hold: flat, the toes into the face; hanging: the toes half pointed along the shin.
+        const glm::vec3 cFwd = cf.fwd;
+        const glm::vec3 cLeft{-cFwd.y, cFwd.x, 0.f};
+        const glm::mat3 held = basis(cFwd * toe.x + cLeft * toe.y + UP * toe.z, UP);
+        const glm::mat3 hanging = basis(safeNormalize(climbing.in + shinDir, climbing.in) + bend * 0.2f, bend);
+        const glm::mat3 climbRot = glm::mat3_cast(glm::slerp(glm::quat_cast(hanging), glm::quat_cast(held), cf.flat));
+        f.rot = glm::mat3_cast(glm::slerp(glm::quat_cast(f.rot), glm::quat_cast(climbRot), climbW));
+    }
 }
 
 // Model bone index of each joint, per model checked (a few: the builds' bodies, their fallback): a table, so that a
@@ -1434,6 +2214,7 @@ struct ModelInfo
     const qmodel_t* model{nullptr};
     za::String name; // the model's (its slot is reused by another after a game change)
     bool usable{false};
+    bool bare{false}; // bare forearms (progs/vrbody*_bare)
     za::Array<int, JointCount> boneOf{};
 };
 
@@ -1578,6 +2359,20 @@ void queueDebug(const Body& b)
 }
 
 } // namespace
+
+void resetMotion()
+{
+    gait = Gait{};
+    stance = Stance{};
+    water = Water{};
+    climbing = Climbing{};
+    climbHang = 0.f;
+    armEase = ArmEase{};
+    for(ForearmTwist& f : forearms)
+    {
+        f = ForearmTwist{};
+    }
+}
 
 Torso torso(const hands::State& s, bool crouchPose)
 {
@@ -1737,6 +2532,7 @@ bool usable(qmodel_t* model)
     }
 
     info.usable = true;
+    info.bare = strstr(model->name, "_bare.") != nullptr; // (progs/vrbody*_bare.mdl)
     return true;
 }
 
@@ -1746,6 +2542,8 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     Body b;
     solveTorso(s, b);
     debugHead = s.head;
+    const ModelInfo* known = infoOf(model);
+    bareArms = known && known->bare;
 
     // The left arm reaches for the left controller (HAND_OFF, left-handed too), the right for the right.
     solveArm(b, 0, handPoses[HAND_OFF]);
@@ -1758,9 +2556,15 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     updateGait(b, dt);
     const glm::vec3 stand = s.head - glm::vec3{s.lean.x, s.lean.y, 0.f}; // where the body stands (the box's middle)
     updateStance(b, stand, dt);
+    {
+        const double t0 = vr_debug_climb_feet.value >= 2.f ? Sys_DoubleTime() : 0.0;
+        updateClimbing(b, dt, legs);
+        climbing.updateMs = vr_debug_climb_feet.value >= 2.f ? (Sys_DoubleTime() - t0) * 1000.0 : 0.0;
+    }
     glm::mat3 still[2];
     solveLeg(b, stand, 0, legs, still[0]);
     solveLeg(b, stand, 1, legs, still[1]);
+    logClimbing(b);
     traceLean(b, s);
 
     // The thighs relative to the pelvis, as they are and standing still (Follower::thigh).
@@ -1791,8 +2595,31 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
             k.wrist[hand] = b.bones[clav + 3].pos;
             k.hip[side] = b.bones[side == 0 ? ThighL : ThighR].pos;
             k.knee[side] = b.bones[side == 0 ? CalfL : CalfR].pos;
-            k.ankle[side] = b.bones[side == 0 ? FootL : FootR].pos;
+            const Bone& foot = b.bones[side == 0 ? FootL : FootR];
+            k.ankle[side] = foot.pos;
+            k.toe[side] = foot.pos + foot.rot[0] * (toeLength(side) * b.m2w);
+            k.sole[side] = ankleHeight(side) * b.m2w;
+            k.steps[side] = footSteps[side];
         }
+        // Body tracking's debug skeleton and error log (vr_bodytrack.cpp).
+        bodytrack::Posed bt;
+        bt.pelvis = b.bones[Pelvis].pos;
+        bt.top = b.bones[Head].pos;
+        bt.neutral = safeNormalize(UP * (glm::distance(bind().pos[Pelvis], bind().pos[Head]) * b.m2w) +
+                                   b.fwd * (vr_body_torso_back.value * b.m2w));
+        bt.fwd = b.fwd;
+        for(int side = 0; side < 2; side++)
+        {
+            const int hand = side == 0 ? HAND_OFF : HAND_MAIN;
+            bt.shoulder[side] = k.shoulder[hand];
+            bt.elbow[side] = k.elbow[hand];
+            bt.wrist[side] = k.wrist[hand];
+            bt.hip[side] = k.hip[side];
+            bt.knee[side] = k.knee[side];
+            bt.ankle[side] = k.ankle[side];
+        }
+        bt.leanHold = s.leanHold;
+        bodytrack::posed(bt);
     }
 
     // Preview: the body in front of the player, with its head, facing them (2) or turned to show
@@ -1933,7 +2760,7 @@ bool forearmFrame(int hand, float along, ForearmFrame& out)
     return true;
 }
 
-void forearmGirth(int build, float along, float& hint, float& other)
+void forearmGirth(int build, float along, float& hint, float& other, bool bare)
 {
     // make_vrbody.py: BUILDS' muscularity m (0.9, 1.2, 1.5), forearms fm = 1.08 m, wrists wm = 1 + 0.3 (m - 1); the
     // bracer's rings (loft "bracer") at 0.13, 0.19 and 0.225 m from the elbow and at the wrist (0.26).
@@ -1944,13 +2771,34 @@ void forearmGirth(int build, float along, float& hint, float& other)
     {
         float at, u, v;
     };
-    const Ring rings[] = {{0.13f, 0.049f * fm, 0.043f * fm},
+    Ring rings[6] = {{0.13f, 0.049f * fm, 0.043f * fm},
         {0.19f, za::max(0.041f * wm, 0.040f), za::max(0.033f * wm, 0.0335f)},
         {0.225f, za::max(0.0385f * wm, 0.039f), za::max(0.030f * wm, 0.0325f)},
         {0.26f, za::max(0.036f * wm, 0.037f), za::max(0.027f * wm, 0.0295f)}};
-    const float at = CLAMP(rings[0].at, along * 0.26f, rings[3].at);
+    int count = 4;
+    if(bare)
+    {
+        // make_vrbody.py's bare_rings: the skin's ring at 0.15 m, then smoothly down to the hand's wrist (its fitted
+        // ring's extents, the back's and the palm's sides averaged), the jointed hand at the default size.
+        constexpr float handU = bodybare::wristU, handV = bodybare::wristV;
+        const float u15 = glm::mix(0.046f * fm, 0.037f * wm, 3.f / 7.f);
+        const float v15 = glm::mix(0.040f * fm, 0.029f * wm, 3.f / 7.f);
+        const float places[] = {0.15f, 0.19f, 0.225f, 0.26f};
+        // The elbow lug can lie before the bare taper begins. Fit that thicker skin too, rather than
+        // clamping both bands to the smaller 0.15 m ring and burying the elbow band inside the arm.
+        rings[0] = {0.05f, 0.052f * fm, 0.050f * fm};
+        rings[1] = {0.12f, 0.046f * fm, 0.040f * fm};
+        count = 6;
+        for(int k = 0; k < 4; k++)
+        {
+            const float t = (places[k] - 0.15f) / 0.11f;
+            const float ease = 1.f - t * t * (3.f - 2.f * t);
+            rings[k + 2] = {places[k], handU + (u15 - handU) * ease, handV + (v15 - handV) * ease};
+        }
+    }
+    const float at = CLAMP(rings[0].at, along * 0.26f, rings[count - 1].at);
     int k = 1;
-    while(k < 3 && rings[k].at < at)
+    while(k < count - 1 && rings[k].at < at)
     {
         k++;
     }
@@ -1965,6 +2813,7 @@ void solveArms(const hands::State& s, const HandPose handPoses[2])
     Body b;
     solveTorso(s, b);
     easeWrists = false;
+    bareArms = false; // (no body drawn: its frames only)
     solveArm(b, 0, handPoses[HAND_OFF]);
     solveArm(b, 1, handPoses[HAND_MAIN]);
     easeWrists = true;
@@ -1998,6 +2847,13 @@ void shadowLight(const glm::vec3& light)
 {
     // Out to a light 30 cm from the eyes: the head (10 cm round them) and the head-mounted flashlight (9 cm out).
     posed.shadowHead = vr_shadow_head.value != 0.f && glm::distance(light, posed.eyes) > 0.3f * posed.m2w;
+}
+
+float personStep(float speed)
+{
+    constexpr float base = 0.55f;     // metres
+    constexpr float perSpeed = 0.19f; // metres per metre a second
+    return CLAMP(0.6f, base + perSpeed * speed, 2.2f);
 }
 } // namespace qvr::avatar
 
@@ -2043,10 +2899,11 @@ extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
     {
         // Seen through a teleporter (the loop's gates show you your own back), the body has its head: the eyes' views
         // collapse it (solveTorso), so as not to see its inside. Not when the view through the gate is drawn from
-        // within a head's length of the eyes (an eye half through a gate looking back through the gate it is in).
-        const bool head = qvr::vr_teleporter_self_head.value != 0.f && VR_PortalDrawing() &&
-            glm::distance(glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]}, posed.eyes) >
-                0.3f * posed.m2w;
+        // within a head's length of the eyes (an eye half through a gate looking back through the gate it is in). So
+        // too any other view from outside the head (vr_mock_camera's spectator view, a third-person camera).
+        const bool away = glm::distance(glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]},
+                              posed.eyes) > 0.3f * posed.m2w;
+        const bool head = away && (VR_PortalDrawing() ? qvr::vr_teleporter_self_head.value != 0.f : true);
         *matrices = head ? posed.shadowSkin.data() : posed.skin.data();
     }
     return JointCount;

@@ -9,10 +9,12 @@
 // splats paint at the model's surface there -- by distance in the world, so a wound goes across the skin's seams as it
 // goes across the model (r_alias.c's R_PaintAliasWounds, gl_shaders.h's wound_paint_fragment_shader). The model's
 // shader reads the mask at its skin's texels and shows it with an ordered dither (gl_shaders.h's WoundsAt): chunky,
-// sharp-edged marks in Quake's palette colours; blood and water shine and fill the normal map's bumps; fresh burns
-// glow in their cracks.
+// sharp-edged marks in Quake's palette colours; blood shines and fills the normal map's bumps; fresh burns glow in
+// their cracks. Wetness is not dithered: where the mask is wet at all, an even coat (vr_wounds_wet_coat: darker, a
+// glossy film in the model's own light) whose strength is the model's, fading as it dries; a weapon or prop in a hand
+// that went under the surface takes it all over (wetCoat).
 //
-// Wetness dries in about 25 seconds (dripping while wet), from the waterline down; embers cool in a few seconds; blood
+// Wetness dries in about 28 seconds (dripping while wet), from the waterline down; embers cool in a few seconds; blood
 // and char stay (on corpses for good). The player's own body and jointed hands take the wounds where the blow came
 // from, instead of the wound skins (the armour skins stay), and heal: blood and char fade as health comes back, and all
 // of it goes on respawning. A new map starts clean, as does a loaded game (the masks are the client's only).
@@ -24,6 +26,10 @@
 // and props").
 
 #pragma once
+
+#include "Zancle/Vocabulary/Span.hpp"
+
+#include <glm/glm.hpp>
 
 struct entity_s;
 
@@ -54,17 +60,21 @@ void clear();
 // How many models have a mask now (vr_scene_count).
 [[nodiscard]] int liveCount();
 
-// vr_wounds_test <entity|self> <kind> [amount] [right] [up]: a wound as the server would send it, on entity number n
-// (or the player), from the view (the player: from ahead), kind QVR_WOUND_* (1 shot .. 9 liquid), `right`/`up` units
-// off the model's middle (a liquid: `up` is its surface's height over the model's feet).
-void test_f();
+// Whether `e` has blood painted on it (a mask: hit, cut, bled on), for the bloody footprints (vr_bloodprints.cpp).
+[[nodiscard]] bool bloody(const entity_s* e);
 
-// vr_wounds_dump: every mask in use written to <gamedir>/wounds/mask_<layer>_<model>.png (r blood, g char, b wetness,
-// heat as white), laid out as its skin.
-void dump_f();
-
-// vr_wounds_info: the pool (layers used, what they are on) and the last paint's cost.
-void info_f();
+// Bloody handprints on things (vr_bloodprints.cpp; vr_handprint_props): the thing a palm at `from` pressing along `dir`
+// (unit) meets within `reach` units, and where (`at`, its outward `normal`): a prop, a box, an item lying about (not a
+// weapon, not a gib, not what a hand carries: gripPrint's); a brush one by its box, a model by its triangles as drawn.
+// 0: none.
+[[nodiscard]] int palmTouch(const glm::vec3& from, const glm::vec3& dir, float reach, glm::vec3& at, glm::vec3& normal);
+// Blood painted on entity `num`'s mask at `at`, a palm's print `radius` units round, `strength` 0..1 (it stays as the
+// gear's blood does). False: none painted.
+bool handprintOn(int num, const glm::vec3& at, float radius, float strength);
+// A bloody hand's grip (`hand` 1 the main hand; vr_handprint_gear): blood painted on what it holds (its weapon, or the
+// prop it carries) where the palm is (`at`, `radius` units round), the weapon's going with it (dropped, holstered,
+// taken again). False: nothing held, or none painted.
+bool gripPrint(int hand, const glm::vec3& at, float radius, float strength);
 
 // The gore's bloody hands and washing (vr_gore_hands, vr_gore_wash*, vr_gore_reopen*; vr_wounds.cpp): with the wound
 // skins (vr_wounds 0), the damage skin the player's `part` (0 the off hand, 1 the main hand, 2 the body), drawn at
@@ -72,22 +82,17 @@ void info_f();
 // hit), at least a bloody one while a gib's blood is on a hand.
 [[nodiscard]] int skinLevel(int part, int level, const float* origin);
 
-// vr_gore_hands_test [off|main] [amount]: a gib's blood on a hand, as taking one (the main hand; vr_gore_hands).
-void handsTest_f();
+// The point on a model a blow at `org` going `dir` (unit) struck, as the wounds and dents place it: `tris` its triangles
+// as drawn (three corners each, the world), the front face the line through `org` meets nearest it, else the facing one
+// nearest the line; `at`, the face's outward `normal`, and its first corner's index returned (-1: none).
+[[nodiscard]] int strikeTriangles(za::Span<const glm::vec3> tris, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at,
+    glm::vec3& normal);
 
-// vr_gore_wash_test [amount]: `amount` (0.25) of the blood washed off your hands and body at once, as water over them
-// would (vr_gore_wash_once: each texel once).
-void washTest_f();
+// vr_dummy_gore_reset: every training dummy's dents, blood streams and painted wounds cleared (Gore > Training Dummy).
+void dummyReset_f();
 
-// vr_gore_hands_info: the player's wounds kept to re-open, the wash, the blood on the hands and the body (texels), and
-// on your gear (vr_gore_gear: the weapons and props you hold or held).
-void handsInfo_f();
-
-// vr_gore_spatter_test [blow|saw|shot|gib] [distance]: blood thrown onto you as by a blow `distance` units ahead of what
-// the main hand holds (6), a chainsaw's cut there, a shot hitting `distance` ahead of the eyes (40), a gib striking the
-// main hand (vr_gore_spatter*; ROUND21.md, "Blood on you, your weapons and props"). `arm [main|off] [count]`: `count`
-// (3) bleeding marks on that forearm alone, as wounds spread them (one arm's never on the other: ROUND21.md, "Chunky
-// arms on their own texels").
-void spatterTest_f();
+// The test and report commands (vr_wounds_test, _dump, _info; vr_gore_hands_test, vr_wrist_blood_test, vr_gore_wash_test,
+// vr_gore_hands_info, vr_gore_spatter_test; vr_wounds_diag.cpp), where their usage is.
+void registerDiagCommands();
 
 } // namespace qvr::wounds

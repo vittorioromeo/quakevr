@@ -178,6 +178,26 @@ float parm53; // nails
 float parm54; // rockets
 float parm55; // cells
 float parm56; // bloody weapons (MG3_BLOODY_SG, MG3_BLOODY_SSG)
+// Arcane Dimensions (vr_ad_bridge.qc AD_SetChangeParms/AD_DecodeLevelParms): AD's own parm10..16, which VR's hands and
+// holsters own here (AD support). Only AD's maps write them; SetNewParms leaves them alone (a new game's are 0).
+float parm57; // AD's map variables (its parm11..16, 22 bits each)
+float parm58;
+float parm59;
+float parm60;
+float parm61;
+float parm62;
+float parm63; // AD's weapon upgrades (its parm10, .ad_moditems)
+float parm64; // AD support: the carried weapons' upgrades (vr_ad_bridge.qc AD_PackWeaponUpgrades; 65..72: reserved for AD's level state)
+float parm65;
+float parm66;
+float parm67;
+float parm68;
+float parm69;
+float parm70;
+float parm71;
+float parm72;
+float parm73; // the magnetic holsters' bindings (vr_magholster.qc VR_MagHolster_EncodeParms)
+float parm74; // bullet time's meter used up (.vr_bullettime_spent: client.qc SetChangeParms)
 
 void() OnSpawnServerBeforeLoad; // Called when a new server
                                 // is spawned, before
@@ -365,7 +385,7 @@ float FL_PARTIALGROUND  = VRUTIL_POWER_OF_TWO(10); // Not all corners are valid.
 float FL_WATERJUMP      = VRUTIL_POWER_OF_TWO(11); // Player jumping out of water.
 float FL_JUMPRELEASED   = VRUTIL_POWER_OF_TWO(12); // For jump debouncing.
 float FL_EASYHANDTOUCH  = VRUTIL_POWER_OF_TWO(13); // Adds bonus to boundaries for handtouch.
-float FL_SPECIFICDAMAGE = VRUTIL_POWER_OF_TWO(14); // HONEY.
+float FL_SPECIFICDAMAGE = VRUTIL_POWER_OF_TWO(14); // HONEY: takes damage only from the weapons in its .items (vr_dmgcredit.qc).
 float FL_FORCEGRABBABLE = VRUTIL_POWER_OF_TWO(15); // VR.
 
 //
@@ -488,6 +508,16 @@ float HIP_IT_ENFRIFLE          = VRUTIL_POWER_OF_TWO(8); // VR: an enforcer's la
 float HIP_IT_CROWBAR           = VRUTIL_POWER_OF_TWO(9); // VR: the crowbar.
 float HIP_IT_SUPERAXE          = VRUTIL_POWER_OF_TWO(10); // MG3: Dawn of the Machine's Super Axe.
 float HIP_IT_TOOLGUN           = VRUTIL_POWER_OF_TWO(11); // VR: the toolgun.
+float HIP_IT_ADROCKET          = VRUTIL_POWER_OF_TWO(12); // AD support: the AD soldiers' guns (vr_ad_enemyguns.qc).
+float HIP_IT_ADGRENADE         = VRUTIL_POWER_OF_TWO(13);
+float HIP_IT_ADPLASMA          = VRUTIL_POWER_OF_TWO(14);
+float HIP_IT_ADDEFENDER        = VRUTIL_POWER_OF_TWO(15);
+float HIP_IT_ADELIMINATOR      = VRUTIL_POWER_OF_TWO(16);
+float HIP_IT_ADCENTURION       = VRUTIL_POWER_OF_TWO(17);
+float HIP_IT_ADPYRO            = VRUTIL_POWER_OF_TWO(18);
+float HIP_IT_ADFUMIGATOR       = VRUTIL_POWER_OF_TWO(19);
+float HIP_IT_ADCROSSBOW        = VRUTIL_POWER_OF_TWO(20); // AD support: the crossbow knight's crossbow.
+float HIP_IT_NAILPISTOL        = VRUTIL_POWER_OF_TWO(21); // VR: the nail pistol (vr_nailpistol.qc).
 
 //
 //

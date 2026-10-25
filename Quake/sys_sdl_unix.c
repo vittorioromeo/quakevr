@@ -74,8 +74,7 @@ static int findhandle (void)
 
 FILE *Sys_fopen (const char *path, const char *mode)
 {
-	if (strpbrk (mode, "wa+"))
-		VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
+	FILE *f;
 	if (strchr (mode, 'w'))
 	{
 		char dir[MAX_OSPATH];
@@ -99,7 +98,10 @@ FILE *Sys_fopen (const char *path, const char *mode)
 		}
 	}
 
-	return fopen (path, mode);
+	f = fopen (path, mode);
+	if (strpbrk (mode, "wa+"))
+		VR_FileCacheForgetFile (path); // QVR: the loading's listing of its directory, once it is there (vr_fscache.cpp)
+	return f;
 }
 
 COMPILE_TIME_ASSERT (CHECK_LARGE_FILE_SUPPORT, sizeof (off_t) >= sizeof (qfileofs_t));
@@ -116,21 +118,24 @@ qfileofs_t Sys_ftell (FILE *file)
 
 int Sys_remove (const char *path)
 {
-	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
-	return remove (path);
+	int result = remove (path);
+	VR_FileCacheForgetFile (path); // QVR: the loading's listing of its directory, once it is gone (vr_fscache.cpp)
+	return result;
 }
 
 int Sys_rename (const char *oldname, const char *newname)
 {
-	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
-	return rename (oldname, newname);
+	int result = rename (oldname, newname);
+	VR_FileCacheForgetMoved (oldname, newname); // QVR: the loading's listings of both directories, once moved (vr_fscache.cpp)
+	return result;
 }
 
 // QVR: newname replaced by oldname in one step (rename is atomic); 0 on success
 int Sys_ReplaceFile (const char *oldname, const char *newname)
 {
-	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
-	return rename (oldname, newname);
+	int result = rename (oldname, newname);
+	VR_FileCacheForgetMoved (oldname, newname); // QVR: the loading's listings of both directories, once moved (vr_fscache.cpp)
+	return result;
 }
 
 qfileofs_t Sys_filelength (FILE *f)
@@ -848,6 +853,11 @@ qboolean Sys_IsDebuggerPresent (void)
 	return false;
 }
 
+qboolean Sys_GraphicsDebuggerPresent (void) // QVR: (vr_gl_markers 2: not detected here)
+{
+	return false;
+}
+
 static const char errortxt1[] = "\nERROR-OUT BEGIN\n\n";
 static const char errortxt2[] = "\nQUAKE ERROR: ";
 
@@ -861,6 +871,12 @@ void Sys_ReportError (const char *error, ...)
 	va_start (argptr, error);
 	q_vsnprintf (text, sizeof(text), error, argptr);
 	va_end (argptr);
+
+	// QVR: the crash report, with the stack from Sys_Error's caller (quakevr/crash; the dialog names it). Off the main
+	// thread (a job, the save thread): reported and ended there, without the engine's shutdown (the main thread's).
+	if (!VR_OnMainThread ())
+		VR_FatalError (text);
+	VR_ErrorReport (text);
 
 	fputs (errortxt1, stderr);
 	Host_Shutdown ();

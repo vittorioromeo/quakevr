@@ -2,6 +2,7 @@
 
 #include "vr_grip.hpp"
 #include "vr_cvars.hpp"
+#include "vr_gripfit.hpp"
 #include "vr_held.hpp"
 #include "vr_physics.hpp"
 #include "vr_props.hpp"
@@ -311,7 +312,15 @@ struct Held
     bool pouch{false};         // a hand grenade taken from the pouch (serverFromPouch): turned by vr_grenade_pouch_hold_*
     bool frontPouch{false};    // (a launcher's round from the ammo pouch: by vr_reload_front_hold_*)
     glm::vec3 pouchTurn{0.f};  // the turn it was placed with (pitch, yaw, roll; mirrored for the left hand)
+    glm::vec3 fit{0.f};        // the grip fit's move at the grab (hand frame; vr_gripfit.hpp), on top of its grip's place
 };
+
+// Whether the grip fit moves a prop held by grip mode `mode`: Where Taken and In the Palm; Fixed and Along the Handle
+// are authored places in the hand (a torch's handle through the fist).
+[[nodiscard]] bool fitsMode(int mode)
+{
+    return mode == static_cast<int>(Mode::WhereTaken) || mode == static_cast<int>(Mode::Palm);
+}
 
 ankerl::unordered_dense::map<int, Held> heldProps;
 
@@ -392,6 +401,10 @@ void placeNow(Held& h)
             const glm::vec3 mid = h.now.pos + h.now.rot * (middleOf(h.prop) + settingsOf(h.prop.slot, h.left).com);
             h.now = {mid + m * (h.now.pos - mid), orthonormal(m * h.now.rot)};
         }
+        else if(fitsMode(mode))
+        {
+            h.now.pos += h.fit; // moved out of the hand at the grab (vr_gripfit.hpp), kept for the hold
+        }
     }
     h.generation = props::settingsGeneration();
 }
@@ -445,6 +458,18 @@ glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const flo
     h.taken.pos = {offset.x, -offset.y, offset.z};
     h.taken.rot = glm::transpose(handAxes) * held::axesFromAngles(e->v.angles, h.prop.brush);
     placeNow(h);
+    // The grip fit (vr_gripfit.hpp): the hand's spheres into the prop's frame where it is now placed in the hand; moved
+    // out of the hand if they sink in too deep, and kept so (placeNow adds it again when its settings change).
+    if(fitsMode(static_cast<int>(za::lround(props::value(h.prop.slot, props::Key::GripMode)))))
+    {
+        const glm::mat3 toProp = glm::transpose(h.now.rot);
+        glm::vec3 move{0.f};
+        if(gripfit::fit(num, hand, h.local, false, toProp, -(toProp * h.now.pos), h.prop.lo, h.prop.hi, &h.prop.vertices, move))
+        {
+            h.fit = -(h.now.rot * move);
+            h.now.pos += h.fit;
+        }
+    }
     physics::setCarryTurn(e, handAngles, h.now.rot);
     h.lastOffset = toFRU(h.now.pos);
     logPlace("taken", num, h);
@@ -497,6 +522,7 @@ void serverKeep(edict_t* e, const float* handAngles, const glm::vec3& offset)
     }
     Held& h = it->second;
     h.pouch = false; // (regripped: held where it is, the pouch's turn in it)
+    h.fit = glm::vec3{0.f}; // (where it is has it)
     const Settings s = settingsOf(h.prop.slot, h.left);
     const Place current{{offset.x, -offset.y, offset.z},
         glm::transpose(held::axesFromAngles(handAngles, true)) * held::axesFromAngles(e->v.angles, h.prop.brush)};
@@ -559,12 +585,19 @@ glm::vec3 serverFromPouch(edict_t* e, const float* handAngles, const glm::vec3& 
     }
     h.taken = {glm::vec3{0.f}, turn};
     h.kept = false;
+    h.fit = glm::vec3{0.f}; // (a pouch's place is its own)
     placeNow(h);
     physics::setCarryTurn(e, handAngles, h.now.rot);
     h.turnStale = false;
     h.lastOffset = toFRU(h.now.pos);
     logPlace(front ? "from the ammo pouch" : "from the pouch", num, h);
     return h.lastOffset;
+}
+
+int serverHand(int num)
+{
+    const auto it = heldProps.find(num);
+    return it == heldProps.end() ? -1 : it->second.hand;
 }
 
 void forget(int num)

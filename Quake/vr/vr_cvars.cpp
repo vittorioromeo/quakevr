@@ -1,13 +1,12 @@
 // vr_cvars.cpp -- Quake VR cvar definitions and registration.
 
 #include "vr_cvars.hpp"
-#include "vr_body.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_bodyclone.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_mgroups.hpp"
 #include "vr_props.hpp"
-#include "vr_retro.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/Strncmp.hpp"
@@ -42,641 +41,9 @@ struct DefaultChange
 };
 
 const DefaultChange defaultChanges[] = {
-    {1, &vr_swim_stick_speed, "0.1"},
-    {2, &vr_dlight_uncapped, "0"},
-    {3, &vr_bloom, "0.8"},
-    {3, &vr_bloom_threshold, "0.6"},
-    {3, &vr_headbutt_speed, "1.5"},
-    {4, &vr_carry_throw_damage, "25"},
-    {5, &vr_flash_scale, "1.8"},           // sizes over DarkPlaces' lights now (vr_dlight_falloff)
-    {5, &vr_explosion_light_scale, "1.5"},
-    {6, &vr_flashlight_shadows, "0"},
-    {6, &vr_flashlight_beam, "0"},         // a soft cone of light now, not a line over everything
-    {7, &vr_melee_speed, "3"},             // the wrist's speed now (a blow must also travel vr_melee_distance)
-    {9, &vr_parallax_models, "0.75"},      // off: parallax on 8-bit skins bends their texels (the bumps give models relief now)
-    {10, &vr_parry_angle, "50"},          // degrees off level now (was off square to the blow, by the hand's forward)
-    {11, &vr_bash_speed, "1.6"},          // a gentler push bashes (round 18: the guard is the parry's now)
-    {12, &vr_sight_hue, "30"},            // their own orange: they follow the player's hue now (vr_player_hue)
-    {13, &vr_shove_speed, "1.8"},         // the author's shoves go 3.2-4.8 m/s, his hands waved at the dummy 2.2 (round 21)
-    {14, &vr_counter_glow, "1"},          // off: the author would rather play without it (round 21, "Stamina on the gadget; the glow")
-    {34, &vr_spectator_scale, "1"},       // 0.75: the spectator camera's cost (ROUND21.md, "Performance fixes (review, 2026-09-28)")
-    {41, &vr_grenade_catch, "1"},         // 2: your own grenades too, the author's choice (ROUND21.md, "Debug menu; quad sound; grenade catch default; no empty-hand deflection")
-    // 45: the author's liquid transparency (NOTES.md start_2026-09-29_18-40-33; ROUND21.md, "Defaults: the author's
-    // liquids, bricks, torch and holsters"): water 0.4, lava, slime and teleporters 0.9 (vr_defaults.cfg).
-    {45, &r_wateralpha, "0.6"},
-    {45, &r_lavaalpha, "1"},
-    {45, &r_slimealpha, "0"},
-    {45, &r_telealpha, "0"},
-    {46, &vr_climb_leniency, "10"},       // 6: the author's (ROUND21.md, "Defaults: the author's climbing values")
-    {46, &vr_climb_hand_side, "0"},       // 7.5: the author's, the drawn hand outwards along the edge
-    // 47: the author's tired arms, "more intense" (NOTES.md vrfiringrange_2026-09-29_21-26-37; ROUND21.md, "Defaults: the
-    // author's tired arms; the tired run").
-    {47, &vr_weight_stamina_max, "2"},    // 2.5
-    {47, &vr_weight_stamina_add, "0"},    // 15 kg
-    {47, &vr_weight_stamina_empty, "3"},  // 15 kg
-    // 48: the author's turn of a grenade from the pouch (NOTES.md vrfiringrange_2026-09-29_22-58-53).
-    {48, &vr_grenade_pouch_hold_pitch, "0"}, // -180
-    {48, &vr_grenade_pouch_hold_yaw, "0"},   // 90
-    // 49: Ironwail's own HUD style (NOTES.md vrfiringrange_2026-09-30_00-53-14): vr_bindings.cfg set the classic status
-    // bar before; flung props hurt players too (vrfiringrange_2026-09-30_00-56-20).
-    {49, &scr_hudstyle, "0"},             // 2
-    {49, &vr_prop_impact_players, "0"},   // 1
-    // 50: the author's rope and hang values (NOTES.md vrfiringrange_2026-09-30_00-44-28 and 00-45-06; ROUND21.md, "Grapple
-    // round 3").
-    {50, &vr_grapple_reel_speed, "450"},       // 300
-    {50, &vr_grapple_prop_speed, "650"},       // 300
-    {50, &vr_grapple_rope_spacing, "12"},      // 4
-    {50, &vr_grapple_rope_iterations, "8"},    // 32
-    {50, &vr_grapple_rope_radius, "1"},        // 4
-    {50, &vr_grapple_loose_slack, "24"},       // 8
-    {50, &vr_grapple_hang_drag, "3"},          // 1
-    {50, &vr_grapple_load_max_speed, "700"},   // 500
-    // 51: the player's narrower box against walls, brush models and entities, the compiled hull's way (NOTES.md
-    // e1m1_2026-09-30_02-19-27, e1m3_2026-09-30_02-34-01; ROUND21.md, "Player hitbox defaults").
-    {51, &vr_hull_width, "0"},                 // 16
-    // 52: the author's turn of a grenade from the pouch, tweaked again ("now quite good", NOTES.md
-    // vrfiringrange_2026-09-30_02-08-07).
-    {52, &vr_grenade_pouch_hold_pitch, "-180"}, // 90
-    {52, &vr_grenade_pouch_hold_yaw, "90"},     // 0
-    // 53: the author's melee speed: soft punches landed too rarely at 4 (NOTES.md vrfiringrange_2026-09-30_02-00-22 and
-    // 02-02-15; ROUND21.md, "Melee speed 3; reloads aren't blows").
-    {53, &vr_melee_speed, "4"},
-    // 57: the author's (NOTES.md 2026-09-30): Narrower Monsters on (e1m1_2026-09-30_10-57-09), a little throw aim assist
-    // (vrfiringrange_2026-09-30_11-25-52), and his melee pushes and bloodlust, compiled in now (vr_defaults.cfg had them
-    // since round 15, without a change for the configs saved before: vrfiringrange_2026-09-30_11-20-10).
-    {57, &vr_mhull, "0"},                     // 1
-    {57, &vr_throw_assist, "0"},              // 1
-    {57, &vr_throw_assist_cone, "12"},        // 15
-    {57, &vr_throw_assist_strength, "0.8"},   // 0.35
-    {57, &vr_melee_push, "1"},                // 0.5
-    {57, &vr_melee_push_player, "1"},         // 0.6
-    {57, &vr_melee_bloodlust_mult, "1.0"},    // 0.5
-    // 59: heavy weapons strike slower (ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee").
-    {59, &vr_weight_lenient, "0.75"},
-    {59, &vr_weight_lenient_from, "10"},
-    // 60: the author's (NOTES.md 2026-09-30): his water and slime transparency again (vrcalibration_2026-09-30_16-18-35;
-    // vr_defaults.cfg), and the empty hand firmer against the prop the other hand holds ("a little bit stronger",
-    // vrfiringrange 16:24:29). ROUND21.md, "Prop size; Mjolnir in water; chainsaw pulls; defaults".
-    {60, &r_wateralpha, "0.4"},               // 0.3
-    {60, &r_slimealpha, "0.9"},               // 0.6
-    // 61: the grunts' guns fire 3-round bursts (ROUND21.md, "The grunts' burst rifles"): a round's damage, not a
-    // pellet's, and rounds in threes.
-    {61, &vr_gruntgun_damage, "4"},           // 5
-    {61, &vr_gruntgun_ammo, "10"},            // 30
-    // 62: no cap on crowbars on crates (the author, 2026-10-01).
-    {62, &vr_crate_crowbar_max, "1"},       // 64
-    // 63: the crowbar a little softer, "its damage is a bit high" (NOTES.md vrfiringrange_2026-10-01_02-33; ROUND21.md,
-    // "Weapon Damage menu"): the axe's base now.
-    {63, &vr_crowbar_damage, "25"},           // 20
-    // 64: the author's Sound page (NOTES.md e1m1_2026-10-01_00-41-15, "tweaked just a few values"; ROUND21.md, "Spatial
-    // audio: bilinear crackle, distance, physics volume"). His HRTF smoothing (nearest) was the crackle's workaround:
-    // below, not a default.
-    {64, &vr_snd_reverb, "0.4"},              // 0.5
-    {64, &vr_snd_nearfield, "1"},             // 1.2
-    // 65: the author's (NOTES.md 2026-10-01): Grab Leniency 2 cm, "you have to touch the thing" (vrclimb 00-32-03), and
-    // his two-handed grips' stickiness while swinging (vrfiringrange 00-08-01).
-    {65, &vr_climb_leniency, "6"},          // 2
-    {65, &vr_2h_sticky_fast, "1"},          // 3.5
-    {65, &vr_2h_sticky_fast_hold, "0.4"},   // 0.6
-    // and his pain knock (NOTES.md vrfiringrange_2026-10-01_00-19-04; ROUND21.md, "Misc: mid-air leniency").
-    {65, &vr_pain_knock_strength, "0.3"},   // 0.75
-    {65, &vr_pain_knock_max, "5"},          // 7.5
-    {65, &vr_pain_knock_time, "0.35"},      // 0.6
-    // 66: the author's crates (NOTES.md e1m2_2026-10-01_02-58-14, "make those the defaults").
-    {66, &vr_crates_max, "16"},             // 24
-    {66, &vr_crate_crowbar, "0.05"},        // 0.1
-    {66, &vr_crate_crowbar_max, "64"},      // 4
-    // 67: thrown axes stick by which part goes in first (ROUND21.md, "Thrown axes: the blade decides"). Stick Angle and
-    // Stick Incidence mean something new (the blade's way out of its plane, its way off straight in): a config opened
-    // all the way (90, the author's, to make the old test pass) takes the defaults, or flat throws would stick.
-    {67, &vr_axestick_angle, "90"},          // 45
-    {67, &vr_axestick_incidence, "90"},      // 65
-    // 68: explosive boxes held up as shields too ("it's the player's fault if they use an explosive as a shield", the
-    // author, 2026-10-01).
-    {68, &vr_crate_shield, "1"},            // 2
-    // 69: the author's sound options (NOTES.md start_2026-10-01_11-47-28, "Distance falloff helps") and Mid-Air
-    // Leniency (vrclimb_2026-10-01_11-49-25).
-    {69, &vr_snd_falloff, "1"},             // 0.75
-    {69, &vr_snd_hrtf_gain, "1.25"},        // 1.5
-    {69, &vr_physsound, "1"},               // 2
-    {69, &vr_physsound_scrape, "0.7"},      // 0.8
-    {69, &vr_physsound_grab, "0.5"},        // 0.7
-    {69, &vr_climb_leniency_air, "2.5"},    // 4
-    // 70: the empty hand meets the other hand's weapon as a prop held there does (NOTES.md
-    // vrfiringrange_2026-10-01_12-12-28): each drawn moved back up to this, not the hand alone held up to 4 cm.
-    {70, &vr_hand_collide, "4"},            // 5
-    // 71: the author's (NOTES.md 2026-10-01): gentler gibs from melee and light weapons (vrfiringrange 16-40-58, "make
-    // those the defaults"), and his pain knock after its third pass (vrfiringrange 16-45-39). ROUND21.md, "Defaults:
-    // gibs, pain knock, grenade grips; mantle grunt; prop pile; one empty-hand collision".
-    {71, &vr_gib_speed_melee, "0.45"},      // 0.15
-    {71, &vr_gib_speed_light, "0.65"},      // 0.25
-    {71, &vr_pain_knock_strength, "0.75"},  // 1
-    {71, &vr_pain_knock_max, "7.5"},        // 15
-    {71, &vr_pain_knock_tip, "2"},          // 3
-    // 72: the author's enemy shove settings (NOTES.md vrfiringrange_2026-10-01_16-59-13).
-    {72, &vr_enemy_shove_range, "52"},      // 50
-    {72, &vr_enemy_shove_delay, "0.6"},     // 0.5
-    {72, &vr_enemy_shove_cooldown, "3"},    // 1.5
-    {72, &vr_enemy_shove_distance, "64"},   // 128
-    // 73: the author's chainsaw smoke and shake (NOTES.md vrfiringrange_2026-10-01_22-34-43).
-    {73, &vr_chainsaw_smoke, "8"},          // 12
-    {73, &vr_chainsaw_smoke_alpha, "0.12"}, // 0.6
-    {73, &vr_chainsaw_shake, "2"},          // 2.5
-    {73, &vr_chainsaw_shake_2h, "0.8"},     // 1.25
-    {73, &vr_chainsaw_shake_ground, "0.3"}, // 0.5
-    // 74: the author's axe sticking, tuned again (NOTES.md
-    // vrfiringrange_2026-10-01_23-04-14): a slower throw sticks.
-    {74, &vr_axestick_speed, "4"},          // 2.5
-    // 75: the author's (NOTES.md 2026-10-02): the ripcord pull's smoke and sparks (vrfiringrange 00-17-30), the pain
-    // grunt as the mantle's (start 00-18-45), throws by weight with his heavier props (vrfiringrange 00-55-03) and the
-    // crates (vrfiringrange 01-41-30). ROUND21.md, "Defaults: chainsaw pull, mantle grunt, prop weights, crates".
-    {75, &vr_chainsaw_pull_smoke, "4"},     // 12
-    {75, &vr_chainsaw_pull_sparks, "6"},    // 24
-    {75, &vr_climb_mantle_grunt_sound, "1"}, // 4
-    {75, &vr_throw_mass_light, "2"},        // 1.5
-    {75, &vr_throw_mass_exp, "0.75"},       // 0.9
-    {75, &vr_crate_health, "25"},           // 75
-    {75, &vr_crate_impact, "14"},           // 16
-    {75, &vr_crate_pieces, "6"},            // 12
-    {75, &vr_crate_piece_time, "30"},       // 60
-    // 76: the author's flashlight (NOTES.md vrfiringrange_2026-10-02_15-46-47, _15-50-31): clipping on when let go (head
-    // and gun), the head's zone and its range, the low grip's place and fingers. ROUND21.md, "Flashlight: the gun's zone
-    // at its mount; a grab sound; the author's defaults".
-    {76, &vr_flashlight_auto_head, "0"},            // 1
-    {76, &vr_flashlight_auto_gun, "0"},             // 1
-    {76, &vr_flashlight_head_range, "1"},           // 1.5
-    {76, &vr_flashlight_head_zone_forward, "0.015"}, // 0.05
-    {76, &vr_flashlight_head_zone_up, "0.175"},     // 0.19
-    {76, &vr_flashlight_head_zone_radius, "0.1"},   // 0.105
-    {76, &vr_flashlight_low_x, "0.5"},              // -1
-    {76, &vr_flashlight_low_y, "-1"},               // -1.5
-    {76, &vr_flashlight_low_z, "-0.5"},             // -1.5
-    {76, &vr_flashlight_low_pitch, "-50"},          // -65
-    {76, &vr_flashlight_low_overlap, "0.45"},       // 0.6
-    {76, &vr_flashlight_low_bias_thumb, "-0.06"},   // -0.02
-    {76, &vr_flashlight_low_bias_index, "0.02"},    // 0.08
-    {76, &vr_flashlight_low_bias_pinky, "-0.36"},   // 0
-    {76, &vr_flashlight_low_thumb_x, "0.5"},        // 0.6
-    {76, &vr_flashlight_low_thumb_y, "0"},          // 0.15
-    // 77: the near clip for a gun at the eye (ROUND21.md, "Near clip: a gun at the eye").
-    {77, &vr_nearclip, "1"},                // 0.1 (float depth for the eyes)
-    // 78: the author's (NOTES.md 2026-10-02): his pain knock, "happy with them now" (vrfiringrange 15-21-40); throws hurt
-    // half as much, "way too high" (vrfiringrange 15-30-01); heavier rolls of the wrist for every weapon, "the default
-    // value of 1 is way too small" (vrfiringrange 15-40-14). ROUND21.md, "Defaults: pain knock, throw damage, roll weight".
-    {78, &vr_pain_knock_strength, "1"},     // 0.75
-    {78, &vr_pain_knock_max, "15"},         // 10
-    {78, &vr_pain_knock_time, "0.6"},       // 0.35
-    {78, &vr_weapon_throw_damage_mult, "1.0"}, // 0.5 (the old default as written)
-    {78, &vr_weapon_throw_damage_mult, "1"}, // 0.5 (as the menu writes it)
-    {78, &vr_weight_spring_roll, "1"},      // 2.5
-    // 79: the author's settings (his config of 2026-10-02 19:34; ROUND21.md, "Defaults: the author's config, 2026-10-02
-    // evening"): breath, swimming, the chainsaw on the ground, the wrist FPS counter off, his wounds and small gibs (the
-    // melee and chainsaw small gibs' speeds are not his yet: the sliders' ends, being fixed), the checklist's ticked
-    // items hidden.
-    {79, &vr_air_supply, "1.5"},                 // 2
-    {79, &vr_swim_look, "0.2"},                  // 0.3 (vr_defaults.cfg)
-    {79, &vr_swim_stroke_pitch, "0"},            // -8
-    {79, &vr_chainsaw_shake_ground, "0.5"},      // 0.85
-    {79, &vr_gadget_fps, "2"},                   // 0 (vr_defaults.cfg had 2)
-    {79, &vr_checklist_hide_ticked, "0"},        // 1
-    {79, &vr_wounds_blood_alpha, "0.8"},         // 0.75
-    {79, &vr_wounds_bump_blood, "1"},            // 1.5
-    {79, &vr_smallgibs_blades, "1.5"},           // 1.7
-    {79, &vr_smallgibs_burst, "3"},              // 4
-    {79, &vr_smallgibs_curve, "1.5"},            // 1.7
-    {79, &vr_smallgibs_damage_per_gib, "40"},    // 30
-    {79, &vr_smallgibs_destroy, "0"},            // 1
-    {79, &vr_smallgibs_full_damage, "60"},       // 35
-    {79, &vr_smallgibs_gibbing, "6"},            // 12
-    {79, &vr_smallgibs_grace, "0.15"},           // 0.1
-    {79, &vr_smallgibs_max, "40"},               // 64
-    {79, &vr_smallgibs_min_damage, "12"},        // 10
-    {79, &vr_smallgibs_nails, "0"},              // 0.4
-    {79, &vr_smallgibs_per_hit, "4"},            // 6
-    {79, &vr_smallgibs_player, "0"},             // 1
-    {79, &vr_smallgibs_props, "1"},              // 1.2
-    {79, &vr_smallgibs_saw_interval, "0.2"},     // 0.1
-    {79, &vr_smallgibs_size_max, "1"},           // 1.15
-    {79, &vr_smallgibs_size_min, "0.5"},         // 0.65
-    {79, &vr_smallgibs_speed, "4"},              // 3
-    {79, &vr_smallgibs_up, "5"},                 // 7
-    {79, &vr_smallgibs_speed_guns, "1"},         // 0.85
-    {79, &vr_smallgibs_up_guns, "1"},            // 0.9
-    // 80: the author's answer on the outliers (2026-10-02): his wound detail and burns relief.
-    {80, &vr_wounds_own_res, "1024"},          // 0 (the chunky masks)
-    {80, &vr_wounds_bump_burns, "1"},          // 3
-    // 81: Quetoo's material maps shipped and on (quakevr/textures_quetoo; ROUND21.md, "Quetoo's maps shipped").
-    {81, &vr_extmaps, "0"},                    // 1
-    {81, &vr_extmaps_dir, "textures_ext"},     // textures_quetoo (an absolute Quetoo folder: below)
-    // 82: the author's blood opacity (NOTES.md vrfiringrange_2026-10-03_02-15-04: "a little below the blood").
-    {82, &vr_wounds_blood_alpha, "0.75"},      // 0.8
-    // 83: the flashlight's chain the default cord (NOTES.md vrfiringrange_2026-10-03_02-29-04).
-    {83, &vr_flashlight_cord, "1"},            // 3
-    // 84: ragdolls on (the author, 2026-10-03; ROUND21.md, "Ragdolls on; corpse health and damage by kind").
-    {84, &vr_ragdoll, "0"},                    // 1
-    // 85: each monster's ragdoll its own mass (the author, 2026-10-03; ROUND21.md, "Ragdoll masses per monster"): a class
-    // still on Global (-1, the 80 kg of vr_ragdoll_mass) takes its own; one set keeps it.
-    {85, &vr_ragdoll_army_mass, "-1"},         // 80
-    {85, &vr_ragdoll_knight_mass, "-1"},       // 90
-    {85, &vr_ragdoll_ogre_mass, "-1"},         // 200
-    {85, &vr_ragdoll_enforcer_mass, "-1"},     // 100
-    {85, &vr_ragdoll_hknight_mass, "-1"},      // 130
-    {85, &vr_ragdoll_dog_mass, "-1"},          // 40
-    {85, &vr_ragdoll_wizard_mass, "-1"},       // 40
-    // 86: brain chunks' own throw, and each monster's small gib and brain chunk counts (the author, 2026-10-04;
-    // ROUND21.md, "Brain chunks' own throw; per-enemy gib counts"). Every one is a new setting: no config of 85 or
-    // before holds it, so it takes its compiled default, which is what happened then (brain chunks flew at Speed and
-    // Up; every count times 1). Listed so this version's additions are named one by one.
-    {86, &vr_smallgibs_brains_speed, "3"},           // 3 (new: what vr_smallgibs_speed was then)
-    {86, &vr_smallgibs_brains_up, "7"},              // 7 (new: what vr_smallgibs_up was then)
-    {86, &vr_smallgibs_mult_grunt, "1"},             // 1 (new)
-    {86, &vr_smallgibs_mult_enforcer, "1"},          // 1 (new)
-    {86, &vr_smallgibs_mult_dog, "1"},               // 1 (new)
-    {86, &vr_smallgibs_mult_fiend, "1"},             // 1 (new)
-    {86, &vr_smallgibs_mult_ogre, "1"},              // 1 (new)
-    {86, &vr_smallgibs_mult_knight, "1"},            // 1 (new)
-    {86, &vr_smallgibs_mult_hellknight, "1"},        // 1 (new)
-    {86, &vr_smallgibs_mult_vore, "1"},              // 1 (new)
-    {86, &vr_smallgibs_mult_shambler, "1"},          // 1 (new)
-    {86, &vr_smallgibs_mult_scrag, "1"},             // 1 (new)
-    {86, &vr_smallgibs_mult_fish, "1"},              // 1 (new)
-    {86, &vr_smallgibs_mult_gremlin, "1"},           // 1 (new)
-    {86, &vr_smallgibs_mult_scourge, "1"},           // 1 (new)
-    {86, &vr_smallgibs_mult_eel, "1"},               // 1 (new)
-    {86, &vr_smallgibs_mult_zombie, "1"},            // 1 (new)
-    {86, &vr_smallgibs_mult_mummy, "1"},             // 1 (new)
-    {86, &vr_smallgibs_brains_mult_grunt, "1"},      // 1 (new)
-    {86, &vr_smallgibs_brains_mult_enforcer, "1"},   // 1 (new)
-    {86, &vr_smallgibs_brains_mult_dog, "1"},        // 1 (new)
-    {86, &vr_smallgibs_brains_mult_fiend, "1"},      // 1 (new)
-    {86, &vr_smallgibs_brains_mult_ogre, "1"},       // 1 (new)
-    {86, &vr_smallgibs_brains_mult_knight, "1"},     // 1 (new)
-    {86, &vr_smallgibs_brains_mult_hellknight, "1"}, // 1 (new)
-    {86, &vr_smallgibs_brains_mult_vore, "1"},       // 1 (new)
-    {86, &vr_smallgibs_brains_mult_shambler, "1"},   // 1 (new)
-    {86, &vr_smallgibs_brains_mult_scrag, "1"},      // 1 (new)
-    {86, &vr_smallgibs_brains_mult_fish, "1"},       // 1 (new)
-    {86, &vr_smallgibs_brains_mult_gremlin, "1"},    // 1 (new)
-    {86, &vr_smallgibs_brains_mult_scourge, "1"},    // 1 (new)
-    {86, &vr_smallgibs_brains_mult_eel, "1"},        // 1 (new)
-    {86, &vr_smallgibs_brains_mult_zombie, "1"},     // 1 (new)
-    {86, &vr_smallgibs_brains_mult_mummy, "1"},      // 1 (new)
-    // October 4 recorded tuning: migrate only untouched prior defaults.
-    {87, &vr_unstick, "0"},
-    {87, &vr_hit_tolerance_guns, "4"},
-    {87, &vr_hit_tolerance_melee, "6"},
-    {87, &vr_snd_hrtf_gain, "1.5"},
-    {87, &vr_mirror, "1"},
-    {87, &vr_window_view, "0"},
-    {87, &vr_window_smooth, "0.15"},
-    {87, &vr_window_level, "0"},
-    {87, &vr_spectator_fov, "90"},
-    {87, &vr_spectator_scale, "0.75"},
-    {87, &vr_bullettime_duration, "6"},
-    {87, &vr_window_hud_mirror, "1"},
-    {87, &vr_world_scale, "1.25"},
-    {87, &vr_floor_offset, "-21"},
-    {87, &vr_menu_level, "0"},
-    {87, &vr_burn_touch, "0"},
-    {87, &vr_flashlight_cord, "3"},
-    {87, &vr_flashlight_mount_preview, "1"},
-    {87, &vr_flashlight_low_pitch, "-65"},
-    {87, &vr_flashlight_low_bias_index, "0.08"},
-    {87, &vr_fire_particles_count, "1"},
-    {87, &vr_fire_particles_size, "1"},
-    {87, &vr_fire_particles_range, "1200"},
-    {87, &vr_explosion_debris_count, "12"},
-    {87, &vr_explosion_debris_speed_min, "3"},
-    {87, &vr_explosion_debris_speed_max, "9"},
-    {87, &vr_explosion_debris_up, "0.65"},
-    {87, &vr_ao_dynamic, "1"},
-    {87, &vr_ao_dynamic_range, "3"},
-    {87, &vr_retrolight, "0"},
-    {87, &vr_retrolight_world_dither, "0"},
-    {87, &vr_retrolight_world_luxel, "16"},
-    {87, &vr_retrolight_world_dyn_steps, "8"},
-    {87, &vr_retrolight_world_dyn_block, "4"},
-    {87, &vr_retrolight_model_steps, "16"},
-    {87, &vr_retrolight_model_dither, "0"},
-    {87, &vr_retrolight_shadow_block, "0"},
-    {87, &vr_light_contrast, "2.3"},
-    {87, &vr_smallgibs_speed_melee, "0.35"},
-    {87, &vr_smallgibs_up_melee, "0.5"},
-    {87, &vr_smallgibs_speed_saw, "0.5"},
-    {87, &vr_smallgibs_up_saw, "0.6"},
-    {87, &vr_smallgibs_speed_guns, "0.85"},
-    {87, &vr_smallgibs_up_guns, "0.9"},
-    {87, &vr_smallgibs_grace, "0.1"},
-    {87, &vr_smallgibs_brains_burst, "6"},
-    {87, &vr_smallgibs_brains_pop, "8"},
-    {87, &vr_smallgibs_brains_speed, "3"},
-    {87, &vr_smallgibs_brains_up, "7"},
-    {87, &vr_smallgibs_mult_enforcer, "1"},
-    {87, &vr_smallgibs_mult_fiend, "1"},
-    {87, &vr_smallgibs_mult_ogre, "1"},
-    {87, &vr_smallgibs_mult_hellknight, "1"},
-    {87, &vr_smallgibs_mult_vore, "1"},
-    {87, &vr_smallgibs_mult_shambler, "1"},
-    {87, &vr_smallgibs_brains_mult_enforcer, "1"},
-    {87, &vr_smallgibs_brains_mult_fiend, "1"},
-    {87, &vr_smallgibs_brains_mult_ogre, "1"},
-    {87, &vr_smallgibs_brains_mult_vore, "1"},
-    {87, &vr_smallgibs_brains_mult_shambler, "1"},
-    {87, &vr_gore_stick_thrown, "0.5"},
-    {87, &vr_gore_stick_speed, "180"},
-    {87, &vr_extmaps_spec_scale, "4"},
-    {87, &vr_retro, "0"},
-    {87, &vr_teleporter_surface_size, "1.12"},
-    {87, &vr_teleporter_surface_opacity, "1"},
-    {87, &vr_knockdown_chance, "1"},
-    {87, &vr_knockdown_damage, "2"},
-    {87, &vr_knockdown_bash, "0"},
-    {87, &vr_knockdown_time_min, "2.5"},
-    {87, &vr_knockdown_time_max, "4.5"},
-    {87, &vr_knockdown_getup_speed, "1"},
-    {87, &vr_decap_speed, "5"},
-    {87, &vr_decap_head_size, "1.25"},
-    {87, &vr_decap_neck, "6"},
-    {87, &vr_decap_pop_body_speed, "0.1"},
-    {87, &vr_decap_fountain, "2.5"},
-    {87, &vr_walltorch_inv_size, "1.25"}, // legacy three-flame size
-    {87, &vr_ragdoll_grab, "2"}, // ragdolls are taken by hand only
-    {88, &vr_particle_retro_halfres_pixels, "64"}, // 0: all particles in their order (the split drew small over large)
-    // 89: the author's tuned parallax (2026-10-06): further, no grazing fade, its depth written
-    {89, &vr_parallax_distance, "512"},     // 1024
-    {89, &vr_parallax_grazing, "86"},       // 90
-    {89, &vr_parallax_depth_write, "0"},    // 1
-    // 89: the author's combat tweaks (2026-10-06): the hands' knock from hits, burning, struggling knockdowns
-    {89, &vr_pain_knock_strength, "0.75"},  // 0.6
-    {89, &vr_pain_knock_max, "10"},         // 8.5
-    {89, &vr_pain_knock_time, "0.35"},      // 0.3
-    {89, &vr_burn_flames_max, "7"},         // 12
-    {89, &vr_burn_self, "0"},               // 1
-    {89, &vr_burn_drop, "0"},               // 1
-    {89, &vr_knockdown_wiggle, "0.7"},      // 1
-    {89, &vr_knockdown_wiggle_frequency, "1.2"}, // 2.2
-    {89, &vr_knockdown_wiggle_pause, "1"},  // 0
-    {89, &vr_parry_stagger, "0.35"},        // 0.75
-    {89, &vr_counter_damage, "1.2"},        // 1.5 (vr_defaults.cfg's 1.2 dropped: the compiled default again)
-    // 90: the training dummy dies (Combat > Gore > Dummy Dies; the author, 2026-10-06: "make gib mode the default")
-    {91, &vr_dummy_gib, "0"},               // 1
-    // 92: the author's decisions (2026-10-06; ROUND21.md, "The author's combat decisions"): thrown axes stick in
-    // explosive boxes as in every other prop.
-    {92, &vr_axestick_metal, "0"},          // 1
-    // 92: thrown gibs almost always stick to walls (the author, 2026-10-06): Thrown Gibs Stick his 0.75 to 1
-    // (vr_defaults.cfg; VR_Gib_Think2 also tells a lobbed gib's hit on a wall now).
-    {92, &vr_gore_stick_thrown, "0.75"},    // 1
-    // 93: Relighting's Light Textures 1.2 (the author relit hip1m1 so, 2026-10-06: "Maybe those should be the new
-    // defaults"); relight_maps.py's --light-texture-strength too.
-    {93, &vr_relight_strength, "1"},        // 1.2
-    // 94: rocks and bricks in multiplayer as many as in single player (the author, 2026-10-06; MULTIPLAYER.md, "Rocks
-    // and bricks in multiplayer"): Most in Multiplayer's old 0 (none) to -1 (Single Player's: Most in a Map).
-    {94, &vr_debris_mp_max, "0"},           // -1
-    // 95: the author's own gameplay and look values (INSTALLER.md, Appendix A, "Gameplay and look: promote?"; his
-    // config, 2026-10-07): fire particles, head pops, limb grabs, the messages' hologram. The All Categories retro panel's
-    // values (migrateConfig: retro::migrateAllPanel), the grappling hook's flashlight (vr_wofs_version 35) and the gibs'
-    // and heads' weights (vr_props_version 58) too.
-    {95, &vr_fire_particles_alpha, "0.55"},         // 1
-    {95, &vr_fire_particles_count, "6"},            // 8
-    {95, &vr_fire_particles_origin, "0.25"},        // 0.2
-    {95, &vr_fire_particles_size, "2"},             // 2.5
-    {95, &vr_decap_pop_always_range, "3"},          // 2
-    {95, &vr_decap_pop_never_range, "15"},          // 12
-    {95, &vr_decap_pop_thrown_light_chance, "0"},   // 0.25
-    {95, &vr_ragdoll_grab_reach, "6"},              // 2
-    {95, &vr_ragdoll_hand_stick, "12"},             // 2
-    {95, &vr_messages_hologram_height, "5"},        // 10
-    // 96: the menus' red as the author has it (his config, 2026-10-07; hue 0 and strength 1 as shipped already).
-    {96, &vr_menu_recolor_saturation, "1.25"},      // 3
-    // 97: immersive manual reloading is the shipped mode (the author, 2026-10-07; docs/vr-port/RELOAD.md): a config with
-    // the old default (Hip Holsters) takes it; one that chose Off or All Holsters keeps its choice.
-    {97, &vr_reload_mode, "2"},                     // 3
-    // 98: the author's reloading values (ROUND21.md, "Immersive reloading: magazines, both grips, the pull").
-    {98, &vr_ammo_pouch_counter_x, "2.5"}, // 2.25
-    {98, &vr_ammo_pouch_counter_z, "3.2"}, // 2
-    {98, &vr_ammo_pouch_counter_scale, "0.8"}, // 0.6
-    {98, &vr_ammo_pouch_leg_follow, "1"}, // 0.5
-    {98, &vr_reload_bump_speed, "2"},   // 3
-    {98, &vr_reload_pull_speed, "2.5"}, // 2
-    {98, &vr_reload_pull_snap, "600"},  // 300
-    {98, &vr_reload_hit_reach, "4"},    // 2
-    {98, &vr_reload_pull_reach, "6"},   // 2
-    {98, &vr_reload_collide_leniency, "30"}, // 4
-    {98, &vr_reload_port_shot_radius, "4"}, // 1.5
-    {98, &vr_reload_port_nail_radius, "1"}, // 1.5
-    {98, &vr_reload_port_snail_radius, "1"}, // 1.5
-    {98, &vr_reload_port_light_radius, "1"}, // 1.5
-    {98, &vr_reload_bump_speed, "6.5"},         // 3: the author's, raised while the hand reaching to hold the magazine knocked it out (fixed)
-    // 100: the author's settings at the firing range, 2026-10-07 (his note vrfiringrange_2026-10-07_22-08-51: "make all
-    // the tweaks I'm making the new defaults"; ROUND21.md, "Reloading: the firing range notes of 10-07").
-    {100, &vr_ammo_pouch_counter, "1"}, // 0
-    {100, &vr_ammo_pouch_x, "0"}, // 3.02 (121: 3)
-    {100, &vr_decap_pop_sg_falloff, "4"}, // 1.5
-    {100, &vr_flashlight_flick_speed, "600"}, // 800
-    {100, &vr_knockdown_ledge_drop, "64"}, // 16
-    {100, &vr_knockdown_ledge_margin, "16"}, // 24
-    {100, &vr_knockdown_ledge_reach, "1"}, // 1.25
-    {100, &vr_reload_pull_snap, "300"}, // 225
-    {100, &vr_reload_ssg_flick_close_speed, "650"}, // 400
-    {100, &vr_reload_ssg_open_flick, "1"}, // 0
-    {100, &vr_weapon_button_cone, "80"}, // 50
-    {100, &vr_weapon_throw_damage_mult, "0.5"}, // 0.35
-    // 101: detail textures off by default (the author, 2026-10-07).
-    {101, &vr_detail, "1"}, // 0
-    {101, &vr_menu_fine_step, "0.0999"}, // 0.1: the author's, slider noise from plain steps landing off the grid (fixed)
-    // 102: Swing Through Enemies on, the author's values (his note vrfiringrange 23-52-45: "more responsive").
-    {102, &vr_melee_phase, "0"}, // 1
-    {102, &vr_melee_phase_speed, "2.25"}, // 4 (his 3.996: slider noise)
-    {102, &vr_melee_phase_time, "0.15"}, // 0.35 (his 0.34965)
-    // 104: the author's settings of 2026-10-08 (his note vrfiringrange_2026-10-08_14-16-19: "I tweaked quite a few
-    // settings and hotspots, please make them the new defaults"; ROUND21.md, "Out of the water by hand; ...").
-    {104, &vr_enemygun_spent_crackle, "2.5"}, // 1
-    {104, &vr_enemygun_spent_volume, "0.25"}, // 0.5
-    {104, &vr_snd_pitch_jitter, "4"}, // 10
-    {104, &vr_ssg_fire_anim_speed, "1.4"}, // 1.75
-    {104, &vr_stealth_corpses, "600"}, // 700
-    {104, &vr_stealth_meter_time, "1.5"}, // 1
-    {104, &vr_stealth_run_speed, "250"}, // 280
-    {104, &vr_stealth_torch, "400"}, // 500
-    {104, &vr_teleporter_surface_opacity, "0.3"}, // 0.5 (vr_defaults.cfg)
-    {104, &vr_reload_port_shot_radius, "1.5"}, // 1.6
-    // 105: a smaller stick deadzone (the author, 2026-10-08; worn sticks that drift can raise it again).
-    {105, &vr_deadzone, "25"}, // 10
-    // 106: the Immersive Death View by default (the author, NOTES.md vrfiringrange_2026-10-08_22-44-28).
-    {106, &vr_death_view, "1"}, // 2
-    // 107: the author's settings of the evening of 2026-10-08 (his note vrfiringrange_2026-10-08_22-20-23: "As usual
-    // I've been tweaking lots of values, please make them the new defaults"; ROUND21.md, "Swimming strokes sound ...").
-    {107, &vr_air_supply, "2"}, // 2.5
-    {107, &vr_autopump_delay, "0.15"}, // 0.25
-    {107, &vr_death_view_fade, "0.5"}, // 0.2
-    {107, &vr_death_view_smooth, "0.15"}, // 0.25
-    {107, &vr_death_view_turn, "1"}, // 0
-    {107, &vr_death_view_turn_speed, "60"}, // 30
-    {107, &vr_reload_front_angle, "35"}, // 45
-    {107, &vr_reload_port_gl_radius, "2"}, // 2.1
-    {107, &vr_reload_port_prox_radius, "2"}, // 2.1
-    {107, &vr_reload_port_rl_radius, "2"}, // 2.5
-    {107, &vr_reload_ssg_hit_close_angle, "40"}, // 35
-    {107, &vr_reload_ssg_hit_close_speed, "3"}, // 2.5
-    {107, &vr_reload_ssg_lift_hold, "0.2"}, // 0
-    {107, &vr_reload_ssg_lift_speed, "300"}, // 250
-    {107, &vr_swim_flat_exp, "1"}, // 1.5
-    {107, &vr_swim_glide, "0.6"}, // 0.7 (vr_defaults.cfg)
-    {107, &vr_swim_max_speed, "500"}, // 400 (vr_defaults.cfg)
-    {107, &vr_swim_stroke, "12"}, // 10 (vr_defaults.cfg)
-    {107, &vr_swim_stroke_min, "0.4"}, // 1
-    {107, &vr_swim_stroke_pitch, "-8"}, // -10
-    {107, &vr_water_jump, "1"}, // 0
-    {107, &vr_weapon_grab_slack, "5"}, // 0
-    // 108: the OpenXR runtime chosen automatically, Auto (4), by default (the author, 2026-10-09: ROUND21.md, "OpenXR
-    // runtime: Auto"): a config still at the old default, the system's active runtime (0), takes Auto.
-    {108, &vr_xr_runtime, "0"}, // 4
-    // 109: the author's settings of the morning of 2026-10-09 (vrfiringrange_2026-10-09_10-56: "I've tweaked values
-    // for the judo throws and the struggling effect; they feel much better"; ROUND21.md, "The author's settings of the
-    // morning of 2026-10-09 are the defaults"): the two-hand throw, the knocked-down struggle and time down, and what he
-    // tuned since config 107 (bullet time's screen tap and trails, barrels, the gadget's side button, the front reload).
-{109, &vr_bullettime_tap_angle, "40"}, // 10
-    {109, &vr_bullettime_tap_depth, "6"}, // 6.5
-    {109, &vr_bullettime_tap_height, "1"}, // 0.75
-    {109, &vr_bullettime_tap_margin, "2"}, // 1
-    {109, &vr_bullettime_tap_speed, "1.2"}, // 0.5
-    {109, &vr_bullettime_tap_stop, "0.5"}, // 1
-    {109, &vr_bullettime_tap_window, "0.25"}, // 0.5
-    {109, &vr_bullettime_tap_z, "0"}, // -3.5
-    {109, &vr_bullettime_trails_fade, "0.6"}, // 1
-    {109, &vr_bullettime_trails_length, "4"}, // 15
-    {109, &vr_bullettime_trails_life, "0.7"}, // 2
-    {109, &vr_bullettime_trails_width, "20"}, // 8
-    {109, &vr_crates_barrel_lying, "0.3"}, // 0.15
-    {109, &vr_crates_barrels, "0.3"}, // 0.15
-    {109, &vr_foegrab_throw_lift, "100"}, // 170
-    {109, &vr_foegrab_throw_push, "220"}, // 190
-    {109, &vr_foegrab_throw_speed, "1"}, // 2.5
-    {109, &vr_foegrab_throw_spin, "0.5"}, // 0.55
-    {109, &vr_foegrab_throw_topple, "120"}, // 300
-    {109, &vr_foegrab_throw_twist, "150"}, // 140
-    {109, &vr_gadget_button_cooldown, "0.6"}, // 0.2
-    {109, &vr_gadget_button_size, "3"}, // 1.25
-    {109, &vr_gadget_button_y, "0"}, // 0.5
-    {109, &vr_knockdown_time_max, "2.5"}, // 3.5 (vr_defaults.cfg)
-    {109, &vr_knockdown_time_min, "1.25"}, // 1.75 (vr_defaults.cfg)
-    {109, &vr_knockdown_wiggle, "1"}, // 1.5
-    {109, &vr_knockdown_wiggle_frequency, "2.2"}, // 1.5
-    {109, &vr_knockdown_wiggle_pause, "0"}, // 0.5
-    {109, &vr_reload_front_angle, "45"}, // 40.5
-    {109, &vr_reload_front_hold_pitch, "90"}, // 45
-    // 110: the author's settings of the afternoon of 2026-10-09 (vrfiringrange_2026-10-09_12-29-53, 12-40-36, 12-42-10:
-    // "all bullet time values"; ROUND21.md, "The author's settings of the afternoon of 2026-10-09 are the defaults"):
-    // bullet time's screen tap (the double tap by default), the stealth AI's senses and noises, holding enemies, and
-    // 16x anisotropic filtering (vr_defaults.cfg).
-    {110, &vr_bullettime_tap_gesture, "0"},       // 1: the double tap
-    {110, &vr_bullettime_tap_angle, "10"},        // 80
-    {110, &vr_bullettime_tap_butt_depth, "4"},    // 6
-    {110, &vr_bullettime_tap_depth, "6.5"},       // 5
-    {110, &vr_bullettime_tap_double_speed, "0.4"}, // 0.2
-    {110, &vr_bullettime_tap_double_window, "0.4"}, // 0.8
-    {110, &vr_bullettime_tap_height, "0.75"},     // 0.85
-    {110, &vr_bullettime_tap_margin, "1"},        // 0.5
-    {110, &vr_bullettime_tap_width, "1"},         // 0.95
-    {110, &vr_foegrab_break, "35"},               // 20
-    {110, &vr_foegrab_drag, "10"},                // 20
-    {110, &vr_foegrab_drag_speed, "200"},         // 300
-    {110, &vr_foegrab_leniency, "1.5"},           // 1
-    {110, &vr_stealth_graze, "64"},               // 72
-    {110, &vr_stealth_light_bright, "80"},        // 64
-    {110, &vr_stealth_light_dark, "20"},          // 16
-    {110, &vr_stealth_lose_time, "20"},           // 14
-    {110, &vr_stealth_meter_decay, "0.2"},        // 0.15
-    {110, &vr_stealth_meter_time, "1"},           // 0.5
-    {110, &vr_stealth_noise_blasts, "1"},         // 1.75
-    {110, &vr_stealth_noise_guns, "1"},           // 1.5
-    {110, &vr_stealth_noise_props, "1200"},       // 1500
-    {110, &vr_stealth_noise_wall, "0.5"},         // 0.6
-    {110, &gl_texture_anisotropy, "8"},           // 16 (vr_defaults.cfg)
-    // 111: the author's settings of 2026-10-09 15:00-15:50 (vrfiringrange_2026-10-09_15-02-52, 15-45-02, vrstart 15-18-36,
-    // e5m4 15-35-30; ROUND21.md, "The author's melee, throwing and menu settings of 2026-10-09 are the defaults"):
-    // melee and throwing "more viable and impactful", bullet time's throws, the screen tap's click, the menus' sharpness.
-    {111, &vr_2h_throw_velocity_mult, "1.0"},      // 1.3
-    {111, &vr_bash_damage, "8"},                   // 10
-    {111, &vr_bullettime_tap_sound, "0.6"},        // 0.4
-    {111, &vr_chainsaw_damage, "80"},              // 100
-    {111, &vr_counter_damage, "1.5"},              // 1.75
-    {111, &vr_dmg_chainsaw_swing, "20"},           // 22
-    {111, &vr_dmg_laser, "18"},                    // 20
-    {111, &vr_enfrifle_damage, "15"},              // 16
-    {111, &vr_gib_spawn_harmless, "0.3"},          // 0.5
-    {111, &vr_gruntgun_damage, "5"},               // 6
-    {111, &vr_headbutt_damage, "32"},              // 24
-    {111, &vr_melee_bloodlust_mult, "0.5"},        // 0.35
-    {111, &vr_melee_dmg_multiplier, "1.0"},        // 1.1
-    {111, &vr_melee_speed, "3"},                   // 3.2
-    {111, &vr_menu_distance, "100"},               // 150 (vr_defaults.cfg)
-    {111, &vr_menu_scale, "0.18"},                 // 0.25 (vr_defaults.cfg)
-    {111, &vr_menu_sharpen, "0.5"},                // 1
-    {111, &vr_parry_stagger, "0.75"},              // 0.8
-    {111, &vr_parry_stamina_cost, "30"},           // 20
-    {111, &vr_parry_unarmed_reduction, "0.5"},     // 0.45
-    {111, &vr_prop_drop_grace, "0.5"},             // 0.75
-    {111, &vr_quad_melee_damage, "1"},             // 1.1
-    {111, &vr_strike_stamina_cost_2h, "6"},        // 12
-    {111, &vr_strike_stamina_punch, "4"},          // 6
-    {111, &vr_sword_damage_mult, "1"},             // 1.1 (vr_defaults.cfg)
-    {111, &vr_throw_slowmo_flick, "1"},            // 0.9
-    {111, &vr_throw_slowmo_long_travel, "0.2"},    // 0.5
-    {111, &vr_throw_slowmo_short_travel, "0.15"},  // 0.25
-    {111, &vr_weapon_throw_damage_mult, "0.35"},   // 0.4
-    {111, &vr_weight_damage_exp, "0.4"},           // 0.375
-    {111, &vr_weight_lenient, "0.5"},              // 0.515
-    // 112: shoves (his notes vrfiringrange_2026-10-09_15-11-36, 15-47-01, 15-48-52, vrstart 15-16-00; ROUND21.md, "A
-    // shove's knockdown: travel and a quarter turn"): a shove over a ledge turns less as it falls.
-    {112, &vr_knockdown_shove_ledge_topple, "150"}, // 100
-    // ... a shove (or a bash) goes 20% less far (its hands: vr_shove_push_onehand, _twohand, new).
-    {112, &vr_bash_push, "1"},                       // 0.9 (the distance goes as its square: 0.81)
-    // ... and a parry pushes the attacker back about half as far (a counter can reach it).
-    {112, &vr_parry_push_enemy, "0.8"},              // 0.55 (vr_defaults.cfg; a weapon parry's distance 0.47x)
-    // 114: spawns, slimes and centroids (scorpions) never thrown (no knockdown get-up), out of the when-hurt list
-    // (2026-10-09, his call): a config still holding the list before it takes the new one.
-    {114, &vr_foegrab_throw_when_hurt,
-        "monster_hell_knight monster_ogre monster_ogre_marksman monster_ogre_rocket monster_demon1 monster_tarbaby monster_slime "
-        "monster_scourge monster_ranged_knight"},
-    // 115: world scale 1.2 is normal (vr_defaults.cfg's since 2026-10-04; the author, 2026-10-09): the compiled default
-    // and the tutorial's and the hub's World Scale buttons' "normal" were still 1.25, so a config at 1.25 takes 1.2.
-    {115, &vr_world_scale, "1.25"},
-    // 116: the crouched pose as the author tuned it (his note vrfiringrange_2026-10-09_18-52-47: "make those the
-    // defaults"): the trunk further back, the shoulders out, the hip holsters forward, out and rolled, the pouch forward,
-    // up and pitched (vr_body_crouch_tilt was 20 already, vr_defaults.cfg).
-    {116, &vr_body_crouch_torso_back, "0.05"},  // 0.2
-    {116, &vr_body_crouch_shoulders_out, "0"},  // 0.02
-    {116, &vr_hip_holster_crouch_x, "0"},       // 6
-    {116, &vr_hip_holster_crouch_y, "0"},       // 3
-    {116, &vr_hip_holster_crouch_roll, "0"},    // 40
-    {116, &vr_ammo_pouch_crouch_x, "0"},        // 2
-    {116, &vr_ammo_pouch_crouch_z, "0"},        // 7
-    {116, &vr_ammo_pouch_crouch_pitch, "0"},    // 29
-    // 117: an 8192 shadow atlas (the author, 2026-10-09: eight lights' shadows at full size; with 4096 a retro hard
-    // shadow showed halving): compiled in now (vr_defaults.cfg had it), and a config at the old 4096 takes it.
-    {117, &vr_shadow_atlas, "4096"},
-    // 118: 768 marks kept, not 1024 (the author, 2026-10-11: "Lower the default to 768"; PERF_DECISIONS 15: the marks
-    // are about half the world's GPU pass in a gory fight). A config at the old default takes it.
-    {118, &vr_decal_max, "1024"},
-    // 119: fewer barrels (the author, 2026-10-11): the roll 0.15 -> 0.1 (about 19% -> 13% of crates and barrels in a
-    // headless count over 64 layouts). A config at the old 0.15 takes it.
-    {119, &vr_crates_barrels, "0.15"},
-    // 120: tips a little sooner and further out (the author, 2026-10-10: "appear a tiny bit sooner and with slightly
-    // increased range (maybe 15%)"): the delay 0.5 -> 0.35 s, the reach 150 -> 175 (the tutorial's own tips' distances
-    // times 1.15: vrtutorial_gen.py TIP_REACH). A config at the old defaults takes them.
-    {120, &vr_tips_delay, "0.5"},
-    {120, &vr_tips_distance, "150"},
-    // 121: the author's values (2026-10-10, his config): the ammo pouch's forward offset 3.02 -> 3; climbing a little
-    // more lenient ("slightly increased the climbing values"): the leniency 2 -> 2.5 cm, mid-air 4 -> 4.5 cm, the air
-    // grab time 0.3 -> 0.325 s. A config at the old defaults takes them.
-    {121, &vr_ammo_pouch_x, "3.02"},
-    {121, &vr_climb_leniency, "2"},
-    {121, &vr_climb_leniency_air, "4"},
-    {121, &vr_climb_air_grab_time, "0.3"},
-    // 122: the "Loading..." notice off (1.0.0 release blocker: deferring a level change crashed a campaign switch).
-    // (A config older than 122 at its 1 keeps 1: the default is 1 again since 123.)
-    {122, &vr_loading_notice, "1"},
+    // 123: the "Loading..." notice back on (1.0.1: its campaign-switch crash found and fixed, ROUND21.md, "The
+    // Loading... crash, root cause"): a 1.0.0 config (122) at 1.0.0's 0 takes it.
+    {123, &vr_loading_notice, "0"},
     // 124: the author's judo throw (1.0.1, his config of 2026-10-11: "I've tweaked the judo throw values a little bit
     // to make them feel even better"): launched further along the throw and less up, toppled slower, the feet swept
     // back slower, the grunt a little louder. A config at the old defaults takes them.
@@ -703,8 +70,446 @@ const DefaultChange defaultChanges[] = {
     // interferes with the view" (the author, 2026-10-11; ROUND22.md, "Hide holstered weapons per pair"). A config with
     // them drawn (1) takes it.
     {127, &vr_holster_weapons_draw_shoulder, "1"},
+    // 128: a shoved monster backpedals about as far as the old standing slide took it (the author, 2026-10-11: "they seem
+    // to cover much less distance than before"; ROUND22.md, "Shoves: the backpedal").
+    {128, &vr_ragdoll_active_stagger_travel, "0.2"},
+    // 129: the author's bash, shove and parry values compiled in (ROUND22.md, "His parry and bash tweaks are the
+    // defaults"): firmer pushes to bash (3 m/s) and shove (3.5), quieter bash sounds, a weapon's bash knocks down,
+    // shorter parry pushes, a softer arm knock, parry stamina on (no random drop), a cheaper two-handed parry. Only the
+    // two speeds migrate: the rest shipped at their new values already (vr_defaults.cfg), so a config at an old
+    // compiled-in value there (bash sound 1, parry stamina 0, ...) was set by hand and keeps it.
+    {129, &vr_bash_speed, "2"},
+    {129, &vr_shove_speed, "2.4"},
+    // 130: touching a monster no longer gives you away, only grabbing it does (the author, 2026-10-13: "just touching
+    // an enemy doesn't alert them -- but grabbing them does"; ROUND22.md, "Stealth: a touch no longer gives you away").
+    {130, &vr_stealth_contact, "1"},
+    // 131: incandescent blades glow brighter (the author, 2026-10-13: "I have increased the default glow strength";
+    // ROUND22.md, "Incandescent blades: his tweaks").
+    {131, &vr_hotblade_glow, "1"},
+    // 132: the neck snap's twist measured about the neck from the hands' places (a push-pull snaps it; ROUND22.md, "Neck
+    // snap: only move at the head, a push-pull twists").
+    // (Its twist speed, Velocity's, gone with it: ROUND22.md, "Neck snap: the Hand Line only".)
+    {132, &vr_foegrab_necksnap_angle, "45"},
+    // 133: the author's values of 2026-10-15 11:06 ("I have tweaked settings for the blood feedback, for the quad
+    // effects, and some other damage and combat settings. Please make those the new defaults"; ROUND22.md, "His blood,
+    // quad and combat tweaks are the defaults"). A config at the old defaults takes them.
+    {133, &vr_blood_health_intensity, "0.25"},       // 0.3
+    {133, &vr_blood_health_size, "0.65"},            // 0.75
+    {133, &vr_blood_hit_bias, "0.75"},               // 0.9
+    {133, &vr_blood_hit_duration, "0.45"},           // 0.4
+    {133, &vr_blood_hit_intensity, "0.22"},          // 0.4
+    {133, &vr_blood_hit_size, "0.65"},               // 0.6
+    {133, &vr_quad_look, "1"},                       // 2
+    {133, &vr_quad_glow, "1"},                       // 2
+    {133, &vr_quad_glow_light, "1"},                 // 2
+    {133, &vr_bash_damage, "10"},                    // 5
+    {133, &vr_melee_phase_time, "0.35"},             // 0.2
+    {133, &vr_foegrab_lift_time, "2"},               // 3.5
+    {133, &vr_foegrab_necksnap_angle, "30"},         // 80
+    {133, &vr_foegrab_necksnap_window, "0.3"},       // 0.2
+    {133, &vr_foegrab_necksnap_neck, "3"},           // 1.5
+    {133, &vr_foegrab_necksnap_strength, "1.2"},     // 1.25
+    {133, &vr_foegrab_throw_feet_speed, "30"},       // 20
+    {133, &vr_foegrab_throw_push, "240"},            // 220
+    {133, &vr_foegrab_throw_speed, "2.5"},           // 3
+    {133, &vr_foegrab_throw_spin, "0.55"},           // 0.5
+    {133, &vr_foegrab_throw_topple, "200"},          // 180
+    {133, &vr_foegrab_throw_twist, "140"},           // 130
+    {133, &vr_ragdoll_grab_force, "3000"},           // 4000
+    {133, &vr_ragdoll_hand_stick, "2"},              // 4
+    {133, &vr_ragdoll_hand_turn, "60"},              // 70
+    {133, &vr_reload_port_sshot_radius, "3"},        // 3.15
+    {133, &vr_reload_reinsert_clearance, "4"},       // 1.5
+    {133, &vr_decal_max, "768"},                     // 512
+    {133, &vr_decal_bucket_max, "32"},               // 24
+    {133, &vr_body_bracers, "1"},                    // 0
+    {133, &vr_pbr_strength, "1"},                    // 2.5
+    // (134 and 157: vr_foegrab_lift_classes's, retired for the monster groups' Lift.)
+    // 135: the biosuit glow as he tuned it (ROUND22.md, "VR Settings submenus merged").
+    {135, &vr_suit_glow, "1"},                       // 2
+    {135, &vr_suit_glow_light, "1"},                 // 2
+    // 136: the bullet-time throw is the stroke's tempo's alone (ROUND22.md, "Bullet-time throws: the stroke's tempo
+    // only"): the older rules' settings are retired (retiredCvars), nothing here to change.
+    // 137: the neck snap measured by the hand line only (Velocity and its Twist Speed gone), at the author's values ("I
+    // took the neck snap settings ... Those are the ones I want", 2026-10-15; ROUND22.md, "Neck snap: the Hand Line
+    // only"): 75 degrees within 0.15 s, the head zone as the headshots' (no margin, no neck below it).
+    {137, &vr_foegrab_necksnap_angle, "80"},         // 75
+    {137, &vr_foegrab_necksnap_window, "0.2"},       // 0.15
+    {137, &vr_foegrab_necksnap_margin, "2"},         // 0
+    {137, &vr_foegrab_necksnap_neck, "1.5"},         // 0
+    // 138: gloves (vr_gloves, vr_glove_*; ROUND22.md, "Gloves; Player Appearance"): new settings only, nothing to change.
+    // 139: the author's gore values (2026-10-16: "I've tweaked many values for the gore features. Please make those the
+    // new defaults"; ROUND22.md, "Blood streams diverge; his gore values"): sturdier corpses, deeper dents, more and
+    // wider but slower streams, fewer teeth, ragdoll impacts softer per hit but capped and crushing harder.
+    {139, &vr_corpse_health_mult, "1"},              // 2
+    {139, &vr_gore_dents_depth, "1"},                // 3
+    {139, &vr_gore_dents_max, "8"},                  // 12
+    {139, &vr_gore_dents_size, "1"},                 // 1.25
+    {139, &vr_gore_streams_per_body, "3"},           // 4
+    {139, &vr_gore_streams_speed, "70"},             // 50
+    {139, &vr_gore_streams_width, "0.35"},           // 0.75
+    {139, &vr_ragimpact_crush, "1"},                 // 1.5
+    {139, &vr_ragimpact_crush_speed, "200"},         // 350
+    {139, &vr_ragimpact_curve, "1"},                 // 1.5
+    {139, &vr_ragimpact_curve_ref, "3"},             // 4
+    {139, &vr_ragimpact_damage, "0.15"},             // 0.08
+    {139, &vr_ragimpact_max, "0"},                   // 40
+    {139, &vr_ragimpact_piece_hp, "0.4"},            // 0.65
+    {139, &vr_ragimpact_stomp_heavy, "130"},         // 120
+    {139, &vr_ragimpact_stomp_speed, "420"},         // 400
+    {139, &vr_teeth_per_enemy, "10"},                // 8
+    // 140: his knockdown values (2026-10-16: "make my five knockdown values the defaults").
+    {140, &vr_knockdown_chance, "1"},               // 0.6
+    {140, &vr_knockdown_damage, "2"},               // 3
+    {140, &vr_knockdown_getup_speed, "1"},          // 0.8
+    {140, &vr_knockdown_time_min, "2.5"},           // 1.75
+    {140, &vr_knockdown_time_max, "4.5"},           // 3.5
+    // 141: his ragdoll hand-follow value (2026-10-16: "I like if the hand follows the ragdoll more accurately").
+    {141, &vr_ragdoll_hand_stick, "4"},             // 30
+    // 142: one throw for props and weapons (2026-10-16, R2 review #13; ROUND22.md, "One throw for props and weapons"):
+    // one two-handed window (vr_carry_two_hands_window was the props', 0.1; the weapons' a hard-coded 0.3) and one share
+    // of the thrower's velocity (vr_carry_throw_inherit was the props', 1; the weapons' all of it). The old names set
+    // the new settings (cvarAliases) as an old config is executed; at their old defaults they take the new ones.
+    {142, &vr_throw_2h_window, "0.1"},              // 0.2
+    {142, &vr_throw_inherit, "1"},                  // 0.9
+    // 143: a jump from the same level crushes (2026-10-16: "jump from no extra height and still damage and pop the
+    // limbs ... one or two jumps to kill a grunt by jumping on his head"); a hit keeps one down at least this after it.
+    {143, &vr_knockdown_hit_time, "0.5"},           // 1
+    {143, &vr_ragimpact_crush_speed, "350"},        // 180
+    {143, &vr_ragimpact_crush_wear, "0.3"},         // 0.5
+    // 144: the menu panel grip drag reaches farther (2026-10-17: "push the menu away too").
+    {144, &vr_menu_grab_dist_max, "200"},           // 600
+    // 145: the magnetic holsters' tether the default chain (2026-10-17: "the nicer one").
+    {145, &vr_magholster_style, "0"},               // 1
+    // 146: the leg sweep (2026-10-17): short weapons and props sweep too ("pretty much all of them should sweep"), and
+    // his fall values ("direction and fall basically perfect (I tweaked some fall values)").
+    {146, &vr_legsweep_min_length, "50"},           // 35
+    {146, &vr_legsweep_min_slender, "4"},           // 2
+    {146, &vr_legsweep_topple, "200"},              // 180
+    {146, &vr_legsweep_feet, "0.5"},                // 0.4
+    // 147: the firing range's kinds' limbs made at its load, not in play (ROUND22.md, "Mid-game model loads"): ten
+    // ~8 ms frames for each kind a dispenser or a dummy first makes.
+    {147, &vr_limbs_prebuild, "1"},                 // 2
+    // 148: more of his values (2026-10-17: "I've also tweaked more settings (e.g. leg sweep values), make those the
+    // defaults too"; ROUND22.md, "His settings, third pass"). A config at the old defaults takes them.
+    {148, &vr_decal_carve_depth, "1"},       // 0.75
+    {148, &vr_decal_carve_max, "256"},       // 128
+    {148, &vr_decal_carve_rim, "1"},         // 1.25
+    {148, &vr_dummy_gib, "1"},               // 0
+    {148, &vr_enemy_melee_turn, "4"},        // 6
+    {148, &vr_knockdown_keep_max, "6.5"},    // 7
+    {148, &vr_legsweep_feet, "0.4"},         // 0.5
+    {148, &vr_legsweep_speed, "1.5"},        // 3.25
+    {148, &vr_legsweep_topple, "180"},       // 200
+    {148, &vr_mirror_hide_hud_text, "0"},    // 1
+    {148, &vr_parallax_plane, "0"},          // 1
+    {148, &vr_relight_reload, "1"},          // 0
+    // 149: his holster zones, positions, sizes and depths (2026-10-17: "I've tweaked all the holster positions and
+    // sizes and depths. Make all the values the new defaults"), and the shoulder holsters' reach.
+    {149, &vr_holster_zone_scale, "1"},                  // 0.95
+    {149, &vr_holster_zone_hip_y, "0"},                  // -2.25
+    {149, &vr_holster_zone_hip_z, "-2"},                 // -2.25
+    {149, &vr_holster_zone_hip_depth, "0.6"},            // 0.15
+    {149, &vr_holster_zone_upper_x, "0"},                // -3.75
+    {149, &vr_holster_zone_upper_y, "0"},                // 3.25
+    {149, &vr_holster_zone_upper_z, "-2"},               // -0.75
+    {149, &vr_holster_zone_upper_height, "1.1"},         // 0.7
+    {149, &vr_holster_zone_shoulder_x, "0"},             // -2.5
+    {149, &vr_holster_zone_shoulder_y, "0"},             // 1
+    {149, &vr_holster_zone_shoulder_z, "0"},             // -0.5
+    {149, &vr_holster_zone_shoulder_depth, "0.9"},       // 0.5
+    {149, &vr_holster_zone_shoulder_width, "0.9"},       // 0.5
+    {149, &vr_holster_zone_shoulder_height, "0.9"},      // 0.5
+    {149, &vr_holster_zone_ammo_x, "0"},                 // -1
+    {149, &vr_holster_zone_ammo_depth, "1"},             // 0.15
+    {149, &vr_holster_zone_ammo_width, "0.8"},           // 0.75
+    {149, &vr_holster_zone_ammo_height, "1"},            // 0.95
+    {149, &vr_shoulder_holster_thresh, "7.8"},           // 7
+    // 150: his blood streams' and his own bleeding's values (2026-10-17: "I've tweaked some of the blood spurts and
+    // waterfall settings. Make those the new defaults"; "increased the blood dripping rate and size for the player").
+    {150, &vr_gore_streams_width, "0.75"},              // 1
+    {150, &vr_gore_streams_speed_var, "0.3"},           // 0.5
+    {150, &vr_gore_streams_wobble, "10"},               // 15
+    {150, &vr_gore_streams_thickness_var, "0.55"},      // 0.85
+    {150, &vr_gore_streams_thickness_rate, "1.1"},      // 1.3
+    {150, &vr_gore_streams_spurt_rate, "40"},           // 70
+    {150, &vr_gore_streams_spurt_cone, "30"},           // 15
+    {150, &vr_gore_streams_spurt_speed, "0.8"},         // 1.35
+    {150, &vr_gore_streams_spurt_life, "0.2"},          // 0.4
+    {150, &vr_gore_streams_spurt_outlier_life, "0.7"},  // 1.15
+    {150, &vr_gore_streams_spurt_size, "0.3"},          // 0.525
+    {150, &vr_gore_streams_splash_size, "1"},           // 1.25
+    {150, &vr_body_blood, "1"},                         // 1.25
+    {150, &vr_body_blood_amount, "1"},                  // 1.25
+    {150, &vr_body_blood_mark_size, "1"},               // 1.5
+    // 151: tracked legs on by default (2026-10-17: his value).
+    {151, &vr_bodytrack_legs, "0"},                     // 1
+    // 152: retro particles at half resolution by default (GPU: blood bursts +1.8 ms; renumber at merge).
+    {152, &vr_particle_retro_halfres, "0"},             // 1
+    // 153: his ammo pouch zone and magnetic holster chain offsets (2026-10-17: "I've tweaked the ammo pouch zones again";
+    // "the magnetic holster chain offsets: make those the new defaults"; renumber at merge).
+    {153, &vr_holster_zone_ammo_x, "-1"},               // -0.5
+    {153, &vr_holster_zone_ammo_depth, "0.15"},         // 0.2
+    {153, &vr_holster_zone_ammo_height, "0.95"},        // 1.125
+    {153, &vr_magholster_chain_x, "0"},                 // -2
+    {153, &vr_magholster_chain_y, "0"},                 // -0.75
+    // 154: his player head and loot beam values (2026-10-17: "make all of those the defaults").
+    {154, &vr_body_head_side, "0"},                     // 1.75
+    {154, &vr_body_head_sink, "4.5"},                   // 9
+    {154, &vr_lootbeam_opacity, "0.5"},                 // 0.15
+    {154, &vr_lootbeam_length, "1.2"},                  // 1.5
+    {154, &vr_lootbeam_thickness, "0.06"},              // 0.03
+    {154, &vr_lootbeam_far, "0"},                       // 12
+    // 155: the cheaper bloom chain by default (2026-10-17).
+    {155, &vr_bloom_fast, "0"},                         // 1
+    // 156: the author's holster zones, thresholds, glove thickness and relief (his config of 2026-10-18).
+    {156, &vr_glove_relief, "1"},
+    {156, &vr_glove_thickness, "2"},
+    {156, &vr_holster_zone_ammo_height, "1.125"},
+    {156, &vr_holster_zone_ammo_x, "-0.5"},
+    {156, &vr_holster_zone_ammo_z, "0"},
+    {156, &vr_holster_zone_grenade_depth, "1"},
+    {156, &vr_holster_zone_hip_depth, "0.15"},
+    {156, &vr_holster_zone_hip_height, "1.1"},
+    {156, &vr_holster_zone_hip_width, "0.55"},
+    {156, &vr_holster_zone_hip_x, "0"},
+    {156, &vr_holster_zone_hip_y, "-2.25"},
+    {156, &vr_holster_zone_hip_z, "-2.25"},
+    {156, &vr_holster_zone_item_hip, "1.5"},
+    {156, &vr_holster_zone_item_shoulder, "1.5"},
+    {156, &vr_holster_zone_item_upper, "1.5"},
+    {156, &vr_holster_zone_shoulder_height, "0.5"},
+    {156, &vr_holster_zone_shoulder_x, "-2.5"},
+    {156, &vr_holster_zone_shoulder_y, "1"},
+    {156, &vr_holster_zone_shoulder_z, "-0.5"},
+    {156, &vr_holster_zone_upper_depth, "0.6"},
+    {156, &vr_holster_zone_upper_height, "0.7"},
+    {156, &vr_holster_zone_upper_width, "0.6"},
+    {156, &vr_holster_zone_upper_x, "-3.75"},
+    {156, &vr_holster_zone_upper_y, "3.25"},
+    {156, &vr_holster_zone_upper_z, "-0.75"},
+    {156, &vr_shoulder_holster_thresh, "7"},
+    {156, &vr_upper_holster_thresh, "6.5"},
+    // 158: his retuned grenade pouch reach and flamethrower lights (the holster zones and glove values already match).
+    {158, &vr_grenade_pouch_thresh, "7"},
+    {158, &vr_flame_lights, "3"},
+    {158, &vr_flame_light_scale, "1"},
+    // 159: the Widowmaker's handful his 2 (was 4), its shell port half its size (his notes 2026-10-19).
+    {159, &vr_ad_widowmaker_handful, "4"},
+    {159, &vr_reload_port_widow_radius, "2.5"},
+    // 160: his swing sounds and wet sheen (his config of 2026-10-19).
+    {160, &vr_melee_swish_min, "0.5"},                  // 0.3
+    {160, &vr_melee_swish_sub, "0.45"},                 // 0.35
+    {160, &vr_melee_swish_full, "2.2"},                 // 1.75
+    {160, &vr_melee_swish_gain, "1.6"},                 // 2
+    {160, &vr_wounds_wet_coat, "1"},                    // 2
+    // 160 too: the player's chainsaw a fifth stronger (his request, 2026-10-19).
+    {160, &vr_chainsaw_damage, "100"},                  // 120
+    {160, &vr_dmg_chainsaw_swing, "22"},                // 26
+    // 161: his flame wobble (his config of 2026-10-19); your AD crossbow's bolts 1.5 times the knights' (his notes).
+    {161, &vr_flame_wobble_strength, "1"},              // 2.5
+    {161, &vr_adgun_crossbow_speed, "700"},             // 1050
+    // 162: his Widowmaker and AD crossbow numbers (his config of 2026-10-19).
+    {162, &vr_ad_widowmaker_refire, "0.25"},         // 0.35
+    {162, &vr_ad_widowmaker_shot_pellets, "7"},      // 8
+    {162, &vr_dmg_ad_widowmaker, "4"},               // 5
+    {162, &vr_adgun_crossbow_damage, "15"},          // 30
+    // 163: a projectile's kill pops a head or limb less often (his notes of 2026-10-19).
+    {163, &vr_decap_pop_projectile, "0.85"}, // 0.5
+    // 164: monster groups: bosses can't be shoved, machines aren't knocked down by shoves, a skull wizard has no legs.
+    {164, &vr_mgrp_boss_push, "0"},           // 1
+    {164, &vr_knockdown_chance_machine, "0"}, // 0.3
+    {164, &vr_mgrp_skullwiz_sweep, "0"},      // 1
+    {164, &vr_mgrp_skullwiz_leggrab, "0"},    // 1
+    // 165: his wet time, the Widowmaker's motor (quieter) and load port (his config of 2026-10-19).
+    {165, &vr_wounds_wet_time, "28"},           // 15
+    {165, &vr_reload_port_widow_radius, "1.25"}, // 1.4
+    {165, &vr_ad_widowmaker_motor, "0.6"},      // 0.4
+    // 166: his Ghost Hands fade (the ghost shows once the drawn hand is 6 cm off, over 7 more).
+    // (Its rows named the new values until 171, so they changed nothing: 171 below does it again.)
+    {166, &vr_ghost_hands_fade_from, "2"},  // 6
+    {166, &vr_ghost_hands_fade_range, "4"}, // 7
+    // 167: the carving quality 16 -> 8 steps (his config of 2026-10-19); the Widowmaker spins up 0.2 -> 0.75 s before its first shot.
+    {167, &vr_decal_carve_steps, "16"},
+    {167, &vr_ad_widowmaker_spinup, "0.2"},
+    // 168: his shallower dents (his config of 2026-10-20).
+    {168, &vr_gore_dents_depth, "3"},
+    // 169: his Thrown Bodies tuning (his config of 2026-10-20); the tackle redone as the shoulder charge, off for now
+    // (the old guard/shove tackle fired unintentionally), its bounce always (feedback).
+    {169, &vr_kdtrig_thrown_speed, "200"}, // 160
+    {169, &vr_kdtrig_thrown_least, "0.4"}, // 0.05
+    {169, &vr_kdtrig_thrown_push, "1"},    // 2
+    {169, &vr_kdtrig_tackle_on, "1"},      // 0
+    {169, &vr_kdtrig_tackle_bump, "60"},   // 100
+    // 170: the pouch gives taped shell pairs by default (1.1 balance: manual reloading made ogres tanky; ROUND22.md,
+    // "1.1 pacing: shell pairs, big monsters' health"). A config at the old default (off) takes it.
+    {170, &vr_reload_shell_pairs, "0"},
+    // 171: 166's Ghost Hands fade again (its rows had the new values where the old belong: a config of 166-170 still at
+    // the old 2 and 4 takes 6 and 7); the retro lighting's model steps 15 -> 16 (1.0.1's vr_defaults.cfg set 15, and the
+    // line went without a row when the default moved into vr_cvars.inc, 57ee3adc4: a 1.0.1 config kept 15).
+    {171, &vr_ghost_hands_fade_from, "2"},  // 6
+    {171, &vr_ghost_hands_fade_range, "4"}, // 7
+    {171, &vr_retrolight_model_steps, "15"}, // 16
+    // 172: Box3D on the pool from 300 awake bodies (ROUND22.md, "play_gore_fight's cost"): at 150-190 with ragdolls the
+    // main thread waited on the workers longer than it took to step alone, and spiked.
+    {172, &vr_box3d_threads_bodies, "150"}, // 300
+    // 173: the author's values (2026-10-20 notes): more marks kept in one spot (decals vanished mid-fight where the gore
+    // piled up), earned bullet time taking more damage to fill (Normal's; the other skills scale it) and less while it runs.
+    {173, &vr_decal_bucket_max, "24"},          // 128
+    {173, &vr_bullettime_earn_damage, "180"},   // 350
+    {173, &vr_bullettime_earn_active, "0.25"},  // 0.2
+    // 174: the shoulder charge tuned on the author's takes of 2026-10-21 (ROUND22.md, "Shoulder charge tuning"): his runs
+    // with the head down were slower and his hands higher than the first guesses.
+    {174, &vr_kdtrig_tackle_speed, "0.85"}, // 0.75
+    {174, &vr_kdtrig_tackle_low, "12"},     // 5
+    // 175: the author's values (his config of 2026-10-21): a timed parry's reduction, the mantle's head height, one
+    // hand's leg pull as strong as two; the struggle's classes: zombies struggle, the enforcer's, death knight's and
+    // zombie's arms driven harder (their 5th field; ROUND22.md, "Struggle 3").
+    {175, &vr_parry_timed, "1.25"},                // 1.3
+    {175, &vr_climb_mantle_height, "18"},          // 20
+    {175, &vr_foegrab_legpull_onehand, "1.3"},     // 1
+    // 176: a two-hand shove goes 1.25 times as far (the author's 2026-10-21 notes; its distance goes by the push's square).
+    {176, &vr_shove_push_twohand, "1"}, // 1.12
+    // 177: the author's Shoulder Charges (his config of 2026-10-22: "it feels better"): on, knocked farther, gentler pose.
+    {177, &vr_kdtrig_tackle_on, "0"},          // 1
+    {177, &vr_kdtrig_tackle_knock, "96"},      // 152
+    {177, &vr_kdtrig_tackle_push, "1"},        // 1.25
+    {177, &vr_kdtrig_tackle_leniency, "0.5"},  // 0.85
+    // 178: the author's values (his config of 2026-10-22): bigger bloody footprints and handprints, the gore sounds'
+    // kinds quieter (ROUND22.md, "Bloody prints 2; drip sounds").
+    {178, &vr_footprint_size, "1"},         // 1.6
+    {178, &vr_handprint_size, "1"},         // 1.6
+    {178, &vr_gore_sound_vol_spurt, "1"},   // 0.75
+    {178, &vr_gore_sound_vol_pour, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_choke, "1"},   // 0.75
+    {178, &vr_gore_sound_vol_tear, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_squelch, "1"}, // 0.75
+    {178, &vr_gore_sound_vol_step, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_slap, "1"},    // 0.75
+    {178, &vr_gore_sound_vol_splash, "1"},  // 0.75
+    // 179: the author's values (his config of 2026-10-22): a body shoved over a ledge keeps more of its speed past the
+    // edge (ROUND22.md, "Prop pushback, heavy throws, light ammo").
+    {179, &vr_knockdown_shove_ledge_over, "0.1"}, // 0.45
+    // 180: the author's value (his config of 2026-10-22): the pyro's dropped flamethrower burns harder (ROUND22.md,
+    // "Gore hitches and flamethrower looks").
+    {180, &vr_adgun_pyro_damage, "3"}, // 4.5
+    // 181: the author's value (his config of 2026-10-22, approved): the fumigator's dropped poison sprayer's puffs hurt
+    // more (ROUND22.md, "Leg-drag struggle for every humanoid; the sprayer's damage").
+    {181, &vr_adgun_fumigator_damage, "2"}, // 3
+    // (181's vr_struggle_classes row: dropped at 190, the setting retired; mgroups::migrateStruggleClasses.)
+    // 182: the author's values (his config of 2026-10-22: the new flamethrower and sprayer effects, the drip sounds).
+    {182, &vr_adgun_stream_alpha, "0.5"}, // 0.25
+    {182, &vr_adgun_fx_rate, "1"},        // 1.5
+    {182, &vr_adgun_ad_copies, "0"},      // 2
+    {182, &vr_gore_sound_vol_drip, "1"},  // 0.35
+    {182, &vr_gore_sound_drips, "1"},     // 0.65
+    // (183's vr_struggle_classes row: dropped at 190, the setting retired; mgroups::migrateStruggleClasses.)
+    // 184: the author's values (his config of 2026-10-22 evening): his shoulder charge settings, more bloody footprints
+    // (ROUND22.md, "Shoulder charge 3: body contact, run-up, standing tall").
+    {184, &vr_kdtrig_tackle_push, "1.25"},     // 1.3
+    {184, &vr_kdtrig_tackle_knock, "152"},     // 148
+    {184, &vr_kdtrig_tackle_leniency, "0.85"}, // 0.2
+    {184, &vr_kdtrig_tackle_bump, "100"},      // 120
+    {184, &vr_kdtrig_tackle_contact, "2"},     // 0
+    {184, &vr_footprint_count, "8"},           // 16
+    // 185: the author's value (his config of 2026-10-22, approved): more bloody handprints from a soaked hand (ROUND22.md,
+    // "Item Pickup Mode; running legs; handprints").
+    {185, &vr_handprint_count, "6"}, // 8
+    // 186: the flamethrowers' scorch marks on (cheap now: baked straight into the permanent layer; ROUND22.md, "Cheap
+    // scorch marks").
+    {186, &vr_adgun_fx_scorch, "0"}, // 1
+    // 187: the rocket soldier's dropped launcher holds 4 rockets (the author's 2026-10-23 note; ROUND22.md, "Mini bosses").
+    {187, &vr_adgun_rocket_ammo, "5"}, // 4
+    // 188: the author's values (his config of 2026-10-23, voice notes vrfiringrange_2026-10-23_01-16-39 and
+    // vrtesthall_2026-10-23_01-47-31): the death menu later, the seated hip holsters a little out (ROUND22.md, "Death
+    // menu delay, Vomit Mode, Holster Calibration on VR Settings, smoothed view text, bullet time's empty notice").
+    {188, &vr_death_menu_delay, "2"},      // 5
+    {188, &vr_hip_holster_seated_y, "-3"}, // 1.25
+    // 189: the shoulder charge with the hands a bit above the chest (his takes of 2026-10-23: the hands low, the head
+    // down less, side-on as the two meet) and his run-up (ROUND22.md, "Shoulder charge: hands above the chest").
+    {189, &vr_kdtrig_tackle_runup, "1.5"}, // 0.5
+    {189, &vr_kdtrig_tackle_low, "5"},     // 0.5
+    {189, &vr_kdtrig_tackle_head, "7.5"},  // 5
+    {189, &vr_kdtrig_tackle_turn, "50"},   // 60
+    // 191: the author's shoulder charge values (his config of 2026-10-23): more lenient, a little less tall (ROUND22.md,
+    // "Charge defaults, struggling humanoids, AD's flames in water, armed grunts' monster swords").
+    {191, &vr_kdtrig_tackle_leniency, "0.2"}, // 0.4
+    {191, &vr_kdtrig_tackle_stand, "0.8"},    // 0.75
+    // 192: the relief's depth write off by default, on in the Ultra preset (his choice: it cost 1.3 ms of an AD fight's
+    // 3.3 ms eye frame even split; ROUND22.md, "Parallax depth write's cost").
+    {192, &vr_parallax_depth_write, "1"}, // 0
+    // 193: the author's water foam (his config of 2026-10-23; ROUND22.md, "Shoreline foam: per liquid, breathing,
+    // particles"): fainter, finer, reaching further. Water's own now (lava and slime have their own vr_lava_foam_*,
+    // vr_slime_foam_*).
+    {193, &vr_water_foam_opacity, "1"},   // 0.5
+    {193, &vr_water_foam_frequency, "1"}, // 1.75
+    {193, &vr_water_foam_strength, "1"},  // 1.75
+    // 194: the death sergeant's flail heavier (the author's note vrfiringrange_2026-10-23_17-33-56): its head 3 kg, its
+    // blows at most 120 (with its new least damage, speed limit and drag; ROUND22.md, "The flail: heavier, smaller").
+    {194, &vr_flail_mass, "2"},         // 3
+    {194, &vr_flail_max_damage, "150"}, // 120
+    // 195: crates need two strong hits (his note: one hard punch or swing broke one; ROUND22.md, "Crates: two strong
+    // hits"): a blow breaks a small crate from 18 m/s (with the new vr_prop_blow_wear 0.25, two strong ones do).
+    {195, &vr_prop_break_speed, "9"}, // 18
+    // 196: the author's shoreline foam (his config of 2026-10-23, notes start_2026-10-23_21-30-29,
+    // vrfiringrange_2026-10-23_21-28-18, e1m1_2026-10-23_21-33-57; ROUND22.md, "Shoreline foam: at the shore's edge"):
+    // every liquid breathing more and faster, more and bigger particles, slime's scum greener and reaching further.
+    {196, &vr_water_foam_breathe, "0.35"},         // 0.45
+    {196, &vr_water_foam_breathe_speed, "1"},      // 2
+    {196, &vr_water_foam_particle_size, "1"},      // 1.5
+    {196, &vr_water_foam_particles, "1"},          // 2
+    {196, &vr_lava_foam_breathe, "0.3"},           // 0.65
+    {196, &vr_lava_foam_breathe_speed, "0.5"},     // 2.7
+    {196, &vr_lava_foam_particle_opacity, "0.6"},  // 0.55
+    {196, &vr_lava_foam_particle_size, "1"},       // 3.05
+    {196, &vr_lava_foam_particles, "0.6"},         // 1.5
+    {196, &vr_slime_foam_blue, "0.14"},            // 0.16
+    {196, &vr_slime_foam_breathe, "0.25"},         // 0.7
+    {196, &vr_slime_foam_breathe_speed, "0.6"},    // 3.4
+    {196, &vr_slime_foam_frequency, "1.5"},        // 1.6
+    {196, &vr_slime_foam_green, "0.62"},           // 0.56
+    {196, &vr_slime_foam_strength, "1.5"},         // 1.9
+    {196, &vr_slime_foam_particles, "0.6"},        // 1.5
+    // 197: AD's metal and stone breakables as before 195 (his note: metal took ~8 axe blows; ROUND22.md, "The blade's
+    // start; the axe's head box", Breakables): a 200-health metal piece 3-4 full axe blows, a rubble wall one.
+    {197, &vr_prop_break_metal, "1.5"}, // 1
+    {197, &vr_prop_break_stone, "1.5"}, // 0.75
+    // 198: the author's fist blow line (his config of 2026-10-24, edited with Edit Blade Shape; ROUND22.md, "His blade
+    // shapes and fist line as defaults"; Misc/quakevr/blade_defaults.py writes these rows).
+    {198, &vr_melee_fist_from_x, "0"}, // -0.34
+    {198, &vr_melee_fist_from_y, "0"}, // 0.5039
+    {198, &vr_melee_fist_from_z, "0"}, // -1.0026
+    {198, &vr_melee_fist_to_x, "4"},   // -0.4123
+    {198, &vr_melee_fist_to_y, "0"},   // 0.7656
+    {198, &vr_melee_fist_to_z, "0"},   // -4.2209
+    {198, &vr_melee_fist_width, "1"},  // 0.291
+    // 199: the tug's least pull 200 -> 270 N (a still hold read up to 211 N and tore the gun out; ROUND22.md, "Tug least pull").
+    {199, &vr_agrunt_tug_pull_force, "200"},
 };
-constexpr int configVersion = 127;
+// Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
+struct NamedDefaultChange
+{
+    int version;
+    const char* name;
+    const char* before;
+};
+const NamedDefaultChange namedDefaultChanges[] = {
+    // 179: the nailgun magazine's fitted fingers sink less into it (his config of 2026-10-22: the pinky showed through).
+    {179, "vr_prop_overlap_51", "0.4"}, // 0.385
+    // 179: the shells and magazines thrown deal a quarter of a thing's damage (a magazine broke a crate in two throws).
+    {179, "vr_prop_throw_dmg_49", "1"}, // 0.25
+    {179, "vr_prop_throw_dmg_50", "1"},
+    {179, "vr_prop_throw_dmg_51", "1"},
+    {179, "vr_prop_throw_dmg_52", "1"},
+    {179, "vr_prop_throw_dmg_53", "1"},
+};
+constexpr int configVersion = 200; // (200: the nail pistol's magazine's prop slot 56)
+// 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
+// executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
+za::String retiredStruggleClasses;
+bool retiredStruggleSeen = false;
+// 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
+constexpr int oldestMigrated = 122;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -740,7 +545,7 @@ ConfigTrack configTrack;
 [[nodiscard]] ankerl::unordered_dense::map<za::String, za::String> readConfigSettings(const char* path)
 {
     ankerl::unordered_dense::map<za::String, za::String> settings;
-    FILE* f = fopen(path, "rb");
+    FILE* f = Sys_fopen(path, "rb"); // (UTF-8 path: a non-ASCII game folder)
     if(!f)
     {
         return settings;
@@ -791,21 +596,26 @@ void trackConfig(const char* path)
 }
 
 void migrateConfig();
+[[nodiscard]] bool personal(const cvar_t* var);
 
-// A full path to Quetoo's textures/quake folder (quetoo-data's, downloaded): config version 81 takes the shipped copy.
-[[nodiscard]] bool quetooFolder(const char* dir)
+// A config older than 1.0.0 (vr_cfg_version < 122; the author's decision of 2026-10-16: "ignore compatibility with any
+// pre-1.0.0 configs"): its Quake VR settings go back to the shipped defaults instead of being migrated, except the
+// per-player ones (personal: the body measured, the runtime, the tips seen...). The weapons' and the held objects'
+// settings are vr_ settings too: their versions become today's. The engine's own settings (r_*, gl_*...) are kept.
+void resetOldConfig(int from)
 {
-    za::String s{dir};
-    for(size_t i = 0; i < s.size(); i++)
+    for(cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
     {
-        s[i] = s[i] == '\\' ? '/': static_cast<char>(tolower(static_cast<unsigned char>(s[i])));
+        if(!ZA_STRNCMP(var->name, "vr_", 3) && !personal(var))
+        {
+            Cvar_SetQuick(var, var->default_string);
+        }
     }
-    while(!s.empty() && s.back() == '/')
-    {
-        s.popBack();
-    }
-    const bool absolute = s.size() > 1 && (s[0] == '/' || s[1] == ':');
-    return absolute && s.find("quetoo") != za::StringView::nPos && s.endsWith("/textures/quake");
+    Cvar_SetValueQuick(&vr_tutorial_started, 1.f); // it has played: the hub, as before, not the tutorial
+    Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
+    Cvar_SetQuick(&vr_props_version, vr_props_version.default_string);
+    weapons::markCurrent();
+    Con_Printf("Quake VR: this config is older than 1.0.0 (version %d): its VR settings are reset to the defaults\n", from);
 }
 
 // Right after the saved config is executed (Cmd_Exec_f queues it).
@@ -824,12 +634,17 @@ void migrateConfig()
     {
         Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
         Cvar_SetValueQuick(&vr_setup_pending, 1.f); // a first start: VR Calibration once the headset is on (vr_setup.cpp)
-        weapons::markCurrent(); // and the weapons' settings are the shipped ones (no cups or grips of a config to move)
+        weapons::markCurrent(); // and the weapons' settings are this version's
         return;
     }
     const int from = static_cast<int>(vr_cfg_version.value);
     if(from >= configVersion)
     {
+        return;
+    }
+    if(from < oldestMigrated)
+    {
+        resetOldConfig(from);
         return;
     }
     for(const DefaultChange& c : defaultChanges)
@@ -840,183 +655,21 @@ void migrateConfig()
             Cvar_SetQuick(c.var, c.var->default_string);
         }
     }
-    // 123: the "Loading..." notice back on (1.0.1: its campaign-switch crash found and fixed, ROUND21.md, "The
-    // Loading... crash, root cause"). Only a 1.0.0 config (122) at 1.0.0's 0 takes it: an older one at 0 had it turned
-    // off by hand.
-    if(from == 122 && !strcmp(vr_loading_notice.string, "0"))
+    for(const NamedDefaultChange& c : namedDefaultChanges)
     {
-        Con_DPrintf("VR: vr_loading_notice: 1 (1.0.0 had it off while its crash was fixed)\n");
-        Cvar_SetQuick(&vr_loading_notice, "1");
-    }
-    // 64: bilinear HRTF smoothing crackled (two voices interpolating one HRTF at once on the pool made not-numbers;
-    // each pool lane has its own HRTF now): a config that went to nearest to get away from it goes back to bilinear.
-    if(from < 64 && vr_snd_hrtf_interp.value == 0.f)
-    {
-        Con_DPrintf("VR: vr_snd_hrtf_interp: 1 (bilinear no longer crackles)\n");
-        Cvar_SetQuick(&vr_snd_hrtf_interp, "1");
-    }
-    // 12: one colour for the player's effects (vr_player_hue, vr_hue.hpp). The gadget's screen hue
-    // was the one; a config's becomes the player's, and the screen follows it: nothing changes but
-    // the effects that had colours of their own (the force grab's, the teleport arc's...) now match.
-    if(from < 12 && vr_gadget_screen_hue.value >= 0.f)
-    {
-        Con_DPrintf("VR: vr_player_hue %s (the gadget's screen hue, which follows it now)\n", vr_gadget_screen_hue.string);
-        Cvar_SetQuick(&vr_player_hue, vr_gadget_screen_hue.string);
-        Cvar_SetQuick(&vr_gadget_screen_hue, "-1");
-    }
-    // 13: melee redesigned (round 21, docs/vr-port/ROUND21.md). vr_melee_speed is the striking hand's speed now (the
-    // controller's, relative to the head; a weapon's swing 1.25x), not the estimated wrist's with a stroke's distance
-    // and snap; vr_bash_speed the parry stance's push after it was held, both its ends going forward, however the
-    // weapon turns. Their old values meant something else: both go to the new defaults, whatever they were.
-    if(from < 13)
-    {
-        for(cvar_t* var : {&vr_melee_speed, &vr_bash_speed})
+        cvar_t* var = Cvar_FindVar(c.name);
+        if(var && c.version > from && sameValue(var->string, c.before))
         {
-            Con_DPrintf("VR: %s: new default %s (was %s; its meaning changed)\n", var->name, var->default_string,
-                var->string);
+            Con_DPrintf("VR: %s: new default %s (was %s)\n", var->name, var->default_string, c.before);
             Cvar_SetQuick(var, var->default_string);
         }
     }
-    // 15: a hip or upper holster on the body goes on round it past its front, where it used to stop (round 21,
-    // "Arms options after body calibration; holster limits"): an X that was stopped keeps its place.
-    if(from < 15)
+    if(from < 190 && retiredStruggleSeen)
     {
-        body::migrateHolsters();
+        mgroups::migrateStruggleClasses(retiredStruggleClasses.cStr()); // (a custom list into the groups' Struggle)
     }
-    // 45: the hip and upper holsters' X shipped as -7 and -8 (vr_defaults.cfg, 2026-09-28), which the author's config
-    // holds as -3.5 and -4.25 since 15 moved it (the same place on the body): the compiled-in defaults, now shipped too. A
-    // config saved from 15 on that still has the old shipped value takes it (before 15, 15 has moved it above).
-    if(from >= 15 && from < 45)
-    {
-        struct Old
-        {
-            cvar_t* var;
-            const char* before;
-        };
-        for(const auto& [var, before] : {Old{&vr_hip_offset_x, "-7"}, Old{&vr_upper_holster_offset_x, "-8"}})
-        {
-            if(sameValue(var->string, before))
-            {
-                Con_DPrintf("VR: %s: new default %s (was %s)\n", var->name, var->default_string, before);
-                Cvar_SetQuick(var, var->default_string);
-            }
-        }
-    }
-    // 16: the author's hand calibration ships with his weapon offsets, which were set over it (round 21, "Defaults: the
-    // author's weapon offsets and settings"; the weapons take his offsets: vr_wofs_version 20). A config that never
-    // calibrated its hands (each value the old default, or the new one) takes all of it, or its guns would sit off its
-    // hands; one that did keeps its own. A config saved before the calibration existed (13) has no vr_handcal_*: its
-    // hands were at 0, not at the new defaults it has now.
-    if(from < 16)
-    {
-        const struct
-        {
-            cvar_t* var;
-            const char* before;
-        } angles[] = {
-            {&vr_gunangle, "39.5"}, {&vr_gunyaw, "4"}, {&vr_offhandpitch, "40.25"}, {&vr_offhandyaw, "-4"}};
-        cvar_t* const moves[] = {&vr_handcal_x, &vr_handcal_y, &vr_handcal_z, &vr_handcal_roll, &vr_handcal_off_mirror,
-            &vr_handcal_off_x, &vr_handcal_off_y, &vr_handcal_off_z, &vr_handcal_off_roll};
-        if(from < 13)
-        {
-            for(cvar_t* var : moves)
-            {
-                Cvar_SetQuick(var, "0");
-            }
-        }
-        bool untouched = true;
-        for(const auto& [var, before] : angles)
-        {
-            untouched = untouched && (sameValue(var->string, before) || sameValue(var->string, var->default_string));
-        }
-        for(const cvar_t* var : moves)
-        {
-            untouched = untouched && (sameValue(var->string, "0") || sameValue(var->string, var->default_string));
-        }
-        if(untouched)
-        {
-            for(const auto& [var, before] : angles)
-            {
-                Cvar_SetQuick(var, var->default_string);
-            }
-            for(cvar_t* var : moves)
-            {
-                Cvar_SetQuick(var, var->default_string);
-            }
-            Con_DPrintf("VR: the hand calibration: the new defaults (vr_gunangle %s, vr_handcal_x %s...)\n", vr_gunangle.string,
-                vr_handcal_x.string);
-        }
-    }
-    // 25: the wall torch taken off its wall (round 21, "Wall torches you can take") has shipped Held Object Offsets in
-    // a slot that configs saved empty (every slot is archived).
-    if(from < 25)
-    {
-        props::takeShippedSlot(props::wallTorchSlot);
-    }
-    // 27: the gibs and heads have shipped Held Object Weights (round 21, "Spring only; Weapon Weights and Held Object
-    // Weights; weight and damage": their masses) in slots that configs saved empty.
-    if(from < 27)
-    {
-        for(int slot = props::fleshSlotsFirst; slot <= props::fleshSlotsLast; slot++)
-        {
-            props::takeShippedSlot(slot);
-        }
-    }
-    // 56: the author's grappling gun buttons (NOTES.md vrfiringrange_2026-09-30_02-55-58): the back button half a unit to
-    // the side (vr_wofs_wpnbtn_y_18; the front one is placed from it, its own place unchanged). A weapon setting: a config
-    // still holding the old default takes the new one.
-    if(from < 56)
-    {
-        cvar_t* var = weapons::cvar(17, weapons::Key::WpnButtonY);
-        if(var && sameValue(var->string, "0"))
-        {
-            Con_DPrintf("VR: %s: new default %s (was 0)\n", var->name, var->default_string);
-            Cvar_SetQuick(var, var->default_string);
-        }
-    }
-    // 89: the author's retro textures (vr_retro.cpp shippedLook): every kind's settings still at the old defaults.
-    if(from < 89)
-    {
-        retro::migrateShippedLook();
-    }
-    // 95: the All Categories retro panel's values start from the shipped look (the author's vr_retro_all_* values).
-    if(from < 95)
-    {
-        retro::migrateAllPanel();
-    }
-    // 81: a config pointing vr_extmaps_dir at a downloaded Quetoo folder (quetoo-data/.../textures/quake) takes the
-    // shipped copy (relative, in every install).
-    if(from < 81 && quetooFolder(vr_extmaps_dir.string))
-    {
-        Con_DPrintf("VR: vr_extmaps_dir: %s (was %s)\n", vr_extmaps_dir.default_string, vr_extmaps_dir.string);
-        Cvar_SetQuick(&vr_extmaps_dir, vr_extmaps_dir.default_string);
-    }
-    // 90: the flashlight's cord is the low-poly chain or none (the author, 2026-10-06: ROUND21.md, "Flashlight cord:
-    // the low-poly chain only"). The coiled cord (1), the plain cable (2), the chain (3) and the low-poly chain (4) are
-    // all the low-poly chain, now 1; none (0) stays.
-    if(from < 90 && vr_flashlight_cord.value != 0.f && vr_flashlight_cord.value != 1.f)
-    {
-        Con_DPrintf("VR: vr_flashlight_cord: 1, the low-poly chain (was %s)\n", vr_flashlight_cord.string);
-        Cvar_SetQuick(&vr_flashlight_cord, "1");
-    }
-    // 103: a new install starts in the tutorial (vrtutorial) once; a config from before has played: the hub, as before.
-    if(from < 103)
-    {
-        Cvar_SetValueQuick(&vr_tutorial_started, 1.f);
-    }
-    // 113: the window's view is vr_window_view's alone (both eyes, the left or the right, raw or smoothed, the spectator
-    // camera); vr_mirror only turns the mirror on or off. Its "Left Eye (raw)" with vr_mirror 2 showed both eyes: now
-    // Both Eyes (raw), 3. vr_mirror 2 is 1.
-    if(from < 113 && vr_mirror.value >= 2.f)
-    {
-        if(static_cast<int>(vr_window_view.value) == 0)
-        {
-            Con_DPrintf("VR: vr_window_view: 3, both eyes (was 0 with vr_mirror 2)\n");
-            Cvar_SetQuick(&vr_window_view, "3");
-        }
-        Con_DPrintf("VR: vr_mirror: 1 (was %s; vr_window_view says what it shows)\n", vr_mirror.string);
-        Cvar_SetQuick(&vr_mirror, "1");
-    }
+    retiredStruggleSeen = false;
+    props::takeShippedSlots(from); // (the held objects' slots shipped since: 183 AD's health vial)
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
 
@@ -1066,6 +719,7 @@ const CompiledDefault compiledDefaults[] = {
 [[nodiscard]] bool personal(const cvar_t* var)
 {
     return var == &vr_cfg_version || var == &vr_tutorial_started || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
+        || var == &vr_seated_height // (one's chair)
         || var == &vr_props_version || var == &vr_tips_seen || var == &vr_menu_positions
         || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device || var == &vr_dominant_eye
         || !ZA_STRNCMP(var->name, "vr_motion_", 10) // the motion recorder's (a tool's settings)
@@ -1084,7 +738,7 @@ const CompiledDefault compiledDefaults[] = {
 void saveDefaults_f()
 {
     const char* path = va("%s/vr_defaults.cfg", com_gamedir);
-    FILE* f = fopen(path, "wb");
+    FILE* f = Sys_fopen(path, "wb");
     if(!f)
     {
         Con_Printf("vr_savedefaults: can't write %s\n", path);
@@ -1143,8 +797,16 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-10-19: the class lists replaced by the monster groups' Lift, Neck Snap, Leg Sweep, Leg Grabs, Manhandle and
+    // Two-Hand Throw (vr_mgrp_<group>_*; ROUND22.md, "Monster groups").
+    "vr_foegrab_lift_classes",
+    "vr_foegrab_throw_always",
+    "vr_foegrab_throw_when_hurt",
+    // 2026-10-23: the struggling classes' list, replaced by the monster groups' Struggle settings (vr_mgrp_<group>_struggle*;
+    // ROUND22.md, "Struggle in the monster groups"); a config older than 190 has its value moved (retiredStruggleClasses).
+    "vr_struggle_classes",
     "vr_throw_lookahead", // 2026-10-06: unused since the throw's window ends at the release (ROUND21.md, "Throws at any frame rate")
-    "vr_throw_slowmo_flick_spin", // 2026-10-08: vr_throw_slowmo_flick_arm (ROUND21.md, "Wrist flicks in bullet time: the arm tells the tempo")
+    "vr_throw_slowmo_flick_spin", // 2026-10-08: replaced by vr_throw_slowmo_flick_arm (ROUND21.md, "Wrist flicks in bullet time: the arm tells the tempo"), itself retired below
     "vr_foegrab_throw_topple_hold", // 2026-10-09: vr_foegrab_throw_feet_speed (ROUND21.md, "Holding enemies")
     // 2026-10-09: vr_knockdown_shove_travel, _topple_angle, _topple_time, _feet_lag, _max_spin (ROUND21.md, "A shove's
     // knockdown: travel and a quarter turn").
@@ -1153,6 +815,89 @@ constexpr const char* retiredCvars[] = {
     "vr_knockdown_shove_feet_speed",
     "vr_knockdown_shove_feet_hold",
     "vr_hub_map", // 2026-10-09: the hub is vrstart, the only one (the old hub, vrstart_old, removed)
+    // 2026-10-15: the bullet-time throw is the stroke's tempo's alone (ROUND22.md, "Bullet-time throws: the stroke's
+    // tempo only"); its switch and the older rules' settings.
+    "vr_throw_slowmo_stroke",
+    "vr_throw_slowmo_real_time",
+    "vr_throw_slowmo_tempo",
+    "vr_throw_slowmo_aim",
+    "vr_throw_slowmo_flick",
+    "vr_throw_slowmo_flick_arm",
+    "vr_throw_slowmo_short_travel",
+    "vr_throw_slowmo_long_travel",
+    // 2026-10-16: the A/B switches settled at their defaults, the other path deleted (ROUND22.md, "A/B switches
+    // removed").
+    "vr_box3d_caller_solves",
+    "vr_carry_grab_drawn",
+    "vr_weapon_grab_box",
+    "vr_button_weapon",
+    "vr_parry_interrupt",
+    "vr_weapon_throw_mode",
+    "vr_throw_mass_model",
+    "vr_weight_throw_mass", // (its old path's setting: props over it thrown slower)
+    "vr_prop_think_native",
+    "vr_hull_method",
+    "vr_decap_pop_chance", // (a switch: off, every headshot kill popped)
+    // 2026-10-17: perf attempts that did not pay off, removed (ROUND22.md, "Removed perf attempts"); vr_xr_overlap was
+    // archived, the rest only set by hand
+    "vr_xr_overlap",
+    "vr_debug_xr_overlap_work_ms",
+    "vr_mock_end_gpu_wait",
+    "vr_parallax_conservative_depth",
+    "vr_model_ambient_prefetch",
+    "vr_water_pick_once",
+    "vr_server_thread_check",
+    // 2026-10-19: the flinch removed (ROUND22.md, "The flinch removed; ragdoll triggers"; FLINCH_RETROSPECTIVE.md):
+    // hits play the pains again, active ragdolls come from the triggers (vr_kdtrig: Combat > Ragdoll Triggers).
+    "vr_foegrab_lift_shove", // 2026-10-19: replaced by vr_foegrab_free_push (metres)
+    "vr_flinch",
+    "vr_flinch_classes",
+    "vr_flinch_min",
+    "vr_flinch_cooldown",
+    "vr_flinch_attack_guard",
+    "vr_flinch_pain",
+    "vr_flinch_max",
+    "vr_flinch_range",
+    "vr_flinch_topple",
+    "vr_flinch_uneven",
+    "vr_flinch_local",
+    "vr_flinch_shotgun",
+    "vr_flinch_ssg",
+    "vr_flinch_shot_near",
+    "vr_flinch_shot_far",
+    "vr_flinch_shot_far_share",
+    "vr_flinch_shot_other",
+    "vr_flinch_nail",
+    "vr_flinch_melee",
+    "vr_flinch_throw",
+    "vr_flinch_blast",
+    "vr_flinch_most",
+    "vr_flinch_recover_min",
+    "vr_flinch_recover_hold",
+    "vr_flinch_recover_speed",
+    "vr_flinch_recover_tilt",
+    "vr_flinch_recover_slope",
+    "vr_flinch_legs_push",
+    "vr_flinch_legs_upright",
+    "vr_flinch_foot",
+    "vr_flinch_blend",
+    "vr_flinch_debug",
+    "vr_flinch_test",
+    "vr_flinch_test_pellets",
+    "vr_flinch_test_health",
+    "vr_flinch_test_x",
+    "vr_flinch_test_y",
+    "vr_flinch_test_z",
+    "vr_flinch_test_yaw",
+    "vr_flinch_test_dist",
+    "vr_flinch_test_class",
+    // The eliminator's plasma gun's own tweaks (1.1 beta 1 and 2; it fires as the centurion's since 944765aa1).
+    "vr_adgun_eliminator_ammo",
+    "vr_adgun_eliminator_damage",
+    "vr_adgun_eliminator_refire",
+    "vr_adgun_eliminator_speed",
+    "vr_adgun_eliminator_splash",
+    "vr_toolgun_menu_height", // 1.0.1's: the toolgun's own panel replaced its VR Settings pages (7baa39660)
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):
@@ -1171,6 +916,9 @@ constexpr CvarAlias cvarAliases[] = {
     {"vr_slipgate_surface_size", "vr_teleporter_surface_size"},
     {"vr_slipgate_surface_opacity", "vr_teleporter_surface_opacity"},
     {"vr_slipgate_surface_fade", "vr_teleporter_surface_fade"},
+    // 2026-10-16: one throw for props and weapons (config 142; ROUND22.md, "One throw for props and weapons").
+    {"vr_carry_two_hands_window", "vr_throw_2h_window"},
+    {"vr_carry_throw_inherit", "vr_throw_inherit"},
 };
 
 extern "C" const char* VR_CvarAlias(const char* name)
@@ -1191,6 +939,11 @@ extern "C" int VR_RetiredCvar(const char* name)
     {
         if(!q_strcasecmp(name, retired))
         {
+            if(!q_strcasecmp(name, "vr_struggle_classes") && Cmd_Argc() > 1)
+            {
+                qvr::retiredStruggleClasses = Cmd_Argv(1); // (its config line's value, for the migration to 190)
+                qvr::retiredStruggleSeen = true;
+            }
             return 1;
         }
     }

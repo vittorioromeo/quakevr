@@ -258,13 +258,16 @@ float(float xType) VR_Dummy_Make =
     float gremlins = NumGremlins;
     float dm = deathmatch;
     deathmatch = 0;
+    vr_agr_hold = vr_agr_hold + 1; // (never an armed humanoid's replacement: vr_armedrepl.qc)
     VR_Dummy_TypeSpawn(xType);
+    vr_agr_hold = vr_agr_hold - 1;
     deathmatch = dm;
     total_monsters = total;
     NumGremlins = gremlins;
     self.spawnflags = 0; // (an ogre made a boss at random)
     // Nothing of its AI: it never starts (its think is the dummy's), and nothing wakes it (monster_use, alerts, a parry's
     // interrupt: none has a th_run to call).
+    self.vr_dummy_th_run = self.th_run; // (its get-up's end: VR_Knockdown_Step)
     self.th_stand = world.th_stand;
     self.th_walk = world.th_walk;
     self.th_run = world.th_run;

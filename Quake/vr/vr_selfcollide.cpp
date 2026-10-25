@@ -20,6 +20,7 @@
 #include "vr_hands.hpp"
 #include "vr_mem.hpp"
 
+#include "Zancle/Algorithm/NthElement.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Chrono/Clock.hpp"
@@ -240,7 +241,7 @@ float percentile(za::Vector<float>& v, float q)
         return 0.f;
     }
     const za::SizeT i = za::min(v.size() - 1, static_cast<za::SizeT>(q * static_cast<float>(v.size() - 1) + 0.5f));
-    za::quickSort(v.begin(), v.end()); // (sorted whole: v[i] is std::nth_element's, the same value)
+    za::nthElement(v.begin(), v.begin() + i, v.end()); // (v[i] as a full sort would have it)
     return v[i];
 }
 
@@ -544,8 +545,7 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
 {
     const int num = held::heldEntity(hand);
     const qmodel_t* m = num > 0 && num < cl_max_edicts ? cl_entities[num].model : nullptr;
-    return m && (modelmeta::has(m, modelmeta::Trait::LiveShell) || modelmeta::has(m, modelmeta::Trait::Magazine) ||
-                 modelmeta::has(m, modelmeta::Trait::LiveRound) || modelmeta::isQuakeGrenade(m)); // (a pouch grenade: a launcher's round)
+    return m && modelmeta::isRound(m);
 }
 
 // A hand holding nothing (it may be helping hold the other hand's gun).
@@ -623,6 +623,10 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
     if(ammoPouch && body::ammoPouchReach() > 0.f) // the ammo pouch on the belly (vr_reload_mode 3), likewise
     {
         ratio = za::min(ratio, glm::distance(s.pos[hand], *ammoPouch) / body::ammoPouchReach());
+        if(weapon && s.loadPortValid[hand]) // (and a gun brought to it by its load point: pouch reloading, vr_reload.qc)
+        {
+            ratio = za::min(ratio, glm::distance(s.loadPort[hand], *ammoPouch) / body::ammoPouchReach());
+        }
     }
     return weapon ? smooth(1.f, 1.6f, ratio) : smooth(0.5f, 1.f, ratio);
 }

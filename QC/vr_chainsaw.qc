@@ -190,6 +190,7 @@ void(entity xProp, float xStop) VR_Saw_PropSettle =
 {
     WeaponInst_SetClip(xProp.weaponinst,
         max(0, xProp.weaponinst.wi_clip - (time - xProp.vr_saw_prop_on) * cvar_hget(cvarh_vr_chainsaw_idle_fuel_use)));
+    xProp.vr_depleted = VR_Weapon_Spent(xProp.weapon, xProp.weaponinst); // (its last fuel burnt lying: spent)
     if(xStop)
     {
         xProp.vr_saw_prop_on = 0;
@@ -331,7 +332,7 @@ float(float xHand) VR_Chainsaw_Cut =
     entity e = findradius(mid, vlen(tip - root) * 0.5 + VR_HITMODEL_REACH);
     while(e)
     {
-        if(e != self && e.takedamage && (!(e.flags & FL_CLIENT) || deathmatch || teamplay))
+        if(e != self && e.takedamage && (!(e.flags & FL_CLIENT) || deathmatch || teamplay || (self.flags & FL_MONSTER)))
         {
             float along = hitmodel_segment(e, root, tip, 1, HITCLASS_MELEE);
             if(along == -2 && e.vr_gib)
@@ -413,7 +414,7 @@ float(float xHand) VR_Chainsaw_Cut =
         e.vr_saw_victim = world;
         vector at = e.vr_saw_at;
         VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
-        self.damage_weapon = IT_AXE;
+        VR_DamageCredit_SetWeapon(self, WID_CHAINSAW);
         float alive = e.health > 0;
         float flesh = (e.flags & FL_MONSTER) || (e.flags & FL_CLIENT) || e.vr_gib; // (a gib may be gone after it)
         float wood = VR_Crate_Wooden(e); // (a crate: splinters, not sparks)
@@ -429,8 +430,14 @@ float(float xHand) VR_Chainsaw_Cut =
         // At the neck: a corpse beheaded instead of cut, a live one beheaded if the tick kills it (a zombie: whatever)
         // (vr_decap.qc).
         float decap = VR_Decap_Saw(e, xHand, at);
+        // An armed monster's chain on a player (vr_armedgrunt_pose.qc VR_AGP_Saw): parried as its other blows are
+        // (T_Damage_VRMelee's VR_Parry; each tick a blow: a parried one then its cooldown, its stagger ends the cut).
+        if(self.vr_ag && (self.flags & FL_MONSTER) && (e.flags & FL_CLIENT) && decap != 2)
+        {
+            hurt = VR_Parry(e, self, self, hurt);
+        }
         vr_grenshot_saw = TRUE; // (a grenade: the running chain always sets it off, VR_GrenShot_BlowSetsOff)
-        float cut = decap == 2 ? TRUE : T_DamageImpl(e, self, self, hurt, 1);
+        float cut = decap == 2 ? TRUE : hurt > 0 ? T_DamageImpl(e, self, self, hurt, 1) : FALSE;
         vr_grenshot_saw = FALSE;
         if(decap == 1)
         {
@@ -439,6 +446,10 @@ float(float xHand) VR_Chainsaw_Cut =
         if(cut && alive)
         {
             VR_QuadSound(self, "the chainsaw cut");
+        }
+        if(hurt > 0 && e.takedamage)
+        {
+            VR_HotBlade_Struck(self, xHand, e, alive, at, dir); // an incandescent bar sets it on fire (vr_hotblade.qc)
         }
         VR_ClearHitKind();
         if(flesh)

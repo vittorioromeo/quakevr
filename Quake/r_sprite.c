@@ -46,7 +46,9 @@ static int numsoftsprites;
 static qboolean softpass;
 static GLuint softdistances;
 static float batchsoftfade;
+static float batchalpha = 1.f; // QVR: the entity's alpha (soft pass only; see-through: no depth written)
 static entity_t *batchentity; // QVR: retro textures (vr/vr_retro.cpp)
+static qboolean badspritesaid; // QVR: R_DrawSpriteModel_Real's skip, said once (developer 1)
 static mspriteframe_t *batchframe; // QVR
 
 /*
@@ -88,6 +90,8 @@ mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 
 	psprite = (msprite_t *) currentent->model->cache.data;
 	frame = currentent->frame;
+	if (!psprite || psprite->numframes <= 0) // QVR: none to draw (R_DrawSpriteModel_Real skips it)
+		return NULL;
 
 	if ((frame >= psprite->numframes) || (frame < 0))
 	{
@@ -109,12 +113,16 @@ mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 			float r = DotProduct(vright, axis[0]);
 			int dir = (atan2(r, f)+1.125*M_PI)*(4/M_PI);
 			pspritegroup = (mspritegroup_t *)psprite->frames[frame].frameptr;
+			if (!pspritegroup) // QVR
+				return NULL;
 			pspriteframe = pspritegroup->frames[dir&7];
 		}
 	}
 	else
 	{
 		pspritegroup = (mspritegroup_t *)psprite->frames[frame].frameptr;
+		if (!pspritegroup || pspritegroup->numframes <= 0) // QVR
+			return NULL;
 		pintervals = pspritegroup->intervals;
 		numframes = pspritegroup->numframes;
 		fullinterval = pintervals[numframes-1];
@@ -169,12 +177,13 @@ static void R_FlushSpriteInstances (void)
 		GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZWRITE | GLS_CULL_BACK | GLS_ATTRIBS(2));
 	else if (softpass) // QVR
 	{
-		GL_SetState (GLS_BLEND_ALPHA | GLS_CULL_BACK | GLS_ATTRIBS(2));
+		GL_SetState (GLS_BLEND_ALPHA | (batchalpha < 1.f ? GLS_NO_ZWRITE : 0) | GLS_CULL_BACK | GLS_ATTRIBS(2));
 		glBlendFunc (GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	}
 	else
 		GL_SetState (GLS_BLEND_OPAQUE | GLS_CULL_BACK | GLS_ATTRIBS(2));
-	GL_Uniform4fFunc (0, softpass && softdistances ? batchsoftfade : 0.f, softpass ? 1.f : 0.f, 0.f, 0.f); // QVR
+	GL_Uniform4fFunc (0, softpass && softdistances ? batchsoftfade : 0.f, softpass ? 1.f : 0.f,
+		softpass ? batchalpha : 1.f, 0.f); // QVR
 	if (softpass && softdistances) // QVR
 		GL_BindNative (GL_TEXTURE1, GL_TEXTURE_2D, softdistances);
 
@@ -220,9 +229,22 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 	spritevert_t	*verts;
 	float			scale = ENTSCALE_DECODE(e->scale);
 	float			softfade = 0.f; // QVR
+	float			alpha; // QVR
+
+	// QVR: the old Quake explosion sprite (QuakeC's BecomeExplosion and the expansions' copies) is not drawn: the
+	// explosion's particles and debris (vr_particles.cpp, vr_explosiondebris.cpp) are the explosion.
+	if (!strcmp (e->model->name, "progs/s_explod.spr"))
+		return;
 
 	frame = R_GetSpriteFrame (e);
 	psprite = (msprite_t *) e->model->cache.data;
+	if (!frame || !frame->gltexture) // QVR: a sprite with no frame to draw: skipped, not a crash
+	{
+		if (!badspritesaid)
+			Con_DPrintf ("R_DrawSpriteModel: '%s' frame %d has no picture: not drawn\n", e->model->name, e->frame);
+		badspritesaid = true;
+		return;
+	}
 
 	switch(psprite->type)
 	{
@@ -277,9 +299,12 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 	if (softpass && softdistances && psprite->type != SPR_ORIENTED) // QVR: not those lying on walls
 		softfade = VR_SoftSpriteFade (0.5f * q_max (frame->right - frame->left, frame->up - frame->down) * scale);
 
+	// QVR: its alpha (AD's see-through flames, vr_adgun_stream_alpha): in the soft pass, premultiplied
+	alpha = softpass ? ENTALPHA_DECODE (e->alpha) : 1.f;
+
 	if (numbatchquads)
 		if (numbatchquads == countof(batchverts) / 4 || batchmodel != e->model || batchtexture != frame->gltexture
-			|| batchsoftfade != softfade) // QVR
+			|| batchsoftfade != softfade || batchalpha != alpha) // QVR
 			R_FlushSpriteInstances ();
 
 	if (!numbatchquads)
@@ -288,6 +313,7 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 		batchtexture = frame->gltexture;
 		batchshowtris = showtris;
 		batchsoftfade = softfade; // QVR
+		batchalpha = alpha; // QVR
 		batchentity = e; // QVR: retro textures (its model's set)
 		batchframe = frame; // QVR
 	}
@@ -314,6 +340,52 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 
 /*
 =================
+R_DrawSpriteModelCopies -- QVR
+
+A sprite, and AD's flamethrowers' flame and poison sprites again between each and where it came from
+(vr_adgun_ad_copies: a fuller stream, drawn only): spread over the tenth of a second of its way behind it (the
+flames' spacing), each a little younger (its frames: a tenth of a second each).
+=================
+*/
+static cvar_t *adcopiesvar; // (found once)
+
+static void R_DrawSpriteModelCopies (entity_t *e, qboolean showtris)
+{
+	entity_t copy;
+	vec3_t step;
+	double dt;
+	int n, k;
+
+	R_DrawSpriteModel_Real (e, showtris);
+	if (!adcopiesvar)
+		adcopiesvar = Cvar_FindVar ("vr_adgun_ad_copies");
+	n = adcopiesvar ? (int) CLAMP (0.f, adcopiesvar->value, 3.f) : 0;
+	if (n <= 0 || strncmp (e->model->name, "progs/s_burst_", 14))
+		return;
+	if (strcmp (e->model->name, "progs/s_burst_flame.spr") && strcmp (e->model->name, "progs/s_burst_poison.spr") &&
+		strcmp (e->model->name, "progs/s_burst_smoke.spr"))
+		return;
+	dt = cl.mtime[0] - cl.mtime[1];
+	VectorSubtract (e->msg_origins[0], e->msg_origins[1], step);
+	if (dt <= 0.001 || DotProduct (step, step) < 1.f)
+		return; // (not moving: just made, or stopped)
+	VectorScale (step, (float) (0.1 / q_max (dt, 0.01)), step);
+	if (DotProduct (step, step) > 120.f * 120.f)
+		return; // (a jump: not a flight)
+	copy = *e;
+	for (k = 1; k <= n; k++)
+	{
+		const float f = (float) k / (float) (n + 1);
+		VectorMA (e->origin, -f, step, copy.origin);
+		copy.frame = q_max (0, (int) floorf ((float) e->frame - f + 0.5f));
+		R_DrawSpriteModel_Real (&copy, showtris);
+	}
+	if (batchentity == &copy)
+		batchentity = e; // (the batch's retro set is its model's: not the copy's, gone after this)
+}
+
+/*
+=================
 R_DrawSpriteModels
 =================
 */
@@ -327,7 +399,7 @@ void R_DrawSpriteModels (entity_t **ents, int count)
 		return;
 	}
 	for (i = 0; i < count; i++)
-		R_DrawSpriteModel_Real (ents[i], false);
+		R_DrawSpriteModelCopies (ents[i], false);
 	R_FlushSpriteInstances ();
 }
 
@@ -359,7 +431,7 @@ void R_DrawSpriteModelsSoft (GLuint distances)
 	softpass = true;
 	softdistances = distances;
 	for (i = 0; i < numsoftsprites; i++)
-		R_DrawSpriteModel_Real (softsprites[i], false);
+		R_DrawSpriteModelCopies (softsprites[i], false);
 	R_FlushSpriteInstances ();
 	softpass = false;
 	numsoftsprites = 0;

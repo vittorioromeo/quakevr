@@ -56,25 +56,23 @@ void() Laser_Touch =
 
 //MED 01/16/97 added silent command
 
-    if(!((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_SILENT))))
+    if(!((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_SILENT))))
         sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
     org = self.origin - 8*normalize(self.velocity);
-    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
+    // VR: every projectile's hit (weapons.qc VR_Proj_Begin): the prop or ragdoll it hit (or flew through) pushed, where
+    // it struck, a kill at the head or a limb popped by chance (vr_decap_pop_laser; vr_limbs.qc), ended by VR_Proj_End.
+    float dmg = self.vr_laser_damage ? self.vr_laser_damage : 15; // VR: an enforcer's rifle's (vr_enemyguns.qc)
+    VR_Proj_Begin(QVR_PROJ_LASER, dmg);
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("shot: a laser met %s (health %g) at %v\n", other == world ? "the world" : other.classname,
+            other.health, self.origin));
+    }
 
     if(other.health)
     {
         VR_HitBlood(other, org, self.velocity*0.2, 15);
-        // VR: a kill at the head or a limb pops it by chance (vr_decap_pop_laser; vr_limbs.qc), where the bolt's line
-        // meets the model.
-        float dmg = self.vr_laser_damage ? self.vr_laser_damage : 15; // VR: an enforcer's rifle's (vr_enemyguns.qc)
-        vector dir = normalize(self.velocity);
-        VR_TouchTrace(self.origin - dir * 16, self.origin + dir * 16);
-        float pop = VR_Decap_LaserArm(other, self.owner, trace_ent == other ? trace_endpos : self.origin, dir, dmg);
         T_Damage(other, self, self.owner, dmg);
-        if(pop)
-        {
-            VR_Decap_After(other);
-        }
     }
     else
     {
@@ -83,6 +81,7 @@ void() Laser_Touch =
         WriteVec3(MSG_BROADCAST, org);
     }
 
+    VR_Proj_End();
     remove(self);
 };
 
@@ -93,7 +92,7 @@ entity(vector org, vector vec) LaunchLaser =
     if(self.classname == "monster_enforcer")
         sound(self, CHAN_WEAPON, "enforcer/enfire.wav", 1, ATTN_NORM);
 
-    vec = normalize(vec);
+    vec = VR_AimCone_Bend(normalize(vec), VR_AIM_NARROW); // QVR: a monster's bent to its facing's aim cone (vr_aimcone.qc)
 
     newmis = spawn();
     newmis.owner = self;
@@ -132,6 +131,7 @@ entity(vector org, vector vec) LaunchLaser =
 void() enforcer_fire =
 {
     vector org;
+    if(VR_AimCone_Wait(enforcer_fire, VR_AIM_NARROW)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
 
     self.effects = self.effects | EF_MUZZLEFLASH;
     makevectors(self.angles);
@@ -140,6 +140,7 @@ void() enforcer_fire =
 
     if(!VR_AI_ShotReady(org)) { return; }
     LaunchLaser(org, VR_AI_Origin(self.enemy) - self.origin);
+    vr_agr_shots_enf = vr_agr_shots_enf + 1; // (the tests: vr_armedrepl_test.qc)
     MG3_EnforcerAltLaser(org); // QVR: Dawn of the Machine's Bloody Nightmare: a second (vr_mg3_bn.qc)
     weaponfired(self, -1); // VR: its rifle's muzzle flash (an enforcer's: vr_weaponfx.cpp)
 };
@@ -297,6 +298,10 @@ void() EnforcerDrop =
     entPlayer = FindEntPlayerForDrop();
 
     self.solid = SOLID_NOT;
+    if(VR_AG_SoldierDrop())
+    {
+        return; // VR: an armed enforcer's loot: its reserve's ammo (vr_armedgrunt.qc; its weapon fell as it died)
+    }
     self.ammo_cells = 5;
     DropBackpack();
 
@@ -348,8 +353,12 @@ void()    enf_fdie11    =[    $fdeath11,    enf_fdie11    ] { monster_check_remo
 
 void() enf_die =
 {
-    // VR: its laser rifle falls from its hands (its death frames are drawn without it: vr_monstermods.cpp), gibbed or not.
-    VR_DropEnemyGun(WID_ENFRIFLE);
+    // VR: its laser rifle falls from its hands (its death frames are drawn without it: vr_monstermods.cpp), gibbed or not;
+    // an armed enforcer's own weapon instead (vr_armedgrunt.qc, vr_armedmon.qc: its death is the enforcer's).
+    if(!VR_AG_Dying())
+    {
+        VR_DropEnemyGun(WID_ENFRIFLE);
+    }
 
 // check for gib
     if(self.health < -35)
@@ -383,6 +392,7 @@ void() monster_enforcer =
         remove(self);
         return;
     }
+    if(VR_AGR_Replace(1)) return; // VR: its armed version in its place, its own rifle (vr_agrunt_repl: vr_armedrepl.qc)
     precache_model2("progs/enforcer.mdl");
     precache_model2("progs/h_mega.mdl");
     precache_model2("progs/laser.mdl");
@@ -399,7 +409,7 @@ void() monster_enforcer =
     precache_sound2("enforcer/sight4.wav");
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -416,7 +426,7 @@ void() monster_enforcer =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = enforcer_start;
         return;

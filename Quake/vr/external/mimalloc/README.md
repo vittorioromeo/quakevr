@@ -16,9 +16,13 @@ Quake VR uses it as the process's C heap: malloc/free, calloc/realloc, `_aligned
 through them operator new/delete (`Quake/vr/vr_alloccount.cpp`'s call malloc/free and `_aligned_malloc`/`_aligned_free`).
 How it takes over: `Quake/vr/vr_crtheap.c` (Windows: it defines those functions and their import pointers, so the
 executable imports none of them from the C runtime; elsewhere mimalloc's own `MI_MALLOC_OVERRIDE`). See
-`docs/vr-port/ROUND21.md`, "mimalloc". Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cmake`):
+`docs/vr-port/ROUND21.md`, "mimalloc". Build settings (`Windows/VisualStudio/mimalloc.vcxproj` and `quakevr.props`,
+`Quake/vr/vr.cmake`):
 
-- `src/static.c` alone, as C17, no precompiled header, in the executable itself (not an archive);
+- `src/static.c` alone, as C17, no precompiled header, its own target compiled once with the engine's C settings
+  (Visual Studio: the static library `mimalloc.vcxproj`, ThinLTO as the engine; CMake: the OBJECT library
+  `qvr_mimalloc`, its object in the executable itself, not taken from an archive: its malloc must win over the C
+  library's);
 - `MI_DEBUG` as mimalloc chooses it: 0 with `NDEBUG` (Release), 2 otherwise (Debug: its asserts, double and invalid
   free detection); no other defines (no `MI_OPT_ARCH`: the x64 baseline, as the rest of the engine);
 - MSBuild's `QVR_MIMALLOC` (default true on x64; `msbuild -p:QVR_MIMALLOC=false`) and CMake's `QVR_MIMALLOC` (default

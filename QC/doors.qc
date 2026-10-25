@@ -51,7 +51,7 @@ void() door_hit_top =
     self.state = STATE_TOP;
 
     // HONEY
-    if(!MG_WorldCampaign() && (self.spawnflags & DOOR_TRIGGER_ON_END))
+    if(!VR_OtherFlags() && (self.spawnflags & DOOR_TRIGGER_ON_END))
         SUB_UseTargets();
 
     if(self.spawnflags & DOOR_TOGGLE)
@@ -487,7 +487,7 @@ Key doors are allways wait -1.
 void() func_door =
 {
     if(MG_MonsterInhibited()) return;
-    float mgExplicitMove = MG_WorldCampaign() && self.movedir != '0 0 0';
+    float mgExplicitMove = MG_ExplicitMoveDir();
     if((world.worldtype == 0 || world.worldtype == 3))
     {
         precache_sound("doors/medtry.wav");

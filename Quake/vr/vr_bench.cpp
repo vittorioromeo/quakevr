@@ -1,11 +1,14 @@
 // vr_bench.cpp -- see vr_bench.hpp.
 
 #include "vr_bench.hpp"
+#include "vr_tracy.h"
 #include "vr_cvars.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_box3d.hpp"
 #include "vr_decals.hpp"
+#include "vr_dynres.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
 #include "vr_particles.hpp"
@@ -135,10 +138,17 @@ enum Count
     Dlights,
     ShadowDlights,
     ShadowMapLights,
+    RagdollsLiving, // box3d::AwakeKinds: the awake bodies by what they are
+    RagdollsDead,
+    RagLivingAwake,
+    RagDeadAwake,
+    GibsAwake,
+    PropsAwake,
     CountCount
 };
 constexpr const char* countNames[CountCount] = {"edicts", "monsters_alive", "box3d_bodies", "box3d_awake",
-    "box3d_contacts", "particles", "vr_particles", "decals", "dlights", "shadow_dlights", "shadow_maplights"};
+    "box3d_contacts", "particles", "vr_particles", "decals", "dlights", "shadow_dlights", "shadow_maplights",
+    "ragdolls_living", "ragdolls_dead", "awake_rag_living", "awake_rag_dead", "awake_gibs", "awake_props"};
 constexpr int countEvery = 16;
 // GPU read-backs dropped at the start: the slots in flight then are the frames before it (vr_profile.cpp's ring).
 constexpr int gpuSkip = 6;
@@ -185,6 +195,7 @@ struct Capture
     za::Vector<float> series[SeriesCount];
     za::Vector<float> gpuEyes;
     za::Vector<float> gpu3d; // the whole 3D refresh (flat mode's view too)
+    za::Vector<float> renderScale; // dynamic resolution's scale when each GPU frame was read back (1: dynres off)
     // The latency's proxy: a frame's pose (the tracking sampled, xrWaitFrame and xrLocateViews returned) to its submit
     // (xrEndFrame returned), ms; frames that submitted only.
     za::Vector<float> poseToSubmit;
@@ -240,6 +251,14 @@ void takeCounts(int (&n)[CountCount])
         PR_PopQCVM(old);
     }
     box3d::profileCounts(n[Bodies], n[BodiesAwake], n[Contacts]);
+    box3d::AwakeKinds k;
+    box3d::profileAwakeKinds(k);
+    n[RagdollsLiving] = k.ragdollsLiving;
+    n[RagdollsDead] = k.ragdollsDead;
+    n[RagLivingAwake] = k.ragLivingAwake;
+    n[RagDeadAwake] = k.ragDeadAwake;
+    n[GibsAwake] = k.gibsAwake;
+    n[PropsAwake] = k.propsAwake;
     n[Particles] = r_numactiveparticles;
     n[VrParticles] = particles::liveCount();
     n[Decals] = decals::liveCount();
@@ -398,9 +417,7 @@ void finish()
     int endCounts[CountCount]{};
     takeCounts(endCounts);
     const double seconds = static_cast<double>(za::Clock::nowNanoseconds() - c.startNs) / 1e9;
-    const za::String dir = za::String{com_gamedir} + "/profile";
-    Sys_mkdir(dir.cStr());
-    const za::String benchDir = dir + "/bench";
+    const za::String benchDir = files::profileDir() + "/bench";
     Sys_mkdir(benchDir.cStr());
     const za::String path = benchDir + "/" + c.name + ".json";
     FILE* f = fopen(path.cStr(), "w");
@@ -461,6 +478,7 @@ void finish()
     }
     writeStats(f, "gpu_eyes_ms", eyes);
     writeStats(f, "pose_to_submit_ms", stats(c.poseToSubmit));
+    writeStats(f, "render_scale", stats(c.renderScale));
     writeStats(f, "gpu_3d_ms", view3d, true);
     fprintf(f, "  },\n  \"hitches\": {\"over_11ms\": %d, \"over_14ms\": %d, \"over_33ms\": %d, \"over_100ms\": %d, "
                "\"over_250ms\": %d, \"over_2x_median\": %d},\n",
@@ -510,6 +528,7 @@ void finish()
 
 void begin_f()
 {
+    QVR_TRACY_SCOPE(tracyScope, "Benchmark begin");
     if(Cmd_Argc() < 2)
     {
         Con_Printf("vr_bench_begin <name> [frames | <seconds>s]: records each frame's times until vr_bench_end (or the "
@@ -530,6 +549,7 @@ void begin_f()
                         ch == '_' || ch == '-' || ch == '.';
         c.name += ok ? ch : '_';
     }
+    VR_TracyText(c.name.cStr());
     c.map = cl.mapname;
     c.targetFrames = 0;
     c.targetSeconds = 0.0;
@@ -556,6 +576,8 @@ void begin_f()
     c.gpuEyes.reserve(reserve);
     c.gpu3d.clear();
     c.gpu3d.reserve(reserve);
+    c.renderScale.clear();
+    c.renderScale.reserve(reserve);
     c.poseToSubmit.clear();
     c.poseToSubmit.reserve(reserve);
     c.poseNs = 0;
@@ -782,6 +804,7 @@ void gpuFrame(const double (&phaseMs)[profile::PhaseCount])
     }
     c.gpuEyes.pushBack(static_cast<float>(phaseMs[profile::EyeL] + phaseMs[profile::EyeR]));
     c.gpu3d.pushBack(static_cast<float>(phaseMs[profile::View3D]));
+    c.renderScale.pushBack(dynres::scale());
     c.gpuFrames++;
 }
 

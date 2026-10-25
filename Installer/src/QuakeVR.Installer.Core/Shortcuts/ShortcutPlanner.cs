@@ -60,8 +60,11 @@ public static class ShortcutPlanner
         if (o.StartMenu && o.StartMenuDir is not null)
         {
             // Diagnostics mode, for a bug report: in the Start menu only (never on the desktop).
-            list.Add(Launch(variants!, Name + " (Diagnostics)", LaunchVariant.Diagnostics,
+            list.Add(Launch(variants!, Name + " (diagnostics)", LaunchVariant.Diagnostics,
                 "Play Quake VR: Unleashed in diagnostics mode: every log for a bug report in quakevr\\diagnostics"));
+            // The bug report from the last run (after a crash), without starting the game: in the Start menu only.
+            list.Add(Launch(variants!, Name + " (Create Bug Report)", LaunchVariant.BugReport,
+                "Zip the last run's logs into quakevr\\bugreports for a bug report (the game is not started)"));
             var files = Path.Combine(qvrDir, "quakevr");
             list.Add(new ShortcutSpec(Path.Combine(variants!, Name + " files.lnk"), files, "", files,
                 "Screenshots, notes, saves and settings"));

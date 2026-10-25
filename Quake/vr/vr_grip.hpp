@@ -104,6 +104,8 @@ void serverKeep(edict_t* e, const float* handAngles, const glm::vec3& offset);
 // multi-grenade or -rocket, a proximity grenade): whatever its grip, its middle in the grip channel, its long axis along
 // the hand's forward, turned about its middle by vr_reload_front_hold_*.
 [[nodiscard]] glm::vec3 serverFromPouch(edict_t* e, const float* handAngles, const glm::vec3& offset, bool front = false);
+// The hand (0 off, 1 main) entity `num` was taken by (serverTake), -1 if none is kept for it.
+[[nodiscard]] int serverHand(int num);
 void forget(int num);
 void resetServer();
 

@@ -238,6 +238,7 @@ typedef struct b3World
 	int restitutionIterations;
 	bool enableRestitutionPropagation;
 	float maxLinearSpeed;
+	float isotropicInertiaTolerance;
 	float contactSpeed;
 	float contactHertz;
 	float contactDampingRatio;
@@ -262,6 +263,7 @@ typedef struct b3World
 	void* customFilterContext;
 
 	int workerCount;
+	int simdWidth;
 	b3EnqueueTaskCallback* enqueueTaskFcn;
 	b3FinishTaskCallback* finishTaskFcn;
 	void* userTaskContext;

@@ -61,7 +61,7 @@ State state;
     out.up = z.up;
     out.normal = z.normal;
     out.halfSize = z.halfSize;
-    return true;
+    return out.halfSize.x > 0.f && out.halfSize.y > 0.f; // (viewFrame divides by it)
 }
 
 void buzz(int hand, float amplitude)
@@ -289,7 +289,7 @@ bool Ui::loose(Button& out) const
         return false;
     }
     // (A touch that began on no widget: the app's own.)
-    const_cast<Ui*>(this)->activeId = 0;
+    activeId = 0;
     out.pressed = c.pressed;
     out.held = c.down;
     out.released = c.released;

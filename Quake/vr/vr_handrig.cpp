@@ -1,3 +1,4 @@
+#include "vr_geom.hpp"
 #include "vr_alloccount.h"
 // vr_handrig.cpp -- see vr_handrig.hpp.
 //
@@ -26,6 +27,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_handrig.hpp"
 #include "vr_mem.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Copy.hpp"
@@ -379,6 +381,7 @@ struct Md5Weight
 struct Md5Vert
 {
     long first{0}, count{0};
+    float st[2]{}; // (the gloves' shells: where their skin mask is read)
 };
 
 struct Md5Mesh
@@ -387,6 +390,7 @@ struct Md5Mesh
     za::Vector<Md5Vert> verts;
     za::Vector<za::Array<int, 3>> tris;
     za::Vector<Md5Weight> weights;
+    za::String shader; // (the gloves' shells use it too: the hand's skins)
 };
 
 bool parseMesh(const char* text, Md5Mesh& m, za::String& error)
@@ -431,7 +435,7 @@ bool parseMesh(const char* text, Md5Mesh& m, za::String& error)
     if(r.peek() == "shader")
     {
         (void)r.next();
-        (void)r.next();
+        m.shader = r.next();
     }
     r.expect("numverts");
     const long numVerts = r.integer();
@@ -446,6 +450,8 @@ bool parseMesh(const char* text, Md5Mesh& m, za::String& error)
         float st[2];
         r.numbers(st, 2);
         Md5Vert mv;
+        mv.st[0] = st[0];
+        mv.st[1] = st[1];
         mv.first = r.integer();
         mv.count = r.integer();
         m.verts.pushBack(mv);
@@ -673,53 +679,13 @@ Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, 
     return most;
 }
 
-// The point of triangle abc nearest p (Ericson, Real-Time Collision Detection, 5.1.5).
-[[nodiscard]] glm::vec3 closestOnTriangle(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
-{
-    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
-    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
-    if(d1 <= 0.f && d2 <= 0.f)
-    {
-        return a;
-    }
-    const glm::vec3 bp = p - b;
-    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
-    if(d3 >= 0.f && d4 <= d3)
-    {
-        return b;
-    }
-    const float vc = d1 * d4 - d3 * d2;
-    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
-    {
-        return a + ab * (d1 / (d1 - d3));
-    }
-    const glm::vec3 cp = p - c;
-    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
-    if(d6 >= 0.f && d5 <= d6)
-    {
-        return c;
-    }
-    const float vb = d5 * d2 - d1 * d6;
-    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
-    {
-        return a + ac * (d2 / (d2 - d6));
-    }
-    const float va = d3 * d6 - d5 * d4;
-    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
-    {
-        return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
-    }
-    const float denom = 1.f / (va + vb + vc);
-    return a + ab * (vb * denom) + ac * (vc * denom);
-}
-
 [[nodiscard]] glm::vec3 nearestOnMesh(const Rig& r, const glm::vec3& p)
 {
     glm::vec3 best = p;
     float bestD = 1e30f;
     for(const auto& t : r.triangles)
     {
-        const glm::vec3 q = closestOnTriangle(p, r.vertices[t[0]].pos, r.vertices[t[1]].pos, r.vertices[t[2]].pos);
+        const glm::vec3 q = geom::closestOnTriangle(p, r.vertices[t[0]].pos, r.vertices[t[1]].pos, r.vertices[t[2]].pos);
         const float d = glm::dot(q - p, q - p);
         if(d < bestD)
         {
@@ -1172,7 +1138,557 @@ void printReport(const char* who, const Rig& r, const Report& report, bool loud)
     }
 }
 
+// ----------------------------------------------------------------------------
+// The gloves' shells (vr_glove_thickness; ROUND22.md, "Glove depth")
+//
+// A glove (vr_gloves) is a layer of its own over the hand: for each kind (fingerless: the skin mask's G, full: its B;
+// make_skin_masks.py) the hand's triangles it covers, cut along the mask's edge, and a wall along the cut down to the
+// skin, added to the hand's model as its meshes 2 and 3 (VR_ModelReplacementExtend) with the hand's own joints and
+// weights (a vertex on a cut: its edge's ends' blended), so they bend with the fingers. None of it is in the rig (the
+// collisions and the grasp have the hand's own mesh only). As written they lie on the skin; the vertex shader pushes
+// each vertex out along its normal by its share of the thickness, marked in its u (u + 2 (1 + 15 share)): all of it,
+// none at the wall's foot, and tapered to none near the hand's open end (the wrist, inside the sleeve or the bracer).
+// Made as the model loads, from whatever hand the file has (edited in Blender too) and skin 0's mask.
+
+constexpr float shellEdge = 0.4f; // the mask's value the shells are cut at (0 off the glove, 0.55 at its edge)
+constexpr int shellSteps = 24; // the mask read this many times along an edge the cut crosses
+constexpr float shellTaperMm = 6.f; // the push tapered to nothing over this much near the hand's open end
+constexpr int shellShares = 15; // a vertex's share of the push in steps of 1/15 (its u's mark)
+
+// The models given shells as they loaded (VR_ModelReplacementExtend): by name, how many (after their one mesh).
+struct ShellModels
+{
+    static constexpr int capacity = 8;
+    struct Entry
+    {
+        char name[MAX_QPATH]{};
+        int count{0};
+    };
+    Entry entries[capacity]{};
+    int count{0};
+};
+ShellModels shellModels;
+
+// The skin mask (RGBA bytes) read as the GPU reads it, bilinearly.
+struct ShellMask
+{
+    const byte* rgba{nullptr};
+    int width{0}, height{0};
+
+    [[nodiscard]] float at(int channel, glm::vec2 st) const
+    {
+        const glm::vec2 p = st * glm::vec2(static_cast<float>(width), static_cast<float>(height)) - 0.5f;
+        const glm::vec2 f0 = glm::floor(p), f = p - f0;
+        const int x0 = static_cast<int>(f0.x), y0 = static_cast<int>(f0.y);
+        const auto texel = [&](int x, int y) {
+            x = CLAMP(0, x, width - 1);
+            y = CLAMP(0, y, height - 1);
+            return static_cast<float>(rgba[(static_cast<za::SizeT>(y) * static_cast<za::SizeT>(width) + static_cast<za::SizeT>(x)) * 4 +
+                       static_cast<za::SizeT>(channel)]) /
+                255.f;
+        };
+        return glm::mix(glm::mix(texel(x0, y0), texel(x0 + 1, y0), f.x), glm::mix(texel(x0, y0 + 1), texel(x0 + 1, y0 + 1), f.x), f.y);
+    }
+};
+
+// Where a shell covers: the hand's mask's channel (from `edge` up), or a bare forearm's cuff on the body's skin
+// (cuff: as vr_view.cpp gloveCuffRange: below u x, from v y to v w; a ramp across y, 0.5 on it, so that the cut is
+// found exactly there).
+struct ShellField
+{
+    const ShellMask* mask{nullptr};
+    int channel{0};
+    float cuff[4]{};
+    float edge{shellEdge};
+
+    [[nodiscard]] float at(glm::vec2 st) const
+    {
+        if(mask)
+        {
+            return mask->at(channel, st);
+        }
+        return st.x < cuff[0] && st.y < cuff[3] ? za::fmax(0.f, za::fmin(1.f, 0.5f + 20.f * (st.y - cuff[1]))) : 0.f;
+    }
+};
+
+// What both shells are made from: the hand's vertices' rest places, each one's weld (the first vertex at its place:
+// the file splits them at the skin's seams) and the hand's open edges (by welds).
+struct ShellHand
+{
+    const Md5Mesh& m;
+    za::Vector<glm::dvec3> place;
+    za::Vector<int> weld;
+    za::Vector<glm::dvec3> openA, openB;
+    double unitsPerMm;
+
+    ShellHand(const Md5Mesh& mesh, float perMm) : m(mesh), unitsPerMm(perMm)
+    {
+        const za::SizeT n = m.verts.size();
+        place.resize(n);
+        weld.resize(n);
+        for(za::SizeT v = 0; v < n; v++)
+        {
+            glm::dvec3 p{0.0};
+            for(long i = 0; i < m.verts[v].count; i++)
+            {
+                const Md5Weight& w = m.weights[static_cast<za::SizeT>(m.verts[v].first + i)];
+                const Md5Joint& j = m.joints[static_cast<za::SizeT>(w.joint)];
+                const glm::dvec3 q{j.quat[0], j.quat[1], j.quat[2]}, o{w.offset[0], w.offset[1], w.offset[2]};
+                const double qw = -za::sqrt(za::fmax(0.0, 1.0 - glm::dot(q, q))); // (MD5: w from xyz, negative)
+                p += static_cast<double>(w.bias) * (glm::dvec3{j.pos[0], j.pos[1], j.pos[2]} + o + 2.0 * glm::cross(q, glm::cross(q, o) + qw * o));
+            }
+            place[v] = p;
+        }
+        // welds: a table by place (open addressing)
+        za::Vector<int> table;
+        table.resize(n * 4);
+        for(int& t : table)
+        {
+            t = -1;
+        }
+        for(za::SizeT v = 0; v < n; v++)
+        {
+            uint64_t bits[3];
+            memcpy(bits, &place[v], sizeof(bits));
+            za::SizeT h = static_cast<za::SizeT>((bits[0] * 0x9E3779B97F4A7C15ull ^ bits[1] * 0xC2B2AE3D27D4EB4Full ^ bits[2] * 0x165667B19E3779F9ull) >> 17) % table.size();
+            for(;; h = (h + 1) % table.size())
+            {
+                if(table[h] < 0)
+                {
+                    table[h] = static_cast<int>(v);
+                    weld[v] = static_cast<int>(v);
+                    break;
+                }
+                if(place[static_cast<za::SizeT>(table[h])] == place[v])
+                {
+                    weld[v] = table[h];
+                    break;
+                }
+            }
+        }
+        // open edges: used by one triangle (by welds; a table of the edges and their uses)
+        za::Vector<uint64_t> keys;
+        za::Vector<int> uses;
+        keys.resize(m.tris.size() * 6 + 1);
+        uses.resize(keys.size());
+        for(za::SizeT i = 0; i < keys.size(); i++)
+        {
+            keys[i] = ~0ull;
+            uses[i] = 0;
+        }
+        for(const za::Array<int, 3>& t : m.tris)
+        {
+            for(int k = 0; k < 3; k++)
+            {
+                const int a = weld[static_cast<za::SizeT>(t[k])], b = weld[static_cast<za::SizeT>(t[(k + 1) % 3])];
+                const uint64_t key = static_cast<uint64_t>(za::min(a, b)) << 32 | static_cast<uint32_t>(za::max(a, b));
+                for(za::SizeT h = static_cast<za::SizeT>((key * 0x9E3779B97F4A7C15ull) >> 20) % keys.size();; h = (h + 1) % keys.size())
+                {
+                    if(keys[h] == key || keys[h] == ~0ull)
+                    {
+                        keys[h] = key;
+                        uses[h]++;
+                        break;
+                    }
+                }
+            }
+        }
+        for(za::SizeT h = 0; h < keys.size(); h++)
+        {
+            if(uses[h] == 1)
+            {
+                openA.pushBack(place[static_cast<za::SizeT>(keys[h] >> 32)]);
+                openB.pushBack(place[static_cast<za::SizeT>(keys[h] & 0xffffffffu)]);
+            }
+        }
+    }
+
+    // A place's share of the push: tapered near the open edges.
+    [[nodiscard]] int mark(const glm::dvec3& p) const
+    {
+        double best = 1e30;
+        for(za::SizeT i = 0; i < openA.size(); i++)
+        {
+            const glm::dvec3 ab = openB[i] - openA[i];
+            const double t = za::fmax(0.0, za::fmin(1.0, glm::dot(p - openA[i], ab) / za::fmax(glm::dot(ab, ab), 1e-12)));
+            const glm::dvec3 d = p - (openA[i] + t * ab);
+            best = za::fmin(best, glm::dot(d, d));
+        }
+        const double k = za::fmin(1.0, za::sqrt(best) / (static_cast<double>(shellTaperMm) * unitsPerMm));
+        return 1 + static_cast<int>(static_cast<double>(shellShares) * k * k * (3.0 - 2.0 * k) + 0.5);
+    }
+};
+
+// One glove's shell (channel 1 the mask's G, fingerless; 2 its B, full), as an MD5 mesh.
+struct Shell
+{
+    struct Vert
+    {
+        glm::vec2 st;
+        int mark{1};
+        za::SizeT first{0}, count{0};
+    };
+    struct Cross // a cut across one of the file's edges (a < b): its vertex and the wall's foot under it
+    {
+        int a, b, top, foot;
+    };
+    struct Cut // where the cut crosses an edge between two welds (a < b), from a: the same for all its files' edges
+    {
+        int a, b;
+        float t;
+    };
+
+    const ShellHand& hand;
+    const ShellField& field;
+    const char* what;
+    za::Vector<float> value; // the mask at each weld (its copies' mean)
+    za::Vector<int> copy; // each of the hand's vertices' in the shell (-1 none yet)
+    za::Vector<Cross> crosses;
+    za::Vector<Cut> cuts;
+    za::Vector<Vert> verts;
+    za::Vector<Md5Weight> weights;
+    za::Vector<za::Array<int, 3>> tris;
+    int walls{0};
+
+    Shell(const ShellHand& h, const ShellField& f, const char* name) : hand(h), field(f), what(name)
+    {
+        const Md5Mesh& m = hand.m;
+        const za::SizeT n = m.verts.size();
+        value.resize(n);
+        za::Vector<int> copies;
+        copies.resize(n);
+        copy.resize(n);
+        for(za::SizeT v = 0; v < n; v++)
+        {
+            value[v] = 0.f;
+            copies[v] = 0;
+            copy[v] = -1;
+        }
+        for(za::SizeT v = 0; v < n; v++)
+        {
+            const za::SizeT w = static_cast<za::SizeT>(hand.weld[v]);
+            value[w] += field.at(glm::vec2(m.verts[v].st[0], m.verts[v].st[1]));
+            copies[w]++;
+        }
+        for(za::SizeT v = 0; v < n; v++)
+        {
+            value[v] = copies[v] ? value[v] / static_cast<float>(copies[v]) : 0.f;
+        }
+        for(const za::Array<int, 3>& t : m.tris)
+        {
+            int in = 0;
+            for(int i : t)
+            {
+                in += inside(i);
+            }
+            if(in == 3)
+            {
+                tris.pushBack({copyOf(t[0]), copyOf(t[1]), copyOf(t[2])});
+                continue;
+            }
+            if(in == 0)
+            {
+                continue;
+            }
+            int r = 0; // turned (the winding kept) so that P is the one inside (1) or R the one outside (2)
+            while(in == 1 ? !inside(t[r]) : inside(t[(r + 2) % 3]))
+            {
+                r++;
+            }
+            const int P = t[r], Q = t[(r + 1) % 3], R = t[(r + 2) % 3];
+            if(in == 1)
+            {
+                const Cross pq = cross(P, Q), pr = cross(P, R);
+                tris.pushBack({copyOf(P), pq.top, pr.top});
+                wall(pq, pr);
+            }
+            else
+            {
+                const Cross qr = cross(Q, R), rp = cross(P, R);
+                tris.pushBack({copyOf(P), copyOf(Q), qr.top});
+                tris.pushBack({copyOf(P), qr.top, rp.top});
+                wall(qr, rp);
+            }
+        }
+    }
+
+    [[nodiscard]] bool inside(int v) const { return value[static_cast<za::SizeT>(hand.weld[static_cast<za::SizeT>(v)])] >= field.edge; }
+
+    int addVert(glm::vec2 st, int mark, const Md5Weight* w, za::SizeT count)
+    {
+        Vert out{st, mark, weights.size(), count};
+        for(za::SizeT i = 0; i < count; i++)
+        {
+            weights.pushBack(w[i]);
+        }
+        verts.pushBack(out);
+        return static_cast<int>(verts.size() - 1);
+    }
+
+    int copyOf(int v)
+    {
+        int& c = copy[static_cast<za::SizeT>(v)];
+        if(c < 0)
+        {
+            const Md5Vert& mv = hand.m.verts[static_cast<za::SizeT>(v)];
+            c = addVert(glm::vec2(mv.st[0], mv.st[1]), hand.mark(hand.place[static_cast<za::SizeT>(v)]),
+                &hand.m.weights[static_cast<za::SizeT>(mv.first)], static_cast<za::SizeT>(mv.count));
+        }
+        return c;
+    }
+
+    // Where along the file's edge from `in` (inside) to `out` the mask falls below the edge (0..1).
+    [[nodiscard]] float march(int in, int out) const
+    {
+        const Md5Vert& a = hand.m.verts[static_cast<za::SizeT>(in)];
+        const Md5Vert& b = hand.m.verts[static_cast<za::SizeT>(out)];
+        const glm::vec2 sa(a.st[0], a.st[1]), sb(b.st[0], b.st[1]);
+        float prev = field.at(sa), prevT = 0.f;
+        for(int i = 1; i <= shellSteps; i++)
+        {
+            const float t = static_cast<float>(i) / static_cast<float>(shellSteps);
+            const float v = field.at(glm::mix(sa, sb, t));
+            if(v < field.edge)
+            {
+                const float k = (prev - field.edge) / za::fmax(prev - v, 1e-6f);
+                return prevT + (t - prevT) * za::fmax(0.f, za::fmin(1.f, k));
+            }
+            prev = v;
+            prevT = t;
+        }
+        return 1.f;
+    }
+
+    // The cut's vertex on the file's edge between `in` (inside) and `out`, and the wall's foot there.
+    Cross cross(int in, int out)
+    {
+        const int lo = za::min(in, out), hi = za::max(in, out);
+        for(const Cross& c : crosses)
+        {
+            if(c.a == lo && c.b == hi)
+            {
+                return c;
+            }
+        }
+        const int wi = hand.weld[static_cast<za::SizeT>(in)], wo = hand.weld[static_cast<za::SizeT>(out)];
+        const int wa = za::min(wi, wo), wb = za::max(wi, wo);
+        float t = -1.f; // from the lower weld's end
+        for(const Cut& c : cuts)
+        {
+            if(c.a == wa && c.b == wb)
+            {
+                t = c.t;
+            }
+        }
+        if(t < 0.f)
+        {
+            const float fromIn = march(in, out);
+            t = wi == wa ? fromIn : 1.f - fromIn;
+            cuts.pushBack({wa, wb, t});
+        }
+        const int va = wi == wa ? in : out, vb = wi == wa ? out : in; // (the files' vertices at the welds' ends)
+        // the ends' weights blended, a joint's offsets weighted by their biases (the rest place: the ends' blended)
+        Md5Weight blend[16];
+        double sum[16][3];
+        za::SizeT count = 0;
+        const double ts[2] = {1.0 - static_cast<double>(t), static_cast<double>(t)};
+        const int ends[2] = {va, vb};
+        for(int e = 0; e < 2; e++)
+        {
+            const Md5Vert& mv = hand.m.verts[static_cast<za::SizeT>(ends[e])];
+            for(long i = 0; i < mv.count; i++)
+            {
+                const Md5Weight& w = hand.m.weights[static_cast<za::SizeT>(mv.first + i)];
+                za::SizeT k = 0;
+                while(k < count && blend[k].joint != w.joint)
+                {
+                    k++;
+                }
+                if(k == count)
+                {
+                    if(count == 16)
+                    {
+                        continue;
+                    }
+                    blend[count] = Md5Weight{w.joint, 0.f, {}};
+                    sum[count][0] = sum[count][1] = sum[count][2] = 0.0;
+                    count++;
+                }
+                const double b = ts[e] * static_cast<double>(w.bias);
+                blend[k].offset[0] += b; // (the bias, summed in double first)
+                for(int c = 0; c < 3; c++)
+                {
+                    sum[k][c] += b * w.offset[c];
+                }
+            }
+        }
+        for(za::SizeT k = 0; k < count; k++)
+        {
+            const double b = blend[k].offset[0];
+            blend[k].bias = static_cast<float>(b);
+            for(int c = 0; c < 3; c++)
+            {
+                blend[k].offset[c] = b > 0.0 ? sum[k][c] / b : 0.0;
+            }
+        }
+        za::SizeT kept = 0; // (none of a joint's weight blended away)
+        for(za::SizeT k = 0; k < count; k++)
+        {
+            if(blend[k].bias > 0.f)
+            {
+                blend[kept++] = blend[k];
+            }
+        }
+        const Md5Vert& a = hand.m.verts[static_cast<za::SizeT>(va)];
+        const Md5Vert& b = hand.m.verts[static_cast<za::SizeT>(vb)];
+        const glm::vec2 st = glm::mix(glm::vec2(a.st[0], a.st[1]), glm::vec2(b.st[0], b.st[1]), t);
+        const glm::dvec3 p = glm::mix(hand.place[static_cast<za::SizeT>(va)], hand.place[static_cast<za::SizeT>(vb)], static_cast<double>(t));
+        Cross c{lo, hi, 0, 0};
+        c.top = addVert(st, hand.mark(p), blend, kept);
+        c.foot = addVert(st, 1, blend, kept);
+        crosses.pushBack(c);
+        return c;
+    }
+
+    // The wall along the cut from `a` to `b` (the shell's winding): from the skin up to the shell, facing out of it.
+    void wall(const Cross& a, const Cross& b)
+    {
+        tris.pushBack({a.foot, b.foot, a.top});
+        tris.pushBack({a.top, b.foot, b.top});
+        walls += 2;
+    }
+
+    [[nodiscard]] za::String text(const za::String& shader) const
+    {
+        za::String s = format("\nmesh {\n\t// the gloves' shell (%s): Quake VR makes it as it loads (vr_handrig.cpp gloveShells)\n\tshader \"%s\"\n\n\tnumverts %d\n",
+            what, shader.cStr(), static_cast<int>(verts.size()));
+        for(za::SizeT i = 0; i < verts.size(); i++)
+        {
+            const Vert& v = verts[i];
+            const float u = za::fmax(0.f, za::fmin(v.st.x, 0.99998f)) + 2.f * static_cast<float>(v.mark);
+            s += format("\tvert %d ( %.9g %.9g ) %d %d\n", static_cast<int>(i), static_cast<double>(u), static_cast<double>(v.st.y),
+                static_cast<int>(v.first), static_cast<int>(v.count));
+        }
+        s += format("\n\tnumtris %d\n", static_cast<int>(tris.size()));
+        for(za::SizeT i = 0; i < tris.size(); i++)
+        {
+            s += format("\ttri %d %d %d %d\n", static_cast<int>(i), tris[i][0], tris[i][1], tris[i][2]);
+        }
+        s += format("\n\tnumweights %d\n", static_cast<int>(weights.size()));
+        for(za::SizeT i = 0; i < weights.size(); i++)
+        {
+            const Md5Weight& w = weights[i];
+            s += format("\tweight %d %ld %.9g ( %.17g %.17g %.17g )\n", static_cast<int>(i), w.joint, static_cast<double>(w.bias),
+                w.offset[0], w.offset[1], w.offset[2]);
+        }
+        s += "}\n";
+        return s;
+    }
+};
+
+// The hand's file with the gloves' shells added (VR_HeapStrdup'd), or null (the hand alone: no mask, an odd file);
+// `body`: a bare-forearmed body's (vrbody*_bare) with its cuff's shell (the gloves' cuff over the wrist) instead.
+char* gloveShells(const char* text, bool body)
+{
+    const double start = Sys_DoubleTime();
+    Md5Mesh m;
+    za::String error;
+    if(!parseMesh(text, m, error)) // (VR_ModelReplacementOk said why)
+    {
+        return nullptr;
+    }
+    for(const Md5Weight& w : m.weights)
+    {
+        if(w.joint < 0 || static_cast<za::SizeT>(w.joint) >= m.joints.size())
+        {
+            return nullptr;
+        }
+    }
+    for(const Md5Vert& v : m.verts)
+    {
+        if(v.first < 0 || v.count < 1 || static_cast<za::SizeT>(v.first + v.count) > m.weights.size())
+        {
+            return nullptr;
+        }
+    }
+    const char* count = strstr(text, "numMeshes");
+    if(!count)
+    {
+        return nullptr;
+    }
+    count += strlen("numMeshes");
+    while(*count == ' ' || *count == '\t')
+    {
+        count++;
+    }
+    if(count[0] != '1' || !strchr(" \t\r\n", count[1]))
+    {
+        return nullptr;
+    }
+    const ShellHand hand(m, body ? bodyUnitsPerMm : rigUnitsPerMm);
+    za::String out{text, static_cast<za::SizeT>(count - text)};
+    if(body)
+    {
+        ShellField field;
+        field.edge = 0.5f;
+        view::gloveCuffRange(field.cuff);
+        const Shell cuff(hand, field, "the cuff");
+        if(cuff.tris.empty())
+        {
+            return nullptr;
+        }
+        out += "2";
+        out += count + 1;
+        out += cuff.text(m.shader);
+        Con_DPrintf("the gloves' cuff shell: %d triangles (%d its edge's); the body %d, %d open edges; %.1f ms\n",
+            static_cast<int>(cuff.tris.size()), cuff.walls, static_cast<int>(m.tris.size()), static_cast<int>(hand.openA.size()),
+            (Sys_DoubleTime() - start) * 1000.0);
+        return VR_HeapStrdup(out.cStr());
+    }
+    const int mark = Hunk_LowMark();
+    int width = 0, height = 0;
+    enum srcformat pixels = SRC_INDEXED;
+    const byte* rgba = Image_LoadImage("progs/hand_rig_00_00_skinmask", &width, &height, &pixels);
+    if(!rgba || pixels != SRC_RGBA || width < 2 || height < 2)
+    {
+        Hunk_FreeToLowMark(mark);
+        Con_DPrintf("the gloves' shells: no progs/hand_rig_00_00_skinmask (RGBA): the gloves are painted on the skin\n");
+        return nullptr;
+    }
+    const ShellMask mask{rgba, width, height};
+    ShellField fingerlessField, fullField;
+    fingerlessField.mask = fullField.mask = &mask;
+    fingerlessField.channel = 1;
+    fullField.channel = 2;
+    const Shell fingerless(hand, fingerlessField, "fingerless"), full(hand, fullField, "full");
+    Hunk_FreeToLowMark(mark);
+    if(fingerless.tris.empty() || full.tris.empty())
+    {
+        return nullptr;
+    }
+    out += "3";
+    out += count + 1;
+    out += fingerless.text(m.shader);
+    out += full.text(m.shader);
+    Con_DPrintf("the gloves' shells: fingerless %d triangles (%d its edge's), full %d (%d); the hand %d, %d open edges; %.1f ms\n",
+        static_cast<int>(fingerless.tris.size()), fingerless.walls, static_cast<int>(full.tris.size()), full.walls,
+        static_cast<int>(m.tris.size()), static_cast<int>(hand.openA.size()), (Sys_DoubleTime() - start) * 1000.0);
+    return VR_HeapStrdup(out.cStr());
+}
+
 } // namespace
+
+int gloveShellSurfaces(const char* modelName)
+{
+    for(int i = 0; i < shellModels.count; i++)
+    {
+        if(!strcmp(shellModels.entries[i].name, modelName))
+        {
+            return shellModels.entries[i].count;
+        }
+    }
+    return 0;
+}
 
 const Rig& rig()
 {
@@ -1423,4 +1939,34 @@ extern "C" int VR_ModelReplacementOk(const char* name, const char* md5mesh)
     printReport(reloading ? "vr_hand_reload" : "the jointed hand", r, report, reloading);
     install(ZA_MOVE(r));
     return 1;
+}
+
+// ... and then, the file the engine loads instead: the jointed hand's with its gloves' shells, a bare-forearmed body's
+// with its cuff's (gloveShells), or null; the models with shells noted (gloveShellSurfaces).
+extern "C" char* VR_ModelReplacementExtend(const char* name, const char* md5mesh)
+{
+    using namespace qvr::handrig;
+    const bool hand = qvr::modelmeta::describePath(name).has(qvr::modelmeta::Trait::RigHandInsensitive);
+    const size_t len = strlen(name);
+    const bool body = !strncmp(name, "progs/vrbody", 12) && len > 9 && !strcmp(name + len - 9, "_bare.mdl");
+    if(!hand && !body)
+    {
+        return nullptr;
+    }
+    char* text = gloveShells(md5mesh, body);
+    ShellModels::Entry* slot = nullptr;
+    for(int i = 0; i < shellModels.count && !slot; i++)
+    {
+        slot = !strcmp(shellModels.entries[i].name, name) ? &shellModels.entries[i] : nullptr;
+    }
+    if(!slot && text && shellModels.count < ShellModels::capacity)
+    {
+        slot = &shellModels.entries[shellModels.count++];
+        q_strlcpy(slot->name, name, sizeof(slot->name));
+    }
+    if(slot)
+    {
+        slot->count = text ? (body ? 1 : 2) : 0; // (the file's own meshes: one, checked by gloveShells)
+    }
+    return text;
 }

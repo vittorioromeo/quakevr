@@ -23,10 +23,13 @@
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Replace.hpp"
+#include "Zancle/Algorithm/Rotate.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Remainder.hpp"
@@ -63,7 +66,11 @@ const za::Vector<Category> categoryList = {
     {{"stab", "Expected Stab"}, {any, {"one_hand", "One Hand"}, {"two_hands", "Two Hands"}}},
     {{"no_hit", "No Hit"},
         {any, {"wiggling", "Wiggling"}, {"weak", "Weak Motion"}, {"idle", "Idle"}, {"slow_waving", "Slow Waving"},
-            {"reloading", "Reloading"}, {"aiming", "Aiming"}, {"walking", "Walking"}, {"reaching", "Reaching"}}},
+            {"reloading", "Reloading"}, {"aiming", "Aiming"}, {"walking", "Walking"}, {"reaching", "Reaching"},
+            // Heavy handling's wobble (ROUND22.md, "Heavy weapons settle"): the in-game weapon against the hand, replayed
+            // with vr_debug_weight 1 (weight_trace.txt); no blow expected either.
+            {"heavy_wiggle_rl", "Heavy: Wrist Wiggle, Rocket Launcher"}, {"heavy_flick_chainsaw", "Heavy: Chainsaw Flick"},
+            {"heavy_wiggle_hammer", "Heavy: Hammer 1H Wiggle"}, {"heavy_hammer_2h_ground", "Heavy: Hammer 2H Blow on the Ground"}}},
     {{"bash", "Expected Bash"}, {any, {"sword_1h", "Sword 1H"}, {"sword_2h", "Sword 2H"}, {"gun", "Gun"}}},
     {{"parry_pose", "Expected Parry Pose"},
         {any, {"sword_1h", "Sword 1H"}, {"sword_2h_blade", "Sword 2H on Blade"}, {"sword_2h", "Sword 2H"},
@@ -96,6 +103,51 @@ const za::Vector<Category> categoryList = {
             {"body", "Body Slash"}, {"shoulder", "Shoulder Slash"}}},
     // Slaps (QC vr_melee.qc VR_Melee_Slaps; ROUND21.md, "Slaps"): an open hand swung across.
     {{"slap", "Expected Slap"}, {any, {"forehand", "Forehand"}, {"backhand", "Backhand"}}},
+    // Neck snaps (ROUND22.md, "Neck snap takes"): both hands holding the training dummy's head, neck or shoulders and
+    // twisting; the take should (should not) snap its neck (vr_foegrab.cpp neckSnap: the "necksnap" event). eval.sh
+    // replays them at the neck snap settings as set (the Hand Line).
+    {{"neck_snap", "Neck Snap Expected"},
+        {any, {"head", "At the Head"}, {"neck", "At the Neck"}, {"push_pull", "Push-Pull"}, {"turn", "Turn"},
+            {"tilt", "Tilt"}}},
+    {{"no_neck_snap", "Neck Snap Not Expected"},
+        {any, {"shoulders", "At the Shoulders"}, {"slow", "Too Slow"}, {"small", "Too Small"}, {"pull", "Pull"},
+            {"lift", "Lift"}, {"adjusting", "Adjusting the Grip"}}},
+    // Leg sweeps (ROUND22.md, "Leg sweep takes"): a staff-like thing (a gun, a plank, a crowbar...: the held weapon or
+    // prop is in the take's header) swung level through the training dummy's legs; the take should (should not) sweep it
+    // (vr_legsweep.cpp sweepHand: the "legsweep" event). eval.sh replays them at the leg sweep settings as set.
+    {{"leg_sweep", "Leg Sweep Expected"},
+        {any, {"shotgun", "Shotgun"}, {"prop", "Prop (plank...)"}, {"crowbar", "Crowbar"}, {"left_right", "Left to Right"},
+            {"right_left", "Right to Left"}, {"away", "Along Its Back"}, {"toward", "Along Its Front"}, {"hilt", "Pommel"},
+            {"super_shotgun", "Super Shotgun"}, {"short_gun", "Short Gun (nailgun, lightning gun)"}}},
+    {{"no_leg_sweep", "Leg Sweep Not Expected"},
+        {any, {"axe", "Axe"}, {"slow", "Too Slow"}, {"brush", "Barely Touched"}, {"walk", "Walked Into It"},
+            {"blade", "Blade (a cut)"}, {"not_level", "Not Level"}, {"short", "Too Short (crate, brick)"},
+            {"high", "Too High"}}},
+    // Lifts and judo throws (ROUND22.md, "Lift and judo throw takes"): both hands on the training dummy pulling it up
+    // (vr_foegrab_lift: the "lift" event) or turning it down (the two-hand throw: the "judothrow" event).
+    {{"lift", "Lift Expected"},
+        {any, {"straight", "Straight Up"}, {"fast", "Fast"}, {"angled", "Angled"}, {"close", "Close to You"},
+            {"far", "Far from You"}}},
+    {{"no_lift", "Lift Not Expected"},
+        {any, {"slow", "Too Slow"}, {"sideways", "Sideways"}, {"too_far", "Too Far from You"},
+            {"one_hand", "One Hand"}, {"adjusting", "Adjusting the Grip"}, {"throw", "A Throw"}}},
+    {{"judo_throw", "Judo Throw Expected"},
+        {any, {"left", "To the Left"}, {"right", "To the Right"}, {"towards", "Towards You"}, {"away", "Away from You"},
+            {"fast", "Fast"}, {"hip", "Hip Throw"}}},
+    {{"no_judo_throw", "Judo Throw Not Expected"},
+        {any, {"slow", "Too Slow"}, {"small", "Too Small a Turn"}, {"shove", "A Shove"}, {"lift", "A Lift"},
+            {"one_hand", "One Hand"}, {"adjusting", "Adjusting the Grip"}}},
+    // Shoulder charges (ROUND22.md, "Shoulder charge"): running at full speed into the training dummy side-on, a
+    // shoulder leading, both hands low and close to the body (QC vr_kdtrig.qc VR_KdTrig_Tackle: the "shouldercharge"
+    // event; the dummy stands). The negatives run (or walk) into it in other poses. eval.sh replays them at the settings
+    // as set.
+    {{"shoulder_charge", "Shoulder Charge"},
+        {any, {"left", "Left Shoulder"}, {"right", "Right Shoulder"}, {"hands_clasped", "Hands Clasped Low"},
+            {"arms_tucked", "Arms Tucked"}, {"with_gun", "Holding a Gun Low"}, {"with_melee", "Holding a Melee Weapon Low"}}},
+    {{"no_shoulder_charge", "Shoulder Charge Not Expected"},
+        {any, {"running_guard", "Running Guard (no charge)"}, {"running_shove", "Running Shove"},
+            {"running_gun", "Running with Gun"}, {"walking", "Walking into Enemy"}, {"sidestep", "Sidestep Bump"},
+            {"running_idle", "Running, Hands Relaxed"}, {"running_melee", "Running with a Melee Weapon Raised"}}},
 };
 } // namespace
 
@@ -109,7 +161,7 @@ za::Vector<int> categoryOrder()
     // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
     static constexpr const char* order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
         "hilt_pommel", "punch", "slap", "palm_shove_1h", "palm_shove_2h", "gun_strike", "decapitation", "no_decapitation",
-        "other"};
+        "neck_snap", "no_neck_snap", "leg_sweep", "no_leg_sweep", "lift", "no_lift", "judo_throw", "no_judo_throw", "shoulder_charge", "no_shoulder_charge", "other"};
     const auto& list = categories();
     za::Vector<int> out;
     for(const char* name : order)
@@ -640,20 +692,114 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         h.grip2h == 1 ? ", two-handed by the foregrip" : h.grip2h == 2 ? ", two-handed by the blade" : "");
 }
 
+// A prop (not a weapon) carried in the hand (the player's mainhand_held / offhand_held): "model (classname)", else "".
+[[nodiscard]] za::String heldProp(int hand)
+{
+    // (No server, or one loading a map (sv.active false over SV_SpawnServer), or its player not in yet: nothing.)
+    if(!sv.active || svs.maxclients < 1 || !svs.clients || !svs.clients[0].active || !sv.qcvm.progs ||
+       !sv.qcvm.edicts || sv.qcvm.edict_size <= 0 || sv.qcvm.num_edicts < 2)
+    {
+        return {};
+    }
+    // A take also ends from a console command (vr_motion_stop) or the host frame's end, where no VM (or the
+    // client's) is current: read the server's.
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    za::String out;
+    const auto& f = progs::fields();
+    const int ofs = hand == HAND_MAIN ? f.mainhand_held : f.offhand_held;
+    edict_t* const player = EDICT_NUM(1);
+    const int num = ofs >= 0 && !player->free ? progs::fieldInt(player, ofs) : 0;
+    // (An edict reference in range and on an edict's start; one freed since is skipped below.)
+    if(num > 0 && num % qcvm->edict_size == 0 && num / qcvm->edict_size < qcvm->num_edicts)
+    {
+        edict_t* ent = PROG_TO_EDICT(num);
+        const int index = static_cast<int>(ent->v.modelindex);
+        if(!ent->free && index > 0 && index < MAX_MODELS && sv.models[index])
+        {
+            out = va("%s (%s)", sv.models[index]->name, PR_GetString(ent->v.classname));
+        }
+    }
+    PR_PopQCVM(oldVm);
+    return out;
+}
+
+// " name=value" (no space first in an empty line), the value's spaces made `_` if `underscores`: appended in place (a
+// header's settings are thousands: no temporary strings, the voice note's replay builds one as the note starts).
+void appendSetting(za::String& out, const char* name, const char* value, bool underscores)
+{
+    if(!out.empty())
+    {
+        out += ' ';
+    }
+    out += name;
+    out += '=';
+    const za::SizeT at = out.size();
+    out += value;
+    if(underscores)
+    {
+        za::replace(out.begin() + static_cast<za::PtrDiffT>(at), out.end(), ' ', '_');
+    }
+}
+
+// The settings a header lists (the vr_ cvars but the weapons' offsets, sv_maxspeed, host_maxfps) copied as they are now,
+// in the cvars' order: what meleeSettings and allSettings read, here or on the pool (a voice note's replay: its header's
+// longest lines made there).
+struct SettingsSnap
+{
+    struct Var
+    {
+        za::SizeT name{0}, value{0}; // offsets in text (each ends with a '\0')
+        bool archived{false};
+    };
+    za::Vector<Var> vars;
+    za::String text;
+    za::String maxfps;
+};
+
+[[nodiscard]] SettingsSnap snapSettings()
+{
+    SettingsSnap s;
+    s.text.reserve(131072);
+    for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = var->next)
+    {
+        const bool vr = !strncmp(var->name, "vr_", 3) && strncmp(var->name, "vr_wofs_", 8) != 0;
+        if(!vr && strcmp(var->name, "sv_maxspeed") != 0)
+        {
+            continue;
+        }
+        SettingsSnap::Var v;
+        v.name = s.text.size();
+        s.text += var->name;
+        s.text += '\0';
+        v.value = s.text.size();
+        s.text += var->string;
+        s.text += '\0';
+        v.archived = (var->flags & CVAR_ARCHIVE) != 0;
+        s.vars.pushBack(v);
+    }
+    const cvar_t* maxfps = Cvar_FindVar("host_maxfps");
+    s.maxfps = maxfps ? maxfps->string : "0";
+    return s;
+}
+
 // The settings the melee reads, for the header.
-[[nodiscard]] za::String meleeSettings()
+[[nodiscard]] za::String meleeSettings(const SettingsSnap& s)
 {
     static constexpr const char* prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
-        "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult"};
+        "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult", "vr_foegrab_necksnap", "vr_foegrab_lift", "vr_foegrab_throw",
+        "vr_legsweep", "vr_kdtrig_tackle", "vr_movement_mode", "sv_maxspeed"};
     za::String out;
-    for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = Cvar_FindVarAfter(var->name, 0))
+    out.reserve(16384);
+    for(const SettingsSnap::Var& v : s.vars)
     {
+        const char* name = s.text.cStr() + v.name;
         for(const char* p : prefixes)
         {
-            if(!strncmp(var->name, p, strlen(p)))
+            if(!strncmp(name, p, strlen(p)))
             {
-                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + var->string;
+                appendSetting(out, name, s.text.cStr() + v.value, false);
                 break;
             }
         }
@@ -663,22 +809,40 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 
 // Every Quake VR setting a player keeps (archived vr_ cvars; the weapons' offsets are weaponSettings'),
 // for playback to place the hands and weapons as they were (vr_motion_play applies the ones that do).
-[[nodiscard]] za::String allSettings()
+[[nodiscard]] za::String allSettings(const SettingsSnap& s)
 {
     za::String out;
-    for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
+    out.reserve(65536);
+    for(const SettingsSnap::Var& v : s.vars)
     {
-        if(strncmp(var->name, "vr_", 3) != 0 || !strncmp(var->name, "vr_wofs_", 8) || !strncmp(var->name, "vr_motion_", 10))
+        const char* name = s.text.cStr() + v.name;
+        if(!v.archived || strncmp(name, "vr_", 3) != 0 || !strncmp(name, "vr_motion_", 10))
         {
             continue;
         }
-        za::String value = var->string;
-        za::replace(value.begin(), value.end(), ' ', '_'); // (none has spaces that matter here)
-        out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + value;
+        appendSetting(out, name, s.text.cStr() + v.value, true); // (none has spaces that matter here)
     }
-    const cvar_t* maxfps = Cvar_FindVar("host_maxfps");
-    out += za::String{" host_maxfps="} + (maxfps ? maxfps->string : "0");
+    out += " host_maxfps=";
+    out += s.maxfps;
     return out;
+}
+
+// A header made with its settings deferred (takeHeaderOf's `settings` null) has these in their lines' place.
+constexpr const char* meleeMark = "\x01melee\x01";
+constexpr const char* settingsMark = "\x01settings\x01";
+
+// Those lines filled in from `s` (on the pool).
+void fillSettings(za::String& header, const SettingsSnap& s)
+{
+    const auto fill = [&](const char* mark, const za::String& value) {
+        const za::SizeT at = za::StringView{header}.find(za::StringView{mark});
+        if(at != za::StringView::nPos)
+        {
+            header = za::String{header.substrByPosLen(0, at)} + value + za::String{header.substrByPosLen(at + strlen(mark))};
+        }
+    };
+    fill(meleeMark, meleeSettings(s));
+    fill(settingsMark, allSettings(s));
 }
 
 // The weapon offsets (vr_wofs_*) of the empty hand's slot and of the weapons in the hands.
@@ -697,7 +861,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         {
             if(const cvar_t* var = weapons::cvar(slot, static_cast<weapons::Key>(key)))
             {
-                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + var->string;
+                appendSetting(out, var->name, var->string, true); // an anchor's numbers (playback reads them back)
             }
         }
     }
@@ -705,6 +869,17 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 }
 
 } // namespace
+
+// The header's "weapon settings" line as it would be written now (vr_motion_play.cpp's vr_motion_header_check).
+za::String weaponSettingsLine()
+{
+    return weaponSettings();
+}
+
+// A take's header: its first row (the first of phase rec, else the first), how many rows in each phase, whether the
+// training dummy struck back in any. `settings` null: the settings' lines left as marks (fillSettings).
+za::String takeHeaderOf(const TakeInfo& info, const Row* first, int pre, int rec, int tail, bool dummyAttacks,
+    const SettingsSnap* settings);
 
 za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
 {
@@ -724,7 +899,14 @@ za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
     {
         first = &rows.front();
     }
+    const SettingsSnap settings = snapSettings();
+    return takeHeaderOf(info, first, pre, rec, tail,
+        za::anyOf(rows.begin(), rows.end(), [](const Row& r) { return r.dummyAttacks; }), &settings);
+}
 
+za::String takeHeaderOf(const TakeInfo& info, const Row* first, int pre, int rec, int tail, bool dummyAttacks,
+    const SettingsSnap* settings)
+{
     za::String h = "# Quake VR motion take (docs/vr-port/MOTIONS.md)\n";
     const auto line = [&](const char* key, za::String value) {
         za::replace(value.begin(), value.end(), '\n', ' ');
@@ -745,6 +927,15 @@ za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
     {
         line("main weapon", weaponLine(first->hands[HAND_MAIN]));
         line("off weapon", weaponLine(first->hands[HAND_OFF]));
+        // A prop carried in a hand (the leg sweep's verdict depends on it; playback doesn't put it back in the hand).
+        if(!info.heldMain.empty())
+        {
+            line("main held", info.heldMain);
+        }
+        if(!info.heldOff.empty())
+        {
+            line("off held", info.heldOff);
+        }
     }
     line("vr_world_scale", vr_world_scale.string);
     line("units per metre", va("%.4f", units::metresToUnits()));
@@ -779,7 +970,7 @@ za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
     }
     // The training dummy struck back (vr_dummy_attacks, at any moment of the take): its "strike" events, which a
     // replay reproduces (vr_motion_play.cpp). Not written without.
-    if(za::anyOf(rows.begin(), rows.end(), [](const Row& r) { return r.dummyAttacks; }))
+    if(dummyAttacks)
     {
         line("dummy attacks", "on");
     }
@@ -788,14 +979,14 @@ za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
     // them: a grunt of a grunt's health).
     if(first && first->sv && first->sv->monster && first->sv->monClass == "vr_dummy")
     {
-        line("dummy", va("vr_dummy_type %s vr_dummy_health %s vr_dummy_gore %s vr_dummy_gib %s vr_dummy_regen %s",
+        line("dummy", va("vr_dummy_type %s vr_dummy_health %s vr_dummy_gore %s vr_dummy_gib %s vr_dummy_regen %s vr_dummy_anchored %s",
                           vr_dummy_type.string, vr_dummy_health.string, vr_dummy_gore.string, vr_dummy_gib.string,
-                          vr_dummy_regen.string));
+                          vr_dummy_regen.string, vr_dummy_anchored.string));
     }
-    line("melee settings", meleeSettings());
-    line("settings", allSettings());
+    line("melee settings", settings ? meleeSettings(*settings) : za::String{meleeMark});
+    line("settings", settings ? allSettings(*settings) : za::String{settingsMark});
     line("weapon settings", weaponSettings());
-    line("rows", va("%d (pre-roll %d, held %d, tail %d)", static_cast<int>(rows.size()), pre, rec, tail));
+    line("rows", va("%d (pre-roll %d, held %d, tail %d)", pre + rec + tail, pre, rec, tail));
     return h;
 }
 
@@ -1158,6 +1349,8 @@ void finishTake()
     info.origin0 = first->origin;
     info.t0 = first->realtime;
     info.take = takeNumber;
+    info.heldMain = heldProp(HAND_MAIN);
+    info.heldOff = heldProp(HAND_OFF);
 
     // Written in the background; never lost quietly: if it can't go into motions/, it goes into the
     // game folder, and failing that stays in memory (vr_motion_save_unsaved tries again), with a warning
@@ -1293,6 +1486,278 @@ void pollSaves(bool wait)
     r.svFrame = latest ? latestFrame : 0u;
     r.events.swap(frameEvents);
     return r;
+}
+
+// ----------------------------------------------------------------------------
+// The instant replay (vr_note_replay; vr_notectx.cpp): while voice notes are on, the last vr_note_replay_seconds of rows
+// (no QC sample: its cost) and of the nearby entities (entityStep apart), saved beside a note as a take
+// ----------------------------------------------------------------------------
+
+constexpr double entityStep = 0.1;      // the nearby entities' snapshots: 10 a second
+constexpr float entityRadius = 1024.f;  // within this many units of the player (about 31 m at vr_world_scale 1.25)
+constexpr int entityMost = 32;          // at most so many a snapshot (the nearest)
+
+// A ring of items kept for `window` seconds: the oldest overwritten once it is older than that, else one more added.
+template <typename T>
+struct TimeRing
+{
+    za::Vector<T> items;
+    za::SizeT head{0}; // the oldest
+
+    template <typename TimeOf>
+    void push(T&& item, double window, TimeOf&& timeOf)
+    {
+        const double now = timeOf(item);
+        if(!items.empty() && timeOf(items[head]) < now - window)
+        {
+            items[head] = ZA_MOVE(item);
+            head = (head + 1) % items.size();
+            return;
+        }
+        if(head != 0) // (the rate rose: once, the ring made straight to grow)
+        {
+            za::rotate(items.begin(), items.begin() + static_cast<za::PtrDiffT>(head), items.end());
+            head = 0;
+        }
+        items.pushBack(ZA_MOVE(item));
+    }
+
+    // Handed over (the ring left empty, room for as many again): its items in ring order, and the oldest's index.
+    [[nodiscard]] za::Vector<T> take(za::SizeT& oldest)
+    {
+        za::Vector<T> out;
+        out.swap(items);
+        oldest = head;
+        head = 0;
+        items.reserve(out.size());
+        return out;
+    }
+};
+
+// A ring's items handed over (take), oldest first, from the first at `from` or later (on the pool).
+template <typename T, typename TimeOf>
+void straighten(za::Vector<T>& items, za::SizeT oldest, double from, TimeOf&& timeOf)
+{
+    za::rotate(items.begin(), items.begin() + static_cast<za::PtrDiffT>(oldest), items.end());
+    za::SizeT drop = 0;
+    while(drop < items.size() && timeOf(items[drop]) < from)
+    {
+        drop++;
+    }
+    items.erase(items.begin(), items.begin() + static_cast<za::PtrDiffT>(drop));
+}
+
+// An entity near the player in a snapshot (POD: the ring is overwritten in place).
+struct EntitySnap
+{
+    double realtime{0.0};
+    double svTime{0.0};
+    int ent{0};
+    char classname[32]{};
+    char think[32]{};   // its think function: the monster's animation state (army_run3, ogre_smash5, ...)
+    char model[48]{};
+    glm::vec3 origin{0.f}, angles{0.f}, velocity{0.f};
+    float health{0.f};
+    int frame{0};
+    int flags{0};
+    int enemy{0};       // its enemy's entity number (0: none)
+    float knockdown{0.f}; // vr_knockdown (1: a ragdoll while alive), vr_corpse, vr_foegrab_hold
+    float corpse{0.f};
+    float held{0.f};
+    float armour{0.f};  // the player's
+    float extra{0.f};   // an armed grunt's weapon id (vr_ag_wid; -1 its fists), the player's ammo (currentammo)
+};
+
+TimeRing<Row> replayRows;
+TimeRing<EntitySnap> replayEnts;
+double replayEntsNext = 0.0;
+za::String replayMap; // the map the rings are of
+// Their cost on the main thread (vr_note_replay_stats): the host frames' rows and the entity snapshots, seconds and counts.
+double replayRowCost = 0.0;
+int replayRowCount = 0;
+double replayEntCost = 0.0;
+int replayEntCount = 0;
+int replayAgFieldWid = -2; // vr_ag_wid's offset (-1: none; -2: not looked up since the progs loaded)
+const void* replayAgProgs = nullptr;
+
+[[nodiscard]] bool replayWanted()
+{
+    return vr_notes.value != 0.f && vr_note_replay.value != 0.f && vr_note_replay_seconds.value > 0.f;
+}
+
+[[nodiscard]] double replayWindow()
+{
+    return za::min(static_cast<double>(vr_note_replay_seconds.value), 600.0);
+}
+
+// A new map (or a saved game loaded: the server's clock went back): the replay starts again (a take spans one map).
+void replayRestartOnNewMap(const Row& r)
+{
+    if(replayRows.items.empty())
+    {
+        return;
+    }
+    const za::SizeT n = replayRows.items.size();
+    const Row& newest = replayRows.items[(replayRows.head + n - 1) % n];
+    if(replayMap != cl.mapname || (newest.sv && r.sv && r.sv->time + 0.001 < newest.sv->time))
+    {
+        replayRows.items.clear();
+        replayRows.head = 0;
+        replayEnts.items.clear();
+        replayEnts.head = 0;
+    }
+}
+
+void replayPush(Row&& r)
+{
+    if(cls.signon != SIGNONS || !r.sv) // (loading, or no server sample yet: the player not placed)
+    {
+        return;
+    }
+    replayRestartOnNewMap(r);
+    replayMap = cl.mapname;
+    replayRows.push(ZA_MOVE(r), replayWindow(), [](const Row& t) { return t.realtime; });
+}
+
+void copyName(char* out, za::SizeT size, const char* s)
+{
+    q_strlcpy(out, s ? s : "", size);
+}
+
+// The server's entities near the player, every entityStep (the server frame's end; its VM current).
+void sampleEntities(edict_t* player)
+{
+    if(realtime < replayEntsNext || cls.signon != SIGNONS)
+    {
+        return;
+    }
+    replayEntsNext = realtime + entityStep;
+    if(replayAgProgs != qcvm->progs)
+    {
+        replayAgProgs = qcvm->progs;
+        replayAgFieldWid = ED_FindFieldOffset("vr_ag_wid");
+    }
+    const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    const auto& f = progs::fields();
+    const int heldMain = f.mainhand_held >= 0 ? progs::fieldInt(player, f.mainhand_held) : 0;
+    const int heldOff = f.offhand_held >= 0 ? progs::fieldInt(player, f.offhand_held) : 0;
+
+    // The nearest monsters (alive or not), the held things, and the player.
+    za::InPlaceVector<za::Pair<float, int>, entityMost> closeBy;
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(e->free)
+        {
+            continue;
+        }
+        const int prog = EDICT_TO_PROG(e);
+        const bool monster = (static_cast<int>(e->v.flags) & FL_MONSTER) != 0;
+        const bool held = prog == heldMain || prog == heldOff;
+        if(!monster && !held && e != player)
+        {
+            continue;
+        }
+        const float d = e == player || held ? 0.f
+                                            : glm::distance(from, glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]});
+        if(d > entityRadius)
+        {
+            continue;
+        }
+        if(closeBy.size() == entityMost)
+        {
+            za::SizeT worst = 0;
+            for(za::SizeT k = 1; k < closeBy.size(); k++)
+            {
+                worst = closeBy[k].first > closeBy[worst].first ? k : worst;
+            }
+            if(closeBy[worst].first <= d)
+            {
+                continue;
+            }
+            closeBy[worst] = {d, i};
+            continue;
+        }
+        closeBy.pushBack({d, i});
+    }
+    const double window = replayWindow();
+    for(const auto& [d, i] : closeBy)
+    {
+        edict_t* e = EDICT_NUM(i);
+        EntitySnap s;
+        s.realtime = realtime;
+        s.svTime = qcvm->time;
+        s.ent = i;
+        copyName(s.classname, sizeof(s.classname), PR_GetString(e->v.classname));
+        const int think = static_cast<int>(e->v.think);
+        copyName(s.think, sizeof(s.think),
+            think > 0 && think < qcvm->progs->numfunctions ? PR_GetString(qcvm->functions[think].s_name) : "");
+        const int model = static_cast<int>(e->v.modelindex);
+        copyName(s.model, sizeof(s.model), model > 0 && model < MAX_MODELS && sv.models[model] ? sv.models[model]->name : "");
+        s.origin = {e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+        s.angles = {e->v.angles[0], e->v.angles[1], e->v.angles[2]};
+        s.velocity = {e->v.velocity[0], e->v.velocity[1], e->v.velocity[2]};
+        s.health = e->v.health;
+        s.frame = static_cast<int>(e->v.frame);
+        s.flags = static_cast<int>(e->v.flags);
+        s.enemy = e->v.enemy ? NUM_FOR_EDICT(PROG_TO_EDICT(e->v.enemy)) : 0;
+        s.knockdown = progs::fieldFloatOr(e, f.vr_knockdown, 0.f);
+        s.corpse = progs::fieldFloatOr(e, f.vr_corpse, 0.f);
+        s.held = progs::fieldFloatOr(e, f.vr_foegrab_hold, 0.f);
+        s.armour = e == player ? e->v.armorvalue : 0.f;
+        s.extra = e == player ? e->v.currentammo : progs::fieldFloatOr(e, replayAgFieldWid, 0.f);
+        replayEnts.push(ZA_MOVE(s), window, [](const EntitySnap& x) { return x.realtime; });
+    }
+}
+
+bool writeEntities(const za::String& path, double t0, const za::Vector<EntitySnap>& ents)
+{
+    FILE* f = fopen(path.cStr(), "wb");
+    if(!f)
+    {
+        return false;
+    }
+    fputs("# Quake VR voice note: the entities near the player, 10 times a second (docs/vr-port/VOICENOTES.md)\n"
+          "# t: seconds from the replay take's start (its t); world units and degrees; knockdown, corpse, held: vr_knockdown, "
+          "vr_corpse, vr_foegrab_hold; extra: the player's ammo, an armed grunt's weapon id (vr_ag_wid)\n",
+        f);
+    fputs("t,sv_time,ent,class,think,model,x,y,z,pitch,yaw,roll,vx,vy,vz,health,armour,frame,flags,enemy,knockdown,corpse,"
+          "held,extra\n",
+        f);
+    for(const EntitySnap& e : ents)
+    {
+        fprintf(f, "%.4f,%.4f,%d,%s,%s,%s,%.2f,%.2f,%.2f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.0f,%d,%d,%d,%g,%g,%.3f,%g\n",
+            e.realtime - t0, e.svTime, e.ent, e.classname, e.think, e.model, e.origin.x, e.origin.y, e.origin.z, e.angles.x,
+            e.angles.y, e.angles.z, e.velocity.x, e.velocity.y, e.velocity.z, e.health, e.armour, e.frame, e.flags,
+            e.enemy, e.knockdown, e.corpse, e.held, e.extra);
+    }
+    const bool ok = !ferror(f);
+    return fclose(f) == 0 && ok;
+}
+
+// The replay being written (one at a time: a note's; its rows freed when written).
+struct PendingReplay
+{
+    jobs::Future<bool> done;
+    za::String path;
+};
+za::Vector<PendingReplay> pendingReplays;
+
+void pollReplays(bool wait)
+{
+    for(auto it = pendingReplays.begin(); it != pendingReplays.end();)
+    {
+        if(!wait && !it->done.ready())
+        {
+            ++it;
+            continue;
+        }
+        if(!it->done.get())
+        {
+            Con_Printf("VR notes: couldn't write the replay %s\n", it->path.cStr());
+        }
+        it = pendingReplays.erase(it);
+    }
 }
 
 void saveUnsaved_f()
@@ -1453,6 +1918,102 @@ void shutdown()
         finishTake();
     }
     pollSaves(true); // the takes being written finish
+    pollReplays(true);
+}
+
+bool saveReplay(const za::String& takePath, const za::String& entsPath, za::String& summary)
+{
+    pollReplays(false);
+    if(replayRows.items.empty())
+    {
+        return false;
+    }
+    // The window's rows: from the newest back vr_note_replay_seconds (an older row left from a longer window or a
+    // slower rate is dropped on the pool).
+    const za::SizeT n = replayRows.items.size();
+    const Row& newest = replayRows.items[(replayRows.head + n - 1) % n];
+    const double from = newest.realtime - replayWindow();
+    const Row* first = nullptr;
+    int count = 0;
+    bool dummyAttacks = false;
+    for(za::SizeT k = 0; k < n; k++)
+    {
+        const Row& r = replayRows.items[(replayRows.head + k) % n];
+        if(r.realtime < from)
+        {
+            continue;
+        }
+        first = first ? first : &r;
+        count++;
+        dummyAttacks = dummyAttacks || r.dummyAttacks;
+    }
+    if(!first)
+    {
+        return false;
+    }
+
+    TakeInfo info;
+    info.label = "replay";
+    info.note = "a voice note's instant replay: the last seconds before it (vr_note_replay)";
+    const time_t now = time(nullptr);
+    char date[64];
+    strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", localtime(&now));
+    info.date = date;
+    info.map = cl.mapname;
+    const Backend* be = backend();
+    info.source = be ? va("%s (%s)", be->name(), be->runtimeName()) : "flat screen";
+    info.yaw0 = first->headAngles.y;
+    info.origin0 = first->origin;
+    info.t0 = first->realtime;
+    info.heldMain = heldProp(HAND_MAIN);
+    info.heldOff = heldProp(HAND_OFF);
+    // The header's settings lines (thousands of settings, a few ms to write) made on the pool from a copy.
+    za::String header = takeHeaderOf(info, first, 0, count, 0, dummyAttacks, nullptr);
+    SettingsSnap settings = snapSettings();
+    const double seconds = newest.realtime - first->realtime;
+    summary = va("%d frames, %.1f s", count, seconds);
+
+    // Handed over to the pool as they are (no copy, nothing sorted here: no hitch); the rings start again.
+    za::SizeT oldestRow = 0, oldestEnt = 0;
+    za::Vector<Row> taken = replayRows.take(oldestRow);
+    za::Vector<EntitySnap> takenEnts = replayEnts.take(oldestEnt);
+    PendingReplay p;
+    p.path = takePath;
+    p.done = jobs::async([rows = ZA_MOVE(taken), oldestRow, ents = ZA_MOVE(takenEnts), oldestEnt, from, takePath, entsPath,
+                             header = ZA_MOVE(header), settings = ZA_MOVE(settings), info,
+                             u2m = 1.f / units::metresToUnits()]() mutable {
+        fillSettings(header, settings);
+        straighten(rows, oldestRow, from, [](const Row& r) { return r.realtime; });
+        straighten(ents, oldestEnt, from, [](const EntitySnap& e) { return e.realtime; });
+        const bool take = writeTakeFile(takePath, header, info, u2m, rows);
+        return writeEntities(entsPath, info.t0, ents) && take;
+    });
+    pendingReplays.pushBack(ZA_MOVE(p));
+    return true;
+}
+
+void finishReplays()
+{
+    pollReplays(true);
+}
+
+void replayCost(double& rowMicros, double& serverMicros)
+{
+    rowMicros = replayRowCount > 0 ? replayRowCost / replayRowCount * 1e6 : 0.0;
+    serverMicros = replayEntCount > 0 ? replayEntCost / replayEntCount * 1e6 : 0.0;
+}
+
+void replayStats(za::SizeT& bytes, int& rows, int& ents, double& seconds)
+{
+    bytes = replayRows.items.capacity() * sizeof(Row) + replayEnts.items.capacity() * sizeof(EntitySnap);
+    rows = static_cast<int>(replayRows.items.size());
+    ents = static_cast<int>(replayEnts.items.size());
+    seconds = 0.0;
+    if(!replayRows.items.empty())
+    {
+        const za::SizeT n = replayRows.items.size();
+        seconds = replayRows.items[(replayRows.head + n - 1) % n].realtime - replayRows.items[replayRows.head].realtime;
+    }
 }
 
 void afterTracking(TrackingState& tracking, FrameState& frame)
@@ -1525,7 +2086,8 @@ void serverFrame()
     tickDt = host_frametime;
     playServerFrame(); // a playback's placing and weapons
     review::serverFrame(); // where the review's ghost goes
-    if(!armedOrRecording() && !playWantsSamples())
+    const bool qcWanted = armedOrRecording() || playWantsSamples();
+    if(!qcWanted && !replayWanted())
     {
         latest.reset();
         return;
@@ -1535,6 +2097,7 @@ void serverFrame()
         return;
     }
 
+    const double sampleStart = Sys_DoubleTime();
     edict_t* player = svs.clients[0].edict;
     ServerSample s;
     s.time = qcvm->time;
@@ -1558,7 +2121,8 @@ void serverFrame()
         s.monHealth = target->v.health;
     }
 
-    if(const func_t fn = progs::bindings().Motion_Sample)
+    // (The instant replay alone: no QC sample, the striking points and parry state only the evaluation reads.)
+    if(const func_t fn = progs::bindings().Motion_Sample; fn && qcWanted)
     {
         sampling = &s;
         s.qc = true;
@@ -1571,6 +2135,15 @@ void serverFrame()
     }
     latest.emplace(ZA_MOVE(s));
     latestFrame++;
+    if(replayWanted())
+    {
+        sampleEntities(player);
+        if(!qcWanted) // (the sample and the snapshot, the replay's alone)
+        {
+            replayEntCost += Sys_DoubleTime() - sampleStart;
+            replayEntCount++;
+        }
+    }
 }
 
 void hostFrameEnd()
@@ -1580,9 +2153,18 @@ void hostFrameEnd()
     const double svDt = tick ? tickDt : 0.0;
 
     pollSaves(false);
+    pollReplays(false);
     playFrameEnd(frameEvents, tick, svDt);
+    const bool replay = replayWanted() && hands::current().valid;
     if(!armedOrRecording())
     {
+        if(replay)
+        {
+            const double t = Sys_DoubleTime();
+            replayPush(makeRow(hands::current(), tick, svDt));
+            replayRowCost += Sys_DoubleTime() - t;
+            replayRowCount++;
+        }
         frameEvents.clear();
         preroll.clear();
         return;
@@ -1601,6 +2183,10 @@ void hostFrameEnd()
     }
 
     Row r = makeRow(s, tick, svDt);
+    if(replay)
+    {
+        replayPush(Row{r});
+    }
     if(rec == Rec::Off)
     {
         preroll.pushBack(ZA_MOVE(r));
@@ -1688,7 +2274,7 @@ void frame()
 
 void qcEvent(const char* kind, const char* sub, int hand, float value, const float* at, edict_t* targ, const char* detail)
 {
-    if(!armedOrRecording() && !playing())
+    if(!armedOrRecording() && !playing() && !replayWanted())
     {
         return;
     }

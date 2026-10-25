@@ -1,7 +1,10 @@
 // vr_progs.cpp -- binds the Quake VR QuakeC entry points, globals and spawn parms.
 
+#include "vr_ad.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_hull.hpp"
+#include "vr_brushes.hpp"
+#include "vr_permdecals.hpp"
 #include "vr_progs.hpp"
 #include "vr_edictindex.hpp"
 #include "vr_engine.hpp"
@@ -12,6 +15,7 @@
 #include "vr_ropesim.hpp"
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
 #include "vr_limbmodel.hpp"
@@ -23,6 +27,7 @@
 #include "vr_walltorch.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_props.hpp"
+#include "vr_scenario.hpp"
 #include "vr_tips.hpp"
 #include "vr_melee_shared.h"
 
@@ -41,7 +46,7 @@ namespace
 
 Bindings sv_bindings;
 
-// Level-start values of parm17..parm56, per client (parm1..parm16 live in client_t).
+// Level-start values of parm17..parm72, per client (parm1..parm16 live in client_t).
 za::Vector<float> extSpawnParms;
 
 // Set while Host_Loadgame_f respawns the server, for `spawnServerFromSaveFile`.
@@ -52,6 +57,7 @@ bool loadingSaveGame = false;
 struct SaveInfo
 {
     za::Vector<za::String> models;  // [the saved .modelindex] its model's name ("": none; `// qvr_model` lines)
+    za::Vector<za::String> sounds;  // the saved sound precache list (`// qvr_sound` lines)
     za::String notice;              // a centre print for the player once in the loaded game (another build's save)
 };
 SaveInfo saveInfo;
@@ -150,6 +156,13 @@ const Bindings& bindings()
 
 func_t findFunction(const char* name)
 {
+    // The VM's name table (pr_edict.c ED_FindFunction: hashed once the progs are loaded): several callers look up by
+    // name each step (vr_box3d_step.cpp's callbacks), and the scan over every function's name cost ~0.03 ms a call.
+    if(qcvm->ht_functions.capacity > 0)
+    {
+        const dfunction_t* f = VR_ED_FindFunction(name);
+        return f ? static_cast<func_t>(f - qcvm->functions) : 0;
+    }
     for(int i = 0; i < qcvm->progs->numfunctions; i++)
     {
         if(!strcmp(PR_GetString(qcvm->functions[i].s_name), name))
@@ -159,6 +172,53 @@ func_t findFunction(const char* name)
     }
 
     return 0;
+}
+
+namespace
+{
+// qcTestsPresent's last verdict (true until progs are seen: nothing is claimed missing).
+struct QcTestsVerdict
+{
+    bool valid;
+    int crc;
+    int functions;
+    bool present;
+};
+QcTestsVerdict qcTestsLast{false, 0, 0, true};
+} // namespace
+
+bool qcTestsPresent()
+{
+    // (VR_TestImpulse: the test impulses' entry, QC/vr_impulse_test.qc, in every flavour with the tests.)
+    // The menu builds outside the game's frames (qcvm is null there): the server's progs are looked in, the verdict kept
+    // per progs (its CRC and function count) so a menu frame costs nothing.
+    if(!sv.active || !sv.qcvm.progs)
+    {
+        return qcTestsLast.present;
+    }
+    const dprograms_t* const p = sv.qcvm.progs;
+    if(!qcTestsLast.valid || qcTestsLast.crc != p->crc || qcTestsLast.functions != p->numfunctions)
+    {
+        qcvm_t* const old = qcvm;
+        if(old != &sv.qcvm)
+        {
+            if(old)
+            {
+                PR_SwitchQCVM(nullptr);
+            }
+            PR_SwitchQCVM(&sv.qcvm);
+        }
+        qcTestsLast = {true, p->crc, p->numfunctions, findFunction("VR_TestImpulse") != 0};
+        if(old != &sv.qcvm)
+        {
+            PR_SwitchQCVM(nullptr);
+            if(old)
+            {
+                PR_SwitchQCVM(old);
+            }
+        }
+    }
+    return qcTestsLast.present;
 }
 
 } // namespace qvr::progs
@@ -274,6 +334,26 @@ extern "C" void VR_OnProgsLoaded()
         b.propTouches[1] = findFunction("VR_Debris_Touch");
         b.propTouches[2] = findFunction("VR_CratePiece_Touch");
         b.propTouches[3] = findFunction("wpnthrow_touch");
+        b.AxeStick_Stuck = findFunction("VR_AxeStick_Stuck");
+        b.KdTrig_BodyHit = findFunction("VR_KdTrig_BodyHit");
+        b.RagImpact_Hit = findFunction("VR_RagImpact_Hit");
+        b.Flail_Hit = findFunction("VR_Flail_Hit");
+        b.Flail_Rattle = findFunction("VR_Flail_Rattle");
+        b.Monster_Fall = findFunction("VR_Monster_Fall");
+        b.Knockdown_MakeRoom = findFunction("VR_Knockdown_MakeRoom");
+        b.foegrab.HeadZone = findFunction("VR_FoeGrab_HeadZone");
+        b.foegrab.HeadLeft = findFunction("VR_FoeGrab_HeadLeft");
+        b.foegrab.Released = findFunction("VR_FoeGrab_Released");
+        b.foegrab.Strength = findFunction("VR_FoeGrab_Strength");
+        b.foegrab.Taken = findFunction("VR_FoeGrab_Taken");
+        b.foegrab.Throw = findFunction("VR_FoeGrab_Throw");
+        b.foegrab.HandOver = findFunction("VR_FoeGrab_HandOver");
+        b.foegrab.Manhandle = findFunction("VR_FoeGrab_Manhandle");
+        b.foegrab.BreakFree = findFunction("VR_FoeGrab_BreakFree");
+        b.foegrab.NeckSnap = findFunction("VR_FoeGrab_NeckSnap");
+        b.foegrab.Lift = findFunction("VR_FoeGrab_Lift");
+        b.foegrab.MonsterMass = findFunction("VR_Grapple_MonsterMass");
+        b.foegrab.LegSweepDown = findFunction("VR_LegSweep_Down");
 
         const auto globalFloat = [](const char* name) -> float* {
             ddef_t* def = findGlobalDef(name);
@@ -290,6 +370,7 @@ extern "C" void VR_OnProgsLoaded()
         b.spawnServerFromSaveFile = globalFloat("spawnServerFromSaveFile");
         b.playerTimeOffset = globalFloat("vr_player_time_offset");
         b.musicTrack = globalFloat("vr_music_track");
+        b.spawnLive = globalFloat("vr_spawn_live");
         for(int i = 0; i < numExtSpawnParms; i++)
         {
             b.extSpawnParms[i] = globalFloat(va("parm%d", firstExtSpawnParm + i));
@@ -330,6 +411,7 @@ void resetServerWorld()
     qvr::physics::resetRigidBodies(); // (with the two-handed holds)
     qvr::box3d::reset();
     qvr::toolgun::reset(); // (what its tools hold, by entity number)
+    qvr::brushes::reset(); // (the boxes made in the game: the map's)
     qvr::ropesim::reset();
     qvr::climb::reset();
     qvr::foegrab::reset();
@@ -338,6 +420,7 @@ void resetServerWorld()
     qvr::crates::reset();
     qvr::props::resetModelCache(); // (the models' names may be others' now)
     qvr::hitmodel::reset();
+    qvr::scenario::worldReset(); // (a checklist test scene ends at another map or a load, not at its own)
     resetBuiltinState();
 }
 
@@ -350,6 +433,7 @@ extern "C" void VR_OnClearMemory()
     // world goes first, so that nothing keeps a pointer into the freed hunk (the client's again at the new serverinfo,
     // VR_OnClientClearState; the server's at VR_OnSpawnServerBeforeLoad).
     resetServerWorld();
+    qvr::diskcache::setInPlay(false); // a load from here (the cache's misses aren't "in play" until it ends)
     if(cls.state != ca_dedicated)
     {
         VR_OnClientClearState();
@@ -366,6 +450,7 @@ extern "C" void VR_OnClearMemory()
 extern "C" void VR_OnSpawnServerBeforeLoad()
 {
     resetServerWorld();
+    qvr::ad::beforeLoad(); // vr_ad_rules for this map, before anything of it spawns (and QC's hook reads it)
     VR_EdictIndex_Reset(); // (the edicts cleared)
     qvr::physics::precacheWaterSounds();
     qvr::physsound::precache(); // the props' knocks and scrapes, the climbing grab
@@ -448,6 +533,7 @@ extern "C" void VR_OnSpawnServerSpawned()
     // The kinds that can appear later, made now (removed below): the map's monsters waiting for a trigger, then (after
     // the map's monsters' limbs, unless vr_limbs_prebuild 2) the dispensers', dummies' and debug spawner's kinds.
     za::Vector<int> probes;
+    qvr::limbmodel::newMap(); // (spawnFrame's kinds: those spawned from now on that prebuild didn't make)
     probeKinds(probes, 1);
     const bool allLimbs = qvr::vr_limbs_prebuild.value >= 2.f;
     if(!allLimbs)
@@ -609,6 +695,7 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
 {
     using qvr::progs::saveInfo;
     saveInfo.models.clear();
+    saveInfo.sounds.clear();
     saveInfo.notice.clear();
     const char* line = strstr(text, "\n// qvr_save ");
     if(!line)
@@ -623,6 +710,8 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
     unsigned int crc = 0;
     char build[128] = "?";
     sscanf(line, "// qvr_save %d progs %x build %127[^\r\n]", &format, &crc, build);
+    qvr::brushes::readSaveLines(text); // (made again after the load: restoreAfterLoad)
+    qvr::permdecals::readSaveLines(text); // (the permanent decals: baked again once its map has loaded)
     if(format > VR_SAVE_FORMAT)
     {
         Con_Printf("ERROR: %s was saved by a newer build (%s, save format %d; this one, %s, reads up to %d): not loaded\n",
@@ -637,7 +726,8 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
             VR_BuildVersion(), now, now == crc ? ", the same" : "");
         saveInfo.notice = va("Saved game from another build\n%s", build);
     }
-    for(const char* p = strchr(line, '\n'); p && !strncmp(p + 1, "// qvr_model ", 13); p = strchr(p + 1, '\n'))
+    const char* p = strchr(line, '\n');
+    for(; p && !strncmp(p + 1, "// qvr_model ", 13); p = strchr(p + 1, '\n'))
     {
         const char* at = p + 1 + 13;
         char* end = nullptr;
@@ -651,6 +741,17 @@ extern "C" int VR_ReadSaveInfo(const char* text, const char* relname)
             saveInfo.models.resize(static_cast<za::SizeT>(i + 1));
         }
         saveInfo.models[static_cast<za::SizeT>(i)] = za::String{end + 1, strcspn(end + 1, "\r\n")};
+    }
+    // The sound precache list, its lines together after the context's (saves before 2026-10-20 have none: their late
+    // sounds are lost)
+    for(p = strstr(line, "\n// qvr_sound "); p && !strncmp(p + 1, "// qvr_sound ", 13); p = strchr(p + 1, '\n'))
+    {
+        const char* at = p + 1 + 13;
+        const size_t length = strcspn(at, "\r\n");
+        if(length > 0 && length < MAX_QPATH)
+        {
+            saveInfo.sounds.pushBack(za::String{at, length});
+        }
     }
     return 1;
 }
@@ -803,6 +904,46 @@ void remapModelValue(float& value, const char* what, int num)
     }
 }
 
+// The sounds the saved game had precached that the map loaded now doesn't: the ones precached late (a monster spawned
+// mid-game by the test spawner, the toolgun or a delayed spawner, whose spawn function precached its sounds then) are
+// precached again, or its sounds would not play in the loaded game (SV_StartSound: "not precached"). Sounds go by name,
+// so only the list's names matter, not their order.
+void restoreLateSounds()
+{
+    if(!VR_AllowLatePrecache())
+    {
+        saveInfo.sounds.clear();
+        return;
+    }
+    int added = 0;
+    for(const za::String& name : saveInfo.sounds)
+    {
+        int i = 1;
+        for(; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
+        {
+            if(!strcmp(sv.sound_precache[i], name.cStr()))
+            {
+                break;
+            }
+        }
+        if(i >= MAX_SOUNDS)
+        {
+            Con_Warning("load: sound precache full: %s not precached\n", name.cStr());
+            break;
+        }
+        if(!sv.sound_precache[i])
+        {
+            sv.sound_precache[i] = Hunk_Strdup(name.cStr(), "precache"); // (the list keeps the pointer)
+            added++;
+        }
+    }
+    if(added > 0)
+    {
+        Con_DPrintf("load: %d late sound precache(s) restored\n", added);
+    }
+    saveInfo.sounds.clear();
+}
+
 // The saved .modelindex values index the precache list of the game that was saved, and the map loaded now precaches
 // its models again, in its own order: the same only if every spawn function precached the same models in the same
 // order (the training dummy precaches the enemy vr_dummy_type names: changed since, every model after it moved one way
@@ -844,6 +985,7 @@ void rebindLoadedModels()
         }
     }
     saveInfo.models.clear();
+    restoreLateSounds();
     // Everything precached while loading is in the serverinfo that clients receive (none is connected yet).
     qvr::server::onSpawnServerAfterLoad();
 }
@@ -855,7 +997,7 @@ extern "C" void VR_OnLoadGame()
     loadingSaveGame = false;
     VR_EdictIndex_Reset(); // (the edicts parsed from the save)
 
-    // parm17..parm56 were restored with the other globals and still hold the level-start
+    // parm17..parm72 were restored with the other globals and still hold the level-start
     // values (QC only rewrites them in SetNewParms/SetChangeParms), so they become the
     // single-player client's stored parms, like parm1..16 do from the savegame header.
     VR_StoreSpawnParms(0);
@@ -867,6 +1009,7 @@ extern "C" void VR_OnLoadGame()
     qvr::physics::resetRigidBodies();
 
     rebindLoadedModels();
+    qvr::brushes::restoreAfterLoad(); // (the saved game's brushes on their entities, their models by the names just bound)
 
     qvr::walltorch::restoreAfterLoad(); // the map's wall torches the save lacks (made with vr_walltorch 0, now on)
     qvr::climb::reset();                // (holds on the loaded game's entities: none)

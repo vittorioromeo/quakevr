@@ -17,8 +17,8 @@ The rules, in short:
 - **The body:** edit the mesh, its weights, its UVs and its skins. **Don't move, rename or delete bones:** the game
   places them itself, from your tracked head and hands.
 - **The weapons and the gadget:** edit anything. The export keeps what the game hangs off the model: its anchors
-  (where your hand, the muzzle, the ammo screen sit), its frames and its size grid. It tells you if an edit moves an
-  anchor, and refuses an edit that would silently break one.
+  (where your hand, the muzzle, the ammo screen sit: points on its surface), its frames and its size grid. It tells
+  you if an edit moves an anchor.
 - **The flashlight:** edit anything. The game reads its lens, its tail and its outline from the model as it loads it:
   the beam and the light follow a lens you move or enlarge.
 
@@ -87,15 +87,15 @@ get their own vertices.
 
 ### Do
 
-- **Keep anchor vertices where they are, unless you mean to move them** (see [Anchors](#anchors)). The export report
-  names every anchor and where it is.
+- **Keep the surface where the anchors are, unless you mean to move them** (see [Anchors](#anchors)). The export
+  report names every anchor and where it is in every frame.
 - **Stay inside the model's box** (see [The box](#the-box)).
 - **Keep one object per model.** Join parts back with Ctrl+J. Apply other modifiers first: only the mesh is exported.
 
 ### Don't
 
-- **Don't delete or rebuild the model's old faces around its anchors.** Deleting old triangles can make an anchor
-  index name another vertex. The export refuses that (see [Anchors](#anchors)). Moving, scaling and extruding are fine.
+- **Don't take away the surface an anchor is on** without picking the anchor again: the anchor binds to what is
+  nearest it then (see [Anchors](#anchors)). Rebuilding faces, deleting and adding vertices, renumbering: all fine.
 - **Don't sort the mesh's elements** (Mesh > Sort Elements). The export tells old vertices from new ones partly by
   their order.
 - **Don't rename or delete the skin image.** The export writes the images named `<model>_skin<n>`.
@@ -110,8 +110,7 @@ The export writes the `.mdl` and keeps:
 - the header's scale and origin (the weapon's Scale turns about the origin);
 - the frame count, names and groups; the skin count and size;
 - **every old vertex's index**: a deleted vertex stays in the file, unused. New vertices and triangles go after the old
-  ones, and new triangles never share a vertex with old ones, so the old triangles' strip order (the anchors'
-  numbering) doesn't change;
+  ones (so a diff of the file shows your edit; the anchors don't depend on the numbering);
 - every byte you didn't change (vertex, normal, texel, frame bounds). **An unedited model comes back byte for byte.**
 
 Faces with more than 3 corners are split into triangles, in your mesh too: the model is triangles.
@@ -130,37 +129,48 @@ snapped to the model's grid, which is what the game draws.
 
 ### Anchors
 
-The game places things on a weapon by its vertices (vr_weapons.inc's `*_av` settings and your `vr_wofs_*_av`):
+The game places things on a weapon at anchors (vr_weapons.inc's `*_av` settings and your `vr_wofs_*_av`; the
+magazine mounts in vr_view.cpp, the shell ejection ports in vr_shells.cpp, the monsters' guns in vr_weaponfx.cpp):
 
 - the hand's anchor (`hand_av`), and the off hand's for two-handed guns (`2h_hand_av`);
 - the muzzle (`muzzle_av`): shots, flashes, the laser sight;
 - the ammo screen and its button (`wpntxt_av`, `wpnbtn_av`);
-- the shell ejection port (vr_shells.cpp).
+- the magazine's mount (its kick moves the magazine and its well) and the shell ejection port;
+- on `soldier.mdl` and `enforcer.mdl`, the gun's muzzle and rear (their middles: the shot's flash and direction).
 
-Your weapon poses hang off them. The report lists each anchor of each slot using the model:
+An anchor is a **point on the model's surface**, in its own coordinates as frame 0 has them (the numbers Blender's
+N panel shows for a vertex of the basis shape, and `vr_anchor_info` prints): `"x y z"`. The game binds the point to
+the nearest triangle of frame 0 and moves it with that triangle in every frame, so the anchor follows the animation
+(the kick, the pump, the double barrel opening) whatever the vertices' numbering: **edit freely**, just keep the
+surface where the anchors are. Where two parts touch at the point (triangles equally near that move apart in the
+animation: a muzzle flash folded onto the barrel's tip), the first in the file's order is taken, which an edit may
+change: put such an anchor a little off the seam, on the part it belongs to (`vr_anchor_info` and `vr_anchor_nearest`
+say when a point is on one). (Before round 22 an anchor was a vertex index in QuakeSpasm's old strip order; a config's
+were replaced by the defaults' points once, vr_wofs_version 41, and a lone number is no longer read.)
+
+Your weapon poses hang off them. The report lists each anchor on the model, bound on the old model and on the new:
 
 ```
-  strip order: unchanged (every anchor index names the same vertex as before)
-  ok     slot 1 the hand's (vr_wofs_hand_av_02): index 165 = vertex 120 at (2.06, 0.02, 1.28)
-  MOVED  slot 1 the muzzle's (vr_wofs_muzzle_av_02): index 1 = vertex 1 at (33.07, -0.66, 3.01) -> (33.07, -0.66, 3.35): moved 0.333 units (0.85 cm at the default size) at most over the frames
+  ok     slot 1 the hand's (vr_wofs_hand_av_02): "2.0562 0.0247 1.2804" at (2.06, 0.02, 1.28), triangle 102, 0.0000 off the surface
+  MOVED  slot 1 the muzzle's (vr_wofs_muzzle_av_02): "33.0657 -0.6615 3.013" at (33.07, -0.66, 3.01), triangle 15, 0.0001 off the surface -> (33.07, -0.66, 3.35): moved 0.333 units (0.85 cm at the default size) at most over the frames
 ```
 
-- **ok:** the anchor is where it was.
-- **MOVED:** you moved that vertex. The export writes the model, and warns. Whatever hangs off the anchor moves with
-  it: check the weapon's poses in the game.
-- **RENAMED:** deleted or changed old triangles changed the strip order, and the index now names another vertex. The
-  export **refuses** and writes nothing. Undo the deletion, or tick **Remap Anchors**: the export then writes the model
-  and prints the new indices to set in the console, for example:
+- **ok:** the anchor is where it was in every frame (or moved less than 0.01 units: the report says how much).
+- **MOVED:** the surface under it moved. The export writes the model, and warns. Whatever hangs off the anchor moves
+  with it: check the weapon's poses in the game. "off the new surface" means the surface it was on is gone: pick the
+  anchor again (below).
 
-  ```
-    vr_wofs_hand_av_02 172        (was 165)
-  ```
+To pick an anchor in the game (the developer console):
 
-  Paste them into the console (the settings are saved). To ship them, change the same numbers in
-  `Quake/vr/vr_weapons.inc` (and `vr_shells.cpp` for a shell port).
+- `vr_anchor_nearest progs/v_shot.mdl <x> <y> <z>` prints the anchor of the surface point nearest a point (paste it:
+  `vr_wofs_muzzle_av_02 "33.0657 -0.6615 3.013"`; in `Quake/vr/vr_weapons.inc` to ship it);
+- `vr_anchor_info progs/v_shot.mdl <anchor>` says where an anchor binds (its triangle, its weights, how far off the
+  surface it is, and whether other triangles as near would take it elsewhere in some frame);
+- `vr_anchor_where` (Debug > Reports > Weapon Anchors) prints where the held weapons' anchors are this frame.
 
-The report also says from which index on the strip order changed. Anchors below it are safe, and so are your own
-`vr_wofs_*_av` settings if they are below it.
+`Misc/quakevr/anchors.py check <model.mdl> [old.mdl]` checks the anchors on a model outside Blender (each within 0.1
+units of the surface in every frame, and of where it was on the old model); `anchors.py point <model.mdl> <vertex>`
+prints the anchor at a vertex.
 
 ### The box
 
@@ -219,8 +229,8 @@ export's report checks those, before and after, and a line starting with `CHECK`
 | `ogre.mdl` | Its chainsaw hidden as an ogre dies, by its vertices 416..496 and the model's counts (`vr_monstermods.cpp` `knownSwords`); the dropped chainsaw (`v_chainsaw.mdl`) is cut from it by `make_chainsaw.py` | Keep the chainsaw's vertices, or update `knownSwords` (the report says); moved the chainsaw: run `make_chainsaw.py` |
 | `v_chainsaw.mdl` the chainsaw | Its cord's T-handle **read from the model** (`vr_chainsaw.cpp`): the vertices that differ between frames 0 and 9 are the handle (their middle in frame 0: where the hand takes it; where they meet in frame 9: the cord's hole); its bar: the vertices past 58% of its length along +x (they may sink into monsters). Round 21's close-up pass (`make_chainsaw.py` `polish`: the starter's housing under the handle, the bar's nuts, edge wear) only appends | Keep frame 9 as frame 0 with the handle collapsed into its hole, +x along the bar, the origin in the rear handle's grip (or retune slot 20's Offset) |
 | `soldier.mdl`, `enforcer.mdl` | Their guns hidden as they die, by their vertices (the soldier's 463..548; the enforcer's 22, 23, 100, 400..430, 455..478) and the models' counts (`vr_monstermods.cpp` `knownSwords`; the soldier's death frames by number, 8..28); the dropped guns (`v_gruntgun.mdl`, `v_enfrifle.mdl`) are cut from them by `make_enemyguns.py` | Keep the guns' vertices, or update `knownSwords` (the report says); moved a gun: run `make_enemyguns.py` |
-| `v_crowbar.mdl` the crowbar | Slot 23 (`vr_weapons.inc`): the muzzle by anchor index (200: the hook's back where the bar's line meets it, also the Blade hotspot's axis), the hotspots in model space; its Offset depends on the model's bounds (the weapon scales about their corner: `vr_hotspot_fit` shows where the hand is on it) | Laid where the swords are (along the axe's handle, `make_crowbar.py`); keep the vertices' order (anchors) |
-| `v_gruntgun.mdl`, `v_enfrifle.mdl` the enemy guns | Slots 21 and 22 (`vr_weapons.inc`): the muzzle and the counter by anchor index (80 and 23; 11 and 37), the foregrip hotspot in model space | +x along the barrel, the origin in the pistol grip's middle (or retune the slot's Offset); keep the old vertices' order (anchors) |
+| `v_crowbar.mdl` the crowbar | Slot 23 (`vr_weapons.inc`): the muzzle by its anchor (a point: the hook's back where the bar's line meets it, also the Blade hotspot's axis), the hotspots in model space; its Offset depends on the model's bounds (the weapon scales about their corner: `vr_hotspot_fit` shows where the hand is on it) | Laid where the swords are (along the axe's handle, `make_crowbar.py`); keep the surface at the anchors |
+| `v_gruntgun.mdl`, `v_enfrifle.mdl` the enemy guns | Slots 21 and 22 (`vr_weapons.inc`): the muzzle and the counter by their anchors (points on the surface), the foregrip hotspot in model space | +x along the barrel, the origin in the pistol grip's middle (or retune the slot's Offset); keep the surface at the anchors |
 | The weapons, the gadget | Section 2 | Section 2 |
 | id's other models (monsters, items, gibs...) | Their frames and skins only | Anything |
 
@@ -293,6 +303,14 @@ more or less muscular. To edit all three:
   re-UVing geometry, the other builds are left alone, and the export says so.
 - **Or edit each build on its own:** import it, edit it and export it.
 
+**Bare forearms** (Body > Bracers off, `vr_body_bracers 0`) are three more files, `vrbody_bare`, `vrbody_lean_bare` and
+`vrbody_brawny_bare` (`make_vrbody.py` writes them; it leaves the edited skins alone with `--keep-edited`). They differ
+from the builds only in the forearms: no bracer, the skin running on to the wrist and over the base of the hand,
+fitted round the jointed hand (`hand_rig.md5mesh`, sliced at its wrist). They use the same skins (the arm's block, its
+rows down to the wrist). Edits to the hand's wrist need `make_vrbody.py --keep-edited` run again, so that the arm's
+end fits it; it prints the wrist's colour and size the engine uses (`vr_view.cpp`'s `bareTint`, `vr_avatar.cpp`'s
+`forearmGirth`): repainting the arm's skin round the wrist or the hand changes the colour, so copy the new numbers.
+
 ### The skins
 
 The 16 skins are one per armour and damage state: skin `armour × 4 + damage`. Armour 0 is none, then green, yellow and
@@ -340,8 +358,8 @@ Useful checks after a weapon edit:
 
 - `vr_hotspots_check` compares every slot's hotspots, muzzle and hand with the shipped placement;
 - `vr_dumpview` prints each hand's placement while holding the weapon;
-- `vr_anchor_info progs/v_shot.mdl <index>` says where an anchor is;
-- `vr_anchor_nearest progs/v_shot.mdl <x> <y> <z>` finds the anchor index nearest a point.
+- `vr_anchor_info progs/v_shot.mdl <anchor>` says where an anchor binds;
+- `vr_anchor_nearest progs/v_shot.mdl <x> <y> <z>` gives the anchor of the surface point nearest a point.
 
 ## 5. Skins in another editor
 
@@ -392,7 +410,6 @@ file and redo your edits, or keep yours and pass `--keep-edited`.
 | Message | What to do |
 |---|---|
 | `N vertices (selected) are outside the model's box in frames ...` | Pull them back inside, or tick Grow the Box (section 2, [The box](#the-box)). |
-| `N anchors would name other vertices ...` | You deleted or rebuilt old triangles. Undo it, or tick Remap Anchors and set the indices it prints. |
 | `the model has N frames and the object M shape keys` | Put the shape keys back (import again, or undo). |
 | `the skin image ... is WxH; the model's skin is ...` | Scale the image back to the skin's size. |
 | `the flat area at the skin's top-left corner grew or changed colour` (a warning) | Repaint texel (0, 0) and the area round it as they were. |

@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "steam.h"
 #include <setjmp.h>
+#include "vr/vr_tracy.h"
 
 /*
 
@@ -438,6 +439,7 @@ void Host_Version_f (void)
 	Con_Printf ("QuakeSpasm " QUAKESPASM_VER_STRING "\n");
 	Con_Printf ("Ironwail   " IRONWAIL_VER_STRING "\n");
 	Con_Printf ("Quake VR   %s\n", VR_BuildVersion ()); // QVR
+	Con_Printf ("QVR build  %s\n", VR_BuildInfo ()); // QVR
 	Con_Printf ("Exe        " __TIME__ " " __DATE__ "\n");
 	Con_Printf ("SDL        " Q_SDL_COMPILED_VERSION_STRING " (compiled)\n");
 	Con_Printf ("           %d.%d.%d (linked)\n", sdl_linked.major, sdl_linked.minor, sdl_linked.patch);
@@ -487,7 +489,9 @@ void Host_WriteConfigurationToFile (const char *name)
 
 		Key_WriteBindings (f);
 		VR_MenuSavePositions (); // QVR: the VR pages' selections and scrolls, into their cvar
+		VR_ScenarioConfigWrite (1); // QVR: a test scene's settings written as they were before it (vr/vr_scenario.cpp)
 		Cvar_WriteVariables (f);
+		VR_ScenarioConfigWrite (0);
 
 		//johnfitz -- extra commands to preserve state
 		fprintf (f, "vid_restart\n");
@@ -592,7 +596,10 @@ Writes key bindings and archived cvars to engine config file
 */
 void Host_WriteConfiguration (void)
 {
-	if (COM_CheckParm ("-noconfigwrite")) // QVR: a second copy of the game (the motion review's re-evaluation) leaves the config alone
+	// QVR: a second copy of the game (the motion review's re-evaluation) leaves the config alone. -evalcopy implies
+	// -noconfigwrite: the copy is started with -evalcopy, so it never writes a config of its own (the line naming the
+	// implication is printed once, COM_CheckParmImplied).
+	if (COM_CheckParmImplied ("-noconfigwrite", "-evalcopy", "the evaluation's copy of the game never writes the config"))
 		return;
 	if (config_not_loaded) // QVR: the saved config could not be run (Cmd_Exec_f): writing this game's defaults would lose it
 	{
@@ -840,6 +847,7 @@ void Host_ClearMemory (void)
 	PR_ClearProgs(&sv.qcvm);
 	PR_ClearProgs(&cl.qcvm);
 /* host_hunklevel MUST be set at this point */
+	Hunk_ClearKeep (); // QVR: the models kept on the hunk go with it (Hunk_KeepLoaded)
 	Hunk_FreeToLowMark (host_hunklevel);
 	cls.signon = 0; // not CL_ClearSignons()
 	memset (&sv, 0, sizeof(sv));
@@ -1040,6 +1048,104 @@ void Host_GetConsoleCommands (void)
 
 /*
 ==================
+Host_AutosaveUnsafe
+
+QVR: why an autosave due must wait (player feedback: an autosave made in an ambush trapped them, dying again at each
+respawn): 0 safe; 1 a living monster after you (vr_autosave_safe_alerted) or near you and in sight
+(vr_autosave_safe_radius): the longest wait (vr_autosave_safe_maxdelay) ends it; 2 your health below
+vr_autosave_safe_health percent: only healing ends it. *reason: what, for the log.
+==================
+*/
+static int Host_AutosaveUnsafe (const char **reason)
+{
+	edict_t		*ed;
+	int			i, self;
+	float		radius, percent, maxhealth;
+	qboolean	alerted;
+	vec3_t		eye, mid, d;
+	trace_t		tr;
+
+	*reason = "";
+	if (!Cvar_VariableValue ("vr_autosave_safe"))
+		return 0;
+	percent = Cvar_VariableValue ("vr_autosave_safe_health");
+	maxhealth = sv_player->v.max_health > 0.f ? sv_player->v.max_health : 100.f;
+	if (percent > 0.f && sv_player->v.health < maxhealth * percent / 100.f)
+	{
+		*reason = "your health is low";
+		return 2;
+	}
+	radius = Cvar_VariableValue ("vr_autosave_safe_radius");
+	alerted = Cvar_VariableValue ("vr_autosave_safe_alerted") != 0.f;
+	self = EDICT_TO_PROG (sv_player);
+	VectorAdd (sv_player->v.origin, sv_player->v.view_ofs, eye);
+	for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
+	{
+		// a living monster in the world (not a corpse, nor one yet to appear: AD's spawned later)
+		if (ed->free || !((int) ed->v.flags & FL_MONSTER) || ed->v.health <= 0.f || ed->v.deadflag != 0.f ||
+			ed->v.solid == SOLID_NOT || !ed->v.modelindex)
+			continue;
+		if (alerted && ed->v.enemy == self)
+		{
+			*reason = "a monster is after you";
+			return 1;
+		}
+		if (radius <= 0.f)
+			continue;
+		VectorSubtract (ed->v.origin, sv_player->v.origin, d);
+		if (DotProduct (d, d) > radius * radius)
+			continue;
+		VectorAdd (ed->v.absmin, ed->v.absmax, mid);
+		VectorScale (mid, 0.5f, mid);
+		tr = SV_Move (eye, vec3_origin, vec3_origin, mid, MOVE_NOMONSTERS, sv_player);
+		if (tr.fraction >= 1.f && !tr.allsolid)
+		{
+			*reason = "a monster is near, in sight";
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/*
+==================
+Host_AutosaveWait
+
+QVR: true while an autosave due waits for it to be safe (Host_AutosaveUnsafe), what it waits for logged as it changes
+(developer 1); false when it may be made: safe, or the monsters waited for vr_autosave_safe_maxdelay seconds.
+==================
+*/
+static qboolean Host_AutosaveWait (void)
+{
+	const char	*reason;
+	int			unsafe = Host_AutosaveUnsafe (&reason);
+	float		maxdelay = Cvar_VariableValue ("vr_autosave_safe_maxdelay");
+
+	if (!unsafe)
+	{
+		if (sv.autosave.wait_since)
+			Con_DPrintf ("Autosave: safe now, after %.1f s\n", qcvm->time - sv.autosave.wait_since);
+		sv.autosave.wait_since = 0.;
+		sv.autosave.wait_reason = NULL;
+		return false;
+	}
+	if (!sv.autosave.wait_since)
+		sv.autosave.wait_since = qcvm->time;
+	if (unsafe == 1 && maxdelay > 0.f && qcvm->time - sv.autosave.wait_since >= maxdelay)
+	{
+		Con_DPrintf ("Autosave: made anyway after %.0f s (%s)\n", qcvm->time - sv.autosave.wait_since, reason);
+		sv.autosave.wait_since = 0.;
+		sv.autosave.wait_reason = NULL;
+		return false;
+	}
+	if (sv.autosave.wait_reason != reason)
+		Con_DPrintf ("Autosave: waiting: %s\n", reason);
+	sv.autosave.wait_reason = reason;
+	return true;
+}
+
+/*
+==================
 Host_CheckAutosave
 ==================
 */
@@ -1054,7 +1160,7 @@ static void Host_CheckAutosave (void)
 		return;
 	// QVR: none in Setup's preparation (-prepare, vr_prepare.cpp): it loads the newer campaigns' start maps, and their
 	// level-start autosaves made Continue offer a game the player never played.
-	if (COM_CheckParm ("-prepare"))
+	if (COM_PrepareRun ()) // (-preparerelight alone too)
 		return;
 
 	if (cls.signon == SIGNONS)
@@ -1091,14 +1197,20 @@ static void Host_CheckAutosave (void)
 
 	// QVR: an autosave as the level starts (a map or a changelevel; a loaded game is not one: Host_Loadgame_f), the
 	// player in and a moment into it, whatever the score: vr_autosave_level_start, Continue's (vr_continue.cpp)
+	// It waits until it is safe (Host_AutosaveWait: an ambush at the level's start), nothing else saved meanwhile.
 	if (!sv.autosave.level_started && cls.signon == SIGNONS && qcvm->time >= 2.5)
 	{
-		sv.autosave.level_started = true;
-		if (Cvar_VariableValue ("vr_autosave_level_start"))
+		if (!Cvar_VariableValue ("vr_autosave_level_start"))
+			sv.autosave.level_started = true;
+		else
 		{
+			if (Host_AutosaveWait ())
+				return;
+			sv.autosave.level_started = true;
 			VR_AutosaveName (sv.name, autosavename, sizeof (autosavename));
 			sv.autosave.time = qcvm->time;
-			Cbuf_InsertText (va ("save \"%s\" 0\n", autosavename)); // (next, before any queued command)
+			sv.autosave.cheat = 0;
+			Cbuf_InsertText (va ("save \"%s\" 0 rotate\n", autosavename)); // (next, before any queued command)
 			return;
 		}
 	}
@@ -1145,10 +1257,14 @@ static void Host_CheckAutosave (void)
 	if (score < 1.f)
 		return;
 
+	// QVR: not until it is safe (no monster after you or near, your health not low: Host_AutosaveWait)
+	if (Host_AutosaveWait ())
+		return;
+
 	sv.autosave.time = qcvm->time;
 	sv.autosave.cheat = 0;
 	VR_AutosaveName (sv.name, autosavename, sizeof (autosavename)); // QVR: autosave/<folder>~<map> for the other campaigns, <package>~<map> for a map package
-	Cbuf_AddText (va ("save \"%s\" 0\n", autosavename));
+	Cbuf_AddText (va ("save \"%s\" 0 rotate\n", autosavename)); // QVR: rotate: the older ones kept (vr_autosave_slots)
 }
 
 /*
@@ -1182,12 +1298,12 @@ void Host_ServerFrame (void)
 // move things around and think
 // always pause in single player if in console or menus
 	VR_ProfileBegin ("SV_Physics"); // QVR: profile
-	if (!sv.paused && !VR_RuntimeMenuPause () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: live preview in VR; the runtime's menu pauses
+	if (!sv.paused && !VR_RuntimeMenuPause () && !VR_RagtoolHolds () && (svs.maxclients > 1 || key_dest == key_game || VR_MenuRunsGame ())) // QVR: live preview in VR; the runtime's menu pauses; the ragdoll tool's pause
 		SV_Physics ();
 	VR_ProfileEnd (); // QVR
 
 //johnfitz -- devstats
-	if (cls.signon == SIGNONS)
+	if (cls.signon == SIGNONS && (devstats.value || developer.value)) // QVR: counted only when shown or warned about (a walk of every edict a server frame: 4000 in AD's big maps)
 	{
 		for (i=0, active=0; i<qcvm->num_edicts; i++)
 		{
@@ -1210,6 +1326,7 @@ void Host_ServerFrame (void)
 	VR_ProfileEnd (); // QVR
 
 	Host_CheckAutosave ();
+	M_CheckDeathMenu (); // QVR: dead a moment: Respawn, Restart the Level, the autosaves (menu.c)
 }
 
 typedef struct summary_s {
@@ -1444,7 +1561,10 @@ void _Host_Frame (double time)
 	VR_ProfileFrame (); // QVR: ends the last frame's profile, begins this one's
 
 	if (setjmp (host_abortserver) )
+	{
+		VR_TracyAbort();
 		return;			// something bad happened, or the server disconnected
+	}
 
 	time = VR_HostFrameTime (time); // QVR: a motion take playing back: its recorded frame times
 
@@ -1563,6 +1683,8 @@ void _Host_Frame (double time)
 	if (host_speeds.value)
 		time2 = Sys_DoubleTime ();
 
+	S_MixKick (false); // QVR: the frame's sounds started: their mix on the thread pool while the screen updates (R_RenderScene's
+	              // S_ExtraUpdate was it); S_Update joins it, as does any sound call before (snd_mixstats lists them)
 	VR_ProfileBegin ("screen"); // QVR: profile
 	SCR_UpdateScreen ();
 	VR_ProfileEnd (); // QVR
@@ -1637,6 +1759,7 @@ void Host_Frame (double time)
 	static int		timecount;
 	int		i, c, m;
 
+	LOG_Tick (); // QVR: the buffered console log out a second after its last write (console.c)
 	if (!serverprofile.value)
 	{
 		_Host_Frame (time);
@@ -1693,6 +1816,7 @@ void Host_Init (void)
 	COM_Init ();
 	COM_InitFilesystem ();
 	VR_SetCrashDir (com_gamedir); // QVR: crash reports in <game folder>/crash (quakevr/crash; vr_crash.cpp)
+	VR_LogsBegin (); // QVR: every run's logs in <game folder>/logs/<date>_<time>; -bugreport makes the report and exits (vr/vr_runlogs.cpp)
 	VR_DiagnosticsBegin (); // QVR: -diagnostics: everything in <game folder>/diagnostics/<date>_<time> (vr/vr_diagnostics.cpp)
 	VR_TimeMark ("filesystem (paks, game dirs)"); // QVR
 	Host_InitLocal ();
@@ -1711,6 +1835,7 @@ void Host_Init (void)
 	VR_Init (); // QVR
 	VR_TimeMark ("VR init (cvars, commands)"); // QVR
 
+	Con_Printf ("Quake VR %s\n", VR_BuildInfo ()); // QVR: "1.1.0-dev build 4321 (abc1234) 2026-10-17 14:05"
 	Con_Printf ("Exe: " __TIME__ " " __DATE__ " (%s %d-bit)\n", SDL_GetPlatform (), (int)sizeof(void*)*8);
 	Con_Printf ("%4.1f megabyte heap\n", host_parms->memsize/ (1024*1024.0));
 
@@ -1732,6 +1857,8 @@ void Host_Init (void)
 		VR_TimeMark ("texture manager"); // QVR
 		Draw_Init ();
 		VR_TimeMark ("draw init (conchars, pics)"); // QVR
+		VR_MenuBrandPreload (); // QVR: the menus' images (a 40 ms first menu frame otherwise)
+		VR_TimeMark ("menu images (banner)"); // QVR
 		SCR_Init ();
 		R_Init ();
 		VR_TimeMark ("screen, renderer init"); // QVR
@@ -1807,6 +1934,7 @@ void Host_Shutdown(void)
 	}
 	isdown = true;
 	VR_GLStartupShutdown (host_parms->errstate != 0); // QVR: a quit or an error ends the GL start-up's log well (vr/vr_glsafe.cpp)
+	VR_LogsEnd (); // QVR: the OpenXR messages' summary (vr/vr_runlogs.cpp)
 	VR_DiagnosticsEnd (0); // QVR: diagnostics mode: the summaries, the logs copied, the folder shown (vr/vr_diagnostics.cpp)
 
 // keep Con_Printf from trying to update the screen

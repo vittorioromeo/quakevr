@@ -1,0 +1,19 @@
+# shadow_fight: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title A fight among many flames (Shadow Statistics on)
+map vrtesthall
+god
+cvar vr_shadow_stats 1
+give "Super Shotgun" main
+cmd impulse 9
+spawn "Large Flame" 200 -40
+spawn "Large Flame" 200 200
+spawn "Small Flame" 350 80
+spawn "Large Flame" 450 300
+spawn "White Flame" 120 300
+spawn "Grunt" 520 -60
+spawn "Grunt" 520 20
+spawn "Enforcer" 520 100
+spawn "Grunt" 520 180
+spawn "Enforcer" 520 260
+spawn "Grunt" 520 340
+spawn "Knight" 520 420

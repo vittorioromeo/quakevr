@@ -67,6 +67,7 @@ void() MG3_Slime_BlobTouch =
     if(other.health)
     {
         mg3_slime_hits = mg3_slime_hits + 1;
+        VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         T_RadiusDamage(self, self, 120, world);
         MG3_Slime_Explode();
         return;

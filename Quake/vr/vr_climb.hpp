@@ -33,10 +33,18 @@ bool grunt(edict_t* ent, float choice, float volume);
 // (a weapon's second grip, a hotspot).
 [[nodiscard]] bool holding(int hand);
 
+// Client: where `hand` holds now (the server's hold on the lip, STAT_QVR_CLIMB*, without the drawn hand's offsets) and
+// the way out from its face (horizontal). False: it holds nothing. (vr_avatar.cpp: the feet's holds while climbing.)
+bool heldAt(int hand, glm::vec3& at, glm::vec3& out);
+
 // Server: whether `ent`'s hand `hand` (0 off, 1 main) is empty (no weapon, carried thing, force grab, flashlight) and its
 // grip there is not for a holster or a pouch (one that would draw or take something): free to hold on to something else
 // (an enemy: vr_foegrab.cpp).
 [[nodiscard]] bool handFree(edict_t* ent, int hand, bool holsters = true); // (holsters false: the grip at one counts not)
+
+// Server: the prop (its edict number) `ent`'s hand `hand` (0 off, 1 main) holds a ledge of (vr_climb.cpp, "Holds on
+// props"), 0 none: its hand's bodies don't push it (vr_box3d.cpp).
+[[nodiscard]] int heldProp(edict_t* ent, int hand);
 
 // Server: every player's holds and mantle forgotten (a map loaded, a saved game loaded: their entity numbers and ledge
 // maps are another world's).

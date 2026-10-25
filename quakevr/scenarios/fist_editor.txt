@@ -1,0 +1,7 @@
+title Empty hands and a dummy grunt, Show Melee Blades on (fist blow line editor)
+map vrtesthall
+god
+notarget
+cvar vr_debug_melee_blades 1
+spawn "Grunt" 90 0
+hint Weapon Offsets > Posing Mode > Edit Blade Shape with an empty hand: drag Fist End, Knuckles End and Width; Done prints the lines; punch the grunt to see the edited line.

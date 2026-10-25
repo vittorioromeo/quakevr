@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // cmd.c -- Quake script command processing module
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 void Cmd_ForwardToServer (void);
 
@@ -448,8 +449,9 @@ void Cmd_Exec_f (void)
 	path = Cmd_Argv (1);
 
 	// QVR: -noautoexec: a second copy of the game (the motion review's re-evaluation) runs its own script, not the
-	// player's (which could start anything, a re-evaluation among them)
-	if (!q_strcasecmp (path, "autoexec.cfg") && COM_CheckParm ("-noautoexec"))
+	// player's (which could start anything, a re-evaluation among them). -evalcopy implies -noautoexec, so a copy asked
+	// for with -evalcopy alone skips it too (said once: COM_CheckParmImplied).
+	if (!q_strcasecmp (path, "autoexec.cfg") && COM_CheckParmImplied ("-noautoexec", "-evalcopy", "the evaluation's copy runs its own script, not the player's autoexec.cfg"))
 		return;
 	if (!q_strcasecmp (path, "autoexec.cfg") && Cmd_ForeignStartupConfig ("autoexec.cfg", 0))
 		return;
@@ -1093,6 +1095,8 @@ qboolean Cmd_ExecuteString (const char *text, cmd_source_t src)
 // execute the command line
 	if (!Cmd_Argc())
 		return true;		// no tokens
+	VR_TRACY_SCOPE ("console command"); // QVR: profiling builds: each command (map, exec, a cvar...) a zone, named in its text
+	VR_TracyText (cmd_argv[0]);
 
 // check functions
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)

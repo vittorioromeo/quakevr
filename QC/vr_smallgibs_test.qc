@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_smallgibs_test.qc -- the small gibs' tests (docs/vr-port/ROUND21.md, "Small gibs"): `vr_smallgibs_test <n>` runs
 // test n on the monster or corpse nearest the player (impulse 241 puts one ahead) and prints `sgibtest:` lines
 // (Debug > Gore Tests). N of each: vr_smallgibs_test_n (default 200); a blow's damage: vr_smallgibs_test_dmg (35).
@@ -38,6 +39,15 @@
 //     units apart (a wall 220 wide); each vr_smallgibs_test_n times (keep it small: 10); after 1.5 s, stuck, burst or
 //     neither (removed then). Prints a
 //     table: per gib and hand speed, stuck/thrown (burst) and the mean release speed
+//  23 shoves, weapon bashes, slaps and punches (10 each): the gore each sent; none for the first three (VR_HitBloodless)
+//  24 blood streams by melee kind (ROUND22.md, "Melee opens blood streams"): one blow a frame, in turn a sword's blade,
+//     an axe's blade, the crowbar, a punch and a thrown axe, n of each; then vr_gore_streams_info (its melee line: how
+//     many of each kind's wounds opened one: vr_gore_streams_melee_blade, _melee_blunt, _thrown_blade)
+//  25 the impact rule (vr_carry.qc VR_Gib_Impact): a head held in the off hand smashed into the nearest wall at twice its
+//     burst speed (bursts) and a third (doesn't); a head falling, struck from below by the hand's touch and by a blow at
+//     0.6x (bounces up) and 1.5x (bursts) (VR_SmallGib_TestImpact; 12 is the thrown one)
+//  26 popped underfoot (vr_smallgibs_stomp): three meat and two brain chunks round your feet, you dropped 8 units (lands
+//     at about 110 u/s: they stay), then 64 (about 320: they pop); how many lie under you each time
 // With vr_smallgibs_test_dummy 1 their target is the nearest training dummy instead (vr_dummy_gore: it bleeds as a grunt);
 // 1, 2, 3, 4 and 6 print the gore each sent too (gore hits, wound events, blood particles), to compare with a grunt's.
 
@@ -494,6 +504,146 @@ void() VR_SmallGib_StickFrame =
     vr_sgib_test = 0;
 };
 
+// Test 23: `n` shoves and weapon bashes (VR_Bash_Hit, as a landed one deals them), slaps and punches (a fist's blow,
+// W_FistMelee's way: a punch's blood splash, none for a slap) on `m`: the gore each sent. Shoves, bashes and slaps draw
+// none (ROUND22.md, "Shoves, slaps and bashes draw no blood"); the punches, to compare, do.
+void(entity m, float n) VR_SmallGib_TestBloodless =
+{
+    vector mid = (m.absmin + m.absmax) * 0.5;
+    vector fwd = mid - self.origin;
+    fwd_z = 0;
+    fwd = normalize(fwd);
+    for(float kind = 0; kind < 4; kind++)
+    {
+        string name = kind == 0 ? "shove" : (kind == 1 ? "bash" : (kind == 2 ? "slap" : "punch"));
+        float made = vr_sgib_made;
+        float hurt = 0;
+        VR_SmallGib_TestGoreMark();
+        for(float i = 0; i < n; i++)
+        {
+            m.health = 100000;
+            if(kind < 2)
+            {
+                VR_Bash_Hit(m, mid, fwd, kind == 0 ? QVR_HITKIND_SHOVE : QVR_HITKIND_BASH, -1, 1, 1);
+            }
+            else
+            {
+                VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, fwd);
+                vr_melee_slap = (kind == 2);
+                if(!vr_melee_slap)
+                {
+                    VR_HitBloodSplash(m, mid, 25);
+                }
+                T_Damage_VRMelee(m, self, self, 25);
+                vr_melee_slap = FALSE;
+                VR_ClearHitKind();
+            }
+            hurt = hurt + (100000 - m.health);
+        }
+        bprint(sprintf("sgibtest: bloodless %s: %d on %s, %.0f damage, %d small gibs\n", name, n, m.classname, hurt,
+            vr_sgib_made - made));
+        VR_SmallGib_TestGorePrint(strcat("bloodless ", name));
+    }
+};
+
+// Test 25's head: a player's head gib at `at`, loose, armed, destroyable as a head (1.5).
+entity(vector at) VR_SmallGib_TestHead =
+{
+    entity h = spawn();
+    setmodel(h, "progs/h_player.mdl");
+    setorigin(h, at);
+    h.think = SUB_Remove;
+    h.nextthink = time + 10;
+    VR_MakeGibGrabbable(h);
+    VR_Gib_MakeDestroyable(h, 1.5);
+    h.vr_gib_armtime = time;
+    h.takedamage = DAMAGE_YES;
+    h.movetype = MOVETYPE_TOSS;
+    return h;
+};
+
+// Test 25: the impact rule (vr_carry.qc VR_Gib_Impact), at a head's burst speed (VR_Gib_BurstSpeed). A head held in the
+// off hand smashed into the nearest wall (VR_Carry_Follow: the hand's motion and its own into it) at 2x and 1/3 of it;
+// a head falling (as tossed up) struck from below by the off hand's touch (VR_Gib_Struck) and by a blow (VR_Gib_Blow) at
+// 0.6x (it bounces up, worn) and at 1.5x (it bursts). One "sgibtest: impact:" line each; the hand's velocity is set for
+// the call (the mock's own put back).
+void() VR_SmallGib_TestImpact =
+{
+    float m2u = VRMetersToUnits();
+    entity probe = VR_SmallGib_TestHead(self.origin + '0 0 200');
+    float bs = VR_Gib_BurstSpeed(probe);
+    remove(probe);
+    vector oldVel = self.offhandvel;
+
+    // Held, smashed into the wall.
+    float bestFrac = 2;
+    vector wallDir = '0 0 0';
+    vector eye = self.origin + '0 0 16';
+    for(float yaw = 0; yaw < 360; yaw = yaw + 90)
+    {
+        makevectors('0 1 0' * yaw);
+        traceline(eye, eye + v_forward * 400, TRUE, self);
+        if(trace_fraction < bestFrac && !trace_startsolid)
+        {
+            bestFrac = trace_fraction;
+            wallDir = v_forward;
+        }
+    }
+    if(bestFrac >= 1 || !VRIsHandEmpty(self, cVR_OffHand))
+    {
+        bprint(sprintf("sgibtest: impact: no wall within 400 units, or the off hand is full (%.2f)\n", bestFrac));
+    }
+    else
+    {
+        vector wall = eye + wallDir * (400 * bestFrac);
+        for(float k = 0; k < 2; k++)
+        {
+            float spd = k == 0 ? bs * 2 : bs / 3;
+            entity h = VR_SmallGib_TestHead(wall - wallDir * 20);
+            VR_Carry_Start(self, cVR_OffHand, h);
+            setorigin(h, wall - wallDir * 20);
+            h.velocity = wallDir * (spd * m2u);
+            self.offhandvel = wallDir * spd;
+            float held = h.carry_player == self;
+            VR_Carry_Follow(h, wall + wallDir * 6);
+            self.offhandvel = oldVel;
+            bprint(sprintf("sgibtest: impact: held %d, smashed into the wall at %.2f m/s (burst speed %.2f): %s\n", held,
+                spd, bs, h.vr_gib ? "not burst" : "burst"));
+            if(h.vr_gib)
+            {
+                VR_Gib_KnockOut(self, h);
+                h.nextthink = time + 0.1;
+            }
+        }
+    }
+
+    // Tossed up, struck from below as it falls: the touch (0, 1) and a blow (2, 3), light and hard.
+    makevectors('0 1 0' * self.v_viewangle_y);
+    for(float j = 0; j < 4; j++)
+    {
+        float hit = (j == 0 || j == 2) ? 0.6 : 1.5;
+        float speed = bs * hit;
+        entity t = VR_SmallGib_TestHead(self.origin + v_forward * 40 + v_right * (j * 20 - 30) + '0 0 40');
+        t.velocity = '0 0 -120';
+        vector before = t.velocity;
+        self.offhandvel = '0 0 1' * speed;
+        if(j < 2)
+        {
+            VR_Gib_Struck(self, cVR_OffHand, t);
+        }
+        else
+        {
+            VR_Gib_Blow(cVR_OffHand, t, speed, t.origin, '0 0 1');
+        }
+        self.offhandvel = oldVel;
+        // (sprintf takes 8 arguments: two calls)
+        bprint(sprintf("sgibtest: impact: tossed, %s from below at %.2f m/s (%.1fx): %s, ", j < 2 ? "touched" : "a blow",
+            speed, hit, t.vr_gib ? "not burst" : "burst"));
+        bprint(sprintf("velocity %v to %v (up %+.0f), %.1f health left\n", before, t.velocity, t.velocity_z - before_z,
+            t.vr_gib_hp));
+    }
+};
+
 void(float xCase) VR_SmallGib_TestStart =
 {
     vr_sgib_test = xCase;
@@ -577,7 +727,8 @@ void(float xCase) VR_SmallGib_TestStart =
         bprint(sprintf("sgibtest: a gib made at your feet: %d\n", vr_sgib_test_g != world));
         return;
     }
-    if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14 && xCase != 21 && xCase != 22)
+    if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14 && xCase != 21 && xCase != 22 &&
+       xCase != 25 && xCase != 26)
     {
         bprint("sgibtest: no monster or corpse near\n");
         vr_sgib_test = 0;
@@ -658,6 +809,23 @@ void(float xCase) VR_SmallGib_TestStart =
             self.super_damage_finished = 0;
         }
         remove(spk);
+    }
+    else if(xCase == 23)
+    {
+        VR_SmallGib_TestBloodless(m, min(n, 10));
+    }
+    else if(xCase == 24)
+    {
+        vr_sgib_test_b = 0; // (the blows struck, one a frame: VR_SmallGib_TestFrame)
+        vr_sgib_test_a = n;
+        if(m.vr_corpse == 2)
+        {
+            m.vr_corpse_hp = 100000;
+        }
+        else
+        {
+            m.health = 100000;
+        }
     }
     else if(xCase == 4)
     {
@@ -868,6 +1036,23 @@ void(float xCase) VR_SmallGib_TestStart =
         VR_SmallGib_StickRound(0);
         vr_sgib_test_t = time;
     }
+    else if(xCase == 25)
+    {
+        VR_SmallGib_TestImpact();
+        vr_sgib_test = 0;
+    }
+    else if(xCase == 26)
+    {
+        // Three meat chunks and two brain chunks round your feet (test 26: popped underfoot).
+        vector feet = self.origin + '0 0 1' * self.mins_z + '0 0 4';
+        for(float uf = 0; uf < 5; uf++)
+        {
+            vector ufd = '1 0 0' * cos(uf * 72) + '0 1 0' * sin(uf * 72);
+            VR_SmallGib_SpawnAs(feet + ufd * 6, '0 0 0', world, uf >= 3);
+        }
+        vr_sgib_test_step = 0;
+        vr_sgib_test_t = time;
+    }
     if(xCase == 14)
     {
         float crowd = cvar("vr_smallgibs_test_crowd");
@@ -907,7 +1092,7 @@ void(float xCase) VR_SmallGib_TestStart =
             self = p;
         }
     }
-    if(xCase <= 5)
+    if(xCase <= 5 || xCase == 23)
     {
         vr_sgib_test = 0;
     }
@@ -979,6 +1164,22 @@ void() VR_SmallGib_TraceFrame =
 };
 
 // Every server frame (StartFrame): a test asked for (vr_smallgibs_test), or the next step of one running.
+// Test 26: the small gibs lying under the player's (self's) feet (within 20 units of them, level, at the floor).
+float() VR_SmallGib_TestUnderfoot =
+{
+    vector feet = self.origin + '0 0 1' * self.mins_z;
+    float n = 0;
+    for(entity g = findradius(feet, 40); g; g = g.chain)
+    {
+        vector d = (g.absmin + g.absmax) * 0.5 - feet;
+        if(g.vr_sgib && g.vr_sgib_id && fabs(d_z) < 12 && vlen('1 0 0' * d_x + '0 1 0' * d_y) < 20)
+        {
+            n++;
+        }
+    }
+    return n;
+};
+
 void() VR_SmallGib_TestFrame =
 {
     VR_SmallGib_TraceFrame();
@@ -1000,7 +1201,81 @@ void() VR_SmallGib_TestFrame =
         float t = time - vr_sgib_test_t;
         entity m = vr_sgib_test_m;
         entity g = vr_sgib_test_g;
-        if(vr_sgib_test == 6)
+        if(vr_sgib_test == 26)
+        {
+            // Popped underfoot: a drop of 8 units (lands at about 110 u/s: none), then of 64 (about 320: all).
+            if(vr_sgib_test_step == 0 && t >= 1)
+            {
+                vr_sgib_test_a = VR_SmallGib_TestUnderfoot();
+                setorigin(self, self.origin + '0 0 8');
+                self.flags = self.flags - (self.flags & FL_ONGROUND);
+                vr_sgib_test_step = 1;
+            }
+            else if(vr_sgib_test_step == 1 && t >= 2)
+            {
+                vr_sgib_test_b = VR_SmallGib_TestUnderfoot();
+                setorigin(self, self.origin + '0 0 64');
+                self.flags = self.flags - (self.flags & FL_ONGROUND);
+                vr_sgib_test_step = 2;
+            }
+            else if(vr_sgib_test_step == 2 && t >= 3.5)
+            {
+                bprint(sprintf("sgibtest: underfoot: %d lying under you, after an 8-unit drop %d, after a 64-unit drop %d "
+                    "(Pop Underfoot %g, from %g u/s)\n", vr_sgib_test_a, vr_sgib_test_b, VR_SmallGib_TestUnderfoot(),
+                    cvar_hget(cvarh_vr_smallgibs_stomp), cvar_hget(cvarh_vr_smallgibs_stomp_speed)));
+                vr_sgib_test = 0;
+            }
+        }
+        else if(vr_sgib_test == 24)
+        {
+            // Blood streams by melee kind: a blow a frame, in turn a sword's blade, an axe's blade, the crowbar, a
+            // punch and a thrown axe, vr_smallgibs_test_n of each; then vr_gore_streams_info's melee line has the rates.
+            float k = vr_sgib_test_b - floor(vr_sgib_test_b / 5) * 5;
+            if(m != world && vr_sgib_test_b < vr_sgib_test_a * 5)
+            {
+                float ow = self.weapon;
+                vector hm = (m.absmin + m.absmax) * 0.5;
+                entity inf = self;
+                if(k == 4)
+                {
+                    inf = spawn();
+                    inf.classname = "thrown_weapon";
+                    inf.weapon = WID_AXE;
+                    setorigin(inf, hm + normalize(self.origin - hm) * 16);
+                    inf.velocity = normalize(hm - self.origin) * 600;
+                    VR_SetHitKind(QVR_HITKIND_NONE, -1, hm, normalize(hm - self.origin));
+                }
+                else
+                {
+                    self.weapon = k == 0 ? WID_SWORD : (k == 1 ? WID_AXE : (k == 2 ? WID_CROWBAR : WID_FIST));
+                    VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, hm, normalize(hm - self.origin));
+                }
+                T_Damage(m, inf, self, 20);
+                VR_ClearHitKind();
+                self.weapon = ow;
+                if(inf != self)
+                {
+                    remove(inf);
+                }
+                if(m.vr_corpse == 2)
+                {
+                    m.vr_corpse_hp = max(m.vr_corpse_hp, 1000);
+                }
+                else
+                {
+                    m.health = max(m.health, 1000);
+                }
+                vr_sgib_test_b++;
+            }
+            else
+            {
+                bprint(sprintf("sgibtest: melee streams: %d blows struck (sword, axe, crowbar, punch, thrown axe in turn)\n",
+                    vr_sgib_test_b));
+                localcmd("vr_gore_streams_info\n");
+                vr_sgib_test = 0;
+            }
+        }
+        else if(vr_sgib_test == 6)
         {
             // The chain running through it a second (VR_Saw's cut: a tick's damage each frame).
             if(t < 1)
@@ -1269,3 +1544,4 @@ void() VR_SmallGib_TestFrame =
     }
     self = oself;
 };
+#endif

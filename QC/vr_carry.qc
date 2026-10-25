@@ -151,10 +151,10 @@ float(entity xPlayer, float xHand, entity xBox) VR_Carry_BodyPushes =
     }
     if(VRIsHandWeaponless(xPlayer, xHand))
     {
-        return cvar("vr_box3d_hand_props") && xBox.model != "progs/grenade.mdl" && xBox.model != "progs/mervup.mdl" &&
+        return cvar_hget(cvarh_vr_box3d_hand_props) && xBox.model != "progs/grenade.mdl" && xBox.model != "progs/mervup.mdl" &&
                xBox.model != "progs/proxbomb.mdl";
     }
-    return cvar("vr_box3d_weapon_push") != 0;
+    return cvar_hget(cvarh_vr_box3d_weapon_push) != 0;
 };
 
 // A map's pickup still hanging in the air where it spins (items.qc, VR_PickupObj_Place): not yet knocked loose or taken.
@@ -255,6 +255,8 @@ void(entity xBox) VR_Carry_FloatGraceFrame =
     }
 };
 
+.float vr_gib_hittime; // a hand's or weapon's last hit on a gib (VR_Gib_HandImpact): one tap is one hit (touch and blow)
+
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
 {
     if(time < xBox.carry_nudgetime || xBox.carry_player != world)
@@ -288,10 +290,15 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
         return;
     }
 
-    // A gib or head struck with a swing bursts (VR_Gib_Struck).
+    // A gib or head struck with a swing bursts, or bounces off the hand (VR_Gib_Struck: the impact rule, VR_Gib_Impact).
     if(xBox.vr_gib)
     {
         VR_Gib_Struck(xPlayer, xHand, xBox);
+        if(xBox.vr_gib && xBox.vr_gib_hittime == time)
+        {
+            xBox.carry_nudgetime = time + 0.05;
+            return; // bounced (not pushed as well)
+        }
         if(!xBox.vr_gib)
         {
             if(xBox.vr_sgib && cvar_hget(cvarh_vr_smallgibs_trace))
@@ -329,11 +336,18 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
     // A solid prop (an explosive box) poked by a gun (or a hand without its body: vr_box3d_hand_push 0): pushed where the
     // hand is, so pushed high it tips over, low it slides (Box3D); by the hand's or the gun's mass, so a flick barely moves
     // a heavy box (ROUND21.md, "Pushes by mass").
-    float pushMass = cvar("vr_box3d_hand_mass");
+    float pushMass = cvar_hget(cvarh_vr_box3d_hand_mass);
     if(!VRIsHandWeaponless(xPlayer, xHand))
     {
-        pushMass = max(0, cvar("vr_box3d_weapon_arm_mass")) +
+        pushMass = max(0, cvar_hget(cvarh_vr_box3d_weapon_arm_mass)) +
                    weaponvalue(WeaponIdToModel(VRGetEntWeapon(xPlayer, xHand), VRGetEntWeaponFlags(xPlayer, xHand)), "w_mass");
+    }
+    // Only into it: a hand drawn up off a crate it pressed (or holding a plank on it) lifted it with it (ROUND22.md,
+    // "Pressing on props: the hand gives").
+    if(xBox.vr_rigid == 2 && cvar_hget(cvarh_vr_box3d_press_back) &&
+       ((xBox.absmin + xBox.absmax) * 0.5 - VRGetEntHandPos(xPlayer, xHand)) * v <= 0)
+    {
+        return;
     }
     if(xBox.vr_rigid == 2 && physicspush(xBox, VRGetEntHandPos(xPlayer, xHand), v, pushMass))
     {
@@ -451,6 +465,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     xBox.throwhit = QVR_THROWHIT_HIT;
     xBox.owner = xPlayer;
     xBox.carry_2h = FALSE;
+    xBox.carry_autotried = FALSE; // (vr_carry_autocollect: tried once a carry)
     VR_Carry_SetHeld(xPlayer, xHand, xBox);
 
     entity oldSelf = self;
@@ -567,7 +582,8 @@ float(entity e, float xSpeed) VR_Thrown_Damage =
     float mass = VR_Thrown_Mass(e);
     float curve = weightdamage(mass);
     float bySpeed = throwweight(2, mass, VR_Thrown_Own(e, "w_throwmin"), VR_Thrown_Own(e, "w_throwcurve"), xSpeed, dmgSpeed);
-    return bySpeed * GetThrownWeaponBaseDamage(e) * own * curve * VR_Thrown_HeavyMult(e, mass) *
+    // (An incandescent blade's base is raised as its blows' are: vr_hotblade.qc VR_HotBlade_ThrownExtra.)
+    return bySpeed * (GetThrownWeaponBaseDamage(e) + VR_HotBlade_ThrownExtra(e)) * own * curve * VR_Thrown_HeavyMult(e, mass) *
            cvar_hget(cvarh_vr_weapon_throw_damage_mult) * VR_Thrown_2hMult(e);
 };
 
@@ -577,7 +593,7 @@ float VR_THROW_MISSILE_SPEED = 250; // u/s (times VR_Thrown_Lenient): a thing le
 // Two-handed throws (NOTES.md vrfiringrange_2026-10-02_00-54-03: a gib thrown with both hands burst at once on one hand's
 // follow-through, taken for a punch). A throw with both hands (a prop let go of by both, VR_Carry_Release; a weapon held
 // in both, DropWeaponInHandScaled): neither hand strikes for vr_throw_2h_nomelee, and the hand that let go first does
-// not from its letting go (the other may still throw it with both, within vr_carry_two_hands_window). What was thrown
+// not from its letting go (the other may still throw it with both, within vr_throw_2h_window). What was thrown
 // can't be struck by the thrower's hands for vr_throw_2h_melee_immune (VR_Blow_Strikable).
 
 // A throw's spin `xAVel` (rad/s) limited by the mass of what `xHands` hands throw (throwweight 3: vr_throw_spin_mass_exp;
@@ -607,6 +623,83 @@ void(entity p, entity xThing) VR_Throw_TwoHanded =
         xThing != world ? max(0, cvar_hget(cvarh_vr_throw_2h_melee_immune)) : 0));
 };
 
+// ----------------------------------------------------------------------------
+// One throw (R2 review #13; ROUND22.md, "One throw for props and weapons"): a prop let go of (VR_Carry_Release) and a
+// weapon thrown (weapons.qc DropWeaponInHandScaled) share these, so the two can't drift apart again: when it is
+// two-handed (VR_Throw_2hRecent), where it starts after the release's lag (VR_Throw_BackProject), the throw assist
+// (weapons.qc VRThrowAssist), the share of the thrower's velocity it keeps (VR_Throw_Inherit), its gravity and damage
+// speed (weapons.qc VR_Throw_GravityScale, VR_Throw_DmgSpeed) and spin (VR_Throw_Spin). Their own stay theirs: a
+// weapon's velocity (both hands' average times vr_2h_throw_velocity_mult, its weight), handle and spin's axis; a prop's
+// (the engine's estimate of it from both hands, its Throw from its mass).
+
+// Whether the other hand let go a moment ago (`xBothEnd`: when both last held it; 0 never): within vr_throw_2h_window,
+// a two-handed throw.
+float(float xBothEnd) VR_Throw_2hRecent =
+{
+    return xBothEnd > 0 && time - xBothEnd <= max(0, cvar_hget(cvarh_vr_throw_2h_window));
+};
+
+// The share of the thrower's own velocity what he throws keeps (vr_throw_inherit); a monster's drop, all of it.
+float(entity xThrower) VR_Throw_Inherit =
+{
+    if(!(xThrower.flags & FL_CLIENT))
+    {
+        return 1;
+    }
+    return max(0, cvar_hget(cvarh_vr_throw_inherit));
+};
+
+// It left the hand a moment ago (the release lags the throw, and the move carrying it is later still, by a frame or
+// two: more at a low frame rate): it starts where it would be by now, not where the hand followed through to. (It used
+// to start at the hand when that was over 0.15 s, which a low frame rate reached: those throws came out of the
+// follow-through, lower and behind.) What it would have flown into on the way, it starts at.
+// `xAt`: where the thing is now; `xRefNow`: where the point the hand's estimate follows is now (the hand; a prop held
+// in both, its centre); `xVel` its velocity as thrown (units/s), `xGravity` its fall (units/s^2); `xMins`, `xMaxs` its
+// box (a weapon: '0 0 0', a point). Returns where it starts; vr_throw_vel its velocity by now, vr_throw_age how long
+// ago (at most 0.3 s) it left the hand.
+vector vr_throw_vel;
+float vr_throw_age;
+vector(entity xThrower, float xHand, vector xAt, vector xRefNow, vector xVel, vector xMins, vector xMaxs,
+       float xGravity) VR_Throw_BackProject =
+{
+    vr_throw_vel = xVel;
+    vr_throw_age = min(0.3, VRGetHandThrowAge(xHand));
+    if(VRGetHandThrowPos(xHand) == '0 0 0' || vr_throw_age < 0)
+    {
+        return xAt;
+    }
+    float age = vr_throw_age;
+    vector from = VRGetHandThrowPos(xHand) + (xAt - xRefNow);
+    vector origin = from + xVel * age;
+    origin_z = origin_z - 0.5 * xGravity * age * age;
+    vr_throw_vel_z = xVel_z - xGravity * age;
+
+    traceline(from, origin, MOVE_HITMODEL_THROWN, xThrower);
+    if(trace_fraction < 1 && trace_ent.takedamage && trace_ent != world)
+    {
+        origin = trace_endpos - normalize(origin - from) * 2; // a monster on the way: hit it next
+    }
+    // Never inside a wall (a prop's box: where it can't go, it stays).
+    if(xMins == '0 0 0' && xMaxs == '0 0 0')
+    {
+        traceline(xAt, origin, TRUE, xThrower);
+    }
+    else
+    {
+        tracebox(xAt, xMins, xMaxs, origin, TRUE, xThrower);
+        if(trace_startsolid)
+        {
+            return xAt;
+        }
+    }
+    origin = trace_endpos;
+    if(trace_fraction < 1)
+    {
+        origin = origin - normalize(origin - xAt) * 2;
+    }
+    return origin;
+};
+
 // Whether `xHand` of `p` may strike now: not just after a two-handed throw, nor (the hand that let go first of a thing
 // held in both) while the other may still throw it with both.
 float(entity p, float xHand) VR_Throw_HandMayStrike =
@@ -616,7 +709,7 @@ float(entity p, float xHand) VR_Throw_HandMayStrike =
         return FALSE;
     }
     return !(p.vr_2h_letgo_hand == xHand + 1 && cvar_hget(cvarh_vr_throw_2h_nomelee) > 0 &&
-             time - p.vr_2h_letgo_time <= cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05);
+             VR_Throw_2hRecent(p.vr_2h_letgo_time));
 };
 
 // Whether `e` can't be struck by `p`'s hands: he threw it with both a moment ago.
@@ -910,11 +1003,14 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
     VR_SoundVaried(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
     VR_Blunt_HitLayer(self, CHAN_AUTO, other);
     spawn_touchblood(dmg); // (splinters off a crate: spawn_touchblood)
-    float pop = VR_Decap_ThrownArm(other, self, attacker, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
-    T_Damage(other, self, attacker, dmg);
-    if(pop)
+    float pop = VR_Dismember_ThrownArm(other, self, attacker, dmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
+    vector flight = self.velocity;
+    entity struck = other;
+    VR_Decap_Damage(other, self, attacker, dmg, pop);
+    // VR: thrown hard and heavy, it may unbalance a monster as a shove does (vr_hitstagger.qc).
+    if(struck.health > 0 && attacker != world)
     {
-        VR_Decap_After(other);
+        VR_HitStagger_Throw(struck, attacker, flight, mass, xSpeed, dmg);
     }
     return TRUE;
 };
@@ -927,10 +1023,9 @@ void(entity xBox, vector v) VR_Carry_Throw =
     xBox.vr_throw_2h = 0; // (VR_Carry_Release: 1 thrown with both hands)
     dprint("carry: thrown at "); dprint(vtos(v)); dprint(" ("); dprint(ftos(vlen(v))); dprint(" u/s), spin ");
     dprint(vtos(xBox.vr_spin)); dprint("\n");
-    float m2u = VRMetersToUnits();
     if(cvar_hget(cvarh_vr_throw_gravity) > 0 && cvar_hget(cvarh_sv_gravity) > 0)
     {
-        xBox.gravity = cvar_hget(cvarh_vr_throw_gravity) * m2u / cvar_hget(cvarh_sv_gravity);
+        xBox.gravity = VR_Throw_GravityScale();
     }
 
     // Thrown hard it is a missile: it hurts what bleeds (forcegrabbable_touch; an explosive box: VR_Explobox_Impact), not
@@ -938,7 +1033,7 @@ void(entity xBox, vector v) VR_Carry_Throw =
     if(vlen(v) > VR_THROW_MISSILE_SPEED * VR_Thrown_Lenient(xBox))
     {
         xBox.throwhit = QVR_THROWHIT_NEVER_HIT;
-        xBox.throwdmgspeed = 700 * m2u / 120;
+        xBox.throwdmgspeed = VR_Throw_DmgSpeed();
         xBox.carry_thrown = time;
         if(xBox.takedamage == DAMAGE_NO)
         {
@@ -967,11 +1062,17 @@ void(float xHand, entity xBox) VR_Carry_Release =
     // Thrown with both hands: held in both, or by the other until a moment ago (the hand's estimate is then the prop's
     // own, from both: held::bothHandsThrow).
     float hands = 1;
-    if(xBox.carry_2h || time - xBox.carry_2h_end <= cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+    if(!xBox.carry_2h && xBox.carry_2h_end > 0 && time - xBox.carry_2h_end < 1)
+    {
+        dprint(sprintf("throw: a prop held in both hands until %.3f s ago\n", time - xBox.carry_2h_end));
+    }
+    if(xBox.carry_2h || VR_Throw_2hRecent(xBox.carry_2h_end))
     {
         hands = 2;
     }
 
+    // The point the hand's estimate follows, now (before the hand lets go of it: held in both, its centre).
+    vector refNow = hands == 2 ? (xBox.absmin + xBox.absmax) * 0.5 : VRGetHandPos(xHand);
     VR_Carry_SetHeld(self, xHand, world);
 
     float m2u = VRMetersToUnits();
@@ -980,14 +1081,27 @@ void(float xHand, entity xBox) VR_Carry_Release =
                cvar_hget(cvarh_vr_carry_throw_mult);
     v = v * propvalue(xBox, "throw"); // a heavy thing leaves the hand slower (Held Object Offsets: Throw, from its mass)
 
+    // Where it would be by now (VR_Throw_BackProject; still the carrier's: his traces pass through it), and the throw
+    // assist's bend towards a monster, as a thrown weapon's (DropWeaponInHandScaled).
+    float throwGravity = VR_Throw_Gravity();
+    vector startAt = VR_Throw_BackProject(self, xHand, xBox.origin, refNow, v, xBox.mins, xBox.maxs, throwGravity);
+    if(startAt != xBox.origin)
+    {
+        dprint(sprintf("carry: released %.3f s ago: from %v, %v (%.0f u/s) by now\n", vr_throw_age, startAt,
+            vr_throw_vel, vlen(vr_throw_vel)));
+    }
+    v = vr_throw_vel;
+    setorigin(xBox, startAt);
     VR_Carry_Loose(xBox);
+    v = VRThrowAssist(self, xBox.origin, v, throwGravity);
+
     xBox.vr_spin = VR_Throw_Spin(VRThrowSpinCapped(VRGetHandAVel(xHand)), propvalue(xBox, "mass"), hands);
     VR_Carry_Throw(xBox, v);
     xBox.vr_throw_2h = hands == 2; // (its hits hurt vr_throw_2h_damage times more)
-    // It goes on with the player's own motion, as a thrown weapon does (MakeThrown; NOTES.md
-    // vrfiringrange_2026-10-07_23-51-46: a brick thrown running forward fell short), vr_carry_throw_inherit of it. (Its
-    // throw, a missile or not, is judged on the hand's speed alone: VR_Carry_Throw.)
-    xBox.velocity = xBox.velocity + self.velocity * max(0, cvar_hget(cvarh_vr_carry_throw_inherit));
+    // It goes on with the player's own motion, as a thrown weapon does (NOTES.md vrfiringrange_2026-10-07_23-51-46: a
+    // brick thrown running forward fell short), vr_throw_inherit of it. (Its throw, a missile or not, is judged on the
+    // hand's speed alone: VR_Carry_Throw.)
+    xBox.velocity = xBox.velocity + self.velocity * VR_Throw_Inherit(self);
     if(self.velocity != '0 0 0')
     {
         dprint(sprintf("carry: with your motion (%.0f u/s): %v (%.0f u/s)\n", vlen(self.velocity), xBox.velocity,
@@ -1028,13 +1142,58 @@ void(float xHand, entity e, float hotspot) VR_CollectFx_Send =
         hotspot = xHand == cVR_OffHand ? self.offhand_hotspot : self.mainhand_hotspot;
     }
     if(e != vr_cfx_ent || !vr_cfx_model ||
-       !(isHolsterHotspot(hotspot) || hotspot == QVR_HS_GRENADE_POUCH || hotspot == QVR_HS_AMMO_POUCH))
+       !(isHolsterHotspot(hotspot) || hotspot == QVR_HS_GRENADE_POUCH || hotspot == QVR_HS_AMMO_POUCH ||
+         hotspot == QVR_CFX_INTO_HAND))
     {
         return;
     }
     collectfx(xHand, e, hotspot, vr_cfx_model, vr_cfx_org, vr_cfx_ang);
     vr_cfx_ent = world;
 };
+
+float(entity e) VR_Reload_IsAmmoBox; // (vr_reload.qc)
+
+// Whether `e` is a thing to put away (2026-10-17): an ammo box, a health box, a backpack (`xBackpack`); not armour, a
+// key, a grenade, a gib or a prop. A hand carrying one has larger zones (STAT_QVR_CARRYITEM: vr_holster_zone_item_*).
+float(entity e, float xBackpack) VR_Carry_IsCollectable =
+{
+    if(e == world || e.model == string_null || e.vr_wearable || e.vr_pickup_obj || e.vr_gib)
+    {
+        return FALSE;
+    }
+    if(e.carry_use == BackpackTouch)
+    {
+        return xBackpack;
+    }
+    return VR_Reload_IsAmmoBox(e) || e.classname == "item_health" || e.carry_use == health_touch ||
+           e.carry_use == MGH_horde_health_touch;
+};
+
+// The hands carrying one, alone (held in both is never put away), for the engine (.vr_carry_items: STAT_QVR_CARRYITEM).
+void() VR_Carry_ItemsFrame =
+{
+    entity a = self.offhand_held;
+    entity b = self.mainhand_held;
+    self.vr_carry_items = ((a != b && VR_Carry_IsCollectable(a, TRUE)) ? 1 : 0) +
+                          ((a != b && VR_Carry_IsCollectable(b, TRUE)) ? 2 : 0);
+};
+
+// Full up of what `xBox` gives (a box put away, or taken at once, and still there): a dull knock on a stuffed pack and a
+// haptic tick (vr_carry_full_cue), so it is not taken for a miss of the holster. At most once per 0.4 s.
+void(float xHand, entity xBox) VR_Carry_FullCue =
+{
+    dprint(sprintf("carry: full up (%s, hand %g)\n", xBox.classname, xHand));
+    if(!cvar_hget(cvarh_vr_carry_full_cue) || time < self.vr_carry_fullcue)
+    {
+        return;
+    }
+    self.vr_carry_fullcue = time + 0.4;
+    sound(self, VRGetHandChannel(xHand), "vr/pack_full.wav", 0.9, ATTN_NORM);
+    haptic(xHand, 0.0, 0.06, 40, 0.9);
+};
+
+// Set round VR_Carry_Take: where its put-away transition goes (QVR_HS_*, QVR_CFX_INTO_HAND; 0: the hand's hotspot).
+nosave float vr_carry_take_into;
 
 // Take it: its own pickup, as if the carrying hand had touched it the old way. Taken at a holster or pouch, it is drawn
 // going in (VR_CollectFx_Send).
@@ -1061,8 +1220,41 @@ void(float xHand, entity xBox) VR_Carry_Take =
     {
         VR_Carry_SetHeld(self, xHand, world);
         xBox.carry_player = world; // (a deathmatch item comes back: carried by no one)
-        VR_CollectFx_Send(xHand, xBox, 0);
+        VR_CollectFx_Send(xHand, xBox, vr_carry_take_into);
     }
+};
+
+// Whether `xBox` is carried by hand: always, but a pickup (an item: ammo, health, armour, a key, a backpack, a weapon
+// lying about) with Item Pickup Mode Vanilla (vr_carry 0: walking into it takes it, the engine's body touch). The rest
+// (the ammo pouch's rounds and magazines, crates, gibs, torches) are carried as in the other modes (the author's notes
+// 2026-10-23: "nothing else should be broken").
+float(entity xBox) VR_Carry_On =
+{
+    return cvar_hget(cvarh_vr_carry) || !(xBox.flags & FL_ITEM);
+};
+
+// vr_carry_autocollect (2026-10-17: "auto-collect ammo boxes and health boxes as soon as they're grabbed"): a box just
+// taken in one hand (a grip, a force grab's catch) is taken at once, drawn shrinking into the hand; full up, the full cue
+// and it stays held (to put away later, or throw). Once a carry (.carry_autotried, cleared by VR_Carry_Start). TRUE:
+// taken.
+float(float xHand, entity xBox) VR_Carry_AutoCollect =
+{
+    float mode = cvar_hget(cvarh_vr_carry_autocollect);
+    if(!mode || xBox.carry_autotried || xBox.carry_2h || !VR_Carry_IsCollectable(xBox, mode >= 2))
+    {
+        return FALSE;
+    }
+    xBox.carry_autotried = TRUE;
+    vr_carry_take_into = QVR_CFX_INTO_HAND;
+    VR_Carry_Take(xHand, xBox);
+    vr_carry_take_into = 0;
+    if(xBox.model == string_null)
+    {
+        dprint(sprintf("carry: taken at once (hand %g)\n", xHand));
+        return TRUE;
+    }
+    VR_Carry_FullCue(xHand, xBox);
+    return FALSE;
 };
 
 // Whether `xHand` of `self` is at a holster (a hip, a shoulder, or an upper one), or at the grenade pouch at the small
@@ -1089,7 +1281,7 @@ void(float xHand) VR_Carry_HandFrame =
         return; // (held in both hands: VR_Carry_TwoHandFrame)
     }
 
-    if(box.model == string_null || box.carry_player != self || self.health <= 0 || !cvar_hget(cvarh_vr_carry))
+    if(box.model == string_null || box.carry_player != self || self.health <= 0 || !VR_Carry_On(box))
     {
         dprint("carry: lost\n");
         VR_Carry_SetHeld(self, xHand, world);
@@ -1102,6 +1294,12 @@ void(float xHand) VR_Carry_HandFrame =
 
     VR_Carry_KeepAlive(box);
     portal_carry(box, self, xHand, FALSE); // also before a release in this frame
+
+    // Taken at once as it is gripped (vr_carry_autocollect)?
+    if(VR_Carry_AutoCollect(xHand, box))
+    {
+        return;
+    }
 
     float takeMode = cvar_hget(cvarh_vr_carry_take);
     if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
@@ -1133,7 +1331,7 @@ void(float xHand) VR_Carry_HandFrame =
         // (whatever vr_carry_take says), as a box is.
         if(box.vr_pickup_obj == QVR_PICKUPOBJ_HOLSTER)
         {
-            if(VR_Carry_AtHolster(xHand) && time - box.carry_2h_end > cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+            if(VR_Carry_AtHolster(xHand) && !VR_Throw_2hRecent(box.carry_2h_end))
             {
                 VR_PickupObj_Holster(xHand, box);
                 return;
@@ -1144,10 +1342,10 @@ void(float xHand) VR_Carry_HandFrame =
         }
 
         // Let go at a holster: into the pack (if full up, it drops there). Not let go of by both hands
-        // (together, as a throw: the other hand at most vr_carry_two_hands_window before, and a frame). Never a grenade
+        // (together, as a throw: the other hand at most vr_throw_2h_window before). Never a grenade
         // (nothing to take: it is thrown, as an overarm throw's wind-up passes the shoulder holsters).
         if(takeMode != 1 && VR_Carry_AtHolster(xHand) && !VR_Grenade_Is(box) &&
-           time - box.carry_2h_end > cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+           !VR_Throw_2hRecent(box.carry_2h_end))
         {
             dprint("carry: into the pack\n");
             VR_Carry_Take(xHand, box);
@@ -1155,6 +1353,8 @@ void(float xHand) VR_Carry_HandFrame =
             {
                 return;
             }
+            // Full up: it drops there, with the full cue (not a miss of the holster: 2026-10-17).
+            VR_Carry_FullCue(xHand, box);
             VR_Carry_SetHeld(self, xHand, world);
             VR_Carry_Loose(box);
             box.velocity = '0 0 0';
@@ -1182,6 +1382,7 @@ void(float xHand) VR_Carry_HandFrame =
         {
             return; // taken (VR_Carry_Take let go of it)
         }
+        VR_Carry_FullCue(xHand, box); // (full up: still held)
     }
     box.carry_trigger = trigger;
 
@@ -1266,8 +1467,20 @@ void(entity p, vector xFrom) VR_Carry_Teleported =
     dprint(sprintf("carry: teleported with the player, moved by %v\n", d));
 };
 
+float(entity g, float xIntensity, vector xDir, string xHow) VR_Gib_Impact;
+float(entity box, vector xFrom, vector xTo) VR_Prop_HeldSmash;
+float(entity e) VR_Prop_Kind;
+
 float(entity box, vector target) VR_Carry_Follow =
 {
+    vector wanted = target;
+    target = carrybody(box, self, target);
+    // As at a wall: a hand pulled much farther than the stopped prop lets go. A torso/wall trap releases it too.
+    if(trace_allsolid || vlen(target - wanted) > 32)
+    {
+        dprint("carry: stopped at the body, let go\n");
+        return FALSE;
+    }
     // A solid prop (an explosive box: a big brush model whose origin is a bottom corner, in the floor it stands on) by its
     // middle, kept its smallest half-size off a wall (the others as before: by their origin).
     vector from = box.origin;
@@ -1289,6 +1502,13 @@ float(entity box, vector target) VR_Carry_Follow =
     // monster as a club (its melee hit, vr_melee.qc) stopped at the monster's box while the hand went on, and was dropped
     // once the hand was 32 units past it (the author's note, 2026-09-29 21:20). It passes through them (it is not solid).
     traceline(from, target, TRUE, self);
+    // A gib or head, or a prop that breaks (a crate, a barrel, an explosive box, a crate's piece), smashed into the level,
+    // a monster or a solid thing hard enough bursts or breaks (the impact rule: out of the hand, gone; an explosive box
+    // blows up), or softer is damaged. (After this trace: it reads it.)
+    if(VR_Prop_Kind(box) && VR_Prop_HeldSmash(box, from, target))
+    {
+        return TRUE; // (no longer held: nothing to let go of)
+    }
     vector dest = trace_endpos;
     if(trace_fraction < 1)
     {
@@ -1408,7 +1628,7 @@ void() VR_Carry_TwoHandFrame =
     entity box = self.mainhand_held;
     if(box == world || box != self.offhand_held)
     {
-        if(cvar_hget(cvarh_vr_carry_two_hands) && cvar_hget(cvarh_vr_carry) && self.health > 0)
+        if(cvar_hget(cvarh_vr_carry_two_hands) && self.health > 0)
         {
             VR_Carry_TrySecondHand(cVR_MainHand);
             VR_Carry_TrySecondHand(cVR_OffHand);
@@ -1420,7 +1640,7 @@ void() VR_Carry_TwoHandFrame =
         return; // (a ragdoll's limbs in both hands: each hand its own, VR_Ragdoll_HandFrame)
     }
 
-    if(box.model == string_null || box.carry_player != self || self.health <= 0 || !cvar_hget(cvarh_vr_carry))
+    if(box.model == string_null || box.carry_player != self || self.health <= 0 || !VR_Carry_On(box))
     {
         dprint("carry: lost (both hands)\n");
         VR_Carry_SetHeld(self, cVR_MainHand, world);
@@ -1532,7 +1752,15 @@ void() VR_Carry_TwoHandFrame =
     // box out of the level already (carry2h: stopped at a wall, slid along it), so it goes there as it is (VR_Carry_Follow's
     // trace of its centre, kept its smallest half-size off what it met, put a turned box's corners into walls).
     vector to = carry2h(box, self, FALSE);
-    if(cvar("vr_carry_two_hands_solid") && time >= self.carry_teleported)
+    vector wanted = to;
+    to = carrybody(box, self, to);
+    if(trace_allsolid || vlen(to - wanted) > 32)
+    {
+        VR_Carry_EndTwoHands(box);
+        VR_Carry_Release(cVR_MainHand, box);
+        return;
+    }
+    if(cvar_hget(cvarh_vr_carry_two_hands_solid) && time >= self.carry_teleported)
     {
         if(frametime > 0)
         {
@@ -1600,7 +1828,7 @@ void() VR_Ragdoll_Handtouch =
 // throw hurt it (or gibbed it) and its knock bent the trajectory. Now (VR_Ragdoll_HandSpares, in VR_Melee_Armed) a hand
 // never strikes a ragdoll it holds, nor one it let go of VR_RAGDOLL_LETGO_SPARE ago; the hand that lets go of a ragdoll
 // the other still holds strikes nothing while the other may still throw it with both (vr_2h_letgo_hand,
-// VR_Throw_HandMayStrike), and the other's letting go within vr_carry_two_hands_window is a two-handed throw
+// VR_Throw_HandMayStrike), and the other's letting go within vr_throw_2h_window is a two-handed throw
 // (VR_Throw_TwoHanded: no blows for vr_throw_2h_nomelee, the ragdoll spared for vr_throw_2h_melee_immune). The free hand
 // still punches a ragdoll held in the other.
 float VR_RAGDOLL_LETGO_SPARE = 0.4; // s (as a gib's releasing hand: VR_Gib_Struck)
@@ -1620,7 +1848,7 @@ void(float xHand, entity xBox) VR_Ragdoll_LetGo =
         self.vr_2h_letgo_time = time;
     }
     else if(self.vr_2h_letgo_hand == other + 1 && xBox.vr_rag_letgo == self && xBox.vr_rag_letgo_hand == other + 1 &&
-            time - xBox.vr_rag_letgo_time <= cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+            VR_Throw_2hRecent(xBox.vr_rag_letgo_time))
     {
         twoHanded = TRUE; // the other let go of it a moment ago: thrown with both
     }
@@ -1676,7 +1904,7 @@ float(float xHand, entity xBox) VR_Ragdoll_HandFrame =
 // A hand touching the box (handtouch): press the grip on it to hold it, else nudge it.
 void() VR_Carry_Handtouch =
 {
-    if(!cvar_hget(cvarh_vr_carry) || other.classname != "player" || VRIsTouchingHandFake(other))
+    if(!VR_Carry_On(self) || other.classname != "player" || VRIsTouchingHandFake(other))
     {
         self.carry_use(); // the old way: touching takes it
         return;
@@ -1703,7 +1931,7 @@ void() VR_Carry_Handtouch =
     }
 
     // A solid prop (an explosive box) is pushed by the hand's own body in the physics (vr_box3d_hand_push): no nudge.
-    if(self.vr_rigid == 2 && cvar("vr_box3d_hand_push"))
+    if(self.vr_rigid == 2 && cvar_hget(cvarh_vr_box3d_hand_push))
     {
         return;
     }
@@ -1713,7 +1941,7 @@ void() VR_Carry_Handtouch =
 // A gun poking the box (vr_wpntouch): nudge it.
 void() VR_Carry_Weapontouch =
 {
-    if(!cvar_hget(cvarh_vr_carry) || other.classname != "player")
+    if(!VR_Carry_On(self) || other.classname != "player")
     {
         return;
     }
@@ -1781,7 +2009,7 @@ void() VR_Gib_Touch =
        speed >= cvar_hget(cvarh_vr_gib_splat_speed) && VR_Gib_IsDestroyable(self))
     {
         dprint("gib: struck "); dprint(other.classname); dprint(" at "); dprint(ftos(speed)); dprint("\n");
-        VR_Gib_Burst(self, dir);
+        VR_Gib_Impact(self, speed / max(1, cvar_hget(cvarh_vr_gib_splat_speed)), dir, "thrown into a monster");
     }
 };
 
@@ -1855,25 +2083,14 @@ float(entity e) VR_SmallGib_BlowBursts =
            VR_Gib_IsDestroyable(e) && e.carry_player == world;
 };
 
-float vr_sgib_graceblow; // set round a blow's T_Damage on a small gib in its blow grace (VR_Gib_Hit): it bursts or stays put
+float(entity g, float xSpeed, vector xStriker, float xStill, string xHow) VR_Gib_HandImpact;
 
-// A hand's blow or strike of `xDmg` on a loose gib or head (VR_Gib_Blow, VR_Gib_Struck). A small gib in its blow grace
-// (VR_SmallGib_BlowBursts) takes it before it is armed, and isn't knocked away by it.
-void(entity xGib, entity xPlayer, float xDmg) VR_Gib_Hit =
+// A hand's blow or strike at `xSpeed` (m/s, against it) on a loose gib or head (VR_Gib_Blow, VR_Gib_Struck), the striker
+// moving at `xStriker` (units/s): the impact rule (VR_Gib_HandImpact). A small gib in its blow grace
+// (VR_SmallGib_BlowBursts) takes it before it is armed, and isn't knocked away by it (it bursts or stays put).
+void(entity xGib, entity xPlayer, float xSpeed, vector xStriker, string xHow) VR_Gib_Hit =
 {
-    float grace = VR_SmallGib_BlowBursts(xGib);
-    float armedNow = grace && !xGib.takedamage;
-    if(armedNow)
-    {
-        xGib.takedamage = DAMAGE_YES;
-    }
-    vr_sgib_graceblow = grace;
-    T_Damage(xGib, xPlayer, xPlayer, xDmg);
-    vr_sgib_graceblow = FALSE;
-    if(armedNow && xGib.vr_gib)
-    {
-        xGib.takedamage = DAMAGE_NO; // armed as before (VR_Gib_Think2)
-    }
+    VR_Gib_HandImpact(xGib, xSpeed, xStriker, VR_SmallGib_BlowBursts(xGib), xHow);
 };
 
 // From ThrowGib and ThrowHead, after VR_MakeGibGrabbable: `xHealthMult` of vr_gib_health.
@@ -1936,6 +2153,404 @@ float(entity g) VR_Gib_HardThrow =
     return hard > 0 && g.vr_gib_handspeed >= hard && VR_Gib_IsDestroyable(g);
 };
 
+// ----------------------------------------------------------------------------
+// The impact rule (ROUND22.md, "Gib impacts"; the author, 2026-10-20): one rule for a gib, a head, a small gib or a brain
+// chunk that can be destroyed meeting something hard, however it meets it. Its intensity is the impact's speed over its
+// kind's burst speed (VR_Gib_BurstSpeed: vr_gib_burst_speed m/s, a head's times vr_gib_burst_head, a small gib's times
+// vr_gib_burst_small): from 1 it bursts; from half it is worn by as much of its health (two hits at three quarters burst
+// it); under half nothing. The paths:
+// - a hand's or a weapon's hit on a loose one (VR_Gib_Struck, the touch; VR_Gib_Blow, a melee blow; VR_Gib_HeldFrameHand,
+//   one held in the other hand): the hand's speed against it. Short of bursting it bounces off the hand along the hit,
+//   like a volleyball (vr_gib_bounce): a gib tossed up and tapped flies on, struck hard it bursts.
+// - one held and smashed into the level, a monster or a solid thing (VR_Prop_HeldSmash, from VR_Carry_Follow): its speed
+//   into it, as the hand drove it. Before, a held one never burst.
+// - one thrown at a wall or a monster (VR_Gib_Think2, VR_Gib_Touch): as before, its own thresholds (Gib Splat Speed, Hard
+//   Throw Bursts: a thrown gib's hit is seen in its turned velocity, not a relative speed), an intensity of 1.
+// Shots and blasts are damage (T_Damage, VR_Gib_Damage) as before. Props that break follow the same rule (VR_Prop_Impact,
+// below), gibs by these numbers.
+
+float VR_GIB_HIT_GAP = 0.15; // s: hand hits on one gib this close together count once
+
+float(entity g) VR_Gib_BurstSpeed =
+{
+    float mult = 1;
+    if(g.vr_sgib)
+    {
+        mult = cvar_hget(cvarh_vr_gib_burst_small);
+    }
+    else if(g.vr_gib_healthmult >= 1.5)
+    {
+        mult = cvar_hget(cvarh_vr_gib_burst_head);
+    }
+    return max(0.1, cvar_hget(cvarh_vr_gib_burst_speed) * max(0.01, mult));
+};
+
+// `g` met something at `xIntensity` (VR_Gib_BurstSpeed's); `xDir` the way it pushed it (blood flies along it); `xHow` for
+// the console. TRUE: it burst (held, out of the hand first: VR_Prop_HeldSmash).
+void(entity xPlayer, entity xGib) VR_Gib_KnockOut;
+float(entity g, float xIntensity, vector xDir, string xHow) VR_Gib_Impact =
+{
+    if(!g.vr_gib || !VR_Gib_IsDestroyable(g))
+    {
+        return FALSE;
+    }
+    float full = max(1, cvar_hget(cvarh_vr_gib_health) * g.vr_gib_healthmult);
+    float wear = 0;
+    if(xIntensity >= 1)
+    {
+        wear = max(full, g.vr_gib_hp);
+    }
+    else if(xIntensity >= 0.5)
+    {
+        wear = full * (xIntensity * 2 - 1);
+    }
+    g.vr_gib_hp = g.vr_gib_hp - wear;
+    float burst = wear > 0 && g.vr_gib_hp <= 0;
+    dprint(sprintf("gib: impact (%s) at %.2f of its burst speed: %s\n", xHow, xIntensity,
+        burst ? "burst" : (wear > 0 ? sprintf("worn, %.1f left", g.vr_gib_hp) : "unhurt")));
+    if(burst)
+    {
+        if(g.carry_player != world)
+        {
+            VR_Gib_KnockOut(g.carry_player, g);
+        }
+        VR_Gib_Burst(g, xDir);
+    }
+    return burst;
+};
+
+// ----------------------------------------------------------------------------
+// The impact rule for props (ROUND22.md, "Prop impacts"; the author, 2026-10-20): every prop that breaks follows the
+// gibs' rule, through VR_Prop_Impact: its intensity is the impact's speed over its kind's break speed (VR_Prop_BreakSpeed:
+// a gib's burst speed, VR_Gib_BurstSpeed, its numbers unchanged; a crate's piece vr_prop_break_piece; any other
+// vr_prop_break_speed for a small crate's 75 health, times the square root of its own full health over that (0.5x ..
+// 2.5x: as hard to break as its health, the impact's energy its speed's square) and its material's multiplier,
+// vr_prop_break_wood / _glass / _stone / _metal / _explosive). From 1 it breaks (Killed: a crate into pieces, an explosive
+// box blows up, AD's breakable into rubble); from half it takes (2i - 1) of its full health; under half nothing (a light
+// tap only pushes it: the hand's body). A hand's hit (a blow, one held and smashed) wears it from vr_prop_blow_wear
+// instead, (i - w) / (1 - w) of it (ROUND22.md, "Crates: two strong hits"). The paths:
+// - a hand's or a weapon's melee blow (T_Damage_VRMelee: VR_Prop_BlowDamage): the blow's speed, weaker short of
+//   stamina, times its weapon's heft (the square root of its damage over a punch's: the axe 1.4x), the blow's damage
+//   replaced by the rule's. A crate's piece is also struck by the hand's touch (VR_CratePiece_Struck).
+// - one held and smashed into the level, a monster or a solid thing (VR_Prop_HeldSmash, from VR_Carry_Follow), as a gib.
+// - one thrown or dropped (its Box3D impact, vr_crates.qc): a crate from 70% of Breaks On Impact (vr_crate_impact) as the
+//   intensity, an explosive box at Blow Up On Impact (vr_explobox_impact), a crate's piece thrown at
+//   vr_crate_piece_impact: only the outcome goes through the rule.
+// Shots and blasts are damage (T_Damage) as before. Not props: shootable buttons, doors and triggers, Scourge of Armagon's
+// damage thresholds (a rocket's walls) and Dimension of the Machine's sinking pillars (any hit sinks them).
+
+float VR_PROPK_NONE = 0;
+float VR_PROPK_GIB = 1;       // a gib, a head, a small gib, a brain chunk that can burst (VR_Gib_Impact)
+float VR_PROPK_PIECE = 2;     // a crate's piece
+float VR_PROPK_WOOD = 3;      // a crate, a barrel; AD's wooden breakables
+float VR_PROPK_GLASS = 4;     // AD's glass and pottery (windows, vases)
+float VR_PROPK_STONE = 5;     // AD's rock and brick; Scourge of Armagon's walls with rubble
+float VR_PROPK_METAL = 6;     // AD's metal breakables
+float VR_PROPK_EXPLOSIVE = 7; // an explosive box (id's, MG1's func_explode)
+float VR_PROP_BREAK_HEALTH = 75; // the health vr_prop_break_speed is for (a small crate's)
+
+.float vr_prop_full;     // a prop's full health, taken at its first impact (one without max_health: VR_Prop_Full)
+float vr_prop_held_hit;  // VR_Prop_HeldSmash's damage on the prop it holds (a crate's piece in a hand takes none else)
+
+void() barrel_explode; // (misc.qc)
+
+// What kind of prop `e` is (VR_PROPK_*): one that can break, not broken yet.
+float(entity e) VR_Prop_Kind =
+{
+    if(e.vr_gib)
+    {
+        return VR_Gib_IsDestroyable(e) ? VR_PROPK_GIB : VR_PROPK_NONE;
+    }
+    if(!e.takedamage || e.health <= 0 || (e.flags & (FL_MONSTER | FL_CLIENT)) || e.vr_corpse)
+    {
+        return VR_PROPK_NONE;
+    }
+    if(e.vr_cratekind == 3)
+    {
+        return VR_PROPK_PIECE;
+    }
+    if(e.vr_cratekind == 1 || e.vr_cratekind == 2)
+    {
+        return VR_PROPK_WOOD;
+    }
+    if(e.th_die == barrel_explode || e.classname == "func_explode")
+    {
+        return VR_PROPK_EXPLOSIVE;
+    }
+    if(e.classname == "breakablewallwithrubble")
+    {
+        return VR_PROPK_STONE;
+    }
+    return AD_BreakKind(e);
+};
+
+string(float xKind) VR_Prop_KindName =
+{
+    if(xKind == VR_PROPK_GIB)
+    {
+        return "gib";
+    }
+    if(xKind == VR_PROPK_PIECE)
+    {
+        return "piece";
+    }
+    if(xKind == VR_PROPK_WOOD)
+    {
+        return "wood";
+    }
+    if(xKind == VR_PROPK_GLASS)
+    {
+        return "glass";
+    }
+    if(xKind == VR_PROPK_STONE)
+    {
+        return "stone";
+    }
+    if(xKind == VR_PROPK_METAL)
+    {
+        return "metal";
+    }
+    return xKind == VR_PROPK_EXPLOSIVE ? "explosive" : "none";
+};
+
+// Its full health: its max_health (a crate's), else its health at its first impact (an explosive box's 20, AD's).
+float(entity e) VR_Prop_Full =
+{
+    if(e.max_health > 0)
+    {
+        return e.max_health;
+    }
+    if(e.vr_prop_full <= 0)
+    {
+        e.vr_prop_full = max(1, e.health);
+    }
+    return e.vr_prop_full;
+};
+
+// m/s: the impact that breaks `e` (of `xKind`).
+float(entity e, float xKind) VR_Prop_BreakSpeed =
+{
+    if(xKind == VR_PROPK_GIB)
+    {
+        return VR_Gib_BurstSpeed(e);
+    }
+    if(xKind == VR_PROPK_PIECE)
+    {
+        return max(0.1, cvar_hget(cvarh_vr_prop_break_piece));
+    }
+    float mult = cvar_hget(cvarh_vr_prop_break_wood);
+    if(xKind == VR_PROPK_GLASS)
+    {
+        mult = cvar_hget(cvarh_vr_prop_break_glass);
+    }
+    else if(xKind == VR_PROPK_STONE)
+    {
+        mult = cvar_hget(cvarh_vr_prop_break_stone);
+    }
+    else if(xKind == VR_PROPK_METAL)
+    {
+        mult = cvar_hget(cvarh_vr_prop_break_metal);
+    }
+    else if(xKind == VR_PROPK_EXPLOSIVE)
+    {
+        mult = cvar_hget(cvarh_vr_prop_break_explosive);
+    }
+    float scale = min(2.5, max(0.5, sqrt(VR_Prop_Full(e) / VR_PROP_BREAK_HEALTH)));
+    return max(0.1, cvar_hget(cvarh_vr_prop_break_speed) * max(0.01, mult) * scale);
+};
+
+// The intensity a hand's hit wears a prop of `xKind` from (a blow, one held and smashed: vr_prop_blow_wear; ROUND22.md,
+// "Crates: two strong hits"); a crate's piece's, and every Box3D impact (thrown, dropped), from half, as before.
+float(float xKind) VR_Prop_HandWearFrom =
+{
+    if(xKind == VR_PROPK_PIECE || xKind == VR_PROPK_GIB)
+    {
+        return 0.5;
+    }
+    return min(0.95, max(0.05, cvar_hget(cvarh_vr_prop_blow_wear)));
+};
+
+// The damage the rule deals `e` (not a gib) meeting something at `xIntensity` (its break speed's): at 1 or more all its
+// health; from `xFrom` (half; a hand's hit VR_Prop_HandWearFrom) (i - from) / (1 - from) of its full health, so (2i - 1)
+// from half; under it none. `xHow` for the console.
+float(entity e, float xKind, float xIntensity, float xFrom, string xHow) VR_Prop_WearFrom =
+{
+    float full = VR_Prop_Full(e);
+    float wear = 0;
+    if(xIntensity >= 1)
+    {
+        wear = max(full, e.health);
+    }
+    else if(xIntensity >= xFrom)
+    {
+        wear = full * (xIntensity - xFrom) / (1 - xFrom);
+    }
+    dprint(sprintf("prop: %s (%s) impact (%s) at %.2f of its break speed (%.2f m/s): %s\n", e.classname,
+        VR_Prop_KindName(xKind), xHow, xIntensity, VR_Prop_BreakSpeed(e, xKind), wear <= 0 ? "unhurt" :
+        (wear >= e.health ? "broken" : sprintf("damaged by %.1f, %.1f of %.0f left", wear, e.health - wear, full))));
+    return wear;
+};
+
+// The same from half (its Box3D impacts: thrown, dropped; the test's).
+float(entity e, float xKind, float xIntensity, string xHow) VR_Prop_Wear =
+{
+    return VR_Prop_WearFrom(e, xKind, xIntensity, 0.5, xHow);
+};
+
+// `e` met something at `xIntensity` (VR_Prop_BreakSpeed's), pushed along `xDir`, by `xBy` (its damage's inflictor and
+// attacker; world: the level); `xHow` for the console. A gib by its own rule (VR_Gib_Impact). TRUE: it broke.
+float(entity e, float xIntensity, vector xDir, string xHow, entity xBy) VR_Prop_Impact =
+{
+    float kind = VR_Prop_Kind(e);
+    if(kind == VR_PROPK_GIB)
+    {
+        return VR_Gib_Impact(e, xIntensity, xDir, xHow);
+    }
+    if(kind == VR_PROPK_NONE)
+    {
+        return FALSE;
+    }
+    float wear = VR_Prop_WearFrom(e, kind, xIntensity, vr_prop_held_hit ? VR_Prop_HandWearFrom(kind) : 0.5, xHow);
+    if(wear <= 0)
+    {
+        return FALSE;
+    }
+    T_Damage(e, xBy, xBy, wear);
+    return e.takedamage == DAMAGE_NO || e.health <= 0 || (kind == VR_PROPK_PIECE && e.vr_cratekind != 3);
+};
+
+// A melee blow of `xHand` of self (T_Damage_VRMelee; its damage `xDamage`, VRMeleeDmg's) landing on `targ`: on a prop that
+// breaks (not a gib: VR_Gib_Blow has those), the damage of the impact rule instead (0: a light blow, it only pushes; the
+// same prop struck again within VR_GIB_HIT_GAP, by the other hand's sweep or the touch, once). -1: not such a prop, or not
+// a tracked hand's blow: the blow's damage as it is.
+entity(float xHand) VR_Blow;
+float(float xHand) VR_Blow_Strength;
+float(float xHand) VR_Blow_Counter;
+float(float xHand) VR_Blow_Exhaust;
+float() VRMeleeDmgQuadMult;
+.float mh_speed;
+float(entity targ, float xDamage, float xHand) VR_Prop_BlowDamage =
+{
+    float kind = VR_Prop_Kind(targ);
+    if(kind == VR_PROPK_NONE || kind == VR_PROPK_GIB || !VRHandsTracked(self) || !self.ishuman)
+    {
+        return -1;
+    }
+    if(time < targ.vr_gib_hittime + VR_GIB_HIT_GAP)
+    {
+        return 0;
+    }
+    targ.vr_gib_hittime = time;
+    // Its weapon's heft: its damage over a punch's of the same strength, counter and stamina (the blow's own strength
+    // is its speed's), square-rooted (as the speed's share of the impact's energy): a fist 1, the axe 1.4, a slap 0.7.
+    float punch = cvar_hget(cvarh_vr_dmg_fist) * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * VR_Blow_Exhaust(xHand) *
+                  cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
+    float heft = punch > 0 ? sqrt(min(4, max(0.25, xDamage / punch))) : 1;
+    float speed = VR_Blow(xHand).mh_speed;
+    float intensity = speed * VR_Blow_Exhaust(xHand) * heft / VR_Prop_BreakSpeed(targ, kind);
+    return VR_Prop_WearFrom(targ, kind, intensity, VR_Prop_HandWearFrom(kind), sprintf("the %s hand's blow at %.2f m/s, heft %.2f",
+        xHand == cVR_MainHand ? "main" : "off", speed, heft));
+};
+
+// From VR_Carry_Follow (self the player), after its trace of the level from `xFrom` to `xTo` (where the hand wants it):
+// the held gib, head or prop that breaks `box` driven into the level along it, or into a monster or a solid thing (a
+// second trace), at its speed into it (its last frame's motion, which followed the hand, and the hand's own) meets the
+// impact rule (VR_Prop_Impact): a gib bursts, out of the hand, from its burst speed (vr_gib_burst_speed), a prop breaks
+// from its break speed (a crate, out of the hand; an explosive box blows up); from half that it is worn. Pressed on, it
+// has stopped there (its motion along the surface): one hit. TRUE: it burst or broke. The trace is left as the level's,
+// as it was.
+float(entity box, vector xFrom, vector xTo) VR_Prop_HeldSmash =
+{
+    float kind = VR_Prop_Kind(box);
+    if(kind == VR_PROPK_NONE || box.carry_player != self || box.velocity == '0 0 0')
+    {
+        return FALSE;
+    }
+    vector n = '0 0 0';
+    vector otherVel = '0 0 0';
+    string what = "the level";
+    float retrace = FALSE;
+    vector to = xTo;
+    if(kind != VR_PROPK_GIB && (trace_fraction >= 1 || trace_startsolid) && xTo != xFrom)
+    {
+        // A prop's face meets the wall before its middle does: the line on by its least half-size (a gib's is small).
+        vector half = (box.maxs - box.mins) * 0.5;
+        to = xTo + normalize(xTo - xFrom) * max(1, min(half_x, min(half_y, half_z)));
+        traceline(xFrom, to, TRUE, self);
+        retrace = TRUE;
+    }
+    if(trace_fraction < 1 && !trace_startsolid)
+    {
+        n = trace_plane_normal;
+        otherVel = trace_ent.velocity; // (a door, a lift)
+    }
+    else
+    {
+        traceline(xFrom, to, FALSE, self); // (held, it is not solid: the line passes it)
+        retrace = TRUE;
+        entity e = trace_ent;
+        if(trace_fraction < 1 && !trace_startsolid && e != world && e != box &&
+           (e.solid == SOLID_BBOX || e.solid == SOLID_SLIDEBOX || e.solid == SOLID_BSP))
+        {
+            n = trace_plane_normal;
+            otherVel = e.velocity;
+            what = e.classname;
+        }
+    }
+    float burst = FALSE;
+    if(n != '0 0 0')
+    {
+        // As fast as both it and the hand that drives it go into it: walking into a wall with it held out, the body's
+        // motion is not a smash (the hand's velocity is its own swing).
+        float hand = self.mainhand_held == box ? cVR_MainHand : cVR_OffHand;
+        float into = min(-((box.velocity - otherVel) * n) * (1 / VRMetersToUnits()), -(VRGetEntHandVel(self, hand) * n));
+        float intensity = into / VR_Prop_BreakSpeed(box, kind);
+        if(intensity >= VR_Prop_HandWearFrom(kind))
+        {
+            vr_prop_held_hit = TRUE;
+            burst = VR_Prop_Impact(box, intensity, box.velocity, sprintf("held, smashed into %s at %.2f m/s", what, into), self);
+            vr_prop_held_hit = FALSE;
+        }
+    }
+    if(retrace && !burst)
+    {
+        traceline(xFrom, xTo, TRUE, self);
+    }
+    return burst;
+};
+
+// A hand's or weapon's hit on the loose `g` at `xSpeed` (m/s, against it), the striker moving at `xStriker` (units/s):
+// the impact rule, and short of bursting it bounces off the striker along the hit (vr_gib_bounce; not `xStill`: a small
+// gib in its blow grace stays put). FALSE: no hit (the same tap again, VR_GIB_HIT_GAP).
+float(entity g, float xSpeed, vector xStriker, float xStill, string xHow) VR_Gib_HandImpact =
+{
+    if(time < g.vr_gib_hittime + VR_GIB_HIT_GAP)
+    {
+        return FALSE;
+    }
+    g.vr_gib_hittime = time;
+    vector rel = xStriker - g.velocity;
+    vector dir = normalize(rel);
+    if(VR_Gib_Impact(g, xSpeed / VR_Gib_BurstSpeed(g), dir, xHow) || xStill || !g.vr_gib)
+    {
+        return TRUE;
+    }
+    float into = rel * dir;
+    if(into > 0)
+    {
+        vector v = g.velocity + dir * (into * (1 + max(0, min(1, cvar_hget(cvarh_vr_gib_bounce)))));
+        float cap = 15 * VRMetersToUnits();
+        if(vlen(v) > cap)
+        {
+            v = normalize(v) * cap;
+        }
+        dprint(sprintf("gib: bounced off the hit: %v to %v\n", g.velocity, v));
+        g.velocity = v;
+        g.flags = g.flags - (g.flags & FL_ONGROUND);
+    }
+    return TRUE;
+};
+
 // Arms it, and follows a thrown one's flight (VR_Gib_Released). A thrown gib is a rigid body, whose
 // landing on the world touches nothing: a hard hit is seen in its velocity, turned sharply between
 // two frames: bursting it (one that can be destroyed), or slower sticking it (Thrown Gibs Stick).
@@ -1987,7 +2602,7 @@ void() VR_Gib_Think2 =
         {
             dprint(sprintf("gib: struck the world at %.1f, %.2f s after it was let go of, %.0f units from you, now %v\n",
                 lastSpeed, time - self.vr_gib_releasetime, vlen(self.origin - self.carry_letgo.origin), self.velocity));
-            VR_Gib_Burst(self, self.vr_gib_lastvel);
+            VR_Gib_Impact(self, vlen(change) / max(1, splat), self.vr_gib_lastvel, "thrown into the world");
             return;
         }
         // Slower (or one that can't burst): into a wall or a ceiling it may stick (vr_gore_stick_thrown), or burst there
@@ -2014,7 +2629,8 @@ void() VR_Gib_Think2 =
                 {
                     dprint(sprintf("gib: thrown hard (the hand at %.1f m/s) into the world at %.1f, %.0f into it, %.2f s after "
                         "it was let go of: burst\n", self.vr_gib_handspeed, lastSpeed, into, time - self.vr_gib_releasetime));
-                    VR_Gib_Burst(self, self.vr_gib_lastvel);
+                    VR_Gib_Impact(self, self.vr_gib_handspeed / max(0.1, cvar_hget(cvarh_vr_gib_splat_throw)),
+                        self.vr_gib_lastvel, "thrown hard into the world");
                     return;
                 }
                 vr_gore_stick_thrown = min(1, cvar_hget(cvarh_vr_gore_stick_thrown));
@@ -2101,11 +2717,6 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Gib_Damag
         VR_Gib_Burst(targ, dir);
         return TRUE;
     }
-    if(vr_sgib_graceblow)
-    {
-        return TRUE; // a small gib in its blow grace: never batted away (VR_Gib_Hit)
-    }
-
     // Knocked away (a rigid body lying asleep wakes as it moves).
     targ.velocity = targ.velocity + dir * min(400, damage * 12) + '0 0 1' * min(150, damage * 4);
     targ.flags = targ.flags - (targ.flags & FL_ONGROUND);
@@ -2268,7 +2879,7 @@ float(entity e) VR_Gore_Bleeds =
 // explosion's, 3 a hand's blow). Not for damage from the world (lava, slime, drowning, falls).
 void(entity targ, entity inflictor, float take) VR_Gore_Hit =
 {
-    if(take <= 0 || inflictor == world || !VR_Gore_Bleeds(targ))
+    if(take <= 0 || inflictor == world || !VR_Gore_Bleeds(targ) || VR_HitBloodless())
     {
         return;
     }
@@ -2546,8 +3157,8 @@ void() VR_Gib_StuckThink2 =
     }
 };
 
-// The damage of a hand or gun striking a gib at `xSpeed` (m/s; vr_melee_speed or more): the base of
-// a punch at that speed up to three times it.
+// The damage of a hand or gun striking at `xSpeed` (m/s; vr_melee_speed or more): the base of a punch at that speed up to
+// three times it (a corpse's head or limb: vr_decap.qc, vr_limbs.qc; a gib's is the impact rule's, VR_Gib_Impact).
 float(float xSpeed) VR_Gib_StrikeDamage =
 {
     float threshold = max(0.1, cvar_hget(cvarh_vr_melee_speed));
@@ -2556,7 +3167,8 @@ float(float xSpeed) VR_Gib_StrikeDamage =
 
 // A melee blow of `xHand` of `self` (vr_melee.qc: its fist or what it holds swept into it, a blow's speed `xSpeed`, m/s)
 // landing on a loose gib or head (on the floor, flying): struck as one held in the other hand is (VR_Gib_HeldFrameHand),
-// at the blow's speed, weaker short of stamina (VR_Blow_Exhaust, vr_strike_stamina); it bursts.
+// at the blow's speed, weaker short of stamina (VR_Blow_Exhaust, vr_strike_stamina): the impact rule (VR_Gib_Impact), it
+// bursts or bounces off.
 float(float xHand) VR_Blow_Exhaust;
 void(float xHand, entity xGib, float xSpeed, vector xAt, vector xDir) VR_Gib_Blow =
 {
@@ -2569,7 +3181,14 @@ void(float xHand, entity xGib, float xSpeed, vector xAt, vector xDir) VR_Gib_Blo
     float sgib = xGib.vr_sgib;
     float sgibId = xGib.vr_sgib_id;
     float grace = VR_SmallGib_BlowSpared(xGib);
-    VR_Gib_Hit(xGib, self, VR_Gib_StrikeDamage(xSpeed) * VR_Blow_Exhaust(xHand));
+    // Its speed against the gib (at most the blow's own), weaker short of stamina; the blow's motion bounces it.
+    vector striker = normalize(xDir) * (xSpeed * VRMetersToUnits());
+    if(xDir == '0 0 0')
+    {
+        striker = VRGetEntHandVel(self, xHand) * VRMetersToUnits();
+    }
+    float against = min(xSpeed, vlen(striker - xGib.velocity) * (1 / VRMetersToUnits()));
+    VR_Gib_Hit(xGib, self, against * VR_Blow_Exhaust(xHand), striker, "a blow");
     VR_ClearHitKind();
     if(sgib > 0 && cvar_hget(cvarh_vr_smallgibs_trace))
     {
@@ -2597,7 +3216,7 @@ void(entity xPlayer, float xHand, entity xGib) VR_Gib_Struck =
     dprint(sprintf("gib: struck by the %s hand's touch at %.2f m/s, %.2f s after it was let go of (by the %s hand)\n",
         xHand == cVR_MainHand ? "main" : "off", speed, time - xGib.vr_gib_releasetime,
         xGib.vr_gib_releasehand == cVR_MainHand ? "main" : "off"));
-    VR_Gib_Hit(xGib, xPlayer, VR_Gib_StrikeDamage(speed));
+    VR_Gib_Hit(xGib, xPlayer, speed, handVel * VRMetersToUnits(), "a hand's touch");
 };
 
 // ----------------------------------------------------------------------------
@@ -2755,7 +3374,8 @@ void(float xHand) VR_Gib_HeldFrameHand =
             VR_SoundVaried(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
             VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), g);
             VR_SetHitKind(QVR_HITKIND_MELEE, xHand, (g.absmin + g.absmax) * 0.5, normalize(rel));
-            T_Damage(g, self, self, VR_Gib_StrikeDamage(speed));
+            g.velocity = VRGetHandVel(holder) * m2u; // (moving with the hand that held it: it bounces off the other)
+            VR_Gib_HandImpact(g, speed, VRGetHandVel(xHand) * m2u, FALSE, "a hand's blow, held in the other");
             VR_ClearHitKind();
             return;
         }

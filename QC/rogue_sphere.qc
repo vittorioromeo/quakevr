@@ -7,6 +7,7 @@ void() sphere_impact =
 {
     if(other.health)
     {
+        VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         T_Damage(other, self, self, 1000);
     }
 
@@ -139,7 +140,7 @@ void() item_sphere =
 {
     if(!VR_Pack_RequireSpawn(VR_Has4("progs/sphere.mdl", "sound/sphere/sphere.wav", "", ""), "Rogue")) { return; }
 
-    if(!deathmatch)
+    if(!deathmatch && !vr_spawn_live) // VR: a map's in deathmatch only; the toolgun's anywhere
     {
         remove(self);
         return;

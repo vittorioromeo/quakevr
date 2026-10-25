@@ -79,6 +79,10 @@ void* qvr_doom_malloc(size_t size)
 
 void* qvr_doom_calloc(size_t count, size_t size)
 {
+    if (size && count > (size_t)-1 / size)
+    {
+        return NULL; // count * size would wrap
+    }
     return HeapAlloc(doomHeap(), HEAP_ZERO_MEMORY, count * size ? count * size : 1);
 }
 

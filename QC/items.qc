@@ -252,7 +252,10 @@ void() PlaceItem =
     self.th_die = self.handtouch; // Overriding self.touch and saving it to support items flagged as secret
     self.handtouch = itemTouch;
 
-    SpawnAmmoBoxWeapons(self);
+    if(vr_spawn_live != 2) // (not the toolgun's ghost's probe: box3d::spawnClass)
+    {
+        SpawnAmmoBoxWeapons(self);
+    }
     VRScalePickup();
     VRFloatPickup();
 
@@ -264,7 +267,7 @@ void() PlaceItem =
     // HONEY. VR: hidden once it is what it will be (an ammo or health box an object, MakeItemGrabbable's
     // SOLID_NOT_BUT_TOUCHABLE, sized by its model): hidden before, the box was made an object with no model, and its
     // coming a crash (item_spawn).
-    if(!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
+    if(!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
     {
         item_unspawn();
     }
@@ -320,6 +323,7 @@ Sets the clipping size and plants the object on the floor
 void() StartItem =
 {
     if(MG_MonsterInhibited()) return;
+    if(AD_ItemStartOff()) return; // AD support: an AD map's STARTOFF item waits for its trigger (vr_ad_bridge.qc)
     self.nextthink = time + 0.2;    // items start after other solids
     self.think = PlaceItem;
 };
@@ -449,7 +453,11 @@ void() health_touch =
     self.solid = SOLID_NOT;
 
     // Megahealth = rot down the player's super health
-    if(self.healtype == 2 && !RuneHasElder(other))
+    if(self.healtype == 2 && !RuneHasElder(other) && AD_MegaRot(other))
+    {
+        // AD support: AD's rot in an AD map (one rot however many megahealths, vr_ad_bridge.qc)
+    }
+    else if(self.healtype == 2 && !RuneHasElder(other))
     {
         VR_ItemUtil_EntAddItem(other, IID_SUPERHEALTH);
         self.nextthink = time + 5;
@@ -675,6 +683,7 @@ void() VR_PickupObj_Regen =
 // (VR_PickupObj_Regen, not SUB_regen's trigger where it was taken).
 void(entity xItem) VR_PickupObj_Taken =
 {
+    AD_ItemTaken(xItem); // AD support: AD's item respawn in an AD map (vr_ad_bridge.qc)
     if(xItem.model != string_null)
     {
         return;
@@ -818,7 +827,7 @@ void() VR_PickupObj_WeaponTouch =
 // The hand touch of an object pickup (VR_Carry_Handtouch's, but for these).
 void() VR_PickupObj_Handtouch =
 {
-    if(cvar("vr_campaign") == 4 && self.MG1_rune_locked) return;
+    if(MG1_Campaign() && self.MG1_rune_locked) return;
     if(!VR_PickupObj_Enabled(self))
     {
         self.carry_use(); // touching takes it
@@ -1082,10 +1091,13 @@ void() weapon_touch =
     float ammoId;
     ammoId = WeaponIdToAmmoId(weaponId, 0 /* weaponflags */);
 
-    hadammo = VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId);
+    if(ammoId != AID_NONE) // AD support: the Shadow Axe's pickup (weapon_upgrade_axe) is an axe: no ammo
+    {
+        hadammo = VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId);
 
-    VR_AmmoUtil_SetAmmoCountByAmmoId(other, ammoId,
-        hadammo + WeaponIdToInitialAmmoCount(weaponId));
+        VR_AmmoUtil_SetAmmoCountByAmmoId(other, ammoId,
+            hadammo + WeaponIdToInitialAmmoCount(weaponId));
+    }
 
     VRItemPickupHaptic(other);
 
@@ -1102,7 +1114,7 @@ void() weapon_touch =
     // A fresh pickup is ready to fire: move rounds from the bounded reserve into its own magazine.
     // Pool-only firing modes keep their ammo in the reserve. Existing weapon instances never pass here.
     float clip = 0;
-    if(other.ishuman && VRIsWeaponReloadingEnabled() && WeaponIdToSupportsReload(weaponId))
+    if(other.ishuman && VRIsWeaponReloadingEnabledForWeapon(other, weaponId))
     {
         clip = max(0, min(WeaponIdToBaseClipSize(weaponId), VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId)));
         VR_AmmoUtil_DelAmmoCountByAmmoId(other, ammoId, clip);
@@ -1120,11 +1132,13 @@ void() weapon_touch =
             if(VRIsHandEmpty(other, cVR_MainHand))
             {
                 VRGiveEntWeapon(other, cVR_MainHand, weaponId, 0, clip);
+                AD_UpgradeGiven(stemp, other, cVR_MainHand); // AD support: an upgrade's on the weapon it gives
                 W_SetCurrentAmmoFor(cVR_MainHand);
             }
             else if(VRIsHandEmpty(other, cVR_OffHand))
             {
                 VRGiveEntWeapon(other, cVR_OffHand, weaponId, 0, clip);
+                AD_UpgradeGiven(stemp, other, cVR_OffHand); // AD support
                 W_SetCurrentAmmoFor(cVR_OffHand);
             }
             else
@@ -1150,6 +1164,7 @@ void() weapon_touch =
         }
 
         VRGiveEntWeapon(other, touchinghand, weaponId, 0, clip);
+        AD_UpgradeGiven(stemp, other, touchinghand); // AD support: an upgrade's on the weapon it gives
         W_SetCurrentAmmoFor(touchinghand);
     }
 
@@ -1469,12 +1484,18 @@ void() forcegrabbable_item_think =
 
 // Ammo and health boxes as objects: drawn at vr_forcegrabbable_box_scale (brush models too),
 // centred on the origin, their touch box the drawn box, resting where the box stood.
+.float vr_pickup_scale; // VR: a pickup drawn bigger than its model (AD's health vials: vr_ad_items.qc), times the boxes' scale
+
 void() MakeItemGrabbable =
 {
     float scaleFactor = cvar_hget(cvarh_vr_forcegrabbable_box_scale);
     if(scaleFactor <= 0)
     {
         scaleFactor = 1;
+    }
+    if(self.vr_pickup_scale > 0)
+    {
+        scaleFactor = scaleFactor * self.vr_pickup_scale;
     }
 
     vector lo = modelbounds(self, 0);
@@ -1531,6 +1552,8 @@ void(string xModelNameSmall, string xModelNameBig,
      float xAmmoId, vector xSize)
 impl_item_ammo_pickup =
 {
+    xModelNameSmall = AD_AmmoModel(xAmmoId, FALSE, xModelNameSmall); // AD support: appearance only, VR pickup remains owner
+    xModelNameBig = AD_AmmoModel(xAmmoId, TRUE, xModelNameBig); // AD support
     if(!VR_Pack_AmmoAvailable(xAmmoId) || !fileexists(xModelNameSmall) || !fileexists(xModelNameBig))
     {
         remove(self);
@@ -1557,6 +1580,7 @@ impl_item_ammo_pickup =
     self.classname = VR_AmmoUtil_AmmoIdToItemName(xAmmoId);
 
     setsize(self, '0 0 0', xSize);
+    AD_AmmoBoxFit(xSize); // AD support: an AD ammo model's bounds and frame (vr_ad_bridge.qc)
     if(deathmatch) { self.wait = 30; }
     StartItem();
 
@@ -1681,19 +1705,34 @@ void() key_touch =
 };
 
 
+// A key's look and sound (self): its own "worldtype" if it has one, as Arcane Dimensions' keys read it (1 runic, 2 base:
+// the keycards, 3 medieval), else the map's (0 medieval, 1 runic, 2 base). The toolgun's spawn panel lists each.
+float() VR_KeyStyle =
+{
+    if(self.worldtype == 3)
+    {
+        return 0;
+    }
+    if(self.worldtype == 1 || self.worldtype == 2)
+    {
+        return self.worldtype;
+    }
+    return world.worldtype;
+};
+
 void() key_setsounds =
 {
-    if(world.worldtype == 0)
+    if(VR_KeyStyle() == 0)
     {
         precache_sound("misc/medkey.wav");
         self.noise = "misc/medkey.wav";
     }
-    else if(world.worldtype == 1)
+    else if(VR_KeyStyle() == 1)
     {
         precache_sound("misc/runekey.wav");
         self.noise = "misc/runekey.wav";
     }
-    else if(world.worldtype == 2)
+    else if(VR_KeyStyle() == 2)
     {
         precache_sound2("misc/basekey.wav");
         self.noise = "misc/basekey.wav";
@@ -1713,19 +1752,19 @@ following:
 
 void() item_key1 =
 {
-    if(world.worldtype == 0)
+    if(VR_KeyStyle() == 0)
     {
         precache_model("progs/w_s_key.mdl");
         setmodel(self, "progs/w_s_key.mdl");
         self.netname = "silver key";
     }
-    else if(world.worldtype == 1)
+    else if(VR_KeyStyle() == 1)
     {
         precache_model("progs/m_s_key.mdl");
         setmodel(self, "progs/m_s_key.mdl");
         self.netname = "silver runekey";
     }
-    else if(world.worldtype == 2)
+    else if(VR_KeyStyle() == 2)
     {
         precache_model2("progs/b_s_key.mdl");
         setmodel(self, "progs/b_s_key.mdl");
@@ -1755,19 +1794,19 @@ following:
 
 void() item_key2 =
 {
-    if(world.worldtype == 0)
+    if(VR_KeyStyle() == 0)
     {
         precache_model("progs/w_g_key.mdl");
         setmodel(self, "progs/w_g_key.mdl");
         self.netname = "gold key";
     }
-    else if(world.worldtype == 1)
+    else if(VR_KeyStyle() == 1)
     {
         precache_model("progs/m_g_key.mdl");
         setmodel(self, "progs/m_g_key.mdl");
         self.netname = "gold runekey";
     }
-    else if(world.worldtype == 2)
+    else if(VR_KeyStyle() == 2)
     {
         precache_model2("progs/b_g_key.mdl");
         setmodel(self, "progs/b_g_key.mdl");
@@ -1813,8 +1852,8 @@ End of level sigil, pick up to end episode and return to jrstart.
 
 void() item_sigil =
 {
-    if(cvar("vr_campaign") == 4) { MG1_item_sigil(); return; }
-    if(cvar("vr_campaign") == 5) { MG3_item_sigil(); return; } // vr_mg3_items.qc
+    if(MG1_Campaign()) { MG1_item_sigil(); return; }
+    if(MG3_Campaign()) { MG3_item_sigil(); return; } // vr_mg3_items.qc
     if(!self.spawnflags)
         objerror ("no spawnflags");
 

@@ -3,6 +3,7 @@
 #include "vr_bodyblood.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_goresound.hpp"
 #include "vr_decals.hpp"
 #include "vr_lines.hpp"
 #include "vr_trace.hpp"
@@ -214,6 +215,7 @@ void land(const Drop& d, const glm::vec3& where, const glm::vec3& normal, float 
         return; // a wall: it runs down out of sight
     }
     const float amount = za::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
+    goresound::drip(where, za::clamp(0.6f + 0.4f * d.size, 0.6f, 1.f));
     if(rnd(0.f, 1.f) < za::clamp(vr_body_blood_marks.value, 0.f, 1.f) && (cl.time < lastMark || cl.time - lastMark > 0.08))
     {
         lastMark = cl.time;

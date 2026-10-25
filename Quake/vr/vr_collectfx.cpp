@@ -126,15 +126,27 @@ struct GunNow
 }
 
 // Where the thing goes: the holster's or pouch's point on the body (the hand's hotspot when it let go), as drawn.
-[[nodiscard]] bool targetOf(const hands::State& s, int hotspot, glm::vec3& out)
+[[nodiscard]] bool targetOf(const hands::State& s, int hand, int hotspot, glm::vec3& out)
 {
     if(!s.valid)
     {
         return false;
     }
+    if(hotspot == collectfx::intoHandHotspot) // (vr_carry_autocollect: into the hand that took it)
+    {
+        if(hand < 0 || hand >= HAND_COUNT)
+        {
+            return false;
+        }
+        out = hands::palmPoint(s, hand); // (the palm's centre, as grips and holsters use, not the hand's origin)
+        return true;
+    }
     if(hotspot == body::HS_AMMO_POUCH)
     {
-        out = body::ammoPouchPosition(s);
+        if(!view::ammoPouchCentre(out))
+        {
+            out = body::ammoPouchPosition(s);
+        }
         return true;
     }
     if(hotspot == body::HS_GRENADE_POUCH)
@@ -363,7 +375,7 @@ void frame(const hands::State& s)
 
         // The target as drawn now (none: shrinks where it was); the start kept from it, so it follows the body.
         glm::vec3 target;
-        const bool hasTarget = targetOf(s, it.hotspot, target);
+        const bool hasTarget = targetOf(s, it.hand, it.hotspot, target);
         if(!hasTarget)
         {
             target = it.from;
@@ -385,6 +397,15 @@ void frame(const hands::State& s)
         if(vr_debug_collect_fx.value >= 2)
         {
             Con_Printf("collect fx: t %.2f size %.2f to the target %.1f\n", t, it.shrink, glm::distance(centre, target));
+            if(it.hotspot == body::HS_AMMO_POUCH)
+            {
+                glm::vec3 pouch;
+                if(view::ammoPouchCentre(pouch))
+                {
+                    Con_Printf("collect fx: ammo pouch endpoint error %.4f, %.3f units from reach point\n",
+                        glm::distance(target, pouch), glm::distance(target, body::ammoPouchPosition(s)));
+                }
+            }
         }
         if(cl_numvisedicts < MAX_VISEDICTS)
         {

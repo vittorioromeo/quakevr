@@ -306,8 +306,12 @@ typedef struct savedata_s
 	const char		*lightstyles[MAX_LIGHTSTYLES];
 	int				nummodels;		// QVR: the model precache list (sv.model_precache[1..]), for the load's
 	const char		*models[MAX_MODELS];	// .modelindex values (VR_ReadSaveInfo)
+	int				numsounds;		// QVR: the sound precache list (sv.sound_precache[1..]): the late ones precached
+	const char		*sounds[MAX_SOUNDS];	// again at the load (a monster spawned mid-game: VR_ReadSaveInfo)
 	unsigned int	progscrc;		// QVR: the progs' CRC (qcvm->crc)
 	char			vrcontext[512];	// QVR: what the game is played as (VR_SaveContext: the campaign, the map package, titles)
+	const char		*vrbrushes;		// QVR: the runtime brushes' lines (VR_SaveBrushLines; valid until the next fill)
+	const char		*vrdecals;		// QVR: the permanent decals' lines (VR_SaveDecalLines; valid until the next fill)
 	byte			*buffer;
 	int				buffersize;
 } savedata_t;
@@ -320,11 +324,14 @@ extern THREAD_LOCAL qcvm_t			*qcvm;
 
 void PR_SwitchQCVM(qcvm_t *nvm);
 void PR_PushQCVM(qcvm_t *newvm, qcvm_t **oldvm);
+float PR_ServerGlobalFloat (const char *name); // QVR: the server's QC float global by name (0 if none)
+qboolean PR_SetServerGlobalFloat (const char *name, float value); // QVR: sets it (false: none)
 void PR_PopQCVM(qcvm_t *oldvm);
 
 void PR_Init (void);
 
 void PR_ExecuteProgram (func_t fnum);
+float PR_RandomNumber (void); // QVR: QuakeC's random() (pr_cmds.c), drawn from the server's stream
 void PR_ClearProgs(qcvm_t *vm);
 qboolean PR_LoadProgs (const char *filename, qboolean fatal);
 void PR_EnableExtensions (void);
@@ -341,6 +348,8 @@ int PR_AllocString (int bufferlength, char **ptr);
 void PR_Profile_f (void);
 void PR_ProfileQC_f (void); // QVR: per-function QuakeC time
 extern cvar_t vr_qcprofile;
+void VR_QCExec_Init (void); // QVR: vr_qcexec, the faster QuakeC loop (vr/vr_qcexec.c)
+extern cvar_t vr_qcexec;
 
 edict_t *ED_Alloc (void);
 void ED_Free (edict_t *ed);

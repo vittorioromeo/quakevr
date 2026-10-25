@@ -8,6 +8,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_poselive.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 
@@ -98,12 +99,14 @@ PlayerTime playerTime;
 // How many times faster than the world the player's own movement runs (Sandevistan, vr_timescale_move_realtime).
 [[nodiscard]] double moveSpeedup()
 {
+    // (the Pose Studio's Live paused: the game's clock all but stopped, the player walking up to its subject in real time)
+    const double live = poselive::playerSpeedup();
     const float s = scaleClock.scale;
     if(s == 1.f || svs.maxclients != 1 || !(scaleClock.sandevistan || vr_timescale_move_realtime.value != 0.f))
     {
-        return 1.0;
+        return live;
     }
-    return 1.0 / static_cast<double>(s);
+    return live / static_cast<double>(s);
 }
 
 // vr_slowmo [scale]: toggles slow motion (vr_timescale between 1 and vr_slowmo_scale); with a scale, sets that.
@@ -534,7 +537,7 @@ extern "C" void VR_PhysicsEntityEnd(edict_t* ent, int num, double world)
         return;
     }
     const double time = qcvm->time;
-    const float s = scaleClock.scale;
+    const float s = static_cast<float>(1.0 / moveSpeedup()); // (the world's time over the player's)
     intoWorldTime(ent->v.nextthink, playerTime.before[0], time, s);
     if(num != 1)
     {
@@ -566,7 +569,7 @@ extern "C" void VR_PhysicsEntityEnd(edict_t* ent, int num, double world)
     // The player's clock: ahead by what its frame was longer than the world's (Sandevistan only: the melee's).
     if(scaleClock.sandevistan)
     {
-        playerTime.offset += world * (1.0 / static_cast<double>(s) - 1.0);
+        playerTime.offset += world * (1.0 / static_cast<double>(scaleClock.scale) - 1.0);
     }
 }
 

@@ -119,6 +119,15 @@ void() sword_die =
 {
 // regular death
     self.effects=0;
+    // VR: it is the sword: it falls as a weapon to take up (vr_ad_melee.qc VR_ADMelee_PhantomDrop), its body goes.
+    if(VR_ADMelee_PhantomDrop())
+    {
+        self.solid = SOLID_NOT;
+        setmodel(self, "");
+        self.think = SUB_Remove;
+        self.nextthink = time + 0.1;
+        return;
+    }
     if(random() < 0.5)
         sword_die1();
     else
@@ -162,6 +171,10 @@ void() monster_sword =
     precache_sound("knight/sword1.wav");
     precache_sound("knight/ksight.wav");
     precache_sound("player/axhit2.wav");
+    if(cvar("vr_admelee_drops"))
+    {
+        VR_ADMelee_Ensure(VR_ADMELEE_PHANTOM); // (the sword it falls as: made and precached now)
+    }
 
     // HONEY
     monster_add_to_counter();

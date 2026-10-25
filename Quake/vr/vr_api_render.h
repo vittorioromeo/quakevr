@@ -45,6 +45,21 @@ int VR_DebugGLState (void);							// GL_BindNative, SCR_UpdateScreen: nonzero to
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
 void VR_OverrideProjection (float matrix[16]);			// R_SetFrustum: the eye's asymmetric projection
 void VR_DrawHiddenArea (void);							// R_RenderScene, after R_Clear: the lenses' hidden area at the near plane (vr_visibility_mask)
+// Single-pass stereo (vr_stereo_single.cpp, docs/vr-port/STEREO.md).
+int VR_StereoSinglePhase (void);						// 1 the multiview pass (both eyes), 2 an eye's own view after it, 0 neither
+struct mplane_s;
+void VR_StereoSingleFrustum (struct mplane_s *frustum);	// R_SetFrustum, the multiview pass: frustum[4] made to hold both eyes'
+void VR_StereoSingleEyeOrigin (int eye, float out[3]);	// the multiview pass: an eye's position
+void VR_StereoSingleEyeMatrices (int eye, float proj[16], float view[16]); // ... an eye's projection and view matrices
+unsigned VR_StereoSingleClusterTexture (void);			// R_PushDlights, the multiview pass: the right eye's light clusters (image unit 1)
+unsigned VR_StereoSingleEyeClusters (unsigned usual);	// ... an eye's own view after it: its clusters made there (the right's own image, else `usual`)
+unsigned VR_StereoSingleBeginScene (void);				// R_RenderStereoSingle: the arrays cleared, the hidden areas, the views' block; the multiview framebuffer (bound)
+void VR_StereoSingleEndScene (void);
+void VR_StereoSingleEyeTargets (void);					// R_SetupGL, an eye's own view after the pass: framebufs with its layer's views as its scene target
+int VR_StereoSingleSceneBegun (void);					// R_RenderScene, an eye's own view after the pass: its layer begun there (nonzero: no clear)
+int VR_StereoSingleTakesAlias (const struct entity_s *e);	// drawn in the multiview pass, not per eye
+int VR_StereoSingleTakesBrush (void);					// the opaque world and brush models: drawn in the multiview pass
+int VR_StereoSingleViewReady (void);					// V_RenderView: this eye's V_SetupView already done (before the pass): not again
 void VR_DrawSceneOpaque (void);							// R_RenderScene, after the opaque entities
 void VR_WaterView (int contents, int *waterwarp);			// R_SetupView, after r_waterwarp: the liquids' look this view (the eye in `contents`); may turn the warp off
 void VR_DetailView (void);								// R_SetupView: the detail textures' settings this view (frame data), their array on unit 12 (vr_detail.cpp)
@@ -54,7 +69,14 @@ void VR_RetroUpload (void);								// R_UploadFrameData: retro textures' setting
 void VR_RetroBind (int unit);							// a world or model draw, program in use: the palette's table on that unit (vr_retro.h's QVR_RETRO_LUT_UNIT_*)
 void VR_RetroCall (struct entity_s *e, const struct texture_s *t, float out[4]);	// R_AddBModelCall: a texture's Quake size and the set for it on entity e (0: the instance's)
 void VR_DecalsFrame (float clock[4]);	// R_SetupView: the decals on the world (vr_decals.cpp): their buffers made again if they came or went; the shader's clock (DecalClock)
-void VR_BindDecals (void);	// R_DrawBrushModels_Real: their buffers (3, 4) and atlas (unit 14) for the world's shader
+void VR_DecalCarveFrame (float out[4]);	// R_SetupView: the carved decals' settings (DecalCarve: depth and rim multipliers, steps, fade distance; x 0: off)
+void VR_BindDecals (void);	// R_DrawBrushModels_Real: their buffers (3, 4) and atlas (unit 14) for the world's shader; the permanent decals' table (10) and atlas (unit 18)
+void VR_PermDecalsLayout (void);	// GL_BuildBModelVertexBuffer: the world's faces laid out for the permanent decals' layer (vr_permdecals.cpp)
+void VR_PermDecalsVertex (const struct qmodel_s *m, int surface, const float *pos, float out[4]);	// ... a vertex's coordinates in it (glvert_t.grime; zero: none)
+int VR_PermDecalsOn (void);	// R_DrawBrushModels_Real: the layer read (attribute 6 enabled in the solid pass)
+void VR_PermDecalsFrame (float out[4]);	// R_SetupView: the layer's settings (PermDecals), after VR_DecalsFrame baked what settled
+struct entity_s;
+void VR_BModelMatrix (struct entity_s *ent, float mat[16]);	// r_world.c: a brush entity's matrix as drawn (R_BModelMatrix)
 void VR_RetroInstance (struct entity_s *e, float out[4]);	// R_InitBModelInstance: an entity's set (x; 0 none)
 void VR_RetroSprite (const struct entity_s *e, const struct mspriteframe_s *frame, int showtris, float out[4]); // R_FlushSpriteInstances: the batch's set, its texture's Quake size; bound
 float VR_RetroParticles (void);						// R_DrawParticles_Real: the Particles set for Quake's particles (0 none); bound
@@ -83,6 +105,12 @@ int VR_MenuCanvas (float *scalex, float *scaley);		// Draw_GetCanvasTransform, C
 // Entities (gl_rmain.c, r_alias.c, r_world.c).
 int VR_HideViewModel (void);							// R_IsViewModelVisible: VR draws its own weapons
 int VR_IsViewEntity (const struct entity_s *e);		// gets the view model's minimum light
+// The view entities' parts (gl_rmain.c R_DrawAliasModelsZoned: a GPU zone each in profiling builds): the hands (the
+// gloves are their own and the body's shading, not models of their own), the body (its pauldrons), what the hands hold
+// (the guns and their parts, buttons, muzzle flashes), the holsters and what is in them, what is worn (the gadget, the
+// flashlight, the pouches), the weapons lying about's parts, the body's mirror image, the rest (the grunts' flashes).
+enum { VR_DRAW_HANDS, VR_DRAW_BODY, VR_DRAW_HELD, VR_DRAW_HOLSTERED, VR_DRAW_WORN, VR_DRAW_LYING, VR_DRAW_MIRROR, VR_DRAW_OTHER, VR_DRAW_GROUPS };
+int VR_ViewEntityGroup (const struct entity_s *e);	// -1: not a view entity
 int VR_AliasMirrored (const struct entity_s *e);		// mirrored instances batch and cull separately
 int VR_AliasNearEye (const struct entity_s *e, const float matrix[16], const void *aliashdr); // R_DrawAliasModel: a held item at the eyes: 1 depth clamp, 2 both sides (vr_nearclip_held)
 void VR_AliasPreTransform (const struct entity_s *e, float matrix[16]);	// after R_EntityMatrix
@@ -90,6 +118,13 @@ void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// afte
 void VR_BrushTransform (const struct entity_s *e, float matrix[16]);		// brush entities: the networked scale and offset
 float VR_EntityScale (const struct entity_s *e);	// ENTSCALE_DECODE(e->scale) times a prop's Size (Held Object Offsets): its bounds as drawn
 int VR_AliasZeroBlend (const struct entity_s *e, const void *aliashdr, int totalverts); // instance padding
+// Temporal anti-aliasing (vr_temporal.cpp, docs/vr-port/TEMPORAL.md)
+void VR_TemporalProjection (float proj[16], const float view[16]); // R_SetFrustum: the eye's jitter and motion block
+void VR_TemporalAliasMotion (const struct entity_s *e, int totalverts, int standard, int out[4]); // its vertex slots
+void VR_TemporalBrushPrev (const struct entity_s *e, const float world[12], float prev[12]); // its previous matrix
+void VR_TemporalMotionWrites (int on); // the following draws write the motion target (the eye's scene bound)
+void VR_TemporalReactive (int on); // the following draws mark their pixels reactive (stencil bit 4)
+void VR_TemporalResolve (unsigned fbo, unsigned color, unsigned depth); // R_RenderView: after the scene
 void VR_DebugAliasPose (const struct entity_s *e, const void *aliashdr, int pose1, int pose2, float blend, const float matrix[16]); // vr_debug_pose_check (vr_posecheck.cpp)
 // The alias instance's Quake VR data, after Ironwail's (r_alias.c's aliasinstance_t; the shaders' InstanceData).
 typedef struct vraliasinstance_s
@@ -104,10 +139,51 @@ typedef struct vraliasinstance_s
 	float		retro[4]; // retro textures (vr_retro.cpp): its set (0 none), its skin's Quake size (0: the texture's own)
 	float		portalclip[4]; // plane keeping this room
 	float		retropart[4]; // your body's parts by bone (vr_retro.cpp bodyParts): xy the low bits, zw the high bits of each bone's part
+	int			smooth[4]; // r_lerpmodels 3 (vr_animsmooth.cpp): the first and fourth poses (times the vertex count), 1 + its bones' first row in the swing buffer (0 none), 1 on (2 + its hit reaction's kicked bones' first row: vr_hitreact.cpp)
+	float		smoothw[4]; // ... the four poses' weights
+	float		skintint[4]; // bare forearms' ends tinted to the hand's skin (vr_view.cpp skinTint): rgb times the skin, w how much
+	float		skintintrange[4]; // ... where in the skin: below u x, from v y (none) to z (all), below v w
+	float		skintone[4]; // skin-only tone: rgb multiplier, w enabled
+	float		hotblade[4]; // an incandescent blade's glow on its blade only: a plane in the pose's space, xyz . pose + w from 0 at its root to 1 (vr_hotblade.cpp; zero: all of it)
+	float		glove[4]; // gloves (vr_view.cpp gloveLook): the leather's rgb, w the skin mask's channel (1 fingerless G, 2 full B; 0 none)
+	float		glovecuff[4]; // ... a bare forearm's cuff in the body's skin: below u x, from v y, its hem to v z, below v w (zero: none)
+	float		dent[4]; // flesh dents (vr_dents.cpp): its rows' first in the dent buffer, their count (0 none), xy of its pose's origin in units
+	float		dentscale[4]; // ... its pose to units: xyz the scale, w z of the origin
+	float		gloveshell[4]; // a glove's shell (vr_handrig.cpp gloveShells, vr_glove_thickness): its thickness in the model's units (0: none drawn); [1] its painted leather's relief's strength (vr_glove_relief; 0 none); [2] the wet coat's strength (VR_AliasWetCoat; 0 dry), [3] 1: all of it wet (else where its wound mask is)
+	float		stump[4]; // a ragdoll's stumps (vr_ragdoll.cpp stumpLook; the shaders' StumpFlesh): its cut bones (bits 0..23, as a whole number; 0 none), how far round their joints the cut's flesh reaches (units)
 } vraliasinstance_t;
+void VR_AliasDent (const struct entity_s *e, const void *aliashdr, float dent[4], float scale[4]); // instance: its flesh dents (vr_dents.cpp)
+void VR_DentBind (void); // the flesh dents' rows bound for the alias shaders (SSBO 12), the changed ones written first
+struct gltexture_s *VR_AliasSkinMask (const struct entity_s *e);
+void VR_PrecacheSkinMasks (void);
+// R_FlushAliasInstances' surfaces in their order: a jointed hand's glove shell first (vr_handrig.cpp gloveShells: the
+// one vr_gloves wears, if any; over the hand, it hides its pixels before they are shaded), then the hand; the other
+// models' as they are.
+void *VR_AliasSurfaceFirst (const struct entity_s *e, void *mainhdr); // (aliashdr_t)
+void *VR_AliasSurfaceNext (const struct entity_s *e, void *mainhdr, void *hdr);
+// The gloves' painted leather for a hand (vr_glove_paint; vr_render.cpp): its detail and wear, its relief (grey: none)
+void VR_AliasGlovePaint (const struct entity_s *e, struct gltexture_s *out[2]);
+// r_lerpmodels 3 (vr_animsmooth.cpp): whether `e`, drawn between poses pose1 and pose2 at `blend` (R_SetupAliasFrame's),
+// goes along a spline through four poses: smooth[0], [1] the first and fourth (pose numbers), [2] 1 + where its bones'
+// swings are in the batch's buffer (0: none), weights the four poses'. `zeroblend`: its instance's padding (a steadied
+// gun: not smoothed; nor your weapons). `batchindex` 0 starts a batch (`channel`: 0 the instanced batches, 1 the wound paint).
+int VR_AnimSmooth (const struct entity_s *e, const void *aliashdr, int pose1, int pose2, float blend, int zeroblend, int batchindex, int channel, int smooth[4], float weights[4]);
+// The swing rows kept for the second eye (r_alias.c's R_AliasEyeSlot), channel 0's: the rows so far in the batch being
+// filled; [first, first + count) of them kept (where in the kept ones; -1 not kept: vr_anim_smooth_trace on); kept ones
+// added to the batch (starting it when `newbatch`: where they landed); kept ones equal to the batch's from `first`.
+int VR_AnimSmoothRows (int channel);
+void VR_AnimSmoothKeepClear (void);
+int VR_AnimSmoothKeep (int channel, int first, int count);
+int VR_AnimSmoothReplay (int channel, int kept, int count, int newbatch);
+int VR_AnimSmoothRowsEqual (int channel, int first, int kept, int count);
+int VR_AnimSmoothPinned (const struct entity_s *e, const void *aliashdr, short *pose1, short *pose2, float *blend); // R_SetupAliasFrame: the entity vr_anim_smooth_pin holds between two frames: its lerp
+void VR_AnimSmoothBind (const struct entity_s *e, int channel); // the batch's swings and its model's rest pose bound for the alias shader (SSBOs 8, 9), after its pose buffers
 void VR_AliasInstance (const struct entity_s *e, const float matrix[16], const void *aliashdr, int kind, vraliasinstance_t *out); // R_DrawAliasModel_Real: kind 1 standard, 0 showtris/showskel, 2 depth only (all zero)
+void VR_MdlDequantCompute (const char *model, const void *aliashdr, unsigned *out); // GL_MakeAliasModelDisplayLists: per pose and vertex, its dequantised offset from the stored bytes (vr_mdldequant.cpp)
+int VR_MdlDequantOn (void); // GLMesh_LoadVertexBuffer: vr_mdl_dequant (0: the offsets uploaded as zero, the stored bytes drawn)
 void VR_AliasFlameRefs (const void *aliashdr, unsigned short *refs); // GLMesh_LoadVertexBuffer: per VBO vertex, 0 or 1 + the gun vertex a muzzle flash's vertex rides on
 void VR_AliasMorph (const struct entity_s *e, const void *aliashdr, float ambient[24]); // instance: a weapon's morph into its other model (Ambient[2..5].w)
+void VR_AliasPoseOverride (const struct entity_s *e, const void *aliashdr, short *pose1, short *pose2, float *blend); // end of R_SetupAliasFrame: a view entity drawn as two frames blended (vr_adcrossbow.cpp)
 void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting
 void VR_AliasLightOrigin (const struct entity_s *e, float origin[3]);		// R_SetupAliasLighting: where the light is sampled
 void VR_AliasLightDir (const struct entity_s *e, float dir[4]);	// instance: the direction the model is shaded from (w 0: the fixed one)
@@ -124,7 +200,7 @@ void VR_PortalFrameData (float plane[8][4], float mins[8][4], float maxs[8][4]);
 float VR_TeleportOpacity (void); // starry surface opacity in the current view
 unsigned VR_PortalTexture (void);							// ... the view through it for this eye's teleport faces (0: none)
 void VR_PortalAddPVS (byte *pvs, const float org[3]);		// ... what is round the gates' destinations, sent (SV_WriteEntitiesToClient)
-float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1)
+float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1; its other codes: vr_fgfx.cpp, -2..-3 Quad Damage's blue)
 void VR_EntityGlowColor (float rgb[3]);						// and its colour (the player's hue; SceneTone.yzw in the frame data)
 float VR_EntityFullbrightBoost (const struct entity_s *e);	// how much brighter its dim fullbright texels shine (0 none): the held weapons' sights (vr_weapon_glow)
 void VR_AliasLightCurve (float lightcolor[3]);				// R_SetupAliasLighting, before the minimum light: the lightmap contrast
@@ -138,7 +214,12 @@ void VR_AliasShadowClip (void); // the alias depth program has just been bound
 void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
 int VR_AliasShadowBonePoses (const struct entity_s *e, const float **matrices); // as VR_AliasBonePoses, for the shadow maps: your body with its head (vr_shadow_head)
+int VR_AliasCullPosedOn (const struct entity_s *e, int depth); // r_alias.c: cull e (IK-posed) by its bones' box: 0 no, 1 yes, 2 yes and checked (vr_alias_cull_posed; never your body in the eyes while the bare hands take its light)
+int VR_AliasSolidGhost (const struct entity_s *e); // r_alias.c: e is a Ghost Hands hand: its depth drawn first, then only its nearest surface blended
+int VR_OITLazyClear (void); // gl_rmain.c: the OIT targets cleared at a view's first translucent draw, none and no resolve without one (vr_oit_lazy_clear)
+int VR_AliasDepthPrepass (const struct entity_s *e); // r_alias.c: e drawn into the eye's depth before it is shaded (your body and its mirror image: vr_body_prepass; the world's models: vr_alias_prepass)
 void VR_AliasWound (const struct entity_s *e, float out[4], float side[4]);	// instance: its wound mask (vr_wounds.cpp): layer + 1 (0 none; negative: -(layer + 1) in the fine masks), size in texels, time; side: vraliasinstance_t's woundside
+void VR_AliasWetCoat (const struct entity_s *e, float out[2]);	// instance: its wet coat (vr_wounds.cpp wetCoat, vr_wounds_wet_coat): strength (0 dry), 1 all of it (else where its mask is wet)
 void VR_AliasWoundPaintSide (const struct entity_s *e, int side, float out[4]);	// R_PaintAliasWounds: its woundside, painting side `side` alone (-1: all of it)
 void VR_BrushWound (const struct entity_s *e, float wound[4], float box[4]);	// R_InitBModelInstance: a held prop's blood (vr_wounds.cpp): its box mask's layer + 1 (0 none), size in texels, opacity; its box's centre, 1 / its largest side
 unsigned VR_WoundTexture (void);							// the wound masks' texture array (0: none; vr_wounds.cpp)
@@ -170,9 +251,10 @@ float VR_ViewModelMinLight (void);						// R_SetupAliasLighting: least light on 
 // materials and larger forms, not brightness as height). NORMALMAP_TYPE: the first three. NORMALMAP_FLAT (set on
 // loading): an authored map with NORMALMAP_HEIGHTS whose alpha is all 255, no heights (no parallax on it).
 // NORMALMAP_EXT: an external pack's (vr/vr_extmaps.cpp), its green turned to ours where its heights say it runs the
-// other way (vr_extmaps_green).
+// other way (vr_extmaps_green). NORMALMAP_RELIEF: a weapon made from another model's file (vr_skinrelief.cpp): its map
+// made from its skin as it uploads, in our baked maps' style and at their scale, drawn as an authored one (with FILE).
 enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED, NORMALMAP_HEIGHTS = 4, NORMALMAP_FILE = 8, NORMALMAP_SKIN = 16,
-	NORMALMAP_FLAT = 32, NORMALMAP_EXT = 64 };
+	NORMALMAP_FLAT = 32, NORMALMAP_EXT = 64, NORMALMAP_RELIEF = 128 };
 #define NORMALMAP_TYPE(kind) ((kind) & 3)
 struct gltexture_s;
 void VR_NormalMapMipSize (int worldwidth, int *mipwidth, int *mipheight);	// a made one's size (NORMALMAP_SHADING): mipmapped down to at most this
@@ -180,11 +262,25 @@ int VR_MakeNormalMap (struct gltexture_s *glt, unsigned char *data, int kind, in
 float VR_AlphaCoverage (const unsigned char *data, int count);	// an alpha-tested texture's share of texels that pass the test
 void VR_AlphaCoverageMip (const unsigned char *in, unsigned char *out, int count, float coverage); // a mip level with that coverage kept (vr_alpha_coverage)
 void VR_SetHeightMask (const unsigned char *mask, int width, int height); // a skin's islands for the heights made next (NULL: none)
+const unsigned char *VR_SkinIslands (int *width, int *height); // ... those islands (made now if lazy), or NULL
+// The relief of the weapons made from other models' files (vr_skinrelief.cpp; vr_weapon_relief).
+int VR_SkinReliefWanted (const char *model);				// VR_LoadSkinNormalMaps: nonzero if its skins get one (NORMALMAP_RELIEF)
+void VR_SkinReliefBegin (const void *hdr, const void *stverts, const void *triangles, const void *frames); // ... its units per texel, from its first frame
+void VR_SkinReliefEnd (void);
+unsigned char *VR_SkinRelief (struct gltexture_s *glt, unsigned char *data); // TexMgr_LoadImage32: the map made from the skin's RGBA (hunk; glt's size set)
 void VR_SetHeightMaskLazy (const float *corners, int numtris, int width, int height,
 	unsigned char *(*make) (const float *corners, int numtris, int w, int h)); // the same, made from the triangles only if needed
 void VR_LoadNormalMap (struct gltexture_s *glt, const char *image, const char *shared, unsigned char *data, enum srcformat format,
 	int worldwidth, int flags);								// Mod_LoadTextures, skins: a texture's normal map (authored beside `image` or `shared`, or made from `data`)
 unsigned char *VR_NormalMapSource (unsigned char *data, enum srcformat fmt, int width, int height); // Mod_LoadTextures: an RGBA image kept whole for it
+void VR_PBRStrength (const struct gltexture_s *normalmap, float *normal, float *height); // selected map's verified generated components only; unknown provenance stays authored
+int VR_PBRNormal (struct gltexture_s *base, const char *image, const char *shared, const unsigned char *data,
+    enum srcformat fmt, int worldwidth, int flags); // content-addressed world companions; authored components first
+unsigned char *VR_PBRImage (const char *name, int *width, int *height, enum srcformat *fmt); // reloadable component composition
+void VR_PBRForget (struct gltexture_s *base);
+int VR_PBRGeneratedFlags (const char *source); // TexMgr_LoadNormalMap: a new normal map's verified generated components (1 normal, 2 height)
+int VR_PBREnabled (void); // vr_pbr: content companions, and an embedded world texture's authored _norm/_bump lookup
+void VR_PBRExternal (struct gltexture_s *base, const char *normal, char *path, size_t size);
 
 // External material maps for the world's textures (vr_extmaps.cpp, vr_extmaps: a pack's <name>_norm, _spec, _luma/_glow
 // and .mat, read from vr_extmaps_dir through "vrext/<file>" paths).
@@ -216,6 +312,14 @@ void VR_LoadSkinNormalMaps (struct qmodel_s *mod, void *hdr, const stvert_t *ver
 void VR_MD5SkinNormalMap (void *surf, struct gltexture_s *glt, const char *shader, int skin, int frame, unsigned char *data,
 	enum srcformat fmt, int w, int h);						// Mod_LoadMD5Skins: an MD5 skin's normal map
 void VR_MD5SkinsReset (void);							// Mod_LoadMD5Skins, before and after a surface's skins
+int VR_MD5SharedSkins (const char *shader);				// Mod_LoadMD5Skins: the skins one copy for every model using them (the body's)
+// The body's head made of the Quake ranger's (vr_rangerhead.cpp; see vr_rangerhead.hpp). Mod_LoadMD5MeshModel: a mesh
+// read, its influences baked (`bones` its boneinfo_t, `verts` its iqmvert_t): new hunk arrays, 1 if it changed them
+// (`mod` the qmodel_t, kept to place the head again live: vr_body_head_*).
+// Image_LoadImage: an image decoded (`format` its enum srcformat): the body's skins painted where that head is drawn.
+int VR_RangerHeadMesh (void *mod, const char *model, const char *shader, const void *bones, int numbones, void **verts,
+	int *numverts, unsigned short **indexes, int *numindexes);
+void VR_RangerHeadImage (const char *name, unsigned char *data, int width, int height, int format);
 
 
 // Dynamic ambient occlusion (vr_ao.cpp; see vr_ao.hpp).
@@ -251,6 +355,37 @@ void VR_PostProcessTone (void);					// GL_PostProcess, the non-palettized progra
 
 // Split alias models at an active teleporter, using the same animation pose in both rooms.
 int VR_PortalAlias(const struct entity_s* e, const float boundsMatrix[16], const float matrix[16], float mapped[16], float sourceClip[4], float destinationClip[4]);
+
+// Runtime brushes (vr_brushes.cpp; docs/vr-port/BRUSH_TOOL.md): brushes made in the game, drawn by Ironwail's own brush
+// path from a reserve at the end of its brush buffers (r_brush.c: vertices, indices and draw commands, a slot a brush)
+// and a rectangle of the lightmap a slot (its faces' lightmaps, laid out and baked by vr_brushlight.cpp). Made at each
+// map's load (R_NewMap), as many slots as VR_RuntimeBrushSlots says; a model's surfaces' vbo_firstvert, firstcmd and
+// texofs index into its slot.
+#define QVR_BRUSH_SLOT_VERTS	96	// a slot's vertices (the faces' corners: 16 faces have at most 84)
+#define QVR_BRUSH_SLOT_INDEXES	192	// ... indices (their fans' triangles)
+#define QVR_BRUSH_SLOT_CMDS		8	// ... draw commands (one a texture)
+#define QVR_BRUSH_SLOT_LMW		64	// ... lightmap rectangle's width (texels)
+#define QVR_BRUSH_SLOT_LMH		32	// ... and height
+#define QVR_BRUSH_MAX_SLOTS		1024 // the most a map's load reserves (vr_brush_max)
+typedef struct qvr_brush_reserve_s
+{
+	int		slots;		// 0: none (no map, or vr_brush_max 0)
+	int		firstvert;	// gl_bmodel_vbo's vertex of slot 0
+	int		firstindex;	// gl_bmodel_ibo's index of slot 0
+	int		firstcmd;	// gl_bmodel_indirect_buffer's command of slot 0
+	const int	*lmxy;	// lightmap_texture's texel of each slot's rectangle (x, y: 2 a slot)
+	int		lmwidth, lmheight; // the lightmap texture's size (for texel coordinates)
+} qvr_brush_reserve_t;
+int VR_RuntimeBrushSlots (void);	// GL_BuildLightmaps: how many slots to reserve (vr_brush_max)
+void VR_RuntimeBrushesUpload (void);	// R_NewMap, after the brush buffers: the brushes there are into their slots again
+int VR_IsRuntimeBrushModel (const struct qmodel_s *mod); // the load-time brush buffers leave it out (its slot has it)
+const qvr_brush_reserve_t *R_RuntimeBrushReserve (void);
+int R_RuntimeBrushSlotsFor (int wanted);	// the slots a map's load makes when VR_RuntimeBrushSlots says so many
+// Slot `slot`'s vertices, indices and draw commands written (counts up to the slot's; the rest of its commands emptied),
+// and its lightmap rectangle's texels (LMW x LMH, rows of LMW; `lux`: the light's directions, may be NULL).
+void R_RuntimeBrushUpload (int slot, const void *verts, int numverts, const unsigned *indexes, int numindexes,
+	const void *cmds, int numcmds);
+void R_RuntimeBrushLightmap (int slot, const unsigned *texels, const unsigned *lux);
 
 #ifdef __cplusplus
 }

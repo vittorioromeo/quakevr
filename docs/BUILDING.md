@@ -49,7 +49,7 @@ takes MSVC's flags):
 |---|---|
 | `/O2 /Ot /Oi /GF` | Full speed optimisation, intrinsics, pooled strings |
 | `/Ob3` | More inlining than `/O2`'s `/Ob2` |
-| `-flto=thin` + `/lldltocache` | ThinLTO: link-time (whole-program) optimisation across all files, in parallel; its cache (`Windows/VisualStudio/Build-ironwail/x64/Release/lto.cache`, at most 1 GB) makes the link after editing one file re-optimise only what changed (a one-file Release build takes 2-5 s) |
+| `-flto=thin` + `/lldltocache` | ThinLTO: link-time (whole-program) optimisation across all files, in parallel; its cache (`Windows/VisualStudio/Build-ironwail/x64/Release/lto.cache`, at most 1 GB) makes the link re-optimise only the objects that changed and those that inline from them. A file saved unchanged relinks in 2-5 s, but a real edit of one file still takes about 30 s (2026-10-25: `vr_held.cpp` 27-31 s, `vr_menu.cpp` 30-45 s), so the agents' quick builds leave it out: `msbuild -p:QvrNoLto=1` (the kit's `build.sh`; `vr_held.cpp` 3-4 s, `vr_menu.cpp` 21-32 s), everything else the same, tagged "no-LTO" in the version and build info. The release script refuses such a build (`Misc/release/make_release.ps1`: `QVR_BUILD_LTO` in the build header, the exe's build info) |
 | `/Gy /Gw` + `/OPT:REF /OPT:ICF` | Every function and global in its own section, so the linker drops the unused ones and merges identical ones |
 | `/GS-`, `/sdl-`, no `/guard:cf` | No stack cookies or control-flow checks: a game, not a security boundary |
 | `/fp:precise` | Kept everywhere. The engine's physics, NaN checks and demos rely on it, and `/fp:fast` in the VR module alone measured no gain |

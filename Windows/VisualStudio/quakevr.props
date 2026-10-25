@@ -2,9 +2,43 @@
 <!-- Quake VR module build settings, imported by ironwail.vcxproj (after its own, so these override them; the toolset:
      quakevr.toolset.props).
      The whole engine is built by clang-cl (the ClangCL toolset: Visual Studio's "C++ Clang tools for Windows"; linked by
-     lld-link): the C files as C11 (as upstream's), the Quake VR C++ files as C++23, so any of them can include Zancle
+     lld-link): the C files as C17, the Quake VR C++ files as C++23, so any of them can include Zancle
      (Quake/vr/external/zancle/README.md). -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Release-Tracy opts in automatically; the legacy QvrTracy property still works for other configurations. -->
+  <PropertyGroup>
+    <!-- Release-TracyFull: build_tracy.ps1 -CallstackDepth 8 -SystemTracing (zone call stacks, sampling, context switches). -->
+    <QvrTracyCallstackDepth Condition="'$(Configuration)'=='Release-TracyFull' and '$(QvrTracyCallstackDepth)'==''">8</QvrTracyCallstackDepth>
+    <QvrTracySystemTracing Condition="'$(Configuration)'=='Release-TracyFull' and '$(QvrTracySystemTracing)'==''">true</QvrTracySystemTracing>
+    <QvrTracyCallstackDepth Condition="'$(QvrTracyCallstackDepth)'==''">0</QvrTracyCallstackDepth>
+    <QvrTracySystemTracing Condition="'$(QvrTracySystemTracing)'==''">false</QvrTracySystemTracing>
+    <QvrTracy Condition="('$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull') and '$(QvrTracy)'==''">true</QvrTracy>
+    <QvrTracy Condition="'$(QvrTracy)'==''">false</QvrTracy>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(QvrTracy)'=='true'">
+    <QvrTracyTraceDefines Condition="'$(QvrTracySystemTracing)'!='true'">TRACY_NO_SYSTEM_TRACING;TRACY_NO_CONTEXT_SWITCH;TRACY_NO_SAMPLING</QvrTracyTraceDefines>
+    <QvrTracyStackDefines Condition="'$(QvrTracyCallstackDepth)'!='0'">TRACY_CALLSTACK=$(QvrTracyCallstackDepth)</QvrTracyStackDefines>
+    <QvrTracyOutputConfiguration>$(Configuration)-Tracy</QvrTracyOutputConfiguration>
+    <QvrTracyOutputConfiguration Condition="'$(Configuration)'=='Release-Tracy' or '$(Configuration)'=='Release-TracyFull'">$(Configuration)</QvrTracyOutputConfiguration>
+    <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(QvrTracyOutputConfiguration)\</IntDir>
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\bin\$(PlatformShortName)\$(QvrTracyOutputConfiguration)\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(QvrTracy)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>QVR_TRACY;TRACY_ENABLE;TRACY_ON_DEMAND;TRACY_ONLY_LOCALHOST;TRACY_NO_CRASH_HANDLER;$(QvrTracyTraceDefines);$(QvrTracyStackDefines);BOX3D_PROFILE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\Quake\vr\external\tracy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link><AdditionalDependencies>dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+  </ItemDefinitionGroup>
+  <ItemGroup Condition="'$(QvrTracy)'=='true'">
+    <ClCompile Include="..\..\Quake\vr\external\tracy\TracyClient.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <!-- Upstream source has warnings under clang's strict engine warning set. -->
+      <AdditionalOptions>/clang:-std=c++17 /clang:-w %(AdditionalOptions)</AdditionalOptions>
+      <ObjectFileName>$(IntDir)tracy\</ObjectFileName>
+    </ClCompile>
+  </ItemGroup>
   <PropertyGroup>
     <!-- lld-link has no incremental linking (/INCREMENTAL is ignored with a warning). -->
     <LinkIncremental>false</LinkIncremental>
@@ -45,8 +79,28 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <!-- Release: ThinLTO (the ClangCL toolset ignores WholeProgramOptimization and the MSVC linker's LTCG), its cache in
-       the intermediate folder so that a rebuild of one file re-optimises only what changed. -->
-  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+       the intermediate folder so that a rebuild of one file re-optimises only what changed.
+       QvrNoLto=1 (msbuild -p:QvrNoLto=1: only the agents' quick builds, the kit's build.sh) leaves ThinLTO out, here and
+       in zancle.vcxproj and mimalloc.vcxproj, everything else the same: a one-file rebuild then relinks in seconds. Such a build says
+       "no-LTO" in its version and build info (QvrBuildVersion below), and the release script refuses it
+       (Misc/release/make_release.ps1). Switching between the two recompiles everything (the same folders). -->
+  <PropertyGroup>
+    <QvrLto>true</QvrLto>
+    <QvrLto Condition="'$(QvrNoLto)'=='1' or '$(QvrNoLto)'=='true'">false</QvrLto>
+  </PropertyGroup>
+  <!-- The VR module's precompiled header (Quake/vr/vr_pch.hpp): created by vr_pch.cpp, forced into every other Quake/vr
+       .cpp (/Yu with /FI): the libraries and engine headers nearly every file includes, parsed once. QvrNoPch=1 (msbuild
+       -p:QvrNoPch=1) builds without it, in folders of its own (nopch\ under the usual ones): there a file that uses a
+       header it doesn't include fails (Misc/quakevr/check_nopch.sh). -->
+  <PropertyGroup>
+    <QvrPch>true</QvrPch>
+    <QvrPch Condition="'$(QvrNoPch)'=='1' or '$(QvrNoPch)'=='true'">false</QvrPch>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(QvrPch)'!='true'">
+    <IntDir>$(IntDir)nopch\</IntDir>
+    <OutDir>$(OutDir)nopch\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy')">
     <ClCompile>
       <!-- Optimised for speed, inlining across functions more (/Ob3), without the security checks. -->
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -54,7 +108,12 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <SDLCheck>false</SDLCheck>
       <FloatingPointModel>Precise</FloatingPointModel>
-      <AdditionalOptions>-flto=thin /Ob3 /Gw %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Ob3 /Gw %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy') and '$(QvrLto)'=='true'">
+    <ClCompile>
+      <AdditionalOptions>-flto=thin %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
@@ -67,26 +126,57 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <!-- C++23: /clang:-std=c++23, as clang-cl's /std:c++latest is C++26 (the standard library sees C++23 either way:
            clang-cl sets _MSVC_LANG to 202004L, which the STL counts as C++23; Zancle's Config.hpp reads __cplusplus). -->
       <AdditionalOptions>/clang:-std=c++23 %(AdditionalOptions)</AdditionalOptions>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(QvrPch)'=='true'">Use</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(QvrPch)'!='true'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(QvrPch)'=='true'">vr_pch.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(QvrPch)'=='true'">$(IntDir)vr_pch.pch</PrecompiledHeaderOutputFile>
+      <ForcedIncludeFiles Condition="'$(QvrPch)'=='true'">vr_pch.hpp</ForcedIncludeFiles>
       <!-- No exceptions (docs/vr-port/CODE_STYLE.md): the module and Zancle (zancle.vcxproj) are built without them. -->
       <ExceptionHandling>false</ExceptionHandling>
     </ClCompile>
+    <!-- The menu (vr_menu.cpp and its page groups, vr_menu_pages_*.cpp): only what is marked inline is inlined (/Ob1,
+         after the Release /Ob3). Its thousands of page builders and helpers were the inliner's work and the build's
+         long pole; it is UI code, built once a page is shown (docs/vr-port/ROUND22.md, "Build speed, round 2"). -->
+    <ClCompile Update="..\..\Quake\vr\vr_pch.cpp">
+      <PrecompiledHeader Condition="'$(QvrPch)'=='true'">Create</PrecompiledHeader>
+    </ClCompile>
+    <!-- Without the precompiled header (built with /Ob3: clang refuses a PCH whose inlining differs, as clang 23 on
+         Linux already does; vr.cmake the same). -->
+    <ClCompile Update="..\..\Quake\vr\vr_menu.cpp">
+      <AdditionalOptions>%(AdditionalOptions) /Ob1</AdditionalOptions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles></ForcedIncludeFiles>
+    </ClCompile>
+    <ClCompile Update="..\..\Quake\vr\vr_menu_pages_*.cpp">
+      <AdditionalOptions>%(AdditionalOptions) /Ob1</AdditionalOptions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles></ForcedIncludeFiles>
+    </ClCompile>
     <ClInclude Include="..\..\Quake\vr\*.h;..\..\Quake\vr\*.hpp" />
     <!-- The precompiled header's own compile (/Yc) misses LanguageStandard_C (the ClangCL toolset leaves it out of that
-         step), and a header made as C17 (clang-cl's default) is refused by the C11 files that use it. -->
-    <ClCompile Update="..\..\Quake\quakedef.c">
-      <AdditionalOptions>/std:c11 %(AdditionalOptions)</AdditionalOptions>
+         step), and the header and the files that use it must agree; VS2026 also drops it for the files themselves. -->
+    <ClCompile Update="..\..\Quake\*.c">
+      <AdditionalOptions>/std:c17 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-    <!-- Box3D (Quake/vr/external/box3d/README.md): the physics library, C17, single-threaded. No FMA contraction (its
-         cross-platform determinism relies on it; the build has no FMA instructions anyway, x64's baseline). -->
+    <!-- Box3D (Quake/vr/external/box3d/README.md): the physics library, C17, run on the engine's job pool. No FMA
+         contraction (its cross-platform determinism relies on it; the build has no FMA instructions anyway: x64's
+         baseline, and the AVX2 kernels below do not enable FMA). -->
     <ClCompile Include="..\..\Quake\vr\external\box3d\src\*.c">
       <CompileAs>CompileAsC</CompileAs>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalOptions>/clang:-ffp-contract=off %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-Wno-overriding-option /clang:-ffp-contract=off %(AdditionalOptions)</AdditionalOptions>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)box3d\</ObjectFileName>
     </ClCompile>
-    <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
+    <!-- wide8.c: Box3D's AVX2 kernels (contact solver, convex manifolds), picked at run time only on a CPU with AVX2
+         (src/simd.c b3GetSIMDWidth; wide4.c is the SSE2 copy), so the exe still runs without AVX2. clang compiles them
+         for AVX2 by a pragma around them (src/core.h B3_AVX2_BEGIN), not by /arch: the rest of the program stays at the
+         x64 baseline. intrin.h is included first because verstable.h includes it inside that pragma, where clang 19
+         refuses its declarations (_xend: "attribute 'target' multiversioning"). -->
+    <ClCompile Update="..\..\Quake\vr\external\box3d\src\wide8.c">
+      <AdditionalOptions>/FIintrin.h %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\src\*.inl;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
     <!-- The C heap (Quake/vr/vr_crtheap.c): its report (vr_crtheap_info.c), a C file each; QVR_MIMALLOC with mimalloc. -->
     <ClCompile Include="..\..\Quake\vr\vr_crtheap.c;..\..\Quake\vr\vr_crtheap_info.c">
       <CompileAs>CompileAsC</CompileAs>
@@ -103,21 +193,16 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
   </ItemGroup>
   <!-- mimalloc (Quake/vr/external/mimalloc/README.md): the process's C heap, malloc/free and new/delete (vr_crtheap.c), on
        64-bit builds (the override's import pointers are x64's). QVR_MIMALLOC=false (msbuild -p:QVR_MIMALLOC=false) builds
-       without it, the C runtime's heap untouched; -nomimalloc or QVR_MIMALLOC=0 turns it off at run time. One C file,
-       src/static.c, includes the others. MI_DEBUG follows the configuration (types.h: 0 with NDEBUG, else 2, its asserts
-       and invalid-free checks in Debug). -->
+       without it, the C runtime's heap untouched; -nomimalloc or QVR_MIMALLOC=0 turns it off at run time. The library
+       itself (src/static.c) is its own project, compiled once with the settings it had here: mimalloc.vcxproj. -->
   <PropertyGroup Condition="'$(QVR_MIMALLOC)'==''">
     <QVR_MIMALLOC Condition="'$(Platform)'=='x64'">true</QVR_MIMALLOC>
     <QVR_MIMALLOC Condition="'$(Platform)'!='x64'">false</QVR_MIMALLOC>
   </PropertyGroup>
   <ItemGroup Condition="'$(QVR_MIMALLOC)'=='true'">
-    <ClCompile Include="..\..\Quake\vr\external\mimalloc\src\static.c">
-      <CompileAs>CompileAsC</CompileAs>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>..\..\Quake\vr\external\mimalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <ObjectFileName>$(IntDir)mimalloc\</ObjectFileName>
-    </ClCompile>
+    <ProjectReference Include="mimalloc.vcxproj">
+      <Project>{38CD0922-A220-4CCA-BCD1-64B6B0688C89}</Project>
+    </ProjectReference>
   </ItemGroup>
   <!-- The build's version (vr_crash.cpp: VR_Version, the menus' corner label; VR_BuildVersion, the console, the main VR
        Settings page, qvr_crash.txt): $(IntDir)qvr_buildver.h. The version is the repository's VERSION file (one line,
@@ -144,6 +229,26 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
           ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="QvrGitChanges" />
     </Exec>
+    <!-- The build number (QVR_BUILD_NUMBER: the commit count, always increasing; QVR_BUILD_INFO: "1.1.0-dev build 4321
+         (abc1234+dirty) 2026-10-17 14:05", the menus' bottom left corner and the console): 0 and "unknown" without
+         git. The date is the build's local time, to the minute: the header is rewritten only when its text changes. -->
+    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; rev-list --count HEAD"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="QvrBuildNumber" />
+    </Exec>
+    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; rev-parse --short=7 HEAD"
+          ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="QvrBuildHash" />
+    </Exec>
+    <PropertyGroup>
+      <QvrBuildDirty>0</QvrBuildDirty>
+      <QvrBuildDirty Condition="'$(QvrGitExit)'=='0' and '$(QvrGitChanges)'!=''">1</QvrBuildDirty>
+      <QvrBuildNumber Condition="'$(QvrGitExit)'!='0' or '$(QvrBuildNumber)'==''">0</QvrBuildNumber>
+      <QvrBuildDate>$([System.DateTime]::Now.ToString('yyyy-MM-dd HH:mm'))</QvrBuildDate>
+      <!-- /p:QvrStableDate=1 (the agents' build.sh): no clock in the header, so a rebuild in a new minute doesn't
+           recompile vr_crash.cpp and relink the whole exe (~20 s with ThinLTO) when nothing else changed. -->
+      <QvrBuildDate Condition="'$(QvrStableDate)'=='1'">dev</QvrBuildDate>
+    </PropertyGroup>
     <PropertyGroup>
       <QvrVersion Condition="'$(QvrGitExit)'=='0'">$(QvrGitCommit)</QvrVersion>
       <QvrVersion Condition="'$(QvrGitExit)'=='0' and '$(QvrGitChanges)'!=''">$(QvrGitCommit)-dirty</QvrVersion>
@@ -153,11 +258,22 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <QvrVersionShown>$(QvrSemver)-dev</QvrVersionShown>
       <QvrVersionShown Condition="'$(QvrDev)'=='0'">$(QvrSemver)</QvrVersionShown>
       <QvrVersion>$(QvrVersionShown) ($(QvrVersion))</QvrVersion>
+      <QvrBuildStamp Condition="'$(QvrGitExit)'=='0'">$(QvrBuildHash)</QvrBuildStamp>
+      <QvrBuildStamp Condition="'$(QvrGitExit)'=='0' and '$(QvrBuildDirty)'=='1'">$(QvrBuildHash)+dirty</QvrBuildStamp>
+      <QvrBuildInfo Condition="'$(QvrGitExit)'=='0'">$(QvrVersionShown) build $(QvrBuildNumber) ($(QvrBuildStamp)) $(QvrBuildDate)</QvrBuildInfo>
+      <QvrBuildInfo Condition="'$(QvrGitExit)'!='0'">$(QvrVersionShown) build 0 (unknown) $(QvrBuildDate)</QvrBuildInfo>
+      <!-- A QvrNoLto build (above) says so wherever the build is shown (the menus' corner, the console, crash reports),
+           so it is never mistaken for a release; QVR_BUILD_LTO: 1 for a ThinLTO build (Release, Release-Tracy), else 0
+           (make_release.ps1 checks it). -->
+      <QvrLtoFlag>0</QvrLtoFlag>
+      <QvrLtoFlag Condition="'$(QvrLto)'=='true' and ('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy')">1</QvrLtoFlag>
+      <QvrVersion Condition="'$(QvrLto)'!='true'">$(QvrVersion) no-LTO</QvrVersion>
+      <QvrBuildInfo Condition="'$(QvrLto)'!='true'">$(QvrBuildInfo) no-LTO</QvrBuildInfo>
     </PropertyGroup>
     <MakeDir Directories="$(IntDir)" />
     <WriteLinesToFile File="$(IntDir)qvr_buildver.h" Overwrite="true" WriteOnlyWhenDifferent="true"
-                      Lines="#define QVR_VERSION &quot;$(QvrSemver)&quot;;#define QVR_VERSION_DEV $(QvrDev);#define QVR_BUILD_VERSION &quot;$(QvrVersion)&quot;" />
-    <Message Importance="normal" Text="Quake VR build $(QvrVersion)" />
+                      Lines="#define QVR_VERSION &quot;$(QvrSemver)&quot;;#define QVR_VERSION_DEV $(QvrDev);#define QVR_BUILD_VERSION &quot;$(QvrVersion)&quot;;#define QVR_BUILD_NUMBER $(QvrBuildNumber);#define QVR_BUILD_INFO &quot;$(QvrBuildInfo)&quot;;#define QVR_BUILD_LTO $(QvrLtoFlag)" />
+    <Message Importance="normal" Text="Quake VR build $(QvrBuildInfo)" />
   </Target>
   <!-- Zancle's own sources (Quake/vr/external/zancle/README.md): a static library with its own settings (optimised,
        without its asserts, except in Debug with QVR_ZANCLE_DEBUG; zancle.vcxproj). -->
@@ -166,4 +282,11 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <Project>{E286BCD0-E4E0-4F68-B335-083019EA8E02}</Project>
     </ProjectReference>
   </ItemGroup>
+  <!-- VS2026 (v18) ClangCL: its newer clang has _m_prefetch built in, so SDL_endian.h's own definition of it is refused
+       ("definition of builtin function"); its guard macro skips that definition. -->
+  <ItemDefinitionGroup Condition="'$(VisualStudioVersion)' != '' and $([System.Version]::Parse('$(VisualStudioVersion)').Major) &gt;= 18">
+    <ClCompile>
+      <PreprocessorDefinitions>__PRFCHWINTRIN_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
 </Project>

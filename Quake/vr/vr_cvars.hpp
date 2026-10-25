@@ -8,6 +8,8 @@ extern "C" {
 #include "cvar.h"
 }
 
+#include <initializer_list>
+
 namespace qvr
 {
 
@@ -22,6 +24,20 @@ extern cvar_t vr_backend;
 [[nodiscard]] inline bool recordingClean()
 {
     return vr_recording_clean.value != 0.f || vr_recording_clean_map.value != 0.f;
+}
+
+// The highest reloading mode of any gun: the global vr_reload_mode and the Per-Weapon Reload Overrides (vr_reload_mode_<gun>,
+// -1 follows the global). 3 (Immersive) when any gun is loaded by hand.
+[[nodiscard]] inline int reloadModeBest()
+{
+    int best = static_cast<int>(vr_reload_mode.value);
+    for(const cvar_t* gun : {&vr_reload_mode_shot, &vr_reload_mode_sshot, &vr_reload_mode_nail, &vr_reload_mode_snail,
+            &vr_reload_mode_gl, &vr_reload_mode_prox, &vr_reload_mode_rl, &vr_reload_mode_light, &vr_reload_mode_widow,
+            &vr_reload_mode_adplasma})
+    {
+        best = static_cast<int>(gun->value) > best ? static_cast<int>(gun->value) : best;
+    }
+    return best;
 }
 
 void registerCvars();

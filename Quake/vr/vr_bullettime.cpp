@@ -1,8 +1,10 @@
 // vr_bullettime.cpp -- see vr_bullettime.hpp.
 
 #include "vr_bullettime.hpp"
+#include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_foegrab.hpp"
 #include "vr_touch.hpp"
 #include "vr_gadget.hpp"
 #include "vr_hands.hpp"
@@ -10,6 +12,7 @@
 #include "vr_highlights.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
+#include "vr_progs.hpp"
 #include "vr_twohand.hpp"
 #include "vr_timescale.hpp"
 #include "vr_units.hpp"
@@ -40,13 +43,48 @@ struct State
     double tappedAt = -1.0;    // realtime of the last tap that counted (tapping())
     double firstTapAt = -1.0;  // vr_bullettime_tap_gesture 1: realtime of a double tap's first tap (-1: none waiting)
     bool tapLifted = true;     // the striking volume off the screen since the last tap counted (none counts before)
+    // The frantic-melee guards (calm()): the player's last landed blow, shove or bash as the QC has it (.vr_blow_time,
+    // server time) and the realtime it changed; the realtime a hand was last faster than vr_bullettime_tap_calm_speed,
+    // which and how fast.
+    float blowField = 0.f;
+    double blowAt = -1e9;
+    double fastAt = -1e9;
+    int fastHand = 0;
+    float fastSpeed = 0.f;
+    bool bothHeld = false; // both hands on an enemy or a body (vr_bullettime_tap_both_held: taps off)
     bool stickTaken[HAND_COUNT] = {}; // the stick press taken at its press (vr_bullettime_trigger): its release is too
     glm::vec3 viewPos[HAND_COUNT]{};   // the hands' places (hands::State::pos) as the view tested the tap (movedSinceView)
     bool viewValid = false;
     glm::vec3 startOffset{0.f};        // vr_debug_gadget_button 3: the screen's middle from the tapping hand at the frame's
     bool startValid = false;           // start (frameStartOffset)
+    float written = -1.f;              // the player's .vr_bullettime_spent as last written (another value: a load, a level)
+    double earnedAt = -1e9;            // realtime the meter last grew by damage dealt (the gadget's frame lights)
+    double emptyNoticeAt = -1e9;       // realtime the gadget last said the meter is empty (emptyNotice)
 };
 State state;
+
+// Earned bullet time pressed with too little in the meter (the author's note vrtesthall_2026-10-23_01-47-31): the wrist
+// gadget's hologram says how to fill it, at most every few seconds (another press while it shows keeps it on). No
+// hologram (the HUD not the gadget, or vr_messages_hologram 0): a centre print.
+constexpr const char* emptyNoticeText = "Bullet time empty:\nhurt enemies to refill";
+constexpr double emptyNoticeEvery = 4.0; // real seconds
+
+void emptyNotice()
+{
+    if(realtime - state.emptyNoticeAt < emptyNoticeEvery && state.emptyNoticeAt <= realtime)
+    {
+        return;
+    }
+    state.emptyNoticeAt = realtime;
+    if(!gadget::notice(emptyNoticeText, 3.f))
+    {
+        SCR_CenterPrintFor(emptyNoticeText, 2.5f);
+    }
+    if(vr_debug_bullettime.value)
+    {
+        Con_Printf("bullet time: empty notice\n");
+    }
+}
 
 // The "off" sound (vr_bullettime_sound_off: a placeholder 3 s long, longer than a short burst): played for at most
 // vr_bullettime_sound_off_max real seconds, then faded out over offFade; cut (faded over offCut) as bullet time starts
@@ -68,6 +106,7 @@ constexpr double offCut = 0.06;
     {
         return nullptr;
     }
+    S_MixJoin(); // (the pool's mix done first: S_MixKick)
     for(int i = 0; i < MAX_DYNAMIC_CHANNELS; i++)
     {
         channel_t* ch = &snd_channels[i];
@@ -115,6 +154,88 @@ void cutOffSound(double seconds)
     {
         offSound.fadeFrom = realtime;
         offSound.fadeLen = seconds;
+    }
+}
+
+[[nodiscard]] bool earnedMode()
+{
+    return vr_bullettime_meter_mode.value != 0.f;
+}
+
+// Earned bullet time (vr_bullettime_meter_mode 1; ROUND22.md, "Earned bullet time"): the meter never fills over time,
+// only by the damage the player deals living monsters (QC VR_BulletTime_Earn: at most the health each had, never a
+// corpse's, a prop's or a monster's to another), vr_bullettime_earn_damage of it from empty to full; while it runs, at
+// vr_bullettime_earn_active of that. The meter is kept on the player (.vr_bullettime_spent, 1 - the level: 0 is full, a
+// new game's and an old save's), so a save keeps it and the next level gets it (parm74); a value there the engine didn't
+// write (a load, a level's start) is taken as the meter. The damage arrives in .vr_bullettime_earned, taken each frame
+// (in both modes: over time it is dropped).
+[[nodiscard]] edict_t* meterPlayer()
+{
+    return sv.active && svs.maxclients == 1 && svs.clients[0].edict ? svs.clients[0].edict : nullptr;
+}
+
+void readMeter()
+{
+    edict_t* player = meterPlayer();
+    const int ofs = progs::fields().vr_bullettime_spent;
+    if(player && ofs >= 0)
+    {
+        const float spent = progs::fieldFloat(player, ofs);
+        if(spent != state.written)
+        {
+            state.level = za::clamp(1.f - spent, 0.f, 1.f);
+            state.written = spent;
+        }
+    }
+}
+
+void writeMeter()
+{
+    edict_t* player = meterPlayer();
+    const int ofs = progs::fields().vr_bullettime_spent;
+    if(player && ofs >= 0)
+    {
+        state.written = 1.f - state.level;
+        progs::fieldFloat(player, ofs) = state.written;
+    }
+}
+
+// The damage that fills the meter from empty: vr_bullettime_earn_damage (Normal's) times the game's skill's multiplier
+// (vr_bullettime_earn_skill0..3: Easy fills sooner, Hard and Nightmare later).
+[[nodiscard]] float earnDamage()
+{
+    const cvar_t* const perSkill[] = {&vr_bullettime_earn_skill0, &vr_bullettime_earn_skill1, &vr_bullettime_earn_skill2,
+        &vr_bullettime_earn_skill3};
+    const int level = za::clamp(static_cast<int>(skill.value + 0.5f), 0, 3);
+    return za::max(1.f, vr_bullettime_earn_damage.value * za::max(0.01f, perSkill[level]->value));
+}
+
+void earn()
+{
+    edict_t* player = meterPlayer();
+    const int ofs = progs::fields().vr_bullettime_earned;
+    if(!player || ofs < 0)
+    {
+        return;
+    }
+    const float damage = progs::fieldFloat(player, ofs);
+    progs::fieldFloat(player, ofs) = 0.f;
+    if(damage <= 0.f || !earnedMode())
+    {
+        return;
+    }
+    const float share = state.active ? za::clamp(vr_bullettime_earn_active.value, 0.f, 1.f) : 1.f;
+    const float gain = damage / earnDamage() * share;
+    const float before = state.level;
+    state.level = za::min(1.f, state.level + gain);
+    if(state.level > before)
+    {
+        state.earnedAt = realtime;
+    }
+    if(vr_debug_bullettime.value)
+    {
+        Con_Printf("bullet time: earned %g damage%s, meter %.3f -> %.3f\n", damage, state.active ? " (running)" : "",
+                   before, state.level);
     }
 }
 
@@ -302,6 +423,83 @@ struct Against
     return a;
 }
 
+// The frantic-melee guards (his note 2026-10-15: double taps in a melee's thick turned slow motion on by accident). Each
+// frame: whether the player's hands are calm enough for a screen tap to count, else why not (in `why`). Not within
+// vr_bullettime_tap_blow_quiet real seconds of a blow of his landing, a shove or a bash (the QC's .vr_blow_time), nor
+// within calmTime of a hand going faster than vr_bullettime_tap_calm_speed (real m/s, in the play space: walking
+// aside): the gadget's hand at all, the tapping one across the screen (against the gadget's hand; its motion into or
+// out of the screen is the tap's own). Blows, shoves and bashes need 3 m/s or more; a tap is a hand brought to the
+// wrist held still. A double tap's first waiting is dropped meanwhile.
+constexpr float calmTime = 0.3f; // s
+[[nodiscard]] bool calm(const hands::State& s, int hand, const Screen& z, char* why, int whyLen)
+{
+    const double now = realtime;
+    if(edict_t* player = sv.active && svs.maxclients >= 1 ? svs.clients[0].edict : nullptr)
+    {
+        const float blow = progs::fieldFloatOr(player, progs::fields().vr_blow_time, 0.f);
+        if(blow != state.blowField)
+        {
+            state.blowField = blow;
+            state.blowAt = blow > 0.f ? now : -1e9; // (0: none yet, or a new map's)
+        }
+        // (Both hands on an enemy or a ragdoll: fighting, pushing, shoving it, the gadget knocked in the scuffle.)
+        // (The client's frame: the server's VM pushed for its ragdoll holds.)
+        bool held[2] = {foegrab::holding(0), foegrab::holding(1)};
+        if(vr_bullettime_tap_both_held.value != 0.f && (!held[0] || !held[1]) && sv.qcvm.edicts)
+        {
+            qcvm_t* oldVm = nullptr;
+            PR_PushQCVM(&sv.qcvm, &oldVm);
+            for(int h = 0; h < 2; h++)
+            {
+                held[h] = held[h] || box3d::ragdollHeld(player, h) > 0;
+            }
+            PR_PopQCVM(oldVm);
+        }
+        const bool both = vr_bullettime_tap_both_held.value != 0.f && held[0] && held[1];
+        if(both != state.bothHeld && vr_debug_bullettime.value)
+        {
+            Con_Printf("bullet time: screen taps %s\n", both ? "off: both hands hold an enemy or a body" : "on again");
+        }
+        state.bothHeld = both;
+        if(both)
+        {
+            q_snprintf(why, static_cast<size_t>(whyLen), "both hands hold an enemy or a body");
+            return false;
+        }
+    }
+    const float limit = vr_bullettime_tap_calm_speed.value;
+    if(limit > 0.f)
+    {
+        const int g = hands::gadgetHand();
+        const float scale = timescale::handScale(); // (in slow motion the hands' velocities are the game's)
+        const glm::vec3 rel = s.vel[hand] - s.vel[g];
+        const float speed[2] = {glm::length(s.vel[g]) * scale, glm::length(rel - z.normal * glm::dot(rel, z.normal)) * scale};
+        const int who[2] = {g, hand};
+        for(int i = 0; i < 2; i++)
+        {
+            if(speed[i] > limit)
+            {
+                state.fastAt = now;
+                state.fastHand = who[i];
+                state.fastSpeed = speed[i];
+            }
+        }
+    }
+    const float quiet = za::max(0.f, vr_bullettime_tap_blow_quiet.value);
+    if(now - state.blowAt < static_cast<double>(quiet))
+    {
+        q_snprintf(why, static_cast<size_t>(whyLen), "%.2f s after a blow, shove or bash", now - state.blowAt);
+        return false;
+    }
+    if(limit > 0.f && now - state.fastAt < static_cast<double>(calmTime))
+    {
+        q_snprintf(why, static_cast<size_t>(whyLen), "the %s hand at %.1f m/s %.2f s ago", state.fastHand == hands::gadgetHand() ? "gadget's" : "tapping",
+            state.fastSpeed, now - state.fastAt);
+        return false;
+    }
+    return true;
+}
+
 // The screen tap: the other hand's striking volume (strikers) over the gadget's screen (a point within
 // vr_bullettime_tap_margin of its edges), having come straight into it (within vr_bullettime_tap_angle of its normal) at
 // vr_bullettime_tap_speed or more (against the screen's own motion: both may move), then stopped on it (a point within
@@ -314,6 +512,16 @@ struct Against
 // within vr_bullettime_tap_double_window of the first but no sooner than vr_bullettime_tap_min_gap; one alone does nothing.
 void tapScreen(const hands::State& s, int hand, const Screen& z)
 {
+    char why[96];
+    const bool restless = !calm(s, hand, z, why, static_cast<int>(sizeof(why)));
+    if(restless && state.firstTapAt >= 0.0)
+    {
+        if(vr_debug_bullettime.value)
+        {
+            Con_Printf("bullet time: a double tap's first dropped (%s)\n", why);
+        }
+        state.firstTapAt = -1.0;
+    }
     const bool allowed = (vr_bullettime_tap_holding.value != 0.f || held::handEmpty(hand)) &&
                          (vr_bullettime_tap_twohanded.value != 0.f || !twoHanded());
     if(!allowed)
@@ -418,6 +626,17 @@ void tapScreen(const hands::State& s, int hand, const Screen& z)
     // The impact: the volume on the face (a point within the depth over it, or a little through it), the fastest point
     // slowed.
     const Against a = against(s, z, strike[state.tapStriker]);
+    if(touching >= 0 && a.into <= state.tapPeak * za::clamp(vr_bullettime_tap_stop.value, 0.f, 1.f) && restless)
+    {
+        // A melee's thick (calm()): no tap, no feedback; the volume must lift off before the next.
+        if(vr_debug_bullettime.value)
+        {
+            Con_Printf("bullet time: a tap at %.2f m/s ignored (%s)\n", state.tapPeak, why);
+        }
+        state.tapPeak = 0.f;
+        state.tapLifted = false;
+        return;
+    }
     if(touching >= 0 && a.into <= state.tapPeak * za::clamp(vr_bullettime_tap_stop.value, 0.f, 1.f))
     {
         // What struck: the part furthest in, and the others within a centimetre of it (a flat slap lands the palm and the
@@ -493,12 +712,35 @@ void tapFeedbackTest_f()
     gadget::tapFeedback(Cmd_Argc() > 1 && atoi(Cmd_Argv(1)) != 0);
 }
 
+// vr_bullettime_meter [level]: prints the meter (and how it fills), or sets it (0 .. 1; a test's empty meter).
+void meter_f()
+{
+    if(Cmd_Argc() > 1)
+    {
+        state.level = za::clamp(static_cast<float>(atof(Cmd_Argv(1))), 0.f, 1.f);
+        writeMeter();
+        Con_Printf("bullet time meter set to %.3f\n", state.level);
+        return;
+    }
+    Con_Printf("bullet time meter: %.3f (%s, %s, cooldown %.1f s; fills %s)\n", state.level,
+               state.active ? "running" : "off", meterPlayer() && progs::fields().vr_bullettime_spent >= 0 ? "kept" : "not kept",
+               state.cooldown,
+               earnedMode() ? va("by %g damage dealt (skill %d)", earnDamage(), static_cast<int>(skill.value + 0.5f))
+                            : va("over %g s", za::max(0.1f, vr_bullettime_recharge.value)));
+}
+
 } // namespace
 
 void init()
 {
     Cmd_AddCommand("vr_bullettime", bullettime_f);
     Cmd_AddCommand("vr_bullettime_tap_feedback_test", tapFeedbackTest_f);
+    Cmd_AddCommand("vr_bullettime_meter", meter_f);
+}
+
+bool ownsStick(int hand)
+{
+    return hand == stickHand() && vr_bullettime_enabled.value != 0.f;
 }
 
 bool stickPress(int hand, bool now)
@@ -536,6 +778,10 @@ void toggle()
     {
         cutOffSound(offCut);
         playSound(vr_bullettime_sound_denied);
+        if(earnedMode() && state.level < za::clamp(vr_bullettime_min.value, 0.01f, 1.f))
+        {
+            emptyNotice(); // (not for a cooldown alone: the meter is full enough, it only waits)
+        }
         if(vr_debug_bullettime.value)
         {
             Con_Printf("bullet time: not ready (meter %.2f, cooldown %.1f s)\n", state.level, state.cooldown);
@@ -566,6 +812,8 @@ void advance(double dt)
     {
         stop(true);
     }
+    readMeter();
+    earn();
     const float step = static_cast<float>(dt);
     const bool running = key_dest == key_game && !runtimeMenuPaused(); // a menu open (the runtime's too): the meter waits
     if(running && state.active)
@@ -581,10 +829,11 @@ void advance(double dt)
     {
         state.cooldown = za::max(0.f, state.cooldown - step);
     }
-    else if(running)
+    else if(running && !earnedMode())
     {
         state.level = za::min(1.f, state.level + step / za::max(0.1f, vr_bullettime_recharge.value));
     }
+    writeMeter();
     const float target = state.active ? 1.f : 0.f;
     const float most = step / fadeTime;
     state.look = state.look < target ? za::min(target, state.look + most) : za::max(target, state.look - most);
@@ -772,6 +1021,8 @@ Meter meter()
     m.cooling = !state.active && state.cooldown > 0.f;
     m.ready = !state.active && !m.cooling && state.level >= za::clamp(vr_bullettime_min.value, 0.01f, 1.f);
     m.level = state.level;
+    m.earned = earnedMode();
+    m.gained = realtime - state.earnedAt < 0.4;
     return m;
 }
 

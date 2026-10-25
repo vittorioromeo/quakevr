@@ -1,0 +1,281 @@
+#ifdef QVR_TESTS
+// vr_knockdown's test harness (moved out of vr_knockdown.qc; ROUND22's QC cleanup: a pure move). Its globals and the
+// cvars it reads stay with the feature.
+
+void(float xMode) VR_Knockdown_Test =
+{
+    if(xMode == 70)
+    {
+        VR_Buzzsaw_Test(); // a buzzsaw on the nearest ragdoll (its blade cuts ragdolls)
+        return;
+    }
+    if(xMode >= 40 && xMode < 50)
+    {
+        VR_HitStagger_Test(xMode); // (vr_hitstagger.qc: hits that unbalance)
+        return;
+    }
+    if(xMode >= 50 && xMode < 66)
+    {
+        VR_RagImpact_Test(xMode); // (vr_ragimpact.qc: impacts, landing crush, manhandling)
+        return;
+    }
+    if(xMode == 20)
+    {
+        float removed = 0;
+        entity next = world;
+        for(entity mon = nextent(world); mon; mon = next)
+        {
+            next = nextent(mon);
+            if(mon.flags & FL_MONSTER)
+            {
+                if(mon.vr_shove != world && mon.vr_shove.classname == "vr_shove" && mon.vr_shove.owner == mon)
+                {
+                    remove(mon.vr_shove);
+                }
+                VR_Knockdown_RemoveBody(mon);
+                removed = removed + 1;
+            }
+        }
+        dprint(sprintf("knockdown test: %g monsters removed\n", removed));
+        return;
+    }
+    // Feedback regression probes: 6 lists bodies and their breathing point;
+    // 7 moves a living knockdown to the player (underwater test); 8 fires a
+    // real nail at the nearest living monster at one health.
+    if(xMode == 25)
+    {
+        // 25: body shields: your health and what each hand holds (its health, ragdoll, corpse).
+        entity hm = VR_Carry_Held(self, cVR_MainHand);
+        entity ho = VR_Carry_Held(self, cVR_OffHand);
+        // (sprintf takes at most 8 arguments after its format: the hands print in two calls.)
+        dprint(sprintf("shield: player health %g at %v; main %s %g (ragdoll %g corpse %g) at %v\n", self.health, self.origin,
+            hm.classname, hm.health, isragdoll(hm), hm.vr_corpse, hm.origin));
+        dprint(sprintf("shield: off %s %g (ragdoll %g corpse %g) held %g at %v\n", ho.classname, ho.health, isragdoll(ho),
+            ho.vr_corpse, ho != world, ho.origin));
+        return;
+    }
+    if(xMode >= 26 && xMode <= 28)
+    {
+        // 26: the nearest living grunt or enforcer stands still (no AI), facing you, you its enemy; 27: it fires once
+        // (a grunt's round, an enforcer's laser): the body shield test.
+        entity sh = world;
+        float shd = 999999;
+        for(entity s = nextent(world); s; s = nextent(s))
+        {
+            if((s.classname == "monster_army" || s.classname == "monster_enforcer") && s.health > 0 &&
+               !s.vr_knockdown && !VR_TestSkips(s) && vlen(s.origin - self.origin) < shd)
+            {
+                sh = s;
+                shd = vlen(s.origin - self.origin);
+            }
+        }
+        if(sh == world)
+        {
+            dprint("shield: no shooter\n");
+            return;
+        }
+        sh.think = SUB_Null;
+        sh.nextthink = 0;
+        sh.velocity = '0 0 0';
+        sh.enemy = self;
+        sh.angles_y = vectoyaw(self.origin - sh.origin);
+        entity aimAt = VR_Carry_Held(self, cVR_MainHand);
+        if(!isragdoll(aimAt))
+        {
+            aimAt = VR_Carry_Held(self, cVR_OffHand);
+        }
+        if(xMode == 28 && isragdoll(aimAt))
+        {
+            // 28: a shot aimed through the middle of the body you hold (held close: inside your own hit box).
+            entity was2 = self;
+            self = sh;
+            makevectors(sh.angles);
+            if(sh.classname == "monster_army")
+            {
+                sh.enemy = aimAt;
+                EnemyFireBullets(1, normalize(aimAt.origin - sh.origin), '0 0 0');
+                sh.enemy = was2;
+            }
+            else
+            {
+                vector lorg2 = sh.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
+                LaunchLaser(lorg2, aimAt.origin - lorg2);
+            }
+            self = was2;
+        }
+        if(xMode == 27)
+        {
+            entity was = self;
+            self = sh;
+            if(sh.classname == "monster_army") { army_fire(); }
+            else
+            {
+                makevectors(sh.angles); // (its laser as enforcer_fire launches it, past its aim cone's wait)
+                vector lorg = sh.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
+                LaunchLaser(lorg, VR_AI_Origin(sh.enemy) - sh.origin);
+            }
+            self = was;
+        }
+        return;
+    }
+    if(xMode >= 6 && xMode <= 8)
+    {
+        entity m = VR_Decap_TestTarget(TRUE);
+        if(xMode == 7)
+        {
+            m = world;
+            float nearest = 999999;
+            for(entity down = nextent(world); down; down = nextent(down))
+            {
+                float distance = vlen(down.origin - self.origin);
+                if(down.vr_knockdown == 1 && down.health > 0 && distance < nearest)
+                {
+                    m = down;
+                    nearest = distance;
+                }
+            }
+        }
+        if(xMode == 7 && m != world)
+        {
+            setorigin(m, self.origin);
+            m.velocity = '0 0 0';
+            m.vr_kd_until = time + 60;
+        }
+        if(xMode == 8 && m != world)
+        {
+            m.health = 1;
+            VR_Test_Fire(1, (m.absmin + m.absmax) * 0.5);
+        }
+        for(entity body = nextent(world); body; body = nextent(body))
+        {
+            if((body.flags & FL_MONSTER) && !body.vr_gib)
+            {
+                float level = VR_Liquid_Level(body);
+                dprint(sprintf("bodycheck: %s health=%g ragdoll=%g headless=%g knocked=%g water=%g type=%g\n",
+                    body.classname, body.health, isragdoll(body), body.vr_headless, body.vr_knockdown,
+                    level, vr_liquid_type));
+                dprint(sprintf("breathcheck: %s breath=%g at=%v\n", body.classname, body.vr_liquid_air - time, body.origin));
+            }
+        }
+        return;
+    }
+    entity best = world;
+    float bestDist = 999999;
+    entity x = nextent(world);
+    while(x)
+    {
+        if((x.flags & FL_MONSTER) && x.health > 0)
+        {
+            float d = vlen(x.origin - self.origin);
+            if(xMode == 5)
+            {
+                dprint(sprintf("knockdown: %s: state %g, health %g, ragdoll %g, at %v\n", x.classname,
+                    x.vr_knockdown, x.health, isragdoll(x), x.origin));
+            }
+            else if(xMode == 1)
+            {
+                if(x.vr_knockdown == 1 && !VR_TestSkips(x))
+                {
+                    x.vr_kd_until = time;
+                }
+            }
+            else if(d < bestDist && !VR_TestSkips(x) &&
+                    ((xMode == 0 || (xMode >= 21 && xMode <= 24)) ? (!x.vr_knockdown && x.vr_kd_chance_h) :
+                                                                  x.vr_knockdown == 1))
+            {
+                best = x;
+                bestDist = d;
+            }
+        }
+        x = nextent(x);
+    }
+    if(xMode == 1 || xMode == 5)
+    {
+        return;
+    }
+    if(xMode == 10)
+    {
+        entity near = world;
+        float nearest = 999999;
+        for(entity y = nextent(world); y; y = nextent(y))
+        {
+            if((y.flags & FL_MONSTER) && y.health > 0 && !VR_TestSkips(y) && vlen(y.origin - self.origin) < nearest)
+            {
+                near = y;
+                nearest = vlen(y.origin - self.origin);
+            }
+        }
+        if(near == world)
+        {
+            dprint("whynot: no living monster\n");
+            return;
+        }
+        VR_Knockdown_WhyNot(near);
+        return;
+    }
+    if(best == world)
+    {
+        dprint("knockdown test: no monster\n");
+        return;
+    }
+    if(xMode == 21 || xMode == 22)
+    {
+        // 21, 22: a one- or two-handed open-palm shove of the nearest (VR_Bash_Hit, as a real one: its push, its stagger,
+        // its chance; vr_knockdown_chance 100 for a sure knockdown), fresh (not tired).
+        vector away = best.origin - self.origin;
+        away_z = 0;
+        vr_bash_exhaust_dmg = 0;
+        vr_bash_exhaust_push = 0;
+        float two = xMode == 22;
+        // (Aware of you, as one you fight is: else every test shove was a surprise, vr_knockdown_surprise, down for sure
+        // whatever its chance (the ragtool's onlooker is notarget); one from behind, Push From 180, still is.)
+        if(best.enemy != self)
+        {
+            best.enemy = self;
+        }
+        // (vr_test_shove_run: you running into it at that many u/s along the shove; 0: as you move.)
+        vr_test_shove_run = max(0, cvar("vr_test_shove_run"));
+        dprint(sprintf("knockdown test: %s shove of %s%s\n", two ? "two-handed" : "one-handed", best.classname,
+            vr_test_shove_run > 0 ? sprintf(", running at %g u/s", vr_test_shove_run) : ""));
+        VR_Bash_Hit(best, best.origin, normalize(away), QVR_HITKIND_SHOVE, two ? -1 : cVR_MainHand,
+            two ? 1 : VR_BASH_ONE_DAMAGE, VR_Shove_HandsPush(two));
+        vr_test_shove_run = 0;
+        return;
+    }
+    if(xMode == 23 || xMode == 24)
+    {
+        // 23: a hit of 30 from you on the nearest standing one (a zombie: its own fall, zombie_pain's 25 or more);
+        // 24: a real grenade of yours fired at the floor 150 units short of it (its blast, not a direct hit).
+        if(xMode == 23)
+        {
+            T_Damage(best, self, self, 30);
+        }
+        else
+        {
+            vector short = best.origin - normalize(best.origin - self.origin) * 150;
+            short_z = best.absmin_z + 2;
+            VR_Test_Fire(2, short);
+        }
+        dprint(sprintf("knockdown test: %s %s: state %g, ragdoll %g, health %g, solid %g\n", best.classname,
+            xMode == 23 ? "hit for 30" : "a grenade fired near it", best.vr_knockdown, isragdoll(best), best.health,
+            best.solid));
+        return;
+    }
+    if(xMode == 0)
+    {
+        if(!(canragdoll(best)) || !VR_Knockdown_MakeRoom(best))
+        {
+            dprint(sprintf("knockdown test: %s cannot be knocked down\n", best.classname));
+            return;
+        }
+        vector dir = normalize(best.origin - self.origin);
+        dir_z = 0;
+        best.velocity = normalize(dir) * 220 + '0 0 120';
+        dprint(sprintf("knockdown test: %s down: %g\n", best.classname, VR_Knockdown_Start(best)));
+        return;
+    }
+    float dmg = xMode == 2 ? 5 : (xMode == 3 ? best.health : best.health + 200);
+    dprint(sprintf("knockdown test: %s hit for %g\n", best.classname, dmg));
+    T_Damage(best, self, self, dmg);
+};
+#endif

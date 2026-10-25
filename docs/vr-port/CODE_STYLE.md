@@ -3,6 +3,19 @@
 How the VR module keeps state, and what it builds on. The rest of the style (formatting, naming, comments) is the
 surrounding code's: read a neighbouring file and write like it.
 
+## Includes and the build's speed
+
+- Every file includes what it uses. The build forces the precompiled header `vr_pch.hpp` (glm, the common Zancle
+  headers, `vr_engine.hpp`) into each `Quake/vr` .cpp, so a missing include still compiles there:
+  `Misc/quakevr/check_nopch.sh` builds without it (incrementally after its first run) and fails on one. Only headers
+  that rarely change go into `vr_pch.hpp`: a change to it rebuilds every VR file.
+- `vr_engine.hpp` has only SDL's core headers (quakedef.h with `QVR_ENGINE_SDL_CORE`), and quakedef.h no longer pulls
+  in windows.h: a file that calls SDL includes `SDL.h`, one that uses the Windows API includes `<windows.h>` (or
+  declares the few functions it calls, as `vr_ao.cpp` does).
+- A shared header doesn't include a heavy header (windows.h, phonon.h, OpenXR, box3d) for one inline function: the
+  function goes into the .cpp. A large file splits into parts with an `_internal.hpp` (`vr_view_internal.hpp`,
+  `vr_menu_internal.hpp`: the old anonymous namespace a named `*_detail` one).
+
 ## Zancle, not the standard library
 
 The VR code is written on Zancle (`Quake/vr/external/zancle`, its README; ROUND21.md, "Zancle migration"), not on the
@@ -179,3 +192,9 @@ fteqcc's operator priorities are QC's, not C's: parenthesise every `&&`/`||` on 
 `a && (b ? c : d)`, `a || b && c` is `(a || b) && c`, `!a == b` is `!(a == b)` and `a & b == c` is `(a & b) == c`.
 `Misc/quakevr/check_qc_precedence.py` (run by `QC/build.sh`, `QC/build.bat` and the kit's `build.sh`) fails on any
 expression that compiles differently under C's priorities; the repro that showed each case, `Misc/quakevr/qcrepro/repro.qc`, is in git history (commit `2f6ffb4ba`).
+
+Test code stays out of releases: a QC file of tests (`*_test.qc`, listed in `progs.src`) is wrapped whole in
+`#ifdef QVR_TESTS` ... `#endif` (the macro is defined in `QC/vr_macros.qc` unless fteqcc is given `-DQVR_NO_TESTS`, which
+the release packaging does), and every call or declaration of it from game code is wrapped the same way. A new test file:
+wrap it, and compile once with `-DQVR_NO_TESTS` (no errors allowed; the compile writes `quakevr/progs.dat`: build again
+for the development one).

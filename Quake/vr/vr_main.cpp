@@ -1,8 +1,18 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
+#include "vr_diskcache.hpp"
+#include "vr_dynres.hpp"
+#include "vr_warmup.hpp"
+#include "vr_tracy.h"
+#include "vr_temporal.hpp"
 #include "vr_cheats.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
+#include "vr_admelee.hpp"
+#include "vr_adcrossbow.hpp"
+#include "vr_adguns.hpp"
+#include "vr_adweapons.hpp"
+#include "vr_render.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_bench.hpp"
 #include "vr_edictindex.hpp"
@@ -11,24 +21,43 @@
 #include "vr_hull.hpp"
 #include "vr_unstick.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_imgcache.hpp"
 #include "vr_modelkeep.hpp"
 #include "vr_imgprefetch.hpp"
 #include "vr_anchor.hpp"
+#include "vr_adtank.hpp"
 #include "vr_cellcord.hpp"
+#include "vr_pouchitems.hpp"
 #include "vr_chainsaw.hpp"
+#include "vr_magholster.hpp"
 #include "vr_decals.hpp"
+#include "vr_permdecals.hpp"
+#include "vr_gfxpresets.hpp"
 #include "vr_gore.hpp"
+#include "vr_bloodstream.hpp"
+#include "vr_goresound.hpp"
+#include "vr_bloodprints.hpp"
 #include "vr_envmap.hpp"
 #include "vr_lighting.hpp"
 #include "vr_angvel.hpp"
+#include "vr_animsmooth.hpp"
+#include "vr_mdldequant.hpp"
+#include "vr_hitreact.hpp"
 #include "vr_backend.hpp"
 #include "vr_throw.hpp"
 #include "vr_client.hpp"
 #include "vr_body.hpp"
+#include "vr_bodytrack.hpp"
 #include "vr_hands.hpp"
+#include "vr_handpose.hpp"
 #include "vr_held.hpp"
+#include "vr_holsterzones.hpp"
+#include "vr_hotblade.hpp"
+#include "vr_carry2h.hpp"
 #include "vr_highlights.hpp"
+#include "vr_lootbeams.hpp"
+#include "vr_propose_defaults.hpp"
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
 #include "vr_loading.hpp"
@@ -36,10 +65,13 @@
 #include "vr_mapindex.hpp"
 #include "vr_update.hpp"
 #include "vr_obs.hpp"
+#include "vr_renderdoc.hpp"
+#include "vr_ad.hpp"
 #include "vr_mapinstall.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_tool.hpp"
 #include "vr_stealth.hpp"
+#include "vr_stereo_single.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
 #include "vr_timescale.hpp"
@@ -52,20 +84,27 @@
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_checklist.hpp"
+#include "vr_scenario.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
 #include "vr_zancle.hpp"
+#include "vr_holstersetup.hpp"
+#include "vr_blade.hpp"
+#include "vr_bladeedit.hpp"
+#include "vr_posestudio.hpp"
 #include "vr_posing.hpp"
 #include "vr_prepare.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bigfont.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_setup.hpp"
+#include "vr_seated.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_ao.hpp"
 #include "vr_profile.hpp"
 #include "vr_portals.hpp"
 #include "vr_progs.hpp"
+#include "vr_ragtest.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
@@ -73,9 +112,13 @@
 #include "vr_voicenotes.hpp"
 #include "vr_detail.hpp"
 #include "vr_extmaps.hpp"
+#include "vr_pbr.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_flatplay.hpp"
+#include "vr_ragtool.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_grasp.hpp"
+#include "vr_gripfit.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_gpustats.hpp"
@@ -83,12 +126,14 @@
 #include "vr_jobs.hpp"
 #include "vr_gfx.hpp"
 #include "vr_props.hpp"
+#include "vr_propthink.hpp"
 #include "vr_retro.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_xr_runtime.hpp"
 #include "vr_weight.hpp"
 #include "vr_weapons.hpp"
 #include "vr_painknock.hpp"
+#include "vr_mgroups.hpp"
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
 #include "vr_autopump.hpp"
@@ -96,9 +141,18 @@
 #include "vr_weaponfx.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_water.hpp"
+#include "vr_dents.hpp"
 #include "vr_wounds.hpp"
 #include "vr_cleanskins.hpp"
+#include "vr_rangerhead.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_brushes.hpp"
+
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Abort.hpp"
@@ -181,6 +235,16 @@ void stopBackend()
 
 void startBackend()
 {
+    // -flatscreenmode implies no VR backend (vr_flatplay.cpp, docs/vr-port/FLATPLAY.md): the mode plays the VR gameplay
+    // on the desktop screen and runs only while no headset session is up, so the flag is what asks for no backend --
+    // what `vr_backend none; vr_restart` used to be typed for. It says so once; the game plays in a headset when the
+    // flag is not given.
+    if(flatplay::flagGiven())
+    {
+        flatplay::noteBackendImplied();
+        return;
+    }
+
     // -vrmock: the mock headset whatever vr_backend says (the review's re-evaluation runs a second copy of the game
     // beside the one in the headset: it must never open the runtime's session).
     za::UniquePtr<qvr::Backend> backend = createBackend(COM_CheckParm("-vrmock") ? "mock" : vr_backend.string);
@@ -193,6 +257,11 @@ void startBackend()
     {
         Con_Warning("VR: failed to start %s backend (vr_restart to retry)\n", backend->name());
         backend->stop();
+        // The runtimes' logs kept with the run's (vr_runlogs.cpp), and the bug report offered.
+        VR_LogsIncident(va("the VR start failed (%s backend)", backend->name()));
+        Con_Printf("\x02" "VR: a bug report can be made with Options > Create Bug Report (or bugreport in the console): "
+                   "this run's logs in one zip, in quakevr\\bugreports\n");
+        SCR_CenterPrintFor("VR didn't start: playing flat.\nA bug report can be made with\nOptions > Create Bug Report", 8.f);
         return;
     }
 
@@ -715,6 +784,7 @@ void sampleCounts()
     {
         c.beams += b.model && b.endtime >= cl.time ? 1.0 : 0.0;
     }
+    S_MixJoin(); // (the pool's mix done first: S_MixKick)
     for(int i = 0; i < MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS && i < total_channels; i++)
     {
         c.channels += snd_channels[i].sfx ? 1.0 : 0.0;
@@ -1214,11 +1284,7 @@ void writeMemLogRow(const char* reason)
     const bool header = memLog.path.empty();
     if(header)
     {
-        char stamp[64];
-        strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
-        const za::String dir = za::String{com_gamedir} + "/profile";
-        Sys_mkdir(dir.cStr());
-        memLog.path = dir + "/memstats_" + stamp + ".csv";
+        memLog.path = files::profileFile("memstats_", now);
         Con_DPrintf("vr_memstats_log: %s\n", memLog.path.cStr());
     }
     if(memLog.write.valid())
@@ -1698,6 +1764,10 @@ void statusLines(za::Vector<za::String>& out)
     usage(gpu, sizeof(gpu), "GPU", timed && rate.gpuMs > 0.f ? rate.gpuMs : -1.f); // (only the eyes are timed: VR)
     q_snprintf(line, sizeof(line), "%.0f fps  %s  %s", static_cast<double>(fps), cpu, gpu);
     out.pushBack(za::String{line});
+    if(dynres::statusLine(line, static_cast<int>(sizeof(line))))
+    {
+        out.pushBack(za::String{line});
+    }
 
     // The memory: the process's (its working set) and the GPU's (used of total: NVIDIA's; free only: AMD's).
     auto& sampledAt = statusSample.sampledAt;
@@ -1756,7 +1826,7 @@ void statusLines(za::Vector<za::String>& out)
 
 int scaledEyeSize(int image, int max)
 {
-    const float scale = CLAMP(0.25f, vr_render_scale.value, 2.f);
+    const float scale = dynres::scale(); // (vr_render_scale's, or dynamic resolution's: vr_dynres.cpp)
     int size = static_cast<int>(za::lround(static_cast<double>(image) * scale));
     if(max > 0)
     {
@@ -1841,10 +1911,21 @@ extern "C" void VR_NewMap()
     step("view models", view::prepareModels);
     step("torch", flashlight::prepare);
     step("casings", shells::prepare);
+    step("gore sounds", goresound::prepare);
     step("auto pump", autopump::prepare);
+    step("AD crossbow", adcrossbow::prepare); // AD support: its next bolt's sound
+    step("Widowmaker", adweapons::prepare);   // AD support: its barrels' motor
     step("explosion debris", explosiondebris::prepare);
     step("muzzle flash", weaponfx::prepare);
     step("wall torches", walltorch::prepare);
+    step("cords", gfx::prepareTube); // (the torch's cord's first draw: 25.6 ms mid-game, Tracy qvr_gpu1)
+    if(vr_load_prewarm.value != 0.f) // (ROUND22.md "Frame spikes": each first use's frame, Tracy)
+    {
+        step("smooth rigs", animsmooth::prepare);         // 6-27 ms a monster kind's first smooth draw
+        step("env cube world", envmap::prepare);         // 2-12 ms the first frame
+        step("gun anchors", view::prepareWorldWeapons);  // ~10 ms the first gun lying near
+        step("skin masks", VR_PrecacheSkinMasks);         // 4-9 ms the first frame (your hands' glove paint read again)
+    }
     Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.cStr());
 
     countGlForLog(); // the memory log's GL objects, in the load (12-13 ms)
@@ -1857,9 +1938,68 @@ extern "C" void VR_NewMap()
 namespace
 {
 int framesToShoot = 0;
+
+// vr_debug_clock: the host's frame count and the wall clock (ms), and, from the previous call, the frames' mean period:
+// `vr_debug_clock;wait120;vr_debug_clock` measures a throttle (vr_debug_window_unfocused) in a test run.
+struct DebugClock
+{
+    int frame = -1;
+    double seconds = 0.0;
+};
+DebugClock debugClock;
+void debugClock_f()
+{
+    const double now = Sys_DoubleTime();
+    DebugClock& c = debugClock;
+    const int frames = host_framecount - c.frame;
+    if(c.frame >= 0 && frames > 0)
+    {
+        Con_Printf("vr_debug_clock: frame %d, %.1f ms; %d frames since, period %.2f ms (VR %s, window %s)\n",
+            host_framecount, now * 1000.0, frames, (now - c.seconds) * 1000.0 / frames, vrActive() ? "on" : "off",
+            windowUnfocused() ? "unfocused" : "focused");
+    }
+    else
+    {
+        Con_Printf("vr_debug_clock: frame %d, %.1f ms\n", host_framecount, now * 1000.0);
+    }
+    c.frame = host_framecount;
+    c.seconds = now;
+}
+
 void screenshotFrames_f()
 {
     framesToShoot = Cmd_Argc() > 1 ? CLAMP(0, Q_atoi(Cmd_Argv(1)), 600) : 1;
+}
+
+// vr_debug_window minimize|hide|show: the desktop window really minimized, hidden or shown again (restored, without
+// taking the focus), as the player would; then the window's state and what windowNotVisible says. A test run's
+// window must be shown for it (run.sh -Visible); vr_debug_window_hidden 1 emulates it in a hidden one.
+void debugWindow_f()
+{
+    SDL_Window* w = static_cast<SDL_Window*>(VID_GetWindow());
+    const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(w && !q_strcasecmp(what, "minimize"))
+    {
+        SDL_MinimizeWindow(w);
+    }
+    else if(w && !q_strcasecmp(what, "hide"))
+    {
+        SDL_HideWindow(w);
+    }
+    else if(w && !q_strcasecmp(what, "show"))
+    {
+        SDL_SetHint(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, "1");
+        SDL_ShowWindow(w);
+        SDL_RestoreWindow(w);
+    }
+    else if(*what)
+    {
+        Con_Printf("vr_debug_window minimize|hide|show\n");
+        return;
+    }
+    const Uint32 flags = w ? SDL_GetWindowFlags(w) : 0;
+    Con_Printf("vr_debug_window: %s%s, not visible %d\n", (flags & SDL_WINDOW_SHOWN) ? "shown" : "hidden",
+        (flags & SDL_WINDOW_MINIMIZED) ? ", minimized" : "", windowNotVisible() ? 1 : 0);
 }
 } // namespace
 
@@ -1870,12 +2010,32 @@ extern "C" void VR_Init()
     VR_TimeInit(); // vr_startup_times, vr_walltime
     VR_GLSafeInit(); // vr_glsafe_retry, vr_glsafe_status
     VR_DiagnosticsInit(); // vr_diagnostics_status
+    VR_LogsInit(); // bugreport, vr_logs_status
     jobs::start(); // the game's thread pool (vr_jobs.hpp), first: the systems below post to it
     imgprefetch::start(); // the images the start-up and the first map load decode, decoded ahead (the file system is up)
     registerCvars();
+    ragtool::init();  // -ragtool, vr_ragtool (vr_ragtool.cpp): before flatplay, whose mode the flag implies
+    flatplay::init(); // -flatscreenmode (vr_flatplay.cpp): the flag the whole mode hangs on, read once here
     VR_RegisterPackStatus();
     VR_RegisterContinue();
+    Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
+    adcrossbow::registerCommands(); // AD support: vr_adgun_crossbow_info (vr_adcrossbow.cpp)
+    adweapons::registerCommands();  // AD support: vr_ad_widowmaker_spin_info (vr_adweapons.cpp)
+    Cmd_AddCommand("vr_admelee_models", admelee::info_f); // AD support: the AD melee weapons' models (vr_admelee.cpp)
+    Cmd_AddCommand("vr_flail_info", box3d::flailInfo_f); // AD support: the death sergeant's flail's head (vr_box3d_flail.cpp)
+    Cmd_AddCommand("vr_adgun_variants", adguns::variants_f); // AD support: the AD guns as our burst rifle's variants (vr_adgunart.cpp)
+    adtank::init(); // AD support: vr_adgun_hose_info (vr_adtank.cpp)
+    Cmd_AddCommand("vr_adweapon_models", adweapons::info_f); // AD support: AD's upgraded weapons' VR models (vr_adweapons.cpp)
+    Cmd_AddCommand("vr_wofs_dump", weapons::dump_f); // the weapon settings in use, per slot (vr_weapons.cpp)
+    Cmd_AddCommand("vr_gloves_reload", render::glovesReload_f); // the gloves' painted leather read again (vr_render.cpp)
+    VR_FileCacheRegisterCommands();
     jobs::registerCommands();
+    animsmooth::registerCommands();
+    mdldequant::registerCommands();
+    Cmd_AddCommand("vr_cache_info", diskcache::info_f); // the derived-data cache (vr_diskcache.cpp)
+    warmup::registerCommands();
+    hitreact::registerCommands();
+    temporal::registerCommands(); // vr_temporal_error (vr_temporal.cpp)
     edictindex::registerCommands();
     weapons::registerCvars();
     props::registerCvars();
@@ -1883,6 +2043,7 @@ extern "C" void VR_Init()
     weight::registerCommands();
     fatigue::registerCommands();
     painknock::registerCommands();
+    mgroups::registerCommands(); // vr_mgroup_list (vr_mgroups.cpp)
     xrruntime::registerCommands(); // (before the backend first starts: XR_RUNTIME_JSON as the game was started with it)
     Cvar_SetCallback(&vr_enabled, onBackendSettingChanged);
     Cvar_SetCallback(&vr_backend, onBackendSettingChanged);
@@ -1892,9 +2053,12 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_status", VR_Status_f);
     Cmd_AddCommand("vr_restart", VR_Restart_f);
     Cmd_AddCommand("vr_screenshot_frames", screenshotFrames_f);
+    Cmd_AddCommand("vr_debug_clock", debugClock_f);
+    Cmd_AddCommand("vr_debug_window", debugWindow_f);
     menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
     toolgun::registerCommands();
+    brushes::registerCommands();
     Cmd_AddCommand("vr_menu_search", menu::search_f);
     Cmd_AddCommand("vr_menu_slider_step", menu::sliderStep_f);
     Cmd_AddCommand("maps_page_stats", menu::mapsPageStats_f); // (the map browser page: vr_menu_maps.inc)
@@ -1902,10 +2066,13 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_tips_reset", tips::reset_f);
     Cmd_AddCommand("vr_tips_test", tips::test_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
+    Cmd_AddCommand("vr_menu_panel", menuui::panelPlace_f);
+    Cmd_AddCommand("vr_menu_panels", menu::panels_f);
     Cmd_AddCommand("vr_mock_mouse", menuui::mockMouse_f);
     Cmd_AddCommand("vr_mock_key", menuui::mockKey_f);
     Cmd_AddCommand("vr_bigfont", bigfont::report_f);
     Cmd_AddCommand("vr_checklist", checklist::command_f);
+    Cmd_AddCommand("vr_scenario", scenario::command_f);
     Cmd_AddCommand("vr_handcal_match", menu::handCalMatch_f);
     Cmd_AddCommand("vr_recenter", hands::recenter_f);
     Cmd_AddCommand("vr_body_error", hands::bodyError_f);
@@ -1915,8 +2082,17 @@ extern "C" void VR_Init()
     inputlag::registerCommands();
     voicenotes::init();
     highlights::init();
+    lootbeams::init();
+    proposedefaults::init();
     cleanskins::init();
+    rangerhead::init();
+    Cmd_AddCommand("vr_body_head_info", rangerhead::info_f);
+    mdldequant::init();
     posing::init();
+    holstersetup::init();
+    blade::init();
+    bladeedit::init();
+    posestudio::init();
     sightalign::init();
     bodycal::init();
     setup::init();
@@ -1925,8 +2101,11 @@ extern "C" void VR_Init()
     gearlights::init();
     chainsaw::init();
     cellcord::init();
+    pouchitems::init();
+    magholster::init();
     detail::init();
     extmaps::init();
+    pbr::init();
     imgcache::init();
     modelkeep::init();
     hull::init();
@@ -1935,61 +2114,70 @@ extern "C" void VR_Init()
     decals::init();
     client::init();
     server::init();
-    Cmd_AddCommand("vr_dumpview", view::dumpView_f);
+    view::registerDiagCommands(); // vr_dumpview, vr_grasp_*, vr_hotspot_fit... (vr_view_diag.cpp)
     Cmd_AddCommand("vr_carry_check", held::carryCheck_f);
-    Cmd_AddCommand("vr_grasp_dump", view::graspDump_f);
-    Cmd_AddCommand("vr_grasp_bench", view::graspBench_f);
-    Cmd_AddCommand("vr_ragdoll_hand_probe", view::ragdollHandProbe_f);
-    Cmd_AddCommand("vr_grasp_sweep", view::graspSweep_f);
+    Cmd_AddCommand("vr_carry_load_test", carry2h::loadTest_f);
     Cmd_AddCommand("vr_grasp_spheres", grasp::spheres_f);
+    Cmd_AddCommand("vr_grip_fit_last", gripfit::last_f);
+    Cmd_AddCommand("vr_grip_fit_drawn", gripfit::drawn_f);
     Cmd_AddCommand("vr_hand_reload", handrig::reload_f);
     Cmd_AddCommand("vr_hand_rig_info", handrig::info_f);
-    Cmd_AddCommand("vr_model_reload", view::modelReload_f);
     Cmd_AddCommand("vr_prop_query_test", progs::propQueriesTest_f);
     Cmd_AddCommand("vr_gamecode", progs::gameCode_f);
     Cmd_AddCommand("vr_forcegrab_grid_stats", progs::forcegrabGridStats_f);
     Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
     Cmd_AddCommand("vr_prop_touch_stats", physics::propTouchStats_f);
+    Cmd_AddCommand("vr_agrunt_grab_bench", physics::grabBench_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
-    Cmd_AddCommand("vr_hitmodel_bench", hitmodel::bench_f);
-    Cmd_AddCommand("vr_zancle_math_test", qza::mathTest_f);
-    Cmd_AddCommand("vr_hitmodel_stats", hitmodel::stats_f);
-    Cmd_AddCommand("vr_hitmodel_check", hitmodel::check_f);
-    Cmd_AddCommand("vr_hitzones_check", hitmodel::zonesCheck_f);
+    Cmd_AddCommand("vr_gun_wall_depth", handpose::gunWallDepth_f);
+    hitmodel::registerDiagCommands(); // vr_hitmodel_bench, _stats, _check, vr_hitzones_check (vr_hitmodel_diag.cpp)
+    qza::registerDiagCommands(); // vr_zancle_math_test (vr_zancle_diag.cpp)
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
-    Cmd_AddCommand("vr_wounds_test", wounds::test_f);
-    Cmd_AddCommand("vr_wounds_info", wounds::info_f);
-    Cmd_AddCommand("vr_gore_hands_test", wounds::handsTest_f);
-    Cmd_AddCommand("vr_gore_wash_test", wounds::washTest_f);
-    Cmd_AddCommand("vr_gore_hands_info", wounds::handsInfo_f);
-    Cmd_AddCommand("vr_gore_spatter_test", wounds::spatterTest_f);
+    wounds::registerDiagCommands(); // vr_wounds_test, _info, _dump, vr_gore_hands_*, vr_gore_wash_test... (vr_wounds_diag.cpp)
+    Cmd_AddCommand("vr_gore_dents_info", dents::info_f);
     Cmd_AddCommand("vr_cleanskins", cleanskins::list_f);
     Cmd_AddCommand("vr_gore_mist_test", particles::mistTest_f);
+    Cmd_AddCommand("vr_water_blood_test", water::bloodTest_f);
+    Cmd_AddCommand("vr_water_blood_info", water::bloodInfo_f);
+    Cmd_AddCommand("vr_water_foam_info", particles::shoreFoamInfo_f);
+    Cmd_AddCommand("vr_water_blood_spray", particles::bloodSprayTest_f);
     Cmd_AddCommand("vr_particle_light_report", particles::lightReport_f);
-    Cmd_AddCommand("vr_wounds_dump", wounds::dump_f);
+    Cmd_AddCommand("vr_particle_waste_report", particles::wasteReport_f);
+    Cmd_AddCommand("vr_hotblade_report", hotblade::report_f);
     Cmd_AddCommand("vr_test_remove", progs::testRemove_f);
     Cmd_AddCommand("vr_model_check", progs::modelCheck_f);
     Cmd_AddCommand("vr_test_dialog", testDialog_f);
     Cmd_AddCommand("vr_test_confirm", testConfirm_f);
-    Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);
-    Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
-    Cmd_AddCommand("vr_hotspot_fit", view::hotspotFit_f);
     anchor::registerCommands();
     portals::registerCommands(); // vr_portals_info
+    ragtest::registerCommands(); // vr_ragdoll_act
     Cmd_AddCommand("vr_torso_report", torso::report_f);
+    bodytrack::registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats
+    seated::registerCommands();    // vr_seated_status, vr_crouch_toggle, vr_seated_height_now
     Cmd_AddCommand("vr_body_crouch_report", body::crouchReport_f);
+    Cmd_AddCommand("vr_holster_zones_report", zones::report_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_decal_stress", decals::stress_f);
+    Cmd_AddCommand("vr_decal_carve_test", decals::carveTest_f);
+    Cmd_AddCommand("vr_decal_at", decals::at_f);
+    Cmd_AddCommand("vr_permdecal_info", permdecals::info_f);
     Cmd_AddCommand("vr_limits", limits::command_f);
     bench::registerCommands(); // vr_bench_begin, vr_bench_end, vr_bench_seed
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
+    Cmd_AddCommand("vr_gore_stream_test", bloodstream::test_f);
+    goresound::registerCommands(); // vr_gore_sound_stats, vr_gore_sound_test
+    bloodprints::registerCommands(); // vr_bloodprints_test, vr_bloodprints_info
+    Cmd_AddCommand("vr_gore_streams_info", bloodstream::info_f);
+    Cmd_AddCommand("vr_dummy_gore_reset", wounds::dummyReset_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
     Cmd_AddCommand("vr_prepare_models", prepare::precacheModels_f); // (Setup's preparation run, vr_prepare.cpp)
     Cmd_AddCommand("vr_vram_report", vram::report_f);
     allocsites::registerCommands(); // vr_alloc_sites
     Cmd_AddCommand("vr_crash_test", VR_CrashTest_f);
     lighting::init();
+    gfxpresets::init(); // vr_graphics_preset, My Settings (vr_gfxpresets.cpp)
+    stereosingle::init(); // vr_stereo_single_info
     timescale::init(); // vr_slowmo
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
     envmap::init(); // vr_envmap_dump
@@ -1999,6 +2187,8 @@ extern "C" void VR_Init()
     mapindex::registerCommands(); // maps_list, maps_info, maps_stats, maps_fetch
     update::registerCommands(); // vr_update_status, vr_update_check_now, vr_update_compare (vr_update.cpp)
     obs::registerCommands(); // vr_obs_status, vr_obs_toggle, vr_obs_connect (vr_obs.cpp)
+    renderdoc::registerCommands(); // vr_renderdoc_capture, vr_renderdoc_status (vr_renderdoc.cpp)
+    ad::registerCommands(); // vr_ad_info (vr_ad.cpp: Arcane Dimensions)
     mapinstall::registerCommands(); // maps_get, maps_install, maps_installed, maps_uninstall
     mapinstall::start(); // the installed-map list read (vr_mapinstall.cpp): nothing is downloaded here: nothing here waits
     relight::registerCommands(); // vr_relight, vr_relight_cancel, vr_relight_revert... (vr_relight.cpp)
@@ -2006,6 +2196,15 @@ extern "C" void VR_Init()
     cheats::registerCommands(); // vr_scene_clean, vr_scene_count (vr_cheats.cpp)
 
     state->restartRequested = true;
+}
+
+extern "C" void VR_BeforeVideoInit()
+{
+    // Only when the OpenXR backend will start (not -flatscreenmode, -vrmock or another vr_backend).
+    if(!flatplay::flagGiven() && !COM_CheckParm("-vrmock") && !q_strcasecmp(vr_backend.string, "openxr"))
+    {
+        xrruntime::beforeVideoInit();
+    }
 }
 
 // Host_Shutdown, before NET_Shutdown: libcurl's global state (curl_global_cleanup) and winsock go there, and a
@@ -2044,7 +2243,8 @@ extern "C" void VR_Shutdown()
         state = nullptr;
     }
     voicenotes::finishWrites(); // the screenshots and notes still being saved (VR or not)
-    VR_TexCacheFinishWrites(); // the normal maps' cache files still being written (vr_texcache.cpp)
+    qvr::warmup::stop(); // the background warm-up stopped (its item under way finished)
+    VR_TexCacheFinishWrites(); // the cache files still being written (vr_diskcache.cpp)
     audio::shutdown(); // (its simulations finished, Steam Audio's objects released, phonon.dll unloaded)
     jobs::shutdown(); // last: whatever the systems above left queued run, the workers joined
 }
@@ -2078,48 +2278,98 @@ extern "C" void VR_BeginFrame()
     {
         sessionEnded();
     }
-    if(state->backend)
     {
-        motion::afterTracking(state->tracking, state->frame); // the recorder's copy; a playback's poses
-        // The runtime's angular velocity into the tracking space (a take's too: it holds the runtime's numbers).
-        angvel::fix(state->tracking, motion::playing() ? motion::playSource() : state->backend->runtimeName());
-        timescale::filterHands(state->tracking); // slow motion: the hands slowed with the world (not the head)
+        QVR_TRACY_SCOPE(zoneTracking, "frame setup: tracking"); // (profiling builds only)
+        if(state->backend)
+        {
+            motion::afterTracking(state->tracking, state->frame); // the recorder's copy; a playback's poses
+            // The runtime's angular velocity into the tracking space (a take's too: it holds the runtime's numbers).
+            angvel::fix(state->tracking, motion::playing() ? motion::playSource() : state->backend->runtimeName());
+            timescale::filterHands(state->tracking); // slow motion: the hands slowed with the world (not the head)
+        }
     }
-    runtimeMenuFrame(); // the runtime's menu pausing the game (before the server's frame)
+    {
+        QVR_TRACY_SCOPE(zoneRuntimeMenu, "frame setup: runtime menu"); // (profiling builds only)
+        runtimeMenuFrame(); // the runtime's menu pausing the game (before the server's frame)
+    }
 
-    sampleCounts(); // vr_memstats: the last frame's, before its texts are cleared
-    lines::clear(); // queued anew every frame (teleport aim, crosshairs)
-    text3d::clear();
-    voicenotes::frame(); // after the clear: its indicator is queued anew each frame
-    tips::frame();       // a tip due, the one showing (vr_tips)
-    highlights::frame(); // the game's clock against realtime, a multi-kill's end
-    motion::frame();     // the motion recorder's indicator, likewise
-    posing::frame();     // the weapon posing mode's text, likewise
-    sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
-    bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
-    stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)
-    setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
-    worldtext::viewMessageFrame(); // a view message (target_vr_message): in the middle of the view while it lasts
-    loading::frame();    // "Loading..." while a level change waits for the headset to show it (vr_loading.cpp)
-    retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved
-    configFrame();       // the config saved as the menu closes, if a setting changed (the preview taken off above)
-    memLogFrame();
-    profile::overlay();  // the profiler's panel (vr_profile_overlay)
-    throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
-    input::update(state->tracking.input); // releases held keys when VR is off
-    doom::frame(); // Doom on the wrist gadget (vr_doom): its clock, its keys, its sounds at the gadget
-    bullettime::frame(); // (vr_debug_gadget_button 3: the tap's frame-start check; the tap itself: the view's)
-    gearlights::frame(); // the gear lights eased (the side button: the view's, as the gadget is drawn)
-    flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)
+    {
+        QVR_TRACY_SCOPE(zoneCountsAndTexts, "frame setup: counts and texts"); // (profiling builds only)
+        // (each step zoned in profiling builds: "frame setup: counts and texts" was 0.18 ms a frame in a big AD map)
+        {
+            QVR_TRACY_SCOPE(zoneSampleCounts, "texts: sample counts");
+            sampleCounts(); // vr_memstats: the last frame's, before its texts are cleared
+        }
+        {
+            QVR_TRACY_SCOPE(zoneTextClear, "texts: clear");
+            lines::clear(); // queued anew every frame (teleport aim, crosshairs)
+            text3d::clear();
+        }
+        {
+            QVR_TRACY_SCOPE(zoneNotesTips, "texts: notes, tips, highlights");
+            voicenotes::frame(); // after the clear: its indicator is queued anew each frame
+            tips::frame();       // a tip due, the one showing (vr_tips)
+            highlights::frame(); // the game's clock against realtime, a multi-kill's end
+        }
+        {
+            QVR_TRACY_SCOPE(zoneMotionFrame, "texts: motion");
+            motion::frame();     // the motion recorder's indicator, likewise
+        }
+        {
+            QVR_TRACY_SCOPE(zoneEditors, "texts: posing and editors");
+            posing::frame();     // the weapon posing mode's text, likewise
+            holstersetup::frame(); // Holster Setup: a held holster follows its hands; its boxes, labels and panel
+            bladeedit::frame();  // Edit Blade Shape: a held handle follows its hand; the blade, its handles and panel
+            posestudio::frame(); // the Pose Studio: a held part follows its hand; the armed humanoid's boxes and the panel
+            sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
+            bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
+        }
+        {
+            QVR_TRACY_SCOPE(zoneStealthDebug, "texts: stealth meters");
+            stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)
+        }
+        {
+            QVR_TRACY_SCOPE(zoneSetupFrame, "texts: calibration");
+            setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
+        }
+        {
+            QVR_TRACY_SCOPE(zoneRestTexts, "texts: messages, scenario, loading, retro");
+            worldtext::viewMessageFrame(); // a view message (target_vr_message): in the middle of the view while it lasts
+            scenario::frame();   // a checklist test scene: placed once its map is in, its hint
+            loading::frame();    // "Loading..." while a level change waits for the headset to show it (vr_loading.cpp)
+            retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved
+        }
+    }
+    {
+        QVR_TRACY_SCOPE(zoneConfigMemoryLogOverlay, "frame setup: config, memory log, overlay"); // (profiling builds only)
+        configFrame();       // the config saved as the menu closes, if a setting changed (the preview taken off above)
+        memLogFrame();
+        profile::overlay();  // the profiler's panel (vr_profile_overlay)
+    }
+    {
+        QVR_TRACY_SCOPE(zoneInputAndGadgets, "frame setup: input and gadgets"); // (profiling builds only)
+        throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
+        input::update(state->tracking.input); // releases held keys when VR is off
+        doom::frame(); // Doom on the wrist gadget (vr_doom): its clock, its keys, its sounds at the gadget
+        bullettime::frame(); // (vr_debug_gadget_button 3: the tap's frame-start check; the tap itself: the view's)
+        gearlights::frame(); // the gear lights eased (the side button: the view's, as the gadget is drawn)
+        flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)
+        flatplay::frame(); // -flatscreenmode: its keys, and the settings the mode stands in for (before the hands are posed)
+        ragtool::clientFrame(); // -ragtool: the ragdoll tool started once the game is up (vr_ragtool.cpp)
+    }
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
-    input::roomscaleJump(hands::current());
-    toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
+    {
+        QVR_TRACY_SCOPE(zoneToolgunAndBrushes, "frame setup: toolgun and brushes"); // (profiling builds only)
+        input::roomscaleJump(hands::current());
+        toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
+        brushes::frame(); // the boxes made in the game: their slots written (vr_brushes.cpp)
+    }
 }
 
 extern "C" int VR_RuntimeMenuPause()
 {
-    return runtimeMenuPaused() ? 1 : 0;
+    return runtimeMenuPaused() || holstersetup::pausesGame() ? 1 : 0; // (Holster Setup pauses it too)
 }
 
 extern "C" int VR_IsActive()
@@ -2147,8 +2397,16 @@ struct UnpacedSwap
 {
     double lastPresent = 0.0; // the last frame presented (Sys_DoubleTime)
     bool vsyncOff = false;    // vsync turned off for unpaced frames
+    int skipped = 0;          // frames left unpresented (the timing log's mirror count, while unfocused)
 };
 UnpacedSwap unpacedSwap;
+// QVR_TEST_BACKGROUND and QVR_TEST_HIDDEN, read once (windowUnfocused, windowNotVisible: every frame).
+struct WindowFocusCache
+{
+    bool testBackground = getenv("QVR_TEST_BACKGROUND") != nullptr;
+    bool testHidden = getenv("QVR_TEST_HIDDEN") != nullptr;
+};
+WindowFocusCache windowFocusCache;
 } // namespace
 
 extern "C" void VR_FrameDrawn()
@@ -2163,18 +2421,66 @@ extern "C" void VR_FrameDrawn()
     }
 }
 
+bool qvr::windowUnfocused()
+{
+    if(vr_debug_window_unfocused.value != 0.f)
+    {
+        return true;
+    }
+    // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise.)
+    return !windowFocusCache.testBackground && !VID_HasInputFocus();
+}
+
+bool qvr::windowNotVisible()
+{
+    if(vr_debug_window_hidden.value != 0.f)
+    {
+        return true;
+    }
+    SDL_Window* w = static_cast<SDL_Window*>(VID_GetWindow());
+    if(!w)
+    {
+        return false;
+    }
+    const Uint32 flags = SDL_GetWindowFlags(w);
+    // (SDL keeps SHOWN on a minimized window.)
+    return (flags & SDL_WINDOW_MINIMIZED) != 0 || ((flags & SDL_WINDOW_SHOWN) == 0 && !windowFocusCache.testHidden);
+}
+
+int qvr::presentsSkipped()
+{
+    return unpacedSwap.skipped;
+}
+
+extern "C" int VR_DebugWindowUnfocused()
+{
+    return vr_debug_window_unfocused.value != 0.f ? 1 : 0;
+}
+
 extern "C" int VR_SkipSwap()
 {
     // vr_mock_fast: a present waits for the display's refresh (vsync off or not: the compositor's pace in a window),
     // most of an unpaced frame. Present ten times a second: the window still shows the run.
+    // In VR with the window unfocused, the mirror's presents are thinned (vr_mirror_unfocused_hz): the driver's cap on
+    // a background window's frame rate must not hold the headset's frames.
     double& lastPresent = unpacedSwap.lastPresent;
-    if(!VR_Unpaced())
+    double interval = 0.0;
+    if(VR_Unpaced())
+    {
+        interval = 0.1;
+    }
+    else if(vrActive() && vr_mirror_unfocused_hz.value > 0.f && windowUnfocused())
+    {
+        interval = 1.0 / vr_mirror_unfocused_hz.value;
+    }
+    else
     {
         return 0;
     }
     const double now = Sys_DoubleTime();
-    if(now - lastPresent < 0.1)
+    if(now - lastPresent < interval)
     {
+        unpacedSwap.skipped++;
         return 1;
     }
     lastPresent = now;
@@ -2293,9 +2599,13 @@ extern "C" void VR_HostFrameEnd()
     qvr::mapindex::poll(); // the map index the fetch thread finished, taken here (vr_mapindex.cpp)
     qvr::update::poll(); // the update check's answer (vr_update.cpp)
     qvr::obs::poll(); // OBS's recording state, and the menus' state to its thread (vr_obs.cpp)
+    qvr::renderdoc::poll(); // the delayed RenderDoc capture (vr_renderdoc.cpp)
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
     qvr::relight::poll(); // the in-game relighting's light process: its progress, its result (vr_relight.cpp)
     qvr::prepare::frame(); // the installer's preparation run's steps (-prepare: vr_prepare.cpp)
+    // The derived-data cache: a miss from now on is "in play" (vr_diskcache.cpp); the warm-up started, paused, resumed.
+    qvr::diskcache::setInPlay(cls.state == ca_connected && cls.signon == SIGNONS && !scr_disabled_for_loading);
+    qvr::warmup::frame();
     qvr::motion::hostFrameEnd();
     qvr::allocsites::frameEnd();
     qvr::inputlag::frameEnd(); // vr_inputlag_test

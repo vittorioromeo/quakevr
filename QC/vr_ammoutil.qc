@@ -121,13 +121,15 @@ float(entity xEnt, float xAid) VR_MaxAmmo =
 float() VR_BaseHealth =
 {
     if(deathmatch) { return 100; }
+    if(AD_Evil()) { return 50; } // AD support: AD's Evil skill (vr_ad_player.qc)
     if(MG3_Campaign()) { return MG3_BASE_HEALTH; }
-    return ((cvar("vr_campaign") == 3 || cvar("vr_campaign") == 4) && skill == 3) ? 50 : 100;
+    return ((Dopa_Campaign() || MG1_Campaign()) && skill == 3) ? 50 : 100;
 }
 
 // The most health ordinary healing gives (.max_health), and what a level change carries at most.
 float(entity xEnt) VR_MaxHealth =
 {
+    if(AD_Evil()) { return 50; } // AD support: AD's Evil skill (vr_ad_player.qc)
     if(MG3_Campaign()) { return MG3_Capacity(MG3_UPGRADE_HEALTH); }
     return VR_BaseHealth();
 }
@@ -135,5 +137,6 @@ float(entity xEnt) VR_MaxHealth =
 // The most health anything gives, megahealth included (Dawn of the Machine raised it).
 float(entity xEnt) VR_MegaHealthCap =
 {
+    if(AD_Evil()) { return 100; } // AD support: AD's Evil skill: megahealth to 100 (vr_ad_player.qc)
     return MG3_Campaign() ? 500 : 250;
 }

@@ -269,6 +269,7 @@ void() worldspawn =
     precache_sound("vr/bash.wav");
     precache_sound("vr/bash_parry.wav");
     precache_sound("vr/parry.wav");
+    precache_sound("vr/necksnap.wav"); // the neck snap's crack (vr_foegrab_throw.qc; Misc/quakevr/make_necksnap_sound.py)
     precache_sound("vr/counter_open.wav"); // counter-attacks (vr_counter_sound; vr_melee.qc): the window opening,
     precache_sound("vr/counter.wav");      // and a counter landing
     precache_sound("vr/grenade_fuse.wav"); // a caught grenade lit (vr_grenade.qc),
@@ -308,12 +309,14 @@ void() worldspawn =
     VR_Chainsaw_Precache(); // VR: the ogres' chainsaw (vr_chainsaw.qc)
     VR_Crowbar_Precache(); // VR: the crowbar (vr_crowbar.qc)
     VR_Toolgun_Precache(); // VR: the toolgun (vr_toolgun.qc)
+    VR_NailPistol_Precache(); // VR: the nail pistol (vr_nailpistol.qc)
     VR_MG3_Weapons_Precache(); // VR: Dawn of the Machine's weapons, when its data is there (vr_mg3_weapons.qc)
     VR_EnemyGuns_Precache(); // VR: the grunts' shotguns and the enforcers' laser rifles (vr_enemyguns.qc)
     VR_Debris_Precache(); // VR: rocks and bricks lying about (vr_debris.qc)
     VR_SmallGib_Precache(); // VR: small gibs' squishes (vr_smallgibs.qc)
     VR_Crates_Precache(); // VR: wooden crates (vr_crates.qc)
     VR_Reload_Precache(); // VR: immersive reloading's shells and sounds (vr_reload.qc)
+    VR_AGR_Precache(); // VR: armed humanoid replacements' bodies and weapons, when on (vr_armedrepl.qc)
 
     // setup precaches allways needed
     precache_sound("items/itembk2.wav");        // item respawn sound
@@ -556,7 +559,19 @@ void() worldspawn =
 
     //MED
     footsteps = 1;
+
+    AD_WorldSpawn(); // AD support: AD's world setup in an AD map (vr_ad_bridge.qc)
 };
+
+#ifdef QVR_TESTS
+void() VR_DCTest_Frame; // (vr_dmgcredit_test.qc, after the weapons it fires)
+void() VR_AGTest_Frame; // (vr_armedgrunt_test.qc, after the armed grunts)
+void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
+void() VR_PropImp_TestFrame; // (vr_propimpact_test.qc, after AD's files)
+#endif
+void() VR_Buzzsaw_Frame; // (rogue_buzzsaw.qc: its blade cuts ragdolls)
+void() VR_DeadAnim_Frame; // (vr_deadanim.qc, after AD's files)
+void() VR_DeadAnim_TestFrame;
 
 void() StartFrame =
 {
@@ -567,41 +582,82 @@ void() StartFrame =
     skill = cvar_hget(cvarh_skill);
     VR_CVars_Frame();
     VR_Stealth_Frame(); // QVR: the stealth AI switched off: the monsters back to Quake's AI (vr_stealth.qc)
+    VR_MeleeArc_ShowFrame(); // QVR: Show Melee Arcs: the arcs and reaches the engine draws (fight.qc)
+    VR_AimCone_ShowFrame(); // QVR: Show Aim Cones: the ranged monsters' cones the engine draws (vr_aimcone.qc)
     VR_Tutorial_Frame(); // QVR: Debug's Go to a Lesson (vrtutorial only: vr_tutorial.qc)
     VR_Trailer_Frame(); // QVR: the trailer scene's reset and log (vrtrailer only: vr_trailer.qc)
     MG_WorldFrame();
+    VR_AGR_Frame(); // QVR: armed humanoid replacements' loadouts, once a player is in (vr_armedrepl.qc)
+#ifdef QVR_TESTS
     MG_TestFrame();
     MG_TriggerTestFrame();
     MG1_H_TestFrame();
+#endif
     MGH_PowerupFrame();
+#ifdef QVR_TESTS
     MGH_TestFrame();
+#endif
     MG3_Frame();
+    AD_Frame(); // AD support: AD's frame in an AD map (vr_ad_bridge.qc)
+    VR_FuelTank_Frame(); // AD support: the fuelled guns lying about have their tanks (vr_ad_enemyguns.qc)
+    VR_FlailHead_Frame(); // AD support: the flails lying about have their heads (vr_ad_melee.qc)
+#ifdef QVR_TESTS
     MG3_TestFrame();
     VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
+    VR_MeleeArcTest_Frame(); // vr_test_meleearc (vr_meleearc_test.qc)
+    VR_AimConeTest_Frame(); // vr_test_aimcone (vr_aimcone_test.qc)
+#endif
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)
+#ifdef QVR_TESTS
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
+    VR_NailPistol_TestFrame(); // vr_np_test (vr_nailpistol_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)
+    AD_MonstersTestFrame(); // AD support: vr_ad_mtest (vr_ad_monsters_test.qc)
+#endif
+    VR_DeadAnim_TestFrame(); // VR: vr_deadanim_test (vr_deadanim.qc)
+    VR_DeadAnim_Frame(); // VR: dead monsters animating again, logged (vr_debug_deadanim, vr_deadanim.qc)
+#ifdef QVR_TESTS
     MG3_BestiaryTestFrame(); // vr_mg3_btest (vr_mg3_bestiary_test.qc)
     MG3_ShubTestFrame(); // vr_mg3_shubtest (vr_mg3_shub_test.qc)
     MG3_ChthonTestFrame(); // vr_mg3_ctest (vr_mg3_chthon_test.qc)
+#endif
     VR_Liquids_Frame(); // VR: monsters in slime and lava burn (vr_liquids.qc)
+    VR_Buzzsaw_Frame(); // QVR: Rogue's buzzsaws cut the ragdolls in their blades (rogue_buzzsaw.qc)
     VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)
     VR_Crates_Frame(); // VR: at a new map's first frame, its crates (vr_crates.qc; before the rocks and bricks: they keep clear)
     VR_Debris_Frame(); // VR: at a new map's first frame, its rocks and bricks (vr_debris.qc)
     VR_Reload_PropsFrame(); // VR: guns lying about load as held ones do (vr_reload.qc)
+#ifdef QVR_TESTS
     VR_SmallGib_TestFrame(); // VR: the small gibs' tests (vr_smallgibs_test, vr_smallgibs_test.qc)
+    VR_GibProps_TestFrame(); // VR: every monster's head and gibs as props (vr_gibprops_test, vr_gibprops_test.qc)
+    VR_PropImp_TestFrame(); // VR: the props' impact rule (vr_prop_impact_test, vr_propimpact_test.qc)
     VR_TestDispenser_Frame(); // VR: a map's monster dispenser used from the console (vr_test_dispenser <n>, buttons.qc)
+    VR_TestKill_Frame(); // VR: the nearest live monster killed by a shot struck where asked (vr_test_kill <n>, combat.qc)
+    VR_TestHurt_Frame(); // VR: the nearest live monster hurt by a shot of the player's (vr_test_hurt <damage>, combat_test.qc)
+    VR_TestHit_Frame(); // VR: the nearest live monster struck where asked, never killed (vr_test_hit <n>, vr_hitreact.qc)
+#endif
+    VR_KdTrig_Frame(); // VR: the situational knockdowns' tests (vr_kdtrig_test; vr_kdtrig.qc)
+    VR_Guard_Frame(); // VR: monsters guard their heads from a hand swung at them (vr_ragdoll_active_guard, vr_hitreact.qc)
+#ifdef QVR_TESTS
     VR_DropCapTest_Frame(); // VR: the cap on dropped enemy weapons' test (vr_dropcap_test, vr_dropcap_test.qc)
     VR_CrouchTest_Frame(); // VR: the crouched box's shots test (vr_crouch_test, vr_crouch_test.qc)
     VR_Decap_TestFrame(); // VR: decapitation's tests (vr_decap_test, vr_decap.qc)
+    VR_Melee_SweepTestFrame(); // VR: the swept blade's test (vr_melee_sweep_test, vr_melee_sweep_test.qc)
     VR_Limb_TestFrame(); // VR: limb gore's tests (vr_limb_test, vr_limbs_test.qc)
     VR_PickupTest_Frame(); // VR: the weapon pickups' tests (vr_pickup_test, vr_pickup_test.qc)
+    VR_DCTest_Frame(); // VR: the weapons' damage credit test (vr_dmgcredit_test, vr_dmgcredit_test.qc)
+    VR_AGTest_Frame(); // VR: the armed grunts' tests (vr_agrunt_test, vr_armedgrunt_test.qc)
     VR_Dummy_TestFrame(); // VR: the training dummy's tests (vr_dummy_test, vr_dummy.qc)
     VR_Burn_TestFrame(); // VR: the burning tests (vr_burn_test, vr_burning.qc)
+    VR_HotBlade_TestFrame(); // VR: the incandescent blades' tests (vr_hotblade_test, vr_hotblade.qc)
     VR_Shock_TestFrame(); // VR: lightning's lasting shock's test (vr_shock_hit_test, vr_shock.qc)
+    VR_DentsTest_Frame(); // VR: every hit dents, the damage paths' test (vr_dents_test, vr_dents_test.qc)
+#endif
     VR_Burn_MapFrame(); // VR: visible mapper flames burn tracked hands/body (vr_burning.qc)
     VR_Burn_NailFrame(); // VR: nails through a torch's flame become lava nails (vr_burning.qc)
     VR_Burn_LavaFrame(); // VR: wood in lava catches fire (vr_burning.qc)
+    VR_Burn_MapBodiesFrame(); // VR: monsters and bodies touching the map's flames catch fire (vr_burning.qc)
+    VR_Burn_LavaNailsWater(); // VR: lava nails going into water are put out (vr_burning.qc)
     VR_Grapple_WorldFrame(); // VR: the grappling hooks whose guns lie about (vr_grapple.qc)
     VR_Throw_SelfFrame(); // VR: things you threw hurt you once vr_throw_self_grace is over (vr_carry.qc)
     framecount = framecount + 1;

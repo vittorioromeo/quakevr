@@ -14,7 +14,8 @@
 # A bone's list: its clusters, or "pN" a whole piece of its own (with "wholepieces": true, SeedTable::wholePieces: the
 # clusters only the body piece's; the centroid's legs, arms and pincers, meshes of their own moving alike).
 # A bone's flags after its capsule: 'tip' (its end its far tip, not its child's pivot), 'boundary' (its pivot the
-# boundary's middle with its parent, not the motions' fit).
+# boundary's middle with its parent, not the motions' fit), 'knee' (its pivot the parent's side of that boundary, the knee
+# ring's lower edge a long-triangled shin hangs from; its end down the shin through its own side, the ankle).
 # A seed's keepHinge (a hinge whose axis the rest pose's sideways lean would turn: the rottweiler's legs) is set by hand.
 # The loose pieces (a piece some pose hides, all of it at one point: the dropped weapon) are left out.
 import os, sys, json, tempfile
@@ -32,6 +33,13 @@ KNOWN = {
     'soldier': (list(range(463, 549)), (8, 28)),
     'enforcer': ([22, 23, 100] + list(range(400, 431)) + list(range(455, 479)), None),
     'grem': (list(range(85, 123)), (104, 123)),  # (Hipnotic's gremlin: the stolen gun, tucked in his body but in the g* frames)
+    'mon_soldier': (list(range(463, 549)), (8, 28)),
+    'mon_enforcer': (list(range(17)) + list(range(45, 61)), (41, 65)),
+    'mon_centurion': (list(range(17)) + list(range(45, 61)) + list(range(222, 284)), (18, 42)),
+    'mon_pyro': (list(range(33)) + list(range(194, 226)), (41, 65)),
+    'mon_fumigator': (list(range(33)) + list(range(194, 226)), (41, 65)),
+    'mon_knight': (list(range(247, 268)), (66, 86)),  # (AD's knight: id's mesh, its sword dropped)
+    'mon_deflector': (list(range(17)) + list(range(222, 267)), (51, 75)),  # (its muzzle effect and field rings)
 }
 
 # The models whose every piece but the body is loose (vr_ragdoll.cpp SeedTable::looseWeapons: hidden in the ragdoll):
@@ -115,7 +123,9 @@ for p, n in sizes.items():
     gap = max(np.sqrt(((P[f, pv][:, None, :] - P[f, bodyR][None, :, :]) ** 2).sum(2).min()) for f in range(0, nf, 2))
     hidden = any((P[f, pv].max(0) - P[f, pv].min(0)).max() < 0.5 for f in range(nf))
     hidden = hidden or name in LOOSE_PIECES  # (the player's axe and gun: hidden in his ragdoll, SeedTable::looseWeapons)
-    print('piece %d: %d places, gap %.1f, %s' % (p, n, gap, 'loose (hidden)' if hidden else 'body'))
+    c0 = P[0, pv].mean(0)
+    print('piece %d: %d places, gap %.1f, %s, rest centre %.1f %.1f %.1f' % (p, n, gap, 'loose (hidden)' if hidden else 'body',
+                                                                            c0[0], c0[1], c0[2]))
     if hidden:
         loose.update(pv)
 reps = [v for v in allReps if v not in loose]
@@ -254,7 +264,7 @@ else:
     tr = fit(label, len(bones))
     E = np.stack([errs(tr, l) for l in range(len(bones))], 1)
     print('bones rms %.2f' % np.sqrt(E[np.arange(R), label].sum() / (R * nf)))
-    centre, pivot = {}, {}
+    centre, pivot, ankle = {}, {}, {}
     for b, bone in enumerate(bones):
         nm, par = bone[0], bone[1]
         m = label == b
@@ -273,6 +283,13 @@ else:
             piv = pivot[b] = np.linalg.lstsq(np.concatenate([A, lam * np.eye(3)]), np.concatenate([y, lam * pb]), rcond=None)[0]
             if 'boundary' in bone[5:]:
                 pivot[b] = pb  # (its pivot the boundary's middle: the fit's was off it, the motions too alike: the fiend's ankles)
+            if 'knee' in bone[5:]:
+                # (its pivot the parent's side of the boundary: the knee ring's lower edge its long triangles hang from,
+                # not the fit's, which a stretching shin pulls down to the boot: the enforcer's and the zombie's knees;
+                # its end down the line from there through its own side, the boot's top: the ankle, not the foot)
+                kb = [X[0, i] for i in np.where(label == par)[0] for u in adj[reps[i]] if u in idx and label[idx[u]] == b]
+                pivot[b] = np.mean(kb, 0)
+                ankle[b] = pb
             line += ' pivot %6.1f %6.1f %6.1f (boundary %6.1f %6.1f %6.1f)' % (*piv, *pb)
         print(line)
     # The seed table (vr_ragdoll.cpp Seed): a bone's 4th entry its joint ("root", ["ball", cone, twist], ["hinge", flex,
@@ -301,6 +318,8 @@ else:
         end = pivot[kids[0]] if kids and not tip else 2 * centre[b] - pivot[b]
         piv = pivot[b] if par >= 0 else centre[b]
         low = X[0, label == b][:, 2].min()
+        if b in ankle and not kids:
+            end = piv + (ankle[b] - piv) * (piv[2] - (low + cap)) / (piv[2] - ankle[b][2])  # ('knee': down the shin to the floor)
         if cap > 0 and not kids and end[2] - cap < low and piv[2] - end[2] > 1e-3:
             end = piv + (end - piv) * min(1, (piv[2] - (low + cap)) / (piv[2] - end[2]))  # (its capsule not below its foot)
         if joint == 'root':

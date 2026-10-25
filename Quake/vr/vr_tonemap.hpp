@@ -22,5 +22,7 @@ namespace qvr::tonemap
 // vr_eyeshot: after an eye's post-process, saves its image (`imageFbo`, width x height) and with vr_eyeshot 2 its
 // float scene (`sceneFbo`) to <gamedir>/eyeshots; clears vr_eyeshot after the right eye.
 void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int height);
+// The number the next eyeshot's files take (eyeshots/<map>_<number>_L.png).
+[[nodiscard]] int nextEyeshot();
 
 } // namespace qvr::tonemap

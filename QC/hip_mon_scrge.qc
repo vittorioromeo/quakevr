@@ -94,7 +94,7 @@ void(float ox) SCOURGE_FireSpikes =
     vector src = self.origin - '0 0 19' + v_right*ox + v_forward*14;
     if(!VR_AI_ShotReady(src)) { return; }
     vector vec = (VR_AI_Origin(self.enemy) + (200*v_forward)) - src;
-    vec = normalize(vec);
+    vec = VR_AimCone_Bend(normalize(vec), VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
     sound(self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
     launch_spike(src, vec);
 
@@ -105,12 +105,14 @@ void(float ox) SCOURGE_FireSpikes =
 //
 void() Attack_With_Tail =
 {
-    ai_face();
+    VR_MeleeArc_Face(); // QVR: (melee arc: fight.qc)
 
     vector delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 100)
+    if(vlen(delta) > VR_MeleeReach(100))
         return;
+    if(!VR_MeleeArc_Hits(FALSE))
+        return; // QVR: (melee arc: fight.qc)
 
     if(!CanDamage(self.enemy, self))
         return;

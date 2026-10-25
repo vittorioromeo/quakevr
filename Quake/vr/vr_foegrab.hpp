@@ -12,7 +12,7 @@
 // - the dummy (vr_dummy.qc) is held as any enemy but never moved (it stands on its spot);
 // - both hands holding one enemy and turning it over hard (vr_foegrab_throw_twist degrees/s, the hands at
 //   vr_foegrab_throw_speed m/s) throw it down that way (QC vr_foegrab_throw.qc: a knockdown, for sure, by its kind and
-//   health: vr_foegrab_throw_always, _when_hurt, _hurt; or by mass), and both let go (throwCheck);
+//   health: its monster group's Two-Hand Throw, vr_foegrab_throw_hurt; or by mass), and both let go (throwCheck);
 // - its shoves (grunts, enforcers) are resisted (QC vr_enemyshove.qc: vr_foegrab_shove_resist times its hold) or, with
 //   vr_foegrab_shove 1, push you fully and break the hold;
 // - the holding hand deals no melee blows (QC .vr_foegrab_hands); the other hand fights as ever;
@@ -32,6 +32,8 @@
 #pragma once
 
 #include "vr_engine.hpp"
+
+#include "Zancle/String/String.hpp"
 
 extern "C" void VR_FoeGrabPreThink(edict_t* ent); // SV_Physics_Client, after VR_ClimbPreThink
 
@@ -58,6 +60,16 @@ void reset();
 // fall is printed as the throw's ("shove trace:"). False: no ragdoll.
 bool shoveTopple(edict_t* m, const glm::vec3& dir, float strength, bool ledge = false, float reach = 0.f);
 
+// The leg sweep's (vr_legsweep.cpp). A humanoid: its monster group's Leg Sweep (vr_mgroups.hpp; the training dummy as
+// one). Its mass (kg: QC VR_Grapple_MonsterMass, as the grapple and the throw weigh it).
+[[nodiscard]] bool humanoid(edict_t* m);
+[[nodiscard]] float monsterMass(edict_t* player, edict_t* m);
+// `player` swept `m`'s legs along level `sweep`: knocked down (QC VR_LegSweep_Down: a knockdown as the throw's, `damage`
+// dealt), its ragdoll turned over about its feet against the sweep at `topple` rad/s (its top's speed), its feet swept
+// along at `feet` units/s (box3d::ragdollTopple, as the throw's), its arms bracing; the sweeping thing passes through it a
+// moment. Returns the QC's: 1 down, 2 the training dummy (it stands), -2 it can't be knocked down now.
+float sweepDown(edict_t* player, edict_t* m, const glm::vec3& sweep, float topple, float feet, float damage);
+
 void preThink(edict_t* ent);
 void serverFrame(); // VR_ServerFrameEnd, before hitmodel::serverFrame
 void afterPoses();  // VR_ServerFrameEnd, after it
@@ -65,11 +77,37 @@ void afterPoses();  // VR_ServerFrameEnd, after it
 // Server: the player's holds as stats (STAT_QVR_FOEGRAB*), for the drawn hands.
 void calcStats(edict_t* ent, int* statsi);
 
+// Server: whether a hand of `player` holds `m` now (vr_bodycontact.cpp: vr_foegrab_step_in).
+[[nodiscard]] bool holds(const edict_t* player, const edict_t* m);
+
 // Client: whether `hand` holds an enemy now.
 [[nodiscard]] bool holding(int hand);
+
+// A voice note's context (vr_notectx.cpp): what the first player's `hand` (HAND_OFF, HAND_MAIN) holds of an enemy now, a
+// line ("monster_army #34 by the head, hold 0.80 ..."; the two-hand moves' state after it), "" nothing. The server's.
+[[nodiscard]] za::String noteHand(int hand);
 
 // Client: the drawn `hand`'s place (its controller's `pos`, turned `rot`) moved so that its palm is on the spot it holds,
 // eased on and off. Returns how far it is on it, 0 (the controller's) .. 1.
 float drawnHand(const hands::State& s, int hand, glm::vec3& pos, const glm::vec3& rot);
+
+// Client (a listen server's): the neck snap's diagnostic (vr_foegrab_necksnap_debug; Neck Snap > Show Diagnostic) over
+// the enemy both hands hold by the head, else the one a hand holds, else the humanoid nearest the hands: its head zone
+// (green with both hands in it), where each hand holds or would (green at its head or neck, orange at a shoulder, red
+// off it), the line between the palms, the twist's arc against Twist Angle and a panel of the hand line's numbers
+// against it; the last hold's outcome a few seconds after. `eye` the viewer's (the panel faces it).
+void neckDebugDraw(const glm::vec3& eye);
+
+// Client (a listen server's): the lift's and the judo throw's diagnostics (vr_foegrab_lift_debug, vr_foegrab_throw_debug;
+// Lift / Two-Hand Throw > Show Diagnostic) over the enemy both hands hold, else the one a hand holds, else the monster
+// nearest the hands. The lift: the hands' pull (an arrow from between them: green once at Lift Speed and within 45
+// degrees of straight up, the cone of both), the Lift Reach circle round its feet (green with you inside). The throw: the
+// turn's way from its top (an arrow, as long as the turn; the circle Turn to Throw). Each with a panel of its numbers
+// against their thresholds, what stops it now, its best and the last try's result. `eye` the viewer's.
+void grabDebugDraw(const glm::vec3& eye);
+
+// Server (its QC VM current): the middle of `m`'s head zone, the neck snap's (standing: on its model standing; its
+// ragdoll's head as it lies). False: none. The mock's `vr_mock_hand_to <hand> nearest <classname> head`.
+bool headZoneCentre(edict_t* m, glm::vec3& centre);
 
 } // namespace qvr::foegrab

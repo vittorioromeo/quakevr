@@ -25,7 +25,7 @@ float() MG_TriggerGuard = {
 };
 float(entity e) MG_MessageAll = {
     if(!MG_WorldCampaign()) return FALSE;
-    return (cvar("vr_campaign") == 5) ? (e.spawnflags & 8388608) : (e.spawnflags & 2097152);
+    return MG3_Campaign() ? (e.spawnflags & 8388608) : (e.spawnflags & 2097152);
 };
 void(string text) MG_PrintAll = {
     entity p = find(world, classname, "player");
@@ -165,12 +165,7 @@ void() MG_T_Shake =
 		if (!(self.spawnflags & MG_SILENT_SHAKE))
 			sound (self, CHAN_VOICE, self.noise1, 1, ATTN_NORM);
 
-		t = find( world, classname, "player" );
-		while (t)
-		{
-			// No reset of player view or tracking angles in VR.
-			t = find( t, classname, "player" );
-		}
+		// (No reset of player view or tracking angles in VR.)
 		return;
 	}
 
@@ -336,7 +331,7 @@ void() MG_play_lightning =
 			startpos = self.origin;
 		}
 
-		if (cvar("vr_campaign") != 5 || !(self.spawnflags & MG_LIGHTNING_SILENT))
+		if (!MG3_Campaign() || !(self.spawnflags & MG_LIGHTNING_SILENT))
 			sound (t, CHAN_AUTO, self.noise, self.volume, ATTN_NORM); //Changed to CHAN_AUTO to allow more overlapping sounds
 
 		// create the temp lightning entity
@@ -402,7 +397,7 @@ void() trigger_lightning =
 	if(!self.volume)
 		self.volume = 1;
 
-	if(cvar("vr_campaign") == 5 && (self.spawnflags & MG_LIGHTNING_SILENT))
+	if(MG3_Campaign() && (self.spawnflags & MG_LIGHTNING_SILENT))
 		self.volume = 0;
 
 };

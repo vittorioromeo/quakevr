@@ -241,6 +241,9 @@ kernel is 4x faster, because we can skip 3/4 of the input samples that are
 known to be 0 and skip 3/4 of the filter kernel.
 ==============
 */
+static float	*s_filterinput; // QVR: S_ApplyFilter's input (was the hunk's), grown as needed
+static size_t	s_filterinputsize;
+
 static void S_ApplyFilter(filter_t *filter, int *data, int stride, int count)
 {
 	int i, j;
@@ -248,12 +251,17 @@ static void S_ApplyFilter(filter_t *filter, int *data, int stride, int count)
 	float *input;
 	const int kernelsize = filter->kernelsize;
 	const float *kernel = filter->kernel;
-	int mark;
 	int parity;
 
-	mark = Hunk_LowMark ();
+	// QVR: a heap buffer kept between calls, not the hunk's top: the mix may run on the thread pool (S_MixKick), and the
+	// hunk is the main thread's
 	inputsize = sizeof(float) * (filter->kernelsize + count);
-	input = (float *) Hunk_AllocNoFill (inputsize);
+	if (inputsize > s_filterinputsize)
+	{
+		s_filterinput = (float *) VR_HeapRealloc (s_filterinput, inputsize);
+		s_filterinputsize = inputsize;
+	}
+	input = s_filterinput;
 
 // set up the input buffer
 // memory holds the previous filter->kernelsize samples of input.
@@ -292,8 +300,6 @@ static void S_ApplyFilter(filter_t *filter, int *data, int stride, int count)
 	}
 
 	filter->parity = parity;
-
-	Hunk_FreeToLowMark (mark);
 }
 
 /*
@@ -673,6 +679,21 @@ static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int count, int
 	unsigned char	*sfx;
 	int		i;
 
+	if (ch->master_vol > 255 && (ch->leftvol > 255 || ch->rightvol > 255))
+	{	// QVR: louder than full (protocol.h SND_LOUD): past the scale table's top, its sums directly
+		const int lv = (int) (ch->leftvol * 256 * sfxvolume.value);
+		const int rv = (int) (ch->rightvol * 256 * sfxvolume.value);
+		sfx = (unsigned char *)sc->data + ch->pos;
+		for (i = 0; i < count; i++)
+		{
+			data = sfx[i];
+			data = data < 128 ? data : data - 256; // (signed: as the scale table's)
+			paintbuffer[paintbufferstart + i].left += data * lv;
+			paintbuffer[paintbufferstart + i].right += data * rv;
+		}
+		ch->pos += count;
+		return;
+	}
 	if (ch->leftvol > 255)
 		ch->leftvol = 255;
 	if (ch->rightvol > 255)
@@ -787,8 +808,9 @@ sounds' samples * 256 as the scale table's), at SND_PaintChannelFrom8/16's volum
 static void SND_PaintChannelFull (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)
 {
 	const short	*sfx = S_FullBandData (sc) + ch->pos;
-	const int	leftvol = (sc->width == 1 ? q_min (ch->leftvol, 255) : ch->leftvol) * snd_vol / 256 * S_FULLBAND_SCALE;
-	const int	rightvol = (sc->width == 1 ? q_min (ch->rightvol, 255) : ch->rightvol) * snd_vol / 256 * S_FULLBAND_SCALE;
+	const int	cap = sc->width == 1 && ch->master_vol <= 255 ? 255 : 0x7fff; // (QVR: SND_LOUD's past it)
+	const int	leftvol = q_min (ch->leftvol, cap) * snd_vol / 256 * S_FULLBAND_SCALE;
+	const int	rightvol = q_min (ch->rightvol, cap) * snd_vol / 256 * S_FULLBAND_SCALE;
 	int		i;
 
 	for (i = 0; i < count; i++)

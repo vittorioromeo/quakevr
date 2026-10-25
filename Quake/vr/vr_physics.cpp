@@ -20,6 +20,7 @@
 #include "vr_units.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
+#include "vr_tracy.h"
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
@@ -127,7 +128,7 @@ constexpr float easyHandTouchBonus = 4.5f;
     return carry && fieldFunc(target, f().handtouch) == carry;
 }
 
-// vr_debug_carry 2: a hand's box touching a carried thing (the old test, vr_carry_grab_drawn 0): how far its fist is
+// vr_debug_carry 2: a hand's box touching a carried thing (no fist push, another player's hand): how far its fist is
 // from the thing's drawn surface.
 void debugBoxTouch(edict_t* target, edict_t* player, int which)
 {
@@ -153,6 +154,31 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
 [[nodiscard]] bool weaponByFist(edict_t* target)
 {
     return vr_weapon_grab_drawn.value && thrownWeapon(target);
+}
+
+// An armed monster's weapon in its hand (QC vr_armedgrunt.qc VR_AG_MakeProp): taken (a tug-of-war, or at once) only by
+// the fist on its drawn shape (vr_agrunt_grab_slack), never by its box (a 20-unit cube round its grip: a hand on the
+// monster's arm or chest, or swung past it, took it; the author's note vrtesthall_2026-10-24_01-10-14).
+[[nodiscard]] bool armedWeapon(edict_t* target)
+{
+    return !strcmp(PR_GetString(target->v.classname), "vr_ag_weapon");
+}
+
+za::Vector<glm::vec4> armedFist; // handOn's: the fist's spheres in the world, on an armed monster's weapon
+
+// Whether `player`'s hand `h` (0 off, 1 main) grips (QVR_VRBITS0_*HAND_GRABBING) or has just pressed its grip (QC
+// VR_HandGrabUtil_StartedHandGrabbing's 0.125 s: the tests press it so): a grab's time.
+[[nodiscard]] bool gripStarted(edict_t* player, int h)
+{
+    constexpr int grabBit[2] = {1 << 1, 1 << 3};
+    if(f().vrbits0 >= 0 && (static_cast<int>(fieldFloat(player, f().vrbits0)) & grabBit[h]) != 0)
+    {
+        return true;
+    }
+    const float grab = fieldFloatOr(player, h == 0 ? f().offhand_lastgrabtime : f().mainhand_lastgrabtime, -1.f);
+    const float letGo = fieldFloatOr(player, h == 0 ? f().offhand_lastreleasetime : f().mainhand_lastreleasetime, -1.f);
+    const double now = qcvm->time;
+    return grab > 0.f && now < grab + 0.125 && now > letGo && letGo + 0.125 <= grab;
 }
 
 // A weapon at rest on something (on the floor, a crate, stuck in a wall), not in the air: resting (FL_ONGROUND, or not
@@ -187,11 +213,14 @@ constexpr float weaponDrawnReach = 48.f;
 {
     // (An explosive box by the fist only where the fist also pushes it, vr_box3d_hand_push_fist: the listen server's own
     // player. Another player's hand still pushes with the sphere at its point, which keeps the box off its fist.)
-    const bool byFist = vr_carry_grab_drawn.value && vr_box3d_hand_push_fist.value && NUM_FOR_EDICT(player) == 1;
-    if(box3d::isRagdoll(NUM_FOR_EDICT(target)))
+    const bool byFist = vr_box3d_hand_push_fist.value && NUM_FOR_EDICT(player) == 1;
+    const int h = which == HAND_OFF ? 0 : 1;
+    const int handPos = which == HAND_OFF ? f().offhandpos : f().handpos; // (the hand's field)
+    const float m2u = units::metresToUnits();
+    if(const int num = NUM_FOR_EDICT(target); box3d::isRagdoll(num))
     {
         // A ragdoll: a hand on one of its limbs (its box is round all of them).
-        return box3d::ragdollReach(NUM_FOR_EDICT(target), fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos));
+        return box3d::ragdollReach(num, fieldVec(player, handPos));
     }
     if(hasFlag(target, physics::FL_FORCEGRABBABLE) || (byFist && carried(target)))
     {
@@ -199,12 +228,45 @@ constexpr float weaponDrawnReach = 48.f;
         // gets: taken within vr_reload_grab_slack of its surface.
         const int mi = static_cast<int>(target->v.modelindex);
         const qmodel_t* model = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
-        const float slack = model && (modelmeta::has(model, modelmeta::Trait::LiveShell) ||
-                                      modelmeta::has(model, modelmeta::Trait::Magazine) ||
-                                      modelmeta::has(model, modelmeta::Trait::LiveRound) || modelmeta::isQuakeGrenade(model))
-                                ? za::max(vr_reload_grab_slack.value, 0.f) * 0.01f * units::metresToUnits()
+        const float slack = model && modelmeta::isRound(model)
+                                ? za::max(vr_reload_grab_slack.value, 0.f) * 0.01f * m2u
                                 : 0.f;
-        return held::grabTouch(target, player, which == HAND_OFF ? 0 : 1, slack);
+        return held::grabTouch(target, player, h, slack);
+    }
+    if(armedWeapon(target))
+    {
+        const float slack = vr_agrunt_grab_slack.value * 0.01f * m2u;
+        if(NUM_FOR_EDICT(player) == 1 && !held::fist(h).empty())
+        {
+            // The fist's spheres against the weapon's surface, by distance alone (not grabTouch's inside test: a held
+            // gun's model is open, and a fist 20 cm over a shotgun read as sunk in it). A thin weapon has no inside a
+            // fist's sphere middle sinks into without passing near its surface.
+            // Measured only for a grab (its grip held, or just pressed: QC VR_AG_PropHandTouch takes it only then) or the
+            // tests' reading (vr_agrunt_debug): an open hand by it, or a fist at rest on it, asks nothing.
+            const bool reading = vr_agrunt_debug.value && which == HAND_MAIN;
+            if(!reading && !gripStarted(player, h))
+            {
+                return false;
+            }
+            held::fistInWorld(h, fieldVec(player, handPos), fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot),
+                armedFist);
+            const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
+            bool surface = true;
+            // (within: the tests' reading wants the gap a little way out too; a grab alone is done at the first sphere on it)
+            const float gap = za::min(999.f * m2u, held::fistGap(target, armedFist, za::max(allowed, 0.25f * m2u), surface,
+                                                      reading ? -1e30f : allowed));
+            if(!surface)
+            {
+                return false; // (no surface to measure)
+            }
+            if(vr_agrunt_debug.value && which == HAND_MAIN)
+            {
+                Cvar_SetValueQuick(&vr_agrunt_grab_gap, gap / m2u * 100.f); // (the tests' reading, cm)
+            }
+            return gap <= allowed;
+        }
+        // (No fist known: another player's hand, no jointed hand model) its point in the box the weapon is drawn in.
+        return held::nearDrawn(target, fieldVec(player, handPos), za::max(slack, 0.f));
     }
     if(weaponByFist(target))
     {
@@ -214,19 +276,24 @@ constexpr float weaponDrawnReach = 48.f;
         // not anywhere) with vr_weapon_grab_handle_leniency more: a gun is taken by its grip from as far off it as the
         // grip is from the fist's lowest over the floor. Not in the air: a force grab's catch takes it by its own
         // handtouch, and a weapon flying at the hand is caught by the fist on it.
-        const int h = which == HAND_OFF ? 0 : 1;
-        const float m2u = units::metresToUnits();
+        // In the air (tossed up to re-grip it, flipped, spinning): vr_weapon_catch_handle_leniency at its handle, a trick
+        // catch's (ROUND22.md, "Mid-air catches": the closing fist missed a falling axe's handle by a few centimetres).
+        // Not one a force grab pulls (QC fg_state 1): its catch is its own (vr_forcegrab_catch_radius).
+        const glm::vec3 hand = fieldVec(player, handPos);
+        const bool atHandle =
+            glm::distance(hand, vec(target->v.origin)) <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u;
         float slack = 0.f;
         if(lyingWeapon(target))
         {
             slack = za::max(vr_weapon_grab_slack.value, 0.f) * 0.01f * m2u;
-            const float leniency = za::max(vr_weapon_grab_handle_leniency.value, 0.f) * 0.01f * m2u;
-            const glm::vec3 hand = fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos);
-            if(leniency > 0.f &&
-                glm::distance(hand, vec(target->v.origin)) <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u)
+            if(atHandle)
             {
-                slack += leniency;
+                slack += za::max(vr_weapon_grab_handle_leniency.value, 0.f) * 0.01f * m2u;
             }
+        }
+        else if(atHandle && fieldFloatOr(target, f().fg_state, 0.f) != 1.f)
+        {
+            slack = za::max(vr_weapon_catch_handle_leniency.value, 0.f) * 0.01f * m2u;
         }
         if(held::grabTouch(target, player, h, slack))
         {
@@ -234,13 +301,13 @@ constexpr float weaponDrawnReach = 48.f;
         }
         // Not touching it: not taken (the author's notes hip1m1_2026-10-07_22-33-15, vrfiringrange_2026-10-07_22-49-20:
         // the hand's 5-unit box at its point against the box round the handle caught it with the fist ~20 cm off).
-        // Without a fist (no jointed hand model) or with vr_weapon_grab_box 1: by its box, as before.
-        if(!held::fist(h).empty() && !vr_weapon_grab_box.value)
+        // Without a fist (no jointed hand model): by its box, as before.
+        if(!held::fist(h).empty())
         {
             return false;
         }
     }
-    const glm::vec3 hand = fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos);
+    const glm::vec3 hand = fieldVec(player, handPos);
     const glm::vec3 extent{handHalfSize};
     const glm::vec3 bonus{handTouchBonus(target)};
     const glm::vec3 origin = vec(target->v.origin);
@@ -492,6 +559,7 @@ void verifyPropTouch(edict_t* ent, edict_t* target)
 // vr_gameplayfix_touchsolids. Bodies also "hand"-touch things when hands aren't tracked.
 void touch(edict_t* ent, edict_t* target)
 {
+    if(VR_AD_PelletsPass(ent, target)) return; // AD support: overlapping pellets never consume one another
     if(!absBoxesOverlap(ent, target))
     {
         return;
@@ -518,8 +586,12 @@ void touch(edict_t* ent, edict_t* target)
     }
 
     const func_t handtouch = fieldFunc(target, f().handtouch);
+    // (Item Pickup Mode Vanilla, vr_carry 0: walking into a pickup takes it, as in Quake; QC's handtouch with the fake
+    // hand. Only pickups: the rest of the body's touches stay vr_body_interactions'.)
+    const bool vanillaPickup = vr_carry.value == 0.f && (static_cast<int>(target->v.flags) & FL_ITEM) != 0;
     if(handtouch && !target->free && isClient(ent) &&
-        (!fieldFloatOr(ent, f().ishuman, 0.f) || vr_body_interactions.value || !handsTracked(ent)))
+        (!fieldFloatOr(ent, f().ishuman, 0.f) || vr_body_interactions.value || vanillaPickup ||
+            fieldFloatOr(ent, f().vr_flatscreen, 0.f) != 0.f || !handsTracked(ent))) // (flatscreen: this player's own)
     {
         setHandtouchParams(HAND_FAKE, ent, target);
         callField(target, ent, handtouch);
@@ -559,7 +631,7 @@ void handTouch(edict_t* ent, edict_t* target)
     const glm::vec3 tMin = vec(target->v.absmin);
     const glm::vec3 tMax = vec(target->v.absmax);
 
-    const bool drawn = weaponByFist(target);
+    const bool drawn = weaponByFist(target) || armedWeapon(target);
     for(const int ofs : {f().offhandpos, f().handpos})
     {
         const glm::vec3 hand = fieldVec(ent, ofs);
@@ -1954,6 +2026,13 @@ extern "C" int VR_AllowWaterSplash(edict_t* ent)
     return !thingSplash(ent, at, entering);
 }
 
+#ifdef QVR_TRACY
+namespace
+{
+constexpr vr_tracy_loc touchLinksZone{"VR touch links", "QVR", __FILE__, __LINE__, 0}; // a player's only
+} // namespace
+#endif
+
 extern "C" int VR_TouchLinks(edict_t* ent)
 {
     if(!active())
@@ -1966,12 +2045,17 @@ extern "C" int VR_TouchLinks(edict_t* ent)
     // touchable one is linked: only SOLID_NOT isn't), found down the area nodes rather than by a scan
     // of every edict for every mover, and taken in edict order as that scan did (touch functions may
     // relink, hence the copy).
+    const bool client = isClient(ent);
+#ifdef QVR_TRACY
+    // A player's (a few a tick): the touches round his body and hands, zoned (the C6 hitches: ROUND22.md).
+    const vr_tracy_loc* const zone = client ? &touchLinksZone : nullptr;
+    if(zone) VR_TracyBeginLoc(zone);
+#endif
     const int mark = Hunk_LowMark();
     const int space = qcvm->num_edicts * 3;
     edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(space * sizeof(edict_t*)));
     int found = 0;
 
-    const bool client = isClient(ent);
     SV_AreaEdictsUnordered(ent->v.absmin, ent->v.absmax, list, &found, space);
     if(client)
     {
@@ -2014,11 +2098,15 @@ extern "C" int VR_TouchLinks(edict_t* ent)
         touch(ent, target);
         if(client && !target->free)
         {
+            QVR_TRACY_SCOPE(handZone, "VR hand touch");
             handTouch(ent, target);
         }
     }
 
     Hunk_FreeToLowMark(mark);
+#ifdef QVR_TRACY
+    if(zone) VR_TracyEnd();
+#endif
     return 1;
 }
 
@@ -2046,5 +2134,94 @@ namespace qvr::physics
 void propTouchStats_f()
 {
     Con_Printf("prop touch verification: %llu callbacks checked\n", static_cast<unsigned long long>(touchVerified));
+}
+
+void grabBench(); // (below: in the server's progs)
+
+void grabBench_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("vr_agrunt_grab_bench: no game\n");
+        return;
+    }
+    qcvm_t* const old = qcvm;
+    if(old != &sv.qcvm)
+    {
+        if(old)
+        {
+            PR_SwitchQCVM(nullptr);
+        }
+        PR_SwitchQCVM(&sv.qcvm);
+    }
+    grabBench();
+    if(old != &sv.qcvm)
+    {
+        PR_SwitchQCVM(nullptr);
+        if(old)
+        {
+            PR_SwitchQCVM(old);
+        }
+    }
+}
+
+void grabBench()
+{
+    // The armed monsters' weapon nearest your main hand, your main fist against it (held::benchFistGap).
+    edict_t* player = sv.active && svs.maxclients > 0 ? EDICT_NUM(1) : nullptr;
+    if(!player || held::fist(1).empty())
+    {
+        Con_Printf("vr_agrunt_grab_bench: no player or no fist\n");
+        return;
+    }
+    const glm::vec3 hand = fieldVec(player, f().handpos);
+    edict_t* best = nullptr;
+    float bestD = 1e30f;
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(!e->free && armedWeapon(e))
+        {
+            const float d = glm::distance(hand, vec(e->v.origin));
+            if(d < bestD)
+            {
+                bestD = d;
+                best = e;
+            }
+        }
+    }
+    if(!best)
+    {
+        Con_Printf("vr_agrunt_grab_bench: no armed monster's weapon\n");
+        return;
+    }
+    held::fistInWorld(1, hand, fieldVec(player, f().handrot), armedFist);
+    const float m2u = units::metresToUnits();
+    held::benchFistGap(best, armedFist, vr_carry_grab_bias.value * 0.01f * m2u + vr_agrunt_grab_slack.value * 0.01f * m2u,
+        Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 200);
+}
+
+bool fistOnArmedWeapon(edict_t* player, int hand)
+{
+    if(!player || hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    const glm::vec3 at = fieldVec(player, hand == 0 ? f().offhandpos : f().handpos);
+    const float reach = handHalfSize + weaponDrawnReach;
+    const float lo[3] = {at.x - reach, at.y - reach, at.z - reach};
+    const float hi[3] = {at.x + reach, at.y + reach, at.z + reach};
+    const int mark = Hunk_LowMark();
+    const int space = qcvm->num_edicts;
+    edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(space * sizeof(edict_t*)));
+    int found = 0;
+    SV_AreaEdictsUnordered(lo, hi, list, &found, space);
+    bool on = false;
+    for(int i = 0; i < found && !on; i++)
+    {
+        on = !list[i]->free && armedWeapon(list[i]) && handOn(list[i], player, hand == 0 ? HAND_OFF : HAND_MAIN);
+    }
+    Hunk_FreeToLowMark(mark);
+    return on;
 }
 }

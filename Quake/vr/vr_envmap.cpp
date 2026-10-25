@@ -11,6 +11,12 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -775,6 +781,16 @@ void resetWater()
 }
 
 } // namespace
+
+void prepare()
+{
+    if((vr_weapon_reflections.value > 0.f || vr_water_reflections.value != 0.f) && cl.worldmodel && gl_clipcontrol_able &&
+        lightmap_texture)
+    {
+        QVR_PROFILE("env cube build");
+        (void)ensureWorld();
+    }
+}
 
 void update()
 {

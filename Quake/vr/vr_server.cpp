@@ -4,9 +4,12 @@
 #include "vr_axestick.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hitmodel.hpp"
+#include "vr_limbmodel.hpp"
 #include "vr_hull.hpp"
 #include "vr_climb.hpp"
+#include "vr_bodycontact.hpp"
 #include "vr_foegrab.hpp"
+#include "vr_legsweep.hpp"
 #include "vr_cvars.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_ledges.hpp"
@@ -17,12 +20,16 @@
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_serverrules.hpp"
+#include "vr_tracy.h"
+#include "vr_seated.hpp"
 #include "vr_shock.hpp"
+#include "vr_units.hpp"
 #include "vr_portals.hpp"
 #include "vr_tips.hpp"
 #include "vr_worldtext.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
@@ -99,6 +106,20 @@ template <int N>
     return count;
 }
 
+// A late precache is also repeated at the head of each client's datagrams for a moment (VR_WriteRecentPrecaches): the
+// datagram is sent before the reliable message (and a reliable one waits for the last one's ack), so the entity made in
+// the same frame, with the new model, or the sound started on it would reach the client before the name and be lost (a
+// model drawn as nothing until its next update; the sound never heard). The repeats are harmless (the client knows it).
+struct RecentPrecache
+{
+    int subcmd{0};
+    int index{0};
+    const char* name{nullptr};
+    double until{0.0}; // (the server's time)
+};
+constexpr double recentPrecacheTime = 0.5;
+za::InPlaceVector<RecentPrecache, 64> recentPrecaches;
+
 template <int N>
 void broadcastNewPrecaches(const char* const (&list)[N], int& known, int subcmd)
 {
@@ -109,6 +130,11 @@ void broadcastNewPrecaches(const char* const (&list)[N], int& known, int subcmd)
         MSG_WriteByte(&sv.reliable_datagram, subcmd);
         MSG_WriteShort(&sv.reliable_datagram, known);
         MSG_WriteString(&sv.reliable_datagram, list[known]);
+        if(recentPrecaches.size() == recentPrecaches.capacity())
+        {
+            recentPrecaches.erase(recentPrecaches.begin()); // (the oldest: its reliable copy is on its way)
+        }
+        recentPrecaches.pushBack(RecentPrecache{subcmd, known, list[known], qcvm->time + recentPrecacheTime});
     }
 }
 
@@ -616,6 +642,34 @@ void setMagBox(edict_t* ent, int h, const glm::vec3& origin, const glm::vec3& ha
     setFieldVec(ent, h ? f.magboxz : f.offmagboxz, none ? glm::vec3{0.f} : gate.turn * box[3]);
 }
 
+// The ammo pouch's rounds (VrMove::ammoPouch) into .ammopouchpos, .ammopouchx/y/z (on the body: never through a portal;
+// all zero: none).
+// Hand `h`'s fields of `ent` (1: the main hand) from its move, through the portal it reaches through from `origin` (its
+// place, turn and motion carried through the gate): the move's (VR_ReadMoveExtras), and again after walking (rebaseHands).
+void writeHandFields(edict_t* ent, const glm::vec3& origin, const VrHandMove& hand, int h)
+{
+    const FieldOffsets& f = fields();
+    const portals::Reach gate = portals::reach(origin, hand.pos);
+    glm::vec3 angles = hand.rot;
+    angles.y = anglemod(angles.y + gate.yaw);
+    setFieldVec(ent, h ? f.handpos : f.offhandpos, gate.position);
+    setFieldVec(ent, h ? f.handrot : f.offhandrot, angles);
+    setFieldVec(ent, h ? f.handvel : f.offhandvel, gate.turn * hand.vel);
+    setFieldVec(ent, h ? f.handavel : f.offhandavel, gate.turn * hand.angVel);
+    setFieldVec(ent, h ? f.handthrowvel : f.offhandthrowvel, gate.turn * hand.throwVel);
+    setFieldVec(ent, h ? f.handthrowpos : f.offhandthrowpos, gate.turn * (hand.throwPos - gate.from) + gate.to);
+    setFieldVec(ent, h ? f.handthrowflick : f.offhandthrowflick, gate.turn * hand.throwFlick);
+}
+
+void setAmmoPouch(edict_t* ent, const glm::vec3 (&box)[4])
+{
+    const FieldOffsets& f = fields();
+    setFieldVec(ent, f.ammopouchpos, box[0]);
+    setFieldVec(ent, f.ammopouchx, box[1]);
+    setFieldVec(ent, f.ammopouchy, box[2]);
+    setFieldVec(ent, f.ammopouchz, box[3]);
+}
+
 } // namespace
 
 extern "C" void VR_ReadMoveExtras(client_t* client)
@@ -645,28 +699,14 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
 
     setFieldVec(ent, f.v_viewangle, move.headAngles);
     setFieldFloat(ent, f.vryaw, move.vrYaw);
+    setFieldFloat(ent, f.vr_posetime, move.poseClock);
 
-    const auto setHand = [&](const VrHandMove& hand, int pos, int rot, int vel,
-                             int throwVel, int velMag, int angVel, int throwPos, int throwAge, int throwFlick) {
-        const portals::Reach gate = portals::reach(move.origin, hand.pos);
-        glm::vec3 angles = hand.rot;
-        angles.y = anglemod(angles.y + gate.yaw);
-        const auto carry = [&](const glm::vec3& p) { return gate.turn * (p - gate.from) + gate.to; };
-        setFieldVec(ent, pos, gate.position);
-        setFieldVec(ent, rot, angles);
-        setFieldVec(ent, vel, gate.turn * hand.vel);
-        setFieldVec(ent, throwVel, gate.turn * hand.throwVel);
-        setFieldFloat(ent, velMag, hand.velMag);
-        setFieldVec(ent, angVel, gate.turn * hand.angVel);
-        setFieldVec(ent, throwPos, carry(hand.throwPos));
-        setFieldFloat(ent, throwAge, hand.throwAge);
-        setFieldVec(ent, throwFlick, gate.turn * hand.throwFlick);
-    };
-
-    setHand(move.hands[0], f.offhandpos, f.offhandrot, f.offhandvel,
-        f.offhandthrowvel, f.offhandvelmag, f.offhandavel, f.offhandthrowpos, f.offhandthrowage, f.offhandthrowflick);
-    setHand(move.hands[1], f.handpos, f.handrot, f.handvel, f.handthrowvel,
-        f.handvelmag, f.handavel, f.handthrowpos, f.handthrowage, f.handthrowflick);
+    for(int h = 0; h < 2; h++)
+    {
+        writeHandFields(ent, move.origin, move.hands[h], h);
+        setFieldFloat(ent, h ? f.handvelmag : f.offhandvelmag, move.hands[h].velMag);
+        setFieldFloat(ent, h ? f.handthrowage : f.offhandthrowage, move.hands[h].throwAge);
+    }
 
     setFieldVec(ent, f.headvel, move.headVel);
     setFieldVec(ent, f.headpos, move.headPos);
@@ -681,14 +721,19 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         setFieldVec(ent, h ? f.loadportpos : f.offloadportpos, port.position);
         setFieldVec(ent, h ? f.loadportaxis : f.offloadportaxis, port.turn * move.loadPortAxis[h]);
         setFieldVec(ent, h ? f.loadportface : f.offloadportface, port.turn * move.loadPortFace[h]);
+        setFieldVec(ent, h ? f.launchofs : f.offlaunchofs, move.launchOfs[h]); // (the shot's frame: no turn)
         setMagBox(ent, h, move.origin, move.hands[h].pos, move.magBox[h]);
     }
+    setAmmoPouch(ent, move.ammoPouch);
     if(clientNum >= static_cast<int>(clientBits.size()))
     {
         clientBits.resize(clientNum + 1);
     }
     ClientBits& bits = clientBits[clientNum];
-    bits.received = move.vrBits0;
+    bits.received = move.vrBits0 & ~protocol::moveFlatplayBit;
+    // This player plays flatscreen (-flatscreenmode, his own client's: vr_flatplay.cpp): the QC's per-player gate
+    // (VR_FlatPlay: no reloading, E's grab, 1 and 2 cycling; the hands' touch below).
+    setFieldFloat(ent, f.vr_flatscreen, (move.vrBits0 & protocol::moveFlatplayBit) ? 1.f : 0.f);
     // Bit 14 (QC QVR_VRBITS0_HANDSTRACKED): this client's hands come from real tracking, so the QC
     // can tell a VR player from a flat-screen one (and from a bot).
     const int tracked = (move.buttons & QVR_BUTTON_HANDSTRACKED) ? (1 << 14) : 0;
@@ -706,6 +751,14 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     const int crouched = hull::isCrouched(ent) ? (1 << 23) : 0;
     setFieldFloat(ent, f.vrbits0, static_cast<float>(
         withPreviousBits(bits.received, bits.previousFrame) | tracked | busy | secondary | primary | crouched));
+    // The head's height over the floor, a share of his standing eye height (vr_height_calibration; 1 standing): how the
+    // world places it (vr_hands.cpp: the head over the box's origin less vr_floor_offset, in metres times the units). Seated
+    // or flatscreen: 1. QC's shoulder charge asks for him standing tall (vr_kdtrig_tackle_stand).
+    const float standing = units::eyeHeight() * units::metresToUnits();
+    const bool upright = seated::active() || (move.vrBits0 & protocol::moveFlatplayBit) || move.headPos == glm::vec3{0.f} ||
+                         standing <= 0.f;
+    setFieldFloat(ent, f.vr_stand,
+        upright ? 1.f : (move.headPos.z - ent->v.origin[2] - vr_floor_offset.value) / standing);
     setFieldFloat(ent, f.offhand_hotspot, move.hotspots[0]);
     setFieldFloat(ent, f.sawcord, move.sawCord);
     setFieldFloat(ent, f.handdrop, move.handDrop);
@@ -781,10 +834,24 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_WEAPONCLIPSIZE, f.weaponclipsize);
     stat(STAT_QVR_WEAPONCLIPSIZE2, f.weaponclipsize2);
     stat(STAT_QVR_MELEE, f.vr_melee_hud);
-    statsi[STAT_QVR_RELOADMODE] = vr_holster_mode.value == 0.f ? static_cast<int>(vr_reload_mode.value) : 0;
+    stat(STAT_QVR_HOTBLADE, f.vr_hot_hud); // incandescent blades' glow (vr_meleehud.cpp)
+    stat(STAT_QVR_HOTBLADEHOLSTER, f.vr_hot_hud2);
+    // The highest of the global mode and the guns' own (vr_reload_mode_<gun>; -1 follows the global): the clients draw the
+    // pouch and the magazines if any gun reloads by hand.
+    statsi[STAT_QVR_RELOADMODE] = vr_holster_mode.value == 0.f ? reloadModeBest() : 0;
     stat(STAT_QVR_POUCHKIND, f.vr_pouch_kind);
     stat(STAT_QVR_POUCHCOUNT, f.vr_pouch_count);
     statsf[STAT_QVR_STEALTH] = fieldFloatOr(ent, f.stl_hud, -1.f);
+    stat(STAT_QVR_ADHUD, f.vr_ad_hud); // AD support: AD's row on the wrist gadget (vr_gadget.cpp)
+    stat(STAT_QVR_ADKEYS, f.vr_ad_hudkeys);
+    stat(STAT_QVR_ADTIME, f.vr_ad_hudtime);
+    stat(STAT_QVR_ADTINT, f.vr_ad_tint); // AD support: AD's screen tint (vr_ad.cpp VR_AD_TintBlend)
+    stat(STAT_QVR_ADTINTDEN, f.vr_ad_tintden);
+    stat(STAT_QVR_ADART1, f.vr_ad_hudart1); // AD support: the gadget's AD page (vr_gadget.cpp adPage)
+    stat(STAT_QVR_ADART2, f.vr_ad_hudart2);
+    stat(STAT_QVR_ADDEBUFF, f.vr_ad_huddebuff);
+    stat(STAT_QVR_ADUPGRADES, f.vr_ad_hudup);
+    stat(STAT_QVR_ADSKYFOG, f.vr_ad_skyfog); // AD support: AD's sky fog (vr_ad.cpp VR_AD_SkyFog)
 
     const int holsterWeapon[numHolsters] = {f.holsterweapon0, f.holsterweapon1,
         f.holsterweapon2, f.holsterweapon3, f.holsterweapon4, f.holsterweapon5};
@@ -826,6 +893,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     };
     statsi[STAT_QVR_CARRYMAIN] = carried(f.mainhand_held);
     statsi[STAT_QVR_CARRYOFF] = carried(f.offhand_held);
+    statsi[STAT_QVR_CARRYITEM] = static_cast<int>(fieldFloatOr(ent, f.vr_carry_items, 0.f)); // (their zones: vr_holsterzones.cpp)
 
     for(int i = 0; i < numHolsters; i++)
     {
@@ -834,6 +902,13 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
         stat(STAT_QVR_HOLSTERWEAPONFLAGS0 + i, holsterFlags[i]);
         statsf[STAT_QVR_HOLSTERWEAPONCLIP0 + i] = clip(holsterInst[i]);
         statsi[STAT_QVR_HOLSTERWEAPONUID0 + i] = weaponUid(inst(holsterInst[i])); // (its blood drawn holstered: vr_wounds.cpp)
+    }
+
+    // Magnetic holsters: each holster's bound weapon's id (QC vr_magholster.qc; the chains: vr_magholster.cpp).
+    const int magBind[numHolsters] = {f.vr_magbind0, f.vr_magbind1, f.vr_magbind2, f.vr_magbind3, f.vr_magbind4, f.vr_magbind5};
+    for(int i = 0; i < numHolsters; i++)
+    {
+        statsi[STAT_QVR_MAGBIND0 + i] = static_cast<int>(fieldFloatOr(ent, magBind[i], 0.f));
     }
 }
 
@@ -858,6 +933,32 @@ extern "C" int VR_StepLerpInterval(edict_t* ent)
     const int interval = static_cast<int>(host_frametime * 255.0 + 0.5);
     return interval < 1 ? 1 : interval > 25 ? 25 : interval;
 }
+
+namespace
+{
+// What a thing that is not a weapon prop tells its loot beam (vr_lootbeams.cpp), sent with U_QVR_WEAPONUID and weapon id
+// 0 (the clip's byte): bit 7 carried in a hand (no beam), bits 0-6 a magazine's fullness in percent (127: not a
+// magazine). -1: nothing to tell (not carried, not a magazine), nothing sent.
+[[nodiscard]] int lootByte(edict_t* ent)
+{
+    const FieldOffsets& f = fields();
+    const bool carried = f.carry_player >= 0 && fieldInt(ent, f.carry_player) != 0;
+    const float wid = fieldFloatOr(ent, f.vr_ammo_wid, 0.f);
+    if(!carried && wid == 0.f)
+    {
+        return -1;
+    }
+    int full = 127;
+    if(wid != 0.f)
+    {
+        const float count = fieldFloatOr(ent, f.vr_ammo_count, 0.f);
+        const float cap = fieldFloatOr(ent, f.vr_ammo_cap, 0.f);
+        const float share = cap > 0.f ? count / cap : (count > 0.f ? 1.f : 0.f); // (an older save's: no capacity)
+        full = CLAMP(0, static_cast<int>(share * 100.f + 0.5f), 100);
+    }
+    return (carried ? 0x80 : 0) | full;
+}
+} // namespace
 
 extern "C" int VR_EntityUpdateBits(edict_t* ent)
 {
@@ -901,6 +1002,10 @@ extern "C" int VR_EntityUpdateBits(edict_t* ent)
             bits |= U_QVR_SSGOPEN; // a super shotgun broken open (the client draws it open, its chambers loaded)
         }
     }
+    else if(NUM_FOR_EDICT(ent) > svs.maxclients && lootByte(ent) >= 0)
+    {
+        bits |= U_QVR_WEAPONUID; // weapon id 0: a magazine's fullness or a carried thing, for its loot beam (lootByte)
+    }
     return bits;
 }
 
@@ -936,7 +1041,20 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
     if(bits & U_QVR_WEAPONUID)
     {
         edict_t* const inst = weaponInst(ent, f.weaponinst);
-        MSG_WriteLong(msg, weaponUid(inst));
+        if(weaponUid(inst) == 0)
+        {
+            // Not a weapon prop: id 0, then the loot beam's byte (lootByte).
+            MSG_WriteLong(msg, 0);
+            MSG_WriteByte(msg, za::max(lootByte(ent), 0));
+            return;
+        }
+        // Its id (records' ids stay far below 2^24), an incandescent blade's glow in bits 24-30 (0-127: QC .vr_hot_glow,
+        // vr_hotblade.cpp draws it; 0 in older demos), bit 31 a spent single-use enemy gun (QC .vr_depleted: its loot
+        // beam, vr_lootbeams.cpp; 0 in older demos).
+        const int hot = CLAMP(0, static_cast<int>(fieldFloatOr(ent, f.vr_hot_glow, 0.f) * 127.f + 0.5f), 127);
+        const uint32_t spent = fieldFloatOr(ent, f.vr_depleted, 0.f) != 0.f ? 0x80000000u : 0u;
+        MSG_WriteLong(msg, static_cast<int>((static_cast<uint32_t>(weaponUid(inst)) & 0xFFFFFFu) |
+                                            (static_cast<uint32_t>(hot) << 24) | spent));
         // Its clip: the rounds in it, shown on its ammo screen as a held gun's (vr_view.cpp setupWorldWeapons).
         MSG_WriteByte(msg, CLAMP(0, static_cast<int>(inst ? fieldFloatOr(inst, f.wi_clip, 0.f) : 0.f), 255));
     }
@@ -958,16 +1076,41 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
     }
 }
 
+// SV_SendClientDatagram, after svc_time, before the entities and the frame's sounds: the precaches made in the last
+// half second (recentPrecaches), so what uses them in the same datagram finds them.
+extern "C" void VR_WriteRecentPrecaches(sizebuf_t* msg)
+{
+    while(!recentPrecaches.empty() && recentPrecaches[0].until < qcvm->time)
+    {
+        recentPrecaches.erase(recentPrecaches.begin());
+    }
+    for(const RecentPrecache& p : recentPrecaches)
+    {
+        if(msg->cursize + 4 + static_cast<int>(strlen(p.name)) + 1 > msg->maxsize / 2)
+        {
+            break; // (the entities first: the reliable copy follows anyway)
+        }
+        MSG_WriteByte(msg, svc_quakevr);
+        MSG_WriteByte(msg, p.subcmd);
+        MSG_WriteShort(msg, p.index);
+        MSG_WriteString(msg, p.name);
+    }
+}
+
 extern "C" void VR_ServerFrameEnd()
 {
-    sweepWeaponInsts(); // the weapons' records nothing has any more: freed, their ids gone
-    tips::serverFrame(); // the map tips whose entity is gone (before its slot is reused)
+    QVR_TRACY_SCOPE(zoneFrameEnd, "VR server frame end"); // (profiling builds only, as the steps' zones)
+    QVR_TRACY_CALL("sv end: weapon insts", sweepWeaponInsts()); // the weapons' records nothing has any more: freed, their ids gone
+    QVR_TRACY_CALL("sv end: tips", tips::serverFrame()); // the map tips whose entity is gone (before its slot is reused)
 
-    qvr::foegrab::serverFrame(); // held enemies slowed and dragged (before their poses are kept)
-    qvr::hitmodel::serverFrame(); // precise hits: the client's lerp of the monsters' poses and steps, kept
-    qvr::axestick::serverFrame(); // thrown axes stuck in things go with them (after the poses above)
-    qvr::foegrab::afterPoses(); // the held spots placed (after the poses above); a hand pulled too far lets go
-    qvr::explosiondebris::serverFrame(); // the explosions' chunks: new ones launched, the ended gone, the fades
+    QVR_TRACY_CALL("sv end: leg sweep", qvr::legsweep::serverFrame()); // a staff swept through a humanoid's legs knocks it down (its poses not yet kept)
+    QVR_TRACY_CALL("sv end: foe grab", qvr::foegrab::serverFrame()); // held enemies slowed and dragged (before their poses are kept)
+    QVR_TRACY_CALL("sv end: body contact", qvr::bodycontact::serverFrame()); // a player and a monster overlapping (a hold let go of) pushed apart
+    QVR_TRACY_CALL("sv end: hit model poses", qvr::hitmodel::serverFrame()); // precise hits: the client's lerp of the monsters' poses and steps, kept
+    QVR_TRACY_CALL("sv end: axe stick", qvr::axestick::serverFrame()); // thrown axes stuck in things go with them (after the poses above)
+    QVR_TRACY_CALL("sv end: foe grab spots", qvr::foegrab::afterPoses()); // the held spots placed (after the poses above); a hand pulled too far lets go
+    QVR_TRACY_CALL("sv end: explosion debris", qvr::explosiondebris::serverFrame()); // the explosions' chunks: new ones launched, the ended gone, the fades
+    QVR_TRACY_CALL("sv end: limb models", qvr::limbmodel::spawnFrame()); // a kind of monster first spawned now: its limbs made ahead of its first cut
     progs::loadNoticeFrame(); // a loaded save's warning (another build's), once the player is in
 
     if(!vrProtocol())
@@ -1079,22 +1222,18 @@ void rebaseHands(edict_t* player)
         }
     }
     move.headPos += delta;
+    if(move.ammoPouch[3] != glm::vec3{0.f})
+    {
+        move.ammoPouch[0] += delta; // (the ammo pouch goes with the body)
+        setAmmoPouch(player, move.ammoPouch);
+    }
     // Re-evaluate crossing after walking, including a crossing on a release frame.
     for(int h = 0; h < 2; h++)
     {
         const auto& hand = move.hands[h];
-        const auto gate = portals::reach(origin, hand.pos);
-        glm::vec3 angles = hand.rot;
-        angles.y = anglemod(angles.y + gate.yaw);
-        setFieldVec(player, h ? f.handpos : f.offhandpos, gate.position);
-        setFieldVec(player, h ? f.handrot : f.offhandrot, angles);
-        setFieldVec(player, h ? f.handvel : f.offhandvel, gate.turn * hand.vel);
-        setFieldVec(player, h ? f.handavel : f.offhandavel, gate.turn * hand.angVel);
-        setFieldVec(player, h ? f.handthrowvel : f.offhandthrowvel, gate.turn * hand.throwVel);
-        setFieldVec(player, h ? f.handthrowpos : f.offhandthrowpos, gate.turn * (hand.throwPos - gate.from) + gate.to);
-        setFieldVec(player, h ? f.handthrowflick : f.offhandthrowflick, gate.turn * hand.throwFlick);
+        writeHandFields(player, origin, hand, h);
         const auto muzzle = portals::reachAlong(origin, hand.pos, move.muzzlePos[h]);
-        angles = move.shotRot[h];
+        glm::vec3 angles = move.shotRot[h];
         angles.y = anglemod(angles.y + muzzle.yaw);
         setFieldVec(player, h ? f.muzzlepos : f.offmuzzlepos, muzzle.position);
         setFieldVec(player, h ? f.shotrot : f.offshotrot, angles);
@@ -1319,6 +1458,8 @@ void init()
     Cmd_AddCommand("vr_net_stats", netStats_f);
     climb::init();
     foegrab::init();
+    legsweep::init();
+    bodycontact::init();
     ledges::init();
 }
 
@@ -1327,6 +1468,7 @@ void onSpawnServerAfterLoad()
 {
     broadcastModelCount = precacheCount(sv.model_precache);
     broadcastSoundCount = precacheCount(sv.sound_precache);
+    recentPrecaches.clear();
     serverrules::serverReset(); // (the clients get every rule with their spawn state)
 }
 

@@ -148,6 +148,11 @@ string(string fmt, ...) sprintf = #627; // DP_QC_SPRINTF
 
 void(vector o, vector d, float preset, float count) particle2 = #0; // start a particle2 effect
 void(entity e, vector org, vector dir, float kind, float amount, float extra) woundevent = #0; // a wound painted on e's model by every client (vr_wounds.qc)
+void(entity e, vector at, vector dir, float part, float damage, float share) hitreact = #0; // a living monster struck: its flinch drawn by every client (vr_hitreact.qc)
+float(float kind, entity e, vector at, float strength) goresound = #0; // a gore sound (QVR_GORESND_*; strength 0..1) played by every client (vr_goresound.cpp); a choke drops e's cry for a moment; 0: not sent (gore or its sounds off, a choke too soon)
+float QVR_GORESND_SPURT = 0;   // a stump's fountain's pulse
+float QVR_GORESND_CHOKE = 2;   // a beheaded or face-smashed monster's choke (instead of its cry)
+float QVR_GORESND_TEAR = 3;    // a limb or a head cut off: a wet rip and a bone crack
 void(float hand, float delay, float duration, float frequency, float amplitude) haptic = #0; // VR haptics function
 void(float hand, float strength, vector dir) handimpact = #0; // knock the `self` player's drawn hand (a parried blow)
 // The `self` player's `hand` has just caught `e` from a force grab, which flew at `org` turned `ang`: its client eases the
@@ -195,8 +200,28 @@ float(entity player, float hand, entity weapon) weapongrabspot = #0;
 float(entity player, float hand) weaponanygrip = #0;
 // The weapon the local player's `hand` carries off its handle, as drawn: what 0 its handle's place, 1 its angles as
 // CreateThrownWeapon takes them (the pitch negated), 2 '1 0 0' if known ('0 0 0' else), 3 its tip (its muzzle's anchor); 4 its handle and 5 its tip in the frame of
-// the hand carrying it as drawn (forward, right, up: makevectors of the hand's angles).
+// the hand carrying it as drawn (forward, right, up: makevectors of the hand's angles). what 6, any entity: the muzzle of
+// the weapon model `player` itself is drawn with at its origin and angles (its origin if no weapon's: an armed grunt's
+// held weapon, vr_armedgrunt.qc weaponmuzzle).
 vector(entity player, float hand, float what) weapondrawnpose = #0;
+// AD sword kind's (VR_ADMELEE_*) blade at share f of the line from the hand to its tip, off that line (shares of its
+// length): x along the line's normal in the blade's plane (the model's +y crossed with the line), y along its +y; z 1
+// if it is curved, else 0 (vr_admelee.cpp admelee::bend; QC VR_Melee_At).
+vector(float kind, float f) admeleebend = #0;
+// AD heavy kind's (VR_ADMELEE_HAMMER, _MACE) head's box in the frame admeleebend uses (shares of the line's length: x
+// along it from the hand, y along its normal in the weapon's plane, z along the model's +y): which 0 its low corner, 1
+// its high; '0 0 0' for none (AD's data not there). QC VR_Melee_Sweep: the head's volume strikes.
+vector(float kind, float which) admeleehead = #0;
+// The blade's shape per weapon (vr_blade.hpp; Weapon Offsets > Edit Blade Shape; the VR builtins' numbers are all taken):
+// weapondrawnpose(player, hand, 7)_x, the Weapon Offsets slot of the weapon `hand` holds (-1 none); a kind below 0 is
+// slot -1 - kind's own shape: admeleebend its own curve (z 1 if it has one), admeleehead `which` 0 and 1 its own head's
+// corners ('0 0 0': none), 2 '<near end> <width> <flags>' (the near end's share behind the hand, -1 the kind's own; the
+// swept points' radius's multiplier; 1 a curve of its own + 2 a head of its own).
+// Magnetic holsters (vr_magholster.qc): what the local player asked since the last call, taken (1 the off hand's bind
+// button at a holster, 2 the main hand's, 4 every bound weapon home now: vr_magholster_return); others' 0. And holster
+// `slot`'s place (0..5: the holsterweapon<slot> fields' order) as the local player's body has it ('0 0 0': unknown).
+float(entity player) magholsterpoll = #0;
+vector(entity player, float slot) holsterpos = #0;
 vector(entity e, vector handpos, vector palm) carryfit = #0; // at the grip: how far to move it (the way the palm faces) to sit against the palm, not in the fist (vr_held_surface_fit)
 vector(entity e, entity player, float grab) carry2h = #0; // held in both hands: at the second grip (grab 1) the grips are kept; after, where it goes (its angles are set)
 void(vector at, float damage) physicsblast = #0; // an explosion throws the rigid bodies round it (Box3D's)
@@ -214,6 +239,9 @@ vector(entity e, vector handangles, float lefthand) propgrip = #0;
 // and its place in the hand returned (`offset` is .carry_offset; placed again at once when its settings change).
 vector(entity e, entity player, float hand, float lefthand, vector handangles, vector offset) carrygrip = #0;
 vector(entity e, vector handangles, vector offset) carryplace = #0;
+// Keep a solid carried prop outside its carrier's torso, sweeping from its current pose.
+// trace_allsolid: trapped between torso and level, release it.
+vector(entity e, entity player, vector target) carrybody = #0;
 // A hand grenade just taken from the grenade pouch (after carrygrip; `offset` its .carry_offset): turned in the hand by
 // vr_grenade_pouch_hold_* (its angles now), its origin's place in the hand returned (.carry_offset).
 vector(entity e, vector handangles, vector offset) carrypouch = #0;
@@ -227,7 +255,7 @@ float(string model, string key) weaponvalue = #0;
 // no mass). Heavy leniency (vr_weight_lenient*): the factor on its strikes' and throws' speed thresholds (1: not heavy).
 float(float mass) weightdamage = #0;
 float(float mass) weightleniency = #0;
-// Throws by weight (vr_throw_mass_model): the velocity (m/s) a thing of `mass` kg leaves `hands` hands (1 or 2) at, from
+// Throws by weight: the velocity (m/s) a thing of `mass` kg leaves `hands` hands (1 or 2) at, from
 // the hand's throw estimate `vel` (m/s) and the part of it the wrist's flick gives (VRGetHandThrowFlick): a heavy thing
 // keeps less of the flick, the gain of a real throw (vr_throw_gain_*), and its speed limited by its mass.
 vector(vector vel, vector flick, float mass, float hands) throwvelocity = #0;
@@ -263,13 +291,25 @@ vector(entity e, vector angles, vector point) modelpoint = #0; // where a point 
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
 // high tips over). FALSE if Box3D doesn't move it. `mass` (kg, 0 or none: no limit): what pushes weighs that much, so the
 // point gets only the share of the two masses meeting (a hand's, a gun's: vr_box3d_hand_mass; its Mass and vr_box3d_weapon_arm_mass).
-float(entity e, vector at, vector vel, optional float mass) physicspush = #0;
+// `bounce` (0..1): its restitution; `most` (m/s, 0 or none: no cap): the point's gain at most (blows on ragdolls).
+float(entity e, vector at, vector vel, optional float mass, optional float bounce, optional float most) physicspush = #0;
 // Ragdolls (vr_ragdoll; the engine's vr_box3d.cpp, "Ragdolls"): whether e is one; a hand takes the limb of e it is on
 // (or catches the one it pulls); a force grab's pull of e's limb nearest the hand's aim (due in `flight` s); let go (a held
 // limb keeps `vel`, units/s); 0 nothing held, 1 a limb held, 2 one pulled; how far the held or pulled limb's point is from
 // the hand (-1 none); the limb nearest p (-1: not a ragdoll); p into limb `bone`'s space (units) and back (toWorld).
 float(entity e) isragdoll = #0;
-float(entity e, entity player, float hand) ragdollgrab = #0;
+// (Its optional `tug`: ragdolltug's what + 1, below: the builtins' table is full.)
+float(entity e, entity player, float hand, optional float tug, optional vector grip, optional float strength,
+      optional float force) ragdollgrab = #0;
+// The armed monsters' tug-of-war (vr_armedgrunt_play.qc): what 0, e staggering (standing its ground), the hand holds e's
+// limb nearest the weapon's `grip` by a spring of at most `force` N where the hand is (the weapon's lever), e's arm
+// pulling it in at `strength` (0..3): 1 if it does; 1 the hold's pull now (N; -1 none: let go of, torn off); 2 over
+// (let go of; its stagger up again `strength` s on).
+float(entity e, entity player, float hand, float what, optional vector grip, optional float strength,
+      optional float force) ragdolltug =
+{
+    return ragdollgrab(e, player, hand, what + 1, grip, strength, force);
+};
 // Knockdowns (vr_knockdown.qc; the engine's vr_box3d.cpp, "Knockdowns"): whether e can be knocked down as a ragdoll (a
 // monster with a rig, ragdolls on); e's ragdoll made now, alive (.vr_knockdown 1, touchable, not solid); e getting up
 // from it: the get-up's first frame (frameA, or frameB if that fits how it lies better; -1 none), room for its box
@@ -281,11 +321,64 @@ float(entity e) ragdollknockdown = #0;
 // pushed whole so it goes over (reach: the units to past its edge), turned as it falls (vr_knockdown_shove_ledge_topple
 // times strength: the shove's push, two hands 1): 0 no ragdoll.
 float(entity e, vector dir, float strength, float ledge, float reach) ragdollshovetopple = #0;
+// (Its body rising first, vr_ragdoll_active_getup: -1 while it does, then 3 or 4: risen, in its get-up's last frame.)
 float(entity e, float frameA, float frameB, vector mins, vector maxs, float range, optional float anywhere) ragdollgetup = #0;
+// Active staggers (vr_ragdoll_active_stagger): whether a shove makes e stagger as a ragdoll; e (just knocked down by a
+// shove along dir, its ragdoll made) staggering instead (push: the shove's; balance 0 about to fall .. 1 steady; reach:
+// the units the shove carries a standing one; 0: it can't); how its stagger goes: 1 on, 0 fallen (down now), 2
+// recovered (up where it stands with box mins..maxs, its ragdoll blended into its animation), 3 lost (a loaded game: its
+// ragdoll made again without its stagger; the QC begins it again, VR_Knockdown_Think).
+float(entity e) ragdollcanstagger = #0;
+// Monster groups (the engine's vr_mgroups.cpp; Combat > Monster Groups): e's group (by its classname; Others when in
+// none), and a setting of it (MGP_*, the engine's mgroups::Param in its order).
+float(entity e) monstergroup = #0;
+float(entity e, float xParam) monstergroupget = #0;
+float MGP_KDTRIG = 0;    // the ragdoll triggers take it (0/1)
+float MGP_RESIST = 1;    // its resistance to them (0: by its size)
+float MGP_LEDGE = 2;     // each trigger's chance times this, vr_kdtrig.qc's table order: MGP_LEDGE + its index (the
+                         // thrown body 9 and the tackle 10 the last two)
+float MGP_SHOVE = 11;    // a shove's base chance to knock it down
+float MGP_PUSH = 12;     // how far shoves, bashes and unbalancing hits move it, times
+float MGP_STAGGER = 13;  // hits' chance to unbalance it, times
+float MGP_SWEEP = 14;    // (the engine's: the leg sweep, the leg grabs, the lift, the neck snap, the manhandle, 0/1)
+float MGP_LEGGRAB = 15;
+float MGP_LIFT = 16;
+float MGP_NECKSNAP = 17;
+float MGP_MANHANDLE = 18;
+float MGP_THROW = 19;    // the two-hand throw: 0 never, 1 only when hurt, 2 always
+float MGP_HOLD = 20;     // one hand's hold on it, 0..1 (below 0: by its size)
+float MGP_POISE = 21;    // its Parry Poise (below 0: a parry never staggers it; combat.qc VR_Parry_Interrupt)
+float MGP_HEALTH = 22;   // its health times this as it appears (the engine's, with Monster Health's curve: .vr_hpscale)
+float MGP_KDSCALE = 23;  // every chance to knock it down times this (vr_knockdown.qc VR_KD_Scale; a sure one by it too)
+float MGP_DOWNTIME = 24; // its time down times this (VR_KD_DownScale)
+float MGP_GETUP = 25;    // its get-up's speed times this (VR_Knockdown_Interval; the engine's active get-up too)
+float MGP_SNAPKILLS = 26; // the neck snap kills it (0: it only hurts: vr_foegrab_throw.qc VR_FoeGrab_NeckSnap)
+// (27 .. 31: the struggle's Struggle, Strength, Speed, Arm Drive and Weaker When Hurt, the engine's alone: vr_mgroups.hpp Param.)
+// A drowning monster struggling as a ragdoll (vr_ragdoll_active_drown; VR_Knockdown_Drown): begin 0 whether e can (its
+// kind driven alive, Swim and Flail on); begin 1 its knockdown just made: its swim begun frantic.
+float(entity e, float begin) ragdolldrown = #0;
+// A living monster's ragdoll (a stagger, knocked down, getting up) guarding its head from a blow coming from `at`
+// (vr_ragdoll_active_guard; vr_hitreact.qc VR_Guard_Raise): its arms up before its face for `hold` s. 0: it can't (not
+// one of the kinds driven alive, Active Deaths off).
+float(entity e, vector at, float hold) ragdollguard = #0;
+// (ragdollstagger's optional `recover`: up again that many seconds on, however it stands (a parry's stagger); `sure`:
+// it never goes over by itself, level ground; `far`: its travel's limit (4 m) times this, at least 1: a two-hand or a
+// running shove's, VR_Bash_Hit.)
+float(entity e, vector dir, float push, float balance, float reach, optional float recover, optional float sure,
+      optional float far) ragdollstagger = #0;
+float(entity e, vector mins, vector maxs) ragdollstaggered = #0;
 void(entity player, float hand, vector vel) ragdollrelease = #0;
+// e's ragdoll thrown now, every part set going at vel (units/s; '0 0 0': as it goes): the ragdoll triggers' Thrown
+// Body watches it strike living monsters (VR_KdTrig_BodyHit). 0: no ragdoll.
+float(entity e, vector vel) ragdollfling = #0;
 float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;
-float(entity e, vector p) ragdollbone = #0;
+float(entity e, vector p, optional float within) ragdollbone = #0; // (within: -1 when its surface is farther)
+// Ragdolls in a world box (the buzzsaw's blade, rogue_buzzsaw.qc): the next ragdoll after `after` (edict order; world:
+// from the first) with a part in mins..maxs, world if none; the next part of e's ragdoll after `after` (-1: from the
+// first) in it, -1 none, trace_endpos its point nearest the box's middle.
+entity(vector mins, vector maxs, entity after) ragdollinbox = #0;
+float(entity e, vector mins, vector maxs, float after) ragdollboxpart = #0;
 vector(entity e, float bone, vector p, float toWorld) ragdollpoint = #0;
 // Decapitation (vr_decap.qc; the engine's vr_box3d.cpp, "Decapitation"): e's ragdoll (made now for a dead monster with a
 // rig) loses its head, launched by `blade` (u/s): 1 if it did; after it, ragdollcut's 0 the head's middle, 1 its angles,
@@ -367,10 +460,26 @@ float VR_HITMODEL_REACH = 96; // units a model is found out of its box (an ogre'
 float(entity e) hitmodel_target = #0; // whether e's model is what is hit (the option on; a monster or corpse with a Quake model)
 // The segment a..b (a sphere of `radius` plus the class's tolerance) against e's model as drawn: where along it (0..1)
 // it first meets it (0: it starts in it), -1 missed; -2: e's model is not tested (the option off, not a target).
+// hitclass -1 (the hose cut, vr_ad_enemyguns.qc): e a tank lying about, its hose to its gun as the engine draws it: how
+// far along the hose (0 at the tank, 1 at the gun) its nearest point within `radius` of a..b is (trace_endpos that
+// point), -1 missed, -2 no hose drawn (vr_adtank.cpp, a listen server's).
 float(entity e, vector a, vector b, float radius, float hitclass) hitmodel_segment = #0;
 // The segment a..b, a sphere of `radius`, against any entity's Quake .mdl as drawn (a prop's, an item's: not only a
 // monster's): where along it it first meets it (0: it starts in it), -1 missed, -2 no such model (a brush model: its box).
 float(entity e, vector a, vector b, float radius) hitmodel_any = #0;
+// The level gap between a player's body and a monster's as their moves meet in the engine (units; 0 touching): the boxes
+// as the hull code narrows them (vr_hull_ent_width, vr_mhull_ents) and insets them (vr_body_monster_inset), not the
+// 32-wide ones QC sees. The shoulder charge's contact.
+float(entity player, entity monster) bodygap = #0;
+// The point of e's Quake .mdl as drawn (a monster's, a corpse's, a ragdoll's as its parts carry it, a player's) nearest
+// p, as an anchor on its surface (x its triangle, y and z where on it); trace_endpos the point, trace_plane_normal the way
+// out there, trace_plane_dist how far p is from it. x -1: no such model (the trace globals untouched).
+vector(entity e, vector p) modelanchor = #0;
+// Where that anchor is on e's model as drawn now (it moves with the model); trace_fraction 0 (and e's origin): no longer
+// there (another model).
+// An anchor whose x is -2 - n: vertex n (the .mdl's order) of e's model, as drawn now (vr_armedgrunt.qc modelvertex: an
+// armed grunt's hands and its model's hidden gun).
+vector(entity e, vector anchor) modelanchorpoint = #0;
 // The point p on e's drawn model as it is on the model standing (its stand frame), at e's origin, turned with its yaw
 // (where positional damage's head sphere and regions are); p itself if e is no target.
 vector(entity e, vector p) hitmodel_rest = #0;
@@ -456,6 +565,16 @@ float(entity b, float xGrip) meleerun = #0;
 float(entity b) meleewristspeed = #0;
 float(entity b) meleewiggled = #0;
 vector(entity b, float xBack) meleegripago = #0;
+// Heavy handling (vr_heavy*): meleearc, the far end's smooth arc just now (m: steady way, no reversal, at least `xFloor`
+// m/s; 0 if under vr_heavy_swing_time); weaponheft, a weapon's weight class (0 light .. 1; Weapon Weights' Heft).
+float(entity b, float xFloor) meleearc = #0;
+// Show Melee Blades (vr_debug_melee_blades; vr_meleeshow.hpp): a hand's sweep or blow for the view, only while it is on
+// (VR_Melee_Show). `xWhat` 0 begins the hand's frame (xA the hand, xB the tip, xV 1 fast enough to strike); 1 the near
+// end (xA); 2 a swept line (xA to xB); 3 a head's box (admeleehead's corners); 4 the head's line; 5 its model +y (xA);
+// 6 a blow landed (xA where, xV its damage or -1).
+void(float xHand, float xWhat, vector xA, vector xB, float xV) meleeshow = #0;
+// weaponheft's `kick` 1: its heavy recoil in one hand instead (deg/s up a shot: vr_heavy_recoil_kick x heft x its own).
+float(string model, optional float kick) weaponheft = #0;
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
 float(string folder, float track) campaignmusic = #0; // a campaign's own CD track's number (target_vr_music), 0 if not there
 
@@ -466,10 +585,15 @@ float(string folder, float track) campaignmusic = #0; // a campaign's own CD tra
 // The next entity after `start` (in edict order) with any of `flags` set in the float field `fld`; world when none: a
 // loop over the monsters (findflags(world, flags, FL_MONSTER)...) steps through them alone, in the engine (vr_builtins.cpp).
 entity(entity start, .float fld, float flags) findflags = #0;
+// Live findflags order, returning only deadline <= now with a nonzero required field; no cached candidates.
+entity(entity start, .float fld, float flags, .float deadline, float now, .float required) findflagsdue = #0;
 // findflags(), past the entities whose box's centre ((absmin + absmax) * 0.5) is further from `eye` than `range` (vlen) or
 // less than `mincos` ahead (normalize(centre - eye) * v_forward), in QuakeC's own float steps: the same entities pass as
 // with that test in QuakeC (VR_Stealth_LookAbout's torches and bodies; vr_builtins.cpp).
 entity(entity start, .float fld, float flags, vector eye, float range, float mincos) findflagsinview = #0;
+// forcegrabbable_think_impl's work on self in the engine (vr_propthink.cpp; `particles`: vr_weapondrop_particles_on):
+// water, dust, settling after a throw. FALSE when it did nothing (a progs without the fields).
+float(float particles) propthink = #0;
 vector(vector start, vector end) liquidentry = #0;
 void(vector org, vector dir, float strength, float snd) watersplash = #0;
 float QVR_SPLASH_SILENT = 0; // the caller plays its own sound

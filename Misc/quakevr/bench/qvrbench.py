@@ -71,8 +71,10 @@ class Scenario:
     window's own length, whatever --frames says (a fixed sequence of events; 0: as long as the body, vr_bench_end ending
     it). loads: the map loads its window must record (validate checks them)."""
     def __init__(self, name, groups, stresses, map, purpose, pos=None, look=(0, 0), setup=(), body=None, warm=180,
-                 base="qbase", flat=False, hostile=False, header=(), motion=None, load_wait=120, frames=None, loads=0):
+                 base="qbase", flat=False, hostile=False, header=(), motion=None, load_wait=120, frames=None, loads=0,
+                 scene=None):
         self.name, self.groups, self.stresses, self.map, self.purpose = name, groups, stresses, map, purpose
+        self.scene = scene  # a quakevr/scenarios/<scene>.txt (vr_scenario: its map loaded, its spawns placed) for `map`
         self.pos, self.look, self.setup, self.body, self.warm = pos, look, list(setup), body, warm
         self.base, self.flat, self.hostile, self.header, self.motion = base, flat, hostile, list(header), motion
         self.load_wait, self.frames, self.loads = load_wait, frames, loads
@@ -274,6 +276,14 @@ def scenarios():
         "vr_decal_stress fills a 4096-mark pool with large blood marks, then adds one every 4 frames.",
         setup=["vr_decal_max 4096", "vr_particles 0", "vr_decal_life 1200"] + [x for _ in range(96) for x in ("vr_decal_stress 64 128", "wait")]
         + ["vr_decal_count"], warm=30, body=blasts_every(4, lambda i, r: ["vr_decal_stress 1 128"]))
+    # A corpse cut apart in one place: 768 blood marks piled on one spot of the floor (64 units across, 96 ahead), looked
+    # at. Each pixel there walks its grid bucket's list: vr_decal_bucket_max long at most (32 shipped, 255 before).
+    pile = ["vr_decal_max 768", "vr_particles 0", "vr_decal_life 1200"] + [
+        x for _ in range(12) for x in ["vr_decal_stress 64 32 cluster"] + waits(12)] + ["vr_decal_count"]
+    for cap in (32, 255):
+        add("decals_pile" + ("" if cap == 32 else f"_{cap}"), ["vfx"], f"768 blood marks on one spot, {cap} a bucket",
+            RANGE, f"768 blood marks piled on one spot of the floor, looked at; vr_decal_bucket_max {cap}.",
+            look=(35, 0), setup=[f"vr_decal_bucket_max {cap}"] + pile)
     add("torches_32", ["vfx", "lights"], "32 wall torches: fire particles and flickering lights", RANGE,
         "32 more wall torches (35 emitters): fire particles, their lights.",
         setup=["vr_walltorch 1", "vr_fire_particles 1"] + [f"vr_physics_spawn light_torch_small_walltorch {96 + (i // 8) * 48} {(i % 8 - 3.5) * 40:g}" for i in range(32)])
@@ -482,6 +492,120 @@ def scenarios():
         body=blasts_every(4, lambda i, r: [
             f"vr_physics_blast {316 - r.uniform(90, 300):.0f} {-556 + r.uniform(-150, 150):.0f} 40 1",
             f"vr_particle_test {(4, 1, 11)[i % 3]} 80"]))
+    # ---- the profiling run's extra fights (2026-10-16, group `profile`; Tracy captures of each, PROFILE_20261016)
+    def gore_fight(frames):
+        """The super nailgun held on the nearest grunt (30 frames on, 10 off), 4 more grunts every 180 frames."""
+        out, rng, t = [], random.Random(5), 0
+        while t < frames:
+            out += ["+attack"] + waits(30) + ["-attack"] + waits(10)
+            t += 40
+            if t % 160 == 0:
+                out += [f"vr_physics_spawn monster_army {rng.randint(150, 260)} {rng.randint(-120, 120)}" for _ in range(4)]
+        return out
+    add("play_gore_fight", ["profile"], "16 grunts and more under the super nailgun: blood, dents, gibs",
+        RANGE, "16 grunts and enforcers hostile, the super nailgun held on the nearest one (30 frames of 40), 4 grunts "
+        "more every 160 frames: nails' wounds, blood streams, flesh dents, decals, gibs, ragdolls and corpses piling up.",
+        hostile=True, setup=GORE[:1] + spawn_grid(16, ("monster_army", "monster_army", "monster_enforcer"), x0=160, dy=40)
+        + gun(7), warm=30, body=gore_fight)
+    add("play_calibration_turn", ["profile"], "the calibration room: boards, walls, the head turning", "vrcalibration",
+        "vrcalibration at its spawn, the head turned 90 degrees either way twice: its boards' text, wall buttons and props.",
+        body=gate_turn, warm=60)
+    AD = ["vr_campaign_native ad", "skill 2"]
+    add("play_ad_tfuma_fight", ["profile"], "AD's ad_tfuma: every monster of the map awake, the shotgun firing",
+        "ad_tfuma", "Arcane Dimensions (native, skill 2), ad_tfuma at its spawn: the map's monsters brought in and woken "
+        "(vr_test_monsters 4, 2), the player's shotgun on the nearest every 50 frames: AD's QC, AI, effects, big BSP.",
+        header=AD, hostile=True, setup=["vr_test_monsters 4"] + waits(30) + ["vr_test_monsters 2"] + gun(4), warm=90,
+        load_wait=240, body=shoot_every(50))
+    add("load_ad_tfuma", ["profile"], "AD's ad_tfuma (17 MB BSP) loaded cold and warm, native AD", None,
+        "`map ad_tfuma` with `vr_campaign_native ad` (its pak's textures and models), cold then again.", header=AD,
+        setup=LOADS, warm=30, body=loads_body([("cold", "map ad_tfuma"), ("warm", "map ad_tfuma")]), loads=2, frames=0)
+    # ---- the overnight profiling round of 2026-10-25 (group `r25`; ROUND22.md "Profiling and optimization round"): the
+    # suite's gaps: armed humanoids in numbers, AD's monsters in a crowd, fuel tanks' fields, hostile tours of the
+    # heaviest maps (AD, the mission packs, id), AD's biggest loads, a saved game's save and load. The vrtesthall
+    # scenes are quakevr/scenarios/bench_*.txt (vr_scenario places them; vrtesthall's start faces +y).
+    add("armed_16", ["r25", "combat"], "16 armed humanoids (guns, dual guns, melee) hunting you, your shotgun",
+        "vrtesthall", "bench_armed16: 8 grunts and 8 enforcers armed (shotguns, dual shotguns, nailguns, swords, axes, "
+        "chainsaw, rocket launcher, laser rifle, thunderbolt, Mjolnir), hostile; the player's shotgun on the nearest "
+        "every 50 frames: arm IK, skinning, upper body and legs, their shots and strikes, the player's parries.",
+        scene="bench_armed16", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    add("armed_16_melee", ["r25", "combat", "melee"], "16 armed humanoids up close, both your hands jabbing",
+        "vrtesthall", "bench_armed16 with the player's fists jabbing (vr_mock_play) as they close in: melee against "
+        "armed humanoids, their strikes, parries and blocks, knockdowns.",
+        scene="bench_armed16", hostile=True, motion=punch_motion, warm=60, load_wait=240)
+    add("crowd_ad_40", ["r25", "combat"], "40 monsters, Quake's and AD's, hunting you, your shotgun", "vrtesthall",
+        "bench_crowd_ad: 40 of 20 kinds (grunts, ogres, knights, enforcers, scrags, fiends, death knights and AD's "
+        "death knights, crossbow knights, hunter ogres, rocket and plasma soldiers, gaunts, skull wizards, spiders, "
+        "droles...), hostile; the player's shotgun on the nearest every 50 frames.",
+        scene="bench_crowd_ad", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    # (vrtesthall: forward f and left l from the start are world x = -l, y = -288 + f)
+    tank_blasts = lambda y, xs, dmg=120: [f"vr_physics_blast {x} {y} 16 {dmg}" for x in xs]
+    add("tanks_fields", ["r25", "physics", "vfx"], "fuel tanks burst: fire fields, poison clouds, crates and boxes broken",
+        "vrtesthall", "bench_tanks: 4 flamethrowers and 4 poison sprayers lying among 5 grunts, 8 crates and 4 explosive "
+        "boxes; blasts burst the flamethrowers' tanks (marks burst_fire), the sprayers' (burst_poison), then the "
+        "crates and boxes (break): fire fields, poison clouds, ragdolls, crate pieces, explosions.",
+        scene="bench_tanks", warm=30, load_wait=240,
+        body=events((5, "burst_fire", tank_blasts(-48, (100, -100))), (300, "burst_poison", tank_blasts(132, (100, -100))),
+                    (600, "break", tank_blasts(-128, (120, -120), 80) + tank_blasts(232, (120, -120), 80))))
+    # Hostile tours: three places of the map (the spawn and two pickups' places of bsp_waypoints.py), 300 frames each,
+    # the head turning round; god, notarget off: what is near comes for the player.
+    FIGHT_TOURS = {
+        "ad_sepulcher": (AD, [(-2560, 2464, 16, 270), (-40, 632, 88, 0), (-1216, -352, 24, 0)]),
+        "ad_tears": (AD, [(672, -256, -488, 180), (-1252, 396, -132, 330), (368, 320, -1036, 0)]),
+        "ad_crucial": (AD, [(368, 2128, -264, 270), (248, -800, 192, 0), (-96, -744, 184, 0)]),
+        "hip2m5": (["skill 2"], [(-208, 272, 48, 0), (896, -64, -192, 0), (1692, 728, 180, 0)]),
+        "r2m7": (["skill 2"], [(-2456, 376, 76, 270), (1472, 112, 24, 0), (-1712, 664, 216, 0)]),
+        "e4m7": (["skill 2"], [(608, -1008, 176, 90), (592, 80, -168, 0), (-2032, -144, -56, 0)]),
+    }
+
+    def fight_tour(points):
+        def body(frames):
+            out, share = [], max(3, frames // len(points))
+            for x, y, z, yaw in points:
+                out += [f"setpos {x} {y} {z} 0 {yaw} 0", "noclip"]
+                for k in range(share // 3):
+                    out += [f"vr_mock_look 0 {(k * 3 * 360 // share) % 360}"] + waits(3)
+            return out
+        return body
+    for m, (hdr, pts) in FIGHT_TOURS.items():
+        add(f"fight_{m}", ["r25", "maps"], f"{m}: three places, the head turning, the monsters near coming for you", m,
+            f"{m} at skill 2: its spawn and two pickups' places (bsp_waypoints.py), 300 frames each, the head turned "
+            "round; god, notarget off: heavy geometry, the map's lights and entities, the monsters near awake.",
+            header=hdr, hostile=True, warm=30, load_wait=300, body=fight_tour(pts))
+    add("load_ad_sepulcher", ["r25", "loading"], "AD's ad_sepulcher (42 MB BSP) loaded cold and warm, native AD", None,
+        "`map ad_sepulcher` with `vr_campaign_native ad`, cold then again.", header=AD,
+        setup=LOADS, warm=30, body=loads_body([("cold", "map ad_sepulcher"), ("warm", "map ad_sepulcher")]), loads=2, frames=0)
+    add("load_ad_tears", ["r25", "loading"], "AD's ad_tears (85 MB BSP, the biggest on hand) loaded cold, native AD", None,
+        "`map ad_tears` with `vr_campaign_native ad`, cold.", header=AD,
+        setup=LOADS, warm=30, body=loads_body([("cold", "map ad_tears")], each=200), loads=1, frames=0)
+    add("load_ad_restarts", ["loading"], "AD's maps restarted (a death): ad_sepulcher and ad_tfuma, each cold then twice",
+        None, "`map ad_sepulcher`, `restart` twice, `map ad_tfuma`, `restart` twice, native AD: the restarts keep the "
+        "crates' and rocks' layouts (vr_place_keep), the hulls (vr_hull_keep).", header=AD, setup=LOADS, warm=30,
+        body=loads_body([("sep_cold", "map ad_sepulcher"), ("sep_restart1", "restart"), ("sep_restart2", "restart"),
+                         ("tfuma_cold", "map ad_tfuma"), ("tfuma_restart1", "restart"), ("tfuma_restart2", "restart")]),
+        loads=6, frames=0)
+    add("saveload_e1m1", ["r25", "loading"], "a saved game: E1M1 with a fight going, saved, loaded twice", "e1m1",
+        "E1M1's computer room (skill 2) with 3 grunts and 2 dogs spawned, hostile; `save qvrbench` (the save's frame), "
+        "then `load qvrbench` twice: each load by stage (the saved game's entities), the frames after.",
+        header=["skill 2"], pos=E1M1_ROOM, hostile=True,
+        setup=[f"vr_physics_spawn monster_dog 110 {l}" for l in (-60, 60)]
+        + [f"vr_physics_spawn monster_army 200 {l}" for l in (-90, 0, 90)] + waits(60) + LOADS, warm=30,
+        body=loads_body([("save", "save qvrbench"), ("load1", "load qvrbench"), ("load2", "load qvrbench")]),
+        loads=2, frames=0)
+    # ---- gpu: the GPU benchmark (BENCHMARKS.md, "GPU benchmark": a Quest 3 at Virtual Desktop's Ultra, 120 Hz; run with
+    # --eye 2688x2784 --hz 120 and his settings): what fills the eyes. Its own scenes, then the others it takes.
+    add("gpu_fields_inside", ["gpu", "vfx"], "standing inside a fuel tank's fire field, poison clouds ahead",
+        "vrtesthall", "bench_tanks with the flamethrowers' and sprayers' tanks burst in the set-up, the player then "
+        "standing among the fire fields (setpos 50 -48 24) looking at the poison clouds: big soft particles seen from "
+        "inside, the fill rate's worst case.",
+        scene="bench_tanks", warm=30, load_wait=240,
+        setup=tank_blasts(-48, (100, -100)) + tank_blasts(132, (100, -100)) + waits(20) + ["setpos 50 -48 24 0 90 0"])
+    add("gpu_shore_spray", ["gpu", "liquids"], "vrtesthall's pool from its edge: shore foam and spray along its walls",
+        "vrtesthall", "At the pool's west edge looking across it at the far wall (the shore's foam particles and spray "
+        "along the wall line, the water's refraction and swells).", pos="180 -256 24 20 0 0")
+    for n in ("idle_e1m1", "fight_ad_tears", "fight_ad_sepulcher", "play_ad_tfuma_fight", "armed_16", "crowd_ad_40",
+              "combined", "particles_dense", "explosions_storm", "gore_blast_crowd_32", "lights_32", "flashlight_e1m1",
+              "tanks_fields", "water_range_surface", "lava_e1m7"):
+        next(x for x in s if x.name == n).groups.append("gpu")
     return {x.name: x for x in s}
 
 
@@ -512,12 +636,16 @@ def select(spec):
 def script(sc, tag, frames, hz, eye, realtime, settings, motion_path, shot=False):
     # A graphics profile first (a whole ironwail.cfg will do), then what the suite pins whatever it says.
     lines = [f'exec "{settings}"'] if settings else []
+    # The eyes: a size (square) or WxH (a headset's taller images); the mock reports the refresh (dynres's budget).
+    eye_w, _, eye_h = str(eye).lower().partition("x")
     lines += ["vr_enabled 0" if sc.flat else "vr_enabled 1", "vr_fixed_frames 1", f"vr_fixed_frames_rate {hz}",
-              f"vr_mock_eye_size {eye}", "vid_vsync 0", f"host_maxfps {hz if realtime else 0}", "con_notifytime 0",
+              f"vr_mock_eye_size {eye_w}", f"vr_mock_eye_height {eye_h or 0}", f"vr_mock_refresh {hz}", "vid_vsync 0", f"host_maxfps {hz if realtime else 0}", "con_notifytime 0",
               "vr_tips 0", "developer 0", "sv_autosave 0", "vr_profile 0", "vr_particle_seed 7", "vr_mock_look 0 0"]
     lines += sc.header + waits(10)
     if sc.map:
-        lines += ["vr_bench_seed 7", f"map {sc.map}"] + waits(sc.load_wait)
+        # A scene (vr_scenario) loads its map and places its spawns 1.5 s of game time later (108 frames at 72 Hz).
+        load = ["vr_scenario_hint_time 0", f"vr_scenario {sc.scene}"] if sc.scene else [f"map {sc.map}"]
+        lines += ["vr_bench_seed 7"] + load + waits(sc.load_wait)
         lines += ["god 1", "notarget 0" if sc.hostile else "notarget 1"]
         if sc.pos:
             lines += [f"setpos {sc.pos}"]
@@ -684,6 +812,31 @@ def summarize(root):
     print("\n".join(md))
 
 
+GPU_PASSES = ["shadow maps", "world+brush", "alias", "particles", "vr particles", "decals", "sky", "water", "translucent",
+              "lights", "view model", "heat haze", "blob shadows", "env cube", "bloom", "postprocess", "upscale", "ui",
+              "hidden area", "mirror", "spectator", "window view", "eye L", "eye R"]
+
+
+def gpu_report(root):
+    """The GPU benchmark's tables (BENCHMARKS.md, "GPU benchmark"): per scenario, the medians over its runs of the GPU
+    frame (the 3D refresh: both eyes, the spectator camera) at p50/p95/p99/max, the eyes' average, the render scale
+    (dynamic resolution), the CPU's work; then each GPU pass a frame (all views: nested ones are inside others)."""
+    med = statistics.median
+    rows = []
+    for name, rs in sorted(load_runs(root).items()):
+        g = lambda k, s: med(r["frame"].get(k, {}).get(s, 0) for r in rs)
+        rows.append((name, len(rs), [g("gpu_3d_ms", s) for s in ("p50", "p95", "p99", "max")] +
+                     [g("gpu_eyes_ms", "avg"), g("render_scale", "avg"), g("cpu_busy_ms", "avg"), g("frame_ms", "p99")],
+                     {p: med(r.get("gpu_phase_ms", {}).get(p, 0) for r in rs) for p in GPU_PASSES}))
+    md = ["| scenario | n | GPU p50 | p95 | p99 | max | eyes avg | scale | CPU avg | frame p99 |", "|---|" * 1 + "---|" * 9]
+    md += [f"| {n} | {k} | " + " | ".join(f"{v:.2f}" for v in vals) + " |" for n, k, vals, _ in rows]
+    cols = [p for p in GPU_PASSES if any(ph[p] >= 0.02 for _, _, _, ph in rows)]
+    md += ["", "| scenario | " + " | ".join(cols) + " |", "|---|" + "---|" * len(cols)]
+    md += [f"| {n} | " + " | ".join(f"{ph[p]:.2f}" for p in cols) + " |" for n, _, _, ph in rows]
+    (Path(root) / "gpu.md").write_text("\n".join(md) + "\n")
+    print("\n".join(md))
+
+
 def manifest(root):
     path = Path(root) / "manifest.txt"
     return dict(l.split(" ", 1) for l in path.read_text().splitlines() if " " in l) if path.exists() else {}
@@ -761,7 +914,7 @@ def main():
     sp.add_argument("--tag")
     sp.add_argument("--frames", type=int, default=900)
     sp.add_argument("--hz", type=int, default=90)
-    sp.add_argument("--eye", type=int, default=2048)
+    sp.add_argument("--eye", default="2048", help="the mock's eye images: a size (square) or WxH (VD Ultra on a Quest 3: 2688x2784)")
     sp.add_argument("--realtime", action="store_true")
     sp.add_argument("--settings", default="", help="a cfg exec'd before the map (a graphics profile)")
     sp.add_argument("--warm", type=int, help="override the scenario's warm-up frames")
@@ -777,6 +930,8 @@ def main():
     v.add_argument("root")
     br = sub.add_parser("brief")
     br.add_argument("json")
+    gp = sub.add_parser("gpu", help="the GPU benchmark's tables: the GPU frame's percentiles and each pass (gpu.md)")
+    gp.add_argument("root")
     lr = sub.add_parser("loads", help="the loading scenarios' loads by phase, and every scenario's marks")
     lr.add_argument("root")
     a = p.parse_args()
@@ -817,6 +972,8 @@ def main():
             extra += f"; {len(r['marks'])} marks, worst {worst['label']} {worst['max_ms']:.2f} ms"
         print(f"{r['frames']} frames on {r['map'] or '-'}: frame p50 {f['p50']:.3f} p99 {f['p99']:.3f} max {f['max']:.2f}, "
               f"cpu {c['avg']:.3f}, gpu 3D {g['avg']:.3f} ms; start {n}{extra}")
+    elif a.cmd == "gpu":
+        gpu_report(a.root)
     elif a.cmd == "loads":
         print(marks_report(a.root))
         print(loads_report(a.root))

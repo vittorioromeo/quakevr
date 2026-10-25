@@ -1,0 +1,49 @@
+# agrunt_pose_studio: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Pose Studio: frozen grunts and enforcers in a row (a shotgun, a sword, two axes), your hands empty
+map vrtesthall
+god
+notarget
+cvar vr_agrunt_freeze 1
+cvar vr_agrunt_grip_scope 0
+# (the pool: two axes each for the pooled ones, nothing else)
+cvar vr_agrunt_dual_chance 1
+cvar vr_agrunt_w_fists 0
+cvar vr_agrunt_w_axe 1
+cvar vr_agrunt_w_sword 0
+cvar vr_agrunt_w_crowbar 0
+cvar vr_agrunt_w_chainsaw 0
+cvar vr_agrunt_w_shotgun 0
+cvar vr_agrunt_w_ssg 0
+cvar vr_agrunt_w_nailgun 0
+cvar vr_agrunt_w_sng 0
+cvar vr_agrunt_w_gl 0
+cvar vr_agrunt_w_rl 0
+cvar vr_agrunt_w_lg 0
+cvar vr_agrunt_w_gruntgun 0
+cvar vr_agrunt_w_enfrifle 0
+cvar vr_agrunt_w_packs 0
+cvar vr_agrunt_w_adrocket 0
+cvar vr_agrunt_w_adgrenade 0
+cvar vr_agrunt_w_adplasma 0
+cvar vr_agrunt_w_addefender 0
+cvar vr_agrunt_w_adcenturion 0
+cvar vr_agrunt_w_adpyro 0
+cvar vr_agrunt_w_adfumigator 0
+cvar vr_agrunt_w_adcrossbow 0
+cvar vr_agrunt_w_shadowaxe 0
+cvar vr_agrunt_w_widowmaker 0
+cvar vr_agrunt_w_plasmagun 0
+cvar vr_agrunt_w_adsword 0
+cvar vr_agrunt_w_adheavy 0
+cvar vr_agrunt_w_phantom 0
+cvar vr_agrunt_w_dprince 0
+cvar vr_agrunt_w_justice 0
+cvar vr_agrunt_w_judge 0
+spawn "Armed Grunt: Shotgun" 60 0
+spawn "Armed Grunt: Sword" 60 45
+spawn "Armed Grunt (Pool)" 60 -45
+spawn "Armed Enforcer: Shotgun" 130 0
+spawn "Armed Enforcer: Sword" 130 45
+spawn "Armed Enforcer (Pool)" 130 -45
+cmd vr_posestudio
+hint Pose Studio (Grip Editor > Drag Mode): walk up to one; pick a pose on the panel (< Pose >; a strike: < Key > and Play). Boxes on its weapon (blue), hands (orange), elbows (violet), chest (green); in Pickup its legs too: pelvis (tan), feet (pink), knees (blue-violet, their way): grip one, move and turn it, let go: it stays there in that pose. A hand on a weapon: how it holds it. Reset Pose, Copy to the other kind, Undo, Cancel, Done (prints the code). Live (bottom row): it fights in place (Loop, Speed); Pause, walk up with the sticks, scrub with a grip held on nothing + stick (or Next Glitch), then drag the key the readout names at that frame; Play goes on.

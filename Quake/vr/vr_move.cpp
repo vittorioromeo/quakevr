@@ -64,6 +64,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
         writeVec3(buf, hand.throwPos);
         MSG_WriteFloat(buf, hand.throwAge);
         writeVec3(buf, hand.tracked);
+        writeVec3(buf, hand.ownVel);
     }
 
     writeVec3(buf, move.headVel);
@@ -87,12 +88,18 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     writeVec3(buf, move.loadPortAxis[1]);
     writeVec3(buf, move.loadPortFace[0]);
     writeVec3(buf, move.loadPortFace[1]);
+    writeVec3(buf, move.launchOfs[0]);
+    writeVec3(buf, move.launchOfs[1]);
     for(const auto& box : move.magBox)
     {
         for(const glm::vec3& v : box)
         {
             writeVec3(buf, v);
         }
+    }
+    for(const glm::vec3& v : move.ammoPouch)
+    {
+        writeVec3(buf, v);
     }
     MSG_WriteByte(buf, move.lampLit ? 1 : 0);
     if(move.lampLit)
@@ -102,6 +109,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
         MSG_WriteFloat(buf, move.lampRange);
         MSG_WriteFloat(buf, move.lampCos);
     }
+    MSG_WriteFloat(buf, move.poseClock);
     MSG_WriteFloat(buf, move.light);
 }
 
@@ -125,6 +133,7 @@ za::Optional<VrMove> readVrMove()
         hand.throwPos = in.vec3();
         hand.throwAge = in.real();
         hand.tracked = in.vec3();
+        hand.ownVel = in.vec3();
     }
 
     move.headVel = in.vec3();
@@ -148,12 +157,18 @@ za::Optional<VrMove> readVrMove()
     move.loadPortAxis[1] = in.vec3();
     move.loadPortFace[0] = in.vec3();
     move.loadPortFace[1] = in.vec3();
+    move.launchOfs[0] = in.vec3();
+    move.launchOfs[1] = in.vec3();
     for(auto& box : move.magBox)
     {
         for(glm::vec3& v : box)
         {
             v = in.vec3();
         }
+    }
+    for(glm::vec3& v : move.ammoPouch)
+    {
+        v = in.vec3();
     }
     move.lampLit = MSG_ReadByte() == 1;
     if(move.lampLit)
@@ -163,6 +178,7 @@ za::Optional<VrMove> readVrMove()
         move.lampRange = in.real();
         move.lampCos = in.real();
     }
+    move.poseClock = in.real();
     move.light = in.real();
 
     if(!in.finite)

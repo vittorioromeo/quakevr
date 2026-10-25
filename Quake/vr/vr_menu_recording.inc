@@ -78,10 +78,19 @@
                   "often as a 60 fps recording takes (OBS), a third of the cost saved at 90 Hz, half at 120 Hz. Every "
                   "Frame: the headset's rate (smoother only if you record at more than 60 fps). Every 2nd or 3rd Frame: "
                   "half or a third of the headset's rate (45 or 30 fps at 90 Hz), for a slower PC."),
-        slider("Resolution Scale", "vr_spectator_scale", 0.5f, 2.f, 0.25f, "%.2fx").extend(0.25f, 2.f)
-            .help("Its resolution, times the window's: 1 sharp at the window's size; 0.75 (the default) draws 56% of "
-                  "the pixels, drawn up to the window smoothly (a recording's compression softens more than that); lower "
-                  "costs less (the pixels go with its square); 2 supersamples (four times the pixels)."),
+        cycle("Resolution Scale", "vr_spectator_scale",
+            {{0.5f, "0.5x (a quarter of the pixels)"}, {0.75f, "0.75x (56% of the pixels)"}, {1.f, "1x (the window's)"},
+                {1.25f, "1.25x (1.6 times the pixels)"}, {1.5f, "1.5x (2.25 times the pixels)"}, {2.f, "2x (4 times the pixels)"}})
+            .help("Its resolution, times the window's (vr_spectator_scale; the cost goes with the pixels, the scale's "
+                  "square). 1x (the default): sharp at the window's size. Lower costs less: 0.75x draws 56% of the "
+                  "pixels, drawn up to the window smoothly (a recording's compression softens more than that); 0.5x a "
+                  "quarter. Above 1x supersamples: at a 1920x1080 window, 1.5x draws 2880x1620 (about 1.3 ms of the "
+                  "GPU's frame in a big fight on an RTX 4090, twice that on the frames it draws)."),
+        toggle("Skip While the Window Is Minimized", "vr_spectator_skip_hidden")
+            .help("While the desktop window is minimized or hidden, the camera is not drawn at all (on by default): "
+                  "nothing to record, its whole cost saved; drawn again the moment the window shows. A window covered "
+                  "by others is still drawn (OBS's Window Capture records it). The menus' preview keeps it drawn while "
+                  "it shows."),
         cycle("Anti-Aliasing", "vr_spectator_aa", {{0.f, "Off"}, {1.f, "Window's MSAA"}})
             .help("Window's MSAA (the default): the window's multisampling (Anti-Aliasing, vid_fsaa), as the eyes: "
                   "smooth edges, which a recording shows (4x costs the camera about a tenth more; nothing without "
@@ -160,7 +169,8 @@
         toggle("Bullet Time", "vr_bullettime_enabled")
             .help("Tap your gadget's screen hard with your other hand (or the butt of the gun it holds): the world "
                   "slows for as long as the meter on the gadget's screen (TIME) lasts; tap again to stop. Then a "
-                  "cooldown, and the meter fills again. Bindable: vr_bullettime. Single player."),
+                  "cooldown; the meter fills as you hurt enemies (or over time: Meter Refill). Bindable: vr_bullettime. "
+                  "Single player."),
         cycle("Trigger", "vr_bullettime_trigger",
             {{0.f, "Gadget (Screen Tap)"}, {1.f, "Left Stick Press"}, {2.f, "Right Stick Press"}})
             .help("What starts and stops it. Gadget: a hard tap on its screen (its settings below). A stick press: that "
@@ -171,10 +181,30 @@
             .help("How fast the world runs while it lasts (0.3: under a third of its speed)."),
         slider("Duration", "vr_bullettime_duration", 1.f, 20.f, 0.5f, "%.1f s").extend(0.5f, 120.f)
             .help("Real seconds a full meter lasts."),
+        cycle("Meter Refill", "vr_bullettime_meter_mode", {{1.f, "Earned by Damage"}, {0.f, "Over Time"}})
+            .help("Earned by Damage: the meter never fills by itself, only by the damage you deal living enemies (what "
+                  "health they had at most: no overkill; never corpses, props or enemies hurting each other). Over Time: it "
+                  "fills by itself after the cooldown (Recharge Time). Kept from level to level and in saves; full on a "
+                  "new game."),
+        slider("Damage to Fill", "vr_bullettime_earn_damage", 30.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("Earned by Damage: the damage dealt that fills the meter from empty on Normal (350: about twelve "
+                  "grunts, 30 health each); the other skills scale it (below). Less: it fills faster."),
+        slider("Easy: Damage Needed", "vr_bullettime_earn_skill0", 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f)
+            .help("Earned by Damage, on Easy (skill 0): times Damage to Fill (0.75 shipped: it fills sooner)."),
+        slider("Normal: Damage Needed", "vr_bullettime_earn_skill1", 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f)
+            .help("Earned by Damage, on Normal (skill 1): times Damage to Fill (1 shipped)."),
+        slider("Hard: Damage Needed", "vr_bullettime_earn_skill2", 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f)
+            .help("Earned by Damage, on Hard (skill 2): times Damage to Fill (1.2 shipped: it fills later)."),
+        slider("Nightmare: Damage Needed", "vr_bullettime_earn_skill3", 0.25f, 2.f, 0.05f, "%.2fx").extend(0.05f, 5.f)
+            .help("Earned by Damage, on Nightmare (skill 3): times Damage to Fill (1.5 shipped)."),
+        slider("Refill While Slowed", "vr_bullettime_earn_active", 0.f, 1.f, 0.05f, "%.2fx")
+            .help("Earned by Damage: damage dealt while bullet time runs fills the meter at this share (low: no endless "
+                  "slow motion; 0: not at all)."),
         slider("Recharge Time", "vr_bullettime_recharge", 2.f, 120.f, 1.f, "%.0f s").extend(0.5f, 600.f)
-            .help("Real seconds the meter takes to fill from empty."),
+            .help("Over Time: real seconds the meter takes to fill from empty."),
         slider("Cooldown", "vr_bullettime_cooldown", 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
-            .help("Real seconds after it ends (or is stopped) before it can start again; the meter waits too."),
+            .help("Real seconds after it ends (or is stopped) before it can start again (over time, the meter waits "
+                  "too)."),
         slider("Least Meter to Start", "vr_bullettime_min", 0.05f, 1.f, 0.05f, "%.2f")
             .help("How full the meter must be to start (it then runs until empty or stopped)."),
         slider("End Sound Plays At Most", "vr_bullettime_sound_off_max", 0.f, 3.f, 0.25f, "%.2f s").extend(0.f, 10.f)
@@ -207,6 +237,16 @@
                   "counts as a new first tap, never as the double tap."),
         slider("Double Tap Force", "vr_bullettime_tap_double_speed", 0.1f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
             .help("Double Tap: how fast each tap must come into the screen (Tap Force is the single tap's)."),
+        slider("Quiet After Blows", "vr_bullettime_tap_blow_quiet", 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("Taps don't count for this long after a melee blow of yours lands, or you shove or bash (a double "
+                  "tap's first is dropped too): no slow motion by accident in a melee's thick. 0: off."),
+        slider("Calm Hands Speed", "vr_bullettime_tap_calm_speed", 1.f, 5.f, 0.25f, "%.2f m/s").extend(0.f, 10.f)
+            .help("Taps don't count for 0.3 s after the gadget's hand moves faster than this, or the tapping hand "
+                  "sweeps across the screen this fast (blows and shoves take 3 m/s or more; a tap's own motion into the "
+                  "screen is never counted). Lower: calmer hands only. 0: off."),
+        toggle("Not While Both Hands Hold", "vr_bullettime_tap_both_held")
+            .help("Taps don't count while both your hands hold an enemy or a body (fighting, pushing, shoving one): "
+                  "the gadget knocked in the scuffle."),
         slider("Tap Force", "vr_bullettime_tap_speed", 0.5f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
             .help("How fast your hand (or the gun's butt, or what it holds) must come into the screen (either arm may "
                   "move). Higher: harder taps only. Single Tap's (Double Tap Force: the double tap's)."),

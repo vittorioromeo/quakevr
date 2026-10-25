@@ -74,6 +74,9 @@ struct Rig
     int deathFirst[4]{}, deathLast[4]{};
     // Its loose bone hidden in every ragdoll, whatever the frame (the player's axe and gun: SeedTable::looseWeapons).
     bool hideLoose{false};
+    // Its loose pieces held in its hands: each welded to the forearm nearest it, knocked down (not the part nearest
+    // in the rest pose: the death fury's left sword and the zombie knight's blade hang by its hip there).
+    bool looseInHands{false};
     // How the derivation went (vr_ragdoll_info).
     float clusterRms{0.f}, boneRms{0.f};
     double deriveMs{0.0};
@@ -82,12 +85,19 @@ struct Rig
 // Whether `model` has a seed table (the grunt's; vr_ragdoll 1): cheap, by its name.
 [[nodiscard]] bool eligible(const qmodel_t* model);
 
+// A seed table's death endpoints, without deriving the rig (animation smoothing); none for a model (`hdr`) the table
+// doesn't fit (another vertex count: a mod's replacement).
+[[nodiscard]] bool deathBoundary(const qmodel_t* model, const aliashdr_t* hdr, int frame, bool first);
+
 // The rig of `model`, derived on first use (tens of milliseconds) and kept: nullptr if it has none or the derivation
 // failed (the model isn't the one the seed table was made for).
 [[nodiscard]] const Rig* rigFor(qmodel_t* model);
 
 // The rigs of `count` models made at once, on the game's thread pool (the map's start: rigFor's for each, faster).
 void warmRigs(qmodel_t* const* models, int count);
+#ifdef QVR_TRACY
+void tracyPlots();
+#endif
 
 // Bone `b`'s transform from the rest pose to pose `pose` (the model's space, units): p' = rot * p + pos.
 void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
@@ -127,9 +137,11 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 // `time`: the server time of the message that follows the step (the client draws it between the last two steps at its
 // cl.time, as it lerps the props: vr_ragdoll_smooth). `heldBy`: the local player's hands holding a limb (bit 0 the off
 // hand, 1 the main): their places now are kept, the drawn ragdoll follows them between steps (vr_ragdoll_held_local).
-// `cut`: the bones cut off (bits: its head, ROUND21.md "Decapitation"), their vertices drawn at the neck.
+// `cut`: the bones cut off (bits: its head, ROUND21.md "Decapitation"), their vertices drawn at the neck. `bleeds`: its
+// limbs flung fast leave blood trails (vr_ragdoll_blood): a corpse's, or a live one's that has bled (box3d::limbsBleed;
+// a shove alone draws no blood).
 void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
-    int heldBy, uint32_t cut);
+    int heldBy, uint32_t cut, bool bleeds);
 void unpublish(int num);
 void unpublishAll();
 
@@ -150,6 +162,10 @@ void watchGetup(int num, double from, double until);
 [[nodiscard]] int bonePoses(const entity_t* e, const float** matrices);
 // Its drawn model matrix (VR_AliasPostTransform): a translation to where its bones are given from; false if it isn't one.
 [[nodiscard]] bool drawMatrix(const entity_t* e, float matrix[16]);
+// Its stumps' look for the alias shaders (InstanceData's Stump; StumpFlesh, vr_glsl.h): out[0] its drawn cut bones
+// (bits 0..23, a whole number; 0 none, or not a swapped entity), out[1] how far round their joints the cut's flesh
+// reaches (units: their limbs' thickness at the cut).
+void stumpLook(const entity_t* e, float out[4]);
 
 // A ragdoll's mesh as drawn now, in the world (units): its .mdl vertices skinned to its bodies (rigid: one bone each),
 // and their normals (the rest pose's turned with them) if `normals`. False if edict `num` has no ragdoll published.
@@ -166,6 +182,9 @@ void motionTest_f();
 // now (between its last two steps, moved with the holding hands: what is drawn this frame): p_world = rot * (scale *
 // p_rest) + pos; its rig. False: none, or hidden.
 bool drawnPart(int num, int part, glm::quat& rot, glm::vec3& pos, float& scale, const Rig** rig = nullptr);
+// Whether part `part` of edict `num`'s ragdoll is drawn with its body: false for a hidden bone (the gun he dropped) and
+// a cut-off one (its vertices drawn at the neck), or no ragdoll (the blood streams' rebinding: vr_bloodstream.cpp).
+[[nodiscard]] bool partShown(int num, int part);
 // The .mdl's triangles with a corner on bone `bone` (its rest pose, model units: three points each), the limb a hand
 // closes round (all its corners carried with that bone: across a joint, a little off where the next bone bends).
 void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out);

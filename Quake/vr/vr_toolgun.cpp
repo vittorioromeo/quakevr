@@ -1,7 +1,7 @@
 // vr_toolgun.cpp -- the toolgun (vr_toolgun.hpp; docs/vr-port/TOOLGUN.md; QC vr_toolgun.qc): a debug and sandbox tool
-// held as a pistol, as Garry's Mod's. Its hand's trigger uses the tool chosen on its menu (vr_toolgun_tool) on what it
+// held as a pistol, as Garry's Mod's. Its hand's trigger uses the tool chosen on its panel (vr_toolgun_tool) on what it
 // points at:
-//   Spawn    a ghost of the thing chosen (the menu's list, or what the picker shot) where the gun points; the trigger
+//   Spawn    a ghost of the thing chosen (the panel's grid, or what the picker shot) where the gun points; the trigger
 //            makes it there (its spawn function, as a map would: box3d::spawnClass);
 //   Remove   what it points at glows red; the trigger removes it (QC VR_Toolgun_Remove: as the scene's cleanup does);
 //   Physgun  the trigger held drags what it points at at its distance (a prop pinned: a kinematic body following the
@@ -11,30 +11,44 @@
 //            (proportionally, or along that face's axis with Proportional off);
 //   Joint    two props shot one after the other are joined (box3d::addToolJoint: a weld, a ball, a hinge, a slider, a
 //            rope, a spring); Unjoin removes a prop's joints.
-// X/A held on the toolgun's hand: the sticks move the ghost or what the physgun holds (the gun's stick forward and back
-// and turns it, the other up, down and sideways), or scale the aimed prop (the gun's stick, up and down); no walking or
-// turning meanwhile (vr_input.cpp). B/Y opens and closes the menu on the gun (vr_panel.cpp draws the VR Settings' page
-// there; vr_menu_toolgun.inc's pages). Single player: the listen server's edicts, changed between its frames (as a console
-// command does).
+// While the physgun holds something both sticks are its, no button needed (the gun's stick: forward and back, and turns
+// it about vr_toolgun_turn_axis; the other: up, down and sideways); no walking or turning meanwhile (vr_input.cpp), and
+// neither stick's press does anything. It also turns with the gun's hand (vr_toolgun_physgun_wrist); X/A held snaps its
+// angles to vr_toolgun_snap (kept when let go). X/A held on the toolgun's hand also scales the aimed prop (the gun's
+// stick, up and down). The spawn tool takes no stick at all: you walk with one and turn with the other as ever. With
+// its ghost showing, A/X held in the other hand moves it (its offsets, 1:1 with that hand's translation along the
+// gun's level way; its place at the press is kept and only the hand's movement from then on counts, its rotation does
+// nothing), and A/X held in the gun's hand turns it (its yaw, from that hand's way, not its pitch or twist); while a
+// ghost is held that hand's jump and the hook's unreel are quiet. The gun's stick press switches to the next tool
+// (X/A held: the one before). B/Y opens and closes its panel over the gun (vr_toolgun_panel.cpp). Single player: the
+// listen server's edicts, changed between its frames (as a console command does).
 
 #include "vr_toolgun.hpp"
+#include "vr_toolgun_brush.hpp"
 
+#include "vr_ad.hpp" // AD support
+#include "vr_backend.hpp"
 #include "vr_box3d.hpp"
+#include "vr_brushes.hpp"
+#include "vr_bullettime.hpp"
+#include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
-#include "vr_menu.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
 
 #include <glm/gtc/quaternion.hpp>
@@ -50,7 +64,7 @@ namespace
 {
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The spawn list (the menu's Toolgun - Spawn page): what is made, how it looks as a ghost, how high above the floor
+// The spawn list (the panel's Spawn grid): what is made, how it looks as a ghost, how high above the floor
 // its origin stands (the box's bottom below it), and a float field set before its spawn function.
 
 struct Spawnable
@@ -64,9 +78,43 @@ struct Spawnable
     float value;
     int skin;
     bool setModel; // the model is given to its spawn function (a rock's, a brick's)
+    bool adOnly{false}; // AD support
+    bool rulesOnly{false}; // AD support
+    int debugChoice{-1}; // AD support
+    bool wall{false};    // hung on the wall it is aimed at, facing out of it (a wall torch: ghostPoint)
+    int needs{0};        // 1: made only while its model is there (an expansion's); 2: and only in an AD map (AD's lights);
+                         // 3: only in Dawn of the Machine's campaign (its upgrades: vr_toolgun_packs.inc)
+    const char* probe{nullptr}; // the file `needs` 1 looks for (nullptr: the model)
+    const char* pack{nullptr};  // the pack's group on the panel, from a fresh page (nullptr: id's and Quake VR's own)
+    int frame{0};               // the ghost's frame (a placed corpse's)
+    float weaponFlags{0.f};     // func_weapon_grabbable's "weaponflags" (AD support: an AD melee weapon's kind)
 };
 
+// AD's backpacks: the toolgun makes them in any map (his decision; vr_ad.cpp VR_AD_ToolgunSpawnsOutside), a map's own
+// only in AD's maps.
+[[nodiscard]] constexpr bool adBackpack(const char* classname)
+{
+    const char* const prefix = "ad_item_backpack";
+    for(int i = 0; prefix[i]; i++)
+    {
+        if(classname[i] != prefix[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 constexpr Spawnable spawnables[] = {
+#define QVR_AD_SPAWN(section, label, classname, model, lift, rulesOnly, choice) \
+    {section, label, classname, model, lift, nullptr, 0.f, 0, false, true, rulesOnly, choice}, // AD support
+#define QVR_AD_SPAWN_MAP(section, label, classname, model, lift, choice, key, value, skin) \
+    {section, label, classname, model, lift, key, value, skin, false, true, false, choice, false, adBackpack(classname) ? 0 : 2}, // AD: its maps only
+// (an AD melee weapon's kind is its weapon flags: without them it is Quake VR's plain knight's sword)
+#define QVR_AD_GUN(label, model, wid, choice, flags) \
+    {"Weapons", label, "func_weapon_grabbable", model, 8.f, "weapon", wid, 0, false, true, false, choice, false, 0, \
+        nullptr, nullptr, 0, flags}, // AD support
+
     {"Monsters", "Grunt", "monster_army", "progs/soldier.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Monsters", "Enforcer", "monster_enforcer", "progs/enforcer.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Monsters", "Rottweiler", "monster_dog", "progs/dog.mdl", 24.f, nullptr, 0.f, 0, false},
@@ -85,18 +133,21 @@ constexpr Spawnable spawnables[] = {
     {"Props", "Explosive Box", "misc_explobox", "maps/b_explob.bsp", 0.f, nullptr, 0.f, 0, false},
     {"Props", "Small Explosive Box", "misc_explobox2", "maps/b_exbox2.bsp", 0.f, nullptr, 0.f, 0, false},
     {"Props", "Rock", "vr_debris_piece", "progs/vr_rock1.mdl", 0.f, nullptr, 0.f, 0, true},
-    {"Props", "Brick", "vr_debris_piece", "progs/vr_brick0.mdl", 0.f, nullptr, 0.f, 0, true},
+    {"Props", "Brick", "vr_debris_piece", "progs/vr_brick1.mdl", 0.f, nullptr, 0.f, 0, true},
     {"Weapons", "Axe", "func_weapon_grabbable", "progs/v_axe.mdl", 8.f, "weapon", 2.f, 0, false},
     {"Weapons", "Crowbar", "func_weapon_grabbable", "progs/v_crowbar.mdl", 8.f, "weapon", 17.f, 0, false},
     {"Weapons", "Knight's Sword", "func_weapon_grabbable", "progs/v_ksword.mdl", 8.f, "weapon", 13.f, 0, false},
+    {"Weapons", "Death Knight's Sword", "func_weapon_grabbable", "progs/v_hksword.mdl", 8.f, "weapon", 13.f, 0, false, false,
+        false, -1, false, 0, nullptr, nullptr, 0, 1.f}, // (QC QVR_WPNFLAG_USE_SECONDARY_AMMO: the hell knight's sword)
     {"Weapons", "Shotgun", "func_weapon_grabbable", "progs/v_shot.mdl", 8.f, "weapon", 4.f, 0, false},
     {"Weapons", "Super Shotgun", "func_weapon_grabbable", "progs/v_shot2.mdl", 8.f, "weapon", 5.f, 0, false},
     {"Weapons", "Nailgun", "func_weapon_grabbable", "progs/v_nail.mdl", 8.f, "weapon", 6.f, 0, false},
+    {"Weapons", "Nail Pistol", "func_weapon_grabbable", "progs/v_nailpistol.mdl", 8.f, "weapon", 29.f, 0, false},
     {"Weapons", "Super Nailgun", "func_weapon_grabbable", "progs/v_nail2.mdl", 8.f, "weapon", 7.f, 0, false},
     {"Weapons", "Grenade Launcher", "func_weapon_grabbable", "progs/v_rock.mdl", 8.f, "weapon", 8.f, 0, false},
     {"Weapons", "Rocket Launcher", "func_weapon_grabbable", "progs/v_rock2.mdl", 8.f, "weapon", 10.f, 0, false},
     {"Weapons", "Thunderbolt", "func_weapon_grabbable", "progs/v_light.mdl", 8.f, "weapon", 11.f, 0, false},
-    {"Weapons", "Grunt's Shotgun", "func_weapon_grabbable", "progs/v_gruntgun.mdl", 8.f, "weapon", 15.f, 0, false},
+    {"Weapons", "Grunt Burst Rifle", "func_weapon_grabbable", "progs/v_gruntgun.mdl", 8.f, "weapon", 15.f, 0, false},
     {"Weapons", "Enforcer's Rifle", "func_weapon_grabbable", "progs/v_enfrifle.mdl", 8.f, "weapon", 16.f, 0, false},
     {"Weapons", "Chainsaw", "func_weapon_grabbable", "progs/v_chainsaw.mdl", 8.f, "weapon", 14.f, 0, false},
     {"Weapons", "Toolgun", "func_weapon_grabbable", "progs/v_toolgun.mdl", 8.f, "weapon", 19.f, 0, false},
@@ -113,10 +164,72 @@ constexpr Spawnable spawnables[] = {
     {"Items", "Pentagram", "item_artifact_invulnerability", "progs/invulner.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Items", "Ring of Shadows", "item_artifact_invisibility", "progs/invisibl.mdl", 24.f, nullptr, 0.f, 0, false},
     {"Items", "Biosuit", "item_artifact_envirosuit", "progs/suit.mdl", 24.f, nullptr, 0.f, 0, false},
+// The Fire tab (ROUND22.md, "Torches and fires from the toolgun"): the map's lights with a flame, made live as entities
+// (QC vr_spawn_live): a wall torch hung on the wall aimed at, the free-standing flames props that hang where placed until
+// taken (QC VR_FlameProp_Setup); each with its light (vr_emissive.cpp's torch lights) and its crackle as on a map.
+#define QVR_FIRE(label, classname, model, lift, wall, needs) {"Fire", label, classname, model, lift, nullptr, 0.f, 0, false, false, false, -1, wall, needs},
+    QVR_FIRE("Wall Torch", "light_torch_small_walltorch", "progs/flame.mdl", 14.f, true, 0)
+    QVR_FIRE("Large Flame", "light_flame_large_yellow", "progs/flame2.mdl", 8.f, false, 0)
+    QVR_FIRE("Small Flame", "light_flame_small_yellow", "progs/flame2.mdl", 8.f, false, 0)
+    QVR_FIRE("White Flame", "light_flame_small_white", "progs/flame2.mdl", 8.f, false, 0)
+    QVR_FIRE("Candle", "light_candle", "progs/candle.mdl", 10.f, false, 1)
+    QVR_FIRE("Lantern", "light_lantern", "progs/lantern.mdl", 20.f, false, 1)
+    QVR_FIRE("AD Short Brazier", "ad_light_flame_brazier_short", "progs/misc_brazshrt.mdl", 16.f, false, 2)
+    QVR_FIRE("AD Tall Brazier", "ad_light_flame_brazier_tall", "progs/misc_braztall.mdl", 64.f, false, 2)
+    QVR_FIRE("AD Flame Pyre", "ad_light_flame_pyre", "progs/misc_flame_big.mdl", 8.f, false, 2)
+    QVR_FIRE("AD Long Wall Torch", "ad_light_torch_long_walltorch", "progs/misc_longtrch.mdl", 48.f, true, 2)
+#undef QVR_FIRE
+#include "vr_ad_spawns.inc" // AD support
+#include "vr_ad_spawnitems.inc" // AD support
+#include "vr_ad_spawnguns.inc" // AD support: AD's soldiers' guns, after its upgrades (the Weapons tab's AD group)
+#undef QVR_AD_SPAWN // AD support
+#undef QVR_AD_SPAWN_MAP // AD support
+#undef QVR_AD_GUN // AD support
+#include "vr_toolgun_packs.inc" // the expansions' entries and id's others (after these: the entries' numbers stay)
 };
 constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spawnables[0]));
 
-constexpr const char* toolNames[] = {"Spawn", "Remove", "Physgun", "Scale", "Joint"};
+// Whether a model's file is on the search path: a variant's name ("<file>#melee", "#gun<n>", "#vr", "#rag": made by
+// the engine from the file when loaded, not a file of its own) looks for its file (the DoE Phantom Sword's
+// "progs/sword.mdl#melee" was greyed with Rogue's data mounted).
+[[nodiscard]] bool modelFileExists(const char* model)
+{
+    const char* tag = strchr(model, '#');
+    if(!tag) { return COM_FileExists(model, nullptr); }
+    char file[MAX_QPATH];
+    const size_t n = static_cast<size_t>(tag - model);
+    if(n >= sizeof(file)) { return false; }
+    memcpy(file, model, n);
+    file[n] = '\0';
+    return COM_FileExists(file, nullptr);
+}
+
+// Whether an entry can be made now: AD's while AD's data is in play (ad::spawnAvailable), an expansion's while its
+// model is there, AD's lights only in an AD map (outside its rules AD's ad_ classes are not made: box3d::spawnClass).
+[[nodiscard]] bool entryAvailable(const Spawnable& s)
+{
+    if(s.adOnly && adBackpack(s.classname)) // (any map, AD's data permitting)
+    {
+        return Cvar_VariableValue("vr_ad_mounted") != 0.f && modelFileExists(s.model);
+    }
+    if(s.adOnly && !ad::spawnAvailable(s.model, s.rulesOnly)) { return false; } // AD support
+    if(s.needs == 2 && !VR_AD_RulesOn()) { return false; }
+    if(s.needs == 3) { return Cvar_VariableValue("vr_campaign") == 5.f; } // (QC MG3_Campaign)
+    return s.needs == 0 || (modelFileExists(s.model) && (!s.probe || modelFileExists(s.probe)));
+}
+
+// Why entryAvailable says no (for the console: vr_toolgun_spawnlist, a selection refused), "" when it is available.
+[[nodiscard]] const char* unavailableWhy(const Spawnable& s)
+{
+    if(entryAvailable(s)) { return ""; }
+    if(s.adOnly) { return "Arcane Dimensions' data not in play here (vr_ad_mounted, its rules, Additional Content)"; }
+    if(s.needs == 2) { return "only in a map played by Arcane Dimensions' rules"; }
+    if(s.needs == 3) { return "only in Dawn of the Machine's campaign"; }
+    const char* missing = !modelFileExists(s.model) ? s.model : s.probe ? s.probe : s.model;
+    return va("%s is not on the search path (its pack's data missing or not mounted: vr_pack_status)", missing);
+}
+
+constexpr const char* toolNames[] = {"Spawn", "Remove", "Physgun", "Scale", "Joint", "Brush"};
 constexpr const char* jointNames[] = {"Weld", "Ball", "Hinge", "Slider", "Rope", "Spring", "Unjoin"};
 constexpr int unjoin = static_cast<int>(box3d::ToolJoint::Count); // vr_toolgun_joint's last: removes a prop's joints
 
@@ -137,6 +250,14 @@ struct Selection
     int skin{0};
     int frame{0};
     bool setModel{false};
+    bool wall{false}; // hung on the wall aimed at (Spawnable::wall)
+    float weaponFlags{0.f}; // a weapon's flags (Spawnable::weaponFlags; a picked weapon's kept ones)
+    // The Armed Humanoid page's choice (armed::choose): an armed monster of the table's row `kind`, its "weapon" in
+    // `key`/`value` and its left hand's "weapon2" in `key2`/`value2`.
+    bool armed{false};
+    int kind{0};
+    char key2[16]{};
+    float value2{0.f};
 };
 
 // Where the gun points this frame.
@@ -147,6 +268,7 @@ struct Aim
     glm::vec3 end{0.f};    // the world's hit (or the range's end)
     glm::vec3 normal{0.f}; // the world's surface there (zero: nothing hit)
     float worldDistance{0.f};
+    int hitEntity{0}; // what that is (0: the world; a door, a lift, a box made with the Brush tool)
     int target{0}; // the entity met first, before the world (0: none)
     float targetDistance{0.f};
 };
@@ -156,6 +278,12 @@ struct Drag
 {
     int num{0};
     bool prop{false};      // a rigid prop: pinned while held (its body follows)
+    // A ragdoll (vr_toolgun_physgun_ragdoll): held by a spring on its part `part` the beam hit (box3d's
+    // physgunRagdollGrab), its entity left alone; the sticks move it, nothing turns it. Else (0) its entity moved, as a
+    // monster's (the old way: its body set where the entity is whenever it strays, a jump; tests).
+    bool ragdoll{false};
+    int part{-1};
+    double since{0.0};     // (tests) when it was taken (vr_toolgun_status: its time)
     float distance{0.f};   // along the beam to the grab point
     glm::vec3 offset{0.f}; // the entity's origin from the grab point, as taken
     glm::vec3 angles{0.f}; // its angles as taken
@@ -163,6 +291,20 @@ struct Drag
     glm::vec3 turn{0.f};
     glm::vec3 last{0.f};     // its origin last frame
     glm::vec3 velocity{0.f}; // eased: its throw on letting go
+    // Turned by the wrist (vr_toolgun_physgun_wrist): the gun hand's axes and its own as taken (held::axesFromAngles:
+    // forward, left, up), the sticks' turn since (about the world's axes), and whether its model is a brush model (its
+    // pitch not inverted).
+    glm::mat3 hand0{1.f};
+    glm::mat3 axes0{1.f};
+    glm::mat3 stickTurn{1.f};
+    bool brush{false};
+    float handYaw{0.f};  // the hand's yaw last frame (a monster's or a pickup's turn)
+    float handTurn{0.f}; // and how far it has turned since taken, counted as it points level (handTurnWeight)
+    // Snapped (X/A held): last frame's snap as a correction (onto the sticks' turn, wrist; and onto `turn`, Euler), kept
+    // when X/A is let go, so the snapped angles stay rather than springing back.
+    bool snapped{false};
+    glm::mat3 snapFix{1.f};
+    glm::vec3 snapDelta{0.f};
 };
 
 // The scale tool's gizmo on a prop: its oriented box (as drawn: model_scale about model_scale_origin) and handles.
@@ -183,6 +325,29 @@ struct Gizmo
     float reach0{0.f};
 };
 
+// The spawn tool's hold: its ghost driven by a hand rather than by a stick (docs/vr-port/TOOLGUN.md, "Spawn"). The
+// other hand's A/X held moves it (`move`: the ghost's offsets, 1:1 with that hand's translation, along the gun's level
+// way); the gun hand's A/X held turns it (`turn`: its yaw, from that hand's way). Neither hand's stick is taken: the
+// player walks and turns as ever. `yaw`: that hand's yaw in the play space last frame (the turn is counted from it as it points,
+// handTurnWeight: its way, not its twist, ghostTurnRate times over). While it turns the ghost stands where it stood at the
+// press (`fixed`: the aimed point and the aim's way then), so the hand swinging the turn does not carry it off; let go,
+// it follows the aim again, the turn kept.
+struct GhostHold
+{
+    int move{-1}; // the hand whose A/X moves the ghost (-1: none)
+    int turn{-1}; // and the hand whose A/X turns it
+    float yaw{0.f};
+    bool fixed{false};
+    glm::vec3 point{0.f};          // (fixed) the aimed point at the press, before the offsets
+    glm::vec3 dir{1.f, 0.f, 0.f};  // and the aim's way then
+    glm::vec3 seen{0.f}; // (tests) what the follow integrated, units
+};
+GhostHold ghostHold;
+
+// The ghost's turn for a degree of the gun hand's way (ghostHoldFrame).
+constexpr float ghostTurnRate = 2.f;
+constexpr int swordKindBits = 3840; // AD support: QC QVR_WPNFLAG_SWORD_KIND (an AD melee weapon's kind)
+
 struct ToolgunState
 {
     Selection sel;
@@ -195,6 +360,7 @@ struct ToolgunState
     bool trigger{false};     // the toolgun's trigger held
     bool firePressed{false}; // pressed since the last frame
     bool freezePressed{false}; // the other hand's trigger, while the physgun holds something
+    glm::vec3 handRot{0.f};    // the toolgun's hand's angles this frame (the physgun's wrist)
     bool taken[HAND_COUNT][6]{}; // presses taken (their releases are too)
     glm::vec2 stick[HAND_COUNT]{glm::vec2{0.f}, glm::vec2{0.f}};
 
@@ -209,8 +375,42 @@ struct ToolgunState
     float glow{0.f};
     int glow2{0};
     const entity_t* ghostEnt{nullptr}; // the ghost's temp entity this frame (glowing as a hologram)
+    const entity_t* ghostParts[2]{};   // and an armed monster's held weapons' (ArmedGhost)
+    bool ghostLooked{false};           // and it is drawn as its probe saw it (ghostVr: its scale and offsets)
+    Tool lastTool{Tool::Spawn};        // last frame's (the Brush tool's holds let go when it changes)
 };
 ToolgunState tg;
+
+// The ghost of an item as it will be once made (QC VR_SpawnLive_Finish: placed at once, a box shrunk to an object, a
+// pickup scaled and floated; its model, its scale and offsets, where its origin ends up), from a probe: the choice made
+// once where the ghost stands on a floor and removed at once (box3d::spawnClass's probe, probeLook). The probe precaches
+// what its spawn function needs, so by the time it is placed the client has it all.
+struct GhostLook
+{
+    int entry{-2};          // the choice it is for (its entry and class)
+    char classname[64]{};
+    int tries{0};           // probes made for it (a few: one that fell out of the level is tried again elsewhere)
+    bool valid{false};
+    char model[64]{};
+    int skin{0};
+    int frame{0};
+    glm::vec3 delta{0.f};   // its origin's move from where it was made (world axes: a box's middle is)
+    glm::vec3 turn{0.f};    // its angles' change
+    client::EntityVr vr;    // its networked scale and offsets, as its client entity has them (render::networkData)
+};
+GhostLook ghostLook;
+
+// vr_toolgun_spawn_trace [entry] [frames]: an entry (the panel's choice) made ahead of the player, its state printed the
+// frame it is made and the next frames (the server's model, scale, box, origin, offset; the client's model and scale),
+// then removed.
+struct SpawnTrace
+{
+    int entry{-1};
+    int num{0};
+    int frame{0};
+    int frames{0};
+};
+SpawnTrace spawnTrace;
 
 // Texts handed out by pointer (stateLine, the gun's screen): valid until the same function's next call.
 struct Readouts
@@ -257,6 +457,12 @@ void select(int i)
         return;
     }
     const Spawnable& s = spawnables[i];
+    if(!entryAvailable(s))
+    {
+        Con_Printf("toolgun: %s unavailable: %s\n", s.label, unavailableWhy(s));
+        tg.sel = {};
+        return;
+    }
     Selection& sel = tg.sel;
     sel = {};
     sel.valid = true;
@@ -268,7 +474,293 @@ void select(int i)
     sel.value = s.value;
     sel.lift = s.lift;
     sel.skin = s.skin;
+    sel.frame = s.frame;
     sel.setModel = s.setModel;
+    sel.wall = s.wall;
+    sel.weaponFlags = s.weaponFlags;
+    tg.picking = false;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Armed humanoids (the panel's Armed Humanoid page; QC vr_armedmon_ui.qc; docs/vr-port/ARMED_MONSTERS.md): the armed
+// monsters' table's rows (the kinds) and the weapons each may hold, asked of QC once a map (and again when AD's data
+// comes or goes); the choice made of vr_toolgun_armed_kind, _weapon and _weapon2; its ghost's held weapons (QC
+// VR_AM_UiGhost: the layer's own pose of them on the body standing).
+
+constexpr int armedMaxKinds = 8;
+constexpr int armedMaxWeapons = 96;
+constexpr int armedCodeTop = 128; // the "weapon" keys asked: 1..127 (QC VR_AG_Decode's codes; 120 the last now)
+constexpr float armedLift = 24.f;  // (the armed entries' lift: a monster's)
+
+struct ArmedKind
+{
+    char name[32]{};
+    char spawn[48]{}; // its spawn function (monster_vr_grunt)
+    char model[64]{}; // its gunless model
+    int frame{0};     // its stand frame (the ghost's)
+};
+
+struct ArmedWeapon
+{
+    int code{0};
+    int fits[armedMaxKinds]{}; // QC VR_AM_UiWeapon's for each kind: 0 not; 1 + 2 one-handed + 4 * its class
+    char name[40]{};
+};
+
+struct ArmedCatalogue
+{
+    bool valid{false};
+    int generation{0}; // counts the rebuilds (the panel's lists follow)
+    char map[64]{};    // made for this map, these progs, AD's data in or out
+    const void* progs{nullptr};
+    float ad{-1.f};
+    int kindCount{0};
+    ArmedKind kinds[armedMaxKinds];
+    za::InPlaceVector<ArmedWeapon, armedMaxWeapons> weapons; // by class (melee first), then code
+};
+ArmedCatalogue armedCat;
+
+// The ghost's held weapons for a choice (QC VR_AM_UiGhost), the monster at the origin facing +x.
+struct ArmedGhost
+{
+    int generation{-1}; // the catalogue's it was made with
+    int kind{-1};
+    float code{0.f}, code2{0.f};
+    int count{0};
+    char model[2][64]{};
+    glm::vec3 origin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 angles[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+};
+ArmedGhost armedGhost;
+
+// QC function `fn` of the server's (its VM pushed) called with these parameters; false: none.
+bool callQc(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
+{
+    if(!fn)
+    {
+        return false;
+    }
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
+    G_FLOAT(OFS_PARM0) = a;
+    G_FLOAT(OFS_PARM1) = b;
+    G_FLOAT(OFS_PARM2) = c;
+    PR_ExecuteProgram(fn);
+    return true;
+}
+
+[[nodiscard]] float qcFloat(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
+{
+    return callQc(fn, a, b, c) ? G_FLOAT(OFS_RETURN) : 0.f;
+}
+
+void qcText(char* dst, size_t size, func_t fn, float a = 0.f)
+{
+    copyText(dst, size, callQc(fn, a) ? PR_GetString(G_INT(OFS_RETURN)) : "");
+}
+
+[[nodiscard]] glm::vec3 qcVec(func_t fn, float a = 0.f)
+{
+    return callQc(fn, a) ? glm::vec3{G_FLOAT(OFS_RETURN), G_FLOAT(OFS_RETURN + 1), G_FLOAT(OFS_RETURN + 2)} : glm::vec3{0.f};
+}
+
+// The catalogue made again when the map, the progs or AD's data changed (the host frame, a game running).
+void armedRefresh()
+{
+    ArmedCatalogue& c = armedCat;
+    if(!sv.active)
+    {
+        c.valid = false;
+        return;
+    }
+    const float ad = Cvar_VariableValue("vr_ad_mounted");
+    if(c.valid && c.progs == sv.qcvm.progs && c.ad == ad && !strcmp(c.map, sv.name))
+    {
+        return;
+    }
+    const ServerVm vm;
+    const func_t count = findFunction("VR_AM_UiCount");
+    const func_t kindName = findFunction("VR_AM_UiKindName");
+    const func_t kindSpawn = findFunction("VR_AM_UiKindSpawn");
+    const func_t kindModel = findFunction("VR_AM_UiKindModel");
+    const func_t kindFrame = findFunction("VR_AM_UiKindFrame");
+    const func_t weapon = findFunction("VR_AM_UiWeapon");
+    const func_t weaponName = findFunction("VR_AM_UiWeaponName");
+    c.valid = true;
+    c.generation++;
+    c.progs = sv.qcvm.progs;
+    c.ad = ad;
+    copyText(c.map, sizeof(c.map), sv.name);
+    c.kindCount = za::clamp(static_cast<int>(qcFloat(count)), 0, armedMaxKinds);
+    for(int k = 0; k < c.kindCount; k++)
+    {
+        ArmedKind& r = c.kinds[k];
+        qcText(r.name, sizeof(r.name), kindName, static_cast<float>(k));
+        qcText(r.spawn, sizeof(r.spawn), kindSpawn, static_cast<float>(k));
+        qcText(r.model, sizeof(r.model), kindModel, static_cast<float>(k));
+        r.frame = static_cast<int>(qcFloat(kindFrame, static_cast<float>(k)));
+    }
+    c.weapons.clear();
+    for(int code = 1; code < armedCodeTop && c.weapons.size() < c.weapons.capacity(); code++)
+    {
+        ArmedWeapon w;
+        w.code = code;
+        bool any = false;
+        for(int k = 0; k < c.kindCount; k++)
+        {
+            w.fits[k] = static_cast<int>(qcFloat(weapon, static_cast<float>(k), static_cast<float>(code)));
+            any = any || w.fits[k] != 0;
+        }
+        if(!any)
+        {
+            continue;
+        }
+        qcText(w.name, sizeof(w.name), weaponName, static_cast<float>(code));
+        // Its place: after the weapons of a lower class (VR_AG_CLASS_*: melee, guns, launchers, streams, bursts).
+        const auto classOf = [&](const ArmedWeapon& x) {
+            int f = 0;
+            for(int k = 0; k < c.kindCount && !f; k++)
+            {
+                f = x.fits[k];
+            }
+            return f / 4;
+        };
+        c.weapons.pushBack(w);
+        for(int i = static_cast<int>(c.weapons.size()) - 1; i > 0 && classOf(c.weapons[i - 1]) > classOf(c.weapons[i]); i--)
+        {
+            const ArmedWeapon t = c.weapons[i - 1];
+            c.weapons[i - 1] = c.weapons[i];
+            c.weapons[i] = t;
+        }
+    }
+}
+
+[[nodiscard]] const ArmedWeapon* armedWeaponOf(int code)
+{
+    for(const ArmedWeapon& w : armedCat.weapons)
+    {
+        if(w.code == code)
+        {
+            return &w;
+        }
+    }
+    return nullptr;
+}
+
+[[nodiscard]] int armedFits(int kind, int code)
+{
+    const ArmedWeapon* w = armedWeaponOf(code);
+    return w && kind >= 0 && kind < armedMaxKinds ? w->fits[kind] : 0;
+}
+
+// It may go in a pair (QC VR_AG_Pairable: a one-handed melee weapon, or a gun not too big to dual wield).
+[[nodiscard]] bool armedOneHanded(int kind, int code)
+{
+    return (armedFits(kind, code) & 2) != 0;
+}
+
+// The two held one in each hand (QC VR_AM_UiPairs, VR_AG_Pairs): both pair, both melee or both guns.
+[[nodiscard]] bool armedPairs(int kind, int code, int code2)
+{
+    constexpr int classMelee = 1; // (QC VR_AG_CLASS_MELEE: the fits' class, 4 x)
+    const int f1 = armedFits(kind, code), f2 = armedFits(kind, code2);
+    return code > 0 && code2 > 0 && (f1 & 2) && (f2 & 2) && ((f1 >> 2) == classMelee) == ((f2 >> 2) == classMelee);
+}
+
+[[nodiscard]] const char* armedCodeName(int code)
+{
+    if(code == 0)
+    {
+        return "Random from Pool";
+    }
+    if(code < 0)
+    {
+        return "Unarmed";
+    }
+    const ArmedWeapon* w = armedWeaponOf(code);
+    return w ? w->name : "?";
+}
+
+// The ghost's held weapons made again for the choice (the host frame).
+void armedGhostRefresh()
+{
+    const Selection& sel = tg.sel;
+    ArmedGhost& g = armedGhost;
+    if(!sel.armed || !armedCat.valid || !sv.active)
+    {
+        return;
+    }
+    if(g.generation == armedCat.generation && g.kind == sel.kind && g.code == sel.value && g.code2 == sel.value2)
+    {
+        return;
+    }
+    g = {};
+    g.generation = armedCat.generation;
+    g.kind = sel.kind;
+    g.code = sel.value;
+    g.code2 = sel.value2;
+    const ServerVm vm;
+    const func_t ghost = findFunction("VR_AM_UiGhost");
+    const func_t model = findFunction("VR_AM_UiGhostModel");
+    const func_t origin = findFunction("VR_AM_UiGhostOrigin");
+    const func_t angles = findFunction("VR_AM_UiGhostAngles");
+    g.count = za::clamp(static_cast<int>(qcFloat(ghost, static_cast<float>(sel.kind), sel.value, sel.value2)), 0, 2);
+    for(int h = 0; h < g.count; h++)
+    {
+        qcText(g.model[h], sizeof(g.model[h]), model, static_cast<float>(h));
+        g.origin[h] = qcVec(origin, static_cast<float>(h));
+        g.angles[h] = qcVec(angles, static_cast<float>(h));
+    }
+}
+
+// The choice made of the cvars (each made one the kind can have first: a weapon it can't hold random, a left hand's
+// weapon without a one-handed pair none).
+void armedChoose()
+{
+    armedRefresh();
+    const ArmedCatalogue& c = armedCat;
+    if(!c.valid || c.kindCount <= 0)
+    {
+        Con_Printf("toolgun: no armed monsters here (no game running)\n");
+        return;
+    }
+    const int kind = za::clamp(static_cast<int>(vr_toolgun_armed_kind.value), 0, c.kindCount - 1);
+    int code = static_cast<int>(vr_toolgun_armed_weapon.value);
+    int code2 = static_cast<int>(vr_toolgun_armed_weapon2.value);
+    code = code < 0 ? -1 : (code > 0 && !armedFits(kind, code) ? 0 : code);
+    code2 = armedPairs(kind, code, code2) ? code2 : 0;
+    const auto keep = [](cvar_t& cv, float v) {
+        if(cv.value != v)
+        {
+            Cvar_SetValueQuick(&cv, v);
+        }
+    };
+    keep(vr_toolgun_armed_kind, static_cast<float>(kind));
+    keep(vr_toolgun_armed_weapon, static_cast<float>(code));
+    keep(vr_toolgun_armed_weapon2, static_cast<float>(code2));
+    const ArmedKind& r = c.kinds[kind];
+    Selection& sel = tg.sel;
+    sel = {};
+    sel.valid = true;
+    sel.entry = -1;
+    sel.armed = true;
+    sel.kind = kind;
+    if(code2 > 0)
+    {
+        q_snprintf(sel.label, sizeof(sel.label), "Armed %s: %s + %s", r.name, armedCodeName(code), armedCodeName(code2));
+    }
+    else
+    {
+        q_snprintf(sel.label, sizeof(sel.label), "Armed %s: %s", r.name, armedCodeName(code));
+    }
+    copyText(sel.classname, sizeof(sel.classname), r.spawn);
+    copyText(sel.model, sizeof(sel.model), r.model);
+    copyText(sel.key, sizeof(sel.key), "weapon");
+    sel.value = static_cast<float>(code);
+    copyText(sel.key2, sizeof(sel.key2), "weapon2");
+    sel.value2 = static_cast<float>(code2);
+    sel.lift = armedLift;
+    sel.frame = r.frame;
     tg.picking = false;
 }
 
@@ -363,9 +855,9 @@ void select(int i)
     return best;
 }
 
-// The tracked controller of `hand` in the world (as the menu's laser: vr_menuui.cpp pointerRay): its place and its aim's
-// axes (forward, right, up), not the drawn hand's (which follows the held weapon's weight).
-[[nodiscard]] bool controllerFrame(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& fwd, glm::vec3& right,
+} // namespace
+
+bool qvr::toolgun::controllerFrame(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& fwd, glm::vec3& right,
     glm::vec3& up)
 {
     const TrackingState& t = tracking();
@@ -383,6 +875,9 @@ void select(int i)
     return true;
 }
 
+namespace
+{
+
 // The gun's level forward and right (the ghost's offsets are along them).
 void levelAxes(const glm::vec3& dir, glm::vec3& fwd, glm::vec3& right)
 {
@@ -394,6 +889,16 @@ void levelAxes(const glm::vec3& dir, glm::vec3& fwd, glm::vec3& right)
 [[nodiscard]] float yawOf(const glm::vec3& dir)
 {
     return glm::degrees(za::atan2(dir.y, dir.x));
+}
+
+// How much of a change in a hand's (Euler) yaw counts as its way turning: all of it while it points within 60 degrees of
+// level, none past 80 (near straight up or down its yaw and roll trade off: a small tilt or twist swings the yaw, by a
+// half turn as it goes over the top), and between the two a share.
+[[nodiscard]] float handTurnWeight(float pitch)
+{
+    constexpr float none = 0.17365f; // cos 80
+    constexpr float all = 0.5f;      // cos 60
+    return za::clamp((za::cos(glm::radians(pitch)) - none) / (all - none), 0.f, 1.f);
 }
 
 // The aim this frame: from the gun's muzzle along the drawn hand's aim (the barrel's way).
@@ -423,6 +928,7 @@ void updateAim(const hands::State& s)
     if(tr.fraction < 1.f)
     {
         a.normal = glm::vec3{tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2]};
+        a.hitEntity = tr.ent ? NUM_FOR_EDICT(tr.ent) : 0;
     }
     a.target = pickTarget(a.from, a.dir, a.worldDistance, a.targetDistance);
 }
@@ -444,6 +950,15 @@ void pick(int num)
         copyText(sel.key, sizeof(sel.key), "weapon");
         sel.value = static_cast<float>(wid);
         sel.lift = 8.f;
+        // AD support: an AD melee weapon's kind (QC vr_ad_guns_defs.qc: the sword's weapon flags, bits 8-11) kept;
+        // the rest of its flags are the one picked's state (a new one is made, loaded).
+        const int flagsOfs = ED_FindFieldOffset("weaponflags");
+        if(flagsOfs >= 0)
+        {
+            // (the sword, id 13, also keeps QC QVR_WPNFLAG_USE_SECONDARY_AMMO: the death knight's)
+            const int keep = wid == 13 ? (swordKindBits | 1) : swordKindBits;
+            sel.weaponFlags = static_cast<float>(static_cast<int>(fieldFloat(e, flagsOfs)) & keep);
+        }
     }
     else if(!qvr::progs::findFunction(cls))
     {
@@ -456,6 +971,8 @@ void pick(int num)
         sel.lift = za::max(-e->v.mins[2], 0.f);
         // A rock's or a brick's model is its kind; a crate's large one is its spawnflag.
         sel.setModel = !strcmp(cls, "vr_debris_piece");
+        // A wall torch (on its wall or taken): hung on a wall again.
+        sel.wall = !strcmp(cls, "light_torch_small_walltorch") || !strcmp(cls, "light_torch_long_walltorch");
         if(e->v.spawnflags != 0.f)
         {
             copyText(sel.key, sizeof(sel.key), "spawnflags");
@@ -466,19 +983,41 @@ void pick(int num)
     copyText(sel.model, sizeof(sel.model), PR_GetString(e->v.model));
     sel.skin = static_cast<int>(e->v.skin);
     sel.frame = static_cast<int>(e->v.frame);
+    if(!strcmp(cls, "light_torch_small_walltorch"))
+    {
+        copyText(sel.model, sizeof(sel.model), "progs/flame.mdl"); // (its ghost id's torch, upright: not our stick)
+        sel.skin = 0;
+        sel.frame = 0;
+    }
     q_snprintf(sel.label, sizeof(sel.label), "%s (picked)", sel.classname);
     Con_Printf("toolgun: picked %s (%s)\n", sel.classname, sel.model);
 }
 
-// Where the ghost stands: on what the gun points at (lifted onto a floor; out from a wall or a ceiling), moved by the
-// offsets along the gun's level way, facing you, turned by the turn.
-void updateGhost()
+// The ghost is showing: the spawn tool in hand, something chosen, the aim known, not picking it from the world. Its
+// hold (ghostHold) is only for this: A/X elsewhere is the sticks' as ever.
+[[nodiscard]] bool ghostShowing()
 {
-    tg.ghost = false;
-    const Aim& a = tg.aim;
-    if(!a.valid || !tg.sel.valid || tg.picking || currentTool() != Tool::Spawn)
+    return tg.hand >= 0 && tg.aim.valid && tg.sel.valid && !tg.picking && currentTool() == Tool::Spawn;
+}
+
+// A wall torch's origin (its cup) off its wall: id's maps hang theirs 6-12 units off it (e1m2's), most about 10.
+constexpr float wallStandoff = 10.f;
+
+// The aim meets a wall (the world's or a brush entity's, such as a func_wall: not a thing before it; not a floor or a
+// ceiling) and the choice hangs on one (a wall torch).
+[[nodiscard]] bool wallAim(const Aim& a)
+{
+    const bool thingFirst = a.target && a.target != a.hitEntity && a.targetDistance < a.worldDistance;
+    return tg.sel.wall && !thingFirst && a.normal != glm::vec3{0.f} && za::fabs(a.normal.z) < 0.7f;
+}
+
+// The point the ghost stands on before its offsets: what the gun points at (lifted onto a floor; out from a wall or a
+// ceiling; a wall torch hung on the wall).
+[[nodiscard]] glm::vec3 ghostPoint(const Aim& a)
+{
+    if(wallAim(a))
     {
-        return;
+        return a.end + glm::normalize(glm::vec3{a.normal.x, a.normal.y, 0.f}) * wallStandoff;
     }
     const float distance = a.target ? za::min(a.targetDistance, a.worldDistance) : a.worldDistance;
     glm::vec3 point = a.from + a.dir * distance;
@@ -491,34 +1030,124 @@ void updateGhost()
     {
         point += normal * 16.f; // (off a wall or a ceiling: its box out of it, near enough)
     }
+    return point;
+}
+
+// The aim's way the ghost goes by: the aim's, or the one it had when the turn's hold fixed the ghost.
+[[nodiscard]] const glm::vec3& ghostDir()
+{
+    return ghostHold.fixed ? ghostHold.dir : tg.aim.dir;
+}
+
+void probeLook();
+void removeTarget(int num, bool quiet = false);
+void traceFrame(); // (vr_toolgun_spawn_trace)
+
+// Where the ghost stands: on ghostPoint (or where it was fixed), moved by the offsets along the gun's level way, facing
+// you, turned by the turn.
+void updateGhost()
+{
+    tg.ghost = false;
+    if(!ghostShowing())
+    {
+        return;
+    }
+    const glm::vec3 point = ghostHold.fixed ? ghostHold.point : ghostPoint(tg.aim);
+    const glm::vec3& dir = ghostDir();
     glm::vec3 fwd, right;
-    levelAxes(a.dir, fwd, right);
+    levelAxes(dir, fwd, right);
     tg.ghostOrigin = point + fwd * tg.offset.x + right * tg.offset.y + glm::vec3{0.f, 0.f, tg.offset.z};
-    tg.ghostAngles = glm::vec3{tg.turn.x, yawOf(a.dir) + 180.f + tg.turn.y, tg.turn.z};
+    tg.ghostAngles = glm::vec3{tg.turn.x, yawOf(dir) + 180.f + tg.turn.y, tg.turn.z};
+    if(!ghostHold.fixed && wallAim(tg.aim))
+    {
+        tg.ghostAngles.y = yawOf(tg.aim.normal) + tg.turn.y; // a wall torch faces out of its wall
+    }
     tg.ghost = true;
+    probeLook();
+    if(tg.sel.armed)
+    {
+        armedRefresh();
+        armedGhostRefresh();
+    }
+}
+
+// Whether the choice is an item (the Items tab's, or a picked item_): its ghost is drawn from a probe (GhostLook).
+[[nodiscard]] bool probedChoice(const Selection& sel)
+{
+    return sel.valid && (sel.entry >= 0 ? !strcmp(spawnables[sel.entry].section, "Items") : !strncmp(sel.classname, "item_", 5));
+}
+
+// The ghost's look for the choice (GhostLook), probed once: the choice made where the ghost stands on a floor, aimed at
+// directly (not held, no offsets: its drop is then the placed one's), read and removed at once.
+void probeLook()
+{
+    const Selection& sel = tg.sel;
+    GhostLook& look = ghostLook;
+    if(!probedChoice(sel) || !sv.active)
+    {
+        return;
+    }
+    if(look.entry != sel.entry || strcmp(look.classname, sel.classname) != 0)
+    {
+        look = {};
+        look.entry = sel.entry;
+        copyText(look.classname, sizeof(look.classname), sel.classname);
+    }
+    const bool onFloor = !ghostHold.fixed && tg.offset == glm::vec3{0.f} && tg.aim.normal.z > 0.7f &&
+                         !(tg.aim.target && tg.aim.targetDistance < tg.aim.worldDistance);
+    if(look.valid || look.tries >= 3 || !onFloor || (sel.entry >= 0 && !toolgun::spawnableAvailable(sel.entry)))
+    {
+        return;
+    }
+    look.tries++;
+    edict_t* e = box3d::spawnClass(sel.classname, tg.ghostOrigin, tg.ghostAngles, sel.setModel ? sel.model : nullptr,
+        sel.key[0] ? sel.key : nullptr, sel.value, true, sel.weaponFlags);
+    if(!e)
+    {
+        return;
+    }
+    const ServerVm vm;
+    const char* model = PR_GetString(e->v.model);
+    if(model[0])
+    {
+        look.valid = true;
+        copyText(look.model, sizeof(look.model), model);
+        look.skin = static_cast<int>(e->v.skin);
+        look.frame = static_cast<int>(e->v.frame);
+        look.delta = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]} - tg.ghostOrigin;
+        look.turn = glm::vec3{e->v.angles[0], e->v.angles[1], e->v.angles[2]} - tg.ghostAngles;
+        look.vr.scale = fieldVec(e, fields().model_scale);
+        look.vr.scaleOrigin = fieldVec(e, fields().model_scale_origin);
+        look.vr.offset = fieldVec(e, fields().model_offset);
+    }
+    removeTarget(NUM_FOR_EDICT(e), true);
 }
 
 void spawnHere()
 {
     if(!tg.ghost)
     {
-        Con_Printf("toolgun: nothing to spawn (choose it on the menu, or pick it)\n");
+        Con_Printf("toolgun: nothing to spawn (choose it on the panel, or pick it)\n");
         return;
     }
     const Selection& sel = tg.sel;
+    if(sel.entry >= 0 && !toolgun::spawnableAvailable(sel.entry)) { return; } // AD support
     edict_t* e = box3d::spawnClass(sel.classname, tg.ghostOrigin, tg.ghostAngles, sel.setModel ? sel.model : nullptr,
-        sel.key[0] ? sel.key : nullptr, sel.value);
+        sel.key[0] ? sel.key : nullptr, sel.value, false, sel.weaponFlags, sel.key2[0] ? sel.key2 : nullptr, sel.value2);
     if(e)
     {
+        const glm::vec3 off = fieldVec(e, fields().model_offset);
         Con_Printf("toolgun: spawned %d %s at %.0f %.0f %.0f\n", NUM_FOR_EDICT(e), sel.classname, e->v.origin[0],
             e->v.origin[1], e->v.origin[2]);
+        Con_DPrintf("toolgun: placed %s at %.1f %.1f %.1f, scale %.3f, offset %.1f %.1f %.1f\n", PR_GetString(e->v.model),
+            e->v.origin[0], e->v.origin[1], e->v.origin[2], 1.f + fieldVec(e, fields().model_scale).x, off.x, off.y, off.z);
     }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Remove.
 
-void removeTarget(int num)
+void removeTarget(int num, bool quiet)
 {
     const func_t fn = qvr::progs::findFunction("VR_Toolgun_Remove");
     if(!fn || num <= svs.maxclients)
@@ -533,7 +1162,10 @@ void removeTarget(int num)
     pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
     G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
     PR_ExecuteProgram(fn);
-    Con_Printf("toolgun: removed %d %s\n", num, name);
+    if(!quiet)
+    {
+        Con_Printf("toolgun: removed %d %s\n", num, name);
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -541,6 +1173,11 @@ void removeTarget(int num)
 
 void dragStart(int num)
 {
+    if(brushes::ofEntity(num))
+    {
+        Con_Printf("toolgun: a box moves with the Brush tool (on its grid)\n");
+        return;
+    }
     edict_t* e = EDICT_NUM(num);
     Drag& d = tg.drag;
     d = {};
@@ -551,9 +1188,31 @@ void dragStart(int num)
     d.offset = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]} - grab;
     d.angles = glm::vec3{e->v.angles[0], e->v.angles[1], e->v.angles[2]};
     d.last = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+    const int mi = static_cast<int>(e->v.modelindex);
+    d.brush = mi > 0 && mi < MAX_MODELS && sv.models[mi] && sv.models[mi]->type == mod_brush;
+    d.hand0 = held::axesFromAngles(&tg.handRot[0], true);
+    d.handYaw = tg.handRot.y;
+    d.handTurn = 0.f;
+    d.axes0 = held::axesFromAngles(e->v.angles, d.brush);
+    d.since = qcvm->time;
     if(d.prop)
     {
         box3d::setPinned(num, true);
+    }
+    else if(box3d::isRagdoll(num))
+    {
+        d.part = box3d::ragdollBone(num, grab); // (the old way's: the part nearest, for vr_toolgun_status)
+        float along = 0.f;
+        if(vr_toolgun_physgun_ragdoll.value != 0.f &&
+            box3d::physgunRagdollGrab(num, tg.aim.from, tg.aim.dir, tg.aim.worldDistance, grab, d.part, along))
+        {
+            d.ragdoll = true;
+            d.distance = za::max(along, 16.f);
+            d.last = tg.aim.from + tg.aim.dir * d.distance;
+        }
+        Con_Printf("toolgun: physgun holds %d %s's ragdoll by part %d %s at %.0f units\n", num, PR_GetString(e->v.classname),
+            d.part, d.ragdoll ? "on a spring" : "by its origin", d.distance);
+        return;
     }
     Con_Printf("toolgun: physgun holds %d %s at %.0f units\n", num, PR_GetString(e->v.classname), d.distance);
 }
@@ -567,6 +1226,17 @@ void dragEnd(bool freeze)
         return;
     }
     edict_t* e = EDICT_NUM(d.num);
+    if(d.ragdoll)
+    {
+        // Let go: the spring gone, the held part keeps the beam's swing (its entity was never moved).
+        glm::vec3 v = d.velocity;
+        const float speed = glm::length(v);
+        v *= speed > 1000.f ? 1000.f / speed : 1.f;
+        box3d::physgunRagdollRelease(v);
+        Con_Printf("toolgun: physgun let go of %d %s's ragdoll at %.0f u/s\n", d.num, PR_GetString(e->v.classname), glm::length(v));
+        d = {};
+        return;
+    }
     e->v.flags = static_cast<float>(static_cast<int>(e->v.flags) & ~FL_ONGROUND);
     if(d.prop && freeze)
     {
@@ -611,26 +1281,104 @@ void dragFrame(float dt)
     glm::vec3 fwd, right;
     levelAxes(tg.aim.dir, fwd, right);
     const glm::vec3 grab = tg.aim.from + tg.aim.dir * za::max(d.distance, 16.f);
-    const glm::quat spin = glm::angleAxis(glm::radians(d.turn.y), glm::vec3{0.f, 0.f, 1.f});
-    const glm::vec3 to = grab + spin * d.offset + right * d.slide.x + glm::vec3{0.f, 0.f, d.slide.y};
+    const auto follow = [dt](const glm::vec3& to) {
+        Drag& d = tg.drag;
+        if(dt > 0.f)
+        {
+            const glm::vec3 v = (to - d.last) / dt;
+            d.velocity += (v - d.velocity) * za::min(1.f, dt * 12.f);
+        }
+        d.last = to;
+    };
+    if(d.ragdoll)
+    {
+        // A ragdoll: its spring's target the beam's point (the sticks' moves on it); nothing turns it.
+        const glm::vec3 to = grab + right * d.slide.x + glm::vec3{0.f, 0.f, d.slide.y};
+        if(!box3d::physgunRagdollMove(to))
+        {
+            Con_Printf("toolgun: physgun lost %d (its ragdoll gone)\n", d.num);
+            d = {};
+            return;
+        }
+        follow(to);
+        return;
+    }
+    // X/A held: its angles snap to whole steps of vr_toolgun_snap degrees; let go, the snap is kept (baked into the turn).
+    const float step = tg.adjust ? vr_toolgun_snap.value : 0.f;
+    if(step <= 0.f && d.snapped)
+    {
+        d.stickTurn = d.snapFix * d.stickTurn;
+        d.turn += d.snapDelta;
+    }
+    d.snapped = step > 0.f;
+    d.snapFix = glm::mat3{1.f};
+    d.snapDelta = glm::vec3{0.f};
+    const auto snap = [step](float& a) {
+        if(step > 0.f)
+        {
+            a = za::round(a / step) * step;
+        }
+    };
+    d.handTurn += za::remainder(tg.handRot.y - d.handYaw, 360.f) * handTurnWeight(tg.handRot.x);
+    d.handYaw = tg.handRot.y;
+    glm::vec3 to;
+    float angles[3];
+    if(vr_toolgun_physgun_wrist.value != 0.f)
+    {
+        // Turned as the hand turns since it was taken (its offset from the beam's point too: as if on a skewer), the
+        // sticks' turn on top; the body's turn turns the hand, so it turns with you.
+        const glm::mat3 hand = held::axesFromAngles(&tg.handRot[0], true);
+        glm::mat3 turn = d.stickTurn * hand * glm::transpose(d.hand0);
+        held::anglesFromAxes(turn * d.axes0, angles, d.brush);
+        if(!d.prop)
+        {
+            // A monster or a pickup only turns about the up axis (tilted, a monster would walk on so): as the hand's
+            // way turns (not its twist), and the sticks' yaw.
+            angles[0] = d.angles.x;
+            angles[1] = d.angles.y + d.handTurn + d.turn.y;
+            angles[2] = d.angles.z;
+            const float unsnapped = angles[1];
+            snap(angles[1]);
+            d.snapDelta.y = angles[1] - unsnapped;
+            turn =glm::mat3_cast(glm::angleAxis(glm::radians(angles[1] - d.angles.y), glm::vec3{0.f, 0.f, 1.f}));
+        }
+        else if(step > 0.f)
+        {
+            for(float& a : angles)
+            {
+                snap(a);
+            }
+            const glm::mat3 unsnapped = turn;
+            turn = held::axesFromAngles(angles, d.brush) * glm::transpose(d.axes0);
+            d.snapFix = turn * glm::transpose(unsnapped);
+        }
+        to = grab + turn * d.offset;
+    }
+    else
+    {
+        const glm::quat spin = glm::angleAxis(glm::radians(d.turn.y), glm::vec3{0.f, 0.f, 1.f});
+        to = grab + spin * d.offset;
+        for(int k = 0; k < 3; k++)
+        {
+            angles[k] = d.angles[k] + d.turn[k];
+            snap(angles[k]);
+            d.snapDelta[k] = angles[k] - (d.angles[k] + d.turn[k]);
+        }
+    }
+    to += right * d.slide.x + glm::vec3{0.f, 0.f, d.slide.y};
     e->v.origin[0] = to.x;
     e->v.origin[1] = to.y;
     e->v.origin[2] = to.z;
-    e->v.angles[0] = d.angles.x + d.turn.x;
-    e->v.angles[1] = d.angles.y + d.turn.y;
-    e->v.angles[2] = d.angles.z + d.turn.z;
+    e->v.angles[0] = angles[0];
+    e->v.angles[1] = angles[1];
+    e->v.angles[2] = angles[2];
     VectorCopy(vec3_origin, e->v.velocity);
     if(!d.prop)
     {
         e->v.flags = static_cast<float>(static_cast<int>(e->v.flags) | FL_ONGROUND); // (held up: no fall while held)
     }
     SV_LinkEdict(e, false);
-    if(dt > 0.f)
-    {
-        const glm::vec3 v = (to - d.last) / dt;
-        d.velocity += (v - d.velocity) * za::min(1.f, dt * 12.f);
-    }
-    d.last = to;
+    follow(to);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -858,16 +1606,28 @@ void jointShot(int num, const glm::vec3& at, const glm::vec3& normal)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The sticks (X/A held).
+// The sticks: always while the physgun holds something, else with X/A held.
 
 [[nodiscard]] float deadzone(float v)
 {
     return za::fabs(v) < 0.15f ? 0.f : v;
 }
 
+// The physgun holds something: both sticks are its (no X/A needed), and stick presses do nothing.
+[[nodiscard]] bool physgunHolds()
+{
+    return tg.drag.num != 0 && currentTool() == Tool::Physgun;
+}
+
+// A/X held on the gun's hand gives it the sticks, except with the spawn tool (its ghost takes none: ghostHoldFrame).
+[[nodiscard]] bool adjustTakesSticks()
+{
+    return tg.adjust && currentTool() != Tool::Spawn;
+}
+
 void sticksFrame(float dt)
 {
-    if(!tg.adjust || tg.hand < 0 || key_dest != key_game)
+    if(!(adjustTakesSticks() || physgunHolds()) || tg.hand < 0 || key_dest != key_game)
     {
         return;
     }
@@ -884,6 +1644,14 @@ void sticksFrame(float dt)
             tg.drag.distance = za::max(tg.drag.distance + push, 16.f);
             tg.drag.slide += glm::vec3{side, lift, 0.f};
             tg.drag.turn[axis] += turn;
+            if(turn != 0.f)
+            {
+                // (the wrist's way: about the world's up, or the gun's level right or forward)
+                glm::vec3 fwd, right;
+                levelAxes(tg.aim.dir, fwd, right);
+                const glm::vec3 about = axis == 1 ? glm::vec3{0.f, 0.f, 1.f} : axis == 0 ? right : fwd;
+                tg.drag.stickTurn = glm::mat3_cast(glm::angleAxis(glm::radians(turn), about)) * tg.drag.stickTurn;
+            }
         }
         break;
     case Tool::Scale:
@@ -895,10 +1663,58 @@ void sticksFrame(float dt)
         }
         break;
     }
+    case Tool::Brush: toolgun::brushtool::push(push); break;
     default:
-        tg.offset += glm::vec3{push, side, lift};
-        tg.turn[axis] += turn;
+        // The spawn tool's ghost takes no stick (its hold: ghostHoldFrame); Remove and Joint have none.
         break;
+    }
+}
+
+// The ghost held by a hand: its offsets follow that hand's translation (1:1, along the gun's level forward, right and
+// up, so walking carries it with the aim), its yaw follows the gun hand's way (ghostTurnRate times over, the ghost fixed
+// where it stood meanwhile: GhostHold). Only the hand's movement counts, from
+// the moment its A/X was pressed: its place then, and its rotation, move the ghost nothing.
+// The turn is the gun hand's A/X held (tg.adjust, as for the other tools) while the ghost shows, decided each frame: a
+// tool change with A/X still held hands it to the next tool's sticks (and the stick press keeps going back), and a
+// ghost that shows up under a held A/X starts turning from the hand's way then.
+void ghostHoldFrame(const hands::State& s, float dt)
+{
+    const bool turning = tg.adjust && tg.hand >= 0 && key_dest == key_game && ghostShowing();
+    const bool wasTurning = turning && ghostHold.turn == tg.hand;
+    const float before = ghostHold.yaw;
+    ghostHold.turn = turning ? tg.hand : -1;
+    // Turning fixes the ghost where it stands at the press (updateGhost); let go, it follows the aim again.
+    if(!turning)
+    {
+        ghostHold.fixed = false;
+    }
+    else if(!ghostHold.fixed)
+    {
+        ghostHold.fixed = true;
+        ghostHold.point = ghostPoint(tg.aim);
+        ghostHold.dir = tg.aim.dir;
+    }
+    // The hand's yaw in the play space: the player's own turn (the stick's, still the player's) turns the ghost nothing.
+    // (Kept current while not turning, so the turn does not jump when it starts.)
+    ghostHold.yaw = tg.handRot.y - s.turnYaw;
+    if(dt <= 0.f || key_dest != key_game || !ghostShowing())
+    {
+        return;
+    }
+    if(ghostHold.move >= 0 && s.valid)
+    {
+        glm::vec3 fwd, right;
+        levelAxes(ghostDir(), fwd, right);
+        const glm::vec3 gone = s.vel[ghostHold.move] * dt * units::metresToUnits(); // metres a second in Quake axes,
+        // without the player's own (hands::State::vel is metres: the offsets are units)
+        // The offsets are components along the gun's level way, not a world vector: add the components.
+        tg.offset += glm::vec3{glm::dot(gone, fwd), glm::dot(gone, right), gone.z};
+        ghostHold.seen += gone;
+    }
+    if(wasTurning)
+    {
+        const float turned = za::remainder(ghostHold.yaw - before, 360.f) * handTurnWeight(tg.handRot.x) * ghostTurnRate;
+        tg.turn.y += turned;
     }
 }
 
@@ -916,6 +1732,7 @@ void sticksFrame(float dt)
     case Tool::Physgun: q_snprintf(text, sizeof(text), "PHYSGUN"); break;
     case Tool::Scale: q_snprintf(text, sizeof(text), "SCALE"); break;
     case Tool::Joint: q_snprintf(text, sizeof(text), "%s%s", jointNames[jointKind()], tg.jointFirst ? " 1/2" : ""); break;
+    case Tool::Brush: q_snprintf(text, sizeof(text), "%s", toolgun::brushtool::screenText()); break;
     default: text[0] = '\0'; break;
     }
     return text;
@@ -930,6 +1747,7 @@ void sticksFrame(float dt)
     case Tool::Physgun: return {0.35f, 0.55f, 1.f, 1.f};
     case Tool::Scale: return {1.f, 0.85f, 0.2f, 1.f};
     case Tool::Joint: return {0.4f, 1.f, 0.4f, 1.f};
+    case Tool::Brush: return {1.f, 0.6f, 0.2f, 1.f};
     default: return {1.f, 1.f, 1.f, 1.f};
     }
 }
@@ -986,6 +1804,10 @@ void reset()
     tg.glowNum = tg.glow2 = 0;
     tg.ghost = false;
     tg.aim = {};
+    ghostHold = {};
+    ghostLook = {};
+    spawnTrace = {};
+    toolgun::brushtool::reset();
 }
 
 void forget(int num)
@@ -1021,32 +1843,6 @@ int heldHand()
     return -1;
 }
 
-bool menuOnGun()
-{
-    return menu::toolgunPageShown() && heldHand() >= 0;
-}
-
-bool menuFrame(const hands::State& s, glm::vec3& centre, glm::vec3& right, glm::vec3& up)
-{
-    const int hand = heldHand();
-    if(hand < 0 || !menu::toolgunPageShown())
-    {
-        return false;
-    }
-    glm::vec3 origin, fwd, r, u;
-    if(!controllerFrame(s, hand, origin, fwd, r, u))
-    {
-        return false;
-    }
-    // Over the gun, leaning back from upright by the tilt, facing you (its normal: right x up, back along the gun).
-    const float tilt = glm::radians(vr_toolgun_menu_tilt.value);
-    up = glm::normalize(u * za::cos(tilt) + fwd * za::sin(tilt));
-    right = r;
-    centre = origin + u * vr_toolgun_menu_up.value + up * (za::max(vr_toolgun_menu_height.value, 2.f) * 0.5f) +
-             fwd * vr_toolgun_menu_forward.value;
-    return true;
-}
-
 bool button(int hand, posing::Button b, bool down)
 {
     const int bi = static_cast<int>(b);
@@ -1065,10 +1861,22 @@ bool button(int hand, posing::Button b, bool down)
         if(b == posing::Button::Primary)
         {
             tg.adjust = false;
+            if(ghostHold.turn == hand)
+            {
+                ghostHold.turn = -1;
+            }
+            if(ghostHold.move == hand)
+            {
+                ghostHold.move = -1;
+            }
         }
         else if(b == posing::Button::Trigger && hand == tg.hand)
         {
             tg.trigger = false;
+        }
+        else if(b == posing::Button::Trigger)
+        {
+            (void)panel::trigger(hand, false); // (the panel's click let go, if it was one)
         }
         return true;
     }
@@ -1083,17 +1891,15 @@ bool button(int hand, posing::Button b, bool down)
         switch(b)
         {
         case posing::Button::Secondary:
-            if(menuOnGun())
+            if(panel::shown() || key_dest == key_game)
             {
-                menu::closeToolgun();
-            }
-            else if(key_dest == key_game)
-            {
-                menu::openToolgun();
+                panel::toggle();
             }
             taken = true;
             return true;
         case posing::Button::Primary:
+            // Held: the sticks' (the physgun's snap, the scale tool's); with the spawn tool's ghost showing it turns
+            // the ghost instead (its yaw, ghostHoldFrame) and the sticks stay the player's.
             tg.adjust = key_dest == key_game;
             taken = true;
             return true;
@@ -1105,22 +1911,57 @@ bool button(int hand, posing::Button b, bool down)
             }
             taken = true;
             return true;
+        case posing::Button::StickClick:
+            // The next tool (X/A held: the one before), unless bullet time has this stick's press. While the physgun
+            // holds something the stick is the prop's: a press is it pushed hard, swallowed (bullet time's too).
+            if(key_dest == key_game && physgunHolds())
+            {
+                taken = true;
+                return true;
+            }
+            if(key_dest != key_game || bullettime::ownsStick(hand))
+            {
+                return false;
+            }
+            // While the trigger holds something (the physgun's prop, Scale's gizmo, a box being made or moved), a press
+            // is the stick pushed hard while adjusting: swallowed, else the tool change would drop the hold.
+            if(tg.trigger)
+            {
+                taken = true;
+                return true;
+            }
+            setTool((static_cast<int>(currentTool()) + (tg.adjust ? -1 : 1) + static_cast<int>(Tool::Count)) %
+                    static_cast<int>(Tool::Count));
+            taken = true;
+            return true;
         default: return false;
         }
     }
-    // The other hand's Y, the gun in the right hand, its menu on the gun: Back (as the right hand's B is, the gun's own
-    // B closing the menu).
-    if(b == posing::Button::Secondary && gun == HAND_MAIN && hand == HAND_OFF && menuOnGun())
+    // The other hand's A/X held while the spawn tool's ghost shows: that hand moves the ghost. Its press and its
+    // release are the tool's, so no key reaches the game: neither its jump nor the hook's unreel while it is held.
+    if(b == posing::Button::Primary && key_dest == key_game && ghostShowing())
     {
-        Key_Event(K_BBUTTON, true);
-        Key_Event(K_BBUTTON, false);
+        ghostHold.move = hand;
+        ghostHold.seen = glm::vec3{0.f};
         taken = true;
         return true;
     }
-    // The other hand's trigger: what the physgun holds frozen there.
+    // The other hand's trigger: a click on the panel, where its laser meets it; else what the physgun holds frozen there.
+    if(b == posing::Button::Trigger && panel::trigger(hand, true))
+    {
+        taken = true;
+        return true;
+    }
     if(b == posing::Button::Trigger && key_dest == key_game && tg.drag.num)
     {
         tg.freezePressed = true;
+        taken = true;
+        return true;
+    }
+    // The other stick's press while the physgun holds something: that stick moves the prop, a press is it pushed hard
+    // (not a run, a reload or bullet time).
+    if(b == posing::Button::StickClick && key_dest == key_game && physgunHolds())
+    {
         taken = true;
         return true;
     }
@@ -1129,7 +1970,7 @@ bool button(int hand, posing::Button b, bool down)
 
 bool sticksTaken()
 {
-    return tg.adjust && heldHand() >= 0 && key_dest == key_game;
+    return (adjustTakesSticks() || physgunHolds()) && heldHand() >= 0 && key_dest == key_game;
 }
 
 void sticks(const glm::vec2& off, const glm::vec2& main)
@@ -1140,7 +1981,13 @@ void sticks(const glm::vec2& off, const glm::vec2& main)
 
 void frame(const hands::State& s)
 {
+    traceFrame();
     tg.hand = heldHand();
+    panel::frame(s);
+    if(tg.hand >= 0)
+    {
+        tg.handRot = s.rot[tg.hand];
+    }
     // The joints: a rope and a spring drawn always (a rope's brown, a spring's steel), the others' points while the joint
     // tool is in hand.
     const bool jointTool = tg.hand >= 0 && currentTool() == Tool::Joint && key_dest == key_game;
@@ -1175,17 +2022,24 @@ void frame(const hands::State& s)
         tg.gizmo = {};
         tg.adjust = tg.trigger = tg.firePressed = tg.freezePressed = false;
         tg.aim = {};
+        ghostHold = {};
+        toolgun::brushtool::reset();
         return;
     }
     const ServerVm vm;
     const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
     updateAim(s);
+    ghostHoldFrame(s, dt);
     sticksFrame(dt);
     const bool fire = tg.firePressed;
     const bool freeze = tg.freezePressed;
     tg.firePressed = tg.freezePressed = false;
     const Aim& a = tg.aim;
     const Tool tool = currentTool();
+    if(tool != Tool::Spawn)
+    {
+        ghostHold = {}; // (another tool: its A/X is the sticks' again)
+    }
     if(tool != Tool::Physgun && tg.drag.num)
     {
         dragEnd(false);
@@ -1198,6 +2052,11 @@ void frame(const hands::State& s)
     {
         tg.jointFirst = 0;
     }
+    if(tool != Tool::Brush && tg.lastTool == Tool::Brush)
+    {
+        toolgun::brushtool::reset();
+    }
+    tg.lastTool = tool;
     switch(tool)
     {
     case Tool::Spawn:
@@ -1278,6 +2137,25 @@ void frame(const hands::State& s)
             jointShot(a.target, a.from + a.dir * a.targetDistance, normal);
         }
         break;
+    case Tool::Brush:
+    {
+        toolgun::brushtool::Input in;
+        in.valid = a.valid;
+        in.from = a.from;
+        in.dir = a.dir;
+        in.worldDistance = a.worldDistance;
+        in.normal = a.normal;
+        in.hitEntity = a.hitEntity;
+        in.target = a.target;
+        in.targetDistance = a.targetDistance;
+        in.trigger = tg.trigger;
+        in.fire = fire;
+        in.head = s.head;
+        in.handRot = tg.handRot;
+        toolgun::brushtool::frame(in);
+        tg.glowNum = toolgun::brushtool::glowEntity(tg.glow);
+        break;
+    }
     default: break;
     }
     if(tg.hand >= 0 && key_dest == key_game)
@@ -1289,50 +2167,94 @@ void frame(const hands::State& s)
 void tempEntities()
 {
     tg.ghostEnt = nullptr;
+    tg.ghostParts[0] = tg.ghostParts[1] = nullptr;
     if(!tg.ghost || !tg.sel.valid || !tg.sel.model[0])
     {
         return;
     }
-    // The ghost: its model see-through where it would be made. A map's own models (loaded with it), or an alias model
-    // loaded now; a brush model not loaded with the map (its lightmaps are made at the map's load) only as a point.
-    qmodel_t* model = nullptr;
-    for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
-    {
-        if(!strcmp(cl.model_precache[i]->name, tg.sel.model))
+    // The ghost: its model see-through where it would be made; an item's as it will be once placed (ghostLook: its
+    // model, its scale and offsets, its origin moved). A map's own models (loaded with it; the toolgun's brush-model items
+    // are precached with every map: QC VR_Toolgun_Precache), or an alias model loaded now; a brush model not loaded with
+    // the map (its lightmaps are made at the map's load) only as a point.
+    const auto modelNamed = [](const char* name) -> qmodel_t* {
+        qmodel_t* model = nullptr;
+        for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
         {
-            model = cl.model_precache[i];
-            break;
+            if(!strcmp(cl.model_precache[i]->name, name))
+            {
+                model = cl.model_precache[i];
+                break;
+            }
         }
-    }
-    const size_t n = strlen(tg.sel.model);
-    if(!model && n > 4 && !q_strcasecmp(tg.sel.model + n - 4, ".mdl"))
-    {
-        model = Mod_ForName(tg.sel.model, false);
-    }
+        const size_t n = strlen(name);
+        const bool derivedGun = strstr(name, ".mdl#") != nullptr; // AD support: an AD soldier's gun (vr_adguns.cpp)
+        if(!model && ((n > 4 && !q_strcasecmp(name + n - 4, ".mdl")) || derivedGun))
+        {
+            model = Mod_ForName(name, false);
+        }
+        return model && !client::lateBrushModel(model) ? model : nullptr;
+    };
+    const GhostLook& look = ghostLook;
+    const bool looked = look.valid && probedChoice(tg.sel) && look.entry == tg.sel.entry && !strcmp(look.classname, tg.sel.classname);
+    qmodel_t* model = modelNamed(looked ? look.model : tg.sel.model);
     if(!model)
     {
         return;
+    }
+    // An armed monster's held weapons (ArmedGhost: where the layer's pose holds them on the body standing, turned with
+    // the ghost).
+    const ArmedGhost& ag = armedGhost;
+    if(tg.sel.armed && ag.kind == tg.sel.kind && ag.code == tg.sel.value && ag.code2 == tg.sel.value2)
+    {
+        const glm::mat3 body = held::axesFromAngles(&tg.ghostAngles[0], false);
+        for(int h = 0; h < ag.count; h++)
+        {
+            qmodel_t* wm = ag.model[h][0] ? modelNamed(ag.model[h]) : nullptr;
+            entity_t* we = wm ? CL_NewTempEntity() : nullptr;
+            if(!we)
+            {
+                continue;
+            }
+            const glm::vec3 at = tg.ghostOrigin + body * ag.origin[h];
+            const glm::mat3 turn = body * held::axesFromAngles(&ag.angles[h][0], false);
+            held::anglesFromAxes(turn, we->angles, false);
+            for(int k = 0; k < 3; k++)
+            {
+                we->origin[k] = at[k];
+            }
+            we->model = wm;
+            we->alpha = static_cast<byte>(ENTALPHA_ENCODE(0.45f));
+            tg.ghostParts[h] = we;
+        }
     }
     entity_t* ent = CL_NewTempEntity();
     if(!ent)
     {
         return;
     }
+    const glm::vec3 origin = tg.ghostOrigin + (looked ? look.delta : glm::vec3{0.f});
+    const glm::vec3 angles = tg.ghostAngles + (looked ? look.turn : glm::vec3{0.f});
     for(int k = 0; k < 3; k++)
     {
-        ent->origin[k] = tg.ghostOrigin[k];
-        ent->angles[k] = tg.ghostAngles[k];
+        ent->origin[k] = origin[k];
+        ent->angles[k] = angles[k];
     }
     ent->model = model;
-    ent->skinnum = tg.sel.skin;
-    ent->frame = model->numframes > 0 ? za::clamp(tg.sel.frame, 0, model->numframes - 1) : 0;
+    ent->skinnum = looked ? look.skin : tg.sel.skin;
+    ent->frame = model->numframes > 0 ? za::clamp(looked ? look.frame : tg.sel.frame, 0, model->numframes - 1) : 0;
     ent->alpha = static_cast<byte>(ENTALPHA_ENCODE(0.45f));
     tg.ghostEnt = ent;
+    tg.ghostLooked = looked;
+}
+
+const client::EntityVr* ghostVr(const entity_t* e)
+{
+    return e && e == tg.ghostEnt && tg.ghostLooked ? &ghostLook.vr : nullptr;
 }
 
 float entityGlow(const entity_t* e)
 {
-    if(e && e == tg.ghostEnt)
+    if(e && (e == tg.ghostEnt || e == tg.ghostParts[0] || e == tg.ghostParts[1]))
     {
         return 0.7f; // (the ghost: a hologram in the tool's hue)
     }
@@ -1364,15 +2286,117 @@ const char* spawnableLabel(int i)
     return text;
 }
 
+const char* spawnableName(int i)
+{
+    return i >= 0 && i < spawnableTotal ? spawnables[i].label : "";
+}
+
 const char* spawnableSection(int i)
 {
     return i >= 0 && i < spawnableTotal ? spawnables[i].section : "";
+}
+
+const char* spawnableModel(int i)
+{
+    return i >= 0 && i < spawnableTotal ? spawnables[i].model : "";
+}
+
+int spawnableSkin(int i)
+{
+    return i >= 0 && i < spawnableTotal ? spawnables[i].skin : 0;
+}
+
+// AD support: the panel and Debug menus use the same catalog and availability checks.
+bool spawnableAvailable(int i)
+{
+    return i >= 0 && i < spawnableTotal && entryAvailable(spawnables[i]);
+}
+const char* spawnableUnavailableWhy(int i) { return i >= 0 && i < spawnableTotal ? unavailableWhy(spawnables[i]) : ""; }
+bool spawnableAD(int i) { return i >= 0 && i < spawnableTotal && spawnables[i].adOnly; }
+const char* spawnablePack(int i)
+{
+    if(i < 0 || i >= spawnableTotal) { return ""; }
+    return spawnables[i].adOnly ? "AD" : spawnables[i].pack ? spawnables[i].pack : "";
+}
+int spawnableDebugChoice(int i) { return i >= 0 && i < spawnableTotal ? spawnables[i].debugChoice : -1; }
+const char* spawnableClass(int i) { return i >= 0 && i < spawnableTotal ? spawnables[i].classname : ""; }
+
+int selectedSpawnable()
+{
+    return tg.sel.valid ? tg.sel.entry : -1;
 }
 
 void selectSpawnable(int i)
 {
     select(i);
     Con_Printf("toolgun: spawn %s\n", tg.sel.valid ? tg.sel.label : "nothing");
+}
+
+namespace armed
+{
+void refresh() { armedRefresh(); }
+int generation() { return armedCat.valid ? armedCat.generation : 0; }
+int kindCount() { return armedCat.valid ? armedCat.kindCount : 0; }
+const char* kindName(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].name : ""; }
+const char* kindModel(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].model : ""; }
+int weaponCount() { return armedCat.valid ? static_cast<int>(armedCat.weapons.size()) : 0; }
+int weaponCode(int i) { return i >= 0 && i < weaponCount() ? armedCat.weapons[i].code : 0; }
+const char* codeName(int code) { return armedCodeName(code); }
+int fits(int kind, int code) { return armedFits(kind, code); }
+bool oneHanded(int kind, int code) { return armedOneHanded(kind, code); }
+bool pairs(int kind, int code, int code2) { return armedPairs(kind, code, code2); }
+bool chosen() { return tg.sel.valid && tg.sel.armed; }
+
+void choose()
+{
+    armedChoose();
+    Con_Printf("toolgun: spawn %s\n", tg.sel.valid ? tg.sel.label : "nothing");
+}
+
+const char* ghostModel(int hand)
+{
+    const ArmedGhost& g = armedGhost;
+    return hand >= 0 && hand < g.count && chosen() && g.kind == tg.sel.kind && g.code == tg.sel.value && g.code2 == tg.sel.value2
+               ? g.model[hand]
+               : "";
+}
+} // namespace armed
+
+const char* toolName(int tool)
+{
+    return tool >= 0 && tool < static_cast<int>(Tool::Count) ? toolNames[tool] : "";
+}
+
+int jointCount()
+{
+    return unjoin + 1;
+}
+
+const char* jointName(int joint)
+{
+    return joint >= 0 && joint <= unjoin ? jointNames[joint] : "";
+}
+
+void setTool(int tool)
+{
+    tool = za::clamp(tool, 0, static_cast<int>(Tool::Count) - 1);
+    Cvar_SetValueQuick(&vr_toolgun_tool, static_cast<float>(tool));
+    Con_Printf("toolgun: tool %s\n", toolNames[tool]);
+    haptic(heldHand(), 0.02f, 0.25f);
+}
+
+void haptic(int hand, float seconds, float amplitude)
+{
+    Backend* be = backend();
+    if(be && hand >= 0 && !vr_disablehaptics.value)
+    {
+        be->haptic(hand, seconds, 200.f, amplitude);
+    }
+}
+
+const char* screenText()
+{
+    return screenLine();
 }
 
 const char* stateLine()
@@ -1401,6 +2425,7 @@ const char* stateLine()
     case Tool::Joint:
         q_snprintf(text, sizeof(text), "Joint: %s%s", jointNames[jointKind()], tg.jointFirst ? " (shoot the second)" : "");
         break;
+    case Tool::Brush: q_snprintf(text, sizeof(text), "%s", toolgun::brushtool::stateLine()); break;
     default: text[0] = '\0'; break;
     }
     return text;
@@ -1411,15 +2436,359 @@ const char* stateLine()
 namespace
 {
 
-// vr_toolgun_select <n | clear>: the spawn list's entry n (the menu's rows), or nothing.
+// vr_toolgun_spawn_test [<first> [<last>]]: the spawn list's entries first..last (all by default) each made once as the
+// spawn tool makes it (box3d::spawnClass and its field), on a ring around the player at its feet's height, each printed
+// "spawned <edict>", "failed" (its spawn function made nothing, or removed it at once) or "unavailable" (not here:
+// toolgun::spawnableAvailable); `vr_toolgun_spawn_test check` a moment later: each one made still there ("alive") or
+// gone since (its own think removed it), then every one removed. For tests and Debug > Toolgun's "Spawn Every Entry".
+struct SpawnTestMade
+{
+    int entry;
+    int num;
+};
+struct SpawnTest
+{
+    za::InPlaceVector<SpawnTestMade, 512> made;
+};
+SpawnTest spawnTest;
+
+struct SvVmScope
+{
+    qcvm_t* old{nullptr};
+    SvVmScope() { PR_PushQCVM(&sv.qcvm, &old); }
+    ~SvVmScope() { PR_PopQCVM(old); }
+};
+
+// How the client draws edict `num` (the server's VM pushed): "drawn", "modelless" (the server gave it none: a spawner,
+// a hidden thing), or "invisible (...)": the server has a model the client doesn't draw (it never got it, or a brush
+// model loaded after the map: client::lateBrushModel).
+[[nodiscard]] const char* clientLook(int num)
+{
+    const edict_t* e = EDICT_NUM(num);
+    if(!PR_GetString(e->v.model)[0] || e->v.modelindex <= 0.f)
+    {
+        return "modelless";
+    }
+    const entity_t* ce = num < cl_max_edicts ? &cl_entities[num] : nullptr;
+    if(!ce || !ce->model)
+    {
+        return "invisible (no model on the client)";
+    }
+    if(client::lateBrushModel(ce->model))
+    {
+        return "invisible (a brush model loaded after the map)";
+    }
+    return "drawn";
+}
+
+void spawnTestCheck()
+{
+    int alive = 0, gone = 0, invisible = 0;
+    {
+        const SvVmScope vm;
+        for(const SpawnTestMade& m : spawnTest.made)
+        {
+            // (its class as it is now: a spawn function may rename it, weapon_bloody_sg a weapon_shotgun)
+            const edict_t* e = EDICT_NUM(m.num);
+            const bool kept = !e->free;
+            const char* look = kept ? clientLook(m.num) : "";
+            Con_Printf("spawntest: %d \"%s\" %s %s %s\n", m.entry, spawnables[m.entry].label, kept ? "alive" : "gone",
+                e->free ? "(freed)" : PR_GetString(e->v.classname), look);
+            (kept ? alive : gone)++;
+            invisible += !strncmp(look, "invisible", 9) ? 1 : 0;
+        }
+    }
+    for(const SpawnTestMade& m : spawnTest.made)
+    {
+        const SvVmScope vm;
+        if(!EDICT_NUM(m.num)->free)
+        {
+            removeTarget(m.num);
+        }
+    }
+    Con_Printf("spawntest: check %d alive, %d gone, %d invisible\n", alive, gone, invisible);
+    // Every late precache on the client too (VR_WriteRecentPrecaches and the reliable copy): the names the server has
+    // that the client lacks.
+    int models = 0, sounds = 0, missing = 0;
+    for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++, models++)
+    {
+        if(!cl.model_precache[i] || strcmp(cl.model_precache[i]->name, sv.model_precache[i]) != 0)
+        {
+            Con_Printf("spawntest: the client lacks model %d %s\n", i, sv.model_precache[i]);
+            missing++;
+        }
+    }
+    for(int i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++, sounds++)
+    {
+        if(cl.sound_precache[i] && strcmp(cl.sound_precache[i]->name, sv.sound_precache[i]) != 0)
+        {
+            Con_Printf("spawntest: the client has sound %d %s as %s\n", i, sv.sound_precache[i], cl.sound_precache[i]->name);
+            missing++;
+        }
+    }
+    Con_Printf("spawntest: precaches %d models, %d sounds, %d not on the client\n", models, sounds, missing);
+    spawnTest.made.clear();
+}
+
+// vr_toolgun_spawn_trace (SpawnTrace): one line of the traced thing's state, `frame` frames after it was made.
+void traceLine()
+{
+    SpawnTrace& t = spawnTrace;
+    edict_t* e = EDICT_NUM(t.num);
+    if(e->free)
+    {
+        Con_Printf("spawntrace: %d f%d gone\n", t.entry, t.frame);
+        t = {};
+        return;
+    }
+    const glm::vec3 k = glm::vec3{1.f} + fieldVec(e, fields().model_scale);
+    const glm::vec3 off = fieldVec(e, fields().model_offset);
+    const entity_t* ce = t.num < cl_max_edicts ? &cl_entities[t.num] : nullptr;
+    const client::EntityVr* cv = client::entityVr(t.num);
+    const float ck = cv ? 1.f + cv->scale.x : 1.f;
+    // (three short lines: the console wraps long ones)
+    Con_Printf("spawntrace: %d f%d sv %s#%d skin %d frame %d scale %.3f %.3f %.3f\n", t.entry, t.frame,
+        PR_GetString(e->v.model), static_cast<int>(e->v.modelindex), static_cast<int>(e->v.skin), static_cast<int>(e->v.frame),
+        k.x, k.y, k.z);
+    Con_Printf("spawntrace: %d f%d box %.1f %.1f %.1f %.1f %.1f %.1f o %.1f %.1f %.1f off %.1f %.1f %.1f\n", t.entry,
+        t.frame, e->v.mins[0], e->v.mins[1], e->v.mins[2], e->v.maxs[0], e->v.maxs[1], e->v.maxs[2], e->v.origin[0],
+        e->v.origin[1], e->v.origin[2], off.x, off.y, off.z);
+    Con_Printf("spawntrace: %d f%d cl %s scale %.3f | %s\n", t.entry, t.frame, ce && ce->model ? ce->model->name : "none",
+        ck, clientLook(t.num));
+}
+
+void traceFrame()
+{
+    SpawnTrace& t = spawnTrace;
+    if(!t.num || !sv.active)
+    {
+        return;
+    }
+    const SvVmScope vm;
+    t.frame++;
+    traceLine();
+    if(t.num && t.frame >= t.frames)
+    {
+        if(!EDICT_NUM(t.num)->free)
+        {
+            removeTarget(t.num, true);
+        }
+        Con_Printf("spawntrace: %d end\n", t.entry);
+        t = {};
+    }
+}
+
+// vr_toolgun_spawn_trace [entry] [frames]: the entry (the panel's choice) made 128 units ahead of the player (as the
+// spawn tool makes it), its state printed then and for `frames` frames after (default 4), then removed.
+void spawnTrace_f()
+{
+    if(!sv.active || svs.maxclients < 1 || (Cmd_Argc() < 2 && tg.sel.entry < 0))
+    {
+        Con_Printf("usage: vr_toolgun_spawn_trace [entry (default: the spawn panel's choice)] [frames] (in a game)\n");
+        return;
+    }
+    const int i = za::clamp(Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : tg.sel.entry, 0, spawnableTotal - 1);
+    const Spawnable& s = spawnables[i];
+    if(!entryAvailable(s))
+    {
+        Con_Printf("spawntrace: %d %s unavailable\n", i, s.label);
+        return;
+    }
+    const SvVmScope vm;
+    if(spawnTrace.num && !EDICT_NUM(spawnTrace.num)->free)
+    {
+        removeTarget(spawnTrace.num, true);
+    }
+    const edict_t* player = EDICT_NUM(1);
+    const float yaw = glm::radians(player->v.angles[1]);
+    const glm::vec3 at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 128.f, player->v.origin[1] + za::sin(yaw) * 128.f,
+        player->v.origin[2] + player->v.mins[2] + s.lift + 1.f};
+    edict_t* e = box3d::spawnClass(s.classname, at, glm::vec3{0.f, player->v.angles[1] + 180.f, 0.f},
+        s.setModel ? s.model : nullptr, s.key, s.value, false, s.weaponFlags);
+    if(!e)
+    {
+        Con_Printf("spawntrace: %d %s failed\n", i, s.label);
+        return;
+    }
+    spawnTrace = SpawnTrace{i, NUM_FOR_EDICT(e), 0, Cmd_Argc() > 2 ? za::max(Q_atoi(Cmd_Argv(2)), 1) : 4};
+    Con_Printf("spawntrace: %d \"%s\" %s made %d\n", i, s.label, s.classname, spawnTrace.num);
+    traceLine();
+}
+
+void spawnTest_f()
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        Con_Printf("vr_toolgun_spawn_test: no game running\n");
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "check"))
+    {
+        spawnTestCheck();
+        return;
+    }
+    const int first = za::clamp(Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0, 0, spawnableTotal - 1);
+    const int last = za::clamp(Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : spawnableTotal - 1, first, spawnableTotal - 1);
+    glm::vec3 feet{0.f};
+    float yaw = 0.f;
+    {
+        const SvVmScope vm;
+        const edict_t* player = EDICT_NUM(1);
+        feet = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2] + player->v.mins[2]};
+        yaw = player->v.angles[1];
+    }
+    const int count = last - first + 1;
+    int spawned = 0, failed = 0, unavailable = 0;
+    for(int i = first; i <= last; i++)
+    {
+        const Spawnable& s = spawnables[i];
+        if(!entryAvailable(s))
+        {
+            Con_Printf("spawntest: %d %s \"%s\" %s: unavailable\n", i, s.section, s.label, s.classname);
+            unavailable++;
+            continue;
+        }
+        // A ring 160 units out (the entries a ring's step apart), facing the player.
+        const float a = glm::radians(yaw + 360.f * static_cast<float>(i - first) / static_cast<float>(count));
+        const glm::vec3 at = feet + glm::vec3{za::cos(a) * 160.f, za::sin(a) * 160.f, s.lift + 1.f};
+        const glm::vec3 angles{0.f, glm::degrees(a) + 180.f, 0.f};
+        edict_t* e = box3d::spawnClass(s.classname, at, angles, s.setModel ? s.model : nullptr, s.key, s.value, false,
+            s.weaponFlags);
+        if(e)
+        {
+            const SvVmScope vm;
+            Con_Printf("spawntest: %d %s \"%s\" %s: spawned %d\n", i, s.section, s.label, s.classname, NUM_FOR_EDICT(e));
+            if(spawnTest.made.size() < spawnTest.made.capacity())
+            {
+                spawnTest.made.pushBack(SpawnTestMade{i, NUM_FOR_EDICT(e)});
+            }
+            spawned++;
+        }
+        else
+        {
+            Con_Printf("spawntest: %d %s \"%s\" %s: failed\n", i, s.section, s.label, s.classname);
+            failed++;
+        }
+    }
+    Con_Printf("spawntest: %d spawned, %d failed, %d unavailable\n", spawned, failed, unavailable);
+}
+
+} // namespace
+
+edict_t* qvr::toolgun::spawnEntryAt(int i, const glm::vec3& feet, float yaw)
+{
+    if(i < 0 || i >= spawnableTotal || !sv.active || !entryAvailable(spawnables[i]))
+    {
+        return nullptr;
+    }
+    const Spawnable& s = spawnables[i];
+    return box3d::spawnClass(s.classname, feet + glm::vec3{0.f, 0.f, s.lift + 1.f}, glm::vec3{0.f, yaw, 0.f},
+        s.setModel ? s.model : nullptr, s.key, s.value, false, s.weaponFlags);
+}
+
+namespace
+{
+// vr_toolgun_select <n | label | clear>: the spawn list's entry n (the spawnables' order: 0 the Grunt), the entry with
+// that label (any case, e.g. "Wall Torch"), or nothing.
+// AD support: catalog evidence for the shared Debug and toolgun spawn menus.
+void spawnlist_f()
+{
+    int adCount = 0, available = 0;
+    for(int i = 0; i < spawnableTotal; ++i)
+    {
+        if(!spawnables[i].adOnly && !entryAvailable(spawnables[i])) // (the packs' and the rest's: only those refused, and why)
+        {
+            Con_Printf("toolgun spawn: %d %s %s unavailable: %s\n", i, spawnables[i].section, spawnables[i].label,
+                unavailableWhy(spawnables[i]));
+        }
+        if(!spawnables[i].adOnly) { continue; }
+        ++adCount;
+        const bool ready = toolgun::spawnableAvailable(i);
+        available += ready;
+        Con_Printf("toolgun spawn: %d %s %s %s\n", i, spawnables[i].section, spawnables[i].label, ready ? "ready" : "disabled");
+    }
+    Con_Printf("toolgun spawns: %d entries, %d AD, %d AD ready, %d AD disabled\n", spawnableTotal, adCount, available, adCount - available);
+}
+
 void select_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("usage: vr_toolgun_select <0..%d | clear>\n", spawnableTotal - 1);
+        Con_Printf("usage: vr_toolgun_select <0..%d | label | clear>\n", spawnableTotal - 1);
         return;
     }
-    toolgun::selectSpawnable(!q_strcasecmp(Cmd_Argv(1), "clear") ? -1 : Q_atoi(Cmd_Argv(1)));
+    const char* const arg = Cmd_Argv(1);
+    if(!q_strcasecmp(arg, "clear"))
+    {
+        toolgun::selectSpawnable(-1);
+        return;
+    }
+    const char* const digits = arg[0] == '-' ? arg + 1 : arg;
+    if(digits[0] >= '0' && digits[0] <= '9')
+    {
+        toolgun::selectSpawnable(Q_atoi(arg));
+        return;
+    }
+    // A label, its words the arguments ("vr_toolgun_select Wall Torch"): test scripts stay right as entries are added.
+    char label[128] = "";
+    for(int a = 1; a < Cmd_Argc(); ++a)
+    {
+        if(a > 1)
+        {
+            q_strlcat(label, " ", sizeof(label));
+        }
+        q_strlcat(label, Cmd_Argv(a), sizeof(label));
+    }
+    for(int i = 0; i < spawnableTotal; ++i)
+    {
+        if(!q_strcasecmp(spawnables[i].label, label))
+        {
+            toolgun::selectSpawnable(i);
+            return;
+        }
+    }
+    Con_Printf("vr_toolgun_select: no entry labelled \"%s\"\n", label);
+}
+
+// vr_toolgun_select_armed [<kind> [<weapon> [<weapon2>]]]: the Armed Humanoid page's choice (vr_toolgun_armed_kind,
+// _weapon, _weapon2 set to those given first): the table's row, its right hand's "weapon" (0 random from the pool, -1
+// unarmed, a weapon's code: vr_toolgun_armed_list), its left hand's (0 none).
+void selectArmed_f()
+{
+    cvar_t* const cvars[3] = {&vr_toolgun_armed_kind, &vr_toolgun_armed_weapon, &vr_toolgun_armed_weapon2};
+    for(int a = 1; a < Cmd_Argc() && a <= 3; a++)
+    {
+        Cvar_SetValueQuick(cvars[a - 1], Q_atof(Cmd_Argv(a)));
+    }
+    toolgun::armed::choose();
+}
+
+// vr_toolgun_armed_list: the Armed Humanoid page's lists: the kinds (the armed monsters' table's rows), each weapon's
+// code and name and what each kind makes of it ("pair": it pairs, one in each hand; "one": held alone; "-": not held).
+void armedList_f()
+{
+    armedRefresh();
+    const ArmedCatalogue& c = armedCat;
+    if(!c.valid)
+    {
+        Con_Printf("armedlist: no game running\n");
+        return;
+    }
+    for(int k = 0; k < c.kindCount; k++)
+    {
+        Con_Printf("armedlist: kind %d %s %s %s frame %d\n", k, c.kinds[k].name, c.kinds[k].spawn, c.kinds[k].model,
+            c.kinds[k].frame);
+    }
+    for(const ArmedWeapon& w : c.weapons)
+    {
+        char fits[64] = "";
+        for(int k = 0; k < c.kindCount; k++)
+        {
+            q_strlcat(fits, !w.fits[k] ? " -" : (w.fits[k] & 2) ? " pair" : " one", sizeof(fits));
+        }
+        Con_Printf("armedlist: weapon %d \"%s\" class %d:%s\n", w.code, w.name, w.fits[0] / 4, fits);
+    }
+    Con_Printf("armedlist: %d kinds, %d weapons\n", c.kindCount, static_cast<int>(c.weapons.size()));
 }
 
 void pick_f()
@@ -1435,16 +2804,18 @@ void reset_f()
     Con_Printf("toolgun: offsets and turn reset\n");
 }
 
+// vr_toolgun_menu: the panel opened or closed (as B/Y).
 void menu_f()
 {
-    if(toolgun::menuOnGun())
-    {
-        menu::closeToolgun();
-    }
-    else
-    {
-        menu::openToolgun();
-    }
+    toolgun::panel::toggle();
+}
+
+// vr_toolgun_next [-1]: the next tool (as the gun's stick press), or the one before.
+void next_f()
+{
+    const int step = Cmd_Argc() > 1 && Q_atoi(Cmd_Argv(1)) < 0 ? -1 : 1;
+    const int count = static_cast<int>(Tool::Count);
+    toolgun::setTool((static_cast<int>(currentTool()) + step + count) % count);
 }
 
 void unfreezeAll_f()
@@ -1481,8 +2852,9 @@ void status_f()
 {
     const ServerVm vm;
     const Aim& a = tg.aim;
-    Con_Printf("toolgun: hand %d, tool %s, menu %s, adjust %d\n", toolgun::heldHand(), toolNames[static_cast<int>(currentTool())],
-        toolgun::menuOnGun() ? "on the gun" : "closed", tg.adjust ? 1 : 0);
+    Con_Printf("toolgun: hand %d, tool %s, panel %s, adjust %d, screen \"%s\"\n", toolgun::heldHand(),
+        toolNames[static_cast<int>(currentTool())], toolgun::panel::shown() ? "open" : "closed", tg.adjust ? 1 : 0,
+        toolgun::screenText());
     if(a.valid)
     {
         Con_Printf("toolgun: aim from %.1f %.1f %.1f dir %.2f %.2f %.2f, world at %.0f, target %d %s at %.0f\n", a.from.x, a.from.y,
@@ -1497,11 +2869,62 @@ void status_f()
     }
     Con_Printf("toolgun: selection %s, ghost %s at %.0f %.0f %.0f yaw %.0f\n", tg.sel.valid ? tg.sel.label : "none",
         tg.ghost ? "shown" : "none", tg.ghostOrigin.x, tg.ghostOrigin.y, tg.ghostOrigin.z, tg.ghostAngles.y);
+    if(currentTool() == Tool::Spawn)
+    {
+        Con_Printf("toolgun: ghost offsets %.1f %.1f %.1f, turn %.1f %.1f %.1f, held %s %s, %s\n", tg.offset.x, tg.offset.y,
+            tg.offset.z, tg.turn.x, tg.turn.y, tg.turn.z,
+            ghostHold.move >= 0 ? (ghostHold.move == HAND_MAIN ? "move:main" : "move:off") : "move:none",
+            ghostHold.turn >= 0 ? (ghostHold.turn == HAND_MAIN ? "turn:main" : "turn:off") : "turn:none",
+            ghostHold.fixed ? "fixed" : "following");
+        if(tg.ghostEnt && tg.ghostLooked)
+        {
+            // (as the item will be once placed: its probe's, GhostLook)
+            const GhostLook& l = ghostLook;
+            Con_Printf("toolgun: ghost drawn %s at %.1f %.1f %.1f, scale %.3f, offset %.1f %.1f %.1f (probed)\n", l.model,
+                tg.ghostEnt->origin[0], tg.ghostEnt->origin[1], tg.ghostEnt->origin[2], 1.f + l.vr.scale.x, l.vr.offset.x,
+                l.vr.offset.y, l.vr.offset.z);
+        }
+        else if(tg.ghostEnt)
+        {
+            Con_Printf("toolgun: ghost drawn %s at %.1f %.1f %.1f\n", tg.ghostEnt->model ? tg.ghostEnt->model->name : "?",
+                tg.ghostEnt->origin[0], tg.ghostEnt->origin[1], tg.ghostEnt->origin[2]);
+        }
+        for(int h = 0; h < 2; h++)
+        {
+            if(const entity_t* w = tg.ghostParts[h]; w && tg.ghostEnt)
+            {
+                // (an armed monster's held weapon: its place from the body's)
+                Con_Printf("toolgun: ghost holds %s in its %s hand at %.1f %.1f %.1f from it, angles %.0f %.0f %.0f\n",
+                    w->model ? w->model->name : "?", h ? "left" : "right", w->origin[0] - tg.ghostEnt->origin[0],
+                    w->origin[1] - tg.ghostEnt->origin[1], w->origin[2] - tg.ghostEnt->origin[2], w->angles[0], w->angles[1],
+                    w->angles[2]);
+            }
+        }
+        if(ghostHold.move >= 0)
+        {
+            const glm::vec3& p = hands::current().pos[ghostHold.move];
+            const glm::vec3& v = hands::current().vel[ghostHold.move];
+            Con_Printf("toolgun: the holding hand at %.1f %.1f %.1f, moving %.1f %.1f %.1f, followed %.1f %.1f %.1f\n", p.x, p.y,
+                p.z, v.x, v.y, v.z, ghostHold.seen.x, ghostHold.seen.y, ghostHold.seen.z);
+        }
+    }
     if(tg.drag.num)
     {
         edict_t* e = EDICT_NUM(tg.drag.num);
-        Con_Printf("toolgun: physgun holds %d at %.0f %.0f %.0f (distance %.0f)\n", tg.drag.num, e->v.origin[0], e->v.origin[1],
-            e->v.origin[2], tg.drag.distance);
+        Con_Printf("toolgun: physgun holds %d at %.0f %.0f %.0f (distance %.0f), angles %.1f %.1f %.1f\n", tg.drag.num,
+            e->v.origin[0], e->v.origin[1], e->v.origin[2], tg.drag.distance, e->v.angles[0], e->v.angles[1], e->v.angles[2]);
+        if(tg.drag.part >= 0)
+        {
+            // (A ragdoll's held part's and root part's places, either way it is held: the physgun ragdoll test's jitter.)
+            const glm::vec3 p = box3d::ragdollPoint(tg.drag.num, tg.drag.part, glm::vec3{0.f}, true);
+            const glm::vec3 root = box3d::ragdollPoint(tg.drag.num, 0, glm::vec3{0.f}, true);
+            const glm::vec3& to = tg.drag.last;
+            glm::vec3 grip{0.f}, r0{0.f};
+            const float lag = tg.drag.ragdoll && box3d::physgunRagdollPoints(grip, r0) ? glm::distance(grip, to) : -1.f;
+            Con_Printf("toolgun: rag %s %.3f %d %.2f %.2f %.2f r %.2f %.2f %.2f g %.2f %.2f %.2f e %.1f\n",
+                tg.drag.ragdoll ? "spring" : "origin", qcvm->time - tg.drag.since, tg.drag.part, p.x, p.y, p.z, root.x, root.y,
+                root.z, to.x, to.y, to.z, lag);
+        }
     }
     if(tg.gizmo.num)
     {
@@ -1517,12 +2940,20 @@ void status_f()
 
 void qvr::toolgun::registerCommands()
 {
+    Cmd_AddCommand("vr_toolgun_spawnlist", spawnlist_f); // AD support
+    Cmd_AddCommand("vr_toolgun_spawn_test", spawnTest_f);
+    Cmd_AddCommand("vr_toolgun_spawn_trace", spawnTrace_f);
     Cmd_AddCommand("vr_toolgun_select", select_f);
+    Cmd_AddCommand("vr_toolgun_select_armed", selectArmed_f);
+    Cmd_AddCommand("vr_toolgun_armed_list", armedList_f);
     Cmd_AddCommand("vr_toolgun_pick", pick_f);
     Cmd_AddCommand("vr_toolgun_reset", reset_f);
     Cmd_AddCommand("vr_toolgun_menu", menu_f);
+    Cmd_AddCommand("vr_toolgun_next", next_f);
     Cmd_AddCommand("vr_toolgun_unfreeze_all", unfreezeAll_f);
     Cmd_AddCommand("vr_toolgun_unjoin_all", unjoinAll_f);
     Cmd_AddCommand("vr_toolgun_scale_reset", scaleReset_f);
     Cmd_AddCommand("vr_toolgun_status", status_f);
+    toolgun::panel::registerCommands();
+    toolgun::brushtool::registerCommands();
 }

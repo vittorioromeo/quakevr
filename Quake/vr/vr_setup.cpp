@@ -5,10 +5,12 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_holstersetup.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
+#include "vr_progs.hpp"
 #include "vr_still.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
@@ -16,8 +18,10 @@
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 
@@ -124,6 +128,49 @@ void option_f()
     saveConfigNow();
 }
 
+// The edicts whose targetname starts "vr_" (the setting, campaign and Continue buttons drawOptionScreens labels), listed
+// again every half second or when the map or the edict count changes: every frame's walk of every edict's targetname
+// cost 0.1-0.2 ms a frame in Arcane Dimensions' big maps (4000 edicts, thousands of targetnames). A button given such a
+// name later shows its screen within half a second. vr_setup_screens_cache 0: every frame's walk (A/B).
+struct OptionScreenList
+{
+    const qmodel_t* world{nullptr};
+    int numEdicts{-1};
+    double nextScan{0.0};
+    za::Vector<int> nums;
+};
+OptionScreenList optionScreens;
+
+[[nodiscard]] bool vrTargetName(const edict_t* e)
+{
+    if(e->free || !e->v.targetname)
+    {
+        return false;
+    }
+    const char* t = PR_GetString(e->v.targetname);
+    return (t[0] == 'v' || t[0] == 'V') && (t[1] == 'r' || t[1] == 'R') && t[2] == '_';
+}
+
+void listOptionScreens()
+{
+    OptionScreenList& l = optionScreens;
+    if(vr_setup_screens_cache.value != 0.f && l.world == sv.worldmodel && l.numEdicts == qcvm->num_edicts && realtime < l.nextScan)
+    {
+        return;
+    }
+    l.world = sv.worldmodel;
+    l.numEdicts = qcvm->num_edicts;
+    l.nextScan = realtime + 0.5;
+    l.nums.clear();
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        if(vrTargetName(EDICT_NUM(i)))
+        {
+            l.nums.pushBack(i);
+        }
+    }
+}
+
 // The value screen above each of the map's setting buttons (the server's edicts: a local game).
 void drawOptionScreens()
 {
@@ -144,7 +191,7 @@ void drawOptionScreens()
     const size_t prefixLength = ZA_STRLEN(prefix);
     // The button's label board's top over its top (QC buttons.qc), when it has one: a screen goes above it, 2 clear of
     // it (its half height: 0.3's characters, vr_text3d.cpp's screens), or at least `least` over the button's top.
-    const int labelTopField = ED_FindFieldOffset("vr_button_label_top");
+    const int labelTopField = qvr::progs::fields().vr_button_label_top;
     const auto overTop = [&](edict_t* e, float least) {
         const eval_t* const v = labelTopField >= 0 ? GetEdictFieldValue(e, labelTopField) : nullptr;
         constexpr float screenHalf = 2.4f * 0.5f + 2.4f * 0.375f + 2.4f * 0.3f;
@@ -152,7 +199,7 @@ void drawOptionScreens()
     };
     // A button's box where it rests (the author, 2026-10-09: the screens rode the press into the wall): its box now,
     // less how far it has moved from its rest place (QC's pos1, where func_button starts: its origin then).
-    const int pos1Field = ED_FindFieldOffset("pos1");
+    const int pos1Field = qvr::progs::fields().pos1;
     const auto restBox = [&](edict_t* e, glm::vec3& lo, glm::vec3& hi) {
         glm::vec3 moved{0.f};
         const eval_t* const p = pos1Field >= 0 ? GetEdictFieldValue(e, pos1Field) : nullptr;
@@ -164,10 +211,11 @@ void drawOptionScreens()
         lo = glm::vec3{e->v.absmin[0], e->v.absmin[1], e->v.absmin[2]} - moved;
         hi = glm::vec3{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]} - moved;
     };
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    listOptionScreens();
+    for(const int i : optionScreens.nums)
     {
-        edict_t* e = EDICT_NUM(i);
-        if(e->free || !e->v.targetname)
+        edict_t* e = i < qcvm->num_edicts ? EDICT_NUM(i) : nullptr;
+        if(!e || !vrTargetName(e)) // (freed, or named otherwise, since the list was made)
         {
             continue;
         }
@@ -393,8 +441,34 @@ void begin(bool welcome)
         flow.ghostHidden = 0;
     }
     enter(welcome ? Step::Welcome : Step::Intro);
-    Con_Printf(inRoom() ? "VR Calibration: starting (height, body); the menu button pauses it\n"
-                        : "VR Calibration: starting (height, body); the menu button stops it\n");
+    Con_Printf(inRoom() ? "VR Calibration: starting (body); the menu button pauses it\n"
+                        : "VR Calibration: starting (body); the menu button stops it\n");
+}
+
+// The dialog's Set Up Holsters: Holster Setup at once, no menu page reopened after it.
+void startHolsterSetup()
+{
+    (void)holstersetup::start(-1);
+}
+
+// The author, 2026-10-22: after calibrating, a dialog asks whether to set up the holsters now (Holster Setup, single
+// player only, as it pauses the game). It carries the summary: the summary's text, floating where the dialog shows,
+// ends when it opens (flowFrame's Done step).
+void askHolsterSetup()
+{
+    if(!sv.active || svs.maxclients != 1 || cls.demoplayback)
+    {
+        return;
+    }
+    za::String text = va("VR Calibration done.\nHeight: eyes at %.2f m.\n", static_cast<double>(vr_height_calibration.value));
+    if(inRoom())
+    {
+        text += exitToTutorial() ? "The glowing doorway behind you\nleads to the tutorial.\n"
+                                 : "The glowing doorway behind you\nleads to the VR Hub.\n";
+    }
+    text += "\nSet up your holsters now?\nDrag and drop them on your body.";
+    Con_Printf("VR Calibration: asking to set up the holsters\n");
+    M_Confirm(text.cStr(), "Set Up Holsters", "Not Now", 0.f, startHolsterSetup);
 }
 
 void finish()
@@ -410,6 +484,23 @@ void finish()
                    "counted)\n", flow.ghostSeen ? "shown" : "never shown", flow.ghostShown, flow.ghostHidden);
     }
     saveConfigNow();
+    askHolsterSetup();
+}
+
+void startBody();
+
+// The intro over. Standing: straight to Body Calibration, whose first pose (Stand Tall) measures the height itself; the
+// separate height step asked for the same pose twice. Seated: Body Calibration has no such pose, so the height step.
+void afterIntro()
+{
+    if(seated())
+    {
+        enter(Step::Height);
+        return;
+    }
+    const hands::State& s = hands::current();
+    flow.ghostYaw = s.valid ? s.headAngles.y : flow.ghostYaw; // the intro's ghost stands where the head looks now
+    startBody();
 }
 
 void startBody()
@@ -510,8 +601,11 @@ void heightFrame(double now, za::String& text)
     {
         return;
     }
-    Cvar_SetValueQuick(&vr_height_calibration, eyes);
-    Con_Printf("VR Calibration: height set: your eyes at %.2f m%s\n", eyes, seated() ? " (seated)" : "");
+    // Seated, the seated height (vr_seated.hpp: the game stands you up by the standing height less it); the standing
+    // height (the body's size) stays.
+    Cvar_SetValueQuick(seated() ? &vr_seated_height : &vr_height_calibration, eyes);
+    Con_Printf("VR Calibration: height set: your eyes at %.2f m%s\n", eyes,
+        seated() ? va(" seated (standing: %.2f m, Height in VR Settings)", vr_height_calibration.value) : "");
     if(!seated() && eyes < 1.3f)
     {
         Con_Printf("VR Calibration: that's low for standing. Playing seated? Open the menu: Position (on the page it opens) to "
@@ -624,13 +718,13 @@ void flowFrame()
                 bodycal::drawStandingGhost(hs.headAngles.y);
             }
             const int left = static_cast<int>(za::ceil(introSeconds - (now - flow.start)));
-            text += "Your height, then your body.\n\n";
+            text += seated() ? "Your height, then your body.\n\n" : "Your body, in a few poses.\n\n";
             text += seated() ? "Seated: sit where you will play.\n" : "Stand in the middle of your play space.\n";
             text += inRoom() ? "Playing seated? Open the menu: set\nPosition to Seated, then close it.\n\n" : "\n";
             text += va("starting in %d", za::max(left, 1));
             if(now - flow.start >= introSeconds)
             {
-                enter(Step::Height);
+                afterIntro();
             }
             break;
         }
@@ -730,7 +824,7 @@ void skip_f()
     switch(flow.step)
     {
         case Step::Welcome: enter(Step::Intro); break;
-        case Step::Intro: enter(Step::Height); break;
+        case Step::Intro: afterIntro(); break;
         case Step::Height: startBody(); break;
         case Step::Body:
             bodycal::stop(); // its result, if any, is left to its page
@@ -807,6 +901,37 @@ void wrapLines(za::StringView text, size_t columns, za::String& out)
 
 } // namespace
 
+namespace
+{
+// The view text's turn (viewTextYaw): the head's yaw followed smoothly (the author's note vrstart_2026-10-23_01-23-46:
+// it jumped to each turn of the head at once).
+struct ViewTextFollow
+{
+    bool valid{false};
+    float yaw{0.f};   // degrees
+    double time{0.0}; // realtime of the last call
+};
+ViewTextFollow viewTextFollow;
+} // namespace
+
+float viewTextYaw(const hands::State& s)
+{
+    ViewTextFollow& f = viewTextFollow;
+    const double dtFull = realtime - f.time;
+    f.time = realtime;
+    const float tau = za::max(vr_view_text_smooth.value, 0.f);
+    if(!f.valid || dtFull > 0.5 || dtFull < 0.0 || tau <= 0.f)
+    {
+        f.valid = true; // (none shown for a while: the next starts where you look)
+        f.yaw = s.headAngles.y;
+        return f.yaw;
+    }
+    const float k = 1.f - za::exp(-static_cast<float>(dtFull) / tau);
+    f.yaw += za::remainder(s.headAngles.y - f.yaw, 360.f) * k;
+    f.yaw = za::remainder(f.yaw, 360.f);
+    return f.yaw;
+}
+
 void drawViewText(za::StringView text, float drop)
 {
     const hands::State& s = hands::current();
@@ -815,21 +940,35 @@ void drawViewText(za::StringView text, float drop)
         return;
     }
     const float m2u = units::metresToUnits();
-    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
+    const float yaw = viewTextYaw(s);
+    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, yaw, 0.f});
     const glm::vec3 at = s.head + fwd * (0.9f * m2u) - glm::vec3{0.f, 0.f, drop * m2u};
     za::String& wrapped = scratch.wrapped;
     wrapLines(text, viewTextColumns, wrapped);
-    text3d::queueOverlay(wrapped, at, glm::vec3{0.f, s.headAngles.y, 0.f}, viewTextScale);
+    text3d::queueOverlay(wrapped, at, glm::vec3{0.f, yaw, 0.f}, viewTextScale);
 }
+
+namespace
+{
+// vr_view_text_status (Debug: View Text Follow; tests): the yaw the view texts follow now and the head's.
+void viewTextStatus_f()
+{
+    const hands::State& s = hands::current();
+    Con_Printf("view text: follow yaw %.2f head yaw %.2f smooth %.2f s (%s)\n", viewTextFollow.yaw, s.headAngles.y,
+        vr_view_text_smooth.value, viewTextFollow.valid && realtime - viewTextFollow.time < 0.5 ? "following" : "idle");
+}
+} // namespace
 
 void init()
 {
+    Cmd_AddCommand("vr_view_text_status", viewTextStatus_f);
     Cmd_AddCommand("vr_setup", setup_f);
     Cmd_AddCommand("vr_setup_option", option_f);
     Cmd_AddCommand("vr_setup_skip", skip_f);
     Cmd_AddCommand("vr_setup_stop", stop_f);
     Cmd_AddCommand("vr_menu_path_check", menu::pathCheck_f);
     Cmd_AddCommand("vr_menu_dump", menu::dump_f);
+    Cmd_AddCommand("vr_menu_press", menu::press_f);
 }
 
 void frame()

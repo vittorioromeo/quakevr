@@ -111,6 +111,10 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	int	fullband;
 	sfxcache_t	*sc;
 
+// QVR: off the main thread (the sound mix on the pool, S_MixKick) only a look: a load is the main thread's
+	if (!VR_OnMainThread ())
+		return (sfxcache_t *) Cache_Peek (&s->cache);
+
 // see if still in memory
 	sc = (sfxcache_t *) Cache_Check (&s->cache);
 	if (sc)
@@ -125,6 +129,14 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 //	Con_Printf ("loading %s\n",namebuffer);
 
 	data = COM_LoadMallocFile (namebuffer, NULL);
+
+	// QVR: a name that already has the sound/ folder (a map's key: ad_tears' trigger_multiple has noise
+	// "sound/ogre/ogidle2.wav"; Quake looked for sound/sound/...): the file under that name
+	if (!data && !q_strncasecmp (s->name, "sound/", 6))
+	{
+		q_strlcpy(namebuffer, s->name, sizeof(namebuffer));
+		data = COM_LoadMallocFile (namebuffer, NULL);
+	}
 
 	// VR: a sound made from one of Quake's when no file has its name (VR_SndDerived: played slower, lower)
 	ratescale = 1.f;

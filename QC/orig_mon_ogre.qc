@@ -74,6 +74,7 @@ void() OgreGrenadeTouch =
         return;        // don't explode on owner
     if(other.takedamage == DAMAGE_AIM)
     {
+        VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         OgreGrenadeExplode();
         return;
     }
@@ -155,17 +156,18 @@ void() OgreFireGrenade =
     else
     {
         sound(self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
-        missile.velocity = missile.velocity * 600;
+        missile.velocity = missile.velocity * AD_MonsterSpeed(600, AD_PROJ_OGRE); // AD support: AD's speed for the skill by the Projectile Rules (vr_ad_bridge.qc)
         missile.velocity_z = 200;
         VR_Lob_Aim(missile, self.origin); // QVR: at the enemy's height (vr_ogre_aim_height)
         missile.velocity = MG3_OgreBurstVelocity(missile.velocity); // QVR: Dawn of the Machine's Bloody Nightmare burst
     }
 
     missile.avelocity = '300 300 300';
+    missile.velocity = VR_AimCone_Bend(missile.velocity, VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
     missile.angles = vectoangles(missile.velocity);
 
     // set missile duration
-    if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
+    if(!VR_OtherFlags() && (self.spawnflags & OGRE_BOSS))
     {
         missile.touch = MultiGrenadeTouch;
         missile.nextthink = time + 2.5;
@@ -208,12 +210,18 @@ float     ldmg;
     if(!CanDamage(self.enemy, self))
         return;
 
-    ai_charge(10);
+    float smash = self.frame >= $smash1 && self.frame <= $smash14; // QVR: (melee arc: the smash, not the swing)
+    if(smash)
+        VR_MeleeArc_ChargeAhead(10); // QVR: (melee arc: the smash comes down where it faces)
+    else
+        ai_charge(10);
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 100)
+    if(vlen(delta) > VR_MeleeReach(100))
         return;
+    if(!VR_MeleeArc_Hits(!smash))
+        return; // QVR: (melee arc: fight.qc; the swing sweeps side to side: wide; the smash comes down ahead: not)
 
     ldmg = (random() + random() + random()) * 4;
 
@@ -243,7 +251,7 @@ void() ogre_stand3    =[    $stand3,    ogre_stand4    ] {ai_stand();};
 void() ogre_stand4    =[    $stand4,    ogre_stand5    ] {ai_stand();};
 void() ogre_stand5    =[    $stand5,    ogre_stand6    ]
 {
-    if(random() < 0.2 && /* HONEY */ (MG_WorldCampaign() || !(self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
+    if(random() < 0.2 && /* HONEY */ (VR_OtherFlags() || !(self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
         sound(self, CHAN_VOICE, MG3_RocketOgre_Sound(MG3_RO_IDLE_STAND, "ogre/ogidle.wav"), 1, ATTN_IDLE); // (QVR: MG3's rocket ogre's own)
 
     ai_stand();
@@ -314,12 +322,12 @@ void() ogre_smash2    =[    $smash2,        ogre_smash3    ] {ai_charge(0);};
 void() ogre_smash3    =[    $smash3,        ogre_smash4    ] {ai_charge(0);};
 void() ogre_smash4    =[    $smash4,        ogre_smash5    ] {ai_charge(1);};
 void() ogre_smash5    =[    $smash5,        ogre_smash6    ] {ai_charge(4);};
-void() ogre_smash6    =[    $smash6,        ogre_smash7    ] {ai_charge(4); chainsaw(0);};
-void() ogre_smash7    =[    $smash7,        ogre_smash8    ] {ai_charge(4); chainsaw(0);};
-void() ogre_smash8    =[    $smash8,        ogre_smash9    ] {ai_charge(10); chainsaw(0);};
-void() ogre_smash9    =[    $smash9,        ogre_smash10 ] {ai_charge(13); chainsaw(0);};
+void() ogre_smash6    =[    $smash6,        ogre_smash7    ] {VR_MeleeArc_ChargeAhead(4); chainsaw(0);};
+void() ogre_smash7    =[    $smash7,        ogre_smash8    ] {VR_MeleeArc_ChargeAhead(4); chainsaw(0);};
+void() ogre_smash8    =[    $smash8,        ogre_smash9    ] {VR_MeleeArc_ChargeAhead(10); chainsaw(0);};
+void() ogre_smash9    =[    $smash9,        ogre_smash10 ] {VR_MeleeArc_ChargeAhead(13); chainsaw(0);};
 void() ogre_smash10    =[    $smash10,        ogre_smash11 ] {chainsaw(1);};
-void() ogre_smash11    =[    $smash11,        ogre_smash12 ] {ai_charge(2); chainsaw(0);
+void() ogre_smash11    =[    $smash11,        ogre_smash12 ] {VR_MeleeArc_ChargeAhead(2); chainsaw(0);
 self.nextthink = self.nextthink + random()*0.2;};    // slight variation
 void() ogre_smash12    =[    $smash12,        ogre_smash13 ] {ai_charge(0);};
 void() ogre_smash13    =[    $smash13,        ogre_smash14 ] {ai_charge(4);};
@@ -330,6 +338,8 @@ void() ogre_nail2    =[    $shoot2,        ogre_nail3    ] {ai_face();};
 void() ogre_nail3    =[    $shoot2,        ogre_nail4    ] {ai_face();};
 void() ogre_nail4    =[    $shoot3,        ogre_nail5    ]
 {
+    if(VR_AimCone_Wait(ogre_nail4, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+
     ai_face();
     if(self.vr_mg3_mon) // QVR: MG3's rocket ogre: a volley of rockets (vr_mg3_ogre.qc), aiming again for the next
     {
@@ -471,7 +481,7 @@ void()    ogre_die2    =[    $death2,    ogre_die3    ] {};
 void()    ogre_die3    =[    $death3,    ogre_die4    ]
     {
         self.solid = SOLID_NOT;
-        if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
+        if(!VR_OtherFlags() && (self.spawnflags & OGRE_BOSS))
         {
             self.ammo_multi_rockets = 2;
         }
@@ -498,7 +508,7 @@ void()    ogre_bdie2    =[    $bdeath2,    ogre_bdie3    ] {ai_forward(5);};
 void()    ogre_bdie3    =[    $bdeath3,    ogre_bdie4    ]
     {
         self.solid = SOLID_NOT;
-        if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
+        if(!VR_OtherFlags() && (self.spawnflags & OGRE_BOSS))
         {
             self.ammo_multi_rockets = 2;
         }
@@ -589,7 +599,7 @@ void() monster_ogre_real =
     monster_ogre_precache();
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -606,7 +616,7 @@ void() monster_ogre_real =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = ogre_start;
         return;
@@ -629,7 +639,7 @@ void() monster_ogre_real =
         }
     }
 
-    if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
+    if(!VR_OtherFlags() && (self.spawnflags & OGRE_BOSS))
     {
         // self.skin = 1;
     }

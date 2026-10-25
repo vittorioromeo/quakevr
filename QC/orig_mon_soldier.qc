@@ -99,7 +99,9 @@ void()    army_atk1    =[    $shoot1,    army_atk2    ] {ai_face();};
 void()    army_atk2    =[    $shoot2,    army_atk3    ] {ai_face();};
 void()    army_atk3    =[    $shoot3,    army_atk4    ] {ai_face();};
 void()    army_atk4    =[    $shoot4,    army_atk5    ] {ai_face();};
-void()    army_atk5    =[    $shoot5,    army_atk6    ] {ai_face();army_fire();
+void()    army_atk5    =[    $shoot5,    army_atk6    ] {ai_face();
+if(VR_AimCone_Wait(army_atk5, VR_AIM_NARROW)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+army_fire();
 self.effects = self.effects | EF_MUZZLEFLASH;};
 void()    army_atk6    =[    $shoot6,    army_atk7    ] {ai_face();army_burst();};
 void()    army_atk7    =[    $shoot7,    army_atk8    ] {ai_face();army_burst();SUB_CheckRefire (army_atk1);};
@@ -204,6 +206,7 @@ void() army_burst_round =
     vr_pellet_damage = cvar_hget(cvarh_vr_grunt_burst_damage);
     EnemyFireBullets(1, dir, VR_GRUNT_BURST_SPREAD);
     vr_pellet_damage = 0;
+    vr_agr_shots_grunt = vr_agr_shots_grunt + 1; // (the tests: vr_armedrepl_test.qc)
     self.damage_weapon = IT_SHOTGUN; // HONEY
 };
 
@@ -241,6 +244,7 @@ void() army_fire =
     dir = normalize(dir - self.origin);
 
     EnemyFireBullets(4, dir, '0.1 0.1 0');
+    vr_agr_shots_grunt = vr_agr_shots_grunt + 1; // (the tests: vr_armedrepl_test.qc)
 
     // HONEY
     // (The weapon credited for the damage: FL_SPECIFICDAMAGE targets take only some; BACKLOG.md, "Old QuakeC
@@ -254,6 +258,10 @@ void() SoldierDrop =
     entPlayer = FindEntPlayerForDrop();
 
     self.solid = SOLID_NOT;
+    if(VR_AG_SoldierDrop())
+    {
+        return; // VR: an armed grunt's loot: its reserve's ammo (vr_armedgrunt.qc; its weapon fell as it died)
+    }
     if(self.vr_dummy_dead)
     {
         return; // VR: the firing range's training dummy killed as a grunt (vr_dummy.qc): no loot
@@ -303,8 +311,12 @@ void()    army_cdie11    =[    $deathc11,    army_cdie11    ] {monster_check_rem
 
 void() army_die =
 {
-    // VR: its shotgun falls from its hands (its death frames are drawn without it: vr_monstermods.cpp), gibbed or not.
-    VR_DropEnemyGun(WID_GRUNTGUN);
+    // VR: its shotgun falls from its hands (its death frames are drawn without it: vr_monstermods.cpp), gibbed or not;
+    // an armed grunt's own weapon instead (vr_armedgrunt.qc: its death is the grunt's, corpse and ragdoll alike).
+    if(!VR_AG_Dying())
+    {
+        VR_DropEnemyGun(WID_GRUNTGUN);
+    }
 
 // check for gib
     if(self.health < -35)
@@ -356,10 +368,11 @@ void() monster_army =
         remove(self);
         return;
     }
+    if(VR_AGR_Replace(0)) return; // VR: its armed version in its place, its own rifle (vr_agrunt_repl: vr_armedrepl.qc)
 
     monster_army_precache();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
         self.cnt = -1;
     }
 
@@ -376,7 +389,7 @@ void() monster_army =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = army_start;
         return;

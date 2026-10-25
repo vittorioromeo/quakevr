@@ -2,8 +2,8 @@
 // symbols, the build, the map, the modules) and a minidump, and its dialog names them (main_sdl.c calls
 // VR_InstallCrashHandler; sys_sdl_win.c's Sys_ReportError, VR_ErrorReport; pl_win.c's PL_ErrorDialog). Automated test
 // runs (QVR_NO_ERROR_DIALOG, set by the kit's run.ps1 and the review's child copies): no dialog, and an error quits
-// instead of waiting on one (VR_ErrorDialogSuppressed). Windows only; its own translation unit: <windows.h> stays out
-// of the engine's headers.
+// instead of waiting on one (VR_ErrorDialogSuppressed). Windows (DbgHelp, a minidump) and, at the end of the file, Linux
+// (signal handlers, glibc's backtrace: no dump); its own translation unit: <windows.h> stays out of the engine's headers.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +32,25 @@ extern "C" void VR_InstallZancleAssertHandler (void);
 #ifndef QVR_BUILD_VERSION
 #define QVR_BUILD_VERSION QVR_VERSION "-dev (unknown build)"
 #endif
+
+// The build number and date (qvr_buildver.h; vr.cmake and vr.mk write the same): the commit count, "1.1.0-dev build 4321
+// (abc1234+dirty) 2026-10-17 14:05". Without git, number 0 and the compiler's date.
+#ifndef QVR_BUILD_NUMBER
+#define QVR_BUILD_NUMBER 0
+#endif
+#ifndef QVR_BUILD_INFO
+#define QVR_BUILD_INFO QVR_VERSION "-dev build 0 (unknown) " __DATE__ " " __TIME__
+#endif
+
+extern "C" const char *VR_BuildInfo (void)
+{
+	return QVR_BUILD_INFO;
+}
+
+extern "C" int VR_BuildNumber (void)
+{
+	return QVR_BUILD_NUMBER;
+}
 
 extern "C" const char *VR_BuildVersion (void)
 {
@@ -66,6 +85,8 @@ extern "C" void Con_DebugLog (const char *msg); // console.c: -condebug's qconso
 extern "C" char com_gamedir[];                  // common.c: the game folder (the report names it)
 extern "C" int VR_GLRecentSteps (char *out, int outSize, int count); // vr_glsafe.cpp: the last GL breadcrumbs
 extern "C" void VR_DiagnosticsEnd (int crashed); // vr_diagnostics.cpp: diagnostics mode's logs copied
+extern "C" void VR_LogsIncident (const char *what); // vr_runlogs.cpp: the runtimes' logs copied into the run's folder
+extern "C" void LOG_Flush (void);                  // console.c: the buffered console log out
 extern "C" const char *VR_GLSafeDescribe (void);                       // vr_glsafe.cpp: the run's GL safe mode
 
 /* Crash reports (docs/vr-port/TESTING.md, "Crash reports"). Every fatal end of the game writes one:
@@ -734,6 +755,7 @@ void tryLog ()
 		Con_DebugLog ("\n");
 		Con_DebugLog (report);
 		report[reportHeadLen] = saved;
+		LOG_Flush (); // (the log is buffered: console.c)
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
@@ -743,6 +765,13 @@ void tryLog ()
 // Diagnostics mode: the logs copied beside the report (vr_diagnostics.cpp).
 void tryDiagnostics ()
 {
+	__try
+	{
+		VR_LogsIncident ("the game crashed (the report is in crash/)"); // (every run: the runtimes' logs in its folder)
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+	}
 	__try
 	{
 		VR_DiagnosticsEnd (1);
@@ -1218,66 +1247,339 @@ extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int de
 	return hash;
 }
 
-#else
+#else // POSIX (Linux): signal handlers, glibc's backtrace
+
+/* Crash reports on Linux: a crash signal (SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGABRT: abort, a failed assert) on any
+ * thread, an engine error (Sys_Error: sys_sdl_unix.c) and a failed Zancle assert write <game folder>/crash/<date>_<time>.txt
+ * (what happened, the build, the map, the GPU and VR lines, the thread, its stack: each frame's module, offset and the
+ * nearest exported symbol, dladdr's) and send it to stderr; test runs (QVR_NO_ERROR_DIALOG) also to qvr_crash.txt in the
+ * working directory, as on Windows. No minidump, no symbols from debug info: the offsets are for
+ * "addr2line -f -C -e ironwail 0x<offset>" against the same build. The handler runs on its own stack (sigaltstack: a stack
+ * overflow still reports), from fixed buffers, writing with write(2); the signal is raised again after it (the
+ * default action: a core dump where enabled). One report per process. */
+
+#include <dlfcn.h>
+#include <errno.h>
+#include <execinfo.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+extern "C" char com_gamedir[];                  // common.c: the game folder (the report names it)
+extern "C" int VR_GLRecentSteps (char *out, int outSize, int count); // vr_glsafe.cpp: the last GL breadcrumbs
+extern "C" void VR_DiagnosticsEnd (int crashed); // vr_diagnostics.cpp: diagnostics mode's logs copied
+extern "C" void VR_LogsIncident (const char *what); // vr_runlogs.cpp: the runtimes' logs copied into the run's folder
+extern "C" void LOG_Flush (void);                  // console.c: the buffered console log out
+extern "C" const char *VR_GLSafeDescribe (void);   // vr_glsafe.cpp: the run's GL safe mode
+
+namespace
+{
+
+constexpr int crashSignals[] = {SIGSEGV, SIGBUS, SIGFPE, SIGILL, SIGABRT};
+constexpr int maxFrames = 64;
+
+bool crashHandlerInstalled = false; // VR_InstallCrashHandler: once
+bool testRun = false;               // QVR_NO_ERROR_DIALOG: no dialog, qvr_crash.txt too
+pthread_t mainThread;
+char crashDir[PATH_MAX] = "quakevr/crash"; // VR_SetCrashDir: where the reports go (relative: the working directory)
+char crashContext[512];                    // VR_SetCrashContext: the map and map package (the report's "Map:")
+char crashGpu[512];                        // VR_SetCrashGpu: the GL renderer and driver
+char crashVr[512];                         // VR_SetCrashVr: the VR backend and runtime
+char reportPath[PATH_MAX + 64];            // the last report written ("": none; VR_LastCrashReport)
+int reporting = 0;                         // a fatal report under way (one per process)
+alignas(16) unsigned char altStack[64 * 1024]; // the signal handlers' stack (a stack overflow has none left)
+char report[48 * 1024];                    // the report being written
+size_t reportLen = 0;
+
+void appendf (const char *fmt, ...)
+{
+	if (reportLen + 1 >= sizeof (report))
+		return;
+	va_list ap;
+	va_start (ap, fmt);
+	const int n = vsnprintf (report + reportLen, sizeof (report) - reportLen, fmt, ap);
+	va_end (ap);
+	if (n > 0)
+		reportLen += (size_t)n < sizeof (report) - reportLen ? (size_t)n : sizeof (report) - reportLen - 1;
+}
+
+void writeAll (int fd, const char *data, size_t size)
+{
+	while (size > 0)
+	{
+		const ssize_t n = write (fd, data, size);
+		if (n < 0 && errno == EINTR)
+			continue;
+		if (n <= 0)
+			return;
+		data += n;
+		size -= (size_t)n;
+	}
+}
+
+// One frame: "  #3 0x7f12ab34 ironwail+0x1a2b3c (Host_Frame+0x5c)".
+void appendFrame (int i, void *pc)
+{
+	Dl_info info{};
+	if (dladdr (pc, &info) && info.dli_fname)
+	{
+		const char *module = strrchr (info.dli_fname, '/');
+		module = module ? module + 1 : info.dli_fname;
+		const uintptr_t offset = (uintptr_t)pc - (uintptr_t)info.dli_fbase;
+		if (info.dli_sname)
+			appendf ("  #%d %p %s+0x%zx (%s+0x%zx)\n", i, pc, module, (size_t)offset, info.dli_sname,
+				(size_t)((uintptr_t)pc - (uintptr_t)info.dli_saddr));
+		else
+			appendf ("  #%d %p %s+0x%zx\n", i, pc, module, (size_t)offset);
+	}
+	else
+		appendf ("  #%d %p\n", i, pc);
+}
+
+// The report of `what`, the stack `frames` (the first `skip` left out), written to crash/, stderr and (test runs)
+// qvr_crash.txt; its path in reportPath.
+void writeReport (const char *what, void *const *frames, int count, int skip)
+{
+	reportLen = 0;
+	const time_t now = time (NULL);
+	struct tm local{};
+	localtime_r (&now, &local);
+	char stamp[32];
+	strftime (stamp, sizeof (stamp), "%Y-%m-%d_%H-%M-%S", &local);
+	appendf ("Quake VR: Unleashed crash report, %s\n", stamp);
+	appendf ("What: %s\n", what);
+	appendf ("Build: %s\n", VR_BuildInfo ());
+	appendf ("Map: %s; game folder %s\n", crashContext[0] ? crashContext : "no map spawned yet", com_gamedir[0] ? com_gamedir : "not set yet");
+	appendf ("GPU: %s\n", crashGpu[0] ? crashGpu : "not known yet");
+	appendf ("VR: %s\n", crashVr[0] ? crashVr : "not started");
+	appendf ("GL safe mode: %s\n", VR_GLSafeDescribe ());
+	char steps[1024];
+	if (VR_GLRecentSteps (steps, sizeof (steps), 8) > 0)
+		appendf ("GL, last steps: %s\n", steps);
+	appendf ("Thread: %s (%lu)\n", pthread_equal (pthread_self (), mainThread) ? "main" : "not the main thread",
+		(unsigned long)pthread_self ());
+	appendf ("Stack (resolve an offset with: addr2line -f -C -e ironwail 0x<offset>, the same build):\n");
+	for (int i = skip; i < count; i++)
+		appendFrame (i - skip, frames[i]);
+
+	mkdir (crashDir, 0755);
+	snprintf (reportPath, sizeof (reportPath), "%s/%s.txt", crashDir, stamp);
+	const int fd = open (reportPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (fd >= 0)
+	{
+		writeAll (fd, report, reportLen);
+		close (fd);
+	}
+	else
+		reportPath[0] = 0;
+	writeAll (2, "\n", 1);
+	writeAll (2, report, reportLen);
+	if (reportPath[0])
+	{
+		writeAll (2, "Crash report: ", 14);
+		writeAll (2, reportPath, strlen (reportPath));
+		writeAll (2, "\n", 1);
+	}
+	if (testRun)
+	{
+		const int t = open ("qvr_crash.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644); // (the kit's run scripts print it)
+		if (t >= 0)
+		{
+			writeAll (t, report, reportLen);
+			close (t);
+		}
+	}
+}
+
+const char *signalName (int sig)
+{
+	switch (sig)
+	{
+	case SIGSEGV: return "SIGSEGV (a bad memory access)";
+	case SIGBUS: return "SIGBUS (a bad memory access)";
+	case SIGFPE: return "SIGFPE (an arithmetic fault)";
+	case SIGILL: return "SIGILL (an illegal instruction)";
+	case SIGABRT: return "SIGABRT (abort: a failed assert, std::terminate)";
+	default: return "a signal";
+	}
+}
+
+// After the report: the run's logs told, then the process ends with the signal's default action.
+void endWithSignal (int sig)
+{
+	VR_LogsIncident ("the game crashed (the report is in crash/)");
+	VR_DiagnosticsEnd (1);
+	LOG_Flush ();
+	signal (sig, SIG_DFL);
+	raise (sig);
+	_exit (128 + sig);
+}
+
+void crashSignal (int sig, siginfo_t *info, void *)
+{
+	if (__atomic_exchange_n (&reporting, 1, __ATOMIC_SEQ_CST))
+	{
+		sleep (30); // (another thread's report under way: it ends the process)
+		_exit (128 + sig);
+	}
+	void *frames[maxFrames];
+	const int n = backtrace (frames, maxFrames);
+	char what[256];
+	if (sig == SIGABRT)
+		snprintf (what, sizeof (what), "%s", signalName (sig));
+	else
+		snprintf (what, sizeof (what), "%s at address %p", signalName (sig), info ? info->si_addr : nullptr);
+	writeReport (what, frames, n, 1); // (frame 0: this handler)
+	endWithSignal (sig);
+}
+
+void fatal (const char *what)
+{
+	if (__atomic_exchange_n (&reporting, 1, __ATOMIC_SEQ_CST))
+	{
+		sleep (30);
+		_exit (1);
+	}
+	void *frames[maxFrames];
+	const int n = backtrace (frames, maxFrames);
+	writeReport (what, frames, n, 2); // (this function and its caller's entry point)
+	VR_LogsIncident ("a fatal error (the report is in crash/)");
+	VR_DiagnosticsEnd (1);
+	LOG_Flush ();
+	_exit (1);
+}
+
+} // namespace
 
 extern "C" unsigned VR_DescribeCallers (char *out, int outSize, int skip, int depth)
 {
-	(void) skip;
-	(void) depth;
 	if (outSize > 0)
 		out[0] = 0;
-	return 0;
+	void *frames[maxFrames];
+	const int n = backtrace (frames, maxFrames);
+	const int first = 1 + (skip > 0 ? skip : 0); // (frame 0: here)
+	const int last = depth > 0 && first + depth < n ? first + depth : n;
+	unsigned hash = 2166136261u;
+	int used = 0;
+	for (int i = first; i < last; i++)
+	{
+		const uintptr_t pc = (uintptr_t)frames[i];
+		for (int b = 0; b < (int)sizeof (pc); b++)
+			hash = (hash ^ (unsigned)((pc >> (b * 8)) & 0xFFu)) * 16777619u;
+		Dl_info info{};
+		const char *name = "?";
+		char offset[48];
+		if (dladdr (frames[i], &info) && info.dli_sname)
+			name = info.dli_sname;
+		else
+		{
+			snprintf (offset, sizeof (offset), "+0x%zx", (size_t)(pc - (uintptr_t)(info.dli_fbase ? info.dli_fbase : 0)));
+			name = offset;
+		}
+		if (outSize > used)
+			used += snprintf (out + used, (size_t)(outSize - used), "%s%s", i > first ? " < " : "", name);
+	}
+	return last > first ? (hash ? hash : 1u) : 0u;
 }
 
 extern "C" void VR_InstallCrashHandler (void)
 {
 	VR_InstallZancleAssertHandler ();
+	if (crashHandlerInstalled)
+		return;
+	crashHandlerInstalled = true;
+	testRun = getenv ("QVR_NO_ERROR_DIALOG") != NULL;
+	mainThread = pthread_self ();
+	if (testRun)
+		unlink ("qvr_crash.txt");
+	// backtrace once now: it loads libgcc_s on first use (malloc), which the handler must not.
+	void *warm[4];
+	backtrace (warm, 4);
+	stack_t ss{};
+	ss.ss_sp = altStack;
+	ss.ss_size = sizeof (altStack);
+	sigaltstack (&ss, NULL);
+	struct sigaction sa{};
+	sa.sa_sigaction = crashSignal;
+	sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
+	sigemptyset (&sa.sa_mask);
+	for (const int sig : crashSignals)
+		sigaction (sig, &sa, NULL);
 }
 
 extern "C" void VR_FatalReport (const char *what)
 {
-	(void) what;
+	fatal (what);
 }
 
 extern "C" void VR_ErrorReport (const char *message)
 {
-	(void) message;
+	char what[1100];
+	snprintf (what, sizeof (what), "Sys_Error: %s", message);
+	void *frames[maxFrames];
+	const int n = backtrace (frames, maxFrames);
+	writeReport (what, frames, n, 1);
 }
 
 extern "C" void VR_FatalError (const char *message)
 {
-	(void) message;
+	char what[1100];
+	snprintf (what, sizeof (what), "Sys_Error (not on the main thread): %s", message);
+	fatal (what);
 }
 
 extern "C" const char *VR_LastCrashReport (void)
 {
-	return "";
+	return reportPath;
 }
 
 extern "C" void VR_SetCrashContext (const char *what)
 {
-	(void) what;
+	snprintf (crashContext, sizeof (crashContext), "%s", what ? what : "");
 }
 
 extern "C" void VR_SetCrashGpu (const char *line)
 {
-	(void) line;
+	snprintf (crashGpu, sizeof (crashGpu), "%s", line ? line : "");
 }
 
 extern "C" void VR_SetCrashVr (const char *line)
 {
-	(void) line;
+	snprintf (crashVr, sizeof (crashVr), "%s", line ? line : "");
 }
 
 extern "C" void VR_SetCrashDir (const char *dir)
 {
-	(void) dir;
+	// Made full now (the working directory can't change the report's place later).
+	char full[PATH_MAX];
+	if (!dir || !dir[0])
+		return;
+	snprintf (crashDir, sizeof (crashDir), "%s/crash", realpath (dir, full) ? full : dir);
 }
 
+/*
+==================
+VR_ErrorDialogSuppressed -- in an automated test run, the error written to qvr_error.txt in the working directory
+(for the test scripts to print) instead of shown in a dialog: nonzero then
+==================
+*/
 extern "C" int VR_ErrorDialogSuppressed (const char *errorMsg)
 {
-	(void) errorMsg;
-	return 0;
+	FILE *f;
+	if (!getenv ("QVR_NO_ERROR_DIALOG"))
+		return 0;
+	f = fopen ("qvr_error.txt", "w");
+	if (f)
+	{
+		fprintf (f, "%s\n", errorMsg);
+		fclose (f);
+	}
+	return 1;
 }
 
 #endif // _WIN32

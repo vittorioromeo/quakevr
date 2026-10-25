@@ -12,12 +12,20 @@ namespace qvr::hands
 struct State
 {
     bool valid{false};
+    // The time of this frame's poses (the tracking's: TrackingState::time after slow motion's filter, the player's own
+    // clock; -1 unknown). The server's ticks (72 Hz) beat against the headset's frames, so a tick's pose may be one or
+    // two frames newer than the last tick's: the melee's speeds are measured over the poses' times, not the ticks'.
+    double poseTime{-1.0};
 
     glm::vec3 playerOrigin{0.f}; // the player's box (its middle; the floor below the head less the lean)
     glm::vec3 lean{0.f};         // the head's horizontal offset from it (vr_lean_radius)
     // The play space's turn about the vertical through playerOrigin + lean (hands::playSpaceYaw; flat screen: the aim's
     // yaw): what the thumbstick's turn moves. A hand's place on the body is its offset from there turned back by it.
     float turnYaw{0.f};
+    // Where the play space's origin is in the world (flat screen: playerOrigin), turned by turnYaw: a tracked point's
+    // world place is spaceOrigin + rotateYaw(its place in the room, turnYaw). Only the artificial movement (the stick's
+    // walk and turn, a push, a fall, the stairs) moves it; the real body's moves in the room do not.
+    glm::vec3 spaceOrigin{0.f};
     glm::vec3 head{0.f};        // world eye position
     glm::vec3 headAngles{0.f};  // pitch, yaw, roll (view convention: pitch down is positive)
     float headHeight{0.f};      // metres above the play-space floor
@@ -48,6 +56,7 @@ struct State
     // Where the hand is before anything holds it out (the walls, the two-handed grip, the weight's spring): the
     // offsets' place (vr_debug_hand_offset measures from it).
     glm::vec3 unresolvedPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    glm::vec3 unresolvedRot[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // (and its turn: Ghost Hands draw it there)
     glm::vec3 aimRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     // After the posing test: each controller's grip pose (the runtime's: where its handle is; controllerPos/Rot are the
     // pose moved off it by vr_controller_legacy_pose): the Show Controller preview is drawn there.
@@ -71,6 +80,10 @@ struct State
     // including the player's own movement: what the QC's thresholds and multipliers expect.
     glm::vec3 vel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 angVel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // The controller's own velocity behind each hand (slow motion: the slowed hand lags it, its speed capped at
+    // vr_timescale_hand_speed; timescale::controllerPose), in the game's time as `vel`; `vel` otherwise. The hands'
+    // gestures (the judo throw, the lift, the leg pull) go by it: the same real motion works in bullet time.
+    glm::vec3 ownVel[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 headVel{0.f};
 
     int hotspot[2]{0, 0}; // body::Hotspot of each hand
@@ -168,6 +181,9 @@ void setPlaySpaceYaw(float yaw);
 
 // A new map (VR_OnClientClearState): what follows the client's time (cl.time starts over) begins afresh.
 void resetClientState();
+// Motion playback (vr_motion_play.cpp): a take starts afresh, as in a new game, whatever played before: the head's last
+// position (not a step into this take), the lean, the torso and the hands' velocities.
+void resetForPlayback();
 // vr_recenter (VR Settings' Reset Position): the body back under the head now (after a lean, or steps the body couldn't
 // follow), where its box fits; the torso turned to face where the head does.
 void recenter_f();
@@ -177,6 +193,12 @@ void setLean(const glm::vec3& worldLean);
 // tracking, in the same host frame. Else the eyes kept the last host frame's head, and the headset showed that image
 // stuck to the face.
 void refresh();
+
+// Flatscreen play (vr_flatplay.cpp): the pose made again from the view as it is now, this frame's mouse turn and the
+// origin the client has just moved the player to (for the move, and again for the drawn hands). The frame's velocities
+// are kept: they are measured between the frames' first poses, as ever (a pose made again at the frame's end would be
+// next frame's, and the hands would difference to standing still).
+void relatch();
 
 // Updated at most once per host frame; valid only while connected to a VR-protocol server.
 [[nodiscard]] State& current();
@@ -202,5 +224,6 @@ void angleVectors(
 [[nodiscard]] glm::vec3 rotateYaw(const glm::vec3& v, float degrees); // about the vertical axis
 [[nodiscard]] glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles); // f*x + r*y + u*z
 [[nodiscard]] glm::vec3 anglesFromVectors(const glm::vec3& fwd, const glm::vec3& up); // Quake angles
+[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles); // Quake angles' axes (forward, left, up)
 
 } // namespace qvr::hands

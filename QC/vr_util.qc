@@ -5,6 +5,11 @@
 // VR Utilities Implementation Details
 // ----------------------------------------------------------------------------
 
+// Set by the engine round a spawn function it runs after the map has spawned (box3d::spawnClass: the toolgun, physics
+// spawns): 1 a live spawn (what a map makes static stays an entity: vr_walltorch.qc; an item placed at once:
+// VR_SpawnLive_Finish), 2 the toolgun's ghost's probe (made to be looked at and removed: nothing else made with it).
+nosave float vr_spawn_live;
+
 // The per-hand getters run many times a frame (the QC VM interprets every statement, and a call
 // costs several), so they are branchless selects that fteqcc inlines (`inline`: its inliner takes
 // only branch-free bodies): the off hand's (cVR_OffHand, 0) value for 0, the main hand's for any
@@ -80,10 +85,6 @@ VR_IMPL_MAKE_FLOAT_GETTER(VRGetHandThrowAge,
 VR_IMPL_MAKE_VECTOR_GETTER(VRGetMuzzlePos,
                            self.offmuzzlepos,
                            self.muzzlepos);
-
-VR_IMPL_MAKE_FLOAT_GETTER(VRGetHandVelMag,
-                          self.offhandvelmag,
-                          self.handvelmag);
 
 // Where a hand's shots, projectiles and beams go: its aim turned by the weapon's Shot Pitch and Yaw (the client's
 // weapons::shotAngles). The hand's aim for a player the engine gives none (a bot: its shotrot stays 0 0 0).
@@ -435,26 +436,6 @@ inline float(entity ent) VRGet2HAiming =
     return !!(ent.vrbits0 & QVR_VRBITS0_2H_AIMING);
 }
 
-inline float(entity ent) VRGetOffHandReloadingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_OFFHAND_RELOADING);
-}
-
-inline float(entity ent) VRGetMainHandReloadingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_MAINHAND_RELOADING);
-}
-
-inline float(entity ent) VRGetOffHandReloadFlickingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_OFFHAND_RELOADFLICKING);
-}
-
-inline float(entity ent) VRGetMainHandReloadFlickingBit =
-{
-    return !!(ent.vrbits0 & QVR_VRBITS0_MAINHAND_RELOADFLICKING);
-}
-
 
 void(entity ent, float value) VRSetTeleporting =
 {
@@ -506,30 +487,60 @@ void(entity ent, float value) VRSetMainHandPrevReloadFlickingBit =
     ent.vrbits0 = VRSetBit(ent.vrbits0, QVR_VRBITS0_MAINHAND_PREVRELOADFLICKING, value);
 }
 
-float() VRIsWeaponReloadingEnabled =
+// Flatscreen play (-flatscreenmode; vr_flatplay.cpp, docs/vr-port/FLATPLAY.md): the VR gameplay played on the desktop
+// screen, with the hands the game poses itself. The gate every flatscreen control hangs on, per player (co-op: his own
+// client's mode, .vr_flatscreen from his move); 0 in a headset and 0 without the flag.
+float(entity xPlayer) VR_FlatPlay =
 {
-    return (cvar_hget(cvarh_vr_reload_mode) != QVR_RELOADMODE_NONE) &&
-           (getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE);
+    return xPlayer.vr_flatscreen != 0;
+};
+
+float(entity ent) VRIsWeaponReloadingEnabled =
+{
+    // Flatscreen play (-flatscreenmode): no reloading for that player. A magazine is refilled from the reserve as it
+    // empties, with no handling step (vr_flatplay.cpp, docs/vr-port/FLATPLAY.md).
+    // (Whether any gun reloads: the global mode, or a gun's own override.)
+    return (VR_Reload_BestMode() != QVR_RELOADMODE_NONE) &&
+           (getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE) &&
+           !VR_FlatPlay(ent);
+}
+
+// The same of the weapon `wid` alone (its own reloading mode: the Per-Weapon Reload Overrides).
+// (Its record `inst`: AD support: the Widowmaker's and the Plasma Gun's own modes; world: not known.)
+float(entity ent, float wid, entity inst) VRIsWeaponReloadingEnabledForInst =
+{
+    return VRIsWeaponReloadingEnabled(ent) &&
+           WeaponIdToSupportsReload(wid) &&
+           VR_Reload_ModeOfInst(wid, inst) != QVR_RELOADMODE_NONE;
+}
+
+float(entity ent, float wid) VRIsWeaponReloadingEnabledForWeapon =
+{
+    return VRIsWeaponReloadingEnabledForInst(ent, wid, world);
 }
 
 float(entity ent, float xHand) VRIsWeaponReloadingEnabledFor =
 {
     return ent.ishuman &&
-           VRIsWeaponReloadingEnabled() &&
-           WeaponIdToSupportsReload(VRGetWeapon(xHand));
+           VRIsWeaponReloadingEnabledForInst(ent, VRGetWeapon(xHand), VRGetEntWeaponInst(ent, xHand));
 }
 
+// (Not the Widowmaker: a super shotgun that never breaks open.)
 float(entity ent, float xHand) VRIsWeaponReloadFlickingEnabledFor =
 {
-    return ent.ishuman &&
-           VRIsWeaponReloadingEnabled() &&
-           WeaponIdToSupportsReloadFlicking(VRGetWeapon(xHand));
+    return VRIsWeaponReloadingEnabledFor(ent, xHand) &&
+           WeaponIdToSupportsReloadFlicking(VRGetWeapon(xHand)) && !AD_WidowmakerIn(ent, xHand);
 }
 
 // A missile's touch (self the missile): whether it leaves `xOther` alone as its owner (Quake: never on the one who fired
 // it). One carried through a teleporter (.vr_gate_crossed, set by the engine) meets its owner: your nail or rocket at
 // your own image, seen through the gate, hits you.
+float vr_owner_touches; // the touches a missile had of its owner (the tests: vr_ad_test 90)
 float(entity xOther) VR_OwnerSpared =
 {
+    if(xOther == self.owner)
+    {
+        vr_owner_touches++;
+    }
     return xOther == self.owner && !self.vr_gate_crossed;
 }

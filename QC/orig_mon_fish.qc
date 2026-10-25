@@ -79,8 +79,10 @@ void() fish_melee =
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 60)
+    if(vlen(delta) > VR_MeleeReach(60))
         return;
+    if(!VR_MeleeArc_Hits(FALSE))
+        return; // QVR: (melee arc: fight.qc)
 
     sound(self, CHAN_VOICE, "fish/bite.wav", 1, ATTN_NORM);
     ldmg = (random() + random()) * 3;
@@ -188,7 +190,7 @@ void() monster_fish =
     precache_sound2("fish/idle.wav");
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -206,7 +208,7 @@ void() monster_fish =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = fish_start;
         return;

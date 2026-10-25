@@ -24,9 +24,7 @@ namespace
 constexpr int segments = 12;          // the line's springs, the two stubs included (nodes 0 .. segments)
 constexpr float stub = 0.012f;        // metres the cord leaves each end straight along its direction
 constexpr float mass = 0.03f;         // kilograms, the whole cord (a coiled telephone cord's: the chain swings as it did)
-constexpr float stiffness = 1.5f;     // newtons a metre it is stretched by, the whole cord
 constexpr float compression = 3.f;    // times stiffer squeezed below its relaxed length
-constexpr float airDamping = 1.5f;    // per second, against its swing relative to its ends
 constexpr float springDamping = 20.f; // per second, along each spring (the wobble along it dies quickly)
 constexpr float gravity = 9.81f;      // metres per second squared
 constexpr float substep = 1.f / 300.f;
@@ -171,7 +169,7 @@ float hash01(unsigned x)
     return static_cast<float>(x & 0xffffffu) / static_cast<float>(0xffffff);
 }
 
-constexpr int maxLinks = 192;
+constexpr int maxLinks = 640; // (the magnetic holsters' tether: 10 m of 1.6 cm links; the flashlight's under 2 m)
 constexpr int bend = 2; // segments a link's half circle (a hexagon)
 
 // A chain's rings along the line (scratch's, `length` units long): each link a loop of rings round its wire's middle
@@ -180,8 +178,11 @@ constexpr int bend = 2; // segments a link's half circle (a hexagon)
 // the second end, the torch: the links keep their places from it, paid out of the first end as the line stretches)
 // lies in the plane of the line's normal (even) or binormal (odd) there, bent with the line; its light is taken at its
 // middle; its rust and grime (TubeRing ambient.w, lamp.w: gfx::drawTube) its own.
-void buildChain(const Style& style, float length, const glm::vec3 (&light)[3], int numLights, za::Vector<gfx::TubeRing>& out,
-    int& sides, int& links)
+// With `upTo` (units from the first end, at least 0): only the links whose middle is that far at most (the first
+// `skip` from the second end not drawn); `lineFrom` the middle of the drawn link nearest the second end (a plain line
+// goes on from there: Cord::build's tail), the line's length when every link is drawn, 0 when none.
+void buildChain(const Style& style, float length, float upTo, const glm::vec3 (&light)[3], int numLights,
+    za::Vector<gfx::TubeRing>& out, int& sides, int& links, float& lineFrom)
 {
     const float m2u = units::metresToUnits();
     const float wire = style.wireRadius * m2u;
@@ -194,12 +195,18 @@ void buildChain(const Style& style, float length, const glm::vec3 (&light)[3], i
     sides = 4;
     const float wireDrawn = wire * 1.41421356f;
     const int loop = 2 * (bend + 1); // the loop's rings (its first again closes it)
-    links = za::clamp(static_cast<int>(za::ceil((length + halfLen) / pitch)), 1, maxLinks);
+    const int total = za::max(1, static_cast<int>(za::ceil((length + halfLen) / pitch)));
+    const int skip = upTo < 0.f || upTo >= length ? 0
+                     : upTo <= 0.f                 ? total
+                                                   : za::clamp(static_cast<int>(za::ceil((length - upTo) / pitch - 0.5f)), 0, total);
+    links = za::min(total - skip, maxLinks);
+    lineFrom = skip == 0 ? length : links > 0 ? za::max(0.f, length - (static_cast<float>(skip) + 0.5f) * pitch) : 0.f;
     out.resize(static_cast<size_t>(links) * static_cast<size_t>(loop + 3));
     glm::vec3 mid[2 * (bend + 1)];
     size_t at = 0;
-    for(int k = 0; k < links; k++)
+    for(int q = 0; q < links; q++)
     {
+        const int k = skip + q;
         const float c = length - (static_cast<float>(k) + 0.5f) * pitch;
         glm::vec3 cp, ct, cn;
         lineAt(c, cp, ct, cn);
@@ -263,6 +270,57 @@ void Cord::reset(const glm::vec3& a, const glm::vec3& b)
     lastB_ = b;
     time_ = vr_gametime;
     valid_ = true;
+    lastRest_ = 0.f;
+}
+
+void Cord::stepRigid(float h, float rest, const glm::vec3& gravityUnits, const glm::vec3& vb, bool aLoose)
+{
+    // A substep of a chain that keeps its length (Style::rigid): the free nodes moved on by their velocity, gravity and
+    // the air, then each pair of neighbours put back their relaxed spacing apart (the pinned ends and stubs not moved),
+    // sweeping both ways a few times; their velocities what that left of the move.
+    const int first = aLoose ? 1 : 2, last = segments - 2;
+    glm::vec3 before[segments + 1];
+    for(int i = first; i <= last; i++)
+    {
+        const float t = static_cast<float>(i) / segments;
+        vel_[i] += (gravityUnits - style_.airDamping * (vel_[i] - vb * t)) * h;
+        before[i] = pos_[i];
+        pos_[i] += vel_[i] * h;
+    }
+    constexpr int sweeps = 7; // (odd: the last from the second end, a hanging chain held exactly its length from its top)
+    for(int sweep = 0; sweep < sweeps; sweep++)
+    {
+        for(int n = 1; n < segments - 1; n++)
+        {
+            const int i = (sweep & 1) ? n : segments - 1 - n; // (from the second end first: a hanging chain's top)
+            const float wi = i >= first && i <= last ? 1.f : 0.f;
+            const float wj = i + 1 >= first && i + 1 <= last ? 1.f : 0.f;
+            if(wi + wj <= 0.f)
+            {
+                continue;
+            }
+            const glm::vec3 d = pos_[i + 1] - pos_[i];
+            const float len = glm::length(d);
+            if(len < 1e-6f)
+            {
+                continue;
+            }
+            const glm::vec3 fix = d * ((len - rest) / (len * (wi + wj)));
+            pos_[i] += fix * wi;
+            pos_[i + 1] -= fix * wj;
+        }
+    }
+    for(int i = first; i <= last; i++)
+    {
+        vel_[i] = (pos_[i] - before[i]) / h;
+    }
+    if(aLoose)
+    {
+        const glm::vec3 d = pos_[1] - pos_[2];
+        const float len = glm::length(d);
+        pos_[0] = pos_[1] + (len > 1e-5f ? d / len : glm::vec3{0.f, 0.f, -1.f}) * (stub * units::metresToUnits());
+        vel_[0] = vel_[1];
+    }
 }
 
 void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b, const glm::vec3& bDir, const Style& style)
@@ -277,7 +335,8 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
     const float m2u = units::metresToUnits();
     const float dt = static_cast<float>(vr_gametime - time_);
     // Afresh: first drawn, a long pause, or an end jumping away from the other (a teleport of one, a respawn).
-    if(!valid_ || dt > 0.25f || glm::distance(b - lastB_, body - lastA_) > 1.f * m2u || !ZA_ISFINITE(pos_[segments / 2].x))
+    if(!valid_ || pos_.size() != static_cast<size_t>(segments + 1) || dt > 0.25f ||
+        glm::distance(b - lastB_, body - lastA_) > 1.f * m2u || !ZA_ISFINITE(pos_[segments / 2].x))
     {
         reset(a, b);
         lastA_ = body;
@@ -303,9 +362,10 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
 
     const float rest = relaxedLength(style) * m2u / springs;
     const float nodeMass = mass / (segments - 3); // the free nodes 2 .. segments - 2
-    const float k = stiffness * springs / nodeMass;
+    const float k = za::clamp(style.stiffness, 0.1f, 25.f) * springs / nodeMass; // (stable at the substep up to ~30)
     const glm::vec3 down{0.f, 0.f, -gravity * m2u};
-    const int steps = za::clamp(static_cast<int>(za::ceil(dt / substep)), 1, 60);
+    const float rigidSubstep = substep * 0.5f; // (a chain whipped by a fast hand: its few links followed closely)
+    const int steps = za::clamp(static_cast<int>(za::ceil(dt / (style.rigid ? rigidSubstep : substep))), 1, style.rigid ? 150 : 60);
     const float h = dt / steps;
     for(int step = 1; step <= steps; step++)
     {
@@ -328,6 +388,14 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
         pos_[segments] = endB;
         pos_[segments - 1] = endB + bDir * (stub * m2u);
         vel_[segments] = vel_[segments - 1] = vb;
+
+        if(style.rigid)
+        {
+            // (Its length eased from the last frame's over the substeps: a tether paid out or reeled in with its end.)
+            const float r = lastRest_ > 0.f ? glm::mix(lastRest_, rest, static_cast<float>(step) / steps) : rest;
+            stepRigid(h, r, down, vb, aLoose);
+            continue;
+        }
 
         glm::vec3 force[segments + 1];
         for(int i = 0; i <= segments; i++)
@@ -352,21 +420,72 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
         {
             // Air against its swing, relative to the ends (at the carry's frame, the free end's share along it).
             const float t = static_cast<float>(i) / segments;
-            force[i] -= airDamping * (vel_[i] - vb * t);
+            force[i] -= style.airDamping * (vel_[i] - vb * t);
             vel_[i] += force[i] * h;
             pos_[i] += vel_[i] * h;
         }
     }
+    lastRest_ = rest;
 }
 
-bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& sides) const
+void Cord::shape(const glm::vec3* p, za::SizeT n, const Style& style)
+{
+    style_ = style;
+    if(n < 2)
+    {
+        valid_ = false;
+        return;
+    }
+    pos_.assignRange(p, p + n);
+    vel_.clear();
+    valid_ = true;
+    time_ = vr_gametime;
+    lastA_ = p[0];
+    lastB_ = p[n - 1];
+    lastRest_ = 0.f;
+}
+
+float Cord::springError() const
+{
+    if(!valid_ || pos_.size() < 2)
+    {
+        return 0.f;
+    }
+    if(pos_.size() != static_cast<size_t>(segments + 1))
+    {
+        // (Shaped: its pieces each the relaxed length's share.)
+        const float even = relaxedLength(style_) * units::metresToUnits() / static_cast<float>(pos_.size() - 1);
+        float worst = 0.f;
+        for(size_t i = 0; i + 1 < pos_.size(); i++)
+        {
+            worst = za::max(worst, za::fabs(glm::distance(pos_[i], pos_[i + 1]) - even) / even);
+        }
+        return worst;
+    }
+    const float rest = relaxedLength(style_) * units::metresToUnits() / springs;
+    float worst = 0.f;
+    for(int i = 1; i < segments - 1; i++)
+    {
+        worst = za::max(worst, za::fabs(glm::distance(pos_[i], pos_[i + 1]) - rest) / rest);
+    }
+    return worst;
+}
+
+bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& sides, float linksUpTo,
+    za::Vector<gfx::TubeRing>* tail) const
 {
     rings_ = 0;
-    if(!valid_ || pos_.size() != static_cast<size_t>(segments + 1))
+    tailLength_ = 0.f;
+    if(tail)
+    {
+        tail->clear();
+    }
+    if(!valid_ || pos_.size() < 2)
     {
         return false;
     }
     const float m2u = units::metresToUnits();
+    const int segs = static_cast<int>(pos_.size()) - 1; // (update's: segments; shape's: any)
 
     // The line: a Catmull-Rom spline through the nodes, sampled finely, with its length along it.
     constexpr int perSegment = 6;
@@ -374,18 +493,18 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
     za::Vector<float>& along = scratch.along;
     line.clear();
     along.clear();
-    for(int i = 0; i < segments; i++)
+    for(int i = 0; i < segs; i++)
     {
         const glm::vec3& p1 = pos_[i];
         const glm::vec3& p2 = pos_[i + 1];
         const glm::vec3 p0 = i > 0 ? pos_[i - 1] : 2.f * p1 - p2;
-        const glm::vec3 p3 = i + 2 <= segments ? pos_[i + 2] : 2.f * p2 - p1;
+        const glm::vec3 p3 = i + 2 <= segs ? pos_[i + 2] : 2.f * p2 - p1;
         for(int j = 0; j < perSegment; j++)
         {
             line.pushBack(catmullRom(p0, p1, p2, p3, static_cast<float>(j) / perSegment));
         }
     }
-    line.pushBack(pos_[segments]);
+    line.pushBack(pos_[segs]);
     along.resize(line.size());
     along[0] = 0.f;
     for(size_t i = 1; i < line.size(); i++)
@@ -467,8 +586,40 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
     const int numLights = za::min(static_cast<int>(lights.size()), 4);
     if(style_.chain)
     {
-        buildChain(style_, length, lightAt, numLights, out, sides, links_);
+        float lineFrom = length;
+        buildChain(style_, length, tail ? za::max(0.f, linksUpTo) : -1.f, lightAt, numLights, out, sides, links_, lineFrom);
         rings_ = static_cast<int>(out.size());
+        if(tail && lineFrom < length - 0.05f)
+        {
+            // The plain line on from inside the last link drawn: rings at every other sample of the curve past it, as
+            // thick as a link is wide inside (the links' look from afar: a little rust, no sheen of its own).
+            const float radius = 0.5f * style_.linkWidth * m2u;
+            const auto ring = [&](const glm::vec3& p, const glm::vec3& t, const glm::vec3& n, float s) {
+                const float w = za::clamp(s / length, 0.f, 1.f) * 2.f;
+                const glm::vec3 ambient =
+                    w < 1.f ? glm::mix(lightAt[0], lightAt[1], w) : glm::mix(lightAt[1], lightAt[2], w - 1.f);
+                gfx::TubeRing g{};
+                g.mid = glm::vec4{p, radius};
+                g.across = glm::vec4{n, 0.f};
+                g.along = glm::vec4{t, 0.f};
+                g.ambient = glm::vec4{ambient, 0.4f};
+                g.lamp = glm::vec4{0.f};
+                g.lampDir = glm::vec4{0.f, 0.f, 1.f, 0.f};
+                tail->pushBack(g);
+            };
+            glm::vec3 p, t, n;
+            lineAt(lineFrom, p, t, n);
+            ring(p, t, n, lineFrom);
+            for(size_t i = 2; i + 1 < line.size(); i += 2)
+            {
+                if(along[i] > lineFrom + 0.25f)
+                {
+                    ring(line[i], tangent[i], normal[i], along[i]);
+                }
+            }
+            ring(line.back(), tangent.back(), normal.back(), length);
+            tailLength_ = (length - lineFrom) / m2u;
+        }
         return true;
     }
 

@@ -20,6 +20,7 @@ Work files go to build/qcprec/ (git-ignored), overwritten each run; QC/ and quak
 """
 import argparse
 import concurrent.futures
+import mmap
 import os
 import pathlib
 import re
@@ -63,19 +64,36 @@ def compile_asm(fteqcc, sub, extra):
     asm = out / "qc.asm"
     if r.returncode != 0 or "ERROR" in r.stdout or not asm.is_file():
         sys.exit("check_qc_precedence: the compile failed (%s):\n%s" % (sub, "\n".join(r.stdout.splitlines()[-10:])))
-    # qc.asm is large (each function lists every local: -Flo shares one section): streamed, the locals skipped.
+    return parse_asm(asm)
+
+
+def parse_asm(asm):
+    """qc.asm -> {function: [(line, instruction)]}. The file is huge (about 1.7 GB: each function first lists every
+    temporary of the progs, `local ...` lines, then its instructions, tab-indented): mapped, not read, and each
+    function's locals skipped by a search for its first instruction line, so only the instructions are decoded."""
     funcs = {}
-    name, body = None, None
-    with open(asm, errors="replace") as f:
-        for l in f:
-            if l[0] == "\t" and body is not None:
-                n = LINE_NO.search(l)
-                body.append((int(n.group(1)) if n else 0, TEMP.sub("tmp", LINE_NO.sub("", l.strip()))))
-            elif l.endswith(" = asm\n"):
-                name, body = l[:-7], []
-            elif l[0] == "}" and body is not None:
-                funcs[name] = body
-                name, body = None, None
+    if asm.stat().st_size == 0:
+        return funcs
+    with open(asm, "rb") as f, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+        pos = 0
+        while True:
+            h = mm.find(b" = asm\n", pos)
+            if h < 0:
+                break
+            start = mm.rfind(b"\n", 0, h) + 1
+            name = mm[start:h].decode("latin-1").rstrip("\r")  # (Quake's characters: any byte, one to one)
+            end = mm.find(b"\n}", h)  # the body's closing line
+            if end < 0:
+                break
+            body = []
+            first = mm.find(b"\n\t", h, end)  # the first instruction: everything before it is locals
+            if first >= 0:
+                for l in mm[first + 1:end].decode("latin-1").split("\n"):
+                    if l[:1] == "\t":
+                        n = LINE_NO.search(l)
+                        body.append((int(n.group(1)) if n else 0, TEMP.sub("tmp", LINE_NO.sub("", l.strip()))))
+            funcs[name] = body
+            pos = end + 2
     return funcs
 
 
@@ -97,7 +115,8 @@ def main():
     if not fteqcc:
         print("check_qc_precedence: no fteqcc found; skipped")
         return 0
-    with concurrent.futures.ThreadPoolExecutor(2) as pool:  # (each its own folder: they run side by side)
+    # Two processes (each its own folder): the compiles and the listings' parsing side by side.
+    with concurrent.futures.ProcessPoolExecutor(2) as pool:
         qc_job = pool.submit(compile_asm, fteqcc, "qc", [])
         c_job = pool.submit(compile_asm, fteqcc, "c", ["-Fcpriority"])
         qc_prio, c_prio = qc_job.result(), c_job.result()

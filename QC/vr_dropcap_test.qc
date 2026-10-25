@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_dropcap_test.qc -- the cap on dropped single-use enemy weapons' test (Debug > Tests; ROUND21.md, "A cap on
 // dropped enemy weapons"; vr_enemyguns.qc VR_EnemyWeapons_MakeRoom). `vr_dropcap_test 1`: ahead of the player, three
 // other weapons dropped (a shotgun, a nailgun, a laser cannon: never capped) and a chainsaw thrown straight up, made the
@@ -188,3 +189,4 @@ void() VR_DropCapTest_Frame =
     vr_dct_runner.think = VR_DropCapTest_Think;
     vr_dct_runner.nextthink = time + 0.1;
 };
+#endif

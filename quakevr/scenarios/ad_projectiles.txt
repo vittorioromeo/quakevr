@@ -1,0 +1,11 @@
+title AD's rocket and grenade soldiers shooting at you, a shotgun and a super shotgun in hand
+map vrtesthall
+god
+give "Shotgun" main
+give "Super Shotgun" off
+spawn "AD Rocket Soldier" 520 -60
+spawn "AD Grenade Soldier" 520 60
+spawn "Enforcer" 400 -150
+spawn "Enforcer" 400 150
+spawn "Grunt" 200 0
+hint Shoot their rockets, bat their grenades; shotgun the enforcers and grunt in head, limb and torso; pop one limb without a whole-body gib.

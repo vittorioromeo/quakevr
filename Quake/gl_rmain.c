@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_main.c
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 qboolean	r_cache_thrash;		// compatability
 
@@ -839,34 +840,67 @@ void ExtractFrustumPlane (float mvp[16], int axis, float ndcval, qboolean flip, 
 R_SetFrustum
 ===============
 */
-void R_SetFrustum (void)
+/*
+=============
+R_ViewMatrices -- QVR
+
+The projection and view matrices of r_refdef's view at fov fovx x fovy (R_SetFrustum's; R_StereoViewMatrices).
+=============
+*/
+static void R_ViewMatrices (float fovx, float fovy, float proj[16], float view[16], float *outznear)
 {
 	float w, h, d;
 	float znear, zfar;
-	float logznear, logzfar;
 	float translation[16];
 	float rotation[16];
 
 	// reduce near clip distance at high FOV's to avoid seeing through walls
-	w = 1.f / tanf (DEG2RAD (r_fovx) * 0.5f);
-	h = 1.f / tanf (DEG2RAD (r_fovy) * 0.5f);
+	w = 1.f / tanf (DEG2RAD (fovx) * 0.5f);
+	h = 1.f / tanf (DEG2RAD (fovy) * 0.5f);
 	d = 12.f * q_min (w, h);
 	znear = CLAMP (0.5f, d, 4.f);
 	zfar = gl_farclip.value;
 
-	GL_FrustumMatrix(r_matproj, DEG2RAD(r_fovx), DEG2RAD(r_fovy), znear, zfar);
-	VR_OverrideProjection (r_matproj); // QVR
+	GL_FrustumMatrix(proj, DEG2RAD(fovx), DEG2RAD(fovy), znear, zfar);
+	VR_OverrideProjection (proj); // QVR
 
 	// View matrix
-	RotationMatrix(r_matview, DEG2RAD(-r_refdef.viewangles[ROLL]), 0);
+	RotationMatrix(view, DEG2RAD(-r_refdef.viewangles[ROLL]), 0);
 	RotationMatrix(rotation, DEG2RAD(-r_refdef.viewangles[PITCH]), 1);
-	MatrixMultiply(r_matview, rotation);
+	MatrixMultiply(view, rotation);
 	RotationMatrix(rotation, DEG2RAD(-r_refdef.viewangles[YAW]), 2);
-	MatrixMultiply(r_matview, rotation);
+	MatrixMultiply(view, rotation);
 
 	TranslationMatrix(translation, -r_refdef.vieworg[0], -r_refdef.vieworg[1], -r_refdef.vieworg[2]);
-	MatrixMultiply(r_matview, translation);
+	MatrixMultiply(view, translation);
+	*outznear = znear;
+}
+
+/*
+=============
+R_StereoViewMatrices -- QVR
+
+Single-pass stereo (vr/vr_stereo_single.cpp): the current eye's projection, view and view-projection, from r_refdef as
+its V_SetupView left it (R_SetFrustum's, before R_SetupView).
+=============
+*/
+void R_StereoViewMatrices (float proj[16], float view[16], float viewproj[16])
+{
+	float znear;
+	R_ViewMatrices (r_refdef.fov_x, r_refdef.fov_y, proj, view, &znear);
+	memcpy (viewproj, proj, 16 * sizeof (float));
+	MatrixMultiply (viewproj, view);
+}
+
+void R_SetFrustum (void)
+{
+	float znear, zfar;
+	float logznear, logzfar;
+
+	R_ViewMatrices (r_fovx, r_fovy, r_matproj, r_matview, &znear); // QVR: (shared with R_StereoViewMatrices)
+	zfar = gl_farclip.value;
 	VR_PortalClip (r_matproj, r_matview); // QVR: through a teleporter, the near plane its plane (vr/vr_portals.cpp)
+	VR_TemporalProjection (r_matproj, r_matview); // QVR: the eye's sub-pixel jitter (vr_taa), its motion vectors' block
 
 	// View projection matrix
 	memcpy(r_matviewproj, r_matproj, 16 * sizeof(float));
@@ -876,6 +910,8 @@ void R_SetFrustum (void)
 	ExtractFrustumPlane (r_matviewproj, 0, -1.f, false, &frustum[1]); // left
 	ExtractFrustumPlane (r_matviewproj, 1, -1.f, false, &frustum[2]); // bottom
 	ExtractFrustumPlane (r_matviewproj, 1,  1.f, true,  &frustum[3]); // top
+	if (VR_StereoSinglePhase () == 1) // QVR: single-pass stereo's pass: a frustum holding both eyes' (vr/vr_stereo_single.cpp)
+		VR_StereoSingleFrustum (frustum);
 
 	logznear = log2f (znear);
 	logzfar = log2f (zfar);
@@ -891,7 +927,7 @@ GL_NeedsSceneEffects
 */
 qboolean GL_NeedsSceneEffects (void)
 {
-	return framebufs.scene.samples > 1 || water_warp || r_refdef.scale != 1;
+	return framebufs.scene.samples > 1 || water_warp || r_refdef.scale != 1 || VR_BloodActive (); // QVR
 }
 
 /*
@@ -938,6 +974,7 @@ void R_SceneViewport (int viewport[4])
 void R_SetupGL (void)
 {
 	int viewport[4];
+	VR_StereoSingleEyeTargets (); // QVR: single-pass stereo: an eye's view after the pass renders on in its layer (vr/vr_stereo_single.cpp)
 	if (!GL_NeedsSceneEffects ())
 	{
 		GL_BindFramebufferFunc (GL_FRAMEBUFFER, GL_NeedsPostprocess () ? framebufs.composite.fbo : 0u);
@@ -1102,6 +1139,8 @@ void R_SetupView (void)
 
 	R_SetFrustum ();
 	VR_DecalsFrame (r_framedata.decalclock); // QVR: the decals on the world (vr/vr_decals.cpp)
+	VR_DecalCarveFrame (r_framedata.decalcarve); // QVR: ... carved (vr/vr_decals.cpp)
+	VR_PermDecalsFrame (r_framedata.permdecals); // QVR: and those baked for good (vr/vr_permdecals.cpp)
 
 	VR_ProfileBegin ("mark surfaces"); // QVR: profile
 	R_MarkSurfaces (); //johnfitz -- create texture chains from PVS
@@ -1180,22 +1219,113 @@ static void R_DrawWater (qboolean translucent)
 R_DrawEntitiesOnList
 =============
 */
+static entity_t *r_stereo_alias[MAX_VISEDICTS]; // QVR: the alias models a single-pass stereo pass draws
+#ifdef QVR_TRACY
+static entity_t *r_zoned_world[MAX_VISEDICTS], *r_zoned_player[MAX_VISEDICTS]; // QVR: R_DrawAliasModelsZoned's parts
+static const char *const r_zoned_player_parts[VR_DRAW_GROUPS] = { // QVR: the player's models' GPU sub-zones (VR_DRAW_*)
+	"player: hands", "player: body", "player: held", "player: holstered", "player: worn", "player: lying gear",
+	"player: mirror image", "player: other"};
+#endif
+
+/*
+=============
+R_DrawBrushModelsZoned -- QVR
+
+R_DrawBrushModels, in profiling builds with vr_tracy_gpu_detail split into the world and the brush entities, each its
+own GPU zone (drawn as one batch otherwise: the same draws, in the same order). Split, the brush entities' depth is not
+in the world's depth pre-pass, so the world shades a few more pixels than unsplit: a detail capture's cost.
+=============
+*/
+static void R_DrawBrushModelsZoned (entity_t **ents, int count)
+{
+	if (!vr_tracy_gpu_zones || count < 2 || ents[0] != &cl_entities[0])
+	{
+		R_DrawBrushModels (ents, count);
+		return;
+	}
+	VR_GPUZoneBegin ("world");
+	R_DrawBrushModels (ents, 1);
+	VR_GPUZoneEnd ();
+	VR_GPUZoneBegin ("brush entities");
+	R_DrawBrushModels (ents + 1, count - 1);
+	VR_GPUZoneEnd ();
+}
+
+/*
+=============
+R_DrawAliasModelsZoned -- QVR
+
+R_DrawAliasModels, in profiling builds with vr_tracy_gpu_detail (the opaque pass only: the translucent one keeps its
+sorted order) split into the monsters and the rest of the world's models, then the player's own (the hands, the body,
+the gloves, what is held and holstered: VR_IsViewEntity), each its own GPU zone. Each part keeps its order.
+=============
+*/
+static void R_DrawAliasModelsZoned (entity_t **ents, int count, qboolean alphapass)
+{
+#ifndef QVR_TRACY
+	(void)alphapass;
+	R_DrawAliasModels (ents, count);
+#else
+	int i, world = 0, player = 0;
+	if (!vr_tracy_gpu_zones || alphapass || count < 2)
+	{
+		R_DrawAliasModels (ents, count);
+		return;
+	}
+	for (i = 0; i < count; i++) // (copied: the sorted list is the other passes' too)
+	{
+		if (VR_IsViewEntity (ents[i]))
+			r_zoned_player[player++] = ents[i];
+		else
+			r_zoned_world[world++] = ents[i];
+	}
+	VR_GPUZoneBegin ("alias: world models");
+	R_DrawAliasModels (r_zoned_world, world);
+	VR_GPUZoneEnd ();
+	VR_GPUZoneBegin ("alias: player models");
+	for (i = 0; i < player; ) // its parts (VR_ViewEntityGroup), each run of one a zone of its own, in the drawn order
+	{
+		int group = VR_ViewEntityGroup (r_zoned_player[i]), j;
+		for (j = i + 1; j < player && VR_ViewEntityGroup (r_zoned_player[j]) == group; j++)
+			;
+		VR_GPUZoneBegin (r_zoned_player_parts[group >= 0 && group < VR_DRAW_GROUPS ? group : VR_DRAW_OTHER]);
+		R_DrawAliasModels (r_zoned_player + i, j - i);
+		VR_GPUZoneEnd ();
+		i = j;
+	}
+	VR_GPUZoneEnd ();
+#endif
+}
+
 void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 {
 	int		*ofs;
+	int		stereophase; // QVR
 	entity_t **entlist = cl_sorted_visedicts;
 
 	GL_BeginGroup (alphapass ? "Translucent entities" : "Opaque entities");
 
 	ofs = cl_modtype_ofs + (alphapass ? 1 : 0);
+	stereophase = alphapass ? 0 : VR_StereoSinglePhase (); // QVR: single-pass stereo: the multiview pass (1) draws the opaque
+	// world, brush models and the alias models away from the eyes; an eye's own view after it (2) the rest
 	VR_ProfileBeginGPU (alphapass ? "brush" : "world+brush"); // QVR: profile
-	R_DrawBrushModels  (entlist + ofs[2*mod_brush ], ofs[2*mod_brush +1] - ofs[2*mod_brush ]);
+	if (!stereophase || (stereophase == 1) == (VR_StereoSingleTakesBrush () != 0)) // QVR
+		R_DrawBrushModelsZoned (entlist + ofs[2*mod_brush ], ofs[2*mod_brush +1] - ofs[2*mod_brush ]);
 	VR_ProfileEnd (); // QVR
 	VR_ProfileBeginGPU ("alias"); // QVR: profile
-	R_DrawAliasModels  (entlist + ofs[2*mod_alias ], ofs[2*mod_alias +1] - ofs[2*mod_alias ]);
+	if (stereophase) // QVR: the alias models each pass takes
+	{
+		int i, n = 0, count = ofs[2*mod_alias +1] - ofs[2*mod_alias ];
+		for (i = 0; i < count; i++)
+			if (!VR_StereoSingleTakesAlias (entlist[ofs[2*mod_alias ] + i]) == (stereophase == 2))
+				r_stereo_alias[n++] = entlist[ofs[2*mod_alias ] + i];
+		R_DrawAliasModelsZoned (r_stereo_alias, n, alphapass);
+	}
+	else
+	R_DrawAliasModelsZoned (entlist + ofs[2*mod_alias ], ofs[2*mod_alias +1] - ofs[2*mod_alias ], alphapass);
 	VR_ProfileEnd (); // QVR
 	VR_ProfileBeginGPU ("sprite models"); // QVR: profile
-	if (!alphapass)
+	if (!alphapass && stereophase != 1) // QVR: (per eye)
 		R_DrawSpriteModels (entlist + cl_modtype_ofs[2*mod_sprite], cl_modtype_ofs[2*mod_sprite+2] - cl_modtype_ofs[2*mod_sprite]);
 	VR_ProfileEnd (); // QVR
 
@@ -1938,18 +2068,55 @@ void R_ShowTris (void)
 R_BeginTranslucency
 ================
 */
-static void R_BeginTranslucency (void)
+static qboolean r_oit_cleared; // QVR: this view's OIT targets cleared (vr_oit_lazy_clear: at the first translucent draw)
+static qboolean r_oit_inpass; // QVR: between R_BeginTranslucency and R_EndTranslucency (the OIT targets bound)
+int r_oit_views, r_oit_viewsdrawn; // QVR: views with the OIT pass, and those with something translucent (vr_oit_stats)
+static int r_oit_firstby[5]; // QVR: ... which kind of draw came first (R_PrepareOITDraw's site)
+
+/*
+================
+R_PrepareOITDraw -- QVR
+
+Before a draw into the OIT targets (bound): their clear, once a view, at the first such draw (vr_oit_lazy_clear; off:
+in R_BeginTranslucency as before). A view with nothing translucent clears nothing and skips the resolve.
+================
+*/
+void R_PrepareOITDraw (int site)
 {
 	static const float zeroes[4] = {0.f, 0.f, 0.f, 0.f};
 	static const float ones[4] = {1.f, 1.f, 1.f, 1.f};
 
+	if (r_oit_cleared || !r_oit_inpass)
+		return;
+	r_oit_cleared = true;
+	r_oit_viewsdrawn++;
+	r_oit_firstby[site >= 0 && site < 5 ? site : 0]++;
+	GL_ClearBufferfvFunc (GL_COLOR, 0, zeroes);
+	GL_ClearBufferfvFunc (GL_COLOR, 1, ones);
+}
+
+void R_OITStats (void)
+{
+	Con_Printf ("oit: %d views, %d drew something translucent (cleared and resolved), %d skipped%s\n", r_oit_views,
+		r_oit_viewsdrawn, r_oit_views - r_oit_viewsdrawn, VR_OITLazyClear () ? "" : " (vr_oit_lazy_clear 0: every view cleared)");
+	Con_Printf ("oit: the first translucent draw: models %d, particles %d, brush models %d, liquids %d\n", r_oit_firstby[1],
+		r_oit_firstby[2], r_oit_firstby[3], r_oit_firstby[4]);
+	r_oit_views = r_oit_viewsdrawn = 0;
+	memset (r_oit_firstby, 0, sizeof (r_oit_firstby));
+}
+
+static void R_BeginTranslucency (void)
+{
 	GL_BeginGroup ("Translucent objects");
 
 	if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT)
 	{
 		GL_BindFramebufferFunc (GL_FRAMEBUFFER, framesetup.oit_fbo);
-		GL_ClearBufferfvFunc (GL_COLOR, 0, zeroes);
-		GL_ClearBufferfvFunc (GL_COLOR, 1, ones);
+		r_oit_cleared = false;
+		r_oit_inpass = true;
+		r_oit_views++;
+		if (!VR_OITLazyClear ())
+			R_PrepareOITDraw (0);
 
 		glEnable (GL_STENCIL_TEST);
 		glStencilMask (2);
@@ -1965,7 +2132,15 @@ R_EndTranslucency
 */
 static void R_EndTranslucency (void)
 {
-	if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT)
+	r_oit_inpass = false;
+	if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT && !r_oit_cleared) // QVR: nothing drawn into them (vr_oit_lazy_clear)
+	{
+		GL_BindFramebufferFunc (GL_FRAMEBUFFER, framesetup.scene_fbo);
+		glStencilFunc (GL_EQUAL, 2, 2); // (the stencil state the resolve leaves)
+		glStencilOp (GL_KEEP, GL_KEEP, GL_KEEP);
+		glDisable (GL_STENCIL_TEST);
+	}
+	else if (R_GetEffectiveAlphaMode () == ALPHAMODE_OIT)
 	{
 		GL_BeginGroup  ("OIT resolve");
 
@@ -1999,17 +2174,22 @@ void R_RenderScene (void)
 	VR_ProfileBeginGPU ("scene setup"); // QVR: profile
 	R_SetupScene (); //johnfitz -- this does everything that should be done once per call to RenderScene
 
+	// QVR: single-pass stereo: an eye's view after the multiview pass goes on in its layer (cleared there, its hidden
+	// area and what the pass drew) instead of a clear (vr/vr_stereo_single.cpp)
+	if (!VR_StereoSingleSceneBegun ())
+	{
 	VR_ProfileBegin ("clear"); // QVR: profile
 	R_Clear ();
 	VR_ProfileEnd (); // QVR
 	VR_DrawHiddenArea (); // QVR: the lenses' hidden area, skipped by what follows
 	VR_DrawPortalMask (); // QVR: through a teleporter, all but the gate skipped (vr/vr_portals.cpp)
+	}
 
 	Fog_EnableGFog (); //johnfitz
 	VR_ProfileEnd (); // QVR
 
 	VR_ProfileBegin ("sound mix"); // QVR: profile
-	S_ExtraUpdate (); // don't let sound get messed up if going slow
+	S_MixKick (true); // don't let sound get messed up if going slow -- QVR: on the thread pool, joined by S_Update (snd_mixasync)
 	VR_ProfileEnd (); // QVR
 
 	R_DrawEntitiesOnList (false); //johnfitz -- false means this is the pass for nonalpha entities
@@ -2044,11 +2224,13 @@ void R_RenderScene (void)
 	R_EndTranslucency ();
 	VR_ProfileEnd (); // QVR
 
+	VR_TemporalReactive (1); // QVR: the haze and the particles have no motion vectors (vr/vr_temporal.cpp)
 	VR_ProfileBeginGPU ("heat haze"); // QVR: profile
 	VR_DrawHeatHaze (); // QVR: the air shimmering over lava, round explosions and flames (vr/vr_haze.cpp)
 	VR_ProfileEnd (); // QVR
 
 	VR_DrawSceneTranslucent (); // QVR: particles
+	VR_TemporalReactive (0); // QVR
 
 	VR_ProfileBeginGPU ("view model"); // QVR: profile
 	R_DrawViewModel (); //johnfitz -- moved here from R_RenderView -- il8r -- moved for oit reasons
@@ -2090,7 +2272,7 @@ void R_WarpScaleView (void)
 	srcw = r_refdef.vrect.width / r_refdef.scale;
 	srch = r_refdef.vrect.height / r_refdef.scale;
 
-	needwarpscale = r_refdef.scale != 1 || water_warp || (v_blend[3] && gl_polyblend.value && !softemu);
+	needwarpscale = r_refdef.scale != 1 || water_warp || VR_BloodActive () || (v_blend[3] && gl_polyblend.value && !softemu);
 	fbodest = GL_NeedsPostprocess () ? framebufs.composite.fbo : 0;
 
 	if (msaa)
@@ -2128,6 +2310,7 @@ void R_WarpScaleView (void)
 
 	t = M_ForcedUnderwater () ? realtime : cl.time;
 	GL_Uniform4fFunc (0, smax, tmax, water_warp ? 1.f/256.f : 0.f, (float)t);
+	VR_BloodBind (); // QVR: before the existing color shift (black fades stay black)
 	if (v_blend[3] && gl_polyblend.value && !softemu)
 		GL_Uniform4fvFunc (1, 1, v_blend);
 	else
@@ -2139,6 +2322,38 @@ void R_WarpScaleView (void)
 	glDrawArrays (GL_TRIANGLES, 0, 3);
 
 	GL_EndGroup ();
+}
+
+/*
+================
+R_RenderStereoSingle -- QVR
+
+Single-pass stereo's multiview pass (vr/vr_stereo_single.cpp, docs/vr-port/STEREO.md): the view set up once for both
+eyes (the first eye's r_refdef, a frustum and PVS holding both, both eyes' light clusters), then the passes ported so
+far drawn once into both layers of the eyes' arrays. Each eye's own R_RenderView follows and draws the rest.
+================
+*/
+void R_RenderStereoSingle (void)
+{
+	int view_numvisedicts = cl_numvisedicts;
+	memcpy (r_view_visedicts, cl_visedicts, view_numvisedicts * sizeof(cl_visedicts[0]));
+
+	VR_ProfileBeginGPU ("setup view"); // QVR: profile
+	R_SetupView ();
+	VR_ProfileEnd ();
+	VR_ProfileBeginGPU ("scene");
+	{
+		framesetup_t saved = framesetup;
+		framesetup.scene_fbo = VR_StereoSingleBeginScene (); // (a pass that binds the scene again binds the arrays)
+		Fog_EnableGFog ();
+		R_DrawEntitiesOnList (false);
+		VR_StereoSingleEndScene ();
+		framesetup = saved;
+	}
+	VR_ProfileEnd ();
+
+	memcpy (cl_visedicts, r_view_visedicts, view_numvisedicts * sizeof(cl_visedicts[0]));
+	cl_numvisedicts = view_numvisedicts;
 }
 
 /*
@@ -2180,6 +2395,10 @@ void R_RenderView (void)
 	VR_ProfileBeginGPU ("scene"); // QVR: profile
 	R_RenderScene ();
 	VR_ProfileEnd (); // QVR
+	if (framesetup.scene_fbo == framebufs.scene.fbo) // QVR: temporal anti-aliasing (vr/vr_temporal.cpp), before the warp and post-processing
+		VR_TemporalResolve (framebufs.scene.fbo, framebufs.scene.color_tex, framebufs.scene.depth_stencil_tex);
+	else
+		VR_TemporalResolve (framebufs.composite.fbo, framebufs.composite.color_tex, framebufs.composite.depth_stencil_tex);
 	VR_ProfileBeginGPU ("resolve/warp"); // QVR: profile
 	R_WarpScaleView ();
 	VR_ProfileEnd (); // QVR

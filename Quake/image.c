@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //image.c -- image loading
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 
 static byte *Image_LoadPCX (FILE *f, int *width, int *height);
 static byte *Image_LoadLMP (FILE *f, int *width, int *height);
@@ -135,8 +136,11 @@ unsigned char *Image_DecodeMemory (const unsigned char *bytes, int length, int *
 
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt)
 {
+	VR_TRACY_SCOPE("Image decode");
 	double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 	byte *data = Image_LoadImageRun (name, width, height, fmt);
+	if (data)
+		VR_RangerHeadImage (name, data, *width, *height, *fmt); // QVR: the body's skins with the ranger's head (vr_rangerhead.cpp)
 	VR_TimeAdd (data ? "image files found and decoded (png, tga, pcx, lmp)" : "image files looked for, none found", Sys_DoubleTime () - t0);
 	return data;
 }
@@ -148,9 +152,12 @@ static unsigned char *Image_HunkAlloc (int bytes, const char *what)
 
 static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum srcformat *fmt)
 {
+	VR_TRACY_SCOPE("Image decode");
 	static const char *const stbi_formats[] = {"png", "tga", "jpg", NULL};
 	FILE	*f;
 	int		i;
+	if (!strncmp (name, "pbrmix/", 7)) // QVR: content companion composition, also on texture reload
+		return VR_PBRImage (name, width, height, fmt);
 
 	for (i = 0; stbi_formats[i]; i++)
 	{
@@ -173,7 +180,7 @@ static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum
 				return data;
 			}
 			long start = ftell (f); // (where the image starts: the cache's key again after the decoding)
-			data = extmap ? NULL : VR_ImagePrefetchTake (loadfilename, f, com_filesize, width, height); // QVR: decoded ahead (vr_imgprefetch.cpp)
+			data = VR_ImagePrefetchTake (loadfilename, f, com_filesize, width, height); // QVR: decoded ahead (vr_imgprefetch.cpp: the start-up's list, a map load's textures)
 			if (!data)
 				data = stbi_load_from_file (f, width, height, NULL, 4);
 			if (data && !extmap)
@@ -306,6 +313,7 @@ Image_LoadPCX
 */
 static byte *Image_LoadPCX (FILE *f, int *width, int *height)
 {
+	VR_TRACY_SCOPE("Image decode");
 	pcxheader_t	pcx;
 	int			x, y, w, h, readbyte, runlength, start;
 	byte		*p, *data;
@@ -401,6 +409,7 @@ Image_LoadLMP
 */
 static byte *Image_LoadLMP (FILE *f, int *width, int *height)
 {
+	VR_TRACY_SCOPE("Image decode");
 	lmpheader_t	qpic;
 	size_t		pix;
 	int			mark;

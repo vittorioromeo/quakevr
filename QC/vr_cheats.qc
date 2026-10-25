@@ -77,7 +77,7 @@ void(float xHand) VR_Cheat_FillClip =
     {
         return;
     }
-    float size = WeaponIdToBaseClipSize(VRGetWeapon(xHand));
+    float size = VR_ClipSizeIn(self, xHand); // (AD support: the Widowmaker's tube)
     if(size > 0 && VRGetWeaponClip(xHand) < size)
     {
         VRSetWeaponClip(xHand, size);
@@ -207,6 +207,7 @@ void(entity e) VR_Scene_Remove =
         e.frame = 0;
         return;
     }
+    VR_AD_RemoveAttachments(e);
     e.nextthink2 = 0;
     remove(e);
 };
@@ -220,7 +221,6 @@ void(float xWhat, float xCountOnly) VR_Scene_Clean =
     entity e = nextent(world);
     while(e)
     {
-        entity n = nextent(e);
         float kind = VR_Scene_Kind(e);
         if(kind)
         {
@@ -249,7 +249,7 @@ void(float xWhat, float xCountOnly) VR_Scene_Clean =
                 }
             }
         }
-        e = n;
+        e = nextent(e); // (after the removal: it may free other entities; nextent skips them)
     }
     sprint(self, sprintf("scene%s: gibs %g (heads %g), limbs %g, small gibs %g (brains %g), ", xCountOnly ? "" : " before",
                          gibs, heads, limbs, sgibs, brains));

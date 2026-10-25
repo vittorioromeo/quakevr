@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Dawn of the Machine acceptance aids (Debug > Tests > Dawn of the Machine Tests, `vr_mg3_test`). Its campaign
 // only (Official Campaigns, or `vr_campaign_native mg3`); results print with developer 1 as "mg3test:" lines.
 float MG3_test_pass, MG3_test_fail;
@@ -791,3 +792,4 @@ void() MG3_TestFrame = {
     else dprint(sprintf("mg3test: unknown request %g\n", request));
     self = oldself; other = oldother; activator = oldact;
 };
+#endif

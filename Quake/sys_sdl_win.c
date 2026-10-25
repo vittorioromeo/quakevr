@@ -100,8 +100,6 @@ static void WideStringToUTF8 (const wchar_t *src, char *dst, size_t maxbytes)
 
 FILE *Sys_fopen (const char *path, const char *mode)
 {
-	if (strpbrk (mode, "wa+"))
-		VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	wchar_t	wpath[MAX_PATH];
 	wchar_t	wmode[8];
 	int		i;
@@ -148,6 +146,9 @@ FILE *Sys_fopen (const char *path, const char *mode)
 
 	f = _wfopen (wpath, wmode);
 
+	if (strpbrk (mode, "wa+"))
+		VR_FileCacheForgetFile (path); // QVR: the loading's listing of its directory, once it is there (vr_fscache.cpp)
+
 	return f;
 }
 
@@ -163,31 +164,37 @@ qfileofs_t Sys_ftell (FILE *file)
 
 int Sys_remove (const char *path)
 {
-	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	wchar_t	wpath[MAX_PATH];
+	int		result;
 	UTF8ToWideString (path, wpath, countof (wpath));
-	return _wremove (wpath);
+	result = _wremove (wpath);
+	VR_FileCacheForgetFile (path); // QVR: the loading's listing of its directory, once it is gone (vr_fscache.cpp)
+	return result;
 }
 
 int Sys_rename (const char *oldname, const char *newname)
 {
-	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	wchar_t	oldnamew[MAX_PATH];
 	wchar_t	newnamew[MAX_PATH];
+	int		result;
 	UTF8ToWideString (oldname, oldnamew, countof (oldnamew));
 	UTF8ToWideString (newname, newnamew, countof (newnamew));
-	return _wrename (oldnamew, newnamew);
+	result = _wrename (oldnamew, newnamew);
+	VR_FileCacheForgetMoved (oldname, newname); // QVR: the loading's listings of both directories, once moved (vr_fscache.cpp)
+	return result;
 }
 
 // QVR: newname replaced by oldname in one step (a crash or a full disk never leaves newname half written); 0 on success
 int Sys_ReplaceFile (const char *oldname, const char *newname)
 {
-	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	wchar_t	oldnamew[MAX_PATH];
 	wchar_t	newnamew[MAX_PATH];
+	int		result;
 	UTF8ToWideString (oldname, oldnamew, countof (oldnamew));
 	UTF8ToWideString (newname, newnamew, countof (newnamew));
-	return MoveFileExW (oldnamew, newnamew, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ? 0 : -1;
+	result = MoveFileExW (oldnamew, newnamew, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) ? 0 : -1;
+	VR_FileCacheForgetMoved (oldname, newname); // QVR: the loading's listings of both directories, once moved (vr_fscache.cpp)
+	return result;
 }
 
 qfileofs_t Sys_filelength (FILE *f)
@@ -1055,6 +1062,12 @@ static const wchar_t errortxt2[] = L"\nQUAKE ERROR: ";
 qboolean Sys_IsDebuggerPresent (void)
 {
 	return IsDebuggerPresent ();
+}
+
+// QVR: a frame debugger injected in the process (RenderDoc, Nsight Graphics): vr_gl_markers 2's
+qboolean Sys_GraphicsDebuggerPresent (void)
+{
+	return GetModuleHandleA ("renderdoc.dll") != NULL || GetModuleHandleA ("Nvda.Graphics.Interception.dll") != NULL;
 }
 
 void Sys_ReportError (const char *error, ...)

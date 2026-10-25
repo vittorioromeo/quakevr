@@ -229,8 +229,10 @@ void() supsham_smash10 = [$smash10, supsham_smash11]
         return;
     ai_charge(0);
     vector delta = self.enemy.origin - self.origin;
-    if(vlen(delta) > 100)
+    if(vlen(delta) > VR_MeleeReach(100))
         return;
+    if(!VR_MeleeArc_Hits(FALSE))
+        return; // QVR: (melee arc: fight.qc)
     if(!CanDamage(self.enemy, self))
         return;
     float ldmg = (random() + random() + random()) * 40;
@@ -253,8 +255,10 @@ void(float side) SupShamClaw =
         return;
     ai_charge(10);
     vector delta = self.enemy.origin - self.origin;
-    if(vlen(delta) > 100)
+    if(vlen(delta) > VR_MeleeReach(100))
         return;
+    if(!VR_MeleeArc_Hits(TRUE))
+        return; // QVR: (melee arc: fight.qc)
     float ldmg = (random() + random() + random()) * 20;
     T_Damage(self.enemy, self, self, ldmg);
     sound(self, CHAN_VOICE, "shambler/smack.wav", 1, ATTN_NORM);

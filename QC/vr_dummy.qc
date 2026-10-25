@@ -45,6 +45,7 @@
 .float vr_dummy_enemy;       // its enemy (VR_Dummy_Type's number), its stand-in's too while it is dead
 .void() vr_dummy_th_die;     // its enemy's death and pain (its own while it stands: VR_Dummy_Die gives them back)
 .void(entity attacker, float damage) vr_dummy_th_pain;
+.void() vr_dummy_th_run;     // its enemy's run (never called: where its get-up ends, VR_Knockdown_Step hands it back)
 .float vr_dummy_movetype;    // its enemy's movetype (it stands still: MOVETYPE_NONE)
 .float vr_dummy_floor;       // the floor it stands on (its box's bottom: its enemies' boxes differ)
 float VR_DUMMY_TYPES = 52;   // the enemies (VR_Dummy_Type: 0 grunt .. 18 electric eel; Dawn of the Machine's 19 rocket ogre, 20 demo dog,
@@ -140,7 +141,8 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
     {
         vr_dummy_colour = orange;
         string bash = sprintf("bash with the %s, %s",
-                       WeaponIdToWeaponName(VRGetEntWeapon(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand)),
+                       WeaponNameOf(VRGetEntWeapon(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand),
+                           VRGetEntWeaponFlags(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand)),
                        vr_bash_both ? "two hands" : "one hand");
         bash = vr_bash_counter ? sprintf("counter %s (x%.2f)", bash, vr_bash_counter) : bash;
         return vr_bash_exhaust_dmg > 0 ? sprintf("%s, exhausted (damage x%.2f, knockback x%.2f)", bash, vr_bash_exhaust_dmg,
@@ -186,7 +188,7 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         {
             what = sprintf("%s with %s", what, b.mh_part);
         }
-        what = sprintf("melee: %s, %s, %.1f m/s (x%.2f)", what, VR_Dummy_HandName(vr_hithand), b.mh_speed, b.mh_strength);
+        what = sprintf("melee: %s, %s, %.1f m/s (x%.2f)", what, VR_Dummy_HandName(vr_hithand), b.mh_dmgspeed, b.mh_strength);
         if(b.mh_counter > 0)
         {
             what = sprintf("%s, counter x%.2f", what, b.mh_counter); // after a parry (vr_counter)
@@ -203,7 +205,7 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         string weapon = vr_hitweapon;
         if(weapon == "")
         {
-            weapon = vr_hithand >= 0 ? WeaponIdToWeaponName(VRGetEntWeapon(attacker, vr_hithand)) : "hitscan";
+            weapon = vr_hithand >= 0 ? WeaponNameOf(VRGetEntWeapon(attacker, vr_hithand), VRGetEntWeaponFlags(attacker, vr_hithand)) : "hitscan";
         }
         return sprintf("weapon fire: %s", weapon);
     }
@@ -1424,70 +1426,5 @@ entity(entity p) VR_Dummy_Nearest =
     return best;
 };
 
-// The zone a shot from 64 units ahead of it, level, strikes at height `xUp` over its origin (-1: none).
-float(entity d, float xUp) VR_Dummy_TestZone =
-{
-    makevectors('0 1 0' * d.angles_y);
-    vector at = d.origin + '0 0 1' * xUp;
-    if(PositionalHead(d) && xUp > d.maxs_z * 0.5)
-    {
-        at = d.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp; // (its head sphere's middle)
-    }
-    vector from = at + v_forward * 64;
-    traceline(from, at - v_forward * 64, FALSE, self); // (self: you, between)
-    if(trace_ent != d)
-    {
-        return -2; // (missed it)
-    }
-    return PositionalRegion(d, trace_endpos, at - from);
-};
-
-void(float xTest) VR_Dummy_Test =
-{
-    entity d = VR_Dummy_Nearest(self);
-    if(d == world)
-    {
-        bprint("dummytest: no training dummy\n");
-        return;
-    }
-    VR_Dummy_Health(d);
-    if(xTest == 1)
-    {
-        bprint(sprintf("dummytest: %s (%s) model %s box %v .. %v\n", VR_Dummy_Name(d), d.classname, d.model, d.mins,
-            d.maxs));
-        bprint(sprintf("dummytest: own health %g, health %g/%g\n", d.vr_dummy_own_health, d.vr_dummy_hp, d.vr_dummy_hpmax));
-        bprint(sprintf("dummytest: zones head %g body %g legs %g (1 head, 0 body, 2 limbs, 3 legs, -1 none, -2 missed)\n",
-            VR_Dummy_TestZone(d, d.maxs_z), VR_Dummy_TestZone(d, d.maxs_z * 0.3), VR_Dummy_TestZone(d, d.mins_z * 0.5)));
-        return;
-    }
-    if(xTest == 2 || xTest == 3)
-    {
-        float hurt = xTest == 2 ? 10 : max(1, d.vr_dummy_hp);
-        T_Damage(d, self, self, hurt);
-        bprint(sprintf("dummytest: hit for %g: health %g/%g, %s\n", hurt, d.vr_dummy_hp, d.vr_dummy_hpmax,
-            VR_IsDummy(d) ? "standing" : sprintf("killed (%s, health %g)", d.classname, d.health)));
-        return;
-    }
-    bprint(sprintf("dummytest: health %g/%g (%.1f s since its last hit)\n", d.vr_dummy_hp, d.vr_dummy_hpmax,
-        time - d.vr_dummy_hit_time));
-};
-
-// Every server frame (StartFrame): a test asked for (vr_dummy_test).
-void() VR_Dummy_TestFrame =
-{
-    float ask = cvar("vr_dummy_test");
-    if(!ask)
-    {
-        return;
-    }
-    cvar_set("vr_dummy_test", "0");
-    entity p = find(world, classname, "player");
-    if(p == world)
-    {
-        return;
-    }
-    entity oself = self;
-    self = p;
-    VR_Dummy_Test(ask);
-    self = oself;
-};
+float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knockdown_Try;
+void(entity e, vector xDir, float xSpeed) VR_Shove_Start;

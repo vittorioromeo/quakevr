@@ -37,6 +37,13 @@
 .entity mainhand_wtgrip; // on a player: the torch each hand grips on its wall
 .entity offhand_wtgrip;
 
+// Torches and flames made in a live game (the toolgun's Fire tab; ROUND22.md, "Torches and fires from the toolgun"): the
+// engine sets vr_spawn_live round a spawn function it runs after the map has spawned (box3d::spawnClass). What the map
+// would make static (makestatic, ambientsound: only the level's signon, which a client already in the game never reads
+// again) stays an entity instead, its crackle played on it (VR_FlameProp_Setup, light_torch_small_walltorch).
+// (vr_spawn_live itself: vr_util.qc, read by items.qc too.)
+.float vr_flameprop;    // a free-standing flame made live (a prop: hangs where placed until taken): 1 small, 2 large, 3 a candle
+
 float WT_LEVELS = 16;           // the stick's frames 1..16: its fire in sixteenths
 float WT_WALL_FRAME = 17;       // the stick's frame on its wall (the engine draws id's flame on it, and its light)
 vector WT_HEAD = '1.2 0 0';     // the stick's head (its pit: make_walltorch.py), in its model's axes
@@ -286,13 +293,23 @@ void(entity t, entity by, vector dir) VR_WallTorch_KnockOff =
 
 // A wall torch met by a shot, a missile, an explosion's radius damage or a thrown prop's blow (combat.qc
 // T_DamageImpl): it comes off its wall. TRUE: its coming off is what the damage did (none of it is dealt to it, and it
-// is never gibbed). Not a melee blow (xMelee): a fist closed on the way to a torch keeps taking it by hand, and a
-// torch's own club is not a shot. Off (vr_walltorch_shot 0): as in id's Quake, every shot goes through it.
+// is never gibbed). A player's melee blow (xMelee) knocks it off too, unless it is a fist closed on the way to it,
+// slower than a punch (the grab window, VR_WallTorch_CanGrip): that hand takes it. Off (vr_walltorch_shot 0): as in
+// id's Quake, every shot goes through it.
+float VR_WALLTORCH_PUNCH_SPEED = 2.5; // m/s of the hand (the flashlight's late grip's punch)
+float(entity t, entity xPlayer, float xHand) VR_WallTorch_CanGrip;
+void(entity t, entity xPlayer, float xHand, string xHow) VR_WallTorch_Grip;
 float(entity targ, entity inflictor, entity attacker, float damage, float xMelee) VR_WallTorch_Shot =
 {
     if(!cvar_hget(cvarh_vr_walltorch_shot) || damage <= 0)
     {
         return FALSE;
+    }
+    if(xMelee && (attacker.flags & FL_CLIENT) && (vr_hithand == cVR_MainHand || vr_hithand == cVR_OffHand) &&
+       VR_WallTorch_CanGrip(targ, attacker, vr_hithand))
+    {
+        VR_WallTorch_Grip(targ, attacker, vr_hithand, "a blow with the grip closed");
+        return TRUE;
     }
     entity by = inflictor;
     if(by == world || by == attacker)
@@ -307,7 +324,6 @@ float(entity targ, entity inflictor, entity attacker, float damage, float xMelee
 // press at most vr_walltorch_grab_time ago with the hand slower than a punch: a fist closed on the way to the torch takes
 // it as it gets there (NOTES.md vrfiringrange_2026-10-02_15-56-57: a grip pressed before the hand was within reach, more
 // than the box's 0.2 s, never took it; the walltorch_grab_test.sh reaches pressed as they start missed 24 of 30).
-float VR_WALLTORCH_PUNCH_SPEED = 2.5; // m/s of the hand (the flashlight's late grip's punch)
 float(entity xPlayer, float xHand) VR_WallTorch_GripFresh =
 {
     if(VR_Carry_GripPressed(xPlayer, xHand))
@@ -327,7 +343,7 @@ float(entity xPlayer, float xHand) VR_WallTorch_GripFresh =
 // Whether `xPlayer`'s hand `xHand` may take hold of torch `t` on its wall now (its grip fresh, nothing in it).
 float(entity t, entity xPlayer, float xHand) VR_WallTorch_CanGrip =
 {
-    return t.wt_state == 0 && t.wt_gripper == world && cvar_hget(cvarh_vr_carry) &&
+    return t.wt_state == 0 && t.wt_gripper == world && // (Item Pickup Mode Vanilla too: not a pickup)
            VR_WallTorch_GripFresh(xPlayer, xHand) && VRIsHandEmpty(xPlayer, xHand) &&
            !VR_Forcegrab_IsHandBusy(xPlayer, xHand) && VR_WallTorch_Gripped(xPlayer, xHand) == world;
 };
@@ -523,9 +539,10 @@ float(vector p, vector a, vector b) VR_WallTorch_SegmentDist =
 // The map's flames (light_flame_large_yellow, light_flame_small_yellow, light_flame_small_white) are static entities,
 // gone from the entity list: each leaves its place here as it spawns, for VR_WallTorch_FireAt (not entities: those
 // would move the map's edict numbers). Set at each map's spawn, which a loaded save runs too (before its own globals).
-float VR_FIRE_SPOTS_MAX = 128;
-vector vr_fire_spot[128];
-float vr_fire_spot_large[128]; // 0 small flame2, 1 large flame2, 2 a static wall torch
+// Candles (3) are kept for the nails alone (VR_Burn_NailCheck): too small to light a torch, heat a blade or burn you.
+float VR_FIRE_SPOTS_MAX = 256;
+vector vr_fire_spot[256];
+float vr_fire_spot_large[256]; // 0 small flame2, 1 large flame2 (a brazier's), 2 a static wall torch, 3 a candle
 float vr_fire_spots;
 
 void(float xLarge) VR_FireSpot =
@@ -537,6 +554,32 @@ void(float xLarge) VR_FireSpot =
     vr_fire_spot[vr_fire_spots] = self.origin;
     vr_fire_spot_large[vr_fire_spots] = xLarge;
     vr_fire_spots = vr_fire_spots + 1;
+};
+
+// AD support: Arcane Dimensions' flames (ad_lights.qc: its torch, flames, pyre, braziers), static and lit for good (not
+// LIGHTOFF, nothing to switch them): their places too, as the map's own flames'.
+void(float xLarge) VR_AD_FireSpot =
+{
+    if(!(self.spawnflags & 1) && self.targetname == "")
+    {
+        VR_FireSpot(xLarge);
+    }
+};
+
+// Whether point `p` is in the toolgun's flame `f` (VR_FlameProp_Setup): the map's flame of its size (VR_WallTorch_FireAt's
+// fire spots), a candle's small one over its wick.
+float(entity f, vector p) VR_FlameProp_Hot =
+{
+    vector o = f.origin;
+    if(f.vr_flameprop == 3)
+    {
+        return VR_WallTorch_SegmentDist(p, o + '0 0 6', o + '0 0 13') < 3;
+    }
+    if(f.vr_flameprop == 2)
+    {
+        return VR_WallTorch_SegmentDist(p, o + '0 0 -6', o + '0 0 32') < 12;
+    }
+    return VR_WallTorch_SegmentDist(p, o + '0 0 -6', o + '0 0 12') < 9;
 };
 
 // A fire the head `xHead` of torch `t` is in: another torch's flame (on its wall, or taken and lit), one of the map's
@@ -553,6 +596,10 @@ string(entity t, vector xHead) VR_WallTorch_FireAt =
         // flame2.mdl's ball: the small one about 6 units wide, up to 16 over its origin; the large one 13 wide, to 39.
         // A little more all round: held into it, the torch's head is in it.
         vector o = vr_fire_spot[i];
+        if(vr_fire_spot_large[i] == 3)
+        {
+            continue; // a candle: nails only
+        }
         if(vr_fire_spot_large[i] == 2)
         {
             if(VR_WallTorch_SegmentDist(xHead, o + '0 0 1', o + '0 0 16') < 6)
@@ -578,6 +625,14 @@ string(entity t, vector xHead) VR_WallTorch_FireAt =
         if(f.model != "" && vlen(f.origin - xHead) < 16) // (misc_fireball's spawner, in the lava, has no model)
         {
             return "a lava ball";
+        }
+    }
+    // The toolgun's flames (VR_FlameProp_Setup): where they hang or are carried, the map's flames' sizes.
+    for(f = findflags(world, vr_flameprop, 3); f; f = findflags(f, vr_flameprop, 3))
+    {
+        if(f != t && VR_FlameProp_Hot(f, xHead))
+        {
+            return f.vr_flameprop == 2 ? "a large flame" : "a flame";
         }
     }
     // Every torch by its class, not findradius: that skips SOLID_NOT entities, and a torch in a hand is one
@@ -753,6 +808,101 @@ void() VR_WallTorch_Touch =
 };
 
 // ----------------------------------------------------------------------------
+// The toolgun's free-standing flames (vr_spawn_live: light_flame_large_yellow, light_flame_small_*, Rogue's candle and
+// lantern; ROUND22.md, "Torches and fires from the toolgun")
+//
+// The map's own are static. Made live, one is a prop that hangs where it was placed (upright, MOVETYPE_NONE: on a map's
+// brazier, a ledge, the floor) until a hand or a force grab takes it (VR_Carry: carried and thrown as a box; let go of,
+// it falls and tumbles as one). Its light is the engine's torch light (vr_emissive.cpp finds it by its model wherever it
+// is), its crackle the map's ambient one played on it (the engine moves it with it: vr_walltorch.cpp crackles). Resting,
+// the player meets it as one of the map's flames (vr_burning.qc VR_Burn_MapFrame); carried or thrown, its fire burns what
+// it touches as a lit torch's head does (vr_burn_touch: VR_Burn_TorchTouch) and what a throw of it hits; anywhere, it
+// heats blades and lights torches again (VR_WallTorch_FireAt).
+
+// Its fire's middle (VR_FlameProp_Hot's), as it is turned now.
+vector(entity f) VR_FlameProp_Centre =
+{
+    vector c = '0 0 4';
+    if(f.vr_flameprop == 3)
+    {
+        c = '0 0 10';
+    }
+    else if(f.vr_flameprop == 2)
+    {
+        c = '0 0 14';
+    }
+    return f.origin + modelpoint(f, f.angles, c);
+};
+
+// Its crackle (wt_crackle -1: due), from its first think: a sound started as it is made, in the toolgun's input before
+// the server's frame, is cleared with that frame's datagram unsent.
+void() VR_FlameProp_Think =
+{
+    self.nextthink = time + 0.1;
+    if(self.wt_crackle == -1)
+    {
+        VR_WallTorch_Crackle(self, TRUE);
+    }
+    if(pointcontents(VR_FlameProp_Centre(self)) == CONTENT_WATER)
+    {
+        return; // (under water it burns nothing; out again, it does)
+    }
+    // Carried or thrown, its fire burns what it touches as a torch's head; resting, the player meets it as one of the
+    // map's flames (vr_burning.qc VR_Burn_MapFrame).
+    entity by = self.carry_player != world ? self.carry_player : VR_Throw_Thrower(self);
+    if(by != world)
+    {
+        VR_Burn_TorchTouch(self, VR_FlameProp_Centre(self), by);
+    }
+};
+
+void() VR_FlameProp_Touch =
+{
+    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage && other != self.owner)
+    {
+        VR_Burn_Ignite(other, VR_Throw_Thrower(self), self.origin, self.velocity, VR_BURN_BLOW);
+    }
+    forcegrabbable_touch();
+};
+
+// A wall torch made live: its crackle from its first think (VR_FlameProp_Think's why); its think is free until taken.
+void() VR_WallTorch_LiveCrackle =
+{
+    VR_WallTorch_Crackle(self, TRUE);
+    self.think = SUB_Null;
+};
+
+// self, a flame's spawn function's entity (its model set): the prop. xKind: 1 small, 2 large, 3 a candle, 0 a flame
+// behind glass that burns nothing (Rogue's lantern); xCrackle: the map's flame plays fire1.wav (FireAmbient), here on
+// the prop.
+void(float xKind, float xCrackle) VR_FlameProp_Setup =
+{
+    self.vr_flameprop = xKind;
+    self.angles_x = 0;
+    self.angles_z = 0;
+    VR_WallTorch_Box(self); // (its Quake box round its model: the hand and a force grab find it by its drawn shape)
+    self.solid = SOLID_NOT_BUT_TOUCHABLE;
+    self.movetype = MOVETYPE_NONE; // (hangs where placed: VR_Carry_Loose makes it a falling prop once let go of)
+    self.velocity = '0 0 0';
+    self.flags = self.flags | FL_FORCEGRABBABLE | FL_EASYHANDTOUCH;
+    self.touch = VR_FlameProp_Touch;
+    self.handtouch = SUB_Null; // nothing to take (VR_Carry_Setup keeps it as carry_use)
+    self.throwhit = QVR_THROWHIT_HIT;
+    self.owner = world;
+    SetThrownWeaponDealDamage(self, FALSE);
+    SetThrownWeaponDisappearOnHit(self, FALSE);
+    VR_Carry_Setup(self);
+    if(xKind)
+    {
+        self.think = VR_FlameProp_Think;
+        self.nextthink = time + 0.1;
+    }
+    setorigin(self, self.origin);
+    self.wt_crackle = xCrackle ? -1 : 0; // (VR_FlameProp_Think plays it)
+    dprint(sprintf("flameprop: %s (%g) at %v\n", self.classname, xKind, self.origin));
+};
+
+// ----------------------------------------------------------------------------
 // Blows
 
 // W_FistMelee (weapons.qc), for a hand carrying a taken torch: a club (its line: vr_melee.qc VR_MTHING_CLUB). A knock of
@@ -772,6 +922,7 @@ float(float xHand) VR_WallTorch_Melee =
     }
     vector org = trace_endpos - v_forward * 4;
     float lit = t.wt_fire > 0;
+    VR_Melee_WallMark(xHand, xdmg, TRUE); // a club's dent on a wall (none on what bleeds; vr_decal_melee)
     float first = VRGetMeleeHitSoundPlayed(xHand) == FALSE;
     if(first)
     {
@@ -858,7 +1009,9 @@ void() VR_WallTorch_Setup =
 // vr_test_fling_speed m/s. 21: a lightning bolt at it (LightningDamage, as W_FireLightning). 22: a blast at it
 // (T_RadiusDamage, as a rocket's or a grenade's). -1 (the default) asks for nothing. With developer 1 it prints what
 // it did (walltorch:).
+#ifdef QVR_TESTS
 entity(float xKind, vector xAt) VR_Test_Fire; // (weapons.qc)
+#endif
 void(vector p1, vector p2, entity from, float damage) LightningDamage; // (weapons.qc)
 float VR_WALLTORCH_TEST_THROW = 20;  // the kind that throws a prop instead of firing a gun
 float VR_WALLTORCH_TEST_BOLT = 21;   // a lightning bolt along the line from your eyes to it
@@ -867,134 +1020,7 @@ float VR_WALLTORCH_TEST_REACH = 1024; // how near a wall torch it will take
 float VR_WALLTORCH_TEST_PROPS = 512;  // how near a loose prop to throw
 float VR_WALLTORCH_TEST_BLAST_RADIUS = 150; // a rocket's (weapons.qc T_MissileTouch)
 
+#ifdef QVR_TESTS
 entity vr_wt_test_target, vr_wt_test_missile;
 float vr_wt_test_until, vr_wt_test_blood, vr_wt_test_kind;
-void() VR_WallTorch_TestShot =
-{
-    if(vr_wt_test_until && time >= vr_wt_test_until)
-    {
-        dprint(sprintf("walltorch result: kind %g detached=%g held=%g blood=%g missile=%g\n", vr_wt_test_kind,
-            vr_wt_test_target.wt_state != 0, vr_wt_test_target.carry_player == self,
-            vr_blood_sent - vr_wt_test_blood, vr_wt_test_missile != world && vr_wt_test_missile.model != string_null));
-        vr_wt_test_until = 0;
-    }
-    float kind = cvar("vr_test_walltorch_shot");
-    if(kind < 0)
-    {
-        return;
-    }
-    cvar_set("vr_test_walltorch_shot", "-1");
-    if(self.health <= 0)
-    {
-        return;
-    }
-    entity t = world;
-    float best = VR_WALLTORCH_TEST_REACH;
-    float all = 0; // (how many this map has at all: so that no wall torch within reach says the map has none)
-    for(entity e = nextent(world); e != world; e = nextent(e))
-    {
-        if(e.classname != "light_torch_small_walltorch" || e.wt_state != 0)
-        {
-            continue;
-        }
-        all = all + 1;
-        float d = vlen(e.origin - self.origin);
-        if(d < best)
-        {
-            best = d;
-            t = e;
-        }
-    }
-    if(t == world)
-    {
-        dprint(sprintf("walltorch test: no wall torch on a wall within reach (%g in this map)\n", all));
-        return;
-    }
-    vector mid = 0.5 * (t.absmin + t.absmax);
-    dprint(sprintf("walltorch test: kind %g at the wall torch at %v\n", kind, t.origin));
-    vr_wt_test_target = t;
-    vr_wt_test_missile = world;
-    vr_wt_test_kind = kind;
-    vr_wt_test_blood = vr_blood_sent;
-    vr_wt_test_until = time + 1;
-    if(kind == 23)
-    {
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, normalize(mid - self.origin));
-        T_Damage(t, self, self, 20);
-        VR_HitBloodSplash(t, mid, 20);
-        VR_HitBlood(t, mid, '0 0 0', 20);
-        VR_ClearHitKind();
-        return;
-    }
-    if(kind == 24)
-    {
-        VR_WallTorch_Grip(t, self, cVR_MainHand, "test immediate grip");
-        dprint(sprintf("walltorch grip result: detached=%g held=%g\n", t.wt_state != 0, t.carry_player == self));
-        return;
-    }
-    if(kind >= VR_WALLTORCH_TEST_BOLT)
-    {
-        if(kind == VR_WALLTORCH_TEST_BOLT)
-        {
-            dprint("walltorch test: a lightning bolt at it\n");
-            LightningDamage(self.origin + self.view_ofs, mid, self, cvar_hget(cvarh_vr_dmg_lightning));
-            return;
-        }
-        entity blast = spawn();
-        setorigin(blast, t.origin);
-        dprint("walltorch test: a blast at it\n");
-        T_RadiusDamage(blast, self, VR_WALLTORCH_TEST_BLAST_RADIUS, world);
-        remove(blast);
-        return;
-    }
-    if(kind >= VR_WALLTORCH_TEST_THROW)
-    {
-        entity p = world;
-        best = VR_WALLTORCH_TEST_PROPS;
-        for(entity e = nextent(world); e != world; e = nextent(e))
-        {
-            if(!e.vr_rigid || e.carry_player != world || e == t ||
-               !(e.touch == forcegrabbable_touch || e.vr_impact))
-            {
-                continue;
-            }
-            float d = vlen(e.origin - self.origin);
-            if(d < best)
-            {
-                best = d;
-                p = e;
-            }
-        }
-        if(p == world)
-        {
-            dprint("walltorch test: no loose prop to throw\n");
-            return;
-        }
-        vector to = normalize(mid - (self.origin + self.view_ofs)); // (the line from your eyes to it)
-        vector dir; // (along the wall past it, not at it from where you stand: you are not in the way of the throw)
-        dir_x = -to_y;
-        dir_y = to_x;
-        dir_z = 0;
-        float speed = cvar("vr_test_fling_speed") * VRMetersToUnits();
-        p.owner = world;
-        p.carry_player = world;
-        p.carry_letgo = world;
-        p.throwhit = QVR_THROWHIT_NEVER_HIT; // (a throw, not a prop resting where it fell)
-        p.vr_fling_hit = 0;
-        p.fg_state = 0;
-        p.flags = p.flags - (p.flags & FL_ONGROUND);
-        setorigin(p, mid - dir * (0.5 * max(t.size_x, t.size_y) + 40) - 0.5 * (p.mins + p.maxs));
-        p.velocity = dir * speed;
-        dprint(sprintf("walltorch test: %s sent at it along %v at %g m/s\n", p.classname, dir,
-            cvar("vr_test_fling_speed")));
-        return;
-    }
-    vr_wt_test_missile = VR_Test_Fire(kind, mid);
-    if(kind == 2 && vr_wt_test_missile != world)
-    {
-        // A close contact fixture: a long ballistic shot at the distant torch can fall short.
-        vector dir = normalize(mid - (self.origin + self.view_ofs));
-        setorigin(vr_wt_test_missile, mid - dir * 40);
-        vr_wt_test_missile.velocity = dir * 800;
-    }
-};
+#endif

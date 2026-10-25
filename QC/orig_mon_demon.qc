@@ -194,7 +194,7 @@ void() monster_demon1 =
     precache_sound("demon/sight2.wav");
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -211,7 +211,7 @@ void() monster_demon1 =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = demon1_start;
         return;
@@ -315,13 +315,15 @@ void(float side)    Demon_Melee =
     float    ldmg;
     vector    delta;
 
-    ai_face();
+    VR_MeleeArc_Face(); // QVR: (melee arc: fight.qc)
     walkmove(self.ideal_yaw, 12);    // allow a little closing
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 100)
+    if(vlen(delta) > VR_MeleeReach(100))
         return;
+    if(!VR_MeleeArc_Hits(FALSE))
+        return; // QVR: (melee arc: fight.qc)
     if(!CanDamage(self.enemy, self))
         return;
 

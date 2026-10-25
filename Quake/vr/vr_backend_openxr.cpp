@@ -11,10 +11,14 @@
 
 #ifdef QVR_HAVE_OPENXR
 
+#include "vr_bodytrack_xr.hpp"
 #include "vr_engine.hpp"
 #include "vr_input.hpp"
+#include "vr_main.hpp"
 #include "vr_profile.hpp"
+#include "vr_tracy.h"
 #include "vr_xr_runtime.hpp"
+#include "vr_xr_stall.hpp"
 
 #include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -23,10 +27,35 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
+#ifdef _WIN32
 #include <windows.h>
 #include <unknwn.h> // IUnknown, which openxr_platform.h needs and lean Windows headers omit
 
 #define XR_USE_PLATFORM_WIN32
+#else
+// Linux: the GLX binding (XrGraphicsBindingOpenGLXlibKHR) or the EGL one (XrGraphicsBindingEGLMNDX). Their X11, GLX
+// and EGL types declared as Xlib.h, glx.h and egl.h have them (without those headers' macros here:
+// vr_xr_linuxgl.cpp has them).
+#include "vr_xr_linuxgl.hpp"
+#include <pthread.h>
+#include <unistd.h>
+typedef unsigned long XID;
+typedef struct _XDisplay Display;
+typedef XID GLXDrawable;
+typedef struct __GLXcontextRec* GLXContext;
+typedef struct __GLXFBConfigRec* GLXFBConfig;
+typedef void* EGLDisplay;
+typedef void* EGLConfig;
+typedef void* EGLContext;
+#define XR_USE_PLATFORM_XLIB
+#define XR_USE_PLATFORM_EGL
+#endif
 #define XR_USE_GRAPHICS_API_OPENGL
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
@@ -43,11 +72,37 @@ namespace qvr
 namespace
 {
 
+// Reads away the GL errors left pending (at most 16): the runtime's own GL calls check glGetError.
+void drainGlErrors()
+{
+    for(int i = 0; i < 16 && glGetError() != GL_NO_ERROR; i++)
+    {
+    }
+}
+
 // A crash inside the runtime, caught where the game calls it (vr_xr_guard 1): 1.0.0 died in VDXR 1.1.0's
 // xrEnumerateSwapchainImages, a null read (virtualdesktop-openxr.dll+0x9a668): its OpenGL path takes the swapchain's
 // GL images as made once its D3D11 images are, and reads the first of none. The D3D11 images are fetched before the
 // image structs' type is checked, so an earlier call that failed that check (an API layer's, enumerating the game's
 // swapchain as D3D11 or Vulkan ones) leaves the swapchain in that state (ROUND22.md, "VDXR swapchain crash").
+#ifndef _WIN32
+// Linux: no structured exceptions; a crash inside the runtime is the crash handler's (vr_crash.cpp): never caught here.
+struct Fault
+{
+    unsigned code{0};
+};
+
+template <typename Call>
+XrResult guardedCall(Call& call, Fault&)
+{
+    return call();
+}
+
+void describeFault(const Fault& fault, char* out, size_t size)
+{
+    q_snprintf(out, size, "fault %u", fault.code);
+}
+#else
 struct Fault
 {
     DWORD code{0};
@@ -124,8 +179,10 @@ void describeFault(const Fault& fault, char* out, size_t size)
             static_cast<unsigned long long>(offset));
     }
 }
+#endif // _WIN32
 
-// Diagnostics mode's messenger (any thread): the message to openxr_debug.log (vr_diagnostics.cpp).
+// The debug messenger (any thread; every run, vr_diagnostics_xr): the message to the run's openxr_debug.log
+// (vr_runlogs.cpp, rate-limited).
 XRAPI_ATTR XrBool32 XRAPI_CALL debugMessage(XrDebugUtilsMessageSeverityFlagsEXT severity, XrDebugUtilsMessageTypeFlagsEXT,
     const XrDebugUtilsMessengerCallbackDataEXT* data, void*)
 {
@@ -194,6 +251,7 @@ public:
                 Con_Printf("VR: %svr_xr_api_layers 0 turns off the OpenXR API layers installed (overlays, toolkits); "
                            "qvr_openxr.txt has the details\n",
                     vdxr ? "set Virtual Desktop's OpenXR runtime to SteamVR (the Streamer's settings), or " : "");
+                VR_LogsIncident(va("%s crashed (%s), caught", runtime[0] ? runtime : attempt.label.cStr(), faultText));
             }
             stop(); // (all of it: the next runtime starts from nothing)
             resetRuntimeState();
@@ -209,6 +267,7 @@ public:
         {
             return false;
         }
+        bodytrack::xr::create(instance, systemId, session); // (vr_bodytrack_xr.cpp: when the runtime offers it)
 
         // The runtime paces frames (xrWaitFrame): the desktop mirror must not wait for vsync.
         SDL_GL_SetSwapInterval(0);
@@ -247,6 +306,7 @@ public:
         }
         getVisibilityMask = nullptr;
 
+        bodytrack::xr::destroy();
         for(XrSpace& space : handSpaces)
         {
             destroySpace(space);
@@ -334,9 +394,9 @@ public:
         profile::begin("xrWaitFrame", false); // the runtime's pacing alone (vr_memstats_log)
         t0 = Sys_DoubleTime();
         const XrResult waited = xrWaitFrame(session, &waitInfo, &frameState);
-        timeCall(CallWait, t0);
+        frameWaitMs = timeCall(CallWait, t0);
         profile::end();
-        if(!check(waited, "xrWaitFrame"))
+        if(!checkFrameCall(waited, "xrWaitFrame"))
         {
             return true;
         }
@@ -361,7 +421,7 @@ public:
         XrActionsSyncInfo syncInfo{XR_TYPE_ACTIONS_SYNC_INFO};
         syncInfo.countActiveActionSets = 1;
         syncInfo.activeActionSets = &active;
-        xrSyncActions(session, &syncInfo);
+        QVR_TRACY_CALL("xrSyncActions", xrSyncActions(session, &syncInfo));
         timeCall(CallSync, t0);
 
         const XrTime time = frameState.predictedDisplayTime;
@@ -378,8 +438,10 @@ public:
         {
             v = XrView{XR_TYPE_VIEW};
         }
+        XrResult located = XR_SUCCESS;
+        QVR_TRACY_CALL("xrLocateViews", located = xrLocateViews(session, &locateInfo, &viewState, 2, &viewCount, views));
         const bool viewsOk =
-            check(xrLocateViews(session, &locateInfo, &viewState, 2, &viewCount, views), "xrLocateViews") &&
+            check(located, "xrLocateViews") &&
             viewCount == 2 &&
             (viewState.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT);
 
@@ -411,6 +473,7 @@ public:
                 }
             }
         }
+        bodytrack::xr::locate(worldSpace, time); // the tracked body, as the hands (vr_bodytrack_xr.cpp)
 
         frame.shouldRender = viewsOk && frameState.shouldRender;
         // The runtime's menu has the focus (SteamVR's dashboard...): its last frame again, nothing rendered.
@@ -552,9 +615,16 @@ public:
         endInfo.layerCount = count;
         endInfo.layers = count ? submitted : nullptr;
         const double t0 = Sys_DoubleTime();
-        check(xrEndFrame(session, &endInfo), "xrEndFrame");
-        timeCall(CallEnd, t0);
+        xrstall::debugStall(); // (vr_debug_frame_stall_ms: as if the runtime held the frame)
+        XrResult ended = XR_SUCCESS;
+        QVR_TRACY_CALL("xrEndFrame", ended = xrEndFrame(session, &endInfo));
+        checkFrameCall(ended, "xrEndFrame");
+        const double endMs = timeCall(CallEnd, t0);
         timing.frames++;
+        // Held frames (the runtime holding them, as at the 2026-10-17 drop): said once as they start and end.
+        xrstall::frame(frameWaitMs, endMs, static_cast<double>(frameState.predictedDisplayPeriod) * 1e-6,
+            stateName(sessionState));
+        frameWaitMs = 0.0;
     }
 
     [[nodiscard]] unsigned acquirePanelImage(int width, int height) override
@@ -692,8 +762,13 @@ private:
     za::Vector<int64_t> offeredFormats;           // xrEnumerateSwapchainFormats' (createSwapchain checks against it)
     uint32_t maxImageWidth{0};                    // the system's largest swapchain image (0: not known)
     uint32_t maxImageHeight{0};
+#ifdef _WIN32
     HDC glDC{nullptr};                            // the game's GL context, as bound to the session
     HGLRC glRC{nullptr};
+#else
+    xrgl::Binding glctx;                          // the game's GLX or EGL context, as bound to the session
+    bool eglExtension{false};                     // XR_MNDX_egl_enable enabled (the EGL binding possible)
+#endif
     xrruntime::Attempt currentAttempt;            // the runtime being started (start())
     float debugButtonsWas{0.f};                   // vr_debug_buttons last frame
     PFN_xrGetVisibilityMaskKHR getVisibilityMask{nullptr};
@@ -740,13 +815,31 @@ private:
     };
     Timing timing;
 
-    void timeCall(Call call, double since)
+    double timeCall(Call call, double since)
     {
         CallTime& c = timing.calls[call];
         const double ms = (Sys_DoubleTime() - since) * 1000.0;
         c.sum += ms;
         c.max = za::max(c.max, ms);
         c.count++;
+        return ms;
+    }
+    double frameWaitMs{0.0}; // this frame's xrWaitFrame (xrstall::frame)
+
+    // check's, for xrWaitFrame and xrEndFrame: each failure timestamped in the log and Tracy, repeats folded.
+    bool checkFrameCall(XrResult result, const char* what) const
+    {
+        if(XR_SUCCEEDED(result))
+        {
+            return true;
+        }
+        char text[XR_MAX_RESULT_STRING_SIZE] = "";
+        if(instance != XR_NULL_HANDLE)
+        {
+            xrResultToString(instance, result, text);
+        }
+        xrstall::callFailed(what, static_cast<int>(result), text);
+        return false;
     }
 
     // After xrWaitFrame: the frame period, the display periods missed, and once a second the log's line.
@@ -768,6 +861,7 @@ private:
             const XrTime steps = (frameState.predictedDisplayTime - timing.lastDisplay + period / 2) / period;
             timing.missed += steps > 1 ? static_cast<int>(steps - 1) : 0;
         }
+        VR_TracyDisplay(static_cast<double>(period) * 1e-6, timing.missed);
         timing.lastDisplay = frameState.predictedDisplayTime;
 
         if(timing.since < 0.0)
@@ -792,7 +886,14 @@ private:
                 const CallTime& c = timing.calls[i];
                 line += va(" %s %.2f/%.2f", names[i], c.sum / za::max(timing.frames, 1), c.max);
             }
-            line += va("; %s\n", stateName(sessionState));
+            // (The desktop window's focus too: a driver's cap on a background window's presents showed as xrEndFrame's
+            // time, 10 fps, the session FOCUSED.)
+            line += va("; %s", stateName(sessionState));
+            if(windowUnfocused())
+            {
+                line += va("; window unfocused, %d presents skipped", presentsSkipped());
+            }
+            line += "\n";
             xrruntime::logLine(line.cStr());
         }
         const XrTime lastDisplay = timing.lastDisplay;
@@ -804,9 +905,17 @@ private:
     // The local time, for the log (hh:mm:ss.mmm).
     [[nodiscard]] static const char* wallClock()
     {
+#ifdef _WIN32
         SYSTEMTIME t;
         GetLocalTime(&t);
         return va("%02d:%02d:%02d.%03d", t.wHour, t.wMinute, t.wSecond, t.wMilliseconds);
+#else
+        timespec ts{};
+        clock_gettime(CLOCK_REALTIME, &ts);
+        tm local{};
+        localtime_r(&ts.tv_sec, &local);
+        return va("%02d:%02d:%02d.%03ld", local.tm_hour, local.tm_min, local.tm_sec, ts.tv_nsec / 1000000);
+#endif
     }
 
     [[nodiscard]] static const char* stateName(XrSessionState state)
@@ -958,11 +1067,13 @@ private:
             runtime[0] ? runtime : "the runtime", what, text);
         VR_GLStep("OpenXR: %s crashed: %s (caught)", what, text);
         // The runtime may have left its own GL context current (VDXR switches to the game's around its GL calls).
+#ifdef _WIN32
         if(glRC && wglGetCurrentContext() != glRC)
         {
             const BOOL made = wglMakeCurrent(glDC, glRC);
             xrruntime::warn("OpenXR: the game's GL context made current again after the crash: %s\n", made ? "done" : "FAILED");
         }
+#endif
         return XR_ERROR_RUNTIME_FAILURE;
     }
 
@@ -1000,7 +1111,11 @@ private:
         if(vr_xr_test_drop_context.value != 0.f) // (the test of contextReady: no context current, once)
         {
             Cvar_SetValueQuick(&vr_xr_test_drop_context, 0.f);
+#ifdef _WIN32
             wglMakeCurrent(nullptr, nullptr);
+#else
+            xrgl::release();
+#endif
         }
         if(!contextReady(what))
         {
@@ -1008,9 +1123,7 @@ private:
         }
         // SteamVR checks glGetError after its own GL calls in here: an error the engine left
         // pending fails the swapchain ("SXR_GL_CHECK ... glGenTextures", GL_INVALID_VALUE).
-        for(int i = 0; i < 16 && glGetError() != GL_NO_ERROR; i++)
-        {
-        }
+        drainGlErrors();
         const XrSession s = session;
         XrSwapchain handle = XR_NULL_HANDLE;
         const XrResult created = guarded(what, [s, &info, &handle] { return xrCreateSwapchain(s, &info, &handle); });
@@ -1060,9 +1173,7 @@ private:
         {
             GL_ObjectLabelFunc(GL_TEXTURE, image.image, -1, va("xr swapchain %s", what));
         }
-        for(int i = 0; i < 16 && glGetError() != GL_NO_ERROR; i++)
-        {
-        }
+        drainGlErrors();
         xrruntime::logLine(va("%s OpenXR: %s: %dx%d %s, %u images, %u sample, usage 0x%llx\n", wallClock(), what, width, height,
             glFormatName(colorFormat), imageCount, info.sampleCount, static_cast<unsigned long long>(usage)));
         return true;
@@ -1095,7 +1206,8 @@ private:
         XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
         uint32_t index = 0;
         double t0 = Sys_DoubleTime();
-        const XrResult acquired = xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index);
+        XrResult acquired = XR_SUCCESS;
+        QVR_TRACY_CALL("xrAcquireSwapchainImage", acquired = xrAcquireSwapchainImage(sc.handle, &acquireInfo, &index));
         timeCall(CallAcquire, t0);
         if(!check(acquired, "xrAcquireSwapchainImage"))
         {
@@ -1105,7 +1217,8 @@ private:
         XrSwapchainImageWaitInfo waitInfo{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
         waitInfo.timeout = XR_INFINITE_DURATION;
         t0 = Sys_DoubleTime();
-        const XrResult waited = xrWaitSwapchainImage(sc.handle, &waitInfo);
+        XrResult waited = XR_SUCCESS;
+        QVR_TRACY_CALL("xrWaitSwapchainImage", waited = xrWaitSwapchainImage(sc.handle, &waitInfo));
         timeCall(CallWaitImage, t0);
         if(!check(waited, "xrWaitSwapchainImage"))
         {
@@ -1119,7 +1232,9 @@ private:
     bool releaseImage(const Swapchain& sc) const
     {
         XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-        return check(xrReleaseSwapchainImage(sc.handle, &releaseInfo), "xrReleaseSwapchainImage");
+        XrResult released = XR_SUCCESS;
+        QVR_TRACY_CALL("xrReleaseSwapchainImage", released = xrReleaseSwapchainImage(sc.handle, &releaseInfo));
+        return check(released, "xrReleaseSwapchainImage");
     }
 
     static void destroySpace(XrSpace& space)
@@ -1341,6 +1456,9 @@ private:
         stateTrailText[0] = '\0';
         endReason = SessionEnd::Lost;
         visibilityMaskExtension = false;
+#ifndef _WIN32
+        eglExtension = false;
+#endif
         for(bool& v : vendorProfile)
         {
             v = false;
@@ -1358,6 +1476,7 @@ private:
     {
         // Quest 3 controllers get their own profile with this extension (Touch otherwise).
         za::Vector<const char*> extensions{XR_KHR_OPENGL_ENABLE_EXTENSION_NAME};
+        bodytrack::xr::reset();
         uint32_t available = 0;
         xrEnumerateInstanceExtensionProperties(nullptr, 0, &available, nullptr);
         za::Vector<XrExtensionProperties> extensionList(available, XrExtensionProperties{XR_TYPE_EXTENSION_PROPERTIES});
@@ -1386,14 +1505,28 @@ private:
                     xrruntime::logLine(va("OpenXR: the %s controller profile enabled (vr_xr_vendor_profiles)\n", vendorExtensions[v]));
                 }
             }
+#ifndef _WIN32
+            // Linux: the EGL binding, for an EGL context (SDL's Wayland driver, or X11 on EGL): Monado and WiVRn
+            // have it, SteamVR doesn't (createSession).
+            if(!strcmp(p.extensionName, XR_MNDX_EGL_ENABLE_EXTENSION_NAME))
+            {
+                extensions.pushBack(XR_MNDX_EGL_ENABLE_EXTENSION_NAME);
+                eglExtension = true;
+            }
+#endif
             // The lenses' hidden area (vr_visibility_mask).
             if(!strcmp(p.extensionName, XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
             {
                 extensions.pushBack(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME);
                 visibilityMaskExtension = true;
             }
-            // Diagnostics mode: the loader's and the runtime's own messages (openxr_debug.log).
-            if(VR_DiagnosticsOn() && vr_diagnostics_xr.value != 0.f && !strcmp(p.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME))
+            // Body tracking (vr_bodytrack_xr.cpp): the FB tracker, Meta's full body, fidelity and calibration.
+            if(const char* body = bodytrack::xr::wanted(p.extensionName))
+            {
+                extensions.pushBack(body);
+            }
+            // The loader's and the runtime's own messages (every run: logs/<date>_<time>/openxr_debug.log).
+            if(vr_diagnostics_xr.value != 0.f && !strcmp(p.extensionName, XR_EXT_DEBUG_UTILS_EXTENSION_NAME))
             {
                 extensions.pushBack(XR_EXT_DEBUG_UTILS_EXTENSION_NAME);
                 debugUtils = true;
@@ -1442,7 +1575,8 @@ private:
         // The messenger chained to the instance's creation (the loader's and the runtime's messages while it is made),
         // then one of its own for the instance's life (createDebugMessenger).
         XrDebugUtilsMessengerCreateInfoEXT messengerInfo{XR_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
-        messengerInfo.messageSeverities = XR_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        // (Verbose only in diagnostics mode: a runtime's per-call chatter.)
+        messengerInfo.messageSeverities = (VR_DiagnosticsOn() ? XR_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT : 0) |
                                           XR_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
                                           XR_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                                           XR_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -1466,7 +1600,7 @@ private:
         XrResult created = xrCreateInstance(&info, &instance);
         if(XR_FAILED(created) && (debugUtils || !layers.empty()))
         {
-            // Diagnostics mode must not cost the VR start: again without the messenger and the validation layer.
+            // The logs must not cost the VR start: again without the messenger and the validation layer.
             VR_DiagnosticsNote(va("xrCreateInstance failed (%d) with the debug messenger/validation layer (instance %p left): "
                                   "again without\n",
                 static_cast<int>(created), static_cast<void*>(instance)));
@@ -1475,7 +1609,7 @@ private:
                 xrDestroyInstance(instance); // (the loader's own failure after the runtime's instance was made)
                 instance = XR_NULL_HANDLE;
             }
-            xrruntime::warn("OpenXR: xrCreateInstance failed (%d) with diagnostics' debug messenger: again without it\n",
+            xrruntime::warn("OpenXR: xrCreateInstance failed (%d) with the debug messenger: again without it\n",
                 static_cast<int>(created));
             debugUtils = false;
             za::Vector<const char*> kept;
@@ -1518,6 +1652,8 @@ private:
         // The crash report's VR line from here: which runtime, and what sits between it and the game.
         const za::String around = xrruntime::layersAndOverlays();
         xrruntime::logLine(va("OpenXR: %s\n", around.cStr()));
+        VR_LogsSystemLine(va("VR: OpenXR %s (%s); %s\n", runtime[0] ? runtime : "a runtime without a name",
+            currentAttempt.label.cStr(), around.cStr())); // (the run's system.txt: vr_runlogs.cpp)
         q_snprintf(crashBase, sizeof(crashBase), "OpenXR %s (%s); %s", runtime[0] ? runtime : "a runtime without a name",
             currentAttempt.label.cStr(), around.cStr());
         VR_SetCrashVr(crashBase);
@@ -1542,7 +1678,11 @@ private:
             int tries = 1;
             while(result == XR_ERROR_FORM_FACTOR_UNAVAILABLE && Sys_DoubleTime() - begin < vr_xr_steamvr_wait.value)
             {
+#ifdef _WIN32
                 Sleep(250);
+#else
+                usleep(250 * 1000);
+#endif
                 result = xrGetSystem(instance, &info, &systemId);
                 tries++;
             }
@@ -1586,6 +1726,51 @@ private:
     // its DC still its window's. Logged with both handles; made current again when it isn't; false (the call not made,
     // the start fails) when that fails or the window is gone. (1.0.1: two runtimes, VDXR and SteamVR, died in the first
     // swapchain on one player's PC: a runtime's GL calls without the game's context read null function pointers.)
+#ifndef _WIN32
+    // Linux: the same with GLX (the context and its drawable, the window's) or EGL (the context and its surfaces).
+    bool contextReady(const char* what)
+    {
+        const char* why = "";
+        const xrgl::Binding now = xrgl::current(&why);
+        const void* nowSurface = now.api == xrgl::Api::Egl ? now.eglDraw : reinterpret_cast<const void*>(now.drawable);
+        const void* boundSurface = glctx.api == xrgl::Api::Egl ? glctx.eglDraw : reinterpret_cast<const void*>(glctx.drawable);
+        xrruntime::logLine(va("%s OpenXR: %s: %s context %p, surface %p current on thread %lu (the session's: %s %p, %p)\n",
+            wallClock(), what, xrgl::apiName(now.api), now.context, nowSurface, static_cast<unsigned long>(pthread_self()),
+            xrgl::apiName(glctx.api), glctx.context, boundSurface));
+        if(!glctx.context || (glctx.api == xrgl::Api::Glx && !glctx.drawable))
+        {
+            xrruntime::warn("OpenXR: %s not called: no GL context bound to the session (%s)\n", what,
+                now.api != xrgl::Api::None ? "" : why);
+            return false;
+        }
+        if(xrgl::same(now, glctx))
+        {
+            return true;
+        }
+        const bool made = xrgl::makeCurrent(glctx);
+        xrruntime::warn("OpenXR: %s: the game's %s context wasn't current on this thread (%s %p instead of %p): made "
+                        "current again: %s\n",
+            what, xrgl::apiName(glctx.api), xrgl::apiName(now.api), now.context, glctx.context,
+            made ? "done" : "FAILED: the call not made");
+        return made;
+    }
+
+    // What the GL driver offers a runtime that shares its Vulkan images with the game (Monado's GL client:
+    // GL_EXT_memory_object_fd and GL_EXT_semaphore_fd), logged before the session.
+    void logGlInterop()
+    {
+        constexpr const char* names[] = {"glCreateMemoryObjectsEXT", "glImportMemoryFdEXT", "glTextureStorageMem2DEXT",
+            "glImportSemaphoreFdEXT"};
+        za::String text;
+        for(const char* name : names)
+        {
+            text += va("%s%s %s", text.empty() ? "" : ", ", name, xrgl::proc(glctx.api, name) ? "yes" : "NO");
+        }
+        const char* extensions = reinterpret_cast<const char*>(glGetString(GL_EXTENSIONS));
+        const bool fd = extensions ? strstr(extensions, "GL_EXT_memory_object_fd") != nullptr : true; // (core: not listed)
+        xrruntime::logLine(va("OpenXR: GL interop: %s%s\n", text.cStr(), fd ? "" : " (GL_EXT_memory_object_fd not listed)"));
+    }
+#else
     bool contextReady(const char* what)
     {
         const HGLRC rc = wglGetCurrentContext();
@@ -1635,20 +1820,82 @@ private:
             xrruntime::warn("OpenXR: the GL driver lacks GL_EXT_memory_object_win32, which VDXR's OpenGL path needs\n");
         }
     }
+#endif
 
     bool createSession()
     {
+#ifdef _WIN32
         XrGraphicsBindingOpenGLWin32KHR binding{XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR};
         binding.hDC = wglGetCurrentDC();
         binding.hGLRC = wglGetCurrentContext();
         glDC = binding.hDC;
         glRC = binding.hGLRC;
+        void* const boundContext = static_cast<void*>(glRC);
         logGlInterop();
         step("xrCreateSession (OpenGL: hDC %p, hGLRC %p)", static_cast<void*>(glDC), static_cast<void*>(glRC));
-        // (SDL's idea of the current context: the same one, or the engine's context is not what is current here.)
-        if(static_cast<void*>(SDL_GL_GetCurrentContext()) != static_cast<void*>(glRC))
+#else
+        // Linux: SDL's context, GLX (XR_KHR_opengl_enable's Xlib binding: the context and its window's drawable) or
+        // EGL (XR_MNDX_egl_enable: the display, config and context; SDL's Wayland driver, or X11 on EGL).
+        const char* driver = SDL_GetCurrentVideoDriver();
+        driver = driver ? driver : "none";
+        const char* why = "";
+        glctx = xrgl::current(&why);
+        if(glctx.api == xrgl::Api::None)
         {
-            xrruntime::warn("OpenXR: the current GL context %p is not SDL's (%p)\n", static_cast<void*>(glRC),
+            xrruntime::warn("OpenXR: xrCreateSession not called: %s (SDL video driver %s)\n", why, driver);
+            return false;
+        }
+        if(glctx.api == xrgl::Api::Egl && !eglExtension)
+        {
+            xrruntime::warn("OpenXR: xrCreateSession not called: SDL's GL context is EGL (SDL video driver %s) and %s "
+                            "doesn't offer XR_MNDX_egl_enable (the EGL binding; it has the GLX one only): run with "
+                            "SDL_VIDEODRIVER=x11 SDL_VIDEO_X11_FORCE_EGL=0 (X11 or XWayland: GLX), or with a runtime that "
+                            "has it (Monado, WiVRn)\n",
+                driver, runtime[0] ? runtime : "the runtime");
+            glctx = xrgl::Binding{};
+            return false;
+        }
+        if(why[0])
+        {
+            xrruntime::warn("OpenXR: %s\n", why);
+        }
+        XrGraphicsBindingOpenGLXlibKHR glxBinding{XR_TYPE_GRAPHICS_BINDING_OPENGL_XLIB_KHR};
+        XrGraphicsBindingEGLMNDX eglBinding{XR_TYPE_GRAPHICS_BINDING_EGL_MNDX};
+        const void* binding = nullptr;
+        const char* bindingName = "";
+        if(glctx.api == xrgl::Api::Glx)
+        {
+            glxBinding.xDisplay = static_cast<Display*>(glctx.display);
+            glxBinding.visualid = glctx.visualId;
+            glxBinding.glxFBConfig = static_cast<GLXFBConfig>(glctx.fbConfig);
+            glxBinding.glxDrawable = glctx.drawable;
+            glxBinding.glxContext = static_cast<GLXContext>(glctx.context);
+            binding = &glxBinding;
+            bindingName = "xrCreateSession (GLX binding, XR_KHR_opengl_enable)";
+            logGlInterop();
+            step("xrCreateSession (OpenGL, GLX binding XrGraphicsBindingOpenGLXlibKHR: SDL video driver %s; display %p, "
+                 "drawable 0x%lx, GLX context %p, FBConfig %p, visual 0x%x)",
+                driver, glctx.display, glctx.drawable, glctx.context, glctx.fbConfig, glctx.visualId);
+        }
+        else
+        {
+            eglBinding.getProcAddress = reinterpret_cast<PFN_xrEglGetProcAddressMNDX>(xrgl::eglGetProcAddressFn());
+            eglBinding.display = glctx.eglDisplay;
+            eglBinding.config = glctx.eglConfig;
+            eglBinding.context = glctx.context;
+            binding = &eglBinding;
+            bindingName = "xrCreateSession (EGL binding, XR_MNDX_egl_enable)";
+            logGlInterop();
+            step("xrCreateSession (OpenGL, EGL binding XrGraphicsBindingEGLMNDX: SDL video driver %s, %s; display %p, "
+                 "config %p, context %p, surface %p)",
+                driver, xrgl::eglDescription(glctx), glctx.eglDisplay, glctx.eglConfig, glctx.context, glctx.eglDraw);
+        }
+        void* const boundContext = glctx.context;
+#endif
+        // (SDL's idea of the current context: the same one, or the engine's context is not what is current here.)
+        if(static_cast<void*>(SDL_GL_GetCurrentContext()) != boundContext)
+        {
+            xrruntime::warn("OpenXR: the current GL context %p is not SDL's (%p)\n", boundContext,
                 static_cast<void*>(SDL_GL_GetCurrentContext()));
         }
         if(!contextReady("xrCreateSession"))
@@ -1657,13 +1904,18 @@ private:
         }
 
         XrSessionCreateInfo info{XR_TYPE_SESSION_CREATE_INFO};
+#ifdef _WIN32
         info.next = &binding;
+        const char* const bindingName = "xrCreateSession";
+#else
+        info.next = binding;
+#endif
         info.systemId = systemId;
         const XrInstance inst = instance;
         XrSession made = XR_NULL_HANDLE;
         const XrResult created = guarded("xrCreateSession", [inst, &info, &made] { return xrCreateSession(inst, &info, &made); });
         session = made;
-        if(runtimeFaulted || !check(created, "xrCreateSession"))
+        if(runtimeFaulted || !check(created, bindingName))
         {
             return false;
         }
@@ -2324,7 +2576,7 @@ private:
                     const auto& changed = reinterpret_cast<const XrEventDataSessionStateChanged&>(event);
                     sessionState = changed.state;
                     noteState(stateName(sessionState));
-                    xrruntime::logLine(va("%s session %s%s\n", wallClock(), stateName(sessionState),
+                    xrstall::note(va("%s session %s%s\n", wallClock(), stateName(sessionState), // (Tracy too)
                         sessionState == XR_SESSION_STATE_VISIBLE
                             ? (vr_xr_unfocused.value != 0.f ? " (no input focus, e.g. the runtime's menu: the last frame "
                                                               "shown again, not rendered; vr_xr_unfocused 1)"

@@ -797,6 +797,8 @@ void CL_RelinkEntities (void)
 
 	VR_RelinkHeld (); // QVR: what the local player carries is drawn in the hands
 	VR_RagdollSwap (); // QVR: the ragdolls drawn with their skinned models (vr/vr_ragdoll.cpp)
+	VR_RelinkArmedGrunts (); // QVR: armed grunts' weapons on their drawn hands (vr/vr_hitreact.cpp)
+	VR_RelinkWornTanks (); // QVR: their back tanks on their drawn backs (vr/vr_adtank.cpp)
 }
 
 
@@ -846,6 +848,7 @@ int CL_ReadFromServer (void)
 	VR_WallTorchFlames (); // QVR: taken wall torches' flames (vr_walltorch.cpp)
 	VR_TestEffects (); // QVR: vr_particle_test quake's sprite (vr_client.cpp)
 	VR_TorchLights (); // QVR: torches and flames flicker light onto the room
+	VR_FlameLights (); // QVR: the flamethrowers' streams light the room (vr/vr_emissive.cpp)
 
 //johnfitz -- devstats
 

@@ -153,13 +153,18 @@ static const char viewblend_vertex_shader[] =
 ////////////////////////////////////////////////////////////////
 
 static const char viewblend_fragment_shader[] =
+QVR_BLOOD_UNIFORMS // QVR: damage and low-health peripheral feedback
 "layout(location=0) uniform vec4 Color;\n"
 "\n"
 "layout(location=0) out vec4 out_fragcolor;\n"
 "\n"
 "void main()\n"
 "{\n"
-"	out_fragcolor = Color;\n"
+"	float blood = QvrBloodAlpha();\n"
+"	if (blood == 0.0) { out_fragcolor = Color; return; }\n"
+"	float alpha = 1.0 - (1.0 - blood) * (1.0 - Color.a);\n"
+"	vec3 rgb = vec3(0.42, 0.008, 0.015) * blood * (1.0 - Color.a) + Color.rgb * Color.a;\n"
+"	out_fragcolor = vec4(rgb / max(alpha, 0.00001), alpha);\n"
 "}\n";
 
 ////////////////////////////////////////////////////////////////
@@ -181,6 +186,7 @@ static const char warpscale_vertex_shader[] =
 ////////////////////////////////////////////////////////////////
 
 static const char warpscale_fragment_shader[] =
+QVR_BLOOD_UNIFORMS // QVR
 "layout(binding=0) uniform sampler2D Tex;\n"
 "\n"
 "layout(location=0) uniform vec4 UVScaleWarpTime; // xy=Scale z=Warp w=Time\n"
@@ -205,6 +211,7 @@ static const char warpscale_fragment_shader[] =
 "#endif // WARP\n"
 "\n"
 "	out_fragcolor = texture(Tex, uv * uv_scale);\n"
+"	out_fragcolor.rgb = mix(out_fragcolor.rgb, vec3(0.42, 0.008, 0.015), QvrBloodAlpha());\n"
 "	out_fragcolor.rgb = mix(out_fragcolor.rgb, BlendColor.rgb, BlendColor.a);\n"
 "}\n";
 
@@ -353,9 +360,14 @@ QVR_POSTPROCESS_GRADE_DITHER // QVR: graded (vr_grade) and dithered into the 8-b
 ////////////////////////////////////////////////////////////////
 
 #define FRAMEDATA_BUFFER \
+QVR_STEREO_VIEWS /* QVR: single-pass stereo: each view's ViewProj and EyePos (multiview twins only) */ \
 "layout(std140, binding=0) uniform FrameDataUBO\n"\
 "{\n"\
+"#ifdef QVR_MULTIVIEW\n"\
+"	mat4	ViewProjMono;\n"\
+"#else\n"\
 "	mat4	ViewProj;\n"\
+"#endif\n"\
 "	vec4	Fog;\n"\
 "	vec4	SkyFog;\n"\
 "	vec3	WindDir;\n"\
@@ -364,7 +376,11 @@ QVR_POSTPROCESS_GRADE_DITHER // QVR: graded (vr_grade) and dithered into the 8-b
 "	float	TextureDither;\n"\
 "	float	ShadowBias; // QVR: vr/vr_lighting.cpp\n"\
 "	float	DlightAngle; // QVR\n"\
+"#ifdef QVR_MULTIVIEW\n"\
+"	vec3	EyePosMono;\n"\
+"#else\n"\
 "	vec3	EyePos;\n"\
+"#endif\n"\
 "	float	Time;\n"\
 "	float	ZLogScale;\n"\
 "	float	ZLogBias;\n"\
@@ -421,6 +437,12 @@ QVR_FRAMEDATA_FIELDS /* QVR: the frame data's Quake VR fields (lights, liquids, 
 
 #define LIGHT_CLUSTER_IMAGE(mode) \
 "layout(rg32ui, binding=0) uniform " mode " uimage3D LightClusters;\n"\
+"#ifdef QVR_MULTIVIEW\n" /* QVR: single-pass stereo: the right eye's clusters (vr/vr_stereo_single.cpp) */ \
+"layout(rg32ui, binding=1) uniform " mode " uimage3D LightClustersRight;\n"\
+"#define QVR_LOAD_CLUSTER(c) (QVR_VIEW == 0 ? imageLoad(LightClusters, c) : imageLoad(LightClustersRight, c))\n"\
+"#else\n"\
+"#define QVR_LOAD_CLUSTER(c) imageLoad(LightClusters, c)\n"\
+"#endif\n"\
 
 ////////////////////////////////////////////////////////////////
 
@@ -463,7 +485,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "#endif // BINDLESS\n"\
 "	vec4	uvclamp; // QVR: parallax mapping's rays stay in s .x to .z, t .y to .w, repeating (none where .z <= .x)\n"\
 "	vec4	detail; // QVR: the texture's detail (vr/vr_detail.cpp): s and t scales (s < 0: axes swapped), strength (0 none), layer\n"\
-"	vec4	extmat; // QVR: the external maps' numbers (vr/vr_extmaps.cpp): y the specular map's brightness, z its hardness\n"\
+"	vec4	extmat; // QVR: x/w generated normal/height multipliers; y/z external sheen/hardness\n"\
 "	vec4	retro; // QVR: retro textures (vr_retro.h): xy the texture's Quake size, z its set (0: the instance's)\n"\
 "};\n"\
 "const uint\n"\
@@ -498,6 +520,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	vec4	woundbox; // QVR: xyz its box's centre (the model's frame), w 1 / its largest side\n"\
 "	vec4	retro; // QVR: retro textures (vr_retro.h): x its set (0 none)\n"\
 "	vec4	portalclip; // QVR: split brush prop\n"\
+"	vec4	prevmat[3]; // QVR: its matrix one frame ago (temporal AA's motion vectors: vr/vr_temporal.cpp)\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=2) restrict readonly buffer InstanceBuffer\n"\
@@ -508,6 +531,12 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "vec3 Transform(vec3 p, Instance instance)\n"\
 "{\n"\
 "	mat4x3 world = transpose(mat3x4(instance.mat[0], instance.mat[1], instance.mat[2]));\n"\
+"	return mat3(world[0], world[1], world[2]) * p + world[3];\n"\
+"}\n"\
+"\n"\
+"vec3 TransformPrev(vec3 p, Instance instance) // QVR\n"\
+"{\n"\
+"	mat4x3 world = transpose(mat3x4(instance.prevmat[0], instance.prevmat[1], instance.prevmat[2]));\n"\
 "	return mat3(world[0], world[1], world[2]) * p + world[3];\n"\
 "}\n"\
 "\n"\
@@ -594,6 +623,9 @@ LIQUID_SWELL // QVR
 QVR_ZFIX_FUNCTION // QVR: gl_zfix's push back (vr_glsl.h)
 "layout(location=5) in vec3 in_surfacecentre; // QVR: BSP teleporter visual scaling pivot\n"
 "layout(location=4) in float in_swellpin; // QVR: the geometric waves' mesh (vr/vr_water.cpp); 0 elsewhere (unset)\n"
+QVR_WORLD_VS_PERMDECALS // QVR: the permanent decals' layer (vr/vr_permdecals.cpp)
+QVR_TEMPORAL_BLOCK // QVR: temporal AA's motion vectors (vr/vr_temporal.cpp)
+QVR_TEMPORAL_VS_OUTPUT
 "\n"
 "invariant gl_Position; // QVR: the opaque world's depth pre-pass (glprogs.world_depth) gives the very same depths\n"
 "layout(location=0) flat out uint out_flags;\n"
@@ -633,8 +665,27 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "#endif\n"
 "	if ((call.flags & CF_USE_POLYGON_OFFSET) != 0u)\n" // QVR: pushed back a fixed fraction of its distance (QVR_ZFIX)
 "		gl_Position.z = QVR_ZFixDepth(gl_Position.z, gl_Position.w);\n"
+	// QVR: the depth write's split (r_world.c R_DrawSolidSplit; GL_CLIP_DISTANCE2 on only there): the programs writing
+	// the relief's depth keep what is nearer than Parallax3.y in view depth (gl_Position.w, invariant, linear: exact
+	// on any polygon), the plain ones what is further, overlapping by 2 units (no seam; the same depth there)
+"#if defined(PDO) && PDO\n"
+"	gl_ClipDistance[2] = Parallax3.y + 1.0 - gl_Position.w;\n"
+"#else\n"
+"	gl_ClipDistance[2] = gl_Position.w - (Parallax3.y - 1.0);\n"
+"#endif\n"
+"	out_prevclip = vec4(0.0); // QVR: temporal AA (vr/vr_temporal.cpp): where it was a frame ago, if it moves by itself or is a liquid\n"
+"#ifndef QVR_MULTIVIEW\n"
+"	if (TemporalJitter.w > 0.0 && (instance.prevmat[0] != instance.mat[0] || instance.prevmat[1] != instance.mat[1] || instance.prevmat[2] != instance.mat[2]))\n"
+"		out_prevclip = PrevViewProj * vec4(TransformPrev(position, instance), 1.0);\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
+"	if (TemporalJitter.w > 0.0)\n"
+"		out_prevclip = PrevViewProj * vec4(in_swellpin > 0. ? LiquidDisplace(TransformPrev(position, instance), in_swellpin, LiquidKind(call.flags)) : TransformPrev(position, instance), 1.0);\n"
+"#endif\n"
+"#endif\n"
 "	out_uv = in_uv.xy;\n"
 "	out_lmuv = in_uv.zw;\n"
+"	out_grime = in_grime.xy; // QVR\n"
+"	out_grimepages = in_grime.zw; // QVR\n"
 "	out_depth = gl_Position.w;\n"
 "	out_coord = (gl_Position.xy / gl_Position.w * 0.5 + 0.5) * vec2(LIGHT_TILES_X, LIGHT_TILES_Y);\n"
 "	out_flags = call.flags;\n"
@@ -644,7 +695,7 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	out_alpha = instance.alpha < 0.0 ? 1.0 : instance.alpha;\n"
 "#endif\n"
 "	out_glow = instance.glow; // QVR\n"
-"	out_pdepth = instance.parallax; // QVR\n"
+"	out_pdepth = instance.parallax * call.extmat.w; // QVR\n"
 "	out_uvclamp = call.uvclamp; // QVR\n"
 "	out_detail = call.detail; // QVR\n"
 "	out_extmat = call.extmat; // QVR\n"
@@ -734,13 +785,21 @@ LIQUID_FUNCTIONS // QVR
 "	layout(location=9) flat in uvec4 in_samplers;\n"
 QVR_WORLD_FS_INPUTS // QVR: the world fragment shader's Quake VR inputs
 "#endif\n"
+QVR_WORLD_FS_PERMDECAL_INPUTS // QVR: the permanent decals' layer (vr/vr_permdecals.cpp)
 "\n"
 OIT_OUTPUT (out_fragcolor)
+QVR_TEMPORAL_BLOCK // QVR: temporal AA's motion vectors (vr/vr_temporal.cpp)
+QVR_TEMPORAL_FS_OUTPUT
 "\n"
 QVR_WORLD_FS_FUNCTIONS // QVR: detail, parallax, specular anti-aliasing, the baked light's bumps
 QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO 1 in glprogs.world_pdo only (solid, not OIT)
 "void main()\n"
 "{\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n" // QVR: first (before any early return)
+"	QVR_TEMPORAL_WRITE(0.5);\n"
+"#else\n"
+"	QVR_TEMPORAL_WRITE(0.0);\n"
+"#endif\n"
 "#if QVR_PDO\n"
 "	gl_FragDepth = gl_FragCoord.z; // QVR: the surface's own, unless the parallax mapping's hit is further\n"
 "#endif\n"
@@ -770,18 +829,23 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	// QVR: parallax occlusion mapping (vr_parallax) moves where the textures are read; their mip level is still\n"
 "	// the surface's (the moved coordinates jump where the height field hides itself)\n"
 "	vec2 puv = uv;\n"
+"	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none); before the carved decals (their retro style's blocks)
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n"
 "	bool parallax = in_pdepth > 0.; // the instance's depth: the world's, an item box's (vr_parallax_items)\n"
+"	ParallaxPlane = Parallax3.x; // QVR: where the polygon sits in the relief (vr_parallax_plane)\n"
 "	if (parallax)\n"
 "		puv = ParallaxUV(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, facing, in_pos - EyePos, in_pdepth, Parallax.z, in_uvclamp);\n"
 "#if QVR_PDO\n"
-"	if (ParallaxDist > 0. && Parallax2.w > 0.) // QVR: the hit's depth (bounded by the pre-pass's: glprogs.world_depth_pdo)\n"
+"	if (ParallaxDist != 0. && Parallax2.w > 0.) // QVR: the hit's depth (bounded by the pre-pass's: glprogs.world_depth_pdo; nearer: raised)\n"
 "		gl_FragDepth = ParallaxFragDepth(ViewProj, in_pos, normalize(in_pos - EyePos), ParallaxDist, (in_flags & CF_USE_POLYGON_OFFSET) != 0u);\n"
 "#endif\n"
+QVR_WORLD_FS_CARVE // QVR: the carved decals (vr/vr_decals.cpp): their craters move where the textures are read, as parallax does
 "#else\n"
 "	const bool parallax = false;\n" // QVR: no parallax mapping here
+"	const bool carve_on = false;\n"
+"	const vec3 carve_bend = vec3(0.), carve_light = vec3(0.);\n"
+"	const float carve_dark = 1.;\n"
 "#endif\n"
-"	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none)
 "	bool rl_lightmapped = (in_flags & CF_NOLIGHTMAP) == 0u;\n" // QVR: retro lighting (vr_retrolight.h): the face's texel grid (its lightmap's, less 8)
 "	if (RetroLight[2].w > 0.)\n"
 "	{\n"
@@ -867,7 +931,7 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 "		cluster_coord.x = int(floor(in_coord.x));\n"
 "		cluster_coord.y = int(floor(in_coord.y));\n"
 "		cluster_coord.z = max(int(floor(log2(in_depth) * ZLogScale + ZLogBias)), 0);\n" // QVR: nearer than the first slice (the VR near plane is nearer): in it
-"		uvec2 clusterdata = imageLoad(LightClusters, cluster_coord).xy;\n"
+"		uvec2 clusterdata = QVR_LOAD_CLUSTER(cluster_coord).xy;\n" // QVR: the view's (single-pass stereo)
 "		if ((clusterdata.x | clusterdata.y) != 0u)\n"
 "		{\n"
 "#if " QS_STRINGIFY (SHOW_ACTIVE_LIGHT_CLUSTERS) "\n"
@@ -960,8 +1024,11 @@ QVR_WORLD_FS_ALPHA // QVR: alpha to coverage; the liquid's alpha and refraction
 "	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
 "#endif\n"
 "#if QVR_PDO\n"
-"	if (Parallax2.w > 1.5) // QVR: vr_parallax_debug 1: red how deep below the surface its depth was written, of the full depth; blue the surface's own (no hit)\n"
-"		out_fragcolor.rgb = gl_FragDepth != gl_FragCoord.z ? vec3(0.15 + 0.85 * clamp(ParallaxDist * dot(facing, normalize(EyePos - in_pos)) / max(in_pdepth, 1e-3), 0., 1.), 0., 0.) : vec3(0., 0., 0.25);\n"
+"	if (Parallax2.w > 1.5) // QVR: vr_parallax_debug 1: red how deep below the surface its depth was written, of the full depth; green how high over it (vr_parallax_plane); blue the surface's own (no hit)\n"
+"	{\n"
+"		float dbg_k = ParallaxDist * dot(facing, normalize(EyePos - in_pos)) / max(in_pdepth, 1e-3);\n"
+"		out_fragcolor.rgb = gl_FragDepth != gl_FragCoord.z ? vec3(dbg_k > 0. ? 0.15 + 0.85 * clamp(dbg_k, 0., 1.) : 0., dbg_k < 0. ? 0.15 + 0.85 * clamp(-dbg_k, 0., 1.) : 0., 0.) : vec3(0., 0., 0.25);\n"
+"	}\n"
 "#endif\n"
 "}\n";
 
@@ -989,6 +1056,8 @@ LIQUID_SWELL // QVR
 "#endif\n"
 "layout(location=4) flat out uint out_flags; // QVR: the liquid's kind\n"
 "layout(location=20) out float out_rim; // QVR: 1 + the distance to the shore (the swells' mesh), 0 unknown: the foam\n"
+QVR_TEMPORAL_BLOCK // QVR: temporal AA's motion vectors (vr/vr_temporal.cpp)
+QVR_TEMPORAL_VS_OUTPUT
 "\n"
 "void main()\n"
 "{\n"
@@ -1000,6 +1069,11 @@ LIQUID_SWELL // QVR
 "	gl_Position = ViewProj * vec4(pos, 1.0);\n"
 "	if (in_swellpin > 0.) // QVR: the geometric waves (vr/vr_water.cpp); out_pos stays the flat surface's\n"
 "		gl_Position = ViewProj * vec4(LiquidDisplace(pos, in_swellpin, LiquidKind(call.flags)), 1.0);\n"
+"	out_prevclip = vec4(0.0); // QVR: temporal AA: where it was a frame ago (the waves as now)\n"
+"#ifndef QVR_MULTIVIEW\n"
+"	if (TemporalJitter.w > 0.0)\n"
+"		out_prevclip = PrevViewProj * vec4(in_swellpin > 0. ? LiquidDisplace(TransformPrev(position, instance), in_swellpin, LiquidKind(call.flags)) : TransformPrev(position, instance), 1.0);\n"
+"#endif\n"
 "	out_rim = in_swellpin; // QVR\n"
 "	out_uv = in_uv.xy;\n"
 "	out_pos = pos - EyePos;\n"
@@ -1034,9 +1108,12 @@ LIQUID_FUNCTIONS // QVR
 "layout(location=20) in float in_rim; // QVR: the shoreline foam's distance (LiquidFoam)\n"
 "\n"
 OIT_OUTPUT (out_fragcolor)
+QVR_TEMPORAL_BLOCK // QVR: temporal AA's motion vectors (vr/vr_temporal.cpp): a liquid's, flagged
+QVR_TEMPORAL_FS_OUTPUT
 "\n"
 "void main()\n"
 "{\n"
+"	QVR_TEMPORAL_WRITE(0.5); // QVR\n"
 "	vec3 pos = in_pos + EyePos; // QVR: the liquid's look (vr_water_*), in the world\n"
 "	vec3 facing = normalize(cross(dFdx(pos), dFdy(pos)));\n"
 "	facing = dot(facing, in_pos) > 0. ? -facing : facing;\n"
@@ -1055,6 +1132,8 @@ OIT_OUTPUT (out_fragcolor)
 "	result.rgb = ApplyFog(result.rgb, in_pos);\n"
 "	result.a *= alpha; // QVR\n"
 "	result = LiquidRefract(result, pos, n, facing, liquid); // QVR\n"
+"	result = LiquidBlood(result, pos, facing, liquid, clamp(dot(liquid_tex, vec3(0.3, 0.59, 0.11)) * 3.0 + 0.2, 0.4, 1.0)); // QVR: blood in it (vr_water_blood)\n"
+"	result.a *= LiquidEdge; // QVR: the wavy edge (LiquidFoam): what is behind seen past it\n"
 "	out_fragcolor = result;\n"
 "#if DITHER\n"
 "	if (Fog.w > 0.)\n"
@@ -1302,12 +1381,31 @@ NOISE_FUNCTIONS
 "	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own); w retro lighting's (vr_retrolight.h): a Quake texel's share of the texture's (0: 1)\n"\
 "	vec4	PortalClip; // QVR: this instance's teleporter half\n"\
 "	vec4	RetroPart; // QVR: your body's parts by bone (vr/vr_retro.cpp bodyParts): xy the low bits of bones 0..23, 24..47, zw the high bits\n"\
+"	ivec4	Smooth; // QVR: r_lerpmodels 3 (vr/vr_animsmooth.cpp): x, y the first and fourth poses, z 1 + its bones' first row in SmoothSwing (0 none; -1 - it: rebuilt, vr_anim_smooth_rebuild), w 1 on (2 + its hit reaction's kicked bones' first row: vr/vr_hitreact.cpp)\n"\
+"	vec4	SmoothW; // QVR: ... the four poses' weights\n"\
+"	vec4	SkinTint; // QVR: bare forearms' ends tinted to the hand's skin (vr/vr_view.cpp skinTint): rgb times the skin, w how much (0 none)\n"\
+"	vec4	SkinTintRange; // QVR: ... where in the skin: x below this u, y from this v (none) to z (all), w below this v\n"\
+"	vec4	SkinTone; // QVR: skin-only tone, excludes painted wounds\n"\
+"	vec4	HotBlade; // QVR: an incandescent blade's glow only on its blade: xyz . pose + w, 0 at the blade's root to 1 (vr/vr_hotblade.cpp; zero: all of it)\n"\
+"	vec4	Glove; // QVR: gloves (vr/vr_view.cpp gloveLook): the leather's rgb, w the skin mask's channel (1 fingerless G, 2 full B; 0 none)\n"\
+"	vec4	GloveCuff; // QVR: ... a bare forearm's cuff: x below this u, from v y, its hem to v z, below v w (zero: none)\n"\
+"	vec4	Dent; // QVR: flesh dents (vr/vr_dents.cpp): x its rows' first in Dents, y their count (0 none), zw xy of its pose's origin in units\n"\
+"	vec4	DentScale; // QVR: ... its pose to units: xyz the scale, w z of the origin\n"\
+"	vec4	GloveShell; // QVR: a glove's shell (vr/vr_handrig.cpp gloveShells, vr_glove_thickness): x its thickness in the model's units (0: none drawn); y the painted leather's relief's strength (vr_glove_relief)\n"\
+"	vec4	Stump; // QVR: a ragdoll's stumps (vr/vr_ragdoll.cpp stumpLook): x its cut bones (bits 0..23), y how far round their joints the cut's flesh reaches (units; StumpFlesh)\n"\
+"	ivec4	Motion; // QVR: temporal AA (vr/vr_temporal.cpp): x its vertices' slot this frame in MotionCur, y last frame's in MotionPrev (-1 none)\n"\
 "};\n"\
 "\n"\
+QVR_STEREO_VIEWS /* QVR: single-pass stereo (multiview twins only) */ \
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
 "{\n"\
+"#ifdef QVR_MULTIVIEW\n"\
+"	mat4	ViewProjMono;\n"\
+"	vec3	EyePosMono;\n"\
+"#else\n"\
 "	mat4	ViewProj;\n"\
 "	vec3	EyePos;\n"\
+"#endif\n"\
 "	vec4	Fog;\n"\
 "	float	ScreenDither;\n"\
 "	InstanceData instances[];\n"\
@@ -1336,6 +1434,7 @@ ALIAS_INSTANCE_BUFFER
 "#else\n"
 "#define ALIAS_INSTANCE_ID gl_InstanceID\n"
 "#endif\n"
+"invariant gl_Position; // QVR: your body's depth pre-pass (glprogs.alias_depth, vr_body_prepass) gives the very same depths\n"
 "\n"
 "struct PoseVertex\n"
 "{\n"
@@ -1355,6 +1454,7 @@ ALIAS_INSTANCE_BUFFER
 "		mat3x4 BonePoses[];\n"
 "	};\n"
 "\n"
+"	vec3 bind_pos; // QVR: in_pos, a bare forearm's hand's end inside the arm folded in (QVR_ALIAS_VS_HANDFOLD)\n"
 "	PoseVertex GetPoseVertex(uint pose)\n"
 "	{\n"
 "		mat3x4 blendmat = BonePoses[pose + in_indices.x] * in_weights.x;\n"
@@ -1365,7 +1465,7 @@ ALIAS_INSTANCE_BUFFER
 "			blendmat += BonePoses[pose + in_indices.w] * in_weights.w;\n"
 "		}\n"
 "		mat4x3 anim = transpose(blendmat);\n"
-"		return PoseVertex((anim * vec4(in_pos, 1.0)).xyz, (anim * vec4(in_nor.xyz, 0.0)).xyz);\n"
+"		return PoseVertex((anim * vec4(bind_pos, 1.0)).xyz, (anim * vec4(in_nor.xyz, 0.0)).xyz);\n"
 "	}\n"
 "\n"
 "#else // PV_QUAKE1 || PV_MD3\n"
@@ -1375,6 +1475,17 @@ ALIAS_INSTANCE_BUFFER
 "	{\n"
 "		uvec2 PackedPosNor[];\n"
 "	};\n"
+"#if POSEVERTTYPE == 0 // QVR: each pose's vertex dequantised (vr/vr_mdldequant.cpp): its offset from the stored bytes, in steps (zero: the bytes)\n"
+"	layout(std430, binding=11) restrict readonly buffer PoseFracBuffer\n"
+"	{\n"
+"		uint PoseFrac[];\n"
+"	};\n"
+"	vec3 Dequantised (vec3 pos, uint index) // (none: the bytes exactly, the same instructions after as before)\n"
+"	{\n"
+"		uint frac = PoseFrac[index];\n"
+"		return frac == 0u ? pos : pos + unpackSnorm4x8(frac).xyz * 0.5;\n"
+"	}\n"
+"#endif\n"
 "\n"
 "	PoseVertex GetPoseVertex (uint pose)\n"
 "	{\n"
@@ -1392,13 +1503,14 @@ ALIAS_INSTANCE_BUFFER
 "		ret.nor.z = coslat;\n"
 "		return ret;\n"
 "#else // PV_QUAKE1\n"
-"		return PoseVertex(vec3((data.xxx >> uvec3(0, 8, 16)) & 255), unpackSnorm4x8(data.y).xyz);\n"
+"		return PoseVertex(Dequantised(vec3((data.xxx >> uvec3(0, 8, 16)) & 255), pose + gl_VertexID), unpackSnorm4x8(data.y).xyz); // QVR: dequantised\n"
 "#endif // POSEVERTTYPE\n"
 "	}\n"
 "\n"
 "#endif // POSEVERTTYPE check\n"
 "\n"
 QVR_ALIAS_VS_FUNCTIONS // QVR: the recoil steadied (ZeroBlend), the poses' occlusion
+QVR_DENT_FUNCTIONS // QVR: flesh dents (vr/vr_dents.cpp)
 "float r_avertexnormal_dot(vec3 vertexnormal, vec3 dir) // from MH \n"
 "{\n"
 "	float d = dot(vertexnormal, dir);\n"
@@ -1416,6 +1528,12 @@ QVR_ALIAS_VS_FUNCTIONS // QVR: the recoil steadied (ZeroBlend), the poses' occlu
 "layout(location=1) out vec4 out_color;\n"
 "layout(location=2) out vec3 out_pos;\n"
 QVR_ALIAS_VS_OUTPUTS // QVR: the alias vertex shader's Quake VR outputs
+QVR_TEMPORAL_BLOCK // QVR: temporal AA's motion vectors (vr/vr_temporal.cpp): each vertex's world position kept a frame
+QVR_TEMPORAL_VS_OUTPUT
+"#if !defined(QVR_MULTIVIEW) && !defined(LAYERED) && !defined(WOUNDPAINT)\n"
+"layout(std430, binding=13) restrict writeonly buffer MotionCurBuffer { vec4 MotionCur[]; };\n"
+"layout(std430, binding=14) restrict readonly buffer MotionPrevBuffer { vec4 MotionPrev[]; };\n"
+"#endif\n"
 "\n"
 "layout(location=86) uniform vec4 ShadowClip; // QVR: enabled only for clipped shadow casters\n"
 "void main()\n"
@@ -1425,10 +1543,20 @@ QVR_ALIAS_VS_OUTPUTS // QVR: the alias vertex shader's Quake VR outputs
 "	out_fbboost = inst.Glow.z; // QVR\n"
 "	out_pdepth = inst.Glow.w; // QVR: parallax mapping's depth (vr_parallax_models)\n"
 "	out_texcoord = in_uv;\n"
+QVR_ALIAS_VS_HANDFOLD // QVR: a bare forearm's hand's end inside the arm folded in (vr/vr_view.cpp skinTint)
 "	PoseVertex pose1 = GetPoseVertex(inst.Pose1);\n"
 "	PoseVertex pose2 = GetPoseVertex(inst.Pose2);\n"
 "	mat4x3 worldmatrix = transpose(mat3x4(inst.WorldMatrix[0], inst.WorldMatrix[1], inst.WorldMatrix[2]));\n"
 "	vec3 lerpedPos = mix(pose1.pos, pose2.pos, inst.Blend);\n"
+QVR_ALIAS_VS_SMOOTH // QVR: r_lerpmodels 3: along a spline through four poses, the limbs swung round their joints
+QVR_ALIAS_VS_DENTS // QVR: flesh dents (vr/vr_dents.cpp): pushed in round where the blows struck
+"	if (inst.GloveShell.x > 0.0 && in_uv.x >= 1.5) // QVR: a glove's shell (vr/vr_handrig.cpp gloveShells): its u + 2 (1 +\n"
+"	{ // 15 times its share of the thickness): pushed out along its normal by that share; u 2 along for the fragments\n"
+"		float mark = floor(in_uv.x * 0.5);\n"
+"		out_texcoord.x = in_uv.x - 2.0 * mark + 2.0;\n"
+"		vec3 sn = mix(pose1.nor, pose2.nor, inst.Blend);\n"
+"		lerpedPos += sn * (inversesqrt(max(dot(sn, sn), 1e-8)) * inst.GloveShell.x * (mark - 1.0) * (1.0 / 15.0));\n"
+"	}\n"
 "	lerpedPos = ZeroBlend(lerpedPos, inst); // QVR: blend towards frame 0 (vr/vr_render.cpp)\n"
 "	vec3 lerpedVert = (worldmatrix * vec4(lerpedPos, 1.0)).xyz;\n"
 "	gl_ClipDistance[0] = dot(vec4(lerpedVert, 1.0), ShadowClip); // QVR: virtual light exit plane\n"
@@ -1439,6 +1567,13 @@ QVR_ALIAS_VS_OUTPUTS // QVR: the alias vertex shader's Quake VR outputs
 "	gl_ViewportIndex = int(face);\n"
 "#else\n"
 "	gl_Position = ViewProj * vec4(lerpedVert, 1.0);\n"
+"#endif\n"
+"	out_prevclip = vec4(0.0); // QVR: temporal AA (vr/vr_temporal.cpp): where this vertex was drawn a frame ago\n"
+"#if !defined(QVR_MULTIVIEW) && !defined(LAYERED) && !defined(WOUNDPAINT)\n"
+"	if (inst.Motion.x >= 0)\n"
+"		MotionCur[inst.Motion.x + gl_VertexID] = vec4(lerpedVert, 1.0);\n"
+"	if (TemporalJitter.w > 0.0)\n"
+"		out_prevclip = PrevViewProj * vec4(inst.Motion.y >= 0 ? MotionPrev[inst.Motion.y + gl_VertexID].xyz : lerpedVert, 1.0);\n"
 "#endif\n"
 "	out_pos = lerpedVert - EyePos;\n"
 "	out_nor = mat3(worldmatrix) * mix(pose1.nor, pose2.nor, inst.Blend); // QVR\n"
@@ -1480,6 +1615,9 @@ NOISE_FUNCTIONS
 "layout(binding=0) uniform sampler2D Tex;\n"
 "layout(binding=1) uniform sampler2D FullbrightTex;\n"
 "layout(binding=2) uniform sampler2D NormalTex; // QVR\n"
+"layout(binding=6) uniform sampler2D SkinMaskTex; // QVR: authored skin only\n"
+"layout(binding=7) uniform sampler2D GloveTex; // QVR: a glove's painted leather (vr_glove_paint): RGB its detail, A its wear\n"
+"layout(binding=8) uniform sampler2D GloveHeightTex; // QVR: ... its relief, made a normal map as it loaded (vr_render.cpp gloveHeightToNormals)\n"
 "\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	layout(location=0) noperspective in vec2 in_texcoord;\n"
@@ -1491,13 +1629,20 @@ NOISE_FUNCTIONS
 QVR_ALIAS_FS_INPUTS // QVR: the alias fragment shader's Quake VR inputs
 "\n"
 OIT_OUTPUT (out_fragcolor)
+QVR_TEMPORAL_BLOCK // QVR: temporal AA's motion vectors (vr/vr_temporal.cpp)
+QVR_TEMPORAL_FS_OUTPUT
 "\n"
 QVR_ALIAS_FS_FUNCTIONS // QVR: per-pixel lights, normal maps, ambient, wounds, morphs
 QVR_BEHIND_SHOWN_GATE_ALIAS // QVR: see-through models behind a teleporter shown in this view (QVR_ALIAS_FS_GLOW)
 "void main()\n"
 "{\n"
+"	QVR_TEMPORAL_WRITE(0.0); // QVR: first (before any early return)\n"
 "	vec2 uv = in_texcoord;\n"
+"	bool gloveShell = uv.x >= 1.5 && instances[in_instance].GloveShell.x > 0.0; // QVR: a glove's shell (its u 2 along)\n"
+"	if (gloveShell)\n"
+"		uv.x -= 2.0;\n"
 "	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // QVR: for the normal map (before any discard)\n"
+"	vec3 drdx = dFdx(in_restpos), drdy = dFdy(in_restpos); // QVR: the rest pose's, for the flesh dents' bowls (DentBump)\n"
 "	vec2 duvdx = dFdx(uv), duvdy = dFdy(uv);\n"
 "	if (RetroLight[5].z > 0.) // QVR: retro lighting (vr_retrolight.h): the skin's grid, in its Quake texels (Retro.w: their share of the texture's)\n"
 "	{\n"
@@ -1516,6 +1661,7 @@ QVR_ALIAS_FS_PARALLAX // QVR: parallax occlusion mapping on the skin's heights
 "	RetroBegin(in_retroset, retro.y > 0.0 ? retro.yz : vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
 "	vec4 result = Retro > 0 ? RetroSample(Tex, uv, duvdx, duvdy, true) : textureGrad(Tex, uv, duvdx, duvdy);\n"
 "#endif\n"
+QVR_ALIAS_FS_SKINTINT // QVR: bare forearms' ends tinted to the hand's skin
 "#if ALPHATEST\n"
 "	// QVR: alpha to coverage (vr_alpha_coverage with MSAA; opaque draws): the alpha sharpened to about a pixel's\n"
 "	// width round the cutoff gives the samples covered; without it, Quake's test\n"
@@ -1532,6 +1678,7 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "#endif\n"
 "	result.rgb += spec; // QVR\n"
 "	result.rgb += WoundSheen(wounds, bumped); // QVR: wet blood and water shine\n"
+"	result.rgb += GloveSheen(bumped, leatherGloss * leatherCover); // QVR: a glove's leather's soft sheen\n"
 "	result.rgb += ModelRimReflect(n, bumped, skin, result.a); // QVR: rim light and reflections (vr/vr_envmap.cpp)\n"
 "#if POSEVERTTYPE == 2 \n"
 "	result.a *= in_color.a;\n"
@@ -1974,6 +2121,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "	vec3	vieworg;\n"
 "	uint	oldskyleaf;\n"
 "	uint	framecount;\n"
+"	vec3	vieworg2; // QVR: single-pass stereo: the other eye's (else vieworg)\n"
 "};\n"
 "\n"
 "void main()\n"
@@ -1997,7 +2145,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND
 "\n"
 "	// backface culling\n"
 "	vec4 surfplane = SURF_PLANE(surfbase);\n"
-"	if (dot(surfplane.xyz, vieworg) < surfplane.w)\n"
+"	if (dot(surfplane.xyz, vieworg) < surfplane.w && dot(surfplane.xyz, vieworg2) < surfplane.w)\n" // QVR: either eye
 "		return;\n"
 "\n"
 "	// frustum culling\n"

@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Native environment acceptance aid (Debug > Tests). Reload the map after the destructive barrel test.
 float MG_test_pass;
 float MG_test_fail;
@@ -148,3 +149,4 @@ void() MG_TestFrame = {
     self = oself;
     other = oother;
 };
+#endif

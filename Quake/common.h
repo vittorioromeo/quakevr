@@ -317,6 +317,8 @@ extern	int		safemode;
  */
 
 int COM_CheckParm (const char *parm);
+qboolean COM_CheckParmImplied (const char *flag, const char *impliedBy, const char *why); // QVR: a flag another flag implies (-evalcopy implies -noconfigwrite, -noautoexec; -preparerelight implies -prepare), said once in the console
+qboolean COM_PrepareRun (void); // QVR: the installer's preparation run: -prepare, or -preparerelight (which implies it)
 
 void COM_Init (void);
 void COM_InitArgv (int argc, char **argv);
@@ -388,6 +390,8 @@ typedef struct pack_s
 	int		handle;
 	int		numfiles;
 	packfile_t	*files;
+	int		*hash;		// QVR: files[] by name: index + 1 of each name's first entry, 0 empty (COM_PackFind)
+	unsigned int	hashmask;	// QVR: the table's size - 1 (a power of two, at least twice numfiles)
 } pack_t;
 
 typedef struct searchpath_s

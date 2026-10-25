@@ -1,11 +1,15 @@
+#ifdef QVR_TESTS
 // Focused parry tests, available in Debug > Tests. Invoked as spawn functions by vr_physics_spawn.
 // They use the real damage/guard and dragon tail paths, with only target/route setup made deterministic.
 void() VR_Parry_DragonObserve =
 {
     entity m = self.owner;
+    // (Next think: one is scheduled at all, so it goes on. Not "after now": the dragon's own think falls in this frame
+    // too at times, at or before this one's time, and runs then: the flaky "next think 0" of the 1.1 sweep.)
     dprint(sprintf("dragon parry test: recovered %g, attacking %g, route %g, moved %g, next think %g\n",
         m.vr_parry_stagger_until == 0, m.dragonAttacking, m.movetarget == self,
-        m.origin != self.pos1, m.nextthink > time));
+        m.origin != self.pos1, m.nextthink > 0 && m.think != SUB_Null));
+    dprint(sprintf("dragon parry test: its next think in %.3f s\n", m.nextthink - time));
 };
 
 void() VR_Parry_DragonTest =
@@ -100,6 +104,9 @@ void() VR_Parry_SameCallbackTest =
     float restored = self == beforeSelf && v_forward == '1 2 3' && v_right == '4 5 6' && v_up == '7 8 9';
     T_Damage(p, self, self, 10);
     T_Damage(p, self, self, 10);
+    // (Its recovery: the stagger's think (VR_Parry_Recover), or the knockdown's when it staggers back as an active ragdoll
+    // (vr_parry_ragdoll, a knight's: VR_Parry_Interrupt).)
     dprint(sprintf("parry callback test: first health %g, after follow-ups %g, self/vectors restored %g, recovery think %g\n",
-        first, p.health, restored, self.think == VR_Parry_Recover));
+        first, p.health, restored, self.think == VR_Parry_Recover || self.vr_knockdown != 0));
 };
+#endif

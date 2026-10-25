@@ -104,7 +104,7 @@ float(float xHand, entity xVictim, vector xAt, float xDmg) MG3_SuperAxe_Strike =
         MG3_SuperAxe_EndChain(self);
         delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, MG3_SUPERAXE_BURST_CELLS);
         trace_endpos = xAt;
-        HIP_SpawnMjolnirBase();
+        HIP_SpawnMjolnirBase(xHand);
         vr_superaxe_bursts++;
         if(cvar("developer"))
         {
@@ -129,7 +129,7 @@ float(float xHand, entity xVictim, vector xAt, float xDmg) MG3_SuperAxe_Strike =
     }
 
     xVictim.axhitme = 1;
-    self.damage_weapon = IT_AXE;
+    VR_DamageCredit_SetWeapon(self, WID_SUPERAXE);
     VR_HitBlood(xVictim, xAt, v_forward, xDmg);
     T_Damage_VRMelee(xVictim, self, self, xDmg);
     if(cvar("developer"))
@@ -165,6 +165,7 @@ void(float xHand) W_SuperAxeMelee =
     }
 
     MG3_SuperAxe_EndChain(self); // a wall or the air: the chain ends (MG3: last_mjolnir_hit = world)
+    VR_Melee_WallMark(xHand, xdmg, FALSE); // its head's chop (vr_decal_melee)
     if(trace_fraction != 1.0 && VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);
@@ -435,7 +436,7 @@ void(float xWid, float xBit, string xName) MG3_Bloody_Spawn =
     {
         self.handtouch = MG3_Bloody_Touch;
     }
-    if(MG3_Campaign())
+    if(MG3_Campaign() && !vr_spawn_live) // (one the toolgun makes stays: vr_spawn_live, vr_walltorch.qc)
     {
         entity check = spawn();
         check.owner = self;

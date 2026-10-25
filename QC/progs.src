@@ -8,13 +8,29 @@ vr_weaponinst.qc
 // has already compiled).
 vr_util.qc
 vr_handgrabutil.qc
+// The weapon a blow is credited with (Honey's FL_SPECIFICDAMAGE): stamped where the damage dealer is made, read by T_Damage.
+vr_dmgcredit.qc
 
 vr_portal_ai.qc
 vr_portal_ai_test.qc
 vr_stealth_defs.qc
+// Arcane Dimensions: the switches and the bridge's declarations (vr_ad_bridge.qc, after AD's files, defines them).
+vr_ad_defs.qc
+// AD support: the AD soldiers' guns' tables (vr_weaponutil.qc asks them; vr_ad_enemyguns.qc fires them).
+vr_ad_guns_defs.qc
+// Whose meaning a map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'): VR_SF_Has, VR_OtherFlags.
+vr_spawnflags.qc
+// AD's monsters with Quake VR's treatment: their fields and hooks (vr_ad_monsters.qc defines them).
+vr_ad_mondefs.qc
+// Armed grunts: their fields and hooks (ai.qc, combat.qc and the grunt's file call them; vr_armedgrunt.qc defines them).
+vr_armedgrunt_defs.qc
+vr_armedgrunt_shot_defs.qc
 ai.qc
 combat.qc
+combat_test.qc
 fight.qc
+// Monsters' ranged shots bent to an aim cone off their facing (after fight.qc; the monsters' files and AD's call it).
+vr_aimcone.qc
 items.qc
 subs.qc
 
@@ -34,10 +50,13 @@ vr_reload.qc
 vr_reload_test.qc
 vr_debris.qc
 vr_crates.qc
+vr_crates_test.qc
 vr_smallgibs.qc
 vr_walltorch.qc
+vr_walltorch_test.qc
 vr_mg_defs.qc
 vr_mg_activation.qc
+vr_mg_activation_test.qc
 vr_mg_fog.qc
 vr_mg_func_bob.qc
 vr_mg_func_toss.qc
@@ -55,8 +74,10 @@ vr_mg3_defs.qc
 vr_mg3_upgrades.qc
 // The grapple after vr_carry.qc and vr_walltorch.qc: it reads their fields.
 vr_grapple.qc
+vr_grapple_test.qc
 // Grunts' and enforcers' shoves (ai.qc calls it; the monsters' files use it).
 vr_enemyshove.qc
+vr_enemyshove_test.qc
 // The stealth AI (ai.qc, combat.qc, weapons.qc call it; vr_stealth_defs.qc before ai.qc has its fields).
 vr_stealth.qc
 vr_ai_props.qc
@@ -68,6 +89,7 @@ vr_stealth_test.qc
 vr_foegrab.qc
 
 buttons.qc
+buttons_test.qc
 vr_tips.qc
 vr_deathdoll.qc
 client.qc
@@ -81,29 +103,52 @@ vr_tutorial.qc
 vr_mg3_triggers.qc
 vr_mg3_items.qc
 weapons.qc
+// The single-player test and debug impulses (ImpulseCommands calls VR_TestImpulse first).
+vr_impulse_test.qc
+weapons_test.qc
 vr_chainsaw.qc
 // Decapitation after the chainsaw (its bar) and weapons.qc (positional damage's head zone).
 vr_decap.qc
+vr_decap_test.qc
 vr_limbs.qc
+// Teeth knocked out by a punch to the face (after vr_decap.qc: its head zone and blunt hardness).
+vr_teeth.qc
 vr_limbs_test.qc
 vr_enemyguns.qc
 vr_crowbar.qc
 vr_toolgun.qc
+vr_nailpistol.qc
 vr_mg3_weapons.qc
 vr_pickup_test.qc
 vr_axestick.qc
+vr_axestick_test.qc
+// Magnetic holsters (after the holsters, the throws, the stuck axes and the chainsaw's props it uses).
+vr_magholster.qc
 vr_weaponinst_test.qc
 vr_liquids.qc
 vr_wounds.qc
+// Living hit reactions (combat.qc, ai.qc and weapons.qc call it).
+vr_hitreact.qc
+vr_hitreact_test.qc
 vr_burning.qc
+vr_burning_test.qc
+// Incandescent blades (after vr_burning.qc and vr_walltorch.qc: it sets on fire, it finds their flames).
+vr_hotblade.qc
+vr_hotblade_test.qc
 vr_shock.qc
+vr_shock_test.qc
+// Every hit dents: the damage paths' wound events (vr_dents_test, Debug > Gore Tests).
+vr_dents_test.qc
 // Debug > Cheats and Recording: the powerups, infinite ammunition, the scene's cleanups (after what they remove).
 vr_cheats.qc
 vr_smallgibs_test.qc
 vr_dropcap_test.qc
 vr_crouch_test.qc
+vr_melee_sweep_test.qc
+vr_blade_test.qc
 world.qc
 vr_dummy.qc
+vr_dummy_test.qc
 vr_motion.qc
 vr_highlights.qc
 vr_mg_world_test.qc
@@ -112,6 +157,8 @@ vr_mg_hub_test.qc
 vr_mg_horde_test.qc
 vr_mg3_test.qc
 vr_monsters_test.qc
+vr_meleearc_test.qc
+vr_aimcone_test.qc
 vr_mg3_weapons_test.qc
 
 orig_mon_boss.qc
@@ -242,7 +289,16 @@ vr_mg3_chthon_test.qc
 
 // Knockdowns: shoves knock monsters down as ragdolls, alive (after everything it calls).
 vr_knockdown.qc
+vr_knockdown_test.qc
+// Hits that unbalance: strong throws and blows stagger monsters as shoves do (after the knockdowns: it uses them).
+vr_hitstagger.qc
+vr_hitstagger_test.qc
+vr_kdtrig.qc
 vr_foegrab_throw.qc
+vr_legsweep.qc
+// Impacts (ragdolls struck on the level, landing crush) and manhandling (after the knockdowns and the limbs: it uses them).
+vr_ragimpact.qc
+vr_ragimpact_test.qc
 
 frikbot/bot.qc
 frikbot/bot_way.qc
@@ -261,3 +317,199 @@ waypoints/map_dm5.qc
 waypoints/map_dm6.qc
 vr_dummy_types.qc
 vr_probe.qc
+
+// Arcane Dimensions (ARCANE_DIMENSIONS.md): AD's QuakeC, imported and namespaced (ad_*), then the bridge (it uses AD's
+// names; vr_ad_defs.qc declared its functions early). Keep them last: AD's compile settings (warnings F302/F322 off)
+// stay on to the end, and each AD file must be its own entry (fteqcc numbers $frame macros per progs.src file).
+// ad_import.py: begin (generated list; Misc/quakevr/ad_import.py rewrites it)
+ad/ad_builtins.qc
+ad/ad_defs.qc
+ad/ad_defscustom.qc
+ad/ad_defsclass.qc
+ad/ad_dpextensions.qc
+ad/ad_mathlib.qc
+ad/ad_csqc_defs.qc
+ad/ad_csqc_hudad.qc
+ad/ad_subs.qc
+ad/ad_subs_soc.qc
+ad/ad_estate.qc
+ad/ad_hiprot.qc
+ad/ad_hipspawn.qc
+ad/ad_globalfog.qc
+ad/ad_chaosmode.qc
+ad/ad_settings.qc
+ad/ad_breakable.qc
+ad/ad_pushable.qc
+ad/ad_switchshad.qc
+ad/ad_part_manage.qc
+ad/ad_part_generate.qc
+ad/ad_part_emitter.qc
+ad/ad_ai_gibs.qc
+ad/ad_ai_enemytarget.qc
+ad/ad_ai_passive.qc
+ad/ad_ai_tether.qc
+ad/ad_ai_pathcorner.qc
+ad/ad_ai_explosion.qc
+ad/ad_ai_ammoresist.qc
+ad/ad_ai_subs.qc
+ad/ad_ai_states.qc
+ad/ad_ai_combat.qc
+ad/ad_ai_minions.qc
+ad/ad_ai_hazards.qc
+ad/ad_ai_projectiles.qc
+ad/ad_ai_checkattack.qc
+ad/ad_world.qc
+ad/ad_client_cshift.qc
+ad/ad_client_mapvar.qc
+ad/ad_client_debuff.qc
+ad/ad_client_power.qc
+ad/ad_client_ghook.qc
+ad/ad_client_evilmode.qc
+ad/ad_client.qc
+ad/ad_client_camera.qc
+ad/ad_client_info.qc
+ad/ad_client_advinfo.qc
+ad/ad_monsters.qc
+ad/ad_items.qc
+ad/ad_items_progspn.qc
+ad/ad_weapons.qc
+ad/ad_player.qc
+ad/ad_lights.qc
+ad/ad_triggers_states.qc
+ad/ad_triggers.qc
+ad/ad_targets.qc
+ad/ad_func.qc
+ad/ad_func_doors.qc
+ad/ad_func_doorsecret.qc
+ad/ad_func_buttons.qc
+ad/ad_func_pswitch.qc
+ad/ad_func_insvolume.qc
+ad/ad_func_plats.qc
+ad/ad_func_trains.qc
+ad/ad_misc.qc
+ad/ad_misc_model.qc
+ad/ad_misc_camera.qc
+ad/ad_misc_textbook.qc
+ad/ad_misc_targetdummy.qc
+ad/ad_traps.qc
+ad/ad_traps_pendulum.qc
+ad/ad_traps_sawblade.qc
+ad/ad_sounds.qc
+ad/ad_mon_demon.qc
+ad/ad_mon_dog.qc
+ad/ad_mon_fish.qc
+ad/ad_mon_hknight.qc
+ad/ad_mon_knight.qc
+ad/ad_mon_ogre.qc
+ad/ad_mon_ogrextra.qc
+ad/ad_mon_enforcer.qc
+ad/ad_mon_shalrath.qc
+ad/ad_mon_shambler.qc
+ad/ad_mon_soldier.qc
+ad/ad_mon_tarbaby.qc
+ad/ad_mon_wizard.qc
+ad/ad_mon_zombie.qc
+ad/ad_mon_boil.qc
+ad/ad_mon_centurion.qc
+ad/ad_mon_dcrossbow.qc
+ad/ad_mon_deflector.qc
+ad/ad_mon_dfury.qc
+ad/ad_mon_dguard.qc
+ad/ad_mon_dguardquoth.qc
+ad/ad_mon_dknight.qc
+ad/ad_mon_dlord.qc
+ad/ad_mon_dprince.qc
+ad/ad_mon_drole.qc
+ad/ad_mon_dsergeant.qc
+ad/ad_mon_eel.qc
+ad/ad_mon_floyd.qc
+ad/ad_mon_freddie.qc
+ad/ad_mon_gargoyle.qc
+ad/ad_mon_gaunt.qc
+ad/ad_mon_golem.qc
+ad/ad_mon_hogre.qc
+ad/ad_mon_hogreham.qc
+ad/ad_mon_hogremac.qc
+ad/ad_mon_invsword.qc
+ad/ad_mon_jim.qc
+ad/ad_mon_lostsoul.qc
+ad/ad_mon_minotaur.qc
+ad/ad_mon_pyro.qc
+ad/ad_mon_scorpion.qc
+ad/ad_mon_seeker.qc
+ad/ad_mon_sentinel.qc
+ad/ad_mon_skullwiz.qc
+ad/ad_mon_spider.qc
+ad/ad_mon_steelclaw.qc
+ad/ad_mon_swampling.qc
+ad/ad_mon_voreling.qc
+ad/ad_mon_wraith.qc
+ad/ad_mon_zombiek.qc
+ad/ad_mon_xmas_elf.qc
+ad/ad_mon_xmas_raindeer.qc
+ad/ad_mon_xmas_snowman.qc
+ad/ad_mon_xmas_santa.qc
+ad/ad_mon_sweeper.qc
+ad/ad_mon_turretbal.qc
+ad/ad_mon_bossmammoth.qc
+ad/ad_mon_bossidchthon.qc
+ad/ad_mon_bossidshub.qc
+ad/ad_mon_bossxxchthon.qc
+ad/ad_mon_bossxxshub.qc
+ad/ad_mon_bossboglord.qc
+ad/ad_mon_bosseidolon.qc
+ad/ad_mon_bossfiretop.qc
+ad/ad_mon_bossicegolem.qc
+ad/ad_mon_bossjudicator.qc
+ad/ad_mon_bossnour.qc
+// ad_import.py: end
+vr_ad_bridge.qc
+vr_ad_bridge_test.qc
+vr_ad_items.qc
+vr_ad_player.qc
+vr_ad_world_test.qc
+vr_ad_test.qc
+vr_ad_monsters.qc
+// The stealth AI on AD's monsters (AD's patched FindTarget, stand, walk, run call it; vr_stealth.qc asks it).
+vr_ad_stealth.qc
+// The AD soldiers' guns: dropped, fired (after the monsters' hooks: VR_AD_Dying drops them).
+vr_ad_enemyguns.qc
+vr_ad_enemyguns_test.qc
+// AD's melee monsters' weapons: dropped (VR_AD_Dying), their tests (after the guns' test harness: its target).
+vr_ad_melee.qc
+// The held guns' models the map can give (the engine prepares their convex pieces at load).
+vr_gunprep.qc
+vr_ad_monsters_test.qc
+// Dead monsters stay dead: the watch (vr_debug_deadanim) and its test (after AD's files: its animation callbacks).
+vr_deadanim.qc
+vr_ad_shots_test.qc
+vr_projhit_test.qc
+// The Shadow Axe's rules through our axe (vr_ad_test 140; after the bridge: AD_AxeMark, AD_ShadowAxeChop).
+vr_ad_upgrades_test.qc
+// Every monster's head and gibs as props (vr_gibprops_test; after AD's files: it counts AD's own gibs).
+vr_gibprops_test.qc
+// A corpse's pieces worn off by each weapon (vr_limb_test 30-37; after the bridge: AD's pellet hit).
+vr_limbs_wear_test.qc
+// The weapon each weapon's damage is credited with (vr_dmgcredit_test; after every weapon it fires).
+vr_dmgcredit_test.qc
+// The props' impact rule (vr_prop_impact_test; after AD's files: its breakables' kinds).
+vr_propimpact_test.qc
+// Armed grunts (after every weapon they fire and the grunt's own frames) and their test (vr_agrunt_test).
+vr_armedmon.qc
+vr_armedgrunt.qc
+vr_armedgrunt_pose.qc
+vr_armedgrunt_play.qc
+vr_armedgrunt_shot.qc
+vr_armedgrunt_parry.qc
+vr_armedrepl.qc
+vr_adtankworn.qc
+vr_armedmon_ui.qc
+vr_armedgrunt_test.qc
+vr_armedgrunt_glitch_test.qc
+vr_armedgrunt_play_test.qc
+vr_armedgrunt_shot_test.qc
+vr_armedgrunt_parry_test.qc
+vr_armedgrunt_bugs_test.qc
+vr_armedgrunt_close_test.qc
+vr_armedrepl_test.qc
+vr_nailpistol_test.qc

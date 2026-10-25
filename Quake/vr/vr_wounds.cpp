@@ -1,7 +1,10 @@
 // vr_wounds.cpp -- see vr_wounds.hpp.
 
 #include "vr_modelmetadata.hpp"
-#include "vr_wounds.hpp"
+#include "vr_wounds_internal.hpp"
+#include "vr_bloodprints.hpp"
+#include "vr_dents.hpp"
+#include "vr_bloodstream.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_modelcollide.hpp"
@@ -12,6 +15,9 @@
 #include "vr_avatar.hpp"
 #include "vr_client.hpp"
 #include "vr_held.hpp"
+#include "vr_handrig.hpp"
+#include "vr_progs.hpp"
+#include "vr_water.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Remove.hpp"
@@ -29,9 +35,13 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+
+#include <glm/gtc/type_ptr.hpp>
 
 #include <string.h>
 
@@ -41,91 +51,39 @@ namespace qvr::wounds
 {
 namespace
 {
+using namespace detail;
 
-constexpr int layerSize = 256;         // a mask's largest side, in texels
 constexpr int ownSlots = 4;            // the fine masks (vr_wounds_own_res): your body and two hands, the body's right side (the last)
 constexpr int maxSplats = 16;          // per draw (the shader's uniform array)
 constexpr float tick = 0.1f;           // seconds between the drying, cooling and healing steps
-constexpr float dryTime = 28.f;        // seconds a soaked model takes to dry (1/255 a step)
+// Seconds a soaked model takes to dry (vr_wounds_wet_time; 1/255 a step): the coat full for the first quarter (wetCoat).
+[[nodiscard]] float dryTime()
+{
+    return za::clamp(vr_wounds_wet_time.value, 2.f, 600.f);
+}
 constexpr float coolTime = 4.f;        // seconds a fresh burn's embers take to go out
 constexpr float healRate = 0.08f;      // of the blood a step while healing (all of it in about 1.3 s)
 
-// The server's kinds (QC/vr_wounds.qc QVR_WOUND_*).
-enum Kind : int
-{
-    KindClear = -1, // QVR_SVC_WOUNDCLEAR: the entity was removed
-    KindShot = 1,
-    KindNail = 2,
-    KindMelee = 3,
-    KindBlast = 4,
-    KindBurn = 5,
-    KindZap = 6,
-    KindLava = 7,
-    KindSlime = 8,
-    KindLiquid = 9,
-    KindWeaponGone = -2, // QVR_SVC_WEAPONGONE: the weapon `num` (its id) is gone: its blood forgotten
-};
-
-struct Event
-{
-    int num{0};
-    glm::vec3 org{0.f};
-    glm::vec3 dir{0.f, 0.f, -1.f};
-    int kind{0};
-    int amount{0};
-    int extra{0};
-};
-
-// Five vec4s, as the paint shader reads them (gl_shaders.h's wound_paint_fragment_shader).
-struct Splat
-{
-    glm::vec4 v[5]{};
-};
 static_assert(sizeof(Splat) == 20 * sizeof(float));
 
-struct Mask
-{
-    const entity_t* ent{nullptr}; // null: free
-    const qmodel_t* model{nullptr};
-    int w{0}, h{0};               // its region of its layer (from the corner)
-    bool view{false};             // the player's own body or hand: never taken for another
-    double lastDrawn{-1e9};       // vr_gametime
-    double painted{-1e9};         // vr_gametime of its last paint
-    float wetLeft{0.f};           // seconds it may still be drying
-    float hotLeft{0.f};           // seconds its embers may still glow
-    float heal{0.f};              // blood and char still to take off (a heal), 0..1
-    float waterline{0.f};         // its last liquid's surface (drips under it)
-    int liquid{0};                // 0 water, 1 slime (the drips' colour)
-    double dripNext{0.0};
-    float sides[2]{0.f, 0.f};     // your body's: the bones of its right side (bits 0..23, 24..47), painted into the twin
-                                  // layer (its arms and legs share their skin's texels, mirrored): 0 none
-    bool gear{false};             // a weapon's or a prop's you held: washed, kept dropped and held again (vr_gore_gear)
-    int weapon{0};                // a weapon's: its id (QC vr_weaponinst.qc), whatever shows it (0: an entity's own mask)
-    int otherSlot{-1};            // chunky (your body's or hand's in the pool): its layer of bloodArray, the blood on it not
-                                  // yours (-1 none; a fine mask's is its own layer there)
-};
-
-za::Vector<Event> events;
-za::Vector<Mask> masks; // one a layer
 ankerl::unordered_dense::map<const entity_t*, int> maskOf;
-GLuint array = 0;
-GLuint fbo = 0;
-int layers = 0;       // the pool's (array): masks 0 .. layers - 1 (chunky mode: the last your body's right side)
 GLuint fineArray = 0; // your own body's and hands' finer masks (vr_wounds_own_res): masks layers .. layers + ownSlots - 1
 GLuint bloodArray = 0; // ... and the blood on them that isn't theirs (spatter, gibs: one channel): healing leaves it (chunky:
                        // your masks in the pool, a layer each, the last your body's right side's)
 bool foreign = false;  // painting blood that isn't yours (paintOnYou's): into bloodArray
-int fineSize = 0;     // their side in texels (0: none; yours in the pool)
+int allocatedOwnRes = -1, allocatedBodyRes = -1; // routing changes also clear masks, even with the same array size
 GLuint washStencil = 0; // a depth-stencil texture as big as the largest mask: a wash takes its blood off each texel once
 int washStencilSize = 0;
 double lastTick = -1.0;
 int playerHealth = -1000;
 za::U32 rng = 0x9e3779b9u;
-float lastPaintMs = 0.f;
-int paintsTotal = 0;
 bool painting = false;
 bool chanOn[3]{true, true, true}; // vr_wounds, vr_wounds_burns, vr_wounds_wet as last seen
 bool bloodOnly = false;           // re-opening the player's wounds (reopen): their blood only, no char, no heat
+float bloodShare = 1.f;           // ... and how much of it (a wound bleeding back in: vr_gore_reopen_fade)
+bool reopenSpread = true;         // ... and its blood runs over the arms and onto what lies near (once, as it is half back)
+float handWetLeft[2]{};           // seconds each hand's weapon may still be drying: the hand was under the liquid's surface
+                                  // (the weapons have no wetness of their own in a mask: wetCoat)
 
 // Blood on your weapons (vr_gore_gear) goes with the weapon: its id (QC vr_weaponinst.qc; a hand's STAT_QVR_WEAPONUID*, a
 // weapon prop's U_QVR_WEAPONUID) keys its mask, put each frame on whatever shows that id (gearFrame), kept (parked,
@@ -142,29 +100,21 @@ struct GibSeen
     double struck{-1e9}; // cl.time it last bloodied you
 };
 ankerl::unordered_dense::map<int, GibSeen> gibsSeen; // the gibs flying round you (vr_gore_spatter_gibs)
-za::Vector<glm::vec3> spatteredNow;                  // this frame's spatters' centres (a blast's pellets: one)
 
 // Blood thrown about near things lying round (vr_gore_gear_nearby): a bleeding hit's, a gibbing's, a gib's burst. For a
 // while (a gibbed monster's gun and backpack come a moment after its burst) what lies within its reach takes it, once.
 constexpr int maxSplashes = 32;
-constexpr int splashThings = 24; // things one splash bloodies at most
-struct Splash
-{
-    glm::vec3 at{0.f};
-    float reach{0.f};  // units past a thing's size
-    float share{0.f};  // the drops' share of a thing's surface at its side facing the blood (falling off with the square of the distance)
-    float soak{0.f};   // what lies within `core` of it (a gibbed monster's drops) soaked all over, this much (0 none)
-    float core{0.f};
-    double until{0.0}; // cl.time
-    int done[splashThings]{};
-    int doneCount{0};
-};
-za::Vector<Splash> splashes;
 
+} // namespace
+namespace detail
+{
 [[nodiscard]] int parkIndex(const entity_t* e)
 {
     return e >= parkKeys && e < parkKeys + maxParked ? static_cast<int>(e - parkKeys) : -1;
 }
+} // namespace detail
+namespace
+{
 
 void resetGear()
 {
@@ -216,9 +166,9 @@ void resetGear()
 }
 
 // vr_wounds_own_res: 0, or a power of two from 512 to 2048.
-[[nodiscard]] int ownRes()
+[[nodiscard]] int detailRes(float value)
 {
-    const int want = static_cast<int>(vr_wounds_own_res.value);
+    const int want = static_cast<int>(value);
     if(want <= 0)
     {
         return 0;
@@ -231,16 +181,37 @@ void resetGear()
     return res;
 }
 
+} // namespace
+namespace detail
+{
+[[nodiscard]] int ownRes() { return detailRes(vr_wounds_own_res.value); }
+[[nodiscard]] int bodyRes() { return za::max(ownRes(), detailRes(vr_wounds_body_res.value)); }
+} // namespace detail
+namespace
+{
+
+} // namespace
+namespace detail
+{
 [[nodiscard]] int maskCount()
 {
     return static_cast<int>(masks.size());
 }
+} // namespace detail
+namespace
+{
 
 // Where mask `layer` lives: the pool's array or the fine one, its layer there, its side.
+} // namespace
+namespace detail
+{
 [[nodiscard]] bool isFine(int layer)
 {
     return layer >= layers;
 }
+} // namespace detail
+namespace
+{
 
 [[nodiscard]] GLuint textureOf(int layer)
 {
@@ -273,6 +244,9 @@ void resetGear()
 // The layer of bloodArray holding the blood not its own on mask layer `in` (one of layersOf's): a fine mask's its own
 // layer there; chunky, your body's and hands' (in the pool) one each, your body's right side the last. -1: none (the
 // rest: monsters, gear).
+} // namespace
+namespace detail
+{
 [[nodiscard]] int bloodLayerOf(int in)
 {
     if(!bloodArray)
@@ -285,19 +259,28 @@ void resetGear()
     }
     return in == twinLayer() ? ownSlots - 1 : masks[static_cast<za::SizeT>(in)].otherSlot;
 }
+} // namespace detail
+namespace
+{
 
 // Mask `layer` keeps the blood on it that isn't its own apart (your body's and hands'): healing leaves that.
+} // namespace
+namespace detail
+{
 [[nodiscard]] bool hasOther(int layer)
 {
     return bloodLayerOf(layer) >= 0;
 }
+} // namespace detail
+namespace
+{
 
 // Chunky: a free layer of bloodArray for one of your masks in the pool (-1 none; the last is your body's right side's).
 [[nodiscard]] int freeOtherSlot()
 {
     for(int slot = 0; slot < ownSlots - 1; slot++)
     {
-        bool taken = false;
+        bool taken = fineSize > 0 && masks[static_cast<za::SizeT>(layers + slot)].ent;
         for(const Mask& m : masks)
         {
             taken = taken || (m.ent && m.otherSlot == slot);
@@ -311,6 +294,9 @@ void resetGear()
 }
 
 // The layers mask `layer` is drawn in and the side each takes (-1 all of it): two for your body's, one for the rest.
+} // namespace
+namespace detail
+{
 int layersOf(int layer, int out[2], int side[2])
 {
     if(isSided(layer))
@@ -325,6 +311,9 @@ int layersOf(int layer, int out[2], int side[2])
     side[0] = -1;
     return 1;
 }
+} // namespace detail
+namespace
+{
 
 // The bones of a body's right side (names ending in _r: make_vrbody.py's), as two whole numbers of 24 bits: your body's
 // mask is one a side. None for any other model.
@@ -333,16 +322,28 @@ void rightBones(const qmodel_t* model, float out[2])
     modelmeta::rightBones(model, out);
 }
 
+} // namespace
+namespace detail
+{
 void attach(GLenum target, int layer)
 {
     GL_FramebufferTextureLayerFunc(target, GL_COLOR_ATTACHMENT0, textureOf(layer), 0, layerIn(layer));
 }
+} // namespace detail
+namespace
+{
 
 // Your mask's other blood (bloodArray: not yours), for mask layer `in` (one of layersOf's).
+} // namespace
+namespace detail
+{
 void attachBlood(GLenum target, int in)
 {
     GL_FramebufferTextureLayerFunc(target, GL_COLOR_ATTACHMENT0, bloodArray, 0, bloodLayerOf(in));
 }
+} // namespace detail
+namespace
+{
 
 // (GL_DeleteNativeTexture: out of the engine's bound-texture cache too, as the names come back at once in ensureTexture.)
 void releaseTexture()
@@ -381,11 +382,15 @@ void releaseTexture()
 }
 
 // The texture array and its framebuffer, `poolSize()` layers, and the fine masks (made again, empty, when either changes).
+} // namespace
+namespace detail
+{
 bool ensureTexture()
 {
-    const int wantFine = ownRes();
+    const int wantOwn = ownRes(), wantBody = bodyRes();
+    const int wantFine = za::max(wantOwn, wantBody);
     const int want = poolSize() + (wantFine > 0 ? 0 : 1); // (chunky: your body's right side, an extra layer)
-    if(array && layers == want && fineSize == wantFine)
+    if(array && layers == want && fineSize == wantFine && allocatedOwnRes == wantOwn && allocatedBodyRes == wantBody)
     {
         return true;
     }
@@ -423,8 +428,11 @@ bool ensureTexture()
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_ARRAY, 0);
     GL_GenFramebuffersFunc(1, &fbo);
+    GL_LabelNewFramebuffer(fbo, "wound slots");
     layers = want;
     fineSize = wantFine;
+    allocatedOwnRes = wantOwn;
+    allocatedBodyRes = wantBody;
     masks.clear();
     masks.resize(static_cast<za::SizeT>(want + (wantFine > 0 ? ownSlots : 0)), Mask{});
     maskOf.clear();
@@ -435,6 +443,9 @@ bool ensureTexture()
         static_cast<double>(ownSlots) * otherSide * otherSide / (1024.0 * 1024.0));
     return true;
 }
+} // namespace detail
+namespace
+{
 
 // ----------------------------------------------------------------------------
 // Drawing into the masks: begun once for a frame's paints, in the view's setup (VR_SetupViewEntities, before R_RenderView).
@@ -451,6 +462,9 @@ void begin()
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, fbo);
 }
 
+} // namespace
+namespace detail
+{
 void end()
 {
     if(!painting)
@@ -463,6 +477,9 @@ void end()
     glBlendFunc(GL_ONE, GL_ZERO); // what GLS_BLEND_OPAQUE sets (the cache believes it)
     GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, 0);
 }
+} // namespace detail
+namespace
+{
 
 void target(int layer, const Mask& m)
 {
@@ -587,6 +604,9 @@ void targetAs(const Mask& m, const entity_t* e, const entity_t* as)
     glViewport(0, 0, m.w, as == e ? m.h : static_cast<int>(za::lround(static_cast<float>(m.h) * partRows(as, e))));
 }
 
+} // namespace
+namespace detail
+{
 void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
 {
     if(splats.empty())
@@ -619,8 +639,19 @@ void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
     }
     GL_BlendEquationFunc(GL_FUNC_ADD);
     masks[static_cast<za::SizeT>(layer)].painted = vr_gametime;
+    for(const Splat& s : splats)
+    {
+        if(s.v[2].x > 0.f && s.v[1].w != 3.f) // blood, not a liquid's line (bloodInWater)
+        {
+            masks[static_cast<za::SizeT>(layer)].bled = cl.time;
+            break;
+        }
+    }
     paintsTotal++;
 }
+} // namespace detail
+namespace
+{
 
 // ----------------------------------------------------------------------------
 // The masks.
@@ -651,7 +682,9 @@ constexpr float boxTexels = 2.5f; // a unit (the monsters' skins' about 2)
         return false;
     }
     auto* hdr = static_cast<aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
-    if(!hdr || Mod_NextSurface(hdr) || hdr->numskins <= 0)
+    // One surface, or the jointed hand's and bare forearms' glove shells after it (vr_handrig.cpp gloveShells: the
+    // skin's layout, u + 2; only the first surface is painted, the shells read its mask).
+    if(!hdr || (Mod_NextSurface(hdr) && !handrig::gloveShellSurfaces(model->name)) || hdr->numskins <= 0)
     {
         return false;
     }
@@ -717,7 +750,10 @@ void freeMask(int layer)
 }
 
 // The mask of `e` (made, empty, when `create`), or -1. `box`: a brush model too (a held prop: its box mask).
-int acquire(const entity_t* e, bool view, bool create, bool box = false)
+} // namespace
+namespace detail
+{
+int acquire(const entity_t* e, bool view, bool create, bool box)
 {
     if(!ensureTexture())
     {
@@ -742,10 +778,12 @@ int acquire(const entity_t* e, bool view, bool create, bool box = false)
     {
         return -1;
     }
-    // Yours in the fine masks (vr_wounds_own_res), the rest in the pool.
-    const bool fine = view && fineSize > 0;
+    // The tall body atlas needs finer blood than the hands to give their arms comparable texels per metre.
+    // Preserve vr_wounds_own_res (including chunky hands); a body-only minimum selects its fine mask.
+    const int resolution = modelmeta::has(e->model, modelmeta::Trait::Body) ? bodyRes() : ownRes();
+    const bool fine = view && fineSize > 0 && resolution > 0;
     int w = 0, h = 0;
-    if(!regionOf(e->model, w, h, fine ? fineSize : 0, box))
+    if(!regionOf(e->model, w, h, fine ? resolution : 0, box))
     {
         return -1;
     }
@@ -759,6 +797,19 @@ int acquire(const entity_t* e, bool view, bool create, bool box = false)
     for(int i = fine ? layers : 0; i < end; i++)
     {
         const Mask& m = masks[static_cast<za::SizeT>(i)];
+        if(fine)
+        {
+            bool shared = false;
+            for(int p = 0; p < layers; p++)
+            {
+                const Mask& pooled = masks[static_cast<za::SizeT>(p)];
+                shared = shared || (pooled.ent && pooled.otherSlot == i - layers);
+            }
+            if(shared)
+            {
+                continue;
+            }
+        }
         if(!m.ent)
         {
             best = i;
@@ -800,10 +851,16 @@ int acquire(const entity_t* e, bool view, bool create, bool box = false)
     subtract(best, glm::vec4{1.f}); // empty
     return best;
 }
+} // namespace detail
+namespace
+{
 
 // ----------------------------------------------------------------------------
 // Splats.
 
+} // namespace
+namespace detail
+{
 [[nodiscard]] Splat woundSplat(const glm::vec3& c, float r, const glm::vec3& axis, const glm::vec3& along, float stretch,
     float depth, float facing, float run, const glm::vec4& what)
 {
@@ -815,6 +872,9 @@ int acquire(const entity_t* e, bool view, bool create, bool box = false)
     s.v[4] = glm::vec4{depth, facing, stretch, run};
     return s;
 }
+} // namespace detail
+namespace
+{
 
 // Charred fully within `inner` of `c`, raggedly out to `r`.
 [[nodiscard]] Splat burnSplat(const glm::vec3& c, float r, float inner, const glm::vec3& axis, bool blast, float facing, const glm::vec4& what)
@@ -853,7 +913,8 @@ struct WoundSize
     float run{0.f};
 };
 
-[[nodiscard]] WoundSize woundSize(int kind, int amount)
+// `blunt`: a melee blow by a blunt thing (the event's extra 1: a pommel, a fist, a brick): rounder.
+[[nodiscard]] WoundSize woundSize(int kind, int amount, bool blunt = false)
 {
     WoundSize s;
     const float a = static_cast<float>(amount);
@@ -862,7 +923,7 @@ struct WoundSize
         case KindShot: s.r = za::min(1.6f + 0.1f * a, 3.f); break;
         case KindMelee:
             s.r = za::min(2.4f + 0.05f * a, 5.f);
-            s.stretch = rnd(1.8f, 2.6f);
+            s.stretch = blunt ? rnd(1.f, 1.4f) : rnd(1.8f, 2.6f);
             break;
         default: s.r = za::min(2.f + 0.07f * a, 3.8f); break;
     }
@@ -874,8 +935,6 @@ struct WoundSize
     }
     return s;
 }
-
-constexpr glm::vec4 paintBlood{1.f, 0.f, 0.f, 0.f};
 
 // ----------------------------------------------------------------------------
 // Where a blow meets a model: its triangles as drawn (vr_modelcollide.cpp; Quake's alias models), wound clockwise
@@ -912,15 +971,18 @@ bool surfaceOf(const entity_t& e, int num, Surface& out)
 
 // The point on the model a blow at `org` going `dir` struck: the front face the line through it meets nearest to it
 // (64 units either side), else the front-facing triangle nearest the line. Its outward normal too.
-bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
+// (strikeTriangles: the struck triangle's first corner too.)
+bool strikeTris(za::Span<const glm::vec3> tris, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal,
+    int& tri)
 {
+    tri = -1;
     const glm::vec3 a0 = org - dir * 64.f;
     const glm::vec3 d = dir * 128.f;
     float bestT = 1e30f;
-    for(za::SizeT i = 0; i + 2 < s.tris.size(); i += 3)
+    for(za::SizeT i = 0; i + 2 < tris.size(); i += 3)
     {
-        const glm::vec3& a = s.tris[i];
-        const glm::vec3 e1 = s.tris[i + 1] - a, e2 = s.tris[i + 2] - a;
+        const glm::vec3& a = tris[i];
+        const glm::vec3 e1 = tris[i + 1] - a, e2 = tris[i + 2] - a;
         const glm::vec3 pv = glm::cross(d, e2);
         const float det = glm::dot(e1, pv);
         if(det >= -1e-9f) // not going into its front
@@ -949,7 +1011,8 @@ bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::v
         {
             bestT = t;
             at = a0 + d * t;
-            normal = outward(a, s.tris[i + 1], s.tris[i + 2]);
+            normal = outward(a, tris[i + 1], tris[i + 2]);
+            tri = static_cast<int>(i);
         }
     }
     if(bestT < 1e29f)
@@ -958,14 +1021,14 @@ bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::v
     }
     // Missed (the box was struck, not the model): the facing triangle nearest the line.
     float best = 1e30f;
-    for(za::SizeT i = 0; i + 2 < s.tris.size(); i += 3)
+    for(za::SizeT i = 0; i + 2 < tris.size(); i += 3)
     {
-        const glm::vec3 n = outward(s.tris[i], s.tris[i + 1], s.tris[i + 2]);
+        const glm::vec3 n = outward(tris[i], tris[i + 1], tris[i + 2]);
         if(glm::dot(n, dir) > -0.2f)
         {
             continue;
         }
-        const glm::vec3 c = (s.tris[i] + s.tris[i + 1] + s.tris[i + 2]) / 3.f;
+        const glm::vec3 c = (tris[i] + tris[i + 1] + tris[i + 2]) / 3.f;
         const glm::vec3 rel = c - org;
         const float along = glm::dot(rel, dir);
         const float off = glm::length(rel - dir * along) + za::fabs(along) * 0.25f;
@@ -974,9 +1037,20 @@ bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::v
             best = off;
             at = c;
             normal = n;
+            tri = static_cast<int>(i);
         }
     }
+    if(best >= 24.f)
+    {
+        tri = -1;
+    }
     return best < 24.f;
+}
+
+bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
+{
+    int tri;
+    return strikeTris(s.tris, org, dir, at, normal, tri);
 }
 
 // A point on a model's surface and the surface's outward normal there.
@@ -1093,14 +1167,89 @@ struct Target
     glm::vec3 shift{0.f}; // the player's: where the body is drawn off the player's box (room-scale), added to the blow
 };
 
+// A body or a thing standing in water or slime (`surface` on its waterline) that blood was painted on lately (Mask::bled,
+// within 15 s): that blood in the water, a cloud there once a second (vr_water_blood), less the longer since.
+void bloodInWater(Mask& m, const glm::vec3& surface)
+{
+    if(cl.time - m.bloodCloud < 1.0 && cl.time >= m.bloodCloud)
+    {
+        return;
+    }
+    const float since = static_cast<float>(cl.time - m.bled);
+    if(since < 0.f || since >= 15.f)
+    {
+        return;
+    }
+    m.bloodCloud = cl.time;
+    water::addBloodAt(surface, 0.3f * (1.f - since / 15.f));
+}
+
 void onLiquid(Mask& m, const Event& ev)
 {
     m.waterline = ev.org.z;
     m.liquid = ev.extra == 1 ? 1 : 0;
 }
 
+// The body and its hands are distinct models but one skin surface. Paint the very same world-space splats on
+// the neighbour models, so a wound at their shared wrist has the same noise and edges on each side of the seam.
+} // namespace
+namespace detail
+{
+void bridgeOwnWound(entity_t* source, const za::Vector<Splat>& splats)
+{
+    entity_t* own[3]{};
+    view::woundTargets(own);
+    for(entity_t* e : own)
+    {
+        if(!e || e == source)
+        {
+            continue;
+        }
+        const int layer = acquire(e, true, true);
+        if(layer >= 0)
+        {
+            paint(layer, e, splats);
+        }
+    }
+}
+} // namespace detail
+namespace
+{
+
+// A clean training dummy's wound (vr_dummy_gore off): nothing painted; dented where it struck with vr_dummy_dents.
+void dentOnly(const Target& t, const Event& ev)
+{
+    Surface surf;
+    if(!vr_dummy_dents.value || t.view || !surfaceOf(*t.ent, t.num, surf))
+    {
+        return;
+    }
+    const glm::vec3 dir = glm::length(ev.dir) > 0.1f ? glm::normalize(ev.dir) : glm::vec3{0.f, 0.f, -1.f};
+    if(ev.kind == KindBlast)
+    {
+        dents::struck(t.ent, surf.tris, ev.org, glm::vec3{0.f}, dir, dents::kindBlast, static_cast<float>(ev.amount));
+        return;
+    }
+    if(ev.kind != KindShot && ev.kind != KindNail && ev.kind != KindMelee)
+    {
+        return;
+    }
+    glm::vec3 at, n;
+    if(strike(surf, ev.org, dir, at, n))
+    {
+        const bool blunt = ev.kind == KindMelee && ev.extra == 1;
+        dents::struck(t.ent, surf.tris, at, n, dir, blunt ? dents::kindBlunt : ev.kind,
+            static_cast<float>(ev.amount) / static_cast<float>(ev.kind == KindShot ? za::max(1, ev.extra) : 1));
+    }
+}
+
 void wound(const Target& t, const Event& ev)
 {
+    if(ev.clean)
+    {
+        dentOnly(t, ev);
+        return;
+    }
     const int layer = acquire(t.ent, t.view, true);
     if(layer < 0)
     {
@@ -1118,7 +1267,8 @@ void wound(const Target& t, const Event& ev)
     // The player's own are seen close: smaller wounds; the hands' smaller still (a hand is a few units across).
     const float own = !t.view ? 1.f : modelmeta::has(t.ent->model, modelmeta::Trait::Hand) ? 0.65f : 0.75f;
     const auto blow = [&](const glm::vec3& org, const glm::vec3& way, int kind, const glm::vec4& what, float scale) {
-        WoundSize ws = woundSize(kind, ev.amount);
+        const bool blunt = kind == KindMelee && ev.kind == KindMelee && ev.extra == 1; // (QC vr_wounds.qc VR_Wound_Hit)
+        WoundSize ws = woundSize(kind, ev.amount, blunt);
         ws.run *= own;
         const float r = ws.r * scale * own;
         glm::vec3 at, n;
@@ -1129,6 +1279,11 @@ void wound(const Target& t, const Event& ev)
                 return;
             }
             splats.pushBack(woundSplat(at, r, n, way, ws.stretch, r * 0.9f + 1.f, -0.25f, ws.run, what));
+            if(ev.kind == KindShot || ev.kind == KindNail || ev.kind == KindMelee) // the flesh dented (vr_dents.cpp)
+            {
+                dents::struck(t.ent, surf.tris, at, n, way, blunt ? dents::kindBlunt : kind,
+                    static_cast<float>(ev.amount) / static_cast<float>(ev.kind == KindShot ? za::max(1, ev.extra) : 1));
+            }
         }
         else if(t.view && t.capsules)
         {
@@ -1227,10 +1382,16 @@ void wound(const Target& t, const Event& ev)
             {
                 za::Vector<SurfacePoint> pts;
                 facingPoints(surf, centre, bleeds, pts);
+                dents::struck(t.ent, surf.tris, centre, glm::vec3{0.f}, dir, dents::kindBlast, static_cast<float>(ev.amount)); // its crater
+                int bleedDents = 0;
                 for(const auto& [p, n] : pts)
                 {
                     const WoundSize ws = woundSize(KindNail, ev.amount / 3);
                     splats.pushBack(woundSplat(p, ws.r, n, glm::normalize(p - centre), 1.f, ws.r + 1.f, -0.25f, ws.run, paintBlood));
+                    if(bleedDents++ < 2) // and a couple of lesser ones round it
+                    {
+                        dents::struck(t.ent, surf.tris, p, n, glm::normalize(p - centre), dents::kindBlastBleed, static_cast<float>(ev.amount) / 3.f);
+                    }
                 }
             }
             else
@@ -1253,9 +1414,10 @@ void wound(const Target& t, const Event& ev)
                 break;
             }
             splats.pushBack(liquidSplat(ev.org.z, 30.f, 0.f, glm::vec4{0.f, 0.f, 1.f, 0.f}));
+            bloodInWater(m, ev.org);
             if(vr_wounds_wet.value)
             {
-                m.wetLeft = dryTime;
+                m.wetLeft = dryTime();
                 onLiquid(m, ev);
             }
             break;
@@ -1266,19 +1428,21 @@ void wound(const Target& t, const Event& ev)
     {
         for(Splat& s : splats)
         {
-            s.v[2] = glm::vec4{s.v[2].r, 0.f, 0.f, 0.f};
+            s.v[2] = glm::vec4{s.v[2].r * bloodShare, 0.f, 0.f, 0.f};
         }
     }
     splats.erase(za::removeIf(splats.begin(), splats.end(), [](const Splat& s) { return !paintsAnything(s); }), splats.end());
     paint(layer, t.ent, splats);
+    if(t.view)
+    {
+        bridgeOwnWound(t.ent, splats);
+    }
 }
 
 void logPlayerWound(const Event& ev); // (below: the player's wounds, to re-open after a wash)
 void park(int layer); // (below: blood on you and your gear)
-void spatterFrom(const Event& ev, int saw);
 void splashFrom(const Event& ev);
 void hurtSpread(const Event& ev);
-void armMarks(int hand, int count, float size, float legs, bool lower);
 
 void apply(const Event& ev)
 {
@@ -1287,6 +1451,7 @@ void apply(const Event& ev)
         // Removed on the server: its mask freed (a new entity in the slot, with the same model, starts clean).
         if(ev.num > 0 && ev.num < cl_max_edicts)
         {
+            dents::forget(&cl_entities[ev.num]); // its flesh dents too (vr_dents.cpp)
             if(const auto it = maskOf.find(&cl_entities[ev.num]); it != maskOf.end() && !masks[static_cast<za::SizeT>(it->second)].view)
             {
                 const bool weapon = masks[static_cast<za::SizeT>(it->second)].weapon != 0;
@@ -1333,6 +1498,16 @@ void apply(const Event& ev)
         entity_t* own[3]{};
         view::woundTargets(own);
         caps = playerCapsules(own);
+        if(ev.kind == KindLiquid && ev.extra != 2 && vr_wounds_wet.value) // a hand under the surface: what it holds wet too
+        {
+            for(int hand = 0; hand < 2; hand++)
+            {
+                if(own[1 + hand] && own[1 + hand]->origin[2] < ev.org.z)
+                {
+                    handWetLeft[hand] = dryTime();
+                }
+            }
+        }
         if(vr_wounds_debug.value >= 2)
         {
             for(const Capsule& c : caps)
@@ -1372,6 +1547,10 @@ void apply(const Event& ev)
         wound(targets[i], ev);
     }
     static_cast<void>(rnd());
+    if(bloodOnly && !reopenSpread)
+    {
+        return; // (a re-opened wound painted again, more of its blood: what runs from it ran already)
+    }
     if(ev.num == cl.viewentity)
     {
         hurtSpread(ev); // blood running over your arms too
@@ -1419,42 +1598,22 @@ void bloodyHead(entity_t& e, int num)
 // the blood (wounds' and gibs') off the body and the hands where they are under it, in vr_gore_wash_time. Hurt (wounds
 // taken and not healed), the wounds re-open vr_gore_reopen_delay seconds after the last wash, one after another over
 // vr_gore_reopen_time: the player's wounds are kept (where they were struck, from the player's origin) until healing
-// takes them off, and painted again, their blood only, and their blood runs onto both hands (a few patches). A gib's
+// takes them off, and painted again, their blood only, each bleeding back in over vr_gore_reopen_fade (more of it each
+// time), and their blood runs onto both hands (a few patches, in two goes). A gib's
 // blood washed off does not come back. With the wound skins (vr_wounds 0) instead: the hands' skin
 // is a bloody one while a gib's blood is on it, and a part washed shows no wounds until they re-open (skinLevel).
-
-struct LoggedWound
-{
-    Event ev;
-    glm::vec3 rel{0.f}; // its point from the player's origin
-    za::U32 seed{0};    // the draws' state it was painted with (re-opened: the same draws, the same wounds where it was)
-};
 
 constexpr za::SizeT maxLogged = 48;
 constexpr float gibBlotEvery = 1.f; // seconds a held gib smears its hand again
 constexpr int gibBlotsMore = 4;     // and how many more times at most, a hold
 constexpr float reopenHandBlood = 1.f; // the hands' blood (as vr_gore_hands) when the wounds re-open
+constexpr float reopenFadeStep = 0.5f; // seconds between a re-opening wound's paintings, at most (vr_gore_reopen_fade)
+constexpr int reopenFadeLevels = 16;   // and how many of them, at most
 
-za::Vector<LoggedWound> playerWounds; // the player's wounds not healed yet, oldest first
 int heldGib[2]{0, 0};                 // the gib each hand held at the last look (0: none)
 double heldGibNext[2]{0.0, 0.0};      // when it smears the hand again
 int heldGibBlots[2]{0, 0};            // the times it did, this hold
-double lastWash = -1e9;               // cl.time the player was last being washed
-bool reopenPending = false;           // washed while hurt: the wounds re-open
-double reopenStart = -1.0;            // cl.time they began to (-1: not yet)
 za::SizeT reopened = 0;               // how many of them have
-
-// The wound skins (vr_wounds 0): per part (0 the off hand, 1 the main hand, 2 the body).
-struct SkinPart
-{
-    double seen{-1e9};   // cl.time of the last look
-    double washed{-1e9}; // cl.time it was last under water (-1e9: not washed)
-    int washedLevel{0};  // the damage skin it showed then
-    int gib{0};          // a gib's blood on it: the skin it shows at least
-    int gibEnt{0};       // the gib it held at the last look
-};
-
-SkinPart skinParts[3];
 
 [[nodiscard]] bool isBlood(int kind)
 {
@@ -1463,6 +1622,9 @@ SkinPart skinParts[3];
 
 // Entity `num` (client side) is a gib or a head: by its model (progs/gib*, progs/h_*, and the mission packs' and the
 // zombies' gibs).
+} // namespace
+namespace detail
+{
 [[nodiscard]] bool isGib(int num)
 {
     if(num <= 0 || num >= cl.num_entities || !cl_entities[num].model)
@@ -1472,6 +1634,9 @@ SkinPart skinParts[3];
     return modelmeta::has(cl_entities[num].model, modelmeta::Trait::Head) || modelmeta::has(cl_entities[num].model, modelmeta::Trait::ContainsGib) ||
            modelmeta::has(cl_entities[num].model, modelmeta::Trait::Limb);
 }
+} // namespace detail
+namespace
+{
 
 [[nodiscard]] bool inWater(const glm::vec3& p)
 {
@@ -1544,6 +1709,9 @@ bool ensureWashStencil()
 // drawn as its triangles, then their edges as lines (R_PaintAliasWounds), which covers the texels on the edges two or
 // three times; painting (the most of the two) doesn't mind, but a subtraction took two or three times as much off
 // there, and the triangles' edges showed as lines through a partly washed hand. The stencil passes a texel's first.
+} // namespace
+namespace detail
+{
 void washUnder(int layer, entity_t* e, float surface, float amount)
 {
     const Splat s = liquidSplat(surface, 1.f, 0.f, glm::vec4{amount, 0.f, 0.f, 0.f});
@@ -1596,11 +1764,21 @@ void washUnder(int layer, entity_t* e, float surface, float amount)
         GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
     }
 }
+} // namespace detail
+namespace
+{
 
 // A gib's blood smeared over `hand` (0 off, 1 main): `blots` ragged patches of blood over all of it (the liquids' paint,
 // in patches: where its noise is over a threshold), `amount` (vr_gore_hands) how much of the hand each covers.
-void smearHand(int hand, int blots, float amount, bool theirs = true)
+} // namespace
+namespace detail
 {
+void smearHand(int hand, int blots, float amount, bool theirs)
+{
+    if(theirs && blots > 0 && amount > 0.f && cl.stats[STAT_HEALTH] > 0)
+    {
+        bloodprints::bloodyHand(hand, static_cast<float>(blots) * amount); // (its handprints: vr_bloodprints.cpp)
+    }
     entity_t* own[3]{};
     view::woundTargets(own);
     entity_t* e = own[1 + hand];
@@ -1628,8 +1806,27 @@ void smearHand(int hand, int blots, float amount, bool theirs = true)
     }
     foreign = theirs; // (a gib's, a blow's: not yours, healing leaves it; your wounds re-opening: yours)
     paint(layer, e, splats);
+    if(own[0])
+    {
+        avatar::Skeleton sk;
+        const int bodyLayer = acquire(own[0], true, true);
+        if(bodyLayer >= 0 && avatar::skeleton(sk))
+        {
+            // Reuse the hand's patch noise on the wrist, fading a few centimetres up the arm. A whole-body liquid
+            // smear would paint every surface below the hand; this spherical bound keeps it local to this wrist.
+            for(Splat& s : splats)
+            {
+                s.v[3] = glm::vec4{sk.wrist[hand], s.v[3].w};
+                s.v[4].x = 0.12f * sk.m2w;
+            }
+            paint(bodyLayer, own[0], splats);
+        }
+    }
     foreign = false;
 }
+} // namespace detail
+namespace
+{
 
 // Each frame: a gib taken into a hand smears it, and again now and then while it is held.
 void gibHands(double now)
@@ -1722,10 +1919,18 @@ void wash(int n)
             washUnder(layer, own[k], surface, amount);
         }
     }
-    if(!washing)
+    if(washing)
     {
-        return;
+        detail::markWashed();
     }
+}
+
+} // namespace
+namespace detail
+{
+// Being washed now (wash, vr_gore_wash_test): the wounds re-open once clean long enough, their blood from nothing.
+void markWashed()
+{
     if(vr_wounds_debug.value && cl.time - lastWash > 1.0)
     {
         Con_Printf("wounds: washing (%d wounds to re-open)\n", static_cast<int>(playerWounds.size()));
@@ -1733,12 +1938,20 @@ void wash(int n)
     lastWash = cl.time;
     reopenStart = -1.0;
     reopened = 0;
+    reopenSmears = 0;
+    for(LoggedWound& w : playerWounds)
+    {
+        w.bled = 0.f; // (washed again: their blood comes back from nothing)
+    }
     if(!vr_gore_reopen.value)
     {
         playerWounds.clear(); // washed for good
     }
     reopenPending = !playerWounds.empty();
 }
+} // namespace detail
+namespace
+{
 
 // Each frame: washed while hurt, the wounds re-open (their blood only) once clean long enough, one after another.
 void reopen(double now)
@@ -1756,89 +1969,71 @@ void reopen(double now)
     {
         reopenStart = now;
         reopened = 0;
+        reopenSmears = 0;
         if(vr_wounds_debug.value)
         {
             Con_Printf("wounds: %d wounds re-open\n", static_cast<int>(playerWounds.size()));
         }
-        // Their blood runs down the arms onto the hands (wherever the wounds land again).
-        const int blots = za::clamp(static_cast<int>(playerWounds.size() / 2), 2, 4);
-        smearHand(0, blots, reopenHandBlood, false);
-        smearHand(1, blots, reopenHandBlood, false);
-        armMarks(-1, static_cast<int>(static_cast<float>(blots) * vr_gore_spread.value + 0.5f), 1.f, 0.25f, false); // and over the arms
     }
-    const float spread = vr_gore_reopen_time.value;
+    // Each wound starts in turn over vr_gore_reopen_time, and its blood comes back over vr_gore_reopen_fade (painted
+    // again, more of it each time: the mask keeps the most). Its blood runs over the arms once it is half back; the
+    // hands get theirs in two smears, at a third and two thirds of the whole (wherever the wounds land again).
+    const float spread = za::max(0.f, vr_gore_reopen_time.value);
+    const float fade = za::max(0.f, vr_gore_reopen_fade.value);
+    const int levels = fade <= 0.f ? 1 : za::clamp(static_cast<int>(za::ceil(fade / reopenFadeStep)), 1, reopenFadeLevels);
+    const float elapsed = static_cast<float>(now - reopenStart);
+    const float whole = spread + fade;
+    const int blots = za::clamp(static_cast<int>(playerWounds.size() / 2), 2, 4);
+    for(; reopenSmears < 2 && elapsed >= whole * (reopenSmears == 0 ? 0.33f : 0.67f); reopenSmears++)
+    {
+        const int n = reopenSmears == 0 ? (blots + 1) / 2 : blots / 2;
+        smearHand(0, n, reopenHandBlood, false);
+        smearHand(1, n, reopenHandBlood, false);
+        armMarks(-1, static_cast<int>(static_cast<float>(n) * vr_gore_spread.value + 0.5f), 1.f, 0.25f, false); // and over the arms
+    }
     const za::SizeT total = playerWounds.size();
-    const float done = spread <= 0.f ? 1.f : za::min(1.f, static_cast<float>(now - reopenStart) / spread);
-    const za::SizeT want = za::min(total, static_cast<za::SizeT>(za::ceil(done * static_cast<float>(total))));
     const entity_t& pl = cl_entities[cl.viewentity];
     const glm::vec3 origin{pl.origin[0], pl.origin[1], pl.origin[2]};
     const za::U32 draws = rng; // (the replays' draws are theirs: the sequence goes on after them as it was)
     bloodOnly = true;
-    for(; reopened < want; reopened++)
+    bool all = true;
+    reopened = 0;
+    for(za::SizeT i = 0; i < total; i++)
     {
-        Event ev = playerWounds[reopened].ev;
-        rng = playerWounds[reopened].seed;
-        ev.org = origin + playerWounds[reopened].rel;
-        ev.num = cl.viewentity;
-        apply(ev);
+        LoggedWound& w = playerWounds[i];
+        const float t = elapsed - spread * static_cast<float>(i) / static_cast<float>(total);
+        if(t < 0.f)
+        {
+            all = false;
+            continue;
+        }
+        const float f = fade <= 0.f ? 1.f : za::min(1.f, t / fade);
+        const float share = za::min(1.f, za::ceil(f * static_cast<float>(levels) - 1e-3f) / static_cast<float>(levels));
+        const float level = za::max(share, 1.f / static_cast<float>(levels));
+        if(level > w.bled + 1e-4f)
+        {
+            Event ev = w.ev;
+            rng = w.seed;
+            ev.org = origin + w.rel;
+            ev.num = cl.viewentity;
+            bloodShare = level;
+            reopenSpread = w.bled < 0.5f && level >= 0.5f; // (once)
+            apply(ev);
+            w.bled = level;
+        }
+        reopened++;
+        all = all && w.bled >= 1.f;
     }
     bloodOnly = false;
+    bloodShare = 1.f;
+    reopenSpread = true;
     rng = draws;
-    if(reopened >= total)
+    if(all && reopenSmears >= 2)
     {
         reopenPending = false;
         reopenStart = -1.0;
     }
 }
-
-// The view masks' blood (off hand, main hand, body): texels with any (-1: no mask), and their blood summed (1 a texel
-// full).
-void viewBlood(int count[3], double sum[3])
-{
-    entity_t* own[3]{};
-    view::woundTargets(own);
-    const za::SizeT side = static_cast<za::SizeT>(za::max(layerSize, fineSize));
-    za::Vector<byte> rgba(side * side * 4);
-    GLint previous = 0;
-    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, fbo);
-    for(int part = 0; part < 3; part++)
-    {
-        entity_t* e = own[part < 2 ? 1 + part : 0];
-        count[part] = -1;
-        sum[part] = 0.0;
-        const int layer = e && array ? acquire(e, true, false) : -1;
-        if(layer < 0)
-        {
-            continue;
-        }
-        const Mask& m = masks[static_cast<za::SizeT>(layer)];
-        count[part] = 0;
-        int in[2], side[2];
-        const int n = layersOf(layer, in, side);
-        za::Vector<byte> other(static_cast<za::SizeT>(m.w) * static_cast<za::SizeT>(m.h), 0);
-        for(int k = 0; k < n; k++) // (your body's: both sides; the blood on it not yours too)
-        {
-            if(hasOther(layer))
-            {
-                attachBlood(GL_READ_FRAMEBUFFER, in[k]);
-                glPixelStorei(GL_PACK_ALIGNMENT, 1); // (rows of any width)
-                glReadPixels(0, 0, m.w, m.h, GL_RED, GL_UNSIGNED_BYTE, other.data());
-                glPixelStorei(GL_PACK_ALIGNMENT, 4);
-            }
-            attach(GL_READ_FRAMEBUFFER, in[k]);
-            glReadPixels(0, 0, m.w, m.h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
-            for(int p = 0; p < m.w * m.h; p++)
-            {
-                const int r = za::max<int>(rgba[static_cast<za::SizeT>(p) * 4], other[static_cast<za::SizeT>(p)]);
-                count[part] += r > 0 ? 1 : 0;
-                sum[part] += r / 255.0;
-            }
-        }
-    }
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous));
-}
-
 
 // ----------------------------------------------------------------------------
 // Blood on you and your gear (vr_gore_spatter*, vr_gore_gear, vr_gore_spread; ROUND21.md, "Blood on you, your weapons
@@ -1853,19 +2048,34 @@ void viewBlood(int count[3], double sum[3])
 // thrown, taken, holstered, drawn, handed over (gearFrame). Water washes it all off. Hurt, holding a gib, or as your wounds re-open, blood runs
 // over your arms (and a little your legs) too: bleeding marks along them (vr_gore_spread).
 
+} // namespace
+namespace detail
+{
 [[nodiscard]] glm::vec3 originOf(const entity_t& e)
 {
     return glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
 }
+} // namespace detail
+namespace
+{
 
 // Half a model's bounds' diagonal: about how far it reaches from its origin.
+} // namespace
+namespace detail
+{
 [[nodiscard]] float modelRadius(const qmodel_t* m)
 {
     return m ? 0.5f * glm::length(glm::vec3{m->maxs[0] - m->mins[0], m->maxs[1] - m->mins[1], m->maxs[2] - m->mins[2]}) : 0.f;
 }
+} // namespace detail
+namespace
+{
 
 // What `hand` holds that takes blood: its weapon (the drawn one), else a prop it carries (not a gib: that bleeds its
 // own; a brush model, an ammo or health box, an explosive box: its box mask). Null: nothing.
+} // namespace
+namespace detail
+{
 [[nodiscard]] entity_t* gearOf(int hand)
 {
     if(const view::ViewEntity* ve = view::heldWeapon(hand))
@@ -1880,6 +2090,9 @@ void viewBlood(int count[3], double sum[3])
     }
     return nullptr;
 }
+} // namespace detail
+namespace
+{
 
 // The weapon id of what `hand` holds (0: none).
 [[nodiscard]] int handWeapon(int hand)
@@ -1894,12 +2107,21 @@ void viewBlood(int count[3], double sum[3])
     return d ? d->weaponUid : 0;
 }
 
+} // namespace
+namespace detail
+{
 [[nodiscard]] bool inWorld(const entity_t* e)
 {
     return e >= cl_entities && e < cl_entities + cl_max_edicts;
 }
+} // namespace detail
+namespace
+{
 
 // The weapon drawn in each holster (its stat slot's; null: none) and the weapon id it holds (0: none).
+} // namespace
+namespace detail
+{
 void holstered(entity_t* out[protocol::numHolsters], int weapon[protocol::numHolsters])
 {
     for(int stat = 0; stat < protocol::numHolsters; stat++)
@@ -1908,8 +2130,14 @@ void holstered(entity_t* out[protocol::numHolsters], int weapon[protocol::numHol
         out[stat] = weapon[stat] ? view::holsteredWeapon(stat) : nullptr;
     }
 }
+} // namespace detail
+namespace
+{
 
 // Where `e`'s middle is drawn (a brush model's origin is its corner).
+} // namespace
+namespace detail
+{
 [[nodiscard]] glm::vec3 thingCentre(const entity_t& e)
 {
     if(e.model && e.model->type == mod_brush)
@@ -1920,6 +2148,9 @@ void holstered(entity_t* out[protocol::numHolsters], int weapon[protocol::numHol
     }
     return originOf(e);
 }
+} // namespace detail
+namespace
+{
 
 // Weapon mask `layer` shown by nothing drawn: kept under a key of its own (the one parked longest gives its up).
 void park(int layer)
@@ -2156,7 +2387,10 @@ void gearFrame()
 
 // `splats` painted on what of you is within `reach` of `at` (your body, your hands) and, with `gear`, what they hold and
 // your holstered weapons (vr_gore_gear_holstered). `blow`: a blow's way (what struck takes it on the side that struck).
-void paintOnYou(const za::Vector<Splat>& splats, const glm::vec3& at, float reach, bool gear, const glm::vec3* blow = nullptr)
+} // namespace
+namespace detail
+{
+void paintOnYou(const za::Vector<Splat>& splats, const glm::vec3& at, float reach, bool gear, const glm::vec3* blow)
 {
     if(splats.empty())
     {
@@ -2237,9 +2471,15 @@ void paintOnYou(const za::Vector<Splat>& splats, const glm::vec3& at, float reac
         }
     }
 }
+} // namespace detail
+namespace
+{
 
 // Drops of blood thrown from `c` out to `radius`: all covered within `core`, `share` of the surface covered `ref` units
 // out (falling off with the square of the distance), in cells `drop` units across (the drops about a third of that).
+} // namespace
+namespace detail
+{
 [[nodiscard]] Splat spatterSplat(const glm::vec3& c, float radius, float core, float ref, float share, float drop)
 {
     Splat s;
@@ -2251,6 +2491,9 @@ void paintOnYou(const za::Vector<Splat>& splats, const glm::vec3& at, float reac
     s.v[4] = glm::vec4{core, -0.05f, 1.f / za::max(drop, 0.1f), share * q * q};
     return s;
 }
+} // namespace detail
+namespace
+{
 
 // Entity `num` lies about and takes blood near it (vr_gore_gear_nearby): a weapon, a prop, an item; not a monster, a
 // player, a gib (it bleeds its own), a door or a lift (the map's own brush models), nor what you carry (yours:
@@ -2448,6 +2691,9 @@ int nearestHand(const glm::vec3& at, float& dist)
 
 // A wound on a monster or a corpse (or a test's: `saw` 0 or 1 forces a blow's kind, -1 by what the hand holds): its
 // blood thrown onto you, if near.
+} // namespace
+namespace detail
+{
 void spatterFrom(const Event& ev, int saw)
 {
     if(!vr_gore_spatter.value || !vr_wounds.value || bloodOnly || cl.stats[STAT_HEALTH] <= 0 ||
@@ -2533,14 +2779,23 @@ void spatterFrom(const Event& ev, int saw)
             at.z, hand, static_cast<double>(dHand), static_cast<double>(dEye));
     }
 }
+} // namespace detail
+namespace
+{
 
 // A gib flying into you at `at` (`r` its size): its blood where it struck.
+} // namespace
+namespace detail
+{
 void gibStrike(const glm::vec3& at, float r, float amount)
 {
     za::Vector<Splat> splats;
     splats.pushBack(spatterSplat(at, r + 9.f, r * 0.7f, r + 4.f, za::min(0.15f * amount, 0.9f), 1.f));
     paintOnYou(splats, at, r + 9.f, true);
 }
+} // namespace detail
+namespace
+{
 
 // Each frame: the gibs flying round you that strike you (by the capsules round your body and hands, as drawn).
 void gibContacts(double now)
@@ -2609,6 +2864,9 @@ void gibContacts(double now)
 // `count` bleeding marks along an arm (`hand`'s, -1 either: its upper arm and forearm, `lower` the forearm's wrist
 // half alone), each one a leg's instead by chance `legs`: on its top and outside mostly (what you see of your arms),
 // some running down. Painted onto your body (and your hands where they reach them).
+} // namespace
+namespace detail
+{
 void armMarks(int hand, int count, float size, float legs, bool lower)
 {
     avatar::Skeleton sk;
@@ -2668,6 +2926,9 @@ void armMarks(int hand, int count, float size, float legs, bool lower)
     }
     paintOnYou(splats, mid / static_cast<float>(splats.size()), 48.f, false);
 }
+} // namespace detail
+namespace
+{
 
 // A wound of yours that bleeds: blood running over your arms too (and now and then a leg), more for a harder hit.
 void hurtSpread(const Event& ev)
@@ -2703,14 +2964,21 @@ void washGear(float amount)
         if(waterSurface(at, 16.f, surface))
         {
             washUnder(i, const_cast<entity_t*>(m.ent), surface, amount);
+            if(surface <= at.z + 16.f) // (not under more of it)
+            {
+                bloodInWater(m, glm::vec3{at.x, at.y, surface}); // (a bloody prop afloat, a weapon dropped in)
+            }
         }
     }
 }
 
 // Mask `layer`'s blood: texels with any, and their blood summed.
-void maskBlood(int layer, int& count, double& sum)
+} // namespace
+namespace detail
 {
-    const Mask& m = masks[static_cast<za::SizeT>(layer)];
+void maskBlood(int layer, int& count, double& sum, int region)
+{
+    const Mask& m = masks[static_cast<za::SizeT>(region >= 0 ? region : layer)];
     za::Vector<byte> rgba(static_cast<za::SizeT>(m.w) * static_cast<za::SizeT>(m.h) * 4);
     GLint previous = 0;
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
@@ -2726,49 +2994,9 @@ void maskBlood(int layer, int& count, double& sum)
         sum += rgba[p] / 255.0;
     }
 }
-
-// A brush model's box mask (`layer`): the texels with blood in each of its six cells (+x -x +y -y +z -z, the model's
-// own axes), and the cell of the side facing `from` (the world).
-int boxCells(int layer, int cells[6], const glm::vec3& from)
+} // namespace detail
+namespace
 {
-    const Mask& m = masks[static_cast<za::SizeT>(layer)];
-    za::Vector<byte> rgba(static_cast<za::SizeT>(m.w) * static_cast<za::SizeT>(m.h) * 4);
-    GLint previous = 0;
-    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, fbo);
-    attach(GL_READ_FRAMEBUFFER, layer);
-    glReadPixels(0, 0, m.w, m.h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous));
-    for(int i = 0; i < 6; i++)
-    {
-        cells[i] = 0;
-    }
-    for(int y = 0; y < m.h; y++)
-    {
-        for(int x = 0; x < m.w; x++)
-        {
-            if(rgba[(static_cast<za::SizeT>(y) * static_cast<za::SizeT>(m.w) + static_cast<za::SizeT>(x)) * 4] > 0)
-            {
-                cells[za::min(y * 2 / za::max(m.h, 1), 1) * 3 + za::min(x * 3 / za::max(m.w, 1), 2)]++;
-            }
-        }
-    }
-    // The side facing `from`: its way in the model's frame (its axes as a held brush model's are placed: vr_held.cpp).
-    const entity_t& e = *m.ent;
-    const glm::vec3 local = glm::transpose(held::axesFromAngles(e.angles, true)) * (from - thingCentre(e));
-    const glm::vec3 a = glm::abs(local);
-    const int axis = a.x >= a.y && a.x >= a.z ? 0 : a.y >= a.z ? 1 : 2;
-    return axis * 2 + (local[axis] >= 0.f ? 0 : 1);
-}
-
-void printBoxCells(int layer, const glm::vec3& from, const char* fromName)
-{
-    int cells[6];
-    const int facing = boxCells(layer, cells, from);
-    static constexpr const char* names[6] = {"+x", "-x", "+y", "-y", "+z", "-z"};
-    Con_Printf("    its sides: +x %d, -x %d, +y %d, -y %d, +z %d, -z %d; facing %s: %s (%d texels)\n", cells[0], cells[1], cells[2], cells[3],
-        cells[4], cells[5], fromName, names[facing], cells[facing]);
-}
 
 // ----------------------------------------------------------------------------
 // Over time: drying, cooling, healing; the masks of entities gone freed.
@@ -2777,6 +3005,10 @@ void steps(float dt)
 {
     // Drying: 1/255 of the wetness a step (dryTime from soaked); embers cooling; the player's heal.
     const int n = za::max(1, static_cast<int>(dt / tick + 0.5f));
+    for(float& left : handWetLeft)
+    {
+        left = za::max(0.f, left - dt);
+    }
     for(int i = 0; i < maskCount(); i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
@@ -2787,7 +3019,7 @@ void steps(float dt)
         glm::vec4 take{0.f};
         if(m.wetLeft > 0.f)
         {
-            take.b = static_cast<float>(n) * tick / dryTime;
+            take.b = static_cast<float>(n) * tick / dryTime();
             m.wetLeft -= dt;
         }
         if(m.hotLeft > 0.f)
@@ -2848,6 +3080,10 @@ void playerState()
         return;
     }
     forgetPlayerWounds(respawned ? 1.f : za::clamp(heal, 0.f, 1.f));
+    if(respawned)
+    {
+        handWetLeft[0] = handWetLeft[1] = 0.f;
+    }
     for(int i = 0; i < maskCount(); i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
@@ -2912,7 +3148,7 @@ void drips(double now)
         {
             continue;
         }
-        const float wet = m.wetLeft / dryTime;
+        const float wet = m.wetLeft / dryTime();
         m.dripNext = now + rnd(0.5f, 1.5f) / (0.4f + 5.f * wet * wet) * (m.view ? 2.5 : 1.0);
         const glm::vec3 color = m.liquid == 1 ? glm::vec3{0.22f, 0.3f, 0.08f} : glm::vec3{0.3f, 0.34f, 0.38f};
         glm::vec3 at;
@@ -2920,7 +3156,10 @@ void drips(double now)
         if(m.view)
         {
             // A hand (the body is under the view: its drips are the hands')
-            if(modelmeta::has(m.ent->model, modelmeta::Trait::Body))
+            entity_t* own[3]{};
+            view::woundTargets(own);
+            const int hand = m.ent == own[1] ? 0 : m.ent == own[2] ? 1 : -1;
+            if(hand < 0 || handWetLeft[hand] <= 0.f) // (only a hand that went under the surface)
             {
                 continue;
             }
@@ -2959,7 +3198,199 @@ void drips(double now)
     }
 }
 
+constexpr int cleanFlag = 64; // QC vr_wounds.qc QVR_WOUND_CLEAN, added to the kind
+
+// ----------------------------------------------------------------------------
+// The frame's budget (vr_wounds_budget): a burst's events (an explosion's, a gib storm's, a dismembering: 400 at once,
+// 10 ms) painted a budget a frame, the rest kept for the next frames in their body's own frame of reference (the
+// entity's origin and turn when they came: a body moved or ragdolled since takes them where they struck it), dropped
+// with their body (removed, gibbed: its model another). All of them painted within vr_wounds_budget_wait seconds: the
+// rest of the wait shared out evenly over the frames left.
+
+struct Pending
+{
+    Event ev;                       // its org and dir in the body's frame when `local`
+    glm::vec3 worldOrg{0.f}, worldDir{0.f}; // as they came (taken as they are in the frame they came)
+    const qmodel_t* model{nullptr}; // the body's model when it came
+    double came{0.0};               // cl.time
+    bool local{false};
+    bool dropped{false};            // its body removed after it (a clear for it came)
+};
+
+struct WoundQueue
+{
+    za::Vector<Pending> items;
+    za::SizeT head = 0;     // the next to paint
+    double lastTime = -1.0; // cl.time at the last frame (the frame's length)
+    float msPerEvent = 0.025f; // the painting's cost an event, measured (a running average)
+    // vr_wounds_info's
+    int mostQueued = 0, mostInFrame = 0, droppedTotal = 0, deferredTotal = 0;
+};
+WoundQueue queue;
+
+// The kinds struck at a point of the body (kept in its frame); the liquids' are at a height of the world.
+[[nodiscard]] bool bodyRelative(int kind)
+{
+    return kind == KindShot || kind == KindNail || kind == KindMelee || kind == KindBlast || kind == KindBurn || kind == KindZap;
+}
+
+// Entity `num`'s frame: its origin and turn (yours: your yaw alone), as its events are kept in.
+bool bodyFrame(int num, glm::vec3& origin, glm::mat3& axes)
+{
+    if(num <= 0 || num >= cl.num_entities || !cl_entities[num].model)
+    {
+        return false;
+    }
+    const entity_t& e = cl_entities[num];
+    vec3_t angles{e.angles[0], e.angles[1], e.angles[2]};
+    if(num == cl.viewentity)
+    {
+        angles[0] = angles[2] = 0.f;
+    }
+    vec3_t f, r, u;
+    AngleVectors(angles, f, r, u);
+    axes = glm::mat3{glm::vec3{f[0], f[1], f[2]}, glm::vec3{-r[0], -r[1], -r[2]}, glm::vec3{u[0], u[1], u[2]}};
+    origin = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    return true;
+}
+
+// The frame's new events into the queue, each in its body's frame; a removal drops what waits for that body.
+void enqueue()
+{
+    for(const Event& ev : events)
+    {
+        Pending p;
+        p.ev = ev;
+        p.worldOrg = ev.org;
+        p.worldDir = ev.dir;
+        p.came = cl.time;
+        if(ev.kind == KindClear)
+        {
+            for(za::SizeT i = queue.head; i < queue.items.size(); i++)
+            {
+                Pending& q = queue.items[i];
+                if(q.ev.num == ev.num && q.ev.kind != KindClear && q.ev.kind != KindWeaponGone && !q.dropped)
+                {
+                    q.dropped = true;
+                    queue.droppedTotal++;
+                }
+            }
+        }
+        glm::vec3 origin;
+        glm::mat3 axes;
+        if(bodyRelative(ev.kind) && bodyFrame(ev.num, origin, axes))
+        {
+            const glm::mat3 inv = glm::transpose(axes);
+            p.ev.org = inv * (ev.org - origin);
+            p.ev.dir = inv * ev.dir;
+            p.model = cl_entities[ev.num].model;
+            p.local = true;
+        }
+        queue.items.pushBack(p);
+    }
+    events.clear();
+    queue.mostQueued = za::max(queue.mostQueued, static_cast<int>(queue.items.size() - queue.head));
+}
+
+// One kept event painted: back in the world from its body's frame now (dropped if its body is gone or another).
+void applyPending(const Pending& p)
+{
+    if(p.dropped)
+    {
+        return;
+    }
+    if(!p.local || p.came == cl.time) // (in the frame it came: as it came)
+    {
+        Event ev = p.ev;
+        ev.org = p.worldOrg;
+        ev.dir = p.worldDir;
+        apply(ev);
+        return;
+    }
+    glm::vec3 origin;
+    glm::mat3 axes;
+    if(!bodyFrame(p.ev.num, origin, axes) || cl_entities[p.ev.num].model != p.model)
+    {
+        queue.droppedTotal++;
+        return;
+    }
+    Event ev = p.ev;
+    ev.org = origin + axes * p.ev.org;
+    ev.dir = axes * p.ev.dir;
+    apply(ev);
+}
+
+// The queue painted as far as the frame's budget allows (all of it with vr_wounds_budget 0, as before); returns how
+// many were painted.
+int paintQueue()
+{
+    const float budget = vr_wounds_budget.value;
+    const double wait = za::max(vr_wounds_budget_wait.value, 0.f);
+    const double frameTime = queue.lastTime >= 0.0 && cl.time > queue.lastTime ? cl.time - queue.lastTime : 1.0 / 90.0;
+    queue.lastTime = cl.time;
+    const za::SizeT waiting = queue.items.size() - queue.head;
+    // The frame's allowance: the budget, or the rest shared out over the frames the oldest has left (all of it then).
+    float allow = budget;
+    if(budget > 0.f && waiting > 0)
+    {
+        const double left = wait - (cl.time - queue.items[queue.head].came);
+        const double frames = za::max(1.0, za::floor(left / frameTime));
+        allow = za::max(budget, static_cast<float>(queue.msPerEvent * static_cast<double>(waiting) / frames));
+    }
+    const double t0 = Sys_DoubleTime();
+    int painted = 0;
+    while(queue.head < queue.items.size())
+    {
+        const Pending p = queue.items[queue.head]; // (a copy: painting may not move the queue, but cheap to be sure)
+        if(budget > 0.f && painted > 0 && cl.time - p.came < wait && (Sys_DoubleTime() - t0) * 1000.0 >= allow &&
+            queue.items.size() <= 4096)
+        {
+            break;
+        }
+        queue.head++;
+        applyPending(p);
+        painted++;
+    }
+    if(painted > 0)
+    {
+        const float ms = static_cast<float>((Sys_DoubleTime() - t0) * 1000.0) / static_cast<float>(painted);
+        queue.msPerEvent = queue.msPerEvent * 0.8f + ms * 0.2f;
+    }
+    queue.deferredTotal += static_cast<int>(queue.items.size() - queue.head);
+    queue.mostInFrame = za::max(queue.mostInFrame, painted);
+    if(queue.head >= queue.items.size())
+    {
+        queue.items.clear();
+        queue.head = 0;
+    }
+    else if(queue.head >= 256)
+    {
+        queue.items.erase(queue.items.begin(), queue.items.begin() + static_cast<za::PtrDiffT>(queue.head));
+        queue.head = 0;
+    }
+    return painted;
+}
+
+void clearQueue()
+{
+    queue.items.clear();
+    queue.head = 0;
+    queue.lastTime = -1.0;
+}
+
 } // namespace
+
+namespace detail
+{
+void queueInfo()
+{
+    Con_Printf("wounds: %d events waiting (vr_wounds_budget %.2f ms, wait %.3f s; an event %.3f ms); most waiting %d, most painted "
+               "in a frame %d, %d frames' waits so far, %d dropped with their body\n",
+        static_cast<int>(queue.items.size() - queue.head), static_cast<double>(vr_wounds_budget.value),
+        static_cast<double>(vr_wounds_budget_wait.value), static_cast<double>(queue.msPerEvent), queue.mostQueued, queue.mostInFrame,
+        queue.deferredTotal, queue.droppedTotal);
+}
+} // namespace detail
 
 void parseEvent()
 {
@@ -2976,9 +3407,25 @@ void parseEvent()
     ev.kind = MSG_ReadByte();
     ev.amount = MSG_ReadByte();
     ev.extra = MSG_ReadByte();
+    ev.clean = (ev.kind & cleanFlag) != 0; // (QC QVR_WOUND_CLEAN: a clean training dummy's, for its dents and streams)
+    ev.kind &= ~cleanFlag;
+    // A melee wound's extra: 1 a blunt blow, and over it whose and how (QC VR_Wound_Hit: bloodstream::Melee).
+    int melee = bloodstream::MeleeNone;
+    if(ev.kind == KindMelee)
+    {
+        melee = (ev.extra >> 1) & 3;
+        ev.extra &= 1;
+    }
     if(vr_wounds_debug.value >= 2)
     {
-        Con_Printf("wounds: received kind %d on %d\n", ev.kind, ev.num);
+        Con_Printf("wounds: received kind %d on %d%s\n", ev.kind, ev.num, ev.clean ? " (clean dummy)" : "");
+    }
+    // A bullet hole may pour (vr_bloodstream.cpp; whether the wounds are painted or not; a clean dummy's with
+    // vr_dummy_streams).
+    if(!ev.clean || vr_dummy_streams.value)
+    {
+        bloodstream::onWound(ev.num, {ev.org[0], ev.org[1], ev.org[2]}, {ev.dir[0], ev.dir[1], ev.dir[2]}, ev.kind, ev.amount,
+            melee);
     }
     if(enabled() && events.size() < 512)
     {
@@ -2995,10 +3442,49 @@ void parseClear()
     {
         Con_Printf("wounds: received clear on %d\n", ev.num);
     }
+    bloodstream::forget(ev.num); // (its streams stop: what is falling lands)
     if(enabled() && events.size() < 512)
     {
         events.pushBack(ev);
     }
+}
+
+int strikeTriangles(za::Span<const glm::vec3> tris, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
+{
+    int tri = -1;
+    return strikeTris(tris, org, dir, at, normal, tri) ? tri : -1;
+}
+
+void dummyReset_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("vr_dummy_gore_reset: not hosting a game\n");
+        return;
+    }
+    int found = 0;
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    for(int i = 1; i < qcvm->num_edicts && i < cl_max_edicts; i++)
+    {
+        edict_t* ed = EDICT_NUM(i);
+        if(ed->free || !progs::isTrainingDummy(ed))
+        {
+            continue;
+        }
+        found++;
+        dents::forget(&cl_entities[i]);
+        bloodstream::forget(i, true);
+        if(enabled() && events.size() < 512) // its painted wounds too (as if removed)
+        {
+            Event ev;
+            ev.num = i;
+            ev.kind = KindClear;
+            events.pushBack(ev);
+        }
+    }
+    PR_PopQCVM(oldvm);
+    Con_Printf("vr_dummy_gore_reset: %d training %s cleared (dents, blood streams, wounds)\n", found, found == 1 ? "dummy" : "dummies");
 }
 
 void burst(const float org[3], float size)
@@ -3038,6 +3524,7 @@ void frame()
             releaseTexture();
         }
         events.clear();
+        clearQueue();
         chanOn[0] = vr_wounds.value != 0.f;
         chanOn[1] = vr_wounds_burns.value != 0.f;
         chanOn[2] = vr_wounds_wet.value != 0.f;
@@ -3056,12 +3543,8 @@ void frame()
     checkEntities();
     playerState();
     const auto t1 = Sys_DoubleTime();
-    const za::SizeT received = events.size();
-    for(const Event& ev : events)
-    {
-        apply(ev);
-    }
-    events.clear();
+    enqueue(); // (vr_wounds_budget: a burst's spread over the next frames, each in its body's frame)
+    const int received = paintQueue();
     const double now = cl.time;
     splashFrame();
     gibHands(now);
@@ -3097,6 +3580,7 @@ bool replacesSkins()
 
 void clear()
 {
+    dents::clear(); // the flesh dents too (vr_dents.cpp)
     for(int i = 0; i < maskCount(); i++)
     {
         masks[static_cast<za::SizeT>(i)] = Mask{};
@@ -3104,14 +3588,17 @@ void clear()
     maskOf.clear();
     resetGear();
     events.clear();
+    clearQueue();
     lastTick = -1.0;
     playerHealth = -1000;
     playerWounds.clear();
     heldGib[0] = heldGib[1] = 0;
+    handWetLeft[0] = handWetLeft[1] = 0.f;
     lastWash = -1e9;
     reopenPending = false;
     reopenStart = -1.0;
     reopened = 0;
+    reopenSmears = 0;
     for(SkinPart& p : skinParts)
     {
         p = SkinPart{};
@@ -3121,6 +3608,209 @@ void clear()
 int liveCount()
 {
     return static_cast<int>(maskOf.size());
+}
+
+bool bloody(const entity_t* e)
+{
+    return e && maskOf.find(e) != maskOf.end();
+}
+
+namespace
+{
+Surface palmSurface; // (palmTouch's: a thing's triangles as drawn)
+
+// The line `from` + `dir` * t, t in `lo`..`hi`, into brush entity `e`'s box (its model's bounds, as drawn: turned and
+// moved with it): t and the outward normal of the face it enters by.
+[[nodiscard]] bool lineIntoBox(entity_t& e, const glm::vec3& from, const glm::vec3& dir, float lo, float hi, float& t,
+    glm::vec3& normal)
+{
+    float mat[16];
+    VR_BModelMatrix(&e, mat);
+    const glm::mat4 toWorld = glm::make_mat4(mat);
+    const glm::mat4 toModel = glm::inverse(toWorld);
+    const glm::vec3 a{toModel * glm::vec4{from, 1.f}};
+    const glm::vec3 d{toModel * glm::vec4{dir, 0.f}};
+    const glm::vec3 mins{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
+    const glm::vec3 maxs{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
+    float enter = lo, leave = hi;
+    int axis = -1;
+    float side = 0.f;
+    for(int i = 0; i < 3; i++)
+    {
+        if(za::fabs(d[i]) < 1e-6f)
+        {
+            if(a[i] < mins[i] - 0.01f || a[i] > maxs[i] + 0.01f)
+            {
+                return false;
+            }
+            continue;
+        }
+        float t0 = (mins[i] - a[i]) / d[i], t1 = (maxs[i] - a[i]) / d[i];
+        float s = -1.f; // (entering by the min face: its normal -axis)
+        if(t0 > t1)
+        {
+            const float k = t0;
+            t0 = t1;
+            t1 = k;
+            s = 1.f;
+        }
+        if(t0 > enter)
+        {
+            enter = t0;
+            axis = i;
+            side = s;
+        }
+        leave = za::min(leave, t1);
+        if(enter > leave)
+        {
+            return false;
+        }
+    }
+    if(axis < 0)
+    {
+        return false; // (from inside it)
+    }
+    glm::vec3 n{0.f};
+    n[axis] = side;
+    normal = glm::normalize(glm::vec3{toWorld * glm::vec4{n, 0.f}});
+    t = enter;
+    return true;
+}
+
+// Blood painted on `e` (its mask, made if need be: a thing's, kept as gear is) at `at`, a palm's print `radius` units
+// round, `strength` 0..1; its weapon's (`weapon`, 0 none) wherever it goes.
+bool paintPalm(entity_t* e, int weapon, const glm::vec3& at, float radius, float strength)
+{
+    const int layer = acquire(e, false, true, true);
+    if(layer < 0)
+    {
+        return false;
+    }
+    masks[static_cast<za::SizeT>(layer)].gear = true;
+    if(weapon)
+    {
+        bindWeapon(layer, weapon);
+    }
+    const float s = za::clamp(strength, 0.f, 1.f);
+    za::Vector<Splat> splats;
+    splats.pushBack(spatterSplat(at, radius * 1.4f, radius * (0.35f + 0.4f * s), radius, 0.35f + 0.5f * s, 0.8f));
+    paint(layer, e, splats);
+    return true;
+}
+} // namespace
+
+int palmTouch(const glm::vec3& from, const glm::vec3& dir, float reach, glm::vec3& at, glm::vec3& normal)
+{
+    if(!enabled() || !vr_gore_gear.value || !vr_handprint_props.value)
+    {
+        return 0;
+    }
+    int best = 0;
+    float bestAlong = reach;
+    for(int num = cl.maxclients + 1; num < cl.num_entities; num++)
+    {
+        if(!liesAbout(num)) // (not what a hand carries: gripPrint's)
+        {
+            continue;
+        }
+        entity_t& e = cl_entities[num];
+        if(!e.model || entityWeapon(num) != 0 || isGib(num))
+        {
+            continue;
+        }
+        const float r = za::max(modelRadius(e.model), 4.f);
+        if(glm::distance(thingCentre(e), from) > r + reach + 4.f)
+        {
+            continue;
+        }
+        if(vr_bloodprints_debug.value >= 2.f)
+        {
+            Con_Printf("wounds: palm near entity %d (%s), %.1f units\n", num, e.model->name,
+                static_cast<double>(glm::distance(thingCentre(e), from)));
+        }
+        constexpr float lo = 0.f;
+        glm::vec3 p, n;
+        float along;
+        if(e.model->type == mod_brush)
+        {
+            if(!lineIntoBox(e, from, dir, lo, bestAlong, along, n))
+            {
+                continue;
+            }
+            p = from + dir * along;
+        }
+        else
+        {
+            if(e.model->type != mod_alias || !surfaceOf(e, num, palmSurface) || !strike(palmSurface, from, dir, p, n))
+            {
+                if(vr_bloodprints_debug.value >= 2.f)
+                {
+                    Con_Printf("wounds: palm on %d: no triangles struck (%d drawn)\n", num,
+                        static_cast<int>(palmSurface.tris.size() / 3));
+                }
+                continue;
+            }
+            along = glm::dot(p - from, dir);
+            const glm::vec3 off = p - from - dir * along;
+            if(vr_bloodprints_debug.value >= 2.f)
+            {
+                Con_Printf("wounds: palm on %d: struck at %.1f along, %.1f off the line, facing %.2f\n", num,
+                    static_cast<double>(along), static_cast<double>(glm::length(off)), static_cast<double>(glm::dot(n, dir)));
+            }
+            if(along < lo || along > bestAlong || glm::dot(off, off) > 16.f)
+            {
+                continue;
+            }
+        }
+        if(glm::dot(n, dir) > -0.3f)
+        {
+            continue; // (not facing the palm)
+        }
+        best = num;
+        bestAlong = along;
+        at = p;
+        normal = n;
+    }
+    return best;
+}
+
+bool handprintOn(int num, const glm::vec3& at, float radius, float strength)
+{
+    if(num <= 0 || num >= cl.num_entities || !cl_entities[num].model)
+    {
+        return false;
+    }
+    const bool painted = paintPalm(&cl_entities[num], 0, at, radius, strength);
+    if(vr_wounds_debug.value || vr_bloodprints_debug.value)
+    {
+        Con_Printf("wounds: a bloody palm on entity %d (%s) at %.1f %.1f %.1f, %.1f units, strength %.2f: %s\n", num,
+            cl_entities[num].model->name, at.x, at.y, at.z, static_cast<double>(radius), static_cast<double>(strength),
+            painted ? "painted" : "no mask");
+    }
+    return painted;
+}
+
+bool gripPrint(int hand, const glm::vec3& at, float radius, float strength)
+{
+    if(hand < 0 || hand > 1 || !enabled() || !vr_gore_gear.value || !vr_handprint_gear.value)
+    {
+        return false;
+    }
+    entity_t* g = gearOf(hand);
+    if(!g || !g->model)
+    {
+        return false;
+    }
+    const view::ViewEntity* ve = view::heldWeapon(hand);
+    const int weapon = ve && &ve->ent == g ? handWeapon(hand) : 0;
+    const bool painted = paintPalm(g, weapon, at, radius, strength);
+    if(vr_bloodprints_debug.value)
+    {
+        Con_Printf("wounds: hand %d's grip on %s (weapon #%d) at %.1f %.1f %.1f, %.1f units, strength %.2f: %s\n", hand,
+            g->model->name, weapon, at.x, at.y, at.z, static_cast<double>(radius), static_cast<double>(strength),
+            painted ? "painted" : "no mask");
+    }
+    return painted;
 }
 
 int skinLevel(int part, int level, const float* origin)
@@ -3177,397 +3867,6 @@ int skinLevel(int part, int level, const float* origin)
         }
     }
     return za::max(shown, s.gib);
-}
-
-void handsTest_f()
-{
-    const int hand = Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "off") == 0 ? 0 : 1;
-    const float amount = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : za::max(0.25f, vr_gore_hands.value);
-    if(!vr_wounds.value)
-    {
-        skinParts[hand].gib = za::clamp(static_cast<int>(za::lround(amount * 2.f)), 1, 3);
-        Con_Printf("vr_gore_hands_test: the %s hand's skin %d (the wound skins)\n", hand ? "main" : "off", skinParts[hand].gib);
-        return;
-    }
-    if(!ensureTexture())
-    {
-        return;
-    }
-    smearHand(hand, za::max(1, static_cast<int>(amount * 4.f + 0.5f)), amount);
-    end();
-    Con_Printf("vr_gore_hands_test: a gib's blood on the %s hand\n", hand ? "main" : "off");
-}
-
-void washTest_f()
-{
-    const float amount = Cmd_Argc() > 1 ? static_cast<float>(atof(Cmd_Argv(1))) : 0.25f;
-    if(!vr_wounds.value || !ensureTexture())
-    {
-        return;
-    }
-    entity_t* own[3]{};
-    view::woundTargets(own);
-    int washed = 0;
-    for(entity_t* e : own)
-    {
-        const int layer = e ? acquire(e, true, false) : -1;
-        if(layer >= 0)
-        {
-            washUnder(layer, e, e->origin[2] + 256.f, za::clamp(amount, 0.f, 1.f));
-            washed++;
-        }
-    }
-    end();
-    Con_Printf("vr_gore_wash_test: %.2f washed off %d of your masks (%s)\n", static_cast<double>(amount), washed,
-        vr_gore_wash_once.value != 0.f ? "each texel once" : "edges more");
-}
-
-void handsInfo_f()
-{
-    const double now = cl.time;
-    Con_Printf("gore hands: %d wounds kept, %s, last wash %.1f s ago, re-open %s", static_cast<int>(playerWounds.size()),
-        lastWash > -1e8 && now - lastWash < 0.25 ? "washing" : "dry", lastWash > -1e8 ? now - lastWash : -1.0,
-        !reopenPending ? "none" : reopenStart < 0.0 ? "pending" : "under way");
-    if(reopenPending && reopenStart < 0.0)
-    {
-        Con_Printf(" (in %.1f s)", static_cast<double>(vr_gore_reopen_delay.value) - (now - lastWash));
-    }
-    const int carried[2]{cl.stats[protocol::STAT_QVR_CARRYOFF], cl.stats[protocol::STAT_QVR_CARRYMAIN]};
-    Con_Printf(", carried %d %s, %d %s\n", carried[0], isGib(carried[0]) ? "(a gib)" : "", carried[1], isGib(carried[1]) ? "(a gib)" : "");
-    if(vr_wounds.value && array)
-    {
-        int count[3];
-        double sum[3];
-        viewBlood(count, sum);
-        static constexpr const char* names[3] = {"off hand", "main hand", "body"};
-        for(int i = 0; i < 3; i++)
-        {
-            if(count[i] < 0)
-            {
-                Con_Printf("  %s: no mask\n", names[i]);
-            }
-            else
-            {
-                Con_Printf("  %s: blood on %d texels (%.1f)\n", names[i], count[i], sum[i]);
-            }
-        }
-    }
-    else
-    {
-        Con_Printf("  wound skins: off hand %d, main hand %d (gib %d %d), body washed %s\n", skinParts[0].gib, skinParts[1].gib,
-            skinParts[0].gibEnt, skinParts[1].gibEnt, skinParts[2].washed > -1e8 ? "yes" : "no");
-    }
-    // Your gear's blood (vr_gore_gear): held, lying about, kept for a hand.
-    for(int i = 0; i < maskCount() && array; i++)
-    {
-        const Mask& m = masks[static_cast<za::SizeT>(i)];
-        if(!m.gear || !m.ent)
-        {
-            continue;
-        }
-        int count;
-        double sum;
-        maskBlood(i, count, sum);
-        entity_t* inHolster[protocol::numHolsters];
-        int holsterWeapon[protocol::numHolsters];
-        holstered(inHolster, holsterWeapon);
-        const char* where = parkIndex(m.ent) >= 0 ? "kept"
-                            : m.ent == gearOf(0) ? "in the off hand"
-                            : m.ent == gearOf(1) ? "in the main hand"
-                            : inWorld(m.ent)     ? va("in the world (entity %d)", static_cast<int>(m.ent - cl_entities))
-                                                 : "holstered";
-        for(int stat = 0; stat < protocol::numHolsters; stat++)
-        {
-            where = m.ent == inHolster[stat] ? va("in holster %d", stat) : where;
-        }
-        Con_Printf("  gear #%d %s %s: blood on %d texels (%.1f)\n", m.weapon, m.model ? m.model->name : "?", where, count, sum);
-        if(m.model && m.model->type == mod_brush && parkIndex(m.ent) < 0)
-        {
-            printBoxCells(i, glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]}, "you");
-        }
-    }
-}
-
-void spatterTest_f()
-{
-    const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "blow";
-    if(!vr_wounds.value || !ensureTexture())
-    {
-        Con_Printf("vr_gore_spatter_test: Dynamic Wounds are off\n");
-        return;
-    }
-    if(ZA_STRCMP(what, "arm") == 0)
-    {
-        const int hand = Cmd_Argc() > 2 && ZA_STRCMP(Cmd_Argv(2), "off") == 0 ? 0 : 1;
-        armMarks(hand, Cmd_Argc() > 3 ? atoi(Cmd_Argv(3)) : 3, 1.f, 0.f, true);
-        end();
-        Con_Printf("vr_gore_spatter_test: bleeding marks on the %s forearm\n", hand ? "main" : "off");
-        return;
-    }
-    entity_t* own[3]{};
-    view::woundTargets(own);
-    vec3_t fwd, right, upv;
-    AngleVectors(r_refdef.viewangles, fwd, right, upv);
-    const glm::vec3 ahead{fwd[0], fwd[1], fwd[2]};
-    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    const bool offProp = ZA_STRCMP(what, "propoff") == 0; // (as prop, on what the off hand holds)
-    entity_t* g = gearOf(offProp ? 0 : 1);
-    const glm::vec3 hand = g ? originOf(*g) : own[2] ? originOf(*own[2]) : eye + ahead * 16.f;
-    const bool shot = ZA_STRCMP(what, "shot") == 0, gib = ZA_STRCMP(what, "gib") == 0, saw = ZA_STRCMP(what, "saw") == 0;
-    const bool propblow = ZA_STRCMP(what, "propblow") == 0;
-    const bool prop = ZA_STRCMP(what, "prop") == 0 || propblow || offProp;
-    if(ZA_STRCMP(what, "burst") == 0) // a gibbing `distance` units ahead (48), a little under your eyes: on what lies near
-    {
-        const float d = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 48.f;
-        const glm::vec3 at = eye + glm::normalize(glm::vec3{ahead.x, ahead.y, 0.f}) * d - glm::vec3{0.f, 0.f, 24.f};
-        const float org[3]{at.x, at.y, at.z};
-        burst(org, Cmd_Argc() > 3 ? static_cast<float>(atof(Cmd_Argv(3))) : 2.f);
-        Con_Printf("vr_gore_spatter_test: a gibbing at %.0f %.0f %.0f (%d splashes)\n", at.x, at.y, at.z, static_cast<int>(splashes.size()));
-        return;
-    }
-    if(ZA_STRCMP(what, "holster") == 0) // a hit's blood just out from holster `slot`'s weapon (2: the left hip; 0..5)
-    {
-        const int stat = Cmd_Argc() > 2 ? za::clamp(atoi(Cmd_Argv(2)), 0, protocol::numHolsters - 1) : 2;
-        entity_t* inHolster[protocol::numHolsters];
-        int holsterWeapon[protocol::numHolsters];
-        holstered(inHolster, holsterWeapon);
-        if(!inHolster[stat])
-        {
-            Con_Printf("vr_gore_spatter_test: holster %d draws no weapon (id %d)\n", stat, holsterWeapon[stat]);
-            return;
-        }
-        const glm::vec3 at = originOf(*inHolster[stat]) + glm::normalize(glm::vec3{ahead.x, ahead.y, 0.f}) * 8.f;
-        za::Vector<Splat> splats;
-        splats.pushBack(spatterSplat(at, 26.f, 1.5f, 8.f, 0.3f, 1.f));
-        paintOnYou(splats, at, 26.f, true);
-        end();
-        Con_Printf("vr_gore_spatter_test: blood just out from holster %d's weapon #%d\n", stat, holsterWeapon[stat]);
-        return;
-    }
-    const float dist = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : shot ? 40.f : gib ? 0.f : 6.f;
-    Event ev;
-    ev.num = 0;
-    ev.dir = ahead;
-    ev.amount = 30;
-    ev.kind = shot ? KindShot : KindMelee;
-    ev.org = shot ? eye + ahead * dist : hand + ahead * dist;
-    if(prop) // a blow on what the main hand holds, on its side facing you (`distance` units past its bounding sphere, -4 by default): the blood seen on it
-    {
-        if(!g)
-        {
-            Con_Printf("vr_gore_spatter_test: the %s hand holds nothing\n", offProp ? "off" : "main");
-            return;
-        }
-        glm::vec3 mid = originOf(*g);
-        if(g->model && g->model->type == mod_brush)
-        {
-            float c[3];
-            R_BModelCentre(g, c);
-            mid = glm::vec3{c[0], c[1], c[2]};
-        }
-        const glm::vec3 toEye = glm::normalize(eye - mid);
-        ev.org = mid + toEye * (modelRadius(g->model) + (Cmd_Argc() > 2 ? dist : -4.f)); // (just past its corners)
-        ev.dir = toEye; // (struck there: the blow going your way)
-        if(propblow)
-        {
-            // Swung away from you into a monster (vr_gore_spatter_test propblow): the blow's contact as the server finds
-            // it, inside what struck, on your side of its middle; the far side struck.
-            ev.org = mid + toEye * (modelRadius(g->model) * 0.3f);
-            ev.dir = -toEye;
-        }
-    }
-    if(gib)
-    {
-        const glm::vec3 at = (own[2] ? originOf(*own[2]) : hand) + ahead * dist;
-        gibStrike(at, 3.f, vr_gore_spatter_gibs.value);
-        Con_Printf("vr_gore_spatter_test: a gib struck at %.0f %.0f %.0f\n", at.x, at.y, at.z);
-    }
-    else
-    {
-        spatteredNow.clear();
-        spatterFrom(ev, shot ? -1 : saw ? 1 : 0);
-        Con_Printf("vr_gore_spatter_test: a %s's blood from %.0f %.0f %.0f\n", shot ? "shot" : saw ? "chainsaw cut" : prop ? "blow on your prop" : "blow", ev.org.x,
-            ev.org.y, ev.org.z);
-    }
-    end();
-    if(prop && g && g->model && g->model->type == mod_brush)
-    {
-        if(const int layer = acquire(g, false, false); layer >= 0)
-        {
-            printBoxCells(layer, eye, "you");
-        }
-    }
-}
-
-void test_f()
-{
-    if(Cmd_Argc() < 3)
-    {
-        Con_Printf("vr_wounds_test <entity number | self | ahead> <kind 1 shot, 2 nail, 3 melee, 4 blast, 5 burn, 6 zap, 7 lava, 8 slime, "
-                   "9 liquid> [amount] [right] [up] [extra]\n");
-        return;
-    }
-    if(ZA_STRCMP(Cmd_Argv(1), "all") == 0) // every model drawn with an alias model (monsters, corpses, items): a stress test
-    {
-        char args[256];
-        q_snprintf(args, sizeof(args), "%s %s %s %s %s", Cmd_Argc() > 2 ? Cmd_Argv(2) : "1", Cmd_Argc() > 3 ? Cmd_Argv(3) : "20",
-            Cmd_Argc() > 4 ? Cmd_Argv(4) : "0", Cmd_Argc() > 5 ? Cmd_Argv(5) : "0", Cmd_Argc() > 6 ? Cmd_Argv(6) : "0");
-        int n = 0;
-        for(int i = 1; i < cl.num_entities; i++)
-        {
-            const entity_t& c = cl_entities[i];
-            if(i != cl.viewentity && c.model && c.model->type == mod_alias && c.msgtime >= cl.mtime[1] - 0.2 &&
-                !modelmeta::has(c.model, modelmeta::Trait::ViewWeapon))
-            {
-                Cbuf_InsertText(va("vr_wounds_test %d %s\n", i, args));
-                n++;
-            }
-        }
-        Con_Printf("vr_wounds_test: %d models\n", n);
-        return;
-    }
-    Event ev;
-    const bool self = ZA_STRCMP(Cmd_Argv(1), "self") == 0;
-    ev.num = self ? cl.viewentity : atoi(Cmd_Argv(1));
-    if(ZA_STRCMP(Cmd_Argv(1), "ahead") == 0) // the model nearest the view's line, ahead
-    {
-        const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-        vec3_t fwd, right, upv;
-        AngleVectors(r_refdef.viewangles, fwd, right, upv);
-        float best = 0.6f;
-        for(int i = 1; i < cl.num_entities; i++)
-        {
-            const entity_t& c = cl_entities[i];
-            if(i == cl.viewentity || !c.model || c.model->type != mod_alias || c.msgtime < cl.mtime[1] - 0.2)
-            {
-                continue;
-            }
-            const glm::vec3 to = glm::vec3{c.origin[0], c.origin[1], c.origin[2]} - eye;
-            const float cosA = glm::dot(glm::normalize(to), glm::vec3{fwd[0], fwd[1], fwd[2]});
-            if(vr_wounds_debug.value)
-            {
-                Con_Printf("  %d %s cos %.2f dist %.0f\n", i, c.model->name, cosA, glm::length(to));
-            }
-            if(cosA > best && glm::length(to) < 1000.f)
-            {
-                best = cosA;
-                ev.num = i;
-            }
-        }
-        if(ev.num > 0)
-        {
-            const entity_t& c = cl_entities[ev.num];
-            Con_Printf("vr_wounds_test: entity %d (%s) at %.0f %.0f %.0f\n", ev.num, c.model->name, c.origin[0], c.origin[1], c.origin[2]);
-        }
-    }
-    ev.kind = atoi(Cmd_Argv(2));
-    ev.amount = Cmd_Argc() > 3 ? atoi(Cmd_Argv(3)) : 20;
-    const float right = Cmd_Argc() > 4 ? static_cast<float>(atof(Cmd_Argv(4))) : 0.f;
-    const float up = Cmd_Argc() > 5 ? static_cast<float>(atof(Cmd_Argv(5))) : 0.f;
-    ev.extra = Cmd_Argc() > 6 ? atoi(Cmd_Argv(6)) : 0;
-    if(ev.num <= 0 || ev.num >= cl.num_entities || !cl_entities[ev.num].model)
-    {
-        Con_Printf("vr_wounds_test: no entity %d\n", ev.num);
-        return;
-    }
-    const entity_t& e = cl_entities[ev.num];
-    const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
-    const glm::vec3 mid = origin + glm::vec3{(e.model->mins[0] + e.model->maxs[0]) * 0.5f, (e.model->mins[1] + e.model->maxs[1]) * 0.5f,
-                                        (e.model->mins[2] + e.model->maxs[2]) * 0.5f};
-    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    glm::vec3 dir;
-    if(self)
-    {
-        const float yaw = glm::radians(cl.viewangles[YAW]);
-        dir = -glm::vec3{za::cos(yaw), za::sin(yaw), 0.f}; // from ahead
-    }
-    else
-    {
-        dir = glm::normalize(mid - eye);
-    }
-    glm::vec3 side = glm::cross(dir, glm::vec3{0.f, 0.f, 1.f});
-    side = glm::length(side) > 0.1f ? glm::normalize(side) : glm::vec3{1.f, 0.f, 0.f};
-    ev.dir = dir;
-    ev.org = (self ? origin + glm::vec3{0.f, 0.f, 4.f} : mid) + side * right + glm::vec3{0.f, 0.f, up};
-    if(ev.kind == KindBlast)
-    {
-        ev.org = mid - dir * 40.f + side * right + glm::vec3{0.f, 0.f, up};
-    }
-    if(ev.kind >= KindLava)
-    {
-        ev.org = origin + glm::vec3{0.f, 0.f, e.model->mins[2] + up}; // the surface: `up` over the feet
-    }
-    events.pushBack(ev);
-}
-
-void dump_f()
-{
-    if(!array)
-    {
-        Con_Printf("vr_wounds_dump: no masks\n");
-        return;
-    }
-    const za::SizeT side = static_cast<za::SizeT>(za::max(layerSize, fineSize));
-    za::Vector<byte> rgba(side * side * 4);
-    za::Vector<byte> rgb(side * side * 3);
-    Sys_mkdir(va("%s/wounds", com_gamedir));
-    GLint previous = 0;
-    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, fbo);
-    for(int i = 0; i < maskCount(); i++)
-    {
-        const Mask& m = masks[static_cast<za::SizeT>(i)];
-        if(!m.ent)
-        {
-            continue;
-        }
-        int in[2], side[2];
-        const int n = layersOf(i, in, side);
-        for(int k = 0; k < n; k++) // (your body's: its left side and middle, then its right side)
-        {
-            attach(GL_READ_FRAMEBUFFER, in[k]);
-            glReadPixels(0, 0, m.w, m.h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
-            for(int p = 0; p < m.w * m.h; p++)
-            {
-                // r blood, g char, b wetness; heat shown as white over them
-                const int heat = rgba[static_cast<za::SizeT>(p) * 4 + 3];
-                for(int c = 0; c < 3; c++)
-                {
-                    rgb[static_cast<za::SizeT>(p) * 3 + c] = static_cast<byte>(za::max<int>(rgba[static_cast<za::SizeT>(p) * 4 + c], heat));
-                }
-            }
-            const char* slash = strrchr(m.model->name, '/');
-            char name[MAX_OSPATH];
-            q_snprintf(name, sizeof(name), "wounds/mask_%02d_%s%s.png", i, slash ? slash + 1 : m.model->name, side[k] == 1 ? "_right" : "");
-            Image_WritePNG(name, rgb.data(), m.w, m.h, 24, true);
-            Con_Printf("vr_wounds_dump: %s (%dx%d)\n", name, m.w, m.h);
-        }
-    }
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous));
-}
-
-void info_f()
-{
-    int used = 0;
-    for(const Mask& m : masks)
-    {
-        used += m.ent ? 1 : 0;
-    }
-    Con_Printf("wounds: %d of %d masks used (%dx%d layers, %.1f MB; yours %dx%d, %.1f MB), %d paints so far, last frame's work "
-               "%.3f ms (CPU)\n",
-        used, maskCount(), layerSize, layerSize, static_cast<double>(layers) * layerSize * layerSize * 4.0 / (1024.0 * 1024.0), fineSize,
-        fineSize, static_cast<double>(maskCount() - layers) * fineSize * fineSize * 5.0 / (1024.0 * 1024.0), paintsTotal,
-        static_cast<double>(lastPaintMs));
-    for(int i = 0; i < maskCount(); i++)
-    {
-        const Mask& m = masks[static_cast<za::SizeT>(i)];
-        if(m.ent)
-        {
-            Con_Printf("  %2d %s%s %dx%d, drawn %.1f s ago%s%s\n", i, m.model ? m.model->name : "?",
-                m.view ? (isFine(i) ? " (you, fine)" : " (you)") : "", m.w, m.h,
-                vr_gametime - m.lastDrawn, m.wetLeft > 0.f ? ", wet" : "", m.hotLeft > 0.f ? ", hot" : "");
-        }
-    }
 }
 
 } // namespace qvr::wounds
@@ -3645,6 +3944,59 @@ int aliasMask(const entity_t* e, const entity_t*& key, const entity_t*& gun)
     return sameLayout(m.model, key->model) && (!gun || readsAsGun(e, gun)) ? it->second : -1;
 }
 
+// The wet coat on `e` (vr_wounds_wet_coat; the alias shader's GloveShell.zw): its strength, from soaked (1, times the
+// cvar) to dry (0), lingering a while before it fades; `whole` when it covers all of `e` (a weapon in a hand that went
+// under the surface), else only where its mask is wet (under the waterline it was in).
+float wetCoat(const entity_t* e, bool& whole)
+{
+    whole = false;
+    const float strength = vr_wounds_wet.value ? za::clamp(vr_wounds_wet_coat.value, 0.f, 2.f) : 0.f;
+    if(strength <= 0.f)
+    {
+        return 0.f;
+    }
+    const auto curve = [&](float left) { return strength * glm::smoothstep(0.f, 0.75f, za::clamp(left / dryTime(), 0.f, 1.f)); };
+    const entity_t* part = view::gunPartSource(e);
+    bool weapon = false;
+    const int hand = view::handOf(part ? part : e, weapon);
+    if(hand >= 0 && weapon)
+    {
+        whole = true;
+        return curve(handWetLeft[hand]);
+    }
+    for(int h = 0; h < 2; h++) // a prop carried in a wet hand
+    {
+        if(handWetLeft[h] > 0.f && e == gearOf(h))
+        {
+            whole = true;
+            return curve(handWetLeft[h]);
+        }
+    }
+    if(maskOf.empty())
+    {
+        return 0.f;
+    }
+    const entity_t* key = e;
+    const entity_t* gun = nullptr;
+    const int layer = aliasMask(e, key, gun);
+    return layer >= 0 ? curve(masks[static_cast<za::SizeT>(layer)].wetLeft) : 0.f;
+}
+
+} // namespace
+
+void detail::wetInfo()
+{
+    entity_t* own[3]{};
+    view::woundTargets(own);
+    bool whole = false;
+    const auto coatOf = [&](const entity_t* e) { return e ? wetCoat(e, whole) : -1.f; };
+    Con_Printf("wet: coat body %.3f hands %.3f %.3f, their weapons %.3f %.3f (%.1f %.1f s left)\n", coatOf(own[0]), coatOf(own[1]),
+        coatOf(own[2]), coatOf(gearOf(0)), coatOf(gearOf(1)), static_cast<double>(handWetLeft[0]), static_cast<double>(handWetLeft[1]));
+}
+
+namespace
+{
+
 } // namespace
 } // namespace qvr::wounds
 
@@ -3680,6 +4032,21 @@ extern "C" void VR_AliasWound(const entity_t* e, float out[4], float side[4])
     if(!isFine(layer) && m.otherSlot >= 0 && bloodArray)
     {
         side[2] = -static_cast<float>(m.otherSlot + 1); // (chunky, yours: the blood on it not yours, its bloodArray layer)
+    }
+}
+
+extern "C" void VR_AliasWetCoat(const entity_t* e, float out[2])
+{
+    bool whole = false;
+    out[0] = qvr::wounds::wetCoat(e, whole);
+    out[1] = whole && out[0] > 0.f ? 1.f : 0.f;
+    // A brain chunk (make_brains.py) is wet of its own, all over (vr_smallgibs_brains_gloss): w 2, the sheen without
+    // the coat's darkening or its film over the bumps (the folds' relief stays), and a warm rim (the light through it).
+    const float gloss = za::clamp(qvr::vr_smallgibs_brains_gloss.value, 0.f, 2.f);
+    if(gloss > 0.f && e && e->model && strncmp(e->model->name, "progs/gib_brain", 15) == 0)
+    {
+        out[0] = za::max(out[0], gloss);
+        out[1] = 2.f;
     }
 }
 

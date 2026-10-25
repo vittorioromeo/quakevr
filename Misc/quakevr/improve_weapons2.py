@@ -32,11 +32,10 @@
 #   and origin grow and every vertex is re-rounded, moving it by at most half a new step, < 0.04
 #   units) and its folded-away stub, their positions. The weapon's Scale applies about the header's
 #   origin, so the lightning gun's weapon offsets change with it to keep the gun where it was drawn.
-#   Anchors (vr_weapons.inc's *_av settings) are indices into the vertex order of QuakeSpasm's old
-#   triangle-strip builder (vr_anchor.cpp), which depends on the triangle list: added parts share
-#   no vertices with the old triangles, so their strips come after the old ones and the old
-#   indices stand; the super nailgun's body is re-triangulated, so the script prints each anchor's
-#   new index (vr_weapons.inc slot 4 uses them).
+#   Anchors (vr_weapons.inc's *_av settings: points on the surface, vr_anchor.hpp) stay where they
+#   were: the script prints how far each one in use moved (anchors.py check). The hands' anchors
+#   before this are given as the sources' vertices (they were indices in QuakeSpasm's old strip
+#   order then).
 # - Added parts follow the part of the gun they are fixed to in every animation frame (the
 #   lightning gun and super nailgun recoil; the super nailgun's barrels spin, and nothing is fixed
 #   to them): each part's frame-0 vertices move with the reference vertices' translation.
@@ -302,80 +301,12 @@ def tri_out(m, a, b, c, outward):
 
 
 # ---------------------------------------------------------------------------------------------
-# Anchors: vr_anchor.cpp's port of QuakeSpasm's BuildTris strip/fan search (the vertex order that
-# vr_weapons.inc's anchor indices index).
+# Anchors: each one in use on the model (anchors.py) against the source, in every pose.
 
-def vertex_order(tris):
-    n = len(tris)
-    used = [0] * n
-    order = []
-
-    def clear(start):
-        for j in range(start + 1, n):
-            if used[j] == 2:
-                used[j] = 0
-
-    def run(start, sv, fan):
-        used[start] = 2
-        f, *vi = tris[start]
-        verts = [vi[sv % 3], vi[(sv + 1) % 3], vi[(sv + 2) % 3]]
-        ts = [start]
-        if fan:
-            m1, m2 = vi[sv % 3], vi[(sv + 2) % 3]
-        else:
-            m1, m2 = vi[(sv + 2) % 3], vi[(sv + 1) % 3]
-        extended = True
-        while extended and len(ts) < 126:
-            extended = False
-            for j in range(start + 1, n):
-                cf, *cv = tris[j]
-                if cf != f:
-                    continue
-                hit = False
-                for k in range(3):
-                    if cv[k] != m1 or cv[(k + 1) % 3] != m2:
-                        continue
-                    if used[j]:
-                        clear(start)
-                        return verts, ts
-                    nv = cv[(k + 2) % 3]
-                    if fan or len(ts) & 1:
-                        m2 = nv
-                    else:
-                        m1 = nv
-                    verts.append(nv)
-                    ts.append(j)
-                    used[j] = 2
-                    extended = hit = True
-                    break
-                if hit:
-                    break
-        clear(start)
-        return verts, ts
-
-    for i in range(n):
-        if used[i]:
-            continue
-        best = None
-        for fan in (True, False):
-            for sv in range(3):
-                v, t = run(i, sv, fan)
-                if best is None or len(t) > len(best[1]):
-                    best = (v, t)
-        for t in best[1]:
-            used[t] = 1
-        order += best[0]
-    return order
-
-
-def report_anchors(m, name, anchors):
-    old = vertex_order(m.old_tris)
-    new = vertex_order(m.tris)
-    for key, index in anchors:
-        v = old[index]
-        same = index < len(new) and new[index] == v
-        moved = index if same else new.index(v)
-        print("  %s %s: anchor %d (vertex %d) -> %d%s" % (name, key, index, v, moved, "" if same else "  CHANGED"))
+def report_anchors(out, name):
+    import anchors
+    for where, text, worst, line in anchors.check(out, os.path.join(SRC, name)):
+        print("  %s \"%s\": %s" % (where, text, line))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -674,10 +605,10 @@ TRIGGER_PATH = [(0.30, -0.40), (0.34, -0.82), (0.24, -1.20), (0.04, -1.46)]
 
 BROWN = [16, 174, 173, 172, 171, 170, 169]  # its dark brown metal, dark to light
 LIGHT_Y = -0.15                            # the gun's middle across
-# Its settings before this (vr_weapons.inc slot 7): the hand at anchor 57 (vertex 25) plus the
-# hand offsets.
+# Its settings before this (vr_weapons.inc slot 7): the hand at vertex 25 (its anchor: strip-order
+# index 57) plus the hand offsets.
 LIGHT_SW = 0.35
-LIGHT_HAND_ANCHOR = 57
+LIGHT_HAND_VERTEX = 25
 LIGHT_HAND_OFFSET = (2.4, 0.700002, -1.35)
 LIGHT_OFFSET = (2.25, 6.05, -3.95)
 # The fist went up into the gun's body (its index finger inside it): the gun goes up over the
@@ -687,14 +618,13 @@ LIGHT_BODY = [149, 150, 151, 152, 174, 175, 176, 177]  # the back block and the 
 LIGHT_STUB = [166, 167, 168, 169, 230, 231, 232, 233]  # the old stub of a handle
 
 
-def old_anchor(m, V, index):
-    """The vertex an anchor index named in the normal model before this, in m (an alternate: the
-    vertex there, improve_weapons_alt.py)."""
-    return V(V.order[index]) if V is not IDENTITY else vertex_order(m.old_tris)[index]
+def old_vertex(V, vertex):
+    """The normal model's vertex `vertex` in m (an alternate: the vertex there, improve_weapons_alt.py)."""
+    return V(vertex)
 
 
 def light_hand_space(m, V=IDENTITY):
-    anchor = m.pos(old_anchor(m, V, LIGHT_HAND_ANCHOR))
+    anchor = m.pos(old_vertex(V, LIGHT_HAND_VERTEX))
     p0 = add(anchor, mul(LIGHT_HAND_OFFSET, 1.0 / (K * LIGHT_SW)))
     # Lowered on the gun, and centred on the grip across.
     return HandSpace((p0[0], LIGHT_Y - GRIP_Y / LIGHT_SW, p0[2] - LIGHT_RAISE), LIGHT_SW)
@@ -838,7 +768,7 @@ def light_settings(m):
     weapon offsets keeping the gun where it was drawn (the model's origin moved, and the weapon's
     Scale applies about it) but LIGHT_RAISE higher."""
     hs = light_hand_space(m)
-    anchor = m.out_pos(0, vertex_order(m.tris)[LIGHT_HAND_ANCHOR])
+    anchor = m.out_pos(0, LIGHT_HAND_VERTEX)
     hand = mul(sub(hs.p0, anchor), K * LIGHT_SW)
     d = [(1 - LIGHT_SW) * (m.origin[k] - m.out_origin[k]) for k in range(3)]
     offset = (LIGHT_OFFSET[0] + d[0], LIGHT_OFFSET[1] + d[1], LIGHT_OFFSET[2] + d[2] + LIGHT_RAISE * LIGHT_SW)
@@ -851,7 +781,7 @@ def light_settings(m):
 
 NAIL_Y = 0.0            # the grip's middle across
 NAIL_SW = 0.48          # vr_weapons.inc slot 3
-NAIL_HAND_ANCHOR = 5
+NAIL_HAND_VERTEX = 3  # the hand's anchor before this (strip-order index 5)
 NAIL_HAND_OFFSET = (0.8, -1.299998, 0.1)
 NAIL_GRIP_FRONT = -3.0  # inside the grip, at the guard's height
 NAIL_OFFSET = (3.6, 2.75, 0.799975)  # vr_weapons.inc slot 3's weapon offsets before round 20
@@ -864,7 +794,7 @@ def nail(m, V=IDENTITY):
     paint_panel(m, R["dark"], [0, 0, 32, 33, 34], 12)
     paint_panel(m, R["trigger"], [32, 33, 34, 35, 36], 13)
     part = m.part([V(v) for v in (21, 23, 25, 26, 131, 132)])  # the lower body (it does not move)
-    anchor = m.pos(old_anchor(m, V, NAIL_HAND_ANCHOR))
+    anchor = m.pos(old_vertex(V, NAIL_HAND_VERTEX))
     hs = HandSpace(add(anchor, mul(NAIL_HAND_OFFSET, 1.0 / (K * NAIL_SW))), NAIL_SW)
     # The guard round the index finger (the hand stays where it was: the fist fits the old grip),
     # its bar carried back into the grip's front (further back than the double shotgun's).
@@ -907,7 +837,7 @@ def nail_grip(m, V, part, row):
     iw.paint(m.skin, m.sw, R["grip"], iw.ribbed_grip(60))
     iw.paint(m.skin, m.sw, R["butt"], iw.metal(iw.Noise(61), iw.BLUED, 0.3, 0.1))
     iw.paint(m.skin, m.sw, R["bottom"], iw.metal(iw.Noise(62), iw.BLUED, 0.25, 0.1, lines=3))
-    anchor = m.pos(old_anchor(m, V, NAIL_HAND_ANCHOR))
+    anchor = m.pos(old_vertex(V, NAIL_HAND_VERTEX))
     p0 = add(anchor, mul(NAIL_HAND_OFFSET, 1.0 / (K * NAIL_SW)))
     hs = iw.HandSpace(p0, NAIL_SW, y_centre=NAIL_Y)
     parts = iw.Parts()
@@ -1159,12 +1089,10 @@ def seal_nail(m):
 
 # ---------------------------------------------------------------------------------------------
 
-MODELS = [  # file, builder, vr_weapons.inc slot, anchors, the slot's new settings
-    ("v_nail2.mdl", nail2, 4, [("hand", 28), ("muzzle", 129), ("2h", 94), ("wpnbtn", 28), ("wpntxt", 28)], None),
-    ("v_light.mdl", light, 7, [("hand", 57), ("muzzle", 104), ("2h", 230), ("wpnbtn", 57), ("wpntxt", 57)],
-     light_settings),
-    ("v_nail.mdl", nail, 3, [("hand", 5), ("muzzle", 33), ("2h", 51), ("wpnbtn", 97), ("wpntxt", 0)],
-     nail_settings),
+MODELS = [  # file, builder, vr_weapons.inc slot, the hand anchor's vertex in the source, the slot's new settings
+    ("v_nail2.mdl", nail2, 4, 8, None),
+    ("v_light.mdl", light, 7, LIGHT_HAND_VERTEX, light_settings),
+    ("v_nail.mdl", nail, 3, NAIL_HAND_VERTEX, nail_settings),
 ]
 
 
@@ -1181,14 +1109,14 @@ def main():
     guard = genguard.Guard("improve_weapons2.py", [os.path.join(game, "progs", e[0]) for e in MODELS] +
                            [os.path.join(game, "progs", e[1]) for e in ALTERNATES])
     printed = {}
-    for name, build, slot, anchors, settings in MODELS:
+    for name, build, slot, _, settings in MODELS:
         m = Model(os.path.join(SRC, name))
         verts, tris = len(m.st), len(m.tris)
         build(m)
         out = os.path.join(game, "progs", name)
         m.write(out)
         print("%s: %d -> %d vertices, %d -> %d triangles, skin %dx%d" % (name, verts, len(m.st), tris, len(m.tris), m.sw, m.sh))
-        report_anchors(m, name, anchors)
+        report_anchors(out, name)
         printed[name] = {}
         if settings:
             for key, value in settings(m).items():
@@ -1198,12 +1126,12 @@ def main():
     # Each alternate after its normal model: the same builder on its own source, moved onto the normal
     # one; its slot set up from the normal one's.
     for normal_name, name, slot, build in ALTERNATES:
-        _, _, normal_slot, anchors, _ = next(e for e in MODELS if e[0] == normal_name)
+        _, _, normal_slot, hand_vertex, _ = next(e for e in MODELS if e[0] == normal_name)
         normal = Model(os.path.join(SRC, normal_name))
         m = Model(os.path.join(SRC, name))
         verts, tris = len(m.st), len(m.tris)
         print("%s (the alternate of %s):" % (name, normal_name))
-        V = prepare(normal, m, vertex_order(normal.tris)[dict(anchors)["hand"]])
+        V = prepare(normal, m, hand_vertex)
         build(m, V)
         m.write(os.path.join(game, "progs", name))
         print("  %d -> %d vertices, %d -> %d triangles, skin %dx%d" % (verts, len(m.st), tris, len(m.tris), m.sw, m.sh))

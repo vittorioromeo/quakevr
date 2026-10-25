@@ -22,6 +22,12 @@ float() VR_WeaponUtil_Impl_GetAmmoBoxDrops =
 // Public API
 // ----------------------------------------------------------------------------
 
+// The nail pistol (vr_nailpistol.qc, after these tables).
+float() VR_NailPistol_MagSize;
+float(float xWeapon, float xDir) VR_NailPistol_CycleStep;
+void(float xHand, float xAttackFinished, float* xOutAttackFinished) VR_NailPistol_Attack;
+void() VR_NailPistol_PlayerFrame;
+
 float(float xWeaponId) VR_WeaponUtil_IsValidWeaponId =
 {
     return (xWeaponId >= WID_FIST)
@@ -152,6 +158,9 @@ float(float wid) WeaponIdToItemId =
     if(wid == WID_CROWBAR)          { return IID_CROWBAR; }
     if(wid == WID_SUPERAXE)         { return IID_SUPERAXE; }
     if(wid == WID_TOOLGUN)          { return IID_TOOLGUN; }
+    if(wid == WID_NAILPISTOL)       { return IID_NAILPISTOL; }
+
+    if(VR_IsADGun(wid))             { return IID_ADROCKET + (wid - WID_ADROCKET); } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return -1;
@@ -183,6 +192,7 @@ string(float wid, float xWeaponFlags) WeaponIdToModel =
     if(wid == WID_ROCKET_LAUNCHER)  { return SelectModelByFlags(xWeaponFlags, "progs/v_rock2.mdl", "progs/v_multi2.mdl"); }
     if(wid == WID_LIGHTNING)        { return SelectModelByFlags(xWeaponFlags, "progs/v_light.mdl", "progs/v_plasma.mdl"); }
     if(wid == WID_LASER_CANNON)     { return "progs/v_laserg.mdl"; }
+    if(wid == WID_SWORD && VR_ADMelee_Kind(xWeaponFlags)) { return VR_ADMelee_Model(VR_ADMelee_Kind(xWeaponFlags)); } // AD
     if(wid == WID_SWORD)            { return SelectModelByFlags(xWeaponFlags, "progs/v_ksword.mdl", "progs/v_hksword.mdl"); }
     if(wid == WID_CHAINSAW)         { return "progs/v_chainsaw.mdl"; }
     if(wid == WID_GRUNTGUN)         { return "progs/v_gruntgun.mdl"; }
@@ -190,6 +200,9 @@ string(float wid, float xWeaponFlags) WeaponIdToModel =
     if(wid == WID_CROWBAR)          { return "progs/v_crowbar.mdl"; }
     if(wid == WID_SUPERAXE)         { return "owned/mg3/progs/v_hammer.mdl"; }
     if(wid == WID_TOOLGUN)          { return "progs/v_toolgun.mdl"; }
+    if(wid == WID_NAILPISTOL)       { return "progs/v_nailpistol.mdl"; }
+
+    if(VR_IsADGun(wid))             { return VR_ADGun_Model(wid); } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return "";
@@ -228,6 +241,9 @@ float(float wid, float xWeaponFlags) WeaponIdToAmmoId =
     if(wid == WID_CROWBAR)          { return AID_NONE; }
     if(wid == WID_SUPERAXE)         { return AID_CELLS; }
     if(wid == WID_TOOLGUN)          { return AID_NONE; }
+    if(wid == WID_NAILPISTOL)       { return AID_NAILS; }
+
+    if(VR_IsADGun(wid))             { return AID_NONE; } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return AID_NONE;
@@ -270,6 +286,9 @@ float(float wid) WeaponIdToThrowMult =
     if(wid == WID_CROWBAR)          { return 0.8; }
     if(wid == WID_SUPERAXE)         { return 0.75; }
     if(wid == WID_TOOLGUN)          { return 0.8; }
+    if(wid == WID_NAILPISTOL)       { return 0.9; }
+
+    if(VR_IsADGun(wid))             { return 0.6; } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return 1;
@@ -297,6 +316,9 @@ float(float wid) WeaponIdToThrowStabilizeDim =
     if(wid == WID_CROWBAR)          { return 0; }
     if(wid == WID_SUPERAXE)         { return 2; }
     if(wid == WID_TOOLGUN)          { return 0; }
+    if(wid == WID_NAILPISTOL)       { return 0; }
+
+    if(VR_IsADGun(wid))             { return 0; } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return 0;
@@ -324,6 +346,9 @@ float(float wid) WeaponIdToThrowDamage =
     if(wid == WID_CROWBAR)          { return 40; }
     if(wid == WID_SUPERAXE)         { return 50; }
     if(wid == WID_TOOLGUN)          { return 10; }
+    if(wid == WID_NAILPISTOL)       { return 12; }
+
+    if(VR_IsADGun(wid))             { return 25; } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return 0;
@@ -351,6 +376,9 @@ float(float wid) WeaponIdToThrowBounds =
     if(wid == WID_CROWBAR)          { return 1.6; }
     if(wid == WID_SUPERAXE)         { return 1.4; }
     if(wid == WID_TOOLGUN)          { return 1.2; }
+    if(wid == WID_NAILPISTOL)       { return 1.0; }
+
+    if(VR_IsADGun(wid))             { return 1.8; } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return 0;
@@ -363,6 +391,7 @@ float(string wpnClassname) WeaponClassNameToWeaponId =
     if(wpnClassname == "weapon_mjolnir")         { return WID_MJOLNIR; }
     if(wpnClassname == "weapon_superaxe")        { return WID_SUPERAXE; }
     if(wpnClassname == "weapon_toolgun")         { return WID_TOOLGUN; }
+    if(wpnClassname == "weapon_nailpistol")      { return WID_NAILPISTOL; }
     if(wpnClassname == "weapon_shotgun")         { return WID_SHOTGUN; }
     if(wpnClassname == "weapon_supershotgun")    { return WID_SUPER_SHOTGUN; }
     if(wpnClassname == "weapon_nailgun")         { return WID_NAILGUN; }
@@ -399,10 +428,30 @@ float(float wid) WeaponIdToInitialAmmoCount =
     if(wid == WID_CROWBAR)          { return 0; }
     if(wid == WID_SUPERAXE)         { return 0; }
     if(wid == WID_TOOLGUN)          { return 0; }
+    if(wid == WID_NAILPISTOL)       { return 24; }
+
+    if(VR_IsADGun(wid))             { return 0; } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return -1;
 }
+
+string(float wid) WeaponIdToWeaponName;
+
+// Its name as this one is (its flags: AD support, an AD melee monster's weapon of the knight's sword's id has its own:
+// vr_ad_guns_defs.qc).
+string(float wid, float xWeaponFlags) WeaponNameOf =
+{
+    if(wid == WID_SWORD && VR_ADMelee_Kind(xWeaponFlags))
+    {
+        return VR_ADMelee_Name(VR_ADMelee_Kind(xWeaponFlags));
+    }
+    if(wid == WID_SWORD && (xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO))
+    {
+        return "Hell Knight's Sword";
+    }
+    return WeaponIdToWeaponName(wid);
+};
 
 string(float wid) WeaponIdToWeaponName =
 {
@@ -421,11 +470,14 @@ string(float wid) WeaponIdToWeaponName =
     if(wid == WID_LASER_CANNON)     { return "Laser Cannon"; }
     if(wid == WID_SWORD)            { return "Knight's Sword"; }
     if(wid == WID_CHAINSAW)         { return "Ogre's Chainsaw"; }
-    if(wid == WID_GRUNTGUN)         { return "Grunt's Shotgun"; }
+    if(wid == WID_GRUNTGUN)         { return "Grunt Burst Rifle"; } // (our edited grunt's gun: a 3-round burst)
     if(wid == WID_ENFRIFLE)         { return "Enforcer's Laser Rifle"; }
     if(wid == WID_CROWBAR)          { return "Crowbar"; }
     if(wid == WID_SUPERAXE)         { return "Super Axe"; }
     if(wid == WID_TOOLGUN)          { return "Toolgun"; }
+    if(wid == WID_NAILPISTOL)       { return "Nail Pistol"; }
+
+    if(VR_IsADGun(wid))             { return VR_ADGun_Name(wid); } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return "";
@@ -464,9 +516,60 @@ float(float wid) WeaponIdToSupportsReload =
     if(wid == WID_CROWBAR)          { return FALSE; }
     if(wid == WID_SUPERAXE)         { return FALSE; }
     if(wid == WID_TOOLGUN)          { return FALSE; }
+    if(wid == WID_NAILPISTOL)       { return TRUE; }
+
+    if(VR_IsADGun(wid))             { return FALSE; } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return -1;
+}
+
+// The reloading mode of the weapon `wid` (QVR_RELOADMODE_*): its own vr_reload_mode_<gun> (the Per-Weapon Reload
+// Overrides; -1 follows), else vr_reload_mode. A weapon that doesn't reload takes the global mode.
+float(float wid) VR_Reload_ModeOf =
+{
+    float own = -1;
+    if(wid == WID_SHOTGUN)               { own = cvar_hget(cvarh_vr_reload_mode_shot); }
+    else if(wid == WID_SUPER_SHOTGUN)    { own = cvar_hget(cvarh_vr_reload_mode_sshot); }
+    else if(wid == WID_NAILGUN)          { own = cvar_hget(cvarh_vr_reload_mode_nail); }
+    else if(wid == WID_SUPER_NAILGUN)    { own = cvar_hget(cvarh_vr_reload_mode_snail); }
+    else if(wid == WID_GRENADE_LAUNCHER) { own = cvar_hget(cvarh_vr_reload_mode_gl); }
+    else if(wid == WID_PROXIMITY_GUN)    { own = cvar_hget(cvarh_vr_reload_mode_prox); }
+    else if(wid == WID_ROCKET_LAUNCHER)  { own = cvar_hget(cvarh_vr_reload_mode_rl); }
+    else if(wid == WID_LIGHTNING)        { own = cvar_hget(cvarh_vr_reload_mode_light); }
+    else if(wid == WID_NAILPISTOL)       { own = cvar_hget(cvarh_vr_reload_mode_npistol); }
+    return own >= 0 ? own : cvar_hget(cvarh_vr_reload_mode);
+}
+
+// The same of the weapon `wid` whose record is `inst` (world: not known): AD support: the Widowmaker and the Plasma Gun
+// (the super shotgun and the thunderbolt with AD's upgrade) have their own (vr_reload_mode_widow, _adplasma; -1 the
+// global, not their plain guns').
+float(float wid, entity inst) VR_Reload_ModeOfInst =
+{
+    float own = -1;
+    if(wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst))    { own = cvar_hget(cvarh_vr_reload_mode_widow); }
+    else if(wid == WID_LIGHTNING && AD_PlasmaGunInst(inst)) { own = cvar_hget(cvarh_vr_reload_mode_adplasma); }
+    else                                                    { return VR_Reload_ModeOf(wid); }
+    return own >= 0 ? own : cvar_hget(cvarh_vr_reload_mode);
+}
+
+// The highest reloading mode of any gun (the global mode and every override): whether the pouch, the magazines and the
+// rest of the immersive reloading's furniture are wanted at all.
+float() VR_Reload_BestMode =
+{
+    float best = cvar_hget(cvarh_vr_reload_mode);
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_shot));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_sshot));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_nail));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_snail));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_gl));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_prox));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_rl));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_light));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_npistol));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_widow));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_adplasma));
+    return best;
 }
 
 float(float wid) WeaponIdToSupportsReloadFlicking =
@@ -491,6 +594,9 @@ float(float wid) WeaponIdToSupportsReloadFlicking =
     if(wid == WID_CROWBAR)          { return FALSE; }
     if(wid == WID_SUPERAXE)         { return FALSE; }
     if(wid == WID_TOOLGUN)          { return FALSE; }
+    if(wid == WID_NAILPISTOL)       { return FALSE; }
+
+    if(VR_IsADGun(wid))             { return FALSE; } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return -1;
@@ -518,7 +624,39 @@ float(float wid) WeaponIdToBaseClipSize =
     if(wid == WID_CROWBAR)          { return 0; }
     if(wid == WID_SUPERAXE)         { return 0; }
     if(wid == WID_TOOLGUN)          { return 0; }
+    if(wid == WID_NAILPISTOL)       { return VR_NailPistol_MagSize(); }
+
+    if(VR_IsADGun(wid))             { return VR_ADGun_ClipSize(wid); } // AD support (vr_ad_guns_defs.qc)
 
     ASSERT(FALSE);
     return -1;
 }
+
+// The magazine size of the weapon `wid` whose record is `inst` (world: not known, a plain one): AD support: the
+// Widowmaker's tube (vr_ad_widowmaker_tube), else its kind's.
+float(float wid, entity inst) VR_ClipSizeOf =
+{
+    if(wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst))
+    {
+        return max(2, rint(cvar_hget(cvarh_vr_ad_widowmaker_tube)));
+    }
+    return WeaponIdToBaseClipSize(wid);
+}
+
+// The same of the weapon `p` holds in `xHand`.
+float(entity p, float xHand) VR_ClipSizeIn =
+{
+    return VR_ClipSizeOf(VRGetEntWeapon(p, xHand), VRGetEntWeaponInst(p, xHand));
+}
+
+// Whether weapon `wid` (its flags `xFlags`) goes into a holster (immersive, or a quick slot's copy): not a huge one, which
+// is carried by hand or left (AD's hunter ogres' hammer and mace: VR_ADMelee_Holsterable). The holster refuses it
+// (weapons.qc VRHolsterRefused: let go at a holster, it falls; a quick slot keeps none).
+float(float wid, float xFlags) WeaponIdToHolsterable =
+{
+    if(wid == WID_SWORD)
+    {
+        return VR_ADMelee_Holsterable(VR_ADMelee_Kind(xFlags));
+    }
+    return TRUE;
+};

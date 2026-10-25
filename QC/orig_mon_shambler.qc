@@ -100,8 +100,10 @@ float     ldmg;
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 100)
+    if(vlen(delta) > VR_MeleeReach(100))
         return;
+    if(!VR_MeleeArc_Hits(FALSE))
+        return; // QVR: (melee arc: fight.qc)
     if(!CanDamage(self.enemy, self))
         return;
 
@@ -128,8 +130,10 @@ float     ldmg;
 
     delta = self.enemy.origin - self.origin;
 
-    if(vlen(delta) > 100)
+    if(vlen(delta) > VR_MeleeReach(100))
         return;
+    if(!VR_MeleeArc_Hits(TRUE))
+        return; // QVR: (melee arc: fight.qc)
 
     ldmg = (random() + random() + random()) * 20;
     T_Damage(self.enemy, self, self, ldmg);
@@ -205,7 +209,7 @@ void() CastLightning =
     org = self.origin + '0 0 40';
 
     dir = VR_AI_Origin(self.enemy) + '0 0 16' - org;
-    dir = normalize(dir);
+    dir = VR_AimCone_Bend(normalize(dir), VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     VR_AI_Lightning(org, dir, 600, TE_LIGHTNING1, 10);
 };
@@ -234,6 +238,8 @@ self.owner.frame = 1;
 };
 void() sham_magic5     =[      $magic5,       sham_magic6    ]
 {
+    if(VR_AimCone_Wait(sham_magic5, VR_AIM_NARROW)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
+
 self.effects = self.effects | EF_MUZZLEFLASH;
 self.owner.frame = 2;
 };
@@ -379,7 +385,7 @@ void() monster_shambler =
     monster_shambler_precache();
 
     // HONEY
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
         self.cnt = -1;
     }
 
@@ -396,7 +402,7 @@ void() monster_shambler =
     // HONEY
     monster_add_to_counter();
 
-    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
+    if((!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = shambler_start;
         return;

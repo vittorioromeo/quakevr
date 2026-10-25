@@ -3,11 +3,13 @@
 // seconds after the player appears, calibrates step by step, the instructions floating in front of the eyes:
 //
 //  0. A welcome in the middle of the view for a few seconds (a start; not the restart after the menu).
-//  1. Height: standing tall (sitting up straight, with Position: Seated) and still: vr_height_calibration, as VR Settings >
-//     Set Height Now.
+//  1. Height: standing tall and still: vr_height_calibration, as VR Settings > Set Height Now; with Position: Seated,
+//     sitting up straight: vr_seated_height instead (vr_seated.hpp), the standing height left as it is.
 //  2. Body: Body Calibration's poses (vr_bodycal.hpp; seated without its first), applied at once when the poses agree;
 //     otherwise its page opens on the result (redo a pose, Apply or Cancel) and the setup goes on when the menu closes.
 // (No main hand step: there is no main hand setting.)
+//  3. In single player, a dialog with the summary asks whether to set up the holsters now: Set Up Holsters starts
+//     Holster Setup (vr_holstersetup.hpp) at once, Not Now closes it (the author, 2026-10-22).
 //
 // Each result is printed (the wrist gadget's log) and the config saved; a summary shows at the end. The room is
 // calibration only (no buttons): the menu button pauses the setup on Body Calibration's page (its Position: standing or
@@ -28,6 +30,11 @@
 #pragma once
 
 #include "Zancle/String/StringView.hpp"
+
+namespace qvr::hands
+{
+struct State;
+} // namespace qvr::hands
 
 namespace qvr::setup
 {
@@ -51,5 +58,10 @@ void frame();
 // `text` floating ahead of the eyes (0.9 m, turned with the head's yaw), `drop` metres below them: the calibration's steps
 // and welcome (0), the view messages (QC viewmessage: vr_worldtext.cpp). Queued for this frame (text3d's overlay).
 void drawViewText(za::StringView text, float drop);
+
+// The yaw that text follows (degrees): the head's, smoothed over vr_view_text_smooth (the author's note
+// vrstart_2026-10-23_01-23-46); a second call in a frame moves it no further; after half a second with none drawn, the
+// head's at once.
+[[nodiscard]] float viewTextYaw(const hands::State& s);
 
 } // namespace qvr::setup

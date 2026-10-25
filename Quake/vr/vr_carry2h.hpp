@@ -38,9 +38,16 @@ struct Hold
     glm::vec3 grip[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each hand's grip, in the object's frame (from its origin)
     glm::vec3 axis{1.f, 0.f, 0.f}; // from the off hand's grip to the main hand's, in the object's frame (unit)
     float span{0.f};               // the grips' distance (world units)
+    // Where each hand holds it from, off its controller, in the controller's frame (world units): a hand that took it
+    // drawn held out of it at its surface while the real hand was in it (vr_hand_collide_props_keep_out) keeps that
+    // reach, so the grip stays at the surface; zero otherwise.
+    glm::vec3 reach[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
 
 [[nodiscard]] Hold record(const Frame& object, const Frame hands[2]);
+
+// Hand `hand`'s controller pose `at` moved by its reach (Hold::reach): where it holds the object from.
+[[nodiscard]] Frame reached(const Hold& hold, const Frame& at, int hand);
 
 // The object's pose for the hands at `hands`.
 [[nodiscard]] Frame solve(const Hold& hold, const Frame hands[2]);
@@ -63,6 +70,12 @@ void toAngles(const glm::quat& q, float* out, bool brush);
 // far the hands push (vr_carry_two_hands_solid). Server side (serverPlace) and a listen server's client (vr_held.cpp).
 // True if the level stopped it.
 bool clear(int num, const Frame& from, Frame& to);
+// Solid carried props cannot sweep through the carrier's torso. Uses the drawn box and the physics body's width.
+bool bodyClear(edict_t* ent, edict_t* player, const Frame& from, Frame& to);
+[[nodiscard]] bool bodyFits(edict_t* ent, edict_t* player, const Frame& at);
+[[nodiscard]] glm::vec3 bodyPlace(edict_t* ent, edict_t* player, const glm::vec3& target);
+[[nodiscard]] float moveScale(edict_t* player);
+void loadTest_f();
 
 // Server side (QC's carryreach): whether `player`'s `hand` (0 off, 1 main) can take hold of `ent`: its fist touches the
 // thing's drawn surface, as a hand touching it can (held::grabTouch); vr_debug_carry draws the test. Or, the hand that

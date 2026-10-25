@@ -138,7 +138,14 @@ struct Posed
     int frame{-1}; // host_framecount it was placed for
     bool valid{false};
     const ModelTris* model{nullptr};
+    // What it was placed from: placed again when any differs, even within a frame (the melee strike pass,
+    // strikeTarget, places monsters as the hands move, before the frame's server update, which may give that slot
+    // another model, e.g. a dying monster's ragdoll "progs/soldier.mdl#rag" with no Quake alias header, or move it on;
+    // the view's test and the gore after it want it as drawn).
     const entity_t* ent{nullptr};
+    const qmodel_t* entModel{nullptr};
+    double msgtime{0.0}, clTime{0.0};
+    const aliashdr_t* hdr{nullptr}; // the alias model's header it was posed from (its vertices: vertsOf)
     glm::mat4 m{1.f};           // its model's coordinates to the world, as drawn
     int pose1{0}, pose2{0};     // an alias model's poses and the blend between them
     float blend{0.f};
@@ -253,7 +260,7 @@ struct Lerped
 const Posed* posed(int num, const entity_t& e)
 {
     Posed& p = qza::stableAt<Posed>(posedCache, num);
-    if(p.frame == host_framecount)
+    if(p.frame == host_framecount && p.ent == &e && p.entModel == e.model && p.msgtime == e.msgtime && p.clTime == cl.time)
     {
         return p.valid ? &p : nullptr;
     }
@@ -261,6 +268,10 @@ const Posed* posed(int num, const entity_t& e)
     p.vertsFrame = -1;
     p.valid = false;
     p.ent = &e;
+    p.entModel = e.model;
+    p.msgtime = e.msgtime;
+    p.clTime = cl.time;
+    p.hdr = nullptr;
     // A ragdoll drawn with its skinned model (vr_ragdoll.cpp): its own .mdl's triangles, its vertices as the parts carry
     // them (in the world).
     const qmodel_t* rag = ragdoll::sourceModel(&e);
@@ -298,6 +309,7 @@ const Posed* posed(int num, const entity_t& e)
         {
             return nullptr;
         }
+        p.hdr = hdr;
         const Lerped l = lerpOf(e, hdr);
         p.pose1 = l.pose1;
         p.pose2 = l.pose2;
@@ -353,7 +365,12 @@ const za::Vector<glm::vec3>& vertsOf(Posed& p)
     p.vertsFrame = host_framecount;
     if(p.model->alias)
     {
-        const aliashdr_t* hdr = quakeAlias(p.ent->model);
+        const aliashdr_t* hdr = p.hdr;
+        if(!hdr) // (a ragdoll's: posed already)
+        {
+            p.verts.clear();
+            return p.verts;
+        }
         const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
         const trivertx_t* v1 = base + static_cast<za::SizeT>(p.pose1) * static_cast<za::SizeT>(hdr->numverts);
         const trivertx_t* v2 = base + static_cast<za::SizeT>(p.pose2) * static_cast<za::SizeT>(hdr->numverts);
@@ -467,6 +484,7 @@ struct Recorded
     const qmodel_t* model{nullptr};
     int frame{0};
     glm::mat4 toHand{1.f}; // the model's raw coordinates to the hand's frame
+    glm::vec3 handPos{0.f}, handRot{0.f}; // that frame: the hand as drawn (drawnWeaponPoints)
     za::Vector<glm::vec3> prop; // the prop held in the hand alone: its points (propSamples) in the hand's frame
 };
 Recorded recorded[2];
@@ -1076,7 +1094,7 @@ bool phasing[2]{false, false};
 // The melee weapons' models (QC WeaponIdToModel: the axe, Mjolnir and MG3's Super Axe, the knights' swords, the
 // chainsaw, the crowbar): they phase with vr_melee_phase alone; a gun or a held prop also needs vr_melee_phase_hold.
 constexpr const char* meleeModels[]{"progs/v_axe.mdl", "progs/v_hammer.mdl", "progs/v_ksword.mdl", "progs/v_hksword.mdl",
-    "progs/v_chainsaw.mdl", "progs/v_crowbar.mdl"};
+    "progs/v_chainsaw.mdl", "progs/v_crowbar.mdl", "progs/v_shadaxe3.mdl#vr" /* AD support: the Shadow Axe */};
 
 [[nodiscard]] bool meleeModel(const qmodel_t* model)
 {
@@ -1152,7 +1170,6 @@ void updatePhase(const hands::State& s, int hand, float dt)
 
 glm::vec3 drawn[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 glm::vec3 pressed[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // a weapon pressed against the prop in the other hand (held::drawnPush)
-Result last[2];
 int appliedFrame = -1;
 double lastTime = -1.0;
 
@@ -1179,6 +1196,55 @@ void drawDebug(const hands::State& s, int hand, const Result& res)
 }
 
 } // namespace
+
+int strikeTarget(int hand, const glm::vec3& lo, const glm::vec3& hi)
+{
+    if(hand < 0 || hand > 1 || !phaseable(hand))
+    {
+        return 0;
+    }
+    const bool hosting = sv.active && svs.maxclients >= 1;
+    qcvm_t* oldvm = nullptr;
+    if(hosting)
+    {
+        PR_PushQCVM(&sv.qcvm, &oldvm);
+    }
+    const int heldA = held::heldEntity(0), heldB = held::heldEntity(1);
+    const auto apart = [&](const glm::vec3& a, const glm::vec3& b) {
+        return b.x < lo.x || b.y < lo.y || b.z < lo.z || a.x > hi.x || a.y > hi.y || a.z > hi.z;
+    };
+    int found = 0;
+    for(int num = 1; num < cl.num_entities && !found; num++)
+    {
+        const entity_t& e = cl_entities[num];
+        if(!e.model || e.msgtime != cl.mtime[0] || num == cl.viewentity || num == heldA || num == heldB ||
+            e.alpha == ENTALPHA_ZERO || e.model->type != mod_alias)
+        {
+            continue;
+        }
+        const float grow = VR_EntityScale(&e);
+        glm::vec3 elo, ehi;
+        for(int i = 0; i < 3; i++)
+        {
+            elo[i] = e.origin[i] + e.model->rmins[i] * grow;
+            ehi[i] = e.origin[i] + e.model->rmaxs[i] * grow;
+        }
+        if(apart(elo, ehi) || kindOf(num, e, hosting) != Kind::Monster)
+        {
+            continue;
+        }
+        const Posed* p = posed(num, e);
+        if(p && !apart(p->lo, p->hi))
+        {
+            found = num;
+        }
+    }
+    if(hosting)
+    {
+        PR_PopQCVM(oldvm);
+    }
+    return found;
+}
 
 void beginView(hands::State& s)
 {
@@ -1211,7 +1277,6 @@ void beginView(hands::State& s)
             {
                 drawn[hand] = glm::vec3{0.f};
             }
-            last[hand] = res;
             if(vr_debug_model_collide.value >= 1.f && (res.blocked || glm::length(drawn[hand]) > 0.f))
             {
                 const Stats& st = res.stats;
@@ -1247,14 +1312,17 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        // The weapon as drawn, in the frame of the hand as drawn.
+        // The weapon as drawn, in the frame of the hand as drawn (a gun carried off its handle too: in the frame of the
+        // hand carrying it, as it is carried; the walls hold it out, vr_handpose.cpp, though the models don't: notTested).
         Recorded& r = recorded[hand];
         const entity_t* e = weapon[hand];
-        r.valid = e && e->model && quakeAlias(e->model) && !twohand::carrying(hand);
+        r.valid = e && e->model && quakeAlias(e->model);
         if(r.valid)
         {
             r.model = e->model;
             r.frame = e->frame;
+            r.handPos = s.pos[hand];
+            r.handRot = s.visualRot[hand];
             r.toHand = glm::inverse(handFrame(s.pos[hand], s.visualRot[hand])) * grasp::shapeToWorld(*e, mirrored[hand]);
         }
         // And the prop it holds alone, from the hand as drawn with it (moved by meeting the other's or a wall).
@@ -1316,6 +1384,24 @@ bool weaponShape(int hand, const glm::vec3& rot, za::Vector<glm::vec3>& out)
     return !out.empty();
 }
 
+bool drawnWeaponPoints(int hand, za::Vector<glm::vec3>& out, glm::vec3& from)
+{
+    out.clear();
+    const Recorded& r = recorded[hand];
+    const za::Vector<glm::vec3>* samples = r.valid ? samplesOf(r.model, r.frame) : nullptr;
+    if(!samples)
+    {
+        return false;
+    }
+    const glm::mat4 toWorld = handFrame(r.handPos, r.handRot) * r.toHand;
+    for(const glm::vec3& v : *samples)
+    {
+        out.pushBack(glm::vec3{toWorld * glm::vec4{v, 1.f}});
+    }
+    from = r.handPos;
+    return !out.empty();
+}
+
 bool drawnTriangles(const entity_t& e, int num, za::Vector<glm::vec3>& out)
 {
     out.clear();
@@ -1328,6 +1414,10 @@ bool drawnTriangles(const entity_t& e, int num, za::Vector<glm::vec3>& out)
     out.reserve(p->model->tris.size() * 3);
     for(const auto& t : p->model->tris)
     {
+        if(t[0] >= v.size() || t[1] >= v.size() || t[2] >= v.size())
+        {
+            continue; // (as gather)
+        }
         out.pushBack(v[t[0]]);
         out.pushBack(v[t[1]]);
         out.pushBack(v[t[2]]);
@@ -1340,6 +1430,15 @@ glm::vec3 drawnOffset(int hand)
     return hand == 0 || hand == 1 ? drawn[hand] + pressed[hand] : glm::vec3{0.f};
 }
 
+void forget(const qmodel_s* model)
+{
+    const auto it = modelTris.find(model);
+    if(it != modelTris.end() && it->second)
+    {
+        it->second->name.clear(); // (made again at the next look: trianglesOf compares the name)
+    }
+}
+
 void reset()
 {
     for(int hand = 0; hand < 2; hand++)
@@ -1348,7 +1447,6 @@ void reset()
         phaseLeft[hand] = releaseLeft[hand] = 0.f;
         phasing[hand] = false;
         recorded[hand] = Recorded{};
-        last[hand] = Result{};
     }
     posedCache.clear();
     // The models' triangles and samples too, made again as needed: a brush submodel's slot and name (*N) are the next

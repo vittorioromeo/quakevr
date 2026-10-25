@@ -44,10 +44,20 @@ void() MG3_armor_shard_touch = {
 5 armour (green when none is worn), up to 200 (Dawn of the Machine; needs its model).
 */
 void() item_armor_shard = {
-    if(!VR_Pack_RequireSpawn(VR_Has("progs/armorshard.mdl"), "Dawn of the Machine")) return;
-    precache_model("progs/armorshard.mdl");
+    // Its model on the search path (Dawn of the Machine's own maps), else read in place from the owned pack in any map
+    // (MG3.md, "Decisions" 5: the toolgun's spawn panel and other maps' shards), else nothing.
+    if(!VR_Pack_RequireSpawn(VR_Has("progs/armorshard.mdl") || VR_Has("owned/mg3/progs/armorshard.mdl"), "Dawn of the Machine")) return;
     precache_sound("items/armor1.wav");
-    setmodel(self, "progs/armorshard.mdl");
+    if(VR_Has("progs/armorshard.mdl"))
+    {
+        precache_model("progs/armorshard.mdl");
+        setmodel(self, "progs/armorshard.mdl");
+    }
+    else
+    {
+        precache_model("owned/mg3/progs/armorshard.mdl");
+        setmodel(self, "owned/mg3/progs/armorshard.mdl");
+    }
     self.handtouch = MG3_armor_shard_touch;
     setsize(self, '-16 -16 0', '16 16 56');
     StartItem();
@@ -99,12 +109,13 @@ void(string mdl, string name, float defheight) MG3_DraughtSpawn = {
 A ring that moves the player who touches it by "height" (default -2048: down), or with OVERRIDE_DEST to its target
 teleport destination (Dawn of the Machine; needs its model).
 */
-void() item_draught_insight = { MG3_DraughtSpawn("progs/gold_ring.mdl", "$mg3_qc_ring_of_insight", -2048); };
+// (Its model on the search path, else read in place from the owned pack, as the shards: the toolgun's in any map.)
+void() item_draught_insight = { MG3_DraughtSpawn(VR_ModelOr("progs/gold_ring.mdl", "owned/mg3/progs/gold_ring.mdl"), "$mg3_qc_ring_of_insight", -2048); };
 /*QUAKED item_draught_stupor (0 .5 .8) (0 0 0) (32 32 32) OVERRIDE_DEST
 A ring that moves the player who touches it by "height" (default 2048: up), or with OVERRIDE_DEST to its target
 teleport destination (Dawn of the Machine; needs its model).
 */
-void() item_draught_stupor = { MG3_DraughtSpawn("progs/onyx_ring.mdl", "$mg3_qc_ring_of_oblivion", 2048); };
+void() item_draught_stupor = { MG3_DraughtSpawn(VR_ModelOr("progs/onyx_ring.mdl", "owned/mg3/progs/onyx_ring.mdl"), "$mg3_qc_ring_of_oblivion", 2048); };
 
 // ----------------------------------------------------------------------------
 // The lava suit: 30 seconds without lava or slime damage (and without drowning). Taken by powerup_touch (items.qc),
@@ -114,7 +125,8 @@ The player takes no damage from lava or slime for 30 seconds (Dawn of the Machin
 data).
 */
 void() item_artifact_lavasuit = {
-    string mdl = VR_ModelOr("progs/lavasuit.mdl", "progs/suit.mdl");
+    // (its own model on the search path, else read in place from the owned pack, else the biosuit's)
+    string mdl = VR_ModelOr("progs/lavasuit.mdl", VR_ModelOr("owned/mg3/progs/lavasuit.mdl", "progs/suit.mdl"));
     self.handtouch = powerup_touch;
     precache_model(mdl);
     precache_sound("items/suit.wav");

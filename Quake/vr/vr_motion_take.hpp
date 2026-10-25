@@ -157,6 +157,8 @@ struct TakeInfo
     glm::vec3 origin0{0.f};
     double t0{0.0};       // realtime at t = 0
     int take{0};          // its number among the label's takes
+    za::String heldMain; // a prop (not a weapon) in the main / off hand as the take ended: "model (classname)"
+    za::String heldOff;
 };
 
 // Writes a take (header and rows); false (with a console message) if it can't.
@@ -193,5 +195,8 @@ void invalidateTakeCounts();
 
 // A take's file name, <label>_<YYYY-MM-DD_HH-MM-SS[-n]>.csv: its label and stamp (false: not a take's name).
 [[nodiscard]] bool parseTakeName(za::StringView name, za::StringView& label, za::StringView& stamp);
+
+// `s` cut at every `sep` (carriage returns dropped): vr_motion_play.cpp.
+[[nodiscard]] za::Vector<za::String> split(za::StringView s, char sep);
 
 } // namespace qvr::motion

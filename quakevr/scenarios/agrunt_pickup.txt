@@ -1,0 +1,8 @@
+# agrunt_pickup: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title An unarmed grunt with a shotgun lying near it
+map vrtesthall
+god
+notarget
+spawn "Armed Grunt: Fists" 260 0
+spawn "Shotgun" 200 60
+hint Watch it go for the shotgun: it bends down on a knee, its hand reaching down with it, closes its hand on the weapon only at the bottom, then rises with it (no jump). Hit it as it reaches: the shotgun stays on the floor.

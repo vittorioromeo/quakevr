@@ -1,6 +1,7 @@
 // vr_meleehud.cpp -- see vr_meleehud.hpp.
 
 #include "vr_meleehud.hpp"
+#include "vr_color.hpp"
 #include "vr_cvars.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
@@ -9,6 +10,7 @@
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 
@@ -61,7 +63,7 @@ void ember(const hands::State& s, int hand, float bright)
             return;
         }
         const int vertex = rng.getI(0, hdr->numverts - 1);
-        const glm::vec3 p = view::anchorPosition(*ve, vertex, glm::vec3{0.f});
+        const glm::vec3 p = view::vertexPosition(*ve, vertex);
         glm::vec3 out{0.f};
         view::WeaponMount mount;
         if(view::weaponMount(hand, mount))

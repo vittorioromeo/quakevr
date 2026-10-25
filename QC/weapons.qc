@@ -49,7 +49,7 @@ void(float xHand, float xAid) updateAmmoCounter =
     else
     {
         VRSetAmmoCounter(xHand, VR_AmmoUtil_GetAmmoCountByAmmoId(self, xAid));
-        VRSetWeaponClipSize(xHand, WeaponIdToBaseClipSize(VRGetWeapon(xHand)));
+        VRSetWeaponClipSize(xHand, VR_ClipSizeIn(self, xHand)); // (AD support: the Widowmaker's tube)
     }
 }
 
@@ -148,11 +148,16 @@ float() VRMeleeDmgQuadMult =
 
 float(float xHand, float xBase) VRMeleeDmg =
 {
+    // An incandescent blade's blow hits harder (vr_hotblade_damage more base damage: vr_hotblade.qc).
+    xBase = xBase + VR_HotBlade_Extra(self, xHand);
     if(!VRHandsTracked(self) || !self.ishuman)
     {
-        return 20;
+        return 20 + VR_HotBlade_Extra(self, xHand);
     }
 
+    // The damage caps bound this blow's strength (times its zone's multiplier) when it lands (T_Damage_VRMelee).
+    vr_mdmg_core = VR_Blow(xHand).mh_core;
+    vr_mdmg_hand = xHand;
     return xBase * VR_Blow_Strength(xHand) * VR_Blow_Counter(xHand) * VR_Blow_Exhaust(xHand) *
            VR_Weight_MeleeMult(self, xHand) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult();
 }
@@ -223,13 +228,25 @@ float PositionalDamageFactor(float positionalDamageType)
 // The head of a target that supports headshots, in its own frame: `forward` of its origin along its
 // facing, `up` above it, `radius` its size. Measured on the models' standing frames (the centroid of
 // their top vertices), with the old heights as a check. FALSE for targets without a head to aim at.
+// `left`: to its left (0 but for a head off its middle: AD's zombie knight's), the head's middle at origin +
+// facing * forward + VR_HeadSide(facing) + up.
 float xHeadForward;
 float xHeadUp;
 float xHeadRadius;
+float xHeadLeft;
+vector(vector xFacing) VR_HeadSide =
+{
+    vector s = '0 0 0';
+    s_x = -xFacing_y;
+    s_y = xFacing_x;
+    return s * xHeadLeft;
+};
 float(entity xTarget) PositionalHead =
 {
     string c = xTarget.classname;
+    xHeadLeft = 0;
     if(xTarget.vr_mg3_mon && MG3_PositionalHead(xTarget)) { return TRUE; } // (QVR: Dawn of the Machine's own models: vr_mg3_ogre.qc)
+    if(xTarget.vr_ad_mon) { return VR_AD_PositionalHead(xTarget); } // AD support: AD's monsters' heads (vr_ad_monsters.qc)
     if(c == "monster_army")             { xHeadForward = 3;  xHeadUp = 23; xHeadRadius = 7.2; return TRUE; }
     if(c == "monster_ogre" || c == "monster_ogre_marksman") { xHeadForward = 9; xHeadUp = 33; xHeadRadius = 10; return TRUE; }
     if(c == "monster_enforcer")         { xHeadForward = 2;  xHeadUp = 27; xHeadRadius = 7.4; return TRUE; }
@@ -309,7 +326,7 @@ float PositionalPointRegion(entity xTarget, vector rest) =
     float yaw = xTarget.angles_y * (3.14159265 / 180);
     vector facing = '0 0 0';
     facing_x = cos(yaw); facing_y = sin(yaw);
-    vector head = xTarget.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+    vector head = xTarget.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
     vector side = '0 0 0';
     side_x = -facing_y; side_y = facing_x;
     float inHead = vlen(rest - head) < xHeadRadius + VR_HEAD_MARGIN;
@@ -343,7 +360,7 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     facing_x = cos(yaw);
     facing_y = sin(yaw);
     facing_z = 0;
-    vector head = xTarget.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+    vector head = xTarget.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
 
     // Precise hits (vr_hit_precise): the shot struck the model as drawn (at xEndpos, within its tolerance of it). Where
     // that place is on the model standing (hitmodel_rest: the same place of the same triangle in its stand frame, at its
@@ -498,10 +515,20 @@ void() HIP_LaserTouch =
         spawn_touchblood(self.dmg);
 
         makeforward(self.angles);
-        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
+        vector at = trace_ent == other ? trace_endpos : self.origin;
+        posDmgType = PositionalDamage(other, at, v_forward);
         adjDmg = self.dmg * PositionalDamageFactor(posDmgType);
 
+        // VR: every projectile's hit (VR_Proj_Begin's, its bounces its own): tagged a shot where it struck (a corpse's
+        // head or limb worn), a kill at the head or a limb popped by chance (vr_decap_pop_laser).
+        VR_SetHitKind(QVR_HITKIND_SHOT, -1, at, oldvel);
+        float pop = VR_Decap_ProjArm(other, self.lastvictim, at, oldvel, adjDmg, QVR_PROJ_LASER);
         T_Damage(other, self, self.lastvictim, adjDmg);
+        if(pop)
+        {
+            VR_Decap_After(other);
+        }
+        VR_ClearHitKind();
     }
     else if((self.cnt == 3) || (random()<0.15))
     {
@@ -620,6 +647,14 @@ void(entity xMissile, float xHand) VR_ShotPlace =
     }
 };
 
+// A player's projectile just launched from hand `xHand` (self the player; every weapon's, the expansions' and the
+// enemy guns' too): credited with the hand's weapon (vr_dmgcredit.qc), and placed behind what the muzzle is inside.
+void(entity xMissile, float xHand) VR_ShotLaunched =
+{
+    VR_DamageCredit_FromHand(xMissile, self, xHand);
+    VR_ShotPlace(xMissile, xHand);
+};
+
 // The projectiles placed this frame with something that takes damage along the weapon (VR_ShotPlace) touch what they
 // meet there now (the first one's hit may have shoved it), where they meet it: at the end of the player's frame
 // (PlayerPostThink), after its weapons fired and before the projectiles move.
@@ -660,10 +695,10 @@ void() VR_ShotImpacts =
 // box it started in, not what was struck: traced again from the projectile itself.
 void(vector xFrom, vector xTo) VR_TouchTrace =
 {
-    traceline(xFrom, xTo, VR_HitModelFlags(self), self);
+    traceline(xFrom, xTo, VR_HitModelFlags(self) | MOVE_HITGIBS, self);
     if(trace_startsolid && trace_ent != other && trace_ent != world)
     {
-        traceline(self.origin, xTo, VR_HitModelFlags(self), self);
+        traceline(self.origin, xTo, VR_HitModelFlags(self) | MOVE_HITGIBS, self);
     }
 };
 
@@ -683,7 +718,7 @@ entity(vector org, vector vec, vector extraVel, float light) HIP_LaunchLaser =
 {
     sound(self, CHAN_WEAPON, "hipweap/laserg.wav", 1, ATTN_NORM);
 
-    vec = normalize(vec);
+    vec = VR_AimCone_Bend(normalize(vec), VR_AIM_NARROW); // QVR: a monster's bent to its facing's aim cone (vr_aimcone.qc)
 
     entity newmis;
     newmis = spawn();
@@ -764,10 +799,10 @@ void(float xHand, float stat) HIP_FireLaser =
 
         org = org + (aofs*v_right);
         newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
-        VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+        VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
         org = org - (2*aofs*v_right);
         newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
-        VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+        VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     }
     else if(stat == 1)
     {
@@ -778,13 +813,13 @@ void(float xHand, float stat) HIP_FireLaser =
         if(random() < 0.1)
         {
             newmis = HIP_LaunchLaser(org, dir, extraVel, 1);
-            VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+            VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
             newmis.dmg = VR_LaserBoltDamage(TRUE);
         }
         else
         {
             newmis = HIP_LaunchLaser(org, dir, extraVel, 0);
-            VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+            VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
         }
     }
 
@@ -858,7 +893,6 @@ void(vector vStart, vector vEnd) LightningParticles =
     particle2(vEnd, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
 }
 
-
 void() HIP_LightningThink =
    {
    vector org;
@@ -871,7 +905,6 @@ void() HIP_LightningThink =
    float dot;
    float oldstate;
    float dam;
-
 
    if(time > self.delay)
       {
@@ -985,6 +1018,7 @@ void(entity prev, entity own, float dst) HIP_SpawnMjolnirLightning =
    light.lastvictim = prev;
    light.distance = dst;
    light.owner = own;
+   VR_DamageCredit_Inherit(light, own); // (the chain's credit: its base's)
    light.v_angle = self.angles;
    light.v_angle_x = 0;
    light.v_angle_z = 0;
@@ -993,7 +1027,8 @@ void(entity prev, entity own, float dst) HIP_SpawnMjolnirLightning =
    light.nextthink = time;
    };
 
-void() HIP_SpawnMjolnirBase =
+// xHand: the hand whose weapon struck it (Mjolnir, the Super Axe's burst): the chain's credit.
+void(float xHand) HIP_SpawnMjolnirBase =
    {
    entity light;
    // spawn lightning base
@@ -1002,6 +1037,7 @@ void() HIP_SpawnMjolnirBase =
    light.origin = trace_endpos;
    light.flags = 0;
    light.owner = self;
+   VR_DamageCredit_FromHand(light, self, xHand);
    light.struck_by_mjolnir = 1;
    light.think = SUB_Remove;
    light.nextthink = time + 1;
@@ -1035,6 +1071,7 @@ void(float xHand, vector xAt) HIP_FireMjolnirLightning =
         cells = self.ammo_cells;
         self.ammo_cells = 0;
         discharged = 1;
+        VR_DamageCredit_FromHand(self, self, xHand); // (the discharge's inflictor: the player)
         T_RadiusDamage(self, self, 35*cells, world);
         discharged = 0;
         W_SetCurrentAmmo();
@@ -1043,7 +1080,7 @@ void(float xHand, vector xAt) HIP_FireMjolnirLightning =
 
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 15);
 
-    HIP_SpawnMjolnirBase();
+    HIP_SpawnMjolnirBase(xHand);
 };
 
 // A swing (tagged by PlayerVRMeleeImpl) struck at trace_endpos, going along `xDir`: kept for the
@@ -1171,6 +1208,7 @@ void(float xHand) HIP_FireMjolnir =
         // hit wall
         if(trace_fraction != 1.0)
         {
+            VR_Melee_WallMark(xHand, xdmg, TRUE); // a hammer's dent (vr_decal_melee)
             if(time >= VRGetAttackFinished(xHand) && self.ammo_cells >= 15)
             {
                 HIP_FireMjolnirLightning(xHand, org);
@@ -1196,7 +1234,6 @@ void(float xHand) HIP_FireMjolnir =
         }
     }
 };
-
 
 // called by worldspawn
 void() W_Precache =
@@ -1237,6 +1274,13 @@ void() W_Precache =
     precache_sound("knight/sword2.wav");
     precache_sound("weapons/holster0.wav");
     precache_sound("weapons/holster1.wav");
+    precache_sound("vr/flashlight_attach.wav"); // (a magnetic holster bound, unbound: vr_magholster.qc)
+    precache_sound("vr/flashlight_detach.wav");
+    precache_sound("vr/magholster_zip.wav"); // (a bound weapon reeled home, drawn: vr_magholster.qc)
+    precache_sound("vr/magholster_draw.wav");
+    precache_sound("vr/blade_sizzle.wav"); // incandescent blades (vr_hotblade.qc)
+    precache_sound("vr/blade_hot.wav");
+    precache_sound("vr/blade_quench.wav");
 };
 
 /*
@@ -1255,7 +1299,7 @@ void(float xHand) W_FireAxe =
     float  bleed;
     bleed = FALSE;
 
-    xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe));
+    xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe) * AD_AxeScale(xHand)); // AD support: the Shadow Axe (vr_ad_bridge.qc)
 
     // HONEY
     // Check if we maybe should gib some zombies for fun!
@@ -1297,10 +1341,11 @@ void(float xHand) W_FireAxe =
     if(trace_ent.takedamage)
     {
         trace_ent.axhitme = 1;
+        AD_AxeMark(xHand, trace_ent); // AD support: the Shadow Axe's mark, for AD's monsters (vr_ad_bridge.qc)
         entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
 
         // HONEY
-        self.damage_weapon = IT_AXE;
+        VR_DamageCredit_SetWeapon(self, WID_AXE);
 
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
@@ -1311,7 +1356,7 @@ void(float xHand) W_FireAxe =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
             VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
@@ -1320,17 +1365,17 @@ void(float xHand) W_FireAxe =
     if(!bleed)
     {
         // hit wall
+        VR_Melee_WallMark(xHand, xdmg, FALSE); // its head's chop, its handle's dent (vr_decal_melee)
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
 
         BroadcastGunshotEffect(org);
     }
 };
-
 
 //============================================================================
 
@@ -1363,7 +1408,7 @@ void(float xHand) W_GunMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", FALSE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", FALSE), 1.0, ATTN_NORM);
             VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
@@ -1371,10 +1416,11 @@ void(float xHand) W_GunMelee =
     else
     {
         // hit wall
+        VR_Melee_WallMark(xHand, xdmg, TRUE); // a gun's dent (vr_decal_melee)
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
 
@@ -1382,9 +1428,7 @@ void(float xHand) W_GunMelee =
     }
 };
 
-
 //============================================================================
-
 
 /*
 ================
@@ -1392,11 +1436,27 @@ W_FistMelee
 ================
 */
 // A knight's sword (WID_SWORD): the axe's swing, longer and harder (vr_sword_damage_mult); the
-// hell knight's (weaponflags) harder still.
+// hell knight's (weaponflags) harder still. AD support: AD's melee monsters' weapons (their kind in the weapon flags:
+// vr_ad_guns_defs.qc) their own (vr_admelee_sword_damage; the hammer and the mace vr_admelee_heavy_damage in both hands,
+// vr_admelee_heavy_1h of it in one; blunt: a club's knock, client.qc's vr_melee_blunt).
 void(float xHand) W_SwordMelee =
 {
     float xdmg = VRMeleeDmg(xHand, 20) * cvar_hget(cvarh_vr_sword_damage_mult);
-    if(VRHasBit(VRGetWeaponFlags(xHand), QVR_WPNFLAG_USE_SECONDARY_AMMO))
+    float kind = VR_ADMelee_Kind(VRGetWeaponFlags(xHand));
+    if(VR_ADMelee_Flail(kind))
+    {
+        xdmg = vr_flail_damage; // (its head's blow: VR_Flail_Hit)
+    }
+    else if(VR_ADMelee_Heavy(kind))
+    {
+        float both = VRGet2HAiming(self) && VRIsHandEmpty(self, VRGetOtherHand(xHand));
+        xdmg = xdmg * cvar("vr_admelee_heavy_damage") * (both ? 1 : cvar("vr_admelee_heavy_1h"));
+    }
+    else if(kind)
+    {
+        xdmg = xdmg * cvar("vr_admelee_sword_damage");
+    }
+    else if(VRHasBit(VRGetWeaponFlags(xHand), QVR_WPNFLAG_USE_SECONDARY_AMMO))
     {
         xdmg = xdmg * 1.25;
     }
@@ -1411,7 +1471,7 @@ void(float xHand) W_SwordMelee =
     {
         trace_ent.axhitme = 1;
         entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
-        self.damage_weapon = IT_AXE;
+        VR_DamageCredit_SetWeapon(self, WID_SWORD);
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
             VR_HitBloodSplash(victim, org, xdmg);
@@ -1419,17 +1479,22 @@ void(float xHand) W_SwordMelee =
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "knight/sword2.wav", TRUE), 1.0, ATTN_NORM);
+            VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSoundOn(victim, "knight/sword2.wav", TRUE), 1.0, ATTN_NORM);
+            if(VR_ADMelee_Blunt(kind) || VR_ADMelee_Flail(kind))
+            {
+                VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), victim); // (a hammer's, a mace's weight: the chainsaw's)
+            }
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;
     }
 
-    // A wall: a clang and sparks.
+    // A wall: a clang and sparks, its blade's groove (its pommel's dent: vr_decal_melee).
+    VR_Melee_WallMark(xHand, xdmg, FALSE);
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);
-        VR_SoundVaried(self, VRGetGunChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, VRGetHandChannel(xHand), "player/axhit2.wav", 1, ATTN_NORM);
         VRSetMeleeHitSoundPlayed(xHand, TRUE);
     }
     particle2(org, trace_plane_normal * 60, QVR_PARTICLE_PRESET_SPARKS, 8);
@@ -1451,7 +1516,7 @@ void(float xHand) W_ChainsawMelee =
     {
         trace_ent.axhitme = 1;
         entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
-        self.damage_weapon = IT_AXE;
+        VR_DamageCredit_SetWeapon(self, WID_CHAINSAW);
         // Swung running, its bar sets a grenade off as its chain does (VR_GrenShot_BlowSetsOff); not its rear handle.
         vr_grenshot_saw = ((VRGetWeaponFlags(xHand) & QVR_WPNFLAG_SAW_RUNNING) &&
                            VR_Blow(xHand).mh_kind != VR_MKIND_POMMEL);
@@ -1471,7 +1536,8 @@ void(float xHand) W_ChainsawMelee =
         return;
     }
 
-    // A wall: a clang and sparks.
+    // A wall: a clang and sparks, its bar's groove (its engine's dent: vr_decal_melee).
+    VR_Melee_WallMark(xHand, xdmg, FALSE);
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         VRMeleeHapticByHand(xHand);
@@ -1526,13 +1592,13 @@ void(float xHand) W_FistMelee =
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE && vr_melee_slap)
     {
         // A slap (vr_melee_slap; only on what takes damage: VR_Melee_SlapLands): skin on skin, no knock.
-        VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Melee_HitSound(""), 1.0, ATTN_NORM);
+        VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Melee_HitSound(""), 1.0, ATTN_NORM);
         playedsound = TRUE;
     }
     else if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
         // (A held rock or brick knocks as it does; a fist on an explosive box, a metal knock: VR_Melee_HitSoundOn.)
-        VR_SoundVaried(self, VRGetGunChannel(xHand), VR_Debris_Is(held) ? VR_Debris_Sound(held) :
+        VR_SoundVaried(self, VRGetHandChannel(xHand), VR_Debris_Is(held) ? VR_Debris_Sound(held) :
             (VR_Hit_Metal(trace_ent) ? VR_Melee_HitSoundOn(trace_ent, "fisthit.wav", FALSE) : "fisthit.wav"), 1.0, ATTN_NORM);
         if(!VR_Debris_Is(held))
         {
@@ -1554,6 +1620,7 @@ void(float xHand) W_FistMelee =
     else
     {
         // hit wall
+        VR_Melee_WallMark(xHand, xdmg, TRUE); // a held prop's dent; a bare fist none (vr_decal_melee)
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
@@ -1579,10 +1646,7 @@ void(float xHand) W_FistMelee =
     }
 };
 
-
 //============================================================================
-
-
 
 vector() wall_velocity =
 {
@@ -1595,7 +1659,6 @@ vector() wall_velocity =
 
     return vel;
 };
-
 
 /*
 ================
@@ -1657,9 +1720,6 @@ void(vector org, float damage) SpawnBloodSplash =
     SpawnBlood(org, pvel, damage);
 };
 
-
-
-
 /*
 ================
 spawn_touchblood
@@ -1693,7 +1753,6 @@ void(float damage) spawn_touchblood =
     }
     SpawnBlood (self.origin + vel * 0.01, vel, damage);
 };
-
 
 /*
 ================
@@ -1751,11 +1810,7 @@ void() ApplyMultiDamage =
     vr_hitpellets_leg = multi_pellets_leg;
     entity t = multi_ent;
     float pop = VR_Decap_BlastArm(t); // VR: a headshot blast pops the head if it kills (vr_decap.qc, "Head pops")
-    T_Damage(t, self, self, multi_damage);
-    if(pop)
-    {
-        VR_Decap_After(t);
-    }
+    VR_Decap_Damage(t, self, self, multi_damage, pop);
     vr_hitpellets = 0;
 };
 
@@ -1783,7 +1838,7 @@ float(entity hit, float damage) AddMultiDamage =
     }
 
     // HONEY
-    return !((hit.flags & FL_SPECIFICDAMAGE) && !(hit.items & self.damage_weapon));
+    return VR_DamageCredit_Accepts(hit, self); // (the shooter's hitscan shot: FireBullets credited him)
 };
 
 /*
@@ -1901,6 +1956,168 @@ void() VR_ShotPush_Touch =
     }
 };
 
+// ----------------------------------------------------------------------------
+// Projectile hits: one path for every projectile's touch (ROUND22.md, "Projectiles: one path"): id1's nails, rockets,
+// grenades and lasers, the expansions', AD's, Dawn of the Machine's and the enemy guns' (the inventory: ROUND22.md).
+// The projectile (self) meeting `other`, its touch calls VR_Proj_Begin before it deals its hit, VR_Proj_End after:
+// - the prop, gib or ragdoll (a corpse's, a knocked-down body's) it met or flew through pushed (VR_ShotPush: a nail's
+//   push, or its own kind's, .vr_shot_push_kind); an explosive's blast pushes instead (physicsblast);
+// - where it struck, along its flight (VR_TouchTrace: vr_proj_at, vr_proj_dir), and the body's part there
+//   (PositionalDamage: vr_proj_factor, the headshot's crack); the hit tagged a shot there (VR_SetHitKind), so a corpse's
+//   head or limb it strikes is worn down (VR_Limb_CorpseWear);
+// - a kill at the head or a limb armed to pop it (VR_Decap_ProjArm: a laser's or a plasma bolt's chance
+//   vr_decap_pop_laser, any other bolt's, nail's or lump's vr_decap_pop_projectile; an explosive's are its blast's,
+//   vr_limbs_blast), ended by VR_Proj_End (VR_Decap_After).
+// A wall torch the hit's damage reaches comes off its wall (T_Damage: VR_WallTorch_Shot; AD's T_Damage hands ours to
+// ours, VR_AD_DamageOurs); a grenade bounces off it, knocking it off (GrenadeTouch). The projectile's move meets corpses,
+// gibs, knocked-down bodies and wall torches' shot boxes: a flying missile's always (MOVE_MISSILE), a small
+// MOVETYPE_FLY one's and a grenade's when marked (VR_Proj_Mark: the engine's VR_HitModelMoveFlags, MOVE_HITGIBS).
+float QVR_PROJ_BOLT = 1;  // a nail, a spike, a bolt, a lump of flesh or rock: pops at vr_decap_pop_projectile
+float QVR_PROJ_LASER = 2; // a laser or a plasma bolt: pops at vr_decap_pop_laser
+float QVR_PROJ_BLAST = 3; // an explosive's direct hit (a rocket, a grenade, a fireball, a voreball): no pop of its own
+
+entity vr_proj_target; // what the last VR_Proj_Begin's projectile met
+vector vr_proj_at;     // where it struck it (on its model, else where the projectile is)
+vector vr_proj_dir;    // its flight's way
+float vr_proj_factor;  // the part's damage factor there (PositionalDamageFactor; 1 for what takes no damage)
+float vr_proj_armed;   // a pop armed (VR_Proj_End ends it)
+float vr_proj_hits;    // VR_Proj_Begin's calls (the tests)
+
+float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage, float xKind) VR_Decap_ProjArm; // (vr_limbs.qc)
+
+// `e`, a projectile just launched, marked one (its move meets corpses, gibs, knocked-down bodies: the engine's
+// VR_HitModelMoveFlags), for a small MOVETYPE_FLY one (AD's bolts, lasers and plasma) or a grenade.
+void(entity e) VR_Proj_Mark =
+{
+    e.vr_projectile = 1;
+};
+
+// Body shields (ROUND22.md, "Body shields"): a corpse or a knocked-down monster a player holds in either hand (its
+// ragdoll, one hand or two) takes a monster's shot or projectile on its way to him. Held up against him, the body lies
+// inside his own hit box, whose face the shot met first, so the shot passed through it. `xP`, the player the path
+// xA..xB met: the held body's drawn shape is looked for along the path up to where it passes his middle; met there, it
+// is what the shot hit instead (trace_ent, trace_endpos, trace_fraction of xA..xB). TRUE if so.
+float(entity xP, vector xA, vector xB) VR_BodyShield_Take =
+{
+    if(!(xP.flags & FL_CLIENT) || xP.health <= 0)
+    {
+        return FALSE;
+    }
+    entity held1 = VR_Carry_Held(xP, cVR_MainHand);
+    entity held2 = VR_Carry_Held(xP, cVR_OffHand);
+    if(!isragdoll(held1) && !isragdoll(held2))
+    {
+        return FALSE;
+    }
+    vector dir = normalize(xB - xA);
+    float along = (xP.origin - xA) * dir; // (to his middle)
+    float len = vlen(xB - xA);
+    if(along <= 0 || len <= 0)
+    {
+        return FALSE;
+    }
+    vector mid = xA + dir * along;
+    entity best = world;
+    float bestT = 2;
+    for(float i = 0; i < 2; i++)
+    {
+        entity h = i ? held2 : held1;
+        if(h == world || !isragdoll(h) || !h.takedamage || (i && h == held1))
+        {
+            continue;
+        }
+        float t = hitmodel_segment(h, xA, mid, 0, HITCLASS_GUNS);
+        if(cvar_hget(cvarh_vr_debug_shots) >= 2)
+        {
+            dprint(sprintf("shot: body shield: %s from %v to %v (his middle): %g\n", h.classname, xA, mid, t));
+        }
+        if(t >= 0 && t < bestT)
+        {
+            best = h;
+            bestT = t;
+        }
+    }
+    if(best == world)
+    {
+        return FALSE;
+    }
+    trace_ent = best;
+    trace_endpos = xA + (mid - xA) * bestT;
+    trace_fraction = vlen(trace_endpos - xA) / len;
+    trace_plane_normal = '0 0 0' - dir;
+    trace_allsolid = FALSE;
+    trace_startsolid = FALSE;
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("shot: %s held by %s takes it (body shield) at %v\n", best.classname, xP.netname, trace_endpos));
+    }
+    return TRUE;
+};
+
+// Before the projectile (self) deals its hit on `other` (`xKind` QVR_PROJ_*, `xDamage` its damage, if known: a zombie's
+// head pops only to a hit that would knock it down).
+void(float xKind, float xDamage) VR_Proj_Begin =
+{
+    vr_proj_hits++;
+    vector dir = normalize(self.velocity);
+    if(dir == '0 0 0')
+    {
+        makeforward_mdl(self.angles);
+        dir = v_forward;
+    }
+    // A monster's projectile meeting a player: the body he holds before him takes it (VR_BodyShield_Take).
+    if((other.flags & FL_CLIENT) && !(self.owner.flags & FL_CLIENT) &&
+       VR_BodyShield_Take(other, self.origin - dir * 64, self.origin + dir * 64))
+    {
+        other = trace_ent;
+        setorigin(self, trace_endpos);
+    }
+    if(self.vr_shot_push_kind)
+    {
+        VR_ShotPush_Touch(); // (its own kind's push, or a prop it flew through)
+    }
+    else if(xKind != QVR_PROJ_BLAST)
+    {
+        VR_ShotPush(other, self.origin, self.origin, dir, QVR_SHOTPUSH_NAIL, 1);
+    }
+    VR_TouchTrace(self.origin - dir * 8, self.origin + dir * 8);
+    vr_proj_target = other;
+    vr_proj_at = trace_ent == other ? trace_endpos : self.origin;
+    vr_proj_dir = dir;
+    vr_proj_factor = 1;
+    vr_proj_armed = FALSE;
+    if(!other.takedamage || other == world)
+    {
+        return;
+    }
+    vr_proj_factor = PositionalDamageFactor(PositionalDamage(other, vr_proj_at, dir));
+    if(xKind == QVR_PROJ_BLAST)
+    {
+        return;
+    }
+    VR_SetHitKind(QVR_HITKIND_SHOT, -1, vr_proj_at, dir);
+    vr_proj_armed = VR_Decap_ProjArm(other, self.owner, vr_proj_at, dir, xDamage, xKind);
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("projectile hit: %s (%s) at %s at %v, part factor %.2f, pop armed %g\n", self.classname,
+            ftos(xKind), other.classname, vr_proj_at, vr_proj_factor, vr_proj_armed));
+    }
+};
+
+// After its hit: the armed pop ended, the hit's tag cleared.
+void() VR_Proj_End =
+{
+    if(vr_proj_armed)
+    {
+        VR_Decap_After(vr_proj_target);
+        vr_proj_armed = FALSE;
+    }
+    if(vr_hitkind == QVR_HITKIND_SHOT && vr_hithand == -1 && vr_hitpos == vr_proj_at)
+    {
+        VR_ClearHitKind();
+    }
+};
+
 void(float damage, vector dir) TraceAttack =
 {
     vector vel, org;
@@ -1941,6 +2158,7 @@ void(float damage, vector dir) TraceAttack =
             {
                 SpawnBlood (org, vel*0.2, damage);
                 VR_Wound_Pellet(trace_ent, trace_endpos, dir, damage); // VR: painted on its model (vr_wounds.qc)
+                VR_HitReact_Pellet(trace_ent, trace_endpos, dir); // VR: where its flinch is (vr_hitreact.qc)
             }
             bleed = TRUE;
         }
@@ -1951,7 +2169,6 @@ void(float damage, vector dir) TraceAttack =
         BroadcastGunshotEffect(org);
     }
 };
-
 
 // VR: a shot crossing the surface of water, slime or lava splashes there, with a plip (vr_water_splash,
 // vr_water_sounds). The trace globals stay as the shot's.
@@ -1993,6 +2210,8 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
     while(shotcount > 0)
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
+        vr_fire_dev_sum = vr_fire_dev_sum + atan2(vlen(direction - dir * (direction * dir)), direction * dir) * 57.29578;
+        vr_fire_dev_n = vr_fire_dev_n + 1;
 
         traceline(src, src + direction*xRange, MOVE_HITGIBS | MOVE_HITMODEL | MOVE_PORTALS, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise), on through teleporters (vr_portals.cpp),
         if(xStartHits && trace_startsolid && trace_ent != world && trace_ent.takedamage)
@@ -2000,6 +2219,10 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
             trace_fraction = 0; // started inside it: hit there
             trace_endpos = src;
             trace_plane_normal = -direction;
+        }
+        if(!(self.flags & FL_CLIENT) && (trace_ent.flags & FL_CLIENT))
+        {
+            VR_BodyShield_Take(trace_ent, src, src + direction*xRange); // a body the player holds before him takes it
         }
         // QVR: through a teleporter, the pellet goes on from its far side, turned with it (vr_portals_walk)
         vector shotFrom = src, shotDir = direction;
@@ -2026,6 +2249,12 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
             if(trace_fraction == 1.0) { misses++; }
             else if(trace_ent == world) { hitsWorld++; }
             else { hitsTarget++; targetName = trace_ent.classname; }
+        }
+        // VR: a held weapon or its hand on the pellet's way (vr_armedgrunt_shot.qc); stopped on the weapon: no further
+        if(VR_AGS_Shot(self, shotFrom, trace_endpos, shotDir, vr_pellet_damage ? vr_pellet_damage : 4, QVR_AGS_PELLET))
+        {
+            shotcount = shotcount - 1;
+            continue;
         }
         if(trace_fraction != 1.0)
         //JIM
@@ -2057,15 +2286,23 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
 
 void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
 {
+    VR_DamageCredit_FromHand(self, self, xHand); // (a hitscan shot's inflictor: the shooter; vr_dmgcredit.qc)
     if(VRGet2HAiming(self))
     {
         spread *= cvar_hget(cvarh_vr_2h_spread_reduction);
     }
+    spread = spread * (1 + vr_fire_spread_extra); // VR: an armed monster's dual-wielded gun (vr_armedgrunt.qc VR_AG_ShootProp)
+    spread = AD_SharpSpread(spread); // AD support: AD's Sharp Shooter (vr_ad_items.qc)
 
     // From behind the muzzle, along the shot's line (VR_ShotBackPoint): what the muzzle is inside is hit too.
     vector muzzle = VRGetMuzzlePos(xHand);
     vector src = VR_ShotBackPoint(xHand, muzzle, dir);
 
+    if(AD_Pellets(self)) // AD support: AD's projectile pellets (vr_ad_projectiles; vr_ad_bridge.qc)
+    {
+        AD_FirePellets(xHand, shotcount, dir, spread, muzzle);
+        return;
+    }
     VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
     vr_tracer_hand = xHand;
     vr_tracer_from = muzzle;
@@ -2087,8 +2324,10 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
         dir = normalize(VR_AI_Point(self.enemy.origin + self.enemy.view_ofs) - VR_AI_Vector(self.enemy.velocity) * 0.2 - src);
     else
         dir = VR_Crate_ShotAim(src, dir, self.enemy);
+    dir = VR_AimCone_Bend(dir, VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     weaponfired(self, -1); // VR: its gun's muzzle flash (a grunt's: vr_weaponfx.cpp)
+    if(AD_EnemyPellets(shotcount, dir, spread, src)) return; // AD support: AD's pellets (vr_ad_bridge.qc)
     vr_tracer_hand = -1;
     vr_tracer_from = src; // (the clients start a grunt's tracers at its gun's muzzle)
     FireBulletsImpl(shotcount, dir, spread, src, 2048, FALSE);
@@ -2136,11 +2375,7 @@ void(float xHand) W_FireShotgun =
     }
 
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
-
-    // HONEY
-    self.damage_weapon = IT_SHOTGUN;
 };
-
 
 /*
 ================
@@ -2191,11 +2426,7 @@ void(float xHand) W_FireSuperShotgun =
 
     particle2(VRGetMuzzlePos(xHand) - '0 2 0', '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
     particle2(VRGetMuzzlePos(xHand) + '0 2 0', '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
-
-    // HONEY
-    self.damage_weapon = IT_SUPER_SHOTGUN;
 };
-
 
 /*
 ==============================================================================
@@ -2238,15 +2469,14 @@ void() T_MissileTouch =
     float rocketScale = VR_WpnDmgScale(self.owner, cvarh_vr_dmg_rocket, 100); // (Weapon Damage)
     damg = (100 + random()*20) * rocketScale;
 
-    // HONEY
-    self.owner.damage_weapon = IT_ROCKET_LAUNCHER;
-
+    VR_Proj_Begin(QVR_PROJ_BLAST, damg); // VR: every projectile's hit (where it struck; its blast pops and pushes)
     if(other.health)
     {
         if(VR_IsShambler(other))
             damg = damg * 0.5;    // mostly immune
         T_Damage(other, self, self.owner, damg);
     }
+    VR_Proj_End();
 
     // don't do radius damage to the other, because all the damage
     // was done in the impact
@@ -2261,8 +2491,6 @@ void() T_MissileTouch =
 
     BecomeExplosion();
 };
-
-
 
 /*
 ================
@@ -2289,17 +2517,12 @@ entity(entity shooter, vector org, vector dir) VR_LaunchRocket =
     return missile;
 };
 
-entity(float xHand) W_FireRocket =
+// The rocket launcher's rocket from self's hand `xHand` (its speed, model, touch, muzzle clearance and graze): the
+// launcher's shot, and any gun's that fires our rocket (AD support: AD's rocket soldier's dropped launcher,
+// vr_ad_enemyguns.qc). None of the gun's ammo, sound, kick or haptics.
+entity(float xHand) VR_FireRocketMissile =
 {
-    entity missile;
-
-    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
-
-    sound(self, VRGetGunChannel(xHand), "weapons/sgun1.wav", 1, ATTN_NORM);
-
-    self.punchangle_x = -2;
-
-    missile = spawn();
+    entity missile = spawn();
     missile.owner = self;
     missile.movetype = MOVETYPE_FLYMISSILE;
     missile.solid = SOLID_BBOX;
@@ -2319,8 +2542,20 @@ entity(float xHand) W_FireRocket =
     setmodel(missile, "progs/missile.mdl");
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
-    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
+    return missile;
+};
+
+entity(float xHand) W_FireRocket =
+{
+    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
+
+    sound(self, VRGetGunChannel(xHand), "weapons/sgun1.wav", 1, ATTN_NORM);
+
+    self.punchangle_x = -2;
+
+    entity missile = VR_FireRocketMissile(xHand);
 
     // HIPNOTIC
     //MED 11/09/96
@@ -2357,7 +2592,13 @@ float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
         playershock(t, damage, at); // VR: arcs over the struck player's arms and body (vr_shock_self_time)
     }
     float pop = VR_Decap_BoltArm(t, at, xDir, damage);
+    vr_limb_wear_at = at; // (a corpse's head or limb struck wears down: VR_Limb_CorpseWear)
+    vr_limb_wear_ent = t;
+    vr_limb_wear_time = time;
+    vr_ad_ammo = AD_AMMO_CELLS; // AD support: lightning is cells to AD's ammo resistance (vr_ad_player.qc)
     float r = T_Damage(t, from, from, damage);
+    vr_ad_ammo = 0;
+    vr_limb_wear_ent = world;
     VR_Shock_Hit(t, shockAlive, at, xDir); // VR: lightning's lasting shock (vr_shock.qc)
     if(pop)
     {
@@ -2393,13 +2634,12 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 
     e1 = e2 = world;
 
-    // HONEY
-    self.damage_weapon = IT_LIGHTNING;
-
+    // (The bolt's credit is `from`'s: a player's by his lightning gun, W_FireLightning; vr_dmgcredit.qc.)
     traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL | vr_lightning_hitpass, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise),
     // VR: the prop the beam hits or goes through, pushed (a player's bolt: 30; a shambler's by its damage).
     VR_ShotPush(trace_ent, p1, trace_endpos, p2 - p1, QVR_SHOTPUSH_LIGHTNING, damage / 30);
     VR_Gib_TraceHeld(p1, p2);              // and one held in the other hand
+    VR_AGS_Shot(from, p1, trace_endpos, p2 - p1, damage, QVR_AGS_LIGHTNING); // VR: through a held weapon or its hand (vr_armedgrunt_shot.qc)
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
     {
@@ -2439,7 +2679,6 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
         }
     }
 };
-
 
 // VR: the lightning gun in water (vr_lg_water; ROUND21.md, "Lightning gun in water"). Quake's discharge (every cell at
 // once, 35 each, round you, with the body waist deep) is replaced. Fired with the body waist deep, or the hand or its
@@ -2537,7 +2776,7 @@ float(float xHand, vector xAt, float xCells, float xWeapon) VR_LGWater_ShockAt =
     }
 
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, xCells); // the bolt that shorts out
-    self.damage_weapon = xWeapon; // HONEY
+    VR_DamageCredit_FromHand(self, self, xHand); // (the shock's: the player's, its inflictor)
 
     float radius = max(1, cvar_hget(cvarh_vr_lg_water_radius));
     dprint(sprintf("lgwater: shock (hand %g in %g, body %g, waterlevel %g, weapon %g)\n", xHand, handIn, bodyIn,
@@ -2621,6 +2860,8 @@ void(float xHand) W_FireLightning =
         return;
     }
 
+    VR_DamageCredit_FromHand(self, self, xHand); // (the bolt's and the discharge's inflictor: the player; vr_dmgcredit.qc)
+
     // VR: in water, the shock (vr_lg_water).
     if(cvar_hget(cvarh_vr_lg_water) && VR_LGWater_Shock(xHand))
     {
@@ -2639,10 +2880,6 @@ void(float xHand) W_FireLightning =
         T_RadiusDamage(self, self, 35 * cells, world);
         discharged = 0;
         W_SetCurrentAmmo();
-
-        // HONEY
-        self.damage_weapon = IT_LIGHTNING;
-
         return;
     }
 
@@ -2696,9 +2933,7 @@ void(float xHand) W_FireLightning =
     particle2(org, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
 
-
 //=============================================================================
-
 
 void() GrenadeExplode =
 {
@@ -2721,9 +2956,8 @@ void() GrenadeTouch =
         VR_WallTorch_KnockOff(other, self, normalize(self.velocity));
         return; // retain the grenade's bounce and its original fuse
     }
-
-    // HONEY
-    self.owner.damage_weapon = IT_GRENADE_LAUNCHER;
+    VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (where it struck: its blast's pops are its own)
+    VR_Proj_End();
 
     if(other.takedamage == DAMAGE_AIM && other.mg3_chthon)
     {
@@ -2744,7 +2978,7 @@ void() GrenadeTouch =
         {
             MG3_Shub_GrenadeHit(); // (Dawn of the Machine's Shub: the hit hers, the blast without her: vr_mg3_shub.qc)
         }
-        else if(!((other.flags & FL_SPECIFICDAMAGE) && !(other.items & IT_GRENADE_LAUNCHER))) // HONEY
+        else if(VR_DamageCredit_Accepts(other, self)) // HONEY: else it bounces off what its weapon can't hurt
         {
             GrenadeExplode();
         }
@@ -2766,18 +3000,13 @@ void() GrenadeTouch =
 W_FireGrenade
 ================
 */
-void(float xHand) W_FireGrenade =
+// The grenade launcher's grenade from self's hand `xHand` (its speed, model, size, bounce, fuse, explosion, muzzle
+// clearance and catchability): the launcher's shot, and any gun's that fires our grenade (AD support: AD's grenade
+// soldier's dropped launcher, vr_ad_enemyguns.qc). None of the gun's ammo, sound, kick or haptics.
+entity(float xHand) VR_FireGrenadeMissile =
 {
-    entity missile;
     vector tmpAngles;
-
-    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
-
-    sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
-
-    self.punchangle_x = -2;
-
-    missile = spawn();
+    entity missile = spawn();
     missile.owner = self;
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
@@ -2824,9 +3053,21 @@ void(float xHand) W_FireGrenade =
     setmodel(missile, "progs/grenade.mdl");
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
-    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     VR_Grenade_Make(missile, GrenadeExplode, 2.5, TRUE); // QVR: catchable too with vr_grenade_catch 2
+    return missile;
+};
+
+void(float xHand) W_FireGrenade =
+{
+    delAmmoOrClipAndUpdateCounter(xHand, AID_ROCKETS, 1);
+
+    sound(self, VRGetGunChannel(xHand), "weapons/grenade.wav", 1, ATTN_NORM);
+
+    self.punchangle_x = -2;
+
+    VR_FireGrenadeMissile(xHand);
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 75, 1.0);
@@ -2877,6 +3118,7 @@ void() ProximityGrenadeTouch =
       return;
    if(vlen(other.velocity) > 0)
       {
+      VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
       ProximityGrenadeExplode();
       self.think();
       return;
@@ -3009,7 +3251,7 @@ void(float xHand) W_FireProximityGrenade =
 
     setmodel(missile, "progs/proxbomb.mdl");
     setorigin(missile, VRGetMuzzlePos(xHand));
-    VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Stealth_GrazeMissile(missile); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     setsize(missile, '-1 -1 -1', '1 1 1');
 
@@ -3066,7 +3308,7 @@ void(float xHand) W_FireSuperSpikes =
     dir = v_forward;
 
     newmis = launch_spike(VRGetMuzzlePos(xHand), dir);
-    VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.touch = superspike_touch;
     newmis.vr_shot_push_kind = QVR_SHOTPUSH_SUPERNAIL;
     setmodel(newmis, "progs/s_spike.mdl");
@@ -3105,7 +3347,7 @@ void(float xHand, float ox) W_FireSpikes =
     delAmmoOrClipAndUpdateCounter(xHand, AID_NAILS, 1);
     dir = v_forward;
     newmis = launch_spike(VRGetMuzzlePos(xHand) + v_right*ox, dir);
-    VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
 
     newmis.velocity += vrProjectileVelocity(xHand, 1.0);
     VR_Burn_NailLaunched(newmis); // VR: through a torch's flame, a lava nail (vr_burning.qc)
@@ -3141,7 +3383,6 @@ void(vector ang) makeforward_mdl =
 
 void() spike_touch =
 {
-    float posDmgType;
     float adjDmg;
 
     // HONEY
@@ -3160,22 +3401,22 @@ void() spike_touch =
         return;
     }
 
-    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
-
+    // VR: every projectile's hit (VR_Proj_Begin): the prop or ragdoll it hit (or flew through) pushed, where it
+    // struck (a head more), a corpse's head or limb worn, a kill at the head or a limb popped by chance.
+    VR_Proj_Begin(QVR_PROJ_BOLT, VR_WpnDmg(self.owner, cvarh_vr_dmg_nail, 9));
     makeforward_mdl(self.angles);
-    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
 
     // hit something that maybe bleeds
     if(other.takedamage)
     {
-        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-        adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_nail, 9) * PositionalDamageFactor(posDmgType);
+        adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_nail, 9) * vr_proj_factor; // (its part: VR_Proj_Begin)
 
         if(T_Damage(other, self, self.owner, adjDmg))
         {
             spawn_touchblood (adjDmg);
             bleed = TRUE;
         }
+        AD_NailPierce(other); // AD support: AD's Nail Piercer: the nail on through the body (vr_ad_items.qc)
     }
 
     if(!bleed)
@@ -3195,12 +3436,12 @@ void() spike_touch =
         WriteVec3(MSG_BROADCAST, self.origin);
     }
 
+    VR_Proj_End();
     remove(self);
 };
 
 void() superspike_touch =
 {
-    float posDmgType;
     float adjDmg;
 
     // HONEY
@@ -3219,21 +3460,21 @@ void() superspike_touch =
         return;
     }
 
-    VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
-
+    // VR: every projectile's hit (VR_Proj_Begin): the prop or ragdoll it hit (or flew through) pushed, where it
+    // struck (a head more), a corpse's head or limb worn, a kill at the head or a limb popped by chance.
+    VR_Proj_Begin(QVR_PROJ_BOLT, VR_WpnDmg(self.owner, cvarh_vr_dmg_super_nail, 18));
     makeforward_mdl(self.angles);
-    VR_TouchTrace(self.origin - v_forward * 8, self.origin + v_forward * 8);
 
     // hit something that maybe bleeds
     if(other.takedamage)
     {
-        posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-        adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_super_nail, 18) * PositionalDamageFactor(posDmgType);
+        adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_super_nail, 18) * vr_proj_factor; // (its part: VR_Proj_Begin)
 
         if(T_Damage(other, self, self.owner, adjDmg))
         {
             spawn_touchblood (adjDmg);
         }
+        AD_NailPierce(other); // AD support: AD's Nail Piercer (vr_ad_items.qc)
     }
 
     if(!bleed)
@@ -3244,10 +3485,10 @@ void() superspike_touch =
         WriteVec3(MSG_BROADCAST, self.origin);
     }
 
+    VR_Proj_End();
     remove(self);
 
 };
-
 
 /*
 ===============================================================================
@@ -3338,6 +3579,12 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     {
         return;
     }
+    // The nail pistol: semi-automatic, a shot (or its dry click) a pull (vr_nailpistol.qc).
+    if(xWeapon == WID_NAILPISTOL)
+    {
+        VR_NailPistol_Attack(xHand, xAttackFinished, xOutAttackFinished);
+        return;
+    }
 
     // A grunt's shotgun or an enforcer's rifle: from its own ammo, its clip (vr_enemyguns.qc).
     if(VR_IsEnemyGun(xWeapon))
@@ -3378,6 +3625,12 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
             }
         }
 
+        return;
+    }
+
+    // AD support: the Widowmaker's barrels first spin up to firing speed (vr_ad_bridge.qc AD_WidowmakerSpinFrame).
+    if(xWeapon == WID_SUPER_SHOTGUN && AD_WidowmakerIn(self, xHand) && !AD_WidowmakerSpunUp(xHand))
+    {
         return;
     }
 
@@ -3422,6 +3675,14 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         player_shot1(xHand);
         W_FireShotgun(xHand);
         *xOutAttackFinished = time + RuneApplyHell(MG3_BloodyShotgunRefire(0.5), self); // (Dawn of the Machine's bloody one: 0.28)
+    }
+    else if(xWeapon == WID_SUPER_SHOTGUN && AD_WidowmakerIn(self, xHand))
+    {
+        // AD support: the Widowmaker, an auto shotgun: a shell a shot, again while the trigger is held (vr_ad_bridge.qc).
+        SuperDamageSound();
+        player_shot1(xHand);
+        AD_FireWidowmaker(xHand);
+        *xOutAttackFinished = time + RuneApplyHell(max(0.02, cvar_hget(cvarh_vr_ad_widowmaker_refire)), self);
     }
     else if(xWeapon == WID_SUPER_SHOTGUN)
     {
@@ -3473,6 +3734,11 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         }
 
         *xOutAttackFinished = time + RuneApplyHell(0.8, self);
+    }
+    else if(xWeapon == WID_LIGHTNING && AD_PlasmaGun(xHand, xWeaponFlags)) // AD support: the Plasma Gun (vr_ad_bridge.qc)
+    {
+        AD_FirePlasma(xHand);
+        *xOutAttackFinished = time + 0.2;
     }
     else if(xWeapon == WID_LIGHTNING)
     {
@@ -3575,7 +3841,14 @@ void() W_ChangeWeapon =
     }
     else if(self.impulse == 4)
     {
+        // VR: the nails' slot holds the nailgun and the nail pistol (vr_nailpistol.qc): 4 again toggles them, as
+        // Hipnotic's 6 the grenade launcher and the proximity gun; the one you have when you have one only.
         wid = WID_NAILGUN;
+        if(VR_ItemUtil_EntHasItem(self, IID_NAILPISTOL) &&
+           (self.weapon == WID_NAILGUN || !VR_ItemUtil_EntHasItem(self, IID_NAILGUN)))
+        {
+            wid = WID_NAILPISTOL;
+        }
         if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_NAILS) < 1) { am = 1; }
     }
     else if(self.impulse == 5)
@@ -3698,6 +3971,7 @@ void() CheatCommand =
     VR_WeaponUtil_EntAddWeapon(self, WID_LASER_CANNON);
     VR_WeaponUtil_EntAddWeapon(self, WID_MJOLNIR);
     VR_WeaponUtil_EntAddWeapon(self, WID_PROXIMITY_GUN);
+    VR_WeaponUtil_EntAddWeapon(self, WID_NAILPISTOL); // VR: the nail pistol (vr_nailpistol.qc)
 
     VR_ItemUtil_EntAddItem(self, IID_KEY1);
     VR_ItemUtil_EntAddItem(self, IID_KEY2);
@@ -3713,8 +3987,11 @@ float(entity xPlayer, float xDir, float xWeapon,
     float minWeapon = WID_GRAPPLE;
     float maxWeapon = WID_LASER_CANNON;
 
+    // Flatscreen play (-flatscreenmode): the empty hand (the fist) is one step of the cycle, both ways.
+    if(VR_FlatPlay(xPlayer)) { minWeapon = WID_FIST; }
+
     // Just for safety.
-    float maxIterations = maxWeapon + 1;
+    float maxIterations = maxWeapon + 2; // (the nail pistol too)
 
     float skipEmptyWeapons = FALSE;
 
@@ -3726,10 +4003,10 @@ float(entity xPlayer, float xDir, float xWeapon,
     for(float iterations = 0; iterations < maxIterations; ++iterations)
     {
 
-        xWeapon = xWeapon + xDir;
+        xWeapon = VR_NailPistol_CycleStep(xWeapon, xDir); // (+ xDir; the nail pistol before the nailgun)
 
-        if(xWeapon > maxWeapon)      { xWeapon = minWeapon; }
-        else if(xWeapon < minWeapon) { xWeapon = maxWeapon; }
+        if(xWeapon > maxWeapon && xWeapon != WID_NAILPISTOL) { xWeapon = minWeapon; }
+        else if(xWeapon < minWeapon)                         { xWeapon = maxWeapon; }
 
         // If we get to the original weapon after cycling, break.
         if(xWeapon == originalWeapon)
@@ -3738,7 +4015,7 @@ float(entity xPlayer, float xDir, float xWeapon,
         }
 
         // Do not select unavailable weapons.
-        if(!VR_WeaponUtil_EntHasWeapon(xPlayer, xWeapon))
+        if(xWeapon != WID_FIST && !VR_WeaponUtil_EntHasWeapon(xPlayer, xWeapon))
         {
             continue;
         }
@@ -3762,6 +4039,13 @@ float(entity xPlayer, float xDir, float xWeapon,
 float() getWeaponCycleMode =
 {
     if(!VRHandsTracked(self) || !self.ishuman)
+    {
+        return QVR_WEAPONCYCLEMODE_ALLOWED;
+    }
+
+    // Flatscreen play (-flatscreenmode): 1 and 2 cycle the weapons collected into the left and the right hand, so
+    // cycling is on whatever vr_weapon_cycle_mode says.
+    if(VR_FlatPlay(self))
     {
         return QVR_WEAPONCYCLEMODE_ALLOWED;
     }
@@ -3959,7 +4243,6 @@ void () DumpCoordinates =
       }
    };
 
-
 void() CheatSpawnAllWeaponDrops =
 {
     CheatCommand();
@@ -3998,6 +4281,21 @@ void(float xHand) ToggleSecondaryAmmo =
     {
         return;
     }
+    if(weapon == WID_LIGHTNING && AD_PlasmaGun(xHand, VRGetWeaponFlags(xHand)))
+    {
+        return; // AD support: AD's Plasma Gun fires cells only (AD's W_FirePlasma), no button (vr_weapons.inc slot 35)
+    }
+
+    // vr_ammo_switch_empty_hand: pressable only with the other hand empty (nothing held at all): not akimbo.
+    if(cvar("vr_ammo_switch_empty_hand") && !VRIsHandEmpty(self, VRGetOtherHand(xHand)))
+    {
+        dprint("ammo switch: refused, the other hand is full\n");
+        VRGunHaptic(VRGetOtherHand(xHand), 0.15, 40, 0.6);
+        sound(self, VRGetGunChannel(xHand), "weapons/lock4.wav", 0.4, ATTN_NORM);
+        return;
+    }
+    dprint(sprintf("ammo switch: toggled (other hand: weapon %d, %s)\n", VRGetWeapon(VRGetOtherHand(xHand)),
+        VRIsHandEmpty(self, VRGetOtherHand(xHand)) ? "empty" : "full"));
 
     if(VR_Reload_MagIn(self, xHand))
     {
@@ -4017,534 +4315,49 @@ void(float xHand) ToggleSecondaryAmmo =
     W_SetCurrentAmmoFor(xHand);
 }
 
+#ifdef QVR_TESTS
 float vr_test_armor_kind;   // impulse 250: the next armour it drops (0 green, 1 yellow, 2 red)
 float vr_test_held_kind;    // impulse 252: the next gib or head it puts in the off hand (round 21)
 entity vr_test_armor_last;  // and the last it dropped (impulse 251)
-
-// QVR: precise hit detection's test (impulse 238; ROUND21 "Precise hit detection (models, not boxes)"): at the monster
-// (or corpse) spawned last, level from the player's side, each kind of test with Quake's boxes and then with its model:
-// rays through its box's corner columns (2 units in from its edges: the empty part), at its middle, a ring of 24 at its
-// head and 24 at its chest (their positional regions), and the same segments as melee blows (hitmodel_segment, 3 units
-// thick) and thrown things (tracebox, vr_throw_hitbox 6), and a blade's ring at the head (positional melee's region of the
-// point met). "on" counts what met the target; "behind" what went on to
-// the world. Nothing is damaged.
-float(entity xTarget, vector xFrom, vector xTo, float xFlags) VR_Test_HitRay =
-{
-    traceline(xFrom, xTo, xFlags, self);
-    return trace_ent == xTarget;
-};
-
-void(entity t, float xPrecise) VR_Test_HitsMode =
-{
-    float saved = cvar("vr_hit_precise");
-    cvar_set("vr_hit_precise", ftos(xPrecise));
-    vector lo = t.origin + t.mins;
-    vector hi = t.origin + t.maxs;
-    vector c = (lo + hi) * 0.5;
-    vector dir = c - self.origin;
-    dir_z = 0;
-    dir = normalize(dir);
-    vector side;
-    side_x = -dir_y;
-    side_y = dir_x;
-    side_z = 0;
-    float halfw = (t.maxs_x - t.mins_x) * 0.5 - 2;
-    float halfh = (t.maxs_z - t.mins_z) * 0.5 - 2;
-    float gunFlags = MOVE_HITGIBS | MOVE_HITMODEL;
-    float onC = 0, behindC = 0, onB = 0, meleeC = 0, meleeB = 0, thrownC = 0, thrownB = 0, grappleC = 0, grappleB = 0;
-    float k;
-    vector at;
-    for(k = 0; k < 6; ++k)
-    {
-        float sx = 1, sz = 1;
-        if(k & 1) { sx = -1; }
-        if(k >= 4) { sz = 0; } else if(k >= 2) { sz = -0.5; } // (low: beside the legs, above the floor)
-        at = c + side * halfw * sx + '0 0 1' * halfh * sz;
-        if(VR_Test_HitRay(t, at - dir * 64, at + dir * 128, gunFlags)) { onC++; }
-        else if(trace_fraction < 1 && trace_ent == world) { behindC++; }
-        if(VR_Test_HitRay(t, at - dir * 64, at + dir * 128, MOVE_HITMODEL_GRAPPLE)) { grappleC++; }
-        float mt;
-        if(xPrecise && hitmodel_target(t)) { mt = hitmodel_segment(t, at - dir * 24, at + dir * 24, 3, HITCLASS_MELEE); }
-        else { mt = VR_SegmentBox(at - dir * 24, at + dir * 24, lo - '3 3 3', hi + '3 3 3'); }
-        if(mt >= 0) { meleeC++; }
-        tracebox(at - dir * 64, '-6 -6 -6', '6 6 6', at + dir * 128, MOVE_HITMODEL_THROWN, self);
-        if(trace_ent == t) { thrownC++; }
-    }
-    // Its middle (chest height: a third of the way down from the top) and its head.
-    float heads = 0, headOn = 0, chestOn = 0, chestHead = 0, chestLimb = 0, chestLegs = 0, meleeHeadOn = 0, meleeHeads = 0;
-    vector chest = c + '0 0 1' * halfh * 0.35;
-    if(VR_Test_HitRay(t, chest - dir * 64, chest + dir * 128, gunFlags)) { onB++; }
-    dprint(sprintf("hittest %s at %v size %v %v, solid %d;", t.classname, t.origin, t.mins, t.maxs, t.solid));
-    dprint(sprintf(" the middle ray from %v met %s (at %v) at %v", chest - dir * 64, trace_ent.classname, trace_ent.origin, trace_endpos));
-    dprint(sprintf(" (%f, startsolid %d, its solid %d)", trace_fraction, trace_startsolid, trace_ent.solid));
-    dprint("\n");
-    if(VR_Test_HitRay(t, chest - dir * 64, chest + dir * 128, MOVE_HITMODEL_GRAPPLE)) { grappleB++; }
-    float mb;
-    if(xPrecise && hitmodel_target(t)) { mb = hitmodel_segment(t, chest - dir * 24, chest + dir * 24, 3, HITCLASS_MELEE); }
-    else { mb = VR_SegmentBox(chest - dir * 24, chest + dir * 24, lo - '3 3 3', hi + '3 3 3'); }
-    if(mb >= 0) { meleeB++; }
-    tracebox(chest - dir * 64, '-6 -6 -6', '6 6 6', chest + dir * 128, MOVE_HITMODEL_THROWN, self);
-    if(trace_ent == t) { thrownB++; }
-    float hasHead = PositionalHead(t);
-    vector head = t.origin + '0 0 1' * xHeadUp;
-    float yaw = t.angles_y * (3.14159265 / 180);
-    head_x = head_x + cos(yaw) * xHeadForward;
-    head_y = head_y + sin(yaw) * xHeadForward;
-    for(k = 0; k < 24; ++k)
-    {
-        float a = k * (3.14159265 * 2 / 24);
-        vector r;
-        r_x = cos(a);
-        r_y = sin(a);
-        r_z = 0;
-        if(hasHead && VR_Test_HitRay(t, head - r * 64, head + r * 128, gunFlags))
-        {
-            headOn++;
-            if(PositionalRegion(t, trace_endpos, r) == 1) { heads++; }
-            if(xPrecise && cvar("developer") > 1)
-            {
-                dprint(sprintf("hittest head ray %d: the rest point %f from the head's middle (radius %f)\n", k,
-                    vlen(hitmodel_rest(t, trace_endpos) - head), xHeadRadius));
-            }
-        }
-        // A blade's blow at the head from the same side (positional melee: the point it met, PositionalRegion).
-        if(hasHead && xPrecise && hitmodel_target(t))
-        {
-            float mt = hitmodel_segment(t, head - r * 24, head, 3, HITCLASS_MELEE);
-            if(mt > 0)
-            {
-                meleeHeadOn++;
-                if(PositionalRegion(t, head - r * 24 + r * 24 * mt, r) == 1) { meleeHeads++; }
-            }
-        }
-        if(VR_Test_HitRay(t, chest - r * 64, chest + r * 128, gunFlags))
-        {
-            chestOn++;
-            float reg = PositionalRegion(t, trace_endpos, r);
-            if(reg == 1) { chestHead++; } else if(reg == 2) { chestLimb++; } else if(reg == 3) { chestLegs++; }
-        }
-    }
-    string mode = "boxes";
-    if(xPrecise) { mode = "model"; }
-    dprint(sprintf("hittest %s %s: corner rays %d/6 on it (%d on to the world), middle %d/1;", t.classname, mode, onC, behindC, onB));
-    dprint(sprintf(" grapple corners %d/6, middle %d/1; melee corners %d/6, middle %d/1;", grappleC, grappleB, meleeC, meleeB));
-    dprint(sprintf(" thrown corners %d/6, middle %d/1; head ring %d/24 on it (%d headshots);", thrownC, thrownB, headOn, heads));
-    dprint(sprintf(" chest ring %d/24 on it (%d head, %d limb, %d legs);", chestOn, chestHead, chestLimb, chestLegs));
-    dprint(sprintf(" melee head ring %d/24 on it (%d head)\n", meleeHeadOn, meleeHeads));
-    cvar_set("vr_hit_precise", ftos(saved));
-};
-
-void() VR_Test_Hits =
-{
-    // The monster (or corpse) spawned last (impulse 241).
-    entity t = world;
-    entity e = nextent(world);
-    while(e)
-    {
-        if((e.flags & FL_MONSTER) && e != self)
-        {
-            t = e;
-        }
-        e = nextent(e);
-    }
-    if(t == world)
-    {
-        dprint("hittest: no monster\n");
-        return;
-    }
-    VR_Test_HitsMode(t, 0);
-    VR_Test_HitsMode(t, 1);
-    // Then removed, with anything else there (the next one is tested where it stood).
-    vector at = t.origin;
-    e = nextent(world);
-    while(e)
-    {
-        if((e.flags & FL_MONSTER) && e != self && vlen(e.origin - at) < 64)
-        {
-            remove(e);
-        }
-        e = nextent(e);
-    }
-};
-
+#endif
 
 // Projectiles through the same corner columns and at the middle (impulse 237 a nail, 236 a rocket, 234 a nail with the
 // grappling hook's class, one at a time, each
 // through the next of the 6 columns, then the middle; 235 prints what the last touched): real missiles, as the engine
 // flies them (MOVE_MISSILE, with the precise hits of the option as it is set). The target takes no damage (no pain
 // poses, no shove), and is put back where it stood.
+#ifdef QVR_TESTS
 entity vr_test_target;
 vector vr_test_home;
 float vr_test_shot;
 float vr_test_on;
 float vr_test_world;
 float vr_test_other;
-void() VR_Test_MissileTouch =
-{
-    if(other == vr_test_target) { vr_test_on++; }
-    else if(other == world) { vr_test_world++; }
-    else { vr_test_other++; }
-    if(self.classname == "spike") { spike_touch(); }
-    else { T_MissileTouch(); }
-};
-
-void(float xRockets) VR_Test_Missiles =
-{
-    entity t = world;
-    entity e = nextent(world);
-    while(e)
-    {
-        if((e.flags & FL_MONSTER) && e != self) { t = e; }
-        e = nextent(e);
-    }
-    if(t == world) { dprint("hittest: no monster\n"); return; }
-    if(t != vr_test_target)
-    {
-        vr_test_target = t;
-        vr_test_home = t.origin;
-        vr_test_shot = 0;
-    }
-    setorigin(t, vr_test_home);
-    t.velocity = '0 0 0';
-    t.takedamage = DAMAGE_NO; // (no pain, no shove: it stands as it was)
-    vr_test_on = vr_test_world = vr_test_other = 0;
-    vector lo = t.origin + t.mins;
-    vector hi = t.origin + t.maxs;
-    vector c = (lo + hi) * 0.5;
-    vector dir = c - self.origin;
-    dir_z = 0;
-    dir = normalize(dir);
-    vector side;
-    side_x = -dir_y;
-    side_y = dir_x;
-    side_z = 0;
-    float halfw = (t.maxs_x - t.mins_x) * 0.5 - 2;
-    float halfh = (t.maxs_z - t.mins_z) * 0.5 - 2;
-    float k = vr_test_shot;
-    vr_test_shot = (vr_test_shot + 1) % 7;
-    float sx = 1, sz = 1;
-    if(k & 1) { sx = -1; }
-    if(k >= 4) { sz = 0; } else if(k >= 2) { sz = -0.5; }
-    vector at = c + side * halfw * sx + '0 0 1' * halfh * sz;
-    if(k == 6) { at = c + '0 0 1' * halfh * 0.35; } // the middle (chest height)
-    entity m = launch_spike(at - dir * 64, dir); // (in front of the player's hands, which it would meet)
-    if(xRockets == 2)
-    {
-        m.vr_hitclass = HITCLASS_GRAPPLE; // the grappling hook's class (its tolerance): a hook's hit test
-    }
-    else if(xRockets)
-    {
-        m.classname = "missile";
-        setmodel(m, "progs/missile.mdl");
-        setsize(m, '0 0 0', '0 0 0');
-        m.velocity = dir * 1000;
-    }
-    m.touch = VR_Test_MissileTouch;
-    string kind = "nail";
-    if(xRockets == 2) { kind = "hook"; } else if(xRockets) { kind = "rocket"; }
-    dprint(sprintf("hittest %s: %s %d (precise %d):", t.classname, kind, k, cvar("vr_hit_precise")));
-};
-
-void() VR_Test_MissilesReport =
-{
-    string what = "nothing";
-    if(vr_test_on) { what = "it"; } else if(vr_test_world) { what = "the world"; } else if(vr_test_other) { what = "something else"; }
-    dprint(sprintf(" touched %s\n", what));
-};
-
-// vr_physics_fire (vr_box3d.cpp): a missile or a shot of yours from your eyes at the world point xAt, flying straight
-// at it (shape tests: missiles and shots against a turned solid prop; vr_debug_missiles prints where a missile hits,
-// vr_debug_shots what a pellet hit). xKind: 0 a rocket, 1 a nail, 2 a grenade, 3 a super nail, 4 an enforcer's laser,
-// 10 a shotgun pellet (the burst rifle's and the lightning's trace: the same). The missile, or world for a shot.
-entity(float xKind, vector xAt) VR_Test_Fire =
-{
-    vector from = self.origin + self.view_ofs;
-    vector dir = normalize(xAt - from);
-    from = from + dir * 24; // (ahead of your hands)
-    if(xKind == 10)
-    {
-        traceline(from, from + dir * 2048, MOVE_HITGIBS | MOVE_HITMODEL | MOVE_PORTALS, self); // (a pellet's: FireBulletsImpl)
-        string what = "nothing";
-        if(trace_ent != world) { what = trace_ent.classname; } else if(trace_fraction < 1) { what = "the world"; }
-        dprint(sprintf("test fire: shot from %.3f %.3f %.3f dir %.5f %.5f %.5f ", from_x, from_y, from_z, dir_x, dir_y, dir_z));
-        if(portal_crossings() > 0)
-        {
-            dprint(sprintf("through %d teleporter(s) (in at %v, out at %v, on along %v) ", portal_crossings(), portal_entry(0),
-                portal_exit(portal_crossings() - 1), portal_turn(dir)));
-        }
-        dprint(sprintf("hit %s at %.3f %.3f %.3f\n", what, trace_endpos_x, trace_endpos_y, trace_endpos_z));
-        vr_tracer_hand = -1;
-        vr_tracer_from = from;
-        FireBulletsImpl(1, dir, '0 0 0', from, 2048, FALSE); // (and the shot itself)
-        return world;
-    }
-    entity m;
-    if(xKind == 2)
-    {
-        m = spawn();
-        m.owner = self;
-        m.movetype = MOVETYPE_BOUNCE;
-        m.solid = SOLID_BBOX;
-        m.classname = "grenade";
-        m.touch = GrenadeTouch;
-        m.nextthink = time + 2.5;
-        m.think = GrenadeExplode;
-        setmodel(m, "progs/grenade.mdl");
-        setsize(m, '0 0 0', '0 0 0');
-        setorigin(m, from);
-        m.velocity = dir * 600;
-        VR_Grenade_Make(m, GrenadeExplode, 2.5, TRUE); // (as the launcher's: W_FireGrenade)
-    }
-    else if(xKind == 4)
-    {
-        m = LaunchLaser(from, dir);
-    }
-    else
-    {
-        m = launch_spike(from, dir);
-        if(xKind == 0)
-        {
-            m.classname = "missile";
-            m.touch = T_MissileTouch;
-            m.vr_shot_push_kind = 0;
-            setmodel(m, "progs/missile.mdl");
-            m.velocity = dir * 1000;
-        }
-        else if(xKind == 3)
-        {
-            m.touch = superspike_touch;
-            m.vr_shot_push_kind = QVR_SHOTPUSH_SUPERNAIL;
-            setmodel(m, "progs/s_spike.mdl");
-        }
-        setsize(m, '0 0 0', '0 0 0');
-    }
-    m.angles = vectoangles(m.velocity);
-    return m;
-};
-
-// impulse 210: shoots the nearest grenade shots set off (VR_GrenShot_Is) from your eyes (VR_Test_Fire, the kind
-// vr_test_grenade_shot says) at its middle.
-void() VR_GrenShot_TestShoot =
-{
-    entity best = world;
-    float bestDist = 4000;
-    for(entity e = nextent(world); e; e = nextent(e))
-    {
-        if(VR_GrenShot_Is(e) && e.takedamage && vlen(e.origin - self.origin) < bestDist)
-        {
-            best = e;
-            bestDist = vlen(e.origin - self.origin);
-        }
-    }
-    if(best == world)
-    {
-        dprint("test: no grenade to shoot\n");
-        return;
-    }
-    vector at = best.origin + (best.mins + best.maxs) * 0.5;
-    float kind = cvar("vr_test_grenade_shot");
-    dprint(sprintf("test: shooting %s (%s's) at %v, %.0f units away, %.0f u/s, shot box %.1f (kind %g)\n", best.classname,
-        best.owner.classname, at, vlen(at - (self.origin + self.view_ofs)), vlen(best.velocity), best.vr_shot_radius, kind));
-    VR_Test_Fire(kind, at);
-};
-
-// QVR: impulse 252 with vr_test_held_pick 9-13 (tests): the nearest rock, a hand grenade from the pouch, the nearest box
-// of shells, the nearest brick, the nearest crate or barrel (13) put into the empty off hand (the two-handed re-grip tests: ROUND21.md, "Every prop in
-// both hands"); the main hand with vr_test_held_hand 1.
-void(float xPick, float xHand) VR_Test_HeldProp =
-{
-    if(xPick == 10)
-    {
-        if(self.ammo_rockets < 1)
-        {
-            self.ammo_rockets = 1;
-        }
-        VR_HandGrenade_Take(xHand);
-        dprint(xHand == cVR_MainHand ? "test: a hand grenade in the main hand\n" : "test: a hand grenade in the off hand\n");
-        return;
-    }
-    if(xPick == 13)
-    {
-        // The nearest crate or barrel (prop_2h_test.sh's REPEAT: thrown, taken again), between the hands.
-        entity crateNear = world;
-        float crateDist = 512;
-        for(entity crateE = nextent(world); crateE; crateE = nextent(crateE))
-        {
-            if(VR_Crate_Is(crateE) && crateE.carry_player == world && vlen(crateE.origin - self.origin) < crateDist)
-            {
-                crateNear = crateE;
-                crateDist = vlen(crateE.origin - self.origin);
-            }
-        }
-        if(crateNear == world)
-        {
-            dprint("test: no crate or barrel\n");
-            return;
-        }
-        setorigin(crateNear, (VRGetHandPos(cVR_OffHand) + VRGetHandPos(cVR_MainHand)) * 0.5 - (crateNear.mins + crateNear.maxs) * 0.5);
-        VR_Carry_Start(self, cVR_OffHand, crateNear);
-        dprint(sprintf("test: %s (health %.0f) in the off hand\n", crateNear.model, crateNear.health));
-        return;
-    }
-    string heldClass = xPick == 9 ? "vr_rock" : (xPick == 11 ? "item_shells" : "vr_brick");
-    entity heldNear = world;
-    float heldDist = 100000;
-    for(entity heldE = find(world, classname, heldClass); heldE; heldE = find(heldE, classname, heldClass))
-    {
-        if(heldE.carry_player == world && heldE.model != string_null && vlen(heldE.origin - self.origin) < heldDist)
-        {
-            heldNear = heldE;
-            heldDist = vlen(heldE.origin - self.origin);
-        }
-    }
-    if(heldNear == world)
-    {
-        dprint(sprintf("test: no %s\n", heldClass));
-        return;
-    }
-    setorigin(heldNear, VRGetHandPos(xHand));
-    VR_Carry_Start(self, xHand, heldNear);
-    dprint(sprintf("test: %s (%s) in the %s hand\n", heldNear.model, heldClass, xHand == cVR_MainHand ? "main" : "off"));
-};
-
-// impulse 211: a hand grenade from the pouch into the empty off hand (a rocket for it if you have none), let go of
-// unarmed (a dud: VR_Carry_Release, VR_Grenade_Released), and put on the floor vr_test_grenade_dist ahead.
-void() VR_GrenShot_TestDud =
-{
-    if(!VRIsHandEmpty(self, cVR_OffHand) || VR_Carry_Held(self, cVR_OffHand) != world)
-    {
-        dprint("test: the off hand isn't empty\n");
-        return;
-    }
-    if(self.ammo_rockets < 1)
-    {
-        self.ammo_rockets = 1;
-    }
-    VR_HandGrenade_Take(cVR_OffHand);
-    entity g = VR_Carry_Held(self, cVR_OffHand);
-    if(g == world || !g.vr_hgren)
-    {
-        dprint("test: no hand grenade taken\n");
-        return;
-    }
-    VR_Carry_Release(cVR_OffHand, g);
-    makevectors('0 1 0' * self.v_viewangle_y);
-    vector ahead = self.origin + v_forward * cvar("vr_test_grenade_dist");
-    traceline(ahead + '0 0 16', ahead - '0 0 256', TRUE, self);
-    // (vr_test_grenade_height: in the air, it falls)
-    setorigin(g, trace_endpos - g.mins + '0 0 1' * (1 + max(0, cvar("vr_test_grenade_height"))));
-    g.velocity = '0 0 0';
-    g.vr_spin = '0 0 0';
-    g.vr_gren_lastvel = '0 0 0';
-    g.vr_gren_lastorg = g.origin;
-    if(!cvar("vr_test_grenade_yours"))
-    {
-        g.owner = world; // (nobody's, as an enemy's lying about: your blows meet it, VR_Blow_Strikable)
-    }
-    dprint(sprintf("test: a dud hand grenade on the floor at %v, %.0f units ahead (armed %g, fuse %g)\n", g.origin,
-        vlen(g.origin - self.origin), g.vr_hgren_armed, g.vr_gren_fuse));
-};
+#endif
 
 // QVR test: crate cover (Debug > Tests > Crate Cover; NOTES.md vrfiringrange_2026-10-02_01-39-38, "set up a scenario"):
 // a large crate square to you just ahead to crouch behind, a small one at your right to hold up, and a grunt beyond the
 // crate facing you, not yet awake (Quake's monsters wake when they see you: vr_crate_sight, VR_Crate_HidesFrom).
 // Crouched behind the crate it should stay asleep; standing up, or holding the small crate up, it should see you.
+#ifdef QVR_TESTS
 entity vr_test_cover_grunt; // the last one it put there (impulse 224 reports on it)
+#endif
 
-void() VR_Test_CrateCover =
-{
-    entity player = self;
-    float yaw = player.v_viewangle_y;
-    makevectors('0 1 0' * yaw);
-    vector fwd = v_forward;
-    vector right = v_right;
-    // The large crate, its face square to you.
-    vector at = player.origin + fwd * 56;
-    traceline(at + '0 0 8', at - '0 0 256', TRUE, player); // (on the floor)
-    entity cover = VR_Crate_TestSpawn(trace_endpos, 2, yaw, FALSE);
-    // The small one, at your right, to pick up and hold in front of you.
-    at = player.origin + right * 48 + fwd * 8;
-    traceline(at + '0 0 8', at - '0 0 256', TRUE, player);
-    VR_Crate_TestSpawn(trace_endpos, 1, yaw + 15, FALSE);
-    // The grunt 320 units ahead (short of a wall there), facing you.
-    vector from = player.origin + '0 0 16';
-    traceline(from, from + fwd * 320, TRUE, player);
-    at = trace_endpos - fwd * 32 - '0 0 16';
-    entity dispenser = spawn();
-    dispenser.weapon = 0;
-    setorigin(dispenser, at);
-    self = dispenser;
-    activator = player;
-    func_enemy_dispenser_use();
-    entity grunt = self;
-    self = player;
-    remove(dispenser);
-    if(grunt == dispenser)
-    {
-        vr_test_cover_grunt = world;
-        return;
-    }
-    grunt.angles_y = yaw + 180;
-    vr_test_cover_grunt = grunt;
-    dprint(sprintf("cover test: large crate at %v (box %v .. %v), grunt at %v, %.0f units away\n", cover.origin,
-        cover.mins, cover.maxs, grunt.origin, vlen(grunt.origin - player.origin)));
-    centerprint(player, "Crouch behind the large crate:\nthe grunt shouldn't see you.\nStand up, or hold up the small one:\nit should.");
-};
-
-// QVR test: whether the cover test's grunt sees you now, and whether it woke (impulse 224).
-void() VR_Test_CrateCoverReport =
-{
-    entity player = self;
-    entity grunt = vr_test_cover_grunt;
-    if(grunt == world || grunt.classname != "monster_army" || grunt.health <= 0)
-    {
-        sprint(player, "cover test: no grunt (Crate Cover first)\n");
-        return;
-    }
-    self = grunt;
-    float sees = visible(player);
-    self = player;
-    vector head = VRGetHeadPos(player);
-    string msg = sprintf("cover test: the grunt %s you (your head %.0f units up), %s\n", sees ? "SEES" : "can't see",
-        head_z - (player.origin_z + player.mins_z), grunt.enemy == player ? "awake, after you" : "asleep");
-    sprint(player, msg);
-    centerprint(player, msg);
-};
-
+#ifdef QVR_TESTS
 void() VR_WeaponInst_Test; // (vr_weaponinst_test.qc)
 void() VR_Reload_Test;     // (vr_reload_test.qc)
-
-// The yaw a test spawner's monster is given ahead of player `p` (vr_test_spawn_facing; Debug > Tests > Ahead of You:
-// Facing): 1 facing `p`, 2 facing away (trailer shots: it looks where you look), else -1 (0: the spawner's own way, as
-// before; 3: the spawn's own angle).
-float(entity p) VR_TestSpawn_FacingYaw =
-{
-    float f = cvar("vr_test_spawn_facing");
-    if(f == 1)
-    {
-        return anglemod(p.v_viewangle_y + 180);
-    }
-    if(f == 2)
-    {
-        return anglemod(p.v_viewangle_y);
-    }
-    return -1;
-};
+#endif
 
 void() ImpulseCommands =
 {
-    if(self.impulse == 120 && !deathmatch && !coop) // QVR test: the weapons moved, and what has which (vr_weaponinst_test.qc)
+    // QVR: the single-player test and debug impulses (vr_impulse_test.qc): first, as each returns or falls
+    // through as it did here.
+#ifdef QVR_TESTS
+    if(!deathmatch && !coop && VR_TestImpulse())
     {
-        VR_WeaponInst_Test();
-        self.impulse = 0;
         return;
     }
-    if(self.impulse == 125 && !deathmatch && !coop) // QVR test: immersive reloading's steps (vr_reload_test.qc)
-    {
-        VR_Reload_Test();
-        self.impulse = 0;
-        return;
-    }
+#endif
 
     // Development and tests (single player): impulse 150 + a weapon id puts that weapon, loaded, in
     // the main hand; 170 + id in the off hand.
@@ -4569,8 +4382,46 @@ void() ImpulseCommands =
         return;
     }
 
+    // Flatscreen play (-flatscreenmode): E force-grabs what the view is pointed at (vr_flatplay.cpp reads the key and
+    // sends the impulse; the force grab itself is the game's own, vr_wpnforcegrab.qc).
+    if(self.impulse == 46)
+    {
+        self.impulse = 0;
+        if(VR_FlatPlay(self))
+        {
+            VR_Forcegrab_FlatGrab();
+        }
+        return;
+    }
+
     if(self.impulse >= 1 && self.impulse <= 8)
     {
+        // Flatscreen play (-flatscreenmode): 1 cycles the left hand's weapon and 2 the right hand's, through the weapons
+        // collected (the same cycling the controller's Y and B do); Quake's own weapon select stands for the other keys.
+        if(VR_FlatPlay(self) && (self.impulse == 1 || self.impulse == 2))
+        {
+            float xOffHand = self.impulse == 1;
+            self.impulse = 0;
+            if(getWeaponCycleMode() != QVR_WEAPONCYCLEMODE_ALLOWED)
+            {
+                return;
+            }
+            if(xOffHand)
+            {
+                if(time >= self.offhand_attack_finished && !VR_Grapple_ButtonsBusy(cVR_OffHand))
+                {
+                    CycleWeaponCommand(cVR_OffHand, self.weapon2, &self.weapon2,
+                        self.weaponflags2, &self.weaponflags2);
+                }
+            }
+            else if(time >= self.attack_finished && !VR_Grapple_ButtonsBusy(cVR_MainHand))
+            {
+                CycleWeaponCommand(cVR_MainHand, self.weapon, &self.weapon,
+                    self.weaponflags, &self.weaponflags);
+            }
+            return;
+        }
+
         if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
         {
             W_ChangeWeapon();
@@ -4628,9 +4479,6 @@ void() ImpulseCommands =
     {
         CheatSpawnWeaponDrop(WID_GRAPPLE);
     }
-
-
-
 
     // The hand's B/Y also reels a grappling hook in (vr_grapple.qc: its own gun's, or the other hand's when its own has
     // none out): while it drives one, it cycles nothing.
@@ -4729,404 +4577,27 @@ void() ImpulseCommands =
         VR_Cheat_Die(1);
     if(self.impulse == 197)
         VR_Cheat_Die(2);
-    if(self.impulse == 243 && !deathmatch && !coop) // QVR: a backpack of your ammo ahead (physics tests)
-    {
-        vector playerOrigin = self.origin;
-        makevectors(self.v_angle);
-        self.origin = playerOrigin + v_forward * 64 + '0 0 16';
-        DropBackpack();
-        self.origin = playerOrigin;
-    }
-    if(self.impulse == 244 && !deathmatch && !coop) // QVR: a grunt 64 units ahead (shove and ledge tests)
-    {
-        makevectors('0 1 0' * self.v_angle_y);
-        vector gruntAt = self.origin + v_forward * 64;
-        entity player = self;
-        self = spawn();
-        self.classname = "monster_army";
-        setorigin(self, gruntAt);
-        float gruntFacing = cvar("vr_test_spawn_facing");
-        if(gruntFacing == 1 || gruntFacing == 2)
-        {
-            self.angles_y = VR_TestSpawn_FacingYaw(player);
-        }
-        else if(gruntFacing != 3)
-        {
-            self.angles_y = player.v_angle_y + 180;
-        }
-        monster_army();
-        self = player;
-    }
-    if(self.impulse == 238 && !deathmatch && !coop) // QVR: precise hit detection's test (VR_Test_Hits)
-    {
-        VR_Test_Hits();
-    }
-    if(self.impulse == 237 && !deathmatch && !coop) // QVR: and with nails (VR_Test_Missiles),
-    {
-        VR_Test_Missiles(FALSE);
-    }
-    if(self.impulse == 236 && !deathmatch && !coop) // rockets,
-    {
-        VR_Test_Missiles(TRUE);
-    }
-    if(self.impulse == 234 && !deathmatch && !coop) // a nail with the grappling hook's class,
-    {
-        VR_Test_Missiles(2);
-    }
-    if(self.impulse == 235 && !deathmatch && !coop) // and what they touched
-    {
-        VR_Test_MissilesReport();
-    }
     if(self.impulse == 239) // QVR: every grappling hook's state, its gun's place and its rope (vr_grapple.qc)
     {
         VR_Grapple_Report();
-    }
-    if(self.impulse == 227 && !deathmatch && !coop) // QVR test: the chainsaws in your hands nearly empty (vr_chainsaw.qc)
-    {
-        VR_Chainsaw_Impulse(TRUE);
     }
     if(self.impulse == 228) // QVR: the chainsaws in your hands: fuel, engine, cord (vr_chainsaw.qc)
     {
         VR_Chainsaw_Impulse(FALSE);
     }
-    if(self.impulse == 229 && !deathmatch && !coop) // QVR test: the chainsaw lying nearest you into an empty hand
-    {
-        VR_Chainsaw_TakeNearest();
-    }
-    if(self.impulse == 216 && !deathmatch && !coop) // QVR test: the crowbar lying nearest you into an empty hand
-    {
-        VR_Crowbar_TakeNearest();
-    }
-    if(self.impulse == 217 && !deathmatch && !coop) // QVR test: a crowbar dropped ahead of you (VR_Crowbar_Spawn)
-    {
-        VR_Crowbar_SpawnAhead();
-    }
     if(self.impulse == 218) // QVR: each crowbar lying about and in your hands (vr_crowbar.qc)
     {
         VR_Crowbar_Report();
-    }
-    if(self.impulse == 212 && !deathmatch && !coop) // QVR test: the enemy gun lying nearest you into an empty hand
-    {
-        VR_EnemyGuns_TakeNearest();
     }
     if(self.impulse == 213) // QVR: the enemy guns in your hands and their ammo (vr_enemyguns.qc)
     {
         VR_EnemyGuns_Impulse(FALSE);
     }
-    if(self.impulse == 214 && !deathmatch && !coop) // QVR test: the enemy guns in your hands left with one shot
-    {
-        VR_EnemyGuns_Impulse(TRUE);
-    }
-    if(self.impulse == 215 && !deathmatch && !coop) // QVR test: Mjolnir in the main hand strikes its lightning now
-    {
-        // (as a blow with 15 cells does, from its head: VRGetMuzzlePos; in water, the shock)
-        if(VRGetEntWeapon(self, cVR_MainHand) == WID_MJOLNIR && self.ammo_cells >= 15)
-        {
-            HIP_FireMjolnirLightning(cVR_MainHand, VRGetMuzzlePos(cVR_MainHand));
-        }
-        else
-        {
-            bprint(sprintf("impulse 215: no Mjolnir in the main hand (weapon %g), or under 15 cells (%g)\n",
-                VRGetEntWeapon(self, cVR_MainHand), self.ammo_cells));
-        }
-    }
-    if(self.impulse == 220 && !deathmatch && !coop) // QVR test: the chainsaws in your hands dropped (running: they run on)
-    {
-        VR_Chainsaw_DropAll();
-    }
-    if(self.impulse == 230 && !deathmatch && !coop) // QVR test: the chainsaws in your hands started (no cord pulled)
-    {
-        VR_Chainsaw_StartAll();
-    }
-    if(self.impulse == 232 && !deathmatch && !coop) // QVR test: the nearest prop flung at a monster or you (VR_Test_Fling)
-    {
-        VR_Test_Fling();
-    }
-    if(self.impulse == 204 && !deathmatch && !coop) // QVR test: a two-handed throw's sparing of blows (VR_Throw_Test2H)
-    {
-        VR_Throw_Test2H();
-    }
-    if(self.impulse == 222 && !deathmatch && !coop) // QVR test: the nearest prop thrown up as yours (VR_Throw_TestUp)
-    {
-        VR_Throw_TestUp();
-    }
-    if(self.impulse == 231 && !deathmatch && !coop) // QVR test: an empty hand takes the nearest grappling gun lying about
-    {
-        VR_Grapple_TestTake();
-    }
-    if(self.impulse == 233 && !deathmatch && !coop) // QVR test: you touch what the hooks are in (a pickup is taken)
-    {
-        VR_Grapple_TestTouch();
-    }
-    if(self.impulse == 209 && !deathmatch && !coop) // QVR test: an axe thrown ahead (vr_test_axe; vr_axestick.qc)
-    {
-        VR_AxeStick_TestThrow();
-    }
-    if(self.impulse == 207 && !deathmatch && !coop) // QVR test: your main hand on the nearest stuck axe's handle
-    {
-        VR_AxeStick_TestReach();
-    }
     if(self.impulse == 208) // QVR test: each thrown axe, stuck or not (vr_axestick.qc)
     {
+#ifdef QVR_TESTS
         VR_AxeStick_TestReport();
-    }
-    if(self.impulse == 223 && !deathmatch && !coop) // QVR test: crate cover (a crate to crouch behind, a grunt beyond)
-    {
-        VR_Test_CrateCover();
-    }
-    if(self.impulse == 224 && !deathmatch && !coop) // QVR test: whether the crate cover test's grunt sees you
-    {
-        VR_Test_CrateCoverReport();
-    }
-    if(self.impulse == 241 && !deathmatch && !coop) // QVR: a monster or a box ahead, facing you (vr_test_spawn; weapons against models)
-    {
-        makevectors('0 1 0' * self.v_viewangle_y);
-        vector spawnAt = self.origin + v_forward * cvar("vr_test_spawn_dist");
-        float spawnKind = cvar("vr_test_spawn");
-        entity spawnPlayer = self;
-        entity spawned = world;
-        if(spawnKind == 105 || spawnKind == 106)
-        {
-            traceline(spawnAt, spawnAt - '0 0 256', TRUE, self); // (on the floor)
-            spawnAt = trace_endpos;
-        }
-        if(spawnKind == 105)
-        {
-            // An ogre's head lying on the floor (gib destroying tests): an ogre gibbed, its head (the ogre itself) put
-            // there.
-            entity ogreDispenser = spawn();
-            ogreDispenser.weapon = 1;
-            setorigin(ogreDispenser, spawnAt);
-            self = ogreDispenser;
-            activator = spawnPlayer;
-            func_enemy_dispenser_use();
-            spawned = self;
-            self = spawnPlayer;
-            remove(ogreDispenser);
-            if(spawned != ogreDispenser)
-            {
-                spawned.takedamage = DAMAGE_AIM;
-                T_Damage(spawned, world, world, spawned.health + 200);
-                setorigin(spawned, spawnAt + '0 0 1');
-                spawned.velocity = '0 0 0';
-                spawned.avelocity = '0 0 0';
-                dprint(sprintf("test spawn: %s's head at %v, box %v .. %v, gib %g\n", spawned.classname, spawned.origin,
-                    spawned.mins, spawned.maxs, spawned.vr_gib));
-            }
-            spawned = world;
-        }
-        else if(spawnKind == 106)
-        {
-            // A gib lying on the floor (gib destroying tests).
-            self = spawn();
-            setorigin(self, spawnAt + '0 0 1');
-            ThrowGib("progs/gib1.mdl", -10);
-            entity lying = find(world, classname, "");
-            while(lying)
-            {
-                if(lying.vr_gib && lying.ltime == time && lying.carry_player == world && lying.origin == self.origin)
-                {
-                    lying.velocity = '0 0 0';
-                    lying.avelocity = '0 0 0';
-                    dprint(sprintf("test spawn: a gib at %v, box %v .. %v\n", lying.origin, lying.mins, lying.maxs));
-                }
-                lying = find(lying, classname, "");
-            }
-            remove(self);
-            self = spawnPlayer;
-        }
-        else if(spawnKind >= 107 && spawnKind <= 109)
-        {
-            // A crate (vr_crates.qc), turned 30 degrees off facing you; 109: a large one with a small one on it.
-            traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, self); // (on the floor)
-            spawned = VR_Crate_TestSpawn(trace_endpos, spawnKind == 107 ? 1 : 2, spawnPlayer.v_viewangle_y + 30, spawnKind == 109);
-        }
-        else if(spawnKind == 111 || spawnKind == 112)
-        {
-            // A barrel (vr_crates.qc's vr_barrel: vrstart's), upright or lying across your view (it may roll).
-            traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, spawnPlayer); // (on the floor)
-            self = spawn();
-            self.angles = '0 1 0' * (spawnPlayer.v_viewangle_y + 90);
-            self.spawnflags = spawnKind == 112 ? 1 : 0;
-            setorigin(self, trace_endpos + '0 0 20');
-            vr_barrel();
-            spawned = self;
-            self = spawnPlayer;
-        }
-        else if(spawnKind == 110)
-        {
-            // The rocks and bricks (vr_debris.qc), a row of each across your view, each model in another skin (rocks
-            // 1-5: grey, beige, brown, mossy, red-brown; bricks 1-4: red, brown, yellow, blue-grey): their textures
-            // beside the map's.
-            makevectors('0 1 0' * spawnPlayer.v_viewangle_y);
-            for(float pieceIndex = 0; pieceIndex < 9; pieceIndex++)
-            {
-                float pieceRow = pieceIndex < 5 ? 0 : 1;
-                float pieceCol = pieceRow ? pieceIndex - 5 - 1.5 : pieceIndex - 2;
-                self = spawn();
-                self.model = pieceRow ? sprintf("progs/vr_brick%d.mdl", pieceIndex - 4) : sprintf("progs/vr_rock%d.mdl", pieceIndex + 1);
-                self.skin = pieceRow ? pieceIndex - 5 : pieceIndex;
-                self.angles = '0 1 0' * (spawnPlayer.v_viewangle_y + 90 + pieceIndex * 37);
-                setorigin(self, spawnAt + v_right * pieceCol * 12 + v_forward * pieceRow * 14 + '0 0 8');
-                vr_debris_piece();
-            }
-            self = spawnPlayer;
-        }
-        else if(spawnKind >= 100)
-        {
-            self = spawn();
-            setorigin(self, spawnAt - '16 16 0'); // a box's origin is its corner: its middle there
-            if(spawnKind == 100)      { item_health(); }
-            else if(spawnKind == 102) { misc_explobox(); }  // 40 kg (grappling hook tests)
-            else if(spawnKind == 103) { misc_explobox2(); } // 25 kg
-            else if(spawnKind == 104) { misc_explobox(); self.takedamage = DAMAGE_NO; } // one that never blows up (shot pushes)
-            else if(spawnKind == 113) { self.classname = "item_key1"; item_key1(); } // the silver key (taken at a holster: vr_collect_fx tests)
-            else                      { item_shells(); }
-            if((spawnKind == 100 || spawnKind == 101 || spawnKind == 113) && !VRPlaceItemNow()) // (its final size from the first frame)
-            {
-                self = world;
-            }
-            spawned = self;
-            float spawnYaw = cvar("vr_test_spawn_yaw");
-            float spawnTilt = cvar("vr_test_spawn_tilt");
-            if(spawnYaw != 0 || spawnTilt != 0)
-            {
-                // Loose (a physics prop), turned about its middle and tipped, its lowest corner on the floor where it
-                // stood (grappling hook tests: a turned box's empty corners).
-                vector spawnMid = (self.mins + self.maxs) * 0.5;
-                vector spawnAt2 = self.origin + spawnMid;
-                float spawnFloor = self.origin_z + self.mins_z;
-                VR_Carry_Loose(self);
-                self.angles = '0 1 0' * (spawnPlayer.v_viewangle_y + spawnYaw) + '0 0 1' * spawnTilt;
-                vector spawnTurned = spawnAt2 - modelpoint(self, self.angles, spawnMid);
-                float spawnLow = 999999;
-                for(float c = 0; c < 8; c++)
-                {
-                    vector corner = self.mins;
-                    if(c & 1) { corner_x = self.maxs_x; }
-                    if(c & 2) { corner_y = self.maxs_y; }
-                    if(c & 4) { corner_z = self.maxs_z; }
-                    corner = modelpoint(self, self.angles, corner);
-                    spawnLow = min(spawnLow, spawnTurned_z + corner_z);
-                }
-                spawnTurned_z = spawnTurned_z + spawnFloor + 0.5 - spawnLow;
-                setorigin(self, spawnTurned);
-                self.velocity = '0 0 0';
-                dprint(sprintf("test spawn: %s turned %v at %v, its middle at %v\n", self.classname, self.angles, self.origin,
-                    self.origin + modelpoint(self, self.angles, spawnMid)));
-            }
-        }
-        else
-        {
-            // The firing range's dispenser, as if its button were pressed (the same numbers).
-            entity dispenser = spawn();
-            dispenser.weapon = spawnKind;
-            setorigin(dispenser, spawnAt);
-            float spawnFacing = cvar("vr_test_spawn_facing");
-            float spawnFaceYaw = VR_TestSpawn_FacingYaw(spawnPlayer);
-            if(spawnFaceYaw >= 0)
-            {
-                dispenser.angles_y = spawnFaceYaw; // (before its spawn function: its ideal_yaw too)
-            }
-            self = dispenser;
-            activator = spawnPlayer;
-            func_enemy_dispenser_use();
-            if(self != dispenser)
-            {
-                spawned = self;
-                if(spawnFaceYaw >= 0)
-                {
-                    spawned.angles_y = spawnFaceYaw;
-                }
-                else if(spawnFacing != 3)
-                {
-                    spawned.angles_y = spawnPlayer.v_viewangle_y + 180;
-                }
-            }
-            remove(dispenser);
-        }
-        self = spawnPlayer;
-        if(spawned != world && spawnKind < 100 && cvar("vr_test_spawn_dead"))
-        {
-            spawned.takedamage = DAMAGE_AIM; // (walkmonster_start gives it a moment later)
-            // 2: gibbed (its head left lying: the flies' tests, VR_Head_StopFlies); 3: a ragdoll (vr_ragdoll on: he goes limp
-            // as he falls, Gibs and Corpses > Ragdolls).
-            if(cvar("vr_test_spawn_dead") == 3 && !cvar("vr_ragdoll"))
-            {
-                cvar_set("vr_ragdoll", "1");
-                dprint("vr_test_spawn_dead 3: ragdolls on (vr_ragdoll 1)\n");
-            }
-            T_Damage(spawned, world, world, spawned.health + (cvar("vr_test_spawn_dead") == 2 ? 100 : 1));
-        }
-        // A box or a crate put into the empty main hand (vr_test_spawn_hold: held props' tests, the blood on them).
-        if(spawned != world && spawnKind >= 100 && cvar("vr_test_spawn_hold"))
-        {
-            if(spawned.handtouch == VR_Carry_Handtouch && spawned.carry_player == world && VRIsHandEmpty(self, cVR_MainHand))
-            {
-                setorigin(spawned, VRGetHandPos(cVR_MainHand) - (spawned.mins + spawned.maxs) * 0.5);
-                VR_Carry_Start(self, cVR_MainHand, spawned);
-            }
-            else
-            {
-                bprint(sprintf("test spawn: %s not put in the main hand (not a carried prop, or the hand is full)\n", spawned.classname));
-            }
-        }
-    }
-    if(self.impulse == 245 && !deathmatch && !coop) // QVR: a gib in the empty off hand (held gib tests)
-    {
-        ThrowGib("progs/gib1.mdl", -10);
-        entity gib = find(world, classname, "");
-        entity newest = world;
-        while(gib)
-        {
-            if(gib.vr_gib && gib.carry_player == world && gib.ltime == time && gib.model == "progs/gib1.mdl")
-            {
-                newest = gib;
-            }
-            gib = find(gib, classname, "");
-        }
-        if(newest != world && VRIsHandEmpty(self, cVR_OffHand))
-        {
-            setorigin(newest, VRGetHandPos(cVR_OffHand));
-            VR_Carry_Start(self, cVR_OffHand, newest);
-        }
-    }
-    // QVR: a gib or a head in the empty off hand, each in turn (fitted hands tests, round 21).
-    float testHeldHand = cvar("vr_test_held_hand") ? cVR_MainHand : cVR_OffHand;
-    if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, testHeldHand) && cvar("vr_test_held_pick") >= 9)
-    {
-        VR_Test_HeldProp(floor(cvar("vr_test_held_pick")), testHeldHand);
-    }
-    else if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, testHeldHand))
-    {
-        if(cvar("vr_test_held_pick") >= 0)
-        {
-            vr_test_held_kind = floor(cvar("vr_test_held_pick")); // (vr_test_held_pick: one model only)
-        }
-        string testModel = "progs/gib1.mdl";
-        if(vr_test_held_kind == 1) testModel = "progs/h_player.mdl";
-        else if(vr_test_held_kind == 2) testModel = "progs/gib2.mdl";
-        else if(vr_test_held_kind == 3) testModel = "progs/gib3.mdl";
-        else if(vr_test_held_kind == 4) testModel = "progs/h_guard.mdl";
-        else if(vr_test_held_kind == 5) testModel = "progs/h_ogre.mdl";
-        else if(vr_test_held_kind == 6) testModel = "progs/h_knight.mdl";
-        else if(vr_test_held_kind == 7) testModel = "progs/h_zombie.mdl";
-        else if(vr_test_held_kind == 8) testModel = "progs/h_demon.mdl";
-        vr_test_held_kind = vr_test_held_kind >= 8 ? 0 : vr_test_held_kind + 1;
-        entity testGib = spawn();
-        setmodel(testGib, testModel);
-        testGib.movetype = MOVETYPE_BOUNCE;
-        testGib.solid = SOLID_NOT;
-        testGib.think = SUB_Remove;
-        testGib.nextthink = time + 60;
-        VR_MakeGibGrabbable(testGib);
-        if(cvar("vr_test_held_destroy"))
-        {
-            VR_Gib_MakeDestroyable(testGib, (testModel == "progs/gib1.mdl" || testModel == "progs/gib2.mdl" || testModel == "progs/gib3.mdl") ? 1 : 1.5); // (a head 1.5)
-        }
-        setorigin(testGib, VRGetHandPos(testHeldHand));
-        VR_Carry_Start(self, testHeldHand, testGib);
-        dprint("test: "); dprint(testModel); dprint(testHeldHand == cVR_MainHand ? " in the main hand\n" : " in the off hand\n");
+#endif
     }
     // QVR: prints the held weapons' hotspots (weaponhotspot, weaponhotspotinfo; round 21).
     if(self.impulse == 253)
@@ -5149,195 +4620,6 @@ void() ImpulseCommands =
             }
             testHand = testHand + 1;
         }
-    }
-    // QVR: a monster's projectile from 300 units away at your face, for batting and catching tests (vr_deflect,
-    // vr_grenade.qc): 246 the kind vr_test_projectile says (0 a knight's spike at 600 units/s, 1 an enforcer's laser,
-    // 2 a scrag's spit, 3 a vore's ball, 4 an ogre's grenade, 5 a zombie's flesh; the lobbed ones on the arc that
-    // reaches you), from vr_test_projectile_side degrees to your left of ahead; 247 a hell knight's spike (300 u/s).
-    if((self.impulse == 246 || self.impulse == 247) && !deathmatch && !coop)
-    {
-        makevectors('0 1 0' * self.v_viewangle_y);
-        vector aim = VRGetHeadPos(self) + v_forward * 16 - '0 0 10';
-        float side = cvar("vr_test_projectile_side") * 0.0174533;
-        vector away = v_forward * cos(side) - v_right * sin(side);
-        entity shooter = spawn();
-        shooter.classname = "monster_test_shooter";
-        shooter.flags = FL_MONSTER;
-        shooter.enemy = self;
-        setorigin(shooter, aim + away * 300);
-        shooter.angles = vectoangles(away * -1);
-        shooter.think = SUB_Remove;
-        shooter.nextthink = time + 6;
-        entity player = self;
-        float kind = 0;
-        if(player.impulse == 246)
-        {
-            kind = cvar("vr_test_projectile");
-        }
-        vector dir = normalize(aim - shooter.origin);
-        self = shooter;
-        entity shot = world;
-        if(kind == 1)
-        {
-            shot = LaunchLaser(shooter.origin, dir);
-        }
-        else if(kind == 2)
-        {
-            shot = launch_spike(shooter.origin, dir);
-            shot.velocity = dir * 600;
-            shot.classname = "wizspike";
-            setmodel(shot, "progs/w_spike.mdl");
-            setsize(shot, '0 0 0', '0 0 0');
-        }
-        else if(kind == 3)
-        {
-            setorigin(shooter, shooter.origin - '0 0 10'); // (it fires from 10 units above itself)
-            ShalMissile();
-        }
-        else if(kind == 4 || kind == 5)
-        {
-            if(kind == 4)
-            {
-                OgreFireGrenade();
-            }
-            else
-            {
-                makevectors(shooter.angles);
-                ZombieFireGrenade('0 0 24'); // (from its origin)
-            }
-            for(shot = nextent(world); shot; shot = nextent(shot))
-            {
-                if(shot.owner == shooter)
-                {
-                    shot.velocity = VR_Lob_Velocity(shot.origin, aim, VR_LOB_SPEED, shooter); // (at your face)
-                    shot.vr_gren_lastvel = shot.velocity;
-                    break;
-                }
-            }
-        }
-        else
-        {
-            shot = launch_spike(shooter.origin, dir);
-            shot.velocity = dir * (player.impulse == 246 ? 600 : 300);
-            shot.classname = "knightspike";
-        }
-        self = player;
-        dprint(sprintf("test: projectile %g from %v at %v\n", kind, shooter.origin, aim));
-    }
-    // QVR: shooting grenades' tests (vr_grenade.qc, "Shooting grenades"): 210 shoots the nearest grenade shots set off
-    // (from your eyes, with vr_test_grenade_shot: a pellet, a nail, a rocket, a laser); 211 takes a hand grenade from the
-    // pouch into the empty off hand, lets go of it unarmed (a dud), and puts it on the floor vr_test_grenade_dist ahead.
-    if(self.impulse == 210 && !deathmatch && !coop)
-    {
-        VR_GrenShot_TestShoot();
-    }
-    if(self.impulse == 211 && !deathmatch && !coop)
-    {
-        VR_GrenShot_TestDud();
-    }
-    // QVR: the nearest ogre or zombie throws at you now (grenade and lob tests; vr_grenade.qc); an ogre a multi-grenade
-    // with vr_test_projectile 6.
-    if(self.impulse == 240 && !deathmatch && !coop)
-    {
-        entity lobber = world;
-        float lobberDist = 4000;
-        for(entity near = findradius(self.origin, 4000); near; near = near.chain)
-        {
-            if((near.flags & FL_MONSTER) && near.health > 0 && vlen(near.origin - self.origin) < lobberDist &&
-               (substring(near.classname, 0, 12) == "monster_ogre" || near.classname == "monster_zombie"))
-            {
-                lobber = near;
-                lobberDist = vlen(near.origin - self.origin);
-            }
-        }
-        if(lobber != world)
-        {
-            entity lobPlayer = self;
-            self = lobber;
-            self.enemy = lobPlayer;
-            self.angles_y = vectoyaw(lobPlayer.origin - self.origin);
-            dprint(sprintf("test: %s at %v throws at you at %v\n", self.classname, self.origin, lobPlayer.origin));
-            makevectors(self.angles);
-            if(self.classname == "monster_zombie")
-            {
-                ZombieFireGrenade('-10 -22 30');
-            }
-            else
-            {
-                float lobFlags = self.spawnflags;
-                if(cvar("vr_test_projectile") == 6)
-                {
-                    self.spawnflags = self.spawnflags | OGRE_BOSS; // (a multi-grenade)
-                }
-                OgreFireGrenade();
-                self.spawnflags = lobFlags;
-            }
-            self = lobPlayer;
-        }
-    }
-    if(self.impulse == 242 && !deathmatch && !coop) // QVR: the nearest melee monster strikes you now (parry tests; vr_melee.qc)
-    {
-        VR_Parry_TestBlow();
-    }
-    if(self.impulse == 248 && !deathmatch && !coop) // QVR: a knight 64 units ahead (parry tests)
-    {
-        makevectors('0 1 0' * self.v_viewangle_y);
-        vector knightAt = self.origin + v_forward * 64;
-        entity knightPlayer = self;
-        self = spawn();
-        self.classname = "monster_knight";
-        setorigin(self, knightAt);
-        self.angles_y = knightPlayer.v_viewangle_y + 180;
-        monster_knight();
-        self = knightPlayer;
-    }
-    if(self.impulse == 219 && !deathmatch && !coop) // QVR: shove the nearest monster (enemy shove tests; vr_enemyshove.qc)
-    {
-        VR_EnemyShove_TestShoveNearest();
-    }
-    if(self.impulse == 221 && !deathmatch && !coop) // QVR: a blast at your feet in 3 s (knocked off a hold; vr_enemyshove.qc)
-    {
-        VR_Climb_TestBlast();
-    }
-    if(self.impulse == 249 && !deathmatch && !coop) // QVR: does the pose parry a blow from ahead? (developer 1)
-    {
-        VR_Parry_Probe();
-    }
-    if(self.impulse == 250 && !deathmatch && !coop) // QVR: an armour 24 units ahead: green, yellow, red in turn (wearable armour tests)
-    {
-        makevectors('0 1 0' * self.v_viewangle_y);
-        vector armorAt = self.origin + v_forward * 24;
-        entity armorPlayer = self;
-        float armorKind = vr_test_armor_kind;
-        vr_test_armor_kind = armorKind >= 2 ? 0 : armorKind + 1;
-        self = spawn();
-        setorigin(self, armorAt);
-        self.angles_y = armorPlayer.v_viewangle_y + 90;
-        if(armorKind == 0)
-        {
-            self.classname = ITEM_NAME_ARMOR1;
-            item_armor1();
-        }
-        else if(armorKind == 1)
-        {
-            self.classname = ITEM_NAME_ARMOR2;
-            item_armor2();
-        }
-        else
-        {
-            self.classname = ITEM_NAME_ARMORINV;
-            item_armorInv();
-        }
-        dprint("test: "); dprint(self.classname); dprint(" at "); dprint(vtos(armorAt)); dprint(", head ");
-        dprint(vtos(VRGetHeadPos(armorPlayer))); dprint(" yaw "); dprint(ftos(armorPlayer.v_viewangle_y)); dprint(", hands ");
-        dprint(vtos(armorPlayer.offhandpos)); dprint(" "); dprint(vtos(armorPlayer.handpos)); dprint("\n");
-        vr_test_armor_last = self;
-        self = armorPlayer;
-    }
-    // QVR: the last armour impulse 250 dropped comes back 3 s after it is worn (deathmatch's respawn, sped up).
-    if(self.impulse == 251 && !deathmatch && !coop && vr_test_armor_last != world)
-    {
-        vr_test_armor_last.wait = 3;
     }
     if(dump_coord == 1)
         DumpCoordinates();
@@ -5401,6 +4683,7 @@ void(float xHand) W_WeaponFrameImpl =
     }
 
     FrameDrawLightningTrail(xHand, VRGetFireButtonPressed(xHand));
+    AD_WidowmakerSpinHook(xHand, VRGetFireButtonPressed(xHand) && !VR_Forcegrab_IsHandBusy(self, xHand));
 
     if(!deathmatch && time < readytime)
     {
@@ -5526,196 +4809,30 @@ void(float xHolster, float v) setHolsterWeaponFlags =
     bprint("\n");
 }
 
-float(float xHotspot) isReloadHolsterHotspot =
+float(float xHotspot, float xWeapon, entity xInst) isReloadHolsterHotspot =
 {
-    if(cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_ALLHOLSTERS)
+    float mode = VR_Reload_ModeOfInst(xWeapon, xInst); // (the weapon's own override, else the global)
+    if(mode == QVR_RELOADMODE_ALLHOLSTERS)
     {
         return TRUE;
     }
 
-    ASSERT(cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_HIPHOLSTERS ||
-           cvar_hget(cvarh_vr_reload_mode) == QVR_RELOADMODE_IMMERSIVE);
+    if(mode == QVR_RELOADMODE_NONE)
+    {
+        return FALSE;
+    }
 
     return xHotspot == QVR_HS_LEFT_HIP_HOLSTER ||
            xHotspot == QVR_HS_RIGHT_HIP_HOLSTER;
 }
 
-void(float xOffset, float xAngle, float* xOutAngle) wpnthrow_impl_stabilize =
-{
-    float angle;
-    angle = xAngle - xOffset;
-
-    // Bring angle in range [-360, 0]
-    while(angle > 0)
-    {
-        *xOutAngle = (xOffset + angle) - 360;
-        angle = angle - 360;
-    }
-
-    while(angle < -360)
-    {
-        *xOutAngle = (xOffset + angle) + 360;
-        angle = angle + 360;
-    }
-
-    if(angle >= -360 && angle <= -270)
-    {
-        // All these offset calculations are needed because I can't read back
-        // from `xOutAngle`...
-        *xOutAngle = (xOffset + angle) + self.throwstabilize;
-        if((xAngle - xOffset) + self.throwstabilize > -270)
-        {
-            *xOutAngle = xOffset + -270;
-        }
-    }
-    else if(angle > -270 && angle <= -180)
-    {
-        *xOutAngle = (xOffset + angle) - self.throwstabilize;
-        if((xAngle - xOffset) - self.throwstabilize < -270)
-        {
-            *xOutAngle = xOffset + -270;
-        }
-    }
-    else if(angle > -180 && angle <= -90)
-    {
-        *xOutAngle = (xOffset + angle) + self.throwstabilize;
-        if((xAngle - xOffset) + self.throwstabilize > -90)
-        {
-            *xOutAngle = xOffset + -90;
-        }
-    }
-    else if(angle > -90 && angle <= 0)
-    {
-        *xOutAngle = (xOffset + angle) - self.throwstabilize;
-        if((xAngle - xOffset) - self.throwstabilize < -90)
-        {
-            *xOutAngle = xOffset + -90;
-        }
-    }
-    else
-    {
-        // (Only a NaN angle comes here: every number was brought into [-360, 0] above. It is set straight, and the
-        // weapon's spin with it.)
-        dprint(sprintf("wpnthrow_impl_stabilize: angle %g set to %g\n", angle, xOffset));
-        *xOutAngle = xOffset;
-        self.avelocity = '0 0 0';
-    }
-
-    if(self.throwstabilize > 0)
-    {
-        self.throwstabilize = self.throwstabilize - 0.3;
-
-        if(self.throwstabilize < 0)
-        {
-            self.throwstabilize = 0;
-        }
-    }
-}
-
-// Settled (no push left, throwstabilize 0, and the angle already in [offset - 360, offset]), the
-// stabilizing would leave the angle as it is: most thinks of a weapon lying about, so skipped.
-void() wpnthrow_stabilize =
-{
-    float dim = self.throwstabilizedim;
-    if(dim == 0)
-    {
-        if(!self.throwstabilize && self.angles_x <= 90 && self.angles_x >= -270)
-        {
-            return;
-        }
-        wpnthrow_impl_stabilize(90, self.angles_x, &self.angles_x);
-    }
-    else if(dim == 1)
-    {
-        if(!self.throwstabilize && self.angles_y <= 0 && self.angles_y >= -360)
-        {
-            return;
-        }
-        wpnthrow_impl_stabilize(0, self.angles_y, &self.angles_y);
-    }
-    else if(dim == 2)
-    {
-        if(!self.throwstabilize && self.angles_z <= 0 && self.angles_z >= -360)
-        {
-            return;
-        }
-        wpnthrow_impl_stabilize(0, self.angles_z, &self.angles_z);
-    }
-}
-
+// A force-grabbable thing's think (thrown and dropped weapons, pickups as objects): water, dust, settling after a throw.
+// In the engine (propthink, vr_propthink.cpp: 5-18% of all the QuakeC's statements were here; docs/vr-port/QC_VM.md).
+float(entity e) VR_EnemyGun_DepletedSkipped; // (vr_wpnforcegrab.qc)
 void() forcegrabbable_think_impl =
 {
-    // In water (not the "just spawned" waterlevel 1 of an entity never checked since).
-    if(self.waterlevel >= 1 && self.watertype <= CONTENT_WATER)
-    {
-        if(self.ammocounter < 2)
-        {
-            self.ammocounter += 1;
-        }
-        else if (self.ammocounter > 0)
-        {
-            self.ammocounter -= 1;
-        }
-
-        // Rigid bodies float in the engine (vr_rigid.cpp: lift by how deep they are, water drag).
-        if(self.ammocounter > 1 && self.vr_rigid)
-        {
-            self.flags = self.flags | FL_INWATER;
-            self.throwhit = QVR_THROWHIT_HIT;
-            self.solid = SOLID_NOT_BUT_TOUCHABLE;
-        }
-        else if(self.ammocounter > 1)
-        {
-            if(fabs(self.velocity_x) > 10)
-            {
-                self.velocity_x *= 0.85;
-            }
-            else
-            {
-                self.velocity_x = 0;
-            }
-
-            if(fabs(self.velocity_y) > 10)
-            {
-                self.velocity_y *= 0.85;
-            }
-            else
-            {
-                self.velocity_y = 0;
-            }
-
-            self.velocity_z = 45;
-            self.flags = self.flags | FL_INWATER;
-            self.throwhit = QVR_THROWHIT_HIT;
-            self.solid = SOLID_NOT_BUT_TOUCHABLE;
-            self.avelocity = '0 0 0';
-            self.vr_spin = '0 0 0';
-        }
-    }
-    else if((time - self.lastwatertime) > 0.15)
-    {
-        self.flags = self.flags & ~FL_INWATER;
-        self.ammocounter = 0;
-        self.waterlevel = 0;
-    }
-    else if (self.ammocounter > 0)
-    {
-        self.ammocounter -= 1;
-        self.waterlevel = 0;
-    }
-
-    if(vr_weapondrop_particles_on && (self.flags & (FL_ONGROUND | FL_INWATER))) // (vr_cvars.qc, once a frame)
-    {
-        if(random() < 0.2 && self.model != string_null)
-        {
-            particle2(realorigin(self), '0 0 0', QVR_PARTICLE_PRESET_GUNPICKUP, 1);
-        }
-    }
-
-    if(self.throwhit == QVR_THROWHIT_HIT && !self.vr_rigid) // rigid ones settle in the engine
-    {
-        wpnthrow_stabilize();
-    }
+    // A spent enemy gun (the force grab skips it) has no grab sparkles either: nothing says it could be force grabbed.
+    propthink(VR_EnemyGun_DepletedSkipped(self) ? 0 : vr_weapondrop_particles_on);
 }
 
 void() forcegrabbable_think =
@@ -5756,173 +4873,10 @@ void() wpnthrow_think =
     self.nextthink = time + 0.02;
 }
 
-// Tests (impulse 232; Debug > Tests > Flung Props): the loose prop nearest you (a rigid body not carried) sent at
-// vr_test_fling_speed m/s at the nearest monster (vr_test_fling_at 1: at you), from 40 units off the side of its box
-// facing you, at its middle's height, not thrown by anyone (VR_Prop_Flung). vr_test_fling_away 1: from inside the edge
-// of its box, away from it (a batted prop leaving you, still in your box).
-void() VR_Test_Fling =
-{
-    entity p = self;
-    entity target = p;
-    float best;
-    entity e;
-    if(!cvar("vr_test_fling_at"))
-    {
-        target = world;
-        best = 100000;
-        for(e = nextent(world); e != world; e = nextent(e))
-        {
-            if(e.flags & FL_MONSTER && e.health > 0 && vlen(e.origin - p.origin) < best)
-            {
-                best = vlen(e.origin - p.origin);
-                target = e;
-            }
-        }
-    }
-    entity prop = world;
-    best = 512;
-    for(e = nextent(world); e != world; e = nextent(e))
-    {
-        if(e.vr_rigid && e.carry_player == world && (e.touch == forcegrabbable_touch || e.vr_impact) &&
-           vlen(e.origin - p.origin) < best)
-        {
-            best = vlen(e.origin - p.origin);
-            prop = e;
-        }
-    }
-    if(target == world || prop == world)
-    {
-        dprint("fling test: no monster or no prop\n");
-        return;
-    }
-    vector mid = 0.5 * (target.absmin + target.absmax);
-    vector dir;
-    if(target == p)
-    {
-        makevectors('0 1 0' * p.v_viewangle_y);
-        dir = -1 * v_forward; // (towards you from ahead)
-    }
-    else
-    {
-        dir = mid - p.origin;
-        dir_z = 0;
-        dir = normalize(dir);
-    }
-    float half = 0.5 * max(target.size_x, target.size_y);
-    float speed = cvar("vr_test_fling_speed") * VRMetersToUnits();
-    vector at = mid - dir * (half + 40);
-    vector vel = dir * speed;
-    if(cvar("vr_test_fling_away"))
-    {
-        at = mid - dir * (half - 4);
-        vel = -1 * vel;
-    }
-    prop.owner = world;
-    prop.throwhit = 0;
-    prop.carry_letgo = world;
-    prop.vr_fling_hit = 0;
-    prop.fg_state = 0;
-    prop.flags = prop.flags - (prop.flags & FL_ONGROUND);
-    setorigin(prop, at - 0.5 * (prop.mins + prop.maxs));
-    prop.velocity = vel;
-    dprint(sprintf("fling test: %s (%.1f kg) at %s, %.1f m/s (%.0f u/s)%s; its health %.0f\n", prop.classname,
-        VR_Thrown_Mass(prop), target.classname, cvar("vr_test_fling_speed"), speed,
-        cvar("vr_test_fling_away") ? ", away from it" : "", target.health));
-};
-
-// Tests (impulse 204; Debug > Tests > Two-Handed Throw): a two-handed throw's sparing of blows (VR_Throw_TwoHanded): a
-// gib ahead of you, as if just thrown with both hands, and the hand that let go first a moment before: whether each
-// hand may strike and the gib can be struck, now and 0.5 s later ("2h test:" lines).
-void() VR_Throw_Test2H_Print =
-{
-    entity g = self;
-    entity p = g.vr_2h_thrower;
-    self = p;
-    dprint(sprintf("2h test: %.2f s after the throw: main hand strikes %g, off hand %g, the gib strikable %g\n",
-        time - g.vr_2h_thrown, VR_Throw_HandMayStrike(p, cVR_MainHand), VR_Throw_HandMayStrike(p, cVR_OffHand),
-        VR_Blow_Strikable(g)));
-    self = g;
-    if(g.cnt)
-    {
-        remove(g);
-        return;
-    }
-    g.cnt = 1;
-    g.nextthink = time + 0.5;
-};
-
-void() VR_Throw_Test2H =
-{
-    makevectors(self.v_angle);
-    entity g = spawn();
-    g.classname = "test_gib";
-    setmodel(g, "progs/gib1.mdl");
-    setsize(g, '0 0 0', '0 0 0');
-    g.movetype = MOVETYPE_NONE;
-    g.solid = SOLID_NOT_BUT_TOUCHABLE;
-    g.takedamage = DAMAGE_YES;
-    g.health = 10;
-    g.vr_gib = 1;
-    setorigin(g, self.origin + v_forward * 40 + '0 0 16');
-    dprint(sprintf("2h test: before: main hand strikes %g, off hand %g, the gib strikable %g\n",
-        VR_Throw_HandMayStrike(self, cVR_MainHand), VR_Throw_HandMayStrike(self, cVR_OffHand), VR_Blow_Strikable(g)));
-    self.vr_2h_letgo_hand = cVR_OffHand + 1;
-    self.vr_2h_letgo_time = time;
-    dprint(sprintf("2h test: the off hand let go first: main hand strikes %g, off hand %g\n",
-        VR_Throw_HandMayStrike(self, cVR_MainHand), VR_Throw_HandMayStrike(self, cVR_OffHand)));
-    VR_Throw_TwoHanded(self, g);
-    g.think = VR_Throw_Test2H_Print;
-    g.nextthink = time + 0.01;
-};
-
-// Tests (impulse 222; Debug > Tests > Flung Props): the loose prop nearest you (a rigid body not carried, within 512
-// units) thrown straight up as yours (VR_Carry_Throw) from over your head (vr_test_throw_up_body: at your chest) at
-// vr_test_throw_up_speed m/s (0: let go of gently, it never hurts you): it falls back
-// on you, past vr_throw_self_grace (vrfiringrange_2026-10-01_16-41-40: a backpack thrown high).
-void() VR_Throw_TestUp =
-{
-    entity prop = world;
-    float best = 512;
-    for(entity e = nextent(world); e != world; e = nextent(e))
-    {
-        if(e.vr_rigid && e.carry_player == world && (e.touch == forcegrabbable_touch || e.vr_impact) &&
-           vlen(e.origin - self.origin) < best)
-        {
-            best = vlen(e.origin - self.origin);
-            prop = e;
-        }
-    }
-    if(prop == world)
-    {
-        dprint("throw test: no prop\n");
-        return;
-    }
-    prop.throwhit = QVR_THROWHIT_HIT;
-    prop.owner = world;
-    prop.vr_fling_hit = 0;
-    prop.fg_state = 0;
-    prop.flags = prop.flags - (prop.flags & FL_ONGROUND);
-    vector top = VRGetHeadPos(self);
-    top_z = max(top_z, self.absmax_z) + 4 - prop.mins_z; // (its bottom just over your head)
-    if(cvar("vr_test_throw_up_body"))
-    {
-        top = self.origin + '0 0 16' - '0 0 0.5' * (prop.mins_z + prop.maxs_z); // (at your chest, in your box)
-    }
-    prop.carry_letgo = self; // (let go of by you: VR_Carry_Loose)
-    prop.carry_letgo_time = time;
-    setorigin(prop, top - '1 0 0' * 0.5 * (prop.mins_x + prop.maxs_x) - '0 1 0' * 0.5 * (prop.mins_y + prop.maxs_y));
-    prop.vr_spin = '0 0 0';
-    prop.avelocity = '0 0 0';
-    VR_Carry_Throw(prop, '0 0 1' * cvar("vr_test_throw_up_speed") * VRMetersToUnits());
-    dprint(sprintf("throw test: %s thrown up from %v at %.1f m/s; your health %.0f\n", prop.classname, prop.origin,
-        cvar("vr_test_throw_up_speed"), self.health));
-};
-
 void() forcegrabbable_touch =
 {
     if(self.owner != world && other == self.owner)
         return;
-
     if(other.solid == SOLID_TRIGGER)
         return;    // trigger field, do nothing
 
@@ -5979,12 +4933,11 @@ void() forcegrabbable_touch =
                 dprint(sprintf("throw: %s fell on its thrower at %.0f u/s, %.2f s after the throw: %.1f damage\n",
                     self.classname, vlen(self.velocity), time - self.carry_letgo_time, adjDmg));
             }
-            float pop = VR_Decap_ThrownArm(other, self, thrower, adjDmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
-            T_Damage(other, self, thrower, adjDmg);
-            if(pop)
-            {
-                VR_Decap_After(other);
-            }
+            float pop = VR_Dismember_ThrownArm(other, self, thrower, adjDmg); // VR: a heavy blunt thing at the head pops it if it kills (vr_decap.qc)
+            float wasAlive = other.health > 0 && !other.vr_corpse && !other.vr_corpse_dying;
+            VR_Decap_Damage(other, self, thrower, adjDmg, pop);
+            // VR: an incandescent blade thrown sets what it struck on fire (vr_hotblade.qc).
+            VR_HotBlade_ThrownStruck(self, other, thrower, wasAlive, self.origin, normalize(self.velocity));
             self.vr_fling_hit = time; // (not hit again as a flung prop as it bounces off: VR_FLING_REHIT)
         }
         // hit wall
@@ -6099,10 +5052,40 @@ void(float xHand, entity ent, entity entPlayer,
     {
         dprint(sprintf("weapon: %s hand takes %s\n", xHand == cVR_MainHand ? "main" : "off", VRWeaponInstDesc(entPlayer, xHand)));
     }
+    VR_FlailHead_Taken(ent, entPlayer, xHand); // AD support: a flail's head lying about becomes the hand's (vr_ad_melee.qc)
     remove(ent);
 
     self = entPlayer;
     W_SetCurrentAmmo();
+}
+
+// A mid-air catch (vr_weapon_catch_window; ROUND22.md, "Mid-air catches"): a weapon in the air (not lying about, not
+// one a force grab pulls) is caught by a grip closed up to that long before it reaches the fist, not only 0.125 s; and
+// the hand that just let it go (a toss to re-grip it, a flip) may close again at once (VR_HandGrabUtil_StartedHandGrabbing
+// waits 0.125 s after a release): it catches it once it comes back down, from 0.05 s after the release (not the throw's
+// own fist closing again as it leaves).
+float(entity ent, entity entPlayer, float xHand) wpnthrow_midair_catch =
+{
+    float window = cvar("vr_weapon_catch_window");
+    if(window <= 0 || (ent.flags & FL_ONGROUND) || ent.fg_state == 1 || vlen(ent.velocity) < 30)
+    {
+        return FALSE;
+    }
+    if(!VR_HandGrabUtil_IsHandGrabbing(entPlayer, xHand))
+    {
+        return FALSE;
+    }
+    float grabbed = VR_HandGrabUtil_Impl_GetLastGrabTime(entPlayer, xHand);
+    float released = VR_HandGrabUtil_Impl_GetLastReleaseTime(entPlayer, xHand);
+    if(grabbed <= released || time >= grabbed + window)
+    {
+        return FALSE;
+    }
+    if(released + 0.125 > grabbed)
+    {
+        return ent.velocity_z < 0 && time >= released + 0.05;
+    }
+    return TRUE;
 }
 
 float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
@@ -6121,7 +5104,7 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
     float performWeaponSwitch = FALSE;
 
     // Must catch it: the grab started as it touches, or a force grab caught in time.
-    if(VRGetHandtouchHand(ent) == xHand && (pStartedGrabbing || forcegrabCatching))
+    if(VRGetHandtouchHand(ent) == xHand && (pStartedGrabbing || forcegrabCatching || wpnthrow_midair_catch(ent, entPlayer, xHand)))
     {
         performWeaponSwitch = TRUE;
     }
@@ -6333,6 +5316,7 @@ void MakeThrown(entity newmis,
 
     newmis.owner = thrower;
     newmis.vr_throw_self = 0;
+    VR_DamageCredit_SetWeapon(newmis, xWeapon); // (its blow the weapon's: vr_dmgcredit.qc)
 
     newmis.throwstabilize = 8;
     newmis.throwstabilizedim = WeaponIdToThrowStabilizeDim(xWeapon);
@@ -6344,7 +5328,7 @@ void MakeThrown(entity newmis,
     newmis.handtouch = wpnthrow_handtouch;
 
     newmis.classname = "thrown_weapon";
-    newmis.netname = WeaponIdToWeaponName(xWeapon);
+    newmis.netname = WeaponNameOf(xWeapon, xWeaponFlags);
 
     newmis.avelocity = xAVel;
 
@@ -6366,11 +5350,11 @@ void MakeThrown(entity newmis,
     tmp_bounds_y = tmp;
     tmp_bounds_z = tmp;
 
-    setmodel(newmis, WeaponIdToModel(xWeapon, xWeaponFlags));
+    setmodel(newmis, AD_WeaponModel(xWeapon, xWeaponFlags, newmis.weaponinst)); // (AD support: an upgraded one's own)
     setsize(newmis, -tmp_bounds, tmp_bounds);
     setorigin(newmis, xOrigin);
 
-    newmis.velocity = xThrowVel + thrower.velocity;
+    newmis.velocity = xThrowVel + thrower.velocity * VR_Throw_Inherit(thrower); // (a player's: vr_throw_inherit of it)
 
     // Thrown hard (as fast as a carried thing must be let go of to be a missile: VR_THROW_MISSILE_SPEED, a heavy one's
     // less), it spares its thrower only for vr_throw_self_grace (VR_Throw_SelfStart): thrown up, it can fall back on
@@ -6416,6 +5400,33 @@ float() VRMetersToUnits =
     return cvar_hget(cvarh_vr_world_scale) / (1.5 * 0.0254);
 }
 
+// Shared by the two throws (DropWeaponInHandScaled; vr_carry.qc VR_Carry_Throw). The units/s^2 a thrown weapon or
+// prop falls at: vr_throw_gravity (m/s^2) when set, else the world's.
+float() VR_Throw_Gravity =
+{
+    if(cvar_hget(cvarh_vr_throw_gravity) > 0)
+    {
+        return cvar_hget(cvarh_vr_throw_gravity) * VRMetersToUnits();
+    }
+    return cvar_hget(cvarh_sv_gravity);
+};
+
+// The .gravity that makes a thrown thing fall at VR_Throw_Gravity (0: no world gravity to scale, leave it).
+float() VR_Throw_GravityScale =
+{
+    if(cvar_hget(cvarh_sv_gravity) > 0)
+    {
+        return VR_Throw_Gravity() / cvar_hget(cvarh_sv_gravity);
+    }
+    return 0;
+};
+
+// A thrown thing's .throwdmgspeed: the same damage for the same hand speed as the old x120 scaling.
+float() VR_Throw_DmgSpeed =
+{
+    return 700 * VRMetersToUnits() / 120;
+};
+
 // `xInst`: the weapon's record (vr_weaponinst.qc): a hand's, moved to the prop, or a new weapon's (WeaponInst_New).
 entity(entity thrower, float xWeapon, float xWeaponFlags, entity xInst,
     vector xOrigin, vector xRotation,
@@ -6444,7 +5455,12 @@ entity(entity thrower, float xWeapon, float xWeaponFlags, entity xInst,
     }
 
     newmis.vr_drop_born = time;
+    // Spent, a single-use enemy gun or a chainsaw is never fired again: no loot beam, no force grab
+    // (vr_enemy_weapon_depleted_loot).
+    newmis.vr_depleted = VR_Weapon_Spent(xWeapon, newmis.weaponinst);
     VR_EnemyWeapons_MakeRoom(newmis); // (a single-use enemy weapon: at most vr_enemy_weapon_drop_max lie about)
+    VR_FuelTank_Attach(newmis, thrower); // AD support: a flamethrower's or poison sprayer's tank with it (vr_ad_enemyguns.qc)
+    VR_FlailHead_Attach(newmis, thrower); // AD support: the death sergeant's flail's head on its chain (vr_ad_melee.qc)
 
     return newmis;
 }
@@ -6643,11 +5659,6 @@ vector(vector xAVel) VRThrowSpinCapped =
     return xAVel;
 }
 
-float() getWeaponThrowMode =
-{
-    return cvar_hget(cvarh_vr_weapon_throw_mode);
-}
-
 // `xVelScale`: times the throw's velocity and spin (1: thrown; vr_weight_drop_velocity: wrenched out, the grip lost
 // rather than a throw, which the throw assist does not aim either).
 // The hand's weapon (`xWeapon`, `xWeaponFlags`: the hand's) thrown or dropped: a prop, with the hand's record (its
@@ -6664,7 +5675,11 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
     float throwHands = 1;
     vector throwVel;
     vector throwFlick;
-    if(time - self.last_2h_time < 0.3)
+    if(self.last_2h_time > 0 && time - self.last_2h_time < 1)
+    {
+        dprint(sprintf("throw: a weapon held in both hands until %.3f s ago\n", time - self.last_2h_time));
+    }
+    if(VR_Throw_2hRecent(self.last_2h_time)) // (its foregrip let go of within vr_throw_2h_window: vr_carry.qc)
     {
         twoHThrowVelMult = cvar_hget(cvarh_vr_2h_throw_velocity_mult);
         throwVel = VRGetHandThrowVel(xHand) + VRGetHandThrowVel(VRGetOtherHand(xHand));
@@ -6680,7 +5695,6 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
         throwFlick = VRGetHandThrowFlick(xHand);
     }
 
-
     // The hand's velocity (m/s) at true scale: the weapon leaves the hand as fast as the hand
     // moved, a little more for real throws (the gain), as fast as its mass lets one hand or two throw it (throws by
     // weight: throwvelocity), a little less for heavy weapons, and falls at vr_throw_gravity rather than Quake's 2.5g.
@@ -6691,39 +5705,13 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
                       cvar_hget(cvarh_vr_weapon_throw_velocity_mult);
     vector throwVelUnits = asThrown * xVelScale;
 
-    float throwGravity = cvar_hget(cvarh_sv_gravity);
-    if(cvar_hget(cvarh_vr_throw_gravity) > 0)
-    {
-        throwGravity = cvar_hget(cvarh_vr_throw_gravity) * m2u;
-    }
+    float throwGravity = VR_Throw_Gravity();
 
-    // It left the hand a moment ago (the release lags the throw, and the move carrying it is
-    // later still, by a frame or two: more at a low frame rate): start where it would be by now, not
-    // where the hand followed through to. (It used to start at the hand when that was over 0.15 s, which
-    // a low frame rate reached: those throws came out of the follow-through, lower and behind.) What it
-    // would have flown into on the way, it starts at.
+    // It left the hand a moment ago: it starts where it would be by now (vr_carry.qc VR_Throw_BackProject, a prop's too).
     vector handNow = VRGetHandPos(xHand);
-    vector origin = handNow;
-    float age = min(0.3, VRGetHandThrowAge(xHand));
-    if(VRGetHandThrowPos(xHand) != '0 0 0' && age >= 0)
-    {
-        vector from = VRGetHandThrowPos(xHand);
-        origin = from + throwVelUnits * age;
-        origin_z = origin_z - 0.5 * throwGravity * age * age;
-        throwVelUnits_z = throwVelUnits_z - throwGravity * age;
-
-        traceline(from, origin, MOVE_HITMODEL_THROWN, ent);
-        if(trace_fraction < 1 && trace_ent.takedamage && trace_ent != world)
-        {
-            origin = trace_endpos - normalize(origin - from) * 2; // a monster on the way: hit it next
-        }
-        traceline(handNow, origin, TRUE, ent); // never inside a wall
-        origin = trace_endpos;
-        if(trace_fraction < 1)
-        {
-            origin = origin - normalize(origin - handNow) * 2;
-        }
-    }
+    vector origin = VR_Throw_BackProject(ent, xHand, handNow, handNow, throwVelUnits, '0 0 0', '0 0 0', throwGravity);
+    throwVelUnits = vr_throw_vel;
+    float age = vr_throw_age;
 
     // Carried off its handle (the hand-off, a hotspot, anywhere: QVR_WPNFLAG_FOREGRIP_CARRIED): it leaves from where it
     // is drawn, not as if held by its handle (the local player's view knows; else from the hand).
@@ -6759,25 +5747,12 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
         sound(ent, VRGetGunChannel(xHand), "misc/null.wav", 1, ATTN_NORM);
     }
 
-    entity thrown = world;
-    if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
-    {
-        thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, inst,
-            origin, throwRot,
-            throwVelUnits, '0 0 0',
-            FALSE /* disappear on hit */,
-            TRUE  /* deal damage */,
-            WeaponIdToThrowDamage(xWeapon));
-    }
-    else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
-    {
-        thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, inst,
-            origin, throwRot,
-            throwVelUnits, '0 0 0',
-            TRUE /* disappear on hit */,
-            TRUE /* deal damage */,
-            WeaponIdToThrowDamage(xWeapon));
-    }
+    entity thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, inst,
+        origin, throwRot,
+        throwVelUnits, '0 0 0',
+        FALSE /* disappear on hit */,
+        TRUE /* deal damage */,
+        WeaponIdToThrowDamage(xWeapon));
 
     if(thrown != world)
     {
@@ -6792,12 +5767,12 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
 
         // (Its blood goes with it: its record, its id, vr_weaponinst.qc.)
 
-        // The same damage for the same hand speed as the old x120 scaling.
-        thrown.throwdmgspeed = 700 * m2u / 120;
+        thrown.throwdmgspeed = VR_Throw_DmgSpeed();
 
-        if(cvar_hget(cvarh_sv_gravity) > 0)
+        float gravityScale = VR_Throw_GravityScale();
+        if(gravityScale)
         {
-            thrown.gravity = throwGravity / cvar_hget(cvarh_sv_gravity);
+            thrown.gravity = gravityScale;
         }
 
         if(throwHands == 2 && xVelScale == 1)
@@ -6822,7 +5797,6 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xVelScale
         dprint(sprintf("thrown spin: %.2f rad/s, %.1f deg off end over end; hand %v, angles %v\n", spinRate, spinOff,
             VRGetHandRot(xHand), thrown.angles));
     }
-    // (QVR_WEAPONTHROWMODE_DISCARD: nothing is thrown, the weapon is gone.)
 
     VR_SoundVaried(ent, VRGetHandChannel(xHand), "knight/sword2.wav", 0.7, ATTN_NORM);
     VRSetHandEmpty(ent, xHand);
@@ -6843,7 +5817,7 @@ VRPutWeaponInHolster =
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_SAW_STATE); // a chainsaw's engine stops
     setHolsterWeapon(xHotspot, xWeapon);
-    setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon, xWeaponFlags));
+    setHolsterWeaponModel(xHotspot, AD_WeaponModel(xWeapon, xWeaponFlags, xInst)); // (AD support: an upgraded one's own)
     setHolsterWeaponFlags(xHotspot, xWeaponFlags);
     VRSetEntHolsterWeaponInst(self, xHotspot, xInst);
 }
@@ -6857,7 +5831,7 @@ VRReloadWeapon =
     VR_SoundVaried(entPlayer, VRGetHandChannel(xHand), "reload1.wav", 1, ATTN_NORM);
 
     float ammoId = WeaponIdToAmmoId(xWeapon, xWeaponFlags);
-    float missingAmmo = WeaponIdToBaseClipSize(xWeapon) - clip;
+    float missingAmmo = VR_ClipSizeIn(entPlayer, xHand) - clip;
     float remainingAmmo = VR_AmmoUtil_GetAmmoCountByAmmoId(entPlayer, ammoId);
     float clampedMissingAmmo = clamp(missingAmmo, 0, remainingAmmo);
 
@@ -6866,7 +5840,7 @@ VRReloadWeapon =
 
     // The super shotgun, broken open, throws out its spent shells: flung by a flick reload
     // (vr_shells.cpp).
-    if(xWeapon == WID_SUPER_SHOTGUN && missingAmmo > 0)
+    if(xWeapon == WID_SUPER_SHOTGUN && missingAmmo > 0 && !AD_WidowmakerIn(entPlayer, xHand)) // (the Widowmaker's go as it fires)
     {
         entity oself = self;
         self = entPlayer;
@@ -6892,8 +5866,8 @@ VRUnloadWeapon =
 void(entity entPlayer, float xHand, float xWeapon, float xWeaponFlags)
 VRTryReloadWeapon =
 {
-    if(VRIsWeaponReloadingEnabledFor(entPlayer, xHand) && !VR_Reload_ManualFor(xWeapon) &&
-       (VRGetEntWeaponClip(entPlayer, xHand) < WeaponIdToBaseClipSize(xWeapon)) &&
+    if(VRIsWeaponReloadingEnabledFor(entPlayer, xHand) && !VR_Reload_ManualForInst(xWeapon, VRGetEntWeaponInst(entPlayer, xHand)) &&
+       (VRGetEntWeaponClip(entPlayer, xHand) < VR_ClipSizeIn(entPlayer, xHand)) &&
        PlayerHasAmmoForWeapon(entPlayer, xWeapon, xWeaponFlags))
     {
         VRReloadWeapon(entPlayer, xHand, xWeapon, xWeaponFlags);
@@ -6909,11 +5883,61 @@ VRTryUnloadWeapon =
     }
 }
 
+// The save's original weapon instance stays in this hand briefly after loading (both release checks agree).
+float(entity ent, float xHand) VRWeaponLoadProtected =
+{
+    entity restored = xHand == cVR_MainHand ? ent.vr_weapon_load_main : ent.vr_weapon_load_off;
+    return time < ent.vr_weapon_load_until && restored != world && restored == VRGetEntWeaponInst(ent, xHand);
+}
+
+// A test scene's weapon given into this hand (vr_scenario's give: VR_Scene_HoldGiven) is held as if just grabbed: with
+// vr_weapon_grip_mode 0 it stays, its grip unpressed, until that hand's grip is pressed; from then on the grip holds it
+// as usual (let go on release). Sticky mode needs nothing: it waits for a squeeze and a release already.
+float(entity ent, float xHand) VRWeaponGivenHeld =
+{
+    entity given = xHand == cVR_MainHand ? ent.vr_weapon_given_main : ent.vr_weapon_given_off;
+    if(given == world)
+    {
+        return FALSE;
+    }
+    if(given != VRGetEntWeaponInst(ent, xHand) || VR_HandGrabUtil_IsHandGrabbing(ent, xHand))
+    {
+        // Gone from the hand, or the grip took it.
+        if(xHand == cVR_MainHand)
+        {
+            ent.vr_weapon_given_main = world;
+        }
+        else
+        {
+            ent.vr_weapon_given_off = world;
+        }
+        return FALSE;
+    }
+    return cvar_hget(cvarh_vr_weapon_grip_mode) != 1;
+}
+
+// (Engine, vr_scenario: a give placed the weapon in `xHand` of `p`.)
+void(entity p, float xHand) VR_Scene_HoldGiven =
+{
+    if(xHand == cVR_MainHand)
+    {
+        p.vr_weapon_given_main = VRGetEntWeaponInst(p, cVR_MainHand);
+    }
+    else
+    {
+        p.vr_weapon_given_off = VRGetEntWeaponInst(p, cVR_OffHand);
+    }
+}
+
 // Whether the weapon in `xHand` is let go of (to be thrown, holstered or switched to the other
 // hand): with vr_weapon_grip_mode 0 whenever its grip is not held; with 1 ("sticky") only once
 // the grip is let go a second time since the weapon came to the hand.
 float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
 {
+    if(VRWeaponLoadProtected(ent, xHand) || VRWeaponGivenHeld(ent, xHand))
+    {
+        return FALSE;
+    }
     float grabbing = VR_HandGrabUtil_IsHandGrabbing(ent, xHand);
     if(cvar_hget(cvarh_vr_weapon_grip_mode) != 1)
     {
@@ -6975,7 +5999,8 @@ float(float xHotspot) VRLetGoDropsAt =
 // a throw fires no last shot as the weapon leaves.
 float(entity ent, float xHand) VRWeaponLeavingHand =
 {
-    if(VRIsHandWeaponless(ent, xHand) || VR_HandGrabUtil_IsHandGrabbing(ent, xHand))
+    if(VRIsHandWeaponless(ent, xHand) || VR_HandGrabUtil_IsHandGrabbing(ent, xHand) || VRWeaponLoadProtected(ent, xHand) ||
+       VRWeaponGivenHeld(ent, xHand))
     {
         return FALSE;
     }
@@ -7094,6 +6119,17 @@ void(float xHand) VRWeightWrenchFrame =
     dprint(sprintf("weight drop: weapon %g wrenched out of hand %g\n", wid, xHand));
 };
 
+// A weapon too big for a holster (WeaponIdToHolsterable) let go at holster `xHotspot`: refused (a buzz, a word; counted
+// for the tests). The caller lets it fall.
+float vr_holster_refused; // (the tests)
+void(entity ent, float xHand, float xHotspot, float xWeapon, float xWeaponFlags) VRHolsterRefused =
+{
+    vr_holster_refused++;
+    sprint(ent, sprintf("The %s is too big for a holster.\n", WeaponNameOf(xWeapon, xWeaponFlags)));
+    VRHolsterHapticBuzz(ent, xHand, xHotspot);
+    dprint(sprintf("holster: weapon %g (flags %g) refused by holster %g: not holsterable\n", xWeapon, xWeaponFlags, xHotspot));
+};
+
 // `xHand`'s weapon into the empty holster `xHotspot` (immersive): its record with it (its magazine, its id); the hand
 // empty. (`self` is `ent`: the holster's getters are self's.)
 void(entity ent, float xHand, float xHotspot) VRHolsterHandWeapon =
@@ -7117,6 +6153,8 @@ void(entity ent, float xHand) VRSwitchWeaponHands =
     W_SetCurrentAmmo();
 };
 
+void(entity ent, float xHand, float hs, entity inst) VR_MagHolster_DrawSound; // (vr_magholster.qc)
+
 // The weapon in holster `xHotspot` drawn into the empty `xHand`: immersive, the holster's (its record with it: its
 // magazine, its id), the holster empty; a quick slot, a copy (WeaponInst_Clone), the holster keeping its own. (`self`
 // is `ent`: the holster's getters are self's.)
@@ -7125,6 +6163,7 @@ void(entity ent, float xHand, float xHotspot) VRDrawHolsterWeapon =
     float wid = getHolsterWeapon(xHotspot);
     entity holstered = VRGetEntHolsterWeaponInst(ent, xHotspot);
     VR_SoundVaried(ent, VRGetHandChannel(xHand), "weapons/holster0.wav", 1, ATTN_NORM);
+    VR_MagHolster_DrawSound(ent, xHand, xHotspot, holstered); // (bound: the chain heard too)
     VRSetEntWeapon(ent, xHand, wid);
     VRSetEntWeaponFlags(ent, xHand, getHolsterWeaponFlags(xHotspot));
     if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
@@ -7140,6 +6179,51 @@ void(entity ent, float xHand, float xHotspot) VRDrawHolsterWeapon =
         VRSetEntWeaponInst(ent, xHand, WeaponInst_Clone(holstered));
     }
     W_SetCurrentAmmoFor(xHand);
+};
+
+// `xHand` lets its weapon go at holster `xHotspot`: a weapon too big for a holster (WeaponIdToHolsterable: AD's hammer
+// and mace) is refused and falls, as anywhere (a quick slot keeps no copy); else, immersive, into the empty holster (the
+// hand empty), or a quick slot's copy. `xPrevGrabbing`: the hand held on until now (a full holster's buzz).
+void(entity ent, float xHand, float xHotspot, float xWeapon, float xWeaponFlags, float xPrevGrabbing) VRLetGoAtHolster =
+{
+    if(!WeaponIdToHolsterable(xWeapon, xWeaponFlags))
+    {
+        VRHolsterRefused(ent, xHand, xHotspot, xWeapon, xWeaponFlags);
+        if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
+        {
+            DropWeaponInHand(ent, xHand, xWeapon, xWeaponFlags);
+        }
+        return;
+    }
+    // In "immersive" mode, weapons can only be placed in an empty holster.
+    // Holstering a weapon frees your hand up.
+    if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
+    {
+        if(getHolsterWeapon(xHotspot) == WID_FIST)
+        {
+            VRHolsterHandWeapon(ent, xHand, xHotspot);
+        }
+        else if(xPrevGrabbing)
+        {
+            sprint(ent, VRGetHolsterName(xHotspot));
+            sprint(ent, " holster is not empty.\n");
+
+            VRHolsterHapticBuzz(ent, xHand, xHotspot);
+        }
+    }
+    // In "quick slot" mode, weapons can be placed in any holster.
+    // Holstering a weapon does not free your hand up.
+    else if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
+    {
+        if(getHolsterWeapon(xHotspot) != xWeapon)
+        {
+            // (its sound: VRPutWeaponInHolster's, from the hand)
+
+            // (The holster keeps a copy: the hand keeps its weapon.)
+            VRPutWeaponInHolster(ent, xHand, xHotspot, xWeapon, xWeaponFlags,
+                WeaponInst_Clone(VRGetEntWeaponInst(ent, xHand)));
+        }
+    }
 };
 
 void(entity ent, float xHand) VRWeaponLetGoDone =
@@ -7204,38 +6288,10 @@ void(entity ent, float xHand,
             // Otherwise it falls, or flies.
             DropWeaponInHand(ent, xHand, xWeapon, xWeaponFlags);
         }
-        // Put a weapon in a holster.
+        // Let go at a holster: into it, or refused (VRLetGoAtHolster).
         else if(isHolsterHotspot(xHotspot))
         {
-            // In "immersive" mode, weapons can only be placed in an empty holster.
-            // Holstering a weapon frees your hand up.
-            if(getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE)
-            {
-                if(getHolsterWeapon(xHotspot) == WID_FIST)
-                {
-                    VRHolsterHandWeapon(ent, xHand, xHotspot);
-                }
-                else if(handPrevGrabbing)
-                {
-                    sprint(ent, VRGetHolsterName(xHotspot));
-                    sprint(ent, " holster is not empty.\n");
-
-                    VRHolsterHapticBuzz(ent, xHand, xHotspot);
-                }
-            }
-            // In "quick slot" mode, weapons can be placed in any holster.
-            // Holstering a weapon does not free your hand up.
-            else if(getWeaponMode() == QVR_WEAPONMODE_CYCLEQUICKSLOT)
-            {
-                if(getHolsterWeapon(xHotspot) != xWeapon)
-                {
-                    // (its sound: VRPutWeaponInHolster's, from the hand)
-
-                    // (The holster keeps a copy: the hand keeps its weapon.)
-                    VRPutWeaponInHolster(ent, xHand, xHotspot, xWeapon, xWeaponFlags,
-                        WeaponInst_Clone(VRGetEntWeaponInst(ent, xHand)));
-                }
-            }
+            VRLetGoAtHolster(ent, xHand, xHotspot, xWeapon, xWeaponFlags, handPrevGrabbing);
         }
         // Swap weapon between hands.
         else if(xHotspot == QVR_HS_HAND_SWITCH)
@@ -7261,7 +6317,7 @@ void(entity ent, float xHand,
                 VRHolsterHaptic(ent, xHand, xHotspot);
             }
 
-            if(VRIsWeaponReloadingEnabledFor(ent, xHand) && isReloadHolsterHotspot(xHotspot) && !carried)
+            if(VRIsWeaponReloadingEnabledFor(ent, xHand) && isReloadHolsterHotspot(xHotspot, xWeapon, VRGetEntWeaponInst(ent, xHand)) && !carried)
             {
                 VRTryReloadWeapon(ent, xHand, xWeapon, xWeaponFlags);
             }
@@ -7326,6 +6382,8 @@ void(entity ent, float xHand,
     }
 }
 
+void() VR_MagHolster_Frame; // (vr_magholster.qc)
+
 void() W_Frame =
 {
     if(self.impulse)
@@ -7336,10 +6394,13 @@ void() W_Frame =
     VR_Carry_TwoHandFrame();
     VR_Carry_HandFrame(cVR_MainHand);
     VR_Carry_HandFrame(cVR_OffHand);
+    VR_Carry_ItemsFrame(); // (the hands carrying a thing to put away: their zones larger, STAT_QVR_CARRYITEM)
     VR_WallTorch_HandFrame(cVR_MainHand); // a torch gripped on its wall pulled out (vr_walltorch.qc)
     VR_WallTorch_HandFrame(cVR_OffHand);
+#ifdef QVR_TESTS
     VR_AI_TestFrame();
     VR_WallTorch_TestShot(); // vr_test_walltorch_shot: a wall torch shot off its wall (vr_walltorch.qc)
+#endif
     VR_HandGrenade_HandFrame(cVR_MainHand); // a grenade taken from the pouch at the small of the back (vr_grenade.qc)
     VR_HandGrenade_HandFrame(cVR_OffHand);
     VR_Reload_PlayerFrame(); // what the ammo pouch gives and shows (vr_reload.qc)
@@ -7364,6 +6425,8 @@ void() W_Frame =
                self.attack_finished, self.mainhand_hotspot, self.offhand_attack_finished);
 
     W_Frame_Forcegrab();
+
+    VR_MagHolster_Frame(); // magnetic holsters: binds, and the bound weapons' way home (vr_magholster.qc)
 }
 
 /*
@@ -7378,4 +6441,3 @@ void() SuperDamageSound =
 {
     VR_QuadSound(self, "a shot");
 };
-

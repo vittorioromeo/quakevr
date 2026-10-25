@@ -82,6 +82,10 @@ float NumProximityGrenades; // (Hipnotic's mines out: weapons.qc)
 
 float VR_GREN_FLYING = 150;     // u/s: faster, a grenade is in flight (caught within the palm's reach, never nudged);
                                 // slower, it lies or rolls (touched with the grip pressed, or nudged: the carry's rule)
+// The latest fuse end of any grenade (each fuse set raises it): past it no grenade is catchable (VR_Grenade_Catchable
+// needs a fuse burning), so VR_Grenade_CatchCheck skips its findradius, a walk of every entity, twice a frame (0.05-0.1 ms
+// a frame in Arcane Dimensions' big maps).
+float vr_gren_fuse_last;
 float VR_GREN_CATCH_AGE = 0.2;  // s after its throw a grenade can be caught (not as it leaves your hand or launcher)
 float VR_GREN_PALM = 1.5;       // units from the hand's point to the palm, the way the palm faces
 float VR_GREN_PALM_FACING = 0.2; // an open palm stops a grenade coming at it this square (cosine) or more: not edge-on
@@ -187,6 +191,7 @@ void(entity g, entity xBy, float xDelay, string xHow) VR_GrenShot_SetOff =
             VR_HandGrenade_GoLive(g);
         }
         g.vr_gren_fuse = time + xDelay; // (its tick: VR_Grenade_Think)
+        vr_gren_fuse_last = max(vr_gren_fuse_last, g.vr_gren_fuse);
         return;
     }
     g.vr_shot_boom = g.think; // (Quake's grenade: its think is its blast)
@@ -351,6 +356,7 @@ void(entity g, void() xBoom, float xFuse) VR_Grenade_Setup =
     g.vr_gren_boom = xBoom;
     g.vr_gren_boom0 = xBoom;
     g.vr_gren_fuse = time + xFuse;
+    vr_gren_fuse_last = max(vr_gren_fuse_last, g.vr_gren_fuse);
     g.vr_gren_made = time;
     g.vr_gren_thrower = g.owner;
 
@@ -383,6 +389,7 @@ void(entity g, void() xBoom, float xFuse, float xPlayers) VR_Grenade_Make =
         VR_Grenade_Setup(g, xBoom, xFuse);
     }
     VR_GrenShot_Make(g); // (caught or not, a shot sets it off: vr_grenade_shoot)
+    VR_Proj_Mark(g); // (a projectile: it meets a knocked-down body and goes off on it, as on one standing: weapons.qc)
 };
 
 // Lets go of the grenade `g` wherever it is held (it went off).
@@ -502,6 +509,7 @@ void() VR_Grenade_Touch =
     {
         // (It didn't go off: Honey's monsters only a weapon of their own hurts.)
         self.vr_gren_fuse = fuse;
+        vr_gren_fuse_last = max(vr_gren_fuse_last, self.vr_gren_fuse);
         self.vr_rigid = 1;
         self.flags = oldFlags;
         self.handtouch = VR_Carry_Handtouch;
@@ -529,6 +537,7 @@ void() VR_Grenade_Caught =
     {
         float fuse = min(5, max(1, cvar_hget(cvarh_vr_grenade_held_fuse)));
         self.vr_gren_fuse = max(self.vr_gren_fuse, time + fuse);
+        vr_gren_fuse_last = max(vr_gren_fuse_last, self.vr_gren_fuse);
         self.vr_gren_set = TRUE;
         dprint(sprintf("grenade: caught in hand %g, the fuse %.2f s -> %.2f s\n", hand, left, self.vr_gren_fuse - time));
     }
@@ -726,6 +735,10 @@ float(entity g) VR_Grenade_Catchable =
 // met by it (VR_Grenade_Meet), if the hand is empty and not striking. Swept, so a fast grenade doesn't skip the hand.
 void(float xHand, entity b) VR_Grenade_CatchCheck =
 {
+    if(time >= vr_gren_fuse_last) // (no fuse burning anywhere: nothing to catch)
+    {
+        return;
+    }
     if(!VR_Grenade_On(FALSE) || !VR_Grenade_HandCatches(xHand, b))
     {
         return;
@@ -1035,6 +1048,7 @@ void(entity g, float xHand, string xHow) VR_HandGrenade_Arm =
         return;
     }
     g.vr_gren_fuse = time + fuse;
+    vr_gren_fuse_last = max(vr_gren_fuse_last, g.vr_gren_fuse);
     g.vr_gren_set = TRUE; // (the pin set it: a catch doesn't, unless Fuse Resets Every Catch)
     g.vr_gren_lit = TRUE;
     g.vr_gren_ticknext = time + 0.15;

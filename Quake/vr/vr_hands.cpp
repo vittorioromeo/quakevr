@@ -4,14 +4,17 @@
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
 #include "vr_body.hpp"
+#include "vr_bodytrack.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_handpose.hpp"
 #include "vr_main.hpp"
 #include "vr_throw.hpp"
 #include "vr_timescale.hpp"
 #include "vr_torso.hpp"
 #include "vr_profile.hpp"
+#include "vr_seated.hpp"
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
 #include "vr_weapons.hpp"
@@ -36,6 +39,7 @@ namespace
 {
 
 State state;
+TrackingState seatedTracking; // seated (vr_seated.hpp): this frame's tracking raised
 int stateFrame = -1;
 
 // OpenXR tracking space (+x right, +y up, -z forward) to Quake (+x forward, +y left, +z up).
@@ -53,7 +57,6 @@ int stateFrame = -1;
     return anglesFromVectors(f, u);
 }
 
-[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles); // below
 
 // Quake axes (x forward, y left, z up) to OpenXR tracking space.
 [[nodiscard]] glm::vec3 trackingFromQuake(const glm::vec3& v)
@@ -128,7 +131,7 @@ struct Previous
     glm::vec3 handSpin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     float handSpinLag[2]{0.f, 0.f}; // seconds the spin is older than its sample: half the turn's interval (its middle)
     // The same of the controller's own orientation (timescale::controllerPose: the slowed hand's lags it), for the
-    // throw's direction in slow motion (vr_throw_slowmo_aim).
+    // throw's direction in slow motion (vr_throw.cpp strokeEstimate).
     glm::quat ownRot[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}};
     double ownRotTime[2]{-1.0, -1.0};
     glm::vec3 ownSpin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
@@ -182,6 +185,8 @@ struct LeanSense
 {
     bool valid{false};
     float standing{0.f};        // the head's standing height (metres), learnt while over the box and upright
+    bool standingSeen{false};   // ... taken from the head (not the Height setting it starts from)
+    float calibratedAt{0.f};    // the Height setting it was learnt with (a new one, measured standing, starts it over)
     float drop{0.f};            // how far below that it is, smoothed (a walk's bob evened out)
     glm::vec2 handsRef{0.f};    // the hands' middle off the box's middle (metres), learnt while the head is over it
     bool handsRefValid{false};
@@ -224,15 +229,32 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
     if(!ls.valid)
     {
         ls = LeanSense{};
-        ls.standing = height > 0.85f * calibrated ? height : calibrated;
         ls.valid = true;
+    }
+    // From the Height setting until the head is first high enough to be standing (not sitting down, the headset not on
+    // the desk), from the head then; a new Height (measured standing) starts it over. (It only sinks while the head is
+    // within 12 cm under it, so a start sitting down or a Height applied later left it at the old Height for good: the
+    // body, its legs fitted to it, crouched under the head; ROUND22.md, "Calibration audit".)
+    if(za::fabs(calibrated - ls.calibratedAt) > 0.005f)
+    {
+        ls.calibratedAt = calibrated;
+        ls.standing = calibrated;
+        ls.standingSeen = false;
+    }
+    if(!ls.standingSeen && height > 0.85f * calibrated)
+    {
+        ls.standing = height;
+        ls.standingSeen = true;
     }
 
     // The standing height: learnt while the head is over the box and not crouching, rising quickly (standing up
-    // straighter), sinking slowly (settling); kept while the head is off (a lean's drop is not forgotten).
+    // straighter) up to 8 cm over it, slowly further (a jump, tiptoes, the headset lifted off: a second of it took it
+    // over 12 cm above the head for good), sinking slowly (settling); kept while the head is off (a lean's drop is not
+    // forgotten).
     if(offLen < CENTRED && height > ls.standing - 0.12f)
     {
-        ls.standing += (height - ls.standing) * ease(height > ls.standing ? 0.4f : 4.f);
+        const bool quick = height > ls.standing && height < ls.standing + 0.08f;
+        ls.standing += (height - ls.standing) * ease(quick ? 0.4f : 4.f);
     }
     ls.standing = CLAMP(0.8f * calibrated, ls.standing, 1.25f * calibrated);
     ls.drop += (za::max(0.f, ls.standing - height) - ls.drop) * ease(0.15f);
@@ -284,8 +306,10 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
         ls.handsRefValid = false;
     }
 
-    // Weighed together (any one can tell), scaled by vr_lean_detect.
-    const float sure = 1.f - (1.f - dropCue) * (1.f - 0.85f * tiltCue) * (1.f - 0.7f * handsCue);
+    // Weighed together (any one can tell), scaled by vr_lean_detect; with body tracking, the tracked spine's tilt blended
+    // in (vr_bodytrack.cpp: a lean tilts it, a step or a neck bend does not).
+    const float sure =
+        bodytrack::leanSure(1.f - (1.f - dropCue) * (1.f - 0.85f * tiltCue) * (1.f - 0.7f * handsCue), off);
     const float target = CLAMP(0.f, sure * vr_lean_detect.value, 1.f);
     ls.hold += (target - ls.hold) * ease(target > ls.hold ? 0.08f : 0.35f);
 
@@ -529,32 +553,36 @@ void updateVelocities(const TrackingState* t)
         // the palm, where the object is held, not the controller point further out; and with the
         // controller alone, whatever the hand calibration (see throwFrame).
         const double time = t && t->time >= 0.0 ? t->time : vr_gametime;
-        glm::vec3 throwVel = state.vel[h];
-        glm::vec3 throwForward = forward(state.rot[h]);
-        glm::vec3 throwSpin = state.angVel[h];
-        float throwSpinLag = 0.f;
+        throwing::Motion drawn{state.pos[h], state.vel[h], state.angVel[h], forward(state.rot[h])};
         // The controller's own motion where the slowed hand lags it (slow motion: timescale::controllerPose), the same
-        // otherwise: the way a throw goes (vr_throw_slowmo_aim).
-        throwing::Motion own{state.pos[h], throwVel, throwSpin, throwForward};
+        // otherwise: the way a throw goes (vr_throw.cpp strokeEstimate).
+        throwing::Motion own = drawn;
         const Pose* ctrl = t ? timescale::controllerPose(h) : nullptr;
+        state.ownVel[h] = state.vel[h];
+        if(ctrl && ctrl->velocityValid)
+        {
+            const glm::vec3& off = calibratedOffset[h];
+            state.ownVel[h] = fromTracking(off == glm::vec3{0.f} ? ctrl->linearVelocity
+                                                                 : ctrl->linearVelocity + glm::cross(ctrl->angularVelocity, off));
+        }
         if(t && t->hands[h].velocityValid)
         {
             const Pose& p = t->hands[h];
-            throwVel = fromTracking(p.gripVelocityValid ? p.gripVelocity : p.linearVelocity);
-            throwForward = forward(anglesFromTracking(throwFrame(p.orientation, h), turnYaw));
+            drawn.vel = fromTracking(p.gripVelocityValid ? p.gripVelocity : p.linearVelocity);
+            drawn.forward = forward(anglesFromTracking(throwFrame(p.orientation, h), turnYaw));
             float spinLag = 0.f, ownSpinLag = 0.f;
             const glm::vec3 spin = poseSpin(h, p.orientation, time, spinLag);
             const glm::vec3 ownSpin = poseSpin(h, ctrl ? ctrl->orientation : p.orientation, time, ownSpinLag, true);
             if(vr_throw_spin_from_pose.value)
             {
-                throwSpin = fromTracking(spin);
+                drawn.angVel = fromTracking(spin);
             }
             else
             {
                 spinLag = ownSpinLag = 0.f; // the runtime's: of the sample's own time
             }
-            throwSpinLag = spinLag;
-            own = {state.pos[h], throwVel, throwSpin, throwForward, spinLag};
+            drawn.spinLag = spinLag;
+            own = drawn;
             if(ctrl && ctrl->velocityValid)
             {
                 own.pos = state.pos[h] + fromTracking(ctrl->position - p.position) * units::metresToUnits();
@@ -564,7 +592,7 @@ void updateVelocities(const TrackingState* t)
                 own.spinLag = ownSpinLag;
             }
         }
-        throwing::sample(h, time, {state.pos[h], throwVel, throwSpin, throwForward, throwSpinLag}, own);
+        throwing::sample(h, time, drawn, own);
     }
 
     previous.head = head;
@@ -615,7 +643,10 @@ void update()
         return;
     }
 
-    const TrackingState& t = tracking();
+    // Seated (vr_seated.hpp): the head and the hands raised, a standing player's; the eyes and the tracked body below too.
+    const bool raised = vrActive() && seated::raise(tracking(), seatedTracking);
+    const TrackingState& t = raised ? seatedTracking : tracking();
+    const float seatedLift = raised ? seated::lift() : 0.f;
     const entity_t& player = cl_entities[cl.viewentity];
     const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
     const float yaw = cl.viewangles[YAW];
@@ -682,6 +713,9 @@ void update()
             turnYaw = pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
         }
         state.turnYaw = turnYaw;
+        state.spaceOrigin = toWorld(glm::vec3{0.f});
+        // The tracked body, as the head and hands (seated: raised as they are, the floor under it lowered).
+        bodytrack::place(base, floorBelowHead - glm::vec3{0.f, seatedLift, 0.f}, turnYaw, m2u);
 
         state.head = toWorld(t.head.position);
         state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
@@ -690,7 +724,7 @@ void update()
         const FrameState& frame = frameState();
         for(int eye = 0; eye < 2; eye++)
         {
-            state.eyeOrigin[eye] = toWorld(frame.eyes[eye].pose.position);
+            state.eyeOrigin[eye] = toWorld(frame.eyes[eye].pose.position + glm::vec3{0.f, seatedLift, 0.f});
             state.eyeAngles[eye] = anglesFromTracking(frame.eyes[eye].pose.orientation, turnYaw);
         }
 
@@ -720,6 +754,7 @@ void update()
             state.wholeTurn[h] = glm::mat3{1.f};
             applyWholeOffset(h);
             state.unresolvedPos[h] = state.pos[h];
+            state.unresolvedRot[h] = state.rot[h];
         }
 
         handpose::resolvePositions(state, turnYaw);
@@ -741,6 +776,7 @@ void update()
 
         state.lean = glm::vec3{0.f};
         state.turnYaw = yaw;
+        state.spaceOrigin = state.playerOrigin;
         state.leanHold = 0.f;
         state.standingHeight = units::eyeHeight();
         state.head = state.playerOrigin + glm::vec3{0.f, 0.f, cl.viewheight};
@@ -748,11 +784,20 @@ void update()
         state.headHeight = vr_height_calibration.value;
 
         const glm::vec3 centre = state.playerOrigin + fwd * 16.5f + up * 15.5f;
-        state.pos[HAND_OFF] = centre - right * 5.5f;
-        state.pos[HAND_MAIN] = centre + right * 5.5f;
-        for(glm::vec3& rot : state.rot)
+        if(flatplay::active())
         {
-            rot = aim + glm::vec3{0.f, 0.f, vr_fakevr_handroll.value};
+            // -flatscreenmode: the hands posed from the view, the weapon in each hand and the player's own motion
+            // (vr_flatplay.cpp); the pose below is the old one, for a flat game started without the flag.
+            flatplay::poseHands(state, aim);
+        }
+        else
+        {
+            state.pos[HAND_OFF] = centre - right * 5.5f;
+            state.pos[HAND_MAIN] = centre + right * 5.5f;
+            for(glm::vec3& rot : state.rot)
+            {
+                rot = aim + glm::vec3{0.f, 0.f, vr_fakevr_handroll.value};
+            }
         }
         for(int h = 0; h < HAND_COUNT; h++)
         {
@@ -769,9 +814,10 @@ void update()
     updateVelocities(vrActive() ? &t : nullptr);
     flick::update(state);
 
-    // The torso's direction (vr_torso.cpp): the head's, pulled a little by the hands in front of it.
-    state.bodyYaw = vrActive() ? torso::estimate(state, headYawBlended(), turnYaw,
-                                                 t.hands[HAND_OFF].valid && t.hands[HAND_MAIN].valid)
+    // The torso's direction (vr_torso.cpp): the head's, pulled a little by the hands in front of it; with body tracking,
+    // the tracked hips' (vr_bodytrack.cpp).
+    state.bodyYaw = vrActive() ? bodytrack::bodyYaw(torso::estimate(state, headYawBlended(), turnYaw,
+                                                     t.hands[HAND_OFF].valid && t.hands[HAND_MAIN].valid))
                                : yaw;
 
     state.crouchRatio = state.headHeight > 0.f
@@ -781,6 +827,7 @@ void update()
     body::updateHotspots(state);
     twohand::updateHotspots(state); // a carried gun's handle
 
+    state.poseTime = t.time;
     state.valid = true;
 
     // Body drift's log (vr_debug_body_error): marked where the body is when turned on.
@@ -946,11 +993,28 @@ void resetClientState()
     stateFrame = -1;
 }
 
+void resetForPlayback()
+{
+    resetClientState();
+    lastHeadValid = false; // (the last take's head: not a step into this one)
+    torso::reset();
+    roomscaleMove = glm::vec3{0.f};
+    resetLean();
+}
+
 void setPlaySpaceYaw(float yaw)
 {
     turnYaw = za::remainder(yaw, 360.f);
     pendingYawValid = false;
     stateFrame = -1;
+}
+
+void relatch()
+{
+    const Previous keep = previous;
+    stateFrame = -1;
+    (void)current();
+    previous = keep;
 }
 
 void refresh()
@@ -1045,16 +1109,16 @@ glm::vec3 redirect(const glm::vec3& v, const glm::vec3& angles)
     return fwd * v.x + right * v.y + up * v.z;
 }
 
-namespace
-{
-
-// rot's axes (forward, left, up).
-[[nodiscard]] glm::mat3 basisOf(const glm::vec3& angles)
+// Quake angles' axes (forward, left, up).
+glm::mat3 basisOf(const glm::vec3& angles)
 {
     glm::vec3 f, r, u;
     angleVectors(angles, f, r, u);
     return glm::mat3{f, -r, u};
 }
+
+namespace
+{
 
 // A slot's Hand and Weapon Together offset, as for hand `h` (mirrored for the off hand); false if it has none.
 bool wholeValues(int slot, int h, glm::vec3& p, glm::vec3& a)

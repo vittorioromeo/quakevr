@@ -5,8 +5,9 @@
 // a box of any size is then swept against them as Quake 2 does (the tree walked with the box's extent, each solid
 // leaf's brush clipped), with Quake's trace results (startsolid, allsolid, the 1/32 unit back-off).
 //
-// Two ways of meeting the map with the narrow box (vr_hull_method): 0 that sweep; 1 a clipping hull compiled at load
-// for the width from the same brushes grown by the box (qbsp's way), traced by Quake's own SV_RecursiveHullCheck.
+// The moves meet the map with a clipping hull compiled at load for the width from the same brushes grown by the box
+// (qbsp's way), traced by Quake's own SV_RecursiveHullCheck (the sweep, as vr_hull_method 0, retired 2026-10-16: it
+// stays for the portals' clipping and vr_hull_bench).
 //
 // Only the player's own box (a client's move with a 32-wide box, the height kept at hull 1's 56) is narrowed: against
 // the world and every brush model (its submodels, external .bsp models) with vr_hull_width, and against other entities'
@@ -23,6 +24,7 @@ namespace qvr::hull
 
 // VR_Init: the vr_hull_stats and vr_hull_bench commands, the setting's callback.
 void init();
+void registerDiagCommands(); // the hull tests and benches (vr_hull_diag.cpp)
 
 // The map load's builds on the game's thread pool, made while the server spawns the map: VR_OnSpawnServerBeforeLoad
 // starts the map as brushes and the player's compiled hull, VR_OnEntitySpawned each monster width's hull as the first
@@ -53,8 +55,6 @@ void afterLoad();
 // A player's box as a body moving into it (mover; null: none) meets it: true if narrowed, filled in.
 [[nodiscard]] bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float* boxMaxs);
 
-// A player's box as a shot, a missile or another point-sized move meets it (vr_hull_hit_width): true if narrowed, filled
-// in. Monsters' melee, splash damage and their sight don't use it (distances and nomonsters traces).
 // A monster's corners for SV_CheckBottom (vr_mhull_ledges): absMins..absMaxs narrowed to its width; true if narrowed.
 [[nodiscard]] bool footprint(const edict_t* ent, float* absMins, float* absMaxs);
 
@@ -62,7 +62,7 @@ void afterLoad();
 // up to the top of his head (vr_hull_hit_head). True if changed.
 [[nodiscard]] bool hitBox(const edict_t* touch, float* boxMins, float* boxMaxs, bool projectile);
 
-// SV_ClipMoveToEntity for a SOLID_BSP entity with moveBox's box (vr_hull_method's way): false if not a brush model, or
+// SV_ClipMoveToEntity for a SOLID_BSP entity with moveBox's box (the compiled hull): false if not a brush model, or
 // a brush model other than the world with vr_hull_brushmodels off: Quake's hull is used.
 [[nodiscard]] bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const float* boxMaxs,
     const float* end, trace_t& trace);
@@ -77,6 +77,10 @@ void afterLoad();
 void updateCrouch(edict_t* ent, const glm::vec3& head);
 // Whether a client has his crouched box (the box moveBox, entBox, touchBox and hitBox give him).
 [[nodiscard]] bool isCrouched(const edict_t* ent);
+// SV_AirMove (vr_crouch_speed): the stick's most speed `maxspeed` for a client crouched (his eyes from updateCrouch under
+// the tallest crouched box's top: down to vr_crouch_speed_scale of it 8 units under, never over 90% of the stealth AI's
+// footsteps' speed, vr_stealth_run_speed), eased in and out over 0.25 s (one call a server frame); as it is standing.
+[[nodiscard]] float crouchSpeedMax(edict_t* ent, float maxspeed);
 
 // VR_ClientPreMove: vr_hull_walktest's random walk drives the first player (a test aid; nothing when not running).
 void walkTestFrame(edict_t* ent);

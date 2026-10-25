@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_stealth_test2.qc -- the stealth AI's further scenes (`vr_stealth_test <n>` for n 100 and up; vr_stealth_test.qc
 // starts them; docs/vr-port/STEALTH.md, "Tests"; Misc/quakevr/stealth_tests.sh runs them). They put their own
 // monsters down (the firing range dispenser's) and take them away after, each printing `stealthtest: <name> PASS|FAIL`.
@@ -234,6 +235,7 @@ float(float xWeapon) VR_STT2_GunReach =
     if(xWeapon == WID_SHOTGUN) { return 1100; }
     if(xWeapon == WID_SUPER_SHOTGUN) { return 1300; }
     if(xWeapon == WID_NAILGUN) { return 800; }
+    if(xWeapon == WID_NAILPISTOL) { return 700; }
     if(xWeapon == WID_SUPER_NAILGUN) { return 900; }
     if(xWeapon == WID_GRENADE_LAUNCHER || xWeapon == WID_PROXIMITY_GUN) { return 600; }
     if(xWeapon == WID_ROCKET_LAUNCHER || xWeapon == WID_LIGHTNING || xWeapon == WID_LASER_CANNON) { return 900; }
@@ -1043,3 +1045,4 @@ void() VR_STT2_Frame =
         return;
     }
 };
+#endif

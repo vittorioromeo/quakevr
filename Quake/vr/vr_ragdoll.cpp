@@ -3,11 +3,13 @@
 // joints are vr_box3d.cpp's ("Ragdolls"); ROUND21.md, "Ragdolls".
 
 #include "vr_modelmetadata.hpp"
-#include "vr_ragdoll.hpp"
+#include "vr_ragdoll_internal.hpp"
+#include "vr_tracy.h"
 #include "vr_api_render.h"
 #include "vr_cvars.hpp"
 #include "vr_box3d.hpp"
 #include "vr_decals.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
@@ -29,6 +31,7 @@
 #include <cstring>
 
 using namespace qvr;
+using namespace qvr::ragdoll::detail;
 
 namespace qvr::ragdoll
 {
@@ -54,7 +57,6 @@ using ragdoll::Joint;
 using ragdoll::Rig;
 using ragdoll::maxBones;
 
-constexpr float deg = 0.017453292f;
 // A loose piece no bigger than this (units, its largest side) in the rest pose is a speck tucked away, hidden in the
 // ragdoll (derive; the zombie's and the mummy's flesh 1.2-1.4, a weapon 25 or more).
 constexpr float looseSpeck = 4.f;
@@ -99,6 +101,11 @@ struct SeedTable
                              // so alike that the motion clusters mix them (rig.py's "wholepieces", "pN")
     bool looseWeapons{false}; // every piece but the body loose (one loose bone, hidden in the ragdoll: Rig::hideLoose):
                               // the player's axe and gun, in his hands or on his back by the frame (rig.py LOOSE_PIECES)
+    bool loosePerPiece{false}; // each loose piece a loose bone of its own (not one for them all): the death fury's two
+                               // swords, one in each hand, each welded to its own hand when knocked down
+    bool looseKept{false}; // every piece but the body loose though no frame hides it: drawn and held (welded in its hand)
+                           // while it lives, gone from its dead ragdoll (the zombie knight's blade: it drops it, and its
+                           // falls are its knockdown's, no death frames to hide it in)
 };
 
 // Quake VR's grunt (quakevr/progs/soldier.mdl: 555 vertices, 120 frames). The rest pose: x forward, y left, z up; he
@@ -163,7 +170,10 @@ constexpr Seed ogreSeeds[] = {
 // Quake VR's enforcer (quakevr/progs/enforcer.mdl: 479 vertices, 108 frames). The rest pose ($stand1): x forward, y left,
 // z up; upright, his laser rifle in both hands before him, a pack on his back (on his chest bone). As the grunt's, his
 // legs' long triangles have no vertices of their own: a thigh's bone is its knee's ring, a shin's its boot. Measured on
-// his frames (Misc/quakevr/ragdoll/rig.py enforcer enforcer_bones.json): 0.97 units rms. His rifle is collapsed in his
+// his frames (Misc/quakevr/ragdoll/rig.py enforcer enforcer_bones.json): 0.97 units rms. His knees (rig.py's 'knee') at
+// the ring's lower edge the shin's triangles hang from, z -11.6 (the motions' fit put them at the boot's top, -18: his
+// shin stretches 8-12.6 units in his frames, so his ragdoll bent at the ankle); his shins down to the ankle, a hinge
+// across him (keepHinge: they lean back and out a little at rest). His rifle is collapsed in his
 // death frames (he drops it: vr_monstermods.cpp, vr_enemyguns.qc): the loose bone, hidden.
 // Death frames 41-54 ($death1-14) and 55-65 ($fdeath1-11).
 constexpr Seed enforcerSeeds[] = {
@@ -174,10 +184,10 @@ constexpr Seed enforcerSeeds[] = {
     {"forearm_l", 3, Joint::Hinge, {2.2f, 13.3f, 13.3f}, {-5.1f, 13.7f, 14.5f}, {9.6f, 12.8f, 12.1f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"upperarm_r", 1, Joint::Ball, {-4.3f, -14.6f, 19.4f}, {-6.2f, -11.3f, 21.8f}, {-1.6f, -17.8f, 15.2f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {2.f, -11.4f, 13.f}, {-1.6f, -17.8f, 15.2f}, {5.7f, -5.1f, 10.7f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
-    {"thigh_l", 0, Joint::Ball, {-2.4f, 5.8f, -9.2f}, {-4.f, 4.5f, -3.5f}, {-4.7f, 6.4f, -18.6f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 7, Joint::Hinge, {-3.3f, 8.f, -22.3f}, {-4.7f, 6.4f, -18.6f}, {-3.6f, 7.7f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
-    {"thigh_r", 0, Joint::Ball, {-3.f, -7.3f, -9.3f}, {-3.1f, -7.8f, -3.7f}, {-6.8f, -7.6f, -17.6f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 9, Joint::Hinge, {-4.6f, -9.6f, -22.3f}, {-6.8f, -7.6f, -17.6f}, {-5.f, -9.2f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {-2.4f, 5.8f, -9.2f}, {-4.f, 4.5f, -3.5f}, {-3.8f, 6.7f, -11.6f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {-3.3f, 8.f, -22.3f}, {-3.8f, 6.7f, -11.6f}, {-6.6f, 7.4f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_r", 0, Joint::Ball, {-3.f, -7.3f, -9.3f}, {-3.1f, -7.8f, -3.7f}, {-4.4f, -8.3f, -11.5f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-4.6f, -9.6f, -22.3f}, {-4.4f, -8.3f, -11.5f}, {-7.8f, -8.8f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
 };
 
 // Quake VR's hell knight, the death knight (quakevr/progs/hknight.mdl: 538 vertices, 167 frames). The rest pose
@@ -252,7 +262,8 @@ constexpr Seed wizardSeeds[] = {
 // Quake VR's zombie (quakevr/progs/zombie.mdl: 481 vertices, 199 frames). The rest pose ($stand1): x forward, y left, z up;
 // upright, his arms hanging at his sides, his left leg forward. His ragdoll is made only when he is beheaded (he is gibbed
 // otherwise), from any frame. Measured on his frames (Misc/quakevr/ragdoll/rig.py zombie zombie_bones.json): clusters 0.62
-// units rms, bones 0.79. The flesh he throws is a piece collapsed in some frames: the loose bone, hidden. No death frames:
+// units rms, bones 0.79. His knees as the enforcer's (rig.py's 'knee': the knee ring's lower edge, z -13.4 and -14.1, not
+// the boot's top; keepHinge). The flesh he throws is a piece collapsed in some frames: the loose bone, hidden. No death frames:
 // his falls stand in (their poses' occlusion, Go Limp At), painb1-14 (103-116) and paine1-17 (162-178).
 constexpr Seed zombieSeeds[] = {
     {"pelvis", -1, Joint::Root, {0.f, 0.2f, 4.1f}, {0.f, 0.2f, 4.1f}, {-0.6f, -0.3f, 8.2f}, 0.f, 0.f, 0.f, 0.f, {}},
@@ -262,10 +273,10 @@ constexpr Seed zombieSeeds[] = {
     {"forearm_l", 3, Joint::Hinge, {1.f, 8.1f, 0.f}, {0.5f, 7.5f, 6.9f}, {1.6f, 8.7f, -6.8f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"upperarm_r", 1, Joint::Ball, {-2.5f, -6.5f, 12.2f}, {-2.6f, -5.9f, 18.5f}, {-2.6f, -6.6f, 5.9f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {-2.4f, -6.9f, -2.1f}, {-2.6f, -6.6f, 5.9f}, {-2.3f, -7.2f, -10.2f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
-    {"thigh_l", 0, Joint::Ball, {4.1f, 5.2f, -10.f}, {4.9f, 4.7f, -6.4f}, {3.9f, 6.7f, -19.1f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 7, Joint::Hinge, {5.6f, 6.6f, -21.2f}, {3.9f, 6.7f, -19.1f}, {5.6f, 6.6f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
-    {"thigh_r", 0, Joint::Ball, {-2.4f, -4.6f, -11.3f}, {-0.1f, -2.2f, -5.f}, {-5.8f, -3.6f, -18.5f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 9, Joint::Hinge, {-4.8f, -5.7f, -21.3f}, {-5.8f, -3.6f, -18.5f}, {-4.8f, -5.7f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {4.1f, 5.2f, -10.f}, {4.9f, 4.7f, -6.4f}, {4.4f, 5.6f, -13.4f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {5.6f, 6.6f, -21.2f}, {4.4f, 5.6f, -13.4f}, {2.4f, 6.6f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_r", 0, Joint::Ball, {-2.4f, -4.6f, -11.3f}, {-0.1f, -2.2f, -5.f}, {-3.7f, -4.8f, -14.1f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-4.8f, -5.7f, -21.3f}, {-3.7f, -4.8f, -14.1f}, {-8.4f, -5.4f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}, true},
 };
 
 // Quake VR's fiend (quakevr/progs/demon.mdl: 1095 vertices, 69 frames). The rest pose ($stand1): x forward, y left, z up;
@@ -341,7 +352,11 @@ constexpr Seed gremSeeds[] = {
 // and forearms (elbow hinges), thighs (the knee's ring) and shins (knee hinges). His ragdoll is made only when he is
 // beheaded (his death gibs him otherwise: mummy_die). Measured on his frames (Misc/quakevr/ragdoll/rig.py mummy
 // mummy_bones.json, RIG_PAK: Rogue's pak0): clusters 0.52 units rms, bones 0.72. The flesh he throws is the loose bone,
-// hidden. No death frames: his falls stand in, painb1-14 (103-116) and paine1-17 (162-178), as the zombie's.
+// hidden. No death frames: his falls stand in, painb1-14 (103-116) and paine1-17 (162-178), as the zombie's. His knees as
+// the enforcer's (rig.py's 'knee': the ring's lower edge, z -9.7 and -11.1, not the boot's top, -20; keepHinge). His
+// hips (the motions' fit) sit low and in front of the ring, so the thigh's line leans back past the shin's: at rest it
+// bends 12-20 degrees forward, though the leg he shows (the long triangles from his pelvis) bends 12-20 back. So the
+// knee straightens no further than his stand, and flex 118 folds it to 150 degrees as seen (150 would be 182).
 constexpr Seed mummySeeds[] = {
     {"pelvis", -1, Joint::Root, {-0.2f, 0.2f, 9.3f}, {-0.2f, 0.2f, 9.3f}, {-0.9f, -0.2f, 13.4f}, 0.f, 0.f, 0.f, 0.f, {}},
     {"chest", 0, Joint::Ball, {-1.3f, 0.4f, 21.7f}, {-0.9f, -0.2f, 13.4f}, {-2.5f, 0.9f, 29.1f}, 0.f, 35.f, 25.f, 0.f, {}},
@@ -350,13 +365,15 @@ constexpr Seed mummySeeds[] = {
     {"forearm_l", 3, Joint::Hinge, {1.f, 9.2f, 6.2f}, {0.5f, 8.6f, 14.1f}, {1.4f, 9.9f, -1.6f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"upperarm_r", 1, Joint::Ball, {-2.9f, -7.4f, 19.5f}, {-2.8f, -6.9f, 25.9f}, {-2.9f, -7.5f, 13.f}, 0.f, 85.f, 45.f, 0.f, {}},
     {"forearm_r", 5, Joint::Hinge, {-2.9f, -7.8f, 4.1f}, {-2.9f, -7.5f, 13.f}, {-3.f, -8.1f, -4.8f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
-    {"thigh_l", 0, Joint::Ball, {5.3f, 6.4f, -8.6f}, {6.2f, 7.1f, -5.7f}, {4.3f, 9.3f, -20.f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 7, Joint::Hinge, {7.7f, 8.f, -22.7f}, {4.3f, 9.3f, -20.f}, {6.f, 8.6f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
-    {"thigh_r", 0, Joint::Ball, {-2.9f, -5.7f, -10.2f}, {1.f, -3.7f, -6.4f}, {-8.5f, -5.2f, -20.2f}, 3.2f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 9, Joint::Hinge, {-5.1f, -7.1f, -22.7f}, {-8.5f, -5.2f, -20.2f}, {-6.8f, -6.2f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {5.3f, 6.4f, -8.6f}, {6.2f, 7.1f, -5.7f}, {5.2f, 6.6f, -9.7f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {7.7f, 8.f, -22.7f}, {5.2f, 6.6f, -9.7f}, {4.8f, 8.1f, -21.4f}, 2.8f, 0.f, 0.f, 118.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_r", 0, Joint::Ball, {-2.9f, -5.7f, -10.2f}, {1.f, -3.7f, -6.4f}, {-3.4f, -5.8f, -11.1f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-5.1f, -7.1f, -22.7f}, {-3.4f, -5.8f, -11.1f}, {-7.8f, -6.8f, -21.4f}, 2.8f, 0.f, 0.f, 118.f, {0.f, 1.f, 0.f}, true},
 };
 
-// The vore (Quake VR's progs/shalrath.mdl, its own: 371 vertices, 36 frames). The rest pose ($attack1, the model's stand1):
+// The vore (Quake VR's progs/shalrath.mdl, its own: 371 vertices, 36 frames; 43 with its shove's, posed by these bones:
+// Misc/quakevr/make_voreshove.py, every bone fitting them; clusters and bones then 1.18 units rms, the head's cluster
+// changed: unfit in its attack poses, vr_anim_smooth_info shalrath 1). The rest pose ($attack1, the model's stand1):
 // x forward, y left, z up; upright on three legs (two forward and out, one back), his arms out wide. Pelvis (the round
 // belly the legs meet), chest, head, jaw (his two hanging tendrils, meshes of their own: on the head, they go with it when
 // it's cut off), upper arms and forearms (elbow hinges folding forward), and each leg a thigh (ball) and a shin (knee
@@ -523,11 +540,21 @@ constexpr Seed playerSeeds[] = {
     {"shin_r", 9, Joint::Hinge, {-22.4f, -4.5f, -16.3f}, {-19.4f, -4.7f, -11.9f}, {-24.6f, -4.4f, -19.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+#define QVR_AD_RIG_SEEDS
+#include "vr_ad_rigs.inc" // AD support: Arcane Dimensions' monsters' seeds
+#undef QVR_AD_RIG_SEEDS
+
 constexpr SeedTable seedTables[] = {
+#include "vr_ad_rigs.inc" // AD support: their tables
     {modelmeta::Id::Soldier, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
+    // The armed grunt (QC vr_armedgrunt.qc, vr_armedmon.qc): the grunt's model without its gun's triangles (its vertices kept: the same
+    // numbering, frames and rig).
+    {modelmeta::Id::VrGrunt, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {modelmeta::Id::Knight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
     {modelmeta::Id::Ogre, 497, ogreSeeds, static_cast<int>(sizeof(ogreSeeds) / sizeof(ogreSeeds[0])), 2, {112, 126}, {125, 135}},
     {modelmeta::Id::Enforcer, 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
+    // The armed enforcer (QC vr_armedmon.qc): the enforcer's model without its rifle's triangles (as the armed grunt).
+    {modelmeta::Id::VrEnforcer, 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
     {modelmeta::Id::Hknight, 538, hknightSeeds, static_cast<int>(sizeof(hknightSeeds) / sizeof(hknightSeeds[0])), 2, {42, 54}, {53, 62}},
     {modelmeta::Id::Dog, 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
     {modelmeta::Id::Wizard, 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
@@ -915,6 +942,52 @@ float refine(const Mesh& m, const za::Vector<int>& reps, za::Vector<int>& label,
     return za::sqrt(total / static_cast<float>(za::max<za::SizeT>(reps.size(), 1) * static_cast<za::SizeT>(m.np)));
 }
 
+// derive's bones no motion cluster went to: each one its parent's vertices (labelled) past its pivot, on the side away
+// from the parent's pivot, when that leaves both 3 or more (else it stays empty: no ragdoll).
+void adoptPastPivot(const Mesh& m, const za::Vector<int>& moving, const SeedTable& table, za::Vector<int>& label)
+{
+    za::Vector<int> count(static_cast<za::SizeT>(table.count), 0);
+    for(const int v : moving)
+    {
+        const int l = label[static_cast<za::SizeT>(v)];
+        count[static_cast<za::SizeT>(l)] += l >= 0 && l < table.count ? 1 : 0;
+    }
+    for(int b = 0; b < table.count; b++)
+    {
+        const Seed& s = table.seeds[b];
+        if(count[static_cast<za::SizeT>(b)] > 0 || s.parent < 0)
+        {
+            continue;
+        }
+        const glm::vec3 axis = s.pivot - table.seeds[s.parent].pivot;
+        if(glm::dot(axis, axis) < 1e-6f)
+        {
+            continue;
+        }
+        const auto past = [&](int v) {
+            return label[static_cast<za::SizeT>(v)] == s.parent && glm::dot(m.at(0, v) - s.pivot, axis) > 0.f;
+        };
+        int n = 0;
+        for(const int v : moving)
+        {
+            n += past(v) ? 1 : 0;
+        }
+        if(n < 3 || count[static_cast<za::SizeT>(s.parent)] - n < 3)
+        {
+            continue;
+        }
+        for(const int v : moving)
+        {
+            if(past(v))
+            {
+                label[static_cast<za::SizeT>(v)] = b;
+            }
+        }
+        count[static_cast<za::SizeT>(s.parent)] -= n;
+        count[static_cast<za::SizeT>(b)] += n;
+    }
+}
+
 // What derive has to say, said by the main thread after it (the rigs are made on the pool: warmRigs).
 struct DeriveLog
 {
@@ -1029,12 +1102,16 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
             }
             hidden = za::max(hi.x - lo.x, za::max(hi.y - lo.y, hi.z - lo.z)) < 0.5f;
         }
-        if(hidden || table.looseWeapons)
+        if(hidden || table.looseWeapons || table.looseKept)
         {
             isLoose[static_cast<za::SizeT>(id)] = 1;
             loosePieces.pushBack(id);
         }
     }
+
+    // The loose bones: one for them all, or one each (loosePerPiece; never past maxBones).
+    const int looseBones = loosePieces.empty() ? 0
+                           : table.loosePerPiece ? za::min(static_cast<int>(loosePieces.size()), maxBones - table.count) : 1;
 
     // The motion clusters: the farthest trajectories as the first centres, then each representative to its nearest
     // centre, then refined by the clusters' rigid motion.
@@ -1170,11 +1247,24 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     {
         if(isLoose[static_cast<za::SizeT>(piece[static_cast<za::SizeT>(v)])])
         {
-            label[static_cast<za::SizeT>(v)] = table.count;
+            // (Its own loose bone with loosePerPiece: the pieces in their order, the last ones sharing the last bone.)
+            int k = 0;
+            if(table.loosePerPiece)
+            {
+                while(k < static_cast<int>(loosePieces.size()) && loosePieces[static_cast<za::SizeT>(k)] != piece[static_cast<za::SizeT>(v)])
+                {
+                    k++;
+                }
+            }
+            label[static_cast<za::SizeT>(v)] = table.count + za::min(k, looseBones - 1);
         }
     }
+    // A bone no cluster went to (its seed's middle in the weapon its hand held when the table was measured, the weapon
+    // since loose: the hunter ogres' and the death guard's hands, the death knight's sword hand): its parent's
+    // vertices past its pivot (away from the parent's), the motions' refining then moving the boundary.
+    adoptPastPivot(m, moving, table, label);
     rig.boneRms = refine(m, moving, label, table.count, 40, t);
-    const int numBones = table.count + (loosePieces.empty() ? 0 : 1);
+    const int numBones = table.count + looseBones;
     for(int b = 0; b < table.count; b++)
     {
         if(t.members[static_cast<za::SizeT>(b)] < 3)
@@ -1311,6 +1401,7 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     }
     const SeedTable& tb = table;
     rig.hideLoose = tb.looseWeapons;
+    rig.looseInHands = tb.loosePerPiece || tb.looseKept;
     // A loose piece tucked away in the rest pose (the zombie's and the mummy's flesh, shrunk inside the chest until he
     // throws it): its ragdoll part would be that speck (a part is its rest pose's hull), its 3 kg in a fraction of a
     // unit, welded in a knocked-down one's chest (vr_knockdown_weld) 166 times denser than the body and whirling
@@ -1341,6 +1432,216 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     q_snprintf(log.text, sizeof(log.text), "ragdoll: %s rigged: %d bones (%d loose), clusters %.2f, bones %.2f units rms, %.1f ms\n",
         model->name, numBones, static_cast<int>(loosePieces.size()), rig.clusterRms, rig.boneRms, rig.deriveMs);
     return true;
+}
+
+// ----------------------------------------------------------------------------
+// The rigs kept on disk (vr_ragdoll_rig_cache; vr_diskcache.hpp, cache/rigs): a map's monsters' rigs read back
+// instead of derived (tens of ms each, at every map load of every session). BUMP rigVersion whenever derive, loadMesh,
+// their constants or a seed table (vr_ad_rigs.inc's too) change. vr_ragdoll_rig_cache 2 derives anyway and compares.
+// The key: all derive reads of the model (its vertices in every pose, scale and origin, its triangles' vertices) and
+// which seed table it is.
+
+constexpr unsigned rigVersion = 5; // (2: the enforcer's and the zombie's knees; 3: the mummy's, AD's enforcers' and zombie's;
+                                   // 5: the death fury's two loose swords, the zombie knight's kept blade, in their hands)
+const za::String rigBuild = [] {
+    const unsigned parts[] = {rigVersion, static_cast<unsigned>(maxBones), static_cast<unsigned>(sizeof(seedTables) / sizeof(seedTables[0]))};
+    return qvr::diskcache::buildOf(parts, sizeof(parts) / sizeof(parts[0]));
+}();
+constexpr char rigMagic[5] = "QVRR";
+
+// A rig derived to be written (by the main thread: writeRig).
+struct RigFile
+{
+    unsigned long long key{0};
+    za::Vector<char> bytes;
+};
+
+[[nodiscard]] unsigned long long rigKey(const aliashdr_t* hdr, const SeedTable& table)
+{
+    using qvr::diskcache::fnv;
+    const int ints[6] = {static_cast<int>(&table - seedTables), table.numVerts, table.count, hdr->numverts, hdr->numposes,
+        hdr->numindexes};
+    unsigned long long h = fnv(qvr::diskcache::fnvStart, ints, sizeof(ints));
+    h = fnv(h, hdr->scale, sizeof(hdr->scale));
+    h = fnv(h, hdr->scale_origin, sizeof(hdr->scale_origin));
+    h = fnv(h, reinterpret_cast<const byte*>(hdr) + hdr->vertexes,
+        static_cast<size_t>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+    const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+    for(int i = 0; i < hdr->numindexes; i++)
+    {
+        const unsigned short v = idx[i] < hdr->numverts_vbo ? desc[idx[i]].vertindex : 0xffffu;
+        h = fnv(h, &v, sizeof(v));
+    }
+    return h;
+}
+
+// A rig's bytes (RigOut) or read back (RigIn): every field but model and deriveMs, in one order.
+struct RigOut
+{
+    za::Vector<char>& b;
+    template <typename T>
+    void pod(const T& v)
+    {
+        const za::SizeT at = b.size();
+        b.resize(at + sizeof(T));
+        memcpy(b.data() + at, &v, sizeof(T));
+    }
+    template <typename T>
+    void vec(const za::Vector<T>& v)
+    {
+        const za::U32 n = static_cast<za::U32>(v.size());
+        pod(n);
+        const za::SizeT at = b.size();
+        b.resize(at + n * sizeof(T));
+        if(n)
+        {
+            memcpy(b.data() + at, v.data(), n * sizeof(T));
+        }
+    }
+};
+
+struct RigIn
+{
+    const char* p;
+    const char* end;
+    bool ok{true};
+    template <typename T>
+    void pod(T& v)
+    {
+        if(!ok || static_cast<size_t>(end - p) < sizeof(T))
+        {
+            ok = false;
+            return;
+        }
+        memcpy(&v, p, sizeof(T));
+        p += sizeof(T);
+    }
+    template <typename T>
+    void vec(za::Vector<T>& v)
+    {
+        za::U32 n = 0;
+        pod(n);
+        if(!ok || n > static_cast<size_t>(end - p) / sizeof(T))
+        {
+            ok = false;
+            return;
+        }
+        v.resize(n);
+        if(n)
+        {
+            memcpy(v.data(), p, n * sizeof(T));
+        }
+        p += n * sizeof(T);
+    }
+};
+
+template <typename S>
+bool rigFields(S& s, Rig& r)
+{
+    s.pod(r.numBones);
+    if(r.numBones < 0 || r.numBones > maxBones)
+    {
+        return false;
+    }
+    for(int i = 0; i < r.numBones; i++)
+    {
+        Bone& b = r.bones[i];
+        s.pod(b.name);
+        s.pod(b.role);
+        s.pod(b.parent);
+        s.pod(b.joint);
+        s.pod(b.pivot);
+        s.pod(b.end);
+        s.pod(b.hinge);
+        s.pod(b.cone);
+        s.pod(b.twist);
+        s.pod(b.lower);
+        s.pod(b.upper);
+        s.pod(b.capsule);
+        s.vec(b.points);
+    }
+    s.pod(r.numVerts);
+    s.vec(r.vertBone);
+    s.vec(r.triBones);
+    s.pod(r.numPoses);
+    s.vec(r.poseRot);
+    s.vec(r.posePos);
+    s.vec(r.poseHidden);
+    s.pod(r.head);
+    s.pod(r.deaths);
+    s.pod(r.deathFirst);
+    s.pod(r.deathLast);
+    s.pod(r.hideLoose);
+    s.pod(r.looseInHands);
+    s.pod(r.clusterRms);
+    s.pod(r.boneRms);
+    return true;
+}
+
+// derive, or its rig read from the disk (vr_ragdoll_rig_cache; any thread). One derived to be kept goes into `file`.
+bool deriveCached(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig& rig, DeriveLog& log, RigFile& file)
+{
+    using qvr::diskcache::Product;
+    const int mode = qvr::diskcache::modeOf(Product::Rigs);
+    if(!mode || !hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || hdr->numverts != table.numVerts)
+    {
+        return derive(model, hdr, table, rig, log); // (its own checks, its own message)
+    }
+    const double t0 = Sys_DoubleTime();
+    const unsigned long long key = rigKey(hdr, table);
+    unsigned a = 0, b = 0;
+    za::Vector<char> data;
+    Rig fromFile;
+    bool read = qvr::diskcache::read(Product::Rigs, rigBuild.cStr(), key, "rig", rigMagic, a, b, data, model->name);
+    if(read)
+    {
+        RigIn in{data.data(), data.data() + data.size()};
+        read = rigFields(in, fromFile) && in.ok && in.p == in.end && fromFile.numVerts == hdr->numverts;
+        if(!read)
+        {
+            qvr::diskcache::noteRejected(Product::Rigs);
+        }
+    }
+    if(read && mode == 1)
+    {
+        rig = ZA_MOVE(fromFile);
+        rig.model = model;
+        rig.deriveMs = (Sys_DoubleTime() - t0) * 1000.0;
+        q_snprintf(log.text, sizeof(log.text), "ragdoll: %s rigged: %d bones, read from the cache, %.1f ms\n", model->name,
+            rig.numBones, rig.deriveMs);
+        return true;
+    }
+    if(!derive(model, hdr, table, rig, log))
+    {
+        return false;
+    }
+    za::Vector<char> bytes;
+    RigOut out{bytes};
+    (void)rigFields(out, rig);
+    if(read)
+    {
+        za::Vector<char> before;
+        RigOut old{before};
+        (void)rigFields(old, fromFile);
+        qvr::diskcache::noteChecked(Product::Rigs, before.size() == bytes.size() && !memcmp(before.data(), bytes.data(), bytes.size()),
+            model->name);
+        return true;
+    }
+    file.key = key;
+    file.bytes = ZA_MOVE(bytes);
+    return true;
+}
+
+// The main thread: a rig deriveCached left to keep, written on the pool.
+void writeRig(RigFile& file)
+{
+    if(!file.bytes.empty())
+    {
+        qvr::diskcache::write(qvr::diskcache::Product::Rigs, rigBuild.cStr(), file.key, "rig", rigMagic, 0, 0,
+            file.bytes.data(), file.bytes.size());
+        file.bytes.clear();
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -1375,65 +1676,6 @@ constexpr const char* skinnedSuffix = "#rag";
 constexpr float teleport = 100.f; // units a part moves in a step: a jump, not lerped (CL_RelinkEntities')
 constexpr float heldLeadMost = 24.f; // units: the most a held ragdoll is drawn ahead of its step towards the hand
 
-struct Published
-{
-    const Rig* rig{nullptr};
-    int bodies{0}; // the bones from this on are hidden
-    uint32_t cut{0}; // the bones cut off (its head: ROUND21.md, "Decapitation"), drawn at the neck
-    float scale{1.f};
-    bool drawn{false}; // the client has drawn it (its first frame: compared with the animated mesh, vr_debug_ragdoll)
-    za::Array<glm::quat, maxBones> rot{};
-    za::Array<glm::vec3, maxBones> pos{};
-    // The step before (drawn between the two, as the client lerps a prop between the server's last two messages), and
-    // the server times of the messages after each (prevTime == time: no step before, the latest drawn).
-    za::Array<glm::quat, maxBones> prevRot{};
-    za::Array<glm::vec3, maxBones> prevPos{};
-    double time{0.0}, prevTime{0.0};
-    // The local player's hands on its limbs at each step (bit 0 the off hand, 1 the main; their places as the client
-    // had them then: vr_ragdoll_held_local).
-    int heldBy{0}, prevHeldBy{0};
-    glm::vec3 hand[2]{}, prevHand[2]{};
-    // As drawn this frame (swapModels; drawnFrame: host_framecount).
-    za::Array<glm::quat, maxBones> drawRot{};
-    za::Array<glm::vec3, maxBones> drawPos{};
-    int drawnFrame{-1};
-    float drawBlend{1.f};      // between the steps (0 the one before .. 1 the latest)
-    glm::vec3 drawLead{0.f};   // moved with the holding hands (units)
-};
-
-struct Swapped
-{
-    int num{0};
-    qmodel_t* original{nullptr};
-    qmodel_t* skinned{nullptr};
-    glm::vec3 ref{0.f};
-    int bones{0};
-    za::Array<float, maxBones * 12> skin{};
-    // The entity's animation lerp, kept while the skinned model (one pose) is drawn: R_SetupAliasFrame would otherwise
-    // lerp from the corpse's pose index (past the skinned model's bones: its limbs grew from nothing).
-    short previousPose{0}, currentPose{0};
-    float lerpStart{0.f}, lerpTime{0.f};
-    byte lerpFlags{0};
-};
-
-struct DrawState
-{
-    za::Vector<Published> byNum;  // by edict number (rig null: none)
-    za::Vector<Swapped> swapped;  // this frame's (swapModels .. restoreModels)
-    auto members() { return mem::list(byNum, swapped); }
-};
-mem::Cache<DrawState> draw{"ragdolls drawn", mem::MapChange};
-
-// vr_drawn_motion_test: what it follows and for how long (the client's frames), and the places drawn each frame.
-struct MotionTest
-{
-    int left{0}; // frames still to record
-    int rag{0};  // the ragdoll's entity (0 none)
-    int prop{0}; // the prop's (0 none)
-    int frames{0};
-};
-MotionTest motionTest;
-
 // The death view's (Immersive: hideHeadOf): the ragdoll drawn headless, the camera in its head (0 none).
 int hiddenHeadNum = 0;
 
@@ -1460,15 +1702,6 @@ struct GetupPoints
     auto members() { return mem::list(last, step, now); }
 };
 mem::Cache<GetupPoints> getupPoints{"get-up motion", mem::MapChange};
-
-struct MotionPoints
-{
-    za::Vector<glm::vec3> rag;  // a frame's maxBones (the parts')
-    za::Vector<glm::vec3> prop; // a frame's one
-    za::Vector<glm::vec3> hand; // a frame's two (the off hand, the main)
-    auto members() { return mem::list(rag, prop, hand); }
-};
-mem::Cache<MotionPoints> motionPoints{"drawn motion test", mem::MapChange};
 
 // The client's buffers (its drawing: the main thread).
 struct DrawScratch
@@ -1521,17 +1754,36 @@ bool fillAO(const Rig& rig, iqmvert_t* verts, int numVerts)
 }
 
 // The skinned model `skinned` of `rig` given its occlusion once it is baked (made before it was: the map's first ragdoll
-// as the map starts), looked for at most once a second.
-double aoLookedAt = -1.0;
+// as the map starts), looked for at most once a second for each model (one model's look doesn't hold back another's).
+struct AOLook
+{
+    const qmodel_t* skinned{nullptr};
+    double at{-1.0};
+};
+za::Vector<AOLook> aoLooks; // (one per skinned model looked for)
 void catchUpAO(qmodel_t* skinned, const Rig& rig)
 {
     auto* hdr = static_cast<aliashdr_t*>(Mod_Extradata(skinned));
     auto* verts = hdr ? reinterpret_cast<iqmvert_t*>(reinterpret_cast<byte*>(hdr) + hdr->vertexes) : nullptr;
-    if(!verts || hdr->numverts_vbo <= 0 || verts[0].norm[3] < 0 || (realtime - aoLookedAt < 1.0 && realtime >= aoLookedAt))
+    if(!verts || hdr->numverts_vbo <= 0 || verts[0].norm[3] < 0)
     {
         return;
     }
-    aoLookedAt = realtime;
+    AOLook* look = nullptr;
+    for(AOLook& l : aoLooks)
+    {
+        look = l.skinned == skinned ? &l : look;
+    }
+    if(!look)
+    {
+        aoLooks.pushBack(AOLook{skinned, -1.0});
+        look = &aoLooks.back();
+    }
+    if(realtime - look->at < 1.0 && realtime >= look->at)
+    {
+        return;
+    }
+    look->at = realtime;
     if(fillAO(rig, verts, hdr->numverts_vbo))
     {
         GLMesh_DeleteVertexBuffer(skinned);
@@ -1663,6 +1915,7 @@ struct Neck
     glm::vec3 pivot{0.f};
 };
 constexpr float neckShrink = 1e-3f;
+constexpr float stumpReach = 1.25f; // a stump's flesh reaches this many times its limb's thickness round its joint (stumpLook)
 
 template <typename Rots, typename Poss>
 [[nodiscard]] Neck neckOf(const Published& p, int b, const Rots& rots, const Poss& poss)
@@ -1683,6 +1936,11 @@ template <typename Rots, typename Poss>
 
 [[nodiscard]] const Swapped* swappedOf(const entity_t* e)
 {
+    if(draw.swapped.empty() || !cl_entities || e < cl_entities || e >= cl_entities + cl_max_edicts)
+    {
+        return nullptr; // not a client entity (the view entities, the static and temporary ones): none of them (the
+                        // shadow casters and the alias batches ask for every model, several times a light)
+    }
     for(const Swapped& s : draw.swapped)
     {
         if(&cl_entities[s.num] == e)
@@ -1701,6 +1959,23 @@ namespace qvr::ragdoll
 bool eligible(const qmodel_t* model)
 {
     return tableOf(model) != nullptr;
+}
+
+bool deathBoundary(const qmodel_t* model, const aliashdr_t* hdr, int frame, bool first)
+{
+    // (only for the model the table was made for, as derive() checks: a mod's other soldier.mdl has its own frames)
+    if(const SeedTable* t = tableOf(model); t && hdr && hdr->poseverttype == aliashdr_t::PV_QUAKE1 &&
+        hdr->numverts == t->numVerts && !Mod_NextSurface(const_cast<aliashdr_t*>(hdr)))
+    {
+        for(int i = 0; i < t->deaths; i++)
+        {
+            if(frame == (first ? t->deathFirst[i] : t->deathLast[i]))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 const Rig* rigFor(qmodel_t* model)
@@ -1723,7 +1998,9 @@ const Rig* rigFor(qmodel_t* model)
     }
     za::UniquePtr<Rig> r = za::makeUnique<Rig>();
     DeriveLog log;
-    const bool ok = derive(model, static_cast<const aliashdr_t*>(Mod_Extradata(model)), *table, *r, log);
+    RigFile file;
+    const bool ok = deriveCached(model, static_cast<const aliashdr_t*>(Mod_Extradata(model)), *table, *r, log, file);
+    writeRig(file);
     sayLog(log);
     if(!ok)
     {
@@ -1745,6 +2022,7 @@ void warmRigs(qmodel_t* const* models, int count)
         const SeedTable* table{nullptr};
         za::UniquePtr<Rig> rig;
         DeriveLog log;
+        RigFile file; // (written by the main thread below)
         bool ok{false};
     };
     za::Vector<Job> work;
@@ -1788,12 +2066,13 @@ void warmRigs(qmodel_t* const* models, int count)
         for(za::SizeT k = begin; k < end; k++)
         {
             Job& j = work[k];
-            j.ok = derive(j.model, j.hdr, *j.table, *j.rig, j.log);
+            j.ok = deriveCached(j.model, j.hdr, *j.table, *j.rig, j.log, j.file);
         }
     });
     // Kept in the order asked (as rigFor one by one would have).
     for(Job& j : work)
     {
+        writeRig(j.file);
         sayLog(j.log);
         if(j.ok)
         {
@@ -1915,7 +2194,7 @@ bool collapsed(const Rig& rig, int pose, int b)
 }
 
 void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
-    int heldBy, uint32_t cut)
+    int heldBy, uint32_t cut, bool bleeds)
 {
     if(num < 0)
     {
@@ -1955,6 +2234,7 @@ void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const gl
     p.rig = rig;
     p.bodies = bodies;
     p.cut = cut;
+    p.bleeds = bleeds;
     p.scale = scale;
     p.time = time;
     for(int b = 0; b < bodies; b++)
@@ -1998,6 +2278,9 @@ namespace
 // Ragdoll `num`'s pose as drawn this frame (once a frame): between its last two steps at the client's time, as
 // CL_RelinkEntities lerps a prop between the server's last two messages (vr_ragdoll_smooth); held by the local player's
 // hands, moved with them since those steps (vr_ragdoll_held_local: a held prop is drawn in the hand each frame).
+} // namespace
+namespace detail
+{
 void drawnPose(int num)
 {
     Published& p = draw.byNum[static_cast<za::SizeT>(num)];
@@ -2049,143 +2332,9 @@ void drawnPose(int num)
         p.drawPos[static_cast<za::SizeT>(b)] += lead;
     }
 }
-
-// How evenly a point moved over the frames (`stride` apart in `pts`): its mean step a frame (units), the mean change of
-// the step's length from frame to frame and of the step itself (the motion's jerk), both over the mean step, and the
-// frames it (nearly) stood still in. Smooth motion: both near 0; drawn at the server's 72 Hz in 90 Hz frames: every
-// fifth frame still (uneven about 0.4).
-struct Evenness
+} // namespace detail
+namespace
 {
-    float step{0.f}, uneven{0.f}, jerk{0.f};
-    int stalls{0};
-};
-
-[[nodiscard]] Evenness evenness(const glm::vec3* pts, int frames, int stride)
-{
-    Evenness e;
-    if(frames < 3)
-    {
-        return e;
-    }
-    for(int i = 1; i < frames; i++)
-    {
-        e.step += glm::distance(pts[i * stride], pts[(i - 1) * stride]);
-    }
-    e.step /= static_cast<float>(frames - 1);
-    if(e.step < 0.01f)
-    {
-        return e;
-    }
-    for(int i = 2; i < frames; i++)
-    {
-        const glm::vec3 d1 = pts[i * stride] - pts[(i - 1) * stride];
-        const glm::vec3 d0 = pts[(i - 1) * stride] - pts[(i - 2) * stride];
-        e.uneven += za::abs(glm::length(d1) - glm::length(d0));
-        e.jerk += glm::length(d1 - d0);
-    }
-    for(int i = 1; i < frames; i++)
-    {
-        e.stalls += glm::distance(pts[i * stride], pts[(i - 1) * stride]) < 0.25f * e.step;
-    }
-    e.uneven /= e.step * static_cast<float>(frames - 2);
-    e.jerk /= e.step * static_cast<float>(frames - 2);
-    return e;
-}
-
-void printEvenness(const char* what, const Evenness& e)
-{
-    if(e.step < 0.01f)
-    {
-        Con_Printf("  %s: still\n", what);
-        return;
-    }
-    Con_Printf("  %s: %.2f units a frame, uneven %.3f, jerk %.3f, %d stalls\n", what, e.step, e.uneven, e.jerk, e.stalls);
-}
-
-void reportMotion()
-{
-    const int frames = motionTest.frames;
-    Con_Printf("vr_drawn_motion_test: %d frames of %.1f ms (the server's: %.1f ms), vr_ragdoll_smooth %g, vr_ragdoll_held_local %g\n",
-        frames, 1000.0 * (cl.time - cl.oldtime), 1000.0 * (cl.mtime[0] - cl.mtime[1]), vr_ragdoll_smooth.value,
-        vr_ragdoll_held_local.value);
-    if(motionTest.rag > 0)
-    {
-        char what[64];
-        const int held = motionTest.rag < static_cast<int>(draw.byNum.size()) ? draw.byNum[static_cast<za::SizeT>(motionTest.rag)].heldBy : 0;
-        q_snprintf(what, sizeof(what), "ragdoll %d (held by hands %d) pelvis", motionTest.rag, held);
-        printEvenness(what, evenness(motionPoints.rag.data(), frames, maxBones));
-        // Its parts: the mean and the most uneven moving one.
-        float uneven = 0.f, jerk = 0.f, worst = 0.f;
-        int moving = 0, worstPart = -1;
-        for(int b = 0; b < maxBones; b++)
-        {
-            const Evenness e = evenness(motionPoints.rag.data() + b, frames, maxBones);
-            if(e.step < 0.01f)
-            {
-                continue;
-            }
-            uneven += e.uneven;
-            jerk += e.jerk;
-            moving++;
-            if(e.uneven > worst)
-            {
-                worst = e.uneven;
-                worstPart = b;
-            }
-        }
-        if(moving)
-        {
-            Con_Printf("  ragdoll %d parts: %d moving, uneven %.3f, jerk %.3f (means), the most uneven %.3f (part %d)\n",
-                motionTest.rag, moving, uneven / static_cast<float>(moving), jerk / static_cast<float>(moving), worst, worstPart);
-        }
-    }
-    if(motionTest.prop > 0)
-    {
-        char what[64];
-        q_snprintf(what, sizeof(what), "prop %d", motionTest.prop);
-        printEvenness(what, evenness(motionPoints.prop.data(), frames, 1));
-    }
-    printEvenness("off hand", evenness(motionPoints.hand.data(), frames, 2));
-    printEvenness("main hand", evenness(motionPoints.hand.data() + 1, frames, 2));
-}
-
-// vr_drawn_motion_test's frame: the places drawn (after the relink and the held objects in the hands).
-void recordMotion()
-{
-    if(motionTest.left <= 0)
-    {
-        return;
-    }
-    const int rag = motionTest.rag;
-    const bool ragShown = rag > 0 && rag < static_cast<int>(draw.byNum.size()) && draw.byNum[static_cast<za::SizeT>(rag)].rig;
-    if(ragShown)
-    {
-        drawnPose(rag);
-    }
-    const Published* p = ragShown ? &draw.byNum[static_cast<za::SizeT>(rag)] : nullptr;
-    for(int b = 0; b < maxBones; b++)
-    {
-        motionPoints.rag.pushBack(p && b < p->bodies ? p->drawPos[static_cast<za::SizeT>(b)] : glm::vec3{0.f});
-    }
-    const int prop = motionTest.prop;
-    const bool propShown = prop > 0 && prop < cl.num_entities;
-    motionPoints.prop.pushBack(propShown ? glm::vec3{cl_entities[prop].origin[0], cl_entities[prop].origin[1], cl_entities[prop].origin[2]}
-                                         : glm::vec3{0.f});
-    const hands::State& hs = hands::current();
-    motionPoints.hand.pushBack(hs.pos[0]);
-    motionPoints.hand.pushBack(hs.pos[1]);
-    if(p && vr_debug_ragdoll.value >= 2.f)
-    {
-        // Each frame: where it is drawn between its steps, the steps' times, the lead the hands gave it, its pelvis.
-        Con_Printf("  frame %d: cl.time %.4f, steps %.4f %.4f, blend %.2f, lead %.2f, pelvis %.2f %.2f %.2f\n", motionTest.frames,
-            cl.time, p->prevTime, p->time, p->drawBlend, glm::length(p->drawLead), p->drawPos[0].x, p->drawPos[0].y, p->drawPos[0].z);
-    }
-    motionTest.frames++;
-    if(--motionTest.left == 0)
-    {
-        reportMotion();
-    }
-}
 
 void reportGetup()
 {
@@ -2309,8 +2458,120 @@ void watchGetup(int num, double from, double until)
     getupPoints.step.clear();
 }
 
+namespace
+{
+// The skinned model ("<model>#rag") of `p`: the one found last while it still is (loaded, its data still cached, its
+// name; view::viewModel's check: Mod_ClearAll, an evicted alias, a campaign switch's reused slot), else Mod_ForName's
+// (which loads it again). No name built and no model-table scan per drawn ragdoll per frame.
+[[nodiscard]] qmodel_t* skinnedOf(Published& p)
+{
+    const char* base = p.rig->model->name;
+    const size_t len = strlen(base);
+    qmodel_t* m = p.skinned;
+    if(m && !m->needload && m->type == mod_alias && Cache_Check(&m->cache) && !strncmp(m->name, base, len) &&
+       !strcmp(m->name + len, skinnedSuffix))
+    {
+        return m;
+    }
+    char name[MAX_QPATH];
+    q_snprintf(name, sizeof(name), "%s%s", base, skinnedSuffix);
+    p.skinned = Mod_ForName(name, false);
+    return p.skinned;
+}
+// vr_debug_ragdoll_gun: ragdoll `num`'s held weapon (its loose bone) against its hand as drawn, every 0.25 s of the
+// client's time: the weapon's middle from the middle of the part nearest it in the rest pose (where its hand holds it),
+// beside that distance in the rest pose. The weapon follows the hand: the two stay close; it stays behind: they part.
+// Not drawn with the body (hidden: no loose body made): said so.
+double gunCheckNext = 0.0;
+void gunCheck(int num, const Published& p)
+{
+    const Rig& rig = *p.rig;
+    int loose = -1;
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        loose = rig.bones[b].joint == Joint::Loose ? b : loose;
+    }
+    if(loose < 0)
+    {
+        return;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(rig.model)));
+    const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+    const auto rest = [&](int v) {
+        const trivertx_t& t = tv[v];
+        return glm::vec3{t.v[0] * hdr->scale[0] + hdr->scale_origin[0], t.v[1] * hdr->scale[1] + hdr->scale_origin[1],
+            t.v[2] * hdr->scale[2] + hdr->scale_origin[2]};
+    };
+    glm::vec3 gunRest{0.f};
+    int gunVerts = 0;
+    for(int v = 0; v < rig.numVerts; v++)
+    {
+        if(rig.vertBone[static_cast<za::SizeT>(v)] == loose)
+        {
+            gunRest += rest(v);
+            gunVerts++;
+        }
+    }
+    if(gunVerts == 0)
+    {
+        return;
+    }
+    gunRest /= static_cast<float>(gunVerts);
+    int hand = -1;
+    float handD = 1e30f;
+    for(int v = 0; v < rig.numVerts; v++)
+    {
+        const int b = rig.vertBone[static_cast<za::SizeT>(v)];
+        if(b != loose && glm::distance(rest(v), gunRest) < handD)
+        {
+            handD = glm::distance(rest(v), gunRest);
+            hand = b;
+        }
+    }
+    if(hand < 0)
+    {
+        return;
+    }
+    if(loose >= p.bodies)
+    {
+        Con_Printf("gun: %d its %s hidden (no loose body)\n", num, rig.bones[loose].name);
+        return;
+    }
+    za::Vector<glm::vec3>& drawn = drawScratch.skinned;
+    if(!skinnedVertices(num, drawn, nullptr, true))
+    {
+        return;
+    }
+    glm::vec3 gun{0.f}, gunR{0.f}, part{0.f}, partR{0.f};
+    int partVerts = 0;
+    for(int v = 0; v < rig.numVerts; v++)
+    {
+        const int b = rig.vertBone[static_cast<za::SizeT>(v)];
+        if(b == loose)
+        {
+            gun += drawn[static_cast<za::SizeT>(v)];
+            gunR += rest(v);
+        }
+        else if(b == hand)
+        {
+            part += drawn[static_cast<za::SizeT>(v)];
+            partR += rest(v);
+            partVerts++;
+        }
+    }
+    const float n = static_cast<float>(gunVerts), m = static_cast<float>(za::max(partVerts, 1));
+    Con_Printf("gun: %d its %s %.1f units from its %s (the rest pose's %.1f)\n", num, rig.bones[loose].name,
+        glm::distance(gun / n, part / m), rig.bones[hand].name, glm::distance(gunR / n, partR / m) * p.scale);
+}
+} // namespace
+
 void swapModels()
 {
+    const bool gunChecks = vr_debug_ragdoll_gun.value != 0.f && cl.time >= gunCheckNext;
+    if(gunChecks)
+    {
+        gunCheckNext = cl.time + 0.25;
+    }
     draw.swapped.clear();
     if(!sv.active || cls.state != ca_connected)
     {
@@ -2319,15 +2580,13 @@ void swapModels()
     recordMotion();
     for(int num = 1; num < static_cast<int>(draw.byNum.size()) && num < cl.num_entities; num++)
     {
-        const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+        Published& p = draw.byNum[static_cast<za::SizeT>(num)];
         entity_t* e = &cl_entities[num];
         if(!p.rig || e->model != p.rig->model)
         {
             continue; // (the client shows something else: a head, a gib, nothing yet)
         }
-        char name[MAX_QPATH];
-        q_snprintf(name, sizeof(name), "%s%s", p.rig->model->name, skinnedSuffix);
-        qmodel_t* skinned = Mod_ForName(name, false);
+        qmodel_t* skinned = skinnedOf(p);
         if(!skinned || skinned->type != mod_alias)
         {
             continue;
@@ -2374,6 +2633,10 @@ void swapModels()
             }
         }
         drawnPose(num);
+        if(gunChecks)
+        {
+            gunCheck(num, p);
+        }
         trackPose(e);
         Swapped s;
         s.num = num;
@@ -2409,13 +2672,14 @@ void swapModels()
                 out[row * 4 + 3] = t[row];
             }
         }
-        // Its limbs' ends: blood trails when flung (vr_ragdoll_blood).
+        // Its limbs' ends: blood trails when flung (vr_ragdoll_blood), a corpse's or a wounded one's (not shoved down unhurt).
         for(int b = 0; b < p.bodies; b++)
         {
             const Bone& bone = p.rig->bones[b];
             if(bone.joint != Joint::Loose && bone.parent >= 0 && !(p.cut & (1u << b)))
             {
-                decals::limbTrail(num * maxBones + b, p.drawRot[static_cast<za::SizeT>(b)] * (bone.end * p.scale) + p.drawPos[static_cast<za::SizeT>(b)]);
+                decals::limbTrail(num * maxBones + b, p.drawRot[static_cast<za::SizeT>(b)] * (bone.end * p.scale) + p.drawPos[static_cast<za::SizeT>(b)],
+                    p.bleeds);
             }
         }
         e->model = skinned;
@@ -2426,6 +2690,16 @@ void swapModels()
     recordGetup();
 }
 
+#ifdef QVR_TRACY
+void tracyPlots()
+{
+    int count = 0, bodies = 0;
+    for(const auto& p : draw.byNum)
+        if(p.rig) { ++count; bodies += p.bodies; }
+    VR_TracyPlot("Published ragdolls", count);
+    VR_TracyPlot("Published ragdoll bodies", bodies);
+}
+#endif
 void restoreModels()
 {
     for(const Swapped& s : draw.swapped)
@@ -2464,6 +2738,56 @@ int bonePoses(const entity_t* e, const float** matrices)
     return s->bones;
 }
 
+void stumpLook(const entity_t* e, float out[4])
+{
+    out[0] = out[1] = out[2] = out[3] = 0.f;
+    const Swapped* s = swappedOf(e);
+    if(!s || e->model != s->skinned || s->num < 0 || s->num >= static_cast<int>(draw.byNum.size()))
+    {
+        return;
+    }
+    const Published& p = draw.byNum[static_cast<za::SizeT>(s->num)];
+    if(!p.rig || !p.cut)
+    {
+        return;
+    }
+    // Each cut bone's thickness at its cut: its rest vertices' mean distance from its axis, over the third of it by its
+    // joint (the parent's ring the cone closes; vr_glsl.h StumpFlesh). Their mean, a little past it.
+    uint32_t bits = 0;
+    float sum = 0.f;
+    int n = 0;
+    for(int b = 0; b < za::min(p.bodies, 24); b++)
+    {
+        if(!(p.cut & (1u << b)))
+        {
+            continue;
+        }
+        bits |= 1u << b;
+        const Bone& bone = p.rig->bones[b];
+        const glm::vec3 along = bone.end - bone.pivot;
+        const float len = glm::length(along);
+        float r = 0.f;
+        int k = 0;
+        if(len > 1e-3f)
+        {
+            const glm::vec3 axis = along / len;
+            for(const glm::vec3& q : bone.points)
+            {
+                const float t = glm::dot(q - bone.pivot, axis);
+                if(t >= 0.f && t <= len * 0.35f)
+                {
+                    r += glm::length(q - bone.pivot - axis * t);
+                    k++;
+                }
+            }
+        }
+        sum += k > 0 ? r / static_cast<float>(k) : za::max(bone.capsule, len * 0.25f);
+        n++;
+    }
+    out[0] = static_cast<float>(bits);
+    out[1] = za::max(stumpReach * sum / static_cast<float>(za::max(n, 1)) * p.scale, 0.5f);
+}
+
 bool drawMatrix(const entity_t* e, float matrix[16])
 {
     const Swapped* s = swappedOf(e);
@@ -2499,6 +2823,14 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
     {
         normals->resize(static_cast<za::SizeT>(rig.numVerts));
     }
+    za::Array<Neck, maxBones> necks{}; // (each cut bone's, once: not once per vertex)
+    for(int b = 0; b < p.bodies && p.cut; b++)
+    {
+        if(p.cut & (1u << b))
+        {
+            necks[static_cast<za::SizeT>(b)] = neckOf(p, b, rots, poss);
+        }
+    }
     for(int v = 0; v < rig.numVerts; v++)
     {
         const trivertx_t& t = tv[v]; // the rest pose (0)
@@ -2506,11 +2838,7 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
             t.v[2] * hdr->scale[2] + hdr->scale_origin[2]};
         const int b = rig.vertBone[static_cast<za::SizeT>(v)];
         const bool cut = b < p.bodies && (p.cut & (1u << b)); // (its head cut off: at the neck)
-        Neck neck;
-        if(cut)
-        {
-            neck = neckOf(p, b, rots, poss);
-        }
+        const Neck& neck = necks[static_cast<za::SizeT>(cut ? b : 0)];
         out[static_cast<za::SizeT>(v)] = cut ? neck.at + neck.rot * ((r - neck.pivot) * (p.scale * neckShrink))
                                          : b < p.bodies ? rots[static_cast<za::SizeT>(b)] * (r * p.scale) + poss[static_cast<za::SizeT>(b)]
                                                         : poss[0];
@@ -2542,6 +2870,16 @@ bool drawnPart(int num, int part, glm::quat& rot, glm::vec3& pos, float& scale, 
     pos = p.drawPos[static_cast<za::SizeT>(part)];
     scale = p.scale;
     return true;
+}
+
+bool partShown(int num, int part)
+{
+    if(num < 0 || num >= static_cast<int>(draw.byNum.size()))
+    {
+        return false;
+    }
+    const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    return p.rig && part >= 0 && part < p.bodies && !(p.cut & (1u << part));
 }
 
 void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out)
@@ -2577,109 +2915,9 @@ void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out)
     }
 }
 
-void motionTest_f()
-{
-    if(Cmd_Argc() < 2 || !sv.active)
-    {
-        Con_Printf("usage: vr_drawn_motion_test <frames> [<entity> | nearest | held] (a listen server)\n");
-        return;
-    }
-    motionTest = MotionTest{};
-    motionPoints.rag.clear();
-    motionPoints.prop.clear();
-    motionPoints.hand.clear();
-    // The ragdoll nearest you.
-    const entity_t& me = cl_entities[cl.viewentity];
-    const glm::vec3 from{me.origin[0], me.origin[1], me.origin[2]};
-    float best = 1e30f;
-    for(int num = 1; num < static_cast<int>(draw.byNum.size()); num++)
-    {
-        const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
-        if(p.rig && glm::distance(p.pos[0], from) < best)
-        {
-            best = glm::distance(p.pos[0], from);
-            motionTest.rag = num;
-        }
-    }
-    if(Cmd_Argc() > 2)
-    {
-        if(!q_strcasecmp(Cmd_Argv(2), "nearest"))
-        {
-            motionTest.prop = box3d::nearestProp();
-        }
-        else if(!q_strcasecmp(Cmd_Argv(2), "held"))
-        {
-            const int main = cl.stats[protocol::STAT_QVR_CARRYMAIN];
-            motionTest.prop = main ? main : cl.stats[protocol::STAT_QVR_CARRYOFF];
-        }
-        else
-        {
-            motionTest.prop = Q_atoi(Cmd_Argv(2));
-        }
-    }
-    motionTest.left = za::clamp(Q_atoi(Cmd_Argv(1)), 3, 2000);
-    Con_Printf("vr_drawn_motion_test: ragdoll %d, prop %d, %d frames\n", motionTest.rag, motionTest.prop, motionTest.left);
-}
-
 void hideHeadOf(int num)
 {
     hiddenHeadNum = num;
-}
-
-void info_f()
-{
-    qmodel_t* model = Mod_ForName("progs/soldier.mdl", false);
-    if(Cmd_Argc() > 1)
-    {
-        model = Mod_ForName(Cmd_Argv(1), false);
-    }
-    if(!model)
-    {
-        Con_Printf("vr_ragdoll_info: no such model\n");
-        return;
-    }
-    const Rig* rig = rigFor(model);
-    if(!rig)
-    {
-        Con_Printf("vr_ragdoll_info: %s has no ragdoll (vr_ragdoll 1: the grunt's)\n", model->name);
-        return;
-    }
-    Con_Printf("vr_ragdoll_info: %s: %d bones, %d vertices, %d poses; motion clusters %.2f units rms, bones %.2f; derived in %.1f ms\n",
-        model->name, rig->numBones, rig->numVerts, rig->numPoses, rig->clusterRms, rig->boneRms, rig->deriveMs);
-    for(int b = 0; b < rig->numBones; b++)
-    {
-        const Bone& bone = rig->bones[b];
-        int n = 0;
-        for(const uint8_t vb : rig->vertBone)
-        {
-            n += vb == b ? 1 : 0;
-        }
-        static constexpr const char* kinds[] = {"root", "ball", "hinge", "loose"};
-        Con_Printf("  %2d %-11s parent %2d %-5s %3d verts (%2d places) pivot %5.1f %5.1f %5.1f", b, bone.name, bone.parent,
-            kinds[static_cast<int>(bone.joint)], n, static_cast<int>(bone.points.size()), bone.pivot.x, bone.pivot.y, bone.pivot.z);
-        int hidden = 0, first = -1;
-        for(int pose = 0; pose < rig->numPoses; pose++)
-        {
-            if(collapsed(*rig, pose, b))
-            {
-                hidden++;
-                first = first < 0 ? pose : first;
-            }
-        }
-        if(hidden > 0)
-        {
-            Con_Printf(" hidden in %d poses (from %d)", hidden, first);
-        }
-        if(bone.joint == Joint::Ball)
-        {
-            Con_Printf(" cone %.0f twist %.0f", bone.cone / deg, bone.twist / deg);
-        }
-        else if(bone.joint == Joint::Hinge)
-        {
-            Con_Printf(" axis %.2f %.2f %.2f range %.0f..%.0f", bone.hinge.x, bone.hinge.y, bone.hinge.z, bone.lower / deg, bone.upper / deg);
-        }
-        Con_Printf("\n");
-    }
 }
 
 } // namespace qvr::ragdoll

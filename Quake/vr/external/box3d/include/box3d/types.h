@@ -86,7 +86,8 @@ typedef bool b3CustomFilterFcn( b3ShapeId shapeIdA, b3ShapeId shapeIdB, void* co
 /// full contact manifold.
 /// @warning Do not attempt to modify the world inside this callback
 /// @ingroup world
-typedef bool b3PreSolveFcn( b3ShapeId shapeIdA, b3ShapeId shapeIdB, b3Pos point, b3Vec3 normal, void* context );
+/// Quake VR: separation (m, negative for overlap) is the contact's least (0 from continuous collision).
+typedef bool b3PreSolveFcn( b3ShapeId shapeIdA, b3ShapeId shapeIdB, b3Pos point, b3Vec3 normal, float separation, void* context );
 
 /// Prototype callback for overlap queries.
 /// Called for each shape found in the query.
@@ -172,6 +173,10 @@ typedef struct b3WorldDef
 
 	/// Maximum linear speed. Usually meters per second.
 	float maximumLinearSpeed;
+
+	/// Use this to disable gyroscopic torque on sphere-like objects automatically.
+	/// Range is [0, 1]. A sphere is 0 and a 1x1x2 box is 0.5.
+	float isotropicInertiaTolerance;
 
 	/// Optional mixing callback for friction. The default uses sqrt(frictionA * frictionB).
 	b3FrictionCallback* frictionCallback;
@@ -2019,7 +2024,7 @@ typedef struct b3HullFace
 } b3HullFace;
 
 /// 64-bit hull version. Useful for validating serialized data.
-#define B3_HULL_VERSION 0x4A4C9587DE57485Cull
+#define B3_HULL_VERSION 0x6B1E39D4A87C25F3ull
 
 /// A convex hull.
 /// @note This data structure has data hanging off the end and cannot be directly copied.
@@ -2043,7 +2048,7 @@ typedef struct b3HullData
 	/// The radius of the largest sphere at the center.
 	float innerRadius;
 
-	/// The local centroid
+	/// The local centroid.
 	b3Vec3 center;
 
 	/// The inertia tensor about the centroid.
@@ -2058,7 +2063,7 @@ typedef struct b3HullData
 	/// Offset of the point array in bytes from the struct address.
 	int32_t pointOffset;
 
-	/// This is the half-edge count (double the edge count)
+	/// This is the half-edge count (double the edge count).
 	int32_t edgeCount;
 
 	/// Offset of the edge array in bytes from the struct address.
@@ -2073,14 +2078,20 @@ typedef struct b3HullData
 	/// Offset of the face array in bytes from the struct address.
 	int32_t faceOffset;
 
-	/// Offset of structure of array (SOA) vertices
+	/// Offset of structure of array (SOA) vertices.
 	int32_t soaVertexOffset;
 
-	/// Offset of structure of array (SOA) unit normal vectors
+	/// Offset of structure of array (SOA) unit normal vectors.
 	int32_t soaNormalOffset;
+
+	/// Offset of dot(n1, n2) for each full edge.
+	int32_t edgeCosineOffset;
 
 	/// The total number of bytes for this hull.
 	int32_t byteCount;
+
+	/// Explicit padding for determinism.
+	int32_t padding;
 
 	/// Any padding must be explicit.
 } b3HullData;
@@ -2099,9 +2110,10 @@ typedef struct b3BoxHull
 	float vx[8];				 ///< vertex x
 	float vy[8];				 ///< vertex y
 	float vz[8];				 ///< vertex z
-	float nx[8];				 ///< normal x, padded to multiple of 4
-	float ny[8];				 ///< normal y, padded to multiple of 4
-	float nz[8];				 ///< normal z, padded to multiple of 4
+	float nx[8];				 ///< normal x, padded to multiple of 8
+	float ny[8];				 ///< normal y, padded to multiple of 8
+	float nz[8];				 ///< normal z, padded to multiple of 8
+	float edgeCosines[12];		 ///< dot(n1, n2) for each full edge.
 } b3BoxHull;
 
 /**@}*/ // hull
@@ -2480,8 +2492,8 @@ typedef struct b3CompoundDef
 	int sphereCount;
 } b3CompoundDef;
 
-/// The baked compound version depends on the tree, mesh, and hull versions.
-#define B3_COMPOUND_VERSION ( 0x7A2F41C9E6D0B358ull ^ B3_DYNAMIC_TREE_VERSION ^ B3_MESH_VERSION ^ B3_HULL_VERSION )
+/// The baked compound version depends on the mesh and hull versions.
+#define B3_COMPOUND_VERSION ( 0x9E4B17D3A25C68F1ull ^ B3_MESH_VERSION ^ B3_HULL_VERSION )
 
 /// The data for a baked compound shape. This is a potentially large yet highly optimized
 /// data structure. It can contain thousands of child shapes, yet at runtime it populates
@@ -2498,15 +2510,17 @@ typedef struct b3CompoundData
 	/// The total number of bytes for this compound.
 	int byteCount;
 
+	// Bounds of the tree.
+	b3AABB bounds;
+
+	// Tree height for diagnostics.
+	int treeHeight;
+
 	/// Offset of the tree node array in bytes from the struct address.
 	int nodeOffset;
 
-	/// Offset of the tree proxy array in bytes from the struct address.
-	int proxyOffset;
-
-	/// Immutable dynamic tree. The node and proxy pointers must be fixed up using the offsets
-	/// above. A baked tree is never inserted into, so the parent array stays null.
-	b3DynamicTree tree;
+	// The number of tree nodes.
+	int nodeCount;
 
 	/// Offset of the material array in bytes from the struct address.
 	int materialOffset;

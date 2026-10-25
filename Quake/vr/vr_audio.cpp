@@ -1486,6 +1486,14 @@ void ensure()
         (Sys_DoubleTime() - start) * 1000.0);
 }
 
+constexpr int chanWeapon = 1;  // QC CHAN_WEAPON: the main hand's gun
+constexpr int chanWeapon2 = 5; // QC CHAN_WEAPON2: the off hand's gun
+
+[[nodiscard]] bool isWeaponChannel(int c)
+{
+    return c == chanWeapon || c == chanWeapon2;
+}
+
 // The hand of one of the player's hand channels: the weapon channels (QC VRGetGunChannel: CHAN_WEAPON the main hand,
 // CHAN_WEAPON2 the off hand; from the muzzle) and the hands' own (VRGetHandChannel: CHAN_HAND, CHAN_HAND2, protocol.h
 // SND_CHAN_HAND; any free one, from the hand: a parry, a reload, a holster). -1 for the player's other channels.
@@ -1496,7 +1504,7 @@ int handOf(const channel_t* ch)
         return -1;
     }
     const int c = ch->entchannel;
-    if(c != 1 && c != 5 && c != SND_CHAN_HAND && c != SND_CHAN_HAND2)
+    if(!isWeaponChannel(c) && c != SND_CHAN_HAND && c != SND_CHAN_HAND2)
     {
         return -1;
     }
@@ -1504,14 +1512,14 @@ int handOf(const channel_t* ch)
     {
         return -1;
     }
-    return c == 5 || c == SND_CHAN_HAND2 ? HAND_OFF : HAND_MAIN;
+    return c == chanWeapon2 || c == SND_CHAN_HAND2 ? HAND_OFF : HAND_MAIN;
 }
 
 // Where a hand channel's sound plays from: a weapon channel's from the muzzle (or the hand), a hand's own from the hand.
 glm::vec3 handSoundAt(const channel_t* ch, int hand)
 {
     const hands::State& hs = hands::current();
-    const bool weapon = ch->entchannel == 1 || ch->entchannel == 5;
+    const bool weapon = isWeaponChannel(ch->entchannel);
     return weapon && hs.muzzleValid[hand] ? hs.muzzle[hand] : hs.pos[hand];
 }
 
@@ -2128,9 +2136,9 @@ void benchFinish()
             Con_Printf("  sim %s: no runs\n", name);
             return;
         }
-        za::quickSort(ms.begin(), ms.end(), [](float a, float b) { return a < b; });
+        za::quickSort(ms.begin(), ms.end());
         const int n = static_cast<int>(ms.size());
-        const auto at = [&](double q) { return ms[za::min(n - 1, static_cast<int>(q * (n - 1) + 0.5))]; };
+        const auto at = [&](double q) { return bench::quantile(ms.data(), n, q); };
         Con_Printf("  sim %s (a worker): %d runs, median %.3f ms, p95 %.3f, max %.3f\n", name, n, at(0.5), at(0.95),
             ms[n - 1]);
         if(csv)
@@ -2762,7 +2770,8 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
             releaseVoice(v);
             continue;
         }
-        const sfxcache_t* sc = static_cast<const sfxcache_t*>(Cache_Check(&ch->sfx->cache));
+        // (a look, from any thread: S_MixKick's mix on the pool; selectVoices's S_LoadSound moved it up the LRU)
+        const sfxcache_t* sc = static_cast<const sfxcache_t*>(Cache_Peek(&ch->sfx->cache));
         const double pos = L.mixer.position(v);
         ch->pos = static_cast<int>(pos);
         const int length = sc ? sc->length : ch->pos;
@@ -2784,6 +2793,36 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     const double ms = (Sys_DoubleTime() - t0) * 1000.0;
     L.mixMs += (ms - L.mixMs) * 0.05;
     bench::add(bench::Spatial, benchStart);
+}
+
+namespace
+{
+
+// The render's mix on the pool (snd_dma.c S_MixKick .. S_MixJoin; ROUND22.md, "Sound mix off the render path").
+jobs::Task mixTask;
+bool mixPosted = false;
+
+} // namespace
+
+extern "C" int VR_SndJobPost(void (*fn)(void*))
+{
+    jobs::Pool* p = jobs::pool();
+    if(!p || mixPosted)
+    {
+        return 0;
+    }
+    mixTask.post(*p, fn, nullptr);
+    mixPosted = true;
+    return 1;
+}
+
+extern "C" void VR_SndJobWait(void)
+{
+    if(mixPosted)
+    {
+        mixTask.wait();
+        mixPosted = false;
+    }
 }
 
 namespace
@@ -3633,9 +3672,10 @@ void shadowRender(Shadow& sh, int count)
             continue;
         }
         const bool wide = sc->width == 2;
+        const bool uncapped = wide || ch->master_vol > 255; // (louder than full: SND_LOUD, as SND_PaintChannelFrom8)
         const short* full = fullBand == 2 ? fullBandData(sc) : nullptr; // (as SND_PaintChannelFull)
-        const float lv = static_cast<float>(wide ? ch->leftvol : za::min(ch->leftvol, 255)) * sfxvolume.value;
-        const float rv = static_cast<float>(wide ? ch->rightvol : za::min(ch->rightvol, 255)) * sfxvolume.value;
+        const float lv = static_cast<float>(uncapped ? ch->leftvol : za::min(ch->leftvol, 255)) * sfxvolume.value;
+        const float rv = static_cast<float>(uncapped ? ch->rightvol : za::min(ch->rightvol, 255)) * sfxvolume.value;
         const int loop = sc->loopstart >= 0 && sc->loopstart < sc->length ? sc->loopstart : -1;
         for(int i = 0; i < count; i++)
         {

@@ -160,6 +160,24 @@ void() light_torch_small_walltorch =
     precache_model("progs/flame.mdl");
     setmodel(self, "progs/flame.mdl");
 
+    // QVR: made in a live game (the toolgun): an entity, its crackle on it (vr_walltorch.qc, vr_spawn_live).
+    if(vr_spawn_live)
+    {
+        if(cvar("vr_walltorch"))
+        {
+            VR_WallTorch_Setup();
+        }
+        if(!(self.spawnflags & 1))
+        {
+            precache_sound("ambience/fire1.wav");
+            self.think = VR_WallTorch_LiveCrackle; // (from its first think: vr_walltorch.qc; taken, it goes on)
+            self.nextthink = time + 0.05;
+        }
+        dprint(sprintf("walltorch: made live at %v, facing %g, crackle %g, takeable %g\n", self.origin, self.angles_y,
+            self.think == VR_WallTorch_LiveCrackle, self.handtouch == VR_WallTorch_Handtouch));
+        return;
+    }
+
     if(!(self.spawnflags & 1))
         FireAmbient();
 
@@ -181,6 +199,11 @@ void() light_flame_large_yellow =
     precache_model("progs/flame2.mdl");
     setmodel(self, "progs/flame2.mdl");
     self.frame = 1;
+    if(vr_spawn_live)
+    {
+        VR_FlameProp_Setup(2, TRUE); // QVR: made by the toolgun: a prop (vr_walltorch.qc)
+        return;
+    }
     FireAmbient();
     VR_FireSpot(1); // QVR: it lights taken torches again (vr_walltorch.qc)
     makestatic(self);
@@ -193,6 +216,11 @@ void() light_flame_small_yellow =
 {
     precache_model("progs/flame2.mdl");
     setmodel(self, "progs/flame2.mdl");
+    if(vr_spawn_live)
+    {
+        VR_FlameProp_Setup(1, TRUE); // QVR: made by the toolgun: a prop (vr_walltorch.qc)
+        return;
+    }
     FireAmbient();
     VR_FireSpot(0); // QVR: it lights taken torches again (vr_walltorch.qc)
     makestatic(self);
@@ -205,6 +233,11 @@ void() light_flame_small_white =
 {
     precache_model("progs/flame2.mdl");
     setmodel(self, "progs/flame2.mdl");
+    if(vr_spawn_live)
+    {
+        VR_FlameProp_Setup(1, TRUE); // QVR: made by the toolgun: a prop (vr_walltorch.qc)
+        return;
+    }
     FireAmbient();
     VR_FireSpot(0); // QVR: it lights taken torches again (vr_walltorch.qc)
     makestatic(self);
@@ -256,6 +289,7 @@ entity    fireball;
 
 void() fire_touch =
 {
+    VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
     T_Damage(other, self, self, 20);
     remove(self);
 };
@@ -304,10 +338,9 @@ void(float xSpeed) VR_Explobox_Impact =
     {
         return;
     }
-    // At the threshold, a whole box's health (20): it blows up; harder, more (a box already hurt goes sooner).
-    float r = xSpeed / threshold;
-    dprint("explobox: hit at "); dprint(ftos(xSpeed)); dprint(" m/s"); dprint("\n");
-    T_Damage(self, world, world, 20 * r * r);
+    // At the threshold it blows up (the props' impact rule, vr_carry.qc VR_Prop_Impact, at 1 or more: all its health).
+    VR_Prop_Impact(self, xSpeed / threshold, self.velocity, sprintf("hit %s at %.1f m/s",
+        other == world ? "the level" : other.classname, xSpeed), world);
 };
 
 void() VR_Explobox_Setup =

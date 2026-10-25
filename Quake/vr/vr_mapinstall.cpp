@@ -21,6 +21,12 @@
 #include "vr_sha256.hpp"
 #include "vr_zancle.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -1508,8 +1514,8 @@ void ensureStarted()
     // The cache and the installed list stay with the map index's cache, in the user's base dir (as qvr_addons/ does),
     // which does not change when the game dir does. The game dir is only where the old layout's files are moved from.
     gameDirName = com_gamedir;
-    cacheDirName = za::String{com_basedirs[com_numbasedirs - 1]} + "/cache/maps";
-    registryPath = za::String{com_basedirs[com_numbasedirs - 1]} + "/cache/maps_installed.txt";
+    cacheDirName = files::baseCacheDir() + "/maps";
+    registryPath = files::baseCacheDir() + "/maps_installed.txt";
     loadRegistry();
 }
 
@@ -2175,6 +2181,7 @@ namespace
     baseOnly = true;
     const bool stock = COM_FileExists(va("maps/%s.bsp", map), nullptr);
     baseOnly = false;
+    VR_FileCacheSearchChanged(); // (a miss of the stock game alone is no miss of all the folders)
     if(stock)
     {
         return za::String{};

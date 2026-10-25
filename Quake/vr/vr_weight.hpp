@@ -69,6 +69,10 @@ struct Load
     glm::vec3 inertia{0.f};    // kg m^2 about the grip, the hand's axes (forward: roll; left: pitch; up: yaw)
     float twist{1.f};          // the wrist's stiffness and torque about the forward axis, a share (a weapon: the forearm's twist)
     Tuning tune;
+    int slot{-1};              // a weapon's slot (else -1)
+    float heft{0.f};           // heavy handling: its weight class, 0..1 (heft; a prop's and the flashlight's 0)
+    float struggle{0.f};       // the one-handed struggle's share now: heft x (1 - twoHanded) x vr_heavy_struggle
+    float kick{0.f};           // a recovering one-handed shot's share now (vr_heavy_recoil_recovery, fading)
 };
 [[nodiscard]] Load load(int hand);
 // The mass the spring moves: with the stamina's.
@@ -92,11 +96,11 @@ void reset();
 // (vr_weight_lenient*: 1 up to vr_weight_lenient_from, lower for heavier things, at least vr_weight_lenient_min).
 [[nodiscard]] float leniency(float mass);
 
-// Throws by weight (vr_throw_mass_model; ROUND21.md, "Throws by weight"): the velocity (m/s) a thing of `mass` kg
+// Throws by weight (ROUND21.md, "Throws by weight"): the velocity (m/s) a thing of `mass` kg
 // thrown with `hands` hands (1 or 2) leaves them at, from the hand's estimate `vel` (m/s) and the part of it the wrist's
 // flick gives, `flick`: the flick kept by its mass (vr_throw_flick_mass), the gain of a real throw (vr_throw_gain_*), and
 // the speed limited by its mass (vr_throw_max_speed, _mass_light, _mass_exp, _mass_knee; two hands: vr_throw_2h_strength).
-// vr_throw_mass_model 0: only the gain. `mass` 0: a light thing's.
+// `mass` 0: a light thing's.
 struct ThrowOut
 {
     glm::vec3 vel{0.f};
@@ -105,7 +109,7 @@ struct ThrowOut
     float limit{0.f};  // m/s (0: none)
 };
 [[nodiscard]] ThrowOut throwVelocity(const glm::vec3& vel, const glm::vec3& flick, float mass, int hands);
-// The speed limit alone (m/s): a thing of `mass` kg thrown with `hands` hands (0: none, the model off).
+// The speed limit alone (m/s): a thing of `mass` kg thrown with `hands` hands.
 [[nodiscard]] float throwLimit(float mass, int hands);
 // The spin limit by mass (rad/s): a thing of `mass` kg turned by `hands` hands (vr_throw_spin_mass_exp; 0: none beyond
 // vr_throw_spin_max), and a throw's spin `angVel` (rad/s) limited by it (soft, as the speed: vr_throw_mass_knee).
@@ -130,7 +134,18 @@ struct ThrowOut
 // The limit of a weapon of `mass` kg held `twoHanded` (0..1): degrees a second (0: it never falls). The menu's readout.
 [[nodiscard]] float dropLimit(float mass, float twoHanded);
 
-// vr_weight_test: the spring offline (vr_weight.cpp).
+// Heavy handling (vr_heavy*; ROUND22.md, "Heavy weapons: struggle, droop, recoil, two-handed swings"): a weapon slot's
+// weight class, 0 (light, or vr_heavy 0) .. 1 (Weapon Weights' Heft; -1 there: from its mass, vr_heavy_auto_*).
+[[nodiscard]] float heft(int slot);
+// The degrees a weapon of `slot` held `twoHanded` (0..1) droops (its barrel down about the grip; 0: vr_heavy_droop off).
+[[nodiscard]] float droop(int slot, float twoHanded);
+// Hand `hand`'s weapon fired (vr_weaponfx.cpp playerFired): a heavy one held in one hand kicks up (the spring's turn).
+void heavyKick(int hand);
+// The kick's angular speed (deg/s) for a weapon of `slot` held `twoHanded` (0: none).
+[[nodiscard]] float kickSpeed(int slot, float twoHanded);
+
+// vr_throw_table, vr_weight_test, vr_weight_table (vr_weight_diag.cpp).
+void registerDiagCommands();
 void registerCommands();
 
 } // namespace qvr::weight

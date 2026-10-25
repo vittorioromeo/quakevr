@@ -2,6 +2,7 @@
 // the C library's rand() the client's effects draw from. See vr_srvrandom.cpp.
 #pragma once
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Random/FastNonCryptoRng.hpp"
 
 namespace qvr::srvrandom
 {

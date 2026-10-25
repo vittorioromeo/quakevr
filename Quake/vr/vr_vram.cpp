@@ -4,6 +4,7 @@
 
 #include "vr_vram.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_gpustats.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
@@ -15,6 +16,12 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
 
 #include <math.h>
 #include <stdio.h>
@@ -403,12 +410,7 @@ struct Sum
 
 void writeCsv(const za::Vector<Object>& objects)
 {
-    const time_t now = time(nullptr);
-    char stamp[64];
-    strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
-    const za::String dir = za::String{com_gamedir} + "/profile";
-    Sys_mkdir(dir.cStr());
-    const za::String path = dir + "/vram_" + stamp + ".csv";
+    const za::String path = files::profileFile("vram_", time(nullptr));
     FILE* f = fopen(path.cStr(), "w");
     if(!f)
     {

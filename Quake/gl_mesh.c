@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_mesh.c: triangle model functions
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h" // QVR: profiling scopes (compiled out of normal builds)
 
 
 /*
@@ -44,6 +45,7 @@ Original code by MH from RMQEngine
 */
 void GL_MakeAliasModelDisplayLists (qmodel_t *aliasmodel, aliashdr_t *paliashdr)
 {
+	VR_TRACY_SCOPE ("alias draw lists"); // QVR: profiling builds only
 	int i, j;
 	int mark;
 	trivertx_t *verts;
@@ -57,6 +59,11 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *aliasmodel, aliashdr_t *paliashdr)
 	for (i=0 ; i<paliashdr->numposes ; i++)
 		for (j=0 ; j<paliashdr->numverts ; j++)
 			verts[i*paliashdr->numverts + j] = poseverts[i][j];
+
+	// QVR: room for each vertex's path along its animations dequantised (vr/vr_mdldequant.cpp: vr_mdl_dequant), computed
+	// by the first upload with it on (GLMesh_LoadVertexBuffer): the positions' offsets, then the normals
+	paliashdr->dequant = (byte *) Hunk_AllocNoFill (paliashdr->numposes * paliashdr->numverts * 2 * sizeof (unsigned)) - (byte *)paliashdr;
+	paliashdr->dequantready = 0;
 
 	// there can never be more than this number of verts and we just put them all on the hunk
 	// (each vertex can be used twice, once with the original UVs and once with the seam adjustment)
@@ -131,6 +138,7 @@ Original code by MH from RMQEngine
 */
 void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 {
+	VR_TRACY_SCOPE ("alias mesh upload"); // QVR: profiling builds only
 	int totalvbosize = 0;
 	byte *ebodata;
 	byte *vbodata;
@@ -169,6 +177,8 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 	if (numverts >= 65535)
 		Sys_Error ("Model %s has too many verts (%d)", m->name, numverts);
 
+	if (mainhdr->poseverttype == PV_QUAKE1) // QVR: the dequantised offsets after the poses (PoseFrac)
+		totalvbosize = GL_AlignSSBO (totalvbosize) + mainhdr->numposes * numverts * sizeof (unsigned);
 	totalvbosize = GL_AlignSSBO (totalvbosize);
 	if (mainhdr->poseverttype == PV_QUAKE1 || mainhdr->poseverttype == PV_MD3)
 		totalvbosize += numverts * sizeof (meshst_t);
@@ -217,11 +227,24 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 		unsigned short *flamerefs = NULL;
 		// QVR: the model's own occlusion per pose and vertex (vr/vr_ao.cpp), in each position's spare 4th byte
 		const unsigned char *vertexao = mainhdr->poseverttype == PV_QUAKE1 ? VR_AliasVertexAO (m, mainhdr) : NULL;
+		// QVR: vr_mdl_dequant (vr/vr_mdldequant.cpp: the poses' offsets and normals; off: the stored bytes exactly)
+		const qboolean dequant = mainhdr->poseverttype == PV_QUAKE1 && VR_MdlDequantOn ();
 		if (mainhdr->poseverttype == PV_QUAKE1 && !Mod_NextSurface (mainhdr))
 		{
 			flamerefs = (unsigned short *) VR_HeapMalloc (mainhdr->numverts_vbo * sizeof (unsigned short));
 			if (flamerefs)
 				VR_AliasFlameRefs (mainhdr, flamerefs);
+		}
+
+		// QVR: the dequantised offsets and normals (vr/vr_mdldequant.cpp), computed by the first upload with vr_mdl_dequant on
+		for (hdr = mainhdr; dequant && hdr; hdr = Mod_NextSurface (hdr))
+		{
+			if (hdr->dequant && !hdr->dequantready)
+			{
+				VR_TRACY_SCOPE ("alias dequant"); // QVR: profiling builds only
+				VR_MdlDequantCompute (m->name, hdr, (unsigned *) ((byte *) hdr + hdr->dequant));
+				hdr->dequantready = 1;
+			}
 		}
 
 		// fill in pose data
@@ -235,6 +258,9 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 					const aliasmesh_t *desc = (aliasmesh_t *) ((byte *) hdr + hdr->meshdesc);
 					const trivertx_t *tv = (const trivertx_t *) ((byte *)hdr + hdr->vertexes) + hdr->numverts * f;
 					meshxyz_t *xyz = (meshxyz_t *) (vbodata + vertofs);
+					// QVR: vr_mdl_dequant's normals (smoothed along the animations within the table's step), packed as below
+					const unsigned *smoothnormals = dequant && hdr->dequantready ?
+						(const unsigned *) ((byte *) hdr + hdr->dequant) + hdr->numposes * hdr->numverts + hdr->numverts * f : NULL;
 
 					for (v = 0; v < hdr->numverts_vbo; v++)
 					{
@@ -252,6 +278,13 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 						xyz[v].normal[1] = 127 * r_avertexnormals[trivert.lightnormalindex][1];
 						xyz[v].normal[2] = 127 * r_avertexnormals[trivert.lightnormalindex][2];
 						xyz[v].normal[3] = 0;	// unused; for 4-byte alignment
+						if (smoothnormals)
+						{
+							const unsigned packed = smoothnormals[desc[v].vertindex];
+							xyz[v].normal[0] = (signed char) (packed & 255u);
+							xyz[v].normal[1] = (signed char) ((packed >> 8) & 255u);
+							xyz[v].normal[2] = (signed char) ((packed >> 16) & 255u);
+						}
 						// QVR: the model's own occlusion (255 open; the shader's PoseAO)
 						xyz[v].xyz[3] = hdr == mainhdr && vertexao ? vertexao[f * hdr->numverts + desc[v].vertindex] : 255;
 
@@ -274,6 +307,27 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 			}
 		}
 		VR_HeapFree (flamerefs); // QVR
+
+		// QVR: the dequantised offsets (vr/vr_mdldequant.cpp), in the poses' order; zero (the stored bytes) while vr_mdl_dequant is 0
+		if (mainhdr->poseverttype == PV_QUAKE1)
+		{
+			unsigned *frac;
+			vertofs = GL_AlignSSBO (vertofs);
+			for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+				hdr->vbofracofs = vertofs;
+			frac = (unsigned *) (vbodata + vertofs);
+			for (f = 0; f < mainhdr->numposes; f++)
+			{
+				for (hdr = mainhdr; hdr; hdr = Mod_NextSurface (hdr))
+				{
+					const aliasmesh_t *desc = (aliasmesh_t *) ((byte *) hdr + hdr->meshdesc);
+					const unsigned *src = dequant && hdr->dequantready ? (const unsigned *) ((byte *) hdr + hdr->dequant) + hdr->numverts * f : NULL;
+					for (v = 0; v < hdr->numverts_vbo; v++)
+						*frac++ = src ? src[desc[v].vertindex] : 0;
+				}
+			}
+			vertofs = (byte *) frac - vbodata;
+		}
 	}
 	else // PV_IQM
 	{

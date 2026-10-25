@@ -21,7 +21,8 @@ inline constexpr int U_QVR_SCALE = 1 << 24;        // 3 floats
 inline constexpr int U_QVR_SCALEORIGIN = 1 << 25;  // 3 coords
 inline constexpr int U_QVR_OFFSET = 1 << 26;       // 3 coords
 inline constexpr int U_QVR_NOROTATE = 1 << 27;     // no data: a rigid body, whose EF_ROTATE model keeps its angles
-inline constexpr int U_QVR_WEAPONUID = 1 << 28;    // long, byte: a weapon prop's weapon id (QC vr_weaponinst.qc: its record's), its clip (0-255)
+inline constexpr int U_QVR_WEAPONUID = 1 << 28;    // long, byte: a weapon prop's weapon id (QC vr_weaponinst.qc: its record's), its clip (0-255);
+                                                   // id 0: not a weapon prop, the byte its loot beam's (vr_server.cpp lootByte)
 inline constexpr int U_QVR_SPIN = 1 << 29;         // no data: drawn spinning as an EF_ROTATE pickup (a weapon pickup drawn as its prop)
 inline constexpr int U_QVR_NOMAG = 1 << 30;        // no data: a weapon prop with no magazine in (QC QVR_WPNFLAG_NOMAG: immersive reloading)
 // The bits above are full (1 << 31 is the sign: sv_main.c's "bits >= 1 << 24" test); this one is the protocol's spare
@@ -66,6 +67,9 @@ enum SvcQuakeVr : int
     QVR_SVC_RULES = 31,           // [byte count]([string cvar][float value]) x count: server rules' values (vr_serverrules.cpp; reliable, with the spawn state and on a change)
     QVR_SVC_COLLECT = 32,         // [byte hand][byte hotspot][short entity][short modelindex][float3 origin][float3 angles]: a thing that hand put away at that holster or pouch, drawn going in (vr_collectfx.cpp; to that player only; into a gun lying about, to everyone who can see it)
     QVR_SVC_VIEWMESSAGE = 33,     // [short seconds * 10][string]: a message floating in the middle of the view that long (QC viewmessage: target_vr_message; vr_worldtext.cpp); to that player only, reliable
+    QVR_SVC_HITREACT = 34,        // [short entity][coord3 at][char3 dir*127][byte part + 1 (0 unknown)][byte damage][byte share of its health * 255]: a living monster struck, its hit reaction drawn (QC hitreact; vr_hitreact.cpp)
+    QVR_SVC_GORESOUND = 35,       // [byte kind][short entity][coord3 at][byte strength * 255]: a gore sound (QC goresound; vr_goresound.cpp)
+    QVR_SVC_ARMPOSE = 36,         // [short grunt][short weapon][byte flags][byte wr * 255][coord3 v][short3 fw, up: body's, rifle line's * 32000][byte wo * 255][byte wl * 255][coord3 vl]: an armed grunt's hands and held weapon this server frame (QC VR_AG_SendPose; vr_hitreact.cpp), unreliable
 };
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)
 
@@ -78,6 +82,9 @@ inline constexpr int QVR_BUTTON_OFFHANDSECONDARY = 1 << 4;  // the hand's upper 
 inline constexpr int QVR_BUTTON_MAINHANDSECONDARY = 1 << 5; // in the game (-> QC QVR_VRBITS0_*HAND_SECONDARY: the grapple's reel)
 inline constexpr int QVR_BUTTON_OFFHANDPRIMARY = 1 << 6;  // the hand's lower face button (X; A on the main hand) is held,
 inline constexpr int QVR_BUTTON_MAINHANDPRIMARY = 1 << 7; // in the game (-> QC QVR_VRBITS0_*HAND_PRIMARY: the grapple's unreel)
+// The VR block's vrBits0 (QC QVR_VRBITS0_* in bits 0-13): bit 15 says this client plays flatscreen (-flatscreenmode:
+// vr_flatplay.cpp); the server takes it out (QC's bit 15 is its own) and sets the player's .vr_flatscreen.
+inline constexpr int moveFlatplayBit = 1 << 15;
 
 // VR stats (cl.stats / cl.statsf indices).
 enum Stat : int
@@ -126,7 +133,40 @@ enum Stat : int
     STAT_QVR_FOEGRAB,     // the hands holding an enemy (vr_foegrab.cpp): bit 0 the off hand, 1 the main
     STAT_QVR_FOEGRABOFFX, // each holding hand's palm's place on the enemy, in eighths of a unit: the drawn hand is put there
     STAT_QVR_FOEGRABMAINX = STAT_QVR_FOEGRABOFFX + 3,
-    STAT_QVR_END = STAT_QVR_FOEGRABMAINX + 3
+    // AD support: Arcane Dimensions' row on the wrist gadget (QC vr_ad_items.qc AD_HudUpdate): what is held (bits 0-5
+    // the artifacts Lava Shield, Air Tank, Blast Belt, Jump Boots, Sharp Shooter, Nail Piercer; 6-8 the debuffs
+    // burning, poisoned, bleeding; 9-12 the custom keys), the custom keys' HUD skins (4 bits each), the soonest
+    // artifact's seconds left (0: none ends).
+    STAT_QVR_ADHUD = STAT_QVR_FOEGRABMAINX + 3,
+    STAT_QVR_ADKEYS,
+    STAT_QVR_ADTIME,
+    // AD support: Arcane Dimensions' screen tint (QC vr_ad_player.qc VR_AD_Tint, AD's v_cshift): its colour (65536 red
+    // + 256 green + blue), its density (0-255) plus 256 for a cinematic camera's fade (vr_ad.cpp VR_AD_TintBlend).
+    STAT_QVR_ADTINT,
+    STAT_QVR_ADTINTDEN,
+    // AD support: the wrist gadget's Arcane Dimensions page (QC vr_ad_items.qc AD_HudUpdate; vr_gadget.cpp adPage): each
+    // artifact's seconds left (8 bits each, 255 no end: the Lava Shield, Air Tank, Blast Belt; the Jump Boots, Sharp
+    // Shooter, Nail Piercer), the debuffs (the poison and the bleeding still to come, the burning's seconds left: 8
+    // bits each), the carried weapons' upgrades (3 bits a weapon, 1 the Shadow Axe, 2 the Widowmaker, 4 the Plasma Gun:
+    // the main hand, the off hand, then the holsters).
+    STAT_QVR_ADART1,
+    STAT_QVR_ADART2,
+    STAT_QVR_ADDEBUFF,
+    STAT_QVR_ADUPGRADES,
+    // AD support: the sky fog AD set (QC vr_ad_bridge.qc VR_AD_SkyFog, AD's r_skyfog): its density (0-1) + 1; 0 the map's
+    // own (gl_fog.c: VR_AD_SkyFog).
+    STAT_QVR_ADSKYFOG,
+    // Incandescent blades (QC vr_hotblade.qc VR_HotBlade_Hud; vr_meleehud.cpp): how the hands' weapons glow (0-255 each:
+    // the off hand's bits 0-7, the main hand's 8-15) and the holsters' (0-15 each: holster i bits 4i..4i+3).
+    STAT_QVR_HOTBLADE,
+    STAT_QVR_HOTBLADEHOLSTER,
+    // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp): 6, each holster's bound weapon's id (0: none bound).
+    STAT_QVR_MAGBIND0,
+    // The hands carrying a thing to put away (QC .vr_carry_items, VR_Carry_IsCollectable: an ammo box, a health box, a
+    // backpack): bit 0 the off hand, 1 the main. Their zones are larger (vr_holster_zone_item_*; vr_holsterzones.cpp).
+    STAT_QVR_CARRYITEM = STAT_QVR_MAGBIND0 + 6,
+    STAT_QVR_END
+
 };
 
 inline constexpr int numHolsters = 6;

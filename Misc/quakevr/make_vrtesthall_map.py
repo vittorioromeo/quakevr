@@ -99,6 +99,24 @@ for k in range(12):
 for i, h in enumerate((32, 48, 72)):
     B.append(box(-32 + 80 * i, 352, 0, 32 + 80 * i, 416, h, "qvr_wall", "qvr_floor"))
 
+
+def ramp(x0, y0, x1, y1, h, tex, top):
+    """A wedge on the floor (z 0) rising along +y from nothing at y0 to h at y1 (its top the slope)."""
+    L = y1 - y0
+    return "\n".join([
+        "{",
+        f"( {x0} {y0} 0 ) ( {x0} {y0+1} 0 ) ( {x0} {y0} 1 ) {tex} [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1",
+        f"( {x0} {y0} 0 ) ( {x0+1} {y0} 0 ) ( {x0} {y0+1} 0 ) {tex} [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1",
+        f"( {x0} {y0} 0 ) ( {x0} {y0+L} {h} ) ( {x0+1} {y0} 0 ) {top} [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1",
+        f"( {x1} {y1} {h} ) ( {x1+1} {y1} {h} ) ( {x1} {y1} {h+1} ) {tex} [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1",
+        f"( {x1} {y1} {h} ) ( {x1} {y1} {h+1} ) ( {x1} {y1+1} {h} ) {tex} [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1",
+        "}"])
+
+
+# ---- a slope (22 degrees: 64 units up over 160) north of the mantle blocks' west end, for the situational
+# knockdowns' tests (vr_kdtrig: a hit down a steep slope may topple it; QC vr_kdtrig.qc)
+B.append(ramp(-240, 460, -80, 620, 64, "qvr_wall", "qvr_floor"))
+
 # ---- things to pick up: a table in the north-west
 B.append(box(-448, 352, 0, -320, 416, 32, "qvr_trim", "qvr_panel"))
 
@@ -150,9 +168,9 @@ board(N.join(["VR TEST HALL", "", "The buttons on the walls change the main",
 board(N.join(["West: turning, moving, body, HUD.", "East: a pool. North-east: climbing.",
               "North-west: things to pick up."]), 0, -144, 62, 270, "0.3")
 board(N.join(["CALIBRATE AGAIN", "START CALIBRATION: all of it.", "", "Body only:", "{menu:Body Calibration}", "",
-              "Height only:", "{menu:VR Settings>Set Height Now}"]), 88, -288, 104, 180, "0.2")
+              "Height only:", "{menu:VR Settings - Height and Hand Calibration>Set Height Now}"]), 88, -288, 104, 180, "0.2")
 board(N.join(["MOVING AND TURNING", "", "SWAP STICKS: the right stick moves.", "",
-              "More: {menu:VR Settings>Turning Mode}", "and {menu:Locomotion}"]),
+              "More: {menu:VR Settings - Comfort, Teleport and Turning>Turning Mode}", "and {menu:Locomotion}"]),
       PANEL_X + 1, -224, 136, 0, "0.3")
 board(N.join(["BODY AND DISPLAY", "", "Gadget arm, torch side and more:", "{menu:Body and Display}", "",
               "Hands not where your controllers are?", "{menu:Hand/Gun Calibration}"]),

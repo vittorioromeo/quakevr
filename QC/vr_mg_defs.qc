@@ -27,7 +27,10 @@
 .entity fog_active_fog_trigger;
 .string fog_info_entity;
 .string endtext;
-float() MG_WorldCampaign = { return cvar("vr_campaign") >= 3 && cvar("vr_campaign") <= 5; };
+float() Dopa_Campaign = { return cvar_hget(cvarh_vr_campaign) == VR_CAMPAIGN_DOPA; };
+float() MG_WorldCampaign = { float c = cvar_hget(cvarh_vr_campaign); return c >= VR_CAMPAIGN_DOPA && c <= VR_CAMPAIGN_MG3; };
+// MG maps may set a mover's direction with a "movedir" key: kept as given (SetMovedir, doors, buttons).
+float() MG_ExplicitMoveDir = { return MG_WorldCampaign() && self.movedir != '0 0 0'; };
 float() MG_WorldGuard = { if(MG_WorldCampaign()) return TRUE; remove(self); return FALSE; };
 void(entity ent) MG_RegisterFrameTickEntity = { ent.MG_registered = TRUE; };
 void(entity ent) MG_RemoveFrameTickEntity = { ent.MG_registered = FALSE; };

@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 //
 //
 //
@@ -57,6 +58,8 @@ void() VR_Reload_TestReport =
     }
     bprint(sprintf("reload: mode %g (immersive %g), shells %g nails %g cells %g, %g lying about\n",
         cvar_hget(cvarh_vr_reload_mode), VR_Reload_Immersive(), self.ammo_shells, self.ammo_nails, self.ammo_cells, loose));
+    // (Flatscreen play is each player's own: VR_FlatPlay; no reloading for him there.)
+    bprint(sprintf("reload: the player reloads %g (flatscreen %g)\n", VRIsWeaponReloadingEnabled(self), VR_FlatPlay(self)));
     float mines = 0; // (Hipnotic's proximity mines out: a pouch's proximity grenade let go of armed is one)
     e = find(world, classname, "proximity_grenade");
     while(e)
@@ -360,14 +363,28 @@ void() VR_Reload_SelfTest =
     // The taped pair.
     cvar_set("vr_reload_shell_pairs", "1");
     VRSetEntWeaponClip(self, cVR_OffHand, 7);
+    r = VR_Reload_TestTake(11, 1, "one place left in the tube: a single shell, not a pair");
+    VR_Reload_Check(r.model == VR_RELOAD_SHELL, "the single shell's model");
+    VR_Reload_Check(VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 8,
+        sprintf("the single shell into the gun with one place: magazine %g (want 8)", VRGetEntWeaponClip(self, cVR_OffHand)));
+    self.ammo_shells = 12;
+    VRSetEntWeaponClip(self, cVR_OffHand, 6);
     r = VR_Reload_TestTake(10, 2, "take a taped pair");
     VR_Reload_Check(r.model == VR_RELOAD_PAIR, "the pair's model");
+    VR_Reload_Check(VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 8 &&
+                    VR_Carry_Held(self, cVR_MainHand) == world,
+        sprintf("a pair into a gun with two places: magazine %g (want 8), the hand empty", VRGetEntWeaponClip(self, cVR_OffHand)));
+    // (A pair taken with the gun elsewhere, then loaded into one place: one in, one left in the hand.)
+    VRSetEntWeaponClip(self, cVR_OffHand, 0);
+    r = VR_Reload_TestTake(8, 2, "a pair with two places");
+    VRSetEntWeaponClip(self, cVR_OffHand, 7);
     VR_Reload_Check(!VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 8 &&
                     r.vr_ammo_count == 1 && r.model == VR_RELOAD_SHELL,
         sprintf("a pair into a gun with one place: magazine %g (want 8), one shell left in the hand",
             VRGetEntWeaponClip(self, cVR_OffHand)));
     VR_Reload_Refund(self, r, cVR_MainHand);
-    VR_Reload_Check(self.ammo_shells == 11, sprintf("the pair's other shell put back: %g shells (want 11)", self.ammo_shells));
+    VR_Reload_Check(self.ammo_shells == 9, sprintf("the pair's other shell put back: %g shells (want 9)", self.ammo_shells));
+    self.ammo_shells = 11;
     VRSetEntWeaponClip(self, cVR_OffHand, 0);
     r = VR_Reload_TestTake(9, 2, "another pair");
     VR_Reload_Check(VR_Reload_Load(cVR_MainHand, r) && VRGetEntWeaponClip(self, cVR_OffHand) == 2,
@@ -453,6 +470,39 @@ void() VR_Reload_SelfTest =
             VRGetEntWeaponClip(self, cVR_OffHand)));
     cvar_set("vr_reload_mode", "0");
     VR_Reload_Check(!VRIsWeaponReloadingEnabledFor(self, cVR_OffHand) && !VR_Reload_Immersive(), "off: no magazines");
+
+    // Per-weapon overrides (vr_reload_mode_<gun>): the shotgun by hand over a global of hip holsters, the nailgun at the hip.
+    cvar_set("vr_reload_mode", "2");
+    cvar_set("vr_reload_mode_shot", "3");
+    VR_Reload_Check(VR_Reload_ManualFor(WID_SHOTGUN) && !VR_Reload_ManualFor(WID_NAILGUN) && VR_Reload_Immersive(),
+        "override: the shotgun (3) loads by hand, the nailgun follows the global (2)");
+    VRGiveEntWeapon(self, cVR_OffHand, WID_NAILGUN, 0, 0);
+    VRSetEntWeaponClip(self, cVR_OffHand, 0);
+    self.ammo_nails = 50;
+    VRTryReloadWeapon(self, cVR_OffHand, WID_NAILGUN, 0);
+    VR_Reload_Check(VRGetEntWeaponClip(self, cVR_OffHand) == 24, sprintf("override: the nailgun reloads at the hip "
+        "(magazine %g, want 24)", VRGetEntWeaponClip(self, cVR_OffHand)));
+    VRGiveEntWeapon(self, cVR_OffHand, WID_SHOTGUN, 0, 0);
+    VRSetEntWeaponClip(self, cVR_OffHand, 0);
+    self.ammo_shells = 10;
+    VRTryReloadWeapon(self, cVR_OffHand, WID_SHOTGUN, 0);
+    VR_Reload_Check(VRGetEntWeaponClip(self, cVR_OffHand) == 0 && self.ammo_shells == 10,
+        "override: no holster reload for the shotgun (by hand)");
+    // The other way: a global of Immersive, the nailgun at the hip, the super shotgun off.
+    cvar_set("vr_reload_mode", "3");
+    cvar_set("vr_reload_mode_shot", "-1");
+    cvar_set("vr_reload_mode_nail", "2");
+    cvar_set("vr_reload_mode_sshot", "0");
+    VR_Reload_Check(VR_Reload_ManualFor(WID_SHOTGUN) && !VR_Reload_ManualFor(WID_NAILGUN) && !VRIsWeaponReloadingEnabledForWeapon(self, WID_SUPER_SHOTGUN),
+        "override: global 3, the shotgun follows it, the nailgun (2) at the hip, the super shotgun (0) off");
+    VRGiveEntWeapon(self, cVR_OffHand, WID_NAILGUN, 0, 0);
+    VRSetEntWeaponClip(self, cVR_OffHand, 0);
+    VRTryReloadWeapon(self, cVR_OffHand, WID_NAILGUN, 0);
+    VR_Reload_Check(VRGetEntWeaponClip(self, cVR_OffHand) == 24 && !VR_Reload_MagIn(self, cVR_OffHand),
+        sprintf("override: the nailgun (2) reloads at the hip, no magazine (magazine %g)", VRGetEntWeaponClip(self, cVR_OffHand)));
+    cvar_set("vr_reload_mode_nail", "-1");
+    cvar_set("vr_reload_mode_sshot", "-1");
+    cvar_set("vr_reload_mode", "0");
 
     VRGiveEntWeapon(self, cVR_OffHand, WID_SHOTGUN, 0, 0);
     VRSetEntWeaponClip(self, cVR_OffHand, 0);
@@ -796,6 +846,89 @@ void(float xRight) VR_Reload_TestHeldAt =
         gone ? "loaded" : "not loaded"));
 };
 
+// Reinsertion hysteresis (step 28): actual held/loose paths, both boundaries and another gun's exclusion zone.
+void() VR_Reload_TestReinsert =
+{
+    float old = cvar_hget(cvarh_vr_reload_reinsert_clearance);
+    float oldTime = cvar_hget(cvarh_vr_reload_reinsert_time);
+    vr_reload_test_pass = 0;
+    vr_reload_test_fail = 0;
+    VR_Reload_TestSetup();
+    VR_WeaponUtil_EntAddWeapon(self, WID_NAILGUN);
+    VRGiveEntWeapon(self, cVR_OffHand, WID_NAILGUN, QVR_WPNFLAG_NOMAG, 0);
+    self.ammo_nails = 100;
+    VR_Reload_PlayerFrame();
+    VR_Reload_Take(cVR_MainHand);
+    entity r = VR_Carry_Held(self, cVR_MainHand);
+    if(r == world)
+    {
+        bprint("reload: FAIL reinsertion test needs immersive reloading\n");
+        return;
+    }
+    self.offloadportpos = self.origin + '0 0 80';
+    for(float k = 0; k < 4; k++)
+    {
+        float extra = k == 0 ? -2 : k == 1 ? 0 : k == 2 ? 4 : 10;
+        cvar_set("vr_reload_reinsert_clearance", ftos(extra));
+        float reach = VR_Reload_PortRadius(WID_NAILGUN) + VR_Reload_MagRadius(r.vr_ammo_wid);
+        float boundary = reach + max(0, extra);
+        vector desired = self.offloadportpos + '1 0 0' * (boundary - 0.01);
+        setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
+        r.vr_ammo_fresh = TRUE;
+        r.vr_ammo_fresh_at = time; // (just out: Reinsertion Delay not gone)
+        VR_Reload_HeldFrame(cVR_MainHand, r);
+        VR_Reload_Check(r.vr_ammo_fresh, sprintf("clearance %g: held just inside stays fresh", extra));
+        desired = self.offloadportpos + '1 0 0' * (boundary + 0.01);
+        setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
+        VR_Reload_HeldFrame(cVR_MainHand, r);
+        VR_Reload_Check(!r.vr_ammo_fresh, sprintf("clearance %g: held just outside rearms", extra));
+        // (No "returned inside" check here: a held frame inside the port with the latch off loads the round, which
+        // this loop reuses; without one the latch is only read back.)
+
+        float lenient = max(0, cvar_hget(cvarh_vr_reload_contact_leniency)) * VRMetersToUnits() / 100;
+        boundary = reach + 2 * lenient + max(0, extra);
+        r.vr_ammo_fresh_from = self;
+        r.vr_ammo_fresh_at = time - max(0, cvar_hget(cvarh_vr_reload_eject_cooldown)) - 1;
+        desired = self.offloadportpos + '1 0 0' * (boundary - 0.01);
+        setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
+        VR_Reload_Check(!VR_Reload_FreshLeft(r), sprintf("clearance %g: loose inside stays fresh", extra));
+        desired = self.offloadportpos + '1 0 0' * (boundary + 0.01);
+        setorigin(r, r.origin + desired - VR_Reload_RoundRef(r));
+        VR_Reload_Check(VR_Reload_FreshLeft(r), sprintf("clearance %g: loose outside rearms", extra));
+    }
+    VR_WeaponUtil_EntAddWeapon(self, WID_SUPER_NAILGUN);
+    VRGiveEntWeapon(self, cVR_MainHand, WID_SUPER_NAILGUN, QVR_WPNFLAG_NOMAG, 0);
+    self.loadportpos = self.offloadportpos + '120 0 0';
+    setorigin(r, r.origin + self.loadportpos - VR_Reload_RoundRef(r));
+    VR_Reload_Check(!VR_Reload_FreshLeft(r), "loose: clearing one gun cannot rearm inside the other gun");
+    setorigin(r, r.origin + '0 0 120');
+    r.vr_ammo_fresh_at = time + 1;
+    VR_Reload_Check(!VR_Reload_FreshLeft(r), "loose: spatial clearance does not bypass eject cooldown");
+    // Reinsertion Delay (the author: kept close, it goes in after a moment): held inside the clearance band (past the
+    // reach, so nothing loads), fresh until vr_reload_reinsert_time has gone since it came out; 0 never by time.
+    cvar_set("vr_reload_reinsert_clearance", "4");
+    float reach2 = VR_Reload_PortRadius(WID_NAILGUN) + VR_Reload_MagRadius(r.vr_ammo_wid);
+    setorigin(r, r.origin + self.offloadportpos + '1 0 0' * (reach2 + 2) - VR_Reload_RoundRef(r));
+    for(float j = 0; j < 3; j++)
+    {
+        float delay = j == 2 ? 0 : 0.25;
+        float ago = j == 0 ? 0.2 : 0.3;
+        cvar_set("vr_reload_reinsert_time", sprintf("%g", delay)); // (not ftos: one decimal, 0.25 -> 0.2)
+        r.vr_ammo_fresh = TRUE;
+        r.vr_ammo_fresh_at = time - ago;
+        VR_Reload_HeldFrame(cVR_MainHand, r);
+        float rearmed = !r.vr_ammo_fresh;
+        VR_Reload_Check(rearmed == (j == 1), sprintf("delay %g, out %g s ago, kept close: %s", delay, ago,
+            rearmed ? "may seat" : "stays fresh"));
+    }
+    cvar_set("vr_reload_reinsert_time", sprintf("%g", oldTime));
+    cvar_set("vr_reload_reinsert_clearance", ftos(old));
+    VR_Carry_SetHeld(self, cVR_MainHand, world);
+    r.carry_player = world;
+    remove(r);
+    bprint(sprintf("reload reinsertion: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
+};
+
 void() VR_Reload_Test =
 {
     float step = cvar_hget(cvarh_vr_reload_test);
@@ -852,6 +985,23 @@ void() VR_Reload_Test =
             VR_Reload_AmmoChanged(self);
         }
     }
+    else if(step == 30)
+    {
+        // The main hand's gun (pouch reloading's dual-wield tests): its magazine emptied into the reserve (as 5) and, a
+        // super shotgun shut, broken open (as 15).
+        float mw = VRGetEntWeapon(self, cVR_MainHand);
+        if(mw != WID_FIST)
+        {
+            VR_AmmoUtil_AddAmmoCountByAmmoId(self, WeaponIdToAmmoId(mw, VRGetEntWeaponFlags(self, cVR_MainHand)),
+                VRGetEntWeaponClip(self, cVR_MainHand));
+            VRSetEntWeaponClip(self, cVR_MainHand, 0);
+            VR_Reload_AmmoChanged(self);
+        }
+        if(mw == WID_SUPER_SHOTGUN && VR_Reload_ManualInHand(self, cVR_MainHand) && !VR_Reload_SsgIsOpen(self, cVR_MainHand))
+        {
+            VR_Reload_SsgBreak(self, cVR_MainHand, "test step 30");
+        }
+    }
     else if(step == 6)
     {
         if(VR_Reload_MagIn(self, cVR_OffHand))
@@ -866,6 +1016,10 @@ void() VR_Reload_Test =
     else if(step == 9)
     {
         VR_Reload_SelfTest();
+    }
+    else if(step == 28)
+    {
+        VR_Reload_TestReinsert();
     }
     else if(step >= 10 && step <= 13)
     {
@@ -939,3 +1093,4 @@ void() VR_Reload_Test =
     }
     VR_Reload_TestReport();
 };
+#endif

@@ -335,6 +335,7 @@ void R_Init (void)
 	cmd_function_t *cmd;
 
 	Cmd_AddCommand ("timerefresh", R_TimeRefresh_f);
+	Cmd_AddCommand ("vr_world_fragments", R_WorldFragments_f); // QVR: (r_world.c)
 	Cmd_AddCommand ("pointfile", R_ReadPointFile_f);
 	cmd = Cmd_AddCommand ("r_showbboxes_filter", R_ShowbboxesFilter_f);
 	if (cmd)
@@ -549,7 +550,7 @@ static void R_ParseWorldspawn (void)
 			return; // error
 		q_strlcpy(value, com_token, sizeof(value));
 
-		if (!strcmp("wateralpha", key))
+		if (!strcmp("wateralpha", key) || !strcmp("water_alpha", key)) // QVR: AD support: Arcane Dimensions' key (its QuakeC set r_wateralpha)
 		{
 			worldspawn_wateralpha = q_max (0.f, atof(value)); // QVR: kept (was: map_wateralpha, over the setting)
 			R_UpdateLiquidAlpha ();
@@ -598,6 +599,7 @@ void R_NewMap (void)
 	GL_DeleteBModelBuffers ();
 	GL_BuildBModelVertexBuffer ();
 	GL_BuildBModelMarkBuffers ();
+	VR_RuntimeBrushesUpload (); // QVR: the runtime brushes into their slots again (vr/vr_brushes.cpp)
 	VR_TimeMark ("R_NewMap: brush model buffers"); // QVR
 	//ericw -- no longer load alias models into a VBO here, it's done in Mod_LoadAliasModel
 

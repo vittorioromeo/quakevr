@@ -64,13 +64,14 @@ Debug > Profiling and Memory > **Benchmark Capture (10 s)** does the same in the
 | `frame.cpu_busy_ms` | the CPU's work: the host frame less the runtime's waits (`xr wait`, acquire, release, submit) and the swap |
 | `frame.gpu_eyes_ms` | both eyes' GPU time (timer queries every frame, read back a few frames later; the first 6 dropped) |
 | `frame.gpu_3d_ms` | the whole 3D refresh's GPU time (`3D`: both eyes and the mirror in VR, the one view flat) |
+| `frame.render_scale` | dynamic resolution's scale as each frame's GPU times were read back (1 with `vr_dynres 0` at `vr_render_scale 1`) |
 | `frame.traces`, `draw_calls`, `alias_drawn` | a frame's collision traces, OpenGL draw calls and alias model instances |
 | `frame.heap_allocs` | the main thread's heap events a frame (new, malloc, calloc, realloc); `heap_requested_kib` the total |
 | `frame.main_mcycles` | the main thread's CPU cycles a frame, millions (`QueryThreadCycleTime`: a wait that spins counts, a sleep does not) |
 | `frame.pose_to_submit_ms` | the latency's proxy: from the frame's pose (the runtime's frame begun, the tracking sampled) to its submit (`xrEndFrame` returned); frames that submitted |
 | `hitches` | frames over 11.1 ms (a 90 Hz refresh), 13.9 (72 Hz), 33.3, 100, 250 ms, and over twice the median |
 | `cpu_phase_ms` | each always-on phase's CPU time a frame (server, SV_Physics, client read, view entities, screen, eyes, sound, rigid bodies, shadow maps, world+brush, alias, particles, vr particles, decals, 3D) |
-| `gpu_phase_ms` | each GPU phase a frame: the eyes, the runtime's calls, shadow maps, world+brush, alias, particles, vr particles, decals, 3D |
+| `gpu_phase_ms` | each GPU phase a frame: the eyes, the runtime's calls, shadow maps, world+brush, alias, particles, vr particles, decals, and (since the GPU benchmark) sky, water, translucent, lights (the clustering), view model, heat haze, blob shadows, env cube, bloom, postprocess, upscale, ui, hidden area, mirror, spectator, window view; 3D. Summed over the views (the spectator's world is in world+brush too); nested ones inside others (translucent holds the translucent water, alias and particles) |
 | `counts` | at the start, every 16th frame (avg, max) and the end: edicts, monsters alive, Box3D bodies / awake / contacts, Ironwail's and Quake VR's particles, decals, dynamic lights, shadowed lights |
 | `marks` | the window's parts (`vr_bench_mark <label>`: from the next recorded frame to the next mark or the end): each one's frames, first, worst and mean frame, worst CPU work, frames over 33 ms |
 | `loads` | each map load that ended (its first frame drawn) inside the window: what (`map e1m1: e1m1`, `changelevel e1m2: e1m2`, `restart e1m1: e1m1`), the map, `total_ms` from the command to the first frame drawn, `frames_to_signon`, its `first_frame` and the worst of the second `after` it (90 frames, as `marks`), its `stages` in order (`vr_startup_times`' marks: `[name, ms]`) and its `work` across them (`[name, ms, count]`: textures, image files, alias models, normal maps, external material maps, ragdoll rigs, hulls...) |
@@ -137,6 +138,8 @@ settings) compare with new runs under the new names (`qvrbench.py`'s `renamed`).
 | `bullettime_trails_64` | vfx/features | vrfiringrange | vr_bullettime_trails_test 8 shots across the view every 10 frames in bullet time: the distortion trails' pool (64) full, the scene's copy and the bend (vr_bttrails.cpp). |
 | `decals_1024_stream` | vfx/core | vrfiringrange | 1400 pellets fill the 1024-mark pool, then a shot every 4 frames: decal insertion, the world decal grid. |
 | `decals_blood_4096` | vfx | vrfiringrange | vr_decal_stress fills a 4096-mark pool with large blood marks, then adds one every 4 frames. |
+| `decals_pile` | vfx | vrfiringrange | 768 blood marks piled on one spot of the floor (`vr_decal_stress 64 32 cluster` x 12), looked at; `vr_decal_bucket_max 32` (shipped). Compare `world+brush` in `gpu_phase_ms`. |
+| `decals_pile_255` | vfx | vrfiringrange | The same pile with `vr_decal_bucket_max 255` (the limit before 2026-10-12). |
 | `torches_32` | vfx/lights | vrfiringrange | 32 more wall torches (35 emitters): fire particles, their lights. |
 | `lights_32` | lights/core | vrfiringrange | vr_light_test x32 ahead: dynamic lights, their shadow maps (vr_shadow_dlights' slots), lit models. |
 | `lights_32_noshadows` | lights/control | vrfiringrange | lights_32 with vr_shadow_dlights 0 and vr_shadow_maplights 0: the shadows' share. |
@@ -185,6 +188,19 @@ settings) compare with new runs under the new names (`qvrbench.py`'s `renamed`).
 | `play_teleporters_turn` | play/teleporters | vrteleporters | The T room's middle (`setpos -1280 600 24`): its east, north and west (loop) gates, the head turned 90 degrees either way twice: one to three portal views a frame. |
 | `play_props_fire` | play/physics | vrfiringrange | 40 props (`vr_physics_bigpile 40 260 mixed`), 3 crates and 2 grunt corpses set on fire (`vr_burn_test 1`), 4 wall torches, a small blast in the pile every 180 frames. |
 | `combined` | combat/physics/vfx/lights/core | vrfiringrange | Everything at once (the perf suite's combined): the frame's worst realistic mix. |
+| `armed_16` | r25/combat | vrtesthall | Scene `bench_armed16`: 8 grunts and 8 enforcers armed (shotguns, dual shotguns and nailguns, swords, axes, chainsaw, rocket launcher, laser rifle, thunderbolt, Mjolnir), hostile; the player's shotgun on the nearest every 50 frames: arm IK, skinning, upper body and legs, their shots and strikes. |
+| `armed_16_melee` | r25/combat/melee | vrtesthall | The same scene, the player's fists jabbing (`vr_mock_play`) as they close in: their strikes, parries, knockdowns. |
+| `crowd_ad_40` | r25/combat | vrtesthall | Scene `bench_crowd_ad`: 40 monsters of 20 kinds, Quake's and Arcane Dimensions' (the toolgun's AD entries), hostile; the player's shotgun every 50 frames. |
+| `tanks_fields` | r25/physics/vfx | vrtesthall | Scene `bench_tanks`: 4 flamethrowers and 4 poison sprayers lying among grunts, crates and explosive boxes; blasts burst the tanks (marks `burst_fire`, `burst_poison`), then break the crates and boxes (`break`): fire fields, poison clouds, ragdolls, pieces. |
+| `fight_<map>` | r25/maps | ad_sepulcher, ad_tears, ad_crucial (native AD), hip2m5, r2m7, e4m7 | The map at skill 2: its spawn and two pickups' places, 300 frames each, the head turning round, god and notarget off (what is near comes for you). |
+| `load_ad_sepulcher`, `load_ad_tears` | r25/loading | (none) | AD's 42 MB and 85 MB BSPs loaded cold (and sepulcher warm). |
+| `saveload_e1m1` | r25/loading | e1m1 | A fight in E1M1's computer room saved (`save qvrbench`, into the agent's own game folder) and loaded twice: the save's frame (mark `save`), each load by stage. |
+| `gpu_fields_inside` | gpu/vfx | vrtesthall | Scene `bench_tanks` with the flamethrowers' and sprayers' tanks burst in the set-up, the player standing among the fire fields (`setpos 50 -48 24`) facing the poison clouds: big soft particles seen from inside. |
+| `gpu_shore_spray` | gpu/liquids | vrtesthall | vrtesthall's pool from its west edge (`setpos 180 -256 24`, looking down 20 degrees): the shore's foam and spray along its walls, the water. |
+
+Group `gpu` (the GPU benchmark, "GPU benchmark" below) also takes `idle_e1m1`, `fight_ad_tears`, `fight_ad_sepulcher`,
+`play_ad_tfuma_fight`, `armed_16`, `crowd_ad_40`, `combined`, `particles_dense`, `explosions_storm`,
+`gore_blast_crowd_32`, `lights_32`, `flashlight_e1m1`, `tanks_fields`, `water_range_surface`, `lava_e1m7`.
 
 ### Tours of complex custom maps
 
@@ -284,9 +300,9 @@ spawn 1.0-1.6 s).
 - **Recorded melee takes**: `melee_punch_8` uses a scripted jab (`vr_mock_play`), not the author's takes, which are not
   in `quakevr/motions/` now (eval.sh fails the same way). Replaying takes (`vr_motion_play`) inside a bench window is the
   natural next scenario once they are back.
-- **GPU per pass** comes from the always-on phases (shadow maps, world+brush, alias, particles, vr particles, decals,
-  the eyes, 3D). Finer GPU scopes (sky, water, translucent, bloom, postprocess, portal) exist only in `vr_profile`'s call
-  tree, not in the JSON.
+- **GPU per pass** comes from the always-on phases (`gpu_phase_ms`: since the GPU benchmark also sky, water,
+  translucent, bloom, postprocess, upscale, spectator...). Finer GPU scopes (each eye's apart, the haze's copy, the
+  half-size particles, portals) exist only in `vr_profile`'s call tree, not in the JSON.
 
 **Gameplay apart from loading** (2026-10-06, the removed PROFILING_2026-10.md): a gameplay scenario's
 set-up ends with `vr_ao_finish` (waits for the models' occlusion bakes the load and the set-up's spawns started: 9 s
@@ -558,6 +574,408 @@ after: `playprof_gun` (the guns' pieces read from the disk, as from a player's s
   (`Mod_PointInLeaf`, `SV_HullPointContents`: 0.07), the shadowed torches' world casters in the hub (0.2 ms in
   `play_vrstart_walk`: the declined dlight caster cache).
 
+### Overnight profiling round (2026-10-25)
+
+Worktree `fastship`, branch `agent/perfround` (ROUND22.md, "Overnight profiling and optimization round"). New group
+`r25` (the table above: armed humanoids, AD's monsters in a crowd, fuel tanks' fields, hostile tours of AD, mission
+pack and id maps, AD's biggest loads, a save and two loads); the vrtesthall ones are vr_scenario scenes
+(`quakevr/scenarios/bench_*.txt`, a scenario's `scene=`).
+
+Rerun: `bash kit/bench.sh <agent> --scenarios r25,<others> --reps 3 --settings <his ironwail.cfg> --label <name>`,
+then `bench.sh compare`. Tracy captures of the measured window alone: the kit's `tracy-capture` started when the
+scenario's console prints a marker put before `vr_bench_begin` (the client is on demand); `tracy-csvexport` (and `-e`
+for self times, `-g` for GPU zones). The round's scripts: `qvr-kit/scratch/perfround/` (copied from the worktree's
+scratch: `pf_tracy.sh`, `pf_zones.py`, `pf_var.sh`, `pf_ab.sh`, `pf_hitch.sh`, `pf_hitches.py`).
+
+**Baseline** (`kit/benchresults/pf_base`: build fad928b7d, his settings of 2026-10-25, paced 90 Hz, eyes 2048,
+exclusive, 3 x 900 frames, medians; ms; CPU = `cpu_busy_ms`, GPU = `gpu_3d_ms`). Every gameplay scenario holds 90 Hz
+at the median; the worst steady CPU is `combined` (6.1 ms) and AD's 813-monster ad_tears (3.7).
+
+| scenario | frame p99 | frame max | CPU avg | CPU p99 | GPU 3D avg | frames > 2x median |
+|---|---|---|---|---|---|---|
+| ai_crowd_64 | 11.17 | 24.4 | 2.96 | 5.18 | 1.07 | 0 |
+| armed_16 | 11.27 | 76.4 | 2.94 | 5.77 | 3.31 | 2 |
+| armed_16_melee | 11.19 | 12.5 | 2.15 | 3.15 | 2.24 | 0 |
+| combat_48 | 18.23 | 173.8 | 3.47 | 10.50 | 4.04 | 7 |
+| combined | 11.15 | 17.9 | 6.13 | 7.93 | 5.79 | 0 |
+| crowd_ad_40 | 11.22 | 174.6 | 3.35 | 6.35 | 3.53 | 6 |
+| explosions_storm | 11.20 | 19.1 | 1.86 | 2.51 | 1.37 | 0 |
+| fight_ad_crucial | 11.20 | 22.0 | 2.05 | 3.56 | 2.05 | 0 |
+| fight_ad_sepulcher | 11.26 | 39.9 | 2.69 | 3.99 | 1.80 | 0 |
+| fight_ad_tears | 12.08 | 187.5 | 3.71 | 6.13 | 1.93 | 2 |
+| fight_e4m7 | 11.21 | 26.2 | 1.85 | 4.46 | 1.48 | 0 |
+| fight_hip2m5 | 11.13 | 13.3 | 1.39 | 2.95 | 1.35 | 0 |
+| fight_r2m7 | 11.20 | 17.8 | 1.38 | 2.30 | 1.69 | 0 |
+| gore_blast_crowd_32 | 11.20 | 20.0 | 3.05 | 6.34 | 2.63 | 0 |
+| gore_dismember_16 | 11.25 | 84.5 | 2.62 | 5.41 | 2.66 | 1 |
+| idle_e1m1 | 11.49 | 95.7 | 0.99 | 1.88 | 1.29 | 0 |
+| lights_32 | 11.14 | 12.5 | 1.35 | 1.94 | 1.84 | 0 |
+| load_ad_sepulcher | 47.14 | 1766.8 | 10.85 | 47.04 | 2.30 | 10 |
+| load_ad_tears | 70.24 | 2347.1 | 13.08 | 69.63 | 2.69 | 5 |
+| load_ad_tfuma | 46.94 | 1305.8 | 8.47 | 46.85 | 2.18 | 9 |
+| load_e1m1 | 19.70 | 736.3 | 2.62 | 19.46 | 1.38 | 19 |
+| particles_dense | 11.20 | 13.3 | 2.63 | 3.40 | 3.08 | 0 |
+| play_ad_tfuma_fight | 11.22 | 12.1 | 3.60 | 6.71 | 2.11 | 0 |
+| play_e1m1_lights | 11.17 | 16.8 | 2.15 | 5.08 | 3.06 | 0 |
+| play_gore_fight | 11.20 | 11.9 | 2.28 | 3.75 | 3.00 | 0 |
+| play_props_fire | 11.18 | 15.8 | 1.77 | 2.70 | 2.00 | 0 |
+| props_500_active | 11.18 | 11.6 | 3.52 | 6.48 | 1.94 | 0 |
+| ragdolls_32_active | 11.15 | 18.8 | 2.94 | 5.62 | 3.01 | 0 |
+| saveload_e1m1 | 13.83 | 220.8 | 1.83 | 13.80 | 1.75 | 6 |
+| tanks_fields | 11.22 | 90.9 | 2.52 | 4.72 | 2.14 | 0 |
+
+Map loads (ms, total from the command to the first frame; cold / warm): ad_sepulcher 1952 / 904, ad_tears 2481,
+ad_tfuma 1411 / 470, e1m1 827 / 165; the save's frame 9 ms, a saved game's load 119-128 ms.
+
+**Where the time goes** (Tracy, Release-Tracy, the window alone, QC function zones on; ms a frame of self time):
+the steady frame has no single hot spot. Heavy scenes: `combined` alias submission 1.26 (1600 model set-ups and 4700
+shadow-caster draws a frame), shadow alias layered draw 0.72, alias flush 0.55, Box3D's before-step 0.49 and publish
+0.40, particle verts 0.43; AD's big maps: Box3D's entity sync 0.19-0.34 (3600-4100 edicts), Toss's rigid bodies
+0.18-0.29 (390-430 items a frame), the edicts' loop 0.17-0.27, the calibration room's button screens' walk of every
+edict 0.18 (fixed), the hand grenade catch's findradius 0.10 (fixed), the devstats edict count 0.15 (fixed), the
+weapons' records sweep 0.06; armed humanoids (16): their arms' solve in `relink` 0.22, the grunts' QC poses 0.04; GPU
+(ad_tears, `vr_tracy_gpu_detail 1`): the world 1.0 ms of 2.0 a frame, the spectator 0.36.
+
+**Hitches** (hitch log, `vr_profile_hitch 2`, frames over two refreshes):
+- A session's first map's first frames: `lights` (R_PushDlights: the light clustering's first use) 75-97 ms, the env
+  cubes 10-33, the skin masks 13-23, alias 13-16, then the frame setup's QC 31-51: once a session, behind the load.
+- ad_tears' swap stalls (20-225 ms, `screen/swap`, the GPU 3 ms): **a harness artifact**, the hidden window with the
+  spectator view (`vr_window_view 2`): none with the window visible (`run.sh -Visible`: p99 11.2-11.4 in 2 runs) or
+  `vr_window_view 0`; intermittent hidden (1 run of 2 clean). Compare ad_tears by CPU, not frame times.
+- AD's loads: the server's first frames (`physics_init` 145-345 ms, warm too): the crates' plan (150 ms in
+  ad_sepulcher) and the rocks' (115-140 ms), QC's StartFrame. The crates' part fixed (below); the rest a proposal.
+- Single long frames of the fights (combat_48, crowd_ad_40 174 ms, armed_16 76) were not seen again in the hitch-log
+  runs: other workers' builds shared the machine (the exclusive lock covers games, not builds).
+
+**Fixed** (each with a Debug > Profiling and Memory toggle where it changes more than a count):
+- The calibration room's and hub's button screens (`vr_setup.cpp`) found by a walk of every edict's targetname every
+  frame: now a list of the `vr_...` named edicts made every half second (`vr_setup_screens_cache`). Tracy ad_tears
+  0.183 -> 0.005 ms a frame; A/B, 3 runs each, CPU busy avg: ad_sepulcher 2.369 -> 2.329, ad_tears 2.540 -> 2.492,
+  ad_tfuma 3.368 -> 3.325, e1m1 0.796 -> 0.772. The same screens (shots identical).
+- The hand grenade catch (QC `VR_Grenade_CatchCheck`, both hands every frame) skips its findradius (every edict) when
+  no grenade's fuse burns (`vr_gren_fuse_last`, raised wherever a fuse is set): ad_tears 0.112 -> 0.000 ms a frame.
+- Quake's devstats edict count (a walk of every edict a server frame) only with `devstats` or `developer` on:
+  "server" self 0.30 -> 0.00 ms in ad_tears (its frame end now zoned apart: 0.15).
+- The crates' placing tests the entities' boxes before its traces (`vr_place_entities_first`; rocks too): the same
+  layout hashes on ten maps; the crates' plan ad_sepulcher 150 -> 117 ms, ad_crucial 55 -> 33, ad_tears 84 -> 77.
+
+**After** (`kit/benchresults/pf_after`: this branch after merging next of 2026-10-25, which brought the build-speed
+round's header and menu changes and the nail pistol; the same set-up; 3 x 900 frames, medians; ms). **Read the A/B rows
+above for the fixes' own share**: these two sets were an hour apart on a machine other workers built on, and the idle
+E1M1, which none of the fixes touches, moved as much (CPU 0.99 -> 0.75).
+
+| scenario | CPU avg before | after | CPU p99 before | after | frame p99 before | after |
+|---|---|---|---|---|---|---|
+| fight_ad_tears | 3.71 | 2.48 | 6.13 | 4.10 | 12.08 | 11.25 |
+| fight_ad_sepulcher | 2.69 | 2.30 | 3.99 | 3.60 | 11.26 | 11.27 |
+| fight_ad_crucial | 2.05 | 1.72 | 3.56 | 3.00 | 11.20 | 11.23 |
+| play_ad_tfuma_fight | 3.60 | 3.29 | 6.71 | 6.19 | 11.22 | 11.24 |
+| armed_16 | 2.94 | 2.65 | 5.77 | 5.30 | 11.27 | 11.23 |
+| combat_48 | 3.47 | 2.57 | 10.50 | 4.22 | 18.23 | 11.23 |
+| idle_e1m1 | 0.99 | 0.75 | 1.88 | 1.42 | 11.49 | 11.28 |
+
+Loads (total ms, before / after): ad_sepulcher cold 1952 / 1802, warm 904 / 841; ad_tears 2481 / 2455; ad_tfuma
+cold 1411 / 1420, warm 469 / 467.
+
+**Proposals** (not built): (1) the crates' and rocks' plans kept for the session by map, settings and the entities'
+boxes (a restart after death in AD: about 250 ms of its load); (2) the light clustering program and the env cubes
+made at the load (the first frame's 75-130 ms); (3) armed humanoids' arm solve skipped for those in no view and casting
+no shadow in view (0.2 ms for 16; needs the glitch finder's frames-in-view rule); (4) `findradius` through the area
+grid, checked against the walk like `vr_edictindex` (every QC radius search walks every edict: 4000 in AD's maps);
+(5) the weapons' records sweep every few frames (0.06 ms in AD's maps; changes when edict slots are reused);
+(6) alias submission (1.3 ms in `combined`): more models a draw.
+
+### GPU benchmark: a Quest 3 at Virtual Desktop's Ultra, 120 Hz (2026-10-25)
+
+Worktree `tghost`, branch `agent/gpubench` (ROUND22.md, "GPU benchmark"). How much of the 8.33 ms frame (120 Hz) the
+GPU takes as he plays: a Quest 3 through Virtual Desktop (VDXR) at "Ultra", his settings (`vr_dynres 1`, target 0.85,
+min 0.6, `vr_render_scale 1`, the spectator camera in the window at scale 1.5 and 60 Hz), on this machine (RTX 4090).
+
+**Rerun:**
+
+```
+python Misc/quakevr/bench/gpu_settings.py <his quakevr/ironwail.cfg> <dir>     # -> gpu_fixed.cfg, gpu_dynres.cfg
+bash kit/bench.sh <agent> --scenarios gpu --reps 3 --hz 120 --eye 2688x2784 --settings <dir>/gpu_fixed.cfg --label <name>
+python Misc/quakevr/bench/qvrbench.py gpu kit/benchresults/<name>                # gpu.md: the tables below
+```
+
+(`--settings <dir>/gpu_dynres.cfg` as he plays; `--eye 2048` the square eyes of the earlier rounds.) Build with
+`build.sh <agent> --lto`; the runs are paced at 120 Hz in real time and exclusive (bench.sh's default): a GPU timing
+needs the real pace, not fast mode.
+
+**The emulation** (the mock backend through the normal VR path: both eyes rendered and "submitted" every frame, the
+same passes as with a headset):
+- Eye images 2688 x 2784 (`vr_mock_eye_size 2688`, new `vr_mock_eye_height 2784`; `--eye WxH`): Virtual Desktop's
+  Ultra per eye as a VD settings guide lists it (Low 1728x1824 ... Ultra 2688x2784, Godlike 3072x3216). Not confirmed
+  for the Quest 3 by VD's own documentation (the Quest 3's panel is 2064x2208 an eye): check the VD overlay's
+  resolution in the headset. `vr_render_scale 1`: rendered at that size, no resample.
+- Refresh 120 Hz: `host_maxfps 120` and the mock's display period (new `vr_mock_refresh 120`, dynamic resolution's
+  budget: 0.85 x 8.33 = 7.08 ms of the eyes' GPU; before, the mock gave none and dynres assumed 90 Hz).
+- His whole `ironwail.cfg` of 2026-10-25, then `vr_mock_hidden_area 1` (VDXR gives a visibility mask; the mock's is a
+  circle, about 17% of the image), his window's 1920x1080 (`vid_unlock; vid_width ...; vid_restart`: the spectator
+  camera renders at 1.5 times it, 2880x1620), `vr_dynres 0` (fixed full size, the worst case) or 1.
+- The GPU timers (timestamp queries, read back a few frames later, every frame): `gpu_3d_ms` is the whole 3D refresh
+  (both eyes, their post-processing and UI, the spectator camera); `gpu_phase_ms` each pass, now with sky, water,
+  translucent, lights, heat haze, bloom, postprocess, upscale, spectator, window view... (summed over the views).
+
+**What it does not emulate**: the runtime's own GPU work (VDXR's composition, the colour conversion and the video
+encode for the stream, VD's frame pacing and its SSW: on the PC's GPU too, a share of what is left); the Quest 3's
+field of view (the mock's is 0.8 rad each way, about 92 x 92 degrees; the Quest 3's eye is wider, asymmetric: more
+of the scene in view at the same pixel count); its real visibility mask; `xrWaitFrame`'s pacing (the frame cap
+instead). The timestamps are wall time between two GPU points: where the CPU is slow to submit (`combined`'s models)
+they include the GPU waiting for it. `cpu_busy_ms` includes the CPU waiting for the GPU's frame resources: at Ultra
+`combined`'s CPU busy is 9.0 ms against 7.2 at 2048.
+
+**Baseline** (`kit/benchresults/gb_base_ultra_fixed`, `gb_base_ultra_dynres`, `gb_base_2048_fixed`: build b1e7a7126,
+3 x 900 frames each, medians; ms; GPU = `gpu_3d_ms`; scale = dynres's average):
+
+| scenario | GPU p50 | p95 | p99 | max | eyes avg | CPU avg | 2048: GPU p50 | p99 | dynres on: GPU p50 | p99 | scale |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| armed_16 | 3.73 | 5.62 | 6.48 | 7.16 | 3.13 | 2.40 | 2.68 | 4.98 | 3.78 | 6.44 | 1.00 |
+| combined | 7.73 | 10.78 | 11.90 | 13.07 | 6.73 | 9.00 | 5.87 | 9.76 | 7.68 | 12.03 | 1.00 |
+| crowd_ad_40 | 4.85 | 6.88 | 8.18 | 8.95 | 3.94 | 3.17 | 3.69 | 6.37 | 4.86 | 7.86 | 1.00 |
+| explosions_storm | 2.07 | 2.39 | 2.85 | 3.16 | 1.60 | 1.59 | 1.55 | 2.11 | 2.13 | 2.84 | 1.00 |
+| fight_ad_sepulcher | 2.69 | 3.73 | 3.90 | 4.77 | 2.09 | 2.25 | 2.07 | 3.18 | 2.69 | 4.10 | 1.00 |
+| fight_ad_tears | 2.79 | 4.04 | 4.32 | 4.82 | 2.16 | 2.37 | 2.13 | 3.59 | 2.81 | 4.29 | 1.00 |
+| flashlight_e1m1 | 2.26 | 2.56 | 3.05 | 3.63 | 1.65 | 0.85 | 1.59 | 2.42 | 2.25 | 3.01 | 1.00 |
+| gore_blast_crowd_32 | 3.96 | 6.00 | 7.51 | 8.70 | 3.05 | 3.06 | 3.04 | 6.42 | 3.88 | 7.40 | 1.00 |
+| gpu_fields_inside | 3.80 | 4.58 | 4.93 | 5.53 | 2.85 | 1.83 | 2.94 | 4.06 | 3.77 | 4.92 | 1.00 |
+| gpu_shore_spray | 2.58 | 2.71 | 3.17 | 3.40 | 1.77 | 0.65 | 1.95 | 2.54 | 2.63 | 3.18 | 1.00 |
+| idle_e1m1 | 2.21 | 2.55 | 3.03 | 3.13 | 1.64 | 0.66 | 1.59 | 2.44 | 2.21 | 3.05 | 1.00 |
+| lava_e1m7 | 2.39 | 2.75 | 3.25 | 3.51 | 1.83 | 0.73 | 1.75 | 2.62 | 2.53 | 3.25 | 1.00 |
+| lights_32 | 3.11 | 3.56 | 3.95 | 4.32 | 2.20 | 1.22 | 2.35 | 3.22 | 3.17 | 3.93 | 1.00 |
+| particles_dense | 4.25 | 5.85 | 6.10 | 7.26 | 3.74 | 2.88 | 2.92 | 4.74 | 4.27 | 6.09 | 1.00 |
+| play_ad_tfuma_fight | 3.53 | 3.91 | 4.31 | 5.69 | 2.43 | 3.23 | 2.86 | 3.55 | 3.54 | 4.29 | 1.00 |
+| tanks_fields | 3.40 | 4.14 | 4.86 | 6.04 | 2.57 | 2.25 | 2.70 | 4.12 | 3.39 | 5.28 | 1.00 |
+| water_range_surface | 1.12 | 1.18 | 1.37 | 1.84 | 0.80 | 0.82 | 0.87 | 1.09 | 1.12 | 1.36 | 1.00 |
+
+Per pass at Ultra (ms a frame, all three views: the spectator's world is in world+brush too):
+
+| scenario | world+brush | alias | shadow maps | vr particles | heat haze | water | translucent | bloom | postprocess | spectator |
+|---|---|---|---|---|---|---|---|---|---|---|
+| armed_16 | 2.17 | 0.84 | 0.09 | 0.11 | 0.00 | 0.10 | 0.21 | 0.13 | 0.10 | 0.78 |
+| combined | 2.66 | 2.27 | 0.31 | 1.39 | 0.53 | 0.09 | 0.18 | 0.13 | 0.10 | 1.26 |
+| crowd_ad_40 | 2.38 | 0.69 | 0.10 | 0.36 | 0.34 | 0.14 | 0.25 | 0.13 | 0.10 | 0.85 |
+| explosions_storm | 0.82 | 0.12 | 0.03 | 0.36 | 0.00 | 0.09 | 0.19 | 0.13 | 0.11 | 0.36 |
+| fight_ad_sepulcher | 1.79 | 0.09 | 0.06 | 0.04 | 0.06 | 0.11 | 0.22 | 0.13 | 0.10 | 0.54 |
+| fight_ad_tears | 1.71 | 0.09 | 0.06 | 0.10 | 0.05 | 0.11 | 0.31 | 0.13 | 0.10 | 0.56 |
+| gore_blast_crowd_32 | 1.48 | 1.26 | 0.04 | 0.20 | 0.04 | 0.09 | 0.21 | 0.13 | 0.10 | 0.78 |
+| gpu_fields_inside | 1.79 | 0.24 | 0.12 | 0.42 | 0.33 | 0.06 | 0.21 | 0.13 | 0.10 | 0.69 |
+| gpu_shore_spray | 1.10 | 0.04 | 0.05 | 0.00 | 0.00 | 0.54 | 0.65 | 0.14 | 0.10 | 0.45 |
+| idle_e1m1 | 1.41 | 0.01 | 0.05 | 0.00 | 0.00 | 0.14 | 0.17 | 0.13 | 0.10 | 0.44 |
+| lava_e1m7 | 1.04 | 0.03 | 0.05 | 0.09 | 0.38 | 0.20 | 0.17 | 0.13 | 0.11 | 0.45 |
+| lights_32 | 1.98 | 0.08 | 0.10 | 0.01 | 0.00 | 0.09 | 0.19 | 0.13 | 0.10 | 0.59 |
+| particles_dense | 1.70 | 0.11 | 0.11 | 1.32 | 0.65 | 0.09 | 0.17 | 0.13 | 0.10 | 0.75 |
+| play_ad_tfuma_fight | 2.16 | 0.03 | 0.06 | 0.16 | 0.00 | 0.09 | 0.24 | 0.13 | 0.10 | 0.64 |
+| tanks_fields | 1.71 | 0.27 | 0.10 | 0.36 | 0.13 | 0.08 | 0.21 | 0.13 | 0.11 | 0.60 |
+
+The light clustering (`lights`) is 0.02-0.04, sky 0-0.06, the window's image 0.03, upscale 0 (no resample at
+`vr_render_scale 1`). `vr_profile`'s tree of `combined` an eye: world+brush 1.08, alias 0.97, vr particles 0.64 (all
+in the half-size pass), heat haze 0.22 (0.13 of it the scene's copy), translucent 0.08, bloom 0.05, postprocess 0.05;
+the first eye also the shadow maps (0.37).
+
+**What it says:**
+- **The GPU holds 120 Hz at Ultra on this card** in every scenario but `combined` (300 props, 24 grunts, 16 shadowed
+  lights, dense particles: GPU p50 7.7, p99 11.9). `crowd_ad_40`'s p99 is at the edge (8.2). The rest: p50 1.1-4.9,
+  p99 under 7.6. CPU, not GPU, is the limit in most fights (the overnight round's table).
+- **Dynamic resolution never lowered the scale** (1.00 in every scenario): the eyes alone stay under its 7.08 ms
+  budget even in `combined` (6.7 average). Its numbers equal the fixed ones.
+- **Ultra against 2048 square** (1.78 times the pixels): the GPU frame 1.2-1.45 times as long.
+- **The world is the largest pass** (0.5-1.1 ms an eye): the depth pre-pass already saves most of it (off: +15% GPU
+  frame in idle E1M1, +26% in ad_tears, +24% in `combined`, +56% in `lights_32`; `vr_world_fragments`: shaded
+  fragments 0.64-0.66 of those kept, the foveation's coarse shading, none wasted on hidden pixels).
+- **The spectator camera is the second** (his `vr_spectator_scale 1.5` at 1920x1080 = 2880x1620, 60 Hz): 0.45-1.3 ms
+  a frame on average, twice that on the frames it draws: most of the gap between p50 and p95.
+- **Fill-rate hogs are under control**: inside the fire fields the half-size particles take 0.11 ms an eye; the shore
+  spray is under 0.03; the densest smoke (`particles_dense`) 0.65 an eye. Heat haze 0.15-0.3 an eye where it shows,
+  half of it the copy of the scene under it.
+- **The first eye carries the frame's shared work** (shadow maps, the env cube): 0.05-0.6 ms more than the second.
+
+**Fixed: the models' depth pre-pass** (`vr_alias_prepass`, default 1, Debug > Profiling and Memory > Model Depth
+Pre-pass): the world's opaque models (monsters, props, gibs, items; not your own, whose held guns' morphs discard
+pixels) drawn into the depth first, each batch, then shaded once a pixel, as the world and your body already were.
+A/B (`gbab_aliaspre2`, his settings at Ultra, 3 x 600 frames, the toggle alone; models' pass / GPU frame avg / p99):
+
+| scenario | models off | on | GPU avg off | on | GPU p99 off | on |
+|---|---|---|---|---|---|---|
+| gore_blast_crowd_32 | 1.20 | 0.93 | 3.96 | 3.68 | 7.49 | 6.69 |
+| crowd_ad_40 | 0.68 | 0.52 | 4.79 | 4.66 | 7.69 | 7.66 |
+| armed_16 | 0.74 | 0.63 | 3.62 | 3.53 | 5.72 | 5.67 |
+| combined | 2.41 | 2.31 | 7.97 | 7.96 | 11.92 | 11.13 |
+| play_ad_tfuma_fight | 0.03 | 0.08 | 3.11 | 3.16 | 4.20 | 4.35 |
+
+It costs 0.04-0.13 ms where many items stand apart with no overlap (the firing range's racks in `lights_32`,
+`explosions_storm`, `particles_dense`: `gbab_aliaspre4`; ad_tfuma's distant monsters): the heavy scenes, the ones near
+the budget, gain. Tried and reverted: only the models near the eye (split the batches: worse than off in crowds), only
+the batches with a model looking big (no better in the light scenes, the gains in crowds gone). The same image (eye
+mirror shots of 500 props, A against B: 3 pixels off by 10 of 255, the same as A against A).
+After (`gb_after_ultra_fixed`, the whole set again an hour later; GPU frame p99 before -> after): `combined` 11.90 ->
+10.73, `crowd_ad_40` 8.18 -> 7.46, `gore_blast_crowd_32` 7.51 -> 6.87, `armed_16` 6.48 -> 6.17; the rest within
++-0.4 (idle E1M1, untouched, moved +0.2 at p50 between the sets).
+
+**Proposals** (not built; estimates from the tables):
+1. The spectator camera at 2880x1620 is the largest optional cost (0.45-1.3 ms a frame, its frames twice that):
+   skip it while the window is minimized (all of it then; done: `vr_spectator_skip_hidden`, below); his scale 1.0 would save about half of it; or draw it on
+   a frame the eyes leave room in.
+2. The heat haze's copy of the scene (0.1-0.13 ms an eye in fights with fire, half the haze's cost): the union of the
+   hot spots' boxes is copied at full size; copying each box apart where they are few and far apart, and one copy
+   shared with bullet time's trails (`vr_bttrails.cpp` copies again), would cut it.
+3. OIT clears its two full-size targets in every view even with nothing translucent (about 0.05 ms a view, 0.15 a
+   frame): clear on the first translucent draw.
+4. For headroom in `combined`-like scenes: the half-size particles (0.65 ms an eye with 17,000) and the models' vertex
+   work (1,600 model set-ups a frame) are the next; the world's shading is already once a pixel.
+5. A runtime-side check in the headset: VD's overlay (its "GPU" and "game" latency) at Ultra with this build, and
+   `vr_profile 2`'s wrist panel during a fight, to see the share VDXR and the encoder take on top of these numbers.
+
+### Spectator camera: skipped while minimized, and its scale (2026-10-25)
+
+Worktree `tghost`, branch `agent/specsave` (ROUND22.md, "Spectator camera: skipped while the window is minimized").
+The GPU benchmark's set-up (his `ironwail.cfg` of 2026-10-25 through `gpu_settings.py`'s `gpu_fixed.cfg`: eyes
+2688x2784, 120 Hz paced in real time, exclusive, window 1920x1080, `vr_spectator_rate 60`), ThinLTO build 37aacb6ee,
+3 x 900 frames each, medians; ms; GPU = `gpu_3d_ms` (the eyes, the spectator camera and the window pass); spectator =
+its `gpu_phase_ms` average a frame. Variants appended to the settings: minimized = `vr_debug_window minimize` (the
+real window, SDL_MinimizeWindow); hidden = `vr_debug_window_hidden 1` (the emulation: the same skip, the test window
+left as it is); scales with the window visible. Results `kit/benchresults/specsave_<vis15|min15|hid15|vis10|vis075>`;
+scripts `scratch/specbench/` (`run_all.sh`, `table.py`).
+
+| scenario | window, scale | GPU p50 | p95 | p99 | max | spectator avg |
+|---|---|---|---|---|---|---|
+| combined | visible, 1.5 | 8.10 | 10.02 | 10.98 | 12.06 | 1.27 |
+| combined | minimized, 1.5 | 6.56 | 7.76 | 8.83 | 10.34 | 0.00 |
+| combined | hidden (emulated), 1.5 | 7.03 | 8.85 | 9.94 | 11.37 | 0.00 |
+| combined | visible, 1.0 | 7.82 | 9.57 | 10.77 | 11.93 | 0.76 |
+| combined | visible, 0.75 | 7.50 | 9.92 | 11.04 | 11.51 | 0.55 |
+| fight_ad_tears | visible, 1.5 | 2.78 | 4.06 | 4.31 | 4.84 | 0.56 |
+| fight_ad_tears | minimized, 1.5 | 2.26 | 3.03 | 3.45 | 3.83 | 0.00 |
+| fight_ad_tears | hidden (emulated), 1.5 | 2.38 | 3.51 | 3.91 | 4.92 | 0.00 |
+| fight_ad_tears | visible, 1.0 | 2.67 | 3.72 | 4.63 | 5.11 | 0.37 |
+| fight_ad_tears | visible, 0.75 | 2.64 | 3.98 | 4.86 | 5.74 | 0.30 |
+| idle_e1m1 | visible, 1.5 | 2.48 | 2.55 | 3.03 | 3.57 | 0.44 |
+| idle_e1m1 | minimized, 1.5 | 1.63 | 2.13 | 2.42 | 2.77 | 0.00 |
+| idle_e1m1 | hidden (emulated), 1.5 | 1.62 | 2.08 | 2.46 | 2.72 | 0.00 |
+| idle_e1m1 | visible, 1.0 | 2.11 | 2.18 | 2.63 | 3.24 | 0.25 |
+| idle_e1m1 | visible, 0.75 | 1.98 | 2.33 | 2.71 | 3.45 | 0.19 |
+
+**What it says:**
+- **Minimized or hidden, the camera costs nothing** (spectator 0.00): GPU p50 0.4-1.5 ms lower, p95 0.4-2.3, p99
+  0.4-2.1. The real minimize gained more than the emulation in the fights (`combined` p50 6.56 against 7.03): the
+  window's present of a minimized window is cheaper too; `combined`'s run-to-run spread is about 0.4 ms.
+- **Scale**: the camera's cost goes with its pixels: 1.5 -> 1.0 (2.25 -> 1 times the window's pixels) cuts it 40%
+  (1.27 -> 0.76 in `combined`), 0.75 another 30% (0.55). Its p95/p99 move less than the averages (60 Hz camera frames
+  land on different frames each run).
+
+### Frame spikes (2026-10-25)
+
+Worktree `fastship`, branch `agent/spikes` (ROUND22.md, "Frame spikes"). His 120 Hz is an 8.33 ms budget: the hunt
+was for every frame over it, or over twice the median, in 22 scenarios, 5 runs each (paced 90 Hz, real time,
+exclusive, his settings of 2026-10-25, eyes 2048). Tools (`qvr-kit/scratch/spikes/`, copied from the worktree's
+scratch): `sp_run.sh <label> <reps> <scenarios...>` (the hitch log on for the measured window only, threshold 0.75
+budgets: frames over 8.33 ms of host time, with their systems and costliest scopes), `sp_sum.py` (each run's tails,
+the spikes by system and scope), `sp_table.py <before> <after>` (the table below), `sp_tracy.sh` / `sp_tracy_set.sh`
+(Release-Tracy captures from the session's start; with `vr_tracy_render_detail 1 vr_tracy_qc_detail 1` the per-model
+render steps and QC functions) and `sp_tspikes.py` (each frame over 8.33 ms in a capture, `tracy-csvexport -u`, with
+its costliest zones by self time and their paths). A spike is real when it comes back at the same place and size in
+every run; the rest (combat_48's 102 ms `water`, combined's run of 600 slow frames, particles_dense's 106 ms) came in
+one run of five, the machine shared with other workers' builds and the GPU benchmark.
+
+**What the spikes were** (sizes: the hitch log's, which includes the profiler's own cost; Tracy's a little less):
+
+| cause | where | size, frequency |
+|---|---|---|
+| a model's smooth-animation rig data (`rigData`, r_lerpmodels 3) made at its first draw | AD's maps, e4m7, hip2m5, any map: a monster kind's first appearance, in view or in a shadow map | 6-27 ms, once per model per session (ad_tears 27 + 20 + 6 + 4, ad_sepulcher 18.5 in a map light's shadow) |
+| a gun lying near you: its screen's and button's anchors bound (the model file read and searched) | any map with weapons lying about | ~10 ms, once per gun model per session |
+| the first frame after a load: your skin masks, the glove paint read again (every map), the reflections' world buffers | every load (saves too) | 4-13 ms, every load |
+| QC's late precaches (AD monsters in a non-AD map: their backpack 35 ms, gibs 4-21 ms) | the test hall's AD crowd, the toolgun | 25-38 ms, the first death/gib of each |
+| 400 wounds painted in one frame | gore_dismember_16's scripted cuts (ai_crowd_64: one) | 10 ms, once |
+| a burst: an explosion's gibs, ragdolls, decals and particles in one frame, no single part over 3 ms | play_e1m1_lights, gore_blast_crowd_32, ragdolls_32_active | 11-25 ms, once per burst |
+| a map's first frames: the held guns' QC list (`VR_GunPrep_Collect`, a walk of every edict with substrings: 13-25 ms, twice), Box3D's first sync of the props (39 ms), the AO bakes' vertex buffers (`lights` 10-13 ms) | AD's big maps | 70-90 ms, the first frames after a load |
+| sustained load, not spikes: `combined` (busy p50 6.4 ms, shadow casters), ai_crowd_64's Box3D steps | | |
+
+**Fixed: first-use work made in the map's load** (`vr_load_prewarm` 1, Debug > Profiling and Memory > Load
+Prewarm; 0 as before): the rig data of every precached Quake model (`animsmooth::prepare`), the guns' anchors
+(`view::prepareWorldWeapons`), the reflections' world buffers (`envmap::prepare`), your skin masks and glove paint
+(`VR_PrecacheSkinMasks`; from the second map of a session: the first map's hands don't exist yet). Medians of 5
+runs (before: next of 2026-10-25, build fad928b7d, scratch `sp/base`; after: this branch, `sp/after1`; ms):
+
+| scenario | frame p99 | CPU busy p50 | CPU busy p99 | CPU busy max (median; range) | frames > 2x median | frames > 8.33 ms CPU |
+|---|---|---|---|---|---|---|
+| fight_ad_tears | 11.26 -> 11.22 | 2.80 -> 2.79 | 4.83 -> 4.20 | 31.4 (30.0-31.8) -> 11.8 (11.2-12.4) | 2 -> 0 | 5 -> 1 |
+| fight_ad_sepulcher | 11.27 -> 11.22 | 2.67 -> 2.64 | 4.11 -> 3.78 | 21.5 (21.3-22.0) -> 6.3 (5.8-6.8) | 0 -> 0 | 2 -> 0 |
+| fight_ad_crucial | 11.22 -> 11.24 | 2.05 -> 1.97 | 3.46 -> 3.24 | 8.4 (7.7-9.1) -> 5.1 (4.4-5.3) | 0 -> 0 | 1 -> 0 |
+| fight_e4m7 | 11.23 -> 11.20 | 1.38 -> 1.40 | 4.57 -> 4.39 | 14.1 (13.0-14.8) -> 11.7 (11.3-11.8) | 0 -> 0 | 5 -> 2 |
+| fight_hip2m5 | 11.20 -> 11.22 | 1.22 -> 1.24 | 3.02 -> 2.89 | 10.4 (9.5-10.5) -> 4.6 (4.4-5.2) | 0 -> 0 | 1 -> 0 |
+| saveload_e1m1 | 13.04 -> 7.65 | 0.88 -> 0.85 | 12.99 -> 7.54 | 116.1 (114.7-125.4) -> 128.2 (124.0-129.2) | 6 -> 4 | 7 -> 5 |
+| combat_48 (control) | 11.19 -> 11.20 | 3.01 -> 2.96 | 4.85 -> 4.58 | 10.1 (10.0-16.1) -> 9.9 (9.5-10.6) | 0 -> 0 | 1 -> 1 |
+| crowd_ad_40 (control) | 11.22 -> 11.25 | 3.15 -> 3.12 | 5.50 -> 5.42 | 37.8 (35.2-38.3) -> 35.8 (34.8-37.2) | 2 -> 2 | 2 -> 2 |
+| idle_e1m1 (control) | 11.20 -> 11.26 | 0.77 -> 0.75 | 1.42 -> 1.49 | 3.8 (2.8-15.7) -> 2.7 (1.9-3.8) | 0 -> 0 | 0 -> 0 |
+
+saveload_e1m1's max is a load's own frame (now with the skin masks and the cubes' buffers in it); its p99 is the
+frame after the load. What is left in fight_ad_tears (12 ms: the server's hit model poses and QC) and fight_e4m7
+(12 ms: QC in a fight) is the fights' own. The cost moves to the load, once a session for the rig data: ad_sepulcher
+cold 1847 -> 2001 ms (`vr_load_prewarm 0` against 1, one run each), warm 871 -> 872, e1m1 852 -> 841 (noise); Tracy:
+`smooth rigs` 197 ms in ad_tears' first load, 172 in ad_sepulcher's. The same rig data either way
+(`vr_anim_smooth_info` after 300 frames, prewarm on and off: 26 models drawn in e4m7 and hip2m5, every rig and rebuild
+line the same), the glitch finder's summary (`vr_agrunt_test 46`) the same, eval.sh's verdicts unchanged.
+
+Baseline medians of the other scenarios (5 runs; CPU busy max median, range; frames over 8.33 ms CPU): ai_crowd_64
+16.1 (14.9-142), 2; armed_16 12.4 (11.4-22.8), 2; armed_16_melee 5.2, 0; combined 10.6 (8.5-95), 7 (sustained);
+explosions_storm 4.0 (3.3-13.9), 0; fight_r2m7 4.0, 0; gore_blast_crowd_32 20.7 (20.0-21.1), 4; gore_dismember_16
+26.6 (25.9-27.0), 1; particles_dense 5.5 (3.8-32), 0; play_e1m1_lights 17.2 (16.5-18.5), 2; props_500_active 8.5, 1;
+ragdolls_32_active 11.4 (11.2-11.8), 3; tanks_fields 8.9 (8.5-70), 1.
+
+Rerun: build `--lto`, then `bash sp_run.sh <label> 5 <scenarios...>` and `python sp_table.py base <label>` (the
+scripts name the worktree at their top); a Tracy look: `Misc/quakevr/build_tracy.ps1`, then `SP_SETTINGS=<his cfg +
+vr_tracy_render_detail 1> bash sp_tracy_set.sh <suffix> <scenarios...>` and `bash sp_tsum.sh <suffix> <after
+seconds> <scenarios...>`.
+
+**Left** (proposals): (1) AD monsters in non-AD maps: their backpack and gib models precached with the monster (QC;
+the toolgun's and the test hall's AD crowds: 25-38 ms at the first death); (2) `VR_GunPrep_Collect` without
+`substring` (13-25 ms twice in AD's first frames: a walk of 3600 edicts); (3) the wounds' events over a frame's
+budget kept for the next frame (400 at once: 10 ms; needs the events kept in the model's space, a body moves);
+(4) the AO bakes' finished vertex buffers waited for in the load (the first frames' `lights` 10-13 ms); (5) the rig
+data made on the job pool at the load (its 170-200 ms in AD's first map; the hit reactions' and arms' lookups it
+calls would need checking for thread safety).
+
+### Performance batch 3: restarts, AD monsters' deaths, wound bursts, OIT (2026-10-25)
+
+Worktree `fastship`, branch `agent/perf3` (ROUND22.md, "Performance batch 3"). Each change has its toggle (Debug >
+Profiling and Memory); A/B runs alternate the toggle run by run, his settings of 2026-10-25, eyes 2048, paced 90 Hz,
+exclusive, 3 runs each, medians, ThinLTO build (`scratch/pf_ab.sh`; the tables: `p3_tab.py`, loads `p3_loads.py`).
+
+| change (toggle) | scenario | measure | off | on |
+|---|---|---|---|---|
+| crates' and rocks' layouts kept (`vr_place_keep`) | load_ad_restarts (new) | ad_sepulcher restart, ms to the first frame | 878, 860 | 637, 611 |
+| | | ad_tfuma restart | 473, 467 | 369, 367 |
+| | | cold loads (sepulcher, tfuma) | 2023, 1320 | 2016, 1316 |
+| AD monsters' death assets at their spawn (`vr_ad_death_precache`) | crowd_ad_40 | CPU busy max / frame max | 35.5 / 35.6 | 7.9 / 13.1 |
+| wound painting budget (`vr_wounds_budget 1`) | gore_dismember_16 | CPU busy max / frame max | 26.3 / 26.3 | 20.1 / 20.2 |
+| | gore_blast_crowd_32 | CPU busy max | 20.1 | 20.3 (its worst frame is not the wounds') |
+| OIT clear at the first translucent draw (`vr_oit_lazy_clear`) | idle_e1m1, fight_ad_tears, crowd_ad_40 | translucent GPU phase | 0.114, 0.223, 0.214 | 0.112, 0.220, 0.188 |
+
+Averages and p99s unchanged in every row (within +-0.05 ms CPU, +-0.3 GPU between runs).
+
+- **Layouts kept**: the key (vr_debris.hpp `PlanKey`) hashes the map's files and geometry, every vr_crate*, vr_debris*,
+  vr_place_* setting and the entities' boxes as the plan finds them; a kept plan costs 1-25 ms (the key's hash of the
+  world's light) instead of 50-450. AD's rising bubbles (misc_bubble: noclip triggers) were obstacles whose places
+  differed each load: no longer obstacles (the layouts unchanged), the key then matches. Kept == fresh layout hashes on
+  ad_sepulcher, ad_tfuma, ad_tears, ad_crucial, e1m1, e1m7, e2m1, e4m7, hip2m5 (`scratch/p3_crates.sh`).
+- **AD death assets**: crowd_ad_40's late precaches at deaths were proj_diam2 (160 ms in a fast-mode run), w_backpack
+  (41), gib_5 (20), the explosions' sprites; and AD's footsteps, shell casings' and grenade loads' sounds were never
+  precached outside AD's maps (hundreds of "not precached" a run). id maps' fights have none.
+- **Wound budget**: in a still scene (1152 events on 48 grunts and items in one frame) every mask identical with the
+  budget off and on; on, at most 540 events a frame, all within 0.04 s.
+- **OIT**: small because a view's first translucent draw is almost always a liquid (`vr_oit_stats`: every view in E1M1;
+  his water 0.3, slime 0.6, lava 0.9): only views with no liquid in their set skip it.
+- **Heat haze copy** (not kept): the copy split into each hot volume's own part of the view (joined where one copy
+  costs no more) gave the same images and the same heat haze GPU time (lava_e1m7 0.210 -> 0.209, gpu_fields_inside
+  0.252 -> 0.251, crowd_ad_40 0.212 -> 0.219, combined 0.334 -> 0.327): where it costs, a volume reaches behind the eye
+  (standing in fire or over lava) and the whole view is copied either way. Reverted. Left: a half-size copy (a softer
+  image inside the haze) or the bend drawn without a copy.
+- **Left**: the dismembering's second cut of a limb (`#limb3m8`, 5 ms, a partial limb model not prebuilt).
+
+Rerun: `bash scratch/pf_ab.sh <label> 3 "<toggle> 0" "<toggle> 1" <scenarios>`, then `python scratch/p3_tab.py <label> -
+<scenarios>` (`p3_loads.py <label> load_ad_restarts` for the loads); the scripts are in `qvr-kit/scratch/perf3/`.
+
 ## Profiling in the game
 
 The in-game profiling tools (moved from TESTING.md on 2026-10-09).
@@ -659,3 +1077,19 @@ columns (clocks, slowdowns, each program's use of the GPU: `gpu_*`, `gpu3d_*`, `
 thread that runs only while profiling (`vr_profile`, the Profiler Panel or its CSV Capture) or with
 `vr_memstats_log_gpu 1` (Debug > Profiling and Memory > Memory Log: GPU); otherwise they are empty. With `developer 1` the console says when
 that thread starts and stops (`gpustats: sampling thread started`).
+
+
+## Optional Tracy captures
+
+Use `run.sh --exclusive <agent> -Tracy ...` after `Misc/quakevr/build_tracy.ps1`; keep `vr_profile 0` and collect
+the existing benchmark JSON alongside `.tracy`. Normal Release and Release-Tracy have separate binaries and
+intermediates. Compare normal, profiling with no viewer, coarse capture, and requested QC/memory/GPU detail;
+warm up after connection before recording. Optional callstacks/system tracing add separate overhead and are off
+in the default measurements. Do not interpret explicit wait-zone time as OS scheduler/context-switch data.
+See [TRACY.md](TRACY.md) for supported events, allocation baseline/reconnect semantics, precise resource estimates
+and the retained optimized overhead measurements. The shared benchmark setting catalogue also records PBR controls.
+
+The `profile` group (2026-10-16 profiling run, ROUND22.md "Tracy profiling run"): `play_gore_fight` (the super nailgun
+held on 16+ grunts: wounds, blood, dents, gibs, corpses), `play_calibration_turn` (vrcalibration), `play_ad_tfuma_fight`
+(native AD, the whole map awake) and `load_ad_tfuma` (AD cold and warm loads). Not in `core` or `play`: old baselines
+compare as before.

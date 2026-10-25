@@ -138,8 +138,10 @@ void() mummyGrenadeTouch =
     {
         mummyDamage = 15 + random() * 15;
 
+        VR_Proj_Begin(QVR_PROJ_BOLT, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
         T_Damage(other, self, self.owner, mummyDamage);
         sound(self, CHAN_WEAPON, "zombie/z_hit.wav", 1, ATTN_NORM);
+        VR_Proj_End();
         remove(self);
         return;
     }
@@ -178,6 +180,7 @@ void(vector st) mummyFireGrenade =
     missile.velocity = normalize(VR_AI_Origin(self.enemy) - org);
     missile.velocity = missile.velocity * 600;
     missile.velocity_z = 200;
+    missile.velocity = VR_AimCone_Bend(missile.velocity, VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     missile.avelocity = '3000 1000 2000';
 
@@ -354,7 +357,7 @@ void() mummy_paine9    =[  $paine9,    mummy_paine10  ] {ai_pain(2);};
 void() mummy_paine10   =[  $paine10,   mummy_paine11  ]
     {
         sound(self, CHAN_BODY, "zombie/z_fall.wav", 1, ATTN_NORM);
-        self.solid = SOLID_NOT;
+        zombie_lie(); // QVR: lying in reach of shots (orig_mon_zombie.qc; stock: not solid)
     };
 void() mummy_paine11   =[  $paine11,   mummy_paine12  ]
     { self.nextthink = self.nextthink + 5; };
@@ -367,7 +370,7 @@ void() mummy_paine12   =[  $paine12,   mummy_paine13  ]
         if(!walkmove(0, 0))
         {
             self.think = mummy_paine11;
-            self.solid = SOLID_NOT;
+            zombie_lie(); // QVR: waiting for room, solid (stock: not solid, out of reach for good if it never fit)
             return;
         }
     };

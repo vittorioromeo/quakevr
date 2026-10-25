@@ -7,6 +7,7 @@
 
 #include "vr_bench.hpp"
 #include "vr_crtheap.h"
+#include "vr_diskcache.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
@@ -252,6 +253,7 @@ extern "C" void VR_TimeLoadBegin(const char* what)
 
 extern "C" void VR_TimeLoadCommand(const char* what)
 {
+    qvr::diskcache::setInPlay(false); // a load from here: the cache's misses aren't "in play" (vr_diskcache.cpp)
     command = Command{};
     command.start = command.last = Sys_DoubleTime();
     command.what = what;

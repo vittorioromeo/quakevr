@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // on the same machine.
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 static qmodel_t*	loadmodel;
 static char	loadname[32];	// for hunk tags
 
@@ -275,6 +276,27 @@ void Mod_ReloadAliasModel (qmodel_t *mod)
 
 /*
 ===================
+Mod_ReuploadAliasModels -- QVR: every loaded alias model's vertex buffer built again from its data (vr_mdl_dequant)
+===================
+*/
+void Mod_ReuploadAliasModels (void)
+{
+	int		i;
+	qmodel_t	*mod;
+	void	*hdr;
+
+	for (i=0 , mod=mod_known ; i<mod_numknown ; i++, mod++)
+	{
+		if (mod->type != mod_alias || mod->needload || !mod->meshvbo)
+			continue;
+		hdr = Cache_Check (&mod->cache);
+		if (hdr)
+			GLMesh_LoadVertexBuffer (mod, (aliashdr_t *) hdr);
+	}
+}
+
+/*
+===================
 Mod_ReloadAliasModels -- QVR: vr_model_reload: every loaded alias model whose name `match` accepts, read again; the
 number read
 ===================
@@ -413,9 +435,11 @@ Loads a model into the cache
 */
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 {
+	VR_TRACY_SCOPE("Model preparation");
 	byte	*buf;
 	int		mod_type;
 	qboolean	derived, recorded; // QVR
+	double		t0; // QVR
 
 	if (!mod->needload)
 	{
@@ -439,14 +463,25 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 //
 // load the file
 //
+	t0 = Sys_DoubleTime (); // QVR: a load while a map is in play counted (VR_NoteModelLoad: vr_cache_info)
+	VR_TracyBegin ("model metadata and file", 0); // QVR: (profiling builds)
 	VR_ModelMetadataChanged (mod); // QVR: alias-cache eviction and explicit reload invalidate copied metadata
 	VR_ModelSourcesForget (mod); // QVR: the files it was made from (a campaign switch's check: recorded below)
 	if (VR_SyntheticModel (mod)) // QVR: a model made in memory from another (a ragdoll's skinned body, vr/vr_ragdoll.cpp)
+	{
+		VR_TracyEnd (); // QVR
 		return mod;
+	}
+	if (VR_RuntimeBrushModel (mod)) // QVR: a box made in the game (vr/vr_brushes.cpp)
+	{
+		VR_TracyEnd (); // QVR
+		return mod;
+	}
 	buf = VR_DerivedModelFile (mod->name, &mod->path_id); // QVR: a model made from another's file (a taken torch's flame)
 	derived = buf != NULL; // QVR
 	if (!buf)
 		buf = COM_LoadMallocFile (VR_ModelFile (mod->name), &mod->path_id); // QVR: relit maps
+	VR_TracyEnd (); // QVR
 	if (!buf)
 	{
 		if (crash)
@@ -477,11 +512,15 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	switch (mod_type)
 	{
 	case IDPOLYHEADER:
+		VR_TracyBegin ("load alias model", 0); // QVR: (profiling builds)
 		VR_TIMED ("alias models (.mdl) loaded", Mod_LoadAliasModel (mod, buf)); // QVR: load timing (vr_startup_times)
+		VR_TracyEnd (); // QVR
 		break;
 
 	case IDSPRITEHEADER:
+		VR_TracyBegin ("load sprite model", 0); // QVR: (profiling builds)
 		Mod_LoadSpriteModel (mod, buf);
+		VR_TracyEnd (); // QVR
 		break;
 
 	case MD3_IDENT:
@@ -504,13 +543,18 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		break;
 
 	default:
+		VR_TracyBegin ("load brush model", 0); // QVR: (profiling builds)
 		Mod_LoadBrushModel (mod, buf);
+		VR_TracyEnd (); // QVR
 		break;
 	}
+	if (mod->type != mod_alias) // QVR: its data on the hunk: kept there, if loaded inside a temporary allocation (zone.c)
+		Hunk_KeepLoaded ();
 	if (recorded)
 		VR_ModelSourcesEnd (mod); // QVR
 
 	VR_HeapFree (buf);
+	VR_NoteModelLoad (mod->name, Sys_DoubleTime () - t0); // QVR
 
 	return mod;
 }
@@ -643,6 +687,37 @@ static void Mod_LoadTextures (lump_t *l)
 
 	loadmodel->numtextures = nummiptex + 2; //johnfitz -- need 2 dummy texture chains for missing textures
 	loadmodel->textures = (texture_t **) Hunk_AllocName (loadmodel->numtextures * sizeof(*loadmodel->textures) , loadname);
+
+	if (!isDedicated && nummiptex > 0) // QVR: the replacement images decoded ahead on worker threads (vr/vr_imgprefetch.cpp)
+	{
+		char (*names)[17] = (char (*)[17]) VR_HeapMalloc (nummiptex * sizeof (*names));
+		const char **namelist = (const char **) VR_HeapMalloc (nummiptex * sizeof (*namelist));
+		int *kinds = (int *) VR_HeapMalloc (nummiptex * sizeof (*kinds));
+		for (i=0 ; i<nummiptex ; i++)
+		{
+			int ofs = LittleLong (m->dataofs[i]);
+			names[i][0] = 0;
+			namelist[i] = names[i];
+			kinds[i] = 0;
+			if (ofs == -1)
+				continue;
+			mt = (miptex_t *)((byte *)m + ofs);
+			if (!LittleLong (mt->width) || !LittleLong (mt->height))
+				continue;
+			memcpy (names[i], mt->name, 16);
+			names[i][16] = 0;
+			if (names[i][0])
+			{
+				int type = Mod_TextureTypeFromName (names[i]);
+				kinds[i] = type == TEXTYPE_SKY ? 0 : TEXTYPE_ISLIQUID (type) ? 1 : 2;
+			}
+		}
+		COM_StripExtension (loadmodel->name + 5, mapname, sizeof(mapname));
+		VR_TexturePrefetchBegin (mapname, namelist, kinds, nummiptex);
+		VR_HeapFree (kinds);
+		VR_HeapFree (namelist);
+		VR_HeapFree (names);
+	}
 
 	for (i=0 ; i<nummiptex ; i++)
 	{
@@ -792,6 +867,7 @@ static void Mod_LoadTextures (lump_t *l)
 				else //use the texture from the bsp file
 				{
 					qboolean fullbrights = Mod_CheckFullbrights ((byte *)(tx+1), pixels); // QVR: kept for the external maps
+					int extmaps = VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height); // QVR: before the normal map (vr_pbr asks whether the pack's is complete)
 					q_snprintf (texturename, sizeof(texturename), "%s:%s", loadmodel->name, tx->name);
 					offset = (src_offset_t)(mt+1) - (src_offset_t)mod_base;
 					if (fullbrights)
@@ -815,11 +891,16 @@ static void Mod_LoadTextures (lump_t *l)
 						tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
 							SRC_INDEXED, (byte *)(tx+1), loadmodel->name, offset, TEXPREF_MIPMAP | extraflags);
 					}
-					// QVR: heights only if drawn smooth (the shifts would bend its texels), but for the ammo and
-					// health boxes (the expansions' have no replacement textures), whose depth is a texel or two
-					VR_LoadNormalMap (tx->gltexture, NULL, NULL, (byte *)(tx+1), SRC_INDEXED, tx->width,
+					// QVR: a made map's heights only if drawn smooth (the shifts would bend its texels), but for the
+					// ammo and health boxes (the expansions' have no replacement textures), whose depth is a texel or
+					// two; authored and companion maps keep theirs. Authored _norm/_bump files beside the texture's
+					// name only with content companions on (vr_pbr; off: the made map alone, no lookups, as before)
+					q_snprintf (filename, sizeof(filename), "textures/%s/%s", mapname, tx->name); // QVR
+					q_snprintf (texturename, sizeof(texturename), "textures/%s", tx->name); // QVR
+					VR_LoadNormalMap (tx->gltexture, VR_PBREnabled () ? filename : NULL, VR_PBREnabled () ? texturename : NULL,
+						(byte *)(tx+1), SRC_INDEXED, tx->width,
 						TexMgr_IndexedSmooth () || VR_ModelHasTrait (loadmodel, VR_MODEL_TRAIT_AmmoBoxInsensitive) ? NORMALMAP_HEIGHTS : 0);
-					if (VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height)) // QVR: an external pack's maps (vr/vr_extmaps.cpp)
+					if (extmaps) // QVR: an external pack's maps (vr/vr_extmaps.cpp)
 						VR_ExtMapsAttach (tx, loadmodel, fullbrights);
 				}
 				Hunk_FreeToLowMark (mark);
@@ -827,6 +908,7 @@ static void Mod_LoadTextures (lump_t *l)
 		}
 		//johnfitz
 	}
+	VR_TexturePrefetchEnd (); // QVR
 
 	//johnfitz -- last 2 slots in array should be filled with dummy textures
 	loadmodel->textures[loadmodel->numtextures-2] = r_notexture_mip; //for lightmapped surfs
@@ -3390,8 +3472,11 @@ qboolean loadMd5Replacement(qmodel_t* mod, char	*path)
 		{
 			double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 			qboolean result = VR_ModelReplacementOk (mod->name, md5buffer); // QVR: the jointed hand's file checked first
+			char* extended = result ? VR_ModelReplacementExtend (mod->name, md5buffer) : NULL; // QVR: the gloves' shells added
 			double t1 = Sys_DoubleTime ();
-			result = result && Mod_LoadMD5MeshModel (mod, md5buffer);
+			result = result && Mod_LoadMD5MeshModel (mod, extended ? extended : md5buffer);
+			if (extended)
+				VR_HeapFree (extended);
 			VR_TimeAdd ("    md5: the VR check", t1 - t0);
 			VR_TimeAdd ("    md5: loaded", Sys_DoubleTime () - t1);
 			VR_HeapFree (md5buffer);
@@ -3488,6 +3573,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	// always its .mdl: Quake VR's rigs, hit zones and model edits are made for its frames, not its pack's .md5 companions.
 	if ((int)r_enhancedmodels.value == 1 && q_strncasecmp (mod->name, "owned/", 6))
 	{
+		VR_TRACY_SCOPE("alias replacements (md5, md3)"); // QVR: Tracy builds only (the scopes below too: PROFILE_20261016 B8)
 		double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 		ModelLoader loaders[] = {
 			{ "md3", (ModelLoadFunc)loadMd3Replacement},
@@ -3498,6 +3584,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 			 */
 		};
 		int num_loaders = sizeof (loaders) / sizeof (loaders[0]);
+		qboolean loaded; // QVR
 
 
 		for (int iter = 0; iter < num_loaders; iter++) {
@@ -3515,7 +3602,10 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 				break;
 			}
 
-			if (loaders[iter].load_func (mod, path)) {
+			VR_TracyBegin (loaders[iter].load_func == (ModelLoadFunc)loadMd3Replacement ? "alias replacement md3" : "alias replacement md5", 0); // QVR
+			loaded = loaders[iter].load_func (mod, path);
+			VR_TracyEnd (); // QVR
+			if (loaded) {
 				VR_TimeAdd ("  their replacements (md5, md3) looked for and loaded", Sys_DoubleTime () - t0); // QVR
 				return;
 			}
@@ -3579,7 +3669,10 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 // load the skins
 //
 	pskintype = (daliasskintype_t *)&pinmodel[1];
-	VR_TIMED ("  their skins (textures, normal maps)", pskintype = (daliasskintype_t *) Mod_LoadAllSkins (pheader->numskins, pskintype)); // QVR: load timing
+	{
+		VR_TRACY_SCOPE("alias skins");
+		VR_TIMED ("  their skins (textures, normal maps)", pskintype = (daliasskintype_t *) Mod_LoadAllSkins (pheader->numskins, pskintype)); // QVR: load timing
+	}
 
 //
 // endian-swap base s and t vertices in place
@@ -3610,7 +3703,10 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 					LittleLong (pintriangles[i].vertindex[j]);
 		}
 	}
-	VR_LoadSkinNormalMaps (loadmodel, pheader, pinstverts, pintriangles); // QVR: the skins' normal maps, their islands from these
+	{
+		VR_TRACY_SCOPE("alias skin normal maps");
+		VR_LoadSkinNormalMaps (loadmodel, pheader, pinstverts, pintriangles); // QVR: the skins' normal maps, their islands from these
+	}
 
 //
 // load the frames
@@ -3618,34 +3714,47 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	posenum = 0;
 	pframetype = (daliasframetype_t *)&pintriangles[pheader->numtris];
 
-	for (i=0 ; i<numframes ; i++)
 	{
-		aliasframetype_t	frametype;
-		frametype = (aliasframetype_t) LittleLong (pframetype->type);
-		if (frametype == ALIAS_SINGLE)
-			pframetype = (daliasframetype_t *) Mod_LoadAliasFrame (pframetype + 1, &pheader->frames[i]);
-		else
-			pframetype = (daliasframetype_t *) Mod_LoadAliasGroup (pframetype + 1, &pheader->frames[i]);
+		VR_TRACY_SCOPE("alias frames");
+		for (i=0 ; i<numframes ; i++)
+		{
+			aliasframetype_t	frametype;
+			frametype = (aliasframetype_t) LittleLong (pframetype->type);
+			if (frametype == ALIAS_SINGLE)
+				pframetype = (daliasframetype_t *) Mod_LoadAliasFrame (pframetype + 1, &pheader->frames[i]);
+			else
+				pframetype = (daliasframetype_t *) Mod_LoadAliasGroup (pframetype + 1, &pheader->frames[i]);
+		}
 	}
 
 	pheader->numposes = posenum;
 	pheader->poseverttype = PV_QUAKE1;
-	VR_AliasPosesLoaded (mod->name, pheader, stverts, triangles, poseverts); // QVR: knights' death frames without the sword
+	{
+		VR_TRACY_SCOPE("alias poses loaded (VR)");
+		VR_AliasPosesLoaded (mod->name, pheader, stverts, triangles, poseverts); // QVR: knights' death frames without the sword
+	}
 
 	mod->type = mod_alias;
 
-	Mod_SetExtraFlags (mod); //johnfitz
+	{
+		VR_TRACY_SCOPE("alias flags and bounds");
+		Mod_SetExtraFlags (mod); //johnfitz
 
-	Mod_CalcAliasBounds (pheader); //johnfitz
+		Mod_CalcAliasBounds (pheader); //johnfitz
+	}
 
 	//
 	// build the draw lists
 	//
-	VR_TIMED ("  their draw lists", GL_MakeAliasModelDisplayLists (mod, pheader)); // QVR: load timing
+	{
+		VR_TRACY_SCOPE("alias draw lists");
+		VR_TIMED ("  their draw lists", GL_MakeAliasModelDisplayLists (mod, pheader)); // QVR: load timing
+	}
 
 //
 // move the complete, relocatable alias model to the cache
 //
+	VR_TRACY_SCOPE("alias cache copy");
 	end = Hunk_LowMark ();
 	total = end - start;
 
@@ -4369,6 +4478,11 @@ error:
 static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shader)
 {
 	char texname[MAX_QPATH];
+	// QVR: Quake VR's body skins (shader "vrbody": VR_MD5SharedSkins) are one copy for all its builds and bare/bracer
+	// models, which use the same 16 skins: unowned and kept for the session (TEXPREF_PERSIST), as are their normal maps
+	// (a normal map takes its skin's owner and persistence); a model's own skins are its own as before
+	qmodel_t *skinowner = VR_MD5SharedSkins (shader) ? NULL : mod;
+	int skinpersist = skinowner ? 0 : TEXPREF_PERSIST;
 
 	VR_MD5SkinsReset (); // QVR: (VR_MD5SkinNormalMap) the islands made anew for this surface
 
@@ -4384,28 +4498,36 @@ static void Mod_LoadMD5Skins (qmodel_t *mod, aliashdr_t *surf, const char *shade
 		{
 			q_snprintf(texname, sizeof(texname), "progs/%s_%02u_%02u", shader, surf->numskins, f);
 
+			// QVR: a shared skin another model loaded already (its normal map is linked to it already)
+			if (!skinowner && (surf->gltextures[surf->numskins][f] = TexMgr_FindTexture (NULL, texname)) != NULL)
+			{
+				gltexture_t *fb = TexMgr_FindTexture (NULL, va ("%s_glow", texname));
+				surf->fbtextures[surf->numskins][f] = fb ? fb : TexMgr_FindTexture (NULL, va ("%s_luma", texname));
+				continue;
+			}
+
 			data = Image_LoadImage (texname, (int*)&fwidth, (int*)&fheight, &fmt);
 			//now load whatever we found
 			if (data) //load external image
 			{
-				surf->gltextures[surf->numskins][f] = TexMgr_LoadImage (mod, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_NOBRIGHT|TEXPREF_MIPMAP );
+				surf->gltextures[surf->numskins][f] = TexMgr_LoadImage (skinowner, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_NOBRIGHT|TEXPREF_MIPMAP|skinpersist ); // QVR: skinowner, skinpersist
 				surf->fbtextures[surf->numskins][f] = NULL;
 				if (fmt == SRC_INDEXED)
 				{	//8bit base texture. use it for fullbrights.
 					if (Mod_CheckFullbrights (data, fwidth*fheight))
-						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (mod, va("%s_luma", texname), fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_FULLBRIGHT|TEXPREF_MIPMAP );
+						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (skinowner, va("%s_luma", texname), fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA|TEXPREF_FULLBRIGHT|TEXPREF_MIPMAP|skinpersist );
 				}
 				else
 				{	//we found a 32bit base texture.
 					if (!surf->fbtextures[surf->numskins][f])
 					{
 						q_snprintf(texname, sizeof(texname), "progs/%s_%02u_%02u_glow", shader, surf->numskins, f);
-						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP);
+						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(skinowner, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP|skinpersist);
 					}
 					if (!surf->fbtextures[surf->numskins][f])
 					{
 						q_snprintf(texname, sizeof(texname), "progs/%s_%02u_%02u_luma", shader, surf->numskins, f);
-						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP);
+						surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage(skinowner, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP|skinpersist);
 					}
 				}
 
@@ -4462,6 +4584,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 
 	md5animctx_t		anim = {NULL};
 	char				*shaders = NULL, *s;
+	char				meshshader[64] = {0}; // QVR: the mesh's (VR_RangerHeadMesh)
 
 	start = Hunk_LowMark ();
 
@@ -4564,6 +4687,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 
 		MD5EXPECT("shader");
 		MultiString_Append (&shaders, com_token);
+		q_strlcpy (meshshader, com_token, sizeof (meshshader)); // QVR: (VR_RangerHeadMesh)
 
 		buffer = COM_Parse(buffer);
 		MD5EXPECT("numverts");
@@ -4627,6 +4751,14 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 		//so make it gpu-friendly.
 		if (!MD5_BakeInfluences(fname, outposes, poutvert, vinfo, weight, surf->numverts, numweights))
 			goto error;
+		// QVR: the body's head made of the Quake ranger's (vr_body_ranger_head; vr_rangerhead.cpp)
+		if (m == 0 && VR_RangerHeadMesh (mod, fname, meshshader, outbones, (int) numjoints, (void **) &poutvert, &surf->numverts, &poutindexes, &surf->numindexes)) // (not the gloves' cuff shell after it: VR_ModelReplacementExtend)
+		{
+			surf->numverts_vbo = surf->numverts;
+			surf->numtris = surf->numindexes / 3;
+			surf->vertexes = (byte*)poutvert-(byte*)surf;
+			surf->indexes = (byte*)poutindexes-(byte*)surf;
+		}
 		//and now make up the normals that the format lacks. we'll still probably have issues from seams, but then so did qme, so at least its faithful... :P
 		MD5_ComputeNormals(poutvert, surf->numverts, poutindexes, surf->numindexes);
 

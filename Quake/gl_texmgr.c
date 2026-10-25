@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //gl_texmgr.c -- fitzquake's texture manager. manages opengl texture images
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 #include "glquake.h"
 
 typedef struct {
@@ -61,6 +62,8 @@ softemu_t		softemu;
 static int numgltextures;
 int TexMgr_Count (void) { return numgltextures; } // QVR (vr_limits)
 int TexMgr_Max (void) { return MAX_GLTEXTURES; }
+static unsigned int texmgr_frees; // QVR: textures freed so far (vr_render.cpp's skin mask cache)
+unsigned int TexMgr_FreeCount (void) { return texmgr_frees; }
 static gltexture_t	*active_gltextures, *free_gltextures;
 gltexture_t		*notexture, *nulltexture, *whitetexture, *greytexture, *blacktexture;
 
@@ -70,6 +73,7 @@ static gltexture_t	*gltextures_base;
 static gltexture_t	*normalmap_of[MAX_GLTEXTURES];
 static byte			normalmap_kind[MAX_GLTEXTURES];
 static unsigned short	normalmap_worldwidth[MAX_GLTEXTURES];
+static byte			normalmap_generated[MAX_GLTEXTURES]; // QVR: its verified generated components (VR_PBRGeneratedFlags), for the draw's strengths
 static gltexture_t	*flatnormaltexture;
 
 unsigned int d_8to24table_opaque[256];			//standard palette with alpha 255 for all colors
@@ -356,6 +360,20 @@ TexMgr_UsesFilterOverride
 qboolean TexMgr_UsesFilterOverride (void)
 {
 	return softemu >= SOFTEMU_COARSE || r_softemu_lightmap_banding.value > 0.f;
+}
+
+/*
+===============
+TexMgr_NearestKind -- QVR: the mipmapped textures drawn nearest (gl_texturemode GL_NEAREST*, as TexMgr_FilterMode
+picks): 0 none, 1 Quake's own (the image files and normal maps smooth: vr_texture_smooth 1), 2 every one
+(vr/vr_permdecals.cpp: the permanent decals read on their texels)
+===============
+*/
+int TexMgr_NearestKind (void)
+{
+	if (glmodes[gl_texfilter.mode].magfilter != GL_NEAREST || gl_texfilter_smooth >= 2)
+		return 0;
+	return gl_texfilter_smooth <= 0 ? 2 : 1;
 }
 
 /*
@@ -703,6 +721,7 @@ gltexture_t *TexMgr_NewTexture (void)
 	active_gltextures = glt;
 	normalmap_of[glt - gltextures_base] = NULL; // QVR
 	normalmap_kind[glt - gltextures_base] = NORMALMAP_NONE;
+	normalmap_generated[glt - gltextures_base] = 0; // QVR
 
 	glGenTextures(1, &glt->texnum);
 	numgltextures++;
@@ -730,9 +749,12 @@ void TexMgr_FreeTexture (gltexture_t *kill)
 		return;
 	}
 
+	texmgr_frees++; // QVR
+	VR_PBRForget (kill); // QVR: discard companion coverage records before this texture slot is reused
 	// QVR: its normal map is freed with it (they have the same owner)
 	normalmap_of[kill - gltextures_base] = NULL;
 	normalmap_kind[kill - gltextures_base] = NORMALMAP_NONE;
+	normalmap_generated[kill - gltextures_base] = 0;
 
 	if (active_gltextures == kill)
 	{
@@ -1428,6 +1450,7 @@ GL_TexImage -- calls glTexImage2D/3D based on texture type
 */
 static void GL_TexImage (gltexture_t *glt, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
 {
+	VR_TRACY_SCOPE("Texture upload");
 	const GLvoid **images = (const GLvoid **)pixels; // for arrays/cubemaps "pixels" is actually an array of pointers
 	unsigned int i;
 
@@ -1504,6 +1527,9 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			}
 		}
 	}
+
+	if (normalmap_kind[glt - gltextures_base] & NORMALMAP_RELIEF) // QVR: a derived weapon's relief, made from its skin (vr/vr_skinrelief.cpp)
+		data = (unsigned *) VR_SkinRelief (glt, (byte *) data);
 
 	// mipmap down
 	picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
@@ -1852,6 +1878,7 @@ gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int widt
 	glt->bindless_handle = 0;
 	normalmap_kind[glt - gltextures_base] = (byte) kind;
 	normalmap_worldwidth[glt - gltextures_base] = (unsigned short) CLAMP (1, worldwidth, 65535);
+	normalmap_generated[glt - gltextures_base] = (byte) VR_PBRGeneratedFlags (source_file); // resolved once, not per draw
 
 	mark = Hunk_LowMark ();
 	if (format == SRC_INDEXED)
@@ -1949,6 +1976,17 @@ qboolean TexMgr_NormalMapAuthored (gltexture_t *glt)
 
 /*
 ================
+TexMgr_NormalMapGenerated -- QVR: a normal map's verified generated components (1 normal, 2 height: vr/vr_pbr.cpp),
+resolved from its source when it was made; 0 for any other texture
+================
+*/
+int TexMgr_NormalMapGenerated (const gltexture_t *nm)
+{
+	return nm && gltextures_base ? normalmap_generated[nm - gltextures_base] : 0;
+}
+
+/*
+================
 TexMgr_NormalMapParallax -- QVR: what heights a texture's normal map carries for parallax mapping: 0 none (no normal
 map, none kept, or an authored file without alpha: flat), 1 made ones (from the shading; vr_parallax_models on models),
 2 an authored file's own alpha (a baked map's relief; vr_parallax_authored)
@@ -1997,6 +2035,7 @@ TexMgr_LoadImage
 gltexture_t *TexMgr_LoadImage (qmodel_t *owner, const char *name, int width, int height, enum srcformat format,
 			       byte *data, const char *source_file, src_offset_t source_offset, unsigned flags)
 {
+	VR_TRACY_SCOPE("Texture preparation");
 	return TexMgr_LoadImageEx (owner, name, width, height, 1, format, data, source_file, source_offset, flags);
 }
 
@@ -2575,6 +2614,7 @@ void GLPalette_UpdateLookupTable (void)
 	memcpy (cached_palette, d_8to24table, sizeof (cached_palette));
 	GLPalette_InvalidateRemapped ();
 
+	GL_BeginGroup ("cs: palette lut"); // QVR: (vr_gl_markers)
 	GL_UseProgramFunc (glprogs.palette_init[metric]);
 	GL_BindImageTextureFunc (0, gl_palette_lut, 0, GL_TRUE, 0, GL_WRITE_ONLY, GL_R8UI);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 0, gl_palette_buffer[0], 0, 256 * sizeof (GLuint));
@@ -2587,6 +2627,7 @@ void GLPalette_UpdateLookupTable (void)
 	}
 
 	GL_MemoryBarrierFunc (GL_TEXTURE_FETCH_BARRIER_BIT);
+	GL_EndGroup (); // QVR
 }
 
 /*
@@ -2639,3 +2680,15 @@ int GLPalette_Postprocess (void)
 
 	return 1;
 }
+
+#ifdef QVR_TRACY
+double TexMgr_TracyBytes(void)
+{
+    gltexture_t *glt;
+    double bytes = 0;
+    for(glt = active_gltextures; glt; glt = glt->next)
+        bytes += (double)glt->width * glt->height * glt->depth * (glt->flags & TEXPREF_CUBEMAP ? 6 : 1)
+            * 4 * (glt->flags & TEXPREF_MIPMAP ? 4.0 / 3.0 : 1);
+    return bytes;
+}
+#endif

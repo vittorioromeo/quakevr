@@ -9,13 +9,21 @@
 .void(float) think2ArgFn;
 .float thinkArg;
 .float vr_flashlight_state; // packed client lamp state, saved and carried by parm50
+.float vr_saw_cord_pulled; // the player has pulled a chainsaw's cord (set by the engine: vr_chainsaw.cpp, the cord's hint
+                           // stops: vr_chainsaw_cord_hint 1), saved and carried by parm50's bit 19
+.float vr_bullettime_spent; // bullet time's meter used up (0: full, 1: empty; kept by the engine: vr_bullettime.cpp), saved and carried by parm74
+.float vr_bullettime_earned; // the damage the player dealt living monsters since the engine last took it (VR_BulletTime_Earn, combat.qc)
+float VR_PARM50_SAW_CORD_PULLED = 524288; // that bit (2^19: the lamp's state takes bits 0..18)
 .float vr_gib; // a gib or head that can be carried (VR_MakeGibGrabbable)
 .entity vr_wpn_from; // a weapon lying about or flying: the player whose hand it left (DropWeaponInHandScaled), else world
 .float vr_grab_by_handle; // a weapon lying about: a hand closing anywhere on it takes it by its handle, never carries it by a hotspot (func_weapon_grabbable BY_HANDLE)
 .float vr_born; // when it was made (set by the engine, ED_Alloc: vr_cheats.cpp; VR_Scene_IsRuntimeProp)
+.float vr_hpscale; // a monster: the multiplier Monster Health put on its health as it first appeared (set by the engine, vr_mgroups.cpp VR_MonsterHealth_Frame; 0 not yet)
 .float vr_gate_crossed; // when a missile was last carried through a teleporter (set by the engine: VR_PortalToss); then it meets its owner (VR_OwnerSpared)
 .float vr_sgib; // a small gib (vr_smallgibs.qc): when it was made
 .float vr_sgib_id; // its serial in the small gibs' ring (0: gone)
+.entity vr_hit_extra; // precise hits (vr_hitmodel.cpp): a part drawn as an entity of its own (not solid) its shots meet
+                      // as this monster (the Armagon's torso: hip_mon_arma.qc)
 .float vr_flies; // a severed head's flies buzz round it (HeadThink, player.qc; VR_Head_StopFlies)
 .float think2Arg;
 
@@ -30,6 +38,11 @@
 .float mainhand_lastgrabtime;
 .float offhand_lastreleasetime;
 .float mainhand_lastreleasetime;
+.float vr_weapon_load_until; // after loading a save: the original held weapons stay for this long
+.entity vr_weapon_load_main;
+.entity vr_weapon_load_off;
+.entity vr_weapon_given_main; // a test scene's weapon given into the hand: held until that hand's grip is pressed (VRWeaponGivenHeld)
+.entity vr_weapon_given_off;
 
 
 //
@@ -41,6 +54,9 @@
 
 .entity mainhand_held;
 .entity offhand_held;
+.float vr_carry_items;   // the hands carrying a thing to put away (vr_carry.qc VR_Carry_ItemsFrame: bit 0 the off hand, 1 the main; STAT_QVR_CARRYITEM)
+.float vr_carry_fullcue; // on a player: no full cue again before then (VR_Carry_FullCue)
+.float carry_autotried;  // on a box: vr_carry_autocollect tried it this carry (VR_Carry_AutoCollect)
 
 // ----------------------------------------------------------------------------
 // Force-grabbing fields

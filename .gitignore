@@ -23,8 +23,17 @@ Misc/quakevr/scratch/
 /scratch/
 /evaltakes/
 Windows/VisualStudio/zancle.vcxproj.user
+Windows/VisualStudio/mimalloc.vcxproj.user
 
 # id's textures, made from your own id1 paks by Misc/trenchbroom/make_id_wad.py (never committed)
 quakevr/wads/id_textures.wad
 scratch_review/
 scratch-review/
+grep.exe.stackdump
+quakevr/maps/vrfiringrange_recovered_20261012.bsp
+quakevr/maps/vrfiringrange_recovered_20261012.lit
+quakevr/maps/vrfiringrange_recovered_20261012.lux
+.env
+
+# The Flatpak build's build number and hash (Quake/vr/qvr_buildinfo.cmake; written by .github/workflows/flatpak.yml)
+/.qvr-buildinfo

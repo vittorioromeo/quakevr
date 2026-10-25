@@ -7,9 +7,11 @@
 #include "vr_avatar.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_holsterzones.hpp"
 #include "vr_lines.hpp"
 #include "vr_menu.hpp"
 #include "vr_protocol.hpp"
+#include "vr_seated.hpp"
 #include "vr_units.hpp"
 
 #include "Zancle/Math/Abs.hpp"
@@ -34,6 +36,24 @@ namespace
     return v;
 }
 
+// Holster Setup's own move of one holster (vr_holster_trim_<holster>_x/y/z; vr_holstersetup.cpp): on top of its pair's
+// offsets, as they are (forward, outwards, up), before they are placed.
+[[nodiscard]] glm::vec3 holsterTrim(int holster)
+{
+    switch(holster)
+    {
+        case LeftShoulder:
+            return {vr_holster_trim_lshoulder_x.value, vr_holster_trim_lshoulder_y.value, vr_holster_trim_lshoulder_z.value};
+        case RightShoulder:
+            return {vr_holster_trim_rshoulder_x.value, vr_holster_trim_rshoulder_y.value, vr_holster_trim_rshoulder_z.value};
+        case LeftHip: return {vr_holster_trim_lhip_x.value, vr_holster_trim_lhip_y.value, vr_holster_trim_lhip_z.value};
+        case RightHip: return {vr_holster_trim_rhip_x.value, vr_holster_trim_rhip_y.value, vr_holster_trim_rhip_z.value};
+        case LeftUpper: return {vr_holster_trim_lupper_x.value, vr_holster_trim_lupper_y.value, vr_holster_trim_lupper_z.value};
+        case RightUpper: return {vr_holster_trim_rupper_x.value, vr_holster_trim_rupper_y.value, vr_holster_trim_rupper_z.value};
+        default: return glm::vec3{0.f};
+    }
+}
+
 // Holsters move forward as the player crouches.
 [[nodiscard]] glm::vec3 crouchAdjustment(const hands::State& s, float mult)
 {
@@ -41,14 +61,54 @@ namespace
     return hands::forward({0.f, s.bodyYaw, 0.f}) * (heightRatio * mult);
 }
 
-// The crouched pose's adjustment of a holster (vr_*_holster_crouch_x/y/z) or the ammo pouch (vr_ammo_pouch_crouch_*,
-// `holster` -1), at the share `w` of it (avatar::crouchPoseWeight): units forward, outwards (the left ones mirrored;
-// the pouch: to the right) and up, in the body's facing.
-[[nodiscard]] glm::vec3 crouchShift(const hands::State& s, int holster, float w)
+// A holster's (or the ammo pouch's, `holster` -1) move `v`: units forward, outwards (the left ones mirrored; the pouch:
+// to the right) and up, in the body's facing.
+[[nodiscard]] glm::vec3 inBodyFacing(const hands::State& s, int holster, glm::vec3 v)
 {
-    if(w == 0.f)
+    if(holster == LeftHip || holster == LeftUpper || holster == LeftShoulder)
+    {
+        v.y = -v.y;
+    }
+    glm::vec3 fwd, right, up;
+    hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
+    return fwd * v.x + right * v.y + up * v.z;
+}
+
+// The seated layout's move of a holster (vr_*_holster_seated_x/y/z) or the ammo pouch (vr_ammo_pouch_seated_*,
+// `holster` -1): all of it while seated (vr_seated.hpp), none standing.
+[[nodiscard]] glm::vec3 seatedShift(const hands::State& s, int holster)
+{
+    if(!seated::active())
     {
         return glm::vec3{0.f};
+    }
+    glm::vec3 v;
+    switch(holster)
+    {
+        case LeftHip:
+        case RightHip: v = {vr_hip_holster_seated_x.value, vr_hip_holster_seated_y.value, vr_hip_holster_seated_z.value}; break;
+        case LeftUpper:
+        case RightUpper:
+            v = {vr_upper_holster_seated_x.value, vr_upper_holster_seated_y.value, vr_upper_holster_seated_z.value};
+            break;
+        case LeftShoulder:
+        case RightShoulder:
+            v = {vr_shoulder_holster_seated_x.value, vr_shoulder_holster_seated_y.value, vr_shoulder_holster_seated_z.value};
+            break;
+        default: v = {vr_ammo_pouch_seated_x.value, vr_ammo_pouch_seated_y.value, vr_ammo_pouch_seated_z.value}; break;
+    }
+    return inBodyFacing(s, holster, v);
+}
+
+// The crouched pose's adjustment of a holster (vr_*_holster_crouch_x/y/z) or the ammo pouch (vr_ammo_pouch_crouch_*,
+// `holster` -1), at the share `w` of it (avatar::crouchPoseWeight), as inBodyFacing; and seated, the seated layout's
+// (seatedShift) on top.
+[[nodiscard]] glm::vec3 crouchShift(const hands::State& s, int holster, float w)
+{
+    const glm::vec3 seatedMove = seatedShift(s, holster);
+    if(w == 0.f)
+    {
+        return seatedMove;
     }
     glm::vec3 v;
     switch(holster)
@@ -65,13 +125,7 @@ namespace
             break;
         default: v = {vr_ammo_pouch_crouch_x.value, vr_ammo_pouch_crouch_y.value, vr_ammo_pouch_crouch_z.value}; break;
     }
-    if(holster == LeftHip || holster == LeftUpper || holster == LeftShoulder)
-    {
-        v.y = -v.y;
-    }
-    glm::vec3 fwd, right, up;
-    hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
-    return (fwd * v.x + right * v.y + up * v.z) * w;
+    return inBodyFacing(s, holster, v) * w + seatedMove;
 }
 
 [[nodiscard]] float threshold(Holster holster)
@@ -96,15 +150,16 @@ namespace
     const glm::vec3 upper{vr_upper_holster_offset_x.value, vr_upper_holster_offset_y.value,
         vr_upper_holster_offset_z.value};
 
+    const glm::vec3 trim = holsterTrim(holster);
     switch(holster)
     {
         case LeftShoulder:
-            return hands::bodyAnchor(s, negateY(shoulder + shoulderHolster)) + crouchAdjustment(s, 1.5f);
-        case RightShoulder: return hands::bodyAnchor(s, shoulder + shoulderHolster) + crouchAdjustment(s, 1.5f);
-        case LeftHip: return hands::bodyAnchor(s, negateY(hip)) + crouchAdjustment(s, -9.5f);
-        case RightHip: return hands::bodyAnchor(s, hip) + crouchAdjustment(s, -9.5f);
-        case LeftUpper: return hands::bodyAnchor(s, negateY(upper)) + crouchAdjustment(s, -1.5f);
-        default: return hands::bodyAnchor(s, upper) + crouchAdjustment(s, -1.5f);
+            return hands::bodyAnchor(s, negateY(shoulder + shoulderHolster + trim)) + crouchAdjustment(s, 1.5f);
+        case RightShoulder: return hands::bodyAnchor(s, shoulder + shoulderHolster + trim) + crouchAdjustment(s, 1.5f);
+        case LeftHip: return hands::bodyAnchor(s, negateY(hip + trim)) + crouchAdjustment(s, -9.5f);
+        case RightHip: return hands::bodyAnchor(s, hip + trim) + crouchAdjustment(s, -9.5f);
+        case LeftUpper: return hands::bodyAnchor(s, negateY(upper + trim)) + crouchAdjustment(s, -1.5f);
+        default: return hands::bodyAnchor(s, upper + trim) + crouchAdjustment(s, -1.5f);
     }
 }
 
@@ -201,7 +256,7 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
     hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
     const float now = glm::dot(pos - standing.head, fwd);
     const bool hip = holster == LeftHip || holster == RightHip;
-    const float x = hip ? vr_hip_offset_x.value : vr_upper_holster_offset_x.value;
+    const float x = (hip ? vr_hip_offset_x.value : vr_upper_holster_offset_x.value) + holsterTrim(holster).x;
     const float at = frontOfTheBody(standing, holster, pos) + (x - (hip ? HIP_X_DEFAULT : UPPER_X_DEFAULT));
     return outOfTheTorso(standing, hip, pos + fwd * (at - now));
 }
@@ -242,10 +297,19 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
 // behind the box's middle by default.
 constexpr float POUCH_X_DEFAULT = -7.f; // vr_cvars.inc: at it, the pouch on the body sits on the back
 
+// Its X, Y and Z (vr_grenade_pouch_x/y/z), seated with the seated layout's on top (vr_grenade_pouch_seated_*: X round
+// the hips as its own).
+[[nodiscard]] glm::vec3 pouchOffsets()
+{
+    const glm::vec3 v{vr_grenade_pouch_x.value, vr_grenade_pouch_y.value, vr_grenade_pouch_z.value};
+    return seated::active()
+               ? v + glm::vec3{vr_grenade_pouch_seated_x.value, vr_grenade_pouch_seated_y.value, vr_grenade_pouch_seated_z.value}
+               : v;
+}
+
 [[nodiscard]] glm::vec3 legacyPouchPosition(const hands::State& s)
 {
-    return hands::bodyAnchor(s, {vr_grenade_pouch_x.value, vr_grenade_pouch_y.value, vr_grenade_pouch_z.value}) +
-           crouchAdjustment(s, -9.5f);
+    return hands::bodyAnchor(s, pouchOffsets()) + crouchAdjustment(s, -9.5f);
 }
 
 // On the drawn body: the default X on the back of the hips' ring (the belt at the small of the back), X moving it on
@@ -256,7 +320,7 @@ constexpr float POUCH_X_DEFAULT = -7.f; // vr_cvars.inc: at it, the pouch on the
     glm::vec3 fwd, right, up;
     hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
     const float now = glm::dot(pos - standing.head, fwd);
-    const float at = t.axis - torsoRing(t, true).x + (vr_grenade_pouch_x.value - POUCH_X_DEFAULT);
+    const float at = t.axis - torsoRing(t, true).x + (pouchOffsets().x - POUCH_X_DEFAULT);
     return outOfTheTorso(standing, true, pos + fwd * (at - now));
 }
 
@@ -276,6 +340,41 @@ constexpr float POUCH_X_DEFAULT = -7.f; // vr_cvars.inc: at it, the pouch on the
     const float now = glm::dot(pos - standing.head, fwd);
     const float at = frontOfTheBody(standing, LeftHip, pos - fwd * vr_ammo_pouch_x.value) + vr_ammo_pouch_x.value;
     return outOfTheTorso(standing, true, pos + fwd * (at - now));
+}
+
+// The gear fitted to the body (vr_body_gear_fit, vr_body_belt_up; ROUND22.md, "Body and Equipment"): the old placement
+// puts the holsters and pouches in Quake's units from the player's origin (the box's middle; up from 2 units over it,
+// the Z offsets times the Height), while the body is scaled to the Height and the world's scale and stands on the floor
+// vr_floor_offset puts under it. So the higher the Height or the world's scale (or the floor), the lower the belt sat on
+// the body: the hip holsters 21 cm under the pelvis with eyes at 1.70 m, 13 cm at the 1.55 m they were placed for
+// (players: "the ammo belt sits too low"). Fitted, a point of the old placement (made for the standing body) is moved as
+// it would be on a body of GEAR_EYES and GEAR_WORLD standing on a floor GEAR_FLOOR under the origin, scaled about the
+// floor under the box's middle to this body's size; the belt's gear (`belt`) then up by vr_body_belt_up (metres of the
+// body). On the body it is put onto (onTheBody...) afterwards, as before.
+constexpr float GEAR_EYES = 1.55f;  // metres: the eye height the holsters' and pouches' defaults were placed for
+constexpr float GEAR_WORLD = 1.2f;  // vr_world_scale's default
+constexpr float GEAR_FLOOR = -22.f; // vr_floor_offset's default
+
+[[nodiscard]] glm::vec3 fitToBody(const hands::State& standing, const glm::vec3& pos, bool belt)
+{
+    const float m2w = units::metresToUnits() * units::bodyScale();
+    glm::vec3 out = pos;
+    if(vr_body_gear_fit.value)
+    {
+        const float k = m2w / (units::perMetre * GEAR_WORLD * GEAR_EYES / units::modelEyeHeight);
+        const float floorZ = standing.head.z - standing.headHeight * units::metresToUnits();
+        // Over the floor as on the reference body: the part over the anchor's 2 units, which the Z offsets times the
+        // Height made (hands::bodyAnchor; standing, upright), as at its height.
+        const float overAnchor = pos.z - (standing.playerOrigin.z + 2.f);
+        glm::vec3 rel = pos - standing.playerOrigin;
+        rel.z = 2.f - GEAR_FLOOR + overAnchor * GEAR_EYES / units::eyeHeight();
+        out = glm::vec3{standing.playerOrigin.x, standing.playerOrigin.y, floorZ} + rel * k;
+    }
+    if(belt)
+    {
+        out.z += vr_body_belt_up.value * m2w;
+    }
+    return out;
 }
 
 // With the full body's legs (vr_body_mode 3), the hip holsters ride the thighs, by
@@ -343,7 +442,8 @@ void onBothThighs(const avatar::Follower& follow, glm::vec3& pos)
     const avatar::Follower& follow, const hands::State& standing, Holster holster, HolsterPlate* plate = nullptr)
 {
     const avatar::Part part = holster == LeftHip || holster == RightHip ? avatar::Part::Pelvis : avatar::Part::Chest;
-    const glm::vec3 pos = onTheBody(standing, holster, legacyHolsterPosition(standing, holster));
+    const bool hip = holster == LeftHip || holster == RightHip;
+    const glm::vec3 pos = onTheBody(standing, holster, fitToBody(standing, legacyHolsterPosition(standing, holster), hip));
     glm::vec3 now = follow(part, pos);
     const bool onBody = plate && isOnTheBody(holster);
     if(onBody)
@@ -363,13 +463,23 @@ void onBothThighs(const avatar::Follower& follow, glm::vec3& pos)
 {
     const glm::vec3& pos = s.pos[hand];
 
+    // The zones (vr_holsterzones.hpp): boxes where the holsters and pouches are drawn, a gun's grip and body tested, a gun
+    // never at a pouch. Picked either way (the wireframes and the report show both); used unless vr_holster_zones 0.
+    const int zone = zones::pick(s, hand, holsters, pouch, ammoPouch);
+    if(zones::enabled() && zone >= 0)
+    {
+        return zone < HolsterCount         ? holsterHotspot(static_cast<Holster>(zone))
+               : zone == zones::ZoneAmmoPouch ? HS_AMMO_POUCH
+                                              : HS_GRENADE_POUCH;
+    }
+
     // The holster the hand is most within (its distance over the holster's reach), not the first in the list: the
     // shoulders' reach (vr_shoulder_holster_thresh, 7.8) comes down over the top of the upper holsters' (on the chest,
     // a few units below), and a gun let go at the top of a chest holster went into the shoulder holster over it
     // (round 20: "invisible until I pick it up and put it back").
     int best = -1;
     float bestRatio = 1.f;
-    for(int h = 0; h < HolsterCount; h++)
+    for(int h = 0; h < HolsterCount && !zones::enabled(); h++)
     {
         const auto holster = static_cast<Holster>(h);
         const float reach = threshold(holster);
@@ -382,8 +492,10 @@ void onBothThighs(const avatar::Follower& follow, glm::vec3& pos)
     }
     // The grenade pouch (vr_handgrenade) and the ammo pouch (vr_reload_mode 3), the same way: the one the hand is most
     // within, holsters and pouches alike (the ammo pouch sits between the hip holsters).
-    const float grenadeRatio = pouch && pouchReach() > 0.f ? glm::distance(pos, *pouch) / pouchReach() : 2.f;
-    const float ammoRatio = ammoPouch && ammoPouchReach() > 0.f ? glm::distance(pos, *ammoPouch) / ammoPouchReach() : 2.f;
+    const bool old = !zones::enabled();
+    const float grenadeRatio = old && pouch && pouchReach() > 0.f ? glm::distance(pos, *pouch) / pouchReach() : 2.f;
+    const float ammoRatio =
+        old && ammoPouch && ammoPouchReach() > 0.f ? glm::distance(pos, *ammoPouch) / ammoPouchReach() : 2.f;
     if(ammoRatio < bestRatio && ammoRatio <= grenadeRatio)
     {
         return HS_AMMO_POUCH;
@@ -480,7 +592,7 @@ glm::vec3 pouchPosition(const hands::State& s, HolsterPlate* plate)
     }
     const avatar::Follower follow{s};
     const hands::State standing = avatar::standing(s);
-    glm::vec3 pos = legacyPouchPosition(standing);
+    glm::vec3 pos = fitToBody(standing, legacyPouchPosition(standing), true);
     if(vr_body_mode.value < 1.f)
     {
         return follow(avatar::Part::Pelvis, pos);
@@ -529,7 +641,7 @@ glm::vec3 ammoPouchPosition(const hands::State& s, HolsterPlate* plate)
     const avatar::Follower follow{s};
     const glm::vec3 crouched = crouchShift(s, -1, follow.crouchPose());
     const hands::State standing = avatar::standing(s);
-    glm::vec3 pos = legacyAmmoPouchPosition(standing);
+    glm::vec3 pos = fitToBody(standing, legacyAmmoPouchPosition(standing), true);
     if(vr_body_mode.value < 1.f)
     {
         return follow(avatar::Part::Pelvis, pos) + crouched;
@@ -557,38 +669,6 @@ glm::vec3 chestAnchor(const hands::State& s, const glm::vec3& offsets)
     return avatar::Follower{s}(avatar::Part::Chest, hands::bodyAnchor(avatar::standing(s), offsets));
 }
 
-void migrateHolsters()
-{
-    // Round 21 stopped a hip or upper holster on the body at its front (frontOfTheBody): an X behind
-    // that put it there. Now X goes on from the default's place, round the body: an X that was
-    // stopped becomes the default (where it was), a further forward one keeps its distance ahead of
-    // the front. For the body standing as the settings make it (the head over the box's middle).
-    if(!vr_body_anchors.value || vr_body_mode.value < 1.f)
-    {
-        return; // not on the body: placed as before
-    }
-    hands::State s;
-    s.headHeight = units::eyeHeight();
-    s.standingHeight = s.headHeight;
-    s.head = {0.f, 0.f, vr_floor_offset.value + s.headHeight * units::metresToUnits()};
-    const hands::State standing = avatar::standing(s);
-    glm::vec3 fwd, right, up;
-    hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
-    for(const Holster h : {RightHip, RightUpper})
-    {
-        cvar_t& var = h == RightHip ? vr_hip_offset_x : vr_upper_holster_offset_x;
-        const glm::vec3 pos = legacyHolsterPosition(standing, h);
-        const float now = glm::dot(pos - standing.head, fwd);
-        const float front = frontOfTheBody(standing, h, pos);
-        const float x = var.value + (h == RightHip ? HIP_X_DEFAULT : UPPER_X_DEFAULT) - front + za::max(now, front) - now;
-        if(za::abs(x - var.value) > 1e-3f)
-        {
-            Con_DPrintf("VR: %s %s is now %.2f (the same place on the body)\n", var.name, var.string, x);
-            Cvar_SetValueQuick(&var, za::round(x * 100.f) / 100.f);
-        }
-    }
-}
-
 Hotspot holsterHotspot(Holster holster)
 {
     constexpr Hotspot hotspots[HolsterCount] = {HS_LEFT_SHOULDER_HOLSTER, HS_RIGHT_SHOULDER_HOLSTER,
@@ -596,12 +676,60 @@ Hotspot holsterHotspot(Holster holster)
     return hotspots[holster];
 }
 
+namespace
+{
+
+// Debug > Views > Log Body Heights (vr_debug_body_heights): when it prints next (vr_gametime).
+double heightsLogAt = -1.0;
+
+// Twice a second: metres above the body's floor (the room's metres, the head's), each leg's straightness (hip to ankle
+// over the leg's length: 1 straight), the belt's gear from the pelvis.
+void logHeights(const hands::State& s)
+{
+    if(!vr_debug_body_heights.value)
+    {
+        heightsLogAt = -1.0;
+        return;
+    }
+    if(vr_gametime < heightsLogAt)
+    {
+        return;
+    }
+    heightsLogAt = vr_gametime + 0.5;
+    const float m2u = units::metresToUnits();
+    const float floorZ = s.head.z - s.headHeight * m2u;
+    const auto h = [&](const glm::vec3& p) { return (p.z - floorZ) / m2u; };
+    const avatar::Torso t = avatar::torso(s);
+    const float pelvis = h(t.pelvis.pos);
+    float knee[2]{}, ankle[2]{}, straight[2]{};
+    avatar::Skeleton sk;
+    const bool legs = avatar::skeleton(sk) && sk.legs;
+    for(int side = 0; legs && side < 2; side++)
+    {
+        knee[side] = h(sk.knee[side]);
+        ankle[side] = h(sk.ankle[side]);
+        const float len = glm::distance(sk.hip[side], sk.knee[side]) + glm::distance(sk.knee[side], sk.ankle[side]);
+        straight[side] = len > 0.f ? glm::distance(sk.hip[side], sk.ankle[side]) / len : 0.f;
+    }
+    const HolsterPositions hp = holsterPositions(s);
+    const float pouch = h(ammoPouchPosition(s)), hip = h(hp[RightHip]);
+    Con_Printf("body heights: t %.1f eye %.3f cal %.3f learnt %.3f crouch %.2f pelvis %.3f knees %.3f %.3f ankles %.3f %.3f "
+               "straight %.3f %.3f pouch %.3f (%+.3f) hip %.3f (%+.3f) grenade %.3f chest %.3f (%+.3f)\n",
+        vr_gametime, s.headHeight, units::eyeHeight(), s.standingHeight, s.crouchRatio, pelvis, knee[0], knee[1], ankle[0],
+        ankle[1], straight[0], straight[1], pouch, pouch - pelvis, hip, hip - pelvis, h(pouchPosition(s)), h(hp[RightUpper]),
+        h(hp[RightUpper]) - h(t.chest.pos));
+}
+
+} // namespace
+
 void queueDebug(const hands::State& s)
 {
     if(!s.valid)
     {
         return;
     }
+    logHeights(s);
+    zones::queueDebug(s); // (vr_holster_zones_show)
 
     // Each zone also on the body's mirror image while a menu page tweaks the body (vr_bodyclone.cpp), at the same place on
     // it.

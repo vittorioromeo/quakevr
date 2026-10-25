@@ -256,8 +256,14 @@ extern	const char	*gl_version;
 QGL_ALL_FUNCTIONS(QGL_DECLARE_FUNC)
 #undef QGL_DECLARE_FUNC
 
+// QVR: the framebuffer bindings as the engine set them (GL_BindFramebufferFunc, wrapped at GL_Init): read back with a
+// glGet, NVIDIA's threaded driver waits for its thread (0.2-0.3 ms an eye, VR_RenderView's late acquire).
+GLuint GL_BoundDrawFramebuffer (void);
+void GL_CheckBoundFramebuffers (const char *where); // vr_debug_glstate: the shadow against GL, a mismatch printed
+
 void GL_BeginGroup (const char *name);
 void GL_EndGroup (void);
+void GL_LabelNewFramebuffer (GLuint fbo, const char *name); // QVR: a just-made framebuffer's debug label
 
 //==============================================================================
 
@@ -340,6 +346,8 @@ typedef enum
 
 alphamode_t R_GetAlphaMode (void);
 alphamode_t R_GetEffectiveAlphaMode (void);
+void R_PrepareOITDraw (int site); // QVR: before a draw into the OIT targets (site: 0 the pass begun, 1 alias, 2 particles, 3 brush, 4 liquids): their clear at the view's first (vr_oit_lazy_clear)
+void R_OITStats (void); // QVR: vr_oit_stats: since the last time, the views with the OIT pass and those that drew into it
 void R_SetAlphaMode (alphamode_t mode);
 
 //johnfitz -- rendering statistics
@@ -468,6 +476,15 @@ typedef struct gpuframedata_s {
 	float	portaluv[4]; // QVR: scene viewport pixels to portal composite pixels
 	float	teleportlook[4]; // QVR: starry surface size and opacity
 	float	ambient[4];		// QVR: the baked light's own fill light (vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (vr/vr_lighting.cpp, vr/vr_glsl.h)
+	float	permdecals[4];	// QVR: the permanent decals' layer (vr/vr_permdecals.cpp: VR_PermDecalsFrame): on, slots a row, one over the atlas's side
+	float	parallax3[4];	// QVR: parallax mapping, more: where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom), unused
+	float	decalcarve[4];	// QVR: the carved decals (vr/vr_decals.cpp: VR_DecalCarveFrame): the depth's multiplier (0 off), the rim's, the most steps, flat past this far
+	float	foam[3][4];		// QVR: the shoreline foam's look, each liquid's (vr/vr_water.cpp foamLook: 0 water, 1 lava, 2 slime): opacity (0 off), frequency, strength, unused
+	float	foamcolor[3][4];	// QVR: ... its colour (rgb), unused
+	float	foambreath[3][4];	// QVR: ... its breathing: how much, how fast, how unevenly, unused
+	float	bloodinfo[4];	// QVR: blood in the liquids (vr/vr_water.cpp: vr_water_blood): how many clouds, unused
+	float	bloodat[16][4];	// QVR: ... each's centre (xy), surface height (z), radius now (w)
+	float	bloodamp[4][4];	// QVR: ... each's strength now
 } gpuframedata_t;
 
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin
@@ -475,6 +492,7 @@ struct gltexture_s *TexMgr_NormalMap (struct gltexture_s *glt); // its normal ma
 struct gltexture_s *TexMgr_LoadExtNormalMap (struct gltexture_s *base, const char *name, int width, int height, byte *data,
 	int worldwidth); // QVR: an external pack's normal map for base (vr/vr_extmaps.cpp), not made its own; data NULL: only one already made
 qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly (only then do they get heights)
+int TexMgr_NormalMapGenerated (const struct gltexture_s *nm); // QVR: a normal map's verified generated components (vr/vr_pbr.cpp: 1 normal, 2 height), resolved when it was made
 
 extern gpulightbuffer_t r_lightbuffer;
 extern gpuframedata_t r_framedata;
@@ -621,6 +639,14 @@ void GL_ClearCachedProgram (void);
 void GL_CreateShaders (void);
 void GL_DeleteShaders (void);
 GLuint GL_WorldDecalRetroProgram (int oit, int dither, qboolean pdo); // QVR
+void R_PrewarmDecalPrograms (qboolean pdo); // QVR: those made in the map's load (vr/vr_decals.cpp prepare)
+void R_WorldFragments_f (void); // QVR: vr_world_fragments (r_world.c)
+extern qboolean gl_multiview_draw; // QVR: the multiview pass draws: GL_UseProgram takes the twins (single-pass stereo)
+void R_RenderStereoSingle (void); // QVR: gl_rmain.c: single-pass stereo's multiview pass (vr/vr_stereo_single.cpp)
+void R_StereoViewMatrices (float proj[16], float view[16], float viewproj[16]); // QVR: the current eye's, from r_refdef
+void GL_MultiviewStats (int *twins, int *missing); // QVR
+int GL_MultiviewPrepare (int async); // QVR: every ported program's twin begun now (single-pass stereo on)
+int GL_MultiviewPending (void); // QVR: ... how many are still compiling (async)
 void GL_ReloadShaders_f (void); // QVR: tests (vr_shader_reload)
 
 typedef struct glframebufs_s {

@@ -21,7 +21,7 @@
 // Each of these settings is also times the thing's own (Load::tune: Weapon Weights, Held Object Weights).
 
 #include "vr_modelmetadata.hpp"
-#include "vr_weight.hpp"
+#include "vr_weight_internal.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -60,6 +60,8 @@
 
 namespace qvr::weight
 {
+using namespace detail;
+
 namespace
 {
 
@@ -74,10 +76,6 @@ constexpr float wristTorque = 100.f;    // N m, beyond holding it level
 // that axis). A 7 kg laser cannon: 0.07 kg m^2 against 106 N m/rad, 39 rad/s (pitch and yaw: 27); 0.025 and 425 before,
 // as quick as the spring goes (120), no weight at all.
 constexpr float forearmTwist = 0.25f;
-constexpr float gunGirth = 0.06f; // m
-constexpr float gunBore = 0.08f;  // m
-constexpr float gunRollRadius2 = gunGirth * gunGirth + gunBore * gunBore; // m^2: its inertia about the forearm, per kg
-constexpr float sagShare = 0.3f;        // of gravity's pull at arm's length (vr_weight_spring_sag 1)
 constexpr float gravity = 9.81f;        // m/s^2: the real world's, as the hands are
 constexpr float fastest = 120.f;        // rad/s: the quickest a spring follows (and the substeps' stability: 0.12 a step)
 constexpr float substep = 0.001f;       // s, at most
@@ -85,37 +83,25 @@ constexpr float jumpSpeed = 20.f;       // m/s: a hand's target moving faster ju
 constexpr const char* flashlightModel = "progs/vrflashlight.mdl";
 constexpr const char* emptyHandModel = "empty hand";
 
-struct Body
-{
-    bool active{false};
-    glm::vec3 x{0.f}, v{0.f}; // the grip: metres, m/s (body frame)
-    glm::quat q{1.f, 0.f, 0.f, 0.f};
-    glm::vec3 w{0.f};         // rad/s (body frame)
-    bool targetValid{false};
-    glm::vec3 xt{0.f};        // last frame's target
-    glm::quat qt{1.f, 0.f, 0.f, 0.f};
-    Offset off;
-    const char* model{nullptr}; // what it holds (another: taken afresh)
-    int entity{0};
-    double jumpUntil{-1.0}; // vr_gametime: put back in the hand, the move says so until then (dropBits: the melee's jump)
-};
 Body bodies[2];
 
 // Wrenched out (vr_weight_drop): each hand's controller turns over the last moments (the grip pose as tracked, the
-// play space's turn taken out), on the spring's clock (the frames' dt: fixed frames in the tests).
+// play space's turn taken out), on the poses' clock (hands::State::poseTime, the headset's frames' times; the frames' dt
+// when unknown). Kept long enough for vr_weight_drop_window's most (0.5 s) at 240 Hz.
 struct Wrench
 {
-    static constexpr int size = 64;
+    static constexpr int size = 128;
     double t[size]{};
     glm::quat q[size]{};
     int count{0}, newest{-1};
     double clock{0.0};
+    double poseTime{-1.0}; // the last frame's hands::State::poseTime
     double until{-1.0};   // vr_gametime: the move says "wrenched out" until then (the server reads it once a frame)
 };
 Wrench wrenches[2];
 constexpr double wrenchLatch = 0.15; // seconds (as the chainsaw's pull)
 constexpr double jumpLatch = 0.05;   // seconds: put back in the hand (a move or two)
-constexpr float wrenchJump = 90.f;   // degrees in one frame: tracking lost and found, not a hand
+constexpr float wrenchJump = 90.f * 72.f; // degrees a second (90 a 72 Hz frame): tracking lost and found, not a hand
 
 // A prop's mass as Box3D has it (a listen server), kept while the same thing of the same setting is held.
 struct MassCache
@@ -131,20 +117,35 @@ MassCache massCache[2];
 float easedShare = 0.f; // staminaShare's, eased
 double easedAt = -1.0;
 
+} // namespace
+namespace detail
+{
 [[nodiscard]] glm::quat quatFromAngles(const glm::vec3& angles)
 {
     glm::vec3 f, r, u;
     hands::angleVectors(angles, f, r, u);
     return glm::normalize(glm::quat_cast(glm::mat3{f, -r, u}));
 }
+} // namespace detail
+namespace
+{
 
+} // namespace
+namespace detail
+{
 [[nodiscard]] glm::vec3 anglesFromQuat(const glm::quat& q)
 {
     const glm::mat3 m = glm::mat3_cast(q);
     return hands::anglesFromVectors(m[0], m[2]);
 }
+} // namespace detail
+namespace
+{
 
 // The rotation vector (axis times angle, radians) of `q`, the short way round.
+} // namespace
+namespace detail
+{
 [[nodiscard]] glm::vec3 rotationVector(glm::quat q)
 {
     if(q.w < 0.f)
@@ -155,6 +156,9 @@ double easedAt = -1.0;
     const float s = glm::length(v);
     return s < 1e-7f ? v * 2.f : v * (2.f * za::atan2(s, q.w) / s);
 }
+} // namespace detail
+namespace
+{
 
 // The prop's mass: its setting, else Box3D's (a listen server: the server's entity of the same number), else estimated.
 [[nodiscard]] float propMass(int hand, int ent, const qmodel_t* model, const glm::vec3& boxSize)
@@ -205,6 +209,9 @@ double easedAt = -1.0;
 }
 
 // The spring's multipliers of a weapon's slot (Weapon Weights) or a prop's (Held Object Weights; slot -1: the defaults, 1).
+} // namespace
+namespace detail
+{
 [[nodiscard]] Tuning weaponTuning(int slot)
 {
     using weapons::Key;
@@ -212,7 +219,13 @@ double easedAt = -1.0;
         weapons::value(slot, Key::SpringStrength), weapons::value(slot, Key::SpringSag), weapons::value(slot, Key::SpringSwing),
         weapons::value(slot, Key::SpringTwoHanded), weapons::value(slot, Key::SpringSnap), weapons::value(slot, Key::SpringRoll)};
 }
+} // namespace detail
+namespace
+{
 
+} // namespace
+namespace detail
+{
 [[nodiscard]] Tuning propTuning(int slot)
 {
     using props::Key;
@@ -220,6 +233,9 @@ double easedAt = -1.0;
         props::value(slot, Key::SpringSag), props::value(slot, Key::SpringSwing), props::value(slot, Key::SpringTwoHanded),
         props::value(slot, Key::SpringSnap)};
 }
+} // namespace detail
+namespace
+{
 
 // The stamina's part of a hand's load (an empty hand's is in its mass).
 void withStamina(Load& l)
@@ -229,6 +245,9 @@ void withStamina(Load& l)
 }
 
 // A rod along the hand's forward: `length` metres, its centre of mass `balance` ahead of the grip, `radius` round it.
+} // namespace
+namespace detail
+{
 void rodLoad(Load& l, float mass, float balance, float length, float radius)
 {
     l.mass = mass;
@@ -236,14 +255,23 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
     const float across = mass * (length * length / 12.f + balance * balance);
     l.inertia = {mass * radius * radius, across, across};
 }
+} // namespace detail
+namespace
+{
 
 // A weapon: a rod turned about the forearm's axis by its twist (forearmTwist).
+} // namespace
+namespace detail
+{
 void gunLoad(Load& l, float mass, float balance, float length)
 {
     rodLoad(l, mass, balance, length, 0.f);
     l.inertia.x = mass * gunRollRadius2;
     l.twist = forearmTwist;
 }
+} // namespace detail
+namespace
+{
 
 // Tired, an empty hand weighs vr_weight_stamina_empty kg at none (on the stamina's curve): a fist. Not a hand holding a
 // ledge or a rung (the climb pulls by the controller) nor one steadying the other's weapon (it stays on its grip).
@@ -335,6 +363,8 @@ void gunLoad(Load& l, float mass, float balance, float length)
     gunLoad(l, mass, weapons::value(slot, weapons::Key::Balance) * 0.01f, za::max(weapons::value(slot, weapons::Key::Span), 1.f) * 0.01f);
     l.twoHanded = za::clamp(twohand::support(h), 0.f, 1.f); // (a hotspot's grip, or the other hand anywhere on it)
     l.tune = weaponTuning(slot);
+    l.slot = slot;
+    l.heft = heft(slot);
     if(!s)
     {
         return l;
@@ -402,7 +432,7 @@ void gunLoad(Load& l, float mass, float balance, float length)
 // drawn, how far apart (cm, degrees; the drawn turn's pitch, yaw and roll less the target's) and the drawn speed.
 FILE* traceFile = nullptr; // vr_debug_weight's weight_trace file (trace)
 
-void trace(int h, const Load& l, const glm::vec3& xt, const glm::quat& qt, const glm::vec3& x, const glm::quat& q, float speed)
+void trace(int h, const Load& l, const glm::vec3& xt, const glm::quat& qt, const glm::vec3& x, const glm::quat& q, float speed, float droopDeg)
 {
     FILE*& file = traceFile;
     if(!vr_debug_weight.value)
@@ -424,32 +454,49 @@ void trace(int h, const Load& l, const glm::vec3& xt, const glm::quat& qt, const
     const float ang = glm::degrees(glm::length(rotationVector(qt * glm::conjugate(q))));
     fprintf(file,
         "%.4f %s %s mass %.2f mult %.3f 2h %.2f target %.4f %.4f %.4f drawn %.4f %.4f %.4f off_cm %.2f ang_deg %.2f dpitch %.2f dyaw %.2f "
-        "droll %.2f speed %.3f model %s\n",
+        "droll %.2f speed %.3f model %s tpitch %.2f tyaw %.2f troll %.2f\n",
         vr_gametime, h == HAND_MAIN ? "main" : "off", l.model, l.mass, l.staminaMult, l.twoHanded, xt.x, xt.y, xt.z, x.x, x.y, x.z, off, ang,
-        wrap(da.x - ta.x), wrap(da.y - ta.y), wrap(da.z - ta.z), speed, "spring");
+        wrap(da.x - ta.x), wrap(da.y - ta.y), wrap(da.z - ta.z), speed, "spring", ta.x, ta.y, ta.z);
     if(vr_debug_weight.value >= 2)
     {
-        Con_Printf("weight: %s %s %.1f kg x%.2f off %.2f cm %.2f deg, 2h %.2f, com %.3f %.3f %.3f m, inertia %.4f %.4f %.4f\n",
-            h == HAND_MAIN ? "main" : "off", l.model, l.mass, l.staminaMult, off, ang, l.twoHanded, l.com.x, l.com.y, l.com.z,
+        // (off its target with the droop; and off the controller itself: the droop taken out of the target)
+        const glm::quat hand = qt * glm::angleAxis(-glm::radians(droopDeg), glm::vec3{0.f, 1.f, 0.f});
+        const float handAng = glm::degrees(glm::length(rotationVector(hand * glm::conjugate(q))));
+        Con_Printf("weight: %s pitch %+.2f below the controller\n", h == HAND_MAIN ? "main" : "off",
+            za::remainder(anglesFromQuat(q).x - anglesFromQuat(hand).x, 360.f));
+        Con_Printf("weight: %s %s %.1f kg x%.2f off %.2f cm %.2f deg (the controller %.2f, droop %.1f), 2h %.2f, com %.3f %.3f %.3f m, inertia %.4f %.4f %.4f\n",
+            h == HAND_MAIN ? "main" : "off", l.model, l.mass, l.staminaMult, off, ang, handAng, droopDeg, l.twoHanded, l.com.x, l.com.y, l.com.z,
             l.inertia.x, l.inertia.y, l.inertia.z);
     }
 }
 
 // Left too far behind the hand (vr_weight_spring_snap: cm, or 3 times as many degrees, checked each frame): put back
 // in it at once.
+} // namespace
+namespace detail
+{
 [[nodiscard]] bool putBack(const Body& b, const glm::vec3& xt, const glm::quat& qt, float snapCm)
 {
     return glm::distance(b.x, xt) * 100.f > snapCm || glm::degrees(glm::length(rotationVector(qt * glm::conjugate(b.q)))) > 3.f * snapCm;
 }
+} // namespace detail
+namespace
+{
 
 // Turned further than this off the hand part way through a frame (each substep), it is put back in it whatever
 // vr_weight_spring_snap says: the spring pulls the short way round, and past half a turn off the short way flips, so it
 // would swing on round the other way, a whole turn (a heavy weapon after a fast wrist snap and back). Measured against
 // the hand's turn at that moment (not the frame's end: a wiggled shotgun lags up to about 160 degrees on its own).
 constexpr float snapTurnMost = 165.f; // degrees
+constexpr float catchFrom = 1.0471976f; // radians (60 degrees): the wrist's catch-up (step) from this far off the hand
+constexpr float catchGain = 30.f;               // up to 1 + this times its pull and torque near snapTurnMost
+constexpr float leashRad = 2.6179939f;          // radians (150 degrees): the most it lags the hand's turn (step's leash)
 
 // One frame of the spring. True: it was left too far behind the hand's turn part way through (a fast wrist snap and back:
 // swinging on past half a turn off, the short way would flip); put it back in the hand.
+} // namespace
+namespace detail
+{
 [[nodiscard]] bool step(Body& b, const Load& l, float m, const glm::vec3& xt0, const glm::vec3& xt, const glm::quat& qt0,
     const glm::quat& qt, float dt, float sag)
 {
@@ -470,7 +517,16 @@ constexpr float snapTurnMost = 165.f; // degrees
     // A heavy thing is gripped harder: the wrist's stiffness grows with the weight's pull about the grip (its own mass,
     // not what tiredness adds: a tired arm droops more).
     // About the forward axis (a roll), the forearm's twist for a weapon (Load::twist).
-    const float kA = (wristStiffness + gripStiffening * l.mass * gravity * glm::length(l.com)) * stiff;
+    // Heavy handling: in one hand a heavy weapon is held less firmly and springier (the struggle), more so just after a
+    // shot's kick (heavyWrist).
+    float heavyStiff = 1.f, heavyDamp = 1.f;
+    heavyWrist(l, heavyStiff, heavyDamp);
+    const float kA = (wristStiffness + gripStiffening * l.mass * gravity * glm::length(l.com)) * stiff * heavyStiff;
+    // A weapon with a Heft settles: its damping ratio (the struggle's and its own Spring Damping times it) no less than
+    // vr_heavy_damping_min (the laser cannon in one hand was at 0.3: a blow stopped dead swung on 54 degrees and back),
+    // unless Aiming: Spring's own damping is lower.
+    const float settle = za::min(vr_heavy_damping_min.value, za::max(vr_weight_spring_damping.value, 0.f));
+    const float zetaA = l.heft > 0.f ? za::max(zeta * heavyDamp, settle) : zeta * heavyDamp;
     const glm::vec3 kAxis{kA * l.twist, kA, kA};
     const float strength = za::max(vr_weight_spring_strength.value * t.strength, 0.f);
     const float force = strength > 0.f ? armForce * strength * grip2 : 0.f;
@@ -483,7 +539,7 @@ constexpr float snapTurnMost = 165.f; // degrees
     for(int i = 0; i < 3; i++)
     {
         inertia[i] = za::max(own[i], kAxis[i] / (fastest * fastest));
-        damping[i] = 2.f * zeta * za::sqrt(kAxis[i] * inertia[i]);
+        damping[i] = 2.f * zetaA * za::sqrt(kAxis[i] * inertia[i]);
     }
     const glm::vec3 sagAccel{0.f, 0.f, -gravity * sag};
     const glm::vec3 holdForce = -m * sagAccel; // holding it up takes this much: the strength is what is left for moving it
@@ -516,451 +572,61 @@ constexpr float snapTurnMost = 165.f; // degrees
         }
         const glm::vec3 dw = toHand * (wt - b.w);
         const glm::vec3 weightTorque = glm::cross(l.com, toHand * (m * sagAccel));
-        glm::vec3 tau = kAxis * e + damping * dw + weightTorque;
-        if(torque > 0.f)
+        // Far behind the hand (a heavy weapon after a quick turn of the wrist), the wrist works harder to bring it back:
+        // its pull and its most torque grow from catchFrom off on, so it lags gradually and stays short of snapTurnMost
+        // (put back in the hand at once there: an abrupt jump; the hammer in one hand lagged a 425 deg/s yaw to 165).
+        // (Heavy handling's: a weapon with a Heft; everything else as before, put back in the hand.)
+        const bool heavy = l.heft > 0.f;
+        const float behind = heavy ? za::clamp((glm::length(e) - catchFrom) / (snapRad - catchFrom), 0.f, 1.f) : 0.f;
+        const float catchUp = 1.f + catchGain * behind * behind;
+        const float most = torque * catchUp;
+        const auto limit = [&](glm::vec3 v) {
+            if(torque > 0.f)
+            {
+                v.x = za::clamp(v.x, -most * l.twist, most * l.twist); // the forearm's twist is weaker
+                if(const float len = glm::length(v); len > most)
+                {
+                    v *= most / len;
+                }
+            }
+            return v;
+        };
+        glm::vec3 tau;
+        if(heavy)
         {
-            tau.x = za::clamp(tau.x, -torque * l.twist, torque * l.twist); // the forearm's twist is weaker
+            // A heavy weapon: its damping grows with the catch-up's pull (the same damping ratio however hard it pulls),
+            // and the wrist's torque limits the pull and the damping each on its own: clipped together, a wrist at its
+            // limit lost its damping and slung the weapon round (wiggled +-60 degrees at 2 Hz, the hammer in one hand
+            // swung +-180 and rang on after the hand was still).
+            tau = limit(kAxis * e * catchUp + weightTorque) + damping * dw * za::sqrt(catchUp);
         }
-        if(const float len = glm::length(tau); torque > 0.f && len > torque)
+        else
         {
-            tau *= torque / len;
+            tau = limit(kAxis * e * catchUp + damping * dw + weightTorque);
         }
         // The centre of mass: its weight (the sag; held up whatever the strength) and its trailing the grip's acceleration.
         tau += -weightTorque + glm::cross(l.com, toHand * (m * (sagAccel - inert * gripAccel)));
         b.w += rot * (tau / inertia) * h;
         const glm::quat spin{0.f, b.w.x, b.w.y, b.w.z};
         b.q = glm::normalize(b.q + (spin * b.q) * (0.5f * h));
+        // On a leash: never further than leashTurn off the hand. Past it the hand drags it along (turned back onto the
+        // leash, spinning no further away than the hand: smoothly, not put back in the hand at once as at snapTurnMost).
+        const glm::vec3 off = heavy ? rotationVector(targetTurn * glm::conjugate(b.q)) : glm::vec3{0.f}; // (the body frame)
+        if(const float apart = glm::length(off); apart > leashRad)
+        {
+            const glm::vec3 axis = off / apart;
+            b.q = glm::normalize(glm::angleAxis(apart - leashRad, axis) * b.q);
+            if(const float away = glm::dot(b.w - wt, axis); away < 0.f)
+            {
+                b.w -= axis * away;
+            }
+        }
     }
     return false;
 }
-
-// vr_weight_test [csv]: the spring on its own, offline, for a light and a heavy weapon and an explosive box, one- and
-// two-handed, tired or not, at several frame rates: a fast swing (60 cm across in 0.2 s, turning 70 degrees) and a stop,
-// then a jump of the hand (a teleport). Prints the lag, the overshoot, the settling time and the sag (at arm's length);
-// with "csv", every frame of each run into weight_test.csv (the game folder) for plotting.
-struct TestCase
+} // namespace detail
+namespace
 {
-    const char* name;
-    float mass, balance, length; // a rod (kg, m, m); length 0: a box, its middle `balance` metres out from the grip
-    float twoHanded;             // (a rod: its foregrip 35 cm ahead; a box: the other hand on its far side)
-    float stamina; // left, 0..1
-    Tuning tune;   // its own multipliers (Weapon Weights, Held Object Weights)
-    bool empty{false}; // an empty hand: its mass is the stamina's (vr_weight_stamina_empty)
-};
-
-void test_f()
-{
-    const bool csv = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "csv");
-    FILE* out = csv ? fopen(va("%s/weight_test.csv", com_gamedir), "w") : nullptr;
-    if(out)
-    {
-        fprintf(out, "case,fps,t,target_x,target_y,drawn_x,drawn_y,drawn_z,off_cm,ang_deg\n");
-    }
-    using weapons::Key;
-    const auto gun = [](const char* name, int slot, float twoHanded, float stamina) {
-        return TestCase{name, weapons::value(slot, Key::Mass), weapons::value(slot, Key::Balance) * 0.01f,
-            weapons::value(slot, Key::Span) * 0.01f, twoHanded, stamina, weaponTuning(slot)};
-    };
-    const float box = props::valueFor("maps/b_explob.bsp", props::Key::Mass);
-    const Tuning boxTune = propTuning(props::slotForModel("maps/b_explob.bsp"));
-    const TestCase cases[] = {
-        gun("shotgun 1H", 1, 0.f, 1.f),
-        gun("shotgun 2H", 1, 1.f, 1.f),
-        gun("rocket 1H", 6, 0.f, 1.f),
-        gun("rocket 2H", 6, 1.f, 1.f),
-        gun("rocket 1H 50%", 6, 0.f, 0.5f),
-        gun("rocket 1H 25%", 6, 0.f, 0.25f),
-        gun("rocket 1H 0%", 6, 0.f, 0.f),
-        {"box 1H", box, 0.6f, 0.f, 0.f, 1.f, boxTune},
-        {"box 2H", box, 0.6f, 0.f, 1.f, 1.f, boxTune},
-    };
-    const float rates[] = {45.f, 72.f, 90.f, 144.f};
-    const float empty = za::max(vr_weight_stamina_empty.value, 0.f);
-    const TestCase emptyCases[] = {
-        {"empty 100%", empty * staminaShareFor(1.f), 0.04f, 0.12f, 0.f, 1.f, Tuning{}, true},
-        {"empty 50%", empty * staminaShareFor(0.5f), 0.04f, 0.12f, 0.f, 0.5f, Tuning{}, true},
-        {"empty 25%", empty * staminaShareFor(0.25f), 0.04f, 0.12f, 0.f, 0.25f, Tuning{}, true},
-        {"empty 5%", empty * staminaShareFor(0.05f), 0.04f, 0.12f, 0.f, 0.05f, Tuning{}, true},
-    };
-    Con_Printf("vr_weight_test: stiffness %.2f damping %.2f strength %.2f sag %.2f swing %.2f 2h %.1f roll %.2f\n",
-        vr_weight_spring_stiffness.value, vr_weight_spring_damping.value, vr_weight_spring_strength.value,
-        vr_weight_spring_sag.value, vr_weight_spring_inertia.value, vr_weight_spring_2h.value, vr_weight_spring_roll.value);
-    Con_Printf("%-14s %4s %5s | %6s %6s | %6s %6s | %6s | %6s %6s | %6s %5s\n", "case", "fps", "kg", "lag cm", "lagdeg", "overcm",
-        "overdg", "settle", "sag cm", "sagdeg", "jitter", "snap");
-    // A test case's load, and its mass as the spring has it (its stamina's).
-    const auto caseLoad = [](const TestCase& tc, float& m) {
-        Load l;
-        l.valid = true;
-        if(tc.length > 0.f)
-        {
-            if(tc.empty)
-            {
-                rodLoad(l, za::max(tc.mass, 0.01f), tc.balance, tc.length, 0.04f);
-            }
-            else
-            {
-                gunLoad(l, za::max(tc.mass, 0.01f), tc.balance, tc.length);
-            }
-            if(tc.twoHanded > 0.f)
-            {
-                // Turning about between the handle and a foregrip 35 cm ahead.
-                const float d = tc.balance - 0.175f;
-                const float across = tc.mass * tc.length * tc.length / 12.f;
-                l.com = {d, 0.f, 0.f};
-                l.inertia = {tc.mass * gunRollRadius2, across + tc.mass * d * d, across + tc.mass * d * d};
-            }
-        }
-        else
-        {
-            // A box held by its side, its middle `balance` out (the big explosive box: 1.14 x 1.14 x 2.36 m).
-            const float a = tc.balance * 2.f;
-            const float own = tc.mass / 12.f * 2.f * a * a;
-            const float d = tc.twoHanded > 0.f ? 0.f : tc.balance; // both hands: about its middle
-            l.mass = tc.mass;
-            l.com = {d, 0.f, 0.f};
-            l.inertia = {own, own + tc.mass * d * d, own + tc.mass * d * d};
-        }
-        l.twoHanded = tc.twoHanded;
-        l.tune = tc.tune;
-        m = za::max(tc.empty ? tc.mass
-                              : tc.mass * staminaCurve(tc.stamina) +
-                                    za::max(vr_weight_stamina_add.value, 0.f) * staminaShareFor(tc.stamina),
-            0.01f);
-        return l;
-    };
-    za::Vector<TestCase> all(cases, cases + za::getArraySize(cases));
-    all.emplaceBackRange(emptyCases, za::getArraySize(emptyCases));
-    for(const TestCase& tc : all)
-    {
-        for(const float fps : rates)
-        {
-            float m = 0.f;
-            const Load l = caseLoad(tc, m);
-            const float sag = sagShare * za::max(vr_weight_spring_sag.value * tc.tune.sag, 0.f); // at arm's length
-            const float dt = 1.f / fps;
-            const glm::vec3 start{0.55f, -0.25f, 1.25f};
-            Body b;
-            b.x = start;
-            b.q = quatFromAngles(glm::vec3{0.f});
-            glm::vec3 prevX = b.x;
-            glm::quat prevQ = b.q;
-            float lagCm = 0.f, lagDeg = 0.f, overCm = 0.f, overDeg = 0.f, settle = -1.f, sagCm = 0.f, sagDeg = 0.f, jitter = 0.f;
-            glm::vec3 restX{0.f};
-            bool snapped = false;
-            constexpr float swingFrom = 1.f, swingTime = 0.2f, jumpAt = 3.f;
-            const int frames = static_cast<int>(3.5f * fps);
-            for(int f = 1; f <= frames; f++)
-            {
-                const float t = static_cast<float>(f) / fps;
-                const float u = za::clamp((t - swingFrom) / swingTime, 0.f, 1.f);
-                const float sm = u * u * (3.f - 2.f * u);
-                glm::vec3 xt = start + glm::vec3{0.f, 0.6f * sm, 0.f};
-                const glm::quat qt = quatFromAngles(glm::vec3{0.f, 70.f * sm, 0.f});
-                if(t >= jumpAt)
-                {
-                    xt += glm::vec3{2.f, 0.f, 0.f};
-                }
-                if(const float snapCm = za::max(vr_weight_spring_snap.value * tc.tune.snap, 1.f);
-                    putBack(b, xt, qt, snapCm) || step(b, l, m, prevX, xt, prevQ, qt, dt, sag))
-                {
-                    b.x = xt;
-                    b.q = qt;
-                    b.v = glm::vec3{0.f};
-                    b.w = glm::vec3{0.f};
-                    snapped = true;
-                }
-                prevX = xt;
-                prevQ = qt;
-                const float off = glm::distance(b.x, xt) * 100.f;
-                const float ang = glm::degrees(glm::length(rotationVector(qt * glm::conjugate(b.q))));
-                if(t < swingFrom)
-                {
-                    sagCm = off; // at rest before the swing: the sag alone
-                    sagDeg = ang;
-                }
-                else if(t <= swingFrom + swingTime)
-                {
-                    lagCm = za::max(lagCm, off - sagCm);
-                    lagDeg = za::max(lagDeg, ang - sagDeg);
-                }
-                else if(t < jumpAt)
-                {
-                    overCm = za::max(overCm, (b.x.y - xt.y) * 100.f); // past the target, the way it went
-                    overDeg = za::max(overDeg, za::remainder(anglesFromQuat(b.q).y - 70.f, 360.f));
-                    const bool out = za::fabs(off - sagCm) > 0.5f || za::fabs(ang - sagDeg) > 0.5f;
-                    if(out)
-                    {
-                        settle = -1.f;
-                    }
-                    else if(settle < 0.f)
-                    {
-                        settle = t - swingFrom - swingTime;
-                    }
-                    // At rest: how much it still moves between frames over the last half second (none: no jitter).
-                    if(t > jumpAt - 0.5f)
-                    {
-                        if(restX != glm::vec3{0.f})
-                        {
-                            jitter = za::max(jitter, glm::distance(b.x, restX) * 1000.f);
-                        }
-                        restX = b.x;
-                    }
-                }
-                if(out)
-                {
-                    fprintf(out, "%s,%.0f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.3f,%.3f\n", tc.name, fps, t, xt.x, xt.y, b.x.x, b.x.y, b.x.z,
-                        off, ang);
-                }
-            }
-            Con_Printf("%-14s %4.0f %5.1f | %6.2f %6.2f | %6.2f %6.2f | %6.3f | %6.2f %6.2f | %6.4f %5s\n", tc.name, fps, m, lagCm,
-                lagDeg, overCm, overDeg, settle, sagCm, sagDeg, jitter, snapped ? "yes" : "no");
-        }
-    }
-
-    // A wrist snap with the laser cannon: the hand turns 170 degrees (pitch, yaw or roll) in 0.1 or 0.05 s and stays, or
-    // turns straight back; then 1.5 s still. The drawn weapon must turn the short way (as the hand did) or be put back in
-    // the hand, never spin round the other way. Per case and frame rate: the largest angle off the hand, the most it
-    // turned beyond the hand's own turn ("extra": about 360 when it went the long way), the runs that went the long way
-    // and the runs put back in the hand. vr_debug_weight: every run.
-    Con_Printf("%-14s %4s | %4s %6s %6s %4s %4s\n", "wrist snap", "fps", "runs", "maxdeg", "extra", "long", "snap");
-    const TestCase snapCases[] = {gun("laser 1H", 9, 0.f, 1.f), gun("laser 2H", 9, 1.f, 1.f), gun("laser 1H 0%", 9, 0.f, 0.f)};
-    for(const TestCase& tc : snapCases)
-    {
-        for(const float fps : {72.f, 90.f, 144.f})
-        {
-            float m = 0.f;
-            const Load l = caseLoad(tc, m);
-            const float sag = sagShare * za::max(vr_weight_spring_sag.value * tc.tune.sag, 0.f);
-            const float snapCm = za::max(vr_weight_spring_snap.value * tc.tune.snap, 1.f);
-            const float dt = 1.f / fps;
-            int runs = 0, longWay = 0, snaps = 0;
-            float maxDeg = 0.f, maxExtra = 0.f;
-            for(int axis = 0; axis < 3; axis++)
-            {
-                for(const float dur : {0.2f, 0.15f, 0.1f, 0.07f, 0.05f, 0.03f})
-                {
-                    for(const bool back : {false, true})
-                    {
-                        const glm::vec3 x0{0.55f, -0.25f, 1.25f};
-                        const auto turnAt = [&](float t) {
-                            const float u = za::clamp(t / dur, 0.f, 1.f), w = za::clamp(t / dur - 1.f, 0.f, 1.f);
-                            float a = 170.f * u * u * (3.f - 2.f * u);
-                            if(back)
-                            {
-                                a -= 170.f * w * w * (3.f - 2.f * w);
-                            }
-                            glm::vec3 angles{0.f};
-                            angles[axis] = a;
-                            struct Turn
-                            {
-                                glm::quat q;
-                                float angle;
-                            };
-                            return Turn{quatFromAngles(angles), a};
-                        };
-                        const glm::vec3 dir = glm::normalize(rotationVector(turnAt(dur).q * glm::conjugate(turnAt(0.f).q)));
-                        Body b;
-                        b.x = x0;
-                        b.q = turnAt(0.f).q;
-                        glm::quat prevQ = b.q;
-                        float turned = 0.f, runMax = 0.f, runExtra = 0.f;
-                        bool snapped = false;
-                        const int frames = static_cast<int>((2.f * dur + 1.5f) * fps);
-                        for(int f = 1; f <= frames; f++)
-                        {
-                            const auto [qt, want] = turnAt(static_cast<float>(f) * dt);
-                            const glm::quat before = b.q;
-                            if(putBack(b, x0, qt, snapCm) || step(b, l, m, x0, x0, prevQ, qt, dt, sag))
-                            {
-                                // Put back in the hand: a jump, not a turn either way (it may be more than half a turn
-                                // off the hand by the frame's end, so the short way would count it as the long way).
-                                b.x = x0;
-                                b.q = qt;
-                                b.v = glm::vec3{0.f};
-                                b.w = glm::vec3{0.f};
-                                snapped = true;
-                                turned = want;
-                            }
-                            else
-                            {
-                                turned += glm::degrees(glm::dot(rotationVector(b.q * glm::conjugate(before)), dir));
-                            }
-                            prevQ = qt;
-                            runMax = za::max(runMax, glm::degrees(glm::length(rotationVector(qt * glm::conjugate(b.q)))));
-                            runExtra = za::max(runExtra, za::fabs(turned - want));
-                        }
-                        runs++;
-                        longWay += runExtra > 200.f;
-                        snaps += snapped;
-                        maxDeg = za::max(maxDeg, runMax);
-                        maxExtra = za::max(maxExtra, runExtra);
-                        if(vr_debug_weight.value)
-                        {
-                            Con_Printf("  %s %.0f fps: %s %.2f s%s: max %.1f deg, extra %.1f, %s\n", tc.name, fps,
-                                axis == 0 ? "pitch" : axis == 1 ? "yaw" : "roll", dur, back ? " and back" : "", runMax, runExtra,
-                                snapped ? "put back" : "sprung");
-                        }
-                    }
-                }
-            }
-            Con_Printf("%-14s %4.0f | %4d %6.1f %6.1f %4d %4d\n", tc.name, fps, runs, maxDeg, maxExtra, longWay, snaps);
-        }
-    }
-
-    // A step of the wrist (NOTES.md vrfiringrange_2026-10-02_01-14-49: a roll as quick as no weight): the hand turns 45
-    // or 90 degrees about one of its axes from one frame to the next (90 fps) and stays. Per weapon, step and axis: the time
-    // (ms) the held weapon takes to turn 90% of it, and how far it overshoots (% of the step).
-    Con_Printf("%-14s %5s %3s | %6s %5s | %6s %5s | %6s %5s\n", "wrist step", "kg", "deg", "p90ms", "p%", "y90ms", "y%", "r90ms",
-        "r%");
-    const TestCase stepCases[] = {{"pistol 1.2kg", 1.2f, 0.05f, 0.25f, 0.f, 1.f, Tuning{}}, gun("grapple 1H", 17, 0.f, 1.f),
-        gun("shotgun 1H", 1, 0.f, 1.f), gun("laser 1H", 9, 0.f, 1.f), gun("laser 2H", 9, 1.f, 1.f), gun("rocket 1H", 6, 0.f, 1.f)};
-    for(const TestCase& tc : stepCases)
-    {
-        for(const float stepDeg : {45.f, 90.f})
-        {
-            float m = 0.f;
-            const Load l = caseLoad(tc, m);
-            constexpr float fps = 90.f;
-            const float dt = 1.f / fps;
-            float t90[3]{-1.f, -1.f, -1.f}, over[3]{0.f, 0.f, 0.f};
-            for(int axis = 0; axis < 3; axis++)
-            {
-                // Hand axes: 0 pitch (about left), 1 yaw (about up), 2 roll (about forward). No sag: the turn alone.
-                glm::vec3 about{0.f};
-                about[axis == 0 ? 1 : axis == 1 ? 2 : 0] = 1.f;
-                const glm::vec3 x0{0.55f, -0.25f, 1.25f};
-                const glm::quat q0{1.f, 0.f, 0.f, 0.f};
-                const glm::quat qt = glm::angleAxis(glm::radians(stepDeg), about);
-                Body b;
-                b.x = x0;
-                b.q = q0;
-                glm::quat prevQ = q0;
-                float was = 0.f;
-                for(int f = 1; f <= static_cast<int>(1.5f * fps); f++)
-                {
-                    if(step(b, l, m, x0, x0, prevQ, qt, dt, 0.f))
-                    {
-                        b.q = qt;
-                        b.w = glm::vec3{0.f};
-                    }
-                    prevQ = qt;
-                    const float turned = glm::degrees(glm::dot(rotationVector(b.q), about));
-                    if(t90[axis] < 0.f && turned >= 0.9f * stepDeg)
-                    {
-                        // (between this frame and the last)
-                        const float part = (turned - 0.9f * stepDeg) / za::max(turned - was, 1e-4f);
-                        t90[axis] = (static_cast<float>(f) - za::clamp(part, 0.f, 1.f)) * dt * 1000.f;
-                    }
-                    was = turned;
-                    over[axis] = za::max(over[axis], (turned - stepDeg) / stepDeg * 100.f);
-                }
-            }
-            Con_Printf("%-14s %5.1f %3.0f | %6.0f %5.1f | %6.0f %5.1f | %6.0f %5.1f\n", tc.name, m, stepDeg, t90[0], over[0], t90[1],
-                over[1], t90[2], over[2]);
-        }
-    }
-    if(out)
-    {
-        fclose(out);
-        Con_Printf("vr_weight_test: wrote %s/weight_test.csv\n", com_gamedir);
-    }
-}
-
-// vr_weight_table: every weapon's and prop's mass and what the weight makes of its damage and its speed thresholds (the
-// damage curve, the thing's own Melee and Throw Damage x, heavy leniency), and the level's other things' (their mass as
-// the game has it: Box3D's).
-void table_f()
-{
-    using weapons::Key;
-    Con_Printf("vr_weight_table: damage x (mass / %.1f kg)^%.2f above, (mass / %.1f kg)^%.2f below, %.2f..%.2f; lenient "
-               "above %.1f kg: (from / mass)^%.2f, at least %.2f\n",
-        vr_weight_damage_heavy.value, vr_weight_damage_exp.value, vr_weight_damage_light.value, vr_weight_damage_exp.value,
-        vr_weight_damage_min.value, vr_weight_damage_max.value, vr_weight_lenient_from.value, vr_weight_lenient.value,
-        vr_weight_lenient_min.value);
-    // (throw1: one hand's top throw by its mass, m/s: throwLimit; 0 with vr_throw_mass_model off.)
-    Con_Printf("%-4s %-26s %6s | %6s %6s %6s | %7s %6s\n", "slot", "model", "kg", "weight", "melee", "thrown", "speeds",
-        "throw1");
-    const auto row = [](const char* slot, const char* model, float mass, float melee, float thrown) {
-        const float curve = damageMultiplier(mass);
-        Con_Printf("%-4s %-26s %6.2f | %6.3f %6.3f %6.3f | %7.3f %6.2f\n", slot, model, mass, curve, curve * melee,
-            curve * thrown, leniency(mass), throwLimit(mass, 1));
-    };
-    for(int slot = 0; slot < weapons::numSlots; slot++)
-    {
-        const char* id = weapons::cvar(slot, Key::ID)->string;
-        if(!id[0] || !strcmp(id, "-1"))
-        {
-            continue;
-        }
-        row(va("w%d", slot + 1), id, weapons::value(slot, Key::Mass), weapons::value(slot, Key::MeleeDamage),
-            weapons::value(slot, Key::ThrowDamage));
-    }
-    for(int slot = 0; slot < props::numSlots; slot++)
-    {
-        const char* id = props::cvar(slot, props::Key::ID)->string;
-        if(!id[0] || !strcmp(id, "-1"))
-        {
-            continue;
-        }
-        if(props::value(slot, props::Key::Mass) <= 0.f)
-        {
-            // Its mass estimated, thing by thing (the level's rows below).
-            Con_Printf("%-4s %-26s %6s | %6s %6.3f %6.3f | %7s\n", va("p%d", slot + 1), id, "est", "-",
-                props::value(slot, props::Key::MeleeDamage), props::value(slot, props::Key::ThrowDamage), "-");
-            continue;
-        }
-        row(va("p%d", slot + 1), id, props::value(slot, props::Key::Mass), props::value(slot, props::Key::MeleeDamage),
-            props::value(slot, props::Key::ThrowDamage));
-    }
-    // What each hand holds, as the weight has it (tests: a held prop's Size and Mass x weigh it again at once).
-    for(int hand = 1; hand >= 0; hand--)
-    {
-        if(const Load l = load(hand); l.valid && !l.empty)
-        {
-            Con_Printf("hand %s: %s %.2f kg\n", hand == 1 ? "main" : "off", l.model ? l.model : "?", l.mass);
-        }
-    }
-    // The things in the level (a local server): each model's mass as the game has it (its setting, else Box3D's).
-    if(!sv.active)
-    {
-        return;
-    }
-    qcvm_t* const old = qcvm;
-    if(old != &sv.qcvm)
-    {
-        if(old)
-        {
-            PR_SwitchQCVM(nullptr);
-        }
-        PR_SwitchQCVM(&sv.qcvm);
-    }
-    za::Vector<za::String> seen;
-    for(int i = 1; i < sv.qcvm.num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        const int index = static_cast<int>(e->v.modelindex);
-        const qmodel_t* model = !e->free && index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-        if(!model || qvr::modelmeta::has(model, qvr::modelmeta::Trait::Submodel) || za::find(seen.begin(), seen.end(), model->name) != seen.end())
-        {
-            continue;
-        }
-        const float mass = box3d::propMass(e);
-        const int slot = props::slotForModel(model);
-        if(mass > 0.f && weapons::slotForName(model->name) < 0 && (slot < 0 || props::value(slot, props::Key::Mass) <= 0.f))
-        {
-            seen.pushBack(model->name);
-            row("lvl", model->name, mass, props::value(slot, props::Key::MeleeDamage), props::value(slot, props::Key::ThrowDamage));
-        }
-    }
-    if(old != &sv.qcvm)
-    {
-        PR_SwitchQCVM(nullptr);
-        if(old)
-        {
-            PR_SwitchQCVM(old);
-        }
-    }
-}
 
 // The most a weapon of `mass` kg may turn (degrees a second) before it is wrenched out, `twoHanded` (0..1) held so; 0: it
 // never is (off, or lighter than vr_weight_drop_from).
@@ -980,7 +646,14 @@ void table_f()
 void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, float dt)
 {
     Wrench& w = wrenches[h];
-    w.clock += dt;
+    const double posed = s.poseTime - w.poseTime;
+    const double step = w.poseTime >= 0.0 && s.poseTime >= 0.0 && posed >= 0.0 && posed < 0.25 ? posed : static_cast<double>(dt);
+    w.poseTime = s.poseTime;
+    if(step <= 0.0 && w.count > 0)
+    {
+        return; // (the same poses again)
+    }
+    w.clock += step;
     const bool weapon = l.valid && !l.prop && !l.empty && modelmeta::identifyPath(l.model) != modelmeta::Id::Vrflashlight;
     const float limit = weapon && vrActive() ? wrenchLimit(l.mass, l.twoHanded) : 0.f;
     if(limit <= 0.f)
@@ -989,7 +662,8 @@ void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, flo
         return;
     }
     const glm::quat q = quatFromAngles(s.gripRot[h] - glm::vec3{0.f, turnYaw, 0.f});
-    if(w.count > 0 && glm::degrees(glm::length(rotationVector(q * glm::conjugate(w.q[w.newest])))) > wrenchJump)
+    if(w.count > 0 &&
+        glm::degrees(glm::length(rotationVector(q * glm::conjugate(w.q[w.newest])))) > wrenchJump * static_cast<float>(step))
     {
         w.count = 0;
     }
@@ -1054,65 +728,9 @@ float dropLimit(float mass, float twoHanded)
     return wrenchLimit(mass, twoHanded);
 }
 
-// vr_throw_table [hand speed m/s] [flick m/s]: throws by weight (throwVelocity), for the weapons and props that have a mass:
-// a throw whose hand's estimate is that fast (8 m/s: a hard overarm throw), that much of it the wrist's flick (2), the
-// flick along it. Each: the speed it leaves at and its reach (level ground, at 45 degrees, at vr_throw_gravity) with the
-// model off (the gain only), one hand and two.
-void throwTable_f()
-{
-    const float hand = Cmd_Argc() > 1 ? Q_atof(Cmd_Argv(1)) : 8.f;
-    const float flick = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 2.f;
-    const float g = vr_throw_gravity.value > 0.f ? vr_throw_gravity.value : 9.81f;
-    const glm::vec3 vel{hand, 0.f, 0.f}, fl{za::min(flick, hand), 0.f, 0.f};
-    Con_Printf("vr_throw_table: hand %.1f m/s (flick %.1f), model %s; max %.0f m/s up to %.1f kg, ^%.2f, knee %.2f\n", hand,
-        flick, vr_throw_mass_model.value ? "on" : "off", vr_throw_max_speed.value, vr_throw_mass_light.value,
-        vr_throw_mass_exp.value, vr_throw_mass_knee.value);
-    Con_Printf("  whole flick up to %.1f kg; two hands as %.1fx lighter; reach at 45 degrees, %.2f m/s^2\n",
-        vr_throw_flick_mass.value, vr_throw_2h_strength.value, g);
-    Con_Printf("  hits from (m/s): %.0f u/s times its scale (top %.0f m/s); spin limits (rad/s): %.0f, ^%.2f\n",
-        vr_throw_hit_min_speed.value, vr_throw_hit_top.value, vr_throw_spin_max.value, vr_throw_spin_mass_exp.value);
-    Con_Printf("%-4s %-24s %5s | %11s | %11s %5s | %11s %5s | %4s %5s | %5s %5s\n", "slot", "model", "kg", "off m/s m",
-        "1h m/s m", "lim", "2h m/s m", "lim", "hit", "scale", "spin1", "spin2");
-    const auto row = [&](const char* slot, const char* model, float mass) {
-        const float was = vr_throw_mass_model.value, debug = vr_debug_throw.value;
-        vr_debug_throw.value = 0.f;
-        vr_throw_mass_model.value = 0.f; // (the value only: not the cvar's string, nor archived)
-        const float off = glm::length(throwVelocity(vel, fl, mass, 1).vel);
-        vr_throw_mass_model.value = 1.f;
-        const float one = glm::length(throwVelocity(vel, fl, mass, 1).vel);
-        const float two = glm::length(throwVelocity(vel, fl, mass, 2).vel);
-        const float lim1 = throwLimit(mass, 1), lim2 = throwLimit(mass, 2);
-        vr_throw_mass_model.value = was;
-        const float spin1 = glm::length(throwSpin(glm::vec3{vr_throw_spin_max.value, 0.f, 0.f}, mass, 1));
-        const float spin2 = glm::length(throwSpin(glm::vec3{vr_throw_spin_max.value, 0.f, 0.f}, mass, 2));
-        vr_debug_throw.value = debug;
-        Con_Printf("%-4s %-24s %5.1f | %5.1f %5.1f | %5.1f %5.1f %5.1f | %5.1f %5.1f %5.1f | %4.1f %5.2f | %5.1f %5.1f\n",
-            slot, model, mass, off, off * off / g, one, one * one / g, lim1, two, two * two / g, lim2,
-            throwHitSpeed(mass, 1.f) / units::metresToUnits(), throwScale(mass), spin1, spin2);
-    };
-    for(int slot = 0; slot < weapons::numSlots; slot++)
-    {
-        const char* id = weapons::cvar(slot, weapons::Key::ID)->string;
-        if(id[0] && strcmp(id, "-1") && weapons::value(slot, weapons::Key::Mass) > 0.f)
-        {
-            row(va("w%d", slot + 1), id, weapons::value(slot, weapons::Key::Mass));
-        }
-    }
-    for(int slot = 0; slot < props::numSlots; slot++)
-    {
-        const char* id = props::cvar(slot, props::Key::ID)->string;
-        if(id[0] && strcmp(id, "-1") && props::value(slot, props::Key::Mass) > 0.f)
-        {
-            row(va("p%d", slot + 1), id, props::value(slot, props::Key::Mass));
-        }
-    }
-}
-
 void registerCommands()
 {
-    Cmd_AddCommand("vr_throw_table", throwTable_f);
-    Cmd_AddCommand("vr_weight_test", test_f);
-    Cmd_AddCommand("vr_weight_table", table_f);
+    registerDiagCommands(); // vr_throw_table, vr_weight_test, vr_weight_table (vr_weight_diag.cpp)
 }
 
 float staminaShareFor(float left)
@@ -1175,6 +793,94 @@ Offset offset(int hand)
     return hand == 0 || hand == 1 ? bodies[hand].off : Offset{};
 }
 
+// Heavy handling ------------------------------------------------------------------------------------------------------
+
+float heft(int slot)
+{
+    if(!vr_heavy.value || slot < 0 || slot == weapons::fistSlot())
+    {
+        return 0.f;
+    }
+    const float own = weapons::value(slot, weapons::Key::Heft);
+    if(own >= 0.f)
+    {
+        return za::clamp(own, 0.f, 1.f);
+    }
+    // From its mass (a weapon without its own class).
+    const float from = vr_heavy_auto_from.value, full = za::max(vr_heavy_auto_full.value, from + 0.1f);
+    return za::clamp((weapons::value(slot, weapons::Key::Mass) - from) / (full - from), 0.f, 1.f);
+}
+
+float droop(int slot, float twoHanded)
+{
+    if(!vr_heavy_droop.value)
+    {
+        return 0.f;
+    }
+    const float one = 1.f - za::clamp(twoHanded, 0.f, 1.f);
+    return vr_heavy_droop_deg.value * heft(slot) * one * za::max(slot >= 0 ? weapons::value(slot, weapons::Key::Droop) : 0.f, 0.f);
+}
+
+float kickSpeed(int slot, float twoHanded)
+{
+    if(!vr_heavy_recoil.value || slot < 0)
+    {
+        return 0.f;
+    }
+    const float one = 1.f - za::clamp(twoHanded, 0.f, 1.f);
+    return za::max(vr_heavy_recoil_kick.value, 0.f) * heft(slot) * one * za::max(weapons::value(slot, weapons::Key::HeavyRecoil), 0.f);
+}
+
+namespace
+{
+
+// A hand's load's heavy shares now: its one-handed struggle and its recovering kick.
+void heavyShares(Load& l, const Body& b)
+{
+    const float one = 1.f - za::clamp(l.twoHanded, 0.f, 1.f);
+    l.struggle = l.heft * one * za::clamp(vr_heavy_struggle.value, 0.f, 1.f);
+    const double time = za::max(static_cast<double>(vr_heavy_recoil_time.value), 0.01);
+    const double since = vr_gametime - b.kickAt;
+    l.kick = b.kickAt >= 0.0 && since >= 0.0 && since < time ? b.kickShare * one * static_cast<float>(1.0 - since / time) : 0.f;
+}
+
+} // namespace
+
+namespace detail
+{
+void heavyWrist(const Load& l, float& stiffness, float& damping)
+{
+    const float s = za::clamp(l.struggle, 0.f, 1.f), k = za::clamp(l.kick, 0.f, 1.f);
+    stiffness = (1.f + (za::max(vr_heavy_struggle_stiffness.value, 0.01f) - 1.f) * s) *
+                (1.f + (za::max(vr_heavy_recoil_recovery.value, 0.01f) - 1.f) * k);
+    damping = 1.f + (za::max(vr_heavy_struggle_damping.value, 0.f) - 1.f) * s;
+}
+} // namespace detail
+
+void heavyKick(int hand)
+{
+    if(hand != 0 && hand != 1)
+    {
+        return;
+    }
+    Body& b = bodies[hand];
+    const Load l = computeLoad(hand, nullptr);
+    const float speed = l.valid && b.active ? kickSpeed(l.slot, l.twoHanded) : 0.f;
+    if(speed <= 0.f)
+    {
+        return;
+    }
+    // Up about the hand's left axis (a turn about it pitches the barrel down).
+    b.w += glm::mat3_cast(b.q) * glm::vec3{0.f, -glm::radians(speed), 0.f};
+    b.kickAt = vr_gametime;
+    b.kickShare = l.heft * (1.f - za::clamp(l.twoHanded, 0.f, 1.f));
+    if(vr_debug_weight.value)
+    {
+        Con_Printf("heavy kick: %s %s %.0f deg/s (heft %.2f, two hands %.2f)\n", hand == HAND_MAIN ? "main" : "off", l.model, speed,
+            l.heft, l.twoHanded);
+    }
+}
+
 void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
 {
     QVR_PROFILE("weight");
@@ -1184,12 +890,19 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
     {
         Body& b = bodies[h];
         const glm::vec3 xt = hands::rotateYaw(s.pos[h] - base, -turnYaw) / m2u;
-        const glm::quat qt = quatFromAngles(s.rot[h] - glm::vec3{0.f, turnYaw, 0.f});
+        glm::quat qt = quatFromAngles(s.rot[h] - glm::vec3{0.f, turnYaw, 0.f});
         Load l = computeLoad(h, &s);
         withStamina(l);
         if(newFrame && dt > 0.f)
         {
             wrenchFrame(h, s, turnYaw, l, dt);
+        }
+        // Heavy handling: in one hand, a heavy weapon's struggle and a shot's kick recovering, and its droop (the barrel
+        // down about the grip: the target the spring pulls it to; the drawn hand and the aim with it).
+        heavyShares(l, b);
+        if(const float sag = droop(l.slot, l.twoHanded); sag != 0.f && l.valid)
+        {
+            qt = qt * glm::angleAxis(glm::radians(sag), glm::vec3{0.f, 1.f, 0.f});
         }
         if(!l.valid)
         {
@@ -1227,15 +940,20 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
                 b.q = qt;
                 b.v = glm::vec3{0.f};
                 b.w = glm::vec3{0.f};
-                if(flipped)
+                if(snapped || flipped)
                 {
-                    // The melee takes it for a jump, not a swing (the other put-backs, as they were: a hand's own jump
-                    // is one already).
+                    // The melee takes it for a jump, not a swing. (Once only the half turn: a hand's own jump was thought
+                    // one already, but the melee's own test misses one under 30 cm. A target moved at once by the walls'
+                    // hold (a weapon slid along the floor, then let go) put a lagging weapon back in the hand 20-25 cm
+                    // in a frame: a blow at 3-4 times the hand's speed, a crate broken by one; ROUND22.md, "Crates: one
+                    // hit".)
                     b.jumpUntil = vr_gametime + jumpLatch;
                 }
                 if((snapped || flipped) && vr_debug_weight.value)
                 {
-                    Con_Printf("weight: %s put back in the hand\n", h == HAND_MAIN ? "main" : "off");
+                    Con_Printf("weight: %s put back in the hand (%s; %.1f cm, %.0f deg off; the hand %.2f m/s; snap %.0f cm)\n",
+                        h == HAND_MAIN ? "main" : "off", flipped ? "turned half round" : jumped ? "the hand jumped" : "too far behind",
+                        b.off.distance, b.off.angle, dt > 0.f ? glm::distance(xt, b.xt) / dt : 0.f, snap);
                 }
             }
             b.xt = xt;
@@ -1244,7 +962,7 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
             b.off.active = true;
             b.off.distance = glm::distance(b.x, xt) * 100.f;
             b.off.angle = glm::degrees(glm::length(rotationVector(qt * glm::conjugate(b.q))));
-            trace(h, l, xt, qt, b.x, b.q, glm::length(b.v));
+            trace(h, l, xt, qt, b.x, b.q, glm::length(b.v), droop(l.slot, l.twoHanded));
         }
         if(!b.active)
         {
@@ -1291,18 +1009,35 @@ namespace
     return hands >= 2 ? mass / za::max(vr_throw_2h_strength.value, 0.1f) : mass;
 }
 
+// The mass a throw's flick moves (throwMass) and the most a wrist flicks freely (vr_throw_flick_mass): a heavier thing
+// keeps free / mass of the flick.
+struct Flick
+{
+    float mass;
+    float free;
+};
+[[nodiscard]] Flick flickOf(float mass, int hands)
+{
+    return {throwMass(za::max(mass, 0.f), hands), za::max(vr_throw_flick_mass.value, 0.01f)};
+}
+
 } // namespace
 
 float throwLimit(float mass, int hands)
 {
-    if(!vr_throw_mass_model.value)
-    {
-        return 0.f;
-    }
     const float m = throwMass(za::max(mass, 0.f), hands);
     const float light = za::max(vr_throw_mass_light.value, 0.01f);
     const float most = za::max(vr_throw_max_speed.value, 0.1f);
-    return m > light ? most * za::pow(light / m, za::max(vr_throw_mass_exp.value, 0.f)) : most;
+    const float limit = m > light ? most * za::pow(light / m, za::max(vr_throw_mass_exp.value, 0.f)) : most;
+    // Two hands heave a heavy thing with the whole body (ROUND22.md, "Prop pushback, heavy throws, light ammo"): at most
+    // the speed vr_throw_2h_heave joules give its mass, when that is more (a 40 kg crate 3.5 m/s, not 2.7; the 80 kg
+    // explosive box 2.5, not 1.4: it goes a metre or two, a light thing tens).
+    const float heave = za::max(vr_throw_2h_heave.value, 0.f);
+    if(hands >= 2 && heave > 0.f && mass > 0.f)
+    {
+        return za::min(most, za::max(limit, za::sqrt(2.f * heave / mass)));
+    }
+    return limit;
 }
 
 namespace
@@ -1331,13 +1066,12 @@ namespace
 float spinLimit(float mass, int hands)
 {
     const float k = vr_throw_spin_mass_exp.value;
-    if(!vr_throw_mass_model.value || !(k > 0.f))
+    if(!(k > 0.f))
     {
         return 0.f;
     }
-    const float m = throwMass(za::max(mass, 0.f), hands);
-    const float free = za::max(vr_throw_flick_mass.value, 0.01f);
-    return m > free ? za::max(vr_throw_spin_max.value, 0.f) * za::pow(free / m, k) : 0.f;
+    const Flick fl = flickOf(mass, hands);
+    return fl.mass > fl.free ? za::max(vr_throw_spin_max.value, 0.f) * za::pow(fl.free / fl.mass, k) : 0.f;
 }
 
 glm::vec3 throwSpin(const glm::vec3& angVel, float mass, int hands)
@@ -1398,19 +1132,14 @@ ThrowOut throwVelocity(const glm::vec3& vel, const glm::vec3& flick, float mass,
 {
     ThrowOut out;
     glm::vec3 v = vel;
-    if(vr_throw_mass_model.value)
+    // A wrist too weak to flick it: of a heavy thing, only some of the flick's speed.
+    const Flick fl = flickOf(mass, hands);
+    out.kept = fl.mass > fl.free ? fl.free / fl.mass : 1.f;
+    // No more of it than the throw has along it (a controller turned about its own point, not the wrist).
+    if(const float f = glm::length(flick); f > 1e-4f)
     {
-        // A wrist too weak to flick it: of a heavy thing, only some of the flick's speed.
-        const float m = throwMass(za::max(mass, 0.f), hands);
-        const float free = za::max(vr_throw_flick_mass.value, 0.01f);
-        out.kept = m > free ? free / m : 1.f;
-        // No more of it than the throw has along it (a controller turned about its own point, not the wrist).
-        const float f = glm::length(flick);
-        if(f > 1e-4f)
-        {
-            const glm::vec3 along = flick / f;
-            v -= along * (za::clamp(glm::dot(v, along), 0.f, f) * (1.f - out.kept));
-        }
+        const glm::vec3 along = flick / f;
+        v -= along * (za::clamp(glm::dot(v, along), 0.f, f) * (1.f - out.kept));
     }
     out.gain = throwGain(glm::length(v));
     v *= out.gain;

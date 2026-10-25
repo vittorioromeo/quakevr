@@ -23,9 +23,11 @@ float(entity e) VR_AxeStick_Tugging;
 void(entity e, entity xPlayer, float xHand) VR_AxeStick_Tug;
 void() VR_AxeStick_Think;
 void(entity e) VR_AxeStick_PulledOut;
+#ifdef QVR_TESTS
 void() VR_AxeStick_TestThrow;
 void() VR_AxeStick_TestReach;
 void() VR_AxeStick_TestReport;
+#endif
 
 // ----------------------------------------------------------------------------
 // Per-hand state, on the player
@@ -126,12 +128,41 @@ vector(entity e) VR_Forcegrab_GrabPoint =
 
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_SetHeld; // (vr_carry.qc)
 
+// A weapon prop that can never be fired again: a single-use enemy gun (a grunt's burst rifle, an enforcer's laser rifle,
+// AD's soldiers' guns: VR_IsEnemyGun) dropped with its clip empty, or a chainsaw out of fuel (an ogre's: never refuelled;
+// still a blade) (CreateThrownWeapon; a running one let go as it burns its last: VR_Saw_PropSettle). The engine reads
+// it: no loot beam (vr_server.cpp), unless vr_enemy_weapon_depleted_loot.
+.float vr_depleted;
+
+float(float xWid) VR_IsEnemyGun; // (vr_enemyguns.qc)
+
+// Whether weapon `xWid` with record `xInst` is spent for good (.vr_depleted above).
+float(float xWid, entity xInst) VR_Weapon_Spent =
+{
+    if(xInst == world || !(VR_IsEnemyGun(xWid) || xWid == WID_CHAINSAW))
+    {
+        return FALSE;
+    }
+    return xInst.wi_clip <= 0;
+};
+
+// Whether the force grab skips `e`, a spent enemy gun (vr_enemy_weapon_depleted_loot 0, the default): a hand takes it.
+float(entity e) VR_EnemyGun_DepletedSkipped =
+{
+    return e.vr_depleted && !cvar_hget(cvarh_vr_enemy_weapon_depleted_loot);
+};
+
 float(entity e) VR_Forcegrab_IsEligible =
 {
     // Cheapest first: no model (triggers, most of what findradius finds around the hand), then
     // what kind of thing (monsters and doors are none): a dropped or thrown object, or a weapon lying
     // in the level in single player (in coop and deathmatch they stay for all).
     if(e.model == string_null || e.fg_state != 0 || e == world || VR_AxeStick_Tugging(e))
+    {
+        return FALSE;
+    }
+    // A weapon in an armed grunt's hand (vr_armedgrunt.qc): grabbed by hand (its tug-of-war), never pulled.
+    if(e.classname == "vr_ag_weapon")
     {
         return FALSE;
     }
@@ -151,8 +182,8 @@ float(entity e) VR_Forcegrab_IsEligible =
         return FALSE;
     }
 
-    // Never force grabbed (Held Object Offsets: Force Grab 0; the explosive boxes).
-    if(!propvalue(e, "forcegrab"))
+    // Never force grabbed (Held Object Offsets: Force Grab 0; the explosive boxes), nor a spent enemy gun.
+    if(!propvalue(e, "forcegrab") || VR_EnemyGun_DepletedSkipped(e))
     {
         return FALSE;
     }
@@ -208,6 +239,20 @@ entity(float xHand) VR_Forcegrab_FindTarget =
         {
             continue;
         }
+        // Nor behind a body (ROUND22.md, "Force grabs: bodies block the view"): a monster (alive, or a solid corpse) or a
+        // ragdoll the line from the hand meets before it.
+        if(cvar_hget(cvarh_vr_forcegrab_bodies_block))
+        {
+            traceline(handPos, c, MOVE_PORTALS, self);
+            if(trace_ent != world && trace_ent != e && ((trace_ent.flags & FL_MONSTER) || isragdoll(trace_ent)))
+            {
+                if(cvar("developer") >= 2) // (every frame an open hand points at it)
+                {
+                    dprint(sprintf("forcegrab: %s behind %s, skipped\n", e.classname, trace_ent.classname));
+                }
+                continue;
+            }
+        }
 
         // Nearest to the pointing direction first; nearer ones win close calls.
         float score = cosAngle - dist * 0.0002;
@@ -262,10 +307,54 @@ void(entity e) VR_Forcegrab_Restore =
     setorigin(e, e.origin);
 }
 
+// Flatscreen play (-flatscreenmode): E. What the view is pointed at, taken with the free hand: the same search, the
+// same flight and the same catch as a force grab in VR, only asked for by a key instead of an open hand held out and
+// flicked (vr_flatplay.cpp sends impulse 46; weapons.qc answers it). With both hands full there is no hand to collect
+// with, and E does nothing.
+void() VR_Forcegrab_FlatGrab =
+{
+    if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0)
+    {
+        return;
+    }
+
+    float xHand = cVR_OffHand;
+    if(!VRIsHandEmpty(self, xHand))
+    {
+        xHand = cVR_MainHand;
+        if(!VRIsHandEmpty(self, xHand))
+        {
+            dprint("flat grab: both hands hold a weapon\n");
+            return;
+        }
+    }
+
+    entity g = VR_Forcegrab_FindTarget(xHand);
+    if(g == world || !VR_Forcegrab_IsEligible(g))
+    {
+        dprint("flat grab: nothing to take where you look\n");
+        return;
+    }
+    if(VR_AxeStick_IsStuck(g))
+    {
+        VR_AxeStick_Tug(g, self, xHand);
+        return;
+    }
+    VR_Forcegrab_Launch(g, xHand);
+    VR_Forcegrab_SetPulled(xHand, g);
+};
+
 // Whether the hand closes in time: empty, gripping, and the grip pressed at most
 // vr_forcegrab_catch_early seconds before `xArrive`.
 float(entity xPlayer, float xHand, float xArrive) VR_Forcegrab_CanCatch =
 {
+    // Flatscreen play (-flatscreenmode): the key is the press, there is nothing to grip. The hand asked to collect was
+    // chosen empty (VR_Forcegrab_FlatGrab), and stays empty on the way in.
+    if(VR_FlatPlay(xPlayer))
+    {
+        return VRIsHandEmpty(xPlayer, xHand);
+    }
+
     if(!VRIsHandEmpty(xPlayer, xHand) || !VR_HandGrabUtil_IsHandGrabbing(xPlayer, xHand))
     {
         return FALSE;
@@ -577,6 +666,17 @@ void(float xHand) VR_Forcegrab_HandFrame =
     {
         VR_Forcegrab_Set(xHand, world, FALSE);
         VR_Forcegrab_WaitsForRelease(xHand, VRGetFireButtonPressed(xHand)); // (the trigger let go meanwhile counts)
+        return;
+    }
+    // Climbing or mantling (the engine's climbing bits: a hand on a ledge, or both as it mantles): neither hand force
+    // grabs (his note: things pulled mid-climb).
+    if(VRHasBit(self.vrbits0, QVR_VRBITS0_OFFHAND_CLIMBING) || VRHasBit(self.vrbits0, QVR_VRBITS0_MAINHAND_CLIMBING))
+    {
+        if(VRGetFireButtonPressed(xHand) && cvar("developer") >= 2)
+        {
+            dprint("forcegrab: off while climbing\n");
+        }
+        VR_Forcegrab_Set(xHand, world, FALSE);
         return;
     }
     if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0 ||

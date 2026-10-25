@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
@@ -106,6 +107,8 @@ struct StorageBuffer
     za::SizeT size{0};     // bytes uploaded
 };
 void upload(StorageBuffer& buffer, const void* data, za::SizeT bytes);
+// `bytes` of it from `offset` changed in place (not orphaned: the rest kept; within what was uploaded, else nothing).
+void update(StorageBuffer& buffer, const void* data, za::SizeT offset, za::SizeT bytes);
 // Bound to `binding` (GL_SHADER_STORAGE_BUFFER), as uploaded; nothing if empty.
 void bindStorage(unsigned binding, const StorageBuffer& buffer);
 // A 2D texture on texture unit `unit`.
@@ -130,7 +133,8 @@ struct ParticleInstance
     glm::vec4 uv;
     float flat; // 1: lying on the horizontal plane
     float cell; // atlas cell for conservative support bounds; -1: full support
-    float pad[2];
+    float kind; // its atlas cell always (vr_debug_particle_waste's count by texture)
+    float pad;
 };
 static_assert(sizeof(ParticleInstance) == 96);
 
@@ -158,7 +162,12 @@ struct ParticleSplit
 {
     float pixelScale{0.f};
     float largePixels{0.f};
+    float viewWidth{0.f}, viewHeight{0.f}; // the scene's viewport in its pixels (as pixelScale's): the size cap's, the waste count's big ones
 };
+// vr_debug_particle_waste: the counts since the last call (then cleared), particleWasteSlots x 3 (shaded, visible,
+// more than faint), a slot per atlas cell and size (cell * 2, + 1 if big). False if nothing was counted yet.
+constexpr int particleWasteSlots = 64;
+[[nodiscard]] bool readParticleWaste(za::Span<za::U32> counts);
 // Draws them in the scene view (sceneViewProjection, sceneCamera); `pull`: moved towards the eye by their pull.
 // `reverse` (vr_particle_saturate): composited in reverse order into a target of their own, the pixels already opaque
 // skipped by the ones under them, then blended over the scene (the same image, less fill), when the scene's target
@@ -169,6 +178,7 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
 // `distances` (width x height, water::opaqueSceneDistances; `soft`: fading against them too), then blended into the
 // scene in one pass. A quarter of their fragments, a little softer. `retro`: their effective retro set (0 off). `viewport`: the
 // scene's (R_SceneViewport); `restore` binds the scene's framebuffer again. False if it could not (drawn nothing).
+[[nodiscard]] int halfTargetsMade(); // its targets made so far (vr_frame_log)
 [[nodiscard]] bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
     Texture distances, int width, int height, const int viewport[4], bool soft, int retro, void (*restore)());
 
@@ -198,9 +208,12 @@ struct TubeBatch
 // Into the frame's upload buffer, valid until the frame ends (drawn from it in both eyes).
 [[nodiscard]] TubeBatch uploadTube(za::Span<const TubeRing> rings);
 // `flat`: faceted (the low-poly chain's square bar): the sides turned half a side (a face, not a corner, along `across`)
-// and each quad lit by its own face's normal.
+// and each quad lit by its own face's normal. `alpha` below 1: blended over the scene, not writing depth (the magnetic
+// holsters' chains: vr_magholster_chain_alpha).
 void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key,
-    const glm::vec3& rust = glm::vec3{0.f}, bool flat = false);
+    const glm::vec3& rust = glm::vec3{0.f}, bool flat = false, float alpha = 1.f);
+// In a map's load (VR_NewMap): the tube's program made and drawn once, not at a cord's first frame in play.
+void prepareTube();
 
 // A model's mesh bent along a curve, copy after copy (the grappling hook's rope, vr_rope.cpp: Rogue's chain links laid
 // end to end along the hanging rope, each bent with it, so that it is drawn in one piece): made on the GPU from one

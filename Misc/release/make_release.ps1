@@ -614,6 +614,9 @@ if (-not $MSBuild -and (Test-Path $vswhere)) {
         -find "MSBuild\**\Bin\MSBuild.exe" | Select-Object -First 1
 }
 if (-not $MSBuild -or -not (Test-Path -LiteralPath $MSBuild)) { Problem "MSBuild with the ClangCL toolset not found (Visual Studio 2022 with C++ and 'C++ Clang tools for Windows'; or -MSBuild)" } else { Say "MSBuild: $MSBuild" }
+# A release is a ThinLTO build: QvrNoLto (the agents' quick builds, quakevr.props) never, not even from the environment
+# (MSBuild reads environment variables as properties; the build below also passes QvrNoLto=0).
+if ($env:QvrNoLto) { Problem "QvrNoLto=$env:QvrNoLto is set in the environment: a release is never a no-LTO build (unset it)" }
 $dotnet = Run "dotnet" @("--version")   # (in the repository root; the installer's global.json is checked below)
 Push-Location $installerDir; try { $dotnetSdk = Run "dotnet" @("--version") } finally { Pop-Location }
 if ($dotnet.Code -ne 0 -and $dotnetSdk.Code -ne 0) { Problem ".NET SDK not found (dotnet)" }
@@ -731,7 +734,7 @@ if ($DryRun) {
     $seq = New-Object System.Collections.Generic.List[string]
     if ($RunTests) { $seq.Add("tests: python Misc\release\run_test_suite.py $TestAgent --build --log-dir $outDir\tests $($testArgs -join ' ')   (kit build.sh $TestAgent, then $testCount one at a time; a failure stops here)") }
     if ($bumpPending) { $seq.Add("write VERSION = $Version; git commit -m ""Version $Version"" -- VERSION   (local)") }
-    $seq.Add("build: out\release\$Version moved aside if there; check_statics.py, check_qc_precedence.py, fgdgen.py --check; MSBuild ironwail.sln Release|x64 /p:QvrReleaseVersion=$Version; package-quakevr.ps1; dotnet publish QuakeVR.Installer; dotnet build QuakeVR.Installer.sln; the installer self-tests")
+    $seq.Add("build: out\release\$Version moved aside if there; check_statics.py, check_qc_precedence.py, fgdgen.py --check; MSBuild ironwail.sln Release|x64 /p:QvrReleaseVersion=$Version; package-quakevr.ps1 (recompiles the QC without the tests: fteqcc -DQVR_NO_TESTS; the checkout gets its development progs.dat back); dotnet publish QuakeVR.Installer; dotnet build QuakeVR.Installer.sln; the installer self-tests")
     $seq.Add("assets: make_release.py (QuakeVR.zip, QuakeVR-Setup.exe, latest.json); checks: the zip = the allowlist, qvr-setup feed --file latest.json --assets, QuakeVR-Setup.exe's install harness + qvr-setup verify$(if ($quakeOk -and -not $SkipSmoke) { ", the smoke launch with $QuakeDir" } elseif ($detectAfterBuild) { ', the smoke launch with the Quake qvr-setup detect finds after the build' } else { ' (no smoke launch)' })")
     $seq.Add("notes: $(if ($notesSource) { $notesSource } else { "draft_release_notes.py -> $notesDraftPath" }) -> $outDir\release-body.md (+ the files' table, SHA256SUMS.txt)")
     if ($online) {
@@ -816,11 +819,20 @@ Say "FGD: ok"
 # ------------------------------------------------------------------------------------------------------------------
 Step "Engine and QuakeC (Release x64, $versionText)"
 $msbuildArgs = @("Windows\VisualStudio\ironwail.sln", "-p:Configuration=Release", "-p:Platform=x64", "-m", "-v:m", "-nologo",
-    "-p:QvrQcCompiler=$Fteqcc", "-p:QvrReleaseVersion=$Version")
+    "-p:QvrQcCompiler=$Fteqcc", "-p:QvrReleaseVersion=$Version", "-p:QvrNoLto=0")
 if ($Rebuild) { $msbuildArgs += "-t:Rebuild" }
 Invoke-Logged $msbuild $msbuildArgs (Join-Path $logs "msbuild.log") | Out-Null
 $exe = Join-Path $root "Windows\VisualStudio\Build-ironwail\bin\x64\Release\ironwail.exe"
 $built = Get-Item $exe
+# The exe must be a ThinLTO build (quakevr.props, QvrNoLto): the build's header says QVR_BUILD_LTO 1, and the exe holds
+# that header's build info and no "no-LTO" (a quick agent build's tag; an exe left by one is refused too).
+$buildVer = Join-Path $root "Windows\VisualStudio\Build-ironwail\x64\Release\qvr_buildver.h"
+$buildVerText = if (Test-Path $buildVer) { Get-Content -Raw $buildVer } else { "" }
+if ($buildVerText -notmatch '#define QVR_BUILD_LTO 1') { throw "$buildVer does not say QVR_BUILD_LTO 1: not a ThinLTO build (QvrNoLto set?)" }
+$exeText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))
+if ($buildVerText -notmatch '#define QVR_BUILD_INFO "([^"]*)"' -or -not $exeText.Contains($Matches[1])) { throw "$exe does not hold this build's info ($buildVer): left over from another build? (use -Rebuild)" }
+if ($exeText.Contains(" no-LTO")) { throw "$exe is a no-LTO build (QvrNoLto): a release must be ThinLTO" }
+Say "ThinLTO build: yes"
 if ($built.LastWriteTime -lt (Get-Date).AddDays(-30)) { Warn "ironwail.exe is from $($built.LastWriteTime): an incremental build left it (use -Rebuild if in doubt)" }
 $warnCount = @(Select-String -Path (Join-Path $logs "msbuild.log") -Pattern "warning C\d+" -ErrorAction SilentlyContinue).Count
 Say "built $exe ($warnCount compiler warning lines)"

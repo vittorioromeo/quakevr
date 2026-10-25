@@ -5,6 +5,7 @@
 // for alpha-tested textures (vr_alpha_coverage). Engine-style code, kept out of gl_texmgr.c (docs/vr-port/IRONWAIL_DIFF.md);
 // the texture manager calls VR_NormalMapMipSize, VR_MakeNormalMap, VR_AlphaCoverage and VR_AlphaCoverageMip.
 
+#include "vr_diskcache.hpp"
 #include "vr_engine.hpp"
 #include "vr_jobs.hpp"
 
@@ -716,22 +717,34 @@ static void TexMgr_EnsureHeightMask (void)
 	}
 }
 
+// VR_SkinIslands -- the islands set (VR_SetHeightMask; made now if lazy), or NULL: vr_skinrelief.cpp's
+extern "C" const byte *VR_SkinIslands (int *width, int *height)
+{
+	TexMgr_EnsureHeightMask ();
+	*width = heightmask_width;
+	*height = heightmask_height;
+	return heightmask;
+}
+
 /*
 ================
 TexMgr_NormalCacheBuild, TexMgr_SkinNormalsKey -- the normal maps made from skins kept on disk (vr_texcache.cpp).
-The build: this file's compile time (the maker's code and constants all compile here: a changed maker never reads an
-old map). The key: a hash (FNV-1a, 64 bits) of all that TexMgr_SkinToNormals reads: the texels, their size, the
-heights or not, the texels per unit, and the islands' mask.
+The build: NORMALCACHE_VERSION, BUMPED whenever a change could make another normal map from the same inputs: the maker
+here (TexMgr_SkinToNormals and its constants) or the islands' mask (vr_modelload.cpp, Mod_SkinIslandsMalloc). Until
+2026-10-16 it was this file's compile time: every new build made every skin's normal map again in its first session
+(PROFILE_20261016 B6). vr_normalmap_cache 2 makes them anyway and compares (a forgotten bump shows as differing).
+The key: a hash (FNV-1a, 64 bits) of all that TexMgr_SkinToNormals reads: the texels, their size, the heights or not,
+the texels per unit, and the islands' mask.
 ================
 */
+#define NORMALCACHE_VERSION 1
+
 static za::String TexMgr_MakeNormalCacheBuild (void)
 {
-	const char *stamp = __DATE__ " " __TIME__;
-	unsigned long long h = 14695981039346656037ULL;
+	char stamp[32];
 	char build[24];
-	for (; *stamp; stamp++)
-		h = (h ^ (byte) *stamp) * 1099511628211ULL;
-	q_snprintf (build, sizeof (build), "%016llx", h);
+	q_snprintf (stamp, sizeof (stamp), "skin normals v%d", NORMALCACHE_VERSION);
+	q_snprintf (build, sizeof (build), "%016llx", qvr::diskcache::fnv (qvr::diskcache::fnvStart, stamp, strlen (stamp)));
 	return build;
 }
 static const za::String normalcache_build = TexMgr_MakeNormalCacheBuild (); // (made before main, read-only)
@@ -741,28 +754,19 @@ static const char *TexMgr_NormalCacheBuild (void)
 	return normalcache_build.cStr ();
 }
 
-static unsigned long long TexMgr_Fnv (unsigned long long h, const void *p, size_t n)
-{
-	const byte *b = (const byte *) p;
-	size_t i;
-	for (i = 0; i < n; i++)
-		h = (h ^ b[i]) * 1099511628211ULL;
-	return h;
-}
-
 static unsigned long long TexMgr_SkinNormalsKey (const byte *data, int width, int height, qboolean heights, float texelsperunit)
 {
-	unsigned long long h = 14695981039346656037ULL;
+	unsigned long long h = qvr::diskcache::fnvStart;
 	const qboolean masked = heightmask || heightmask_corners;
 	int params[6] = {width, height, heights ? 1 : 0, masked ? heightmask_width : 0, masked ? heightmask_height : 0,
 		heightmask_corners ? heightmask_numtris : -1};
-	h = TexMgr_Fnv (h, params, sizeof (params));
-	h = TexMgr_Fnv (h, &texelsperunit, sizeof (texelsperunit));
-	h = TexMgr_Fnv (h, data, (size_t) width * height * 4);
+	h = qvr::diskcache::fnv (h, params, sizeof (params));
+	h = qvr::diskcache::fnv (h, &texelsperunit, sizeof (texelsperunit));
+	h = qvr::diskcache::fnv (h, data, (size_t) width * height * 4);
 	if (heightmask_corners) // the islands are made from these (VR_SetHeightMaskLazy)
-		h = TexMgr_Fnv (h, heightmask_corners, (size_t) heightmask_numtris * 6 * sizeof (float));
+		h = qvr::diskcache::fnv (h, heightmask_corners, (size_t) heightmask_numtris * 6 * sizeof (float));
 	else if (heightmask)
-		h = TexMgr_Fnv (h, heightmask, (size_t) heightmask_width * heightmask_height);
+		h = qvr::diskcache::fnv (h, heightmask, (size_t) heightmask_width * heightmask_height);
 	return h;
 }
 
@@ -894,15 +898,18 @@ extern "C" float VR_AlphaCoverage (const byte *data, int count)
 VR_LoadNormalMap -- the normal map dynamic lights light a world texture or a skin with (vr_normalmaps): an
 authored <image>_norm, or a <image>_bump height map, beside a replacement image; else one made from the texture's
 own shading (`data`, as loaded). `shared`: another image whose authored maps serve if `image` has none (a model's
-skin 0: all its skins lie on the same texture coordinates). `worldwidth` is the texture's width in the world. `flags`: NORMALMAP_HEIGHTS keeps
-the heights parallax mapping walks in its alpha (an authored _norm's own alpha, 255 if it has none); NORMALMAP_SKIN
+skin 0: all its skins lie on the same texture coordinates). `worldwidth` is the texture's width in the world. File-authored
+world maps always keep height alpha. `flags`: NORMALMAP_HEIGHTS keeps the heights of procedural maps and skins;
+NORMALMAP_SKIN
 makes it from a model skin's colours (TexMgr_SkinToNormals). Authored ones are marked NORMALMAP_FILE.
 =================
 */
 extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const char *shared, byte *data, enum srcformat format,
 	int worldwidth, int flags)
 {
-	int heights = flags & NORMALMAP_HEIGHTS, n;
+	// File-authored world relief is independent of the diffuse's nearest/linear filtering.
+	// The caller's height flag still controls procedural shading and model skins below.
+	int heights = (flags & NORMALMAP_SKIN) ? flags & NORMALMAP_HEIGHTS : NORMALMAP_HEIGHTS, n;
 	static constexpr struct { const char *suffix; int kind; } authored[] = {
 		{"_norm", NORMALMAP_AUTHORED},
 		{"_bump", NORMALMAP_SHADING},
@@ -913,6 +920,8 @@ extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const cha
 	byte			*img;
 
 	if (!glt || !data || !VR_NormalMaps () || TexMgr_NormalMap (glt) != TexMgr_NormalMap (NULL))
+		return;
+	if (VR_PBRNormal (glt, image, shared, data, format, worldwidth, flags))
 		return;
 	for (n = 0; n < 2; n++)
 	for (i = 0; (n ? shared : image) && i < (int) countof (authored); i++)
@@ -935,8 +944,12 @@ extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const cha
 		if (img)
 			return;
 	}
-	TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
-		glt->source_offset, NORMALMAP_SHADING | (flags & (NORMALMAP_HEIGHTS | NORMALMAP_SKIN)), worldwidth);
+	if (flags & NORMALMAP_RELIEF) // a weapon made from another model's file: its relief made from its skin (vr_skinrelief.cpp)
+		TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
+			glt->source_offset, NORMALMAP_AUTHORED | NORMALMAP_FILE | NORMALMAP_HEIGHTS | NORMALMAP_RELIEF, worldwidth);
+	else
+		TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
+			glt->source_offset, NORMALMAP_SHADING | (flags & (NORMALMAP_HEIGHTS | NORMALMAP_SKIN)), worldwidth);
 }
 
 

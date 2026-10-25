@@ -12,7 +12,7 @@ namespace qvr::progs
 {
 
 inline constexpr int firstExtSpawnParm = 17;
-inline constexpr int lastExtSpawnParm = 56; // (51..56: Dawn of the Machine's upgrades and bloody weapons, QC/vr_mg3_defs.qc)
+inline constexpr int lastExtSpawnParm = 74; // (51..56: Dawn of the Machine's upgrades and bloody weapons, QC/vr_mg3_defs.qc; 57..72: Arcane Dimensions' level state, QC/vr_ad_bridge.qc; 73: the magnetic holsters' bindings, QC/vr_magholster.qc; 74: bullet time's meter, QC/client.qc)
 inline constexpr int numExtSpawnParms = lastExtSpawnParm - firstExtSpawnParm + 1;
 
 // Offsets (in floats, from edict_t::v) of the VR entity fields; -1 when absent.
@@ -60,10 +60,37 @@ struct Bindings
     // A carried prop's touch: QC forcegrabbable_touch and those that only call it (a rock's or a brick's, a crate's
     // piece's, a thrown weapon's: vr_physics.cpp's touch spares the calls that can do nothing).
     func_t propTouches[4]{};
+    func_t AxeStick_Stuck{0}; // a thrown axe's blade stuck in something (QC vr_axestick.qc; vr_axestick.cpp)
+    // The ragdolls' per-frame QC (vr_box3d_step.cpp's callBodyHits, callRagImpacts, monsterFell; vr_box3d_ragdoll.cpp's
+    // makeRagdollRoom): resolved here, not by name each frame (findFunction scans every function).
+    func_t KdTrig_BodyHit{0};
+    func_t RagImpact_Hit{0};
+    func_t Flail_Hit{0}; // AD support: the death sergeant's flail's head striking (QC vr_ad_melee.qc; vr_box3d_flail.cpp)
+    func_t Flail_Rattle{0}; // ... its chain rattling, the head swung fast
+    func_t Monster_Fall{0};
+    func_t Knockdown_MakeRoom{0};
+    // The monster grab's QC (vr_foegrab.cpp's callQc and head zone), resolved here, not by name per call.
+    struct FoeGrab
+    {
+        func_t HeadZone{0};
+        func_t HeadLeft{0};
+        func_t Released{0};
+        func_t Strength{0};
+        func_t Taken{0};
+        func_t Throw{0};
+        func_t HandOver{0};
+        func_t Manhandle{0};
+        func_t BreakFree{0};
+        func_t NeckSnap{0};
+        func_t Lift{0};
+        func_t MonsterMass{0}; // VR_Grapple_MonsterMass
+        func_t LegSweepDown{0}; // VR_LegSweep_Down
+    } foegrab;
 
     float* spawnServerFromSaveFile{nullptr};
     // vr_music_track: the CD track target_vr_music switched to (0: the map's own); sent at a connect (a loaded game)
     float* musicTrack{nullptr};
+    float* spawnLive{nullptr}; // vr_spawn_live: 1 round a spawn function run in a live game (box3d::spawnClass)
     float* playerTimeOffset{nullptr}; // vr_player_time_offset: the player's clock ahead of time (vr_timescale.cpp)
     float* extSpawnParms[numExtSpawnParms]{};
 };
@@ -149,6 +176,10 @@ inline void setFieldFloat(edict_t* ent, int ofs, float value)
 // A function of the current qcvm by name (0 when absent).
 [[nodiscard]] func_t findFunction(const char* name);
 
+// Whether the progs carry the QC tests (QC/vr_macros.qc QVR_TESTS; the release flavour leaves them out). True too while
+// no progs are loaded (the main menu before any map): unknown, so nothing is claimed missing.
+[[nodiscard]] bool qcTestsPresent();
+
 // Binds the VR builtins declared "= #0" in QC (vr_builtins.cpp).
 void bindBuiltins();
 
@@ -156,6 +187,11 @@ void bindBuiltins();
 void resetBuiltinState();
 // ED_Free (VR_OnEdictFree): a wounded entity's removal sent to the clients (QVR_SVC_WOUNDCLEAR).
 void onEdictFree(edict_t* ed);
+// A wound on entity num's model at org going dir (unit), QVR_WOUND_* kind (QC vr_wounds.qc), amount 0..255, extra: QC's
+// woundevent sent from the engine (a held stump's blood on the hand: vr_box3d.cpp).
+void sendWound(int num, const float* org, const float* dir, int kind, int amount, int extra);
+// QC's particle2(org, dir, preset, count) sent from the engine (a native of QuakeC: vr_propthink.cpp).
+void sendParticle2(const float* org, const float* dir, int preset, int count);
 // vr_test_remove <entity number>: the entity removed, as QC's remove() (tests: its slot reused).
 void testRemove_f();
 // vr_model_check [1]: every entity's .modelindex against its .model, and the client's models against the server's

@@ -7,7 +7,7 @@
 namespace qvr::weapons
 {
 
-inline constexpr int numSlots = 32;
+inline constexpr int numSlots = 51; // (37 the nail pistol, 38-40 unused: AD support's melee weapons from 41, the four monster swords 47-50, the flail 51)
 
 enum class Key : int
 {
@@ -59,6 +59,10 @@ enum class Part
 };
 [[nodiscard]] bool weightKey(Key key); // Mass, Balance, Length (Span), the spring's multipliers, the damage multipliers
 [[nodiscard]] cvar_t* cvar(int slot, Key key);
+// The anchor keys (*_av: vr_anchor.hpp's text), and a slot's anchor text ("" for a bad slot or a key that is not one,
+// which binds to the model's first vertex): what the drawing reads.
+[[nodiscard]] bool anchorKey(Key key);
+[[nodiscard]] const char* anchor(int slot, Key key);
 void resetSlotToDefaults(int slot, Part part = Part::All);
 
 // Forgets the models' slots found (a game directory change reuses their slots; a model reload, a new map).
@@ -144,17 +148,6 @@ inline constexpr int hotspotFields = 24;
 [[nodiscard]] Hotspot hotspot(int slot, int index);
 void setHotspot(int slot, int index, const Hotspot& h);
 
-// Round 21's migration of a config's two-handed grips (tuned in it: its foregrip or blade grip keys, or the weapon's
-// offset or scale, not the defaults) into hotspots needs the model: true once per such slot, for the view to do it.
-[[nodiscard]] bool takeHotspotMigration(int slot);
-
-// Round 21, third pass: a cup hotspot is where the helping hand's palm sits (it was a point the hand's grip channel
-// was aligned round, often far from where the hand ended up). A config's cups made before are moved, once, to where
-// their hands were drawn: the slots owning such a cup (their own values, not inherited), for the view to do it (it needs
-// the hands drawn); `done` once it has.
-[[nodiscard]] bool cupMigrationPending(int slot);
-void cupMigrationDone(int slot);
-
 // The slot whose own value of `key` `slot` uses (itself, or what it inherits it from).
 [[nodiscard]] int ownerSlot(int slot, Key key);
 
@@ -164,6 +157,10 @@ void cupMigrationDone(int slot);
 [[nodiscard]] int inheritsFrom(int slot);
 [[nodiscard]] bool inheritable(Key key);
 void stopInheriting(int slot);
+
+// vr_wofs_dump [slot ...] (slots as vr_weapons.inc numbers them, from 0): every key's value the game uses for each slot
+// listed, with the slot it comes from where inherited; with none, the slots that inherit and from which (Debug menu).
+void dump_f();
 
 // The direction a weapon's shots go (its projectiles and beams too): the hand's aim `aimRot` (Quake angles) turned by the
 // slot's Shot Pitch (up) and Shot Yaw (left), in the aim's own frame, the yaw mirrored for a weapon held `mirrored` (the

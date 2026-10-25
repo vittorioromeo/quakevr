@@ -1,0 +1,11 @@
+# flaregun_art: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The disposable double-barrelled
+# flare gun's art (Misc/quakevr/models_src/flaregun/README.md) before it is a weapon: its preview model floats ahead at a
+# held weapon's size, the nail pistol and the shotgun lie on the floor just beyond it for scale.
+title Flare gun art preview, next to the nail pistol and the shotgun
+map vrtesthall
+god
+notarget
+spawn "Nail Pistol" 64 14
+spawn "Shotgun" 64 -14
+cmd alias flaregun_art "vr_physics_spawn viewthing reach; viewmodel progs/vr_flaregun_preview.mdl"; flaregun_art
+hint The flare gun's art (not a weapon yet) floats ahead at the size it would be in your hand; the nail pistol and the shotgun lie beyond it. Walk around it: the two barrels parallel, the cartridges in the housing, the sights. The Debug menu's Tools page shows it again anywhere.

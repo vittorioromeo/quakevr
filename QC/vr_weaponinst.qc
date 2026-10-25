@@ -16,6 +16,26 @@
 // engine frees at the end of the frame, and tells the clients its id is gone (vr_weaponinst.cpp). Saves keep the records
 // as entities; a level change carries the player's (their ids and magazines: parm31..38, parm41..49).
 
+// AD support: Arcane Dimensions' upgrades this weapon has (AD's ad_IT_UPGRADE_AXE, _SSG, _LG bits: the Shadow Axe, the
+// Widowmaker, the Plasma Gun), set by the upgrade's pickup on the weapon it gives (vr_ad_bridge.qc AD_UpgradeGiven): it
+// goes with the weapon (hands, holsters, drops, saves; a level change: parm64), so a plain axe found later stays plain.
+.float wi_adup;
+
+// Incandescent blades (vr_hotblade.qc): a melee weapon held in a flame or lava glows and burns what it strikes. The heat
+// is the weapon's (its record's), so it goes with it held, holstered, dropped and saved, and cools on its own clock.
+.float wi_heat;    // the build-up in a flame, 0..1 (as it was at wi_heat_at; it falls off out of the flame)
+.float wi_heat_at; // when wi_heat was last raised
+.float wi_hot_end; // when it stops being incandescent (time; past: not)
+
+// (vr_hotblade.qc, after vr_burning.qc: the melee and the damage call it.)
+float(entity p, float xHand) VR_HotBlade_Extra;
+void(entity p, float xHand, entity xTarg, float xAlive, vector xAt, vector xDir) VR_HotBlade_Struck;
+void() VR_HotBlade_Frame;
+float(entity xThing) VR_HotBlade_ThrownExtra;
+void(entity xThing, entity xTarg, entity xBy, float xAlive, vector xAt, vector xDir) VR_HotBlade_ThrownStruck;
+.float vr_hot_glow; // on a weapon prop (thrown_weapon): its glow 0..1 for the engine (VR_HotBlade_Lying; U_QVR_WEAPONUID)
+
+nosave float vr_hot_any_until; // Until when some weapon may still be incandescent (vr_hotblade.qc)
 float qvr_weaponinst_next; // The next id to try (saved with the game; carried to the next level: parm49).
 
 // Every record's id is below this; 0: not known yet (a load or a new map: the progs' globals start again), and the first
@@ -96,7 +116,12 @@ entity(float xClip) WeaponInst_New =
 // copy of the hand's weapon, and gives one back.
 entity(entity xFrom) WeaponInst_Clone =
 {
-    return WeaponInst_New(xFrom.wi_clip);
+    entity r = WeaponInst_New(xFrom.wi_clip);
+    r.wi_adup = xFrom.wi_adup; // (AD support: its upgrades too)
+    r.wi_heat = xFrom.wi_heat; // (its heat: vr_hotblade.qc)
+    r.wi_heat_at = xFrom.wi_heat_at;
+    r.wi_hot_end = xFrom.wi_hot_end;
+    return r;
 };
 
 // The magazine of record `xInst` set (none: nothing; world is never written).
@@ -222,4 +247,45 @@ string(entity e, float xHand) VRWeaponInstDesc =
 {
     entity r = VRGetEntWeaponInst(e, xHand);
     return sprintf("weapon %g #%g clip %g", xHand == cVR_OffHand ? e.weapon2 : e.weapon, r.wi_uid, r.wi_clip);
+};
+
+// Incandescent blades across a level change (parm65..72: the two hands' records, then the six holsters'): the seconds a
+// blade has left to glow, in tenths, 0 = cold (the new level's clock restarts, so the end is carried as a time left).
+float(entity r) WeaponInst_HotParm =
+{
+    return (r != world && r.wi_hot_end > time) ? ceil((r.wi_hot_end - time) * 10) : 0;
+};
+
+void(entity p) WeaponInst_PackHot =
+{
+    parm65 = WeaponInst_HotParm(p.weaponinst);
+    parm66 = WeaponInst_HotParm(p.weaponinst2);
+    parm67 = WeaponInst_HotParm(p.holsterweaponinst0);
+    parm68 = WeaponInst_HotParm(p.holsterweaponinst1);
+    parm69 = WeaponInst_HotParm(p.holsterweaponinst2);
+    parm70 = WeaponInst_HotParm(p.holsterweaponinst3);
+    parm71 = WeaponInst_HotParm(p.holsterweaponinst4);
+    parm72 = WeaponInst_HotParm(p.holsterweaponinst5);
+};
+
+void(entity r, float xTenths) WeaponInst_UnpackHotOne =
+{
+    if(r != world && xTenths > 0)
+    {
+        r.wi_hot_end = time + xTenths / 10;
+        r.wi_heat = 0;
+        vr_hot_any_until = max(vr_hot_any_until, r.wi_hot_end);
+    }
+};
+
+void(entity p) WeaponInst_UnpackHot =
+{
+    WeaponInst_UnpackHotOne(p.weaponinst, parm65);
+    WeaponInst_UnpackHotOne(p.weaponinst2, parm66);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst0, parm67);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst1, parm68);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst2, parm69);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst3, parm70);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst4, parm71);
+    WeaponInst_UnpackHotOne(p.holsterweaponinst5, parm72);
 };

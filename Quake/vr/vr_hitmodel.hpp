@@ -81,6 +81,23 @@ bool restPoint(edict_s* ent, const glm::vec3& p, glm::vec3& out);
 // point (out.surface, .point), the triangle's outward normal, and how far `p` is from it (`dist`; inside or out). False:
 // `ent` is no target. (Holding enemies, vr_foegrab.cpp: where a hand takes hold.)
 bool nearest(edict_s* ent, const glm::vec3& p, Hit& out, float& dist);
+// ... any entity's Quake .mdl as drawn (a ragdoll's as its parts carry it), the option on or off (a fire's flames: QC
+// modelnearest). False: no such model.
+bool nearestAny(edict_s* ent, const glm::vec3& p, Hit& out, float& dist);
+// Where on `ent`'s model as drawn now triangle `tri`'s point (corner 0 + u (1 - 0) + v (2 - 0)) is (a point nearestAny
+// found, carried along as the model moves: a fire's flames), and its outward normal. False: no such model or triangle.
+bool surfacePoint(edict_s* ent, int tri, float u, float v, glm::vec3& point, glm::vec3& normal);
+// Where vertex `vert` (the .mdl's order) of `ent`'s model is as drawn now, in the world (the armed grunts' hands and
+// hidden gun: QC modelvertex). False: no such model or vertex.
+bool vertexPoint(edict_s* ent, int vert, glm::vec3& point);
+
+// nearest() for many points against one pose: pose() takes `ent`'s model as drawn now (its vertices posed once, each
+// triangle's bounds), then nearestPosed() finds a point's nearest on it, its result nearest()'s to the bit (the
+// triangles whose bounds can't be nearer passed over). A point farther than `beyond` from the posed model's bounds is not
+// searched: false, `dist` that bound's distance (no more than nearest()'s). pose()'s false: `ent` is no target (call
+// nearestPosed() only after a true; the next pose() replaces it). (A hand's fist's spheres, vr_foegrab.cpp.)
+bool pose(edict_s* ent);
+bool nearestPosed(const glm::vec3& p, float beyond, Hit& out, float& dist);
 
 // Where the place (u, v) on triangle `tri` of `ent`'s model (a Hit's) is as drawn now, and a frame there: x along the
 // triangle's first edge, z its normal (outwards), y their cross. What stays on the model where it was hit follows it (a
@@ -99,10 +116,7 @@ void debugDraw();    // vr_debug_hits (the view, each frame)
 // standing mesh and the resulting colored polygons follow the actual rendered animation; otherwise reference wires.
 void zoneAdd(int num, int zone, const glm::vec3& lo, const glm::vec3& hi, float radius);
 void zonesDraw(); // (the view, each frame)
-void zonesCheck_f(); // vr_hitzones_check: drawn region samples versus the gameplay QC point classifier
-
-void stats_f();      // vr_hitmodel_stats
-void bench_f();      // vr_hitmodel_bench [rays]
-void check_f();      // vr_hitmodel_check [reset|print]
+// vr_hitzones_check, vr_hitmodel_stats, vr_hitmodel_bench, vr_hitmodel_check (vr_hitmodel_diag.cpp)
+void registerDiagCommands();
 
 } // namespace qvr::hitmodel

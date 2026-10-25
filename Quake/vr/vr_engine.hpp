@@ -11,6 +11,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+// Only the SDL parts the engine headers use (quakedef.h): a file that calls SDL includes "SDL.h" itself.
+#ifndef QVR_ENGINE_SDL_CORE
+#define QVR_ENGINE_SDL_CORE
+#endif
+
 extern "C" {
 #include "quakedef.h"
 
@@ -19,6 +24,7 @@ extern cvar_t r_particles; // r_part.c: particle effects enabled
 extern cvar_t sv_gravity;							// sv_phys.c
 extern cvar_t sv_maxvelocity;						// sv_phys.c
 int ED_FindFieldOffset (const char *name);			// pr_edict.c
+dfunction_t *VR_ED_FindFunction (const char *fn_name);	// pr_edict.c (vr_ad.cpp)
 trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end); // world.c
 int S_KnownSfxCount (void);							// snd_dma.c (vr_limits)
 int S_KnownSfxMax (void);							// snd_dma.c
@@ -28,6 +34,7 @@ int Mod_KnownMax (void);							// gl_model.c
 qboolean Mod_CheckFullbrights (byte *pixels, int count);	// gl_model.c (vr_modelload.cpp)
 int TexMgr_Count (void);							// gl_texmgr.c
 int TexMgr_Max (void);								// gl_texmgr.c
+unsigned int TexMgr_FreeCount (void);				// gl_texmgr.c: textures freed so far (a cached gltexture_t* is stale once it moves)
 void TexMgr_ReloadImagesNamed (const char *prefix);	// gl_texmgr.c: the textures whose names start with `prefix` uploaded again (vr_sights.cpp)
 int Draw_CachedPicsMax (void);						// gl_draw.c
 extern int menu_numcachepics;						// gl_draw.c
@@ -89,6 +96,20 @@ void R_DrawAliasModelsDepthLayered (entity_t **ents, const unsigned char *faces,
 void R_AliasDepthCacheBegin (qboolean on); // r_alias.c: a pass over the shadow maps' lights: each caster set up once in it
 void R_AliasDepthCacheEnd (void);
 void R_AliasDepthCacheStats (int *hits, int *misses); // r_alias.c: the set-ups reused and made since the last call
+// r_alias.c (vr_shadow_setup_share): 1 the casters' whole instances shared by the pass's lights, their depth draws without
+// textures, the first eye's transforms taken from the pass; 2 the same, the first eye's worked out again and compared;
+// 0 neither. Stats: the first eyes' transforms taken, checked and found different since the last call.
+void R_AliasDepthShare (int mode);
+void R_AliasDepthShareStats (int *taken, int *checked, int *bad);
+// r_alias.c (vr_alias_eye_cache): the eyes' scenes: 1 the first (each model's set-up kept), 2 the second (reused), 3 the
+// second (made again and compared), 0 neither (between the eyes); End: the frame's eyes done (what was kept forgotten);
+// the second eyes' counts since the last call (hit, transform only, miss, checked, then the check's mismatches: lerp,
+// matrix, light, counts, instance data, smooth rows)
+void R_AliasEyeCacheBegin (int mode);
+void R_AliasEyeCacheEnd (void);
+void R_AliasEyeCacheStats (int *out, int count);
+void R_AliasCullStats (void); // r_alias.c: vr_alias_cull_stats (the alias draws' culls since the last call, by model)
+void R_Clear (void); // gl_rmain.c: the bound scene's depth, stencil (and colour with gl_clear) cleared (vr_stereo_single.cpp)
 qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, int side); // r_alias.c: into its wound mask (vr_wounds.cpp); side -1 all, 0 or 1 that side's
 qboolean R_PaintBrushWounds (entity_t *e, int numsplats, const float *splats); // r_world.c: a held brush model's box into its box mask (vr_wounds.cpp)
 void R_BModelCentre (entity_t *e, float out[3]); // r_world.c: where the middle of a brush model's box is drawn

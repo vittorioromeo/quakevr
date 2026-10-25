@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_main.c -- server main program
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 
 server_t	sv;
 server_static_t	svs;
@@ -276,8 +277,12 @@ qboolean SV_WriteSound (sizebuf_t *buf, int ent, int channel, int sound_num, int
 		return false;
 
 	field_mask = 0;
+	if (volume > 255 && sv.protocol == PROTOCOL_NETQUAKE)
+		volume = 255; // (QVR: SND_LOUD isn't NetQuake's)
 	if (volume != DEFAULT_SOUND_PACKET_VOLUME)
 		field_mask |= SND_VOLUME;
+	if (volume > 255) // QVR: louder than full (SND_LOUD): the volume a short
+		field_mask |= SND_LOUD;
 	if (attenuation != DEFAULT_SOUND_PACKET_ATTENUATION)
 		field_mask |= SND_ATTENUATION;
 
@@ -310,7 +315,9 @@ qboolean SV_WriteSound (sizebuf_t *buf, int ent, int channel, int sound_num, int
 
 	MSG_WriteByte (buf, svc_sound);
 	MSG_WriteByte (buf, field_mask);
-	if (field_mask & SND_VOLUME)
+	if (field_mask & SND_LOUD)
+		MSG_WriteShort (buf, volume);
+	else if (field_mask & SND_VOLUME)
 		MSG_WriteByte (buf, volume);
 	if (field_mask & SND_ATTENUATION)
 		MSG_WriteByte (buf, attenuation*64);
@@ -348,7 +355,7 @@ void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int v
 	int			i;
 	vec3_t		origin;
 
-	if (volume < 0 || volume > 255)
+	if (volume < 0 || volume > SND_VOLUME_MAX) // QVR: over 255 louder than full (SND_LOUD)
 		Host_Error ("SV_StartSound: volume = %i", volume);
 
 	if (attenuation < 0 || attenuation > 4)
@@ -374,6 +381,8 @@ void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int v
 	}
 
 	ent = NUM_FOR_EDICT(entity);
+	if (VR_GoreSoundMutes (ent, channel)) // QVR: its cry while it chokes (vr/vr_goresound.cpp)
+		return;
 
 // directed messages go only to the entity the are targeted on
 	for (i = 0; i < 3; i++)
@@ -1263,6 +1272,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 
 	MSG_WriteByte (&msg, svc_time);
 	MSG_WriteFloat (&msg, qcvm->time);
+	VR_WriteRecentPrecaches (&msg); // QVR: a late precache before what uses it (vr/vr_server.cpp)
 
 // add the client specific data to the datagram
 	SV_WriteClientdataToMessage (client->edict, &msg);
@@ -1985,6 +1995,8 @@ static void SV_SpawnServerRun (const char *server);
 // QVR: a map's load, a scope of its own for the profiler (its hitch log).
 void SV_SpawnServer (const char *server)
 {
+	VR_TRACY_SCOPE("Map load");
+	VR_TracyText(server);
 	VR_CheckSpawnCampaignMap (server); // QVR: never a campaign switch here (map and load chose it before they disconnected)
 	VR_NoteMapSpawn (server); // QVR: the map (and its map package) a crash report names
 	VR_ProfileBegin ("map spawn");
@@ -2035,7 +2047,7 @@ static void SV_SpawnServerRun (const char *server)
 // set up the new server
 //
 	//memset (&sv, 0, sizeof(sv));
-	Host_ClearMemory ();
+	VR_TRACY_DETAIL (1, "spawn: clear memory", Host_ClearMemory ()); // QVR: (profiling builds: a zone)
 	VR_TimeMark ("server: clear memory"); // QVR
 	VR_ServerRandomMapLoad (); // QVR: the server's random numbers seeded (sv_random_seed), before anything spawns
 
@@ -2055,7 +2067,7 @@ static void SV_SpawnServerRun (const char *server)
 
 	PR_SwitchQCVM(vm);
 // load progs to get entity field count
-	PR_LoadProgs ("progs.dat", true);
+	VR_TRACY_DETAIL (1, "spawn: load progs", PR_LoadProgs ("progs.dat", true)); // QVR: (profiling builds: a zone)
 	VR_TimeMark ("server: progs"); // QVR
 
 // allocate server memory
@@ -2106,7 +2118,7 @@ static void SV_SpawnServerRun (const char *server)
 //
 // clear world interaction links
 //
-	SV_ClearWorld ();
+	VR_TRACY_DETAIL (1, "spawn: clear world", SV_ClearWorld ()); // QVR: (profiling builds: a zone)
 	VR_TimeMark ("server: world model (BSP)"); // QVR
 
 	sv.sound_precache[0] = dummy;
@@ -2138,10 +2150,10 @@ static void SV_SpawnServerRun (const char *server)
 // serverflags are for cross level information (sigils)
 	pr_global_struct->serverflags = svs.serverflags;
 
-	VR_OnSpawnServerBeforeLoad (); // QVR
+	VR_TRACY_DETAIL (1, "spawn: VR before load", VR_OnSpawnServerBeforeLoad ()); // QVR
 	VR_TimeMark ("server: submodels, VR before load"); // QVR
-	ED_LoadFromFile (sv.worldmodel->entities);
-	VR_OnSpawnServerSpawned (); // QVR
+	VR_TRACY_DETAIL (1, "spawn: entities", ED_LoadFromFile (sv.worldmodel->entities)); // QVR: (profiling builds: a zone)
+	VR_TRACY_DETAIL (1, "spawn: VR spawned", VR_OnSpawnServerSpawned ()); // QVR
 	VR_TimeMark ("server: entities spawned"); // QVR
 
 	sv.active = true;
@@ -2151,12 +2163,11 @@ static void SV_SpawnServerRun (const char *server)
 
 // run two frames to allow everything to settle
 	host_frametime = 0.1;
-	SV_Physics ();
-	SV_Physics ();
+	VR_TRACY_DETAIL (1, "spawn: 2 physics frames", { SV_Physics (); SV_Physics (); }); // QVR: (profiling builds: a zone)
 	VR_TimeMark ("server: 2 frames (Box3D world, ledges...)"); // QVR
 
 // create a baseline for more efficient communications
-	SV_CreateBaseline ();
+	VR_TRACY_DETAIL (1, "spawn: baseline", SV_CreateBaseline ()); // QVR: (profiling builds: a zone)
 
 	//johnfitz -- warn if signon buffer larger than standard server can handle
 	for (i = 0, signonsize = 0; i < sv.num_signon_buffers; i++)
@@ -2172,7 +2183,7 @@ static void SV_SpawnServerRun (const char *server)
 		if (host_client->active)
 			SV_SendServerinfo (host_client);
 
-	VR_OnSpawnServerAfterLoad (); // QVR
+	VR_TRACY_DETAIL (1, "spawn: VR after load", VR_OnSpawnServerAfterLoad ()); // QVR
 	VR_TimeMark ("server: baseline, serverinfo, VR after load"); // QVR
 
 	Con_DPrintf ("Server spawned.\n");

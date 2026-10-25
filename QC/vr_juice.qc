@@ -5,6 +5,7 @@
 // explosion rumble (vr_explosion_rumble) and directional damage haptics are in combat.qc.
 
 .float vr_deflect_time;   // on a projectile: when it was last batted back
+.float vr_deflect_rejected; // and when a weapon it passed was no batting swing (developer: logged once)
 .float vr_heartbeat_time; // on a player: the next heartbeat
 
 
@@ -97,6 +98,21 @@ float(entity e) VR_Deflect_IsProjectile =
 // keeping most of its speed along the face. So a swing towards the thrower sends it back at him, a swing across sends
 // it off to the side, the harder the faster (VR_BAT_MIN_SPEED .. VR_BAT_MAX_SPEED). Then the aim assist
 // (VR_Deflect_Assist). A bash sends it the way the hands push instead (VR_Bash_Deflect, vr_melee.qc).
+//
+// Batting is meant (ROUND22.md, "Batting on purpose"; the author: a random wrist move or a gun brought round batted a
+// projectile back): with vr_deflect_swing a batting swing is also a swing as a blow is one (VR_Deflect_SwingWhy): the
+// hand itself moving at vr_deflect_wrist m/s or faster (meleewristspeed: a flick of the wrist turns the weapon fast but
+// barely moves the hand; a gun brought round to aim goes slower), from vr_deflect_run m or further (meleerun), not
+// wiggled, taken down to reload or drawn back. Its line bats for vr_deflect_window s (the timing); a bash bats for
+// vr_bash_deflect_window s of its push. developer 1: `deflect: accepted ...` for each one batted, and `deflect: rejected
+// <what>: <why>` once for a projectile that passed an armed hand's weapon that wasn't batting (too slow, the hand still,
+// from too near, wiggled, ..., or its swing too long ago: too early).
+float VR_BAT_WHY_SPEED = 1;  // its far end too slow
+float VR_BAT_WHY_WRIST = 2;  // the hand itself too slow (a flick of the wrist)
+float VR_BAT_WHY_RUN = 3;    // from too near
+float VR_BAT_WHY_WIGGLE = 4; // waved back and forth
+float VR_BAT_WHY_RELOAD = 5; // a gun taken down to reload
+float VR_BAT_WHY_BACK = 6;   // drawn back
 float VR_BAT_KEEP = 8;            // weapon lines kept (a ring)
 float VR_BAT_LATE = 0.05;         // s: a projectile's path starts this far behind it (just past the weapon)
 float VR_BAT_GLANCE = 0.5;        // a touch off the line's middle tilts the face this much towards it (at the reach's edge)
@@ -119,6 +135,65 @@ float(entity b) VR_Deflect_Need =
         share = max(share, VR_BAT_FIST);
     }
     return VR_Melee_MinSpeed() * share;
+};
+
+// Whether `b`'s pose now is a batting swing's: 0, else why not (VR_BAT_WHY_*; bat_why_v against bat_why_need).
+float(entity b) VR_Deflect_SwingWhy =
+{
+    float v = vlen(b.mh_vfar);
+    float need = VR_Deflect_Need(b);
+    float why = 0;
+    if(v < need)
+    {
+        why = VR_BAT_WHY_SPEED;
+    }
+    else if(cvar_hget(cvarh_vr_deflect_swing))
+    {
+        v = meleewristspeed(b);
+        need = max(0, cvar_hget(cvarh_vr_deflect_wrist));
+        if(v < need)
+        {
+            why = VR_BAT_WHY_WRIST;
+        }
+        else
+        {
+            v = meleerun(b, TRUE);
+            need = max(0, cvar_hget(cvarh_vr_deflect_run));
+            if(v < need)
+            {
+                why = VR_BAT_WHY_RUN;
+            }
+            else if(VR_Melee_Wiggled(b))
+            {
+                why = VR_BAT_WHY_WIGGLE;
+            }
+            else if(VR_Melee_Reloading(b))
+            {
+                why = VR_BAT_WHY_RELOAD;
+            }
+            else if(VR_Melee_PulledBack(b))
+            {
+                why = VR_BAT_WHY_BACK;
+            }
+        }
+    }
+    b.bat_why = why;
+    b.bat_why_v = v;
+    b.bat_why_need = need;
+    return why;
+};
+
+// Why `b`'s pose wasn't batting (VR_Deflect_SwingWhy's), for the log.
+string(entity b) VR_Deflect_WhyName =
+{
+    float w = b.bat_why;
+    if(w == VR_BAT_WHY_SPEED)  { return sprintf("its far end too slow, %.1f m/s of %.1f", b.bat_why_v, b.bat_why_need); }
+    if(w == VR_BAT_WHY_WRIST)  { return sprintf("the hand itself too slow (a turn of the wrist), %.1f m/s of %.1f", b.bat_why_v, b.bat_why_need); }
+    if(w == VR_BAT_WHY_RUN)    { return sprintf("from too near, %.2f m of %.2f", b.bat_why_v, b.bat_why_need); }
+    if(w == VR_BAT_WHY_WIGGLE) { return "waved back and forth"; }
+    if(w == VR_BAT_WHY_RELOAD) { return "taken down to reload"; }
+    if(w == VR_BAT_WHY_BACK)   { return "drawn back"; }
+    return "no swing";
 };
 
 // The gravity (u/s^2) a projectile `e` falls by (a grenade, a zombie's flesh), else 0.
@@ -343,8 +418,10 @@ void(float xHand, entity b) VR_Deflect = // (b: VR_Blow(xHand))
 
     if(b.mh_fresh) // (a new pose: the line moved)
     {
-        if(vlen(b.mh_vfar) >= VR_Deflect_Need(b))
+        if(!VR_Deflect_SwingWhy(b))
         {
+            b.bat_wrist = meleewristspeed(b);
+            b.bat_run = meleerun(b, TRUE);
             b.bat_i = b.bat_i + 1;
             if(b.bat_i >= VR_BAT_KEEP)
             {
@@ -362,7 +439,8 @@ void(float xHand, entity b) VR_Deflect = // (b: VR_Blow(xHand))
     }
 
     float window = max(0, cvar_hget(cvarh_vr_deflect_window));
-    if(time - b.bat_newest > window) // (bat_t[bat_i], without the array's accessor call)
+    float logging = cvar("developer") >= 1;
+    if(time - b.bat_newest > window && !logging) // (bat_t[bat_i], without the array's accessor call)
     {
         return; // no batting swing lately
     }
@@ -376,6 +454,27 @@ void(float xHand, entity b) VR_Deflect = // (b: VR_Blow(xHand))
         {
             vector from = e.origin - e.velocity * max(dt, VR_BAT_LATE);
             vector to = e.origin + e.velocity * dt;
+            // (developer: one passing the weapon as it is now, no batting swing's line near it: why not, once.)
+            if(logging && !e.vr_deflect_rejected &&
+               VR_SegmentDistance(from, to, b.mh_near, b.mh_far) < radius + e.maxs_x)
+            {
+                float hadSwing = time - b.bat_newest <= window;
+                float nearSwing = 9999;
+                for(float j = 0; j < VR_BAT_KEEP && hadSwing; ++j)
+                {
+                    if(b.bat_t[j] > 0 && time - b.bat_t[j] <= window)
+                    {
+                        nearSwing = min(nearSwing, VR_SegmentDistance(from, to, b.bat_a[j], b.bat_b[j]));
+                    }
+                }
+                if(nearSwing >= radius + e.maxs_x)
+                {
+                    e.vr_deflect_rejected = time;
+                    dprint(sprintf("deflect: rejected %s of %s, passing hand %g's weapon: %s%s\n", e.classname,
+                        e.owner.classname, xHand, VR_Deflect_WhyName(b), b.bat_newest > 0 ?
+                        sprintf("; its last batting swing %.2f s ago (the window %.2f s)", time - b.bat_newest, window) : ""));
+                }
+            }
             float near = 9999;
             float when = 0;
             float nearK = 0;
@@ -398,8 +497,8 @@ void(float xHand, entity b) VR_Deflect = // (b: VR_Blow(xHand))
             }
             if(near < radius + e.maxs_x)
             {
-                dprint(sprintf("deflect: %s of %s, %.0f units from the swing's line of %.2f s ago\n", e.classname,
-                    e.owner.classname, near, when));
+                dprint(sprintf("deflect: accepted %s of %s, %.0f units from the swing's line of %.2f s ago (the hand %.1f m/s, "
+                    "from %.2f m)\n", e.classname, e.owner.classname, near, when, b.bat_wrist, b.bat_run));
                 VR_Deflect_Bat(e, b.bat_a[nearK], b.bat_b[nearK], b.bat_va[nearK], b.bat_vb[nearK], from, to, nearS,
                     nearT, radius + e.maxs_x, xHand, b);
             }

@@ -1,0 +1,9 @@
+# agrunt_repl_gunaxe: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed humanoid replacements: a gun and an axe (god)
+map vrtesthall
+god
+cvar vr_agrunt_repl 1
+cvar vr_agrunt_repl_gunaxe 1
+spawn "Grunt" 320 -60
+spawn "Enforcer" 320 60
+hint A grunt and an enforcer replaced by armed ones (Combat > Armed Grunts > Armed Humanoid Replacements: Gun and Axe 1): each holds its own gun in its right hand and an axe in its left. They fire the gun at range, take to the axe when you walk up to them, and go back to the gun when you back off. Their guns hurt as much as the vanilla ones.

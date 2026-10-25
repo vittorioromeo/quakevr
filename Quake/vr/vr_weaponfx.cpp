@@ -2,6 +2,9 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_weaponfx.hpp"
+#include "vr_adcrossbow.hpp"
+#include "vr_adweapons.hpp"
+#include "vr_adguns.hpp"
 #include "vr_autopump.hpp"
 #include "vr_bttrails.hpp"
 #include "vr_engine.hpp"
@@ -16,7 +19,9 @@
 #include "vr_render.hpp"
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
+#include "vr_weight.hpp"
 
+#include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -55,8 +60,17 @@ struct HandFx
     double flashAt{-1.0}; // the flash shown since (cl.time); -1 none
     float flashRoll{0.f};
     float flashJitter{1.f};
+    int variant{-1};    // an AD gun variant's (vr_adguns.hpp FireFeel), else -1
+    bool burst{false};  // its shot's particles still to leave its muzzle (frame: where the gun is drawn)
 };
 HandFx handFx[2];
+
+// The AD gun variant `hand` holds (vr_adgunart.cpp), else -1.
+[[nodiscard]] int heldVariant(int hand)
+{
+    const qmodel_t* m = weapons::heldModel(hand);
+    return m ? adguns::variantOf(m->name) : -1;
+}
 
 // A monster's flash (a grunt's or an enforcer's): its entity, since when, turned how.
 struct EnemyFlash
@@ -64,6 +78,11 @@ struct EnemyFlash
     int ent{0};
     double at{-1.0};
     float roll{0.f};
+    // A weapon a monster holds (QC vr_armedgrunt.qc: an armed grunt's, drawn as a lying weapon): its slot's own flash at
+    // its Muzzle anchor, as yours (-1: a monster's own gun, monsterGuns).
+    int slot{-1};
+    int variant{-1};
+    bool told{false}; // (vr_debug_weaponfx: its place printed)
 };
 EnemyFlash enemyFlashes[maxEnemyFlashes];
 
@@ -96,16 +115,16 @@ unsigned seed = 0x2545F491u;
 // The draws' buffers (the main thread).
 struct WeaponFxScratch
 {
-    za::Vector<glm::vec3> rest; // a monster's vertices (monsterMuzzle)
-    za::Vector<glm::vec3> now;
     za::Vector<gfx::Vertex> ribbons; // the tracers (drawTranslucent)
-    auto members() { return mem::list(rest, now, ribbons); }
+    auto members() { return mem::list(ribbons); }
 };
 mem::Scratch<WeaponFxScratch> scratch{"weaponfx"};
 
 // The monsters' guns (Quake VR's models: each gun a separate piece of its model, vr_monstermods.cpp), rigid: the middle
 // of the muzzle's ring or face and of its rear on the barrel's line give its muzzle and which way it points in any frame,
-// its recoil animation's too.
+// its recoil animation's too. Anchors (vr_anchor.hpp) at those vertices, each once, with how many of the vertices it
+// stands for (a UV seam's twins share a point: the middle is the vertices' mean, as when they were picked; none: one
+// each); the model's vertex count says it is the model they were picked on.
 // - soldier.mdl (vertices 463..548): found in its first fire frame, shoot5, where it points along +x; the gun's length
 //   stays 28.4..28.6 model units in shoot1..9.
 // - enforcer.mdl (vertices 22, 23, 100, 400..430, 455..478: the rifle make_enemyguns.py cuts out): its muzzle face (the 7
@@ -115,16 +134,26 @@ struct MonsterGun
 {
     modelmeta::Id model;
     int verts;
-    za::Span<const int> muzzle;
-    za::Span<const int> rear;
+    za::Span<const char* const> muzzle;
+    za::Span<const char* const> rear;
+    za::Span<const float> muzzleTwins; // per muzzle anchor, the vertices it stands for (empty: 1 each)
+    za::Span<const float> rearTwins;
 };
-constexpr int soldierMuzzle[] = {498, 499, 501, 502, 503, 504, 505, 506, 514, 515, 521, 522, 547, 548};
-constexpr int soldierRear[] = {465, 497, 500, 510, 544, 545};
-constexpr int enforcerMuzzle[] = {22, 100, 400, 401, 402, 403, 407};
-constexpr int enforcerRear[] = {404, 405, 423, 424, 425};
+constexpr const char* soldierMuzzle[] = {"13.8246 14.6358 5.0417", "12.9522 14.3738 2.6583", "15.5694 13.8499 5.3065",
+    "14.4062 13.3259 1.8638", "16.7327 12.8019 4.2472", "15.8603 12.5399 1.8638"};
+constexpr float soldierMuzzleTwins[] = {2.f, 2.f, 3.f, 3.f, 2.f, 2.f}; // (14 vertices)
+constexpr const char* soldierRear[] = {"2.1924 -10.5148 12.1918", "3.3556 -11.3008 11.927", "2.4832 -11.3008 9.014",
+    "4.5188 -11.8248 11.3974"};
+constexpr float soldierRearTwins[] = {1.f, 2.f, 2.f, 1.f}; // (6 vertices)
+constexpr const char* enforcerMuzzle[] = {"4.8719 21.5425 14.2786", "4.8719 21.5425 18.402", "7.3325 21.5425 17.5184",
+    "7.0249 21.5425 15.7512", "4.8719 21.5425 16.3403", "2.719 21.868 15.4567", "3.0266 21.868 17.2238"};
+constexpr const char* enforcerRear[] = {"3.6417 -8.3993 16.6348", "2.719 -7.7484 17.5184", "3.3341 -11.9793 11.9224",
+    "4.8719 -7.0975 11.3333", "4.2568 -11.9793 11.9224"};
+static_assert(za::getArraySize(soldierMuzzle) == za::getArraySize(soldierMuzzleTwins) &&
+              za::getArraySize(soldierRear) == za::getArraySize(soldierRearTwins));
 const MonsterGun monsterGuns[] = {
-    {modelmeta::Id::Soldier, 555, soldierMuzzle, soldierRear},
-    {modelmeta::Id::Enforcer, 479, enforcerMuzzle, enforcerRear},
+    {modelmeta::Id::Soldier, 555, soldierMuzzle, soldierRear, soldierMuzzleTwins, soldierRearTwins},
+    {modelmeta::Id::Enforcer, 479, enforcerMuzzle, enforcerRear, {}, {}},
 };
 constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share of its gun
 
@@ -151,17 +180,20 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
 [[nodiscard]] bool monsterMuzzle(const entity_t& e, glm::vec3& muzzle, glm::vec3& dir, float& gunLength)
 {
     const MonsterGun* gun = monsterGun(e);
-    if(!gun || !anchor::posedVertices(e, 0.f, scratch.rest, scratch.now) || static_cast<int>(scratch.now.size()) != gun->verts)
+    if(!gun)
     {
         return false;
     }
-    const auto middle = [](za::Span<const int> indices) {
+    const auto middle = [&](za::Span<const char* const> anchors, za::Span<const float> twins) {
         glm::vec3 sum{0.f};
-        for(const int i : indices)
+        float count = 0.f;
+        for(size_t i = 0; i < anchors.size(); i++)
         {
-            sum += scratch.now[i];
+            const float w = twins.empty() ? 1.f : twins[i];
+            sum += anchor::posedAnchor(e, anchors[i], 0.f) * w;
+            count += w;
         }
-        return sum / static_cast<float>(indices.size());
+        return sum / count;
     };
     float m[16];
     render::entityMatrix(e, false, e.scale ? e.scale : ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
@@ -169,8 +201,8 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
         return glm::vec3{m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12], m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13],
             m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
     };
-    muzzle = world(middle(gun->muzzle));
-    const glm::vec3 back = muzzle - world(middle(gun->rear));
+    muzzle = world(middle(gun->muzzle, gun->muzzleTwins));
+    const glm::vec3 back = muzzle - world(middle(gun->rear, gun->rearTwins));
     gunLength = glm::length(back);
     if(gunLength < 1e-3f)
     {
@@ -215,23 +247,30 @@ void playerFired(int hand)
     {
         autopump::fired(hand); // (the shotgun's auto pump: vr_autopump.cpp)
     }
+    adcrossbow::fired(hand); // AD support: the crossbow's string and bolt (vr_adcrossbow.cpp: if it is one)
+    adweapons::fired(hand);  // AD support: the Widowmaker's barrels (vr_adweapons.cpp: if it is one)
+    weight::heavyKick(hand); // heavy handling: a heavy weapon fired in one hand kicks up (the aim with it)
     HandFx& h = handFx[hand];
     if(h.slot != slot)
     {
         forget(hand);
         h.slot = slot;
     }
+    // An AD gun variant's own feel over its slot's (the burst rifle's) settings.
+    h.variant = heldVariant(hand);
+    const adguns::FireFeel feel = h.variant >= 0 ? adguns::fireFeel(h.variant) : adguns::FireFeel{};
+    h.burst = h.variant >= 0 && feel.burst != adguns::FireFeel::None;
     const bool recoil = vr_weapon_recoil.value != 0.f && weapons::value(slot, Key::Recoil) != 0.f;
     if(recoil)
     {
         Kick& k = h.kicks[h.nextKick];
         h.nextKick = (h.nextKick + 1) % maxKicks;
         k.time = cl.time;
-        k.strength = za::max(weapons::value(slot, Key::RecoilStrength), 0.f);
-        k.duration = za::max(weapons::value(slot, Key::RecoilTime), 0.02f);
+        k.strength = za::max(weapons::value(slot, Key::RecoilStrength), 0.f) * feel.recoil;
+        k.duration = za::max(weapons::value(slot, Key::RecoilTime) * feel.recoilTime, 0.02f);
         k.sideways = random01() * 2.f - 1.f;
     }
-    const bool flash = vr_muzzle_flash.value != 0.f && weapons::value(slot, Key::Flash) != 0.f;
+    const bool flash = vr_muzzle_flash.value != 0.f && weapons::value(slot, Key::Flash) != 0.f && feel.flash > 0.f;
     if(flash)
     {
         h.flashAt = cl.time;
@@ -240,9 +279,10 @@ void playerFired(int hand)
     }
     if(vr_debug_weaponfx.value)
     {
-        Con_Printf("weaponfx fired t %.3f hand %d slot %d recoil %d (%.2f, %.3f s) flash %d (%.2f, %.3f s)\n", cl.time, hand,
-            slot, recoil ? 1 : 0, weapons::value(slot, Key::RecoilStrength), weapons::value(slot, Key::RecoilTime), flash ? 1 : 0,
-            weapons::value(slot, Key::FlashSize), weapons::value(slot, Key::FlashTime));
+        Con_Printf("weaponfx fired t %.3f hand %d slot %d recoil %d (%.2f, %.3f s) flash %d (%.2f, %.3f s) adgun %d burst %d\n",
+            cl.time, hand, slot, recoil ? 1 : 0, weapons::value(slot, Key::RecoilStrength) * feel.recoil,
+            weapons::value(slot, Key::RecoilTime) * feel.recoilTime, flash ? 1 : 0, weapons::value(slot, Key::FlashSize) * feel.flash,
+            weapons::value(slot, Key::FlashTime) * feel.flashTime, h.variant, static_cast<int>(feel.burst));
     }
 }
 
@@ -277,11 +317,26 @@ void monsterSmoke(int ent)
     }
 }
 
+// The weapon slot of a weapon held by a monster (an armed grunt's: a weapon model, not the empty hand's), else -1.
+[[nodiscard]] int heldPropSlot(const entity_t& e)
+{
+    if(!e.model || e.model->type != mod_alias)
+    {
+        return -1;
+    }
+    const int slot = weapons::slotForModel(e.model);
+    return slot == weapons::fistSlot() ? -1 : slot;
+}
+
 void monsterFired(int ent)
 {
-    monsterSmoke(ent);
+    const int propSlot = ent > 0 && ent < cl.num_entities ? heldPropSlot(cl_entities[ent]) : -1;
+    if(propSlot < 0)
+    {
+        monsterSmoke(ent); // (a held weapon's: the QC's, at its muzzle)
+    }
     if(!vr_muzzle_flash.value || !vr_muzzle_flash_enemies.value || ent <= 0 || ent >= cl.num_entities ||
-        !monsterGun(cl_entities[ent]))
+        (propSlot < 0 && !monsterGun(cl_entities[ent])))
     {
         return;
     }
@@ -302,9 +357,12 @@ void monsterFired(int ent)
     slot->ent = ent;
     slot->at = cl.time;
     slot->roll = random01() * 360.f;
+    slot->slot = propSlot;
+    slot->told = false;
+    slot->variant = propSlot >= 0 ? adguns::variantOf(cl_entities[ent].model->name) : -1;
     if(vr_debug_weaponfx.value)
     {
-        Con_Printf("weaponfx monster fired t %.3f ent %d (%s)\n", cl.time, ent, cl_entities[ent].model->name);
+        Con_Printf("weaponfx monster fired t %.3f ent %d (%s) slot %d\n", cl.time, ent, cl_entities[ent].model->name, propSlot);
     }
     if(vr_debug_weaponfx.value >= 3)
     {
@@ -495,6 +553,68 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
     }
 }
 
+// An AD gun variant's shot leaving `w` (drawn; its slot `slot`): sparks and smoke out of its muzzle as it fires (a
+// launcher's a cloud and a shower, the shotgun's burning powder, the plasma guns' sparks in their colour), the rocket's
+// back-blast out of its exhaust (flames, sparks, smoke). Nothing with vr_particles 0.
+namespace
+{
+void adGunBurst(const view::ViewEntity& w, int slot, const adguns::FireFeel& feel)
+{
+    const glm::vec3 muzzle = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
+        weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+    const glm::vec3 o = view::modelPoint(w, glm::vec3{0.f});
+    const glm::vec3 ax = view::modelPoint(w, glm::vec3{1.f, 0.f, 0.f}) - o;
+    if(glm::length(ax) < 1e-5f)
+    {
+        return;
+    }
+    const glm::vec3 fwd = glm::normalize(ax);
+    const auto jitter = [](float k) { return glm::vec3{random01() - 0.5f, random01() - 0.5f, random01() - 0.5f} * (2.f * k); };
+    // `n` sparks from `at` along `dir`, `speed` units a second, spread `spread` of it.
+    const auto sparks = [&](const glm::vec3& at, const glm::vec3& dir, int n, float speed, float spread, const glm::vec3& c) {
+        for(int i = 0; i < n; i++)
+        {
+            const float s = speed * (0.5f + random01());
+            particles::hotTrail(at, dir * s + jitter(s * spread), c, 1.f, 0.25f + 0.25f * random01(), true);
+        }
+    };
+    switch(feel.burst)
+    {
+        case adguns::FireFeel::Rocket:
+            (void)particles::spawn(muzzle, fwd * 0.5f, particles::Preset::GunSmoke, 5);
+            sparks(muzzle, fwd, 10, 180.f, 0.35f, feel.colour);
+            break;
+        case adguns::FireFeel::Grenade:
+            (void)particles::spawn(muzzle, fwd * 0.4f, particles::Preset::GunSmoke, 4);
+            sparks(muzzle, fwd, 5, 120.f, 0.4f, feel.colour);
+            break;
+        case adguns::FireFeel::Shotgun: sparks(muzzle, fwd, 8, 220.f, 0.3f, feel.colour); break;
+        case adguns::FireFeel::Electric:
+            sparks(muzzle, fwd, 8, 140.f, 0.6f, feel.colour);
+            sparks(muzzle, fwd, 3, 90.f, 0.8f, glm::vec3{0.9f, 0.95f, 1.f});
+            break;
+        default: break;
+    }
+    if(feel.backBlast)
+    {
+        const glm::vec3 at = view::modelPoint(w, feel.exhaust);
+        const glm::vec3 back = glm::normalize(view::modelPoint(w, feel.exhaust + feel.exhaustDir) - at + glm::vec3{1e-6f});
+        (void)particles::spawn(at, back * 0.8f, particles::Preset::AdFlame, 2);
+        (void)particles::spawn(at, back * 0.6f, particles::Preset::GunSmoke, 6);
+        sparks(at, back, 8, 150.f, 0.45f, feel.colour);
+        for(int i = 0; i < 4; i++)
+        {
+            particles::hotTrail(at, back * (60.f + 60.f * random01()) + jitter(15.f), feel.colour, 1.f, 0.2f + 0.15f * random01(), false);
+        }
+    }
+    if(vr_debug_weaponfx.value)
+    {
+        Con_Printf("weaponfx adgun burst %d at %.1f %.1f %.1f%s\n", static_cast<int>(feel.burst), muzzle.x, muzzle.y, muzzle.z,
+            feel.backBlast ? ", back-blast" : "");
+    }
+}
+} // namespace
+
 void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
     view::ViewEntity (&enemies)[maxEnemyFlashes])
 {
@@ -544,16 +664,25 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
         HandFx& h = handFx[hand];
         view::ViewEntity& fve = flashes[hand];
         fve.visible = false;
+        const view::ViewEntity& w = weapons[hand];
+        const int slot = w.visible && w.ent.model ? weapons::slotForModel(w.ent.model) : -1;
+        const adguns::FireFeel feel = h.variant >= 0 ? adguns::fireFeel(h.variant) : adguns::FireFeel{};
+        if(h.burst)
+        {
+            h.burst = false;
+            if(slot == h.slot && slot >= 0)
+            {
+                adGunBurst(w, slot, feel);
+            }
+        }
         if(h.flashAt < 0.0)
         {
             continue;
         }
-        const view::ViewEntity& w = weapons[hand];
-        const int slot = w.visible && w.ent.model ? weapons::slotForModel(w.ent.model) : -1;
         const float age = static_cast<float>(cl.time - h.flashAt);
         // Gone with the weapon (dropped, holstered, thrown, in the other hand now: this hand draws another, or nothing).
         if(!vr_muzzle_flash.value || slot != h.slot || slot < 0 || age < 0.f ||
-            age >= za::max(weapons::value(slot, Key::FlashTime), 0.01f))
+            age >= za::max(weapons::value(slot, Key::FlashTime) * feel.flashTime, 0.01f))
         {
             if(vr_debug_weaponfx.value)
             {
@@ -563,7 +692,7 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
             h.flashAt = -1.0;
             continue;
         }
-        const glm::vec3 muzzle = view::anchorPosition(w, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+        const glm::vec3 muzzle = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
         const glm::vec3 o = view::modelPoint(w, glm::vec3{0.f});
         const glm::vec3 ax = view::modelPoint(w, glm::vec3{1.f, 0.f, 0.f}) - o;
@@ -574,9 +703,13 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
         {
             continue;
         }
+        // (an AD plasma gun's flash in its colour: vr_adgunart.cpp flashFile)
+        qmodel_t* own = feel.flashModel ? view::viewModel(feel.flashModel) : nullptr;
+        model = own ? own : view::viewModel(flashModelName);
         place(fve, muzzle, ax / perUnit, az, h.flashRoll,
-            perUnit / weaponScale * za::max(weapons::value(slot, Key::FlashSize), 0.f) * h.flashJitter);
+            perUnit / weaponScale * za::max(weapons::value(slot, Key::FlashSize), 0.f) * feel.flash * h.flashJitter);
     }
+    model = view::viewModel(flashModelName);
 
     // The grunts'.
     const float enemyTime = 0.06f;
@@ -592,6 +725,40 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
         const float age = static_cast<float>(cl.time - f.at);
         glm::vec3 muzzle, dir;
         float gunLength;
+        if(f.slot >= 0)
+        {
+            // A held weapon's: its own flash (size, time, an AD gun's colour and feel) at its Muzzle anchor, as yours.
+            const entity_t* e = f.ent > 0 && f.ent < cl.num_entities ? &cl_entities[f.ent] : nullptr;
+            const adguns::FireFeel feel = f.variant >= 0 ? adguns::fireFeel(f.variant) : adguns::FireFeel{};
+            if(!e || !vr_muzzle_flash.value || !vr_muzzle_flash_enemies.value || heldPropSlot(*e) != f.slot || age < 0.f ||
+                age >= za::max(weapons::value(f.slot, Key::FlashTime) * feel.flashTime, 0.01f))
+            {
+                f.at = -1.0;
+                continue;
+            }
+            const char* anchor = weapons::anchor(f.slot, Key::MuzzleAnchor);
+            const glm::vec3 off = weapons::vec(f.slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ);
+            muzzle = view::anchorPosition(*e, false, 1.f, anchor, off);
+            const glm::vec3 ax = view::anchorPosition(*e, false, 1.f, anchor, off + glm::vec3{1.f, 0.f, 0.f}) - muzzle;
+            const glm::vec3 az = view::anchorPosition(*e, false, 1.f, anchor, off + glm::vec3{0.f, 0.f, 1.f}) - muzzle;
+            const float perUnit = glm::length(ax);
+            const float weaponScale = weapons::value(f.slot, Key::Scale);
+            if(perUnit < 1e-5f || weaponScale <= 0.f)
+            {
+                continue;
+            }
+            qmodel_t* own = feel.flashModel ? view::viewModel(feel.flashModel) : nullptr;
+            model = own ? own : view::viewModel(flashModelName);
+            place(fve, muzzle, ax / perUnit, az, f.roll,
+                perUnit / weaponScale * za::max(weapons::value(f.slot, Key::FlashSize), 0.f) * feel.flash);
+            model = view::viewModel(flashModelName);
+            if(vr_debug_weaponfx.value && !f.told)
+            {
+                f.told = true;
+                Con_Printf("weaponfx prop flash ent %d slot %d at %.1f %.1f %.1f\n", f.ent, f.slot, muzzle.x, muzzle.y, muzzle.z);
+            }
+            continue;
+        }
         if(!vr_muzzle_flash.value || !vr_muzzle_flash_enemies.value || age < 0.f || age >= enemyTime ||
             f.ent <= 0 || f.ent >= cl.num_entities || !monsterMuzzle(cl_entities[f.ent], muzzle, dir, gunLength))
         {

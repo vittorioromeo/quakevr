@@ -1,0 +1,9 @@
+# agrunt_parry: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed grunts' melee blows to parry: a sword, an axe, fists; a crowbar in hand
+map vrtesthall
+god
+give "Crowbar" main
+spawn "Armed Grunt: Sword" 120 0
+spawn "Armed Grunt: Axe" 200 120
+spawn "Armed Grunt: Fists" 200 -120
+hint Hold your crowbar across as they swing: each blow parried (its sound, the knock, it staggers), a well-timed one may knock its weapon away.

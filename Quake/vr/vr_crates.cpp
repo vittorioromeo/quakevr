@@ -38,6 +38,9 @@ namespace
 {
 
 using progs::fields;
+using debris::contents;
+using debris::hashString;
+using debris::traceLine;
 
 // The crates' models and their half sizes (units, unscaled: make_crates.py's CRATES; the explosive boxes' size), and
 // the barrel (make_crates.py's BARRELS: 22 across its belly's facets, 23 across their edges, 32 high; QC vr_barrel: a
@@ -74,25 +77,9 @@ struct Rng
     float range(float a, float b) { return a + (b - a) * uniform(); }
 };
 
-[[nodiscard]] uint64_t hashString(const char* s)
-{
-    uint64_t h = 1469598103934665603ull;
-    for(; *s; s++)
-    {
-        h = (h ^ static_cast<unsigned char>(*s)) * 1099511628211ull;
-    }
-    return h;
-}
-
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
     return {v[0], v[1], v[2]};
-}
-
-[[nodiscard]] trace_t traceLine(const glm::vec3& a, const glm::vec3& b)
-{
-    vec3_t start{a.x, a.y, a.z}, end{b.x, b.y, b.z};
-    return SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, qcvm->edicts);
 }
 
 // The player's box (Quake's hull 1) from `a` to `b`, the level only.
@@ -101,12 +88,6 @@ struct Rng
     vec3_t start{a.x, a.y, a.z}, end{b.x, b.y, b.z};
     vec3_t mins{-16.f, -16.f, -24.f}, maxs{16.f, 16.f, 32.f};
     return SV_Move(start, mins, maxs, end, MOVE_NOMONSTERS, qcvm->edicts);
-}
-
-[[nodiscard]] int contents(const glm::vec3& p)
-{
-    vec3_t v{p.x, p.y, p.z};
-    return SV_PointContents(v);
 }
 
 [[nodiscard]] const qmodel_t* serverModel(const char* name)
@@ -211,6 +192,34 @@ struct CrowbarOn
 };
 za::Vector<CrowbarOn> crowbars;
 
+// The last plan, kept for its key (debris::PlanKey: the map, the settings, the entities) for the session
+// (vr_place_keep): a restart of the map plans the same crates. Another game directory drops it.
+struct KeptPlan
+{
+    bool valid = false;
+    uint64_t key = 0;
+    za::Vector<Placement> placements;
+    za::Vector<CrowbarOn> crowbars;
+    auto members() { return qvr::mem::list(valid, key, placements, crowbars); }
+};
+mem::Cache<KeptPlan> kept{"crates plan", mem::GameDirChange};
+
+// The plan's checksum (vr_debug_crates, developer): the crates' models, skins, places and turns.
+[[nodiscard]] unsigned layoutHash()
+{
+    uint64_t layout = 1469598103934665603ull;
+    for(const Placement& p : placements)
+    {
+        const int q[5] = {p.model, p.skin, static_cast<int>(za::lround(p.centre.x * 8.f)), static_cast<int>(za::lround(p.centre.y * 8.f)),
+            static_cast<int>(za::lround(p.o.yaw * 10.f))};
+        for(const int v : q)
+        {
+            layout = (layout ^ static_cast<uint32_t>(v)) * 1099511628211ull;
+        }
+    }
+    return static_cast<unsigned>(layout ^ (layout >> 32));
+}
+
 // Rolls the crowbars on the crates' tops (after the plan): each top (a crate with none on it) at vr_crate_crowbar's
 // chance, at most vr_crate_crowbar_max; a random way and place. Its own random numbers (from the map's name and
 // vr_crates_seed): the crates' layout is the same whatever the chance.
@@ -314,6 +323,17 @@ struct Planner
                 return false;
             }
             floorZ = down.endpos[2];
+        }
+        const float height = o.hu * 2.f;
+        // Clear of the entities (their boxes grown by their margins): no traces, so first (a third of the rejected spots
+        // were rejected here, after some 45 traces each: 150 ms of a big AD map's load; the same answer, every test is
+        // needed to pass). vr_place_entities_first 0: last, as before (A/B).
+        if(vr_place_entities_first.value != 0.f && !clearOfEntities(o, c, floorZ, height, reason))
+        {
+            return false;
+        }
+        if(onFloor)
+        {
             glm::vec3 pts[8];
             footprint(o, {c.x, c.y, floorZ}, 1.f, pts);
             for(const glm::vec3& p : pts)
@@ -327,7 +347,6 @@ struct Planner
                 }
             }
         }
-        const float height = o.hu * 2.f;
         for(const float h : {2.f, height - 2.f})
         {
             const int inside = contents({c.x, c.y, floorZ + h});
@@ -369,7 +388,12 @@ struct Planner
                 return false;
             }
         }
-        // Clear of the entities (their boxes grown by their margins).
+        return vr_place_entities_first.value != 0.f || clearOfEntities(o, c, floorZ, height, reason);
+    }
+
+    // Clear of the entities (their boxes grown by their margins).
+    [[nodiscard]] bool clearOfEntities(const Orient& o, const glm::vec3& c, float floorZ, float height, int& reason) const
+    {
         const float rx = za::abs(o.fwd.x) * o.hf + za::abs(o.left.x) * o.hl;
         const float ry = za::abs(o.fwd.y) * o.hf + za::abs(o.left.y) * o.hl;
         for(const debris::Obstacle& ob : obstacles)
@@ -664,6 +688,31 @@ int plan()
         }
     }
 
+    // The same map, settings and entities as the last plan: its crates and crowbars again (vr_place_keep).
+    debris::PlanKey key = debris::planKey(pl.obstacles);
+    for(int m = 0; m < numModels; m++)
+    {
+        key.add(sizeOf(m)); // (the props' sizes: vr_props.cpp)
+    }
+    if(vr_debug_crates.value)
+    {
+        Con_Printf("crates: plan key: settings %08x, map %08x, entities %08x, all %08x\n", static_cast<unsigned>(key.parts[0]),
+            static_cast<unsigned>(key.parts[1]), static_cast<unsigned>(key.parts[2]), static_cast<unsigned>(key.h));
+    }
+    if(vr_place_keep.value != 0.f && kept.valid && kept.key == key.h)
+    {
+        placements = kept.placements;
+        crowbars = kept.crowbars;
+        if(vr_debug_crates.value || developer.value)
+        {
+            Con_Printf("crates: %s: %d crates (%d crowbars on them), the last plan's (the same map, settings and entities); "
+                       "%.1f ms; layout %08x\n",
+                sv.name, static_cast<int>(placements.size()), static_cast<int>(crowbars.size()), (Sys_DoubleTime() - t0) * 1000.0,
+                layoutHash());
+        }
+        return static_cast<int>(placements.size());
+    }
+
     // The spots: along each wall's bottom edge, every 24 units, where a floor of the world meets it.
     const qmodel_t* map = sv.worldmodel;
     za::Vector<Spot> spots;
@@ -878,10 +927,13 @@ int plan()
     }
 
     planCrowbars(seed);
+    kept.valid = true;
+    kept.key = key.h;
+    kept.placements = placements;
+    kept.crowbars = crowbars;
 
     if(vr_debug_crates.value || developer.value)
     {
-        uint64_t layout = 1469598103934665603ull;
         int large = 0, corners = 0, barrels = 0, lying = 0, mixed = 0;
         float leastClear = 1e9f;
         for(const Placement& p : placements)
@@ -892,12 +944,6 @@ int plan()
             mixed += p.below >= 0 && (p.model == barrelModel) != (placements[static_cast<size_t>(p.below)].model == barrelModel);
             corners += p.below < 0 && p.corner;
             leastClear = za::min(leastClear, p.clearance);
-            const int q[5] = {p.model, p.skin, static_cast<int>(za::lround(p.centre.x * 8.f)), static_cast<int>(za::lround(p.centre.y * 8.f)),
-                static_cast<int>(za::lround(p.o.yaw * 10.f))};
-            for(const int v : q)
-            {
-                layout = (layout ^ static_cast<uint32_t>(v)) * 1099511628211ull;
-            }
         }
         Con_Printf("crates: %s: %d crates (%d large, %d barrels, %d of them lying, %d stacked on another, %d of those a barrel "
                    "and a crate; %d in corners; %d crowbars on them) from %d spots, %d rolled; limit %d; least clearance %.0f "
@@ -905,7 +951,7 @@ int plan()
             sv.name, static_cast<int>(placements.size()), large, barrels, lying, stacks, mixed, corners,
             static_cast<int>(crowbars.size()),
             static_cast<int>(spots.size()), rolled, most,
-            placements.empty() ? 0.f : leastClear, (Sys_DoubleTime() - t0) * 1000.0, static_cast<unsigned>(layout ^ (layout >> 32)));
+            placements.empty() ? 0.f : leastClear, (Sys_DoubleTime() - t0) * 1000.0, layoutHash());
         if(vr_debug_crates.value >= 1)
         {
             za::String why;

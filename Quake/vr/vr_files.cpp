@@ -47,10 +47,13 @@ bool removeDirectory(const char* path)
 {
 #ifdef _WIN32
     wchar_t w[MAX_PATH];
-    return wide(path, w) && RemoveDirectoryW(w) != 0;
+    const bool removed = wide(path, w) && RemoveDirectoryW(w) != 0;
 #else
-    return rmdir(path) == 0;
+    const bool removed = rmdir(path) == 0;
 #endif
+    // (the listings know a directory by its identity: one made again by this name is another, and every listing goes)
+    VR_FileCacheForget();
+    return removed;
 }
 
 template <typename Vector>
@@ -523,6 +526,30 @@ bool globMatch(za::StringView glob, za::StringView name)
         g++;
     }
     return g == glob.size();
+}
+
+za::String timestamp(time_t when, const char* fmt)
+{
+    char stamp[64];
+    strftime(stamp, sizeof(stamp), fmt, localtime(&when));
+    return stamp;
+}
+
+za::String profileDir()
+{
+    const za::String dir = za::String{com_gamedir} + "/profile";
+    Sys_mkdir(dir.cStr());
+    return dir;
+}
+
+za::String profileFile(const char* name, time_t when)
+{
+    return profileDir() + "/" + name + timestamp(when) + ".csv";
+}
+
+za::String baseCacheDir()
+{
+    return za::String{com_basedirs[com_numbasedirs > 0 ? com_numbasedirs - 1 : 0]} + "/cache";
 }
 
 } // namespace qvr::files

@@ -1,0 +1,831 @@
+// vr_ragactive.hpp -- active ragdolls (experimental; vr_ragdoll_active; ROUND22.md, "Active ragdolls: core and deaths"):
+// a ragdoll's joints driven towards a pose (a powered ragdoll, as PuppetMaster's muscles or Euphoria's), and what a
+// dying monster does with them.
+//
+// The core (later stages build on it: a shove's stagger and get-up, liquids, holds on the world, cut limbs, living hit
+// reactions):
+// - Each joint is driven towards a target: a ball's Box3D spring to its target rotation (frame B relative to frame A),
+//   a hinge's to its target angle, at vr_ragdoll_active_hertz times the square root of its strength (a spring's
+//   stiffness goes with the hertz squared: its pull goes with the strength), damped near critically; and its motor (the
+//   limp ragdoll's joint friction) turning it at the pose's own speed (the next frame's turn, fed forward), at most its
+//   limb's weight's lever times vr_ragdoll_active_torque times its strength: a blow or a hand overpowers it. Strength 0
+//   is today's limp joint: its friction, and its stiffness towards how he stood.
+// - The target: a clip of the model's frames (Clip: the rig's bone transforms in every pose, vr_ragdoll.cpp), played
+//   at its frame rate and blended between frames, each joint's turn in its parent; a limb's Reach (two-bone IK: the
+//   lower bone a hinge bent by the distance, the upper turned the least way to point at the goal) blended over it.
+// - Strength: one per body channel (legs, torso, arms, head), each a Fade over time; times `base` (a headshot: almost
+//   none) and each part's own (a limb a hand holds: none, easing back over half a second once let go of).
+// - The pelvis pin: a kinematic anchor following the clip's pelvis (and a stumble's carried motion), a Box3D motor joint
+//   pulling the pelvis to it with at most `force` body weights (the hand grabs' pattern), fading.
+// - Strength 0 everywhere and the pin gone: the drive stops, the ragdoll is today's limp one.
+//
+// Deaths (beginDeath; the grunt, enforcer, knight, death knight, ogre and zombie): his ragdoll is made at the first frame
+// his death leaves him not solid, driven by his own death animation, the legs fading first, then the torso, the arms
+// and the head. Dying on the move, he stumbles (the pin carries his motion on a moment, a leg steps ahead); hit in the
+// body or a limb, a free hand goes to the wound and holds it; lying face down, a humanoid may crawl a few seconds on his
+// arms before going limp. A headshot or beheading: an almost pure collapse.
+//
+// Living monsters (the same classes; ROUND22.md, "Active ragdolls: stagger, judo, get-up"):
+// - A shove's stagger (beginStagger): held up by its muscles (a share of its weight), its pelvis pinned and carried on
+//   along the shove, kept upright (turnWhole: the whole body turned towards its stance), its feet planted and stepping
+//   to where its middle comes to rest (capture steps); all as strong as its balance (the knockdown's chance against
+//   the roll). Its middle leaning too far over its feet: it falls; steady: Recovered (vr_box3d.cpp hands it back).
+// - A fall (beginFall: a stagger gone over, a shove's knockdown, a two-hand throw): its arms brace towards the floor the
+//   way it goes, its torso and head keep some tone (a throw's curl; slack where the hands held it), a flinch as it lands.
+// - A get-up (beginRise): rolled over if it lies the other way up, pulled into its get-up's first frame where it will
+//   stand, then risen through the get-up (pin, muscles, the whole body turned towards the frames' pelvis), held at its
+//   last frame for vr_box3d.cpp to hand it back.
+
+#pragma once
+
+#include "vr_ragdoll.hpp"
+
+#include "Zancle/Container/Array.hpp"
+
+#include <box3d/box3d.h>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+
+namespace qvr::ledges
+{
+class Map;
+}
+
+namespace qvr::ragactive
+{
+
+// The body channels a strength is set for (by the bone's name: thigh/shin/foot, pelvis/chest/tail, arm/hand, head/jaw).
+enum class Channel : uint8_t
+{
+    Legs,
+    Torso,
+    Arms,
+    Head
+};
+inline constexpr int channelCount = 4;
+[[nodiscard]] Channel channelOf(const ragdoll::Bone& bone);
+[[nodiscard]] const char* channelName(Channel c);
+
+// The limbs a Reach moves (each found by its bones' names: upperarm/forearm, arm/hand, thigh/shin; _l and _r).
+enum class Limb : uint8_t
+{
+    ArmL,
+    ArmR,
+    LegL,
+    LegR
+};
+inline constexpr int limbCount = 4;
+
+// A ragdoll as the drive sees it (vr_box3d.cpp's RagdollBodies).
+struct Parts
+{
+    const ragdoll::Rig* rig{nullptr};
+    const b3BodyId* body{nullptr}; // [count]: each bone's part (a cut one's: the part it was cut from)
+    int count{0};
+    uint32_t cut{0};                     // the bones cut off (bits)
+    uint32_t loose{0};                   // the bones whose joint is set loose (a snapped neck's): never driven (bits)
+    float k{1.f};                        // rest units -> metres (its scale over the world's units a metre)
+    float m2u{1.f};                      // the world's units a metre
+    glm::quat turn{1.f, 0.f, 0.f, 0.f}; // its model space -> the world (its yaw when it was made)
+    // [count] or null: the drive's forces this frame (N, world: a crawl's pull, a swim's head lift, a lean's pull, a
+    // living one's support), kept for the step's later pieces (Box3D clears forces after each: a slow frame's split step
+    // gave them only its first piece). drive() adds to it; the caller clears it each frame.
+    glm::vec3* force{nullptr};
+};
+
+// A strength over time: `from` until `t0` (s since the drive began), eased (smoothstep) to `to` at `t1`.
+struct Fade
+{
+    float from{1.f}, to{0.f};
+    float t0{0.f}, t1{0.f};
+};
+[[nodiscard]] float fadeAt(const Fade& f, float t);
+
+// The pose the joints are driven towards: the model's frames `first`..`last` played at `fps` from frame position
+// `start` (a frame and a share of the next) at time `t0` (held at `start` until then), held at `last` (or looped back to
+// `first`). first > last: played backwards (a death backwards: a get-up). first < 0: none (each joint holds its own turn;
+// only the reaches move limbs).
+struct Clip
+{
+    int first{-1}, last{-1};
+    float start{0.f};
+    double t0{0.0};
+    float fps{10.f};
+    bool loop{false};
+};
+
+// A limb reaching for a point (world, metres), blended over the clip's pose by `weight` (0..1); its bones' strength at
+// least `strength` while it does.
+struct Reach
+{
+    glm::vec3 goal{0.f};
+    float weight{0.f};
+    float strength{0.f};
+};
+
+// A monster losing limbs as he dies (cutReaction; vr_ragactive.cpp, "Dismemberment"; vr_ragdoll_active_dismember): his
+// free hand to the stump, a writhe; on one leg a balance beat before he falls; with no legs a crawl on his arms.
+struct Dismember
+{
+    bool on{false};
+    uint32_t lost{0};   // the limbs lost (bits of Limb)
+    int liveFrame{-1};  // the frame he stood in, killed by the cut (his ragdoll made then): the balance beat's pose
+    uint32_t seed{0};
+    // The stump a hand holds: the part it is on, its end there (rest units) and outward; the hand (Limb) and when.
+    int stumpPart{-1};
+    glm::vec3 stumpAt{0.f}, stumpOut{0.f};
+    int holdArm{-1};
+    float holdFrom{0.f}, holdUntil{0.f}; // s since the drive began (then let go over 0.8 s)
+    bool face{false};       // the hand on the cut face (stumpAt the joint, stumpOut along the lost limb), else its side
+    float curl{0.f};        // rad: his torso curled towards a stump past his reach this frame
+    bool curling{false};
+    // Blood on the holding hand (vr_box3d.cpp sends it as a wound there): marks due, the last one's time (s, -1 none).
+    int bloodDue{0}, bloodMarks{0};
+    float bloodAt{-1.f};
+    // The writhe (s since the drive began): the torso and legs stirring a little, eased in and out; each joint's turn
+    // this frame (rad/s, its parent's rest space: fed forward to its motor, which would hold it still).
+    float writheFrom{-1.f}, writheUntil{-1.f};
+    za::Array<glm::vec3, ragdoll::maxBones> spin{};
+    bool pitch{false}; // no legs, killed standing: pitched forward at the next drive
+    // The balance beat on one leg: the leg left, the way to the side lost (level, world), his line from that foot to his
+    // pelvis at the start (unit), the pin's anchor's origin then, where that foot is held (world, metres); until when at
+    // most, and when it broke (his lean from that line past Balance Lean, or the time up) or -1.
+    int standLeg{-1};
+    glm::vec3 lostSide{0.f}, line0{0.f}, origin0{0.f};
+    glm::vec3 plant{0.f};
+    float balanceUntil{-1.f}, brokeAt{-1.f};
+    // A hop on the leg left (leaning past hopLean: the foot lifted and put down under his pelvis): when it began (s, -1
+    // none), from and to (world, metres), how many.
+    float hopFrom{-1.f};
+    glm::vec3 hopA{0.f}, hopB{0.f};
+    int hops{0};
+    Clip deathClip;                       // his death animation, played once the beat breaks
+    za::Array<Fade, channelCount> deathFade{}; // and its strengths (shifted to the break)
+    // The traces: the hand from the stump (units), his lean (deg).
+    float handGap{-1.f}, lean{0.f};
+};
+
+// The pelvis pin: `force` body weights at most (0: none), `offset` (world, metres) added to the clip's pelvis.
+struct Pin
+{
+    b3BodyId anchor{b3_nullBodyId};
+    b3JointId joint{b3_nullJointId};
+    float force{0.f};
+    Fade fade{0.f, 0.f, 0.f, 0.f};
+    glm::vec3 offset{0.f};
+    float hertz{4.f};
+    float turnHertz{-1.f}; // its turn's (-1: hertz)
+    float turnShare{0.25f}; // its turn's torque at most: this times its force's (N m per N)
+};
+
+// ---- What is round him (vr_ragdoll_active_env; vr_ragactive.cpp, "Environment"; ROUND22.md, "Active ragdolls:
+// environment") ----
+// A dying body senses what is round it (a few rays from the chest every few frames: along its fall, behind it, to its
+// sides; the ledges near its hands), each hand picks a goal, and acts on it (Overgrowth's and Euphoria's sense, goal,
+// act):
+// - Catch: a surface he falls onto soon within reach (the floor ahead, a wall, a crate): the arms out to it, landing
+//   with a strength that gives (a capped push: never held).
+// - Lean: a wall within reach behind or beside his chest as he dies (or one the kill throws him into, even up off the
+//   floor): a hand on it (9 in 10; his back to it: out beside him, lower, sometimes both hands), held by a capped
+//   hand-to-world joint that slides down as he weakens, the knees buckling, the pelvis drawn weakly to the wall, his
+//   sinking held to a slide down it while his chest is against it (vr_ragdoll_active_env_slide): he slumps down it.
+//   Not when blown away from it. The hand lets go on its load, its timer, a hit, at the floor.
+// - Ledge: falling past a lip (vr_ledges) near a hand: it grabs the lip (the same joint, at the hold), hangs a moment,
+//   drops on its timer, its load or a hit.
+// - Curl: tumbling with nothing to catch: the arms in to the chest, the knees up.
+// A loose prop (a crate) is braced against, never held.
+enum class Grip : uint8_t
+{
+    None,
+    Catch, // reaching for a surface he falls onto, then pushing off it (giving)
+    Brace, // a hand on a loose prop (no joint)
+    Lean,  // a hand on a wall, held, sliding down
+    Ledge, // a hand on a lip, hanging
+    Curl,  // the arms in (tumbling)
+    Grab   // a hand on another monster near it as it falls (standing, or its ragdoll), held a moment (vr_ragdoll_active_grab)
+};
+
+struct EnvHand
+{
+    Grip mode{Grip::None};
+    glm::vec3 goal{0.f};   // world, metres: where the hand goes (on the surface)
+    glm::vec3 normal{0.f}; // out of that surface
+    float weight{0.f};     // the reach now (eased towards `want`)
+    float want{0.f};
+    float strength{0.f};
+    double since{0.0};     // when this mode began
+    double touched{-1.0};  // when the hand reached the surface (-1: not yet)
+    // Its hold (Lean, Ledge): a capped motor joint from the world's (or a mover's) body to the hand.
+    b3JointId joint{b3_nullJointId};
+    b3BodyId on{b3_nullBodyId};
+    double holdUntil{0.0};
+    float load{0.f};       // N: the hold's force, the last frame
+    float cap{0.f};        // N: its most
+    double overSince{-1.0}; // its load at the cap since (slipping)
+    float slid{0.f};       // metres the hold slid down
+    bool struck{false};    // hit since the last frame (struck())
+    // A Grab's: its point on the other's body (that body's space, metres), its entity.
+    glm::vec3 local{0.f};
+    int other{0};
+};
+
+// One probe ray (the debug overlay): from, to (where it stopped), whether it met something.
+struct EnvProbe
+{
+    glm::vec3 from{0.f}, to{0.f};
+    bool hit{false};
+};
+
+struct Env
+{
+    bool started{false}; // looked at once (its first drive)
+    bool on{false};     // this death senses (vr_ragdoll_active_env, not a collapse)
+    uint32_t seed{0};
+    uint8_t reached{0}; // the limbs whose reach it set the last frame (bits: Limb)
+    int frame{0};       // frames since it began (the probes run every few)
+    za::Array<EnvHand, 2> hand{};
+    float baseAt{1.f};  // the State's base when it began: a blast since (weaken) lets go
+    // Lean: the wall, when, and whether he leaned this death.
+    bool lean{false};
+    double leanFrom{-1.0};
+    glm::vec3 wallAt{0.f}, wallN{0.f};
+    bool leaned{false};
+    float floorAt{0.f};  // metres: the floor under his pelvis as it began (floorSet): one he was thrown up off, not left
+    bool floorSet{false};
+    float curl{0.f};    // the curl's weight now
+    double nextCatch{0.0}; // no new catch before this (one landing at a time)
+    bool hung{false};   // a hand grabbed a ledge this death (once)
+    za::Array<EnvProbe, 4> probe{};
+    int probes{0};
+    // The tests: catches, holds made and let go.
+    int catches{0}, holds{0};
+    // A living one's (a knockdown's fall past a lip: Climb): its hands' holds and the climb alone (no catch, lean, curl).
+    bool living{false};
+    int grabs{0}; // others grabbed falling (vr_ragdoll_active_grab; the tests)
+};
+
+// A living knockdown's ledge (vr_ragdoll_active_pullup; vr_ragactive.cpp, "Climbs"): falling past a lip near a hand (a
+// fall's, or a body dropped or toppled off a lip), it grabs it (the env's Ledge holds), hangs a moment, then (by the
+// chance) pulls itself up: its pelvis pinned and carried up under the lip, over it and in onto the top (its muscles
+// holding its weight, its arms giving), its hands holding until it goes in, its legs reaching up; else it drops after its
+// hang as a death's. Lying on the top it is a knockdown again (its get-up later, as any).
+enum class ClimbPhase : uint8_t
+{
+    Hang, // holding on (pulled up from pullFrom, if it pulls)
+    Pull, // its pelvis carried up under the lip (its chest over the top)
+    Over, // up over the lip, then in onto the top
+    Done  // pulled up (or dropped): its strength easing off
+};
+struct Climb
+{
+    bool on{false};
+    ClimbPhase phase{ClimbPhase::Hang};
+    bool pulls{false};      // the chance said it pulls itself up (else it drops after its hang)
+    double since0{0.0};     // when it grabbed
+    double since{0.0};      // this phase's start
+    double pullFrom{0.0};   // when it begins to pull (hanging until then)
+    glm::vec3 lip{0.f};     // world, metres: the lip between its hands
+    glm::vec3 out{0.f};     // level: off the ledge, over the drop
+    glm::vec3 from{0.f};    // its pelvis (its body's origin) when this phase began
+    // Its pelvis's pin (pulling: drive() puts the pin's anchor here, turned from rot0, its turn as it pulled, towards
+    // tilt x its stand frame's facing the wall by turnBlend).
+    bool pinned{false};
+    glm::vec3 pinAt{0.f};
+    glm::quat rot0{1.f, 0.f, 0.f, 0.f}, tilt{1.f, 0.f, 0.f, 0.f};
+    float turnBlend{0.f};
+    float top{0.f};         // m: the top's height (the lip's)
+    bool released{false};   // Over: its hands let go (its pelvis over the top), going in since since2
+    double since2{0.0};
+    float prog{0.f}, prog2{0.f}; // the way of this phase (Over: up over the lip, then in) done, 0..1
+    double reachAgain{0.0}; // hanging by one hand: the other reaches for the lip again then (at most twice: retries)
+    int retries{0};
+    // The tests: its chest over the top at most (m), why it ended.
+    float rose{-1e30f};
+    const char* ended{nullptr};
+};
+
+// What a death does (beginDeath; vr_ragactive.cpp, "Deaths").
+struct Death
+{
+    bool on{false};
+    bool collapse{false}; // a headshot, beheaded: almost no strength
+    float length{1.f};    // s: his death animation from the frame he went limp in
+    // Stumble: dying on the move (his own motion, level, m/s).
+    bool stumble{false};
+    glm::vec3 walk{0.f};
+    int stepLeg{-1};      // Limb: the leg that steps
+    glm::vec3 stepFrom{0.f}, stepTo{0.f}; // its foot's way (world, metres)
+    // Holding his wound: the part hit, the point (its body's space, metres) and outward there; the hand that holds it.
+    int woundPart{-1};
+    glm::vec3 woundAt{0.f}, woundOut{0.f};
+    int woundArm{-1};     // Limb
+    // Crawling: chosen when he died (its chance), begun once he lies face down after his death; its way (level, world),
+    // the arm reaching now and where its hand was put down.
+    bool crawl{false};
+    double crawlFrom{-1.0}, crawlUntil{-1.0};
+    glm::vec3 crawlDir{0.f};
+    int crawlArm{-1};
+    double strokeFrom{0.0};
+    glm::vec3 planted{0.f};
+    bool pulling{false};
+    float crawled{0.f}; // metres its pelvis went while crawling (tests)
+    // Rolling onto his front first (on his back or side): since when, about which level axis, which way.
+    double rollFrom{-1.0};
+    glm::vec3 rollAxis{0.f};
+    float rollSign{1.f};
+    glm::vec3 crawlStart{0.f};
+    // On his back instead (vr_ragdoll_active_crawl_back 1): no roll onto his front; a dying cockroach's flail, his limbs
+    // pawing the air and his body rocking, weakening, from `flailFrom` until `flailUntil`, then limp.
+    double flailFrom{-1.0}, flailUntil{-1.0};
+};
+
+// Liquids (vr_ragdoll_active_liquids; vr_ragactive.cpp, "Liquids"; ROUND22.md, "Active ragdolls: liquids"): a dying
+// body in water (dying in it, drowned, or falling in within liquidWindow of its death) paddles and kicks, its head kept
+// up, weakening as it drowns; in lava or slime it flails, short and violent; then limp. Once per death.
+enum class Liquid : uint8_t
+{
+    None,
+    Water,
+    Slime,
+    Lava,
+    Air // no liquid: a living one lifted off its feet flails (beginFlail; a lava flail's thrash)
+};
+struct Swim
+{
+    Liquid liquid{Liquid::None}; // what it is in (None: not swimming)
+    double from{-1.0};           // when it began (-1: not yet; it never begins twice)
+    float length{0.f};           // s: its strokes last
+    double outSince{-1.0};       // out of every liquid since (it stops after half a second)
+    uint32_t seed{0};
+    float phase{0.f};            // rad: the strokes' (advanced slower as it weakens)
+    float headLift{0.f};         // N: the last frame's lift on the head (the traces)
+    // A living knockdown's (beginLivingSwim): it keeps its strength and its head up, and paddles towards `goal` (world,
+    // metres: where it can stand, vr_box3d.cpp's standSpot) when it has one; a dying one's strokes push it ahead.
+    bool living{false};
+    bool hasGoal{false};
+    glm::vec3 goal{0.f};
+    float thrust{0.f};           // N: the last frame's push along its way (the traces)
+    // A drowning one's struggle (vr_ragdoll_active_drown; vr_box3d.cpp ragdollDrowning): its strokes frantic (quicker,
+    // harder) by this share at first, easing to its usual over panicTime from panicFrom (its first frame with it).
+    float panic{0.f};
+    double panicFrom{-1.0};
+};
+
+// A living monster's stagger from a shove (beginStagger; vr_ragactive.cpp, "Staggers"), how it ends.
+enum class Outcome : uint8_t
+{
+    Going,     // still staggering
+    Recovered, // back on its feet: ready to be the animated monster again (vr_box3d.cpp hands it back)
+    Fell       // it went over: a fall now (a knockdown)
+};
+
+struct Stagger
+{
+    bool on{false};
+    Outcome outcome{Outcome::Going};
+    double decided{-1.0};   // when it recovered or fell
+    glm::vec3 dir{1.f, 0.f, 0.f}; // level: the shove's way
+    float travel{0.f};      // metres the pin carries its pelvis along dir
+    float time{0.4f};       // s over which (slowing to none)
+    float balance{0.5f};    // 0 about to fall .. 1 steady
+    float height{1.f};      // m: its pelvis over its feet as it stood
+    glm::vec3 pelvis0{0.f}; // its pelvis then (world, metres)
+    glm::vec3 lift{0.f};    // its pin's anchor from the stand frame's pelvis to where its pelvis was (metres)
+    float lean{0.f}, leanMost{0.f}; // deg: its middle over its feet now, at most
+    float over{-1.f};       // s after the drive began: leaning past its limit since (-1: not)
+    float farSince{-1.f};   // ... past twice it since
+    float sag{1.f};         // its pelvis's height over the floor now over `overFloor`, as it stood (its lowest)
+    float overFloor{0.f};   // m (0: not yet measured)
+    float noFloor{-1.f};    // s after the drive began: no floor under its pelvis since (-1: there is)
+    // Its feet: each leg's place on the floor (planted), its stance (the foot from the pelvis, level), a step's way.
+    za::Array<glm::vec3, 2> planted{}, stance{};
+    za::Array<glm::vec3, 2> footAt{}; // where each foot was put down (its planted reach: staggerPlant)
+    int stepLeg{-1}; // Limb
+    int lastLeg{-1}; // the last step's (its feet in turn)
+    double stepFrom{0.0};
+    float stepTime{0.22f};  // s: this step's
+    glm::vec3 stepA{0.f}, stepB{0.f};
+    int steps{0};
+    int stepsMost{4};       // its backpedal's steps at most (vr_ragdoll_active_stagger_steps)
+    int giveAfter{-1};      // its balance lost (below 0.5): it gives way after this many steps (-1: it means to recover)
+    float recoverAt{-1.f};  // s: recovered then, however it stands (a parry's stagger: its time); -1 by its own steadiness
+    bool sure{false};       // never goes over by itself (a parry's on level ground): only no room to stand takes it down
+    // A tug-of-war over its weapon (box3d ragdollTug; QC vr_armedgrunt_play.qc): standing its ground, the arm `tugArm`
+    // (Limb; -1 none) pulling its hand (a player's hand holds its weapon) in before its chest at `tugStrength` (a reach's
+    // strength, 0..3), the other hand reaching for it too.
+    bool tug{false};
+    int tugArm{-1};
+    float tugStrength{1.f};
+    // Its walk measured (vr_knockdown_debug's "gait:" line as it recovers or falls; the ragtool's checks): its knees'
+    // bend (deg, least and most), each step's foot lift (m, its highest over where it rose and landed), the steps' level
+    // length, the planted feet's slide (the glide), its hands' reach about its shoulders (each arm's box of them).
+    float kneeLo{1e9f}, kneeHi{-1e9f}, kneeSum{0.f}; // (from its bend as the stagger began)
+    int kneeFrames{0}, handFrames{0};
+    za::Array<float, 2> knee0{};
+    za::Array<glm::vec3, 2> handSum{}, handSq{};
+    float stepLift{0.f}, liftSum{0.f}, liftMost{0.f}, strideSum{0.f}, glide{0.f};
+    za::Array<glm::vec3, 2> footWas{};
+    bool measured{false};
+};
+
+// A fall (beginFall: a stagger gone over, a shove's knockdown, a throw; vr_ragactive.cpp, "Falls"): the arms braced
+// towards the floor the way it goes, the torso and head keeping some tone (a curl), the legs giving; landed, a flinch,
+// then limp.
+struct Fall
+{
+    bool on{false};
+    float since{0.f};       // s after the drive began
+    glm::vec3 dir{1.f, 0.f, 0.f}; // level: its way (the shove's, the throw's)
+    float landed{-1.f};     // s after the drive began (-1: not yet)
+    za::Array<bool, 2> put{};         // each arm's hand put down
+    za::Array<glm::vec3, 2> hand{};   // where
+    float height{1.f};      // m: its chest over the floor as it began
+};
+
+// A knocked-down monster getting up (beginRise; vr_ragactive.cpp, "Get-ups"): its body pulled into its get-up's first
+// frame where it will stand, then the get-up played by it, risen by its pelvis's pin; done at its last frame (held),
+// for vr_box3d.cpp to hand it back to the animated monster.
+struct Rise
+{
+    bool on{false};
+    float prep{0.4f};    // s: pulled into the first frame
+    // Lying the other way up from its first frame (on its back, the frame on its front): it rolls over first, until then,
+    // about a level axis (its spine's), that way; its front as the frame has it.
+    double rollUntil{0.0};
+    glm::vec3 rollAxis{0.f}, front{0.f};
+    float rollSign{1.f};
+    double end{0.0};     // the clip's end (then held)
+    double polled{0.0};  // the QC's last ask (it stops asking: hit meanwhile, it lapses)
+    bool done{false};
+    float error{0.f};    // m: its pelvis from the clip's now
+    float errorMost{0.f};
+    // Its body's level travel (the debug's "risen" line): its mass centre where it lay as the rise began and last frame,
+    // the level path it went while rolling over, pulled in and rising, and the clip's own (its first frame's pelvis to
+    // its last's, level). World metres.
+    glm::vec3 lay{0.f}, last{0.f};
+    float path[3]{}, most{0.f}, clipOwn{0.f}; // (most: its farthest from where it lay)
+};
+
+// A living one guarding its head from a blow (vr_ragdoll_active_guard; guard()): its arms up before its face, the
+// forearms across it towards the blow, from `from` (eased in over 0.12 s) until `until` (then down over 0.25 s).
+struct Guard
+{
+    bool on{false};
+    double from{0.0}, until{0.0};
+    glm::vec3 threat{0.f}; // world, metres: where the blow comes from
+};
+
+// ---- Struggling in the hands (vr_struggle; vr_ragstruggle.cpp; docs/vr-port/STRUGGLE.md) ----
+// A living knockdown a player's hand holds (lifted, dragged, held by the head, the legs or an arm) fights the hold: a
+// layer of behaviours, each giving its limbs' reaches, its torso's and head's bends and their strengths, blended by
+// weights from what holds it and where it is (sensed each frame), smoothed, with each enemy's own rhythm, effort,
+// bursts and fatigue.
+enum class Behaviour : uint8_t
+{
+    Swat,   // held by the torso or a shoulder: an arm swings at the player's head or the holding hand, the other reaches
+    Pry,    // a hold its free hands can reach (its head, an arm, its collar): they go to the holding hand and tug at it
+    Crunch, // lifted by the legs, hanging: it bends at the waist up towards the player, its arms reaching for him
+    Claw,   // held by the legs on the floor (dragged): it turns belly down, its arms stretched ahead, clawing the floor
+    Brace,  // dragged on the floor by an arm or the head: its legs stiffen, its heels dig in
+    Kick,   // its free legs kick about (more off the floor)
+    Thrash  // its torso and head twist and toss (the flail's)
+};
+inline constexpr int behaviourCount = 7;
+[[nodiscard]] const char* behaviourName(int b);
+
+// One hand's hold as the struggle sees it: the part, the hand (world, metres: the hold's anchor) and the held point on
+// the part now (world, metres; the two apart: the hold's lag).
+struct StruggleHold
+{
+    int part{-1};
+    int hand{0};
+    glm::vec3 at{0.f}, grip{0.f};
+};
+
+// What the struggle needs of the world each frame (vr_box3d_struggle.cpp fills it in; Context::struggle).
+struct StruggleInput
+{
+    bool want{false}; // held by a player's hand, alive, of a class that struggles, nothing else leading its body
+    int holds{0};
+    za::Array<StruggleHold, 2> hold{};
+    glm::vec3 eye{0.f}, feet{0.f}; // the holding player's head and feet (world, metres)
+    float health{1.f};             // its health over its class's (0..1)
+    float strength{1.f}, speed{1.f}; // its class's (its monster group's Struggle: mgroups::struggleOfClass)
+    float arms{1.f};                 // its class's arm drive: its arms' springs this many times stiffer (its monster group's Struggle: mgroups::struggleOfClass)
+};
+
+struct Struggle
+{
+    bool on{false};
+    double from{0.0};   // when it began
+    uint32_t seed{0};
+    // Its own rhythm (seeded: vr_struggle_variation): its rate's factor, each limb's phase (rad), its favourite arm.
+    float rate{1.f};
+    za::Array<float, limbCount> phase{};
+    int favourite{0};
+    // The behaviours' weights (smoothed) and what they make for now (the context's).
+    za::Array<float, behaviourCount> weight{}, want{};
+    // Effort (0..1.4): its ramp in, its bursts, its fatigue (0..1, building while it struggles), a flinch from a hit.
+    float effort{0.f}, fatigue{0.f};
+    double burstFrom{-1.0}, burstUntil{-1.0}, nextBurst{0.0};
+    uint32_t bursts{0};
+    bool struck{false};
+    double hitAt{-1e9};
+    double endedAt{-1.0}; // its last struggle's end (a new one carries its fatigue on, recovering meanwhile)
+    // Sensed (the floor every few frames): its parts on the floor (0..1), off it (lift), its drag (0..1, by its speed on
+    // the floor) and way (level, unit), how belly down it lies (0..1), how head down it hangs (0..1); the floor under
+    // its pelvis (world, metres; -1e30 none).
+    int frame{0};
+    float contact{0.f}, lift{0.f}, drag{0.f}, prone{0.f}, inverted{0.f};
+    float contactUpper{0.f}; // its chest's and head's alone (0..1): dragged by the legs its pelvis rides up off the floor
+    float contactTorso{0.f}; // its pelvis's and chest's (0..1): hung by the legs its head may touch the floor
+    float floor{-1e30f};
+    glm::vec3 dragWay{0.f};
+    // What holds it (0..1 each): its torso or a shoulder, its head, its legs, its arms (below the shoulder).
+    float heldTorso{0.f}, heldHead{0.f}, heldLegs{0.f}, heldArms{0.f};
+    // The holds' lag (units: the worst hand's held point from it) and the guard that eases the struggle as it grows.
+    float gripError{0.f}, gripErrorMost{0.f}, guard{1.f};
+    float rollTorque{0.f}; // N m: the last frame's turn towards belly down (Claw)
+    // The traces (each frame): its nearest free hand from what it goes for (units: the player's head, a holding hand),
+    // its waist's bend (deg: its chest's up against its pelvis's, forward positive), its legs' straightness (each foot's
+    // distance from its hip over the leg's length, the mean), the arms' and legs' strength now.
+    float handGap{0.f}, bend{0.f}, straight{0.f}, armsNow{0.f}, legsNow{0.f};
+    // Held by an arm (its upper arm or below; 0..1), how much it fights to stay up (Upright: 0..1) and the force its
+    // legs hold it up with this frame (N), how upright its chest is (its up's z).
+    float heldArm{0.f}, upright{0.f}, uprightForce{0.f}, chestUp{0.f};
+    // Its free hands from its own head (units: the nearest; how far over its top the highest is).
+    float handsToHead{0.f}, handsOverHead{0.f};
+    // Its free hands' motion since vr_struggle_status last read it (its flailing's measure): the path their tips went in
+    // its chest's frame (units, each arm's added), the time (s), the summed misses of their goals (units x s).
+    za::Array<glm::vec3, 2> handWas{};
+    za::Array<bool, 2> handWasSet{};
+    float handPath{0.f}, handTime{0.f}, goalMiss{0.f};
+    // The same path sampled every few frames (handSlowEvery): near handPath for a real swing, far under it for a jitter.
+    za::Array<glm::vec3, 2> handWasSlow{};
+    za::Array<bool, 2> handWasSlowSet{};
+    float handPathSlow{0.f};
+    uint32_t measured{0};
+    // Its class's arm drive (StruggleInput::arms; the drive's arm springs times this, their cap too).
+    float arms{1.f};
+    // Looking at the holder (vr_struggle_look; vr_ragstruggle.cpp, lookAtHolder): the look's weight now (0..1, eased),
+    // its aim (rad, eased: the head's turn about its parent's spine and its nod, in the parent's rest space), the side it
+    // turns to with him behind it (+1 its left, -1 its right: kept while he is straight behind), its small quick re-aim
+    // (a saccade: yaw, pitch, rad), when the next comes (s since it began) and how many so far.
+    float lookWeight{0.f}, lookYaw{0.f}, lookPitch{0.f}, lookSide{1.f};
+    glm::vec2 saccade{0.f};
+    float nextSaccade{0.f};
+    uint32_t saccades{0};
+    // Its voice (vr_struggle_voice; vr_box3d_struggle.cpp): the next cry, how many so far, the last sample's index.
+    double nextVoice{0.0}, voicedAt{-1e9};
+    int voices{0};
+    int lastVoice{-1};
+};
+
+// An active ragdoll's drive (in vr_box3d.cpp's RagdollBodies).
+struct State
+{
+    bool on{false};
+    double begun{0.0};
+    const qmodel_t* model{nullptr};
+    glm::vec3 origin{0.f}; // world, metres: where the clip's model space is (his entity's origin when it was made)
+    glm::quat turn{1.f, 0.f, 0.f, 0.f}; // the clip's model space -> the world (Parts::turn; a get-up's: where it stands)
+    // Each part's joint to its parent (null: the pelvis, a loose piece), its frame (ragpose::jointFrame) and its range.
+    za::Array<b3JointId, ragdoll::maxBones> joint{};
+    za::Array<float, ragdoll::maxBones> lower{}, upper{}; // a hinge's range (rad); a ball's cone and twist
+    za::Array<float, ragdoll::maxBones> cap{};             // N m: its motor's most at strength 1
+    float friction{0.f}, limpHertz{0.f};                   // the limp joint's (Joint Friction, Joint Stiffness)
+    float totalMass{0.f};
+    za::Array<za::Array<int8_t, 2>, limbCount> chain{};   // each limb's upper and lower bone (-1: none)
+    Clip clip;
+    float base{1.f};
+    za::Array<Fade, channelCount> fade{};
+    za::Array<float, ragdoll::maxBones> partScale{};
+    za::Array<Reach, limbCount> reach{};
+    Dismember dismember;
+    Pin pin;
+    // Its weight held up by its muscles (a living one standing or rising: a force up on each part, this share of its
+    // weight), over time.
+    Fade support{0.f, 0.f, 0.f, 0.f};
+    // Parts slack until then (with their limbs, as held: a throw's hands just let go).
+    uint32_t slack{0};
+    double slackUntil{0.0};
+    Death death;
+    Swim swim;
+    Stagger stagger;
+    Fall fall;
+    Rise rise;
+    // The last frame's (the debug overlay, the traces): each joint's target (its child's turn in its parent's rest
+    // space) and the clip's alone, and its strength.
+    za::Array<glm::quat, ragdoll::maxBones> target{}, animTarget{};
+    za::Array<float, ragdoll::maxBones> strength{};
+    // What is round him (vr_ragdoll_active_env).
+    Env env;
+    // A living knockdown hanging from a ledge, pulling itself up (vr_ragdoll_active_pullup).
+    Climb climb;
+    // Its head guarded from a blow (vr_ragdoll_active_guard).
+    Guard guard;
+    // Struggling in a player's hands (vr_struggle).
+    Struggle struggle;
+    // Its shoulders' cones widened while it struggles (vr_struggle_arm_reach: its hands over its head; the rig's 85
+    // degrees about the hanging arm reach no higher than its shoulders), eased back after: each arm's rig cone (rad; < 0
+    // not widened) and how long they have been narrowing (s; at most 3, then back at once as the drive ends).
+    za::Array<float, 2> shoulderCone{-1.f, -1.f};
+    float narrowing{0.f};
+};
+
+// What the drive needs of the world each frame.
+struct Context
+{
+    b3WorldId world{b3_nullWorldId};
+    double now{0.0};
+    float dt{0.f};
+    float gravity{9.8f};
+    uint32_t held{0}; // the parts a hand holds or a throw pins: no strength (with their limb)
+    // The floor's height (world, metres) below `at` (within `depth` metres), or -1e30 none.
+    float (*floorBelow)(const glm::vec3& at, float depth){nullptr};
+    // Whether a part lies on the floor (a contact pushing it up); null: by its height over floorBelow alone.
+    bool (*onFloor)(b3BodyId body){nullptr};
+    // The liquid at `at` (world, metres); null: liquids not looked at.
+    Liquid (*liquidAt)(const glm::vec3& at){nullptr};
+    // The world (and the movers) along `from` -> `to` (world, metres): the share of the way to the first hit (1 none),
+    // where it hit and its normal.
+    float (*rayHit)(const glm::vec3& from, const glm::vec3& to, glm::vec3& at, glm::vec3& normal){nullptr};
+    int num{0};       // its entity (the traces)
+    double born{0.0}; // when its ragdoll was made (the traces' time)
+    bool trace{false}; // a `ragtrace` line (driven or not: vr_ragdoll_active_trace)
+    // What is round him (vr_ragdoll_active_env): the shapes his probes see (their category bits: the world, movers,
+    // props; 0 none) and the world's ledge map (null: no ledges).
+    uint64_t envMask{0};
+    const ledges::Map* ledges{nullptr};
+    bool carried{false}; // its body still carried by a shove's drive (vr_box3d.cpp ShoveDrive): no ledge grabbed yet
+    // Others to grab falling (vr_ragdoll_active_grab): the shapes of monsters and ragdolls (category bits; 0 none), and
+    // whether entity `num` is one to grab (a monster, standing or a ragdoll; not itself).
+    uint64_t othersMask{0};
+    bool (*graspable)(int num){nullptr};
+    bool grabSure{false}; // its chance made sure (a test's: vr_ragdoll_act grab)
+    // Its struggle in a player's hands (vr_struggle; null: none wanted, a struggle going ends).
+    const StruggleInput* struggle{nullptr};
+};
+
+// The drive started on a ragdoll just made (vr_box3d.cpp createRagdoll, its joints made): `joints` each part's
+// (null: none), the limp joint's friction and stiffness. Strength none, no clip: set one, its fades, reaches, a pin.
+void begin(State& s, const Parts& p, const qmodel_t* model, const glm::vec3& originMetres, const b3JointId* joints,
+    float friction, float limpHertz, double now);
+
+// A death (the frame he went limp in, `frame`, of death animation `death` of his rig).
+struct DeathInfo
+{
+    int death{0};
+    float frame{0.f};
+    bool collapse{false};
+    glm::vec3 walk{0.f};    // m/s: his own motion as he died
+    bool wound{false};
+    glm::vec3 woundAt{0.f}; // world, metres: where the blow that killed him struck
+    uint32_t seed{0};
+    bool crawler{false};    // his kind crawls (a humanoid)
+    // A test's (vr_ragdoll_act, vr_ragtest.cpp), for this death alone: the wound's and the crawl's chances sure
+    // (vr_ragdoll_active_wound, _crawl as 1), no pin (vr_ragdoll_active_pin as 0).
+    bool sureWound{false};
+    bool sureCrawl{false};
+    bool noPin{false};
+};
+void beginDeath(State& s, const Parts& p, const DeathInfo& d, double now);
+
+// A shove's stagger (a living monster's ragdoll just made, standing; vr_box3d.cpp ragdollStagger): its frames
+// `first`..`last` (the flinch its pain began) held by its joints, its pelvis pinned up (at most a force by `balance`)
+// and carried `travel` metres along `dir` (level), its feet planted and stepping after it, its top pushed by the shove
+// (`push`: 1 a fresh two-hand shove). Its middle leaning past vr_ragdoll_active_stagger_lean over its feet (or its
+// pelvis sagging low): it falls (a Fall); steady again: Recovered.
+struct StaggerInfo
+{
+    glm::vec3 dir{1.f, 0.f, 0.f};
+    float travel{0.f};
+    float push{1.f};
+    float balance{0.5f};
+    int first{-1}, last{-1};
+    float recoverAt{-1.f}; // (Stagger's)
+    bool sure{false};
+};
+void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now);
+
+// A fall (the drive begun or going): towards level `dir`, the arms bracing, the torso and head keeping some tone, the
+// legs giving; parts `slack` (with their limbs) for `slackTime` s (a throw's held ones); `curl`: a throw (more tone in
+// the torso: it curls as it goes over). `legsHold` s: its legs keep their tone (straight, as it stood) that long before
+// they give (a leg sweep's: falling backward its knees don't fold under it, its feet stay where they were swept).
+void beginFall(State& s, const Parts& p, const glm::vec3& dir, uint32_t slack, float slackTime, bool curl, double now,
+    float legsHold = 0.f);
+
+// A get-up (the drive begun on a knocked-down monster's ragdoll): its frames `first` to `last` (backwards if first >
+// last) played at `fps` after `prep` s held at `first`, the model standing at `origin` (world, metres) turned `yaw`
+// (rad); its pelvis pinned to the clip's (vr_ragdoll_active_getup_pin body weights), its muscles holding its weight.
+struct RiseInfo
+{
+    int first{-1}, last{-1};
+    float fps{10.f};
+    float prep{0.4f};
+    glm::vec3 origin{0.f};
+    float yaw{0.f};
+};
+void beginRise(State& s, const Parts& p, const RiseInfo& info, double now);
+
+// The clip's frame now (its position: a frame and a share of the next; -1 none).
+[[nodiscard]] float clipFrame(const State& s, double now);
+
+// A stagger or a get-up let go (the QC stopped asking, no room to stand, he died): its pin dropped, a fall from here.
+void lapse(State& s, const Parts& p, double now);
+
+// Each frame before the step: the targets for now, the strengths, the joints set, the pin moved. Stops (on false)
+// once nothing is driven.
+void drive(State& s, const Parts& p, const Context& c);
+
+// Whether a death's drive, limp now, may still be woken by a liquid (vr_ragdoll_active_liquids: not swum yet, within
+// liquidWindow of its death, not a collapse): drive() is to be called for it each frame.
+[[nodiscard]] bool liquidPending(const State& s, double now);
+
+// A blast or a hard knock: every strength times `keep` from now on (a hit lowers the muscles).
+void weaken(State& s, float keep);
+
+// A living knockdown in a liquid (the drive begun, vr_ragdoll_active_liquids): it paddles (water) or flails (lava,
+// slime) at full strength while it lives, its head held up, towards `goal` if `hasGoal` (swimGoal later). Whether it
+// began (the liquid deep enough: Liquid::None no).
+bool beginLivingSwim(State& s, const Parts& p, const Context& c);
+// Its goal (a place to stand found again, or none).
+void swimGoal(State& s, bool hasGoal, const glm::vec3& goal);
+// A living swimmer killed: its swim a dying one's from now (weakening as it drowns or burns).
+void swimDies(State& s, double now);
+// Whether it swims now (a living knockdown's or a death's; or flails in the air: beginFlail).
+[[nodiscard]] bool swimming(const State& s);
+// A living knockdown lifted off its feet (vr_foegrab.cpp's lift; box3d's ragdollFlail; the drive begun): it flails as in
+// lava (its arms and legs thrown about, its torso and head thrashing) at full strength, out of any liquid, until
+// endFlail. Whether it began (not while it swims, rises or staggers).
+bool beginFlail(State& s, const Parts& p, const Context& c);
+// Its flail over (let go of, broken free): its strengths fade as a swim's out of the liquid.
+void endFlail(State& s, const Context& c);
+[[nodiscard]] bool flailing(const State& s);
+// Whether a living knockdown hangs from a ledge or pulls itself up now (its get-up waits).
+[[nodiscard]] bool climbing(const State& s);
+// A living knockdown (the drive begun: its fall's, or one begun for this, holding its frame) falling past a ledge's lip
+// near a hand (c.ledges): it grabs it, a climb (vr_ragdoll_active_pullup). Whether it did. drive() asks it itself for a
+// fall's.
+bool beginClimb(State& s, const Parts& p, const Context& c);
+// A living one (its drive begun: a stagger, a fall, a get-up, or one begun for this) guards its head from a blow coming
+// from `threat` (world, metres) for `hold` s: its arms' reaches up before its face over whatever leads them.
+void guard(State& s, const glm::vec3& threat, double now, float hold);
+
+// A mark of blood due on the hand holding a stump (Dismember::bloodDue, one taken): the hand's end (world, metres) and
+// the way to the stump. False: none due.
+bool takeHandBlood(State& s, const Parts& p, glm::vec3& at, glm::vec3& dir);
+
+// Dismemberment (vr_ragactive.cpp, "Dismemberment"): `joint` cut off just now (vr_box3d.cpp ragdollCutLimb; `p.cut` has
+// it). A driven death reacts: the head, a collapse; a limb, a hand to the stump and a writhe, a balance beat on one leg
+// (killed standing by this cut: `dismember.liveFrame` set as his death began), a crawl with no legs (`crawler`: his kind
+// crawls). Off (vr_ragdoll_active_dismember 0): only the collapse.
+void cutReaction(State& s, const Parts& p, int joint, bool crawler, const Context& c);
+// The joint of limb `limb` (Limb), its upper bone (`lower` false: the shoulder, the hip) or its lower (the elbow, the
+// knee), by its bones' names; -1 none (the tests' cuts: QC ragdolllimbs 6).
+[[nodiscard]] int limbJointOf(const ragdoll::Rig& rig, int limb, bool lower);
+
+// Its pin's anchor (and joint) gone, the drive off (the ragdoll's end).
+void end(State& s);
+// The same, its joints made limp first (vr_ragdoll_active 0 while it is driven).
+void release(State& s, const Parts& p);
+
+// vr_ragdoll_active_debug: the drive's targets drawn over the parts (a bone's target in green as strong as it is,
+// grey limp), the pin (yellow) and the reaches' goals (red).
+void debugDraw(const State& s, const Parts& p);
+
+// The ragdoll tool's measure (vr_ragtool.cpp): the driven joints' mean miss of their targets (degrees, the bone's
+// direction against its target's, as debugDraw draws them) and their mean strength; false: none driven.
+bool tracking(const State& s, const Parts& p, float& errorDegrees, float& strength);
+
+// vr_ragdoll_active_list's line for it.
+void describe(const State& s, const Parts& p, int num, double now);
+
+// The drive's cost: milliseconds over the frames since the last call, and how many ragdolls driven.
+void costSince(double& ms, int& frames, int& driven);
+
+// Its part `part` struck (a shot, a blow: box3d::push): a hand holding on there (or its forearm) lets go.
+void struck(State& s, const Parts& p, b3BodyId part);
+
+// ---- Struggling in the hands (vr_ragstruggle.cpp) ----
+// A struggle begun (the drive on: a living knockdown held, c.struggle wanting it): whatever led its body before gives
+// way (a fall landed, a flail), its rhythm seeded. drive() runs it from here (struggleFrame) until c.struggle stops
+// wanting it, then its strengths fade out over a moment and the drive ends as usual.
+void beginStruggle(State& s, const Parts& p, const Context& c);
+[[nodiscard]] bool struggling(const State& s);
+// Each frame while it struggles (drive(), after the swim): the weights, the limbs' reaches, the torso's and head's
+// targets, the channels' strengths. False: it ended (c.struggle stopped wanting it).
+bool struggleFrame(State& s, const Parts& p, const Context& c, float t);
+// The parts its holds leave slack while it struggles: the held part and what hangs from it (a torso part alone), and
+// the joints above it in its limb at vr_struggle_held_share (`partly`).
+[[nodiscard]] uint32_t struggleSlack(const ragdoll::Rig& rig, int count, uint32_t held, uint32_t& partly);
+// The struggle's cost: milliseconds over the frames since the last call, and how many struggles.
+void struggleCostSince(double& ms, int& frames, int& count);
+// Each drive frame (before its joints are set): its shoulders' cones widened while it struggles (vr_struggle_arm_reach),
+// eased back to the rig's after, never under the arm's turn now (no snap). True: one is still wider than the rig's (the
+// drive keeps on until it is back). shoulderRestore: the drive ends: back at once, but no tighter than the arm is turned.
+bool shoulderReach(State& s, const Parts& p, float dt);
+void shoulderRestore(State& s);
+
+} // namespace qvr::ragactive

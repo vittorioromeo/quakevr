@@ -128,6 +128,6 @@ correct). To read one: `git log --diff-filter=D --oneline -- <path>` gives the c
 - [Misc/quakevr/particles/README.md](../Misc/quakevr/particles/README.md): the explosion particle texture's source and how it was made.
 - [quakevr/textures_quetoo/README.md](../quakevr/textures_quetoo/README.md): the Quetoo material maps and their
   authors.
-- `Quake/vr/external/*/README.md`: each vendored library's version and licence (Box3D, Steam Audio, Zancle).
+- `Quake/vr/external/*/README.md`: each vendored library's version and licence (Box3D, Steam Audio, Zancle, Tracy v0.14.1 BSD-3).
 - [LICENSE.txt](../LICENSE.txt): the GNU GPL v2. QuakeSpasm's own readmes were removed on 2026-10-10 (in git history; credits in
   [CREDITS.md](vr-port/CREDITS.md)).

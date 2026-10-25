@@ -77,7 +77,7 @@ after; `models` 0.028 / 0.026 ms.
 | `README.md` | +245 -37 | +245 -37 | 1 | Quake VR's readme (kept: the repository's front page) |
 | `Quake/gl_shaders.h` | +1823 -43 | +192 -43 | 83 | the splice points of vr/vr_glsl.h's GLSL (one line each) and the few upstream lines changed in place |
 | `Quake/r_alias.c` | +253 -14 | +218 -14 | 35 | the alias instance's VR data (VR_AliasInstance), normal maps, depth-only shadow casters, alpha to coverage, bone poses, wound painting (R_PaintAliasWounds), mirrored and transformed instances |
-| `Quake/world.c` | +207 -8 | +206 -8 | 18 | narrower player hulls, precise model hits, hand touches (SV_AreaEdicts), gibs hit by shots, trace profiling; kept inline (the traces are hot) |
+| `Quake/world.c` | +207 -8 | +206 -8 | 21 | narrower player hulls, the player-vs-monster body inset and step in (VR_BodyContact*, vr_bodycontact.cpp; +16 lines), precise model hits, hand touches (SV_AreaEdicts), gibs hit by shots, trace profiling; kept inline (the traces are hot) |
 | `Quake/cmd.c` | +259 -49 | +163 -35 | 36 | the command buffer grows (Cbuf_Reserve) and reads from a position; lines and arguments of any length (VR_ParseToken: vr_cmdtoken.cpp); config migration; removed Quake VR settings ignored quietly (VR_RetiredCvar); counts |
 | `Quake/r_world.c` | +181 -4 | +179 -4 | 26 | depth pre-pass, deluxemaps, normal maps, parallax and detail per texture, alpha to coverage, the liquids' wave mesh and refraction |
 | `Quake/menu.c` | +151 -13 | +149 -13 | 26 | the VR menu (m_vr), VR Calibration row, list scrolling for the controllers, text outlines |
@@ -141,7 +141,7 @@ after; `models` 0.028 / 0.026 ms.
 | `Quake/console.h` | +2 -0 | +1 -0 | 1 | Con_ServerPrint |
 | `Quake/build_cross_win64.sh` | +3 -2 | +1 -0 | 1 | export CXX |
 | `Quake/build_cross_haiku32-sdl2.sh` | +2 -1 | +1 -0 | 1 | export CXX |
-| `Quake/gl_fog.c` | +2 -0 | +1 -0 | 1 | an eye in a liquid |
+| `Quake/gl_fog.c` | +2 -0 | +1 -0 | 1 | an eye in a liquid; AD's sky fog (VR_AD_SkyFog, also in gl_sky.c) |
 | `Quake/sv_move.c` | +2 -0 | +1 -0 | 1 | monsters' narrower hull at ledges |
 | `Quake/draw.h` | +3 -0 | +1 -0 | 1 | draw_textoutline |
 | `Quake/build_cross_win32-sdl2.sh` | +3 -2 | +1 -0 | 1 | export CXX |

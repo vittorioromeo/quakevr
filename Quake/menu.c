@@ -66,6 +66,7 @@ extern cvar_t r_alphasort;
 extern cvar_t r_enhancedmodels;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
+static float menu_animlerp_smooth; // QVR: the Smooth r_lerpmodels mode the Animations row set Classic from (0: none yet)
 extern cvar_t snd_waterfx;
 extern cvar_t joy_deadzone_look;
 extern cvar_t joy_deadzone_move;
@@ -1418,16 +1419,18 @@ static void M_Confirm_Mousemove (float x, float y)
 //=============================================================================
 /* MAIN MENU */
 
-int	m_main_cursor = 5; // QVR: MAIN_CAMPAIGNS (below): the playing group's first row (Select Campaign), below the VR rows
+int	m_main_cursor = 6; // QVR: MAIN_CAMPAIGNS (below): the playing group's first row (Select Campaign), below the VR rows
 int m_main_mods;
 qboolean m_main_continue_offered; // QVR: the cursor put on Continue once, at the menu's first opening with a save to continue
+qboolean m_main_autosaves; // QVR: an autosave to load (Load Autosave's row shown), as the menu's opening found
 
 enum
 {
 	MAIN_CONTINUE, // QVR: the newest save of a campaign's map (vr_continue.cpp), the first row; shown only when there is one
+	MAIN_LOADAUTOSAVE, // QVR: Load Autosave, the rotating autosaves newest first (M_Menu_Autosaves_f); shown when there is one
 	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp)
 	MAIN_VRTUTORIAL, // QVR: the tutorial (as the Play page's Tutorial), confirmed
-	MAIN_VRHUB, // QVR: the VR hub (vr_hub_map, as the Play page's VR Hub), confirmed
+	MAIN_VRHUB, // QVR: the VR hub (vrstart, as the Play page's VR Hub), confirmed
 	MAIN_VRSETTINGS, // QVR: the VR Settings (as Options > VR Settings), after the VR places; Back from them to this menu
 	MAIN_CAMPAIGNS, // QVR: Select Campaign, the official campaigns' page (was Single Player > Official Campaigns)
 	MAIN_SINGLEPLAYER,
@@ -1446,7 +1449,7 @@ enum
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
 static const char *const m_main_labels[MAIN_ITEMS] =
 {
-	"Continue", "VR Calibration", "VR Tutorial", "VR Hub", "VR Settings", "Select Campaign", "Single Player", "Multiplayer", "Download Maps",
+	"Continue", "Load Autosave", "VR Calibration", "VR Tutorial", "VR Hub", "VR Settings", "Select Campaign", "Single Player", "Multiplayer", "Download Maps",
 	"Play Custom Map", "Options", "Advanced VR", "Mods", "Quit",
 };
 
@@ -1461,6 +1464,8 @@ static qboolean M_Main_Shown (int item)
 {
 	if (item == MAIN_CONTINUE) // QVR: only with a save to continue (vr_continue.cpp)
 		return VR_ContinueAvailable ();
+	if (item == MAIN_LOADAUTOSAVE) // QVR: only with an autosave to load
+		return m_main_autosaves;
 	return item != MAIN_MODS || (m_main_mods && VR_MenuMainShowsMods ());
 }
 
@@ -1471,8 +1476,10 @@ static qboolean M_Main_Shown (int item)
 // vrfiringrange_2026-10-08_00-02-55).
 static qboolean M_Main_GroupStart (int item)
 {
-	if (item == MAIN_VRCALIBRATION) // QVR: Continue on its own above the VR rows, when shown
-		return M_Main_Shown (MAIN_CONTINUE);
+	if (item == MAIN_LOADAUTOSAVE) // QVR: with Continue when it is shown, else the first row
+		return false;
+	if (item == MAIN_VRCALIBRATION) // QVR: Continue and Load Autosave on their own above the VR rows, when shown
+		return M_Main_Shown (MAIN_CONTINUE) || M_Main_Shown (MAIN_LOADAUTOSAVE);
 	return item == MAIN_CAMPAIGNS || item == MAIN_MAPLIBRARY || item == MAIN_OPTIONS || item == MAIN_QUIT;
 }
 
@@ -1497,6 +1504,9 @@ void M_Menu_Main_f (void)
 	// QVR: Continue (vr_continue.cpp): the saves looked at again; the cursor on it the first time it is offered, off it
 	// when there is none (the playing group's first row)
 	VR_ContinueRefresh ();
+	m_main_autosaves = VR_AutosaveAny ();
+	if (!M_Main_Shown (MAIN_LOADAUTOSAVE) && m_main_cursor == MAIN_LOADAUTOSAVE)
+		m_main_cursor = MAIN_CAMPAIGNS;
 	if (M_Main_Shown (MAIN_CONTINUE) && !m_main_continue_offered)
 	{
 		m_main_continue_offered = true;
@@ -1507,15 +1517,23 @@ void M_Menu_Main_f (void)
 }
 
 
+// QVR: the main menu's top (menu y: the title's, the flat banner's; the rows start 28 below), as M_Main_Layout last
+// placed it: Quake's 4, or in the headset higher, the title, rows and banner centred in the panel (the author's note:
+// the VR main menu sat towards the panel's bottom). A flat screen keeps Quake's place (its corner buttons and notices
+// stand above it, level with the title's row).
+static int m_main_top = 4;
+
 // QVR: the rows' spacing and the groups' gaps: Quake's 20 and 10, closer where the canvas is too short for them all (a
 // flat screen's 200 rows, the headset's panel at Menu Height 1): the gaps a little first, then the rows (to 15), then the
 // gaps the rest of the way; then, still too short, the rows to 13 with no gaps, their letters drawn smaller (to fit 15
-// apart); the last row's letters, 20 tall, kept inside it.
+// apart); the last row's letters, 20 tall, kept inside it. In the headset the whole panel's height is theirs and the
+// menu is centred in it (m_main_top).
 void M_Main_Layout (int *step, int *gap)
 {
 	drawtransform_t transform;
-	float left, top, right, bottom;
-	int rows = 0, groups = 0, i, avail;
+	float left, top, right, bottom, sx, sy;
+	int rows = 0, groups = 0, i, avail, height;
+	qboolean centred = VR_MenuCanvas (&sx, &sy);
 
 	for (i = 0; i < MAIN_ITEMS; i++)
 	{
@@ -1524,21 +1542,36 @@ void M_Main_Layout (int *step, int *gap)
 	}
 	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
 	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
-	avail = (int)(bottom - 2 - 32 - 20);
+	if (!centred)
+	{
+		top = q_max (top, -24.f); // (the title up to y -20 at most: the canvas above Quake's 4 spaces the groups)
+		bottom = q_min (bottom, 200.f); // to Quake's 200, not the screen's: the notice box and corner buttons fill below it
+	}
+	avail = (int)(bottom - 2 - (q_min (top, 0.f) + 4) - 28 - 20);
 	*step = CLAMP (15, (avail - groups * 6) / (rows - 1), 20);
 	if ((rows - 1) * *step > avail) // more rows than fit 15 apart (a flat screen's 200 rows): closer, to 13, their letters
 		*step = q_max (13, avail / (rows - 1)); // smaller (M_Main_Draw), no gaps
 	*gap = CLAMP (0, (avail - (rows - 1) * *step) / groups, 10);
+
+	// the title's top to the last row's bottom, its middle at the panel's, never lower than Quake's place nor above the
+	// panel's top
+	height = 28 + (rows - 1) * *step + groups * *gap + 20;
+	m_main_top = 4;
+	if (!centred)
+		m_main_top = q_min (4, (int) ceil (top + 4.f));
+	else
+		m_main_top = CLAMP ((int) ceil (top + 4.f), Q_rint ((top + bottom - height) * 0.5f), 4);
 }
 
 // QVR: each row's right end and bottom (menu x and y) as last drawn: M_ContentRightBelow (the corner's version box and
 // update notice keep clear of them: vr_menubrand.cpp). A row not shown: nothing.
 static float m_main_row_right[MAIN_ITEMS], m_main_row_bottom[MAIN_ITEMS];
 
-// QVR: a row's top (menu y): Quake's 32 for the first, a step for each row shown above it, a gap for each group.
+// QVR: a row's top (menu y): 28 below the menu's top (Quake's 32) for the first, a step for each row shown above it, a
+// gap for each group.
 static int M_Main_RowY (int item, int step, int gap)
 {
-	int i, y = 32;
+	int i, y = m_main_top + 28;
 
 	for (i = 0; i < item; i++)
 		if (M_Main_Shown (i))
@@ -1573,15 +1606,42 @@ static void M_Main_DrawContinue (int row)
 	m_main_row_right[MAIN_CONTINUE] = (float) (x + 8 * q_max ((int) strlen (title), (int) strlen (detail)));
 }
 
+// QVR: how far right of Quake's columns (left: negative) the rows, their cursor and a flat screen's banner are drawn,
+// as M_Main_Draw last drew them (M_Main_Shift).
+static int m_main_shift;
+
+// QVR: the main menu centred (the author's note: its rows sat right of the title, the menu looked misaligned): the rows
+// from their cursor's column (Quake's 54) to the widest one's right end centred under the title (x 160), never right of
+// Quake's place; no further left than x 0 (the VR menu style's corner buttons stand left of it: M_ContentLeft) nor than
+// a flat screen's canvas leaves room for the banner moved with them.
+static int M_Main_Shift (qboolean text, float scale)
+{
+	drawtransform_t transform;
+	float left, top, right, bottom, bannerLeft, bannerRight, widest = 0.f, width;
+	qpic_t *p = text ? NULL : Draw_CachePic ("gfx/mainmenu.lmp");
+	int i, least = -54;
+
+	for (i = 0; i < MAIN_ITEMS; i++)
+	{
+		if (!M_Main_Shown (i))
+			continue;
+		width = text ? 1.f + VR_BigFont_WidthScaled (scale, m_main_labels[i])
+					 : (float) q_max (p->width, 16 * (int) strlen (m_main_labels[i]) + 2);
+		widest = q_max (widest, width);
+	}
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
+	if (VR_MenuBannerExtent (16, &bannerLeft, &bannerRight))
+		least = q_max (least, (int) ceil (left + 2.f - bannerLeft));
+	return CLAMP (least, Q_rint (160.f - (54.f + 72.f + widest) * 0.5f), 0);
+}
+
 void M_Main_Draw (void)
 {
-	int		i, step, gap; // QVR: i, step, gap
+	int		i, step, gap, x; // QVR: i, step, gap, x
 	qpic_t	*p;
 	qboolean text; // QVR: the rows as text (VR_BigFont_Draw)
-
-	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
-	p = Draw_CachePic ("gfx/ttl_main.lmp");
-	M_DrawPic ( (320-p->width)/2, 4, p);
+	float scale; // QVR: their letters' size
 
 	// QVR: the rows as text in the picture's letters when the pictures give every one (a mod's own pictures may not):
 	// else the picture's rows, the others in the mods' fallback row's letters.
@@ -1591,6 +1651,14 @@ void M_Main_Draw (void)
 			text = false;
 
 	M_Main_Layout (&step, &gap);
+	scale = step < 15 ? step / 15.f : 1.f; // (rows closer than 15: smaller letters)
+	m_main_shift = M_Main_Shift (text, scale);
+	x = 72 + m_main_shift; // QVR: the rows' left (Quake's 72), centred
+
+	M_DrawPlaque (16 + m_main_shift, m_main_top); // QVR: the Quake VR banner, moved with the rows
+	p = Draw_CachePic ("gfx/ttl_main.lmp");
+	M_DrawPic ( (320-p->width)/2, m_main_top, p); // QVR: m_main_top (centred in the headset)
+
 	for (i = 0; i < MAIN_ITEMS; i++)
 	{
 		m_main_row_right[i] = -1e9f;
@@ -1598,10 +1666,9 @@ void M_Main_Draw (void)
 	}
 	if (text)
 	{
-		const float scale = step < 15 ? step / 15.f : 1.f; // (rows closer than 15: smaller letters)
 		for (i = 0; i < MAIN_ITEMS; i++) // QVR: the rows as text
 			if (M_Main_Shown (i))
-				m_main_row_right[i] = 73.f + VR_BigFont_DrawScaled (73, M_Main_RowY (i, step, gap), scale, m_main_labels[i]);
+				m_main_row_right[i] = x + 1.f + VR_BigFont_DrawScaled (x + 1, M_Main_RowY (i, step, gap), scale, m_main_labels[i]);
 	}
 	else
 	{ // QVR: the picture's rows (its Help row left out), the others in the mods' row's letters
@@ -1611,28 +1678,29 @@ void M_Main_Draw (void)
 			int row = M_Main_RowY (i, step, gap);
 			if (!M_Main_Shown (i))
 				continue;
-			m_main_row_right[i] = (float)(72 + q_max (p->width, 16 * (int) strlen (m_main_labels[i]) + 2));
+			m_main_row_right[i] = (float)(x + q_max (p->width, 16 * (int) strlen (m_main_labels[i]) + 2));
 			switch (i)
 			{
-			case MAIN_SINGLEPLAYER: M_DrawSubpic (72, row, p, 0, 0, p->width, 20); break;
-			case MAIN_MULTIPLAYER: M_DrawSubpic (72, row, p, 0, 20, p->width, 20); break;
-			case MAIN_OPTIONS: M_DrawSubpic (72, row, p, 0, 40, p->width, 20); break;
-			case MAIN_QUIT: M_DrawSubpic (72, row, p, 0, 80, p->width, p->height - 80); break;
+			case MAIN_SINGLEPLAYER: M_DrawSubpic (x, row, p, 0, 0, p->width, 20); break;
+			case MAIN_MULTIPLAYER: M_DrawSubpic (x, row, p, 0, 20, p->width, 20); break;
+			case MAIN_OPTIONS: M_DrawSubpic (x, row, p, 0, 40, p->width, 20); break;
+			case MAIN_QUIT: M_DrawSubpic (x, row, p, 0, 80, p->width, p->height - 80); break;
 			case MAIN_MODS:
 				if (m_main_mods > 0)
-					M_DrawTransPic (72, row, Draw_CachePic ("gfx/menumods.lmp"));
+					M_DrawTransPic (x, row, Draw_CachePic ("gfx/menumods.lmp"));
 				else
-					M_PrintEx (74, row + 1, 16, "MODS");
+					M_PrintEx (x + 2, row + 1, 16, "MODS");
 				break;
-			case MAIN_CONTINUE: M_PrintEx (74, row + 1, 16, "CONTINUE"); break;
-			case MAIN_VRCALIBRATION: M_PrintEx (74, row + 1, 16, "VR CALIBRATION"); break;
-			case MAIN_VRTUTORIAL: M_PrintEx (74, row + 1, 16, "VR TUTORIAL"); break;
-			case MAIN_VRHUB: M_PrintEx (74, row + 1, 16, "VR HUB"); break;
-			case MAIN_CAMPAIGNS: M_PrintEx (74, row + 1, 16, "SELECT CAMPAIGN"); break;
-			case MAIN_MAPLIBRARY: M_PrintEx (74, row + 1, 16, "DOWNLOAD MAPS"); break;
-			case MAIN_PLAYCUSTOM: M_PrintEx (74, row + 1, 16, "PLAY CUSTOM MAP"); break;
-			case MAIN_VRSETTINGS: M_PrintEx (74, row + 1, 16, "VR SETTINGS"); break;
-			case MAIN_VRADVANCED: M_PrintEx (74, row + 1, 16, "ADVANCED VR"); break;
+			case MAIN_CONTINUE: M_PrintEx (x + 2, row + 1, 16, "CONTINUE"); break;
+			case MAIN_LOADAUTOSAVE: M_PrintEx (x + 2, row + 1, 16, "LOAD AUTOSAVE"); break;
+			case MAIN_VRCALIBRATION: M_PrintEx (x + 2, row + 1, 16, "VR CALIBRATION"); break;
+			case MAIN_VRTUTORIAL: M_PrintEx (x + 2, row + 1, 16, "VR TUTORIAL"); break;
+			case MAIN_VRHUB: M_PrintEx (x + 2, row + 1, 16, "VR HUB"); break;
+			case MAIN_CAMPAIGNS: M_PrintEx (x + 2, row + 1, 16, "SELECT CAMPAIGN"); break;
+			case MAIN_MAPLIBRARY: M_PrintEx (x + 2, row + 1, 16, "DOWNLOAD MAPS"); break;
+			case MAIN_PLAYCUSTOM: M_PrintEx (x + 2, row + 1, 16, "PLAY CUSTOM MAP"); break;
+			case MAIN_VRSETTINGS: M_PrintEx (x + 2, row + 1, 16, "VR SETTINGS"); break;
+			case MAIN_VRADVANCED: M_PrintEx (x + 2, row + 1, 16, "ADVANCED VR"); break;
 			}
 		}
 	}
@@ -1641,7 +1709,35 @@ void M_Main_Draw (void)
 	if (M_Main_Shown (MAIN_CONTINUE))
 		M_Main_DrawContinue (M_Main_RowY (MAIN_CONTINUE, step, gap));
 
-	M_DrawQuakeCursor (54, M_Main_RowY (m_main_cursor, step, gap));
+	M_DrawQuakeCursor (x - 18, M_Main_RowY (m_main_cursor, step, gap));
+}
+
+// QVR: the main menu's rows' left and right ends as last drawn (menu x: from their cursor's column), for menu_vr pos.
+void M_Main_RowsExtent (float *left, float *right)
+{
+	int i;
+
+	*left = 54.f + m_main_shift;
+	*right = -1e9f;
+	for (i = 0; i < MAIN_ITEMS; i++)
+		if (M_Main_Shown (i) && i != MAIN_CONTINUE)
+			*right = q_max (*right, m_main_row_right[i]);
+}
+
+// QVR: the main menu's top (the title's) and its last row's bottom as last drawn, and the canvas's top and bottom (menu
+// y), for menu_vr pos.
+void M_Main_RowsSpan (float *top, float *bottom, float *canvasTop, float *canvasBottom)
+{
+	drawtransform_t transform;
+	float left, right;
+	int i;
+
+	*top = (float) m_main_top;
+	*bottom = -1e9f;
+	for (i = 0; i < MAIN_ITEMS; i++)
+		*bottom = q_max (*bottom, m_main_row_bottom[i]);
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	Draw_GetTransformBounds (&transform, &left, canvasTop, &right, canvasBottom);
 }
 
 // QVR: the cursor to the next row shown up (-1) or down (1), round the ends.
@@ -1733,6 +1829,10 @@ void M_Main_Key (int key)
 			}
 			else
 				M_Main_Continue ();
+			break;
+
+		case MAIN_LOADAUTOSAVE: // QVR: the rotating autosaves, newest first
+			M_Menu_Autosaves_f ();
 			break;
 
 		case MAIN_VRCALIBRATION: // QVR: the calibration room (vr_setup)
@@ -2138,6 +2238,337 @@ void M_Save_Mousemove (float cx, float cy)
 	M_UpdateCursor (cy, 32, 8, MAX_SAVEGAMES, &load_cursor);
 	if (load_cursor != prev)
 		M_MouseSound ("misc/menu1.wav");
+}
+
+//=============================================================================
+/* LOAD AUTOSAVE MENU */ // QVR
+
+// QVR: Load Autosave (the main menu's row, VR Settings > Saves and Autosaves, menu_autosaves) and the death menu (single
+// player, dead for vr_death_menu_delay seconds: M_CheckDeathMenu; player feedback: an autosave in an ambush trapped
+// them). The rotating autosaves (vr_continue.cpp), newest first, each in two lines: its map and title; health, armor,
+// time into the level and how long ago. The death menu has Respawn (as fire does: the last save loaded, sv_autoload,
+// else the level again) and Restart the Level above them; Back from it to the dead player (a press opens it again: only
+// its choices respawn).
+// (The author, 2026-10-22: it sat low on the VR menu's canvas, its rows crammed: the title now near the canvas's top,
+// the rows further apart.)
+#define AUTOSAVES_PAD	16	// the title below the canvas's top
+#define AUTOSAVES_TITLEH	36	// the title's room (its big letters at AUTOSAVES_TITLESCALE, and a gap below)
+#define AUTOSAVES_TITLESCALE	1.25f
+#define AUTOSAVES_ROWH	30	// a row's height (two lines; the laser's target)
+
+static struct
+{
+	qboolean	death;			// the death menu
+	qboolean	dismissed;		// closed while dead: not opened again until the player lives
+	qboolean	respawning;		// held back for this death: a respawn under way (logged once)
+	double		deadsince;		// sv.time the player was first seen dead (0: alive)
+	int			count;			// autosaves listed
+	int			cursor;			// the row (the death menu's actions first)
+	int			first;			// the first row drawn (scrolled)
+} autosavesmenu;
+
+// The rows above the autosaves: the death menu's Respawn and Restart, then which games' autosaves are listed (this
+// game's or every game's: vr_autosave_list_all; selecting it switches).
+static int M_Autosaves_Actions (void)
+{
+	return autosavesmenu.death ? 3 : 1;
+}
+
+static int M_Autosaves_ScopeRow (void)
+{
+	return M_Autosaves_Actions () - 1;
+}
+
+static int M_Autosaves_Rows (void)
+{
+	return M_Autosaves_Actions () + autosavesmenu.count;
+}
+
+// The canvas's top and bottom as shown (the VR panel's canvas reaches far above and below Quake's 320 x 200; a flat
+// screen's at least that).
+static void M_Autosaves_Bounds (float *top, float *bottom)
+{
+	drawtransform_t transform;
+	float left, right;
+
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	Draw_GetTransformBounds (&transform, &left, top, &right, bottom);
+	*top = CLAMP (-400.f, *top, 0.f);
+	*bottom = CLAMP (200.f, *bottom, 600.f);
+}
+
+// The title's y (near the canvas's top) and the first row's (below it).
+static int M_Autosaves_TitleY (void)
+{
+	float top, bottom;
+
+	M_Autosaves_Bounds (&top, &bottom);
+	return (int) top + AUTOSAVES_PAD;
+}
+
+static int M_Autosaves_Top (void)
+{
+	return M_Autosaves_TitleY () + AUTOSAVES_TITLEH;
+}
+
+// How many rows the canvas has room for, below the title (and a line for "more below...").
+static int M_Autosaves_Visible (void)
+{
+	float top, bottom;
+
+	M_Autosaves_Bounds (&top, &bottom);
+	return q_max (3, (int) (bottom - 16 - M_Autosaves_Top ()) / AUTOSAVES_ROWH);
+}
+
+static void M_Autosaves_KeepVisible (void)
+{
+	int visible = M_Autosaves_Visible ();
+
+	if (autosavesmenu.cursor < autosavesmenu.first)
+		autosavesmenu.first = autosavesmenu.cursor;
+	if (autosavesmenu.cursor >= autosavesmenu.first + visible)
+		autosavesmenu.first = autosavesmenu.cursor - visible + 1;
+	autosavesmenu.first = CLAMP (0, autosavesmenu.first, q_max (0, M_Autosaves_Rows () - visible));
+}
+
+static void M_Menu_Autosaves_Open (qboolean death)
+{
+	IN_DeactivateForMenu ();
+	key_dest = key_menu;
+	m_state = m_autosaves;
+	m_entersound = true;
+	autosavesmenu.death = death;
+	autosavesmenu.count = VR_AutosaveListRefresh ();
+	autosavesmenu.cursor = !death && autosavesmenu.count ? M_Autosaves_Actions () : 0; // (the newest autosave; Respawn)
+	autosavesmenu.first = 0;
+	Con_DPrintf ("%s: %d autosaves (title at y %d, rows from y %d, %d apart)\n", death ? "Death menu" : "Load Autosave",
+		autosavesmenu.count, M_Autosaves_TitleY (), M_Autosaves_Top (), AUTOSAVES_ROWH);
+}
+
+void M_Menu_Autosaves_f (void)
+{
+	M_Menu_Autosaves_Open (Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "death"));
+}
+
+static void M_Autosaves_Close (void)
+{
+	IN_Activate ();
+	key_dest = key_game;
+	m_state = m_none;
+}
+
+// A line cut to the canvas's right edge from x.
+static void M_Autosaves_Print (int x, int y, qboolean white, const char *text)
+{
+	drawtransform_t transform;
+	float left, top, right, bottom;
+	char line[128];
+	int chars;
+
+	Draw_GetCanvasTransform (CANVAS_MENU, &transform);
+	Draw_GetTransformBounds (&transform, &left, &top, &right, &bottom);
+	chars = CLAMP (8, (int) (right - 4 - x) / 8, (int) sizeof (line) - 1);
+	q_strlcpy (line, text, sizeof (line));
+	if ((int) strlen (line) > chars)
+		line[chars] = 0;
+	if (white)
+		M_PrintWhite (x, y, line);
+	else
+		M_Print (x, y, line);
+}
+
+void M_Autosaves_Draw (void)
+{
+	const char *title = autosavesmenu.death ? "You Died" : "Load Autosave";
+	char line1[96], line2[96], scope[64];
+	int i, row, y, visible = M_Autosaves_Visible (), titley = M_Autosaves_TitleY (), rowstop = M_Autosaves_Top ();
+
+	if (VR_BigFont_CanDraw (title))
+		VR_BigFont_DrawScaled ((int) (160.f - VR_BigFont_WidthScaled (AUTOSAVES_TITLESCALE, title) * 0.5f), titley,
+			AUTOSAVES_TITLESCALE, title);
+	else // (the big letters lack the capital Y and I: twice the menu's letters)
+		M_PrintWhiteEx (160 - 8 * (int) strlen (title), titley + 4, 16, title);
+
+	M_Autosaves_KeepVisible ();
+	for (i = 0; i < visible; i++)
+	{
+		row = autosavesmenu.first + i;
+		if (row >= M_Autosaves_Rows ())
+			break;
+		y = rowstop + i * AUTOSAVES_ROWH + 5; // (two lines 9 apart in the row's middle, a gap above and below)
+		if (row == M_Autosaves_ScopeRow ())
+		{
+			VR_AutosaveListScope (scope, sizeof (scope));
+			q_snprintf (line1, sizeof (line1), "Showing: %s", scope);
+			if (Cvar_VariableValue ("vr_autosave_list_all"))
+				q_strlcpy (line2, "Select: only the game you are playing", sizeof (line2));
+			else if (VR_AutosaveListHidden ())
+				q_snprintf (line2, sizeof (line2), "Select: all games (%d more)", VR_AutosaveListHidden ());
+			else
+				q_strlcpy (line2, "Select: all games", sizeof (line2));
+			M_Autosaves_Print (24, y + 1, true, line1);
+			M_Autosaves_Print (24, y + 10, false, line2);
+		}
+		else if (row < M_Autosaves_Actions ())
+		{
+			if (row == 0)
+				M_Autosaves_Print (24, y + 6, true, sv.lastsave[0] && sv_autoload.value >= 2.f
+					? "Respawn: load your last save" : "Respawn: start the level again");
+			else
+				M_Autosaves_Print (24, y + 6, true, "Restart the level");
+		}
+		else
+		{
+			VR_AutosaveDescribe (row - M_Autosaves_Actions (), line1, sizeof (line1), line2, sizeof (line2));
+			M_Autosaves_Print (24, y + 1, true, line1);
+			M_Autosaves_Print (24, y + 10, false, line2);
+		}
+		if (row == autosavesmenu.cursor)
+			M_DrawArrowCursor (12, y + 6);
+	}
+	y = rowstop + visible * AUTOSAVES_ROWH + 4;
+	if (!autosavesmenu.count)
+		M_Autosaves_Print (24, rowstop + M_Autosaves_Actions () * AUTOSAVES_ROWH + 11, false, VR_AutosaveListHidden () ? "No autosaves of this game yet." : "No autosaves yet.");
+	else if (autosavesmenu.first + visible < M_Autosaves_Rows ())
+		M_Print (24, y, "more below...");
+}
+
+void M_Autosaves_Key (int key)
+{
+	int rows = M_Autosaves_Rows ();
+
+	switch (key)
+	{
+	case K_ESCAPE:
+	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
+		if (autosavesmenu.death) // back to the dead player: a press opens it again (M_CheckDeathMenu)
+		{
+			autosavesmenu.dismissed = true;
+			M_Autosaves_Close ();
+		}
+		else
+			M_Menu_Main_f ();
+		break;
+
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+	case K_MOUSE1:
+		if (autosavesmenu.cursor >= rows)
+			break;
+		M_ThrottledSound ("misc/menu2.wav");
+		if (autosavesmenu.cursor == M_Autosaves_ScopeRow ()) // this game's autosaves or every game's: the list again
+		{
+			autosavesmenu.count = VR_AutosaveListToggleAll ();
+			break;
+		}
+		M_Autosaves_Close ();
+		// (Respawn: QC's respawn, as a press did: a checkpoint's, else the restart; a progs without it, the restart)
+		if (autosavesmenu.cursor == 0 && autosavesmenu.death && autosavesmenu.deadsince && PR_SetServerGlobalFloat ("vr_death_menu_respawn", 1.f))
+			Con_DPrintf ("Death menu: Respawn\n");
+		else if (autosavesmenu.cursor < M_Autosaves_Actions ())
+			Cbuf_InsertText (autosavesmenu.cursor == 0 ? "restart\n" : "restart fresh\n"); // (next, before any command queued)
+		else
+			VR_AutosaveLoad (autosavesmenu.cursor - M_Autosaves_Actions ());
+		break;
+
+	case K_UPARROW:
+	case K_LEFTARROW:
+	case K_MWHEELUP:
+		if (rows <= 0)
+			break;
+		M_ThrottledSound ("misc/menu1.wav");
+		autosavesmenu.cursor = (autosavesmenu.cursor - 1 + rows) % rows;
+		break;
+
+	case K_DOWNARROW:
+	case K_RIGHTARROW:
+	case K_MWHEELDOWN:
+		if (rows <= 0)
+			break;
+		M_ThrottledSound ("misc/menu1.wav");
+		autosavesmenu.cursor = (autosavesmenu.cursor + 1) % rows;
+		break;
+	}
+}
+
+void M_Autosaves_Mousemove (float cx, float cy)
+{
+	int prev = autosavesmenu.cursor;
+	int row = (int) floor ((cy - M_Autosaves_Top ()) / AUTOSAVES_ROWH);
+
+	if (row < 0 || row >= M_Autosaves_Visible () || autosavesmenu.first + row >= M_Autosaves_Rows ())
+		return;
+	autosavesmenu.cursor = autosavesmenu.first + row;
+	if (autosavesmenu.cursor != prev)
+		M_MouseSound ("misc/menu1.wav");
+}
+
+// QVR: the death menu opened when the player of a single-player campaign game has been dead vr_death_menu_delay seconds
+// (not the VR maps, not after Back closed it for this death); closed when they live again another way.
+void M_CheckDeathMenu (void)
+{
+	edict_t *player;
+	qboolean asked;
+
+	// (On every map, Quake VR's own too: they had none, and a press respawned there: author's notes 2026-10-20, 2026-10-22,
+	// on vrfiringrange and vrragtriggers. A map with checkpoints respawns at its latest: QC's respawn.)
+	if (!sv.active || svs.maxclients != 1 || !svs.clients || !svs.clients[0].edict || cls.signon != SIGNONS)
+		return;
+	player = svs.clients[0].edict;
+	if (player->v.health > 0.f || cl.intermission)
+	{
+		// (alive again another way: its death menu closed; one opened alive, Debug's, stays)
+		if (autosavesmenu.deadsince && m_state == m_autosaves && autosavesmenu.death && key_dest == key_menu)
+			M_Autosaves_Close ();
+		if (autosavesmenu.deadsince)
+			PR_SetServerGlobalFloat ("vr_death_menu_hold", 0.f);
+		autosavesmenu.deadsince = 0.;
+		autosavesmenu.dismissed = false;
+		autosavesmenu.respawning = false;
+		return;
+	}
+	if (!autosavesmenu.deadsince)
+	{
+		autosavesmenu.deadsince = q_max (sv.qcvm.time, 0.001);
+		Con_DPrintf ("Death menu: the player died (key_dest %d, menu %d)\n", (int) key_dest, (int) m_state);
+	}
+	// The menu holds the respawn: a press only opens it (QC's PlayerDeathThink: vr_death_menu_asked), and only its
+	// choices respawn (author's note 2026-10-22). Off, or a load under way: a press respawns as in Quake.
+	if (!Cvar_VariableValue ("vr_death_menu") || sv.autoloading)
+	{
+		PR_SetServerGlobalFloat ("vr_death_menu_hold", 0.f);
+		return;
+	}
+	PR_SetServerGlobalFloat ("vr_death_menu_hold", 1.f);
+	asked = PR_ServerGlobalFloat ("vr_death_menu_asked") != 0.f;
+	if (asked)
+	{
+		PR_SetServerGlobalFloat ("vr_death_menu_asked", 0.f);
+		autosavesmenu.dismissed = false; // (closed with Back: a press opens it again)
+		Con_DPrintf ("Death menu: a press asked for it\n");
+	}
+	if (autosavesmenu.dismissed)
+		return;
+	if (!asked && sv.qcvm.time - autosavesmenu.deadsince < Cvar_VariableValue ("vr_death_menu_delay"))
+		return;
+	// (In the game, whatever m_state says: a map or a load started from a menu leaves key_dest key_game and m_state the
+	// menu it came from, and the death menu never opened in play, only in tests started by a script: author's note
+	// 2026-10-20. Not once a press asked for a respawn, QC's respawn: its restart, or the load it makes, under way.)
+	if (key_dest != key_game)
+		return;
+	if (PR_ServerGlobalFloat ("vr_restart_queued") || VR_LoadingWaiting ())
+	{
+		if (!autosavesmenu.respawning)
+			Con_DPrintf ("Death menu: not opened: a respawn is under way\n");
+		autosavesmenu.respawning = true;
+		return;
+	}
+	Con_DPrintf ("Death menu: opening (menu %d before)\n", (int) m_state);
+	M_Menu_Autosaves_Open (true);
+	VR_MenuPanelInFront ();
 }
 
 //=============================================================================
@@ -3668,6 +4099,7 @@ void M_Menu_Gamepad_f (void)
 		item (SPACER,					"")								\
 		item (OPT_CONSOLE,				"Console")						\
 		item (OPT_DEFAULTS,				"Reset All")					\
+		item (OPT_BUGREPORT,			"Create Bug Report") /* QVR */	\
 	end_menu ()															\
 	begin_menu (VIDEO_OPTIONS, m_video, TITLE("Display"))				\
 		item (OPT_RESOLUTION,			"Resolution")					\
@@ -4382,8 +4814,18 @@ void M_AdjustSliders (int dir)
 		Cbuf_AddText ("toggle r_enhancedmodels\n");
 		break;
 	case OPT_ANIMLERP:
-		Cvar_SetValueQuick (&r_lerpmodels, !r_lerpmove.value);
-		Cvar_SetValueQuick (&r_lerpmove, !r_lerpmove.value);
+		// QVR: Classic sets 0 and remembers the Smooth mode (r_lerpmodels 3 among them); Smooth restores it
+		if (r_lerpmodels.value)
+		{
+			menu_animlerp_smooth = r_lerpmodels.value;
+			Cvar_SetValueQuick (&r_lerpmodels, 0.f);
+			Cvar_SetValueQuick (&r_lerpmove, 0.f);
+		}
+		else
+		{
+			Cvar_SetValueQuick (&r_lerpmodels, menu_animlerp_smooth ? menu_animlerp_smooth : 1.f);
+			Cvar_SetValueQuick (&r_lerpmove, 1.f);
+		}
 		break;
 	case OPT_PARTICLES:
 		Cvar_SetValueQuick (&r_particles, (int)(q_max (r_particles.value, 0.f) + 3 + dir) % 3);
@@ -5372,6 +5814,9 @@ void M_Options_Key (int k)
 		case OPT_CONSOLE:
 			m_state = m_none;
 			Con_ToggleConsole_f ();
+			break;
+		case OPT_BUGREPORT: // QVR: this run's and the last run's logs in quakevr/bugreports/<date>_<time>.zip (vr/vr_runlogs.cpp)
+			Cbuf_AddText ("bugreport\n");
 			break;
 		case OPT_DEFAULTS: // QVR: asked over the menu (M_Confirm), Cancel by itself after 15 seconds as before
 			M_Confirm ("This will reset all controls\nand stored cvars. Continue?", "Reset", "Cancel", 15.f, M_Options_ResetDefaults);
@@ -7823,6 +8268,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_main", M_Menu_Main_f);
 	Cmd_AddCommand ("menu_singleplayer", M_Menu_SinglePlayer_f);
 	Cmd_AddCommand ("menu_load", M_Menu_Load_f);
+	Cmd_AddCommand ("menu_autosaves", M_Menu_Autosaves_f); // QVR: Load Autosave ("menu_autosaves death": the death menu)
 	Cmd_AddCommand ("menu_save", M_Menu_Save_f);
 	Cmd_AddCommand ("menu_multiplayer", M_Menu_MultiPlayer_f);
 	Cmd_AddCommand ("menu_setup", M_Menu_Setup_f);
@@ -7943,7 +8389,7 @@ float M_ContentLeftBelow (float y)
 	{
 		for (i = 0; i < MAIN_ITEMS; i++)
 			if (m_main_row_bottom[i] > y)
-				return 54.f; // (M_DrawQuakeCursor's column)
+				return 54.f + m_main_shift; // (M_DrawQuakeCursor's column, centred: M_Main_Shift)
 		return 1e9f;
 	}
 	M_ContentExtent (&right, &bottom);
@@ -7967,7 +8413,22 @@ int M_TextLeft (void)
 	}
 }
 
+// QVR: the first menu panel's menu, whichever panel is focused (VR_MenuDrawSelect; the others: M_DrawPanel)
 void M_Draw (void)
+{
+	int was = VR_MenuDrawSelect ();
+	M_DrawPanel ();
+	if (VR_MenuDrawRestore (was))
+		M_RefreshBounds ();
+}
+
+void M_RefreshBounds (void)
+{
+	if (m_state != m_none && key_dest == key_menu)
+		M_UpdateBounds ();
+}
+
+void M_DrawPanel (void)
 {
 	qboolean recolor; // QVR
 
@@ -8099,6 +8560,10 @@ void M_Draw (void)
 
 	case m_confirm: // QVR
 		M_Confirm_Draw ();
+		break;
+
+	case m_autosaves: // QVR
+		M_Autosaves_Draw ();
 		break;
 	}
 
@@ -8253,6 +8718,10 @@ void M_Keydown (int key, qboolean repeat)
 	case m_confirm: // QVR
 		M_Confirm_Key (key);
 		return;
+
+	case m_autosaves: // QVR
+		M_Autosaves_Key (key);
+		return;
 	}
 }
 
@@ -8369,6 +8838,10 @@ void M_Mousemove (int screenx, int screeny)
 
 	case m_confirm: // QVR
 		M_Confirm_Mousemove (x, y);
+		return;
+
+	case m_autosaves: // QVR
+		M_Autosaves_Mousemove (x, y);
 		return;
 	}
 }

@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "vr/vr_tracy.h"
 #include "q_ctype.h"
 #include "json.h"
 #include <time.h>
@@ -2443,6 +2444,7 @@ Host_Savegame_f
 */
 static void Host_Savegame_f (void)
 {
+	VR_TRACY_SCOPE("Save game");
 	char		relname[MAX_OSPATH];
 	char		name[MAX_OSPATH];
 	const char	*skipnotify;
@@ -2500,6 +2502,16 @@ static void Host_Savegame_f (void)
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".sav", sizeof(relname));
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
+	// QVR: `save <name> 0 rotate` (Host_CheckAutosave's): the autosaves kept each a slot older first, once any save still
+	// being written is done (VR_AutosaveRotate: vr_autosave_slots, the oldest replaced)
+	if (Cmd_Argc () >= 4 && !strcmp (Cmd_Argv (3), "rotate"))
+	{
+		SDL_LockMutex (save_mutex);
+		while (save_pending)
+			SDL_CondWait (save_finished_condition, save_mutex);
+		SDL_UnlockMutex (save_mutex);
+		VR_AutosaveRotate (name);
+	}
 	VR_AddonOnSave (name); // QVR: <save>.addon names the map package it was made in
 
 	// second argument, if present, indicates whether or not text should be printed to the notification area
@@ -2553,6 +2565,7 @@ Host_Loadgame_f
 */
 static void Host_Loadgame_f (void)
 {
+	VR_TRACY_SCOPE("Load game");
 	static char	*start;
 	
 	char	name[MAX_OSPATH];
@@ -2597,6 +2610,10 @@ static void Host_Loadgame_f (void)
 
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".sav", sizeof(relname));
+
+	// QVR: a save still being written in the background (a load right after a save) is finished first: read half
+	// written, it fails with "ED_ParseEntity: EOF without closing brace" (collectfx_test.sh's batched case found it)
+	Host_WaitForSaveThread ();
 
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
 

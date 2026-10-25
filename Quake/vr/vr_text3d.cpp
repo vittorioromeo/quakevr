@@ -1,14 +1,18 @@
 // vr_text3d.cpp -- see vr_text3d.hpp. Layout from the old engine's R_DrawWorldText.
 
 #include "vr_text3d.hpp"
+#include "vr_tracy.h"
 #include "vr_color.hpp"
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
 #include "vr_shadows.hpp"
 #include "vr_decals.hpp"
 #include "vr_cvars.hpp"
+#include "vr_adtank.hpp"
 #include "vr_cellcord.hpp"
 #include "vr_chainsaw.hpp"
+#include "vr_magholster.hpp"
+#include "vr_flail.hpp"
 #include "vr_hue.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_flashlight.hpp"
@@ -1348,6 +1352,9 @@ extern "C" void VR_DrawSceneOpaque()
     flashlight::drawOpaque(); // the flashlight's cord (vr_flashlight.cpp)
     chainsaw::drawOpaque();   // the chainsaw's starter cord and its handle in the hand (vr_chainsaw.cpp)
     cellcord::drawOpaque();   // the cell cords (vr_cellcord.cpp)
+    adtank::drawOpaque();     // AD support: the flamethrowers' fuel tank and hose (vr_adtank.cpp)
+    magholster::drawOpaque(); // the magnetic holsters' chains (vr_magholster.cpp)
+    flail::drawOpaque();      // AD support: the death sergeant's flail's chain (vr_flail.cpp)
     rope::drawOpaque(); // the grappling hook's ropes (vr_rope.cpp)
 
     if(!(cl.protocolflags & PRFL_QUAKEVR))
@@ -1361,6 +1368,7 @@ extern "C" void VR_DrawSceneOpaque()
     // Billboards and facing tests belong to this camera, including portal views.
     // Reusing the first portal camera here mirrors text in the main eye view.
     {
+        QVR_TRACY_SCOPE(zoneLayout, "text3d layout"); // (profiling builds: the boards, texts and log laid out)
         builtFrame = host_framecount;
         setViewPlanes(gfx::sceneViewProjection()); // the boards' cull (layoutBoard)
         vertices.clear();
@@ -1394,15 +1402,17 @@ extern "C" void VR_DrawSceneOpaque()
             }
         }
         if(!portals::viewing())
-        for(const Queued& q : queuedTexts())
         {
-            if(q.overlay)
+            for(const Queued& q : queuedTexts())
             {
-                layoutOverlay(q);
-            }
-            else
-            {
-                layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen);
+                if(q.overlay)
+                {
+                    layoutOverlay(q);
+                }
+                else
+                {
+                    layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen);
+                }
             }
         }
 

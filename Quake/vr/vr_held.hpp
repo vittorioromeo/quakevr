@@ -35,6 +35,10 @@ void anglesFromAxes(const glm::mat3& m, float* out, bool brush);
 // scaling, then the model's own and `offset` (on raw vertices; brush models: before the scale).
 void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& scaleOrigin, const glm::vec3& offset,
     glm::vec3& lo, glm::vec3& hi);
+// The same transform for one point of the model's own space (its bounds'): where it is drawn, in the entity's axes,
+// relative to its origin (a rigid body's frame: vr_box3d.cpp syncPropRopes's rope ends).
+[[nodiscard]] glm::vec3 drawnPoint(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& scaleOrigin,
+    const glm::vec3& offset, const glm::vec3& point);
 
 // The middle of client entity `num` as drawn.
 [[nodiscard]] glm::vec3 drawnCentre(int num);
@@ -89,7 +93,7 @@ void viewPush(int hand, const glm::vec3& push);
 
 // Client side: the throw estimate of `hand` (tracking clock `at`) holding a prop in both hands: the prop's own motion
 // from both hands (throwing::estimateBothAt). `release`: the hand lets go now, of a prop held in both, or held in both
-// until the other let go at most vr_carry_two_hands_window before (a two-handed throw); else the estimate as if let
+// until the other let go at most vr_throw_2h_window before (a two-handed throw); else the estimate as if let
 // go now, while held in both. False: not held in both (the hand's own estimate stands).
 bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 
@@ -98,6 +102,18 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // Round 21, second pass: the distance (units) from `point` to the drawn surface of `ent` (its model as drawn: the
 // networked scale and offset), its nearest point in `nearest`; -1 if it has no surface to measure.
 [[nodiscard]] float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest = nullptr);
+
+// The gap (units) between a fist's spheres (world: middle and radius) and `ent`'s drawn surface: the least of each
+// sphere's distance less its radius; ZA_FLOAT_MAX when the fist's bounds are farther than `within` from the box it is
+// drawn in (not measured), or when it has no surface to measure (`surface` false). Its mesh is made once (the model's
+// frame as drawn, in its own space, with a box tree: every surface query here uses it); `stopAt`: done as soon as a
+// sphere is that near (the gap returned is then at most it, not the least).
+[[nodiscard]] float fistGap(edict_t* ent, const za::Vector<glm::vec4>& spheres, float within, bool& surface,
+    float stopAt = -1e30f);
+
+// vr_agrunt_grab_bench: fistGap's cost a call against `ent` (the old per-sphere re-posing, posed once a call, the cached
+// mesh's tree exact, stopping at `allowed`), printed with each one's gap.
+void benchFistGap(edict_t* ent, const za::Vector<glm::vec4>& spheres, float allowed, int calls);
 
 // Server side: the corners of `ent`'s drawn surface (as surfaceDistance measures it: the alias model's current frame,
 // the brush model's faces), in its axes relative to its origin, three a triangle; false if it has none (the rigid

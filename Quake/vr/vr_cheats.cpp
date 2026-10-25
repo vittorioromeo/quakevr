@@ -15,6 +15,7 @@
 #include "vr_autopump.hpp"
 #include "vr_smoulder.hpp"
 #include "vr_fireparticles.hpp"
+#include "vr_flamewobble.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_shock.hpp"
 #include "vr_progs.hpp"
@@ -101,6 +102,7 @@ void clientParts(int bits, bool clear)
     {
         smoulder::clear();
         fireparticles::clear();
+        flamewobble::clear();
     }
     if(bits & Effects)
     {
@@ -112,6 +114,7 @@ void clientParts(int bits, bool clear)
         autopump::clear();
         smoulder::clear();
         fireparticles::clear();
+        flamewobble::clear();
         weaponfx::clear();
         shock::clear();
         memset(cl_dlights, 0, sizeof(cl_dlights));

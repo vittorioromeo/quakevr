@@ -10,8 +10,8 @@
 # Model space as the enemy guns' (make_enemyguns.py), whose weapon settings it starts from (slot 26 copies slot 21's,
 # Quake/vr/vr_weapons.inc): +x along the barrel (towards the muzzle), +z up, +y left; the origin in the middle of the
 # pistol grip, which the main hand holds. Units: at the weapon settings' Scale 0.39 one model unit is 0.39 Quake units,
-# about 1.2 cm: the gun is about 23 cm long. The muzzle anchor (MuzzleAnchorVertex) is the lens's front centre, whose
-# vertex index this prints; the script also prints the bounds' corner (the MDL's scale_origin, about which the weapon
+# about 1.2 cm: the gun is about 23 cm long. The muzzle anchor (MuzzleAnchor) is the lens's front centre, whose
+# point this prints; the script also prints the bounds' corner (the MDL's scale_origin, about which the weapon
 # Scale pivots: vr_weapons.inc's Offset follows it).
 
 import math
@@ -106,8 +106,9 @@ def main():
     mdlgen.write_mdl(path, m, [skin], "toolgun")
     lo = [min(v[0][k] for v in m.verts) for k in range(3)]
     print("v_toolgun.mdl: %d vertices, %d triangles -> %s" % (len(m.verts), len(m.tris), os.path.normpath(path)))
-    print("muzzle anchor vertex %d at %s; bounds' corner (scale_origin) %.3f %.3f %.3f" %
-          (muzzle, tuple(round(c, 3) for c in m.verts[muzzle][0]), lo[0], lo[1], lo[2]))
+    import anchors
+    print("muzzle anchor \"%s\"; bounds' corner (scale_origin) %.3f %.3f %.3f" %
+          (anchors.vertex_text(path, muzzle), lo[0], lo[1], lo[2]))
     guard.finish()
 
 

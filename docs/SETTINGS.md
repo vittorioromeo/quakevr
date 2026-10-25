@@ -62,7 +62,19 @@ corner's *Search* button.
 |---|---|
 | **Height Calibration** | Height, *Set Height Now*, World Scale, Floor Offset |
 | **Hand Calibration** | Show Controller (the real controllers drawn, to line the hands up; not saved), Hand Forward, Hand Inward, Hand Up (cm), Hand Pitch, Hand Yaw, Hand Roll (degrees), *Reset Hand Offsets* |
-| **Holster Calibration** | Hip, Chest and Back Holsters Forward, Inward, Up, *Reset Holsters*, Shoulder Holster Weapons (the guns in the back pair, over the shoulders, drawn: off by default) |
+| **Body and Equipment** | Height, Legs Fit Your Height, Gear Fits Your Body, *Body Calibration*; the shoulders, torso, belt and flashlight; the ammo pouch's place, size, counter and rounds shown (its wobble: Advanced VR Options > Weapons > Reloading > *Ammo Pouch Wobble*); *Reset Body and Equipment* (the holsters too) |
+| **Holster Calibration** (VR Settings > Calibration > *Holster Calibration*) | *Holster Setup (drag and drop)* (the recommended way, below), Hip, Chest and Back Holsters Forward, Inward, Up, *Seated Holsters*, *Reset Holsters*, Shoulder Holster Weapons (the guns in the back pair, over the shoulders, drawn: off by default) |
+
+**Holster Setup (drag and drop)** places the holsters and pouches by hand, no sliders needed. The game pauses (single
+player only) and every holster and pouch shows as a labelled see-through box on your body: grip one with either hand and
+drag it where you want it (it follows your body afterwards); grip it with both hands and spread or close them to make it
+bigger or smaller (or hold it with one hand and push that stick up or down). A panel in front of you (touch a button,
+pull the trigger): **Symmetry** (on: the other holster of the pair moves mirrored; off: each on its own), **Undo** (also
+B/Y), **Reset Holster** (the last one held or pointed at), **Reset All**, **Cancel** (everything back as it was) and
+**Done** (also the menu button). A mirror image of your body stands beside the panel, the boxes on it too, so you see
+each holster move from the front. VR Calibration offers it when it finishes (*Set Up Holsters* or *Not Now*). It sets
+the same settings as the sliders; played seated, it sets the seated places. The
+hip, chest and back holsters, the ammo pouch (Immersive reloading) and the grenade pouch (hand grenades) are covered.
 | **Locomotion** | Move Towards (Head, Left Hand, Right Hand), Default Speed (run or walk), Stick Deadzone, Swap Stick Functions |
 | **Comfort** | Vignette (off, moving and turning, moving only, turning only), Vignette Strength |
 | **Teleportation** | Teleport, Teleport Range |
@@ -70,6 +82,7 @@ corner's *Search* button.
 | **Flashlight** | Flashlight (on your belt), Flashlight Side (left or right hip) |
 | **Lighting** | Ambient Light, Light Contrast |
 | **Weapons** | Weapon Grip (hold or sticky), Two-Handed (off, basic, virtual stock) |
+| **Item Collection** (under Playing) | Item Pickup Mode (Immersive: grip boxes and backpacks to carry them, put them away at a holster; Auto-Collect: a box gripped or force-grabbed is taken at once; Vanilla: walk into them, as in Quake), Backpacks Too (Auto-Collect takes backpacks at once too). The detailed rows: Advanced VR Options > Carrying and Throwing > Carrying |
 | **Body** | Body Type (full, torso and arms, only hands), Wrist Gadget Arm, *Reset Position* |
 | **Haptics** | Vibration Strength (0: none) |
 | **HUD** | HUD (wrist gadget or status bar), Crosshair |
@@ -77,13 +90,14 @@ corner's *Search* button.
 | **Display** | Headset Gamma, Headset Contrast |
 | **Scaling** | Render Scale, Upscaling (bilinear, FSR, NIS), Sharpening, Foveated Rendering (off, conservative, balanced, aggressive) |
 | **Graphics** | Retro Textures, Retro Lighting, Antialiasing (off, 2x, 4x, 8x), Bloom, Tone Mapping, Bump Mapping, Parallax Mapping |
+| **Graphics Presets** | The [presets](#graphics-presets) (Off, Low, Medium, High as shipped, Ultra), *My Settings*, *Save as My Settings*, and a line saying which the settings match now |
 | **Reset** | *Reset All to Defaults* (press twice within 3 seconds) |
 
 The settings that were on this page before (October 2026) are on their topic's pages: the Comfort preset, Turning
 (smooth or snap 30/45/90 in one row), Move Towards with the moving stick's hand, Teleport Range and Room Scale on
 **Locomotion**; Handedness on **Body and Display**; Gun Angle and Off Hand Angle on **Hand/Gun Calibration**; Dominant
 Eye, Two-Handed and Two-Handed Hand-Off on **Aiming**; Haptics on or off on **Immersion**; Throw Speed and Throw Gravity
-on **Carrying and Throwing**; Force Grab on **Force Grab**; the Graphics Preset on **Graphics**. *Body and Display*,
+on **Carrying and Throwing**; Force Grab on **Force Grab**. *Body and Display*,
 *Headset*, *Sound*, *Tips*, *Changed Settings* and *Run VR Calibration Again* are under Advanced VR Options > **Setup**.
 
 **Body and Display:** Handedness (a preset: right- or left-handed, or Custom), Swap Stick Functions, Wrist Gadget Arm
@@ -177,7 +191,7 @@ about a screenful each. Pages marked (D) show only at Menu Detail: Developer.
 | **Wall Torches** | Taking torches off walls, force-grabbing them, blows before one dies, burning, lighting again, shooting them off |
 | **Rocks and Bricks** | Throwable rocks and bricks placed in maps: where, how many (in a map, in multiplayer, in an area), sizes |
 | **Crates** | Breakable wooden crates placed in maps: density, stacking, health, pieces, what's inside, the crowbar, hiding behind them |
-| **Gibs and Corpses** | Grabbing gibs and heads, their damage, destroying gibs, hard throws bursting them; gibbing corpses; pushable corpses; ragdolls (and, at Developer, *Ragdolls* and per-monster pages) |
+| **Gibs and Corpses** | Grabbing gibs and heads, their damage, destroying gibs, hard throws bursting them; gibbing corpses; pushable corpses; ragdolls (and, at Developer, *Ragdolls* and per-monster pages; *Ragdolls* has whether a ragdoll's limbs meet each other and each active-ragdoll behaviour's strength, chance and time, and links to Debug > Tests > *Ragdoll Behaviours*) |
 | **Held Object Offsets**, **Held Object Weights** (D) | Where each prop sits in the hand, and its weight |
 
 **Gore**
@@ -231,13 +245,14 @@ reverb, sounds from your hands, Doppler, near field), the underwater muffle and 
 Again*.
 
 **Debug** (D): the checklist, voice notes, and the Views, Logging, Profiling and Memory, Reports, Tools and Tests
-pages.
+pages. Tests > *Ragdoll Behaviours* sets each active-ragdoll behaviour going on the nearest grunt, enforcer, knight,
+death knight, ogre or zombie (`vr_ragdoll_act <name>`; the console says whether it began).
 
 **Graphics**
 
 | Page | What's on it |
 |---|---|
-| **Graphics** | The [preset](#graphics-presets); anti-aliasing, smooth textures, fence coverage, relit maps, headset contrast (gamma is on VR Settings); links to the pages below; the performance profile and the FPS counter on the gadget (the memory log is on Debug - Profiling and Memory) |
+| **Graphics** | Which [preset](#graphics-presets) the settings match, and a link to the presets; anti-aliasing, smooth textures, fence coverage, relit maps, headset contrast (gamma is on VR Settings); links to the pages below; the performance profile and the FPS counter on the gadget (the memory log is on Debug - Profiling and Memory) |
 | **Relighting** | Relighting maps in the game: this map or many, the light sliders, the progress ([RELIGHTING.md](RELIGHTING.md#relighting-in-the-game)) |
 | **Teleporters** | Teleporter views and seamless teleporters (walking through), enemies seeing and shooting through them, the gates' look |
 | **Retro Textures**, **Retro Lighting** | The retro look: blocky, palette-snapped textures per category of thing, and banded, dithered or blocky light (presets: Software Quake, Blocky Lightmaps, Banded and Dithered) |
@@ -245,7 +260,7 @@ pages.
 | **Lights** | Light contrast, coloured lights, dynamic lights (falloff, uncapped, on models, angle); the lights of muzzle flashes, explosions, projectiles, lava nails, lightning beams, torches (count, brightness, shadows) and ammo screens |
 | **Shadows** | Shadow-casting dynamic lights and map lights (count, detail, strength), muzzle-flash shadows, your shadow, softness, distance, atlas, bias, statistics; blob shadows |
 | **Surfaces** | Light sheen and its anti-aliasing; bump maps (depth, in map light, real light directions, on models); parallax (depth, distance, items, models); detail textures |
-| **Liquids** | Waves, reflection, refraction, glints, lava glow, real waves, shoreline foam, heat haze; under water (caustics, the view, wobble); splashes, rings, ripples and water sounds |
+| **Liquids** | Waves, reflection, refraction, glints, lava glow, real waves, shoreline foam, heat haze; under water (caustics, the view, wobble); splashes, rings, ripples and water sounds. *Shoreline Foam Settings*: each liquid's foam (water, lava, slime: on, opacity, frequency, strength, breathing, colour, foam particles) |
 | **Post-processing** | Bloom (threshold, size, white and coloured lights, adapt); tone mapping, exposure, colour grade, dither |
 | **Models and Effects** | Model lighting, models lit as the world, directional ambient, rim light, hands' least light, weapon reflections; screen, text and sight glow, sight hue; soft particles, decals, gib blood |
 | **Particles** | Particles on/off, Quake VR particles, particle multiplier; large fireballs per explosion; *Explosion Debris* (physical chunks) and *Fire Particles* pages |
@@ -253,23 +268,32 @@ pages.
 
 ## Graphics presets
 
-*Graphics > Preset* sets the shadows, dynamic lights, model lighting and the look of every Graphics page all at
-once. Change single settings afterwards to taste. The preset then shows *Custom*.
+**VR Settings > Graphics Presets** (also linked from Advanced VR Options > Graphics) sets all the graphics settings at
+once: shadows and dynamic lights, the look (contrast, bloom, tone mapping, sheen), lights from torches, flames and
+projectiles, bumps and parallax, carved bullet holes, permanent marks, ambient occlusion, particles, liquids,
+teleporter views and the heat haze. It never touches comfort, gameplay, your body, calibration or sound. Change single
+settings afterwards to taste. Its first line says what the settings match now: a preset's name, *My Settings*, or
+*Custom*.
 
-| Preset | Shadow-casting dynamic lights | Map lights casting shadows | Shadow quality | Shadow distance |
-|---|---|---|---|---|
-| Off (Quake) | none | none | – | – |
-| Low | 2 | none | 256, 4 taps | 1024 |
-| Medium | 4 | 2 | 512, 4 taps | 1536 |
-| High | 6 | 4 | 512, 9 taps | 2048 |
-| Ultra | 8 | 4 | 1024, 16 taps | 3072 |
+| Preset | Shadowed dynamic lights | Map lights casting shadows | Shadow size, distance | What else | GPU |
+|---|---|---|---|---|---|
+| Off (Quake) | none | none | – | Quake's own look: flat lights, no bumps, AO, bloom, tone mapping, liquid effects | 1.3 ms |
+| Low | 2 | none | 256, 1024 | no bumps, parallax, AO, carved holes, refraction, teleporter views, heat haze; fewer lights from things | 1.4 ms |
+| Medium | 4 | 2 | 512, 1536 | everything (parallax without its depth, as in High: things meet the surface, not its relief) | 2.0 ms |
+| High (as shipped) | 8 | 4 | 1024, 3072 | the shipped defaults (the parallax depth write off since config 192) | 2.0 ms |
+| Ultra | 12 | 6 | 1024, 4096 | the parallax depth write (things meet the relief), more torch lights, particles at full resolution, the finer bloom, more parallax steps | 3.6 ms |
 
-*Off (Quake)* also turns off model lighting, per-pixel dynamic lights on models and blob shadows, and restores
-Quake's look. The shipped settings go beyond Ultra in places (12 shadow-casting dynamic lights). They were tuned on a
-fast PC, so pick a preset if your frame rate suffers.
+GPU: the eyes' GPU time a frame in a 90 Hz benchmark of an Arcane Dimensions fight (`play_ad_tfuma_fight`,
+2048-pixel eyes, a fast card). In a firing range fight with gore Low and Medium take 55% and 66% of High's; the CPU
+time hardly changes (it is the game's, not the drawing's).
 
-Everything else on the Graphics pages (bloom, bumps, parallax, detail textures, tone mapping, water, and so on) has
-its own switch or slider. For the cost of each, see the profiler in [INSTALL.md](INSTALL.md#performance).
+**My Settings:** the first time you pick a preset, your own values of every setting a preset changes are kept (in
+`graphics_my_settings.cfg` in the game folder, next to `ironwail.cfg`). Switching between presets never changes them.
+*My Settings* sets them all back exactly; *Save as My Settings* (press it twice) keeps the current values instead.
+
+Everything else on the Graphics pages has its own switch or slider. Anti-aliasing is not part of a preset (VR Settings
+> Display and Graphics): 2x instead of 4x saves about 15% of the GPU time. For the cost of each effect, see the
+profiler in [INSTALL.md](INSTALL.md#performance).
 
 ## Weapon offsets
 
@@ -387,6 +411,10 @@ built-in ones.
 | `vr_flashlight_side` | 0 | the hip the torch hangs on: 0 left, 1 right |
 | `vr_body_mode` | 3 (shipped) | 0 off, 2 torso and arms, 3 full body |
 | `vr_body_build` | 1 | 0 lean, 1 athletic, 2 brawny |
+| `vr_body_bracers` | 0 | the forearms' leather bracers and the wrist gadget's straps; 0 bare forearms, the skin running on into the hands (VR Settings > Player Appearance: Bracers; with the jointed hand) |
+| `vr_skin_tone` | 0 | the skin of the hands and arms darker (-1) or lighter (+1); 0 as painted (VR Settings > Player Appearance) |
+| `vr_gloves` | 0 | leather gloves on the jointed hands: 0 none, 1 fingerless (fingertips bare, in the skin tone), 2 full; with bare forearms a cuff over the wrist (VR Settings > Player Appearance) |
+| `vr_glove_hue`, `vr_glove_saturation`, `vr_glove_lightness` | 25, 0.45, 0.2 | the gloves' colour (hue in degrees; saturation and lightness 0..1); the hand's own shading kept |
 | `vr_body_torso_back`, `vr_body_legs_back` | 0.07, 0.3 (shipped) | body placement, metres behind your head |
 | `vr_bodycal_upper_arm`, `_forearm`, `_shoulders_back/_up/_out`, `_shoulder_rise`, `_swing` | 0 | Body Calibration's measurements (cm, metres, degrees; 0 lengths: not calibrated) |
 | `vr_body_tweak_upper_arm`, `_forearm`, `_shoulders_back/_up/_out`, `_shoulder_rise`, `_swing` | 0 | your tweaks on top of them, the same units (uncalibrated: on the default body) |
@@ -412,6 +440,68 @@ built-in ones.
 | `vr_forcegrab_mode` | 1 | force grab |
 | `vr_melee_speed`, `vr_melee_wrist_speed` | 3, 1.1 | how fast (m/s) the striking hand (a weapon's swing 1.25x, a stab 0.75x) and its wrist must move for a blow |
 | `vr_parry`, `vr_bash`, `vr_headbutt`, `vr_deflect` | 1 | parry, bash, headbutt, batting projectiles |
+| `vr_posestudio_reach` | 2.5 | the Pose Studio: the armed humanoid nearest within this many metres is the one edited |
+| `vr_agrunt_poses` | "" | the Pose Studio's pose keys changed from the shipped ones (kept between sessions; Reset Pose, Undo, Cancel there) |
+| `vr_posestudio_live_loop`, `vr_posestudio_live_speed` | 0, 1 | the Pose Studio's Live mode: the loop played (0 all, 1 aim and fire, 2 reload, 3 run, 4 strikes, 5 pickup) and its speed (0.1..1); the panel's Loop and Speed set them |
+| `vr_posestudio_live_follow` | 1 | Live, paused: a dragged part follows your hand at that frame (the key moves by the drag over its share there); 0: the key moves by the drag |
+| `vr_posestudio_live_walk` | 1 | Live, paused: the sticks walk and turn, scrubbing while a grip is held on nothing (or a hand is at the panel); 0: the sticks scrub |
+| `vr_posestudio_panel` | (empty) | The panel where you put it with its top bar (grip "Move"), from your head; Recentre empties it |
+| `vr_posestudio_panel_folded` | 0 | The panel folded to its top bar (Fold / Unfold) |
+| `vr_agarms_pole_key` | 10 | An elbow set in the Pose Studio weighed this much against the wrist's comfort and the arm's limits (4 before) |
+| `vr_posestudio_live_warm` | 0.4 | Live, paused: seconds of the tape played again before the frame with your edit (so the arms' easing sees it as in a fight) |
+
+**Setting armed humanoids' grips by hand (the Pose Studio).** VR Settings > Combat > Armed Grunts > Grip Editor > Drag
+Mode (or the Debug menu's Pose Studio, or `vr_posestudio`; the scenario `agrunt_pose_studio` sets up a row to try). The armed
+grunts and enforcers hold still. Walk up to one: its weapon gets a blue wire box, its hands orange ones, its elbows
+violet ones, its chest a faint green one (a white dot is where each of your controllers takes things: your drawn hand
+stays outside its body). Put a controller in a box (it turns yellow, a tick) and hold the grip: the box turns green and
+follows your controller, moved and turned. Let go: it stays there, in the pose shown on the panel.
+
+- **Grab: Everything / Weapons / Limbs** (the panel, or either stick's click): what a grip takes; the others dim. In
+  Everything a hand or an elbow inside a weapon's box is taken before the weapon.
+- **Pick the pose first**, on the panel's top rows: **< Pose / Pose >** steps through the poses its weapon has (Idle /
+  Carry or Port Arms, Aim / Ready / Guard, Run, Pickup, and each strike: Jab, Cross, Hook, Uppercut for the fists;
+  Overhead, Diagonal, Horizontal, Backhand for a melee weapon; Saw Thrust; Dual Strike with two). The monster shows it,
+  held. A strike has three keys: **< Key / Key >** steps its wind-up, blow and follow-through; **Play** plays the
+  whole strike in place (no blow dealt) to see it move.
+- The **weapon**: move and turn it: that is where it is in this pose (the hand follows it). **Weapon: Grip** on the panel
+  instead turns it in its hand (the hand stays still; let go: back on the pose, the hand holding it the new way).
+- A **hand on a weapon**: move and turn the hand on it: where along the handle and how the fist closes round it. The
+  left hand on a two-handed weapon's front grip sets that grip. A **fist or a free hand**: where it is in this pose.
+- An **elbow**: pull it the way it should point (the arm bends that way as far as its wrist allows).
+- The **chest**: push or pull it to lean the body, carry it round or twist your wrist to turn it (about its waist; the
+  arms ride it).
+
+The panel to your left (touch a button, pull the trigger): the pose rows above, **Reset Pose** (this pose's keys back
+to the shipped ones), **Every Weapon / This Weapon** (a grip change for every weapon that kind holds, or for this weapon
+only), **Reset Grips**, **Copy > Enforcer / Copy > Grunt** (this kind's poses and grips laid on the other kind, scaled
+to its body), **Undo** (also B/Y), **Frozen** (off: watch them move live; poses are edited held), **Cancel** (everything
+back as it was on entering) and **Done** (also the menu button: the changed grips and pose keys printed as code for the
+shipped defaults, and written to `quakevr/proposed_defaults/agrunt_poses_<time>.txt`). Your changes are kept in
+`vr_agrunt_grips` and `vr_agrunt_poses` meanwhile (`vr_agrunt_pose_dump` prints the keys).
+
+**Live: fixing what glitches in a fight.** A pose can look right held still and go wrong as the monster moves. Walk up to
+one and press **Live: Off** (the bottom row) to turn it on: that monster now fights in place (the others stay frozen;
+you are made god and notarget while it plays): its own AI aims and fires at a target circling round it, reloads, runs on
+the spot, strikes up close, takes a little pain and picks its weapon up after it is knocked out. **Loop** picks what it
+plays (All, Aim+Fire, Reload, Run, Strikes, Pickup); **Speed** slows the game (1x, 0.5x, 0.25x, 0.1x). The panel's top
+rows become the tape's, and a readout sits over the panel: what plays, the pose key that weighs most at that moment
+(and its share), and the glitch finder's measures with a bar each (green fine, red a glitch): **pen** (an arm inside
+the body), **flip** (the elbow swinging round in a frame), **reach** (a hand short of its grip), **grip2** (the off
+hand off its second grip), **jump** (a hand or elbow jerking).
+
+1. Let it play a few seconds (the last ~10 s are kept), then **Pause**: the game stops on that frame.
+2. Paused, the sticks still walk and turn (walk up close to pose it). Scrub: hold a grip on nothing (or keep a hand at
+   the panel) and push either stick left or right (further: faster), or **< 0.5 s / 0.5 s >** and **< Frame / Frame >**.
+   Every frame is the one that was played, exactly. The panel's top bar: grip **Move** to put the panel anywhere (it is
+   kept there), **Recentre**, **Fold**. A part held back by a limit turns orange and the reason is named over it.
+3. Or press **Next Glitch**: it jumps to the worst moment on the tape (again: the next worst), and says what went
+   wrong and which key to drag.
+4. Grip the weapon, a fist, an elbow or the chest and move it as at a frozen pose: the key named in the readout is the
+   one changed, and the frame is played again with it at once (a key that weighs half there moves twice as far, so the
+   part follows your hand at this frame). A hand on a weapon still sets its grip.
+5. **Play** goes on from where it was paused, with your change; **Live: On** back to frozen poses. Undo, Cancel and
+   Done work as before.
 
 ### Damage and gore
 
@@ -421,6 +511,7 @@ built-in ones.
 | `vr_positional_damage` | 1 | headshots, arm and leg shots |
 | `vr_push` | 0.6 (shipped) | all knockback |
 | `vr_gore` | 2 | 0 Quake VR's blood only, 1 more, 2 over the top |
+| `vr_ragdoll_self_collide` | 1 | a ragdoll's own limbs meet each other (not jointed neighbours, parts deep in each other until apart, or an arm reaching for a wound or a wall); 0 they pass through each other |
 | `vr_decals`, `vr_decal_max`, `vr_decal_life` | 1, 768, 240 (shipped) | blood and scorch marks |
 
 ### HUD and menus
@@ -438,7 +529,9 @@ built-in ones.
 
 | Variable | Default | |
 |---|---|---|
-| `vr_graphics_preset` | (not saved) | 0 Off (Quake), 1 Low, 2 Medium, 3 High, 4 Ultra |
+| `vr_graphics_preset` | (not saved) | applies 0 Off (Quake), 1 Low, 2 Medium, 3 High, 4 Ultra, 5 My Settings, then goes back to -1 |
+| `vr_graphics_preset_save` | (command) | *Save as My Settings* |
+| `vr_graphics_preset_status` | (command) | prints which preset the settings match, and when Custom the settings that differ from the nearest |
 | `vr_relit_maps` | 1 | use the relit maps when present (next map) |
 | `vr_bloom` | 0.08 (shipped) | bloom strength |
 | `vr_light_contrast` | 2.5 (shipped) | how dark the shade is |
@@ -449,6 +542,8 @@ built-in ones.
 | `vid_fsaa` | 4 | anti-aliasing samples (0, 2, 4, 8) |
 | `r_wateralpha` | | water transparency (needs water-vised maps) |
 | `vr_water_waves` and the other `vr_water_*` | | waves, refraction, caustics, splashes, ripples |
+| `vr_water_foam` | 1 | every liquid's shoreline foam (0 off .. 2) |
+| `vr_water_foam_*`, `vr_lava_foam_*`, `vr_slime_foam_*` | | each liquid's foam: `_on`, `_opacity`, `_frequency`, `_strength`, `_breathe` (how much the band grows and shrinks), `_breathe_speed`, `_breathe_irregularity` (how unevenly along the shore), `_red`/`_green`/`_blue`, and the foam particles along the shore `_particles`, `_particle_life`, `_particle_opacity`, `_particle_size`. Water 0.5 / 1.75 / 1.75 (opacity, frequency, strength); lava a strong yellow-orange crust; slime a green scum |
 
 ### Headset
 
@@ -491,6 +586,16 @@ makes the value its default, so resets and presets go back to it. `vr_savedefaul
 current settings that differ from the built-in defaults. Personal settings are left out: your height, the runtime,
 the microphone and the per-weapon offsets.
 
+**Proposing your settings as defaults (developers):** *Debug > Save My Settings as Defaults*, `vr_propose_defaults`,
+or the menu's corner button *Save Default* (shown at Menu Detail: Developer only; press it twice within 3 seconds; it
+then says *Saved N*) writes every setting that differs from its shipped default to
+`quakevr/proposed_defaults/<date>_<time>.cfg`, for review. Nothing changes in the game. One line a setting,
+`name "value" // default "old", <menu row>, archived|not archived`, grouped by menu page, then the weapon slots
+(`vr_wofs_*`), the held object slots (`vr_prop_*`) and the settings not in the menus (by name prefix). Rows that look
+personal (calibration, comfort, height, handedness, the hands' angles, the body, the menus' own state) end in
+`personal?`, debug aids (debug, test, show, dump, profile, trace, mock) in `debug?`: the reviewer filters those and
+promotes the rest to the shipped defaults (`vr_cvars.inc`, `vr_weapons.inc`, `vr_props.inc`, `vr_defaults.cfg`).
+
 **When defaults change in an update:** a setting still at its old default moves to the new one, once. A setting you
 changed yourself is left alone.
 
@@ -510,6 +615,7 @@ changed yourself is left alone.
 | `vr_dumpview` | The drawn hands, weapons and finger curls |
 | `vr_profile 1` / `2`, `vr_profile_dump` | Per-frame CPU and GPU timings to `quakevr\profile\` (2: also on the wrist) |
 | `vr_memstats` | GPU and game memory, live OpenGL objects, average frame time. `vr_memstats_log` writes a row a minute. |
+| `vr_water_foam_info` | The shoreline foam particles: the map's shore segments, those near you, the last frame's spawned, how many the rates ask to be alive (capped at 600), their cost |
 | `vr_shadow_stats 1` | Shadow lights, faces and cost each second |
 | `vr_shadow_layered 0` / `1`, `vr_shadow_layered_check 20` | Shadow casters drawn a face at a time / once per light (default); both ways compared in one frame |
 | `vr_light_test`, `vr_particle_test <0..11>`, `vr_gore_test` | Spawn a light, a particle effect or gore in front of you |
@@ -517,6 +623,8 @@ changed yourself is left alone.
 | `vr_show_hip_holsters 1` (and `_upper_`, `_shoulder_`, `vr_show_virtual_stock`) | Show the holsters and the virtual stock |
 | `vr_note_devices` | List microphones for voice notes |
 | `vr_debug_throw 1` | Print each throw's measurement |
+| `vr_ragdoll_act <name>` | An active-ragdoll behaviour (a death by zone, a stumble, a crawl, a lost limb, a swim, a ledge hang, a stagger, a get-up, ...) on the nearest supported monster, and whether it began; no name: the list (Debug > Tests > Ragdoll Behaviours) |
+| `vr_menu_press <page> > <button>` | A menu button pressed from the console (tests) |
 | `developer 1` | More messages: force grab pulls and catches, throws, compatibility mode |
 
 For the rest, the developer notes in [vr-port/](vr-port/) describe each system and its variables:

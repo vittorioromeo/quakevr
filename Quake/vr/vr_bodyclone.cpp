@@ -10,6 +10,7 @@
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
+#include "vr_holstersetup.hpp"
 #include "vr_menu.hpp"
 #include "vr_panel.hpp"
 #include "vr_units.hpp"
@@ -59,7 +60,10 @@ void update()
     state.shown = false;
     const hands::State& s = hands::current();
     glm::vec3 corner, xAxis, yAxis;
-    if(vr_menu_body_clone.value == 0.f || !s.valid || !menu::bodyClonePage() || !panel::menuQuad(s, corner, xAxis, yAxis))
+    // Holster Setup (the author, 2026-10-22: "the holsters being set up on the clone as well"): beside its panel.
+    const bool setup = holstersetup::panelQuad(corner, xAxis, yAxis);
+    if(vr_menu_body_clone.value == 0.f || !s.valid ||
+        (!setup && (!menu::bodyClonePage() || !panel::menuQuad(s, corner, xAxis, yAxis))))
     {
         state.placed = false;
         return;

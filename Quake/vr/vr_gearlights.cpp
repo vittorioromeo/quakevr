@@ -46,6 +46,9 @@ struct State
 };
 State state;
 
+// Its hit volume, as button()'s (the same tuning: vr_gadget_button_x/y/z, _pitch, _yaw, _size).
+[[nodiscard]] bool buttonAt(const glm::vec3& local, glm::vec3& at, glm::vec3& out, float& radius);
+
 // The debug drawing's buffers (the main thread: the view).
 struct DrawScratch
 {
@@ -184,6 +187,8 @@ void press(int hand)
     toggle(hand);
 }
 
+#include "vr_ad_gearlights.inc" // AD support: the outer button (the screen's pages)
+
 // The fingertip's arrival in the hit volume presses the button, unless one counted less than vr_gadget_button_cooldown
 // ago or a screen tap is under way; it re-arms 1.5 radii out (or back behind the cut).
 void pressButton(const hands::State& s, int hand)
@@ -306,6 +311,7 @@ void init()
 {
     Cmd_AddCommand("vr_gear_lights_toggle", toggle_f);
     Cmd_AddCommand("vr_gadget_button_press", press_f);
+    pageCommands(); // AD support: vr_gadget_page_press, vr_gadget_page (vr_ad_gearlights.inc)
     Cmd_AddCommand("vr_gear_lights_info", info_f);
 }
 
@@ -331,9 +337,11 @@ void viewFrame(const hands::State& s)
         cls.signon != SIGNONS)
     {
         state.pressing = false;
+        pageButton.pressing = false; // AD support (vr_ad_gearlights.inc)
         return;
     }
     pressButton(s, 1 - hands::gadgetHand());
+    pressPageButton(s, 1 - hands::gadgetHand()); // AD support: the outer button (the screen's pages)
 }
 
 float light()
@@ -365,13 +373,21 @@ void toggle(int hand)
 
 bool button(glm::vec3& at, glm::vec3& out, float& radius)
 {
+    return buttonAt(buttonLocal, at, out, radius);
+}
+
+namespace
+{
+
+bool buttonAt(const glm::vec3& local, glm::vec3& at, glm::vec3& out, float& radius)
+{
     const gadget::Pose& gp = gadget::pose();
     if(!gadget::active() || !gp.valid)
     {
         return false;
     }
     const float cm = 0.01f * units::metresToUnits();
-    at = gp.origin + gp.axes * (buttonLocal * gp.scale) +
+    at = gp.origin + gp.axes * (local * gp.scale) +
          gp.axes * glm::vec3{vr_gadget_button_x.value, vr_gadget_button_y.value, vr_gadget_button_z.value} * cm;
     // Its face: down the screen's up, tilted out of the screen (vr_gadget_button_pitch) and along its width (_yaw).
     const float p = glm::radians(vr_gadget_button_pitch.value), y = glm::radians(vr_gadget_button_yaw.value);
@@ -380,6 +396,8 @@ bool button(glm::vec3& at, glm::vec3& out, float& radius)
     radius = za::max(0.3f, vr_gadget_button_size.value) * cm;
     return true;
 }
+
+} // namespace
 
 bool buttonHandTarget(int hand, float units, glm::vec3& out)
 {

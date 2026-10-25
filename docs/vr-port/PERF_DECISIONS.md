@@ -84,6 +84,10 @@ the pixels off by more than 8 levels (the chunks' retro blocks and the square sp
 `combined` and `particles_dense` 0.2-1% of the pixels and no GPU saved. On in the menu (Half-Res Retro Particles) for
 whoever prefers the frames.
 
+**Revisited 2026-10-17** (approved; ROUND22.md "Half resolution in the densest frames"): half resolution is now on for
+retro particles and also takes the reverse-order frames (`vr_particle_halfres_dense` 1): with today's code a near
+burst at 2784 an eye costs 1.4 against 5.0 ms, five bursts 2.2 against 8.2, `particles_dense` 3.9 against 5.4.
+
 Before:
 
 `particles_dense`: GPU 5.7 ms, the VR particles 4.8 of it; `combined` GPU 7.4, particles 4.3. Nsight Systems on
@@ -283,6 +287,13 @@ its cell's bucket (up to 64, each a whole 80-byte record read before its early-o
   or none (newest first, each of them with room): no holes; past 255 on one cell the oldest go whole. World+brush at
   2782 in the rocket fight: before decal101 3.07, 1.0.1 2.77, now 2.87 ms (two thirds of decal101's saving kept; the
   rest is the marks the cap had dropped, drawn again). ROUND22.md, "Pools piled up: no square holes".
+- **Capped lower (2026-10-12, worktree `decalcap`)**: a pile of 255 marks on one cell (a corpse cut apart in one place)
+  cost the frame rate where it was looked at: each of its pixels walks the bucket's whole list. `vr_decal_bucket_max`
+  (32 shipped, 1-255; Advanced VR Settings > Gore, Marks) lists that many a bucket, with the same all-buckets-or-none
+  rule (the oldest of a pile go whole, no holes). World+brush with 768 marks piled on one spot, eyes 2048, unpaced and
+  interleaved in one process (4 windows each, 300 frames): 32 1.46-3.35 ms, 255 3.36-6.36 ms, +1.8 to +4.8 ms in every
+  pair. The pile is thinner at 32 (its oldest marks gone). Later: bake old marks into per-surface blood layers (option
+  A). ROUND22.md, "Piled-up blood: a mark limit a spot".
 
 ## Leads (2026-10-08 follow-up)
 
@@ -364,3 +375,21 @@ Options (trade-offs, not done):
 - **Eye size** (`vr_xr_eye_scale`, the runtime's supersampling): the eye targets scale with the pixels (0.8 a side:
   -36%).
 
+
+## Removed attempts (2026-10-17)
+
+Tried in round 22, measured, and removed rather than kept as switches (the author's call: no code for attempts that did
+not pay off; ROUND22.md, "Removed perf attempts"):
+
+- **Conservative depth for the parallax depth write** (`vr_parallax_conservative_depth`, option A): declaring
+  `depth_less`/`depth_greater` where no relief is raised did not bring early-Z back on his NVIDIA driver: the same
+  fragments shaded either way (`vr_world_fragments`, kept), GPU `world+brush` within the noise. The lead left is a
+  separate bound pass with depth writes off (ROUND22.md, "Conservative depth for the parallax depth write").
+- **Work under xrEndFrame's GPU wait** (`vr_xr_overlap`): it moved pose-free work before the end call while the GPU
+  finished; the real tasks (particles' step, music) cost about 0 ms, so only its synthetic test gained. Worth again only
+  if a pose-free task of a millisecond or more appears.
+- **Model light probes ahead** (`vr_model_ambient_prefetch`): the probes' traces on the pool before a batch: about
+  even on the mock (0.041 against 0.031 + 0.006 ms); the pool's wake-up eats the gain below 8 likely traces a batch.
+- **Water faces once a frame** (`vr_water_pick_once`): the pick was 0.004-0.005 ms a frame.
+- **The server tick on a worker** (`vr_server_thread_check`, the audit): shelved with the threading itself;
+  SERVER_THREAD.md keeps the design and the audit's findings.

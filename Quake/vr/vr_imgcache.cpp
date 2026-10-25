@@ -227,6 +227,25 @@ extern "C" unsigned char* VR_ImageCacheFind(const char* name, FILE* f, int lengt
     return out;
 }
 
+// The map load's decoding ahead (vr_imgprefetch.cpp): whether VR_ImageCacheFind would find the file opened at `f` (no
+// copy, no counts; `f` stays where it stands).
+extern "C" int VR_ImageCacheHas(const char* name, FILE* f, int length)
+{
+    Key key;
+    if(capBytes() == 0 || !makeKey(name, f, length, key))
+    {
+        return 0;
+    }
+    const auto it = cache.byName.find(za::StringView{key.name});
+    return it != cache.byName.end() && cache.images[it->second].key == key;
+}
+
+// ... whether it holds an image looked up as `name` at all (the file not opened: most likely the same one).
+extern "C" int VR_ImageCacheHasName(const char* name)
+{
+    return capBytes() != 0 && cache.byName.contains(za::StringView{name});
+}
+
 // ... and what it decoded there (malloc'd RGBA, `width` x `height`): kept (true: the cache frees it) or not (false: the
 // caller frees it). `f` stands where it stood at VR_ImageCacheFind.
 extern "C" int VR_ImageCachePut(const char* name, FILE* f, int length, unsigned char* pixels, int width, int height)

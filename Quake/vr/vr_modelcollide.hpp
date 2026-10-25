@@ -25,6 +25,7 @@
 
 
 struct entity_s;
+struct qmodel_s;
 
 namespace qvr::modelcollide
 {
@@ -50,13 +51,25 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
 // (vr_handpose.cpp).
 bool weaponShape(int hand, const glm::vec3& rot, za::Vector<glm::vec3>& out);
 
+// The weapon in `hand` (held or carried) as it was drawn last frame: its model's sample points in the world, and the hand
+// it was drawn from (`from`). False without one. For vr_gun_wall_depth (vr_handpose.cpp).
+bool drawnWeaponPoints(int hand, za::Vector<glm::vec3>& out, glm::vec3& from);
+
 // The triangles of `e` (entity number `num`: its pose is cached by it) as drawn this frame, in the world, three corners
 // each (a Quake alias model's; not a jointed one): false (none) otherwise. For the wounds painted on models
 // (vr_wounds.cpp): where a hit meets the model's surface.
 bool drawnTriangles(const entity_s& e, int num, za::Vector<glm::vec3>& out);
 
+// A monster, a corpse or a ragdoll (an alias model's entity of the monsters' kind: another player too) whose box as
+// drawn this frame meets the world box `lo`..`hi`, while `hand` holds what may swing through them (a fist, a melee
+// weapon; a gun or a prop with vr_melee_phase_hold): its entity number, else 0. For the strikes let past the level
+// (vr_melee_world_pass: vr_handpose.cpp).
+[[nodiscard]] int strikeTarget(int hand, const glm::vec3& lo, const glm::vec3& hi);
+
 // A new map: nothing pushed, nothing recorded.
 void reset();
+// A model made again in place (a runtime brush's, vr_brushes.cpp): its triangles made again when next needed.
+void forget(const qmodel_s* model);
 
 // vr_model_collide_bench [n] [list]: the test of both hands as they are now, n times (1000): min, median and max
 // microseconds, and what it tested (models near, their triangles near the weapon, rays, rounds; "list": the models).

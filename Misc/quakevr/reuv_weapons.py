@@ -17,7 +17,7 @@
 # the same however it is mapped). Each seed takes in the faces reached over welded edges within GROW_ANGLE of it that
 # are stretched over JOIN_RATIO too (its panel). The panels are cut into charts (within CHART_ANGLE of the chart's
 # first face and NEIGHBOUR_ANGLE of the face it is reached from); charts an old strip runs between are joined, and take
-# the rest of the strips they touch (see "Anchors" below); a chart that does not unwrap flat (over 2:1) is left. Each
+# the rest of the strips they touch (see "Strips" below); a chart that does not unwrap flat (over 2:1) is left. Each
 # is unwrapped (least squares conformal: reuv_shot2.lscm) at the model's density (the area-weighted median of its
 # faces under 2:1) or its old density along its sharpest direction where higher (at most 3 times the model's: a fine
 # pattern resampled coarser aliases into noise), and laid in skin texels nothing else uses (the old texels of the
@@ -37,10 +37,10 @@
 # (scale, origin), the skin's width. A vertex all of whose faces are in one chart takes its new skin coordinate
 # itself; one shared with other faces is copied (its bytes in every frame) for the chart's corners.
 #
-# Anchors: vr_anchor.cpp names a weapon's anchor vertices by their place in QuakeSpasm's old strip order of the
-# triangles. Strips join faces by vertex index, so a chart's edge across a strip (its corners copied) would end the
-# strip there and shift every anchor after it: the charts are joined along the old strips, and each is kept only if
-# every anchor still names a vertex at the same place in every pose (a copy is at its vertex's place).
+# Anchors (points on the surface, vr_anchor.hpp) stay: a re-mapped corner's copy is at its vertex's place in every
+# pose. Strips: the charts are joined along QuakeSpasm's old triangle strips (when the anchors were indices in their
+# order, a chart's edge across a strip would have shifted them); no anchor depends on them now, but the shipped skins
+# were mapped so, and a rerun gives the same files.
 
 import math
 import os
@@ -53,7 +53,7 @@ sys.path.insert(0, HERE)
 
 import mdlpolish as mp  # noqa: E402
 from check_mdl_art import load_mdl, stretch, stretch_summary  # noqa: E402
-from improve_weapons import BAYER4, Noise, strip_order  # noqa: E402
+from improve_weapons import BAYER4, Noise  # noqa: E402
 from refine_laserg import barycentric, tri_n, unwrap  # noqa: E402
 from reuv_shot2 import ORIENT, grow, orient, raster, seg_dist  # noqa: E402
 
@@ -504,10 +504,10 @@ def paint_panel(skin, sw, H, m, P, charts, sources, edges, ratio_of, streak_of, 
 
 
 # ----------------------------------------------------------------------------
-# Anchors (see the top; polish_weapons.slot_anchors: hand, muzzle, two-handed grip, ammo screen, button, magazine)
+# Strips (see the top)
 
 def strip_groups(tris):
-    """The triangles of each strip or fan of QuakeSpasm's old order (improve_weapons.strip_order's search)."""
+    """The triangles of each strip or fan of QuakeSpasm's old BuildTris search (the charts' joins)."""
     n = len(tris)
     used = [0] * n
 
@@ -569,8 +569,7 @@ def strip_groups(tris):
 
 def merge_by_strips(m, P, charts):
     """Charts joined where an old strip runs from one to another, and given the rest of each strip they touch: a
-    chart's edge then never cuts a strip (its corners' copies would end it there, and the strips after it shift
-    every anchor). [(faces, density)]."""
+    chart's edge then never cuts a strip (as the shipped skins were mapped: see the top). [(faces, density)]."""
     root = list(range(len(charts)))
 
     def find(k):
@@ -618,52 +617,6 @@ def unwrap_ok(P, m, chart, worst=2.0):
         a_sum += a
         r_sum += min(s1 / s2, 20.0) * a
     return r_sum / a_sum <= worst
-
-
-def refs(m, charts):
-    """The triangles with each re-mapped corner's vertex as fix() will give it: itself when all its faces are in
-    its chart, else a copy (named (vertex, chart)); and the vertex each name stands for."""
-    chart_of = {i: k for k, c in enumerate(charts) for i in c}
-    users = {}
-    for i, t in enumerate(m.tris):
-        for v in t[1:]:
-            users.setdefault(v, set()).add(chart_of.get(i))
-    names, src = {}, list(range(len(m.st)))
-    tris = list(m.tris)
-    for i, k in chart_of.items():
-        fr, *vs = m.tris[i]
-        out = []
-        for v in vs:
-            if users[v] == {k}:
-                out.append(v)
-            else:
-                if (v, k) not in names:
-                    names[(v, k)] = len(src)
-                    src.append(v)
-                out.append(names[(v, k)])
-        tris[i] = (fr,) + tuple(out)
-    return tris, src
-
-
-def anchor_places(m, tris, src, anchors, poses):
-    order = strip_order(tris)
-    return {a: tuple(bytes(p[src[order[a]], :3]) for p in poses) if a < len(order) else None for a in anchors}
-
-
-def keep_anchors(m, charts, area, anchors):
-    """The charts (largest first) that can be re-mapped with every anchor in place; and those that cannot."""
-    if not anchors:
-        return charts, []
-    poses = [np.frombuffer(bytes(m.pose_bytes(p)), np.uint8).reshape(-1, 4) for p in range(m.num_poses())]
-    base = anchor_places(m, m.tris, list(range(len(m.st))), anchors, poses)
-    kept, dropped = [], []
-    for c, d in sorted(charts, key=lambda x: -sum(area[i] for i in x[0])):
-        tris, src = refs(m, [k for k, _ in kept] + [c])
-        if anchor_places(m, tris, src, anchors, poses) == base:
-            kept.append((c, d))
-        else:
-            dropped.append(c)
-    return kept, dropped
 
 
 # ----------------------------------------------------------------------------
@@ -762,12 +715,7 @@ def fix(path, report_only=False, src_dir=SRC):
         home = next(face_panel[i] for i in c if i in face_panel)
         for i in c:
             face_panel.setdefault(i, home)
-    import polish_weapons  # (here: it imports this module)
-    charts, dropped = keep_anchors(m, charts, area, sorted(polish_weapons.slot_anchors().get(name, ())))
     chosen = sorted(i for c, _ in charts for i in c)
-    if dropped:
-        print("    %d charts (%d faces) left as they were: re-mapping them would move a weapon anchor" % (
-            len(dropped), sum(len(c) for c in dropped)))
     H, placed = layout(m, P, charts, set(chosen))
     if H > m.sh:
         m.grow_skin(H - m.sh)

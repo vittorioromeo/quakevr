@@ -294,7 +294,9 @@ struct Rng
     float range(float a, float b) { return a + (b - a) * uniform(); }
 };
 
-[[nodiscard]] uint64_t hashString(const char* s, uint64_t h = 1469598103934665603ull)
+} // namespace
+
+uint64_t hashString(const char* s, uint64_t h)
 {
     for(; *s; s++)
     {
@@ -303,6 +305,8 @@ struct Rng
     return h;
 }
 
+namespace
+{
 // ---------------------------------------------------------------------------------------------------------------------
 // The map's faces
 
@@ -368,22 +372,54 @@ struct Placement
 
 za::Vector<Placement> placements;
 
+// The last plan, kept for its key (PlanKey: the map, the settings, the entities) for the session (vr_place_keep): a
+// restart of the map plans the same pieces. Another game directory drops it.
+struct KeptPlan
+{
+    bool valid = false;
+    uint64_t key = 0;
+    za::Vector<Placement> placements;
+    auto members() { return qvr::mem::list(valid, key, placements); }
+};
+mem::Cache<KeptPlan> kept{"debris plan", mem::GameDirChange};
+
+// The plan's checksum (vr_debug_debris, developer): the pieces' models, skins, places and turns.
+[[nodiscard]] unsigned layoutHash()
+{
+    uint64_t layout = 1469598103934665603ull;
+    for(const Placement& p : placements)
+    {
+        const int q[5] = {p.model, p.skin, static_cast<int>(za::lround(p.floor.x * 8.f)), static_cast<int>(za::lround(p.floor.y * 8.f)),
+            static_cast<int>(za::lround(p.yaw * 10.f))};
+        for(const int v : q)
+        {
+            layout = (layout ^ static_cast<uint32_t>(v)) * 1099511628211ull;
+        }
+    }
+    return static_cast<unsigned>(layout ^ (layout >> 32));
+}
+
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
     return {v[0], v[1], v[2]};
 }
 
-[[nodiscard]] trace_t traceLine(const glm::vec3& a, const glm::vec3& b)
+} // namespace
+
+trace_t traceLine(const glm::vec3& a, const glm::vec3& b)
 {
     vec3_t start{a.x, a.y, a.z}, end{b.x, b.y, b.z};
     return SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, qcvm->edicts);
 }
 
-[[nodiscard]] int contents(const glm::vec3& p)
+int contents(const glm::vec3& p)
 {
     vec3_t v{p.x, p.y, p.z};
     return SV_PointContents(v);
 }
+
+namespace
+{
 
 // The server map's textures' average colours, by texture: pointers into the hunk, so released with it at every map
 // change (the check it replaces, the world model's pointer, kept them across a reload of the same map, whose model
@@ -550,6 +586,13 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
         {
             margin = 40.f;
         }
+        else if((static_cast<int>(e->v.solid) == SOLID_NOT || static_cast<int>(e->v.solid) == SOLID_TRIGGER) &&
+                static_cast<int>(e->v.movetype) == MOVETYPE_NOCLIP)
+        {
+            continue; // a bubble rising (AD's misc_bubble: a noclip trigger), a spark: passing, nothing to keep off
+                      // (and where it was at the plan's moment differed from load to load: the plans and their keys,
+                      // vr_place_keep, with it)
+        }
         else if(e->v.modelindex > 0.f || static_cast<int>(e->v.solid) != SOLID_NOT)
         {
             margin = 24.f; // anything else there is to see or touch
@@ -672,6 +715,13 @@ struct Planner
             reason = RSlope;
             return false;
         }
+        // Clear of the entities first (no traces; the same answer: every test must pass), unless vr_place_entities_first 0
+        const glm::vec3 half = (m.hi - m.lo) * 0.5f * scale;
+        const float r = za::max(half.x, za::max(half.y, half.z));
+        if(vr_place_entities_first.value != 0.f && !clearOfEntities(floor, r, height, reason))
+        {
+            return false;
+        }
         const glm::vec3 mid = floor + glm::vec3{0.f, 0.f, za::max(height * 0.5f, 0.6f)};
         if(contents(floor + glm::vec3{0.f, 0.f, 0.5f}) != CONTENTS_EMPTY || contents(floor + glm::vec3{0.f, 0.f, height + 4.f}) != CONTENTS_EMPTY)
         {
@@ -692,7 +742,6 @@ struct Planner
         }
         // Flat under all of it: the floor at its footprint's corners (a little in) as high as under its middle.
         const float c = za::cos(glm::radians(yaw)), s = za::sin(glm::radians(yaw));
-        const glm::vec3 half = (m.hi - m.lo) * 0.5f * scale;
         const float hx = half.x * 0.8f, hy = (onSide ? half.z : half.y) * 0.8f;
         for(const glm::vec2 corner : {glm::vec2{hx, hy}, glm::vec2{-hx, hy}, glm::vec2{hx, -hy}, glm::vec2{-hx, -hy}})
         {
@@ -711,7 +760,11 @@ struct Planner
             reason = RLow;
             return false;
         }
-        const float r = za::max(half.x, za::max(half.y, half.z));
+        return vr_place_entities_first.value != 0.f || clearOfEntities(floor, r, height, reason);
+    }
+
+    [[nodiscard]] bool clearOfEntities(const glm::vec3& floor, float r, float height, int& reason) const
+    {
         for(const Obstacle& o : obstacles)
         {
             if(floor.x + r > o.lo.x && floor.x - r < o.hi.x && floor.y + r > o.lo.y && floor.y - r < o.hi.y &&
@@ -858,6 +911,112 @@ float worldspawnValue(const char* key, float absent)
     return worldspawnKey(key, absent);
 }
 
+void PlanKey::add(const void* data, za::SizeT bytes)
+{
+    // Eight bytes a step (a world's light is megabytes), the rest a byte at a time.
+    const auto* p = static_cast<const unsigned char*>(data);
+    za::SizeT i = 0;
+    for(; i + 8 <= bytes; i += 8)
+    {
+        uint64_t w;
+        memcpy(&w, p + i, 8);
+        h = (h ^ w) * 1099511628211ull;
+        h ^= h >> 29;
+    }
+    for(; i < bytes; i++)
+    {
+        h = (h ^ p[i]) * 1099511628211ull;
+    }
+}
+
+void PlanKey::add(const char* s)
+{
+    add(s, s ? strlen(s) + 1 : 0);
+}
+
+PlanKey planKey(const za::Vector<Obstacle>& obstacles)
+{
+    PlanKey k;
+    k.add(sv.name);
+    k.add(com_gamedir);
+    k.add(svs.maxclients);
+    k.add(qcvm->num_edicts);
+    k.add(qcvm->max_edicts);
+    // The settings: every cvar of the planners' own (vr_crate*, vr_debris*, vr_place_*: their switches, densities,
+    // seeds, limits; not the vr_debug_* reports) and the world's scale, by their values as typed.
+    for(const cvar_t* v = Cvar_FindVarAfter("", 0); v; v = v->next)
+    {
+        if(!strncmp(v->name, "vr_crate", 8) || !strncmp(v->name, "vr_debris", 9) || !strncmp(v->name, "vr_place_", 9) ||
+            !strcmp(v->name, "vr_world_scale"))
+        {
+            k.add(v->name);
+            k.add(v->string);
+        }
+    }
+    k.parts[0] = k.h;
+    // The map: its entities' text (the worldspawn's keys), geometry, textures and light.
+    const qmodel_t* map = sv.worldmodel;
+    if(map)
+    {
+        k.add(map->entities);
+        k.add(map->numvertexes);
+        for(int i = 0; i < map->numvertexes; i++)
+        {
+            k.add(map->vertexes[i].position, sizeof(map->vertexes[i].position));
+        }
+        k.add(map->numplanes);
+        for(int i = 0; i < map->numplanes; i++)
+        {
+            k.add(map->planes[i].normal, sizeof(map->planes[i].normal));
+            k.add(map->planes[i].dist);
+        }
+        k.add(map->numtextures);
+        for(int i = 0; i < map->numtextures; i++)
+        {
+            const texture_t* t = map->textures[i];
+            k.add(t ? t->name : "");
+            k.add(t ? static_cast<int>(t->width) : 0);
+            k.add(t ? static_cast<int>(t->height) : 0);
+        }
+        k.add(map->numsurfaces);
+        for(int i = 0; i < map->numsurfaces; i++)
+        {
+            const msurface_t& s = map->surfaces[i];
+            k.add(s.numedges);
+            k.add(s.flags);
+            k.add(s.styles, sizeof(s.styles));
+            k.add(s.extents, sizeof(s.extents));
+            if(s.samples && map->lightdata)
+            {
+                int styles = 0;
+                while(styles < MAXLIGHTMAPS && s.styles[styles] != 255)
+                {
+                    styles++;
+                }
+                k.add(s.samples, static_cast<za::SizeT>(((s.extents[0] >> 4) + 1) * ((s.extents[1] >> 4) + 1) * 3 * styles));
+            }
+        }
+    }
+    k.parts[1] = k.h;
+    // The entities as the plan finds them: their boxes and kinds.
+    k.add(static_cast<int>(obstacles.size()));
+    for(const Obstacle& o : obstacles)
+    {
+        k.add(&o.lo, sizeof(o.lo));
+        k.add(&o.hi, sizeof(o.hi));
+        k.add(o.why);
+    }
+    k.parts[2] = k.h;
+    if(vr_debug_crates.value >= 3 || vr_debug_debris.value >= 3) // (which entity's box differs from one load to the next)
+    {
+        for(const Obstacle& o : obstacles)
+        {
+            Con_Printf("plan key: %s %.2f %.2f %.2f - %.2f %.2f %.2f\n", o.why, o.lo.x, o.lo.y, o.lo.z, o.hi.x, o.hi.y, o.hi.z);
+        }
+    }
+    return k;
+}
+
 bool inList(const char* list, const char* name)
 {
     return nameInList(list, name);
@@ -950,6 +1109,32 @@ int plan()
     const float chance = za::max(vr_debris_chance.value, 0.f) * worldspawnValue("_vr_debris");
     const bool rocks = vr_debris_rocks.value != 0.f, bricks = vr_debris_bricks.value != 0.f;
 
+    // The same map, settings and entities as the last plan: its pieces again (vr_place_keep).
+    gatherObstacles(pl.obstacles);
+    PlanKey key = planKey(pl.obstacles);
+    for(const ModelInfo& m : models)
+    {
+        key.add(&m.lo, sizeof(m.lo));
+        key.add(&m.hi, sizeof(m.hi));
+        key.add(m.skinLab.data(), m.skinLab.size() * sizeof(glm::vec3));
+    }
+    if(vr_debug_debris.value)
+    {
+        Con_Printf("debris: plan key: settings %08x, map %08x, entities %08x, all %08x\n", static_cast<unsigned>(key.parts[0]),
+            static_cast<unsigned>(key.parts[1]), static_cast<unsigned>(key.parts[2]), static_cast<unsigned>(key.h));
+    }
+    if(vr_place_keep.value != 0.f && kept.valid && kept.key == key.h)
+    {
+        placements = kept.placements;
+        planMs = (Sys_DoubleTime() - t0) * 1000.0;
+        if(vr_debug_debris.value || developer.value)
+        {
+            Con_Printf("debris: %s: %d pieces, the last plan's (the same map, settings and entities); %.1f ms; layout %08x\n",
+                sv.name, static_cast<int>(placements.size()), planMs, layoutHash());
+        }
+        return static_cast<int>(placements.size());
+    }
+
     // The world's faces, their materials; the floors in a grid.
     const qmodel_t* map = sv.worldmodel;
     pl.faces.reserve(static_cast<size_t>(map->nummodelsurfaces));
@@ -984,7 +1169,6 @@ int plan()
             pl.floors.add(static_cast<int>(pl.faces.size()) - 1, pl.faces.back());
         }
     }
-    gatherObstacles(pl.obstacles);
 
     // The spots: along each wall's bottom edge, every 16 units, where a floor meets it.
     za::Vector<Spot> spots;
@@ -1198,25 +1382,22 @@ int plan()
         }
     }
 
+    kept.valid = true;
+    kept.key = key.h;
+    kept.placements = placements;
+
     if(vr_debug_debris.value || developer.value)
     {
         int numRocks = 0;
-        uint64_t layout = 1469598103934665603ull;
         for(const Placement& p : placements)
         {
             numRocks += models[p.model].kind == 1;
-            const int q[5] = {p.model, p.skin, static_cast<int>(za::lround(p.floor.x * 8.f)), static_cast<int>(za::lround(p.floor.y * 8.f)),
-                static_cast<int>(za::lround(p.yaw * 10.f))};
-            for(const int v : q)
-            {
-                layout = (layout ^ static_cast<uint32_t>(v)) * 1099511628211ull;
-            }
         }
         Con_Printf("debris: %s: %d pieces (%d rocks, %d bricks; %d spots in corners) from %d spots on %d wall edges, %d "
                    "rolled; limit %d (%d entities, %d free); %.1f ms; layout %08x\n",
             sv.name, static_cast<int>(placements.size()), numRocks, static_cast<int>(placements.size()) - numRocks, corners,
             static_cast<int>(spots.size()), edgesSeen, rolled, most, qcvm->num_edicts, qcvm->max_edicts - qcvm->num_edicts,
-            (Sys_DoubleTime() - t0) * 1000.0, static_cast<unsigned>(layout ^ (layout >> 32)));
+            (Sys_DoubleTime() - t0) * 1000.0, layoutHash());
         planMs = (Sys_DoubleTime() - t0) * 1000.0;
         if(vr_debug_debris.value >= 1)
         {

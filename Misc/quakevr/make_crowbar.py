@@ -13,7 +13,7 @@
 # the main hand's fist on the tape's upper part (21 cm from the chisel's tip), the other hand's place for a two-handed
 # grip below it on the tape (Hotspot 1, a Grip), and the bar above the hands (Hotspot 2, a Blade: the off hand slides
 # along the upper part, short of the hook). The hook curls towards the axe head's side (the swords' edges): a chop
-# lands with the hook's claw, as a pick's. Its far end (the weapon settings' MuzzleAnchorVertex: the melee line's tip,
+# lands with the hook's claw, as a pick's. Its far end (the weapon settings' MuzzleAnchor: the melee line's tip,
 # the parry line's end, the Blade grip's axis, which runs through it along the bar) is the hook's back where the bar's
 # line carried on up meets it (a ring of the bend put there: tip_angle).
 #
@@ -28,7 +28,7 @@
 #
 # Usage: python Misc/quakevr/make_crowbar.py [output progs folder] [--keep-edited | --force]
 # Then: python Misc/quakevr/bake_normals.py v_crowbar.mdl (its normal map, from relief()), and check the anchor printed
-# below against vr_weapons.inc's slot 23 MuzzleAnchorVertex (200).
+# below against vr_weapons.inc's slot 23 MuzzleAnchor.
 
 import math
 import os
@@ -500,15 +500,13 @@ def main():
         mdlgen.write_mdl(path, mesh, [skin], "crowbar", frames=[mesh] * (FRAMES - 1))
     if path + "_0.png" not in guard.kept:
         Image.fromarray(np.round(rgb * 255).astype(np.uint8)).save(path + "_0.png", optimize=True)
-    # The anchors, in the engine's strip order (vr_anchor.cpp; improve_weapons.strip_order), and the hotspots' places.
-    from improve_weapons import strip_order
-    order = strip_order([(1,) + t for t in mesh.tris])
+    # The muzzle anchor (vr_anchor.hpp: a point on the surface) and the hotspots' places.
+    import anchors
     cp = mesh.verts[crown][0]
-    best = min(range(len(order)), key=lambda i: math.dist(mesh.verts[order[i]][0], cp))
     print("v_crowbar.mdl: %d vertices, %d triangles, %d frames -> %s" % (len(mesh.verts), len(mesh.tris), FRAMES,
                                                                          os.path.normpath(path)))
-    print("  length %.1f cm; the hook's back on the bar's line (muzzle anchor) at %.2f cm up (u %.3f): strip index %d at "
-          "%.2f %.2f %.2f" % (max(p[2] for p in local) - min(p[2] for p in local), tp[2], tp[0], best, *cp))
+    print("  length %.1f cm; the hook's back on the bar's line (muzzle anchor) at %.2f cm up (u %.3f): anchor \"%s\"" % (
+        max(p[2] for p in local) - min(p[2] for p in local), tp[2], tp[0], anchors.vertex_text(path, crown)))
     for name, w in (("main fist", 22.0), ("lower grip (hotspot 1)", 11.5)):
         print("  %s at %.2f %.2f %.2f (model units)" % ((name,) + place((0.0, 0.0, w))))
     guard.finish()

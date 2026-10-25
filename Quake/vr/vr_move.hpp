@@ -24,6 +24,7 @@ struct VrHandMove
     float throwAge{0.f};     // seconds since it left the hand
     glm::vec3 tracked{0.f};  // world position of the controller's own point: `pos` before the level held the drawn hand
                              // out of it (vr_handpose.cpp; the climbing grab takes a hold at either)
+    glm::vec3 ownVel{0.f};   // as `vel`, the controller's own (hands::State::ownVel: in slow motion the slowed hand lags it)
 };
 
 struct VrMove
@@ -53,13 +54,22 @@ struct VrMove
     glm::vec3 loadPortAxis[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     // And the way its opening faces (hands::State::loadPortFace); -> .offloadportface, .loadportface.
     glm::vec3 loadPortFace[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // Where each hand's projectile leaves from, from its muzzle in the shot's frame (forward, right, up; zero: the
+    // muzzle): the AD crossbow's drawn bolt (adcrossbow::launchOffset); -> .offlaunchofs, .launchofs.
+    glm::vec3 launchOfs[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     // The magazine attached to each hand's gun as drawn (hands::State::magBox: its middle, then its three half-axes; all
     // zero: none); -> .offmagbox*, .magbox* (QC vr_reload.qc: grips and hits on its whole shape).
     glm::vec3 magBox[2][4]{};
+    // Where the rounds stand in the ammo pouch, as placed (view::ammoPouchRounds: a box, its middle and half-axes, the
+    // last up along the rounds; all zero: no pouch); -> .ammopouchpos, .ammopouchx/y/z (QC vr_reload.qc: pouch reloading).
+    glm::vec3 ammoPouch[4]{};
     // The stealth AI's view of this player (QC vr_stealth.qc; vr_stealth.cpp): his flashlight's beam as his client lit
     // it (flashlight::beamNow; sent only while lit) and the light on him as his client measures it (stealth::lightAt:
     // his map's lightmaps and the dynamic lights he sees, his own lamp's aside; -1 unknown).
     bool lampLit{false};
+    // The poses' time (hands::State::poseTime) modulo VR_POSE_CLOCK_WRAP s (a float's precision kept; -1 unknown) ->
+    // .vr_posetime: the melee's speeds over the poses' own times (vr_melee.qc VR_Melee_Track, vr_legsweep.cpp).
+    float poseClock{-1.f};
     glm::vec3 lampLens{0.f};
     glm::vec3 lampDir{1.f, 0.f, 0.f};
     float lampRange{0.f};

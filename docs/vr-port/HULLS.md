@@ -185,7 +185,8 @@ into the space of a monster standing behind it. With the same width against both
 the walk now closes the level's exits while it runs: in round 2's first runs it walked into e1m3's and e4m7's exits,
 and the intermission put the player at its camera spot, in a ceiling (433 "stuck" frames that were not collision).
 
-**Method A, the compiled hull** (`vr_hull_method 1`, the default now): the same brushes as B (hull 0's, with Quake 2's
+**Method A, the compiled hull** (the only one since 2026-10-16: `vr_hull_method` and B's move path retired, B's sweep
+kept for the portals' clipping and `vr_hull_bench`; ROUND22.md, "A/B switches removed"): the same brushes as B (hull 0's, with Quake 2's
 bevels, and the recovered clip brushes), each grown by the box (its planes moved out by the box's reach: with the
 bevels, exactly the brush's Minkowski sum with the box), then compiled into a BSP tree of Quake's own clipnodes and
 planes, as qbsp compiles hull 1: the grown brushes' faces are the splitting planes (qbsp3's choice: the plane most
@@ -531,6 +532,13 @@ nothing. The hulls for the sizes the level's monsters ask for are compiled when 
 changes), one per size, shared with the player's when the size is the same: Its Box makes three at most on id's maps
 (24 x 56, 28 x 56 for the enforcer, 40 x 88 for the ogre). `vr_mhull_reset` (All Match Their Boxes) sets every class
 back to Its Box.
+
+A size first met in play (no monster of it at the load: AD's delayed and triggered spawns, the test spawner) is compiled
+on the pool (`vr_hull_async`, 1; 2026-10-20): read from the disk cache or compiled and written there, then the brush
+models live edicts can meet, one size at a time (a big map's compile holds over a GB). Until its tree is ready the
+monster moves with Quake's own hull (1 or 2: wider, as tall from the same feet, so wherever it stands then is free for
+its narrower box too); `developer 1` prints `hull: 40x88 ready in play ...`. Before, the first move compiled it in the
+frame: ad_tears' 40 x 88 and 28 x 56 stalled the game 1.4-2.1 s each. Off (0): that again.
 
 Files: `vr_hull.cpp` (the classes, `monsterWidth`, `moveBox`/`entBox`/`touchBox`/`footprint`, the trees by size,
 `vr_mhull_walktest`), `sv_move.c` (`SV_CheckBottom`: `VR_HullFootprint`), `world.c` (`VR_HullNarrowsAgainst` takes the

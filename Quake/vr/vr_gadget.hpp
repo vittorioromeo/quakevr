@@ -29,6 +29,12 @@ struct Pose
 // Whether the HUD is the gadget's (vr_hud_mode 1, in the headset, in game).
 [[nodiscard]] bool active();
 
+// AD support: the screen's pages (the gadget's outer button, vr_gearlights.cpp; vr_gadget_page): the HUD, and Arcane
+// Dimensions' page (its artifacts with their times, keys, debuffs and the carried weapons' upgrades) while its data is
+// loaded. togglePage: to the other one; false (the HUD kept) without AD's data. page: the one shown (0 the HUD, 1 AD's).
+bool togglePage();
+[[nodiscard]] int page();
+
 // Set by the view every frame (before each eye's scene). It also places the screen's lights.
 void setPose(const Pose& pose);
 [[nodiscard]] const Pose& pose();
@@ -121,6 +127,11 @@ void drawHologram();
 // it and a buzz of its hand meanwhile, as vr_messages_hologram_only's notifications), then shown `seconds`. False when
 // there is no hologram (the HUD not the gadget, vr_messages_hologram off): shown another way then.
 bool tip(za::StringView text, float seconds);
+
+// A notice about something you just did (bullet time pressed with its meter empty, vr_bullettime.cpp): `text` as one of
+// the hologram's messages now, for `seconds`, seen if you look at the gadget then; not a notification (no waiting to be
+// seen, no chime nor buzz). False when there is no hologram.
+bool notice(za::StringView text, float seconds);
 
 // QVR round 21 (the Screens page's Show a Test Message): the next of a few of the game's own messages (a key needed,
 // maps' texts, a secret, a powerup running out), sent as the game sends them, so that pressing again stacks them; with

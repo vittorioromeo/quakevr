@@ -558,13 +558,13 @@ void() trigger_teleport =
     vector o;
 
     // HONEY
-    if(!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)){
+    if(!VR_OtherFlags() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)){
         self.use = trigger_teleport;
         self.spawnflags = (self.spawnflags & PLAYER_ONLY) | SILENT | IGNORE_TARGETNAME;
         return;
     }
 
-    if(!MG_WorldCampaign() && (self.spawnflags & CTF_ONLY))
+    if(!VR_OtherFlags() && (self.spawnflags & CTF_ONLY))
     {
         if(teamplay < TEAM_CTF || teamplay > TEAM_CTF_ALT)
         {

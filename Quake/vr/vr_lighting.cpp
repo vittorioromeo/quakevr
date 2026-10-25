@@ -2,6 +2,8 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_lighting.hpp"
+#include "vr_tracy.h"
+#include "vr_brushes.hpp"
 #include "vr_portals.hpp"
 #include "vr_ao.hpp"
 #include "vr_avatar.hpp"
@@ -21,6 +23,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/SmallVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Cbrt.hpp"
@@ -315,11 +318,14 @@ void addSurface(const msurface_t* s)
     {
         return;
     }
+    if(s->numedges < 3) { return; }
+    // One capacity check per polygon, keeping the same triangle fan and surface order.
+    uint32_t*& out = indices.reserveMore(static_cast<size_t>(s->numedges - 2) * 3);
     for(int k = 2; k < s->numedges; k++)
     {
-        indices.pushBack(static_cast<uint32_t>(s->vbo_firstvert));
-        indices.pushBack(static_cast<uint32_t>(s->vbo_firstvert + k - 1));
-        indices.pushBack(static_cast<uint32_t>(s->vbo_firstvert + k));
+        *out++ = static_cast<uint32_t>(s->vbo_firstvert);
+        *out++ = static_cast<uint32_t>(s->vbo_firstvert + k - 1);
+        *out++ = static_cast<uint32_t>(s->vbo_firstvert + k);
     }
 }
 
@@ -362,6 +368,19 @@ struct BrushCaster
 };
 za::Vector<BrushCaster> brushCasters;
 za::Vector<entity_t*> aliasCasters;
+
+// Rebuilt for every shadow-render invocation, including each portal camera. Only the model type is
+// filtered here: msgtime, itemsOnly, scale and origin remain live per-light tests in collectBrushes.
+using BrushCandidates = za::SmallVector<entity_t*, 64>;
+
+void collectBrushCandidates(BrushCandidates& candidates)
+{
+    for(int i = 1; i < cl.num_entities; i++)
+    {
+        entity_t* e = &cl_entities[i];
+        if(e->model && e->model->type == mod_brush) { candidates.pushBack(e); }
+    }
+}
 
 // A map light's moving casters, collected once a frame (whether it has any), drawn later.
 struct SlotCasters
@@ -420,14 +439,16 @@ bool touches(const entity_t* e, const glm::vec3& light, float radius)
 // Doors, lifts and platforms near the light.
 // With `itemsOnly`, only the brush models of items (ammo and health boxes, maps/b_*.bsp): they
 // move; the map's own doors and lifts are in its baked light already.
-void collectBrushes(const glm::vec3& light, float radius, bool itemsOnly)
+void collectBrushes(const BrushCandidates& candidates, const glm::vec3& light, float radius, bool itemsOnly)
 {
     brushCasters.clear();
-    for(int i = 1; i < cl.num_entities; i++)
+    for(entity_t* candidate : candidates)
     {
-        entity_t& e = cl_entities[i];
+        entity_t& e = *candidate;
+        // (the boxes made in the game are not in the baked light either: vr_brushes.cpp)
         if(!e.model || e.model->type != mod_brush || e.model == cl.worldmodel || e.msgtime != cl.mtime[0] ||
-            (itemsOnly && qvr::modelmeta::has(e.model, qvr::modelmeta::Trait::Submodel)) || !touches(&e, light, radius))
+            (itemsOnly && qvr::modelmeta::has(e.model, qvr::modelmeta::Trait::Submodel) && !qvr::brushes::isRuntime(e.model)) ||
+            !touches(&e, light, radius))
         {
             continue;
         }
@@ -780,8 +801,8 @@ void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, 
         profile::end();
         if(!cs.faceCasters.empty())
         {
-            R_DrawAliasModelsDepthLayered(cs.faceCasters.data(), cs.faceBits.data(), static_cast<int>(cs.faceCasters.size()),
-                &vps[0][0][0]);
+            QVR_TRACY_CALL("shadow alias layered draw", R_DrawAliasModelsDepthLayered(cs.faceCasters.data(),
+                cs.faceBits.data(), static_cast<int>(cs.faceCasters.size()), &vps[0][0][0]));
         }
         // The holey ones a face at a time (glViewport sets every viewport: after the layered draws).
         for(int face = 0; face < numViews && !cs.holey.empty(); face++)
@@ -967,6 +988,54 @@ constexpr int shadowFadeExtra = 2;
 }
 za::Array<DlightSlot, MAX_DLIGHTS> dlightSlots;
 
+// A dynamic light's world casters (collectWorld; vr_shadow_caster_cache), kept while the light's sphere stays inside
+// the one they were collected for (the world does not move): a light that moved or grew out of it is collected again,
+// worldCasterMargin units wider, so that the next frames' moves stay inside. A light that never changes keeps the
+// exact set. The wider set only adds surfaces wholly outside the light's sphere (beyond what it lights, and not between
+// it and anything inside): the same shadows.
+constexpr float worldCasterMargin = 24.f;
+struct WorldCasters
+{
+    const qmodel_t* world = nullptr;
+    int generation = -1;
+    glm::vec3 center{0.f};
+    float reach = -1.f; // collected for: the world's surfaces within `reach` of `center` (-1: none yet)
+    za::Vector<uint32_t> indices;
+};
+za::Array<WorldCasters, MAX_DLIGHTS> worldCasters; // by cl_dlights slot
+int worldCastersKept = 0, worldCastersCollected = 0; // since the last vr_shadow_caster_stats
+int casterCacheOverride = -1; // vr_shadow_layered_check casters: the mode it draws with (-1: vr_shadow_caster_cache's)
+
+// The world's casters of dynamic light `slot` (its sphere: center, reach) into `indices`.
+void collectWorldCached(int slot, const glm::vec3& center, float reach)
+{
+    WorldCasters& wc = worldCasters[slot];
+    const float mode = casterCacheOverride >= 0 ? static_cast<float>(casterCacheOverride) : vr_shadow_caster_cache.value;
+    if(mode <= 0.f)
+    {
+        wc.reach = -1.f;
+        collectWorld(cl.worldmodel->nodes, center, reach);
+        return;
+    }
+    if(mode < 2.f && wc.world == cl.worldmodel && wc.generation == worldGeneration() &&
+        wc.reach >= 0.f && glm::distance(center, wc.center) + reach <= wc.reach)
+    {
+        indices = wc.indices;
+        worldCastersKept++;
+        return;
+    }
+    // Collected before: a light that moves, grows or comes and goes here. (vr_shadow_caster_cache 2: the wider set
+    // collected every frame, a check that it draws the same shadows as the exact one.)
+    const bool changed = wc.reach >= 0.f || mode >= 2.f;
+    wc.world = cl.worldmodel;
+    wc.generation = worldGeneration();
+    wc.center = center;
+    wc.reach = reach + (changed ? worldCasterMargin : 0.f);
+    collectWorld(cl.worldmodel->nodes, wc.center, wc.reach);
+    wc.indices = indices;
+    worldCastersCollected++;
+}
+
 // Spot lights (lighting::dlightSpot): valid while the slot holds the same light (its key and
 // death time).
 struct Spot
@@ -1046,7 +1115,8 @@ struct ShadowScratch
     za::Vector<Candidate> dlightFading;     // (selectDlights: their strength as the score)
     za::Vector<Candidate> mapCandidates;    // the map lights near the viewer
     za::Vector<Request> requests;           // the faces packed into the atlas
-    auto members() { return qvr::mem::list(dlightCandidates, dlightFading, mapCandidates, requests); }
+    za::Vector<Request> estimate;           // a map's lights' faces at once (atlasEstimate)
+    auto members() { return qvr::mem::list(dlightCandidates, dlightFading, mapCandidates, requests, estimate); }
 };
 mem::Scratch<ShadowScratch> shadowScratch{"shadow lights"};
 
@@ -1208,10 +1278,15 @@ void selectMapLights(const glm::vec3& eye, float dt)
 {
     int wanted = static_cast<int>(vr_shadow_maplights.value);
     const float size = pow2Floor(za::clamp(vr_shadow_maplight_size.value, 64.f, 2048.f));
-    // The world depth cache: slots of 3 x 2 faces, in at most 8192 x 8192.
+    // The world depth cache: slots of 3 x 2 faces, in at most 8192 x 8192; with vr_shadow_atlas_grow no more than
+    // the map has lights (its static atlas no larger than they need).
     const int columns = za::max(1, static_cast<int>(8192.f / (3.f * size)));
     const int rows = za::max(1, static_cast<int>(8192.f / (2.f * size)));
     wanted = za::clamp(wanted, 0, columns * rows);
+    if(vr_shadow_atlas_grow.value != 0.f)
+    {
+        wanted = za::min(wanted, static_cast<int>(modellight::mapLights().size()));
+    }
 
     if(cl.worldmodel != slotsWorld || worldGeneration() != slotsGeneration || size != mapSlotSize || static_cast<int>(mapSlots.size()) != wanted)
     {
@@ -1321,8 +1396,8 @@ void selectMapLights(const glm::vec3& eye, float dt)
 
 // Rows of blocks (a point light's 3 x 2 faces, a spot light's one tile), tallest first; when they
 // do not fit, everything is halved and packed again (as DarkPlaces does), down to 32-texel faces.
-// Returns the scale they were all packed at, 0 if they did not fit.
-float pack(za::Vector<Request>& requests, int atlasSize)
+// Returns the scale they were all packed at, 0 if they did not fit (atlasSize wide, atlasHeight tall).
+float pack(za::Vector<Request>& requests, int atlasSize, int atlasHeight)
 {
     za::quickSort(requests.begin(), requests.end(), [](auto& a, auto& b) { return a.size * a.rows > b.size * b.rows; });
     for(float scale = 1.f; scale >= 1.f / 16.f; scale *= 0.5f)
@@ -1338,7 +1413,7 @@ float pack(za::Vector<Request>& requests, int atlasSize)
                 y += rowHeight;
                 rowHeight = 0.f;
             }
-            if(y + r.rows * s > static_cast<float>(atlasSize))
+            if(y + r.rows * s > static_cast<float>(atlasHeight))
             {
                 fits = false;
                 break;
@@ -1360,6 +1435,154 @@ float pack(za::Vector<Request>& requests, int atlasSize)
         }
     }
     return 0.f;
+}
+
+// The texel rows pack's rows take at full size, atlasSize wide however tall (nothing written).
+[[nodiscard]] float packRows(za::Vector<Request>& requests, int atlasSize)
+{
+    za::quickSort(requests.begin(), requests.end(), [](auto& a, auto& b) { return a.size * a.rows > b.size * b.rows; });
+    float x = 0.f, y = 0.f, rowHeight = 0.f;
+    for(const Request& r : requests)
+    {
+        const float s = za::max(32.f, r.size);
+        if(x + r.columns * s > static_cast<float>(atlasSize))
+        {
+            x = 0.f;
+            y += rowHeight;
+            rowHeight = 0.f;
+        }
+        x += r.columns * s;
+        rowHeight = za::max(rowHeight, r.rows * s);
+    }
+    return y + rowHeight;
+}
+
+// ----------------------------------------------------------------------------
+// Atlas sizes (vr_shadow_atlas_grow)
+
+// The atlas is as tall as the map needs, not always square (8192 x 8192, 256 MB, mostly unused). At a map's load it is
+// sized for its lights: as many map light slots as it has lights, the dynamic lights' budget at a typical face, the
+// flashlight's tile. It grows (in 32 MB bands, to what this map's frames have needed) only at moments a frame's hitch
+// goes unfelt: the menu or console up, paused, the intermission, dead. Making a texture that size takes the driver
+// 5-9 ms, a hitch mid-fight (ROUND22.md, "Shadow atlas on demand"). Until then a frame that needs more packs its faces
+// smaller, as an over-full atlas always did. The static atlas has a slot per map light at most (selectMapLights).
+// vr_shadow_atlas_grow 0: as tall as wide, as before.
+constexpr int atlasBandTexels = 8 * 1024 * 1024; // 32 MB of D32F
+constexpr float typicalDlightSize = 256.f;       // a muzzle flash's, a rocket's, an explosion's face near you (selectDlights)
+
+struct AtlasGrowth
+{
+    const qmodel_t* world = nullptr; // the map the atlas was sized for: a new one is sized again
+    int generation = -1;             // (the same model can hold another map: worldGeneration)
+    int grows = 0;                   // this map's growths
+    float lastMs = 0.f;              // the last one's cost (vr_shadow_stats: synced with the GPU, with a clear)
+    float used = 0.f;                // the rows this frame's faces needed (packed into the full square)
+    float peak = 0.f;                // and the most this map
+    int squeezed = 0;                // this map's frames packed smaller for want of rows
+};
+AtlasGrowth atlasGrowth;
+
+// Rows rounded up to bands, within the square.
+[[nodiscard]] int atlasRows(int width, float rows)
+{
+    const int band = za::clamp(atlasBandTexels / width, 256, width);
+    return za::clamp((static_cast<int>(rows) + band - 1) / band * band, band, width);
+}
+
+// What the map's lights could ask for at once, packed (the rows).
+[[nodiscard]] float atlasEstimate(int width)
+{
+    za::Vector<Request>& requests = shadowScratch.estimate;
+    requests.clear();
+    for(size_t i = 0; i < mapSlots.size(); i++)
+    {
+        requests.pushBack({mapSlotSize, nullptr, nullptr});
+    }
+    const int dlights = za::clamp(static_cast<int>(vr_shadow_dlights.value), 0, MAX_DLIGHTS);
+    const float maxSize = pow2Floor(za::clamp(vr_shadow_dlight_size.value, 64.f, 2048.f));
+    for(int i = 0; i < dlights; i++)
+    {
+        requests.pushBack({za::min(typicalDlightSize, maxSize), nullptr, nullptr});
+    }
+    if(dlights > 0 && vr_flashlight_shadows.value != 0.f)
+    {
+        requests.pushBack({za::min(2.f * maxSize, 2048.f), nullptr, nullptr, 1.f, 1.f});
+    }
+    return packRows(requests, width);
+}
+
+// A moment a frame's hitch goes unfelt.
+[[nodiscard]] bool hitchHidden()
+{
+    return key_dest != key_game || cl.paused || cl.intermission || cl.stats[STAT_HEALTH] <= 0;
+}
+
+// The atlas, vr_shadow_atlas wide; usedRows: this frame's faces packed into the full square.
+[[nodiscard]] bool ensureAtlas(int width, float usedRows)
+{
+    const bool newMap = atlasGrowth.world != cl.worldmodel || atlasGrowth.generation != worldGeneration();
+    if(newMap)
+    {
+        atlasGrowth = AtlasGrowth{};
+        atlasGrowth.world = cl.worldmodel;
+        atlasGrowth.generation = worldGeneration();
+    }
+    atlasGrowth.used = usedRows;
+    atlasGrowth.peak = za::max(atlasGrowth.peak, usedRows);
+    int height = width;
+    bool grow = false;
+    if(vr_shadow_atlas_grow.value != 0.f)
+    {
+        if(newMap || !atlas.tex || atlas.width != width)
+        {
+            height = atlasRows(width, za::max(atlasEstimate(width), atlasGrowth.peak));
+        }
+        else
+        {
+            height = atlas.height;
+            const int wanted = atlasRows(width, atlasGrowth.peak);
+            if(wanted > height && hitchHidden())
+            {
+                height = wanted;
+                grow = true;
+            }
+        }
+    }
+    else
+    {
+        grow = atlas.tex && atlas.width == width && atlas.height < width;
+    }
+    double start = 0.0;
+    if(grow && vr_shadow_stats.value != 0.f)
+    {
+        glFinish(); // timed up to the GPU having made and cleared it
+    }
+    start = Sys_DoubleTime();
+    if(!ensure(atlas, width, height, "shadow atlas"))
+    {
+        return false;
+    }
+    if(grow)
+    {
+        if(vr_shadow_stats.value != 0.f)
+        {
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, atlas.fbo);
+            glDisable(GL_SCISSOR_TEST);
+            GL_SetState(glstate & ~GLS_NO_ZWRITE);
+            glClearDepth(0.f);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
+            glFinish();
+        }
+        atlasGrowth.lastMs = static_cast<float>((Sys_DoubleTime() - start) * 1000.0);
+        atlasGrowth.grows++;
+        if(vr_shadow_stats.value != 0.f)
+        {
+            Con_Printf("shadow atlas: grew to %d x %d (%d MB) in %.2f ms\n", atlas.width, atlas.height,
+                atlas.width / 1024 * (atlas.height / 256), atlasGrowth.lastMs);
+        }
+    }
+    return true;
 }
 
 // Two lights, one traversal each: paired source/exit cube maps, 256-unit tiles at most.
@@ -1421,7 +1644,7 @@ void selectPortalLights(const glm::vec3& eye)
     }
 }
 
-void renderPortalLight(PortalLight& l)
+void renderPortalLight(PortalLight& l, const BrushCandidates& candidates)
 {
     const dlight_t& source = cl_dlights[l.index];
     const glm::vec3 origin{source.origin[0], source.origin[1], source.origin[2]};
@@ -1435,7 +1658,7 @@ void renderPortalLight(PortalLight& l)
     indices.clear();
     collectWorld(cl.worldmodel->nodes, origin, source.radius);
     size_t worldCount = indices.size();
-    collectBrushes(origin, source.radius, false);
+    collectBrushes(candidates, origin, source.radius, false);
     collectAliases(origin, source.radius, own, source.key != cl.viewentity, true);
     renderLight(atlas, origin, source.radius, views, cubeViews(l.sourceTile, l.size, views), l.size,
         worldCount, true, true);
@@ -1445,7 +1668,7 @@ void renderPortalLight(PortalLight& l)
     indices.clear();
     collectWorld(cl.worldmodel->nodes, l.pos, source.radius);
     worldCount = indices.size();
-    collectBrushes(l.pos, source.radius, false);
+    collectBrushes(candidates, l.pos, source.radius, false);
     collectAliases(l.pos, source.radius, own, source.key != cl.viewentity, true);
     renderLight(atlas, l.pos, source.radius, views, cubeViews(l.exitTile, l.size, views), l.size,
         worldCount, true, true, nullptr, &clip);
@@ -1477,20 +1700,49 @@ bool shadowsSupported()
 // `repeats` times each, alternating, timed (CPU: the submission; GPU: timestamps round it, waited for), then once more
 // each with the map lights' cached world drawn again too, read back and compared texel by texel (both atlases).
 // "cache": as vr_shadow_layered says both times, the casters set up for each light, then once a pass
-// (R_AliasDepthCacheBegin).
+// (R_AliasDepthCacheBegin). "casters": the dynamic lights' world casters collected exactly, then the wider set kept for a
+// moving light (vr_shadow_caster_cache 0, then 2: collectWorldCached).
 int layeredCheckRepeats = 0;
 bool layeredCheckCache = false; // the comparison is the casters' set-up cache off and on
+bool layeredCheckCasters = false; // ... the world casters exact and wider
 bool setupCacheOn = true;
 
 void layeredCheck_f()
 {
     layeredCheckRepeats = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)), 1, 500) : 1;
     layeredCheckCache = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "cache");
+    layeredCheckCasters = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "casters");
     if(!gl_viewport_layer_able || !depthLayeredProgram)
     {
         Con_Printf("vr_shadow_layered_check: no layered shadows here (%s), compared with themselves\n",
             gl_viewport_layer_able ? "no program yet" : "no GL_ARB_shader_viewport_layer_array or AMD/NV one");
     }
+}
+
+// vr_alias_eye_cache_stats: the second eyes' models since the last call (r_alias.c R_AliasEyeSlot): set up by the first
+// eye in full, the transform only (culled there), not at all; while vr_alias_eye_cache 2, the parts set up again that
+// differ from the first eye's (none expected).
+void eyeCacheStats_f()
+{
+    int s[10] = {};
+    R_AliasEyeCacheStats(s, 10);
+    Con_Printf("vr_alias_eye_cache_stats (vr_alias_eye_cache %g): second eye %d found, %d transform only, %d not found\n",
+        static_cast<double>(vr_alias_eye_cache.value), s[0], s[1], s[2]);
+    Con_Printf("  checked %d: differ lerp %d, matrix %d, light %d, counts %d, instance %d, smooth rows %d\n", s[3], s[4],
+        s[5], s[6], s[7], s[8], s[9]);
+    int taken = 0, checked = 0, bad = 0;
+    R_AliasDepthShareStats(&taken, &checked, &bad);
+    Con_Printf("  first eye (vr_shadow_setup_share %g): %d transforms from the shadow pass, %d checked, %d differ\n",
+        static_cast<double>(vr_shadow_setup_share.value), taken, checked, bad);
+}
+
+// vr_shadow_caster_stats: since the last call, the dynamic lights' world caster sets kept and collected
+// (vr_shadow_caster_cache, collectWorldCached).
+void casterStats_f()
+{
+    Con_Printf("vr_shadow_caster_stats (vr_shadow_caster_cache %g): dynamic lights' world casters %d kept, %d collected\n",
+        static_cast<double>(vr_shadow_caster_cache.value), worldCastersKept, worldCastersCollected);
+    worldCastersKept = worldCastersCollected = 0;
 }
 
 // An atlas' depth, read back.
@@ -1564,8 +1816,9 @@ void layeredCheck(const Render& renderAll)
     {
         for(int way = 0; way < 2; way++)
         {
-            layeredOverride = layeredCheckCache ? -1 : way;
+            layeredOverride = layeredCheckCache || layeredCheckCasters ? -1 : way;
             setupCacheOn = !layeredCheckCache || way == 1;
+            casterCacheOverride = layeredCheckCasters ? (way ? 2 : 0) : -1;
             const bool last = r == repeats; // the read-back: every atlas drawn again
             if(last)
             {
@@ -1611,6 +1864,7 @@ void layeredCheck(const Render& renderAll)
     }
     layeredOverride = -1;
     setupCacheOn = true;
+    casterCacheOverride = -1;
     GL_DeleteQueriesFunc(2, queries);
     int dl = 0, spots = 0, ml = 0;
     for(const DlightSlot& s : dlightSlots)
@@ -1627,6 +1881,7 @@ void layeredCheck(const Render& renderAll)
     for(int way = 0; way < 2; way++)
     {
         Con_Printf("  %s: %d draw calls, %d faces, %d model draws (%d set up, %d reused); CPU %.3f ms, GPU %.3f ms\n",
+            layeredCheckCasters ? (way ? "wider casters" : "exact casters") :
             layeredCheckCache ? (way ? "set up once " : "each light  ") : way ? "layered     " : "face at a time", calls[way], faces[way], models[way],
             misses[way] / (repeats + 1), hits[way] / (repeats + 1), cpu[way] / repeats, gpu[way] / repeats);
     }
@@ -1674,6 +1929,15 @@ extern "C" void VR_RenderShadowMaps(void)
     selectDlights(eye, dt);
     selectMapLights(eye, dt);
 
+    profile::begin("shadow brush candidates", false);
+    BrushCandidates candidates;
+    if(portalLightCount > 0 || za::anyOf(dlightSlots.begin(), dlightSlots.end(), [](const DlightSlot& s) { return s.selected; }) ||
+        za::anyOf(mapSlots.begin(), mapSlots.end(), [](const MapSlot& s) { return s.light >= 0; }))
+    {
+        collectBrushCandidates(candidates);
+    }
+    profile::end();
+
     // Moving casters of the map lights: none near means nothing to draw (and no light entry). Kept
     // for their drawing below.
     const auto& lights = modellight::mapLights();
@@ -1687,7 +1951,7 @@ extern "C" void VR_RenderShadowMaps(void)
             const auto& l = lights[s.light];
             indices.clear();
             collectAliases(l.pos, l.value / l.scale, 0, true);
-            collectBrushes(l.pos, l.value / l.scale, true);
+            collectBrushes(candidates, l.pos, l.value / l.scale, true);
             s.hasCasters = !aliasCasters.empty() || !brushCasters.empty();
             SlotCasters& c = slotCasters[i];
             c.aliases.swap(aliasCasters);
@@ -1724,7 +1988,17 @@ extern "C" void VR_RenderShadowMaps(void)
     }
     // What does not fit casts no shadow this frame; the map lights' moving casters must also
     // match their cached world faces' size (not scaled down).
-    const float packScale = pack(requests, atlasSize);
+    // The atlas first: as tall as it is grown (vr_shadow_atlas_grow), told the rows these faces want.
+    if(!ensureAtlas(atlasSize, packRows(requests, atlasSize)))
+    {
+        frameEnabled = false;
+        return;
+    }
+    if(atlasGrowth.used > static_cast<float>(atlas.height))
+    {
+        atlasGrowth.squeezed++;
+    }
+    const float packScale = pack(requests, atlasSize, atlas.height);
     if(packScale <= 0.f) { portalLightCount = 0; }
     for(DlightSlot& slot : dlightSlots)
     {
@@ -1744,7 +2018,7 @@ extern "C" void VR_RenderShadowMaps(void)
             const DlightSlot& s = dlightSlots[i];
             if(s.selected)
             {
-                Con_Printf(" %d%c%.2f", s.key, s.wanted ? '+' : '-', s.strength * s.distFade);
+                Con_Printf(" %d%c%.2f@%.0f%s", s.key, s.wanted ? '+' : '-', s.strength * s.distFade, s.size, s.spot ? "spot" : "");
             }
         }
         Con_Printf("; map lights");
@@ -1758,11 +2032,6 @@ extern "C" void VR_RenderShadowMaps(void)
         Con_Printf("\n");
     }
 
-    if(!ensure(atlas, atlasSize, atlasSize, "shadow atlas"))
-    {
-        frameEnabled = false;
-        return;
-    }
     if(!mapSlots.empty())
     {
         const int columns = za::max(1, static_cast<int>(8192.f / (3.f * mapSlotSize)));
@@ -1812,6 +2081,7 @@ extern "C" void VR_RenderShadowMaps(void)
     // Everything drawn into the atlases (twice by vr_shadow_layered_check).
     const auto renderAll = [&]()
     {
+        R_AliasDepthShare(setupCacheOn ? static_cast<int>(vr_shadow_setup_share.value) : 0); // (the check's off way: as before)
         R_AliasDepthCacheBegin(setupCacheOn); // each caster set up once in this pass (r_alias.c)
         facesDrawn = 0;
         modelsDrawn = 0;
@@ -1889,10 +2159,16 @@ extern "C" void VR_RenderShadowMaps(void)
             }
             profile::begin("dlight casters", false);
             indices.clear();
-            collectWorld(cl.worldmodel->nodes, center, reach);
+            profile::begin("dlight world casters", false);
+            collectWorldCached(i, center, reach);
+            profile::end();
             const size_t worldCount = indices.size();
-            collectBrushes(center, reach, false);
+            profile::begin("dlight brush casters", false);
+            collectBrushes(candidates, center, reach, false);
+            profile::end();
+            profile::begin("dlight alias casters", false);
             collectAliases(center, reach, l.key > 0 && l.key < cl.num_entities ? l.key : 0, l.key != cl.viewentity);
+            profile::end();
             profile::end();
             renderLight(atlas, p, l.radius, views, numViews, slot.size, worldCount, true, true);
         }
@@ -1900,7 +2176,7 @@ extern "C" void VR_RenderShadowMaps(void)
         profile::end();
 
         profile::begin("portal light shadows", true);
-        for(int i = 0; i < portalLightCount; i++) { renderPortalLight(portalLights[i]); }
+        for(int i = 0; i < portalLightCount; i++) { renderPortalLight(portalLights[i], candidates); }
         profile::end();
 
         profile::begin("map light shadows", true);
@@ -1964,8 +2240,12 @@ extern "C" void VR_RenderShadowMaps(void)
             {
                 ml += (s.light >= 0 && s.hasCasters) ? 1 : 0;
             }
-            Con_Printf("shadows: %d dynamic, %d map lights, %d faces, %d models; GPU %.2f ms, CPU %.2f ms\n", dl, ml, facesDrawn,
-                modelsDrawn, lastMs, cpuMs);
+            Con_Printf("shadows: %d dynamic, %d map lights, %d faces, %d models; GPU %.2f ms, CPU %.2f ms; atlas %dx%d, static %dx%d "
+                       "(%d MB), faces want %.0f rows (peak %.0f, %d frames squeezed), %d growths (last %.2f ms)\n",
+                dl, ml, facesDrawn, modelsDrawn, lastMs, cpuMs, atlas.width, atlas.height, staticAtlas.width, staticAtlas.height,
+                static_cast<int>((static_cast<double>(atlas.width) * atlas.height + static_cast<double>(staticAtlas.width) * staticAtlas.height) *
+                                 4.0 / (1024.0 * 1024.0)),
+                atlasGrowth.used, atlasGrowth.peak, atlasGrowth.squeezed, atlasGrowth.grows, atlasGrowth.lastMs);
         }
     }
 }
@@ -2230,6 +2510,18 @@ extern "C" void VR_PushMapLights(void)
     // bounds it in the world's depth pre-pass: glprogs.world_depth_pdo).
     // 2: and drawn as that depth (vr_parallax_debug).
     r_framedata.parallax2[3] = parallax && vr_parallax_depth_write.value != 0.f ? (vr_parallax_debug.value != 0.f ? 2.f : 1.f) : 0.f;
+    // Where the world's polygons sit in the relief (vr_parallax_plane): 0 at its top (carved down), 1 at its bottom
+    // (raised over them), so props resting on a polygon over deep relief sit in it, not over it (round 22).
+    r_framedata.parallax3[0] = parallax ? za::clamp(vr_parallax_plane.value, 0.f, 1.f) : 0.f;
+    // The depth write's split (r_world.c: R_DrawSolidSplit): how far ahead of the eye (view depth, units) the world's
+    // relief writes its depth; beyond, and on textures without relief, the plain programs, which the driver still
+    // tests early against the pre-pass's depth. Its most: where the parallax ends (no reach beyond: the same depth).
+    // 0: no split (the depth write off, its debug view, or vr_parallax_depth_split 0).
+    const float pdoReach = vr_parallax_depth_distance.value > 0.f
+                               ? za::min(vr_parallax_depth_distance.value, r_framedata.parallax[1])
+                               : r_framedata.parallax[1];
+    r_framedata.parallax3[1] =
+        r_framedata.parallax2[3] == 1.f && vr_parallax_depth_split.value != 0.f ? za::max(pdoReach, 16.f) : 0.f;
     // Specular anti-aliasing: how much the sheen's lobe widens by the bumps under a pixel (0 off).
     r_framedata.parallax[3] = za::clamp(vr_specular_aa.value, 0.f, 4.f);
     r_framedata.shadowbias = za::max(0.f, vr_shadow_bias.value);
@@ -2416,99 +2708,8 @@ extern "C" float VR_ViewModelMinLight(void)
     return za::clamp(vr_viewmodel_minlight.value, 0.f, 128.f);
 }
 
-// ----------------------------------------------------------------------------
-// Presets
-
-void lighting::applyPreset(int preset)
-{
-    struct Preset
-    {
-        float dlights, dlightSize, maplights, maplightSize, filter, atlasSize, distance, models, angle, entityShadows,
-            modelLighting, look, // look: contrast, bloom, coloured uncapped DarkPlaces lights, sheen, models on a
-                                 // par with the world, smooth replacement textures (0: Quake's)
-            normalmaps, parallax;
-    };
-    static constexpr Preset presets[] = {
-        // off: Quake's own look (flat dynamic lights, no shadows)
-        {0, 256, 0, 512, 1, 4096, 1024, 0, 0, 0, 0, 0, 0, 0},
-        // low
-        {2, 256, 0, 512, 1, 4096, 1024, 1, 1, 1, 1, 1, 0, 0},
-        // medium
-        {4, 512, 2, 512, 1, 4096, 1536, 1, 1, 1, 1, 1, 1, 1},
-        // high (8192: its 10 shadowed lights' 512 faces fill only 8 of 4096's 3x2-face blocks)
-        {6, 512, 4, 512, 2, 8192, 2048, 1, 1, 1, 1, 1, 1, 1},
-        // ultra
-        {8, 1024, 4, 1024, 3, 8192, 3072, 1, 1, 1, 1, 1, 1, 1},
-    };
-    preset = za::clamp(preset, 0, 4);
-    const Preset& p = presets[preset];
-    Cvar_SetValueQuick(&vr_shadow_dlights, p.dlights);
-    Cvar_SetValueQuick(&vr_shadow_dlight_size, p.dlightSize);
-    Cvar_SetValueQuick(&vr_shadow_maplights, p.maplights);
-    Cvar_SetValueQuick(&vr_shadow_maplight_size, p.maplightSize);
-    Cvar_SetValueQuick(&vr_shadow_filter, p.filter);
-    Cvar_SetValueQuick(&vr_shadow_atlas, p.atlasSize);
-    Cvar_SetValueQuick(&vr_shadow_distance, p.distance);
-    Cvar_SetValueQuick(&vr_dlight_models, p.models);
-    Cvar_SetValueQuick(&vr_dlight_angle, p.angle);
-    Cvar_SetValueQuick(&vr_entity_shadows, p.entityShadows);
-    Cvar_SetValueQuick(&vr_model_lighting, p.modelLighting);
-    const auto look = [&](cvar_t& var, float quake) {
-        Cvar_SetQuick(&var, p.look != 0.f ? var.default_string : va("%g", quake));
-    };
-    look(vr_light_contrast, 1.f);
-    look(vr_ambient_light, 0.f); // Quake's maps have no fill light of their own
-    look(vr_bloom, 0.f);
-    look(vr_tonemap, 0.f); // the eyes' float scene and tone curve, the grade (vr_tonemap.cpp)
-    look(vr_grade, 0.f);
-    look(vr_flash_scale, 1.f);
-    look(vr_explosion_light_scale, 1.f);
-    look(vr_colored_lights, 0.f);
-    look(vr_projectile_lights, 0.f);
-    // The lava nails' lights (a few on Low) and the lightning's stream of lights (Medium and up).
-    Cvar_SetQuick(&vr_lavanail_lights, preset >= 2 ? vr_lavanail_lights.default_string : preset == 1 ? "4" : "0");
-    Cvar_SetQuick(&vr_lavagun_light, preset >= 1 ? vr_lavagun_light.default_string : "0"); // the lava guns' glow (vr_emissive.cpp): Low and up
-    Cvar_SetQuick(&vr_beam_lights, preset >= 2 ? vr_beam_lights.default_string : "0");
-    Cvar_SetQuick(&vr_torch_lights, preset >= 2 ? vr_torch_lights.default_string : preset == 1 ? "4" : "0"); // torches' flicker
-    look(vr_weapon_screen_light, 0.f);
-    look(vr_gadget_light, 0.f);
-    look(vr_screen_glow, 0.f);
-    look(vr_screen_text_glow, 0.f);
-    look(vr_weapon_glow, 0.f);
-    look(vr_dlight_uncapped, 0.f);
-    look(vr_dlight_falloff, 0.f);
-    look(vr_specular, 0.f);
-    look(vr_model_light_parity, 0.f);
-    look(vr_model_ambient_dir, 0.f); // directional ambient on models (vr_ambient.cpp)
-    look(vr_rim_light, 0.f); // rim light on models (vr_envmap.cpp)
-    Cvar_SetQuick(&vr_weapon_reflections, preset >= 2 ? "1" : "0"); // weapons' reflections (vr_envmap.cpp): Medium and up
-    look(vr_viewmodel_minlight, 24.f);
-    look(vr_texture_smooth, 0.f);
-    look(vr_alpha_coverage, 0.f); // fences' mips as Quake's (thinning out with distance)
-    look(vr_water_splash, 0.f); // liquid splashes (vr_particles.cpp)
-    look(vr_particle_light, 0.f); // lit particles (vr_particles.cpp): Quake's were all as bright as their colours
-    Cvar_SetQuick(&vr_soft_particles, preset >= 2 ? "1" : "0"); // soft particles and sprites (vr_particles.cpp): Medium and up
-    Cvar_SetValueQuick(&vr_normalmaps, p.normalmaps); // made as the next map loads
-    Cvar_SetValueQuick(&vr_parallax, p.parallax);
-    Cvar_SetQuick(&vr_detail, preset >= 2 ? vr_detail.default_string : "0"); // detail textures (vr_detail.cpp): Medium and up, at the default (off)
-    // Dynamic ambient occlusion (vr_ao.cpp): Medium and up.
-    Cvar_SetQuick(&vr_ao_dynamic, preset >= 2 ? vr_ao_dynamic.default_string : "0");
-    Cvar_SetQuick(&vr_ao_brush, preset >= 2 ? vr_ao_brush.default_string : "0");
-    Cvar_SetQuick(&vr_ao_models, preset >= 2 ? vr_ao_models.default_string : "0");
-    water::applyPreset(preset); // liquids (vr_water.cpp)
-}
-
 namespace
 {
-
-// vr_graphics_preset (not saved: the settings it sets are): applies the preset chosen.
-void onPreset(cvar_t* var)
-{
-    if(var->value >= 0.f)
-    {
-        lighting::applyPreset(static_cast<int>(var->value));
-    }
-}
 
 // vr_alpha_coverage: the alpha-tested textures' mips made again (with or without their coverage kept).
 void onAlphaCoverage(cvar_t*)
@@ -2583,10 +2784,13 @@ void lightProbe_f()
 
 void lighting::init()
 {
-    Cvar_SetCallback(&vr_graphics_preset, onPreset);
     Cmd_AddCommand("vr_light_test", lightTest_f);
     Cmd_AddCommand("vr_light_probe", lightProbe_f);
     Cmd_AddCommand("vr_shadow_layered_check", layeredCheck_f);
+    Cmd_AddCommand("vr_alias_eye_cache_stats", eyeCacheStats_f);
+    Cmd_AddCommand("vr_alias_cull_stats", R_AliasCullStats);
+    Cmd_AddCommand("vr_oit_stats", R_OITStats);
+    Cmd_AddCommand("vr_shadow_caster_stats", casterStats_f);
     Cvar_SetCallback(&vr_alpha_coverage, onAlphaCoverage);
     ao::init();
 }

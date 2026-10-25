@@ -1,0 +1,8 @@
+# agrunt_guard: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed grunts guarding their heads: a shotgun, a sword; a crowbar in hand
+map vrtesthall
+god
+give "Crowbar" main
+spawn "Armed Grunt: Shotgun" 110 30
+spawn "Armed Grunt: Sword" 110 -40
+hint Wind up a swing at one: it covers its head and its weapon goes with its hands (no weapon left floating). Hit it, shove it, stagger it: the weapon stays in its hand.

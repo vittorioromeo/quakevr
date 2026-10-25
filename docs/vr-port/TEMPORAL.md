@@ -53,6 +53,75 @@ Contents:
   (DLAA instead of MSAA, or a higher internal resolution), not a speed-up. Our TAA should cost about 1 ms per frame.
   Measure both against 4x MSAA with `vr_profile`.
 
+## 1a. Status (2026-10-16): stages 2a and 2b, first cut (`Quake/vr/vr_temporal.cpp`)
+
+What landed, and where it departs from sections 5-7:
+
+- **Motion vectors** (5): uv one frame ago minus uv now, unjittered. Not a separate motion pass with `GL_EQUAL`
+  (section 5.2): the shading passes write a second colour output (`out_motion`, `QVR_TEMPORAL_FS_OUTPUT` in
+  `vr_glsl.h`) into a **motion target** (RGBA32F, colour attachment 1 of the eye's scene framebuffers: xy the motion,
+  z the fragment's depth, w the eye's stamp). The stamp means no clear; the depth check rejects a texel overdrawn later
+  by something opaque, which was section 5.2's reason against an MRT. Writes are switched on (`glDrawBuffers`) for the
+  opaque alias batches, the opaque world/brush shading and opaque liquids only. They stay on through all the alias
+  batches: switching them per batch cost 2.3 ms a frame in combat_48.
+  - **Alias models**: the vertex shader keeps each vertex's final world position in a slot of a buffer (bindings 13/14,
+    two halves by frame, 1M vertices each; slots per entity in a side table). The previous position is therefore
+    exactly what was drawn, whatever the vertex path: lerp, `r_lerpmodels 3` smoothing and rebuilt swings, hit
+    reactions, dents, the recoil's zero blend, morphs, IQM bones. This is simpler and more exact than keeping last
+    frame's instance data (5.3). An entity's first frame, a model change or a vertex count change has no previous
+    slot, so it takes the camera's motion.
+  - **Brush models**: the instance carries its previous matrix (`prevmat`). Only instances whose matrix changed write
+    a vector; the rest take the camera's.
+  - **Hands, weapons, body**: ordinary alias models, positions and view-projection both in world space, so head
+    motion does not move them on screen.
+  - **Camera motion**: in the resolve, from the depth and the eye's inverse view-projection.
+  - **Sky**: like everything else, reprojected at its brush's depth; direction-only reprojection is not done.
+- **Reactive mask** (5.4): OIT's stencil bit 2, plus bit 4 written around the heat haze and `VR_DrawSceneTranslucent`
+  (the VR particles, beams, blood streams). It is read through `GL_DEPTH_STENCIL_TEXTURE_MODE` in a small mask pass.
+  Liquids' motion texels carry a flag (weight 0.5 of the reactive weight); there is no previous-frame ripple state.
+- **Jitter** (6): Halton(2,3), 8 phases, the same in both eyes, only while TAA resolves. It is applied to `r_matproj`
+  in `R_SetFrustum` (`VR_TemporalProjection`), so the layers submitted to OpenXR keep the unjittered pose and FOV.
+- **TAA** (7): one compute pass per eye (no shared-memory tile yet). It uses the nearest-depth velocity of the 3x3,
+  Catmull-Rom history, rejection off screen or where the previous frame's depth (farthest of the 2x2) is nearer than
+  expected (3%; 10% for a model's own vector), variance clipping in YCoCg, and a blend in a reversible tone curve's
+  space. After it, a fullscreen pass copies the result into the scene with a limited unsharp mask (`vr_taa_sharpen`).
+  It runs before the water warp, view blend, bloom and tone curve. The UI is never in it.
+- **Resets** (7.4): a new map, a frame gap, a jump over 40 units, a turn over 25 degrees (teleport, respawn, snap
+  turn), or a change of `vr_taa`/`vr_temporal_debug`.
+- **Cvars**: `vr_taa` 0, `vr_taa_blend` 0.1, `vr_taa_clip` 1, `vr_taa_reactive` 0.6, `vr_taa_sharpen` 0.3 (all
+  archived), and `vr_temporal_debug` 1 vectors, 2 mask/rejected, 3 reprojection test. The command
+  `vr_temporal_error` prints the mean reprojection error. Menu: Graphics, "Temporal Antialiasing (TAA)" and "TAA
+  Sharpening"; Debug, "Show Motion Vectors" and "Print Reprojection Error".
+- **Not in this cut**: single-pass stereo (TAA is off while `vr_stereo_single` is on), MSAA together with TAA (the eyes'
+  MSAA is off under TAA), mip bias, the 2c render/display split, and the eyeshot of the MV/mask textures (the debug
+  views show them in the eyes instead).
+
+Measurements (RTX 4090, mock eyes 2048², his cfg with MSAA off, `bench.sh` 2 x 600 frames paced 90 Hz; ROUND22.md has
+the details):
+
+| | e1m1_fight GPU 3D | combat_48 GPU 3D |
+|---|---|---|
+| off | 2.88 ms | 3.90 ms |
+| `vr_taa 1` | 3.39 (+0.51; +0.25 an eye) | 4.50 (+0.60; +0.30 an eye) |
+| 4x MSAA (AA review) | 3.91 (+1.2) | 4.58 (+0.8) |
+
+Reprojection test, static scene under head motion (computer room, `vr_temporal_debug 3`): the error of the previous
+frame moved by the vectors against the current one is 1.13 (0-255 luma). Without moving it, the error is 2.56.
+
+Images (frozen view, against a 32-sample reference): the error at geometry edges is 30.9 off, 13.5 with 4x MSAA and
+14.4 with TAA without sharpening. Texture interiors are slightly better than off (0.58 vs 0.63). TAA without sharpening
+is slightly softer than the reference (Laplacian 2.55 vs 2.68, off 3.60); sharpening 0.3 gives 2.86. Retro textures
+keep their blocks. A swinging hand left no visible trail in the frame after it passed.
+
+Section 12, the conservative answers taken for TAA:
+- **4**: TAA stays an option, off by default; MSAA stays the default AA.
+- **6**: reset on teleports and large snap turns (a one-frame aliased flash rather than a ghost).
+- **7**: no previous ripple state; liquids lean on the reactive weight.
+- **8**: the same jitter in both eyes; no decorrelated experiment.
+
+Next: HMD tuning of 2b (ghosting on fast melee swings, the blend, clip and sharpening), then 2c (render/display split,
+mip bias), then 3a (DLAA/DLSS through the interop helper) on the same inputs.
+
 ## 2. Findings (with sources)
 
 ### 2.1 DLSS SDK today

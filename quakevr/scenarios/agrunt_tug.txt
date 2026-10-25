@@ -1,0 +1,8 @@
+# agrunt_tug: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title The physical tug: a calm shotgun grunt and an axe grunt close by, your hands empty
+map vrtesthall
+god
+notarget
+spawn "Armed Grunt: Shotgun" 60 20
+spawn "Armed Grunt: Axe" 110 -60
+hint Close your empty hand right on its weapon (not near it, not on its arm, not swinging through it): it stands its ground as a ragdoll and pulls back. Pull and keep pulling (half a second at least): its grip breaks, the weapon is yours, it stumbles a moment and fights on unarmed. A sharp yank alone doesn't do it. Let go first: it keeps it.

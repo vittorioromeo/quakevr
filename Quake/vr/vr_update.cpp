@@ -19,6 +19,12 @@
 #include "vr_files.hpp"
 #include "vr_zancle.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -88,7 +94,7 @@ bool hasNotice = false;
 
 [[nodiscard]] za::String cachePath()
 {
-    return za::String{com_basedirs[com_numbasedirs - 1]} + "/cache/update_check.txt";
+    return files::baseCacheDir() + "/update_check.txt";
 }
 
 // vr_update_url's feeds (separated by ';' or spaces), else GitHub's.
@@ -363,7 +369,7 @@ void writeCache(const za::String& feeds, const Result& r)
         }
         n++;
     });
-    if(n < 4 || lines[0] != za::String{cacheMagic} || lines[1].size() < 1)
+    if(n < 4 || lines[0] != za::String{cacheMagic} || lines[1].size() < 1 || lines[2].size() < 1)
     {
         note = "unreadable (left alone; the next answer replaces it)";
         return false;

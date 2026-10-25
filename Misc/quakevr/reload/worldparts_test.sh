@@ -7,13 +7,16 @@
 # at the old 320 units and 6 guns none from either place; with the range at 1000, none past it.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
+export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads the drawing; testbatch.sh)
+# (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
+tb_body() {
 fail=0
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 # "<screens> <magazines> <farthest>" in the last second, from `$1` (a setpos, or none), with the settings `$2`.
 count() {
     local at=""
     [ -n "$1" ] && at="noclip;setpos $1;"
-    local log=$(bash $KIT/run.sh $AGENT -Script "map vrfiringrange;wait90;developer 1;vr_reload_debug 1;$2;${at}wait90;echo MARK;wait80;toggleconsole;quit" -Filter "^MARK|^world gun|^reload: a lying" 2>&1 | sed -n '/^MARK/,$p' | sort -u)
+    local log=$(tb_run_sh -Script "map vrfiringrange;wait90;developer 1;vr_reload_debug 1;$2;${at}wait90;echo MARK;wait80;toggleconsole;quit" -Filter "^MARK|^world gun|^reload: a lying" 2>&1 | sed -n '/^MARK/,$p' | sort -u)
     local far=$(echo "$log" | grep "^world gun" | sed -n 's/.* \([0-9][0-9]*\) units off$/\1/p' | sort -n | tail -1)
     echo "$(echo "$log" | grep -c "^world gun") $(echo "$log" | grep -c "^reload: a lying") ${far:-0}"
 }
@@ -29,3 +32,6 @@ check $([ $s = 0 ] && echo 1 || echo 0) "the range at 1000, 1500 units over the 
 set -- $(count "" "vr_weapon_world_attach_range 400"); s=$1; f=$3
 check $([ $f -le 400 ] && echo 1 || echo 0) "the range at 400, from the spawn: $s screens, the farthest $f units off"
 exit $fail
+}
+source "$(dirname "$0")/../testbatch/testbatch.sh"
+tb_main "$AGENT" tb_body "$@"

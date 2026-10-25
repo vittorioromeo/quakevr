@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cfgfile.h"
 #include "bgmusic.h"
 #include "resource.h"
+#include "vr/vr_tracy.h"
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
 #else
@@ -99,6 +100,43 @@ static GLuint globalvao;
 #define QGL_DEFINE_FUNC(ret, name, args) ret (APIENTRYP GL_##name##Func) args = NULL;
 QGL_ALL_FUNCTIONS(QGL_DEFINE_FUNC)
 #undef QGL_DEFINE_FUNC
+
+// QVR: the framebuffer bindings' shadow (glquake.h, GL_BoundDrawFramebuffer). The driver's own function behind the
+// engine's pointer, which every bind goes through (vr_foveated.cpp wraps it again for a scene, and puts this back).
+static void (APIENTRYP gl_driverbindframebuffer) (GLenum target, GLuint framebuffer);
+static GLuint gl_drawframebuffer, gl_readframebuffer;
+
+static void APIENTRY GL_ShadowBindFramebuffer (GLenum target, GLuint framebuffer)
+{
+	if (target != GL_READ_FRAMEBUFFER)
+		gl_drawframebuffer = framebuffer;
+	if (target != GL_DRAW_FRAMEBUFFER)
+		gl_readframebuffer = framebuffer;
+	gl_driverbindframebuffer (target, framebuffer);
+}
+
+static void GL_InstallFramebufferShadow (void)
+{
+	if (GL_BindFramebufferFunc != GL_ShadowBindFramebuffer) // (loaded anew by a vid_restart's GL_CheckExtensions)
+		gl_driverbindframebuffer = GL_BindFramebufferFunc;
+	GL_BindFramebufferFunc = GL_ShadowBindFramebuffer;
+	GL_BindFramebufferFunc (GL_FRAMEBUFFER, 0); // a known start
+}
+
+GLuint GL_BoundDrawFramebuffer (void)
+{
+	return gl_drawframebuffer;
+}
+
+void GL_CheckBoundFramebuffers (const char *where)
+{
+	GLint draw = 0, read = 0;
+	glGetIntegerv (GL_DRAW_FRAMEBUFFER_BINDING, &draw);
+	glGetIntegerv (GL_READ_FRAMEBUFFER_BINDING, &read);
+	if ((GLuint) draw != gl_drawframebuffer || (GLuint) read != gl_readframebuffer)
+		Con_Printf ("glstate: %s: framebuffers draw %d read %d bound, the engine believes %u, %u\n", where, draw, read,
+			gl_drawframebuffer, gl_readframebuffer);
+}
 
 typedef struct glfunc_t {
 	void**			ptr;
@@ -362,6 +400,12 @@ qboolean VID_HasMouseOrInputFocus (void)
 	return (SDL_GetWindowFlags(draw_context) & (SDL_WINDOW_MOUSE_FOCUS | SDL_WINDOW_INPUT_FOCUS)) != 0;
 }
 
+// QVR: the keyboard's focus alone (the menus' "not focused" warning: the mouse over the window is not the focus)
+qboolean VID_HasInputFocus (void)
+{
+	return draw_context && (SDL_GetWindowFlags(draw_context) & SDL_WINDOW_INPUT_FOCUS) != 0;
+}
+
 /*
 ====================
 VID_IsMinimized
@@ -515,7 +559,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 			Sys_Error ("Couldn't set fullscreen state mode");
 	}
 
-	if (getenv ("QVR_TEST_HIDDEN") || COM_CheckParm ("-prepare")) // QVR: automated test runs can stay hidden (never shown on the desktop); the installer's preparation run too (vr_prepare.cpp)
+	if (getenv ("QVR_TEST_HIDDEN") || COM_PrepareRun ()) // QVR: automated test runs can stay hidden (never shown on the desktop); the installer's preparation run too (vr_prepare.cpp)
 	{
 	}
 	else if (getenv ("QVR_TEST_BACKGROUND")) // QVR: automated test runs open without taking the focus
@@ -915,11 +959,10 @@ static qboolean GL_FindExtension (const char *name)
 GL_BeginGroup
 =============
 */
-static qboolean glmarkers = false;
+qboolean glmarkers = false; // QVR: -glmarkers, -gldebug: vr_gl_markers forced on (vr/vr_profile.cpp)
 void GL_BeginGroup (const char *name)
 {
-	if (glmarkers)
-		GL_PushDebugGroupFunc (GL_DEBUG_SOURCE_APPLICATION, 0, -1, name);
+	VR_GLMarkerBegin (name); // QVR: with vr_gl_markers (the GPU profile scopes' stack, so that each end pops its own)
 }
 
 /*
@@ -929,8 +972,24 @@ GL_EndGroup
 */
 void GL_EndGroup (void)
 {
-	if (glmarkers)
-		GL_PopDebugGroupFunc ();
+	VR_GLMarkerEnd (); // QVR
+}
+
+/*
+=============
+GL_LabelNewFramebuffer -- QVR
+
+A framebuffer's debug label (frame debuggers name it), right after its glGenFramebuffers: bound once to become an
+object (a name never bound can't take a label), the draw binding put back. At creation only.
+=============
+*/
+void GL_LabelNewFramebuffer (GLuint fbo, const char *name)
+{
+	GLint prev = 0;
+	glGetIntegerv (GL_DRAW_FRAMEBUFFER_BINDING, &prev);
+	GL_BindFramebufferFunc (GL_DRAW_FRAMEBUFFER, fbo);
+	GL_ObjectLabelFunc (GL_FRAMEBUFFER, fbo, -1, name);
+	GL_BindFramebufferFunc (GL_DRAW_FRAMEBUFFER, (GLuint) prev);
 }
 
 /*
@@ -1335,6 +1394,7 @@ static void GL_Init (void)
 		char gpu[512];
 		q_snprintf (gpu, sizeof (gpu), "%s | %s | GL %s", gl_vendor ? gl_vendor : "?", gl_renderer ? gl_renderer : "?", gl_version ? gl_version : "?");
 		VR_SetCrashGpu (gpu); // QVR: the crash report's "GPU:" line
+		VR_LogsSystemLine (va ("GPU: %s\n", gpu)); // QVR: the run's system.txt (vr/vr_runlogs.cpp)
 	}
 
 	if (gl_version == NULL || sscanf(gl_version, "%d.%d", &gl_version_major, &gl_version_minor) < 2)
@@ -1348,10 +1408,12 @@ static void GL_Init (void)
 
 	VR_GLStep ("GL functions and extensions (GL_CheckExtensions)"); // QVR
 	GL_CheckExtensions ();
+	GL_InstallFramebufferShadow (); // QVR
 
 	VR_GLStep ("vertex array, buffer alignments"); // QVR
 	GL_GenVertexArraysFunc (1, &globalvao);
 	GL_BindVertexArrayFunc (globalvao);
+	GL_ObjectLabelFunc (GL_VERTEX_ARRAY, globalvao, -1, "global vao"); // QVR
 
 	glGetIntegerv (GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT, &ssbo_align);
 	glGetIntegerv (GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &ubo_align);
@@ -1455,6 +1517,7 @@ void GL_EndRendering (void)
 	if (!scr_skipupdate && !VR_SkipSwap ()) // QVR: unpaced test frames present only now and then
 	{
 		SDL_GL_SwapWindow(draw_context);
+		VR_RenderDocPresented (); // QVR: the frame boundary RenderDoc sees
 	}
 }
 
@@ -1464,6 +1527,7 @@ void	VID_Shutdown (void)
 	if (vid_initialized)
 	{
 		VID_FreeMouseCursors();
+		VR_TracyGLShutdown();
 		SDL_GL_DeleteContext(gl_context);
 		gl_context = NULL;
 		SDL_DestroyWindow(draw_context);
@@ -1709,6 +1773,22 @@ void	VID_Init (void)
 	Cmd_AddCommand ("vr_shader_reload", GL_ReloadShaders_f); // QVR: tests (gl_shaders.c)
 
 	putenv (vid_center);	/* SDL_putenv is problematic in versions <= 1.2.9 */
+
+#ifndef _WIN32
+	// QVR: the OpenXR runtime may need SDL on X11 with GLX (SteamVR: vr/vr_xr_runtime.hpp, beforeVideoInit): the
+	// config's runtime settings first (and the runtime test environment's, from the command line: TESTING.md).
+	{
+		const char *vr_vars[] = {"vr_xr_runtime", "vr_xr_runtime_json", "vr_xr_runtime_fallback", "vr_xr_test",
+			"vr_xr_test_runtimes", "vr_xr_test_active", "vr_xr_test_processes"};
+		if (CFG_OpenConfig(CONFIG_NAME) == 0 || CFG_OpenConfig("config.cfg") == 0)
+		{
+			CFG_ReadCvars(vr_vars, Q_COUNTOF(vr_vars));
+			CFG_CloseConfig();
+		}
+		CFG_ReadCvarOverrides(vr_vars, Q_COUNTOF(vr_vars));
+		VR_BeforeVideoInit ();
+	}
+#endif
 
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
 		Sys_Error("Couldn't init SDL video: %s", SDL_GetError());

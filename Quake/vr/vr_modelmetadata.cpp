@@ -68,10 +68,11 @@ constexpr const char* propPrefixes[] = {"vr_crate", "vr_rock", "vr_brick", "vr_p
     "candle", "barrel", "vr_barrel"};
 // Quake's monsters, the mission packs' (hipnotic: scorpions, gremlins, the armagon; rogue: mummies, eels, lava men,
 // dragons) and the player's model (other players, statues)
-constexpr const char* monsterFiles[] = {"soldier.", "dog.", "ogre.", "knight.", "hknight.", "wizard.", "demon.",
+constexpr const char* monsterFiles[] = {"soldier.", "vrgrunt.", "vrenforcer.", "dog.", "ogre.", "knight.", "hknight.", "wizard.", "demon.",
     "shambler.", "zombie.", "shalrath.", "enforcer.", "fish.", "tarbaby.", "boss.", "oldone.", "player.", "scor.",
     "grem.", "armabody.", "armalegs.", "mummy.", "eel.", "lavaman.", "dragon.", "ogre_", "sword.", "frogman",
-    "dog_explosive.", "rknight.", "teleporter_eye", "shambler_blood."}; // (the last four Dawn of the Machine's: read in place, owned/mg3/progs/)
+    "dog_explosive.", "rknight.", "teleporter_eye", "shambler_blood.", // (the last four Dawn of the Machine's: read in place, owned/mg3/progs/)
+    "mon_"}; // AD support: Arcane Dimensions' monsters (progs/mon_*.mdl)
 constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key.", "m_s_key.", "m_g_key.", "b_s_key.",
     "b_g_key.", "invulner.", "suit.", "invisibl.", "quaddama.", "end1.", "end2.", "end3.", "end4.", "empathy.",
     "wetsuit.", "shield.", "antigrav."};
@@ -269,7 +270,7 @@ constexpr za::U32 nameHash(const char* name)
     for(; *name; ++name) { hash = (hash ^ static_cast<unsigned char>(*name)) * 16777619u; }
     return hash;
 }
-constexpr int nameSlots = 256;
+constexpr int nameSlots = 512; // (AD support: Arcane Dimensions' monster models took the ids past 128)
 static_assert(static_cast<int>(Id::Count) * 2 < nameSlots);
 constexpr auto nameIds = [] {
     za::Array<Id, nameSlots> result{};

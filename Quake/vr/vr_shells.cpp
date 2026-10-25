@@ -56,7 +56,7 @@ enum Flags : int
 // +z up; mirrored with the model in the off hand), picked on the models (v_shot: just out of the
 // ejection port on the receiver's right side, improve_weapons3.py; v_shot2: the two chambers at the
 // breech). Casings go out along `dir` at `speed` metres per second, tumbling about `spinAxis`
-// (model space) at `spin` radians per second. `anchor` is a vertex near the ports (an anchor index, see
+// (model space) at `spin` radians per second. `anchor` is a point near the ports (an anchor, see
 // vr_anchor.hpp) whose move from frame 0 moves them with the firing animation (the recoil).
 struct Weapon
 {
@@ -69,13 +69,18 @@ struct Weapon
     float spin;
     float smoke;  // puff at the port,
     int sparks;   // and sparks
-    int anchor;
+    const char* anchor;
 };
 
 constexpr Weapon weaponTable[] = {
-    {modelmeta::Id::VShot, 1, {{14.5f, -2.75f, 4.65f}}, {{-0.3f, -1.f, 0.65f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3, 70},
+    {modelmeta::Id::VShot, 1, {{14.5f, -2.75f, 4.65f}}, {{-0.3f, -1.f, 0.65f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3,
+        "14.372 -1.7654 6.1451"},
     {modelmeta::Id::VShot2, 2, {{11.6f, 1.2f, 6.9f}, {11.6f, -1.2f, 6.9f}}, {{-1.f, 0.15f, 0.5f}, {-1.f, -0.15f, 0.5f}},
-        1.6f, {0.f, 1.f, 0.f}, 9.f, 1.5f, 1, 17},
+        1.6f, {0.f, 1.f, 0.f}, 9.f, 1.5f, 1, "11.6867 1.5246 7.4443"},
+    // AD support: the Widowmaker's ejection slot (vr_adweapons.cpp widowmakerParts), on the receiver's outer side (-y),
+    // opposite its shell port: out sideways and up, onto the ground (as the shotgun's).
+    {modelmeta::Id::AdVrWidowmaker, 1, {{7.25f, -3.9f, 7.7f}}, {{-0.25f, -1.f, 0.6f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3,
+        "12.5 -3.6 9.2"},
 };
 
 // The casings' models (the QC's `kind`).
@@ -207,13 +212,13 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
 // Where the firing animation has moved the ports from frame 0 (model units).
 [[nodiscard]] glm::vec3 animationShift(const view::ViewEntity& ve, const Weapon& w)
 {
-    if(w.anchor < 0 || !ve.ent.model || ve.ent.model->type != mod_alias)
+    if(!w.anchor || !ve.ent.model || ve.ent.model->type != mod_alias)
     {
         return glm::vec3{0.f};
     }
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(ve.ent.model));
-    const glm::vec3 now = anchor::posedVertex(ve.ent, w.anchor, ve.zeroBlend);
-    const glm::vec3 rest = anchor::posedVertex(ve.ent, w.anchor, 1.f);
+    const glm::vec3 now = anchor::posedAnchor(ve.ent, w.anchor, ve.zeroBlend);
+    const glm::vec3 rest = anchor::posedAnchor(ve.ent, w.anchor, 1.f);
     return (now - rest) * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
 }
 
@@ -387,6 +392,12 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         const glm::vec3 left = glm::normalize(glm::cross(up, fwd));
         up = glm::cross(fwd, left);
         const glm::vec3 dir = worldDir(ve, at, portDir);
+        if(vr_debug_weaponfx.value)
+        {
+            // (Its way out along the model's +y, as drawn: mirrored in the off hand. A side port's load point faces +y.)
+            Con_Printf("shells out hand %d: along the model's +y %.2f, up %.2f\n", p.hand,
+                glm::dot(dir, worldDir(ve, at, {0.f, 1.f, 0.f})), glm::dot(dir, up));
+        }
 
         Shell& s = newShell();
         s = Shell{};
@@ -776,7 +787,7 @@ void frame(const view::ViewEntity (&weapons)[2])
     qmodel_t* models[za::getArraySize(kindModels)];
     for(za::SizeT k = 0; k < za::getArraySize(kindModels); k++)
     {
-        models[k] = Mod_ForName(kindModels[k], false);
+        models[k] = view::viewModel(kindModels[k]); // (Mod_ForName's, kept: not looked up by name every frame)
     }
 
     for(Shell& s : shells)

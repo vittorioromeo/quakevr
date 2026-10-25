@@ -1,0 +1,12 @@
+# agrunt_grip_editor: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed humanoids' Grip Editor: frozen grunts and enforcers with a shotgun and a sword, close up (one grip a kind)
+map vrtesthall
+god
+notarget
+cvar vr_agrunt_freeze 1
+cvar vr_agrunt_grip_scope 0
+spawn "Armed Grunt: Shotgun" 70 -25
+spawn "Armed Grunt: Sword" 70 20
+spawn "Armed Enforcer: Shotgun" 100 -30
+spawn "Armed Enforcer: Sword" 100 30
+hint VR Settings > Armed Grunts > Grip Editor: walk up to one (the nearest is edited). Edits: Every Weapon moves the hand's grip for every weapon of that kind at once (grunts, enforcers each their own); This Weapon Only nudges one weapon on top. Print as Defaults (vr_agrunt_grip_dump) when it looks right. Freeze Them off to watch them fight.

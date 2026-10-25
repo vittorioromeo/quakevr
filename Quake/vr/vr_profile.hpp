@@ -57,7 +57,25 @@ enum Phase
     Particles,    // Ironwail's particle pass (Quake VR's particles are drawn in it)
     VrParticles,
     Decals,
-    View3D,       // SCR_UpdateScreen's 3D refresh ("3D"): both eyes and the mirror in VR, the one view in flat mode
+    // GPU passes (the GPU benchmark's breakdown, BENCHMARKS.md; nested ones are inside others: translucent holds the
+    // translucent water, alias and particles; spectator its own world, alias...; the eyes' scenes all the rest)
+    Sky,
+    Water,
+    Translucent,
+    Lights,       // the light clustering (R_PushDlights)
+    ViewModel,
+    HeatHaze,
+    BlobShadows,
+    EnvCube,
+    Bloom,
+    PostProcess,  // GL_PostProcess (tone curve, grade, gamma; resolve/warp)
+    Upscale,      // the resample into the eye's image (vr_upscale)
+    Ui,
+    HiddenArea,
+    Mirror,
+    Spectator,    // the window's spectator camera (vr_window_view 2): its whole scene
+    WindowView,   // its image drawn to the window
+    View3D,      // SCR_UpdateScreen's 3D refresh ("3D"): both eyes and the mirror in VR, the one view in flat mode
     PhaseCount
 };
 
@@ -68,12 +86,12 @@ enum Phase
 inline constexpr const char* settingCvars[] = {"vr_graphics_preset", "vid_fsaa", "r_scale", "vr_render_scale",
     "vr_visibility_mask", "r_oit", "vr_mirror", "host_maxfps", "vid_vsync", "vr_shadow_dlights", "vr_shadow_dlight_size",
     "vr_shadow_precision", "vr_shadow_muzzleflash", "vr_shadow_maplights", "vr_shadow_maplight_size", "vr_shadow_self",
-    "vr_shadow_filter", "vr_shadow_atlas", "vr_shadow_distance", "vr_dlight_models", "vr_specular", "vr_normalmaps",
+    "vr_pbr", "vr_pbr_strength", "vr_parallax", "vr_parallax_models", "vr_parallax_distance", "vr_parallax_grazing", "vr_parallax_depth_write", "vr_shadow_filter", "vr_shadow_atlas", "vr_shadow_distance", "vr_dlight_models", "vr_specular", "vr_normalmaps",
     "vr_bloom", "vr_bloom_radius", "vr_particles", "vr_particle_mult", "r_particles", "vr_decals", "vr_decal_max",
     "vr_blob_shadows", "vr_texture_smooth", "gl_texturemode", "gl_texture_anisotropy", "vr_body_mode", "vr_body_blood",
     "vr_gib_blood", "r_dynamic", "r_softemu", "r_waterwarp", "r_lerpmodels", "vr_flashlight", "vr_retro",
     "vr_retrolight", "vr_particle_retro_fast", "vr_particle_retro_halfres", "vr_particle_halfres", "vr_particle_light", "vr_teleporters",
-    "vr_portals", "vr_window_view", "vr_enabled", "vr_mock_eye_size", "vr_mock_fast", "vr_fixed_frames", "vr_fixed_frames_rate", "vr_fixed_frames_jitter", "host_fixedtick", "vr_box3d_threads", "vr_timescale"};
+    "vr_portals", "vr_window_view", "vr_enabled", "vr_mock_eye_size", "vr_mock_eye_height", "vr_mock_refresh", "vr_mock_hidden_area", "vr_dynres", "vr_foveated", "vr_spectator_scale", "vr_spectator_rate", "vr_mock_fast", "vr_fixed_frames", "vr_fixed_frames_rate", "vr_fixed_frames_jitter", "host_fixedtick", "vr_box3d_threads", "vr_timescale"};
 
 // Sums since the last take().
 struct PhaseSums
@@ -96,6 +114,8 @@ struct PhaseSums
 // The runtime's display period (xrWaitFrame's predictedDisplayPeriod), in milliseconds.
 void noteDisplayPeriod(double ms);
 [[nodiscard]] double displayPeriodMs(); // (0: not known, the mock)
+// The serial the frame being drawn gets at its end (the history's, and its GPU times' when read back: dynres::gpuFrame).
+[[nodiscard]] unsigned long long nextFrameSerial();
 
 // ---- The last frames, one by one (the wrist gadget's detailed counter, vr_gadget_fps 2) ----
 // A frame from the same phases (always timed): when it began (seconds, the steady clock of nowSeconds), its period (to

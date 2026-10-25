@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // `vr_pickup_test <n>` (Debug > Tests > Weapon Pickups): the map's weapons drawn as their props
 // (vr_pickup_prop_models, VR_WeaponPickup_SetModel). Single player only.
 // 1 every weapon pickup there is (the mission pack's when it is loaded) spawned in rows of five ahead of you, each
@@ -249,6 +250,27 @@ void() VR_PickupTest_View =
     vr_pickuptest_view = 0;
 };
 
+// 5: the weapons lying about within 400 units of `p` (a map's func_weapon_grabbable, drops): each one's place, speed,
+// its turned drawn box's lowest point and the floor straight under its origin, to see one sunk into what it lies on or
+// thrown off it.
+void(entity p) VR_PickupTest_Lying =
+{
+    float n = 0;
+    for(entity e = findradius(p.origin, 400); e; e = e.chain)
+    {
+        if(e.classname != "thrown_weapon")
+        {
+            continue;
+        }
+        n = n + 1;
+        float lo = e.origin_z + VR_WeaponGrabbable_Lowest(e); // (its drawn box turned as it lies: buttons.qc)
+        traceline(e.origin, e.origin - '0 0 128', TRUE, e);
+        bprint(sprintf("pickuptest: lying %g at %v vel %v lowest %.1f floor %.1f%s\n", e.weapon, e.origin, e.velocity, lo,
+            trace_endpos_z, trace_startsolid ? " (its origin in the level)" : ""));
+    }
+    bprint(sprintf("pickuptest: %g weapons lying near\n", n));
+};
+
 // 6: a super shotgun pickup 40 units ahead of you, as the map's (hanging at vr_item_float_height), watched: each change
 // of its state (hanging, knocked loose, taken) printed with its time and height (floatgrab: in the console; the floating
 // pickups' grace, vr_pickup_float_grace: `vr_mock_hand_to main nearest weapon_supershotgun <units>` reaches it).
@@ -328,9 +350,14 @@ void() VR_PickupTest_Frame =
     {
         VR_PickupTest_EnemyGuns();
     }
+    else if(ask == 5)
+    {
+        VR_PickupTest_Lying(p);
+    }
     else if(ask == 6)
     {
         VR_PickupTest_Float();
     }
     self = oself;
 };
+#endif

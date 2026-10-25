@@ -1,0 +1,12 @@
+# pickup_vanilla: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Vanilla pickup (vr_carry 0): ammo, health, armour and a crate around you, your health at 50
+map vrtesthall
+god
+health 50
+cvar vr_carry 0
+spawn "Shells" 80 0
+spawn "Nails" 80 70
+spawn "Health" 140 -20
+spawn "Green Armour" 140 100
+spawn "Rockets" 200 40
+spawn "Wooden Crate" 120 200

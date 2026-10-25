@@ -22,9 +22,9 @@
 # its edges the way the axe's head points, and the grip going on below the handle's bottom, long
 # enough for a second hand under the first (two-handed, vr_twohand.cpp). With the axe's weapon
 # settings the hand then holds the grip as it holds the axe, just under the crossguard, and the
-# sword turns about it. Anchor indices (the
-# hand's, the tip's for a swing's reach) follow the old engine's strip order, not the file's: the
-# engine's vr_anchor_nearest finds them (see vr_weapons.inc, slots 18 and 19). Scaled so that the
+# sword turns about it. Its anchors (the hand's, the tip's for a swing's reach: points on the
+# surface, vr_anchor.hpp) are what the engine's vr_anchor_nearest gives (see vr_weapons.inc, slots
+# 18 and 19). Scaled so that the
 # weapon settings' 0.34 gives about the knights' own sword length. Nine identical frames (a weapon's
 # frame numbers).
 

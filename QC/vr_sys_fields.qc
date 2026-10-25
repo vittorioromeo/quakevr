@@ -134,7 +134,10 @@
 
 .float offhand_hotspot;
 .float sawcord; // the chainsaws' starter cords (vr_chainsaw.qc VR_SAWCORD_*: which hand holds one, a pull)
-.float handdrop; // a heavy weapon wrenched out of a hand (the engine's vr_weight_drop: VR_HANDDROP_*, weapons.qc)
+.float vr_flatscreen; // this player plays flatscreen (-flatscreenmode, his own client: the engine sets it from his move): VR_FlatPlay
+.float vr_stand; // the head's height over the floor, a share of the standing (calibrated) eye height (1 standing; 0 not known): the engine sets it from his move (VR_KdTrig_Tackle)
+.float handdrop;// a heavy weapon wrenched out of a hand (the engine's vr_weight_drop: VR_HANDDROP_*, weapons.qc)
+.float vr_posetime; // the time of the poses in the player's last move (s, modulo VR_POSE_CLOCK_WRAP; -1 unknown): VR_Melee_Track
 .float mainhand_hotspot;
 
 //
@@ -229,6 +232,10 @@
 // shotgun's breech back from the barrels, a well down from the gun
 .vector loadportface;
 .vector offloadportface;
+// Where a held gun's projectile leaves from, from its muzzle along the shot (forward, right, up: the shot's frame, so a
+// portal's turn changes nothing; zero: the muzzle): the AD crossbow's bolt as drawn in its groove (vr_adcrossbow.cpp).
+.vector launchofs;
+.vector offlaunchofs;
 // The magazine attached to each held (or carried) gun, as drawn (the engine; vr_reload.qc): a box, its middle and its three
 // half-axes (the first from the middle up to its feed end, in the well); the axes all zero: none.
 .vector magboxpos;
@@ -239,6 +246,13 @@
 .vector offmagboxx;
 .vector offmagboxy;
 .vector offmagboxz;
+// Where the rounds stand in the ammo pouch on the front of the belt, as the client places it (the engine; vr_reload.qc
+// VR_Reload_PouchFrame: pouch reloading): a box, its middle and its three half-axes (out of the body, to the left, up along
+// the rounds standing in it); the axes all zero: no pouch.
+.vector ammopouchpos;
+.vector ammopouchx;
+.vector ammopouchy;
+.vector ammopouchz;
 .vector shotrot;    // where the hand's shots go (angles): its aim turned by the weapon's Shot Pitch/Yaw (the engine)
 .vector offshotrot;
 
@@ -279,6 +293,7 @@
 // ----------------------------------------------------------------------------
 
 .float  vr_rigid; // MOVETYPE_TOSS/BOUNCE entities that spin, bounce and settle as rigid bodies
+.float  vr_projectile; // a projectile (weapons.qc VR_Proj_Mark): a small MOVETYPE_FLY one's or a grenade's move meets corpses, gibs, knocked-down bodies (vr_hitmodel.cpp)
 .float  vr_hitclass; // precise hits (vr_hitmodel.cpp): a missile's class for its tolerance (HITCLASS_*: 0 a gun's, 1 the grappling hook's); -1: Quake's boxes
 .vector vr_spin;  // their angular velocity, radians per second, world axes
                   // (.vr_rigid 2: a solid one, SOLID_BBOX, its box kept round its drawn shape as it turns: an explosive box)
@@ -304,3 +319,23 @@
 .float vr_shot_radius;  // a grenade shots set off (vr_grenade.qc, "Shooting grenades"; engine: vr_hitmodel.cpp VR_ShotTargetClip): shots
                         // and missiles meet a cube this half size round its middle (0: Quake's rules); with takedamage
 .float vr_shot_ownfrom; // its owner's own shots meet it from then (not as it leaves his launcher or hand)
+.float vr_melee_time; // a monster's melee attack (ai_charge, ai_melee and kin; AD's ad_ai_*): when it last stepped or
+                      // struck in one; the engine keeps it out of your head meanwhile (vr_enemy_melee_space)
+.float vr_melee_arc;      // Show Melee Arcs (vr_enemy_melee_arc_show; fight.qc VR_MeleeArc_ShowFrame, set each frame it is
+.float vr_melee_arc_wide; // shown, at vr_melee_shown): its blows' arc (degrees each side of its facing), its sweeping
+.float vr_melee_reach;    // blows' (0: none seen yet), its reach (units, origin to origin); the engine draws them
+.float vr_melee_shown;    // (vr_bodycontact.cpp meleeArcDraw)
+.float vr_melee_reach_base; // QC's: its blows' own reach (Quake's or AD's, before the growth: fight.qc VR_MeleeReach)
+.float vr_melee_wide_seen;  // QC's: it struck a sweeping blow (its wide arc shown from then)
+.float vr_melee_turn_time;  // QC's: the frame (time) of its last swing turn (fight.qc VR_MeleeArc_TurnBegin), and its
+.float vr_melee_turn_yaw0;  // facing before that frame's first turn: a frame's turns held together, however many calls
+.float vr_aim_cone;    // Show Aim Cones (vr_enemy_aim_show; vr_aimcone.qc VR_AimCone_ShowFrame, set each frame it is shown, at
+.float vr_aim_fire;    // vr_aim_shown): a ranged monster's aim cone and fire cone (degrees each side of its facing); while
+.float vr_aim_shown;   // a shot waits for it to turn, vr_aim_holding is when the wait began (0: none); the engine draws
+.float vr_aim_holding; // them (vr_bodycontact.cpp aimConeDraw)
+.void() vr_aim_fn;     // QC's (vr_aimcone.qc VR_AimCone_Wait): a waiting shot's function (called when the wait ends), the
+.void() vr_aim_next;   // think it had (its next frame) and how long until it (seconds), the wait's kind of shot, when
+.float vr_aim_step;    // the last wait ended (none again for a second: one wait an attack) and the frame (time) a wait
+.float vr_aim_kind;    // ended in (its shot fires then, unheld)
+.float vr_aim_ended;
+.float vr_aim_go;

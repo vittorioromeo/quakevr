@@ -220,6 +220,7 @@ extern "C" void VR_ItemTextureClamp (qmodel_t *loadmodel)
 Mod_SkinIslands -- a skin's islands (the texels its triangles cover) for its normal map's heights and bumps
 (VR_SetHeightMask), on the hunk: per texel of a w x h skin, how many texels it lies inside (0 outside). `corners`:
 each triangle's three corners in texels (x, y), `numtris` of them. A texel within 0.7 of a texel of a triangle is in.
+A change here changes the skins' normal maps: bump NORMALCACHE_VERSION (vr_normalmaps.cpp; their disk cache).
 ===============
 */
 static byte *Mod_SkinIslands (const float *corners, int numtris, int w, int h);
@@ -354,7 +355,7 @@ extern "C" void VR_LoadSkinNormalMaps (qmodel_t *loadmodel, void *hdr, const stv
 {
 	aliashdr_t *pheader = (aliashdr_t *) hdr;
 	double	t0 = Sys_DoubleTime (); // load timing (vr_startup_times)
-	int		i, j, n, w = pheader->skinwidth, h = pheader->skinheight, mark;
+	int		i, j, n, w = pheader->skinwidth, h = pheader->skinheight, mark, relief;
 	byte	*mask = NULL;
 
 	if (!numskinnormalmaps)
@@ -383,15 +384,22 @@ extern "C" void VR_LoadSkinNormalMaps (qmodel_t *loadmodel, void *hdr, const stv
 	}
 	else
 		VR_SetHeightMask (mask, w, h);
+	// a weapon made from another model's file: its relief made from its skin, as our weapons' are baked (vr_skinrelief.cpp;
+	// its first frame, after the triangles in the file, gives its units per texel)
+	relief = VR_SkinReliefWanted (loadmodel->name) ? NORMALMAP_RELIEF : 0;
+	if (relief)
+		VR_SkinReliefBegin (pheader, verts, tris, tris + pheader->numtris);
 	for (i = 0; i < numskinnormalmaps; i++)
 	{
 		char shared[MAX_QPATH];
 		q_snprintf (shared, sizeof (shared), "%s_0", loadmodel->name); // skin 0's (every skin has the same coordinates)
 		VR_LoadNormalMap (skinnormalmaps[i].glt, skinnormalmaps[i].name, strcmp (shared, skinnormalmaps[i].name) ? shared : NULL,
-			skinnormalmaps[i].data, skinnormalmaps[i].format, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN);
+			skinnormalmaps[i].data, skinnormalmaps[i].format, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN | relief);
 		if (skinnormalmaps[i].owned)
 			VR_HeapFree (skinnormalmaps[i].data);
 	}
+	if (relief)
+		VR_SkinReliefEnd ();
 	VR_SetHeightMask (NULL, 0, 0);
 	numskinnormalmaps = 0;
 	Hunk_FreeToLowMark (mark);
@@ -590,6 +598,17 @@ extern "C" void VR_MD5SkinNormalMap (void *surf, gltexture_t *glt, const char *s
 	double t0 = Sys_DoubleTime (); // load timing (vr_startup_times)
 	Mod_MD5SkinNormalMap ((aliashdr_t *) surf, glt, skinname, shared, data, fmt, w, h);
 	VR_TimeAdd ("        md5: their normal maps", Sys_DoubleTime () - t0);
+}
+
+/*
+===============
+VR_MD5SharedSkins -- whether an MD5 shader's skins (progs/<shader>_NN_FF) are loaded once for every model using them:
+Quake VR's body (vrbody, vrbody_lean, vrbody_brawny and their _bare forearms all use "vrbody"'s 16 skins)
+===============
+*/
+extern "C" int VR_MD5SharedSkins (const char *shader)
+{
+	return shader && !q_strcasecmp (shader, "vrbody");
 }
 
 /*

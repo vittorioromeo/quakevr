@@ -1,0 +1,11 @@
+title Dual-wielding armed grunts and enforcers (Dual Wielding forced on)
+map vrtesthall
+god
+cvar vr_agrunt_dual_chance 1
+give "Crowbar" main
+spawn "Armed Grunt: Sword" 300 -90
+spawn "Armed Grunt: Axe" 300 -15
+spawn "Armed Grunt: Crowbar" 300 60
+spawn "Armed Enforcer: Chainsaw" 300 135
+spawn "Armed Enforcer: Axe" 300 210
+hint Dual Wielding is forced on: two blades each, swung in turn and together. Knock or pull one out, then kill them; check the enforcers' chainsaw height.

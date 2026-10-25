@@ -1,6 +1,6 @@
 #!/bin/bash
 # melee_phase_test.sh <agent> [out dir] -- Swing Through Enemies (vr_melee_phase; ROUND21.md, "Melee phasing"). Mock
-# punches (vr_mock_play, a closed fist) in vrfiringrange, vr_debug_model_collide 1 and developer 1 logging:
+# punches (vr_mock_play, a closed fist) in vrmelee-recording, vr_debug_model_collide 1 and developer 1 logging:
 # (vr_fixed_frames 1 at 90 Hz; vr_melee_push 0: the grunt stays where the punches go; vr_melee_dmg_multiplier 0.25: nothing dies;
 # vr_melee_phase 0 until a case sets it: on by default since config 102, the setup's moves would phase.)
 #   dummy_fast_off  a fast punch (5.3 m/s) through the training dummy, phasing off: drawn stopped at it, one hit
@@ -19,12 +19,12 @@ printf '0.000 main -0.10 1.15 -0.20 0 0 0\n0.300 main -0.10 1.15 -0.20 0 0 0\n1.
 printf '0.000 main 0.00 1.15 -0.20 0 0 0\n0.300 main 0.00 1.15 -0.20 0 0 0\n0.450 main 0.00 1.15 -1.05 0 0 0\n1.500 main 0.00 1.15 -1.05 0 0 0\n2.300 main 0.00 1.15 -0.20 0 0 0\n' > "$OUT/grunt_fast.txt"
 P="vr_mock_play $OUT"
 CASE() { echo "echo PHASE_CASE $1;$2;$P/$3.txt;wait${4:-260};echo PHASE_END $1"; }
-S="vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrfiringrange;wait60;god;notarget;developer 1;vr_debug_model_collide 1;vr_melee_dmg_multiplier 0.25;vr_melee_push 0;vr_dummy_attacks 0;vr_melee_phase 0"
-S="$S;impulse 150;wait5;setpos 221.2 -656.7 41 0 180 0;wait30;vr_mock_hand main -0.10 1.15 -0.20 0 0 0;+grabmain;vr_mock_button main grip 1;wait20"
+S="vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrmelee-recording;wait60;god;notarget;developer 1;vr_debug_model_collide 1;vr_melee_dmg_multiplier 0.25;vr_melee_push 0;vr_dummy_attacks 0;vr_melee_phase 0"
+S="$S;impulse 150;wait5;setpos 3.3 -31.2 24 0 90 0;wait30;vr_mock_hand main -0.10 1.15 -0.20 0 0 0;+grabmain;vr_mock_button main grip 1;wait20"
 S="$S;$(CASE dummy_fast_off 'vr_melee_phase 0' dummy_fast)"
 S="$S;$(CASE dummy_fast_on 'vr_melee_phase 1' dummy_fast)"
 S="$S;$(CASE dummy_slow_on 'vr_melee_phase 1' dummy_slow 330)"
-S="$S;setpos 316 -556 56 0 180 0;wait20;vr_test_spawn 0;vr_test_spawn_dist 36;impulse 241;wait60;vr_mock_hand main 0.00 1.15 -0.20 0 0 0;wait20"
+S="$S;setpos 256 -256 24 0 180 0;wait20;vr_test_spawn 0;vr_test_spawn_dist 36;impulse 241;wait60;vr_mock_hand main 0.00 1.15 -0.20 0 0 0;wait20"
 S="$S;$(CASE grunt_fast_off 'vr_melee_phase 0' grunt_fast)"
 S="$S;$(CASE grunt_fast_on 'vr_melee_phase 1' grunt_fast)"
 S="$S;-grabmain;vr_mock_button main grip 0;vr_weapon_grip_mode 1;impulse 154;wait20"
@@ -49,8 +49,8 @@ for line in lines:
     if cur is None: continue
     c = cases[cur]
     if line.startswith("melee event:"): c["hits"] += 1
-    m = re.match(r"model collide main: t ([\d.]+) push .* given ([\d.]+) drawn ([\d.]+) .*planes(.*)", line)
-    if m: c["lines"].append((float(m.group(1)), float(m.group(2)), float(m.group(3)), m.group(4).strip()))
+    m = re.match(r"model collide main: t ([\d.]+) push .* given ([\d.]+) drawn ([\d.]+) .*?(\d+) planes(.*)", line)
+    if m: c["lines"].append((float(m.group(1)), float(m.group(2)), float(m.group(3)), m.group(4) + " planes" + m.group(5)))
     m = re.match(r"melee phase main: (on|off) at t ([\d.]+)", line)
     if m: c.setdefault("phase", []).append((m.group(1), float(m.group(2))))
 ok = n = 0
@@ -62,7 +62,14 @@ def summary(k):
     c = cases.get(k, {"hits": -1, "lines": []})
     L = c["lines"]
     maxd = max([d for _, _, d, _ in L], default=0.0)
-    maxdp = max([d for _, _, d, f in L if "phasing" in f], default=0.0)
+    # Drawn held out while phasing: a phasing frame touching nothing (0 planes) whose drawn offset shrinks is the hold from
+    # before the phase easing away (a gun already pressed into the grunt when its swing starts: grunt_gun_hold1), not
+    # the monster holding it out; any other phasing frame counts.
+    maxdp, prev = 0.0, None
+    for _, _, d, f in L:
+        if "phasing" in f and not (int(f.split()[0]) == 0 and prev is not None and d <= prev):
+            maxdp = max(maxdp, d)
+        prev = d
     return c, L, maxd, maxdp
 c, L, maxd, _ = summary("dummy_fast_off")
 check("dummy_fast_off", c["hits"] == 1 and maxd > 0.5 and "phase" not in c, f"{c['hits']} hit, drawn held out up to {maxd:.2f} units")
