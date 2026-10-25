@@ -1297,10 +1297,45 @@ void pouchMags_f()
             h, best, across * cm, over * cm, glm::dot(s.loadPortAxis[h], up));
     }
 }
+// vr_aim_check: per armed hand, where its shots go against its drawn barrel and the controller's calibrated aim (the
+// Show Controller Laser's red, green and white, in degrees), with each one's pitch, and the wrist's bend (the drawn
+// hand's forward against the forearm's, as last posed). The shots are the move's (weapons::shotAngles of the hand).
+void aimCheck_f()
+{
+    const hands::State& s = hands::current();
+    const auto deg = [](const glm::vec3& a, const glm::vec3& b) {
+        return glm::degrees(za::acos(za::clamp(glm::dot(glm::normalize(a), glm::normalize(b)), -1.f, 1.f)));
+    };
+    const auto pitchOf = [](const glm::vec3& d) { return glm::degrees(za::asin(za::clamp(d.z, -1.f, 1.f))); };
+    for(int h = 0; h < 2; h++)
+    {
+        const int slot = weapons::heldSlot(h);
+        const char* name = h == HAND_MAIN ? "main" : "off";
+        float bend = -1.f;
+        avatar::ForearmFrame ff;
+        if(avatar::forearmFrame(h, 1.f, ff))
+        {
+            bend = deg(ff.axes[0], ff.hand[0]);
+        }
+        if(slot < 0 || slot == weapons::fistSlot() || !s.muzzleValid[h])
+        {
+            Con_Printf("aim_check: %s hand unarmed, wrist bend %.1f\n", name, bend);
+            continue;
+        }
+        const glm::vec3 shot = hands::forward(weapons::shotAngles(s.rot[h], slot, h == HAND_OFF));
+        const glm::vec3 aim = hands::forward(s.aimRot[h]);
+        const glm::vec3 barrel = glm::normalize(glm::vec3{hotspotFrame(entities.weapon[h].ent, h == HAND_OFF)[0]});
+        Con_Printf("aim_check: %s hand slot %d: shot-barrel %.2f deg, shot-aim %.2f, barrel-aim %.2f; pitch shot %.2f "
+                   "barrel %.2f aim %.2f; wrist bend %.1f\n",
+            name, slot, deg(shot, barrel), deg(shot, aim), deg(barrel, aim), pitchOf(shot), pitchOf(barrel), pitchOf(aim),
+            bend);
+    }
+}
 } // namespace qvr::view
 
 void qvr::view::registerDiagCommands()
 {
+    Cmd_AddCommand("vr_aim_check", aimCheck_f);
     Cmd_AddCommand("vr_dumpview", dumpView_f);
     Cmd_AddCommand("vr_grasp_dump", graspDump_f);
     Cmd_AddCommand("vr_grasp_bench", graspBench_f);

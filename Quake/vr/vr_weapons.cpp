@@ -1105,6 +1105,11 @@ bool retired(Key key)
     }
 }
 
+float gunModelPitchTurn()
+{
+    return vr_gunmodelpitch.value - gunModelPitchBase;
+}
+
 glm::vec3 shotAngles(const glm::vec3& aimRot, int slot, bool mirrored)
 {
     if(slot < 0 || slot >= numSlots || slot == fistSlot())
