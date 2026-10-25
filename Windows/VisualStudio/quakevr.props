@@ -118,6 +118,15 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <!-- No exceptions (docs/vr-port/CODE_STYLE.md): the module and Zancle (zancle.vcxproj) are built without them. -->
       <ExceptionHandling>false</ExceptionHandling>
     </ClCompile>
+    <!-- The menu (vr_menu.cpp and its page groups, vr_menu_pages_*.cpp): only what is marked inline is inlined (/Ob1,
+         after the Release /Ob3). Its thousands of page builders and helpers were the inliner's work and the build's
+         long pole; it is UI code, built once a page is shown (docs/vr-port/ROUND22.md, "Build speed, round 2"). -->
+    <ClCompile Update="..\..\Quake\vr\vr_menu.cpp">
+      <AdditionalOptions>%(AdditionalOptions) /Ob1</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Update="..\..\Quake\vr\vr_menu_pages_*.cpp">
+      <AdditionalOptions>%(AdditionalOptions) /Ob1</AdditionalOptions>
+    </ClCompile>
     <ClInclude Include="..\..\Quake\vr\*.h;..\..\Quake\vr\*.hpp" />
     <!-- The precompiled header's own compile (/Yc) misses LanguageStandard_C (the ClangCL toolset leaves it out of that
          step), and the header and the files that use it must agree; VS2026 also drops it for the files themselves. -->

@@ -77,6 +77,17 @@ if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 else()
 	target_compile_options(ironwail PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>")
 endif()
+# The menu (vr_menu.cpp and its page groups, vr_menu_pages_*.cpp): only what is marked inline is inlined (clang-cl /Ob1,
+# clang -finline-hint-functions, gcc -fno-inline-functions). Its thousands of page builders and helpers were the
+# inliner's work and the build's long pole; it is UI code (quakevr.props, the same).
+file(GLOB QVR_MENU_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/vr_menu.cpp" "${CMAKE_CURRENT_LIST_DIR}/vr_menu_pages_*.cpp")
+if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+	set_property(SOURCE ${QVR_MENU_SRC} APPEND PROPERTY COMPILE_OPTIONS "/Ob1")
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	set_property(SOURCE ${QVR_MENU_SRC} APPEND PROPERTY COMPILE_OPTIONS "-finline-hint-functions")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	set_property(SOURCE ${QVR_MENU_SRC} APPEND PROPERTY COMPILE_OPTIONS "-fno-inline-functions")
+endif()
 
 # Box3D (external/box3d/README.md): the rigid-body physics library (vr_box3d.cpp), C17, run on the engine's job pool.
 # No FMA contraction on gcc and clang: Box3D's cross-platform determinism relies on it.
