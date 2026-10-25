@@ -98,7 +98,9 @@ void(entity m, vector at, float xVia, float xKind, float xPower, float xShare) V
 float() VR_Stealth_GateSight;
 void(float dist) VR_Stealth_ChaseGate;
 void(entity m, vector xFrom, float xYaw, float xFace, float xBack) VR_Stealth_Crossed;
+#ifdef QVR_TESTS
 void() VR_Stealth_TestFrame;
+#endif
 void(entity m) VR_Stealth_Died;
 void(entity mis) VR_Stealth_GrazeMissile;
 void() VR_Stealth_PlayerFrame;

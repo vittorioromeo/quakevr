@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_melee_sweep_test 1 (Debug > Tests > Melee Sweep): VR_Melee_Sweep's contacts (its probe: no speeds, nothing armed
 // or decided) for scripted sweeps of the main hand's weapon (its line's length, its layout and a hammer's or mace's head
 // as held: give it first, `vr_ad_test 116`..`129`), in the air ahead of the player past a target box, and once at the
@@ -1064,3 +1065,4 @@ void() VR_Melee_SweepTestFrame =
         VR_Melee_SweepTest(p);
     }
 };
+#endif

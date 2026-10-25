@@ -1881,17 +1881,20 @@ float(float xHand, float xWeapon, float xAttackFinished, float* xOutAttackFinish
 // Tests (vr_ad_test 70..72)
 
 entity vr_adgun_test_target; // the target ahead
+#ifdef QVR_TESTS
 float vr_adgun_test_index;   // the gun being tested (0..7)
 float vr_adgun_test_step;    // its step: 0 equip and fire, 1..5 fire on (the streams), 6 read
 float vr_adgun_test_pass;
 float vr_adgun_test_fail;
 float vr_adgun_test_clip;    // the clip as the gun was given
 float vr_adgun_test_grip;    // vr_weapon_grip_mode as it was (1 for the test: the gun stays in a hand not gripping)
+#endif
 
 // vr_ad_test 90: the shots the launchers and a plasma gun fire, each from the main hand (aim it level: TESTING.md), and
 // how each leaves the muzzle: the grenade soldier's launcher's grenade against the grenade launcher's (phase 1: model,
 // box, movement, touch, blast, fuse and speed the same), the rocket soldier's rocket ours, the plasma soldier's bolt AD's
 // with our hit; each 0.3 s on still in flight, its own, at least 90 units from the muzzle, touches of its firer counted.
+#ifdef QVR_TESTS
 float vr_adgun_t90_phase;    // 0 the AD grenade launcher, 1 ours, 2 the AD rocket launcher, 3 the plasma rifle
 entity vr_adgun_t90_shot;    // the shot followed
 string vr_adgun_t90_model;   // ... its model as fired
@@ -1902,6 +1905,7 @@ float vr_adgun_t90_gsolid;
 float vr_adgun_t90_gfuse;
 float vr_adgun_t90_gspeed;
 float vr_adgun_t90_gfuncs;
+#endif
 
 // ---------------------------------------------------------------------------------------------------------------------
 // AD's weapons in any map (vr_ad_test 81..84; ROUND22.md "AD weapons everywhere"): the debug spawner's 309..319 (the

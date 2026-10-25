@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Actual flight regression: vr_ad_test 50..57 (AD/vanilla, live/corpse, pellet/laser).
 // scratch1: 0 head, 1 upper arm, 2 torso, 3 shin; scratch2: 0 killing blow, 1 damage-only.
 // scratch4: small MOVETYPE_FLY pellets; scratch3: real SG/SSG pellet count (0 one probe).
@@ -215,3 +216,4 @@ void(float request, entity p) AD_ShotsTest =
     }
     self = os;
 };
+#endif

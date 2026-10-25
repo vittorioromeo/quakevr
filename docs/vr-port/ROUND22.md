@@ -21286,3 +21286,29 @@ gives the same on two runs of three: the baseline's, not this change's.
 
 What's left of the backend: `vr_particles` 3.5 s, `vr_hull` 3.0 s, `image.c` 2.8 s, `vr_motion_review` 2.7 s,
 `vr_relight` 2.6 s; the Linux link.
+
+## QC tests only in dev builds (worktree `dequant`, branch `agent/qctests`, 2026-10-25)
+
+Vittorio approved: the ~26k lines of `*_test.qc` no longer ship in the players' `progs.dat`.
+
+- **Mechanism.** `QC/vr_macros.qc` defines `QVR_TESTS` unless fteqcc gets `-DQVR_NO_TESTS`. The 68 test files of
+  `progs.src` are wrapped whole in `#ifdef QVR_TESTS`; game code calling into them (world.qc's frame calls,
+  `ImpulseCommands`, declarations in `*_defs.qc`/combat.qc, test-only globals) is wrapped the same way. Three real
+  functions that lived in `vr_ad_bridge_test.qc` (`AD_HasMelee/HasMissile/IsBoss`, used by Show Melee Arcs / Aim Cones)
+  stay in release (`#endif`/`#ifdef` around them, so the dev order is unchanged). Dev is the default everywhere
+  (`QC/build.sh`/`.bat`, the kit, Visual Studio); release: `Windows/package-quakevr.ps1` (so `make_release.ps1`'s package
+  step) compiles with `-DQVR_NO_TESTS` (`-WithTests` keeps them) and recompiles the dev `progs.dat` afterwards; the
+  flatpak `build.sh` passes it too.
+- **Engine.** `qvr::progs::qcTestsPresent()` (looks for `VR_TestImpulse` in the server's progs, kept per progs CRC);
+  Debug - Tests and Debug - Automation & Self-Tests get an info row "Tests are not in this build's progs
+  (QVR_NO_TESTS): the rows below do nothing." (`vr_menu_dump 2`: dev unchanged, release +2 INFO rows). The rows
+  themselves set cvars the progs never read: no crash.
+- **Numbers** (dev -> release): progs.dat 5,834,810 -> 5,063,174 bytes (-13%); statements 498,665 -> 424,262; functions
+  18,634 -> 17,988; global defs 26,072 -> 24,593; globals 50,910 -> 45,956 (both still over 32k: the "Globals exceeds
+  32k" note stays); field defs 3,466 -> 3,445; string bytes 734,504 -> 613,164; QC compile 1.89 s -> 1.56 s.
+- **Checks.** Dev `progs.dat` byte-identical to origin/next's. Release compiles with 1 warning (the dev build's own
+  F314 in vr_armedgrunt_pose.qc). Release smoke: e1m1 with `vr_np_test`, `vr_agrunt_test`, `vr_mg_trigger_test`, impulses
+  and a pressed Tests row, `ad_dm1` (AD games), e1m2: exit 0, no engine errors. Dev: `vr_np_test 1` still runs
+  (15 passed, 2 failed: not touched by this change, the progs are identical).
+- **Left in release:** test helpers in non-test files whose names are not unresolved (e.g. `VR_TestKill_Frame`,
+  `VR_TestDispenser_Frame`, vr_test_* cvars): small; wrap them when touched.

@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Test 46: the armed humanoids' glitch finder (vr_agglitch.cpp; ROUND22.md, "Armed humanoids in motion: the glitch
 // finder and a robust solve"; Debug > Tests > Armed Humanoids: Glitch Finder). You unseen; each subject in turn (each
 // kind with each weapon class, VR_AGG_Set: fists, a sword, an axe, the guns, a chainsaw, two shotguns, two axes) plays
@@ -342,3 +343,4 @@ void() VR_AGTest_Glitch =
         cvar_set("vr_agrunt_test", "0");
     }
 };
+#endif

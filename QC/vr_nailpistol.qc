@@ -32,7 +32,9 @@ float vr_np_dry;        // dry clicks (tests)
 float vr_np_hits;       // nails into vr_np_target (tests)
 float vr_np_lastfactor; // the last nail's hit part's factor (tests)
 entity vr_np_target;
+#ifdef QVR_TESTS
 void() VR_NailPistol_TestFrame; // (vr_nailpistol_test.qc)
+#endif
 
 void() VR_NailPistol_Precache =
 {

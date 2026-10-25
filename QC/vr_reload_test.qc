@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 //
 //
 //
@@ -1092,3 +1093,4 @@ void() VR_Reload_Test =
     }
     VR_Reload_TestReport();
 };
+#endif

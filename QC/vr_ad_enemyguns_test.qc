@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_ad_enemyguns's test harness (moved out of vr_ad_enemyguns.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -1696,3 +1697,4 @@ void(float request, entity p) AD_GunTest =
         return;
     }
 };
+#endif

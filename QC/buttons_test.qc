@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // buttons's test harness (moved out of buttons.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -45,3 +46,4 @@ void() VR_TestDispenser_Frame =
     self = oldself;
     activator = oldactivator;
 };
+#endif

@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Runtime fixtures exercise real acquisition, damage and delayed attack callbacks.
 entity vr_ai_test_monster, vr_ai_test_player;
 vector vr_ai_test_origin;
@@ -100,3 +101,4 @@ void() VR_AI_TestFrame =
     else if(ask == 13) { self.think = SUB_Null; self.nextthink = -1; }
     self = player;
 };
+#endif

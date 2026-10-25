@@ -660,7 +660,9 @@ void() VR_ADMelee_Think =
         thing == (VR_ADMelee_Blunt(k) ? VR_MTHING_AXE : VR_MTHING_SWORD));
     VR_ADMelee_Report(sprintf("holsterable %g, very heavy %g", VR_ADMelee_Holsterable(k), VR_ADMelee_VeryHeavy(p, cVR_MainHand)),
         VR_ADMelee_VeryHeavy(p, cVR_MainHand) == VR_ADMelee_Heavy(k));
+#ifdef QVR_TESTS
     VR_ADGun_TestPlace(p, 32);
+#endif
     float one = VR_ADMelee_Blow(p, cVR_MainHand, FALSE);
     float two = VR_ADMelee_Blow(p, cVR_MainHand, TRUE);
     if(VR_ADMelee_Heavy(k))

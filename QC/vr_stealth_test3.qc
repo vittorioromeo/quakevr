@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_stealth_test3.qc -- the stealth AI through seamless teleporters (`vr_stealth_test 110` on vrteleporters, the player
 // standing in room U at -1100 1408: Misc/quakevr/stealth_tests.sh gates; docs/vr-port/STEALTH.md, "Teleporters").
 // Room T's north gate comes out of U's east wall (a 90-degree turn): a monster in T sees and hears U through it. The
@@ -284,3 +285,4 @@ void() VR_STT3_Frame =
         VR_STT3_End();
     }
 };
+#endif

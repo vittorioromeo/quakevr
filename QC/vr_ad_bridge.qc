@@ -303,7 +303,9 @@ void() AD_Frame =
     if(request)
     {
         cvar_set("vr_ad_test", "0");
+#ifdef QVR_TESTS
         AD_Test(request);
+#endif
     }
 };
 

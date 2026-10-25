@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_limbs_test.qc -- limb gore's tests (vr_limbs.qc; docs/vr-port/ROUND21.md, "Limb gore").
 //
 // `vr_limb_test <n>` (Debug > Gore Tests > Limb Gore), on the monster (or corpse) nearest you. 1 every limb of its
@@ -815,3 +816,4 @@ void(float xTest, float xDecap) VR_Gore_TestCrowd =
         vr_decap_count - heads));
     bprint(sprintf(" popped %g; limbs lying %g\n", vr_decap_pops - headPops, VR_Limb_TestCount()));
 };
+#endif

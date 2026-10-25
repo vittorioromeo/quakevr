@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_dents_test.qc -- every hit dents (ROUND22.md, "Every hit dents"): `vr_dents_test <n>` (Debug > Gore Tests) strikes
 // the monster or corpse nearest you (within 512 units) as one damage path does, where your eyes look at its middle, and
 // prints the wound event it sent (vr_wounds.qc: its kind; "blunt" for a blunt blow's round dent). The engine then dents it
@@ -172,3 +173,4 @@ void() VR_DentsTest_Frame =
     bprint(sprintf("wound events +%d (%s), %s %.0f -> %.0f\n", vr_wound_sent - sent, kn, corpse ? "corpse hp" : "health",
         hp, corpse ? m.vr_corpse_hp : m.health));
 };
+#endif
