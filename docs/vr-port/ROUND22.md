@@ -21286,3 +21286,198 @@ gives the same on two runs of three: the baseline's, not this change's.
 
 What's left of the backend: `vr_particles` 3.5 s, `vr_hull` 3.0 s, `image.c` 2.8 s, `vr_motion_review` 2.7 s,
 `vr_relight` 2.6 s; the Linux link.
+
+## Heavy revolver: the art (worktree `release`, branch `agent/revolver-art`, 2026-10-25)
+
+Art only, no gameplay: the heavy revolver's models and skins after Vittorio's mockup, by the nail pistol's pipeline.
+Everything is in `Misc/quakevr/models_src/revolver/` (README.md there: parts, pivots, the sight line, editing,
+re-exporting, the models' structure for code).
+
+- `revolver.blend`: Body (origin the grip's hand point), Crane (its pivot; swings the cylinder out to the left about
+  its X by `swing` -95 degrees, its knuckle in a slot through the frame's bottom), Cylinder (its axis at its rear face;
+  spins about X, 60 degrees a chamber; six chambers for 12-gauge shells, 18-sided with deep flutes), EjectorRod (pushed
+  back by `travel`), Hammer (pivot; `cock` -38 degrees about Y; a two-pronged hooked spur either side of the sight
+  line), Trigger (pivot; `pull` 22 degrees), Shell (its own frame and skins). The frame: an iron octagonal ring with
+  brass plates, thick (to y 1.72) round the window's top, front and back, thin along its bottom where the cylinder
+  passes; iron fills behind and in front of the cylinder. `build_revolver.py` checks the crane's whole swing against
+  the frame, hammer and trigger (BVH overlap every 4.75 degrees): clear.
+- Sight line (Body frame, parallel to the bore 2.12 above it): blade top 16.714 0 9.178, notch top 3.764 0 9.178
+  (after the follow-up below).
+- `export_mdl.py`: `v_revolver.mdl` (all, 914 triangles; frames rest, cocked, trigger pulled, swung out, swung out
+  with the rod pushed), `v_revolver_frame.mdl` (606), `v_revolver_crane.mdl` (52), `v_revolver_cyl.mdl` (256; rest,
+  rod pushed) for code that spins the cylinder and swings the crane as attached models (recommended: rotations
+  interpolated between MDL frames shrink), `v_revolver_shell.mdl` (76; skins red, blue slug, red spent, blue spent),
+  `vr_revolver_preview.mdl` (six shells chambered; frames rest, swung out, cocked). It prints the parts' origins.
+  Skin 384x384 (the runes need it), in the palette; the shell's 64x64.
+- `render_revolver.py` renders the MDLs: `renders/` (three-quarter and beside the mockup, side, right, cocked, swung
+  out from behind and the front, the sights from behind, about as held, the shells, the scale with the nail pistol and
+  the shotgun). Iterated against the mockup: chunky brass octagon with corner rivets, fluted steel cylinder bulging
+  out of it, hex barrel with gold-inlaid runes, horned hammer, brass guard, wrapped wooden grip.
+- Debug > Tools > Model Previews: **Heavy Revolver Art**, **Heavy Revolver Art: Swung Out**; scenario `revolver_art`
+  (vrtesthall, the shotgun beside it; console `revolver_art`, `revolver_art_open`, `revolver_art_cocked`).
+- Checks: check_mdl_art.py only LOW (8 zero-area triangles, a few bleed texels, one normal); `vr_scenario validate`
+  95 files 0 errors; the preview loads and draws in vrtesthall (viewframe 1).
+
+**In VR:**
+- [ ] Debug > Tools > Heavy Revolver Art: walk around it: the brass octagon, the fluted cylinder, the runes, the grip.
+- [ ] Heavy Revolver Art: Swung Out: the cylinder out to the left, the six shell heads (red and blue) in the chambers.
+- [ ] Scenario revolver_art: hold the shotgun next to it: the revolver's grip a believable size in the hand.
+
+Follow-up (his tweaks, same branch): the grip curved and angled back as the mockup's (40 degrees, four sections: full
+with a hump at its back under the hammer, a waist under the wraps, the butt flaring and swept forward; four overlapping
+darker leather straps); the trigger guard as the mockup's (thick square-section bars, y +-0.45, its front bar leaning
+back towards the bottom, a chamfered corner, a compact loop closed by the grip; the trigger 0.65 further back); the
+barrel 0.8 longer (+12%, muzzle at x 16.964, the blade with it, runes recentred); the cylinder and the hammer painted
+the barrel's dark rusted iron (were a lighter grey steel). Still 914 triangles (the guard's and the housing's bevels
+dropped for the grip's extra section and strap). Swing check clear; lint no MED/HIGH. Renders redone (`renders/`).
+- [ ] The grip sits in the hand angled back like the mockup's; the guard's loop fits a finger.
+## Spectator camera: skipped while the window is minimized, Resolution Scale as steps (worktree `tghost`, branch `agent/specsave`, 2026-10-25)
+
+The GPU benchmark found the spectator camera (`vr_window_view 2`) the largest optional cost: at his
+`vr_spectator_scale 1.5` and 1920x1080 window (2880x1620) 0.45-1.3 ms of the GPU's frame, twice that on the frames it
+draws. Approved: skip it when nobody can see the window, and make the scale easy to lower.
+
+- **`vr_spectator_skip_hidden`** (new, default 1; Recording > Spectator Camera > Skip While the Window Is Minimized):
+  while the desktop window is minimized or hidden (SDL's flags), the camera's whole frame is skipped (its scene, culling,
+  glow, UI, the menus' preview image and the window pass: `stereo::spectatorSkipped`, vr_stereo.cpp). The frame the
+  window shows again draws it anew (its pace restarts), so the first frame after a restore is a fresh image. While
+  skipped the window keeps whatever it last held (nothing new is drawn into it; it cannot be seen anyway; OBS's Window
+  Capture of a minimized window shows nothing either). The headset is untouched. A window merely **covered** by others
+  is still drawn: OBS's Window Capture records a covered window (that is how he records), and Windows has no cheap
+  full-occlusion query. While a headset menu shows the camera's preview (`vr_spectator_preview`) it is drawn anyway.
+  `developer 1` prints `spectator camera: skipped, the window not visible` and `drawn again ... (N frames skipped)`.
+- **Tests**: `qvr::windowNotVisible()` (vr_main.cpp) counts a test run's never-shown window (`QVR_TEST_HIDDEN`, run.sh's
+  default) as visible, so spectator screenshots in tests are unchanged. New debug cvar `vr_debug_window_hidden 1` (Debug
+  page, "Act as if the Window Were Minimized") emulates a minimized window in a hidden run; new command
+  `vr_debug_window minimize|hide|show` does it for real (Debug page button "Minimize the Window"; needs
+  `run.sh -Visible`) and prints the window's flags. Eyeshots (`vr_eyeshot`) are the eyes' and unaffected (checked with
+  the camera skipped).
+- **Resolution Scale** (Recording page): a cycle of steps instead of the 0.25-step slider: 0.5x / 0.75x / 1x / 1.25x
+  / 1.5x / 2x, each with its share of pixels. Its help said 0.75 was the default; the default is 1 (the window's size)
+  and stays: not wasteful. His 1.5 is his own (kept).
+
+Verified: hidden run (`vr_debug_window_hidden` 1 for 25 frames: skipped, then drawn again, the spectator screenshot after
+it a normal image; eyeshots written while skipped); a `-Visible` run really minimizing, restoring, hiding and showing
+the window (`not visible 1` / `0` and the skipped/drawn lines each time, 20 and 10 frames skipped). Numbers:
+BENCHMARKS.md, "Spectator camera: skipped while minimized, and its scale". At his settings the skip saves 0.4-1.5 ms
+of GPU p50 and 0.4-2.1 ms of p99; scale 1 against 1.5 saves 0.2-0.5 ms of the camera's average.
+
+**Check in VR**: with the Spectator Camera on, minimize the desktop window: the headset is the same and VD's GPU
+overlay shows the saving; restore it: the window shows the camera at once. OBS recording a covered (not minimized)
+window still records. Recording > Resolution Scale steps through the six values.
+## QC tests only in dev builds (worktree `dequant`, branch `agent/qctests`, 2026-10-25)
+
+Vittorio approved: the ~26k lines of `*_test.qc` no longer ship in the players' `progs.dat`.
+
+- **Mechanism.** `QC/vr_macros.qc` defines `QVR_TESTS` unless fteqcc gets `-DQVR_NO_TESTS`. The 68 test files of
+  `progs.src` are wrapped whole in `#ifdef QVR_TESTS`; game code calling into them (world.qc's frame calls,
+  `ImpulseCommands`, declarations in `*_defs.qc`/combat.qc, test-only globals) is wrapped the same way. Three real
+  functions that lived in `vr_ad_bridge_test.qc` (`AD_HasMelee/HasMissile/IsBoss`, used by Show Melee Arcs / Aim Cones)
+  stay in release (`#endif`/`#ifdef` around them, so the dev order is unchanged). Dev is the default everywhere
+  (`QC/build.sh`/`.bat`, the kit, Visual Studio); release: `Windows/package-quakevr.ps1` (so `make_release.ps1`'s package
+  step) compiles with `-DQVR_NO_TESTS` (`-WithTests` keeps them) and recompiles the dev `progs.dat` afterwards; the
+  flatpak `build.sh` passes it too.
+- **Engine.** `qvr::progs::qcTestsPresent()` (looks for `VR_TestImpulse` in the server's progs, kept per progs CRC);
+  Debug - Tests and Debug - Automation & Self-Tests get an info row "Tests are not in this build's progs
+  (QVR_NO_TESTS): the rows below do nothing." (`vr_menu_dump 2`: dev unchanged, release +2 INFO rows). The rows
+  themselves set cvars the progs never read: no crash.
+- **Numbers** (dev -> release): progs.dat 5,834,810 -> 5,063,174 bytes (-13%); statements 498,665 -> 424,262; functions
+  18,634 -> 17,988; global defs 26,072 -> 24,593; globals 50,910 -> 45,956 (both still over 32k: the "Globals exceeds
+  32k" note stays); field defs 3,466 -> 3,445; string bytes 734,504 -> 613,164; QC compile 1.89 s -> 1.56 s.
+- **Checks.** Dev `progs.dat` byte-identical to origin/next's. Release compiles with 1 warning (the dev build's own
+  F314 in vr_armedgrunt_pose.qc). Release smoke: e1m1 with `vr_np_test`, `vr_agrunt_test`, `vr_mg_trigger_test`, impulses
+  and a pressed Tests row, `ad_dm1` (AD games), e1m2: exit 0, no engine errors. Dev: `vr_np_test 1` still runs
+  (15 passed, 2 failed: not touched by this change, the progs are identical).
+- **Left in release:** test helpers in non-test files whose names are not unresolved (e.g. `VR_TestKill_Frame`,
+  `VR_TestDispenser_Frame`, vr_test_* cvars): small; wrap them when touched.
+
+## The checklist reorganized for beta4 (worktree `dequant`, branch `agent/beta4list`, 2026-10-25)
+
+- **What.** A new checklist for the v1.1.0-beta4 release, written to the worktree's `scratch/checklist_beta4.txt` for the
+  coordinator to apply as `quakevr/checklist.txt` (the repo file is not edited on this branch); what happened to each
+  old line is in `scratch/checklist_changes.md`. Built by `scratch/b4_gen.py` from the old file's line numbers, so
+  every kept line is byte-for-byte the old text and keeps its tick (the script checks each old item is kept, rewritten
+  or dropped exactly once).
+- **Top section `[beta4: test these first]`** (74 items): the default-on changes since v1.1.0-beta3, most important
+  first, in groups: performance and loading (load prewarm, model depth pre-pass, Ultra's resolution, grenade catching,
+  spectator skip, screens, AD load times, parallax depth write, graphics presets), melee (swords past the floor,
+  multi-hit, wall blow, plank sweep), crates, shoulder charge / leg drag / struggle, gore, fire and water, Arcane
+  Dimensions (monster swords, flail, mini bosses, fuel tanks and fields, ogres, plasma), liquids (foam), then menus,
+  holsters, calibration, seated play, death menu and autosaves, pickup modes. The format has no sub-headers, and a
+  prefix on a kept line would un-tick it: the groups are `# -- <area> --` comment lines in the file (not shown in the
+  game) and the ordering; each line already starts with its feature's name. 51 of its 74 are already passed in his
+  ticks, 1 failed (swords past the floor), 22 open.
+- **New lines** (no old line, the features' old items were ticked and retired): gore sounds, bloody prints, Holster
+  Setup, magnetic holsters, the ammo pouch, standing VR Calibration, the death menu, autosaves.
+- **Splits** (untested lines only): the perf lines (spectator skip 1 -> 2, model pre-pass 1 -> 3, load prewarm 1 -> 2,
+  the perf round 1 -> 3), and in the armed section the arms rebuild (1 -> 3), the real fight (1 -> 3), up close (1 -> 2
+  plus a part merged into the tug line). **Merges**: the three armed pickup lines into two; the enforcer tug and the
+  up-close "hold a tug still" into one. **Dropped as superseded** (all passed): the old tank fields look, the second
+  armed sword parry, two old crate blow counts, the old flail feel, the second plasma bolts line, the foam sliders,
+  Shoulder charge 3.
+- **Lower sections**: the old ones unchanged, plus `[Armed humanoids (experimental, off by default)]`, `[Pose Studio and
+  Grip Editor (dev)]`, `[Nail pistol (experimental)]` and `[Dev tools: blade editor, debug views, defaults]`; the minor
+  AD items into `[Arcane Dimensions]`, the Phantom Sword/Swordsman toolgun lines into `[Tools]`, MG3 infected into
+  `[Still open from 1.0.x]`.
+- **New scenes**: `model_prepass` (a dozen awake monsters among crates, items and a nailgun on the floor, super shotgun,
+  `vr_profile 2`), `grenade_catch` (two awake ogres down the hall, hands empty), `gore_prints` (calm grunts, a sword and
+  a super shotgun, a crate). `vr_scenario validate`: 97 files, 0 with errors, the old list's 145 tags, 0 missing (the new
+  list's 93 tags all have files: `b4_check.py`); `runall` on the three: 3 run, 0 failed, both hands still holding.
+- **Not tagged** (menu-only, calibration, seated, AD maps, desktop window): load prewarm (AD maps), Ultra's resolution,
+  spectator skip, screens, holsters, calibration, death menu, autosaves.
+
+## Linux linker: LLD or mold when available (worktree `tghost`, branch `agent/linuxlink`, 2026-10-25)
+
+`Quake/vr/vr.cmake`: on Linux the link uses mold, then LLD (`-fuse-ld=`, probed with `check_linker_flag`), else the default
+linker; `-DQVR_LINKER=auto|default|lld|mold` forces one (a forced one that cannot link warns and falls back). The
+Flatpak build needs no change: a CMake or SDK without them just keeps the default linker. WSL archlinux has LLD (with
+clang) and no mold (to try it: `pacman -S mold`, as root).
+
+Measured (WSL Arch, clang 23, Ninja Release, `-j 32`, source over /mnt/c, ninja times, 3 runs, default ld.bfd 2.47 / lld):
+full 24.9 / 24.8 s; `vr_held.cpp` edit 3.9-4.1 / 3.5-4.6 s; `vr_hands.hpp` edit 13.3-14.2 / 14.2-15.6 s; no-change 1.7 /
+2.5 s (noise, see below). The link alone (5 runs): bfd 0.31-0.36 s, lld 0.12-0.16 s. So the "7-8 s link" in the brief is
+gone since the no-LTO/PCH rounds: the link is 0.3 s and LLD saves ~0.17 s, not the edit time.
+
+The ~2 s before the first compile is not CMake: `ninja -d stats` shows 2647 `stat`s at 0.93 ms each (2.4 s) on the
+headers and sources under /mnt/c (9p). `VerifyGlobs` is 0.09 s, `qvr_buildinfo` ~0 (it only rewrites its header when the
+text changes, and the no-change rebuild compiles nothing). A source tree on the distro's ext4 (clone there) removes it.
+In a worktree git fails inside WSL (the `.git` file holds a Windows path), so the build number reads 0/unknown there.
+
+Smoke: kit `linux/linux_wsl.sh tghost 120` (LLD binary): configure+build ok, ldd 0 missing, Monado session started, exit 0.
+## Flare gun: the art (worktree `goreflesh`, branch `agent/flaregun-art`, 2026-10-25)
+
+Art only, no gameplay: the disposable double-barrelled flare gun's model and skin after Vittorio's mockup
+(`qvr-kit/scratch/flaregun/mockup.webp`), with the mockup's barrel misalignment fixed: **the two over-and-under barrels
+are exactly parallel** (one lathe about +X, its two centres on one vertical line, z 5.0 and 2.7 in design units). Same
+pipeline as the nail pistol; everything in `Misc/quakevr/models_src/flaregun/` (README.md there: editing, re-exporting,
+axes, the gameplay points).
+
+- `flaregun.blend`: objects Body (origin the grip's hand point) and Flare (the projectile, its own frame), one UV atlas,
+  one 256x256 skin in the palette (`flaregun_skin.png`) plus two RGBA overlays for the fired skins
+  (`flaregun_skin_fired1.png`: the top barrel fired, the left cartridge's cap burnt out and the top muzzle sooted;
+  `_fired2`: both), so a repaint of skin 0 carries over. Empties mark the muzzles and the sight line.
+- `export_mdl.py` (headless; re-exporting the shipped .blend gives the shipped MDLs byte for byte):
+  `quakevr/progs/v_flaregun.mdl` (1187 triangles, 3 skins: loaded, top fired, both fired), `vr_flare.mdl` (116
+  triangles, the projectile: brass head, red hull, crimped red cap along +X), `vr_flaregun_preview.mdl` (at 0.45).
+- `build_flaregun.py` made it from nothing (chunky faceted prisms and lathes: 12-sided barrels with 1.6-wide bores 2.6
+  deep, a lug under the bottom barrel, the hinge block with a strap and three hex bolts a side, the frame and its tang,
+  the breech housing with the two cartridges out of its open front, a curved wooden grip leaning back 30 degrees, a
+  small trigger); the skin painted per texel: red-orange paint on Quake's one red-orange ramp (102..107) flecked with the
+  deep reds, mid-scale rust patches and chipped edges with bare metal, AO crevices, worn edges, painted rivets, wood
+  grain, the blade's top bright brass. `render_previews.py` renders the exported MDLs (`renders/`).
+- Iron sights (the mockup has none): rear = a notch in the housing's back wall, continued as a channel down the cap
+  between the cartridges; front = a blade on a ramp on the top barrel. The sight line (model frame) runs y 0, z 6.332,
+  from x 1.9 to 9.05: **parallel to the bores**, 1.8 above the top bore. Muzzles: top 9.3 0 4.532, bottom 9.3 0 2.232,
+  both along +X.
+- Viewing it in the game: Debug > Tools > Model Previews > Flare Gun Art, or the scenario `flaregun_art` (vrtesthall,
+  the nail pistol and the shotgun beyond it). Checks: check_mdl_art.py LOW bleed only (the flare one MED uv-streak);
+  `vr_scenario validate` 95 files, 0 errors; the preview spawned in vrtesthall (`vr_physics_spawn: viewthing at reach`).
+
+Decisions: the mockup's cartridges lean up out of the housing; here they lie parallel to the barrels (so the sight line
+can pass between them and stay parallel to the bores). A small trigger added (the mockup shows none; VR fingers need
+one); no trigger guard, as in the mockup.
+
+**In VR:**
+- [ ] Debug > Tools > Flare Gun Art: walk around it: rusty signal-red paint, the barrels parallel, the cartridges' red caps.
+- [ ] Look down the sights: the brass blade sits in the bottom of the rear notch.
+- [ ] Scenario flaregun_art: hold the nail pistol next to it: about the same size, the flare gun's grip longer.

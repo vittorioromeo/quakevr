@@ -562,10 +562,12 @@ void() worldspawn =
     AD_WorldSpawn(); // AD support: AD's world setup in an AD map (vr_ad_bridge.qc)
 };
 
+#ifdef QVR_TESTS
 void() VR_DCTest_Frame; // (vr_dmgcredit_test.qc, after the weapons it fires)
 void() VR_AGTest_Frame; // (vr_armedgrunt_test.qc, after the armed grunts)
 void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
 void() VR_PropImp_TestFrame; // (vr_propimpact_test.qc, after AD's files)
+#endif
 void() VR_Buzzsaw_Frame; // (rogue_buzzsaw.qc: its blade cuts ragdolls)
 void() VR_DeadAnim_Frame; // (vr_deadanim.qc, after AD's files)
 void() VR_DeadAnim_TestFrame;
@@ -584,35 +586,46 @@ void() StartFrame =
     VR_Tutorial_Frame(); // QVR: Debug's Go to a Lesson (vrtutorial only: vr_tutorial.qc)
     VR_Trailer_Frame(); // QVR: the trailer scene's reset and log (vrtrailer only: vr_trailer.qc)
     MG_WorldFrame();
+#ifdef QVR_TESTS
     MG_TestFrame();
     MG_TriggerTestFrame();
     MG1_H_TestFrame();
+#endif
     MGH_PowerupFrame();
+#ifdef QVR_TESTS
     MGH_TestFrame();
+#endif
     MG3_Frame();
     AD_Frame(); // AD support: AD's frame in an AD map (vr_ad_bridge.qc)
     VR_FuelTank_Frame(); // AD support: the fuelled guns lying about have their tanks (vr_ad_enemyguns.qc)
     VR_FlailHead_Frame(); // AD support: the flails lying about have their heads (vr_ad_melee.qc)
+#ifdef QVR_TESTS
     MG3_TestFrame();
     VR_MonstersTest_Frame(); // vr_test_monsters (vr_monsters_test.qc)
     VR_MeleeArcTest_Frame(); // vr_test_meleearc (vr_meleearc_test.qc)
     VR_AimConeTest_Frame(); // vr_test_aimcone (vr_aimcone_test.qc)
+#endif
     VR_MG3_Weapons_Frame(); // the Super Axe's glow and chain (vr_mg3_weapons.qc)
+#ifdef QVR_TESTS
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     VR_NailPistol_TestFrame(); // vr_np_test (vr_nailpistol_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)
     AD_MonstersTestFrame(); // AD support: vr_ad_mtest (vr_ad_monsters_test.qc)
+#endif
     VR_DeadAnim_TestFrame(); // VR: vr_deadanim_test (vr_deadanim.qc)
     VR_DeadAnim_Frame(); // VR: dead monsters animating again, logged (vr_debug_deadanim, vr_deadanim.qc)
+#ifdef QVR_TESTS
     MG3_BestiaryTestFrame(); // vr_mg3_btest (vr_mg3_bestiary_test.qc)
     MG3_ShubTestFrame(); // vr_mg3_shubtest (vr_mg3_shub_test.qc)
     MG3_ChthonTestFrame(); // vr_mg3_ctest (vr_mg3_chthon_test.qc)
+#endif
     VR_Liquids_Frame(); // VR: monsters in slime and lava burn (vr_liquids.qc)
     VR_Buzzsaw_Frame(); // QVR: Rogue's buzzsaws cut the ragdolls in their blades (rogue_buzzsaw.qc)
     VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)
     VR_Crates_Frame(); // VR: at a new map's first frame, its crates (vr_crates.qc; before the rocks and bricks: they keep clear)
     VR_Debris_Frame(); // VR: at a new map's first frame, its rocks and bricks (vr_debris.qc)
     VR_Reload_PropsFrame(); // VR: guns lying about load as held ones do (vr_reload.qc)
+#ifdef QVR_TESTS
     VR_SmallGib_TestFrame(); // VR: the small gibs' tests (vr_smallgibs_test, vr_smallgibs_test.qc)
     VR_GibProps_TestFrame(); // VR: every monster's head and gibs as props (vr_gibprops_test, vr_gibprops_test.qc)
     VR_PropImp_TestFrame(); // VR: the props' impact rule (vr_prop_impact_test, vr_propimpact_test.qc)
@@ -620,8 +633,10 @@ void() StartFrame =
     VR_TestKill_Frame(); // VR: the nearest live monster killed by a shot struck where asked (vr_test_kill <n>, combat.qc)
     VR_TestHurt_Frame(); // VR: the nearest live monster hurt by a shot of the player's (vr_test_hurt <damage>, combat_test.qc)
     VR_TestHit_Frame(); // VR: the nearest live monster struck where asked, never killed (vr_test_hit <n>, vr_hitreact.qc)
+#endif
     VR_KdTrig_Frame(); // VR: the situational knockdowns' tests (vr_kdtrig_test; vr_kdtrig.qc)
     VR_Guard_Frame(); // VR: monsters guard their heads from a hand swung at them (vr_ragdoll_active_guard, vr_hitreact.qc)
+#ifdef QVR_TESTS
     VR_DropCapTest_Frame(); // VR: the cap on dropped enemy weapons' test (vr_dropcap_test, vr_dropcap_test.qc)
     VR_CrouchTest_Frame(); // VR: the crouched box's shots test (vr_crouch_test, vr_crouch_test.qc)
     VR_Decap_TestFrame(); // VR: decapitation's tests (vr_decap_test, vr_decap.qc)
@@ -635,6 +650,7 @@ void() StartFrame =
     VR_HotBlade_TestFrame(); // VR: the incandescent blades' tests (vr_hotblade_test, vr_hotblade.qc)
     VR_Shock_TestFrame(); // VR: lightning's lasting shock's test (vr_shock_hit_test, vr_shock.qc)
     VR_DentsTest_Frame(); // VR: every hit dents, the damage paths' test (vr_dents_test, vr_dents_test.qc)
+#endif
     VR_Burn_MapFrame(); // VR: visible mapper flames burn tracked hands/body (vr_burning.qc)
     VR_Burn_NailFrame(); // VR: nails through a torch's flame become lava nails (vr_burning.qc)
     VR_Burn_LavaFrame(); // VR: wood in lava catches fire (vr_burning.qc)

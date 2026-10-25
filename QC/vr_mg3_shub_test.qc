@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Dawn of the Machine's Shub-Niggurath tests, M3-26/27 (vr_mg3_shubtest N, developer 1; Debug > Tests > Dawn of the
 // Machine: Shub): docs/vr-port/MG3.md, docs/vr-port/TESTING.md. Prints "mg3shubtest: PASS/FAIL <what>" and a total.
 // On boss2 the map's Shub (the player taken to the arena's arrival point, tele1); elsewhere a free one spawned 450
@@ -608,3 +609,4 @@ void() MG3_ShubTestFrame =
     else dprint(sprintf("mg3shubtest: unknown request %g\n", request));
     self = oldself; other = oldother; activator = oldact;
 };
+#endif

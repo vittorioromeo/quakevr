@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_ragimpact's test harness (moved out of vr_ragimpact.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -250,3 +251,4 @@ void(float xMode) VR_RagImpact_Test =
         return;
     }
 };
+#endif

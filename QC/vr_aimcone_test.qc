@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // The aim cone test (vr_test_aimcone; Debug > Tests > Holding Enemies; Misc/quakevr/aim_cone_test.sh; ROUND22.md,
 // "Ranged aim cone"): the request is D * 1000 + A (A alone: D 300). The nearest live monster is set D units from the
 // player, facing him and after him, and its ranged attack starts at once (its th_missile; AD's by AD's). Until it has
@@ -143,3 +144,4 @@ void() VR_AimConeTest_Frame =
     }
     VR_AimConeTest_Place(m, p, vr_act_angle, vr_act_dist);
 };
+#endif

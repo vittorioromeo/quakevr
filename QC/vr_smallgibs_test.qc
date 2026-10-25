@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_smallgibs_test.qc -- the small gibs' tests (docs/vr-port/ROUND21.md, "Small gibs"): `vr_smallgibs_test <n>` runs
 // test n on the monster or corpse nearest the player (impulse 241 puts one ahead) and prints `sgibtest:` lines
 // (Debug > Gore Tests). N of each: vr_smallgibs_test_n (default 200); a blow's damage: vr_smallgibs_test_dmg (35).
@@ -1543,3 +1544,4 @@ void() VR_SmallGib_TestFrame =
     }
     self = oself;
 };
+#endif

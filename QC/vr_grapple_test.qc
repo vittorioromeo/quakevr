@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_grapple's test harness (moved out of vr_grapple.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -90,3 +91,4 @@ void() VR_Grapple_TestTouch =
         h = find(h, classname, "hook");
     }
 };
+#endif

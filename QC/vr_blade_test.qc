@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_melee_sweep_test 2 (the blade shape editor's check, ROUND22.md "Blade shape editor"): the main hand's melee blade as
 // the melee lays it out now, in the hand's frame (units from the hand along its forward, right, up: the same in any game
 // for the same mock hand), one "bladedump:" line a point: the line's near end, grip and far end, each layout point
@@ -47,3 +48,4 @@ void(entity p) VR_BladeDump =
     bprint(sprintf("bladedump: %s head %v .. %v radius %.3f\n", p.weaponmodel, b.mh_hd_lo, b.mh_hd_hi, r));
     self = was;
 };
+#endif

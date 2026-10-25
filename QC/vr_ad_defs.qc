@@ -65,8 +65,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 float(entity p) AD_Pellets;          // whether `p`'s shotguns fire AD's projectile pellets (vr_ad_projectiles)
 void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_FirePellets; // FireBullets
 float(float shotcount, vector dir, vector spread, vector src) AD_EnemyPellets; // EnemyFireBullets: TRUE when AD's pellets went
+#ifdef QVR_TESTS
 float(entity e) AD_TestWaiting;      // vr_test_monsters: one of AD's monsters waiting for its trigger
 float(entity p) AD_TestWake;         // vr_test_monsters: AD's monster (self) hunts p; TRUE: it was one
+#endif
 float(entity e) AD_HasMelee;         // Show Melee Arcs (fight.qc): one of AD's monsters with a melee attack
 float(entity e) AD_HasMissile;       // Show Aim Cones (vr_aimcone.qc): one of AD's monsters with a ranged attack
 float(entity e) AD_IsBoss;           // the aim cone (vr_aimcone.qc): one of AD's bosses (its shots left alone)
@@ -77,7 +79,9 @@ void(float xHand, entity xVictim) AD_AxeMark; // W_FireAxe: AD's mark of the axe
 void(float xHand, entity b) AD_ShadowAxeChop; // VR_Melee_Strike: the Shadow Axe chops the bodies lying on the floor
 void(float xHand, entity b) VR_HoseCut_Melee; // VR_Melee_Strike, after the sweep: a blade cuts a hose lying about (vr_ad_enemyguns.qc)
 float(entity p, float xBit) AD_CarriesUpgrade; // p carries a weapon with AD's upgrade xBit (a hand's or a holster's)
+#ifdef QVR_TESTS
 void(float request, entity p) AD_UpgradesTest; // vr_ad_test 140 (vr_ad_upgrades_test.qc)
+#endif
 string(float xWid, float xFlags, entity xInst) AD_WeaponModel; // a weapon's model: an upgraded one's AD VR model (vr_ad_bridge.qc)
 nosave float vr_grab_adup;           // VR_WeaponGrabbable_Make: the upgrade bits the placed weapon's record gets (the toolgun's AD upgrades as props)
 float(entity xInst) AD_Widowmaker;   // the super shotgun of record xInst is the Widowmaker (its tube, its port: vr_reload.qc)
@@ -129,7 +133,9 @@ float() AD_JumpBoots;                  // PlayerJump: AD's Jump Boots' jumps; TR
 void() AD_WorldDefaults;               // AD_WorldSpawn, outside AD maps: AD's defaults for its entities and debuffs
 void() AD_ArtifactsTick;               // AD_PlayerPostThink: the artifacts' time and the HUD's readings
 void() AD_DebuffsTick;                 // AD_PlayerPostThink: AD's debuffs (poison, bleeding; burning is ours)
+#ifdef QVR_TESTS
 void(float request, entity p) AD_RulesTest; // vr_ad_test 10 and up (AD_Test): the follow-ups' tests
+#endif
 
 // AD's ammo resistance (decision 18; vr_ad_player.qc AD_Resist): the kind of ammunition the damage now dealt is, where
 // the inflictor does not tell (VR_LightningHit: cells); 0 worked out from the inflictor and the hit kind.

@@ -176,6 +176,10 @@ inline void setFieldFloat(edict_t* ent, int ofs, float value)
 // A function of the current qcvm by name (0 when absent).
 [[nodiscard]] func_t findFunction(const char* name);
 
+// Whether the progs carry the QC tests (QC/vr_macros.qc QVR_TESTS; the release flavour leaves them out). True too while
+// no progs are loaded (the main menu before any map): unknown, so nothing is claimed missing.
+[[nodiscard]] bool qcTestsPresent();
+
 // Binds the VR builtins declared "= #0" in QC (vr_builtins.cpp).
 void bindBuiltins();
 

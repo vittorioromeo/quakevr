@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_mg_activation's test harness (moved out of vr_mg_activation.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -131,3 +132,4 @@ void(float request) MG_ProgressTest = {
     }
     self = oldself; other = oldother; activator = oldact;
 };
+#endif

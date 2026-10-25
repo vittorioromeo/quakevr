@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 //
 //
 //
@@ -1427,3 +1428,4 @@ void(float t) VR_AGPT_Frame =
     else if(t == 34) { VR_AGPT_Pickup(); }
     else if(t == 35) { VR_AGPT_Parry(); }
 };
+#endif

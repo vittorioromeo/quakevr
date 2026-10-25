@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Destructive native shared-trigger acceptance; Debug > Tests. Reload afterward.
 float MG_T_pass;
 float MG_T_fail;
@@ -255,3 +256,4 @@ void() MG_TriggerTestFrame = {
     if(!MG_WorldCampaign()) { dprint("mgtriggertest: select a native campaign first\n"); return; }
     if(request == 2) MG_T_MapStart(); else if(request == 3) MG_T_LightningDamage(); else if(request == 4) MG_T_RetargetGate(); else MG_T_Start();
 };
+#endif

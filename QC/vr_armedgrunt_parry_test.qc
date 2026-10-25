@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 //
 //
 //
@@ -301,3 +302,4 @@ void() VR_AGPar_Test =
         VR_AGPT2_End();
     }
 };
+#endif

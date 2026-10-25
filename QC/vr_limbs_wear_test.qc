@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_limbs_wear_test.qc -- a corpse's pieces' own health (vr_limbs.qc, "Corpse pieces' own health"; VR_Limb_CorpseWear).
 //
 // `vr_limb_test 30..38` (vr_limbs_test.qc hands them here; after the AD bridge, whose pellet hit 35 uses): on the nearest
@@ -192,3 +193,4 @@ void(float xTest) VR_Limb_WearTest =
         m.classname, piece, hits, vr_limb_cuts - cuts, vr_limb_pops - pops));
     bprint(sprintf(", worn %.1f, hp %.1f -> %.1f, gib %g\n", worn, hpBefore, m.vr_corpse_hp, m.vr_gib));
 };
+#endif

@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_stealth_test4.qc -- the stealth AI's round of the author's notes of 2026-10-08 (`vr_stealth_test 120`-`129`;
 // Misc/quakevr/stealth_tests.sh seethrough|fence|chase|props; docs/vr-port/STEALTH.md, "Tests"). Each scene prints
 // `stealthtest: <name> PASS|FAIL`:
@@ -450,3 +451,4 @@ void() VR_STT4_Frame =
 
     VR_STT4_End();
 };
+#endif

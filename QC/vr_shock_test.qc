@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_shock's test harness (moved out of vr_shock.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -70,3 +71,4 @@ void() VR_Shock_TestFrame =
     bprint(sprintf("shockhittest: shock_left=%g lasting_sent=%g burns=%g hit_wounds=%g time=%g\n",
         max(0, best.vr_shock_until - time), vr_shock_sent - sent, vr_shock_burnt - burnt, vr_wound_sent - wounds, time));
 };
+#endif

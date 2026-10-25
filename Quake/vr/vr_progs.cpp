@@ -174,6 +174,53 @@ func_t findFunction(const char* name)
     return 0;
 }
 
+namespace
+{
+// qcTestsPresent's last verdict (true until progs are seen: nothing is claimed missing).
+struct QcTestsVerdict
+{
+    bool valid;
+    int crc;
+    int functions;
+    bool present;
+};
+QcTestsVerdict qcTestsLast{false, 0, 0, true};
+} // namespace
+
+bool qcTestsPresent()
+{
+    // (VR_TestImpulse: the test impulses' entry, QC/vr_impulse_test.qc, in every flavour with the tests.)
+    // The menu builds outside the game's frames (qcvm is null there): the server's progs are looked in, the verdict kept
+    // per progs (its CRC and function count) so a menu frame costs nothing.
+    if(!sv.active || !sv.qcvm.progs)
+    {
+        return qcTestsLast.present;
+    }
+    const dprograms_t* const p = sv.qcvm.progs;
+    if(!qcTestsLast.valid || qcTestsLast.crc != p->crc || qcTestsLast.functions != p->numfunctions)
+    {
+        qcvm_t* const old = qcvm;
+        if(old != &sv.qcvm)
+        {
+            if(old)
+            {
+                PR_SwitchQCVM(nullptr);
+            }
+            PR_SwitchQCVM(&sv.qcvm);
+        }
+        qcTestsLast = {true, p->crc, p->numfunctions, findFunction("VR_TestImpulse") != 0};
+        if(old != &sv.qcvm)
+        {
+            PR_SwitchQCVM(nullptr);
+            if(old)
+            {
+                PR_SwitchQCVM(old);
+            }
+        }
+    }
+    return qcTestsLast.present;
+}
+
 } // namespace qvr::progs
 
 using namespace qvr::progs;

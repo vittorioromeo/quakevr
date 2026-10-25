@@ -13,6 +13,7 @@
 #include "vr_warmup.hpp"
 #include "vr_alloccount.h"
 
+#include "vr_progs.hpp"
 #include "vr_seated.hpp"
 #include "vr_serverrules.hpp"
 #include "vr_modelmetadata.hpp"

@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_enemyshove's test harness (moved out of vr_enemyshove.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -55,3 +56,4 @@ void() VR_Climb_TestBlast =
     b.nextthink = time + 3;
     dprint("climb test: a blast at your feet in 3 s\n");
 };
+#endif
