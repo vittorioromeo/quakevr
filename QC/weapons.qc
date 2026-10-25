@@ -41,6 +41,10 @@ void(float xHand, float xAid) updateAmmoCounter =
     {
         return;
     }
+    if(VR_FlareGun_Counter(xHand)) // the flare gun: its flares left (vr_flaregun.qc)
+    {
+        return;
+    }
     if(xAid == AID_NONE)
     {
         VRSetAmmoCounter(xHand, 0);
@@ -3592,6 +3596,12 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
         VR_NailPistol_Attack(xHand, xAttackFinished, xOutAttackFinished);
         return;
     }
+    // The flare gun: a flare a pull, from its own two (its clip), then spent (vr_flaregun.qc).
+    if(xWeapon == WID_FLAREGUN)
+    {
+        VR_FlareGun_Attack(xHand, xAttackFinished, xOutAttackFinished);
+        return;
+    }
     // The heavy revolver: double action, a pull cocks the hammer, turns the cylinder and fires (vr_revolver.qc).
     if(xWeapon == WID_REVOLVER)
     {
@@ -5480,6 +5490,10 @@ entity(entity thrower, float xWeapon, float xWeaponFlags, entity xInst,
     // Spent, a single-use enemy gun or a chainsaw is never fired again: no loot beam, no force grab
     // (vr_enemy_weapon_depleted_loot).
     newmis.vr_depleted = VR_Weapon_Spent(xWeapon, newmis.weaponinst);
+    if(xWeapon == WID_FLAREGUN)
+    {
+        newmis.skin = VR_FlareGun_Skin(newmis.weaponinst.wi_clip); // (its muzzles sooted by the flares fired: vr_flaregun.qc)
+    }
     VR_EnemyWeapons_MakeRoom(newmis); // (a single-use enemy weapon: at most vr_enemy_weapon_drop_max lie about)
     VR_FuelTank_Attach(newmis, thrower); // AD support: a flamethrower's or poison sprayer's tank with it (vr_ad_enemyguns.qc)
     VR_FlailHead_Attach(newmis, thrower); // AD support: the death sergeant's flail's head on its chain (vr_ad_melee.qc)

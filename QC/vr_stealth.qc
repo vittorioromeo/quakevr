@@ -1534,6 +1534,7 @@ void(entity shooter, float xWeapon) VR_Stealth_Shot =
     else if(xWeapon == WID_SUPER_SHOTGUN) { r = 1300; }
     else if(xWeapon == WID_NAILGUN) { r = 800; }
     else if(xWeapon == WID_NAILPISTOL) { r = 700; }
+    else if(xWeapon == WID_FLAREGUN) { r = 600; }
     else if(xWeapon == WID_REVOLVER) { r = 1200; }
     else if(xWeapon == WID_SUPER_NAILGUN) { r = 900; }
     else if(xWeapon == WID_GRENADE_LAUNCHER || xWeapon == WID_PROXIMITY_GUN) { r = 600; }

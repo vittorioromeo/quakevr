@@ -889,9 +889,15 @@ private:
             // (The desktop window's focus too: a driver's cap on a background window's presents showed as xrEndFrame's
             // time, 10 fps, the session FOCUSED.)
             line += va("; %s", stateName(sessionState));
-            if(windowUnfocused())
+            // The mirror's presents (GitHub issue #79: a present the display paced held the headset's frames).
+            const MirrorPresents m = takeMirrorPresents();
+            // (The swap interval as the driver reports it: 1 though the game set 0, the driver forces vsync.)
+            line += va("; window %s, %d presents (swap %.2f/%.2f ms, interval %d), %d skipped",
+                windowUnfocused() ? "unfocused" : "focused", m.presented, m.presented ? m.swapMsSum / m.presented : 0.0,
+                m.swapMsMax, SDL_GL_GetSwapInterval(), m.skipped);
+            if(m.capHz > 0.0)
             {
-                line += va("; window unfocused, %d presents skipped", presentsSkipped());
+                line += va(" (at most %.0f Hz)", m.capHz);
             }
             line += "\n";
             xrruntime::logLine(line.cStr());

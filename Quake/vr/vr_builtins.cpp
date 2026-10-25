@@ -2579,11 +2579,13 @@ void PF_crateput()
     G_FLOAT(OFS_RETURN) = static_cast<float>(crates::put(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
 }
 
-// float(float i) cratecrowbar: whether the plan puts a crowbar on crate i (vr_crate_crowbar); float(entity e, float i)
+// float(float i) cratecrowbar: whether the plan puts a crowbar on crate i (vr_crate_crowbar: 1), or a flare gun
+// (vr_crate_flaregun: 2; no builtin numbers left for one of its own); float(entity e, float i)
 // cratecrowbarput: lays the crowbar `e` (a thrown weapon, its model set) on it (crates::putCrowbar).
 void PF_cratecrowbar()
 {
-    G_FLOAT(OFS_RETURN) = crates::hasCrowbar(static_cast<int>(G_FLOAT(OFS_PARM0))) ? 1.f : 0.f;
+    const int i = static_cast<int>(G_FLOAT(OFS_PARM0));
+    G_FLOAT(OFS_RETURN) = crates::hasCrowbar(i) ? 1.f : crates::hasFlareGun(i) ? 2.f : 0.f; // (2: a flare gun, vr_crate_flaregun)
 }
 
 void PF_cratecrowbarput()

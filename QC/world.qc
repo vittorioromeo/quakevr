@@ -310,6 +310,7 @@ void() worldspawn =
     VR_Crowbar_Precache(); // VR: the crowbar (vr_crowbar.qc)
     VR_Toolgun_Precache(); // VR: the toolgun (vr_toolgun.qc)
     VR_NailPistol_Precache(); // VR: the nail pistol (vr_nailpistol.qc)
+    VR_FlareGun_Precache(); // VR: the flare gun (vr_flaregun.qc)
     VR_Revolver_Precache(); // VR: the heavy revolver (vr_revolver.qc)
     VR_MG3_Weapons_Precache(); // VR: Dawn of the Machine's weapons, when its data is there (vr_mg3_weapons.qc)
     VR_EnemyGuns_Precache(); // VR: the grunts' shotguns and the enforcers' laser rifles (vr_enemyguns.qc)
@@ -612,6 +613,7 @@ void() StartFrame =
 #ifdef QVR_TESTS
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     VR_NailPistol_TestFrame(); // vr_np_test (vr_nailpistol_test.qc)
+    VR_FlareGun_TestFrame(); // vr_flare_test (vr_flaregun_test.qc)
     VR_Revolver_TestFrame(); // vr_rv_test (vr_revolver_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)
     AD_MonstersTestFrame(); // AD support: vr_ad_mtest (vr_ad_monsters_test.qc)

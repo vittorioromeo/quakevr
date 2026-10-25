@@ -969,8 +969,9 @@ Averages and p99s unchanged in every row (within +-0.05 ms CPU, +-0.3 GPU betwee
 - **Heat haze copy** (not kept): the copy split into each hot volume's own part of the view (joined where one copy
   costs no more) gave the same images and the same heat haze GPU time (lava_e1m7 0.210 -> 0.209, gpu_fields_inside
   0.252 -> 0.251, crowd_ad_40 0.212 -> 0.219, combined 0.334 -> 0.327): where it costs, a volume reaches behind the eye
-  (standing in fire or over lava) and the whole view is copied either way. Reverted. Left: a half-size copy (a softer
-  image inside the haze) or the bend drawn without a copy.
+  (standing in fire or over lava) and the whole view is copied either way. Reverted. A half-size copy (a softer
+  image inside the haze) shipped since: `vr_heat_haze_half` 1 (agent/defaults2; Quest 3 Ultra eyes, his settings: heat
+  haze lava_e1m7 0.331 -> 0.081 ms, gpu_fields_inside 0.139 -> 0.073; ROUND22.md, "Defaults of 2026-10-25").
 - **Left**: the dismembering's second cut of a limb (`#limb3m8`, 5 ms, a partial limb model not prebuilt).
 
 Rerun: `bash scratch/pf_ab.sh <label> 3 "<toggle> 0" "<toggle> 1" <scenarios>`, then `python scratch/p3_tab.py <label> -

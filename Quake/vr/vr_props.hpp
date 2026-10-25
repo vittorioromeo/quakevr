@@ -78,6 +78,7 @@ enum class Part
 [[nodiscard]] bool weightKey(Key key); // Mass, Inertia, Com*, Throw, the spring's multipliers, the damage multipliers
 void resetSlotToDefaults(int slot, Part part = Part::All);
 void printSlot(int slot, Part part = Part::All); // the settings that differ from the defaults, as vr_props.inc lines
+void heads_f(); // vr_prop_heads: each monster head's slot, its Mass setting and what it weighs (Mass -1: its ragdoll's share)
 
 // Densities (kg/m^3) of what things are made of, by their model (a brush model: an ammo or health box, a crate; a
 // weapon; armour; a backpack; flesh: gibs and heads). Box3D's (vr_box3d.cpp) for its props, and the estimate below.

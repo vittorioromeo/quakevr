@@ -121,6 +121,7 @@ void S_MixJoinAt (const char *file, int line);	/* QVR: the pool's mix done (ever
 
 void S_BlockSound (void);
 void S_UnblockSound (void);
+int S_SoundBlocked (void); // QVR
 
 sfx_t *S_PrecacheSound (const char *sample);
 void S_TouchSound (const char *sample);

@@ -261,6 +261,160 @@ void lavaNailLight(int ent, const entity_t& e, float scale)
     setGlow(dl, lavaNail.color, lavaNail.radius * scale * flicker, 0.f);
 }
 
+// ---- The flare gun's flares (QC vr_flaregun.qc) ------------------------------------------------
+//
+// A flare's skin is its state (QC VR_FLARE_*): 0 in flight, 1 stuck in a wall or lying, 2 drifting down from the top of
+// its climb; its alpha fades as it burns out. Only the nearest vr_flare_lights are lit each frame (an air flare counts as
+// a tenth of its distance: the wide light first); a farther one lit earlier in the frame gives up its light. Every flare
+// near enough throws its sparks and smoke (vr_flare_sparks), lit or not.
+
+constexpr int maxFlareLights = 16;
+struct FlareLight
+{
+    int ent;
+    float score;
+};
+FlareLight flareLights[maxFlareLights];
+int flareLightCount = 0;
+int flareLightFrame = -1;
+
+// Each flare's sparks and smoke owed since its last frame (a few at a time, whatever the frame rate).
+struct FlareFx
+{
+    int ent = 0;
+    double last = 0.0;
+    float sparks = 0.f, smoke = 0.f;
+};
+FlareFx flareFx[32];
+
+constexpr glm::vec3 flareRed{2.2f, 0.36f, 0.16f};      // its light (DarkPlaces' brightness): a signal flare's red
+constexpr glm::vec3 flareSpark{1.f, 0.42f, 0.2f};      // its sparks' colour
+constexpr float flareRadius[3] = {170.f, 300.f, 640.f}; // in flight, stuck, drifting (vr_flare_light 1)
+constexpr float flareFxDistance = 1800.f;              // no sparks farther
+
+void flareFxFrame(int ent, int kind, float alpha, const glm::vec3& cap, const glm::vec3& out)
+{
+    const float k = vr_flare_sparks.value * alpha;
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    if(k <= 0.f || glm::distance(cap, eye) > flareFxDistance)
+    {
+        return;
+    }
+    FlareFx* slot = nullptr;
+    FlareFx* oldest = &flareFx[0];
+    for(FlareFx& f : flareFx)
+    {
+        if(f.ent == ent)
+        {
+            slot = &f;
+            break;
+        }
+        if(f.last < oldest->last)
+        {
+            oldest = &f;
+        }
+    }
+    if(!slot || cl.time - slot->last > 0.25)
+    {
+        if(!slot)
+        {
+            slot = oldest;
+        }
+        *slot = FlareFx{ent, cl.time, 0.f, 0.f};
+        return;
+    }
+    const float dt = static_cast<float>(cl.time - slot->last);
+    slot->last = cl.time;
+    // Sparks and smoke a second: a burning flare spits, one in flight trails smoke.
+    const float sparkRate = kind == 0 ? 30.f : 22.f;
+    const float smokeRate = kind == 0 ? 40.f : kind == 2 ? 8.f : 6.f;
+    slot->sparks += dt * sparkRate * k;
+    slot->smoke += dt * smokeRate * k;
+    unsigned n = 0;
+    while(slot->sparks >= 1.f && n < 8)
+    {
+        slot->sparks -= 1.f;
+        const unsigned seed = static_cast<unsigned>(cl.time * 1000.0) + n * 7u;
+        const glm::vec3 rnd{hash01(seed, static_cast<unsigned>(ent), 1u) - 0.5f, hash01(seed, static_cast<unsigned>(ent), 2u) - 0.5f,
+            hash01(seed, static_cast<unsigned>(ent), 3u) - 0.5f};
+        // Out of its cap (a drifting one's fall down under it), scattering, falling.
+        const glm::vec3 vel = out * (kind == 2 ? 20.f : 55.f) + rnd * 90.f + glm::vec3{0.f, 0.f, kind == 2 ? -30.f : 25.f};
+        particles::hotTrail(cap, vel, flareSpark, 0.9f * alpha, 0.35f + 0.3f * hash01(seed, static_cast<unsigned>(ent), 4u), true);
+        n++;
+    }
+    n = 0;
+    while(slot->smoke >= 1.f && n < 4)
+    {
+        slot->smoke -= 1.f;
+        particles::torchSmoke(cap, kind == 0 ? glm::vec3{0.f} : out * 6.f, 1, 0.3f * alpha);
+        n++;
+    }
+}
+
+void flareLight(int ent, const entity_t& e)
+{
+    const int kind = za::clamp(e.skinnum, 0, 2);
+    const float alpha = ENTALPHA_DECODE(e.alpha);
+    // Its cap (the burning end, the model's +x: 1.25 out) and the way out of it.
+    vec3_t ang{-e.angles[0], e.angles[1], e.angles[2]}, f, r, u;
+    AngleVectors(ang, f, r, u);
+    const glm::vec3 fwd{f[0], f[1], f[2]};
+    const glm::vec3 org{e.origin[0], e.origin[1], e.origin[2]};
+    const glm::vec3 cap = org + fwd * 1.25f;
+    const glm::vec3 out = kind == 2 ? glm::vec3{0.f, 0.f, -1.f} : fwd;
+    flareFxFrame(ent, kind, alpha, cap, out);
+
+    const float scale = vr_flare_light.value;
+    const int cap_ = za::clamp(static_cast<int>(vr_flare_lights.value), 0, maxFlareLights);
+    if(scale <= 0.f || cap_ <= 0)
+    {
+        killDlight(ent);
+        return;
+    }
+    if(flareLightFrame != host_framecount)
+    {
+        flareLightFrame = host_framecount;
+        flareLightCount = 0;
+    }
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const glm::vec3 d = cap - eye;
+    const float score = glm::dot(d, d) * (kind == 2 ? 0.01f : 1.f);
+    FlareLight* slot = nullptr;
+    if(flareLightCount < cap_)
+    {
+        slot = &flareLights[flareLightCount++];
+    }
+    else
+    {
+        FlareLight* worst = za::maxElement(flareLights, flareLights + cap_,
+            [](const FlareLight& a, const FlareLight& b) { return a.score < b.score; });
+        if(score < worst->score)
+        {
+            killDlight(worst->ent);
+            slot = worst;
+        }
+    }
+    if(!slot)
+    {
+        killDlight(ent); // (lit last frame, farther now)
+        return;
+    }
+    *slot = FlareLight{ent, score};
+
+    // A flare's flicker: a quick unsteady sputter over a slower waver.
+    const float t = static_cast<float>(cl.time);
+    const float sputter = hash01(static_cast<unsigned>(cl.time * 24.0), static_cast<unsigned>(ent), 9u);
+    const float flicker = 0.78f + 0.12f * za::sin(t * 7.3f + static_cast<float>(ent) * 1.9f) + 0.18f * sputter;
+    dlight_t* dl = CL_AllocDlight(ent);
+    const glm::vec3 at = cap + out * (kind == 2 ? -6.f : 4.f); // (off the wall it is stuck in; a drifting one's under it)
+    dl->origin[0] = at.x;
+    dl->origin[1] = at.y;
+    dl->origin[2] = at.z;
+    dl->die = static_cast<float>(cl.time + 0.01);
+    setGlow(dl, flareRed * (flicker * alpha), flareRadius[kind] * scale * (0.92f + 0.08f * flicker) * (0.4f + 0.6f * alpha), 0.f,
+        kind == 2);
+}
+
 // ---- Torches and flames (round 17) ----------------------------------------------------------
 
 // A flame model: where its fire is (model units, before its yaw and scale), how far its light
@@ -731,6 +885,11 @@ extern "C" void VR_ProjectileLight(int ent)
         {
             lavaNailLight(ent, e, scale);
         }
+        return;
+    }
+    if(modelmeta::is(e.model, modelmeta::Id::VrFlare))
+    {
+        flareLight(ent, e); // the flare gun's flares (vr_flare_lights, vr_flare_light; not vr_projectile_lights)
         return;
     }
     if(modelmeta::is(e.model, modelmeta::Id::BurstFlame))

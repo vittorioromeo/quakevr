@@ -2,9 +2,23 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Flare gun in hand {test:flaregun}: the fist round the grip, the finger on the trigger; down the sights the brass blade sits in the rear notch; tune its grip (Weapon Offsets) if it sits wrong
+Flare gun: fire both flares: a pull each, top barrel first, then the bottom; the kick and thump; the muzzles sooted (top, then both); a third pull clicks; throw it away
+Flare gun: a flare into a grunt sets it on fire; into an explosive box blows it up; into a crate sets it burning
+Flare gun: a flare into a wall sticks there burning red, flickering, sparking and smoking, for about 25 s; in a dark room it lights it
+Flare gun: fire one straight up: it drifts down slowly, lighting a wide area red, for about 15 s
+Flare gun: some crates have one on top (Physics > Crates: Flare Gun on Crates 1 to see many)
+Flare gun: an armed grunt with one (Armed Grunts > Flare Gun First 1) fires two flares at you, throws it away and takes its own weapon
+Flare gun: holster it (hip, upper) and draw it, loaded and half-fired {test:flaregun}
+Pick up an AD death knight's or hunter ogre's head: it weighs like the Quake head of its kind (Debug: Held Heads' Weights lists them); the death guard's sword handles as before
+On a fresh config monsters animate Smooth (r_lerpmodels 3), and Options > Animations Classic then back returns to Smooth
+Over E1M7's lava and in a fuel tank's fire field the heat haze looks right at half size; compare with Graphics > Heat Haze Detail: Full Size
+Model Warp on (r_softemu_mdl_warp 1, the player's texture report): the shotgun and super shotgun held close show no red or orange specks, with GL_NEAREST_MIPMAP_LINEAR and with a linear texture mode
+Issue #79: desktop window focused in VR, Debug > "Act as if the Driver Forced V-Sync" at 60 Hz: no judder with Recording > Window Frame Rate "Up to the Monitor's", judder with "Every Headset Frame"
+Issue #79: alt-tab out and minimize while in VR: frames stay smooth and the sound keeps playing
 Gun Model Pitch is gone from the menu: load an old config with vr_gunmodelpitch 17 and check that the gun, hands and aim look and shoot as before (the value moved into Hand Pitch)
 Shotgun / super shotgun (player's texture report): put a model pack's progs/v_shot.mdl_0.png (+ _luma) in id1\progs: the guns show their own skin with no glowing specks (developer 1 logs the skin as ignored)
-Flail: throw a death sergeant's flail at a grunt: the trailing head hits it once (about as much as a small crate); let go of a swinging flail: its head never hurts you {test:flailhead_hit}
+Flail: throw a death sergeant's flail at a grunt: the trailing head hits it once (about as much as a small crate); let go of a swinging flail: its head never hurts you
 Armed grunts: after this update your saved poses/grips are folded into the defaults (vr_agrunt_poses and vr_agrunt_grips empty in your config): grunts' and enforcers' gun and sword poses still look as you set them in the Pose Studio
 Gun Model Pitch 17 (Hand/Gun Calibration > Guns; the user report): the shotgun's ammo screen is visible above the hand, shots land along the barrel (Debug > Reports > Aim Check), empty hands unchanged; say whether the hand turning with the gun feels right
 User report: set the gun angle option to 17 degrees pitch and hold the shotgun: the hands don't cover its ammo count, the wrists look natural, and shots go where the tilted barrel points (not the original direction)

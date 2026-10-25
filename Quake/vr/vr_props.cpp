@@ -9,6 +9,7 @@
 
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -719,6 +720,23 @@ void printSlot(int slot, Part part)
             Con_Printf("QVR_PROP_DEFAULT(%d, %s, \"%s\") // was %s\n", slot, keyEnumNames[key], var.string, var.default_string);
         }
     }
+}
+
+void heads_f()
+{
+    int n = 0;
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        const char* id = cvarAt(slot, Key::ID).string;
+        if(!ZA_STRNCMP(id, "progs/h_", 8))
+        {
+            Con_Printf("prop head slot %d (_%02d) %s: Mass \"%s\" -> %.3g kg%s\n", slot, slot + 1, id,
+                cvarAt(slot, Key::Mass).string, value(slot, Key::Mass),
+                value(slot, Key::Mass) > 0.f ? "" : " (0: estimated from its size)");
+            n++;
+        }
+    }
+    Con_Printf("prop heads: %d slots\n", n);
 }
 
 float stoneDensity(const qmodel_t* model)

@@ -592,7 +592,9 @@ void() VR_Revolver_TestFrame =
         if(alive && g.takedamage && vr_rvt_n < 8 && (vr_rvt_frames % 6) == 2)
         {
             g.enemy = p; // (aware of you: no sneak attack's x vr_stealth_sneak, vr_stealth.qc)
-            VR_RVT_SlugAt(g, s == 15 ? -1 : 6);
+            g.th_pain = SUB_Null; // (it stands as it is: no flinch bowing its head into a body shot's way)
+            g.nextthink = 0;
+            VR_RVT_SlugAt(g, s == 15 ? -1 : (s == 16 ? 6 : 16)); // (the ogre's chest)
             vr_rvt_n++;
             dprint(sprintf("rvtest: slug %g into %s: %.1f dealt (part %g), its health %g, dead %g\n", vr_rvt_n, g.classname,
                 vr_rv_lastdmg, vr_rv_lastpart, g.health, g.deadflag));
@@ -619,7 +621,7 @@ void() VR_Revolver_TestFrame =
             }
             else
             {
-                VR_RVT_Check(!alive && (vr_rvt_n == 4 || vr_rvt_n == 5) && vr_rv_lastpart == 0,
+                VR_RVT_Check(!alive && (vr_rvt_n == 4 || vr_rvt_n == 5) && vr_rv_lastpart != 1,
                     sprintf("an ogre's body (%g full health): dead to %g slugs (want 4-5), the last %.1f (vr_revolver_heavy_mult %g)",
                         g.max_health, vr_rvt_n, vr_rv_lastdmg, cvar_hget(cvarh_vr_revolver_heavy_mult)));
                 // The head pop's chance by range (player lengths 2 .. 12): the revolver's against the shotguns'.

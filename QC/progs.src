@@ -133,6 +133,8 @@ vr_hitreact.qc
 vr_hitreact_test.qc
 vr_burning.qc
 vr_burning_test.qc
+// The flare gun (after vr_burning.qc: its flares set things on fire).
+vr_flaregun.qc
 // Incandescent blades (after vr_burning.qc and vr_walltorch.qc: it sets on fire, it finds their flames).
 vr_hotblade.qc
 vr_hotblade_test.qc
@@ -514,4 +516,5 @@ vr_armedgrunt_bugs_test.qc
 vr_armedgrunt_close_test.qc
 vr_armedrepl_test.qc
 vr_nailpistol_test.qc
+vr_flaregun_test.qc
 vr_revolver_test.qc

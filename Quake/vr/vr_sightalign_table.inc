@@ -18,6 +18,9 @@
 {"progs/v_enfrifle.mdl", {6.30f, 0.f, 10.660f}, {23.00f, 0.f, 10.523f}},
 // The nail pistol: its modelled sights (build_nailpistol.py, the Body's frame), the rear ears' tops level with the front post's.
 {"progs/v_nailpistol.mdl", {-1.25f, 0.f, 6.376f}, {9.07f, 0.f, 6.376f}},
+// The flare gun: its modelled sights (build_flaregun.py, the Body's frame), the rear notch's bottom and the front blade's
+// top on one line parallel to both bores.
+{"progs/v_flaregun.mdl", {1.15f, 0.f, 6.132f}, {11.75f, 0.f, 6.132f}},
 // The heavy revolver: its modelled sights (Misc/quakevr/models_src/revolver/README.md, the Body's frame): the rear notch's
 // top, the front blade's top, 2.12 over the bore.
 {"progs/v_revolver.mdl", {3.764f, 0.f, 9.178f}, {16.714f, 0.f, 9.178f}},

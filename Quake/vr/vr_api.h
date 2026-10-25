@@ -64,7 +64,11 @@ int VR_SkipScreen (void);	// SCR_UpdateScreen: nonzero to skip this frame's draw
 void VR_HeadlessView (void);	// ... and instead: the eyes' views and view entities set up (what the game reads), no GL
 int VR_DebugWindowUnfocused (void); // main loop: vr_debug_window_unfocused (the flat screen's background sleep, tests)
 int VR_SkipSwap (void);		// GL_EndRendering: nonzero to leave this frame unpresented (unpaced frames present
-							// ten a second: a present waits for the display's refresh, the bulk of such a frame)
+							// ten a second: a present waits for the display's refresh, the bulk of such a frame;
+							// in VR the focused mirror at most once a refresh, vr_mirror_hz; unfocused vr_mirror_unfocused_hz)
+void VR_MirrorPresented (double swapstart);	// GL_EndRendering: the window's swap, begun then, done (its time: OpenXR's timing line; vr_debug_mirror_vsync's wait)
+int VR_SwapIntervalOverride (int *interval);	// VID_ApplyVSync: nonzero while VR runs (or unpaced frames), *interval 0 then:
+							// a present never waits for the desktop's vsync
 void VR_RenderDocPresented (void);	// GL_EndRendering, after the desktop window's present (RenderDoc's frame boundary; vr_renderdoc_status counts them)
 void VR_FrameDrawn (void);	// GL_EndRendering, before the present: vr_screenshot_frames's screenshot of it
 int VR_ModalMessageFrame (void); // SCR_ModalMessage's loop: with a headset, a frame showing the
