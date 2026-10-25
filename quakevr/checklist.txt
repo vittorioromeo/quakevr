@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Gun Model Pitch 17 (Hand/Gun Calibration > Guns; the user report): the shotgun's ammo screen is visible above the hand, shots land along the barrel (Debug > Reports > Aim Check), empty hands unchanged; say whether the hand turning with the gun feels right
 User report: set the gun angle option to 17 degrees pitch and hold the shotgun: the hands don't cover its ammo count, the wrists look natural, and shots go where the tilted barrel points (not the original direction)
 Widowmaker: its tracer uses its own colour and the stock pitch (5.95) feels right; grab the nail pistol magazine with your migrated config: it still feels like yours (size, grip, tilt)
 Menu corner: Console opens the console and Map Library the map browser (not Search); the Crosshair, HUD Configuration and Gadget pages' "VR Settings" links open the HUD, Haptics and Sound section
