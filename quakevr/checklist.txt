@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Gun Model Pitch is gone from the menu: load an old config with vr_gunmodelpitch 17 and check that the gun, hands and aim look and shoot as before (the value moved into Hand Pitch)
 Shotgun / super shotgun (player's texture report): put a model pack's progs/v_shot.mdl_0.png (+ _luma) in id1\progs: the guns show their own skin with no glowing specks (developer 1 logs the skin as ignored)
 Flail: throw a death sergeant's flail at a grunt: the trailing head hits it once (about as much as a small crate); let go of a swinging flail: its head never hurts you {test:flailhead_hit}
 Armed grunts: after this update your saved poses/grips are folded into the defaults (vr_agrunt_poses and vr_agrunt_grips empty in your config): grunts' and enforcers' gun and sword poses still look as you set them in the Pose Studio
