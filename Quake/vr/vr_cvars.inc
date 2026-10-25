@@ -646,6 +646,11 @@ QVR_CVAR(vr_body_prepass, "1", CVAR_NONE)
 // props, gibs, items; not your own: a held gun's morph discards): each batch's depth first, then its shading once a
 // pixel (the GPU benchmark, BENCHMARKS.md: the models' GPU 4-23% less in crowds and gore); 0 as before. The same image either way.
 QVR_CVAR(vr_alias_prepass, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Lazy OIT Clear: 1 the translucent pass's two OIT targets (gl_rmain.c) cleared at a
+// view's first translucent draw, and neither cleared nor resolved in a view with nothing translucent (most views: the
+// GPU benchmark, BENCHMARKS.md, about 0.05 ms a view); 0 cleared and resolved in every view, as before. The same image
+// either way.
+QVR_CVAR(vr_oit_lazy_clear, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set

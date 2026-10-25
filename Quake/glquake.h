@@ -346,6 +346,8 @@ typedef enum
 
 alphamode_t R_GetAlphaMode (void);
 alphamode_t R_GetEffectiveAlphaMode (void);
+void R_PrepareOITDraw (void); // QVR: before a draw into the OIT targets: their clear at the view's first (vr_oit_lazy_clear)
+void R_OITStats (void); // QVR: vr_oit_stats: since the last time, the views with the OIT pass and those that drew into it
 void R_SetAlphaMode (alphamode_t mode);
 
 //johnfitz -- rendering statistics

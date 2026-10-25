@@ -232,6 +232,11 @@ extern "C" int VR_AliasCullPosedOn(const entity_t* e, int depth)
     return mode && (!e || depth || !view::keepsBareLight(e)) ? mode : 0;
 }
 
+extern "C" int VR_OITLazyClear(void)
+{
+    return vr_oit_lazy_clear.value != 0.f;
+}
+
 extern "C" int VR_AliasDepthPrepass(const entity_t* e)
 {
     // vr_alias_prepass: the world's models (no morphs there: VR_AliasMorph's are view entities') (r_alias.c keeps the

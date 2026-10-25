@@ -718,6 +718,8 @@ static void R_DrawParticles_Real (qboolean alpha, qboolean showtris)
 
 	dither = (softemu == SOFTEMU_COARSE && !showtris);
 	oit = (alpha && R_GetEffectiveAlphaMode () == ALPHAMODE_OIT);
+	if (oit) // QVR: the OIT targets cleared at their first draw (vr_oit_lazy_clear)
+		R_PrepareOITDraw ();
 	GL_UseProgram (glprogs.particles[oit][dither]);
 
 	// compensate for apparent size of different particle textures

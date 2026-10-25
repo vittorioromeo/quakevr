@@ -642,6 +642,13 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_alias_prepass: the world's opaque models (monsters, props, gibs, items) drawn into the eye's depth "
                   "first, each batch, then shaded once a pixel (On), or shaded as drawn (Off, as before): crowds, props "
                   "and gore 4-23% less GPU on models at a headset's resolution. The same image either way."),
+        toggle("Lazy OIT Clear", vr_oit_lazy_clear)
+            .help("vr_oit_lazy_clear: the translucent pass's two buffers cleared at a view's first translucent draw, and "
+                  "neither cleared nor resolved in a view with nothing translucent (on), or cleared and resolved in every "
+                  "view (off, as before). The same image either way."),
+        command("Lazy OIT Clear Stats", "vr_oit_stats")
+            .help("vr_oit_stats: since the last time, the views with a translucent pass, how many drew something "
+                  "translucent (water, slime, lava, a translucent model or particles) and how many skipped the clear."),
         command("Model Cull Stats", "vr_alias_cull_stats")
             .help("vr_alias_cull_stats: since the last time, the models drawn and culled a frame in the eyes and the "
                   "shadow faces, by model, how many of them posed, and any drawn twice in one view, in the console."),
