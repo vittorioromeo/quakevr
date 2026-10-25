@@ -477,6 +477,13 @@ za::Vector<Item> pageDebugProfiling()
                   "program's: the menus' warning in the top right corner; in VR the mirror presented only "
                   "vr_mirror_unfocused_hz times a second (the headset's frames never slowed); on a flat screen the "
                   "background sleep."),
+        toggle("Act as if the Window Were Minimized", vr_debug_window_hidden)
+            .help("vr_debug_window_hidden 1: the game acts as if its desktop window were minimized: the Spectator "
+                  "Camera is skipped (Recording > Skip While the Window Is Minimized; the console says so with "
+                  "developer 1). vr_debug_window minimize, hide or show does it to the real window."),
+        command("Minimize the Window", "vr_debug_window minimize")
+            .help("vr_debug_window minimize: the desktop window really minimized (the taskbar brings it back; "
+                  "vr_debug_window show)."),
         cycle("Simulate Held Frames", vr_debug_frame_stall_ms, {{0.f, "Off"}, {40.f, "40 ms a Frame"}, {100.f, "100 ms a Frame"}})
             .help("vr_debug_frame_stall_ms: each frame's end waits this long, as if the runtime held the frames (the "
                   "100 ms frames of a VR drop): checks the held-frames lines in quakevr/qvr_openxr.txt (the foreground "

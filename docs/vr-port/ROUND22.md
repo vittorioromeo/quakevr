@@ -21286,3 +21286,38 @@ gives the same on two runs of three: the baseline's, not this change's.
 
 What's left of the backend: `vr_particles` 3.5 s, `vr_hull` 3.0 s, `image.c` 2.8 s, `vr_motion_review` 2.7 s,
 `vr_relight` 2.6 s; the Linux link.
+
+## Spectator camera: skipped while the window is minimized, Resolution Scale as steps (worktree `tghost`, branch `agent/specsave`, 2026-10-25)
+
+The GPU benchmark found the spectator camera (`vr_window_view 2`) the largest optional cost: at his
+`vr_spectator_scale 1.5` and 1920x1080 window (2880x1620) 0.45-1.3 ms of the GPU's frame, twice that on the frames it
+draws. Approved: skip it when nobody can see the window, and make the scale easy to lower.
+
+- **`vr_spectator_skip_hidden`** (new, default 1; Recording > Spectator Camera > Skip While the Window Is Minimized):
+  while the desktop window is minimized or hidden (SDL's flags), the camera's whole frame is skipped (its scene, culling,
+  glow, UI, the menus' preview image and the window pass: `stereo::spectatorSkipped`, vr_stereo.cpp). The frame the
+  window shows again draws it anew (its pace restarts), so the first frame after a restore is a fresh image. While
+  skipped the window keeps whatever it last held (nothing new is drawn into it; it cannot be seen anyway; OBS's Window
+  Capture of a minimized window shows nothing either). The headset is untouched. A window merely **covered** by others
+  is still drawn: OBS's Window Capture records a covered window (that is how he records), and Windows has no cheap
+  full-occlusion query. While a headset menu shows the camera's preview (`vr_spectator_preview`) it is drawn anyway.
+  `developer 1` prints `spectator camera: skipped, the window not visible` and `drawn again ... (N frames skipped)`.
+- **Tests**: `qvr::windowNotVisible()` (vr_main.cpp) counts a test run's never-shown window (`QVR_TEST_HIDDEN`, run.sh's
+  default) as visible, so spectator screenshots in tests are unchanged. New debug cvar `vr_debug_window_hidden 1` (Debug
+  page, "Act as if the Window Were Minimized") emulates a minimized window in a hidden run; new command
+  `vr_debug_window minimize|hide|show` does it for real (Debug page button "Minimize the Window"; needs
+  `run.sh -Visible`) and prints the window's flags. Eyeshots (`vr_eyeshot`) are the eyes' and unaffected (checked with
+  the camera skipped).
+- **Resolution Scale** (Recording page): a cycle of steps instead of the 0.25-step slider: 0.5x / 0.75x / 1x / 1.25x
+  / 1.5x / 2x, each with its share of pixels. Its help said 0.75 was the default; the default is 1 (the window's size)
+  and stays: not wasteful. His 1.5 is his own (kept).
+
+Verified: hidden run (`vr_debug_window_hidden` 1 for 25 frames: skipped, then drawn again, the spectator screenshot after
+it a normal image; eyeshots written while skipped); a `-Visible` run really minimizing, restoring, hiding and showing
+the window (`not visible 1` / `0` and the skipped/drawn lines each time, 20 and 10 frames skipped). Numbers:
+BENCHMARKS.md, "Spectator camera: skipped while minimized, and its scale". At his settings the skip saves 0.4-1.5 ms
+of GPU p50 and 0.4-2.1 ms of p99; scale 1 against 1.5 saves 0.2-0.5 ms of the camera's average.
+
+**Check in VR**: with the Spectator Camera on, minimize the desktop window: the headset is the same and VD's GPU
+overlay shows the saving; restore it: the window shows the camera at once. OBS recording a covered (not minimized)
+window still records. Recording > Resolution Scale steps through the six values.
