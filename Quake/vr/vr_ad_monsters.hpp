@@ -12,4 +12,9 @@ namespace qvr::ad
 // width, armour): "monster_hell_knight" for AD's death knight. `classname` itself for every other class.
 [[nodiscard]] const char* vrClass(const char* classname);
 
+// The Quake VR class an AD head model's monster is tuned as (vrClass of the class that throws it: "monster_hell_knight"
+// for h_dknight.mdl), so that its prop's Mass -1 weighs a share of that ragdoll's (box3d::headPropMass); nullptr for
+// any other model.
+[[nodiscard]] const char* headVrClass(const char* model);
+
 } // namespace qvr::ad

@@ -2670,6 +2670,7 @@ QVR_CVAR(vr_slime_foam_edge, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_water_blood, "1", CVAR_ARCHIVE)           // blood in water and slime: dark red clouds spreading on the surface where something bled into it (vr_water.cpp, LiquidBlood): strength, 0 off .. 2
 QVR_CVAR(vr_water_blood_time, "30", CVAR_ARCHIVE)     // ... seconds a cloud takes to fade (2..120)
 QVR_CVAR(vr_heat_haze, "1", CVAR_ARCHIVE)             // heat haze (vr_haze.cpp): the air shimmering over lava, round explosions and over flames: 0 off .. 1
+QVR_CVAR(vr_heat_haze_half, "1", CVAR_ARCHIVE)        // ... the scene it bends copied at half size (1, default: a quarter of the cost over lava, half in fire; the image inside the haze a little softer) or full size (0); a multisampled scene is always copied full size
 QVR_CVAR(vr_water_ripples, "1", CVAR_ARCHIVE)         // ripples: rings of waves spreading from splashes, wading and strokes, in the lighting and (with the real waves' grid) the geometry
 QVR_CVAR(vr_water_ripple_amplitude, "16", CVAR_ARCHIVE)   // ... how high they rise in the geometry (with the real waves' grid), units for a hand's slap (a shot's about half, a body's two to three times)
 QVR_CVAR(vr_water_ripple_normal, "0.75", CVAR_ARCHIVE)    // ... how steep they look in the lighting, times the geometry's slope (1: as the shape; 0: the shape only)

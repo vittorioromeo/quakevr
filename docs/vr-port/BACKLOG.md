@@ -547,3 +547,7 @@ The plan as designed:
   offset by `ad_justice_update_attachment`) with yellow imploding particles (`ad_particle_implode`, its magic attack),
   `EF_MUZZLEFLASH` lights on its attacks and flames off its swings (`ad_PreCache_Flame`). A held sword's equivalent: that
   sprite (or a glow) on the blade (vr_admelee.cpp's model) and a dim light.
+
+## Nail pistol in maps (2026-10-25)
+
+- Vittorio is unsure whether nail pistols should appear as pickups in maps (crates / replacing some weapon spawns); armed grunts carrying them may be enough. Revisit after beta4.

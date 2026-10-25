@@ -166,7 +166,8 @@ namespace
 // Misc/quakevr/models_src/widowmaker), where the config still holds the old anchors (takeWidowmakerArt63).
 // 65: the Widowmaker's (slot 34) tracer colour (54 had put it on the plasma gun's, 35: undone) and stock pitch his
 // (takeWidowmaker65).
-constexpr int settingsVersion = 65;
+// 66: the AD death guard's sword (slot 43) the death knight's (41) values as its own, inheriting none (takeGuardSword66).
+constexpr int settingsVersion = 66;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -709,6 +710,45 @@ void takeWidowmaker65()
         undone ? ", the plasma gun its tracer colour back" : "");
 }
 
+// 66: the AD death guard's sword (slot 43) has the death knight's sword's (slot 41) values as its own defaults (approved
+// 2026-10-25): of them only its Heft differed (0.3, now 0.35). A config whose slot 43 inherits slot 41 (the author's
+// did: Inherit From 42 in the menu) takes, for each value still at its default, what it showed (the death knight's
+// sword's, as that config has it), then inherits nothing: it looks as before. Any other config's Heft still at 0.3
+// takes the new default.
+void takeGuardSword66()
+{
+    constexpr int guard = 43, knight = 41;
+    cvar_t& inherit = cvarAt(guard, Key::InheritFrom);
+    cvar_t& heft = cvarAt(guard, Key::Heft);
+    if(static_cast<int>(inherit.value) - 1 != knight)
+    {
+        if(!strcmp(heft.string, "0.3"))
+        {
+            Cvar_SetQuick(&heft, heft.default_string);
+        }
+        return;
+    }
+    int taken = 0;
+    for(int k = 0; k < numKeys; k++)
+    {
+        const Key key = static_cast<Key>(k);
+        cvar_t& var = cvarAt(guard, key);
+        const char* old = key == Key::Heft ? "0.3" : var.default_string; // (the defaults before 66)
+        if(!inheritable(key) || ownDefaults[guard * numKeys + k] || strcmp(var.string, old) != 0)
+        {
+            continue; // its own value: it showed that
+        }
+        const cvar_t& shown = cvarAt(ownerSlot(knight, key), key);
+        if(strcmp(var.string, shown.string) != 0)
+        {
+            Cvar_SetQuick(&var, shown.string);
+            taken++;
+        }
+    }
+    Cvar_SetQuick(&inherit, inherit.default_string);
+    Con_DPrintf("Weapon settings: the death guard's sword took %d values from the death knight's, inherits no more\n", taken);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -741,6 +781,7 @@ constexpr Step steps[] = {
     {63, takeWidowmakerArt63},
     {64, takeNailPistolHis64},
     {65, takeWidowmaker65},
+    {66, takeGuardSword66},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
