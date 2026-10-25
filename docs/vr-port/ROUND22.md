@@ -21286,3 +21286,38 @@ gives the same on two runs of three: the baseline's, not this change's.
 
 What's left of the backend: `vr_particles` 3.5 s, `vr_hull` 3.0 s, `image.c` 2.8 s, `vr_motion_review` 2.7 s,
 `vr_relight` 2.6 s; the Linux link.
+
+## Heavy revolver: the art (worktree `release`, branch `agent/revolver-art`, 2026-10-25)
+
+Art only, no gameplay: the heavy revolver's models and skins after Vittorio's mockup, by the nail pistol's pipeline.
+Everything is in `Misc/quakevr/models_src/revolver/` (README.md there: parts, pivots, the sight line, editing,
+re-exporting, the models' structure for code).
+
+- `revolver.blend`: Body (origin the grip's hand point), Crane (its pivot; swings the cylinder out to the left about
+  its X by `swing` -95 degrees, its knuckle in a slot through the frame's bottom), Cylinder (its axis at its rear face;
+  spins about X, 60 degrees a chamber; six chambers for 12-gauge shells, 18-sided with deep flutes), EjectorRod (pushed
+  back by `travel`), Hammer (pivot; `cock` -38 degrees about Y; a two-pronged hooked spur either side of the sight
+  line), Trigger (pivot; `pull` 22 degrees), Shell (its own frame and skins). The frame: an iron octagonal ring with
+  brass plates, thick (to y 1.72) round the window's top, front and back, thin along its bottom where the cylinder
+  passes; iron fills behind and in front of the cylinder. `build_revolver.py` checks the crane's whole swing against
+  the frame, hammer and trigger (BVH overlap every 4.75 degrees): clear.
+- Sight line (Body frame, parallel to the bore 2.12 above it): blade top 15.551 0 9.434, notch top 3.401 0 9.434.
+- `export_mdl.py`: `v_revolver.mdl` (all, 914 triangles; frames rest, cocked, trigger pulled, swung out, swung out
+  with the rod pushed), `v_revolver_frame.mdl` (606), `v_revolver_crane.mdl` (52), `v_revolver_cyl.mdl` (256; rest,
+  rod pushed) for code that spins the cylinder and swings the crane as attached models (recommended: rotations
+  interpolated between MDL frames shrink), `v_revolver_shell.mdl` (76; skins red, blue slug, red spent, blue spent),
+  `vr_revolver_preview.mdl` (six shells chambered; frames rest, swung out, cocked). It prints the parts' origins.
+  Skin 384x384 (the runes need it), in the palette; the shell's 64x64.
+- `render_revolver.py` renders the MDLs: `renders/` (three-quarter and beside the mockup, side, right, cocked, swung
+  out from behind and the front, the sights from behind, about as held, the shells, the scale with the nail pistol and
+  the shotgun). Iterated against the mockup: chunky brass octagon with corner rivets, fluted steel cylinder bulging
+  out of it, hex barrel with gold-inlaid runes, horned hammer, brass guard, wrapped wooden grip.
+- Debug > Tools > Model Previews: **Heavy Revolver Art**, **Heavy Revolver Art: Swung Out**; scenario `revolver_art`
+  (vrtesthall, the shotgun beside it; console `revolver_art`, `revolver_art_open`, `revolver_art_cocked`).
+- Checks: check_mdl_art.py only LOW (8 zero-area triangles, a few bleed texels, one normal); `vr_scenario validate`
+  95 files 0 errors; the preview loads and draws in vrtesthall (viewframe 1).
+
+**In VR:**
+- [ ] Debug > Tools > Heavy Revolver Art: walk around it: the brass octagon, the fluted cylinder, the runes, the grip.
+- [ ] Heavy Revolver Art: Swung Out: the cylinder out to the left, the six shell heads (red and blue) in the chambers.
+- [ ] Scenario revolver_art: hold the shotgun next to it: the revolver's grip a believable size in the hand.
