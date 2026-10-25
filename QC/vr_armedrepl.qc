@@ -223,9 +223,12 @@ float(float t) VR_AGR_TierCount =
 };
 
 // Tier `t`'s eligible weapon at the roll `r` (0..1); -1: none.
+float vr_agr_n1; // VR_AGR_Pick's tiers' eligible weapons now (VR_AGR_TierCount: once a pick)
+float vr_agr_n2;
+float vr_agr_n3;
 float(float t, float r) VR_AGR_TierPick =
 {
-    float n = VR_AGR_TierCount(t);
+    float n = t == 1 ? vr_agr_n1 : t == 2 ? vr_agr_n2 : vr_agr_n3;
     if(n < 1)
     {
         return -1;
@@ -279,10 +282,13 @@ void(float kind, vector seed) VR_AGR_Pick =
     vr_agr_gunaxe = 0;
     vr_agr_tier = 0;
     float m = VR_AGR_SkillMult();
+    vr_agr_n1 = VR_AGR_TierCount(1);
+    vr_agr_n2 = VR_AGR_TierCount(2);
+    vr_agr_n3 = VR_AGR_TierCount(3);
     float rareOk = (VR_AGR_MapIndex() >= max(1, cvar("vr_agrunt_repl_rare_map"))) || (cvar("vr_agrunt_repl_rare_map") <= 0);
-    vr_agr_cr = (rareOk && (VR_AGR_TierCount(3) > 0)) ? VR_AGR_Unit(cvar("vr_agrunt_repl_rare") * m) : 0;
-    vr_agr_cu = (VR_AGR_TierCount(2) > 0) ? VR_AGR_Unit(cvar("vr_agrunt_repl_uncommon") * m) : 0;
-    vr_agr_cc = (VR_AGR_TierCount(1) > 0) ? VR_AGR_Unit(cvar("vr_agrunt_repl_common") * m) : 0;
+    vr_agr_cr = (rareOk && (vr_agr_n3 > 0)) ? VR_AGR_Unit(cvar("vr_agrunt_repl_rare") * m) : 0;
+    vr_agr_cu = (vr_agr_n2 > 0) ? VR_AGR_Unit(cvar("vr_agrunt_repl_uncommon") * m) : 0;
+    vr_agr_cc = (vr_agr_n1 > 0) ? VR_AGR_Unit(cvar("vr_agrunt_repl_common") * m) : 0;
     float sum = vr_agr_cr + vr_agr_cu + vr_agr_cc;
     if(sum > 1)
     {
@@ -672,11 +678,25 @@ void(float d) VR_AGR_GunAxe =
     }
     entity gun = onAxe ? b : a;
     float rounds = gun.vr_ag_native || gun.weaponinst.wi_clip > 0 || (onAxe ? self.vr_ag_reserve2 : self.vr_ag_reserve) > 0;
-    if(!onAxe && (d < VR_AGR_AXE_NEAR || !rounds))
+    if(!rounds)
+    {
+        // Spent, nothing to reload: thrown away (VR_AG_AfterAttack's), the axe in hand; out of its target's reach it
+        // goes for a gun lying near (VR_AG_WantsSecond, VR_AG_PairsFor), else it fights on with the axe.
+        if(onAxe)
+        {
+            VR_AG_Swap(self);
+        }
+        makevectors(self.angles);
+        VR_AG_DropHeld(self, v_right * 90 + v_forward * 40 + '0 0 120');
+        self.vr_agr_switches = self.vr_agr_switches + 1;
+        VR_AG_Log("gun and axe: its gun spent: thrown away, the axe");
+        return;
+    }
+    if(!onAxe && d < VR_AGR_AXE_NEAR)
     {
         VR_AG_Swap(self);
         self.vr_agr_switches = self.vr_agr_switches + 1;
-        VR_AG_Log(sprintf("gun and axe: the axe (%.0f away%s)", d, rounds ? "" : ", its gun spent"));
+        VR_AG_Log(sprintf("gun and axe: the axe (%.0f away)", d));
     }
     else if(onAxe && d > VR_AGR_GUN_FAR && rounds)
     {
