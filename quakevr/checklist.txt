@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Stick: a small push creeps you forward, the speed climbs smoothly to full before the stick's edge, and running uses the whole push (VR Settings > Locomotion: Stick Response Curve 1.6; try 1.0 and 2.2)
+Stick: Walk Into Run on (VR Settings > Locomotion): walk with most of the push, shove fully and a run eases in, let off and you walk
 Die and restart in ad_sepulcher or ad_tfuma: crates and rocks are in the same places, and the restart is about a quarter second quicker (vr_place_keep)
 Toolgun AD monsters into an id map and kill them: no hitch at the first death or backpack drop, and their footsteps are audible (vr_ad_death_precache)
 Gib or dismember a crowd: wounds appear on the right spots of flying bodies within a few frames (vr_wounds_budget)
