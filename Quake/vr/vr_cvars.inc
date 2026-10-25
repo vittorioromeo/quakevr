@@ -1599,6 +1599,11 @@ QVR_CVAR(vr_wounds_bump_burns, "3", CVAR_ARCHIVE)     // ... the relief of their
 QVR_CVAR(vr_wounds_bump_blood, "1.5", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
 QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)   // how opaque painted blood is over the skins (0..1)
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
+// Debug > Profiling and Memory > Wound Painting Budget: the wounds' events painted at most this many ms of a frame (a
+// burst's: 400 at once, 10 ms), the rest kept for the next frames in their body's frame of reference (vr_wounds.cpp
+// paintQueue; dropped with their body) and all painted within vr_wounds_budget_wait seconds; 0 all in their frame, as before.
+QVR_CVAR(vr_wounds_budget, "1", CVAR_NONE)
+QVR_CVAR(vr_wounds_budget_wait, "0.04", CVAR_NONE)   // ... the longest an event waits (s): what is left then is shared out over the frames left
 // Flesh dents (vr_dents.cpp; ROUND22.md, "Flesh dents"): hits push monsters' and corpses' surfaces in, raw flesh inside.
 QVR_CVAR(vr_gore_dents, "1", CVAR_ARCHIVE)            // bullets, pellets, nails, blades and blasts dent the bodies they hit
 QVR_CVAR(vr_gore_dents_depth, "2.5", CVAR_ARCHIVE)    // how deep the dents push in, times their own (0 flat: the raw flesh only; his config of 2026-10-20, 3 before)

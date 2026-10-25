@@ -620,6 +620,11 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_place_entities_first: a place for a crate, barrel, rock or brick (at a map's start) tested against "
                   "the map's entities before its traces (on), or after them (off, as before). The same places either way; "
                   "a big map starts faster (150 ms in Arcane Dimensions' Sepulcher)."),
+        cycle("Wound Painting Budget", vr_wounds_budget, {{0.f, "Off"}, {0.5f, "0.5 ms"}, {1.f, "1 ms"}, {2.f, "2 ms"}})
+            .help("vr_wounds_budget: the wounds painted at most this long a frame, the rest of a burst (an explosion's, a "
+                  "dismembering's: hundreds at once) painted over the next frames where they struck their bodies, all "
+                  "within vr_wounds_budget_wait (0.04 s); Off: all in the frame they came, as before. Wounds (Debug > Info) "
+                  "shows the queue."),
         toggle("AD Monsters' Death Assets Early", vr_ad_death_precache)
             .help("vr_ad_death_precache: outside Arcane Dimensions' maps, the first AD monster loads AD's backpack, gibs, "
                   "their sounds, footsteps, explosions and projectiles as it spawns (on: in the map's load, or at the "
