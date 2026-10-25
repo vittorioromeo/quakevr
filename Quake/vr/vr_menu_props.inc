@@ -698,7 +698,7 @@ za::Vector<Item> pageHeldObjectWeights()
 
 // The weight pages' rebuilds (items(), vr_menu.cpp): a page showing what a hand held when it was opened is built anew
 // when it is shown again, or its hand changed.
-[[nodiscard]] bool weightPageStale(PageBuilder build)
+[[nodiscard]] bool weightPageStale(PageRef build)
 {
     if((build == pageHeldObjectOffsets || build == pageHeldObjectWeights) && heldObjectStale)
     {
@@ -714,7 +714,7 @@ za::Vector<Item> pageHeldObjectWeights()
 }
 
 // showPage (vr_menu.cpp): shown afresh, a weight page takes what is in the hand now.
-void weightPageShown(PageBuilder build)
+void weightPageShown(PageRef build)
 {
     if(build == pageHeldObjectOffsets || build == pageHeldObjectWeights)
     {

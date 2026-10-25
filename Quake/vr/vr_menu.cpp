@@ -276,64 +276,6 @@ void runCommand(const char* text)
     return i;
 }
 
-// Pages linked before they are defined.
-[[nodiscard]] za::Vector<Item> pageBodyArms();
-[[nodiscard]] za::Vector<Item> pageBodyCalibration();
-[[nodiscard]] za::Vector<Item> pageBodyCrouch();
-[[nodiscard]] za::Vector<Item> pageSeated();
-[[nodiscard]] za::Vector<Item> pageSeatedHolsters();
-[[nodiscard]] za::Vector<Item> pageWeightDamage();
-[[nodiscard]] za::Vector<Item> pageAimingSettings();
-[[nodiscard]] za::Vector<Item> pageWeaponDamage();
-[[nodiscard]] za::Vector<Item> pageHotBlades();
-[[nodiscard]] za::Vector<Item> pageFlail(); // AD support (vr_menu_ad_guns.inc)
-[[nodiscard]] za::Vector<Item> pageDamage();
-[[nodiscard]] za::Vector<Item> pageBloodFeedback();
-[[nodiscard]] za::Vector<Item> pageFingersCollisions();
-[[nodiscard]] za::Vector<Item> pageFlashlightLowGrip();
-[[nodiscard]] za::Vector<Item> pageFlashlightOverheadGrip();
-[[nodiscard]] za::Vector<Item> pageFlashlightMounts();
-[[nodiscard]] za::Vector<Item> pageBodyDisplay();
-[[nodiscard]] za::Vector<Item> pageHeadset();
-[[nodiscard]] za::Vector<Item> pageDebugViews();
-[[nodiscard]] za::Vector<Item> pageDebugLogging();
-[[nodiscard]] za::Vector<Item> pageDebugProfiling();
-[[nodiscard]] za::Vector<Item> pageDebugReports();
-[[nodiscard]] za::Vector<Item> pageDebugTools();
-[[nodiscard]] za::Vector<Item> pageDebugTests();
-[[nodiscard]] za::Vector<Item> pageDebugAutomation();
-[[nodiscard]] za::Vector<Item> pageDebugCheats();
-[[nodiscard]] za::Vector<Item> pageStealth();
-[[nodiscard]] za::Vector<Item> pageStealthTests();
-[[nodiscard]] za::Vector<Item> pageRagdollTests();
-[[nodiscard]] za::Vector<Item> pageRagtool(); // (vr_menu_ragtool.inc)
-[[nodiscard]] za::Vector<Item> pageRagdolls();
-[[nodiscard]] za::Vector<Item> pageSpawnWeapons();
-[[nodiscard]] za::Vector<Item> pageHitbox();
-[[nodiscard]] za::Vector<Item> pageMonsterHitbox();
-[[nodiscard]] za::Vector<Item> pageChanged();
-[[nodiscard]] za::Vector<Item> pageSearch();
-[[nodiscard]] za::Vector<Item> pageConsole();
-[[nodiscard]] za::Vector<Item> pageMaps();
-// (Settings with their home on another page link to it: one home per setting.)
-[[nodiscard]] za::Vector<Item> pageMain();
-[[nodiscard]] za::Vector<Item> pageVrsHud();
-[[nodiscard]] za::Vector<Item> pageVrsAppearance();
-[[nodiscard]] za::Vector<Item> pageVrsRangerHead();
-[[nodiscard]] za::Vector<Item> pageColours();
-[[nodiscard]] za::Vector<Item> pageBulletTime();
-[[nodiscard]] za::Vector<Item> pageStamina();
-[[nodiscard]] za::Vector<Item> pageGibs();
-[[nodiscard]] za::Vector<Item> pageGore();
-[[nodiscard]] za::Vector<Item> pageLimbGore();
-[[nodiscard]] za::Vector<Item> pageScreens();
-[[nodiscard]] za::Vector<Item> pageDoom();
-[[nodiscard]] za::Vector<Item> pageTips();
-[[nodiscard]] za::Vector<Item> pageHipHolsters();
-[[nodiscard]] za::Vector<Item> pageHolsterZones();
-[[nodiscard]] za::Vector<Item> pageClimbing();
-[[nodiscard]] za::Vector<Item> pageRecording();
-
 mem::Scratch<MenuReadouts> readouts{"menu readouts"};
 
 mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
@@ -432,8 +374,6 @@ int motionPageCategory = -1;
 
 // Review Takes (vr_motion_review.cpp, MOTIONS.md "Reviewing failing takes"): the takes that fail vr_motion_eval or are
 // suspect, listed; one picked opens the Take page (its details, the ghost replay, keep, discard, relabel).
-[[nodiscard]] za::Vector<Item> pageReviewTake();
-[[nodiscard]] int pageIndex(za::Vector<Item> (*build)());
 int reviewListGeneration = -1; // the review's generation the pages were built for
 int reviewTakeGeneration = -1;
 int reviewRelabelCategory = -1;
@@ -610,26 +550,6 @@ void selectCampaignRow(int index)
     };
 }
 
-// The world: monsters, knights' swords, weapon drops and what you feel (the Gameplay page before the menus were
-// reorganized; its damage and knockback are on Damage and Knockback, its voice notes on Debug).
-[[nodiscard]] za::Vector<Item> pageEnemyWeapons();
-[[nodiscard]] za::Vector<Item> pageEnemyShoves();
-[[nodiscard]] za::Vector<Item> pageArmedGrunts();
-[[nodiscard]] za::Vector<Item> pageArmedRepl();
-[[nodiscard]] za::Vector<Item> pageArmedGrips();
-[[nodiscard]] za::Vector<Item> pageKnockdowns();
-[[nodiscard]] za::Vector<Item> pageKdTriggers();
-[[nodiscard]] za::Vector<Item> pageKdTrigLedge();
-[[nodiscard]] za::Vector<Item> pageKdTrigStairs();
-[[nodiscard]] za::Vector<Item> pageKdTrigSlope();
-[[nodiscard]] za::Vector<Item> pageKdTrigShotgun();
-[[nodiscard]] za::Vector<Item> pageKdTrigWounded();
-[[nodiscard]] za::Vector<Item> pageKdTrigBlow();
-[[nodiscard]] za::Vector<Item> pageKdTrigBlast();
-[[nodiscard]] za::Vector<Item> pageHoldingEnemies();
-[[nodiscard]] za::Vector<Item> pageHoldingStruggle();
-[[nodiscard]] za::Vector<Item> pageEnemyMelee();
-[[nodiscard]] za::Vector<Item> pageSound();
 
 #include "vr_menu_mgroups.inc" // Combat > Monster Groups
 // (The groups' pages linked from vr_menu_pages_gameplay.cpp.)
@@ -648,7 +568,7 @@ template za::Vector<Item> pageMonsterParam<static_cast<int>(mgroups::Param::Thro
 {
     return {
         open("Doom", pageIndex(pageDoom)).help("Play Doom on the gadget's screen: a touchscreen under your fingertip."),
-        open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageVrsHud)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
+        open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageVrsHudHapticsSound)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
         slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 3.f),
         header("Placement"),
         slider("Along the Arm", vr_gadget_x, -15.f, 15.f, 0.5f, "%.1f cm").extend(-40.f, 40.f),
@@ -1605,357 +1525,11 @@ za::Vector<Item> pageMonsterHitbox()
 // Pages
 // ----------------------------------------------------------------------------
 
-struct Page
-{
-    const char* title; // over the page; also its name in vr_menu_positions (renamed: its record is ignored)
-    PageBuilder build;
-    PageBuilder home; // the page listing it in the tree (Back after menu_vr <n>; links elsewhere go back where they came from)
-    int level{LevelAdvanced};
-};
-
-[[nodiscard]] za::Vector<Item> pageMain();
-[[nodiscard]] za::Vector<Item> pageSaves();
-[[nodiscard]] za::Vector<Item> pageVrsHeight();
-[[nodiscard]] za::Vector<Item> pageVrsHands();
-[[nodiscard]] za::Vector<Item> pageVrsHolsters();
-[[nodiscard]] za::Vector<Item> pageVrsAmmoPouch();
-[[nodiscard]] za::Vector<Item> pageVrsBodyEquipment();
-[[nodiscard]] za::Vector<Item> pageVrsItemCollection();
-[[nodiscard]] za::Vector<Item> pageVrsControls();
-[[nodiscard]] za::Vector<Item> pageVrsLocomotion();
-[[nodiscard]] za::Vector<Item> pageVrsComfort();
-[[nodiscard]] za::Vector<Item> pageVrsTeleport();
-[[nodiscard]] za::Vector<Item> pageVrsTurning();
-[[nodiscard]] za::Vector<Item> pageVrsFlashlight();
-[[nodiscard]] za::Vector<Item> pageVrsLighting();
-[[nodiscard]] za::Vector<Item> pageVrsWeapons();
-[[nodiscard]] za::Vector<Item> pageVrsBulletTime();
-[[nodiscard]] za::Vector<Item> pageVrsBody();
-[[nodiscard]] za::Vector<Item> pageVrsHaptics();
-[[nodiscard]] za::Vector<Item> pageVrsHud();
-[[nodiscard]] za::Vector<Item> pageVrsSound();
-[[nodiscard]] za::Vector<Item> pageVrsDisplay();
-[[nodiscard]] za::Vector<Item> pageVrsScaling();
-[[nodiscard]] za::Vector<Item> pageVrsGraphics();
-[[nodiscard]] za::Vector<Item> pageVrsHeightHands();
-[[nodiscard]] za::Vector<Item> pageVrsLocoControls();
-[[nodiscard]] za::Vector<Item> pageVrsComfortTurning();
-[[nodiscard]] za::Vector<Item> pageVrsWeaponsBulletTime();
-[[nodiscard]] za::Vector<Item> pageVrsBodyFlashlight();
-[[nodiscard]] za::Vector<Item> pageVrsHudHapticsSound();
-[[nodiscard]] za::Vector<Item> pageVrsDisplayGraphics();
-[[nodiscard]] za::Vector<Item> pageAdvanced();
-[[nodiscard]] za::Vector<Item> pageWeaponOffsets();
-[[nodiscard]] za::Vector<Item> pageWofsHand();
-[[nodiscard]] za::Vector<Item> pageWofsFingers();
-[[nodiscard]] za::Vector<Item> pageWofsSights();
-[[nodiscard]] za::Vector<Item> pageWofsTwoHanded();
-[[nodiscard]] za::Vector<Item> pageWofsStock();
-[[nodiscard]] za::Vector<Item> pageWofsScreen();
-[[nodiscard]] za::Vector<Item> pageWofsHolstered();
-[[nodiscard]] za::Vector<Item> pageWofsEffects();
-[[nodiscard]] za::Vector<Item> pageWofsFlashlight();
-[[nodiscard]] za::Vector<Item> pageCombat();
-[[nodiscard]] za::Vector<Item> pageMovement();
-[[nodiscard]] za::Vector<Item> pageCarryingHub();
-[[nodiscard]] za::Vector<Item> pageWeaponsHub();
-[[nodiscard]] za::Vector<Item> pageHudHub();
-[[nodiscard]] za::Vector<Item> pageLightningWater();
-[[nodiscard]] za::Vector<Item> pageWeaponEffects();
-
-// The pages, by their number (menu_vr <n>): the numbers stay as they were, new pages are added last (the menus'
-// tree is in the pages' links: VR Settings > Advanced VR Options > its groups > their pages; ROUND21.md, "Menus
-// reorganized"). Links find their page by its builder (pageIndex).
-const Page pages[] = {
-    {"VR Settings", pageMain, nullptr, LevelStandard},                                     // 0
-    {"Advanced VR Options", pageAdvanced, pageMain},                        // 1
-    {"Play", pagePlay, pageAdvanced},                                       // 2
-    {"World", pageGameplay, pageAdvanced},                                  // 3 (Gameplay before)
-    {"Parry and Bash", pageParryBash, pageCombat},                          // 4 (Parry, Bash and Headbutt before)
-    {"Melee", pageMeleeSettings, pageCombat},                               // 5
-    {"Motion Recorder", pageMotionRecorder, pageAdvanced, LevelDeveloper},                  // 6
-    {"Review Takes", pageReviewTakes, pageAdvanced, LevelDeveloper},                        // 7
-    {"Take", pageReviewTake, pageReviewTakes, LevelDeveloper},                              // 8
-    {"Gore", pageGore, pageAdvanced},                                       // 9
-    {"Throwing and Physics", pageThrowing, pageCarryingHub, LevelDeveloper},                // 10
-    {"Carrying", pageCarrying, pageCarryingHub},                            // 11 (Carrying and Gibs before)
-    {"Force Grab", pageForceGrab, pageCarryingHub},                         // 12
-    {"Grappling Hook", pageGrapple, pageMovement},                          // 13
-    {"Body", pageBody, pageAdvanced},                                       // 14
-    {"Body - Arms and Pauldrons", pageBodyArms, pageBody, LevelDeveloper},                  // 15
-    {"Body Calibration", pageBodyCalibration, pageBody, LevelStandard},                    // 16
-    {"Flashlight", pageFlashlight, pageAdvanced},                           // 17
-    {"Player Calibration", pagePlayerCalibration, pageBody},                // 18
-    {"Locomotion", pageLocomotionSettings, pageMovement},                   // 19
-    {"Swimming", pageSwimSettings, pageMovement},                           // 20
-    {"Immersion", pageImmersionSettings, pageWeaponsHub},                   // 21
-    {"Hand/Gun Calibration", pageHandGunCalibration, pageWeaponsHub},       // 22
-    {"Weapon Offsets", pageWeaponOffsets, pageWeaponsHub, LevelDeveloper},                  // 23
-    {"Aiming", pageAimingSettings, pageWeaponsHub},                         // 24
-    {"Hotspots", pageHotspotSettings, pageWeaponsHub},                      // 25
-    {"Wrist Gadget", pageGadget, pageHudHub},                               // 26
-    {"Screens", pageScreens, pageHudHub},                                   // 27
-    {"Colours", pageColours, pageHudHub},                                   // 28
-    {"Status Bar", pageHudConfiguration, pageHudHub},                       // 29
-    {"Crosshair", pageCrosshairSettings, pageHudHub},                       // 30
-    {"Menu", pageMenuSettings, pageHudHub},                                 // 31
-    {"Graphics", pageGraphics, pageAdvanced},                               // 32
-    {"Graphics - Lights", pageGraphicsLights, pageGraphics},                // 33
-    {"Graphics - Shadows", pageGraphicsShadows, pageGraphics},              // 34
-    {"Graphics - Surfaces", pageGraphicsSurfaces, pageGraphics},            // 35
-    {"Graphics - Liquids", pageGraphicsLiquids, pageGraphics},              // 36
-    {"Graphics - Post-processing", pageGraphicsPost, pageGraphics},         // 37
-    {"Graphics - Models and Effects", pageGraphicsModels, pageGraphics},    // 38
-    {"Particles", pageParticleSettings, pageGraphics},                      // 39
-    {"Transparency", pageTransparencyOptions, pageGraphics},                // 40
-    {"Held Object Offsets", pageHeldObjectOffsets, pageCarryingHub, LevelDeveloper},        // 41
-    {"Weapon Weights", pageWeaponWeights, pageWeaponsHub, LevelDeveloper},                  // 42
-    {"Held Object Weights", pageHeldObjectWeights, pageCarryingHub, LevelDeveloper},        // 43
-    // Added with the menus reorganized (ROUND21.md).
-    {"Combat", pageCombat, pageAdvanced},                                   // 44
-    {"Movement", pageMovement, pageAdvanced},                               // 45
-    {"Carrying and Throwing", pageCarryingHub, pageAdvanced},               // 46
-    {"Weapons", pageWeaponsHub, pageAdvanced},                              // 47
-    {"HUD and Menus", pageHudHub, pageAdvanced},                            // 48
-    {"Body and Display", pageBodyDisplay, pageAdvanced, LevelStandard},                        // 49
-    {"Headset", pageHeadset, pageAdvanced, LevelStandard},                                     // 50
-    {"Damage and Knockback", pageDamage, pageCombat},                       // 51
-    {"Stamina", pageStamina, pageCombat},                                   // 52
-    {"Batting and Catching", pageBatting, pageCombat},                      // 53
-    {"Climbing", pageClimbing, pageMovement},                               // 54
-    {"Wall Torches", pageWallTorches, pageCarryingHub},                     // 55
-    {"Rocks and Bricks", pageRocksBricks, pageCarryingHub},                 // 56
-    {"Gibs and Corpses", pageGibs, pageCarryingHub},                        // 57
-    {"Flashlight - Low Grip", pageFlashlightLowGrip, pageFlashlight, LevelDeveloper},       // 58
-    {"Flashlight - Overhead Grip", pageFlashlightOverheadGrip, pageFlashlight, LevelDeveloper}, // 59
-    {"Flashlight - On a Gun or Head", pageFlashlightMounts, pageFlashlight, LevelDeveloper}, // 60
-    {"Fingers and Collisions", pageFingersCollisions, pageWeaponsHub, LevelDeveloper},      // 61
-    {"Weight and Damage", pageWeightDamage, pageWeaponsHub},                // 62
-    {"Hip Holsters", pageHipHolsters, pageWeaponsHub},                      // 63
-    {"Debug", pageDebug, pageAdvanced, LevelDeveloper},                                     // 64
-    {"Recording", pageRecording, pageGraphics},                             // 65 (the desktop window's view)
-    // The Debug page's parts (ROUND21.md, "Debug menu; quad sound; grenade catch default; no empty-hand deflection").
-    {"Debug - Views", pageDebugViews, pageDebug, LevelDeveloper},                           // 66
-    {"Debug - Logging", pageDebugLogging, pageDebug, LevelDeveloper},                       // 67
-    {"Debug - Profiling and Memory", pageDebugProfiling, pageDebug, LevelDeveloper},        // 68
-    {"Debug - Reports", pageDebugReports, pageDebug, LevelDeveloper},                       // 69
-    {"Debug - Tools", pageDebugTools, pageDebug, LevelDeveloper},                           // 70
-    {"Debug - Tests", pageDebugTests, pageDebug, LevelDeveloper},                           // 71
-    {"Checklist", pageChecklist, pageDebug, LevelDeveloper},                                // 72 (also the corner's button)
-    {"Player Hitbox", pageHitbox, pageMovement, LevelDeveloper},                            // 73
-    {"Monster Hitbox", pageMonsterHitbox, pageMovement, LevelDeveloper},                    // 74
-    {"Lightning Gun in Water", pageLightningWater, pageWeaponsHub},         // 75
-    {"Enemy Weapons", pageEnemyWeapons, pageCombat},                        // 76
-    {"Sound", pageSound, pageAdvanced},                                         // 77
-    {"Crates", pageCrates, pageCarryingHub},                                // 78
-    {"Weapon Damage", pageWeaponDamage, pageCombat},                        // 79
-    {"Weapon Effects", pageWeaponEffects, pageWeaponsHub},                  // 80
-    {"Enemy Shoves", pageEnemyShoves, pageCombat},                          // 81
-    {"Chainsaw Engine", pageChainsawEngine, pageEnemyWeapons, LevelDeveloper},              // 82
-    {"Bullet Time", pageBulletTime, pageCombat},                            // 83 (vr_menu_recording.inc)
-    // Weapon Offsets' parts (ROUND21.md, "Weapon Offsets split; the virtual stock's turn"): its main page links them.
-    {"Weapon Offsets - Hand and Grip", pageWofsHand, pageWeaponOffsets, LevelDeveloper},           // 84
-    {"Weapon Offsets - Fingers", pageWofsFingers, pageWeaponOffsets, LevelDeveloper},              // 85
-    {"Weapon Offsets - Muzzle and Sights", pageWofsSights, pageWeaponOffsets, LevelDeveloper},     // 86
-    {"Weapon Offsets - Two-Handed", pageWofsTwoHanded, pageWeaponOffsets, LevelDeveloper},        // 87
-    {"Weapon Offsets - Virtual Stock", pageWofsStock, pageWeaponOffsets, LevelDeveloper},          // 88
-    {"Weapon Offsets - Ammo Screen", pageWofsScreen, pageWeaponOffsets, LevelDeveloper},           // 89
-    {"Weapon Offsets - Holstered", pageWofsHolstered, pageWeaponOffsets, LevelDeveloper},          // 90
-    {"Weapon Offsets - Effects", pageWofsEffects, pageWeaponOffsets, LevelDeveloper},              // 91
-    {"Weapon Offsets - Flashlight", pageWofsFlashlight, pageWeaponOffsets, LevelDeveloper},        // 92
-    {"Small Gibs", pageSmallGibs, pageGore, LevelDeveloper},                                       // 93
-    {"Burning", pageBurning, pageCombat},                                          // 94
-    {"Graphics - Retro Textures", pageGraphicsRetro, pageGraphics},                // 95
-    {"Retro Textures - World", pageRetroCategory<retro::Category::World>, pageGraphicsRetro, LevelDeveloper}, // 96
-    {"Retro Textures - Brush Entities", pageRetroCategory<retro::Category::Brush>, pageGraphicsRetro, LevelDeveloper}, // 97
-    {"Retro Textures - Item Pickups", pageRetroCategory<retro::Category::Items>, pageGraphicsRetro, LevelDeveloper}, // 98
-    {"Retro Textures - Props and Debris", pageRetroCategory<retro::Category::Props>, pageGraphicsRetro, LevelDeveloper}, // 99
-    {"Retro Textures - Gibs", pageRetroCategory<retro::Category::Gibs>, pageGraphicsRetro, LevelDeveloper}, // 100
-    {"Retro Textures - Small Gibs", pageRetroCategory<retro::Category::SmallGibs>, pageGraphicsRetro, LevelDeveloper}, // 101
-    {"Retro Textures - Weapons in the World", pageRetroCategory<retro::Category::Weapons>, pageGraphicsRetro, LevelDeveloper}, // 102
-    {"Retro Textures - Held Weapons", pageRetroCategory<retro::Category::Held>, pageGraphicsRetro, LevelDeveloper}, // 103
-    {"Retro Textures - Monsters", pageRetroCategory<retro::Category::Monsters>, pageGraphicsRetro, LevelDeveloper}, // 104
-    {"Retro Textures - Your Hands", pageRetroCategory<retro::Category::Hands>, pageGraphicsRetro, LevelDeveloper}, // 105
-    {"Retro Textures - Your Arms", pageRetroCategory<retro::Category::Arms>, pageGraphicsRetro, LevelDeveloper}, // 106
-    {"Retro Textures - Your Torso", pageRetroCategory<retro::Category::Torso>, pageGraphicsRetro, LevelDeveloper}, // 107
-    {"Retro Textures - Your Legs", pageRetroCategory<retro::Category::Legs>, pageGraphicsRetro, LevelDeveloper}, // 108
-    {"Retro Textures - Your Gear", pageRetroCategory<retro::Category::Gear>, pageGraphicsRetro, LevelDeveloper}, // 109
-    {"Retro Textures - Decals", pageRetroCategory<retro::Category::Decals>, pageGraphicsRetro, LevelDeveloper}, // 110
-    {"Retro Textures - Particles", pageRetroCategory<retro::Category::Particles>, pageGraphicsRetro, LevelDeveloper}, // 111
-    {"Retro Textures - Sprites", pageRetroCategory<retro::Category::Sprites>, pageGraphicsRetro, LevelDeveloper}, // 112
-    {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro, LevelDeveloper}, // 113
-    {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro, LevelDeveloper}, // 114
-    {"Retro Textures - All Categories", pageRetroAll, pageGraphicsRetro, LevelDeveloper}, // 115
-    {"Graphics - Retro Lighting", pageGraphicsRetroLight, pageGraphics},          // 116
-    {"Gibs and Corpses - Ragdolls", pageRagdolls, pageGibs, LevelDeveloper},                       // 117
-    {"Ragdolls - Grunt", pageRagdollGrunt, pageRagdolls, LevelDeveloper},                          // 118
-    {"Ragdolls - Knight", pageRagdollKnight, pageRagdolls, LevelDeveloper},                        // 119
-    {"Gibs and Corpses - Corpse Damage and Health", pageCorpseDamage, pageGibs, LevelDeveloper},   // 120
-    {"Ragdolls - Ogre", pageRagdollOgre, pageRagdolls, LevelDeveloper},                            // 121
-    {"Ragdolls - Enforcer", pageRagdollEnforcer, pageRagdolls, LevelDeveloper},                    // 122
-    {"Ragdolls - Death Knight", pageRagdollDeathKnight, pageRagdolls, LevelDeveloper},             // 123
-    {"Ragdolls - Rottweiler", pageRagdollRottweiler, pageRagdolls, LevelDeveloper},                // 124
-    {"Ragdolls - Scrag", pageRagdollScrag, pageRagdolls, LevelDeveloper},                          // 125
-    {"Gore - Decapitation", pageDecapitation, pageGore},                           // 126
-    {"Ragdolls - Zombie", pageRagdollZombie, pageRagdolls, LevelDeveloper},                        // 127
-    {"Ragdolls - Fiend", pageRagdollFiend, pageRagdolls, LevelDeveloper},                         // 128
-    {"Ragdolls - Shambler", pageRagdollShambler, pageRagdolls, LevelDeveloper},                   // 129
-    {"Ragdolls - Gremlin", pageRagdollGremlin, pageRagdolls, LevelDeveloper},                     // 130
-    {"Ragdolls - Mummy", pageRagdollMummy, pageRagdolls, LevelDeveloper},                         // 131
-    {"Changed Settings", pageChanged, pageAdvanced, LevelStandard},                                    // 132 (archive/MENU_REVIEW.md)
-    {"Search", pageSearch, pageMain, LevelStandard},                                               // 133 (the corner's Search; vr_menu_search.inc)
-    {"Console", pageConsole, pageMain, LevelStandard},                                             // 134 (the corner's Console; vr_menu_console.inc)
-    {"Tips", pageTips, pageAdvanced, LevelStandard},                                                   // 135 (vr_tips.cpp)
-    {"Graphics - Teleporters", pageGraphicsTeleporters, pageGraphics},                                 // 135 (vr_portals.cpp)
-    {"Small Gibs - Per Enemy", pageSmallGibsEnemies, pageSmallGibs, LevelDeveloper},              // 136
-    {"Knockdowns", pageKnockdowns, pageCombat},                                                    // 137
-    {"Explosion Debris", pageExplosionDebris, pageParticleSettings},
-    {"Fire Particles", pageFireParticles, pageParticleSettings},
-    {"Spawn Pickup Weapons", pageSpawnWeapons, pageDebugTests, LevelDeveloper},
-    {"Map Library", pageMaps, pageMain, LevelStandard}, // (the corner's Maps, and Single Player > Map Library; vr_menu_maps.inc)
-    {"Official Campaigns", pageCampaigns, pagePlay, LevelStandard},
-    {"Machine Horde Tests", pageMachineHordeTests, pageDebugAutomation, LevelDeveloper},
-    {"Graphics - Relighting", pageGraphicsRelighting, pageGraphics},
-    {"Gore - Limb Gore", pageLimbGore, pageGore},
-    {"Ragdolls - Vore", pageRagdollVore, pageRagdolls, LevelDeveloper},
-    {"Ragdolls - Centroid", pageRagdollCentroid, pageRagdolls, LevelDeveloper},
-    {"Dawn of the Machine Tests", pageMg3Tests, pageDebugAutomation, LevelDeveloper},
-    {"Dawn of the Machine Weapons", pageMg3WeaponTests, pageDebugTests, LevelDeveloper},
-    {"Dawn of the Machine Monsters", pageMg3MonsterTests, pageDebugTests, LevelDeveloper},
-    {"Dawn of the Machine Bestiary", pageMg3BestiaryTests, pageDebugTests, LevelDeveloper},
-    {"Dawn of the Machine: Shub", pageMg3ShubTests, pageDebugAutomation, LevelDeveloper},
-    {"Dawn of the Machine: Chthon", pageMg3ChthonTests, pageDebugAutomation, LevelDeveloper},
-    {"Debug - Cheats and Recording", pageDebugCheats, pageDebug, LevelDeveloper}, // (vr_menu_cheats.inc)
-    {"Reloading", pageReloading, pageWeaponsHub},
-    {"Reloading - Shotgun", pageReloadShotgun, pageReloading},
-    {"Reloading - Super Shotgun", pageReloadSuperShotgun, pageReloading},
-    {"Reloading - Nailgun", pageReloadNailgun, pageReloading},
-    {"Reloading - Super Nailgun", pageReloadSuperNailgun, pageReloading},
-    {"Reloading - Thunderbolt", pageReloadThunderbolt, pageReloading},
-    {"Reloading - Nail Pistol", pageReloadNailPistol, pageReloading},
-    {"Reloading - Launchers", pageReloadLaunchers, pageReloading},
-    {"Reloading - Widowmaker", pageReloadWidowmaker, pageReloading},  // AD support
-    {"Reloading - Plasma Gun", pageReloadPlasmaGun, pageReloading},   // AD support
-    {"Reloading - Cell Cords", pageReloadCellCords, pageReloading},
-    {"Per-Weapon Reload Overrides", pageReloadOverrides, pageReloading},
-    {"Stealth AI", pageStealth, pageCombat}, // (vr_menu_stealth.inc)
-    {"Stealth AI Tests", pageStealthTests, pageDebugAutomation, LevelDeveloper},
-    {"Ragdoll Behaviour Tests", pageRagdollTests, pageDebugTests, LevelDeveloper}, // (vr_menu_ragtests.inc)
-    {"Holding Enemies", pageHoldingEnemies, pageCombat},
-    {"Holding Enemies - Struggle", pageHoldingStruggle, pageHoldingEnemies},
-    {"Enemy Melee", pageEnemyMelee, pageCombat},
-    {"Body - Crouched Pose", pageBodyCrouch, pageBody},
-    {"Seated Play", pageSeated, pageVrsHeightHands, LevelStandard}, // (vr_seated.hpp; SEATED.md)
-    {"Seated Holsters", pageSeatedHolsters, pageSeated, LevelStandard},
-    {"Doom", pageDoom, pageGadget, LevelStandard},
-    {"Arcane Dimensions", pageArcaneDimensions, pageAdvanced}, // AD support: dedicated tweaks page
-    {"Arcane Dimensions Monsters", pageAdMonsterTests, pageDebugTests, LevelDeveloper}, // AD support (vr_menu_ad_monsters.inc)
-    {"Arcane Dimensions' Guns", pageAdGuns, pageEnemyWeapons}, // AD support: the AD soldiers' guns (vr_ad_enemyguns.qc)
-    {"Incandescent Blades", pageHotBlades, pageWeaponsHub}, // (QC vr_hotblade.qc)
-    {"Blood Feedback", pageBloodFeedback, pageVrsComfortTurning, LevelStandard},
-    // VR Settings' sections as pages (ROUND22.md, "VR Settings' sections as submenus"): vrSettingsParts.
-    {"VR Settings - Height and Hand Calibration", pageVrsHeightHands, pageMain, LevelStandard},
-    {"VR Settings - Body and Equipment", pageVrsBodyEquipment, pageMain, LevelStandard}, // (ROUND22.md, "Body and Equipment": the holsters and the ammo pouch in it)
-    {"VR Settings - Ammo Pouch", pageVrsAmmoPouch, pageVrsBodyEquipment, LevelStandard}, // (its rows also on Body and Equipment)
-    {"VR Settings - Locomotion and Controls", pageVrsLocoControls, pageMain, LevelStandard},
-    {"VR Settings - Comfort, Teleport and Turning", pageVrsComfortTurning, pageMain, LevelStandard},
-    {"VR Settings - Weapons and Bullet Time", pageVrsWeaponsBulletTime, pageMain, LevelStandard},
-    {"VR Settings - Body and Flashlight", pageVrsBodyFlashlight, pageMain, LevelStandard},
-    {"VR Settings - HUD, Haptics and Sound", pageVrsHudHapticsSound, pageMain, LevelStandard},
-    {"VR Settings - Display and Graphics", pageVrsDisplayGraphics, pageMain, LevelStandard},
-    {"VR Settings - Player Appearance", pageVrsAppearance, pageMain, LevelStandard}, // (ROUND22.md, "Gloves; Player Appearance")
-    {"Ranger Head", pageVrsRangerHead, pageVrsAppearance, LevelStandard}, // (ROUND22.md, "The ranger's head: sliders")
-    {"Debug - Automation & Self-Tests", pageDebugAutomation, pageDebug, LevelDeveloper}, // (vr_menu_automation.inc)
-    {"Holster Zones", pageHolsterZones, pageImmersionSettings}, // (vr_holsterzones.hpp)
-    {"Graphics - Loot Beams", pageGraphicsLootBeams, pageGraphics}, // (vr_lootbeams.cpp)
-    {"Ragdoll Triggers", pageKdTriggers, pageCombat}, // (QC vr_kdtrig.qc)
-    {"Ragdoll Triggers - Ledges", pageKdTrigLedge, pageKdTriggers},
-    {"Ragdoll Triggers - Stairs", pageKdTrigStairs, pageKdTriggers},
-    {"Ragdoll Triggers - Slopes", pageKdTrigSlope, pageKdTriggers},
-    {"Ragdoll Triggers - Shotgun Range", pageKdTrigShotgun, pageKdTriggers},
-    {"Ragdoll Triggers - Wounded", pageKdTrigWounded, pageKdTriggers},
-    {"Ragdoll Triggers - Strong Blows", pageKdTrigBlow, pageKdTriggers},
-    {"Ragdoll Triggers - Explosions", pageKdTrigBlast, pageKdTriggers},
-    {"Ragdoll Triggers - Thrown Bodies", pageKdTrigThrown, pageKdTriggers},
-    {"Ragdoll Triggers - Shoulder Charges", pageKdTrigTackle, pageKdTriggers},
-    // Combat > Monster Groups (vr_menu_mgroups.inc): a page for each group, then one for each trigger and action.
-    {"Monster Groups", pageMonsterGroups, pageCombat},
-#define QVR_MGROUP(g, label, ...) {"Monster Groups - " label, pageMonsterGroup<mgroups::g##Group>, pageMonsterGroups},
-#include "vr_mgroups.inc"
-#undef QVR_MGROUP
-    {"Monster Groups - Ragdoll Triggers", pageMonsterParam<0>, pageMonsterGroups},
-    {"Monster Groups - Trigger Resistance", pageMonsterParam<1>, pageMonsterGroups},
-    {"Monster Groups - Ledges", pageMonsterParam<2>, pageMonsterGroups},
-    {"Monster Groups - Stairs", pageMonsterParam<3>, pageMonsterGroups},
-    {"Monster Groups - Slopes", pageMonsterParam<4>, pageMonsterGroups},
-    {"Monster Groups - Shotgun Range", pageMonsterParam<5>, pageMonsterGroups},
-    {"Monster Groups - Wounded", pageMonsterParam<6>, pageMonsterGroups},
-    {"Monster Groups - Strong Blows", pageMonsterParam<7>, pageMonsterGroups},
-    {"Monster Groups - Explosions", pageMonsterParam<8>, pageMonsterGroups},
-    {"Monster Groups - Thrown Bodies", pageMonsterParam<9>, pageMonsterGroups},
-    {"Monster Groups - Tackles", pageMonsterParam<10>, pageMonsterGroups},
-    {"Monster Groups - Shove Knockdown", pageMonsterParam<11>, pageMonsterGroups},
-    {"Monster Groups - Shove Push", pageMonsterParam<12>, pageMonsterGroups},
-    {"Monster Groups - Hits Unbalance", pageMonsterParam<13>, pageMonsterGroups},
-    {"Monster Groups - Leg Sweep", pageMonsterParam<14>, pageMonsterGroups},
-    {"Monster Groups - Leg Pull and Lift", pageMonsterParam<15>, pageMonsterGroups},
-    {"Monster Groups - Lift", pageMonsterParam<16>, pageMonsterGroups},
-    {"Monster Groups - Neck Snap", pageMonsterParam<17>, pageMonsterGroups},
-    {"Monster Groups - Manhandle", pageMonsterParam<18>, pageMonsterGroups},
-    {"Monster Groups - Two-Hand Throw", pageMonsterParam<19>, pageMonsterGroups},
-    {"Monster Groups - Hold Strength", pageMonsterParam<20>, pageMonsterGroups},
-    {"Monster Groups - Parry Poise", pageMonsterParam<21>, pageMonsterGroups},
-    {"Monster Groups - Health", pageMonsterParam<22>, pageMonsterGroups},
-    {"Monster Groups - Knockdown Chance", pageMonsterParam<23>, pageMonsterGroups},
-    {"Monster Groups - Time Down", pageMonsterParam<24>, pageMonsterGroups},
-    {"Monster Groups - Get-Up Speed", pageMonsterParam<25>, pageMonsterGroups},
-    {"Monster Groups - Neck Snap Kills", pageMonsterParam<26>, pageMonsterGroups},
-    {"Monster Groups - Struggle", pageMonsterParam<27>, pageMonsterGroups},
-    {"Monster Groups - Struggle Strength", pageMonsterParam<28>, pageMonsterGroups},
-    {"Monster Groups - Struggle Speed", pageMonsterParam<29>, pageMonsterGroups},
-    {"Monster Groups - Struggle Arm Drive", pageMonsterParam<30>, pageMonsterGroups},
-    {"Monster Groups - Struggle Weaker When Hurt", pageMonsterParam<31>, pageMonsterGroups},
-    {"Monster Health", pageMonsterHealth, pageCombat}, // (vr_menu_mgroups.inc)
-    {"Ragdoll Tool", pageRagtool, pageDebug}, // (vr_menu_ragtool.inc; vr_ragtool.cpp)
-    {"Ragdoll Tool - Motors", pageRagtoolParams<0>, pageRagtool},
-    {"Ragdoll Tool - Joint Groups", pageRagtoolParams<1>, pageRagtool},
-    {"Ragdoll Tool - Stagger and Balance", pageRagtoolParams<2>, pageRagtool},
-    {"Ragdoll Tool - Shove", pageRagtoolParams<3>, pageRagtool},
-    {"Ragdoll Tool - Knockdown and Get-Up", pageRagtoolParams<4>, pageRagtool},
-    {"Ragdoll Tool - Death and Crawl", pageRagtoolParams<5>, pageRagtool},
-    {"Ragdoll Tool - Struggle", pageRagtoolParams<6>, pageRagtool},
-    {"Ragdoll Tool - Parry and Hit Stagger", pageRagtoolParams<7>, pageRagtool},
-    {"Ragdoll Tool - Flail, Liquids and Hand", pageRagtoolParams<8>, pageRagtool},
-    {"Saves and Autosaves", pageSaves, pageMain, LevelStandard}, // (vr_menu_settings.inc; vr_continue.cpp)
-    // (The author, 2026-10-22: the holsters' rows on their own page; Carry and Auto-Collect under Playing, then one Item Pickup Mode switch.)
-    {"Holster Calibration", pageVrsHolsters, pageMain, LevelStandard}, // (2026-10-23: on VR Settings itself)
-    {"VR Settings - Item Collection", pageVrsItemCollection, pageMain, LevelStandard},
-    {"Armed Grunts (Experimental)", pageArmedGrunts, pageCombat}, // (vr_menu_gameplay.inc; QC vr_armedgrunt.qc)
-    {"Armed Grunts - Grip Editor", pageArmedGrips, pageArmedGrunts}, // (vr_menu_gameplay.inc; vr_aggrip.cpp)
-    {"Armed Humanoid Replacements", pageArmedRepl, pageArmedGrunts}, // (vr_menu_gameplay.inc; QC vr_armedrepl.qc)
-    {"Graphics Presets", pageGraphicsPresets, pageMain, LevelStandard}, // (vr_menu_pages.inc; vr_gfxpresets.cpp)
-    {"Graphics - Shoreline Foam", pageGraphicsFoam, pageGraphicsLiquids}, // (vr_menu_pages.inc; vr_water.cpp foamLook)
-    {"Death Sergeant's Flail", pageFlail, pageMeleeSettings}, // AD support (vr_menu_ad_guns.inc; vr_box3d_flail.cpp)
-};
+// (The pages: pages[] and their builders, vr_menu_table.inc.)
 static_assert(mgroups::paramCount == 32, "a Monster Groups page for each trigger and action (the rows above)");
-constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
-
-// The index of the page `build` builds: what a link to it opens.
-int pageIndex(PageBuilder build)
-{
-    for(int p = 0; p < pageCount; p++)
-    {
-        if(pages[p].build == build)
-        {
-            return p;
-        }
-    }
-    return PageMain;
-}
-
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
 // pages the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on as they are built.
-const PageBuilder vrSettingsParts[] = {pageVrsHeightHands, pageVrsBodyEquipment, pageVrsAmmoPouch, pageVrsHolsters,
+const PageRef vrSettingsParts[] = {pageVrsHeightHands, pageVrsBodyEquipment, pageVrsAmmoPouch, pageVrsHolsters,
     pageVrsLocoControls, pageVrsComfortTurning, pageVrsWeaponsBulletTime, pageVrsItemCollection, pageVrsBodyFlashlight, pageVrsAppearance, pageVrsHudHapticsSound,
     pageVrsDisplayGraphics};
 
@@ -1965,9 +1539,9 @@ const PageBuilder vrSettingsParts[] = {pageVrsHeightHands, pageVrsBodyEquipment,
     {
         return true;
     }
-    for(const PageBuilder b : vrSettingsParts)
+    for(const PageRef b : vrSettingsParts)
     {
-        if(pages[p].build == b)
+        if(PageRef::at(p) == b)
         {
             return true;
         }
@@ -2006,7 +1580,7 @@ const WeaponOffsetsPartPage weaponOffsetsPartPages[] = {
 static_assert(sizeof(weaponOffsetsPartPages) / sizeof(weaponOffsetsPartPages[0]) == WofsParts - 1);
 
 // Whether `build` is a Weapon Offsets page (the main one or a part): the weapon in hand, its state.
-[[nodiscard]] bool weaponOffsetsPage(PageBuilder build)
+[[nodiscard]] bool weaponOffsetsPage(PageRef build)
 {
     if(build == pageWeaponOffsets)
     {
@@ -2803,7 +2377,7 @@ void loadPositions()
 
 // The pages of one weapon's or prop's settings (their own resets, Reset This Weapon...): no Reset This Page, and not on
 // Changed Settings (the held one's values, not settings of their own).
-[[nodiscard]] bool slotPage(PageBuilder build);
+[[nodiscard]] bool slotPage(PageRef build);
 
 // The menu detail level the pages are built for (vr_menu_level; resolvePath: every page, LevelDeveloper).
 int levelOverride = -1;
@@ -2852,11 +2426,11 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     const bool settings = za::anyOf(list.begin(), list.end(), [](const Item& item) {
         return item.cvar && item.kind != Item::Action && item.cvar != &vr_menu_level;
     });
-    if(pages[page].build == pageSearch || pages[page].build == pageConsole || pages[page].build == pageMaps)
+    if(page == pageIndex(pageSearch) || page == pageIndex(pageConsole) || page == pageIndex(pageMaps))
     {
         return; // (drawn their own way: vr_menu_search.inc, vr_menu_console.inc, vr_menu_maps.inc)
     }
-    if(settings && !slotPage(pages[page].build) && pages[page].build != pageChanged)
+    if(settings && !slotPage(PageRef::at(page)) && page != pageIndex(pageChanged))
     {
         list.pushBack(header("This Page"));
         list.pushBack(action(ui().resetArmedPage == page ? "Press Again to Reset" : "Reset This Page", resetThisPage)
@@ -2874,12 +2448,12 @@ void addMenuDetail(za::Vector<Item>& list, int page)
 {
     za::Vector<Item> (&built)[pageCount] = menuPages.built;
     bool (&done)[pageCount] = menuPages.done;
-    const bool weaponOffsets = weaponOffsetsPage(pages[page].build);
+    const bool weaponOffsets = weaponOffsetsPage(PageRef::at(page));
     if(vrSettingsPage(page))
     {
         syncWrappers(); // Turning Mode, Move Towards, the hands: as their settings are now
     }
-    if(pages[page].build == pageVrsComfortTurning && mainPageSnap >= 0 &&
+    if(page == pageIndex(pageVrsComfortTurning) && mainPageSnap >= 0 &&
         mainPageSnap != (vr_enable_joystick_turn.value == 0.f ? 2 : vr_snap_turn.value > 0.f ? 1 : 0))
     {
         done[page] = false; // Snap Angle shown, or Turn Speed
@@ -2911,30 +2485,30 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         weaponOffsetsStale = true; // another hotspot picked, its type changed, what the weapon inherits, or a Fingers choice
     }
-    if(pages[page].build == pageWofsSights && weaponOffsetsSightVersion != sightalign::version())
+    if(page == pageIndex(pageWofsSights) && weaponOffsetsSightVersion != sightalign::version())
     {
         weaponOffsetsStale = true; // Align Sights to My Aim: its phase or its result changed
         weaponOffsetsSightFocus = true;
     }
-    if(pages[page].build == pageGraphicsRelighting && relightToolState >= 0 && relightToolState != relight::toolPageState())
+    if(page == pageIndex(pageGraphicsRelighting) && relightToolState >= 0 && relightToolState != relight::toolPageState())
     {
         done[page] = false; // light.exe found or not, a download started or ended: Download ericw-tools shown or not
     }
-    if(pages[page].build == pageCampaigns && campaignsBloodyShown >= 0 &&
+    if(page == pageIndex(pageCampaigns) && campaignsBloodyShown >= 0 &&
         campaignsBloodyShown != (vr_mg3_bn_discovered.value != 0.f ? 1 : 0))
     {
         done[page] = false; // Dawn of the Machine's Bloody Nightmare found (or reset): its row shown or not
     }
-    if(pages[page].build == pageBodyArms && armsPageCalibrated >= 0 && armsPageCalibrated != (bodycal::calibrated() ? 1 : 0))
+    if(page == pageIndex(pageBodyArms) && armsPageCalibrated >= 0 && armsPageCalibrated != (bodycal::calibrated() ? 1 : 0))
     {
         done[page] = false; // calibrated (Apply) or not (Undo): Arm Length shown or not
     }
-    if(pages[page].build == pageBodyCalibration &&
+    if(page == pageIndex(pageBodyCalibration) &&
         (bodycalVersion != bodycal::version() || bodycalSeated != (vr_bodycal_seated.value != 0.f ? 1 : 0)))
     {
         done[page] = false; // Body Calibration: its phase, its result or its poses changed
     }
-    if(pages[page].build == pageChecklist)
+    if(page == pageIndex(pageChecklist))
     {
         checklist::refresh(); // (the file looked at once a second)
         if(checklistGeneration != checklist::generation() || checklistHidden != (vr_checklist_hide_ticked.value != 0.f ? 1 : 0))
@@ -2942,7 +2516,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
             done[page] = false; // an item ticked, Hide Ticked, or the file edited
         }
     }
-    if(weightPageStale(pages[page].build))
+    if(weightPageStale(PageRef::at(page)))
     {
         done[page] = false;
     }
@@ -2951,32 +2525,32 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         weaponOffsetsStale = false;
         done[page] = false;
     }
-    if((pages[page].build == pageFlashlightLowGrip && flashlightPageManual[0] >= 0 &&
+    if((page == pageIndex(pageFlashlightLowGrip) && flashlightPageManual[0] >= 0 &&
            (vr_flashlight_low_fingers.value >= 0.5f ? 1 : 0) != flashlightPageManual[0]) ||
-        (pages[page].build == pageFlashlightOverheadGrip && flashlightPageManual[1] >= 0 &&
+        (page == pageIndex(pageFlashlightOverheadGrip) && flashlightPageManual[1] >= 0 &&
             (vr_flashlight_high_fingers.value >= 0.5f ? 1 : 0) != flashlightPageManual[1]))
     {
         done[page] = false; // a grip's Fingers choice: its curls or its overlap shown
     }
-    if(pages[page].build == pageHandGunCalibration && handCalPageOwn >= 0 &&
+    if(page == pageIndex(pageHandGunCalibration) && handCalPageOwn >= 0 &&
         (vr_handcal_off_mirror.value == 0.f ? 1 : 0) != handCalPageOwn)
     {
         done[page] = false; // the off hand's own sliders shown or not
     }
-    if(pages[page].build == pageDebugTests && testsPageSpawn != static_cast<int>(vr_test_spawn.value))
+    if(page == pageIndex(pageDebugTests) && testsPageSpawn != static_cast<int>(vr_test_spawn.value))
     {
         done[page] = false; // another Thing chosen (or set by a spawn row): Put It There locked or not
     }
-    if(pages[page].build == pageVrsItemCollection && itemCollectionPageMode != static_cast<int>(vr_menu_pickup_mode.value))
+    if(page == pageIndex(pageVrsItemCollection) && itemCollectionPageMode != static_cast<int>(vr_menu_pickup_mode.value))
     {
         done[page] = false; // another pickup mode: Backpacks Too dimmed or not
     }
-    if(pages[page].build == pageMotionRecorder && motionPageCategory != static_cast<int>(vr_motion_category.value))
+    if(page == pageIndex(pageMotionRecorder) && motionPageCategory != static_cast<int>(vr_motion_category.value))
     {
         done[page] = false; // the Detail choice is the category's
     }
-    if((pages[page].build == pageReviewTakes && reviewListGeneration != motion::review::generation()) ||
-        (pages[page].build == pageReviewTake && (reviewTakeGeneration != motion::review::generation() ||
+    if((page == pageIndex(pageReviewTakes) && reviewListGeneration != motion::review::generation()) ||
+        (page == pageIndex(pageReviewTake) && (reviewTakeGeneration != motion::review::generation() ||
                                                     reviewRelabelCategory != static_cast<int>(vr_motion_relabel_category.value))))
     {
         done[page] = false; // the list, or the take picked, changed
@@ -3017,7 +2591,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         menuPages.level[page] = level;
         menuPages.cvars[page] = Cvar_Count();
         menuPages.qcTests[page] = qcTestsBuilt();
-        if(pages[page].build == pageDebugTests || pages[page].build == pageDebugAutomation)
+        if(page == pageIndex(pageDebugTests) || page == pageIndex(pageDebugAutomation))
         {
             // Progs built without the QC tests (QVR_NO_TESTS, the release flavour): the rows below set cvars nothing reads.
             if(!qcTestsBuilt())
@@ -3059,17 +2633,14 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         }
     }
     // Once the page is shown again (the menu reopened on it, its cursor restored): the cursor on Apply or Undo.
-    if(pages[page].build == pageWofsSights && weaponOffsetsSightFocus && key_dest == key_menu && m_state == m_vr &&
+    if(page == pageIndex(pageWofsSights) && weaponOffsetsSightFocus && key_dest == key_menu && m_state == m_vr &&
         page == qvr::menu::currentPage())
     {
+        // (Its row as the page recorded it, not found by its action's address: identical functions share one.)
         weaponOffsetsSightFocus = false;
-        for(int i = 0; i < static_cast<int>(built[page].size()); i++)
+        if(weaponOffsetsSightFocusRow >= 0 && weaponOffsetsSightFocusRow < static_cast<int>(built[page].size()))
         {
-            if(built[page][i].action == sightAlignApply || built[page][i].action == sightAlignUndo)
-            {
-                ui().cursors[page] = i;
-                break;
-            }
+            ui().cursors[page] = weaponOffsetsSightFocusRow;
         }
     }
     return built[page];
@@ -3168,7 +2739,7 @@ void consoleEdges(float& left, float& right);
 
 // How far right a page draws anywhere (menu x): its rows' scrollbar's box, its help box at its widest (drawHelp: centred,
 // its paging bar right of it); Search's, the Map Library's and the console's keyboards and buttons.
-[[nodiscard]] float pageRight(za::Vector<Item> (*build)())
+[[nodiscard]] float pageRight(PageRef build)
 {
     if(build == pageConsole)
     {
@@ -3190,7 +2761,7 @@ void consoleEdges(float& left, float& right);
     // The version label in the bottom right corner (vr_menubrand.cpp): where the page reaches under it (a flat screen's
     // narrower canvas), the page ends above it.
     int bottom = top + height;
-    if(float labelLeft, labelTop; menuui::versionLabelClearance(labelLeft, labelTop) && pageRight(pages[ui().page].build) > labelLeft)
+    if(float labelLeft, labelTop; menuui::versionLabelClearance(labelLeft, labelTop) && pageRight(PageRef::at(ui().page)) > labelLeft)
     {
         bottom = q_min(bottom, static_cast<int>(za::floor(labelTop)));
     }
@@ -3198,7 +2769,7 @@ void consoleEdges(float& left, float& right);
     // and below the status box in the top right corner where the page reaches under it (Search and the Map Library,
     // from x 12 440 and 460 across; the other pages to their scrollbar).
     int listTop = menuui::toolbarBeside() ? top + 36 : q_max(top + 36, static_cast<int>(za::ceil(menuui::toolbarBottom())) + 2);
-    const auto build = pages[ui().page].build;
+    const auto build = PageRef::at(ui().page);
     const float right = build == pageMaps ? 12.f + 460.f : build == pageSearch ? 12.f + 440.f : midPos + 200.f;
     listTop = q_max(listTop, static_cast<int>(za::ceil(menuui::statusBottom(right))) + 2);
     return {top, listTop, bottom - 4 - 8 * helpBoxLines(), bottom};
@@ -3381,7 +2952,7 @@ void closeDropDown(); // (the drop-down lists, below: a page shown closes the on
     {
         return 0;
     }
-    const PageBuilder b = pages[page].build;
+    const PageRef b = PageRef::at(page);
     return weaponOffsetsPage(b)                                 ? 1
            : b == pageBodyCalibration                           ? 2
            : b == pageChecklist                                 ? 3
@@ -3430,12 +3001,12 @@ void showPage(int target)
         return;
     }
     ui().page = target;
-    weightPageShown(pages[ui().page].build); // a weight page: what is in the hand now
-    if(weaponOffsetsPage(pages[ui().page].build))
+    weightPageShown(PageRef::at(ui().page)); // a weight page: what is in the hand now
+    if(weaponOffsetsPage(PageRef::at(ui().page)))
     {
         weaponOffsetsStale = true; // the weapon in hand now
     }
-    if(pages[ui().page].build == pageReviewTakes)
+    if(ui().page == pageIndex(pageReviewTakes))
     {
         motion::review::invalidate(); // takes recorded, evaluated or moved since
     }
@@ -3452,7 +3023,7 @@ void showPage(int target)
     ui().visits[ui().page] = ++ui().visitCount;
 }
 
-bool slotPage(PageBuilder build)
+bool slotPage(PageRef build)
 {
     return weaponOffsetsPage(build) || build == pageWeaponWeights || build == pageHeldObjectOffsets ||
            build == pageHeldObjectWeights;
@@ -3547,7 +3118,7 @@ za::Vector<Item> pageChanged()
     levelOverride = LevelDeveloper;
     for(int p = 0; p < pageCount; p++)
     {
-        if(pages[p].build == pageChanged || slotPage(pages[p].build))
+        if(p == pageIndex(pageChanged) || slotPage(PageRef::at(p)))
         {
             continue;
         }
@@ -3589,7 +3160,7 @@ void openPage(int target)
 // The page listing `p` in the menus' tree (VR Settings: itself).
 [[nodiscard]] int homeOf(int p)
 {
-    return pages[p].home ? pageIndex(pages[p].home) : PageMain;
+    return pageHomes.of[p];
 }
 
 // Opens `target` as from its place in the tree (menu_vr <n>), from the VR Settings: each page above it shown in
@@ -3687,7 +3258,7 @@ void goBack()
         M_Menu_Options_f(); // (its sound as it is drawn)
         return;
     }
-    if(pages[ui().page].build == pageBodyCalibration && qvr::setup::waitsOnMenu())
+    if(ui().page == pageIndex(pageBodyCalibration) && qvr::setup::waitsOnMenu())
     {
         // VR Calibration waits on this page (paused, or the body's result not trusted): Back closes the menu, as the
         // menu button does, and the calibration goes on (not up the tree, the menu still open and it still waiting)
@@ -4875,7 +4446,7 @@ void helpCheck(int columnsAsked)
     int histogram[helpMaxLines + 2]{};
     for(int p = 0; p < pageCount; p++)
     {
-        if(pages[p].build == pageSearch || pages[p].build == pageConsole || pages[p].build == pageMaps)
+        if(p == pageIndex(pageSearch) || p == pageIndex(pageConsole) || p == pageIndex(pageMaps))
         {
             continue;
         }
@@ -5284,7 +4855,7 @@ int qvr::menu::retroOverridePage()
 // closes it at once, as the menu button does; elsewhere Quake's way (to the main menu first).
 extern "C" int VR_MenuToggleCloses()
 {
-    return m_state == m_vr && key_dest == key_menu && pages[ui().page].build == pageBodyCalibration &&
+    return m_state == m_vr && key_dest == key_menu && ui().page == pageIndex(pageBodyCalibration) &&
            qvr::setup::waitsOnMenu();
 }
 
@@ -5394,8 +4965,190 @@ void qvr::menu::handCalMatch_f()
     matchControllerPreview();
 }
 
+namespace
+{
+// The pages' numbers checked (menu_vr ids; at start, quiet unless something is wrong): each page is its number in
+// pages[] (vr_menu_table.inc; its builders are each there once and every home is a page: checked while compiling).
+// Here: each title once (vr_menu_positions and the boards' menu paths find a page by it), every page's homes reaching
+// VR Settings, and the builders the link folded into one address (harmless now: listed to show the check would have
+// mattered; ROUND22.md, "Menu pages known by number, not by builder"). Returns the problems found.
+int checkPageIds(bool verbose)
+{
+    int problems = 0;
+    for(int p = 0; p < pageCount; p++)
+    {
+        for(int q = 0; q < p; q++)
+        {
+            if(!strcmp(pages[p].title, pages[q].title))
+            {
+                Con_Printf("menu ids: FAIL pages %d and %d are both \"%s\"\n", q, p, pages[p].title);
+                problems++;
+            }
+        }
+        int steps = 0;
+        for(int h = p; h != PageMain && steps <= pageCount; h = homeOf(h))
+        {
+            steps++;
+        }
+        if(steps > pageCount)
+        {
+            Con_Printf("menu ids: FAIL page %d \"%s\": its homes go round, never reaching VR Settings\n", p, pages[p].title);
+            problems++;
+        }
+    }
+    int folded = 0;
+    for(int p = 0; p < pageCount; p++)
+    {
+        for(int q = 0; q < p; q++)
+        {
+            if(pages[p].build.fn == pages[q].build.fn)
+            {
+                if(verbose)
+                {
+                    Con_Printf("menu ids: \"%s\" (%d) and \"%s\" (%d) share one builder's code (folded at link)\n",
+                        pages[q].title, q, pages[p].title, p);
+                }
+                folded++;
+                break;
+            }
+        }
+    }
+    const int search = pageIndex(pageSearch), console = pageIndex(pageConsole), maps = pageIndex(pageMaps);
+    if(search == console || search == maps || console == maps)
+    {
+        Con_Printf("menu ids: FAIL Search, Console and Map Library are not three pages (%d, %d, %d)\n", search, console, maps);
+        problems++;
+    }
+    if(verbose || problems > 0)
+    {
+        Con_Printf("menu ids: %d pages, each its own number; %d share a builder's code with another; %s\n", pageCount,
+            folded, problems > 0 ? "FAIL" : "OK");
+    }
+    return problems;
+}
+
+// menu_vr expect <page title | closed | main | levels | single player | options | other>: the menu shown checked
+// against it (the corner buttons' and links' tests, Misc/quakevr/menu_shortcuts_test.sh): "menu expect: PASS" or
+// "FAIL ... got ..."; menu_vr expect done: "menu expect: N passed, M failed" (and the counts start again).
+struct MenuExpect
+{
+    int passed{0};
+    int failed{0};
+};
+MenuExpect menuExpect;
+
+[[nodiscard]] const char* menuShownName()
+{
+    if(key_dest != key_menu)
+    {
+        return "closed";
+    }
+    if(m_state == m_vr)
+    {
+        return pages[ui().page].title;
+    }
+    return m_state == m_maps ? "levels" : m_state == m_singleplayer ? "single player" : m_state == m_options ? "options"
+           : m_state == m_main                                                        ? "main"
+                                                                                       : "other";
+}
+
+void menuExpectCommand(const char* text)
+{
+    char want[128];
+    q_strlcpy(want, text[0] == '"' ? text + 1 : text, sizeof(want));
+    for(size_t n = strlen(want); n > 0 && (want[n - 1] == ' ' || want[n - 1] == '"' || want[n - 1] == '\n'); n--)
+    {
+        want[n - 1] = 0;
+    }
+    if(!q_strcasecmp(want, "done"))
+    {
+        Con_Printf("menu expect: %d passed, %d failed\n", menuExpect.passed, menuExpect.failed);
+        menuExpect = {};
+        return;
+    }
+    const char* shown = menuShownName();
+    if(!q_strncasecmp(want, "panels ", 7)) // (menu_vr expect panels <n>: the menu panels open, New Panel's)
+    {
+        int open = key_dest == key_menu ? 1 : 0; // (the first panel: the menu itself)
+        for(int i = 1; i < qvr::menu::instanceCount; i++)
+        {
+            open += menuInstances[i].open ? 1 : 0;
+        }
+        shown = va("panels %d", open);
+    }
+    if(!q_strcasecmp(want, shown))
+    {
+        menuExpect.passed++;
+        Con_Printf("menu expect: PASS %s\n", shown);
+        return;
+    }
+    menuExpect.failed++;
+    Con_Printf("menu expect: FAIL want \"%s\", got \"%s\"%s\n", want, shown,
+        m_state == m_vr && key_dest == key_menu ? va(" (page %d)", ui().page) : "");
+}
+
+// menu_vr links (with the VR menu open; Misc/quakevr/menu_shortcuts_test.sh): every link on every page (a row opening
+// a page: the groups' pages, the settings' homes on other pages) pressed as Enter presses it, from its page shown, and
+// every Search entry opened as a picked result opens it; each must land on its own page. Prints the failures and
+// "menu links: N links and M search entries opened, F failed". Leaves the menu on VR Settings.
+void checkLinks()
+{
+    if(key_dest != key_menu || m_state != m_vr)
+    {
+        Con_Printf("menu links: open the VR menu first (menu_vr 0)\n");
+        return;
+    }
+    int links = 0, entries = 0, failed = 0;
+    for(int p = 0; p < pageCount; p++)
+    {
+        const int n = static_cast<int>(items(p).size());
+        for(int i = 0; i < n; i++)
+        {
+            showPage(p);
+            const Item item = items(p)[i];
+            if(item.kind != Item::Action || item.page < 0 || item.actionArg || item.command)
+            {
+                continue;
+            }
+            links++;
+            change(item, 1);
+            if(key_dest != key_menu || m_state != m_vr || ui().page != item.page)
+            {
+                Con_Printf("menu links: FAIL \"%s\" row \"%s\": want page %d \"%s\", got %s\n", pages[p].title,
+                    item.label ? item.label : "", item.page, item.page < pageCount ? pages[item.page].title : "?",
+                    menuShownName());
+                failed++;
+                if(key_dest != key_menu || m_state != m_vr)
+                {
+                    showPage(PageMain);
+                }
+            }
+        }
+    }
+    buildSearchIndex();
+    const int count = static_cast<int>(search.index.size());
+    for(int e = 0; e < count; e++)
+    {
+        showPage(pageIndex(pageSearch));
+        const int target = search.index[e].page;
+        const za::String label = search.index[e].label;
+        openEntry(e);
+        entries++;
+        if(key_dest != key_menu || m_state != m_vr || ui().page != target)
+        {
+            Con_Printf("menu links: FAIL search entry \"%s\": want page %d \"%s\", got %s\n", label.cStr(), target,
+                target >= 0 && target < pageCount ? pages[target].title : "?", menuShownName());
+            failed++;
+        }
+    }
+    showPage(PageMain);
+    Con_Printf("menu links: %d links and %d search entries opened, %d failed\n", links, entries, failed);
+}
+} // namespace
+
 void qvr::menu::init()
 {
+    checkPageIds(false);
     for(const Preset& p : presets)
     {
         Cvar_SetCallback(p.choice, onPresetChosen);
@@ -5416,6 +5169,26 @@ void qvr::menu::init()
 
 void qvr::menu::command_f()
 {
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "ids"))
+    {
+        checkPageIds(true);
+        return;
+    }
+    if(Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(1), "expect"))
+    {
+        // (The rest of the line as typed: titles have spaces and apostrophes, which the arguments split.)
+        const char* want = Cmd_Args();
+        want += strspn(want, " \t");
+        want += strcspn(want, " \t");
+        want += strspn(want, " \t");
+        menuExpectCommand(want);
+        return;
+    }
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "links"))
+    {
+        checkLinks();
+        return;
+    }
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "list"))
     {
         for(int p = 0; p < pageCount; p++)
@@ -5567,7 +5340,7 @@ void qvr::menu::command_f()
 
 bool qvr::menu::holsterPreview(int& hand, int& kind)
 {
-    if(m_state != m_vr || pages[ui().page].build != pageWofsHolstered || vr_weapon_holster_preview.value == 0.f ||
+    if(m_state != m_vr || ui().page != pageIndex(pageWofsHolstered) || vr_weapon_holster_preview.value == 0.f ||
         weaponOffsetsSlot < 0 || weaponOffsetsSlot == weapons::fistSlot() || weaponOffsetsHolster < 0 ||
         weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
     {
@@ -5586,7 +5359,7 @@ bool qvr::menu::holsterPreview(int& hand, int& kind)
 
 bool qvr::menu::flashlightMountPreview(int& hand)
 {
-    if(m_state != m_vr || pages[ui().page].build != pageWofsFlashlight || vr_flashlight_mount_preview.value == 0.f ||
+    if(m_state != m_vr || ui().page != pageIndex(pageWofsFlashlight) || vr_flashlight_mount_preview.value == 0.f ||
         weaponOffsetsSlot < 0 || weaponOffsetsSlot == weapons::fistSlot() || weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
     {
         return false; // not on the page, off, the empty hand, or the hand holds another weapon now
@@ -5636,7 +5409,7 @@ bool qvr::menu::bodyClonePage()
         ui().bodyCloneLatch = -1;
         return false;
     }
-    const PageBuilder b = pages[ui().page].build;
+    const PageRef b = PageRef::at(ui().page);
     if(vr_menu_body_clone.value >= 2.f || b == pageFlashlightMounts || b == pageWofsHolstered || b == pageVrsRangerHead ||
         b == pageHolsterZones || b == pageSeatedHolsters || b == pageVrsBodyEquipment || b == pageVrsHolsters ||
         ui().bodyCloneLatch == ui().page)
@@ -6028,7 +5801,7 @@ void qvr::menu::sliderStep_f()
     levelOverride = LevelDeveloper;
     for(int p = 0; p < pageCount; p++)
     {
-        if(pages[p].build == pageSearch || pages[p].build == pageChanged)
+        if(p == pageIndex(pageSearch) || p == pageIndex(pageChanged))
         {
             continue;
         }
@@ -6083,7 +5856,7 @@ float qvr::menu::contentLeft()
     {
         return static_cast<float>(M_ContentLeft());
     }
-    const auto build = pages[ui().page].build;
+    const auto build = PageRef::at(ui().page);
     if(build == pageSearch || build == pageMaps || build == pageConsole)
     {
         return 0.f; // (Search and the Map Library from x 12 at least; the console's page right of the buttons)
@@ -6097,7 +5870,7 @@ float qvr::menu::contentRightBelow(float y)
     {
         return M_ContentRightBelow(y);
     }
-    const auto build = pages[ui().page].build;
+    const auto build = PageRef::at(ui().page);
     const Layout l = layout();
     if(build == pageConsole || build == pageSearch || build == pageMaps)
     {
@@ -6125,7 +5898,7 @@ float qvr::menu::contentLeftBelow(float y)
     {
         return M_ContentLeftBelow(y);
     }
-    const auto build = pages[ui().page].build;
+    const auto build = PageRef::at(ui().page);
     const Layout l = layout();
     if(build == pageConsole || build == pageSearch || build == pageMaps)
     {
@@ -6224,17 +5997,17 @@ void qvr::menu::jumpToRecording()
 
 void qvr::menu::selectEnd(int dir)
 {
-    if(m_state == m_vr && pages[ui().page].build == pageSearch)
+    if(m_state == m_vr && ui().page == pageIndex(pageSearch))
     {
         search.focusKey = 0; // from the corner's buttons: the keys
         return;
     }
-    if(m_state == m_vr && pages[ui().page].build == pageConsole)
+    if(m_state == m_vr && ui().page == pageIndex(pageConsole))
     {
         consolePage.focusKey = 0;
         return;
     }
-    if(m_state == m_vr && pages[ui().page].build == pageMaps)
+    if(m_state == m_vr && ui().page == pageIndex(pageMaps))
     {
         mapPage.focusKey = 0; // from the corner's buttons: the keys
         return;
@@ -6267,12 +6040,12 @@ bool qvr::menu::scroll(int rows)
     {
         return false;
     }
-    if(pages[ui().page].build == pageConsole)
+    if(ui().page == pageIndex(pageConsole))
     {
         consoleScroll(-rows); // (the stick down: newer)
         return true;
     }
-    if(pages[ui().page].build == pageMaps)
+    if(ui().page == pageIndex(pageMaps))
     {
         mapPage.resultScroll -= rows; // (the stick down: the next packages)
         mapsScrollTo(-1);
@@ -6373,17 +6146,17 @@ void savePositions()
 extern "C" void VR_Menu_Draw()
 {
     syncPresets(); // (Comfort, Handedness: the choice the settings match now)
-    if(pages[ui().page].build == pageSearch)
+    if(ui().page == pageIndex(pageSearch))
     {
         drawSearch();
         return;
     }
-    if(pages[ui().page].build == pageConsole)
+    if(ui().page == pageIndex(pageConsole))
     {
         drawConsolePage();
         return;
     }
-    if(pages[ui().page].build == pageMaps)
+    if(ui().page == pageIndex(pageMaps))
     {
         drawMapsPage();
         return;
@@ -6476,17 +6249,17 @@ extern "C" void VR_Menu_Draw()
 
 extern "C" void VR_Menu_Key(int key, int repeat)
 {
-    if(pages[ui().page].build == pageSearch)
+    if(ui().page == pageIndex(pageSearch))
     {
         searchKey(key);
         return;
     }
-    if(pages[ui().page].build == pageConsole)
+    if(ui().page == pageIndex(pageConsole))
     {
         consoleKey(key);
         return;
     }
-    if(pages[ui().page].build == pageMaps)
+    if(ui().page == pageIndex(pageMaps))
     {
         mapsKey(key);
         return;
@@ -6638,15 +6411,15 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 // slider.
 extern "C" void VR_Menu_Char(int key)
 {
-    if(pages[ui().page].build == pageSearch && key >= 32 && key < 127)
+    if(ui().page == pageIndex(pageSearch) && key >= 32 && key < 127)
     {
         typeInSearch(static_cast<char>(key));
     }
-    if(pages[ui().page].build == pageConsole && key >= 32 && key < 127)
+    if(ui().page == pageIndex(pageConsole) && key >= 32 && key < 127)
     {
         typeInConsole(static_cast<char>(key));
     }
-    if(pages[ui().page].build == pageMaps && key >= 32 && key < 127)
+    if(ui().page == pageIndex(pageMaps) && key >= 32 && key < 127)
     {
         mapsTypeIn(static_cast<char>(key));
     }
@@ -6654,24 +6427,24 @@ extern "C" void VR_Menu_Char(int key)
 
 extern "C" int VR_Menu_TextEntry()
 {
-    return pages[ui().page].build == pageSearch || pages[ui().page].build == pageConsole || pages[ui().page].build == pageMaps
+    return ui().page == pageIndex(pageSearch) || ui().page == pageIndex(pageConsole) || ui().page == pageIndex(pageMaps)
                ? TEXTMODE_NOPOPUP
                : TEXTMODE_OFF; // (the page's own keyboard)
 }
 
 extern "C" void VR_Menu_Mousemove(float cx, float cy)
 {
-    if(pages[ui().page].build == pageSearch)
+    if(ui().page == pageIndex(pageSearch))
     {
         searchMouse(cx, cy);
         return;
     }
-    if(pages[ui().page].build == pageConsole)
+    if(ui().page == pageIndex(pageConsole))
     {
         consoleMouse(cx, cy);
         return;
     }
-    if(pages[ui().page].build == pageMaps)
+    if(ui().page == pageIndex(pageMaps))
     {
         mapsMouse(cx, cy);
         return;
