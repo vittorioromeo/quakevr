@@ -21697,3 +21697,45 @@ baseline's own flake). Test files under `#ifdef QVR_TESTS`; `-DQVR_NO_TESTS` com
 rate of fire, their damage) while you can grab their rifles, tug them, shoot them out; dead, their rifle and backpack as
 before. The scene `agrunt_repl_gunaxe`: the axe in the left hand looks right carried and swung, the gun one-handed in the
 right; walk up and back off. Variety: the hand-offs at a map's start (none visible), a dual-wielder's two rifles.
+
+
+## Menu pages known by number, not by builder (worktree `tghost`, branch `agent/menuicf`, 2026-10-25)
+
+His bug: the menu corner's Console button opened the Search page. Cause, confirmed: `pageSearch`, `pageConsole` and
+`pageMaps` (vr_menu.cpp) have the same body (`return {info(searchRowText)};`: the three pages are drawn and driven by
+vr_menu_search.inc, vr_menu_console.inc and vr_menu_maps.inc), and the release link (`EnableCOMDATFolding`, lld-link
+`/OPT:ICF`) folds identical functions into one address. Pages were found by comparing builder pointers
+(`pageIndex(pageConsole)` looped over `pages[].build`, the page code tested `pages[page].build == pageSearch`), so
+Console and Map Library both resolved to Search's page (133). Seen on the ThinLTO build (`menu_vr pos` after the Console
+and Map Library buttons: `page 133 "Search"`), and the quick no-LTO build folds them too (`menu_vr ids` lists the two
+pairs there as well): the tests never pressed those buttons and checked the page.
+
+Also affected: the Map Library everywhere (corner, main menu's Download Maps, `maps_page`); every page-specific path keyed
+on those three (their keys, text input, drawing edges, laser hit areas, New Panel's one-viewer pages) took Search's. Found
+by the fix (it does not compile a link to a page missing from the table): three "home on another page" links (Crosshair,
+HUD and Status Bar Hand, HUD and Gadget Arm) pointed at `pageVrsHud`, a part merged into "VR Settings - HUD, Haptics and
+Sound" long ago, and so opened the VR Settings page itself; they now open that section page. The only other function
+identity test in the menus (the sight-align cursor, `action == sightAlignApply || sightAlignUndo`) now uses the row the
+builder records (`weaponOffsetsSightFocusRow`).
+
+The fix: `pages[]` moved to `Quake/vr/vr_menu_table.inc` (included at the end of vr_menu_internal.hpp, `inline
+constexpr`, with every builder's declaration). A page is its number: `PageRef` (vr_menu_internal.hpp) is made from a
+builder only at compile time (a `consteval` constructor looks the builder up in `pages[]`, where two functions are always
+two), or from a number with `PageRef::at(p)`; `pageIndex(PageRef)` is `constexpr`. `pages[p].build` is a `PageBuild`:
+callable, with `==` deleted, so a builder comparison no longer compiles. Homes are resolved at compile time
+(`pageHomes`). Compile-time checks: each builder once in `pages[]`, every home a page, every linked builder a page.
+Run-time check at start (quiet unless wrong) and `menu_vr ids`: each title once, every page's homes reach VR Settings,
+Search/Console/Map Library three pages; it lists the builders the link folded (2 pairs, harmless now).
+
+Tests: `menu_vr expect <title | closed | main | levels | panels N>` and `menu_vr expect done` (verdict), `menu_vr links`
+(every link on every page pressed as Enter presses it, every Search entry opened: each must land on its page), and
+`python Misc/quakevr/menu_shortcuts_test.py <agent>` (several runs: the kit's script goes on a command line, under 8191
+characters). On the ThinLTO build: every corner button by laser (Search, Console, Map Library, VR Settings, Advanced
+VR, Levels, Relighting, Checklist, Recording, Main Menu, New Panel, Back to Game, Quicksave, Quickload, Toolgun, Save
+Default) and by the stick (the nine page buttons), the main menu's Download Maps row, and 368 links plus 7666 Search
+entries at Menu Detail: Developer: all OK (29 page checks, 14 test checks, 0 failed). Capture Frame shows only with RenderDoc attached: not tested.
+
+For him in VR: the corner's Console and Map Library open their own pages again (and the main menu's Download Maps);
+the "...: VR Settings" links on the Crosshair, HUD Configuration and Gadget pages open VR Settings - HUD, Haptics and Sound
+(they opened the VR Settings page itself).
+Checklist line suggested: "Menu corner: Console opens the console, Map Library the map browser (not Search)".

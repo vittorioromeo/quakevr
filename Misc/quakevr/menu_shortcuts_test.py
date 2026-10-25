@@ -99,22 +99,38 @@ laser("savedefaults")
 expect("VR Settings")
 laser("savedefaults")
 expect("VR Settings")
-step("stick")
-# 3: by the stick.
+expect("done")
+# (Several runs: the kit hands a script over on a command line, under 8191 characters with its other arguments.)
+LIMIT = 6000
+scripts = [";".join(s) + ";toggleconsole;quit"]
+START = "map start;wait30;vr_menu_level 2"
+END = "menu_vr expect done;toggleconsole;quit"
+# 3: by the stick, as many buttons in a run as fit.
+s.clear()
 for name in ["search", "console", "maps", "settings", "advanced", "levels", "relighting", "checklist", "main"]:
     a("menu_vr 0;wait3")
     stick(name)
     expect(PAGES[name])
+    chunk = ";".join(s)
+    s.clear()
+    if len(scripts) == 1 or len(scripts[-1]) + len(chunk) + len(END) > LIMIT:
+        scripts.append(START + ";echo STEP stick")
+    scripts[-1] += ";" + chunk
 # 5
-a("menu_vr 0;wait3;menu_vr links")
-expect("done")
-script = ";".join(s) + ";toggleconsole;quit"
+scripts.append(START + ";menu_vr 0;wait3;menu_vr links")
+scripts = [x if x.endswith("quit") else x + ";" + END for x in scripts]
 
-out = subprocess.run([BASH, f"{KIT}/run.sh", agent, "-Script", script, "-QuitOn", "menu expect: [0-9]+ passed",
-                      "-Timeout", "600", "-Filter",
-                      "STEP|menu expect|menu ids|menu links|menu_vr pos: menu 1|Quicksaving|Quickloading|Toolgun:|"
-                      "Save Default|Saved [0-9]+ settings|New Panel|exit="],
-                     capture_output=True, text=True).stdout
+out = ""
+if os.environ.get("LENGTHS"):
+    print([len(x) for x in scripts])
+    sys.exit(0)
+for script in scripts:
+    assert len(script) < LIMIT + 200, f"script too long for the kit's command line: {len(script)}"
+    out += subprocess.run([BASH, f"{KIT}/run.sh", agent, "-Script", script, "-QuitOn", "menu expect: [0-9]+ passed",
+                           "-Timeout", "300", "-Filter",
+                           "STEP|menu expect|menu ids|menu links|menu_vr pos: menu 1|Quicksaving|Quickloading|Toolgun:|"
+                           "Save Default|Saved [0-9]+ settings|New Panel|exit=|TIMEOUT"],
+                          capture_output=True, text=True).stdout
 text = re.sub(r"\s+", " ", out)
 for k in ["STEP ", "menu expect", "menu ids", "menu links", "menu_vr pos", "Quicksaving", "Quickloading", "Toolgun:",
           "Save Default", "Saved ", "exit="]:
@@ -154,8 +170,11 @@ check(bool(re.match(r"menu links: \d+ links and \d+ search entries opened, 0 fai
 for l in lines:
     if "menu expect: FAIL" in l or "menu links: FAIL" in l:
         print("  " + l)
-verdict = next((l for l in lines if re.match(r"menu expect: \d+ passed", l)), "")
-m = re.match(r"menu expect: (\d+) passed, (\d+) failed", verdict)
-check(bool(m) and m.group(2) == "0", f"page checks: {verdict[13:] or 'no verdict (the run did not finish)'}")
+verdicts = [re.match(r"menu expect: (\d+) passed, (\d+) failed", l) for l in lines]
+verdicts = [m for m in verdicts if m]
+for run, m in enumerate(verdicts + [None] * (len(scripts) - len(verdicts)), 1):
+    check(bool(m) and m.group(2) == "0", f"run {run} page checks: " +
+          (f"{m.group(1)} passed, {m.group(2)} failed" if m else "no verdict (the run did not finish)"))
+check(not any(l.startswith("TIMEOUT") for l in lines), "no run timed out")
 print(f"menu shortcuts: {passed} passed, {fail} failed")
 sys.exit(1 if fail else 0)
