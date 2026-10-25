@@ -620,6 +620,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_place_entities_first: a place for a crate, barrel, rock or brick (at a map's start) tested against "
                   "the map's entities before its traces (on), or after them (off, as before). The same places either way; "
                   "a big map starts faster (150 ms in Arcane Dimensions' Sepulcher)."),
+        toggle("AD Monsters' Death Assets Early", vr_ad_death_precache)
+            .help("vr_ad_death_precache: outside Arcane Dimensions' maps, the first AD monster loads AD's backpack, gibs, "
+                  "their sounds, footsteps, explosions and projectiles as it spawns (on: in the map's load, or at the "
+                  "toolgun's spawn), or each at its first use as before (off: a 25-38 ms hitch at the first death)."),
         toggle("Keep Crates' and Rocks' Layouts", vr_place_keep)
             .help("vr_place_keep: the crates', rocks' and bricks' last layout kept and taken again when the map, its "
                   "entities and their settings are the same (on: a restart after a death loads faster, 200-250 ms in "

@@ -627,6 +627,12 @@ QVR_CVAR(vr_place_entities_first, "1", CVAR_NONE)
 // and geometry, every vr_crate*, vr_debris*, vr_place_* setting, the entities' boxes at the plan): a restart of the map
 // (a death) skips the planning (200-250 ms in AD's big maps); 0 planned at every load, as before. The same layout either way.
 QVR_CVAR(vr_place_keep, "1", CVAR_NONE)
+// Debug > Profiling and Memory > AD Monsters' Death Assets Early: 1 outside AD's maps, the first AD monster precaches AD's
+// world's shared assets for their deaths, drops, steps and blasts (its backpack, gibs and their sounds, footsteps,
+// explosions, projectiles: QC vr_ad_monsters.qc VR_AD_DeathPrecache) as it spawns: at the map's load for the map's (and
+// the kinds that can appear later), at the spawn for the toolgun's; 0 as before (each at its first use, 25-38 ms; the
+// steps' sounds missing).
+QVR_CVAR(vr_ad_death_precache, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Load Prewarm: 1 what a map's first frames, the first gun lying near you and each model's
 // first smooth draw made at first use (the models' rig data, the reflections' world buffers, the guns' screen anchors,
 // your skin masks and glove paint) made in the map's load instead (VR_NewMap; ROUND22.md "Frame spikes"); 0 at first use
