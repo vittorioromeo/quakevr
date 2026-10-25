@@ -334,10 +334,12 @@ void() VR_PropImp_LightStep =
     {
         float gone = vr_propimp_lt_crate == world || VR_PropImp_Broken(vr_propimp_lt_crate);
         float h = gone ? 0 : vr_propimp_lt_crate.health;
-        bprint(sprintf("lightthrow: %s (%.2f kg) throw %g at %g m/s: its throw damage %.1f; crate health %.1f -> %.1f%s\n",
+        // (Two sprintfs: a varargs builtin takes at most 8 parameters.)
+        bprint(strcat(sprintf("lightthrow: %s (%.2f kg) throw %g at %g m/s: ",
             VR_PropImp_LightName(floor((vr_propimp_lt_step - 1) / 3)), vr_propimp_lt_mass,
-            mod(vr_propimp_lt_step - 1, 3) + 1, vr_propimp_lt_speed, vr_propimp_lt_dmg, vr_propimp_lt_h0, h,
-            gone ? ", broken" : ""));
+            mod(vr_propimp_lt_step - 1, 3) + 1, vr_propimp_lt_speed),
+            sprintf("its throw damage %.1f; crate health %.1f -> %.1f%s\n", vr_propimp_lt_dmg, vr_propimp_lt_h0, h,
+            gone ? ", broken" : "")));
         if(vr_propimp_lt_step > 12)
         {
             VR_PropImp_Done(vr_propimp_lt_thing); // (a crate: unless it broke too)

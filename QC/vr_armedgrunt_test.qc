@@ -197,9 +197,10 @@ void() VR_AGTest_Weapons =
     }
     float dmg = vr_ag_player_dmg - vr_agt_dmg0;
     string nm = g.vr_ag_prop ? g.vr_ag_prop.netname : sprintf("%s (code %g)", VR_AGT_Name(g.vr_ag_lastwid), g.vr_ag_code);
-    VR_AGT_Check(sprintf("%s: %g shots, %g blows, %g damage to you, clip %g, reserve %g, %g reloads, %g disarms:",
-        nm, g.vr_ag_total_shots, g.vr_ag_strikes, dmg, g.vr_ag_prop.weaponinst.wi_clip,
-        g.vr_ag_reserve, g.vr_ag_reloads, g.vr_ag_disarms), dmg > 0);
+    // (Two sprintfs: a varargs builtin takes at most 8 parameters.)
+    VR_AGT_Check(strcat(sprintf("%s: %g shots, %g blows, %g damage to you, ", nm, g.vr_ag_total_shots,
+        g.vr_ag_strikes, dmg), sprintf("clip %g, reserve %g, %g reloads, %g disarms:",
+        g.vr_ag_prop.weaponinst.wi_clip, g.vr_ag_reserve, g.vr_ag_reloads, g.vr_ag_disarms)), dmg > 0);
     VR_AGT_Remove(g);
     vr_agt_index = vr_agt_index + 1;
     vr_agt_step = 0;

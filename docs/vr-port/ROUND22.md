@@ -21496,3 +21496,16 @@ skin went with it. Regenerated with build_flaregun.py (the .blend had not been h
 check_mdl_art.py LOW only.
 
 - [ ] Flare Gun Art: the top is plain and solid; down the sights the brass blade sits in the bottom of the rear notch.
+## QC compile warnings: 4 -> 0 (branch `agent/qcwarn`, 2026-10-25)
+
+- `vr_propimpact_test.qc` (the `lightthrow:` line) and `vr_armedgrunt_test.qc` (VR_AGTest_Weapons' per-weapon line):
+  sprintf with 9 parameters (a varargs builtin takes 8; the last was dropped): each split into two sprintfs joined by
+  strcat. The lines now end as intended (`..., broken`; `..., N disarms:`).
+- `vr_armedgrunt_bugs_test.qc` VR_AGBT_PickupBegin: a local `other` hid the global: renamed `dropper`.
+- `vr_armedgrunt_pose.qc` VR_AGK_LiveTarget (the Pose Studio's live target): `th_die` (a `void()`) was given
+  VR_AGK_TargetPain, a `void(entity, float)`. Harmless: Killed calls `self.th_die()` with no arguments and the function
+  never reads them (it only sets its health back to 100000). Now its own `void() VR_AGK_TargetDie` with the same body:
+  no behaviour change.
+
+Checked: build 0 warnings; `vr_prop_impact_test 2` (15 lines + done), `vr_agrunt_test 1` 16/17 (the proximity gun, as
+before), `61` 40/0, `41` and `45` run to their end; eval.sh 163/171, no verdict changes.
