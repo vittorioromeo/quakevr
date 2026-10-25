@@ -806,6 +806,31 @@ def summarize(root):
     print("\n".join(md))
 
 
+GPU_PASSES = ["shadow maps", "world+brush", "alias", "particles", "vr particles", "decals", "sky", "water", "translucent",
+              "lights", "view model", "heat haze", "blob shadows", "env cube", "bloom", "postprocess", "upscale", "ui",
+              "hidden area", "mirror", "spectator", "window view", "eye L", "eye R"]
+
+
+def gpu_report(root):
+    """The GPU benchmark's tables (BENCHMARKS.md, "GPU benchmark"): per scenario, the medians over its runs of the GPU
+    frame (the 3D refresh: both eyes, the spectator camera) at p50/p95/p99/max, the eyes' average, the render scale
+    (dynamic resolution), the CPU's work; then each GPU pass a frame (all views: nested ones are inside others)."""
+    med = statistics.median
+    rows = []
+    for name, rs in sorted(load_runs(root).items()):
+        g = lambda k, s: med(r["frame"].get(k, {}).get(s, 0) for r in rs)
+        rows.append((name, len(rs), [g("gpu_3d_ms", s) for s in ("p50", "p95", "p99", "max")] +
+                     [g("gpu_eyes_ms", "avg"), g("render_scale", "avg"), g("cpu_busy_ms", "avg"), g("frame_ms", "p99")],
+                     {p: med(r.get("gpu_phase_ms", {}).get(p, 0) for r in rs) for p in GPU_PASSES}))
+    md = ["| scenario | n | GPU p50 | p95 | p99 | max | eyes avg | scale | CPU avg | frame p99 |", "|---|" * 1 + "---|" * 9]
+    md += [f"| {n} | {k} | " + " | ".join(f"{v:.2f}" for v in vals) + " |" for n, k, vals, _ in rows]
+    cols = [p for p in GPU_PASSES if any(ph[p] >= 0.02 for _, _, _, ph in rows)]
+    md += ["", "| scenario | " + " | ".join(cols) + " |", "|---|" + "---|" * len(cols)]
+    md += [f"| {n} | " + " | ".join(f"{ph[p]:.2f}" for p in cols) + " |" for n, _, _, ph in rows]
+    (Path(root) / "gpu.md").write_text("\n".join(md) + "\n")
+    print("\n".join(md))
+
+
 def manifest(root):
     path = Path(root) / "manifest.txt"
     return dict(l.split(" ", 1) for l in path.read_text().splitlines() if " " in l) if path.exists() else {}
@@ -899,6 +924,8 @@ def main():
     v.add_argument("root")
     br = sub.add_parser("brief")
     br.add_argument("json")
+    gp = sub.add_parser("gpu", help="the GPU benchmark's tables: the GPU frame's percentiles and each pass (gpu.md)")
+    gp.add_argument("root")
     lr = sub.add_parser("loads", help="the loading scenarios' loads by phase, and every scenario's marks")
     lr.add_argument("root")
     a = p.parse_args()
@@ -939,6 +966,8 @@ def main():
             extra += f"; {len(r['marks'])} marks, worst {worst['label']} {worst['max_ms']:.2f} ms"
         print(f"{r['frames']} frames on {r['map'] or '-'}: frame p50 {f['p50']:.3f} p99 {f['p99']:.3f} max {f['max']:.2f}, "
               f"cpu {c['avg']:.3f}, gpu 3D {g['avg']:.3f} ms; start {n}{extra}")
+    elif a.cmd == "gpu":
+        gpu_report(a.root)
     elif a.cmd == "loads":
         print(marks_report(a.root))
         print(loads_report(a.root))
