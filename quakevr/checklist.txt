@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+No first-use hitches: in AD Tears and Sepulcher, turning to a new monster kind, walking past a gun on the floor, and the first moment after loading a save don't hitch; monster animation looks exactly as before (Debug > Profiling and Memory > Load Prewarm to compare)
 Perf round: the calibration room's setting-button screens and the hub's SELECTED and Continue screens still update; catching an ogre's grenade still works (its search now only runs while a fuse burns: untested by the mock); AD Sepulcher and Tears load a little faster with the same crates in the same places
 Nail pistol (scene nailpistol): grip in the palm, the index finger in the guard on the trigger (moved down and left; was riding high); aim down the sights: front post in the rear notch, the nails land on it (zeroed at 10 m); one shot per pull, as fast as you pull; kick, flash, slide, smoke; punchy sound? {test:nailpistol}
 Nail pistol magazine: empty, the slide stays back; B/Y drops the magazine; one from the pouch slapped up into the grip seats; the pouch shows the pistol's magazines {test:nailpistol}
