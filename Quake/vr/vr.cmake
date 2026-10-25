@@ -77,6 +77,13 @@ if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 else()
 	target_compile_options(ironwail PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>")
 endif()
+# The precompiled header (vr_pch.hpp: the libraries and engine headers nearly every VR file includes), forced into the
+# target's C++ files (the VR module's; the engine is C). -DQVR_PCH=OFF builds without it: a file that uses a header it
+# doesn't include fails there (Misc/quakevr/check_nopch.sh).
+option(QVR_PCH "Quake VR: the VR module's precompiled header (Quake/vr/vr_pch.hpp)" ON)
+if (QVR_PCH AND NOT CMAKE_VERSION VERSION_LESS 3.16)
+	target_precompile_headers(ironwail PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_LIST_DIR}/vr_pch.hpp>")
+endif()
 # The menu (vr_menu.cpp and its page groups, vr_menu_pages_*.cpp): only what is marked inline is inlined (clang-cl /Ob1,
 # clang -finline-hint-functions, gcc -fno-inline-functions). Its thousands of page builders and helpers were the
 # inliner's work and the build's long pole; it is UI code (quakevr.props, the same).
@@ -88,6 +95,9 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	set_property(SOURCE ${QVR_MENU_SRC} APPEND PROPERTY COMPILE_OPTIONS "-fno-inline-functions")
 endif()
+# They don't use the precompiled header: it is built with the usual inlining, and clang refuses a PCH whose inlining
+# differs ("Inlining differs in precompiled file").
+set_source_files_properties(${QVR_MENU_SRC} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
 # Box3D (external/box3d/README.md): the rigid-body physics library (vr_box3d.cpp), C17, run on the engine's job pool.
 # No FMA contraction on gcc and clang: Box3D's cross-platform determinism relies on it.

@@ -88,6 +88,18 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     <QvrLto>true</QvrLto>
     <QvrLto Condition="'$(QvrNoLto)'=='1' or '$(QvrNoLto)'=='true'">false</QvrLto>
   </PropertyGroup>
+  <!-- The VR module's precompiled header (Quake/vr/vr_pch.hpp): created by vr_pch.cpp, forced into every other Quake/vr
+       .cpp (/Yu with /FI): the libraries and engine headers nearly every file includes, parsed once. QvrNoPch=1 (msbuild
+       -p:QvrNoPch=1) builds without it, in folders of its own (nopch\ under the usual ones): there a file that uses a
+       header it doesn't include fails (Misc/quakevr/check_nopch.sh). -->
+  <PropertyGroup>
+    <QvrPch>true</QvrPch>
+    <QvrPch Condition="'$(QvrNoPch)'=='1' or '$(QvrNoPch)'=='true'">false</QvrPch>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(QvrPch)'!='true'">
+    <IntDir>$(IntDir)nopch\</IntDir>
+    <OutDir>$(OutDir)nopch\</OutDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy')">
     <ClCompile>
       <!-- Optimised for speed, inlining across functions more (/Ob3), without the security checks. -->
@@ -114,18 +126,31 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <!-- C++23: /clang:-std=c++23, as clang-cl's /std:c++latest is C++26 (the standard library sees C++23 either way:
            clang-cl sets _MSVC_LANG to 202004L, which the STL counts as C++23; Zancle's Config.hpp reads __cplusplus). -->
       <AdditionalOptions>/clang:-std=c++23 %(AdditionalOptions)</AdditionalOptions>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(QvrPch)'=='true'">Use</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(QvrPch)'!='true'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile Condition="'$(QvrPch)'=='true'">vr_pch.hpp</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile Condition="'$(QvrPch)'=='true'">$(IntDir)vr_pch.pch</PrecompiledHeaderOutputFile>
+      <ForcedIncludeFiles Condition="'$(QvrPch)'=='true'">vr_pch.hpp</ForcedIncludeFiles>
       <!-- No exceptions (docs/vr-port/CODE_STYLE.md): the module and Zancle (zancle.vcxproj) are built without them. -->
       <ExceptionHandling>false</ExceptionHandling>
     </ClCompile>
     <!-- The menu (vr_menu.cpp and its page groups, vr_menu_pages_*.cpp): only what is marked inline is inlined (/Ob1,
          after the Release /Ob3). Its thousands of page builders and helpers were the inliner's work and the build's
          long pole; it is UI code, built once a page is shown (docs/vr-port/ROUND22.md, "Build speed, round 2"). -->
+    <ClCompile Update="..\..\Quake\vr\vr_pch.cpp">
+      <PrecompiledHeader Condition="'$(QvrPch)'=='true'">Create</PrecompiledHeader>
+    </ClCompile>
+    <!-- Without the precompiled header (built with /Ob3: clang refuses a PCH whose inlining differs, as clang 23 on
+         Linux already does; vr.cmake the same). -->
     <ClCompile Update="..\..\Quake\vr\vr_menu.cpp">
       <AdditionalOptions>%(AdditionalOptions) /Ob1</AdditionalOptions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles></ForcedIncludeFiles>
     </ClCompile>
     <ClCompile Update="..\..\Quake\vr\vr_menu_pages_*.cpp">
       <AdditionalOptions>%(AdditionalOptions) /Ob1</AdditionalOptions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles></ForcedIncludeFiles>
     </ClCompile>
     <ClInclude Include="..\..\Quake\vr\*.h;..\..\Quake\vr\*.hpp" />
     <!-- The precompiled header's own compile (/Yc) misses LanguageStandard_C (the ClangCL toolset leaves it out of that
