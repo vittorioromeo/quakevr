@@ -22181,3 +22181,85 @@ to both hands the same way, a higher one aims lower). At 17 the migrated 60 / 30
 -61.12, off -60.06). Configs at 7 are untouched. Tests: synthetic 202 configs (7: 70 / 40.25 unchanged; 17: 60 / 30.25, 7),
 `vr_np_test 5` PASS, `menu_vr links` 40 links, 0 failed, `vr_menu_path_check maps/vrcalibration.map` 0 missing, eval.sh no
 verdict changes.
+
+## Flare gun: the weapon (worktree `goreflesh`, branch `agent/flaregun`, 2026-10-26)
+
+The approved art (above, "Flare gun: the art") made a weapon, after the nail pistol's patterns, to his spec
+(`qvr-kit/scratch/spec_revolver_flaregun.md`, FLARE GUN). Code: `QC/vr_flaregun.qc` (its header says it all),
+`QC/vr_flaregun_test.qc`, the flare lights in `Quake/vr/vr_emissive.cpp`.
+
+- **Ids:** `WID_FLAREGUN` 30 (`WID_LAST` 30), `IID_FLAREGUN` 60, `HIP_IT_FLAREGUN` (hipnotic bit 22: only 23 is left
+  under float precision, for the revolver), weapon settings slot 37 (cvars `_38`; `vr_wofs_version` 66 resets the slot:
+  `takeFlareGun66`), `modelmeta::Id::VFlareGun`, `VrFlare`. QC tables (`vr_weaponutil.qc`: model, `AID_NONE`, throw
+  numbers, "Flare Gun", no reload, clip 2), item tables, stealth loudness 600, gun prep, the toolgun's Weapons page,
+  the sight table (rear 1.15 0 6.132, front 11.75 0 6.132), FGDs (`weapon_flaregun`, weapon 30 in
+  func_weapon_grabbable's and the dispenser's lists). Not in the weapon cycle nor impulse 9 (a disposable gun lives in
+  hands and holsters only, as the enemy guns).
+- **The gun:** disposable; its clip (the weapon record's `wi_clip`) is its only ammo: two flares, the top barrel's
+  first, then the bottom's, a shot a pull (`vr_flaregun_cooldown` 0.3 s), then a dry click. Spent, it is thrown away as
+  a spent enemy gun (`VR_Weapon_Spent`: no loot beam, no force grab). Its ammo counter is its flares. **Skins** follow
+  the clip everywhere: in a hand and a holster the engine's (`weapons::drawnSkin` from the clip stats: no new network
+  data), lying about and in a grunt's hand QC's (`VR_FlareGun_Skin`). The bottom barrel's flare leaves 2.3 model units
+  under the muzzle anchor along the gun's up, at the slot's Scale (`VR_FlareGun_Muzzle`).
+- **Its shot:** id's grenade launcher thump pitched up (122%) and the rocket's whoosh quieter (140%), no new sound files
+  (`vr_flaregun_volume`); kick (Recoil 1, strength 1, 0.15 s), flash 0.8, a 0.1 s haptic, gun smoke, a wisp from the
+  fired barrel after.
+- **A flare** (`vr_flare`, `progs/vr_flare.mdl`; its skin its state for the client: 0 flying, 1 stuck, 2 drifting):
+  flies at `vr_flaregun_speed` 1300 with `vr_flaregun_gravity` 0.3. Into a monster, player, corpse or crate:
+  `vr_dmg_flaregun` 10 (a monster's flare 6) and **set on fire** (`VR_Burn_Ignite`, as a lava nail; `vr_flare_burn` 1);
+  an **explosive box goes off** (its health in damage: a burning flare in it); the flare drops at its feet and burns
+  there. Into the world: **sticks** (lying flat on a floor, its cap out of a wall or ceiling) for `vr_flare_stick_time`
+  25 s; a door or a lift: drops off. Fired at least `vr_flare_air_pitch` 35 degrees up: at the top of its climb it
+  **drifts down** at `vr_flare_air_fall` 20 u/s, swaying a little, for `vr_flare_air_time` 15 s; landing, it lies
+  burning out the rest. Its last 1.5 s fade (its alpha). A burning hiss (`ambience/fire1.wav` looped on it; started
+  again after a load with the crackles). Sky: gone.
+- **Lights and sparks (client):** the nearest `vr_flare_lights` 4 flares lit (a drifting one counts a tenth of its
+  distance: the wide light first), a flickering sputtering signal red, radius 170 flying, 300 stuck, 640 drifting
+  (`vr_flare_light` 1 scales); drifting ones may take a dlight shadow. Every flare within 1800 units throws sparks
+  (hotTrail sparks) and smoke (`vr_flare_sparks` 1). The flare model is lit by its own fire (`VR_AliasLightModifier`).
+  **Cost** (ThinLTO, exclusive, the dark hall, 3 flares: one stuck, one lying, one drifting): CPU busy 0.72 -> 0.74 ms,
+  GPU 0.74 -> 0.75 ms with lights and sparks on against both off (dlight shadows 0.03 ms); sparks alone below noise.
+- **Found on crates:** `vr_crate_flaregun` 0.05 (the chance a crate's top with no crowbar gets a loaded flare gun),
+  `vr_crate_flaregun_max` 2; the crowbars' plan and fitting (`vr_crates.cpp planFlareGuns`, its own random numbers from
+  the map's name and `vr_crates_seed`: the crates and crowbars the same whatever its chance; kept with the plan). No
+  builtin numbers were left: `cratecrowbar(i)` now returns 2 for a flare gun (the crowbar's QC checks 1).
+  `weapon_flaregun` lies where a map places it.
+- **Armed grunts:** usable everywhere, class GUN (a flare an attack), never one of a pair. `vr_agrunt_flaregun` 0.1:
+  one from the pool (or a replacement, from its seed's next number) holding one weapon carries a flare gun **first**:
+  its own weapon stowed (record and reserve kept), it fires its two flares (at you: a little lobbed for the drop),
+  throws the spent gun away, and takes its own (`VR_AG_DrawMain`; also when the flare gun is knocked out or yanked);
+  dying with it stowed, both drop. Shared paths: `W_FireFlareGun` (the clip the grunt's own, as every gun's).
+- **Menus:** Combat > Weapon Damage: the Flare Gun rows (damage, speed, arc, set on fire, the stuck and air times,
+  sink speed, the air angle, lights, light size, sparks); Physics > Crates: Flare Gun on Crates, Most Flare Guns;
+  Armed Grunts: Flare Gun First; Debug > Tests: Flare Gun (a pickup), and a Flare Gun section (in your hand, in both,
+  the holsters, the flares' scene, the self-test, the muzzles' test). `vr_flare_test 9`: the scene with the map's
+  lights out (lightstyle 0).
+- **Starting grip:** the nail pistol's keys with Offset X -0.25, Z +0.3 (the fist round the grip's middle, the
+  30-degree grip; eyeshot side view) and Span 28, Balance 10 for the longer barrels: for him to tune in VR.
+- **His art change (2026-10-26):** the barrels half as long again (5.4 -> 8.1 units: `MUZZLE_X` 10.5), the front
+  sight and the fired skins' soot with the muzzles; regenerated (build_flaregun.py: the .blend was never hand-edited),
+  re-exported, re-rendered (`renders/three_quarter.png`, `side.png`, `sights.png`, `skins.png`, `compare_mockup.png`,
+  `scale_vs_nailpistol_shotgun.png`); the muzzle anchor 12 0 4.532, the sight table's front 11.75 0 6.132 (README).
+  `vr_sight_check`: the shot line 0.13 degrees off the sight line (Shot Pitch 0.28: 0.08 degrees at 10 m).
+
+**Tests** (fast mode, definite ends): `vr_flare_test 1` ("flaretest: N passed, M failed"): 20 passed on vrtesthall and
+on e1m1: one flare a pull (held 0.4 s), top then bottom barrel, a dry third, the skins 0/1/2 and the counter, a spent one
+lying depleted; a grunt struck (30 -> 17) and on fire; a crate on fire; an explosive box set off; a flare stuck 2.01 s
+(`vr_flare_stick_time` 2), fading at 1.0 s (alpha 0.65); one fired up drifting from the top of its climb, sinking 20.0
+u/s, out at 2.99 s (`vr_flare_air_time` 3); a pooled armed grunt with a flare gun first; one given it: its two flares
+(skins 1, 2), the spent gun thrown away (depleted), its own weapon then. `vr_flare_test 5` ("flaremuzzle"): 5 passed:
+the first flare from the muzzle anchor (0.00 units), the second 1.04 units under it along the gun's up (want 1.035),
+both 0.14 degrees off the shot line. `vr_flare_test 7` (before a map; `vr_place_keep 0`): the crates' flare guns
+listed, the map restarted and planned again: the same three guns on e1m1, all on crates ("flarecrates: PASS").
+`vr_np_test 1` 17/0; eval.sh 36/44 and 163/171, no verdict changes. Eyeshots looked at: held (behind, side), the flares'
+scene in the hall and in the dark (the floor and walls lit red, the air flare's wide light).
+
+**In VR:**
+- [ ] The flare gun in hand {test:flaregun}: the fist round the grip, the finger on the trigger; down the sights the brass blade in the rear notch; tune its grip (Weapon Offsets) if it sits wrong.
+- [ ] Fire both flares: a pull each, the top barrel first, then the bottom; the kick and thump; its muzzles sooted (top, then both); a third pull clicks; throw it away.
+- [ ] A flare into a grunt sets it on fire; into an explosive box blows it up; into a crate sets it burning.
+- [ ] A flare into a wall sticks there burning red, flickering, sparking and smoking, for about 25 s; in a dark room it lights it.
+- [ ] Fire one straight up: it drifts down slowly, lighting a wide area red, for about 15 s.
+- [ ] Flare guns lie on some crates' tops (Physics > Crates: Flare Gun on Crates 1 to see many).
+- [ ] An armed grunt with a flare gun (Armed Grunts > Flare Gun First 1) fires two flares at you, throws it away and takes its own weapon.
+- [ ] Holster it (hip, upper) and draw it, loaded and half-fired {test:flaregun}.

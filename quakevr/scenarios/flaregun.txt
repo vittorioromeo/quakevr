@@ -1,0 +1,16 @@
+# flaregun: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The flare gun as a weapon
+# (QC vr_flaregun.qc): one in your hand and one lying ready, a grunt, a crate and an explosive box to set on fire, the
+# wall ahead to stick flares in, and an armed grunt from the pool far off with a flare gun first (vr_agrunt_flaregun 1).
+# Loaded and half-fired ones in the holsters: Debug > Tests > Flare Guns in the Holsters.
+title Flare gun: set on fire, stick in walls, drift down; armed grunts with one
+map vrtesthall
+god
+cvar vr_agrunt_flaregun 1
+cvar vr_agrunt_dual_chance 0
+give "Flare Gun" main
+spawn "Flare Gun" 48 -24
+spawn "Grunt" 240 60
+spawn "Wooden Crate" 200 -40
+spawn "Explosive Box" 260 -110
+spawnarmed monster_vr_grunt 0 0 560 140
+hint Two flares, the top barrel first: into the grunt, the crate or the box (they burn, it blows up); into the far wall (it sticks there burning red); straight up (it drifts down lighting the hall). Spent: throw it away, take the one on the floor. The armed grunt far off fires its flare gun first, then takes its own weapon.
