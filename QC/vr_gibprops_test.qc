@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_gibprops_test.qc -- every monster's head and gibs are Quake VR's props (docs/vr-port/ROUND22.md, "Gib props"):
 // `vr_gibprops_test <n>` (Debug > Gore Tests > Gib Props), on the newest monster (the debug spawner's: vr_test_spawn N
 // with impulse 241). One "gibprops:" line each (bprint). After AD's files: it counts AD's own gibs left AD's.
@@ -215,3 +216,4 @@ void() VR_GibProps_TestFrame =
         bprint(sprintf(" carry %g hp %g at %v\n", h.carry_player != world, h.vr_gib_hp, h.origin));
     }
 };
+#endif

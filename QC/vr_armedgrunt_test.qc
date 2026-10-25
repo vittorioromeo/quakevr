@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_armedgrunt_test.qc -- the armed grunts' tests (vr_armedgrunt.qc; ROUND22.md, "Armed grunts"). `vr_agrunt_test N`
 // (Debug > Tests > Armed Grunts), in an open map (vrtesthall), the player kept alive (his health topped up):
 // - 1: every weapon in turn: an armed grunt with it ahead (a melee one at arm's length, an explosive one far), the
@@ -1455,3 +1456,4 @@ void() VR_AGTest_Frame =
         cvar_set("vr_agrunt_test", "0");
     }
 };
+#endif

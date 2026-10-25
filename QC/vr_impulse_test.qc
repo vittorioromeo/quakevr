@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Quake VR's single-player test and debug impulses (ImpulseCommands calls VR_TestImpulse first, outside
 // deathmatch and coop). TRUE: the impulse is handled, ImpulseCommands returns (as each did when it lived there);
 // FALSE: ImpulseCommands goes on. Each block keeps its place in the old order.
@@ -674,3 +675,4 @@ float() VR_TestImpulse =
 
     return FALSE;
 };
+#endif

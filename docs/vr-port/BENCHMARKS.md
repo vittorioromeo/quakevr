@@ -815,7 +815,7 @@ After (`gb_after_ultra_fixed`, the whole set again an hour later; GPU frame p99 
 
 **Proposals** (not built; estimates from the tables):
 1. The spectator camera at 2880x1620 is the largest optional cost (0.45-1.3 ms a frame, its frames twice that):
-   skip it while the window is minimized (all of it then); his scale 1.0 would save about half of it; or draw it on
+   skip it while the window is minimized (all of it then; done: `vr_spectator_skip_hidden`, below); his scale 1.0 would save about half of it; or draw it on
    a frame the eyes leave room in.
 2. The heat haze's copy of the scene (0.1-0.13 ms an eye in fights with fire, half the haze's cost): the union of the
    hot spots' boxes is copied at full size; copying each box apart where they are few and far apart, and one copy
@@ -826,6 +826,43 @@ After (`gb_after_ultra_fixed`, the whole set again an hour later; GPU frame p99 
    work (1,600 model set-ups a frame) are the next; the world's shading is already once a pixel.
 5. A runtime-side check in the headset: VD's overlay (its "GPU" and "game" latency) at Ultra with this build, and
    `vr_profile 2`'s wrist panel during a fight, to see the share VDXR and the encoder take on top of these numbers.
+
+### Spectator camera: skipped while minimized, and its scale (2026-10-25)
+
+Worktree `tghost`, branch `agent/specsave` (ROUND22.md, "Spectator camera: skipped while the window is minimized").
+The GPU benchmark's set-up (his `ironwail.cfg` of 2026-10-25 through `gpu_settings.py`'s `gpu_fixed.cfg`: eyes
+2688x2784, 120 Hz paced in real time, exclusive, window 1920x1080, `vr_spectator_rate 60`), ThinLTO build 37aacb6ee,
+3 x 900 frames each, medians; ms; GPU = `gpu_3d_ms` (the eyes, the spectator camera and the window pass); spectator =
+its `gpu_phase_ms` average a frame. Variants appended to the settings: minimized = `vr_debug_window minimize` (the
+real window, SDL_MinimizeWindow); hidden = `vr_debug_window_hidden 1` (the emulation: the same skip, the test window
+left as it is); scales with the window visible. Results `kit/benchresults/specsave_<vis15|min15|hid15|vis10|vis075>`;
+scripts `scratch/specbench/` (`run_all.sh`, `table.py`).
+
+| scenario | window, scale | GPU p50 | p95 | p99 | max | spectator avg |
+|---|---|---|---|---|---|---|
+| combined | visible, 1.5 | 8.10 | 10.02 | 10.98 | 12.06 | 1.27 |
+| combined | minimized, 1.5 | 6.56 | 7.76 | 8.83 | 10.34 | 0.00 |
+| combined | hidden (emulated), 1.5 | 7.03 | 8.85 | 9.94 | 11.37 | 0.00 |
+| combined | visible, 1.0 | 7.82 | 9.57 | 10.77 | 11.93 | 0.76 |
+| combined | visible, 0.75 | 7.50 | 9.92 | 11.04 | 11.51 | 0.55 |
+| fight_ad_tears | visible, 1.5 | 2.78 | 4.06 | 4.31 | 4.84 | 0.56 |
+| fight_ad_tears | minimized, 1.5 | 2.26 | 3.03 | 3.45 | 3.83 | 0.00 |
+| fight_ad_tears | hidden (emulated), 1.5 | 2.38 | 3.51 | 3.91 | 4.92 | 0.00 |
+| fight_ad_tears | visible, 1.0 | 2.67 | 3.72 | 4.63 | 5.11 | 0.37 |
+| fight_ad_tears | visible, 0.75 | 2.64 | 3.98 | 4.86 | 5.74 | 0.30 |
+| idle_e1m1 | visible, 1.5 | 2.48 | 2.55 | 3.03 | 3.57 | 0.44 |
+| idle_e1m1 | minimized, 1.5 | 1.63 | 2.13 | 2.42 | 2.77 | 0.00 |
+| idle_e1m1 | hidden (emulated), 1.5 | 1.62 | 2.08 | 2.46 | 2.72 | 0.00 |
+| idle_e1m1 | visible, 1.0 | 2.11 | 2.18 | 2.63 | 3.24 | 0.25 |
+| idle_e1m1 | visible, 0.75 | 1.98 | 2.33 | 2.71 | 3.45 | 0.19 |
+
+**What it says:**
+- **Minimized or hidden, the camera costs nothing** (spectator 0.00): GPU p50 0.4-1.5 ms lower, p95 0.4-2.3, p99
+  0.4-2.1. The real minimize gained more than the emulation in the fights (`combined` p50 6.56 against 7.03): the
+  window's present of a minimized window is cheaper too; `combined`'s run-to-run spread is about 0.4 ms.
+- **Scale**: the camera's cost goes with its pixels: 1.5 -> 1.0 (2.25 -> 1 times the window's pixels) cuts it 40%
+  (1.27 -> 0.76 in `combined`), 0.75 another 30% (0.55). Its p95/p99 move less than the averages (60 Hz camera frames
+  land on different frames each run).
 
 ### Frame spikes (2026-10-25)
 

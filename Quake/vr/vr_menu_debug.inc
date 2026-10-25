@@ -477,6 +477,13 @@ za::Vector<Item> pageDebugProfiling()
                   "program's: the menus' warning in the top right corner; in VR the mirror presented only "
                   "vr_mirror_unfocused_hz times a second (the headset's frames never slowed); on a flat screen the "
                   "background sleep."),
+        toggle("Act as if the Window Were Minimized", vr_debug_window_hidden)
+            .help("vr_debug_window_hidden 1: the game acts as if its desktop window were minimized: the Spectator "
+                  "Camera is skipped (Recording > Skip While the Window Is Minimized; the console says so with "
+                  "developer 1). vr_debug_window minimize, hide or show does it to the real window."),
+        command("Minimize the Window", "vr_debug_window minimize")
+            .help("vr_debug_window minimize: the desktop window really minimized (the taskbar brings it back; "
+                  "vr_debug_window show)."),
         cycle("Simulate Held Frames", vr_debug_frame_stall_ms, {{0.f, "Off"}, {40.f, "40 ms a Frame"}, {100.f, "100 ms a Frame"}})
             .help("vr_debug_frame_stall_ms: each frame's end waits this long, as if the runtime held the frames (the "
                   "100 ms frames of a VR drop): checks the held-frames lines in quakevr/qvr_openxr.txt (the foreground "
@@ -1147,11 +1154,16 @@ za::Vector<Item> pageDebugTools()
                   "model floats ahead at arm's reach, at the size it would be in your hand (a viewthing given the model: "
                   "until the map changes, player.mdl is drawn as it too). The scenario nailpistol_art adds the nailgun and "
                   "the shotgun beside it."),
+        command("Flare Gun Art", "vr_physics_spawn viewthing reach; viewmodel progs/vr_flaregun_preview.mdl")
+            .help("The disposable double-barrelled flare gun's art before it is a weapon (Misc/quakevr/models_src/flaregun/"
+                  "README.md): its preview model floats ahead at arm's reach, at the size it would be in your hand (a "
+                  "viewthing given the model: until the map changes, player.mdl is drawn as it too). The scenario "
+                  "flaregun_art adds the nail pistol and the shotgun beside it."),
         command("Heavy Revolver Art", "vr_physics_spawn viewthing reach; viewmodel progs/vr_revolver_preview.mdl")
             .help("The heavy revolver's art before it is a weapon (Misc/quakevr/models_src/revolver/README.md): its "
                   "preview model, six shells chambered, floats ahead at arm's reach at the size it would be in your "
                   "hand (a viewthing given the model: until the map changes, player.mdl is drawn as it too). The "
-                  "scenario revolver_art adds the shotgun and the nail pistol beside it."),
+                  "scenario revolver_art adds the shotgun beside it."),
         command("Heavy Revolver Art: Swung Out", "vr_physics_spawn viewthing reach; viewmodel progs/vr_revolver_preview.mdl; viewframe 1")
             .help("The same, its cylinder swung out on its crane (the chambered shells' heads showing); viewframe 2: "
                   "the hammer cocked, viewframe 0: back to rest."),

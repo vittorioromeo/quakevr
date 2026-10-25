@@ -342,7 +342,9 @@ float(entity e, entity xBy) VR_Knockdown_ZombieFall; // (a zombie's own fall as 
 float(entity e, entity xBy, vector xDir, float xDamage, float xHead) VR_HitStagger_Melee;
 float(entity e, vector xAt) VR_HitStagger_Head;
 float(entity e, entity xBy, vector xDir, float xMass, float xSpeed, float xDamage) VR_HitStagger_Throw;
+#ifdef QVR_TESTS
 void(float xMode) VR_HitStagger_Test;
+#endif
 // Situational knockdowns (vr_kdtrig.qc): a hit on a living humanoid by stairs, a ledge, on a slope, a close shotgun
 // blast, a wounded one: it may go down as an active ragdoll.
 float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit;
@@ -352,7 +354,9 @@ void() VR_KdTrig_Frame;
 .float vr_kd_shaken;
 void(entity e) VR_Manhandle_Shaken;
 float(entity p, float xSpeed, float xOnGround) VR_RagImpact_Crush;
+#ifdef QVR_TESTS
 void(float xMode) VR_RagImpact_Test;
+#endif
 void(entity m, float xFor, string xWhat) VR_Knockdown_Keep; // (vr_knockdown.qc: a hit, a stomp, a hand keeps one down)
 float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
 float(entity e, float xHand, vector xAt) VR_Decap_Saw;
@@ -371,8 +375,10 @@ float(entity m, entity xAxe) VR_Dismember_Thrown;
 float(entity targ, entity xThing, entity by, float xDamage) VR_Dismember_ThrownArm;
 float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_QuadArm;
 float(entity e) VR_Decap_Roll;
+#ifdef QVR_TESTS
 void() VR_Decap_TestFrame;
 void() VR_Limb_TestFrame;
+#endif
 void() VR_Decap_ZombieDie;
 
 // The monsters' death code (their th_die), to know what gibs they make.
@@ -1728,7 +1734,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     if(targ.health <= 0)
     {
-        if(isVRMelee)
+        if(isVRMelee && (targ.flags & FL_MONSTER)) // (enemies only: never crates, props or breakables)
         {
             // VR melee takedown
             if(getVRMeleeBloodlust() == QVR_MELEEBLOODLUST_ENABLED)
@@ -1749,7 +1755,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     }
     else
     {
-        if(isVRMelee)
+        if(isVRMelee && (targ.flags & FL_MONSTER)) // (enemies only)
         {
             // VR melee damage
             if(getVRMeleeBloodlust() == QVR_MELEEBLOODLUST_ENABLED)
@@ -3021,4 +3027,6 @@ void(entity attacker, float damage) T_BeamDamage =
 // The tests' target (the engine's vr_ragdoll_act, vr_ragtest.cpp: the nearest monster of a kind it supports, set by
 // VR_TestOnly for the length of one test call): world, the nearest as each test finds it. VR_TestKill_Frame,
 // VR_TestHit_Frame, VR_Limb_TestTarget (vr_test_cut) and VR_Knockdown_Test take it instead of their nearest.
+#ifdef QVR_TESTS
 entity vr_test_only;
+#endif

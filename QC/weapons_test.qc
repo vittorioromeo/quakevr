@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // weapons's test harness (moved out of weapons.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -672,3 +673,4 @@ void() VR_Throw_TestUp =
     dprint(sprintf("throw test: %s thrown up from %v at %.1f m/s; your health %.0f\n", prop.classname, prop.origin,
         cvar("vr_test_throw_up_speed"), self.health));
 };
+#endif

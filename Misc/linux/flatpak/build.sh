@@ -14,8 +14,8 @@ here=Misc/linux/flatpak
 jobs="${FLATPAK_BUILDER_N_JOBS:-$(nproc)}"
 
 echo "== QuakeC (fteqcc)"
-# QC/build.sh's compile without its checks (TrenchBroom FGD, operator precedence: the Windows build runs them).
-(cd QC && fteqcc -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208 \
+# QC/build.sh's compile (the release flavour: no QC tests, -DQVR_NO_TESTS) without its checks (TrenchBroom FGD, operator precedence: the Windows build runs them).
+(cd QC && fteqcc -DQVR_NO_TESTS -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208 \
     > ../qc-build.log 2>&1) || { tail -40 qc-build.log; echo "QC compilation failed"; exit 1; }
 test -f quakevr/progs.dat || { echo "no quakevr/progs.dat after the QC compile"; exit 1; }
 

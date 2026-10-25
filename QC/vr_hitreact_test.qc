@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_hitreact's test harness (moved out of vr_hitreact.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -108,3 +109,4 @@ void(entity pl, entity best, float part) VR_TestHit_One =
     VR_ClearHitKind();
     vr_hitpart_target = world;
 };
+#endif

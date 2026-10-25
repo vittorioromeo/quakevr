@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Dawn of the Machine's Chthon tests, M3-24/25 (vr_mg3_ctest N, developer 1; Debug > Tests > Dawn of the Machine: Chthon):
 // docs/vr-port/MG3.md, docs/vr-port/TESTING.md. Prints "mg3ctest: PASS/FAIL <what>" and a total.
 //   1 report: the data, this map's Chthon (his phase, health, fits), the second arena's points, the boss teleport,
@@ -521,3 +522,4 @@ void() MG3_ChthonTestFrame =
     }
     self = oldself; other = oldother; activator = oldact;
 };
+#endif

@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_decap's test harness (moved out of vr_decap.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -719,3 +720,4 @@ void() VR_Decap_TestFrame =
     VR_Decap_Test(ask);
     self = oself;
 };
+#endif

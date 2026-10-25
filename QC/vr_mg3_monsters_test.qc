@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Dawn of the Machine monsters' tests (vr_mg3_mtest N, developer 1; Debug > Tests > Dawn of the Machine Monsters):
 // docs/vr-port/MG3.md M3-15..18, docs/vr-port/TESTING.md. Prints "mg3mtest: PASS/FAIL <what>" and a total.
 //   1 report: the data, the map's Dawn of the Machine monsters by kind, the kills
@@ -524,3 +525,4 @@ void() MG3_MonstersTestFrame =
     else if(request == 7) { mg3mt_step = 40; mg3mt_next = time; }
     self = oldself; other = oldother; activator = oldact;
 };
+#endif

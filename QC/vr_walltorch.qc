@@ -1009,7 +1009,9 @@ void() VR_WallTorch_Setup =
 // vr_test_fling_speed m/s. 21: a lightning bolt at it (LightningDamage, as W_FireLightning). 22: a blast at it
 // (T_RadiusDamage, as a rocket's or a grenade's). -1 (the default) asks for nothing. With developer 1 it prints what
 // it did (walltorch:).
+#ifdef QVR_TESTS
 entity(float xKind, vector xAt) VR_Test_Fire; // (weapons.qc)
+#endif
 void(vector p1, vector p2, entity from, float damage) LightningDamage; // (weapons.qc)
 float VR_WALLTORCH_TEST_THROW = 20;  // the kind that throws a prop instead of firing a gun
 float VR_WALLTORCH_TEST_BOLT = 21;   // a lightning bolt along the line from your eyes to it
@@ -1018,5 +1020,7 @@ float VR_WALLTORCH_TEST_REACH = 1024; // how near a wall torch it will take
 float VR_WALLTORCH_TEST_PROPS = 512;  // how near a loose prop to throw
 float VR_WALLTORCH_TEST_BLAST_RADIUS = 150; // a rocket's (weapons.qc T_MissileTouch)
 
+#ifdef QVR_TESTS
 entity vr_wt_test_target, vr_wt_test_missile;
 float vr_wt_test_until, vr_wt_test_blood, vr_wt_test_kind;
+#endif

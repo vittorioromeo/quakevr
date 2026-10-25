@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // `vr_pickup_test <n>` (Debug > Tests > Weapon Pickups): the map's weapons drawn as their props
 // (vr_pickup_prop_models, VR_WeaponPickup_SetModel). Single player only.
 // 1 every weapon pickup there is (the mission pack's when it is loaded) spawned in rows of five ahead of you, each
@@ -359,3 +360,4 @@ void() VR_PickupTest_Frame =
     }
     self = oself;
 };
+#endif

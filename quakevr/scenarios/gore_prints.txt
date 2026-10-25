@@ -1,0 +1,13 @@
+# gore_prints: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Calm grunts to behead and gib (a sword and a super shotgun), a crate and the wall for handprints
+map vrtesthall
+god
+notarget
+give "Knight's Sword" main
+give "Super Shotgun" off
+cmd impulse 9
+spawn "Grunt" 70 -60
+spawn "Grunt" 90 40
+spawn "Grunt" 160 120
+spawn "Wooden Crate" 60 140
+hint Behead a grunt, gib one, grab a gib, then walk out of the blood pool and press a bloody palm on the crate and the wall

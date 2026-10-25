@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Tests of Arcane Dimensions' rules outside and inside its maps (docs/vr-port/ARCANE_DIMENSIONS.md, section 16):
 // vr_ad_test 10 and up (Debug > Tests > Arcane Dimensions), in any map while AD's data is installed. Each prints one
 // "adrules:" line; scratch scripts compare them.
@@ -553,3 +554,4 @@ void(float request, entity p) AD_RulesTest =
     }
     bprint(sprintf("adrules: unknown test %g\n", request));
 };
+#endif

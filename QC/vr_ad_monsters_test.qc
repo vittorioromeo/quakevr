@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Arcane Dimensions' monsters' tests (vr_ad_mtest N, developer 1; Debug > Tests > Arcane Dimensions Monsters):
 // docs/vr-port/ARCANE_DIMENSIONS.md section 17. One "admtest:" line each. With the debug spawner (vr_test_spawn 200..,
 // impulse 241: vr_ad_monsters.qc VR_AD_DispenserSpawn) and the other tests' commands (vr_knockdown_test, vr_decap_test,
@@ -141,3 +142,4 @@ void() AD_MonstersTestFrame =
         }
     }
 };
+#endif

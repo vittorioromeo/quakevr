@@ -1970,6 +1970,37 @@ void screenshotFrames_f()
 {
     framesToShoot = Cmd_Argc() > 1 ? CLAMP(0, Q_atoi(Cmd_Argv(1)), 600) : 1;
 }
+
+// vr_debug_window minimize|hide|show: the desktop window really minimized, hidden or shown again (restored, without
+// taking the focus), as the player would; then the window's state and what windowNotVisible says. A test run's
+// window must be shown for it (run.sh -Visible); vr_debug_window_hidden 1 emulates it in a hidden one.
+void debugWindow_f()
+{
+    SDL_Window* w = static_cast<SDL_Window*>(VID_GetWindow());
+    const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(w && !q_strcasecmp(what, "minimize"))
+    {
+        SDL_MinimizeWindow(w);
+    }
+    else if(w && !q_strcasecmp(what, "hide"))
+    {
+        SDL_HideWindow(w);
+    }
+    else if(w && !q_strcasecmp(what, "show"))
+    {
+        SDL_SetHint(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN, "1");
+        SDL_ShowWindow(w);
+        SDL_RestoreWindow(w);
+    }
+    else if(*what)
+    {
+        Con_Printf("vr_debug_window minimize|hide|show\n");
+        return;
+    }
+    const Uint32 flags = w ? SDL_GetWindowFlags(w) : 0;
+    Con_Printf("vr_debug_window: %s%s, not visible %d\n", (flags & SDL_WINDOW_SHOWN) ? "shown" : "hidden",
+        (flags & SDL_WINDOW_MINIMIZED) ? ", minimized" : "", windowNotVisible() ? 1 : 0);
+}
 } // namespace
 
 extern "C" void VR_Init()
@@ -2023,6 +2054,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_restart", VR_Restart_f);
     Cmd_AddCommand("vr_screenshot_frames", screenshotFrames_f);
     Cmd_AddCommand("vr_debug_clock", debugClock_f);
+    Cmd_AddCommand("vr_debug_window", debugWindow_f);
     menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
     toolgun::registerCommands();
@@ -2368,10 +2400,11 @@ struct UnpacedSwap
     int skipped = 0;          // frames left unpresented (the timing log's mirror count, while unfocused)
 };
 UnpacedSwap unpacedSwap;
-// QVR_TEST_BACKGROUND, read once (windowUnfocused: every frame).
+// QVR_TEST_BACKGROUND and QVR_TEST_HIDDEN, read once (windowUnfocused, windowNotVisible: every frame).
 struct WindowFocusCache
 {
     bool testBackground = getenv("QVR_TEST_BACKGROUND") != nullptr;
+    bool testHidden = getenv("QVR_TEST_HIDDEN") != nullptr;
 };
 WindowFocusCache windowFocusCache;
 } // namespace
@@ -2396,6 +2429,22 @@ bool qvr::windowUnfocused()
     }
     // (A test run's window is hidden, never focused: as if it were, unless the debug cvar says otherwise.)
     return !windowFocusCache.testBackground && !VID_HasInputFocus();
+}
+
+bool qvr::windowNotVisible()
+{
+    if(vr_debug_window_hidden.value != 0.f)
+    {
+        return true;
+    }
+    SDL_Window* w = static_cast<SDL_Window*>(VID_GetWindow());
+    if(!w)
+    {
+        return false;
+    }
+    const Uint32 flags = SDL_GetWindowFlags(w);
+    // (SDL keeps SHOWN on a minimized window.)
+    return (flags & SDL_WINDOW_MINIMIZED) != 0 || ((flags & SDL_WINDOW_SHOWN) == 0 && !windowFocusCache.testHidden);
 }
 
 int qvr::presentsSkipped()

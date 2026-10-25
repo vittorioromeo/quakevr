@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // The melee arc test (vr_test_meleearc; Debug > Tests > Holding Enemies; Misc/quakevr/melee_arc_test.sh; ROUND22.md,
 // "Melee arc"): the nearest live monster is set D units from the player on its present side and set after him: mode 1
 // facing him, 2 facing away (its back to him), 3 facing him and, as its melee attack starts (its first frame: the
@@ -146,3 +147,4 @@ void() VR_MeleeArcTest_Frame =
         vr_mat_mode = 0;
     }
 };
+#endif

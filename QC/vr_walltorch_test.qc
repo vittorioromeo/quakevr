@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_walltorch's test harness (moved out of vr_walltorch.qc; ROUND22's QC cleanup: a pure move). Its globals and the
 // cvars it reads stay with the feature.
 
@@ -130,3 +131,4 @@ void() VR_WallTorch_TestShot =
         vr_wt_test_missile.velocity = dir * 800;
     }
 };
+#endif

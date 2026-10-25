@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // Destructive source-backed MG1 progression acceptance. Debug > Tests; reload after use.
 float MG1_H_pass, MG1_H_fail;
 .entity MG1_H_player;
@@ -292,3 +293,4 @@ void() MG1_H_TestFrame = {
     if(request == 1) MG1_H_Unit(); else if(request == 2) MG1_H_Puzzle(); else if(request == 3) MG1_H_Report(); else MG1_H_Route(request);
     self = oldself; other = oldother; activator = oldact;
 };
+#endif
