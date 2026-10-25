@@ -20919,3 +20919,78 @@ vr_mock_hand main 0.15 1.35 -0.35 0 90 0`), 60 6, 25 3: all PASS, each ended on 
 worst 14 deg, over 45 deg 0, muzzle over its head 104 (no tug in it: untouched by the change).
 - [ ] Grab an enforcer's gun and hold still: it holds on (no tear-out); pull: it comes out. Say whether its pull feels
   too abrupt next to a grunt's.
+## Build speed: no-LTO agent builds, ClangBuildAnalyzer, the precedence check (worktree `dequant`, branch `agent/stabledate`, 2026-10-25)
+
+**No-LTO quick builds (`-p:QvrNoLto=1`).** `quakevr.props` and `zancle.vcxproj` leave `-flto=thin` and the LTO link
+options out when `QvrNoLto` is 1 (or true); everything else (/O2 /Ob3 /Gw, the same folders) stays. The default
+(Visual Studio, CMake, the release script) is unchanged. Such a build appends " no-LTO" to `QVR_BUILD_VERSION` (console,
+crash reports) and `QVR_BUILD_INFO` (the menus' corner), and the header gets `#define QVR_BUILD_LTO 1` only for a
+ThinLTO Release/Release-Tracy build. `make_release.ps1` passes `-p:QvrNoLto=0`, stops when `QvrNoLto` is set in the
+environment (MSBuild reads it as a property), and after the build refuses an exe whose header lacks
+`QVR_BUILD_LTO 1`, that lacks the header's build info, or that holds " no-LTO". The only CI workflow is flatpak (Linux,
+CMake): QvrNoLto doesn't touch it. Releases come only from `make_release.ps1` (the default build); `ship_next.sh` builds
+integ with the kit's build.sh for its smoke test and publishes source only, so no-LTO is fine there. Switching between
+the flavours recompiles everything once (55-68 s).
+`QvrStableDate=1` (the build date "dev"; kept from the coordinator's edit) is in the same commit.
+
+Measured (Release x64, a shared 32-thread machine, three runs; a real edit appends a used function, since a touch alone
+leaves ThinLTO's cache valid and so relinks in 2-5 s either way):
+
+| change | ThinLTO | no-LTO |
+|---|---|---|
+| nothing changed | 1 s | 1-2 s |
+| `vr_held.cpp` edited | 27-31 s | 3-4 s |
+| `vr_menu.cpp` edited | 30-45 s | 21-32 s |
+| `vr_hands.hpp` edited (57 includers, vr_menu among them) | 41-58 s | 31-36 s |
+| full rebuild | 68 s | 55-58 s (45 s without the QC) |
+
+**ClangBuildAnalyzer** (Vittorio's fork, `C:\OHWorkspace\tools\ClangBuildAnalyzer`, built with VS2022's CMake;
+`build\Release\ClangBuildAnalyzer.exe`). A full no-LTO build of a `git archive` copy (`scratch/tt`, `/clang:-ftime-trace`
+added there only): 441 objects, frontend 494 CPU-s, backend 186 CPU-s.
+- Frontend: every VR file spends about 2.1 s parsing, half of it `vr_engine.hpp` (286 includes, 1.12 s each, 320 CPU-s in
+  all): `quakedef.h` 0.54 s (`windows.h` through `SDL_opengl.h` 0.38 s), `intrin.h` 0.41 s (glm's `<limits>`/`<cwchar>`
+  and `SDL_endian.h`). Templates are cheap (top set `glm::vec<>` 2 s over the whole build).
+- Backend: `vr_menu.obj` takes 22.8 s (the optimiser 12.8 s, 11.2 s of it the inliner, over 504 functions; the page
+  builders `pageDebugAutomation` 0.6 s, `pageDebugTests` 0.6 s), the next is `vr_particles.obj` 3.8 s. It is the full
+  build's long pole and the floor of every edit to one of the 56 VR headers it includes.
+- Slowest functions: `qvr::weapons::registerCvars` 0.93 s, `ragactive::drive` 0.62 s, the debug menu pages; sets:
+  `unordered_dense::table::increase_size` 0.45 s over 106 instantiations, `za::Vector::reserveImpl` 0.38 s over 121.
+
+Tried in the copy only, not applied:
+- A C++ precompiled header (`vr_engine.hpp`, force-included into every `Quake/vr/*.cpp`; 13 files with their own
+  `WIN32_LEAN_AND_MEAN`/`NOMINMAX` setup left out): frontend 494 -> 103 CPU-s, full build 45 -> 38 s, a one-file edit
+  about 1.5 s less. Not applied: a forced include hides a missing `#include "vr_engine.hpp"` from the MSBuild builds, and
+  the CMake/Linux builds would then fail. Only 78 of 296 files include `vr_engine.hpp` first (others start with glm,
+  Zancle or `<stddef.h>`), so a strict PCH (`/Yu` without `/FI`) needs a first include added to 218 files.
+- `vr_menu.cpp` alone at `/Ob1`: 19.5 -> 11.1 s (the inliner). It changes the menu's codegen in the release build, so it
+  stays a suggestion; splitting `vr_menu.cpp` into 3-4 files (debug pages, settings pages, the rest) would cut it to
+  about 6 s each, both for the full build (to about 25-30 s) and for the header edits above.
+Other options, smaller: `WIN32_LEAN_AND_MEAN` in `quakedef.h` (unsafe: 13 VR files define it themselves, and
+`-Werror,-Wmacro-redefined` fails them); `registerCvars` in `vr_weapons.cpp` (0.9 s, one table-driven loop instead
+of straight-line calls); an `extern template` for `ankerl::unordered_dense` / `za::Vector` over the common types (about
+1 CPU-s: not worth it).
+
+**The precedence check** (`Misc/quakevr/check_qc_precedence.py`). Its two `-Fwasm` compiles already ran side by side.
+qc.asm is 1.7 GB each, 98% of it each function's `local temp_N` listing (with or without `-Flo`/`-Olo`, so it isn't
+those flags; `-O0` shrinks it to 21 MB but compiles in 170 s). Now the listing is memory-mapped and each function's locals are
+skipped by one search for its first instruction line (latin-1 decoded: Quake's bytes one to one): the same functions
+and instructions as the line-by-line reader on both listings, 7.5 -> 2.5 s and 11.2 -> 3.6 s. Both compile+parse jobs
+run in their own processes (no longer serialised by the GIL). A planted `x = time && frametime` is still found (both
+compilers).
+
+| check | shipped fteqcc64.exe | patched fteqcc (`tools\fteqcc-build\p4`) |
+|---|---|---|
+| before | 53.6 s | 23.4 s |
+| after | 54.2 s | 5.8 s |
+
+With the shipped compiler the listing's write is the floor (about 50 s), so the kit's proposed build.sh runs the check
+beside the engine build (it doesn't depend on it): a forced check plus a no-op engine build took 52 s, the check alone
+54 s. The compiler-agnostic options left: comparing `progs.dat` without `-Fwasm` (two 9 s compiles; needs the temps
+identified from the def table, since their numbering differs between the two compiles); comparing only the functions
+of changed files does not help (the compile is the cost, and the progs is one unit).
+
+**Kit (proposed, not installed):** `C:\OHWorkspace\qvr-kit\scratch\buildspeed_build.sh.proposed` (Release builds pass
+`-p:QvrNoLto=1`; `build.sh <name> --lto` builds ThinLTO; the precedence check in the background beside MSBuild) and
+`buildspeed_run.sh.proposed` (`--exclusive` warns when the agent's Release exe holds " no-LTO", unless `-Debug`/`-Tracy`).
+Both tested on dequant: `--lto` gives `QVR_BUILD_LTO 1` and the release script's check passes; the no-LTO exe is refused
+and warned about.

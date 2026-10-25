@@ -79,7 +79,15 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <!-- Release: ThinLTO (the ClangCL toolset ignores WholeProgramOptimization and the MSVC linker's LTCG), its cache in
-       the intermediate folder so that a rebuild of one file re-optimises only what changed. -->
+       the intermediate folder so that a rebuild of one file re-optimises only what changed.
+       QvrNoLto=1 (msbuild -p:QvrNoLto=1: only the agents' quick builds, the kit's build.sh) leaves ThinLTO out, here and
+       in zancle.vcxproj, everything else the same: a one-file rebuild then relinks in seconds. Such a build says
+       "no-LTO" in its version and build info (QvrBuildVersion below), and the release script refuses it
+       (Misc/release/make_release.ps1). Switching between the two recompiles everything (the same folders). -->
+  <PropertyGroup>
+    <QvrLto>true</QvrLto>
+    <QvrLto Condition="'$(QvrNoLto)'=='1' or '$(QvrNoLto)'=='true'">false</QvrLto>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy')">
     <ClCompile>
       <!-- Optimised for speed, inlining across functions more (/Ob3), without the security checks. -->
@@ -88,7 +96,12 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <SDLCheck>false</SDLCheck>
       <FloatingPointModel>Precise</FloatingPointModel>
-      <AdditionalOptions>-flto=thin /Ob3 /Gw %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Ob3 /Gw %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy') and '$(QvrLto)'=='true'">
+    <ClCompile>
+      <AdditionalOptions>-flto=thin %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
@@ -203,6 +216,9 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <QvrBuildDirty Condition="'$(QvrGitExit)'=='0' and '$(QvrGitChanges)'!=''">1</QvrBuildDirty>
       <QvrBuildNumber Condition="'$(QvrGitExit)'!='0' or '$(QvrBuildNumber)'==''">0</QvrBuildNumber>
       <QvrBuildDate>$([System.DateTime]::Now.ToString('yyyy-MM-dd HH:mm'))</QvrBuildDate>
+      <!-- /p:QvrStableDate=1 (the agents' build.sh): no clock in the header, so a rebuild in a new minute doesn't
+           recompile vr_crash.cpp and relink the whole exe (~20 s with ThinLTO) when nothing else changed. -->
+      <QvrBuildDate Condition="'$(QvrStableDate)'=='1'">dev</QvrBuildDate>
     </PropertyGroup>
     <PropertyGroup>
       <QvrVersion Condition="'$(QvrGitExit)'=='0'">$(QvrGitCommit)</QvrVersion>
@@ -217,10 +233,17 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
       <QvrBuildStamp Condition="'$(QvrGitExit)'=='0' and '$(QvrBuildDirty)'=='1'">$(QvrBuildHash)+dirty</QvrBuildStamp>
       <QvrBuildInfo Condition="'$(QvrGitExit)'=='0'">$(QvrVersionShown) build $(QvrBuildNumber) ($(QvrBuildStamp)) $(QvrBuildDate)</QvrBuildInfo>
       <QvrBuildInfo Condition="'$(QvrGitExit)'!='0'">$(QvrVersionShown) build 0 (unknown) $(QvrBuildDate)</QvrBuildInfo>
+      <!-- A QvrNoLto build (above) says so wherever the build is shown (the menus' corner, the console, crash reports),
+           so it is never mistaken for a release; QVR_BUILD_LTO: 1 for a ThinLTO build (Release, Release-Tracy), else 0
+           (make_release.ps1 checks it). -->
+      <QvrLtoFlag>0</QvrLtoFlag>
+      <QvrLtoFlag Condition="'$(QvrLto)'=='true' and ('$(Configuration)'=='Release' or '$(Configuration)'=='Release-Tracy')">1</QvrLtoFlag>
+      <QvrVersion Condition="'$(QvrLto)'!='true'">$(QvrVersion) no-LTO</QvrVersion>
+      <QvrBuildInfo Condition="'$(QvrLto)'!='true'">$(QvrBuildInfo) no-LTO</QvrBuildInfo>
     </PropertyGroup>
     <MakeDir Directories="$(IntDir)" />
     <WriteLinesToFile File="$(IntDir)qvr_buildver.h" Overwrite="true" WriteOnlyWhenDifferent="true"
-                      Lines="#define QVR_VERSION &quot;$(QvrSemver)&quot;;#define QVR_VERSION_DEV $(QvrDev);#define QVR_BUILD_VERSION &quot;$(QvrVersion)&quot;;#define QVR_BUILD_NUMBER $(QvrBuildNumber);#define QVR_BUILD_INFO &quot;$(QvrBuildInfo)&quot;" />
+                      Lines="#define QVR_VERSION &quot;$(QvrSemver)&quot;;#define QVR_VERSION_DEV $(QvrDev);#define QVR_BUILD_VERSION &quot;$(QvrVersion)&quot;;#define QVR_BUILD_NUMBER $(QvrBuildNumber);#define QVR_BUILD_INFO &quot;$(QvrBuildInfo)&quot;;#define QVR_BUILD_LTO $(QvrLtoFlag)" />
     <Message Importance="normal" Text="Quake VR build $(QvrBuildInfo)" />
   </Target>
   <!-- Zancle's own sources (Quake/vr/external/zancle/README.md): a static library with its own settings (optimised,
