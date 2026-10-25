@@ -21286,3 +21286,41 @@ gives the same on two runs of three: the baseline's, not this change's.
 
 What's left of the backend: `vr_particles` 3.5 s, `vr_hull` 3.0 s, `image.c` 2.8 s, `vr_motion_review` 2.7 s,
 `vr_relight` 2.6 s; the Linux link.
+
+## Flare gun: the art (worktree `goreflesh`, branch `agent/flaregun-art`, 2026-10-25)
+
+Art only, no gameplay: the disposable double-barrelled flare gun's model and skin after Vittorio's mockup
+(`qvr-kit/scratch/flaregun/mockup.webp`), with the mockup's barrel misalignment fixed: **the two over-and-under barrels
+are exactly parallel** (one lathe about +X, its two centres on one vertical line, z 5.0 and 2.7 in design units). Same
+pipeline as the nail pistol; everything in `Misc/quakevr/models_src/flaregun/` (README.md there: editing, re-exporting,
+axes, the gameplay points).
+
+- `flaregun.blend`: objects Body (origin the grip's hand point) and Flare (the projectile, its own frame), one UV atlas,
+  one 256x256 skin in the palette (`flaregun_skin.png`) plus two RGBA overlays for the fired skins
+  (`flaregun_skin_fired1.png`: the top barrel fired, the left cartridge's cap burnt out and the top muzzle sooted;
+  `_fired2`: both), so a repaint of skin 0 carries over. Empties mark the muzzles and the sight line.
+- `export_mdl.py` (headless; re-exporting the shipped .blend gives the shipped MDLs byte for byte):
+  `quakevr/progs/v_flaregun.mdl` (1187 triangles, 3 skins: loaded, top fired, both fired), `vr_flare.mdl` (116
+  triangles, the projectile: brass head, red hull, crimped red cap along +X), `vr_flaregun_preview.mdl` (at 0.45).
+- `build_flaregun.py` made it from nothing (chunky faceted prisms and lathes: 12-sided barrels with 1.6-wide bores 2.6
+  deep, a lug under the bottom barrel, the hinge block with a strap and three hex bolts a side, the frame and its tang,
+  the breech housing with the two cartridges out of its open front, a curved wooden grip leaning back 30 degrees, a
+  small trigger); the skin painted per texel: red-orange paint on Quake's one red-orange ramp (102..107) flecked with the
+  deep reds, mid-scale rust patches and chipped edges with bare metal, AO crevices, worn edges, painted rivets, wood
+  grain, the blade's top bright brass. `render_previews.py` renders the exported MDLs (`renders/`).
+- Iron sights (the mockup has none): rear = a notch in the housing's back wall, continued as a channel down the cap
+  between the cartridges; front = a blade on a ramp on the top barrel. The sight line (model frame) runs y 0, z 6.332,
+  from x 1.9 to 9.05: **parallel to the bores**, 1.8 above the top bore. Muzzles: top 9.3 0 4.532, bottom 9.3 0 2.232,
+  both along +X.
+- Viewing it in the game: Debug > Tools > Model Previews > Flare Gun Art, or the scenario `flaregun_art` (vrtesthall,
+  the nail pistol and the shotgun beyond it). Checks: check_mdl_art.py LOW bleed only (the flare one MED uv-streak);
+  `vr_scenario validate` 95 files, 0 errors; the preview spawned in vrtesthall (`vr_physics_spawn: viewthing at reach`).
+
+Decisions: the mockup's cartridges lean up out of the housing; here they lie parallel to the barrels (so the sight line
+can pass between them and stay parallel to the bores). A small trigger added (the mockup shows none; VR fingers need
+one); no trigger guard, as in the mockup.
+
+**In VR:**
+- [ ] Debug > Tools > Flare Gun Art: walk around it: rusty signal-red paint, the barrels parallel, the cartridges' red caps.
+- [ ] Look down the sights: the brass blade sits in the bottom of the rear notch.
+- [ ] Scenario flaregun_art: hold the nail pistol next to it: about the same size, the flare gun's grip longer.

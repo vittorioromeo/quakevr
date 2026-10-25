@@ -1147,6 +1147,11 @@ za::Vector<Item> pageDebugTools()
                   "model floats ahead at arm's reach, at the size it would be in your hand (a viewthing given the model: "
                   "until the map changes, player.mdl is drawn as it too). The scenario nailpistol_art adds the nailgun and "
                   "the shotgun beside it."),
+        command("Flare Gun Art", "vr_physics_spawn viewthing reach; viewmodel progs/vr_flaregun_preview.mdl")
+            .help("The disposable double-barrelled flare gun's art before it is a weapon (Misc/quakevr/models_src/flaregun/"
+                  "README.md): its preview model floats ahead at arm's reach, at the size it would be in your hand (a "
+                  "viewthing given the model: until the map changes, player.mdl is drawn as it too). The scenario "
+                  "flaregun_art adds the nail pistol and the shotgun beside it."),
         header("Save to Files (game folder)"),
         command("Wound Masks", "vr_wounds_dump").help("vr_wounds_dump: each model's wound mask, to wounds/mask_<n>_<model>.png."),
         command("Decal Atlas", "vr_decal_atlas").help("vr_decal_atlas: the decals' atlas, to decal_atlas.png."),
