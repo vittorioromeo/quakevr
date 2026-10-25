@@ -753,7 +753,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	VR_TracyBegin ("brush program and instance fill", 0); // QVR: (profiling builds)
 	oit = translucent && R_GetEffectiveAlphaMode () == ALPHAMODE_OIT;
 	if (oit) // QVR: the OIT targets cleared at their first draw (vr_oit_lazy_clear)
-		R_PrepareOITDraw ();
+		R_PrepareOITDraw (3);
 	switch (pass)
 	{
 	default:
@@ -1103,7 +1103,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	GL_BindNative (GL_TEXTURE16, GL_TEXTURE_CUBE_MAP, VR_WaterCubeTexture ()); // QVR: the room reflected (LiquidCube; vr/vr_envmap.cpp)
 	GL_BindNative (GL_TEXTURE17, GL_TEXTURE_2D_ARRAY, VR_PortalTexture ()); // QVR: where a teleporter leads (PortalScene; vr/vr_portals.cpp)
 	if (oit) // QVR: the OIT targets cleared at their first draw (vr_oit_lazy_clear), after the passes above
-		R_PrepareOITDraw ();
+		R_PrepareOITDraw (4);
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);
