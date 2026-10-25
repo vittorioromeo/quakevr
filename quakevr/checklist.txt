@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Shotgun / super shotgun (player's texture report): put a model pack's progs/v_shot.mdl_0.png (+ _luma) in id1\progs: the guns show their own skin with no glowing specks (developer 1 logs the skin as ignored)
 Flail: throw a death sergeant's flail at a grunt: the trailing head hits it once (about as much as a small crate); let go of a swinging flail: its head never hurts you {test:flailhead_hit}
 Armed grunts: after this update your saved poses/grips are folded into the defaults (vr_agrunt_poses and vr_agrunt_grips empty in your config): grunts' and enforcers' gun and sword poses still look as you set them in the Pose Studio
 Gun Model Pitch 17 (Hand/Gun Calibration > Guns; the user report): the shotgun's ammo screen is visible above the hand, shots land along the barrel (Debug > Reports > Aim Check), empty hands unchanged; say whether the hand turning with the gun feels right
