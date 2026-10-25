@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Model Warp on (r_softemu_mdl_warp 1, the player's texture report): the shotgun and super shotgun held close show no red or orange specks, with GL_NEAREST_MIPMAP_LINEAR and with a linear texture mode
 Issue #79: desktop window focused in VR, Debug > "Act as if the Driver Forced V-Sync" at 60 Hz: no judder with Recording > Window Frame Rate "Up to the Monitor's", judder with "Every Headset Frame"
 Issue #79: alt-tab out and minimize while in VR: frames stay smooth and the sound keeps playing
 Gun Model Pitch is gone from the menu: load an old config with vr_gunmodelpitch 17 and check that the gun, hands and aim look and shoot as before (the value moved into Hand Pitch)
