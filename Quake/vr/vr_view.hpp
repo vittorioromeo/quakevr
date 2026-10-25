@@ -51,7 +51,10 @@ struct ViewEntity
 [[nodiscard]] int gloveLook(const entity_t* e, float glove[4], float cuff[4]);
 // That cuff's place in the bare-forearmed body's skin (as gloveLook's `cuff`; vr_handrig.cpp's cuff shell too).
 void gloveCuffRange(float cuff[4]);
-// The kind (as skinTone's) when `e` reads its skin mask (a skin tone or a glove on it), else zero.
+// Painted nails (vr_nails, vr_nail_hue/saturation/lightness/gloss) on a jointed hand (skinTone's kind 1): `nails` the
+// polish's colour (rgb) and 1 + its gloss (w; 0 none: no nails on `e`). True when drawn.
+[[nodiscard]] bool nailLook(const entity_t* e, float nails[4]);
+// The kind (as skinTone's) when `e` reads its skin mask (a skin tone, a glove or painted nails on it), else zero.
 [[nodiscard]] int skinMaskWanted(const entity_t* e);
 // A power-up's glow on `e` (Quad's blue, the pentagram's red, the biosuit's green; vr_view.cpp powerupGlow): on your
 // hands and body (and their copies in a mirror) the alias shader's code, -2 - 2 x its colour (r + 16g + 256b, 16 levels

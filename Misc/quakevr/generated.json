@@ -146,6 +146,10 @@
   "sha256": "91b10106ec8f1f26712c918524cacc5480066afb3777712174e6283c2284f36f",
   "by": "make_glove_paint.py"
  },
+ "quakevr/progs/hand_rig_00_00_nails.png": {
+  "sha256": "0d062a6e2f6c1bb0d1211d77d4cd0e106e5f71d11984d8495395294054b92564",
+  "by": "make_nail_mask.py"
+ },
  "quakevr/progs/hand_rig_00_00_norm.png": {
   "sha256": "acb9f9db7b1e4ab98623068b351cf3a4dd5f12315fd125356e0777efc6aadfbb",
   "by": "bake_normals.py"
@@ -154,13 +158,25 @@
   "sha256": "2edb3c52735d4a938a4a374bda5a9c3936d094fdd0d150b01e699935fcd52ce2",
   "by": "make_hand_rig.py"
  },
+ "quakevr/progs/hand_rig_01_00_nails.png": {
+  "sha256": "c6bfd8ef5b1d47c54d16c0de06424448ae8a59b6012cfc7a8cd6b82c56e4f490",
+  "by": "make_nail_mask.py"
+ },
  "quakevr/progs/hand_rig_02_00.lmp": {
   "sha256": "dc1a7187e4915707606476baba0adeaa0c34c014f2f19ac9b7d0f34ae13cf24e",
   "by": "make_hand_rig.py"
  },
+ "quakevr/progs/hand_rig_02_00_nails.png": {
+  "sha256": "d746f80ce7e0e6feec3562b19b9947afc5c9cee0cd668ede88df7fe24b5beb7e",
+  "by": "make_nail_mask.py"
+ },
  "quakevr/progs/hand_rig_03_00.lmp": {
   "sha256": "b39de69424526656cebbf4d412755656337fb1ba3995cbb6a6d942ae3cee5ef2",
   "by": "make_hand_rig.py"
+ },
+ "quakevr/progs/hand_rig_03_00_nails.png": {
+  "sha256": "7b1af6152c52171ac758a5b12c162c8e912a3daba2698181241e41598ae6e2fd",
+  "by": "make_nail_mask.py"
  },
  "quakevr/progs/legholster.mdl": {
   "sha256": "a4a5ea43a1aaa548501fb231547b8ab40c8221c748b84e408e1bf8dc9a1311ea",

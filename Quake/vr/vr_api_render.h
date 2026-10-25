@@ -151,6 +151,7 @@ typedef struct vraliasinstance_s
 	float		dentscale[4]; // ... its pose to units: xyz the scale, w z of the origin
 	float		gloveshell[4]; // a glove's shell (vr_handrig.cpp gloveShells, vr_glove_thickness): its thickness in the model's units (0: none drawn); [1] its painted leather's relief's strength (vr_glove_relief; 0 none); [2] the wet coat's strength (VR_AliasWetCoat; 0 dry), [3] 1: all of it wet (else where its wound mask is)
 	float		stump[4]; // a ragdoll's stumps (vr_ragdoll.cpp stumpLook; the shaders' StumpFlesh): its cut bones (bits 0..23, as a whole number; 0 none), how far round their joints the cut's flesh reaches (units)
+	float		nails[4]; // painted nails (vr_view.cpp nailLook; the shaders' Nails): the polish's rgb, w 1 + its gloss (0 none)
 } vraliasinstance_t;
 void VR_AliasDent (const struct entity_s *e, const void *aliashdr, float dent[4], float scale[4]); // instance: its flesh dents (vr_dents.cpp)
 void VR_DentBind (void); // the flesh dents' rows bound for the alias shaders (SSBO 12), the changed ones written first
@@ -161,8 +162,9 @@ void VR_PrecacheSkinMasks (void);
 // models' as they are.
 void *VR_AliasSurfaceFirst (const struct entity_s *e, void *mainhdr); // (aliashdr_t)
 void *VR_AliasSurfaceNext (const struct entity_s *e, void *mainhdr, void *hdr);
-// The gloves' painted leather for a hand (vr_glove_paint; vr_render.cpp): its detail and wear, its relief (grey: none)
-void VR_AliasGlovePaint (const struct entity_s *e, struct gltexture_s *out[2]);
+// The gloves' painted leather for a hand (vr_glove_paint; vr_render.cpp): its detail and wear, its relief (grey: none);
+// [2] its painted nails' mask (vr_nails; black: none). Units 7, 8, 9.
+void VR_AliasGlovePaint (const struct entity_s *e, struct gltexture_s *out[3]);
 // r_lerpmodels 3 (vr_animsmooth.cpp): whether `e`, drawn between poses pose1 and pose2 at `blend` (R_SetupAliasFrame's),
 // goes along a spline through four poses: smooth[0], [1] the first and fourth (pose numbers), [2] 1 + where its bones'
 // swings are in the batch's buffer (0: none), weights the four poses'. `zeroblend`: its instance's padding (a steadied

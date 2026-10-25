@@ -718,6 +718,21 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
             .help("How deep the worn leather's relief is in the light: raised stitches in their grooves, the padded "
                   "panels between seams, the creases over the knuckles and joints, the grain. 1 matches the bracers "
                   "and pauldrons; 0 flat."),
+        header("Nails"),
+        toggle("Painted Nails", vr_nails)
+            .help("Polish on your fingernails, in the colour below. Full gloves cover them; fingerless gloves leave them "
+                  "showing. Your skin tone doesn't tint the polish. On the jointed hands (vr_hand_rig 1: the default)."),
+        slider("Nail Hue", vr_nail_hue, 0.f, 360.f, 5.f, "%.0f deg")
+            .help("The polish's colour round the colour wheel: 0 and 355 red, 20 coral, 330 pink, 270 violet, 210 blue, "
+                  "150 green."),
+        slider("Nail Saturation", vr_nail_saturation, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How strong the colour is: 0 grey, black or white polish; 1 the purest. Pastels: low saturation with "
+                  "high lightness."),
+        slider("Nail Lightness", vr_nail_lightness, 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 black, 0.5 the colour at its fullest, 1 white. The nail's own shape and the light still shade it."),
+        slider("Nail Gloss", vr_nail_gloss, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How shiny the polish is: 0 matte, 1 a glassy top coat with a sharp highlight and the room's light "
+                  "mirrored in it."),
         header("Pauldrons"),
         toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
         cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})

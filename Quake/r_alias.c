@@ -686,7 +686,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	GLintptr	offsets[2];
 	GLsizeiptr	sizes[2];
 	gltexture_t* textures[4];	// QVR: and the normal map
-	gltexture_t* glovepaint[2];	// QVR: a glove's painted leather (vr_glove_paint)
+	gltexture_t* glovepaint[3];	// QVR: a glove's painted leather (vr_glove_paint), painted nails' mask (vr_nails)
 	const float	*vrbones;	// QVR: bone matrices of an IK-posed body
 	int			numvrbones;	// QVR
 	GLuint		vrbonebuf;	// QVR
@@ -929,7 +929,7 @@ void R_FlushAliasInstances (qboolean showtris)
 		GL_BindTextures (0, 3, textures); // QVR: normal map
 		GL_BindTextures (6, 1, &textures[3]); // QVR: skin mask, separate from retro LUT on unit 3
 		VR_AliasGlovePaint (ibuf.ent, glovepaint); // QVR: a glove's painted leather (GloveTex, GloveHeightTex)
-		GL_BindTextures (7, 2, glovepaint);
+		GL_BindTextures (7, 3, glovepaint); // (GloveTex, GloveHeightTex, NailTex)
 		GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount); // QVR: drawcount
 		rs_aliaspasses += hdr->numtris * drawcount;
 	}
@@ -976,7 +976,7 @@ void R_FlushAliasInstances (qboolean showtris)
 			GL_BindTextures (0, 3, textures); // QVR: normal map
 			GL_BindTextures (6, 1, &textures[3]); // QVR: skin mask, separate from retro LUT on unit 3
 			VR_AliasGlovePaint (ibuf.ent, glovepaint); // QVR: a glove's painted leather (GloveTex, GloveHeightTex)
-			GL_BindTextures (7, 2, glovepaint);
+			GL_BindTextures (7, 3, glovepaint); // (GloveTex, GloveHeightTex, NailTex)
 			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount); // QVR: drawcount
 			rs_aliaspasses += hdr->numtris * drawcount;
 		}
