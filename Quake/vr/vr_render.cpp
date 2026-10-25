@@ -234,6 +234,13 @@ extern "C" int VR_AliasCullPosedOn(const entity_t* e, int depth)
 
 extern "C" int VR_AliasDepthPrepass(const entity_t* e)
 {
+    // vr_alias_prepass: the world's models (no morphs there: VR_AliasMorph's are view entities') (r_alias.c keeps the
+    // eligible and the rest in separate batches: R_Alias_CanAddToBatch). All of them: a limit to those near the eye
+    // split the batches and cost more than it saved (GPU benchmark, BENCHMARKS.md).
+    if(vr_alias_prepass.value != 0.f && e && !VR_IsViewEntity(e))
+    {
+        return 1;
+    }
     if(vr_body_prepass.value == 0.f)
     {
         return 0;

@@ -638,6 +638,10 @@ QVR_CVAR(vr_alias_cull_posed, "1", CVAR_NONE)
 // the depth it left, so each pixel of it is shaded once (the arms over the torso, the legs over each other); 0 as before.
 // The same image either way.
 QVR_CVAR(vr_body_prepass, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Model Depth Pre-pass: 1 as vr_body_prepass for the world's opaque models (monsters,
+// props, gibs, items; not your own: a held gun's morph discards): each batch's depth first, then its shading once a
+// pixel (the GPU benchmark, BENCHMARKS.md: the models' GPU 4-23% less in crowds and gore); 0 as before. The same image either way.
+QVR_CVAR(vr_alias_prepass, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set

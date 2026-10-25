@@ -634,6 +634,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_body_prepass: your body and its mirror image drawn into the eye's depth first, then shaded once a "
                   "pixel (On), or shaded as drawn, the arms over the torso shaded twice (Off, as before). The same image "
                   "either way."),
+        cycle("Model Depth Pre-pass", vr_alias_prepass, {{0.f, "Off"}, {1.f, "On"}})
+            .help("vr_alias_prepass: the world's opaque models (monsters, props, gibs, items) drawn into the eye's depth "
+                  "first, each batch, then shaded once a pixel (On), or shaded as drawn (Off, as before): crowds, props "
+                  "and gore 4-23% less GPU on models at a headset's resolution. The same image either way."),
         command("Model Cull Stats", "vr_alias_cull_stats")
             .help("vr_alias_cull_stats: since the last time, the models drawn and culled a frame in the eyes and the "
                   "shadow faces, by model, how many of them posed, and any drawn twice in one view, in the console."),
