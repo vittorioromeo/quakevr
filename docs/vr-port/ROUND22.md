@@ -20682,3 +20682,35 @@ frame where it weighs.
 - [ ] Next Glitch: it stops on a red bar; grip the weapon (or an elbow) and fix it there; Play: it plays with the fix.
 - [ ] Loop: Strikes with the sword grunt; Pause mid-swing, drag the sword: the swing's key (wind-up/blow) is named.
 - [ ] Live: On again: frozen as before; Done prints the keys.
+
+
+## Nail pistol: the art (worktree `dequant`, branch `agent/nailpistol-art`, 2026-10-25)
+
+Art only, no gameplay: the nail pistol's model and skin after Vittorio's mockup, with the agreed changes (a separate
+magazine with a copper baseplate and nails at its top, iron sights, the copper feed block as a separate slide, a
+thicker guard and grip, a skin with Quake's contrast in Quake's palette). Everything is in
+`Misc/quakevr/models_src/nailpistol/` (README.md there: editing in Blender, re-exporting, axes and origins).
+
+- `nailpistol.blend`: objects Body (origin the grip's hand point), Slide (its rest point; snaps back along its -X by
+  `travel`), Trigger (its pivot), Magazine (its top; out along its -Z); one UV atlas and one 256x256 skin
+  (`nailpistol_skin.png`, RGB in the palette; `nailpistol_skin_pal.png` the indexed copy every export writes).
+- `export_mdl.py` (headless: `blender -b nailpistol.blend -P export_mdl.py`): `quakevr/progs/v_nailpistol.mdl` (Body,
+  Slide, Trigger: 489 triangles, frame 0 rest, frame 1 the slide back), `v_nailpistol_mag.mdl` (104 triangles, its
+  own frame), `vr_nailpistol_preview.mdl` (all of it at the in-hand scale 0.45, for looking at). Writer: mdlgen.py.
+- `build_nailpistol.py` made the first version from nothing: bevelled prisms in Quake model units (~13.2 long: ~23 cm
+  at scale 0.45, its grip about the nailgun's), real recessed vent slots, a hexagonal muzzle with a bore; Smart UV
+  Project snapped to texel centres; the skin painted per texel from the 3D surface (rust and pitting noise, ambient
+  occlusion ray cast for the crevices, brighter worn convex edges and chamfers, painted rivets, slide serrations and a
+  feed window, grip checkering, the magazine's witness slot), then the nearest of the 224 ordinary palette colours.
+  It overwrites the .blend: hand edits go in the .blend, then export_mdl.py.
+- Viewing it in the game: Debug > Tools > Model Previews > Nail Pistol Art (`vr_physics_spawn viewthing reach;
+  viewmodel progs/vr_nailpistol_preview.mdl`: Quake's viewthing given the model, floating at arm's reach; player.mdl
+  is drawn as it too until the map changes), or the scenario `nailpistol_art` (vrtesthall, the nailgun and the shotgun
+  beyond it; `nailpistol_art` in the console shows it again).
+- Checks: check_mdl_art.py: v_nailpistol ok, the magazine and the preview 2 LOW bleed texels; `vr_scenario validate`
+  SCNOK. Renders in `renders/` (front-left, side, the magazine, the scale against v_nail x0.48 and v_shot x0.44, an
+  in-game screenshot).
+
+**In VR:**
+- [ ] Debug > Tools > Nail Pistol Art: walk around it: it reads as rusty riveted iron, the copper slide, the sights.
+- [ ] Scenario nailpistol_art: pick up the nailgun and hold it next to the pistol: the grips about the same size.
