@@ -681,6 +681,13 @@ struct Planner
             reason = RSlope;
             return false;
         }
+        // Clear of the entities first (no traces; the same answer: every test must pass), unless vr_place_entities_first 0
+        const glm::vec3 half = (m.hi - m.lo) * 0.5f * scale;
+        const float r = za::max(half.x, za::max(half.y, half.z));
+        if(vr_place_entities_first.value != 0.f && !clearOfEntities(floor, r, height, reason))
+        {
+            return false;
+        }
         const glm::vec3 mid = floor + glm::vec3{0.f, 0.f, za::max(height * 0.5f, 0.6f)};
         if(contents(floor + glm::vec3{0.f, 0.f, 0.5f}) != CONTENTS_EMPTY || contents(floor + glm::vec3{0.f, 0.f, height + 4.f}) != CONTENTS_EMPTY)
         {
@@ -701,7 +708,6 @@ struct Planner
         }
         // Flat under all of it: the floor at its footprint's corners (a little in) as high as under its middle.
         const float c = za::cos(glm::radians(yaw)), s = za::sin(glm::radians(yaw));
-        const glm::vec3 half = (m.hi - m.lo) * 0.5f * scale;
         const float hx = half.x * 0.8f, hy = (onSide ? half.z : half.y) * 0.8f;
         for(const glm::vec2 corner : {glm::vec2{hx, hy}, glm::vec2{-hx, hy}, glm::vec2{hx, -hy}, glm::vec2{-hx, -hy}})
         {
@@ -720,7 +726,11 @@ struct Planner
             reason = RLow;
             return false;
         }
-        const float r = za::max(half.x, za::max(half.y, half.z));
+        return vr_place_entities_first.value != 0.f || clearOfEntities(floor, r, height, reason);
+    }
+
+    [[nodiscard]] bool clearOfEntities(const glm::vec3& floor, float r, float height, int& reason) const
+    {
         for(const Obstacle& o : obstacles)
         {
             if(floor.x + r > o.lo.x && floor.x - r < o.hi.x && floor.y + r > o.lo.y && floor.y - r < o.hi.y &&

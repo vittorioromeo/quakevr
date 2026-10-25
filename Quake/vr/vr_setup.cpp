@@ -128,6 +128,49 @@ void option_f()
     saveConfigNow();
 }
 
+// The edicts whose targetname starts "vr_" (the setting, campaign and Continue buttons drawOptionScreens labels), listed
+// again every half second or when the map or the edict count changes: every frame's walk of every edict's targetname
+// cost 0.1-0.2 ms a frame in Arcane Dimensions' big maps (4000 edicts, thousands of targetnames). A button given such a
+// name later shows its screen within half a second. vr_setup_screens_cache 0: every frame's walk (A/B).
+struct OptionScreenList
+{
+    const qmodel_t* world{nullptr};
+    int numEdicts{-1};
+    double nextScan{0.0};
+    za::Vector<int> nums;
+};
+OptionScreenList optionScreens;
+
+[[nodiscard]] bool vrTargetName(const edict_t* e)
+{
+    if(e->free || !e->v.targetname)
+    {
+        return false;
+    }
+    const char* t = PR_GetString(e->v.targetname);
+    return (t[0] == 'v' || t[0] == 'V') && (t[1] == 'r' || t[1] == 'R') && t[2] == '_';
+}
+
+void listOptionScreens()
+{
+    OptionScreenList& l = optionScreens;
+    if(vr_setup_screens_cache.value != 0.f && l.world == sv.worldmodel && l.numEdicts == qcvm->num_edicts && realtime < l.nextScan)
+    {
+        return;
+    }
+    l.world = sv.worldmodel;
+    l.numEdicts = qcvm->num_edicts;
+    l.nextScan = realtime + 0.5;
+    l.nums.clear();
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        if(vrTargetName(EDICT_NUM(i)))
+        {
+            l.nums.pushBack(i);
+        }
+    }
+}
+
 // The value screen above each of the map's setting buttons (the server's edicts: a local game).
 void drawOptionScreens()
 {
@@ -168,10 +211,11 @@ void drawOptionScreens()
         lo = glm::vec3{e->v.absmin[0], e->v.absmin[1], e->v.absmin[2]} - moved;
         hi = glm::vec3{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]} - moved;
     };
-    for(int i = 1; i < qcvm->num_edicts; i++)
+    listOptionScreens();
+    for(const int i : optionScreens.nums)
     {
-        edict_t* e = EDICT_NUM(i);
-        if(e->free || !e->v.targetname)
+        edict_t* e = i < qcvm->num_edicts ? EDICT_NUM(i) : nullptr;
+        if(!e || !vrTargetName(e)) // (freed, or named otherwise, since the list was made)
         {
             continue;
         }

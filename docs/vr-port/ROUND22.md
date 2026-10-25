@@ -21133,6 +21133,31 @@ headshots: dead in 2 (x1.50); body: dead in 3 (x1.00); an armed grunt's nail pis
 - [ ] Holster it (hip, upper) and draw it; drop and throw it; the one lying on the floor picks up.
 - [ ] The armed grunts far off fire their nail pistols (one, and a pair) {test:nailpistol}.
 
+## Overnight profiling and optimization round (worktree `fastship`, branch `agent/perfround`, 2026-10-25)
+
+His request: profile everything in realistic, scripted scenarios (crowds, armed humanoids, physics, particles, lights,
+heavy maps, loads and saves), rank the bottlenecks and hitches, fix the simple wins, propose the rest. Full write-up,
+the baseline table, the hitches, the fixes' numbers and the proposals: BENCHMARKS.md, "Overnight profiling round
+(2026-10-25)".
+
+- **Benchmark set**: bench group `r25` (13 scenarios: `armed_16`, `armed_16_melee`, `crowd_ad_40`, `tanks_fields`,
+  `fight_ad_sepulcher|ad_tears|ad_crucial|hip2m5|r2m7|e4m7`, `load_ad_sepulcher`, `load_ad_tears`, `saveload_e1m1`);
+  the vrtesthall ones are scenes `quakevr/scenarios/bench_armed16.txt`, `bench_crowd_ad.txt`, `bench_tanks.txt`
+  (qvrbench.py's new `scene=`). Baseline: 30 scenarios x 3 at his settings (`kit/benchresults/pf_base`).
+- **Fixed**: the button screens' walk of every edict every frame (`vr_setup_screens_cache`, Debug > Profiling and
+  Memory > Button Screens' List), the hand grenade catch's findradius with no fuse burning (QC), Quake's devstats edict
+  count only when shown, the crates' and rocks' places tested against the entities before their traces
+  (`vr_place_entities_first`, Debug > Profiling and Memory > Crates' Placing: Entities First; the same layouts on ten
+  maps; ad_sepulcher's crates 150 -> 117 ms of its load). Together about 0.3 ms a frame of Tracy self time in AD's
+  biggest maps (0.05 ms CPU busy for the screens alone in the A/B).
+- **Profiling-build zones** (Tracy only): the frame setup's texts step by step, the VR server frame end's steps.
+- **Not a game problem**: ad_tears' 20-225 ms swap stalls in the headless runs come from the hidden window with the
+  spectator view (none with the window shown).
+
+For him in VR: nothing should look different. In the calibration room and the hub, the value screens over the
+setting buttons, the campaign's SELECTED and Continue's save still show (and change at once when pressed). Catch an
+ogre's grenade (vr_grenade_catch on). Arcane Dimensions' big maps (Sepulcher, Tears) start a little faster, the same
+crates in the same places.
 ## Nail pistol: grip, sights, holsters (worktree `tghost`, branch `agent/nailpistol2`, 2026-10-25)
 
 - **Why moving the hand anchor did nothing:** `vr_wofs_hand_av_NN` (and `hand_x/y/z`, `gunoff_*`, the old finger keys)

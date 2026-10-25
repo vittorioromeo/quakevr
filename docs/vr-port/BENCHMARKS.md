@@ -187,6 +187,13 @@ settings) compare with new runs under the new names (`qvrbench.py`'s `renamed`).
 | `play_teleporters_turn` | play/teleporters | vrteleporters | The T room's middle (`setpos -1280 600 24`): its east, north and west (loop) gates, the head turned 90 degrees either way twice: one to three portal views a frame. |
 | `play_props_fire` | play/physics | vrfiringrange | 40 props (`vr_physics_bigpile 40 260 mixed`), 3 crates and 2 grunt corpses set on fire (`vr_burn_test 1`), 4 wall torches, a small blast in the pile every 180 frames. |
 | `combined` | combat/physics/vfx/lights/core | vrfiringrange | Everything at once (the perf suite's combined): the frame's worst realistic mix. |
+| `armed_16` | r25/combat | vrtesthall | Scene `bench_armed16`: 8 grunts and 8 enforcers armed (shotguns, dual shotguns and nailguns, swords, axes, chainsaw, rocket launcher, laser rifle, thunderbolt, Mjolnir), hostile; the player's shotgun on the nearest every 50 frames: arm IK, skinning, upper body and legs, their shots and strikes. |
+| `armed_16_melee` | r25/combat/melee | vrtesthall | The same scene, the player's fists jabbing (`vr_mock_play`) as they close in: their strikes, parries, knockdowns. |
+| `crowd_ad_40` | r25/combat | vrtesthall | Scene `bench_crowd_ad`: 40 monsters of 20 kinds, Quake's and Arcane Dimensions' (the toolgun's AD entries), hostile; the player's shotgun every 50 frames. |
+| `tanks_fields` | r25/physics/vfx | vrtesthall | Scene `bench_tanks`: 4 flamethrowers and 4 poison sprayers lying among grunts, crates and explosive boxes; blasts burst the tanks (marks `burst_fire`, `burst_poison`), then break the crates and boxes (`break`): fire fields, poison clouds, ragdolls, pieces. |
+| `fight_<map>` | r25/maps | ad_sepulcher, ad_tears, ad_crucial (native AD), hip2m5, r2m7, e4m7 | The map at skill 2: its spawn and two pickups' places, 300 frames each, the head turning round, god and notarget off (what is near comes for you). |
+| `load_ad_sepulcher`, `load_ad_tears` | r25/loading | (none) | AD's 42 MB and 85 MB BSPs loaded cold (and sepulcher warm). |
+| `saveload_e1m1` | r25/loading | e1m1 | A fight in E1M1's computer room saved (`save qvrbench`, into the agent's own game folder) and loaded twice: the save's frame (mark `save`), each load by stage. |
 
 ### Tours of complex custom maps
 
@@ -559,6 +566,117 @@ after: `playprof_gun` (the guns' pieces read from the disk, as from a player's s
   binary search per Gauss point: 0.1 ms a frame for both hands), the wounds' and bodies' water tests
   (`Mod_PointInLeaf`, `SV_HullPointContents`: 0.07), the shadowed torches' world casters in the hub (0.2 ms in
   `play_vrstart_walk`: the declined dlight caster cache).
+
+### Overnight profiling round (2026-10-25)
+
+Worktree `fastship`, branch `agent/perfround` (ROUND22.md, "Overnight profiling and optimization round"). New group
+`r25` (the table above: armed humanoids, AD's monsters in a crowd, fuel tanks' fields, hostile tours of AD, mission
+pack and id maps, AD's biggest loads, a save and two loads); the vrtesthall ones are vr_scenario scenes
+(`quakevr/scenarios/bench_*.txt`, a scenario's `scene=`).
+
+Rerun: `bash kit/bench.sh <agent> --scenarios r25,<others> --reps 3 --settings <his ironwail.cfg> --label <name>`,
+then `bench.sh compare`. Tracy captures of the measured window alone: the kit's `tracy-capture` started when the
+scenario's console prints a marker put before `vr_bench_begin` (the client is on demand); `tracy-csvexport` (and `-e`
+for self times, `-g` for GPU zones). The round's scripts: `qvr-kit/scratch/perfround/` (copied from the worktree's
+scratch: `pf_tracy.sh`, `pf_zones.py`, `pf_var.sh`, `pf_ab.sh`, `pf_hitch.sh`, `pf_hitches.py`).
+
+**Baseline** (`kit/benchresults/pf_base`: build fad928b7d, his settings of 2026-10-25, paced 90 Hz, eyes 2048,
+exclusive, 3 x 900 frames, medians; ms; CPU = `cpu_busy_ms`, GPU = `gpu_3d_ms`). Every gameplay scenario holds 90 Hz
+at the median; the worst steady CPU is `combined` (6.1 ms) and AD's 813-monster ad_tears (3.7).
+
+| scenario | frame p99 | frame max | CPU avg | CPU p99 | GPU 3D avg | frames > 2x median |
+|---|---|---|---|---|---|---|
+| ai_crowd_64 | 11.17 | 24.4 | 2.96 | 5.18 | 1.07 | 0 |
+| armed_16 | 11.27 | 76.4 | 2.94 | 5.77 | 3.31 | 2 |
+| armed_16_melee | 11.19 | 12.5 | 2.15 | 3.15 | 2.24 | 0 |
+| combat_48 | 18.23 | 173.8 | 3.47 | 10.50 | 4.04 | 7 |
+| combined | 11.15 | 17.9 | 6.13 | 7.93 | 5.79 | 0 |
+| crowd_ad_40 | 11.22 | 174.6 | 3.35 | 6.35 | 3.53 | 6 |
+| explosions_storm | 11.20 | 19.1 | 1.86 | 2.51 | 1.37 | 0 |
+| fight_ad_crucial | 11.20 | 22.0 | 2.05 | 3.56 | 2.05 | 0 |
+| fight_ad_sepulcher | 11.26 | 39.9 | 2.69 | 3.99 | 1.80 | 0 |
+| fight_ad_tears | 12.08 | 187.5 | 3.71 | 6.13 | 1.93 | 2 |
+| fight_e4m7 | 11.21 | 26.2 | 1.85 | 4.46 | 1.48 | 0 |
+| fight_hip2m5 | 11.13 | 13.3 | 1.39 | 2.95 | 1.35 | 0 |
+| fight_r2m7 | 11.20 | 17.8 | 1.38 | 2.30 | 1.69 | 0 |
+| gore_blast_crowd_32 | 11.20 | 20.0 | 3.05 | 6.34 | 2.63 | 0 |
+| gore_dismember_16 | 11.25 | 84.5 | 2.62 | 5.41 | 2.66 | 1 |
+| idle_e1m1 | 11.49 | 95.7 | 0.99 | 1.88 | 1.29 | 0 |
+| lights_32 | 11.14 | 12.5 | 1.35 | 1.94 | 1.84 | 0 |
+| load_ad_sepulcher | 47.14 | 1766.8 | 10.85 | 47.04 | 2.30 | 10 |
+| load_ad_tears | 70.24 | 2347.1 | 13.08 | 69.63 | 2.69 | 5 |
+| load_ad_tfuma | 46.94 | 1305.8 | 8.47 | 46.85 | 2.18 | 9 |
+| load_e1m1 | 19.70 | 736.3 | 2.62 | 19.46 | 1.38 | 19 |
+| particles_dense | 11.20 | 13.3 | 2.63 | 3.40 | 3.08 | 0 |
+| play_ad_tfuma_fight | 11.22 | 12.1 | 3.60 | 6.71 | 2.11 | 0 |
+| play_e1m1_lights | 11.17 | 16.8 | 2.15 | 5.08 | 3.06 | 0 |
+| play_gore_fight | 11.20 | 11.9 | 2.28 | 3.75 | 3.00 | 0 |
+| play_props_fire | 11.18 | 15.8 | 1.77 | 2.70 | 2.00 | 0 |
+| props_500_active | 11.18 | 11.6 | 3.52 | 6.48 | 1.94 | 0 |
+| ragdolls_32_active | 11.15 | 18.8 | 2.94 | 5.62 | 3.01 | 0 |
+| saveload_e1m1 | 13.83 | 220.8 | 1.83 | 13.80 | 1.75 | 6 |
+| tanks_fields | 11.22 | 90.9 | 2.52 | 4.72 | 2.14 | 0 |
+
+Map loads (ms, total from the command to the first frame; cold / warm): ad_sepulcher 1952 / 904, ad_tears 2481,
+ad_tfuma 1411 / 470, e1m1 827 / 165; the save's frame 9 ms, a saved game's load 119-128 ms.
+
+**Where the time goes** (Tracy, Release-Tracy, the window alone, QC function zones on; ms a frame of self time):
+the steady frame has no single hot spot. Heavy scenes: `combined` alias submission 1.26 (1600 model set-ups and 4700
+shadow-caster draws a frame), shadow alias layered draw 0.72, alias flush 0.55, Box3D's before-step 0.49 and publish
+0.40, particle verts 0.43; AD's big maps: Box3D's entity sync 0.19-0.34 (3600-4100 edicts), Toss's rigid bodies
+0.18-0.29 (390-430 items a frame), the edicts' loop 0.17-0.27, the calibration room's button screens' walk of every
+edict 0.18 (fixed), the hand grenade catch's findradius 0.10 (fixed), the devstats edict count 0.15 (fixed), the
+weapons' records sweep 0.06; armed humanoids (16): their arms' solve in `relink` 0.22, the grunts' QC poses 0.04; GPU
+(ad_tears, `vr_tracy_gpu_detail 1`): the world 1.0 ms of 2.0 a frame, the spectator 0.36.
+
+**Hitches** (hitch log, `vr_profile_hitch 2`, frames over two refreshes):
+- A session's first map's first frames: `lights` (R_PushDlights: the light clustering's first use) 75-97 ms, the env
+  cubes 10-33, the skin masks 13-23, alias 13-16, then the frame setup's QC 31-51: once a session, behind the load.
+- ad_tears' swap stalls (20-225 ms, `screen/swap`, the GPU 3 ms): **a harness artifact**, the hidden window with the
+  spectator view (`vr_window_view 2`): none with the window visible (`run.sh -Visible`: p99 11.2-11.4 in 2 runs) or
+  `vr_window_view 0`; intermittent hidden (1 run of 2 clean). Compare ad_tears by CPU, not frame times.
+- AD's loads: the server's first frames (`physics_init` 145-345 ms, warm too): the crates' plan (150 ms in
+  ad_sepulcher) and the rocks' (115-140 ms), QC's StartFrame. The crates' part fixed (below); the rest a proposal.
+- Single long frames of the fights (combat_48, crowd_ad_40 174 ms, armed_16 76) were not seen again in the hitch-log
+  runs: other workers' builds shared the machine (the exclusive lock covers games, not builds).
+
+**Fixed** (each with a Debug > Profiling and Memory toggle where it changes more than a count):
+- The calibration room's and hub's button screens (`vr_setup.cpp`) found by a walk of every edict's targetname every
+  frame: now a list of the `vr_...` named edicts made every half second (`vr_setup_screens_cache`). Tracy ad_tears
+  0.183 -> 0.005 ms a frame; A/B, 3 runs each, CPU busy avg: ad_sepulcher 2.369 -> 2.329, ad_tears 2.540 -> 2.492,
+  ad_tfuma 3.368 -> 3.325, e1m1 0.796 -> 0.772. The same screens (shots identical).
+- The hand grenade catch (QC `VR_Grenade_CatchCheck`, both hands every frame) skips its findradius (every edict) when
+  no grenade's fuse burns (`vr_gren_fuse_last`, raised wherever a fuse is set): ad_tears 0.112 -> 0.000 ms a frame.
+- Quake's devstats edict count (a walk of every edict a server frame) only with `devstats` or `developer` on:
+  "server" self 0.30 -> 0.00 ms in ad_tears (its frame end now zoned apart: 0.15).
+- The crates' placing tests the entities' boxes before its traces (`vr_place_entities_first`; rocks too): the same
+  layout hashes on ten maps; the crates' plan ad_sepulcher 150 -> 117 ms, ad_crucial 55 -> 33, ad_tears 84 -> 77.
+
+**After** (`kit/benchresults/pf_after`: this branch after merging next of 2026-10-25, which brought the build-speed
+round's header and menu changes and the nail pistol; the same set-up; 3 x 900 frames, medians; ms). **Read the A/B rows
+above for the fixes' own share**: these two sets were an hour apart on a machine other workers built on, and the idle
+E1M1, which none of the fixes touches, moved as much (CPU 0.99 -> 0.75).
+
+| scenario | CPU avg before | after | CPU p99 before | after | frame p99 before | after |
+|---|---|---|---|---|---|---|
+| fight_ad_tears | 3.71 | 2.48 | 6.13 | 4.10 | 12.08 | 11.25 |
+| fight_ad_sepulcher | 2.69 | 2.30 | 3.99 | 3.60 | 11.26 | 11.27 |
+| fight_ad_crucial | 2.05 | 1.72 | 3.56 | 3.00 | 11.20 | 11.23 |
+| play_ad_tfuma_fight | 3.60 | 3.29 | 6.71 | 6.19 | 11.22 | 11.24 |
+| armed_16 | 2.94 | 2.65 | 5.77 | 5.30 | 11.27 | 11.23 |
+| combat_48 | 3.47 | 2.57 | 10.50 | 4.22 | 18.23 | 11.23 |
+| idle_e1m1 | 0.99 | 0.75 | 1.88 | 1.42 | 11.49 | 11.28 |
+
+Loads (total ms, before / after): ad_sepulcher cold 1952 / 1802, warm 904 / 841; ad_tears 2481 / 2455; ad_tfuma
+cold 1411 / 1420, warm 469 / 467.
+
+**Proposals** (not built): (1) the crates' and rocks' plans kept for the session by map, settings and the entities'
+boxes (a restart after death in AD: about 250 ms of its load); (2) the light clustering program and the env cubes
+made at the load (the first frame's 75-130 ms); (3) armed humanoids' arm solve skipped for those in no view and casting
+no shadow in view (0.2 ms for 16; needs the glitch finder's frames-in-view rule); (4) `findradius` through the area
+grid, checked against the walk like `vr_edictindex` (every QC radius search walks every edict: 4000 in AD's maps);
+(5) the weapons' records sweep every few frames (0.06 ms in AD's maps; changes when edict slots are reused);
+(6) alias submission (1.3 ms in `combined`): more models a draw.
 
 ## Profiling in the game
 

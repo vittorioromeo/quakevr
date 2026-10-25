@@ -612,6 +612,14 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_alias_eye_cache: each animated model's set-up that is the same for both eyes (its pose, place, light "
                   "at its origin, instance data) made in the first eye and reused by the second (First Eye's), made again "
                   "(Made Again), or made again and compared with the first eye's (Checked: see Model Set-up Stats)."),
+        toggle("Button Screens' List", vr_setup_screens_cache)
+            .help("vr_setup_screens_cache: the buttons with value screens over them (the calibration room's settings, the "
+                  "hub's campaigns and Continue) found by a walk of every entity every half second (on), or every frame "
+                  "(off, as before: 0.1-0.2 ms a frame in Arcane Dimensions' biggest maps). The same screens either way."),
+        toggle("Crates' Placing: Entities First", vr_place_entities_first)
+            .help("vr_place_entities_first: a place for a crate, barrel, rock or brick (at a map's start) tested against "
+                  "the map's entities before its traces (on), or after them (off, as before). The same places either way; "
+                  "a big map starts faster (150 ms in Arcane Dimensions' Sepulcher)."),
         command("Model Set-up Stats", "vr_alias_eye_cache_stats")
             .help("vr_alias_eye_cache_stats: since the last time, the second eyes' models found set up by the first eye (in "
                   "full, the transform only, not at all) and, while Checked, the parts that came out different (none "
