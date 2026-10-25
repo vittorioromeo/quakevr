@@ -17,6 +17,12 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 #include <math.h>
 #include <stdio.h>
 #include <string.h>

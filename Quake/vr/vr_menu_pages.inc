@@ -1812,8 +1812,6 @@ void resetHandMoves()
 
 // Graphics: retro textures (vr_retro.cpp): high-resolution textures drawn in Quake's chunky look, each kind of thing
 // with its own settings (a page each: pageRetroCategory).
-template <retro::Category C>
-[[nodiscard]] za::Vector<Item> pageRetroCategory();
 [[nodiscard]] za::Vector<Item> pageRetroOverride();
 [[nodiscard]] za::Vector<Item> pageRetroAll();
 
@@ -2030,17 +2028,6 @@ void retroSettingItems(za::Vector<Item>& items, const Var& var, const Has& has)
     return items;
 }
 
-template <retro::Category C>
-void retroResetCategory()
-{
-    Cbuf_AddText(va("vr_retro_reset %s\n", retro::categoryKey(C)));
-}
-
-template <retro::Category C>
-za::Vector<Item> pageRetroCategory()
-{
-    return retroCategoryItems(C, retroResetCategory<C>);
-}
 
 void retroAllCheckSettings()
 {

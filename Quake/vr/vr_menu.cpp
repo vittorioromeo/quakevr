@@ -1,9 +1,3 @@
-#include "vr_aggrip.hpp"
-#include "vr_cheats.hpp"
-#include "vr_doom.hpp"
-#include "vr_toolgun.hpp"
-#include "vr_warmup.hpp"
-#include "vr_alloccount.h"
 // vr_menu.cpp -- the "VR Settings" pages (Options > VR Settings), drawn like Ironwail's options
 // pages: scrolling lists of labelled settings, changed with left/right (the sticks in VR), with
 // actions on enter (A). "Advanced VR Options" (the main menu's Advanced VR, the corner's) lists further pages: the old
@@ -15,241 +9,13 @@
 // (the bar showing its end, the value the real one); values set further off in the console stay.
 // Each page is shown again where it was left (its selected row, found by its label when the page is
 // built anew, on the same line of the view), across restarts too (vr_menu_positions).
+// The page groups are in vr_menu_pages_debug.cpp, vr_menu_pages_gameplay.cpp and vr_menu_pages_settings.cpp;
+// what they share with this file is in vr_menu_internal.hpp.
 
-#include "vr_seated.hpp"
-#include "vr_serverrules.hpp"
-#include "vr_modelmetadata.hpp"
-#include "vr_backend.hpp"
-#include "vr_box3d.hpp"
-#include "vr_cvars.hpp"
-#include "vr_mgroups.hpp"
-#include "vr_engine.hpp"
-#include "vr_files.hpp"
-#include "vr_gadget.hpp"
-#include "vr_gfxpresets.hpp"
-#include "vr_mapindex.hpp"
-#include "vr_mapinstall.hpp"
-#include "vr_main.hpp"
-#include "vr_mem.hpp"
-#include "vr_menu.hpp"
-#include "vr_ad.hpp"
-#include "vr_menuui.hpp"
-#include "vr_panel.hpp"
-#include "vr_obs.hpp"
-#include "vr_menupaint.hpp"
-#include "vr_motion.hpp"
-#include "vr_motion_review.hpp"
-#include "vr_motion_take.hpp"
-#include "vr_weapons.hpp"
-#include "vr_hands.hpp"
-#include "vr_holstersetup.hpp"
-#include "vr_bladeedit.hpp"
-#include "vr_posestudio.hpp"
-#include "vr_posing.hpp"
-#include "vr_sightalign.hpp"
-#include "vr_setup.hpp"
-#include "vr_bodycal.hpp"
-#include "vr_bodytrack.hpp"
-#include "vr_checklist.hpp"
-#include "vr_scenario.hpp"
-#include "vr_view.hpp"
-#include "vr_units.hpp"
-#include "vr_flashlight.hpp"
-#include "vr_held.hpp"
-#include "vr_props.hpp"
-#include "vr_ragtest.hpp"
-#include "vr_ragtool.hpp"
-#include "vr_relight.hpp"
-#include "vr_relight_tool.hpp"
-#include "vr_retro.hpp"
-#include "vr_fatigue.hpp"
-#include "vr_weight.hpp"
-#include "vr_twohand.hpp"
+#include "vr_menu_internal.hpp"
 
-#include "Zancle/Algorithm/AnyOf.hpp"
-#include "Zancle/Algorithm/Count.hpp"
-#include "Zancle/Algorithm/Sort.hpp"
-#include "Zancle/Algorithm/StableSort.hpp"
-#include "Zancle/Base/Macros.hpp"
-#include "Zancle/Base/ReverseIterator.hpp"
-#include "Zancle/Container/Vector.hpp"
-#include "Zancle/Math/Abs.hpp"
-#include "Zancle/Math/Ceil.hpp"
-#include "Zancle/Math/Fabs.hpp"
-#include "Zancle/Math/Floor.hpp"
-#include "Zancle/Math/Fmax.hpp"
-#include "Zancle/Math/Fmin.hpp"
-#include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Math/Round.hpp"
-#include "Zancle/String/String.hpp"
-#include "Zancle/String/StringView.hpp"
-#include "Zancle/String/ToString.hpp"
-#include "Zancle/Vocabulary/Pair.hpp"
-#include "vr_zancle.hpp"
-#include "vr_xr_runtime.hpp"
-
-#include <stdlib.h>
-#include <string.h>
-
-extern "C" {
-extern float m_mousex, m_mousey; // menu.c: the mouse in menu coordinates
-extern qboolean keydown[MAX_KEYS]; // keys.c
-extern cvar_t ui_mouse_sound; // menu.c
-extern cvar_t vr_zone_threadcheck; // zone.c
-extern cvar_t snd_mixasync; // snd_dma.c
-const char* M_Main_RowLabel(void); // menu.c: the main menu's selected row (menu_vr pos)
-void M_Main_RowsExtent(float* left, float* right); // menu.c: its rows' ends as last drawn (menu_vr pos)
-void M_Main_RowsSpan(float* top, float* bottom, float* canvasTop, float* canvasBottom); // menu.c: its top, its last
-                                                                                        // row's bottom, the canvas's
-extern int m_singleplayer_cursor; // menu.c: Single Player's (menu_vr pos)
-int M_ContentLeft(void); // menu.c: the left edge of what its menu shown draws (menu x)
-float M_ContentRightBelow(float y); // menu.c: how far right its menu shown draws below y (the main menu's rows as drawn)
-float M_ContentLeftBelow(float y);  // menu.c: and how far left (1e9: nothing below y)
-int M_TextLeft(void); // menu.c: its leftmost text (Ironwail's lists; 320 for Quake's menus)
-void M_Main_Layout(int* step, int* gap); // menu.c: the main menu's rows' spacing and its groups' gaps
-}
-
-using namespace qvr;
-
-namespace
+namespace menu_detail
 {
-
-struct Choice
-{
-    float value;
-    const char* label;
-};
-
-struct Item
-{
-    enum Kind
-    {
-        Header,
-        Slider,
-        Cycle,
-        Action,
-        Info // a line of text (info()), centred, not selectable
-    };
-
-    Kind kind;
-    const char* label;
-    cvar_t* cvar{nullptr};
-
-    // Slider.
-    float min{0.f};
-    float max{1.f};
-    float step{0.1f};
-    const char* format{"%.2f"};
-
-    // Cycle.
-    za::Vector<Choice> choices;
-
-    // Action: a function, or a page to open, or a console command (command()).
-    void (*action)(){nullptr};
-    int page{-1};
-    const char* command{nullptr};
-
-    // Info: its text, asked for each time it is drawn.
-    const char* (*info)(){nullptr};
-
-    // Info drawn as a progress bar (progressBar()): how far, 0..1 (below 0: an empty row), and its text, right of it.
-    float (*progress)(){nullptr};
-
-    // Shown under the list while selected.
-    const char* helpText{nullptr};
-
-    // Slider: shown instead of the value while it is negative (-1: a hue following the player's; a class's setting
-    // following the global one), the bar's leftmost step; right of it the values from negativeStart on.
-    const char* negativeLabel{nullptr};
-    float negativeStart{0.f};
-
-    // Slider: left and right go on past the bar's ends, as far as hardMin..hardMax (extend()).
-    bool extendable{false};
-    float hardMin{0.f};
-    float hardMax{0.f};
-
-    // A line of a list (the Review Takes page's takes, its details): the text, the help and the action take `arg`
-    // (infoLine(), row()). A row (wide) is an action drawn as its text across the whole width.
-    int arg{-1};
-    const char* (*infoArg)(int){nullptr};
-    const char* (*helpArg)(int){nullptr};
-    void (*actionArg)(int){nullptr};
-    bool wide{false};
-
-    // A row drawn dimmed while dimArg(arg) (the Checklist's ticked items), and a row that goes on the one `partOf` rows
-    // above (a long text's next line: selected with it, never on its own).
-    bool (*dimArg)(int){nullptr};
-    int partOf{0};
-
-    // A row of buttons side by side (the Checklist's Pass, Fail and Test under each item; ROUND22.md, "Checklist: Pass,
-    // Fail and Test"): `buttons` of them, each `buttonLabel(arg, b)`, dimmed while `buttonDim(arg, b)`, its text tinted
-    // by `buttonTint(arg, b)` (0 none, 1 green, 2 red). The item's first row (the one selected) has `buttonPress`: left
-    // and right pick a button (MenuInstance::button), a press presses it; the mouse or laser over the button row picks
-    // the one under it, a click there presses it (a click on the item's text does nothing). `markArg`: the item's text
-    // tinted likewise (its state).
-    int buttons{0};
-    const char* (*buttonLabel)(int, int){nullptr};
-    bool (*buttonDim)(int, int){nullptr};
-    int (*buttonTint)(int, int){nullptr};
-    void (*buttonPress)(int, int){nullptr};
-    int (*markArg)(int){nullptr};
-
-    // The menu detail level (vr_menu_level: MenuLevel, below) it is shown from: a row for the curious (advanced()) or for
-    // tuning and testing (developer()) is left out of the pages below that level.
-    int level{0};
-
-    // A setting that can't be used here (unavailable()): dimmed, shown off, not changed; its help says why.
-    bool unavailable{false};
-
-    [[nodiscard]] Item advanced() const
-    {
-        Item i = *this;
-        i.level = 1;
-        return i;
-    }
-
-    [[nodiscard]] Item developer() const
-    {
-        Item i = *this;
-        i.level = 2;
-        return i;
-    }
-
-    [[nodiscard]] Item help(const char* text) const
-    {
-        Item i = *this;
-        i.helpText = text;
-        return i;
-    }
-
-    // Dimmed, shown off and not changed, `why` its help (what it needs: See-Through Liquids without VisPatch's data).
-    [[nodiscard]] Item unavailableBecause(const char* why) const
-    {
-        Item i = *this;
-        i.unavailable = true;
-        i.helpText = why;
-        return i;
-    }
-
-    // A slider whose value means something past its bar's ends (offsets, positions, angles, scales,
-    // distances; not shares, volumes, colours or chances): left and right step on past them, to
-    // lo..hi, the bar showing its end (the laser sets it only along the bar).
-    [[nodiscard]] Item extend(float lo, float hi) const
-    {
-        Item i = *this;
-        i.extendable = true;
-        i.hardMin = za::fmin(lo, min);
-        i.hardMax = za::fmax(hi, max);
-        return i;
-    }
-
-    // As far as four times the bar's width beyond each end (none below a bar starting at 0 or more).
-    [[nodiscard]] Item extend() const
-    {
-        const float width = max - min;
-        return extend(min >= 0.f ? min : min - 4.f * width, max + 4.f * width);
-    }
-};
 
 void calibrateHeight()
 {
@@ -499,11 +265,6 @@ void runCommand(const char* text)
     return i;
 }
 
-using PageBuilder = za::Vector<Item> (*)();
-
-// The index of the page `build` builds (pages[], below): what a link to it opens.
-[[nodiscard]] int pageIndex(PageBuilder build);
-
 // Pages linked before they are defined.
 [[nodiscard]] za::Vector<Item> pageBodyArms();
 [[nodiscard]] za::Vector<Item> pageBodyCalibration();
@@ -562,67 +323,8 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageClimbing();
 [[nodiscard]] za::Vector<Item> pageRecording();
 
-// Texts the menu hands out by pointer (an Item holds const char*):
-// - readouts: an info line's or a help's text, valid until the same function's next call (the draw uses it at once);
-//   released at a map change like any scratch.
-struct MenuReadouts
-{
-    za::String motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp;
-    za::String checklistUndoHelp;      // checklistUndoHelp
-    za::String checklistItemHelp;      // checklistHelp
-    za::String weight[2];              // weightReadout, by hand
-    za::String weaponWeightsDamage[2]; // weaponWeightsDamageReadout, by line
-    za::String heldObjectMass;
-    za::String heldObjectDamage[2];    // by line
-    za::String weaponWeightsDrop;      // weaponWeightsDropReadout
-    za::String weaponWeightsHeavy;     // weaponWeightsHeavyReadout
-    za::String weaponWeightsHits[2];   // weaponWeightsHitsReadout, by line
-    za::String weaponOffsetsStock;     // weaponOffsetsStockReadout
-    char checklistSummary[48];         // checklistSummary
-    char checklistTesting[48];         // checklistTesting
-    char stamina[96];                 // staminaReadout
-    char renderScaleHelp[192];         // renderScaleHelp
-    char buildVersion[64];             // buildVersionLine
-    auto members()
-    {
-        return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
-            weaponWeightsDrop, weaponWeightsHeavy, weaponWeightsHits, weaponOffsetsStock, checklistSummary, checklistTesting, checklistUndoHelp, checklistItemHelp, stamina, renderScaleHelp, buildVersion);
-    }
-};
 mem::Scratch<MenuReadouts> readouts{"menu readouts"};
 
-// - the pages' titles and choice names: the built pages' items point into them (a page writes its own only as it is
-//   built again, its old items replaced), so they are kept as long as the built pages (MenuPages): never released.
-// The Weapon Offsets pages: the main one and its parts (weaponOffsetsPartPages lists them in this order).
-enum WeaponOffsetsPart
-{
-    WofsMain,
-    WofsHand,
-    WofsFingers,
-    WofsSights,
-    WofsTwoHanded,
-    WofsStock,
-    WofsScreen,
-    WofsHolstered,
-    WofsEffects,
-    WofsFlashlight,
-    WofsParts
-};
-
-struct PageTexts
-{
-    za::String weaponOffsetsTitle[WofsParts], weaponOffsetsInheritTitle[WofsParts]; // by WeaponOffsetsPart
-    za::Vector<za::Pair<float, za::String>> weaponOffsetsInheritNames; // the Inherit From choice's
-    za::String weaponWeightsTitle, weaponWeightsInheritTitle;
-    za::String heldObjectOffsetsTitle, heldObjectWeightsTitle;
-    za::Vector<za::String> checklistSections; // the Checklist's headers
-    za::String checklistUndone;               // the item Undo Last Tick changed last (its help says)
-    auto members()
-    {
-        return qvr::mem::list(weaponOffsetsTitle, weaponOffsetsInheritTitle, weaponOffsetsInheritNames, weaponWeightsTitle,
-            weaponWeightsInheritTitle, heldObjectOffsetsTitle, heldObjectWeightsTitle, checklistSections, checklistUndone);
-    }
-};
 mem::Cache<PageTexts> pageTexts{"menu texts", mem::Never};
 
 // The player's grunts (vr_climb.cpp mantleGrunts, climb::grunt: the same order): the mantle's and the judo throw's Grunt
@@ -645,15 +347,8 @@ const char* const menuButtonHelp =
     "for a moment in the game (its own action happens first). Y: Y is the menu button, no longer previous weapon. "
     "Escape on the keyboard always works.";
 
-#include "vr_menu_props.inc"
-#include "vr_menu_pages.inc"
-#include "vr_menu_recording.inc"
-#include "vr_menu_cheats.inc"
 #include "vr_menu_toolgun.inc"
-#include "vr_menu_stealth.inc"
-#include "vr_menu_ragtests.inc"
 #include "vr_menu_ragtool.inc" // Debug > Ragdoll Tool (vr_ragtool.cpp)
-#include "vr_menu_ad_monsters.inc" // AD support: Debug > Tests > Arcane Dimensions Monsters
 
 // ----------------------------------------------------------------------------
 // Pages of the port's own tweaks
@@ -925,11 +620,17 @@ void selectCampaignRow(int index)
 [[nodiscard]] za::Vector<Item> pageSound();
 
 #include "vr_menu_mgroups.inc" // Combat > Monster Groups
-#include "vr_menu_gameplay.inc" // VR Settings > Gameplay
+// (The groups' pages linked from vr_menu_pages_gameplay.cpp.)
+template za::Vector<Item> pageMonsterParam<static_cast<int>(mgroups::Param::Push)>();
+template za::Vector<Item> pageMonsterParam<static_cast<int>(mgroups::Param::Resist)>();
+template za::Vector<Item> pageMonsterParam<static_cast<int>(mgroups::Param::Shove)>();
+template za::Vector<Item> pageMonsterParam<static_cast<int>(mgroups::Param::Stagger)>();
+template za::Vector<Item> pageMonsterParam<static_cast<int>(mgroups::Param::Struggle)>();
+template za::Vector<Item> pageMonsterParam<static_cast<int>(mgroups::Param::Tackle)>();
+template za::Vector<Item> pageMonsterParam<static_cast<int>(mgroups::Param::Throw)>();
+template za::Vector<Item> pageMonsterParam<static_cast<int>(mgroups::Param::Thrown)>();
 
-#include "vr_menu_body.inc" // the body pages
 
-#include "vr_menu_gore.inc" // gore
 
 [[nodiscard]] za::Vector<Item> pageGadget()
 {
@@ -1222,7 +923,6 @@ void hologramTestMessage()
     };
 }
 
-#include "vr_menu_physics.inc" // throwing, carrying, burning, crates, gibs, the ragdoll pages
 
 // Debug: playtesting and debugging aids, every debug flag and one-shot debug command reachable without the console
 // (ROUND21.md, "Menus reorganized" gathered the first ones; "Debug menu; quad sound; grenade catch default; no
@@ -1512,9 +1212,7 @@ void checklistUndo()
     return items;
 }
 
-#include "vr_menu_debug.inc" // Debug
 
-#include "vr_menu_debug_tests.inc" // Debug > Tests (and the spawn, horde and MG3 test pages)
 
 [[nodiscard]] za::Vector<Item> pageForceGrab()
 {
@@ -1895,22 +1593,6 @@ za::Vector<Item> pageMonsterHitbox()
 // Pages
 // ----------------------------------------------------------------------------
 
-enum PageId
-{
-    PageMain,
-    PageAdvanced
-};
-
-// Who a page is for (vr_menu_level, Menu Detail at the bottom of every page): links to a page above the level are left
-// out, and so are the rows marked advanced() or developer() (archive/MENU_REVIEW.md). menu_vr <n> opens any page.
-enum MenuLevel
-{
-    LevelStandard,  // what every player sets: comfort, height, the HUD, the headset, volume
-    LevelAdvanced,  // every gameplay, display and graphics setting (the default for a page)
-    LevelDeveloper, // tuning (weapon and prop offsets, weights, ragdolls, hitboxes), recording, debug and tests
-    LevelCount
-};
-
 struct Page
 {
     const char* title; // over the page; also its name in vr_menu_positions (renamed: its record is ignored)
@@ -2245,6 +1927,19 @@ const Page pages[] = {
 static_assert(mgroups::paramCount == 32, "a Monster Groups page for each trigger and action (the rows above)");
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
+// The index of the page `build` builds: what a link to it opens.
+int pageIndex(PageBuilder build)
+{
+    for(int p = 0; p < pageCount; p++)
+    {
+        if(pages[p].build == build)
+        {
+            return p;
+        }
+    }
+    return PageMain;
+}
+
 // VR Settings' sections' pages, in its order: with it, the rows Reset All resets besides the vr_* settings, and the
 // pages the wrappers (Turning Mode, Move Towards, the hands, the holsters) are synced on as they are built.
 const PageBuilder vrSettingsParts[] = {pageVrsHeightHands, pageVrsBodyEquipment, pageVrsAmmoPouch, pageVrsHolsters,
@@ -2276,14 +1971,6 @@ constexpr int menuRoots[] = {PageMain, PageAdvanced};
     return p == PageMain || p == PageAdvanced;
 }
 
-// Weapon Offsets' parts, as its main page links them (in WeaponOffsetsPart's order). A new part: its builder, a
-// WeaponOffsetsPart, a line in `pages` (last) and one here.
-struct WeaponOffsetsPartPage
-{
-    PageBuilder build;
-    const char* link;
-    const char* help;
-};
 const WeaponOffsetsPartPage weaponOffsetsPartPages[] = {
     {pageWofsHand, "Hand and Grip",
         "Where the weapon sits in the hand and how it is turned; the hand and the weapon moved together, or the hand alone; "
@@ -2573,6 +2260,12 @@ int drawnInstance = -1;    // drawing a panel's own canvas (menu::drawInstance):
 [[nodiscard]] MenuInstance& ui()
 {
     return menuInstances[currentMenu];
+}
+
+// Whether Reset All to Defaults was pressed once (the row reads Press Again to Reset All).
+[[nodiscard]] bool resetAllIsArmed()
+{
+    return ui().resetAllArmed;
 }
 
 // ----------------------------------------------------------------------------
@@ -2871,9 +2564,7 @@ void resetAll(); // (below: after the pages' building)
     return out;
 }
 
-#include "vr_menu_settings.inc" // VR Settings
 
-#include "vr_menu_wofs.inc" // Weapon Offsets
 
 [[nodiscard]] constexpr int outsidePlace(int state)
 {
@@ -5318,7 +5009,7 @@ bool resolvePath(za::StringView spec, za::String& out)
     return true;
 }
 
-} // namespace
+} // namespace menu_detail
 
 bool qvr::menu::pathTo(za::StringView spec, za::String& out)
 {

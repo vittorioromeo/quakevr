@@ -11,6 +11,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+// Only the SDL parts the engine headers use (quakedef.h): a file that calls SDL includes "SDL.h" itself.
+#ifndef QVR_ENGINE_SDL_CORE
+#define QVR_ENGINE_SDL_CORE
+#endif
+
 extern "C" {
 #include "quakedef.h"
 
