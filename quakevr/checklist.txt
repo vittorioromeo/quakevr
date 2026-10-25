@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Fuel tanks: carry a flamethrower's tank and throw it hard at a grunt or an ogre: it hurts it (about as much as a small crate) and stays whole; shoot it afterwards: it still bursts {test:fueltank_burst}
 Nail pistol: aim with the sights at a mark 5-10 m away, pitched well up and down and turned far left and right; the nails strike on the sights and follow the red laser (Show Controller Laser)
 Widowmaker (vr_ad_test 98, or Debug > Tools > Model Previews > Widowmaker Art): three barrels spin a third of a turn per shot and stop with one on top; the front grip hangs from the still rail; the darker 512 texture, the back plate's symmetric rivets; vr_ad_widowmaker_art 0 shows the old model {test:widowmaker_art}
 Stick: a small push creeps you forward, the speed climbs smoothly to full before the stick's edge, and running uses the whole push (VR Settings > Locomotion: Stick Response Curve 1.6; try 1.0 and 2.2)
