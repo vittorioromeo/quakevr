@@ -83,10 +83,10 @@ void(float c) VR_AGBT_PickupBegin =
         if(src == 0)
         {
             p.angles_y = p.angles_y + 25;
-            entity other = VR_AGT_Spawn(wid, 150); // (another dropping it: it lies there)
+            entity dropper = VR_AGT_Spawn(wid, 150); // (another dropping it: it lies there)
             p.angles_y = p.angles_y - 25;
-            vr_agbt_src = VR_AG_DropHeld(other, '0 0 0');
-            VR_AGT_Remove(other);
+            vr_agbt_src = VR_AG_DropHeld(dropper, '0 0 0');
+            VR_AGT_Remove(dropper);
         }
         else
         {
