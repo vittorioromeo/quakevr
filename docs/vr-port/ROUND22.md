@@ -22181,3 +22181,70 @@ to both hands the same way, a higher one aims lower). At 17 the migrated 60 / 30
 -61.12, off -60.06). Configs at 7 are untouched. Tests: synthetic 202 configs (7: 70 / 40.25 unchanged; 17: 60 / 30.25, 7),
 `vr_np_test 5` PASS, `menu_vr links` 40 links, 0 failed, `vr_menu_path_check maps/vrcalibration.map` 0 missing, eval.sh no
 verdict changes.
+
+## Defaults of 2026-10-25: AD heads' weight, the death guard's sword, Smooth animation, half-size heat haze (worktree `dequant`, branch `agent/defaults2`, 2026-10-25; configVersion 204, vr_wofs_version 66)
+
+Vittorio's decisions of 2026-10-25 (the questions left by `agent/promote` and `agent/perf3`). Every changed default has a
+migration that moves only a config still at the old default; reason "approved 2026-10-25".
+
+| what | old -> new | migration |
+|---|---|---|
+| AD heads held as props: `vr_prop_mass_33` h_dknight, `_58` h_dcrossbow, `_59` h_soldier, `_60` h_enforcer, `_62` h_hogreham, `_64` h_dguard, `_71` h_hogre | 0 (estimated) -> -1 (a share of the ragdoll, as every older shipped head) | configVersion 204, named rows (after `takeShippedSlots`) |
+| the death guard's sword (`vr_wofs_*_44`, w_dguardsword#melee) | its own defaults = the death knight's sword's (`_42`): only Heft differed, 0.3 -> 0.35; Inherit From stays 0 | vr_wofs_version 66 (`takeGuardSword66`) |
+| `r_lerpmodels` (Model Animation) | 1 (Quake's Blend) -> 3 (Smooth) | configVersion 204: 1 -> 3; 0 (Stepped) and 2 stay |
+| `vr_heat_haze_half` (new; Graphics > Heat Haze Detail) | 1: the haze's scene copy at half size; 0 full size as before | new setting |
+
+- **Heads.** Mass -1 was the right direction (the older shipped heads' convention) but did nothing for AD's heads:
+  `box3d::headPropMass` knew only the ragdoll classes' own head models, so -1 fell back to 0 (estimated), as AD's death
+  fury's head (`_65`, shipped -1 in 187) did all along. `ad::headVrClass` (vr_ad_monsters.cpp) now maps each AD head
+  model to the class its monster is tuned as (`vrClass`: h_dknight/h_dguard/h_dfury the hell knight's, h_dcrossbow the
+  knight's, h_soldier the grunt's, h_enforcer the enforcer's, h_hogre/h_hogreham the ogre's). Weights now (default
+  ragdoll masses): death knight, death guard, death fury 9.1 kg; crossbow knight 6.3; soldier 5.6; enforcer 7; both hunter
+  ogres 14. Debug > "Held Heads' Weights" (`vr_prop_heads`, new) lists every head slot, its Mass and its kg.
+- **Death guard's sword.** All 292 keys of `_44`'s defaults already equalled `_42`'s except Heft and the ID, so the
+  copy is Heft 0.35. Step 66: a config whose `_44` inherits 42 (his did) takes, for each inheritable value still at the
+  old default, what it showed (the death knight's sword's value as that config has it), keeps its own values, then
+  Inherit From 0; any other config's Heft still at 0.3 takes 0.35.
+- **Smooth animation.** `gl_rmain.c` default 3. Ironwail's Options > Animations row (menu.c) shows "Smooth" for any
+  non-zero value; its Classic -> Smooth with nothing remembered (a config saved at 0) now restores the default (3, was 1).
+  The VR menu's Model Animation cycle already lists 3. Flat screen (`vr_enabled 0`) on E1M1: clean.
+- **Half-size heat haze** (vr_haze.cpp `copyPart`): the part of the view the hot air covers is blitted (linear, exactly
+  half: each texel the mean of four) into a half-size copy, widened to even pixels; the shader reads it between the
+  copied texels' centres (`CopyRect`) through `CopySize`. Bullet time's trails keep their full-size copy (each its own
+  texture: no reallocations when both run). A multisampled scene (`vid_fsaa` > 0) is always copied full size: a resolve
+  cannot scale (GL_EXT_framebuffer_multisample_blit_scaled could; not done). His `vid_fsaa` is 0, as is the default.
+
+**Tests**
+- Migrations (`scratch/mig_run.sh`, one run, `resetcfg; exec <cfg>; vr_migrate_config`, then `vr_wofs_dump 43` and the
+  values): old defaults at 203/65 -> lerp 3, the 7 masses -1, `_44` heft 0.35; chosen values (lerp 0, `_33` mass 2.5,
+  heft 0.5) -> all kept, the other masses -1; inheriting 42 with `_42` heft 0.4 and scale 0.9 and an own `_44` pitch 5 ->
+  heft 0.4, scale 0.9, pitch 5, inherit 0, lerp 2 kept; his whole config (200/63) -> `_44`: 292 keys, 0 differ from what
+  it showed before (`scratch/mig_his.py`: its own value where it differed from the old default, else his `_42`'s), inherit
+  0, the 7 masses 0 -> -1, lerp 3 kept, versions 204/66.
+- Heat haze eye shots (left eye, paused, `vid_fsaa 0`, low-res kit eyes 1024): E1M7 facing the lava, the haze changes 7.2%
+  of the pixels (mean 2.1 levels); half against full 0.84 (3%); looking down 45 degrees 1.88 (6%). At 2x the lava inside
+  the haze is visibly softer: its fine bright specks blur away; the rest of the view is identical. The fire field
+  (gpu_fields_inside's spot) shows no visible haze in that view either way (0.02).
+- GPU (LTO, exclusive, paced, his ironwail.cfg of 10-25 + the variant, Quest 3 Ultra eyes 2688x2784 at 120 Hz, 3 x 600
+  frames, medians; `kit/benchresults/dq_*`):
+
+| scenario | variant | GPU 3D avg | heat haze | alias |
+|---|---|---|---|---|
+| lava_e1m7 | haze full | 2.064 | 0.331 | |
+| lava_e1m7 | haze half | 1.742 | 0.081 | |
+| gpu_fields_inside | haze full | 3.411 | 0.139 | |
+| gpu_fields_inside | haze half | 3.010 | 0.073 | |
+| crowd_ad_40 | r_lerpmodels 1 | 4.067 | | 0.508 |
+| crowd_ad_40 | r_lerpmodels 3 | 3.864 | | 0.473 |
+
+  The haze over lava costs a quarter (-0.25 ms a frame), in fire half (-0.07). Smooth animation costs nothing measurable
+  on the GPU (alias 0.47-0.51 run to run either way) nor the CPU (busy 2.35 vs 2.34 ms).
+- `vr_menu_path_check maps/vrcalibration.map`: 0 missing. E1M1 VR then flat smoke: clean. eval.sh: no verdict changes
+  (canary 36/44; 5 of the full set's takes move by 0.1 damage, PASS -> PASS: the dummy drawn with Smooth animation).
+
+**In VR:**
+- [ ] Pick up an AD head (death knight, hunter ogre): it weighs as the Quake head of its kind (the ogre's heavy).
+- [ ] Hold the AD death guard's sword: as before (it handles as the death knight's).
+- [ ] Monsters move smoothly on a fresh config (Model Animation: Smooth); Options > Animations Classic and back: Smooth.
+- [ ] Stand over E1M7's lava and in a burning fuel tank's field: the haze looks right (a little softer inside it than
+  Heat Haze Detail: Full Size).
