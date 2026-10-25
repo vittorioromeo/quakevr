@@ -195,6 +195,12 @@ settings) compare with new runs under the new names (`qvrbench.py`'s `renamed`).
 | `fight_<map>` | r25/maps | ad_sepulcher, ad_tears, ad_crucial (native AD), hip2m5, r2m7, e4m7 | The map at skill 2: its spawn and two pickups' places, 300 frames each, the head turning round, god and notarget off (what is near comes for you). |
 | `load_ad_sepulcher`, `load_ad_tears` | r25/loading | (none) | AD's 42 MB and 85 MB BSPs loaded cold (and sepulcher warm). |
 | `saveload_e1m1` | r25/loading | e1m1 | A fight in E1M1's computer room saved (`save qvrbench`, into the agent's own game folder) and loaded twice: the save's frame (mark `save`), each load by stage. |
+| `gpu_fields_inside` | gpu/vfx | vrtesthall | Scene `bench_tanks` with the flamethrowers' and sprayers' tanks burst in the set-up, the player standing among the fire fields (`setpos 50 -48 24`) facing the poison clouds: big soft particles seen from inside. |
+| `gpu_shore_spray` | gpu/liquids | vrtesthall | vrtesthall's pool from its west edge (`setpos 180 -256 24`, looking down 20 degrees): the shore's foam and spray along its walls, the water. |
+
+Group `gpu` (the GPU benchmark, "GPU benchmark" below) also takes `idle_e1m1`, `fight_ad_tears`, `fight_ad_sepulcher`,
+`play_ad_tfuma_fight`, `armed_16`, `crowd_ad_40`, `combined`, `particles_dense`, `explosions_storm`,
+`gore_blast_crowd_32`, `lights_32`, `flashlight_e1m1`, `tanks_fields`, `water_range_surface`, `lava_e1m7`.
 
 ### Tours of complex custom maps
 
