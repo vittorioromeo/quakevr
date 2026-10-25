@@ -137,6 +137,19 @@
         slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%")
             .help("How far a stick must be pushed before it does anything. Raise it if you drift or turn without "
                   "touching the stick: worn sticks often need 20-25%."),
+        slider("Stick Outer Deadzone", vr_deadzone_outer, 0.f, 30.f, 1.f, "%.0f%%")
+            .help("The last part of the moving stick's travel that already counts as a full push, so you reach full "
+                  "speed without pressing the stick hard against its edge (vr_deadzone_outer)."),
+        slider("Stick Response Curve", vr_move_curve, 1.f, 3.f, 0.1f, "%.1f")
+            .help("How the moving stick's push becomes speed. 1: straight (half the push, half the speed). Higher: "
+                  "more of the travel for slow speeds, for careful walking, the top speed still at a full push. 1.6: "
+                  "about half speed at two thirds of a push (vr_move_curve)."),
+        toggle("Walk Into Run", vr_move_autorun)
+            .help("Walking (Default Speed: Walk), pushing the moving stick all the way eases you into a run; less than "
+                  "Run From Push walks. The speed button still runs (vr_move_autorun)."),
+        slider("Run From Push", vr_move_autorun_threshold, 0.5f, 1.f, 0.05f, "%.2f")
+            .help("Walk Into Run: how far the moving stick must be pushed (past its deadzones; 1 a full push) before "
+                  "you ease into running; under it you walk, at full walking speed there (vr_move_autorun_threshold)."),
         slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").extend().help("Walking speed (running is this times the running multiplier)."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").extend().help("How much faster running is than walking."),

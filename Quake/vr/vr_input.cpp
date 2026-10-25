@@ -43,10 +43,14 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
+extern "C" cvar_t sv_maxspeed;          // sv_user.c: the stick's top speed fits it (moveTopSpeed)
+extern "C" cvar_t sv_accelerate, sv_stopspeed, sv_friction; // sv_user.c, sv_phys.c: the stick's least speed (moveMinSpeed)
 
 using namespace qvr;
 
@@ -324,6 +328,90 @@ za::Vector<PendingHaptic> pendingHaptics;
     return (v - za::copysign(dz, v)) / (1.f - dz);
 }
 
+// Thumbstick locomotion (ROUND22.md "Thumbstick locomotion response"). The moving stick's radial deadzone: the push's
+// length past vr_deadzone (inner, %) up to 1 - vr_deadzone_outer (%) rescaled onto 0..1 (just past the inner one
+// starts from 0; the last outer % is full), its direction kept: a diagonal as a straight push, and a push longer than 1
+// (some sticks' corners) as 1. The menus' and turning's per-axis deadzone() stays.
+[[nodiscard]] glm::vec2 moveStick(glm::vec2 stick)
+{
+    const float inner = CLAMP(0.f, vr_deadzone.value / 100.f, 0.9f);
+    const float outer = CLAMP(0.f, vr_deadzone_outer.value / 100.f, 0.95f - inner);
+    const float len = glm::length(stick);
+    if(!(len > inner)) // (NaN too)
+    {
+        return glm::vec2{0.f};
+    }
+    const float m = za::min(1.f, (len - inner) / (1.f - inner - outer));
+    return stick * (m / len);
+}
+
+// The stick's push (moveStick's length, 0..1) on the response curve (vr_move_curve: its power; 1 linear).
+[[nodiscard]] float moveCurve(float m, float power)
+{
+    return za::pow(CLAMP(0.f, m, 1.f), CLAMP(0.25f, power, 4.f));
+}
+
+// The speed at a full push: walking cl_forwardspeed, running that times cl_movespeedkey, neither past sv_maxspeed
+// (the server's clamp: as the client knows it, the cvar, as in_sdl.c's gamepad; a listen server's own), so the
+// whole travel maps onto 0..what the server gives. (Stamina's and crouching's lower clamps are the server's.)
+[[nodiscard]] float moveTopSpeed(bool running)
+{
+    const float cap = sv_maxspeed.value > 0.f ? sv_maxspeed.value : 1e9f;
+    return za::min(cl_forwardspeed.value * (running ? cl_movespeedkey.value : 1.f), cap);
+}
+
+// Walk into run (vr_move_autorun): how far walking has eased into running (0..1), rising while the push is past
+// vr_move_autorun_threshold, falling under it.
+constexpr float autorunRiseSeconds = 0.3f;
+constexpr float autorunFallSeconds = 0.2f;
+float autorunBlend = 0.f;
+
+[[nodiscard]] bool autorunOn(bool running)
+{
+    return vr_move_autorun.value != 0.f && !running && cl_alwaysrun.value == 0.f;
+}
+
+// The least speed a push past the deadzone asks, on the ground (vr_move_min_speed): Quake's ground friction (under
+// sv_stopspeed it takes sv_stopspeed * sv_friction a second) beats the acceleration (sv_accelerate times the speed
+// asked, a second) under sv_stopspeed * sv_friction / sv_accelerate, 40: asked less, you stand (or creep a few units a
+// second). -1 (the default) that and a tenth more, 0 none (from 0), more that. In water and the air, none (no such floor).
+[[nodiscard]] float moveMinSpeed()
+{
+    if(!cl.onground || cl.inwater)
+    {
+        return 0.f;
+    }
+    if(vr_move_min_speed.value >= 0.f)
+    {
+        return vr_move_min_speed.value;
+    }
+    return sv_accelerate.value > 0.f ? 1.1f * sv_stopspeed.value * sv_friction.value / sv_accelerate.value : 0.f;
+}
+
+// A top speed on the curve (c, 0..1), from the least speed (floor) up: a push past the deadzone always moves you.
+[[nodiscard]] float moveRamp(float top, float c, float floor)
+{
+    return c > 0.f && top > floor ? floor + (top - floor) * c : top * c;
+}
+
+// The stick's speed at push m (moveStick's length): running or walking, the top speed on the curve (from floor, the
+// least, up: moveMinSpeed); walking with vr_move_autorun, the walk spread over 0..the threshold and eased (blend 0..1)
+// into the run's.
+[[nodiscard]] float moveSpeed(float m, bool running, float blend, float power, float floor = 0.f)
+{
+    if(!autorunOn(running))
+    {
+        return moveRamp(moveTopSpeed(running), moveCurve(m, power), floor);
+    }
+    const float threshold = CLAMP(0.1f, vr_move_autorun_threshold.value, 1.f);
+    const float walk = moveRamp(moveTopSpeed(false), moveCurve(za::min(1.f, m / threshold), power), floor);
+    const float run = moveRamp(moveTopSpeed(true), moveCurve(m, power), floor);
+    return walk + (za::max(run, walk) - walk) * CLAMP(0.f, blend, 1.f);
+}
+
+// The stick's horizontal speed last asked of the server (VR_AdjustMove; the test and vr_debug_stick).
+float lastStickSpeed = 0.f;
+
 void stickKey(StickKey& k, float value, bool menu)
 {
     constexpr double repeatDelay = 0.4;
@@ -460,6 +548,371 @@ char bindingsRepair[256];
     return b && q_strcasestr(b, "grab");
 }
 
+// ---- vr_stick_curve_test [x y z]: the stick's locomotion response (ROUND22.md "Thumbstick locomotion response"). First
+// the response itself (moveStick, moveSpeed) over a sweep of pushes and angles: a table of push -> speed, linear and
+// curved, and the checks (monotonic, nothing inside the deadzone, full at 95%, about half at 65% with 1.6, running's
+// top sv_maxspeed, diagonals as straight). Then, in a map (a listen server), each case below driven on the moving stick
+// from x y z (default: where the player stands; room round it for 200 units): the speed asked and the player's after
+// it settles. Ends "stick curve test: N passed, M failed". Sets the speeds it measures against (cl_forwardspeed 200,
+// cl_movespeedkey 2, sv_maxspeed 320), the head steering, no crouch or stamina slowing; puts them back after.
+struct StickCase
+{
+    float push;  // the stick's raw length
+    float angle; // degrees from straight ahead (clockwise)
+    bool run;
+    bool autorun;
+    float curve;
+};
+
+constexpr StickCase stickCases[] = {
+    {0.05f, 0.f, false, false, 1.6f},  {0.12f, 0.f, false, false, 1.6f}, {0.3f, 0.f, false, false, 1.6f},  {0.5f, 0.f, false, false, 1.6f},
+    {0.65f, 0.f, false, false, 1.6f},  {0.8f, 0.f, false, false, 1.6f},  {0.95f, 0.f, false, false, 1.6f},
+    {1.f, 0.f, false, false, 1.6f},    {0.65f, 45.f, false, false, 1.6f}, {1.f, 45.f, false, false, 1.6f},
+    {1.2f, 45.f, false, false, 1.6f},  {1.f, 120.f, false, false, 1.6f}, {0.65f, 0.f, false, false, 1.f},
+    {0.65f, 0.f, true, false, 1.6f},   {0.9f, 0.f, true, false, 1.6f},   {0.95f, 0.f, true, false, 1.6f},
+    {1.f, 0.f, true, false, 1.6f},     {1.f, 45.f, true, false, 1.6f},   {1.2f, 30.f, true, false, 1.6f},
+    {0.8f, 0.f, false, true, 1.6f},    {0.85f, 0.f, false, true, 1.6f},  {1.f, 0.f, false, true, 1.6f},
+    {1.f, 45.f, false, true, 1.6f},
+};
+constexpr int stickCaseCount = static_cast<int>(sizeof(stickCases) / sizeof(stickCases[0]));
+constexpr int stickSettleSpan = 12;      // frames the speed must hold still over
+constexpr int stickGiveUpFrames = 900;   // a case not settled by then: FAIL "timed out" (a safety net)
+constexpr float stickTestWalk = 200.f;   // the speeds the test sets and measures against
+constexpr float stickTestRun = 320.f;
+
+struct StickTest
+{
+    bool active{false};
+    int index{0};
+    int frames{0};
+    glm::vec3 start{0.f};
+    glm::vec2 stick{0.f};
+    float history[stickSettleSpan]{};
+    float moved[stickCaseCount]{};
+    int passed{0};
+    int failed{0};
+    // the settings it changes, put back after
+    float alwaysrun{0.f}, speedkey{0.f}, forward{0.f}, maxspeed{0.f}, crouch{0.f}, stamina{0.f}, mode{0.f};
+    float curve{0.f}, autorun{0.f}, threshold{0.f}, inner{0.f}, outer{0.f}, least{0.f};
+};
+StickTest stickTest;
+int stickDebugFrames = 0; // vr_debug_stick: frames since its last line
+
+void stickCheck(bool ok, const char* what)
+{
+    (ok ? stickTest.passed : stickTest.failed)++;
+    if(!ok)
+    {
+        Con_Printf("stick curve: FAIL %s\n", what);
+    }
+}
+
+// What a case should ask on the ground, worked out apart from moveSpeed: the push past 10% to 95% onto 0..1, on the
+// curve, from the least speed (44: 1.1 sv_stopspeed sv_friction / sv_accelerate) to 200 walking or 320 running;
+// walking into running (settled: run past the 0.9 threshold, else the walk over 0..0.9).
+[[nodiscard]] float stickExpected(const StickCase& c)
+{
+    const float m = CLAMP(0.f, (c.push - 0.1f) / 0.85f, 1.f);
+    if(m == 0.f)
+    {
+        return 0.f;
+    }
+    const float least = 1.1f * sv_stopspeed.value * sv_friction.value / sv_accelerate.value;
+    if(c.autorun && !c.run)
+    {
+        return m >= 0.9f ? za::max(least + (stickTestRun - least) * za::pow(m, c.curve), stickTestWalk)
+                         : least + (stickTestWalk - least) * za::pow(za::min(1.f, m / 0.9f), c.curve);
+    }
+    return least + ((c.run ? stickTestRun : stickTestWalk) - least) * za::pow(m, c.curve);
+}
+
+[[nodiscard]] edict_t* stickPlayer()
+{
+    return sv.active && svs.maxclients >= 1 && svs.clients[0].active ? svs.clients[0].edict : nullptr;
+}
+
+[[nodiscard]] float stickPlayerSpeed()
+{
+    const edict_t* p = stickPlayer();
+    return p ? za::sqrt(p->v.velocity[0] * p->v.velocity[0] + p->v.velocity[1] * p->v.velocity[1]) : 0.f;
+}
+
+void stickTestRestore()
+{
+    StickTest& t = stickTest;
+    Cvar_SetValueQuick(&cl_alwaysrun, t.alwaysrun);
+    Cvar_SetValueQuick(&cl_movespeedkey, t.speedkey);
+    Cvar_SetValueQuick(&cl_forwardspeed, t.forward);
+    Cvar_SetValueQuick(&sv_maxspeed, t.maxspeed);
+    Cvar_SetValueQuick(&vr_crouch_speed, t.crouch);
+    Cvar_SetValueQuick(&vr_stamina_speed, t.stamina);
+    Cvar_SetValueQuick(&vr_movement_mode, t.mode);
+    Cvar_SetValueQuick(&vr_move_curve, t.curve);
+    Cvar_SetValueQuick(&vr_move_autorun, t.autorun);
+    Cvar_SetValueQuick(&vr_move_autorun_threshold, t.threshold);
+    Cvar_SetValueQuick(&vr_deadzone, t.inner);
+    Cvar_SetValueQuick(&vr_deadzone_outer, t.outer);
+    Cvar_SetValueQuick(&vr_move_min_speed, t.least);
+}
+
+void stickTestFinish()
+{
+    stickTest.active = false;
+    stickTest.stick = glm::vec2{0.f};
+    stickTestRestore();
+    Con_Printf("stick curve test: %d passed, %d failed\n", stickTest.passed, stickTest.failed);
+}
+
+// The response's own checks and its table (the test's first part; also Debug > Tests > Stick: Curve Table).
+void stickTable()
+{
+    // (the curve itself, from 0; "ground": from the least speed on the ground, moveMinSpeed's default)
+    const float least = 1.1f * sv_stopspeed.value * sv_friction.value / za::max(sv_accelerate.value, 1e-3f);
+    Con_Printf("stick curve: push | m     | walk lin | walk 1.6 | run lin | run 1.6 | ground walk 1.6 | ground run 1.6\n");
+    for(int i = 0; i <= 20; ++i)
+    {
+        const float r = static_cast<float>(i) * 0.05f;
+        const float m = glm::length(moveStick({0.f, r}));
+        Con_Printf("stick curve: %4.2f | %5.3f | %8.1f | %8.1f | %7.1f | %7.1f | %15.1f | %14.1f\n", r, m,
+                   moveSpeed(m, false, 0.f, 1.f), moveSpeed(m, false, 0.f, 1.6f), moveSpeed(m, true, 0.f, 1.f),
+                   moveSpeed(m, true, 0.f, 1.6f), moveSpeed(m, false, 0.f, 1.6f, least), moveSpeed(m, true, 0.f, 1.6f, least));
+    }
+
+    char what[160];
+    // on the ground: monotonic, and a push just past the deadzone moves you (Quake's friction holds nothing under 40)
+    for(const bool run : {false, true})
+    {
+        float last = 0.f;
+        bool monotonic = true, moves = true;
+        for(int i = 11; i <= 120; ++i)
+        {
+            const float v = moveSpeed(glm::length(moveStick({0.f, static_cast<float>(i) * 0.01f})), run, 0.f, 1.6f, least);
+            monotonic = monotonic && v >= last - 1e-4f;
+            moves = moves && v >= 40.f;
+            last = v;
+        }
+        q_snprintf(what, sizeof(what), "ground %s: monotonic, at least 40 past the deadzone", run ? "run" : "walk");
+        stickCheck(monotonic && moves, what);
+    }
+    for(const float p : {1.f, 1.6f, 3.f})
+    {
+        for(const bool run : {false, true})
+        {
+            const float top = run ? stickTestRun : stickTestWalk;
+            float last = 0.f;
+            bool monotonic = true, dead = true, full = true;
+            for(int i = 0; i <= 120; ++i)
+            {
+                const float r = static_cast<float>(i) * 0.01f;
+                const float v = moveSpeed(glm::length(moveStick({0.f, r})), run, 0.f, p);
+                monotonic = monotonic && v >= last - 1e-4f;
+                last = v;
+                dead = dead && (r > 0.1f || v == 0.f);
+                full = full && (r < 0.95f || za::fabs(v - top) < 0.01f);
+            }
+            q_snprintf(what, sizeof(what), "curve %.1f %s: monotonic", p, run ? "run" : "walk");
+            stickCheck(monotonic, what);
+            q_snprintf(what, sizeof(what), "curve %.1f %s: nothing inside the deadzone", p, run ? "run" : "walk");
+            stickCheck(dead, what);
+            q_snprintf(what, sizeof(what), "curve %.1f %s: full speed (%.0f) from a 95%% push", p, run ? "run" : "walk", top);
+            stickCheck(full, what);
+        }
+    }
+    const float half = moveSpeed(glm::length(moveStick({0.f, 0.65f})), false, 0.f, 1.6f) / stickTestWalk;
+    Con_Printf("stick curve: curve 1.6 at a 65%% push: %.3f of the top speed\n", half);
+    stickCheck(half > 0.45f && half < 0.55f, "curve 1.6: about half speed at a 65% push");
+
+    // diagonals as straight, and never past a full push
+    bool diagonal = true;
+    for(const float r : {0.2f, 0.5f, 0.65f, 0.9f, 1.f, 1.3f})
+    {
+        const float straight = glm::length(moveStick({0.f, r}));
+        for(int a = 0; a < 360; a += 15)
+        {
+            const float rad = static_cast<float>(a) * (3.14159265f / 180.f);
+            const float l = glm::length(moveStick({r * glm::sin(rad), r * glm::cos(rad)}));
+            diagonal = diagonal && za::fabs(l - straight) < 1e-4f && l <= 1.0001f;
+        }
+    }
+    stickCheck(diagonal, "diagonals as straight pushes, never past 1");
+
+    // walking into running: the walk full at the threshold, the blend never down, never past the run's top
+    Cvar_SetValueQuick(&vr_move_autorun, 1.f);
+    bool blendUp = true;
+    for(const float m : {0.5f, 0.9f, 0.95f, 1.f})
+    {
+        float last = 0.f;
+        for(int b = 0; b <= 10; ++b)
+        {
+            const float v = moveSpeed(m, false, static_cast<float>(b) * 0.1f, 1.6f);
+            blendUp = blendUp && v >= last - 1e-4f && v <= stickTestRun + 0.01f;
+            last = v;
+        }
+    }
+    stickCheck(blendUp, "walk into run: the blend only adds, up to the run's top");
+    stickCheck(za::fabs(moveSpeed(0.9f, false, 0.f, 1.6f) - stickTestWalk) < 0.01f, "walk into run: full walk at the threshold");
+    stickCheck(za::fabs(moveSpeed(1.f, false, 1.f, 1.6f) - stickTestRun) < 0.01f, "walk into run: full run eased in");
+    Cvar_SetValueQuick(&vr_move_autorun, 0.f);
+}
+
+void stickTestSetCase()
+{
+    StickTest& t = stickTest;
+    const StickCase& c = stickCases[t.index];
+    Cvar_SetValueQuick(&cl_alwaysrun, c.run ? 1.f : 0.f);
+    Cvar_SetValueQuick(&vr_move_autorun, c.autorun ? 1.f : 0.f);
+    Cvar_SetValueQuick(&vr_move_curve, c.curve);
+    const float rad = c.angle * (3.14159265f / 180.f);
+    t.stick = {c.push * glm::sin(rad), c.push * glm::cos(rad)};
+    t.frames = 0;
+    if(edict_t* p = stickPlayer())
+    {
+        VectorCopy(t.start, p->v.origin);
+        VectorCopy(vec3_origin, p->v.velocity);
+        qcvm_t* old = nullptr;
+        PR_PushQCVM(&sv.qcvm, &old); // (the input's frame: the client's VM, or none, is in)
+        SV_LinkEdict(p, false);
+        PR_PopQCVM(old);
+    }
+}
+
+void stickTest_f()
+{
+    StickTest& t = stickTest;
+    if(t.active)
+    {
+        Con_Printf("stick curve: already running\n");
+        return;
+    }
+    t = StickTest{};
+    t.alwaysrun = cl_alwaysrun.value;
+    t.speedkey = cl_movespeedkey.value;
+    t.forward = cl_forwardspeed.value;
+    t.maxspeed = sv_maxspeed.value;
+    t.crouch = vr_crouch_speed.value;
+    t.stamina = vr_stamina_speed.value;
+    t.mode = vr_movement_mode.value;
+    t.curve = vr_move_curve.value;
+    t.autorun = vr_move_autorun.value;
+    t.threshold = vr_move_autorun_threshold.value;
+    t.inner = vr_deadzone.value;
+    t.outer = vr_deadzone_outer.value;
+    t.least = vr_move_min_speed.value;
+    Cvar_SetValueQuick(&cl_alwaysrun, 0.f);
+    Cvar_SetValueQuick(&cl_movespeedkey, 2.f);
+    Cvar_SetValueQuick(&cl_forwardspeed, stickTestWalk);
+    Cvar_SetValueQuick(&sv_maxspeed, stickTestRun);
+    Cvar_SetValueQuick(&vr_crouch_speed, 0.f);
+    Cvar_SetValueQuick(&vr_stamina_speed, 0.f);
+    Cvar_SetValueQuick(&vr_movement_mode, 1.f);
+    Cvar_SetValueQuick(&vr_move_autorun, 0.f);
+    Cvar_SetValueQuick(&vr_move_autorun_threshold, 0.9f);
+    Cvar_SetValueQuick(&vr_deadzone, 10.f);
+    Cvar_SetValueQuick(&vr_deadzone_outer, 5.f);
+    Cvar_SetValueQuick(&vr_move_min_speed, -1.f);
+
+    stickTable();
+    const bool table = Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "table");
+    edict_t* p = stickPlayer();
+    if(table || !p || !vrActive())
+    {
+        if(!table)
+        {
+            Con_Printf("stick curve: no player in VR (a map, in VR): the response only\n");
+        }
+        stickTestFinish();
+        return;
+    }
+    if(Cmd_Argc() >= 4)
+    {
+        t.start = {static_cast<float>(atof(Cmd_Argv(1))), static_cast<float>(atof(Cmd_Argv(2))),
+                   static_cast<float>(atof(Cmd_Argv(3)))};
+    }
+    else
+    {
+        t.start = {p->v.origin[0], p->v.origin[1], p->v.origin[2]};
+    }
+    if(p->v.movetype == static_cast<float>(MOVETYPE_NOCLIP))
+    {
+        p->v.movetype = static_cast<float>(MOVETYPE_WALK);
+    }
+    t.active = true;
+    t.index = 0;
+    stickTestSetCase();
+}
+
+// Each frame (update): a case's speed settled (held still over stickSettleSpan frames, at least 48 frames in), its line
+// and checks, then the next case from the start.
+void stickTestTick()
+{
+    StickTest& t = stickTest;
+    if(!t.active)
+    {
+        return;
+    }
+    if(!stickPlayer())
+    {
+        Con_Printf("stick curve: FAIL the player is gone\n");
+        ++t.failed;
+        stickTestFinish();
+        return;
+    }
+    const float speed = stickPlayerSpeed();
+    const float before = t.history[t.frames % stickSettleSpan];
+    t.history[t.frames % stickSettleSpan] = speed;
+    ++t.frames;
+    const StickCase& c = stickCases[t.index];
+    const bool settled = t.frames >= 48 && za::fabs(speed - before) < 0.25f;
+    if(!settled && t.frames < stickGiveUpFrames)
+    {
+        return;
+    }
+
+    const float expected = stickExpected(c);
+    char what[200];
+    q_snprintf(what, sizeof(what), "push %.2f at %.0f deg %s%s curve %.1f", c.push, c.angle, c.run ? "run" : "walk",
+               c.autorun ? " autorun" : "", c.curve);
+    Con_Printf("stick curve: %s: asked %.1f (expected %.1f), moved %.1f%s\n", what, lastStickSpeed, expected, speed,
+               settled ? "" : " (timed out)");
+    char check[260];
+    q_snprintf(check, sizeof(check), "%s: timed out", what);
+    stickCheck(settled, check);
+    q_snprintf(check, sizeof(check), "%s: asked %.1f, expected %.1f", what, lastStickSpeed, expected);
+    stickCheck(za::fabs(lastStickSpeed - expected) < 0.05f, check);
+    q_snprintf(check, sizeof(check), "%s: moved %.1f, asked %.1f", what, speed, lastStickSpeed);
+    stickCheck(za::fabs(speed - lastStickSpeed) <= 1.f + 0.01f * lastStickSpeed, check);
+    t.moved[t.index] = speed;
+    // the same push at an angle as straight ahead
+    for(int i = 0; i < t.index; ++i)
+    {
+        const StickCase& o = stickCases[i];
+        if(o.push == c.push && o.run == c.run && o.autorun == c.autorun && o.curve == c.curve && o.angle == 0.f && c.angle != 0.f)
+        {
+            q_snprintf(check, sizeof(check), "%s: moved %.1f, straight %.1f", what, speed, t.moved[i]);
+            stickCheck(za::fabs(speed - t.moved[i]) <= 1.f, check);
+        }
+    }
+
+    if(++t.index >= stickCaseCount)
+    {
+        stickTestFinish();
+        return;
+    }
+    stickTestSetCase();
+}
+
+// vr_debug_stick 1: twice a second, the moving stick's push (raw length, rescaled) and the speed asked and moved.
+void stickDebug(glm::vec2 raw)
+{
+    if(vr_debug_stick.value == 0.f || ++stickDebugFrames < 36)
+    {
+        return;
+    }
+    stickDebugFrames = 0;
+    Con_Printf("stick: push %.2f -> %.3f, asked %.0f (top %.0f walk, %.0f run), moved %.0f\n", glm::length(raw),
+               glm::length(moveAxes), lastStickSpeed, moveTopSpeed(false), moveTopSpeed(true), stickPlayerSpeed());
+}
+
 } // namespace
 
 namespace qvr::input
@@ -470,6 +923,7 @@ void init()
     Cmd_AddCommand("vr_checkbindings", checkBindings_f);
     Cmd_AddCommand("vr_bindings_reset", resetBindings_f);
     Cmd_AddCommand("vr_bindings_check", guardBindings); // what vr_startgame runs (tests)
+    Cmd_AddCommand("vr_stick_curve_test", stickTest_f);
 }
 
 // 1.0.1 (ROUND22.md "Controls as if another controller": a player's left trigger jumped, his grips grabbed nothing, A
@@ -823,7 +1277,9 @@ void update(const InputState& tracked)
         stickKey(stickKeys[1], -main.stick.y, false);
         stickKey(stickKeys[2], 0.f, false);
         stickKey(stickKeys[3], 0.f, false);
-        moveAxes = {deadzone(off.stick.x), deadzone(off.stick.y)};
+        // (vr_stick_curve_test drives the moving stick while it runs.)
+        moveAxes = moveStick(stickTest.active ? stickTest.stick : off.stick);
+        stickDebug(off.stick);
         if(active)
         {
             turn(main.stick.x);
@@ -831,6 +1287,7 @@ void update(const InputState& tracked)
     }
 
     updateComfort();
+    stickTestTick();
     previous = in;
     if(!playbackCommands.empty())
     {
@@ -860,24 +1317,35 @@ bool primaryHeld(int hand)
 
 // Thumbstick locomotion. Running or walking as with the keyboard (walking: cl_alwaysrun 0, the
 // default; the speed button switches): running is cl_movespeedkey times the speed, and the stick, being
-// analog, moves at cl_forwardspeed in every direction (as the old engine did). The server steers by
+// analog, moves at cl_forwardspeed in every direction (as the old engine did), on the response curve and never past
+// sv_maxspeed (moveSpeed: a full push is the most the server gives; vr_move_autorun eases a walk into a run). The server steers by
 // the head (.v_viewangle): with
 // vr_movement_mode 1 the stick moves relative to the head; with 0 it moves where the moving hand
 // (hands::moveHand) points, with 2 the left hand, 3 the right hand, expressed relative to the head. Either way, pointing what
 // steers (the head in mode 1, else that hand) up or down while pushing forward swims up or down (from the old engine's VR_Move).
 extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove)
 {
-    if(moveAxes == glm::vec2{0.f})
+    const float m = glm::length(moveAxes);
+    const bool running = ((in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f);
+    const float threshold = CLAMP(0.1f, vr_move_autorun_threshold.value, 1.f);
+    const float dt = CLAMP(0.f, static_cast<float>(host_frametime), 0.1f);
+    autorunBlend = !autorunOn(running) || m == 0.f ? 0.f
+                   : m >= threshold                ? za::min(1.f, autorunBlend + dt / autorunRiseSeconds)
+                                                   : za::max(0.f, autorunBlend - dt / autorunFallSeconds);
+    if(m == 0.f)
     {
+        lastStickSpeed = 0.f;
         return;
     }
 
-    const bool running = ((in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f);
-    const float speedScale = running ? cl_movespeedkey.value : 1.f;
+    // The push's direction (length 1) at the curve's speed (moveSpeed); swimming up or down as fast relatively.
+    const float speed = moveSpeed(m, running, autorunBlend, vr_move_curve.value, moveMinSpeed());
+    const float speedScale = cl_forwardspeed.value > 0.f ? speed / (m * cl_forwardspeed.value) : 0.f;
+    const glm::vec2 dir = moveAxes / m;
     const hands::State& s = hands::current();
 
-    float fwd = moveAxes.y;
-    float side = moveAxes.x;
+    float fwd = dir.y;
+    float side = dir.x;
 
     const int mode = static_cast<int>(vr_movement_mode.value);
     // 2 the left hand, 3 the right hand; 0 the moving stick's (1: the head steers).
@@ -903,16 +1371,23 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
 
         // Tilting the hand must not change the speed.
         const float fac = 1.f / za::fmax(za::fabs(lup.z), 0.2f);
-        const glm::vec3 move = (moveAxes.y * lfwd + moveAxes.x * lright) * fac;
+        const glm::vec3 move = (dir.y * lfwd + dir.x * lright) * fac;
 
         glm::vec3 vfwd, vright, vup;
         hands::angleVectors({0.f, s.headAngles.y, 0.f}, vfwd, vright, vup);
         fwd = glm::dot(move, vfwd);
         side = glm::dot(move, vright);
+        // (A rolled hand's compensation never past the push: the top speed stays the top.)
+        if(const float l = za::sqrt(fwd * fwd + side * side); l > 1.f)
+        {
+            fwd /= l;
+            side /= l;
+        }
     }
 
-    *forwardmove += fwd * cl_forwardspeed.value * speedScale;
-    *sidemove += side * cl_forwardspeed.value * speedScale;
+    *forwardmove += fwd * speed;
+    *sidemove += side * speed;
+    lastStickSpeed = speed * za::sqrt(fwd * fwd + side * side);
 
     if(s.valid)
     {
