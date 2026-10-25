@@ -21132,3 +21132,28 @@ headshots: dead in 2 (x1.50); body: dead in 3 (x1.00); an armed grunt's nail pis
 - [ ] Two headshots or three body shots kill a grunt {test:nailpistol}.
 - [ ] Holster it (hip, upper) and draw it; drop and throw it; the one lying on the floor picks up.
 - [ ] The armed grunts far off fire their nail pistols (one, and a pair) {test:nailpistol}.
+
+## Nail pistol: grip, sights, holsters (worktree `tghost`, branch `agent/nailpistol2`, 2026-10-25)
+
+- **Why moving the hand anchor did nothing:** `vr_wofs_hand_av_NN` (and `hand_x/y/z`, `gunoff_*`, the old finger keys)
+  are retired since round 21's fitted hands (`weapons::retired`, vr_weapons.inc): the hand is where the controller is and
+  its fingers wrap whatever the gun's own placement puts in it. They stay registered so old configs load (a headless run
+  prints `"vr_wofs_hand_av_37" is "0.4 0 1.9"`), and do nothing. Slot 36 is `_37` (the cvars count from 1): no off-by-one.
+  What places the gun in the hand: Offset X/Y/Z, Pitch/Yaw/Roll (and Whole/Hand Only).
+- **Grip:** Offset Y 0 -> 0.6 (left: the grip in the right palm, as the toolgun's 0.924), Z 0 -> -1.2 (down: the hand's top
+  under the frame, the index finger through the guard on the trigger, the fingertips round the grip's left side).
+- **Sights:** it had Pitch 0 where every gun has about -7 (the drawn gun is turned by `vr_gunmodelpitch` 7):
+  `vr_sight_check` put the sight line 7.0 degrees over the shots (aim the post at a head, the nails go 7 degrees low).
+  Pitch -> -7: 0.0003 degrees; the sights stand 4.9 cm over the bore, so Shot Pitch 0.28 zeroes it at 10 m (2 m 3.9 cm
+  low, 5 m 2.5, 10 m 0.0, 20 m 4.9 high). The muzzle anchor and the sight table entry were right (both model space).
+- **Holsters** (the toolgun's copied values poked off the chest, turned out): hip X 0.2 -> 0, Y 1.6 -> 1, Z -1.7 -> -1,
+  Yaw 2 -> 0 (upright, muzzle down, the grip up and back over the leg holster); upper X 2.5 -> 0.5, Y 3 -> 1, Z -4 -> -0.5,
+  Yaw 25 -> 0, Roll 15 -> 0 (across the chest strap, the grip at the outside).
+- `vr_wofs_version` 62 (`takeNailPistolGrip62`): a config still at 61's value of any of those keys takes the new one
+  (checked: 61 with Z 0, Pitch 0, hip Y 1.6 and a tuned Y 0.3 -> -1.2, -7, 1, Y kept 0.3).
+- Test aids: `vr_np_test 4` (Debug > Tests > Nail Pistols in the Holsters) puts one in the right hip and right upper
+  holsters; the arms' sheet (`vr_agrunt_test 45`) has sets 16 (a nail pistol) and 17 (a pair).
+- Eyeshots (looked at): the grip from both sides and behind, aiming down the sights (post centred in the notch, level, on
+  a grunt's chest; the dominant eye on the line), the pickup on the floor (on its side), an armed grunt with one and a
+  pair (in the fist, barrel down idle), both holsters. Checks: `vr_np_test 1` 17/0; eval.sh canary 36/44, 0 differ;
+  `vr_menu_path_check maps/vrcalibration.map` 0 missing.

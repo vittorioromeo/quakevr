@@ -2,9 +2,9 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
-Nail pistol (scene nailpistol): grip in the palm and trigger under the finger (known: it may ride high above the palm: tune it in Weapon Offsets and send me the values); nails land where the sights point; one shot per pull, as fast as you pull; kick, flash, slide, smoke; punchy sound? {test:nailpistol}
+Nail pistol (scene nailpistol): grip in the palm, the index finger in the guard on the trigger (moved down and left; was riding high); aim down the sights: front post in the rear notch, the nails land on it (zeroed at 10 m); one shot per pull, as fast as you pull; kick, flash, slide, smoke; punchy sound? {test:nailpistol}
 Nail pistol magazine: empty, the slide stays back; B/Y drops the magazine; one from the pouch slapped up into the grip seats; the pouch shows the pistol's magazines {test:nailpistol}
-Nail pistol damage and handling: two headshots or three body shots kill a grunt; holster it (hip and upper) and draw it; drop, throw and pick up the one on the floor; armed grunts fire it, one and a pair {test:nailpistol}
+Nail pistol damage and handling: two headshots or three body shots kill a grunt; holster it (hip: upright, muzzle down; upper: across the chest) and draw it; drop, throw and pick up the one on the floor; armed grunts fire it, one and a pair {test:nailpistol}
 Enforcer tug: grab an enforcer's gun and hold still: it holds on; pull: the gun comes out; does the enforcer's pull feel too abrupt next to a grunt's? {test:agrunt_tug}
 Enforcer rig loosened: an enforcer with a gun aiming and firing: wrist not kinked, gun not too close to its chest (all its poses sit 3 units further back: nudge your enforcer keys forward in Pose Studio if one looks too close); elbows near its left shoulder pad don't clip {test:agrunt_weapon_hands}
 Pose Studio usability: in Live, Pause and walk up to the grunt with the sticks; scrub by holding a grip on nothing (or a hand at the panel) and pushing a stick; drag a weapon far out: its box turns orange with the reason and it stays where it stopped; raise an elbow high; grip the panel's top bar to move it (it stays next time), Recentre, Fold {test:agrunt_pose_studio}

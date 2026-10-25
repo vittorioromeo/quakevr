@@ -4839,7 +4839,7 @@ QVR_CVAR(vr_mg3_mtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Mo
 QVR_CVAR(vr_mg3_shubtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: Shub: 1 report, 2 her phases and children, 3 her zombies and pillars, 4 her death and the credits (QC/vr_mg3_shub_test.qc; not archived)
 QVR_CVAR(vr_mg3_btest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Bestiary: 1 report, 2 the orb (QC/vr_mg3_bestiary_test.qc; not archived)
 QVR_CVAR(vr_mg3_ctest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: Chthon: 1 report, 2 a Chthon of the spawner's (any map), 3 the boss map's fight (QC/vr_mg3_chthon_test.qc; not archived)
-QVR_CVAR(vr_np_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 its self-test (QC/vr_nailpistol_test.qc; "nptest: N passed, M failed"; not archived)
+QVR_CVAR(vr_np_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 its self-test, 2 in your hand, 3 in both, 4 in the right hip and upper holsters (QC/vr_nailpistol_test.qc; "nptest: N passed, M failed"; not archived)
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
 QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1/MG3 route sweep driver: each new map's first frame runs mg1route<stage>.cfg (MG3: mg3route<stage>.cfg) once (0 off; the scripts raise it); not archived
 QVR_CVAR(vr_mg3_test, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Tests: 1 state report (developer campaign only; not archived)

@@ -150,6 +150,23 @@ void() VR_NailPistol_TestFrame =
             self = os2;
             return;
         }
+        if(req == 4)
+        {
+            // A loaded nail pistol in the right hip and the right upper holster (whatever was there goes): Debug > Tests >
+            // Nail Pistol, the holstered eyeshots.
+            entity p4 = vr_npt_player;
+            VR_WeaponUtil_EntAddWeapon(p4, WID_NAILPISTOL);
+            p4.holsterweapon3 = WID_NAILPISTOL;
+            p4.holsterweaponflags3 = 0;
+            p4.holsterweaponinst3 = WeaponInst_Carried(WID_NAILPISTOL, VR_NailPistol_MagSize(), 0);
+            p4.holsterweaponmodel3 = WeaponIdToModel(WID_NAILPISTOL, 0);
+            p4.holsterweapon5 = WID_NAILPISTOL;
+            p4.holsterweaponflags5 = 0;
+            p4.holsterweaponinst5 = WeaponInst_Carried(WID_NAILPISTOL, VR_NailPistol_MagSize(), 0);
+            p4.holsterweaponmodel5 = WeaponIdToModel(WID_NAILPISTOL, 0);
+            dprint("nptest: a nail pistol in the right hip and the right upper holster\n");
+            return;
+        }
         vr_npt_pass = vr_npt_fail = 0;
         vr_npt_mode = cvar("vr_reload_mode_npistol");
         vr_npt_grip = cvar("vr_weapon_grip_mode");

@@ -982,6 +982,8 @@ za::Vector<Item> pageDebugTests()
         header("Nail Pistol"),
         command("A Nail Pistol in Your Hand", "vr_np_test 2").help("A loaded nail pistol in the main hand (and 48 nails)."),
         command("Nail Pistols in Both Hands", "vr_np_test 3").help("A loaded nail pistol in each hand."),
+        command("Nail Pistols in the Holsters", "vr_np_test 4")
+            .help("A loaded nail pistol in the right hip and the right upper holster (replacing what was there)."),
         command("Nail Pistol Self-Test", "vr_np_test 1")
             .help("Headless checks: semi-automatic, the cooldown, 12 hits and a dry 13th, the slide, the magazine cycle, two headshots or three body shots a grunt, armed grunts firing one and a pair (\"nptest: N passed, M failed\")."),
         header("Crowbar"),
