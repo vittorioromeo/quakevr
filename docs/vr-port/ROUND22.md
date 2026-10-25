@@ -21210,3 +21210,55 @@ animation should look exactly as before. The first load of an AD map in a sessio
   a grunt's chest; the dominant eye on the line), the pickup on the floor (on its side), an armed grunt with one and a
   pair (in the fist, barrel down idle), both holsters. Checks: `vr_np_test 1` 17/0; eval.sh canary 36/44, 0 differ;
   `vr_menu_path_check maps/vrcalibration.map` 0 missing.
+
+## Build speed, round 3: mimalloc built once, the menu's two big page groups split (worktree `dequant`, branch `agent/buildsplit`, 2026-10-25)
+
+Two items Vittorio approved from round 2's "What's left". Measured as round 2 (Release x64 no-LTO MSBuild as build.sh
+builds; a shared 32-thread machine with other agents' benchmarks running, so a few tenths are noise; "full" = sln
+`-t:Rebuild`, "engine" = `-t:ironwail:Rebuild`, which leaves its libraries alone; then a touch-and-build twice each;
+backend seconds from a `-ftime-trace` rebuild, clang-cl reading `_CL_=/clang:-ftime-trace`).
+
+| | full | engine | vr_held.cpp | vr_hands.hpp | vr_menu_internal.hpp |
+|---|---|---|---|---|---|
+| before (origin/next) | 21.3 s | 21.5 s | 2.5-2.6 s | 12.2-12.5 s | 5.5-5.6 s |
+| after | 21.1 s | 20.3 s | 2.6 s | 11.4-11.5 s | 4.5-4.6 s |
+
+Linux (WSL Arch, clang 23.1.3, CMake + Ninja Release, `-j 32`, a fresh build folder each, the source over /mnt/c): full
+34.3 -> 35.0 s (two more files; noise), `vr_held.cpp` 11.6-12.2 -> 11.2-11.6 s, `vr_hands.hpp` 25.0-25.3 -> 22.6-23.3 s,
+`vr_menu_internal.hpp` 14.8-15.4 -> 13.2-14.3 s. A one-file edit there is mostly not compiling: ~2 s before the first
+compile (the globs' re-check, the build number) and a 7-8 s link (`.ninja_log`; clang++'s default linker); not
+looked into further.
+
+1. **mimalloc's `src/static.c` its own target.** It was one of ironwail's files (3.2 s backend, last in the item list,
+   so late in a full build). Visual Studio: `Windows/VisualStudio/mimalloc.vcxproj`, a static library in the solution
+   (all four configurations), referenced by ironwail (`quakevr.props`, when `QVR_MIMALLOC`). Its settings are the
+   ones it had: the same clang-cl command line (`/O2 /Oi /Ot /Ob3 /Gw /GF /GS- /Gy /MD /fp:precise /std:c17 /Z7 /W3 /WX`,
+   NDEBUG; Debug `/Od /MDd /GS`, _DEBUG; Release-TracyFull without the Release extras, as before) but the engine's own
+   defines and include folders, which mimalloc doesn't read: the disassembly and every non-debug section of the object
+   identical. ThinLTO as before (`-flto=thin` in Release and Release-Tracy unless QvrNoLto=1: it took part in the LTO
+   link before and still does). `MultiProcessorCompilation` as ironwail's: the ClangCL toolset's single-process
+   compile drops `/GF` and `/std:c17`. An archive is fine on Windows (static.c defines no C runtime function there;
+   vr_crtheap.c's mi_* calls pull it in). An engine rebuild or a change to the engine's settings no longer compiles
+   it (checked: `ironwail:Rebuild` left static.obj alone); the sln Rebuild and the release script's `-Rebuild` still
+   compile it (in parallel with the rest). CMake: `qvr_mimalloc`, an OBJECT library rather than STATIC (deliberate:
+   on Linux it defines malloc itself, MI_MALLOC_OVERRIDE, and must be linked as an object, not taken from an archive
+   after the C library could win); the same flags as before (the configuration's NDEBUG=1/DEBUG=1, the override
+   defines, `-fno-builtin-*`; the engine-only defines and includes dropped), object disassembly identical, the exe
+   still exports malloc/free/calloc/realloc/posix_memalign. Engine rebuild: 21.5 -> 20.3 s.
+2. **The menu's gameplay and settings page groups split further** (a move: each file was already a list of
+   `vr_menu_*.inc`). `vr_menu_pages_gameplay.cpp` -> gameplay (with AD guns) / `_body.cpp` (body, gore) /
+   `_physics.cpp`; `vr_menu_pages_settings.cpp` -> settings (`vr_menu_pages.inc`) / `_vrsettings.cpp` (Stealth, VR
+   Settings) / `_props.cpp` (props, Weapon Offsets). One declaration more in `vr_menu_internal.hpp`: `weightReadout`
+   (props' file defines it, the settings pages use it). /Ob1 and no PCH come with the `vr_menu_pages_*.cpp` globs
+   (checked in the compile commands). Backend: gameplay 4.91 s -> 1.47 + 1.25 + 1.36, settings 4.53 s -> 2.06 + 0.71
+   + 1.03; the menu's longest file is now `vr_menu.cpp` (2.31 s), then settings (2.06); each file has ~1.1 s of
+   frontend (no PCH). The menu-header edit 5.5 -> 4.5 s, `vr_hands.hpp` 12.3 -> 11.4 s.
+
+Checks: `vr_menu_dump 2` byte-identical before and after (283 pages); `vr_menu_path_check maps/vrcalibration.map` 0
+missing; Windows no-LTO, `--lto` (mimalloc compiled with `-flto=thin`, linked; `vr_heap`: mimalloc 3.5.4 in use) and
+Debug build; `check_nopch.sh` ok on Windows and in WSL (clang); the Linux build; e1m1 smoke run (LTO exe). eval.sh
+canary: 1 differs (`stab_one_hand_2026-10-12_12-35-58`, PASS -> PASS, damage 31.0 -> 31.1), and origin/next itself
+gives the same on two runs of three: the baseline's, not this change's.
+
+What's left of the backend: `vr_particles` 3.5 s, `vr_hull` 3.0 s, `image.c` 2.8 s, `vr_motion_review` 2.7 s,
+`vr_relight` 2.6 s; the Linux link.
