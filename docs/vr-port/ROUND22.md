@@ -21509,3 +21509,98 @@ check_mdl_art.py LOW only.
 
 Checked: build 0 warnings; `vr_prop_impact_test 2` (15 lines + done), `vr_agrunt_test 1` 16/17 (the proximity gun, as
 before), `61` 40/0, `41` and `45` run to their end; eval.sh 163/171, no verdict changes.
+
+## Armed humanoid replacements (worktree `gorefx`, branch `agent/armedrepl`, 2026-10-25)
+
+His design: a map's grunts and enforcers as their armed versions, keeping their own guns so the balance stays the
+same while disarming, tugs, parries, shooting the gun out and the ragdoll's hold all work; weapon variety on top, gated
+by what the player has and how far into an episode he is; a gun and an axe. Everything off by default. QC
+`vr_armedrepl.qc` (tests `vr_armedrepl_test.qc`), ARMED_MONSTERS.md "Replacements".
+
+**The replacement.** `monster_army` and `monster_enforcer` ask `VR_AGR_Replace(kind)` first: on, in scope, a map's
+monster (its classname theirs, not MG3's infected, not a training dummy, not Honey's trigger-spawned copies' maker, not
+`VR_AM_Spawn`'s own call: `vr_am_spawning`), it runs `VR_AM_Spawn` with its own gun (`WID_GRUNTGUN`, `WID_ENFRIFLE`), so
+the map's own monsters, its spawners' (hipnotic's func_spawn, MG's hordes, the random spawner in buttons.qc) and the
+waiting ones (MG's and AD's `MG_deferred`: their model is now `vrgrunt.mdl` when they come, the held weapons hidden
+until then, `VR_AG_PropThink`) are all replaced. The map's spawnflags are kept (the toolgun's own armed monsters still
+drop the trigger flags).
+
+**Its own gun, its monster's balance.** The prop is "native" (`.vr_ag_native`): `VR_AG_ShootProp` hands it to
+`VR_AGR_NativeShot`, which fires the monster's own shot (`army_burst_round` / `army_fire`, `enforcer_fire`'s laser from
+its own origin, marked native), never spends a round, and draws the flash and kick on the held gun. `VR_AG_DamageScale`
+(now told the inflictor) passes native shots and a replacement's shoves unscaled (`vr_agrunt_damage_scale` stays for
+the armed layer's weapons). With its own gun alone it attacks as its monster does: `VR_AG_CheckAttack` takes the
+monster's chances (`SoldierCheckAttack`'s 0.9/0.4/0.05; the enforcer's `CheckAttack` 0.9/0.4/0.1, no lefty toggle) and
+pauses (1 + random, 2 x random), `VR_AG_Missile` runs `VR_AGR_NatStep` (the grunt's shoot1..9, rounds in 5/6/7; the
+enforcer's 14 steps, lasers in its two attack6s, its row's frames attack2..10), the aim cone's wait before the shots
+(`VR_AimCone_Wait`, as `army_atk5` and `enforcer_fire`), nightmare's refire. Loot: `VR_AG_SoldierDrop` returns FALSE for
+a replacement with no reserve, so `SoldierDrop`/`EnforcerDrop` give the monster's own backpack and its chance of a
+weapon; the gun falls full as the vanilla one does (`VR_AG_Dying`). Health, pains, deaths, sounds: the monster's own
+spawn.
+
+**Measured** (`vr_agrunt_test 71`, vrtesthall, each alone against the player for 150 s, then 40 kills each):
+
+| | shots/s | damage a shot | damage/s | guns | backpacks (ammo) | extra weapons |
+| --- | --- | --- | --- | --- | --- | --- |
+| grunt, vanilla | 1.78 | 6.58 | 11.72 | 40 | 40 (200) | 7 |
+| grunt, replaced | 1.80 | 6.53 | 11.75 | 40 | 40 (200) | 13 |
+| enforcer, vanilla | 1.08 | 17.45 | 18.85 | 40 | 40 (200) | 14 |
+| enforcer, replaced | 1.03 | 18.00 | 18.60 | 40 | 40 (200) | 10 |
+
+(Extra weapons: `TryEnemyDrop`'s chance, 40 kills: noise.) Before the shoves were passed unscaled and the aim cone's
+wait added, the replaced grunt dealt 10.1/s (its shoves halved, its shots fired off its facing bent away). Differences
+left: its shots leave from its monster's own origin offsets (as the vanilla ones; the tracers from there), its run is
+the armed layer's (the same steps; it holds fire for friends in its line, `vr_agrunt_friendly_care`, which vanilla
+grunts don't), and a disarmed one fights with its fists and goes for weapons (the armed layer's rules, its fists at
+`vr_agrunt_damage_scale`). Its rifle taken and picked up again by an armed one is an ordinary armed weapon (clip, no
+reserve: thrown away when spent).
+
+**Variety.** Each a chance times the skill's `vr_agrunt_repl_skill0..3` (0.5, 1, 1.5, 2), the three tiers capped to a
+sum of 1: common (shotgun, nail pistol), uncommon (super shotgun, nailgun, super nailgun), rare (grenade and rocket
+launchers, thunderbolt, axe, sword, crowbar, chainsaw, Mjolnir, Laser Cannon, proximity gun; AD's soldiers' guns in AD
+maps), then dual (`VR_AG_Pairs`, a second weapon from the same rolls, its own gun among them) or a gun and an axe.
+Eligibility: a weapon is eligible when any player owns it (`VR_WeaponUtil_EntIsEligibleForWeapon`, the rule the
+monsters' weapon drops use: the axe and shotgun always); rare ones also only from the episode's
+`vr_agrunt_repl_rare_map`th map (4) on, the map's number the digits after its last "<digit>m" (e1m4, hip2m3, r1m5;
+start, hubs and custom names: never; 0 lifts it). Why ownership and not a per-campaign table of where each weapon is
+first found: it holds for every campaign and custom map, it follows the player (a pistol start or a death that lost
+weapons gates them again), and it is the game's existing notion. The map's own monsters spawn before any player is in,
+so their rolls wait for the first frame with one (`VR_AGR_Frame`; they hold their own gun until then, a frame or two
+before anything is drawn); a spawner's are rolled at once. Deterministic: Wichmann-Hill seeded by the map's name, the
+monster's spawn point and kind (`vr_agrunt_repl_seed` shuffles every map); the same spawn gets the same loadout on a
+restart and a reload (saves keep it). With variety on, every candidate weapon's model is precached at worldspawn
+(`VR_AGR_Precache`; the bodies and the layer's sounds with replacements on), so spawners never precache late.
+
+**A gun and an axe** (`vr_ag_gunaxe`; also allowed by `VR_AG_PairsFor` for pickups): the gun in its right hand, the axe
+in its left. `VR_AGR_GunAxe` (each `VR_AG_CheckAttack`): its target nearer than 84 the axe (the slots swapped: the layer
+acts on the first), further than 150 with rounds the gun again; spent with nothing to reload the gun is thrown away
+and it fights with the axe, out of its target's reach going for a gun lying near (`VR_AG_WantsSecond`, then taken into
+its right hand, the axe back to the left). The axe swings in its left hand on the left-hand keys (`VR_AGP_Begin`: the
+blade's hand only, never both), the gun one-handed beside it (`VR_AGP_ArmsGun` with `vr_agp_onehand`, the axe through
+`VR_AGP_LeftBlade`, factored out of the melee pairs' pose). `VR_AG_DualGuns` is now two guns only (no dual penalty or
+second shot for the axe); the reload refills a second gun whichever weapon is first.
+
+**Settings:** Combat > Armed Grunts > Armed Humanoid Replacements (also on Combat): `vr_agrunt_repl` 0 (Replace All
+Humanoids), `vr_agrunt_repl_common` / `_uncommon` / `_rare` 0 (0..1), `vr_agrunt_repl_rare_map` 4 (0..8),
+`vr_agrunt_repl_dual` 0, `vr_agrunt_repl_gunaxe` 0, `vr_agrunt_repl_skill0..3` 0.5 / 1 / 1.5 / 2 (0..4),
+`vr_agrunt_repl_seed` 0, where: `vr_agrunt_repl_id` 1 (Quake's campaigns: id1, Dimension of the Past, the Machine Games
+ones, custom maps), `vr_agrunt_repl_mp` 1 (the mission packs), `vr_agrunt_repl_ad` 0 (AD's maps: `AD_Rules`, or the AD
+campaign). A change takes effect at the next map load.
+
+**Tests** (Debug > Automation & Self-Tests: Armed Replacements): `vr_agrunt_test 70` the rolls: 21 passed, 0 failed
+(500 seeds a case: off 100% own guns; common 0.3 at normal 0.306, easy 0.156, hard 0.450, nightmare 0.604; uncommon 0.5
+with nothing owned 0 and no super shotgun, with the super shotgun owned 0.506 all super shotguns; rare 0.5 in
+vrtesthall 0 (no map number), any map 0.506; common 1 + uncommon 1 capped to 0.494 each, no own gun; dual 0.5 0.470;
+gun and axe 0.4 0.390; the same seeds twice equal, the seed cvar shuffles; 12 real spawns all replaced, the same
+loadouts at the same spots twice; off, a plain grunt). `71` the balance (above): 10 passed. `72` gun and axe: 7 passed
+(its gun 3.9 units to its right, the axe 12.1 to its left; the gun at 320, the axe at 60 with a blow, the gun again at 356, a spent shotgun thrown away for the axe, a shotgun
+lying near taken into its right hand). `73` a map's census, run off and on (variety on too): e1m1 23 monsters (18
+replaced), e1m3 47 (none: no grunts there), e2m1 33 (28), hip1m1 58 (51), r1m1 46 (none), r1m2 50 (none), r1m3 82
+(24): the same counts and kills off and on, no errors. Scenes `agrunt_repl_gunaxe`, `agrunt_repl_map` (`vr_scenario validate`: 96 files, 0 errors;
+runall with the armed scenes: 8 OK). eval.sh: no verdict changes (the canary's stab 31.0 -> 31.1, the
+baseline's own flake). Test files under `#ifdef QVR_TESTS`; `-DQVR_NO_TESTS` compiles clean.
+
+**In VR:** Armed Humanoid Replacements on, play e1m1 or e2m1: the grunts and enforcers should feel as before (their
+rate of fire, their damage) while you can grab their rifles, tug them, shoot them out; dead, their rifle and backpack as
+before. The scene `agrunt_repl_gunaxe`: the axe in the left hand looks right carried and swung, the gun one-handed in the
+right; walk up and back off. Variety: the hand-offs at a map's start (none visible), a dual-wielder's two rifles.
