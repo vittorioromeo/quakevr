@@ -678,6 +678,78 @@ grid, checked against the walk like `vr_edictindex` (every QC radius search walk
 (5) the weapons' records sweep every few frames (0.06 ms in AD's maps; changes when edict slots are reused);
 (6) alias submission (1.3 ms in `combined`): more models a draw.
 
+### Frame spikes (2026-10-25)
+
+Worktree `fastship`, branch `agent/spikes` (ROUND22.md, "Frame spikes"). His 120 Hz is an 8.33 ms budget: the hunt
+was for every frame over it, or over twice the median, in 22 scenarios, 5 runs each (paced 90 Hz, real time,
+exclusive, his settings of 2026-10-25, eyes 2048). Tools (`qvr-kit/scratch/spikes/`, copied from the worktree's
+scratch): `sp_run.sh <label> <reps> <scenarios...>` (the hitch log on for the measured window only, threshold 0.75
+budgets: frames over 8.33 ms of host time, with their systems and costliest scopes), `sp_sum.py` (each run's tails,
+the spikes by system and scope), `sp_table.py <before> <after>` (the table below), `sp_tracy.sh` / `sp_tracy_set.sh`
+(Release-Tracy captures from the session's start; with `vr_tracy_render_detail 1 vr_tracy_qc_detail 1` the per-model
+render steps and QC functions) and `sp_tspikes.py` (each frame over 8.33 ms in a capture, `tracy-csvexport -u`, with
+its costliest zones by self time and their paths). A spike is real when it comes back at the same place and size in
+every run; the rest (combat_48's 102 ms `water`, combined's run of 600 slow frames, particles_dense's 106 ms) came in
+one run of five, the machine shared with other workers' builds and the GPU benchmark.
+
+**What the spikes were** (sizes: the hitch log's, which includes the profiler's own cost; Tracy's a little less):
+
+| cause | where | size, frequency |
+|---|---|---|
+| a model's smooth-animation rig data (`rigData`, r_lerpmodels 3) made at its first draw | AD's maps, e4m7, hip2m5, any map: a monster kind's first appearance, in view or in a shadow map | 6-27 ms, once per model per session (ad_tears 27 + 20 + 6 + 4, ad_sepulcher 18.5 in a map light's shadow) |
+| a gun lying near you: its screen's and button's anchors bound (the model file read and searched) | any map with weapons lying about | ~10 ms, once per gun model per session |
+| the first frame after a load: your skin masks, the glove paint read again (every map), the reflections' world buffers | every load (saves too) | 4-13 ms, every load |
+| QC's late precaches (AD monsters in a non-AD map: their backpack 35 ms, gibs 4-21 ms) | the test hall's AD crowd, the toolgun | 25-38 ms, the first death/gib of each |
+| 400 wounds painted in one frame | gore_dismember_16's scripted cuts (ai_crowd_64: one) | 10 ms, once |
+| a burst: an explosion's gibs, ragdolls, decals and particles in one frame, no single part over 3 ms | play_e1m1_lights, gore_blast_crowd_32, ragdolls_32_active | 11-25 ms, once per burst |
+| a map's first frames: the held guns' QC list (`VR_GunPrep_Collect`, a walk of every edict with substrings: 13-25 ms, twice), Box3D's first sync of the props (39 ms), the AO bakes' vertex buffers (`lights` 10-13 ms) | AD's big maps | 70-90 ms, the first frames after a load |
+| sustained load, not spikes: `combined` (busy p50 6.4 ms, shadow casters), ai_crowd_64's Box3D steps | | |
+
+**Fixed: first-use work made in the map's load** (`vr_load_prewarm` 1, Debug > Profiling and Memory > Load
+Prewarm; 0 as before): the rig data of every precached Quake model (`animsmooth::prepare`), the guns' anchors
+(`view::prepareWorldWeapons`), the reflections' world buffers (`envmap::prepare`), your skin masks and glove paint
+(`VR_PrecacheSkinMasks`; from the second map of a session: the first map's hands don't exist yet). Medians of 5
+runs (before: next of 2026-10-25, build fad928b7d, scratch `sp/base`; after: this branch, `sp/after1`; ms):
+
+| scenario | frame p99 | CPU busy p50 | CPU busy p99 | CPU busy max (median; range) | frames > 2x median | frames > 8.33 ms CPU |
+|---|---|---|---|---|---|---|
+| fight_ad_tears | 11.26 -> 11.22 | 2.80 -> 2.79 | 4.83 -> 4.20 | 31.4 (30.0-31.8) -> 11.8 (11.2-12.4) | 2 -> 0 | 5 -> 1 |
+| fight_ad_sepulcher | 11.27 -> 11.22 | 2.67 -> 2.64 | 4.11 -> 3.78 | 21.5 (21.3-22.0) -> 6.3 (5.8-6.8) | 0 -> 0 | 2 -> 0 |
+| fight_ad_crucial | 11.22 -> 11.24 | 2.05 -> 1.97 | 3.46 -> 3.24 | 8.4 (7.7-9.1) -> 5.1 (4.4-5.3) | 0 -> 0 | 1 -> 0 |
+| fight_e4m7 | 11.23 -> 11.20 | 1.38 -> 1.40 | 4.57 -> 4.39 | 14.1 (13.0-14.8) -> 11.7 (11.3-11.8) | 0 -> 0 | 5 -> 2 |
+| fight_hip2m5 | 11.20 -> 11.22 | 1.22 -> 1.24 | 3.02 -> 2.89 | 10.4 (9.5-10.5) -> 4.6 (4.4-5.2) | 0 -> 0 | 1 -> 0 |
+| saveload_e1m1 | 13.04 -> 7.65 | 0.88 -> 0.85 | 12.99 -> 7.54 | 116.1 (114.7-125.4) -> 128.2 (124.0-129.2) | 6 -> 4 | 7 -> 5 |
+| combat_48 (control) | 11.19 -> 11.20 | 3.01 -> 2.96 | 4.85 -> 4.58 | 10.1 (10.0-16.1) -> 9.9 (9.5-10.6) | 0 -> 0 | 1 -> 1 |
+| crowd_ad_40 (control) | 11.22 -> 11.25 | 3.15 -> 3.12 | 5.50 -> 5.42 | 37.8 (35.2-38.3) -> 35.8 (34.8-37.2) | 2 -> 2 | 2 -> 2 |
+| idle_e1m1 (control) | 11.20 -> 11.26 | 0.77 -> 0.75 | 1.42 -> 1.49 | 3.8 (2.8-15.7) -> 2.7 (1.9-3.8) | 0 -> 0 | 0 -> 0 |
+
+saveload_e1m1's max is a load's own frame (now with the skin masks and the cubes' buffers in it); its p99 is the
+frame after the load. What is left in fight_ad_tears (12 ms: the server's hit model poses and QC) and fight_e4m7
+(12 ms: QC in a fight) is the fights' own. The cost moves to the load, once a session for the rig data: ad_sepulcher
+cold 1847 -> 2001 ms (`vr_load_prewarm 0` against 1, one run each), warm 871 -> 872, e1m1 852 -> 841 (noise); Tracy:
+`smooth rigs` 197 ms in ad_tears' first load, 172 in ad_sepulcher's. The same rig data either way
+(`vr_anim_smooth_info` after 300 frames, prewarm on and off: 26 models drawn in e4m7 and hip2m5, every rig and rebuild
+line the same), the glitch finder's summary (`vr_agrunt_test 46`) the same, eval.sh's verdicts unchanged.
+
+Baseline medians of the other scenarios (5 runs; CPU busy max median, range; frames over 8.33 ms CPU): ai_crowd_64
+16.1 (14.9-142), 2; armed_16 12.4 (11.4-22.8), 2; armed_16_melee 5.2, 0; combined 10.6 (8.5-95), 7 (sustained);
+explosions_storm 4.0 (3.3-13.9), 0; fight_r2m7 4.0, 0; gore_blast_crowd_32 20.7 (20.0-21.1), 4; gore_dismember_16
+26.6 (25.9-27.0), 1; particles_dense 5.5 (3.8-32), 0; play_e1m1_lights 17.2 (16.5-18.5), 2; props_500_active 8.5, 1;
+ragdolls_32_active 11.4 (11.2-11.8), 3; tanks_fields 8.9 (8.5-70), 1.
+
+Rerun: build `--lto`, then `bash sp_run.sh <label> 5 <scenarios...>` and `python sp_table.py base <label>` (the
+scripts name the worktree at their top); a Tracy look: `Misc/quakevr/build_tracy.ps1`, then `SP_SETTINGS=<his cfg +
+vr_tracy_render_detail 1> bash sp_tracy_set.sh <suffix> <scenarios...>` and `bash sp_tsum.sh <suffix> <after
+seconds> <scenarios...>`.
+
+**Left** (proposals): (1) AD monsters in non-AD maps: their backpack and gib models precached with the monster (QC;
+the toolgun's and the test hall's AD crowds: 25-38 ms at the first death); (2) `VR_GunPrep_Collect` without
+`substring` (13-25 ms twice in AD's first frames: a walk of 3600 edicts); (3) the wounds' events over a frame's
+budget kept for the next frame (400 at once: 10 ms; needs the events kept in the model's space, a body moves);
+(4) the AO bakes' finished vertex buffers waited for in the load (the first frames' `lights` 10-13 ms); (5) the rig
+data made on the job pool at the load (its 170-200 ms in AD's first map; the hit reactions' and arms' lookups it
+calls would need checking for thread safety).
+
 ## Profiling in the game
 
 The in-game profiling tools (moved from TESTING.md on 2026-10-09).
