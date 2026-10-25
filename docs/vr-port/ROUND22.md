@@ -21346,3 +21346,38 @@ Vittorio approved: the ~26k lines of `*_test.qc` no longer ship in the players' 
   (15 passed, 2 failed: not touched by this change, the progs are identical).
 - **Left in release:** test helpers in non-test files whose names are not unresolved (e.g. `VR_TestKill_Frame`,
   `VR_TestDispenser_Frame`, vr_test_* cvars): small; wrap them when touched.
+
+## The checklist reorganized for beta4 (worktree `dequant`, branch `agent/beta4list`, 2026-10-25)
+
+- **What.** A new checklist for the v1.1.0-beta4 release, written to the worktree's `scratch/checklist_beta4.txt` for the
+  coordinator to apply as `quakevr/checklist.txt` (the repo file is not edited on this branch); what happened to each
+  old line is in `scratch/checklist_changes.md`. Built by `scratch/b4_gen.py` from the old file's line numbers, so
+  every kept line is byte-for-byte the old text and keeps its tick (the script checks each old item is kept, rewritten
+  or dropped exactly once).
+- **Top section `[beta4: test these first]`** (74 items): the default-on changes since v1.1.0-beta3, most important
+  first, in groups: performance and loading (load prewarm, model depth pre-pass, Ultra's resolution, grenade catching,
+  spectator skip, screens, AD load times, parallax depth write, graphics presets), melee (swords past the floor,
+  multi-hit, wall blow, plank sweep), crates, shoulder charge / leg drag / struggle, gore, fire and water, Arcane
+  Dimensions (monster swords, flail, mini bosses, fuel tanks and fields, ogres, plasma), liquids (foam), then menus,
+  holsters, calibration, seated play, death menu and autosaves, pickup modes. The format has no sub-headers, and a
+  prefix on a kept line would un-tick it: the groups are `# -- <area> --` comment lines in the file (not shown in the
+  game) and the ordering; each line already starts with its feature's name. 51 of its 74 are already passed in his
+  ticks, 1 failed (swords past the floor), 22 open.
+- **New lines** (no old line, the features' old items were ticked and retired): gore sounds, bloody prints, Holster
+  Setup, magnetic holsters, the ammo pouch, standing VR Calibration, the death menu, autosaves.
+- **Splits** (untested lines only): the perf lines (spectator skip 1 -> 2, model pre-pass 1 -> 3, load prewarm 1 -> 2,
+  the perf round 1 -> 3), and in the armed section the arms rebuild (1 -> 3), the real fight (1 -> 3), up close (1 -> 2
+  plus a part merged into the tug line). **Merges**: the three armed pickup lines into two; the enforcer tug and the
+  up-close "hold a tug still" into one. **Dropped as superseded** (all passed): the old tank fields look, the second
+  armed sword parry, two old crate blow counts, the old flail feel, the second plasma bolts line, the foam sliders,
+  Shoulder charge 3.
+- **Lower sections**: the old ones unchanged, plus `[Armed humanoids (experimental, off by default)]`, `[Pose Studio and
+  Grip Editor (dev)]`, `[Nail pistol (experimental)]` and `[Dev tools: blade editor, debug views, defaults]`; the minor
+  AD items into `[Arcane Dimensions]`, the Phantom Sword/Swordsman toolgun lines into `[Tools]`, MG3 infected into
+  `[Still open from 1.0.x]`.
+- **New scenes**: `model_prepass` (a dozen awake monsters among crates, items and a nailgun on the floor, super shotgun,
+  `vr_profile 2`), `grenade_catch` (two awake ogres down the hall, hands empty), `gore_prints` (calm grunts, a sword and
+  a super shotgun, a crate). `vr_scenario validate`: 97 files, 0 with errors, the old list's 145 tags, 0 missing (the new
+  list's 93 tags all have files: `b4_check.py`); `runall` on the three: 3 run, 0 failed, both hands still holding.
+- **Not tagged** (menu-only, calibration, seated, AD maps, desktop window): load prewarm (AD maps), Ultra's resolution,
+  spectator skip, screens, holsters, calibration, death menu, autosaves.
