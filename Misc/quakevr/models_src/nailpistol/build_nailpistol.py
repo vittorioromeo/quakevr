@@ -37,7 +37,7 @@ GRIP_FWD = Vector((math.cos(GRIP_TILT), 0.0, -math.sin(GRIP_TILT)))
 GRIP_UP = Vector((math.sin(GRIP_TILT), 0.0, math.cos(GRIP_TILT)))
 HAND = GRIP_TOP - GRIP_UP * 2.0        # the hand point: the grip's middle, two units down its axis
 SLIDE_REST = Vector((-0.1, 0.0, 4.6))  # the slide's origin at rest (its bottom middle); it snaps back along -X
-TRIGGER_PIVOT = Vector((1.4, 0.0, 1.0))
+TRIGGER_PIVOT = Vector((0.95, 0.0, 1.0))
 MAG_TOP = GRIP_TOP + GRIP_UP * 0.25    # the magazine's origin, its top, in place
 
 XZ = (Vector((1, 0, 0)), Vector((0, 0, 1)))   # side profiles (x, z), extruded across y (a = -y)
@@ -169,8 +169,8 @@ def build_body():
     prism(bm, bevel_rect(1.5, 1.1, 0.32), -5.0, 0.4, (GRIP_FWD, Vector((0, 1, 0))), GRIP, GRIP_TOP)
     # The trigger guard: one L-shaped piece, thick: its front bar leans back towards the grip at the bottom (as the
     # grip leans), riveted at its top; the bottom bar runs back into the grip.
-    guard = [(-1.4, -1.3), (2.9, -1.3), (3.25, -0.95), (4.2, 1.1), (2.7, 1.1), (2.0, -0.55), (-1.4, -0.55)]
-    bevel_caps(bm, side(bm, guard, -0.6, 0.6, IRON), 0.12)
+    guard = [(-1.4, -1.2), (2.8, -1.2), (3.1, -0.9), (4.05, 1.1), (3.15, 1.1), (2.4, -0.7), (-1.4, -0.7)]
+    bevel_caps(bm, side(bm, guard, -0.5, 0.5, IRON), 0.1)
     # The front sight: a post on a little base. The rear sight: two ears and a notch on the housing.
     side(bm, [(5.95, 4.5), (6.85, 4.5), (6.85, 4.62), (6.7, 4.74), (5.95, 4.74)], -0.4, 0.4, SIGHT)
     side(bm, [(6.2, 4.6), (6.6, 4.6), (6.6, 5.2), (6.45, 5.42), (6.2, 5.42)], -0.17, 0.17, SIGHT)
@@ -190,8 +190,8 @@ def build_slide():
 def build_trigger():
     bm = bmesh.new()
     # A curved blade, its tip hooked forward for the finger.
-    side(bm, [(1.1, 1.15), (1.7, 1.15), (1.5, 0.55), (1.58, 0.05), (1.85, -0.22), (1.55, -0.32), (1.22, 0.0),
-              (1.05, 0.55)], -0.26, 0.26, IRON)
+    side(bm, [(0.65, 1.15), (1.25, 1.15), (1.05, 0.55), (1.13, 0.05), (1.4, -0.22), (1.1, -0.32), (0.77, 0.0),
+              (0.6, 0.55)], -0.26, 0.26, IRON)
     return finish(bm, "Trigger", TRIGGER_PIVOT)
 
 
@@ -235,7 +235,7 @@ RUSTY = (IRON, DARK, GRIP, MAG, SIGHT)
 # Rivets (design coordinates: a point on a side face and its radius), on both sides.
 RIVETS_XZ = [((6.4, 4.05), 1.2, 0.24), ((6.4, 1.55), 1.2, 0.24), ((1.35, 4.05), 1.2, 0.24), ((1.35, 1.55), 1.2, 0.24),
              ((-1.7, 2.8), 1.2, 0.24), ((-3.15, 4.5), 1.3, 0.24), ((-3.15, 1.6), 1.3, 0.24), ((-4.15, 3.1), 1.3, 0.24),
-             ((3.14, 0.4), 0.6, 0.22)]
+             ((3.29, 0.4), 0.5, 0.18)]
 RIVETS_GRIP = [(0.78, -4.45), (-0.78, -4.45), (0.0, -0.75)]   # (along GRIP_FWD, along GRIP_UP from GRIP_TOP)
 
 

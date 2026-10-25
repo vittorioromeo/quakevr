@@ -20782,6 +20782,8 @@ thicker guard and grip, a skin with Quake's contrast in Quake's palette). Everyt
 
 Follow-up (branch `agent/nailpistol-art2`): the trigger guard as in the mockup: its front bar, wider, now leans back towards the grip at the bottom (it leaned forward), riveted at its top; the bottom bar runs back into the grip; the trigger a thicker curved blade of the body's iron. Rebuilt with build_nailpistol.py (the .blend had no hand edits): `renders/guard_vs_mockup.png`.
 - [ ] The guard's front bar leans back like the mockup's; the finger fits between it and the trigger.
+
+Second follow-up (branch `agent/nailpistol-art3`): the trigger 0.45 units further back (towards the grip; its pivot 0.95 0 1.0), the guard's bars thinner (bottom bar 0.5 tall, was 0.75; front bar ~0.9 across, was ~1.4; 1.0 wide, was 1.2). Rebuilt with build_nailpistol.py (no hand edits in the .blend).
 ## Pose Studio usability; the enforcer's rig measured (worktree `gorefx`, branch `agent/agrig`, 2026-10-24)
 
 His session (vrragtriggers 22-57): paused in Live he could not move closer; edits snapped back somewhere else; the
