@@ -61,7 +61,7 @@ za::Vector<Item> pageMain()
                   "graphics card. My Settings sets your own back; the first line says which the settings match now."),
 
         header("Reset"),
-        action(ui().resetAllArmed ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
+        action(resetAllIsArmed() ? "Press Again to Reset All" : "Reset All to Defaults", resetAll)
             .help("Every Quake VR setting back to as it shipped, but not your calibration (height, floor, body and hands: "
                   "Reset Hand Offsets for those). Press it twice: the second time within 3 seconds."),
     };
@@ -1161,16 +1161,4 @@ za::Vector<Item> pageHudHub()
         open("Crosshair", pageIndex(pageCrosshairSettings)),
         open("Menu", pageIndex(pageMenuSettings)),
     };
-}
-
-int pageIndex(PageBuilder build)
-{
-    for(int p = 0; p < pageCount; p++)
-    {
-        if(pages[p].build == build)
-        {
-            return p;
-        }
-    }
-    return PageMain;
 }
