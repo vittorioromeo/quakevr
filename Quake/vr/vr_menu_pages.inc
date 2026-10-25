@@ -1173,6 +1173,69 @@ void resetHandMoves()
     };
 }
 
+// Weapons > Reloading > Heavy Revolver (QC vr_revolver.qc): its cylinder swung out and home, its shells dropped, spun.
+[[nodiscard]] za::Vector<Item> pageReloadRevolver()
+{
+    return {
+        header("Swinging It Out"),
+        toggle("Flick to Open", "vr_revolver_open_flick")
+            .help("A flick of the wrist towards the cylinder's side (to the left in the right hand, to the right in the left) "
+                  "swings it out."),
+        slider("Flick Open Force", "vr_revolver_open_flick_speed", 50.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
+            .help("How fast the wrist must roll that way, at its fastest."),
+        slider("Flick Open Wrist Flick", "vr_revolver_open_flick_angle", 5.f, 120.f, 5.f, "%.0f deg").extend(0.f, 360.f)
+            .help("And how far it must roll that way in one go."),
+        toggle("Eject Button Opens", "vr_revolver_open_button")
+            .help("B/Y swings it out; out, B/Y pushes the ejector (its shells drop)."),
+        header("Dropping the Shells"),
+        slider("Muzzle Up", "vr_revolver_eject_tilt", 0.f, 89.f, 1.f, "%.0f deg")
+            .help("Out, the muzzle tilted up this far drops its shells, spent and live (0: never)."),
+        toggle("Ejector Rod", "vr_revolver_eject_rod")
+            .help("Out, the other hand pushing the ejector rod's head (in front of the cylinder) back drops them."),
+        slider("Ejector Rod Reach", "vr_revolver_eject_rod_reach", 0.f, 8.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near its head the other hand must be."),
+        slider("Ejector Rod Push", "vr_revolver_eject_rod_speed", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f)
+            .help("How fast it must push back along the cylinder."),
+        header("Spinning It"),
+        toggle("Spin by Hand", "vr_revolver_spin")
+            .help("Out, the other hand swiping across the cylinder spins it: it slows and stops on a chamber, which changes "
+                  "which chamber comes under the hammer next."),
+        slider("Swipe Speed", "vr_revolver_spin_speed", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f)
+            .help("How fast a swipe must cross it."),
+        slider("Spin Strength", "vr_revolver_spin_mult", 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("How fast a swipe spins it, times."),
+        slider("Spin Friction", "vr_revolver_spin_friction", 0.f, 3000.f, 20.f, "%.0f deg/s2").extend(0.f, 20000.f)
+            .help("How fast a spin slows."),
+        slider("Fastest Spin", "vr_revolver_spin_max", 60.f, 5000.f, 20.f, "%.0f deg/s").extend(60.f, 20000.f)
+            .help("A spin's speed at most."),
+        slider("Hand Reach", "vr_revolver_hand_reach", 0.f, 8.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the swung-out cylinder (beyond its radius) the other hand spins it or pushes it home."),
+        header("Swinging It Home"),
+        slider("Flick Close Force", "vr_revolver_close_flick_speed", 50.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
+            .help("Always on: a flick of the wrist the other way swings it home. How fast the wrist must roll, at its fastest."),
+        slider("Flick Close Wrist Flick", "vr_revolver_close_flick_angle", 5.f, 120.f, 5.f, "%.0f deg").extend(0.f, 360.f)
+            .help("And how far it must roll that way in one go."),
+        toggle("Push Home", "vr_revolver_close_push")
+            .help("The other hand pushing the swung-out cylinder up from below swings it home."),
+        slider("Push Speed", "vr_revolver_close_push_speed", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f)
+            .help("How fast that push must be (the hands' relative speed)."),
+        toggle("Button Closes", "vr_revolver_close_button")
+            .help("Out, B/Y swings it home instead of dropping its shells (an accessibility option: the shells then drop "
+                  "by the muzzle up or the ejector rod alone)."),
+        header("Load Point"),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Draws each held gun's load point (yellow) and its radius (green), to tune the offsets live."),
+        slider("Load Point X", "vr_reload_port_revolver_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves its load point (the swung-out cylinder's back face's middle) forward (the gun's model units)."),
+        slider("Load Point Y", "vr_reload_port_revolver_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves it left (the gun's model units)."),
+        slider("Load Point Z", "vr_reload_port_revolver_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves it up (the gun's model units)."),
+        slider("Load Point Radius", "vr_reload_port_revolver_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near it a held shell must come to go in (into the empty chamber nearest it)."),
+    };
+}
+
 // Weapons > Reloading > Nail Pistol: its well (the grip's bottom), its magazine, holding and pulling it.
 [[nodiscard]] za::Vector<Item> pageReloadNailPistol()
 {
@@ -1429,6 +1492,7 @@ void resetHandMoves()
         mode("Rocket Launcher", "vr_reload_mode_rl"),
         mode("Thunderbolt", "vr_reload_mode_light"),
         mode("Nail Pistol", "vr_reload_mode_npistol"),
+        mode("Heavy Revolver", "vr_reload_mode_revolver"),
         mode("Widowmaker (Arcane Dimensions)", "vr_reload_mode_widow"),
         mode("Plasma Gun (Arcane Dimensions)", "vr_reload_mode_adplasma"),
     };
@@ -1464,6 +1528,7 @@ void resetHandMoves()
         open("Super Nailgun", pageIndex(pageReloadSuperNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
         open("Thunderbolt", pageIndex(pageReloadThunderbolt)).help("Its well, its cell's top, its receiver, the hand holding the cell, pulling it out."),
         open("Nail Pistol", pageIndex(pageReloadNailPistol)).help("Its well (the grip's bottom), its magazine's top, the hand holding the magazine, pulling it out."),
+        open("Heavy Revolver", pageIndex(pageReloadRevolver)).help("Its cylinder swung out (the flick: its force and wrist flick; B/Y) and home, its shells dropped (the muzzle up, the ejector), spun, its load point."),
         open("Launchers", pageIndex(pageReloadLaunchers)).help("The grenade, proximity and rocket launchers loaded at the muzzle: on or off, the round's angle, each muzzle's load point."),
         open("Widowmaker (Arcane Dimensions)", pageIndex(pageReloadWidowmaker)).help("Its tube, the handful of shells the pouch gives for it, its fire rate, its shell port's load point."),
         open("Plasma Gun (Arcane Dimensions)", pageIndex(pageReloadPlasmaGun)).help("Its cell's well on its inner side: the load point and the receiver (the cell itself: the Thunderbolt's page)."),

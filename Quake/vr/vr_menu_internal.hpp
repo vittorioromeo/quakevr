@@ -642,6 +642,7 @@ za::Vector<Item> pageMovement();
 [[nodiscard]] za::Vector<Item> pageReloadLaunchers();
 [[nodiscard]] za::Vector<Item> pageReloadNailgun();
 [[nodiscard]] za::Vector<Item> pageReloadNailPistol();
+[[nodiscard]] za::Vector<Item> pageReloadRevolver();
 [[nodiscard]] za::Vector<Item> pageReloadOverrides();
 [[nodiscard]] za::Vector<Item> pageReloadPlasmaGun();
 [[nodiscard]] za::Vector<Item> pageReloadShotgun();

@@ -1,0 +1,15 @@
+# revolver: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The heavy revolver as a weapon
+# (QC vr_revolver.qc): in your hand with shells to spare (immersive reloading on it), grunts and an ogre to shoot, an
+# armed grunt with one further off, another revolver lying on the floor.
+title Heavy revolver: shoot, swing out, reload, spin
+map vrtesthall
+god
+give "Heavy Revolver" main
+spawn "Heavy Revolver" 48 -24
+spawn "Grunt" 300 60
+spawn "Grunt" 300 -60
+spawn "Ogre" 420 0
+spawnarmed monster_vr_grunt 31 0 520 120
+cmd vr_reload_mode_revolver 3
+cmd give s 60
+hint A shot each pull (the hammer cocks, the cylinder turns a chamber). One slug in a grunt's head, two in its body; an ogre takes 4-5. Flick your wrist towards the cylinder (or B/Y) to swing it out; muzzle up, B/Y or the ejector rod drops the shells; single shells from the pouch into the chambers; swipe it to spin it; flick back or push it up to close.

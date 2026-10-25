@@ -1399,6 +1399,7 @@ void armedGripsDragMode()
         weight("Grunt's Burst Rifle", vr_agrunt_w_gruntgun),
         weight("Enforcer's Laser Rifle", vr_agrunt_w_enfrifle),
         weight("Nail Pistol", vr_agrunt_w_nailpistol),
+        weight("Heavy Revolver", vr_agrunt_w_revolver),
         weight("Mission Packs' (Each)", vr_agrunt_w_packs),
         header("The Pool: Arcane Dimensions (With Its Data)"),
         weight("Rocket Soldier's Launcher", vr_agrunt_w_adrocket),
@@ -1524,6 +1525,22 @@ void armedGripsDragMode()
             .help("How far its nails stray from its aim at most."),
         slider("Nail Pistol Magazine", vr_nailpistol_mag, 1.f, 30.f, 1.f, "%.0f rounds").extend(1.f, 100.f)
             .help("The rounds its magazine holds, a nail of yours each."),
+        slider("Heavy Revolver", vr_dmg_revolver, 1.f, 100.f, 1.f, "%.0f a slug").extend()
+            .help("Quake VR's heavy revolver: a shell of yours fired as one slug. 26 kills a grunt (30) with one in the head "
+                  "(x1.5) or two in the body."),
+        slider("Heavy Revolver Random", vr_revolver_dmg_random, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("Up to this share more damage at random, each slug (0.15: a grunt's body shot stays under its 30)."),
+        slider("Heavy Revolver Big Bodies", vr_revolver_heavy_mult, 1.f, 4.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("A slug into a big monster (Big Body Health or more: an ogre, a fiend, a shambler) deals this many times "
+                  "as much: an ogre takes 4-5 in the body."),
+        slider("Heavy Revolver Big Body Health", vr_revolver_heavy_health, 30.f, 1000.f, 10.f, "%.0f").extend(0.f, 10000.f)
+            .help("The full health from which a monster's body is big."),
+        slider("Heavy Revolver Cooldown", vr_revolver_cooldown, 0.05f, 1.f, 0.01f, "%.2f s").extend(0.05f, 3.f)
+            .help("Double action: a shot each pull of the trigger, at least this long apart."),
+        slider("Heavy Revolver Hammer", vr_revolver_cock_time, 0.f, 0.3f, 0.01f, "%.2f s").extend(0.f, 1.f)
+            .help("From the pull to the shot: the hammer cocks and the cylinder turns a chamber, then it falls (0: at once)."),
+        slider("Heavy Revolver Spread", vr_revolver_spread, 0.f, 5.f, 0.05f, "%.2f deg").extend(0.f, 30.f)
+            .help("How far its slugs stray from its aim at most."),
         slider("Grenade", vr_dmg_grenade, 10.f, 400.f, 5.f, "%.0f").extend()
             .help("A grenade's blast at its middle, less further out (id's 120): the launcher's, a hand grenade's and an "
                   "ogre's grenade caught and thrown back."),

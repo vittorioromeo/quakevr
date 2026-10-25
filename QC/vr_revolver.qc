@@ -11,7 +11,7 @@
 // (vr_revolver_cock_time later) on that chamber: a live shell fires as a slug (vr_dmg_revolver, up to
 // vr_revolver_dmg_random more; a grunt dies to one in the head (x1.5) or two in the body; vr_revolver_heavy_mult into a
 // big body: an ogre takes 4-5), a spent shell or an empty chamber only clicks. At most a shot each vr_revolver_cooldown s.
-// Heavy recoil (slot 37's), a big flash, smoke.
+// Heavy recoil (slot 38's), a big flash, smoke.
 //
 // Its six chambers are tracked one by one (the weapon's record, vr_weaponinst.qc: they go with the gun to the holsters,
 // the floor, a save): each empty, a live shell or a spent one; its clip is how many are live (the HUD, the ammo screen).
@@ -35,12 +35,12 @@
 // Out, it doesn't fire. A revolver that leaves the hand swung out swings home (drawn shut anywhere else).
 // The other reloading modes load it as any gun (its chambers follow its clip: VR_Revolver_Sync).
 //
-// Weapon settings slot 37 (vr_weapons.inc: its grip, sights, holsters, recoil, flash). weapon_revolver lies ready to be
+// Weapon settings slot 38 (vr_weapons.inc: its grip, sights, holsters, recoil, flash). weapon_revolver lies ready to be
 // picked up. Armed grunts carry it rarely (vr_agrunt_w_revolver; vr_armedrepl.qc's rare tier), firing it through
 // W_FireRevolver.
 
 float RV_CHAMBERS = 6;
-float RV_SCALE = 0.45;       // its in-hand Scale (slot 37's): its parts' sizes in world units
+float RV_SCALE = 0.45;       // its in-hand Scale (slot 38's): its parts' sizes in world units
 float RV_CYL_LEN = 4.4;      // the cylinder (model units: the README): its length,
 float RV_CYL_RADIUS = 2.25;  // its radius,
 float RV_ROD_TIP = 5.42;     // the ejector rod's head from its back face (v_revolver_cyl.mdl's front)
@@ -395,7 +395,7 @@ void(float xHand) W_FireRevolver =
 
     self.effects = self.effects | EF_MUZZLEFLASH;
     self.punchangle_x = -4;
-    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp; slot 37's Recoil, Flash)
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp; slot 38's Recoil, Flash)
     VRGunHaptic(xHand, 0.16, 50, 1);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 

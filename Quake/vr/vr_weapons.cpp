@@ -712,7 +712,7 @@ void takeWidowmaker65()
 // The heavy revolver's slot (66; unused before: a config archived its keys at the empty slot's defaults).
 void takeRevolver66()
 {
-    resetSlot(37);
+    resetSlot(38);
 }
 
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
