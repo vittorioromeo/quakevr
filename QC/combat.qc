@@ -1474,7 +1474,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         return FALSE;
     }
     damage = mg3_damage;
-    damage = VR_AG_DamageScale(targ, attacker, damage); // VR: an armed grunt's weapon on a player (vr_armedgrunt.qc)
+    damage = VR_AG_DamageScale(targ, inflictor, attacker, damage); // VR: an armed grunt's weapon on a player (vr_armedgrunt.qc)
 
     if(targ.classname == "trigger_explosion")
     {

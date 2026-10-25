@@ -1603,10 +1603,12 @@ struct Drawn
     const qmodel_t* model{nullptr};
 };
 Drawn drawn[2];
+float artSeen = -1.f;   // vr_ad_widowmaker_art as spinFrame last saw it (-1: not yet)
+bool artLoaded = false; // the Widowmaker's model read last was the hand-made one (derivedFile)
 
 // The Widowmaker drawn (its spin frames), checked once a model (and again when it is read anew: vr_model_reload keeps
-// the model's slot). Its barrels: the made one's three ("spin0".. frames), the hand-made one's two ("twin0".., its
-// export_mdl.py): a barrel a shot is a third or a half of a turn; at rest a barrel on top, or the two side by side.
+// the model's slot). Its barrels: three ("spin0".. frames: the made one and the hand-made one, its export_mdl.py), a
+// third of a turn a shot, at rest a barrel on top; a model with "twin0".. frames has two (a half turn a shot).
 struct SpinModel
 {
     const qmodel_t* model{nullptr};
@@ -1812,6 +1814,16 @@ void fired(int hand)
 
 void spinFrame(view::ViewEntity (&weapons)[2])
 {
+    // The Widowmaker's model switched (vr_ad_widowmaker_art: hand-made or made from AD's): read again now
+    // (vr_view_diag.cpp modelReload_f), as it is drawn next.
+    if(vr_ad_widowmaker_art.value != artSeen)
+    {
+        if(artSeen >= 0.f)
+        {
+            Cbuf_InsertText("vr_model_reload \"progs/v_shot3.mdl#vr\"\n"); // (ahead of a script still waiting)
+        }
+        artSeen = vr_ad_widowmaker_art.value;
+    }
     for(int hand = 0; hand < 2; hand++)
     {
         view::ViewEntity& w = weapons[hand];
@@ -1890,7 +1902,7 @@ void spinInfo_f()
         Con_Printf("  motor: %s, volume %.2f, pitch %.2f\n", !motor.sfx ? "no sound" : motor.ch[hand] ? "playing" : "stopped",
             motor.volume[hand], motor.pitch[hand]);
         Con_Printf("  model: %s, %d barrels (%.0f deg a shot), at rest %s\n",
-            spinModel.barrels == 2 ? "hand-made (progs/v_widowmaker.mdl)" : "made from AD's", spinModel.barrels, barrelStep(),
+            artLoaded ? "hand-made (progs/v_widowmaker.mdl)" : "made from AD's", spinModel.barrels, barrelStep(),
             !s.coasting && s.speed <= 0.f && fmodf(s.phase, barrelStep()) < 0.01f ? "yes" : "no");
         if(hs.muzzleValid[hand])
         {
@@ -1909,8 +1921,6 @@ void spinInfo_f()
 void registerCommands()
 {
     Cmd_AddCommand("vr_ad_widowmaker_spin_info", spinInfo_f);
-    // The Widowmaker's model switched (hand-made or made from AD's): read again now (vr_view_diag.cpp modelReload_f).
-    Cvar_SetCallback(&vr_ad_widowmaker_art, [](cvar_t*) { Cbuf_AddText("vr_model_reload \"progs/v_shot3.mdl#vr\"\n"); });
 }
 
 byte* derivedFile(const char* name, unsigned int* path_id)
@@ -1928,11 +1938,16 @@ byte* derivedFile(const char* name, unsigned int* path_id)
         return nullptr;
     }
     // The Widowmaker: the hand-made model (in the same frame, nothing of AD's in it) unless vr_ad_widowmaker_art is 0.
+    if(!q_strcasecmp(name, widowmakerName))
+    {
+        artLoaded = false;
+    }
     if(!q_strcasecmp(name, widowmakerName) && vr_ad_widowmaker_art.value != 0.f)
     {
         if(byte* art = COM_LoadMallocFile(widowmakerArtName, path_id))
         {
             Con_DPrintf("AD weapon model: %s is the hand-made %s\n", name, widowmakerArtName);
+            artLoaded = true;
             return art;
         }
         Con_DPrintf("AD weapon model: %s: no %s, made from AD's\n", name, widowmakerArtName);

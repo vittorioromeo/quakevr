@@ -642,6 +642,7 @@ void info_f()
         fineSize, static_cast<double>(maskCount() - layers) * fineSize * fineSize * 5.0 / (1024.0 * 1024.0), paintsTotal,
         static_cast<double>(lastPaintMs));
     Con_Printf("wounds: own resolution hands %d body %d (shared array %d)\n", ownRes(), bodyRes(), fineSize);
+    queueInfo();
     for(int i = 0; i < maskCount(); i++)
     {
         const Mask& m = masks[static_cast<za::SizeT>(i)];

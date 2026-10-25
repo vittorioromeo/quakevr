@@ -151,6 +151,22 @@ console). The ghost holds the weapons where the layer's own pose holds them a mo
 (`VR_AM_UiGhost`: `VR_AGP_Pose` on stand-ins, quiet: placed, nothing sent; the melee stance settled), turned with the
 ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Humanoid Lists" (`vr_toolgun_armed_list`).
 
+## Replacements: a map's grunts and enforcers (ROUND22.md, "Armed humanoid replacements")
+
+- `vr_agrunt_repl` (Combat > Armed Grunts > Armed Humanoid Replacements; all off by default): `monster_army` /
+  `monster_enforcer` call `VR_AGR_Replace(kind)` (`QC/vr_armedrepl.qc`) first, which runs `VR_AM_Spawn` with the row's
+  own gun (`VR_AGR_NativeOf`). Its prop is native (`.vr_ag_native`): `VR_AGR_NativeShot` fires the monster's own shot,
+  never spent, unscaled (`VR_AG_DamageScale` takes the inflictor); alone it attacks with its monster's chances, pauses
+  and frames (`VR_AGR_NativeChance`, `_NativeFinished`, `_NatStep`); its loot is its monster's (`VR_AG_SoldierDrop`
+  FALSE for a replacement with no reserve). A new row wants its native gun in `VR_AGR_NativeOf` and its attack's steps
+  in `VR_AGR_NatFrame` / `_NatFires` / `_NatRefire`, its chances in `VR_AGR_NativeChance`.
+- Variety (`VR_AGR_Pick`, seeded by the map, the spawn point and the kind): tiers `VR_AGR_TierCode`, eligibility
+  `VR_AGR_Eligible` (owned by a player; rare ones from `vr_agrunt_repl_rare_map`), dual from the same rolls, a gun and an
+  axe (`.vr_ag_gunaxe`: `VR_AGR_GunAxe` swaps the slots by range and ammo; `VR_AG_PairsFor` lets such a one pick up the
+  other kind; the pose `VR_AGP_LeftBlade` beside a one-handed gun). A map's own are rolled on the first frame with a
+  player (`VR_AGR_Frame`), a spawner's at once. Precaches at worldspawn: `VR_AGR_Precache`.
+- Tests `vr_agrunt_test 70..73` (`QC/vr_armedrepl_test.qc`); scenes `agrunt_repl_gunaxe`, `agrunt_repl_map`.
+
 ## Adding a monster
 
 1. Find its gun's vertices (vr_monstermods.cpp `knownSwords` has the stock monsters'), add a `MODELS` row to

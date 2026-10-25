@@ -258,7 +258,9 @@ float(float xType) VR_Dummy_Make =
     float gremlins = NumGremlins;
     float dm = deathmatch;
     deathmatch = 0;
+    vr_agr_hold = vr_agr_hold + 1; // (never an armed humanoid's replacement: vr_armedrepl.qc)
     VR_Dummy_TypeSpawn(xType);
+    vr_agr_hold = vr_agr_hold - 1;
     deathmatch = dm;
     total_monsters = total;
     NumGremlins = gremlins;

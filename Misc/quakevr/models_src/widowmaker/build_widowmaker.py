@@ -14,12 +14,15 @@
 # hotspots hold it: the rear grip where the super shotgun's grip is (the hand anchor 5.10 -0.05 0.71 on its front), the
 # front grip where the made one's front handle is (the other hand's anchor 29.08 -0.04 -0.18 on its front), the shell port
 # on the receiver's inner side (+y; its middle 6.5 3.6 5.6: vr_view_internal.hpp loadPorts), the ejection slot on the
-# outer side (vr_shells.cpp), the muzzle anchor 44 0 8.8 on the spin axis, the ammo screen's anchor on the receiver's top.
-# Everything stays past the super shotgun's corner (export_mdl.py CORNER: the settings scale about it).
+# outer side (vr_shells.cpp), the muzzle anchor 44 0 8.8 on the top barrel's bore (as the made model's), the ammo
+# screen's anchor on the receiver's top. Everything stays past the super shotgun's corner (export_mdl.py CORNER: the
+# settings scale about it).
 #
-# The two barrels (the mockup's twin barrels) and their collars and muzzle rings are the object Barrels: they turn about
-# the spin axis (y 0, z SPIN_Z) in the spin frames (a shot each half turn). The still bearing ring round them carries the
-# front grip and the front sight.
+# The three barrels (his notes 2026-10-25: three, as the made model's: one on top, two below) and their collars and
+# muzzle rings are the object Barrels: they turn about the spin axis (y 0, z SPIN_Z) in the spin frames (a shot each third
+# of a turn, at rest a barrel on top). Their whole sweep stays inside the receiver's outline, so their back ends never
+# show. The front grip hangs from a still rail under them, carried forward from the receiver's bottom (no ring round
+# the turning barrels: his notes).
 
 import math
 import os
@@ -35,7 +38,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import export_mdl  # noqa: E402
 
-SKIN_W, SKIN_H = 256, 256
+SKIN_W, SKIN_H = 512, 512
+DETAIL_UV = 1.7  # the rear plate's and the grips' (and their feet's) islands this much larger on the skin (more texels)
 
 # Parts (a face's material index while building, then its wm_part attribute): what the skin paints there.
 IRON, STEEL, OLIVE, BRASS, BARREL, BRICK, BORE, DARK, SIGHT, PLATE = range(10)
@@ -47,24 +51,29 @@ RW, RZ0, RZ1 = 3.6, 3.0, 11.4
 R_CHAMFER_TOP, R_CHAMFER_BOT = 1.5, 0.9
 RECEIVER = [(-RW, RZ0 + R_CHAMFER_BOT), (-RW + R_CHAMFER_BOT, RZ0), (RW - R_CHAMFER_BOT, RZ0), (RW, RZ0 + R_CHAMFER_BOT),
             (RW, RZ1 - R_CHAMFER_TOP), (RW - R_CHAMFER_TOP, RZ1), (-RW + R_CHAMFER_TOP, RZ1), (-RW, RZ1 - R_CHAMFER_TOP)]
-# The barrels: side by side about the spin axis.
+# The barrels: an even triangle about the spin axis, one on top (its bore's middle the muzzle anchor, 8.8 up), two below.
 SPIN_Z = export_mdl.SPIN_Z
-BARREL_Y, BARREL_R, BORE_R, BARREL_SIDES = 1.72, 1.55, 0.95, 12
+SPIN_R = 8.8 - SPIN_Z      # the barrels' centres from the axis (1.82)
+BARREL_R, BORE_R, BARREL_SIDES = 1.45, 0.88, 12
+BARREL_CENTRES = [(0.0, SPIN_Z + SPIN_R), (-0.8660254 * SPIN_R, SPIN_Z - 0.5 * SPIN_R),
+                  (0.8660254 * SPIN_R, SPIN_Z - 0.5 * SPIN_R)]
 BARREL_X0, MUZZLE_X, BORE_DEPTH = 20.8, 44.0, 2.4
-COLLAR_R = 1.98            # the collars' corners (octagons: flats 1.83 out, the two barrels' collars meeting)
-COLLARS = [(22.0, 23.5), (34.2, 35.7)]
+COLLAR_R = 1.72            # the collars' corners (octagons: flats 1.59 out, neighbours' collars meeting)
+COLLARS = [(22.0, 23.4), (28.4, 29.8), (35.0, 36.4)]
 GROOVES = [40.1, 41.25, 42.4]  # the raised rings near the muzzle (each 0.6 long)
-# The still bearing ring round both barrels (their sweep 3.4 from the axis; the collars pass ahead and behind it), the front grip under it.
-RING_X0, RING_X1, RING_APOTHEM = 27.1, 30.6, 3.45
-# The sight line (y 0): the rear sight's notch on the receiver's top, the front post on the ring: parallel to the bores.
-SIGHT_Z = 12.45
-SIGHT_REAR_X, SIGHT_FRONT_X = 1.7, 28.8
+# Their sweep: barrels 3.27 from the axis (z 3.71..10.25: inside the receiver's outline), collars 3.54 (z 3.44).
+# The still rail under them (the front grip's mount), from inside the receiver forward past the grip, below the sweep.
+RAIL_X0, RAIL_X1, RAIL_Z0, RAIL_Z1, RAIL_W = 19.0, 31.4, 2.05, 3.2, 1.35
+# The sight line (y 0): the rear sight's notch at the receiver's back, the front post at its front: parallel to the
+# bores, over the barrels' sweep.
+SIGHT_Z = 11.9
+SIGHT_REAR_X, SIGHT_FRONT_X = 1.7, 20.1
 
 # The grips: square posts leaning back as the super shotgun's grip (vr_adweapons.cpp grafts it), along GRIP_UP.
 GRIP_UP = Vector((0.18, 0.0, 1.0)).normalized()
 GRIP_FWD = Vector((1.0, 0.0, -0.18)).normalized()
 REAR_GRIP = (Vector((3.6, 0.0, 0.5)), 1.5, 1.3, RZ0 + 0.45, -3.05)   # a point of its axis, half depth, half width, top z, bottom z
-FRONT_GRIP = (Vector((27.76, 0.0, -0.36)), 1.32, 1.15, SPIN_Z - RING_APOTHEM + 0.45, -3.15)
+FRONT_GRIP = (Vector((27.76, 0.0, -0.36)), 1.32, 1.15, RAIL_Z0 + 0.6, -3.15)
 FOOT_H = 0.6
 
 XZ = (Vector((1, 0, 0)), Vector((0, 0, 1)))   # side profiles (x, z), extruded across y
@@ -247,13 +256,17 @@ def build_body():
     box(bm, Vector((5.0, -y - 0.03, 7.0)), Vector((9.5, -y + 0.3, 8.4)), DARK)
     for lo, hi in (((4.8, 8.4), (9.7, 8.6)), ((4.8, 6.8), (9.7, 7.0)), ((4.8, 7.0), (5.0, 8.4)), ((9.5, 7.0), (9.7, 8.4))):
         box(bm, Vector((lo[0], -y - 0.16, lo[1])), Vector((hi[0], -y + 0.1, hi[1])), IRON)
-    # The bearing ring round the turning barrels (still): the front grip under it, the front sight on it.
-    lathe(bm, [(RING_X0, RING_APOTHEM / math.cos(math.pi / 8) - 0.25), (RING_X0 + 0.25, RING_APOTHEM / math.cos(math.pi / 8)),
-               (RING_X1 - 0.25, RING_APOTHEM / math.cos(math.pi / 8)), (RING_X1, RING_APOTHEM / math.cos(math.pi / 8) - 0.25)],
-          8, Vector((0, 0, SPIN_Z)), [BRASS + CHAMFER, BRASS, BRASS + CHAMFER], rot=math.pi / 8)
-    top = SPIN_Z + RING_APOTHEM
-    side(bm, [(SIGHT_FRONT_X - 0.9, top - 0.05), (SIGHT_FRONT_X + 0.25, top - 0.05), (SIGHT_FRONT_X + 0.25, SIGHT_Z),
-              (SIGHT_FRONT_X - 0.15, SIGHT_Z), (SIGHT_FRONT_X - 0.9, top + 0.12)], -0.16, 0.16, SIGHT)
+    # The rail (still): the receiver's bottom carried forward under the turning barrels' sweep, the front grip hung from
+    # it; a riveted strap across its front end.
+    rail = [(-RAIL_W, RAIL_Z0 + 0.35), (-RAIL_W + 0.35, RAIL_Z0), (RAIL_W - 0.35, RAIL_Z0), (RAIL_W, RAIL_Z0 + 0.35),
+            (RAIL_W, RAIL_Z1), (-RAIL_W, RAIL_Z1)]
+    bevel_caps(bm, section(bm, rail, RAIL_X0, RAIL_X1, IRON), 0.12)
+    bevel_caps(bm, section(bm, [(-RAIL_W - 0.12, RAIL_Z0 - 0.12), (RAIL_W + 0.12, RAIL_Z0 - 0.12),
+                                (RAIL_W + 0.12, RAIL_Z1 - 0.05), (-RAIL_W - 0.12, RAIL_Z1 - 0.05)],
+                           RAIL_X1 - 1.1, RAIL_X1 - 0.3, BRASS), 0.08)
+    # The front sight: a post on a little ramp at the receiver's front, its top on the sight line.
+    side(bm, [(SIGHT_FRONT_X - 1.0, RZ1 - 0.05), (SIGHT_FRONT_X + 0.3, RZ1 - 0.05), (SIGHT_FRONT_X + 0.3, SIGHT_Z),
+              (SIGHT_FRONT_X - 0.1, SIGHT_Z), (SIGHT_FRONT_X - 1.0, RZ1 + 0.12)], -0.16, 0.16, SIGHT)
     # The grips: brick-brown posts on iron feet.
     grip_post(bm, REAR_GRIP)
     grip_post(bm, FRONT_GRIP)
@@ -262,16 +275,17 @@ def build_body():
               (6.3, 2.5)], -0.22, 0.22, IRON)
     bevel_caps(bm, side(bm, [(8.7, RZ0 + 0.05), (9.15, RZ0 + 0.05), (9.15, 1.05), (8.8, 0.7), (4.9, 0.7), (4.9, 1.1),
                              (8.7, 1.1)], -0.3, 0.3, IRON), 0.06)
-    # The muzzle anchor's mark: a speck on the spin axis in the muzzle's plane, between the barrels (still).
-    tetra(bm, Vector((MUZZLE_X, 0.0, SPIN_Z)), 0.06, BORE)
+    # The muzzle anchor's mark: a speck in the top barrel's bore's middle at the muzzle's plane (still: the anchor binds
+    # to the nearest triangle, and the bore's middle is open).
+    tetra(bm, Vector((MUZZLE_X, 0.0, SPIN_Z + SPIN_R)), 0.06, BORE)
     return finish(bm, "Body")
 
 
 def build_barrels():
     bm = bmesh.new()
     rot = math.pi / BARREL_SIDES
-    for y in (BARREL_Y, -BARREL_Y):
-        c = Vector((0.0, y, SPIN_Z))
+    for y, z in BARREL_CENTRES:
+        c = Vector((0.0, y, z))
         lathe(bm, [(BARREL_X0, BARREL_R), (MUZZLE_X - 0.6, BARREL_R), (MUZZLE_X - 0.6, BARREL_R + 0.12),
                    (MUZZLE_X - 0.12, BARREL_R + 0.12), (MUZZLE_X, BARREL_R - 0.02), (MUZZLE_X, BORE_R),
                    (MUZZLE_X - BORE_DEPTH, BORE_R)], BARREL_SIDES, c,
@@ -297,7 +311,7 @@ def rgb(*c):
 # (Quake's palette: the neutral greys 0..15, the warm greys 160..175, the browns 16..31 and 112..127, the grey-greens
 # 176..191, the rust reds 96..111.)
 IRON_C, IRON_DARK, IRON_RUST, IRON_STAIN = rgb(80, 66, 54), rgb(42, 34, 28), rgb(104, 64, 40), rgb(118, 50, 34)
-STEEL_C, STEEL_LIGHT, STEEL_DARK = rgb(140, 138, 134), rgb(214, 212, 206), rgb(92, 90, 86)
+STEEL_C, STEEL_LIGHT, STEEL_DARK = rgb(116, 114, 110), rgb(166, 164, 158), rgb(74, 72, 68)
 OLIVE_C, OLIVE_GREEN, OLIVE_RUST, OLIVE_DARK = rgb(104, 90, 64), rgb(71, 88, 76), rgb(104, 62, 42), rgb(58, 50, 38)
 OLIVE_YELLOW = rgb(76, 76, 12)
 BRASS_C, BRASS_DARK, BRASS_LIGHT = rgb(100, 78, 34), rgb(66, 50, 28), rgb(140, 108, 40)
@@ -308,24 +322,52 @@ BORE_C, DARK_C = rgb(22, 20, 18), rgb(30, 26, 22)
 EDGE_IRON = rgb(150, 142, 128)
 
 
-def rivet_ring(poly, scale, x, nx, r, count_per_edge=2):
-    """Rivets along an octagonal outline (y, z) scaled about its middle, on a face of normal (nx, 0, 0) at x."""
+PLATE_POLY = [(y * 0.8, (z - 7.15) * 0.8 + 7.15) for y, z in RECEIVER]
+
+
+def rivet_ring(poly, scale, x, nx, r, count):
+    """`count` rivets evenly spaced (by length) along an outline (y, z) scaled about its middle, the first at its top's
+    middle, mirrored left and right (count even), on a face of normal (nx, 0, 0) at x."""
     cy, cz = 0.0, 7.15
     pts = [(cy + (y - cy) * scale, cz + (z - cz) * scale) for y, z in poly]
+    segs = [(pts[i], pts[(i + 1) % len(pts)]) for i in range(len(pts))]
+    lens = [math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in segs]
+    total = sum(lens)
+    # Start at the top edge's middle (the outline's top edge: the one at the greatest z).
+    top = max(range(len(segs)), key=lambda i: segs[i][0][1] + segs[i][1][1])
+    start = sum(lens[:top]) + lens[top] / 2
     out = []
-    for i in range(len(pts)):
-        a, b = pts[i], pts[(i + 1) % len(pts)]
-        for k in range(count_per_edge):
-            t = k / count_per_edge
-            out.append((Vector((x, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)), Vector((nx, 0, 0)), r))
+    for k in range(count):
+        d = (start + total * k / count) % total
+        i = 0
+        while d > lens[i]:
+            d -= lens[i]
+            i += 1
+        (a, b), t = segs[i], d / lens[i]
+        out.append((Vector((x, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)), Vector((nx, 0, 0)), r))
     return out
+
+
+def plate_edge(y, z):
+    """How far (y, z) is inside the rear plate's outline (its nearest edge)."""
+    best = 1e9
+    for i in range(len(PLATE_POLY)):
+        a, b = Vector(PLATE_POLY[i]), Vector(PLATE_POLY[(i + 1) % len(PLATE_POLY)])
+        ab = b - a
+        t = max(0.0, min(1.0, (Vector((y, z)) - a).dot(ab) / ab.length_squared))
+        best = min(best, (a + ab * t - Vector((y, z))).length)
+    return best
 
 
 def rivets():
     out = []
-    # The rear plate: a ring of rivets near its edge.
-    plate = [(y * 0.8, (z - 7.15) * 0.8 + 7.15) for y, z in RECEIVER]
-    out += rivet_ring(plate, 0.84, RX0 - 0.28, -1.0, 0.3, 2)
+    # The rear plate: 16 rivets evenly round its edge, mirrored left and right.
+    out += rivet_ring(PLATE_POLY, 0.86, RX0 - 0.28, -1.0, 0.3, 16)
+    # The rail's sides and its strap.
+    for s in (1.0, -1.0):
+        for x in (RAIL_X0 + 2.6, (RAIL_X0 + RAIL_X1) / 2 - 0.5, RAIL_X1 - 0.7):
+            out.append((Vector((x, s * (RAIL_W + (0.12 if x > RAIL_X1 - 1.2 else 0.0)), (RAIL_Z0 + RAIL_Z1) / 2 + 0.1)),
+                        Vector((0, s, 0)), 0.2))
     # The receiver's sides: a rivet at each corner of the side panel, and along its top edge.
     for s in (1.0, -1.0):
         for x in (1.3, 11.0, 20.0):
@@ -340,9 +382,6 @@ def rivets():
                 continue
             out.append((Vector((x, s * 1.55, RZ1)), Vector((0, 0, 1)), 0.25))
     out.append((Vector((17.6, 0.0, RZ1 + 0.34)), Vector((0, 0, 1)), 0.2))  # the strip's bolt
-    # The bearing ring: on its side flats and its top.
-    for s in (1.0, -1.0):
-        out.append((Vector(((RING_X0 + RING_X1) / 2, s * RING_APOTHEM, SPIN_Z)), Vector((0, s, 0)), 0.22))
     # The foot plates: their sides.
     for p0, hd, hw, ztop, zbot in (REAR_GRIP, FRONT_GRIP):
         a = (zbot - p0.z) / GRIP_UP.z - FOOT_H / GRIP_UP.z * 0.5
@@ -404,26 +443,45 @@ def brick(p, n):
         u = p.dot(GRIP_FWD)
     else:
         u = p.y + (10.0 if n.dot(GRIP_FWD) > 0 else 20.0)
-    row_h, brick_w = 0.78, 1.45
+    row_h, brick_w = 0.6, 1.2
     row = math.floor(a / row_h)
     uu = u + (0.5 * brick_w if row % 2 else 0.0)
     col = math.floor(uu / brick_w)
     fa, fu = a / row_h - row, uu / brick_w - col
-    mortar = fa < 0.24 or fu < 0.13
+    mortar = fa < 0.15 or fu < 0.08
     shade = noise.noise(Vector((row * 1.7, col * 2.3, 0.5)))
-    return mortar, shade
+    # A brick's edges: lighter along its top (worn), darker along its bottom (in the mortar's shadow); its corners chipped.
+    edge = 0.0
+    if not mortar:
+        edge = smooth(0.3, 0.15, fa) * 0.5 - smooth(0.85, 1.0, fa) * 0.35
+        chip = noise.noise(Vector((row * 3.1 + fu * 4.0, col * 1.9, fa * 4.0)))
+        if (fu < 0.16 or fu > 0.94) and chip > 0.25:
+            mortar = True
+    return mortar, shade + edge
 
 
 def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
     big = noise.noise(p * 0.35)
     mid = noise.noise(p * 1.1 + Vector((3.1, 7.7, 1.3)))
     fine = noise.noise(p * 3.2 + Vector((9.2, 1.4, 5.5)))
-    speck = (rnd[0] - 0.5) * (0.16 if part == PLATE else 0.34)
-    if part == PLATE:
-        # The rear plate: dark rusty iron, red-brown stains in swirls (the mockup's).
-        col = mix(IRON_DARK, IRON_C, 0.5 + 0.5 * mid + 0.2 * fine)
+    micro = noise.noise(p * 7.5 + Vector((2.2, 6.1, 4.4)))
+    speck = (rnd[0] - 0.5) * (0.14 if part == PLATE else 0.26) + 0.12 * micro
+    if part == PLATE and n.x < -0.9 and p.x < RX0 - 0.2:
+        # The rear plate's face: dark rusty iron, red-brown stains in swirls (the mockup's), rust running down from the
+        # rivets and the top edge, pitting, the edge worn bright.
+        col = mix(IRON_DARK, IRON_C, 0.5 + 0.5 * mid + 0.25 * fine)
         swirl = noise.noise(Vector((0.0, p.y * 0.9, p.z * 0.9)) + Vector((1.0, 5.0, 3.0)))
-        col = mix(col, IRON_STAIN, 0.7 * smooth(0.04, 0.0, abs(swirl) - 0.05) + 0.25 * smooth(0.2, 0.5, big))
+        col = mix(col, IRON_STAIN, 0.65 * smooth(0.05, 0.0, abs(swirl) - 0.04) + 0.25 * smooth(0.2, 0.5, big))
+        drip = noise.noise(Vector((p.y * 2.6, 0.0, p.z * 0.35)) + Vector((7.0, 1.0, 2.0)))
+        col = mix(col, IRON_RUST, 0.55 * smooth(0.25, 0.45, drip + 0.15 * fine))
+        if micro > 0.42:
+            col *= 0.6  # a pit
+        e = plate_edge(p.y, p.z)
+        col = mix(col, EDGE_IRON * 0.85, 0.5 * smooth(0.22, 0.04, e) * (0.5 + 0.5 * smooth(-0.3, 0.3, fine)))
+    elif part == PLATE:
+        # The plate's rim and the grips' feet: rusty iron, brighter worn edges (below).
+        col = mix(IRON_DARK, IRON_C, 0.6 + 0.6 * mid + 0.3 * fine)
+        col = mix(col, IRON_STAIN, 0.5 * smooth(0.2, 0.5, big + 0.3 * fine))
     elif part == IRON:
         col = mix(IRON_DARK, IRON_C, 0.55 + 0.7 * mid + 0.3 * fine)
         col = mix(col, IRON_RUST, 0.75 * smooth(0.15, 0.45, 0.8 * big + 0.5 * fine))
@@ -455,7 +513,13 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
             col = mix(col, IRON_RUST, 0.5)
     elif part == BRICK:
         mortar, shade = brick(p, n)
-        col = MORTAR * (0.9 + 0.2 * fine) if mortar else mix(BRICK_C, BRICK_LIGHT, 0.4 + 0.8 * shade + 0.3 * fine)
+        if mortar:
+            col = MORTAR * (0.85 + 0.25 * fine)
+        else:
+            col = mix(BRICK_C, BRICK_LIGHT, 0.4 + 0.7 * shade + 0.3 * fine + 0.2 * micro)
+            if rnd[1] < 0.07:
+                col = mix(col, MORTAR, 0.6)  # a pock
+            col = mix(col, IRON_RUST, 0.3 * smooth(0.35, 0.6, big))  # grime from the hand
     elif part == SIGHT:
         col = mix(IRON_DARK, IRON_C, 0.6 + 0.5 * mid)
         if (n.z > 0.5 or n.x < -0.5) and p.z > SIGHT_Z - 0.25:
@@ -487,14 +551,21 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
             continue
         v -= rn * v.dot(rn)
         k = v.length / r
-        if k < 1.0:
-            dome = (rn * math.sqrt(1.0 - k * k) + v / r).normalized()
-            light = (rn * 0.6 + Vector((-0.3, 0.2, 0.75))).normalized()
-            col = mix(rgb(52, 42, 34), rgb(200, 180, 150), max(0.0, dome.dot(light)) ** 1.4)
-        elif k < 1.45 and v.z < 0.0:
-            col *= 0.55
+        if k < 0.85:
+            # A dome: lit from above (and a little from behind and the left), its highlight small and bright.
+            kk = k / 0.85
+            dome = (rn * math.sqrt(1.0 - kk * kk) + v / r).normalized()
+            light = (rn * 0.5 + Vector((-0.25, 0.2, 0.8))).normalized()
+            d = max(0.0, dome.dot(light))
+            col = mix(rgb(46, 38, 30), rgb(150, 136, 118), d ** 1.2)
+            if d > 0.93:
+                col = rgb(214, 200, 176)  # the highlight
+        elif k < 1.1:
+            col *= 0.45  # its rim, sunk round it
+        elif k < 1.6 and v.z < -0.15 * r:
+            col *= 0.6  # its shadow below
     col *= ao
-    col *= (0.92 + 0.12 * n.z) * 0.9
+    col *= (0.92 + 0.12 * n.z) * 0.74
     return col
 
 
@@ -593,7 +664,7 @@ def main():
                     "weapon slot 34's settings). Barrels turns about y 0, z %.1f in the spin frames." % SPIN_Z)
     barrels["note"] = "Turns about the spin axis (y 0, z %.1f, along x) in the spin frames: keep it centred there." % SPIN_Z
     # Markers (not exported: names starting with _): the muzzle, the sight line, the anchors and the ports.
-    marks = (("_Muzzle", (MUZZLE_X, 0, SPIN_Z)), ("_SightRear", (SIGHT_REAR_X, 0, SIGHT_Z)),
+    marks = (("_Muzzle", (MUZZLE_X, 0, SPIN_Z + SPIN_R)), ("_SightRear", (SIGHT_REAR_X, 0, SIGHT_Z)),
              ("_SightFront", (SIGHT_FRONT_X, 0, SIGHT_Z)), ("_HandAnchor", (5.0979, -0.0482, 0.7118)),
              ("_TwoHHandAnchor", (29.08, -0.04, -0.18)), ("_ShellPort", (6.5, 3.6, 5.6)),
              ("_EjectSlot", (7.25, -3.9, 7.7)))
@@ -607,7 +678,31 @@ def main():
         e.location = Vector(pt)
     objs = [body, barrels]
 
-    # UVs: one atlas for both, every corner on a texel's centre (as the MDL stores it).
+    # UVs: one atlas for both, every corner on a texel's centre (as the MDL stores it). The rear plate and the grips
+    # (with their feet) get more texels (his notes 2026-10-25): their pieces unwrapped DETAIL_UV times their size (put
+    # back after), so the packing gives their islands that much more room.
+    me = body.data
+    part_attr = me.attributes["wm_part"].data
+    parent = list(range(len(me.vertices)))
+
+    def root(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for e in me.edges:
+        parent[root(e.vertices[0])] = root(e.vertices[1])
+    detailed = {root(p.vertices[0]) for p in me.polygons if part_attr[p.index].value % CHAMFER in (PLATE, BRICK)}
+    saved = [v.co.copy() for v in me.vertices]
+    groups = {}
+    for v in me.vertices:
+        if root(v.index) in detailed:
+            groups.setdefault(root(v.index), []).append(v)
+    for vs in groups.values():
+        c = sum((v.co for v in vs), Vector()) / len(vs)
+        for v in vs:
+            v.co = c + (v.co - c) * DETAIL_UV
     bpy.ops.object.select_all(action="DESELECT")
     for ob in objs:
         ob.select_set(True)
@@ -617,6 +712,8 @@ def main():
     bpy.ops.uv.smart_project(angle_limit=math.radians(50), island_margin=0.006, area_weight=0.0, correct_aspect=True,
                              scale_to_bounds=False)
     bpy.ops.object.mode_set(mode="OBJECT")
+    for v, co in zip(me.vertices, saved):
+        v.co = co
     for ob in objs:
         for d in ob.data.uv_layers.active.data:
             s = min(SKIN_W - 1, max(0, math.floor(d.uv.x * SKIN_W)))

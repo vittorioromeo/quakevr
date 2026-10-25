@@ -21287,6 +21287,50 @@ gives the same on two runs of three: the baseline's, not this change's.
 What's left of the backend: `vr_particles` 3.5 s, `vr_hull` 3.0 s, `image.c` 2.8 s, `vr_motion_review` 2.7 s,
 `vr_relight` 2.6 s; the Linux link.
 
+## Heavy revolver: the art (worktree `release`, branch `agent/revolver-art`, 2026-10-25)
+
+Art only, no gameplay: the heavy revolver's models and skins after Vittorio's mockup, by the nail pistol's pipeline.
+Everything is in `Misc/quakevr/models_src/revolver/` (README.md there: parts, pivots, the sight line, editing,
+re-exporting, the models' structure for code).
+
+- `revolver.blend`: Body (origin the grip's hand point), Crane (its pivot; swings the cylinder out to the left about
+  its X by `swing` -95 degrees, its knuckle in a slot through the frame's bottom), Cylinder (its axis at its rear face;
+  spins about X, 60 degrees a chamber; six chambers for 12-gauge shells, 18-sided with deep flutes), EjectorRod (pushed
+  back by `travel`), Hammer (pivot; `cock` -38 degrees about Y; a two-pronged hooked spur either side of the sight
+  line), Trigger (pivot; `pull` 22 degrees), Shell (its own frame and skins). The frame: an iron octagonal ring with
+  brass plates, thick (to y 1.72) round the window's top, front and back, thin along its bottom where the cylinder
+  passes; iron fills behind and in front of the cylinder. `build_revolver.py` checks the crane's whole swing against
+  the frame, hammer and trigger (BVH overlap every 4.75 degrees): clear.
+- Sight line (Body frame, parallel to the bore 2.12 above it): blade top 16.714 0 9.178, notch top 3.764 0 9.178
+  (after the follow-up below).
+- `export_mdl.py`: `v_revolver.mdl` (all, 914 triangles; frames rest, cocked, trigger pulled, swung out, swung out
+  with the rod pushed), `v_revolver_frame.mdl` (606), `v_revolver_crane.mdl` (52), `v_revolver_cyl.mdl` (256; rest,
+  rod pushed) for code that spins the cylinder and swings the crane as attached models (recommended: rotations
+  interpolated between MDL frames shrink), `v_revolver_shell.mdl` (76; skins red, blue slug, red spent, blue spent),
+  `vr_revolver_preview.mdl` (six shells chambered; frames rest, swung out, cocked). It prints the parts' origins.
+  Skin 384x384 (the runes need it), in the palette; the shell's 64x64.
+- `render_revolver.py` renders the MDLs: `renders/` (three-quarter and beside the mockup, side, right, cocked, swung
+  out from behind and the front, the sights from behind, about as held, the shells, the scale with the nail pistol and
+  the shotgun). Iterated against the mockup: chunky brass octagon with corner rivets, fluted steel cylinder bulging
+  out of it, hex barrel with gold-inlaid runes, horned hammer, brass guard, wrapped wooden grip.
+- Debug > Tools > Model Previews: **Heavy Revolver Art**, **Heavy Revolver Art: Swung Out**; scenario `revolver_art`
+  (vrtesthall, the shotgun beside it; console `revolver_art`, `revolver_art_open`, `revolver_art_cocked`).
+- Checks: check_mdl_art.py only LOW (8 zero-area triangles, a few bleed texels, one normal); `vr_scenario validate`
+  95 files 0 errors; the preview loads and draws in vrtesthall (viewframe 1).
+
+**In VR:**
+- [ ] Debug > Tools > Heavy Revolver Art: walk around it: the brass octagon, the fluted cylinder, the runes, the grip.
+- [ ] Heavy Revolver Art: Swung Out: the cylinder out to the left, the six shell heads (red and blue) in the chambers.
+- [ ] Scenario revolver_art: hold the shotgun next to it: the revolver's grip a believable size in the hand.
+
+Follow-up (his tweaks, same branch): the grip curved and angled back as the mockup's (40 degrees, four sections: full
+with a hump at its back under the hammer, a waist under the wraps, the butt flaring and swept forward; four overlapping
+darker leather straps); the trigger guard as the mockup's (thick square-section bars, y +-0.45, its front bar leaning
+back towards the bottom, a chamfered corner, a compact loop closed by the grip; the trigger 0.65 further back); the
+barrel 0.8 longer (+12%, muzzle at x 16.964, the blade with it, runes recentred); the cylinder and the hammer painted
+the barrel's dark rusted iron (were a lighter grey steel). Still 914 triangles (the guard's and the housing's bevels
+dropped for the grip's extra section and strap). Swing check clear; lint no MED/HIGH. Renders redone (`renders/`).
+- [ ] The grip sits in the hand angled back like the mockup's; the guard's loop fits a finger.
 ## Spectator camera: skipped while the window is minimized, Resolution Scale as steps (worktree `tghost`, branch `agent/specsave`, 2026-10-25)
 
 The GPU benchmark found the spectator camera (`vr_window_view 2`) the largest optional cost: at his
@@ -21487,3 +21531,250 @@ straight); a small trigger and guard (the mockup shows none; VR fingers need one
 - [ ] Fire it: the two barrels spin up, a half turn a shot, and stop side by side; the shots and the flash between the bores.
 - [ ] Load it at the port on the inner side (the recessed slot) and see shells leave the outer side's slot.
 - [ ] Debug > Tools > Model Previews: Widowmaker: Model Made from AD's / Hand-Made Model to compare.
+
+### His notes on it (same day): three barrels, no ring, more detail, darker
+
+Supersedes the two barrels, the ring and the twin frames above.
+
+- **Three barrels** (the mockup's: one on top, two below), an even triangle about the axis y 0, z 6.98 (centres 1.82 out,
+  radius 1.45; the top one's bore the muzzle anchor 44 0 8.8, as the made model's), three brass collars each and the
+  muzzle rings. Spin frames `spin0..26` as the made model's: a third of a turn a shot, at rest a barrel on top. Their
+  sweep (3.27 out) stays inside the receiver's outline, so their back ends never show while they turn.
+- **No ring** (chosen over keeping it as a bearing): the front grip hangs from a still iron rail carried forward from
+  the receiver's bottom under the sweep (x 19..31.4, z 2.05..3.2, a brass strap at its end); nothing still touches the
+  turning barrels, and the grip stays under the barrels as in the mockup. The front sight moved to a post on the
+  receiver's front (sight line z 11.9, over the sweep).
+- **Skin 512x512** (was 256), the rear plate and the grips (with their feet) unwrapped 1.7 times larger (`DETAIL_UV`):
+  the plate's stains in swirls, rust runs, pits and a worn edge; finer bricks (rows 0.6) with worn tops, shadowed
+  bottoms, chipped corners, pocks and grime; 16 rivets evenly round the plate from its top's middle (mirrored), each a
+  dome with a highlight, a sunk rim and a shadow below; the top's rivets in mirrored pairs. Darker overall (about 0.8 of
+  before, the steel greyer), not the made model's black.
+- **Relief**: made by the engine from the new skin as it loads (`vr_skinrelief.cpp`, the `#vr` name: 1024x1024 from the
+  512 skin; `skinrelief: progs/v_shot3.mdl#vr:frame0_vrnorm 1024 x 1024` with `developer 1`).
+- **A/B at run time**: switching `vr_ad_widowmaker_art` now reloads the model (`spinFrame` sees the change and inserts
+  `vr_model_reload "progs/v_shot3.mdl#vr"` ahead of the command buffer; the cvar callback and `Cbuf_AddText` did not
+  run it while a script waited). `vr_ad_widowmaker_spin_info` names the model drawn.
+- 2592 triangles (Body 732, Barrels 1860).
+
+Checked: `vr_ad_test 149` 11/11 PASS on the new model (at rest a barrel on top, the drawn top barrel 0.01 from the
+muzzle); `vr_ad_test 148` PASS; `vr_ad_test 98` held (eyeshot; low-impact mode, small eyes: brightness judged roughly);
+switching 1 -> 0 -> 1 reloads 2592 -> 1230 -> 2592 triangles. Renders: `renders/compare_mockup.png`, `three_quarter`,
+`back`, `first_person`, `spin`, `sheet`.
+
+- [ ] Fire it: the three barrels spin past the rail without touching anything; the shots from the top barrel.
+- [ ] The rear plate's rivets and rust, the grips' bricks, up close; the overall brightness in a lit and a dark room.
+### Follow-up: no breech housing (branch `agent/flaregun-art2`)
+
+Vittorio: the raised housing with the two shell-like cylinders on top was a mockup artefact. Removed the housing (walls,
+cap, notched back wall, sight channel) and the two cartridges; the top is now the frame's plain flat top (z 6.2 design)
+from the hinge block back over the breeches, ending in a low hump: a ramp up in front, two cheeks with the rear notch
+between them (0.32 wide, 0.28 deep), square at the back, the tang sloping down behind. The sight line dropped 0.2: model
+frame y 0, z **6.132**, rear (the notch's bottom, back edge) x **1.15**, front blade top x 9.05; still parallel to the
+bores, now 1.6 above the top bore (README updated; `vr_sightalign` rear `{1.15, 0, 6.132}`, front `{9.05, 0, 6.132}`).
+Muzzles unchanged. The fired skins keep only the sooted muzzles (skin 1 top, skin 2 both); kept as 3 skins so the
+gameplay can still pick by barrels fired. `v_flaregun.mdl` 1187 -> 860 triangles; the two housing rivets painted on the
+skin went with it. Regenerated with build_flaregun.py (the .blend had not been hand-edited), re-exported, re-rendered;
+check_mdl_art.py LOW only.
+
+- [ ] Flare Gun Art: the top is plain and solid; down the sights the brass blade sits in the bottom of the rear notch.
+## QC compile warnings: 4 -> 0 (branch `agent/qcwarn`, 2026-10-25)
+
+- `vr_propimpact_test.qc` (the `lightthrow:` line) and `vr_armedgrunt_test.qc` (VR_AGTest_Weapons' per-weapon line):
+  sprintf with 9 parameters (a varargs builtin takes 8; the last was dropped): each split into two sprintfs joined by
+  strcat. The lines now end as intended (`..., broken`; `..., N disarms:`).
+- `vr_armedgrunt_bugs_test.qc` VR_AGBT_PickupBegin: a local `other` hid the global: renamed `dropper`.
+- `vr_armedgrunt_pose.qc` VR_AGK_LiveTarget (the Pose Studio's live target): `th_die` (a `void()`) was given
+  VR_AGK_TargetPain, a `void(entity, float)`. Harmless: Killed calls `self.th_die()` with no arguments and the function
+  never reads them (it only sets its health back to 100000). Now its own `void() VR_AGK_TargetDie` with the same body:
+  no behaviour change.
+
+Checked: build 0 warnings; `vr_prop_impact_test 2` (15 lines + done), `vr_agrunt_test 1` 16/17 (the proximity gun, as
+before), `61` 40/0, `41` and `45` run to their end; eval.sh 163/171, no verdict changes.
+## Performance batch 3 (worktree `fastship`, branch `agent/perf3`, 2026-10-25)
+
+His approved batch from the overnight profiling, the GPU benchmark and the frame spikes. Numbers, method and rerun:
+BENCHMARKS.md, "Performance batch 3". Each change has a toggle in Debug > Profiling and Memory (default on).
+
+- **Crates' and rocks' layouts kept** (`vr_place_keep`): a restart of the same map (a death in AD) takes the last plan
+  when its key (map files and geometry, every vr_crate*/vr_debris*/vr_place_* setting, the entities' boxes) is the
+  same. ad_sepulcher's restart 878 -> 637 ms, ad_tfuma's 473 -> 369; the same layout hashes on nine maps; another
+  seed or setting plans anew. AD's rising bubbles no longer count as obstacles (their places differed each load).
+- **AD monsters' death assets at their spawn** (`vr_ad_death_precache`, QC `VR_AD_DeathPrecache`): outside AD's maps
+  the first AD monster precaches AD's backpack, gibs, explosions, projectiles and their sounds, and the footsteps
+  (which were never precached there: hundreds of "not precached" warnings a fight). The test hall's AD crowd: CPU
+  busy max 35.5 -> 7.9 ms.
+- **Wound painting budget** (`vr_wounds_budget` 1 ms, `vr_wounds_budget_wait` 0.04 s): a burst's events beyond the
+  budget wait in their body's own frame of reference and are painted within 0.04 s; dropped if the body is removed
+  or gibbed. The same masks to the pixel in a still scene; gore_dismember_16's worst frame 26.3 -> 20.1 ms.
+- **OIT clear at the first translucent draw** (`vr_oit_lazy_clear`, `vr_oit_stats`): small (0.00-0.03 ms): a liquid
+  is in almost every view's set with his translucent liquids.
+- **Heat haze copy**: tried (each hot volume's part copied apart) and reverted: the same time, the costly cases copy
+  the whole view either way. Open: a half-size copy changes the image a little; his call.
+- **Checks**: eye shots identical with the OIT toggle on and off (water, lava, a dry view); eval.sh canary 36/44, 0
+  differ from the baseline; E1M1 smoke clean.
+
+For him in VR:
+- [ ] Die in an AD map (Sepulcher, Tears) and restart: the same crates, barrels and rocks where they were, the
+  restart a quarter second quicker.
+- [ ] Spawn AD monsters with the toolgun in the test hall or an id map and kill them: no hitch at the first death or
+  backpack; their footsteps audible.
+- [ ] Cut up or blow up a crowd (Gore > test crowd, a rocket into grunts): the wounds appear as before (within a few
+  frames), on the right places of bodies that are flying.
+## Nail pistol self-test made map-independent (worktree `dequant`, branch `agent/nptest`, 2026-10-25)
+
+`vr_np_test 1` passed 17/17 on vrtesthall but gave 15/2 (and 13/4, 16/1) in real maps: no pistol regression (next's progs
+pass 17/17 on vrtesthall, e1m1, start, e2m1 every time; the grip/sight zeroing is not involved). The failing checks were
+the grunt ones (headshots, body shots, armed grunt, pair), flaky from run to run, caused by the map around the test: the
+last test nail flew on down the aim and hit the grunts (extra damage); a ledge made the grunt fall under the nails; a step
+stopped the nails' 64-unit flight; the map's own monsters woke, walked and stood in the grunts' line of fire (`holds: its
+monster_knight in the way`: shot held, 0 nails); a wall closer than the spawn distance. Fixes in
+`QC/vr_nailpistol_test.qc` only: stray nails removed before the grunts; grunts placed by a traceline (stops short of walls
+and monsters), dropped to the floor, still (movetype none); nails from 24 units; the player FL_NOTARGET and the map's
+monsters' thinks off during the test (restored at the end). Result: 17/0 in 19 runs over vrtesthall, e1m1-3, e1m5, e2m2
+(x10), e2m3 (x13), start; scene `nailpistol` validate 0 errors, runall OK; eval.sh no verdict changes.
+## Flatscreen hands: locked to the view, then sway, bob and turn lag (worktree `tghost`, branch `agent/flathands`, 2026-10-25)
+
+Vittorio: in `-flatscreenmode` the hands lagged behind when moving with WASD and when turning. Wanted: no lag, then a
+customizable sway on a walk and a little intentional delay on a turn, as in modern shooters.
+
+**Why they lagged** (measured: the drawn main weapon in the camera's frame, `vr_flatplay_debug 2`'s `flatview:` lines,
+strafing at 320 and turning at 540 degrees a second, sway and bob 0):
+1. the hands were eased in *world* space (`fs.hand += (target - hand) * ease(15/s)`): at a run that leaves them v/k
+   ~21 units behind the moving view, and a turn swings them round late — 23.7 units off while strafing;
+2. they are made once a frame, at its start (`hands::current()` from `VR_BeginFrame`), before `CL_AccumulateCmd` turns
+   the view with the mouse and before `CL_ReadFromServer` moves the player: a frame behind both. Turning, the drawn
+   gun pointed 7.5 degrees off at 540 deg/s (one frame), and so did the **shot** the move sent (the hand's angles), not
+   only the picture;
+3. `vr_flat_sway`'s old trail (the step's velocity times 0.035, the turn rate times 0.075) added a steady offset on top.
+
+**The fix.** `flatplay::poseHands` is rigid in the view's frame: each hand's place off its shoulder in (forward, right,
+up), eased only from one pose to the next (weapon taken, punch, reach) in that frame. `hands::relatch()` makes the pose
+again with the frame's velocities kept (the `Previous` sample restored, so they are still measured between the frames'
+first poses: a pose made again at the end of a frame is the next frame's, and would difference to standing still): in
+`buildMove` (the move's hands and shot from this frame's mouse turn) and at the top of `VR_SetupViewEntities` (the origin
+the client has just moved the player to). Flat mode only (`flatplay::active()`); VR is untouched.
+
+**The looks** (`flatplay::drawnOffset`, added in `VR_SetupViewEntities` like the fatigue shake, so the muzzle is put back
+on the steady hand and the shots are not moved): the hands carried from the pose's head onto the drawn camera (Quake's
+view bob, strafe roll, kick, its own step easing), then:
+- the turn's lag: the hands keep their direction as the view turns, an exactly-stepped critically damped spring
+  (18/s times `vr_flat_turnlag_speed`) brings them back; 0.12 of it shown times `vr_flat_turnlag`, softly capped at 4
+  degrees times it; a view set more than 45 degrees in a frame leaves none;
+- the move's sway: each change of velocity (level view frame; up and down 1.4x) kicks a spring (11/s, 0.55 of critical)
+  the other way: a lag and settle on starting and stopping, a dip on a jump and a landing; capped (softly) at 5 units;
+- the walk's bob: a figure of eight with the speed on the ground (eased in and out), breathing at rest.
+Stepped once a frame on `vr_gametime` (the same with `vr_fixed_frames`).
+
+**Settings** (Debug > Reports > Flatscreen Play; not saved, like the rest of the block): `vr_flat_sway` 1 (now the move
+sway only), `vr_flat_bob` 1, new `vr_flat_turnlag` 1 and `vr_flat_turnlag_speed` 1.
+
+**Numbers** (`bash Misc/quakevr/flatplay_test.sh <agent>`, all PASS): all three 0: the drawn weapon 0.014 units and
+0.000 degrees from its still place strafing and turning (before: 23.7 units, 7.5 degrees). Defaults: 1.3 units at a
+start or stop, 3.4 degrees behind a 540 deg/s turn, 0.000 a second after. The shot each move sends: at most 0.02 degrees
+off the view over 270 moves turning, strafing and looking up with all the looks on (it was a frame of turn behind).
+
+**Decisions.** The two existing cvars kept their names (`vr_flat_sway` for the move sway — its turn part moved to the new
+`vr_flat_turnlag` — and `vr_flat_bob`); none are archived, as the block's comment has it. The hands follow the drawn
+camera's kick and roll too (a viewmodel's); the chase camera and the ragdoll tool's orbit fall back to the pose's head.
+
+**In flatscreen (`-flatscreenmode`):**
+- [ ] Walk, strafe and run with WASD: the gun stays where it is on the screen, only a gentle bob; start and stop: a small
+  lag that settles. Jump and land: a dip.
+- [ ] Turn quickly with the mouse: the hands trail a little and catch up at once; the shots go to the crosshair while
+  turning and walking (shoot a wall while strafing and turning).
+- [ ] Debug > Reports > Flatscreen Play: Move Sway, Walk Bob, Turn Lag, Turn Lag Recovery: 0 locks each; 2 doubles.
+
+## Armed humanoid replacements (worktree `gorefx`, branch `agent/armedrepl`, 2026-10-25)
+
+His design: a map's grunts and enforcers as their armed versions, keeping their own guns so the balance stays the
+same while disarming, tugs, parries, shooting the gun out and the ragdoll's hold all work; weapon variety on top, gated
+by what the player has and how far into an episode he is; a gun and an axe. Everything off by default. QC
+`vr_armedrepl.qc` (tests `vr_armedrepl_test.qc`), ARMED_MONSTERS.md "Replacements".
+
+**The replacement.** `monster_army` and `monster_enforcer` ask `VR_AGR_Replace(kind)` first: on, in scope, a map's
+monster (its classname theirs, not MG3's infected, not a training dummy, not Honey's trigger-spawned copies' maker, not
+`VR_AM_Spawn`'s own call: `vr_am_spawning`), it runs `VR_AM_Spawn` with its own gun (`WID_GRUNTGUN`, `WID_ENFRIFLE`), so
+the map's own monsters, its spawners' (hipnotic's func_spawn, MG's hordes, the random spawner in buttons.qc) and the
+waiting ones (MG's and AD's `MG_deferred`: their model is now `vrgrunt.mdl` when they come, the held weapons hidden
+until then, `VR_AG_PropThink`) are all replaced. The map's spawnflags are kept (the toolgun's own armed monsters still
+drop the trigger flags).
+
+**Its own gun, its monster's balance.** The prop is "native" (`.vr_ag_native`): `VR_AG_ShootProp` hands it to
+`VR_AGR_NativeShot`, which fires the monster's own shot (`army_burst_round` / `army_fire`, `enforcer_fire`'s laser from
+its own origin, marked native), never spends a round, and draws the flash and kick on the held gun. `VR_AG_DamageScale`
+(now told the inflictor) passes native shots and a replacement's shoves unscaled (`vr_agrunt_damage_scale` stays for
+the armed layer's weapons). With its own gun alone it attacks as its monster does: `VR_AG_CheckAttack` takes the
+monster's chances (`SoldierCheckAttack`'s 0.9/0.4/0.05; the enforcer's `CheckAttack` 0.9/0.4/0.1, no lefty toggle) and
+pauses (1 + random, 2 x random), `VR_AG_Missile` runs `VR_AGR_NatStep` (the grunt's shoot1..9, rounds in 5/6/7; the
+enforcer's 14 steps, lasers in its two attack6s, its row's frames attack2..10), the aim cone's wait before the shots
+(`VR_AimCone_Wait`, as `army_atk5` and `enforcer_fire`), nightmare's refire. Loot: `VR_AG_SoldierDrop` returns FALSE for
+a replacement with no reserve, so `SoldierDrop`/`EnforcerDrop` give the monster's own backpack and its chance of a
+weapon; the gun falls full as the vanilla one does (`VR_AG_Dying`). Health, pains, deaths, sounds: the monster's own
+spawn.
+
+**Measured** (`vr_agrunt_test 71`, vrtesthall, each alone against the player for 150 s, then 40 kills each):
+
+| | shots/s | damage a shot | damage/s | guns | backpacks (ammo) | extra weapons |
+| --- | --- | --- | --- | --- | --- | --- |
+| grunt, vanilla | 1.78 | 6.58 | 11.72 | 40 | 40 (200) | 7 |
+| grunt, replaced | 1.80 | 6.53 | 11.75 | 40 | 40 (200) | 13 |
+| enforcer, vanilla | 1.08 | 17.45 | 18.85 | 40 | 40 (200) | 14 |
+| enforcer, replaced | 1.03 | 18.00 | 18.60 | 40 | 40 (200) | 10 |
+
+(Extra weapons: `TryEnemyDrop`'s chance, 40 kills: noise.) Before the shoves were passed unscaled and the aim cone's
+wait added, the replaced grunt dealt 10.1/s (its shoves halved, its shots fired off its facing bent away). Differences
+left: its shots leave from its monster's own origin offsets (as the vanilla ones; the tracers from there), its run is
+the armed layer's (the same steps; it holds fire for friends in its line, `vr_agrunt_friendly_care`, which vanilla
+grunts don't), and a disarmed one fights with its fists and goes for weapons (the armed layer's rules, its fists at
+`vr_agrunt_damage_scale`). Its rifle taken and picked up again by an armed one is an ordinary armed weapon (clip, no
+reserve: thrown away when spent).
+
+**Variety.** Each a chance times the skill's `vr_agrunt_repl_skill0..3` (0.5, 1, 1.5, 2), the three tiers capped to a
+sum of 1: common (shotgun, nail pistol), uncommon (super shotgun, nailgun, super nailgun), rare (grenade and rocket
+launchers, thunderbolt, axe, sword, crowbar, chainsaw, Mjolnir, Laser Cannon, proximity gun; AD's soldiers' guns in AD
+maps), then dual (`VR_AG_Pairs`, a second weapon from the same rolls, its own gun among them) or a gun and an axe.
+Eligibility: a weapon is eligible when any player owns it (`VR_WeaponUtil_EntIsEligibleForWeapon`, the rule the
+monsters' weapon drops use: the axe and shotgun always); rare ones also only from the episode's
+`vr_agrunt_repl_rare_map`th map (4) on, the map's number the digits after its last "<digit>m" (e1m4, hip2m3, r1m5;
+start, hubs and custom names: never; 0 lifts it). Why ownership and not a per-campaign table of where each weapon is
+first found: it holds for every campaign and custom map, it follows the player (a pistol start or a death that lost
+weapons gates them again), and it is the game's existing notion. The map's own monsters spawn before any player is in,
+so their rolls wait for the first frame with one (`VR_AGR_Frame`; they hold their own gun until then, a frame or two
+before anything is drawn); a spawner's are rolled at once. Deterministic: Wichmann-Hill seeded by the map's name, the
+monster's spawn point and kind (`vr_agrunt_repl_seed` shuffles every map); the same spawn gets the same loadout on a
+restart and a reload (saves keep it). With variety on, every candidate weapon's model is precached at worldspawn
+(`VR_AGR_Precache`; the bodies and the layer's sounds with replacements on), so spawners never precache late.
+
+**A gun and an axe** (`vr_ag_gunaxe`; also allowed by `VR_AG_PairsFor` for pickups): the gun in its right hand, the axe
+in its left. `VR_AGR_GunAxe` (each `VR_AG_CheckAttack`): its target nearer than 84 the axe (the slots swapped: the layer
+acts on the first), further than 150 with rounds the gun again; spent with nothing to reload the gun is thrown away
+and it fights with the axe, out of its target's reach going for a gun lying near (`VR_AG_WantsSecond`, then taken into
+its right hand, the axe back to the left). The axe swings in its left hand on the left-hand keys (`VR_AGP_Begin`: the
+blade's hand only, never both), the gun one-handed beside it (`VR_AGP_ArmsGun` with `vr_agp_onehand`, the axe through
+`VR_AGP_LeftBlade`, factored out of the melee pairs' pose). `VR_AG_DualGuns` is now two guns only (no dual penalty or
+second shot for the axe); the reload refills a second gun whichever weapon is first.
+
+**Settings:** Combat > Armed Grunts > Armed Humanoid Replacements (also on Combat): `vr_agrunt_repl` 0 (Replace All
+Humanoids), `vr_agrunt_repl_common` / `_uncommon` / `_rare` 0 (0..1), `vr_agrunt_repl_rare_map` 4 (0..8),
+`vr_agrunt_repl_dual` 0, `vr_agrunt_repl_gunaxe` 0, `vr_agrunt_repl_skill0..3` 0.5 / 1 / 1.5 / 2 (0..4),
+`vr_agrunt_repl_seed` 0, where: `vr_agrunt_repl_id` 1 (Quake's campaigns: id1, Dimension of the Past, the Machine Games
+ones, custom maps), `vr_agrunt_repl_mp` 1 (the mission packs), `vr_agrunt_repl_ad` 0 (AD's maps: `AD_Rules`, or the AD
+campaign). A change takes effect at the next map load.
+
+**Tests** (Debug > Automation & Self-Tests: Armed Replacements): `vr_agrunt_test 70` the rolls: 21 passed, 0 failed
+(500 seeds a case: off 100% own guns; common 0.3 at normal 0.306, easy 0.156, hard 0.450, nightmare 0.604; uncommon 0.5
+with nothing owned 0 and no super shotgun, with the super shotgun owned 0.506 all super shotguns; rare 0.5 in
+vrtesthall 0 (no map number), any map 0.506; common 1 + uncommon 1 capped to 0.494 each, no own gun; dual 0.5 0.470;
+gun and axe 0.4 0.390; the same seeds twice equal, the seed cvar shuffles; 12 real spawns all replaced, the same
+loadouts at the same spots twice; off, a plain grunt). `71` the balance (above): 10 passed. `72` gun and axe: 7 passed
+(its gun 3.9 units to its right, the axe 12.1 to its left; the gun at 320, the axe at 60 with a blow, the gun again at 356, a spent shotgun thrown away for the axe, a shotgun
+lying near taken into its right hand). `73` a map's census, run off and on (variety on too): e1m1 23 monsters (18
+replaced), e1m3 47 (none: no grunts there), e2m1 33 (28), hip1m1 58 (51), r1m1 46 (none), r1m2 50 (none), r1m3 82
+(24): the same counts and kills off and on, no errors. Scenes `agrunt_repl_gunaxe`, `agrunt_repl_map` (`vr_scenario validate`: 96 files, 0 errors;
+runall with the armed scenes: 8 OK). eval.sh: no verdict changes (the canary's stab 31.0 -> 31.1, the
+baseline's own flake). Test files under `#ifdef QVR_TESTS`; `-DQVR_NO_TESTS` compiles clean.
+
+**In VR:** Armed Humanoid Replacements on, play e1m1 or e2m1: the grunts and enforcers should feel as before (their
+rate of fire, their damage) while you can grab their rifles, tug them, shoot them out; dead, their rifle and backpack as
+before. The scene `agrunt_repl_gunaxe`: the axe in the left hand looks right carried and swung, the gun one-handed in the
+right; walk up and back off. Variety: the hand-offs at a map's start (none visible), a dual-wielder's two rifles.

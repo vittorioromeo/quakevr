@@ -71,11 +71,116 @@ void(entity xInflictor, entity xAttacker, float xTake) VR_AD_ZombiePain =
     }
 };
 
+// AD's world's shared assets for its monsters' deaths, drops, steps and blasts (ad_worldspawn's, precached only in AD's
+// maps): its backpack, gibs and their sounds, the footsteps, the explosions' sprites and sounds, the projectiles. With
+// the first AD monster outside AD's maps: at the map's load for those it places (and the probes' kinds that can appear
+// later: vr_probe.qc), at the spawn for the toolgun's and the spawners' (not at its first death or step: a late precache
+// there, 25-38 ms; the steps' and the grenadier's sounds were missing). vr_ad_death_precache 0: as before.
+nosave float vr_ad_deathprecached; // done this map
+
+void() VR_AD_DeathPrecache =
+{
+    if(vr_ad_deathprecached || AD_Rules() || !vr_ad_data || !cvar("vr_ad_death_precache"))
+    {
+        return;
+    }
+    vr_ad_deathprecached = TRUE;
+    precache_model(ad_MODEL_BACKPACK);
+    precache_model(ad_GIB1_BLOOD);
+    precache_model(ad_GIB2_BLOOD);
+    precache_model(ad_GIB3_BLOOD);
+    precache_model(ad_GIB4_BLOOD);
+    precache_model(ad_GIB5_BLOOD);
+    precache_model(ad_MODEL_EMPTY);
+    precache_model(ad_SEXP_SMALL);
+    precache_model(ad_SEXP_MED);
+    precache_model(ad_SEXP_BIG);
+    precache_model(ad_SEXP_PLASMA_SMALL);
+    precache_model(ad_SEXP_PLASMA_BIG);
+    precache_model(ad_SEXP_POISON_SMALL);
+    precache_model(ad_SEXP_POISON_MED);
+    precache_model(ad_SEXP_ELECTRIC);
+    precache_model(ad_SBURST_SMOKE);
+    precache_model(ad_MODEL_PROJ_SMOKE);
+    precache_model(ad_MODEL_PROJ_FLESH);
+    precache_model(ad_MODEL_PROJ_FLESHP);
+    precache_model(ad_MODEL_PROJ_DIAM2); // (its first load in a fight: 160 ms)
+    precache_model(ad_MODEL_PROJ_SHELLC);
+    precache_model(ad_MODEL_PROJ_NG);
+    precache_model(ad_MODEL_PROJ_SNG);
+    precache_model(ad_MODEL_PROJ_GRENADE);
+    precache_model(ad_MODEL_PROJ_ROCKET);
+    precache_sound(ad_SOUND_REXP3);
+    precache_sound(ad_SOUND_RESIST_ROCKET);
+    precache_sound("weapons/gl_loadshort.wav");
+    precache_sound("weapons/shellc.wav"); // (the soldiers' shell casings falling)
+    precache_sound("demon/dland2.wav");
+    precache_sound(ad_GIB_SOUND_UDEATH);
+    precache_sound(ad_GIB_SOUND_HEAVY);
+    precache_sound(ad_GIB_SOUND_HEAVY2);
+    precache_sound(ad_GIB1_SOUND);
+    precache_sound(ad_GIB3_SOUND);
+    precache_sound(ad_GIB5_SOUND);
+    precache_sound(ad_GIBHIT1_SOUND);
+    precache_sound(ad_GIBHIT2_SOUND);
+    precache_sound(ad_GIBHIT3_SOUND);
+    precache_sound(ad_GIBHIT4_SOUND);
+    precache_sound(ad_GIBHIT5_SOUND);
+    precache_sound(ad_GIBHIT1_STONESOUND);
+    precache_sound(ad_GIBHIT3_STONESOUND);
+    precache_sound(ad_GIBHIT5_STONESOUND);
+    precache_sound(ad_GIBHIT1_METALSOUND);
+    precache_sound(ad_GIBHIT3_METALSOUND);
+    precache_sound(ad_GIBHIT5_METALSOUND);
+    precache_sound(ad_GIB_SOUND_METALA);
+    precache_sound(ad_GIB_SOUND_METALB);
+    precache_sound(ad_GIB_SOUND_CHAIN);
+    precache_sound(ad_GIB_SOUND_WOOD);
+    precache_sound(ad_GIB_SOUND_ACID);
+    precache_sound(ad_GIB_SOUND_SDEATH);
+    precache_sound(ad_SOUND_FS_SLOW1);
+    precache_sound(ad_SOUND_FS_SLOW2);
+    precache_sound(ad_SOUND_FS_SLOW3);
+    precache_sound(ad_SOUND_FS_SLOW4);
+    precache_sound(ad_SOUND_FS_SLOW5);
+    precache_sound(ad_SOUND_FS_DRAG1);
+    precache_sound(ad_SOUND_FS_DRAG2);
+    precache_sound(ad_SOUND_FS_DRAG3);
+    precache_sound(ad_SOUND_FS_DRAG4);
+    precache_sound(ad_SOUND_FS_DRAG5);
+    precache_sound(ad_SOUND_FS_LIGHT1);
+    precache_sound(ad_SOUND_FS_LIGHT2);
+    precache_sound(ad_SOUND_FS_LIGHT3);
+    precache_sound(ad_SOUND_FS_LIGHT4);
+    precache_sound(ad_SOUND_FS_LIGHT5);
+    precache_sound(ad_SOUND_FS_MEDIUM1);
+    precache_sound(ad_SOUND_FS_MEDIUM2);
+    precache_sound(ad_SOUND_FS_MEDIUM3);
+    precache_sound(ad_SOUND_FS_MEDIUM4);
+    precache_sound(ad_SOUND_FS_MEDIUM5);
+    precache_sound(ad_SOUND_FS_HEAVY1);
+    precache_sound(ad_SOUND_FS_HEAVY2);
+    precache_sound(ad_SOUND_FS_HEAVY3);
+    precache_sound(ad_SOUND_FS_HEAVY4);
+    precache_sound(ad_SOUND_FS_HEAVY5);
+    precache_sound(ad_SOUND_FS_LARGE1);
+    precache_sound(ad_SOUND_FS_LARGE2);
+    precache_sound(ad_SOUND_FS_LARGE3);
+    precache_sound(ad_SOUND_FS_LARGE4);
+    precache_sound(ad_SOUND_FS_LARGE5);
+    precache_sound(ad_SOUND_FS_GIANT1);
+    precache_sound(ad_SOUND_FS_GIANT2);
+    precache_sound(ad_SOUND_FS_GIANT3);
+    precache_sound(ad_SOUND_FS_GIANT4);
+    precache_sound(ad_SOUND_FS_GIANT5);
+};
+
 // AD's monster_start (self the monster, its class set): its data. A class not here gets none of Quake VR's treatment
 // but what any monster gets (hit hooks, shoves).
 void() VR_AD_MonsterSetup =
 {
     float t = self.ad_classtype;
+    VR_AD_DeathPrecache();
     self.vr_ad_mon = 0;
     VR_ADGun_Prepare(t); // (an armed soldier's gun: made and precached as it spawns, not at its death: vr_ad_enemyguns.qc)
     VR_ADMelee_Prepare(t); // (a melee monster's weapons likewise: vr_ad_melee.qc)

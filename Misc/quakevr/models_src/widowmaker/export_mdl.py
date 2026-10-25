@@ -8,10 +8,10 @@
 #                                   frame, as the Widowmaker made from AD's view model, so weapon slot 34's settings hold
 #                                   it; +X forward, +Y left, +Z up), packed from that model's corner CORNER (the settings
 #                                   scale about it). 36 frames: vr0..vr8 the gun at rest (the weapon animations' frame
-#                                   numbers), then twin0..twin26 the Barrels object (and anything parented to it) turned
+#                                   numbers), then spin0..spin26 the Barrels object (and anything parented to it) turned
 #                                   about the spin axis (y 0, z SPIN_Z, along x) by k * 360/27 degrees, clockwise seen from
-#                                   behind: the Gatling spin (Quake/vr/vr_adweapons.cpp spinFrame; "twin": two barrels, a
-#                                   shot each half turn).
+#                                   behind: the Gatling spin (Quake/vr/vr_adweapons.cpp spinFrame: three barrels, a
+#                                   shot each third of a turn, as the made model).
 #   progs/vr_widowmaker_preview.mdl the gun at rest scaled by the Body's "preview_scale" (its size in the hand), one frame:
 #                                   to look at in the game (README.md, "In the game").
 # The skin is the image of the Body's material (widowmaker_skin.png), each texel made the nearest of Quake's 224 ordinary
@@ -48,7 +48,8 @@ qpal = fg.qpal
 GUN_MDL = "v_widowmaker.mdl"
 PREVIEW_MDL = "vr_widowmaker_preview.mdl"
 CORNER = (-15.5775, -4.6938, -4.2402)  # the super shotgun's model's scale_origin (v_shot2.mdl; vr_adweapons.cpp recipes)
-SPIN_Z = 8.8                           # the spin axis: y 0, z SPIN_Z, along x (the muzzle anchor 44 0 8.8 on it)
+SPIN_Z = 6.98                          # the spin axis: y 0, z SPIN_Z, along x (the top barrel's bore 1.82 over it: the
+                                       # muzzle anchor 44 0 8.8)
 STILL_FRAMES, SPIN_POSES = 9, 27
 MARKERS = ("_Muzzle", "_SightRear", "_SightFront", "_HandAnchor", "_TwoHHandAnchor", "_ShellPort", "_EjectSlot")
 
@@ -99,7 +100,7 @@ def export(out_dir=None, log=print):
     mesh = fg.build_mesh([fg.object_tris(ob, to_body, w, h, depsgraph) for ob in turning + still], w, h)
     assert all(mesh.verts[i][0] == spin_mesh.verts[i][0] for i in range(spin_count))
     frames = [mesh] * (STILL_FRAMES - 1) + [spun(mesh, spin_count, k) for k in range(SPIN_POSES)]
-    names = ["vr%d" % i for i in range(STILL_FRAMES)] + ["twin%d" % k for k in range(SPIN_POSES)]
+    names = ["vr%d" % i for i in range(STILL_FRAMES)] + ["spin%d" % k for k in range(SPIN_POSES)]
     os.makedirs(out_dir, exist_ok=True)
     mdlgen.write_mdl(os.path.join(out_dir, GUN_MDL), mesh, skins, "vr0", frames, names, CORNER)
     log("%s: %d triangles, %d vertices (%d turning), %d frames, skin %dx%d (%s; turning: %s)" % (

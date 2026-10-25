@@ -35,7 +35,9 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 
@@ -3198,7 +3200,197 @@ void drips(double now)
 
 constexpr int cleanFlag = 64; // QC vr_wounds.qc QVR_WOUND_CLEAN, added to the kind
 
+// ----------------------------------------------------------------------------
+// The frame's budget (vr_wounds_budget): a burst's events (an explosion's, a gib storm's, a dismembering: 400 at once,
+// 10 ms) painted a budget a frame, the rest kept for the next frames in their body's own frame of reference (the
+// entity's origin and turn when they came: a body moved or ragdolled since takes them where they struck it), dropped
+// with their body (removed, gibbed: its model another). All of them painted within vr_wounds_budget_wait seconds: the
+// rest of the wait shared out evenly over the frames left.
+
+struct Pending
+{
+    Event ev;                       // its org and dir in the body's frame when `local`
+    glm::vec3 worldOrg{0.f}, worldDir{0.f}; // as they came (taken as they are in the frame they came)
+    const qmodel_t* model{nullptr}; // the body's model when it came
+    double came{0.0};               // cl.time
+    bool local{false};
+    bool dropped{false};            // its body removed after it (a clear for it came)
+};
+
+struct WoundQueue
+{
+    za::Vector<Pending> items;
+    za::SizeT head = 0;     // the next to paint
+    double lastTime = -1.0; // cl.time at the last frame (the frame's length)
+    float msPerEvent = 0.025f; // the painting's cost an event, measured (a running average)
+    // vr_wounds_info's
+    int mostQueued = 0, mostInFrame = 0, droppedTotal = 0, deferredTotal = 0;
+};
+WoundQueue queue;
+
+// The kinds struck at a point of the body (kept in its frame); the liquids' are at a height of the world.
+[[nodiscard]] bool bodyRelative(int kind)
+{
+    return kind == KindShot || kind == KindNail || kind == KindMelee || kind == KindBlast || kind == KindBurn || kind == KindZap;
+}
+
+// Entity `num`'s frame: its origin and turn (yours: your yaw alone), as its events are kept in.
+bool bodyFrame(int num, glm::vec3& origin, glm::mat3& axes)
+{
+    if(num <= 0 || num >= cl.num_entities || !cl_entities[num].model)
+    {
+        return false;
+    }
+    const entity_t& e = cl_entities[num];
+    vec3_t angles{e.angles[0], e.angles[1], e.angles[2]};
+    if(num == cl.viewentity)
+    {
+        angles[0] = angles[2] = 0.f;
+    }
+    vec3_t f, r, u;
+    AngleVectors(angles, f, r, u);
+    axes = glm::mat3{glm::vec3{f[0], f[1], f[2]}, glm::vec3{-r[0], -r[1], -r[2]}, glm::vec3{u[0], u[1], u[2]}};
+    origin = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    return true;
+}
+
+// The frame's new events into the queue, each in its body's frame; a removal drops what waits for that body.
+void enqueue()
+{
+    for(const Event& ev : events)
+    {
+        Pending p;
+        p.ev = ev;
+        p.worldOrg = ev.org;
+        p.worldDir = ev.dir;
+        p.came = cl.time;
+        if(ev.kind == KindClear)
+        {
+            for(za::SizeT i = queue.head; i < queue.items.size(); i++)
+            {
+                Pending& q = queue.items[i];
+                if(q.ev.num == ev.num && q.ev.kind != KindClear && q.ev.kind != KindWeaponGone && !q.dropped)
+                {
+                    q.dropped = true;
+                    queue.droppedTotal++;
+                }
+            }
+        }
+        glm::vec3 origin;
+        glm::mat3 axes;
+        if(bodyRelative(ev.kind) && bodyFrame(ev.num, origin, axes))
+        {
+            const glm::mat3 inv = glm::transpose(axes);
+            p.ev.org = inv * (ev.org - origin);
+            p.ev.dir = inv * ev.dir;
+            p.model = cl_entities[ev.num].model;
+            p.local = true;
+        }
+        queue.items.pushBack(p);
+    }
+    events.clear();
+    queue.mostQueued = za::max(queue.mostQueued, static_cast<int>(queue.items.size() - queue.head));
+}
+
+// One kept event painted: back in the world from its body's frame now (dropped if its body is gone or another).
+void applyPending(const Pending& p)
+{
+    if(p.dropped)
+    {
+        return;
+    }
+    if(!p.local || p.came == cl.time) // (in the frame it came: as it came)
+    {
+        Event ev = p.ev;
+        ev.org = p.worldOrg;
+        ev.dir = p.worldDir;
+        apply(ev);
+        return;
+    }
+    glm::vec3 origin;
+    glm::mat3 axes;
+    if(!bodyFrame(p.ev.num, origin, axes) || cl_entities[p.ev.num].model != p.model)
+    {
+        queue.droppedTotal++;
+        return;
+    }
+    Event ev = p.ev;
+    ev.org = origin + axes * p.ev.org;
+    ev.dir = axes * p.ev.dir;
+    apply(ev);
+}
+
+// The queue painted as far as the frame's budget allows (all of it with vr_wounds_budget 0, as before); returns how
+// many were painted.
+int paintQueue()
+{
+    const float budget = vr_wounds_budget.value;
+    const double wait = za::max(vr_wounds_budget_wait.value, 0.f);
+    const double frameTime = queue.lastTime >= 0.0 && cl.time > queue.lastTime ? cl.time - queue.lastTime : 1.0 / 90.0;
+    queue.lastTime = cl.time;
+    const za::SizeT waiting = queue.items.size() - queue.head;
+    // The frame's allowance: the budget, or the rest shared out over the frames the oldest has left (all of it then).
+    float allow = budget;
+    if(budget > 0.f && waiting > 0)
+    {
+        const double left = wait - (cl.time - queue.items[queue.head].came);
+        const double frames = za::max(1.0, za::floor(left / frameTime));
+        allow = za::max(budget, static_cast<float>(queue.msPerEvent * static_cast<double>(waiting) / frames));
+    }
+    const double t0 = Sys_DoubleTime();
+    int painted = 0;
+    while(queue.head < queue.items.size())
+    {
+        const Pending p = queue.items[queue.head]; // (a copy: painting may not move the queue, but cheap to be sure)
+        if(budget > 0.f && painted > 0 && cl.time - p.came < wait && (Sys_DoubleTime() - t0) * 1000.0 >= allow &&
+            queue.items.size() <= 4096)
+        {
+            break;
+        }
+        queue.head++;
+        applyPending(p);
+        painted++;
+    }
+    if(painted > 0)
+    {
+        const float ms = static_cast<float>((Sys_DoubleTime() - t0) * 1000.0) / static_cast<float>(painted);
+        queue.msPerEvent = queue.msPerEvent * 0.8f + ms * 0.2f;
+    }
+    queue.deferredTotal += static_cast<int>(queue.items.size() - queue.head);
+    queue.mostInFrame = za::max(queue.mostInFrame, painted);
+    if(queue.head >= queue.items.size())
+    {
+        queue.items.clear();
+        queue.head = 0;
+    }
+    else if(queue.head >= 256)
+    {
+        queue.items.erase(queue.items.begin(), queue.items.begin() + static_cast<za::PtrDiffT>(queue.head));
+        queue.head = 0;
+    }
+    return painted;
+}
+
+void clearQueue()
+{
+    queue.items.clear();
+    queue.head = 0;
+    queue.lastTime = -1.0;
+}
+
 } // namespace
+
+namespace detail
+{
+void queueInfo()
+{
+    Con_Printf("wounds: %d events waiting (vr_wounds_budget %.2f ms, wait %.3f s; an event %.3f ms); most waiting %d, most painted "
+               "in a frame %d, %d frames' waits so far, %d dropped with their body\n",
+        static_cast<int>(queue.items.size() - queue.head), static_cast<double>(vr_wounds_budget.value),
+        static_cast<double>(vr_wounds_budget_wait.value), static_cast<double>(queue.msPerEvent), queue.mostQueued, queue.mostInFrame,
+        queue.deferredTotal, queue.droppedTotal);
+}
+} // namespace detail
 
 void parseEvent()
 {
@@ -3332,6 +3524,7 @@ void frame()
             releaseTexture();
         }
         events.clear();
+        clearQueue();
         chanOn[0] = vr_wounds.value != 0.f;
         chanOn[1] = vr_wounds_burns.value != 0.f;
         chanOn[2] = vr_wounds_wet.value != 0.f;
@@ -3350,12 +3543,8 @@ void frame()
     checkEntities();
     playerState();
     const auto t1 = Sys_DoubleTime();
-    const za::SizeT received = events.size();
-    for(const Event& ev : events)
-    {
-        apply(ev);
-    }
-    events.clear();
+    enqueue(); // (vr_wounds_budget: a burst's spread over the next frames, each in its body's frame)
+    const int received = paintQueue();
     const double now = cl.time;
     splashFrame();
     gibHands(now);
@@ -3399,6 +3588,7 @@ void clear()
     maskOf.clear();
     resetGear();
     events.clear();
+    clearQueue();
     lastTick = -1.0;
     playerHealth = -1000;
     playerWounds.clear();

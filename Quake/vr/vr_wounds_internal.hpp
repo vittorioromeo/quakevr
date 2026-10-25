@@ -203,5 +203,6 @@ void spatterFrom(const Event& ev, int saw);
 [[nodiscard]] bool isFine(int layer);
 [[nodiscard]] int bloodLayerOf(int in);
 void wetInfo(); // vr_wounds_info: the wet coat on your body, hands and what they hold (vr_wounds_wet_coat)
+void queueInfo(); // vr_wounds_info: the events waiting for a frame's budget (vr_wounds_budget)
 
 } // namespace qvr::wounds::detail

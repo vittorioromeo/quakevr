@@ -36,13 +36,13 @@ CHAMFER = 16  # added to a part: a chamfer of it
 BARREL_R, BORE_R, BARREL_SIDES = 1.2, 0.8, 12
 BARREL_TOP_Z, BARREL_BOT_Z = 5.0, 2.7
 BARREL_X0, MUZZLE_X, BORE_DEPTH = 2.4, 7.8, 2.6
-# The two cartridges in the breech housing (side by side, along +X, under the housing's cap).
-CART_Y, CART_Z, CART_R = 0.68, 6.8, 0.52
-# The sight line: the rear notch (the housing's centre channel, between the cartridges) and the front blade's top, both
+# The frame's flat top (behind the hinge block, over the breeches).
+FRAME_TOP_Z = 6.2
+# The sight line: the rear notch's bottom (cut in a low hump at the frame top's rear end) and the front blade's top, both
 # at SIGHT_Z: parallel to the bores.
-SIGHT_Z = CART_Z
-SIGHT_REAR_X, SIGHT_FRONT_X = 0.4, 7.55
-HOUSING_FRONT_X = 2.9
+SIGHT_Z = 6.6
+SIGHT_REAR_X, SIGHT_FRONT_X = -0.35, 7.55
+NOTCH_HALF_W, EAR_TOP_Z = 0.16, SIGHT_Z + 0.28  # the notch's half width; the hump's top beside it
 
 GRIP_TILT = math.radians(30.0)         # the grip leans back this much from vertical
 GRIP_TOP = Vector((-0.5, 0.0, 2.2))    # the grip axis where it meets the frame's bottom
@@ -51,7 +51,6 @@ GRIP_UP = Vector((math.sin(GRIP_TILT), 0.0, math.cos(GRIP_TILT)))
 HAND = GRIP_TOP - GRIP_UP * 2.0        # the hand point: two units down the grip's axis
 
 XZ = (Vector((1, 0, 0)), Vector((0, 0, 1)))   # side profiles (x, z), extruded across y (a = -y)
-YZ = (Vector((0, 1, 0)), Vector((0, 0, 1)))   # sections across x (a = x)
 
 
 def ccw(poly):
@@ -80,11 +79,6 @@ def prism(bm, poly, a0, a1, frame, part, origin=Vector()):
 def side(bm, poly, y0, y1, part):
     """A side profile poly [(x, z)] from y0 to y1."""
     return prism(bm, poly, -y1, -y0, XZ, part)
-
-
-def section(bm, poly, x0, x1, part):
-    """A section poly [(y, z)] from x0 to x1."""
-    return prism(bm, poly, x0, x1, YZ, part)
 
 
 def bevel_caps(bm, faces, offset):
@@ -177,30 +171,15 @@ def build_body():
     for s in (1.0, -1.0):
         y0, y1 = (1.38, 1.55) if s > 0 else (-1.55, -1.38)
         bevel_caps(bm, side(bm, rect(2.45, 3.15, 1.45, 6.0), y0, y1, PAINT), 0.06)
-    # The frame: from the hinge block back under the housing, then a tang sloping down and back into the grip.
-    # (Its rear stays under the sight line: the housing's notched back wall is the rear sight.)
-    frame = [(2.1, 1.5), (2.1, 6.2), (SIGHT_REAR_X, 6.2), (SIGHT_REAR_X, SIGHT_Z - 0.15), (-0.35, SIGHT_Z - 0.15),
+    # The frame: a plain flat top from the hinge block back over the breeches, rising at its rear end into a low hump
+    # (the rear sight), then a tang sloping down and back into the grip. Its middle is the notch's bottom (SIGHT_Z).
+    frame = [(2.1, 1.5), (2.1, FRAME_TOP_Z), (0.6, FRAME_TOP_Z), (0.3, SIGHT_Z), (SIGHT_REAR_X, SIGHT_Z),
              (-1.1, 5.8), (-1.25, 4.5), (-1.75, 2.9), (-0.6, 1.9), (0.5, 1.5)]
     bevel_caps(bm, side(bm, frame, -1.15, 1.15, PAINT), 0.24)
-    # The breech housing: a box open at the front, its cap sloping down to the front; the sight channel runs down its
-    # middle (between the cartridges) and notches its back wall to the sight line.
-    hf, hr = HOUSING_FRONT_X, SIGHT_REAR_X
-    for s in (1.0, -1.0):
-        wall = [(hr, 6.1), (hf, 6.1), (hf, 7.75), (hr, 8.05)]
-        y0, y1 = (1.02, 1.34) if s > 0 else (-1.34, -1.02)
-        bevel_caps(bm, side(bm, wall, y0, y1, PAINT), 0.08)
-        cap = [(hr, 7.36), (hf, 7.36), (hf, 7.75), (hr, 8.05)]
-        y0, y1 = (0.16, 1.1) if s > 0 else (-1.1, -0.16)
-        bevel_caps(bm, side(bm, cap, y0, y1, PAINT), 0.06)
-    back = [(-1.34, 6.1), (1.34, 6.1), (1.34, 8.05), (0.16, 8.05), (0.16, SIGHT_Z), (-0.16, SIGHT_Z), (-0.16, 8.05),
-            (-1.34, 8.05)]
-    section(bm, back, hr, hr + 0.35, PAINT)
-    section(bm, [(-0.16, CART_Z - 0.3), (0.16, CART_Z - 0.3), (0.16, SIGHT_Z - 0.06), (-0.16, SIGHT_Z - 0.06)],
-            hr + 0.35, hf, PAINT)
-    # The two cartridges: brass heads showing at the housing's open front, red hulls and crimped caps out over the
-    # hinge block.
-    for y in (CART_Y, -CART_Y):
-        cartridge(bm, Vector((0, y, CART_Z)), hr + 0.35, hf + 1.3, hf + 0.3, CART_R)
+    # The rear sight: the hump's two cheeks either side of the notch, a ramp in front, a square back at SIGHT_REAR_X.
+    ear = [(0.62, FRAME_TOP_Z - 0.05), (0.1, EAR_TOP_Z), (SIGHT_REAR_X, EAR_TOP_Z), (SIGHT_REAR_X, FRAME_TOP_Z - 0.05)]
+    for y0, y1 in ((NOTCH_HALF_W, 1.0), (-1.0, -NOTCH_HALF_W)):
+        bevel_caps(bm, side(bm, ear, y0, y1, PAINT), 0.05)
     # The front sight: a blade on a ramp on the top barrel, its top at the sight line.
     top_flat = BARREL_TOP_Z + BARREL_R * math.cos(rot)
     side(bm, [(SIGHT_FRONT_X - 1.0, top_flat - 0.1), (SIGHT_FRONT_X, top_flat - 0.1), (SIGHT_FRONT_X, SIGHT_Z),
@@ -249,11 +228,10 @@ BASE = {BOLT: rgb(86, 74, 62), BORE: rgb(26, 22, 18), CART: rgb(134, 8, 4), BRAS
 EDGE = {BRASS: rgb(236, 200, 118), PRIMER: rgb(220, 184, 108), CART: rgb(166, 72, 52), CAP: rgb(160, 62, 48),
         WOOD: rgb(168, 118, 72)}
 EDGE_IRON = rgb(150, 142, 128)
-SOOT, CHAR, BURNT = rgb(30, 26, 22), rgb(20, 16, 14), rgb(84, 36, 24)
+SOOT = rgb(30, 26, 22)
 
 # Painted rivets (design coordinates: a point on a side face, the face's |y|, the radius), on both sides.
-RIVETS_XZ = [((0.75, 6.55), 1.34, 0.16), ((2.55, 6.55), 1.34, 0.16),
-             ((1.6, 5.4), 1.15, 0.2), ((1.6, 1.95), 1.15, 0.2), ((-1.35, 3.2), 1.15, 0.2),
+RIVETS_XZ = [((1.6, 5.4), 1.15, 0.2), ((1.6, 1.95), 1.15, 0.2), ((-1.35, 3.2), 1.15, 0.2),
              ((2.2, 4.0), 1.42, 0.17), ((3.4, 4.0), 1.42, 0.17)]
 
 
@@ -312,8 +290,8 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd, dofs, ob_name):
     """The texel's colour in the three skins: [loaded, the top barrel fired, both fired]. p: world; p + dofs: design
     coordinates (the Flare's: its own)."""
     d = p + dofs
-    # Across a cartridge's axis (the Body's two, or the Flare).
-    cy, cz = (abs(d.y) - CART_Y, d.z - CART_Z) if ob_name == "Body" else (d.y, d.z)
+    # Across the Flare's axis (only the Flare has cartridge parts).
+    cy, cz = d.y, d.z
     big = noise.noise(d * 0.7)
     mid = noise.noise(d * 2.2 + Vector((3.1, 7.7, 1.3)))
     fine = noise.noise(d * 6.5 + Vector((9.2, 1.4, 5.5)))
@@ -401,18 +379,11 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd, dofs, ob_name):
     out = [col, col, col]
     if ob_name != "Body":
         return out
-    # The fired skins: a fired cartridge's cap is gone (its front a burnt-out hole), its barrel's muzzle sooted.
+    # The fired skins: a fired barrel's muzzle sooted (skin 1 the top one, skin 2 both).
     for skin in (1, 2):
-        fired_cart = (d.y > 0.0) if skin == 1 else True
         fired_bar = (abs(d.z - BARREL_TOP_Z) < BARREL_R + 0.1) if skin == 1 else True
         c = out[skin]
-        if part == CAP and fired_cart and abs(d.y) > 0.2:
-            r = math.hypot(cy, cz)
-            if n.x > 0.9:
-                c = mix(CHAR, BURNT * 0.7, smooth(0.2, 0.3, r)) * (0.9 + 0.2 * rnd[0])
-            else:
-                c = BURNT * (0.6 + 0.4 * rnd[0]) * ao
-        elif fired_bar and d.x > MUZZLE_X - 0.9 and part in (PAINT, BORE) and (chamfer or part == BORE):
+        if fired_bar and d.x > MUZZLE_X - 0.9 and part in (PAINT, BORE) and (chamfer or part == BORE):
             near_bore = abs(d.z - BARREL_TOP_Z) < BARREL_R + 0.1 or abs(d.z - BARREL_BOT_Z) < BARREL_R + 0.1
             if near_bore:
                 c = mix(c, SOOT, 0.55 + 0.3 * rnd[1])

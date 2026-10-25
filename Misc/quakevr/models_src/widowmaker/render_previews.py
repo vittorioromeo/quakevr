@@ -3,7 +3,7 @@
 #   blender -b --factory-startup -P Misc/quakevr/models_src/widowmaker/render_previews.py [-- <view> ...]
 #
 # Views (all by default): three_quarter, first_person, side, side_out, front, back, sights, spin, compare, sheet.
-# "spin" draws spin frame twin7 (the barrels turned 93 degrees, as they pass while firing); "compare" sets the
+# "spin" draws spin frame spin4 (the barrels turned 53 degrees, from the front, as they pass while firing); "compare" sets the
 # three-quarter and first-person renders beside the mockup's halves (qvr-kit/scratch/widowmaker/mockup.png, when there).
 
 import math
@@ -186,13 +186,13 @@ def main():
         render(sc, out("sights"))
     if "spin" in views:
         keys = gun.data.shape_keys
-        if keys and "twin7" in keys.key_blocks:
-            keys.key_blocks["twin7"].value = 1.0
-            sc.render.resolution_x, sc.render.resolution_y = 1000, 1000
-            shoot(sc, cam, [gun], (-0.55, 0.5, 0.62), out("spin"), ortho=False, margin=0.95, lens=85.0)
-            keys.key_blocks["twin7"].value = 0.0
+        if keys and "spin4" in keys.key_blocks:
+            keys.key_blocks["spin4"].value = 1.0
+            sc.render.resolution_x, sc.render.resolution_y = 800, 800
+            shoot(sc, cam, [gun], (1, 0.25, 0.2), out("spin"), ortho=False, margin=0.9, lens=85.0)
+            keys.key_blocks["spin4"].value = 0.0
         else:
-            print("no spin frame twin7")
+            print("no spin frame spin4")
     if "compare" in views:
         compare(out("three_quarter"), out("first_person"), out("compare_mockup"))
     if "sheet" in views:

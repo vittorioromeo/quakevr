@@ -627,6 +627,17 @@ QVR_CVAR(vr_setup_screens_cache, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Crates' Placing: Entities First: 1 a crate's or a rock's place tested against the map's
 // entities' boxes before its traces (vr_crates.cpp, vr_debris.cpp: the same places, a map's start faster); 0 after them
 QVR_CVAR(vr_place_entities_first, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Keep Crates' and Rocks' Layouts: 1 the last plan of the crates and of the rocks and
+// bricks kept for the session and taken again while its key is the same (vr_debris.hpp PlanKey: the map's name, files
+// and geometry, every vr_crate*, vr_debris*, vr_place_* setting, the entities' boxes at the plan): a restart of the map
+// (a death) skips the planning (200-250 ms in AD's big maps); 0 planned at every load, as before. The same layout either way.
+QVR_CVAR(vr_place_keep, "1", CVAR_NONE)
+// Debug > Profiling and Memory > AD Monsters' Death Assets Early: 1 outside AD's maps, the first AD monster precaches AD's
+// world's shared assets for their deaths, drops, steps and blasts (its backpack, gibs and their sounds, footsteps,
+// explosions, projectiles: QC vr_ad_monsters.qc VR_AD_DeathPrecache) as it spawns: at the map's load for the map's (and
+// the kinds that can appear later), at the spawn for the toolgun's; 0 as before (each at its first use, 25-38 ms; the
+// steps' sounds missing).
+QVR_CVAR(vr_ad_death_precache, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Load Prewarm: 1 what a map's first frames, the first gun lying near you and each model's
 // first smooth draw made at first use (the models' rig data, the reflections' world buffers, the guns' screen anchors,
 // your skin masks and glove paint) made in the map's load instead (VR_NewMap; ROUND22.md "Frame spikes"); 0 at first use
@@ -651,6 +662,11 @@ QVR_CVAR(vr_body_prepass, "1", CVAR_NONE)
 // props, gibs, items; not your own: a held gun's morph discards): each batch's depth first, then its shading once a
 // pixel (the GPU benchmark, BENCHMARKS.md: the models' GPU 4-23% less in crowds and gore); 0 as before. The same image either way.
 QVR_CVAR(vr_alias_prepass, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Lazy OIT Clear: 1 the translucent pass's two OIT targets (gl_rmain.c) cleared at a
+// view's first translucent draw, and neither cleared nor resolved in a view with nothing translucent (most views: the
+// GPU benchmark, BENCHMARKS.md, about 0.05 ms a view); 0 cleared and resolved in every view, as before. The same image
+// either way.
+QVR_CVAR(vr_oit_lazy_clear, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set
@@ -1588,6 +1604,11 @@ QVR_CVAR(vr_wounds_bump_burns, "3", CVAR_ARCHIVE)     // ... the relief of their
 QVR_CVAR(vr_wounds_bump_blood, "1.5", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
 QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)   // how opaque painted blood is over the skins (0..1)
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
+// Debug > Profiling and Memory > Wound Painting Budget: the wounds' events painted at most this many ms of a frame (a
+// burst's: 400 at once, 10 ms), the rest kept for the next frames in their body's frame of reference (vr_wounds.cpp
+// paintQueue; dropped with their body) and all painted within vr_wounds_budget_wait seconds; 0 all in their frame, as before.
+QVR_CVAR(vr_wounds_budget, "1", CVAR_NONE)
+QVR_CVAR(vr_wounds_budget_wait, "0.04", CVAR_NONE)   // ... the longest an event waits (s): what is left then is shared out over the frames left
 // Flesh dents (vr_dents.cpp; ROUND22.md, "Flesh dents"): hits push monsters' and corpses' surfaces in, raw flesh inside.
 QVR_CVAR(vr_gore_dents, "1", CVAR_ARCHIVE)            // bullets, pellets, nails, blades and blasts dent the bodies they hit
 QVR_CVAR(vr_gore_dents_depth, "2.5", CVAR_ARCHIVE)    // how deep the dents push in, times their own (0 flat: the raw flesh only; his config of 2026-10-20, 3 before)
@@ -2774,9 +2795,9 @@ QVR_CVAR(vr_ad_widowmaker_motor, "0.4", CVAR_ARCHIVE)
 QVR_CVAR(vr_ad_widowmaker_shot_volume, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_ad_widowmaker_spin_at, "-1", CVAR_NONE) // debug: the barrels drawn turned this many degrees (pictures); -1: as they are
 // Its VR model (round 22, his mockup of 2026-10-25; vr_adweapons.cpp derivedFile): 1 the hand-made one
-// (progs/v_widowmaker.mdl, Misc/quakevr/models_src/widowmaker: two barrels turning, a half turn a shot), 0 the one made
-// from AD's view model as it loads (widowmakerParts: three barrels, a third of a turn a shot), for A/B. The same frame,
-// grips and ports (slot 34's settings hold both); a change reloads the model.
+// (progs/v_widowmaker.mdl, Misc/quakevr/models_src/widowmaker), 0 the one made from AD's view model as it loads
+// (widowmakerParts), for A/B. Both: three barrels turning, a third of a turn a shot, the same frame, grips, ports and
+// muzzle (slot 34's settings hold both); a change reloads the model.
 QVR_CVAR(vr_ad_widowmaker_art, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_dmg_ad_plasmagun, "45", CVAR_ARCHIVE)     // the Plasma Gun's bolt: its hit (AD's 45; a map's worldspawn plasmagun_dmg wins)
 QVR_CVAR(vr_dmg_ad_plasmagun_splash, "20", CVAR_ARCHIVE) // ... its blast (AD's 20; 0 none)
@@ -2821,6 +2842,23 @@ QVR_CVAR(vr_grunt_burst_damage, "5", CVAR_ARCHIVE)   // a grunt's burst: each ro
 // Armed grunts (experimental; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding one of your weapons.
 QVR_CVAR(vr_agrunt_damage_scale, "0.5", CVAR_ARCHIVE)  // its weapon's damage to players times this (a rocket isn't a one-shot)
 QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries beyond the one in its gun (reloads: a short pause)
+// Armed humanoid replacements (QC vr_armedrepl.qc; ROUND22.md "Armed humanoid replacements"): a map's grunts and
+// enforcers as armed ones. All off by default.
+QVR_CVAR(vr_agrunt_repl, "0", CVAR_ARCHIVE)            // 1: every grunt and enforcer a map spawns is its armed version holding its own gun (its own damage, rate, aim, loot)
+QVR_CVAR(vr_agrunt_repl_common, "0", CVAR_ARCHIVE)     // 0..1: the chance one holds a shotgun or a nail pistol instead
+QVR_CVAR(vr_agrunt_repl_uncommon, "0", CVAR_ARCHIVE)   // 0..1: ... a nailgun, super nailgun or super shotgun (one a player owns)
+QVR_CVAR(vr_agrunt_repl_rare, "0", CVAR_ARCHIVE)       // 0..1: ... a launcher, the thunderbolt, a melee weapon, a mission pack's gun (owned; from vr_agrunt_repl_rare_map on)
+QVR_CVAR(vr_agrunt_repl_rare_map, "4", CVAR_ARCHIVE)   // rare weapons only from this map of an episode on (e1m4, hip1m4, ...; 0: any map)
+QVR_CVAR(vr_agrunt_repl_dual, "0", CVAR_ARCHIVE)       // 0..1: the chance of a second weapon that pairs (two guns, two blades)
+QVR_CVAR(vr_agrunt_repl_gunaxe, "0", CVAR_ARCHIVE)     // 0..1: the chance of a gun and an axe (the gun, the axe up close)
+QVR_CVAR(vr_agrunt_repl_skill0, "0.5", CVAR_ARCHIVE)   // the chances above times this on Easy
+QVR_CVAR(vr_agrunt_repl_skill1, "1", CVAR_ARCHIVE)     // ... on Normal
+QVR_CVAR(vr_agrunt_repl_skill2, "1.5", CVAR_ARCHIVE)   // ... on Hard
+QVR_CVAR(vr_agrunt_repl_skill3, "2", CVAR_ARCHIVE)     // ... on Nightmare
+QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE)         // 1: in Quake's own campaigns (id1, Dimension of the Past, the Machine Games' ones) and their custom maps
+QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
+QVR_CVAR(vr_agrunt_repl_ad, "0", CVAR_ARCHIVE)         // 1: in Arcane Dimensions' maps too (their own designed encounters: off)
+QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE)       // shuffles every map's loadouts (the same seed: the same loadouts)
 QVR_CVAR(vr_agrunt_dual_chance, "0.25", CVAR_ARCHIVE)  // 0..1: one from the pool with a weapon that pairs (a one-handed blade or club, a gun not too big) gets a second in its left hand
 QVR_CVAR(vr_agrunt_dual_penalty, "1", CVAR_ARCHIVE)    // dual-wielded guns' penalties times this (1: yours: no two-hand spread reduction, heavy recoil kicks)
 QVR_CVAR(vr_agrunt_dual_pickup, "0", CVAR_ARCHIVE)     // 1: one holding a weapon that pairs picks up a second for its left hand
@@ -4998,8 +5036,10 @@ QVR_CVAR(vr_brush_autoload, "0", CVAR_ARCHIVE)         // a map started (not a s
 QVR_CVAR(vr_flatplay, "0", CVAR_NONE)                   // 1 while the mode runs (the flag given and no headset session): set by the engine every frame, read by the game code (QC vr_flatplay) for the controls it takes over
 QVR_CVAR(vr_flatplay_debug, "0", CVAR_NONE)             // each frame's flatscreen pose: the aim, the hands, the punch, what the keys did
 QVR_CVAR(vr_flat_reach, "1", CVAR_NONE)                 // times how far the hands sit from the head (0.25..3): the whole viewmodel's size
-QVR_CVAR(vr_flat_sway, "1", CVAR_NONE)                  // how far the arms trail a turn and a step (0..2): 0 the hands locked to the view
-QVR_CVAR(vr_flat_bob, "1", CVAR_NONE)                   // the walk's bob and the breathing (0..2): the hands' own idle motion
+QVR_CVAR(vr_flat_sway, "1", CVAR_NONE)                  // the drawn hands' sway as he starts, stops, jumps and lands (0..3): a lag that settles; 0 none
+QVR_CVAR(vr_flat_bob, "1", CVAR_NONE)                   // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
+QVR_CVAR(vr_flat_turnlag, "1", CVAR_NONE)               // the drawn hands trail a turn and catch up (0..3, at most 4 degrees each): "weapon inertia"; 0 the hands locked to the view
+QVR_CVAR(vr_flat_turnlag_speed, "1", CVAR_NONE)         // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still
 QVR_CVAR(vr_knockdown_keep_time, "1", CVAR_ARCHIVE)      // seconds holding, dragging or lifting one knocked down keeps it down after you let go, past its own timer (never past vr_knockdown_keep_max in all)
 QVR_CVAR(vr_knockdown_keep_max, "7", CVAR_ARCHIVE)     // seconds: the most one stays down in all while you keep at it (hits, stomps, holding it); its own timer is never cut short; 0: nothing keeps it down past its own timer

@@ -1,0 +1,10 @@
+# agrunt_repl_map: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed humanoid replacements: The Installation's grunts and enforcers armed, with variety
+map e2m1
+cvar vr_agrunt_repl 1
+cvar vr_agrunt_repl_common 0.3
+cvar vr_agrunt_repl_rare 0.2
+cvar vr_agrunt_repl_rare_map 0
+cvar vr_agrunt_repl_dual 0.15
+cvar vr_agrunt_repl_gunaxe 0.15
+hint Every grunt and enforcer here is an armed one: most with their own rifles (as hard as the vanilla ones), some with a shotgun or a nail pistol, an axe or another melee weapon, two guns, or a gun and an axe. Knock or pull their weapons out of their hands, tug them, shoot them out, take them. Uncommon weapons (nailguns, super shotgun) come once you own them.

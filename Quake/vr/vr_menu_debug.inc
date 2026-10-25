@@ -627,6 +627,20 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_place_entities_first: a place for a crate, barrel, rock or brick (at a map's start) tested against "
                   "the map's entities before its traces (on), or after them (off, as before). The same places either way; "
                   "a big map starts faster (150 ms in Arcane Dimensions' Sepulcher)."),
+        cycle("Wound Painting Budget", vr_wounds_budget, {{0.f, "Off"}, {0.5f, "0.5 ms"}, {1.f, "1 ms"}, {2.f, "2 ms"}})
+            .help("vr_wounds_budget: the wounds painted at most this long a frame, the rest of a burst (an explosion's, a "
+                  "dismembering's: hundreds at once) painted over the next frames where they struck their bodies, all "
+                  "within vr_wounds_budget_wait (0.04 s); Off: all in the frame they came, as before. Wounds (Debug > Info) "
+                  "shows the queue."),
+        toggle("AD Monsters' Death Assets Early", vr_ad_death_precache)
+            .help("vr_ad_death_precache: outside Arcane Dimensions' maps, the first AD monster loads AD's backpack, gibs, "
+                  "their sounds, footsteps, explosions and projectiles as it spawns (on: in the map's load, or at the "
+                  "toolgun's spawn), or each at its first use as before (off: a 25-38 ms hitch at the first death)."),
+        toggle("Keep Crates' and Rocks' Layouts", vr_place_keep)
+            .help("vr_place_keep: the crates', rocks' and bricks' last layout kept and taken again when the map, its "
+                  "entities and their settings are the same (on: a restart after a death loads faster, 200-250 ms in "
+                  "Arcane Dimensions' big maps), or planned again at every load (off, as before). The same layout either way; "
+                  "another seed or setting plans anew."),
         toggle("Load Prewarm", vr_load_prewarm)
             .help("vr_load_prewarm: made in a map's load (on), or at their first use as before (off): each model's rig data "
                   "for smooth animation (6-27 ms the first time a monster kind was seen), the reflections' world buffers, the "
@@ -649,6 +663,13 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_alias_prepass: the world's opaque models (monsters, props, gibs, items) drawn into the eye's depth "
                   "first, each batch, then shaded once a pixel (On), or shaded as drawn (Off, as before): crowds, props "
                   "and gore 4-23% less GPU on models at a headset's resolution. The same image either way."),
+        toggle("Lazy OIT Clear", vr_oit_lazy_clear)
+            .help("vr_oit_lazy_clear: the translucent pass's two buffers cleared at a view's first translucent draw, and "
+                  "neither cleared nor resolved in a view with nothing translucent (on), or cleared and resolved in every "
+                  "view (off, as before). The same image either way."),
+        command("Lazy OIT Clear Stats", "vr_oit_stats")
+            .help("vr_oit_stats: since the last time, the views with a translucent pass, how many drew something "
+                  "translucent (water, slime, lava, a translucent model or particles) and how many skipped the clear."),
         command("Model Cull Stats", "vr_alias_cull_stats")
             .help("vr_alias_cull_stats: since the last time, the models drawn and culled a frame in the eyes and the "
                   "shadow faces, by model, how many of them posed, and any drawn twice in one view, in the console."),
@@ -942,10 +963,17 @@ za::Vector<Item> pageDebugReports()
         slider("Flatscreen Hand Reach", vr_flat_reach, 0.25f, 3.f, 0.05f, "%.2f")
             .help("How far the flatscreen hands sit from the shoulders: a held gun out in front of the chest, an empty "
                   "hand at its side."),
-        slider("Flatscreen Turn Lag", vr_flat_sway, 0.f, 2.f, 0.05f, "%.2f")
-            .help("How much the flatscreen arms are left behind by a turn and by a step."),
-        slider("Flatscreen Walk Bob", vr_flat_bob, 0.f, 2.f, 0.05f, "%.2f")
-            .help("How much the flatscreen hands bob on a walk and breathe at rest."),
+        slider("Flatscreen Move Sway", vr_flat_sway, 0.f, 3.f, 0.05f, "%.2f")
+            .help("How much the flatscreen hands lag and settle as you start, stop, jump and land (0: none). Looks only: "
+                  "the shots go along the crosshair."),
+        slider("Flatscreen Walk Bob", vr_flat_bob, 0.f, 3.f, 0.05f, "%.2f")
+            .help("How much the flatscreen hands bob as you walk (with your speed) and breathe at rest (0: none). Looks "
+                  "only."),
+        slider("Flatscreen Turn Lag", vr_flat_turnlag, 0.f, 3.f, 0.05f, "%.2f")
+            .help("How much the flatscreen hands trail a turn before catching up, as in modern shooters (0: locked to "
+                  "the view). Looks only: the shots go along the crosshair."),
+        slider("Flatscreen Turn Lag Recovery", vr_flat_turnlag_speed, 0.1f, 5.f, 0.05f, "%.2fx")
+            .help("How fast the flatscreen hands catch up with a turn: higher, quicker and less lag."),
         header("The Game"),
         command("Official Campaign Status", "vr_campaign_status").help("Owned data and language readiness; active native campaign context."),
         command("Dopa Finale Text", "loc_probe $map_dopa_endtext_final").help("Preview the resolved completion text. loc_probe <key> [arguments] also checks formatted expansion strings."),
@@ -1159,16 +1187,24 @@ za::Vector<Item> pageDebugTools()
                   "README.md): its preview model floats ahead at arm's reach, at the size it would be in your hand (a "
                   "viewthing given the model: until the map changes, player.mdl is drawn as it too). The scenario "
                   "flaregun_art adds the nail pistol and the shotgun beside it."),
+        command("Heavy Revolver Art", "vr_physics_spawn viewthing reach; viewmodel progs/vr_revolver_preview.mdl")
+            .help("The heavy revolver's art before it is a weapon (Misc/quakevr/models_src/revolver/README.md): its "
+                  "preview model, six shells chambered, floats ahead at arm's reach at the size it would be in your "
+                  "hand (a viewthing given the model: until the map changes, player.mdl is drawn as it too). The "
+                  "scenario revolver_art adds the shotgun beside it."),
+        command("Heavy Revolver Art: Swung Out", "vr_physics_spawn viewthing reach; viewmodel progs/vr_revolver_preview.mdl; viewframe 1")
+            .help("The same, its cylinder swung out on its crane (the chambered shells' heads showing); viewframe 2: "
+                  "the hammer cocked, viewframe 0: back to rest."),
         command("Widowmaker Art", "vr_physics_spawn viewthing reach; viewmodel progs/vr_widowmaker_preview.mdl")
             .help("AD's Widowmaker as made by hand after Vittorio's mockup (Misc/quakevr/models_src/widowmaker/README.md): its "
                   "preview model floats ahead at arm's reach, at the size it is in your hand (a viewthing given the model: "
                   "until the map changes, player.mdl is drawn as it too). The scenario widowmaker_art also puts one in "
                   "your hand."),
         command("Widowmaker: Hand-Made Model", "vr_ad_widowmaker_art 1")
-            .help("vr_ad_widowmaker_art 1 (default): the Widowmaker drawn as the hand-made model (two barrels). Reloads it."),
+            .help("vr_ad_widowmaker_art 1 (default): the Widowmaker drawn as the hand-made model (after his mockup). Reloads it."),
         command("Widowmaker: Model Made from AD's", "vr_ad_widowmaker_art 0")
-            .help("vr_ad_widowmaker_art 0: the Widowmaker drawn as the one made from AD's view model as it loads (three "
-                  "barrels), for A/B. Reloads it."),
+            .help("vr_ad_widowmaker_art 0: the Widowmaker drawn as the one made from AD's view model as it loads, for A/B. "
+                  "Reloads it."),
         header("Save to Files (game folder)"),
         command("Wound Masks", "vr_wounds_dump").help("vr_wounds_dump: each model's wound mask, to wounds/mask_<n>_<model>.png."),
         command("Decal Atlas", "vr_decal_atlas").help("vr_decal_atlas: the decals' atlas, to decal_atlas.png."),

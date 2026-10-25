@@ -722,6 +722,8 @@ void R_FlushAliasInstances (qboolean showtris)
 	alphatest = model->flags & MF_HOLEY ? 1 : 0;
 	translucent = !ENTALPHA_OPAQUE (ibuf.ent->alpha);
 	oit = translucent && R_GetEffectiveAlphaMode () == ALPHAMODE_OIT;
+	if (oit) // QVR: the OIT targets cleared at their first draw (vr_oit_lazy_clear)
+		R_PrepareOITDraw (1);
 	switch (softemu)
 	{
 	case SOFTEMU_BANDED:
