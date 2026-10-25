@@ -22170,6 +22170,22 @@ shotgun's, the grappling hook's) right against plain ones, so a coarse mip level
 96/255 on the super shotgun's top ribs at level 2, `scratch/bleed.py`); eyeshots at grazing angles showed nothing
 visible, so it stays.
 
+**Follow-up (branch `agent/ssgtex2`):** the player has no model pack ("fresh install of quake from steam", the setup).
+The Steam edition is not the cause either:
+- The setup's first `-basedir` on Steam is the Quake root (`QuakeInstall.BaseDir`: the original's `id1\PAK0/PAK1` when
+  present, the re-release's root only without it); `rerelease\id1` is never on the search path (`-basedir` skips the
+  engine's store detection).
+- The root `id1` paks, the re-release's `pak0.pak` and the classic paks the tests use hold the **same** `gfx/palette.lmp`,
+  `gfx/colormap.lmp`, `gfx.wad` and the same `v_shot`, `v_shot2`, `v_nail(2)`, `v_rock(2)`, `v_light`, `v_axe`,
+  `g_shot`, `player` models (byte for byte). The re-release adds MD5 guns (`progs/v_*.md5mesh`, `*_00_00.lmp` skins):
+  gl_model.c takes one only from a directory at least as high as the .mdl's, so never for Quake VR's own guns.
+- Our guns use nothing from the base pak's model: their skins and UVs are their own (`quakevr\progs`).
+- Not reproduced either: `gl_lodbias` 1, 2 and `gl_picmip` 2 (+ `vid_restart`) on the shotgun in a dark spot of e1m1.
+  The player's screenshot is the shotgun: the two yellow dots its rear sights; the area that glows red and white for
+  them is the receiver's top, which here is dull red-brown paint (lit, not fullbright).
+Open leads: the player's config (ask for `quakevr\ironwail.cfg`), the version's `quakevr` folder as installed (old
+files from earlier versions next to it), and a GPU/driver difference (which one?).
+
 ## Gun Model Pitch removed from the menu (worktree `gorefx`, branch `agent/gmpremove`, 2026-10-25; configVersion 203)
 
 Hand Pitch (Hand Calibration; `vr_menu_hands_pitch` = `vr_gunangle` + `vr_offhandpitch`) already turns both hands, the guns and the
