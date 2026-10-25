@@ -133,6 +133,7 @@
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
 		29 : "Nail pistol (Quake VR; a full magazine)"
+		30 : "Heavy revolver (Quake VR; six slugs chambered)"
 	]
 	weaponflags(choices) : "Variant" : 0 : "The weapon's variant: its alternative ammunition (Dissolution of Eternity's), or the hell knight's sword." =
 	[
@@ -620,6 +621,14 @@ floor, a physics object as func_weapon_grabbable's weapons (the same as one with
 	angles(string) : "Pitch yaw roll" : : "How it lies before it falls (none: any way)."
 ]
 
+@PointClass base(Weapon) size(-16 -16 0, 16 16 32) color(0 128 204) model({ "path": "progs/v_revolver.mdl" }) = weapon_revolver : "Heavy revolver (Quake VR)
+
+Quake VR's six-shot heavy revolver: one-handed and double action (a shot each pull of the trigger), your shells
+fired as heavy slugs. Immersive reloading: its cylinder swung out (a flick of the wrist, B/Y), the shells dropped
+(the muzzle up, the ejector), loaded a shell at a time from the ammo pouch, swung home (a flick the other way, a
+push). Picked up as the other weapons are, with 12 shells. Its own model lies there."
+[]
+
 @PointClass base(Weapon) size(-16 -16 0, 16 16 32) color(0 128 204) model({ "path": "progs/v_nailpistol.mdl" }) = weapon_nailpistol : "Nail pistol (Quake VR)
 
 Quake VR's own sidearm: one-handed and semi-automatic (a shot each pull of the trigger), fast, precise nails from a
@@ -680,6 +689,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
 		29 : "Nail pistol (Quake VR; a full magazine)"
+		30 : "Heavy revolver (Quake VR; six slugs chambered)"
 	]
 ]
 

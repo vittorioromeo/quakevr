@@ -238,6 +238,36 @@ const entity_t* worldSsgSource[maxWorldSsgs]{}; // the lying gun each of entitie
 double worldMagPrinted = -1.0; // (setupMagazines' debug print of a lying gun's magazine: once a second)
 double worldScreenPrinted = -1.0; // (setupWorldWeapons' debug print of a lying gun's ammo screen: once a second)
 
+// The heavy revolver (QC vr_revolver.qc; Misc/quakevr/models_src/revolver/README.md: the parts, their origins): drawn in
+// the hands in its parts (setupRevolverParts): the frame with the hammer and trigger (frames 0 rest, 1 cocked, 2 the
+// trigger pulled: the gun's own), the crane about its pivot (+x), the cylinder on it (spun about its +x), a shell in each
+// loaded chamber (skins 1 a live blue slug, 3 a spent one). Elsewhere (holstered, lying, a grunt's) as v_revolver.mdl.
+constexpr const char* rvFrameModel = "progs/v_revolver_frame.mdl";
+constexpr const char* rvCraneModel = "progs/v_revolver_crane.mdl";
+constexpr const char* rvCylModel = "progs/v_revolver_cyl.mdl";
+constexpr const char* rvShellModel = "progs/v_revolver_shell.mdl";
+constexpr glm::vec3 rvPivot{8.214f, 0.7f, 2.558f};      // the crane's pivot, in the Body's frame
+constexpr glm::vec3 rvCylInCrane{-4.45f, -0.7f, 3.05f}; // the cylinder's origin (its back face's middle) in the crane's
+constexpr float rvSwingOut = 95.f;                      // degrees the crane swings out (the README's swing: -95 about +x)
+constexpr float rvChamberPitch = 1.45f;                 // the chambers' radius about the cylinder's axis
+constexpr float rvShellProud = -0.1f;                   // a chambered shell's rim back from the cylinder's face
+constexpr float rvSwingOutSpeed = 700.f;                // degrees a second it swings out,
+constexpr float rvSwingHomeSpeed = 900.f;               // and home
+constexpr float rvTurnSpeed = 1440.f;                   // degrees a second at least the cylinder is drawn turning (a shot's 60)
+constexpr int rvOpenBit = 4096;                         // QC .vr_rv_hud: swung out,
+constexpr int rvRodBit = 8192;                          // its ejector rod pushed,
+constexpr int rvHeldBit = 131072;                       // a revolver in that hand
+double rvPrinted = -1.0;                                // (setupRevolverParts' debug print: once a second)
+
+// A point (or a direction) turned `deg` degrees about +x (+y towards +z).
+[[nodiscard]] glm::vec3 rvTurnX(const glm::vec3& p, float deg)
+{
+    const float a = glm::radians(deg);
+    const float c = std::cos(a);
+    const float s = std::sin(a);
+    return {p.x, p.y * c - p.z * s, p.y * s + p.z * c};
+}
+
 [[nodiscard]] bool ssgBreaks()
 {
     return cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 && vr_reload_ssg_break.value != 0.f;
@@ -254,6 +284,37 @@ double worldScreenPrinted = -1.0; // (setupWorldWeapons' debug print of a lying 
     return point ? ssgHinge + r : r;
 }
 } // namespace
+
+glm::vec3 revolverCraneTurn(const glm::vec3& p, float swing)
+{
+    return rvPivot + rvTurnX(p - rvPivot, -swing);
+}
+
+// The heavy revolver `gun` in `hand` as drawn now: its crane stepped towards out or home, its cylinder the shortest way
+// towards its turn (fast enough for a hand's spin). Its swing.
+float revolverStep(RevolverDrawn& st, const qmodel_t* gun, int hand)
+{
+    const bool main = hand == HAND_MAIN;
+    const bool rv = gun && modelmeta::is(gun, modelmeta::Id::VRevolver);
+    const int bits = cl.stats[main ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2];
+    const float turn = cl.statsf[main ? protocol::STAT_QVR_REVOLVERCYL : protocol::STAT_QVR_REVOLVERCYL2];
+    const float target = rv && (bits & rvHeldBit) && (bits & rvOpenBit) ? rvSwingOut : 0.f;
+    const float dt = st.time >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - st.time, 0.1)) : 0.f;
+    st.time = vr_gametime;
+    if(gun != st.gun)
+    {
+        st.gun = gun;
+        st.swing = target; // (a gun come to the hand: as it is)
+        st.cyl = turn;
+        return st.swing;
+    }
+    st.swing = st.swing < target ? za::min(target, st.swing + rvSwingOutSpeed * dt)
+                                 : za::max(target, st.swing - rvSwingHomeSpeed * dt);
+    const float d = std::fmod(std::fmod(turn - st.cyl, 360.f) + 540.f, 360.f) - 180.f;
+    const float step = za::max(rvTurnSpeed * dt, std::abs(d) * za::min(1.f, 25.f * dt));
+    st.cyl = std::fmod(st.cyl + CLAMP(-step, d, step), 360.f);
+    return st.swing;
+}
 
 // The angle the super shotgun `gun` (flags `flags`) is drawn open at now, stepped towards open or shut.
 float ssgStep(SsgDrawn& st, const qmodel_t* gun, int flags)
@@ -541,6 +602,10 @@ void view::prepareModels()
     // (setupSsgParts: else the super shotgun's first draw loads them, a 15 ms hitch with their normal maps.)
     names.pushBack(ssgFrameModel);
     names.pushBack(ssgBarrelsModel);
+    names.pushBack(rvFrameModel); // (setupRevolverParts)
+    names.pushBack(rvCraneModel);
+    names.pushBack(rvCylModel);
+    names.pushBack(rvShellModel);
     for(const char* name : names)
     {
         (void)Mod_ForName(name, false);
@@ -1917,14 +1982,130 @@ void setupWorldSsgs()
     }
 }
 
-// Whether `ve` is a super shotgun drawn in its parts this frame (setupSsgParts): not drawn itself.
+// A part of the heavy revolver `gun` (its model `model`, frame `frame`, skin `skin`): its origin at the gun's point `at`
+// (its Body's frame), turned `roll` degrees about the gun's +x (+y towards +z). The roll's sign in the angles as the gun
+// is drawn (mirrored or not): the one that puts the part's +y where the gun's turned +y is. `keepFrame`: the gun's frame
+// and its blending (the frame part: the hammer's frames). The error left, world units.
+float setRevolverPart(view::ViewEntity& part, const view::ViewEntity& gun, const char* model, const glm::vec3& at, float roll,
+    int frame, int skin, bool keepFrame)
+{
+    qmodel_t* const m = viewModel(model);
+    if(!m)
+    {
+        part.visible = false;
+        return 0.f;
+    }
+    const qmodel_t* last = part.lastModel;
+    part = gun;
+    part.ent.model = m;
+    part.ent.skinnum = skin;
+    if(!keepFrame || gun.ent.frame > 2)
+    {
+        part.ent.frame = keepFrame ? 0 : frame;
+        part.ent.lerpflags |= LERP_RESETANIM;
+        part.zeroBlend = 0.f;
+    }
+    part.lastModel = last;
+    const glm::vec3 base{gun.ent.angles[0], gun.ent.angles[1], gun.ent.angles[2]};
+    const glm::vec3 want = view::modelPoint(gun, at);
+    const glm::vec3 wantY = view::modelPoint(gun, at + rvTurnX({0.f, 1.f, 0.f}, roll));
+    float bestErr = 1e9f;
+    glm::vec3 bestAngles = base;
+    glm::vec3 bestOrigin{gun.ent.origin[0], gun.ent.origin[1], gun.ent.origin[2]};
+    for(int k = 0; k < (roll != 0.f ? 2 : 1); k++)
+    {
+        glm::vec3 angles = base;
+        if(roll != 0.f)
+        {
+            const glm::vec3 turned = composeAngles(glm::vec3{-base.x, base.y, base.z}, glm::vec3{0.f, 0.f, k ? -roll : roll});
+            angles = {-turned.x, turned.y, turned.z};
+        }
+        for(int i = 0; i < 3; i++)
+        {
+            part.ent.angles[i] = angles[i];
+            part.ent.origin[i] = gun.ent.origin[i];
+        }
+        const glm::vec3 to = want - view::modelPoint(part, glm::vec3{0.f});
+        for(int i = 0; i < 3; i++)
+        {
+            part.ent.origin[i] += to[i];
+        }
+        const float err = glm::distance(view::modelPoint(part, glm::vec3{0.f, 1.f, 0.f}), wantY);
+        if(err < bestErr)
+        {
+            bestErr = err;
+            bestAngles = angles;
+            bestOrigin = {part.ent.origin[0], part.ent.origin[1], part.ent.origin[2]};
+        }
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        part.ent.angles[i] = bestAngles[i];
+        part.ent.origin[i] = bestOrigin[i];
+    }
+    return bestErr;
+}
+
+// Every frame, after the guns are placed: the heavy revolvers in the hands (their swing and turn stepped by
+// setupWeapon), in their parts; the gun itself is then not drawn (drawnInParts). The shells: their chambers' states.
+void setupRevolverParts()
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const view::ViewEntity& gun = entities.weapon[hand];
+        RevolverDrawn& st = rvHands[hand];
+        const int bits = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_REVOLVER : protocol::STAT_QVR_REVOLVER2];
+        st.parts = gun.visible && gun.ent.model && st.gun == gun.ent.model &&
+                   modelmeta::is(gun.ent.model, modelmeta::Id::VRevolver) && (bits & rvHeldBit) && viewModel(rvFrameModel) &&
+                   viewModel(rvCraneModel) && viewModel(rvCylModel) && viewModel(rvShellModel);
+        if(!st.parts)
+        {
+            entities.rvFrame[hand].visible = entities.rvCrane[hand].visible = entities.rvCyl[hand].visible = false;
+            for(view::ViewEntity& sh : entities.rvShell[hand])
+            {
+                sh.visible = false;
+            }
+            continue;
+        }
+        const float swing = -st.swing;
+        const glm::vec3 cylAt = rvPivot + rvTurnX(rvCylInCrane, swing);
+        const float turn = swing + st.cyl;
+        setRevolverPart(entities.rvFrame[hand], gun, rvFrameModel, glm::vec3{0.f}, 0.f, 0, 0, true);
+        float err = setRevolverPart(entities.rvCrane[hand], gun, rvCraneModel, rvPivot, swing, 0, 0, false);
+        err = za::max(err, setRevolverPart(entities.rvCyl[hand], gun, rvCylModel, cylAt, turn, (bits & rvRodBit) ? 1 : 0, 0, false));
+        int loaded = 0;
+        for(int i = 0; i < 6; i++)
+        {
+            view::ViewEntity& sh = entities.rvShell[hand][i];
+            const int c = (bits >> (2 * i)) & 3;
+            if(c == 0)
+            {
+                sh.visible = false;
+                continue;
+            }
+            const float a = glm::radians(90.f + 60.f * static_cast<float>(i));
+            const glm::vec3 at = cylAt + rvTurnX({rvShellProud, rvChamberPitch * std::cos(a), rvChamberPitch * std::sin(a)}, turn);
+            err = za::max(err, setRevolverPart(sh, gun, rvShellModel, at, turn, 0, c == 2 ? 3 : 1, false));
+            loaded++;
+        }
+        if(vr_reload_debug.value >= 2 && developer.value && cl.time >= rvPrinted + 1.0)
+        {
+            rvPrinted = cl.time;
+            Con_Printf("revolver: hand %d swung %.1f deg, cylinder %.1f deg, %d shells drawn, parts placed %.4f units off\n",
+                hand, static_cast<double>(st.swing), static_cast<double>(st.cyl), loaded, static_cast<double>(err));
+        }
+    }
+}
+
+// Whether `ve` is a super shotgun or a heavy revolver drawn in its parts this frame (setupSsgParts,
+// setupRevolverParts): not drawn itself.
 [[nodiscard]] bool drawnInParts(const view::ViewEntity& ve)
 {
     for(int hand = 0; hand < 2; hand++)
     {
         if(&ve == &entities.weapon[hand])
         {
-            return ssgHands[hand].parts;
+            return ssgHands[hand].parts || rvHands[hand].parts;
         }
     }
     for(int h = 0; h < HolsterCount; h++)
@@ -3251,7 +3432,8 @@ bool loadPath(int hand, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
     {
         return false;
     }
-    return modelLoadPath(entities.weapon[hand].ent.model, ssgOpenAngle(hand), port, deep, end);
+    const qmodel_t* m = entities.weapon[hand].ent.model;
+    return modelLoadPath(m, modelmeta::is(m, modelmeta::Id::VRevolver) ? revolverSwing(hand) : ssgOpenAngle(hand), port, deep, end);
 }
 
 bool propGun(int num, ViewEntity& out, float& ssgOpen)
@@ -3289,6 +3471,18 @@ bool modelLoadPath(const qmodel_t* model, float ssgOpen, glm::vec3& port, glm::v
             continue;
         }
         const glm::vec3 at = lp.point + glm::vec3{lp.offset[0]->value, lp.offset[1]->value, lp.offset[2]->value};
+        if(lp.model == modelmeta::Id::VRevolver)
+        {
+            // The heavy revolver swung out (`ssgOpen` its swing): into a chamber from the cylinder's back face; shut, none.
+            if(ssgOpen <= 0.f)
+            {
+                return false;
+            }
+            port = revolverCraneTurn(at, ssgOpen);
+            deep = port + glm::vec3{1.f, 0.f, 0.f};
+            end = port + glm::vec3{2.2f, 0.f, 0.f};
+            return true;
+        }
         if(lp.model == modelmeta::Id::VShot2)
         {
             // Into the chambers, along the barrels as they are drawn open.
@@ -3323,6 +3517,18 @@ bool modelLoadPath(const qmodel_t* model, float ssgOpen, glm::vec3& port, glm::v
         return true;
     }
     return false;
+}
+
+float revolverSwing(int hand)
+{
+    return hand >= 0 && hand < 2 && entities.weapon[hand].visible && rvHands[hand].gun == entities.weapon[hand].ent.model
+               ? rvHands[hand].swing
+               : 0.f;
+}
+
+glm::vec3 revolverTurned(const glm::vec3& p, float swing)
+{
+    return revolverCraneTurn(p, swing);
 }
 
 float ssgOpenAngle(int hand)
@@ -3363,6 +3569,14 @@ bool modelLoadPort(const qmodel_t* model, float ssgOpen, glm::vec3& at, glm::vec
         }
         const glm::vec3 out = port.side ? glm::vec3{0.f, 1.f, 0.f} : port.front ? way : port.magazine || ssg ? -way :
             glm::vec3{0.f, 0.f, -1.f};
+        if(port.model == modelmeta::Id::VRevolver)
+        {
+            // The heavy revolver's cylinder's back face, on the crane swung out `ssgOpen` degrees (about +x: its axis stays).
+            at = revolverCraneTurn(point, ssgOpen);
+            axis = way;
+            face = -way;
+            return true;
+        }
         at = ssg ? ssgTurn(point, ssgOpen) : point;
         axis = ssg ? ssgTurn(way, ssgOpen, false) : way;
         face = ssg ? ssgTurn(out, ssgOpen, false) : out;
@@ -4031,6 +4245,10 @@ int gunPartsOf(const entity_t* gun, entity_t* out[2])
             {
                 return both(entities.pumpBody[hand], entities.pump[hand]);
             }
+            if(rvHands[hand].parts) // (the heavy revolver: its frame and cylinder, the gun's skin)
+            {
+                return both(entities.rvFrame[hand], entities.rvCyl[hand]);
+            }
             return ssgHands[hand].parts ? both(entities.ssgFrame[hand], entities.ssgBarrels[hand]) : 0;
         }
     }
@@ -4059,6 +4277,10 @@ const entity_t* gunPartSource(const entity_t* part)
     }
     for(int hand = 0; hand < 2; hand++)
     {
+        if(part == &entities.rvFrame[hand].ent || part == &entities.rvCrane[hand].ent || part == &entities.rvCyl[hand].ent)
+        {
+            return &entities.weapon[hand].ent;
+        }
         if(part == &entities.ssgFrame[hand].ent || part == &entities.ssgBarrels[hand].ent ||
            part == &entities.pumpBody[hand].ent || part == &entities.pump[hand].ent || part == &entities.weaponMorph[hand].ent)
         {
@@ -5056,6 +5278,7 @@ extern "C" void VR_SetupViewEntities()
         adcrossbow::frame(entities.weapon, entities.adBolt); // AD support: the crossbow's string and bolt
         adweapons::spinFrame(entities.weapon); // AD support: the Widowmaker's barrels turning
         setupSsgParts();
+        setupRevolverParts();
         setupWorldSsgs();
         patchModelFlags();
     }

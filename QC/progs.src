@@ -118,6 +118,7 @@ vr_enemyguns.qc
 vr_crowbar.qc
 vr_toolgun.qc
 vr_nailpistol.qc
+vr_revolver.qc
 vr_mg3_weapons.qc
 vr_pickup_test.qc
 vr_axestick.qc
@@ -513,3 +514,4 @@ vr_armedgrunt_bugs_test.qc
 vr_armedgrunt_close_test.qc
 vr_armedrepl_test.qc
 vr_nailpistol_test.qc
+vr_revolver_test.qc

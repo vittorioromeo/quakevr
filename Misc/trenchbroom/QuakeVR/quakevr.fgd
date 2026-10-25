@@ -177,6 +177,7 @@
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
 		29 : "Nail pistol (Quake VR; a full magazine)"
+		30 : "Heavy revolver (Quake VR; six slugs chambered)"
 	]
 	weaponflags(choices) : "Variant" : 0 : "The weapon's variant: its alternative ammunition (Dissolution of Eternity's), or the hell knight's sword." =
 	[
@@ -598,6 +599,16 @@ pouch slapped up into the grip). Picked up as the other weapons are, with 24 nai
 
 Fires proximity mines, using rockets. Floats at torso height in VR; taken by a hand's grip. Its sounds come from
 the Scourge of Armagon's files (hipnotic)."
+[
+]
+
+@PointClass base(Weapon) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/v_revolver.mdl" }) =
+	weapon_revolver : "Heavy revolver (Quake VR)
+
+Quake VR's six-shot heavy revolver: one-handed and double action (a shot each pull of the trigger), your shells
+fired as heavy slugs. Immersive reloading: its cylinder swung out (a flick of the wrist, B/Y), the shells dropped
+(the muzzle up, the ejector), loaded a shell at a time from the ammo pouch, swung home (a flick the other way, a
+push). Picked up as the other weapons are, with 12 shells. Its own model lies there."
 [
 ]
 
@@ -2603,6 +2614,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
 		29 : "Nail pistol (Quake VR; a full magazine)"
+		30 : "Heavy revolver (Quake VR; six slugs chambered)"
 	]
 ]
 

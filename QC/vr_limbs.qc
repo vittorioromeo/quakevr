@@ -553,7 +553,10 @@ float(float xKind) VR_Limb_WearHow =
 {
     if(xKind == QVR_CDMG_BLADES) { return QVR_DECAP_SWING; }
     if(xKind == QVR_CDMG_CHAINSAW) { return QVR_DECAP_SAW; }
-    if(xKind == QVR_CDMG_SHOTS) { return vr_decap_weapon == QVR_DECAP_SSG ? QVR_DECAP_SSG : QVR_DECAP_SHOTGUN; }
+    if(xKind == QVR_CDMG_SHOTS)
+    {
+        return (vr_decap_weapon == QVR_DECAP_SSG || vr_decap_weapon == QVR_DECAP_REVOLVER) ? vr_decap_weapon : QVR_DECAP_SHOTGUN;
+    }
     if(xKind == QVR_CDMG_LIGHTNING) { return QVR_DECAP_LIGHTNING; }
     if(xKind == QVR_CDMG_NAILS) { return QVR_DECAP_LASER; } // (nails, lasers, AD's pellets: a shot's pop)
     return QVR_DECAP_BLUNT;

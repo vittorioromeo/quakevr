@@ -166,7 +166,7 @@ namespace
 // Misc/quakevr/models_src/widowmaker), where the config still holds the old anchors (takeWidowmakerArt63).
 // 65: the Widowmaker's (slot 34) tracer colour (54 had put it on the plasma gun's, 35: undone) and stock pitch his
 // (takeWidowmaker65).
-constexpr int settingsVersion = 65;
+constexpr int settingsVersion = 66;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -709,6 +709,12 @@ void takeWidowmaker65()
         undone ? ", the plasma gun its tracer colour back" : "");
 }
 
+// The heavy revolver's slot (66; unused before: a config archived its keys at the empty slot's defaults).
+void takeRevolver66()
+{
+    resetSlot(37);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -741,6 +747,7 @@ constexpr Step steps[] = {
     {63, takeWidowmakerArt63},
     {64, takeNailPistolHis64},
     {65, takeWidowmaker65},
+    {66, takeRevolver66},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
@@ -1194,6 +1201,11 @@ int slotForPart(const qmodel_t* model)
             slot = slotForName(gun);
             break; // (the prefixes don't overlap)
         }
+    }
+    // The heavy revolver's parts (vr_view.cpp setupRevolverParts: each in its own frame, drawn on the gun): its slot.
+    if(slot < 0 && !strncmp(model->name, "progs/v_revolver_", strlen("progs/v_revolver_")))
+    {
+        slot = slotForName("progs/v_revolver.mdl");
     }
     partSlotCache.emplace(model, slot);
     return slot;

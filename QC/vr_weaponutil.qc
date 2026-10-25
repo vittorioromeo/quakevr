@@ -27,6 +27,11 @@ float() VR_NailPistol_MagSize;
 float(float xWeapon, float xDir) VR_NailPistol_CycleStep;
 void(float xHand, float xAttackFinished, float* xOutAttackFinished) VR_NailPistol_Attack;
 void() VR_NailPistol_PlayerFrame;
+// The heavy revolver (vr_revolver.qc, after these tables).
+float() VR_Revolver_Chambers;
+float(float xWeapon, float xDir) VR_Revolver_CycleStep;
+void(float xHand, float xAttackFinished, float* xOutAttackFinished) VR_Revolver_Attack;
+void() VR_Revolver_PlayerFrame;
 
 float(float xWeaponId) VR_WeaponUtil_IsValidWeaponId =
 {
@@ -159,6 +164,7 @@ float(float wid) WeaponIdToItemId =
     if(wid == WID_SUPERAXE)         { return IID_SUPERAXE; }
     if(wid == WID_TOOLGUN)          { return IID_TOOLGUN; }
     if(wid == WID_NAILPISTOL)       { return IID_NAILPISTOL; }
+    if(wid == WID_REVOLVER)         { return IID_REVOLVER; }
 
     if(VR_IsADGun(wid))             { return IID_ADROCKET + (wid - WID_ADROCKET); } // AD support (vr_ad_guns_defs.qc)
 
@@ -201,6 +207,7 @@ string(float wid, float xWeaponFlags) WeaponIdToModel =
     if(wid == WID_SUPERAXE)         { return "owned/mg3/progs/v_hammer.mdl"; }
     if(wid == WID_TOOLGUN)          { return "progs/v_toolgun.mdl"; }
     if(wid == WID_NAILPISTOL)       { return "progs/v_nailpistol.mdl"; }
+    if(wid == WID_REVOLVER)         { return "progs/v_revolver.mdl"; }
 
     if(VR_IsADGun(wid))             { return VR_ADGun_Model(wid); } // AD support (vr_ad_guns_defs.qc)
 
@@ -242,6 +249,7 @@ float(float wid, float xWeaponFlags) WeaponIdToAmmoId =
     if(wid == WID_SUPERAXE)         { return AID_CELLS; }
     if(wid == WID_TOOLGUN)          { return AID_NONE; }
     if(wid == WID_NAILPISTOL)       { return AID_NAILS; }
+    if(wid == WID_REVOLVER)         { return AID_SHELLS; }
 
     if(VR_IsADGun(wid))             { return AID_NONE; } // AD support (vr_ad_guns_defs.qc)
 
@@ -287,6 +295,7 @@ float(float wid) WeaponIdToThrowMult =
     if(wid == WID_SUPERAXE)         { return 0.75; }
     if(wid == WID_TOOLGUN)          { return 0.8; }
     if(wid == WID_NAILPISTOL)       { return 0.9; }
+    if(wid == WID_REVOLVER)         { return 0.85; }
 
     if(VR_IsADGun(wid))             { return 0.6; } // AD support (vr_ad_guns_defs.qc)
 
@@ -317,6 +326,7 @@ float(float wid) WeaponIdToThrowStabilizeDim =
     if(wid == WID_SUPERAXE)         { return 2; }
     if(wid == WID_TOOLGUN)          { return 0; }
     if(wid == WID_NAILPISTOL)       { return 0; }
+    if(wid == WID_REVOLVER)         { return 0; }
 
     if(VR_IsADGun(wid))             { return 0; } // AD support (vr_ad_guns_defs.qc)
 
@@ -347,6 +357,7 @@ float(float wid) WeaponIdToThrowDamage =
     if(wid == WID_SUPERAXE)         { return 50; }
     if(wid == WID_TOOLGUN)          { return 10; }
     if(wid == WID_NAILPISTOL)       { return 12; }
+    if(wid == WID_REVOLVER)         { return 15; }
 
     if(VR_IsADGun(wid))             { return 25; } // AD support (vr_ad_guns_defs.qc)
 
@@ -377,6 +388,7 @@ float(float wid) WeaponIdToThrowBounds =
     if(wid == WID_SUPERAXE)         { return 1.4; }
     if(wid == WID_TOOLGUN)          { return 1.2; }
     if(wid == WID_NAILPISTOL)       { return 1.0; }
+    if(wid == WID_REVOLVER)         { return 1.0; }
 
     if(VR_IsADGun(wid))             { return 1.8; } // AD support (vr_ad_guns_defs.qc)
 
@@ -392,6 +404,7 @@ float(string wpnClassname) WeaponClassNameToWeaponId =
     if(wpnClassname == "weapon_superaxe")        { return WID_SUPERAXE; }
     if(wpnClassname == "weapon_toolgun")         { return WID_TOOLGUN; }
     if(wpnClassname == "weapon_nailpistol")      { return WID_NAILPISTOL; }
+    if(wpnClassname == "weapon_revolver")        { return WID_REVOLVER; }
     if(wpnClassname == "weapon_shotgun")         { return WID_SHOTGUN; }
     if(wpnClassname == "weapon_supershotgun")    { return WID_SUPER_SHOTGUN; }
     if(wpnClassname == "weapon_nailgun")         { return WID_NAILGUN; }
@@ -429,6 +442,7 @@ float(float wid) WeaponIdToInitialAmmoCount =
     if(wid == WID_SUPERAXE)         { return 0; }
     if(wid == WID_TOOLGUN)          { return 0; }
     if(wid == WID_NAILPISTOL)       { return 24; }
+    if(wid == WID_REVOLVER)         { return 12; }
 
     if(VR_IsADGun(wid))             { return 0; } // AD support (vr_ad_guns_defs.qc)
 
@@ -476,6 +490,7 @@ string(float wid) WeaponIdToWeaponName =
     if(wid == WID_SUPERAXE)         { return "Super Axe"; }
     if(wid == WID_TOOLGUN)          { return "Toolgun"; }
     if(wid == WID_NAILPISTOL)       { return "Nail Pistol"; }
+    if(wid == WID_REVOLVER)         { return "Heavy Revolver"; }
 
     if(VR_IsADGun(wid))             { return VR_ADGun_Name(wid); } // AD support (vr_ad_guns_defs.qc)
 
@@ -517,6 +532,7 @@ float(float wid) WeaponIdToSupportsReload =
     if(wid == WID_SUPERAXE)         { return FALSE; }
     if(wid == WID_TOOLGUN)          { return FALSE; }
     if(wid == WID_NAILPISTOL)       { return TRUE; }
+    if(wid == WID_REVOLVER)         { return TRUE; }
 
     if(VR_IsADGun(wid))             { return FALSE; } // AD support (vr_ad_guns_defs.qc)
 
@@ -538,6 +554,7 @@ float(float wid) VR_Reload_ModeOf =
     else if(wid == WID_ROCKET_LAUNCHER)  { own = cvar_hget(cvarh_vr_reload_mode_rl); }
     else if(wid == WID_LIGHTNING)        { own = cvar_hget(cvarh_vr_reload_mode_light); }
     else if(wid == WID_NAILPISTOL)       { own = cvar_hget(cvarh_vr_reload_mode_npistol); }
+    else if(wid == WID_REVOLVER)         { own = cvar_hget(cvarh_vr_reload_mode_revolver); }
     return own >= 0 ? own : cvar_hget(cvarh_vr_reload_mode);
 }
 
@@ -567,6 +584,7 @@ float() VR_Reload_BestMode =
     best = max(best, cvar_hget(cvarh_vr_reload_mode_rl));
     best = max(best, cvar_hget(cvarh_vr_reload_mode_light));
     best = max(best, cvar_hget(cvarh_vr_reload_mode_npistol));
+    best = max(best, cvar_hget(cvarh_vr_reload_mode_revolver));
     best = max(best, cvar_hget(cvarh_vr_reload_mode_widow));
     best = max(best, cvar_hget(cvarh_vr_reload_mode_adplasma));
     return best;
@@ -595,6 +613,7 @@ float(float wid) WeaponIdToSupportsReloadFlicking =
     if(wid == WID_SUPERAXE)         { return FALSE; }
     if(wid == WID_TOOLGUN)          { return FALSE; }
     if(wid == WID_NAILPISTOL)       { return FALSE; }
+    if(wid == WID_REVOLVER)         { return FALSE; }
 
     if(VR_IsADGun(wid))             { return FALSE; } // AD support (vr_ad_guns_defs.qc)
 
@@ -625,6 +644,7 @@ float(float wid) WeaponIdToBaseClipSize =
     if(wid == WID_SUPERAXE)         { return 0; }
     if(wid == WID_TOOLGUN)          { return 0; }
     if(wid == WID_NAILPISTOL)       { return VR_NailPistol_MagSize(); }
+    if(wid == WID_REVOLVER)         { return VR_Revolver_Chambers(); }
 
     if(VR_IsADGun(wid))             { return VR_ADGun_ClipSize(wid); } // AD support (vr_ad_guns_defs.qc)
 

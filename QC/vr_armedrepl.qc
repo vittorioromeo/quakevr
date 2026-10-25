@@ -186,6 +186,7 @@ float(float t, float i) VR_AGR_TierCode =
     if(i == 13) { return WID_ADDEFENDER; }
     if(i == 14) { return WID_ADCENTURION; }
     if(i == 15) { return WID_ADCROSSBOW; }
+    if(i == 16) { return WID_REVOLVER; } // (the heavy revolver: rare, vr_revolver.qc)
     return -1;
 };
 

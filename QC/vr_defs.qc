@@ -122,7 +122,8 @@ float IID_ADPYRO             = 56;
 float IID_ADFUMIGATOR        = 57;
 float IID_ADCROSSBOW         = 58; // AD support: the crossbow knight's crossbow (WID_ADCROSSBOW)
 float IID_NAILPISTOL         = 59; // VR: the nail pistol (vr_nailpistol.qc).
-float IID_LAST               = 59; // the last item id
+float IID_REVOLVER           = 60; // VR: the heavy revolver (vr_revolver.qc).
+float IID_LAST               = 60; // the last item id
 
 //
 //
@@ -166,8 +167,18 @@ float WID_ADCROSSBOW       = 28; // AD: the crossbow knight's crossbow (vr_ad_en
 // VR: the nail pistol (vr_nailpistol.qc; Misc/quakevr/models_src/nailpistol): one-handed, semi-automatic, a 12-round
 // magazine in its grip fed from your nails; weapon settings slot 36 (vr_weapons.inc); weapon_nailpistol.
 float WID_NAILPISTOL       = 29;
-float WID_LAST             = 29; // the last weapon id
+// VR: the heavy revolver (vr_revolver.qc; Misc/quakevr/models_src/revolver): one-handed, double action, six chambers
+// of shells fired as slugs; its cylinder swings out to load by hand; weapon settings slot 37 (vr_weapons.inc).
+float WID_REVOLVER         = 30;
+float WID_LAST             = 30; // the last weapon id
 float vr_pellet_damage; // FireBulletsImpl's damage a pellet while a shotgun fires (yours, Weapon Damage; a grunt's, vr_enemyguns.qc; 0: id's 4)
+// And while a heavy revolver fires (vr_revolver.qc): its slug's damage times vr_pellet_heavy_mult into a monster of
+// vr_pellet_heavy_health or more full health (0: none). The last pellet's damage dealt, its part and what it hit (tests).
+float vr_pellet_heavy_mult;
+float vr_pellet_heavy_health;
+float vr_pellet_last;
+float vr_pellet_last_part;
+entity vr_pellet_last_ent;
 // FireBulletsImpl's tracers (the tracer builtin): the hand that fires (-1 a monster's gun) and where they start (its muzzle).
 float vr_tracer_hand;
 vector vr_tracer_from;

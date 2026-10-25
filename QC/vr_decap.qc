@@ -29,6 +29,7 @@ float QVR_DECAP_THROWN_BLUNT = 8; // a thrown (or flung) blunt weapon or prop (H
 float QVR_DECAP_BLAST = 10; // an explosion popping a limb near it (vr_limbs.qc: vr_limbs_blast)
 float QVR_DECAP_QUAD = 9;   // any other headshot kill with Quad Damage (vr_decap_pop_quad: a nail, a rocket, a grenade, a stab)
 float QVR_DECAP_LASER = 11; // an enforcer's laser bolt (an enemy's, or your enforcer's rifle): vr_decap_pop_laser (vr_limbs.qc: VR_Decap_LaserArm)
+float QVR_DECAP_REVOLVER = 12; // a heavy revolver's slug (vr_revolver.qc; a blast of one pellet: vr_decap_pop_revolver_*)
 // Head pops (below: "Head pops"; combat.qc: QVR_DECAP_SHOTGUN 4, _SSG 5, _LIGHTNING 6): a shot kills with a headshot.
 
 .float vr_decap_died; // when it was killed (Killed: VR_Decap_Killed)
@@ -66,6 +67,7 @@ string(float xHow) VR_Decap_HowName =
     if(xHow == QVR_DECAP_SAW) { return "the chainsaw"; }
     if(xHow == QVR_DECAP_SHOTGUN) { return "a shotgun blast"; }
     if(xHow == QVR_DECAP_SSG) { return "a super shotgun blast"; }
+    if(xHow == QVR_DECAP_REVOLVER) { return "a revolver slug"; }
     if(xHow == QVR_DECAP_LIGHTNING) { return "a lightning bolt"; }
     if(xHow == QVR_DECAP_BLUNT) { return "a blunt head blow"; }
     if(xHow == QVR_DECAP_THROWN_BLUNT) { return "a thrown blunt thing"; }
@@ -135,6 +137,7 @@ float(float xHow) VR_Decap_HowOn =
     if(xHow == QVR_DECAP_SAW) { return cvar_hget(cvarh_vr_decap_chainsaw); }
     if(xHow == QVR_DECAP_SHOTGUN) { return cvar_hget(cvarh_vr_decap_shotgun); }
     if(xHow == QVR_DECAP_SSG) { return cvar_hget(cvarh_vr_decap_super_shotgun); }
+    if(xHow == QVR_DECAP_REVOLVER) { return cvar_hget(cvarh_vr_decap_revolver); }
     if(xHow == QVR_DECAP_LIGHTNING) { return cvar_hget(cvarh_vr_decap_lightning); }
     if(xHow == QVR_DECAP_THROWN_BLUNT) { return cvar_hget(cvarh_vr_decap_pop_thrown); }
     if(xHow == QVR_DECAP_LASER) { return cvar_hget(cvarh_vr_decap_pop_laser) > 0; }
@@ -145,6 +148,7 @@ float(float xHow) VR_Decap_HowOn =
 float(float xHow) VR_Decap_IsPop =
 {
     return xHow == QVR_DECAP_SHOTGUN || xHow == QVR_DECAP_SSG || xHow == QVR_DECAP_LIGHTNING || xHow == QVR_DECAP_BLUNT ||
+           xHow == QVR_DECAP_REVOLVER ||
            xHow == QVR_DECAP_THROWN_BLUNT || xHow == QVR_DECAP_QUAD || xHow == QVR_DECAP_BLAST || xHow == QVR_DECAP_LASER;
 };
 
@@ -1113,7 +1117,7 @@ float vr_decap_rollpops; // and won
 // The chance a headshot kill of `xHow` from `xDist` units with `xShare` of its pellets at the head pops the head.
 float(float xHow, float xDist, float xShare) VR_Decap_PopChance =
 {
-    if(xHow != QVR_DECAP_SHOTGUN && xHow != QVR_DECAP_SSG && xHow != QVR_DECAP_LIGHTNING)
+    if(xHow != QVR_DECAP_SHOTGUN && xHow != QVR_DECAP_SSG && xHow != QVR_DECAP_LIGHTNING && xHow != QVR_DECAP_REVOLVER)
     {
         return 1;
     }
@@ -1135,6 +1139,12 @@ float(float xHow, float xDist, float xShare) VR_Decap_PopChance =
     float ssg = xHow != QVR_DECAP_SHOTGUN;
     float scale = max(0, cvar_hget(ssg ? cvarh_vr_decap_pop_ssg_scale : cvarh_vr_decap_pop_sg_scale));
     float falloff = max(0, cvar_hget(ssg ? cvarh_vr_decap_pop_ssg_falloff : cvarh_vr_decap_pop_sg_falloff));
+    if(xHow == QVR_DECAP_REVOLVER)
+    {
+        // (A heavy slug, all of the blast at the head: its own, higher, slower-falling chance.)
+        scale = max(0, cvar_hget(cvarh_vr_decap_pop_revolver_scale));
+        falloff = max(0, cvar_hget(cvarh_vr_decap_pop_revolver_falloff));
+    }
     float w = min(1, max(0, cvar_hget(cvarh_vr_decap_pop_pellet_weight)));
     float pellets = (1 - w) + w * min(1, max(0, xShare));
     return min(1, scale * pow(1 - t, falloff) * pellets);
