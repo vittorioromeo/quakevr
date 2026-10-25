@@ -481,6 +481,11 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
             out->gloveshell[1] = paint == 2 ? CLAMP(0.f, vr_glove_relief.value, 2.f) : 0.f; // its relief's normal map's strength
         }
     }
+    ZA_MEMSET(out->nails, 0, sizeof(out->nails));
+    if(standard && vr_nails.value > 0.f && render::nailMask(e)) // painted nails (vr_nails): their mask read
+    {
+        (void)view::nailLook(e, out->nails);
+    }
     if(out->glow[0] > 3.5f) // an incandescent blade glows on its blade only (vr_hotblade.cpp)
     {
         hotblade::bladePlane(e, matrix, out->hotblade);
@@ -754,6 +759,10 @@ struct GloveLayer
     bool looked{false};
     gltexture_t* paint{nullptr}; // (null: no painted layer: the shader's leather alone)
     gltexture_t* height{nullptr}; // its relief, made a normal map (gloveHeightToNormals; null: none: flat)
+    // Painted nails' mask (vr_nails; make_nail_mask.py): progs/hand_rig_0N_00_nails, else skin 0's; looked up only
+    // while vr_nails is on (nothing read or bound otherwise).
+    bool nailsLooked{false};
+    gltexture_t* nails{nullptr};
 };
 struct GloveLayers
 {
@@ -808,6 +817,7 @@ void gloveHeightToNormals(byte* rgba, int width, int height)
 [[nodiscard]] gltexture_t* gloveTexture(int skin, const char* suffix)
 {
     const bool relief = !q_strcasecmp(suffix, "glove_height");
+    const bool exact = relief || !q_strcasecmp(suffix, "nails"); // (uncompressed: a normal map; the nails' soft edge)
     for(const int s : {skin, 0})
     {
         char path[MAX_QPATH];
@@ -833,7 +843,7 @@ void gloveHeightToNormals(byte* rgba, int width, int height)
         const double made = (Sys_DoubleTime() - t0) * 1000.0;
         gltexture_t* texture = pixels ? TexMgr_LoadImage(nullptr, path, width, height, format, pixels, path, 0,
                                             TEXPREF_MIPMAP | TEXPREF_NOPICMIP | TEXPREF_ALPHA |
-                                                (relief ? TEXPREF_UNCOMPRESSED : TEXPREF_NONE))
+                                                (exact ? TEXPREF_UNCOMPRESSED : TEXPREF_NONE))
                                       : nullptr;
         Hunk_FreeToLowMark(mark);
         if(texture)
@@ -864,7 +874,7 @@ void gloveLayersUpdate(const entity_t* const* own, int count)
         gloveLayers.reload = false;
         for(int skin = 0; skin < 4; skin++) // (by name: a kept pointer may be stale by now)
         {
-            for(const char* suffix : {"glove", "glove_height"})
+            for(const char* suffix : {"glove", "glove_height", "nails"})
             {
                 char path[MAX_QPATH];
                 q_snprintf(path, sizeof(path), "progs/hand_rig_%02d_00_%s", skin, suffix);
@@ -901,6 +911,11 @@ void gloveLayersUpdate(const entity_t* const* own, int count)
             l.paint = gloveTexture(skinMaskSkin(e, 1), "glove");
             l.height = l.paint ? gloveTexture(skinMaskSkin(e, 1), "glove_height") : nullptr;
         }
+        if(!l.nailsLooked && vr_nails.value > 0.f)
+        {
+            l.nailsLooked = true;
+            l.nails = gloveTexture(skinMaskSkin(e, 1), "nails");
+        }
     }
     gloveLayers.frees = TexMgr_FreeCount(); // (what was loaded above freed nothing)
 }
@@ -919,11 +934,13 @@ void gloveLayersUpdate(const entity_t* const* own, int count)
 
 } // namespace
 
-void VR_AliasGlovePaint(const entity_t* e, gltexture_t* out[2])
+void VR_AliasGlovePaint(const entity_t* e, gltexture_t* out[3])
 {
     const GloveLayer* l = gloveLayerOf(e);
     out[0] = l ? l->paint : greytexture;
     out[1] = l && l->height ? l->height : greytexture;
+    gltexture_t* nails = render::nailMask(e);
+    out[2] = nails ? nails : blacktexture;
 }
 
 namespace qvr::render
@@ -933,6 +950,16 @@ void glovesReload_f()
 {
     gloveLayers.reload = true;
     Con_Printf("vr_gloves_reload: the gloves' painted leather (progs/hand_rig_0N_00_glove*) read again at the next frame\n");
+}
+
+gltexture_t* nailMask(const entity_t* e)
+{
+    if(vr_nails.value <= 0.f || !e->model || gloveLayers.frees != TexMgr_FreeCount() || view::skinMaskWanted(e) != 1)
+    {
+        return nullptr;
+    }
+    const GloveLayer& l = gloveLayers.skins[skinMaskSkin(e, 1)];
+    return l.nailsLooked ? l.nails : nullptr;
 }
 
 int glovePaintFlags(const entity_t* e)

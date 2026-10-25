@@ -1393,6 +1393,7 @@ NOISE_FUNCTIONS
 "	vec4	DentScale; // QVR: ... its pose to units: xyz the scale, w z of the origin\n"\
 "	vec4	GloveShell; // QVR: a glove's shell (vr/vr_handrig.cpp gloveShells, vr_glove_thickness): x its thickness in the model's units (0: none drawn); y the painted leather's relief's strength (vr_glove_relief)\n"\
 "	vec4	Stump; // QVR: a ragdoll's stumps (vr/vr_ragdoll.cpp stumpLook): x its cut bones (bits 0..23), y how far round their joints the cut's flesh reaches (units; StumpFlesh)\n"\
+"	vec4	Nails; // QVR: painted nails (vr/vr_view.cpp nailLook): the polish's rgb, w 1 + its gloss (0 none; NailTex its mask)\n"\
 "	ivec4	Motion; // QVR: temporal AA (vr/vr_temporal.cpp): x its vertices' slot this frame in MotionCur, y last frame's in MotionPrev (-1 none)\n"\
 "};\n"\
 "\n"\
@@ -1618,6 +1619,7 @@ NOISE_FUNCTIONS
 "layout(binding=6) uniform sampler2D SkinMaskTex; // QVR: authored skin only\n"
 "layout(binding=7) uniform sampler2D GloveTex; // QVR: a glove's painted leather (vr_glove_paint): RGB its detail, A its wear\n"
 "layout(binding=8) uniform sampler2D GloveHeightTex; // QVR: ... its relief, made a normal map as it loaded (vr_render.cpp gloveHeightToNormals)\n"
+"layout(binding=9) uniform sampler2D NailTex; // QVR: painted nails' mask (vr_nails; make_nail_mask.py): R the polish's cover\n"
 "\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	layout(location=0) noperspective in vec2 in_texcoord;\n"
@@ -1684,6 +1686,7 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "	result.rgb += spec; // QVR\n"
 "	result.rgb += WoundSheen(wounds, bumped); // QVR: wet blood and water shine\n"
 "	result.rgb += GloveSheen(bumped, leatherGloss * leatherCover); // QVR: a glove's leather's soft sheen\n"
+"	result.rgb += NailGloss(bumped, nailCover, nails.w - 1.0); // QVR: painted nails' gloss (vr_nail_gloss)\n"
 "	result.rgb += ModelRimReflect(n, bumped, skin, result.a); // QVR: rim light and reflections (vr/vr_envmap.cpp)\n"
 "#if POSEVERTTYPE == 2 \n"
 "	result.a *= in_color.a;\n"

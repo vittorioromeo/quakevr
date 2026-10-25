@@ -27,5 +27,7 @@ void drawnEntityMatrix(const entity_t& e, int scale, float out[16]);
 // hand has of it (0 none, 1 its detail and wear, 2 its relief too: added to its instance's Glove.w times 4).
 void glovesReload_f();
 [[nodiscard]] int glovePaintFlags(const entity_t* e);
+// A jointed hand's painted nails' mask (vr_nails on, looked up: make_nail_mask.py), or null (none drawn).
+[[nodiscard]] gltexture_t* nailMask(const entity_t* e);
 
 } // namespace qvr::render

@@ -3688,11 +3688,32 @@ void gloveCuffRange(float cuff[4])
     cuff[3] = bodybare::skinBlockV;
 }
 
+bool nailLook(const entity_t* e, float nails[4])
+{
+    nails[0] = nails[1] = nails[2] = nails[3] = 0.f;
+    if(vr_nails.value <= 0.f)
+    {
+        return false;
+    }
+    float tone[4];
+    if(skinTone(e, tone) != 1)
+    {
+        return false;
+    }
+    const glm::vec3 colour = hslToRgb(vr_nail_hue.value, CLAMP(0.f, vr_nail_saturation.value, 1.f),
+        CLAMP(0.f, vr_nail_lightness.value, 1.f));
+    nails[0] = colour.x;
+    nails[1] = colour.y;
+    nails[2] = colour.z;
+    nails[3] = 1.f + CLAMP(0.f, vr_nail_gloss.value, 1.f);
+    return true;
+}
+
 int skinMaskWanted(const entity_t* e)
 {
-    float tone[4], glove[4], cuff[4];
+    float tone[4], glove[4], cuff[4], nails[4];
     const int kind = skinTone(e, tone);
-    return kind && (tone[3] != 0.f || gloveLook(e, glove, cuff)) ? kind : 0;
+    return kind && (tone[3] != 0.f || gloveLook(e, glove, cuff) || nailLook(e, nails)) ? kind : 0;
 }
 
 bool heldRoundRef(int hand, glm::vec3& out, float* radius)

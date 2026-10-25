@@ -22334,3 +22334,40 @@ migration that moves only a config still at the old default; reason "approved 20
 - [ ] Monsters move smoothly on a fresh config (Model Animation: Smooth); Options > Animations Classic and back: Smooth.
 - [ ] Stand over E1M7's lava and in a burning fuel tank's field: the haze looks right (a little softer inside it than
   Heat Haze Detail: Full Size).
+
+## Painted nails (worktree `dequant`, branch `agent/nails`, 2026-10-26)
+
+A player's request (approved): polish on the player's fingernails. VR Settings > Player Appearance > **Nails** (after
+the Gloves rows): Painted Nails `vr_nails` (0), Nail Hue `vr_nail_hue` (355), Saturation `vr_nail_saturation` (0.85),
+Lightness `vr_nail_lightness` (0.32; a classic deep red), Gloss `vr_nail_gloss` (0.6). All archived, new, no migration.
+Details and editing: GLOVES.md, "Painted nails".
+
+- **Mask:** `Misc/quakevr/make_nail_mask.py` (genguard-guarded) writes `progs/hand_rig_0N_00_nails.png` (1024, grey) from
+  the rig's 3D layout: each last segment's back from a curved cuticle line (the middle nearest the knuckle, corners
+  rounded) to the free edge, the sides just inside the painted nail folds, a ~0.3 mm soft edge; no fingertip pad or
+  skin round it; each bloodied skin's static blood cut out. It sits inside the skin mask's own nail exclusion (R 0), so
+  `vr_skin_tone` tones the skin round it and never the polish.
+- **Engine:** loaded with the glove paint layers (`vr_render.cpp` GloveLayer, only while `vr_nails` is on; freed on
+  `vr_gloves_reload` and a map change), bound on unit 9 (NailTex) in the same multi-bind as the glove paint (7, 8);
+  the alias instance gets `Nails` (rgb the polish, w 1 + gloss; `vr_view.cpp nailLook`, jointed hands only).
+- **Shader:** inside the mask (times 1 - the glove's cover: a full glove hides the nails, a fingerless one shows them;
+  not on the glove shell) the nail is the polish's colour times half of its painted shading (the free edge stays a
+  touch lighter), its normal-map bumps smoothed 80%, and `NailGloss` adds a Blinn highlight in the hand's light
+  (exponent 16..160 with gloss) plus the ambient cube mirrored with Fresnel. Blood and burns paint over it as over the
+  skin. Off: Nails.w 0, the branch and NailGloss skip; the mask is never read.
+- **Older hands (`vr_hand_rig 0`): not done.** They are six separate models whose skins are an old painting of a hand in
+  another pose: no 3D layout to generate a mask from, and no skin-mask path on them (no gloves or skin tone either);
+  it would need hand-painted masks per finger model plus that plumbing. `vr_nails 1` there draws nothing (no errors).
+
+**Tests** (headless, `vrfiringrange`, `vr_mock_eye_size 2048`, gun angle 0 and no body so the mock hands sit in front of a
+camera facing them: `scratch/nails_shots.sh`, 13 eyeshots ending on its own line): off; red at gloss 0.6 / 0.1 / 1;
+fist; pointing; grip pose; black gloss 1; pastel pink gloss 0.1; fingerless (nails show); full (hidden); skin tone -0.8
+(skin dark, polish red); +0.8 with pastel. Each as set: the plates covered to the free edge, the cuticle curve clear,
+no polish on the pads or skin; gloss 1 gives a bright highlight band, 0.1 a deep flat colour, black reads glossy.
+Images: `scratch/nails_zoom.png` (fingertips close up), `scratch/nails_grid.png` (all 13). E1M1 with `vr_hand_rig 0/1`
+switched with nails and fingerless gloves on: clean. `vr_menu_path_check maps/vrcalibration.map`: 6 found, 0 missing.
+eval.sh: no verdict changes (36/44 canary, 163/171 full as before; 4 takes move by 0.1, PASS -> PASS).
+
+**In VR:**
+- [ ] Player Appearance > Nails > Painted Nails on: red nails on both jointed hands, glossy; fingerless gloves show
+  them, full gloves hide them; the colour and gloss sliders change them live.

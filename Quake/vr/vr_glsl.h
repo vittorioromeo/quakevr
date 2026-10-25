@@ -3244,6 +3244,25 @@ SPECULAR_AA_FUNCTIONS
 "	return min(in_color.rgb, vec3(1.0)) * k * (s * 0.12 + f * 0.05);\n" \
 "}\n" \
 "\n" \
+"// QVR: painted nails' gloss (vr_nail_gloss g 0..1; k the polish's cover): a clear coat's highlight in the model's own\n" \
+"// light, sharper and brighter the glossier, and the light round the model mirrored in it (Fresnel: most at grazing angles)\n" \
+"vec3 NailGloss(vec3 n, float k, float g)\n" \
+"{\n" \
+"	if (k <= 0.0 || g <= 0.0)\n" \
+"		return vec3(0.0);\n" \
+"	vec3 v = normalize(-in_pos);\n" \
+"	float fres = 0.04 + 0.96 * pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 5.0);\n" \
+"	vec3 lit = min(in_color.rgb, vec3(1.0));\n" \
+"	vec3 add = lit * min(AmbientCube(reflect(-v, n)), vec3(1.5)) * (fres * g);\n" \
+"	if (dot(in_bumplight.xyz, in_bumplight.xyz) > 0.0)\n" \
+"	{\n" \
+"		float p = mix(16.0, 160.0, g);\n" \
+"		float s = pow(max(dot(n, normalize(normalize(in_bumplight.xyz) + v)), 0.0), p) * (p + 8.0) / 25.0;\n" \
+"		add += lit * (s * 0.1 * (0.3 + g));\n" \
+"	}\n" \
+"	return add * k;\n" \
+"}\n" \
+"\n" \
 "// QVR: a glove's painted relief (vr_glove_relief): its normal map (vr_render.cpp gloveHeightToNormals; green up, z kept:\n" \
 "// a mip's averaged normal) on n, in the frame BumpedNormalK uses, but read smooth as its paint is (no retro blocks)\n" \
 "vec3 GloveBump(vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, float strength)\n" \
@@ -3357,9 +3376,11 @@ QVR_DENT_FUNCTIONS \
 "	Wounds wounds = WoundsAt(uv, result.rgb); // QVR: wounds painted on the model (vr/vr_wounds.cpp)\n" \
 "	vec4 tone = instances[in_instance].SkinTone;\n" \
 "	vec4 glove = instances[in_instance].Glove;\n" \
+"	vec4 nails = instances[in_instance].Nails; // QVR: painted nails (vr_nails): the polish's colour, w 1 + its gloss (0 none)\n" \
 "	vec2 leatherSlope = vec2(0.0); // QVR: a glove's leather (GloveLeather): its relief, its cover, its sheen\n" \
 "	float leatherCover = 0.0, leatherGloss = 0.0;\n" \
-"	if (tone.w > 0.0 || glove.w > 0.0) // QVR: skin only (vr_skin_tone): the skin's share of the look toned, painted blood/char keep their colour,\n" \
+"	float nailCover = 0.0; // QVR: the polish's cover (for its smooth coat and gloss: NailGloss)\n" \
+"	if (tone.w > 0.0 || glove.w > 0.0 || nails.w > 0.0) // QVR: skin only (vr_skin_tone): the skin's share of the look toned, painted blood/char keep their colour,\n" \
 "	{ // their soft edges blending in (no untoned ring); gloves (vr_gloves) over it, the skin toned where they leave it bare\n" \
 "		float skinShare = (1.0 - wounds.burn) * (1.0 - wounds.blood * instances[in_instance].WoundSide.w);\n" \
 "		vec4 mask = textureGrad(SkinMaskTex, uv, duvdx, duvdy);\n" \
@@ -3396,6 +3417,16 @@ QVR_DENT_FUNCTIONS \
 "			float near = cuff.x > 0.0 && uv.x < cuff.x && uv.y < cuff.w ? 1.0 - clamp((cuff.y - uv.y) / 0.0015, 0.0, 1.0) :\n" \
 "				smoothstep(0.0, 0.3, gmode > 1.5 ? gl.y : gl.x);\n" \
 "			toned *= 1.0 - 0.45 * near * (1.0 - cover);\n" \
+"		}\n" \
+"		if (nails.w > 0.0 && !gloveShell) // QVR: painted nails (vr_nails; make_nail_mask.py: the plates, a soft edge): the polish's\n" \
+"		{ // colour, not toned (the skin round it is), the nail's own painted shading kept a little (0.44: its plate's mean); a glove over it hides it\n" \
+"			float nm = textureGrad(NailTex, uv, duvdx, duvdy).r * (1.0 - cover);\n" \
+"			if (nm > 0.0)\n" \
+"			{\n" \
+"				float shade = mix(1.0, clamp(dot(result.rgb, vec3(0.299, 0.587, 0.114)) / 0.44, 0.6, 1.4), 0.5);\n" \
+"				toned = mix(toned, nails.rgb * shade, nm);\n" \
+"				nailCover = nm * skinShare;\n" \
+"			}\n" \
 "		}\n" \
 "		vec3 leather = glove.rgb;\n" \
 "		if (cover > 0.0) // its own relief, none of the skin's painted detail (GloveLeather)\n" \
@@ -3471,6 +3502,8 @@ QVR_DENT_FUNCTIONS \
 "		bumped = normalize(mix(bumped, ng, wall));\n" \
 "		result.rgb *= 1.0 - 0.3 * wall;\n" \
 "	}\n" \
+"	if (nailCover > 0.0) // QVR: painted nails: the polish a smooth coat over the nail's bumps\n" \
+"		bumped = normalize(mix(bumped, n, 0.8 * nailCover));\n" \
 "	if (wounds.flatten > 0.) // QVR: blood and water fill the bumps\n" \
 "		bumped = normalize(mix(bumped, n, wounds.flatten));\n" \
 "	if (wounds.slope != vec2(0.)) // QVR: your own wounds' relief (the fine masks): char crusted, blood sunk in\n" \

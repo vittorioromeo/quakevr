@@ -54,3 +54,23 @@ palm's folds as the skin's creases. `--preview` writes a flat brown view of colo
 It is guarded (`genguard.py`, `Misc/quakevr/generated.json`): once you edit either file by hand, the generator stops
 and names it instead of overwriting your work. `--keep-edited` writes only the untouched files; `--force` overwrites
 your edits (git keeps the last committed version).
+
+## Painted nails
+
+`vr_nails 1` (VR Settings > Player Appearance > Nails > Painted Nails; off by default) paints the jointed hand's
+fingernails (`vr_hand_rig 1` only) in the colour you pick: `vr_nail_hue` (355), `_saturation` (0.85), `_lightness`
+(0.32: a classic deep red) and `vr_nail_gloss` (0.6; 0 matte, 1 a glassy top coat). Full gloves cover them; fingerless
+gloves leave them showing. `vr_skin_tone` tints the skin round the nail, never the polish.
+
+The mask is `quakevr/progs/hand_rig_0N_00_nails.png` (one per hand skin, 1024 x 1024 like the glove paint, greyscale:
+255 polish, 0 none, a ~0.3 mm soft edge). It covers each nail plate as `make_hand_rig.py` paints it: from the cuticle's
+curve (the middle nearest the knuckle) out to the free edge, its sides just inside the nail folds; the bloodied skins'
+static blood is cut out of theirs so the blood stays over the polish. Paint over it in any editor to change the shape
+(a missing skin's file falls back to skin 0's); **Reload Glove Paint** (`vr_gloves_reload`) or a map change reads it
+again. Regenerate with `py -3.13 Misc/quakevr/make_nail_mask.py [--preview scratch/nails_preview.png]` (guarded like
+the glove paint: it won't overwrite a hand-edited mask without `--force`).
+
+The shader (`vr_glsl.h` QVR_ALIAS_FS_LIGHT, `NailGloss`): inside the mask the nail takes the polish's colour times a
+little of its own painted shading (its lighter free edge), its bumps smoothed (a coat), and the gloss adds a highlight
+in the hand's light (sharper with more gloss) and the room's light mirrored at grazing angles. With `vr_nails 0` the
+mask is never loaded and the shader's nail code is skipped (the instance's Nails.w is 0).

@@ -1594,6 +1594,11 @@ QVR_CVAR(vr_glove_lightness, "0.2", CVAR_ARCHIVE)     // and lightness (0 black,
 QVR_CVAR(vr_glove_thickness, "2.25", CVAR_ARCHIVE)       // their leather's thickness in mm (0..4): a shell over the hand (vr_handrig.cpp gloveShells) pushed out by it, its edge a wall down to the skin; 0 painted on the skin only
 QVR_CVAR(vr_glove_paint, "1", CVAR_ARCHIVE)         // their painted leather (progs/hand_rig_0N_00_glove*.png, make_glove_paint.py; docs/vr-port/GLOVES.md): worn knuckles, creases, stitches; 0 the plain leather
 QVR_CVAR(vr_glove_relief, "1.25", CVAR_ARCHIVE)        // the painted leather's relief (a normal map made from _glove_height as it loads): stitches, seams, creases, grain in the light; 0 flat, 1 as the bracers', up to 2
+QVR_CVAR(vr_nails, "0", CVAR_ARCHIVE)                 // painted nails on the jointed hands (vr_hand_rig 1; progs/hand_rig_0N_00_nails.png, make_nail_mask.py; docs/vr-port/GLOVES.md): full gloves cover them, fingerless ones show them
+QVR_CVAR(vr_nail_hue, "355", CVAR_ARCHIVE)            // the polish's colour: hue in degrees (0 red, 330 pink, 270 violet, 210 blue),
+QVR_CVAR(vr_nail_saturation, "0.85", CVAR_ARCHIVE)    // saturation (0 grey .. 1),
+QVR_CVAR(vr_nail_lightness, "0.32", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); not tinted by vr_skin_tone, the hand's own shading kept
+QVR_CVAR(vr_nail_gloss, "0.6", CVAR_ARCHIVE)          // the polish's gloss (0 matte .. 1 a glassy top coat): a sharp highlight and the room mirrored in it
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, needs the jointed hand: vr_hand_rig 1)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
 QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
