@@ -782,6 +782,16 @@ void resetWater()
 
 } // namespace
 
+void prepare()
+{
+    if((vr_weapon_reflections.value > 0.f || vr_water_reflections.value != 0.f) && cl.worldmodel && gl_clipcontrol_able &&
+        lightmap_texture)
+    {
+        QVR_PROFILE("env cube build");
+        (void)ensureWorld();
+    }
+}
+
 void update()
 {
     wet::update(); // the water's (vr_water_reflections)

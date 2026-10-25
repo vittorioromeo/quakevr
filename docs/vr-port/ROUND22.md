@@ -21158,6 +21158,34 @@ For him in VR: nothing should look different. In the calibration room and the hu
 setting buttons, the campaign's SELECTED and Continue's save still show (and change at once when pressed). Catch an
 ogre's grenade (vr_grenade_catch on). Arcane Dimensions' big maps (Sepulcher, Tears) start a little faster, the same
 crates in the same places.
+
+## Frame spikes (worktree `fastship`, branch `agent/spikes`, 2026-10-25)
+
+His request: find and fix the frames that make VR stutter at 120 Hz (8.33 ms). Write-up, the causes table, the
+before/after medians and how to rerun: BENCHMARKS.md, "Frame spikes (2026-10-25)".
+
+- **Hunted**: 22 scenarios x 5 paced runs with the hitch log on frames over 8.33 ms (the window only), the repeating
+  ones then taken apart in Release-Tracy captures (per-model render steps, QC functions).
+- **The real ones**: a model's smooth-animation rig data made at its first draw (6-27 ms, a monster kind's first
+  appearance: AD's maps, e4m7, hip2m5, in view or in a shadow map); a gun lying near you, its screen anchors bound
+  (~10 ms); the first frame after every load (skin masks, glove paint read again, the reflections' buffers: 4-13 ms);
+  QC's late precaches of AD monsters in non-AD maps (25-38 ms); 400 wounds in a frame (10 ms); explosions' bursts
+  (11-25 ms, no part over 3 ms); AD's first frames after the load (70-90 ms). Many single big frames (water 102 ms, a
+  run of 600 slow frames) came once in five runs: other workers on the machine.
+- **Fixed**: `vr_load_prewarm` (1; Debug > Profiling and Memory > Load Prewarm) makes the rig data, the guns'
+  anchors, the cubes' world buffers and your skin masks in the map's load (VR_NewMap). CPU busy max, medians of 5:
+  ad_tears 31.4 -> 11.8 ms, ad_sepulcher 21.5 -> 6.3, ad_crucial 8.4 -> 5.1, e4m7 14.1 -> 11.7, hip2m5 10.4 -> 4.6;
+  the frame after a load 13.0 -> 7.5 (p99 of saveload_e1m1); medians unchanged. The cost: AD's first map loads
+  ~150-200 ms longer once a session (ad_sepulcher cold 1847 -> 2001 ms), the rest the same.
+- **Checks**: the same rig data on and off (`vr_anim_smooth_info`, 26 models), the glitch finder's summary identical,
+  eval.sh 36/44 and 163/171 as before.
+- **Left** (BENCHMARKS.md's proposals): AD monsters' drops precached with them, `VR_GunPrep_Collect` without
+  substrings, a wound budget, AO bakes waited for in the load, the rig data on the job pool.
+
+For him in VR: in Arcane Dimensions' maps (Tears, Sepulcher), turning to a new monster kind for the first time or
+walking past a gun lying on the floor should no longer hitch; nor the first moment after loading a save. Monsters'
+animation should look exactly as before. The first load of an AD map in a session takes a fifth of a second longer.
+
 ## Nail pistol: grip, sights, holsters (worktree `tghost`, branch `agent/nailpistol2`, 2026-10-25)
 
 - **Why moving the hand anchor did nothing:** `vr_wofs_hand_av_NN` (and `hand_x/y/z`, `gunoff_*`, the old finger keys)

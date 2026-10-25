@@ -16,4 +16,9 @@ void registerDiagCommands(); // (vr_animsmooth_diag.cpp)
 // reactions are its bones' (vr_hitreact.cpp), else its whole model's tilt.
 [[nodiscard]] bool rigged(const entity_s* e);
 
+// The map's load (VR_NewMap's prewarm, vr_load_prewarm): each precached Quake model's frame links and rig data made
+// now, as its first smooth draw would (6-27 ms a model, in the frame it first came into view or into a shadow map; kept
+// for the session: ROUND22.md "Frame spikes").
+void prepare();
+
 } // namespace qvr::animsmooth

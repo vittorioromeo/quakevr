@@ -1238,6 +1238,34 @@ bool animsmooth::rigged(const entity_s* e)
     return hdr && hdr->poseverttype == aliashdr_t::PV_QUAKE1 && rigData(modelData(e->model, hdr), e->model, hdr);
 }
 
+void animsmooth::prepare()
+{
+    const bool rebuildOn = vr_anim_smooth_rebuild.value != 0.f;
+    if(r_lerpmodels.value != 3.f && !rebuildOn)
+    {
+        return;
+    }
+    const bool rig = rebuildOn || vr_anim_smooth_rig.value != 0.f; // (smoothInstance's and kickInstance's rigData)
+    for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
+    {
+        qmodel_t* model = cl.model_precache[i];
+        if(model->type != mod_alias)
+        {
+            continue;
+        }
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
+        if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1)
+        {
+            continue;
+        }
+        SmoothModel& m = modelData(model, hdr);
+        if(rig)
+        {
+            (void)rigData(m, model, hdr);
+        }
+    }
+}
+
 extern "C" int VR_AnimSmoothRows(int channel)
 {
     return static_cast<int>(swingsOf(channel).size());
