@@ -81,7 +81,7 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
   <!-- Release: ThinLTO (the ClangCL toolset ignores WholeProgramOptimization and the MSVC linker's LTCG), its cache in
        the intermediate folder so that a rebuild of one file re-optimises only what changed.
        QvrNoLto=1 (msbuild -p:QvrNoLto=1: only the agents' quick builds, the kit's build.sh) leaves ThinLTO out, here and
-       in zancle.vcxproj, everything else the same: a one-file rebuild then relinks in seconds. Such a build says
+       in zancle.vcxproj and mimalloc.vcxproj, everything else the same: a one-file rebuild then relinks in seconds. Such a build says
        "no-LTO" in its version and build info (QvrBuildVersion below), and the release script refuses it
        (Misc/release/make_release.ps1). Switching between the two recompiles everything (the same folders). -->
   <PropertyGroup>
