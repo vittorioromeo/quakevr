@@ -59,6 +59,7 @@ extern cvar_t r_lerpmove; // gl_rmain.c
 // kernel32 (declared here rather than through <windows.h>, as vr_main.cpp does)
 __declspec(dllimport) void* __stdcall GetCurrentThread(void);
 __declspec(dllimport) int __stdcall SetThreadPriority(void* thread, int priority);
+__declspec(dllimport) int __stdcall GetThreadPriority(void* thread);
 #endif
 }
 

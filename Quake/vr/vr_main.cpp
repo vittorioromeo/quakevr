@@ -148,6 +148,12 @@
 #include "vr_toolgun.hpp"
 #include "vr_brushes.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Abort.hpp"
 #include "Zancle/Base/Assert.hpp"

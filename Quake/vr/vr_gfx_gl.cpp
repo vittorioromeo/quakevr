@@ -27,6 +27,12 @@
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_zancle.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 #include <string.h>
 
 #ifndef GL_TEXTURE_LOD_BIAS

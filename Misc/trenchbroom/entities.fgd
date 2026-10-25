@@ -132,6 +132,7 @@
 		16 : "Laser rifle (an enforcer's; its own shots)"
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
+		29 : "Nail pistol (Quake VR; a full magazine)"
 	]
 	weaponflags(choices) : "Variant" : 0 : "The weapon's variant: its alternative ammunition (Dissolution of Eternity's), or the hell knight's sword." =
 	[
@@ -619,6 +620,13 @@ floor, a physics object as func_weapon_grabbable's weapons (the same as one with
 	angles(string) : "Pitch yaw roll" : : "How it lies before it falls (none: any way)."
 ]
 
+@PointClass base(Weapon) size(-16 -16 0, 16 16 32) color(0 128 204) model({ "path": "progs/v_nailpistol.mdl" }) = weapon_nailpistol : "Nail pistol (Quake VR)
+
+Quake VR's own sidearm: one-handed and semi-automatic (a shot each pull of the trigger), fast, precise nails from a
+12-round magazine in its grip, fed from your nails (immersive reloading: the magazine ejected, a new one from the ammo
+pouch slapped up into the grip). Picked up as the other weapons are, with 24 nails. Its own model lies there."
+[]
+
 @PointClass base(Appearflags) size(-16 -16 0, 16 16 32) color(0 128 204) model({ "path": "progs/v_crowbar.mdl" }) = weapon_crowbar : "Crowbar (Quake VR)
 
 A steel crowbar lying ready to be picked up: a melee weapon, held in one hand or two (the other hand below the first on
@@ -671,6 +679,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		16 : "Laser rifle (an enforcer's; its own shots)"
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
+		29 : "Nail pistol (Quake VR; a full magazine)"
 	]
 ]
 

@@ -375,6 +375,19 @@ QVR_PROP_DEFAULT(52, GripX, "-2.6")
 QVR_PROP_DEFAULT(52, GripY, "0.07")
 QVR_PROP_DEFAULT(52, GripZ, "-3.73")
 QVR_PROP_DEFAULT(52, Overlap, "0.4")
+// The nail pistol's magazine (make_nailpistol_mags.py; QC vr_nailpistol.qc): held as the nailgun's, a little smaller (the
+// pistol's Scale 0.45 to its Size 0.52, as the nailgun's 0.48 to 0.55) and lighter. configVersion 200 gives the slot to
+// configs saved before (vr_props.cpp shippedSlots).
+QVR_PROP_DEFAULT(56, ID, "progs/vr_mag_npistol.mdl")
+QVR_PROP_DEFAULT(56, Mass, "0.25")
+QVR_PROP_DEFAULT(56, TwoHands, "0")
+QVR_PROP_DEFAULT(56, GripMode, "1")
+QVR_PROP_DEFAULT(56, Size, "0.52")
+QVR_PROP_DEFAULT(56, GripX, "-1.8")
+QVR_PROP_DEFAULT(56, GripY, "0.05")
+QVR_PROP_DEFAULT(56, GripZ, "-2.6")
+QVR_PROP_DEFAULT(56, Overlap, "0.385")
+QVR_PROP_DEFAULT(56, ThrowDamage, "0.25")
 // Immersive reloading's launcher rounds (QC vr_reload.qc, "Front-loaded launchers"; make_rounds.py: their own models at
 // Size 1, so missile.mdl, grenade.mdl and proxbomb.mdl keep their sizes in flight): the rocket held along the fist (Along
 // the Handle) by the nose half of its middle, its butt free below the little finger to go into the muzzle; the

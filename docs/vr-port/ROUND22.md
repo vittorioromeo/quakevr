@@ -20996,3 +20996,139 @@ of changed files does not help (the compile is the cost, and the progs is one un
 `buildspeed_run.sh.proposed` (`--exclusive` warns when the agent's Release exe holds " no-LTO", unless `-Debug`/`-Tracy`).
 Both tested on dequant: `--lto` gives `QVR_BUILD_LTO 1` and the release script's check passes; the no-LTO exe is refused
 and warned about.
+
+## Build speed, round 2: header isolation, vr_menu.cpp split, the VR precompiled header (worktree `dequant`, branch `agent/buildspeed2`, 2026-10-25)
+
+Vittorio's decisions on round 1's findings, in order, each measured (Release x64 no-LTO MSBuild; a shared 32-thread
+machine, so a few tenths of a second are noise; full = `-t:Rebuild`, the QuakeC up to date; then a touch of
+`vr_held.cpp` and of `vr_hands.hpp`, twice each; frontend/backend: ClangBuildAnalyzer over a `-ftime-trace` rebuild).
+
+| step | full | vr_held.cpp | vr_hands.hpp | frontend CPU-s | backend CPU-s |
+|---|---|---|---|---|---|
+| before (origin/next) | 54.9 s | 3.4-3.6 s | 36-37 s | 505 | 201 |
+| 1. no windows.h, SDL core only | 47.3 s | 3.1 s | 41-42 s | 365 | 196 |
+| 2a. vr_menu.cpp in four files | 28.6 s | 3.2 s | 13.9 s | 357 | 190 |
+| 2b. the menu at /Ob1 | 29.0 s | 3.2-3.3 s | 14.0 s | 365 | 196 |
+| 3. VR precompiled header | 22.2 s | 2.6-2.7 s | 12.8-13.2 s | 94 | 183 |
+
+Linux (WSL Arch, clang 23, CMake + Ninja Release, 32 jobs, the source over /mnt/c): full 49.8 -> 42.0 (step 1) -> 23.8 s
+(steps 2-3); `vr_held.cpp` 4.3 -> 3.7 -> 3.1 s; `vr_hands.hpp` 30.2 -> 28.1 -> 14.0 s.
+
+1. **Header isolation.** The data said the VR headers themselves are light (their own includes are glm and Zancle;
+   `vr_cvars.inc` 24 ms a file); the cost was the system headers under `vr_engine.hpp`. One file alone (quiet machine):
+   frontend 0.61 s, of it `intrin.h` 0.13 s, `windows.h` 0.11 s, glm 0.12 s, the rest of quakedef.h 0.05 s.
+   - `quakedef.h` defines `APIENTRY` (and `WINAPI`) as minwindef.h does (the same tokens, so a later windows.h agrees):
+     SDL_opengl.h included windows.h only for it. Every file, C and C++ (the engine's C files use their quakedef.h
+     PCH, so it mattered less there). `q_stdinc.h` includes `ctype.h` (gl_model.c had it from windows.h), `vr_ao.cpp`
+     declares `GetThreadPriority` beside its other kernel32 declarations.
+   - `vr_engine.hpp` defines `QVR_ENGINE_SDL_CORE`: quakedef.h then includes SDL_stdinc/assert/atomic/endian/version/
+     opengl, not all of `SDL.h`; the 13 VR files that call SDL (GL proc addresses, timers, the swap interval) include
+     `SDL.h` themselves. vr_engine.hpp 1.15 -> 0.65 s a file in the full build, quakedef.h 0.55 -> 0.11 s.
+   - Not avoidable by isolation: `intrin.h` (0.37 s a file under load). The Windows SDK's ucrt `wchar.h` (10.0.26100)
+     includes it unconditionally, and glm's `<limits>` (`<cwchar>`) and SDL_stdinc reach wchar.h; clang's intrin.h is
+     every x86 intrinsic header (immintrin.h skips none outside the PlayStation SDK). Only the PCH removes it.
+   - The `vr_hands.hpp` edit didn't improve here: it was bounded by vr_menu.obj (22.9 s backend) alone.
+2. **vr_menu.cpp split** (a move; the menu dump identical). `vr_menu_pages_debug.cpp` (Recording, Cheats, the ragdoll
+   tests, AD monsters, Debug, Tests, Automation), `vr_menu_pages_gameplay.cpp` (Gameplay, AD guns, body, gore,
+   physics), `vr_menu_pages_settings.cpp` (props, the old settings pages, Stealth, VR Settings, Weapon Offsets);
+   `vr_menu.cpp` keeps the machinery with Monster Groups, the Ragdoll Tool, Toolgun, Search, Console and Maps (their
+   templates are instantiated by `pages[]`). `vr_menu_internal.hpp` (as `vr_view_internal.hpp`): the old anonymous
+   namespace is `menu_detail` (a top-level name, so unqualified lookup is as it was; `using namespace ::menu_detail`
+   after it), with the shared types (Choice, Item, PageBuilder, PageId, MenuLevel, MenuReadouts, PageTexts, the Weapon
+   Offsets parts) and ~310 declarations of what one file defines and another uses (found by a script over the
+   top-level definitions and cross-file uses). Small edits: `pageIndex` next to `pages[]`, `resetAllIsArmed()` for
+   VR Settings' Reset All row (the menu instance's type stays in vr_menu.cpp), the Retro Textures page templates in
+   the header, the eight Monster Groups pages Gameplay links explicitly instantiated. Check: `vr_menu_dump 2` (282
+   pages, 11329 lines: every row's kind, label, choices and help) byte-identical before and after the split and with
+   the PCH; `vr_menu_path_check maps/vrcalibration.map` 0 missing.
+   **/Ob1** (quakevr.props, and in vr.cmake clang-cl `/Ob1`, clang `-finline-hint-functions`, gcc
+   `-fno-inline-functions`) on the four: backends 7.1/6.8/6.0/2.7 s -> 7.0/6.6/4.1 s (once split, the inliner was no
+   longer most of it). The menu's speed (fast mode, one run each way twice): three full dumps 1.20/1.26 s (/Ob3) vs
+   1.16/1.21 s (/Ob1); 600 frames with VR Settings open 0.427/0.435 vs 0.428/0.421 s: the same.
+3. **Precompiled header `Quake/vr/vr_pch.hpp`**: glm, sixteen common Zancle headers, `vr_engine.hpp` (no project
+   header that changes often: `vr_cvars.hpp` and its list stay out, or adding a cvar would rebuild every file).
+   Visual Studio: `vr_pch.cpp` creates it (/Yc), every other Quake/vr .cpp uses it with /Yu and /FI. CMake:
+   `target_precompile_headers` on the target's C++ files, option `QVR_PCH` (ON). The menu's four files stay out of it:
+   clang refuses a PCH whose inlining differs ("Inlining differs in precompiled file", clang 23 on Linux; clang-cl 19
+   accepted it, but a newer one would not). Frontend 365 -> 94 CPU-s. **Missing includes:** forced in, the PCH would
+   hide one, so `Misc/quakevr/check_nopch.sh` builds without it (MSBuild `-p:QvrNoPch=1`, in `nopch\` folders of its
+   own; CMake `-DQVR_PCH=OFF` in `build/nopch`), incrementally after its first full build; both pass (Windows and the
+   WSL clang build), and a planted file that uses glm without including it fails there (and builds with the PCH).
+4. **Unity build: evaluated, not adopted.** CMake unity batches of the VR C++ files (the engine's C files and Box3D
+   clash at once, so never): 22 of 300 files had to stay out (anonymous-namespace names repeated across files:
+   `vec`, `State`-like structs, helpers). Linux, batches of 8 on top of step 3: full 23.8 -> 16.8 s, `vr_hands.hpp`
+   14.0 -> 12.1 s, but `vr_held.cpp` 3.1 -> 4.9 s (its batch of eight compiled). It hurts the one-file edit, the
+   common case; the full build that gains is CI's and the release's, a few seconds of a much longer job; and a batch
+   can change overload resolution silently (one file's anonymous helper seen by the next). The CMake option used for
+   the measurement isn't committed (kept as dequant's `scratch/vr.cmake.unity`).
+
+What's left (step 3): the backend, 183 CPU-s, is now two thirds of the build: the menu's gameplay and settings files
+(4.8 and 4.6 s), `vr_particles` 3.5 s, mimalloc's `static.c` 3.4 s, `vr_hull` 3.1 s; windows.h in the 29 files that
+include it (9.7 CPU-s); the link. Correctness: smoke run e1m1 (Windows and the WSL Linux mock run), the menu dump
+identical, eval.sh's verdicts unchanged (the canary differed in 1-2 takes, the full set in 3-5, by 0.1 damage, PASS ->
+PASS, different takes in each of three runs of the same exe: the replays' run-to-run jitter).
+## The nail pistol: a weapon of its own (worktree `tghost`, branch `agent/nailpistol`, 2026-10-25)
+
+The art (above, "Nail pistol: the art") made a first-class weapon, after the existing weapons' patterns everywhere a
+weapon is listed. Brief: one-handed, semi-automatic, a 12-round magazine in the grip on the magazine/pouch reload
+system, fed from your nails; fast precise nails; a grunt dies to two headshots or three or four body shots.
+
+- **Ids:** `WID_NAILPISTOL` 29 (`WID_LAST` 29), `IID_NAILPISTOL` 59, `HIP_IT_NAILPISTOL` (hipnotic bit 21); weapon settings
+  slot 36 (cvars `_37`; `vr_wofs_version` 61 resets the slot for older configs: `takeNailPistol61`); prop slot 56 for its
+  magazine (`configVersion` 200 ships it: `vr_props.cpp shippedSlots`). All the QC weapon tables
+  (`vr_weaponutil.qc`: model, ammo nails, throw numbers, name "Nail Pistol", reload yes, clip `vr_nailpistol_mag`,
+  24 nails with the pickup), item tables, damage credit (`IT_NAILGUN`), stealth loudness 700 (the nailgun's 800),
+  gun prep, FGD (`weapon_nailpistol`, weapon id 29 in func_weapon_grabbable's and the dispenser's lists), the toolgun's
+  Weapons page ("Nail Pistol", between the nailgun and the super nailgun), the sight table (`vr_sightalign_table.inc`:
+  the rear ears' tops level with the front post's top, z 6.376), `modelmeta::Id::VNailPistol`.
+- **Weapon select:** impulse 4 (the nails' slot) toggles nailgun and nail pistol, as Hipnotic's 6 toggles the grenade
+  launcher and the proximity gun (the one you have when only one); the controllers' cycle puts it between the super
+  shotgun and the nailgun (`VR_NailPistol_CycleStep`). `impulse 150+id` can't give it (179 is the off hand's id 9):
+  Debug > Tests > Nail Pistol (`vr_np_test 2`/`3`) or `vr_physics_spawn weapon_nailpistol reach` instead.
+- **Firing (`QC/vr_nailpistol.qc`):** `W_AttackImpl` hands it to `VR_NailPistol_Attack`: a pull fires once (or clicks
+  dry once: `gunclick.wav`), then nothing until the trigger is let go (`VR_NailPistol_PlayerFrame` re-arms it), at most
+  one shot each `vr_nailpistol_cooldown` 0.12 s (a pull during the cooldown fires as it ends). `W_FireNailPistol`: a nail
+  of the magazine (or the reserve without reloading) at `vr_nailpistol_speed` 2600 (the nailgun's 1750) plus the hand's,
+  within `vr_nailpistol_spread` 0.25 degrees; its own touch (`VR_NailPistol_SpikeTouch`: spike_touch's path with
+  `vr_dmg_nailpistol` 12; a monster's 9); `weaponfired` (slot 36: Recoil 1, strength 0.6, 0.1 s; Flash 1, size 0.6),
+  `EF_MUZZLEFLASH`, a 0.06 s haptic, gun smoke; the slide (frame 1) back `vr_nailpistol_slide_time` 0.07 s then home
+  (the renderer's lerp runs it), locked back while the gun has no round (clip 0 or no magazine); a wisp of smoke 0.3 s
+  after the last shot, more after a quick string (`vr_nailpistol_smoke`). Its sound: `vr/nailpistol_shot.wav`
+  (synthesised, `Misc/quakevr/make_nailpistol_sounds.py`: crack, thump, two slide clacks) over id's
+  `weapons/spike2.wav` pitched to 135% (`vr_nailpistol_volume`); magazine out/in: the existing reload sounds.
+- **Damage:** the hit zones are `VR_Proj_Begin`'s (`vr_headshot_mult` 1.5, limbs and legs 0.6). 12 a nail: a head 18
+  (one doesn't kill a 30 grunt, two do), the body 12 (three kill, two don't), an arm or a leg 7.2 (five).
+- **Magazine:** `make_nailpistol_mags.py` makes `vr_mag_npistol.mdl` (the prop: its middle the origin, +z its top; Size
+  0.52, as the nailgun's 0.55 to its gun's 0.48) and `vr_mag_on_v_nailpistol.mdl` (in the gun's frame, up the grip:
+  top 0.468 0 2.201, 12 degrees back) from the art's `v_nailpistol_mag.mdl`. Engine: `magMounts` (no receiver model:
+  `well` null, now allowed), `magProps` (top 2.76), `loadPorts` (the grip's bottom, -0.62 0 -2.93: the magazine's top
+  goes in there and slaps up), `magHolds[3]`; the pouch shows it as the nailgun's kind with bit 16
+  (`STAT_QVR_POUCHKIND` 18; `vr_pouchitems.cpp footFor`, 12 rounds a magazine). New cvars as the other magazine guns':
+  `vr_reload_mode_npistol` -1, `vr_reload_pouch_npistol` 1, `vr_reload_port_npistol_x/y/z` 0 and `_radius` 1.5,
+  `vr_reload_mag_npistol_x/y/z` 0 and `_radius` 0.5, `vr_reload_well_npistol_*` 0 (unused: no receiver),
+  `vr_reload_hold_npistol_*` (the thunderbolt's defaults). Menu: Weapons > Reloading > Nail Pistol, its override and
+  pouch toggle.
+- **Armed grunts:** usable in every campaign, a gun of class GUN, pairable (not "big": dual-wielded as the other guns,
+  the guns' pair poses), fired through `W_FireNailPistol`; pool weight `vr_agrunt_w_nailpistol` 1 (Armed Grunts'
+  weights page). `VR_AG_OneHanded` stays the melee weapons' (it picks the melee pair poses).
+- **Menus:** Combat > Weapon Damage: Nail Pistol, its speed, cooldown, spread, magazine; Debug > Tests: Nail Pistol (a
+  pickup), and a Nail Pistol section (in your hand, in both, the self-test).
+- **Not now:** map pickups replaced by it. It could be: a `vr_nailpistol_replace` chance in `weapon_nailgun` (or in
+  `impl_weapon_item` for the nailgun's pickups) calling `weapon_nailpistol` instead, or a start weapon beside the
+  shotgun (`VR_WeaponUtil_EntIsEligibleForWeapon`'s always-eligible list and `PutClientInServer`).
+
+**Tests** (`vr_np_test 1`, QC `vr_nailpistol_test.qc`; fast mode, ends on "nptest: N passed, M failed"): `run.sh tghost
+-Script "map vrtesthall;wait30;developer 1;vr_np_test 1" -QuitOn "nptest: [0-9]+ passed"`: 17 passed: the trigger held
+0.55 s fires 1; the slide back after it, home after; 12 shots, the shortest gap 0.139 s (cooldown 0.12, pulls every
+0.028 s); 13th pull: 1 dry click; 12 hits on a target ahead; empty: slide locked back; ejected empty magazine; a 12 from
+the pouch (nails 100 -> 88); the engine's well 2.7 units from the hand; seated: clip 12; slide home; a shot from it;
+headshots: dead in 2 (x1.50); body: dead in 3 (x1.00); an armed grunt's nail pistol fires; a pair fires both. Scene:
+`nailpistol` (vrtesthall: in your hand, one lying, crates, two grunts, armed grunts with one and a pair).
+
+**In VR:**
+- [ ] The nail pistol in hand {test:nailpistol}: the grip sits in the palm, the trigger under the finger; aim down the sights (the rear ears level with the front post) and the nails land there.
+- [ ] Shooting {test:nailpistol}: a shot each pull, as fast as you pull; the kick, the flash, the slide snapping back, the smoke after a string; the sound punchy.
+- [ ] Reloading {test:nailpistol}: empty, the slide stays back; B/Y drops the magazine, one from the pouch slapped up into the grip seats; the pouch shows the pistol's magazines.
+- [ ] Two headshots or three body shots kill a grunt {test:nailpistol}.
+- [ ] Holster it (hip, upper) and draw it; drop and throw it; the one lying on the floor picks up.
+- [ ] The armed grunts far off fire their nail pistols (one, and a pair) {test:nailpistol}.

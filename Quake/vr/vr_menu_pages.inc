@@ -1161,6 +1161,83 @@ void resetHandMoves()
     };
 }
 
+// Weapons > Reloading > Nail Pistol: its well (the grip's bottom), its magazine, holding and pulling it.
+[[nodiscard]] za::Vector<Item> pageReloadNailPistol()
+{
+    return {
+        header("At the Pouch"),
+        toggle("Reload at the Pouch", "vr_reload_pouch_npistol")
+            .help("With its magazine out, bring its empty grip down onto the magazines standing in the ammo pouch, along them "
+                  "(Reloading: Pouch Angle): a fresh magazine seats, from your nails. With one in, nothing."),
+        header("Load Point"),
+        toggle("Show Load Points", "vr_reload_show_ports")
+            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
+                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
+                  "where a hit knocks it out), to tune the offsets live."),
+        slider("Well X", "vr_reload_port_npistol_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nail pistol's well's load point forward (the gun's model units; negative: the other way)."),
+        slider("Well Y", "vr_reload_port_npistol_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nail pistol's well's load point left (the gun's model units; negative: the other way)."),
+        slider("Well Z", "vr_reload_port_npistol_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nail pistol's well's load point up (the gun's model units; negative: the other way)."),
+        slider("Well Radius", "vr_reload_port_npistol_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the nail pistol's well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        header("The Magazine's Top"),
+        slider("Top X", "vr_reload_mag_npistol_x", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nail pistol's magazine's reference point (its top, its feed end) along its gun (its model units)."),
+        slider("Top Y", "vr_reload_mag_npistol_y", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nail pistol's magazine's reference point (its top, its feed end) to its left (its model units)."),
+        slider("Top Z", "vr_reload_mag_npistol_z", -10.f, 10.f, 0.1f, "%.1f").extend()
+            .help("Moves the nail pistol's magazine's reference point (its top, its feed end) up its length (its model units)."),
+        slider("Top Radius", "vr_reload_mag_npistol_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
+            .help("The nail pistol's magazine's own radius round its reference point (added to the well's)."),
+        open("Magazine Pose in the Hand: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
+            .help("How a magazine out of the gun sits in the hand: take one from the pouch, then tune it there."),
+        header("Holding the Attached Cell"),
+        slider("Hand X", "vr_reload_hold_npistol_x", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached magazine is drawn moved forward (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Y", "vr_reload_hold_npistol_y", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached magazine is drawn moved left (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Z", "vr_reload_hold_npistol_z", -6.f, 6.f, 0.1f, "%.1f").extend()
+            .help("The other hand holding the attached magazine is drawn moved up (units, the gun's aim; mirrored for the main hand). Looks only."),
+        slider("Hand Pitch", "vr_reload_hold_npistol_pitch", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
+        slider("Hand Yaw", "vr_reload_hold_npistol_yaw", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
+        slider("Hand Roll", "vr_reload_hold_npistol_roll", -180.f, 180.f, 5.f, "%.0f")
+            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
+        toggle("Fingers Set by Hand", "vr_reload_hold_npistol_fingers")
+            .help("Off: the fingers close round the magazine as it is. On: each finger at its curl below."),
+        slider("Thumb Curl", "vr_reload_hold_npistol_curl_thumb", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Index Curl", "vr_reload_hold_npistol_curl_index", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Middle Curl", "vr_reload_hold_npistol_curl_middle", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Ring Curl", "vr_reload_hold_npistol_curl_ring", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        slider("Little Curl", "vr_reload_hold_npistol_curl_pinky", 0.f, 1.f, 0.05f, "%.2f")
+            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        header("Pull and Knock Out (All Magazines)"),
+        slider("Pull Speed", "vr_reload_pull_speed", 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f)
+            .help("Grip a gun's magazine with the other hand: it is a two-handed grip, and it stays in. It comes out "
+                  "into that hand only pulled out of its well (along it) this fast, or with the wrist snap or the "
+                  "hands apart below."),
+        slider("Pull Wrist Snap", "vr_reload_pull_snap", 0.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
+            .help("A wrist turning this fast against the gun's hand while holding the magazine takes it out too."),
+        slider("Pull Apart", "vr_reload_pull_apart", 0.f, 40.f, 0.5f, "%.1f units").extend(0.f, 200.f)
+            .help("And the hands moved this much further apart while holding it (about 40 cm at 10)."),
+        slider("Pull Reach", "vr_reload_pull_reach", 0.f, 12.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How far off the magazine (its box, as drawn) a hand closing its grip may be and still hold it "
+                  "(0: on it). Nearer the gun's own two-handed grip, the hand takes that instead."),
+        slider("Knock Out Speed", "vr_reload_bump_speed", 0.f, 15.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
+            .help("A hit on a seated magazine this hard pops it out: a punch, a held prop, another magazine (the bump "
+                  "reload: the new one is then seated at the well), or the other gun."),
+        slider("Knock Out Reach", "vr_reload_hit_reach", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
+            .help("How near the magazine (anywhere on it) a hit must land."),
+    };
+}
+
 // Weapons > Reloading > Widowmaker (AD support: the super shotgun with AD's upgrade; QC vr_ad_bridge.qc AD_FireWidowmaker):
 // an auto shotgun, its tube loaded by the handful at the shell port on its receiver's inner side.
 [[nodiscard]] za::Vector<Item> pageReloadWidowmaker()
@@ -1339,6 +1416,7 @@ void resetHandMoves()
         mode("Grenade Launcher", "vr_reload_mode_gl"),
         mode("Rocket Launcher", "vr_reload_mode_rl"),
         mode("Thunderbolt", "vr_reload_mode_light"),
+        mode("Nail Pistol", "vr_reload_mode_npistol"),
         mode("Widowmaker (Arcane Dimensions)", "vr_reload_mode_widow"),
         mode("Plasma Gun (Arcane Dimensions)", "vr_reload_mode_adplasma"),
     };
@@ -1373,6 +1451,7 @@ void resetHandMoves()
         open("Nailgun", pageIndex(pageReloadNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
         open("Super Nailgun", pageIndex(pageReloadSuperNailgun)).help("Its well, its magazine's top, its receiver, the hand holding the magazine, pulling it out."),
         open("Thunderbolt", pageIndex(pageReloadThunderbolt)).help("Its well, its cell's top, its receiver, the hand holding the cell, pulling it out."),
+        open("Nail Pistol", pageIndex(pageReloadNailPistol)).help("Its well (the grip's bottom), its magazine's top, the hand holding the magazine, pulling it out."),
         open("Launchers", pageIndex(pageReloadLaunchers)).help("The grenade, proximity and rocket launchers loaded at the muzzle: on or off, the round's angle, each muzzle's load point."),
         open("Widowmaker (Arcane Dimensions)", pageIndex(pageReloadWidowmaker)).help("Its tube, the handful of shells the pouch gives for it, its fire rate, its shell port's load point."),
         open("Plasma Gun (Arcane Dimensions)", pageIndex(pageReloadPlasmaGun)).help("Its cell's well on its inner side: the load point and the receiver (the cell itself: the Thunderbolt's page)."),
@@ -1445,6 +1524,8 @@ void resetHandMoves()
                   "seats."),
         toggle("Thunderbolt", "vr_reload_pouch_light")
             .help("Its well empty, brought down onto the cells in the pouch along them: a fresh one seats."),
+        toggle("Nail Pistol", "vr_reload_pouch_npistol")
+            .help("Its grip empty, brought down onto the magazines in the pouch along them: a fresh one seats."),
         slider("Pouch Contact", "vr_reload_pouch_contact", 0.f, 20.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
             .help("How near the load point (the shotgun's port, a well) must come to the rounds standing in the pouch."),
         slider("Pouch Angle", "vr_reload_pouch_angle", 5.f, 90.f, 5.f, "%.0f deg")
@@ -1731,8 +1812,6 @@ void resetHandMoves()
 
 // Graphics: retro textures (vr_retro.cpp): high-resolution textures drawn in Quake's chunky look, each kind of thing
 // with its own settings (a page each: pageRetroCategory).
-template <retro::Category C>
-[[nodiscard]] za::Vector<Item> pageRetroCategory();
 [[nodiscard]] za::Vector<Item> pageRetroOverride();
 [[nodiscard]] za::Vector<Item> pageRetroAll();
 
@@ -1949,17 +2028,6 @@ void retroSettingItems(za::Vector<Item>& items, const Var& var, const Has& has)
     return items;
 }
 
-template <retro::Category C>
-void retroResetCategory()
-{
-    Cbuf_AddText(va("vr_retro_reset %s\n", retro::categoryKey(C)));
-}
-
-template <retro::Category C>
-za::Vector<Item> pageRetroCategory()
-{
-    return retroCategoryItems(C, retroResetCategory<C>);
-}
 
 void retroAllCheckSettings()
 {

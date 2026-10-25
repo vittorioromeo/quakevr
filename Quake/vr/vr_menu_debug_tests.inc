@@ -28,6 +28,8 @@ za::Vector<Item> pageSpawnWeapons()
         command("Mjolnir", "vr_physics_spawn weapon_mjolnir reach"),
         command("Laser Gun", "vr_physics_spawn weapon_laser_gun reach"),
         command("Proximity Gun", "vr_physics_spawn weapon_proximity_gun reach"),
+        command("Nail Pistol", "vr_physics_spawn weapon_nailpistol reach")
+            .help("Quake VR's nail pistol lying ready to be picked up (with 24 nails)."),
         command("Toolgun", "vr_physics_spawn weapon_toolgun reach")
             .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its panel, its stick press switches the tool."),
     }, true);
@@ -977,6 +979,11 @@ za::Vector<Item> pageDebugTests()
         command("Open the Death Menu", "menu_autosaves death")
             .help("The menu a dead player gets (vr_death_menu): Respawn, Restart the Level, the autosaves; here alive, "
                   "to look at it."),
+        header("Nail Pistol"),
+        command("A Nail Pistol in Your Hand", "vr_np_test 2").help("A loaded nail pistol in the main hand (and 48 nails)."),
+        command("Nail Pistols in Both Hands", "vr_np_test 3").help("A loaded nail pistol in each hand."),
+        command("Nail Pistol Self-Test", "vr_np_test 1")
+            .help("Headless checks: semi-automatic, the cooldown, 12 hits and a dry 13th, the slide, the magazine cycle, two headshots or three body shots a grunt, armed grunts firing one and a pair (\"nptest: N passed, M failed\")."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

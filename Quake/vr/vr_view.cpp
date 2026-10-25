@@ -148,6 +148,9 @@ constexpr MagProp magProps[] = {
         &vr_reload_mag_snail_radius},
     {"progs/vr_mag_light.mdl", 3.6f, {&vr_reload_mag_light_x, &vr_reload_mag_light_y, &vr_reload_mag_light_z},
         &vr_reload_mag_light_radius},
+    // The nail pistol's (make_nailpistol_mags.py): its body's top (the nails peek 0.3 over it).
+    {"progs/vr_mag_npistol.mdl", 2.76f, {&vr_reload_mag_npistol_x, &vr_reload_mag_npistol_y, &vr_reload_mag_npistol_z},
+        &vr_reload_mag_npistol_radius},
 };
 #define QVR_WELL_OFFSETS(k)                                                                                             \
     {&vr_reload_well_##k##_x, &vr_reload_well_##k##_y, &vr_reload_well_##k##_z, &vr_reload_well_##k##_pitch,         \
@@ -170,6 +173,10 @@ constexpr MagMount magMounts[] = {
     // out than the lightning gun's would be (his VR notes 2026-10-18: it shows a little more; vr_adweapons.cpp plasmaSeat).
     {modelmeta::Id::AdVrPlasma, "progs/vr_mag_on_v_plasma.mdl#vr", "11.6 1.5 4.5", "progs/vr_magwell_on_v_plasma.mdl#vr",
         {11.6f, 2.1f, 4.5f}, {11.6f, 5.7f, 4.5f}, QVR_WELL_OFFSETS(adplasma), 2},
+    // The nail pistol's, up its grip (make_nailpistol_mags.py: its top 0.468 0 2.201 in the Body's frame, out along the
+    // grip's lean, 12 degrees back): no receiver drawn (the grip is its well: `well` none).
+    {modelmeta::Id::VNailPistol, "progs/vr_mag_on_v_nailpistol.mdl", "0.4678 0 2.2008", nullptr, {0.4678f, 0.f, 2.2008f},
+        {-0.0669f, 0.f, -0.5072f}, QVR_WELL_OFFSETS(npistol), 3},
 };
 #undef QVR_WELL_OFFSETS
 } // namespace
@@ -503,7 +510,10 @@ void view::prepareModels()
     for(const MagMount& m : magMounts)
     {
         names.pushBack(m.model); // (setupMagazines)
-        names.pushBack(m.well);
+        if(m.well)
+        {
+            names.pushBack(m.well);
+        }
     }
     names.pushBack(pumpModelName); // (setupPumps)
     names.pushBack(pumpBodyModelName);
@@ -1689,7 +1699,8 @@ void setupPouch(const hands::State& s)
 void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, bool well = false)
 {
     const MagMount* mount = show && gun.visible ? magMountFor(gun.ent.model) : nullptr;
-    qmodel_t* const model = mount ? viewModel(well ? mount->well : mount->model) : nullptr;
+    const char* const name = mount ? (well ? mount->well : mount->model) : nullptr; // (a well: none, the nail pistol's)
+    qmodel_t* const model = name ? viewModel(name) : nullptr;
     if(!model)
     {
         mag.visible = false;
@@ -2115,7 +2126,7 @@ void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
     const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND];
     pouchitems::Item items[pouchitems::most];
     const int n = placed && pouch.ent.model
-                      ? pouchitems::posed(kind & 7, (kind & 8) != 0, cl.stats[protocol::STAT_QVR_POUCHCOUNT], items)
+                      ? pouchitems::posed(kind & 23, (kind & 8) != 0, cl.stats[protocol::STAT_QVR_POUCHCOUNT], items)
                       : 0;
     ammoPouchItems = n;
     for(int j = 0; j < pouchitems::most; j++)
@@ -3886,8 +3897,8 @@ bool ammoPouchRounds(glm::vec3 (&box)[4])
 int ammoPouchMagSlots(glm::vec3 (&top)[pouchitems::magsMost], glm::vec3& up)
 {
     glm::vec3 box[4];
-    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND] & 7;
-    if(kind < 2 || kind > 4 || !ammoPouchRounds(box))
+    const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND] & 23; // (its 16: the nail pistol's magazines)
+    if((kind & 7) < 2 || (kind & 7) > 4 || !ammoPouchRounds(box))
     {
         return 0;
     }
@@ -3907,7 +3918,7 @@ int ammoPouchMagSlots(glm::vec3 (&top)[pouchitems::magsMost], glm::vec3& up)
 int ammoPouchMags(glm::vec3 (&top)[pouchitems::magsMost], glm::vec3& up)
 {
     const int kind = cl.stats[protocol::STAT_QVR_POUCHKIND] & 7;
-    if(!ammoPouchPlaced || !entities.ammoPouch.ent.model || kind < 2 || kind > 4)
+    if(!ammoPouchPlaced || !entities.ammoPouch.ent.model || kind < 2 || kind > 4) // (the nail pistol's: 2)
     {
         return 0;
     }
