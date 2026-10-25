@@ -577,6 +577,12 @@ def scenarios():
     add("load_ad_tears", ["r25", "loading"], "AD's ad_tears (85 MB BSP, the biggest on hand) loaded cold, native AD", None,
         "`map ad_tears` with `vr_campaign_native ad`, cold.", header=AD,
         setup=LOADS, warm=30, body=loads_body([("cold", "map ad_tears")], each=200), loads=1, frames=0)
+    add("load_ad_restarts", ["loading"], "AD's maps restarted (a death): ad_sepulcher and ad_tfuma, each cold then twice",
+        None, "`map ad_sepulcher`, `restart` twice, `map ad_tfuma`, `restart` twice, native AD: the restarts keep the "
+        "crates' and rocks' layouts (vr_place_keep), the hulls (vr_hull_keep).", header=AD, setup=LOADS, warm=30,
+        body=loads_body([("sep_cold", "map ad_sepulcher"), ("sep_restart1", "restart"), ("sep_restart2", "restart"),
+                         ("tfuma_cold", "map ad_tfuma"), ("tfuma_restart1", "restart"), ("tfuma_restart2", "restart")]),
+        loads=6, frames=0)
     add("saveload_e1m1", ["r25", "loading"], "a saved game: E1M1 with a fight going, saved, loaded twice", "e1m1",
         "E1M1's computer room (skill 2) with 3 grunts and 2 dogs spawned, hostile; `save qvrbench` (the save's frame), "
         "then `load qvrbench` twice: each load by stage (the saved game's entities), the frames after.",

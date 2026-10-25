@@ -622,6 +622,11 @@ QVR_CVAR(vr_setup_screens_cache, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Crates' Placing: Entities First: 1 a crate's or a rock's place tested against the map's
 // entities' boxes before its traces (vr_crates.cpp, vr_debris.cpp: the same places, a map's start faster); 0 after them
 QVR_CVAR(vr_place_entities_first, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Keep Crates' and Rocks' Layouts: 1 the last plan of the crates and of the rocks and
+// bricks kept for the session and taken again while its key is the same (vr_debris.hpp PlanKey: the map's name, files
+// and geometry, every vr_crate*, vr_debris*, vr_place_* setting, the entities' boxes at the plan): a restart of the map
+// (a death) skips the planning (200-250 ms in AD's big maps); 0 planned at every load, as before. The same layout either way.
+QVR_CVAR(vr_place_keep, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Load Prewarm: 1 what a map's first frames, the first gun lying near you and each model's
 // first smooth draw made at first use (the models' rig data, the reflections' world buffers, the guns' screen anchors,
 // your skin masks and glove paint) made in the map's load instead (VR_NewMap; ROUND22.md "Frame spikes"); 0 at first use

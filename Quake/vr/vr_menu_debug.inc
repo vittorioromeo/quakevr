@@ -620,6 +620,11 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_place_entities_first: a place for a crate, barrel, rock or brick (at a map's start) tested against "
                   "the map's entities before its traces (on), or after them (off, as before). The same places either way; "
                   "a big map starts faster (150 ms in Arcane Dimensions' Sepulcher)."),
+        toggle("Keep Crates' and Rocks' Layouts", vr_place_keep)
+            .help("vr_place_keep: the crates', rocks' and bricks' last layout kept and taken again when the map, its "
+                  "entities and their settings are the same (on: a restart after a death loads faster, 200-250 ms in "
+                  "Arcane Dimensions' big maps), or planned again at every load (off, as before). The same layout either way; "
+                  "another seed or setting plans anew."),
         toggle("Load Prewarm", vr_load_prewarm)
             .help("vr_load_prewarm: made in a map's load (on), or at their first use as before (off): each model's rig data "
                   "for smooth animation (6-27 ms the first time a monster kind was seen), the reflections' world buffers, the "
