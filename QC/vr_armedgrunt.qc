@@ -2019,7 +2019,8 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
 .float vr_ag_main_wflags;  // ... its flags
 .entity vr_ag_main_inst;   // ... its record (its clip)
 .float vr_ag_main_reserve; // ... its reserve
-float vr_ag_arm_roll = -1; // VR_AM_ArmAll's roll for one (-1: none rolled: a map's or the toolgun's own weapons)
+float vr_ag_arm_rolled; // VR_AM_ArmAll's: a roll for one made (not for a map's or the toolgun's own weapons)
+float vr_ag_arm_roll;   // ... the roll, 0..1 (no initialiser: a QC global with one is a constant)
 float vr_ag_flare_draws;   // armed grunts that took their own weapon after their flare gun (the tests)
 
 // `g`'s flare gun (its roll `r`, 0..1, under vr_agrunt_flaregun): its weapon stowed, the flare gun in its hand.
@@ -2252,7 +2253,8 @@ void(float kind) VR_AM_Spawn =
     self.th_run = vr_ag_run1;
     self.th_missile = VR_AG_Missile;
     self.th_melee = VR_AG_Melee;
-    vr_ag_arm_roll = (pooled && want2 == 0) ? random() : -1; // (a flare gun too: one from the pool, one weapon)
+    vr_ag_arm_rolled = (pooled && want2 == 0); // (a flare gun too: one from the pool, one weapon)
+    vr_ag_arm_roll = random();
     VR_AM_ArmAll(want, flags, inst, want2, flags2);
 };
 
@@ -2285,10 +2287,10 @@ void(float want, float flags, entity inst, float want2, float flags2) VR_AM_ArmA
         self.vr_ag_reserve2 = VR_AG_SingleUse(self.vr_ag_wid2) ? 0 :
             VR_AG_ClipOf(self.vr_ag_wid2, self.vr_ag_prop2.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));
     }
-    if(vr_ag_arm_roll >= 0)
+    if(vr_ag_arm_rolled)
     {
+        vr_ag_arm_rolled = FALSE;
         VR_AG_MaybeFlareGun(self, vr_ag_arm_roll);
-        vr_ag_arm_roll = -1;
     }
     VR_AG_Log(sprintf("spawned with %s%s%s (%g in reserve)", self.vr_ag_prop ? self.vr_ag_prop.netname : "its fists",
         self.vr_ag_prop2 ? " and in its left hand " : "", self.vr_ag_prop2 ? self.vr_ag_prop2.netname : "", self.vr_ag_reserve));

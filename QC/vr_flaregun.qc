@@ -330,8 +330,8 @@ void() VR_Flare_Think =
         // Swaying as it sinks (its chute in the air).
         float t = time - self.vr_flare_born;
         float fall = max(1, cvar_hget(cvarh_vr_flare_air_fall));
-        self.velocity_x = self.velocity_x * 0.9 + sin(t * 1.3 + self.vr_flare_phase) * fall * 0.15;
-        self.velocity_y = self.velocity_y * 0.9 + cos(t * 1.1 + self.vr_flare_phase) * fall * 0.15;
+        self.velocity_x = self.velocity_x * 0.9 + sin(t * 1.3 + self.vr_flare_phase) * fall * 0.015; // (about 0.15 of its fall at most)
+        self.velocity_y = self.velocity_y * 0.9 + cos(t * 1.1 + self.vr_flare_phase) * fall * 0.015;
         self.velocity_z = -fall;
     }
 };

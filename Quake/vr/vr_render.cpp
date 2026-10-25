@@ -8,6 +8,7 @@
 //     * T(hdr->scale_origin) * S(hdr->scale)                                   (Ironwail)
 //     * S(model scale) * T(network model_offset)                               (post)
 
+#include "vr_modelmetadata.hpp"
 #include "vr_render.hpp"
 #include "vr_engine.hpp"
 #include "vr_anchor.hpp"
@@ -626,6 +627,17 @@ extern "C" void VR_AliasLightModifier(const entity_t* e, float lightcolor[3])
         }
     }
     view::bareLight(e, lightcolor); // bare forearms: the hands in your body's light
+    // The flare gun's flares (QC vr_flaregun.qc) burn: lit by their own fire, fading with them (its alpha), whatever
+    // the room's light.
+    if(e->model && modelmeta::is(e->model, modelmeta::Id::VrFlare))
+    {
+        const float a = ENTALPHA_DECODE(e->alpha);
+        constexpr float glow[3] = {1.7f, 0.75f, 0.55f};
+        for(int i = 0; i < 3; i++)
+        {
+            lightcolor[i] = za::max(lightcolor[i], glow[i] * a);
+        }
+    }
 }
 
 namespace

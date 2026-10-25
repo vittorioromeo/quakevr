@@ -341,6 +341,7 @@ void() VR_FLT_Frame =
             if(w1) { remove(w1); }
             VR_FLT_ClearFlares();
             vr_flt_e = VR_NPT_Grunt(140, -1, 0); // (a grunt, its fists: standing still)
+            vr_flt_t0 = 0;
             vr_fg_hits = vr_fg_ignited = 0;
             VR_FLT_Next();
         }
@@ -349,9 +350,11 @@ void() VR_FLT_Frame =
     {
         // A flare into the grunt's chest.
         entity g = vr_flt_e;
-        if(vr_flt_frames == 12) // (its own start done: it takes damage)
+        if(vr_flt_t0 == 0 && g.takedamage) // (its own start done: it takes damage)
         {
             VR_FLT_FlareAt(g.origin + '0 0 8');
+            dprint(sprintf("flaretest: a flare at the grunt at %v (you at %v), %g frames in\n", g.origin, p.origin, vr_flt_frames));
+            vr_flt_t0 = time;
         }
         if(vr_fg_hits >= 1 || vr_flt_frames == 90)
         {
@@ -463,7 +466,7 @@ void() VR_FLT_Frame =
             cvar_set("vr_flare_air_fall", "20");
             entity os6 = self;
             self = p;
-            makevectors('-80 0 0' + '0 1 0' * p.angles_y);
+            makevectors('-89 0 0' + '0 1 0' * p.angles_y);
             vr_flt_e = VR_Flare_Launch(p.origin + '0 0 16', v_forward, sp / v_forward_z, '0 0 0');
             self = os6;
             vr_flt_t0 = 0;
@@ -498,19 +501,18 @@ void() VR_FLT_Frame =
             VR_FLT_Check(fabs(lasted7 - 3) < 0.08 && vr_fg_out == a,
                 sprintf("out after %.2f s drifting (vr_flare_air_time 3; landed first: %g)", lasted7, vr_fg_out != a));
             VR_FLT_ClearFlares();
-            // An armed grunt from the pool, a flare gun first.
+            // An armed grunt from the pool (vr_agrunt_flaregun 1: a flare gun first, unless its fists), and one with a
+            // shotgun given its flare gun as the pool's would be (its weapon known: the checks the same every run;
+            // temp1 another weapon id).
             cvar_set("vr_agrunt_flaregun", "1");
             cvar_set("vr_agrunt_dual_chance", "0");
-            vector at7 = VR_FLT_Ahead(300);
-            entity os7 = self;
-            self = spawn();
-            setorigin(self, at7 + '0 0 24');
-            self.angles_y = vectoyaw(p.origin - at7);
-            self.weapon = 0;
-            VR_AM_Spawn(0);
-            self.movetype = MOVETYPE_NONE;
-            vr_flt_e = self;
-            self = os7;
+            entity pooled = VR_NPT_Grunt(200, 0, 0);
+            VR_FLT_Check(pooled.vr_ag_prop ? (pooled.vr_ag_prop.weapon == WID_FLAREGUN && pooled.vr_ag_main_wid > 0) :
+                pooled.vr_ag_main_wid == 0, sprintf("one from the pool: %s first, its %s stowed",
+                pooled.vr_ag_prop ? pooled.vr_ag_prop.netname : "fists", WeaponIdToWeaponName(pooled.vr_ag_main_wid)));
+            VR_AGT_Remove(pooled);
+            vr_flt_e = VR_NPT_Grunt(300, cvar("temp1") > 0 ? cvar("temp1") : WID_SHOTGUN, 0);
+            VR_AG_MaybeFlareGun(vr_flt_e, 0);
             VR_FLT_Next();
         }
         else if(vr_flt_frames == 72 * 8)
@@ -577,14 +579,19 @@ void() VR_FlareGun_TestFrame =
     {
         cvar_set("vr_flare_test", "0");
         vr_flt_player = find(world, classname, "player");
+        vr_npt_player = vr_flt_player; // (the nail pistol test's helpers: VR_NPT_Grunt)
         if(!vr_flt_player) { dprint("flaretest: no player\n"); return; }
         if(req >= 2 && req <= 4)
         {
             VR_FLT_Give(req);
             return;
         }
-        if(req == 6)
+        if(req == 6 || req == 9)
         {
+            if(req == 9)
+            {
+                lightstyle(0, "b"); // (9: the map's lights all but out: the flares light a dark room)
+            }
             VR_FLT_Scene();
             return;
         }
