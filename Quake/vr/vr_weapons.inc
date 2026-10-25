@@ -2674,7 +2674,7 @@ QVR_WEAPON_DEFAULT(35, Heft, "0")    // AD plasma gun
 QVR_WEAPON_DEFAULT(40, Heft, "0")    // the fury's swords (dual-wielded)
 QVR_WEAPON_DEFAULT(41, Heft, "0.35") // death knight's sword
 QVR_WEAPON_DEFAULT(42, Heft, "0")    // zombie knight's sword
-QVR_WEAPON_DEFAULT(43, Heft, "0.3")  // death guard's sword
+QVR_WEAPON_DEFAULT(43, Heft, "0.35") // death guard's sword: the death knight's (approved 2026-10-25; was 0.3 until vr_wofs_version 66)
 QVR_WEAPON_DEFAULT(44, Heft, "0.9")  // hunter ogre's hammer
 QVR_WEAPON_DEFAULT(45, Heft, "0.85") // hunter ogre's mace
 QVR_WEAPON_DEFAULT(50, Heft, "0.85") // death sergeant's flail

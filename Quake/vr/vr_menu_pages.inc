@@ -2265,6 +2265,7 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         slider("Shoreline Foam", "vr_water_foam", 0.f, 2.f, 0.1f, "%.1f").extend().help("Foam where water meets walls, steps and things standing in it; a scum on slime, a molten crust on lava (0 off). Each liquid's look: Shoreline Foam settings."),
         open("Shoreline Foam Settings", pageIndex(pageGraphicsFoam)).help("Each liquid's shoreline foam (water, lava, slime): opacity, how fine and how far, its breathing, its colour and the foam particles along the shore."),
         slider("Heat Haze", "vr_heat_haze", 0.f, 1.f, 0.1f, "%.1f").help("The air shimmers over lava, round explosions and over flames (0 off)."),
+        cycle("Heat Haze Detail", "vr_heat_haze_half", {{1.f, "Half Size"}, {0.f, "Full Size"}}).extend().help("What the heat haze bends: a copy of the view at half size (cheaper where the haze covers much of the view, standing in fire or over lava; a little softer inside the haze) or at full size (sharp, as before)."),
         header("Under Water"),
         slider("Caustics", "vr_water_caustics", 0.f, 1.5f, 0.05f, "%.2f").extend().help("Dappled light on floors and walls under water."),
         slider("Underwater View", "vr_water_underwater", 0.f, 1.5f, 0.1f, "%.1f").extend().help("With your head under: the liquid's fog and tint, a little blur. 0: Quake's colour shift."),

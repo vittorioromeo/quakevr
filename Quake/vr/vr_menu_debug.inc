@@ -244,6 +244,9 @@ za::Vector<Item> pageDebugViews()
         command("Weapon Settings Inheritance", "vr_wofs_dump")
             .help("vr_wofs_dump: in the console, the weapon slots that inherit another's settings, and from which; "
                   "vr_wofs_dump <slot> ... prints every value a slot uses (\"<-n\": slot n's)."),
+        command("Held Heads' Weights", "vr_prop_heads")
+            .help("vr_prop_heads: in the console, each monster head's held-object slot, its Mass setting and what it "
+                  "weighs (Mass -1: its share of its monster's ragdoll, an AD monster's as the class it is tuned as)."),
         command("Magnetic Holsters Info", "vr_magholster_info")
             .help("vr_magholster_info: in the console, each holster's bound weapon (Immersion > Magnetic Holsters): where it "
                   "is (holstered, held, away and how far), its chains and their links."),

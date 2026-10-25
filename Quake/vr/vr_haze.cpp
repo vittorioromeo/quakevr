@@ -70,6 +70,7 @@ layout(location = 3) uniform vec4 Center;
 layout(location = 4) uniform vec4 Radii;
 layout(location = 5) uniform vec4 Viewport;  // the scene's, in the framebuffer's pixels
 layout(location = 6) uniform vec4 CopyRect;  // the part copied, in the viewport's pixels (x0, y0, x1, y1)
+layout(location = 7) uniform vec2 CopySize;  // the viewport's pixels the copy's width and height stand for
 layout(location = 0) in vec4 WorldPos;
 layout(location = 0) out vec4 Out;
 
@@ -163,22 +164,24 @@ void main()
     if (Params.y > 0. && SceneDistance(gl_FragCoord.xy + shift) < t0 * perT)
         shift = vec2(0.0); // not what is in front of the hot air (a hand, a gun): its colours would smear round it
     vec2 p = clamp(gl_FragCoord.xy - Viewport.xy + shift, CopyRect.xy + 0.5, CopyRect.zw - 0.5);
-    Out = vec4(texture(Scene, p / Viewport.zw).rgb, 1.0);
+    Out = vec4(texture(Scene, p / CopySize).rgb, 1.0);
 }
 )";
 
 GLuint program = 0;
 bool programFailed = false;
 
-// The copy of the scene: the viewport's size, the scene's format; only the part the hot air covers is copied.
+// The copy of the scene: the viewport's size (or half of it: vr_heat_haze_half), the scene's format; only the part the
+// hot air covers is copied.
 struct Copy
 {
     GLuint texture = 0, fbo = 0;
     int width = 0, height = 0;
     GLint format = 0;
 };
-// One for the eyes, one for the window's spectator camera (vr_window.cpp): each keeps its size.
-Copy copies[2];
+// One for the eyes, one for the window's spectator camera (vr_window.cpp): each keeps its size. Each a full-size one
+// (bullet time's trails; the haze with vr_heat_haze_half 0 or a multisampled scene) and a half-size one (the haze).
+Copy copies[2][2];
 
 [[nodiscard]] int viewSlot()
 {
@@ -211,9 +214,9 @@ GLint sceneFormat(GLuint color, int samples)
     return z.format;
 }
 
-bool ensureCopy(int width, int height, GLint format)
+bool ensureCopy(int width, int height, GLint format, bool half)
 {
-    Copy& copy = copies[viewSlot()];
+    Copy& copy = copies[viewSlot()][half ? 1 : 0];
     if(copy.texture && copy.width == width && copy.height == height && copy.format == format)
     {
         return true;
@@ -232,7 +235,7 @@ bool ensureCopy(int width, int height, GLint format)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-    GL_ObjectLabelFunc(GL_TEXTURE, copy.texture, -1, "vr haze scene copy");
+    GL_ObjectLabelFunc(GL_TEXTURE, copy.texture, -1, half ? "vr haze scene copy (half)" : "vr haze scene copy");
     GL_GenFramebuffersFunc(1, &copy.fbo);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, copy.fbo);
     GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, copy.texture, 0);
@@ -240,6 +243,37 @@ bool ensureCopy(int width, int height, GLint format)
     copy.height = height;
     copy.format = format;
     return true;
+}
+
+// The part (x0, y0) .. (x1, y1) of the viewport copied to the same place of this view's copy. Half: to a half-size copy,
+// the part widened to even pixels (x0, y0 down, x1, y1 up), each texel the mean of the four under it (a linear blit at
+// exactly half); a single-sampled scene only (a multisampled one's resolve cannot scale).
+GLuint copyPart(GLuint sceneFbo, GLuint color, int samples, const int viewport[4], int x0, int y0, int x1, int y1, bool half)
+{
+    const GLint format = sceneFormat(color, samples);
+    const int w = half ? (viewport[2] + 1) / 2 : viewport[2], h = half ? (viewport[3] + 1) / 2 : viewport[3];
+    if(!format || !ensureCopy(w, h, format, half))
+    {
+        return 0;
+    }
+    const Copy& copy = copies[viewSlot()][half ? 1 : 0];
+    QVR_GPU_PROFILE("copy");
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, sceneFbo);
+    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, copy.fbo);
+    if(half)
+    {
+        const int hx0 = x0 / 2, hy0 = y0 / 2, hx1 = (x1 + 1) / 2, hy1 = (y1 + 1) / 2;
+        // (an odd viewport's last column or row: half a texel's source stretched over it)
+        GL_BlitFramebufferFunc(viewport[0] + 2 * hx0, viewport[1] + 2 * hy0, viewport[0] + za::min(2 * hx1, viewport[2]),
+            viewport[1] + za::min(2 * hy1, viewport[3]), hx0, hy0, hx1, hy1, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    }
+    else
+    {
+        GL_BlitFramebufferFunc(viewport[0] + x0, viewport[1] + y0, viewport[0] + x1, viewport[1] + y1, x0, y0, x1, y1,
+            GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    }
+    R_SetupGL();
+    return copy.texture;
 }
 
 // ----------------------------------------------------------------------------
@@ -586,11 +620,23 @@ void draw()
         distances = water::opaqueSceneDistances();
     }
 
-    // The copy: the part covered, resolved.
-    const GLuint copyTexture = copyScene(sceneFbo, color, samples, viewport, x0, y0, x1, y1);
+    // The copy: the part covered, resolved; at half size (vr_heat_haze_half), read only between the centres of the
+    // texels copied (CopyRect: half-size texels' edges at even full-size pixels).
+    const bool half = vr_heat_haze_half.value != 0.f && samples <= 1;    const GLuint copyTexture = copyPart(sceneFbo, color, samples, viewport, x0, y0, x1, y1, half);
     if(!copyTexture)
     {
         return;
+    }
+    float copyRect[4] = {static_cast<float>(x0), static_cast<float>(y0), static_cast<float>(x1), static_cast<float>(y1)};
+    float copySize[2] = {static_cast<float>(vw), static_cast<float>(vh)};
+    if(half)
+    {
+        copyRect[0] = static_cast<float>(x0 / 2 * 2) + 0.5f;
+        copyRect[1] = static_cast<float>(y0 / 2 * 2) + 0.5f;
+        copyRect[2] = static_cast<float>((x1 + 1) / 2 * 2) - 0.5f;
+        copyRect[3] = static_cast<float>((y1 + 1) / 2 * 2) - 0.5f;
+        copySize[0] = static_cast<float>((vw + 1) / 2 * 2);
+        copySize[1] = static_cast<float>((vh + 1) / 2 * 2);
     }
 
     glEnable(GL_SCISSOR_TEST);
@@ -601,7 +647,8 @@ void draw()
     GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, r_framedata.viewproj);
     GL_Uniform4fFunc(1, eye.x, eye.y, eye.z, static_cast<float>(cl.time));
     GL_Uniform4fFunc(5, static_cast<float>(viewport[0]), static_cast<float>(viewport[1]), static_cast<float>(vw), static_cast<float>(vh));
-    GL_Uniform4fFunc(6, static_cast<float>(x0), static_cast<float>(y0), static_cast<float>(x1), static_cast<float>(y1));
+    GL_Uniform4fFunc(6, copyRect[0], copyRect[1], copyRect[2], copyRect[3]);
+    GL_Uniform2fFunc(7, copySize[0], copySize[1]);
     const float hasDistances = distances ? 1.f : 0.f;
 
     // Lava: its layers' front faces, depth tested; the eye in one: a quad over the view, the ray from the eye.
@@ -662,19 +709,7 @@ void draw()
 
 unsigned copyScene(unsigned sceneFbo, unsigned color, int samples, const int viewport[4], int x0, int y0, int x1, int y1)
 {
-    const GLint format = sceneFormat(color, samples);
-    if(!format || !ensureCopy(viewport[2], viewport[3], format))
-    {
-        return 0;
-    }
-    const Copy& copy = copies[viewSlot()];
-    QVR_GPU_PROFILE("copy");
-    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, sceneFbo);
-    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, copy.fbo);
-    GL_BlitFramebufferFunc(viewport[0] + x0, viewport[1] + y0, viewport[0] + x1, viewport[1] + y1, x0, y0, x1, y1,
-        GL_COLOR_BUFFER_BIT, GL_NEAREST);
-    R_SetupGL();
-    return copy.texture;
+    return copyPart(sceneFbo, color, samples, viewport, x0, y0, x1, y1, false);
 }
 
 } // namespace qvr::haze
