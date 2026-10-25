@@ -2250,25 +2250,50 @@ extern "C" void VR_BeginFrame()
 
     {
         QVR_TRACY_SCOPE(zoneCountsAndTexts, "frame setup: counts and texts"); // (profiling builds only)
-        sampleCounts(); // vr_memstats: the last frame's, before its texts are cleared
-        lines::clear(); // queued anew every frame (teleport aim, crosshairs)
-        text3d::clear();
-        voicenotes::frame(); // after the clear: its indicator is queued anew each frame
-        tips::frame();       // a tip due, the one showing (vr_tips)
-        highlights::frame(); // the game's clock against realtime, a multi-kill's end
-        motion::frame();     // the motion recorder's indicator, likewise
-        posing::frame();     // the weapon posing mode's text, likewise
-        holstersetup::frame(); // Holster Setup: a held holster follows its hands; its boxes, labels and panel
-        bladeedit::frame();  // Edit Blade Shape: a held handle follows its hand; the blade, its handles and panel
-        posestudio::frame(); // the Pose Studio: a held part follows its hand; the armed humanoid's boxes and the panel
-        sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
-        bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
-        stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)
-        setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
-        worldtext::viewMessageFrame(); // a view message (target_vr_message): in the middle of the view while it lasts
-        scenario::frame();   // a checklist test scene: placed once its map is in, its hint
-        loading::frame();    // "Loading..." while a level change waits for the headset to show it (vr_loading.cpp)
-        retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved
+        // (each step zoned in profiling builds: "frame setup: counts and texts" was 0.18 ms a frame in a big AD map)
+        {
+            QVR_TRACY_SCOPE(zoneSampleCounts, "texts: sample counts");
+            sampleCounts(); // vr_memstats: the last frame's, before its texts are cleared
+        }
+        {
+            QVR_TRACY_SCOPE(zoneTextClear, "texts: clear");
+            lines::clear(); // queued anew every frame (teleport aim, crosshairs)
+            text3d::clear();
+        }
+        {
+            QVR_TRACY_SCOPE(zoneNotesTips, "texts: notes, tips, highlights");
+            voicenotes::frame(); // after the clear: its indicator is queued anew each frame
+            tips::frame();       // a tip due, the one showing (vr_tips)
+            highlights::frame(); // the game's clock against realtime, a multi-kill's end
+        }
+        {
+            QVR_TRACY_SCOPE(zoneMotionFrame, "texts: motion");
+            motion::frame();     // the motion recorder's indicator, likewise
+        }
+        {
+            QVR_TRACY_SCOPE(zoneEditors, "texts: posing and editors");
+            posing::frame();     // the weapon posing mode's text, likewise
+            holstersetup::frame(); // Holster Setup: a held holster follows its hands; its boxes, labels and panel
+            bladeedit::frame();  // Edit Blade Shape: a held handle follows its hand; the blade, its handles and panel
+            posestudio::frame(); // the Pose Studio: a held part follows its hand; the armed humanoid's boxes and the panel
+            sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
+            bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
+        }
+        {
+            QVR_TRACY_SCOPE(zoneStealthDebug, "texts: stealth meters");
+            stealth::debugFrame(); // the monsters' meters drawn over them (vr_stealth_debug_meters)
+        }
+        {
+            QVR_TRACY_SCOPE(zoneSetupFrame, "texts: calibration");
+            setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
+        }
+        {
+            QVR_TRACY_SCOPE(zoneRestTexts, "texts: messages, scenario, loading, retro");
+            worldtext::viewMessageFrame(); // a view message (target_vr_message): in the middle of the view while it lasts
+            scenario::frame();   // a checklist test scene: placed once its map is in, its hint
+            loading::frame();    // "Loading..." while a level change waits for the headset to show it (vr_loading.cpp)
+            retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved
+        }
     }
     {
         QVR_TRACY_SCOPE(zoneConfigMemoryLogOverlay, "frame setup: config, memory log, overlay"); // (profiling builds only)

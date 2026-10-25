@@ -1303,7 +1303,7 @@ void Host_ServerFrame (void)
 	VR_ProfileEnd (); // QVR
 
 //johnfitz -- devstats
-	if (cls.signon == SIGNONS)
+	if (cls.signon == SIGNONS && (devstats.value || developer.value)) // QVR: counted only when shown or warned about (a walk of every edict a server frame: 4000 in AD's big maps)
 	{
 		for (i=0, active=0; i<qcvm->num_edicts; i++)
 		{
