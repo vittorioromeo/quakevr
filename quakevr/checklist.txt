@@ -2,6 +2,12 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Heavy revolver {test:revolver}: a shot each pull, the hammer cocks and falls, the cylinder turns a chamber; heavy kick and flash; grip and holsters sit right (copied from the nail pistol: tune if not)
+Heavy revolver: a wrist flick toward the cylinder (or B/Y) swings it out; muzzle up, B/Y or the ejector rod drops the shells (spent casings plus live shells); the blue slugs and spent vs live are visible
+Heavy revolver: single shells from the pouch go into the chamber you hold them at; swipe to spin; empty chambers click and advance
+Heavy revolver: a flick back or a push from below closes it; a grunt dies to one headshot (head pops) or two body shots; an ogre to 4-5; tune the flick force and wrist angle to taste
+Armed grunts rarely carry a heavy revolver and fire it at you
+Player Appearance > Nails > Painted Nails on: red nails on both jointed hands, glossy; fingerless gloves show them, full gloves hide them; colour and gloss sliders change them live
 Flare gun in hand {test:flaregun}: the fist round the grip, the finger on the trigger; down the sights the brass blade sits in the rear notch; tune its grip (Weapon Offsets) if it sits wrong
 Flare gun: fire both flares: a pull each, top barrel first, then the bottom; the kick and thump; the muzzles sooted (top, then both); a third pull clicks; throw it away
 Flare gun: a flare into a grunt sets it on fire; into an explosive box blows it up; into a crate sets it burning
