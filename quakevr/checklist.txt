@@ -1,6 +1,9 @@
 # Quake VR playtest checklist (VR menu > Checklist). One line = one quick check; tick what works, tell me what doesn't.
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
+[new since the beta4 list: test these first]
+Flare gun art: Debug > Tools > Model Previews > Flare Gun Art (or scene flaregun_art): walk around it, the barrels look parallel; look down the sights: the brass blade sits in the rear notch; compare its size with the nail pistol beside it {test:flaregun_art}
+
 [beta4: test these first]
 # Default-on changes since v1.1.0-beta3, most important first; armed humanoids and dev-only tools are further down.
 # -- performance and loading (new code on every frame and every load) --
