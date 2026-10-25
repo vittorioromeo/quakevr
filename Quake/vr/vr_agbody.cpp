@@ -99,7 +99,7 @@ State state;
     return a + t * ab;
 }
 
-bool fit(const ragdoll::Rig& rig, int bone, agbody::Proxy& out)
+bool fit(const ragdoll::Rig& rig, int bone, agbody::Proxy& out, float sides = 1.f)
 {
     if(bone < 0 || bone >= rig.numBones || rig.bones[bone].points.size() < 8)
     {
@@ -113,12 +113,19 @@ bool fit(const ragdoll::Rig& rig, int bone, agbody::Proxy& out)
     {
         s.clear();
     }
+    const glm::vec3 ab = out.b - out.a;
+    const float len2 = za::max(glm::dot(ab, ab), 1e-6f);
     for(const glm::vec3& p : b.points)
     {
         const glm::vec3 q = p - closest(p, out.a, out.b);
+        const bool low = sides >= 1.f || glm::dot(p - out.a, ab) / len2 <= sides;
         for(int i = 0; i < 3; i++)
         {
-            state.scratch[q[i] >= 0.f ? i : 3 + i].pushBack(za::abs(q[i])); // (each side its own: a chest, a backpack)
+            // (each side its own: a chest, a backpack; the sides and back from the lower part only when `sides` < 1)
+            if(low || (i == 0 && q[i] >= 0.f) || i == 2)
+            {
+                state.scratch[q[i] >= 0.f ? i : 3 + i].pushBack(za::abs(q[i]));
+            }
         }
     }
     const auto radius = [](za::Vector<float>& s) {
@@ -151,19 +158,31 @@ bool fit(const ragdoll::Rig& rig, int bone, agbody::Proxy& out)
 namespace qvr::agbody
 {
 
-const Proxies* of(const qmodel_t* model, const ragdoll::Rig& rig, int chest)
+const Proxies* of(const qmodel_t* model, const ragdoll::Rig& rig, int chest, float sides)
 {
-    for(const Proxies& m : state.models)
+    sides = vr_agbody_torso_sides.value > 0.f ? vr_agbody_torso_sides.value : sides; // (the tuning's override)
+    sides = za::clamp(sides, 0.2f, 1.f);
+    Proxies* again = nullptr;
+    for(Proxies& m : state.models)
     {
         if(m.model == model)
         {
-            return m.ok ? &m : nullptr;
+            if(m.sides == sides)
+            {
+                return m.ok ? &m : nullptr;
+            }
+            again = &m; // (fitted with another share: fitted again in place)
+            break;
         }
     }
-    Proxies& m = state.models[state.next];
-    state.next = (state.next + 1) % maxModels;
+    Proxies& m = again ? *again : state.models[state.next];
+    if(!again)
+    {
+        state.next = (state.next + 1) % maxModels;
+    }
     m = Proxies{};
     m.model = model;
+    m.sides = sides;
     if(chest < 0 || chest >= rig.numBones)
     {
         return nullptr;
@@ -171,7 +190,7 @@ const Proxies* of(const qmodel_t* model, const ragdoll::Rig& rig, int chest)
     const int bones[maxProxies] = {chest, rig.bones[chest].parent, rig.head};
     for(int i = 0; i < maxProxies; i++)
     {
-        if(fit(rig, bones[i], m.p[m.n]))
+        if(fit(rig, bones[i], m.p[m.n], i == Torso ? sides : 1.f))
         {
             m.n++;
         }
@@ -334,9 +353,10 @@ void print()
         for(int i = 0; i < m.n; i++)
         {
             const Proxy& p = m.p[i];
-            Con_Printf("agbody %s %s: bone %d, %.1f %.1f %.1f to %.1f %.1f %.1f, radii %.1f %.1f %.1f, back %.1f %.1f %.1f\n", m.model->name,
+            Con_Printf("agbody %s %s: bone %d, %.1f %.1f %.1f to %.1f %.1f %.1f, radii %.1f %.1f %.1f, back %.1f %.1f %.1f%s\n", m.model->name,
                 i == Torso ? "torso" : i == Pelvis ? "pelvis" : "head", p.bone, p.a.x, p.a.y, p.a.z, p.b.x, p.b.y, p.b.z,
-                p.radii.x, p.radii.y, p.radii.z, p.back.x, p.back.y, p.back.z);
+                p.radii.x, p.radii.y, p.radii.z, p.back.x, p.back.y, p.back.z,
+                i == Torso && m.sides < 1.f ? va(" (sides from its lower %.2f)", static_cast<double>(m.sides)) : "");
         }
     }
 }

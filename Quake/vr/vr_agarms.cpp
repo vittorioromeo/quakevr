@@ -37,7 +37,6 @@ constexpr float handReach = 1.5f;    // the hand's segment (wrist to the forearm
 constexpr float armRadius = 0.7f;    // an arm's vertex: within this share of its upper arm's length of its bones' lines
 constexpr float reachMost = 0.97f;   // a wrist within this share of the arm's length of its shoulder (straighter: snapping)
 constexpr float elbowMost = 155.f;   // degrees: an elbow's most bend
-constexpr float twistShare = 0.5f;   // the hand's twist about the forearm carried by the forearm (the rest at the wrist)
 constexpr float onIn = 0.12f;        // seconds: posed arms easing in from the animation's
 constexpr float onOut = 0.2f;        // ... and back out (a death, a stale pose)
 constexpr int numSamples = 36;       // the elbow's places tried round its circle
@@ -84,6 +83,9 @@ struct Skin
     glm::vec3 c0{0.f}, c1{0.f};  // the chest bone's line at rest
     float torso{0.f};            // the torso's radius about it
     int anchor{-1};              // the chest vertex nearest between the shoulders (QC's anchor: vr_agarms_info)
+    float torsoSides{1.f};       // Spec's: its torso proxy's sides from the lower chest (agbody::of)
+    float twistShare{0.5f};      // Spec's: the forearm's share of the hand's twist
+    float wristMore{0.f};        // Spec's: its wrist's extra bend
 };
 
 struct Err
@@ -330,6 +332,9 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
     }
     const auto at0 = [&](int b, const glm::vec3& p) { return rigpose::apply(rigpose::key(rig, 0, b), p); };
     m.chest = spec.chest;
+    m.torsoSides = spec.torsoSides;
+    m.twistShare = spec.twistShare;
+    m.wristMore = spec.wristMore;
     m.c0 = at0(m.chest, rig.bones[m.chest].pivot);
     m.c1 = at0(m.chest, rig.bones[m.chest].end);
     for(int s = 0; s < 2; s++)
@@ -738,6 +743,8 @@ struct Limits
 {
     const agbody::Posed* body{nullptr};
     float maxStep{0.f};
+    float twistShare{0.5f}; // the forearm's share of the hand's twist (Skin's; vr_agarms_twist_share overrides)
+    float wristMore{0.f};   // degrees its wrist bends past vr_agarms_wrist_most (Skin's)
 };
 
 // One arm (rest side `sd`, its shoulder `S1` now, the chest's turn `cq`) to the hand motion `H` (rest -> now: its wrist
@@ -886,7 +893,7 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S1, const glm::quat& cq,
                                                                                 : agarms::LimitWrist;
     }
     // The bones: the upper arm and the forearm turned onto their lines about the elbow's hinge (its rest hinge to now's),
-    // the forearm twisted towards the hand by twistShare.
+    // the forearm twisted towards the hand by its model's twist share (Spec::twistShare: the rest at the wrist).
     const glm::vec3 u0 = glm::normalize(sd.E - sd.S), f0 = glm::normalize(sd.W - sd.E);
     const glm::vec3 u1 = norm(E1 - S1, dir), f1 = norm(W1 - E1, dir);
     const glm::vec3 h1 = norm(glm::cross(u1, f1), norm(glm::cross(u1, e1), sd.hinge));
@@ -894,14 +901,14 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S1, const glm::quat& cq,
     o.U.pos = S1 - o.U.rot * sd.S;
     glm::quat rf = alignRot(f0, sd.hinge, f1, h1);
     const float tw = twistAbout(glm::inverse(rf) * H.rot, f0);
-    rf = glm::normalize(rf * glm::angleAxis(tw * twistShare, f0));
+    rf = glm::normalize(rf * glm::angleAxis(tw * lim.twistShare, f0));
     o.F.rot = rf;
     o.F.pos = E1 - rf * sd.E;
     o.H = H;
     o.bend = angleDeg(glm::inverse(rf) * H.rot);
     // A wrist past its most (a swing's twist the elbow can't take): the hand, and its weapon with it, turned back
     // towards the forearm about the wrist (the wrist stays).
-    const float bendMost = za::max(vr_agarms_wrist_most.value, 10.f);
+    const float bendMost = za::max(vr_agarms_wrist_most.value + lim.wristMore, 10.f);
     if(o.bend > bendMost)
     {
         o.H.rot = glm::normalize(glm::slerp(rf, H.rot, bendMost / o.bend));
@@ -1062,7 +1069,7 @@ void noteGlitch(const Skin& m, const Ent& st, const ragdoll::Rig& rig, const rig
 {
     agglitch::Sample g;
     g.ent = num;
-    const agbody::Proxies* px = agbody::of(m.model, rig, m.chest);
+    const agbody::Proxies* px = agbody::of(m.model, rig, m.chest, m.torsoSides);
     const agbody::Posed body = px ? agbody::pose(*px, posed, kick) : agbody::Posed{};
     for(int s = 0; s < 2; s++)
     {
@@ -1166,10 +1173,12 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     bool held2 = false;
     // The robust solve's limits (ROUND22.md, "Armed humanoids in motion"): the body's proxies (vr_agarms_body), the
     // elbow's swing a frame (vr_agarms_elbow_rate).
-    const agbody::Proxies* px = vr_agarms_body.value != 0.f ? agbody::of(e->model, rig, m->chest) : nullptr;
+    const agbody::Proxies* px = vr_agarms_body.value != 0.f ? agbody::of(e->model, rig, m->chest, m->torsoSides) : nullptr;
     const agbody::Posed bodyNow = px ? agbody::pose(*px, posed, kick) : agbody::Posed{};
     Limits lim;
     lim.body = px ? &bodyNow : nullptr;
+    lim.twistShare = za::clamp(vr_agarms_twist_share.value > 0.f ? vr_agarms_twist_share.value : m->twistShare, 0.f, 1.f);
+    lim.wristMore = m->wristMore;
     lim.maxStep = vr_agarms_elbow_rate.value > 0.f && dt > 0.f ? vr_agarms_elbow_rate.value * (pi / 180.f) * dt : 0.f;
     // A hand's wrist and grip pushed out of the body (its weapon with it).
     float pushedBy[2]{0.f, 0.f}; // (the Pose Studio's: Placed::pushed)
@@ -1683,7 +1692,7 @@ void info_f()
                 sd.handBone, static_cast<int>(sd.edges.size() / 2));
         }
         const ragdoll::Rig* rig = ragdoll::rigFor(const_cast<qmodel_t*>(m.model));
-        const agbody::Proxies* px = rig ? agbody::of(m.model, *rig, m.chest) : nullptr;
+        const agbody::Proxies* px = rig ? agbody::of(m.model, *rig, m.chest, m.torsoSides) : nullptr;
         if(px)
         {
             // (the rest pose's arms against its body: how far in each joint is as made)

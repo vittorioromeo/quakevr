@@ -20751,3 +20751,33 @@ Checklist:
 - [ ] Drag an elbow up high: orange, "up past its shoulder"; let go: no jump.
 - [ ] Grip the panel's top bar, move it where you like, let go; leave and re-enter the studio: it is there. Recentre;
   Fold / Unfold.
+
+### The enforcer's rig fixed (same branch)
+
+From the measurements above: per-model values in `armedRigs` (vr_hitreact.cpp), passed through `agarms::Spec`:
+- `torsoSides`: the torso proxy's left, right and back radii fitted only from the chest bone's vertices within this
+  share of its length from the waist (`agbody::of(..., sides)`; the front and the ends from all). Enforcer 0.6: its left
+  side 10.2 -> 7.5 (the shoulder pad no longer in it; the right 7.9 -> 9.1 and the back 12.9 -> 13.3 are its lower chest
+  and power pack, real). Grunt 1 (unchanged).
+- `wristMore`: degrees its wrist bends past `vr_agarms_wrist_most`. Enforcer 20 (its guns held turned further on its long
+  forearms), grunt 0.
+- `twistShare` (was the constant 0.5): kept 0.5 for both; 0.75 cut the enforcer's wrist a little more but in 3 of 4
+  runs, together with the thinner torso, left its Mjolnir elbow stuck the wrong way through its swings.
+- QC `vr_am_fit_shift` for the enforcer '-3 0 7' -> '-6 0 7': its poses' targets 3 units further back, against its
+  shoulders (6 behind the grunt's). Every enforcer pose's hands and weapons move 3 units back, his own enforcer keys
+  too (aim, the strikes): if one looks too close to the body now, nudge it forward in the Pose Studio.
+- Tuning cvars (0: each model's own): `vr_agbody_torso_sides`, `vr_agarms_twist_share`.
+
+**Measured** (glitch finder, no `host_framerate`, enforcer subjects; frames over the glitch value, before -> after;
+noise between runs about +-0.6 points): wrist 2.6% -> 0.9% (grunt 2.0-2.5%), aiming 9.3% -> 1.0% (p95 15.8 -> 0),
+firing 9.1% -> 2.2% (p95 19 -> 2.4); aim off 1.9% -> 0.7% (grunt 1.7-1.9%); pen touching 2.8% -> 1.5%, over 0.5% ->
+0.6%; reach 2.8% -> 3.2% (grunt 7-8%); grip2 5.8% -> 5.0% (grunt 2.8-3.0%: the off hand on a long gun's foregrip is
+still the enforcer's gap); wrong-way elbows 1.0% -> 1.2% (stuck-wrong runs through a series of swings come and go
+between runs, before too: fists 18% in one baseline run). Tests, enforcer: 60 6/6, 35 6/6, 25, 34, 38 PASS, 42 20/20,
+50 10/10, 41 ran; test 45's sword and super shotgun sheets looked at: weapons held a little closer, nothing broken.
+Scripts: `scratch/agg3.sh` (subjects, labelled runs in one launch), `agg_subj.py`, `agg_states.py`.
+
+Checklist:
+- [ ] Enforcers with guns aiming and firing (`agrunt_pose_studio`'s shotgun enforcer in Live, Loop: Aim+Fire): wrists
+  no longer kinked or the gun turned off its aim; the gun not too close to its chest.
+- [ ] An enforcer's elbows by its left shoulder pad (a sword, an axe): they go where its arm is, not pushed out wide.

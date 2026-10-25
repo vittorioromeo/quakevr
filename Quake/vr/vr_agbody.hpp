@@ -37,12 +37,16 @@ struct Proxies
 {
     const qmodel_t* model{nullptr};
     bool ok{false};
+    float sides{1.f}; // the torso's sides fitted from this share of its bone's length from its pivot (its lower chest)
     int n{0};
     Proxy p[maxProxies];
 };
 
-// The model's proxies (its rig's chest, the chest's parent, its head), fitted once. Null: none.
-[[nodiscard]] const Proxies* of(const qmodel_t* model, const ragdoll::Rig& rig, int chest);
+// The model's proxies (its rig's chest, the chest's parent, its head), fitted once. Null: none. `sides` (0..1): the
+// torso's left, right and back radii fitted only from its chest's vertices within this share of the bone's length from
+// its pivot (the waist; 1: all), so a shoulder pad or a backpack high on the chest does not swell it round the shoulders
+// (the enforcer's: ArmedRig::torsoSides, vr_agbody_torso_sides).
+[[nodiscard]] const Proxies* of(const qmodel_t* model, const ragdoll::Rig& rig, int chest, float sides = 1.f);
 
 // The proxies now: each one's segment and turn (model space) on `posed` (rest -> now, a bone each; `kick` on top, or null).
 struct Posed

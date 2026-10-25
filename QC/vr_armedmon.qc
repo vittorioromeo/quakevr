@@ -97,9 +97,10 @@ void(float k) VR_AM_Row =
         vr_am_loot_n = 5;
         vr_am_classes = VR_AM_CLASSES_ALL;
         // Its shoulders (the rig's upperarm joints: x -4.3 .. -5.9, y +-13.4, z 19.4 .. 21.7) against the grunt's
-        // (x 0, y +-9.7, z 12).
+        // (x 0, y +-9.7, z 12). Moved back 6 (was 3: its weapons held 3 units too far ahead of its shoulders, its
+        // wrists and reach at their limits aiming; ROUND22.md, "The enforcer's rig fixed").
         vr_am_fit_scale = '1 1.35 1.1';
-        vr_am_fit_shift = '-3 0 7';
+        vr_am_fit_shift = '-6 0 7';
         vr_am_back_lo = '328 332 0'; // (its power pack's back, low: x -20.3, z 7.8, standing)
         vr_am_back_hi = '343 351 0'; // (... high: x -22.8, z 22.7)
         vr_am_anchor = 322;
