@@ -162,7 +162,9 @@ namespace
 // axe's head box corners where the config still holds the zeros of before they shipped (takeBladeShapes59).
 // 60: the shotgun's (slot 1) blade tip his as its own Blade Tip (shipped): a config whose Muzzle offset still holds the
 // tip he dragged there (-0.2229 0.2441 0.4977, which also moved its shots) gets the shipped muzzle back (takeShotgunTip60).
-constexpr int settingsVersion = 62;
+// 63: the Widowmaker's (slot 34) ammo readout and button on its hand-made model's receiver top (z 11.4, was 10;
+// Misc/quakevr/models_src/widowmaker), where the config still holds the old anchors (takeWidowmakerArt63).
+constexpr int settingsVersion = 63;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -643,6 +645,20 @@ void takeNailPistolGrip62()
     Con_DPrintf("Weapon settings: the nail pistol took %d of its new grip, sight and holster values\n", taken);
 }
 
+// 63: the Widowmaker's readout and button anchors on its hand-made model's receiver top (vr_weapons.inc slot 34: 11.4
+// tall there; the model made from AD's 10.4): a config still holding the old anchors takes the new ones.
+void takeWidowmakerArt63()
+{
+    for(const Key key : {Key::WpnTextAnchor, Key::WpnButtonAnchor})
+    {
+        cvar_t& var = cvarAt(34, key);
+        if(!strcmp(var.string, "12 0.85 10"))
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -672,6 +688,7 @@ constexpr Step steps[] = {
     {60, takeShotgunTip60},
     {61, takeNailPistol61},
     {62, takeNailPistolGrip62},
+    {63, takeWidowmakerArt63},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

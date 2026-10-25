@@ -1,0 +1,10 @@
+# widowmaker_art: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". AD's Widowmaker as made by hand
+# after Vittorio's mockup (Misc/quakevr/models_src/widowmaker/README.md): in your hand (the upgrades on in any map), its
+# preview model floating ahead at the same size.
+title Widowmaker art: the hand-made model in your hand and floating ahead
+map vrtesthall
+god
+notarget
+cmd vr_ad_upgrades 2; vr_ad_test 98
+cmd alias widowmaker_art "vr_physics_spawn viewthing reach; viewmodel progs/vr_widowmaker_preview.mdl"; widowmaker_art
+hint The Widowmaker in your hand is the hand-made model (three barrels, octagonal receiver, brick grips); the same floats ahead. Hold the front grip with the other hand, fire it (the three barrels spin, a third of a turn a shot), look down the sights. Debug > Tools > Model Previews switches it to the model made from AD's and back.

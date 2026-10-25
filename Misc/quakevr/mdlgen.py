@@ -109,9 +109,11 @@ def read_skins(data, off, num_skins, w, h):
     return skins, off
 
 
-def write_mdl(path, mesh, skins, name, frames=None):
+def write_mdl(path, mesh, skins, name, frames=None, names=None, origin=None):
     """`mesh` as an MDL with `skins` (palette indices, skin_w x skin_h each): one frame, or `mesh` then each of
-    `frames` (meshes of the same vertices and triangles, moved)."""
+    `frames` (meshes of the same vertices and triangles, moved). `names`: each frame's name (else `name`, name1, ...);
+    `origin`: the scale_origin to pack from (a corner the settings scale about; every vertex at or past it), else the
+    vertices' least."""
     assert mesh.check_winding() == 0, "counter-clockwise triangles"
     table = anorms()
     all_frames = [mesh] + list(frames or [])
@@ -119,6 +121,9 @@ def write_mdl(path, mesh, skins, name, frames=None):
         assert len(f.verts) == len(mesh.verts) and f.tris == mesh.tris, "frames of the same mesh"
     positions = [v[0] for f in all_frames for v in f.verts]
     lo = [min(p[k] for p in positions) for k in range(3)]
+    if origin is not None:
+        assert all(lo[k] >= origin[k] - 1e-4 for k in range(3)), "a vertex past the origin: %s < %s" % (lo, origin)
+        lo = list(origin)
     hi = [max(p[k] for p in positions) for k in range(3)]
     scale = [(hi[k] - lo[k]) / 255.0 or 1.0 for k in range(3)]
     radius = max(math.sqrt(dot(p, p)) for p in positions)
@@ -135,7 +140,8 @@ def write_mdl(path, mesh, skins, name, frames=None):
     for index, f in enumerate(all_frames):
         data += struct.pack("<i", 0)
         data += bytes((0, 0, 0, 0)) + bytes((255, 255, 255, 0))
-        data += (name if index == 0 else "%s%d" % (name, index)).encode().ljust(16, b"\0")[:16]
+        frame_name = names[index] if names else (name if index == 0 else "%s%d" % (name, index))
+        data += frame_name.encode().ljust(16, b"\0")[:16]
         for p, n, _ in f.verts:
             q = [max(0, min(255, int(round((p[k] - lo[k]) / scale[k])))) for k in range(3)]
             best = max(range(len(table)), key=lambda i: dot(table[i], n))

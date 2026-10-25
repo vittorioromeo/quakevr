@@ -1195,6 +1195,16 @@ za::Vector<Item> pageDebugTools()
         command("Heavy Revolver Art: Swung Out", "vr_physics_spawn viewthing reach; viewmodel progs/vr_revolver_preview.mdl; viewframe 1")
             .help("The same, its cylinder swung out on its crane (the chambered shells' heads showing); viewframe 2: "
                   "the hammer cocked, viewframe 0: back to rest."),
+        command("Widowmaker Art", "vr_physics_spawn viewthing reach; viewmodel progs/vr_widowmaker_preview.mdl")
+            .help("AD's Widowmaker as made by hand after Vittorio's mockup (Misc/quakevr/models_src/widowmaker/README.md): its "
+                  "preview model floats ahead at arm's reach, at the size it is in your hand (a viewthing given the model: "
+                  "until the map changes, player.mdl is drawn as it too). The scenario widowmaker_art also puts one in "
+                  "your hand."),
+        command("Widowmaker: Hand-Made Model", "vr_ad_widowmaker_art 1")
+            .help("vr_ad_widowmaker_art 1 (default): the Widowmaker drawn as the hand-made model (after his mockup). Reloads it."),
+        command("Widowmaker: Model Made from AD's", "vr_ad_widowmaker_art 0")
+            .help("vr_ad_widowmaker_art 0: the Widowmaker drawn as the one made from AD's view model as it loads, for A/B. "
+                  "Reloads it."),
         header("Save to Files (game folder)"),
         command("Wound Masks", "vr_wounds_dump").help("vr_wounds_dump: each model's wound mask, to wounds/mask_<n>_<model>.png."),
         command("Decal Atlas", "vr_decal_atlas").help("vr_decal_atlas: the decals' atlas, to decal_atlas.png."),

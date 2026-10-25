@@ -1596,39 +1596,61 @@ struct Spin
 };
 Spin spins[2];
 
-// The made Widowmaker (its spin frames), checked once a model.
+// Each hand's weapon as spinFrame saw it last (vr_ad_widowmaker_spin_info, when not held).
+struct Drawn
+{
+    bool visible{false};
+    const qmodel_t* model{nullptr};
+};
+Drawn drawn[2];
+float artSeen = -1.f;   // vr_ad_widowmaker_art as spinFrame last saw it (-1: not yet)
+bool artLoaded = false; // the Widowmaker's model read last was the hand-made one (derivedFile)
+
+// The Widowmaker drawn (its spin frames), checked once a model (and again when it is read anew: vr_model_reload keeps
+// the model's slot). Its barrels: three ("spin0".. frames: the made one and the hand-made one, its export_mdl.py), a
+// third of a turn a shot, at rest a barrel on top; a model with "twin0".. frames has two (a half turn a shot).
 struct SpinModel
 {
     const qmodel_t* model{nullptr};
+    const void* hdr{nullptr};
     bool spins{false};
+    int barrels{3};
 };
 SpinModel spinModel;
 
 constexpr const char* widowmakerName = "progs/v_shot3.mdl#vr";
+constexpr const char* widowmakerArtName = "progs/v_widowmaker.mdl"; // the hand-made model (vr_ad_widowmaker_art)
 
 [[nodiscard]] bool spinsBarrels(const qmodel_t* m)
 {
-    if(!m || m->type != mod_alias)
+    if(!m || m->type != mod_alias || q_strcasecmp(m->name, widowmakerName))
     {
         return false;
     }
-    if(m != spinModel.model)
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(m)));
+    if(m != spinModel.model || hdr != spinModel.hdr)
     {
         spinModel.model = m;
-        spinModel.spins = false;
-        if(!q_strcasecmp(m->name, widowmakerName))
-        {
-            const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(m)));
-            spinModel.spins = hdr && hdr->numframes == frameCount + spinPoses && !strcmp(hdr->frames[frameCount].name, "spin0");
-        }
+        spinModel.hdr = hdr;
+        const bool framesOk = hdr && hdr->numframes == frameCount + spinPoses;
+        const bool three = framesOk && !strcmp(hdr->frames[frameCount].name, "spin0");
+        const bool two = framesOk && !strcmp(hdr->frames[frameCount].name, "twin0");
+        spinModel.spins = three || two;
+        spinModel.barrels = two ? 2 : 3;
     }
     return spinModel.spins;
+}
+
+// The turn from a barrel to the next (degrees).
+[[nodiscard]] float barrelStep()
+{
+    return 360.f / static_cast<float>(spinModel.barrels);
 }
 
 // The barrels' fastest: a barrel a shot.
 [[nodiscard]] float spinTop()
 {
-    return 120.f / za::max(vr_ad_widowmaker_refire.value, 0.05f) * za::max(vr_ad_widowmaker_spin.value, 0.f);
+    return barrelStep() / za::max(vr_ad_widowmaker_refire.value, 0.05f) * za::max(vr_ad_widowmaker_spin.value, 0.f);
 }
 
 void advance(Spin& s, int hand, float dt)
@@ -1648,10 +1670,11 @@ void advance(Spin& s, int hand, float dt)
         {
             // The stop planned: the next barrel on top past the coast at the nominal rate (top over _spindown s), eased
             // there from this speed (as long as a steady slowing would take; at least a short settle).
-            const float rate = za::max(top, 120.f) / za::max(vr_ad_widowmaker_spindown.value, 0.05f);
+            const float step = barrelStep();
+            const float rate = za::max(top, step) / za::max(vr_ad_widowmaker_spindown.value, 0.05f);
             const float coast = s.speed * s.speed / (2.f * rate);
             s.p0 = s.phase;
-            s.p1 = 120.f * static_cast<float>(static_cast<int>((s.phase + coast) / 120.f + 0.999f));
+            s.p1 = step * static_cast<float>(static_cast<int>((s.phase + coast) / step + 0.999f));
             s.p1 = za::max(s.p1, s.p0);
             s.v0 = s.speed;
             const float d = s.p1 - s.p0;
@@ -1791,10 +1814,22 @@ void fired(int hand)
 
 void spinFrame(view::ViewEntity (&weapons)[2])
 {
+    // The Widowmaker's model switched (vr_ad_widowmaker_art: hand-made or made from AD's): read again now
+    // (vr_view_diag.cpp modelReload_f), as it is drawn next.
+    if(vr_ad_widowmaker_art.value != artSeen)
+    {
+        if(artSeen >= 0.f)
+        {
+            Cbuf_InsertText("vr_model_reload \"progs/v_shot3.mdl#vr\"\n"); // (ahead of a script still waiting)
+        }
+        artSeen = vr_ad_widowmaker_art.value;
+    }
     for(int hand = 0; hand < 2; hand++)
     {
         view::ViewEntity& w = weapons[hand];
         Spin& s = spins[hand];
+        drawn[hand].visible = w.visible;
+        drawn[hand].model = w.ent.model;
         if(!w.visible || !spinsBarrels(w.ent.model))
         {
             s = Spin{};
@@ -1816,8 +1851,10 @@ void spinFrame(view::ViewEntity (&weapons)[2])
         w.zeroBlend = 0.f; // (the slot's blend towards frame 0 would pull the barrels back)
         if(vr_debug_weaponfx.value)
         {
-            s.topFront = view::modelPoint(w, glm::vec3{44.f, 0.f, spinZ + spinR});
-            s.axisFront = view::modelPoint(w, glm::vec3{44.f, 0.f, spinZ});
+            // (the hand-made model's: its outer barrel's front and its axis, 8.8 up: build_widowmaker.py)
+            const bool two = spinModel.barrels == 2;
+            s.topFront = view::modelPoint(w, two ? glm::vec3{44.f, -1.72f, 8.8f} : glm::vec3{44.f, 0.f, spinZ + spinR});
+            s.axisFront = view::modelPoint(w, glm::vec3{44.f, 0.f, two ? 8.8f : spinZ});
         }
     }
 }
@@ -1849,7 +1886,11 @@ void spinInfo_f()
         const Spin& s = spins[hand];
         if(!s.held)
         {
-            Con_Printf("widowmaker spin hand %d: not held (or no spin frames)\n", hand);
+            const qmodel_t* m = drawn[hand].model;
+            const auto* hdr = m && m->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(m))) : nullptr;
+            Con_Printf("widowmaker spin hand %d: not held (or no spin frames): drawn %s, visible %d, %d frames%s%s\n", hand,
+                m ? m->name : "nothing", drawn[hand].visible ? 1 : 0, hdr ? hdr->numframes : 0,
+                hdr && hdr->numframes > frameCount ? ", frame 9 " : "", hdr && hdr->numframes > frameCount ? hdr->frames[frameCount].name : "");
             continue;
         }
         const float k = s.phase / spinStep;
@@ -1860,6 +1901,9 @@ void spinInfo_f()
             client::attacking(hand) ? 1 : 0, s.lastShot < 0.0 ? -1.0 : cl.time - s.lastShot);
         Con_Printf("  motor: %s, volume %.2f, pitch %.2f\n", !motor.sfx ? "no sound" : motor.ch[hand] ? "playing" : "stopped",
             motor.volume[hand], motor.pitch[hand]);
+        Con_Printf("  model: %s, %d barrels (%.0f deg a shot), at rest %s\n",
+            artLoaded ? "hand-made (progs/v_widowmaker.mdl)" : "made from AD's", spinModel.barrels, barrelStep(),
+            !s.coasting && s.speed <= 0.f && fmodf(s.phase, barrelStep()) < 0.01f ? "yes" : "no");
         if(hs.muzzleValid[hand])
         {
             Con_Printf("  muzzle %.2f %.2f %.2f\n", hs.muzzle[hand].x, hs.muzzle[hand].y, hs.muzzle[hand].z);
@@ -1893,6 +1937,21 @@ byte* derivedFile(const char* name, unsigned int* path_id)
     {
         return nullptr;
     }
+    // The Widowmaker: the hand-made model (in the same frame, nothing of AD's in it) unless vr_ad_widowmaker_art is 0.
+    if(!q_strcasecmp(name, widowmakerName))
+    {
+        artLoaded = false;
+    }
+    if(!q_strcasecmp(name, widowmakerName) && vr_ad_widowmaker_art.value != 0.f)
+    {
+        if(byte* art = COM_LoadMallocFile(widowmakerArtName, path_id))
+        {
+            Con_DPrintf("AD weapon model: %s is the hand-made %s\n", name, widowmakerArtName);
+            artLoaded = true;
+            return art;
+        }
+        Con_DPrintf("AD weapon model: %s: no %s, made from AD's\n", name, widowmakerArtName);
+    }
     Built b;
     const char* why = "";
     if(!build(*r, b, why, path_id))
@@ -1910,6 +1969,8 @@ byte* derivedFile(const char* name, unsigned int* path_id)
 
 void info_f()
 {
+    Con_Printf("(the Widowmaker drawn: %s, vr_ad_widowmaker_art %g; below, the one made from AD's)\n",
+        vr_ad_widowmaker_art.value != 0.f ? widowmakerArtName : "made from AD's", vr_ad_widowmaker_art.value);
     for(const Recipe& r : recipes)
     {
         Built b;
