@@ -28,10 +28,15 @@
 #include "vr_ragtool.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
@@ -57,20 +62,33 @@ struct FlatState
     int grabs{0};                // vr_flatplay_status's counts
     int punches{0};
 
-    glm::vec3 aim{0.f};          // the aim the hands are built from
-    bool aimSeen{false};
-    float yawRate{0.f};          // degrees a second the view turns: the arms trail it
-    glm::vec3 vel{0.f};          // the player's own velocity (world units/s)
-    glm::vec3 origin{0.f};
-    bool originSeen{false};
-    float walk{0.f};             // the walk cycle's phase
-    float breath{0.f};
-    glm::vec3 hand[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the eased hand positions
-    bool handSeen[2]{false, false};
+    // The game's pose (poseHands): each hand's place off its shoulder in the view's own frame (forward, right, up), eased
+    // from one pose to the next (a weapon taken, a punch). In the view's frame, so the hands stay locked to the view.
+    glm::vec3 local[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    bool localSeen[2]{false, false};
     double lastTime{-1e9};
 };
 
 FlatState fs;
+
+// The looks the drawn hands are given on top of the game's pose (drawnOffset; stepFeel once a frame). Not the game's:
+// the shots go from the steady hands, along the crosshair.
+struct Feel
+{
+    double lastTime{-1e9};
+    bool seen{false};
+    glm::vec2 view{0.f};         // the view's pitch and yaw, last frame
+    glm::vec2 lag{0.f};          // the turn's lag (degrees, before vr_flat_turnlag) and its rate: a critically damped
+    glm::vec2 lagRate{0.f};      // spring pulling the hands back onto the view
+    glm::vec3 vel{0.f};          // the player's velocity last frame (world)
+    glm::vec3 sway{0.f};         // the step's sway (the view's frame: forward, right, up; units) and its rate: a spring
+    glm::vec3 swayRate{0.f};     // kicked by each change of the player's velocity (starting, stopping, a jump, a landing)
+    float phase{0.f};            // the walk's cycle
+    float amp{0.f};              // how much of a walk's bob (eased with the speed, none in the air)
+    float breath{0.f};
+};
+
+Feel feel;
 
 // The pose, measured from the shoulders (hands::bodyAnchor with vr_shoulder_offset, the same anchor the body's own
 // holsters are placed at): the arms stay on the body whatever the height calibration. Forward, side and down in the
@@ -85,10 +103,39 @@ constexpr float supportFwd = 12.f; // the free hand next to the other hand's gun
 constexpr float supportDown = 11.f;
 constexpr float supportOut = 5.f;
 
-// The arms trail the view: this much of a turn, this much of a step, never more than this.
-constexpr float turnLag = 0.075f;
-constexpr float moveLag = 0.035f;
-constexpr float maxTrail = 14.f; // units a hand is ever left behind
+// The turn's lag (vr_flat_turnlag, vr_flat_turnlag_speed): the drawn hands keep their direction as the view turns and a
+// critically damped spring (this stiff, rad/s) brings them back; this much of what it leaves shown, never more than
+// maxLagDeg (softly). A turn of 180 degrees a second leaves them ~2 degrees behind, back within a quarter second.
+constexpr float lagStiffness = 18.f;
+constexpr float lagShown = 0.12f;
+constexpr float maxLagDeg = 4.f;
+constexpr float lagSnapDeg = 45.f; // a view turned more than this in a frame was set (a teleporter, a respawn): no lag
+
+// The step's sway (vr_flat_sway): each change of the player's velocity kicks the hands the other way (units/s for each
+// unit/s of change; more up and down: a jump's and a landing's dip), a spring this stiff and damped settles them.
+constexpr float swayKick = 0.12f;
+constexpr float swayKickUp = 0.17f;
+constexpr float swayStiffness = 11.f;
+constexpr float swayDamping = 0.55f; // (of critical: a little overshoot, the settle)
+constexpr float maxSway = 5.f;       // units, softly
+
+// The walk's bob (vr_flat_bob): a figure of eight at a run (320 units/s), its rate and size with the speed; breathing
+// at rest. Units and degrees in the view's frame.
+constexpr float runSpeed = 320.f;
+constexpr float bobRate = 1.15f; // cycles a second at a run (two steps each)
+constexpr float bobSide = 0.7f;
+constexpr float bobUp = 0.6f;
+constexpr float bobRoll = 0.8f;
+constexpr float bobYaw = 0.3f;
+constexpr float bobEase = 6.f;
+constexpr float breathRate = 1.6f; // rad/s
+constexpr float breathUp = 0.2f;
+constexpr float breathSide = 0.1f;
+constexpr float breathPitch = 0.15f;
+
+// The camera the hands are kept on: the drawn view, unless it is somewhere else (the chase camera, the ragdoll tool's
+// orbit): then the pose's own head.
+constexpr float camNear = 24.f;
 
 // V's punch, seconds from the press: wound up, thrown, drawn back.
 constexpr float punchWind = 0.13f;
@@ -102,8 +149,7 @@ constexpr float punchWindBack = 7.f;
 constexpr float grabTime = 0.30f;
 constexpr float grabReach = 12.f;
 
-// Easing. A punch and a reach are not eased: their own curves are smooth, and easing them would take away the speed the
-// game's melee rules need.
+// Easing from one pose to the next (a weapon taken, a punch, a reach), in the view's frame.
 constexpr float handEase = 15.f;
 
 // V's punch and E's reach last this long after the press (vr_flatplay_status).
@@ -112,6 +158,12 @@ constexpr float punchTotal = punchWind + punchStrike + punchBack;
 [[nodiscard]] float ease(float k, float dt)
 {
     return dt > 0.f ? 1.f - za::exp(-k * dt) : 1.f;
+}
+
+// `x`, never past `cap` either way: unchanged while small, bending smoothly towards it.
+[[nodiscard]] float softCap(float x, float cap)
+{
+    return cap > 0.f ? x / za::sqrt(1.f + (x / cap) * (x / cap)) : 0.f;
 }
 
 // 0 before `start` + `len` seconds has begun, 1 at its end, eased at both ends (so its speed is continuous).
@@ -252,6 +304,101 @@ void pollKeys()
     fs.keyMelee = melee;
 }
 
+// Quake angles' axes as columns: forward, right, up.
+[[nodiscard]] glm::mat3 axes(const glm::vec3& angles)
+{
+    glm::vec3 f, r, u;
+    hands::angleVectors(angles, f, r, u);
+    return glm::mat3{f, r, u};
+}
+
+// The drawn hands' looks, stepped once a frame (the game's clock: the same with vr_fixed_frames).
+void stepFeel()
+{
+    const double t = vr_gametime;
+    if(feel.seen && t == feel.lastTime)
+    {
+        return;
+    }
+    const glm::vec2 view{cl.viewangles[0], cl.viewangles[1]};
+    const glm::vec3 vel{cl.velocity[0], cl.velocity[1], cl.velocity[2]};
+    if(!feel.seen || t < feel.lastTime)
+    {
+        feel = Feel{};
+        feel.seen = true;
+        feel.lastTime = t;
+        feel.view = view;
+        feel.vel = vel;
+        return;
+    }
+    const float dt = static_cast<float>(za::min(t - feel.lastTime, 0.1));
+    feel.lastTime = t;
+
+    // The turn's lag: the hands keep their direction as the view turns, the spring brings them back.
+    glm::vec2 turned{za::remainder(view.x - feel.view.x, 360.f), za::remainder(view.y - feel.view.y, 360.f)};
+    feel.view = view;
+    if(za::fabs(turned.x) > lagSnapDeg || za::fabs(turned.y) > lagSnapDeg)
+    {
+        turned = glm::vec2{0.f}; // set, not turned
+        feel.lag = feel.lagRate = glm::vec2{0.f};
+    }
+    if(vr_flat_turnlag.value > 0.f)
+    {
+        feel.lag -= turned;
+        // Critically damped, stepped exactly: x(t) = (x0 + (v0 + w x0) t) e^-wt.
+        const float w = lagStiffness * za::clamp(vr_flat_turnlag_speed.value, 0.1f, 5.f);
+        const float e = za::exp(-w * dt);
+        const glm::vec2 x0 = feel.lag, v0 = feel.lagRate;
+        const glm::vec2 c = v0 + x0 * w;
+        feel.lag = (x0 + c * dt) * e;
+        feel.lagRate = (v0 - c * (w * dt)) * e;
+    }
+    else
+    {
+        feel.lag = feel.lagRate = glm::vec2{0.f};
+    }
+
+    // The step's sway: the change of velocity, in the view's frame (level), kicks the hands the other way.
+    const glm::vec3 dv = vel - feel.vel;
+    feel.vel = vel;
+    const float sway = za::clamp(vr_flat_sway.value, 0.f, 3.f);
+    if(sway > 0.f)
+    {
+        const glm::mat3 level = axes(glm::vec3{0.f, view.y, 0.f});
+        const glm::vec3 dvLocal{glm::dot(dv, level[0]), glm::dot(dv, level[1]), dv.z};
+        feel.swayRate -= glm::vec3{dvLocal.x * swayKick, dvLocal.y * swayKick, dvLocal.z * swayKickUp} * sway;
+        // The spring, in small steps (semi-implicit: stable at any frame rate).
+        const int steps = za::max(1, static_cast<int>(dt * 240.f + 0.5f));
+        const float h = dt / static_cast<float>(steps);
+        for(int i = 0; i < steps; i++)
+        {
+            const glm::vec3 acc = -feel.sway * (swayStiffness * swayStiffness) - feel.swayRate * (2.f * swayDamping * swayStiffness);
+            feel.swayRate += acc * h;
+            feel.sway += feel.swayRate * h;
+        }
+        const float cap = maxSway * sway;
+        if(const float len = glm::length(feel.sway); len > 1e-4f)
+        {
+            feel.sway *= softCap(len, cap) / len;
+        }
+    }
+    else
+    {
+        feel.sway = feel.swayRate = glm::vec3{0.f};
+    }
+
+    // The walk's bob: its size eased with the speed on the ground, its cycle with the speed.
+    const float speed = glm::length(glm::vec2{vel.x, vel.y});
+    const float ampTarget = cl.onground && !noclip_anglehack ? za::clamp(speed / runSpeed, 0.f, 1.3f) : 0.f;
+    feel.amp += (ampTarget - feel.amp) * ease(bobEase, dt);
+    if(feel.amp > 1e-3f)
+    {
+        feel.phase = za::remainder(feel.phase + dt * 2.f * glm::pi<float>() * bobRate * za::clamp(speed / runSpeed, 0.35f, 1.3f),
+            4.f * glm::pi<float>());
+    }
+    feel.breath = za::remainder(feel.breath + dt * breathRate, 4.f * glm::pi<float>());
+}
+
 } // namespace
 
 bool active()
@@ -304,9 +451,9 @@ void frame()
 
     if(!on)
     {
-        fs.aimSeen = fs.originSeen = false;
-        fs.handSeen[0] = fs.handSeen[1] = false;
+        fs.localSeen[0] = fs.localSeen[1] = false;
         fs.lastTime = -1e9;
+        feel = Feel{};
         return;
     }
 
@@ -315,6 +462,8 @@ void frame()
 
 void poseHands(hands::State& s, const glm::vec3& aim)
 {
+    // Made at the frame's start, again for the move and again for the view (hands::relatch): the same frame's poses
+    // differ only by the view's turn and the player's move since. The easing steps once a frame.
     double dt = fs.lastTime > -1e8 ? vr_gametime - fs.lastTime : 0.0;
     fs.lastTime = vr_gametime;
     dt = za::clamp(dt, 0.0, 0.1);
@@ -322,98 +471,123 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     s.bodyYaw = aim.y; // the flat branch turns the body to the view the same way
 
     const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
-    const float sway = za::clamp(vr_flat_sway.value, 0.f, 2.f);
-    const float bob = za::clamp(vr_flat_bob.value, 0.f, 2.f);
-
-    // The aim the hands are built from, and how fast it turns.
-    if(!fs.aimSeen)
-    {
-        fs.aim = aim;
-        fs.aimSeen = true;
-    }
-    float dyaw = aim.y - fs.aim.y;
-    while(dyaw > 180.f)
-    {
-        dyaw -= 360.f;
-    }
-    while(dyaw < -180.f)
-    {
-        dyaw += 360.f;
-    }
-    fs.yawRate = dt > 0.0 ? fs.yawRate * 0.7f + (dyaw / static_cast<float>(dt)) * 0.3f : 0.f;
-    fs.aim = aim;
-
-    // The player's own motion.
-    if(!fs.originSeen)
-    {
-        fs.origin = s.playerOrigin;
-        fs.originSeen = true;
-    }
-    const glm::vec3 vel = dt > 0.0 ? (s.playerOrigin - fs.origin) / static_cast<float>(dt) : glm::vec3{0.f};
-    fs.vel = fs.vel * 0.8f + vel * 0.2f;
-    fs.origin = s.playerOrigin;
-
-    // Walking and breathing.
-    const float speed = glm::length(glm::vec2{fs.vel.x, fs.vel.y});
-    fs.walk = cl.onground && speed > 30.f ? fs.walk + static_cast<float>(dt) * za::clamp(speed / 120.f, 0.2f, 2.f) * 6.f
-                                          : 0.f;
-    fs.breath += static_cast<float>(dt) * 1.6f;
 
     glm::vec3 fwd, right, up;
-    hands::angleVectors(fs.aim, fwd, right, up);
-
-    // How far the arms are left behind by a turn and by a step.
-    // (A step's: back along his own horizontal motion, whatever way he faces: walking forward leaves the guns behind,
-    // under the crosshair, strafing beside it. The whole never more than maxTrail.)
-    const float trail = za::clamp(fs.yawRate * turnLag, -maxTrail, maxTrail) * sway;
-    glm::vec3 lag = right * -trail - glm::vec3{fs.vel.x, fs.vel.y, 0.f} * (moveLag * sway);
-    if(const float lagLen = glm::length(lag); lagLen > maxTrail)
-    {
-        lag *= maxTrail / lagLen;
-    }
+    hands::angleVectors(aim, fwd, right, up);
 
     const bool mainHolds = heldIn(HAND_MAIN) >= 0;
     const bool offHolds = heldIn(HAND_OFF) >= 0;
 
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        glm::vec3 off = targetOffset(h, reach, h == HAND_OFF ? mainHolds : offHolds);
-
-        // The hands' own motion: a walk's bob, and breathing. Small, and never in the way.
-        const float side = h == HAND_OFF ? -1.f : 1.f;
-        off.z -= 1.4f * bob * za::sin(fs.walk);
-        off.y += side * 1.1f * bob * za::sin(fs.walk * 0.5f);
-        off.z += 0.35f * bob * za::sin(fs.breath);
-        off.x += 0.25f * bob * za::sin(fs.breath * 0.5f);
-
-        off += h == HAND_MAIN ? punchOffset() : grabOffset();
-
-        const glm::vec3 target = shoulder(s, h) + fwd * off.x + right * off.y + up * off.z + lag;
-
-        if(!fs.handSeen[h])
+        // Where the hand sits off its shoulder, in the view's frame: locked to the view. The looks (the sway, the bob, a
+        // turn's lag) are the drawn hands' only (drawnOffset): the game's hands, and the shots, stay on the crosshair.
+        const glm::vec3 target = targetOffset(h, reach, h == HAND_OFF ? mainHolds : offHolds) +
+                                 (h == HAND_MAIN ? punchOffset() : grabOffset());
+        if(!fs.localSeen[h])
         {
-            fs.hand[h] = target;
-            fs.handSeen[h] = true;
+            fs.local[h] = target;
+            fs.localSeen[h] = true;
         }
-        else
+        else if(dt > 0.0)
         {
-            fs.hand[h] += (target - fs.hand[h]) * ease(handEase, static_cast<float>(dt));
+            fs.local[h] += (target - fs.local[h]) * ease(handEase, static_cast<float>(dt));
         }
+        const glm::vec3& off = fs.local[h];
 
-        s.pos[h] = fs.hand[h];
-        s.rot[h] = aimRotAtCrosshair(fs.aim, h);
+        s.pos[h] = shoulder(s, h) + fwd * off.x + right * off.y + up * off.z;
+        s.rot[h] = aimRotAtCrosshair(aim, h);
         s.rot[h].z += vr_fakevr_handroll.value;
     }
 
-    if(vr_flatplay_debug.value && host_framecount % 30 == 0)
+    if(vr_flatplay_debug.value && host_framecount % 30 == 0 && dt > 0.0)
     {
         const glm::vec3 a = s.pos[HAND_OFF] - s.head;
         const glm::vec3 b = s.pos[HAND_MAIN] - s.head;
-        Con_Printf("flatplay: aim %.1f %.1f turn %.0f deg/s speed %.0f punch %s grab %d hands: off (%.1f, %.1f, %.1f) "
+        const float speed = glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]});
+        Con_Printf("flatplay: aim %.1f %.1f speed %.0f punch %s grab %d hands: off (%.1f, %.1f, %.1f) "
                    "main (%.1f, %.1f, %.1f) from the head\n",
-            fs.aim.x, fs.aim.y, fs.yawRate, speed, punching() ? "running" : "no", fs.grabs, a.x, a.y, a.z, b.x, b.y,
-            b.z);
+            aim.x, aim.y, speed, punching() ? "running" : "no", fs.grabs, a.x, a.y, a.z, b.x, b.y, b.z);
     }
+}
+
+void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles)
+{
+    pos = angles = glm::vec3{0.f};
+    if(!active() || !s.valid)
+    {
+        return;
+    }
+    stepFeel();
+
+    // The pose's frame (its head, the view's angles it was made with) and the drawn view's (its bob, roll and kick, its
+    // own easing up a step): the hands moved from one onto the other, so they are locked to what is drawn.
+    const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
+    const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const bool onCam = !chase_active.value && glm::length(cam - s.head) < camNear;
+    const glm::vec3 from = s.head;
+    const glm::vec3 to = onCam ? cam : s.head;
+    const glm::vec3 camAngles = onCam ? glm::vec3{r_refdef.viewangles[0], r_refdef.viewangles[1], r_refdef.viewangles[2]}
+                                      : aim;
+
+    // The turn's lag, shown (softly capped).
+    const float lagAmount = za::clamp(vr_flat_turnlag.value, 0.f, 3.f);
+    const float lagCap = maxLagDeg * lagAmount;
+
+    const glm::vec2 lag{softCap(feel.lag.x * lagShown * lagAmount, lagCap), softCap(feel.lag.y * lagShown * lagAmount, lagCap)};
+
+    const glm::mat3 poseAxes = axes(aim);
+    const glm::mat3 drawnAxes = axes(camAngles + glm::vec3{lag.x, lag.y, 0.f});
+    const glm::mat3 camAxes = axes(camAngles);
+    const glm::mat3 turn = drawnAxes * glm::transpose(poseAxes);
+
+    // The step's sway and the walk's bob, in the view's frame.
+    const float bob = za::clamp(vr_flat_bob.value, 0.f, 3.f);
+    const float rest = 1.f - za::clamp(feel.amp, 0.f, 1.f);
+    const glm::vec3 bobLocal{0.f, bob * (bobSide * feel.amp * za::sin(feel.phase) + breathSide * rest * za::sin(feel.breath * 0.5f)),
+        bob * (bobUp * feel.amp * (za::cos(2.f * feel.phase) - 1.f) * 0.5f + breathUp * rest * za::sin(feel.breath))};
+    const glm::vec3 local = feel.sway + bobLocal;
+
+    const glm::vec3 drawn = to + turn * (s.pos[h] - from) + camAxes * local;
+    pos = drawn - s.pos[h];
+
+    const glm::mat3 handAxes = turn * axes(s.rot[h]);
+    const glm::vec3 drawnRot = hands::anglesFromVectors(handAxes[0], handAxes[2]);
+    for(int i = 0; i < 3; i++)
+    {
+        angles[i] = za::remainder(drawnRot[i] - s.rot[h][i], 360.f);
+    }
+    angles.x += bob * breathPitch * rest * za::sin(feel.breath);
+    angles.y += bob * bobYaw * feel.amp * za::sin(feel.phase);
+    angles.z += bob * bobRoll * feel.amp * za::sin(feel.phase);
+}
+
+void printMove(const hands::State& s)
+{
+    // The main hand's shot as the move sends it (its weapon's Shot Pitch and Yaw on the hand's angles) against the view
+    // the move carries: the crosshair's.
+    const int slot = heldIn(HAND_MAIN);
+    const glm::vec3 shot = slot >= 0 ? weapons::shotAngles(s.rot[HAND_MAIN], slot, false) : s.rot[HAND_MAIN];
+    const glm::vec3 f = hands::forward(shot);
+    const glm::vec3 v = hands::forward(glm::vec3{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]});
+    Con_Printf("flatmove: t %.4f weapon %d shot off the view %.4f deg (view %.2f %.2f)\n", vr_gametime, slot,
+        glm::degrees(za::acos(za::clamp(glm::dot(f, v), -1.f, 1.f))), cl.viewangles[0], cl.viewangles[1]);
+}
+
+void printDrawn(const float* origin, const float* angles)
+{
+    // The drawn weapon in the camera's frame (forward, right, up), its angles less the camera's, and what the view does.
+    glm::vec3 f, r, u;
+    const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const glm::vec3 camAngles{r_refdef.viewangles[0], r_refdef.viewangles[1], r_refdef.viewangles[2]};
+    hands::angleVectors(camAngles, f, r, u);
+    const glm::vec3 d = glm::vec3{origin[0], origin[1], origin[2]} - cam;
+    const float dyaw = za::remainder(angles[1] - camAngles.y, 360.f);
+    Con_Printf("flatview: t %.4f local %.3f %.3f %.3f yaw %.3f pitch %.3f view %.2f %.2f speed %.0f bob %.2f ground %d "
+               "lag %.2f\n",
+        vr_gametime,
+        glm::dot(d, f), glm::dot(d, r), glm::dot(d, u), dyaw, angles[0] + camAngles.x, camAngles.x, camAngles.y,
+        glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]}), feel.amp, cl.onground ? 1 : 0, feel.lag.y);
 }
 
 void status_f()
@@ -425,8 +599,10 @@ void status_f()
         Con_Printf("  start the game with -flatscreenmode to play it on the desktop screen.\n");
         return;
     }
-    Con_Printf("  vr_flatplay %g (the game code's gate), vr_flat_reach %g, vr_flat_sway %g, vr_flat_bob %g\n",
-        vr_flatplay.value, vr_flat_reach.value, vr_flat_sway.value, vr_flat_bob.value);
+    Con_Printf("  vr_flatplay %g (the game code's gate), vr_flat_reach %g, vr_flat_sway %g, vr_flat_bob %g, vr_flat_turnlag %g "
+               "(recovery %g)\n",
+        vr_flatplay.value, vr_flat_reach.value, vr_flat_sway.value, vr_flat_bob.value, vr_flat_turnlag.value,
+        vr_flat_turnlag_speed.value);
     Con_Printf("  E pressed %d times (force grab), V %d (punch); E and V are read from the keyboard, not from bindings.\n",
         fs.grabs, fs.punches);
     Con_Printf("  the game code: reloading off, the flashlight worn and always lit, body interactions on, 1, 2 and the wheel cycle (empty hand included) "

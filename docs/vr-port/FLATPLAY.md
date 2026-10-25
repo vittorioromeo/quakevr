@@ -33,12 +33,34 @@ straight-out-in-front pose). The pose is built from the view angles, the weapon 
 - the hands are turned so the weapon in them shoots along the crosshair, whatever that weapon's Shot Pitch and Yaw
   (`aimRotAtCrosshair` inverts `weapons::shotAngles`); the drawn gun and its muzzle follow the hand, so the shot and the
   viewmodel agree;
-- the arms trail a turn and a step (`vr_flat_sway`), bob on a walk and breathe at rest (`vr_flat_bob`);
 - the whole pose is measured from the shoulders (`hands::bodyAnchor` with `vr_shoulder_offset`), so it follows the body
   whatever the height calibration; `vr_flat_reach` scales how far the hands sit from them.
 
-These three are plain (not saved) cvars, and they are in the Debug menu: **Debug > Reports > Flatscreen Play** — Status,
-Print (`vr_flatplay_debug`: prints each E and V press and where the hands are), Hand Reach, Turn Lag, Walk Bob.
+**The hands are locked to the view.** The game's pose is rigid in the view's frame (only a change of pose — a weapon
+taken, a punch, E's reach — is eased, in that frame). The hands are made at the frame's start, before the mouse turns the
+view and before the client moves the player, so in this mode they are made again twice (`hands::relatch`, the frame's
+velocities kept): for the move (`buildMove`: the shots go where the crosshair is now) and for the drawn view
+(`VR_SetupViewEntities`: the origin just moved to). The drawn hands are then carried onto the camera as drawn (Quake's
+view bob, strafe roll, kick and step easing). With the three looks below at 0 the drawn weapon does not move in the view
+at all (0.014 units strafing and turning; it was 23.7 units strafing and 7.5 degrees at 540 degrees a second turning).
+
+**The looks** are the drawn hands' only (`flatplay::drawnOffset`, added like the fatigue shake; the muzzle is put back on
+the steady hand), so the shots and the aim stay on the crosshair whatever they are set to:
+
+- **Move Sway** (`vr_flat_sway`, 1): each change of the player's velocity kicks the hands the other way and a spring
+  settles them, a little overshoot: they lag as he starts and stops (~1.3 units), dip on a jump and on a landing. At a
+  steady run they are where they rest;
+- **Walk Bob** (`vr_flat_bob`, 1): a figure of eight on the ground, its size and rate with the speed (0.7 units across,
+  0.6 down, a little roll at a run), and breathing at rest;
+- **Turn Lag** (`vr_flat_turnlag`, 1) and **Turn Lag Recovery** (`vr_flat_turnlag_speed`, 1): "weapon inertia": the hands
+  keep their direction as the view turns and a critically damped spring brings them back (18/s times the recovery).
+  ~2 degrees behind at 180 degrees a second, at most 4 (softly), back within a quarter second. A view set in one frame
+  (a teleporter, a respawn) leaves no lag.
+
+These are plain (not saved) cvars, and they are in the Debug menu: **Debug > Reports > Flatscreen Play** — Status, Print
+(`vr_flatplay_debug`: prints each E and V press and where the hands are; 2: each frame the drawn weapon in the camera's
+frame, `flatview:`, and each move's shot against the view, `flatmove:`), Hand Reach, Move Sway, Walk Bob, Turn Lag, Turn
+Lag Recovery. Test: `bash Misc/quakevr/flatplay_test.sh <agent>`.
 
 **The keys.** Read from the keyboard state, not from bindings — nothing is rebound and no config changes; they only work
 while the game has the keys (`key_dest == key_game`).
@@ -84,6 +106,7 @@ hands, its flashlight, its keys).
 
 ## Tuning
 
-`vr_flat_reach` (1), `vr_flat_sway` (1), `vr_flat_bob` (1) — all not saved, all in the Debug menu. The pose's own
+`vr_flat_reach` (1), `vr_flat_sway` (1), `vr_flat_bob` (1), `vr_flat_turnlag` (1), `vr_flat_turnlag_speed` (1) — all
+not saved, all in the Debug menu. The looks' own numbers are named constants at the top of `vr_flatplay.cpp` too. The pose's own
 numbers (where a hand sits, how far a punch throws the fist, how long it takes) are named constants at the top of
 `vr_flatplay.cpp`.

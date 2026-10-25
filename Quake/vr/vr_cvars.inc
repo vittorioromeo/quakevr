@@ -5014,8 +5014,10 @@ QVR_CVAR(vr_brush_autoload, "0", CVAR_ARCHIVE)         // a map started (not a s
 QVR_CVAR(vr_flatplay, "0", CVAR_NONE)                   // 1 while the mode runs (the flag given and no headset session): set by the engine every frame, read by the game code (QC vr_flatplay) for the controls it takes over
 QVR_CVAR(vr_flatplay_debug, "0", CVAR_NONE)             // each frame's flatscreen pose: the aim, the hands, the punch, what the keys did
 QVR_CVAR(vr_flat_reach, "1", CVAR_NONE)                 // times how far the hands sit from the head (0.25..3): the whole viewmodel's size
-QVR_CVAR(vr_flat_sway, "1", CVAR_NONE)                  // how far the arms trail a turn and a step (0..2): 0 the hands locked to the view
-QVR_CVAR(vr_flat_bob, "1", CVAR_NONE)                   // the walk's bob and the breathing (0..2): the hands' own idle motion
+QVR_CVAR(vr_flat_sway, "1", CVAR_NONE)                  // the drawn hands' sway as he starts, stops, jumps and lands (0..3): a lag that settles; 0 none
+QVR_CVAR(vr_flat_bob, "1", CVAR_NONE)                   // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
+QVR_CVAR(vr_flat_turnlag, "1", CVAR_NONE)               // the drawn hands trail a turn and catch up (0..3, at most 4 degrees each): "weapon inertia"; 0 the hands locked to the view
+QVR_CVAR(vr_flat_turnlag_speed, "1", CVAR_NONE)         // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still
 QVR_CVAR(vr_knockdown_keep_time, "1", CVAR_ARCHIVE)      // seconds holding, dragging or lifting one knocked down keeps it down after you let go, past its own timer (never past vr_knockdown_keep_max in all)
 QVR_CVAR(vr_knockdown_keep_max, "7", CVAR_ARCHIVE)     // seconds: the most one stays down in all while you keep at it (hits, stomps, holding it); its own timer is never cut short; 0: nothing keeps it down past its own timer

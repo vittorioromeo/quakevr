@@ -21551,3 +21551,54 @@ monster_knight in the way`: shot held, 0 nails); a wall closer than the spawn di
 and monsters), dropped to the floor, still (movetype none); nails from 24 units; the player FL_NOTARGET and the map's
 monsters' thinks off during the test (restored at the end). Result: 17/0 in 19 runs over vrtesthall, e1m1-3, e1m5, e2m2
 (x10), e2m3 (x13), start; scene `nailpistol` validate 0 errors, runall OK; eval.sh no verdict changes.
+## Flatscreen hands: locked to the view, then sway, bob and turn lag (worktree `tghost`, branch `agent/flathands`, 2026-10-25)
+
+Vittorio: in `-flatscreenmode` the hands lagged behind when moving with WASD and when turning. Wanted: no lag, then a
+customizable sway on a walk and a little intentional delay on a turn, as in modern shooters.
+
+**Why they lagged** (measured: the drawn main weapon in the camera's frame, `vr_flatplay_debug 2`'s `flatview:` lines,
+strafing at 320 and turning at 540 degrees a second, sway and bob 0):
+1. the hands were eased in *world* space (`fs.hand += (target - hand) * ease(15/s)`): at a run that leaves them v/k
+   ~21 units behind the moving view, and a turn swings them round late — 23.7 units off while strafing;
+2. they are made once a frame, at its start (`hands::current()` from `VR_BeginFrame`), before `CL_AccumulateCmd` turns
+   the view with the mouse and before `CL_ReadFromServer` moves the player: a frame behind both. Turning, the drawn
+   gun pointed 7.5 degrees off at 540 deg/s (one frame), and so did the **shot** the move sent (the hand's angles), not
+   only the picture;
+3. `vr_flat_sway`'s old trail (the step's velocity times 0.035, the turn rate times 0.075) added a steady offset on top.
+
+**The fix.** `flatplay::poseHands` is rigid in the view's frame: each hand's place off its shoulder in (forward, right,
+up), eased only from one pose to the next (weapon taken, punch, reach) in that frame. `hands::relatch()` makes the pose
+again with the frame's velocities kept (the `Previous` sample restored, so they are still measured between the frames'
+first poses: a pose made again at the end of a frame is the next frame's, and would difference to standing still): in
+`buildMove` (the move's hands and shot from this frame's mouse turn) and at the top of `VR_SetupViewEntities` (the origin
+the client has just moved the player to). Flat mode only (`flatplay::active()`); VR is untouched.
+
+**The looks** (`flatplay::drawnOffset`, added in `VR_SetupViewEntities` like the fatigue shake, so the muzzle is put back
+on the steady hand and the shots are not moved): the hands carried from the pose's head onto the drawn camera (Quake's
+view bob, strafe roll, kick, its own step easing), then:
+- the turn's lag: the hands keep their direction as the view turns, an exactly-stepped critically damped spring
+  (18/s times `vr_flat_turnlag_speed`) brings them back; 0.12 of it shown times `vr_flat_turnlag`, softly capped at 4
+  degrees times it; a view set more than 45 degrees in a frame leaves none;
+- the move's sway: each change of velocity (level view frame; up and down 1.4x) kicks a spring (11/s, 0.55 of critical)
+  the other way: a lag and settle on starting and stopping, a dip on a jump and a landing; capped (softly) at 5 units;
+- the walk's bob: a figure of eight with the speed on the ground (eased in and out), breathing at rest.
+Stepped once a frame on `vr_gametime` (the same with `vr_fixed_frames`).
+
+**Settings** (Debug > Reports > Flatscreen Play; not saved, like the rest of the block): `vr_flat_sway` 1 (now the move
+sway only), `vr_flat_bob` 1, new `vr_flat_turnlag` 1 and `vr_flat_turnlag_speed` 1.
+
+**Numbers** (`bash Misc/quakevr/flatplay_test.sh <agent>`, all PASS): all three 0: the drawn weapon 0.014 units and
+0.000 degrees from its still place strafing and turning (before: 23.7 units, 7.5 degrees). Defaults: 1.3 units at a
+start or stop, 3.4 degrees behind a 540 deg/s turn, 0.000 a second after. The shot each move sends: at most 0.02 degrees
+off the view over 270 moves turning, strafing and looking up with all the looks on (it was a frame of turn behind).
+
+**Decisions.** The two existing cvars kept their names (`vr_flat_sway` for the move sway — its turn part moved to the new
+`vr_flat_turnlag` — and `vr_flat_bob`); none are archived, as the block's comment has it. The hands follow the drawn
+camera's kick and roll too (a viewmodel's); the chase camera and the ragdoll tool's orbit fall back to the pose's head.
+
+**In flatscreen (`-flatscreenmode`):**
+- [ ] Walk, strafe and run with WASD: the gun stays where it is on the screen, only a gentle bob; start and stop: a small
+  lag that settles. Jump and land: a dip.
+- [ ] Turn quickly with the mouse: the hands trail a little and catch up at once; the shots go to the crosshair while
+  turning and walking (shoot a wall while strafing and turning).
+- [ ] Debug > Reports > Flatscreen Play: Move Sway, Walk Bob, Turn Lag, Turn Lag Recovery: 0 locks each; 2 doubles.

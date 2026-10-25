@@ -11,6 +11,7 @@
 #include "vr_meleeshow.hpp"
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
+#include "vr_flatplay.hpp"
 
 namespace view_detail
 {
@@ -4678,6 +4679,12 @@ hands::State unposedHands; // (VR_SetupViewEntities: the game's hands, put back 
 extern "C" void VR_SetupViewEntities()
 {
     QVR_PROFILE("view entities");
+    if(flatplay::active() && !stereo::isRenderingEye())
+    {
+        // Flatscreen: the hands made again from the view drawn now (the origin the client has just moved the player to),
+        // locked to it (vr_flatplay.cpp drawnOffset, below, adds only the looks: the sway, the bob and the turn's lag).
+        hands::relatch();
+    }
     hands::State& s = hands::current();
     if(stereo::isRenderingEye())
     {
@@ -4748,6 +4755,12 @@ extern "C" void VR_SetupViewEntities()
         chainsaw::shake(hand, sawPos, sawAngles);
         shakePos[hand] += sawPos;
         shakeAngles[hand] += sawAngles;
+        // Flatscreen play's looks (vr_flatplay.cpp): the hands kept on the drawn view (its bob, roll and kick), their sway,
+        // bob and the turn's lag, the same way (the shots go from the steady hands, along the crosshair).
+        glm::vec3 flatPos, flatAngles;
+        flatplay::drawnOffset(s, hand, flatPos, flatAngles);
+        shakePos[hand] += flatPos;
+        shakeAngles[hand] += flatAngles;
         s.pos[hand] += knockPos[hand] + shakePos[hand];
         s.rot[hand] += knockAngles[hand] + shakeAngles[hand];
         s.visualRot[hand] += knockAngles[hand] + shakeAngles[hand];
@@ -4972,6 +4985,12 @@ extern "C" void VR_SetupViewEntities()
             // at two or three times the hand's speed, a crate broken by one (ROUND22.md, "Crates break from fewer blows").
             s.muzzle[hand] -= pressPos[hand];
         }
+    }
+    if(vr_flatplay_debug.value >= 2.f && flatplay::active() && !stereo::isRenderingEye())
+    {
+        // Tests (flatplay_test.sh): the drawn main weapon in the camera's own frame, each frame: locked to the view, it
+        // stays put while he walks and turns (vr_flat_sway, vr_flat_bob and vr_flat_turnlag 0).
+        flatplay::printDrawn(entities.weapon[HAND_MAIN].ent.origin, entities.weapon[HAND_MAIN].ent.angles);
     }
     if(vr_debug_fatigue.value >= 2)
     {

@@ -963,10 +963,17 @@ za::Vector<Item> pageDebugReports()
         slider("Flatscreen Hand Reach", vr_flat_reach, 0.25f, 3.f, 0.05f, "%.2f")
             .help("How far the flatscreen hands sit from the shoulders: a held gun out in front of the chest, an empty "
                   "hand at its side."),
-        slider("Flatscreen Turn Lag", vr_flat_sway, 0.f, 2.f, 0.05f, "%.2f")
-            .help("How much the flatscreen arms are left behind by a turn and by a step."),
-        slider("Flatscreen Walk Bob", vr_flat_bob, 0.f, 2.f, 0.05f, "%.2f")
-            .help("How much the flatscreen hands bob on a walk and breathe at rest."),
+        slider("Flatscreen Move Sway", vr_flat_sway, 0.f, 3.f, 0.05f, "%.2f")
+            .help("How much the flatscreen hands lag and settle as you start, stop, jump and land (0: none). Looks only: "
+                  "the shots go along the crosshair."),
+        slider("Flatscreen Walk Bob", vr_flat_bob, 0.f, 3.f, 0.05f, "%.2f")
+            .help("How much the flatscreen hands bob as you walk (with your speed) and breathe at rest (0: none). Looks "
+                  "only."),
+        slider("Flatscreen Turn Lag", vr_flat_turnlag, 0.f, 3.f, 0.05f, "%.2f")
+            .help("How much the flatscreen hands trail a turn before catching up, as in modern shooters (0: locked to "
+                  "the view). Looks only: the shots go along the crosshair."),
+        slider("Flatscreen Turn Lag Recovery", vr_flat_turnlag_speed, 0.1f, 5.f, 0.05f, "%.2fx")
+            .help("How fast the flatscreen hands catch up with a turn: higher, quicker and less lag."),
         header("The Game"),
         command("Official Campaign Status", "vr_campaign_status").help("Owned data and language readiness; active native campaign context."),
         command("Dopa Finale Text", "loc_probe $map_dopa_endtext_final").help("Preview the resolved completion text. loc_probe <key> [arguments] also checks formatted expansion strings."),

@@ -194,6 +194,12 @@ void setLean(const glm::vec3& worldLean);
 // stuck to the face.
 void refresh();
 
+// Flatscreen play (vr_flatplay.cpp): the pose made again from the view as it is now, this frame's mouse turn and the
+// origin the client has just moved the player to (for the move, and again for the drawn hands). The frame's velocities
+// are kept: they are measured between the frames' first poses, as ever (a pose made again at the frame's end would be
+// next frame's, and the hands would difference to standing still).
+void relatch();
+
 // Updated at most once per host frame; valid only while connected to a VR-protocol server.
 [[nodiscard]] State& current();
 
