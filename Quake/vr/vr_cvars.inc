@@ -619,6 +619,9 @@ QVR_CVAR(vr_alias_eye_cache, "1", CVAR_NONE)
 // buttons, the hub's campaign and Continue buttons) listed every half second for their value screens (vr_setup.cpp);
 // 0 every edict's targetname read every frame (as before: 0.1-0.2 ms a frame in AD's big maps)
 QVR_CVAR(vr_setup_screens_cache, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Crates' Placing: Entities First: 1 a crate's or a rock's place tested against the map's
+// entities' boxes before its traces (vr_crates.cpp, vr_debris.cpp: the same places, a map's start faster); 0 after them
+QVR_CVAR(vr_place_entities_first, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Shadow Caster Set-up Shared: 1 each animated shadow caster's whole instance (pose, matrix,
 // zero blend, swing rows) made once for the frame's shadow lights and copied into the others' batches, its depth draws
 // with no textures bound (no fragment shader reads them), and the first eye's scene taking the shadow pass's lerp and

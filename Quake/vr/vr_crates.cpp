@@ -295,6 +295,17 @@ struct Planner
                 return false;
             }
             floorZ = down.endpos[2];
+        }
+        const float height = o.hu * 2.f;
+        // Clear of the entities (their boxes grown by their margins): no traces, so first (a third of the rejected spots
+        // were rejected here, after some 45 traces each: 150 ms of a big AD map's load; the same answer, every test is
+        // needed to pass). vr_place_entities_first 0: last, as before (A/B).
+        if(vr_place_entities_first.value != 0.f && !clearOfEntities(o, c, floorZ, height, reason))
+        {
+            return false;
+        }
+        if(onFloor)
+        {
             glm::vec3 pts[8];
             footprint(o, {c.x, c.y, floorZ}, 1.f, pts);
             for(const glm::vec3& p : pts)
@@ -308,7 +319,6 @@ struct Planner
                 }
             }
         }
-        const float height = o.hu * 2.f;
         for(const float h : {2.f, height - 2.f})
         {
             const int inside = contents({c.x, c.y, floorZ + h});
@@ -350,7 +360,12 @@ struct Planner
                 return false;
             }
         }
-        // Clear of the entities (their boxes grown by their margins).
+        return vr_place_entities_first.value != 0.f || clearOfEntities(o, c, floorZ, height, reason);
+    }
+
+    // Clear of the entities (their boxes grown by their margins).
+    [[nodiscard]] bool clearOfEntities(const Orient& o, const glm::vec3& c, float floorZ, float height, int& reason) const
+    {
         const float rx = za::abs(o.fwd.x) * o.hf + za::abs(o.left.x) * o.hl;
         const float ry = za::abs(o.fwd.y) * o.hf + za::abs(o.left.y) * o.hl;
         for(const debris::Obstacle& ob : obstacles)

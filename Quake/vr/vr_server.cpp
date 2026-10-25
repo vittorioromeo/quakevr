@@ -20,6 +20,7 @@
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_serverrules.hpp"
+#include "vr_tracy.h"
 #include "vr_seated.hpp"
 #include "vr_shock.hpp"
 #include "vr_units.hpp"
