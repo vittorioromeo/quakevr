@@ -3360,10 +3360,14 @@ QVR_WEAPON_DEFAULT(34, HandAnchor, "5.0979 -0.0482 0.7118")
 // where the main hand's is from the rear handle (vr_hotspot_fit: model 7.29 0.71 4.64 -> 31 0 3.3; settings' frame:
 // corner + Scale 0.48 x (point - corner)). Heavier and longer than the super shotgun (Weight).
 // Round 22 (widowmaker3, vr_wofs_version 51): the barrels turn (a Gatling); the muzzle the top barrel's front.
+// Round 22 (widowmaker-art, vr_wofs_version 63): the hand-made model (vr_ad_widowmaker_art 1: progs/v_widowmaker.mdl,
+// Misc/quakevr/models_src/widowmaker) in the same frame, its grips, shell port, ejection slot and muzzle (the spin axis
+// between its two barrels, 44 0 8.8) where these were; the readout and button on its taller receiver's top (z 11.4; the
+// model made from AD's top is 10.4, so with vr_ad_widowmaker_art 0 they float a unit over it).
 QVR_WEAPON_DEFAULT(34, MuzzleAnchor, "44 0 8.8")
 QVR_WEAPON_DEFAULT(34, TwoHHandAnchor, "29.08 -0.04 -0.18")
-QVR_WEAPON_DEFAULT(34, WpnButtonAnchor, "12 0.85 10")
-QVR_WEAPON_DEFAULT(34, WpnTextAnchor, "12 0.85 10")
+QVR_WEAPON_DEFAULT(34, WpnButtonAnchor, "12 0.85 11.4")
+QVR_WEAPON_DEFAULT(34, WpnTextAnchor, "12 0.85 11.4")
 // His tuning (round 22, widowmaker2; vr_wofs_version 50): hotspot 1 a cup (the other hand under and round the rear
 // handle's), hotspot 2 off. (Its shell port on the receiver's inner side is above the handles: no grip moved.)
 QVR_WEAPON_DEFAULT(34, Hotspot1Type, "3")

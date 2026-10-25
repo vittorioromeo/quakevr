@@ -2773,6 +2773,11 @@ QVR_CVAR(vr_ad_widowmaker_motor, "0.4", CVAR_ARCHIVE)
 // The shot's volume (vr/widowmaker_shot.wav played at this, over 1 louder than the file: SND_LOUD, up to 4).
 QVR_CVAR(vr_ad_widowmaker_shot_volume, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_ad_widowmaker_spin_at, "-1", CVAR_NONE) // debug: the barrels drawn turned this many degrees (pictures); -1: as they are
+// Its VR model (round 22, his mockup of 2026-10-25; vr_adweapons.cpp derivedFile): 1 the hand-made one
+// (progs/v_widowmaker.mdl, Misc/quakevr/models_src/widowmaker: two barrels turning, a half turn a shot), 0 the one made
+// from AD's view model as it loads (widowmakerParts: three barrels, a third of a turn a shot), for A/B. The same frame,
+// grips and ports (slot 34's settings hold both); a change reloads the model.
+QVR_CVAR(vr_ad_widowmaker_art, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_dmg_ad_plasmagun, "45", CVAR_ARCHIVE)     // the Plasma Gun's bolt: its hit (AD's 45; a map's worldspawn plasmagun_dmg wins)
 QVR_CVAR(vr_dmg_ad_plasmagun_splash, "20", CVAR_ARCHIVE) // ... its blast (AD's 20; 0 none)
 QVR_CVAR(vr_ad_plasmagun_speed, "900", CVAR_ARCHIVE)  // ... its speed (AD's 900)
