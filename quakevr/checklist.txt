@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Enforcer rig loosened: an enforcer with a gun aiming and firing: wrist not kinked, gun not too close to its chest (all its poses sit 3 units further back: nudge your enforcer keys forward in Pose Studio if one looks too close); elbows near its left shoulder pad don't clip {test:agrunt_weapon_hands}
 Pose Studio usability: in Live, Pause and walk up to the grunt with the sticks; scrub by holding a grip on nothing (or a hand at the panel) and pushing a stick; drag a weapon far out: its box turns orange with the reason and it stays where it stopped; raise an elbow high; grip the panel's top bar to move it (it stays next time), Recentre, Fold {test:agrunt_pose_studio}
 Armed humanoids up close: stand against a gun grunt: no gun over the shoulder, no lag; grab its gun anywhere: a tug, no parry sound; punch or swing at it: it guards with the gun across the chest; walk up to a lying grunt and reach for its gun: it keeps it until you grab or hit it; hold a tug still without pulling: does the gun come out too easily? {test:agrunt_tug}
 Pose Studio Live mode: walk up to a monster, Live On, pick Loop (All, Aim+Fire, Reload, Run, Strikes, Pickup) and Speed (1x to 0.1x); Pause, scrub with a stick or Next Glitch; the readout names the key in control and shows red bars on glitches; grab the weapon/fist/elbow/chest to fix that key at that frame; Play, then Done (send me the file) {test:agrunt_pose_studio}
