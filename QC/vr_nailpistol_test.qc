@@ -25,6 +25,8 @@ float vr_npt_seen;      // shots seen so far
 float vr_npt_mingap;    // the shortest gap between two shots
 float vr_npt_slide1;    // the slide's frame just after the first shot (1 back)
 float vr_npt_n;
+.float vr_npt_frozen;   // a map's monster held still for the test (its think put off)
+float vr_npt_notarget;  // the player's FL_NOTARGET before
 float vr_npt_mode;      // vr_reload_mode_npistol before
 float vr_npt_grip;      // vr_weapon_grip_mode before (1 meanwhile: the mock's hands keep what they hold)
 entity vr_npt_player;
@@ -36,12 +38,37 @@ void(float ok, string what) VR_NPT_Check =
     dprint(sprintf("nptest: %s %s\n", ok ? "PASS" : "FAIL", what));
 };
 
+// The map's own monsters stand still meanwhile (one walking into the grunts' line of fire holds their shots).
+void(float xOn) VR_NPT_Freeze =
+{
+    entity e = nextent(world);
+    while(e)
+    {
+        if(xOn)
+        {
+            if((e.flags & FL_MONSTER) && e.health > 0 && e.nextthink > 0)
+            {
+                e.vr_npt_frozen = TRUE;
+                e.nextthink = 0;
+            }
+        }
+        else if(e.vr_npt_frozen)
+        {
+            e.vr_npt_frozen = FALSE;
+            e.nextthink = time + 0.1;
+        }
+        e = nextent(e);
+    }
+};
+
 void() VR_NPT_End =
 {
+    VR_NPT_Freeze(FALSE);
     if(vr_np_target) { remove(vr_np_target); vr_np_target = world; }
     cvar_set("vr_reload_mode_npistol", ftos(vr_npt_mode));
     cvar_set("vr_weapon_grip_mode", ftos(vr_npt_grip));
     VR_NPT_Trigger(0);
+    if(!vr_npt_notarget) vr_npt_player.flags = vr_npt_player.flags - (vr_npt_player.flags & FL_NOTARGET);
     dprint(sprintf("nptest: %g passed, %g failed\n", vr_npt_pass, vr_npt_fail));
     vr_npt_step = 0;
 };
@@ -85,26 +112,30 @@ entity(float xDist, float xWeapon, float xWeapon2) VR_NPT_Grunt =
 {
     entity p = vr_npt_player;
     makevectors('0 1 0' * p.angles_y);
-    vector at = p.origin + v_forward * xDist;
+    // (stopping short of a wall or another monster, which would hold its fire: a real map's room may be smaller than the vrtesthall's)
+    traceline(p.origin, p.origin + v_forward * xDist, FALSE, p);
+    vector at = trace_endpos - v_forward * (trace_fraction < 1 ? 24 : 0);
     entity os = self;
     self = spawn();
     setorigin(self, at);
     self.angles_y = vectoyaw(p.origin - at);
     self.weapon = xWeapon;
     self.weapon2 = xWeapon2;
+    droptofloor(); // (a ledge in a real map: it lands first, not after the nails)
     VR_AM_Spawn(0);
+    self.movetype = MOVETYPE_NONE; // (it stands where the nails are aimed)
     entity g = self;
     self = os;
     return g;
 };
 
-// A nail of the player's into `g` at its height `xUp` above its origin, from 64 units in front of it.
+// A nail of the player's into `g` at its height `xUp` above its origin, from 24 units in front of it (a step or ledge in a real map would stop a longer flight).
 void(entity g, float xUp) VR_NPT_NailAt =
 {
     entity os = self;
     self = vr_npt_player;
     vector to = g.origin + '0 0 1' * xUp;
-    vector from = to + normalize(vr_npt_player.origin - g.origin) * 64;
+    vector from = to + normalize(vr_npt_player.origin - g.origin) * 24;
     from_z = to_z;
     vector dir = normalize(to - from);
     entity n = launch_spike(from, dir);
@@ -172,6 +203,10 @@ void() VR_NailPistol_TestFrame =
         vr_npt_mode = cvar("vr_reload_mode_npistol");
         vr_npt_grip = cvar("vr_weapon_grip_mode");
         cvar_set("vr_weapon_grip_mode", "1");
+        // (a real map's monsters must not wake, hunt or shoot meanwhile: the checks need the spawned grunts still)
+        vr_npt_notarget = (vr_npt_player.flags & FL_NOTARGET) != 0;
+        vr_npt_player.flags = vr_npt_player.flags | FL_NOTARGET;
+        VR_NPT_Freeze(TRUE);
         vr_npt_step = 1;
         vr_npt_frames = 0;
     }
@@ -306,6 +341,14 @@ void() VR_NailPistol_TestFrame =
                 sprintf("a shot from the new magazine: %g shots, clip %g", vr_np_shots, VRGetWeaponClip(cVR_MainHand)));
             remove(vr_np_target);
             vr_np_target = world;
+            // (that last nail is still flying down the aim: in a long corridor it would reach the grunts and add to their damage)
+            entity sp = find(world, classname, "spike");
+            while(sp)
+            {
+                entity nx = find(sp, classname, "spike");
+                if(sp.owner == p) remove(sp);
+                sp = nx;
+            }
             vr_npt_g = VR_NPT_Grunt(256, -1, 0);
             vr_npt_n = 0;
             VR_NPT_Next();

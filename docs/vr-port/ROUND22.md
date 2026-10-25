@@ -21381,3 +21381,16 @@ Vittorio approved: the ~26k lines of `*_test.qc` no longer ship in the players' 
   list's 93 tags all have files: `b4_check.py`); `runall` on the three: 3 run, 0 failed, both hands still holding.
 - **Not tagged** (menu-only, calibration, seated, AD maps, desktop window): load prewarm (AD maps), Ultra's resolution,
   spectator skip, screens, holsters, calibration, death menu, autosaves.
+
+## Nail pistol self-test made map-independent (worktree `dequant`, branch `agent/nptest`, 2026-10-25)
+
+`vr_np_test 1` passed 17/17 on vrtesthall but gave 15/2 (and 13/4, 16/1) in real maps: no pistol regression (next's progs
+pass 17/17 on vrtesthall, e1m1, start, e2m1 every time; the grip/sight zeroing is not involved). The failing checks were
+the grunt ones (headshots, body shots, armed grunt, pair), flaky from run to run, caused by the map around the test: the
+last test nail flew on down the aim and hit the grunts (extra damage); a ledge made the grunt fall under the nails; a step
+stopped the nails' 64-unit flight; the map's own monsters woke, walked and stood in the grunts' line of fire (`holds: its
+monster_knight in the way`: shot held, 0 nails); a wall closer than the spawn distance. Fixes in
+`QC/vr_nailpistol_test.qc` only: stray nails removed before the grunts; grunts placed by a traceline (stops short of walls
+and monsters), dropped to the floor, still (movetype none); nails from 24 units; the player FL_NOTARGET and the map's
+monsters' thinks off during the test (restored at the end). Result: 17/0 in 19 runs over vrtesthall, e1m1-3, e1m5, e2m2
+(x10), e2m3 (x13), start; scene `nailpistol` validate 0 errors, runall OK; eval.sh no verdict changes.
