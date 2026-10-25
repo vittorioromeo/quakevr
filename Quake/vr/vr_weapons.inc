@@ -3383,6 +3383,10 @@ QVR_WEAPON_DEFAULT(34, Span, "75")
 QVR_WEAPON_DEFAULT(34, Flash, "1") // (his, vr_wofs_version 53)
 QVR_WEAPON_DEFAULT(34, Recoil, "1") // (his, vr_wofs_version 53)
 QVR_WEAPON_DEFAULT(34, RecoilStrength, "1.405") // (his, vr_wofs_version 53)
+// His (config of 2026-10-19, vr_wofs_fx_tr_owncol_35; config of 2026-10-25, vr_wofs_stock_pitch_35): the tracer in its own
+// colour (shipped on the plasma gun's slot 35 at 54 by mistake: vr_wofs_version 65 moved it) and the stock's pitch.
+QVR_WEAPON_DEFAULT(34, TracerOwnColour, "1")
+QVR_WEAPON_DEFAULT(34, StockPitch, "5.95")
 QVR_WEAPON_DEFAULT(35, ID, "progs/v_plasma.mdl#vr")
 QVR_WEAPON_UNINHERITED(35, TwoHFixedHandRoll, "-90.400024")
 QVR_WEAPON_UNINHERITED(35, TwoHFixedHandYaw, "-32.650013")
@@ -3448,7 +3452,6 @@ QVR_WEAPON_DEFAULT(35, Recoil, "1")
 QVR_WEAPON_DEFAULT(35, RecoilStrength, "0.6")
 QVR_WEAPON_DEFAULT(35, RecoilTime, "0.12")
 QVR_WEAPON_DEFAULT(35, Flash, "1")
-QVR_WEAPON_DEFAULT(35, TracerOwnColour, "1") // his (vr_wofs_version 54)
 QVR_WEAPON_DEFAULT(35, FlashSize, "0.7")
 // AD support: the crossbow knight's crossbow (QC vr_ad_enemyguns.qc WID_ADCROSSBOW): AD's own progs/w_dcrossbow.mdl (its
 // gib) turned to face +x as our guns do (vr_adguns.cpp turnedModels: "progs/w_dcrossbow.mdl#gun0"; the stock along x
