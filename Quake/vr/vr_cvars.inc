@@ -2811,6 +2811,23 @@ QVR_CVAR(vr_grunt_burst_damage, "5", CVAR_ARCHIVE)   // a grunt's burst: each ro
 // Armed grunts (experimental; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding one of your weapons.
 QVR_CVAR(vr_agrunt_damage_scale, "0.5", CVAR_ARCHIVE)  // its weapon's damage to players times this (a rocket isn't a one-shot)
 QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries beyond the one in its gun (reloads: a short pause)
+// Armed humanoid replacements (QC vr_armedrepl.qc; ROUND22.md "Armed humanoid replacements"): a map's grunts and
+// enforcers as armed ones. All off by default.
+QVR_CVAR(vr_agrunt_repl, "0", CVAR_ARCHIVE)            // 1: every grunt and enforcer a map spawns is its armed version holding its own gun (its own damage, rate, aim, loot)
+QVR_CVAR(vr_agrunt_repl_common, "0", CVAR_ARCHIVE)     // 0..1: the chance one holds a shotgun or a nail pistol instead
+QVR_CVAR(vr_agrunt_repl_uncommon, "0", CVAR_ARCHIVE)   // 0..1: ... a nailgun, super nailgun or super shotgun (one a player owns)
+QVR_CVAR(vr_agrunt_repl_rare, "0", CVAR_ARCHIVE)       // 0..1: ... a launcher, the thunderbolt, a melee weapon, a mission pack's gun (owned; from vr_agrunt_repl_rare_map on)
+QVR_CVAR(vr_agrunt_repl_rare_map, "4", CVAR_ARCHIVE)   // rare weapons only from this map of an episode on (e1m4, hip1m4, ...; 0: any map)
+QVR_CVAR(vr_agrunt_repl_dual, "0", CVAR_ARCHIVE)       // 0..1: the chance of a second weapon that pairs (two guns, two blades)
+QVR_CVAR(vr_agrunt_repl_gunaxe, "0", CVAR_ARCHIVE)     // 0..1: the chance of a gun and an axe (the gun, the axe up close)
+QVR_CVAR(vr_agrunt_repl_skill0, "0.5", CVAR_ARCHIVE)   // the chances above times this on Easy
+QVR_CVAR(vr_agrunt_repl_skill1, "1", CVAR_ARCHIVE)     // ... on Normal
+QVR_CVAR(vr_agrunt_repl_skill2, "1.5", CVAR_ARCHIVE)   // ... on Hard
+QVR_CVAR(vr_agrunt_repl_skill3, "2", CVAR_ARCHIVE)     // ... on Nightmare
+QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE)         // 1: in Quake's own campaigns (id1, Dimension of the Past, the Machine Games' ones) and their custom maps
+QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
+QVR_CVAR(vr_agrunt_repl_ad, "0", CVAR_ARCHIVE)         // 1: in Arcane Dimensions' maps too (their own designed encounters: off)
+QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE)       // shuffles every map's loadouts (the same seed: the same loadouts)
 QVR_CVAR(vr_agrunt_dual_chance, "0.25", CVAR_ARCHIVE)  // 0..1: one from the pool with a weapon that pairs (a one-handed blade or club, a gun not too big) gets a second in its left hand
 QVR_CVAR(vr_agrunt_dual_penalty, "1", CVAR_ARCHIVE)    // dual-wielded guns' penalties times this (1: yours: no two-hand spread reduction, heavy recoil kicks)
 QVR_CVAR(vr_agrunt_dual_pickup, "0", CVAR_ARCHIVE)     // 1: one holding a weapon that pairs picks up a second for its left hand

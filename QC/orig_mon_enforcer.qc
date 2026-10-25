@@ -140,6 +140,7 @@ void() enforcer_fire =
 
     if(!VR_AI_ShotReady(org)) { return; }
     LaunchLaser(org, VR_AI_Origin(self.enemy) - self.origin);
+    vr_agr_shots_enf = vr_agr_shots_enf + 1; // (the tests: vr_armedrepl_test.qc)
     MG3_EnforcerAltLaser(org); // QVR: Dawn of the Machine's Bloody Nightmare: a second (vr_mg3_bn.qc)
     weaponfired(self, -1); // VR: its rifle's muzzle flash (an enforcer's: vr_weaponfx.cpp)
 };
@@ -391,6 +392,7 @@ void() monster_enforcer =
         remove(self);
         return;
     }
+    if(VR_AGR_Replace(1)) return; // VR: its armed version in its place, its own rifle (vr_agrunt_repl: vr_armedrepl.qc)
     precache_model2("progs/enforcer.mdl");
     precache_model2("progs/h_mega.mdl");
     precache_model2("progs/laser.mdl");

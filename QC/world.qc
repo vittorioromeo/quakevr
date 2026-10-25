@@ -316,6 +316,7 @@ void() worldspawn =
     VR_SmallGib_Precache(); // VR: small gibs' squishes (vr_smallgibs.qc)
     VR_Crates_Precache(); // VR: wooden crates (vr_crates.qc)
     VR_Reload_Precache(); // VR: immersive reloading's shells and sounds (vr_reload.qc)
+    VR_AGR_Precache(); // VR: armed humanoid replacements' bodies and weapons, when on (vr_armedrepl.qc)
 
     // setup precaches allways needed
     precache_sound("items/itembk2.wav");        // item respawn sound
@@ -584,6 +585,7 @@ void() StartFrame =
     VR_Tutorial_Frame(); // QVR: Debug's Go to a Lesson (vrtutorial only: vr_tutorial.qc)
     VR_Trailer_Frame(); // QVR: the trailer scene's reset and log (vrtrailer only: vr_trailer.qc)
     MG_WorldFrame();
+    VR_AGR_Frame(); // QVR: armed humanoid replacements' loadouts, once a player is in (vr_armedrepl.qc)
     MG_TestFrame();
     MG_TriggerTestFrame();
     MG1_H_TestFrame();
