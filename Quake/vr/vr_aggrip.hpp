@@ -56,6 +56,9 @@ void resetEntries(int kind, int slot);
 int copyKind(int from, int to);
 // vr_agrunt_grip_dump's lines (the changes from the defaults; none: a comment saying so).
 void dumpText(za::String& out);
+// configVersion 202 (the defaults became his): the entries equal to their defaults dropped from vr_agrunt_grips, as
+// set() would; the text left as it is if any entry in it did not parse. Returns how many were dropped.
+int dropDefaultEqual();
 // An offset as a rigid motion (yaw about z, then pitch about y (down), then roll about x) and back.
 [[nodiscard]] rigpose::Rigid toRigid(const Offset& o);
 [[nodiscard]] Offset fromRigid(const rigpose::Rigid& r);

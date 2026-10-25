@@ -188,6 +188,7 @@ QVR_PROP_DEFAULT(43, ID, "progs/h_wizard.mdl")
 QVR_PROP_DEFAULT(43, Mass, "-1")
 QVR_PROP_DEFAULT(44, ID, "progs/h_zombie.mdl")
 QVR_PROP_DEFAULT(44, Mass, "-1")
+QVR_PROP_DEFAULT(44, Size, "0.8") // the author's (his config, approved 2026-10-25; configVersion 202)
 QVR_PROP_DEFAULT(45, ID, "progs/h_shal.mdl")
 QVR_PROP_DEFAULT(45, Size, "0.75")
 QVR_PROP_DEFAULT(45, Mass, "-1")
@@ -348,14 +349,15 @@ QVR_PROP_DEFAULT(60, ForceGrab, "0")
 // config, 2026-10-07: the nailgun's 0.55, the super nailgun's and the cell's 0.45) and held as for loading (his note:
 // they came out of the pouch upside down): fixed in the fist, its length along the fist's grip channel, its top (the
 // feed end) up out of it, the fingers fitted round it (vr_props_version 63).
+// The nailgun's: the author's grip and both hands (his config, approved 2026-10-25; configVersion 202: -2.13, -3.05, one
+// hand before).
 QVR_PROP_DEFAULT(50, ID, "progs/vr_mag_nail.mdl")
 QVR_PROP_DEFAULT(50, Mass, "0.45")
-QVR_PROP_DEFAULT(50, TwoHands, "0")
 QVR_PROP_DEFAULT(50, GripMode, "1")
 QVR_PROP_DEFAULT(50, Size, "0.55")
-QVR_PROP_DEFAULT(50, GripX, "-2.13")
+QVR_PROP_DEFAULT(50, GripX, "-2.1")
 QVR_PROP_DEFAULT(50, GripY, "0.05")
-QVR_PROP_DEFAULT(50, GripZ, "-3.05")
+QVR_PROP_DEFAULT(50, GripZ, "-3.35")
 QVR_PROP_DEFAULT(50, Overlap, "0.385") // the author's (2026-10-22: the pinky kept out of it; configVersion 179)
 QVR_PROP_DEFAULT(51, ID, "progs/vr_mag_snail.mdl")
 QVR_PROP_DEFAULT(51, Mass, "0.7")
@@ -378,14 +380,14 @@ QVR_PROP_DEFAULT(52, Overlap, "0.4")
 // The nail pistol's magazine (make_nailpistol_mags.py; QC vr_nailpistol.qc): held as the nailgun's, a little smaller (the
 // pistol's Scale 0.45 to its Size 0.52, as the nailgun's 0.48 to 0.55) and lighter. configVersion 200 gives the slot to
 // configs saved before (vr_props.cpp shippedSlots); 201 to those where another model had taken it (that model moves).
+// The author's size, In the Palm (Grip X..Z 0: the palm needs no offset) and handle tilt (his config, approved
+// 2026-10-25; configVersion 202 moves configs still at 0.52, Grip Mode 1 at -1.8 0.05 -2.6, tilt 25).
 QVR_PROP_DEFAULT(56, ID, "progs/vr_mag_npistol.mdl")
 QVR_PROP_DEFAULT(56, Mass, "0.25")
 QVR_PROP_DEFAULT(56, TwoHands, "0")
-QVR_PROP_DEFAULT(56, GripMode, "1")
-QVR_PROP_DEFAULT(56, Size, "0.52")
-QVR_PROP_DEFAULT(56, GripX, "-1.8")
-QVR_PROP_DEFAULT(56, GripY, "0.05")
-QVR_PROP_DEFAULT(56, GripZ, "-2.6")
+QVR_PROP_DEFAULT(56, GripMode, "2")
+QVR_PROP_DEFAULT(56, Size, "0.55")
+QVR_PROP_DEFAULT(56, HandleTilt, "30.5")
 QVR_PROP_DEFAULT(56, Overlap, "0.385")
 QVR_PROP_DEFAULT(56, ThrowDamage, "0.25")
 // Immersive reloading's launcher rounds (QC vr_reload.qc, "Front-loaded launchers"; make_rounds.py: their own models at
@@ -419,4 +421,21 @@ QVR_PROP_DEFAULT(62, GripMode, "2")
 QVR_PROP_DEFAULT(64, ID, "progs/h_dfury.mdl")
 QVR_PROP_DEFAULT(64, Size, "0.65")
 QVR_PROP_DEFAULT(64, Mass, "-1")
+// Arcane Dimensions' heads the author held, at his sizes (his config's slots, approved
+// 2026-10-25): their mass estimated as it was (Mass 0). configVersion 202 gives the slots to configs saved before
+// (takeShippedSlots: a model of another slot there moves; the head's values chosen in another slot come along).
+QVR_PROP_DEFAULT(32, ID, "progs/h_dknight.mdl")
+QVR_PROP_DEFAULT(32, Size, "0.6")
+QVR_PROP_DEFAULT(57, ID, "progs/h_dcrossbow.mdl")
+QVR_PROP_DEFAULT(57, Size, "0.6")
+QVR_PROP_DEFAULT(58, ID, "progs/h_soldier.mdl")
+QVR_PROP_DEFAULT(58, Size, "0.65")
+QVR_PROP_DEFAULT(59, ID, "progs/h_enforcer.mdl")
+QVR_PROP_DEFAULT(59, Size, "0.65")
+QVR_PROP_DEFAULT(61, ID, "progs/h_hogreham.mdl")
+QVR_PROP_DEFAULT(61, Size, "0.7")
+QVR_PROP_DEFAULT(63, ID, "progs/h_dguard.mdl")
+QVR_PROP_DEFAULT(63, Size, "0.65")
+QVR_PROP_DEFAULT(70, ID, "progs/h_hogre.mdl") // (his was slot 56's until configVersion 201 moved it: a free slot here)
+QVR_PROP_DEFAULT(70, Size, "0.6")
 #endif

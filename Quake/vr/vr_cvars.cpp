@@ -1,6 +1,8 @@
 // vr_cvars.cpp -- Quake VR cvar definitions and registration.
 
 #include "vr_cvars.hpp"
+#include "vr_aggrip.hpp"
+#include "vr_agpose.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_bodyclone.hpp"
 #include "vr_engine.hpp"
@@ -485,6 +487,24 @@ const DefaultChange defaultChanges[] = {
     {198, &vr_melee_fist_width, "1"},  // 0.291
     // 199: the tug's least pull 200 -> 270 N (a still hold read up to 211 N and tore the gun out; ROUND22.md, "Tug least pull").
     {199, &vr_agrunt_tug_pull_force, "200"},
+    // 202: logging off by default (the author's decision of 2026-10-25, cvar audit A1.4: vr_gl_markers 1 -> 0 too, not
+    // archived), and the author's values (his config of 2026-10-25 17:50, approved 2026-10-25; ROUND22.md, "His config's
+    // tuning as defaults"): the flail and the shoreline foam as he tuned them after 194 and 196, the fuel tank, bullet
+    // time, the struggle's look, the ammo pouch's wobble.
+    {202, &vr_memstats_log, "60"},                  // 0
+    {202, &vr_xr_log_timing, "1"},                  // 0
+    {202, &vr_flail_max_damage, "120"},             // 100
+    {202, &vr_flail_max_speed, "16"},               // 12
+    {202, &vr_flail_chain, "0.45"},                 // 0.6
+    {202, &vr_water_foam_particle_life, "0.8"},     // 0.4
+    {202, &vr_water_foam_particle_shore, "0"},      // -1
+    {202, &vr_water_foam_particle_spray, "1"},      // 0
+    {202, &vr_adgun_tank_health, "30"},             // 15
+    {202, &vr_bullettime_duration, "20"},           // 15
+    {202, &vr_struggle_look, "0.9"},                // 1
+    {202, &vr_struggle_look_strength, "0.6"},       // 0.8
+    {202, &vr_ammo_pouch_wobble_intensity, "1"},    // 0.8
+    {202, &vr_ammo_pouch_wobble_settle, "1.3"},     // 0.5
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -502,10 +522,27 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {179, "vr_prop_throw_dmg_51", "1"},
     {179, "vr_prop_throw_dmg_52", "1"},
     {179, "vr_prop_throw_dmg_53", "1"},
+    // 202: the author's values (his config of 2026-10-25 17:50, approved 2026-10-25): the ogre's Parry Poise; the
+    // zombie's head held smaller; the nailgun magazine's grip, in both hands; the nail pistol magazine's size, In the
+    // Palm (its Grip X..Z 0), its handle tilt. (After props::takeShippedSlots: a model of another slot in slot 56 has
+    // moved out first, with its own values.)
+    {202, "vr_mgrp_ogre_poise", "1.6"},    // 1.4
+    {202, "vr_prop_size_45", "1"},         // 0.8
+    {202, "vr_prop_grip_x_51", "-2.13"},   // -2.1
+    {202, "vr_prop_grip_z_51", "-3.05"},   // -3.35
+    {202, "vr_prop_two_hands_51", "0"},    // 1
+    {202, "vr_prop_size_57", "0.52"},      // 0.55
+    {202, "vr_prop_grip_57", "1"},         // 2
+    {202, "vr_prop_grip_x_57", "-1.8"},    // 0
+    {202, "vr_prop_grip_y_57", "0.05"},    // 0
+    {202, "vr_prop_grip_z_57", "-2.6"},    // 0
+    {202, "vr_prop_handle_tilt_57", "25"}, // 30.5
 };
 // (200: the nail pistol's magazine's prop slot 56; 201: a shipped prop slot another model had taken moves that model to
-// another slot, so that the shipped one's tuning reaches its model: props::takeShippedSlots)
-constexpr int configVersion = 201;
+// another slot, so that the shipped one's tuning reaches its model: props::takeShippedSlots; 202: AD's heads' slots,
+// and the armed grunts' archived pose keys and grips equal to the new shipped ones dropped: agpose::dropShippedEqual,
+// aggrip::dropDefaultEqual)
+constexpr int configVersion = 202;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -657,6 +694,13 @@ void migrateConfig()
             Cvar_SetQuick(c.var, c.var->default_string);
         }
     }
+    if(from < 190 && retiredStruggleSeen)
+    {
+        mgroups::migrateStruggleClasses(retiredStruggleClasses.cStr()); // (a custom list into the groups' Struggle)
+    }
+    retiredStruggleSeen = false;
+    props::takeShippedSlots(from); // (the held objects' slots shipped since: 183 AD's health vial)
+    // (after the slots: a shipped slot's rows meet its own model's values, not those of a model that had taken it)
     for(const NamedDefaultChange& c : namedDefaultChanges)
     {
         cvar_t* var = Cvar_FindVar(c.name);
@@ -666,12 +710,12 @@ void migrateConfig()
             Cvar_SetQuick(var, var->default_string);
         }
     }
-    if(from < 190 && retiredStruggleSeen)
+    if(from < 202)
     {
-        mgroups::migrateStruggleClasses(retiredStruggleClasses.cStr()); // (a custom list into the groups' Struggle)
+        const int poses = agpose::dropShippedEqual();
+        const int grips = aggrip::dropDefaultEqual();
+        Con_DPrintf("VR: armed grunts: %d pose keys and %d grips equal to the new defaults dropped\n", poses, grips);
     }
-    retiredStruggleSeen = false;
-    props::takeShippedSlots(from); // (the held objects' slots shipped since: 183 AD's health vial)
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
 

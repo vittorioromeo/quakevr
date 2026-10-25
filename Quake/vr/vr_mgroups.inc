@@ -35,7 +35,7 @@ QVR_MGROUP(hknight, "Death Knights", 1, 1.6, 0.12, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
 // only hurts (Mini Bosses); about a quarter less of every chance and a faster get-up (Elite Knights).
 QVR_MGROUP(miniboss, "Mini Bosses", 1, 1.6, 0.12, 1, 1, 1, 1, 1, 0.5, 0.5, 1.5, 0, 1)
 QVR_MGROUP(eliteknight, "Elite Knights", 1, 1.6, 0.12, 1, 1, 1, 1, 1, 0.72, 1, 1.25, 1, 1)
-QVR_MGROUP(ogre, "Ogres", 1, 2.5, 0.15, 0, 1, 1, 0, 1.6, 1, 1, 1, 1, 0)
+QVR_MGROUP(ogre, "Ogres", 1, 2.5, 0.15, 0, 1, 1, 0, 1.4, 1, 1, 1, 1, 0) // (poise: his 1.4, 1.6 before vr_cfg_version 202)
 QVR_MGROUP(zombie, "Zombies", 1, 1, 0.35, 1, 2, 1, 1, 0.5, 1, 1, 1, 1, 1)
 QVR_MGROUP(mummy, "Mummies", 1, 0, 0.2, 1, 2, 1, 1, 0.7, 1, 1, 1, 1, 1)
 QVR_MGROUP(dog, "Rottweilers", 0, 0, 0.35, 0, 2, 1, 0, 0.4, 1, 1, 1, 1, 0)

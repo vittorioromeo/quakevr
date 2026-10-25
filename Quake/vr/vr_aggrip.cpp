@@ -52,13 +52,14 @@ struct GlobalRow
 };
 constexpr GlobalRow globalDefaults[] = {
     // (Vittorio's, set in the Pose Studio: proposed_defaults/agrunt_grips_2026-10-24_13-33-26.txt; the grunt's Main and
-    // the enforcer's Off from his vr_agrunt_grips of 14:24, Misc/quakevr/pose_defaults.py)
-    {0, aggrip::Main, 1.65f, 0.14f, 1.71f, 4.6f, -4.3f, -0.5f},
+    // the enforcer's Off from his vr_agrunt_grips of 14:24, Misc/quakevr/pose_defaults.py; the grunt's Main and Second
+    // and the enforcer's Second from his vr_agrunt_grips of 2026-10-25 17:50, approved 2026-10-25)
+    {0, aggrip::Main, 1.17f, 0.71f, 3.06f, 3.7f, -3.3f, -5.2f},
     {0, aggrip::Off, 3.56f, -0.32f, -0.81f, 10.0f, -78.5f, -81.2f}, // (the left hand's rest hold is under a barrel: a pistol grip turned into it)
-    {0, aggrip::Second, -1.95f, -0.49f, -0.76f, -76.0f, -23.6f, 36.0f},
+    {0, aggrip::Second, -3.21f, -0.55f, -0.56f, -35.4f, 27.2f, -24.5f},
     {1, aggrip::Main, 1.71f, 0.55f, 3.13f, 15.0f, -4.2f, -2.7f},
     {1, aggrip::Off, 0.89f, -0.53f, -2.72f, -11.5f, -87.1f, -153.0f},
-    {1, aggrip::Second, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f},
+    {1, aggrip::Second, 12.02f, 9.17f, -0.14f, -39.5f, 9.1f, 33.2f},
 };
 
 struct Override
@@ -432,6 +433,55 @@ void set(int kind, int slot, int hand, const Offset& o)
         n.o = r;
     }
     write();
+}
+
+int dropDefaultEqual()
+{
+    parse();
+    int entries = 0; // (each ';'-ended, and a last one without)
+    bool open = false;
+    for(const char* p = vr_agrunt_grips.string; p && *p; p++)
+    {
+        if(*p == ';')
+        {
+            entries++;
+            open = false;
+        }
+        else if(*p != ' ')
+        {
+            open = true;
+        }
+    }
+    entries += open ? 1 : 0;
+    if(entries != state.numOver)
+    {
+        return 0;
+    }
+    int kept = 0;
+    for(int i = 0; i < state.numOver; i++)
+    {
+        const Override& o = state.over[i];
+        Offset d;
+        const bool hasDefault = defaultOf(o.kind, o.slot, o.hand, d);
+        const glm::vec3 dp = hasDefault ? d.pos : glm::vec3{0.f};
+        const glm::vec3 da = hasDefault ? d.angles : glm::vec3{0.f};
+        bool equal = true;
+        for(int a = 0; a < 3; a++)
+        {
+            equal = equal && za::abs(o.o.pos[a] - dp[a]) <= 0.005f && za::abs(o.o.angles[a] - da[a]) <= 0.05f;
+        }
+        if(!equal)
+        {
+            state.over[kept++] = o;
+        }
+    }
+    const int dropped = state.numOver - kept;
+    if(dropped > 0)
+    {
+        state.numOver = kept;
+        write();
+    }
+    return dropped;
 }
 
 void resetEntries(int kind, int slot)
