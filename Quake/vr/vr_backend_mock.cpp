@@ -24,6 +24,7 @@
 #include "vr_holstersetup.hpp"
 #include "vr_bladeedit.hpp"
 #include "vr_posestudio.hpp"
+#include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -1656,6 +1657,11 @@ public:
             endFrame(false); // the previous frame was not rendered (as OpenXR's backend ends it)
         }
         frameBegun = true;
+        if(vr_mock_refresh.value > 0.f)
+        {
+            // vr_mock_refresh: a runtime's predicted display period (dynres's budget: the GPU benchmark at 120 Hz)
+            profile::noteDisplayPeriod(1000.0 / za::clamp(static_cast<double>(vr_mock_refresh.value), 30.0, 240.0));
+        }
         if(seenResets != mockResetCount)
         {
             // resetMockState (vr_test_reset): the scripted moves as a new backend's
@@ -1935,12 +1941,16 @@ private:
         const int size = vr_mock_eye_size.value > 0.f
             ? za::clamp(static_cast<int>(vr_mock_eye_size.value), 256, maxImageSize)
             : imageWidth;
+        // vr_mock_eye_height: a headset's taller images (the GPU benchmark's Quest 3 at VD's Ultra).
+        const int height = vr_mock_eye_height.value > 0.f
+            ? za::clamp(static_cast<int>(vr_mock_eye_height.value), 256, maxImageSize)
+            : size;
         for(gfx::Texture& tex : textures)
         {
-            tex = gfx::createTexture(size, size, nullptr, false, "xr swapchain image (mock)");
+            tex = gfx::createTexture(size, height, nullptr, false, "xr swapchain image (mock)");
         }
         width_ = size;
-        height_ = size;
+        height_ = height;
     }
 
     // Between a circle of radius 1.04 (the image's half-width 1) and the image's edge, in quads

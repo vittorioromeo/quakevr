@@ -687,6 +687,12 @@ QVR_CVAR(vr_visibility_mask, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_mock_hidden_area, "0", CVAR_NONE)
 // Mock backend: its eye images' size (square, 256..4096; read when the images are made, before the first frame in VR).
 QVR_CVAR(vr_mock_eye_size, "1024", CVAR_NONE)
+// Mock backend: its eye images' height when not square (a headset's: VD's Ultra on a Quest 3 is 2688 x 2784; 0: square,
+// vr_mock_eye_size; read when the images are made). The GPU benchmark's (BENCHMARKS.md, "GPU benchmark").
+QVR_CVAR(vr_mock_eye_height, "0", CVAR_NONE)
+// Mock backend: the display's refresh it reports, Hz (a runtime's predicted display period: dynamic resolution's budget,
+// the FPS gadget's; 0: none, as before: dynres then assumes 90 Hz).
+QVR_CVAR(vr_mock_refresh, "0", CVAR_NONE)
 // Mock backend: a shaky head (recording tests): small quick turns of this many degrees (pitch, yaw and roll, sums of
 // sines at 5 to 13 Hz) over a slow turn of vr_mock_shake_turn degrees a second (from when it starts), both from the head's vr_mock_look.
 QVR_CVAR(vr_mock_shake, "0", CVAR_NONE)

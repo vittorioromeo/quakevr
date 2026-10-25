@@ -57,7 +57,25 @@ enum Phase
     Particles,    // Ironwail's particle pass (Quake VR's particles are drawn in it)
     VrParticles,
     Decals,
-    View3D,       // SCR_UpdateScreen's 3D refresh ("3D"): both eyes and the mirror in VR, the one view in flat mode
+    // GPU passes (the GPU benchmark's breakdown, BENCHMARKS.md; nested ones are inside others: translucent holds the
+    // translucent water, alias and particles; spectator its own world, alias...; the eyes' scenes all the rest)
+    Sky,
+    Water,
+    Translucent,
+    Lights,       // the light clustering (R_PushDlights)
+    ViewModel,
+    HeatHaze,
+    BlobShadows,
+    EnvCube,
+    Bloom,
+    PostProcess,  // GL_PostProcess (tone curve, grade, gamma; resolve/warp)
+    Upscale,      // the resample into the eye's image (vr_upscale)
+    Ui,
+    HiddenArea,
+    Mirror,
+    Spectator,    // the window's spectator camera (vr_window_view 2): its whole scene
+    WindowView,   // its image drawn to the window
+    View3D,      // SCR_UpdateScreen's 3D refresh ("3D"): both eyes and the mirror in VR, the one view in flat mode
     PhaseCount
 };
 
@@ -73,7 +91,7 @@ inline constexpr const char* settingCvars[] = {"vr_graphics_preset", "vid_fsaa",
     "vr_blob_shadows", "vr_texture_smooth", "gl_texturemode", "gl_texture_anisotropy", "vr_body_mode", "vr_body_blood",
     "vr_gib_blood", "r_dynamic", "r_softemu", "r_waterwarp", "r_lerpmodels", "vr_flashlight", "vr_retro",
     "vr_retrolight", "vr_particle_retro_fast", "vr_particle_retro_halfres", "vr_particle_halfres", "vr_particle_light", "vr_teleporters",
-    "vr_portals", "vr_window_view", "vr_enabled", "vr_mock_eye_size", "vr_mock_fast", "vr_fixed_frames", "vr_fixed_frames_rate", "vr_fixed_frames_jitter", "host_fixedtick", "vr_box3d_threads", "vr_timescale"};
+    "vr_portals", "vr_window_view", "vr_enabled", "vr_mock_eye_size", "vr_mock_eye_height", "vr_mock_refresh", "vr_mock_hidden_area", "vr_dynres", "vr_foveated", "vr_spectator_scale", "vr_spectator_rate", "vr_mock_fast", "vr_fixed_frames", "vr_fixed_frames_rate", "vr_fixed_frames_jitter", "host_fixedtick", "vr_box3d_threads", "vr_timescale"};
 
 // Sums since the last take().
 struct PhaseSums
