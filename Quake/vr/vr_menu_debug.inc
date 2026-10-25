@@ -988,6 +988,9 @@ za::Vector<Item> pageDebugReports()
             .help("vr_model_check 1: every entity's model index against its model's name, and your models against the "
                   "server's; each mismatch listed (a saved game loaded wrong: buttons drawn as gibs). 0 wrong is right."),
         command("View", "vr_dumpview").help("vr_dumpview: the hands, grips, palms, fingers and every entity drawn in the view (long)."),
+        command("Aim Check", "vr_aim_check")
+            .help("vr_aim_check: each held gun's shots against its drawn barrel and the controller's aim (degrees: Show "
+                  "Controller Laser's red, green, white), their pitches, and the wrist's bend."),
         command("Torch Lights", "vr_torch_lights_list")
             .help("vr_torch_lights_list: the torches' and flames' lights lit now (Rendering > Torch Lights): each one's "
                   "entity (a map's static one or a live one, such as the toolgun's Fire tab's), where, how far it reaches."),

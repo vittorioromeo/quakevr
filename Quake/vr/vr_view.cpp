@@ -842,19 +842,19 @@ void setupPosingHand(int hand, const glm::vec3& pos, const glm::vec3& rot)
         // Held, the hand's turn is the weapon's times w0^T times F (attachedTurn: w0 the weapon's turn at the hand's
         // angles 0, from its angle offsets): H = W w0^T F, so w0 = F H^T W.
         const glm::vec3 wt0 = basisAngles(F * glm::transpose(H) * W);
-        // weaponTurn(0) is (-o.x, o.y, o.z), o the angle offsets (vr_gunmodelpitch added to the pitch; yaw and roll the
-        // other way for the off hand).
+        // weaponTurn(0) is (-o.x, o.y, o.z), o the angle offsets (weapons::gunModelPitchBase added to the pitch; yaw and
+        // roll the other way for the off hand).
         glm::vec3 o{-wt0.x, wt0.y, wt0.z};
         if(mirrored)
         {
             o.y = -o.y;
             o.z = -o.z;
         }
-        o.x -= vr_gunmodelpitch.value;
+        o.x -= weapons::gunModelPitchBase;
         c.angles = normalized(o);
         // The frame the hand is carried in with those (Hand Only's), and the hand in it.
         glm::vec3 oo = c.angles;
-        oo.x += vr_gunmodelpitch.value;
+        oo.x += weapons::gunModelPitchBase;
         if(mirrored)
         {
             oo.y = -oo.y;

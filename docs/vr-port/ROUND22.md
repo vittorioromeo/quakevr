@@ -22011,3 +22011,40 @@ to `_33`); a free `_57` with the magazine's size 0.6 elsewhere (merged, the othe
 `vr_ad_test 148` PASS (16 of 16), `149` 11/11 (with `vr_weapon_grip_mode 1`), `vr_np_test 1` 17/0, eval.sh 0 differ.
 
 Not done: his magazine values (size 0.55, grip 2, handle tilt 30.5) stay his, not the defaults (he hasn't said so).
+
+## Gun Model Pitch: the hand and the shots turn with the gun (worktree `gorefx`, branch `agent/gunangle`, 2026-10-25)
+
+A player's report: "the gun angle option at 17 degrees pitch" hid the shotgun's ammo count under the hand, put the
+wrists in odd places, and the shots still went where they went before. The option is **Gun Model Pitch**
+(`vr_gunmodelpitch`, Hand/Gun Calibration > Guns; default 7), not Gun Angle: its help said "Does NOT affect aiming".
+
+- **What it did.** Every weapon's Pitch is tuned with the model turned up by 7 (most guns' Pitch is about -7). Another
+  value turned only the drawn gun in a hand that stayed on the controller (the empty hands too): the grip slid in the
+  palm, the screen at the gun's back went under the thumb, and the shots stayed on the old aim.
+- **Gun Angle** (Main Hand Pitch, `vr_gunangle`) was checked too: it turns the hand, the gun and the aim together.
+  Settled, shots are 0.4 deg off the barrel at 70, 17, -30 and 90 (the shotgun's usual 0.4); right after a change the
+  weight spring lags the gun up to 20 deg for a few frames, as for any quick turn.
+- **Now** the setting past 7 (`weapons::gunModelPitchTurn`) is added to every weapon's Together Pitch
+  (`hands::wholeValues`): the held gun, the hand holding it and its aim turn together about the hand. The models are
+  drawn with the fixed 7 (`weapons::gunModelPitchBase`: `weaponAngleOffsets`, the posing frame, `bladeDirection`). At 7
+  nothing changes. The empty hands are no longer turned by it. The help says so.
+- **Measured** (`vr_aim_check`, new, Debug > Reports > Aim Check: shots against the drawn barrel and the controller's aim,
+  their pitches, the wrist's bend), mock hand level, shotgun:
+
+  | Gun Model Pitch | before: shot vs barrel | after: shot vs barrel | after: shot pitch | wrist bend after |
+  |---|---|---|---|---|
+  | 7 | 0.39 | 0.39 | -1.2 | 12.3 |
+  | 17 | 10.20 | 0.39 | +8.8 | 23.9 |
+  | -90 | 96.81 | 0.39 | -81.9 | 110.9 |
+  | 90 | 83.19 | 0.39 | +81.9 | 118.0 |
+
+  Nailgun and super shotgun at 17: 0.00 off (both 9.9 deg up). Two-handed shotgun at 17: 0.39 off, aimed by the two
+  hands as at 7. The real shots (`vr_debug_shots`) match.
+- **The wrist** is a design question. The drawn hand now turns with the gun, so at 17 it is 10 deg off the real hand
+  (the wrist bends 10 deg more against the forearm), as Gun Angle does. The other ways: the gun turned in a hand that
+  stays (the old way: the grip slides and the hand covers the screen), or the slider taken off the menu and players sent
+  to Gun Angle. The author picks.
+- Not changed: the sight-alignment tool (`vr_sightalign.cpp`) reads the Together keys alone; it assumes Gun Model
+  Pitch 7.
+- Tests: `vr_np_test 5` 7/0, `vr_np_test 1` 17/0, eval.sh no verdict changes (4 numbers differ in the third digit).
+  Eyeshots: `scratch/before_gmp2.png`, `scratch/after_gmp2.png` (7, 17; after also -90, 90).

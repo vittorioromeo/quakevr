@@ -114,7 +114,7 @@ void place(view::ViewEntity& ve, qmodel_t* model, const glm::vec3& origin, const
 [[nodiscard]] glm::vec3 weaponAngleOffsets(int slot, bool mirrored)
 {
     glm::vec3 o = weapons::vec(slot, Key::Pitch, Key::Yaw, Key::Roll);
-    o.x += vr_gunmodelpitch.value;
+    o.x += weapons::gunModelPitchBase; // (what the player sets past it turns the hand too: hands::wholeOffset)
     if(mirrored)
     {
         o.y = -o.y;

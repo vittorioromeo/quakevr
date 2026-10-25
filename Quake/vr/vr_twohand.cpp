@@ -268,7 +268,7 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
 {
     const bool mirrored = hand == HAND_OFF;
     glm::vec3 o = weapons::vec(slot, Key::Pitch, Key::Yaw, Key::Roll);
-    o.x += vr_gunmodelpitch.value;
+    o.x += weapons::gunModelPitchBase; // (as weaponAngleOffsets: past it, `rot` is turned with the hand)
     if(mirrored)
     {
         o.y = -o.y;

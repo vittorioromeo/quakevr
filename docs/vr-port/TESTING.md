@@ -362,6 +362,7 @@ hash of what they made (the same whatever the threads).
 
 Fitted hands, third pass: `vr_show_controller 1` draws each controller as tracked (before any offset), and
 `vr_show_controller_laser 1` the controller's aim (white), the weapon's shots (red) and its barrel (green);
+`vr_aim_check` prints those angles between them, their pitches and the wrist's bend (`aim_check:` lines);
 `vr_dumpview` prints each hand's place, angles, controller and drawn palm to four decimals; `vr_debug_grasp 1` says
 where the held thing is in the hand and whether it was solved afresh at rest. The tuning keys are per weapon:
 `vr_wofs_whole_*`, `vr_wofs_hand_only_*`, `vr_wofs_overlap`, `vr_wofs_fgr_manual`, `vr_wofs_fgr_curl_*`,
