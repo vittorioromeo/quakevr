@@ -42,7 +42,7 @@ float vr_fire_dev_n;
 float(float wid) VR_AG_Class;                                              // vr_enemyshove.qc: fists and melee never shove
 float VR_AG_CLASS_MELEE_DEF = 1;                                           // (vr_armedgrunt.qc VR_AG_CLASS_MELEE; fists 0)
 float() VR_AG_CheckAttack;                                                 // ai.qc CheckAnyAttack: an armed grunt's
-float(entity targ, entity attacker, float damage) VR_AG_DamageScale;       // T_DamageDeal: its weapon's damage to players
+float(entity targ, entity inflictor, entity attacker, float damage) VR_AG_DamageScale; // T_DamageDeal: its weapon's damage to players
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit; // T_DamageDeal: a hit on it (disarming)
 float() VR_AG_SoldierDrop;                                                 // SoldierDrop: its own loot (TRUE: done)
 float() VR_AG_Idle;                                                        // ai_stand, ai_walk: unarmed, off to a weapon (TRUE: gone)
@@ -102,6 +102,27 @@ float() VR_AG_TugResume;
 void(entity g, float wid) VR_AG_DisarmFeedback;
 void() VR_AG_PlayPrecache;
 float(entity g, entity p) VR_AG_WeaponStruck;
+// Armed humanoid replacements (vr_armedrepl.qc; vr_agrunt_repl): a map's grunts and enforcers as armed ones.
+.float vr_agr;             // 1: a map's grunt or enforcer (or a spawner's) made its armed version (VR_AGR_Replace)
+.float vr_ag_native;       // a held weapon's prop (or its laser): the monster's own gun, fired as the monster fires it
+.float vr_ag_gunaxe;       // it holds a gun and an axe (vr_agrunt_repl_gunaxe): the gun, the axe up close
+float vr_am_spawning;      // VR_AM_Spawn is running its monster's own spawn function (no replacement then)
+float vr_agr_hold;         // > 0: spawns now are never replaced (the training dummies: vr_dummy_types.qc)
+float vr_agr_native_fire;  // a native gun's bullets being fired (VR_AG_DamageScale: the monster's own damage)
+float vr_agr_shots_grunt;  // grunts' shots (rounds; a shotgun blast one), the native guns' among them (the tests)
+float vr_agr_shots_enf;    // enforcers' lasers, ...
+float vr_agr_pl_hits;      // monsters' hits on players (VR_AG_DamageScale: the tests)
+float vr_agr_pl_dmg;       // ... their damage
+float(float kind) VR_AGR_Replace;                                          // monster_army, monster_enforcer: TRUE: done
+void() VR_AGR_Precache;                                                    // worldspawn: the replacements' models
+void() VR_AGR_Frame;                                                       // StartFrame: loadouts rolled once a player is in
+void(entity p) VR_AGR_NativeShot;                                          // VR_AG_ShootProp: a native gun's shot
+float(entity g) VR_AGR_NativeAlone;                                        // its one weapon its own gun (its monster's attacks)
+float(float r) VR_AGR_NativeChance;                                        // VR_AG_CheckAttack: its monster's chance at range r
+void() VR_AGR_NativeFinished;                                              // ... and its pause after
+void() VR_AGR_NativeAttack;                                                // VR_AG_Missile: its monster's attack frames
+void(float d) VR_AGR_GunAxe;                                               // VR_AG_CheckAttack: the gun or the axe now
+.string vr_agr_mdl;        // a held weapon's model while its holder waits unseen (MG_deferred: VR_AG_PropThink)
 .float vr_agk_live; // run live by the Pose Studio (its real loops where it stands: vr_armedgrunt_pose.qc VR_AGK_Live)
 // Held still (vr_agrunt_freeze: the Grip Editor, the Pose Studio; not the studio's Live subject): no AI, no tug, no blow.
 float(entity g) VR_AG_Still = { return cvar("vr_agrunt_freeze") && g.health > 0 && !g.vr_agk_live; };

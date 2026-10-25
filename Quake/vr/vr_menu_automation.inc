@@ -265,6 +265,21 @@ za::Vector<Item> pageDebugAutomation()
                   "and each subject's worst and 95th percentile (aggtop, agg lines; files in quakevr/agglitch). "
                   "vr_agglitch_shots N shoots each subject's N worst as eye images (the mock headset only); "
                   "scratch2..scratch3 the subjects (0..23); temp1 1 the touching-distance loop alone."),
+        command("Armed Replacements: Rolls", "vr_agrunt_test 70")
+            .help("vr_agrunt_test 70 (vrtesthall): the replacements' loadouts over 500 seeds per option and skill, the "
+                  "eligibility gates (no super shotgun before you own one, no rare weapon early in an episode), dual "
+                  "and gun-and-axe chances, the same loadouts for the same spawns. Your settings are put back after."),
+        command("Armed Replacements: Balance", "vr_agrunt_test 71")
+            .help("vr_agrunt_test 71 (vrtesthall; about 10 minutes of game time): a vanilla grunt, a replaced one, a "
+                  "vanilla enforcer, a replaced one, each alone against you for 150 s (shots, damage a shot, damage a "
+                  "second), then 40 of each killed (guns, backpacks and their ammo, extra weapons)."),
+        command("Armed Replacements: Gun and Axe", "vr_agrunt_test 72")
+            .help("vr_agrunt_test 72 (vrtesthall): a grunt with its rifle and an axe fires at range, takes the axe up "
+                  "close, the gun again when you back off; a spent shotgun thrown away for the axe; a gun lying near "
+                  "taken up."),
+        command("Armed Replacements: Map Census", "vr_agrunt_test 73")
+            .help("vr_agrunt_test 73 (this map): its monsters, the replaced ones and their loadouts printed, then every "
+                  "monster killed: the kills against the map's count."),
         command("Armed Humanoids: Glitch Report", "vr_agglitch_report")
             .help("Prints and writes the glitch finder's numbers so far (vr_agglitch_report): the worst moments and each "
                   "subject's worst and 95th percentile per metric."),

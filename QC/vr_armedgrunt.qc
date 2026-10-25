@@ -439,6 +439,23 @@ void() VR_AG_PropHandTouch;
 void() VR_AG_PropThink =
 {
     entity g = self.owner;
+    if(g.MG_deferred && g.vr_ag && g.health > 0 && (g.vr_ag_prop == self || g.vr_ag_prop2 == self))
+    {
+        // (its holder waits unseen for its trigger, MG_MonsterPrepare: unseen with it, back when it comes)
+        if(self.model != "")
+        {
+            self.vr_agr_mdl = self.model;
+            setmodel(self, "");
+        }
+        self.nextthink = time + 0.05;
+        return;
+    }
+    if(self.model == "" && self.vr_agr_mdl != "")
+    {
+        setmodel(self, self.vr_agr_mdl);
+        setsize(self, '-10 -10 -10', '10 10 10');
+        self.vr_agr_mdl = "";
+    }
     if(g.vr_ag_prop2 == self && g.vr_ag && g.health > 0)
     {
         // The second weapon: placed with the first (VR_AGP_Pose: both hands); a blow or a throw on it, the first slot's
@@ -548,7 +565,22 @@ float(float w1, float f1, float w2, float f2) VR_AG_Pairs =
 };
 
 // Holding two guns (dual wielding them: the penalties, both fired).
-float(entity g) VR_AG_DualGuns = { return g.vr_ag_prop2 && VR_AG_Class(g.vr_ag_wid) != VR_AG_CLASS_MELEE; };
+// (a gun and an axe, vr_ag_gunaxe: not two guns)
+float(entity g) VR_AG_DualGuns =
+{
+    return g.vr_ag_prop2 && VR_AG_Class(g.vr_ag_wid) != VR_AG_CLASS_MELEE && VR_AG_Class(g.vr_ag_wid2) != VR_AG_CLASS_MELEE;
+};
+
+// VR_AG_Pairs for `g`: one with a gun and an axe (vr_ag_gunaxe) pairs a gun with a one-handed blade too.
+float(entity g, float w1, float f1, float w2, float f2) VR_AG_PairsFor =
+{
+    if(VR_AG_Pairs(w1, f1, w2, f2))
+    {
+        return TRUE;
+    }
+    return g.vr_ag_gunaxe && ((VR_AG_DualGun(w1, f1) && VR_AG_OneHanded(w2, f2)) ||
+                              (VR_AG_OneHanded(w1, f1) && VR_AG_DualGun(w2, f2)));
+};
 
 // The weapon slots swapped (the layer acts on the first: a hand's event on the second's weapon swaps them first). Which
 // hand holds each stays its prop's (.vr_ag_left).
@@ -602,7 +634,7 @@ void(entity g, float wid, float flags, entity inst) VR_AG_Arm =
 // ... a second weapon, in its left hand (a pair: VR_AG_Pairs; FALSE: not taken).
 float(entity g, float wid, float flags, entity inst) VR_AG_ArmLeft =
 {
-    if(!g.vr_ag_prop || g.vr_ag_prop2 || !VR_AG_Pairs(g.vr_ag_wid, g.vr_ag_wflags, wid, flags))
+    if(!g.vr_ag_prop || g.vr_ag_prop2 || !VR_AG_PairsFor(g, g.vr_ag_wid, g.vr_ag_wflags, wid, flags))
     {
         return FALSE;
     }
@@ -612,6 +644,12 @@ float(entity g, float wid, float flags, entity inst) VR_AG_ArmLeft =
     g.vr_ag_prop2 = VR_AG_MakeProp(g, wid, flags, inst);
     g.vr_ag_prop2.vr_ag_left = 1;
     g.vr_ag_prop.vr_ag_left = 0;
+    if(g.vr_ag_gunaxe && VR_AG_Class(wid) != VR_AG_CLASS_MELEE && VR_AG_Class(g.vr_ag_wid) == VR_AG_CLASS_MELEE)
+    {
+        // (a gun and an axe: the gun in its right hand, the blade in its left, whichever came first)
+        g.vr_ag_prop2.vr_ag_left = 0;
+        g.vr_ag_prop.vr_ag_left = 1;
+    }
     g.vr_ag_dual = 1;
     VR_AG_PlaceProp(g, g.vr_ag_prop);
     return TRUE;
@@ -1088,6 +1126,11 @@ void(entity p) VR_AG_ShootProp =
         return;
     }
     entity inst = p.weaponinst;
+    if(p.vr_ag_native)
+    {
+        VR_AGR_NativeShot(p); // (a replacement's own gun: its monster's own shot, never spent: vr_armedrepl.qc)
+        return;
+    }
     if(inst.wi_clip < 1)
     {
         return;
@@ -1466,7 +1509,7 @@ void() vr_ag_reload11 =
         VR_AG_Log(sprintf("reloaded: %g in the clip, %g in reserve", p.weaponinst.wi_clip, self.vr_ag_reserve));
     }
     entity q = self.vr_ag_prop2;
-    if(q && VR_AG_DualGuns(self))
+    if(q && VR_AG_ClipOf(q.weapon, q.weaponinst) > 0) // (two guns; a gun and an axe, the axe in hand: the gun too)
     {
         float n2 = min(VR_AG_ClipOf(q.weapon, q.weaponinst) - q.weaponinst.wi_clip, self.vr_ag_reserve2);
         q.weaponinst.wi_clip = q.weaponinst.wi_clip + n2;
@@ -1490,7 +1533,7 @@ void() VR_AG_TakeBegin =
     entity w = self.vr_ag_seek;
     self.vr_ag_seek = world;
     if(!w || w.classname != "thrown_weapon" || vlen(w.origin - self.origin) > VR_AG_PICKUP_REACH * 1.5 ||
-       (self.vr_ag_prop && (self.vr_ag_prop2 || !VR_AG_Pairs(self.vr_ag_wid, self.vr_ag_wflags, w.weapon, w.weaponflags))))
+       (self.vr_ag_prop && (self.vr_ag_prop2 || !VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, w.weapon, w.weaponflags))))
     {
         return;
     }
@@ -1595,7 +1638,7 @@ entity() VR_AG_FindWeapon =
     {
         if(e.classname == "thrown_weapon" && VR_AG_Usable(e.weapon) && !e.vr_depleted && !VR_EnemyWeapons_Spared(e) &&
            (VR_AG_Class(e.weapon) == VR_AG_CLASS_MELEE || e.weaponinst.wi_clip > 0) &&
-           (!self.vr_ag_prop || VR_AG_Pairs(self.vr_ag_wid, self.vr_ag_wflags, e.weapon, e.weaponflags))) // (armed: its pair's second only)
+           (!self.vr_ag_prop || VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, e.weapon, e.weaponflags))) // (armed: its pair's second only)
         {
             float d = vlen(e.origin - self.origin);
             float safe = TRUE;
@@ -1773,8 +1816,12 @@ float() VR_AG_Idle =
 float() VR_AG_CheckAttack =
 {
     entity targ = self.enemy;
-    float c = VR_AG_Class(self.vr_ag_wid);
     float d = vlen(VR_AI_Origin(targ) - self.origin);
+    if(self.vr_ag_gunaxe)
+    {
+        VR_AGR_GunAxe(d); // (a gun and an axe: the gun, the axe up close or with the gun spent: vr_armedrepl.qc)
+    }
+    float c = VR_AG_Class(self.vr_ag_wid);
     float mine = time - self.vr_ag_myrun < 0.15;
     float explosive = VR_AG_MinRange(self.vr_ag_wid) > 0;
     float blastSafe = cvar_hget(cvarh_vr_agrunt_blast_safe);
@@ -1847,11 +1894,19 @@ float() VR_AG_CheckAttack =
             trace_ent.classname, vr_ag_blast_at));
         return FALSE;
     }
-    if(random() < VR_AG_Chance(self.vr_ag_wid, enemy_range))
+    float native = VR_AGR_NativeAlone(self); // (its own gun alone: its monster's chances and pauses, vr_armedrepl.qc)
+    if(random() < (native ? VR_AGR_NativeChance(enemy_range) : VR_AG_Chance(self.vr_ag_wid, enemy_range)))
     {
         self.th_missile();
-        SUB_AttackFinished(1 + random());
-        if(random() < 0.3)
+        if(native)
+        {
+            VR_AGR_NativeFinished();
+        }
+        else
+        {
+            SUB_AttackFinished(1 + random());
+        }
+        if(!(native && self.vr_ag_kind == VR_AM_ENFORCER) && random() < 0.3) // (the enforcer's CheckAttack: never)
         {
             self.lefty = !self.lefty;
         }
@@ -1860,12 +1915,32 @@ float() VR_AG_CheckAttack =
     return FALSE;
 };
 
-void() VR_AG_Missile = { vr_ag_atk1(); };
+void() VR_AG_Missile =
+{
+    if(VR_AGR_NativeAlone(self))
+    {
+        VR_AGR_NativeAttack(); // (its own gun: its monster's own attack frames and shots, vr_armedrepl.qc)
+        return;
+    }
+    vr_ag_atk1();
+};
 void() VR_AG_Melee = { VR_AGP_Attack(); }; // (punches, swings, the chainsaw's thrust: vr_armedgrunt_pose.qc)
 
 // T_DamageDeal: its weapon's damage to a player.
-float(entity targ, entity attacker, float damage) VR_AG_DamageScale =
+float(entity targ, entity inflictor, entity attacker, float damage) VR_AG_DamageScale =
 {
+    // (a replacement's own gun: its monster's own shot, its own damage; its shoves its monster's: vr_armedrepl.qc)
+    float native = inflictor.vr_ag_native || (vr_agr_native_fire && inflictor == attacker) ||
+                   (attacker.vr_agr && attacker.vr_eshove_striking);
+    if((targ.flags & FL_CLIENT) && (attacker.flags & FL_MONSTER))
+    {
+        vr_agr_pl_hits = vr_agr_pl_hits + 1; // (the tests: vr_armedrepl_test.qc; the armed ones' scale below)
+        vr_agr_pl_dmg = vr_agr_pl_dmg + damage * ((attacker.vr_ag && !native) ? max(0, cvar_hget(cvarh_vr_agrunt_damage_scale)) : 1);
+    }
+    if(native)
+    {
+        return damage;
+    }
     if(attacker == targ && targ.vr_ag && targ.health > 0)
     {
         vr_ag_self_dmg = vr_ag_self_dmg + damage; // (the tests: its own blast)
@@ -1926,6 +2001,10 @@ float() VR_AG_SoldierDrop =
     self.ammo_nails = 0;
     self.ammo_rockets = 0;
     self.ammo_cells = 0;
+    if(self.vr_agr && self.vr_ag_reserve <= 0)
+    {
+        return FALSE; // (a replacement with no reserve: the loot of the monster it replaced, its chance of a weapon too)
+    }
     float aid = self.vr_ag_lastwid >= 0 ? WeaponIdToAmmoId(self.vr_ag_lastwid, 0) : AID_NONE;
     if(aid != AID_NONE && self.vr_ag_reserve > 0)
     {
@@ -1984,6 +2063,7 @@ void() monster_vr_enforcer = { VR_AM_Spawn(VR_AM_ENFORCER); };
 // An armed monster of the table's row `kind` (vr_armedmon.qc): its weapon picked, then its monster's own spawn (its
 // classname, health, sounds, pains, deaths: that monster to the rest of the game), its gunless model, the layer's run,
 // attacks and weapon.
+void(float want, float flags, entity inst, float want2, float flags2) VR_AM_ArmAll;
 void(float kind) VR_AM_Spawn =
 {
     if(MG_MonsterInhibited()) return;
@@ -2045,8 +2125,9 @@ void(float kind) VR_AM_Spawn =
             }
         }
     }
-    if(!VR_OtherFlags())
+    if(!VR_OtherFlags() && !self.vr_agr)
     {
+        // (a replacement keeps its map's: VR_AGR_Replace never replaces those trigger-spawned copies' maker)
         self.spawnflags = self.spawnflags - (self.spawnflags & (SPAWNFLAG_TRIGGER_SPAWN | SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE));
     }
 
@@ -2058,7 +2139,9 @@ void(float kind) VR_AM_Spawn =
     VR_AM_Row(kind);
     string mdl = vr_am_model;
     self.classname = vr_am_classname;
+    vr_am_spawning = 1; // (its monster's own spawn: never replaced again, VR_AGR_Replace)
     vr_am_spawn();
+    vr_am_spawning = 0;
     precache_model(mdl);
     precache_sound("weapons/lock4.wav");
     precache_sound("weapons/pkup.wav");
@@ -2067,13 +2150,27 @@ void(float kind) VR_AM_Spawn =
     VR_AG_PlayPrecache(); // (its headbutt, its disarms' clatters: vr_armedgrunt_play.qc)
     vector mn = self.mins;
     vector mx = self.maxs;
-    setmodel(self, mdl);
-    setsize(self, mn, mx); // (its monster's own box)
+    if(self.MG_deferred)
+    {
+        self.MG_monster_model = mdl; // (a map's monster waiting for its trigger, unseen: its model when it comes)
+    }
+    else
+    {
+        setmodel(self, mdl);
+        setsize(self, mn, mx); // (its monster's own box)
+    }
     self.vr_ag = 1;
     self.vr_ag_kind = kind;
     self.th_run = vr_ag_run1;
     self.th_missile = VR_AG_Missile;
     self.th_melee = VR_AG_Melee;
+    VR_AM_ArmAll(want, flags, inst, want2, flags2);
+};
+
+// Its weapons from its keys (as VR_AM_Spawn's: "weapon" decoded to `want`, `flags`, `inst`; "weapon2" `want2`,
+// `flags2`), their reserves; a replacement's loadout too (vr_armedrepl.qc VR_AGR_Apply: its props gone first).
+void(float want, float flags, entity inst, float want2, float flags2) VR_AM_ArmAll =
+{
     VR_AG_Arm(self, want, flags, inst);
     self.vr_ag_wid2 = -1;
     if(want2 > 0 && VR_AG_Decode(want2) && VR_AM_Holds(self, VR_AG_Class(vr_ag_dec_wid)))
@@ -2093,6 +2190,7 @@ void(float kind) VR_AM_Spawn =
     VR_AGP_Spawn(self); // (its fists' pose sender)
     self.vr_ag_reserve = VR_AG_SingleUse(self.vr_ag_wid) ? 0 :
                          VR_AG_ClipOf(self.vr_ag_wid, self.vr_ag_prop.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));
+    self.vr_ag_reserve2 = 0;
     if(self.vr_ag_prop2)
     {
         self.vr_ag_reserve2 = VR_AG_SingleUse(self.vr_ag_wid2) ? 0 :

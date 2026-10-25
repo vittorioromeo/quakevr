@@ -936,6 +936,9 @@ za::Vector<Item> pageCombat()
         open("Armed Grunts (Experimental)", pageIndex(pageArmedGrunts))
             .help("Grunts holding one of your weapons (the toolgun's Armed Grunts, a map's monster_vr_grunt): which "
                   "weapons, their damage to you, their ammo, disarming them."),
+        open("Armed Humanoid Replacements", pageIndex(pageArmedRepl))
+            .help("A map's grunts and enforcers as armed ones holding their own guns (their balance kept), and weapon "
+                  "variety on top. All off by default."),
         open("Enemy Melee", pageIndex(pageEnemyMelee))
             .help("Monsters' melee blows: the arc ahead of them where they land and their reach (both growing with "
                   "size), how fast they turn after you while swinging, how close they come; Show Melee Arcs."),

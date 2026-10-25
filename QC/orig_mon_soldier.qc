@@ -206,6 +206,7 @@ void() army_burst_round =
     vr_pellet_damage = cvar_hget(cvarh_vr_grunt_burst_damage);
     EnemyFireBullets(1, dir, VR_GRUNT_BURST_SPREAD);
     vr_pellet_damage = 0;
+    vr_agr_shots_grunt = vr_agr_shots_grunt + 1; // (the tests: vr_armedrepl_test.qc)
     self.damage_weapon = IT_SHOTGUN; // HONEY
 };
 
@@ -243,6 +244,7 @@ void() army_fire =
     dir = normalize(dir - self.origin);
 
     EnemyFireBullets(4, dir, '0.1 0.1 0');
+    vr_agr_shots_grunt = vr_agr_shots_grunt + 1; // (the tests: vr_armedrepl_test.qc)
 
     // HONEY
     // (The weapon credited for the damage: FL_SPECIFICDAMAGE targets take only some; BACKLOG.md, "Old QuakeC
@@ -366,6 +368,7 @@ void() monster_army =
         remove(self);
         return;
     }
+    if(VR_AGR_Replace(0)) return; // VR: its armed version in its place, its own rifle (vr_agrunt_repl: vr_armedrepl.qc)
 
     monster_army_precache();
 
