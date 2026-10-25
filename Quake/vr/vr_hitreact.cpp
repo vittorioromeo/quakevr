@@ -594,12 +594,18 @@ struct ArmedRig
     const char* upperL;
     const char* foreL;
     int anchor; // vr_agarms: its chest's vertex the poses are placed from (QC vr_am_anchor; vr_agarms_info finds it)
+    float torsoSides; // vr_agarms: its torso proxy's sides and back fitted from this share of the chest from the waist
+    float twistShare; // ... the hand's twist about the forearm the forearm takes
+    float wristMore;  // ... degrees its wrist bends past vr_agarms_wrist_most
 };
+// (the enforcer's: its torso's sides from its lower 0.6, under its shoulder pads; its wrist 20 degrees more, its guns
+// held turned further on its long forearms; its twist share as the grunt's, 0.75 left elbows stuck the wrong way:
+// ROUND22.md, "The enforcer's rig fixed")
 constexpr ArmedRig armedRigs[] = {
     {modelmeta::Id::VrGrunt, 555, {32, 26, 31}, {{463, 548}}, 1, {497, 545}, {498, 514}, 529, 496, "upperarm_r", "forearm_r",
-        "upperarm_l", "forearm_l", 148},
+        "upperarm_l", "forearm_l", 148, 1.f, 0.5f, 0.f},
     {modelmeta::Id::VrEnforcer, 479, {41, 364, 365}, {{22, 23}, {100, 100}, {400, 430}, {455, 478}}, 4, {425, 420},
-        {407, 100}, 409, 412, "upperarm_r", "forearm_r", "upperarm_l", "forearm_l", 322},
+        {407, 100}, 409, 412, "upperarm_r", "forearm_r", "upperarm_l", "forearm_l", 322, 0.6f, 0.5f, 20.f},
 };
 constexpr int numArmedRigs = static_cast<int>(sizeof(armedRigs) / sizeof(armedRigs[0]));
 
@@ -1451,6 +1457,9 @@ bool specOf(const ArmedRig& a, const ragdoll::Rig& rig, const aliashdr_t* hdr, a
     s.gunRot = frameRot(muzzle - rear, poseVertex(hdr, 0, 0, 0.f, a.gunTop) - poseVertex(hdr, 0, 0, 0.f, a.gunBottom));
     s.isGun = isGunOf;
     s.row = &a;
+    s.torsoSides = a.torsoSides;
+    s.twistShare = a.twistShare;
+    s.wristMore = a.wristMore;
     return true;
 }
 

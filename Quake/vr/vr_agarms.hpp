@@ -40,6 +40,9 @@ struct Spec
     glm::quat gunRot{1.f, 0.f, 0.f, 0.f}; // the rest pose's gun (x its barrel, z up): the hands' grip frames' turn
     bool (*isGun)(const void* row, int v){nullptr}; // its hidden gun's vertices (never an arm's)
     const void* row{nullptr};
+    float torsoSides{1.f};  // its torso proxy's sides fitted from this share of the chest from the waist (agbody::of)
+    float twistShare{0.5f}; // the hand's twist about the forearm the forearm takes (the rest at the wrist)
+    float wristMore{0.f};   // degrees its wrist may bend past vr_agarms_wrist_most
 };
 
 // A hand's goal: where its grip frame goes (model space), or a point it reaches for.
