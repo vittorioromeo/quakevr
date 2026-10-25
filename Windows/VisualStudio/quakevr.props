@@ -193,21 +193,16 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
   </ItemGroup>
   <!-- mimalloc (Quake/vr/external/mimalloc/README.md): the process's C heap, malloc/free and new/delete (vr_crtheap.c), on
        64-bit builds (the override's import pointers are x64's). QVR_MIMALLOC=false (msbuild -p:QVR_MIMALLOC=false) builds
-       without it, the C runtime's heap untouched; -nomimalloc or QVR_MIMALLOC=0 turns it off at run time. One C file,
-       src/static.c, includes the others. MI_DEBUG follows the configuration (types.h: 0 with NDEBUG, else 2, its asserts
-       and invalid-free checks in Debug). -->
+       without it, the C runtime's heap untouched; -nomimalloc or QVR_MIMALLOC=0 turns it off at run time. The library
+       itself (src/static.c) is its own project, compiled once with the settings it had here: mimalloc.vcxproj. -->
   <PropertyGroup Condition="'$(QVR_MIMALLOC)'==''">
     <QVR_MIMALLOC Condition="'$(Platform)'=='x64'">true</QVR_MIMALLOC>
     <QVR_MIMALLOC Condition="'$(Platform)'!='x64'">false</QVR_MIMALLOC>
   </PropertyGroup>
   <ItemGroup Condition="'$(QVR_MIMALLOC)'=='true'">
-    <ClCompile Include="..\..\Quake\vr\external\mimalloc\src\static.c">
-      <CompileAs>CompileAsC</CompileAs>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <AdditionalIncludeDirectories>..\..\Quake\vr\external\mimalloc\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <ObjectFileName>$(IntDir)mimalloc\</ObjectFileName>
-    </ClCompile>
+    <ProjectReference Include="mimalloc.vcxproj">
+      <Project>{38CD0922-A220-4CCA-BCD1-64B6B0688C89}</Project>
+    </ProjectReference>
   </ItemGroup>
   <!-- The build's version (vr_crash.cpp: VR_Version, the menus' corner label; VR_BuildVersion, the console, the main VR
        Settings page, qvr_crash.txt): $(IntDir)qvr_buildver.h. The version is the repository's VERSION file (one line,

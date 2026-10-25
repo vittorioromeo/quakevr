@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "zancle", "zancle.vcxproj", 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "qvr_doom", "qvr_doom.vcxproj", "{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mimalloc", "mimalloc.vcxproj", "{38CD0922-A220-4CCA-BCD1-64B6B0688C89}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -41,6 +43,14 @@ Global
 		{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}.Release|x64.Build.0 = Release|x64
 		{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}.Release-Tracy|x64.Build.0 = Release-Tracy|x64
 		{6D1F3C2A-9B4E-4F5D-8E21-7A0C5D9E3B41}.Release-TracyFull|x64.Build.0 = Release-TracyFull|x64
+		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Debug|x64.ActiveCfg = Debug|x64
+		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Debug|x64.Build.0 = Debug|x64
+		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release|x64.ActiveCfg = Release|x64
+		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release-Tracy|x64.ActiveCfg = Release-Tracy|x64
+		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release-TracyFull|x64.ActiveCfg = Release-TracyFull|x64
+		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release|x64.Build.0 = Release|x64
+		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release-Tracy|x64.Build.0 = Release-Tracy|x64
+		{38CD0922-A220-4CCA-BCD1-64B6B0688C89}.Release-TracyFull|x64.Build.0 = Release-TracyFull|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
