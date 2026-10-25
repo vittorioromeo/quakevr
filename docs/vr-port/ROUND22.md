@@ -21844,3 +21844,49 @@ should climb smoothly, half a push about a slow walk, the last bit of travel ful
 running: the whole push matters up to the top (before, the last fifth did nothing). Try Stick Response Curve 1.0 vs 1.6
 vs 2.2. Walk Into Run on: walk with most of the push, shove it fully forward: a run eases in; let off a little: back
 to a walk. Diagonals as fast as straight. Hand-steered (Move Towards: hand) and swimming as before.
+
+## A thrown fuel tank hurts (worktree `gorefx`, branch `agent/fueltankhit`, 2026-10-25)
+
+His bug: "a thrown fuel tank deals no damage to enemies."
+
+- **Cause**: the tank lying about (`VR_FuelTank_Attach`, `vr_ad_enemyguns.qc`) was made with `touch = SUB_Null` and no
+  `.vr_impact`, so neither of the props' hit paths ran: not the touchable props' touch (`forcegrabbable_touch`: a
+  backpack's thrown or flung hit) nor the solid props' Box3D hit (`VR_SolidProp_Impact`: a crate's, an explosive box's).
+  `VR_Carry_Throw` still made it a missile (`.throwhit` 0, owner you), but nothing ever read it: the throw never ended.
+- **Fix**: the tank gets `.vr_impact = VR_FuelTank_Impact`, which calls `VR_SolidProp_Impact` as the explosive box
+  does: thrown hard into a monster it hurts it as a thrown prop of its mass does (`VR_Thrown_Damage`: Thrown Box Damage,
+  its mass's curve, x0.5 every throw, two hands), once; flung into one (dragged on its rope, batted) as a flung prop
+  (`VR_Prop_Flung`, which also staggers per `VR_HitStagger_Throw`). Metal: a clank, no splinters. The Box3D hit's own
+  speed, not the touch's: tried first with the touch (`forcegrabbable_touch`), an ogre's bounce had halved the speed the
+  touch saw (5 m/s of 10: "under the hit speed, the throw is over"), while the Box3D hit gave 7-12 m/s.
+  - `.throwhit` QVR_THROWHIT_HIT when made (0 is "a throw in flight": a tank dropped off your back, owner you for its
+    grace, would have ended its "throw" on landing and dropped the grace); its grace kept on any landing
+    (`VR_FuelTank_Impact` puts `.owner` back while `.vr_fueltank_grace` runs and it isn't thrown).
+  - A tank from an older save (no `.vr_impact`) gets it in its think (`VR_FuelTank_ImpactFix`, both thinks: linked
+    and cut free).
+- **Burst rules unchanged**: its own hits never hurt it, on a monster no more than on a wall (they never did): shots,
+  blasts, blows and flames burst it, not a throw. Every throw in the test left it whole (health 30 of 30, 0 bursts).
+- **Other carryable props checked**: the cut-free tank keeps the attach's hit (fixed too; by the code only: in the hose-cut run here
+  `vr_ad_test 117` left the hand empty on e1m1, so nothing was cut); a monster's worn back tank
+  (`vr_fueltank_worn`) is never thrown (n/a). **The flail's head lying about** (`vr_flailhead`, `vr_ad_melee.qc`
+  `VR_FlailHead_Attach`, 3 kg) has the same exclusion (`touch = SUB_Null`, no `.vr_impact`): a hand carrying it and
+  throwing it hurts nothing. Not changed (a thrown or kicked flail drags its head, which would then hit as a flung prop
+  too: a balance call for him); the same two lines would fix it. Magazines and rounds (`vr_reload.qc`,
+  `vr_magholster.qc`) are SUB_Null on purpose ("a round thrown hurts nothing").
+- **Also**: `VR_SolidProp_Impact` now dprints (developer 1) when a throw ends without a hit ("met X at N m/s ... the
+  throw is over"), as the touch path did.
+- **Test**: `vr_prop_impact_test 4` (Debug > Gore Tests, "Fuel Tank and Crate Thrown at Monsters";
+  `vr_propimpact_test.qc`): a flamethrower's tank lying about and a small crate as heavy (3 kg, `.vr_prop_mass`) each
+  thrown at 10, 13, 16 m/s from 40 units off the face of a grunt, then an ogre (health 1000), both at a crate's middle
+  height; the tank's rope 3 m meanwhile (at 0.9 m its gun, made 130 ahead, held it back short of the monster). Each throw
+  waits for its hit (the throw over, or the monster hurt; 1.5 s without: no hit). Verdict `fueltankhit: N passed, M
+  failed` (the tank hurt and stayed whole; where the crate hit, within 0.3-3x its damage). vrtesthall, headless:
+  - before (the old `vr_ad_enemyguns.qc`): the tank no hit at every speed (the throw never ended), the crate 7/9/11:
+    0 passed, 6 failed.
+  - after: grunt tank 7/9/8 vs crate miss/8/9; ogre tank 3/7/8 vs crate 6/8/9: 6 passed, 0 failed. The small tank's hit
+    speed is 50-100% of the throw (a rounded body), the flat crate's 100%.
+- **Regressions**: `vr_prop_impact_test 1`: every line as before, done; `vr_ad_test 71`: 9 passed, 0 failed; fuel tanks
+  191/150/159: 1 pair, joined, 0.77 m apart after the kick; eval.sh canary: 36/44, 0 differ from the baseline.
+- **For him in VR**: carry a flamethrower's tank (its gun trailing on the rope) and throw it hard at a grunt: a clank,
+  it flinches and is hurt (about as a small crate would); the tank doesn't burst. Shoot it after: it still bursts.
+- **Checklist line**: `Fuel tanks: carry a flamethrower's tank and throw it hard at a grunt or an ogre: it hurts it (about as a small crate) and stays whole; shoot it: still bursts {test:fueltank_burst}`

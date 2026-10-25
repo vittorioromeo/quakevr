@@ -510,6 +510,11 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_prop_impact_test 3: a small crate beside a blast of Arcane Dimensions' radius damage (its Plasma "
                   "Gun's, rockets'...), then one beside Quake's: both throw it alike; then an AD plasma bolt's blast (thrown "
                   "as Plasma Blast Push) and Quake's of 20 (as the plasma threw before). The console (blastpush: lines)."),
+        command("Fuel Tank and Crate Thrown at Monsters", "god 1; notarget 1; vr_prop_impact_test 4")
+            .help("vr_prop_impact_test 4 (god and notarget on; 200 units of open floor ahead): a flamethrower's tank "
+                  "lying about and a small crate as heavy as it, each thrown at 10, 13 and 16 m/s into a grunt, then an "
+                  "ogre, made ahead of you. The tank hurts as the crate does and stays whole. The console (fueltankhit: "
+                  "lines, then N passed, M failed)."),
         command("Press Down on a Crate", "vr_test_spawn_hold 0; vr_test_spawn 108; vr_test_spawn_dist 48; impulse 241; "
                                          "wait40; vr_prop_press_test main 50 20")
             .help("vr_prop_press_test: a large crate 48 units ahead, then the main hand (empty, a weapon or a prop held) "
