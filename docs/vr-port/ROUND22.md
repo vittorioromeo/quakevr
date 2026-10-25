@@ -21481,3 +21481,18 @@ one); no trigger guard, as in the mockup.
 - [ ] Debug > Tools > Flare Gun Art: walk around it: rusty signal-red paint, the barrels parallel, the cartridges' red caps.
 - [ ] Look down the sights: the brass blade sits in the bottom of the rear notch.
 - [ ] Scenario flaregun_art: hold the nail pistol next to it: about the same size, the flare gun's grip longer.
+
+### Follow-up: no breech housing (branch `agent/flaregun-art2`)
+
+Vittorio: the raised housing with the two shell-like cylinders on top was a mockup artefact. Removed the housing (walls,
+cap, notched back wall, sight channel) and the two cartridges; the top is now the frame's plain flat top (z 6.2 design)
+from the hinge block back over the breeches, ending in a low hump: a ramp up in front, two cheeks with the rear notch
+between them (0.32 wide, 0.28 deep), square at the back, the tang sloping down behind. The sight line dropped 0.2: model
+frame y 0, z **6.132**, rear (the notch's bottom, back edge) x **1.15**, front blade top x 9.05; still parallel to the
+bores, now 1.6 above the top bore (README updated; `vr_sightalign` rear `{1.15, 0, 6.132}`, front `{9.05, 0, 6.132}`).
+Muzzles unchanged. The fired skins keep only the sooted muzzles (skin 1 top, skin 2 both); kept as 3 skins so the
+gameplay can still pick by barrels fired. `v_flaregun.mdl` 1187 -> 860 triangles; the two housing rivets painted on the
+skin went with it. Regenerated with build_flaregun.py (the .blend had not been hand-edited), re-exported, re-rendered;
+check_mdl_art.py LOW only.
+
+- [ ] Flare Gun Art: the top is plain and solid; down the sights the brass blade sits in the bottom of the rear notch.

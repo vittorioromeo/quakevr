@@ -2,24 +2,25 @@
 
 The disposable double-barrelled flare gun's model and skin, before it is a weapon (no gameplay yet): two short fat
 over-and-under barrels with wide bores, a stamped sheet-iron body in rusty signal orange-red paint (rust patches, chipped
-paint, bare metal at the worn edges), a break-open hinge block with a bolted strap on each side, a raised breech housing
-at the top rear with two red flare cartridges (brass heads) sticking out of its open front, a curved wooden grip with
-bolts, a small trigger. After Vittorio's mockup (`qvr-kit/scratch/flaregun/mockup.webp`) with one fix: **the two barrels
-are exactly parallel** (one shape about +X, its two copies' centres on the same vertical line), and iron sights added.
-Not reloadable: one model, no moving parts.
+paint, bare metal at the worn edges), a break-open hinge block with a bolted strap on each side, a plain flat stamped-iron
+top over the breeches ending in a low hump with the rear sight notch, a curved wooden grip with bolts, a small trigger.
+After Vittorio's mockup (`qvr-kit/scratch/flaregun/mockup.webp`) with fixes: **the two barrels are exactly parallel**
+(one shape about +X, its two copies' centres on the same vertical line), iron sights added, and the mockup's raised
+breech housing with its two cartridges on top left out (Vittorio: a mockup artefact). Not reloadable: one model, no
+moving parts.
 
 | File | What |
 | --- | --- |
 | `flaregun.blend` | The source: objects `Body` (the gun) and `Flare` (the projectile), one material `FlareGunSkin` (the skin, nearest filtering), one UV atlas shared by both. Empties `_MuzzleTop`, `_MuzzleBottom`, `_SightRear`, `_SightFront` (children of Body, not exported) mark the points below. |
 | `flaregun_skin.png` | Skin 0 (loaded), 256x256 RGB, already in Quake's palette: paint this one (in Blender or any image editor). |
-| `flaregun_skin_fired1.png`, `flaregun_skin_fired2.png` | Overlays (RGBA): only the texels that differ from skin 0, the rest transparent. Skin 1 = skin 0 + fired1 (the top barrel fired: the left cartridge's cap burnt out, the top muzzle sooted); skin 2 = skin 0 + fired2 (both). A repaint of skin 0 carries over to them. |
+| `flaregun_skin_fired1.png`, `flaregun_skin_fired2.png` | Overlays (RGBA): only the texels that differ from skin 0, the rest transparent. Skin 1 = skin 0 + fired1 (the top barrel fired: its muzzle sooted); skin 2 = skin 0 + fired2 (both muzzles sooted). A repaint of skin 0 carries over to them. |
 | `flaregun_skin_pal.png` | Skin 0 as palette indices (8-bit, Quake's palette), written by every export. |
 | `export_mdl.py` | Writes the MDLs from the .blend (below). |
 | `build_flaregun.py` | Makes the .blend from nothing (shapes, UVs, a procedurally painted skin and its overlays) and exports. It **overwrites** the .blend and the skins: once they are edited by hand, don't run it. |
 | `render_previews.py` | Renders the exported MDLs into `renders/` (below). |
 
-Triangles: `v_flaregun.mdl` 1187 (barrels 2 x 116, cartridges 2 x 116, the 12 hex bolts 240, the rest the body, housing,
-grip, sights, trigger), `vr_flare.mdl` 116. Skin 256x256, 3 skins in `v_flaregun.mdl`; the flare uses skin 0 (the atlas).
+Triangles: `v_flaregun.mdl` 860 (barrels 2 x 116, the 12 hex bolts 240, the rest the body, grip, sights, trigger),
+`vr_flare.mdl` 116. Skin 256x256, 3 skins in `v_flaregun.mdl`; the flare uses skin 0 (the atlas).
 
 ## Axes, origins, scale
 
@@ -40,14 +41,16 @@ scale (`vr_wofs_scale` ~0.45) that is ~23 cm, about the nail pistol's size with 
 | --- | --- | --- |
 | Top barrel's muzzle (exit, bore centre) | 9.300 0 4.532 | +X |
 | Bottom barrel's muzzle | 9.300 0 2.232 | +X |
-| Rear sight (the notch's bottom, back of the breech housing) | 1.900 0 6.332 | |
-| Front sight (the blade's top, on the top barrel) | 9.050 0 6.332 | |
+| Rear sight (the notch's bottom, at its back edge) | 1.150 0 6.132 | |
+| Front sight (the blade's top, on the top barrel) | 9.050 0 6.132 | |
 
-The sight line runs from the rear notch to the front blade's top: y 0, z 6.332, **parallel to both bores** (+X), 1.8
+The sight line runs from the rear notch to the front blade's top: y 0, z 6.132, **parallel to both bores** (+X), 1.6
 above the top bore's axis. The bores are 1.6 wide (radius 0.8), 2.6 deep. Aim: the front blade's top (painted bright
-brass) in the bottom of the rear notch. The rear notch is the slot in the housing's back wall, continued as a channel down
-the housing's cap between the two cartridges; the frame's tang behind it stays below the line.
-(For `vr_sightalign`: rear `{1.9, 0, 6.332}`, front `{9.05, 0, 6.332}`.)
+brass) in the bottom of the rear notch. The rear notch (0.32 wide, 0.28 deep) is cut in a low hump at the rear end of
+the frame's flat top, between its two cheeks; the hump ramps up from the flat top in front and ends square at the back,
+and the frame's tang behind it slopes down, below the line. The hinge block's top (0.32 below the line) and the frame's
+flat top stay under it.
+(For `vr_sightalign`: rear `{1.15, 0, 6.132}`, front `{9.05, 0, 6.132}`.)
 
 ## Editing in Blender
 
@@ -79,7 +82,7 @@ and `flaregun_skin_pal.png` here. Re-exporting the shipped .blend gives the ship
 `Misc/quakevr/mdlgen.py` (the generated models' MDL writer) and the palette in
 `Misc/quakevr/blender/addons/quakevr_models/qpal.py`. Art lint (needs numpy: Blender's own Python has it):
 `"C:\Program Files\Blender Foundation\Blender 5.2\5.2\python\bin\python.exe" Misc/quakevr/check_mdl_art.py
-quakevr/progs/v_flaregun.mdl quakevr/progs/vr_flare.mdl` (LOW bleed only; one MED uv-streak on the flare).
+quakevr/progs/v_flaregun.mdl quakevr/progs/vr_flare.mdl` (LOW only: bleed, and one overlap texel on the gun).
 
 Renders: `blender -b --factory-startup -P Misc/quakevr/models_src/flaregun/render_previews.py [-- <view> ...]` imports
 the exported MDLs (the quakevr_models add-on's importer) and writes `renders/`: `three_quarter`, `side` (the barrels
