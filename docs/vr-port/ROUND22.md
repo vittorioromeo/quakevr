@@ -21301,7 +21301,8 @@ re-exporting, the models' structure for code).
   brass plates, thick (to y 1.72) round the window's top, front and back, thin along its bottom where the cylinder
   passes; iron fills behind and in front of the cylinder. `build_revolver.py` checks the crane's whole swing against
   the frame, hammer and trigger (BVH overlap every 4.75 degrees): clear.
-- Sight line (Body frame, parallel to the bore 2.12 above it): blade top 15.551 0 9.434, notch top 3.401 0 9.434.
+- Sight line (Body frame, parallel to the bore 2.12 above it): blade top 16.714 0 9.178, notch top 3.764 0 9.178
+  (after the follow-up below).
 - `export_mdl.py`: `v_revolver.mdl` (all, 914 triangles; frames rest, cocked, trigger pulled, swung out, swung out
   with the rod pushed), `v_revolver_frame.mdl` (606), `v_revolver_crane.mdl` (52), `v_revolver_cyl.mdl` (256; rest,
   rod pushed) for code that spins the cylinder and swings the crane as attached models (recommended: rotations
@@ -21321,6 +21322,15 @@ re-exporting, the models' structure for code).
 - [ ] Debug > Tools > Heavy Revolver Art: walk around it: the brass octagon, the fluted cylinder, the runes, the grip.
 - [ ] Heavy Revolver Art: Swung Out: the cylinder out to the left, the six shell heads (red and blue) in the chambers.
 - [ ] Scenario revolver_art: hold the shotgun next to it: the revolver's grip a believable size in the hand.
+
+Follow-up (his tweaks, same branch): the grip curved and angled back as the mockup's (40 degrees, four sections: full
+with a hump at its back under the hammer, a waist under the wraps, the butt flaring and swept forward; four overlapping
+darker leather straps); the trigger guard as the mockup's (thick square-section bars, y +-0.45, its front bar leaning
+back towards the bottom, a chamfered corner, a compact loop closed by the grip; the trigger 0.65 further back); the
+barrel 0.8 longer (+12%, muzzle at x 16.964, the blade with it, runes recentred); the cylinder and the hammer painted
+the barrel's dark rusted iron (were a lighter grey steel). Still 914 triangles (the guard's and the housing's bevels
+dropped for the grip's extra section and strap). Swing check clear; lint no MED/HIGH. Renders redone (`renders/`).
+- [ ] The grip sits in the hand angled back like the mockup's; the guard's loop fits a finger.
 ## Spectator camera: skipped while the window is minimized, Resolution Scale as steps (worktree `tghost`, branch `agent/specsave`, 2026-10-25)
 
 The GPU benchmark found the spectator camera (`vr_window_view 2`) the largest optional cost: at his

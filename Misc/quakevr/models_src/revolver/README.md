@@ -23,31 +23,31 @@ Triangles: the gun 914 (Body 490 with the sights, Hammer 88, Trigger 28, Crane 5
 ## Axes, origins, scale
 
 Quake's view weapon axes: **+X forward (the muzzle), +Y left, +Z up**; Quake model units, as `v_nail.mdl`,
-`v_shot.mdl` and the nail pistol. The revolver is ~16.3 units long (muzzle to hammer spur): at a view weapon's usual
-in-hand scale (`vr_wofs_scale` ~0.45) that is ~28 cm, its grip a little bigger than the nail pistol's
+`v_shot.mdl` and the nail pistol. The revolver is ~17.1 units long (muzzle to hammer spur): at a view weapon's usual
+in-hand scale (`vr_wofs_scale` ~0.45) that is ~29 cm, its grip a little bigger than the nail pistol's
 (`renders/scale.png`). Numbers below are in the Body's frame (the MDL's), as the export prints them.
 
-- `Body`: origin at the grip's hand point (the grip's middle). Bore axis: y 0, z 7.314, along +X; muzzle at x 15.80.
-- `Crane` (yoke): origin at its pivot **7.851 0.700 2.814**, low and left in a slot through the frame's bottom. It swings
+- `Body`: origin at the grip's hand point (the grip's middle). Bore axis: y 0, z 7.058, along +X; muzzle at x 16.964.
+- `Crane` (yoke): origin at its pivot **8.214 0.700 2.558**, low and left in a slot through the frame's bottom. It swings
   the cylinder out to the left about its local **X** (parallel to the bore) by its property `swing` (-95 degrees; the
   build checks the whole swing is clear of the frame, the hammer and the trigger: "swing check: clear").
-- `Cylinder`: origin on its axis at its rear face, **3.401 0 5.864** at rest (-4.450 -0.700 3.050 in the Crane's frame).
+- `Cylinder`: origin on its axis at its rear face, **3.764 0 5.608** at rest (-4.450 -0.700 3.050 in the Crane's frame).
   It spins about its local **X**: 60 degrees a chamber (its shape repeats every 60 degrees). Chambers at radius `pitch`
   (1.45) round the axis, chamber i at angle 90 + 60 i degrees from +Y towards +Z: chamber 0 on top, on the bore's line.
   Cylinder 4.4 long, radius 2.25 (fat enough for 12-gauge shells: walls 0.65 from each chamber's middle).
-- `EjectorRod`: origin 7.801 0 5.864 (the cylinder's front, on its axis); pushed back along its local -X by `travel`
+- `EjectorRod`: origin 8.164 0 5.608 (the cylinder's front, on its axis); pushed back along its local -X by `travel`
   (1.0) to eject.
-- `Hammer`: origin at its pivot 1.801 0 5.914; cocks about its local **Y** by `cock` (-38 degrees: the spur back and
+- `Hammer`: origin at its pivot 2.164 0 5.658; cocks about its local **Y** by `cock` (-38 degrees: the spur back and
   down). Its spur is two prongs either side of the sight line.
-- `Trigger`: origin at its pivot 4.751 0 3.064; pulled about its local **Y** by `pull` (22 degrees).
+- `Trigger`: origin at its pivot 4.464 0 2.808; pulled about its local **Y** by `pull` (22 degrees).
 - `Shell`: its own frame: origin the rim's back face's centre, the hull along +X (into a chamber). 4.1 long, rim radius
   0.66, in the gun's units: drawn at the gun's scale (0.45) it is 7 cm, the size of `vr_shell_live.mdl` at world scale.
   Chambered: at `(-0.1, 1.45 cos a, 1.45 sin a)` in the Cylinder's frame (`a` = 90 + 60 i degrees), its rim 0.1 proud
   of the cylinder's face (the Shell's property `proud`).
 - `Body`'s properties: `preview_scale` (0.45), `front_sight`, `rear_notch`.
 
-**Sight line** (parallel to the bore, 2.12 above it): front blade top **15.551 0 9.434** (the blade's top front
-corner), rear notch top **3.401 0 9.434** (the notch's top edges, at its back face; notch 0.30 wide, bottom at 9.154).
+**Sight line** (parallel to the bore, 2.12 above it): front blade top **16.714 0 9.178** (the blade's top front
+corner), rear notch top **3.764 0 9.178** (the notch's top edges, at its back face; notch 0.30 wide, bottom at 8.898).
 Look along it from behind: the blade sits in the notch, between the hammer's prongs (`renders/sights.png`).
 
 ## Models (quakevr/progs)

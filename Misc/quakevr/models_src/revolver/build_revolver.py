@@ -57,33 +57,37 @@ THICK_SEGS = {4, 5, 6, 7, 8}                   # (the slotted octagon's segments
 # The barrel: hexagonal (vertices at the top and the bottom: flat sides, where the runes are).
 BARREL_R = 1.55
 BORE_R = 0.66
-BARREL_X0, BARREL_X1 = 5.95, 12.4
+BARREL_X0, BARREL_X1 = 5.95, 13.2
 # Iron sights: one line parallel to the bore, through the front blade's top and the rear notch's top edges.
 SIGHT_Z = 7.12
-FRONT_SIGHT = Vector((12.15, 0.0, SIGHT_Z))    # the blade's top front corner
+FRONT_SIGHT = Vector((BARREL_X1 - 0.25, 0.0, SIGHT_Z))    # the blade's top front corner
 REAR_NOTCH = Vector((0.0, 0.0, SIGHT_Z))       # the notch's top, at its back face (on the top strap)
 NOTCH_BOTTOM = 6.84
 # The hammer and the trigger: pivots about Y.
 HAMMER_PIVOT = Vector((-1.6, 0.0, 3.6))
 HAMMER_COCK = -38.0                            # degrees about its local Y: its spur back and down
-TRIGGER_PIVOT = Vector((1.35, 0.0, 0.75))
+TRIGGER_PIVOT = Vector((0.7, 0.0, 0.75))
 TRIGGER_PULL = 22.0                            # degrees about its local Y: its blade back
 # The grip.
-GRIP_TILT = math.radians(31.0)
-GRIP_TOP = Vector((-1.65, 0.0, 0.6))
+GRIP_TILT = math.radians(40.0)
+GRIP_TOP = Vector((-1.45, 0.0, 0.7))
 GRIP_FWD = Vector((math.cos(GRIP_TILT), 0.0, -math.sin(GRIP_TILT)))
 GRIP_UP = Vector((math.sin(GRIP_TILT), 0.0, math.cos(GRIP_TILT)))
-GRIP_A = (1.0, -3.8, -8.4)                     # its sections along GRIP_UP from GRIP_TOP: top (in the frame), mid, butt
-GRIP_SEC = ((1.45, 1.05, 0.0), (1.45, 1.1, 0.15), (2.2, 1.22, -0.6))  # (half along GRIP_FWD, half across, shift)
-STRAPS = ((-3.3, 0.95, 15.0, 1.07), (-4.35, 0.9, -13.0, 1.09), (-5.4, 0.95, 17.0, 1.07))
-HAND = GRIP_TOP - GRIP_UP * 3.4                # the hand point: the grip's middle
+# Its sections, top (in the frame) to butt: (a along GRIP_UP from GRIP_TOP, half along GRIP_FWD, half across, shift
+# along GRIP_FWD). Curved as the mockup's: full at the top with a hump at its back, a waist under the wraps, the butt
+# flaring and swept forward.
+GRIP_SECS = ((1.0, 1.55, 1.05, 0.0), (-2.0, 1.68, 1.12, -0.5), (-5.0, 1.45, 1.05, 0.05), (-8.0, 2.0, 1.18, 0.75))
+# Leather straps wrapped round its middle: (a, height, tilt seen from the side, scale), overlapping.
+STRAPS = ((-3.15, 0.9, 16.0, 1.07), (-3.95, 0.85, -12.0, 1.09), (-4.75, 0.9, 18.0, 1.07), (-5.55, 0.85, -9.0, 1.09))
+HAND = GRIP_TOP - GRIP_UP * 3.6                # the hand point: the grip's middle
 
 
 def grip_section(a):
     """The grip's section (half along GRIP_FWD, half across, shift along GRIP_FWD) at a along GRIP_UP."""
-    k = 0 if a >= GRIP_A[1] else 1
-    t = (a - GRIP_A[k]) / (GRIP_A[k + 1] - GRIP_A[k])
-    return tuple(GRIP_SEC[k][i] + (GRIP_SEC[k + 1][i] - GRIP_SEC[k][i]) * t for i in range(3))
+    for (a0, *s0), (a1, *s1) in zip(GRIP_SECS, GRIP_SECS[1:]):
+        if a >= a1 or (a1, *s1) == GRIP_SECS[-1]:
+            t = (a - a0) / (a1 - a0)
+            return tuple(s0[i] + (s1[i] - s0[i]) * t for i in range(3))
 # A 12-gauge shell in these units (1 unit = 0.45 * 3.81 cm drawn in the hand): 7 cm long, its rim 2.2 cm across.
 SHELL_LEN, SHELL_RIM_R, SHELL_HULL_R, SHELL_RIM_T, SHELL_HEAD_LEN = 4.1, 0.66, 0.585, 0.13, 0.95
 SHELL_PROUD = 0.1                              # a chambered shell's rim stands this far behind the cylinder's face
@@ -234,7 +238,7 @@ def build_body():
     # Behind it: the hammer's housing, down into the grip.
     rear = [(-0.5, 0.35), (-0.5, 5.55), (-1.15, 5.8), (-2.15, 5.4), (-2.55, 4.65), (-2.6, 2.9), (-2.85, 1.6),
             (-2.4, 0.35)]
-    bevel_caps(bm, side(bm, rear, -0.8, 0.8, DARK), 0.16)
+    side(bm, rear, -0.8, 0.8, DARK)
     # The window's iron in front of and behind the cylinder: the recoil shield behind (the chambered rims clear it),
     # the barrel's shank and the crane's seat in front, the ejector rod's tip between them.
     xs = -SHELL_PROUD - 0.06
@@ -251,17 +255,18 @@ def build_body():
     lug = [(5.9, 2.75), (7.75, 2.75), (8.3, 3.25), (8.3, 4.0), (5.9, 4.0)]
     side(bm, lug, -0.72, 0.72, IRON)
     # The trigger guard (brass): a loop under the frame, its back running into the grip.
-    guard = [(-1.5, -1.62), (2.15, -1.62), (2.95, -0.95), (3.25, 0.7), (2.65, 0.7), (2.45, -0.55), (2.0, -1.08),
-             (-1.5, -1.08)]
-
-    side(bm, guard, -0.36, 0.36, BRASS)
+    # As the mockup's: thick bars of square section, the front one leaning back towards the bottom, a chamfered corner.
+    guard = [(-2.2, -1.85), (1.5, -1.85), (2.15, -1.3), (2.7, 0.7), (2.1, 0.7), (1.62, -0.88), (1.25, -1.35),
+             (-2.2, -1.35)]
+    side(bm, guard, -0.45, 0.45, BRASS)
     # The grip: an octagonal section leaning back, flaring towards its butt.
     gf = (GRIP_FWD, Vector((0, 1, 0)))
-    top = bevel_rect(GRIP_SEC[0][0], GRIP_SEC[0][1], 0.34, cx=GRIP_SEC[0][2])
-    mid = bevel_rect(GRIP_SEC[1][0], GRIP_SEC[1][1], 0.34, cx=GRIP_SEC[1][2])
-    butt = bevel_rect(GRIP_SEC[2][0], GRIP_SEC[2][1], 0.38, cx=GRIP_SEC[2][2])
-    prism(bm, mid, GRIP_A[1], GRIP_A[0], gf, WOOD, GRIP_TOP, poly1=top, caps=(False, True))[1].material_index = HIDDEN
-    prism(bm, butt, GRIP_A[2], GRIP_A[1], gf, WOOD, GRIP_TOP, poly1=mid, caps=(True, False))
+    secs = [(a, bevel_rect(hu, hy, 0.36, cx=cx)) for a, hu, hy, cx in GRIP_SECS]
+    for k in range(len(secs) - 1):
+        (a1, p1), (a0, p0) = secs[k], secs[k + 1]
+        faces = prism(bm, p0, a0, a1, gf, WOOD, GRIP_TOP, poly1=p1, caps=(k == len(secs) - 2, k == 0))
+        if k == 0:
+            faces[1].material_index = HIDDEN  # (its top, inside the frame)
     # Worn leather straps wrapped round it, each a little askew.
     for a, h, tilt, k in STRAPS:
         hu, hy, cx = grip_section(a)
@@ -348,8 +353,8 @@ def build_hammer():
 def build_trigger():
     bm = bmesh.new()
     # A curved blade, its tip hooked forward for the finger.
-    side(bm, [(1.05, 0.75), (1.65, 0.75), (1.55, 0.15), (1.7, -0.35), (2.0, -0.7), (1.72, -0.82), (1.35, -0.5),
-              (1.1, 0.1)], -0.2, 0.2, HAMMER)
+    side(bm, [(0.4, 0.75), (1.0, 0.75), (0.9, 0.15), (1.05, -0.35), (1.35, -0.7), (1.07, -0.82), (0.7, -0.5),
+              (0.45, 0.1)], -0.22, 0.22, HAMMER)
     return finish(bm, "Trigger", TRIGGER_PIVOT)
 
 
@@ -384,16 +389,14 @@ def rgb(*c):
 
 
 BASE = {IRON: rgb(86, 76, 66), DARK: rgb(74, 66, 58), BRASS: rgb(158, 120, 56), BORE: rgb(22, 20, 18),
-        WOOD: rgb(128, 58, 30), LEATHER: rgb(112, 90, 70)
-, SIGHT: rgb(74, 70, 66), STEEL: rgb(90, 87, 82),
-
-        CAP_REAR: rgb(104, 100, 96), CAP_FRONT: rgb(96, 92, 88), HAMMER: rgb(90, 86, 80)}
-EDGE = {BRASS: rgb(222, 190, 110), WOOD: rgb(176, 92, 50), LEATHER: rgb(124, 100, 80), STEEL: rgb(196, 192, 184),
-        CAP_REAR: rgb(186, 182, 172), CAP_FRONT: rgb(176, 172, 164)}
+        WOOD: rgb(134, 60, 30), LEATHER: rgb(86, 64, 48), SIGHT: rgb(74, 70, 66),
+        # (the cylinder and the hammer: the barrel's dark iron)
+        STEEL: rgb(86, 76, 66), CAP_REAR: rgb(86, 76, 66), CAP_FRONT: rgb(80, 72, 62), HAMMER: rgb(86, 76, 66)}
+EDGE = {BRASS: rgb(222, 190, 110), WOOD: rgb(176, 92, 50), LEATHER: rgb(138, 106, 80)}
 EDGE_IRON = rgb(150, 144, 136)
 RUST = rgb(110, 76, 50)
 GRIME = rgb(66, 50, 32)
-RUSTY = (IRON, DARK, SIGHT, HAMMER)
+RUSTY = (IRON, DARK, SIGHT, HAMMER, STEEL, CAP_REAR, CAP_FRONT)
 RUNE_INLAY, RUNE_DEEP = rgb(164, 120, 64), rgb(40, 32, 26)
 
 # Runes (Elder Futhark-like strokes in a 0.5 x 1 box), carved along both flat sides of the barrel.
@@ -411,7 +414,7 @@ GLYPHS = [
     [((0.42, 1), (0.05, 0.62)), ((0.05, 0.62), (0.45, 0.38)), ((0.45, 0.38), (0.08, 0))],  # sowilo
 ]
 RUNE_TEXT = [4, 0, 7, 10, 2, 6, 9]
-RUNE_X0, RUNE_STEP, RUNE_H = 7.2, 0.62, 0.8
+RUNE_X0, RUNE_STEP, RUNE_H = 7.6, 0.62, 0.8
 
 
 def rune_dist(u, v):
@@ -451,13 +454,14 @@ def rivets():
     for x, z, r, hy in plate:
         for s in (1.0, -1.0):
             out.append((Vector((x, s * hy, z)) - HAND, Vector((0, s, 0)), r))
-    for x, z, r in ((-2.35, 2.2, 0.2), (-2.0, 4.6, 0.18), (7.4, 3.75, 0.17), (0.2, -1.45, 0.14), (2.3, -1.45, 0.14)):
-        hy = 0.8 if x < 0 and z > 1 else (0.62 if x > 5 else 0.36)
+    for x, z, r in ((-2.35, 2.2, 0.2), (-2.0, 4.6, 0.18), (7.4, 3.75, 0.17), (-0.4, -1.6, 0.15), (1.1, -1.6, 0.15)):
+        hy = 0.8 if x < 0 and z > 1 else (0.62 if x > 5 else 0.45)
         for s in (1.0, -1.0):
             out.append((Vector((x, s * hy, z)) - HAND, Vector((0, s, 0)), r))
     for u, a in ((0.0, -0.9),):
         for s in (1.0, -1.0):
-            out.append((GRIP_TOP + GRIP_FWD * u + GRIP_UP * a + Vector((0, s * 0.92, 0)) - HAND, Vector((0, s, 0)),
+            hy = grip_section(a)[1]
+            out.append((GRIP_TOP + GRIP_FWD * u + GRIP_UP * a + Vector((0, s * hy, 0)) - HAND, Vector((0, s, 0)),
                         0.17))
     return out
 
@@ -515,7 +519,7 @@ def chambers_paint(col, d, part):
         if k < CHAMBER_R - 0.1:
             return rgb(20, 18, 16) if part == CAP_FRONT else mix(rgb(16, 14, 12), rgb(40, 36, 32), k / CHAMBER_R)
         if k < CHAMBER_R:
-            return mix(col, EDGE[part], 0.7)
+            return mix(col, EDGE_IRON, 0.6)
         if k < CHAMBER_R + 0.12:
             return col * 0.55
     if part == CAP_REAR:
@@ -523,7 +527,7 @@ def chambers_paint(col, d, part):
         ang = math.atan2(r.z, r.y)
         star = 0.48 + 0.18 * abs(math.cos(3 * ang))
         if r.length < star:
-            return mix(col, EDGE[part], 0.35) if r.length < star - 0.1 else col * 0.6
+            return mix(col, EDGE_IRON, 0.3) if r.length < star - 0.1 else col * 0.6
     elif r.length < 0.32:
         return rgb(24, 22, 20)
     return col
@@ -544,9 +548,6 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, speck, ob_name):
     elif part == BRASS:
         col *= 0.88 + 0.14 * mid + 0.12 * fine
         col = mix(col, GRIME, 0.55 * smooth(0.2, 0.7, big * 0.6 + fine * 0.5))
-    elif part in (STEEL, CAP_REAR, CAP_FRONT):
-        col *= 0.88 + 0.12 * mid + 0.14 * fine
-        col = mix(col, RUST, 0.35 * smooth(0.3, 0.8, big * 0.5 + mid * 0.5))
     elif part == WOOD:
         # Grain along the grip.
         rel = d - GRIP_TOP
@@ -563,7 +564,7 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, speck, ob_name):
         col *= 0.92 + 0.1 * fine
     col *= 1.0 + speck
     # The barrel's flat sides: carved runes, inlaid with a dull gold.
-    if ob_name == "Body" and part == IRON and abs(n.y) > 0.98 and abs(d.y) > 0.95 and RUNE_X0 - 0.2 < d.x < 12.3 \
+    if ob_name == "Body" and part == IRON and abs(n.y) > 0.98 and abs(d.y) > 0.95 and RUNE_X0 - 0.2 < d.x < 12.9 \
             and abs(d.z - BORE_Z) < 0.7:
         u = (d.x - RUNE_X0) if n.y < 0 else (RUNE_X0 + len(RUNE_TEXT) * RUNE_STEP - d.x)
         k = rune_dist(u, d.z - BORE_Z)
