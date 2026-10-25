@@ -620,12 +620,18 @@ void(entity xFire, float xVol) VR_Burn_CrackleSet =
 // A loaded game (OnLoadGame, a moment after: SUB_DoLater): sounds are not saved, so the loops playing at the save are
 // started again: a wall torch's or a flame prop's crackle (VR_WallTorch_Crackle) at once, a fire's (VR_Burn_Crackle) on
 // its next look, as if silent.
+void(entity f) VR_Flare_Hiss; // (vr_flaregun.qc: a burning flare's)
 void() VR_Crackles_AfterLoad =
 {
     float n = 0;
     entity e = nextent(world);
     while(e)
     {
+        if(e.classname == "vr_flare")
+        {
+            VR_Flare_Hiss(e); // (the flare gun's flares burning: their hiss again)
+            n = n + 1;
+        }
         if(e.wt_crackle)
         {
             e.wt_crackle = FALSE;

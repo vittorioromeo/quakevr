@@ -35,13 +35,13 @@ CHAMFER = 16  # added to a part: a chamfer of it
 # The barrels: one shape, two centres on the same vertical line, both along +X.
 BARREL_R, BORE_R, BARREL_SIDES = 1.2, 0.8, 12
 BARREL_TOP_Z, BARREL_BOT_Z = 5.0, 2.7
-BARREL_X0, MUZZLE_X, BORE_DEPTH = 2.4, 7.8, 2.6
+BARREL_X0, MUZZLE_X, BORE_DEPTH = 2.4, 10.5, 2.6  # (10.5: the barrels half as long again, Vittorio 2026-10-26; was 7.8)
 # The frame's flat top (behind the hinge block, over the breeches).
 FRAME_TOP_Z = 6.2
 # The sight line: the rear notch's bottom (cut in a low hump at the frame top's rear end) and the front blade's top, both
 # at SIGHT_Z: parallel to the bores.
 SIGHT_Z = 6.6
-SIGHT_REAR_X, SIGHT_FRONT_X = -0.35, 7.55
+SIGHT_REAR_X, SIGHT_FRONT_X = -0.35, MUZZLE_X - 0.25  # (the blade 0.25 behind the muzzle)
 NOTCH_HALF_W, EAR_TOP_Z = 0.16, SIGHT_Z + 0.28  # the notch's half width; the hump's top beside it
 
 GRIP_TILT = math.radians(30.0)         # the grip leans back this much from vertical

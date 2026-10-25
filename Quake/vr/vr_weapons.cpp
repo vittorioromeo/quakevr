@@ -167,7 +167,8 @@ namespace
 // 65: the Widowmaker's (slot 34) tracer colour (54 had put it on the plasma gun's, 35: undone) and stock pitch his
 // (takeWidowmaker65).
 // 66: the AD death guard's sword (slot 43) the death knight's (41) values as its own, inheriting none (takeGuardSword66).
-constexpr int settingsVersion = 66;
+// 67: the flare gun's slot (37) at its defaults (takeFlareGun67).
+constexpr int settingsVersion = 67;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -749,6 +750,12 @@ void takeGuardSword66()
     Con_DPrintf("Weapon settings: the death guard's sword took %d values from the death knight's, inherits no more\n", taken);
 }
 
+// The flare gun's slot (67; unused before: a config archived its keys at the empty slot's defaults).
+void takeFlareGun67()
+{
+    resetSlot(37);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -782,6 +789,7 @@ constexpr Step steps[] = {
     {64, takeNailPistolHis64},
     {65, takeWidowmaker65},
     {66, takeGuardSword66},
+    {67, takeFlareGun67},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
@@ -1238,6 +1246,15 @@ int slotForPart(const qmodel_t* model)
     }
     partSlotCache.emplace(model, slot);
     return slot;
+}
+
+int drawnSkin(const qmodel_t* model, int clip)
+{
+    if(clip < 0 || !model || !modelmeta::is(model, modelmeta::Id::VFlareGun))
+    {
+        return 0;
+    }
+    return za::max(0, za::min(2, 2 - clip));
 }
 
 int slotForModel(const qmodel_t* model)

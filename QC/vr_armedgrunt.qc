@@ -66,6 +66,8 @@ vector(entity e) weaponmuzzle = { return weapondrawnpose(e, 0, 6); };
 .vector vr_ag_aim;      // the way it aims now (a unit vector; '0 0 0': as its animation holds the gun)
 .float vr_ag_myrun;     // when its own run frames last ran (VR_AG_CheckAttack sends it back to them)
 .float vr_ag_lastwid;   // the last weapon it held (its backpack's ammo: VR_AG_SoldierDrop)
+void(entity g) VR_AG_DrawMain;            // (a flare gun as its second weapon: below, before VR_AG_SoldierDrop)
+void(entity g, vector vel) VR_AG_DropMain;
 
 // The pool's pick (VR_AG_PoolAdd: one pass, each weapon kept with its weight's share of the weights so far).
 float vr_ag_pool_total;
@@ -116,6 +118,7 @@ float(float wid) VR_AG_Usable =
     if(wid == WID_FIST) { return TRUE; }
     if(VR_IsADGun(wid)) { return wid != WID_ADELIMINATOR && VR_ADGun_Available(); }
     if(wid == WID_NAILPISTOL) { return TRUE; } // (Quake VR's own: every campaign)
+    if(wid == WID_FLAREGUN) { return TRUE; }   // (Quake VR's own: every campaign)
     if(wid < WID_AXE || wid > WID_SUPERAXE || wid == WID_TOOLGUN) { return FALSE; }
     return VR_Pack_WeaponAvailable(wid);
 };
@@ -141,7 +144,7 @@ float(float wid, entity inst) VR_AG_ClipOf =
 };
 
 // Its ammo is a clip of its own only (single use): the enemy guns.
-float(float wid) VR_AG_SingleUse = { return VR_IsEnemyGun(wid); };
+float(float wid) VR_AG_SingleUse = { return VR_IsEnemyGun(wid) || wid == WID_FLAREGUN; }; // (the flare gun: its two flares)
 
 // Nearer than this, it doesn't fire an explosive weapon (its own blast).
 float(float wid) VR_AG_MinRange =
@@ -547,7 +550,8 @@ float(float wid, float flags) VR_AG_Big =
 float(float wid, float flags) VR_AG_DualGun =
 {
     float c = VR_AG_Class(wid);
-    return c != VR_AG_CLASS_MELEE && c != VR_AG_CLASS_FISTS && !VR_AG_Big(wid, flags);
+    return c != VR_AG_CLASS_MELEE && c != VR_AG_CLASS_FISTS && !VR_AG_Big(wid, flags) &&
+           wid != WID_FLAREGUN; // (the flare gun: fired first and thrown away, never one of a pair)
 };
 
 // It may go in a pair at all (VR_AG_Pairs: with one of its own kind).
@@ -665,6 +669,10 @@ entity(entity g, float wid, float flags, entity inst) VR_AG_MakeProp =
     p.weaponflags = flags;
     p.weaponinst = inst ? inst : WeaponInst_New(VR_AG_ClipSize(wid));
     p.netname = VR_AG_NameOf(wid, flags, p.weaponinst);
+    if(wid == WID_FLAREGUN)
+    {
+        p.skin = VR_FlareGun_Skin(p.weaponinst.wi_clip); // (its barrels fired: vr_flaregun.qc)
+    }
     p.movetype = MOVETYPE_NONE;
     p.solid = SOLID_TRIGGER;
     p.effects = VR_AG_EF_HELD; // (the client finds it so: its muzzle flash, the arms' grips)
@@ -1209,6 +1217,7 @@ void(entity p) VR_AG_ShootProp =
     else if(wid == WID_NAILGUN)         { W_FireSpikes(h, (self.vr_ag_shots & 1) ? -2.35 : 2.35); }
     else if(wid == WID_SUPER_NAILGUN)   { W_FireSuperSpikes(h); }
     else if(wid == WID_NAILPISTOL)      { W_FireNailPistol(h); } // (vr_nailpistol.qc)
+    else if(wid == WID_FLAREGUN)        { W_FireFlareGun(h); } // (vr_flaregun.qc: the clip below)
     else if(wid == WID_GRENADE_LAUNCHER)
     {
         if(p.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO) { W_FireMultiGrenade(h); } else { W_FireGrenade(h); }
@@ -1262,6 +1271,10 @@ void(entity p) VR_AG_ShootProp =
     if(single)
     {
         inst.wi_clip = max(0, inst.wi_clip - rounds);
+    }
+    if(wid == WID_FLAREGUN)
+    {
+        p.skin = VR_FlareGun_Skin(inst.wi_clip); // (the barrel just fired sooted)
     }
     else
     {
@@ -1391,6 +1404,7 @@ void() VR_AG_AfterAttack =
             makevectors(self.angles);
             VR_AG_DropHeld(self, v_right * (90 * sideP) + v_forward * 40 + '0 0 120');
             VR_AG_Log("its weapon spent: thrown away");
+            VR_AG_DrawMain(self); // (its flare gun: its own weapon now)
         }
     }
     if(reload)
@@ -1713,6 +1727,7 @@ void(float d) VR_AG_Run =
         return; // (a tug-of-war over its weapon: its hold, vr_armedgrunt_play.qc)
     }
     self.vr_ag_myrun = time;
+    VR_AG_DrawMain(self); // (its flare gun spent and gone: its own weapon)
     if(VR_AG_Seeking())
     {
         entity w = self.vr_ag_seek;
@@ -1991,6 +2006,79 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
 };
 
 // SoldierDrop: an armed grunt's backpack holds its reserve (none: a grunt's 5 shells).
+// ----------------------------------------------------------------------------
+// A flare gun as its second weapon (vr_agrunt_flaregun; vr_flaregun.qc)
+// ----------------------------------------------------------------------------
+//
+// One from the pool (or a replacement, from its seed) with one weapon may carry a flare gun too: it spawns with the flare
+// gun in its hand and its own weapon stowed (no prop: its record and its reserve kept here), fires its two flares (a
+// gun's shot an attack), throws the spent flare gun away (VR_AG_AfterAttack) and takes its own weapon (VR_AG_DrawMain;
+// also when the flare gun is knocked out of its hand or yanked away: its next run frame). Dying with it stowed, it drops
+// that too (VR_AG_DropMain).
+.float vr_ag_main_wid;     // its own weapon stowed behind the flare gun (0: none)
+.float vr_ag_main_wflags;  // ... its flags
+.entity vr_ag_main_inst;   // ... its record (its clip)
+.float vr_ag_main_reserve; // ... its reserve
+float vr_ag_arm_rolled; // VR_AM_ArmAll's: a roll for one made (not for a map's or the toolgun's own weapons)
+float vr_ag_arm_roll;   // ... the roll, 0..1 (no initialiser: a QC global with one is a constant)
+float vr_ag_flare_draws;   // armed grunts that took their own weapon after their flare gun (the tests)
+
+// `g`'s flare gun (its roll `r`, 0..1, under vr_agrunt_flaregun): its weapon stowed, the flare gun in its hand.
+void(entity g, float r) VR_AG_MaybeFlareGun =
+{
+    entity p = g.vr_ag_prop;
+    if(r >= cvar_hget(cvarh_vr_agrunt_flaregun) || !p || g.vr_ag_prop2 || p.vr_ag_native || g.vr_ag_wid == WID_FLAREGUN ||
+       g.vr_ag_main_wid > 0 || !VR_AM_Holds(g, VR_AG_CLASS_GUN))
+    {
+        return;
+    }
+    g.vr_ag_main_wid = g.vr_ag_wid;
+    g.vr_ag_main_wflags = g.vr_ag_wflags;
+    g.vr_ag_main_inst = p.weaponinst;
+    g.vr_ag_main_reserve = g.vr_ag_reserve;
+    p.weaponinst = world;
+    remove(p);
+    g.vr_ag_prop = world;
+    VR_AG_Arm(g, WID_FLAREGUN, 0, world);
+    g.vr_ag_reserve = 0;
+    VR_AG_Log(sprintf("a flare gun first, its %s stowed", WeaponIdToWeaponName(g.vr_ag_main_wid)));
+};
+
+// Its own weapon from where it was stowed, into its empty hand (its flare gun gone).
+void(entity g) VR_AG_DrawMain =
+{
+    if(g.vr_ag_main_wid <= 0 || g.vr_ag_prop || g.health <= 0)
+    {
+        return;
+    }
+    float wid = g.vr_ag_main_wid;
+    g.vr_ag_main_wid = 0;
+    VR_AG_Arm(g, wid, g.vr_ag_main_wflags, g.vr_ag_main_inst);
+    g.vr_ag_reserve = g.vr_ag_main_reserve;
+    g.vr_ag_main_inst = world;
+    g.vr_ag_main_reserve = 0;
+    vr_ag_flare_draws = vr_ag_flare_draws + 1;
+    sound(g, CHAN_WEAPON, "weapons/lock4.wav", 0.7, ATTN_NORM);
+    VR_AG_Log(sprintf("its flare gun gone: takes its %s (%g in reserve)", g.vr_ag_prop ? g.vr_ag_prop.netname : "fists",
+        g.vr_ag_reserve));
+};
+
+// Dying with its own weapon still stowed: it falls too (its record with it), flying at `vel`.
+void(entity g, vector vel) VR_AG_DropMain =
+{
+    if(g.vr_ag_main_wid <= 0)
+    {
+        return;
+    }
+    float wid = g.vr_ag_main_wid;
+    g.vr_ag_main_wid = 0;
+    entity inst = g.vr_ag_main_inst ? g.vr_ag_main_inst : WeaponInst_New(VR_AG_ClipSize(wid));
+    g.vr_ag_main_inst = world;
+    CreateThrownWeapon(g, wid, g.vr_ag_main_wflags, inst, g.origin + '0 0 12', randomVec(180), vel, randomVec(90),
+        FALSE /* disappear on hit */, FALSE /* deal damage */, WeaponIdToThrowDamage(wid));
+    VR_AG_Log(sprintf("its stowed %s dropped", WeaponIdToWeaponName(wid)));
+};
+
 float() VR_AG_SoldierDrop =
 {
     if(!self.vr_ag)
@@ -2037,6 +2125,7 @@ float() VR_AG_Dying =
     makevectors(self.angles);
     VR_AG_DropHeld(self, v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70');
     VR_AG_DropHeld(self, v_forward * 25 + v_right * 20 + v_right * (crandom() * 15) + '0 0 70'); // (its other, if two)
+    VR_AG_DropMain(self, v_forward * 15 + v_right * (crandom() * 25) + '0 0 60'); // (its own, stowed behind a flare gun)
     return TRUE;
 };
 void() VR_AG_Die = { army_die(); }; // (a save from before: its th_die)
@@ -2164,6 +2253,8 @@ void(float kind) VR_AM_Spawn =
     self.th_run = vr_ag_run1;
     self.th_missile = VR_AG_Missile;
     self.th_melee = VR_AG_Melee;
+    vr_ag_arm_rolled = (pooled && want2 == 0); // (a flare gun too: one from the pool, one weapon)
+    vr_ag_arm_roll = random();
     VR_AM_ArmAll(want, flags, inst, want2, flags2);
 };
 
@@ -2195,6 +2286,11 @@ void(float want, float flags, entity inst, float want2, float flags2) VR_AM_ArmA
     {
         self.vr_ag_reserve2 = VR_AG_SingleUse(self.vr_ag_wid2) ? 0 :
             VR_AG_ClipOf(self.vr_ag_wid2, self.vr_ag_prop2.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));
+    }
+    if(vr_ag_arm_rolled)
+    {
+        vr_ag_arm_rolled = FALSE;
+        VR_AG_MaybeFlareGun(self, vr_ag_arm_roll);
     }
     VR_AG_Log(sprintf("spawned with %s%s%s (%g in reserve)", self.vr_ag_prop ? self.vr_ag_prop.netname : "its fists",
         self.vr_ag_prop2 ? " and in its left hand " : "", self.vr_ag_prop2 ? self.vr_ag_prop2.netname : "", self.vr_ag_reserve));

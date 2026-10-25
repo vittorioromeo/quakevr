@@ -1628,6 +1628,7 @@ void setupHolsters(const hands::State& s, bool queueTexts)
 
         view::ViewEntity& ve = entities.holster[h];
         place(ve, model, pose.weaponPos, pose.weaponAngles, holsteredGrappleOut(model, pose.weaponPos) ? 2 : 0, mirrored);
+        ve.ent.skinnum = weapons::drawnSkin(model, clip); // (the flare gun's barrels fired)
         highlight(ve, hover || holstersetup::highlighted(static_cast<int>(bodyHolster[h])));
         // Just holstered: eased from the hand into the holster (vr_drawblend.cpp).
         drawblend::holster(s, stat, model ? &ve.ent : nullptr, !previewHere && !posedHere);

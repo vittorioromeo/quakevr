@@ -7,7 +7,7 @@
 namespace qvr::weapons
 {
 
-inline constexpr int numSlots = 51; // (37 the nail pistol, 38-40 unused: AD support's melee weapons from 41, the four monster swords 47-50, the flail 51)
+inline constexpr int numSlots = 51; // (37 the nail pistol, 38 the flare gun, 39-40 unused: AD support's melee weapons from 41, the four monster swords 47-50, the flail 51)
 
 enum class Key : int
 {
@@ -22,6 +22,9 @@ void registerCvars();
 
 // Slot whose vr_wofs_id_NN names `model`, or -1.
 [[nodiscard]] int slotForModel(const qmodel_t* model);
+// The skin a held or holstered weapon `model` is drawn with, `clip` its rounds (-1 unknown): the flare gun's barrels
+// fired (QC vr_flaregun.qc VR_FlareGun_Skin: 0 loaded, 1 the top fired, 2 both); 0 for the rest.
+[[nodiscard]] int drawnSkin(const qmodel_t* model, int clip);
 // The same, or for a part drawn on a gun (a magazine, its well, the auto pump's parts, the open super shotgun's parts:
 // "progs/<prefix>_on_<gun>.mdl"), the gun's.
 [[nodiscard]] int slotForPart(const qmodel_t* model);

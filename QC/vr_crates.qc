@@ -24,6 +24,7 @@ float vr_crate_piecesoundtime; // a piece's dust sounds once a frame (an explosi
 float VR_THROWN_BOX_TIME = 2;  // s: how long a thrown solid prop (a crate, an explosive box) may hurt what it meets
 
 void(entity xCrate, float i) VR_Crowbar_OnCrate; // (vr_crowbar.qc)
+void(entity xCrate, float i) VR_FlareGun_OnCrate; // (vr_flaregun.qc)
 
 // Burning (vr_burning.qc): a crate burnt through breaks into charred pieces, one broken while burning into burning ones;
 // a piece set on fire by a hit isn't burst by it; a lit torch's swing sets a piece on fire instead of bursting it.
@@ -1113,5 +1114,6 @@ void() VR_Crates_Frame =
         }
         VR_Crate_Setup(e, kind);
         VR_Crowbar_OnCrate(e, i); // (a stack's top comes after the crate under it)
+        VR_FlareGun_OnCrate(e, i); // (vr_crate_flaregun: a top with no crowbar)
     }
 };

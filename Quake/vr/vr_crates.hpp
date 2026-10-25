@@ -33,6 +33,8 @@ int plan();
 // Whether the last plan puts a crowbar on crate `i` (vr_crate_crowbar, vr_crate_crowbar_max: tops only, the top one of a
 // stack; deterministic as the layout).
 [[nodiscard]] bool hasCrowbar(int i);
+// ... a flare gun (vr_crate_flaregun, vr_crate_flaregun_max: a top with no crowbar; deterministic as the layout).
+[[nodiscard]] bool hasFlareGun(int i);
 
 // Lays `e` (a crowbar lying about: QC's thrown weapon, its model set) on crate `i`'s top as the plan says: flat (the hook's
 // plane level), at the plan's yaw (or a quarter turn more if that fits the top better), its drawn box within the top where

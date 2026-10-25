@@ -30,6 +30,8 @@ za::Vector<Item> pageSpawnWeapons()
         command("Proximity Gun", "vr_physics_spawn weapon_proximity_gun reach"),
         command("Nail Pistol", "vr_physics_spawn weapon_nailpistol reach")
             .help("Quake VR's nail pistol lying ready to be picked up (with 24 nails)."),
+        command("Flare Gun", "vr_physics_spawn weapon_flaregun reach")
+            .help("Quake VR's disposable flare gun lying ready to be picked up (two flares)."),
         command("Toolgun", "vr_physics_spawn weapon_toolgun reach")
             .help("The toolgun (docs/vr-port/TOOLGUN.md): spawn, remove, physgun, scale and joint tools; B or Y opens its panel, its stick press switches the tool."),
     }, true);
@@ -997,6 +999,22 @@ za::Vector<Item> pageDebugTests()
             .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "
                   "0.2 degrees, at several poses and distances, both hands (\"npaim: N passed, M failed\"). In the headset: "
                   "Developer Shots (vr_debug_shots 1) prints each nail's angle off the shot line and what it carried."),
+        header("Flare Gun"),
+        command("A Flare Gun in Your Hand", "vr_flare_test 2").help("A loaded flare gun (two flares) in the main hand."),
+        command("Flare Guns in Both Hands", "vr_flare_test 3").help("A loaded flare gun in each hand."),
+        command("Flare Guns in the Holsters", "vr_flare_test 4")
+            .help("A loaded flare gun in the right hip and the right upper holster (replacing what was there)."),
+        command("Flares Scene", "vr_flare_test 6")
+            .help("A flare stuck in the wall ahead, one lying on the floor and one drifting down above you: their lights, "
+                  "sparks and smoke (and a loaded flare gun in your hand)."),
+        command("Flare Gun Self-Test", "vr_flare_test 1")
+            .help("Headless checks: two flares then spent (dry click, the skins), a grunt and a crate set on fire, an "
+                  "explosive box set off, a flare stuck in a wall burning its time, one fired up drifting down, the crates' "
+                  "flare guns the same each load, an armed grunt firing its flare gun then taking its own gun "
+                  "(\"flaretest: N passed, M failed\")."),
+        command("Flare Gun Muzzles Test", "vr_flare_test 5")
+            .help("Headless: each flare leaves its own barrel's muzzle (the top's first) along the barrels "
+                  "(\"flaremuzzle: N passed, M failed\")."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

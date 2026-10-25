@@ -122,7 +122,8 @@ float IID_ADPYRO             = 56;
 float IID_ADFUMIGATOR        = 57;
 float IID_ADCROSSBOW         = 58; // AD support: the crossbow knight's crossbow (WID_ADCROSSBOW)
 float IID_NAILPISTOL         = 59; // VR: the nail pistol (vr_nailpistol.qc).
-float IID_LAST               = 59; // the last item id
+float IID_FLAREGUN           = 60; // VR: the flare gun (vr_flaregun.qc).
+float IID_LAST               = 60; // the last item id
 
 //
 //
@@ -166,7 +167,10 @@ float WID_ADCROSSBOW       = 28; // AD: the crossbow knight's crossbow (vr_ad_en
 // VR: the nail pistol (vr_nailpistol.qc; Misc/quakevr/models_src/nailpistol): one-handed, semi-automatic, a 12-round
 // magazine in its grip fed from your nails; weapon settings slot 36 (vr_weapons.inc); weapon_nailpistol.
 float WID_NAILPISTOL       = 29;
-float WID_LAST             = 29; // the last weapon id
+// VR: the flare gun (vr_flaregun.qc; Misc/quakevr/models_src/flaregun): disposable, two flares (one a barrel), its clip
+// its only ammo (AID_NONE), thrown away spent; weapon settings slot 37 (vr_weapons.inc); weapon_flaregun.
+float WID_FLAREGUN         = 30;
+float WID_LAST             = 30; // the last weapon id
 float vr_pellet_damage; // FireBulletsImpl's damage a pellet while a shotgun fires (yours, Weapon Damage; a grunt's, vr_enemyguns.qc; 0: id's 4)
 // FireBulletsImpl's tracers (the tracer builtin): the hand that fires (-1 a monster's gun) and where they start (its muzzle).
 float vr_tracer_hand;

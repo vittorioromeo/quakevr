@@ -191,6 +191,8 @@ struct CrowbarOn
     float u, v;
 };
 za::Vector<CrowbarOn> crowbars;
+// A flare gun lying on a crate's top (vr_crate_flaregun): as a crowbar's, on a top with no crowbar (QC vr_flaregun.qc).
+za::Vector<CrowbarOn> flareGuns;
 
 // The last plan, kept for its key (debris::PlanKey: the map, the settings, the entities) for the session
 // (vr_place_keep): a restart of the map plans the same crates. Another game directory drops it.
@@ -200,7 +202,8 @@ struct KeptPlan
     uint64_t key = 0;
     za::Vector<Placement> placements;
     za::Vector<CrowbarOn> crowbars;
-    auto members() { return qvr::mem::list(valid, key, placements, crowbars); }
+    za::Vector<CrowbarOn> flareGuns;
+    auto members() { return qvr::mem::list(valid, key, placements, crowbars, flareGuns); }
 };
 mem::Cache<KeptPlan> kept{"crates plan", mem::GameDirChange};
 
@@ -252,6 +255,45 @@ void planCrowbars(uint64_t seed)
         }
         const float yaw = rng.range(0.f, 360.f), u = rng.range(-1.f, 1.f), v = rng.range(-1.f, 1.f);
         crowbars.pushBack({static_cast<int>(i), yaw, u, v});
+    }
+}
+
+// Rolls the flare guns on the crates' tops (after the crowbars): each top with nothing on it at vr_crate_flaregun's
+// chance, at most vr_crate_flaregun_max; a random way and place, as the crowbars'. Its own random numbers (from the
+// map's name and vr_crates_seed): the crates and the crowbars are the same whatever its chance.
+void planFlareGuns(uint64_t seed)
+{
+    flareGuns.clear();
+    const float chance = vr_crate_flaregun.value;
+    const int most = static_cast<int>(za::max(vr_crate_flaregun_max.value, 0.f));
+    if(chance <= 0.f || most <= 0)
+    {
+        return;
+    }
+    Rng rng{seed ^ 0xBB67AE8584CAA73Bull};
+    za::Vector<bool> taken(placements.size(), false);
+    for(const Placement& p : placements)
+    {
+        if(p.below >= 0)
+        {
+            taken[static_cast<size_t>(p.below)] = true;
+        }
+    }
+    for(const CrowbarOn& c : crowbars)
+    {
+        taken[static_cast<size_t>(c.crate)] = true;
+    }
+    for(size_t i = 0; i < placements.size() && static_cast<int>(flareGuns.size()) < most; i++)
+    {
+        // (Not on a barrel's round top, nor on a crate standing on a barrel: as the crowbars.)
+        const int under = placements[i].below;
+        if(taken[i] || placements[i].model == barrelModel || (under >= 0 && placements[static_cast<size_t>(under)].model == barrelModel) ||
+           rng.uniform() >= chance)
+        {
+            continue;
+        }
+        const float yaw = rng.range(0.f, 360.f), u = rng.range(-1.f, 1.f), v = rng.range(-1.f, 1.f);
+        flareGuns.pushBack({static_cast<int>(i), yaw, u, v});
     }
 }
 
@@ -640,6 +682,7 @@ void reset()
 {
     placements.clear();
     crowbars.clear();
+    flareGuns.clear();
     gotoNext = 0;
     gotoCrowbar = 0;
 }
@@ -659,6 +702,7 @@ int plan()
     }
     placements.clear();
     crowbars.clear();
+    flareGuns.clear();
     const float worldspawn = sv.worldmodel ? debris::worldspawnValue("_vr_crates") : 0.f;
     if(vr_crates.value == 0.f || !sv.active || !sv.worldmodel || svs.maxclients != 1 ||
         debris::inList(vr_crates_exclude.string, sv.name) || worldspawn <= 0.f)
@@ -703,6 +747,7 @@ int plan()
     {
         placements = kept.placements;
         crowbars = kept.crowbars;
+        flareGuns = kept.flareGuns;
         if(vr_debug_crates.value || developer.value)
         {
             Con_Printf("crates: %s: %d crates (%d crowbars on them), the last plan's (the same map, settings and entities); "
@@ -927,10 +972,12 @@ int plan()
     }
 
     planCrowbars(seed);
+    planFlareGuns(seed);
     kept.valid = true;
     kept.key = key.h;
     kept.placements = placements;
     kept.crowbars = crowbars;
+    kept.flareGuns = flareGuns;
 
     if(vr_debug_crates.value || developer.value)
     {
@@ -987,6 +1034,11 @@ int plan()
 bool hasCrowbar(int i)
 {
     return za::anyOf(crowbars.begin(), crowbars.end(), [i](const CrowbarOn& c) { return c.crate == i; });
+}
+
+bool hasFlareGun(int i)
+{
+    return za::anyOf(flareGuns.begin(), flareGuns.end(), [i](const CrowbarOn& c) { return c.crate == i; });
 }
 
 const char* modelOf(int i)
@@ -1051,10 +1103,13 @@ int put(edict_t* e, int i)
 
 bool putCrowbar(edict_t* e, int i)
 {
-    const auto it = za::findIf(crowbars.begin(), crowbars.end(), [i](const CrowbarOn& c) { return c.crate == i; });
+    // (A crowbar's or a flare gun's: a crate has one or none.)
+    const auto onCrate = [i](const CrowbarOn& c) { return c.crate == i; };
+    auto it = za::findIf(crowbars.begin(), crowbars.end(), onCrate);
+    const bool found = it != crowbars.end() || (it = za::findIf(flareGuns.begin(), flareGuns.end(), onCrate)) != flareGuns.end();
     const int index = static_cast<int>(e->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    if(it == crowbars.end() || !model)
+    if(!found || !model)
     {
         return false;
     }
@@ -1113,8 +1168,8 @@ bool putCrowbar(edict_t* e, int i)
     SV_LinkEdict(e, false);
     if(vr_debug_crates.value)
     {
-        Con_Printf("crates: a crowbar on crate %d: %.1f x %.1f units lying at yaw %.0f on its %.0f x %.0f top (z %.1f), %.1f units "
-                   "past its edges; origin (%.1f %.1f %.1f)\n", c.crate, best.fHi - best.fLo, best.lHi - best.lLo, best.yaw,
+        Con_Printf("crates: a %s on crate %d: %.1f x %.1f units lying at yaw %.0f on its %.0f x %.0f top (z %.1f), %.1f units "
+                   "past its edges; origin (%.1f %.1f %.1f)\n", hasCrowbar(c.crate) ? "crowbar" : "flare gun", c.crate, best.fHi - best.fLo, best.lHi - best.lLo, best.yaw,
             p.o.hf * 2.f, p.o.hl * 2.f, topZ, best.over, origin.x, origin.y, origin.z);
     }
     return true;

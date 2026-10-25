@@ -1153,6 +1153,10 @@ void armedGripsDragMode()
                   "blades and clubs (a sword, the crowbar, the axe) swung in turn or both at once; guns one in each "
                   "hand (not the rocket launcher, the Laser Cannon, the chainsaw, the hammers). Each can be knocked or "
                   "pulled out of its hand, and it goes for another (vr_agrunt_dual_chance)."),
+        slider("Flare Gun First", vr_agrunt_flaregun, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance one from the pool (or a replacement) holding one weapon carries a flare gun too: it fires "
+                  "its two flares first (setting you on fire), throws it away and takes its own weapon "
+                  "(vr_agrunt_flaregun)."),
         slider("Dual Guns' Penalty", vr_agrunt_dual_penalty, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("Two guns held one in each hand aim as yours do in one hand: no two-hand spread reduction (spread "
                   "and aim error x2 at 1) and heavy guns kick their aim up a shot by their heft. This times those "
@@ -1524,6 +1528,32 @@ void armedGripsDragMode()
             .help("How far its nails stray from its aim at most."),
         slider("Nail Pistol Magazine", vr_nailpistol_mag, 1.f, 30.f, 1.f, "%.0f rounds").extend(1.f, 100.f)
             .help("The rounds its magazine holds, a nail of yours each."),
+        slider("Flare Gun", vr_dmg_flaregun, 0.f, 60.f, 1.f, "%.0f a flare").extend()
+            .help("Quake VR's disposable flare gun: a flare's hit (low: what it hits is set on fire, an explosive box "
+                  "goes off). Two flares, then throw it away."),
+        slider("Flare Speed", vr_flaregun_speed, 200.f, 4000.f, 50.f, "%.0f u/s").extend(50.f, 10000.f)
+            .help("A flare's speed, plus the hand's."),
+        slider("Flare Arc", vr_flaregun_gravity, 0.f, 1.f, 0.05f, "%.2f").extend(0.01f, 3.f)
+            .help("A flare's gravity in flight (1 a grenade's): how much its path bends down."),
+        toggle("Flares Set Things on Fire", vr_flare_burn)
+            .help("A flare sets what it hits on fire (monsters, corpses, crates; Combat > Burning) and sets off "
+                  "explosive boxes. Off: its hit's damage only."),
+        slider("Stuck Flare Burns", vr_flare_stick_time, 1.f, 120.f, 1.f, "%.0f s").extend(0.5f, 3600.f)
+            .help("How long a flare stuck in a wall or lying on the floor burns, flickering red with sparks and smoke."),
+        slider("Air Flare Burns", vr_flare_air_time, 1.f, 60.f, 1.f, "%.0f s").extend(0.5f, 3600.f)
+            .help("How long a flare fired up into the air burns, drifting down from the top of its climb and lighting "
+                  "a wide area."),
+        slider("Air Flare Sinks", vr_flare_air_fall, 2.f, 100.f, 1.f, "%.0f u/s").extend(1.f, 400.f)
+            .help("How fast a drifting flare sinks."),
+        slider("Air Flare Angle", vr_flare_air_pitch, 0.f, 90.f, 1.f, "%.0f deg")
+            .help("A shot at least this far up drifts down from the top of its climb; a lower one flies on until it "
+                  "hits something and sticks there."),
+        slider("Flare Lights", vr_flare_lights, 0.f, 16.f, 1.f, "%.0f")
+            .help("Most flares lit at once: the nearest (drifting ones first); the rest still burn and spark."),
+        slider("Flare Light Size", vr_flare_light, 0.f, 3.f, 0.05f, "%.2fx")
+            .help("Their lights' size and brightness (0: none)."),
+        slider("Flare Sparks", vr_flare_sparks, 0.f, 3.f, 0.05f, "%.2fx")
+            .help("Their sparks and smoke (0: none)."),
         slider("Grenade", vr_dmg_grenade, 10.f, 400.f, 5.f, "%.0f").extend()
             .help("A grenade's blast at its middle, less further out (id's 120): the launcher's, a hand grenade's and an "
                   "ogre's grenade caught and thrown back."),
