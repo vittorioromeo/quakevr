@@ -132,6 +132,24 @@ void() VR_NailPistol_TestFrame =
         cvar_set("vr_np_test", "0");
         vr_npt_player = find(world, classname, "player");
         if(!vr_npt_player) { dprint("nptest: no player\n"); return; }
+        if(req == 2 || req == 3)
+        {
+            // A nail pistol, loaded, in the main hand (3: in both): Debug > Tests > Nail Pistol, the eyeshots.
+            entity os2 = self;
+            self = vr_npt_player;
+            VR_WeaponUtil_EntAddWeapon(self, WID_NAILPISTOL);
+            VRGiveEntWeapon(self, cVR_MainHand, WID_NAILPISTOL, 0, VR_NailPistol_MagSize());
+            W_SetCurrentAmmoFor(cVR_MainHand);
+            if(req == 3)
+            {
+                VRGiveEntWeapon(self, cVR_OffHand, WID_NAILPISTOL, 0, VR_NailPistol_MagSize());
+                W_SetCurrentAmmoFor(cVR_OffHand);
+            }
+            self.ammo_nails = max(self.ammo_nails, 48);
+            dprint(sprintf("nptest: a nail pistol in %s\n", req == 3 ? "both hands" : "the main hand"));
+            self = os2;
+            return;
+        }
         vr_npt_pass = vr_npt_fail = 0;
         vr_npt_mode = cvar("vr_reload_mode_npistol");
         vr_npt_grip = cvar("vr_weapon_grip_mode");

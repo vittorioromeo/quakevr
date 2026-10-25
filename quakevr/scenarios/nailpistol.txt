@@ -1,0 +1,16 @@
+# nailpistol: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The nail pistol as a weapon
+# (QC vr_nailpistol.qc): in your hand with nails to spare, crates and two grunts to shoot, two armed grunts with nail
+# pistols (one, and a pair) further off, another nail pistol lying on the floor.
+title Nail pistol: shoot, reload, armed grunts with it
+map vrtesthall
+god
+give "Nail Pistol" main
+spawn "Nail Pistol" 48 -24
+spawn "Wooden Crate" 160 40
+spawn "Wooden Crate" 160 -40
+spawn "Grunt" 300 60
+spawn "Grunt" 300 -60
+spawnarmed monster_vr_grunt 29 0 520 120
+spawnarmed monster_vr_grunt 29 29 520 -120
+cmd give n 100
+hint A shot each pull: two in a grunt's head or three in its body. Empty, the slide locks back: B/Y drops the magazine, take one from the pouch and slap it up into the grip. The armed grunts far off carry one and a pair.
