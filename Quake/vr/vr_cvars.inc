@@ -747,6 +747,23 @@ QVR_CVAR(vr_crosshair_size, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshair_alpha, "0.85", CVAR_ARCHIVE)
 QVR_CVAR(vr_crosshair_hue, "-1", CVAR_ARCHIVE)        // its colour: hue (degrees; 0 red; -1 vr_player_hue)
 QVR_CVAR(vr_deadzone, "10", CVAR_ARCHIVE)
+// The moving stick (vr_input.cpp moveStick, VR_AdjustMove; ROUND22.md "Thumbstick locomotion response"): its push's
+// length (not each axis) past vr_deadzone (% inner) up to the last vr_deadzone_outer % of its travel (full) rescaled
+// onto 0..1, the direction kept; then that to the power vr_move_curve (1 linear; more: finer slow speeds) times the
+// top speed, cl_forwardspeed (times cl_movespeedkey running) but never past sv_maxspeed, so the whole travel counts.
+QVR_CVAR(vr_deadzone_outer, "5", CVAR_ARCHIVE)
+QVR_CVAR(vr_move_curve, "1.6", CVAR_ARCHIVE)
+// 1: walking (cl_alwaysrun 0, the speed button up), the stick walks up to vr_move_autorun_threshold of its push (the
+// rescaled length, before the curve) and pushed past it eases into running in a moment; back under it, into walking.
+QVR_CVAR(vr_move_autorun, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_move_autorun_threshold, "0.9", CVAR_ARCHIVE)
+// The least speed (units a second) a push just past the deadzone asks on the ground (vr_input.cpp moveMinSpeed): -1
+// a little over what Quake's ground friction lets you hold (44: asked less, you stand), 0 none (from 0).
+QVR_CVAR(vr_move_min_speed, "-1", CVAR_ARCHIVE)
+// 1: the moving stick as before the response above (2026-10-25): each axis past vr_deadzone, straight, cl_forwardspeed
+// (times cl_movespeedkey running) unclamped. Replays of takes recorded before it set it (vr_motion_play.cpp applySettings).
+QVR_CVAR(vr_move_legacy, "0", CVAR_NONE)
+QVR_CVAR(vr_debug_stick, "0", CVAR_NONE) // Debug: twice a second, the moving stick's push, the speed asked and moved (vr_input.cpp stickDebug)
 // Ways to the menu besides the controller's menu button, which some controllers and runtimes never pass to the game
 // (Pico controllers under SteamVR: player report, ROUND22.md "Menu on any controller"). Each is a press of the menu
 // button (vr_input.cpp: it opens the menu, and closes it from any page). 0: the menu button only; 1: also both stick

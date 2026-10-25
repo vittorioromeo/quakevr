@@ -335,6 +335,11 @@ void resetBodyEquipment()
         slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%")
             .help("How far a stick must be pushed before it does anything. Raise it if you drift or turn without "
                   "touching the stick: worn sticks often need 20-25%."),
+        slider("Stick Response Curve", vr_move_curve, 1.f, 3.f, 0.1f, "%.1f")
+            .help("How the moving stick's push becomes speed. 1: straight. Higher: more of the travel for slow, careful "
+                  "walking, the top speed still at a full push."),
+        toggle("Walk Into Run", vr_move_autorun)
+            .help("Walking, pushing the moving stick all the way eases you into a run; a smaller push walks."),
         toggle("Swap Stick Functions", vr_stick_swap)
             .help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
         cycle("Swimming", vr_swim, {{1.f, "Immersive"}, {0.f, "Vanilla"}})

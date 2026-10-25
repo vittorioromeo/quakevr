@@ -333,6 +333,13 @@ za::Vector<Item> pageDebugTests()
             .help("vr_lootbeams_report: each beam this frame (entity, category, model, fade) and the things skipped "
                   "(carried, moving, empty magazines), on the console."),
         toggle("Loot Beams: Debug Lines", vr_lootbeam_debug).help("vr_lootbeam_debug: those counts once a second."),
+        header("Stick Locomotion"),
+        toggle("Stick: Show Speed", vr_debug_stick)
+            .help("vr_debug_stick: twice a second on the console, the moving stick's push (raw, and past the "
+                  "deadzones), the speed it asks (and the walking and running tops) and the speed you move at."),
+        command("Stick: Curve Table", "vr_stick_curve_test table")
+            .help("vr_stick_curve_test table: the stick's push against speed, straight and on the 1.6 curve, walking "
+                  "and running, and the response's checks, on the console (the full test also drives the stick)."),
         header("Doom"),
         command("Doom: Info", "vr_doom_info")
             .help("vr_doom_info: Doom's state (level, health, ammo, place), its focus, the screen's distance and angle "
