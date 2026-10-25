@@ -880,6 +880,13 @@ void makeReach(
     {
         return false;
     }
+    // The ragdoll this hand holds in a tug (ragdolltug): the hold's point is the hand's middle on its weapon, often inside
+    // the limb (an enforcer's forearm): the hand's body would push the limb off it and the hold pull it back, a constant
+    // fight read as its pull (~1700 N held still).
+    if(player < static_cast<int>(world->hands.size()) && tugHolds(player, &hb == &world->hands[player][1] ? 1 : 0, num))
+    {
+        return true;
+    }
     const Slot& s = world->slots[num];
     if(s.kind != Kind::Prop)
     {
