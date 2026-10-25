@@ -18,7 +18,7 @@ Issue #79: desktop window focused in VR, Debug > "Act as if the Driver Forced V-
 Issue #79: alt-tab out and minimize while in VR: frames stay smooth and the sound keeps playing
 Gun Model Pitch is gone from the menu: load an old config with vr_gunmodelpitch 17 and check that the gun, hands and aim look and shoot as before (the value moved into Hand Pitch)
 Shotgun / super shotgun (player's texture report): put a model pack's progs/v_shot.mdl_0.png (+ _luma) in id1\progs: the guns show their own skin with no glowing specks (developer 1 logs the skin as ignored)
-Flail: throw a death sergeant's flail at a grunt: the trailing head hits it once (about as much as a small crate); let go of a swinging flail: its head never hurts you {test:flailhead_hit}
+Flail: throw a death sergeant's flail at a grunt: the trailing head hits it once (about as much as a small crate); let go of a swinging flail: its head never hurts you
 Armed grunts: after this update your saved poses/grips are folded into the defaults (vr_agrunt_poses and vr_agrunt_grips empty in your config): grunts' and enforcers' gun and sword poses still look as you set them in the Pose Studio
 Gun Model Pitch 17 (Hand/Gun Calibration > Guns; the user report): the shotgun's ammo screen is visible above the hand, shots land along the barrel (Debug > Reports > Aim Check), empty hands unchanged; say whether the hand turning with the gun feels right
 User report: set the gun angle option to 17 degrees pitch and hold the shotgun: the hands don't cover its ammo count, the wrists look natural, and shots go where the tilted barrel points (not the original direction)
