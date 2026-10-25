@@ -17,7 +17,7 @@ float(float wid) WeaponIdToDamageCredit =
 {
     if(wid == WID_SHOTGUN || wid == WID_GRUNTGUN)                                    { return IT_SHOTGUN; }
     if(wid == WID_SUPER_SHOTGUN || wid == WID_ADDEFENDER)                            { return IT_SUPER_SHOTGUN; }
-    if(wid == WID_NAILGUN)                                                           { return IT_NAILGUN; }
+    if(wid == WID_NAILGUN || wid == WID_NAILPISTOL)                                  { return IT_NAILGUN; }
     if(wid == WID_SUPER_NAILGUN)                                                     { return IT_SUPER_NAILGUN; }
     if(wid == WID_GRENADE_LAUNCHER || wid == WID_PROXIMITY_GUN || wid == WID_ADGRENADE) { return IT_GRENADE_LAUNCHER; }
     if(wid == WID_ROCKET_LAUNCHER || wid == WID_ADROCKET)                            { return IT_ROCKET_LAUNCHER; }

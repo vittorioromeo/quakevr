@@ -111,6 +111,7 @@ void() VR_Reload_Precache =
     precache_model("progs/vr_mag_nail.mdl"); // the magazines (make_mags.py)
     precache_model("progs/vr_mag_snail.mdl");
     precache_model("progs/vr_mag_light.mdl");
+    precache_model("progs/vr_mag_npistol.mdl"); // the nail pistol's (make_nailpistol_mags.py)
     precache_model(VR_RELOAD_ROCKET); // the launchers' rounds (make_rounds.py)
     precache_model(VR_RELOAD_GRENADE);
     precache_model(VR_RELOAD_MULTI);
@@ -159,7 +160,7 @@ float(float xWeapon, entity xInst) VR_Reload_ImmersiveForInst =
 // Whether `xWeapon` takes magazines (immersive reloading's phase 2).
 float(float xWeapon) VR_Reload_UsesMag =
 {
-    return xWeapon == WID_NAILGUN || xWeapon == WID_SUPER_NAILGUN || xWeapon == WID_LIGHTNING;
+    return xWeapon == WID_NAILGUN || xWeapon == WID_SUPER_NAILGUN || xWeapon == WID_LIGHTNING || xWeapon == WID_NAILPISTOL;
 };
 
 // Whether `xWeapon` is a launcher loaded at the muzzle (vr_reload_front).
@@ -233,6 +234,10 @@ string(float xWeapon) VR_Reload_MagModel =
     if(xWeapon == WID_LIGHTNING)
     {
         return "progs/vr_mag_light.mdl";
+    }
+    if(xWeapon == WID_NAILPISTOL)
+    {
+        return "progs/vr_mag_npistol.mdl"; // (make_nailpistol_mags.py)
     }
     return "progs/vr_mag_nail.mdl";
 };
@@ -950,6 +955,10 @@ float(float xWeapon) VR_Reload_PortRadius =
     {
         return cvar_hget(cvarh_vr_reload_port_light_radius);
     }
+    if(xWeapon == WID_NAILPISTOL)
+    {
+        return cvar_hget(cvarh_vr_reload_port_npistol_radius);
+    }
     if(xWeapon == WID_GRENADE_LAUNCHER)
     {
         return cvar_hget(cvarh_vr_reload_port_gl_radius);
@@ -1000,6 +1009,10 @@ float(float xWid) VR_Reload_MagRadius =
     {
         return cvar_hget(cvarh_vr_reload_mag_light_radius);
     }
+    if(xWid == WID_NAILPISTOL)
+    {
+        return cvar_hget(cvarh_vr_reload_mag_npistol_radius);
+    }
     return 0;
 };
 
@@ -1021,6 +1034,12 @@ vector(entity r) VR_Reload_MagRef =
         top = 3.6;
         off = cvar_hget(cvarh_vr_reload_mag_light_x) * '1 0 0' + cvar_hget(cvarh_vr_reload_mag_light_y) * '0 1 0' +
               cvar_hget(cvarh_vr_reload_mag_light_z) * '0 0 1';
+    }
+    else if(r.vr_ammo_wid == WID_NAILPISTOL)
+    {
+        top = 2.76; // (make_nailpistol_mags.py: its body's top; the nails peek 0.3 over it)
+        off = cvar_hget(cvarh_vr_reload_mag_npistol_x) * '1 0 0' + cvar_hget(cvarh_vr_reload_mag_npistol_y) * '0 1 0' +
+              cvar_hget(cvarh_vr_reload_mag_npistol_z) * '0 0 1';
     }
     else
     {
@@ -1159,6 +1178,10 @@ void() VR_Reload_PlayerFrame =
     }
     float w = self.vr_pouch_wid;
     self.vr_pouch_kind = w == WID_NAILGUN ? 2 : (w == WID_SUPER_NAILGUN ? 3 : (w == WID_LIGHTNING ? 4 : 1));
+    if(w == WID_NAILPISTOL)
+    {
+        self.vr_pouch_kind = 2 + 16; // (a nailgun's kind, its 16 the nail pistol's magazines: vr_pouchitems.cpp)
+    }
     w = self.vr_pouch_front;
     if(w)
     {
@@ -2372,6 +2395,10 @@ float(float xWeapon) VR_Reload_PouchOn =
     {
         return cvar_hget(cvarh_vr_reload_pouch_light);
     }
+    if(xWeapon == WID_NAILPISTOL)
+    {
+        return cvar_hget(cvarh_vr_reload_pouch_npistol);
+    }
     return FALSE;
 };
 
@@ -2394,7 +2421,8 @@ float(float xWeapon, float xHave) VR_Reload_PouchMagCount =
         return 0;
     }
     float most = max(1, min(6, floor(cvar_hget(cvarh_vr_ammo_pouch_mags_max))));
-    return min(most, floor((xHave + (xWeapon == WID_NAILGUN ? 23 : 35)) / (xWeapon == WID_NAILGUN ? 24 : 36)));
+    float each = xWeapon == WID_NAILGUN ? 24 : (xWeapon == WID_NAILPISTOL ? 12 : 36); // (vr_pouchitems.cpp magsShown)
+    return min(most, floor((xHave + each - 1) / each));
 };
 
 // The top middle of magazine `xSlot` of `xCount` drawn (vr_pouchitems.cpp magSlot: up to three in a row in the middle of
@@ -2418,6 +2446,11 @@ vector(entity p, float xWeapon, float xSlot, float xCount) VR_Reload_PouchMagTop
         cx = 1.83775;
         pitch = 1.825;
         row = 0.78;
+    }
+    else if(xWeapon == WID_NAILPISTOL)
+    {
+        pitch = 1.886; // (its held width 1.726 and thickness 1.227 at Size 0.52: vr_pouchitems.cpp magFeet)
+        row = 0.6737;
     }
     float inRow = xCount;
     float col = xSlot;

@@ -162,7 +162,7 @@ namespace
 // axe's head box corners where the config still holds the zeros of before they shipped (takeBladeShapes59).
 // 60: the shotgun's (slot 1) blade tip his as its own Blade Tip (shipped): a config whose Muzzle offset still holds the
 // tip he dragged there (-0.2229 0.2441 0.4977, which also moved its shots) gets the shipped muzzle back (takeShotgunTip60).
-constexpr int settingsVersion = 60;
+constexpr int settingsVersion = 61;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -616,6 +616,12 @@ void takeShotgunTip60()
     }
 }
 
+// The nail pistol's slot (61; unused before: a config archived its keys at the empty slot's defaults).
+void takeNailPistol61()
+{
+    resetSlot(36);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -643,6 +649,7 @@ constexpr Step steps[] = {
     {58, takeFlailHandle58},
     {59, takeBladeShapes59},
     {60, takeShotgunTip60},
+    {61, takeNailPistol61},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

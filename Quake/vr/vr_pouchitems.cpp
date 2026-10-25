@@ -50,8 +50,13 @@ struct MagFoot
     const char* model;
     float width, thick;
 };
-constexpr MagFoot magFeet[3] = {{"progs/vr_mag_nail.mdl", 2.068f, 1.111f}, {"progs/vr_mag_snail.mdl", 2.232f, 1.089f},
-    {"progs/vr_mag_light.mdl", 1.665f, 1.44f}};
+constexpr MagFoot magFeet[4] = {{"progs/vr_mag_nail.mdl", 2.068f, 1.111f}, {"progs/vr_mag_snail.mdl", 2.232f, 1.089f},
+    {"progs/vr_mag_light.mdl", 1.665f, 1.44f}, {"progs/vr_mag_npistol.mdl", 1.726f, 1.227f}};
+// Kind 2..4's (kind & 16: the nail pistol's magazines, standing as the nailgun's: make_nailpistol_mags.py at Size 0.52).
+[[nodiscard]] const MagFoot& footFor(int kind)
+{
+    return (kind & 16) ? magFeet[3] : magFeet[za::clamp(kind & 7, 2, 4) - 2];
+}
 constexpr float magGapY = 0.16f;
 constexpr float magGapX = 0.12f;
 
@@ -271,7 +276,7 @@ int layoutShells(int left, Item (&out)[most])
 
 int layoutMags(int kind, bool variant, int left, Item (&out)[most])
 {
-    const MagFoot& f = magFeet[kind - 2];
+    const MagFoot& f = footFor(kind);
     qmodel_t* const model = view::viewModel(f.model);
     if(!model)
     {
@@ -1238,6 +1243,7 @@ void layoutCheck_f()
 int frameFor(int kind, int left)
 {
     constexpr int frames[8] = {0, 1, 2, 2, 3, 6, 4, 5};
+    kind &= 7; // (16: the nail pistol's magazines, the nailgun's frame)
     return left > 0 && kind >= 1 && kind <= 7 ? frames[kind] : 0;
 }
 
@@ -1253,18 +1259,18 @@ float innerCentreX(float depth)
 
 int magsShown(int kind, int left)
 {
-    if(left <= 0 || kind < 2 || kind > 4)
+    if(left <= 0 || (kind & 7) < 2 || (kind & 7) > 4)
     {
         return 0;
     }
-    const int each = kind == 2 ? 24 : 36;
+    const int each = (kind & 16) ? 12 : (kind & 7) == 2 ? 24 : 36; // (QC VR_Reload_PouchMagCount)
     return za::min((left + each - 1) / each, za::clamp(static_cast<int>(vr_ammo_pouch_mags_max.value), 1, magsMost));
 }
 
 glm::vec2 magSlot(int kind, int j, int n)
 {
-    const MagFoot& f = magFeet[za::clamp(kind, 2, 4) - 2];
-    const float cx = innerCentreX(shapes[kind == 4 ? 3 : 2].depth);
+    const MagFoot& f = footFor(kind);
+    const float cx = innerCentreX(shapes[(kind & 7) == 4 ? 3 : 2].depth);
     const bool two = n > 3;
     const int row = two && j >= 3 ? 1 : 0;
     const int inRow = two ? (row == 0 ? 3 : n - 3) : n;
@@ -1279,7 +1285,7 @@ int layout(int kind, bool variant, int left, Item (&out)[most])
     {
         return 0;
     }
-    switch(kind)
+    switch(kind & 7)
     {
         case 1: return layoutShells(left, out);
         case 2:

@@ -2696,6 +2696,17 @@ QVR_CVAR(vr_dmg_shotgun, "4", CVAR_ARCHIVE)          // the shotgun: a pellet's 
 QVR_CVAR(vr_dmg_super_shotgun, "4", CVAR_ARCHIVE)    // the double-barrelled shotgun: a pellet's (14 a shot)
 QVR_CVAR(vr_dmg_nail, "9", CVAR_ARCHIVE)             // the nailgun: a nail's
 QVR_CVAR(vr_dmg_super_nail, "18", CVAR_ARCHIVE)      // the super nailgun: a nail's
+QVR_CVAR(vr_dmg_nailpistol, "12", CVAR_ARCHIVE)      // the nail pistol (QC vr_nailpistol.qc): a nail's (a grunt, 30: two headshots at x1.5, three in the body; a monster's nail pistol 9)
+// The nail pistol (QC vr_nailpistol.qc; Combat > Weapon Damage > Nail Pistol): one-handed, semi-automatic (a shot a pull
+// of the trigger), a magazine in its grip fed from your nails (immersive reloading: ejected, a new one from the pouch,
+// slapped in), fast precise nails.
+QVR_CVAR(vr_nailpistol_speed, "2600", CVAR_ARCHIVE)    // its nails' speed, units a second (the nailgun's 1750), plus the hand's
+QVR_CVAR(vr_nailpistol_cooldown, "0.12", CVAR_ARCHIVE) // s at least from a shot to the next (each a new pull)
+QVR_CVAR(vr_nailpistol_spread, "0.25", CVAR_ARCHIVE)   // degrees its nails stray at most from its aim
+QVR_CVAR(vr_nailpistol_mag, "12", CVAR_ARCHIVE)        // the rounds its magazine holds (a nail each)
+QVR_CVAR(vr_nailpistol_volume, "1", CVAR_ARCHIVE)      // its shot's volume (0..4)
+QVR_CVAR(vr_nailpistol_slide_time, "0.07", CVAR_ARCHIVE) // s its slide stays back after a shot before it runs home (empty: it locks back)
+QVR_CVAR(vr_nailpistol_smoke, "1", CVAR_ARCHIVE)       // a wisp of smoke from its muzzle after shots (0 none; more after a quick string)
 QVR_CVAR(vr_dmg_grenade, "120", CVAR_ARCHIVE)        // a grenade's blast (the launcher's, a hand grenade's, a returned ogre grenade's)
 QVR_CVAR(vr_dmg_rocket, "100", CVAR_ARCHIVE)         // a rocket's direct hit (and up to a fifth more at random); its blast 1.2 times it
 QVR_CVAR(vr_dmg_lightning, "30", CVAR_ARCHIVE)       // the lightning gun: a bolt's (10 a second)
@@ -2866,6 +2877,7 @@ QVR_CVAR(vr_agrunt_w_rl, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_lg, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_gruntgun, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_enfrifle, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agrunt_w_nailpistol, "1", CVAR_ARCHIVE)   // the nail pistol (one in each hand when it pairs)
 QVR_CVAR(vr_agrunt_w_packs, "1", CVAR_ARCHIVE)          // the mission packs' guns while theirs is installed (Mjolnir, laser cannon, proximity gun), each
 // Armed grunts, polish (ROUND22.md "Armed grunts: polish"): Arcane Dimensions' weapons in the pool while AD's data is
 // loaded (the soldiers' guns each; the upgrades where AD's upgrades play; the swords, hammer and mace each).
@@ -4316,6 +4328,7 @@ QVR_CVAR(vr_reload_mode_rl, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mode_light, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mode_widow, "-1", CVAR_ARCHIVE)    // AD support: the Widowmaker's (the super shotgun with AD's upgrade)
 QVR_CVAR(vr_reload_mode_adplasma, "-1", CVAR_ARCHIVE) // AD support: the Plasma Gun's (the thunderbolt with AD's upgrade)
+QVR_CVAR(vr_reload_mode_npistol, "-1", CVAR_ARCHIVE)  // the nail pistol's
 // The ammo pouch (vr_reload_mode 3; QC vr_reload.qc, vr_view.cpp setupAmmoPouch): on the front of the belt between the
 // hip holsters. X forward, units: with the body drawn, the default (0) is on the belly and X moves it from there; Y to
 // the right; Z up (times the height calibration, as the holsters'). Reach: units a hand must be within to be at it (the
@@ -4490,12 +4503,16 @@ QVR_CVAR(vr_reload_port_widow_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_adplasma_x, "0", CVAR_ARCHIVE) // AD support: the Plasma Gun's cell well, on its inner side
 QVR_CVAR(vr_reload_port_adplasma_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_adplasma_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_npistol_x, "0", CVAR_ARCHIVE)  // the nail pistol's: the grip's bottom, where its magazine goes in
+QVR_CVAR(vr_reload_port_npistol_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_npistol_z, "0", CVAR_ARCHIVE)
 // Each gun's load point's radius (world units): a shell's middle, or a magazine's reference point within it plus the
 // magazine's own radius, goes in (the author: per gun, the wells small).
 QVR_CVAR(vr_reload_port_shot_radius, "1.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_nail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_snail_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_light_radius, "1.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_port_npistol_radius, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_port_sshot_radius, "3.15", CVAR_ARCHIVE) // (a taped pair's middle, between its two shells)
 QVR_CVAR(vr_reload_port_widow_radius, "1.4", CVAR_ARCHIVE)  // (a handful's middle; the port half its first size, his notes 2026-10-19)
 QVR_CVAR(vr_reload_port_adplasma_radius, "1.5", CVAR_ARCHIVE)
@@ -4513,6 +4530,10 @@ QVR_CVAR(vr_reload_mag_light_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mag_light_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mag_light_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mag_light_radius, "0.5", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_mag_npistol_x, "0", CVAR_ARCHIVE)   // the nail pistol's magazine (make_nailpistol_mags.py: its top 2.76 above its middle)
+QVR_CVAR(vr_reload_mag_npistol_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_mag_npistol_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_mag_npistol_radius, "0.5", CVAR_ARCHIVE)
 // Loose rounds (lying, dropped, thrown) load by contact (QC vr_reload.qc VR_Reload_LooseFrame): one within a held gun's
 // load point lying the way it goes in (within vr_reload_contact_angle degrees: a shell's open end along the shotgun's
 // tube or the super shotgun's open barrels, a magazine's feed end up its well) goes in, as a held one does but within
@@ -4548,6 +4569,7 @@ QVR_CVAR(vr_reload_pouch_sshot, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_pouch_nail, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_pouch_snail, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_pouch_light, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_npistol, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_pouch_contact, "4", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_pouch_angle, "35", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_pouch_sshot_contact, "10", CVAR_ARCHIVE)
@@ -4624,6 +4646,12 @@ QVR_CVAR(vr_reload_well_adplasma_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_well_adplasma_pitch, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_well_adplasma_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_well_adplasma_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_well_npistol_x, "0", CVAR_ARCHIVE)  // the nail pistol's (no receiver drawn: its grip is the well; the offsets kept for the table)
+QVR_CVAR(vr_reload_well_npistol_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_well_npistol_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_well_npistol_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_well_npistol_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_well_npistol_roll, "0", CVAR_ARCHIVE)
 // The other hand holding a gun's attached magazine (the two-handed grip on it; vr_view.cpp magazine grips), per magazine:
 // its drawn pose moved (x y z, units: in the gun's aim frame, mirrored for the main hand) and turned (pitch yaw roll,
 // degrees) once its grip channel lies along the magazine where it holds it (visual only); its fingers fitted round the
@@ -4664,6 +4692,18 @@ QVR_CVAR(vr_reload_hold_light_curl_index, "0.7", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_hold_light_curl_middle, "0.75", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_hold_light_curl_ring, "0.8", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_hold_light_curl_pinky, "0.85", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_hold_npistol_x, "0", CVAR_ARCHIVE)  // the nail pistol's magazine
+QVR_CVAR(vr_reload_hold_npistol_y, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_hold_npistol_z, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_hold_npistol_pitch, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_hold_npistol_yaw, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_hold_npistol_roll, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_hold_npistol_fingers, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_hold_npistol_curl_thumb, "0.55", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_hold_npistol_curl_index, "0.7", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_hold_npistol_curl_middle, "0.75", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_hold_npistol_curl_ring, "0.8", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_hold_npistol_curl_pinky, "0.85", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_show_ports, "0", CVAR_NONE)          // draw each held gun's load point (yellow), its acceptance range (green) and a well's pull reach (blue)
 QVR_CVAR(vr_weapon_button_cone, "50", CVAR_ARCHIVE)   // degrees off a weapon's ammo button's face the other fingertip may come from and press it (180: from anywhere, behind or beside it too)
 QVR_CVAR(vr_weapon_button_depth, "0.5", CVAR_ARCHIVE) // units behind the button's middle that cone's tip is (a fingertip coming in flat just above its face counts)
@@ -4799,6 +4839,7 @@ QVR_CVAR(vr_mg3_mtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Mo
 QVR_CVAR(vr_mg3_shubtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: Shub: 1 report, 2 her phases and children, 3 her zombies and pillars, 4 her death and the credits (QC/vr_mg3_shub_test.qc; not archived)
 QVR_CVAR(vr_mg3_btest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Bestiary: 1 report, 2 the orb (QC/vr_mg3_bestiary_test.qc; not archived)
 QVR_CVAR(vr_mg3_ctest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: Chthon: 1 report, 2 a Chthon of the spawner's (any map), 3 the boss map's fight (QC/vr_mg3_chthon_test.qc; not archived)
+QVR_CVAR(vr_np_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 its self-test (QC/vr_nailpistol_test.qc; "nptest: N passed, M failed"; not archived)
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
 QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1/MG3 route sweep driver: each new map's first frame runs mg1route<stage>.cfg (MG3: mg3route<stage>.cfg) once (0 off; the scripts raise it); not archived
 QVR_CVAR(vr_mg3_test, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Tests: 1 state report (developer campaign only; not archived)
