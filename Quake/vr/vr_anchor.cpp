@@ -566,6 +566,19 @@ glm::vec3 posedAnchor(const entity_t& ent, const char* anchor, float zeroBlend)
     return p;
 }
 
+void prepare(const qmodel_t* model, const char* anchor)
+{
+    entity_t ent{};
+    ent.model = const_cast<qmodel_t*>(model);
+    if(const aliashdr_t* hdr = quakeHeader(ent))
+    {
+        if(Mesh* m = meshFor(model, hdr))
+        {
+            (void)boundFor(*m, anchor);
+        }
+    }
+}
+
 glm::vec3 posedVertex(const entity_t& ent, int vertex, float zeroBlend)
 {
     const aliashdr_t* hdr = quakeHeader(ent);

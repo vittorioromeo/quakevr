@@ -27,6 +27,10 @@ namespace qvr::anchor
 // scale/scale_origin), for its current frame as drawn, blended towards frame 0 by `zeroBlend`.
 [[nodiscard]] glm::vec3 posedAnchor(const entity_t& ent, const char* anchor, float zeroBlend);
 
+// The model's mesh read and `anchor` bound on it now, as posedAnchor does the first time (a map's load: the world
+// weapons' screens, ~10 ms in the frame a gun first lay near you: ROUND22.md "Frame spikes").
+void prepare(const qmodel_t* model, const char* anchor);
+
 // Whether `text` is an anchor (three numbers).
 [[nodiscard]] bool isAnchor(const char* text);
 

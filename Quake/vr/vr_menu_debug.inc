@@ -620,6 +620,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_place_entities_first: a place for a crate, barrel, rock or brick (at a map's start) tested against "
                   "the map's entities before its traces (on), or after them (off, as before). The same places either way; "
                   "a big map starts faster (150 ms in Arcane Dimensions' Sepulcher)."),
+        toggle("Load Prewarm", vr_load_prewarm)
+            .help("vr_load_prewarm: made in a map's load (on), or at their first use as before (off): each model's rig data "
+                  "for smooth animation (6-27 ms the first time a monster kind was seen), the reflections' world buffers, the "
+                  "guns' screen anchors (10 ms the first time a gun lay near you), your skin masks and glove paint."),
         command("Model Set-up Stats", "vr_alias_eye_cache_stats")
             .help("vr_alias_eye_cache_stats: since the last time, the second eyes' models found set up by the first eye (in "
                   "full, the transform only, not at all) and, while Checked, the parts that came out different (none "

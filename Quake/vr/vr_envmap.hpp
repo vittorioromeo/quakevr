@@ -30,6 +30,10 @@ namespace qvr::envmap
 // rendered.
 void update();
 
+// The map's load (VR_NewMap's prewarm, vr_load_prewarm): the world's buffers for the cubes made now, not in the first
+// frame (2-12 ms: ROUND22.md "Frame spikes").
+void prepare();
+
 // The water's cube in a view's frame data (gl_shaders.h, WaterCube and WaterCube2): where it is seen from and its
 // strength (0: none this frame, or the eye in a liquid), the height of the surface it is for, how far across it
 // fades out, its mip levels read.

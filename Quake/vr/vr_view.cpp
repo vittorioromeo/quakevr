@@ -474,6 +474,26 @@ namespace
 
 } // namespace view_detail
 
+void view::prepareWorldWeapons()
+{
+    // As setupWorldWeapons' idleAttachments asks for them: each precached gun's button and screen anchors.
+    for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
+    {
+        const qmodel_t* model = cl.model_precache[i];
+        if(model->type != mod_alias || !modelmeta::has(model, modelmeta::Trait::ViewWeapon))
+        {
+            continue;
+        }
+        const int slot = weapons::slotForModel(model);
+        if(slot < 0)
+        {
+            continue;
+        }
+        anchor::prepare(model, weapons::anchor(slot, Key::WpnButtonAnchor));
+        anchor::prepare(model, weapons::anchor(slot, Key::WpnTextAnchor));
+    }
+}
+
 void view::prepareModels()
 {
     if(!vr_enabled.value) // (in VR, even before its session runs: the first map loads as it starts)
