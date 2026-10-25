@@ -6,6 +6,7 @@
 #include "vr_alloccount.hpp"
 #include "vr_box3d.hpp"
 #include "vr_decals.hpp"
+#include "vr_dynres.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_lighting.hpp"
@@ -194,6 +195,7 @@ struct Capture
     za::Vector<float> series[SeriesCount];
     za::Vector<float> gpuEyes;
     za::Vector<float> gpu3d; // the whole 3D refresh (flat mode's view too)
+    za::Vector<float> renderScale; // dynamic resolution's scale when each GPU frame was read back (1: dynres off)
     // The latency's proxy: a frame's pose (the tracking sampled, xrWaitFrame and xrLocateViews returned) to its submit
     // (xrEndFrame returned), ms; frames that submitted only.
     za::Vector<float> poseToSubmit;
@@ -476,6 +478,7 @@ void finish()
     }
     writeStats(f, "gpu_eyes_ms", eyes);
     writeStats(f, "pose_to_submit_ms", stats(c.poseToSubmit));
+    writeStats(f, "render_scale", stats(c.renderScale));
     writeStats(f, "gpu_3d_ms", view3d, true);
     fprintf(f, "  },\n  \"hitches\": {\"over_11ms\": %d, \"over_14ms\": %d, \"over_33ms\": %d, \"over_100ms\": %d, "
                "\"over_250ms\": %d, \"over_2x_median\": %d},\n",
@@ -573,6 +576,8 @@ void begin_f()
     c.gpuEyes.reserve(reserve);
     c.gpu3d.clear();
     c.gpu3d.reserve(reserve);
+    c.renderScale.clear();
+    c.renderScale.reserve(reserve);
     c.poseToSubmit.clear();
     c.poseToSubmit.reserve(reserve);
     c.poseNs = 0;
@@ -799,6 +804,7 @@ void gpuFrame(const double (&phaseMs)[profile::PhaseCount])
     }
     c.gpuEyes.pushBack(static_cast<float>(phaseMs[profile::EyeL] + phaseMs[profile::EyeR]));
     c.gpu3d.pushBack(static_cast<float>(phaseMs[profile::View3D]));
+    c.renderScale.pushBack(dynres::scale());
     c.gpuFrames++;
 }
 

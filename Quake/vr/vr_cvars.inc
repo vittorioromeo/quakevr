@@ -642,6 +642,10 @@ QVR_CVAR(vr_alias_cull_posed, "1", CVAR_NONE)
 // the depth it left, so each pixel of it is shaded once (the arms over the torso, the legs over each other); 0 as before.
 // The same image either way.
 QVR_CVAR(vr_body_prepass, "1", CVAR_NONE)
+// Debug > Profiling and Memory > Model Depth Pre-pass: 1 as vr_body_prepass for the world's opaque models (monsters,
+// props, gibs, items; not your own: a held gun's morph discards): each batch's depth first, then its shading once a
+// pixel (the GPU benchmark, BENCHMARKS.md: the models' GPU 4-23% less in crowds and gore); 0 as before. The same image either way.
+QVR_CVAR(vr_alias_prepass, "1", CVAR_NONE)
 // Debug > Profiling and Memory > Keep Light Casters: 1 each dynamic light's world shadow casters kept between frames
 // while it stays inside the sphere they were collected for (a moving light's collected 24 units wider; vr_lighting.cpp
 // collectWorldCached; vr_shadow_caster_stats); 0 collected again for each light each frame; 2 (a check) the wider set
@@ -691,6 +695,12 @@ QVR_CVAR(vr_visibility_mask, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_mock_hidden_area, "0", CVAR_NONE)
 // Mock backend: its eye images' size (square, 256..4096; read when the images are made, before the first frame in VR).
 QVR_CVAR(vr_mock_eye_size, "1024", CVAR_NONE)
+// Mock backend: its eye images' height when not square (a headset's: VD's Ultra on a Quest 3 is 2688 x 2784; 0: square,
+// vr_mock_eye_size; read when the images are made). The GPU benchmark's (BENCHMARKS.md, "GPU benchmark").
+QVR_CVAR(vr_mock_eye_height, "0", CVAR_NONE)
+// Mock backend: the display's refresh it reports, Hz (a runtime's predicted display period: dynamic resolution's budget,
+// the FPS gadget's; 0: none, as before: dynres then assumes 90 Hz).
+QVR_CVAR(vr_mock_refresh, "0", CVAR_NONE)
 // Mock backend: a shaky head (recording tests): small quick turns of this many degrees (pitch, yaw and roll, sums of
 // sines at 5 to 13 Hz) over a slow turn of vr_mock_shake_turn degrees a second (from when it starts), both from the head's vr_mock_look.
 QVR_CVAR(vr_mock_shake, "0", CVAR_NONE)

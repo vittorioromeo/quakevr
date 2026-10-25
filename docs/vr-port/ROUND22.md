@@ -21210,6 +21210,30 @@ animation should look exactly as before. The first load of an AD map in a sessio
   a grunt's chest; the dominant eye on the line), the pickup on the floor (on its side), an armed grunt with one and a
   pair (in the fist, barrel down idle), both holsters. Checks: `vr_np_test 1` 17/0; eval.sh canary 36/44, 0 differ;
   `vr_menu_path_check maps/vrcalibration.map` 0 missing.
+## GPU benchmark: a Quest 3 at VD's Ultra, 120 Hz (worktree `tghost`, branch `agent/gpubench`, 2026-10-25)
+
+His request: measure the GPU as he plays (Quest 3, Virtual Desktop's VDXR at Ultra, 120 Hz, his settings), find
+where it goes, fix the simple wins. Full write-up, tables and proposals: BENCHMARKS.md, "GPU benchmark".
+
+- **Emulation**: the mock backend's eyes 2688 x 2784 (new `vr_mock_eye_height`; VD's Ultra as a VD settings guide
+  lists it), its display period (new `vr_mock_refresh`: dynres's budget at 120 Hz), his `ironwail.cfg` with the
+  mock's visibility mask and his 1920x1080 window (`Misc/quakevr/bench/gpu_settings.py`), paced at 120 Hz, exclusive.
+  Bench group `gpu` (15 earlier scenarios and two new: `gpu_fields_inside`, standing in a burst fuel tank's fire field
+  facing the poison clouds; `gpu_shore_spray`, vrtesthall's pool from its edge). New GPU phases in the bench JSON
+  (sky, water, translucent, heat haze, bloom, postprocess, upscale, spectator...) and `frame.render_scale`;
+  `qvrbench.py gpu <results>` prints the tables. Not emulated: VDXR's composition and encode, the Quest 3's wider
+  field of view and real mask.
+- **Result**: on this RTX 4090 the GPU frame (both eyes and the spectator camera) holds 8.33 ms in every scenario but
+  `combined` (p50 7.7, p99 11.9); `crowd_ad_40`'s p99 8.2. Dynamic resolution never lowered the scale. The world is
+  the largest pass (its depth pre-pass already halves it), the spectator camera at his scale 1.5 the second (0.45-1.3
+  ms a frame, twice that on the frames it draws).
+- **Fixed**: the models' depth pre-pass (`vr_alias_prepass`, default 1, Debug > Profiling and Memory > Model Depth
+  Pre-pass): models' GPU -23% in `gore_blast_crowd_32` and `crowd_ad_40`, -15% in `armed_16`; GPU p99 `combined`
+  11.9 -> 11.1, `gore_blast_crowd_32` 7.5 -> 6.7; +0.04-0.13 ms in scenes of scattered items. Same image.
+
+For him in VR: nothing should look different (monsters, props, gibs and items are drawn the same). Compare a big fight
+with Debug > Profiling and Memory > Model Depth Pre-pass Off and On on the wrist profiler (`vr_profile 2`). In VD's
+overlay, check that Ultra's resolution is 2688 x 2784 an eye (else tell me the numbers: the benchmark's `--eye`).
 
 ## Build speed, round 3: mimalloc built once, the menu's two big page groups split (worktree `dequant`, branch `agent/buildsplit`, 2026-10-25)
 

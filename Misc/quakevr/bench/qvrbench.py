@@ -585,6 +585,21 @@ def scenarios():
         + [f"vr_physics_spawn monster_army 200 {l}" for l in (-90, 0, 90)] + waits(60) + LOADS, warm=30,
         body=loads_body([("save", "save qvrbench"), ("load1", "load qvrbench"), ("load2", "load qvrbench")]),
         loads=2, frames=0)
+    # ---- gpu: the GPU benchmark (BENCHMARKS.md, "GPU benchmark": a Quest 3 at Virtual Desktop's Ultra, 120 Hz; run with
+    # --eye 2688x2784 --hz 120 and his settings): what fills the eyes. Its own scenes, then the others it takes.
+    add("gpu_fields_inside", ["gpu", "vfx"], "standing inside a fuel tank's fire field, poison clouds ahead",
+        "vrtesthall", "bench_tanks with the flamethrowers' and sprayers' tanks burst in the set-up, the player then "
+        "standing among the fire fields (setpos 50 -48 24) looking at the poison clouds: big soft particles seen from "
+        "inside, the fill rate's worst case.",
+        scene="bench_tanks", warm=30, load_wait=240,
+        setup=tank_blasts(-48, (100, -100)) + tank_blasts(132, (100, -100)) + waits(20) + ["setpos 50 -48 24 0 90 0"])
+    add("gpu_shore_spray", ["gpu", "liquids"], "vrtesthall's pool from its edge: shore foam and spray along its walls",
+        "vrtesthall", "At the pool's west edge looking across it at the far wall (the shore's foam particles and spray "
+        "along the wall line, the water's refraction and swells).", pos="180 -256 24 20 0 0")
+    for n in ("idle_e1m1", "fight_ad_tears", "fight_ad_sepulcher", "play_ad_tfuma_fight", "armed_16", "crowd_ad_40",
+              "combined", "particles_dense", "explosions_storm", "gore_blast_crowd_32", "lights_32", "flashlight_e1m1",
+              "tanks_fields", "water_range_surface", "lava_e1m7"):
+        next(x for x in s if x.name == n).groups.append("gpu")
     return {x.name: x for x in s}
 
 
@@ -615,8 +630,10 @@ def select(spec):
 def script(sc, tag, frames, hz, eye, realtime, settings, motion_path, shot=False):
     # A graphics profile first (a whole ironwail.cfg will do), then what the suite pins whatever it says.
     lines = [f'exec "{settings}"'] if settings else []
+    # The eyes: a size (square) or WxH (a headset's taller images); the mock reports the refresh (dynres's budget).
+    eye_w, _, eye_h = str(eye).lower().partition("x")
     lines += ["vr_enabled 0" if sc.flat else "vr_enabled 1", "vr_fixed_frames 1", f"vr_fixed_frames_rate {hz}",
-              f"vr_mock_eye_size {eye}", "vid_vsync 0", f"host_maxfps {hz if realtime else 0}", "con_notifytime 0",
+              f"vr_mock_eye_size {eye_w}", f"vr_mock_eye_height {eye_h or 0}", f"vr_mock_refresh {hz}", "vid_vsync 0", f"host_maxfps {hz if realtime else 0}", "con_notifytime 0",
               "vr_tips 0", "developer 0", "sv_autosave 0", "vr_profile 0", "vr_particle_seed 7", "vr_mock_look 0 0"]
     lines += sc.header + waits(10)
     if sc.map:
@@ -789,6 +806,31 @@ def summarize(root):
     print("\n".join(md))
 
 
+GPU_PASSES = ["shadow maps", "world+brush", "alias", "particles", "vr particles", "decals", "sky", "water", "translucent",
+              "lights", "view model", "heat haze", "blob shadows", "env cube", "bloom", "postprocess", "upscale", "ui",
+              "hidden area", "mirror", "spectator", "window view", "eye L", "eye R"]
+
+
+def gpu_report(root):
+    """The GPU benchmark's tables (BENCHMARKS.md, "GPU benchmark"): per scenario, the medians over its runs of the GPU
+    frame (the 3D refresh: both eyes, the spectator camera) at p50/p95/p99/max, the eyes' average, the render scale
+    (dynamic resolution), the CPU's work; then each GPU pass a frame (all views: nested ones are inside others)."""
+    med = statistics.median
+    rows = []
+    for name, rs in sorted(load_runs(root).items()):
+        g = lambda k, s: med(r["frame"].get(k, {}).get(s, 0) for r in rs)
+        rows.append((name, len(rs), [g("gpu_3d_ms", s) for s in ("p50", "p95", "p99", "max")] +
+                     [g("gpu_eyes_ms", "avg"), g("render_scale", "avg"), g("cpu_busy_ms", "avg"), g("frame_ms", "p99")],
+                     {p: med(r.get("gpu_phase_ms", {}).get(p, 0) for r in rs) for p in GPU_PASSES}))
+    md = ["| scenario | n | GPU p50 | p95 | p99 | max | eyes avg | scale | CPU avg | frame p99 |", "|---|" * 1 + "---|" * 9]
+    md += [f"| {n} | {k} | " + " | ".join(f"{v:.2f}" for v in vals) + " |" for n, k, vals, _ in rows]
+    cols = [p for p in GPU_PASSES if any(ph[p] >= 0.02 for _, _, _, ph in rows)]
+    md += ["", "| scenario | " + " | ".join(cols) + " |", "|---|" + "---|" * len(cols)]
+    md += [f"| {n} | " + " | ".join(f"{ph[p]:.2f}" for p in cols) + " |" for n, _, _, ph in rows]
+    (Path(root) / "gpu.md").write_text("\n".join(md) + "\n")
+    print("\n".join(md))
+
+
 def manifest(root):
     path = Path(root) / "manifest.txt"
     return dict(l.split(" ", 1) for l in path.read_text().splitlines() if " " in l) if path.exists() else {}
@@ -866,7 +908,7 @@ def main():
     sp.add_argument("--tag")
     sp.add_argument("--frames", type=int, default=900)
     sp.add_argument("--hz", type=int, default=90)
-    sp.add_argument("--eye", type=int, default=2048)
+    sp.add_argument("--eye", default="2048", help="the mock's eye images: a size (square) or WxH (VD Ultra on a Quest 3: 2688x2784)")
     sp.add_argument("--realtime", action="store_true")
     sp.add_argument("--settings", default="", help="a cfg exec'd before the map (a graphics profile)")
     sp.add_argument("--warm", type=int, help="override the scenario's warm-up frames")
@@ -882,6 +924,8 @@ def main():
     v.add_argument("root")
     br = sub.add_parser("brief")
     br.add_argument("json")
+    gp = sub.add_parser("gpu", help="the GPU benchmark's tables: the GPU frame's percentiles and each pass (gpu.md)")
+    gp.add_argument("root")
     lr = sub.add_parser("loads", help="the loading scenarios' loads by phase, and every scenario's marks")
     lr.add_argument("root")
     a = p.parse_args()
@@ -922,6 +966,8 @@ def main():
             extra += f"; {len(r['marks'])} marks, worst {worst['label']} {worst['max_ms']:.2f} ms"
         print(f"{r['frames']} frames on {r['map'] or '-'}: frame p50 {f['p50']:.3f} p99 {f['p99']:.3f} max {f['max']:.2f}, "
               f"cpu {c['avg']:.3f}, gpu 3D {g['avg']:.3f} ms; start {n}{extra}")
+    elif a.cmd == "gpu":
+        gpu_report(a.root)
     elif a.cmd == "loads":
         print(marks_report(a.root))
         print(loads_report(a.root))

@@ -847,7 +847,7 @@ void R_FlushAliasInstances (qboolean showtris)
 		GL_SetState (opaque_state);
 	VR_TemporalMotionWrites (!translucent && !aliasdepth); // QVR: the opaque ones write their motion vectors (vr/vr_temporal.cpp)
 	if (!translucent && !aliasdepth && !alphatest && !showtris && !gl_multiview_draw && VR_AliasDepthPrepass (ibuf.ent))
-	{ // QVR: your body's depth first (vr_body_prepass): its opaque skins with no fragment shader, the same instances and
+	{ // QVR: your body's depth first (vr_body_prepass; the world's models too: vr_alias_prepass): its opaque skins with no fragment shader, the same instances and
 	  // the same invariant gl_Position, so that the shading below runs once a pixel (it passes the depth equal, no writes)
 		VR_GPUZoneBegin ("body depth prepass");
 		GL_UseProgram (glprogs.alias_depth[poseverttype]);
@@ -1015,6 +1015,8 @@ static qboolean R_Alias_CanAddToBatch (const entity_t *e)
 	if (VR_AliasMirrored (ibuf.ent) != VR_AliasMirrored (e)) // QVR
 		return false;
 	if (VR_AliasBonePoses (ibuf.ent, NULL) || VR_AliasBonePoses (e, NULL)) // QVR: bone matrices are per entity
+		return false;
+	if (!aliasdepth && VR_AliasDepthPrepass (ibuf.ent) != VR_AliasDepthPrepass (e)) // QVR: the batch's depth pre-pass is the first's (vr_alias_prepass)
 		return false;
 
 	return true;
