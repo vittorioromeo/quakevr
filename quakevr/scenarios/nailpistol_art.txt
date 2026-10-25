@@ -1,0 +1,11 @@
+# nailpistol_art: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The nail pistol's art
+# (Misc/quakevr/models_src/nailpistol/README.md) before it is a weapon: its preview model floats ahead at a held weapon's
+# size, the nailgun and the shotgun lie on the floor just beyond it for scale.
+title Nail pistol art preview, next to the nailgun and the shotgun
+map vrtesthall
+god
+notarget
+spawn "Nailgun" 64 14
+spawn "Shotgun" 64 -14
+cmd alias nailpistol_art "vr_physics_spawn viewthing reach; viewmodel progs/vr_nailpistol_preview.mdl"; nailpistol_art
+hint The nail pistol's art (not a weapon yet) floats ahead at the size it would be in your hand; the nailgun and the shotgun lie beyond it. Walk around it; the Debug menu's Tools page shows it again anywhere.
