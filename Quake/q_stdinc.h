@@ -62,6 +62,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <float.h>
+#include <ctype.h> /* QVR: once from windows.h (SDL_opengl.h), which quakedef.h no longer pulls in on Windows */
 #include <SDL_endian.h>
 
 

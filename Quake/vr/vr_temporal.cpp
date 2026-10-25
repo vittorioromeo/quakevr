@@ -31,6 +31,12 @@
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"

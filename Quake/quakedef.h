@@ -256,7 +256,32 @@ typedef struct
 #include "crc.h"
 
 #include "platform.h"
+// QVR (build speed): APIENTRY as windows.h defines it (minwindef.h, the same tokens, so a later <windows.h> agrees),
+// so that SDL_opengl.h, which includes windows.h only to get it, does not put windows.h into every file (a tenth of
+// a second to 0.4 s each). A file that uses the Windows API includes <windows.h> itself.
+#if defined(_WIN32) && !defined(APIENTRY)
+#define WINAPI      __stdcall
+#define APIENTRY    WINAPI
+#endif
+#if defined(QVR_ENGINE_SDL_CORE)
+// QVR (build speed): the VR module (vr_engine.hpp) gets only the SDL headers these engine headers use, not all of SDL
+// (SDL.h); a VR file that calls SDL itself includes "SDL.h".
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL_stdinc.h>
+#include <SDL2/SDL_assert.h>
+#include <SDL2/SDL_atomic.h>
+#include <SDL2/SDL_endian.h>
+#include <SDL2/SDL_version.h>
+#include <SDL2/SDL_opengl.h>
+#else
+#include "SDL_stdinc.h"
+#include "SDL_assert.h"
+#include "SDL_atomic.h"
+#include "SDL_endian.h"
+#include "SDL_version.h"
+#include "SDL_opengl.h"
+#endif
+#elif defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 #else

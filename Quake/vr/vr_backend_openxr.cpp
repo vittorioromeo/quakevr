@@ -27,6 +27,12 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 #ifdef _WIN32
 #include <windows.h>
 #include <unknwn.h> // IUnknown, which openxr_platform.h needs and lean Windows headers omit
