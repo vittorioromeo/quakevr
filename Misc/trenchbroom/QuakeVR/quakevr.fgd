@@ -177,6 +177,7 @@
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
 		29 : "Nail pistol (Quake VR; a full magazine)"
+		30 : "Flare gun (Quake VR; two flares)"
 	]
 	weaponflags(choices) : "Variant" : 0 : "The weapon's variant: its alternative ammunition (Dissolution of Eternity's), or the hell knight's sword." =
 	[
@@ -533,6 +534,16 @@ This is the destination marker for a teleporter. It should have a 'targetname' f
 A steel crowbar lying ready to be picked up: a melee weapon, held in one hand or two (the other hand below the first on
 its tape, or sliding along the bar). It drops from its origin and settles on the floor, a physics object as
 func_weapon_grabbable's weapons (the same as one with weapon 17). It gives no ammunition."
+[
+	angles(string) : "Pitch yaw roll" :  : "How it lies before it falls (none: any way)."
+]
+
+@PointClass base(Appearflags) color(0 128 204) size(-16 -16 0, 16 16 32) model({ "path": "progs/v_flaregun.mdl" }) =
+	weapon_flaregun : "Flare gun (Quake VR)
+
+Quake VR's disposable double-barrelled flare gun: two flares, one a barrel (no ammo of its own: spent, throw it
+away). Its flares set what they hit on fire, stick burning red in walls and floors, or, fired up into the air, drift
+down lighting a wide area. It lies where it is placed (it falls and settles)."
 [
 	angles(string) : "Pitch yaw roll" :  : "How it lies before it falls (none: any way)."
 ]
@@ -2603,6 +2614,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		17 : "Crowbar"
 		19 : "Toolgun (debug and sandbox)"
 		29 : "Nail pistol (Quake VR; a full magazine)"
+		30 : "Flare gun (Quake VR; two flares)"
 	]
 ]
 

@@ -444,6 +444,7 @@ void(entity g) VR_AGR_Resolve =
         inst.wi_clip = VR_AG_ClipOf(want, inst);
     }
     self.vr_ag_code = vr_agr_code;
+    vr_ag_arm_roll = want2 == 0 ? VR_AGR_Rand() : -1; // (a flare gun too: its seed's next number, after its loadout's)
     VR_AM_ArmAll(want, flags, inst, want2, 0);
     VR_AGR_MarkNative(self);
     VR_AG_Log(sprintf("replacement rolled: %s%s%s", self.vr_ag_prop ? self.vr_ag_prop.netname : "fists",

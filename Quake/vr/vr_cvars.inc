@@ -1315,6 +1315,8 @@ QVR_CVAR(vr_crate_health_box, "0.2", CVAR_ARCHIVE)       // the chance a crate h
 QVR_CVAR(vr_crate_item_pop, "3.5", CVAR_ARCHIVE)        // how hard what a crate held pops out when it breaks (m/s: up, and a little outwards)
 QVR_CVAR(vr_crate_crowbar, "0.1", CVAR_ARCHIVE)          // the chance a crate placed about the map (the top of a stack) has a crowbar lying on it (next map)
 QVR_CVAR(vr_crate_crowbar_max, "4", CVAR_ARCHIVE)        // most crowbars on crates in a map
+QVR_CVAR(vr_crate_flaregun, "0.05", CVAR_ARCHIVE)        // the chance a crate placed about the map (the top of a stack, none on it) has a flare gun lying on it (next map)
+QVR_CVAR(vr_crate_flaregun_max, "2", CVAR_ARCHIVE)       // most flare guns on crates in a map
 QVR_CVAR(vr_crate_sight, "1", CVAR_ARCHIVE)              // 1: crates and explosive boxes lying about hide you from monsters (not one you carry)
 QVR_CVAR(vr_crate_shield, "2", CVAR_ARCHIVE)             // a crate you hold stops monsters' bullets (it takes them); 2: explosive boxes too; 2: an explosive box too (it blows up); 0: they pass through what you hold
 QVR_CVAR(vr_debug_crates, "0", CVAR_NONE)                // 1: a line per map (crates, spots, rejections, the layout's hash); 2: each crate and its clearance; 3: each spot rejected
@@ -2761,6 +2763,22 @@ QVR_CVAR(vr_dmg_super_shotgun, "4", CVAR_ARCHIVE)    // the double-barrelled sho
 QVR_CVAR(vr_dmg_nail, "9", CVAR_ARCHIVE)             // the nailgun: a nail's
 QVR_CVAR(vr_dmg_super_nail, "18", CVAR_ARCHIVE)      // the super nailgun: a nail's
 QVR_CVAR(vr_dmg_nailpistol, "12", CVAR_ARCHIVE)      // the nail pistol (QC vr_nailpistol.qc): a nail's (a grunt, 30: two headshots at x1.5, three in the body; a monster's nail pistol 9)
+QVR_CVAR(vr_dmg_flaregun, "10", CVAR_ARCHIVE)        // the flare gun (QC vr_flaregun.qc): a flare's hit (low: its fire does the rest; a monster's flare 6)
+// The flare gun (QC vr_flaregun.qc; Combat > Weapon Damage > Flare Gun): disposable, two flares (one a barrel), then
+// spent and thrown away. A flare sets what it hits on fire (Quake VR's burning; an explosive box goes off), sticks in a wall
+// or the floor burning red, or, fired up into the air, drifts down slowly lighting a wide area.
+QVR_CVAR(vr_flaregun_speed, "1300", CVAR_ARCHIVE)     // a flare's speed, units a second, plus the hand's
+QVR_CVAR(vr_flaregun_gravity, "0.3", CVAR_ARCHIVE)    // its gravity in flight (1 a grenade's): its arc
+QVR_CVAR(vr_flaregun_cooldown, "0.3", CVAR_ARCHIVE)   // s at least from a shot to the next (each a new pull)
+QVR_CVAR(vr_flaregun_volume, "1", CVAR_ARCHIVE)       // its shot's volume (0..4)
+QVR_CVAR(vr_flare_stick_time, "25", CVAR_ARCHIVE)     // s a flare stuck in a wall or lying on the floor burns
+QVR_CVAR(vr_flare_air_time, "15", CVAR_ARCHIVE)       // s a flare fired into the air burns as it drifts down
+QVR_CVAR(vr_flare_air_fall, "20", CVAR_ARCHIVE)       // units a second it sinks, drifting (its chute)
+QVR_CVAR(vr_flare_air_pitch, "35", CVAR_ARCHIVE)      // degrees up at least a shot leaves for its flare to drift down from the top of its climb (lower: it flies on until it hits)
+QVR_CVAR(vr_flare_burn, "1", CVAR_ARCHIVE)            // 1: a flare sets what it hits on fire (monsters, corpses, crates; an explosive box goes off)
+QVR_CVAR(vr_flare_lights, "4", CVAR_ARCHIVE)          // most flares lit at once (the nearest; air flares first), 0..16
+QVR_CVAR(vr_flare_light, "1", CVAR_ARCHIVE)           // their lights' size and brightness (0: none)
+QVR_CVAR(vr_flare_sparks, "1", CVAR_ARCHIVE)          // their sparks and smoke (0: none)
 // The nail pistol (QC vr_nailpistol.qc; Combat > Weapon Damage > Nail Pistol): one-handed, semi-automatic (a shot a pull
 // of the trigger), a magazine in its grip fed from your nails (immersive reloading: ejected, a new one from the pouch,
 // slapped in), fast precise nails.
@@ -2964,6 +2982,7 @@ QVR_CVAR(vr_agrunt_w_lg, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_gruntgun, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_enfrifle, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_nailpistol, "1", CVAR_ARCHIVE)   // the nail pistol (one in each hand when it pairs)
+QVR_CVAR(vr_agrunt_flaregun, "0.1", CVAR_ARCHIVE)      // 0..1: one from the pool with one weapon carries a flare gun too: it fires its two flares first, then throws it away and takes its own
 QVR_CVAR(vr_agrunt_w_packs, "1", CVAR_ARCHIVE)          // the mission packs' guns while theirs is installed (Mjolnir, laser cannon, proximity gun), each
 // Armed grunts, polish (ROUND22.md "Armed grunts: polish"): Arcane Dimensions' weapons in the pool while AD's data is
 // loaded (the soldiers' guns each; the upgrades where AD's upgrades play; the swords, hammer and mace each).
@@ -4925,6 +4944,7 @@ QVR_CVAR(vr_mg3_mtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Mo
 QVR_CVAR(vr_mg3_shubtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: Shub: 1 report, 2 her phases and children, 3 her zombies and pillars, 4 her death and the credits (QC/vr_mg3_shub_test.qc; not archived)
 QVR_CVAR(vr_mg3_btest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Bestiary: 1 report, 2 the orb (QC/vr_mg3_bestiary_test.qc; not archived)
 QVR_CVAR(vr_mg3_ctest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: Chthon: 1 report, 2 a Chthon of the spawner's (any map), 3 the boss map's fight (QC/vr_mg3_chthon_test.qc; not archived)
+QVR_CVAR(vr_flare_test, "0", CVAR_NONE) // Debug > Tests > Flare Gun: 1 its self-test, 2 one in your hand, 3 in both, 4 in the right hip and upper holsters, 5 its muzzles' test, 6 the eyeshots' scene (QC/vr_flaregun_test.qc; "flaretest: N passed, M failed"; not archived)
 QVR_CVAR(vr_np_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 its self-test, 2 in your hand, 3 in both, 4 in the right hip and upper holsters (QC/vr_nailpistol_test.qc; "nptest: N passed, M failed"; not archived)
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
 QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1/MG3 route sweep driver: each new map's first frame runs mg1route<stage>.cfg (MG3: mg3route<stage>.cfg) once (0 off; the scripts raise it); not archived

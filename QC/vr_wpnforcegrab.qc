@@ -139,7 +139,7 @@ float(float xWid) VR_IsEnemyGun; // (vr_enemyguns.qc)
 // Whether weapon `xWid` with record `xInst` is spent for good (.vr_depleted above).
 float(float xWid, entity xInst) VR_Weapon_Spent =
 {
-    if(xInst == world || !(VR_IsEnemyGun(xWid) || xWid == WID_CHAINSAW))
+    if(xInst == world || !(VR_IsEnemyGun(xWid) || xWid == WID_CHAINSAW || xWid == WID_FLAREGUN)) // (the flare gun: both flares out)
     {
         return FALSE;
     }
