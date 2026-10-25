@@ -25,8 +25,10 @@ Triangles: `v_flaregun.mdl` 860 (barrels 2 x 116, the 12 hex bolts 240, the rest
 ## Axes, origins, scale
 
 Quake's view weapon axes: **+X forward (the muzzles), +Y left, +Z up**; units are Quake model units, as `v_nail.mdl` and
-`v_shot.mdl`. The gun is ~13 units long (muzzle to the grip's pommel), ~12.2 tall; at a view weapon's usual in-hand
-scale (`vr_wofs_scale` ~0.45) that is ~23 cm, about the nail pistol's size with a longer grip
+`v_shot.mdl`. The gun is ~15.7 units long (muzzle to the grip's pommel), ~12.2 tall; at a view weapon's usual in-hand
+scale (`vr_wofs_scale` ~0.45) that is ~28 cm, a little longer than the nail pistol, with a longer grip. Its barrels
+are 8.1 units long (Vittorio, 2026-10-26: half as long again as the first art's 5.4; `MUZZLE_X` 10.5 in
+build_flaregun.py, the front sight 0.25 behind the muzzle, the fired skins' soot at the new muzzles)
 (`renders/scale_vs_nailpistol_shotgun.png`).
 
 - `Body`: origin at the grip's hand point (two units down the grip's axis from where it meets the frame; the grip leans
@@ -39,10 +41,10 @@ scale (`vr_wofs_scale` ~0.45) that is ~23 cm, about the nail pistol's size with 
 
 | Point | Position | Axis |
 | --- | --- | --- |
-| Top barrel's muzzle (exit, bore centre) | 9.300 0 4.532 | +X |
-| Bottom barrel's muzzle | 9.300 0 2.232 | +X |
+| Top barrel's muzzle (exit, bore centre) | 12.000 0 4.532 | +X |
+| Bottom barrel's muzzle | 12.000 0 2.232 | +X |
 | Rear sight (the notch's bottom, at its back edge) | 1.150 0 6.132 | |
-| Front sight (the blade's top, on the top barrel) | 9.050 0 6.132 | |
+| Front sight (the blade's top, on the top barrel) | 11.750 0 6.132 | |
 
 The sight line runs from the rear notch to the front blade's top: y 0, z 6.132, **parallel to both bores** (+X), 1.6
 above the top bore's axis. The bores are 1.6 wide (radius 0.8), 2.6 deep. Aim: the front blade's top (painted bright
@@ -50,7 +52,7 @@ brass) in the bottom of the rear notch. The rear notch (0.32 wide, 0.28 deep) is
 the frame's flat top, between its two cheeks; the hump ramps up from the flat top in front and ends square at the back,
 and the frame's tang behind it slopes down, below the line. The hinge block's top (0.32 below the line) and the frame's
 flat top stay under it.
-(For `vr_sightalign`: rear `{1.15, 0, 6.132}`, front `{9.05, 0, 6.132}`.)
+(For `vr_sightalign`: rear `{1.15, 0, 6.132}`, front `{11.75, 0, 6.132}`.)
 
 ## Editing in Blender
 

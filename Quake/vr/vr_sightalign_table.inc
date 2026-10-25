@@ -20,7 +20,7 @@
 {"progs/v_nailpistol.mdl", {-1.25f, 0.f, 6.376f}, {9.07f, 0.f, 6.376f}},
 // The flare gun: its modelled sights (build_flaregun.py, the Body's frame), the rear notch's bottom and the front blade's
 // top on one line parallel to both bores.
-{"progs/v_flaregun.mdl", {1.15f, 0.f, 6.132f}, {9.05f, 0.f, 6.132f}},
+{"progs/v_flaregun.mdl", {1.15f, 0.f, 6.132f}, {11.75f, 0.f, 6.132f}},
 // AD support: AD's crossbow (turned, vr_adguns.cpp): along its rail, just over the string's latch (measured on AD 1.80p1).
 {"progs/w_dcrossbow.mdl#gun0", {0.00f, 0.f, 4.39f}, {26.00f, 0.f, -0.64f}},
 {"progs/w_dcrossbow.mdl#gun", {0.00f, 0.f, 4.39f}, {26.00f, 0.f, -0.64f}},

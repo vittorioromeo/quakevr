@@ -4659,7 +4659,7 @@ QVR_WEAPON_DEFAULT(36, FlashSize, "0.6")
 QVR_WEAPON_DEFAULT(36, ShotPitch, "0.28")
 // Slot 37: the flare gun (QC WID_FLAREGUN, vr_flaregun.qc; the art Misc/quakevr/models_src/flaregun; vr_wofs_version
 // 66 gives it to configs saved before): the nail pistol's keys (our other pistol, its hand point at the grip as this
-// one's) for a base; its muzzle the top barrel's (the art's README: 9.3 0 4.532; the bottom's 2.3 below it, QC
+// one's) for a base; its muzzle the top barrel's (the art's README: 12 0 4.532, the barrels lengthened; the bottom's 2.3 below it, QC
 // VR_FlareGun_Muzzle), Scale 0.45 (the art's in-hand size), a heavier kick and a bigger flash than the nail pistol's.
 QVR_WEAPON_DEFAULT(37, TwoHDisplayMode, "0.0")
 QVR_WEAPON_DEFAULT(37, TwoHFixedHandPitch, "0.0")
@@ -4690,7 +4690,7 @@ QVR_WEAPON_DEFAULT(37, HandOffsetZ, "0.0")
 QVR_WEAPON_DEFAULT(37, HideHand, "0.0")
 QVR_WEAPON_DEFAULT(37, ID, "progs/v_flaregun.mdl")
 QVR_WEAPON_DEFAULT(37, Length, "0.0")
-QVR_WEAPON_DEFAULT(37, MuzzleAnchor, "9.3 0 4.532")
+QVR_WEAPON_DEFAULT(37, MuzzleAnchor, "12 0 4.532")
 QVR_WEAPON_DEFAULT(37, MuzzleOffsetX, "0.0")
 QVR_WEAPON_DEFAULT(37, MuzzleOffsetY, "0.0")
 QVR_WEAPON_DEFAULT(37, MuzzleOffsetZ, "0.0")
@@ -4722,8 +4722,8 @@ QVR_WEAPON_DEFAULT(37, ZeroBlend, "0.0")
 QVR_WEAPON_DEFAULT(37, TwoHZeroBlend, "0.0")
 QVR_WEAPON_DEFAULT(37, Heft, "0")
 QVR_WEAPON_DEFAULT(37, Mass, "0.8")
-QVR_WEAPON_DEFAULT(37, Balance, "8")
-QVR_WEAPON_DEFAULT(37, Span, "23")
+QVR_WEAPON_DEFAULT(37, Balance, "10")
+QVR_WEAPON_DEFAULT(37, Span, "28")
 QVR_WEAPON_DEFAULT(37, GripOverlap, "0.7")
 QVR_WEAPON_DEFAULT(37, HipHolsterX, "0")
 QVR_WEAPON_DEFAULT(37, HipHolsterY, "1")
