@@ -1734,7 +1734,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     if(targ.health <= 0)
     {
-        if(isVRMelee)
+        if(isVRMelee && (targ.flags & FL_MONSTER)) // (enemies only: never crates, props or breakables)
         {
             // VR melee takedown
             if(getVRMeleeBloodlust() == QVR_MELEEBLOODLUST_ENABLED)
@@ -1755,7 +1755,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     }
     else
     {
-        if(isVRMelee)
+        if(isVRMelee && (targ.flags & FL_MONSTER)) // (enemies only)
         {
             // VR melee damage
             if(getVRMeleeBloodlust() == QVR_MELEEBLOODLUST_ENABLED)
