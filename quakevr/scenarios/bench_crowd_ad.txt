@@ -1,0 +1,44 @@
+# Benchmark scene (Misc/quakevr/bench/qvrbench.py, BENCHMARKS.md): not a checklist test; places only.
+title Benchmark: 40 monsters, Quake's and Arcane Dimensions', hunting you
+map vrtesthall
+god
+spawn "Grunt" 260 -230
+spawn "Ogre" 260 -166
+spawn "Knight" 260 -102
+spawn "AD Death Knight" 260 -38
+spawn "AD Crossbow Knight" 260 26
+spawn "AD Hunter Ogre" 260 90
+spawn "AD Rocket Soldier" 260 154
+spawn "AD Plasma Soldier" 260 218
+spawn "AD Gaunt" 340 -230
+spawn "AD Skull Wizard" 340 -166
+spawn "AD Death Guard" 340 -102
+spawn "AD Defender" 340 -38
+spawn "Enforcer" 340 26
+spawn "AD Centurion" 340 90
+spawn "AD Spider" 340 154
+spawn "Scrag" 340 218
+spawn "Death Knight" 420 -230
+spawn "AD Drole" 420 -166
+spawn "Fiend" 420 -102
+spawn "AD Zombie Knight" 420 -38
+spawn "Grunt" 420 26
+spawn "Ogre" 420 90
+spawn "Knight" 420 154
+spawn "AD Death Knight" 420 218
+spawn "AD Crossbow Knight" 500 -230
+spawn "AD Hunter Ogre" 500 -166
+spawn "AD Rocket Soldier" 500 -102
+spawn "AD Plasma Soldier" 500 -38
+spawn "AD Gaunt" 500 26
+spawn "AD Skull Wizard" 500 90
+spawn "AD Death Guard" 500 154
+spawn "AD Defender" 500 218
+spawn "Enforcer" 580 -230
+spawn "AD Centurion" 580 -166
+spawn "AD Spider" 580 -102
+spawn "Scrag" 580 -38
+spawn "Death Knight" 580 26
+spawn "AD Drole" 580 90
+spawn "Fiend" 580 154
+spawn "AD Zombie Knight" 580 218

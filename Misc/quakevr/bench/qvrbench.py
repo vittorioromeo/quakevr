@@ -71,8 +71,10 @@ class Scenario:
     window's own length, whatever --frames says (a fixed sequence of events; 0: as long as the body, vr_bench_end ending
     it). loads: the map loads its window must record (validate checks them)."""
     def __init__(self, name, groups, stresses, map, purpose, pos=None, look=(0, 0), setup=(), body=None, warm=180,
-                 base="qbase", flat=False, hostile=False, header=(), motion=None, load_wait=120, frames=None, loads=0):
+                 base="qbase", flat=False, hostile=False, header=(), motion=None, load_wait=120, frames=None, loads=0,
+                 scene=None):
         self.name, self.groups, self.stresses, self.map, self.purpose = name, groups, stresses, map, purpose
+        self.scene = scene  # a quakevr/scenarios/<scene>.txt (vr_scenario: its map loaded, its spawns placed) for `map`
         self.pos, self.look, self.setup, self.body, self.warm = pos, look, list(setup), body, warm
         self.base, self.flat, self.hostile, self.header, self.motion = base, flat, hostile, list(header), motion
         self.load_wait, self.frames, self.loads = load_wait, frames, loads
@@ -517,6 +519,72 @@ def scenarios():
     add("load_ad_tfuma", ["profile"], "AD's ad_tfuma (17 MB BSP) loaded cold and warm, native AD", None,
         "`map ad_tfuma` with `vr_campaign_native ad` (its pak's textures and models), cold then again.", header=AD,
         setup=LOADS, warm=30, body=loads_body([("cold", "map ad_tfuma"), ("warm", "map ad_tfuma")]), loads=2, frames=0)
+    # ---- the overnight profiling round of 2026-10-25 (group `r25`; ROUND22.md "Profiling and optimization round"): the
+    # suite's gaps: armed humanoids in numbers, AD's monsters in a crowd, fuel tanks' fields, hostile tours of the
+    # heaviest maps (AD, the mission packs, id), AD's biggest loads, a saved game's save and load. The vrtesthall
+    # scenes are quakevr/scenarios/bench_*.txt (vr_scenario places them; vrtesthall's start faces +y).
+    add("armed_16", ["r25", "combat"], "16 armed humanoids (guns, dual guns, melee) hunting you, your shotgun",
+        "vrtesthall", "bench_armed16: 8 grunts and 8 enforcers armed (shotguns, dual shotguns, nailguns, swords, axes, "
+        "chainsaw, rocket launcher, laser rifle, thunderbolt, Mjolnir), hostile; the player's shotgun on the nearest "
+        "every 50 frames: arm IK, skinning, upper body and legs, their shots and strikes, the player's parries.",
+        scene="bench_armed16", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    add("armed_16_melee", ["r25", "combat", "melee"], "16 armed humanoids up close, both your hands jabbing",
+        "vrtesthall", "bench_armed16 with the player's fists jabbing (vr_mock_play) as they close in: melee against "
+        "armed humanoids, their strikes, parries and blocks, knockdowns.",
+        scene="bench_armed16", hostile=True, motion=punch_motion, warm=60, load_wait=240)
+    add("crowd_ad_40", ["r25", "combat"], "40 monsters, Quake's and AD's, hunting you, your shotgun", "vrtesthall",
+        "bench_crowd_ad: 40 of 20 kinds (grunts, ogres, knights, enforcers, scrags, fiends, death knights and AD's "
+        "death knights, crossbow knights, hunter ogres, rocket and plasma soldiers, gaunts, skull wizards, spiders, "
+        "droles...), hostile; the player's shotgun on the nearest every 50 frames.",
+        scene="bench_crowd_ad", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    # (vrtesthall: forward f and left l from the start are world x = -l, y = -288 + f)
+    tank_blasts = lambda y, xs, dmg=120: [f"vr_physics_blast {x} {y} 16 {dmg}" for x in xs]
+    add("tanks_fields", ["r25", "physics", "vfx"], "fuel tanks burst: fire fields, poison clouds, crates and boxes broken",
+        "vrtesthall", "bench_tanks: 4 flamethrowers and 4 poison sprayers lying among 5 grunts, 8 crates and 4 explosive "
+        "boxes; blasts burst the flamethrowers' tanks (marks burst_fire), the sprayers' (burst_poison), then the "
+        "crates and boxes (break): fire fields, poison clouds, ragdolls, crate pieces, explosions.",
+        scene="bench_tanks", warm=30, load_wait=240,
+        body=events((5, "burst_fire", tank_blasts(-48, (100, -100))), (300, "burst_poison", tank_blasts(132, (100, -100))),
+                    (600, "break", tank_blasts(-128, (120, -120), 80) + tank_blasts(232, (120, -120), 80))))
+    # Hostile tours: three places of the map (the spawn and two pickups' places of bsp_waypoints.py), 300 frames each,
+    # the head turning round; god, notarget off: what is near comes for the player.
+    FIGHT_TOURS = {
+        "ad_sepulcher": (AD, [(-2560, 2464, 16, 270), (-40, 632, 88, 0), (-1216, -352, 24, 0)]),
+        "ad_tears": (AD, [(672, -256, -488, 180), (-1252, 396, -132, 330), (368, 320, -1036, 0)]),
+        "ad_crucial": (AD, [(368, 2128, -264, 270), (248, -800, 192, 0), (-96, -744, 184, 0)]),
+        "hip2m5": (["skill 2"], [(-208, 272, 48, 0), (896, -64, -192, 0), (1692, 728, 180, 0)]),
+        "r2m7": (["skill 2"], [(-2456, 376, 76, 270), (1472, 112, 24, 0), (-1712, 664, 216, 0)]),
+        "e4m7": (["skill 2"], [(608, -1008, 176, 90), (592, 80, -168, 0), (-2032, -144, -56, 0)]),
+    }
+
+    def fight_tour(points):
+        def body(frames):
+            out, share = [], max(3, frames // len(points))
+            for x, y, z, yaw in points:
+                out += [f"setpos {x} {y} {z} 0 {yaw} 0", "noclip"]
+                for k in range(share // 3):
+                    out += [f"vr_mock_look 0 {(k * 3 * 360 // share) % 360}"] + waits(3)
+            return out
+        return body
+    for m, (hdr, pts) in FIGHT_TOURS.items():
+        add(f"fight_{m}", ["r25", "maps"], f"{m}: three places, the head turning, the monsters near coming for you", m,
+            f"{m} at skill 2: its spawn and two pickups' places (bsp_waypoints.py), 300 frames each, the head turned "
+            "round; god, notarget off: heavy geometry, the map's lights and entities, the monsters near awake.",
+            header=hdr, hostile=True, warm=30, load_wait=300, body=fight_tour(pts))
+    add("load_ad_sepulcher", ["r25", "loading"], "AD's ad_sepulcher (42 MB BSP) loaded cold and warm, native AD", None,
+        "`map ad_sepulcher` with `vr_campaign_native ad`, cold then again.", header=AD,
+        setup=LOADS, warm=30, body=loads_body([("cold", "map ad_sepulcher"), ("warm", "map ad_sepulcher")]), loads=2, frames=0)
+    add("load_ad_tears", ["r25", "loading"], "AD's ad_tears (85 MB BSP, the biggest on hand) loaded cold, native AD", None,
+        "`map ad_tears` with `vr_campaign_native ad`, cold.", header=AD,
+        setup=LOADS, warm=30, body=loads_body([("cold", "map ad_tears")], each=200), loads=1, frames=0)
+    add("saveload_e1m1", ["r25", "loading"], "a saved game: E1M1 with a fight going, saved, loaded twice", "e1m1",
+        "E1M1's computer room (skill 2) with 3 grunts and 2 dogs spawned, hostile; `save qvrbench` (the save's frame), "
+        "then `load qvrbench` twice: each load by stage (the saved game's entities), the frames after.",
+        header=["skill 2"], pos=E1M1_ROOM, hostile=True,
+        setup=[f"vr_physics_spawn monster_dog 110 {l}" for l in (-60, 60)]
+        + [f"vr_physics_spawn monster_army 200 {l}" for l in (-90, 0, 90)] + waits(60) + LOADS, warm=30,
+        body=loads_body([("save", "save qvrbench"), ("load1", "load qvrbench"), ("load2", "load qvrbench")]),
+        loads=2, frames=0)
     return {x.name: x for x in s}
 
 
@@ -552,7 +620,9 @@ def script(sc, tag, frames, hz, eye, realtime, settings, motion_path, shot=False
               "vr_tips 0", "developer 0", "sv_autosave 0", "vr_profile 0", "vr_particle_seed 7", "vr_mock_look 0 0"]
     lines += sc.header + waits(10)
     if sc.map:
-        lines += ["vr_bench_seed 7", f"map {sc.map}"] + waits(sc.load_wait)
+        # A scene (vr_scenario) loads its map and places its spawns 1.5 s of game time later (108 frames at 72 Hz).
+        load = ["vr_scenario_hint_time 0", f"vr_scenario {sc.scene}"] if sc.scene else [f"map {sc.map}"]
+        lines += ["vr_bench_seed 7"] + load + waits(sc.load_wait)
         lines += ["god 1", "notarget 0" if sc.hostile else "notarget 1"]
         if sc.pos:
             lines += [f"setpos {sc.pos}"]

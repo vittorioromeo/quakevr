@@ -187,6 +187,13 @@ settings) compare with new runs under the new names (`qvrbench.py`'s `renamed`).
 | `play_teleporters_turn` | play/teleporters | vrteleporters | The T room's middle (`setpos -1280 600 24`): its east, north and west (loop) gates, the head turned 90 degrees either way twice: one to three portal views a frame. |
 | `play_props_fire` | play/physics | vrfiringrange | 40 props (`vr_physics_bigpile 40 260 mixed`), 3 crates and 2 grunt corpses set on fire (`vr_burn_test 1`), 4 wall torches, a small blast in the pile every 180 frames. |
 | `combined` | combat/physics/vfx/lights/core | vrfiringrange | Everything at once (the perf suite's combined): the frame's worst realistic mix. |
+| `armed_16` | r25/combat | vrtesthall | Scene `bench_armed16`: 8 grunts and 8 enforcers armed (shotguns, dual shotguns and nailguns, swords, axes, chainsaw, rocket launcher, laser rifle, thunderbolt, Mjolnir), hostile; the player's shotgun on the nearest every 50 frames: arm IK, skinning, upper body and legs, their shots and strikes. |
+| `armed_16_melee` | r25/combat/melee | vrtesthall | The same scene, the player's fists jabbing (`vr_mock_play`) as they close in: their strikes, parries, knockdowns. |
+| `crowd_ad_40` | r25/combat | vrtesthall | Scene `bench_crowd_ad`: 40 monsters of 20 kinds, Quake's and Arcane Dimensions' (the toolgun's AD entries), hostile; the player's shotgun every 50 frames. |
+| `tanks_fields` | r25/physics/vfx | vrtesthall | Scene `bench_tanks`: 4 flamethrowers and 4 poison sprayers lying among grunts, crates and explosive boxes; blasts burst the tanks (marks `burst_fire`, `burst_poison`), then break the crates and boxes (`break`): fire fields, poison clouds, ragdolls, pieces. |
+| `fight_<map>` | r25/maps | ad_sepulcher, ad_tears, ad_crucial (native AD), hip2m5, r2m7, e4m7 | The map at skill 2: its spawn and two pickups' places, 300 frames each, the head turning round, god and notarget off (what is near comes for you). |
+| `load_ad_sepulcher`, `load_ad_tears` | r25/loading | (none) | AD's 42 MB and 85 MB BSPs loaded cold (and sepulcher warm). |
+| `saveload_e1m1` | r25/loading | e1m1 | A fight in E1M1's computer room saved (`save qvrbench`, into the agent's own game folder) and loaded twice: the save's frame (mark `save`), each load by stage. |
 
 ### Tours of complex custom maps
 

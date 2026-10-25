@@ -1,0 +1,30 @@
+# Benchmark scene (Misc/quakevr/bench/qvrbench.py, BENCHMARKS.md): not a checklist test; places only.
+title Benchmark: flamethrowers' and poison sprayers' tanks, grunts, crates and boxes, to blast
+map vrtesthall
+god
+notarget
+spawn "AD Flamethrower" 240 -150
+spawn "AD Poison Sprayer" 420 -150
+spawn "AD Flamethrower" 240 -50
+spawn "AD Poison Sprayer" 420 -50
+spawn "AD Flamethrower" 240 50
+spawn "AD Poison Sprayer" 420 50
+spawn "AD Flamethrower" 240 150
+spawn "AD Poison Sprayer" 420 150
+spawn "Grunt" 300 -200
+spawn "Grunt" 300 -100
+spawn "Grunt" 300 0
+spawn "Grunt" 300 100
+spawn "Grunt" 300 200
+spawn "Wooden Crate" 160 -180
+spawn "Wooden Crate" 160 -180 34
+spawn "Explosive Box" 520 -180
+spawn "Wooden Crate" 160 -60
+spawn "Wooden Crate" 160 -60 34
+spawn "Explosive Box" 520 -60
+spawn "Wooden Crate" 160 60
+spawn "Wooden Crate" 160 60 34
+spawn "Explosive Box" 520 60
+spawn "Wooden Crate" 160 180
+spawn "Wooden Crate" 160 180 34
+spawn "Explosive Box" 520 180
