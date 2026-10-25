@@ -300,7 +300,7 @@ IRON_C, IRON_DARK, IRON_RUST, IRON_STAIN = rgb(80, 66, 54), rgb(42, 34, 28), rgb
 STEEL_C, STEEL_LIGHT, STEEL_DARK = rgb(140, 138, 134), rgb(214, 212, 206), rgb(92, 90, 86)
 OLIVE_C, OLIVE_GREEN, OLIVE_RUST, OLIVE_DARK = rgb(104, 90, 64), rgb(71, 88, 76), rgb(104, 62, 42), rgb(58, 50, 38)
 OLIVE_YELLOW = rgb(76, 76, 12)
-BRASS_C, BRASS_DARK, BRASS_LIGHT = rgb(108, 84, 34), rgb(70, 52, 28), rgb(146, 112, 40)
+BRASS_C, BRASS_DARK, BRASS_LIGHT = rgb(100, 78, 34), rgb(66, 50, 28), rgb(140, 108, 40)
 BARREL_C, BARREL_LIGHT, BARREL_DARK = rgb(78, 74, 70), rgb(112, 108, 102), rgb(40, 38, 36)
 BARREL_BROWN = rgb(92, 76, 60)
 BRICK_C, BRICK_LIGHT, MORTAR = rgb(100, 64, 46), rgb(130, 86, 62), rgb(46, 34, 24)
@@ -439,8 +439,8 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
         col = mix(OLIVE_DARK, OLIVE_C, 0.6 + 0.6 * mid + 0.3 * fine)
         if rnd[1] < 0.18:
             col = mix(col, OLIVE_GREEN, 0.8)
-        elif rnd[1] < 0.3:
-            col = mix(col, OLIVE_YELLOW, 0.8)
+        elif rnd[1] < 0.24:
+            col = mix(col, OLIVE_YELLOW, 0.6)
         elif rnd[1] < 0.38:
             col = mix(col, OLIVE_RUST, 0.7)
         col = mix(col, OLIVE_RUST, 0.45 * smooth(0.3, 0.6, big + 0.3 * fine))
@@ -468,10 +468,10 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
         col *= 1.0 + speck
     # Worn, brighter convex edges; darker concave ones.
     wear = smooth(-0.35, 0.35, noise.noise(p * 1.7 + Vector((5.0, 2.0, 8.0))))
-    edge_col = {BRASS: BRASS_LIGHT, OLIVE: rgb(150, 140, 96), STEEL: STEEL_LIGHT * 1.05,
+    edge_col = {BRASS: BRASS_LIGHT, OLIVE: rgb(124, 110, 70), STEEL: STEEL_LIGHT,
                 BRICK: BRICK_LIGHT}.get(part) or col * 1.05 + EDGE_IRON * 0.4
     if chamfer:
-        col = mix(col, edge_col, 0.3 + 0.35 * wear)
+        col = mix(col, edge_col, 0.15 + 0.3 * wear)
     for a, b, convex in edges:
         dist = seg_dist(p, a, b)
         if convex and dist < 0.12 and not chamfer and part not in (BORE, DARK):
@@ -494,7 +494,7 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
         elif k < 1.45 and v.z < 0.0:
             col *= 0.55
     col *= ao
-    col *= 0.92 + 0.12 * n.z
+    col *= (0.92 + 0.12 * n.z) * 0.9
     return col
 
 

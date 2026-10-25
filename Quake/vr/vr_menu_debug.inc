@@ -1159,6 +1159,16 @@ za::Vector<Item> pageDebugTools()
                   "README.md): its preview model floats ahead at arm's reach, at the size it would be in your hand (a "
                   "viewthing given the model: until the map changes, player.mdl is drawn as it too). The scenario "
                   "flaregun_art adds the nail pistol and the shotgun beside it."),
+        command("Widowmaker Art", "vr_physics_spawn viewthing reach; viewmodel progs/vr_widowmaker_preview.mdl")
+            .help("AD's Widowmaker as made by hand after Vittorio's mockup (Misc/quakevr/models_src/widowmaker/README.md): its "
+                  "preview model floats ahead at arm's reach, at the size it is in your hand (a viewthing given the model: "
+                  "until the map changes, player.mdl is drawn as it too). The scenario widowmaker_art also puts one in "
+                  "your hand."),
+        command("Widowmaker: Hand-Made Model", "vr_ad_widowmaker_art 1")
+            .help("vr_ad_widowmaker_art 1 (default): the Widowmaker drawn as the hand-made model (two barrels). Reloads it."),
+        command("Widowmaker: Model Made from AD's", "vr_ad_widowmaker_art 0")
+            .help("vr_ad_widowmaker_art 0: the Widowmaker drawn as the one made from AD's view model as it loads (three "
+                  "barrels), for A/B. Reloads it."),
         header("Save to Files (game folder)"),
         command("Wound Masks", "vr_wounds_dump").help("vr_wounds_dump: each model's wound mask, to wounds/mask_<n>_<model>.png."),
         command("Decal Atlas", "vr_decal_atlas").help("vr_decal_atlas: the decals' atlas, to decal_atlas.png."),

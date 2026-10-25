@@ -21437,3 +21437,53 @@ one); no trigger guard, as in the mockup.
 - [ ] Debug > Tools > Flare Gun Art: walk around it: rusty signal-red paint, the barrels parallel, the cartridges' red caps.
 - [ ] Look down the sights: the brass blade sits in the bottom of the rear notch.
 - [ ] Scenario flaregun_art: hold the nail pistol next to it: about the same size, the flare gun's grip longer.
+
+## Widowmaker: a hand-made model after his mockup (worktree `goreflesh`, branch `agent/widowmaker-art`, 2026-10-25)
+
+AD's Widowmaker (the upgraded super shotgun, Quake VR's two-handed Gatling auto shotgun) gets a hand-made model after
+his mockup (`qvr-kit/scratch/widowmaker/mockup.png`), in the flare gun's art pipeline:
+`Misc/quakevr/models_src/widowmaker/` (`build_widowmaker.py` -> `widowmaker.blend`, `export_mdl.py`, the palette skin,
+`render_previews.py`, `README.md`, `renders/`). Two long round barrels side by side with brass collars and raised muzzle
+rings, a chamfered octagonal receiver (riveted rusty rear plate with red-brown stains, light steel side panels with
+darker bars, an olive-brass top with a raised strip), brick-brown grips on riveted iron feet. 1840 triangles (the model
+made from AD's: 1230), skin 256x256, nothing of AD's in it.
+
+- **The same frame**: the super shotgun's (as `vr_adweapons.cpp` makes the Widowmaker), packed from its corner
+  (`mdlgen.write_mdl` gained `names` and `origin`), so slot 34's settings hold it: the rear grip where the super
+  shotgun's grip is (hand anchor 5.10 -0.05 0.71 on its front, leaning back 10 degrees as that grip), the front grip
+  where the made one's front handle is (29.08 -0.04 -0.18), the shell port at its place on the inner side (6.5 3.6 5.6,
+  now framed as the mockup's recessed slot), the ejection slot on the outer side, the muzzle anchor 44 0 8.8.
+- **The barrels turn**: the mockup's two barrels spin as the Gatling's three did, about the axis between them (y 0,
+  z 8.8: the muzzle anchor is on it, so the shots leave between the two bores, a still speck marking the point); a
+  still brass bearing ring round them carries the front grip and the front sight. 27 spin frames named `twin0..26`:
+  `spinFrame` reads two barrels from them (the made model's `spin0..26` three), a barrel a shot is then a half turn (top
+  speed 180 / refire), and the coast stops with the two side by side. `vr_ad_widowmaker_spin_info` prints the model,
+  its barrels, the step and "at rest", and when nothing spins what each hand draws.
+- **Sights** (the made model had none): a rear sight (two ears and a notch) on the receiver's back, a post on the
+  bearing ring, the line 3.65 over the bores' axis, parallel to them (not in `vr_sightalign_table.inc`: the slot's
+  model name is the same for both models).
+- **Wiring**: `vr_ad_widowmaker_art` 1 (new, archived): `derivedFile` gives `progs/v_shot3.mdl#vr` the file
+  `progs/v_widowmaker.mdl`; 0 makes it from AD's as before (three barrels), for A/B; a change reloads the model
+  (`vr_model_reload`). Debug > Tools > Model Previews: Widowmaker Art (`progs/vr_widowmaker_preview.mdl` at 0.48),
+  Widowmaker: Hand-Made Model / Model Made from AD's. Scenario `widowmaker_art` (vrtesthall: one in your hand, the
+  preview ahead).
+- **Slot 34**: the ammo readout and button anchors on the taller receiver's top (`12 0.85 11.4`, was z 10);
+  `vr_wofs_version` 63 (`takeWidowmakerArt63`) moves a config still holding the old ones. Everything else unchanged.
+
+Checked (headless, ad_dm1, `-game ad`; scripts `scratch/wm_*.sh`): `vr_ad_test 149` 11/11 PASS with the new model (shell
+port found at its place, a handful in at once, the tube fills, full auto, the spin-up wait, pressed again sooner, a
+pickup full); after it the barrels at rest at 180 degrees, the drawn axis 0.01 from the client's muzzle; with
+`vr_ad_widowmaker_art 0` the made model as before (120 degrees, its top barrel 0.00 from the muzzle). `vr_ad_test 148`
+PASS (16 of 16); `vr_ad_test 98` holds it (an eyeshot: the hand round the rear grip, the readout on the top).
+Note for tests: a weapon given to a mock hand drops at once unless `vr_weapon_grip_mode 1` (the mock holds no grip):
+`vr_ad_test 149` fails 5 of its checks without it (also on origin/next).
+
+Decisions: the barrels spin about their middle (the mockup has no ring: one is needed to hold the front grip still
+while they turn); the grips lean 10 degrees back, as the grip the hand poses were tuned on (the mockup's stand
+straight); a small trigger and guard (the mockup shows none; VR fingers need one).
+
+**In VR:**
+- [ ] Hold the Widowmaker: the hand round the rear grip, the other on the front grip; the ammo readout on the top.
+- [ ] Fire it: the two barrels spin up, a half turn a shot, and stop side by side; the shots and the flash between the bores.
+- [ ] Load it at the port on the inner side (the recessed slot) and see shells leave the outer side's slot.
+- [ ] Debug > Tools > Model Previews: Widowmaker: Model Made from AD's / Hand-Made Model to compare.
