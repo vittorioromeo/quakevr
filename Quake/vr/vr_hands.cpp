@@ -1009,6 +1009,14 @@ void setPlaySpaceYaw(float yaw)
     stateFrame = -1;
 }
 
+void relatch()
+{
+    const Previous keep = previous;
+    stateFrame = -1;
+    (void)current();
+    previous = keep;
+}
+
 void refresh()
 {
     stateFrame = -1; // the velocities are kept (the same vr_gametime: updateVelocities)

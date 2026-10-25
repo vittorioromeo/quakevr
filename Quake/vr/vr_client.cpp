@@ -299,6 +299,16 @@ VrMove unposed;
 {
     VrMove move;
 
+    // Flatscreen: the hands made again with this frame's mouse turn (they were made at the frame's start, before it): the
+    // shots go where the crosshair is now, not a frame behind a turn.
+    if(flatplay::active())
+    {
+        hands::relatch();
+        if(vr_flatplay_debug.value >= 2.f)
+        {
+            flatplay::printMove(hands::current());
+        }
+    }
     const hands::State& hs = hands::current();
     if(!hs.valid)
     {
