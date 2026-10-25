@@ -542,7 +542,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // another slot, so that the shipped one's tuning reaches its model: props::takeShippedSlots; 202: AD's heads' slots,
 // and the armed grunts' archived pose keys and grips equal to the new shipped ones dropped: agpose::dropShippedEqual,
 // aggrip::dropDefaultEqual)
-constexpr int configVersion = 202;
+constexpr int configVersion = 203;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -715,6 +715,17 @@ void migrateConfig()
         const int poses = agpose::dropShippedEqual();
         const int grips = aggrip::dropDefaultEqual();
         Con_DPrintf("VR: armed grunts: %d pose keys and %d grips equal to the new defaults dropped\n", poses, grips);
+    }
+    if(from < 203 && vr_gunmodelpitch.value != 7.f)
+    {
+        // configVersion 203: Gun Model Pitch lost its menu row (Hand Pitch turns both hands, the guns and the aim
+        // together, as it did). What it was past 7 goes into both hands' pitch, subtracted (measured with vr_aim_check: Gun Model
+        // Pitch +10 aims where vr_gunangle/vr_offhandpitch -10 do; Hand Pitch adds to both, a higher one aims lower).
+        const float extra = vr_gunmodelpitch.value - 7.f;
+        Cvar_SetValueQuick(&vr_gunangle, vr_gunangle.value - extra);
+        Cvar_SetValueQuick(&vr_offhandpitch, vr_offhandpitch.value - extra);
+        Cvar_SetValueQuick(&vr_gunmodelpitch, 7.f);
+        Con_DPrintf("VR: Gun Model Pitch %g moved into Hand Pitch (-%g)\n", extra + 7.f, extra);
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }

@@ -416,9 +416,6 @@ void resetHandMoves()
             .help("Both hands' X, Y, Z and Roll back to their defaults (the calibration the weapon offsets were set with). "
                   "Pitch and Yaw stay."),
         header("Guns"),
-        slider("Gun Model Pitch", "vr_gunmodelpitch", -90.f, 90.f, 0.25f, "%.1f").extend(-180.f, 180.f).help("Tilts every held weapon up (7 is the default the weapons are set for): the hand holding it turns "
-                  "with it, so the grip stays in the palm, and its shots follow the barrel. Changes where it aims. "
-                  "Not the empty hand: Main Hand Pitch (Gun Angle), above, turns that too."),
         slider("Gun Model Scale", "vr_gunmodelscale", 0.1f, 2.f, 0.05f, "%.2f").extend(0.02f, 5.f).help("Scale multiplier for gun models. Does NOT affect aiming, but does affect muzzle position (where bullets and projectiles come from)."),
         slider("Gun Model Z Offset", "vr_gunmodely", -10.f, 10.f, 0.1f, "%.1f").extend(-50.f, 50.f).help("Z offset for gun models. Does NOT affect aiming."),
         slider("Gun Z Offset", "vr_gun_z_offset", -30.f, 30.f, 0.25f, "%.1f").extend(-150.f, 150.f).help("Z offset for guns/hands. Affects aiming."),
