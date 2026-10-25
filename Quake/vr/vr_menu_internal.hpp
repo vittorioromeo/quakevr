@@ -376,6 +376,7 @@ extern int mainPageSnap;
 [[nodiscard]] za::Vector<Item> pageAimingSettings();
 [[nodiscard]] za::Vector<Item> pageArmedGrips();
 [[nodiscard]] za::Vector<Item> pageArmedGrunts();
+[[nodiscard]] za::Vector<Item> pageArmedRepl();
 [[nodiscard]] za::Vector<Item> pageBloodFeedback();
 [[nodiscard]] za::Vector<Item> pageBodyArms();
 [[nodiscard]] za::Vector<Item> pageBodyCalibration();

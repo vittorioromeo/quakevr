@@ -658,6 +658,7 @@ void() VR_AGRT_Census =
         float varied = 0;
         float waiting = 0;
         float pending = 0;
+        float humans = 0;
         entity e = nextent(world);
         while(e)
         {
@@ -668,6 +669,7 @@ void() VR_AGRT_Census =
             else if((e.flags & FL_MONSTER) && e.health > 0)
             {
                 live = live + 1;
+                humans = humans + (e.classname == "monster_army" || e.classname == "monster_enforcer");
                 if(e.vr_agr)
                 {
                     armed = armed + 1;
@@ -680,7 +682,8 @@ void() VR_AGRT_Census =
         }
         VR_AGT_Print(sprintf("map %s: monsters %g, live %g (waiting %g), killed %g", mapname, total_monsters, live, waiting,
             killed_monsters));
-        VR_AGT_Print(sprintf("map %s: replaced %g: own gun %g, varied %g, unrolled %g", mapname, armed, native, varied, pending));
+        VR_AGT_Print(sprintf("map %s: grunts and enforcers %g, replaced %g: own gun %g, varied %g, unrolled %g", mapname, humans, armed,
+            native, varied, pending));
         e = nextent(world);
         while(e)
         {

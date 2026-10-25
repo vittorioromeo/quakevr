@@ -1072,6 +1072,63 @@ void armedGripsDragMode()
     };
 }
 
+// Combat > Armed Grunts > Armed Humanoid Replacements (QC vr_armedrepl.qc; ROUND22.md, "Armed humanoid replacements"):
+// a map's grunts and enforcers as armed ones. Everything off by default; a map's new loadouts at its next load.
+[[nodiscard]] za::Vector<Item> pageArmedRepl()
+{
+    const auto chance = [](const char* label, cvar_t& c, const char* what) {
+        return slider(label, c, 0.f, 1.f, 0.05f, "%.2f").help(what);
+    };
+    const auto mult = [](const char* label, cvar_t& c) {
+        return slider(label, c, 0.f, 4.f, 0.25f, "%.2fx")
+            .help("The variety chances above times this at that skill (each chance at most 1).");
+    };
+    return {
+        header("Replacements"),
+        toggle("Replace All Humanoids", vr_agrunt_repl)
+            .help("Every grunt and enforcer a map spawns (its own, its spawners', its waiting ones) is its armed version "
+                  "holding its own gun: the same damage, rate of fire, aim, health and loot as the one it replaces, but "
+                  "you can knock or pull the gun out of its hands, win it in a tug, parry it, shoot it out, and its "
+                  "ragdoll keeps hold of it. Takes effect at the next map load (vr_agrunt_repl)."),
+        header("Weapon Variety (on top)"),
+        chance("Common: Shotgun, Nail Pistol", vr_agrunt_repl_common,
+            "The chance one holds a shotgun or a nail pistol instead of its own gun (vr_agrunt_repl_common)."),
+        chance("Uncommon: Nailguns, Super Shotgun", vr_agrunt_repl_uncommon,
+            "The chance of a nailgun, a super nailgun or a super shotgun, each only once you own that weapon "
+            "(vr_agrunt_repl_uncommon)."),
+        chance("Rare: Launchers, Thunderbolt, Melee", vr_agrunt_repl_rare,
+            "The chance of a grenade or rocket launcher, the thunderbolt, a melee weapon, a mission pack's gun or AD's "
+            "soldiers' guns (in AD maps): each only once you own it, and only later in an episode "
+            "(vr_agrunt_repl_rare)."),
+        slider("Rare From Map", vr_agrunt_repl_rare_map, 0.f, 8.f, 1.f, "%.0f")
+            .help("Rare weapons only from this map of an episode on (e1m4, hip1m4, r2m4, ...); maps with no number in "
+                  "their name never. 0: any map (vr_agrunt_repl_rare_map)."),
+        chance("Dual Wielding", vr_agrunt_repl_dual,
+            "The chance of a second weapon that pairs with the first: two guns not too big, two one-handed blades "
+            "(vr_agrunt_repl_dual)."),
+        chance("Gun and Axe", vr_agrunt_repl_gunaxe,
+            "The chance of a gun in the right hand and an axe in the left: it fires the gun, takes to the axe when "
+            "you get close or its gun runs dry, back to the gun when you back off (vr_agrunt_repl_gunaxe)."),
+        header("Difficulty"),
+        mult("Easy", vr_agrunt_repl_skill0),
+        mult("Normal", vr_agrunt_repl_skill1),
+        mult("Hard", vr_agrunt_repl_skill2),
+        mult("Nightmare", vr_agrunt_repl_skill3),
+        slider("Shuffle", vr_agrunt_repl_seed, 0.f, 100.f, 1.f, "%.0f")
+            .help("Each humanoid's loadout is the same every time you play a map (its spawn point and the map pick it); "
+                  "another number deals every map's out anew (vr_agrunt_repl_seed)."),
+        header("Where"),
+        toggle("Quake's Campaigns", vr_agrunt_repl_id)
+            .help("Quake, Dimension of the Past, Dimension and Dawn of the Machine, and custom maps "
+                  "(vr_agrunt_repl_id)."),
+        toggle("Mission Packs", vr_agrunt_repl_mp)
+            .help("Scourge of Armagon and Dissolution of Eternity (vr_agrunt_repl_mp)."),
+        toggle("Arcane Dimensions", vr_agrunt_repl_ad)
+            .help("Arcane Dimensions' maps too: their encounters are designed around their own monsters, so off by "
+                  "default (vr_agrunt_repl_ad)."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageArmedGrunts()
 {
     const auto weight = [](const char* label, cvar_t& c) {
@@ -1080,6 +1137,9 @@ void armedGripsDragMode()
                   "set) holds this, against the others' weights. 0: never.");
     };
     return {
+        open("Armed Humanoid Replacements", pageIndex(pageArmedRepl))
+            .help("A map's grunts and enforcers as armed ones holding their own guns (their balance kept), and weapon "
+                  "variety on top. All off by default."),
         header("Their Weapons"),
         slider("Damage to You", vr_agrunt_damage_scale, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("Their weapon's damage to you, times this (its damage to monsters is your weapon's own): a rocket "
