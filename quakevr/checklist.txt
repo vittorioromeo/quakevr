@@ -2,6 +2,13 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Die and restart in ad_sepulcher or ad_tfuma: crates and rocks are in the same places, and the restart is about a quarter second quicker (vr_place_keep)
+Toolgun AD monsters into an id map and kill them: no hitch at the first death or backpack drop, and their footsteps are audible (vr_ad_death_precache)
+Gib or dismember a crowd: wounds appear on the right spots of flying bodies within a few frames (vr_wounds_budget)
+Flatscreen: WASD walking and strafing keep the gun steady on screen (gentle bob; a small lag and settle on start/stop; a dip on landing); each slider in Debug > Reports > Flatscreen Play at 0 locks that effect
+Flatscreen: a fast mouse turn makes the hands trail slightly and catch up; shots land on the crosshair while turning and strafing
+Armed Humanoid Replacements (Combat > Armed Grunts): turn on "replace all" in e1m1 or e2m1: grunts and enforcers feel as hard as before while their guns can be grabbed, tugged and shot out
+Armed Humanoid Replacements: scene agrunt_repl_gunaxe: the axe carried and swung in the left hand next to the one-handed gun looks right {test:agrunt_repl_gunaxe}
 Flare Gun Art (Debug > Tools > Model Previews): plain solid top with no cartridge housing; down the sights the brass blade sits in the bottom of the rear notch {test:flaregun_art}
 Heavy Revolver Art (Debug > Tools > Model Previews, or scene revolver_art): walk around it (brass frame, cylinder, runes, grip); "Swung Out": the cylinder out to the left with red and blue shell heads; grip size next to the shotgun {test:revolver_art}
 Heavy Revolver Art (Debug > Tools > Model Previews, or scene revolver_art): walk around it (brass frame, cylinder, runes, grip); "Swung Out": the cylinder out to the left with red and blue shell heads; grip size next to the shotgun {test:revolver_art}
