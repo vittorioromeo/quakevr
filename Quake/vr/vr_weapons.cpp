@@ -164,7 +164,7 @@ namespace
 // tip he dragged there (-0.2229 0.2441 0.4977, which also moved its shots) gets the shipped muzzle back (takeShotgunTip60).
 // 63: the Widowmaker's (slot 34) ammo readout and button on its hand-made model's receiver top (z 11.4, was 10;
 // Misc/quakevr/models_src/widowmaker), where the config still holds the old anchors (takeWidowmakerArt63).
-constexpr int settingsVersion = 63;
+constexpr int settingsVersion = 64;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -645,6 +645,24 @@ void takeNailPistolGrip62()
     Con_DPrintf("Weapon settings: the nail pistol took %d of its new grip, sight and holster values\n", taken);
 }
 
+// 64: the nail pistol's grip is his tuned one (vr_weapons.inc, slot 36: Pitch -6.85, Offset X -0.18, Y 0.57, Z -1.05): a
+// config still holding a key at 62's default takes the new one; a key set otherwise stays.
+void takeNailPistolHis64()
+{
+    constexpr OldValue old[] = {{36, Key::Pitch, -7.f}, {36, Key::OffsetX, 0.f}, {36, Key::OffsetY, 0.6f}, {36, Key::OffsetZ, -1.2f}};
+    int taken = 0;
+    for(const OldValue& o : old)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+            taken++;
+        }
+    }
+    Con_DPrintf("Weapon settings: the nail pistol took %d of his grip values\n", taken);
+}
+
 // 63: the Widowmaker's readout and button anchors on its hand-made model's receiver top (vr_weapons.inc slot 34: 11.4
 // tall there; the model made from AD's 10.4): a config still holding the old anchors takes the new ones.
 void takeWidowmakerArt63()
@@ -689,6 +707,7 @@ constexpr Step steps[] = {
     {61, takeNailPistol61},
     {62, takeNailPistolGrip62},
     {63, takeWidowmakerArt63},
+    {64, takeNailPistolHis64},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

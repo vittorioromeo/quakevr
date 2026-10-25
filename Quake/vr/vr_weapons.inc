@@ -4570,6 +4570,9 @@ QVR_WEAPON_DEFAULT(45, BladeHeadHiZ, "0.2221")
 // level with the aim: vr_gunmodelpitch 7; it was 7 degrees up, the nails 7 degrees under the sights), Shot Pitch 0.28
 // (the nails cross the sight line at 10 m: the sights 4.9 cm over the bore); its own holster poses (the toolgun's
 // poked off the chest): the hip's upright, muzzle down; the chest's across it.
+// vr_wofs_version 64: his tuned grip is the default (62's were Pitch -7, Offset X 0, Y 0.6, Z -1.2): Pitch -6.85, Offset X
+// -0.18, Y 0.57, Z -1.05. Pitch -6.85 leaves the bore 0.15 degrees off the level aim, and with Shot Pitch 0.28 the shot
+// line crosses the sight line near 20 m, within 0.13 degrees of it (62's zeroing was at 10 m).
 QVR_WEAPON_DEFAULT(36, TwoHDisplayMode, "0.0")
 QVR_WEAPON_DEFAULT(36, TwoHFixedHandPitch, "0.0")
 QVR_WEAPON_DEFAULT(36, TwoHFixedHandRoll, "0.0")
@@ -4603,7 +4606,7 @@ QVR_WEAPON_DEFAULT(36, MuzzleAnchor, "11.266 0 3.756")
 QVR_WEAPON_DEFAULT(36, MuzzleOffsetX, "0.0")
 QVR_WEAPON_DEFAULT(36, MuzzleOffsetY, "0.0")
 QVR_WEAPON_DEFAULT(36, MuzzleOffsetZ, "0.0")
-QVR_WEAPON_DEFAULT(36, Pitch, "-7")
+QVR_WEAPON_DEFAULT(36, Pitch, "-6.85")
 QVR_WEAPON_DEFAULT(36, Roll, "0.0")
 QVR_WEAPON_DEFAULT(36, Scale, "0.45")
 QVR_WEAPON_DEFAULT(36, WpnButtonAnchor, "-1.4 1.3 4.6")
@@ -4623,10 +4626,10 @@ QVR_WEAPON_DEFAULT(36, WpnTextY, "0")
 QVR_WEAPON_DEFAULT(36, WpnTextYaw, "0.0")
 QVR_WEAPON_DEFAULT(36, WpnTextZ, "0")
 QVR_WEAPON_DEFAULT(36, WpnTextMode, "0")
-QVR_WEAPON_DEFAULT(36, OffsetX, "0")
-QVR_WEAPON_DEFAULT(36, OffsetY, "0.6")
+QVR_WEAPON_DEFAULT(36, OffsetX, "-0.18")
+QVR_WEAPON_DEFAULT(36, OffsetY, "0.57")
 QVR_WEAPON_DEFAULT(36, Yaw, "0.0")
-QVR_WEAPON_DEFAULT(36, OffsetZ, "-1.2")
+QVR_WEAPON_DEFAULT(36, OffsetZ, "-1.05")
 QVR_WEAPON_DEFAULT(36, ZeroBlend, "0.0")
 QVR_WEAPON_DEFAULT(36, TwoHZeroBlend, "0.0")
 QVR_WEAPON_DEFAULT(36, Heft, "0")

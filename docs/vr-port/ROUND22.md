@@ -21883,3 +21883,11 @@ angle.
 **In VR:** with the nail pistol, aim with the sights at a mark on a wall 5-10 m away, pitched up and down and turned
 well left and right (the old error was worst aimed along the map's axes with some pitch): the nails should strike on the
 sights (at 2 m about 4 cm low, as zeroed) and follow the red laser (Show Controller Laser) from the muzzle.
+
+## Nail pistol: his grip is the default (worktree `fastship`, branch `agent/npdefaults`, 2026-10-25)
+
+Slot 36 (his config names it 37): Pitch -7 to -6.85, Offset X 0 to -0.18, Y 0.6 to 0.57, Z -1.2 to -1.05 (his tuned
+values; Shot Pitch stays 0.28). No off-hand entry of its own. `vr_wofs_version` 64 (`takeNailPistolHis64`,
+vr_weapons.cpp): a key still at 62's default takes the new one, others stay. With Pitch -6.85 the shot line crosses the
+sight line near 20 m, within 0.13 degrees of it. Tests: `vr_np_test 1` 17/0, `vr_np_test 5` 7/0; an old-default config
+migrated, a fresh one gets the new values, tuned keys (-5, 0.9) kept.
