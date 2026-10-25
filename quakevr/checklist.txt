@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [next branch: test these first]
+Spectator camera skipped while the desktop window is minimized/hidden: minimize it and VD's GPU overlay shows the saving (up to ~1.5 ms); restoring shows the camera at once; OBS recording a covered window still works; Recording page: Resolution Scale steps 0.5x-2x
 Model depth pre-pass (GPU): monsters, props, gibs and items draw exactly as before; in a big fight flip Debug > Profiling and Memory > Model Depth Pre-pass with the wrist profiler (vr_profile 2) to see its share; check in VD's overlay that Ultra is 2688x2784 per eye (tell me if not, the GPU benchmark reruns with yours)
 No first-use hitches: in AD Tears and Sepulcher, turning to a new monster kind, walking past a gun on the floor, and the first moment after loading a save don't hitch; monster animation looks exactly as before (Debug > Profiling and Memory > Load Prewarm to compare)
 Perf round: the calibration room's setting-button screens and the hub's SELECTED and Continue screens still update; catching an ogre's grenade still works (its search now only runs while a fuse burns: untested by the mock); AD Sepulcher and Tears load a little faster with the same crates in the same places
