@@ -198,22 +198,135 @@ constexpr ShippedSlot shippedSlots[] = {
     {200, 56}, // the nail pistol's magazine (progs/vr_mag_npistol.mdl): held as the nailgun's
 };
 
+// configVersion 201: a shipped slot that another model had taken (the slots shipped since 1.0.1 were free before, and a
+// model a hand takes claims the first free slot: claimSlot) moves that model to another slot, so that the shipped
+// model, which then had a free slot with the keys' defaults, gets its slot's tuning.
+constexpr int squatterMovedVersion = 201;
+
+// The values a player chose for a model in a slot (each key off its key's default; the ID not): a chosen Grip Mode
+// brings the slot's Grip X..Roll with it (the shipped ones are for the shipped mode).
+struct Chosen
+{
+    za::Array<za::String, numKeys> value;
+    za::Array<bool, numKeys> set{};
+};
+
+[[nodiscard]] Chosen chosenIn(int slot)
+{
+    Chosen c;
+    for(int key = 0; key < numKeys; key++)
+    {
+        c.set[static_cast<za::SizeT>(key)] = key != static_cast<int>(Key::ID) && !atKeyDefault(slot, key);
+        c.value[static_cast<za::SizeT>(key)] = cvarAt(slot, static_cast<Key>(key)).string;
+    }
+    if(c.set[static_cast<za::SizeT>(Key::GripMode)])
+    {
+        for(const Key key : {Key::GripX, Key::GripY, Key::GripZ, Key::GripPitch, Key::GripYaw, Key::GripRoll})
+        {
+            c.set[static_cast<za::SizeT>(key)] = true;
+        }
+    }
+    return c;
+}
+
+// The other slot holding `model` that the menu or a hand gave it (a free slot's defaults; -1: none).
+[[nodiscard]] int otherSlotOf(int shipped, const char* model)
+{
+    for(int other = 0; other < numSlots; other++)
+    {
+        if(other != shipped && !strcmp(cvarAt(other, Key::ID).string, model) && freeId(cvarAt(other, Key::ID).default_string))
+        {
+            return other;
+        }
+    }
+    return -1;
+}
+
+int setChosen(int slot, const Chosen& c)
+{
+    int n = 0;
+    for(int key = 0; key < numKeys; key++)
+    {
+        if(c.set[static_cast<za::SizeT>(key)])
+        {
+            Cvar_SetQuick(&cvarAt(slot, static_cast<Key>(key)), c.value[static_cast<za::SizeT>(key)].cStr());
+            n++;
+        }
+    }
+    return n;
+}
+
+// The shipped slot `s` held by another model: that model and all its settings move to the shipped model's other slot
+// (or the first free one), the shipped slot takes its defaults and the values chosen for its model in that other slot.
+void moveSquatter(const ShippedSlot& s)
+{
+    const za::String model = cvarAt(s.slot, Key::ID).default_string;
+    const za::String squatterModel = cvarAt(s.slot, Key::ID).string;
+    const int other = otherSlotOf(s.slot, model.cStr());
+    int to = other;
+    for(int slot = 0; slot < numSlots && to < 0; slot++)
+    {
+        if(slot != s.slot && freeId(cvarAt(slot, Key::ID).string) && freeId(cvarAt(slot, Key::ID).default_string))
+        {
+            to = slot;
+        }
+    }
+    if(to < 0)
+    {
+        Con_DPrintf("props: slot %d is %s's, no free slot to move it to: %s keeps its settings elsewhere\n", s.slot,
+            squatterModel.cStr(), model.cStr());
+        return;
+    }
+    za::Array<za::String, numKeys> squatter;
+    for(int key = 0; key < numKeys; key++)
+    {
+        squatter[static_cast<za::SizeT>(key)] = cvarAt(s.slot, static_cast<Key>(key)).string;
+    }
+    Chosen chosen;
+    if(other >= 0)
+    {
+        chosen = chosenIn(other);
+    }
+    resetSlot(s.slot);
+    const int kept = setChosen(s.slot, chosen);
+    for(int key = 0; key < numKeys; key++)
+    {
+        Cvar_SetQuick(&cvarAt(to, static_cast<Key>(key)), squatter[static_cast<za::SizeT>(key)].cStr());
+    }
+    Con_DPrintf("props: slot %d's %s moved to slot %d\n", s.slot, squatterModel.cStr(), to);
+    Con_DPrintf("props: slot %d takes %s's defaults, %d values chosen in slot %d\n", s.slot, model.cStr(), kept, other);
+}
+
 } // namespace
 
 void takeShippedSlots(int fromConfigVersion)
 {
     for(const ShippedSlot& s : shippedSlots)
     {
+        cvar_t& id = cvarAt(s.slot, Key::ID);
+        if(!freeId(id.string) && strcmp(id.string, id.default_string) != 0)
+        {
+            // Another model's (claimed by the config): before 201 it was kept there, and the shipped model claimed
+            // another slot with the keys' defaults. (A slot shipped later moves it at its own version.)
+            if(fromConfigVersion < s.version || fromConfigVersion < squatterMovedVersion)
+            {
+                moveSquatter(s);
+            }
+            continue;
+        }
         if(fromConfigVersion >= s.version)
         {
             continue;
         }
-        cvar_t& id = cvarAt(s.slot, Key::ID);
-        if(!freeId(id.string) && strcmp(id.string, id.default_string) != 0)
-        {
-            continue; // another model's (claimed by the config): kept; the shipped one's model claims a free slot as before
-        }
         const za::String model = id.default_string;
+        // The model claimed by another slot before (by a hand or the menu): the values chosen there move here, that
+        // slot freed, so this one is found.
+        const int other = otherSlotOf(s.slot, model.cStr());
+        Chosen chosen;
+        if(other >= 0)
+        {
+            chosen = chosenIn(other);
+        }
         // The slot: each setting the config left at its key's default takes the slot's own (a free slot: all of them).
         for(int key = 0; key < numKeys; key++)
         {
@@ -223,25 +336,13 @@ void takeShippedSlots(int fromConfigVersion)
                 Cvar_SetQuick(&var, var.default_string);
             }
         }
-        // The model claimed by another slot before (by a hand: only its ID set): that slot freed, so this one is found.
-        for(int other = 0; other < numSlots; other++)
+        const int kept = setChosen(s.slot, chosen);
+        if(other >= 0)
         {
-            if(other == s.slot || strcmp(cvarAt(other, Key::ID).string, model.cStr()) != 0 ||
-                !freeId(cvarAt(other, Key::ID).default_string))
-            {
-                continue;
-            }
-            bool untouched = true;
-            for(int key = 0; key < numKeys && untouched; key++)
-            {
-                untouched = key == static_cast<int>(Key::ID) || atKeyDefault(other, key);
-            }
-            if(untouched)
-            {
-                resetSlot(other);
-            }
+            resetSlot(other);
         }
-        Con_DPrintf("props: slot %d (%s) takes its shipped defaults\n", s.slot, model.cStr());
+        Con_DPrintf("props: slot %d (%s) takes its shipped defaults (%d values chosen in slot %d)\n", s.slot, model.cStr(),
+            kept, other);
     }
 }
 

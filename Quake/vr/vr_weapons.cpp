@@ -164,7 +164,9 @@ namespace
 // tip he dragged there (-0.2229 0.2441 0.4977, which also moved its shots) gets the shipped muzzle back (takeShotgunTip60).
 // 63: the Widowmaker's (slot 34) ammo readout and button on its hand-made model's receiver top (z 11.4, was 10;
 // Misc/quakevr/models_src/widowmaker), where the config still holds the old anchors (takeWidowmakerArt63).
-constexpr int settingsVersion = 64;
+// 65: the Widowmaker's (slot 34) tracer colour (54 had put it on the plasma gun's, 35: undone) and stock pitch his
+// (takeWidowmaker65).
+constexpr int settingsVersion = 65;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -475,11 +477,14 @@ void takeAdTuning53()
     Con_DPrintf("Weapon settings: the Widowmaker and the AD swords took %d of the author's values\n", taken);
 }
 
-// 54: the tracer in its own colour on slot 35 (his config of 2026-10-19; vr_wofs_fx_tr_owncol_35): taken where the config
-// still holds the old default, 0.
+// The vr_wofs_version the config had before migrate() ran (a step that undoes an older one's mistake asks it).
+float migratedFrom = 0.f;
+
+// 54: the tracer in its own colour on the Widowmaker (his config of 2026-10-19; vr_wofs_fx_tr_owncol_35, index 34): taken
+// where the config still holds the old default, 0. (Until 65 this step took index 35, the plasma gun: takeWidowmaker65.)
 void takeTracerOwnColour54()
 {
-    cvar_t& var = cvarAt(35, Key::TracerOwnColour);
+    cvar_t& var = cvarAt(34, Key::TracerOwnColour);
     if(fabsf(var.value) < 1e-4f)
     {
         Cvar_SetQuick(&var, var.default_string);
@@ -677,6 +682,33 @@ void takeWidowmakerArt63()
     }
 }
 
+// 65: the Widowmaker (index 34) its tracer in its own colour, as 54 meant, and his stock pitch 5.95 (his config of
+// 2026-10-25), each taken where the config still holds the old default, 0. And a config that ran the old 54 (saved at 54
+// or later) has the plasma gun's (index 35) own colour at the 1 that 54 shipped there by mistake: back to 0 (its default
+// again). A 1 there is only the mistake's: before 54 its default was 0, and 54 took only a 0, so a 1 a player set before
+// 54 is the same 1 (it does nothing: the plasma gun fires no hitscan). A config older than 54 runs the fixed 54 instead.
+void takeWidowmaker65()
+{
+    int taken = 0;
+    for(const Key key : {Key::TracerOwnColour, Key::StockPitch})
+    {
+        cvar_t& var = cvarAt(34, key);
+        if(fabsf(var.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+            taken++;
+        }
+    }
+    cvar_t& plasma = cvarAt(35, Key::TracerOwnColour);
+    const bool undone = migratedFrom >= 54.f && fabsf(plasma.value - 1.f) < 1e-4f;
+    if(undone)
+    {
+        Cvar_SetQuick(&plasma, plasma.default_string);
+    }
+    Con_DPrintf("Weapon settings: the Widowmaker took %d of his values%s\n", taken,
+        undone ? ", the plasma gun its tracer colour back" : "");
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -708,6 +740,7 @@ constexpr Step steps[] = {
     {62, takeNailPistolGrip62},
     {63, takeWidowmakerArt63},
     {64, takeNailPistolHis64},
+    {65, takeWidowmaker65},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
@@ -718,6 +751,7 @@ void migrate()
     {
         return;
     }
+    migratedFrom = vr_wofs_version.value;
     for(const Step& step : steps)
     {
         if(vr_wofs_version.value < static_cast<float>(step.version))

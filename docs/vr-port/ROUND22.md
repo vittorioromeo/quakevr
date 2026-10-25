@@ -21977,3 +21977,37 @@ values; Shot Pitch stays 0.28). No off-hand entry of its own. `vr_wofs_version` 
 vr_weapons.cpp): a key still at 62's default takes the new one, others stay. With Pitch -6.85 the shot line crosses the
 sight line near 20 m, within 0.13 degrees of it. Tests: `vr_np_test 1` 17/0, `vr_np_test 5` 7/0; an old-default config
 migrated, a fresh one gets the new values, tuned keys (-5, 0.9) kept.
+
+## Cvar audit fixes: the Widowmaker's tracer and stock, the magazine's prop slot (worktree `dequant`, branch `agent/auditfix`, 2026-10-25)
+
+From the cvar audit (qvr-kit `scratch/cvar_audit.md`, A1.1, A1.2, B1).
+
+- **The Widowmaker's tracer colour** (his `vr_wofs_fx_tr_owncol_35` 1, 10-19) had shipped on index 35 (cvars `_36`, the
+  AD Plasma Gun) at `vr_wofs_version` 54: the Widowmaker (index 34, cvars `_35`) kept 0. Now `QVR_WEAPON_DEFAULT(34,
+  TracerOwnColour, "1")`, the plasma gun's back to 0. Step 54 itself now takes index 34 (for configs older than 54).
+- **His Widowmaker stock pitch** 5.95 (`vr_wofs_stock_pitch_35`, his config of 10-25; AD weapon offsets rule) is the
+  default. Step 63's anchors are other keys: no overlap.
+- **`vr_wofs_version` 65** (`takeWidowmaker65`): index 34's tracer colour and stock pitch where the config still holds 0;
+  the plasma gun's colour 1 -> 0 only for a config that ran the old 54 (version 54 or later before migrating: the 1 is
+  then 54's; a 1 set before 54 stays). A plasma 1 set after 54 can't be told from 54's, and does nothing (no hitscan).
+- **Prop slots** are a model's by its `vr_prop_id_NN`: a model a hand takes claims the first free slot (claimSlot), a
+  shipped prop's slot is fixed (vr_props.inc). Slots `_33`, `_57`-`_60`, `_63`, `_65` were free in 1.0.1, so a player
+  could already have another model there when the magazine shipped at `_57` (configVersion 200): it was kept, and the
+  magazine claimed a free slot with the keys' defaults (his config: `_57` the hunter ogre's head, the magazine at `_69`).
+  **configVersion 201** (`props::takeShippedSlots`): a shipped slot held by another model moves that model, all its
+  settings, to the slot the shipped model had claimed (else the first free one); the shipped slot takes its defaults and
+  the values chosen for its model there (each key off its key's default; a chosen Grip Mode brings its Grip X..Roll, as
+  the shipped ones are for Grip Mode 1). The same merge for the older path (a shipped slot free before its version, the
+  model in another slot): its chosen values move over, that slot freed (it was kept before when tuned). A shipped slot
+  added later moves a squatter at its own version.
+- His config after it: `_57` the magazine, his size 0.55, grip 2 (palm), handle tilt 30.5, with the shipped mass 0.25,
+  one hand, throw damage 0.25, overlap 0.385 (grip X..Z his 0: his Grip Mode); the ogre's head at `_69`, unchanged. His
+  `_63`/`_65` hold their shipped models: nothing to move.
+
+Checked (headless; scripts `scratch/auditfix_test.sh` + `auditfix_check.py`, `auditfix_ad.sh`): synthetic configs 54/0
+(fresh; old defaults 64; a chosen stock pitch 3 kept; his values at 62; a plasma 1 at 50 kept; his `_57`/`_69`; a beta3
+config 199 with a tuned ogre head (mass 3) and a magazine with a chosen grip X; a squatter with no magazine slot (moved
+to `_33`); a free `_57` with the magazine's size 0.6 elsewhere (merged, the other slot freed); a 201 config untouched).
+`vr_ad_test 148` PASS (16 of 16), `149` 11/11 (with `vr_weapon_grip_mode 1`), `vr_np_test 1` 17/0, eval.sh 0 differ.
+
+Not done: his magazine values (size 0.55, grip 2, handle tilt 30.5) stay his, not the defaults (he hasn't said so).

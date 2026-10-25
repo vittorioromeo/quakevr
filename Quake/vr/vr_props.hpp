@@ -33,7 +33,8 @@ enum class Key : int
 
 void registerCvars();
 // A config saved before configVersion `fromConfigVersion` (vr_cvars.cpp migrateConfig): the slots given shipped defaults
-// since take them, when free or already their model's (vr_props.cpp shippedSlots).
+// since take them (vr_props.cpp shippedSlots), with the values a player chose for the model in another slot; a slot
+// another model had taken moves that model to another slot (configVersion 201).
 void takeShippedSlots(int fromConfigVersion);
 [[nodiscard]] int slotsUsed(); // the slots holding a model's settings (vr_limits)
 

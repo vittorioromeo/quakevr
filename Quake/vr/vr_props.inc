@@ -377,7 +377,7 @@ QVR_PROP_DEFAULT(52, GripZ, "-3.73")
 QVR_PROP_DEFAULT(52, Overlap, "0.4")
 // The nail pistol's magazine (make_nailpistol_mags.py; QC vr_nailpistol.qc): held as the nailgun's, a little smaller (the
 // pistol's Scale 0.45 to its Size 0.52, as the nailgun's 0.48 to 0.55) and lighter. configVersion 200 gives the slot to
-// configs saved before (vr_props.cpp shippedSlots).
+// configs saved before (vr_props.cpp shippedSlots); 201 to those where another model had taken it (that model moves).
 QVR_PROP_DEFAULT(56, ID, "progs/vr_mag_npistol.mdl")
 QVR_PROP_DEFAULT(56, Mass, "0.25")
 QVR_PROP_DEFAULT(56, TwoHands, "0")
