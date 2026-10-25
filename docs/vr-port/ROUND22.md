@@ -22181,3 +22181,43 @@ to both hands the same way, a higher one aims lower). At 17 the migrated 60 / 30
 -61.12, off -60.06). Configs at 7 are untouched. Tests: synthetic 202 configs (7: 70 / 40.25 unchanged; 17: 60 / 30.25, 7),
 `vr_np_test 5` PASS, `menu_vr links` 40 links, 0 failed, `vr_menu_path_check maps/vrcalibration.map` 0 missing, eval.sh no
 verdict changes.
+
+## Glowing specks, part 3: Model Warp's half-texel shift (worktree `release`, branch `agent/ssgtex3`, 2026-10-25)
+
+The player's whole config (`report_player_ironwail.cfg`, configVersion 165) replayed headless as the game config
+reproduces the report: the shotgun and the super shotgun held close at a grazing angle, in a dark spot of e1m1 and in
+start, have red, orange and white specks over their far ends, rails and barrel tops. Stripped for the mock: `vid_*`
+window/mode lines and `vid_restart` (`vid_fsaa`/`vid_fsaamode` 0 kept), `joy_device`, `vr_note_device`, `vr_xr_runtime*`,
+`vr_xr_panel`. Eye images 1800 px at their `vr_render_scale` 0.6.
+
+- **The setting: `r_softemu_mdl_warp 1`** (Ironwail's Model Warp, software Quake's affine skin mapping forced on; the
+  default -1 leaves it to `r_softemu`). Bisected over the 574 cvars set differently from the defaults
+  (`scratch/bisect.py`, the speck count in the gun's area): reverting it alone takes the shotgun from 2224 to 0 specks
+  (what stays is the sights' pink, `vr_sight_hue`). Not the texture mode, anisotropy, LOD bias, overbright models or
+  r_lerpmodels: with Model Warp on every gl_texturemode had them (nearest modes 2067 / 2912 on the shotgun / super
+  shotgun; linear ones 848 / 2056, blended in half).
+- **The mechanism**: in that mode the alias fragment shader (`gl_shaders.h`, `ALIASSHADER_NOPERSP`) moved the skin
+  coordinate back half a texel (`uv -= 0.5 / size`), undoing `gl_mesh.c`'s `+ 0.5` so the samples land on the software
+  renderer's texel corners. Quake VR's guns map most faces to a line or a point of the skin (`scratch/uvdegen.py`: the
+  shotgun 1021 of its 1576 triangles, 480 of them along a row or column of fullbright texels; the super shotgun 255,
+  198), so every sample sat exactly on a texel boundary and rounding read the texels on either side: the glow strips
+  packed next to them (muzzle flash, sight gradient) drew as fullbright specks. id's guns and the other Quake VR ones
+  (nailguns, launchers, lightning gun: 0 such triangles) were unaffected.
+- **The fix**: no shift; the skin is read at the texel centres the vertices are on, as the standard path reads it.
+  Model Warp keeps its affine warp and its unfiltered level-0 look; against software Quake the texel grid moves half a
+  texel (not visible). Considered and not done: keeping the shift a hair short of half a texel in nearest modes
+  (software-exact) and none in linear ones: it needs the skin's filter per surface in the shader, for no visible gain.
+
+Checked (`scratch/sweepall.sh`, every gun and four monsters, player config unless noted; specks shotgun / super shotgun
+before -> after): e1m1 2067 / 2912 -> 44 / 71 (the sights), start 3217 / 4137 -> 249 / 501 (start's lit floor in the
+box), GL_NEAREST same as e1m1, GL_LINEAR_MIPMAP_LINEAR 848 / 2056 -> 59 / 75; defaults and `r_softemu 3` unchanged.
+Nailguns, launchers, lightning gun, grunt, ogre, knight, enforcer: no change. Images: `scratch/ssgtex3_e1m1_before_after.png`,
+`scratch/ssgtex3_start_before_after.png` (shotgun before, after, super shotgun before, after). eval.sh: 163/171, no
+verdict changes (PASS -> PASS, 0.1 damage).
+
+Workaround for the released version: Model Warp off (`r_softemu_mdl_warp 0`, or -1, in Ironwail's Graphics menu or the
+console).
+
+**In VR:**
+- [ ] Model Warp on (`r_softemu_mdl_warp 1`): the shotgun and super shotgun held close and level with your eye show no
+  red or orange specks, in GL_NEAREST_MIPMAP_LINEAR and a linear texture mode.
