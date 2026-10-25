@@ -1,8 +1,8 @@
 #pragma once
 
-// vr_menu_internal.hpp -- what vr_menu.cpp (see vr_menu.hpp) shares with its page groups: vr_menu_pages_debug.cpp,
-// vr_menu_pages_gameplay.cpp and vr_menu_pages_settings.cpp (each a list of vr_menu_*.inc files; split for the build's
-// speed: one file was the build's long pole). Internal: included by those alone. What was the file's anonymous
+// vr_menu_internal.hpp -- what vr_menu.cpp (see vr_menu.hpp) shares with its page groups, vr_menu_pages_*.cpp: debug,
+// gameplay, body, physics, settings, vrsettings and props (each a list of vr_menu_*.inc files; split for the build's
+// speed: one file was the build's long pole, then two of its parts). Internal: included by those alone. What was the file's anonymous
 // namespace is namespace menu_detail (each file's own names in it too, none repeated): its types here, its variables
 // and the functions another file uses declared here and defined in the file that has them.
 
@@ -661,6 +661,7 @@ extern int weaponOffsetsSlot;
 extern bool weaponOffsetsStale;
 void weightPageShown(PageBuilder build);
 [[nodiscard]] bool weightPageStale(PageBuilder build);
+[[nodiscard]] const char* weightReadout(int hand);
 // (the Retro Textures pages' template, below)
 [[nodiscard]] za::Vector<Item> retroCategoryItems(retro::Category c, void (*reset)());
 [[nodiscard]] bool resetAllIsArmed();
