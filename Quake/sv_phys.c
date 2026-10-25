@@ -107,10 +107,24 @@ void SV_CheckVelocity (edict_t *ent)
 			Con_Printf ("Got a NaN origin on %s\n", PR_GetString(ent->v.classname));
 			ent->v.origin[i] = 0;
 		}
+		// QVR: a missile (MOVETYPE_FLYMISSILE: a nail, a bolt) is bounded below, its direction kept: clamped an axis at a
+		// time, one flying faster than sv_maxvelocity along an axis was turned off its aim (the nail pistol's 2600 u/s
+		// nails, aimed along a world axis, went up to 3.9 degrees off the sights: docs/vr-port/ROUND22.md, "Nail pistol
+		// shot angle").
+		if ((int)ent->v.movetype == MOVETYPE_FLYMISSILE)
+			continue;
 		if (ent->v.velocity[i] > sv_maxvelocity.value)
 			ent->v.velocity[i] = sv_maxvelocity.value;
 		else if (ent->v.velocity[i] < -sv_maxvelocity.value)
 			ent->v.velocity[i] = -sv_maxvelocity.value;
+	}
+	if ((int)ent->v.movetype == MOVETYPE_FLYMISSILE)
+	{
+		// No faster than the axis-at-a-time bound ever let anything go (sv_maxvelocity along all three axes at once).
+		const float top = sv_maxvelocity.value * 1.7320508f;
+		const float speed = VectorLength (ent->v.velocity);
+		if (speed > top && top > 0.f)
+			VectorScale (ent->v.velocity, top / speed, ent->v.velocity);
 	}
 }
 

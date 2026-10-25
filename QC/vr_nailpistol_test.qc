@@ -156,9 +156,148 @@ float(entity g) VR_NPT_Spikes =
     return c;
 };
 
+// ----------------------------------------------------------------------------
+// vr_np_test 5: its aim. Each case: a pose of the mock hand, the pose settled (its shot line unchanged three frames), a
+// shot; "npaim: PASS|FAIL" for the nail's launch off the shot line (the red laser) and its impact off it (from where it
+// left), at most 0.2 degrees (spread 0 meanwhile); the run ends on "npaim: N passed, M failed".
+//   0-2 a sight picture (the eye behind the sights, level), a target 128, 384 and 768 units ahead; 3-5 pitched, turned,
+//   rolled 45 and 90 (at the wall); 6 the off hand's. Its flight is the nail's velocity as it struck (after the
+//   physics' bound: sv_maxvelocity once bent a 2600 u/s nail along an axis by up to 3.9 degrees).
+float vr_npa_on; // running
+float vr_npa_case, vr_npa_sub, vr_npa_frames, vr_npa_still, vr_npa_seen;
+float vr_npa_spread, vr_npa_grip; // the settings before
+vector vr_npa_rot;    // the shot line's angles last frame
+float vr_npa_offhand; // this case fires the off hand's
+const float VR_NPA_CASES = 7;
+
+string(float c) VR_NPA_Pose =
+{
+    if(c <= 2) return "vr_mock_hand main 0.03 1.69 -0.20 70 0 0";
+    if(c == 3) return "vr_mock_hand main 0.15 1.5 -0.35 80 10 0";
+    if(c == 4) return "vr_mock_hand main 0.15 1.5 -0.35 70 0 45";
+    if(c == 5) return "vr_mock_hand main 0.15 1.5 -0.35 60 -15 90";
+    return "vr_mock_hand off -0.15 1.5 -0.35 75 5 -30";
+};
+
+void() VR_NPA_End =
+{
+    VR_NPT_Trigger(0);
+    localcmd("-offhandattack\n");
+    if(vr_np_target) { remove(vr_np_target); vr_np_target = world; }
+    cvar_set("vr_nailpistol_spread", ftos(vr_npa_spread));
+    cvar_set("vr_weapon_grip_mode", ftos(vr_npa_grip));
+    VR_NPT_Freeze(FALSE);
+    dprint(sprintf("npaim: %g passed, %g failed\n", vr_npt_pass, vr_npt_fail));
+    vr_npa_on = FALSE;
+};
+
+void() VR_NPA_Frame =
+{
+    entity p = vr_npt_player;
+    vr_npa_frames++;
+    if(vr_npa_frames > 400)
+    {
+        VR_NPT_Check(FALSE, sprintf("case %g timed out (step %g)", vr_npa_case, vr_npa_sub));
+        VR_NPA_End();
+        return;
+    }
+    if(vr_npa_sub == 0)
+    {
+        vr_npa_offhand = vr_npa_case == 6;
+        localcmd(strcat(VR_NPA_Pose(vr_npa_case), "\n"));
+        if(vr_np_target) { remove(vr_np_target); vr_np_target = world; }
+        vr_npa_still = 0;
+        vr_npa_rot = '0 0 0';
+        vr_npa_sub = 1;
+        vr_npa_frames = 0;
+        return;
+    }
+    if(vr_npa_sub == 1)
+    {
+        // Settled: its shot line the same three frames running (and on the ground).
+        vector r = vr_npa_offhand ? p.offshotrot : p.shotrot;
+        vr_npa_still = (r == vr_npa_rot && (p.flags & FL_ONGROUND)) ? vr_npa_still + 1 : 0;
+        vr_npa_rot = r;
+        if(vr_npa_still < 3) return;
+        if(vr_npa_case <= 2)
+        {
+            entity os = self;
+            self = p;
+            VR_NPT_Target(vr_npa_case == 0 ? 128 : (vr_npa_case == 1 ? 384 : 768));
+            self = os;
+        }
+        vr_npa_sub = 2;
+        vr_npa_frames = 0;
+        return;
+    }
+    if(vr_npa_sub == 2)
+    {
+        if(vr_npa_offhand) localcmd("+offhandattack\n"); else VR_NPT_Trigger(1);
+        vr_npa_seen = vr_np_shots;
+        vr_npa_sub = 3;
+        return;
+    }
+    if(vr_npa_sub == 3)
+    {
+        if(vr_np_shots <= vr_npa_seen) return;
+        if(vr_npa_offhand) localcmd("-offhandattack\n"); else VR_NPT_Trigger(0);
+        vr_npa_sub = 4;
+        return;
+    }
+    if(vr_npa_sub == 4)
+    {
+        if(!vr_np_lasthitat) return;
+        float flight = VR_DegreesBetween(vr_np_lasthitvel, vr_np_lastfwd);
+        float d = vlen(vr_np_lasthit - vr_np_lastfrom);
+        float hit = VR_DegreesBetween(vr_np_lasthit - vr_np_lastfrom, vr_np_lastfwd);
+        string what = sprintf("case %g: flight %g deg off the shot line, impact %g deg (%g units off) at %g units (%g u/s)",
+            vr_npa_case, flight, hit, d * sin(hit * 0.0174533), d, vlen(vr_np_lasthitvel));
+        VR_NPT_Check(flight <= 0.2 && hit <= 0.2, what);
+        vr_npa_case++;
+        vr_npa_sub = 0;
+        vr_npa_frames = 0;
+        if(vr_npa_case >= VR_NPA_CASES) VR_NPA_End();
+    }
+};
+
 void() VR_NailPistol_TestFrame =
 {
+    if(vr_npa_on && cvar("vr_np_test") != 5)
+    {
+        entity osa = self;
+        self = vr_npt_player;
+        VR_NPA_Frame();
+        self = osa;
+        return;
+    }
     float req = cvar("vr_np_test");
+    if(req == 5)
+    {
+        cvar_set("vr_np_test", "0");
+        vr_npt_player = find(world, classname, "player");
+        if(!vr_npt_player) { dprint("npaim: no player\n"); return; }
+        entity os5 = self;
+        self = vr_npt_player;
+        VR_WeaponUtil_EntAddWeapon(self, WID_NAILPISTOL);
+        VRGiveEntWeapon(self, cVR_MainHand, WID_NAILPISTOL, 0, VR_NailPistol_MagSize());
+        W_SetCurrentAmmoFor(cVR_MainHand);
+        VRGiveEntWeapon(self, cVR_OffHand, WID_NAILPISTOL, 0, VR_NailPistol_MagSize());
+        W_SetCurrentAmmoFor(cVR_OffHand);
+        self.ammo_nails = max(self.ammo_nails, 48);
+        self.flags = self.flags | FL_NOTARGET;
+        self = os5;
+        vr_npt_pass = vr_npt_fail = 0;
+        vr_npa_spread = cvar("vr_nailpistol_spread");
+        vr_npa_grip = cvar("vr_weapon_grip_mode");
+        cvar_set("vr_nailpistol_spread", "0");
+        cvar_set("vr_weapon_grip_mode", "1");
+        VR_NPT_Freeze(TRUE);
+        vr_npa_case = 0;
+        vr_npa_on = TRUE;
+        vr_npa_sub = 0;
+        vr_npa_frames = 0;
+        return;
+    }
     if(req)
     {
         cvar_set("vr_np_test", "0");

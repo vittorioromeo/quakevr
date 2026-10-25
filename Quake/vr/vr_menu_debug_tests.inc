@@ -993,6 +993,10 @@ za::Vector<Item> pageDebugTests()
             .help("A loaded nail pistol in the right hip and the right upper holster (replacing what was there)."),
         command("Nail Pistol Self-Test", "vr_np_test 1")
             .help("Headless checks: semi-automatic, the cooldown, 12 hits and a dry 13th, the slide, the magazine cycle, two headshots or three body shots a grunt, armed grunts firing one and a pair (\"nptest: N passed, M failed\")."),
+        command("Nail Pistol Aim Test", "vr_np_test 5")
+            .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "
+                  "0.2 degrees, at several poses and distances, both hands (\"npaim: N passed, M failed\"). In the headset: "
+                  "Developer Shots (vr_debug_shots 1) prints each nail's angle off the shot line and what it carried."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")

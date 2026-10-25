@@ -32,6 +32,10 @@ float vr_np_dry;        // dry clicks (tests)
 float vr_np_hits;       // nails into vr_np_target (tests)
 float vr_np_lastfactor; // the last nail's hit part's factor (tests)
 entity vr_np_target;
+entity vr_np_lastnail;  // a player's last nail (tests: vr_np_test 5's aim)
+vector vr_np_lastfrom, vr_np_lastfwd; // where it left from, and the shot line then (the red laser's way)
+vector vr_np_lasthit, vr_np_lasthitvel; // where it struck, flying how
+float vr_np_lasthitat;  // and when (0 not yet)
 #ifdef QVR_TESTS
 void() VR_NailPistol_TestFrame; // (vr_nailpistol_test.qc)
 #endif
@@ -74,6 +78,12 @@ void() VR_NailPistol_SpikeTouch =
         return;
     if(other.solid == SOLID_TRIGGER)
         return;
+    if(self == vr_np_lastnail)
+    {
+        vr_np_lasthit = self.origin;
+        vr_np_lasthitvel = self.velocity;
+        vr_np_lasthitat = time;
+    }
     if(pointcontents(self.origin) == CONTENT_SKY)
     {
         remove(self);
@@ -111,6 +121,15 @@ void() VR_NailPistol_SpikeTouch =
     remove(self);
 };
 
+// The angle between two directions (any lengths), in degrees.
+float(vector a, vector b) VR_DegreesBetween =
+{
+    a = normalize(a);
+    b = normalize(b);
+    float c = a * b;
+    return atan2(vlen(a - b * c), c) * 57.29578;
+};
+
 // Its shot from `xHand` of self (a player, or an armed grunt: vr_armedgrunt.qc): a nail of its magazine (its clip;
 // without reloading, your nails), fast and nearly straight; its punch, flash, kick, buzz and smoke.
 void(float xHand) W_FireNailPistol =
@@ -133,7 +152,8 @@ void(float xHand) W_FireNailPistol =
     VR_ShotLaunched(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     newmis.touch = VR_NailPistol_SpikeTouch;
     newmis.velocity = dir * max(100, cvar_hget(cvarh_vr_nailpistol_speed));
-    newmis.velocity += vrProjectileVelocity(xHand, 1.0);
+    vector carried = vrProjectileVelocity(xHand, 1.0); // (the hand's and yours, as the other projectiles')
+    newmis.velocity += carried;
     VR_Burn_NailLaunched(newmis); // VR: through a torch's flame, a lava nail (vr_burning.qc)
 
     self.effects = self.effects | EF_MUZZLEFLASH;
@@ -165,11 +185,20 @@ void(float xHand) W_FireNailPistol =
         }
         VRSetWeaponFrame(xHand, 1);
         vr_np_shots++;
+        vr_np_lastnail = newmis;
+        vr_np_lastfrom = newmis.origin;
+        vr_np_lastfwd = VRGetWeaponFireRotFwd(xHand);
+        vr_np_lasthitat = 0;
     }
     if(cvar_hget(cvarh_vr_debug_shots))
     {
         dprint(sprintf("nailpistol: hand %g fired from %v at %v, %g left\n", xHand, VRGetMuzzlePos(xHand),
             newmis.velocity, getCurrentAmmoOrClip(xHand)));
+        // How far off the shot line (the red laser) it left, and what of that the carried velocity made.
+        vector fwd = VRGetWeaponFireRotFwd(xHand);
+        dprint(sprintf("nailpistol: off the shot line %g deg (spread %g deg); carried %v (hand %v m/s, you %v)\n",
+            VR_DegreesBetween(newmis.velocity, fwd), VR_DegreesBetween(dir, fwd), carried, VRGetHandVel(xHand),
+            self.velocity));
     }
 };
 
