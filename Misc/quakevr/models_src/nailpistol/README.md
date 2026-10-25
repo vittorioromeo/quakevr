@@ -13,7 +13,7 @@ agreed changes (separate magazine, iron sights, separate slide, thicker guard an
 | `nailpistol_skin_pal.png` | The same skin as palette indices (8-bit, Quake's palette), written by every export: what the MDLs hold. |
 | `export_mdl.py` | Writes the MDLs from the .blend (below). |
 | `build_nailpistol.py` | Makes the .blend from nothing (shapes, UVs, a procedurally painted skin) and exports. It **overwrites** the .blend and the skin: once they are edited by hand, don't run it. |
-| `renders/` | Blender renders (front-left, side, the magazine), the scale against the nailgun and shotgun, an in-game screenshot. |
+| `renders/` | Blender renders (front-left, side, the magazine), the scale against the nailgun and shotgun, an in-game screenshot, the trigger guard beside the mockup's (`guard_vs_mockup.png`). |
 
 Triangles: `v_nailpistol.mdl` 489 (Body, Slide, Trigger), `v_nailpistol_mag.mdl` 104. Skin 256x256 (v_nail.mdl's is
 512x128), one skin for all three models.
