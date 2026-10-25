@@ -17,6 +17,7 @@ sound played by a constructed name may list only its table.
 | Files | Length | How made | For | Used (file:function) | Cvar |
 |---|---|---|---|---|---|
 | `vr/widowmaker_shot.wav` | 0.62 s | hand-edited by the author (2026-10-19) from `make_adweapon_sounds.py`'s output: do not regenerate | Arcane Dimensions Widowmaker Gatling shot (auto shotgun punch, bolt clacks) | vr_ad_bridge.qc:AD_WorldSpawn; vr_ad_bridge.qc:AD_FireWidowmaker |  |
+| `vr/nailpistol_shot.wav` | 0.32 s | synthesised: `Misc/quakevr/make_nailpistol_sounds.py` (noise crack, falling-sine thump, two slide clacks; fixed seed) | the nail pistol's shot, played over id's `weapons/spike2.wav` pitched to 135% | vr_nailpistol.qc:VR_NailPistol_Precache; vr_nailpistol.qc:W_FireNailPistol | `vr_nailpistol_volume` |
 | `vr/xbow_bolt_in.wav` | 0.45 s | hand-edited by the author (2026-10-19) from `make_adweapon_sounds.py`'s output: do not regenerate | AD crossbow's next bolt morphing into its groove | vr_adcrossbow.cpp:file scope | `vr_adgun_crossbow_bolt_sound` |
 | `vr/burst1.wav`, `vr/burst2.wav`, `vr/burst3.wav` | 0.50 s | downloaded: OpenGameArt, The Free Firearm Sound Library (Jaszczak, Nelson, Heras, Nanney), CC0, `AK-47/C_31P.wav`, cut by `make_burst_sounds.py` (burst3 = burst2 5% slower) | the grunts' burst rifle rounds | vr_enemyguns.qc:VR_EnemyGuns_Precache; vr_enemyguns.qc:VR_BurstSound |  |
 | `vr/headshot.wav` | 0.42 s | synthesised: `Misc/quakevr/make_sounds.py` | headshot confirmation tick | weapons.qc:PositionalHeadshotFeedback; world.qc:worldspawn | `vr_headshot_sound` |

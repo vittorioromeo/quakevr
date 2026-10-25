@@ -3579,6 +3579,12 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     {
         return;
     }
+    // The nail pistol: semi-automatic, a shot (or its dry click) a pull (vr_nailpistol.qc).
+    if(xWeapon == WID_NAILPISTOL)
+    {
+        VR_NailPistol_Attack(xHand, xAttackFinished, xOutAttackFinished);
+        return;
+    }
 
     // A grunt's shotgun or an enforcer's rifle: from its own ammo, its clip (vr_enemyguns.qc).
     if(VR_IsEnemyGun(xWeapon))
@@ -3835,7 +3841,14 @@ void() W_ChangeWeapon =
     }
     else if(self.impulse == 4)
     {
+        // VR: the nails' slot holds the nailgun and the nail pistol (vr_nailpistol.qc): 4 again toggles them, as
+        // Hipnotic's 6 the grenade launcher and the proximity gun; the one you have when you have one only.
         wid = WID_NAILGUN;
+        if(VR_ItemUtil_EntHasItem(self, IID_NAILPISTOL) &&
+           (self.weapon == WID_NAILGUN || !VR_ItemUtil_EntHasItem(self, IID_NAILGUN)))
+        {
+            wid = WID_NAILPISTOL;
+        }
         if(VR_AmmoUtil_GetAmmoCountByAmmoId(self, AID_NAILS) < 1) { am = 1; }
     }
     else if(self.impulse == 5)
@@ -3958,6 +3971,7 @@ void() CheatCommand =
     VR_WeaponUtil_EntAddWeapon(self, WID_LASER_CANNON);
     VR_WeaponUtil_EntAddWeapon(self, WID_MJOLNIR);
     VR_WeaponUtil_EntAddWeapon(self, WID_PROXIMITY_GUN);
+    VR_WeaponUtil_EntAddWeapon(self, WID_NAILPISTOL); // VR: the nail pistol (vr_nailpistol.qc)
 
     VR_ItemUtil_EntAddItem(self, IID_KEY1);
     VR_ItemUtil_EntAddItem(self, IID_KEY2);
@@ -3977,7 +3991,7 @@ float(entity xPlayer, float xDir, float xWeapon,
     if(VR_FlatPlay(xPlayer)) { minWeapon = WID_FIST; }
 
     // Just for safety.
-    float maxIterations = maxWeapon + 1;
+    float maxIterations = maxWeapon + 2; // (the nail pistol too)
 
     float skipEmptyWeapons = FALSE;
 
@@ -3989,10 +4003,10 @@ float(entity xPlayer, float xDir, float xWeapon,
     for(float iterations = 0; iterations < maxIterations; ++iterations)
     {
 
-        xWeapon = xWeapon + xDir;
+        xWeapon = VR_NailPistol_CycleStep(xWeapon, xDir); // (+ xDir; the nail pistol before the nailgun)
 
-        if(xWeapon > maxWeapon)      { xWeapon = minWeapon; }
-        else if(xWeapon < minWeapon) { xWeapon = maxWeapon; }
+        if(xWeapon > maxWeapon && xWeapon != WID_NAILPISTOL) { xWeapon = minWeapon; }
+        else if(xWeapon < minWeapon)                         { xWeapon = maxWeapon; }
 
         // If we get to the original weapon after cycling, break.
         if(xWeapon == originalWeapon)

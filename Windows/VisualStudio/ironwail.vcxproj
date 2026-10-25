@@ -331,7 +331,8 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
        engine code with an old progs.dat. Skipped when progs.dat is newer than every QC source; skipped with a warning
        when the compiler is missing (override its path with /p:QvrQcCompiler=...). A QC error fails the build. -->
   <PropertyGroup>
-    <QvrQcCompiler Condition="'$(QvrQcCompiler)'==''">C:\OHWorkspace\quakevr\QC\fteqcc64.exe</QvrQcCompiler>
+    <!-- The repo's own FTEQCC (Tools/fteqcc/README.md: speed-patched, byte-identical output). -->
+    <QvrQcCompiler Condition="'$(QvrQcCompiler)'==''">$(MSBuildProjectDirectory)\..\..\Tools\fteqcc\fteqcc64.exe</QvrQcCompiler>
     <QvrQcDir>$(MSBuildProjectDirectory)\..\..\QC</QvrQcDir>
     <QvrProgsDat>$(MSBuildProjectDirectory)\..\..\quakevr\progs.dat</QvrProgsDat>
   </PropertyGroup>

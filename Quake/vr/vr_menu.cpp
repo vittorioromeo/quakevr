@@ -1820,6 +1820,7 @@ const Page pages[] = {
     {"Reloading - Nailgun", pageReloadNailgun, pageReloading},
     {"Reloading - Super Nailgun", pageReloadSuperNailgun, pageReloading},
     {"Reloading - Thunderbolt", pageReloadThunderbolt, pageReloading},
+    {"Reloading - Nail Pistol", pageReloadNailPistol, pageReloading},
     {"Reloading - Launchers", pageReloadLaunchers, pageReloading},
     {"Reloading - Widowmaker", pageReloadWidowmaker, pageReloading},  // AD support
     {"Reloading - Plasma Gun", pageReloadPlasmaGun, pageReloading},   // AD support
