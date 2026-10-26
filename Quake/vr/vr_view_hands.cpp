@@ -429,7 +429,7 @@ constexpr float triggerPull[handrig::jointsPerFinger] = {0.6f, 1.4f, 1.2f};
 // the palm model's origin is drawn), placing `ve` there if given.
 glm::mat4 rigPlacement(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, view::ViewEntity* ve)
 {
-    qmodel_t* const model = viewModel(handrig::modelName);
+    qmodel_t* const model = viewModel(handrig::modelName());
     const weapons::ModelTransform t = weapons::modelTransform(model);
     const float k = t.active ? t.k : 1.f;
     const glm::vec3 ts = t.active ? t.scale : glm::vec3{1.f};
@@ -455,7 +455,7 @@ void alignChannel(int hand, bool mirrored, const glm::vec3& on, const glm::vec3&
 {
     glm::vec3 cp, cd;
     float radius;
-    if(!handrig::usable(viewModel(handrig::modelName)))
+    if(!handrig::usable(viewModel(handrig::modelName())))
     {
         return;
     }
@@ -568,7 +568,7 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
     const float u = 0.01f * units::metresToUnits();
     const float margin = za::clamp(vr_hand_collide_props_margin.value, 0.f, 10.f) * u;
     const grasp::Shape* shape =
-        free && most > 0.f && handrig::usable(viewModel(handrig::modelName)) ? grasp::shapeOf(against, against.frame) : nullptr;
+        free && most > 0.f && handrig::usable(viewModel(handrig::modelName())) ? grasp::shapeOf(against, against.frame) : nullptr;
     if(rh.propAgainst != &against || !shape)
     {
         for(bool& b : rh.propDrawnValid) { b = false; }
@@ -928,7 +928,7 @@ mem::Cache<PosedSpheresCache> posedSpheresMemo{"view posed spheres", mem::GameDi
 bool emptyHandSpheres(const hands::State& s, int hand, bool fist, za::Vector<glm::vec4>& out)
 {
     out.clear();
-    qmodel_t* const model = viewModel(handrig::modelName);
+    qmodel_t* const model = viewModel(handrig::modelName());
     if(!handrig::usable(model))
     {
         return false;
@@ -1000,7 +1000,7 @@ void updateGripFrame(const hands::State& s, int hand)
         Cmd_AddCommand("vr_powerup_info", powerupInfo_f);
     }
     grip::HandFrame f;
-    qmodel_t* const model = viewModel(handrig::modelName);
+    qmodel_t* const model = viewModel(handrig::modelName());
     glm::vec3 cp, cd;
     float radius = 0.f;
     handrig::Pose pose;
@@ -1163,7 +1163,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     {
         return false;
     }
-    qmodel_t* const model = viewModel(handrig::modelName);
+    qmodel_t* const model = viewModel(handrig::modelName());
     if(!handrig::usable(model))
     {
         return false;
@@ -1471,7 +1471,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
 // hand isn't there.
 [[nodiscard]] glm::vec3 palmAt(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored)
 {
-    if(!handrig::usable(viewModel(handrig::modelName)))
+    if(!handrig::usable(viewModel(handrig::modelName())))
     {
         return pos;
     }
@@ -2245,7 +2245,7 @@ void setupHand(const hands::State& s, int hand)
             setManualFingers(held, heldSpot->def.manual, heldSpot->def.curl, heldSpot->def.thumbAcross);
             // Held fully by a grip or a cup (not while taking it, nor a blade, where the hand slides): its settled place.
             if(gripBlend >= 1.f && weapons::isGripType(heldSpot->type) && twohand::helping(hand) && otherSlot >= 0 &&
-                handrig::usable(viewModel(handrig::modelName)))
+                handrig::usable(viewModel(handrig::modelName())))
             {
                 held.canonical = true;
                 held.canonicalInRig = canonicalHotspotGrip(hand, otherSlot, entities.weapon[other].ent.model, heldSpot->def);
@@ -2267,7 +2267,7 @@ void setupHand(const hands::State& s, int hand)
     {
         held = {&weapon.ent, mirrored, 0, true, true};
         weaponFingers(held, slot);
-        if(!weaponCarried[hand] && handrig::usable(viewModel(handrig::modelName)))
+        if(!weaponCarried[hand] && handrig::usable(viewModel(handrig::modelName())))
         {
             held.canonical = true;
             held.canonicalInRig = canonicalOwnGrip(hand, slot, weapon.ent.model);

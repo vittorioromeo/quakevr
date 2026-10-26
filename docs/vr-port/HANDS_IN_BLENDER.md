@@ -213,3 +213,28 @@ an edit of the shape or the proportions carries them along. `Misc/quakevr/bake_n
   Map): see [MODELS_IN_BLENDER.md](MODELS_IN_BLENDER.md#8-normal-maps). The bake doesn't overwrite a map painted or
   baked from a high poly unless you tick Overwrite Edited Map.
 - It never changes your mesh or your skin.
+
+## 9. The feminine hand
+
+VR Settings > Player Appearance > Hand Shape (`vr_hand_shape 1`) draws a second hand, `quakevr/progs/hand_rig_f.md5mesh`
+(with `hand_rig_f.md5anim` and the placeholder `hand_rig_f.mdl`): slimmer fingers and palm, finer knuckles, a slimmer
+wrist, tapered fingertips with longer nail beds. `Misc/quakevr/make_hand_feminine.py` makes it from the standard hand
+(`hand_rig.md5mesh`, your edit included) by moving its vertices only:
+
+- **Its bones are the standard hand's, exactly** (every joint where it is): grips, weapons, two-handed grips, the
+  trigger finger and the reloads line up the same. `vr_hand_rig_info` with the shape on says "pivots identical, curl
+  turns identical" against the standard hand.
+- **Its texture coordinates are the standard hand's**: it uses the same skins (`hand_rig_0N_00.lmp`, shader
+  `"hand_rig"`), normal map, skin masks, glove paint and nail masks, and every texel lands on the same place of the
+  slimmer hand. Repaint the skin once and both hands have it.
+- The grasp's spheres and the gloves' shells are made from its own mesh as it loads, as for an edited hand.
+
+**After editing the standard hand, run the generator again** to carry the edit over:
+`py -3.13 Misc/quakevr/make_hand_feminine.py` (`--stats` prints the two hands' widths and lengths, `--preview out.png`
+draws them overlaid). Its knobs are at its top (`FINGER_WIDTH`, `PALM_WIDTH`, `TIP_LENGTH`, `NAIL_BASE`...).
+
+**You can also edit the feminine hand in Blender** like the standard one: import `hand_rig_f.md5mesh`, edit it (keep
+its bones where they are, or the two hands no longer share their grips), export it over the same file, then
+`vr_hand_reload` with Hand Shape on (it reloads the shape in use). The generator then refuses to overwrite your edit
+(`--keep-edited`, `--force`). Keep the shader name `hand_rig` to share the skins; another name needs its own
+`<name>_0N_00.lmp` skins (the masks, glove paint and nails would still be the standard hand's).

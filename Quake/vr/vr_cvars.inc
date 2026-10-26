@@ -1601,6 +1601,7 @@ QVR_CVAR(vr_nail_hue, "355", CVAR_ARCHIVE)            // the polish's colour: hu
 QVR_CVAR(vr_nail_saturation, "0.85", CVAR_ARCHIVE)    // saturation (0 grey .. 1),
 QVR_CVAR(vr_nail_lightness, "0.32", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); not tinted by vr_skin_tone, the hand's own shading kept
 QVR_CVAR(vr_nail_gloss, "0.6", CVAR_ARCHIVE)          // the polish's gloss (0 matte .. 1 a glassy top coat): a sharp highlight and the room mirrored in it
+QVR_CVAR(vr_hand_shape, "0", CVAR_ARCHIVE)            // the jointed hands' shape (vr_hand_rig 1): 0 standard, 1 feminine (progs/hand_rig_f.md5mesh, make_hand_feminine.py: slimmer, the same joints and skins); live
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, needs the jointed hand: vr_hand_rig 1)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
 QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)

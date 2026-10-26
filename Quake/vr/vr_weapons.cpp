@@ -125,7 +125,8 @@ namespace
 [[nodiscard]] bool isHandPart(const modelmeta::ModelMetadata& info)
 {
     // The palm and finger models, and the jointed hand drawn instead of them (vr_handrig.cpp): the fist slot's scale.
-    return info.is(modelmeta::Id::HandBase) || info.has(modelmeta::Trait::Finger) || info.is(modelmeta::Id::HandRig);
+    return info.is(modelmeta::Id::HandBase) || info.has(modelmeta::Trait::Finger) || info.is(modelmeta::Id::HandRig) ||
+           info.is(modelmeta::Id::HandRigF);
 }
 
 // Configs archive every slot's settings, so a slot whose defaults change keeps a config's old values: vr_wofs_version

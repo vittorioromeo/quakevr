@@ -27,7 +27,7 @@ BASH = os.environ.get("QVR_BASH", "C:/Program Files/Git/bin/bash.exe")  # (not W
 
 SETUP = "map e1m1;wait60;developer 1;vr_debug_2h_grip 1;vr_weapon_grip_mode 0;vr_weapon_grab_anywhere 1;"
 # Per holding hand: its key and grip button, the other hand's, the mock poses, the drawn helping hand's vr_dumpview row
-# (hand_rig: 4 the off hand, 10 the main hand) and the impulse base (150 the main hand, 170 the off hand).
+# (hand_rig or the feminine hand_rig_f: 4 the off hand, 10 the main hand) and the impulse base (150 the main hand, 170 the off hand).
 HANDS = {
     "main": dict(grab="right", other="off", ograb="left", pose="vr_mock_hand main 0.15 1.2 -0.45 70 0 0;vr_mock_hand off -0.1 1.0 -0.3;",
                  row=4, base=150),
@@ -139,7 +139,7 @@ def run(agent, script):
 
 def drawn(lines, row):
     for line in lines:
-        m = re.match(rf"\s*{row} progs/hand_rig\.mdl.*org \(([-\d. ]+)\) ang \(([-\d ]+)\)", line)
+        m = re.match(rf"\s*{row} progs/hand_rig(?:_f)?\.mdl.*org \(([-\d. ]+)\) ang \(([-\d ]+)\)", line)
         if m:
             return [float(v) for v in m.group(1).split()], [float(v) for v in m.group(2).split()]
     return None

@@ -22876,3 +22876,76 @@ His request (approved 2026-10-26): a fourth body build, feminine, off by default
 - [ ] Feminine with green, yellow and red armour: the plates look fitted over the chest, not painted flat.
 - [ ] Feminine: holsters, the wrist gadget, the flashlight clip and blood on the arms sit right on the body.
 - [ ] Randomize sometimes picks Feminine (about 1 in 4) and otherwise keeps your other shape.
+
+## Feminine hand (worktree `goreflesh`, branch `agent/femhands`, 2026-10-26)
+
+A second shape for the jointed hand, chosen on VR Settings > Player Appearance > **Hand Shape** (`vr_hand_shape`: 0
+Standard, the default; 1 Feminine). It changes at once (the first switch loads the model, a few ms); with the older
+hands (`vr_hand_rig 0`) it does nothing (the help says so). Randomize (after agent/fembody's Body Shape roll): the
+feminine hands whenever it picks the feminine body, else one time in ten, so the two usually match (rolled every press,
+after the body's).
+
+**What it is.** `quakevr/progs/hand_rig_f.md5mesh` (+ `.md5anim`, placeholder `.mdl`), made by
+`Misc/quakevr/make_hand_feminine.py` from the shipped `hand_rig.md5mesh` (the author's Blender edit) by moving
+vertices only; the knobs are at the script's top. Same 455 vertices, 656 triangles, joints, weights and texture
+coordinates. Sizes against the standard hand (`--stats`, rig units of about 1.2 cm):
+
+| | standard | feminine | |
+|---|---|---|---|
+| finger width (index, middle, ring; first segment) | 1.86 / 2.07 / 1.96 | 1.60 / 1.78 / 1.69 | -14% |
+| finger thickness | 2.00 / 2.11 / 2.00 | 1.84 / 1.94 / 1.84 | -8% |
+| thumb width | 3.07 | 2.76 | -10% |
+| pinky width | 1.71 | 1.47 | -14% |
+| palm width (middle / knuckle end) | 7.25 / 7.29 | 6.56 / 6.77 | -9.5 / -7% |
+| palm thickness (middle) | 3.62 | 3.41 | -6% |
+| wrist and heel | | | unchanged (below) |
+| last segment past its joint (fingertips) | | | -7% |
+| hand length (wrist to the middle fingertip) | 17.93 | 17.78 | -0.8% |
+
+**The wrist is not slimmer** (asked for; left out): the bare forearm (`vrbody*_bare`, the default) is fitted round the
+standard hand's wrist and reaches up the heel's ulnar edge; a narrower wrist or heel showed the forearm's end as a dark
+sliver there (seen in the palm-up close-ups, gone with bracers). The palm narrows from the heel's front on (x -2.5 to
+-1.0 in rig units) instead. A slimmer wrist needs the bare forearm slimmer too (the body's feminine shape could do it).
+
+Fingertips taper by 9% more towards their ends; the joints' rings 4% more (finer knuckles); the ring under the
+nail's base moves from 45% to 30% of the last segment, so the painted nail plate (between it and the tip) is longer
+on a shorter tip. At the knuckles only the palm's edges come in (the knuckles are the fingers' pivots); the ball of
+the thumb keeps 60% of its width; the palm's side stays where handles meet it (the back comes down).
+
+**Why one set of textures.** The texture layout is the standard hand's, so the skins (clean and the three bloodied:
+shader `hand_rig`), the baked normal map, the skin masks (skin tone, gloves), the gloves' painted leather and relief
+and the nail masks all fall on the same places of the slimmer hand: nothing derived from the mesh's layout needed
+regenerating, and a repaint of the skin serves both hands. What is built from the mesh's shape is rebuilt for it as it
+loads: the gloves' shells (fingerless 592 triangles, full 656) and the grasp solver's spheres (derived against the
+compiled tables, as an edited hand's are: each finger sphere resized x0.75-1.00 with the slimmer sections, the palm's
+moved with its skin). No second compiled table set: the feminine rig comes from its file only; a missing or broken
+file falls back to the standard hand with a warning.
+
+**Engine.** `vr_handrig.cpp` keeps a rig per shape (`currentRigs[]`); `handrig::modelName()` (was a constant) gives
+the shape to draw, `rig()` its rig, `generation()` changes with the shape (grasp caches rebuild). `vr_hand_reload`
+reloads the shape in use; `vr_hand_rig_info` names the shape and, for the feminine one, compares it with the standard
+file ("pivots identical, curl turns identical; the skin moved N units at most"). Model ids/traits `HandRigF`,
+`RigHandFInsensitive`.
+
+**Checks** (fast mode; each with the standard hand, then with `vr_hand_shape 1` in the runs' config):
+- `vr_hand_rig_info` with the feminine hand: "against the standard shape: pivots identical, curl turns identical; the
+  skin moved 0.379 units at most"; the grasp's spheres refit (x0.75-1.00), 0 unmeasured.
+- `twohand_regrip_test.sh`: the same with both shapes: 5 of 7 props held in both and handed over (moved 0.00-0.63);
+  picks 4 (a grunt's head) and 10 (a hand grenade) are never held in both, the same on a clean origin/next build
+  (not this change).
+- `twohand/cup_aim_test.sh` 5/0 both; `twohand/grip_state_test.py` PASS both (it read the drawn hand's dump row by
+  `progs/hand_rig.mdl`: now either model).
+- `vr_np_test 1` 17/0 both; `vr_rv_test 1` 30/0 feminine, 29/1 standard (the grunt dead to one slug: a damage roll,
+  not the hands).
+- `reload_test.sh` 114 PASS, 0 FAIL (feminine); the standard run's tail all PASS.
+- `eval.sh`: standard canary 36/44, 0 differ; feminine 36/44 canary, full 163/171, 5 differ by 0.1 damage, no verdict
+  changes.
+- Eye close-ups (1200 px, mock camera beside the hands) of both shapes: open, palms up, fist, pointing, the shotgun,
+  nail pistol, revolver, the nailgun two-handed (the off hand on its grip), a magazine from the pouch; the feminine
+  hand with fingerless gloves + light skin, full gloves, nails + dark skin; and with the feminine body. Gloves, the
+  gloves' shells and the nails sit on the slimmer hand; the fingers close on the handles without gaps or sinking that
+  shows; no seam opens. Damage 3 isn't visible in either shape (own wounds replace the bloodied skins by default);
+  the skins are shared, so it is the same texture.
+
+Honest look: it reads as a slimmer, finer hand (fingers 14% narrower, longer nails on tapered tips), not a strongly
+different one; the knobs at the top of `make_hand_feminine.py` take it further.

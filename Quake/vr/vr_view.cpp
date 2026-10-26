@@ -469,7 +469,7 @@ view::ViewEntity& addClone(const view::ViewEntity& ve, const glm::mat4& mirror)
 
     const auto& info = modelmeta::get(model);
     return info.is(modelmeta::Id::Hand) || info.is(modelmeta::Id::HandBase) ||
-           info.has(modelmeta::Trait::Finger) || info.is(modelmeta::Id::HandRig);
+           info.has(modelmeta::Trait::Finger) || info.is(modelmeta::Id::HandRig) || info.is(modelmeta::Id::HandRigF);
 }
 [[nodiscard]] qmodel_t* precachedModel(int index)
 {
@@ -561,7 +561,7 @@ void view::prepareModels()
         return;
     }
     // As the view setup asks for them (setupBody, setupPauldrons, setupHolsters, setupGadget, the hands, the buttons).
-    za::Vector<const char*> names{handrig::modelName, "progs/vrgadget.mdl", "progs/vrgadget_strap.mdl", "progs/wpnbutton.mdl"};
+    za::Vector<const char*> names{handrig::modelName(), "progs/vrgadget.mdl", "progs/vrgadget_strap.mdl", "progs/wpnbutton.mdl"};
     if(vr_body_mode.value >= 1.f)
     {
         const int build = avatar::bodyBuild();
@@ -1007,7 +1007,7 @@ void setupPosingHand(int hand, const glm::vec3& pos, const glm::vec3& rot)
     // offset), worked out round the hand (small numbers, as the canonical places are).
     const bool solved = posing::showSolved();
     const bool blade = !weaponTarget && ps.type == weapons::HotspotType::Blade;
-    if(solved && !blade && handrig::usable(viewModel(handrig::modelName)))
+    if(solved && !blade && handrig::usable(viewModel(handrig::modelName())))
     {
         const auto inRig = [&](const glm::vec3& at, const glm::vec3& turn) {
             entity_t e = weapon.ent;
@@ -2635,7 +2635,7 @@ bool emptyHandImpl(const hands::State& s, int hand, view::EmptyHand& out)
     {
         return false;
     }
-    if(!handrig::usable(viewModel(handrig::modelName)))
+    if(!handrig::usable(viewModel(handrig::modelName())))
     {
         const avatar::HandPose hp = drawnHand(s, hand); // (the hand as drawn)
         out = {hp.wrist, hp.forward, hp.up, hp.back, false};
@@ -4601,7 +4601,7 @@ void updatePalmPoints(hands::State& s)
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        s.palmValid[hand] = handrig::usable(viewModel(handrig::modelName));
+        s.palmValid[hand] = handrig::usable(viewModel(handrig::modelName()));
         if(!s.palmValid[hand])
         {
             continue;

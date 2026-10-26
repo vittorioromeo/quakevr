@@ -54,9 +54,24 @@ enum Finger : int
 };
 
 inline constexpr int jointsPerFinger = 3;
-inline constexpr const char* modelName = "progs/hand_rig.mdl";
-inline constexpr const char* meshFile = "progs/hand_rig.md5mesh";
-inline constexpr const char* animFile = "progs/hand_rig.md5anim";
+
+// The hand's shapes (vr_hand_shape; ROUND22.md, "Feminine hand"): the standard hand and the feminine one
+// (progs/hand_rig_f.*, Misc/quakevr/make_hand_feminine.py: slimmer, the same joints, weights, texture coordinates
+// and skins). Each its own model and rig, the grasp's spheres refitted to its mesh as it loads (derive); the feminine
+// loaded only once it is chosen.
+enum Shape : int
+{
+    StandardShape,
+    FeminineShape,
+    ShapeCount
+};
+inline constexpr const char* modelNames[ShapeCount] = {"progs/hand_rig.mdl", "progs/hand_rig_f.mdl"};
+inline constexpr const char* meshFiles[ShapeCount] = {"progs/hand_rig.md5mesh", "progs/hand_rig_f.md5mesh"};
+inline constexpr const char* animFiles[ShapeCount] = {"progs/hand_rig.md5anim", "progs/hand_rig_f.md5anim"};
+
+// The hand model to draw: the chosen shape's (vr_hand_shape), the standard one if the feminine one can't be used.
+// (Always one of modelNames[]: view::viewModel keys its cache by the pointer.)
+[[nodiscard]] const char* modelName();
 // Rig space's units a millimetre (make_vrbody.py HAND_UNIT: 12.86 mm a hand unit at the default sizes), and the
 // body's (Quake units: 38.1 mm at vr_world_scale 1): the gloves' shells' thickness (vr_glove_thickness).
 inline constexpr float rigUnitsPerMm = 1.f / 12.86f;
@@ -99,7 +114,7 @@ struct Sphere
     float r{0.f};
 };
 
-// The rig in use: the compiled one, or the one read from progs/hand_rig.md5mesh.
+// A rig: the compiled one, or one read from progs/hand_rig.md5mesh (or the feminine progs/hand_rig_f.md5mesh).
 struct Rig
 {
     za::String source{"compiled"};
@@ -111,9 +126,11 @@ struct Rig
     za::Vector<Sphere> palmSpheres, thenarSpheres;
 };
 
+// The rig in use: the drawn shape's (modelName()).
 [[nodiscard]] const Rig& rig();
 
-// Changes whenever another rig is put in use (a grasp solved with the last one is solved again).
+// Changes whenever another rig is put in use, the other shape's included (a grasp solved with the last one is solved
+// again).
 [[nodiscard]] unsigned generation();
 
 struct Pose

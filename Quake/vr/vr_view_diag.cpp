@@ -1224,7 +1224,7 @@ bool previewGripMove(const hands::State& s, int hand, glm::vec3& worldMove)
 {
     glm::vec3 cp, cd;
     float radius;
-    if(!s.valid || !handrig::usable(viewModel(handrig::modelName)) || !rigHands[hand].drawn ||
+    if(!s.valid || !handrig::usable(viewModel(handrig::modelName())) || !rigHands[hand].drawn ||
         !grasp::gripChannel(rigHands[hand].pose, cp, cd, radius))
     {
         return false;
