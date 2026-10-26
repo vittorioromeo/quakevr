@@ -65,7 +65,9 @@ void VR_WaterView (int contents, int *waterwarp);			// R_SetupView, after r_wate
 void VR_DetailView (void);								// R_SetupView: the detail textures' settings this view (frame data), their array on unit 12 (vr_detail.cpp)
 struct texture_s;
 void VR_DetailCall (const struct texture_s *t, float out[4]);	// R_AddBModelCall: a texture's detail (s and t scales, strength, layer; zero: none)
-void VR_RetroUpload (void);								// R_UploadFrameData: retro textures' settings (vr_retro.cpp), uniform block 3
+float VR_LightstyleLevel (int style, int step, int next, float frac, float level);	// R_AnimateLight: a style's level ('a' 0 .. 'z' 25) this frame, softened in VR (vr_lightstyle.cpp, vr_lightstyle_comfort)
+void VR_LightstyleFrame (void);							// R_AnimateLight, after every style: vr_lightstyle_rate's probe
+void VR_RetroUpload (void);							// R_UploadFrameData: retro textures' settings (vr_retro.cpp), uniform block 3
 void VR_RetroBind (int unit);							// a world or model draw, program in use: the palette's table on that unit (vr_retro.h's QVR_RETRO_LUT_UNIT_*)
 void VR_RetroCall (struct entity_s *e, const struct texture_s *t, float out[4]);	// R_AddBModelCall: a texture's Quake size and the set for it on entity e (0: the instance's)
 void VR_DecalsFrame (float clock[4]);	// R_SetupView: the decals on the world (vr_decals.cpp): their buffers made again if they came or went; the shader's clock (DecalClock)

@@ -853,7 +853,7 @@ void spawn_f()
         for(int i = 0; i < tool.modelCount && row < 0; i++)
         {
             const int e = tool.models[static_cast<za::SizeT>(i)];
-            row = !q_strcasecmp(toolgun::spawnableClass(e), Cmd_Argv(1)) || !q_strcasecmp(toolgun::spawnableLabel(e), Cmd_Argv(1))
+            row = !q_strcasecmp(toolgun::spawnableClass(e), Cmd_Argv(1)) || !q_strcasecmp(toolgun::spawnableName(e), Cmd_Argv(1))
                       ? i
                       : -1;
         }

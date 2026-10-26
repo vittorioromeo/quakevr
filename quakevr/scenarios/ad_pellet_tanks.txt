@@ -1,0 +1,15 @@
+# ad_pellet_tanks: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (needs Arcane Dimensions).
+# AD's projectile pellets (vr_ad_projectiles 2: as in AD's campaign) on what doesn't bleed (ROUND22.md, "Beta4 fixes"):
+# the flamethrower's and poison sprayer's tanks on armed grunts' backs, a wooden crate, and a plain grunt that bleeds.
+title AD projectile pellets: tanks and a crate spark or splinter, a grunt bleeds
+map vrtesthall
+god
+notarget
+cvar vr_ad_projectiles 2
+give "Shotgun" main
+give "Super Shotgun" off
+spawn "Armed Grunt: Flamethrower" 150 90 0 0
+spawn "Armed Grunt: Poison Sprayer" 150 -90 0 0
+spawn "Wooden Crate" 110 30
+spawn monster_army 200 0
+hint Shotgun and super shotgun fire AD's projectile pellets. Shoot a tank on a grunt's back: sparks and a tink, no blood (three hits burst it). The crate: splinters. The grunt ahead: blood.

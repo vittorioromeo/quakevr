@@ -2328,10 +2328,13 @@ int selectedSpawnable()
     return tg.sel.valid ? tg.sel.entry : -1;
 }
 
-void selectSpawnable(int i)
+void selectSpawnable(int i, bool say)
 {
     select(i);
-    Con_Printf("toolgun: spawn %s\n", tg.sel.valid ? tg.sel.label : "nothing");
+    if(say)
+    {
+        Con_Printf("toolgun: spawn %s\n", tg.sel.valid ? tg.sel.label : "nothing");
+    }
 }
 
 namespace armed

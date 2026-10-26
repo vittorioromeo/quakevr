@@ -89,7 +89,7 @@ void tempEntities();
 // ragdoll tool's subject: vr_ragtool.cpp); null if it is not available or could not be made.
 edict_t* spawnEntryAt(int i, const glm::vec3& feet, float yaw);
 [[nodiscard]] int selectedSpawnable();
-void selectSpawnable(int i); // (-1: nothing)
+void selectSpawnable(int i, bool say = true); // (-1: nothing; say: print what is selected)
 
 // The Armed Humanoid page (the panel's; QC vr_armedmon_ui.qc; docs/vr-port/ARMED_MONSTERS.md): the armed monsters'
 // table's rows (the kinds) and the weapons they may hold, asked of QC once a map (refresh: the host frame); the choice

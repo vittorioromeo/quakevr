@@ -146,10 +146,14 @@ float(float xWid, entity xInst) VR_Weapon_Spent =
     return xInst.wi_clip <= 0;
 };
 
-// Whether the force grab skips `e`, a spent enemy gun (vr_enemy_weapon_depleted_loot 0, the default): a hand takes it.
+float(entity e) VR_Reload_MagEmpty; // (vr_reload.qc)
+
+// Whether the force grab skips `e`, a spent enemy gun or an empty magazine (any gun's: VR_Reload_MagEmpty; his beta4
+// pass, 2026-10-26) (vr_enemy_weapon_depleted_loot 0, the default): a hand takes it. No grab sparkles either (the force
+// grab's aim, forcegrabbable_think_impl).
 float(entity e) VR_EnemyGun_DepletedSkipped =
 {
-    return e.vr_depleted && !cvar_hget(cvarh_vr_enemy_weapon_depleted_loot);
+    return (e.vr_depleted || VR_Reload_MagEmpty(e)) && !cvar_hget(cvarh_vr_enemy_weapon_depleted_loot);
 };
 
 float(entity e) VR_Forcegrab_IsEligible =
