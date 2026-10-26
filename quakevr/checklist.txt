@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Fresh config: the Widowmaker's ammo readout sits where you put it; the nail pistol has its off-hand cup grip (your tuning, now the default)
 Heavy revolver {test:revolver}: a shot each pull, the hammer cocks and falls, the cylinder turns a chamber; heavy kick and flash; grip and holsters sit right (copied from the nail pistol: tune if not)
 Heavy revolver: a wrist flick toward the cylinder (or B/Y) swings it out; muzzle up, B/Y or the ejector rod drops the shells (spent casings plus live shells); the blue slugs and spent vs live are visible
 Heavy revolver: single shells from the pouch go into the chamber you hold them at; swipe to spin; empty chambers click and advance
