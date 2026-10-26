@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Grab an armed grunt's gun at the muzzle, barrel and stock: each starts the tug; as the tug begins, and when an armed grunt is knocked down, its gun and arms stay where they were: no jump of the gun or of your hand; the tug's pull feels right (it wins a little faster on quick pulls, slower on very slow ones)
 Rig Studio (-flatscreenmode, Debug > Tools > Rig Studio or vr_rigstudio): orbit (middle mouse), pan (Shift), zoom, F, 1/3/7; rotate the chest with a ring; Ctrl snaps; undo/redo
 Rig Studio Weights: the arm's heat map; paint add/smooth with mirror; assign; normalize; save, restart the game and the edit is applied
 Rig Studio Timeline: key the arm in the reload animation at frames 3 and 7, play at 0.5x with onion skin; make a short new sequence and save it
