@@ -492,7 +492,8 @@ void mockLook_f()
 // apart), `height` cm over its top there (0 as shipped). For grab tests: from the hand's place last frame, so a hand
 // kept out of the floor lands short of a point under it; run it again (or a few frames on) to follow a weapon.
 // "vr_mock_hand_to <main|off> agweapon <fraction> [<cm>]": in the nearest armed monster's held weapon, from the end behind
-// its grip (0) to its muzzle's (1), at its slice's middle (the grab-anywhere tests, vr_agrunt_test 31 with scratch4).
+// its grip (0) to its muzzle's (1), at its slice's middle (the grab-anywhere tests: vr_agrunt_test 39); "agweaponpalm":
+// the palm's middle there instead of the hand's point (a fist closing round it).
 // "vr_mock_hand_to <main|off> spot <index> [<height cm>]": at its hotspot `index` (a grip's point, a blade's zone's middle:
 // view::groundHotspotPoint), `height` cm over it (vr_weapon_grab_hotspots tests). "vr_mock_hand_to <main|off> button":
 // its fingertip on the wrist gadget's side button (the gear lights: vr_gearlights.cpp), or `units` off its face ("button
@@ -687,7 +688,8 @@ void moveHandTo(int hand, const glm::vec3& target)
 void mockHandTo_f()
 {
     const int hand = Cmd_Argc() >= 2 ? mockHand(Cmd_Argv(1)) : -1;
-    const bool agWeapon = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "agweapon");
+    const bool agPalm = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "agweaponpalm");
+    const bool agWeapon = (Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "agweapon")) || agPalm;
     const bool weapon = (Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "weapon")) || agWeapon;
     const bool spot = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "spot");
     const bool carried = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "carried");
@@ -1167,6 +1169,11 @@ void mockHandTo_f()
     {
         Con_Printf("vr_mock_hand_to: no weapon lying about\n");
         return;
+    }
+    if(agPalm)
+    {
+        const hands::State& st = hands::current();
+        target -= hands::palmPoint(st, hand) - st.pos[hand]; // (its palm's middle there, not the hand's point)
     }
     if(inHeld)
     {

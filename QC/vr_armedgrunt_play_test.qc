@@ -1169,6 +1169,8 @@ float vr_agpt_threach; // ... the controller's most, and its last (cm)
 float vr_agpt_thlast;
 float vr_agpt_thn;     // ... samples
 float vr_agpt_thlog;   // ... the grab's printed
+float vr_agpt_thf;     // ... the hand's place along the weapon as it glides there
+float vr_agpt_thh;     // ... then its tries at the fist on it
 float vr_agpt_thlag;   // ... the hold's lag, most and last (cm)
 float vr_agpt_thlagl;
 
@@ -1186,6 +1188,10 @@ void() VR_AGPT_TugHand =
         cvar_set("vr_agrunt_disarm_yank", "0"); // (no grab before its press: step 5)
         p.mainhand_lastgrabtime = time - 2;
         p.mainhand_lastreleasetime = time - 1;
+        if(!cvar("vr_agrunt_debug"))
+        {
+            cvar_set("vr_agrunt_debug", "0.5"); // (the engine's reading of the fist's gap: vr_agrunt_grab_gap)
+        }
         vr_agpt_h0a = cvar_hget(cvarh_vr_agrunt_tug_break_force);
         vr_agpt_h0b = cvar_hget(cvarh_vr_agrunt_tug_break_impulse);
         if(cvar("scratch1") > 0)
@@ -1199,10 +1205,18 @@ void() VR_AGPT_TugHand =
         vr_agpt_thlast = 0;
         vr_agpt_thn = 0;
         vr_agpt_thlag = 0;
+        vr_agpt_thlog = 0;
+        vr_agpt_thf = -1;
         vr_agpt_thlagl = 0;
         vr_agt_step = 1;
         vr_agt_until = time + 0.4;
         return;
+    }
+    if(vr_agt_step >= 4 && vr_agt_step <= 6 && !g.vr_ag_prop && vr_agpt_thlog == 0)
+    {
+        vr_agpt_thlog = 1; // (its weapon gone before the grip's press: how)
+        VR_AGT_Print(sprintf("tughand lost its weapon before the grab: step %g, grunt %s (ours %g) health %g, wid %g, why %s, disarms %g",
+            vr_agt_step, g.classname, g == vr_agt_grunt, g.health, g.vr_ag_wid, vr_ag_tug_why, g.vr_ag_disarms));
     }
     if(time < vr_agt_until && vr_agt_step != 7) { return; }
     if(vr_agt_step == 1)
@@ -1226,8 +1240,38 @@ void() VR_AGPT_TugHand =
     {
         if(cvar("scratch2") >= 0)
         {
-            localcmd(sprintf("vr_mock_hand_to main agweapon %g\n", cvar("scratch2")));
-            p.vr_ag_knock_at = time + 0.6; // (the hand put there at once: no blow on the weapon)
+            // Glided there from its grip (a quarter of the way) at 0.01 of the weapon's length a frame (~0.45 m/s for a
+            // shotgun): put there at once, the hand was a punch (30 m/s) that hit its arm and knocked the weapon out.
+            float want = cvar("scratch2");
+            if(vr_agpt_thf < 0)
+            {
+                vr_agpt_thf = 0.25;
+            }
+            vr_agpt_thf = want > vr_agpt_thf ? min(want, vr_agpt_thf + 0.01) : max(want, vr_agpt_thf - 0.01);
+            if(vr_agpt_thf != want)
+            {
+                vr_agpt_thf = want > vr_agpt_thf ? min(want, vr_agpt_thf + 0.01) : max(want, vr_agpt_thf - 0.01);
+                localcmd(sprintf("vr_mock_hand_to main agweaponpalm %g\n", vr_agpt_thf)); // (its palm on it: a fist round it)
+                vr_agt_until = 0;
+                vr_agpt_thh = 0;
+                return;
+            }
+            // There: its fist on the weapon's surface (the engine's reading, vr_agrunt_grab_gap: the mock hand's fixed turn
+            // can leave the fist a little over or beside a thin barrel), else the palm 2, -2, 4, -4 cm higher in turn.
+            if(vr_agpt_thh > 0 && cvar("vr_agrunt_grab_gap") > 0 && vr_agpt_thh < 6)
+            {
+                float hh = vr_agpt_thh == 1 ? 2 : vr_agpt_thh == 2 ? -2 : vr_agpt_thh == 3 ? 4 : vr_agpt_thh == 4 ? -4 : 0;
+                localcmd(sprintf("vr_mock_hand_to main agweaponpalm %g %g\n", want, hh));
+                vr_agpt_thh = vr_agpt_thh + 1;
+                vr_agt_until = time + 0.05;
+                return;
+            }
+            if(vr_agpt_thh == 0)
+            {
+                vr_agpt_thh = 1; // (the reading of where the glide ended first)
+                vr_agt_until = time + 0.05;
+                return;
+            }
         }
         vr_agt_step = 5;
         vr_agt_until = time + 0.3;
@@ -1237,8 +1281,8 @@ void() VR_AGPT_TugHand =
     {
         makevectors(g.vr_ag_prop.angles);
         vector rel = p.handpos - g.vr_ag_prop.origin;
-        VR_AGT_Print(sprintf("tughand grab %g of the way: the hand %.1f units ahead of its grip, %.1f off its line (hand %v, "
-            "weapon %v, %s)", cvar("scratch2"), rel * v_forward, vlen(rel - v_forward * (rel * v_forward)), p.handpos,
+        VR_AGT_Print(sprintf("tughand grab %g of the way: the hand %.1f units ahead of its grip, %.1f off its line, the fist %.1f cm off it (hand %v, "
+            "weapon %v, %s)", cvar("scratch2"), rel * v_forward, vlen(rel - v_forward * (rel * v_forward)), cvar("vr_agrunt_grab_gap"), p.handpos,
             g.vr_ag_prop.origin, g.vr_ag_prop.netname));
         cvar_set("vr_agrunt_disarm_yank", "1");
         p.mainhand_lastgrabtime = time; // (the grip pressed now: VR_HandGrabUtil_StartedHandGrabbing)
