@@ -2824,6 +2824,9 @@ QVR_CVAR(vr_revolver_open_flick_speed, "350", CVAR_ARCHIVE) // the flick open's 
 QVR_CVAR(vr_revolver_open_flick_angle, "30", CVAR_ARCHIVE) // and its wrist flick: degrees it must roll that way in one go
 QVR_CVAR(vr_revolver_close_flick_speed, "300", CVAR_ARCHIVE) // the flick shut (always on: the wrist rolled the other way, the cylinder swung home): its force, degrees a second
 QVR_CVAR(vr_revolver_close_flick_angle, "25", CVAR_ARCHIVE) // and its wrist flick, degrees
+QVR_CVAR(vr_revolver_open_flick_time, "0.25", CVAR_ARCHIVE) // the flick open's time window: its wrist flick must be rolled within this many seconds of the flick's start (0: no limit)
+QVR_CVAR(vr_revolver_close_flick_time, "0.25", CVAR_ARCHIVE) // the same for the flick shut
+QVR_CVAR(vr_revolver_flick_sustain, "0.3", CVAR_ARCHIVE) // a flick goes on while the roll stays above this share of its speed (both flicks)
 QVR_CVAR(vr_revolver_open_button, "1", CVAR_ARCHIVE) // B/Y (its eject button) swings the cylinder out; out, B/Y pushes the ejector
 QVR_CVAR(vr_revolver_close_button, "0", CVAR_ARCHIVE) // out, B/Y swings it home instead (an accessibility option: the shells then drop by the tilt or the ejector rod alone)
 QVR_CVAR(vr_revolver_close_push, "1", CVAR_ARCHIVE) // the other hand pushing the swung-out cylinder up from below swings it home

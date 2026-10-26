@@ -1181,10 +1181,14 @@ void resetHandMoves()
         toggle("Flick to Open", "vr_revolver_open_flick")
             .help("A flick of the wrist towards the cylinder's side (to the left in the right hand, to the right in the left) "
                   "swings it out."),
-        slider("Flick Open Force", "vr_revolver_open_flick_speed", 50.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
-            .help("How fast the wrist must roll that way, at its fastest."),
+        slider("Flick Open Speed", "vr_revolver_open_flick_speed", 50.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
+            .help("The wrist's roll speed needed to flick it open: how fast the wrist must roll that way, at its fastest."),
         slider("Flick Open Wrist Flick", "vr_revolver_open_flick_angle", 5.f, 120.f, 5.f, "%.0f deg").extend(0.f, 360.f)
             .help("And how far it must roll that way in one go."),
+        slider("Flick Open Time", "vr_revolver_open_flick_time", 0.05f, 1.f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("The wrist flick must be rolled within this long of the flick's start; a slower roll starts over (0: no limit)."),
+        slider("Flick Sustain", "vr_revolver_flick_sustain", 0.05f, 0.9f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("Both flicks: a flick goes on while the wrist's roll stays above this share of the speed needed; under it, it ends."),
         toggle("Eject Button Opens", "vr_revolver_open_button")
             .help("B/Y swings it out; out, B/Y pushes the ejector (its shells drop)."),
         header("Dropping the Shells"),
@@ -1211,10 +1215,12 @@ void resetHandMoves()
         slider("Hand Reach", "vr_revolver_hand_reach", 0.f, 8.f, 0.25f, "%.2f units").extend(0.f, 40.f)
             .help("How near the swung-out cylinder (beyond its radius) the other hand spins it or pushes it home."),
         header("Swinging It Home"),
-        slider("Flick Close Force", "vr_revolver_close_flick_speed", 50.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
-            .help("Always on: a flick of the wrist the other way swings it home. How fast the wrist must roll, at its fastest."),
+        slider("Flick Close Speed", "vr_revolver_close_flick_speed", 50.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
+            .help("Always on: a flick of the wrist the other way swings it home. The wrist's roll speed needed to flick it home, at its fastest."),
         slider("Flick Close Wrist Flick", "vr_revolver_close_flick_angle", 5.f, 120.f, 5.f, "%.0f deg").extend(0.f, 360.f)
             .help("And how far it must roll that way in one go."),
+        slider("Flick Close Time", "vr_revolver_close_flick_time", 0.05f, 1.f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("The wrist flick must be rolled within this long of the flick's start; a slower roll starts over (0: no limit)."),
         toggle("Push Home", "vr_revolver_close_push")
             .help("The other hand pushing the swung-out cylinder up from below swings it home."),
         slider("Push Speed", "vr_revolver_close_push_speed", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f)
