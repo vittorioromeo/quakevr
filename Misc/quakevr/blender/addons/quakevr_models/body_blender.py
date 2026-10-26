@@ -24,7 +24,7 @@ A_VERT = "qvr_vert"  # POINT int: the Blender vertex's group at import (the file
 A_FV = "qvr_fv"      # CORNER int: the file's vertex this corner is
 A_S, A_T = "qvr_s", "qvr_t"  # CORNER float: the file's texture coordinates, exactly (not a float2: that's a UV map)
 SKINS = 16
-BUILDS = (("vrbody_lean", "Lean"), ("vrbody", "Athletic"), ("vrbody_brawny", "Brawny"))
+BUILDS = (("vrbody_lean", "Lean"), ("vrbody", "Athletic"), ("vrbody_brawny", "Brawny"), ("vrbody_fem", "Feminine"))
 
 
 class BodyError(Exception):

@@ -180,20 +180,22 @@ namespace
 // make_vrbody.py: the spine hangs from the top of the neck (vr_body_eye_forward and
 // vr_body_eye_up from the eyes, then vr_body_torso_back), its rings centred 0.01 m behind it;
 // the belly (the pelvis ring) is 0.115 m deep and 0.17 m to the side, the chest 0.12-0.13 and
-// 0.19 times the build's torso scale, widest 0.22 m below the neck (1.35 m, the neck at 1.57).
+// 0.19 times the build's torso scale, widest 0.22 m below the neck (1.35 m, the neck at 1.57); the feminine build's
+// chest by its own width (avatar::buildShape); its wider hips keep the holsters where they are for the others
+// (still 3.7 cm clear of them), so his hip zones fit every build.
 struct TorsoShape
 {
     float m2w;
     float torsoScale;
     float axis; // the rings' centre, forward from the eyes
+    float chestWide{1.f};
 };
 
 [[nodiscard]] TorsoShape torsoShape()
 {
     const float m2w = units::metresToUnits() * units::bodyScale();
-    const int build = static_cast<int>(vr_body_build.value);
-    const float torsoScale = build <= 0 ? 0.965f : build >= 2 ? 1.175f : 1.07f;
-    return {m2w, torsoScale, -(vr_body_eye_forward.value + vr_body_torso_back.value + 0.01f) * m2w};
+    const avatar::BuildShape& b = avatar::buildShape(avatar::bodyBuild());
+    return {m2w, b.torso, -(vr_body_eye_forward.value + vr_body_torso_back.value + 0.01f) * m2w, b.chestWide};
 }
 
 // The X each holster's default is (vr_cvars.inc): at it, a holster on the body sits on its front.
@@ -205,7 +207,7 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
 // far out as the holster stands: its depth (forward) and half width, world units.
 [[nodiscard]] glm::vec2 torsoRing(const TorsoShape& t, bool hip)
 {
-    return glm::vec2{hip ? 0.115f : 0.12f * t.torsoScale, hip ? 0.17f : 0.19f * t.torsoScale} * t.m2w +
+    return glm::vec2{hip ? 0.115f : 0.12f * t.torsoScale, hip ? 0.17f : 0.19f * t.torsoScale * t.chestWide} * t.m2w +
            SURFACE_CLEARANCE;
 }
 
@@ -267,9 +269,9 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
 // it slopes back towards the neck.
 [[nodiscard]] HolsterPlate plateOnTheRing(const hands::State& standing, bool hip, const glm::vec3& pos)
 {
-    const auto [m2w, torsoScale, axis] = torsoShape();
+    const auto [m2w, torsoScale, axis, chestWide] = torsoShape();
     const float depth = (hip ? 0.115f : 0.13f * torsoScale) * m2w;
-    const float width = (hip ? 0.17f : 0.19f * torsoScale) * m2w;
+    const float width = (hip ? 0.17f : 0.19f * torsoScale * chestWide) * m2w;
     const float slope = glm::radians(hip ? 0.f : 20.f);
 
     glm::vec3 fwd, right, up;

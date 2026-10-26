@@ -1576,7 +1576,7 @@ QVR_CVAR(vr_grenade_pouch_hold_roll, "0", CVAR_ARCHIVE)
 // The player's body (vr_avatar.cpp): 0 none, 2 torso and arms, 3 torso, arms and legs: the skinned
 // progs/vrbody model, posed by IK from the head and hands (1, the old floating torso, is now 2).
 QVR_CVAR(vr_body_mode, "3", CVAR_ARCHIVE)           // 3 shipped (vr_defaults.cfg too): the full body, legs and all
-QVR_CVAR(vr_body_build, "1", CVAR_ARCHIVE)            // 0 lean, 1 athletic, 2 brawny (progs/vrbody_lean, vrbody, vrbody_brawny)
+QVR_CVAR(vr_body_build, "1", CVAR_ARCHIVE)            // 0 lean, 1 athletic, 2 brawny, 3 feminine (progs/vrbody_lean, vrbody, vrbody_brawny, vrbody_fem)
 QVR_CVAR(vr_body_ranger_head, "1", CVAR_ARCHIVE)      // the body's head: 1 the Quake ranger's, from your progs/player.mdl (vr_rangerhead.cpp), 0 the placeholder; at the next start
 // The ranger's head on the body, placed live (vr_rangerhead.cpp; Appearance > Ranger Head): cm on the model and degrees,
 // about the bottom of his head (pitch nods down, yaw turns left, roll tilts right), his size, and the neck sunk into him.
