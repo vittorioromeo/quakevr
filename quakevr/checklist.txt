@@ -31,6 +31,7 @@ AD settings: dedicated page, player/enemy pellet speeds, ammo models and Off/AD-
 AD lighting: stationary pulse near ad_crucial -215 -2287 136 matches authored lamps; compare briefly with r_flatlightstyles 1 {test:ad_lighting}
 
 [new since the beta4 list: test these first]
+Player Appearance > Voice: Feminine; press Hear Voice a few times, then take damage, jump, land hard, drown and die: it sounds like a woman's voice, not a sped-up man's; Voice Pitch and Voice Formants change it at once; Masculine brings the original back
 Rig Studio: switch subject kinds and weapons (flamethrower, two pistols, ogre) several times: one subject only; Close then vr_rigstudio here: still one
 Rig Studio: the shoot animation on the shotgun grunt aims level at the orange Aim Target; drag the target high and low and the gun follows; At Camera aims at you; Aim off carries the gun as before
 Rig Studio: Pose Keys (O) in Aim: drag the weapon's arrows and rings, an elbow, the torso rings; the arms stay on the gun and the Pose Studio Data numbers follow; Ctrl+Z restores; in Pickup, drag the pelvis and feet
