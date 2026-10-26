@@ -44,7 +44,9 @@ enum class Tool : int
     Rest = 4,    // the rest pose's joints and ends moved (the rig's)
     Weights = 5, // vertices selected (click, box), assigned, set
     Paint = 6,   // weights painted with a brush
+    PoseKeys = 7, // the Pose Studio Data's key dragged by handles on the arms' targets, elbows, torso, the Pickup's legs
 };
+inline constexpr int toolCount = 8;
 
 enum class MeshMode : int
 {
@@ -87,7 +89,25 @@ struct Snapshot
     agpose::Key poseKey;
     int gripKind{-1}, gripSlot{0}, gripHand{0};
     aggrip::Offset grip;
+    // The aim target's place (studio-session state, never in a file): its place before
+    bool aimEntry{false};
+    glm::vec3 aimAt{0.f};
 };
+
+// Where the subject aims (an armed humanoid's guns, its melee guard): a point in the room, as the game aims at an enemy
+// standing there (QC VR_AGK_Hold: its Aim stance, its target's point). Studio-session state: kept across subject
+// changes, not saved.
+struct AimTarget
+{
+    bool on{true};        // the subject aims at it (off: it carries its weapon, as before)
+    bool show{true};      // drawn, with its move handle
+    bool atCamera{false}; // it follows the studio camera
+    bool placed{false};   // its place set (else put ahead of the subject when it stands)
+    bool selected{false}; // picked (its handle drawn)
+    glm::vec3 at{0.f};    // world
+};
+inline constexpr float aimAhead = 200.f; // units: the default target ahead of the subject
+inline constexpr float aimHeight = 12.f; // ... above its origin (its chest: the guns' height, so the aim is level)
 
 struct KeyRef
 {
@@ -99,7 +119,7 @@ struct KeyRef
 struct Choice
 {
     char spawn[64]{"monster_vr_grunt"};
-    int weapon{2};  // the armed list's code (vr_toolgun_armed_list; -1 fists, 0 random)
+    int weapon{4};  // the armed list's code (vr_toolgun_armed_list; -1 fists, 0 random): the shotgun (2 is the axe)
     int weapon2{0}; // its left hand's (0 none)
 };
 
@@ -205,6 +225,10 @@ struct Studio
     // The Pose Studio data window's choice
     int pdKind{0}, pdClass{1}, pdPose{0}, pdPhase{0}, pdHand{0};
     bool pdGlobal{true};
+    bool pdFollow{true};   // the key follows the subject: its kind, its weapon's class (the Pose Handles' default)
+    int pdPart{-1};        // the Pose Handles' part picked (posestudio's numbers: 0 the right weapon .. 11; -1 none)
+    int subjKind{-1}, subjClass{-1}; // the subject's, as QC tells them (rigstudio::qcHold)
+    Tool lastTool{Tool::Rotate};
     double statusAt{0.0};
     // This frame's geometry (vr_rigstudio_view.cpp's)
     za::Vector<glm::vec3> restVerts;   // pose 0 (model units)
@@ -237,6 +261,7 @@ struct Studio
     glm::vec3 ikTarget{0.f};
     int hoverBone{-1};
     int hoverVert{-1};
+    AimTarget aim;
 };
 extern Studio st;
 
@@ -248,6 +273,9 @@ void keepPreEdit();          // the frame's start (no widget held): the data kep
 void pushPreEditUndo(const char* what);
 void pushPoseUndo(int code);                       // a Pose Studio key about to change
 void pushGripUndo(int kind, int slot, int hand);   // a grip about to change
+void pushAimUndo();                                // the aim target about to move
+void resetAim();                                   // the aim target ahead of the subject, level (undoable)
+[[nodiscard]] glm::vec3 aimDefault();              // ... where that is
 void undo();
 void redo();
 void touchedRig();          // the rig part changed (dirty, published)
@@ -301,6 +329,16 @@ bool project(const glm::vec3& world, glm::vec2& out, float* depth = nullptr);
 void frameSelection();
 void snapView(int which, bool flip);
 void cameraView(float* origin, float* angles);
+// The Pose Keys tool's part `part` (posestudio's numbers) as the subject's note has it now (world; the chest's at its
+// waist): false when not a pose key's part now.
+[[nodiscard]] bool posePart(int part, rigpose::Rigid& out);
+[[nodiscard]] glm::quat bodyTurn();   // the subject's facing (its key space's axes in the world)
+// The studio's mock mouse (the tests): a drag of a handle queued as the hand would make it, a frame a step (fed to
+// ImGui before its frame: mockFeed). `owner` 1 the aim target, 2 the Pose Keys' part `part`; `axis` 0..2 an arrow
+// (`amount` units along it), 20..22 a ring (`amount` degrees round it). False: no such handle shown now.
+bool mockDrag(int owner, int part, int axis, float amount);
+void mockFeed();
+[[nodiscard]] bool mockBusy();
 
 // vr_rigstudio_ui.cpp
 void windows();

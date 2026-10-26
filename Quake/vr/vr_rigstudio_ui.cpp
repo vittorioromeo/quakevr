@@ -232,6 +232,10 @@ void menuBar()
         {
             respawn();
         }
+        if(ImGui::MenuItem("Count Entities (console)"))
+        {
+            Cbuf_AddText("vr_rigstudio_count\n"); // (the subject and its own weapons, records, tank: one subject only)
+        }
         ImGui::EndMenu();
     }
     if(ImGui::BeginMenu("Help"))
@@ -264,18 +268,27 @@ void toolsWindow()
         ImGui::End();
         return;
     }
-    const char* tools[] = {"Select (Q)", "Rotate (R)", "Move (G)", "IK (E)", "Rest Pose (T)", "Weights (W)", "Paint (P)"};
+    const char* tools[toolCount] = {"Select (Q)", "Rotate (R)", "Move (G)", "IK (E)", "Rest Pose (T)", "Weights (W)", "Paint (P)", "Pose Keys (O)"};
     int tool = static_cast<int>(st.tool);
-    for(int i = 0; i < 7; i++)
+    for(int i = 0; i < toolCount; i++)
     {
         if(ImGui::RadioButton(tools[i], tool == i))
         {
             st.tool = static_cast<Tool>(i);
+            if(st.tool == Tool::PoseKeys)
+            {
+                st.showPoseData = true; // (its key's numbers beside it)
+            }
         }
-        if(i % 2 == 0 && i < 6)
+        if(i % 2 == 0)
         {
             ImGui::SameLine(115.f);
         }
+    }
+    if(st.tool == Tool::PoseKeys)
+    {
+        ImGui::TextWrapped("Pose Keys: the Pose Studio Data window's key on the subject: click a dot (a weapon, a fist, an "
+                           "elbow, the torso; Pickup: the legs), drag its arrows or rings. Ctrl snaps; Ctrl+Z undoes.");
     }
     ImGui::Checkbox("Snap (Ctrl)", &st.snap);
     ImGui::SameLine();
@@ -304,6 +317,40 @@ void toolsWindow()
         ImGui::Checkbox("IK", &st.ikTargets);
         ImGui::SameLine();
         ImGui::Checkbox("Grips", &st.grips);
+    }
+    if(ImGui::CollapsingHeader("Aim Target", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        ImGui::Checkbox("Aim", &st.aim.on);
+        ImGui::SameLine();
+        ImGui::Checkbox("Show", &st.aim.show);
+        ImGui::SameLine();
+        if(ImGui::Checkbox("At Camera", &st.aim.atCamera) && st.aim.atCamera)
+        {
+            pushAimUndo();
+        }
+        glm::vec3 at = st.aim.at;
+        if(ImGui::DragFloat3("Place", &at.x, 0.5f, -8192.f, 8192.f, "%.1f"))
+        {
+            st.aim.at = at;
+            st.aim.atCamera = false;
+        }
+        if(ImGui::IsItemActivated())
+        {
+            pushAimUndo();
+        }
+        if(ImGui::Button("Reset (ahead, level)"))
+        {
+            resetAim();
+        }
+        ImGui::SameLine();
+        if(ImGui::Button("Select"))
+        {
+            st.aim.selected = true;
+            st.aim.show = true;
+        }
+        helpMarker("Where the subject aims (an armed humanoid's guns, a melee weapon's guard), as the game aims at an enemy "
+                   "standing there: in every animation and pose. Click it in the view and drag its arrows. Off: it carries "
+                   "its weapon. Not saved: the studio's own, kept across subject changes.");
     }
     if(ImGui::CollapsingHeader("Layers (the game's drawing)"))
     {
@@ -1345,7 +1392,18 @@ void poseDataWindow()
     ImGui::TextWrapped("The armed humanoids' pose keys and grips, the Pose Studio's own data (vr_agrunt_poses, "
                        "vr_agrunt_grips): edited here, drawn by the game at once.");
     const char* kinds[] = {"Grunt", "Enforcer"};
+    if(st.pdFollow && st.tool == Tool::PoseKeys)
+    {
+        ImGui::BeginDisabled();
+    }
     ImGui::Combo("Kind", &st.pdKind, kinds, 2);
+    if(st.pdFollow && st.tool == Tool::PoseKeys)
+    {
+        ImGui::EndDisabled();
+    }
+    ImGui::Checkbox("Follow the Subject", &st.pdFollow);
+    helpMarker("With the Pose Keys tool: the key is the subject's own kind and weapon class (and, when the tool is picked, "
+               "the pose it is in); the subject is held in the pose picked here.");
     if(ImGui::BeginTabBar("pd"))
     {
         if(ImGui::BeginTabItem("Pose Keys"))
@@ -1395,6 +1453,27 @@ void poseDataWindow()
             if(changed)
             {
                 agpose::set(code, k);
+            }
+            if(st.pdPose == agpose::Pickup)
+            {
+                // The Pickup's legs (vr_aglegs: a key of their own, any weapon class)
+                ImGui::SeparatorText("Legs (the kneel)");
+                const int lc = agpose::legCode(st.pdKind, agpose::Pickup);
+                agpose::Key lk = agpose::value(lc);
+                const char* legs[] = {"Pelvis Place", "Pelvis Turn", "Planted Foot", "Kneeling Knee Pole", "Kneeling Foot", "Planted Knee Pole"};
+                bool legChanged = false;
+                for(int p = 0; p < 6; p++)
+                {
+                    legChanged |= ImGui::DragFloat3(legs[p], &lk.v[p].x, p == agpose::LegPelvisTurn ? 0.25f : 0.05f);
+                    if(ImGui::IsItemActivated())
+                    {
+                        pushPoseUndo(lc);
+                    }
+                }
+                if(legChanged)
+                {
+                    agpose::set(lc, lk);
+                }
             }
             if(ImGui::Button("Reset This Pose"))
             {
@@ -1482,7 +1561,9 @@ void helpWindow()
         {"F", "frame the selection (or the model)"},
         {"1 / 3 / 7 (numpad too)", "front / right / top; Ctrl: back / left / bottom"},
         {"Left click", "select a bone (Shift: add); a handle: drag it"},
-        {"Q R G E T W P", "tools: select, rotate, move, IK, rest pose, weights, paint"},
+        {"Q R G E T W P O", "tools: select, rotate, move, IK, rest pose, weights, paint, pose keys"},
+        {"Aim target: click it", "its arrows: where the subject aims (Tools > Aim Target)"},
+        {"Pose Keys: click a dot", "a weapon, fist, elbow, the torso (Pickup: the legs): drag its arrows or rings"},
         {"Ctrl (dragging)", "snap: 15 degrees, 1 unit"},
         {"I", "key the selected bones at the frame"},
         {"Space / Left / Right", "play or pause / a frame back / on"},

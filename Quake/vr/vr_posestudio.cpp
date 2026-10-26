@@ -193,6 +193,9 @@ struct Grab
     // A weapon's or a fist's pose drag: its target as sent at the grab (model space): the key moves the target to where
     // the hand holds the part (not by the hand's move from where it was drawn: no snap back by what held it off its goal)
     Rigid target0;
+    // A desk drag (the Rig Studio's Pose Handles: deskBegin): no controller; the chest turned by its rings (model space)
+    bool desk{false};
+    glm::quat deskTurn{1.f, 0.f, 0.f, 0.f};
     bool torsoClamped{false}; // a chest's drag asked past the torso's most
     double overSince{-1.0};   // held off where the hand puts it since (realtime; -1: not)
 };
@@ -258,6 +261,15 @@ struct Session
     bool liveWanted{false}; // vr_posestudio_live with the studio off: started, Live on the first armed humanoid shown
 };
 Session ses;
+
+// The Rig Studio's Pose Handles (deskBegin..deskEnd): its drag of a part, the pose it holds its subject in (the legs'
+// parts shown in its Pickup, not the VR studio's pose: ses.pose untouched).
+struct Desk
+{
+    int pose{-1}; // -1: no desk drag's pose asked (ses.pose's)
+    Grab g;
+};
+Desk desk;
 
 // --- frames --------------------------------------------------------------------------------------------------------
 
@@ -351,7 +363,8 @@ Session ses;
 // The subject's legs as solved now (model space), in the Pickup pose with its kneel up (vr_aglegs); else false.
 [[nodiscard]] bool legsOf(const Note& n, aglegs::Placed& out)
 {
-    return ses.pose == agpose::Pickup && aglegs::enabled() && aglegs::placed(n.ent, out) && out.on > 0.5f;
+    return (desk.pose >= 0 ? desk.pose : ses.pose) == agpose::Pickup && aglegs::enabled() && aglegs::placed(n.ent, out) &&
+           out.on > 0.5f;
 }
 
 // A leg part's frame (model space): the pelvis's pivot (turned with it), a foot's ankle, a knee (unturned).
@@ -735,6 +748,26 @@ void dropUnchangedUndo()
     return vr_agrunt_grip_scope.value == 0.f;
 }
 
+// A pose key's grab of part `p` (its key g.code set), held by `c` (world): the key, the part's and the holder's frames
+// and what the drag's mapping (poseDrag) measures from, as the note has them now.
+void fillPoseGrab(Grab& g, const Note& n, int p, const Rigid& c)
+{
+    const int side = sideOf(p);
+    g.pose = true;
+    g.key0 = agpose::value(g.code);
+    g.keyNow = g.key0;
+    g.rel = compose(inverse(c), partFrame(n, p));
+    g.part0 = toModel(n.space, partFrame(n, p));
+    g.ctrl0 = toModel(n.space, c);
+    g.weaponNow = p == PWeaponL ? n.placed.weapon[1] : n.placed.weapon[0];
+    g.target0 = n.t.weapon[side]; // (a fist's: .pos its point)
+    g.shoulder = n.placed.shoulder[side];
+    g.wrist = n.placed.hand[side].pos;
+    g.waist = waistOf(n);
+    g.torso0 = n.torso;
+    g.pole0 = n.elbowPole[side];
+}
+
 void grab(int hand, int p)
 {
     const Note* np = current();
@@ -792,20 +825,7 @@ void grab(int hand, int p)
             return;
         }
         const Rigid c = controller(s, hand);
-        const int side = sideOf(p);
-        g.pose = true;
-        g.key0 = agpose::value(g.code);
-        g.keyNow = g.key0;
-        g.rel = compose(inverse(c), partFrame(n, p));
-        g.part0 = toModel(n.space, partFrame(n, p));
-        g.ctrl0 = toModel(n.space, c);
-        g.weaponNow = p == PWeaponL ? n.placed.weapon[1] : n.placed.weapon[0];
-        g.target0 = n.t.weapon[side]; // (a fist's: .pos its point)
-        g.shoulder = n.placed.shoulder[side];
-        g.wrist = n.placed.hand[side].pos;
-        g.waist = waistOf(n);
-        g.torso0 = n.torso;
-        g.pole0 = n.elbowPole[side];
+        fillPoseGrab(g, n, p, c);
         g.startPos = grabber(s, hand);
         g.tickPos = grabber(s, hand);
         g.tickRot = c.rot;
@@ -983,8 +1003,8 @@ void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
         }
         case PChest:
         {
-            // The chest: the turn's change added to the key.
-            const glm::vec3 now = chestTurnNow(g, n, c);
+            // The chest: the turn's change added to the key (a desk drag's: its rings' turn about the waist).
+            const glm::vec3 now = g.desk ? torsoOf(g.deskTurn * torsoQuat(g.torso0)) : chestTurnNow(g, n, c);
             glm::vec3 t = g.key0.v[agpose::Torso];
             g.torsoClamped = false;
             for(int i = 0; i < 3; i++)
@@ -2115,7 +2135,85 @@ void report_f()
     }
 }
 
+// Whether part `p` is one a desk drag moves (a pose key's: a weapon's place, a free hand's or a fist's, the elbows,
+// the chest, the Pickup's legs; not a hand on its weapon: a grip).
+[[nodiscard]] bool deskPose(const Note& n, int p)
+{
+    return p >= 0 && p < PCount && shown(n, p) && (p == PWeaponR || p == PWeaponL || editsPose(n, p));
+}
+
 } // namespace
+
+bool deskPart(const Note& n, int part, int pose, Rigid& world)
+{
+    const int keep = desk.pose;
+    desk.pose = pose;
+    const bool ok = deskPose(n, part);
+    world = ok ? partFrame(n, part) : Rigid{};
+    desk.pose = desk.g.part >= 0 ? keep : -1;
+    return ok;
+}
+
+glm::vec3 deskWaist(const Note& n)
+{
+    return toWorld(n.space, waistOf(n));
+}
+
+bool deskBegin(const Note& n, int part, int code, int pose)
+{
+    desk = Desk{};
+    desk.pose = pose;
+    if(!deskPose(n, part) || code < 0)
+    {
+        desk.pose = -1;
+        return false;
+    }
+    Grab g;
+    g.part = part;
+    g.ent = n.ent;
+    g.kind = n.kind;
+    g.desk = true;
+    g.code = code;
+    if(isLeg(part))
+    {
+        aglegs::Placed L;
+        (void)legsOf(n, L);
+        g.code = agpose::legCode(n.kind, agpose::Pickup);
+        g.legMirror = L.kneel == 0;
+    }
+    fillPoseGrab(g, n, part, partFrame(n, part)); // (held where it is: its frame the holder's)
+    desk.g = g;
+    return true;
+}
+
+int deskCode()
+{
+    return desk.g.part >= 0 ? desk.g.code : -1;
+}
+
+void deskDrag(const Note& n, const Rigid& partWorld, const glm::quat& turn)
+{
+    Grab& g = desk.g;
+    if(g.part < 0)
+    {
+        return;
+    }
+    g.deskTurn = turn;
+    poseDrag(g, n, partWorld, toModel(n.space, partWorld));
+}
+
+void deskEnd(bool keep)
+{
+    if(desk.g.part >= 0)
+    {
+        agpose::clearPreview();
+        if(keep)
+        {
+            agpose::set(desk.g.code, desk.g.keyNow);
+        }
+    }
+    desk = Desk{};
+}
 
 void init()
 {

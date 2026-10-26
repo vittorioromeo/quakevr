@@ -19,8 +19,41 @@ or **Debug > Tools > Rig Studio (Flat Screen)**. It is flat-screen only: with a 
 ("the Rig Studio is flat-screen only"). It loads `vr_rigstudio_map` (vrtesthall), makes you a god-mode, notarget
 onlooker and stands a frozen armed grunt with a shotgun in the middle of the free floor ahead. `vr_rigstudio here`
 keeps the map you are in. `vr_rigstudio <spawn class> [weapon] [weapon2]` picks the subject (the armed list's codes:
-`vr_toolgun_armed_list`), as does the **Subject** menu (every armed humanoid kind, its right and left hand's weapon,
-dual included, and a few unarmed rigged monsters). `vr_rigstudio_close` (or File > Close Studio) gives the game back.
+`vr_toolgun_armed_list`; 4 the shotgun, the default), as does the **Subject** menu (every armed humanoid kind, its right
+and left hand's weapon, dual included, and a few unarmed rigged monsters). There is only ever one subject: a change (its
+kind, its weapon, its left weapon, a rigged monster), Respawn, opening the studio again and closing it remove the old one
+with everything it owns (its held weapons and their records, a worn tank: QC `VR_RigStudio_Remove`); a map loaded while
+open stages it again in the new map. Your edits are the model's, not the entity's: they stay. Subject > Count Entities
+(`vr_rigstudio_count`) prints the entities in use, the monsters, the held weapons, their records and the worn tanks, and
+what the subject owns. `vr_rigstudio_close` (or File > Close Studio) gives the game back.
+
+## Where the subject aims: the aim target
+
+An armed subject aims at the **aim target** (an orange cross in the view) as the game aims at an enemy standing there
+(QC `VR_AGK_Hold`, the Pose Studio's Aim stance: its target at that point, its gun's aim the way from its gun to it):
+in every animation and in Game display. Before it, the frozen subject had no enemy and carried its weapon along its
+animation's rifle line: in the shoot animation, the gun pointed at the floor (48 degrees off level). Its default is
+straight ahead of the subject, 200 units away, at its chest's height (its origin + 12: level). Click it in the view to
+select it and drag the move handle's arrows, planes or centre (Ctrl: whole units); undoable; not saved (the studio's
+session state), kept across subject changes. **Tools > Aim Target**: Aim (off: it carries its weapon, as before),
+Show, At Camera (it follows the studio's camera: the subject aims at you), its place (world), Reset (ahead, level),
+Select. The engine writes the subject's `.vr_rs_aim` and `.vr_rs_aimon` (QC `vr_rigseq.qc`); every other entity's are
+0, so the game's grunts aim as before. Its body keeps facing the stage: a target more than 30 degrees to a side is
+aimed at as far as its arms turn (`VR_AGP_ArmsGun`'s limit; in the game its body would turn).
+
+## Pose Keys: the Pose Studio's data by handles
+
+The **Pose Keys** tool (O, or Tools) drags the key picked in the Pose Studio Data window on the subject, by handles, with
+the VR Pose Studio's own mapping from a part's place to the key's values (`posestudio::deskBegin`, `deskDrag`,
+`deskEnd`): a dot on each part the key moves (the right weapon or fist, the left weapon or free hand, each elbow (its
+pole drawn as a line from it), the torso (at its waist); in Pickup the pelvis, both feet and both knees). Click a dot:
+its handle, in the key's space's axes (the subject's facing: x forward, y left, z up): arrows, planes and centre to move
+it, rings (outside the arrows) to turn it (the weapons, the torso, the pelvis). The subject is held in that key's pose (a
+strike at the phase picked; the game's frame drawn, not the timeline's, and none of the studio's own pose), the game's
+IK result drawn each frame, the arms staying on their weapons; the window's numbers follow the drag. Ctrl snaps (1 unit,
+15 degrees), Esc cancels, Ctrl+Z undoes; Save and Print as the window's. With **Follow the Subject** on (the default)
+the window's kind and class are the subject's and the pose, as the tool is picked, the one it is in (Aim with the aim
+target on, else Carry).
 
 ImGui is made the first time the studio opens; until then nothing of it exists, and while the studio is closed none of
 it runs (the input loop and the swap test one flag each). While it is open the keyboard and mouse are the studio's
@@ -38,7 +71,9 @@ it runs (the input loop and the swap test one flag each). While it is open the k
 | F | frame the selection (bones or vertices; else the model) |
 | 1 / 3 / 7 (numpad too) | front / right side / top; Ctrl: back / left / bottom |
 | Left click | select a bone (Shift adds or toggles); on a handle: drag it |
-| Q R G E T W P | tools: Select, Rotate, Move, IK, Rest Pose, Weights, Paint |
+| Q R G E T W P O | tools: Select, Rotate, Move, IK, Rest Pose, Weights, Paint, Pose Keys |
+| Left click on the aim target | select it: its move handle (where the subject aims) |
+| Pose Keys: left click on a dot | pick that part: its arrows and rings drag the key |
 | Ctrl while dragging | snap: 15 degrees, 1 unit (Tools > Snap: always) |
 | I | key the selected bones at the frame |
 | Space, Left, Right | play / pause, a frame back, a frame on |
@@ -53,7 +88,8 @@ ring, the move tool's arrows, plane squares and its centre (the view's plane); t
 
 ## The windows
 
-- **Tools**: the tool; Snap, Auto Key. *Display*: the mesh (Game: the game's own drawing, every procedural layer on;
+- **Tools**: the tool; Snap, Auto Key. *Aim Target*: Aim, Show, At Camera, its place, Reset (ahead, level), Select
+  (above). *Display*: the mesh (Game: the game's own drawing, every procedural layer on;
   Shaded: the studio's skinned mesh, lit flat, its weights shown live; Wire: the game's drawing with the studio mesh's
   edges; X-Ray: the studio mesh see-through, every edge), colours (none, each vertex its bone's, the selected bone's
   weights as a heat map: blue 0, green 0.5, red 1), bones (octahedral, stick, off), joints, names on hover, the joints'
@@ -83,7 +119,8 @@ ring, the move tool's arrows, plane squares and its centre (the view's plane); t
 - **Pose Studio Data**: the armed humanoids' pose keys (kind, weapon class, pose, phase: the seven parts the Pose
   Studio drags) and grips (a kind's every-weapon grip, or the subject's weapon's own, per hand), the Pose Studio's own
   data (vr_agrunt_poses, vr_agrunt_grips), drawn by the game at once; Print writes them as code (vr_agrunt_pose_dump,
-  vr_agrunt_grip_dump). Undo covers them.
+  vr_agrunt_grip_dump). Undo covers them. Follow the Subject (the Pose Keys tool's key the subject's); in Pickup the
+  legs' key too (the pelvis's place and turn, the feet, the knees' poles). The Pose Keys tool drags the same key.
 - **Help**, **Preferences** (orbit, pan and zoom speeds, handle size, theme: dark, light, classic).
 
 The File menu: Save, Revert to Files, Print as Defaults, Close Studio. Edit: undo, redo, copy, paste (all bones or the
@@ -226,7 +263,21 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
   `_save`, `_revert`, `_undo`, `_redo`, `_weight <vertex> <bone> <w>`, `_vertex <v | first <bone>>` (its weights,
   rest and posed places), `_rest <bone> pivot|end <xyz> | cone|twist|lower|upper <deg> | reset`, `_selverts`,
   `_assign <bone>`, `_pose save|load|mirror`, `_panel <window> 0|1`, `_view mesh|colors|bones|tool|snap|frame|onion|
-  proxies ...`, `_play [0|1]`, `_respawn`, `_print`, `_status`; `vr_rigdata_info [model]`, `vr_rigdata_reload`.
+  proxies ...` (`_view tool posekeys`), `_play [0|1]`, `_respawn`, `_print`, `_status`, `_count`, `_aim [on|show|camera
+  0|1 | reset | at <xyz> | rel <forward left up> | select]` (no arguments: where it is and how far off it the weapon
+  points), `_posekey [kind|class|pose|phase|follow|part <n>]...` (the window's key, printed); `vr_rigdata_info [model]`,
+  `vr_rigdata_reload`.
+- `vr_rigstudio_test_subjects` (open the studio first: `-flatscreenmode`; ends on `rigstudio subjects: N passed, M
+  failed`): 14 steps: the subject changed through its weapon, two weapons, a flamethrower (its tank), the enforcer, a
+  rigged monster, fists, the ogre, the map loaded again, the studio closed and opened here twice: each time exactly one
+  subject, its own weapons, records and tank, and the other entities as many as at the first.
+- `vr_rigstudio_test_aim [animation] [frame]` (default shoot 1; ends on `rigstudio aim: N passed, M failed`): the shotgun
+  grunt aiming off, then at a target level ahead, high left and low right: its barrel's line against the way from its
+  muzzle to the target (within 8 degrees), a screenshot of each.
+- `vr_rigstudio_test_posekeys` (ends on `rigstudio posekeys: N passed, M failed`): the studio's mock mouse drags the
+  Pose Keys handles (the right weapon 4 forward and 20 degrees round z, the right elbow 4 down, the torso 15 degrees, in
+  Pickup the pelvis 3 down): the key changed by that in its space, the drawn part with it; undone, the key exactly as
+  it was. Screenshots before and after the weapon's move.
 
 ## Limits and rough edges
 
