@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Nail magazines {test:magfill} (nail pistol, nailgun, super nailgun) show two top nails when they hold 2 or more, one with one round left, none when empty: in the hand, in the pouch, lying about and dropped after a reload
 Widowmaker: the darker skin in a lit and a dark room; rust, rivets, bricks and brass still readable {test:widowmaker_art}
 The nailgun's and super nailgun's magazines {test:nailmags} show their top two nails as models over the feed lips, like the nail pistol's (the lava nails red-hot); seated, no nail pokes out of the gun or its well
 Widowmaker: take the front handle: the gun doesn't jump and then follows the front hand too (Weapon Offsets > Hotspots: Two-Handed Aim Off brings back the main-hand-only feel)
