@@ -216,6 +216,27 @@ void() VR_RVT_Flicks =
         k * 300 * dt));
     cvar_set("vr_revolver_open_flick_speed", ftos(s0));
     cvar_set("vr_revolver_open_flick_angle", ftos(a0));
+    // The time window: a slow roll (50 deg/s, 30 deg takes 0.6 s) never opens within 0.25 s, does within 1 s. Also how long
+    // today's default flick (30 deg at 350 deg/s) takes.
+    float w0 = cvar("vr_revolver_open_flick_time");
+    cvar_set("vr_revolver_open_flick_speed", "50");
+    cvar_set("vr_revolver_open_flick_angle", "30");
+    cvar_set("vr_revolver_open_flick_time", "0.25");
+    h.rvh_fo = h.rvh_fop = h.rvh_fot = h.rvh_fc = h.rvh_fcp = h.rvh_fct = 0;
+    float r7 = 0;
+    for(k = 0; k < 60 && !r7; k++) { r7 = VR_Revolver_FlickRate(h, 50, dt); }
+    cvar_set("vr_revolver_open_flick_time", "1");
+    h.rvh_fo = h.rvh_fop = h.rvh_fot = h.rvh_fc = h.rvh_fcp = h.rvh_fct = 0;
+    float r8 = 0;
+    for(k = 0; k < 60 && !r8; k++) { r8 = VR_Revolver_FlickRate(h, 50, dt); }
+    VR_RVT_Check(r7 == 0 && r8 == 1, sprintf("a slow 30 deg roll over 0.6 s: window 0.25 s nothing (%g), window 1 s out after %g frames", r7, k));
+    cvar_set("vr_revolver_open_flick_speed", ftos(s0));
+    cvar_set("vr_revolver_open_flick_angle", ftos(a0));
+    cvar_set("vr_revolver_open_flick_time", ftos(w0));
+    h.rvh_fo = h.rvh_fop = h.rvh_fot = h.rvh_fc = h.rvh_fcp = h.rvh_fct = 0;
+    float r9 = 0;
+    for(k = 0; k < 60 && !r9; k++) { r9 = VR_Revolver_FlickRate(h, 350, dt); }
+    VR_RVT_Check(r9 == 1, sprintf("default flick (30 deg at 350 deg/s): out after %g frames = %.3f s (window %g s)", k, k * dt, w0));
     remove(h);
 };
 

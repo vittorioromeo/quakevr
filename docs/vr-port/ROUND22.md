@@ -22796,3 +22796,10 @@ his to tune. The holsters' poses are unchanged and not looked at in game (the mo
 
 **In VR:**
 - [ ] Heavy revolver {test:revolver}: the barrel half as long again, the front sight on it lines up in the rear notch; no hole where the barrel meets the frame (look from above and behind); shots, flash and smoke from the new muzzle; it still sits in both holsters without poking through you.
+
+### Heavy revolver: flick speed labels, time window, sustain (agent/rvflick)
+
+- Labels "Flick Open/Close Force" are now "Flick Open/Close Speed" (the wrist roll speed needed). New archived cvars `vr_revolver_open_flick_time` and `vr_revolver_close_flick_time` (0.25 s each; 0 = no limit; separate sliders next to each flick's speed and angle) and `vr_revolver_flick_sustain` (0.3, shared, advanced slider).
+- The flick's angle must come within the window of its start; an older accumulation restarts from the current frame (QC `VR_Revolver_FlickRate`, fields `rvh_fot`/`rvh_fct`).
+- Measured: the default flick (30 deg at 350 deg/s) takes 7 frames = 0.097 s, so 0.25 s leaves it unchanged. `vr_rv_test 1`: 28 + 2 new checks (slow 30 deg roll over 0.6 s: nothing at window 0.25, out after 44 frames at window 1; default flick time) = 30/0. `menu_vr links`: 0 failed. eval canary: 0 differ.
+- Note: run `vr_rv_test` as `map vrtesthall;wait30;developer 1;vr_rv_test 1` (a long trailing wait made step 2 fail here).

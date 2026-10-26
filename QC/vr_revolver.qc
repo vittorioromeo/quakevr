@@ -64,6 +64,8 @@ float RV_SWING = -95;        // the crane's swing out, degrees about the bore (+
 .float rvh_fop;     // and its fastest (degrees a second)
 .float rvh_fc;      // the other way
 .float rvh_fcp;
+.float rvh_fot;     // the seconds since each flick began (the time window)
+.float rvh_fct;
 .float rvh_toggled; // when it last swung out or home
 .float rvh_rod;     // until when its ejector rod is drawn pushed
 .float rvh_spun;    // its last swipe
@@ -617,39 +619,55 @@ float(float xGunHand, entity xRound, float xHeld) VR_Revolver_LoadInto =
 
 // The wrist's roll for the flicks (`xRate` degrees a second towards the cylinder's side, over `xDt` s; VR_Revolver_Flick):
 // +1 a flick that way (it swings out: vr_revolver_open_flick_speed at its fastest, vr_revolver_open_flick_angle in one
-// go), -1 the other way (home: vr_revolver_close_flick_*), else 0. A roll under 0.3 of the speed ends a flick.
+// go), -1 the other way (home: vr_revolver_close_flick_*), else 0. A roll under vr_revolver_flick_sustain (0.3) of the speed ends
+// a flick; its angle must come within vr_revolver_*_flick_time seconds of its start (older: it restarts).
 float(entity h, float xRate, float xDt) VR_Revolver_FlickRate =
 {
     float needO = max(1, cvar_hget(cvarh_vr_revolver_open_flick_speed));
     float needC = max(1, cvar_hget(cvarh_vr_revolver_close_flick_speed));
-    if(xRate > needO * 0.3)
+    float sus = min(1, max(0, cvar_hget(cvarh_vr_revolver_flick_sustain)));
+    float winO = cvar_hget(cvarh_vr_revolver_open_flick_time);
+    float winC = cvar_hget(cvarh_vr_revolver_close_flick_time);
+    if(xRate > needO * sus)
     {
+        h.rvh_fot = h.rvh_fot + xDt;
+        if(winO > 0 && h.rvh_fot > winO)
+        {
+            h.rvh_fo = h.rvh_fop = 0;
+            h.rvh_fot = xDt;
+        }
         h.rvh_fo = h.rvh_fo + xRate * xDt;
         h.rvh_fop = max(h.rvh_fop, xRate);
     }
     else
     {
-        h.rvh_fo = h.rvh_fop = 0;
+        h.rvh_fo = h.rvh_fop = h.rvh_fot = 0;
     }
-    if(-xRate > needC * 0.3)
+    if(-xRate > needC * sus)
     {
+        h.rvh_fct = h.rvh_fct + xDt;
+        if(winC > 0 && h.rvh_fct > winC)
+        {
+            h.rvh_fc = h.rvh_fcp = 0;
+            h.rvh_fct = xDt;
+        }
         h.rvh_fc = h.rvh_fc - xRate * xDt;
         h.rvh_fcp = max(h.rvh_fcp, -xRate);
     }
     else
     {
-        h.rvh_fc = h.rvh_fcp = 0;
+        h.rvh_fc = h.rvh_fcp = h.rvh_fct = 0;
     }
     if(h.rvh_fo >= max(0, cvar_hget(cvarh_vr_revolver_open_flick_angle)) && h.rvh_fop >= needO)
     {
         vr_rv_lasthow = sprintf("a flick (%.0f deg at %.0f deg/s)", h.rvh_fo, h.rvh_fop);
-        h.rvh_fo = h.rvh_fop = 0;
+        h.rvh_fo = h.rvh_fop = h.rvh_fot = 0;
         return 1;
     }
     if(h.rvh_fc >= max(0, cvar_hget(cvarh_vr_revolver_close_flick_angle)) && h.rvh_fcp >= needC)
     {
         vr_rv_lasthow = sprintf("a flick (%.0f deg at %.0f deg/s)", h.rvh_fc, h.rvh_fcp);
-        h.rvh_fc = h.rvh_fcp = 0;
+        h.rvh_fc = h.rvh_fcp = h.rvh_fct = 0;
         return -1;
     }
     return 0;
