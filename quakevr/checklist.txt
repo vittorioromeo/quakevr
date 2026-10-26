@@ -2,6 +2,7 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Heavy revolver: a normal flick opens and closes it as before; a slow roll opens it only if Flick Open Time (and closes only if Flick Close Time) is raised; the Flick Open/Close Speed, Time and Sustain sliders do what their help says
 Heavy revolver {test:revolver}: the barrel half as long again, the front sight lines up in the rear notch; no hole where the barrel meets the frame (look from above and behind); shots, flash and smoke from the new muzzle; it still sits in both holsters without poking through you
 Player Appearance > Randomize: each press gives a new look (skin tone, gloves none/fingerless/full in leather colours, nails on about half the time) and leaves every other setting alone
 Nail magazines {test:magfill} (nail pistol, nailgun, super nailgun) show two top nails when they hold 2 or more, one with one round left, none when empty: in the hand, in the pouch, lying about and dropped after a reload
