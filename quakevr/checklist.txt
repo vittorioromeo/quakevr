@@ -2,6 +2,10 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Rig Studio (-flatscreenmode, Debug > Tools > Rig Studio or vr_rigstudio): orbit (middle mouse), pan (Shift), zoom, F, 1/3/7; rotate the chest with a ring; Ctrl snaps; undo/redo
+Rig Studio Weights: the arm's heat map; paint add/smooth with mirror; assign; normalize; save, restart the game and the edit is applied
+Rig Studio Timeline: key the arm in the reload animation at frames 3 and 7, play at 0.5x with onion skin; make a short new sequence and save it
+vr_agrunt_taunt 1: an armed grunt taunts when it first sees you, then charges; shoot it mid-taunt and it stops
 Grab an armed grunt's gun (grip, barrel, stock) and tug: your hand stays on the gun where you took it; pull hard or step back far without winning and it lets go (Armed Grunts > Tug: Let Go Past); say whether the hand's jump onto the gun as the tug starts (~20 cm) reads wrong
 Player Appearance > Hand Shape > Feminine: slimmer fingers, finer knuckles, longer nail beds; switching is instant; grips, two-handed grips and reloads feel the same
 Feminine hands: gloves and nails sit right; the wrist meets the bare forearm with no gap; Randomize picks them with the feminine body
