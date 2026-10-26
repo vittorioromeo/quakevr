@@ -23302,3 +23302,45 @@ ragdoll's cone (85 degrees about hanging) is narrower than the IK's: a knockdown
   pushed forward).
 - [ ] Shove a nail pistol grunt over, kill an enforcer: the ragdoll's shoulders bend smoothly, no torn or folded shoulder.
 - [ ] Rig Studio: select an armed grunt's upper arm with Limits on: the yellow clavicle and the magenta cone.
+
+### Round 2: the hands kept on their grips, the cost cut (same branch)
+
+The coordinator's review: the hands left their targets more (reach p95 5.6 -> 6.8, 11% -> 29% of frames over 2 units)
+and the solve cost more. Causes: the torso clearance turned every arm's wrist out (a pistol's carry 4 -> 10 units off),
+and the grunt's carried nail pistol was cupped by the off hand reaching across the body (its upper arm through the
+torso: 58% of its frames, the arm 4-5 units short). Changes:
+- The wrist's turn out of the torso: 20 degrees at most for a free hanging hand, 6 for a hand on a weapon, a grip, a cup
+  or a fist's point (`armClearHeldMost`).
+- A pistol carried low (its barrel pointing down past 27 degrees) is held in one hand: no Cup (vr_hitreact.cpp, with
+  `vr_agarms_arm_clear`); QC's one-handed carry (`VR_AGP_ArmsOne`) out from the side 19 degrees, within reach.
+- Cost: the limits' angles worked out only past their cosines, the clearance's vertex pass on the 8 inner upper-arm
+  vertices and only with its bone's middle near the body, a free hand's rounds stop once its forearm settles (1 degree).
+
+**Measured** (the finder, all 26 subjects, the LTO build, `--exclusive`; before = every new setting 0; p95 / worst / % over):
+
+| | before | after |
+| --- | --- | --- |
+| upper arm skin in the torso | 3.5 / 13 / 30% over 1 u | 1.7 / 11 / 12% |
+| ... grunt nail pistol | 2.4 / 4 / 78% | 1.6 / 6 / 8% |
+| ... enforcer nail pistol | 10.7 / 13 / 54% | 0.5 / 1 / 0% |
+| ... carry, run | 7.8, 3.6 p95 | 0.7, 1.7 |
+| hand off its goal (reach) | 5.6 / 32 / 11% over 2 u | 3.2 / 28 / 8% |
+| upper arm twist | 99 / 180 / 11% over 80 deg | 79 / 175 / 3% |
+| angle off the cone's axis | 90 / 178 / 1% over 105 | 89 / 173 / 1% |
+| shoulder cap stretch (ratio - 1) | 4.0 / 29 | 2.5 / 13 |
+| weapon off its line (aim) | 0.8 / 73 / 3% over 10 deg | 3.8 / 73 / 3% |
+| arms' solve, us per armed humanoid a frame (LTO, exclusive) | 27.3 | 37.1 |
+
+The aim's p95 moves with the runs' timing (the AI diverges once anything differs: subject 12 alone gives 0.0 p95 with
+each setting on or off); its share of frames over 10 degrees is unchanged.
+
+**Tests** (after round 2): Rig Studio `vr_rigstudio_test_subjects` 14/14, `_aim` 4/4, `_posekeys` 10/10; test 80 4/4
+with the `rstest` sequence made by the studio's commands (`vr_rigstudio_seq_new rstest 10 10`, events, `_save`, with
+waits: the studio's save also rewrites `quakevr/anims/vrgrunt/taunt.anim.txt`, put back). The Pose Studio has no test
+command (its scenes are manual).
+
+**Left:** the ragdoll's shoulder cone (85 degrees about hanging) against the IK's 105 about forward-out-down: a
+knockdown while aiming high still pulls the arm in over its first steps (widening the ragdoll's cone would loosen every
+enforcer's and grunt's corpse; the Rig Studio's upper arm Cone override can widen it per model). No eyeshot framing a
+shoulder yet: the finder's cameras sit badly and the studio's panels cover a framed upper arm (its subject in its rest
+pose): a scene or a camera command is wanted.
