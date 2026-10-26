@@ -55,10 +55,10 @@ TIP_TAPER = 0.09  # the fingertips narrowed by this much more at their end, from
 TIP_TAPER_FROM = 0.3
 TIP_LENGTH = 0.93  # the last segment's length past its joint, of the standard's
 NAIL_BASE = (0.45, 0.30)  # the ring under the nail's base: from this share of the last segment to this one
-PALM_WIDTH = [(-6.5, 0.97), (-5.2, 0.97), (-4.4, 0.93), (-2.5, 0.89), (0.1, 0.90), (2.0, 0.92)]  # across, by x
+PALM_WIDTH = [(-6.5, 1.0), (-2.5, 1.0), (-1.0, 0.93), (0.1, 0.90), (2.0, 0.92)]  # across, by x
 PALM_EDGE = 0.86  # at the knuckles: the palm's edges past the outer fingers' axes drawn in by this
 PALM_KNUCKLES = (2.0, 4.2)  # from the middle mode (about the palm's middle) to the knuckles' (x)
-PALM_THICK = [(-6.5, 0.98), (-5.2, 0.98), (-4.4, 0.95), (-2.5, 0.93), (2.0, 0.94), (6.0, 0.94)]  # back to palm, by x
+PALM_THICK = [(-6.5, 1.0), (-2.5, 1.0), (-1.0, 0.95), (2.0, 0.94), (6.0, 0.94)]  # back to palm, by x
 THENAR_KEEP = 0.6  # the ball of the thumb narrowed this much less (its share of the thumb's weights)
 
 JOINTS = md5hand.JOINTS
@@ -277,8 +277,10 @@ def sizes(mesh, rest, part):
         pts = rest[part == fi]
         mid = 0.5 * (f.p[0] + f.p[1])  # the first segment's middle ring
         x, y, z = f.frame(0)
-        d = np.abs((pts - mid) @ x)
-        sel = d <= max(0.3, np.sort(d)[7])  # (its ring: 8 vertices)
+        s = np.array([f.place(p)[2] for p in pts]) / f.lengths[0]
+        mids = s[(s > 0.3) & (s < 0.8)]
+        s0 = mids[np.argmax([np.sum(np.abs(mids - c) < 0.05) for c in mids])]
+        sel = np.abs(s - s0) < 0.05  # (the first segment's middle ring)
         out[n + " width"] = np.ptp((pts[sel] - mid) @ z)
         out[n + " thick"] = np.ptp((pts[sel] - mid) @ y)
         out[n + " tip"] = f.tip
