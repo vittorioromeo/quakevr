@@ -2,6 +2,8 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Player Appearance > Hand Shape > Feminine: slimmer fingers, finer knuckles, longer nail beds; switching is instant; grips, two-handed grips and reloads feel the same
+Feminine hands: gloves and nails sit right; the wrist meets the bare forearm with no gap; Randomize picks them with the feminine body
 Player Appearance > Body Shape > Feminine: narrower waist, wider hips, modest chest, slimmer arms; calibration still fits; Athletic restores the old body
 Body Shape Feminine with green, yellow and red armour: the plates look fitted over the chest, not painted flat; holsters, wrist gadget, flashlight clip and arm blood sit right on the body
 Randomize sometimes picks the Feminine body (about 1 in 4) and otherwise keeps your other shape
