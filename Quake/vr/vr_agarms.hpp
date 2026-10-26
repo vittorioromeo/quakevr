@@ -111,6 +111,15 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
 // Whether `e` is drawn with posed arms now (solved this frame, or easing back to its animation's).
 [[nodiscard]] bool active(const entity_t* e);
 
+// A ragdoll made of `num` (vr_box3d_ragdoll.cpp createRagdoll): rig bone `bone`'s frame (as ragdoll::bonePose's: `rot`,
+// `pos` given its frame's, model units) moved to where its posed arms were last drawn (an upper arm, a forearm, a hand:
+// on its weapons, not the animation's), eased as they were. False (left as given): not one of them, or not posed lately.
+bool drawnArmBone(int num, const qmodel_t* model, const ragdoll::Rig& rig, int bone, glm::quat& rot, glm::vec3& pos);
+
+// That ragdoll's hand `side` (0 right) on its forearm as it was drawn when the ragdoll was made (rest model space; a rig
+// with no hand bone: its weapon is drawn by it on the forearm, vr_hitreact.cpp ragdollProps). False: none.
+bool ragdollWrist(int num, const qmodel_t* model, int side, rigpose::Rigid& out);
+
 // kickInstance: `e`'s arm rows (blockRows, the poses' units), its model's skin's. False: none (its rest data has no skin).
 bool rows(const entity_t* e, const aliashdr_t* hdr, glm::vec4* out);
 

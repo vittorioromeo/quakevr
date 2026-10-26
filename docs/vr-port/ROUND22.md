@@ -22998,3 +22998,45 @@ the baseline). The ragdoll drag's paths are unchanged by construction (only `tug
 - [ ] Grab an armed grunt's gun (grip, barrel, stock) and tug: your hand stays on the gun where you took it; pull hard
   or step back far without winning and it lets go. Say whether the hand's jump onto the gun as the tug starts (~20 cm)
   reads wrong.
+
+## The tug's follow-up: the muzzle grab, armed ragdolls keep their posed arms (worktree `gorefx`, branch `agent/tughand2`, 2026-10-26)
+
+**1. The muzzle grab was the test, not the game.** Test 39 put the mock hand at the muzzle in one frame: an 11-unit
+move is a 30 m/s fist, a punch that hit the grunt's arm (health 30 -> 14, `vr_ag_disarms` 1, `vr_ag_wid` -1: the hit
+disarm) before the grip was pressed. Placed at the hand's point, the fist also sat beside a thin barrel (3.9 cm off at
+the tip, 0.1 cm at 0.95: a grab needs the fist on the surface, `vr_agrunt_grab_slack` 0). The test now glides the hand
+there (0.01 of the weapon a frame, ~0.45 m/s), by its palm (`vr_mock_hand_to main agweaponpalm <fraction> [<cm>]`), and
+if the engine's reading says the fist is off the surface tries the palm 2, -2, 4, -4 cm higher. Every point starts the
+tug, the fist -0.9 to -1.3 cm into the surface: grabs at 0 (the stock end), 0.25 (the grip), 0.5, 0.75, 0.9 and 1.0 (the muzzle) of the way all begin it, the drawn hand 0.00 cm off its grab. No game change was needed (the box sizing of agent/tughand
+already lets the hands' touches reach the muzzle).
+
+**2. No jump: armed ragdolls start from their posed arms** (`vr_ragdoll_posed_arms`, default 1, archived; Debug menu
+"Armed Ragdolls Keep Their Posed Arms"). A ragdoll was made from the animation frame's bones (`createRagdoll`), while an
+armed humanoid's arms are drawn posed on its weapons (vr_agarms: IK); the gun, drawn on the ragdoll's hand, jumped
+~19 cm and 18 degrees, and with it the tug's hand. Now `createRagdoll` takes each arm bone (upper arm, forearm, a hand
+bone) from where vr_agarms last drew it (`agarms::drawnArmBone`: its rest-to-drawn transform on the bone's rest frame,
+eased as drawn; posed within the last 2 frames), for the bodies and the joints' anchors alike (no joint strain, no
+snap). The soldier's rig has no hand bone (its hand is on `forearm_r`), so the wrist's bend would still turn the gun
+(40 degrees, 8.7 cm at the grip, 27 cm at the muzzle): `drawnArmBone` keeps each hand's turn on its forearm at that
+moment (`ragWrist`) and `ragdollProps` draws the weapon with it (`agarms::ragdollWrist`), until the arms are posed again.
+Any ragdoll of an armed humanoid takes it (a tug, a stagger, a knockdown; a death's ragdoll comes after its posed arms
+have eased out: unchanged).
+
+| test 39, held still | posed arms off (before) | on |
+| --- | --- | --- |
+| drawn gun vs the server's (`vr_agrunt_weapon_probe`) | 19.1-19.2 cm, 17-18 deg | 0.6-1.5 cm, 1 deg |
+| the hand's jump at the tug's start (controller to its grab on the drawn gun), grip / muzzle | 18.7-19.0 / 24.5 cm | 0.7 / 2.0 cm |
+
+Eyeshots (scratch4 1: the frame before, the ragdoll's first, 0.5 s on): the tug at the grip and a knockdown
+(`scratch3` 9) look the same before and on the first ragdoll frame: arms, gun and your hand in place. Test 39's
+`scratch3` 8 (shot dead) makes no ragdoll within 2 s here (the death animation plays): not checked.
+
+**The tug's timings changed with the arms** (every pull still wins; `vr_ragdoll_posed_arms 0` gives the old ones
+exactly: the slow pull 2.31 s, 1708 N): the hold is now on the forearm by the real hand, not 19 cm off it, so its
+lever and the arm's pull differ. Test 39 pulls, posed arms on: 0.2 m/s won 2.81 s (a yank, 2366 N; was 2.31 s, torn out
+at 1708 N), 0.6 m/s 0.97 s (was 1.15), 1.5 m/s 0.36 s (was 0.62), 3 m/s 0.21 s (was 0.35), stepping back 1.39 s (was
+1.32). The let-go: unbreakable at 3 m/s with `vr_agrunt_tug_let_go 20`, lost at a lag of 22.7 cm (the default 50 is
+never reached when the grunt follows: lags 20-25 cm). Tests 31 5/5, 32 5/5, 36 4/4, 37 8/8; ragdoll_test.sh grab and
+twohand: taken, held 1.5-2.4 units from the hands, let go; eval.sh canary 36/44, 0 differ.
+- [ ] Grab an armed grunt's gun at the muzzle, the barrel and the stock: each starts the tug. As the tug begins (and
+  as an armed grunt is knocked down), its gun and arms stay where they were: no jump of the gun or of your hand.

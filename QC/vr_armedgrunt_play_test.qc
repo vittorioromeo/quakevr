@@ -1284,11 +1284,59 @@ void() VR_AGPT_TugHand =
         VR_AGT_Print(sprintf("tughand grab %g of the way: the hand %.1f units ahead of its grip, %.1f off its line, the fist %.1f cm off it (hand %v, "
             "weapon %v, %s)", cvar("scratch2"), rel * v_forward, vlen(rel - v_forward * (rel * v_forward)), cvar("vr_agrunt_grab_gap"), p.handpos,
             g.vr_ag_prop.origin, g.vr_ag_prop.netname));
+        if(cvar("scratch4") >= 1)
+        {
+            cvar_set("vr_eyeshot", "1"); // (scratch4: the eyes before, as it begins and 0.5 s on)
+        }
+        if(mode >= 8)
+        {
+            // (8: shot dead as it holds its weapon out; 9: knocked down: its ragdoll's first frames, no grab)
+            vr_agt_step = 20;
+            vr_agt_until = time + 0.05;
+            return;
+        }
         cvar_set("vr_agrunt_disarm_yank", "1");
         p.mainhand_lastgrabtime = time; // (the grip pressed now: VR_HandGrabUtil_StartedHandGrabbing)
         p.mainhand_lastreleasetime = time - 1;
         vr_agt_step = 6;
         vr_agt_until = time + 0.4;
+        return;
+    }
+    if(vr_agt_step == 20)
+    {
+        makevectors('0 1 0' * g.angles_y);
+        if(mode == 8)
+        {
+            T_Damage(g, p, p, g.health + 50);
+        }
+        else if(VR_Knockdown_Start(g))
+        {
+            ragdollshovetopple(g, v_forward * -1, 0.3, FALSE, 0);
+        }
+        VR_AGT_Print(sprintf("tughand %s: ragdoll %g", mode == 8 ? "shot dead" : "knocked down", isragdoll(g)));
+        vr_agt_clip = time;
+        vr_agt_step = 21;
+        return;
+    }
+    if(vr_agt_step == 21)
+    {
+        // (its first frame as a ragdoll, and 0.4 s on; given up 2 s on)
+        if(!isragdoll(g) && time < vr_agt_clip + 2)
+        {
+            return;
+        }
+        if(cvar("scratch4") >= 1 && (vr_agpt_thn == 0 || vr_agpt_thn == 29))
+        {
+            cvar_set("vr_eyeshot", "1");
+        }
+        vr_agpt_thn = vr_agpt_thn + 1;
+        if(vr_agpt_thn < 32)
+        {
+            return;
+        }
+        VR_AGT_Print(sprintf("tughand ragdoll after %.2f s", time - vr_agt_clip - 31 * frametime));
+        VR_AGT_Check(sprintf("tughand ragdoll: %s, a ragdoll %g:", mode == 8 ? "dead" : "down", isragdoll(g)), isragdoll(g) > 0);
+        vr_agt_step = 8;
         return;
     }
     if(vr_agt_step == 6)
@@ -1330,6 +1378,19 @@ void() VR_AGPT_TugHand =
         {
             VR_AGT_Print(sprintf("tughand %.2f s: the drawn hand %.1f cm off its grab, the controller %.1f cm, the hold's lag "
                 "%.1f cm, tug %g", t, gap, reach, vr_agpt_thlagl, on));
+        }
+        if(floor(t * 2) == 1 && floor((t - frametime) * 2) == 0)
+        {
+            localcmd("vr_agrunt_weapon_probe\n"); // (0.5 s in: its weapon drawn against the server's)
+            if(cvar("scratch4") >= 1)
+            {
+                cvar_set("vr_eyeshot", "1");
+            }
+        }
+        vr_agpt_thlog = vr_agpt_thlog + 1;
+        if(cvar("scratch4") >= 1 && vr_agpt_thlog == 2)
+        {
+            cvar_set("vr_eyeshot", "1"); // (the tug's second frame: its ragdoll's first drawn)
         }
         float speed = mode == 1 ? 0.2 : mode == 2 ? 0.6 : mode == 3 ? 1.5 : mode == 4 ? 3 : mode == 6 ? 6 : mode == 7 ? 10 : 0;
         cvar_set("vr_mock_hand_pull", ftos(min(1, t * speed)));
