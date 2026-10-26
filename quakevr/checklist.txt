@@ -1,73 +1,27 @@
 # Quake VR playtest checklist (VR menu > Checklist). One line = one quick check; tick what works, tell me what doesn't.
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
+[for beta4: test these first]
+# Default-on changes since v1.1.0-beta3, most important first; armed humanoids, the new weapons and dev-only tools are further down.
+Autosaves: play a map a while: Load Autosave (main and pause menus; death menu, under Restart) lists this game's autosaves newest first; none is made while monsters are on you or health is low
+# -- Arcane Dimensions (experimental) --
+AD: hub, exits, ladders; shotgun/SSG/burst hits and damage; ammo pickups keep held weapon model; Projectile Rules Auto/Vanilla/AD
+AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain one found later stays plain; kept through holster, drop, save, next level); artifacts and Jump Boots; poison/bleeding tints (Screen Tints slider); a book; Debug: Play a Cinematic Camera {test:ad_weapon_pickups}
+AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
+
 [new since the beta4 list: test these first]
+Armed grunts with a burst rifle, enforcer rifle or AD soldier gun fire a whole magazine, reload and fire on; kill one: its backpack has 5 shellsA double-barrelled shotgun grunt fires 9 times before running dry; kill one early: its backpack holds its spare shells; disarm a shotgun grunt and kill it: 16 shells; let one pick its gun back up: it reloads
+A heavy revolver grunt hits you for about 10-15 with no armour: right, or try 0.75 instead of 0.5 for pistols and rifles (Armed Grunts damage scale)?
+Firing range: a toolgun grunt with AD's Plasma Gun (103): its shots are heard
 Rig Studio: switch subject kinds and weapons (flamethrower, two pistols, ogre) several times: one subject only; Close then vr_rigstudio here: still one
 Rig Studio: the shoot animation on the shotgun grunt aims level at the orange Aim Target; drag the target high and low and the gun follows; At Camera aims at you; Aim off carries the gun as before
 Rig Studio: Pose Keys (O) in Aim: drag the weapon's arrows and rings, an elbow, the torso rings; the arms stay on the gun and the Pose Studio Data numbers follow; Ctrl+Z restores; in Pickup, drag the pelvis and feet
 Grab an armed grunt's gun at the muzzle, barrel and stock: each starts the tug; as the tug begins, and when an armed grunt is knocked down, its gun and arms stay where they were: no jump of the gun or of your hand; the tug's pull feels right (it wins a little faster on quick pulls, slower on very slow ones)
 vr_agrunt_taunt 1: an armed grunt taunts when it first sees you, then charges; shoot it mid-taunt and it stops
 Grab an armed grunt's gun (grip, barrel, stock) and tug: your hand stays on the gun where you took it; pull hard or step back far without winning and it lets go (Armed Grunts > Tug: Let Go Past); say whether the hand's jump onto the gun as the tug starts (~20 cm) reads wrong
-Heavy revolver: a normal flick opens and closes it as before; a slow roll opens it only if Flick Open Time (and closes only if Flick Close Time) is raised; the Flick Open/Close Speed, Time and Sustain sliders do what their help says
-Heavy revolver {test:revolver}: the barrel half as long again, the front sight lines up in the rear notch; no hole where the barrel meets the frame (look from above and behind); shots, flash and smoke from the new muzzle; it still sits in both holsters without poking through you
-Nail magazines {test:magfill} (nail pistol, nailgun, super nailgun) show two top nails when they hold 2 or more, one with one round left, none when empty: in the hand, in the pouch, lying about and dropped after a reload
-Widowmaker: the darker skin in a lit and a dark room; rust, rivets, bricks and brass still readable {test:widowmaker_art}
-The nailgun's and super nailgun's magazines {test:nailmags} show their top two nails as models over the feed lips, like the nail pistol's (the lava nails red-hot); seated, no nail pokes out of the gun or its well
-Widowmaker: take the front handle: the gun doesn't jump and then follows the front hand too (Weapon Offsets > Hotspots: Two-Handed Aim Off brings back the main-hand-only feel)
-Try Hotspots > Two-Handed Aim On for the nail pistol's cup grip: keep it off or make it the default?
-Fresh config: the Widowmaker's ammo readout sits where you put it; the nail pistol has its off-hand cup grip (your tuning, now the default)
-Heavy revolver {test:revolver}: a shot each pull, the hammer cocks and falls, the cylinder turns a chamber; heavy kick and flash; grip and holsters sit right (copied from the nail pistol: tune if not)
-Heavy revolver: a wrist flick toward the cylinder (or B/Y) swings it out; muzzle up, B/Y or the ejector rod drops the shells (spent casings plus live shells); the blue slugs and spent vs live are visible
-Heavy revolver: single shells from the pouch go into the chamber you hold them at; swipe to spin; empty chambers click and advance
-Heavy revolver: a flick back or a push from below closes it; a grunt dies to one headshot (head pops) or two body shots; an ogre to 4-5; tune the flick force and wrist angle to taste
-Armed grunts rarely carry a heavy revolver and fire it at you
-Flare gun in hand {test:flaregun}: the fist round the grip, the finger on the trigger; down the sights the brass blade sits in the rear notch; tune its grip (Weapon Offsets) if it sits wrong
-Flare gun: fire both flares: a pull each, top barrel first, then the bottom; the kick and thump; the muzzles sooted (top, then both); a third pull clicks; throw it away
-Flare gun: a flare into a grunt sets it on fire; into an explosive box blows it up; into a crate sets it burning
-Flare gun: a flare into a wall sticks there burning red, flickering, sparking and smoking, for about 25 s; in a dark room it lights it
-Flare gun: fire one straight up: it drifts down slowly, lighting a wide area red, for about 15 s
-Flare gun: some crates have one on top (Physics > Crates: Flare Gun on Crates 1 to see many)
-Flare gun: an armed grunt with one (Armed Grunts > Flare Gun First 1) fires two flares at you, throws it away and takes its own weapon
-Flare gun: holster it (hip, upper) and draw it, loaded and half-fired {test:flaregun}
-Flail: throw a death sergeant's flail at a grunt: the trailing head hits it once (about as much as a small crate); let go of a swinging flail: its head never hurts you
 Armed grunts: after this update your saved poses/grips are folded into the defaults (vr_agrunt_poses and vr_agrunt_grips empty in your config): grunts' and enforcers' gun and sword poses still look as you set them in the Pose Studio
 Armed Humanoid Replacements (Combat > Armed Grunts): turn on "replace all" in e1m1 or e2m1: grunts and enforcers feel as hard as before while their guns can be grabbed, tugged and shot out
 Armed Humanoid Replacements: scene agrunt_repl_gunaxe: the axe carried and swung in the left hand next to the one-handed gun looks right {test:agrunt_repl_gunaxe}
-
-[beta4: test these first]
-# Default-on changes since v1.1.0-beta3, most important first; armed humanoids and dev-only tools are further down.
-# -- performance and loading (new code on every frame and every load) --
-Spectator camera skipped while the desktop window is minimized or hidden: VD's GPU overlay shows the saving (up to ~1.5 ms); restoring the window shows the camera at once
-Spectator camera with OBS: recording a covered (not minimized) window still works; Recording page: Resolution Scale steps 0.5x to 2x
-# -- melee --
-# -- crates --
-AD breakables as before: an AD metal breakable takes ~3 strong (4 medium) axe blows, a stone one breaks in one (vr_prop_break_metal 1, vr_prop_break_stone 0.75)
-# -- shoulder charge, leg drag, struggle --
-# -- gore, fire and water --
-# -- Arcane Dimensions --
-Fuel tanks burst: shoot a lying flamethrower's tank near monsters (and near yourself): fire burst sets everything close alight; the sprayer's poisons; an empty tank only puffs; the gun is then spent (no hose, no force grab, can't fire); sound stops when the field ends; shooting a tank gives sparks and a tink, no blood; the burst leaves a fire field (sets you/monsters/corpses alight) or a poison cloud, up to 6 s by the fuel left, fading over its second half; look: fire field grows from the tank in ~0.4 s, dense rising flames, 3D torch flames thrown out, embers and smoke; poison field: billowing green cloud; dense enough on vrtesthall's bright floor? cloud colour? (AD Guns: Burst Field Spread, Fire Field Flames/3D Flames/Smoke, Poison Cloud Amount) {test:fueltank_burst} {test:tank_burst_field}
-# -- liquids --
-Shoreline foam (Graphics > Liquids > Shoreline Foam Settings): at the vrtesthall pool and e1m1's water the particles read as water thrown off the wall (soft, bigger, rise and fall back), not fumes (A/B with Shoreline Foam > spray off and retro on); the foam band breathes in and out unevenly, soft foam puffs along the wall line and sit on the shore line (Particle Shore moves them out); your water/lava/slime foam values are the defaults; Wavy Edge: the shore line wanders softly (see-through liquids fade, solid water's rim curves up the wall; 0 for comparison); e1m7 lava: glowing yellow-orange crust (strong enough, right colour?); e1m1 slime: green scum; each liquid's toggle and colour sliders {test:foam_pool}
-# -- menus, holsters, calibration, seated, death --
-VR Calibration standing from scratch: Stand Tall's eye height becomes your Height; feet on the floor, knees bend only when crouching; Undo after Apply brings the old Height back; the dialog after it offers Holster Setup
-Autosaves: play a map a while: Load Autosave (main and pause menus; death menu, under Restart) lists this game's autosaves newest first; none is made while monsters are on you or health is low
-
-
-[Arcane Dimensions]
-Arcane Dimensions in Play > Official Campaigns (when installed): asks first ("still experimental and might have bugs", Continue/Back); Continue starts AD; dim with "missing" when not installed
-AD: hub, exits, ladders; shotgun/SSG/burst hits and damage; ammo pickups keep held weapon model; Projectile Rules Auto/Vanilla/AD
-AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain one found later stays plain; kept through holster, drop, save, next level); artifacts and Jump Boots; poison/bleeding tints (Screen Tints slider); a book; Debug: Play a Cinematic Camera {test:ad_weapon_pickups}
-AD spawns: toolgun and Debug menus list AD monsters/items/weapons on all maps; unavailable entries disabled
-AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
-AD soldiers' guns: rocket/grenade launchers, plasma guns, defender shotgun, flamethrower, poison sprayer: hold, aim, fire; balance in Enemy Weapons > Arcane Dimensions' Guns; up close (AD on): kill each gun soldier and look at its rifle: each cue reads (rocket tube and rear bell, grenade drum/feed box, plasma tubes, centurion drum, defender pump, pyro nozzle, fumigator sprayer); look straight into each muzzle and the rocket exhaust (hollow, no inner barrels); flamethrower/sprayer hits: fire or green puffs, no blood or bullet holes {test:ad_gun_soldiers}
-AD melee models rebuilt: the four swords thinner with new guards, pommels and grips (Fury curve faces the other way); hammer spike faces away, new handles on hammer and mace; look close and edge-on; hand on each grip (your Fury sword, hammer and mace grips are defaults) {test:ad_melee}
-AD melee drops (AD on): Death Fury drops two swords: dual-wield; death knight, zombie knight (check its hilt), death guard swords; hunter ogres' hammer and mace: one hand slow and weak, two hands full power; AD knight/hell knight/death lord/Quoth death guard drop our swords; corpses hold nothing (zombie knight still does); toolgun AD weapons 340-345; tune grips in Weapon Offsets slots 41-46 {test:ad_melee}
-AD gadget page: the outer button (next to the lights one) pages to artifacts with timers, keys, debuffs, upgraded weapons
-AD settings: dedicated page, player/enemy pellet speeds, ammo models and Off/AD-only/Everywhere feature choices; recent searches show more rows
-AD lighting: stationary pulse near ad_crucial -215 -2287 136 matches authored lamps; compare briefly with r_flatlightstyles 1
-
-[Bullet time and menus]
-VR menu panel: point just outside its edge (frame lights) and hold grip: it follows your hand, stays where let go; grip on the panel + move a few cm also moves it; grip held still on a slider still fine-steps
 
 [Tools (toolgun, physgun, brushes, ragdoll tool)]
 Ragdoll tool (flat: ironwail.exe -ragtool, add -game ad for AD; or Debug > Ragdoll Tool): orbit with the mouse, B/M behaviour/model, Space play, P/./[ ] pause/step/speed, Tab for parameters; play a few behaviours on several models, Struggle with each hold while moving the hand (arrows, PgUp/PgDn), change a Joint Groups slider and replay, save/load a preset (docs/vr-port/RAGTOOL.md)
@@ -118,10 +72,28 @@ Pose all enforcers' melee weapons in Pose Studio: 21 frozen enforcers {test:pose
 Pose all enforcers' guns in Pose Studio: 25 frozen enforcers {test:pose_enforcers_guns}
 Grip Editor (VR Settings > Armed Grunts > Grip Editor): in the scene, tune each weapon's place in their hands by eye (Freeze Them, Fit Angles to Its Pose); Every Weapon: one offset per humanoid kind moves the grip for all its weapons ("Edits: Every Weapon / This Weapon Only"); then Print as Defaults and send me the printed lines {test:agrunt_grip_editor}
 
-[Nail pistol (experimental)]
+[New weapons (experimental): heavy revolver, flare gun, nail pistol]
+Heavy revolver: a normal flick opens and closes it as before; a slow roll opens it only if Flick Open Time (and closes only if Flick Close Time) is raised; the Flick Open/Close Speed, Time and Sustain sliders do what their help says {test:revolver}
+Heavy revolver: the barrel half as long again, the front sight lines up in the rear notch; no hole where the barrel meets the frame (look from above and behind); shots, flash and smoke from the new muzzle; it still sits in both holsters without poking through you {test:revolver}
+Heavy revolver: a shot each pull, the hammer cocks and falls, the cylinder turns a chamber; heavy kick and flash; grip and holsters sit right (copied from the nail pistol: tune if not) {test:revolver}
+Heavy revolver: a wrist flick toward the cylinder (or B/Y) swings it out; muzzle up, B/Y or the ejector rod drops the shells (spent casings plus live shells); the blue slugs and spent vs live are visible {test:revolver}
+Heavy revolver: single shells from the pouch go into the chamber you hold them at; swipe to spin; empty chambers click and advance {test:revolver}
+Heavy revolver: a flick back or a push from below closes it; a grunt dies to one headshot (head pops) or two body shots; an ogre to 4-5; tune the flick force and wrist angle to taste {test:revolver}
+Armed grunts rarely carry a heavy revolver and fire it at you {test:revolver}
+Flare gun in hand: the fist round the grip, the finger on the trigger; down the sights the brass blade sits in the rear notch; tune its grip (Weapon Offsets) if it sits wrong {test:flaregun}
+Flare gun: fire both flares: a pull each, top barrel first, then the bottom; the kick and thump; the muzzles sooted (top, then both); a third pull clicks; throw it away {test:flaregun}
+Flare gun: a flare into a grunt sets it on fire; into an explosive box blows it up; into a crate sets it burning {test:flaregun}
+Flare gun: a flare into a wall sticks there burning red, flickering, sparking and smoking, for about 25 s; in a dark room it lights it {test:flaregun}
+Flare gun: fire one straight up: it drifts down slowly, lighting a wide area red, for about 15 s {test:flaregun}
+Flare gun: some crates have one on top (Physics > Crates: Flare Gun on Crates 1 to see many) {test:flaregun_crates}
+Flare gun: an armed grunt with one (Armed Grunts > Flare Gun First 1) fires two flares at you, throws it away and takes its own weapon {test:flaregun}
+Flare gun: holster it (hip, upper) and draw it, loaded and half-fired {test:flaregun}
 Nail pistol (scene nailpistol): grip in the palm, the index finger in the guard on the trigger (moved down and left; was riding high); aim down the sights: front post in the rear notch, the nails land on it (zeroed at 10 m); one shot per pull, as fast as you pull; kick, flash, slide, smoke; punchy sound? {test:nailpistol}
 Nail pistol magazine: empty, the slide stays back; B/Y drops the magazine; one from the pouch slapped up into the grip seats; the pouch shows the pistol's magazines {test:nailpistol}
 Nail pistol damage and handling: two headshots or three body shots kill a grunt; holster it (hip: upright, muzzle down; upper: across the chest) and draw it; drop, throw and pick up the one on the floor; armed grunts fire it, one and a pair {test:nailpistol}
+Nail pistol magazines show two top nails when they hold 2 or more, one with one round left, none when empty: in the hand, in the pouch, lying about and dropped after a reload {test:magfill}
+Try Hotspots > Two-Handed Aim On for the nail pistol's cup grip: keep it off or make it the default? {test:nailpistol}
+Fresh config: the nail pistol has its off-hand cup grip (your tuning, now the default) {test:nailpistol}
 
 [Dev tools: blade editor, debug views, defaults]
 Blade shape editor (Weapon Offsets > Posing Mode > Edit Blade Shape): hold the Fury sword, drag the green curve points onto the drawn bow and the red tip onto its point (other hand's grip), then swing and watch the sweep follow; mace: Head Box corners; Done prints vr_weapons.inc lines to paste me; is the 5 cm grab reach and the panel position right? Handles at the hand: near-end dot (now 7 cm above the forearm) and hand-side curve point are easy to grab with a sword and a gun; the handle under the other hand glows yellow with a line to it. Axe: a purple Blade Start handle (just off the head's flat) places where the striking part begins, the non-striking part draws thin grey; Head Box On starts from a box over both bits (opt-in); drag the teal Line Start (above the hand) onto the edge's low corner, the red Tip onto its top corner, the purple Blade Start down to the Line Start: the white line lies along the edge; the panel says what each handle does; on the shotgun, your bash tip is the default and shots leave the muzzle where they did before your edit {test:blade_editor} {test:blade_editor_axe} {test:blade_handles}

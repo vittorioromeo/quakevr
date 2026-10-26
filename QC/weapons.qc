@@ -114,10 +114,13 @@ void(float xHand, float xAid, float xValue) delAmmoOrClipAndUpdateCounter =
 }
 
 // A weapon's base damage (VR Settings > Combat > Weapon Damage; vr_dmg_*): the setting's for a shot or a projectile
-// `xOwner` fired as a player (or a bot); `xStock` (id's, or the mission pack's) for a monster's or a trap's.
+// `xOwner` fired as a player (or a bot) or as an armed humanoid (vr_armedgrunt.qc: your weapon in its hands, its damage
+// to you times vr_agrunt_damage_scale; it had the stock's, a second cut on Quake VR's own guns: the heavy revolver's 15
+// for your 26, the nail pistol's 9 for 12, the flare gun's 6 for 10); `xStock` (id's, or the mission pack's) for another
+// monster's or a trap's.
 float(entity xOwner, float xCvarh, float xStock) VR_WpnDmg =
 {
-    if(xOwner.flags & FL_CLIENT)
+    if((xOwner.flags & FL_CLIENT) || xOwner.vr_ag)
     {
         return cvar_hget(xCvarh);
     }

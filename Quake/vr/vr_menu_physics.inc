@@ -872,7 +872,7 @@
             .help("Most crowbars lying on crates in a map. Next map."),
         slider("Flare Gun on Crates", vr_crate_flaregun, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance a crate placed about the map (the top one of a stack, no crowbar on it) has a loaded "
-                  "flare gun lying on it; the same crates each load. Next map."),
+                  "flare gun lying on it; the same crates each load. Experimental: off (0) by default. Next map."),
         slider("Most Flare Guns", vr_crate_flaregun_max, 0.f, 4.f, 1.f, "%.0f").extend(0.f, 64.f)
             .help("Most flare guns lying on crates in a map. Next map."),
         header("Hiding"),

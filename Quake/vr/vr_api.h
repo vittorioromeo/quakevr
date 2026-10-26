@@ -394,6 +394,7 @@ struct sizebuf_s *VR_BroadcastDest (int len);			// WriteDest's MSG_BROADCAST: wh
 void VR_BroadcastWritten (struct sizebuf_s *dest);		// ... after it
 void VR_BroadcastMessageEnd (void);						// after the engine wrote a whole message to sv.datagram: a boundary
 int VR_GoreSoundMutes (int ent, int channel);			// SV_StartSoundPitch: 1 drops it (a choking monster's cry: vr_goresound.cpp)
+void VR_SoundLog (int ent, int channel, const char *sample, int volume, int dropped); // SV_StartSoundPitch: vr_debug_sound_log's line (vr_server.cpp; dropped: 0 sent, 1 not precached, 2 datagram full, 3 muted)
 int VR_BroadcastSendable (int before, int room);		// SV_SendClientDatagram: how much of sv.datagram fits in a datagram with room bytes left (before: its bytes so far)
 void VR_ReliableSent (void);								// SV_SendClientMessages, before sv.reliable_datagram goes to the clients
 
@@ -591,6 +592,7 @@ void VR_SndCapture (const portable_samplepair_t *buffer, int count);	// S_PaintC
 void VR_SndShadow (int count);						// S_PaintChannels, each chunk before the music: the game-time render's share of it (vr_timescale_wav, vr_snd_capture_game)
 void VR_SndGameMix (const portable_samplepair_t *buffer, int count);	// the game-time render's samples: its limiter, vr_snd_capture_game, the WAV
 byte *VR_SndMemory (const char *name, int *size);	// S_LoadSound, no file of `name`: a WAV file made in memory (VR_HeapMalloc'd; the wrist gadget's Doom's sounds, "doom/..."), or NULL
+short *VR_SndVoice (const char *name, const byte *pcm, int width, int samples, int rate, int loopstart, int outrate, int *outsamples, int *outloop); // S_LoadSound: one of the player's voice sounds with vr_voice 1, made feminine (vr_voice.cpp): its 16-bit samples at `outrate` (VR_HeapMalloc'd), or NULL (as it is)
 const char *VR_SndDerived (const char *name, float *rate);	// S_LoadSound, no file of `name`: the Quake sound it is made from, played at `rate` (slower: lower), or NULL
 int VR_SndFullBand (void);							// vr_snd_fullband: 0 Quake's 11 kHz lowpass on every sound, 1 not on the voices, 2 on none (Quake's channels painted from the band-limited copy)
 void VR_SndBypass (portable_samplepair_t *buffer, int count);	// S_PaintChannels, after Quake's lowpass: the voices held out of it (vr_snd_fullband) added, halved as VR_SndBus

@@ -1,8 +1,0 @@
-# after_load: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title A calm grunt and a toolgun flame: snap, burn, save, load
-map vrtesthall
-god
-notarget
-spawn "Grunt" 80 0
-spawn "Large Flame" 200 120
-spawn "Grunt" 240 160

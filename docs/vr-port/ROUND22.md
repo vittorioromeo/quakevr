@@ -22305,7 +22305,7 @@ The approved art (above, "Flare gun: the art") made a weapon, after the nail pis
   (hotTrail sparks) and smoke (`vr_flare_sparks` 1). The flare model is lit by its own fire (`VR_AliasLightModifier`).
   **Cost** (ThinLTO, exclusive, the dark hall, 3 flares: one stuck, one lying, one drifting): CPU busy 0.72 -> 0.74 ms,
   GPU 0.74 -> 0.75 ms with lights and sparks on against both off (dlight shadows 0.03 ms); sparks alone below noise.
-- **Found on crates:** `vr_crate_flaregun` 0.05 (the chance a crate's top with no crowbar gets a loaded flare gun),
+- **Found on crates:** `vr_crate_flaregun` 0.05, 0 since configVersion 207 (the chance a crate's top with no crowbar gets a loaded flare gun),
   `vr_crate_flaregun_max` 2; the crowbars' plan and fitting (`vr_crates.cpp planFlareGuns`, its own random numbers from
   the map's name and `vr_crates_seed`: the crates and crowbars the same whatever its chance; kept with the plan). No
   builtin numbers were left: `cratecrowbar(i)` now returns 2 for a flare gun (the crowbar's QC checks 1).
@@ -23243,7 +23243,7 @@ after `CheckAnyAttack`, so the attack decisions are unchanged and only the moves
 - Cvars (archived, VR Settings > armed humanoids' Behaviour): `vr_agrunt_range` 1 ("Keep Their Distance"; 0 the old
   way), `vr_agrunt_range_scale` 1, `vr_agrunt_range_walkfire` 50 (0: stands to fire).
 
-**Test** `vr_agrunt_test 47` (Debug > Tests > Armed Grunts: Fighting Distance; `vr_armedgrunt_range_test.qc`): per weapon
+**Test** `vr_agrunt_test 48` (Debug > Tests > Armed Grunts: Fighting Distance; `vr_armedgrunt_range_test.qc`): per weapon
 a grunt 260 units ahead hunting you, 6 s each: you standing, walking at it at 80 u/s, charging it at 280 u/s with an
 axe. Checked: standing, a gun never within 64 and its mean at least 80% of its least; the axe still reaches you.
 `scratch1 N [scratch2 M]` weapons N..M. Before = `vr_agrunt_range 0` (5 of 9 standing checks fail), after: 9/9.
@@ -23274,3 +23274,214 @@ PASS -> PASS with 0.1 drift in the takes' speeds (14 and 17 in two runs: noise),
 - [ ] Armed grunts and enforcers with shotguns, nail guns, the thunderbolt: they no longer run into your reach; they
   hold their weapon's distance strafing and firing, a super shotgun close; walk at them and they back off firing,
   further with an axe or a sword in your hand. Their walking fire's slide (Walking Fire 50 u/s) looks right or not.
+## Feminine voice (worktree `dequant`, branch `agent/femvoice`, 2026-10-26)
+
+His request: Player Appearance > **Voice: Masculine / Feminine** (`vr_voice`, default 0 masculine), no new assets: the
+player's own voice sounds transformed as they load.
+
+- **The sounds** (`vr_voice.cpp` `voiceSounds`, 23): `player/pain1-6`, `death1-5`, `plyrjmp8` (jump), `land2` (hard
+  landing's "oof"), `gasp1-2`, `drown1-2`, `lburn1-2`, `slimbrn2`, `h2odeath`, and the two the engine derives from them
+  (`vr/derived/plyrjmp8_low`, `land2_low`: the mantle and judo-throw grunts). From the QC (player.qc, client.qc, the AD
+  copies, vr_burning.qc, vr_melee.qc's gasps) and the engine (vr_climb.cpp, vr_audio.cpp). Not voice: `land.wav` (the
+  thud), `axhit1/2`, gibs, splashes, telefrag, heartbeat. They are global sounds (`sfx_t` by name), so in co-op every
+  player's voice follows your setting.
+- **Method** (C++, no third-party code): S_LoadSound hands the decoded WAV to `VR_SndVoice`, which (1) finds the pitch
+  per 5 ms frame at the file's 11 kHz with YIN (70-700 Hz, threshold `vr_voice_voicing` 0.4, 5-frame median, runs under
+  3 frames dropped); (2) upsamples to the mix's rate with a windowed sinc (Blackman, 12 zero crossings, cut at 92% of
+  the source Nyquist); (3) places pitch marks (each period's largest peak of the run's polarity within +-20%; unvoiced
+  every 5 ms); (4) TD-PSOLA: output grains every period / 2^(st/12), each the nearest mark's two-period Hann grain read
+  1 + formant% faster (the grain's spectral envelope, the formants, stretched up; the pitch is the spacing alone; the
+  time map is 1:1, so the length is kept); unvoiced stretches keep their spacing and only get the formant stretch;
+  overlap-add normalised by the window sum, the peak capped at the original's. Written back 16-bit at the mix's rate,
+  so it is not resampled again (the voices read it directly; no band-limited copy needed).
+- **Settings**: `vr_voice_pitch` 4.5 semitones (slider 0-8), `vr_voice_formant` 17 % (0-30), `vr_voice_voicing` 0.4
+  (console only: YIN's threshold; at 0.2 most of the screams' rough middles were left unpitched, 0-43% voiced; at 0.4
+  36-87% voiced with the measured pitch ratio 1.26-1.33 where both ends were measurable). Rows on Player Appearance
+  under Hand Shape: Voice, Voice Pitch, Voice Formants, **Hear Voice** (`vr_voice_hear`: one of 8 voice sounds each
+  press). A change frees those sounds (`S_FlushSfxNamed`, after `S_MixJoin`): each loads again as it next plays, no
+  restart. Cached: the engine's own sound cache holds the transformed samples for the session.
+- **Randomize**: the voice rolled last: feminine 90% with the feminine body, else 10%.
+- **Debug** (Debug > Tests > Spatial Audio): Voice Transform Test (`vr_voice_test`), Export Voice Samples
+  (`vr_voice_export <dir>`: five sounds before/after as WAV, spectrograms of two), `vr_voice_info` (loads, time).
+- **Tests**: `vr_voice_test` 28/28: synthetic male /a/ (120 Hz pulse train through 730/1090/2440 Hz formants, 8-bit
+  11 kHz): f0 119.9 -> 155.5 Hz (expected 155.4, error 0.02%), active length 0.988 -> 0.983 s (0.5%), peak 0.86, 0
+  clipped, spectral centroid x1.10; every voice sound transformed (finite, unclipped, length within 2%). In game with
+  sound (`-Sound`, `map start`): 23 sounds transformed at load in 66 ms (no-LTO build; 16.8 s of audio, ~3 ms a
+  sound); `vr_voice_formant 20` then Hear: pain2 loaded again transformed; `vr_voice 0`: back to the 8-bit original.
+  eval.sh: 163/171 as the baseline's verdicts (5 rows differ by 0.1 in a speed, PASS -> PASS).
+- [ ] Player Appearance > Voice: Feminine, press Hear Voice a few times, then take damage, jump, land hard, drown,
+  die: a woman's voice, not a sped-up man's; Voice Pitch and Voice Formants change it at once.
+
+## The checklist's "for beta4" section, its Test buttons, and unused test scenes removed (worktree `fastship`, branch `agent/cltests`, 2026-10-26)
+
+**Asked.** Test buttons on the beta4 items, all of them grouped in a `[for beta4: test these first]` section at the top,
+passed items dropped, and the test scenes no checklist item uses any more removed. The new weapons (heavy revolver,
+flare gun, nail pistol) are experimental and not part of beta4.
+
+**The checklist** (written for the coordinator to apply: `qvr-kit/scratch/checklist_beta4.txt`, 95 items, 9 sections):
+- Passed items removed: none. No item's key (its text without its trailing tag) is a pass in the author's
+  `checklist_ticks.txt`; 9 items have an older wording ticked or failed (a reworded item un-ticks), so they stay.
+- `[for beta4: test these first]`: the old "beta4" block (spectator camera minimized, spectator + OBS, AD breakables,
+  fuel tank burst, shoreline foam, calibration from scratch, autosaves), the menu panel's grab-to-move, the nailgun and
+  super nailgun magazines (the old three-gun nail magazine line split: the nail pistol's half went to the new weapons),
+  the Widowmaker (skin, front handle, its readout: the old "fresh config" line split the same way), the flail, then
+  `# -- Arcane Dimensions (experimental) --` and the old [Arcane Dimensions] section's items.
+- `[new since the beta4 list: test these first]` keeps the Rig Studio and armed humanoid items.
+- `[New weapons (experimental): heavy revolver, flare gun, nail pistol]` replaces [Nail pistol (experimental)] where it
+  was: every revolver, flare gun and nail pistol line, the armed grunts' revolver and flare gun lines too, the nail
+  pistol's cup-grip Two-Handed Aim question and its fresh-config line.
+- Emptied sections dropped: the old [beta4: test these first], [Arcane Dimensions], [Bullet time and menus].
+- Tags were made trailing (a mid-line `{test:}` gives no button and is part of the item's key: the revolver, flare gun
+  and nail magazine lines had one); the fuel tank line's two tags became one (`tank_burst_field`: only the last tag is
+  the button). Lines elsewhere with two tags (tug/disarm, dual guns, blade editor) are as they were.
+
+**Tests in the beta4 section.** Reused: `tank_burst_field`, `foam_pool`, `magfill`, `nailmags`, `widowmaker_art` (skin,
+front handle, readout), `flail`, `ad_weapon_pickups` (pickups, interactions, gadget page), `toolgun_bench` (AD spawn
+lists), `ad_gun_soldiers`, `ad_melee` (both). New: `ad_breakables` (ad_crucial's lower hall facing a metal crate, the
+axe in hand; a stone post ~750 units east) and `ad_lighting` (ad_crucial -215 -2287 136). None (nothing a scene sets
+up): the spectator camera minimized and with OBS (the desktop window, OBS), calibration from scratch, autosaves after
+playing a while, the menu panel's grab (menu-only), AD in Official Campaigns and AD settings (menu-only), AD's hub
+(`ad_start` is not AD's hub: it is `start`, which in Quake's campaign is id1's; Official Campaigns starts there anyway).
+The new weapons' section: `revolver`, `flaregun`, `nailpistol`, `magfill` reused; new `flaregun_crates` (e1m1 with
+`vr_crate_flaregun 1`, `vr_crate_flaregun_max 4`: 4 flare guns on its crates). The two AD-map scenes run only while AD
+is the running campaign (scenario.cpp now says "start Arcane Dimensions first" otherwise; TESTING.md).
+
+**Removed: 57 scenes no item of the new list uses** (git history keeps them; earlier mentions in this file name them):
+ad_bosses ad_crossbow ad_dark_prince ad_health_vial ad_monsters ad_ogre_chainsaws ad_ogre_smash ad_projectiles
+ad_zombie_knight after_load agrunt_corpses agrunt_polish agrunt_row_guns agrunt_row_melee agrunt_swords armed_enforcers
+blood_pool corpses_placed crates_melee flame_pool flames_bodies flames_burn freddie_gib fuel_tanks fueltank_burst
+gibs_underfoot gore_prints grenade_catch leg_drag melee_blades mg3_infected mg3_shards mini_bosses model_prepass
+models_idle monster_swords phantom_sword phantom_swordsman pickup_items pickup_vanilla plank_sweep plasma_bolts
+plasma_push pyro_water save_defaults scorch_wall shadow_fight shoulder_charge struggle_grunts struggle_heavy sword_floor
+tank_hose_cut tank_pickup toolgun_lootbeam vomit_mode wall_blows wall_deaths. Kept though no item uses them:
+`bench_armed16`, `bench_crowd_ad`, `bench_tanks` (qvrbench.py's scenes), `sword_multi` (Debug > Tests > One Swing, Many
+Hits; vr_melee_sweep_test 6), `agrunt_guard`, `agrunt_parry`, `agrunt_repl_map` (ARMED_MONSTERS.md's test scenes),
+`flaregun_art`, `nailpistol_art`, `revolver_art` (named by the Debug > Tools art previews' help and the models_src
+READMEs). No code exists only for a removed scene: their commands are tests the menus also run (`vr_agrunt_test 7`:
+Automation's Spawn a Row) or `impulse 9`; `VR_Reload_MagNailsLayout` (magfill), `vr_agrunt_test 44/64` and
+`vr_ad_test 98` belong to scenes still used. No code or doc outside the round notes names a scene that is gone
+(`shoulder_charge`, `ad_monsters`, `mg3_infected` elsewhere are a motion category, a QC file and a struggle test case).
+
+**Can the new weapons be found in a normal game (default settings)?**
+- Map spawns: no shipped map places `weapon_revolver`, `weapon_flaregun` or `weapon_nailpistol` (a custom map could).
+- Crates: the flare gun, only if enabled (experimental: `vr_crate_flaregun` 0 by default since configVersion 207; was 0.05) (a free crate top's chance), at most `vr_crate_flaregun_max` 2 a
+  map, with `vr_crates` 1 (single player).
+- Armed grunts: no by default. Replacements are off (`vr_agrunt_repl` 0); with them on, a nail pistol comes from
+  `vr_agrunt_repl_common`, the revolver from `vr_agrunt_repl_rare` (both 0); a flare gun first from `vr_agrunt_flaregun`
+  0.1 (an armed one holding one gun that is not its native one). The pool's weights (`vr_agrunt_w_nailpistol` 1,
+  `vr_agrunt_w_revolver` 0.25) apply to armed humanoids spawned from the pool (the toolgun).
+- Drops: only an armed humanoid's own weapon falls (on death or disarm); plain grunts' and enforcers' drops (axe,
+  shotgun, super shotgun) never include them.
+
+**Checks.** `vr_scenario validate` with the new list: 52 files, 71 tags, 0 missing; errors only for the two AD-map
+scenes outside AD. `vr_scenario runall quit` (all 52): 50 OK, the two AD-map ones "no map" (with AD mounted:
+`SCNPLACED ... 0 problems` each, eyeshots looked at: the metal crate ahead, ad_crucial's lit corridor). The
+beta4/new-weapon scenes alone: 14 run, 0 failed. `flaregun_crates`: 4 thrown_weapon edicts with `v_flaregun.mdl`.
+`vr_checklist` on the new list: 95 items, 9 sections.
+
+## Flare gun on crates off by default (crateflare)
+
+`vr_crate_flaregun` default 0.05 -> 0 (experimental for beta4); configVersion 207 (`defaultChanges`, vr_cvars.cpp) moves configs still at 0.05 to 0, any other chance stays. Menu help and docs updated; the `flaregun_crates` scenario sets the cvar itself (1).
+
+## Armed humanoids' ammo, loot, damage and sounds (worktree `tghost`, branch `agent/agammo`, 2026-10-26)
+
+Voice notes 2026-10-26 (vrfiringrange 22-21-18 ... 22-32-48): too little spawn ammo, a hard-coded backpack, the revolver
+weak in their hands, no sound from a grunt's plasma gun.
+
+**The bug behind "one cell", "not even a full magazine":** `VR_AG_ShootProp` read the clip back from the ammo field of
+every gun but the flare gun, single-use ones too: `WeaponIdToAmmoId` is AID_NONE for them, so
+`VR_AmmoUtil_GetAmmoCountByAmmoId` asserted (the voice note's log: `'VR_AmmoUtil_GetAmmoCountByAmmoId' at 34`) and
+returned 0. The enforcer's rifle, the burst rifle and all of AD's soldiers' guns were empty after their first shot (or
+round), and the grunt clubbed with them. Now only a gun of a real ammo kind is read back.
+
+**Spawn ammo** (`VR_AG_SpawnReserve`, `VR_AG_SpareClips`): a full clip and spare magazines for every gun, single-use
+ones too (it reloads them from its own magazines; dropped, the gun has its clip only). `vr_agrunt_reserve` (default 2,
+"Spare Clips") scales them all (spare = magazines x setting / 2). A fight of 20-40 s is some 10-20 attacks (a shot, a
+burst of 3, a stream of 5+); two magazines more cover that for most guns:
+
+| weapon | magazine | spare magazines | spare rounds | why |
+|---|---|---|---|---|
+| shotgun | 8 | 2 | 16 | 24 shots, one an attack |
+| double-barrelled shotgun | 2 (one shot) | 8 | 16 | 9 shots (was 3) |
+| nailgun | 24 | 2 | 48 | ~14 attacks of 5 nails |
+| super nailgun | 36 | 3 | 108 | 2 nails a shot: ~14 attacks |
+| grenade / rocket launcher, proximity gun | 4 | 2 | 8 | 12 blasts of ~100 (50 to you) is plenty |
+| thunderbolt | 36 | 2 | 72 | ~20 attacks of 5 bolts |
+| laser cannon | 20 | 2 | 40 | |
+| burst rifle | 30 (10 bursts) | 2 | 60 | 30 bursts (was 1 round) |
+| enforcer's rifle | 20 | 2 | 40 | (was 1 shot) |
+| nail pistol | 12 | 2 | 24 | 36 shots |
+| flare gun (as its weapon) | 2 | 4 | 8 | 5 pairs; as a second weapon (vr_agrunt_flaregun) still none: fired and thrown away |
+| heavy revolver | 6 | 2 | 12 | 18 shots |
+| chainsaw | 100 fuel | 2 | 200 | as before |
+| AD rocket / grenade launcher | 4 / 6 | 2 | 8 / 12 | |
+| AD plasma rifle / centurion gun | 20 / 30 | 2 | 40 / 60 | |
+| AD defender's shotgun, crossbow | 8, 10 | 2 | 16, 20 | |
+| AD flamethrower, poison sprayer | 100 fuel | 2 | 200 | |
+| AD Widowmaker, Plasma Gun | 16, 36 | 2 | 32, 72 | |
+| fists, melee weapons | - | 0 | 0 | no magazine |
+
+**Loot** (`VR_AG_SoldierDrop`, `VR_AG_Pocket`): a weapon out of its hands (knocked out, yanked, thrown away spent,
+dropped as it dies, a flare gun's stowed weapon) leaves its spare rounds in its pockets (its `.ammo_*` fields, kept round
+a shot; a single-use gun's magazines in `.vr_ag_pocket_*`); taking the same weapon (or one of the same ammo kind) up
+again gives them back (`VR_AG_Unpocket`; before, a disarm lost them and a re-armed grunt could not reload). Its backpack:
+every weapon's spare rounds of a real ammo kind (both of a dual wielder's; shells, nails, rockets, cells, Rogue's too:
+`DropBackpack` now copies lava nails, multi-rockets and plasma). None of a real kind (fists, melee, single-use guns,
+all spent): its monster's own (a grunt's 5 shells, an enforcer's 5 cells; a replacement: the replaced monster's).
+Fixed on the way: a dual wielder's backpack held the second gun's reserve under the first gun's ammo kind, and a disarm
+zeroed the other hand's reserve (`VR_AG_Settle`'s swap ran first).
+
+**Damage** (raw: a hit on you before the armed scale; to you: after it, no armour; test 47, vrtesthall, skill 1):
+
+| weapon | your setting (a hit) | before raw / to you | after raw / to you |
+|---|---|---|---|
+| fists, axe, crowbar, sword, Mjolnir, super axe, shadow axe | blows | 20-22 / 10-11 | same |
+| shotgun (a blast, 6 pellets x 4) | 24 | 16-24 / 8-12 | 24 / 12 |
+| double-barrelled shotgun (14 x 4) | 56 | 26-45 / 13-23 | 45 / 22 |
+| nailgun, super nailgun | 9, 18 | 9 / 4.5, 18 / 9 | same |
+| grenade launcher, rocket launcher | 120, 100-120 | 92 / 46, 107 / 53 | 76 / 38, 118 / 59 |
+| thunderbolt | 30 | 30 / 15 | same |
+| laser cannon | 20 | 16.8 / 8.4 (Hipnotic's 18) | 19 / 9.5 |
+| burst rifle (a round) | 6 | (one round, then clubs) | 6 / 3 |
+| enforcer's rifle | 16 | (one shot, then clubs) | 12-16 / 6-8 |
+| nail pistol | 12 | 9 / 4.5 | 12 / 6 |
+| flare gun (the flare's hit; its fire does the rest) | 10 | 6 / 3 | 10 / 5 (the fire's ticks: 2-4) |
+| heavy revolver | 26-30 | 15-17 / 8 | 20-30 / 10-15 |
+| AD rocket / grenade launcher | 100+ | (one, then clubs) | 109 / 54, 106 / 53 |
+| AD plasma rifle, centurion gun | 18 | (one) | 18 / 9 |
+| AD defender's shotgun, crossbow | 31, 30 | (one) | 31 / 15, 30 / 15 |
+| AD Widowmaker, Plasma Gun | 40, 29 | 40 / 20, 29 / 14 | same |
+
+Two scales were on their shots at you: `vr_agrunt_damage_scale` 0.5 (intentional: "a rocket isn't a one-shot"; Gameplay >
+Armed Humanoids > Damage to You), and `VR_WpnDmg`'s "stock" damage for a monster's shot, lower for Quake VR's own guns
+(the revolver 15 for your 26, the nail pistol 9 for 12, the flare gun 6 for 10, Hipnotic's laser 18 for 20): the
+revolver dealt ~8 to you (his "10 or 12" with armour on the health and armour together). The second was not meant
+(the file's design: "your weapons' own code ... its damage to players times vr_agrunt_damage_scale"; their numbers came
+with the guns, there being no id stock), so `VR_WpnDmg` now gives an armed humanoid your setting: the revolver 10-15 to
+you (measured 10 a hit), 26-30 to a monster (friendly fire). The 0.5 stays. **Proposed** (not changed): 0.5 is right for the explosives and
+the streams (a rocket 50-60, the thunderbolt 15 a bolt), light for the single-shot pistols; a per-class scale (pistols
+and rifles 0.75: the revolver ~20 a hit, the nail pistol 9) would make them feel like the guns you hold.
+
+**Sounds** (`vr_debug_sound_log`, new: Debug > Tests > Log Sounds, `sndlog:` lines from `SV_StartSoundPitch` with the
+entity, channel, sample, volume and a dropped one's reason): every gun's shot, reload (`weapons/lock4.wav`) and the
+melee swings are sent. The silent one: **AD's Plasma Gun (code 103) outside AD's maps**: `weapons/plasma_fire.wav` and
+`plasma_hit.wav` were not precached (`AD_WeaponsOnDemand` ran only for AD's soldiers' guns and the upgrades' pickups;
+the voice note's log has the "not precached" lines). `VR_AG_MakeProp` now runs it for any AD upgrade (the Plasma Gun, the
+Widowmaker, the Shadow Axe). Alone in vrtesthall: 3 "not precached" before, 0 after. A monster never pulls an empty
+trigger (it reloads or throws the gun away): no empty clicks to play. The single-use guns' "silence" after one shot was
+the clip bug above.
+
+**Test 47** (`vr_agrunt_test 47`, vrtesthall; Debug > Automation > "Armed Humanoids: Ammo, Loot, Damage, Sounds";
+`QC/vr_armedgrunt_ammo_test.qc`): 36 cases (every weapon, AD's with its data, two dual wielders, two disarmed), each:
+spawn ammo check, the fight until 3 hits and a reload (15 s safety), the kill and its backpack; the player held still
+(a blast's push onto the hall's button restarted the map) with no armour; `Misc/quakevr/agammo_table.py <log> --sounds`
+makes the tables. `scratch2 n; scratch3 k`: k cases from case n-1. Before: 18 FAIL (single-use guns' spawn reserve,
+the dual wielder's backpack, the disarmed's pocket); after: 110 passed, 0 failed (two runs of 18 cases).
+- [ ] Armed grunts with the burst rifle, the enforcer's rifle or one of AD's soldiers' guns: they fire their whole clip,
+  reload and fire on (no more one shot and clubbing); kill one: its backpack is a grunt's 5 shells.
+- [ ] An armed grunt with the double-barrelled shotgun: it fires 9 times; kill it early: its backpack has its spare shells.
+- [ ] Knock a shotgun grunt's gun out of its hand and kill it: its backpack has its 16 spare shells. Let it pick the gun
+  up again: it reloads.
+- [ ] A grunt with the heavy revolver hits you for about 10-15 (no armour; was ~8); say whether that or the proposed 0.75 for
+  pistols feels right.
+- [ ] In the firing range (not an AD map), spawn a grunt with AD's Plasma Gun (toolgun 103): its shots are heard.

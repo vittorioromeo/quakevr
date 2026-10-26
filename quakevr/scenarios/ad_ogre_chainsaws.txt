@@ -1,8 +1,0 @@
-# ad_ogre_chainsaws: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title An AD nail ogre and a hunter ogre to kill
-map vrtesthall
-god
-give "Rocket Launcher" main
-cmd impulse 9
-spawn "AD Nail Ogre" 480 -20
-spawn "AD Hunter Ogre" 480 200

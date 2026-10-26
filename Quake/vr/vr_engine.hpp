@@ -29,6 +29,7 @@ trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t max
 int S_KnownSfxCount (void);							// snd_dma.c (vr_limits)
 int S_KnownSfxMax (void);							// snd_dma.c
 void S_SfxMemory (int *loaded, int *heldBytes, int *fullBytes);	// snd_dma.c (vr_snd_bench)
+void S_FlushSfxNamed (qboolean (*match) (const char *name));	// snd_dma.c: the matching sounds' samples freed, loaded again as they next play (vr_voice)
 int Mod_KnownCount (void);							// gl_model.c
 int Mod_KnownMax (void);							// gl_model.c
 qboolean Mod_CheckFullbrights (byte *pixels, int count);	// gl_model.c (vr_modelload.cpp)

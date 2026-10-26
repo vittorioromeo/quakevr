@@ -1,0 +1,13 @@
+# ad_breakables: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". AD's breakables against the props'
+# impact rule (vr_prop_break_metal 1, vr_prop_break_stone 0.75; QC vr_ad_bridge.qc AD_BreakKind): ad_crucial's lower
+# hall by a metal crate (func_breakable style 4, health 60, 70x70x50 at -272 -12 -323) with the axe in hand; a stone
+# post (style 1, health 80, 30x30x62 at 272 400 -319) stands about 750 units east-north-east, on about the same floor.
+# Needs Arcane Dimensions mounted (Play > Official Campaigns > Arcane Dimensions, or -game ad): elsewhere its map
+# isn't found.
+title AD breakables: a metal crate before you, the axe in hand (a stone post further east)
+map ad_crucial
+start -460 -12 -299 0
+god
+notarget
+give "Axe" main
+hint Axe the metal crate ahead: ~3 strong (4 medium) blows break it. A stone breakable (the post further east, ahead and to the left) breaks in one.

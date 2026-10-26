@@ -1,6 +1,0 @@
-# flames_burn: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title A grunt that will come at you past a toolgun flame
-map vrtesthall
-god
-spawn "Large Flame" 220 20
-spawn "Grunt" 480 40

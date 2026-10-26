@@ -1,7 +1,0 @@
-# leg_drag: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title A grunt and a death knight close by to pull down by the shins (calm)
-map vrtesthall
-god
-notarget
-spawn "Grunt" 70 30
-spawn "Death Knight" 150 -40

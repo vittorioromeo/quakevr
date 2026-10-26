@@ -1,5 +1,0 @@
-# save_defaults: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Save My Settings as Defaults: the menu's corner button
-map vrtesthall
-cvar vr_menu_level 2
-hint Open the menu: the corner's Save Default button (Menu Detail: Developer only); press it twice within 3 s: it says Saved N, the file is in quakevr/proposed_defaults.

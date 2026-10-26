@@ -1,0 +1,10 @@
+# ad_lighting: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". AD's stationary light pulse
+# (lightstyles on its authored lamps) at the spot the checklist names in ad_crucial (-215 -2287 136).
+# Needs Arcane Dimensions mounted (Play > Official Campaigns > Arcane Dimensions, or -game ad): elsewhere its map
+# isn't found.
+title AD lighting: ad_crucial's pulsing lamps
+map ad_crucial
+start -215 -2287 136 0
+god
+notarget
+hint The lamps' pulse here should match the lamps themselves; compare a moment with r_flatlightstyles 1 (console), then 0.

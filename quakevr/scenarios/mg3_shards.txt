@@ -1,8 +1,0 @@
-title MG3 armour shards on the floor
-map vrtesthall
-god
-spawn "MG3 Armour Shard" 80 -60
-spawn "MG3 Armour Shard" 80 -20
-spawn "MG3 Armour Shard" 80 20
-spawn "MG3 Armour Shard" 80 60
-hint Force-grab a shard, then hip, pouch or chest gives armour; walking over them does not.

@@ -474,6 +474,14 @@ za::Vector<Item> pageDebugTests()
         command("32 Sounds Around You", "vr_snd_bench_spawn 32")
             .help("vr_snd_bench_spawn: 32 looping sounds in a ring round you (till the map changes): a load for the "
                   "profiler's sound line, with Spatial Audio on and off."),
+        command("Voice Transform Test", "vr_voice_test")
+            .help("vr_voice_test: the feminine voice's transform (Player Appearance > Voice) on a synthetic vowel (its "
+                  "pitch moved by Voice Pitch within 2%, its length kept, no clipping, its formants raised) and on each "
+                  "of the player's voice sounds, with the time each took."),
+        command("Export Voice Samples", "vr_voice_export voice_samples")
+            .help("vr_voice_export <dir>: five of the player's voice sounds before and after as WAV files, and two "
+                  "spectrograms (before above, after below), into voice_samples in the game folder. vr_voice_info: the "
+                  "sounds transformed as they loaded and the time it took."),
         command("Five Explosions at Once", "vr_snd_burst weapons/r_exp3.wav 5")
             .help("vr_snd_burst: five rocket explosions at once 2.5 m ahead of you (as explosive boxes blowing up together): "
                   "with the limiter on (Sound, Advanced: Mix Limiter) a loud bang, off a crackle; Record the Mix and "
@@ -1221,6 +1229,10 @@ za::Vector<Item> pageDebugTests()
         toggle("Print Walk Moves", vr_debug_walkmove)
             .help("Prints each of your walk moves: the slide, the step up, the planes met, the ledge test "
                   "(vr_debug_walkmove). For a report of stairs or slopes you can't walk up."),
+        cycle("Log Sounds", vr_debug_sound_log, {{0.f, "Off"}, {1.f, "All"}, {2.f, "Not Yours"}})
+            .help("Prints each sound the server starts: its entity, channel, sample and volume, and a dropped one's reason "
+                  "(not precached, a full datagram) (vr_debug_sound_log). Not Yours: monsters' and the world's only. For "
+                  "a report of a weapon or a monster that makes no sound."),
         header("Player Hitbox (Prototype)"),
         open("Player Hitbox Settings", pageIndex(pageHitbox)).help("Movement > Player Hitbox: the widths and their toggles."),
         open("Monster Hitbox Settings", pageIndex(pageMonsterHitbox)).help("Movement > Monster Hitbox: monsters' widths by class, and their walk tests."),

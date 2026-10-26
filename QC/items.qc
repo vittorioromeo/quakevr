@@ -2228,6 +2228,9 @@ void() DropBackpack =
     item.ammo_nails = self.ammo_nails;
     item.ammo_rockets = self.ammo_rockets;
     item.ammo_cells = self.ammo_cells;
+    item.ammo_lava_nails = self.ammo_lava_nails; // QVR: Rogue's too (BackpackTouch takes them; the check above counts them)
+    item.ammo_multi_rockets = self.ammo_multi_rockets;
+    item.ammo_plasma = self.ammo_plasma;
 
     item.velocity_z = 300;
     item.velocity_x = -100 + (random() * 200);

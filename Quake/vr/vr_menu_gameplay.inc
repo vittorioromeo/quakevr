@@ -1145,9 +1145,10 @@ void armedGripsDragMode()
             .help("Their weapon's damage to you, times this (its damage to monsters is your weapon's own): a rocket "
                   "isn't a one-shot (vr_agrunt_damage_scale)."),
         slider("Spare Clips", vr_agrunt_reserve, 0.f, 10.f, 1.f, "%.0f").extend(0.f, 100.f)
-            .help("The clips each carries beyond the one in its gun; each reload takes one. With none left it throws the "
-                  "gun away and fights with its fists. Not the grunts' and enforcers' rifles: their clip is all they "
-                  "have (vr_agrunt_reserve)."),
+            .help("The clips each carries beyond the full one in its gun; each reload takes one. With none left it throws "
+                  "the gun away and fights with its fists. The guns whose clip is a shot or two carry more at the same "
+                  "setting (the double-barrelled shotgun 4x, the flare gun 2x, the super nailgun 1.5x). Its backpack "
+                  "holds what is left of them (vr_agrunt_reserve)."),
         slider("Dual Wielding", vr_agrunt_dual_chance, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance one from the pool holding a weapon that pairs gets a second in its left hand: one-handed "
                   "blades and clubs (a sword, the crowbar, the axe) swung in turn or both at once; guns one in each "

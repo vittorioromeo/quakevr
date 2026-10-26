@@ -25,10 +25,12 @@
 //   arm's length.
 // - Melee weapons and fists: it closes in and swings (the shove's frames; W_FireAxe, W_ChainsawMelee, HIP_FireMjolnir,
 //   W_FistMelee from its hand towards the target).
-// - Ammo: the weapon's clip (its record's wi_clip; its kind's clip size, VR_AG_ClipSize) and vr_agrunt_reserve clips more
-//   (not for single-use enemy guns: their clip is all they have). Empty, it reloads (the load frames, vr_agrunt_reload_time
-//   s); with nothing left it throws the gun away. Dying, it drops the weapon with what is left in it (gibbed too) and its
-//   reserve in its backpack.
+// - Ammo: the weapon's clip, full (its record's wi_clip; its kind's clip size, VR_AG_ClipSize), and spare magazines
+//   (VR_AG_SpawnReserve: 2, more for the guns whose magazine is a shot or two, times vr_agrunt_reserve / 2; the single-use
+//   enemy guns too: its own spare magazines). Empty, it reloads (the load frames, vr_agrunt_reload_time s); with nothing
+//   left it throws the gun away. A weapon out of its hands leaves its spare rounds in its pockets (VR_AG_Pocket: taken
+//   up again, it has them back). Dying, it drops the weapon with what is left in it (gibbed too) and a backpack with its
+//   weapons' spare rounds of a real ammo kind (none: its monster's own loot, a grunt's 5 shells).
 // - Disarming: a blow of at least vr_agrunt_disarm_damage on its gun hand (vr_agrunt_disarm), your empty hand grabbing
 //   its weapon (vr_agrunt_disarm_yank: it is yours), a knockdown: the weapon falls (a lying weapon, its clip with it).
 // - Re-arming (vr_agrunt_rearm): disarmed it fights with its fists and goes for a weapon lying within
@@ -65,7 +67,7 @@ vector(entity e) weaponmuzzle = { return weapondrawnpose(e, 0, 6); };
 .float vr_ag_code;      // its "weapon" key as spawned (a weapon id, or VR_AG_CODE_*: the tests' names)
 .vector vr_ag_aim;      // the way it aims now (a unit vector; '0 0 0': as its animation holds the gun)
 .float vr_ag_myrun;     // when its own run frames last ran (VR_AG_CheckAttack sends it back to them)
-.float vr_ag_lastwid;   // the last weapon it held (its backpack's ammo: VR_AG_SoldierDrop)
+.float vr_ag_lastwid;   // the last weapon it held
 void(entity g) VR_AG_DrawMain;            // (a flare gun as its second weapon: below, before VR_AG_SoldierDrop)
 void(entity g, vector vel) VR_AG_DropMain;
 
@@ -144,8 +146,35 @@ float(float wid, entity inst) VR_AG_ClipOf =
     return VR_AG_ClipSize(wid);
 };
 
-// Its ammo is a clip of its own only (single use): the enemy guns.
+// Its ammo is a clip of its own only (single use): the enemy guns. (In your hands; an armed monster carries spare
+// magazines of it too: VR_AG_SpawnReserve.)
 float(float wid) VR_AG_SingleUse = { return VR_IsEnemyGun(wid) || wid == WID_FLAREGUN; }; // (the flare gun: its two flares)
+
+// The spare magazines an armed monster spawns with for `wid` at vr_agrunt_reserve's default (2; it scales them all):
+// a fight of 20 to 40 s is some 10-20 attacks (a shot, a burst of 3, a stream of 5 or more); two magazines more cover
+// that for most guns. The ones whose magazine is a shot or two carry more: the double-barrelled shotgun (2 shells, one
+// shot: 2 + 16 shells, 9 shots), the flare gun (2 flares: 2 + 8). The super nailgun (2 nails a shot, 5 shots an
+// attack): 3. Melee weapons and fists: none (no magazine); the chainsaw: 2 tanks of fuel.
+float(float wid, entity inst) VR_AG_SpareClips =
+{
+    if(wid == WID_SUPER_SHOTGUN && VR_AG_ClipOf(wid, inst) <= 2) { return 8; } // (not AD's Widowmaker: its tube's 16)
+    if(wid == WID_FLAREGUN) { return 4; }
+    if(wid == WID_SUPER_NAILGUN) { return 3; }
+    return 2;
+};
+
+// The rounds beyond its magazine an armed monster spawns with for `wid` (record `inst`): VR_AG_SpareClips magazines,
+// times vr_agrunt_reserve / 2. Single-use guns too: it reloads them from its own spare magazines (dropped, the gun has
+// only its clip: your ammo never fills it).
+float(float wid, entity inst) VR_AG_SpawnReserve =
+{
+    float clip = VR_AG_ClipOf(wid, inst);
+    if(wid < 0 || clip <= 0)
+    {
+        return 0;
+    }
+    return rint(clip * VR_AG_SpareClips(wid, inst) * max(0, cvar_hget(cvarh_vr_agrunt_reserve)) / 2);
+};
 
 // Nearer than this, it doesn't fire an explosive weapon (its own blast).
 float(float wid) VR_AG_MinRange =
@@ -890,6 +919,10 @@ entity(entity g, float wid, float flags, entity inst) VR_AG_MakeProp =
     p.effects = VR_AG_EF_HELD; // (the client finds it so: its muzzle flash, the arms' grips)
     VR_ADGun_Placed(wid); // (AD's guns' and melee weapons' models made, their sounds precached: any map)
     VR_ADMelee_Placed(wid, flags);
+    if(p.weaponinst.wi_adup)
+    {
+        AD_WeaponsOnDemand(); // (AD's upgrades' shots' sounds, any map: the Plasma Gun's was not precached outside AD's)
+    }
     string m = AD_WeaponModel(wid, flags, p.weaponinst);
     precache_model(m);
     setmodel(p, m);
@@ -900,8 +933,73 @@ entity(entity g, float wid, float flags, entity inst) VR_AG_MakeProp =
     return p;
 };
 
+// Its pockets: the spare rounds of a weapon no longer in its hands (knocked out of them, yanked, thrown away, dropped as
+// it dies; a flare gun's stowed weapon as it dies), kept for its backpack (VR_AG_SoldierDrop) and for the same weapon
+// taken up again (VR_AG_Unpocket): a real ammo kind's in its .ammo_* fields (ShootProp keeps them round a shot), a
+// single-use gun's (its own magazines) here, one gun's.
+.float vr_ag_pocket_wid;   // the single-use gun whose magazines it carries (0: none)
+.float vr_ag_pocket_n;     // ... their rounds
+
+void(entity g) VR_AG_PocketClear =
+{
+    g.ammo_shells = 0;
+    g.ammo_nails = 0;
+    g.ammo_rockets = 0;
+    g.ammo_cells = 0;
+    g.ammo_lava_nails = 0;
+    g.ammo_multi_rockets = 0;
+    g.ammo_plasma = 0;
+    g.vr_ag_pocket_wid = 0;
+    g.vr_ag_pocket_n = 0;
+};
+
+// `n` spare rounds of `wid` (flags `flags`) into its pockets.
+void(entity g, float wid, float flags, float n) VR_AG_Pocket =
+{
+    if(wid <= 0 || n <= 0)
+    {
+        return;
+    }
+    float aid = WeaponIdToAmmoId(wid, flags);
+    if(aid != AID_NONE)
+    {
+        VR_AmmoUtil_AddAmmoCountByAmmoId(g, aid, n);
+        return;
+    }
+    if(g.vr_ag_pocket_wid != wid)
+    {
+        g.vr_ag_pocket_n = 0; // (another single-use gun's magazines: no use to it now, its backpack has none of them)
+    }
+    g.vr_ag_pocket_wid = wid;
+    g.vr_ag_pocket_n = g.vr_ag_pocket_n + n;
+};
+
+// Its spare rounds for `wid` (flags `flags`) out of its pockets, as it takes that weapon up (0: none of them).
+float(entity g, float wid, float flags) VR_AG_Unpocket =
+{
+    if(wid <= 0)
+    {
+        return 0;
+    }
+    float aid = WeaponIdToAmmoId(wid, flags);
+    float n = 0;
+    if(aid != AID_NONE)
+    {
+        n = VR_AmmoUtil_GetAmmoCountByAmmoId(g, aid);
+        VR_AmmoUtil_SetAmmoCountByAmmoId(g, aid, 0);
+        return max(0, n);
+    }
+    if(g.vr_ag_pocket_wid == wid && VR_AG_ClipSize(wid) > 0)
+    {
+        n = g.vr_ag_pocket_n;
+        g.vr_ag_pocket_wid = 0;
+        g.vr_ag_pocket_n = 0;
+    }
+    return n;
+};
+
 // Its weapon leaves its hand as a weapon lying about (its record and magazine with it), flying at `vel`; world if it
-// held none.
+// held none. Its spare rounds for it go into its pockets.
 entity(entity g, vector vel) VR_AG_DropHeld =
 {
     entity p = g.vr_ag_prop;
@@ -925,6 +1023,8 @@ entity(entity g, vector vel) VR_AG_DropHeld =
     entity w = CreateThrownWeapon(g, p.weapon, p.weaponflags, inst, p.origin, p.v_angle, vel, randomVec(90),
         FALSE /* disappear on hit */, FALSE /* deal damage */, WeaponIdToThrowDamage(p.weapon));
     VR_AG_Log(sprintf("%s dropped (%g in its clip, %g in reserve)", p.netname, inst.wi_clip, g.vr_ag_reserve));
+    VR_AG_Pocket(g, p.weapon, p.weaponflags, g.vr_ag_reserve);
+    g.vr_ag_reserve = 0;
     p.weaponinst = world;
     remove(p);
     g.vr_ag_prop = world;
@@ -947,8 +1047,7 @@ void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
     vector vel = normalize(dir) * (speed * (0.8 + random() * 0.4)) + '0 0 1' * (speed * 0.9);
     float wid = g.vr_ag_wid;
     VR_AG_DropHeld(g, vel);
-    g.vr_ag_disarms = g.vr_ag_disarms + 1;
-    g.vr_ag_reserve = 0; // (its spare clips are no use without the gun)
+    g.vr_ag_disarms = g.vr_ag_disarms + 1; // (its spare rounds: in its pockets, VR_AG_DropHeld)
     VR_AG_DisarmFeedback(g, wid); // (its clatter, its grunt: vr_armedgrunt_play.qc)
     VR_AG_Log(sprintf("disarmed (%s)", why));
 };
@@ -968,7 +1067,6 @@ void(entity g, entity pl, float h) VR_AG_Yank =
     }
     VR_AG_DisarmFeedback(g, wid);
     g.vr_ag_disarms = g.vr_ag_disarms + 1;
-    g.vr_ag_reserve = 0;
     w.handtouch_ent = pl;
     w.handtouch_hand = h;
     float catching = forcegrabCatching;
@@ -1398,9 +1496,11 @@ void(entity p) VR_AG_ShootProp =
     makevectors(self.handrot); // (VR_AG_BlastSafe's arc used the globals)
     float aid = WeaponIdToAmmoId(wid, p.weaponflags);
     float single = VR_AG_SingleUse(wid) || aid == AID_NONE;
+    float pocket = 0; // (its .ammo_* fields hold the spare rounds of weapons no longer in its hands: VR_AG_Pocket)
     if(!single)
     {
-        VR_AmmoUtil_SetAmmoCountByAmmoId(self, aid, inst.wi_clip);
+        pocket = VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid);
+        VR_AmmoUtil_SetAmmoCountByAmmoId(self, aid, inst.wi_clip); // (the fire code spends its clip as your ammo)
     }
 
     float h = cVR_MainHand;
@@ -1448,6 +1548,7 @@ void(entity p) VR_AG_ShootProp =
             self.button0 = 0;
             self.weaponinst = world;
             vr_fire_spread_extra = 0;
+            VR_AmmoUtil_SetAmmoCountByAmmoId(self, aid, pocket); // (its pocket's cells back)
             return; // (it would discharge: never under water)
         }
         W_FireLightning(h);
@@ -1485,14 +1586,16 @@ void(entity p) VR_AG_ShootProp =
     {
         inst.wi_clip = max(0, inst.wi_clip - rounds);
     }
+    else
+    {
+        // (Only a gun of a real ammo kind: a single-use one's was read as AID_NONE's, an assertion and an empty clip
+        // after its first shot: the enforcer's rifle's one shot, the burst rifle's one round.)
+        inst.wi_clip = max(0, VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid));
+        VR_AmmoUtil_SetAmmoCountByAmmoId(self, aid, pocket);
+    }
     if(wid == WID_FLAREGUN)
     {
         p.skin = VR_FlareGun_Skin(inst.wi_clip); // (the barrel just fired sooted)
-    }
-    else
-    {
-        inst.wi_clip = max(0, VR_AmmoUtil_GetAmmoCountByAmmoId(self, aid));
-        VR_AmmoUtil_SetAmmoCountByAmmoId(self, aid, 0);
     }
     self.vr_ag_shots = self.vr_ag_shots + 1;
     self.vr_ag_total_shots = self.vr_ag_total_shots + 1;
@@ -1839,12 +1942,15 @@ void() VR_AG_TakeBegin =
     self.vr_ag_took_done = 0;
     if(self.vr_ag_prop)
     {
-        VR_AG_ArmLeft(self, wid, flags, inst); // (its second hand's again: VR_AG_WantsSecond)
+        if(VR_AG_ArmLeft(self, wid, flags, inst)) // (its second hand's again: VR_AG_WantsSecond)
+        {
+            self.vr_ag_reserve2 = VR_AG_Unpocket(self, wid, flags); // (its spare rounds for it, if it has any)
+        }
     }
     else
     {
         VR_AG_Arm(self, wid, flags, inst);
-        self.vr_ag_reserve = 0;
+        self.vr_ag_reserve = VR_AG_Unpocket(self, wid, flags);
     }
     self.vr_ag_took_at = time; // (VR_AG_Arm's prop placed: still where it lay)
     VR_AG_Log(sprintf("reaching down for %s", wid == self.vr_ag_wid ? self.vr_ag_prop.netname : self.vr_ag_prop2.netname));
@@ -2221,6 +2327,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AG_Damage
     if((targ.flags & FL_CLIENT) && (attacker.flags & FL_MONSTER))
     {
         vr_agr_pl_hits = vr_agr_pl_hits + 1; // (the tests: vr_armedrepl_test.qc; the armed ones' scale below)
+        vr_agr_pl_raw = vr_agr_pl_raw + damage;
         vr_agr_pl_dmg = vr_agr_pl_dmg + damage * ((attacker.vr_ag && !native) ? max(0, cvar_hget(cvarh_vr_agrunt_damage_scale)) : 1);
     }
     if(native)
@@ -2276,7 +2383,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
     }
 };
 
-// SoldierDrop: an armed grunt's backpack holds its reserve (none: a grunt's 5 shells).
+// SoldierDrop: an armed grunt's backpack holds its weapons' spare rounds (none of a real ammo kind: a grunt's 5 shells).
 // ----------------------------------------------------------------------------
 // A flare gun as its second weapon (vr_agrunt_flaregun; vr_flaregun.qc)
 // ----------------------------------------------------------------------------
@@ -2343,6 +2450,8 @@ void(entity g, vector vel) VR_AG_DropMain =
     }
     float wid = g.vr_ag_main_wid;
     g.vr_ag_main_wid = 0;
+    VR_AG_Pocket(g, wid, g.vr_ag_main_wflags, g.vr_ag_main_reserve); // (its spare rounds: its backpack's)
+    g.vr_ag_main_reserve = 0;
     entity inst = g.vr_ag_main_inst ? g.vr_ag_main_inst : WeaponInst_New(VR_AG_ClipSize(wid));
     g.vr_ag_main_inst = world;
     CreateThrownWeapon(g, wid, g.vr_ag_main_wflags, inst, g.origin + '0 0 12', randomVec(180), vel, randomVec(90),
@@ -2356,25 +2465,35 @@ float() VR_AG_SoldierDrop =
     {
         return FALSE;
     }
-    self.ammo_shells = 0;
-    self.ammo_nails = 0;
-    self.ammo_rockets = 0;
-    self.ammo_cells = 0;
-    if(self.vr_agr && self.vr_ag_reserve <= 0)
+    // Its backpack: the spare rounds of its weapons, of their real ammo kinds: in its hands (if it still holds them),
+    // stowed (its flare gun's), in its pockets (VR_AG_Dying dropped the held ones: their spare rounds pocketed). A
+    // single-use gun's spare magazines (no ammo kind of yours) are not in it.
+    VR_AG_Pocket(self, self.vr_ag_wid, self.vr_ag_wflags, self.vr_ag_reserve);
+    self.vr_ag_reserve = 0;
+    if(self.vr_ag_prop2)
     {
-        return FALSE; // (a replacement with no reserve: the loot of the monster it replaced, its chance of a weapon too)
+        VR_AG_Pocket(self, self.vr_ag_wid2, self.vr_ag_wflags2, self.vr_ag_reserve2);
     }
-    float aid = self.vr_ag_lastwid >= 0 ? WeaponIdToAmmoId(self.vr_ag_lastwid, 0) : AID_NONE;
-    if(aid != AID_NONE && self.vr_ag_reserve > 0)
+    self.vr_ag_reserve2 = 0;
+    if(self.vr_ag_main_wid > 0)
     {
-        VR_AmmoUtil_SetAmmoCountByAmmoId(self, aid, self.vr_ag_reserve);
+        VR_AG_Pocket(self, self.vr_ag_main_wid, self.vr_ag_main_wflags, self.vr_ag_main_reserve);
+        self.vr_ag_main_reserve = 0;
     }
-    else
+    self.vr_ag_pocket_wid = 0;
+    self.vr_ag_pocket_n = 0;
+    if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells + self.ammo_lava_nails +
+         self.ammo_multi_rockets + self.ammo_plasma))
     {
-        VR_AM_Row(self.vr_ag_kind); // (its monster's own loot: a grunt's 5 shells, an enforcer's 5 cells)
+        if(self.vr_agr)
+        {
+            return FALSE; // (a replacement with none: the loot of the monster it replaced, its chance of a weapon too)
+        }
+        // None of a real ammo kind (fists, melee weapons, single-use guns, all spent): its monster's own loot (a grunt's
+        // 5 shells, an enforcer's 5 cells).
+        VR_AM_Row(self.vr_ag_kind);
         VR_AmmoUtil_SetAmmoCountByAmmoId(self, vr_am_loot_aid, vr_am_loot_n);
     }
-    self.vr_ag_reserve = 0;
     DropBackpack();
     return TRUE;
 };
@@ -2533,6 +2652,7 @@ void(float kind) VR_AM_Spawn =
 // `flags2`), their reserves; a replacement's loadout too (vr_armedrepl.qc VR_AGR_Apply: its props gone first).
 void(float want, float flags, entity inst, float want2, float flags2) VR_AM_ArmAll =
 {
+    VR_AG_PocketClear(self); // (its pockets: empty)
     VR_AG_Arm(self, want, flags, inst);
     self.vr_ag_wid2 = -1;
     if(want2 > 0 && VR_AG_Decode(want2) && VR_AM_Holds(self, VR_AG_Class(vr_ag_dec_wid)))
@@ -2550,13 +2670,11 @@ void(float want, float flags, entity inst, float want2, float flags2) VR_AM_ArmA
         }
     }
     VR_AGP_Spawn(self); // (its fists' pose sender)
-    self.vr_ag_reserve = VR_AG_SingleUse(self.vr_ag_wid) ? 0 :
-                         VR_AG_ClipOf(self.vr_ag_wid, self.vr_ag_prop.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));
+    self.vr_ag_reserve = self.vr_ag_prop ? VR_AG_SpawnReserve(self.vr_ag_wid, self.vr_ag_prop.weaponinst) : 0;
     self.vr_ag_reserve2 = 0;
     if(self.vr_ag_prop2)
     {
-        self.vr_ag_reserve2 = VR_AG_SingleUse(self.vr_ag_wid2) ? 0 :
-            VR_AG_ClipOf(self.vr_ag_wid2, self.vr_ag_prop2.weaponinst) * max(0, rint(cvar_hget(cvarh_vr_agrunt_reserve)));
+        self.vr_ag_reserve2 = VR_AG_SpawnReserve(self.vr_ag_wid2, self.vr_ag_prop2.weaponinst);
     }
     if(vr_ag_arm_rolled)
     {

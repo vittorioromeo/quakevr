@@ -81,7 +81,8 @@ QVR_CVAR(vr_hit_tolerance_grapple, "2", CVAR_ARCHIVE) // for the grappling hook
 QVR_CVAR(vr_hit_tolerance_melee, "2", CVAR_ARCHIVE)   // for melee blows and shoves (on top of the striking points' own thickness, 3 units)
 QVR_CVAR(vr_hit_melee_scale, "1", CVAR_ARCHIVE)        // Combat > Hit Detection > Melee Hitbox Size: the melee probe (vr_hit_tolerance_melee) times this, 0.25..4. Not the striking points' own 3 units, not the broad-phase box.
 QVR_CVAR(vr_hit_tolerance_thrown, "2", CVAR_ARCHIVE)  // for thrown things (on top of their hit box, vr_throw_hitbox: 6)
-QVR_CVAR(vr_debug_hits, "0", CVAR_NONE)               // Debug > Show Hits: each precise hit drawn (the model as drawn then, the triangle hit, the point on the model) and printed; 2: also the shots through a box that missed the model
+QVR_CVAR(vr_debug_sound_log, "0", CVAR_NONE)          // Debug > Tests > Log Sounds: each sound the server starts printed ("sndlog: t <time> ent <n> <classname> chan <c> <sample> vol <v>", dropped ones and why: vr_server.cpp VR_SoundLog); 2: not the players'
+QVR_CVAR(vr_debug_hits, "0", CVAR_NONE)             // Debug > Show Hits: each precise hit drawn (the model as drawn then, the triangle hit, the point on the model) and printed; 2: also the shots through a box that missed the model
 QVR_CVAR(vr_debug_melee_blades, "0", CVAR_NONE)       // Debug > Views > Show Melee Blades: each hand's blow line (the hand to the tip; white idle, yellow fast enough to strike, red a blow just landed), the lines its sweep tested over the last frames and the blade's swept surface fading out, a hammer's or mace's head box, a red dot and the damage where a blow landed (QC VR_Melee_Show, vr_meleeshow.cpp); nothing sent or drawn when 0
 QVR_CVAR(vr_hitmodel_cachestress, "0", CVAR_NONE) // Debug > Threads > Evict Models at Map Start: each hit model's data dropped from the model cache once the next is loaded (the eviction a small cache makes); the meshes must come out the same (hash)
 
@@ -1326,7 +1327,7 @@ QVR_CVAR(vr_crate_health_box, "0.2", CVAR_ARCHIVE)       // the chance a crate h
 QVR_CVAR(vr_crate_item_pop, "3.5", CVAR_ARCHIVE)        // how hard what a crate held pops out when it breaks (m/s: up, and a little outwards)
 QVR_CVAR(vr_crate_crowbar, "0.1", CVAR_ARCHIVE)          // the chance a crate placed about the map (the top of a stack) has a crowbar lying on it (next map)
 QVR_CVAR(vr_crate_crowbar_max, "4", CVAR_ARCHIVE)        // most crowbars on crates in a map
-QVR_CVAR(vr_crate_flaregun, "0.05", CVAR_ARCHIVE)        // the chance a crate placed about the map (the top of a stack, none on it) has a flare gun lying on it (next map)
+QVR_CVAR(vr_crate_flaregun, "0", CVAR_ARCHIVE)           // (experimental, off by default; was 0.05 until configVersion 207) the chance a crate placed about the map (the top of a stack, none on it) has a flare gun lying on it (next map)
 QVR_CVAR(vr_crate_flaregun_max, "2", CVAR_ARCHIVE)       // most flare guns on crates in a map
 QVR_CVAR(vr_crate_sight, "1", CVAR_ARCHIVE)              // 1: crates and explosive boxes lying about hide you from monsters (not one you carry)
 QVR_CVAR(vr_crate_shield, "2", CVAR_ARCHIVE)             // a crate you hold stops monsters' bullets (it takes them); 2: explosive boxes too; 2: an explosive box too (it blows up); 0: they pass through what you hold
@@ -1602,6 +1603,10 @@ QVR_CVAR(vr_nail_saturation, "0.85", CVAR_ARCHIVE)    // saturation (0 grey .. 1
 QVR_CVAR(vr_nail_lightness, "0.32", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); not tinted by vr_skin_tone, the hand's own shading kept
 QVR_CVAR(vr_nail_gloss, "0.6", CVAR_ARCHIVE)          // the polish's gloss (0 matte .. 1 a glassy top coat): a sharp highlight and the room mirrored in it
 QVR_CVAR(vr_hand_shape, "0", CVAR_ARCHIVE)            // the jointed hands' shape (vr_hand_rig 1): 0 standard, 1 feminine (progs/hand_rig_f.md5mesh, make_hand_feminine.py: slimmer, the same joints and skins); live
+QVR_CVAR(vr_voice, "0", CVAR_ARCHIVE)                 // the player's own voice (pain, death, jump, gasps, drowning, burning: vr_voice.cpp voiceSounds): 0 masculine (Quake's recordings), 1 feminine (the same recordings pitched up and their formants raised as they load); live (those sounds loaded again)
+QVR_CVAR(vr_voice_pitch, "4.5", CVAR_ARCHIVE)         // vr_voice 1: the voice's pitch raised by this many semitones (TD-PSOLA: the duration kept), 0..8
+QVR_CVAR(vr_voice_formant, "17", CVAR_ARCHIVE)        // vr_voice 1: its formants (the vocal tract's resonances) raised by this many percent (so it isn't a chipmunk's), 0..30
+QVR_CVAR(vr_voice_voicing, "0.4", CVAR_ARCHIVE)       // vr_voice 1: how rough a stretch of a voice sound may be and still be pitched up (YIN's threshold, 0.05..0.9: higher pitches more of the screams' growl; the rest only has its formants raised)
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, needs the jointed hand: vr_hand_rig 1)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
 QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
@@ -2929,7 +2934,7 @@ QVR_CVAR(vr_grunt_burst, "1", CVAR_ARCHIVE)          // 1: grunts fire 3-round b
 QVR_CVAR(vr_grunt_burst_damage, "5", CVAR_ARCHIVE)   // a grunt's burst: each round's damage to what it hits (id's shotgun: 4 pellets of 4)
 // Armed grunts (experimental; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts"): a grunt holding one of your weapons.
 QVR_CVAR(vr_agrunt_damage_scale, "0.5", CVAR_ARCHIVE)  // its weapon's damage to players times this (a rocket isn't a one-shot)
-QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries beyond the one in its gun (reloads: a short pause)
+QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries beyond the one in its gun (reloads: a short pause); at 2 each weapon's own count (QC VR_AG_SpareClips: the double-barrelled shotgun 8, the flare gun 4, the super nailgun 3), scaled by this / 2
 // Armed humanoid replacements (QC vr_armedrepl.qc; ROUND22.md "Armed humanoid replacements"): a map's grunts and
 // enforcers as armed ones. All off by default.
 QVR_CVAR(vr_agrunt_repl, "0", CVAR_ARCHIVE)            // 1: every grunt and enforcer a map spawns is its armed version holding its own gun (its own damage, rate, aim, loot)

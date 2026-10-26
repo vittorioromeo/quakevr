@@ -1,8 +1,0 @@
-# ad_bosses: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Toolgun bosses: the Judicator and the Ice Golem
-map vrtesthall
-god
-give "Rocket Launcher" main
-cmd impulse 9
-spawn "AD Judicator (a Boss)" 520 -20
-spawn "AD Ice Golem (a Boss)" 520 260

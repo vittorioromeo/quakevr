@@ -1,6 +1,6 @@
 #ifdef QVR_TESTS
 // vr_armedgrunt_range_test.qc -- armed humanoids' fighting distance (vr_armedgrunt.qc VR_AG_RangeOf, VR_AG_RangeMove,
-// VR_AG_WalkFire; vr_agrunt_range; ROUND22.md, "Armed humanoids' fighting distance"). `vr_agrunt_test 47` (Debug >
+// VR_AG_WalkFire; vr_agrunt_range; ROUND22.md, "Armed humanoids' fighting distance"). `vr_agrunt_test 48` (Debug >
 // Tests > Armed Grunts: Fighting Distance), vrtesthall from its start, the player kept alive: for each weapon one armed
 // humanoid (vr_agrunt_test_kind) 260 units ahead hunting you, 6 s of each case: you standing (a shotgun in hand), you
 // walking at it (80 u/s, the shotgun), you charging it with an axe (280 u/s, stopping 48 units from it). Each prints its

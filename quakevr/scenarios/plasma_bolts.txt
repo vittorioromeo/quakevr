@@ -1,6 +1,0 @@
-# plasma_bolts: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title The AD Plasma Gun in hand, a grunt far off to shoot at
-map vrtesthall
-god
-give "AD Plasma Gun" main
-spawn "Grunt" 560 120

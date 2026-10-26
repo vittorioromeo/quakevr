@@ -184,6 +184,23 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	if (ratescale != 1.f) // VR: a derived sound's rate (slower: lower and longer)
 		info.rate = (int)(info.rate * ratescale + 0.5f);
 
+	// QVR: the player's own voice made feminine (vr_voice 1): 16-bit at the mix's rate, so not resampled again
+	if (info.samples > 0)
+	{
+		int vsamples, vloop;
+		short *voice = VR_SndVoice (s->name, data + info.dataofs, info.width, info.samples, info.rate, info.loopstart, shm->speed, &vsamples, &vloop);
+		if (voice)
+		{
+			VR_HeapFree (data);
+			data = (byte *) voice;
+			info.dataofs = 0;
+			info.width = 2;
+			info.rate = shm->speed;
+			info.samples = vsamples;
+			info.loopstart = vloop;
+		}
+	}
+
 	stepscale = (float)info.rate / shm->speed;
 	len = info.samples / stepscale;
 
