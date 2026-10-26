@@ -22580,3 +22580,60 @@ against his own proposal of 12:26. Reason for every change: **his config, approv
 **In VR:**
 - [ ] Fresh config: the Widowmaker's ammo readout sits where you put it; the nail pistol's off-hand cup grip is there
   (the other hand under and round the grip).
+
+## Widowmaker cup grip aims two-handed; Heat Haze Detail by graphics preset (worktree `fastship`, branch `agent/capgrip`, 2026-10-26)
+
+His voice notes of 2026-10-26.
+
+**Cup grips that aim.** The Widowmaker's two-handed grip, its hotspot 1, is a Cup on its front handle: hotspot point
+2.97 -1.90 -2.03 in the hotspot frame, model x ~23 as drawn (`vr_hotspot_fit`), 16 units ahead of the rear handle the
+main hand holds (model 7.29; the old two-handed anchor `TwoHHandAnchor` 29.08 -0.04 -0.18 is on the same handle). A
+Cup never aimed (`grip2HCup`: held wherever the hands point), so only the main hand turned the gun.
+- New per-hotspot setting **Two-Handed Aim** (Weapon Offsets > Hotspots, shown for Cup hotspots; `vr_wofs_hsN_aim2h_SS`,
+  Hotspot field 24, `weapons::Hotspot::cupAim`). On, a Cup ahead of the holding hand aims as a Grip does: the
+  two-handed path with its smoothing (the aim transition), the angle threshold and stickiness, the release rules and
+  the virtual stock (it no longer takes the cup stock, `vr_2h_cup_stock`). Still taken and drawn by the palm, and the
+  line goes to the palm (`vr_twohand.cpp` applyHotspots: `palmAims`). A cup beside or under the holding hand (a
+  pistol's) never aims.
+- Its aim: the least turn keeping the line between the hands as it took hold (kept in the holding hand's frame,
+  `cupLine`) on the hands' line, as a free grip held as a foregrip. A front handle below the barrel (4 units under the
+  rear grip here) would otherwise tilt the gun 22.6 degrees as it is taken (measured); now taking it never turns it,
+  and it eases out the same way when let go.
+- Defaults: on for the Widowmaker (slot index 34, `vr_wofs_hs1_aim2h_35` 1), off everywhere else (the nail pistol's new
+  cup included). `vr_wofs_version` 70 (`takeWidowmakerCupAim70`, after next's `takeHis69`): sets it where the config
+  holds 0.
+- Test aid: `vr_mock_hand_to off heldspot <i> palm` puts the hand's palm (not its point) on the other hand's weapon's
+  hotspot `i` (0-based), as a cup is taken.
+
+**Heat Haze Detail.** `vr_heat_haze_half` default 1 -> 0 (full size, his). The graphics presets set it: Off, Low and
+Medium half size (1), High and Ultra full size (the default); its row in `vr_gfxpresets.cpp` makes each preset
+recognised with it. `vr_cfg_version` 205: a config at the old 1 that is Off/Low/Medium as it stands keeps 1; High,
+Ultra or its own mix takes 0.
+
+**Checked (headless):**
+- `bash Misc/quakevr/twohand/cup_aim_test.sh <agent>`: 5 passed, 0 failed. The Widowmaker in the main hand, the off
+  palm on hotspot 1 gripping, the main hand raised and lowered 4 cm with the off hand still: Two-Handed Aim on, the
+  barrel's pitch -7.11 / +7.92 degrees; off, +0.00 / -0.01; taking it turns the gun 0.00 degrees (on -0.10, off
+  -0.10); shots on the barrel throughout (shot-barrel 0.00).
+- `vr_ad_test 148` + `149` (`vr_weapon_grip_mode 1`): 11 passed, 0 failed. `Misc/quakevr/twohand/grip_state_test.py`:
+  PASS (the other guns' grips, cups and flick reloads unchanged).
+- `bash Misc/quakevr/haze_preset_test.sh <agent>`: 8 passed, 0 failed (each preset sets it and is recognised as
+  itself; the migration's three cases).
+
+**In VR:**
+- [ ] Widowmaker: hold the rear handle and take the front handle with the other hand: the gun doesn't jump; moving the
+  front hand up, down and sideways swings the barrels with it, as a rifle's foregrip. Weapon Offsets > Hotspots >
+  Two-Handed Aim Off brings back the old feel (the main hand alone).
+- [ ] Other weapons' cups (the nail pistol's): try Two-Handed Aim On (only a cup ahead of the holding hand aims).
+- [ ] Heat haze over lava and in fire: sharp (full size) on High and Ultra; the Medium preset shows Half Size.
+
+## Defaults of 2026-10-26: Ambient Light 0.1 (worktree `dequant`, branch `agent/ambient`; configVersion 206)
+
+Approved by Vittorio 2026-10-26 (his config): `vr_ambient_light` default 0 -> 0.1. It is the baked light's floor, a share of Quake's
+full light added to the lightmap before `vr_light_contrast` (vr_lighting.cpp, world shader), so dark places lift a little at any gamma.
+- Changed: `vr_cvars.inc` default; the menu rows (Graphics > Lights, slider 0..0.4) read the cvar; the Off graphics preset keeps 0
+  (Quake's look), Low and up take the default. Migration configVersion 206 (reason "his config, approved 2026-10-26"): a config at 0
+  -> 0.1; any other value stays (205 is the heat haze preset migration).
+- Synthetic configs at version 205: 0 -> 0.1; 0.3 stays 0.3; 0.1 stays; an empty (fresh) config gets 0.1. eval.sh: no takes, no verdict changes.
+- Eyeshots (e1m3 dark room, `scratch/amb_a0.png` / `amb_a01.png`): the shadowed walls and floor are slightly lifted at 0.1; the flat
+  screen (`vr_enabled 0`, `scratch/amb_flat01.png`) with the retro lighting on renders normally.

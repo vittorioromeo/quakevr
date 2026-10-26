@@ -171,7 +171,9 @@ namespace
 // 68: the heavy revolver's slot (38) at its defaults (takeRevolver68).
 // 69: his config of 2026-10-26: the Widowmaker's (slot 34) readout place and the nail pistol's (36) cup hotspot
 // (takeHis69).
-constexpr int settingsVersion = 69;
+// 70: the Widowmaker's (slot 34) cup, hotspot 1, aims by both hands (Two-Handed Aim, hs1_aim2h: his notes 2026-10-26)
+// where the config holds the old 0 (takeWidowmakerCupAim70).
+constexpr int settingsVersion = 70;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -796,6 +798,17 @@ void takeHis69()
         cup ? ", the nail pistol his cup grip" : "");
 }
 
+// The Widowmaker's cup aiming by both hands (70; the key is new: a config before it holds nothing, or the 0 every slot
+// had while the key was being made).
+void takeWidowmakerCupAim70()
+{
+    cvar_t& var = cvarAt(34, Key::Hotspot1CupAim);
+    if(!strcmp(var.string, "0"))
+    {
+        Cvar_SetQuick(&var, var.default_string);
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -832,6 +845,7 @@ constexpr Step steps[] = {
     {67, takeFlareGun67},
     {68, takeRevolver68},
     {69, takeHis69},
+    {70, takeWidowmakerCupAim70},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
@@ -1070,7 +1084,11 @@ Key hotspotKey(int index, int field)
     {
         return static_cast<Key>(static_cast<int>(Key::Hotspot1Manual) + 7 * index + (field - 16));
     }
-    return static_cast<Key>(static_cast<int>(Key::Hotspot1Sticky) + index);
+    if(field < 24)
+    {
+        return static_cast<Key>(static_cast<int>(Key::Hotspot1Sticky) + index);
+    }
+    return static_cast<Key>(static_cast<int>(Key::Hotspot1CupAim) + index);
 }
 
 float bladeFrom(const Hotspot& h)
@@ -1111,6 +1129,7 @@ Hotspot hotspot(int slot, int index)
     }
     h.thumbAcross = value(slot, hotspotKey(index, 22));
     h.sticky = value(slot, hotspotKey(index, 23));
+    h.cupAim = value(slot, hotspotKey(index, 24)) >= 0.5f;
     return h;
 }
 
@@ -1144,6 +1163,7 @@ void setHotspot(int slot, int index, const Hotspot& h)
     }
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 22)), h.thumbAcross);
     Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 23)), h.sticky);
+    Cvar_SetValueQuick(&cvarAt(slot, hotspotKey(index, 24)), h.cupAim ? 1.f : 0.f);
 }
 
 int ownerSlot(int slot, Key key)

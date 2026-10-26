@@ -681,7 +681,9 @@ void mockHandTo_f()
     const bool button = (Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "button");
     const bool screenButt = (Cmd_Argc() == 4 || Cmd_Argc() == 5) && !q_strcasecmp(Cmd_Argv(2), "screenbutt");
     const bool wrist = screenButt || (Cmd_Argc() >= 4 && Cmd_Argc() <= 6 && !q_strcasecmp(Cmd_Argv(2), "screen"));
-    const bool heldSpot = Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(2), "heldspot");
+    // ("heldspot <index> palm": the hand's palm there, not its point: a cup is taken by the palm.)
+    const bool heldSpot = (Cmd_Argc() == 4 || (Cmd_Argc() == 5 && !q_strcasecmp(Cmd_Argv(4), "palm"))) &&
+                          !q_strcasecmp(Cmd_Argv(2), "heldspot");
     const bool ragdollPart = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "ragdoll");
     const bool by = Cmd_Argc() == 6 && !q_strcasecmp(Cmd_Argv(2), "by");
     const bool nearestOf = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "nearest");
@@ -1117,6 +1119,11 @@ void mockHandTo_f()
             return;
         }
         target = h.pos;
+        if(Cmd_Argc() == 5)
+        {
+            const hands::State& st = hands::current();
+            target -= hands::palmPoint(st, hand) - st.pos[hand];
+        }
         Con_Printf("vr_mock_hand_to: the other hand's weapon's hotspot %d (type %d): %.1f %.1f %.1f\n",
             Q_atoi(Cmd_Argv(3)), h.type, target.x, target.y, target.z);
     }

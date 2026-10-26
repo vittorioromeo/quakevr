@@ -966,16 +966,18 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
             s.grip2HBias[hand] = glm::distance(at, s.grip2H[hand]) - (atBox - reach + twohand::gripTakeUnits);
             s.grip2HSticky[hand] = 1.f;
         }
-        // A cup: a cup hotspot, or a grip not ahead of the holding hand (beside it, under it: a grip the two hands can't
-        // aim by; it is held as a cup).
+        // A cup: a cup hotspot (unless it has Two-Handed Aim: his notes 2026-10-26, the Widowmaker's front handle), or
+        // any grip not ahead of the holding hand (beside it, under it: a grip the two hands can't aim by; it is held as
+        // a cup).
         const WorldHotspot& spot = worldHotspots[hand][chosen];
         glm::vec3 fwd, right, up;
         hands::angleVectors(s.rot[hand], fwd, right, up);
         const glm::vec3 toGrip = spot.pos - held.pos;
         const float along = glm::dot(toGrip, fwd);
-        s.grip2HCup[hand] = spot.type == weapons::HotspotType::Cup ||
-                            along < 5.f || along < za::cos(glm::radians(35.f)) * glm::length(toGrip);
-        s.grip2HPalm[hand] = spot.type == weapons::HotspotType::Cup;
+        const bool cupHotspot = spot.type == weapons::HotspotType::Cup;
+        s.grip2HCup[hand] = (cupHotspot && !weapons::hotspot(slot, chosen).cupAim) || along < 5.f ||
+                            along < za::cos(glm::radians(35.f)) * glm::length(toGrip);
+        s.grip2HPalm[hand] = cupHotspot;
     }
     magazineHand(s, hand, carried);
 

@@ -6,6 +6,7 @@
 #include "vr_bodycal.hpp"
 #include "vr_bodyclone.hpp"
 #include "vr_engine.hpp"
+#include "vr_gfxpresets.hpp"
 #include "vr_hands.hpp"
 #include "vr_mgroups.hpp"
 #include "vr_props.hpp"
@@ -508,9 +509,9 @@ const DefaultChange defaultChanges[] = {
     // 204: Model Animation Smooth by default (approved 2026-10-25; ROUND22.md, "Defaults of 2026-10-25"): a config
     // still at Quake's Blend (1) takes Smooth (3); Stepped (0) stays.
     {204, &r_lerpmodels, "1"}, // 3
-    // 205: Ambient Light 0.1 by default (his config, approved 2026-10-26): a config still at 0 takes it; any other
+    // 206: Ambient Light 0.1 by default (his config, approved 2026-10-26): a config still at 0 takes it; any other
     // value stays.
-    {205, &vr_ambient_light, "0"}, // 0.1
+    {206, &vr_ambient_light, "0"}, // 0.1
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -556,8 +557,9 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // (200: the nail pistol's magazine's prop slot 56; 201: a shipped prop slot another model had taken moves that model to
 // another slot, so that the shipped one's tuning reaches its model: props::takeShippedSlots; 202: AD's heads' slots,
 // and the armed grunts' archived pose keys and grips equal to the new shipped ones dropped: agpose::dropShippedEqual,
-// aggrip::dropDefaultEqual; 204: r_lerpmodels 1 -> 3, AD's heads Mass 0 -> -1; 205: vr_ambient_light 0 -> 0.1)
-constexpr int configVersion = 205;
+// aggrip::dropDefaultEqual; 204: r_lerpmodels 1 -> 3, AD's heads Mass 0 -> -1; 205: vr_heat_haze_half 1 -> 0 unless
+// a graphics preset below High; 206: vr_ambient_light 0 -> 0.1)
+constexpr int configVersion = 206;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -741,6 +743,18 @@ void migrateConfig()
         Cvar_SetValueQuick(&vr_offhandpitch, vr_offhandpitch.value - extra);
         Cvar_SetValueQuick(&vr_gunmodelpitch, 7.f);
         Con_DPrintf("VR: Gun Model Pitch %g moved into Hand Pitch (-%g)\n", extra + 7.f, extra);
+    }
+    if(from < 205 && sameValue(vr_heat_haze_half.string, "1"))
+    {
+        // configVersion 205: Heat Haze Detail full size by default, as High and Ultra set it; the presets below High half
+        // size (his notes 2026-10-26). A config at the old default 1 that is one of those presets as it is (with the 1:
+        // their row) keeps it; any other (High, Ultra, its own mix) takes the new default.
+        const int level = gfxpresets::matchingLevel();
+        if(level < 0 || level >= gfxpresets::levelHigh)
+        {
+            Cvar_SetQuick(&vr_heat_haze_half, vr_heat_haze_half.default_string);
+        }
+        Con_DPrintf("VR: vr_heat_haze_half: %s (graphics preset %d)\n", vr_heat_haze_half.string, level);
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }

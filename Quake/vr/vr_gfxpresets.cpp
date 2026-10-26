@@ -116,6 +116,7 @@ constexpr Row presetRows[] = {
     {&vr_water_ripples,               {"0",     "0",     D,       D,    D}},
     {&vr_portals,                     {"0",     "0",     D,       D,    D}},
     {&vr_heat_haze,                   {"0",     "0",     D,       D,    D}},
+    {&vr_heat_haze_half,              {"1",     "1",     "1",     D,    D}}, // full size from High (his notes 2026-10-26)
 };
 // clang-format on
 
