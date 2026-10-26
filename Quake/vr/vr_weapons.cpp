@@ -173,7 +173,8 @@ namespace
 // (takeHis69).
 // 70: the Widowmaker's (slot 34) cup, hotspot 1, aims by both hands (Two-Handed Aim, hs1_aim2h: his notes 2026-10-26)
 // where the config holds the old 0 (takeWidowmakerCupAim70).
-constexpr int settingsVersion = 70;
+// 71: the heavy revolver's (slot 38) longer barrel: its muzzle, length, balance and mass (takeRevolverBarrel71).
+constexpr int settingsVersion = 71;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -809,6 +810,26 @@ void takeWidowmakerCupAim70()
     }
 }
 
+// 71: the heavy revolver's (index 38) barrel 1.5 times as long (Misc/quakevr/models_src/revolver): its muzzle at the
+// new bore's mouth, its length, balance and mass with it, each taken where the config still holds the old default.
+void takeRevolverBarrel71()
+{
+    cvar_t& muzzle = cvarAt(38, Key::MuzzleAnchor);
+    if(!strcmp(muzzle.string, "16.964 0 7.058"))
+    {
+        Cvar_SetQuick(&muzzle, muzzle.default_string);
+    }
+    constexpr OldValue old[] = {{38, Key::Span, 29.f}, {38, Key::Balance, 10.f}, {38, Key::Mass, 1.4f}};
+    for(const OldValue& o : old)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -846,6 +867,7 @@ constexpr Step steps[] = {
     {68, takeRevolver68},
     {69, takeHis69},
     {70, takeWidowmakerCupAim70},
+    {71, takeRevolverBarrel71},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 

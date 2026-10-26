@@ -17,17 +17,20 @@ Same pipeline as the nail pistol (`../nailpistol/`).
 | `render_revolver.py` | Renders the exported MDLs (`renders/`): `blender -b --factory-startup -P render_revolver.py -- <out folder> [size] [view ...]`. |
 | `renders/` | `three` (three-quarter, as the mockup), `vs_mockup` (beside it), `side`, `right`, `cocked`, `open` and `openfront` (swung out, shells chambered), `sights` (from behind along the sight line), `fp` (about as held), `shells`, `scale` (with the nail pistol and the shotgun, each at its in-hand scale). |
 
-Triangles: the gun 914 (Body 490 with the sights, Hammer 88, Trigger 28, Crane 52, Cylinder and EjectorRod 256);
+Triangles: the gun 1021 (Body 597 with the sights, Hammer 88, Trigger 28, Crane 52, Cylinder and EjectorRod 256);
 `v_revolver_shell.mdl` 76. Skin 384x384 (the nail pistol's 256x256: the runes need the texels).
 
 ## Axes, origins, scale
 
 Quake's view weapon axes: **+X forward (the muzzle), +Y left, +Z up**; Quake model units, as `v_nail.mdl`,
-`v_shot.mdl` and the nail pistol. The revolver is ~17.1 units long (muzzle to hammer spur): at a view weapon's usual
-in-hand scale (`vr_wofs_scale` ~0.45) that is ~29 cm, its grip a little bigger than the nail pistol's
+`v_shot.mdl` and the nail pistol. The revolver is ~20.7 units long (muzzle to hammer spur): at a view weapon's usual
+in-hand scale (`vr_wofs_scale` ~0.45) that is ~35 cm, its grip a little bigger than the nail pistol's
 (`renders/scale.png`). Numbers below are in the Body's frame (the MDL's), as the export prints them.
 
-- `Body`: origin at the grip's hand point (the grip's middle). Bore axis: y 0, z 7.058, along +X; muzzle at x 16.964.
+- `Body`: origin at the grip's hand point (the grip's middle). Bore axis: y 0, z 7.058, along +X; muzzle at x 20.564.
+  The barrel: hexagonal, x 9.714 to 20.564 (10.85 long, 10.55 out of the frame's front; 1.5 times the 7.25 of before),
+  its shank (its top half, 0.1 thinner) back into the frame to x 8.814; the runes centred on the part out of the frame;
+  the lug under it to x 13.124.
 - `Crane` (yoke): origin at its pivot **8.214 0.700 2.558**, low and left in a slot through the frame's bottom. It swings
   the cylinder out to the left about its local **X** (parallel to the bore) by its property `swing` (-95 degrees; the
   build checks the whole swing is clear of the frame, the hammer and the trigger: "swing check: clear").
@@ -46,7 +49,7 @@ in-hand scale (`vr_wofs_scale` ~0.45) that is ~29 cm, its grip a little bigger t
   of the cylinder's face (the Shell's property `proud`).
 - `Body`'s properties: `preview_scale` (0.45), `front_sight`, `rear_notch`.
 
-**Sight line** (parallel to the bore, 2.12 above it): front blade top **16.714 0 9.178** (the blade's top front
+**Sight line** (parallel to the bore, 2.12 above it): front blade top **20.314 0 9.178** (the blade's top front
 corner), rear notch top **3.764 0 9.178** (the notch's top edges, at its back face; notch 0.30 wide, bottom at 8.898).
 Look along it from behind: the blade sits in the notch, between the hammer's prongs (`renders/sights.png`).
 
@@ -83,7 +86,9 @@ From the repository root:
 (add `-- <folder>` to write elsewhere). It writes the six MDLs above into `quakevr/progs/` and
 `revolver_skin_pal.png` here, and prints the parts' origins and the sight line in the Body's frame. Art lint:
 `python Misc/quakevr/check_mdl_art.py quakevr/progs/v_revolver*.mdl quakevr/progs/vr_revolver_preview.mdl` (needs
-numpy: Blender's own Python has it); today only LOW findings.
+numpy: Blender's own Python has it); today only LOW findings. Faces nobody sees are left out (a part's face inside
+another, `HIDDEN` in the build): after a shape change, check from all round with back faces culled, as the game draws,
+that no left-out face shows (a hole). Round 22 (`agent/rvbarrel`): 26 directions x 3 frames, 0 pixels see through.
 
 ## In the game
 
