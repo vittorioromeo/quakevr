@@ -113,6 +113,7 @@ float vr_agr_shots_grunt;  // grunts' shots (rounds; a shotgun blast one), the n
 float vr_agr_shots_enf;    // enforcers' lasers, ...
 float vr_agr_pl_hits;      // monsters' hits on players (VR_AG_DamageScale: the tests)
 float vr_agr_pl_dmg;       // ... their damage
+float vr_agr_pl_raw;       // ... their damage before vr_agrunt_damage_scale (vr_armedgrunt_ammo_test.qc)
 float(float kind) VR_AGR_Replace;                                          // monster_army, monster_enforcer: TRUE: done
 void() VR_AGR_Precache;                                                    // worldspawn: the replacements' models
 void() VR_AGR_Frame;                                                       // StartFrame: loadouts rolled once a player is in

@@ -394,6 +394,7 @@ struct sizebuf_s *VR_BroadcastDest (int len);			// WriteDest's MSG_BROADCAST: wh
 void VR_BroadcastWritten (struct sizebuf_s *dest);		// ... after it
 void VR_BroadcastMessageEnd (void);						// after the engine wrote a whole message to sv.datagram: a boundary
 int VR_GoreSoundMutes (int ent, int channel);			// SV_StartSoundPitch: 1 drops it (a choking monster's cry: vr_goresound.cpp)
+void VR_SoundLog (int ent, int channel, const char *sample, int volume, int dropped); // SV_StartSoundPitch: vr_debug_sound_log's line (vr_server.cpp; dropped: 0 sent, 1 not precached, 2 datagram full, 3 muted)
 int VR_BroadcastSendable (int before, int room);		// SV_SendClientDatagram: how much of sv.datagram fits in a datagram with room bytes left (before: its bytes so far)
 void VR_ReliableSent (void);								// SV_SendClientMessages, before sv.reliable_datagram goes to the clients
 

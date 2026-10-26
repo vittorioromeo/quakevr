@@ -260,6 +260,11 @@ za::Vector<Item> pageDebugAutomation()
                   "right, running, taking a weapon up, a pain, a blow), seen from its front and its right, 0.7 s each; "
                   "the arms' numbers per pose at the end (agt lines: vr_agrunt_ik_err). scratch2..scratch3 the weapon "
                   "kinds (0..13), scratch4 how far (110)."),
+        command("Armed Humanoids: Ammo, Loot, Damage, Sounds", "scratch2 0; scratch3 0; vr_agrunt_test 47")
+            .help("vr_agrunt_test 47 (vrtesthall): each weapon's armed grunt in turn (and two dual wielders, two "
+                  "disarmed): its clip and spare magazines as it spawns, its damage a hit on you (no armour), a reload, "
+                  "its backpack as it dies, every sound it starts (Log Sounds on meanwhile); agammo lines, then a "
+                  "verdict. scratch2 n: from case n-1; scratch3 1: that case alone."),
         command("Armed Humanoids: Glitch Finder", "scratch2 0; scratch3 0; vr_agglitch_shots 0; vr_agrunt_test 46")
             .help("vr_agrunt_test 46 (vrtesthall; about 11 minutes): you unseen, each kind with each weapon class in turn "
                   "(fists, sword, axe, the guns, the chainsaw, two shotguns, two axes, Mjolnir) plays its real fights "
