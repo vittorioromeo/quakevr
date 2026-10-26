@@ -66,6 +66,10 @@ za::Vector<Item> pageDebugViews()
         command("Flame Lights Info", "vr_flame_lights_info")
             .help("vr_flame_lights_info: the flamethrowers' stream lights now (Graphics' Flamethrower Lights): how many "
                   "flames were drawn last frame, the clusters they made, and each light's place, level and reach."),
+        command("Lightstyle Rate (5 s)", "vr_lightstyle_rate 5")
+            .help("vr_lightstyle_rate 5: for 5 s of game time, each animated lightstyle's steps a second (Quake's 10, "
+                  "whatever the frame rate), its swing, changes a second and largest jump a frame, to the console (LSRATE "
+                  "lines). Compare Soften Flickering Lights (Comfort) at 0 and on."),
         command("Light Probe", "vr_light_probe")
             .help("vr_light_probe: the baked light at six points round you, as the map has it and as it is drawn with the "
                   "current Ambient Light and Light Contrast (128 is Quake's full light). The same numbers light a model "

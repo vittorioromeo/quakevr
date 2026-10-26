@@ -1088,6 +1088,11 @@ QVR_CVAR(vr_comfort_vignette_strength, "0.5", CVAR_ARCHIVE)
 // Comfort fade (vr_comfortfade.cpp): seconds the view takes to come back from black when the game moves you at once (a
 // scripted teleport: Dawn of the Machine's boss arenas); 0 off.
 QVR_CVAR(vr_comfort_teleport_fade, "0.6", CVAR_ARCHIVE)
+// Flicker comfort (vr_lightstyle.cpp; his beta4 note 2026-10-26 on ad_crucial's lamps, "very disorienting"): in VR, the
+// share of each animated lightstyle's swing around its average taken out (0: as authored; 0.5 half the swing; 1 steady
+// at the average, as r_flatlightstyles 1), and its steps always blended (no abrupt jumps); the 10 Hz pattern kept.
+// Switched lights (one-letter styles) are untouched. Desktop play: as authored.
+QVR_CVAR(vr_lightstyle_comfort, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_level, "0", CVAR_ARCHIVE)             // Menu Detail (vr_menu.cpp MenuLevel): 0 Standard (what every player sets), 1 Advanced (every gameplay, display and graphics setting), 2 Developer (tuning, recording, debug and tests too)
 QVR_CVAR(vr_menu_positions, "", CVAR_ARCHIVE)          // where each VR Settings page was left, for the next start (vr_menu.cpp, written with the config): "title|section|row|index|line;..."
 QVR_CVAR(vr_checklist_hide_ticked, "1", CVAR_ARCHIVE)   // Checklist page (the menu's corner button): ticked items left out

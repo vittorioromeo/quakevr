@@ -85,6 +85,7 @@
 #include "vr_menu.hpp"
 #include "vr_checklist.hpp"
 #include "vr_scenario.hpp"
+#include "vr_lightstyle.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
 #include "vr_zancle.hpp"
@@ -2121,6 +2122,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_bigfont", bigfont::report_f);
     Cmd_AddCommand("vr_checklist", checklist::command_f);
     Cmd_AddCommand("vr_scenario", scenario::command_f);
+    lightstyle::registerCommands();
     Cmd_AddCommand("vr_handcal_match", menu::handCalMatch_f);
     Cmd_AddCommand("vr_recenter", hands::recenter_f);
     Cmd_AddCommand("vr_body_error", hands::bodyError_f);

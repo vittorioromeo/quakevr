@@ -71,16 +71,23 @@ void R_AnimateLight (void)
 			k = cl_lightstyle[j].map[k] - 'a';
 			n = cl_lightstyle[j].map[n] - 'a';
 		}
-		// only interpolate abrupt changes (e.g. flickering light in e1m1) if r_lerplightstyles >= 2
-		if (r_lerplightstyles.value < 2.f && abs(n - k) >= ('m' - 'a') / 2)
-			n = k;
-		d_lightstylevalue[j] = (int)(k*22 + (n-k)*22*f);
-		r_lightbuffer.lightstyles[j] = (k + (n-k)*f) * (22.f/256.f);
+		{
+			const int next = n; // QVR: the next step, before the abrupt-change rule
+			float level;
+			// only interpolate abrupt changes (e.g. flickering light in e1m1) if r_lerplightstyles >= 2
+			if (r_lerplightstyles.value < 2.f && abs(n - k) >= ('m' - 'a') / 2)
+				n = k;
+			level = (float)(k + (n-k)*f);
+			level = VR_LightstyleLevel (j, k, next, (float)(cl.time * 10.0 - base), level); // QVR: VR flicker comfort (vr_lightstyle.cpp)
+			d_lightstylevalue[j] = (int)(level*22);
+			r_lightbuffer.lightstyles[j] = level * (22.f/256.f);
+		}
 		//johnfitz
 	}
 
 	if (r_fullbright_cheatsafe)
 		r_lightbuffer.lightstyles[0] = 1.f;
+	VR_LightstyleFrame (); // QVR: vr_lightstyle_rate's probe
 }
 
 /*

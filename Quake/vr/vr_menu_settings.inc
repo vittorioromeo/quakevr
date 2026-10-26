@@ -363,6 +363,10 @@ void resetBodyEquipment()
         slider("Fade on Scripted Teleports", vr_comfort_teleport_fade, 0.f, 2.f, 0.1f, "%.1f s")
             .help("When the game moves you somewhere else at once (a boss sending you to another arena), your view goes "
                   "black and comes back over this long. 0: no fade."),
+        slider("Soften Flickering Lights", vr_lightstyle_comfort, 0.f, 1.f, 0.25f, "%.2f")
+            .help("Flickering and pulsing map lights (Quake's and Arcane Dimensions' lamps) swing less around their usual "
+                  "brightness, their steps blended: 0 as the maps made them, 0.5 half the swing, 1 steady. They keep "
+                  "their rhythm. Lights switched on and off are not changed."),
         cycle("Death View", vr_death_view, {{0.f, "Off"}, {1.f, "Third Person"}, {2.f, "Immersive"}})
             .help("When you die (not gibbed) your body falls as a ragdoll, thrown by the blow that killed you. Off: no "
                   "body, as in Quake. Third Person: your view stays where your eyes were, your body there to look at. "
