@@ -154,7 +154,25 @@ struct ForearmFrame
 };
 [[nodiscard]] bool forearmFrame(int hand, float along, ForearmFrame& out);
 
-// The forearm's girth `along` it (0 the elbow, 1 the wrist) for a body build (0 lean, 1 athletic, 2 brawny): the
+// A body build's proportions (vr_body_build: 0 lean, 1 athletic, 2 brawny, 3 feminine; make_vrbody.py's BUILDS), for
+// what is fitted to the body: the factors are 1 for the athletic build, and multiply the engine's athletic numbers.
+struct BuildShape
+{
+    float muscle;    // the arms' muscularity m (forearms 1.08 m, wrists 1 + 0.3 (m - 1)): 0.9, 1.2, 1.5, 0.9
+    float torso;     // the chest's and thighs' scale, 1 + 0.35 (m - 1) (the feminine build: 1, its chest below)
+    float chestWide; // the chest's half width at the upper holsters against 0.19 torso m (feminine: 0.155 m)
+    float capSide;   // the chest's two self-contact capsules' distance apart against the others' (feminine: closer)
+    float limbs;     // the arms' girth against the athletic build's (blood running down them)
+    float belt;      // the belt's depth against the athletic build's (the flashlight's clip)
+    float pauldron;  // the pauldrons' size against the athletic build's
+    const char* model;
+    const char* bareModel; // vr_body_bracers 0
+};
+inline constexpr int bodyBuilds = 4;
+[[nodiscard]] int bodyBuild(); // vr_body_build, 0 .. bodyBuilds - 1
+[[nodiscard]] const BuildShape& buildShape(int build);
+
+// The forearm's girth `along` it (0 the elbow, 1 the wrist) for a body build (bodyBuild(), buildShape's muscle): the
 // semi-axes of the bracer's ring there (make_vrbody.py's, in metres; the bracer runs from 0.13 m to the wrist of a
 // 0.26 m forearm, before it the ring where it starts), `hint` along the forearm frame's z (the little finger's
 // side), `other` along its y. Its rings are polygons inside this ellipse. Between them it is straight. `bare`: the bare

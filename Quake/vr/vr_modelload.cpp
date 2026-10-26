@@ -635,7 +635,7 @@ extern "C" void VR_MD5SkinNormalMap (void *surf, gltexture_t *glt, const char *s
 /*
 ===============
 VR_MD5SharedSkins -- whether an MD5 shader's skins (progs/<shader>_NN_FF) are loaded once for every model using them:
-Quake VR's body (vrbody, vrbody_lean, vrbody_brawny and their _bare forearms all use "vrbody"'s 16 skins)
+Quake VR's body (vrbody, vrbody_lean, vrbody_brawny, vrbody_fem and their _bare forearms all use "vrbody"'s 16 skins)
 ===============
 */
 extern "C" int VR_MD5SharedSkins (const char *shader)

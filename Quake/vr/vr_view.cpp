@@ -516,15 +516,13 @@ namespace view_detail
 {
 namespace
 {
-// The body's model for a build (0 lean, 1 athletic, 2 brawny), with the bracers or bare forearms (vr_body_bracers 0:
-// progs/vrbody*_bare, make_vrbody.py; fitted round the jointed hand, so only with it: vr_hand_rig).
+// The body's model for a build (0 lean, 1 athletic, 2 brawny, 3 feminine: avatar::buildShape), with the bracers or bare
+// forearms (vr_body_bracers 0: progs/vrbody*_bare, make_vrbody.py; fitted round the jointed hand, so only with it:
+// vr_hand_rig).
 [[nodiscard]] const char* bodyModelName(int build, bool bare)
 {
-    if(bare)
-    {
-        return build <= 0 ? "progs/vrbody_lean_bare.mdl" : build >= 2 ? "progs/vrbody_brawny_bare.mdl" : "progs/vrbody_bare.mdl";
-    }
-    return build <= 0 ? "progs/vrbody_lean.mdl" : build >= 2 ? "progs/vrbody_brawny.mdl" : "progs/vrbody.mdl";
+    const avatar::BuildShape& b = avatar::buildShape(build);
+    return bare ? b.bareModel : b.model;
 }
 
 [[nodiscard]] bool bareForearms()
@@ -566,7 +564,7 @@ void view::prepareModels()
     za::Vector<const char*> names{handrig::modelName, "progs/vrgadget.mdl", "progs/vrgadget_strap.mdl", "progs/wpnbutton.mdl"};
     if(vr_body_mode.value >= 1.f)
     {
-        const int build = static_cast<int>(vr_body_build.value);
+        const int build = avatar::bodyBuild();
         if(bareForearms())
         {
             names.pushBack(bodyModelName(build, true));
@@ -2662,7 +2660,7 @@ bool emptyHandImpl(const hands::State& s, int hand, view::EmptyHand& out)
     return true;
 }
 
-// The build of the body drawn this frame (0 lean, 1 athletic, 2 brawny; the wrist gadget's straps fit its bracer), and
+// The build of the body drawn this frame (0 lean, 1 athletic, 2 brawny, 3 feminine; the wrist gadget's straps fit its bracer), and
 // whether its forearms are bare (vr_body_bracers 0: straps and gadget fitted to the skin).
 int drawnBuild = 1;
 bool drawnBare = false;
@@ -3078,9 +3076,9 @@ void setupBody(const hands::State& s)
     const bool alive = cl.stats[STAT_HEALTH] > 0 && !cl.intermission;
     if(mode >= 1 && alive)
     {
-        // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic) or vrbody_brawny; their bare forearms'
+        // The build (vr_body_build): progs/vrbody_lean, vrbody (athletic), vrbody_brawny or vrbody_fem; their bare forearms'
         // (vr_body_bracers 0) if both hands are the jointed hand they are fitted round.
-        const int build = static_cast<int>(vr_body_build.value);
+        const int build = avatar::bodyBuild();
         qmodel_t* model = nullptr;
         if(bareForearms() && rigHands[0].drawn && rigHands[1].drawn)
         {
@@ -3097,7 +3095,7 @@ void setupBody(const hands::State& s)
         }
         if(avatar::usable(model))
         {
-            drawnBuild = model == viewModel("progs/vrbody.mdl") ? 1 : CLAMP(0, build, 2);
+            drawnBuild = model == viewModel("progs/vrbody.mdl") ? 1 : build;
             drawnBare = drawnBare && model == viewModel(bodyModelName(build, true));
             const avatar::HandPose handPoses[2] = {drawnHand(s, 0), drawnHand(s, 1)};
 
@@ -3201,8 +3199,8 @@ void setupPauldrons()
     const int skin = style == 1 ? armorWorn() : style >= 2 ? 4 : 0;
 
     // Made for the athletic build.
-    const int build = static_cast<int>(vr_body_build.value);
-    const float size = CLAMP(0.25f, vr_body_pauldron_size.value, 4.f) * (build <= 0 ? 0.88f : build >= 2 ? 1.18f : 1.f);
+    const int build = avatar::bodyBuild();
+    const float size = CLAMP(0.25f, vr_body_pauldron_size.value, 4.f) * avatar::buildShape(build).pauldron;
     const float k = avatar::modelScale(&body.ent); // world units per model unit
     const unsigned char scale = static_cast<unsigned char>(CLAMP(1.f, k * size * ENTSCALE_DEFAULT + 0.5f, 255.f));
     const float follow = CLAMP(0.f, vr_body_pauldron_follow.value, 1.f);

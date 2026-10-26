@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # make_vrbody.py -- generates the prototype skinned body of Quake VR's avatar (Quake/vr/vr_avatar.cpp),
-# in three builds (vrbody_lean, vrbody (athletic), vrbody_brawny; vr_body_build picks one):
+# in four builds (vrbody_lean, vrbody (athletic), vrbody_brawny, vrbody_fem (feminine: FEMININE); vr_body_build
+# 0..3 picks one; the same skeleton, vertices, triangles and texture coordinates in each, so one skin set serves all):
 #   quakevr/progs/<build>.md5mesh, .md5anim  the skeleton and a low-poly body, in the bind pose
 #   quakevr/progs/<build>.mdl                a placeholder: Ironwail loads MD5 only as the
 #                                            "enhanced" replacement of an existing .mdl
@@ -476,8 +477,50 @@ def wrist_tint(progs):
 
 
 # Builds (make_vrbody.py writes one model each): muscularity scales the arms' girth (the forearms
-# a little more, the wrists much less: bones do not grow), and some of it the chest and thighs.
-BUILDS = (("_lean", 0.9), ("", 1.2), ("_brawny", 1.5))
+# a little more, the wrists much less: bones do not grow), and some of it the chest and thighs. A build may also have
+# a shape (FEMININE): its own torso, neck, upper-arm, leg and foot rings, as ratios of the same skeleton, the
+# vertices, triangles and texture coordinates the same as every other build's (one skin set, one normal map).
+# (suffix, muscularity, shape); vr_body_build is the index (0 lean, 1 athletic, 2 brawny, 3 feminine).
+#
+# The feminine build (vrbody_fem, vr_body_build 3): lean arms (muscularity 0.9: its forearms, bracers, wrists and
+# so the wrist gadget, blood and contact are the lean build's) with a softer upper arm, against the athletic build:
+# shoulders 0.90 as wide (the deltoid 0.62 as thick, the upper arm 0.66-0.71), the ribcage 0.76 as wide and 0.72 as
+# deep under a modest bust (two cups on the front of the chest rings, standing 7 cm out of the ring at their fullest,
+# 1.28 m up: their front 5.8 cm before the ring under them, at 1.19 m; a lame's rolled edge of the armour runs 3 cm
+# over that fold, on the bust's lower slope, the next two lames over the bust, so the plates step over it as fitted
+# lames would), the waist 0.81 as wide and 0.84 as deep (1.06 m), the hips
+# 1.12-1.27 as wide (0.19 m to each side from 0.86 to 0.95 m), the thighs 0.87-0.91 and calves 0.88 as thick, the neck
+# 0.84, the feet 0.92 as long and wide. The same height: calibration sizes it as it does the others. The torso's rings
+# may sit at other heights than the athletic build's (the waist, the fold under the bust): their texture rows don't
+# move, only the mesh between them.
+FEMININE = {
+    # The torso's rings (as build_mesh's, the same count): (z, depth, half width, bust: the cups' standing out).
+    "torso": [(0.86, 0.108, 0.190, 0.0), (0.95, 0.116, 0.190, 0.0), (1.06, 0.092, 0.126, 0.0),
+              (1.19, 0.090, 0.132, 0.0), (1.28, 0.095, 0.146, 0.070), (1.36, 0.100, 0.155, 0.026),
+              (1.43, 0.092, 0.140, 0.0), (1.47, 0.052, 0.060, 0.0)],
+    "neck": (0.045, 0.049),
+    # The upper arm's rings (build_mesh's six, from above the shoulder to the elbow) times the build's muscularity:
+    # a slimmer deltoid, the arm tapering smoothly to the elbow, fuller behind (the triceps' side, u) than in front.
+    "arm": [(0.052, 0.052), (0.058, 0.055), (0.058, 0.054), (0.056, 0.049), (0.050, 0.045), (0.046, 0.046)],
+    # The legs' rings: the thigh's top and middle, the knee, the calf's fullest, the ankle; the boot shaft's four.
+    "leg": [(0.094, 0.094), (0.084, 0.078), (0.058, 0.056), (0.062, 0.057), (0.042, 0.041)],
+    "shaft": [(0.054, 0.051), (0.056, 0.053), (0.066, 0.061), (0.072, 0.067)],
+    "foot": 0.92,
+}
+BUILDS = (("_lean", 0.9, None), ("", 1.2, None), ("_brawny", 1.5, None), ("_fem", 0.9, FEMININE))
+
+
+def bust_ring(depth, half, bust):
+    """A chest ring's shape with the bust on it (loft()'s seventh element): the ellipse (depth forward, half width to
+    the side), its front pushed forward by two cups either side of the middle (fullest 34 degrees round, falling off
+    over 25 degrees; a shallow dip between them)."""
+    def shape(a):
+        x, y = depth * math.cos(a), half * math.sin(a)
+        if math.cos(a) > 0.0:
+            off = abs(math.atan2(math.sin(a), math.cos(a)))
+            x += bust * math.exp(-((off - 0.6) / 0.43) ** 2)
+        return x, y
+    return shape
 
 
 def bare_wrist(side="r"):
@@ -505,7 +548,7 @@ def bare_rings(m, side):
     return out, out[-1][1]
 
 
-def build_mesh(m, bare=False):
+def build_mesh(m, bare=False, shape=None):
     verts.clear()
     tris.clear()
     torso = 1.0 + (m - 1.0) * 0.35
@@ -514,23 +557,25 @@ def build_mesh(m, bare=False):
 
     # Torso: vertical rings (u forward, v left).
     X, Y = (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)
-    loft([
-        ((-0.01, 0.0, 0.86), X, Y, 0.10, 0.15, w(("pelvis", 1.0))),
-        ((-0.01, 0.0, 0.95), X, Y, 0.115, 0.17, w(("pelvis", 1.0))),
-        ((-0.01, 0.0, 1.05), X, Y, 0.11, 0.155, w(("pelvis", 0.5), ("spine", 0.5))),
-        ((-0.01, 0.0, 1.15), X, Y, 0.105 * torso, 0.15 * torso, w(("spine", 1.0))),
-        ((-0.01, 0.0, 1.25), X, Y, 0.12 * torso, 0.17 * torso, w(("spine", 0.4), ("chest", 0.6))),
-        ((-0.01, 0.0, 1.35), X, Y, 0.13 * torso, 0.19 * torso, w(("chest", 1.0))),
-        ((-0.01, 0.0, 1.43), X, Y, 0.11 * torso, 0.17 * torso, w(("chest", 1.0))),
-        ((-0.01, 0.0, 1.47), X, Y, 0.06, 0.07, w(("chest", 0.5), ("neck", 0.5))),
-    ], "leather", sides=16, per=[1, 1, 2, 2, 2, 2, 1])
+    rings_t = [
+        (0.86, 0.10, 0.15, 0.0), (0.95, 0.115, 0.17, 0.0), (1.05, 0.11, 0.155, 0.0),
+        (1.15, 0.105 * torso, 0.15 * torso, 0.0), (1.25, 0.12 * torso, 0.17 * torso, 0.0),
+        (1.35, 0.13 * torso, 0.19 * torso, 0.0), (1.43, 0.11 * torso, 0.17 * torso, 0.0), (1.47, 0.06, 0.07, 0.0),
+    ] if shape is None else shape["torso"]
+    weights_t = [w(("pelvis", 1.0)), w(("pelvis", 1.0)), w(("pelvis", 0.5), ("spine", 0.5)), w(("spine", 1.0)),
+                 w(("spine", 0.4), ("chest", 0.6)), w(("chest", 1.0)), w(("chest", 1.0)),
+                 w(("chest", 0.5), ("neck", 0.5))]
+    loft([((-0.01, 0.0, z), X, Y, rx, ry, ws) + ((bust_ring(rx, ry, b),) if b else ())
+          for (z, rx, ry, b), ws in zip(rings_t, weights_t)], "leather", sides=16, per=[1, 1, 2, 2, 2, 2, 1])
     # The belt: a band standing out of the torso where the belt is painted (10-20% up the torso's texture: the
     # rings from 0.925 to 0.99 m), its outside painted from the belt's row.
+    (z0, x0, y0, _), (z1, x1, y1, _), (z2, x2, y2, _) = rings_t[:3]
+
     def belt_ring(z, out, weights):
         # The torso's ellipse at z (between its rings at 0.86, 0.95 and 1.05 m), `out` further out.
-        k = (z - 0.86) / 0.09 if z < 0.95 else (z - 0.95) / 0.10
-        rx = 0.10 + 0.015 * k if z < 0.95 else 0.115 - 0.005 * k
-        ry = 0.15 + 0.02 * k if z < 0.95 else 0.17 - 0.015 * k
+        k = (z - z0) / (z1 - z0) if z < z1 else (z - z1) / (z2 - z1)
+        rx = x0 + (x1 - x0) * k if z < z1 else x1 + (x2 - x1) * k
+        ry = y0 + (y1 - y0) * k if z < z1 else y1 + (y2 - y1) * k
         return ((-0.01, 0.0, z), X, Y, rx + out, ry + out, weights)
     loft([
         belt_ring(0.925, -0.004, w(("pelvis", 1.0))),  # its edges tucked into the torso: no slit under them
@@ -539,9 +584,10 @@ def build_mesh(m, bare=False):
         belt_ring(0.99, -0.004, w(("pelvis", 0.8), ("spine", 0.2))),
     ], "leather", cap_start=False, cap_end=False, sides=16, vrange=(0.125, 0.175))
     # Neck and head.
+    nu, nv = (0.05 * torso, 0.055 * torso) if shape is None else shape["neck"]
     loft([
-        ((-0.01, 0.0, 1.47), X, Y, 0.05 * torso, 0.055 * torso, w(("neck", 1.0))),
-        ((-0.01, 0.0, 1.55), X, Y, 0.05 * torso, 0.055 * torso, w(("neck", 0.5), ("head", 0.5))),
+        ((-0.01, 0.0, 1.47), X, Y, nu, nv, w(("neck", 1.0))),
+        ((-0.01, 0.0, 1.55), X, Y, nu, nv, w(("neck", 0.5), ("head", 0.5))),
         ((0.0, 0.0, 1.60), X, Y, 0.095, 0.085, w(("head", 1.0))),
         ((0.0, 0.0, 1.68), X, Y, 0.10, 0.09, w(("head", 1.0))),
         ((-0.01, 0.0, 1.75), X, Y, 0.08, 0.07, w(("head", 1.0))),
@@ -567,13 +613,16 @@ def build_mesh(m, bare=False):
         ua_, cl_ = "upperarm_" + side, "clavicle_" + side
         fo_, ha_, wr_ = "forearm_" + side, "hand_" + side, "wrist_" + side
         fl = math.dist(elbow, wrist)
+        up_r = ([(0.055, 0.055), (0.070, 0.066), (0.068, 0.062), (0.064, 0.052), (0.054, 0.047), (0.046, 0.046)]
+                if shape is None else shape["arm"])
+        up_r = [(ru * m, rv * m) for ru, rv in up_r]
         arm = [
-            (sub(shoulder, mul(ud, 0.05)), ua, va, 0.055 * m, 0.055 * m, w((cl_, 0.6), (ua_, 0.4))),
-            (add(shoulder, mul(ud, 0.00)), ua, va, 0.070 * m, 0.066 * m, w((cl_, 0.25), (ua_, 0.75))),
-            (add(shoulder, mul(ud, 0.06)), ua, va, 0.068 * m, 0.062 * m, w((ua_, 1.0))),
-            (add(shoulder, mul(ud, 0.13)), ua, va, 0.064 * m, 0.052 * m, w((ua_, 1.0))),
-            (add(shoulder, mul(ud, 0.21)), ua, va, 0.054 * m, 0.047 * m, w((ua_, 1.0))),
-            (elbow, ua, va, 0.046 * m, 0.046 * m, w((ua_, 0.5), (fo_, 0.5))),
+            (sub(shoulder, mul(ud, 0.05)), ua, va, up_r[0][0], up_r[0][1], w((cl_, 0.6), (ua_, 0.4))),
+            (add(shoulder, mul(ud, 0.00)), ua, va, up_r[1][0], up_r[1][1], w((cl_, 0.25), (ua_, 0.75))),
+            (add(shoulder, mul(ud, 0.06)), ua, va, up_r[2][0], up_r[2][1], w((ua_, 1.0))),
+            (add(shoulder, mul(ud, 0.13)), ua, va, up_r[3][0], up_r[3][1], w((ua_, 1.0))),
+            (add(shoulder, mul(ud, 0.21)), ua, va, up_r[4][0], up_r[4][1], w((ua_, 1.0))),
+            (elbow, ua, va, up_r[5][0], up_r[5][1], w((ua_, 0.5), (fo_, 0.5))),
             (add(elbow, mul(fd, 0.05)), fa, fv, 0.052 * fm, 0.050 * fm, fore_w(side, 0.05 / fl)),
             (add(elbow, mul(fd, 0.12)), fa, fv, 0.046 * fm, 0.040 * fm, fore_w(side, 0.12 / fl)),
             # Ends inside the bracer (which covers it from 0.13 m on, closed at both ends), 2 cm into it: a skin
@@ -630,32 +679,37 @@ def build_mesh(m, bare=False):
         calf = bases["calf_" + side]
         # Sturdy legs, as Quake's models have (u front to back, v across: the thighs just clear
         # each other).
+        leg_r = ([(0.100 * torso, 0.088 * torso), (0.090 * torso, 0.080 * torso), (0.064, 0.062),
+                  (0.066 * torso, 0.060 * torso), (0.047, 0.046)] if shape is None else shape["leg"])
         loft([
-            (add(hip, (0.0, 0.0, 0.03)), thigh[2], thigh[1], 0.100 * torso, 0.088 * torso, w(("thigh_" + side, 1.0))),
-            (add(hip, (0.0, 0.0, -0.18)), thigh[2], thigh[1], 0.090 * torso, 0.080 * torso, w(("thigh_" + side, 1.0))),
-            (knee, thigh[2], thigh[1], 0.064, 0.062, w(("thigh_" + side, 0.5), ("calf_" + side, 0.5))),
-            (add(knee, (0.0, 0.0, -0.15)), calf[2], calf[1], 0.066 * torso, 0.060 * torso, w(("calf_" + side, 1.0))),
-            (add(ankle, (0.0, 0.0, 0.04)), calf[2], calf[1], 0.047, 0.046, w(("calf_" + side, 0.5), ("foot_" + side, 0.5))),
+            (add(hip, (0.0, 0.0, 0.03)), thigh[2], thigh[1], leg_r[0][0], leg_r[0][1], w(("thigh_" + side, 1.0))),
+            (add(hip, (0.0, 0.0, -0.18)), thigh[2], thigh[1], leg_r[1][0], leg_r[1][1], w(("thigh_" + side, 1.0))),
+            (knee, thigh[2], thigh[1], leg_r[2][0], leg_r[2][1], w(("thigh_" + side, 0.5), ("calf_" + side, 0.5))),
+            (add(knee, (0.0, 0.0, -0.15)), calf[2], calf[1], leg_r[3][0], leg_r[3][1], w(("calf_" + side, 1.0))),
+            (add(ankle, (0.0, 0.0, 0.04)), calf[2], calf[1], leg_r[4][0], leg_r[4][1],
+             w(("calf_" + side, 0.5), ("foot_" + side, 0.5))),
         ], "cloth", sides=12, per=[1, 2, 2, 1])
         # The ranger's tall boots: a shaft over the calf, from the ankle to below the knee, flared at
         # its top.
+        sh_r = ([(0.060, 0.057), (0.062 * torso, 0.059 * torso), (0.075 * torso, 0.069 * torso),
+                 (0.081 * torso, 0.075 * torso)] if shape is None else shape["shaft"])
         loft([
-            (add(ankle, (0.0, 0.0, 0.01)), calf[2], calf[1], 0.060, 0.057, w(("calf_" + side, 0.4), ("foot_" + side, 0.6))),
-            (add(ankle, (0.0, 0.0, 0.12)), calf[2], calf[1], 0.062 * torso, 0.059 * torso, w(("calf_" + side, 1.0))),
-            (add(knee, (0.0, 0.0, -0.13)), calf[2], calf[1], 0.075 * torso, 0.069 * torso, w(("calf_" + side, 1.0))),
-            (add(knee, (0.0, 0.0, -0.09)), calf[2], calf[1], 0.081 * torso, 0.075 * torso, w(("calf_" + side, 1.0))),
+            (add(ankle, (0.0, 0.0, 0.01)), calf[2], calf[1], sh_r[0][0], sh_r[0][1],
+             w(("calf_" + side, 0.4), ("foot_" + side, 0.6))),
+            (add(ankle, (0.0, 0.0, 0.12)), calf[2], calf[1], sh_r[1][0], sh_r[1][1], w(("calf_" + side, 1.0))),
+            (add(knee, (0.0, 0.0, -0.13)), calf[2], calf[1], sh_r[2][0], sh_r[2][1], w(("calf_" + side, 1.0))),
+            (add(knee, (0.0, 0.0, -0.09)), calf[2], calf[1], sh_r[3][0], sh_r[3][1], w(("calf_" + side, 1.0))),
         ], "shaft", cap_start=False, cap_end=False, sides=12)
         # Foot: rings along x (u up, v left), squarer than ellipses (a boot's flat sole and upright sides): the heel,
-        # the instep, the ball of the foot, a rounded toe cap.
+        # the instep, the ball of the foot, a rounded toe cap. A shape's foot is scaled about the ankle's line and
+        # the ground (smaller feet).
         Z = (0.0, 0.0, 1.0)
-        loft([
-            ((-0.075, 0.09 * sy, 0.05), Z, Y, 0.045, 0.042, w(("foot_" + side, 1.0))),
-            ((-0.062, 0.09 * sy, 0.055), Z, Y, 0.055, 0.05, w(("foot_" + side, 1.0))),
-            ((0.03, 0.09 * sy, 0.05), Z, Y, 0.05, 0.056, w(("foot_" + side, 1.0))),
-            ((0.12, 0.09 * sy, 0.036), Z, Y, 0.036, 0.052, w(("foot_" + side, 1.0))),
-            ((0.17, 0.09 * sy, 0.03), Z, Y, 0.028, 0.045, w(("foot_" + side, 1.0))),
-            ((0.19, 0.09 * sy, 0.027), Z, Y, 0.02, 0.03, w(("foot_" + side, 1.0))),
-        ], "boots", sides=10, power=2.6)
+        fs = 1.0 if shape is None else shape["foot"]
+        loft([((-0.02 + (x + 0.02) * fs if fs != 1.0 else x, 0.09 * sy, z * fs), Z, Y, ru * fs, rv * fs,
+               w(("foot_" + side, 1.0))) for x, z, ru, rv in (
+            (-0.075, 0.05, 0.045, 0.042), (-0.062, 0.055, 0.055, 0.05), (0.03, 0.05, 0.05, 0.056),
+            (0.12, 0.036, 0.036, 0.052), (0.17, 0.03, 0.028, 0.045), (0.19, 0.027, 0.02, 0.03))], "boots", sides=10,
+            power=2.6)
 
 
 # ----------------------------------------------------------------------------
@@ -1162,7 +1216,7 @@ def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "progs")
     # The files edited in Blender since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
     guard = genguard.Guard("make_vrbody.py", [os.path.join(out, "vrbody_%02d_00.tga" % n) for n in range(16)] +
-                           [os.path.join(out, "vrbody" + suffix + bare + ext) for suffix, _ in BUILDS
+                           [os.path.join(out, "vrbody" + suffix + bare + ext) for suffix, _, _ in BUILDS
                             for bare in ("", "_bare") for ext in (".md5mesh", ".md5anim", ".mdl")])
     for armor in range(4):
         paths = [os.path.join(out, "vrbody_%02d_00.tga" % (armor * 4 + damage)) for damage in range(4)]
@@ -1172,9 +1226,9 @@ def main():
         for damage, path in enumerate(paths):
             if os.path.abspath(path) not in guard.kept:
                 write_skin(path, base, damage)
-    for suffix, muscle in BUILDS:
+    for suffix, muscle, shape in BUILDS:
         for bare in (False, True):  # with the bracers; bare forearms (vr_body_bracers 0)
-            build_mesh(muscle, bare)
+            build_mesh(muscle, bare, shape)
             name = "vrbody" + suffix + ("_bare" if bare else "")
             write_md5mesh(os.path.join(out, name + ".md5mesh"))
             write_md5anim(os.path.join(out, name + ".md5anim"))
