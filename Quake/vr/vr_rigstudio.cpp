@@ -3,6 +3,7 @@
 
 #include "vr_rigstudio_internal.hpp"
 #include "vr_aggrip.hpp"
+#include "vr_aglegs.hpp"
 #include "vr_agpose.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
@@ -15,6 +16,7 @@
 #include "vr_rigpose.hpp"
 #include "vr_rigseq.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_view.hpp"
 
 #include "thirdparty/imgui/imgui.h"
 
@@ -23,6 +25,8 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Floor.hpp"
@@ -733,8 +737,8 @@ void view_f()
     }
     else if(!strcmp(w, "tool"))
     {
-        const char* tools[] = {"select", "rotate", "move", "ik", "rest", "weights", "paint"};
-        for(int i = 0; i < 7; i++)
+        const char* tools[toolCount] = {"select", "rotate", "move", "ik", "rest", "weights", "paint", "posekeys"};
+        for(int i = 0; i < toolCount; i++)
         {
             if(!strcmp(v, tools[i]))
             {
@@ -872,6 +876,100 @@ void status_f()
 
 // vr_rigstudio_count: the server's entities in use, and of them the monsters, the held weapons, the weapons' records and
 // the worn tanks (the subject's changes leave exactly one subject and its own weapons: the tests).
+// How far off the aim target the subject's right weapon points (degrees): as drawn (the arms' solve, relinkSkinned's
+// note: its frame's forward against the way from it to the target) and as the server placed it (its entity's angles).
+struct AimReading
+{
+    bool drawnOk{false}, serverOk{false};
+    float drawn{0.f}, server{0.f};
+    float gunPitch{0.f}, wantPitch{0.f}; // the drawn gun's pitch and the target's from it (degrees, up)
+    glm::vec3 gun{0.f};
+    bool barrelOk{false};
+    float barrel{0.f}, barrelPitch{0.f}; // its barrel's line (butt to muzzle) against the way from the muzzle to the target
+};
+
+[[nodiscard]] AimReading readAim()
+{
+    AimReading r;
+    if(st.noteFrame >= 0 && host_framecount - st.noteFrame <= 5 && st.note.ent == st.subject && st.note.placed.on[0])
+    {
+        const posestudio::Note& n = st.note;
+        const glm::quat yq = glm::angleAxis(n.space.yawDeg * deg, glm::vec3{0.f, 0.f, 1.f});
+        r.gun = n.space.origin + yq * (n.placed.weapon[0].pos * n.space.scale);
+        const glm::vec3 fwd = glm::normalize(yq * (n.placed.weapon[0].rot * glm::vec3{1.f, 0.f, 0.f}));
+        const glm::vec3 want = glm::normalize(st.aim.at - r.gun);
+        r.drawn = za::acos(za::clamp(glm::dot(fwd, want), -1.f, 1.f)) / deg;
+        r.gunPitch = za::asin(za::clamp(fwd.z, -1.f, 1.f)) / deg;
+        r.wantPitch = za::asin(za::clamp(want.z, -1.f, 1.f)) / deg;
+        r.drawnOk = true;
+        // Its barrel: the model's butt-to-muzzle line, against the way from its muzzle to the target
+        glm::vec3 muzzle, butt, second;
+        int secondType = 0;
+        if(n.prop > 0 && n.prop < cl.num_entities && cl_entities[n.prop].model &&
+            view::weaponLocalGeometry(cl_entities[n.prop].model, muzzle, butt, second, secondType) && glm::length(muzzle - butt) > 1.f)
+        {
+            const auto w = [&](const glm::vec3& l) { return r.gun + yq * (n.placed.weapon[0].rot * (l * n.space.scale)); };
+            const glm::vec3 m = w(muzzle);
+            const glm::vec3 line = glm::normalize(m - w(butt));
+            const glm::vec3 toT = glm::normalize(st.aim.at - m);
+            r.barrel = za::acos(za::clamp(glm::dot(line, toT), -1.f, 1.f)) / deg;
+            r.barrelPitch = za::asin(za::clamp(line.z, -1.f, 1.f)) / deg;
+            r.barrelOk = true;
+        }
+    }
+    if(sv.active && st.note.prop > 0 && st.note.prop < sv.qcvm.num_edicts)
+    {
+        const SvVm vm;
+        const edict_t* p = EDICT_NUM(st.note.prop);
+        if(!p->free)
+        {
+            const float pp = p->v.angles[0] * deg, py = p->v.angles[1] * deg; // (a model's pitch: up)
+            const glm::vec3 fwd{za::cos(pp) * za::cos(py), za::cos(pp) * za::sin(py), za::sin(pp)};
+            const glm::vec3 want = glm::normalize(st.aim.at - glm::vec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]});
+            r.server = za::acos(za::clamp(glm::dot(fwd, want), -1.f, 1.f)) / deg;
+            r.serverOk = true;
+        }
+    }
+    return r;
+}
+
+// vr_rigstudio_aim [on|show|camera 0|1 | reset | at <x y z> | rel <forward left up> | select]: the aim target (as its
+// Tools section does; rel: from the subject's origin in its facing); no arguments: where it is, and how far off it
+// the subject's weapon points (drawn, and as the server placed it).
+void aim_f()
+{
+    const char* w = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    const float v = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 1.f;
+    if(!strcmp(w, "on")) { st.aim.on = v != 0.f; }
+    else if(!strcmp(w, "show")) { st.aim.show = v != 0.f; }
+    else if(!strcmp(w, "camera")) { pushAimUndo(); st.aim.atCamera = v != 0.f; }
+    else if(!strcmp(w, "select")) { st.aim.selected = v != 0.f; }
+    else if(!strcmp(w, "reset")) { resetAim(); }
+    else if((!strcmp(w, "at") || !strcmp(w, "rel")) && Cmd_Argc() > 4)
+    {
+        const glm::vec3 a{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
+        pushAimUndo();
+        st.aim.atCamera = false;
+        st.aim.placed = true;
+        if(!strcmp(w, "at"))
+        {
+            st.aim.at = a;
+        }
+        else
+        {
+            const float y = st.stageYaw * deg;
+            const glm::vec3 org = st.stage + glm::vec3{0.f, 0.f, 25.f};
+            st.aim.at = org + glm::vec3{za::cos(y), za::sin(y), 0.f} * a.x + glm::vec3{-za::sin(y), za::cos(y), 0.f} * a.y +
+                        glm::vec3{0.f, 0.f, a.z};
+        }
+    }
+    const AimReading r = readAim();
+    Con_Printf("rigstudio aim: %s, at %.1f %.1f %.1f%s; its weapon off it: drawn %s%.2f deg (gun pitch %.1f, to the target "
+               "%.1f), server %s%.2f deg\n",
+        st.aim.on ? "on" : "off", st.aim.at.x, st.aim.at.y, st.aim.at.z, st.aim.atCamera ? " (the camera)" : "",
+        r.drawnOk ? "" : "(none) ", r.drawn, r.gunPitch, r.wantPitch, r.serverOk ? "" : "(none) ", r.server);
+}
+
 struct Census
 {
     int used{0}, monsters{0}, weapons{0}, records{0}, tanks{0};
@@ -965,6 +1063,7 @@ struct SubjectTest
     int passed{0}, failed{0};
     int baseOther{-1};  // the entities besides the subject and its own (the first step's)
     int baseMonsters{-1};
+    bool started{false};
 };
 SubjectTest stest;
 
@@ -997,6 +1096,15 @@ void subjectTestTick()
 {
     if(stest.step < 0 || !inGame())
     {
+        return;
+    }
+    if(!stest.started)
+    {
+        if(st.open && st.staged && subjectEdict())
+        {
+            stest.started = true;
+            subjectStepStart();
+        }
         return;
     }
     const SubjectStep& s = subjectSteps[stest.step];
@@ -1035,16 +1143,511 @@ void subjectTestTick()
     subjectStepStart();
 }
 
+// vr_rigstudio_posekey [kind <k> | class <c> | pose <p> | phase <n> | follow 0|1 | part <n>]...: the Pose Studio Data
+// window's key (as its combos do; the Pose Keys tool's part); then its values printed.
+void posekey_f()
+{
+    for(int i = 1; i + 1 < Cmd_Argc(); i += 2)
+    {
+        const char* w = Cmd_Argv(i);
+        const int v = Q_atoi(Cmd_Argv(i + 1));
+        if(!strcmp(w, "kind")) { st.pdKind = za::clamp(v, 0, agpose::numKinds - 1); }
+        else if(!strcmp(w, "class")) { st.pdClass = za::clamp(v, 0, agpose::NumClasses - 1); }
+        else if(!strcmp(w, "pose")) { st.pdPose = za::clamp(v, 0, agpose::NumPoses - 1); }
+        else if(!strcmp(w, "phase")) { st.pdPhase = za::clamp(v, 0, agpose::numPhases - 1); }
+        else if(!strcmp(w, "follow")) { st.pdFollow = v != 0; }
+        else if(!strcmp(w, "part")) { st.pdPart = v; }
+    }
+    const int code = agpose::code(st.pdKind, st.pdClass, st.pdPose, agpose::isStrike(st.pdPose) ? st.pdPhase : 0);
+    const agpose::Key k = agpose::value(code);
+    Con_Printf("rigstudio posekey %d (%s, %s, %s): R %.2f %.2f %.2f turn %.2f %.2f %.2f, L %.2f %.2f %.2f turn %.2f %.2f %.2f, "
+               "elbows %.3f %.3f %.3f / %.3f %.3f %.3f, torso %.2f %.2f %.2f; subject %d %d\n",
+        code, st.pdKind ? "enforcer" : "grunt", agpose::className(st.pdClass), agpose::poseName(st.pdClass, st.pdPose),
+        k.v[0].x, k.v[0].y, k.v[0].z, k.v[1].x, k.v[1].y, k.v[1].z, k.v[2].x, k.v[2].y, k.v[2].z, k.v[3].x, k.v[3].y, k.v[3].z,
+        k.v[4].x, k.v[4].y, k.v[4].z, k.v[5].x, k.v[5].y, k.v[5].z, k.v[6].x, k.v[6].y, k.v[6].z, st.subjKind, st.subjClass);
+    aglegs::Placed L;
+    const bool legs = st.subject > 0 && aglegs::placed(st.subject, L);
+    Con_Printf("rigstudio posekey: the subject's legs %s (kneel %.2f, weight %.2f), legs layer %s\n", legs ? "placed" : "not placed",
+        legs ? L.on : 0.f, legs ? L.w : 0.f, aglegs::enabled() ? "on" : "off");
+}
+
+// ---- Settling: the subject's drawn parts still for a few frames (the game's arms eased onto their targets) ----
+
+struct Settle
+{
+    rigpose::Rigid last[4];
+    bool have{false};
+    int still{0};
+    int frames{0};
+};
+
+constexpr int settleParts[4] = {0, 4, 6, 7}; // the right weapon, the right elbow, the torso, the pelvis
+
+void settleReset(Settle& s)
+{
+    s = Settle{};
+}
+
+[[nodiscard]] bool noteNow()
+{
+    return st.subject > 0 && st.noteFrame >= 0 && host_framecount - st.noteFrame <= 5 && st.note.ent == st.subject;
+}
+
+// True once every shown part moved under 0.01 units and 0.05 degrees a frame for 8 frames (6 at least after the reset).
+[[nodiscard]] bool settled(Settle& s)
+{
+    s.frames++;
+    if(!noteNow())
+    {
+        s.have = false;
+        s.still = 0;
+        return false;
+    }
+    bool still = s.have;
+    for(int i = 0; i < 4; i++)
+    {
+        rigpose::Rigid f;
+        if(!posePart(settleParts[i], f))
+        {
+            f = rigpose::Rigid{};
+        }
+        if(s.have)
+        {
+            const float d = glm::length(f.pos - s.last[i].pos);
+            const float a = 2.f * za::acos(za::min(1.f, za::abs(glm::dot(glm::normalize(f.rot), glm::normalize(s.last[i].rot))))) / deg;
+            still = still && d < 0.01f && a < 0.05f;
+        }
+        s.last[i] = f;
+    }
+    s.have = true;
+    s.still = still ? s.still + 1 : 0;
+    return s.frames >= 6 && s.still >= 8;
+}
+
+// vr_rigstudio_test_aim: the subject (the shotgun grunt) in its shoot animation, aiming off, then at a target level
+// ahead (the default), high to its left and low to its right; each settled, its weapon's line against the way to the
+// target measured (its barrel's line from butt to muzzle against the way from its muzzle to the target: within 8
+// degrees; its entity's forward, drawn and as the server placed it, printed), a screenshot taken. The verdict ends it.
+struct AimCase
+{
+    const char* name;
+    bool on;
+    glm::vec3 rel; // forward, left, up from the subject's origin (all 0: Reset)
+};
+constexpr AimCase aimCases[] = {
+    {"aim off (carried, as before)", false, {0.f, 0.f, 0.f}},
+    {"level ahead (the default)", true, {0.f, 0.f, 0.f}},
+    {"high left", true, {200.f, 70.f, 110.f}},
+    {"low right", true, {200.f, -70.f, -45.f}},
+};
+constexpr int aimCaseCount = static_cast<int>(sizeof(aimCases) / sizeof(aimCases[0]));
+
+struct AimTest
+{
+    int step{-1};
+    bool ready{false}; // the subject standing, its animation picked, the camera placed
+    char anim[32]{"shoot"};
+    float frame{1.f};
+    int phase{0};
+    int passed{0}, failed{0};
+    Settle settle;
+    int shotWait{0};
+};
+AimTest atest;
+
+void aimCaseStart()
+{
+    const AimCase& c = aimCases[atest.step];
+    st.aim.on = c.on;
+    if(c.rel == glm::vec3{0.f})
+    {
+        resetAim();
+    }
+    else
+    {
+        Cbuf_AddText(va("vr_rigstudio_aim rel %g %g %g\n", c.rel.x, c.rel.y, c.rel.z));
+    }
+    settleReset(atest.settle);
+    atest.phase = 0;
+}
+
+void aimTestTick()
+{
+    if(atest.step < 0 || !st.open)
+    {
+        return;
+    }
+    if(!atest.ready)
+    {
+        if(!st.model || !noteNow())
+        {
+            return; // (the room and its subject still coming)
+        }
+        for(int i = 0; i < groups.n; i++)
+        {
+            if(!q_strcasecmp(groups.g[i].name, atest.anim))
+            {
+                st.source = Source::Anim;
+                st.group = i;
+            }
+        }
+        st.playing = false;
+        setFrame(atest.frame);
+        // (the camera at its left side, a little in front, looking across at it and the way it aims)
+        const float y = st.stageYaw * deg;
+        st.cam.focus = st.stage + glm::vec3{za::cos(y), za::sin(y), 0.f} * 80.f + glm::vec3{0.f, 0.f, 40.f};
+        st.cam.yaw = st.stageYaw + 118.f;
+        st.cam.pitch = 0.f;
+        st.cam.dist = 210.f;
+        st.showTools = st.showOutliner = st.showProps = st.showTimeline = st.showSequence = st.showPoseData = false;
+        atest.ready = true;
+        aimCaseStart();
+        return;
+    }
+    if(atest.phase == 0)
+    {
+        if(!settled(atest.settle))
+        {
+            if(atest.settle.frames > 600)
+            {
+                Con_Printf("rigstudio aim %d: FAIL timed out (never settled)\n", atest.step + 1);
+                atest.failed++;
+                atest.phase = 2;
+            }
+            return;
+        }
+        const AimCase& c = aimCases[atest.step];
+        const AimReading r = readAim();
+        // (within 8 degrees: the game's own aim, the gun Aim key's turn and the arms' solve included; off: the carry)
+        const bool ok = !c.on || (r.barrelOk && r.serverOk && r.barrel < 8.f);
+        (ok ? atest.passed : atest.failed)++;
+        Con_Printf("rigstudio aim %d: %s: target %.1f %.1f %.1f; its barrel off it %.2f deg (barrel pitch %.1f, the "
+                   "target's %.1f); its entity's forward off it: drawn %.2f deg, server %.2f deg: %s\n",
+            atest.step + 1, c.name, st.aim.at.x, st.aim.at.y, st.aim.at.z, r.barrel, r.barrelPitch, r.wantPitch, r.drawn,
+            r.server, ok ? "PASS" : "FAIL");
+        Cbuf_AddText("screenshot\n");
+        atest.phase = 1;
+        atest.shotWait = 0;
+        return;
+    }
+    if(atest.phase == 1 && ++atest.shotWait < 2)
+    {
+        return; // (the screenshot taken first, of this case)
+    }
+    atest.step++;
+    if(atest.step >= aimCaseCount)
+    {
+        Con_Printf("rigstudio aim: %d passed, %d failed\n", atest.passed, atest.failed);
+        atest.step = -1;
+        return;
+    }
+    aimCaseStart();
+}
+
+// vr_rigstudio_test_aim [animation] [frame] (default shoot 1): run once the studio is open (it waits for its subject).
+void testAim_f()
+{
+    if(!st.open)
+    {
+        Con_Printf("rigstudio aim: the studio is not open\n");
+        return;
+    }
+    atest = AimTest{};
+    atest.step = 0;
+    if(Cmd_Argc() > 1)
+    {
+        q_strlcpy(atest.anim, Cmd_Argv(1), sizeof(atest.anim));
+    }
+    atest.frame = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 1.f;
+}
+
+// vr_rigstudio_test_posekeys: the Pose Keys tool on the subject (the shotgun grunt, Aim): each part dragged by the mock
+// mouse on its handle by a known amount (the right weapon along its key's x and round its z, the right elbow down, the
+// torso round its z; in Pickup the pelvis down): the key's values changed by that (its space), the drawn part moved or
+// turned by it, then undone: the key exactly as it was, the part back. Screenshots before and after the weapon's move.
+struct PkStep
+{
+    const char* name;
+    int part;     // posestudio's numbers
+    int axis;     // 0..2 an arrow, 20..22 a ring
+    float amount; // units or degrees
+    int pose;     // agpose::Pose
+};
+constexpr PkStep pkSteps[] = {
+    {"right weapon, forward 4", 0, 0, 4.f, agpose::Aim},
+    {"right weapon, turned 20 deg left (z)", 0, 22, 20.f, agpose::Aim},
+    {"right elbow, down 4", 4, 2, -4.f, agpose::Aim},
+    {"torso, turned 15 deg left (z)", 6, 22, 15.f, agpose::Aim},
+    {"pelvis, down 3 (Pickup)", 7, 2, -3.f, agpose::Pickup},
+};
+constexpr int pkStepCount = static_cast<int>(sizeof(pkSteps) / sizeof(pkSteps[0]));
+
+struct PkTest
+{
+    int step{-1};
+    int phase{0};
+    int passed{0}, failed{0};
+    Settle settle;
+    int code{-1};
+    agpose::Key key0;
+    rigpose::Rigid part0;
+    rigpose::Rigid placed0, target0; // the right weapon as drawn and its target (model space) before
+    int wait{0};
+};
+PkTest ptest;
+
+[[nodiscard]] float quatDeg(const glm::quat& a, const glm::quat& b)
+{
+    return 2.f * za::acos(za::min(1.f, za::abs(glm::dot(glm::normalize(a), glm::normalize(b))))) / deg;
+}
+
+[[nodiscard]] glm::quat rotOf(const glm::vec3& r)
+{
+    const float a = glm::length(r);
+    return a < 1e-5f ? glm::quat{1.f, 0.f, 0.f, 0.f} : glm::angleAxis(a * deg, r / a);
+}
+
+void pkFail(const char* why)
+{
+    Con_Printf("rigstudio posekeys %d: %s: FAIL %s\n", ptest.step + 1, pkSteps[ptest.step].name, why);
+    ptest.failed++;
+    ptest.phase = 9;
+}
+
+void pkTestTick()
+{
+    if(ptest.step < 0 || !st.open)
+    {
+        return;
+    }
+    if(ptest.phase == -1)
+    {
+        if(!st.model || !noteNow())
+        {
+            return; // (the room and its subject still coming)
+        }
+        // (the camera before it and to its left, near: the parts' handles clear of the windows)
+        const float y = st.stageYaw * deg;
+        st.cam.focus = st.stage + glm::vec3{za::cos(y), za::sin(y), 0.f} * 4.f + glm::vec3{0.f, 0.f, 30.f};
+        st.cam.yaw = st.stageYaw + 180.f - 35.f;
+        st.cam.pitch = 12.f;
+        st.cam.dist = 85.f;
+        st.showTools = st.showOutliner = st.showProps = st.showTimeline = st.showSequence = st.showPoseData = false;
+        ptest.phase = 0;
+        return;
+    }
+    const PkStep& s = pkSteps[ptest.step];
+    switch(ptest.phase)
+    {
+    case 0: // held in its pose, settled: the key and the part as they are
+    {
+        rigpose::Rigid shownNow;
+        if(!posePart(s.part, shownNow))
+        {
+            // (its part not there yet: the pose's change still on its way, the Pickup's kneel coming)
+            ptest.settle.still = 0;
+            if(++ptest.settle.frames > 600)
+            {
+                pkFail("its part never shown");
+            }
+            return;
+        }
+        if(!settled(ptest.settle))
+        {
+            if(ptest.settle.frames > 600)
+            {
+                pkFail("timed out (never settled)");
+            }
+            return;
+        }
+        ptest.code = s.part == 7 ? agpose::legCode(st.pdKind, agpose::Pickup)
+                                 : agpose::code(st.pdKind, st.pdClass, st.pdPose, agpose::isStrike(st.pdPose) ? st.pdPhase : 0);
+        ptest.key0 = agpose::value(ptest.code);
+        if(!posePart(s.part, ptest.part0))
+        {
+            pkFail("its part not shown");
+            return;
+        }
+        ptest.placed0 = st.note.placed.weapon[0];
+        ptest.target0 = st.note.t.weapon[0];
+        if(ptest.step == 0)
+        {
+            Cbuf_AddText("screenshot\n"); // (before)
+        }
+        ptest.wait = 0;
+        ptest.phase = 1;
+        return;
+    }
+    case 1: // the drag queued (a frame after the screenshot)
+        if(++ptest.wait < 2)
+        {
+            return;
+        }
+        if(!mockDrag(2, s.part, s.axis, s.amount))
+        {
+            pkFail("no such handle shown");
+            return;
+        }
+        ptest.wait = 0;
+        ptest.phase = 2;
+        return;
+    case 2: // the drag done: settled again
+        if(mockBusy() || st.dragging)
+        {
+            if(++ptest.wait > 200)
+            {
+                pkFail("the drag never ended");
+            }
+            return;
+        }
+        settleReset(ptest.settle);
+        ptest.phase = 3;
+        return;
+    case 3:
+    {
+        if(!settled(ptest.settle))
+        {
+            if(ptest.settle.frames > 600)
+            {
+                pkFail("timed out after the drag");
+            }
+            return;
+        }
+        const agpose::Key k = agpose::value(ptest.code);
+        rigpose::Rigid now;
+        (void)posePart(s.part, now);
+        const glm::quat body = bodyTurn();
+        glm::vec3 axisB{0.f};
+        axisB[s.axis % 20 % 3] = 1.f;
+        bool ok = true;
+        char text[400];
+        if(s.part == 0 && s.axis < 3)
+        {
+            // its place: the drag's move plus where it was drawn from its target (the mapping's: let go where it is)
+            const glm::vec3 want = axisB * s.amount + (ptest.placed0.pos - ptest.target0.pos);
+            const glm::vec3 got = k.v[agpose::RPos] - ptest.key0.v[agpose::RPos];
+            const glm::vec3 moved = glm::inverse(body) * (now.pos - ptest.part0.pos);
+            ok = glm::length(got - want) < 0.3f && za::abs(glm::dot(moved, axisB) - s.amount) < 1.f;
+            q_snprintf(text, sizeof(text), "key RPos +%.2f %.2f %.2f (asked %.2f %.2f %.2f), drawn moved %.2f %.2f %.2f",
+                got.x, got.y, got.z, want.x, want.y, want.z, moved.x, moved.y, moved.z);
+        }
+        else if(s.part == 0)
+        {
+            const glm::quat R = glm::angleAxis(s.amount * deg, axisB);
+            const glm::quat want = R * ptest.placed0.rot * glm::inverse(ptest.target0.rot) * rotOf(ptest.key0.v[agpose::RTurn]);
+            const float off = quatDeg(rotOf(k.v[agpose::RTurn]), want);
+            const float turned = quatDeg(now.rot, ptest.part0.rot);
+            ok = off < 0.5f && za::abs(turned - s.amount) < 3.f;
+            q_snprintf(text, sizeof(text), "key RTurn %.2f %.2f %.2f (off the asked %.2f deg), drawn turned %.2f deg",
+                k.v[agpose::RTurn].x, k.v[agpose::RTurn].y, k.v[agpose::RTurn].z, off, turned);
+        }
+        else if(s.part == 4)
+        {
+            const glm::vec3 got = k.v[agpose::ElbowR] - ptest.key0.v[agpose::ElbowR];
+            const glm::vec3 moved = glm::inverse(body) * (now.pos - ptest.part0.pos);
+            ok = glm::length(got) > 0.05f && glm::dot(moved, axisB) * s.amount > 0.5f;
+            q_snprintf(text, sizeof(text), "key ElbowR +%.3f %.3f %.3f, drawn elbow moved %.2f %.2f %.2f", got.x, got.y, got.z,
+                moved.x, moved.y, moved.z);
+        }
+        else if(s.part == 6)
+        {
+            const glm::vec3 got = k.v[agpose::Torso] - ptest.key0.v[agpose::Torso];
+            const glm::vec3 f0 = ptest.part0.rot * glm::vec3{1.f, 0.f, 0.f}, f1 = now.rot * glm::vec3{1.f, 0.f, 0.f};
+            const float yaw = (za::atan2(f1.y, f1.x) - za::atan2(f0.y, f0.x)) / deg;
+            ok = za::abs(got.x - s.amount) < 0.5f && za::abs(got.y) < 0.5f && za::abs(got.z) < 0.5f && za::abs(yaw - s.amount) < 3.f;
+            q_snprintf(text, sizeof(text), "key Torso +%.2f %.2f %.2f, drawn chest turned %.2f deg", got.x, got.y, got.z, yaw);
+        }
+        else
+        {
+            const glm::vec3 got = k.v[agpose::LegPelvis] - ptest.key0.v[agpose::LegPelvis];
+            const glm::vec3 moved = glm::inverse(body) * (now.pos - ptest.part0.pos);
+            ok = za::abs(got.z - s.amount) < 0.3f && za::abs(got.x) < 0.3f && za::abs(got.y) < 0.3f && za::abs(moved.z - s.amount) < 1.f;
+            q_snprintf(text, sizeof(text), "key LegPelvis +%.2f %.2f %.2f, drawn pelvis moved %.2f %.2f %.2f", got.x, got.y, got.z,
+                moved.x, moved.y, moved.z);
+        }
+        Con_Printf("rigstudio posekeys %d: %s: %s: %s\n", ptest.step + 1, s.name, text, ok ? "PASS" : "FAIL");
+        (ok ? ptest.passed : ptest.failed)++;
+        if(ptest.step == 0)
+        {
+            Cbuf_AddText("screenshot\n"); // (after)
+        }
+        ptest.wait = 0;
+        ptest.phase = 4;
+        return;
+    }
+    case 4: // undone (a frame after the screenshot): the key exactly as it was, the part back
+        if(++ptest.wait < 2)
+        {
+            return;
+        }
+        undo();
+        settleReset(ptest.settle);
+        ptest.phase = 5;
+        return;
+    case 5:
+    {
+        if(!settled(ptest.settle))
+        {
+            if(ptest.settle.frames > 600)
+            {
+                pkFail("timed out after the undo");
+            }
+            return;
+        }
+        const agpose::Key k = agpose::value(ptest.code);
+        rigpose::Rigid now;
+        (void)posePart(s.part, now);
+        const bool exact = !memcmp(&k, &ptest.key0, sizeof(k));
+        const float back = glm::length(now.pos - ptest.part0.pos), turned = quatDeg(now.rot, ptest.part0.rot);
+        const bool ok = exact && back < 0.2f && turned < 0.5f;
+        Con_Printf("rigstudio posekeys %d: %s: undone: the key %s, the part %.3f units, %.2f deg from before: %s\n",
+            ptest.step + 1, s.name, exact ? "exactly as it was" : "CHANGED", back, turned, ok ? "PASS" : "FAIL");
+        (ok ? ptest.passed : ptest.failed)++;
+        ptest.phase = 9;
+        return;
+    }
+    default: break;
+    }
+    // The next step
+    ptest.step++;
+    if(ptest.step >= pkStepCount)
+    {
+        Con_Printf("rigstudio posekeys: %d passed, %d failed\n", ptest.passed, ptest.failed);
+        ptest.step = -1;
+        return;
+    }
+    st.pdPose = pkSteps[ptest.step].pose;
+    settleReset(ptest.settle);
+    ptest.phase = 0;
+}
+
+void testPoseKeys_f()
+{
+    if(!st.open)
+    {
+        Con_Printf("rigstudio posekeys: the studio is not open\n");
+        return;
+    }
+    st.tool = Tool::PoseKeys;
+    st.pdFollow = true;
+    st.aim.selected = false;
+    ptest = PkTest{};
+    ptest.step = 0;
+    ptest.phase = -1; // (waits for its subject)
+    st.pdPose = pkSteps[0].pose;
+    settleReset(ptest.settle);
+}
+
 void testSubjects_f()
 {
-    if(!st.open || !inGame())
+    if(!st.open)
     {
         Con_Printf("rigstudio subjects: the studio is not open\n");
         return;
     }
     stest = SubjectTest{};
     stest.step = 0;
-    subjectStepStart();
+    stest.started = false; // (its first change once the first subject stands)
 }
 
 void print_f()
@@ -1497,6 +2100,12 @@ void close()
     }
     st.open = false;
     st.playing = false;
+    if(st.dragging && (st.dragKind == 11 || st.dragKind == 12))
+    {
+        posestudio::deskEnd(true); // (a Pose Keys drag under way: kept, its preview never left on)
+    }
+    st.dragging = false;
+    st.dragKind = 0;
     imgui::want(false);
     rigseq::setStudio(0, nullptr, 0, false);
     restoreSettings();
@@ -2207,6 +2816,10 @@ void init()
     Cmd_AddCommand("vr_rigstudio_status", status_f);
     Cmd_AddCommand("vr_rigstudio_count", count_f);
     Cmd_AddCommand("vr_rigstudio_test_subjects", testSubjects_f);
+    Cmd_AddCommand("vr_rigstudio_test_aim", testAim_f);
+    Cmd_AddCommand("vr_rigstudio_test_posekeys", testPoseKeys_f);
+    Cmd_AddCommand("vr_rigstudio_aim", aim_f);
+    Cmd_AddCommand("vr_rigstudio_posekey", posekey_f);
     Cmd_AddCommand("vr_rigstudio_print", print_f);
     Cmd_AddCommand("vr_rigstudio_play", play_f);
     Cmd_AddCommand("vr_rigstudio_respawn", respawn_f);
@@ -2236,11 +2849,19 @@ void beforeLoad()
     st.aim.placed = false; // (ahead of the new stage)
 }
 
-bool qcHold(int ent, glm::vec3& out)
+bool qcHold(int ent, int kind, int cls, glm::vec3& out)
 {
     if(!st.open || ent != st.subject || st.subject <= 0)
     {
         return false;
+    }
+    st.subjKind = kind;
+    st.subjClass = cls;
+    if(st.tool == Tool::PoseKeys && st.pdKind == kind && st.pdClass == cls)
+    {
+        // (the Pose Keys tool: held in the window's pose, a strike at its phase; Aim at the aim target)
+        out = glm::vec3{static_cast<float>(st.pdPose), static_cast<float>(agpose::isStrike(st.pdPose) ? st.pdPhase : 0), 0.f};
+        return true;
     }
     out = glm::vec3{st.aim.on ? static_cast<float>(agpose::Aim) : -1.f, 0.f, 0.f};
     return true;
@@ -2289,10 +2910,37 @@ void clientFrame()
         return;
     }
     imgui::want(true);
+    mockFeed(); // (the tests' mouse, before ImGui's frame takes its events)
     if(!imgui::beginFrame())
     {
         return;
     }
+    // The Pose Keys tool: the window's key the subject's (its kind, its weapon's class; entered: the pose it is in, Aim
+    // with the aim target on), unless Follow the Subject is off
+    if(st.tool == Tool::PoseKeys && st.pdFollow && st.subjKind >= 0 && st.subjClass >= 0)
+    {
+        const bool entered = st.lastTool != Tool::PoseKeys;
+        st.pdKind = st.subjKind;
+        st.pdClass = st.subjClass;
+        int poses[agpose::NumPoses];
+        const int np = agpose::posesOf(st.pdClass, poses, agpose::NumPoses);
+        bool ok = false;
+        for(int i = 0; i < np; i++)
+        {
+            ok = ok || poses[i] == st.pdPose;
+        }
+        if(entered || !ok)
+        {
+            st.pdPose = st.aim.on ? agpose::Aim : agpose::Carry;
+        }
+    }
+    if(st.tool != Tool::PoseKeys && st.lastTool == Tool::PoseKeys && st.dragging && (st.dragKind == 11 || st.dragKind == 12))
+    {
+        posestudio::deskEnd(true);
+        st.dragging = false;
+        st.dragKind = 0;
+    }
+    st.lastTool = st.tool;
     // The mouse free and shown (the game's own look held: its input is the studio's)
     if(SDL_GetRelativeMouseMode())
     {
@@ -2362,17 +3010,26 @@ void clientFrame()
         // Arms; else on the weapons as the game poses them)
         st.armsLayer = st.source == Source::Seq ? (curSeq() && curSeq()->arms) : (st.source == Source::Rest || armsTouched);
         poseGeometry();
-        rigseq::setStudio(st.subject, st.F, st.numBones, st.armsLayer);
+        if(st.tool == Tool::PoseKeys)
+        {
+            rigseq::setStudio(0, nullptr, 0, false); // (Pose Keys: the game's own pose drawn, its frame and its arms)
+        }
+        else
+        {
+            rigseq::setStudio(st.subject, st.F, st.numBones, st.armsLayer);
+        }
     }
     viewport();
     windows();
+    aimTestTick(); // (the tests' steps: after the frame's note and drags)
+    pkTestTick();
 }
 
 bool pinned(const entity_t* e, const void* aliashdr, short* pose1, short* pose2, float* blend)
 {
-    if(!st.open || st.subject <= 0 || !cl_entities || e != &cl_entities[st.subject] || !st.rig)
+    if(!st.open || st.subject <= 0 || !cl_entities || e != &cl_entities[st.subject] || !st.rig || st.tool == Tool::PoseKeys)
     {
-        return false;
+        return false; // (Pose Keys: the frame the game holds it in: a run's stride, the pickup's kneel)
     }
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
     if(st.basePose1 >= hdr->numposes || st.basePose2 >= hdr->numposes)

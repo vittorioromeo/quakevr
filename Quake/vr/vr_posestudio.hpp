@@ -86,6 +86,19 @@ void note(const Note& n);
 // (buttons 15 Live: On/Off, 16 Loop, 17 Speed; in Live, rows 1-2: 18 < 0.5 s, 19 Pause/Play, 20 0.5 s >, 21 < Frame,
 // 22 Next Glitch, 23 Frame >: vr_poselive.hpp)
 
+// The Rig Studio's Pose Handles: the parts the VR studio's hands take, dragged on a desktop by handles, through the same
+// mapping (a part's frame -> its key's values). Part numbers partPoint's (0..11); `pose` the one the subject is held in
+// (agpose::Pose: the legs' parts shown in Pickup). deskPart: whether part `part` is a pose key's now, and its world
+// frame. deskBegin: a drag of it begun, key `code` (a leg part's: the Pickup's legs' key) taken from its value now;
+// deskDrag: the part's frame now (world) and, for the chest, the rings' turn about the waist (model space), the key
+// previewed (agpose::setPreview: QC and the windows read it); deskEnd: kept (agpose::set) or dropped.
+[[nodiscard]] bool deskPart(const Note& n, int part, int pose, rigpose::Rigid& world);
+[[nodiscard]] glm::vec3 deskWaist(const Note& n); // the point the torso turns about (world)
+bool deskBegin(const Note& n, int part, int code, int pose);
+[[nodiscard]] int deskCode(); // the key a drag edits (-1 none)
+void deskDrag(const Note& n, const rigpose::Rigid& partWorld, const glm::quat& turn);
+void deskEnd(bool keep);
+
 // The torso's turn (yaw, pitch, roll; degrees, as QC sends it) as a rotation (hitreact's bodyTurn).
 [[nodiscard]] glm::quat torsoRotation(const glm::vec3& t);
 

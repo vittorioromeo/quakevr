@@ -23148,3 +23148,64 @@ never reached when the grunt follows: lags 20-25 cm). Tests 31 5/5, 32 5/5, 36 4
 twohand: taken, held 1.5-2.4 units from the hands, let go; eval.sh canary 36/44, 0 differ.
 - [ ] Grab an armed grunt's gun at the muzzle, the barrel and the stock: each starts the tug. As the tug begins (and
   as an armed grunt is knocked down), its gun and arms stay where they were: no jump of the gun or of your hand.
+
+## The Rig Studio, round 2: one subject, the aim target, Pose Keys handles (worktree `fastship`, branch `agent/rigstudio2`, 2026-10-26)
+
+Vittorio: changing the subject (or its weapon) left the old one standing (two overlapping grunts); the shoot animation
+with a shotgun aimed at the floor ("is there a way to decide where he should aim?"); the Pose Studio Data were numbers
+only. RIGSTUDIO.md has the user's side (Opening it, the aim target, Pose Keys, Tests).
+
+**One subject.** Cause: `respawn()` only queued `vr_scene_clean all`, which takes gibs, corpses, props and fires, never a
+living monster: the old subject (held at takedamage 0) and its held weapons stayed. Fix: QC `VR_RigStudio_Remove`
+(`vr_rigseq.qc`): the subject, whatever it owns and whatever those own (its `vr_ag_weapon` props with their
+`weapon_inst` records, a worn `vr_fueltank_worn`), each as the scene's cleanup removes it (`VR_Scene_Remove`), called by
+`removeSubject()` on a change, on Respawn, before a spawn (two changes before one spawn), on closing (it is no longer
+left in the map, unkillable, its AI let go) and on opening again (`vr_rigstudio here` twice left two). A map loading
+while open (`rigstudio::beforeLoad`, from `VR_OnSpawnServerBeforeLoad`) restages it: before, `st.staged` stayed true and
+`st.subject` pointed at whatever edict of the new map had that number. The default weapon was code 2 (the axe; the docs
+said a shotgun): now 4, the shotgun. Studio references dropped with it: the note (its arms as solved); the edits stay.
+`vr_rigstudio_test_subjects`: 14 steps (shotgun, axe, two shotguns, flamethrower with its tank, enforcer laser rifle,
+enforcer shotgun + nail pistol, monster_army, fists, ogre, shotgun, the map again, closed, opened here twice): 14 passed,
+0 failed; the entities besides the subject constant (60 through the ten changes; 58 after the map reload, through
+close and the two reopens), one weapon record per held weapon, the tank only with the flamethrower.
+
+**The aim target.** Cause: the frozen subject (`VR_AG_Still`) has its enemy cleared every frame and no attack, so its
+gun's aim share (`vr_ag_aimw`) is 0: the arms carry the gun along the animation's rifle line, which in the shoot
+frames points down and across (measured: its barrel 47.7 degrees off level ahead, pitch -10.7). Fix: the studio holds
+its subject in the Pose Studio's Aim stance (`rigstudio::qcHold`, answering QC's hold query `weapondrawnpose 19` for its
+subject only) with the target at the studio's point: `VR_AGK_Hold` puts `vr_agk_tgt` there and aims along the way from
+its gun to it (`VR_AG_AimDir`'s, no error) when the engine set `.vr_rs_aimon` (written each server frame on the subject
+alone: every other entity's 0, the game's grunts aim as before). The point: drawn, selectable, dragged with the move
+handle (world axes), Tools > Aim Target (Aim, Show, At Camera, place, Reset, Select), undoable (an external undo entry
+like the pose keys'), not saved, kept across subject changes (placed again when a map loads or the studio opens).
+Moves now measure on the handle as the drag began (`vs.dragH`): a moving part no longer shrinks its own drag (bones'
+moves too). `vr_rigstudio_test_aim shoot 1` (barrel = the model's butt-to-muzzle line against muzzle-to-target):
+aim off 47.70 deg (the carry, as before); level ahead 2.38 deg (barrel pitch 1.0, the target's -1.1); high left
+(200 ahead, 70 left, 110 up) 4.80 deg (26.5 / 24.4); low right (200, -70, -45) 6.71 deg (-11.4 / -16.7): 4 passed. The
+entity's forward is 6-9 degrees off in each (the gun's Aim key turns it: RTurn 0.4 9.2 -4.2, the game's own). Screens:
+`scratch/rigaim1.png` (off, level, high left, low right).
+
+**Pose Keys.** A tool (O; Tools' radio; `_view tool posekeys`): the Pose Studio Data window's key on the subject by
+handles. The VR Pose Studio's mapping is reused, not copied: `posestudio::fillPoseGrab` (split out of `grab`) and
+`poseDrag` run for a desk drag (`deskBegin`, `deskDrag`, `deskEnd`; the chest's turn from the rings, `Grab::deskTurn`;
+the legs shown for the desk's pose, `Desk::pose`, not the VR studio's). The subject is held in the key's pose (a strike
+at its phase), its game frame drawn (no timeline pin, no studio layer) so the IK result is what is seen. Handles: arrows,
+planes, centre and, for the weapons, torso and pelvis, rings outside them (parts 20..22). The studio's mock mouse
+(`mockDrag`: ImGui mouse events a frame a step, the drag through the real hover, click and drag code) drives
+`vr_rigstudio_test_posekeys`: right weapon 4 forward: key RPos +3.87 0.31 0.15 (asked: 4 plus where it was drawn off
+its target, 3.87 0.31 0.15), drawn moved 4.00; 20 deg round z: RTurn off the asked 0.06 deg, drawn turned 19.95; right
+elbow 4 down: ElbowR +0.19 0.51 -0.62, the elbow moved -1.8 2.2 -2.1; torso 15 deg: Torso +14.9 0 0, the chest turned
+14.3; Pickup pelvis 3 down: LegPelvis +0 0 -3.13, drawn -3.13; each undone: the key byte for byte as it was, the part
+back within 0.001: 10 passed, 0 failed. Screens: `scratch/rigpose1.png` (Aim before, after the weapon's move).
+
+**Other checks.** `vr_agrunt_test 80` 4/0, `81` 3/0; eval.sh: canary 36/44, the full set 163/171, 5 takes differing by a
+tenth of a damage point (PASS -> PASS): no verdict changes.
+
+Checklist (suggested):
+- [ ] Rig Studio: Subject menu: switch kinds and weapons (a flamethrower, two pistols, the ogre) several times: one
+  subject only, no second grunt or stray gun; Close and `vr_rigstudio here`: still one.
+- [ ] Rig Studio: the shoot animation with the shotgun grunt: it aims level at the orange target ahead; drag the target
+  high and low (click it, its arrows): the gun follows; At Camera: it aims at you; Aim off: it carries the gun as before.
+- [ ] Rig Studio: Pose Keys (O) on the shotgun grunt in Aim: click the right weapon's dot, drag its arrows and rings,
+  the elbow, the torso's rings; the arms stay on the gun, the window's numbers follow; Ctrl+Z puts each back; Pickup:
+  the pelvis and the feet.

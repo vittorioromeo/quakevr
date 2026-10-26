@@ -44,7 +44,9 @@ enum class Tool : int
     Rest = 4,    // the rest pose's joints and ends moved (the rig's)
     Weights = 5, // vertices selected (click, box), assigned, set
     Paint = 6,   // weights painted with a brush
+    PoseKeys = 7, // the Pose Studio Data's key dragged by handles on the arms' targets, elbows, torso, the Pickup's legs
 };
+inline constexpr int toolCount = 8;
 
 enum class MeshMode : int
 {
@@ -223,6 +225,10 @@ struct Studio
     // The Pose Studio data window's choice
     int pdKind{0}, pdClass{1}, pdPose{0}, pdPhase{0}, pdHand{0};
     bool pdGlobal{true};
+    bool pdFollow{true};   // the key follows the subject: its kind, its weapon's class (the Pose Handles' default)
+    int pdPart{-1};        // the Pose Handles' part picked (posestudio's numbers: 0 the right weapon .. 11; -1 none)
+    int subjKind{-1}, subjClass{-1}; // the subject's, as QC tells them (rigstudio::qcHold)
+    Tool lastTool{Tool::Rotate};
     double statusAt{0.0};
     // This frame's geometry (vr_rigstudio_view.cpp's)
     za::Vector<glm::vec3> restVerts;   // pose 0 (model units)
@@ -323,6 +329,16 @@ bool project(const glm::vec3& world, glm::vec2& out, float* depth = nullptr);
 void frameSelection();
 void snapView(int which, bool flip);
 void cameraView(float* origin, float* angles);
+// The Pose Keys tool's part `part` (posestudio's numbers) as the subject's note has it now (world; the chest's at its
+// waist): false when not a pose key's part now.
+[[nodiscard]] bool posePart(int part, rigpose::Rigid& out);
+[[nodiscard]] glm::quat bodyTurn();   // the subject's facing (its key space's axes in the world)
+// The studio's mock mouse (the tests): a drag of a handle queued as the hand would make it, a frame a step (fed to
+// ImGui before its frame: mockFeed). `owner` 1 the aim target, 2 the Pose Keys' part `part`; `axis` 0..2 an arrow
+// (`amount` units along it), 20..22 a ring (`amount` degrees round it). False: no such handle shown now.
+bool mockDrag(int owner, int part, int axis, float amount);
+void mockFeed();
+[[nodiscard]] bool mockBusy();
 
 // vr_rigstudio_ui.cpp
 void windows();

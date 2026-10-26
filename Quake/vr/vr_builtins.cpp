@@ -2366,7 +2366,7 @@ void PF_weapondrawnpose()
         {
             out = posestudio::qcHold(NUM_FOR_EDICT(player), arg / 100, arg % 100);
             glm::vec3 studio;
-            if(rigstudio::qcHold(NUM_FOR_EDICT(player), studio))
+            if(rigstudio::qcHold(NUM_FOR_EDICT(player), arg / 100, arg % 100, studio))
             {
                 out = studio; // (the Rig Studio's subject: its aim target's Aim stance, or the Pose Handles' key)
             }

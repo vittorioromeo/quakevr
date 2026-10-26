@@ -47,6 +47,18 @@ struct Handle
     glm::vec3 centre{0.f};  // world
     glm::vec3 axis[3]{glm::vec3{1.f, 0.f, 0.f}, glm::vec3{0.f, 1.f, 0.f}, glm::vec3{0.f, 0.f, 1.f}}; // world
     float radius{10.f};     // world units for handle_size pixels
+    int owner{0};           // 0 the active bone, 1 the aim target, 2 the Pose Keys' part
+    bool move{false};       // its arrows, planes and centre
+    bool rot{false};        // its rings (with arrows too: outside them, parts 20..22)
+};
+
+constexpr float ringOut = 1.6f; // a handle with both: its rings this far out of its arrows
+
+// A step of the mock mouse (the tests): where it is, whether its left button is down.
+struct MockStep
+{
+    glm::vec2 at{0.f};
+    bool down{false};
 };
 
 // The viewport's state between frames (the main thread's).
@@ -60,6 +72,13 @@ struct ViewState
     bool windingFlip{false};
     int paintFrame{-1};
     int restPoint{10}; // the rest tool's point: 10 pivot, 11 end
+    Handle dragH; // the handle as the drag began (its moves measured on it)
+    // A drag of the aim target or of a Pose Keys part: its place (frame) as it began
+    glm::vec3 aimStart{0.f};
+    rigpose::Rigid deskStart;
+    // The mock mouse's queued steps (the tests), the next one
+    za::Vector<MockStep> mock;
+    int mockNext{0};
 };
 ViewState vs;
 
@@ -170,24 +189,59 @@ ViewState vs;
 // ---- The handles ----
 
 // Where the handle is (the active bone's pivot, or the rest tool's point; IK: none) and its axes.
+[[nodiscard]] bool rotatablePart(int p)
+{
+    return p == 0 || p == 1 || p == 6 || p == 7; // (the weapons, the chest, the pelvis)
+}
+
 void placeHandle()
 {
     vs.h.shown = false;
-    if(st.active < 0 || st.active >= st.numBones || !visibleBone(st.active) ||
-        (st.tool != Tool::Rotate && st.tool != Tool::Move && st.tool != Tool::Rest))
+    rigpose::Rigid part;
+    if(st.aim.selected && st.aim.show)
     {
-        return;
+        // The aim target: moved in the world's axes
+        vs.h.owner = 1;
+        vs.h.move = true;
+        vs.h.rot = false;
+        vs.h.centre = st.aim.at;
+        vs.h.axis[0] = glm::vec3{1.f, 0.f, 0.f};
+        vs.h.axis[1] = glm::vec3{0.f, 1.f, 0.f};
+        vs.h.axis[2] = glm::vec3{0.f, 0.f, 1.f};
     }
-    const int b = st.active;
-    const glm::vec3 local = st.tool == Tool::Rest && vs.restPoint == 11 ? st.ends[b] : st.pivots[b];
-    vs.h.centre = toWorld(rigpose::apply(st.F[b], local));
-    // Its axes: the bone's own (its rest axes turned with it); the rest tool's the model's.
-    const glm::quat r = st.tool == Tool::Rest ? glm::quat{1.f, 0.f, 0.f, 0.f} : st.F[b].rot;
-    for(int i = 0; i < 3; i++)
+    else if(st.tool == Tool::PoseKeys && posePart(st.pdPart, part))
     {
-        glm::vec3 a{0.f};
-        a[i] = 1.f;
-        vs.h.axis[i] = glm::normalize(toWorld(r * a) - toWorld(glm::vec3{0.f}));
+        // A Pose Keys part: in its key's space's axes (the subject's facing: x forward, y left, z up)
+        vs.h.owner = 2;
+        vs.h.move = st.pdPart != 6;
+        vs.h.rot = rotatablePart(st.pdPart);
+        vs.h.centre = part.pos;
+        const glm::quat q = bodyTurn();
+        vs.h.axis[0] = q * glm::vec3{1.f, 0.f, 0.f};
+        vs.h.axis[1] = q * glm::vec3{0.f, 1.f, 0.f};
+        vs.h.axis[2] = q * glm::vec3{0.f, 0.f, 1.f};
+    }
+    else
+    {
+        if(st.active < 0 || st.active >= st.numBones || !visibleBone(st.active) ||
+            (st.tool != Tool::Rotate && st.tool != Tool::Move && st.tool != Tool::Rest))
+        {
+            return;
+        }
+        vs.h.owner = 0;
+        vs.h.move = st.tool != Tool::Rotate;
+        vs.h.rot = st.tool == Tool::Rotate;
+        const int b = st.active;
+        const glm::vec3 local = st.tool == Tool::Rest && vs.restPoint == 11 ? st.ends[b] : st.pivots[b];
+        vs.h.centre = toWorld(rigpose::apply(st.F[b], local));
+        // Its axes: the bone's own (its rest axes turned with it); the rest tool's the model's.
+        const glm::quat r = st.tool == Tool::Rest ? glm::quat{1.f, 0.f, 0.f, 0.f} : st.F[b].rot;
+        for(int i = 0; i < 3; i++)
+        {
+            glm::vec3 a{0.f};
+            a[i] = 1.f;
+            vs.h.axis[i] = glm::normalize(toWorld(r * a) - toWorld(glm::vec3{0.f}));
+        }
     }
     glm::vec2 s;
     float depth = 1.f;
@@ -200,21 +254,54 @@ void placeHandle()
 }
 
 // A ring's points (screen), `n` of them round axis `a`.
+[[nodiscard]] float ringRadius()
+{
+    return vs.h.radius * (vs.h.move && vs.h.rot ? ringOut : 1.f);
+}
+
 void ringPoints(const glm::vec3& a, glm::vec2* out, bool* front, int n)
 {
     glm::vec3 u = glm::abs(a.z) < 0.9f ? glm::cross(a, glm::vec3{0.f, 0.f, 1.f}) : glm::cross(a, glm::vec3{1.f, 0.f, 0.f});
     u = glm::normalize(u);
     const glm::vec3 v = glm::cross(a, u);
+    const float r = ringRadius();
     for(int i = 0; i < n; i++)
     {
         const float t = static_cast<float>(i) / static_cast<float>(n) * 2.f * pi;
-        const glm::vec3 p = vs.h.centre + (u * za::cos(t) + v * za::sin(t)) * vs.h.radius;
+        const glm::vec3 p = vs.h.centre + (u * za::cos(t) + v * za::sin(t)) * r;
         project(p, out[i]);
-        front[i] = glm::dot(p - vs.h.centre, st.view.org - vs.h.centre) >= -0.05f * vs.h.radius;
+        front[i] = glm::dot(p - vs.h.centre, st.view.org - vs.h.centre) >= -0.05f * r;
     }
 }
 
 constexpr int ringN = 48;
+
+// The ring (0..2) nearest `m` within 7 pixels, else -1.
+[[nodiscard]] int hitRing(const glm::vec2& m)
+{
+    int best = -1;
+    float bestD = 7.f;
+    for(int i = 0; i < 3; i++)
+    {
+        glm::vec2 pts[ringN];
+        bool front[ringN];
+        ringPoints(vs.h.axis[i], pts, front, ringN);
+        for(int k = 0; k < ringN; k++)
+        {
+            if(!front[k] && !front[(k + 1) % ringN])
+            {
+                continue;
+            }
+            const float d = segDist(m, pts[k], pts[(k + 1) % ringN]);
+            if(d < bestD)
+            {
+                bestD = d;
+                best = i;
+            }
+        }
+    }
+    return best;
+}
 
 int hitHandle(const glm::vec2& m)
 {
@@ -224,35 +311,15 @@ int hitHandle(const glm::vec2& m)
     }
     glm::vec2 c;
     project(vs.h.centre, c);
-    if(st.tool == Tool::Rotate)
+    if(vs.h.rot && !vs.h.move)
     {
-        int best = -1;
-        float bestD = 7.f;
-        for(int i = 0; i < 3; i++)
-        {
-            glm::vec2 pts[ringN];
-            bool front[ringN];
-            ringPoints(vs.h.axis[i], pts, front, ringN);
-            for(int k = 0; k < ringN; k++)
-            {
-                if(!front[k] && !front[(k + 1) % ringN])
-                {
-                    continue;
-                }
-                const float d = segDist(m, pts[k], pts[(k + 1) % ringN]);
-                if(d < bestD)
-                {
-                    bestD = d;
-                    best = i;
-                }
-            }
-        }
+        int best = hitRing(m);
         const float vr = vr_rigstudio_handle_size.value * 1.18f;
-        if(best < 0 && za::abs(glm::length(m - c) - vr) < 7.f)
+        if(best < 0 && vs.h.owner == 0 && za::abs(glm::length(m - c) - vr) < 7.f)
         {
-            best = 3;
+            best = 3; // (a bone's view ring)
         }
-        return best;
+        return best >= 0 && vs.h.owner == 2 ? 20 + best : best;
     }
     // Move and the rest tool: the arrows, the planes, the centre
     if(glm::length(m - c) < 8.f)
@@ -282,6 +349,11 @@ int hitHandle(const glm::vec2& m)
             return 4 + i;
         }
     }
+    if(vs.h.rot)
+    {
+        const int r = hitRing(m); // (the rings outside the arrows)
+        return r >= 0 ? 20 + r : -1;
+    }
     return -1;
 }
 
@@ -296,8 +368,9 @@ void drawHandle(ImDrawList* dl)
     glm::vec2 c;
     project(vs.h.centre, c);
     const int part = st.dragging ? st.dragAxis : vs.hoverPart;
-    if(st.tool == Tool::Rotate)
+    if(vs.h.rot)
     {
+        const int ringBase = vs.h.owner == 2 ? 20 : 0;
         for(int i = 0; i < 3; i++)
         {
             glm::vec2 pts[ringN];
@@ -307,14 +380,17 @@ void drawHandle(ImDrawList* dl)
             {
                 const int k2 = (k + 1) % ringN;
                 const bool f = front[k] && front[k2];
-                glm::vec4 cc = part == i ? hot : axisCol[i];
+                glm::vec4 cc = part == ringBase + i ? hot : axisCol[i];
                 cc.w = f ? 1.f : 0.25f;
                 dl->AddLine(iv(pts[k]), iv(pts[k2]), col(cc), f ? 2.5f : 1.2f);
             }
         }
-        const float vr = vr_rigstudio_handle_size.value * 1.18f;
-        dl->AddCircle(iv(c), vr, col(part == 3 ? hot : glm::vec4{0.9f, 0.9f, 0.9f, 0.8f}), 48, 1.6f);
-        if(st.dragging && st.dragKind == 1)
+        if(vs.h.owner == 0)
+        {
+            const float vr = vr_rigstudio_handle_size.value * 1.18f;
+            dl->AddCircle(iv(c), vr, col(part == 3 ? hot : glm::vec4{0.9f, 0.9f, 0.9f, 0.8f}), 48, 1.6f);
+        }
+        if(st.dragging && (st.dragKind == 1 || st.dragKind == 12))
         {
             dl->AddLine(iv(c), ImGui::GetIO().MousePos, col(glm::vec4{1.f, 1.f, 1.f, 0.5f}), 1.f);
             const float a = st.dragAngle / deg;
@@ -322,7 +398,10 @@ void drawHandle(ImDrawList* dl)
             q_snprintf(text, sizeof(text), "%.1f deg", a);
             dl->AddText(ImVec2{ImGui::GetIO().MousePos.x + 14.f, ImGui::GetIO().MousePos.y + 4.f}, col(glm::vec4{1.f}), text);
         }
-        return;
+        if(!vs.h.move)
+        {
+            return;
+        }
     }
     for(int i = 0; i < 3; i++)
     {
@@ -359,15 +438,38 @@ void beginDrag(int kind, int axis, const glm::vec2& m)
     st.dragStart = m;
     st.dragLast = m;
     st.dragAngle = 0.f;
+    vs.dragH = vs.h;
     vs.snapAccum = vs.snapApplied = 0.f;
     vs.moveAccum = vs.moveApplied = glm::vec3{0.f};
-    if(kind == 2 || kind == 4 || kind == 5)
+    if(kind == 2 || kind == 4 || kind == 5 || kind == 10 || kind == 11)
     {
-        const glm::vec3 n = axis >= 4 ? vs.h.axis[axis - 4] : st.view.fwd;
+        const glm::vec3 n = axis >= 4 && axis <= 6 ? vs.h.axis[axis - 4] : st.view.fwd;
         if(!rayPlane(m, vs.h.centre, n, vs.planeStart))
         {
             vs.planeStart = vs.h.centre;
         }
+    }
+    if(kind == 10)
+    {
+        // The aim target: its place undone as one edit; off the camera once moved by hand
+        vs.aimStart = st.aim.at;
+        st.aim.atCamera = false;
+        pushAimUndo();
+        return;
+    }
+    if(kind == 11 || kind == 12)
+    {
+        // A Pose Keys part: the key the drag edits (posestudio's mapping), its value now kept for the undo
+        if(!posePart(st.pdPart, vs.deskStart) ||
+            !posestudio::deskBegin(st.note, st.pdPart, agpose::code(st.pdKind, st.pdClass, st.pdPose, agpose::isStrike(st.pdPose) ? st.pdPhase : 0), st.pdPose))
+        {
+            st.dragging = false;
+            st.dragKind = 0;
+            say("that part is not one of the key's now");
+            return;
+        }
+        pushPoseUndo(posestudio::deskCode());
+        return;
     }
     pushUndo(kind == 1 ? "rotate" : kind == 2 ? "move" : kind == 3 ? "IK" : kind == 7 ? "paint" : kind >= 4 && kind <= 5 ? "rest pose" : "edit");
 }
@@ -444,18 +546,20 @@ void dragRotate(const glm::vec2& m)
 
 [[nodiscard]] glm::vec3 dragDisplacement(const glm::vec2& m)
 {
+    // (the handle as the drag began: the part moving under it changes neither its arrows' scale nor its plane)
+    const Handle& h = vs.dragH;
     if(st.dragAxis <= 2)
     {
         glm::vec2 c, e;
-        project(vs.h.centre, c);
-        project(vs.h.centre + vs.h.axis[st.dragAxis] * vs.h.radius, e);
+        project(h.centre, c);
+        project(h.centre + h.axis[st.dragAxis] * h.radius, e);
         const glm::vec2 A = e - c;
         const float l2 = za::max(glm::dot(A, A), 1e-3f);
-        return vs.h.axis[st.dragAxis] * (vs.h.radius * glm::dot(m - st.dragStart, A) / l2);
+        return h.axis[st.dragAxis] * (h.radius * glm::dot(m - st.dragStart, A) / l2);
     }
-    const glm::vec3 n = st.dragAxis >= 4 ? vs.h.axis[st.dragAxis - 4] : st.view.fwd;
+    const glm::vec3 n = st.dragAxis >= 4 ? h.axis[st.dragAxis - 4] : st.view.fwd;
     glm::vec3 hit;
-    if(!rayPlane(m, vs.h.centre, n, hit))
+    if(!rayPlane(m, h.centre, n, hit))
     {
         return glm::vec3{0.f};
     }
@@ -502,6 +606,57 @@ void dragMove(const glm::vec2& m, bool rest)
     w.pos = apply;
     forRoots(w, false, glm::quat{1.f, 0.f, 0.f, 0.f});
     publish();
+}
+
+// The aim target dragged: its place from where it began, by the handle's move (world; Ctrl: whole units).
+void dragAim(const glm::vec2& m)
+{
+    glm::vec3 total = dragDisplacement(m);
+    if(ctrl() || st.snap)
+    {
+        total = glm::floor(total + glm::vec3{0.5f});
+    }
+    st.aim.at = vs.aimStart + total;
+}
+
+// A Pose Keys part dragged: moved (kind 11: by the handle's move, in its key's space's axes; Ctrl: whole units) or
+// turned (12: by the ring's sweep round its centre on the screen, as a bone's ring; Ctrl: 15 degrees), its key made by
+// the Pose Studio's own mapping (posestudio::deskDrag) and previewed: the game lays it on next frame.
+void dragDesk(const glm::vec2& m)
+{
+    rigpose::Rigid now = vs.deskStart;
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+    const glm::quat body = bodyTurn();
+    if(st.dragKind == 11)
+    {
+        glm::vec3 local = glm::inverse(body) * dragDisplacement(m);
+        if(ctrl() || st.snap)
+        {
+            local = glm::floor(local + glm::vec3{0.5f});
+        }
+        now.pos += body * local;
+    }
+    else
+    {
+        glm::vec2 c;
+        project(vs.h.centre, c);
+        const glm::vec2 a0 = st.dragLast - c, a1 = m - c;
+        if(glm::length(a0) >= 2.f && glm::length(a1) >= 2.f)
+        {
+            float d = za::atan2(-a1.y, a1.x) - za::atan2(-a0.y, a0.x);
+            d = d > pi ? d - 2.f * pi : d < -pi ? d + 2.f * pi : d;
+            const glm::vec3 axisW = vs.h.axis[st.dragAxis - 20];
+            vs.snapAccum += d * (glm::dot(axisW, st.view.fwd) < 0.f ? 1.f : -1.f);
+            st.dragLast = m;
+        }
+        const float step = 15.f * deg;
+        const float a = ctrl() || st.snap ? za::floor(vs.snapAccum / step + 0.5f) * step : vs.snapAccum;
+        st.dragAngle = a;
+        const glm::vec3 axisW = vs.h.axis[st.dragAxis - 20];
+        now.rot = glm::normalize(glm::angleAxis(a, axisW) * vs.deskStart.rot);
+        turn = glm::angleAxis(a, glm::inverse(body) * axisW); // (the chest's: in its key's space)
+    }
+    posestudio::deskDrag(st.note, now, turn);
 }
 
 // The IK chains: a hinge bone on a ball one (forearm on upper arm, shin on thigh).
@@ -592,6 +747,15 @@ void endDrag()
     st.dragging = false;
     st.dragKind = 0;
     st.dragAxis = -1;
+    if(kind == 11 || kind == 12)
+    {
+        posestudio::deskEnd(true); // (the key kept: vr_agrunt_poses, as the window's edits)
+        return;
+    }
+    if(kind == 10)
+    {
+        return;
+    }
     if((kind == 1 || kind == 2 || kind == 3) && st.autoKey && st.source != Source::Rest)
     {
         if(kind == 3 && st.ikChain >= 0)
@@ -1143,6 +1307,117 @@ void drawTargets(ImDrawList* dl)
     }
 }
 
+[[nodiscard]] bool noteFresh()
+{
+    return st.noteFrame >= 0 && host_framecount - st.noteFrame <= 5 && st.note.ent == st.subject && st.subject > 0;
+}
+
+// The aim target: a ring and a cross, a line to it from the right weapon as drawn; picked by a click on it.
+void drawAim(ImDrawList* dl)
+{
+    if(!st.aim.show)
+    {
+        return;
+    }
+    glm::vec2 s;
+    if(!project(st.aim.at, s))
+    {
+        return;
+    }
+    const glm::vec4 c = st.aim.selected ? glm::vec4{1.f, 0.9f, 0.3f, 1.f} : glm::vec4{1.f, 0.55f, 0.1f, 0.95f};
+    dl->AddCircle(iv(s), 9.f, col(c), 20, 2.f);
+    dl->AddLine(ImVec2{s.x - 13.f, s.y}, ImVec2{s.x + 13.f, s.y}, col(c), 1.5f);
+    dl->AddLine(ImVec2{s.x, s.y - 13.f}, ImVec2{s.x, s.y + 13.f}, col(c), 1.5f);
+    dl->AddText(ImVec2{s.x + 12.f, s.y + 4.f}, col(c), st.aim.on ? (st.aim.atCamera ? "aim (camera)" : "aim") : "aim (off)");
+    if(st.aim.on && noteFresh() && st.note.placed.on[0])
+    {
+        const glm::vec3 gun = st.note.space.origin +
+                              glm::angleAxis(st.note.space.yawDeg * deg, glm::vec3{0.f, 0.f, 1.f}) * (st.note.placed.weapon[0].pos * st.note.space.scale);
+        glm::vec2 g;
+        if(project(gun, g))
+        {
+            dl->AddLine(iv(g), iv(s), col(glm::vec4{1.f, 0.55f, 0.1f, 0.35f}), 1.f);
+        }
+    }
+}
+
+[[nodiscard]] bool pickAim(const glm::vec2& m)
+{
+    glm::vec2 s;
+    return st.aim.show && project(st.aim.at, s) && glm::length(s - m) < 11.f;
+}
+
+constexpr const char* posePartNames[] = {"right weapon", "left weapon", "right fist", "left hand", "right elbow", "left elbow",
+    "torso", "pelvis", "planted foot", "kneeling knee", "kneeling foot", "planted knee"};
+constexpr int posePartCount = static_cast<int>(sizeof(posePartNames) / sizeof(posePartNames[0]));
+
+// The Pose Keys tool's parts: each a dot (the picked one's handle drawn), an elbow's and a knee's pole as a line.
+void drawPoseParts(ImDrawList* dl, const glm::vec2& m, bool overUi)
+{
+    if(st.tool != Tool::PoseKeys)
+    {
+        return;
+    }
+    if(!noteFresh())
+    {
+        dl->AddText(ImVec2{st.view.x + 12.f, st.view.y + st.view.h - 40.f}, col(glm::vec4{1.f, 0.6f, 0.4f, 1.f}),
+            "Pose Keys: the subject's arms not solved (an armed humanoid, the Arms layer on)");
+        return;
+    }
+    const bool match = st.pdKind == st.subjKind && st.pdClass == st.subjClass;
+    const glm::quat body = bodyTurn();
+    for(int p = 0; p < posePartCount; p++)
+    {
+        rigpose::Rigid f;
+        glm::vec2 s;
+        if(!posePart(p, f) || !project(f.pos, s))
+        {
+            continue;
+        }
+        const bool picked = st.pdPart == p, hover = !overUi && glm::length(s - m) < 9.f;
+        const glm::vec4 c = picked ? glm::vec4{1.f, 0.9f, 0.3f, 1.f} : hover ? glm::vec4{1.f, 1.f, 1.f, 1.f} : glm::vec4{0.3f, 0.9f, 1.f, 0.9f};
+        dl->AddCircleFilled(iv(s), picked ? 4.f : 5.f, col(c), 12);
+        dl->AddCircle(iv(s), 7.f, col(c), 12, 1.5f);
+        if(p == 4 || p == 5)
+        {
+            // (the elbow's pole as sent: its way, from the elbow; the chest's space)
+            const glm::vec3 pole = st.note.elbowPole[p - 4];
+            glm::vec2 e;
+            if(glm::length(pole) > 1e-3f &&
+                project(f.pos + body * (glm::normalize(st.note.placed.chest.rot) * glm::normalize(pole)) * 8.f, e))
+            {
+                dl->AddLine(iv(s), iv(e), col(glm::vec4{c.x, c.y, c.z, 0.7f}), 1.5f);
+            }
+        }
+        if(hover || picked)
+        {
+            dl->AddText(ImVec2{s.x + 9.f, s.y - 16.f}, col(c), posePartNames[p]);
+        }
+    }
+    if(!match)
+    {
+        dl->AddText(ImVec2{st.view.x + 12.f, st.view.y + st.view.h - 40.f}, col(glm::vec4{1.f, 0.6f, 0.4f, 1.f}),
+            "Pose Keys: the window's kind or class is not the subject's (its parts are drawn as it stands)");
+    }
+}
+
+[[nodiscard]] int pickPosePart(const glm::vec2& m)
+{
+    int best = -1;
+    float bestD = 9.f;
+    for(int p = 0; p < posePartCount && st.tool == Tool::PoseKeys && noteFresh(); p++)
+    {
+        rigpose::Rigid f;
+        glm::vec2 s;
+        if(posePart(p, f) && project(f.pos, s) && glm::length(s - m) < bestD)
+        {
+            bestD = glm::length(s - m);
+            best = p;
+        }
+    }
+    return best;
+}
+
 void drawOnion(ImDrawList* dl)
 {
     if(!st.onion || st.source == Source::Rest || st.active < 0)
@@ -1300,9 +1575,15 @@ void keyInput()
                 st.hidden |= st.selBones;
             }
         }
+        if(ImGui::IsKeyPressed(ImGuiKey_O, false)) { st.tool = Tool::PoseKeys; }
         if(ImGui::IsKeyPressed(ImGuiKey_Escape, false) && st.dragging)
         {
+            if(st.dragKind == 11 || st.dragKind == 12)
+            {
+                posestudio::deskEnd(false); // (its preview dropped; the key as it was, the undo's entry)
+            }
             st.dragging = false;
+            st.dragKind = 0;
             undo(); // (the drag's snapshot: back to before it)
         }
     }
@@ -1312,6 +1593,123 @@ void keyInput()
 
 namespace qvr::rigstudio::detail
 {
+
+glm::quat bodyTurn()
+{
+    if(noteFresh())
+    {
+        return glm::angleAxis(st.note.space.yawDeg * deg, glm::vec3{0.f, 0.f, 1.f});
+    }
+    const entity_t* e = subjectEntity();
+    return glm::angleAxis((e ? e->angles[1] : 0.f) * deg, glm::vec3{0.f, 0.f, 1.f});
+}
+
+bool posePart(int part, rigpose::Rigid& out)
+{
+    if(part < 0 || part >= posePartCount || !noteFresh() || !posestudio::deskPart(st.note, part, st.pdPose, out))
+    {
+        return false;
+    }
+    if(part == 6)
+    {
+        out.pos = posestudio::deskWaist(st.note); // (the torso turns about its waist: its rings there)
+    }
+    return true;
+}
+
+bool mockDrag(int owner, int part, int axis, float amount)
+{
+    if(owner == 1)
+    {
+        st.aim.selected = true;
+        st.aim.show = true;
+    }
+    else
+    {
+        st.aim.selected = false;
+        st.pdPart = part;
+    }
+    placeHandle();
+    if(!vs.h.shown || vs.h.owner != owner || (axis >= 20 ? !vs.h.rot : !vs.h.move))
+    {
+        return false;
+    }
+    glm::vec2 c, p0;
+    project(vs.h.centre, c);
+    za::Vector<glm::vec2> path;
+    if(axis < 3)
+    {
+        glm::vec2 e;
+        project(vs.h.centre + vs.h.axis[axis] * vs.h.radius, e);
+        p0 = c + (e - c) * 0.6f;
+        const glm::vec2 p1 = p0 + (e - c) * (amount / vs.h.radius);
+        for(int i = 1; i <= 8; i++)
+        {
+            path.pushBack(p0 + (p1 - p0) * (static_cast<float>(i) / 8.f));
+        }
+    }
+    else
+    {
+        // (a ring: from its point farthest out on the screen, swept round the centre by the angle asked: the drag turns by
+        // the sweep, its sign by the ring's facing)
+        glm::vec2 pts[ringN];
+        bool front[ringN];
+        ringPoints(vs.h.axis[axis - 20], pts, front, ringN);
+        int best = -1;
+        for(int k = 0; k < ringN; k++)
+        {
+            if(front[k] && front[(k + 1) % ringN] && (best < 0 || glm::length(pts[k] - c) > glm::length(pts[best] - c)))
+            {
+                best = k;
+            }
+        }
+        if(best < 0)
+        {
+            return false;
+        }
+        p0 = pts[best];
+        const float sign = glm::dot(vs.h.axis[axis - 20], st.view.fwd) < 0.f ? 1.f : -1.f;
+        const float sweep = amount * deg * sign;
+        const glm::vec2 r0{p0.x - c.x, -(p0.y - c.y)};
+        const int steps = za::max(2, static_cast<int>(za::abs(amount) / 6.f) + 1);
+        for(int i = 1; i <= steps; i++)
+        {
+            const float t = sweep * static_cast<float>(i) / static_cast<float>(steps);
+            const glm::vec2 r{r0.x * za::cos(t) - r0.y * za::sin(t), r0.x * za::sin(t) + r0.y * za::cos(t)};
+            path.pushBack(glm::vec2{c.x + r.x, c.y - r.y});
+        }
+    }
+    vs.mock.clear();
+    vs.mockNext = 0;
+    vs.mock.pushBack(MockStep{p0, false}); // (hovered)
+    vs.mock.pushBack(MockStep{p0, true});  // (pressed: the drag begins)
+    for(const glm::vec2& p : path)
+    {
+        vs.mock.pushBack(MockStep{p, true});
+    }
+    vs.mock.pushBack(MockStep{path.back(), true});
+    vs.mock.pushBack(MockStep{path.back(), false}); // (let go)
+    vs.mock.pushBack(MockStep{path.back() + glm::vec2{0.f, 400.f}, false}); // (and away)
+    return true;
+}
+
+void mockFeed()
+{
+    if(vs.mockNext >= static_cast<int>(vs.mock.size()))
+    {
+        return;
+    }
+    ImGuiIO& io = ImGui::GetIO();
+    const MockStep& s = vs.mock[static_cast<za::SizeT>(vs.mockNext)];
+    io.AddMousePosEvent(s.at.x, s.at.y);
+    io.AddMouseButtonEvent(ImGuiMouseButton_Left, s.down);
+    vs.mockNext++;
+}
+
+bool mockBusy()
+{
+    return vs.mockNext < static_cast<int>(vs.mock.size());
+}
 
 glm::vec3 toWorld(const glm::vec3& p)
 {
@@ -1603,6 +2001,10 @@ void viewport()
     }
     cameraInput();
     keyInput();
+    if(st.aim.atCamera && !(st.dragging && st.dragKind == 10))
+    {
+        st.aim.at = st.view.org; // (Aim at Camera: the subject aims at the studio's eye)
+    }
     if(!st.rig || st.restVerts.empty())
     {
         return;
@@ -1618,7 +2020,32 @@ void viewport()
     // Clicks
     if(!overUi && !io.KeyAlt && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
-        if(vs.hoverPart >= 0 && (st.tool == Tool::Rotate || st.tool == Tool::Move || st.tool == Tool::Rest))
+        const int posePick = vs.hoverPart < 0 ? pickPosePart(m) : -1;
+        if(vs.hoverPart >= 0 && vs.h.owner == 1)
+        {
+            beginDrag(10, vs.hoverPart, m);
+        }
+        else if(vs.hoverPart >= 0 && vs.h.owner == 2)
+        {
+            if(st.pdKind != st.subjKind || st.pdClass != st.subjClass)
+            {
+                say("the Pose Studio Data's kind or class is not the subject's: Follow the Subject, or pick its own");
+            }
+            else
+            {
+                beginDrag(vs.hoverPart >= 20 ? 12 : 11, vs.hoverPart, m);
+            }
+        }
+        else if(vs.hoverPart < 0 && pickAim(m))
+        {
+            st.aim.selected = true; // (its handle: the move tool's, in the world's axes)
+        }
+        else if(posePick >= 0)
+        {
+            st.pdPart = posePick;
+            st.aim.selected = false;
+        }
+        else if(vs.hoverPart >= 0 && (st.tool == Tool::Rotate || st.tool == Tool::Move || st.tool == Tool::Rest))
         {
             const int kind = st.tool == Tool::Rotate ? 1 : st.tool == Tool::Move ? 2 : (vs.restPoint == 11 ? 5 : 4);
             beginDrag(kind, vs.hoverPart, m);
@@ -1664,6 +2091,7 @@ void viewport()
         }
         else
         {
+            st.aim.selected = false;
             const int b = pickBone(m);
             if(b >= 0)
             {
@@ -1732,6 +2160,9 @@ void viewport()
                 break;
             }
             case 7: paint(m); break;
+            case 10: dragAim(m); break;
+            case 11:
+            case 12: dragDesk(m); break;
             default: break;
             }
         }
@@ -1757,6 +2188,8 @@ void viewport()
     drawLimits(dl);
     drawProxies(dl);
     drawTargets(dl);
+    drawPoseParts(dl, m, overUi);
+    drawAim(dl);
     placeHandle();
     drawHandle(dl);
     if(st.tool == Tool::Paint && !overUi)
