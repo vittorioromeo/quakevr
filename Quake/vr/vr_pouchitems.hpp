@@ -51,6 +51,7 @@ struct Item
     float height{1.f};        // a standing one's top above its pivot
     float gain{1.f};          // its share of the wobble
     bool lying{false};
+    int rounds{-1};           // a magazine's rounds (its top nails: vr_view.cpp magFrame); -1 not a magazine
     // Its collision shape (layoutCheck): a capsule from p0 to p1 (model units) of radius `radius` (pouch units); a
     // magazine a box (model units: lo..hi).
     bool box{false};

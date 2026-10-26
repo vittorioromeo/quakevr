@@ -57,6 +57,11 @@ constexpr MagFoot magFeet[4] = {{"progs/vr_mag_nail.mdl", 2.068f, 1.111f}, {"pro
 {
     return (kind & 16) ? magFeet[3] : magFeet[za::clamp(kind & 7, 2, 4) - 2];
 }
+// A full magazine's rounds, for kinds 2..4 (QC VR_Reload_PouchMagCount).
+[[nodiscard]] int magRounds(int kind)
+{
+    return (kind & 16) ? 12 : (kind & 7) == 2 ? 24 : 36;
+}
 constexpr float magGapY = 0.16f;
 constexpr float magGapX = 0.12f;
 
@@ -292,6 +297,8 @@ int layoutMags(int kind, bool variant, int left, Item (&out)[most])
         it = Item{};
         it.model = model;
         it.skin = variant ? 1 : 0;
+        // (The last one shown the reserve's rest: one nail left, its top nails show it.)
+        it.rounds = za::clamp(left - j * magRounds(kind), 0, magRounds(kind));
         // Feed end up, its width (+x) across the pouch, its thickness out of the body (make_ammo_pouch.py's way).
         it.axes = glm::mat3{glm::vec3{0.f, 1.f, 0.f}, glm::vec3{-1.f, 0.f, 0.f}, glm::vec3{0.f, 0.f, 1.f}};
         it.size = ds;
@@ -1263,7 +1270,7 @@ int magsShown(int kind, int left)
     {
         return 0;
     }
-    const int each = (kind & 16) ? 12 : (kind & 7) == 2 ? 24 : 36; // (QC VR_Reload_PouchMagCount)
+    const int each = magRounds(kind);
     return za::min((left + each - 1) / each, za::clamp(static_cast<int>(vr_ammo_pouch_mags_max.value), 1, magsMost));
 }
 

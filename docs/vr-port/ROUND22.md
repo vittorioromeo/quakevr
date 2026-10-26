@@ -22690,3 +22690,45 @@ only the darkest values (`darken()`: up to 6 added at 0, fading out by 40) becau
 still read in `renders/darker2_before_after.png` (in-game `vr_ad_test 98` eyeshot and three_quarter, before at the left).
 `vr_ad_test 148` and `149` PASS with `vr_weapon_grip_mode 1`.
 - [ ] Widowmaker: the darker skin in a lit and a dark room; rust, rivets, bricks and brass still readable.
+## Empty magazines hide their top nails (worktree `fastship`, branch `agent/magfill`, 2026-10-26)
+
+His request: "hide the top nails when a magazine is empty (show 1 nail when only one round is left if easy), for the
+nail pistol, nailgun and super nailgun magazines" (the follow-up `agent/nailmags`' "Fill" left for his call).
+
+- **Model frames.** Each nail magazine's prop and seated model now has three frames: 0 both top nails (as before), 1 the
+  upper one alone (y +0.24, z +0.1: the one on top, the next to feed), 2 none. A gone nail's vertices all sit at one
+  point inside the lips, 0.6 under the top (its triangles degenerate: nothing drawn; blended from frame 0 it sinks into
+  the lips). The points lie inside the old bounds, so the header (scale, origin) and frame 0 are byte for byte the old
+  file's: the bodies, `magMounts`/`magProps`/`magFeet` points, grips and normal maps are unchanged (checked by comparing
+  the old and new files: header and frame 0 equal, frames 1/2 move 44 and 88 vertices, the pistol's 60 and 120).
+  `Misc/quakevr/make_mags.py` (`top_nails` returns each nail's vertices, `emptied_frames`; the cell keeps one frame) and
+  `make_nailpistol_mags.py` (`nail_parts` finds the art's two nails as the mesh's pieces in the feed lips, `emptied`).
+- **Choosing the frame** (rounds 2 or more: 0, 1: 1, 0: 2):
+  - QC `VR_Reload_MagNailFrame(wid, count)` in `VR_Reload_SetModel`, which every magazine prop goes through when made or
+    its count changes (taken from the pouch, pulled or ejected out of a gun, a part-used one): in the hand, lying on the
+    floor, dropped empty after a reload. Its entity frame goes to the clients as any entity's (no new network data) and
+    into saves with `.vr_ammo_count` (the existing count).
+  - vr_view.cpp `magFrame(model, rounds)` (clamped to the model's frames): the seated magazines (`setMagazine`'s new
+    `rounds`: the hands' guns' `STAT_QVR_WEAPONCLIP`/`2`, the holsters' `STAT_QVR_HOLSTERWEAPONCLIP0 + h`; a gun lying
+    about is drawn full: its clip isn't sent; seated, the nails are inside the gun anyway) and the pouch's magazines
+    (vr_pouchitems.cpp `Item::rounds`: each shown one full, the last the reserve's rest, so 25 nails show a full one and
+    one with one nail).
+  - Armed grunts' guns: their magazines are seated (no nails seen); nothing to do.
+- **Debug menu** (Tests > Reloading): "Check the Nail Magazines' Top Nails" (`vr_reload_test 40`) and "Lay Out Nail
+  Magazines: Full, One, Empty" (`vr_reload_test 41`: the nine in front of you); `vr_reload_test 42` reports each lying
+  magazine's rounds and frame. `vr_dumpview` prints `magazine frames: pouch first/last, seated main/off`.
+- **Checks.** `vr_reload_test 40`: 24 passed, 0 failed (each of the three at 0, 1 and full: in the hand, let go of,
+  ejected loose: frames 2, 1, 0; the cell 0). Laid out, saved, loaded: `9 magazines, 0 wrong`. Seated nailgun full 0,
+  emptied 2; the pouch at 25 nails frames 0 and 1, at 1 nail 1. Eyeshots (vrcalibration, the mock camera over each,
+  low-impact eyes): `scratch/magfill_nails.png` (reading order: pistol full, one, empty; nailgun; super nailgun): two
+  nails, one, none for all three. reload_test.sh: three new checks; 113 PASS, 1 FAIL in the full run (the save/load
+  check: the layout's near row, then 20 units ahead, was picked up by the player before the save: only 6 lay there);
+  the layout moved to 36 units ahead and the check re-run alone: `9 magazines, 0 wrong` (the full suite not re-run).
+  eval.sh: no verdict changes (163/171 as the baseline; three takes' numbers moved by 0.1).
+  Scenario `magfill` (vrtesthall: the nine laid out by the spawn function `VR_Reload_MagNailsLayout`, the nailgun and
+  super nailgun in the hands, 25 nails; a scenario's `cmd impulse` doesn't reach the server as it loads, so the layout
+  is a `spawn` line). `vr_scenario validate`: 0 errors; `runall quit magfill`: SCNRUN OK.
+
+**In VR:**
+- [ ] Nail magazines {test:magfill} (nail pistol, nailgun, super nailgun) show two top nails when they hold 2 or more, one with one round left, none when empty: in the hand, in the pouch, lying about and dropped after a reload.
+

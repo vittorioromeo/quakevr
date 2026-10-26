@@ -1,0 +1,14 @@
+# magfill: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The nail magazines' top nails by the
+# rounds in them (ROUND22.md, "Empty magazines hide their top nails"): the nail pistol's, nailgun's and super nailgun's
+# magazines laid out on the floor before you (QC VR_Reload_MagNailsLayout, as vr_reload_test 41: left to right pistol,
+# nailgun, super nailgun; front to back full, one round, empty), the nailgun in your main hand, the super nailgun in
+# the off hand, 25 nails in the reserve (the pouch: a full magazine and one of 1).
+title Nail magazines: two top nails full, one with a round left, none empty
+map vrtesthall
+god
+notarget
+give "Nailgun" main
+give "Super Nailgun" off
+cmd give n 25
+spawn VR_Reload_MagNailsLayout 36 0
+hint Look down: the magazines before you show two top nails (full), one (one round left), none (empty). Look in the ammo pouch (a full one and one with one nail). Fire a gun dry and drop its magazine (B/Y): no nails. Fire one to its last round and drop it: one nail.

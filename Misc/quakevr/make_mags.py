@@ -84,9 +84,12 @@ def top_nails(m, top, s):
     build_magazine): lying point forward (+x, the way the gun fires them), staggered across the double stack, half out
     of the feed lips (local z `top`): a square shank, a wider flat head, a four-sided point; `s` their size to the
     pistol's (the props' Sizes differ: drawn, the three magazines' nails come out about as long). Their undersides
-    and the faces inside one another are left out (in the lips): 20 triangles a nail."""
+    and the faces inside one another are left out (in the lips): 20 triangles a nail. Returns each nail's vertex range
+    and the point inside the lips it shrinks to when gone (emptied_frames), the upper one first."""
+    nails = []
     for y, z in ((0.24, 0.1), (-0.24, -0.02)):
         y, z = y * s, top + z * s
+        first = len(m.verts)
         sh, hh = 0.11 * s, 0.2 * s
         x_head, x_shank, x_tip, x_point = -1.02 * s, -0.88 * s, 0.55 * s, 1.0 * s
         nail_box(m, x_head, x_shank, y, z, hh, hh, "head", ("+x", "-x", "+y", "-y", "+z"))
@@ -94,6 +97,25 @@ def top_nails(m, top, s):
         tip = [(x_tip, y + dy, z + dz) for dy, dz in ((-sh, -sh), (sh, -sh), (sh, sh), (-sh, sh))]
         for i in range(4):
             m.tri(tip[i], tip[(i + 1) % 4], (x_point, y, z), "shank")
+        nails.append((first, len(m.verts), (0.0, y, top - 0.6)))
+    return nails
+
+
+def emptied_frames(m, nails):
+    """The magazine's frames 1 and 2 (frame 0 is `m`: two nails): one nail left (the upper one, the next to feed), none.
+    A gone nail's vertices all at one point inside the lips (its triangles degenerate: nothing drawn; blended from
+    frame 0 it sinks into the lips); the rest as frame 0, within its bounds, so frame 0 packs exactly as before (QC
+    VR_Reload_MagNailFrame and vr_view.cpp magFrame pick the frame by the rounds in it)."""
+    out = []
+    for keep in (1, 0):
+        f = mdlgen.Mesh(m.skin_w, m.skin_h, m.regions)
+        f.verts = list(m.verts)
+        f.tris = list(m.tris)
+        for first, last, at in nails[keep:]:
+            for i in range(first, last):
+                f.verts[i] = (at, f.verts[i][1], f.verts[i][2])
+        out.append(f)
+    return out
 
 
 def transformed(mesh, rot, at, mirror=False):
@@ -134,7 +156,7 @@ NAIL_SIZE = {"vr_mag_nail": 1.15, "vr_mag_snail": 1.4}
 def nail_mag():
     m = Mesh()
     top = box_mag(m, 1.7, 0.85, 2.9, 0.28, 0.82)
-    top_nails(m, top, NAIL_SIZE["vr_mag_nail"])
+    m.frames = emptied_frames(m, top_nails(m, top, NAIL_SIZE["vr_mag_nail"]))
     return m, top
 
 
@@ -143,7 +165,7 @@ def snail_mag():
     top = box_mag(m, 2.3, 1.05, 4.3, 0.32, 0.84)
     # The window down its side (the outer face, -y as it sits): the nails' shanks behind a slot, a steel frame round it.
     m.box((0.0, -1.05 - 0.06, -0.3), (1.5, 0.06, 3.0), "window", cap_region="window")
-    top_nails(m, top, NAIL_SIZE["vr_mag_snail"])
+    m.frames = emptied_frames(m, top_nails(m, top, NAIL_SIZE["vr_mag_snail"]))
     return m, top
 
 
@@ -158,6 +180,7 @@ def cell_mag():
     m.box((0.0, 0.0, -hz - 0.3), (hx * 0.92, hy * 0.92, 0.3), "foot", bevel=0.5, cap_region="foot")
     m.box((0.0, 0.0, hz + 0.18), (hx * 0.8, hy * 0.8, 0.18), "steel", bevel=0.45, cap_region="steel")
     m.box((0.0, 0.0, hz + 0.52), (0.5, 0.5, 0.18), "top", bevel=0.18, cap_region="top")
+    m.frames = []  # (one frame: no nails to show)
     return m, hz + 0.7
 
 
@@ -336,15 +359,17 @@ def main():
     sections = {"vr_mag_nail": (1.7, 0.85), "vr_mag_snail": (2.3, 1.05), "vr_mag_light": (1.75, 1.5)}
     for name, mesh, top, rot, seat, guns, mirror in mounts():
         skin, fiery = paint(name), paint(name, True)
-        # The prop: skin 0 plain, 1 the lava nails' or plasma's (QC sets it by the ammo).
-        mdlgen.write_mdl(os.path.join(out, name + ".mdl"), mesh, [skin, fiery], name)
+        # The prop: skin 0 plain, 1 the lava nails' or plasma's (QC sets it by the ammo); the nail magazines' frames 0 to
+        # 2 their top nails as they empty (emptied_frames), as seated too.
+        mdlgen.write_mdl(os.path.join(out, name + ".mdl"), mesh, [skin, fiery], name, frames=mesh.frames)
         # As it sits: its top at the seat, turned; its well round it.
         top_at = add(add(mul(rot[0], 0.0), mul(rot[1], 0.0)), mul(rot[2], top))
         at = sub(seat, top_at)
         well = magwell(sections[name][0], sections[name][1], top, **({"wall": 0.24, "sunk": 0.12} if name == "vr_mag_snail" else {}))
         for k, g in enumerate(guns):
             own = fiery if k == 1 else skin  # (the second gun of each pair is the lava or plasma one)
-            mdlgen.write_mdl(os.path.join(out, "vr_mag_on_" + g), transformed(mesh, rot, at, mirror), [own], name + "_on")
+            mdlgen.write_mdl(os.path.join(out, "vr_mag_on_" + g), transformed(mesh, rot, at, mirror), [own], name + "_on",
+                             frames=[transformed(f, rot, at, mirror) for f in mesh.frames])
             mdlgen.write_mdl(os.path.join(out, "vr_magwell_on_" + g), transformed(well, rot, at, mirror), [skin],
                              name + "_well")
         k = -1.0 if mirror else 1.0

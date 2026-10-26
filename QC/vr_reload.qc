@@ -466,8 +466,28 @@ float(entity p, float xHand) VR_Reload_AtPouch =
            (xHand == cVR_MainHand ? p.mainhand_hotspot : p.offhand_hotspot) == QVR_HS_AMMO_POUCH;
 };
 
-// A round's look: a single shell, the taped pair, its gun's magazine, or a launcher's round (its own model, drawn at Size
-// 1: the projectiles' models keep their sizes).
+// A nail magazine's frame by the rounds in it (make_mags.py emptied_frames, make_nailpistol_mags.py): 0 its top two
+// nails showing, 1 the upper one alone (one round left), 2 none (empty); the cell has one frame. The entity's frame goes
+// to the clients and into saves as any entity's (vr_view.cpp magFrame picks the same for the seated and pouch ones).
+float(float xWeapon, float xCount) VR_Reload_MagNailFrame =
+{
+    if(xWeapon != WID_NAILGUN && xWeapon != WID_SUPER_NAILGUN && xWeapon != WID_NAILPISTOL)
+    {
+        return 0;
+    }
+    if(xCount >= 2)
+    {
+        return 0;
+    }
+    if(xCount >= 1)
+    {
+        return 1;
+    }
+    return 2;
+};
+
+// A round's look: a single shell, the taped pair, its gun's magazine (its frame by the rounds in it), or a launcher's
+// round (its own model, drawn at Size 1: the projectiles' models keep their sizes).
 void(entity r) VR_Reload_SetModel =
 {
     if(r.vr_ammo_front)
@@ -480,6 +500,7 @@ void(entity r) VR_Reload_SetModel =
     if(r.vr_ammo_wid)
     {
         setmodel(r, VR_Reload_MagModel(r.vr_ammo_wid));
+        r.frame = VR_Reload_MagNailFrame(r.vr_ammo_wid, r.vr_ammo_count);
         r.vr_ammo_cap = WeaponIdToBaseClipSize(r.vr_ammo_wid); // (how full it is, for its loot beam: vr_lootbeams.cpp)
         float k = propvalue(r, "size"); // (its prop slot's Size, as drawn: the model's own bounds were twice the drawn magazine)
         if(k <= 0)

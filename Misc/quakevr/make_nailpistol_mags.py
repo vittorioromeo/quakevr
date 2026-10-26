@@ -73,9 +73,49 @@ def mesh_of(w, h, verts, tris, move):
     return m
 
 
+def nail_parts(verts, tris):
+    """The source's two modelled top nails (build_nailpistol.py build_magazine: the pieces lying in the feed lips, within
+    0.5 of the middle across and 0.3 of the top, the body's cap and sides all wider): each nail's vertices, the upper one
+    (+y, the next to feed) first, and the point inside the lips it shrinks to when gone."""
+    parent = list(range(len(verts)))
+
+    def root(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    for a, b, c in tris:
+        parent[root(a)] = root(b)
+        parent[root(b)] = root(c)
+    pieces = {}
+    for i in range(len(verts)):
+        pieces.setdefault(root(i), []).append(i)
+    nails = ([], [])
+    for vs in pieces.values():
+        if all(abs(verts[i][0][1]) < 0.5 and abs(verts[i][0][2]) < 0.35 for i in vs):
+            nails[0 if verts[vs[0]][0][1] > 0 else 1].extend(vs)
+    assert len(nails[0]) == len(nails[1]) == 60, "the two nails (%d, %d vertices)" % (len(nails[0]), len(nails[1]))
+    return [(vs, (0.0, 0.24 if k == 0 else -0.24, -0.6)) for k, vs in enumerate(nails)]
+
+
+def emptied(verts, nails):
+    """Frames 1 and 2 (make_mags.py emptied_frames): one nail left (the upper), none; a gone nail's vertices at its point
+    inside the lips."""
+    out = []
+    for keep in (1, 0):
+        f = list(verts)
+        for vs, at in nails[keep:]:
+            for i in vs:
+                f[i] = (at, f[i][1], f[i][2])
+        out.append(f)
+    return out
+
+
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else PROGS
     skins, w, h, verts, tris = read_mdl(os.path.join(PROGS, SOURCE))
+    frames = emptied(verts, nail_parts(verts, tris))
     lo = [min(v[0][k] for v in verts) for k in range(3)]
     hi = [max(v[0][k] for v in verts) for k in range(3)]
     mid = [(lo[k] + hi[k]) * 0.5 for k in range(3)]
@@ -91,8 +131,11 @@ def main():
 
     files = [os.path.join(out, "vr_mag_npistol.mdl"), os.path.join(out, "vr_mag_on_v_nailpistol.mdl")]
     guard = genguard.Guard("make_nailpistol_mags.py", files)
-    mdlgen.write_mdl(files[0], mesh_of(w, h, verts, tris, prop), skins, "vr_mag_npistol")
-    mdlgen.write_mdl(files[1], mesh_of(w, h, verts, tris, seated), skins, "vr_mag_on")
+    # Frames 0 to 2: its top nails as it empties (two, the upper one, none: QC VR_Reload_MagNailFrame, vr_view.cpp magFrame).
+    mdlgen.write_mdl(files[0], mesh_of(w, h, verts, tris, prop), skins, "vr_mag_npistol",
+                     frames=[mesh_of(w, h, f, tris, prop) for f in frames])
+    mdlgen.write_mdl(files[1], mesh_of(w, h, verts, tris, seated), skins, "vr_mag_on",
+                     frames=[mesh_of(w, h, f, tris, seated) for f in frames])
     guard.finish()
     seat = seated(tuple(mid))
     print("source bounds %s .. %s, middle %s" % (["%.3f" % v for v in lo], ["%.3f" % v for v in hi],
