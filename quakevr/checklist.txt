@@ -2,6 +2,9 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Player Appearance > Body Shape > Feminine: narrower waist, wider hips, modest chest, slimmer arms; calibration still fits; Athletic restores the old body
+Body Shape Feminine with green, yellow and red armour: the plates look fitted over the chest, not painted flat; holsters, wrist gadget, flashlight clip and arm blood sit right on the body
+Randomize sometimes picks the Feminine body (about 1 in 4) and otherwise keeps your other shape
 Heavy revolver: a normal flick opens and closes it as before; a slow roll opens it only if Flick Open Time (and closes only if Flick Close Time) is raised; the Flick Open/Close Speed, Time and Sustain sliders do what their help says
 Heavy revolver {test:revolver}: the barrel half as long again, the front sight lines up in the rear notch; no hole where the barrel meets the frame (look from above and behind); shots, flash and smoke from the new muzzle; it still sits in both holsters without poking through you
 Player Appearance > Randomize: each press gives a new look (skin tone, gloves none/fingerless/full in leather colours, nails on about half the time) and leaves every other setting alone
