@@ -23317,3 +23317,106 @@ beta4/new-weapon scenes alone: 14 run, 0 failed. `flaregun_crates`: 4 thrown_wea
 ## Flare gun on crates off by default (crateflare)
 
 `vr_crate_flaregun` default 0.05 -> 0 (experimental for beta4); configVersion 207 (`defaultChanges`, vr_cvars.cpp) moves configs still at 0.05 to 0, any other chance stays. Menu help and docs updated; the `flaregun_crates` scenario sets the cvar itself (1).
+
+## Armed humanoids' ammo, loot, damage and sounds (worktree `tghost`, branch `agent/agammo`, 2026-10-26)
+
+Voice notes 2026-10-26 (vrfiringrange 22-21-18 ... 22-32-48): too little spawn ammo, a hard-coded backpack, the revolver
+weak in their hands, no sound from a grunt's plasma gun.
+
+**The bug behind "one cell", "not even a full magazine":** `VR_AG_ShootProp` read the clip back from the ammo field of
+every gun but the flare gun, single-use ones too: `WeaponIdToAmmoId` is AID_NONE for them, so
+`VR_AmmoUtil_GetAmmoCountByAmmoId` asserted (the voice note's log: `'VR_AmmoUtil_GetAmmoCountByAmmoId' at 34`) and
+returned 0. The enforcer's rifle, the burst rifle and all of AD's soldiers' guns were empty after their first shot (or
+round), and the grunt clubbed with them. Now only a gun of a real ammo kind is read back.
+
+**Spawn ammo** (`VR_AG_SpawnReserve`, `VR_AG_SpareClips`): a full clip and spare magazines for every gun, single-use
+ones too (it reloads them from its own magazines; dropped, the gun has its clip only). `vr_agrunt_reserve` (default 2,
+"Spare Clips") scales them all (spare = magazines x setting / 2). A fight of 20-40 s is some 10-20 attacks (a shot, a
+burst of 3, a stream of 5+); two magazines more cover that for most guns:
+
+| weapon | magazine | spare magazines | spare rounds | why |
+|---|---|---|---|---|
+| shotgun | 8 | 2 | 16 | 24 shots, one an attack |
+| double-barrelled shotgun | 2 (one shot) | 8 | 16 | 9 shots (was 3) |
+| nailgun | 24 | 2 | 48 | ~14 attacks of 5 nails |
+| super nailgun | 36 | 3 | 108 | 2 nails a shot: ~14 attacks |
+| grenade / rocket launcher, proximity gun | 4 | 2 | 8 | 12 blasts of ~100 (50 to you) is plenty |
+| thunderbolt | 36 | 2 | 72 | ~20 attacks of 5 bolts |
+| laser cannon | 20 | 2 | 40 | |
+| burst rifle | 30 (10 bursts) | 2 | 60 | 30 bursts (was 1 round) |
+| enforcer's rifle | 20 | 2 | 40 | (was 1 shot) |
+| nail pistol | 12 | 2 | 24 | 36 shots |
+| flare gun (as its weapon) | 2 | 4 | 8 | 5 pairs; as a second weapon (vr_agrunt_flaregun) still none: fired and thrown away |
+| heavy revolver | 6 | 2 | 12 | 18 shots |
+| chainsaw | 100 fuel | 2 | 200 | as before |
+| AD rocket / grenade launcher | 4 / 6 | 2 | 8 / 12 | |
+| AD plasma rifle / centurion gun | 20 / 30 | 2 | 40 / 60 | |
+| AD defender's shotgun, crossbow | 8, 10 | 2 | 16, 20 | |
+| AD flamethrower, poison sprayer | 100 fuel | 2 | 200 | |
+| AD Widowmaker, Plasma Gun | 16, 36 | 2 | 32, 72 | |
+| fists, melee weapons | - | 0 | 0 | no magazine |
+
+**Loot** (`VR_AG_SoldierDrop`, `VR_AG_Pocket`): a weapon out of its hands (knocked out, yanked, thrown away spent,
+dropped as it dies, a flare gun's stowed weapon) leaves its spare rounds in its pockets (its `.ammo_*` fields, kept round
+a shot; a single-use gun's magazines in `.vr_ag_pocket_*`); taking the same weapon (or one of the same ammo kind) up
+again gives them back (`VR_AG_Unpocket`; before, a disarm lost them and a re-armed grunt could not reload). Its backpack:
+every weapon's spare rounds of a real ammo kind (both of a dual wielder's; shells, nails, rockets, cells, Rogue's too:
+`DropBackpack` now copies lava nails, multi-rockets and plasma). None of a real kind (fists, melee, single-use guns,
+all spent): its monster's own (a grunt's 5 shells, an enforcer's 5 cells; a replacement: the replaced monster's).
+Fixed on the way: a dual wielder's backpack held the second gun's reserve under the first gun's ammo kind, and a disarm
+zeroed the other hand's reserve (`VR_AG_Settle`'s swap ran first).
+
+**Damage** (raw: a hit on you before the armed scale; to you: after it, no armour; test 47, vrtesthall, skill 1):
+
+| weapon | your setting (a hit) | before raw / to you | after raw / to you |
+|---|---|---|---|
+| fists, axe, crowbar, sword, Mjolnir, super axe, shadow axe | blows | 20-22 / 10-11 | same |
+| shotgun (a blast, 6 pellets x 4) | 24 | 16-24 / 8-12 | 24 / 12 |
+| double-barrelled shotgun (14 x 4) | 56 | 26-45 / 13-23 | 45 / 22 |
+| nailgun, super nailgun | 9, 18 | 9 / 4.5, 18 / 9 | same |
+| grenade launcher, rocket launcher | 120, 100-120 | 92 / 46, 107 / 53 | 76 / 38, 118 / 59 |
+| thunderbolt | 30 | 30 / 15 | same |
+| laser cannon | 20 | 16.8 / 8.4 (Hipnotic's 18) | 19 / 9.5 |
+| burst rifle (a round) | 6 | (one round, then clubs) | 6 / 3 |
+| enforcer's rifle | 16 | (one shot, then clubs) | 12-16 / 6-8 |
+| nail pistol | 12 | 9 / 4.5 | 12 / 6 |
+| flare gun (the flare's hit; its fire does the rest) | 10 | 6 / 3 | 10 / 5 (the fire's ticks: 2-4) |
+| heavy revolver | 26-30 | 15-17 / 8 | 20-30 / 10-15 |
+| AD rocket / grenade launcher | 100+ | (one, then clubs) | 109 / 54, 106 / 53 |
+| AD plasma rifle, centurion gun | 18 | (one) | 18 / 9 |
+| AD defender's shotgun, crossbow | 31, 30 | (one) | 31 / 15, 30 / 15 |
+| AD Widowmaker, Plasma Gun | 40, 29 | 40 / 20, 29 / 14 | same |
+
+Two scales were on their shots at you: `vr_agrunt_damage_scale` 0.5 (intentional: "a rocket isn't a one-shot"; Gameplay >
+Armed Humanoids > Damage to You), and `VR_WpnDmg`'s "stock" damage for a monster's shot, lower for Quake VR's own guns
+(the revolver 15 for your 26, the nail pistol 9 for 12, the flare gun 6 for 10, Hipnotic's laser 18 for 20): the
+revolver dealt ~8 to you (his "10 or 12" with armour on the health and armour together). The second was not meant
+(the file's design: "your weapons' own code ... its damage to players times vr_agrunt_damage_scale"; their numbers came
+with the guns, there being no id stock), so `VR_WpnDmg` now gives an armed humanoid your setting: the revolver 10-15 to
+you (measured 10 a hit), 26-30 to a monster (friendly fire). The 0.5 stays. **Proposed** (not changed): 0.5 is right for the explosives and
+the streams (a rocket 50-60, the thunderbolt 15 a bolt), light for the single-shot pistols; a per-class scale (pistols
+and rifles 0.75: the revolver ~20 a hit, the nail pistol 9) would make them feel like the guns you hold.
+
+**Sounds** (`vr_debug_sound_log`, new: Debug > Tests > Log Sounds, `sndlog:` lines from `SV_StartSoundPitch` with the
+entity, channel, sample, volume and a dropped one's reason): every gun's shot, reload (`weapons/lock4.wav`) and the
+melee swings are sent. The silent one: **AD's Plasma Gun (code 103) outside AD's maps**: `weapons/plasma_fire.wav` and
+`plasma_hit.wav` were not precached (`AD_WeaponsOnDemand` ran only for AD's soldiers' guns and the upgrades' pickups;
+the voice note's log has the "not precached" lines). `VR_AG_MakeProp` now runs it for any AD upgrade (the Plasma Gun, the
+Widowmaker, the Shadow Axe). Alone in vrtesthall: 3 "not precached" before, 0 after. A monster never pulls an empty
+trigger (it reloads or throws the gun away): no empty clicks to play. The single-use guns' "silence" after one shot was
+the clip bug above.
+
+**Test 47** (`vr_agrunt_test 47`, vrtesthall; Debug > Automation > "Armed Humanoids: Ammo, Loot, Damage, Sounds";
+`QC/vr_armedgrunt_ammo_test.qc`): 36 cases (every weapon, AD's with its data, two dual wielders, two disarmed), each:
+spawn ammo check, the fight until 3 hits and a reload (15 s safety), the kill and its backpack; the player held still
+(a blast's push onto the hall's button restarted the map) with no armour; `Misc/quakevr/agammo_table.py <log> --sounds`
+makes the tables. `scratch2 n; scratch3 k`: k cases from case n-1. Before: 18 FAIL (single-use guns' spawn reserve,
+the dual wielder's backpack, the disarmed's pocket); after: 110 passed, 0 failed (two runs of 18 cases).
+- [ ] Armed grunts with the burst rifle, the enforcer's rifle or one of AD's soldiers' guns: they fire their whole clip,
+  reload and fire on (no more one shot and clubbing); kill one: its backpack is a grunt's 5 shells.
+- [ ] An armed grunt with the double-barrelled shotgun: it fires 9 times; kill it early: its backpack has its spare shells.
+- [ ] Knock a shotgun grunt's gun out of its hand and kill it: its backpack has its 16 spare shells. Let it pick the gun
+  up again: it reloads.
+- [ ] A grunt with the heavy revolver hits you for about 10-15 (no armour; was ~8); say whether that or the proposed 0.75 for
+  pistols feels right.
+- [ ] In the firing range (not an AD map), spawn a grunt with AD's Plasma Gun (toolgun 103): its shots are heard.

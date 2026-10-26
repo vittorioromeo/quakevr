@@ -515,6 +515,7 @@ vr_armedgrunt_shot_test.qc
 vr_armedgrunt_parry_test.qc
 vr_armedgrunt_bugs_test.qc
 vr_armedgrunt_close_test.qc
+vr_armedgrunt_ammo_test.qc
 vr_armedrepl_test.qc
 vr_rigseq_test.qc
 vr_nailpistol_test.qc

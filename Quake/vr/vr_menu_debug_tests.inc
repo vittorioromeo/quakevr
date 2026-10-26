@@ -1229,6 +1229,10 @@ za::Vector<Item> pageDebugTests()
         toggle("Print Walk Moves", vr_debug_walkmove)
             .help("Prints each of your walk moves: the slide, the step up, the planes met, the ledge test "
                   "(vr_debug_walkmove). For a report of stairs or slopes you can't walk up."),
+        cycle("Log Sounds", vr_debug_sound_log, {{0.f, "Off"}, {1.f, "All"}, {2.f, "Not Yours"}})
+            .help("Prints each sound the server starts: its entity, channel, sample and volume, and a dropped one's reason "
+                  "(not precached, a full datagram) (vr_debug_sound_log). Not Yours: monsters' and the world's only. For "
+                  "a report of a weapon or a monster that makes no sound."),
         header("Player Hitbox (Prototype)"),
         open("Player Hitbox Settings", pageIndex(pageHitbox)).help("Movement > Player Hitbox: the widths and their toggles."),
         open("Monster Hitbox Settings", pageIndex(pageMonsterHitbox)).help("Movement > Monster Hitbox: monsters' widths by class, and their walk tests."),

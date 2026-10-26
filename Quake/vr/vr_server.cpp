@@ -383,6 +383,26 @@ void broadcastMark(int at)
 } // namespace
 
 // SV_ClearDatagram: the frame's broadcast starts empty (vr_debug_net: the last frame's numbers).
+// Debug > Tests > Log Sounds (vr_debug_sound_log): each sound the server starts printed (its entity, channel, sample,
+// volume; dropped ones: why), the tests' record of what a weapon's shot, reload or click played. 2: only monsters' and
+// their weapons' (not the players').
+extern "C" void VR_SoundLog(int ent, int channel, const char* sample, int volume, int dropped)
+{
+    if(!qvr::vr_debug_sound_log.value)
+    {
+        return;
+    }
+    edict_t* const e = EDICT_NUM(ent);
+    const char* const cls = e->free ? "" : PR_GetString(e->v.classname);
+    if(qvr::vr_debug_sound_log.value >= 2.f && (static_cast<int>(e->v.flags) & FL_CLIENT))
+    {
+        return;
+    }
+    static constexpr const char* whyDropped[4] = {"", " DROPPED: not precached", " DROPPED: datagram full", " DROPPED: muted"};
+    Con_Printf("sndlog: t %.3f ent %d %s chan %d %s vol %.2f%s\n", qcvm->time, ent, cls, channel, sample,
+        volume / 255.0, whyDropped[dropped < 0 || dropped > 3 ? 0 : dropped]);
+}
+
 extern "C" void VR_BroadcastClear()
 {
     BroadcastRoom& b = broadcastRoom;

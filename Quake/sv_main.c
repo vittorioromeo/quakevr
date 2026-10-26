@@ -364,8 +364,12 @@ void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int v
 	if (channel < 0 || channel > SND_MAX_CHANNEL) // QVR: and the hands' (protocol.h SND_CHAN_HAND)
 		Host_Error ("SV_StartSound: channel = %i", channel);
 
+	ent = NUM_FOR_EDICT(entity);
 	if (sv.datagram.cursize > MAX_DATAGRAM-24)
+	{
+		VR_SoundLog (ent, channel, sample, volume, 2); // QVR: vr_debug_sound_log (vr/vr_server.cpp)
 		return;
+	}
 
 // find precache number for sound
 	for (sound_num = 1; sound_num < MAX_SOUNDS && sv.sound_precache[sound_num]; sound_num++)
@@ -377,12 +381,16 @@ void SV_StartSoundPitch (edict_t *entity, int channel, const char *sample, int v
 	if (sound_num == MAX_SOUNDS || !sv.sound_precache[sound_num])
 	{
 		Con_Printf ("SV_StartSound: %s not precached\n", sample);
+		VR_SoundLog (ent, channel, sample, volume, 1);
 		return;
 	}
 
-	ent = NUM_FOR_EDICT(entity);
 	if (VR_GoreSoundMutes (ent, channel)) // QVR: its cry while it chokes (vr/vr_goresound.cpp)
+	{
+		VR_SoundLog (ent, channel, sample, volume, 3);
 		return;
+	}
+	VR_SoundLog (ent, channel, sample, volume, 0);
 
 // directed messages go only to the entity the are targeted on
 	for (i = 0; i < 3; i++)
