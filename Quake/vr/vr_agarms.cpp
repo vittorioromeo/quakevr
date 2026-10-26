@@ -1236,7 +1236,11 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
             hang.pos = wrist - hang.rot * sd.W;
         }
         Hm[s] = haveWant ? compose(want, inverse(sd.grip)) : hang;
-        if(s == 0 && t.reaching && vr_agarms_reach_ease.value != 0.f)
+        if(t.fk[s])
+        {
+            Hm[s] = t.fkHand[s]; // (the Rig Studio's animation: the hand where its arm bones have it, vr_rigseq.cpp)
+        }
+        else if(s == 0 && t.reaching && vr_agarms_reach_ease.value != 0.f)
         {
             // (a weapon lying out of its reach: the hand comes from hanging towards it as it nears, not stretched at
             // it from afar)

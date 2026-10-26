@@ -14,6 +14,7 @@
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 #include "vr_protocol.hpp"
+#include "vr_rigdata.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
@@ -2007,6 +2008,8 @@ const Rig* rigFor(qmodel_t* model)
         rigCache.failed.pushBack(model);
         return nullptr;
     }
+    // (the Rig Studio's overrides, quakevr/rigs/<model>.rig.txt, laid on it: nothing without the file)
+    (void)rigdata::applyToRig(model, static_cast<const aliashdr_t*>(Mod_Extradata(model)), *r);
     Rig* made = r.get();
     rigCache.rigs.pushBack(static_cast<za::UniquePtr<Rig>&&>(r));
     return made;
@@ -2076,6 +2079,7 @@ void warmRigs(qmodel_t* const* models, int count)
         sayLog(j.log);
         if(j.ok)
         {
+            (void)rigdata::applyToRig(j.model, j.hdr, *j.rig); // (the Rig Studio's overrides: rigFor's)
             rigCache.rigs.pushBack(static_cast<za::UniquePtr<Rig>&&>(j.rig));
         }
         else

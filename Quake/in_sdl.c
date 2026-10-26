@@ -1633,6 +1633,8 @@ void IN_SendKeyEvents (void)
 
 	while (SDL_PollEvent(&event))
 	{
+		if (VR_ImGuiEvent (&event)) // QVR: a flat-screen tool's ImGui took it (the Rig Studio: vr/vr_imgui.cpp)
+			continue;
 		switch (event.type)
 		{
 		case SDL_WINDOWEVENT:

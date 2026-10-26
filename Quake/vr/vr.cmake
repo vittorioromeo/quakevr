@@ -123,6 +123,16 @@ endif()
 # differs ("Inlining differs in precompiled file").
 set_source_files_properties(${QVR_MENU_SRC} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
+# Dear ImGui v1.92.8 (Quake/thirdparty/imgui, MIT: its LICENSE.txt): the flat-screen tools' UI (vr_imgui.cpp, the Rig
+# Studio), the core and the SDL2 and OpenGL3 backends, a static library of its own (its own warnings, no precompiled
+# header). The VR files include it as "thirdparty/imgui/imgui.h" (the Quake folder is on their path).
+file(GLOB QVR_IMGUI_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/../thirdparty/imgui/*.cpp")
+add_library(qvr_imgui STATIC ${QVR_IMGUI_SRC})
+target_include_directories(qvr_imgui PUBLIC "${CMAKE_CURRENT_LIST_DIR}/../thirdparty/imgui")
+target_link_libraries(qvr_imgui PRIVATE SDL2::SDL2 ${CMAKE_DL_LIBS})
+set_target_properties(qvr_imgui PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
+target_link_libraries(ironwail PRIVATE qvr_imgui)
+
 # Box3D (external/box3d/README.md): the rigid-body physics library (vr_box3d.cpp), C17, run on the engine's job pool.
 # No FMA contraction on gcc and clang: Box3D's cross-platform determinism relies on it.
 # wide8.c holds its AVX2 kernels, used only on a CPU that has AVX2 (src/simd.c, run-time detection; wide4.c is the

@@ -41,6 +41,8 @@
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_rigseq.hpp"
+#include "vr_rigstudio.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -1084,7 +1086,7 @@ struct HandDraw
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
     // (an armed grunt's arms on its weapon's grips too: hitreact::armsWanted)
     if(zeroblend || !e->model || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || VR_IsViewEntity(e) || pose1 < 0 ||
-        pose1 >= hdr->numposes || pose2 < 0 || pose2 >= hdr->numposes || !hitreact::bonesWanted(e))
+        pose1 >= hdr->numposes || pose2 < 0 || pose2 >= hdr->numposes || (!hitreact::bonesWanted(e) && !rigseq::wants(e)))
     {
         return on;
     }
@@ -1125,7 +1127,19 @@ struct HandDraw
     rigpose::Rigid kick[ragdoll::maxBones];
     rigpose::Rigid pieces[hitreact::numArmPieces];
     bool piecesOn = false;
-    if(!hitreact::boneTurns(e, rig, posed, aliashdr, pose1, pose2, b, kick, pieces, &piecesOn))
+    const bool turned = hitreact::boneTurns(e, rig, posed, aliashdr, pose1, pose2, b, kick, pieces, &piecesOn);
+    if(!turned)
+    {
+        for(int i = 0; i < rig.numBones; i++)
+        {
+            kick[i] = rigpose::Rigid{};
+        }
+        piecesOn = false;
+    }
+    // The Rig Studio's animations (vr_rigseq.cpp: a sequence QC started, the files' override tracks, the studio's pose)
+    // under the turns; none: as before.
+    const bool layered = rigseq::wants(e) && rigseq::layer(e, rig, hdr, pose1, pose2, b, posed, kick);
+    if(!turned && !layered)
     {
         return on;
     }
@@ -1371,6 +1385,10 @@ extern "C" void VR_AnimSmoothBind(const entity_t* e, int channel)
 // R_SetupAliasFrame's end: a pinned entity's lerp (vr_anim_smooth_pin); false if it isn't the pinned one.
 extern "C" int VR_AnimSmoothPinned(const entity_t* e, const void* aliashdr, short* pose1, short* pose2, float* blend)
 {
+    if(rigstudio::pinned(e, aliashdr, pose1, pose2, blend))
+    {
+        return 1; // (the Rig Studio's subject: drawn at its timeline's frame)
+    }
     if(!pinned(e))
     {
         return 0;

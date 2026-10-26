@@ -3663,6 +3663,18 @@ QVR_CVAR(vr_ragtool_show_targets, "1", CVAR_NONE)     // the motors' targets aga
 QVR_CVAR(vr_ragtool_show_contacts, "1", CVAR_NONE)    // the parts' contacts
 QVR_CVAR(vr_ragtool_show_balance, "1", CVAR_NONE)     // the centre of mass, its point on the floor and the feet's support
 QVR_CVAR(vr_ragtool_log, "1", CVAR_NONE)              // 1: each run's summary on the console (ragtool:); 2: and a sample every 0.5 s
+// The Rig Studio (vr_rigstudio.cpp, RIGSTUDIO.md; `vr_rigstudio`, flat screen only) and its data (vr_rigdata.cpp: rig
+// overrides, override tracks, new sequences read from quakevr/rigs and quakevr/anims at a map load).
+QVR_CVAR(vr_rigdata_dir, "", CVAR_NONE)               // the folder under the game's the rig and animation files are read from and written to ("": the game folder itself; the tests' own: rigstudio_test)
+QVR_CVAR(vr_rigseq, "1", CVAR_NONE)                   // 1: the files' override tracks and the sequences QC starts drawn on the rigged monsters (vr_rigseq.cpp); 0: never (nothing changes without the files)
+QVR_CVAR(vr_rigseq_debug, "0", CVAR_NONE)             // 1: each sequence started, stopped and each event sent to QC printed (rigseq:)
+QVR_CVAR(vr_rigstudio_map, "vrtesthall", CVAR_NONE)   // the room vr_rigstudio loads (its subject at the middle of the free floor ahead)
+QVR_CVAR(vr_rigstudio_orbit_speed, "0.4", CVAR_ARCHIVE) // degrees a pixel: the camera's orbit and look (the Preferences window)
+QVR_CVAR(vr_rigstudio_pan_speed, "1", CVAR_ARCHIVE)   // the pan's speed (1: the point under the mouse follows it)
+QVR_CVAR(vr_rigstudio_zoom_speed, "0.12", CVAR_ARCHIVE) // the wheel's zoom a step (a share of the distance)
+QVR_CVAR(vr_rigstudio_handle_size, "90", CVAR_ARCHIVE) // pixels: the transform handles' size
+QVR_CVAR(vr_rigstudio_theme, "0", CVAR_ARCHIVE)       // the studio's colours: 0 dark, 1 light, 2 classic
+QVR_CVAR(vr_agrunt_taunt, "0", CVAR_ARCHIVE)          // 1: an armed grunt seeing you for the first time plays its taunt (the Rig Studio sequence quakevr/anims/vrgrunt/taunt.anim.txt) before it comes for you; 0 off
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
 QVR_CVAR(vr_ragdoll_self_collide, "1", CVAR_ARCHIVE)  // a ragdoll's own parts meet each other (an arm stays out of the chest, a leg out of the other), all but jointed neighbours, a loose piece (his gun), parts deep in each other (until apart) and an arm reaching for a wound, a stump or a wall; 0 they pass through each other, as before (a ragdoll made from now on)
 QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand (an old config's 2: the same)
