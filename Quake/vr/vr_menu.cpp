@@ -2082,6 +2082,120 @@ void resetHandOffsets()
     }
 }
 
+// Randomize (Player Appearance; vr_appearance_random): a new skin tone, gloves and nails, from the client's own rand()
+// (so each press differs). Only these settings: not the gloves' thickness, paint or relief, nor anything else.
+// Weights: gloves none 50 / fingerless 25 / full 25; nails on 50; the colours below are picked by percent.
+// (The engine's rand() is never seeded, so the first press of every session would repeat: this has its own xorshift
+// state, seeded once from the real clock; in the tests a fixed seed: vr_appearance_random <seed>.)
+uint32_t randomState{0};
+
+[[nodiscard]] uint32_t randomNext()
+{
+    if(randomState == 0)
+    {
+        randomState = static_cast<uint32_t>(Sys_DoubleTime() * 1000000.0) | 1u;
+    }
+    randomState ^= randomState << 13;
+    randomState ^= randomState >> 17;
+    randomState ^= randomState << 5;
+    return randomState;
+}
+
+[[nodiscard]] float randomRange(float lo, float hi)
+{
+    return lo + (hi - lo) * (static_cast<float>(randomNext() % 10001) / 10000.f);
+}
+
+[[nodiscard]] int randomPercent()
+{
+    return static_cast<int>(randomNext() % 100);
+}
+
+void randomAppearance()
+{
+    // Skin tone: the mean of three rolls over the range (a bell round the authored skin, the extremes rare).
+    const float tone = (randomRange(-1.f, 1.f) + randomRange(-1.f, 1.f) + randomRange(-1.f, 1.f)) / 3.f;
+    Cvar_SetValueQuick(&vr_skin_tone, roundf(tone * 100.f) / 100.f);
+
+    const int g = randomPercent();
+    const int gloves = g < 50 ? 0 : (g < 75 ? 1 : 2);
+    Cvar_SetValueQuick(&vr_gloves, static_cast<float>(gloves));
+    const int c = randomPercent(); // leather: 55 brown/tan, 15 black/grey, 22 muted any hue, 8 bright
+    float h = randomRange(0.f, 360.f);
+    float s;
+    float l;
+    if(c < 55)
+    {
+        h = randomRange(15.f, 40.f);
+        s = randomRange(0.25f, 0.6f);
+        l = randomRange(0.12f, 0.42f);
+    }
+    else if(c < 70)
+    {
+        s = randomRange(0.f, 0.12f);
+        l = randomRange(0.05f, 0.2f);
+    }
+    else if(c < 92)
+    {
+        s = randomRange(0.15f, 0.45f);
+        l = randomRange(0.15f, 0.35f);
+    }
+    else
+    {
+        s = randomRange(0.6f, 0.9f);
+        l = randomRange(0.3f, 0.5f);
+    }
+    Cvar_SetValueQuick(&vr_glove_hue, roundf(h));
+    Cvar_SetValueQuick(&vr_glove_saturation, roundf(s * 100.f) / 100.f);
+    Cvar_SetValueQuick(&vr_glove_lightness, roundf(l * 100.f) / 100.f);
+
+    const bool nails = randomPercent() < 50;
+    Cvar_SetValueQuick(&vr_nails, nails ? 1.f : 0.f);
+    if(nails)
+    {
+        const int n = randomPercent(); // polish: 35 reds, 20 pinks, 20 nudes, 13 black, 12 vivid any hue
+        h = randomRange(0.f, 360.f);
+        if(n < 35)
+        {
+            h = fmodf(randomRange(347.f, 370.f), 360.f);
+            s = randomRange(0.7f, 0.95f);
+            l = randomRange(0.28f, 0.42f);
+        }
+        else if(n < 55)
+        {
+            h = randomRange(320.f, 345.f);
+            s = randomRange(0.5f, 0.9f);
+            l = randomRange(0.5f, 0.72f);
+        }
+        else if(n < 75)
+        {
+            h = randomRange(10.f, 30.f);
+            s = randomRange(0.25f, 0.5f);
+            l = randomRange(0.6f, 0.8f);
+        }
+        else if(n < 88)
+        {
+            s = randomRange(0.f, 0.15f);
+            l = randomRange(0.04f, 0.14f);
+        }
+        else
+        {
+            s = randomRange(0.7f, 1.f);
+            l = randomRange(0.35f, 0.55f);
+        }
+        Cvar_SetValueQuick(&vr_nail_hue, roundf(h));
+        Cvar_SetValueQuick(&vr_nail_saturation, roundf(s * 100.f) / 100.f);
+        Cvar_SetValueQuick(&vr_nail_lightness, roundf(l * 100.f) / 100.f);
+        Cvar_SetValueQuick(&vr_nail_gloss, roundf(randomRange(0.3f, 1.f) * 100.f) / 100.f);
+    }
+    static constexpr const char* glovesName[] = {"no gloves", "fingerless gloves", "full gloves"};
+    Con_Printf("Randomized: skin tone %.2f, %s (hue %.0f sat %.2f light %.2f), nails %s (hue %.0f sat %.2f light %.2f "
+               "gloss %.2f)\n",
+        vr_skin_tone.value, glovesName[gloves], vr_glove_hue.value, vr_glove_saturation.value,
+        vr_glove_lightness.value, nails ? "on" : "off", vr_nail_hue.value, vr_nail_saturation.value,
+        vr_nail_lightness.value, vr_nail_gloss.value);
+}
+
 // Holster Setup (drag and drop): the holsters placed by hand (vr_holstersetup.cpp), this page reopened on leaving.
 void holsterSetupStart()
 {
@@ -5780,6 +5894,16 @@ void qvr::menu::mapsPage_f()
 void qvr::menu::mapsPageStats_f()
 {
     mapsPageStatsPrint();
+}
+
+// vr_appearance_random: Player Appearance > Randomize, from the console (tests).
+void qvr::menu::randomAppearance_f()
+{
+    if(Cmd_Argc() > 1)
+    {
+        menu_detail::randomState = static_cast<uint32_t>(Q_atoi(Cmd_Argv(1))) | 1u;
+    }
+    menu_detail::randomAppearance();
 }
 
 // vr_menu_search <text>: the Search page's results for the text, best first, with their scores and pages.

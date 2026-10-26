@@ -527,6 +527,7 @@ extern mem::Scratch<MenuReadouts> readouts;
 [[nodiscard]] za::Vector<Choice> reloadChoices();
 void resetAll();
 void resetHandOffsets();
+void randomAppearance(); // Player Appearance > Randomize (vr_appearance_random)
 void resetHolsters();
 void restartVr();
 [[nodiscard]] Item row(const char* (*text)(int), const char* (*help)(int), void (*pick)(int), int arg, int page);

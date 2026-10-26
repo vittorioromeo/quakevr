@@ -22680,3 +22680,26 @@ super nailgun's (their nails were only painted on the feed end's texture).
 
 **In VR:**
 - [ ] The nailgun's and super nailgun's magazines {test:nailmags} show their top two nails as models over the feed lips, as the nail pistol's (the lava nails' red-hot); seated, no nail pokes out of the gun or its well.
+
+## Player Appearance: Randomize (worktree `dequant`, branch `agent/apprandom`, 2026-10-26)
+
+His request: a Randomize button for skin tone, nail paint and gloves.
+
+- **Where.** Player Appearance, after the Nails rows: `Randomize` (`randomAppearance`, vr_menu.cpp). Console:
+  `vr_appearance_random [seed]` (a seed makes it repeatable for tests). Own xorshift state seeded once from the real
+  clock (the engine's rand() is never seeded, so the first press of each session would repeat). Prints one
+  `Randomized: ...` line (console log / wrist) with the values.
+- **Sets only** `vr_skin_tone`, `vr_gloves`, `vr_glove_hue/saturation/lightness`, `vr_nails`, and when nails come on
+  `vr_nail_hue/saturation/lightness/gloss`. Not the glove thickness, paint or relief; nothing else.
+- **Skin tone:** the mean of three uniform rolls over -1..1 (a bell round 0, sd ~0.33, the extremes rare), 2 decimals.
+- **Gloves:** none 50, fingerless 25, full 25. Leather: 55 percent brown/tan (hue 15-40, sat 0.25-0.6, light
+  0.12-0.42), 15 black/grey (sat 0-0.12, light 0.05-0.2), 22 muted any hue (sat 0.15-0.45, light 0.15-0.35), 8 bright
+  any hue (sat 0.6-0.9, light 0.3-0.5).
+- **Nails:** on 50 percent. Polish: 35 reds (hue 347-10, sat 0.7-0.95, light 0.28-0.42), 20 pinks (320-345, 0.5-0.9,
+  0.5-0.72), 20 nudes (10-30, 0.25-0.5, 0.6-0.8), 13 black (sat 0-0.15, light 0.04-0.14), 12 vivid any hue (sat 0.7-1,
+  light 0.35-0.55); gloss 0.3-1.
+- **Checks.** 20 presses headless: all in range, varied; eyeshots `scratch/apprandom_eyes.png` (4 presses, hands in
+  view); `menu_vr links`: 0 failed; eval.sh: the same 8 pre-existing fails on its archived takes (menu-only change).
+
+**In VR:**
+- [ ] Player Appearance > Randomize {test:appearance} gives a new look each press (skin tone, gloves none/fingerless/full, nails on about half the time) and leaves every other setting alone.

@@ -733,6 +733,9 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         slider("Nail Gloss", vr_nail_gloss, 0.f, 1.f, 0.05f, "%.2f")
             .help("How shiny the polish is: 0 matte, 1 a glassy top coat with a sharp highlight and the room's light "
                   "mirrored in it."),
+        action("Randomize", randomAppearance)
+            .help("A new look at random: skin tone, gloves (none, fingerless or full) and their colour, and painted nails "
+                  "and their colour. Nothing else changes. Press again for another (vr_appearance_random)."),
         header("Pauldrons"),
         toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
         cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
