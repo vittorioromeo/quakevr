@@ -864,7 +864,11 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_jobs_sites reset: every loop's counters back to zero (Thread Pool Sites counts from here)."),
         command("Ragdoll Hand Probe", "vr_ragdoll_hand_probe")
             .help("vr_ragdoll_hand_probe: each hand holding a ragdoll's limb: the limb's lag, the hand drawn off its "
-                  "controller onto it, its palm and fingertips from the limb's mesh (cm), the fingers that met it."),
+                  "controller onto it, its palm and fingertips from the limb's mesh (cm), the fingers that met it; in a "
+                  "tug-of-war, the drawn hand and the controller to its grab on the weapon as drawn."),
+        command("Armed Monsters' Weapons: Drawn vs Server", "vr_agrunt_weapon_probe")
+            .help("vr_agrunt_weapon_probe: each armed monster's held weapon as drawn (on its drawn hands) against where the "
+                  "server has it (what your grabs and a tug's hold use): cm and degrees apart."),
         command("Grip Fit: Last", "vr_grip_fit_last")
             .help("vr_grip_fit_last: the last grip fit (Keep Fingers Out of Props): the drawn hand's overlap with the prop "
                   "before and after (the fingers apart), the move, its time; then the worst case timed 1000 times."),

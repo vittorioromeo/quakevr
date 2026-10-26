@@ -965,13 +965,16 @@ void syncRagdollGrabs(float dt)
         }
         const b3Transform frameB = b3Joint_GetLocalFrameB(g.joint);
         const glm::vec3 held = world->toU(b3Body_GetWorldPoint(part, frameB.p));
-        if(glm::distance(held, at) > (g.stuck > 0.f ? g.stuck : grabStuck))
+        // (A tug's: its hand lets go at once once its controller is vr_agrunt_tug_let_go from where it holds the weapon:
+        // pulled away or stepped back before the monster's grip gives. The QC ends the tug, lost: VR_AG_TugRagFrame.)
+        const float letGo = vr_agrunt_tug_let_go.value > 0.f ? vr_agrunt_tug_let_go.value * 0.01f * world->m2u : g.stuck;
+        if(glm::distance(held, at) > (g.tug ? letGo : g.stuck > 0.f ? g.stuck : grabStuck))
         {
-            if(g.farSince < 0.0)
+            if(g.farSince < 0.0 && !g.tug)
             {
                 g.farSince = qcvm->time;
             }
-            else if(qcvm->time - g.farSince > grabStuckTime)
+            else if(g.tug || qcvm->time - g.farSince > grabStuckTime)
             {
                 if(vr_debug_ragdoll.value)
                 {
@@ -1199,6 +1202,7 @@ bool ragdollHold(int player, int hand, RagdollHold& out)
     out.part = g.part;
     out.at = glmv(frameB.p) * world->m2u;
     out.turn = fromB3(frameB.q);
+    out.tug = g.tug;
     return true;
 }
 

@@ -491,6 +491,8 @@ void mockLook_f()
 // nearest you (a thrown_weapon), `fraction` of the way along its drawn length (0 and 1: its two drawn points farthest
 // apart), `height` cm over its top there (0 as shipped). For grab tests: from the hand's place last frame, so a hand
 // kept out of the floor lands short of a point under it; run it again (or a few frames on) to follow a weapon.
+// "vr_mock_hand_to <main|off> agweapon <fraction> [<cm>]": in the nearest armed monster's held weapon, from the end behind
+// its grip (0) to its muzzle's (1), at its slice's middle (the grab-anywhere tests, vr_agrunt_test 31 with scratch4).
 // "vr_mock_hand_to <main|off> spot <index> [<height cm>]": at its hotspot `index` (a grip's point, a blade's zone's middle:
 // view::groundHotspotPoint), `height` cm over it (vr_weapon_grab_hotspots tests). "vr_mock_hand_to <main|off> button":
 // its fingertip on the wrist gadget's side button (the gear lights: vr_gearlights.cpp), or `units` off its face ("button
@@ -523,8 +525,9 @@ void mockLook_f()
 // other gun's ammo button, in front of its face, beside it or behind it, or `degrees` off its face (0 front, 180 behind)
 // turned `azimuth` degrees round it (vr_weapon_button_cone).
 
-// The thrown_weapon nearest the player (the server's: its qcvm pushed), or null.
-edict_t* nearestThrownWeapon()
+// The thrown_weapon nearest the player (the server's: its qcvm pushed), or null; `armed`: an armed monster's held
+// weapon (QC vr_ag_weapon) instead.
+edict_t* nearestThrownWeapon(bool armed = false)
 {
     edict_t* player = EDICT_NUM(1);
     edict_t* best = nullptr;
@@ -532,7 +535,7 @@ edict_t* nearestThrownWeapon()
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
-        if(e->free || strcmp(PR_GetString(e->v.classname), "thrown_weapon"))
+        if(e->free || strcmp(PR_GetString(e->v.classname), armed ? "vr_ag_weapon" : "thrown_weapon") || !e->v.modelindex)
         {
             continue;
         }
@@ -568,7 +571,9 @@ bool weaponSpot(int index, float height, glm::vec3& out)
     return true;
 }
 
-bool weaponPoint(float fraction, float height, glm::vec3& out)
+// `armed` (agweapon): an armed monster's held weapon, `fraction` from the end behind its grip (0, a gun's stock) to the
+// end ahead (1, its muzzle), at the middle of its slice there (in it, not on its top).
+bool weaponPoint(float fraction, float height, glm::vec3& out, bool armed = false)
 {
     if(!sv.active || svs.maxclients < 1)
     {
@@ -576,14 +581,16 @@ bool weaponPoint(float fraction, float height, glm::vec3& out)
     }
     qcvm_t* oldVm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldVm);
-    edict_t* best = nearestThrownWeapon();
+    edict_t* best = nearestThrownWeapon(armed);
     za::Vector<glm::vec3> verts;
     const bool found = best && held::drawnVertices(best, verts) && !verts.empty();
+    glm::vec3 ahead{1.f, 0.f, 0.f};
     const char* name = found ? PR_GetString(best->v.netname) : "";
     if(found)
     {
         // (In its axes from its origin: to the world.)
         const glm::mat3 axes = held::axesFromAngles(best->v.angles, false);
+        ahead = axes[0];
         const glm::vec3 origin{best->v.origin[0], best->v.origin[1], best->v.origin[2]};
         for(glm::vec3& v : verts)
         {
@@ -612,8 +619,14 @@ bool weaponPoint(float fraction, float height, glm::vec3& out)
         }
         return pick;
     };
-    const glm::vec3 a = farthest(centre);
-    const glm::vec3 b = farthest(a);
+    glm::vec3 a = farthest(centre);
+    glm::vec3 b = farthest(a);
+    if(armed && glm::dot(b - a, ahead) < 0.f)
+    {
+        const glm::vec3 t = a; // (0 behind, 1 ahead)
+        a = b;
+        b = t;
+    }
     const glm::vec3 axis = glm::normalize(b - a + glm::vec3{0.f, 0.f, 1e-6f});
     const glm::vec3 at = glm::mix(a, b, fraction);
     // Its slice there (the drawn points within a unit and a half along its length): their middle, and its top.
@@ -629,7 +642,7 @@ bool weaponPoint(float fraction, float height, glm::vec3& out)
             n++;
         }
     }
-    out = n ? glm::vec3{mid.x / n, mid.y / n, top} : at;
+    out = n ? glm::vec3{mid.x / n, mid.y / n, armed ? mid.z / n : top} : at;
     out.z += height * 0.01f * units::metresToUnits();
     Con_Printf("vr_mock_hand_to: %s, %.2f of the way along (%.1f units long): %.1f %.1f %.1f\n",
         name, fraction, glm::distance(a, b), out.x, out.y, out.z);
@@ -674,7 +687,8 @@ void moveHandTo(int hand, const glm::vec3& target)
 void mockHandTo_f()
 {
     const int hand = Cmd_Argc() >= 2 ? mockHand(Cmd_Argv(1)) : -1;
-    const bool weapon = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "weapon");
+    const bool agWeapon = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "agweapon");
+    const bool weapon = (Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "weapon")) || agWeapon;
     const bool spot = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "spot");
     const bool carried = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "carried");
     const bool inHeld = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "held");
@@ -1149,7 +1163,7 @@ void mockHandTo_f()
         return;
     }
     const float height = Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f;
-    if(weapon && !weaponPoint(Q_atof(Cmd_Argv(3)), height, target))
+    if(weapon && !weaponPoint(Q_atof(Cmd_Argv(3)), height, target, agWeapon))
     {
         Con_Printf("vr_mock_hand_to: no weapon lying about\n");
         return;

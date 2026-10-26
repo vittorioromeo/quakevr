@@ -440,6 +440,20 @@ void(entity g, entity p) VR_AG_PlacePropOld =
 
 void() VR_AG_PropHandTouch;
 
+// A held weapon's box (its model just set: its bounds): a cube round its origin (its grip) that holds the model however
+// it is turned, 2 units more, at least the old 10. The hands' touches find it by this box (vr_physics.cpp handTouches),
+// then a grab takes it only with the fist on its drawn surface (handOn): a grab anywhere on it, its muzzle and its stock
+// too (a 10-unit box left a shotgun's last 1-2 units and a long gun's barrel out of reach).
+void(entity p) VR_AG_PropSize =
+{
+    vector a;
+    a_x = max(fabs(p.mins_x), fabs(p.maxs_x));
+    a_y = max(fabs(p.mins_y), fabs(p.maxs_y));
+    a_z = max(fabs(p.mins_z), fabs(p.maxs_z));
+    float r = max(10, vlen(a) + 2);
+    setsize(p, '-1 -1 -1' * r, '1 1 1' * r);
+};
+
 // Every server frame: to its hand; gone with its grunt.
 void() VR_AG_PropThink =
 {
@@ -458,7 +472,7 @@ void() VR_AG_PropThink =
     if(self.model == "" && self.vr_agr_mdl != "")
     {
         setmodel(self, self.vr_agr_mdl);
-        setsize(self, '-10 -10 -10', '10 10 10');
+        VR_AG_PropSize(self);
         self.vr_agr_mdl = "";
     }
     if(g.vr_ag_prop2 == self && g.vr_ag && g.health > 0)
@@ -683,7 +697,7 @@ entity(entity g, float wid, float flags, entity inst) VR_AG_MakeProp =
     string m = AD_WeaponModel(wid, flags, p.weaponinst);
     precache_model(m);
     setmodel(p, m);
-    setsize(p, '-10 -10 -10', '10 10 10');
+    VR_AG_PropSize(p);
     p.handtouch = VR_AG_PropHandTouch;
     p.think = VR_AG_PropThink;
     p.nextthink = time;

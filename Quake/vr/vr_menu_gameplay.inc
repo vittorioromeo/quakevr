@@ -1231,6 +1231,11 @@ void armedGripsDragMode()
         slider("Tug: Stumble When Disarmed", vr_agrunt_tug_won_stumble, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 5.f)
             .help("How long it stumbles as you tear its weapon away, before it stands and fights on unarmed (a shove "
                   "or a leg sweep then still floors it) (vr_agrunt_tug_won_stumble)."),
+        slider("Tug: Let Go Past", vr_agrunt_tug_let_go, 20.f, 100.f, 5.f, "%.0f cm").extend(0.f, 300.f)
+            .help("Physical tug: your hand lets go of its weapon (you lose the tug) once your real hand is this far from "
+                  "where it holds it, pulled away or stepped back before its grip gives; till then your hand is drawn on "
+                  "the weapon. A hard yank's pull reaches about 40 cm before it tears the weapon out "
+                  "(vr_agrunt_tug_let_go; 0: 2.4 m, as before)."),
         slider("Grab: Precision", vr_agrunt_grab_slack, -2.f, 10.f, 0.5f, "%.1f cm").extend(-10.f, 50.f)
             .help("How far off its weapon's surface your fist may be and still grab it (0: touching it). Never by "
                   "its arm or chest (vr_agrunt_grab_slack)."),

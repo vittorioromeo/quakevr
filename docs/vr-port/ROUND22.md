@@ -22949,3 +22949,52 @@ file ("pivots identical, curl turns identical; the skin moved N units at most").
 
 Honest look: it reads as a slimmer, finer hand (fingers 14% narrower, longer nails on tapered tips), not a strongly
 different one; the knobs at the top of `make_hand_feminine.py` take it further.
+## The tug's hand stays on the weapon; the let-go; grabs along the weapon (worktree `gorefx`, branch `agent/tughand`, 2026-10-26)
+
+His note: in the tug-of-war his hand was drawn visibly off the enemy's weapon. Also: grab its gun anywhere on its model.
+
+**Cause** (not quite the ragdoll-drag one). The physical tug holds the monster's limb by a spring at your hand (a
+`RagdollGrab` with `tug`), and the drawn hand already followed that hold (`limbDrawnHand`, the ragdoll-drag fix, 30 cm
+stick), so it stayed on the *hold's* point, at your controller. The weapon, though, is drawn somewhere else: once the
+monster is a ragdoll, the client draws its weapon on the ragdoll's drawn hand bone by its grip frame (`ragdollProps`,
+vr_hitreact.cpp), while the server's weapon (where you grabbed it, and where the hold is) rides the forearm where QC had
+placed it. The ragdoll starts from the animation frame's arms, not the IK arms that drew the weapon, so the two lie
+18-24 cm apart (test 39, still: 18.9 cm at the grip, 18.4 at the stock end, 20.5 / 23.7 cm 0.3 / 0.6 along). The hand
+was also rested on the arm's mesh (`vr_ragdoll_hand_rest`) and its fingers closed round the arm, not the gun.
+**Fix** (vr_view_hands.cpp): `tugGrab` puts the hold's point (in the server weapon's frame) on the weapon as drawn;
+in a tug, `limbDrawnHand` draws the hand there (its turn still the limb's, clamped as before), not rested on the arm,
+held up to 1 m off its controller (it lets go long before); its grasp wraps the weapon (`held` is the weapon entity).
+The server, the hold's spring and its forces are unchanged.
+**The let-go** (`vr_agrunt_tug_let_go`, cm, default 50, archived; was the ragdoll grab's 64 units = 2.4 m for 0.5 s):
+the hand lets go at once (the tug lost, "torn away") once its controller is that far from the hold's point on the limb:
+pulled away, or you stepped back. The grunt follows your hand (its feet step), so the hold's lag stays small: 0.7 cm
+still, 21-23 cm in slow pulls and stepping back unbreakable, 40 cm in a 6 m/s yank (which wins by its snap at 2438 N,
+lag 39.8 cm). Default 50 keeps every win as before; 40 was too close.
+**Grab anywhere**: the weapon's box was a 20-unit cube round its grip; the hands' touches find it by its box (then
+`handOn`'s fist-on-surface test decides), so its far end was out of reach. `VR_AG_PropSize` (QC) sizes it to its
+model however turned (+2 units, at least 10). Stock end (0), 0.3, 0.6 of the way and the grip start the tug, the hand
+then on that spot (0.00 cm). **Open:** at 0.9 and 1.0 (the muzzle) the grunt has no weapon by the time the grip is
+pressed (test 39 prints `weapon 0 0 0`), with no disarm logged: not found yet (the hand put there in one frame: a blow
+is ruled out by `vr_ag_knock_at`).
+
+Debug: `vr_ragdoll_hand_probe` (Debug menu) prints in a tug the drawn hand and the controller to the grab on the drawn
+weapon (`quiet`: only the readings `vr_agrunt_tug_hand_gap` / `_reach`); `vr_agrunt_weapon_probe` (Debug menu,
+"Armed Monsters' Weapons: Drawn vs Server"): each held weapon drawn vs the server's (standing: 5.3 cm, 0 deg; in a
+tug's ragdoll ~19 cm). `vr_mock_hand_to main agweapon <fraction> [<cm>]`: the hand in an armed monster's weapon, 0
+behind its grip to 1 its muzzle.
+
+**Test 39** (`vr_agrunt_test 39`, `scratch1` unbreakable, `scratch2` fraction (-1 the grip), `scratch3` motion: 0
+still, 1/2/3/4/6/7 pulled at 0.2/0.6/1.5/3/6/10 m/s, 5 stepping back; scripts `scratch/th39.sh`, `th39_all.sh`):
+
+| case | drawn hand off its grab before | after | outcome (before = after) |
+| --- | --- | --- | --- |
+| still, grip / stock / 0.3 / 0.6 | 18.9 / 18.4 / 20.5 / 23.7 cm | 0.00 | held 2 s |
+| pull 0.2 / 0.6 / 1.5 / 3 m/s | 20.5 / 20.8 / 21.2 / 21.9 | 0.00 | won 2.31 / 1.15 / 0.62 / 0.35 s |
+| step back 0.5 m/s | 19.1 | 0.00 | won 1.32 s (pulled out) |
+| unbreakable, 3 m/s, let-go 10 / 20 | - | - | lost (torn away) at a lag of 10.0 / 22.2 cm |
+
+Tests 31 5/5, 32 5/5, 36 4/4, 37 8/8. eval.sh: canary 36/44, full 163/171 (4 differ, PASS -> PASS numbers only, as
+the baseline). The ragdoll drag's paths are unchanged by construction (only `tug` holds take the new branches).
+- [ ] Grab an armed grunt's gun (grip, barrel, stock) and tug: your hand stays on the gun where you took it; pull hard
+  or step back far without winning and it lets go. Say whether the hand's jump onto the gun as the tug starts (~20 cm)
+  reads wrong.
