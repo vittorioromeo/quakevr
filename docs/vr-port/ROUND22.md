@@ -22305,7 +22305,7 @@ The approved art (above, "Flare gun: the art") made a weapon, after the nail pis
   (hotTrail sparks) and smoke (`vr_flare_sparks` 1). The flare model is lit by its own fire (`VR_AliasLightModifier`).
   **Cost** (ThinLTO, exclusive, the dark hall, 3 flares: one stuck, one lying, one drifting): CPU busy 0.72 -> 0.74 ms,
   GPU 0.74 -> 0.75 ms with lights and sparks on against both off (dlight shadows 0.03 ms); sparks alone below noise.
-- **Found on crates:** `vr_crate_flaregun` 0.05 (the chance a crate's top with no crowbar gets a loaded flare gun),
+- **Found on crates:** `vr_crate_flaregun` 0.05, 0 since configVersion 207 (the chance a crate's top with no crowbar gets a loaded flare gun),
   `vr_crate_flaregun_max` 2; the crowbars' plan and fitting (`vr_crates.cpp planFlareGuns`, its own random numbers from
   the map's name and `vr_crates_seed`: the crates and crowbars the same whatever its chance; kept with the plan). No
   builtin numbers were left: `cratecrowbar(i)` now returns 2 for a flare gun (the crowbar's QC checks 1).
@@ -23299,7 +23299,7 @@ Automation's Spawn a Row) or `impulse 9`; `VR_Reload_MagNailsLayout` (magfill), 
 
 **Can the new weapons be found in a normal game (default settings)?**
 - Map spawns: no shipped map places `weapon_revolver`, `weapon_flaregun` or `weapon_nailpistol` (a custom map could).
-- Crates: yes, the flare gun: `vr_crate_flaregun` 0.05 (a free crate top's chance), at most `vr_crate_flaregun_max` 2 a
+- Crates: the flare gun, only if enabled (experimental: `vr_crate_flaregun` 0 by default since configVersion 207; was 0.05) (a free crate top's chance), at most `vr_crate_flaregun_max` 2 a
   map, with `vr_crates` 1 (single player).
 - Armed grunts: no by default. Replacements are off (`vr_agrunt_repl` 0); with them on, a nail pistol comes from
   `vr_agrunt_repl_common`, the revolver from `vr_agrunt_repl_rare` (both 0); a flare gun first from `vr_agrunt_flaregun`
@@ -23313,3 +23313,7 @@ scenes outside AD. `vr_scenario runall quit` (all 52): 50 OK, the two AD-map one
 `SCNPLACED ... 0 problems` each, eyeshots looked at: the metal crate ahead, ad_crucial's lit corridor). The
 beta4/new-weapon scenes alone: 14 run, 0 failed. `flaregun_crates`: 4 thrown_weapon edicts with `v_flaregun.mdl`.
 `vr_checklist` on the new list: 95 items, 9 sections.
+
+## Flare gun on crates off by default (crateflare)
+
+`vr_crate_flaregun` default 0.05 -> 0 (experimental for beta4); configVersion 207 (`defaultChanges`, vr_cvars.cpp) moves configs still at 0.05 to 0, any other chance stays. Menu help and docs updated; the `flaregun_crates` scenario sets the cvar itself (1).

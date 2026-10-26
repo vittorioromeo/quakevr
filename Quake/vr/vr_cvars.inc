@@ -1326,7 +1326,7 @@ QVR_CVAR(vr_crate_health_box, "0.2", CVAR_ARCHIVE)       // the chance a crate h
 QVR_CVAR(vr_crate_item_pop, "3.5", CVAR_ARCHIVE)        // how hard what a crate held pops out when it breaks (m/s: up, and a little outwards)
 QVR_CVAR(vr_crate_crowbar, "0.1", CVAR_ARCHIVE)          // the chance a crate placed about the map (the top of a stack) has a crowbar lying on it (next map)
 QVR_CVAR(vr_crate_crowbar_max, "4", CVAR_ARCHIVE)        // most crowbars on crates in a map
-QVR_CVAR(vr_crate_flaregun, "0.05", CVAR_ARCHIVE)        // the chance a crate placed about the map (the top of a stack, none on it) has a flare gun lying on it (next map)
+QVR_CVAR(vr_crate_flaregun, "0", CVAR_ARCHIVE)           // (experimental, off by default; was 0.05 until configVersion 207) the chance a crate placed about the map (the top of a stack, none on it) has a flare gun lying on it (next map)
 QVR_CVAR(vr_crate_flaregun_max, "2", CVAR_ARCHIVE)       // most flare guns on crates in a map
 QVR_CVAR(vr_crate_sight, "1", CVAR_ARCHIVE)              // 1: crates and explosive boxes lying about hide you from monsters (not one you carry)
 QVR_CVAR(vr_crate_shield, "2", CVAR_ARCHIVE)             // a crate you hold stops monsters' bullets (it takes them); 2: explosive boxes too; 2: an explosive box too (it blows up); 0: they pass through what you hold
