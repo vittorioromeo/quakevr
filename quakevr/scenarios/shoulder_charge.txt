@@ -1,8 +1,0 @@
-# shoulder_charge: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title A sprint lane: a grunt standing tall at its end
-map vrtesthall
-start 0 -450 25 90
-god
-notarget
-spawn "Grunt" 640 0
-spawn "Grunt" 680 120

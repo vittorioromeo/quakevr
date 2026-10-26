@@ -1,9 +1,0 @@
-title Idle grunt, knight, ogre and shambler, calm (Models: Rebuild From Skeleton, Smooth)
-map vrtesthall
-god
-notarget
-spawn "Grunt" 160 -120
-spawn "Knight" 160 -40
-spawn "Ogre" 160 40
-spawn "Shambler" 160 130
-hint Toggle Rebuild From Skeleton and Smooth (Models menu): watch the idle loops for twitches; a grunt's idle gun must not pulse with Ease 0.

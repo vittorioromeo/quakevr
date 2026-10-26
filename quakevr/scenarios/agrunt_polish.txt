@@ -1,6 +1,0 @@
-# agrunt_polish: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title vr_agrunt_test 7: a row of armed grunts (notarget)
-map vrtesthall
-god
-notarget
-cmd vr_agrunt_test 7

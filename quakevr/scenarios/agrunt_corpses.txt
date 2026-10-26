@@ -1,9 +1,0 @@
-# agrunt_corpses: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Three armed grunts; a shotgun and an axe in hand
-map vrtesthall
-god
-give "Shotgun" main
-give "Axe" off
-spawn "Armed Grunt: Shotgun" 300 -40
-spawn "Armed Grunt: Sword" 300 70
-spawn "Armed Grunt: Nailgun" 300 180

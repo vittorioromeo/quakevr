@@ -1,6 +1,0 @@
-# fuel_tanks: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title A flamethrower and a poison sprayer in hand
-map vrtesthall
-god
-give "AD Flamethrower" main
-give "AD Poison Sprayer" off
