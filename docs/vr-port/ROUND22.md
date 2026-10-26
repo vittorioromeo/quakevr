@@ -22626,3 +22626,14 @@ Ultra or its own mix takes 0.
   Two-Handed Aim Off brings back the old feel (the main hand alone).
 - [ ] Other weapons' cups (the nail pistol's): try Two-Handed Aim On (only a cup ahead of the holding hand aims).
 - [ ] Heat haze over lava and in fire: sharp (full size) on High and Ultra; the Medium preset shows Half Size.
+
+## Defaults of 2026-10-26: Ambient Light 0.1 (worktree `dequant`, branch `agent/ambient`; configVersion 206)
+
+Approved by Vittorio 2026-10-26 (his config): `vr_ambient_light` default 0 -> 0.1. It is the baked light's floor, a share of Quake's
+full light added to the lightmap before `vr_light_contrast` (vr_lighting.cpp, world shader), so dark places lift a little at any gamma.
+- Changed: `vr_cvars.inc` default; the menu rows (Graphics > Lights, slider 0..0.4) read the cvar; the Off graphics preset keeps 0
+  (Quake's look), Low and up take the default. Migration configVersion 206 (reason "his config, approved 2026-10-26"): a config at 0
+  -> 0.1; any other value stays (205 is the heat haze preset migration).
+- Synthetic configs at version 205: 0 -> 0.1; 0.3 stays 0.3; 0.1 stays; an empty (fresh) config gets 0.1. eval.sh: no takes, no verdict changes.
+- Eyeshots (e1m3 dark room, `scratch/amb_a0.png` / `amb_a01.png`): the shadowed walls and floor are slightly lifted at 0.1; the flat
+  screen (`vr_enabled 0`, `scratch/amb_flat01.png`) with the retro lighting on renders normally.

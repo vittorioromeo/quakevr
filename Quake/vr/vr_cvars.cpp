@@ -509,6 +509,9 @@ const DefaultChange defaultChanges[] = {
     // 204: Model Animation Smooth by default (approved 2026-10-25; ROUND22.md, "Defaults of 2026-10-25"): a config
     // still at Quake's Blend (1) takes Smooth (3); Stepped (0) stays.
     {204, &r_lerpmodels, "1"}, // 3
+    // 206: Ambient Light 0.1 by default (his config, approved 2026-10-26): a config still at 0 takes it; any other
+    // value stays.
+    {206, &vr_ambient_light, "0"}, // 0.1
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -555,8 +558,8 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // another slot, so that the shipped one's tuning reaches its model: props::takeShippedSlots; 202: AD's heads' slots,
 // and the armed grunts' archived pose keys and grips equal to the new shipped ones dropped: agpose::dropShippedEqual,
 // aggrip::dropDefaultEqual; 204: r_lerpmodels 1 -> 3, AD's heads Mass 0 -> -1; 205: vr_heat_haze_half 1 -> 0 unless
-// a graphics preset below High)
-constexpr int configVersion = 205;
+// a graphics preset below High; 206: vr_ambient_light 0 -> 0.1)
+constexpr int configVersion = 206;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;

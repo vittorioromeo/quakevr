@@ -49,7 +49,7 @@ constexpr Row presetRows[] = {
     {&vr_model_lighting,              {"0",     D,       D,       D,    D}},
     // The look: Quake's in Off, the defaults from Low up
     {&vr_light_contrast,              {"1",     D,       D,       D,    D}},
-    {&vr_ambient_light,               {"0",     D,       D,       D,    D}}, // Quake's maps have no fill light of their own
+    {&vr_ambient_light,               {"0",     D,       D,       D,    D}}, // Quake's maps have no fill light of their own (Off: none; the default, 0.1, from Low up)
     {&vr_bloom,                       {"0",     D,       D,       D,    D}},
     {&vr_bloom_fast,                  {D,       D,       D,       D,    "0"}}, // Ultra: the four-level glow
     {&vr_tonemap,                     {"0",     D,       D,       D,    D}}, // the float scene and tone curve (vr_tonemap.cpp)
