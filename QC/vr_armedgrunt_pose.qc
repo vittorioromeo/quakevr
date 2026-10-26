@@ -944,6 +944,12 @@ void(entity g, entity p, float left, float a, vector tl) VR_AGP_ArmsOne =
     vector sh2 = sh - '0 0 3' * (vr_am_arm / 16.7); // (the gun's sights at its eyes' line, the hand below them)
     vector hold = sh2 + normalize(tl - sh2) * (0.85 * reach);
     vector low = sh + normalize('0.35 0 -0.94' + side * 0.15) * (0.9 * reach);
+    if(cvar_hget(cvarh_vr_agarms_arm_clear))
+    {
+        // (vr_agarms_arm_clear: carried out from its side as the rest pose's arms hang, 19 degrees, and within its
+        // reach: its upper arm clear of its torso with the gun in its hand, not pulled straight against it)
+        low = sh + normalize('0.35 0 -0.94' + side * 0.35) * (0.8 * reach);
+    }
     vector at = VR_AGP_Lerp(low, hold, a);
     vector d = normalize(VR_AGP_Lerp(normalize('0.75 0 -0.65' + side * 0.1), normalize(tl - at), a));
     VR_AGP_Orient('1 0 0', d, '0 0 1', '0 0 1');
