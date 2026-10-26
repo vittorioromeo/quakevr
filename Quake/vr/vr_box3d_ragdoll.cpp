@@ -5,6 +5,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_agarms.hpp"
 
 namespace box3d::detail
 {
@@ -823,6 +824,16 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
         heldBy[static_cast<za::SizeT>(b)] = inHand && rig->bones[b].joint == ragdoll::Joint::Loose ? looseHolder(*rig, b) : -1;
     }
 
+    // Where each bone is drawn now: its frame's, an armed humanoid's arms where its posed arms were drawn (vr_agarms: on
+    // its weapons, not the frame's arms; a listen server's own drawing): the weapon then stays on its drawn hand as the
+    // ragdoll takes over (vr_hitreact.cpp ragdollProps), and a tug's hold on it stays under the hand that took it.
+    const auto drawnBone = [&](int b, glm::quat& rot, glm::vec3& pos) {
+        ragdoll::bonePose(*rig, drawnPose, b, rot, pos);
+        if(vr_ragdoll_posed_arms.value != 0.f)
+        {
+            (void)agarms::drawnArmBone(num, model, *rig, b, rot, pos);
+        }
+    };
     for(int b = 0; b < r.count; b++)
     {
         const ragdoll::Bone& bone = rig->bones[b];
@@ -833,7 +844,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
         ragdoll::bonePose(*rig, prevPose, src, prot, ppos);
         glm::quat drot;
         glm::vec3 dpos;
-        ragdoll::bonePose(*rig, drawnPose, src, drot, dpos);
+        drawnBone(src, drot, dpos);
         b3BodyDef def = b3DefaultBodyDef();
         def.userData = userOf(num);
         def.type = b3_dynamicBody;
@@ -911,8 +922,8 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
         }
         glm::quat rp, rc;
         glm::vec3 tp, tc;
-        ragdoll::bonePose(*rig, drawnPose, bone.parent, rp, tp);
-        ragdoll::bonePose(*rig, drawnPose, b, rc, tc);
+        drawnBone(bone.parent, rp, tp);
+        drawnBone(b, rc, tc);
         const glm::vec3 at = ((rp * bone.pivot + tp) + (rc * bone.pivot + tc)) * 0.5f;
         const glm::vec3 inParent = glm::inverse(rp) * (at - tp) * k, inChild = glm::inverse(rc) * (at - tc) * k;
         const glm::quat frame = ragpose::jointFrame(bone); // (a hinge's axis, else the bone's rest direction: z)

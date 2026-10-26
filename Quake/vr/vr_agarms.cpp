@@ -117,6 +117,11 @@ struct Ent
     double time{0.0};
     float on{0.f};
     rigpose::Rigid bones[agarms::numBones];
+    int rigBone[agarms::numBones]{-1, -1, -1, -1, -1, -1}; // ... the rig's bone each is (drawnArmBone)
+    // A ragdoll made from these arms (drawnArmBone): each hand's turn on its forearm then (a rig with no hand bone: the
+    // ragdoll's hand is its forearm's, ragdollWrist), until it is posed again.
+    bool ragArms{false};
+    rigpose::Rigid ragWrist[2];
     rigpose::Rigid chest; // the chest as drawn (rest -> now): the shoulders' blend
     glm::vec3 elbow[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // the last elbows (chest space, from the shoulder)
     bool haveElbow[2]{false, false};
@@ -1157,6 +1162,13 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         st->ent = num;
         st->model = e->model;
     }
+    st->ragArms = false;
+    for(int s = 0; s < 2; s++)
+    {
+        st->rigBone[3 * s] = spec.upper[s];
+        st->rigBone[3 * s + 1] = spec.fore[s];
+        st->rigBone[3 * s + 2] = m->side[s].handBone;
+    }
     const float dt = static_cast<float>(za::clamp(cl.time - st->time, 0.0, 0.25));
     st->time = cl.time;
     st->frame = host_framecount;
@@ -1531,6 +1543,49 @@ bool active(const entity_t* e)
         }
     }
     return st->on > 0.f;
+}
+
+bool drawnArmBone(int num, const qmodel_t* model, const ragdoll::Rig& rig, int bone, glm::quat& rot, glm::vec3& pos)
+{
+    Ent* st = num > 0 && bone >= 0 ? entOf(num, false) : nullptr;
+    // (posed last frame or the one before: a ragdoll made on the server's frame after the client's drawing)
+    if(!st || st->model != model || st->on <= 0.f || st->frame < 0 || host_framecount - st->frame > 2)
+    {
+        return false;
+    }
+    for(int k = 0; k < numBones; k++) // (a hand on its forearm's bone: the forearm's, found first)
+    {
+        if(st->rigBone[k] != bone)
+        {
+            continue;
+        }
+        const rigpose::Rigid drawn = compose(st->bones[k], rigpose::key(rig, 0, bone));
+        const float w = st->on * st->on * (3.f - 2.f * st->on); // (as drawn: rows' ease)
+        rot = glm::normalize(glm::slerp(rot, drawn.rot, w));
+        pos = glm::mix(pos, drawn.pos, w);
+        if(k % 3 == 1 && st->rigBone[k + 1] == bone)
+        {
+            // (its hand on this forearm's bone: the hand's turn on it kept for its weapon, eased as drawn)
+            const int side = k / 3;
+            const rigpose::Rigid wrist = compose(inverse(st->bones[k]), st->bones[k + 1]);
+            st->ragWrist[side].rot = glm::normalize(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, wrist.rot, w));
+            st->ragWrist[side].pos = wrist.pos * w;
+            st->ragArms = true;
+        }
+        return true;
+    }
+    return false;
+}
+
+bool ragdollWrist(int num, const qmodel_t* model, int side, rigpose::Rigid& out)
+{
+    const Ent* st = num > 0 && side >= 0 && side < 2 ? entOf(num, false) : nullptr;
+    if(!st || st->model != model || !st->ragArms)
+    {
+        return false;
+    }
+    out = st->ragWrist[side];
+    return true;
 }
 
 bool rows(const entity_t* e, const aliashdr_t* hdr, glm::vec4* out)

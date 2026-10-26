@@ -2407,8 +2407,13 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
             continue;
         }
         entity_t& p = cl_entities[num];
-        const rigpose::Rigid w = composeRigid(am->side[side].gripFrame,
+        rigpose::Rigid w = composeRigid(am->side[side].gripFrame,
             gripRigid(kind, weapons::slotForModel(p.model), side == 0 ? aggrip::Main : aggrip::Off));
+        // (Made from its posed arms, its hand on its forearm's bone: the hand's turn on it then, the weapon where it was.)
+        if(rigpose::Rigid wrist; agarms::ragdollWrist(numberOf(e), src, side, wrist))
+        {
+            w = composeRigid(wrist, w);
+        }
         const glm::vec3 at = rot * (scale * w.pos) + pos;
         const glm::quat wr = rot * w.rot;
         if(!placeable(rigpose::Rigid{wr, at - drawnOrigin(e, nullptr)}))
