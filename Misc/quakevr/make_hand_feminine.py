@@ -25,8 +25,9 @@
 #     tip: it stretches with them);
 #   - the palm: narrower about its middle towards the wrist (PALM_WIDTH), only its edges drawn in at the knuckles
 #     (the knuckles are the fingers' pivots), thinner from the back (PALM_THICK: the palm's side stays where the
-#     handles are); the ball of the thumb kept fuller (THENAR_KEEP); the wrist slimmer, the ring inside the forearm's
-#     cuff a little only (the bare forearm runs on into it: WRIST_*).
+#     handles are); the ball of the thumb kept fuller (THENAR_KEEP). The wrist and the heel of the hand are kept as
+#     they are: the bare forearm (progs/vrbody*_bare, make_vrbody.py) is fitted round the standard hand's wrist and
+#     reaches up its heel's edge, and a narrower heel shows its end (a slimmer wrist needs a slimmer forearm too).
 #
 # Run it again after editing the standard hand (it reshapes whatever hand_rig.md5mesh is). The feminine hand can be
 # edited in Blender itself as the standard one can (import hand_rig_f.md5mesh); then this refuses to overwrite it

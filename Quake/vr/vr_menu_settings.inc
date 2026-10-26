@@ -697,8 +697,8 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
             .help("The leather bracers on your forearms. Off: bare forearms with the wrist gadget strapped round the skin, running "
                   "on into the hands (with the jointed hand, vr_hand_rig 1: the default)."),
         cycle("Hand Shape", vr_hand_shape, {{0.f, "Standard"}, {1.f, "Feminine"}})
-            .help("The shape of your hands. Feminine: slimmer fingers and palm, finer knuckles, a slimmer wrist, tapered "
-                  "fingertips with longer nails. The joints are the same, so grips, weapons and reloads fit as before; "
+            .help("The shape of your hands. Feminine: slimmer fingers and palm, finer knuckles, tapered fingertips with "
+                  "longer nails. The joints are the same, so grips, weapons and reloads fit as before; "
                   "skin tone, gloves and nails work on both. Changes at once. On the jointed hands (vr_hand_rig 1: the "
                   "default); the older hands (vr_hand_rig 0) have one shape only."),
         header("Gloves"),

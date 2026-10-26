@@ -1959,7 +1959,11 @@ void info_f()
         Con_Printf("vr_hand_rig_info: the rig in use is the compiled one, bit for bit\n");
     }
     // The feminine shape against the standard one's file: its joints must be the same (only the skin round them moves).
-    if(shapeInUse() == FeminineShape && shapeState[StandardShape] == ShapeState::Ready)
+    if(shapeInUse() == FeminineShape && currentRigs[StandardShape].source == "compiled")
+    {
+        Con_Printf("vr_hand_rig_info: the standard hand's file isn't loaded yet (vr_hand_shape 0 loads it): no comparison\n");
+    }
+    else if(shapeInUse() == FeminineShape)
     {
         const Rig& s = currentRigs[StandardShape];
         bool samePivots = true, sameTurns = true;
