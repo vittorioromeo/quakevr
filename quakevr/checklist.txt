@@ -3,8 +3,6 @@
 
 [for beta4: test these first]
 # Default-on changes since v1.1.0-beta3, most important first; armed humanoids, the new weapons and dev-only tools are further down.
-Spectator camera skipped while the desktop window is minimized or hidden: VD's GPU overlay shows the saving (up to ~1.5 ms); restoring the window shows the camera at once
-Spectator camera with OBS: recording a covered (not minimized) window still works; Recording page: Resolution Scale steps 0.5x to 2x
 Autosaves: play a map a while: Load Autosave (main and pause menus; death menu, under Restart) lists this game's autosaves newest first; none is made while monsters are on you or health is low
 # -- Arcane Dimensions (experimental) --
 AD: hub, exits, ladders; shotgun/SSG/burst hits and damage; ammo pickups keep held weapon model; Projectile Rules Auto/Vanilla/AD
