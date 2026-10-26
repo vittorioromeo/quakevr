@@ -1,0 +1,12 @@
+# nailmags: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The nailgun's and super nailgun's
+# magazines with their top nails modelled (Misc/quakevr/make_mags.py top_nails), as the nail pistol's: the nailgun in
+# your main hand, the super nailgun in the off hand, the nail pistol lying beside you to compare, nails to spare.
+title Nailgun and super nailgun magazines: their modelled top nails
+map vrtesthall
+god
+notarget
+give "Nailgun" main
+give "Super Nailgun" off
+spawn "Nail Pistol" 40 -20
+cmd give n 200
+hint B/Y drops a gun's magazine: look at its top (two nails lying in the feed lips), take one from the pouch and look again, seat it. Fire one empty and drop it: it lies on the floor. The nail pistol beside you has the same nails.

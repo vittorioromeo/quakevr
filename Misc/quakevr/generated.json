@@ -597,7 +597,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_nail.mdl": {
-  "sha256": "d1d67c8d890ef0e7b9fbf858ec7eb8712eb8ba0e6892a37b1d10f51a79edb557",
+  "sha256": "9d426d4c6fd23bb090abb809123d699d76d9b1876466a6af1872fe6b59781db3",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_nail.mdl_0_norm.png": {
@@ -609,7 +609,7 @@
   "by": "make_nailpistol_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_lava.mdl": {
-  "sha256": "c781342fe2ae06050dd3a4ef7e6605d8ba67bccbed87178abeee7f260e9bca84",
+  "sha256": "40897f8e7cc5a8a433e0c7a16969dc6b71fc7ad5b37c75394a6b838fcbacfeff",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_lava.mdl_0_norm.png": {
@@ -617,7 +617,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_lava2.mdl": {
-  "sha256": "02cd4b306bd2121b45ce2cdbf9a6eed8d2e5b700c82e5d5ec5f791d81694cf40",
+  "sha256": "9c22bc6c7cc6d2d1eb8e988e3c5d7ef6be3f05db57734fd822f8c0165813e78d",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_lava2.mdl_0_norm.png": {
@@ -633,7 +633,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_nail.mdl": {
-  "sha256": "ca664874f97bbcae6a55d4ad766bef186e19c8f7ea7e7055330ea467ca440992",
+  "sha256": "44353725faeb195ad478c2ad46ebd2b061d107f6012cb8df08ded278aaa61173",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_nail.mdl_0_norm.png": {
@@ -641,7 +641,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_nail2.mdl": {
-  "sha256": "ee1a03758cc3b11f2ca26ec163ec4af633d6d519f337275eb1eeb447630b73d9",
+  "sha256": "23a6ee1f4b5094cee20ec05af33ff2aec2216c507c8a4d66cd6637d843166ea6",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_nail2.mdl_0_norm.png": {
@@ -661,7 +661,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_snail.mdl": {
-  "sha256": "cd1e4b9fe3f30783fc044247219692c88a197185c5963f696c6fb887d535f8f8",
+  "sha256": "71510acd3a6ebba23a9c8579dacdb92ccf710692e9faf764929676621310b54d",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_snail.mdl_0_norm.png": {
@@ -669,7 +669,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_lava.mdl": {
-  "sha256": "f246dcb15f4192aa1d5b3ce75a80bd37c89d3f2d0a2f44714186112ae444d0c4",
+  "sha256": "312801fd4e4953fce325e3b4e38670885cde0426ebf282a6b6f998921cfae1ca",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_lava.mdl_0_norm.png": {
@@ -677,7 +677,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_lava2.mdl": {
-  "sha256": "08c9d694c2933375361e3ff42d54af201e6a7161c34602cd52bcac65f12aaf64",
+  "sha256": "13616ed45b3e3a198d8c430b633082779ae2574794144a4e5b3f70634c62fb92",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_lava2.mdl_0_norm.png": {
@@ -685,7 +685,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_light.mdl": {
-  "sha256": "34fd822354a889f1286134cbeb7e81ec98f6057ea687ea9855c2fe226f9d4c0a",
+  "sha256": "20ad1906a4598470c841f6b161bcc668bfd0d1ffbaadabc1198b1644fc3185bd",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_light.mdl_0_norm.png": {
@@ -693,7 +693,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_nail.mdl": {
-  "sha256": "f246dcb15f4192aa1d5b3ce75a80bd37c89d3f2d0a2f44714186112ae444d0c4",
+  "sha256": "312801fd4e4953fce325e3b4e38670885cde0426ebf282a6b6f998921cfae1ca",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_nail.mdl_0_norm.png": {
@@ -701,7 +701,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_nail2.mdl": {
-  "sha256": "08c9d694c2933375361e3ff42d54af201e6a7161c34602cd52bcac65f12aaf64",
+  "sha256": "13616ed45b3e3a198d8c430b633082779ae2574794144a4e5b3f70634c62fb92",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_nail2.mdl_0_norm.png": {
@@ -709,7 +709,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_magwell_on_v_plasma.mdl": {
-  "sha256": "34fd822354a889f1286134cbeb7e81ec98f6057ea687ea9855c2fe226f9d4c0a",
+  "sha256": "20ad1906a4598470c841f6b161bcc668bfd0d1ffbaadabc1198b1644fc3185bd",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_magwell_on_v_plasma.mdl_0_norm.png": {
