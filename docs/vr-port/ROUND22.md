@@ -22803,3 +22803,28 @@ his to tune. The holsters' poses are unchanged and not looked at in game (the mo
 - The flick's angle must come within the window of its start; an older accumulation restarts from the current frame (QC `VR_Revolver_FlickRate`, fields `rvh_fot`/`rvh_fct`).
 - Measured: the default flick (30 deg at 350 deg/s) takes 7 frames = 0.097 s, so 0.25 s leaves it unchanged. `vr_rv_test 1`: 28 + 2 new checks (slow 30 deg roll over 0.6 s: nothing at window 0.25, out after 44 frames at window 1; default flick time) = 30/0. `menu_vr links`: 0 failed. eval canary: 0 differ.
 - Note: run `vr_rv_test` as `map vrtesthall;wait30;developer 1;vr_rv_test 1` (a long trailing wait made step 2 fail here).
+
+## FTEQCC crash after a compile error (worktree `dequant`, branch `agent/qccrash`, 2026-10-26)
+
+- **Cause:** an upstream FTEQCC bug that stock `f937b9d88` has too. Once any compile error has been reported, the next
+  `#include` (`QCC_PR_Precompiler`, `engine/qclib/qcc_pr_lex.c:1036`; `#includelist` at :988) aborts with
+  `QCC_PR_ParseError(0, NULL)`, and `QCC_PR_ParseError` (:4163) ran `QC_vsnprintf` on that NULL format before its
+  `if (error)` check. Stock dies with 0xC0000005, our MSVC-CRT build with 0xC0000409. The "X is not a member of Y" error
+  (`qcc_pr_comp.c:10716`, `QCC_PR_ParseError(ERR_BADMEMBER, NULL)`) crashes the same way.
+- **The revolver incident:** `bound(...)` is undeclared in our QC (`Unknown value "bound"`). The error is printed, and
+  then the compiler crashes at `honey_defs.qc`'s `#include "vr_macros.qc"`. The trailing `//` comment played no part.
+  So any QC error in a progs.src file before honey_defs.qc ended in a crash rather than "compilation errors".
+- **Minimal repro** (progs.src `min.dat` / `min.qc`): `void() f = { undeclared(); };` then `#include "inc.qc"`.
+- **Fix:** the fork's branch `qcc-perf-parseerror-null`, commit `c1c874d` (on `16508e8`, in `C:\OHWorkspace\tools\fteqw-main`,
+  not pushed): the message is formatted only when there is one. `Tools/fteqcc/fteqcc64.exe` was rebuilt with the
+  README's command and stamp. On the whole QC tree, progs.dat, the compile log and the `-Fwasm` listing are
+  byte-identical to stock's, and build.sh's compiler check and precedence check pass.
+- **Test:** `Tools/fteqcc/test_fteqcc.py` covers include-after-error, bad member, and a control case that compiles.
+  The kit's build.sh runs it whenever the compiler or the test changes, and a failure fails the build. Old and stock
+  compilers: 1 passed, 2 failed. The new one: 3 passed, 0 failed.
+- **Upstream issue (for Vittorio to file himself if he wants):** "qcc: crash after the first compile error when an
+  #include follows. QCC_PR_ParseError(0, NULL) is used as a silent abort (#include/#includelist after an error, and
+  the 'is not a member of' error), but QCC_PR_ParseError calls QC_vsnprintf(string, ..., error, argptr) before
+  checking `if (error)`, so vsnprintf gets a NULL format: an access violation, or an invalid-parameter fast-fail on
+  MSVC CRT builds. Repro: progs.src `min.dat` / `min.qc`, where min.qc is `void() f = { undeclared(); };` followed by
+  `#include "inc.qc"`. Expected: the error, then 'compilation errors'. Actual: a crash right after the error line."
