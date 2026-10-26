@@ -63,6 +63,9 @@ float vr_am_arm;            // ... an arm from its shoulder to its wrist (units)
 vector vr_am_grip_r;        // its hands' grips at rest (on its own gun: its rest pose's hold, the wrists as the artist made them)
 vector vr_am_grip_l;
 vector vr_am_gun_fw;        // ... its own gun's way at rest
+// Its fighting distance (vr_armedgrunt.qc VR_AG_Ranges, vr_agrunt_range):
+float vr_am_range;          // its weapons' distances times this (under 1: it holds its ground nearer),
+float vr_am_range_threat;   // ... its least and best times this while you hold a melee weapon or charge it
 
 void(float k) VR_AM_Row =
 {
@@ -111,6 +114,8 @@ void(float k) VR_AM_Row =
         vr_am_grip_r = '3.3 -5.5 11';
         vr_am_grip_l = '8.7 11.6 13.4';
         vr_am_gun_fw = '0 0.984 0.18';
+        vr_am_range = 0.85; // (armoured, it holds its ground more than a grunt)
+        vr_am_range_threat = 1.2;
         return;
     }
     // The grunt (the first row; k 0, an armed grunt from before the table): Quake VR's soldier.mdl, the gun's vertices
@@ -152,6 +157,8 @@ void(float k) VR_AM_Row =
     vr_am_grip_r = '5.7 -3.6 4.8';
     vr_am_grip_l = '11.8 5.5 1.9';
     vr_am_gun_fw = '0.394 0.888 -0.235';
+    vr_am_range = 1;
+    vr_am_range_threat = 1.4;
 };
 
 // The right hand's middle and the hidden gun's points of `g` as drawn now (modelvertex; trace_fraction 0: not now).

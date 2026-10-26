@@ -230,6 +230,12 @@ za::Vector<Item> pageDebugAutomation()
                   "hands shot 100 times a case (shotguns at 2, 5 and 15 m, a nail burst, single far shots, lightning, "
                   "hand only, weapon only, the volumes' size, absorbing, dual wielding): each case's disarm rate printed "
                   "(agshot: ...) and the defaults' targets checked (PASS/FAIL). scratch1: trials a case."),
+        command("Armed Grunts: Fighting Distance", "vr_agrunt_test 47")
+            .help("vr_agrunt_test 47 (vrtesthall's start; under 3 minutes): an armed grunt per weapon (shotguns, nail "
+                  "guns, lightning, rockets, the grunt's and enforcer's guns, an axe) 260 units ahead hunting you, 6 s "
+                  "each with you standing, walking at it and charging it with an axe: its distance (least, mean), its "
+                  "time within your reach, its shots fired walking (vr_agrunt_range; 0 to compare). scratch1 N: weapon "
+                  "N alone; vr_agrunt_test_kind 1: enforcers."),
         command("Armed Grunts: They Parry Your Blows", "vr_agrunt_test 60")
             .help("vr_agrunt_test 60 (vrtesthall; a few seconds): a sword grunt facing you takes blows swept through "
                   "its weapon (parried: damage cut, the ring), its head and its legs (full damage), a second parry in a "

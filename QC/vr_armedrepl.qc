@@ -600,6 +600,7 @@ void() VR_AGR_NatStep =
     {
         return;
     }
+    VR_AG_WalkFire(0.1, TRUE); // (walking as it fires: its fighting distance, vr_armedgrunt.qc)
     if(s >= 3)
     {
         vr_ag_aim_mult = -1; // (its gun drawn on its target: no aim error, the monster's own shots have their own)

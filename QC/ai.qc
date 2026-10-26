@@ -1297,6 +1297,10 @@ void(float dist) ai_run =
         return; // stay in this room; there is no portal-aware navigation
     }
 
+    // VR: an armed humanoid with a gun keeps its weapon's fighting distance (vr_armedgrunt.qc, vr_agrunt_range).
+    if(self.vr_ag && VR_AG_RangeMove(dist))
+        return;
+
     if(self.attack_state == AS_SLIDING)
     {
         ai_run_slide();

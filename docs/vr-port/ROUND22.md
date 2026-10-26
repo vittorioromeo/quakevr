@@ -23209,3 +23209,68 @@ Checklist (suggested):
 - [ ] Rig Studio: Pose Keys (O) on the shotgun grunt in Aim: click the right weapon's dot, drag its arrows and rings,
   the elbow, the torso's rings; the arms stay on the gun, the window's numbers follow; Ctrl+Z puts each back; Pickup:
   the pelvis and the feet.
+
+## Armed humanoids' fighting distance (worktree `gorefx`, branch `agent/agrange`, 2026-10-26)
+
+Note 2026-10-26 22:19:49 (vrfiringrange): armed humanoids with guns ran into melee range (the grunt's `ai_run` heads
+straight for you; they stood still to fire). Now a gun's holder keeps its weapon's distance (QC `vr_armedgrunt.qc`,
+"Its fighting distance": `VR_AG_RangeOf`, `VR_AG_Ranges`, `VR_AG_RangeMove`, `VR_AG_WalkFire`; hook in `ai.qc ai_run`
+after `CheckAnyAttack`, so the attack decisions are unchanged and only the moves between attacks differ).
+
+| weapon (class) | least | best | most |
+| --- | --- | --- | --- |
+| super shotgun (and the Widowmaker) | 96 | 150 | 260 |
+| shotgun, pistols, flare gun, other single-shot guns | 128 | 220 | 380 |
+| burst guns (the grunt's burst rifle, AD plasma, centurion) | 160 | 300 | 480 |
+| thunderbolt | 140 | 240 | 400 |
+| nail guns, laser cannon | 224 | 380 | 600 |
+| enforcer's laser rifle, AD crossbow | 192 | 340 | 560 |
+| launchers | blast range + 40 | + 190 | + 440 |
+| flamethrowers (AD pyro, fumigator) | 80 | 45% of the stream | 75% |
+| melee weapons, fists | closes in as before | | |
+
+- Beyond the most: as before (its path, `movetogoal`). Between best + 40 and the most: on at a slant (enemy yaw +-35).
+  About its best: strafes round you facing you (turning round every 1.5-3.5 s or when blocked; boxed in, it holds).
+  Nearer than its least (and on until halfway to its best): backs off facing you (+-30 degrees, 0.85 of its run's
+  step, the full step when threatened); the way back shut: along the wall; hemmed in: as before (its shove, its butt).
+  Every step is `walkmove` (fails on a wall or a ledge: nothing moves).
+- Threatened (a melee weapon in either of your hands, or you coming at it faster than 180 u/s: wary 1.5 s): its least
+  and best times the row's `vr_am_range_threat` (grunt 1.4, enforcer 1.2). Below 35% of its health: x1.2.
+  Per kind (`vr_armedmon.qc` row): `vr_am_range` grunt 1, enforcer 0.85 (holds its ground nearer).
+- Walking fire (`vr_agrunt_range_walkfire`, 50 u/s): every aiming frame (its own and a replacement's native frames) steps
+  on (not with a launcher), back (x1.3, x1.6 threatened) or round you by the same bands; a reload's frames step back
+  while nearer than its best. The attack's legs are its standing frames: it glides a little (check in VR).
+- Cvars (archived, VR Settings > armed humanoids' Behaviour): `vr_agrunt_range` 1 ("Keep Their Distance"; 0 the old
+  way), `vr_agrunt_range_scale` 1, `vr_agrunt_range_walkfire` 50 (0: stands to fire).
+
+**Test** `vr_agrunt_test 47` (Debug > Tests > Armed Grunts: Fighting Distance; `vr_armedgrunt_range_test.qc`): per weapon
+a grunt 260 units ahead hunting you, 6 s each: you standing, walking at it at 80 u/s, charging it at 280 u/s with an
+axe. Checked: standing, a gun never within 64 and its mean at least 80% of its least; the axe still reaches you.
+`scratch1 N [scratch2 M]` weapons N..M. Before = `vr_agrunt_range 0` (5 of 9 standing checks fail), after: 9/9.
+
+| grunt, 6 s | standing: mean / least / s within 64 | walking at it | charging, axe (s within 64) |
+| --- | --- | --- | --- |
+| shotgun | 114 / 36 / 1.65 -> 246 / 236 / 0 | 80 / 36 / 3.28 -> 136 / 110 / 0 | 4.12 -> 5.18 |
+| super shotgun | 185 / 138 / 0 -> 199 / 180 / 0 | 77 / 43 / 3.64 -> 81 / 47 / 3.36 | 4.81 -> 4.81 |
+| nailgun | 100 / 40 / 1.78 -> 269 / 243 / 0 | 84 / 36 / 3.28 -> 217 / 198 / 0 | 4.15 -> 5.07 |
+| super nailgun | 125 / 104 / 0 -> 256 / 236 / 0 | 75 / 36 / 3.75 -> 213 / 155 / 0 | 4.28 -> 5.07 |
+| thunderbolt | 156 / 67 / 0 -> 281 / 236 / 0 | 86 / 36 / 2.67 -> 145 / 120 / 0 | 4.19 -> 5.12 |
+| rocket launcher | 262 / 175 / 0 -> 320 / 236 / 0 | 182 / 156 / 0 -> 225 / 211 / 0 | 5.17 -> 5.04 |
+| grunt's burst rifle | 81 / 30 / 3.61 -> 173 / 132 / 0 | 54 / 31 / 5.07 -> 92 / 31 / 3.42 | 4.90 -> 5.07 |
+| enforcer's rifle | 83 / 30 / 2.99 -> 231 / 228 / 0 | 55 / 30 / 5.07 -> 95 / 31 / 3.54 | 5.54 -> 5.07 |
+| axe (unchanged code) | 84 / 44 / 3.08 -> 83 / 44 / 3.29 | (after) 54 / 31 / 5.07 | (after) 5.54 |
+
+(Runs differ a little from run to run: the burst rifle standing was 81 / 30 / 3.61 and 89 / 31 / 3.03 in two
+`vr_agrunt_range 0` runs. The last before-run timed out after the axe's first case: the author's game was running and
+these runs went at ~1/7 of real time.)
+
+Shots: about the same count (shotgun 3, nailgun 15-24, super nailgun 18, thunderbolt 15-20); fired while moving 0
+before, every one after. Notes: the grunt's and enforcer's guns are single-use for a spawned grunt (`VR_AG_SingleUse`):
+after one attack it throws it away and closes in with its fists ("holding nothing"), hence their walking rows. The
+super shotgun's least (96) lets a walking player in during its reloads (it steps back at 50 u/s). A charge at 280 u/s
+can't be outrun (its run is ~110 u/s): it is in reach about as long as before, now backing off and firing instead of
+standing. Armed grunt test 1: 17/17. eval.sh: canary 36/44 and full 163/171 as the baseline; the differences are
+PASS -> PASS with 0.1 drift in the takes' speeds (14 and 17 in two runs: noise), no verdict changes.
+- [ ] Armed grunts and enforcers with shotguns, nail guns, the thunderbolt: they no longer run into your reach; they
+  hold their weapon's distance strafing and firing, a super shotgun close; walk at them and they back off firing,
+  further with an axe or a sword in your hand. Their walking fire's slide (Walking Fire 50 u/s) looks right or not.

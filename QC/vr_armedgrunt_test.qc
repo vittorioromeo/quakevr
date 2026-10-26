@@ -1345,6 +1345,7 @@ void() VR_AGTest_DualRow =
 
 void() VR_AGPar_Test; // (vr_armedgrunt_parry_test.qc)
 void() VR_AGTest_Glitch; // (vr_armedgrunt_glitch_test.qc)
+void() VR_AGRG_Frame; // (vr_armedgrunt_range_test.qc)
 void(float t) VR_AGBT_Frame; // (vr_armedgrunt_bugs_test.qc)
 void(float t) VR_AGCT_Frame; // (vr_armedgrunt_close_test.qc)
 void(float t) VR_AGRT_Frame; // (armed humanoid replacements: vr_armedrepl_test.qc)
@@ -1406,6 +1407,7 @@ void() VR_AGTest_Frame =
     else if(t == 44) { VR_AGTest_DualRow(); }
     else if(t == 45) { VR_AGTest_Sheet(); } // (the arms' contact sheet: vr_agarms)
     else if(t == 46) { VR_AGTest_Glitch(); } // (the glitch finder: vr_armedgrunt_glitch_test.qc)
+    else if(t == 47) { VR_AGRG_Frame(); } // (their fighting distance: vr_armedgrunt_range_test.qc)
     else if(t == 4) { VR_AGTest_State(); }
     else if(t >= 20 && t <= 39) { VR_AGPT_Frame(t); } // (the gameplay tests: vr_armedgrunt_play_test.qc)
     else if(t >= 50 && t <= 59) { VR_AGS_TestFrame(t); } // (shooting the weapon out: vr_armedgrunt_shot_test.qc)
