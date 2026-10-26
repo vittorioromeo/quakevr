@@ -635,6 +635,11 @@ def bake(objs, w, h):
     return [tuple(max(0, min(255, int(round(c[k])))) for k in range(3)) if c is not None else (40, 34, 28) for c in tex]
 
 
+# Every painted colour above is scaled by this before it is matched to the palette (his notes 2026-10-26: "a bit darker
+# still"): the last pass was 0.8, this one another 0.82, judged in the game.
+SKIN_DARKEN = 0.82
+
+
 def save_image(name, texels):
     q = export_mdl.qpal.Quantizer()
     pal = export_mdl.qpal.PALETTE
@@ -642,7 +647,7 @@ def save_image(name, texels):
     px = [0.0] * (SKIN_W * SKIN_H * 4)
     for t in range(SKIN_H):
         for s in range(SKIN_W):
-            c = pal[q.nearest(texels[t * SKIN_W + s], False)]
+            c = pal[q.nearest(tuple(v * SKIN_DARKEN for v in texels[t * SKIN_W + s]), False)]
             i = ((SKIN_H - 1 - t) * SKIN_W + s) * 4
             px[i:i + 4] = [c[0] / 255.0, c[1] / 255.0, c[2] / 255.0, 1.0]
     img.pixels = px

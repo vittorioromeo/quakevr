@@ -22637,3 +22637,14 @@ full light added to the lightmap before `vr_light_contrast` (vr_lighting.cpp, wo
 - Synthetic configs at version 205: 0 -> 0.1; 0.3 stays 0.3; 0.1 stays; an empty (fresh) config gets 0.1. eval.sh: no takes, no verdict changes.
 - Eyeshots (e1m3 dark room, `scratch/amb_a0.png` / `amb_a01.png`): the shadowed walls and floor are slightly lifted at 0.1; the flat
   screen (`vr_enabled 0`, `scratch/amb_flat01.png`) with the retro lighting on renders normally.
+
+### Widowmaker skin: another 15% darker (worktree `goreflesh`, branch `agent/wmdark`, 2026-10-26)
+His note: "a bit darker still, a bit too bright". `build_widowmaker.py` `SKIN_DARKEN` 0.82 scales every painted colour before
+it is matched to Quake's palette (never fullbright), then regenerates the .blend, skin, palette skin and both MDLs
+(same 2592 triangles, no geometry change). Skin brightness (8-bit luma): mean 46.2 -> 39.1 (-15%), p90 75 -> 62.5,
+p99 107 -> 91, max 157 -> 130; the bore and mortar stay above black. Rust, rivet highlights, brick mortar and the brass
+collars still read in the game; the relief (made from the skin at load) shows the grooved bars and raised rivets as before.
+Before/after: `Misc/quakevr/models_src/widowmaker/renders/darker_before_after.png` (left before, right after; the render
+`three_quarter` in one row, the held eyeshot `vr_ad_test 98` from the side in the other).
+Checked: `vr_ad_test 148` PASS (16 of 16), `149` 11/11 PASS (`vr_weapon_grip_mode 1`, ad_dm1, `-game ad`); eval.sh no verdict changes.
+- [ ] Hold the Widowmaker in a lit and a dark room: darker than before, still rust, rivets, bricks and brass readable.
