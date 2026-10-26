@@ -72,9 +72,20 @@ struct Scenario
     za::Vector<za::String> cmds;
 };
 
+// A spawn line's entity as placed: runall checks it is still there (or, freed, that what it made stands at its spot:
+// a func_weapon_grabbable makes its weapon as a new entity).
+struct Placed
+{
+    int num{0};
+    int line{0};
+    int classname{0}; // its string_t then
+    glm::vec3 at{0.f};
+};
+
 // The scenario running (or the last), the settings it changed (their values before), the errors of the last file read.
 struct State
 {
+    za::Vector<Placed> placed;      // the current placing's spawn lines' entities
     Scenario run;
     za::String lastHint;            // Reset Test's hint (the checklist line's)
     za::Vector<Setting> saved;      // each setting changed: its value before (put back)
@@ -84,7 +95,7 @@ struct State
     za::String error;               // lastError()
     za::String hint;                // the hint shown
     za::Vector<const char*> live;   // while the config is written: each changed setting's own string (put back after)
-    auto members() { return qvr::mem::list(run, lastHint, saved, errors, notes, queue, error, hint, live); }
+    auto members() { return qvr::mem::list(placed, run, lastHint, saved, errors, notes, queue, error, hint, live); }
 };
 mem::Cache<State> state{"scenario", mem::Never};
 
@@ -208,12 +219,14 @@ void error(int line, const char* text)
 }
 
 // The toolgun's spawn list entry with that label (any case), or else the first one of that classname with no key set
-// (the plain one); -1 none.
+// (the plain one); -1 none. By its plain name: spawnableLabel() is the panel's text, "> " before the toolgun's selected
+// entry (his beta4 pass, 2026-10-26: the entry he had picked, "Nailgun", then "AD Widowmaker", failed every scene
+// naming it; validate's selection check guards it).
 [[nodiscard]] int findEntry(const char* what)
 {
     for(int i = 0; i < toolgun::spawnableCount(); i++)
     {
-        if(!q_strcasecmp(toolgun::spawnableLabel(i), what))
+        if(!q_strcasecmp(toolgun::spawnableName(i), what))
         {
             return i;
         }
@@ -625,6 +638,7 @@ void place()
     placedAt = qcvm->time;
 
     const glm::vec3 feet{p->v.origin[0], p->v.origin[1], p->v.origin[2] + p->v.mins[2]};
+    state.placed.clear();
     const float a = glm::radians(yaw);
     const glm::vec3 fwd{glm::cos(a), glm::sin(a), 0.f};
     const glm::vec3 left{-fwd.y, fwd.x, 0.f};
@@ -662,6 +676,7 @@ void place()
             continue;
         }
         made++;
+        state.placed.pushBack(Placed{NUM_FOR_EDICT(e), sp.line, e->v.classname, glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]}});
         Con_DPrintf("vr_scenario: line %d: \"%s\" (edict %d) at %.0f %.0f %.0f\n", sp.line, sp.what.cStr(),
             NUM_FOR_EDICT(e), e->v.origin[0], e->v.origin[1], e->v.origin[2]);
     }
@@ -749,6 +764,28 @@ void validate()
             printErrors(id.cStr());
         }
     }
+    // Each available toolgun entry found by its name while it is the toolgun's selection (the panel's label then has
+    // "> " before it: his beta4 pass's "not started"). The selection put back.
+    const int wasSelected = toolgun::selectedSpawnable();
+    int lookups = 0, lost = 0;
+    for(int i = 0; i < toolgun::spawnableCount(); i++)
+    {
+        if(!toolgun::spawnableAvailable(i))
+        {
+            continue;
+        }
+        toolgun::selectSpawnable(i, false);
+        const int found = findEntry(toolgun::spawnableName(i));
+        lookups++;
+        if(found < 0 || q_strcasecmp(toolgun::spawnableName(found), toolgun::spawnableName(i)) != 0)
+        {
+            lost++;
+            Con_Printf("SCNERR|toolgun|0|\"%s\" not found while selected\n", toolgun::spawnableName(i));
+        }
+    }
+    toolgun::selectSpawnable(wasSelected, false); // (a picked thing not in the list comes back as nothing)
+    bad += lost ? 1 : 0;
+    Con_Printf("SCNSEL|%d entries found while selected|%d not\n", lookups - lost, lost);
     checklist::refresh(true);
     int tags = 0, missing = 0;
     for(int i = 0; i < checklist::itemCount(); i++)
@@ -980,6 +1017,27 @@ void frame()
             held = held && (givenWeapon[1] == now[1] || givenWeapon[1] < 0.f);
             Con_Printf("SCNHANDS|%s|%s|after %.1f s|main given %.0f now %.0f|off given %.0f now %.0f\n", state.run.id.cStr(),
                 held ? "HELD" : "LOST", sv.qcvm.time - placedAt, givenWeapon[1], now[1], givenWeapon[0], now[0]);
+            // What the spawn lines placed is still there: the same entity, or (freed: it made another) something else
+            // standing within 64 units of its spot.
+            int there = 0;
+            for(const Placed& pl : state.placed)
+            {
+                const edict_t* e = pl.num < qcvm->num_edicts ? EDICT_NUM(pl.num) : nullptr;
+                bool ok = e && !e->free && e->v.classname == pl.classname;
+                for(int n = 1; !ok && n < qcvm->num_edicts; n++)
+                {
+                    const edict_t* o = EDICT_NUM(n);
+                    ok = !o->free && o != p && o->v.modelindex != 0.f &&
+                         glm::distance(glm::vec3{o->v.origin[0], o->v.origin[1], o->v.origin[2]}, pl.at) < 64.f;
+                }
+                there += ok ? 1 : 0;
+                if(!ok)
+                {
+                    note(va("line %d: what it placed is gone after %.1f s", pl.line, sv.qcvm.time - placedAt));
+                }
+            }
+            Con_Printf("SCNKEPT|%s|%d of %d placed still there\n", state.run.id.cStr(), there,
+                static_cast<int>(state.placed.size()));
         }
         if(!held)
         {
