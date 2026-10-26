@@ -23,7 +23,7 @@
 {"progs/v_flaregun.mdl", {1.15f, 0.f, 6.132f}, {11.75f, 0.f, 6.132f}},
 // The heavy revolver: its modelled sights (Misc/quakevr/models_src/revolver/README.md, the Body's frame): the rear notch's
 // top, the front blade's top, 2.12 over the bore.
-{"progs/v_revolver.mdl", {3.764f, 0.f, 9.178f}, {16.714f, 0.f, 9.178f}},
+{"progs/v_revolver.mdl", {3.764f, 0.f, 9.178f}, {20.314f, 0.f, 9.178f}},
 // AD support: AD's crossbow (turned, vr_adguns.cpp): along its rail, just over the string's latch (measured on AD 1.80p1).
 {"progs/w_dcrossbow.mdl#gun0", {0.00f, 0.f, 4.39f}, {26.00f, 0.f, -0.64f}},
 {"progs/w_dcrossbow.mdl#gun", {0.00f, 0.f, 4.39f}, {26.00f, 0.f, -0.64f}},

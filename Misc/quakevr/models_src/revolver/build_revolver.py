@@ -9,7 +9,7 @@
 # not this.
 #
 # Units are Quake model units, as Quake's view weapons (v_nail.mdl, v_shot.mdl): +X forward (the muzzle), +Y left, +Z
-# up. The revolver is ~16 units long: drawn at a view weapon's usual scale (vr_wofs_scale ~0.45) that is ~28 cm.
+# up. The revolver is ~20.7 units long: drawn at a view weapon's usual scale (vr_wofs_scale ~0.45) that is ~35 cm.
 # Below, shapes are placed in "design" coordinates; the Body object's origin is the grip's hand point HAND.
 
 import math
@@ -57,7 +57,9 @@ THICK_SEGS = {4, 5, 6, 7, 8}                   # (the slotted octagon's segments
 # The barrel: hexagonal (vertices at the top and the bottom: flat sides, where the runes are).
 BARREL_R = 1.55
 BORE_R = 0.66
-BARREL_X0, BARREL_X1 = 5.95, 13.2
+# (10.85 long, 10.55 of it out of the frame: 1.5 times the 7.25 of before, which was already 0.8 longer than the first)
+BARREL_X0, BARREL_X1 = 5.95, 16.8
+SHANK_X0, SHANK_Z0 = 5.05, 4.3                 # the shank's rear (inside the frame) and its flat bottom (over the rod)
 # Iron sights: one line parallel to the bore, through the front blade's top and the rear notch's top edges.
 SIGHT_Z = 7.12
 FRONT_SIGHT = Vector((BARREL_X1 - 0.25, 0.0, SIGHT_Z))    # the blade's top front corner
@@ -228,13 +230,14 @@ def build_body():
     # The iron frame around the window (its sides covered by the brass plates), the plates on both sides; a slot
     # through their bottom for the crane's arm.
     # The plates are thick (to THICK_HY) above the window's bottom corners, thin (to BAND_HY) along its bottom, where
-    # the cylinder passes swinging out.
+    # the cylinder passes swinging out. (The plates' inner faces are kept: they stand 0.06 proud of the iron round the
+    # outside, and with those faces hidden that lip was a slit to see through at a grazing angle.)
     ring(bm, out_core, win, -CORE_HY, CORE_HY, IRON, (HIDDEN, HIDDEN), gaps={1})
     thin, thick = {1} | THICK_SEGS, set(range(len(win))) - THICK_SEGS
-    ring(bm, out_band, win, CORE_HY - 0.02, BAND_HY, BRASS, (HIDDEN, BRASS), gaps=thin)
-    ring(bm, out_band, win, -BAND_HY, -CORE_HY + 0.02, BRASS, (BRASS, HIDDEN), gaps=thin)
-    ring(bm, out_band, win, CORE_HY - 0.02, THICK_HY, BRASS, (HIDDEN, BRASS), gaps=thick)
-    ring(bm, out_band, win, -THICK_HY, -CORE_HY + 0.02, BRASS, (BRASS, HIDDEN), gaps=thick)
+    ring(bm, out_band, win, CORE_HY - 0.02, BAND_HY, BRASS, (BRASS, BRASS), gaps=thin)
+    ring(bm, out_band, win, -BAND_HY, -CORE_HY + 0.02, BRASS, (BRASS, BRASS), gaps=thin)
+    ring(bm, out_band, win, CORE_HY - 0.02, THICK_HY, BRASS, (BRASS, BRASS), gaps=thick)
+    ring(bm, out_band, win, -THICK_HY, -CORE_HY + 0.02, BRASS, (BRASS, BRASS), gaps=thick)
     # Behind it: the hammer's housing, down into the grip.
     rear = [(-0.5, 0.35), (-0.5, 5.55), (-1.15, 5.8), (-2.15, 5.4), (-2.55, 4.65), (-2.6, 2.9), (-2.85, 1.6),
             (-2.4, 0.35)]
@@ -250,9 +253,17 @@ def build_body():
          DARK)
     # The barrel: hexagonal, flat sides; a hexagonal bore.
     lathe(bm, [(BARREL_X0, BARREL_R), (BARREL_X1, BARREL_R), (BARREL_X1, BORE_R), (BARREL_X1 - 0.9, BORE_R)], 6,
-          Vector((0, 0, BORE_Z)), [IRON, IRON + CHAMFER, BORE, HIDDEN, BORE], rot=math.pi / 2)
-    # The lug under the barrel at the frame's front.
-    lug = [(5.9, 2.75), (7.75, 2.75), (8.3, 3.25), (8.3, 4.0), (5.9, 4.0)]
+          Vector((0, 0, BORE_Z)), [IRON, IRON + CHAMFER, BORE, IRON + CHAMFER, BORE], rot=math.pi / 2)
+    # Its shank: the barrel's top half carried back into the frame, 0.1 thinner (a shoulder where the barrel starts).
+    # (The barrel starts at x 5.95, in front of where the frame's front top chamfer reaches its top ridge (x 5.11); its
+    # rear end was left open there, a hole to look through above the chamfer: now closed, the shank behind it.) Flat
+    # below, over the ejector rod's tip; its front end on the barrel's rear face (left open: covered by it).
+    r = BARREL_R - 0.1
+    hw = r * math.cos(math.pi / 6)
+    prism(bm, [(0.0, BORE_Z + r), (-hw, BORE_Z + r / 2), (-hw, SHANK_Z0), (hw, SHANK_Z0), (hw, BORE_Z + r / 2)],
+          SHANK_X0, BARREL_X0, YZ, IRON, caps=(True, False))
+    # The lug under the barrel at the frame's front (stretched with the barrel: +1.06).
+    lug = [(5.9, 2.75), (8.81, 2.75), (9.36, 3.25), (9.36, 4.0), (5.9, 4.0)]
     side(bm, lug, -0.72, 0.72, IRON)
     # The trigger guard (brass): a loop under the frame, its back running into the grip.
     # As the mockup's: thick bars of square section, the front one leaning back towards the bottom, a chamfered corner.
@@ -264,15 +275,16 @@ def build_body():
     secs = [(a, bevel_rect(hu, hy, 0.36, cx=cx)) for a, hu, hy, cx in GRIP_SECS]
     for k in range(len(secs) - 1):
         (a1, p1), (a0, p0) = secs[k], secs[k + 1]
-        faces = prism(bm, p0, a0, a1, gf, WOOD, GRIP_TOP, poly1=p1, caps=(k == len(secs) - 2, k == 0))
-        if k == 0:
-            faces[1].material_index = HIDDEN  # (its top, inside the frame)
+        # (its top kept: it is inside the frame but wider than the hammer's housing behind it, open there a hole)
+        prism(bm, p0, a0, a1, gf, WOOD, GRIP_TOP, poly1=p1, caps=(k == len(secs) - 2, k == 0))
     # Worn leather straps wrapped round it, each a little askew.
     for a, h, tilt, k in STRAPS:
         hu, hy, cx = grip_section(a)
         sec = bevel_rect(hu * k + 0.04, hy * k + 0.05, 0.4, cx=cx)
         f0 = Matrix.Rotation(math.radians(tilt), 3, Vector((0, 1, 0))) @ GRIP_FWD  # askew, seen from the side
-        prism(bm, sec, -h / 2, h / 2, (f0, Vector((0, 1, 0))), LEATHER, GRIP_TOP + GRIP_UP * a, caps=(False, False))
+        # (capped: open, the gap between a strap and the grip showed through, its inside culled; the caps' middles
+        # are inside the grip)
+        prism(bm, sec, -h / 2, h / 2, (f0, Vector((0, 1, 0))), LEATHER, GRIP_TOP + GRIP_UP * a)
     # Sights: a blade on the muzzle's top ridge; a notch between two ears on the top strap's back.
     side(bm, [(FRONT_SIGHT.x - 0.95, BORE_Z + BARREL_R - 0.25), (FRONT_SIGHT.x, BORE_Z + BARREL_R - 0.25),
               (FRONT_SIGHT.x, SIGHT_Z), (FRONT_SIGHT.x - 0.3, SIGHT_Z)], -0.13, 0.13, SIGHT)
@@ -414,7 +426,9 @@ GLYPHS = [
     [((0.42, 1), (0.05, 0.62)), ((0.05, 0.62), (0.45, 0.38)), ((0.45, 0.38), (0.08, 0))],  # sowilo
 ]
 RUNE_TEXT = [4, 0, 7, 10, 2, 6, 9]
-RUNE_X0, RUNE_STEP, RUNE_H = 7.6, 0.62, 0.8
+RUNE_STEP, RUNE_H = 0.62, 0.8
+RUNE_X0 = (OUT[1] + BARREL_X1) / 2 - len(RUNE_TEXT) * RUNE_STEP / 2  # centred on the barrel out of the frame (9.355)
+RUNE_X1 = RUNE_X0 + len(RUNE_TEXT) * RUNE_STEP
 
 
 def rune_dist(u, v):
@@ -564,9 +578,9 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, speck, ob_name):
         col *= 0.92 + 0.1 * fine
     col *= 1.0 + speck
     # The barrel's flat sides: carved runes, inlaid with a dull gold.
-    if ob_name == "Body" and part == IRON and abs(n.y) > 0.98 and abs(d.y) > 0.95 and RUNE_X0 - 0.2 < d.x < 12.9 \
+    if ob_name == "Body" and part == IRON and abs(n.y) > 0.98 and abs(d.y) > 0.95 and RUNE_X0 - 0.2 < d.x < RUNE_X1 + 0.2 \
             and abs(d.z - BORE_Z) < 0.7:
-        u = (d.x - RUNE_X0) if n.y < 0 else (RUNE_X0 + len(RUNE_TEXT) * RUNE_STEP - d.x)
+        u = (d.x - RUNE_X0) if n.y < 0 else (RUNE_X1 - d.x)
         k = rune_dist(u, d.z - BORE_Z)
         if k < 0.055:
             col = RUNE_INLAY * (0.9 + 0.2 * fine)

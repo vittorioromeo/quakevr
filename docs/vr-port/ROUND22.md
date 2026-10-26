@@ -22680,3 +22680,46 @@ super nailgun's (their nails were only painted on the feed end's texture).
 
 **In VR:**
 - [ ] The nailgun's and super nailgun's magazines {test:nailmags} show their top two nails as models over the feed lips, as the nail pistol's (the lava nails' red-hot); seated, no nail pokes out of the gun or its well.
+
+## Heavy revolver: barrel 1.5 times as long, holes closed (worktree `release`, branch `agent/rvbarrel`, 2026-10-26; vr_wofs_version 71)
+
+His request: the heavy revolver's barrel 40-60% longer; a hole in the geometry near the start of the barrel.
+
+- **Barrel** (`models_src/revolver/build_revolver.py`, rebuilt from it: the .blend had no hand edits): `BARREL_X1` 13.2
+  -> 16.8: 7.25 -> 10.85 long (+50%; out of the frame 6.95 -> 10.55, +52%). The muzzle (Body frame) x 16.964 ->
+  20.564, the front blade with it (top 20.314 0 9.178; the sight line still parallel to the bore, 2.12 over it), the
+  runes centred on the part out of the frame (`RUNE_X0` from the barrel, 9.355; the paint window follows them), the
+  lug under the barrel stretched (front 8.3 -> 9.36, its chamfer kept). The ejector rod sits in the cylinder, not
+  under the barrel: unchanged, so it still reaches the shells; the build's swing check is clear. Muzzle to hammer
+  spur ~20.7 units (~35 cm at Scale 0.45; was 17.1, 29 cm).
+- **The hole:** the barrel's rear end was an open hexagon (its cap left out as hidden, `HIDDEN`), at x 5.95 (design),
+  but the frame's front top chamfer reaches the barrel's top ridge only at x 5.11: the open end's top showed above the
+  chamfer, and through it the barrel's inside, culled, i.e. a see-through hole. Fixed: the barrel's rear end closed,
+  and a **shank** (the barrel's top half, 0.1 thinner: a small shoulder) carried back into the frame to x 5.05, flat
+  below over the ejector rod's tip.
+- **The whole model checked** (`scratch/rv_holes.py`: the preview MDL rendered from 26 directions in frames rest, swung
+  out and cocked, back faces drawn and culled, on magenta; a pixel magenta only when culled is a hole, located by a
+  ray cast): 4000+ pixels before over 3 other causes, also fixed: the leather straps were open tubes (the gap between
+  strap and grip saw through: now capped), the brass plates' inner faces were left out but the plates stand 0.06 proud
+  of the iron round the outside (a slit at grazing angles: kept now), the grip's top was left out but is wider than
+  the hammer's housing behind the frame (kept now). After: **0 pixels in all 78 views**. Open edges left (mesh check):
+  3 loops, all covered by other parts (the iron core's sides under the plates, the barrel's end inside the shank).
+  Art lint: no MED/HIGH (a shank end coplanar with the frame's front, flagged on the way, moved).
+- **Triangles:** the gun 914 -> 1021 (Body 490 -> 597: the shank 16, the straps' caps 48, the plates' inner faces and
+  the grip's top); the preview 1477. Skin unchanged in size (384x384): the longer barrel takes atlas room, the runes
+  a little smaller in texels but legible in the renders.
+- **Game:** slot 38's Muzzle Anchor 20.564 0 7.058 (the shot origin, the flash and the smoke are all from it), the
+  sight table's blade 20.314 0 9.178; Length (Span) 29 -> 35 cm, Balance 10 -> 12 cm, Mass 1.4 -> 1.5 kg (the longer
+  iron). Grip, pitch, Shot Pitch and holster poses unchanged (the grip did not move: the Body's origin is the hand
+  point). `vr_wofs_version` 71 (`takeRevolverBarrel71`): each taken where the config still holds the old default.
+- **Renders** redone at 640 (`renders/`, `vs_mockup` beside the mockup's right half), before/after
+  `scratch/rv_before_after.png`. `render_revolver.py`'s main now only runs as the script (its helpers importable).
+- **Tests:** `vr_rv_test 1` 28 passed, 0 failed; `vr_aim_check` (both hands): shot-barrel 0.08 degrees (as before);
+  `vr_dumpview`: the muzzle 1.8 units further from the hand than with the old anchor (3.6 x 0.45 = 1.6 along the
+  barrel); held eyeshot (vrtesthall, both hands) shows the long barrels; eval.sh full 163/171, no verdict changes (4 PASS -> PASS differ by 0.1 damage: noise).
+
+**Decisions:** Mass and Balance moved with the barrel (estimated from the added iron: ~7% more, its middle ~32 cm out);
+his to tune. The holsters' poses are unchanged and not looked at in game (the mock has no head-down view): check them.
+
+**In VR:**
+- [ ] Heavy revolver {test:revolver}: the barrel half as long again, the front sight on it lines up in the rear notch; no hole where the barrel meets the frame (look from above and behind); shots, flash and smoke from the new muzzle; it still sits in both holsters without poking through you.

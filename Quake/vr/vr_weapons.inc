@@ -4763,8 +4763,8 @@ QVR_WEAPON_DEFAULT(37, FlashSize, "0.8")
 QVR_WEAPON_DEFAULT(37, ShotPitch, "0.28")
 // Slot 38: the heavy revolver (QC WID_REVOLVER, vr_revolver.qc; the art Misc/quakevr/models_src/revolver; vr_wofs_version
 // 68 gives it to configs saved before): the nail pistol's keys (our other pistol, its grip also at the Body's origin, the
-// grip's middle) for a base: its grip, pitch and holster poses; its muzzle the bore's mouth (the README: x 16.964, z
-// 7.058), Scale 0.45 (the art's in-hand size: ~29 cm), Shot Pitch 0.07 (the sights 2.12 over the bore, 0.95 units at
+// grip's middle) for a base: its grip, pitch and holster poses; its muzzle the bore's mouth (the README: x 20.564, z
+// 7.058), Scale 0.45 (the art's in-hand size: ~35 cm), Shot Pitch 0.07 (the sights 2.12 over the bore, 0.95 units at
 // this Scale: the shot line crosses the sight line near 20 m), a heavy recoil and a big flash; its screen and button on
 // the frame's left plate behind the cylinder. Drawn in its parts in the hands (vr_view.cpp setupRevolverParts).
 QVR_WEAPON_DEFAULT(38, TwoHDisplayMode, "0.0")
@@ -4796,7 +4796,7 @@ QVR_WEAPON_DEFAULT(38, HandOffsetZ, "0.0")
 QVR_WEAPON_DEFAULT(38, HideHand, "0.0")
 QVR_WEAPON_DEFAULT(38, ID, "progs/v_revolver.mdl")
 QVR_WEAPON_DEFAULT(38, Length, "0.0")
-QVR_WEAPON_DEFAULT(38, MuzzleAnchor, "16.964 0 7.058")
+QVR_WEAPON_DEFAULT(38, MuzzleAnchor, "20.564 0 7.058") // (71: the barrel 1.5 times as long; was 16.964 0 7.058)
 QVR_WEAPON_DEFAULT(38, MuzzleOffsetX, "0.0")
 QVR_WEAPON_DEFAULT(38, MuzzleOffsetY, "0.0")
 QVR_WEAPON_DEFAULT(38, MuzzleOffsetZ, "0.0")
@@ -4827,9 +4827,9 @@ QVR_WEAPON_DEFAULT(38, OffsetZ, "-1.05")
 QVR_WEAPON_DEFAULT(38, ZeroBlend, "0.0")
 QVR_WEAPON_DEFAULT(38, TwoHZeroBlend, "0.0")
 QVR_WEAPON_DEFAULT(38, Heft, "0")
-QVR_WEAPON_DEFAULT(38, Mass, "1.4")
-QVR_WEAPON_DEFAULT(38, Balance, "10")
-QVR_WEAPON_DEFAULT(38, Span, "29")
+QVR_WEAPON_DEFAULT(38, Mass, "1.5") // (71: the longer barrel; was 1.4)
+QVR_WEAPON_DEFAULT(38, Balance, "12") // (71: was 10)
+QVR_WEAPON_DEFAULT(38, Span, "35") // (71: muzzle to hammer spur 20.7 units at Scale 0.45; was 29)
 QVR_WEAPON_DEFAULT(38, GripOverlap, "0.7")
 QVR_WEAPON_DEFAULT(38, HipHolsterX, "0")
 QVR_WEAPON_DEFAULT(38, HipHolsterY, "1")
