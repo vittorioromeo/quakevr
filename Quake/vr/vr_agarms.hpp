@@ -28,7 +28,7 @@ namespace qvr::agarms
 {
 
 inline constexpr int numBones = 6;   // right upper arm, forearm, hand; left upper arm, forearm, hand
-inline constexpr int blockRows = 22; // the instance's arm rows after its bones' kicks (vr_animsmooth.cpp, RigArm)
+inline constexpr int blockRows = 26; // the instance's arm rows after its bones' kicks (vr_animsmooth.cpp, RigArm)
 
 // What a model's rig tells (vr_hitreact.cpp's armed rig row for it).
 struct Spec
@@ -88,7 +88,21 @@ struct Placed
     float wrist[2]{0.f, 0.f};
     float poleOff[2]{0.f, 0.f};
     int poleWhy[2]{0, 0};
+    glm::vec3 clavicle[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each clavicle's pivot (model space; vr_agarms_clavicle)
 };
+
+// The Rig Studio's: an armed model's shoulder whose upper arm is rig bone `bone` (its pivot the shoulder): its side, its
+// chest bone, its clavicle's pivot and the shoulder joint (rest), the shoulder's cone's axis (rest chest space), the
+// limits (degrees) and whether the IK keeps them. False: not an armed model's upper arm (or its skin not made yet).
+struct ShoulderInfo
+{
+    int side{0};
+    int chest{-1};
+    glm::vec3 clavicle{0.f}, shoulder{0.f}, axis{0.f, 0.f, -1.f};
+    float cone{0.f}, twist{0.f};
+    bool on{false};
+};
+bool shoulderLimits(const qmodel_t* model, int bone, ShoulderInfo& out);
 
 // Placed::poleWhy: the cost that most held an elbow off its pole.
 enum Limit : int
@@ -98,6 +112,7 @@ enum Limit : int
     LimitBody,     // the body's proxies (vr_agarms_body)
     LimitShoulder, // up past its shoulder, in across its chest
     LimitRate,     // vr_agarms_elbow_rate: still swinging there
+    LimitJoint,    // vr_agarms_limits: its shoulder's cone and twist
 };
 
 [[nodiscard]] bool enabled(); // vr_agarms (read at a map load for the models' rest data)
@@ -123,6 +138,11 @@ bool drawnArmBone(int num, const qmodel_t* model, const ragdoll::Rig& rig, int b
 // That ragdoll's hand `side` (0 right) on its forearm as it was drawn when the ragdoll was made (rest model space; a rig
 // with no hand bone: its weapon is drawn by it on the forearm, vr_hitreact.cpp ragdollProps). False: none.
 bool ragdollWrist(int num, const qmodel_t* model, int side, rigpose::Rigid& out);
+
+// vr_ragdoll_arm_skin: an armed model's ragdoll drawn with its arm skin's blend (vr_ragdoll.cpp VR_SyntheticModel and
+// skinnedVertices): vertex `v`'s rig bones and weights (up to 3, summing to 1; `bodyBone` its own bone, for its share of the
+// body: the chest's if that is an arm's). False: rigid on its own bone (not an arm's vertex, or no skin made yet).
+bool ragdollWeights(const qmodel_t* model, int v, int bodyBone, int bones[3], float weights[3]);
 
 // kickInstance: `e`'s arm rows (blockRows, the poses' units), its model's skin's. False: none (its rest data has no skin).
 bool rows(const entity_t* e, const aliashdr_t* hdr, glm::vec4* out);

@@ -2291,7 +2291,8 @@ QVR_PERMDECAL_FUNCTIONS \
 "// QVR: an armed humanoid's arms (vr/vr_agarms.cpp, vr_agarms): its vertex weighed between its arm's bones (the rest\n" \
 "// row's fourth: x 1 + side * 4 + its bone and its blend to the next, y its share of the body as animated, z its rest\n" \
 "// normal packed, w its arm rows' offset from `base`), each bone a turn and a move of the rest place (model units; the\n" \
-"// rows: origin and on-share, 1 / scale, six bones' quaternion and move, the four joints' rest places). Two bones are\n" \
+"// rows: origin and on-share, 1 / scale, six bones' quaternion and move, the four joints' rest places, the chest, the\n" \
+"// shoulders' rest places, the clavicles' quaternion and move; w's fraction its clavicle's share). Two bones are\n" \
 "// blended about their joint (the turns interpolated: no gap, no shrinking), the hand rigid.\n" \
 "vec3 QvrQRot(vec4 q, vec3 v) { return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v); }\n" \
 "vec3 QvrOctNormal(float pk)\n" \
@@ -2333,6 +2334,16 @@ QVR_PERMDECAL_FUNCTIONS \
 "	vec4 qc = SmoothSwing[b + 18u];\n" \
 "	vec3 framed = pos / invS + info.xyz;\n" \
 "	vec3 chest = QvrQRot(qc, r) + SmoothSwing[b + 19u].xyz;\n" \
+"	// the shoulder's top on its clavicle by w's fraction (vr_agarms_clavicle; rows 22.. each side's turn and move)\n" \
+"	float kc = fract(s.w) * (1.0 / 0.99);\n" \
+"	if (kc > 0.001)\n" \
+"	{\n" \
+"		vec4 qk = SmoothSwing[b + 22u + 2u * uint(side)];\n" \
+"		if (dot(qk, qc) < 0.0)\n" \
+"			qk = -qk;\n" \
+"		chest = mix(chest, QvrQRot(qk, r) + SmoothSwing[b + 23u + 2u * uint(side)].xyz, kc);\n" \
+"		qc = normalize(mix(qc, qk, kc));\n" \
+"	}\n" \
 "	vec3 bodyAt = mix(framed, chest + (fq * 0.001) * (framed - chest), info.w);\n" \
 "	if (body >= 0.9995)\n" \
 "		return (bodyAt - info.xyz) * invS;\n" \

@@ -23420,3 +23420,138 @@ the dual wielder's backpack, the disarmed's pocket); after: 110 passed, 0 failed
 - [ ] A grunt with the heavy revolver hits you for about 10-15 (no armour; was ~8); say whether that or the proposed 0.75 for
   pistols feels right.
 - [ ] In the firing range (not an AD map), spawn a grunt with AD's Plasma Gun (toolgun 103): its shots are heard.
+
+## Armed humanoids' shoulders: the skin from the joint, clavicles, limits, the torso kept clear (worktree `goreflesh`, branch `agent/shoulders`, 2026-10-26)
+
+Notes 2026-10-26 22:22-22:37 (vrfiringrange, start): the pauldron never turns, "the shoulder joint starts too low, like
+at the bicep"; the upper arm through the torso (a grunt running with a nail pistol; the enforcer's left arm two-handing
+it); the right shoulder distorted when he shoves a nail pistol grunt; the enforcer's arm through its shoulder at the
+back, "dislocated" (a corpse); its belly and pelvis "inflating" and its legs' stance as it shoots; the enforcer should
+hold a nail pistol in one hand.
+
+**Causes** (measured with the glitch finder's new metrics and `vr_agarms_dump`'s why columns):
+- The skin's shoulder blend ran over the upper arm's top 60% (`shoulderIn/Out`): a vertex at the joint was 93% chest,
+  at 0.3 of the upper arm still half: the pauldron stayed, the biceps took the turn.
+- The enforcer's left upper arm had no arm vertices above 0.4 of its length: its frames move its pauldron and deltoid
+  with the chest (motion ratio 2.4-41 against the 0.7 the skin wants), so they were the body's.
+- An upper arm vertex with any forearm weight (the elbow's `wF`, 0.05-0.1 even at the shoulder) was drawn by the elbow's
+  path: its body share moved straight (linearly) towards the chest, and an arm raised folded the shoulder's skin flat
+  (an edge of 1.88 units drawn 0.41).
+- No limits: the upper arm twisted up to 180 degrees from its rest (p95 99), a hanging or carried arm by the torso's
+  side (the pistol's carry is 4 units out of reach: the arm straight down, 8 degrees out against the rest pose's 18):
+  its skin 2-4 units in the torso; the enforcer's two-handed nail pistol put its left arm 11-13 units in.
+- Ragdolls (the shove's knockdown, a corpse) were drawn each vertex rigid on one bone: since agent/tughand2 they start
+  from the posed arms, a raised arm's shoulder seam torn and folded at once.
+- The enforcer's aiming frames (attack2..10) crouch and lean back for a rifle at the hip: its hips down 1.9-4.6 units,
+  its chest back 2-8.5 units over its belly (`scratch/sh_mdl.py`); under posed arms only the crouch and the lean show.
+
+**Fixes** (each a setting, archived, on by default; 0 is before):
+- `vr_agarms_shoulder_skin` (map load): the top of the upper arm (nearest its bone, from 0.45 above the joint to 0.45
+  down it, not inside the joint) the arm's whatever its frames do; the blend into the body about the joint (0.3 of the
+  upper arm either side); no forearm weight on the upper arm's top half; the shoulder's top (arm and rings, above the
+  armpit, within an upper arm's length) on its clavicle by a share (restRow's w's fraction).
+- `vr_agarms_clavicle` 0.35, `_most` 25: a clavicle per side, pivoting a fifth of the way from between the shoulders:
+  turned up by 0.35 of the arm's lift past 60 degrees from hanging and forward by 0.35 of its reach past 30 degrees ahead
+  of its side, at most 25; the joint on it (the IK's shoulder), the shoulder's top with it (`RigArm` rows 22..25, the
+  CPU's `skinned` the same).
+- `vr_agarms_limits`, `_shoulder_cone` 105, `_shoulder_twist` 80: the elbow's cost of each radian past the cone (about
+  forward, out, a little down on the clavicle) or the twist (swing-twist from the rest pose's) squared, times 30; a
+  wrist whose reach line no elbow can bring into the cone turned towards it (the hand eases off: in the finder 0.4% of
+  frames, at most 9 units). Pose Studio: "its shoulder's cone and twist" as an elbow's reason.
+- `vr_agarms_arm_clear`: the upper arm's middle and lower part kept 0.4 of its skin's radius out of the torso in the
+  elbow's cost; still in by more than half a unit (its skin's vertices on the chosen bone), the wrist turned out about the
+  shoulder (at most 20 degrees) and solved again; a free arm hangs 19 degrees out as the rest pose's.
+- `vr_agrunt_enforcer_one_hand`: the enforcer takes no Cup hotspot (the nail pistol in one hand, the other free).
+- `vr_agrunt_atk_stand` (QC; the row's `vr_am_atk_stand`, the enforcer 1): with vr_agarms its aiming frames are drawn as
+  its stand frames (its posed arms aim and fire; no crouch, no belly pushed forward).
+- `vr_ragdoll_arm_skin` (when its ragdoll model is first made): the armed models' ragdolls drawn with the arm skin's
+  weights (`agarms::ragdollWeights`: up to 3 bones, the shoulder between the chest and the upper arm, the elbow between
+  the arm's bones; 140 of the enforcer's 574 vertices), the CPU's `skinnedVertices` the same.
+- The Rig Studio (Limits on, an armed upper arm selected): its clavicle (yellow) and the IK's cone (magenta).
+- Glitch finder (test 46): metrics armpen (an upper arm's skin vertex in the torso, units), swing (its angle off the
+  cone's axis: past 105 a glitch), twist (past 80), stretch (the shoulder cap's edges); a nail pistol subject per kind
+  (26 subjects); `vr_agarms_cost` printed at its end. `vr_agarms_dump` prints each vertex's why (nearest bone, along,
+  out, motion ratio); `vr_agarms_info` the rest pose's upper arm in the torso (0.0-0.2), the clavicles, the cap edges.
+
+**Measured** (the finder, 26 subjects, 47920 frames, seed 7; before = every new setting 0; p95 / worst / % of frames over):
+
+| | before | after |
+| --- | --- | --- |
+| upper arm skin in the torso (all) | 3.5 / 13 / 30% over 1 u | 1.5 / 12 / 8% |
+| ... grunt nail pistol | 2.4 / 4 / 78% | 1.3 / 4 / 9% |
+| ... enforcer nail pistol | 10.7 / 13 / 54% | 0.2 / 1 / 0% |
+| ... carry, run, fire (all) | 7.8, 3.6, 3.5 p95 | 0.8, 1.6, 0.8 |
+| upper arm twist (all) | 99 / 180 / 11% over 80 deg | 78 / 174 / 4% |
+| ... grunt nail pistol | 89 / 109 / 54% | 75 / 145 / 2% |
+| angle off the cone's axis | 90 / 178 / 1% over 105 | 82 / 171 / 1% |
+| shoulder cap stretch (ratio - 1) | 4.1 / 40 | 2.6 / 27 |
+| hand off its goal (reach, units) | 5.6 / 32 / 11% over 2 | 6.8 / 34 / 29% |
+| weapon off its line (aim, deg) | 0.8 / 73 / 3% | 0.1 / 70 / 3% |
+| arms' solve, us per humanoid a frame (no-LTO, shared machine) | 28 | 70 |
+
+The reach's rise is the torso clearance turning hanging and carried hands out (the grunt's pistol carry 4 -> 10 units:
+the arm 18 degrees out, as its rest pose holds it); the aim (the weapon's line) is unchanged. The worst moments left are
+punches and saw thrusts (their keys put the hands across the chest). Ragdolls: the knockdown makes the enforcer's ragdoll
+model with 140 blended vertices; the test's eye cameras don't frame the shoulder: not checked by image.
+
+**Tests:** test 35 6/6, 42 20/20, 50 (agshot 10/10), 60 6/6 for both kinds; 25 3/3, 34 2/2, 38 3/3 (both), 39 3/3;
+test 1 16/17 (the Proximity Gun fails with a QC assertion in `VR_AmmoUtil_GetAmmoCountByAmmoId`: the same with every new
+setting off); test 80 0/4 (needs the studio's `rstest` sequence, not in this worktree). eval.sh canary 36/44, 0 differ.
+Scripts: `scratch/sh_agg.sh <label> "<cvars>" [first last]`, `sh_cmp.py <before> <after> [subject] [metrics]`,
+`sh_shots.sh`, `sh_knock.sh`, `sh_why.py`, `sh_mdl.py`.
+
+**Left:** the IK's cost doubled (the twist per elbow sample, the second solve when the arm is turned clear): measure
+with an LTO build; the shoulder cap's stretch is still 2.6 at p95 (the armpit side of the cap as the arm rises); the
+ragdoll's cone (85 degrees about hanging) is narrower than the IK's: a knockdown while aiming up still pulls the arm in.
+
+**In VR:**
+- [ ] Armed grunts and enforcers aiming, running and firing (nail pistol, shotgun, nailgun): the pauldron and deltoid
+  turn with the raised arm (no bend at the biceps), the shoulder rises a little as the arm lifts and comes forward as it
+  reaches; no upper arm through the torso; no twisted shoulder. A/B: Debug > Armed Humanoids: Shoulder Skin (map
+  reload), Shoulder Limits, Upper Arm Clear of the Torso; `vr_agarms_clavicle 0`.
+- [ ] An enforcer with a nail pistol holds it in one hand, the other hanging; firing it stands (no crouch, no belly
+  pushed forward).
+- [ ] Shove a nail pistol grunt over, kill an enforcer: the ragdoll's shoulders bend smoothly, no torn or folded shoulder.
+- [ ] Rig Studio: select an armed grunt's upper arm with Limits on: the yellow clavicle and the magenta cone.
+
+### Round 2: the hands kept on their grips, the cost cut (same branch)
+
+The coordinator's review: the hands left their targets more (reach p95 5.6 -> 6.8, 11% -> 29% of frames over 2 units)
+and the solve cost more. Causes: the torso clearance turned every arm's wrist out (a pistol's carry 4 -> 10 units off),
+and the grunt's carried nail pistol was cupped by the off hand reaching across the body (its upper arm through the
+torso: 58% of its frames, the arm 4-5 units short). Changes:
+- The wrist's turn out of the torso: 20 degrees at most for a free hanging hand, 6 for a hand on a weapon, a grip, a cup
+  or a fist's point (`armClearHeldMost`).
+- A pistol carried low (its barrel pointing down past 27 degrees) is held in one hand: no Cup (vr_hitreact.cpp, with
+  `vr_agarms_arm_clear`); QC's one-handed carry (`VR_AGP_ArmsOne`) out from the side 19 degrees, within reach.
+- Cost: the limits' angles worked out only past their cosines, the clearance's vertex pass on the 8 inner upper-arm
+  vertices and only with its bone's middle near the body, a free hand's rounds stop once its forearm settles (1 degree).
+
+**Measured** (the finder, all 26 subjects, the LTO build, `--exclusive`; before = every new setting 0; p95 / worst / % over):
+
+| | before | after |
+| --- | --- | --- |
+| upper arm skin in the torso | 3.5 / 13 / 30% over 1 u | 1.7 / 11 / 12% |
+| ... grunt nail pistol | 2.4 / 4 / 78% | 1.6 / 6 / 8% |
+| ... enforcer nail pistol | 10.7 / 13 / 54% | 0.5 / 1 / 0% |
+| ... carry, run | 7.8, 3.6 p95 | 0.7, 1.7 |
+| hand off its goal (reach) | 5.6 / 32 / 11% over 2 u | 3.2 / 28 / 8% |
+| upper arm twist | 99 / 180 / 11% over 80 deg | 79 / 175 / 3% |
+| angle off the cone's axis | 90 / 178 / 1% over 105 | 89 / 173 / 1% |
+| shoulder cap stretch (ratio - 1) | 4.0 / 29 | 2.5 / 13 |
+| weapon off its line (aim) | 0.8 / 73 / 3% over 10 deg | 3.8 / 73 / 3% |
+| arms' solve, us per armed humanoid a frame (LTO, exclusive) | 27.3 | 37.1 |
+
+The aim's p95 moves with the runs' timing (the AI diverges once anything differs: subject 12 alone gives 0.0 p95 with
+each setting on or off); its share of frames over 10 degrees is unchanged.
+
+**Tests** (after round 2): Rig Studio `vr_rigstudio_test_subjects` 14/14, `_aim` 4/4, `_posekeys` 10/10; test 80 4/4
+with the `rstest` sequence made by the studio's commands (`vr_rigstudio_seq_new rstest 10 10`, events, `_save`, with
+waits: the studio's save also rewrites `quakevr/anims/vrgrunt/taunt.anim.txt`, put back). The Pose Studio has no test
+command (its scenes are manual).
+
+**Left:** the ragdoll's shoulder cone (85 degrees about hanging) against the IK's 105 about forward-out-down: a
+knockdown while aiming high still pulls the arm in over its first steps (widening the ragdoll's cone would loosen every
+enforcer's and grunt's corpse; the Rig Studio's upper arm Cone override can widen it per model). No eyeshot framing a
+shoulder yet: the finder's cameras sit badly and the studio's panels cover a framed upper arm (its subject in its rest
+pose): a scene or a camera command is wanted.

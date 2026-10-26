@@ -1101,8 +1101,9 @@ void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
                 return za::String{};
             }
             constexpr const char* whys[] = {"", "its wrist's comfort (the hand's turn)", "inside its body (the proxies)",
-                "up past its shoulder / in across its chest", "still swinging there (vr_agarms_elbow_rate)"};
-            return za::String{va("elbow %.0f deg off: %s", static_cast<double>(P.poleOff[side]), whys[za::clamp(P.poleWhy[side], 0, 4)])};
+                "up past its shoulder / in across its chest", "still swinging there (vr_agarms_elbow_rate)",
+                "its shoulder's cone and twist (vr_agarms_limits)"};
+            return za::String{va("elbow %.0f deg off: %s", static_cast<double>(P.poleOff[side]), whys[za::clamp(P.poleWhy[side], 0, 5)])};
         }
         case PChest: return g.torsoClamped ? za::String{"torso turn limit (yaw 70, pitch and roll 50 deg)"} : za::String{};
         default: return za::String{};

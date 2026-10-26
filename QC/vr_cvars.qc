@@ -366,6 +366,8 @@ float cvarh_vr_enfrifle_ammo;
 float cvarh_vr_agrunt_damage_scale;
 float cvarh_vr_agrunt_reserve;
 float cvarh_vr_agrunt_reload_time;
+float cvarh_vr_agrunt_atk_stand;
+float cvarh_vr_agarms_arm_clear;
 float cvarh_vr_agrunt_aim_error;
 float cvarh_vr_agrunt_disarm;
 float cvarh_vr_agrunt_disarm_damage;
@@ -1568,6 +1570,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_agrunt_damage_scale);
     VR_CVAR_HMAKE(vr_agrunt_reserve);
     VR_CVAR_HMAKE(vr_agrunt_reload_time);
+    VR_CVAR_HMAKE(vr_agrunt_atk_stand);
+    VR_CVAR_HMAKE(vr_agarms_arm_clear);
     VR_CVAR_HMAKE(vr_agrunt_aim_error);
     VR_CVAR_HMAKE(vr_agrunt_disarm);
     VR_CVAR_HMAKE(vr_agrunt_disarm_damage);

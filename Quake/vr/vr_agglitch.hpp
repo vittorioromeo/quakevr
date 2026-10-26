@@ -29,6 +29,14 @@ struct Arm
     float turned{0.f};                           // its hand turned back, its wrist past its most (degrees)
     float pen{0.f};                              // the most its elbow, forearm, wrist or hand is inside the body (units)
     int penPart{-1};                             // ... which proxy (agbody::Part)
+    // Its shoulder (ROUND22.md, "Armed humanoids' shoulders"): the most an upper arm's skin vertex is inside the torso
+    // (units; armPenN of them over half a unit), its upper arm's angle off the shoulder's cone's axis and its twist from
+    // its rest pose's (degrees: a glitch past the default limits, vr_agarms_shoulder_cone and _twist), the shoulder's
+    // skin's most stretched or squashed edge (its length over its rest's, or the inverse, less 1).
+    float armPen{0.f};
+    int armPenN{0};
+    float swing{0.f}, twist{0.f};
+    float stretch{0.f};
 };
 
 struct Sample
@@ -45,9 +53,9 @@ struct Sample
 // agarms::solve: the subject's frame as drawn.
 void note(const Sample& s);
 
-// The metrics (flip, wrong, pen, reach, grip2, toggle, gap, aim, jump, shoulder, wrist): names, units, the value of each
-// that is a glitch (a moment's severity: its value over this).
-inline constexpr int numMetrics = 11;
+// The metrics (flip, wrong, pen, reach, grip2, toggle, gap, aim, jump, shoulder, wrist, armpen, swing, twist, stretch):
+// names, units, the value of each that is a glitch (a moment's severity: its value over this).
+inline constexpr int numMetrics = 15;
 [[nodiscard]] const char* metricName(int k);
 [[nodiscard]] const char* metricUnit(int k);
 [[nodiscard]] float metricBad(int k);

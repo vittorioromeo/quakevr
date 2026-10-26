@@ -7,6 +7,8 @@
 #include "vr_tracy.h"
 #include "vr_api_render.h"
 #include "vr_cvars.hpp"
+#include "vr_agarms.hpp"
+#include "vr_hitreact.hpp"
 #include "vr_box3d.hpp"
 #include "vr_decals.hpp"
 #include "vr_diskcache.hpp"
@@ -2827,6 +2829,7 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
     {
         normals->resize(static_cast<za::SizeT>(rig.numVerts));
     }
+    const bool armSkin = vr_ragdoll_arm_skin.value != 0.f;
     za::Array<Neck, maxBones> necks{}; // (each cut bone's, once: not once per vertex)
     for(int b = 0; b < p.bodies && p.cut; b++)
     {
@@ -2846,6 +2849,19 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
         out[static_cast<za::SizeT>(v)] = cut ? neck.at + neck.rot * ((r - neck.pivot) * (p.scale * neckShrink))
                                          : b < p.bodies ? rots[static_cast<za::SizeT>(b)] * (r * p.scale) + poss[static_cast<za::SizeT>(b)]
                                                         : poss[0];
+        int bl[3];
+        float wl[3];
+        if(!cut && armSkin && agarms::ragdollWeights(rig.model, v, b, bl, wl) && bl[0] < p.bodies && bl[1] < p.bodies && bl[2] < p.bodies &&
+           !(p.cut & ((1u << bl[0]) | (1u << bl[1]) | (1u << bl[2]))))
+        {
+            // (vr_ragdoll_arm_skin: as drawn, VR_SyntheticModel's blend)
+            glm::vec3 at{0.f};
+            for(int i = 0; i < 3; i++)
+            {
+                at += wl[i] * (rots[static_cast<za::SizeT>(bl[i])] * (r * p.scale) + poss[static_cast<za::SizeT>(bl[i])]);
+            }
+            out[static_cast<za::SizeT>(v)] = at;
+        }
         if(normals)
         {
             const glm::vec3 n{r_avertexnormals[t.lightnormalindex][0], r_avertexnormals[t.lightnormalindex][1],
@@ -2999,6 +3015,12 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     }
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(sh) + sh->meshdesc);
     const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(sh) + sh->vertexes); // pose 0
+    // vr_ragdoll_arm_skin: an armed humanoid's arms drawn with their living skin's blend (vr_agarms: the shoulder turned
+    // about its joint between the chest and the upper arm, the elbow between the arm's bones), not each vertex rigid on
+    // one bone (its shoulder's skin torn and folded as a raised arm fell with it). Its skin made now if not yet.
+    glm::vec4 armRow{0.f};
+    const bool armSkin = vr_ragdoll_arm_skin.value != 0.f && hitreact::armSkinRow(src, sh, *rig, 0, armRow);
+    int blended = 0;
     for(int v = 0; v < numVerts; v++)
     {
         const trivertx_t& t = tv[desc[v].vertindex];
@@ -3015,6 +3037,35 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
         o.weight[1] = o.weight[2] = o.weight[3] = 0;
         o.idx[0] = rig->vertBone[desc[v].vertindex];
         o.idx[1] = o.idx[2] = o.idx[3] = 0;
+        int bl[3];
+        float wl[3];
+        if(armSkin && agarms::ragdollWeights(src, desc[v].vertindex, rig->vertBone[desc[v].vertindex], bl, wl))
+        {
+            // (bytes summing to 255, the heaviest first: the wounds' side and the stumps read the first)
+            int order[3] = {0, 1, 2};
+            for(int i = 0; i < 2; i++)
+            {
+                for(int j = i + 1; j < 3; j++)
+                {
+                    if(wl[order[j]] > wl[order[i]])
+                    {
+                        const int t = order[i];
+                        order[i] = order[j];
+                        order[j] = t;
+                    }
+                }
+            }
+            int left = 255;
+            blended += wl[order[0]] < 0.999f ? 1 : 0;
+            for(int i = 0; i < 3; i++)
+            {
+                const int k = order[i];
+                const int b = i < 2 ? static_cast<int>(wl[k] * 255.f + 0.5f) : left;
+                o.weight[i] = static_cast<uint8_t>(za::clamp(za::min(b, left), 0, 255));
+                o.idx[i] = static_cast<uint8_t>(bl[k]);
+                left -= o.weight[i];
+            }
+        }
     }
     (void)fillAO(*rig, verts, numVerts); // (else later: catchUpAO)
     memcpy(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<size_t>(numIndexes));
@@ -3050,7 +3101,7 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     }
     memcpy(mod->cache.data, hdr, static_cast<size_t>(total));
     Hunk_FreeToLowMark(start);
-    Con_DPrintf("ragdoll: %s made (%d vertices, %d bones)\n", mod->name, numVerts, numBones);
+    Con_DPrintf("ragdoll: %s made (%d vertices, %d bones, %d on the arm skin's blend)\n", mod->name, numVerts, numBones, blended);
     return true;
 }
 

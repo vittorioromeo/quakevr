@@ -2608,9 +2608,12 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
                     gripRigid(kind, slot, aggrip::Second));
                 t.second = true;
             }
-            else if(h.type == weapons::HotspotType::Cup)
+            else if(h.type == weapons::HotspotType::Cup && !(kind == 1 && vr_agrunt_enforcer_one_hand.value != 0.f) &&
+                    !(vr_agarms_arm_clear.value != 0.f && (t.weapon[0].rot * glm::vec3{1.f, 0.f, 0.f}).z < -0.45f))
             {
-                t.cup = true;
+                // (vr_agarms_arm_clear: a pistol carried low, pointing down, in one hand: the other cupping it there
+                // reached across the body, its upper arm through the torso)
+                t.cup = true; // (vr_agrunt_enforcer_one_hand: the enforcer's pistols in one hand, the other free)
             }
         }
     }
