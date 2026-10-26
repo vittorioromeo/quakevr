@@ -22648,3 +22648,35 @@ Before/after: `Misc/quakevr/models_src/widowmaker/renders/darker_before_after.pn
 `three_quarter` in one row, the held eyeshot `vr_ad_test 98` from the side in the other).
 Checked: `vr_ad_test 148` PASS (16 of 16), `149` 11/11 PASS (`vr_weapon_grip_mode 1`, ad_dm1, `-game ad`); eval.sh no verdict changes.
 - [ ] Hold the Widowmaker in a lit and a dark room: darker than before, still rust, rivets, bricks and brass readable.
+## Modelled nails on the nailgun and super nailgun magazines (worktree `fastship`, branch `agent/nailmags`, 2026-10-26)
+
+His request: the nail pistol's magazine shows its top nails as real models; do the same for the nailgun's and the
+super nailgun's (their nails were only painted on the feed end's texture).
+
+- **How the pistol's is made.** `models_src/nailpistol/build_nailpistol.py` `build_magazine`: the stack's top two nails
+  lying point forward, staggered across the double stack (y +-0.24, z 0.1 and -0.02), half out of the body's top: a
+  square shank (0.22, -0.9..0.55), a wider flat head (0.4 square, 0.14 thick) and a four-sided point to 1.0; grey
+  steel. Its fill is not shown: an empty pistol magazine shows the same two nails (one MDL frame).
+- **The same here** (`Misc/quakevr/make_mags.py` `top_nails`, `nail_box`, `Mesh.tri`): the same nail, scaled by
+  `NAIL_SIZE` (1.15 for `vr_mag_nail.mdl`, 1.4 for `vr_mag_snail.mdl`: at the props' Sizes 0.55 and 0.45 both come out
+  about the pistol's nail length in the hand), lying point forward (the gun's +x seated), on top of the feed lips (the
+  `top` the seats are measured from is unchanged, so the wells, `magMounts`, `magProps` tops, `loadPorts`, `_50`/`_51`'s
+  grips and `magFeet` all still fit: the body, plate, lips and window are untouched). Hidden faces are left out: 20
+  triangles a nail, 40 a magazine: the nailgun's 128 -> 168 triangles, the super nailgun's 144 -> 184.
+- **Skin.** Two new 16x8 regions out of the old `spare` (now 16x16, still the wells' dark pocket floor): `shank`
+  (greys 7..10) and `head` (greys 9..12); skin 1 (lava nails) red-hot shanks (231..233) and glowing heads (233..236),
+  as the window's. The lips' top (`top`), which painted two rows of nail-head discs, is now a dark mouth with a worn
+  steel rim (skin 1: a dull red glow). The thunderbolt's cell skin is unchanged.
+- **Fill:** as the pistol's, not shown (an empty magazine still shows its two top nails). Doing it would need a second
+  frame (nails sunk out of sight) chosen by the count in four places: QC `VR_Reload_MakeRound`'s prop (`r.frame`), the
+  held prop, `setMagazine` in vr_view.cpp (the gun's clip), and the pistol's own magazine; left for his call.
+- **Checks.** Blender renders of the five props side by side and of the seated magazines (`scratch/mags_threequarter.png`,
+  `scratch/mags_tops.png`, `scratch/guns_nail_0.png`, `guns_nail_1.png`, `guns_snail_0.png`): the seated nails are
+  hidden by the gun and the well's collar. Eyeshots (vrtesthall; `scratch/nailmag_eyes.sh <impulse> <yaw> <model>`):
+  `scratch/nailmag_close.png` (seated, lying empty on the floor, held full twice), `scratch/snailmag_eyes.png`.
+  `reload_test.sh`: 111 PASS, 0 FAIL (self-test 77/0, reinsertion 21/0). eval.sh: no verdict changes.
+  Scenario `nailmags` (vrtesthall: the nailgun in the main hand, the super nailgun in the off hand, a nail pistol lying
+  beside you; `vr_scenario runall quit nailmags`: SCNRUN OK, both hands still holding after 3 s).
+
+**In VR:**
+- [ ] The nailgun's and super nailgun's magazines {test:nailmags} show their top two nails as models over the feed lips, as the nail pistol's (the lava nails' red-hot); seated, no nail pokes out of the gun or its well.

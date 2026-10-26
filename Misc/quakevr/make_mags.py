@@ -43,13 +43,57 @@ REGIONS = {
     "band": (0, 32, 32, 48),    # bronze bands (the cell), dark ribs
     "window": (32, 32, 64, 48), # a window down the side: nails' shanks in it (the super nailgun's)
     "foot": (0, 48, 32, 64),    # the bottom
-    "spare": (32, 48, 64, 64),  # (dark: the wells' pocket floors)
+    "spare": (32, 48, 48, 64),  # (dark: the wells' pocket floors)
+    "shank": (48, 48, 64, 56),  # the modelled nails' shanks and points (the lava nails': red-hot)
+    "head": (48, 56, 64, 64),   # and their heads (the lava nails': glowing)
 }
 
 
 class Mesh(mdlgen.Mesh):
     def __init__(self):
         super().__init__(SKIN_W, SKIN_H, REGIONS)
+
+    def tri(self, p0, p1, p2, region):
+        """A triangle p0 p1 p2, counter-clockwise seen from outside (stored the other way round, as quad's)."""
+        n = norm(cross(sub(p1, p0), sub(p2, p0)))
+        s0, t0, s1, t1 = self.regions[region]
+        base = len(self.verts)
+        for p, uv in zip((p0, p1, p2), ((s0 + 1, t1 - 1), (s1 - 1, t1 - 1), ((s0 + s1) // 2, t0 + 1))):
+            self.verts.append((p, n, uv))
+        self.tris.append((base, base + 2, base + 1))
+
+
+def nail_box(m, x0, x1, cy, cz, hy, hz, region, faces):
+    """An axis-aligned box from x0 to x1, its section half hy by hz about (cy, cz): only the named `faces` (of +x -x +y
+    -y +z -z; the hidden ones left out)."""
+    ya, yb, za, zb = cy - hy, cy + hy, cz - hz, cz + hz
+    quads = {
+        "+x": ((x1, ya, za), (x1, yb, za), (x1, yb, zb), (x1, ya, zb)),
+        "-x": ((x0, yb, za), (x0, ya, za), (x0, ya, zb), (x0, yb, zb)),
+        "+y": ((x1, yb, za), (x0, yb, za), (x0, yb, zb), (x1, yb, zb)),
+        "-y": ((x0, ya, za), (x1, ya, za), (x1, ya, zb), (x0, ya, zb)),
+        "+z": ((x0, ya, zb), (x1, ya, zb), (x1, yb, zb), (x0, yb, zb)),
+        "-z": ((x0, yb, za), (x1, yb, za), (x1, ya, za), (x0, ya, za)),
+    }
+    for f in faces:
+        m.quad(*quads[f], region)
+
+
+def top_nails(m, top, s):
+    """The top two nails of the stack, modelled as the nail pistol's (models_src/nailpistol/build_nailpistol.py
+    build_magazine): lying point forward (+x, the way the gun fires them), staggered across the double stack, half out
+    of the feed lips (local z `top`): a square shank, a wider flat head, a four-sided point; `s` their size to the
+    pistol's (the props' Sizes differ: drawn, the three magazines' nails come out about as long). Their undersides
+    and the faces inside one another are left out (in the lips): 20 triangles a nail."""
+    for y, z in ((0.24, 0.1), (-0.24, -0.02)):
+        y, z = y * s, top + z * s
+        sh, hh = 0.11 * s, 0.2 * s
+        x_head, x_shank, x_tip, x_point = -1.02 * s, -0.88 * s, 0.55 * s, 1.0 * s
+        nail_box(m, x_head, x_shank, y, z, hh, hh, "head", ("+x", "-x", "+y", "-y", "+z"))
+        nail_box(m, x_shank, x_tip, y, z, sh, sh, "shank", ("+y", "-y", "+z"))
+        tip = [(x_tip, y + dy, z + dz) for dy, dz in ((-sh, -sh), (sh, -sh), (sh, sh), (-sh, sh))]
+        for i in range(4):
+            m.tri(tip[i], tip[(i + 1) % 4], (x_point, y, z), "shank")
 
 
 def transformed(mesh, rot, at, mirror=False):
@@ -82,9 +126,15 @@ def box_mag(m, hx, hy, hz, bevel, lips, ribs=True):
     return hz + 0.4  # its top
 
 
+# The modelled nails' size to the nail pistol's: drawn at the props' Sizes (vr_props.inc: the nailgun's 0.55 as the
+# pistol's, the super nailgun's 0.45), the nails come out about one length (the pistol's 2.0 units at 0.55: 1.1).
+NAIL_SIZE = {"vr_mag_nail": 1.15, "vr_mag_snail": 1.4}
+
+
 def nail_mag():
     m = Mesh()
     top = box_mag(m, 1.7, 0.85, 2.9, 0.28, 0.82)
+    top_nails(m, top, NAIL_SIZE["vr_mag_nail"])
     return m, top
 
 
@@ -93,6 +143,7 @@ def snail_mag():
     top = box_mag(m, 2.3, 1.05, 4.3, 0.32, 0.84)
     # The window down its side (the outer face, -y as it sits): the nails' shanks behind a slot, a steel frame round it.
     m.box((0.0, -1.05 - 0.06, -0.3), (1.5, 0.06, 3.0), "window", cap_region="window")
+    top_nails(m, top, NAIL_SIZE["vr_mag_snail"])
     return m, top
 
 
@@ -190,11 +241,17 @@ def paint(kind, variant=False):
                     c = pick([244, 245, 246] if variant else [112, 113, 114, 115, 116, 117],
                              0.6 if d < 0.3 else 0.3)  # copper (plasma: a pale blue glow)
                 else:
-                    # Two rows of nail heads (grey discs) in the dark lips.
-                    cx = (u * 6) % 1.0
-                    cy = (v * 2) % 1.0
-                    head = [233, 234, 235, 236] if variant else steel
-                    c = pick(head, 0.75) if math.hypot(cx - 0.5, cy - 0.5) < 0.32 else (226 if variant else 1)
+                    # The feed lips' mouth: dark between the worn steel lips (the nails themselves are modelled:
+                    # top_nails); the lava nails' a dull red glow down in it.
+                    rim = u < 0.1 or u > 0.9 or v < 0.16 or v > 0.84
+                    c = pick(steel, 0.7) if rim else (pick([226, 225], 0.5) if variant else pick([0, 1, 2], 0.4))
+            elif region in ("shank", "head") and kind != "vr_mag_light":
+                # The modelled nails: bright steel (the nail pistol's NAIL, EDGE: 128 and 196 grey), their heads
+                # brighter; the lava nails' red-hot shanks and glowing heads, as the window's.
+                if variant:
+                    c = pick([231, 232, 233] if region == "shank" else [233, 234, 235, 236], 0.55)
+                else:
+                    c = pick([7, 8, 9, 10] if region == "shank" else [9, 10, 11, 12], 0.5 + (0.3 if v < 0.25 else 0.0))
             elif region == "band":
                 c = pick(band, 0.55 + (0.25 if v < 0.25 else -0.2 if v > 0.75 else 0.0))
             elif region == "window":
