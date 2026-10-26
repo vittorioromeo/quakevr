@@ -1,0 +1,11 @@
+# flaregun_crates: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The flare guns lying on the
+# crates the engine places about a map (vr_crate_flaregun, vr_crate_flaregun_max: Physics > Crates; vr_crates.cpp's
+# plan, QC vr_flaregun.qc VR_FlareGun_OnCrate): every free crate top may have one (at most 4) in e1m1.
+title Flare guns on e1m1's crates (Flare Gun on Crates 1)
+map e1m1
+god
+notarget
+cvar vr_crates 1
+cvar vr_crate_flaregun 1
+cvar vr_crate_flaregun_max 4
+hint e1m1's crates about the map have flare guns lying on top (up to 4; Physics > Crates: Flare Gun on Crates). Take one: it's loaded with two flares.

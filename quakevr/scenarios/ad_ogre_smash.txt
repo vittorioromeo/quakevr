@@ -1,5 +1,0 @@
-# ad_ogre_smash: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title An AD hunter ogre coming for you
-map vrtesthall
-god
-spawn "AD Hunter Ogre" 450 60

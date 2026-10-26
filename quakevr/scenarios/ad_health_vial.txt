@@ -1,7 +1,0 @@
-# ad_health_vial: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title AD health vials at your feet, your health at 50
-map vrtesthall
-health 50
-spawn "AD Health Vial" 50 20
-spawn "AD Health Vial" 50 -20
-spawn "AD Health Vial" 70 0

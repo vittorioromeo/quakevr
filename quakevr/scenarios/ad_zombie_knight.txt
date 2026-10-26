@@ -1,7 +1,0 @@
-# ad_zombie_knight: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title An AD zombie knight and a rocket launcher
-map vrtesthall
-god
-give "Rocket Launcher" main
-cmd impulse 9
-spawn "AD Zombie Knight" 420 40

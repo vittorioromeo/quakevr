@@ -1,8 +1,0 @@
-# struggle_grunts: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Grunts to hold, drag and lift (calm: notarget)
-map vrtesthall
-god
-notarget
-spawn "Grunt" 110 -60
-spawn "Grunt" 110 10
-spawn "Grunt" 110 80

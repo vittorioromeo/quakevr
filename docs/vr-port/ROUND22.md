@@ -23246,3 +23246,70 @@ player's own voice sounds transformed as they load.
   eval.sh: 163/171 as the baseline's verdicts (5 rows differ by 0.1 in a speed, PASS -> PASS).
 - [ ] Player Appearance > Voice: Feminine, press Hear Voice a few times, then take damage, jump, land hard, drown,
   die: a woman's voice, not a sped-up man's; Voice Pitch and Voice Formants change it at once.
+
+## The checklist's "for beta4" section, its Test buttons, and unused test scenes removed (worktree `fastship`, branch `agent/cltests`, 2026-10-26)
+
+**Asked.** Test buttons on the beta4 items, all of them grouped in a `[for beta4: test these first]` section at the top,
+passed items dropped, and the test scenes no checklist item uses any more removed. The new weapons (heavy revolver,
+flare gun, nail pistol) are experimental and not part of beta4.
+
+**The checklist** (written for the coordinator to apply: `qvr-kit/scratch/checklist_beta4.txt`, 95 items, 9 sections):
+- Passed items removed: none. No item's key (its text without its trailing tag) is a pass in the author's
+  `checklist_ticks.txt`; 9 items have an older wording ticked or failed (a reworded item un-ticks), so they stay.
+- `[for beta4: test these first]`: the old "beta4" block (spectator camera minimized, spectator + OBS, AD breakables,
+  fuel tank burst, shoreline foam, calibration from scratch, autosaves), the menu panel's grab-to-move, the nailgun and
+  super nailgun magazines (the old three-gun nail magazine line split: the nail pistol's half went to the new weapons),
+  the Widowmaker (skin, front handle, its readout: the old "fresh config" line split the same way), the flail, then
+  `# -- Arcane Dimensions (experimental) --` and the old [Arcane Dimensions] section's items.
+- `[new since the beta4 list: test these first]` keeps the Rig Studio and armed humanoid items.
+- `[New weapons (experimental): heavy revolver, flare gun, nail pistol]` replaces [Nail pistol (experimental)] where it
+  was: every revolver, flare gun and nail pistol line, the armed grunts' revolver and flare gun lines too, the nail
+  pistol's cup-grip Two-Handed Aim question and its fresh-config line.
+- Emptied sections dropped: the old [beta4: test these first], [Arcane Dimensions], [Bullet time and menus].
+- Tags were made trailing (a mid-line `{test:}` gives no button and is part of the item's key: the revolver, flare gun
+  and nail magazine lines had one); the fuel tank line's two tags became one (`tank_burst_field`: only the last tag is
+  the button). Lines elsewhere with two tags (tug/disarm, dual guns, blade editor) are as they were.
+
+**Tests in the beta4 section.** Reused: `tank_burst_field`, `foam_pool`, `magfill`, `nailmags`, `widowmaker_art` (skin,
+front handle, readout), `flail`, `ad_weapon_pickups` (pickups, interactions, gadget page), `toolgun_bench` (AD spawn
+lists), `ad_gun_soldiers`, `ad_melee` (both). New: `ad_breakables` (ad_crucial's lower hall facing a metal crate, the
+axe in hand; a stone post ~750 units east) and `ad_lighting` (ad_crucial -215 -2287 136). None (nothing a scene sets
+up): the spectator camera minimized and with OBS (the desktop window, OBS), calibration from scratch, autosaves after
+playing a while, the menu panel's grab (menu-only), AD in Official Campaigns and AD settings (menu-only), AD's hub
+(`ad_start` is not AD's hub: it is `start`, which in Quake's campaign is id1's; Official Campaigns starts there anyway).
+The new weapons' section: `revolver`, `flaregun`, `nailpistol`, `magfill` reused; new `flaregun_crates` (e1m1 with
+`vr_crate_flaregun 1`, `vr_crate_flaregun_max 4`: 4 flare guns on its crates). The two AD-map scenes run only while AD
+is the running campaign (scenario.cpp now says "start Arcane Dimensions first" otherwise; TESTING.md).
+
+**Removed: 57 scenes no item of the new list uses** (git history keeps them; earlier mentions in this file name them):
+ad_bosses ad_crossbow ad_dark_prince ad_health_vial ad_monsters ad_ogre_chainsaws ad_ogre_smash ad_projectiles
+ad_zombie_knight after_load agrunt_corpses agrunt_polish agrunt_row_guns agrunt_row_melee agrunt_swords armed_enforcers
+blood_pool corpses_placed crates_melee flame_pool flames_bodies flames_burn freddie_gib fuel_tanks fueltank_burst
+gibs_underfoot gore_prints grenade_catch leg_drag melee_blades mg3_infected mg3_shards mini_bosses model_prepass
+models_idle monster_swords phantom_sword phantom_swordsman pickup_items pickup_vanilla plank_sweep plasma_bolts
+plasma_push pyro_water save_defaults scorch_wall shadow_fight shoulder_charge struggle_grunts struggle_heavy sword_floor
+tank_hose_cut tank_pickup toolgun_lootbeam vomit_mode wall_blows wall_deaths. Kept though no item uses them:
+`bench_armed16`, `bench_crowd_ad`, `bench_tanks` (qvrbench.py's scenes), `sword_multi` (Debug > Tests > One Swing, Many
+Hits; vr_melee_sweep_test 6), `agrunt_guard`, `agrunt_parry`, `agrunt_repl_map` (ARMED_MONSTERS.md's test scenes),
+`flaregun_art`, `nailpistol_art`, `revolver_art` (named by the Debug > Tools art previews' help and the models_src
+READMEs). No code exists only for a removed scene: their commands are tests the menus also run (`vr_agrunt_test 7`:
+Automation's Spawn a Row) or `impulse 9`; `VR_Reload_MagNailsLayout` (magfill), `vr_agrunt_test 44/64` and
+`vr_ad_test 98` belong to scenes still used. No code or doc outside the round notes names a scene that is gone
+(`shoulder_charge`, `ad_monsters`, `mg3_infected` elsewhere are a motion category, a QC file and a struggle test case).
+
+**Can the new weapons be found in a normal game (default settings)?**
+- Map spawns: no shipped map places `weapon_revolver`, `weapon_flaregun` or `weapon_nailpistol` (a custom map could).
+- Crates: yes, the flare gun: `vr_crate_flaregun` 0.05 (a free crate top's chance), at most `vr_crate_flaregun_max` 2 a
+  map, with `vr_crates` 1 (single player).
+- Armed grunts: no by default. Replacements are off (`vr_agrunt_repl` 0); with them on, a nail pistol comes from
+  `vr_agrunt_repl_common`, the revolver from `vr_agrunt_repl_rare` (both 0); a flare gun first from `vr_agrunt_flaregun`
+  0.1 (an armed one holding one gun that is not its native one). The pool's weights (`vr_agrunt_w_nailpistol` 1,
+  `vr_agrunt_w_revolver` 0.25) apply to armed humanoids spawned from the pool (the toolgun).
+- Drops: only an armed humanoid's own weapon falls (on death or disarm); plain grunts' and enforcers' drops (axe,
+  shotgun, super shotgun) never include them.
+
+**Checks.** `vr_scenario validate` with the new list: 52 files, 71 tags, 0 missing; errors only for the two AD-map
+scenes outside AD. `vr_scenario runall quit` (all 52): 50 OK, the two AD-map ones "no map" (with AD mounted:
+`SCNPLACED ... 0 problems` each, eyeshots looked at: the metal crate ahead, ad_crucial's lit corridor). The
+beta4/new-weapon scenes alone: 14 run, 0 failed. `flaregun_crates`: 4 thrown_weapon edicts with `v_flaregun.mdl`.
+`vr_checklist` on the new list: 95 items, 9 sections.

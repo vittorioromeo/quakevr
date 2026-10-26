@@ -175,7 +175,10 @@ hint Swing at them: ...                             # optional; default the chec
   free ahead, 616 left; its pool x 224..528, y -416..-112 (surface -9, 119 deep: monsters placed in it sink; no
   shallow water), `start 150 -264 40 0` at its west edge; `start -400 -400 25 -90` faces a plain stretch of the south
   wall (its middle has the New Game buttons: keep melee away from them). `developer 1` prints each spawn's edict and
-  place.
+  place. An Arcane Dimensions map (`map ad_crucial`: `ad_breakables`, `ad_lighting`) is found only while AD is the
+  running campaign (Play > Official Campaigns; headless: `-Games "-game hipnotic -game rogue -game ad -game quakevr"`
+  and the scene first, as loading a Quake map switches the campaign back); elsewhere its Test says "start Arcane
+  Dimensions first".
 - Check before committing: `vr_scenario validate` (SCNOK/SCNERR per file: the map, entries, settings, commands; and
   every checklist tag's file; SCNSUM) and `vr_scenario runall quit [<id>...]` (each run in turn for 3 s of game time,
   SCNRUN OK/FAIL with the first problem: an entry not available here, a spot in a wall, a QC error, a given weapon no

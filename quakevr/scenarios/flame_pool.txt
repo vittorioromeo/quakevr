@@ -1,7 +1,0 @@
-# flame_pool: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title At the pool with the flamethrower
-map vrtesthall
-start 150 -264 40 0
-god
-notarget
-give "AD Flamethrower" main

@@ -1,9 +1,0 @@
-# wall_blows: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Facing a wall with a crowbar and an axe; a shotgun and a sword at your feet
-map vrtesthall
-start -400 -400 25 -90
-god
-give "Crowbar" main
-give "Axe" off
-spawn "Shotgun" 30 30
-spawn "Knight's Sword" 30 -30

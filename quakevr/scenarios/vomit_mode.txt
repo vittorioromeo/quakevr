@@ -1,6 +1,0 @@
-# vomit_mode: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Vomit Mode on (Death View: Immersive); die from Debug > Cheats > Die Now
-map vrtesthall
-cvar vr_death_view 2
-cvar vr_death_view_vomit 1
-spawn "Grunt" 400 40

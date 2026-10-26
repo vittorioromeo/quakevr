@@ -1,7 +1,0 @@
-# freddie_gib: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title An AD Freddie and a rocket launcher
-map vrtesthall
-god
-give "Rocket Launcher" main
-cmd impulse 9
-spawn "AD Freddie" 520 80

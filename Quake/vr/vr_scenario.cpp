@@ -305,7 +305,9 @@ bool read(const char* id, Scenario& out)
             out.map = w[1];
             if(!COM_FileExists(va("maps/%s.bsp", w[1].cStr()), nullptr))
             {
-                error(lineNo, va("no map maps/%s.bsp", w[1].cStr()));
+                // (an AD map is found only while Arcane Dimensions is the running campaign: Play > Official Campaigns)
+                error(lineNo, va("no map maps/%s.bsp%s", w[1].cStr(),
+                                  !q_strncasecmp(w[1].cStr(), "ad_", 3) ? " (start Arcane Dimensions first)" : ""));
             }
         }
         else if(!q_strcasecmp(d, "start"))
