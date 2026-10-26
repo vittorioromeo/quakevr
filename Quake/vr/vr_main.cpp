@@ -149,6 +149,7 @@
 #include "vr_wounds.hpp"
 #include "vr_cleanskins.hpp"
 #include "vr_rangerhead.hpp"
+#include "vr_voice.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_brushes.hpp"
 
@@ -2132,6 +2133,7 @@ extern "C" void VR_Init()
     lootbeams::init();
     proposedefaults::init();
     cleanskins::init();
+    voice::init();
     rangerhead::init();
     Cmd_AddCommand("vr_body_head_info", rangerhead::info_f);
     mdldequant::init();

@@ -23148,3 +23148,41 @@ never reached when the grunt follows: lags 20-25 cm). Tests 31 5/5, 32 5/5, 36 4
 twohand: taken, held 1.5-2.4 units from the hands, let go; eval.sh canary 36/44, 0 differ.
 - [ ] Grab an armed grunt's gun at the muzzle, the barrel and the stock: each starts the tug. As the tug begins (and
   as an armed grunt is knocked down), its gun and arms stay where they were: no jump of the gun or of your hand.
+
+## Feminine voice (worktree `dequant`, branch `agent/femvoice`, 2026-10-26)
+
+His request: Player Appearance > **Voice: Masculine / Feminine** (`vr_voice`, default 0 masculine), no new assets: the
+player's own voice sounds transformed as they load.
+
+- **The sounds** (`vr_voice.cpp` `voiceSounds`, 23): `player/pain1-6`, `death1-5`, `plyrjmp8` (jump), `land2` (hard
+  landing's "oof"), `gasp1-2`, `drown1-2`, `lburn1-2`, `slimbrn2`, `h2odeath`, and the two the engine derives from them
+  (`vr/derived/plyrjmp8_low`, `land2_low`: the mantle and judo-throw grunts). From the QC (player.qc, client.qc, the AD
+  copies, vr_burning.qc, vr_melee.qc's gasps) and the engine (vr_climb.cpp, vr_audio.cpp). Not voice: `land.wav` (the
+  thud), `axhit1/2`, gibs, splashes, telefrag, heartbeat. They are global sounds (`sfx_t` by name), so in co-op every
+  player's voice follows your setting.
+- **Method** (C++, no third-party code): S_LoadSound hands the decoded WAV to `VR_SndVoice`, which (1) finds the pitch
+  per 5 ms frame at the file's 11 kHz with YIN (70-700 Hz, threshold `vr_voice_voicing` 0.4, 5-frame median, runs under
+  3 frames dropped); (2) upsamples to the mix's rate with a windowed sinc (Blackman, 12 zero crossings, cut at 92% of
+  the source Nyquist); (3) places pitch marks (each period's largest peak of the run's polarity within +-20%; unvoiced
+  every 5 ms); (4) TD-PSOLA: output grains every period / 2^(st/12), each the nearest mark's two-period Hann grain read
+  1 + formant% faster (the grain's spectral envelope, the formants, stretched up; the pitch is the spacing alone; the
+  time map is 1:1, so the length is kept); unvoiced stretches keep their spacing and only get the formant stretch;
+  overlap-add normalised by the window sum, the peak capped at the original's. Written back 16-bit at the mix's rate,
+  so it is not resampled again (the voices read it directly; no band-limited copy needed).
+- **Settings**: `vr_voice_pitch` 4.5 semitones (slider 0-8), `vr_voice_formant` 17 % (0-30), `vr_voice_voicing` 0.4
+  (console only: YIN's threshold; at 0.2 most of the screams' rough middles were left unpitched, 0-43% voiced; at 0.4
+  36-87% voiced with the measured pitch ratio 1.26-1.33 where both ends were measurable). Rows on Player Appearance
+  under Hand Shape: Voice, Voice Pitch, Voice Formants, **Hear Voice** (`vr_voice_hear`: one of 8 voice sounds each
+  press). A change frees those sounds (`S_FlushSfxNamed`, after `S_MixJoin`): each loads again as it next plays, no
+  restart. Cached: the engine's own sound cache holds the transformed samples for the session.
+- **Randomize**: the voice rolled last: feminine 90% with the feminine body, else 10%.
+- **Debug** (Debug > Tests > Spatial Audio): Voice Transform Test (`vr_voice_test`), Export Voice Samples
+  (`vr_voice_export <dir>`: five sounds before/after as WAV, spectrograms of two), `vr_voice_info` (loads, time).
+- **Tests**: `vr_voice_test` 28/28: synthetic male /a/ (120 Hz pulse train through 730/1090/2440 Hz formants, 8-bit
+  11 kHz): f0 119.9 -> 155.5 Hz (expected 155.4, error 0.02%), active length 0.988 -> 0.983 s (0.5%), peak 0.86, 0
+  clipped, spectral centroid x1.10; every voice sound transformed (finite, unclipped, length within 2%). In game with
+  sound (`-Sound`, `map start`): 23 sounds transformed at load in 66 ms (no-LTO build; 16.8 s of audio, ~3 ms a
+  sound); `vr_voice_formant 20` then Hear: pain2 loaded again transformed; `vr_voice 0`: back to the 8-bit original.
+  eval.sh: 163/171 as the baseline's verdicts (5 rows differ by 0.1 in a speed, PASS -> PASS).
+- [ ] Player Appearance > Voice: Feminine, press Hear Voice a few times, then take damage, jump, land hard, drown,
+  die: a woman's voice, not a sped-up man's; Voice Pitch and Voice Formants change it at once.
