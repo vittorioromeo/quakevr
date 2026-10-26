@@ -2608,9 +2608,9 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
                     gripRigid(kind, slot, aggrip::Second));
                 t.second = true;
             }
-            else if(h.type == weapons::HotspotType::Cup)
+            else if(h.type == weapons::HotspotType::Cup && !(kind == 1 && vr_agrunt_enforcer_one_hand.value != 0.f))
             {
-                t.cup = true;
+                t.cup = true; // (vr_agrunt_enforcer_one_hand: the enforcer's pistols in one hand, the other free)
             }
         }
     }

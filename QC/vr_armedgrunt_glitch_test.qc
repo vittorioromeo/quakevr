@@ -1,7 +1,8 @@
 #ifdef QVR_TESTS
 // Test 46: the armed humanoids' glitch finder (vr_agglitch.cpp; ROUND22.md, "Armed humanoids in motion: the glitch
 // finder and a robust solve"; Debug > Tests > Armed Humanoids: Glitch Finder). You unseen; each subject in turn (each
-// kind with each weapon class, VR_AGG_Set: fists, a sword, an axe, the guns, a chainsaw, two shotguns, two axes) plays
+// kind with each weapon class, VR_AGG_Set: fists, a sword, an axe, the guns, a chainsaw, two shotguns, two axes, Mjolnir,
+// a nail pistol) plays
 // its real gameplay loops against a target moving all round it (its own AI: it aims, fires, reloads, runs, strikes,
 // takes pain, picks its weapon up again), VR_AGG_LEN seconds each:
 // - 0..7 the target circling 220 units off, rising and falling (every yaw, pitch up and down): aim, fire, reload;
@@ -18,8 +19,8 @@
 // writes the worst moments and each metric's worst and 95th percentile. scratch2 / scratch3: the first and last subject
 // (0..VR_AGG_COUNT - 1; both 0: all); temp1 1: the touching-distance loop alone (VR_AGG_CLOSE_AT on, each subject
 // VR_AGG_CLOSE_LEN s).
-float VR_AGG_SETS = 12;
-float VR_AGG_COUNT = 24;  // (both kinds)
+float VR_AGG_SETS = 13;
+float VR_AGG_COUNT = 26;  // (both kinds)
 float VR_AGG_LEN = 26;
 float VR_AGG_CLOSE_AT = 13;
 float VR_AGG_CLOSE_LEN = 7;
@@ -58,7 +59,8 @@ float(float s) VR_AGG_Set =
     if(s == 8) { return WID_CHAINSAW; }
     if(s == 9) { vr_agt_weapon2 = WID_SHOTGUN; return WID_SHOTGUN; }
     if(s == 10) { vr_agt_weapon2 = WID_AXE; return WID_AXE; }
-    return WID_MJOLNIR;
+    if(s == 11) { return WID_MJOLNIR; }
+    return WID_NAILPISTOL; // (ROUND22.md, "Armed humanoids' shoulders": run with a nail pistol, its arm by the torso)
 };
 
 void(entity attacker, float damage) VR_AGG_TargetPain = { self.health = 100000; };
@@ -335,6 +337,7 @@ void() VR_AGTest_Glitch =
         if(vr_agt_grunt && vr_agt_grunt.classname != "") { VR_AGT_Remove(vr_agt_grunt); }
         vr_agt_grunt = world;
         cvar_set("vr_agglitch_ent", "0");
+        localcmd("vr_agarms_cost\n"); // (the arms' solves' time over the sweep: us per armed humanoid a frame)
         localcmd("vr_agglitch_report agglitch\n");
         VR_AGT_Print(sprintf("agglitch: shots %g, %g turned onto their gun's drawn line (vr_agrunt_shot_drawn), %.2f deg each on average",
             vr_ag_all_shots, vr_ag_drawn_shots, vr_ag_drawn_deg / max(1, vr_ag_drawn_shots)));

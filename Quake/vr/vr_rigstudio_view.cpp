@@ -5,6 +5,7 @@
 // own view of the scene.
 
 #include "vr_rigstudio_internal.hpp"
+#include "vr_agarms.hpp"
 #include "vr_agbody.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -1165,6 +1166,40 @@ void drawLimits(ImDrawList* dl)
             prev = s;
         }
         (void)first;
+        agarms::ShoulderInfo sh;
+        if(agarms::shoulderLimits(st.model, b, sh) && sh.chest >= 0 && sh.chest < st.rig->numBones)
+        {
+            // An armed humanoid's shoulder as its arms' IK has it (vr_agarms_limits, _clavicle): its clavicle from the
+            // pivot near the neck to the joint (yellow), the cone its upper arm keeps within (magenta; dimmed when off).
+            const rigpose::Rigid& fc = st.F[sh.chest];
+            glm::vec2 sk, sc;
+            if(project(toWorld(rigpose::apply(fc, sh.clavicle)), sk) && project(c, sc))
+            {
+                dl->AddLine(iv(sk), iv(sc), col(glm::vec4{1.f, 0.9f, 0.2f, 0.9f}), 2.f);
+                dl->AddCircleFilled(iv(sk), 3.f, col(glm::vec4{1.f, 0.9f, 0.2f, 0.9f}), 10);
+            }
+            const glm::vec3 ax = glm::normalize(toWorld(fc.rot * sh.axis) - toWorld(glm::vec3{0.f}));
+            const float ikCone = sh.cone * deg;
+            glm::vec3 iu = glm::abs(ax.z) < 0.9f ? glm::cross(ax, glm::vec3{0.f, 0.f, 1.f}) : glm::cross(ax, glm::vec3{1.f, 0.f, 0.f});
+            iu = glm::normalize(iu);
+            const glm::vec3 iw = glm::cross(ax, iu);
+            const glm::vec4 kc{1.f, 0.3f, 0.9f, sh.on ? 0.85f : 0.3f};
+            glm::vec2 ip{0.f}, sa;
+            project(c + ax * len, sa);
+            dl->AddLine(iv(sc), iv(sa), col(kc), 1.f);
+            for(int i = 0; i <= 32; i++)
+            {
+                const float t = static_cast<float>(i) / 32.f * 2.f * pi;
+                const glm::vec3 d = ax * za::cos(ikCone) + (iu * za::cos(t) + iw * za::sin(t)) * za::sin(ikCone);
+                glm::vec2 s;
+                project(c + d * len, s);
+                if(i > 0)
+                {
+                    dl->AddLine(iv(ip), iv(s), col(kc), 1.5f);
+                }
+                ip = s;
+            }
+        }
     }
     else if(rb.joint == ragdoll::Joint::Hinge)
     {
