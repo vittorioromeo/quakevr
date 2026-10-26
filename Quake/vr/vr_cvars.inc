@@ -3138,6 +3138,7 @@ QVR_CVAR(vr_agarms_shoulder_cone, "105", CVAR_ARCHIVE) // vr_agarms_limits: the 
 QVR_CVAR(vr_agarms_shoulder_twist, "80", CVAR_ARCHIVE) // vr_agarms_limits: ... and twisted about itself at most this many degrees either way from its rest pose's
 QVR_CVAR(vr_agarms_arm_clear, "1", CVAR_ARCHIVE)       // vr_agarms: 1 the upper arm's thickness (its skin's) kept out of the torso as the elbow is chosen; 0 only its bone's line, the elbow and the forearm (before)
 QVR_CVAR(vr_agrunt_enforcer_one_hand, "1", CVAR_ARCHIVE) // armed enforcers hold a pistol (a gun whose off hand cups the other: the nail pistol) in one hand, the other free; 0 cupped in both like the grunt (before)
+QVR_CVAR(vr_agrunt_atk_stand, "1", CVAR_ARCHIVE)     // armed humanoids whose own aiming frames crouch and lean back (the enforcer's: a rifle at the hip) stand as they aim and fire, their posed arms holding the weapon (with vr_agarms); 0 their aiming frames (before: the enforcer's belly pushed forward, its legs bent)
 QVR_CVAR(vr_agarms_twist_share, "0", CVAR_NONE)       // vr_agarms (tuning): > 0 the share of a hand's twist about its forearm the forearm takes, every armed model (0: each model's own, 0.5 both)
 QVR_CVAR(vr_posestudio_live_warm,"0.4", CVAR_NONE)   // ... seconds of the tape solved again before a paused frame with an edit laid on (the eases see it as play would)
 QVR_CVAR(vr_posestudio_reach, "2.5", CVAR_ARCHIVE)     // the Pose Studio (Grip Editor > Drag Mode): the armed humanoid nearest within this many metres of your head is the one shown and edited
@@ -3694,6 +3695,7 @@ QVR_CVAR(vr_ragdoll_grab_force, "4000", CVAR_ARCHIVE) // N: the most a hand pull
 QVR_CVAR(vr_ragdoll_grab_reach, "2", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
 QVR_CVAR(vr_ragdoll_grab_fit, "1", CVAR_ARCHIVE)      // a taken limb's surface brought onto the palm (as a carried prop's: vr_held_surface_fit); 0: held where the hand's middle was
 QVR_CVAR(vr_ragdoll_posed_arms, "1", CVAR_ARCHIVE)   // 1: an armed humanoid made a ragdoll keeps its arms where they were drawn on its weapons (vr_agarms), not its frame's: its weapon and a tug's hold stay put; 0: the frame's arms (before)
+QVR_CVAR(vr_ragdoll_arm_skin, "1", CVAR_ARCHIVE)     // 1: an armed humanoid's ragdoll drawn with its living arm skin's blend (the shoulder turned about its joint between the chest and the upper arm, the elbow between the arm's bones; read when its ragdoll model is first made); 0: each vertex rigid on one bone (before: a raised arm's shoulder torn and folded)
 QVR_CVAR(vr_ragdoll_hand_stick, "30", CVAR_ARCHIVE)    // cm: the most the hand holding a limb is drawn off its controller to stay on the limb (it lags and sags); 0: on the controller
 QVR_CVAR(vr_ragdoll_hand_turn, "70", CVAR_ARCHIVE)    // degrees: and the most it is drawn turned off it, with the limb twisting in the hand (the hand turns about its fingers on the limb)
 QVR_CVAR(vr_ragdoll_hand_rest, "6", CVAR_ARCHIVE)     // cm: the hand drawn on a held limb slid at most this along the way to its mesh, for its palm to rest on it (not off it, not sunk in it); 0: as the hold has it

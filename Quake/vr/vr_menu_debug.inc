@@ -875,6 +875,21 @@ za::Vector<Item> pageDebugProfiling()
             .help("An armed humanoid made a ragdoll (a tug, a stagger, a death) starts with its arms where they were drawn "
                   "holding its weapon, not its animation frame's: no jump of the weapon or of a tug's hand "
                   "(vr_ragdoll_posed_arms; off: as before)."),
+        toggle("Armed Ragdolls: Arm Skin", vr_ragdoll_arm_skin)
+            .help("An armed humanoid's ragdoll drawn with its living arm skin's blend (the shoulder turned about its joint, "
+                  "the elbow blended), not each vertex on one bone: no torn shoulder as a raised arm falls "
+                  "(vr_ragdoll_arm_skin; read when its ragdoll model is first made: change it, then load the map)."),
+        toggle("Armed Humanoids: Shoulder Skin", vr_agarms_shoulder_skin)
+            .help("The shoulders' skin from the real joint: the deltoid or pauldron on the arm, its blend into the body "
+                  "about the joint, the shoulder's top on the clavicle (vr_agarms_shoulder_skin; read at a map load)."),
+        toggle("Armed Humanoids: Shoulder Limits", vr_agarms_limits)
+            .help("The arms' IK keeps each upper arm within its shoulder's cone and twist (vr_agarms_shoulder_cone, _twist); "
+                  "a hand out of reach within them eases off its grip (vr_agarms_limits; off: as before)."),
+        toggle("Armed Humanoids: Upper Arm Clear of the Torso", vr_agarms_arm_clear)
+            .help("The upper arm's skin kept out of the torso: the elbow chosen so, else the wrist turned out about the "
+                  "shoulder (vr_agarms_arm_clear; off: only the bone's line, as before)."),
+        command("Armed Humanoids: Arms' Solve Time", "vr_agarms_cost")
+            .help("vr_agarms_cost: the arms' solves since the last (one armed humanoid's arms a frame): how many, us each."),
         command("Armed Monsters' Weapons: Drawn vs Server", "vr_agrunt_weapon_probe")
             .help("vr_agrunt_weapon_probe: each armed monster's held weapon as drawn (on its drawn hands) against where the "
                   "server has it (what your grabs and a tug's hold use): cm and degrees apart."),

@@ -286,6 +286,9 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
 - The rig's bone overrides and weights take effect when the rig is derived: the next start of the game.
 - A bone's parent is shown, not edited (the rig's tree is the seed table's).
 - The IK tool solves two-bone chains (a hinge on a ball joint: the arms, the legs) in the plane the elbow is in; the
-  joints' limits are shown, not enforced while posing.
+  joints' limits are shown, not enforced while posing. The game's arm IK (vr_agarms) keeps its own shoulder limits
+  (`vr_agarms_limits`): with an armed humanoid's upper arm selected and Limits on, its clavicle (yellow, from its pivot
+  near the neck to the joint) and the cone its upper arm keeps within (magenta, `vr_agarms_shoulder_cone`; dimmed when
+  off) are drawn besides the ragdoll's cone.
 - The studio's mesh is drawn with ImGui's lists (sorted by depth, no depth buffer): a few crossing triangles may show
   through at the X-Ray's edges.

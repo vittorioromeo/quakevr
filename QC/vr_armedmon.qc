@@ -40,6 +40,7 @@ float vr_am_n_stand;        // ... how many
 float vr_am_f_run;          // its run frames (8): the first
 float vr_am_rund[8];        // ... each frame's step (its own run's)
 float vr_am_f_atk;          // its aiming frames (9: the shots in the 4th..8th, one shot in the 5th): the first
+float vr_am_atk_stand;      // 1: with vr_agarms and vr_agrunt_atk_stand its aiming frames drawn as its stand frames (the enforcer's crouch and lean back for a rifle at the hip: its posed arms aim)
 float vr_am_f_shove;        // its shove frames (6: a gun's butt): the first
 float vr_am_f_reload;       // its reload frames (11 drawn, these repeating): the first,
 float vr_am_n_reload;       // ... how many
@@ -86,6 +87,7 @@ void(float k) VR_AM_Row =
         vr_am_rund[0] = 18; vr_am_rund[1] = 14; vr_am_rund[2] = 7; vr_am_rund[3] = 12;
         vr_am_rund[4] = 14; vr_am_rund[5] = 14; vr_am_rund[6] = 7; vr_am_rund[7] = 11;
         vr_am_f_atk = 32;    // attack2..10 (its shot in attack6, as id's)
+        vr_am_atk_stand = 1; // (vr_agrunt_atk_stand: its stand frames under its posed arms as it fires)
         vr_am_f_shove = 102; // shove1..6
         vr_am_f_reload = 0;  // (no load frames: its stand)
         vr_am_n_reload = 7;
@@ -130,6 +132,7 @@ void(float k) VR_AM_Row =
     vr_am_rund[0] = 11; vr_am_rund[1] = 15; vr_am_rund[2] = 10; vr_am_rund[3] = 10;
     vr_am_rund[4] = 8; vr_am_rund[5] = 15; vr_am_rund[6] = 10; vr_am_rund[7] = 8;
     vr_am_f_atk = 81;    // shoot1..9
+    vr_am_atk_stand = 0;
     vr_am_f_shove = 114; // shove1..6
     vr_am_f_reload = 29; // load1..11 (unused by id's)
     vr_am_n_reload = 11;
@@ -195,13 +198,22 @@ float VR_AM_A_SHOVE = 2;  // 0..5
 float VR_AM_A_RELOAD = 3; // 0..10
 float VR_AM_A_TAKE = 4;   // 0..3
 
+float(entity g, float n) VR_AM_StandFrame;
+
 // Self's frame `i` of animation `a`, and its next think (as a [frame, next] function's: then its body runs).
 void(float a, float i, void() next) VR_AM_Anim =
 {
     VR_AM_Row(self.vr_ag_kind);
     float f = vr_am_f_take + i;
     if(a == VR_AM_A_RUN)         { f = vr_am_f_run + i; }
-    else if(a == VR_AM_A_ATK)    { f = vr_am_f_atk + i; }
+    else if(a == VR_AM_A_ATK)
+    {
+        f = vr_am_f_atk + i;
+        if(vr_am_atk_stand && cvar_hget(cvarh_vr_agrunt_atk_stand) && cvar_hget(cvarh_vr_agarms))
+        {
+            f = VR_AM_StandFrame(self, i); // (vr_agrunt_atk_stand: its legs and hips stand, its posed arms aim and fire)
+        }
+    }
     else if(a == VR_AM_A_SHOVE)  { f = vr_am_f_shove + i; }
     else if(a == VR_AM_A_RELOAD) { f = vr_am_f_reload + i - floor(i / vr_am_n_reload) * vr_am_n_reload; }
     self.frame = f;

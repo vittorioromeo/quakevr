@@ -199,6 +199,14 @@ ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Huma
   of and the elbow kept out of (`vr_agarms_body`); the elbow's swing rate-limited the way round outside the body
   (`vr_agarms_elbow_rate`); the second grip's hysteresis and ease (`vr_agarms_second_hold`); a pickup's reach eased in by
   distance (`vr_agarms_reach_ease`); goal jumps eased (`vr_agarms_jump_ease`).
+- **The shoulders** (ROUND22.md, "Armed humanoids' shoulders"): the skin from the real joint (`vr_agarms_shoulder_skin`:
+  the deltoid or pauldron on the arm, no forearm turn on the upper arm's top half, the blend about the joint), a
+  clavicle per side (`vr_agarms_clavicle`, `_most`: the joint shrugs and comes forward with the arm, the shoulder's top
+  with it; rows 22..25 of `RigArm`), the shoulder's cone and twist in the IK (`vr_agarms_limits`, `_shoulder_cone`,
+  `_shoulder_twist`), the upper arm's skin kept out of the torso (`vr_agarms_arm_clear`), the enforcer's pistols
+  one-handed (`vr_agrunt_enforcer_one_hand`), its stand frames as it fires (`vr_agrunt_atk_stand`, the row's
+  `vr_am_atk_stand`), armed ragdolls drawn with the arm skin's blend (`vr_ragdoll_arm_skin`). The finder's metrics
+  armpen, swing, twist, stretch measure them; `vr_agarms_cost` the solve's time.
 - **The upper body** (`vr_agrunt_upper`): the chest upright on the frames' hips (their own chest motion in shots, reloads,
   pains and runs taken out; a pickup's crouch, falls and deaths keep the frames'), breathing; QC's gun torso turns (aim
   twist `vr_agrunt_aim_twist`, kick lean, reload turn) as the body block, the Pose Studio's torso keys on top.
