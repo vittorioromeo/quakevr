@@ -130,6 +130,7 @@ void jumpToRecording();
 // Search (the corner's button): the Search page, from any menu (vr_menu_search.inc).
 void openSearch();
 void search_f(); // vr_menu_search <text>
+void randomAppearance_f(); // vr_appearance_random: a random skin tone, gloves and nails (Player Appearance > Randomize)
 void sliderStep_f(); // vr_menu_slider_step <cvar> <steps> [fine]: steps a slider as the menu's keys do (tests)
 
 // Console (the corner's button): Quake's console with a keyboard, from any menu (vr_menu_console.inc).

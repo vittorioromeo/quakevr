@@ -74,3 +74,10 @@ The shader (`vr_glsl.h` QVR_ALIAS_FS_LIGHT, `NailGloss`): inside the mask the na
 little of its own painted shading (its lighter free edge), its bumps smoothed (a coat), and the gloss adds a highlight
 in the hand's light (sharper with more gloss) and the room's light mirrored at grazing angles. With `vr_nails 0` the
 mask is never loaded and the shader's nail code is skipped (the instance's Nails.w is 0).
+
+## Randomize
+
+VR Settings > Player Appearance > Randomize (console: `vr_appearance_random [seed]`) sets a random skin tone, gloves
+(none 50 percent, fingerless 25, full 25) with leather-like colours, and painted nails (on half the time) with
+polish-like colours and a gloss of 0.3-1. It leaves the gloves' thickness, worn leather and relief, and every other
+setting, alone. Ranges: ROUND22.md, "Player Appearance: Randomize".
