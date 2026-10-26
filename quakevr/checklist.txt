@@ -3,6 +3,10 @@
 
 [for beta4: test these first]
 # Default-on changes since v1.1.0-beta3, most important first; armed humanoids, the new weapons and dev-only tools are further down.
+Press Test on the "for beta4" items with a toolgun entry picked first (e.g. Nailgun): each scene starts {test:magfill}
+AD's lamps in ad_crucial with Comfort > Soften Flickering Lights at 0.5, then 0: calmer flicker, same rhythm; 0 is AD's original {test:ad_lighting}
+Empty nail magazines on the floor: no force grab, no sparkles when aimed at; one with rounds left still comes {test:magfill}
+AD shotgun and super shotgun projectile pellets on a worn flamethrower or poison tank: sparks and a tink, no blood; a crate splinters; a grunt bleeds {test:ad_pellet_tanks}
 Autosaves: play a map a while: Load Autosave (main and pause menus; death menu, under Restart) lists this game's autosaves newest first; none is made while monsters are on you or health is low
 # -- Arcane Dimensions (experimental) --
 AD: hub, exits, ladders; shotgun/SSG/burst hits and damage; ammo pickups keep held weapon model; Projectile Rules Auto/Vanilla/AD
