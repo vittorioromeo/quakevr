@@ -3,25 +3,15 @@
 
 [new since the beta4 list: test these first]
 Grab an armed grunt's gun at the muzzle, barrel and stock: each starts the tug; as the tug begins, and when an armed grunt is knocked down, its gun and arms stay where they were: no jump of the gun or of your hand; the tug's pull feels right (it wins a little faster on quick pulls, slower on very slow ones)
-Rig Studio (-flatscreenmode, Debug > Tools > Rig Studio or vr_rigstudio): orbit (middle mouse), pan (Shift), zoom, F, 1/3/7; rotate the chest with a ring; Ctrl snaps; undo/redo
-Rig Studio Weights: the arm's heat map; paint add/smooth with mirror; assign; normalize; save, restart the game and the edit is applied
-Rig Studio Timeline: key the arm in the reload animation at frames 3 and 7, play at 0.5x with onion skin; make a short new sequence and save it
 vr_agrunt_taunt 1: an armed grunt taunts when it first sees you, then charges; shoot it mid-taunt and it stops
 Grab an armed grunt's gun (grip, barrel, stock) and tug: your hand stays on the gun where you took it; pull hard or step back far without winning and it lets go (Armed Grunts > Tug: Let Go Past); say whether the hand's jump onto the gun as the tug starts (~20 cm) reads wrong
-Player Appearance > Hand Shape > Feminine: slimmer fingers, finer knuckles, longer nail beds; switching is instant; grips, two-handed grips and reloads feel the same
-Feminine hands: gloves and nails sit right; the wrist meets the bare forearm with no gap; Randomize picks them with the feminine body
-Player Appearance > Body Shape > Feminine: narrower waist, wider hips, modest chest, slimmer arms; calibration still fits; Athletic restores the old body
-Body Shape Feminine with green, yellow and red armour: the plates look fitted over the chest, not painted flat; holsters, wrist gadget, flashlight clip and arm blood sit right on the body
-Randomize sometimes picks the Feminine body (about 1 in 4) and otherwise keeps your other shape
 Heavy revolver: a normal flick opens and closes it as before; a slow roll opens it only if Flick Open Time (and closes only if Flick Close Time) is raised; the Flick Open/Close Speed, Time and Sustain sliders do what their help says
 Heavy revolver {test:revolver}: the barrel half as long again, the front sight lines up in the rear notch; no hole where the barrel meets the frame (look from above and behind); shots, flash and smoke from the new muzzle; it still sits in both holsters without poking through you
-Player Appearance > Randomize: each press gives a new look (skin tone, gloves none/fingerless/full in leather colours, nails on about half the time) and leaves every other setting alone
 Nail magazines {test:magfill} (nail pistol, nailgun, super nailgun) show two top nails when they hold 2 or more, one with one round left, none when empty: in the hand, in the pouch, lying about and dropped after a reload
 Widowmaker: the darker skin in a lit and a dark room; rust, rivets, bricks and brass still readable {test:widowmaker_art}
 The nailgun's and super nailgun's magazines {test:nailmags} show their top two nails as models over the feed lips, like the nail pistol's (the lava nails red-hot); seated, no nail pokes out of the gun or its well
 Widowmaker: take the front handle: the gun doesn't jump and then follows the front hand too (Weapon Offsets > Hotspots: Two-Handed Aim Off brings back the main-hand-only feel)
 Try Hotspots > Two-Handed Aim On for the nail pistol's cup grip: keep it off or make it the default?
-Heat haze in fire and over lava: sharp on the High and Ultra graphics presets, Half Size on Medium and below
 Fresh config: the Widowmaker's ammo readout sits where you put it; the nail pistol has its off-hand cup grip (your tuning, now the default)
 Heavy revolver {test:revolver}: a shot each pull, the hammer cocks and falls, the cylinder turns a chamber; heavy kick and flash; grip and holsters sit right (copied from the nail pistol: tune if not)
 Heavy revolver: a wrist flick toward the cylinder (or B/Y) swings it out; muzzle up, B/Y or the ejector rod drops the shells (spent casings plus live shells); the blue slugs and spent vs live are visible
