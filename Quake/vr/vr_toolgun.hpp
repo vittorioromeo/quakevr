@@ -102,6 +102,7 @@ void refresh();
 [[nodiscard]] int kindCount();
 [[nodiscard]] const char* kindName(int k);
 [[nodiscard]] const char* kindModel(int k);
+[[nodiscard]] const char* kindSpawn(int k); // its spawn function (classname: monster_vr_grunt)
 [[nodiscard]] int weaponCount(); // every kind's weapons (melee first)
 [[nodiscard]] int weaponCode(int i);
 [[nodiscard]] const char* codeName(int code); // "Random from Pool", "Unarmed", a weapon's name

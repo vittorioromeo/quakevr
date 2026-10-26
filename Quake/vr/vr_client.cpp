@@ -60,6 +60,7 @@
 #include "vr_goresound.hpp"
 #include "vr_bloodprints.hpp"
 #include "vr_hitreact.hpp"
+#include "vr_rigseq.hpp"
 #include "vr_srvrandom.hpp"
 #include "vr_melee_shared.h"
 #include "vr_toolgun.hpp"
@@ -866,6 +867,7 @@ extern "C" void VR_WriteDemoState(sizebuf_t* msg)
 
 extern "C" void VR_OnClientClearState()
 {
+    rigseq::clientClear(); // (the sequences drawn: the server tells the new map's)
     entityData.clear();
     lateBrushModels.clear();
     particles::clear();
@@ -993,6 +995,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
         case QVR_SVC_HITREACT: hitreact::parseEvent(); break;
         case QVR_SVC_ARMPOSE: hitreact::parseArmPose(); break;
+        case QVR_SVC_RIGSEQ: rigseq::parseMessage(); break;
         case QVR_SVC_GORESOUND: goresound::parseEvent(); break;
         case QVR_SVC_WEAPONGONE: wounds::parseWeaponGone(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;

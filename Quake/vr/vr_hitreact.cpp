@@ -11,6 +11,8 @@
 #include "vr_mem.hpp"
 #include "vr_poselive.hpp"
 #include "vr_posestudio.hpp"
+#include "vr_rigseq.hpp"
+#include "vr_rigstudio.hpp"
 #include "vr_view.hpp"
 #include "vr_render.hpp"
 #include "vr_weapons.hpp"
@@ -2476,6 +2478,19 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         posed[i].rot = glm::slerp(k1.rot, k2.rot, b);
         posed[i].pos = glm::mix(k1.pos, k2.pos, b);
     }
+    // The Rig Studio's animations (vr_rigseq.cpp; kickInstance draws them so): its bones from them, the layers below on top.
+    bool layerArms = false;
+    if(rigseq::wants(e))
+    {
+        rigpose::Rigid F[ragdoll::maxBones];
+        if(rigseq::bones(e, *rig, hdr, pose1, pose2, blend, posed, F, &layerArms))
+        {
+            for(int i = 0; i < rig->numBones; i++)
+            {
+                posed[i] = F[i];
+            }
+        }
+    }
     {
         // A take's kneel (vr_aglegs: its legs posed, the body above carried by its pelvis, the arms solved on it)
         float yawDeg = 0.f;
@@ -2633,12 +2648,16 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         }
     }
     posestudio::adjust(s.ent, t); // (the Pose Studio's drag: a weapon held at the controller)
+    if(layerArms)
+    {
+        rigseq::adjustTargets(*rig, spec, posed, kicked ? kick : nullptr, t); // (the Rig Studio's arms: the hands on their bones)
+    }
     agarms::Placed placed;
     if(!agarms::solve(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, placed))
     {
         return;
     }
-    if(posestudio::active())
+    if(posestudio::active() || rigstudio::wantsNotes())
     {
         posestudio::Note n;
         n.ent = s.ent;
@@ -2662,7 +2681,11 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         n.elbowPole[0] = n.bodyFlag ? s.elbowR : glm::vec3{0.f};
         n.elbowPole[1] = n.bodyFlag ? s.elbowL : glm::vec3{0.f};
         n.waist = s.waist;
-        posestudio::note(n);
+        if(posestudio::active())
+        {
+            posestudio::note(n);
+        }
+        rigstudio::note(n); // (the Rig Studio's display: its subject's IK targets and grips)
     }
     if(placed.on[0] && hasR && placeable(placed.weapon[0]))
     {

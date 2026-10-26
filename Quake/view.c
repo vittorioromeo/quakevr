@@ -899,6 +899,7 @@ void V_CalcRefdef (void)
 		Chase_UpdateForDrawing (); //johnfitz
 
 	VR_RagtoolView (r_refdef.vieworg, r_refdef.viewangles); // QVR: the ragdoll tool's orbit camera
+	VR_RigStudioView (r_refdef.vieworg, r_refdef.viewangles); // QVR: the Rig Studio's camera (vr/vr_rigstudio.cpp)
 }
 
 /*

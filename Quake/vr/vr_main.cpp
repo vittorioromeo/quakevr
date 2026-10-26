@@ -116,6 +116,10 @@
 #include "vr_flashlight.hpp"
 #include "vr_flatplay.hpp"
 #include "vr_ragtool.hpp"
+#include "vr_imgui.hpp"
+#include "vr_rigdata.hpp"
+#include "vr_rigseq.hpp"
+#include "vr_rigstudio.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_grasp.hpp"
 #include "vr_gripfit.hpp"
@@ -1888,6 +1892,7 @@ static void testConfirm_f()
 extern "C" void VR_NewMap()
 {
     ++qvr::worldGen;
+    rigdata::newMap(); // (the Rig Studio's files read again as each model is next drawn)
 
     // What the map's first frames, the first shot or the first hit made on first use, made now, in the load: the decals'
     // atlas (0.4 s: the first mark's frame), the view's own models (0.3 s the first time), the liquids' volume and mesh
@@ -2055,6 +2060,7 @@ extern "C" void VR_Init()
     registerCvars();
     ragtool::init();  // -ragtool, vr_ragtool (vr_ragtool.cpp): before flatplay, whose mode the flag implies
     flatplay::init(); // -flatscreenmode (vr_flatplay.cpp): the flag the whole mode hangs on, read once here
+    rigstudio::init(); // vr_rigstudio (vr_rigstudio.cpp), its data (vr_rigdata.cpp) and the game's side (vr_rigseq.cpp): their commands
     VR_RegisterPackStatus();
     VR_RegisterContinue();
     Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
@@ -2261,6 +2267,7 @@ extern "C" void VR_StopDownloads()
 
 extern "C" void VR_Shutdown()
 {
+    rigstudio::shutdown(); // (the studio closed: its settings put back; ImGui let go, the GL context still there)
     doom::shutdown(); // Doom's settings saved, qvr_doom.dll unloaded
     hull::finishLoads(); // (a map load's builds, if a quit came in the middle of one)
     box3d::finishLoads();
@@ -2397,6 +2404,7 @@ extern "C" void VR_BeginFrame()
         flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)
         flatplay::frame(); // -flatscreenmode: its keys, and the settings the mode stands in for (before the hands are posed)
         ragtool::clientFrame(); // -ragtool: the ragdoll tool started once the game is up (vr_ragtool.cpp)
+        rigstudio::clientFrame(); // vr_rigstudio: its ImGui frame and windows (vr_rigstudio.cpp; nothing while closed)
     }
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).

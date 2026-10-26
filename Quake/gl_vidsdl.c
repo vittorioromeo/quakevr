@@ -1516,6 +1516,8 @@ void GL_EndRendering (void)
 	GL_PostProcess ();
 	GL_ReleaseFrameResources ();
 	if (!scr_skipupdate)
+		VR_ImGuiRender (); // QVR: the flat-screen tools' windows (the Rig Studio), last (vr/vr_imgui.cpp)
+	if (!scr_skipupdate)
 		VR_FrameDrawn (); // QVR: vr_screenshot_frames
 
 	VR_GLFrame (); // QVR: the start-up's breadcrumbs (vr/vr_glsafe.cpp)

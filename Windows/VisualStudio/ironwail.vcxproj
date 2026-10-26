@@ -323,6 +323,67 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
       <FileType>Document</FileType>
     </CopyFileToFolders>
   </ItemGroup>
+  <!-- QVR: Dear ImGui v1.92.8 (Quake/thirdparty/imgui, MIT: its LICENSE.txt), the flat-screen tools' UI (Quake/vr/vr_imgui.cpp): C++, no precompiled header, its own warnings off. -->
+  <ItemGroup>
+    <ClCompile Include="..\..\Quake\thirdparty\imgui\imgui.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <AdditionalIncludeDirectories>..\..\Quake\thirdparty\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\thirdparty\imgui\imgui_demo.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <AdditionalIncludeDirectories>..\..\Quake\thirdparty\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\thirdparty\imgui\imgui_draw.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <AdditionalIncludeDirectories>..\..\Quake\thirdparty\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\thirdparty\imgui\imgui_tables.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <AdditionalIncludeDirectories>..\..\Quake\thirdparty\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\thirdparty\imgui\imgui_widgets.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <AdditionalIncludeDirectories>..\..\Quake\thirdparty\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\thirdparty\imgui\imgui_impl_sdl2.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <AdditionalIncludeDirectories>..\..\Quake\thirdparty\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\thirdparty\imgui\imgui_impl_opengl3.cpp">
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <TreatWarningAsError>false</TreatWarningAsError>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <AdditionalIncludeDirectories>..\..\Quake\thirdparty\imgui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClInclude Include="..\..\Quake\thirdparty\imgui\imconfig.h" />
+    <ClInclude Include="..\..\Quake\thirdparty\imgui\imgui.h" />
+    <ClInclude Include="..\..\Quake\thirdparty\imgui\imgui_internal.h" />
+    <ClInclude Include="..\..\Quake\thirdparty\imgui\imstb_rectpack.h" />
+    <ClInclude Include="..\..\Quake\thirdparty\imgui\imstb_textedit.h" />
+    <ClInclude Include="..\..\Quake\thirdparty\imgui\imstb_truetype.h" />
+    <ClInclude Include="..\..\Quake\thirdparty\imgui\imgui_impl_sdl2.h" />
+    <ClInclude Include="..\..\Quake\thirdparty\imgui\imgui_impl_opengl3.h" />
+    <ClInclude Include="..\..\Quake\thirdparty\imgui\imgui_impl_opengl3_loader.h" />
+  </ItemGroup>
   <Import Project="quakevr.props" /><!-- QVR -->
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

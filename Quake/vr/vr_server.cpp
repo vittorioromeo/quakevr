@@ -1,5 +1,7 @@
 // vr_server.cpp -- server side of the Quake VR protocol extensions (see vr_protocol.hpp).
 
+#include "vr_rigseq.hpp"
+#include "vr_rigstudio.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_axestick.hpp"
 #include "vr_box3d.hpp"
@@ -1116,6 +1118,8 @@ extern "C" void VR_ServerFrameEnd()
     QVR_TRACY_CALL("sv end: explosion debris", qvr::explosiondebris::serverFrame()); // the explosions' chunks: new ones launched, the ended gone, the fades
     QVR_TRACY_CALL("sv end: limb models", qvr::limbmodel::spawnFrame()); // a kind of monster first spawned now: its limbs made ahead of its first cut
     progs::loadNoticeFrame(); // a loaded save's warning (another build's), once the player is in
+    QVR_TRACY_CALL("sv end: rig sequences", qvr::rigseq::serverFrame()); // QC's Rig Studio sequences: started, their events sent to QC (vr_rigseq.cpp)
+    qvr::rigstudio::serverFrame(); // the Rig Studio's scene: its subject made and held (nothing while closed)
 
     if(!vrProtocol())
     {

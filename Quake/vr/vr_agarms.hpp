@@ -63,6 +63,10 @@ struct Targets
     bool cup{false};           // the off hand under and round the right hand (a Cup hotspot)
     bool reaching{false};      // the right hand reaching for a weapon lying (QC VR_AGP_REACH): eased in as it nears (vr_agarms_reach_ease)
     glm::vec3 pole[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // an elbow's pole wanted (model space; its length the share): a strike's (agent/agstrike)
+    // The Rig Studio's animations (vr_rigseq.cpp): a hand's motion (rest -> now: its forearm bone's) given, its goal's
+    // place ignored (its weapon still drawn on it as the goal holds it); the arm's IK onto it as onto any goal.
+    bool fk[2]{false, false};
+    rigpose::Rigid fkHand[2];
 };
 
 // Where the hands put their weapons (model space): drawn there.

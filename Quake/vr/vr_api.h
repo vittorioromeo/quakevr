@@ -545,6 +545,10 @@ int VR_RagtoolHolds (void);								// Host_ServerFrame: nonzero while the ragdol
 int VR_RagtoolView (float *origin, float *angles);		// V_CalcRefdef: the ragdoll tool's orbit camera set over the view (nonzero: set)
 int VR_RagtoolKey (int key, int down);					// Key_Event in the game: nonzero if the ragdoll tool took the key
 void VR_RagtoolOverlay (void);							// V_RenderView, after R_RenderView: the debug lines over a flat view while the ragdoll tool runs
+int VR_ImGuiEvent (const void *sdlEvent);				// IN_SendKeyEvents, each SDL event first: nonzero when a flat-screen tool's ImGui took it (vr_imgui.cpp; the game skips it)
+void VR_ImGuiRender (void);								// GL_EndRendering, before the swap: the flat-screen tools' ImGui windows drawn (vr_imgui.cpp)
+int VR_RigStudioView (float *origin, float *angles);	// V_CalcRefdef: the Rig Studio's camera over the view (nonzero: set; vr_rigstudio.cpp)
+int VR_RigStudioHolds (void);							// Host_ServerFrame: nonzero while the Rig Studio holds the game still (its scene frozen)
 // The main menu's lettering as a font (vr_bigfont.cpp): its letters cut from id's menu pictures in the pak, rows of text
 // 24 pixels high whose small capitals end on row 15.
 int VR_BigFont_CanDraw (const char *text);				// M_Main_Draw: nonzero if every letter of `text` is there

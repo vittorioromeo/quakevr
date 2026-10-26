@@ -1383,6 +1383,59 @@ void() vr_ag_run6 = { VR_AM_Anim(VR_AM_A_RUN, 5, vr_ag_run7); VR_AG_Run(VR_AM_Ru
 void() vr_ag_run7 = { VR_AM_Anim(VR_AM_A_RUN, 6, vr_ag_run8); VR_AG_Run(VR_AM_RunStep(6)); };
 void() vr_ag_run8 = { VR_AM_Anim(VR_AM_A_RUN, 7, vr_ag_run1); VR_AG_Run(VR_AM_RunStep(7)); };
 
+// The taunt (vr_agrunt_taunt, off by default; the Rig Studio's proof: docs/vr-port/RIGSTUDIO.md): an armed humanoid seeing
+// a player for the first time stands and plays its model's "taunt" sequence (quakevr/anims/<model>/taunt.anim.txt,
+// vr_rigseq.qc) facing him, its "shout" event its sight sound, then comes for him. No such sequence for its model
+// (vr_rigseq_len -1), a pain (its frame changed: "stopped") or 4 seconds: on at once.
+.float vr_ag_taunted;     // it has taunted (once a life)
+.float vr_ag_taunt_until; // the wait's end at the latest
+void() vr_ag_taunt_wait;
+void(string seq, string ev, float frame) VR_AG_SeqEvent =
+{
+    if(ev == "shout")
+    {
+        sound(self, CHAN_VOICE, self.vr_ag_kind == 1 ? "enforcer/sight1.wav" : "soldier/sight1.wav", 1, ATTN_NORM);
+    }
+    else if((ev == "end" || ev == "stopped") && self.think == vr_ag_taunt_wait && self.health > 0)
+    {
+        self.think = vr_ag_run1;
+        self.nextthink = time;
+    }
+};
+void() vr_ag_taunt_wait =
+{
+    if(self.vr_rigseq_len < 0 || time > self.vr_ag_taunt_until || !self.enemy || self.enemy.health <= 0)
+    {
+        if(self.vr_rigseq_len > 0)
+        {
+            VR_RigSeq_Stop(self);
+        }
+        vr_ag_run1();
+        return;
+    }
+    ai_face();
+    self.think = vr_ag_taunt_wait;
+    self.nextthink = time + 0.1;
+};
+// Its th_run: the taunt first (once), else its run.
+void() vr_ag_hunt =
+{
+    if(!self.vr_ag_taunted && self.health > 0 && self.enemy && self.enemy.classname == "player" && !VR_AG_Still(self) &&
+       cvar("vr_agrunt_taunt"))
+    {
+        self.vr_ag_taunted = 1;
+        self.vr_rigseq_on = VR_AG_SeqEvent;
+        VR_RigSeq_Play(self, "taunt");
+        self.vr_ag_taunt_until = time + 4;
+        self.velocity = '0 0 0';
+        self.think = vr_ag_taunt_wait;
+        self.nextthink = time + 0.1;
+        VR_AG_Log("taunting");
+        return;
+    }
+    vr_ag_run1();
+};
+
 // After an attack: a reload if its clip is empty, else on running.
 void() VR_AG_AfterAttack =
 {
@@ -1650,7 +1703,7 @@ void() vr_ag_take6 = { vr_ag_takestep(); };
 float(entity g) VR_AG_Taking =
 {
     return g.think == vr_ag_takestep || g.think == vr_ag_take2 || g.think == vr_ag_take3 || g.think == vr_ag_take4 ||
-           g.think == vr_ag_take5 || g.think == vr_ag_take6 || g.think == vr_ag_run1;
+           g.think == vr_ag_take5 || g.think == vr_ag_take6 || g.think == vr_ag_run1 || g.think == vr_ag_hunt;
 };
 
 // ----------------------------------------------------------------------------
@@ -2267,7 +2320,7 @@ void(float kind) VR_AM_Spawn =
     }
     self.vr_ag = 1;
     self.vr_ag_kind = kind;
-    self.th_run = vr_ag_run1;
+    self.th_run = vr_ag_hunt; // (its run; first the taunt, vr_agrunt_taunt)
     self.th_missile = VR_AG_Missile;
     self.th_melee = VR_AG_Melee;
     vr_ag_arm_rolled = (pooled && want2 == 0); // (a flare gun too: one from the pool, one weapon)

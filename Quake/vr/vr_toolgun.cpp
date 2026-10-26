@@ -2341,6 +2341,7 @@ int generation() { return armedCat.valid ? armedCat.generation : 0; }
 int kindCount() { return armedCat.valid ? armedCat.kindCount : 0; }
 const char* kindName(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].name : ""; }
 const char* kindModel(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].model : ""; }
+const char* kindSpawn(int k) { return k >= 0 && k < kindCount() ? armedCat.kinds[k].spawn : ""; }
 int weaponCount() { return armedCat.valid ? static_cast<int>(armedCat.weapons.size()) : 0; }
 int weaponCode(int i) { return i >= 0 && i < weaponCount() ? armedCat.weapons[i].code : 0; }
 const char* codeName(int code) { return armedCodeName(code); }

@@ -19,6 +19,8 @@
 !/motions/expect.cfg
 !/motions/suspects.cfg
 /profile/
+/imgui.ini
+/rigstudio_test*/
 /sound_tests/
 /cache/
 /bodycal/
