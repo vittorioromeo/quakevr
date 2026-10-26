@@ -65,7 +65,7 @@ struct ServerPlay
 struct QcSide
 {
     const void* progs{nullptr};
-    int req{-1}, len{-1}, frame{-1};
+    int req{-1}, len{-1}, frame{-1}, t0{-1};
     func_t event{0};
 };
 
@@ -201,6 +201,7 @@ void resolveQc()
     rs.qc.req = ED_FindFieldOffset("vr_rigseq");
     rs.qc.len = ED_FindFieldOffset("vr_rigseq_len");
     rs.qc.frame = ED_FindFieldOffset("vr_rigseq_frame");
+    rs.qc.t0 = ED_FindFieldOffset("vr_rigseq_t0");
     rs.qc.event = progs::findFunction("VR_RigSeq_Event");
 }
 
@@ -311,7 +312,9 @@ void startOn(edict_t* e, const char* name)
     p.ent = ent;
     p.model = model;
     p.name = s->name;
-    p.start = sv.qcvm.time;
+    // (from when QC asked, if it said: its events' times then exact whatever the server frame it was taken in)
+    const float asked = progs::fieldFloatOr(e, rs.qc.t0, 0.f);
+    p.start = asked > 0.f && asked <= sv.qcvm.time && asked > sv.qcvm.time - 0.5 ? static_cast<double>(asked) : sv.qcvm.time;
     p.fps = s->fps;
     p.length = za::max(s->length, 1);
     p.loop = s->loop;
@@ -357,7 +360,7 @@ void advance()
         }
         const rigdata::Sequence* s = findSeq(rigdata::of(p.model), p.name.cStr());
         const float fr = static_cast<float>(sv.qcvm.time - p.start) * p.fps;
-        const int whole = static_cast<int>(za::floor(fr));
+        const int whole = static_cast<int>(za::floor(fr + 1e-3f)); // (0.3 s at 10 fps: frame 3, not 2.9999's 2)
         const int last = p.loop ? whole : za::min(whole, p.length - 1);
         for(int k = p.lastFrame + 1; s && k <= last; k++)
         {
@@ -376,7 +379,7 @@ void advance()
             continue; // (stopped or replaced by its events' QC)
         }
         rs.server[j].lastFrame = za::max(p.lastFrame, last);
-        if(!p.loop && fr >= static_cast<float>(p.length))
+        if(!p.loop && fr + 1e-3f >= static_cast<float>(p.length))
         {
             rs.server.erase(rs.server.begin() + static_cast<za::PtrDiffT>(j));
             sendStop(p.ent);

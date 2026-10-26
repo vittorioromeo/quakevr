@@ -1261,6 +1261,35 @@ bool sample(const Track& t, float frame, float loopLength, Local& out)
     return true;
 }
 
+namespace
+{
+// The armed humanoids' models (Misc/quakevr/make_vrgrunt.py) keep id's frames in id's order without their names (only
+// the shoves are named): their groups by id's names (QC vr_armedmon.qc's rows agree: run 73, shoot 81, load 29, ...).
+struct NamedRun
+{
+    const char* name;
+    int count;
+};
+constexpr NamedRun soldierRuns[] = {{"stand", 8}, {"death", 10}, {"deathc", 11}, {"load", 11}, {"pain", 6}, {"painb", 14},
+    {"painc", 13}, {"run", 8}, {"shoot", 9}, {"prowl", 24}};
+constexpr NamedRun enforcerRuns[] = {{"stand", 7}, {"walk", 16}, {"run", 8}, {"attack", 10}, {"death", 14}, {"fdeath", 11},
+    {"paina", 4}, {"painb", 5}, {"painc", 8}, {"paind", 19}};
+
+int unnamedGroups(const NamedRun* runs, int numRuns, int first, AnimGroup* out, int max)
+{
+    int n = 0, f = first;
+    for(int i = 0; i < numRuns && n < max; i++)
+    {
+        q_strlcpy(out[n].name, runs[i].name, sizeof(out[n].name));
+        out[n].first = f;
+        out[n].count = runs[i].count;
+        f += runs[i].count;
+        n++;
+    }
+    return n;
+}
+} // namespace
+
 int animGroups(const aliashdr_t* hdr, AnimGroup* out, int max)
 {
     int n = 0;
@@ -1291,6 +1320,26 @@ int animGroups(const aliashdr_t* hdr, AnimGroup* out, int max)
         g.first = f;
         g.count = 1;
     }
+    if(n >= 1 && !strcmp(out[0].name, "frames") && out[0].first == 0)
+    {
+        // (unnamed frames: id's names where the count is one of the armed humanoids')
+        const NamedRun* runs = out[0].count == 114 ? soldierRuns : out[0].count == 102 ? enforcerRuns : nullptr;
+        const int numRuns = out[0].count == 114 ? 10 : 10;
+        if(runs)
+        {
+            AnimGroup rest[64];
+            int nr = 0;
+            for(int i = 1; i < n && nr < 64; i++)
+            {
+                rest[nr++] = out[i];
+            }
+            n = unnamedGroups(runs, numRuns, 0, out, max);
+            for(int i = 0; i < nr && n < max; i++)
+            {
+                out[n++] = rest[i];
+            }
+        }
+    }
     return n;
 }
 
@@ -1319,7 +1368,37 @@ int frameOfName(const aliashdr_t* hdr, const char* name)
             return f;
         }
     }
+    // By its group's name and its number in it (stand1: the stand group's first; the unnamed frames' id names too).
+    char prefix[16];
+    q_strlcpy(prefix, name, sizeof(prefix));
+    int len = static_cast<int>(strlen(prefix));
+    while(len > 0 && prefix[len - 1] >= '0' && prefix[len - 1] <= '9')
+    {
+        prefix[--len] = 0;
+    }
+    const int number = name[len] ? static_cast<int>(strtol(name + len, nullptr, 10)) : 1;
+    AnimGroup groups[128];
+    const int n = animGroups(hdr, groups, 128);
+    for(int i = 0; i < n; i++)
+    {
+        if(!q_strcasecmp(groups[i].name, prefix) && number >= 1 && number <= groups[i].count)
+        {
+            return groups[i].first + number - 1;
+        }
+    }
     return -1;
+}
+
+void frameName(const aliashdr_t* hdr, int frame, char* out, int size)
+{
+    AnimGroup g;
+    int i = 0;
+    if(groupOfFrame(hdr, frame, g, i))
+    {
+        q_snprintf(out, static_cast<size_t>(size), "%s%d", g.name, i + 1);
+        return;
+    }
+    q_snprintf(out, static_cast<size_t>(size), "%s", frame >= 0 && frame < hdr->numframes ? hdr->frames[frame].name : "?");
 }
 
 int poseOfFrame(const aliashdr_t* hdr, int frame)
@@ -1404,6 +1483,17 @@ void info_f()
         Con_Printf("rigdata:   bone %d %s parent %d pivot %.3f %.3f %.3f end %.3f %.3f %.3f, %d vertices\n", b,
             rig->bones[b].name, rig->bones[b].parent, rig->bones[b].pivot.x, rig->bones[b].pivot.y, rig->bones[b].pivot.z,
             rig->bones[b].end.x, rig->bones[b].end.y, rig->bones[b].end.z, count);
+    }
+    if(const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model)))
+    {
+        AnimGroup groups[128];
+        const int n = animGroups(hdr, groups, 128);
+        za::String line;
+        for(int i = 0; i < n; i++)
+        {
+            line += va(" %s(%d)", groups[i].name, groups[i].count);
+        }
+        Con_Printf("rigdata:   %d frames, animations:%s\n", hdr->numframes, line.cStr());
     }
     for(za::SizeT i = 0; m && i < m->seqs.size(); i++)
     {

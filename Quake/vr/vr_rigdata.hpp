@@ -197,7 +197,8 @@ struct AnimGroup
 };
 int animGroups(const aliashdr_t* hdr, AnimGroup* out, int max);
 bool groupOfFrame(const aliashdr_t* hdr, int frame, AnimGroup& out, int& index);
-[[nodiscard]] int frameOfName(const aliashdr_t* hdr, const char* name);
+[[nodiscard]] int frameOfName(const aliashdr_t* hdr, const char* name); // its own name, or its group's and number (stand1)
+void frameName(const aliashdr_t* hdr, int frame, char* out, int size);   // its group's name and number in it
 [[nodiscard]] int poseOfFrame(const aliashdr_t* hdr, int frame);
 [[nodiscard]] int frameOfPose(const aliashdr_t* hdr, int pose); // (-1: a pose inside a framegroup)
 

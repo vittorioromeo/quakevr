@@ -445,6 +445,20 @@ void seqNew_f()
         Con_Printf("usage: vr_rigstudio_seq_new <name> [frames] [fps] [loop]\n");
         return;
     }
+    // (a name that is there: that one dropped first, made afresh)
+    for(za::SizeT i = 0; i < st.doc.seqs.size(); i++)
+    {
+        if(!q_strcasecmp(st.doc.seqs[i].name.cStr(), Cmd_Argv(1)))
+        {
+            pushUndo("replace sequence");
+            st.doc.seqs.erase(st.doc.seqs.begin() + static_cast<za::PtrDiffT>(i));
+            if(i < st.dirtySeq.size())
+            {
+                st.dirtySeq.erase(st.dirtySeq.begin() + static_cast<za::PtrDiffT>(i));
+            }
+            break;
+        }
+    }
     newSequence(Cmd_Argv(1), Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 10, Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 10.f,
         Cmd_Argc() > 4 && Q_atoi(Cmd_Argv(4)) != 0);
 }
@@ -541,8 +555,19 @@ void vertex_f()
         Con_Printf("usage: vr_rigstudio_vertex <vertex>\n");
         return;
     }
-    const int v = Q_atoi(Cmd_Argv(1));
+    int v = Q_atoi(Cmd_Argv(1));
+    if(!strcmp(Cmd_Argv(1), "first") && Cmd_Argc() > 2)
+    {
+        // (the first vertex the bone owns)
+        const int b = boneByName(Cmd_Argv(2));
+        v = -1;
+        for(int i = 0; b >= 0 && i < st.rig->numVerts && v < 0; i++)
+        {
+            v = st.rig->vertBone[static_cast<za::SizeT>(i)] == b ? i : -1;
+        }
+    }
     ensureWeights();
+    evaluate(st.frame, st.F, st.P, true);
     poseGeometry();
     if(v < 0 || v >= static_cast<int>(st.posedVerts.size()))
     {

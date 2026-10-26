@@ -1248,10 +1248,12 @@ void sequenceWindow()
             }
             for(int f = 0; f < hdr->numframes; f++)
             {
-                if(ImGui::Selectable(va("%s##f%d", hdr->frames[f].name, f), !q_strcasecmp(s->base.cStr(), hdr->frames[f].name)))
+                char fname[32];
+                rigdata::frameName(hdr, f, fname, sizeof(fname));
+                if(ImGui::Selectable(va("%s##f%d", fname, f), !q_strcasecmp(s->base.cStr(), fname)))
                 {
                     pushUndo("base");
-                    s->base = hdr->frames[f].name;
+                    s->base = fname;
                     changed = true;
                 }
             }
