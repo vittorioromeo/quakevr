@@ -904,6 +904,32 @@ void restoreSnapshot(Snapshot& s)
     publish();
 }
 
+void keepPreEdit()
+{
+    st.preEdit.m = st.doc;
+    for(int b = 0; b < maxBones; b++)
+    {
+        st.preEdit.live[b] = st.live[b];
+    }
+    st.preEdit.seq = st.seq;
+}
+
+void pushPreEditUndo(const char* what)
+{
+    if(!st.rig)
+    {
+        return;
+    }
+    Snapshot s = st.preEdit;
+    s.what = what;
+    st.undo.pushBack(ZA_MOVE(s));
+    if(st.undo.size() > static_cast<za::SizeT>(maxUndo))
+    {
+        st.undo.erase(st.undo.begin());
+    }
+    st.redo.clear();
+}
+
 // A Pose Studio key's or grip's entry: its value put back, the one now kept in `back` (the other stack's).
 bool swapExternal(Snapshot& s, Snapshot& back)
 {

@@ -22828,3 +22828,112 @@ his to tune. The holsters' poses are unchanged and not looked at in game (the mo
   checking `if (error)`, so vsnprintf gets a NULL format: an access violation, or an invalid-parameter fast-fail on
   MSVC CRT builds. Repro: progs.src `min.dat` / `min.qc`, where min.qc is `void() f = { undeclared(); };` followed by
   `#include "inc.qc"`. Expected: the error, then 'compilation errors'. Actual: a crash right after the error line."
+
+## The Rig Studio: the armed humanoids' rigs and animations edited flat, with ImGui (worktree `fastship`, branch `agent/rigstudio`, 2026-10-26)
+
+His request: a tool to explore and change the armed humanoids' rigs and animations on the desktop screen, with a
+3D editor's controls and a convenient UI: the skeleton, each bone's vertices, poses, a timeline. His decisions: in the
+game, with ImGui; full animation authoring (new keyed sequences the AI can play); delivered at once. The guide:
+`docs/vr-port/RIGSTUDIO.md`.
+
+**Design note (written first).** How a humanoid's skeleton exists today: the .mdl has none; `vr_ragdoll.cpp` derives a
+rig the first time a model needs one (once a session, cached on disk: `vr_ragdoll_rig_cache`): the frames' vertices
+clustered by how they move, the clusters put on the model's seed table's bones (11 for the armed grunt: pelvis, chest,
+head, upper arms, forearms, thighs, shins), each vertex on one bone (`Rig::vertBone`), each bone's rigid fit to every
+frame (`poseRot`/`posePos`, Horn's method), the joints' places and limits from the table. On top of it the armed
+humanoids' arms are a skin of their own (`vr_agarms.cpp`: each arm vertex a blend along upper arm, forearm and hand by
+its place on the arm, solved each frame by IK from where the weapons are), their legs too (`vr_aglegs.cpp`). QC picks
+the frame; the client draws it and lays the procedural layers on: the smoothing (r_lerpmodels 3: splines, the bones'
+swings), the hit reactions, the arms, the legs, the upper body held, all through `kickInstance`'s per-bone rigid turns
+(`vr_animsmooth.cpp`). The studio edits that data as overrides and adds animations, plugged in at two points:
+- **The rig** (bones' rest joints and ends, limits, vertex weights): kept in `quakevr/rigs/<model>.rig.txt` and laid on
+  the rig where it is derived (`rigdata::applyToRig`, called by `rigFor` and `warmRigs` after the derivation or the
+  disk cache's read): the bones' fields replaced; each vertex to its heaviest bone, the bones whose vertices changed
+  fitted again to the frames (the same Horn fit), their hulls and the triangles' bones made again. No file: nothing done.
+- **The animation**: a pose is each bone's local motion in the pivot form (`p' = R (p - c) + c + o`: a turn about the
+  bone's rest pivot and an offset), `F_b = F_parent L_b`, the identity the rest pose (frame 0); a frame's fits give its
+  locals. Override tracks are keyed deltas after a model animation's frame's locals (by its frames); a new sequence is
+  keyed locals (absolute), its unkeyed bones the frame's. Both reach the drawn model as one more rigid turn per bone in
+  `kickInstance` (`rigseq::layer`: `drawn = kick (F posed^-1) posed`, under the hit reactions), and an armed humanoid's
+  arms (whose skin is not its bones') through the arms' IK: each hand's place given from its forearm bone
+  (`agarms::Targets::fk`, the weapons drawn on the hands), its elbow's pole from the bones'. Sequences are started by
+  QC through fields the engine reads at the server frame's end (no free builtin numbers): `.vr_rigseq`, and its events
+  come back through `VR_RigSeq_Event`.
+
+**What was built.**
+- Dear ImGui v1.92.8 vendored (`Quake/thirdparty/imgui`: the core, the SDL2 and OpenGL3 backends, its MIT LICENSE.txt;
+  its imconfig.h's only change: no assert dialogs, no imm32), in ironwail.vcxproj and its filters and in CMake (a
+  static library, `vr.cmake`). `vr_imgui.cpp`: made lazily the first time a tool opens, flat screen only; the SDL events
+  go to ImGui while a tool is open (`VR_ImGuiEvent` first in `IN_SendKeyEvents`; the game's keys and mouse held back,
+  the console's key kept), drawn last (`VR_ImGuiRender` in `GL_EndRendering`, after the post-process, before the swap and
+  vr_screenshot_frames' shot; the framebuffer bindings, unpack state, sRGB, depth and colour masks saved and put back;
+  the backend saves the rest); `quakevr/imgui.ini`. Closed: one flag's test in the input loop and one at the swap.
+- `vr_rigstudio` (Debug > Tools > Rig Studio): refuses with a headset session up; loads vrtesthall, stands a frozen
+  armed grunt (or the Subject menu's kind and weapons, dual included, or a few unarmed rigged monsters) at the middle,
+  you a god-mode notarget onlooker; its own camera (`VR_RigStudioView`), Blender's: MMB orbit, Shift+MMB pan, wheel
+  zoom, Alt+LMB orbit, RMB look, F frame, 1/3/7 views (Ctrl flips). The viewport (ImGui's background list): the
+  studio's skinned mesh (shaded, wire, x-ray, painter-sorted), vertex colours by bone or the active bone's weights as
+  heat, octahedral or stick bones with joints, names on hover, joint limits, body proxies, the solved arms' targets and
+  grips; handles of its own: rotate rings (bone axes, view ring), move arrows, planes and centre, Ctrl snapping (15
+  degrees, 1 unit); the IK tool (two-bone chains, the elbow kept in its plane); the rest pose tool (pivot or end moved).
+  Windows: Tools (tools, display, the game's layers on or off, weights: select by bone, grow, shrink, box, assign, set,
+  normalize, the brush add/subtract/smooth with radius, strength and mirror; poses: save, apply all or selected,
+  mirror, copy, paste), Outliner (tree, select, hide, solo, search), Properties (rest pivot/end/length/limits/hinge,
+  reset to computed, the IK chain and pole, the bone's turn and offset now), Timeline (rest pose, the model's 11
+  animations by id's frame names, the sequences; play, pause, loop, step, speed 0.1-2x, scrub; the dope sheet: keys
+  per bone, select, box, drag, delete, copy, paste, interpolation smooth/linear/step; onion skin; the events row),
+  Sequence (name, frames or seconds, fps, loop, arms, hold, blends, base frame, events, duplicate, test on subject),
+  Pose Studio Data (the pose keys' seven parts per kind/class/pose/phase and the grips per hand: the Pose Studio's own
+  data, undoable), Help (F1), Preferences (camera speeds, handle size, theme). Undo/redo for every edit (200 deep, a
+  drag one step), unsaved markers, Save (Ctrl+S), Revert, Print as Defaults (seed-table rows, weights and poses to the
+  console and quakevr/proposed_defaults/rig_<model>_<date>.txt).
+- `vr_rigdata.cpp`: the files' format (text, `%.6g` numbers, rotation vectors in degrees; RIGSTUDIO.md), read at a map
+  load, published live from the studio. `vr_rigseq.cpp`: QC's sequences (the request field, its length and frame
+  fields, `vr_rigseq_t0` its start, events, `end`/`stopped`, Hold: the base frame held, a change of frame stops it),
+  QVR_SVC_RIGSEQ (37, reliable), the clients' blends in and out, the override tracks drawn for every monster of the
+  model, `vr_rigseq_play/_stop/_status`, `vr_rigseq 0` off.
+- QC: `vr_rigseq.qc` (VR_RigSeq_Play/Stop, VR_RigSeq_Event's dispatch to `.vr_rigseq_on`). The proof: **the taunt**
+  (`vr_agrunt_taunt`, default 0): an armed grunt seeing a player for the first time (`th_run` `vr_ag_hunt`) stands,
+  faces him and plays `quakevr/anims/vrgrunt/taunt.anim.txt` (1.6 s: the chest thrown back then forward, the head
+  nodding, a dip; its `shout` event its sight sound), then runs at him; no taunt for its model, a pain or 4 s: on at
+  once. `VR_AG_Taking` keeps its answer for the new think.
+- The armed humanoids' models have id's frames without their names (only the shoves named): their groups by id's names
+  (stand, death, deathc, load, pain, painb, painc, run, shoot, prowl; the enforcer's), which agree with QC's rows.
+
+**Measured / tested.**
+- With no override files (the shipped taunt present, its cvar off): `vr_agrunt_test 41` and `45` (the arms' numbers and
+  contact sheet) line for line the baseline's (origin/next built before the change); 61, 70, 73 identical; 1, 71, 72
+  differ in their play numbers from run to run on the same build (test 72's gun side 1.8 to 2.5 over five runs, the
+  baseline's one run 2.9; test 1's shots and damage likewise); the final run's verdicts are all the baseline's (1: 16/1,
+  61: 40/0, 70: 21/0, 71: 10/0, 72: 7/0). Test 72's gun-side check (> 2.0) failed once in five runs here (1.8): a
+  noisy threshold, not this change (the default path is the same code).
+- The studio by command (`scratch/rs_t2.sh`): the chest turned 30 degrees about z moves its first vertex exactly round
+  the chest's pivot (0.0003 off); undo puts it back exactly, redo again; a vertex weighted 0.8 chest / 0.2 thigh moves
+  as blended; the rig file and the sequence file saved, read back (Revert) and saved elsewhere: byte-identical; a
+  sequence keyed 20 degrees at frame 5 moves the chest vertex 1.66 units there.
+- `vr_agrunt_test 80` (a studio sequence of 10 frames at 10 fps played by QC on an armed grunt): length 1 s, events at
+  0.306 s (fire, frame 3) and 0.708 s (footstep, 7), `end` at 1.000 s, its frame field through 10 values then -1: 4
+  passed, 0 failed. `vr_agrunt_test 81` (the taunt): 1.6 s long, it stood 115 frames in it and went on after 1.71 s,
+  hunting you: 3 passed, 0 failed.
+- The rig file at a fresh start: `rigdata: progs/vrgrunt.mdl: 1 bone overrides, 1 vertices on other bones (0.23 ms)`;
+  `vr_rigdata_info`: the head's pivot as overridden, the chest owning one more vertex.
+- eval.sh: canary 1 differ, the full set 163/171, 2-4 differing takes by a tenth of a damage point (PASS -> PASS, the set
+  of them changing run to run): no verdict changes.
+- Linux: the CMake build (LINUX.md's command, clang, Ninja) in WSL's Arch: built (ImGui as qvr_imgui, the new files).
+- The release flavour's QC (`-DQVR_NO_TESTS`): 0 errors, 0 warnings.
+- Closed: the studio costs a flag's test in the input loop, at the swap, at the frame's start and in the alias pin;
+  `kickInstance`'s layer check fails at once with no files (with the shipped taunt: a model lookup per rigged instance
+  drawn, nothing playing).
+
+**Not done / rough.** In the game a vertex is drawn by its heaviest bone (the studio's blended weights show only in the
+studio's mesh), except the arm skin's own blend; the rig's overrides take effect at the next start (the rig is made once
+a session; the studio shows them at once). Parents are shown, not edited. The IK tool does not enforce the joints'
+limits. The studio's mesh is drawn with ImGui's lists (depth-sorted triangles, no depth buffer). Only the grunt has a
+taunt; the enforcer's model goes on at once.
+
+Checklist (suggested): "Rig Studio: -flatscreenmode, Debug > Tools > Rig Studio: orbit (MMB), pan, zoom, F, 1/3/7;
+select bones, rotate the chest with the ring, Ctrl snaps, undo/redo"; "Rig Studio: Weights tool: the right upper arm's
+heat map, paint (add/smooth, mirror), assign, normalize; Shaded shows it"; "Rig Studio: Timeline: the load animation,
+key the right arm at frames 3 and 7, play at 0.5x, the onion skin; the game's drawn grunt follows"; "Rig Studio: a new
+sequence, events, Test on Subject"; "vr_agrunt_taunt 1: an armed grunt seeing you taunts (chest back, a shout), then
+comes for you; shoot it mid-taunt: it stops".

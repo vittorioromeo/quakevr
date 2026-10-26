@@ -65,7 +65,7 @@ void undoOnStart(const char* what)
 {
     if(ImGui::IsItemActivated())
     {
-        pushUndo(what);
+        pushPreEditUndo(what); // (the data as this frame began: the widget's first change is in it already)
     }
 }
 
@@ -1573,6 +1573,10 @@ glm::vec4 boneColor(int b)
 
 void windows()
 {
+    if(!ImGui::IsAnyItemActive() && st.rig)
+    {
+        keepPreEdit();
+    }
     menuBar();
     toolsWindow();
     outlinerWindow();

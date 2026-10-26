@@ -145,6 +145,8 @@ struct Studio
     bool dirtyRig{false};
     za::Vector<uint8_t> dirtySeq;  // per sequence
     za::Vector<Snapshot> undo, redo;
+    Snapshot preEdit;              // the data as the frame began, no widget held: a widget's edit's undo (its first
+                                   // frame's change already made when it reports itself activated)
     bool dragUndone{false};        // a drag's snapshot taken (one an edit, not one a frame)
     // The pose under edit: Rest: each bone's local; Anim, Seq: a delta after the keys (not keyed yet)
     rigdata::Local live[maxBones];
@@ -242,6 +244,8 @@ extern Studio st;
 [[nodiscard]] const aliashdr_t* hdrOf();
 void say(const char* text);
 void pushUndo(const char* what);
+void keepPreEdit();          // the frame's start (no widget held): the data kept for pushPreEditUndo
+void pushPreEditUndo(const char* what);
 void pushPoseUndo(int code);                       // a Pose Studio key about to change
 void pushGripUndo(int kind, int slot, int hand);   // a grip about to change
 void undo();
