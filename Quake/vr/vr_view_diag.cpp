@@ -4,6 +4,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_admelee.hpp"
+#include "vr_progs.hpp"
 
 namespace qvr::view
 {
@@ -196,6 +197,10 @@ int handBonePoses(const entity_t* e, const float** matrices)
 void ragdollHandProbe_f()
 {
     const float cm = 100.f / units::metresToUnits();
+    // ("quiet": only the tests' readings, vr_agrunt_tug_hand_gap and vr_agrunt_tug_hand_reach, for the main hand.)
+    const bool quiet = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "quiet");
+    Cvar_SetValueQuick(&vr_agrunt_tug_hand_gap, 999.f);
+    Cvar_SetValueQuick(&vr_agrunt_tug_hand_reach, 999.f);
     bool any = false;
     for(int hand = 1; hand >= 0; hand--)
     {
@@ -205,6 +210,29 @@ void ragdollHandProbe_f()
             continue;
         }
         any = true;
+        // A tug-of-war (an armed monster's weapon in its hand): the drawn hand and its controller to where it took hold
+        // of the weapon, on the weapon as drawn.
+        const LimbEase& le = limbEase[hand];
+        if(TugGrab tg; tugGrab(hand, limb, tg))
+        {
+            const float gap = glm::distance(le.drawnPos, tg.at) * cm;
+            const float reach = glm::distance(hands::current().pos[hand], tg.at) * cm;
+            if(hand == HAND_MAIN)
+            {
+                Cvar_SetValueQuick(&vr_agrunt_tug_hand_gap, gap);
+                Cvar_SetValueQuick(&vr_agrunt_tug_hand_reach, reach);
+            }
+            if(!quiet)
+            {
+                Con_Printf("ragdoll hand %s tug: the drawn hand %.1f cm from its grab on the weapon (as drawn), the controller "
+                           "%.1f cm; the drawn weapon %.1f cm from the server's\n",
+                    hand == HAND_MAIN ? "main" : "off", gap, reach, tg.drawnOff * cm);
+            }
+        }
+        if(quiet)
+        {
+            continue;
+        }
         const RigHand& rh = rigHands[hand];
         const char* name = hand == HAND_MAIN ? "main" : "off";
         float lag = -1.f;
@@ -269,9 +297,50 @@ void ragdollHandProbe_f()
             curl / static_cast<float>(handrig::FingerCount * handrig::jointsPerFinger), toLimb(grasp::palmCentre()), toLimb(tips[0]),
             toLimb(tips[1]), toLimb(tips[2]), toLimb(tips[3]), toLimb(tips[4]));
     }
-    if(!any)
+    if(!any && !quiet)
     {
         Con_Printf("vr_ragdoll_hand_probe: no hand holds a ragdoll's limb\n");
+    }
+}
+
+// vr_agrunt_weapon_probe: each armed monster's held weapon (QC vr_ag_weapon) as the client draws it (on its drawn hands:
+// vr_hitreact.cpp) against where the server has it (its grabs, its tug's hold: QC VR_AG_PlaceProp, VR_AG_RagProp): the
+// origins apart (cm) and the turn between them (degrees). Listen server only.
+void agruntWeaponProbe_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("vr_agrunt_weapon_probe: no local server\n");
+        return;
+    }
+    const float cm = 100.f / units::metresToUnits();
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    int n = 0;
+    for(int i = 1; i < qcvm->num_edicts && i < cl.num_entities; i++)
+    {
+        const edict_t* ed = EDICT_NUM(i);
+        if(ed->free || strcmp(PR_GetString(ed->v.classname), "vr_ag_weapon") != 0 || !ed->v.modelindex)
+        {
+            continue;
+        }
+        entity_t sv{};
+        VectorCopy(ed->v.angles, sv.angles);
+        const entity_t& ce = cl_entities[i];
+        const glm::mat3 a = entityTurn(sv), b = entityTurn(ce);
+        const float turn = glm::degrees(za::acos(za::clamp((a[0][0] * b[0][0] + a[0][1] * b[0][1] + a[0][2] * b[0][2] +
+                                                               a[1][0] * b[1][0] + a[1][1] * b[1][1] + a[1][2] * b[1][2] +
+                                                               a[2][0] * b[2][0] + a[2][1] * b[2][1] + a[2][2] * b[2][2] - 1.f) * 0.5f,
+            -1.f, 1.f)));
+        const glm::vec3 so{ed->v.origin[0], ed->v.origin[1], ed->v.origin[2]}, co{ce.origin[0], ce.origin[1], ce.origin[2]};
+        Con_Printf("agweapon %d (%s, held by %d): drawn %.1f cm and %.0f degrees off the server's\n", i,
+            PR_GetString(ed->v.model), NUM_FOR_EDICT(PROG_TO_EDICT(ed->v.owner)), glm::distance(so, co) * cm, turn);
+        n++;
+    }
+    PR_PopQCVM(oldvm);
+    if(n == 0)
+    {
+        Con_Printf("vr_agrunt_weapon_probe: no armed monster's weapon\n");
     }
 }
 
@@ -1349,6 +1418,7 @@ void qvr::view::registerDiagCommands()
     Cmd_AddCommand("vr_grasp_dump", graspDump_f);
     Cmd_AddCommand("vr_grasp_bench", graspBench_f);
     Cmd_AddCommand("vr_ragdoll_hand_probe", ragdollHandProbe_f);
+    Cmd_AddCommand("vr_agrunt_weapon_probe", agruntWeaponProbe_f);
     Cmd_AddCommand("vr_grasp_sweep", graspSweep_f);
     Cmd_AddCommand("vr_model_reload", modelReload_f);
     Cmd_AddCommand("vr_hotspots_check", hotspotsCheck_f);

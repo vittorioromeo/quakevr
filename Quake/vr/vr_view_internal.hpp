@@ -881,8 +881,21 @@ struct LimbHold
     glm::quat turn{1.f, 0.f, 0.f, 0.f}; // and its turn (the axes of the controller's angles there)
     const grasp::Shape* shape{nullptr}; // the limb's (its rest pose's triangles)
     glm::mat4 toWorld{1.f};             // drawn there
+    bool tug{false};                    // a tug-of-war's hold: the hand on the weapon in the limb's hand (box3d::RagdollHold)
 };
 [[nodiscard]] bool limbHold(int hand, LimbHold& out);
+
+// A tug-of-war's hold (LimbHold::tug): where the hand took hold of the armed monster's weapon, on the weapon as drawn
+// (the hold's point on the server, in the server's weapon's frame, put in the drawn weapon's: the client draws it on the
+// ragdoll's drawn hand, vr_hitreact.cpp ragdollProps).
+struct TugGrab
+{
+    int prop{0};                  // the weapon's entity
+    glm::vec3 at{0.f};            // the grab, as drawn (world)
+    glm::mat3 weaponTurn{1.f};    // the drawn weapon's axes
+    float drawnOff{0.f};          // units the drawn weapon is from the server's
+};
+[[nodiscard]] bool tugGrab(int hand, const LimbHold& limb, TugGrab& out);
 
 // The hand drawn on its limb, eased on as it takes it and off as it lets go (limbEaseTime): the last offset kept.
 struct LimbEase
@@ -896,6 +909,7 @@ struct LimbEase
     // the mesh before it and after (units; negative: in it; 999 none near) for the probe.
     glm::vec3 rest{0.f};
     float gapBefore{999.f}, gapAfter{999.f};
+    glm::vec3 drawnPos{0.f}; // where the hand was drawn last (its controller's place moved; vr_ragdoll_hand_probe)
 };
 inline LimbEase limbEase[2];
 void setupHand(const hands::State& s, int hand);

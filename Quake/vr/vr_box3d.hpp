@@ -434,6 +434,7 @@ struct RagdollHold
     int part{-1};
     glm::vec3 at{0.f};
     glm::quat turn{1.f, 0.f, 0.f, 0.f};
+    bool tug{false}; // an armed monster's tug-of-war (ragdolltug): the hand holds its weapon, the hold its hand's limb
 };
 [[nodiscard]] bool ragdollHold(int player, int hand, RagdollHold& out);
 // Where on the ragdoll that hand's hold grips now (its anchor on the part, world units): the neck snap's head zone test

@@ -3,6 +3,7 @@
 // Split from vr_view.cpp (a pure move); what they share is in vr_view_internal.hpp.
 
 #include "vr_view_internal.hpp"
+#include "vr_progs.hpp"
 
 namespace view_detail
 {
@@ -1931,6 +1932,7 @@ entity_t placedTorch[2]; // (setupHand: the torch as it is placed this frame, pe
     out.part = h.part;
     out.pos = rot * h.at + pos;
     out.turn = glm::normalize(rot * h.turn);
+    out.tug = h.tug;
     out.toWorld = glm::translate(glm::mat4{1.f}, pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4{1.f}, glm::vec3{scale});
     const int id = -2 - h.part; // (grasp::keptShape's ids: negative)
     out.shape = grasp::keptShape(rig->model, id);
@@ -1948,9 +1950,48 @@ entity_t placedTorch[2]; // (setupHand: the torch as it is placed this frame, pe
     return true;
 }
 
+bool tugGrab(int hand, const LimbHold& limb, TugGrab& out)
+{
+    out = TugGrab{};
+    if(!limb.tug)
+    {
+        return false;
+    }
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    const int propOfs = ED_FindFieldOffset("vr_ag_prop");
+    const int prop = propOfs >= 0 && limb.num < qcvm->num_edicts
+                         ? NUM_FOR_EDICT(PROG_TO_EDICT(progs::fieldInt(EDICT_NUM(limb.num), propOfs)))
+                         : 0;
+    glm::vec3 holdAt{0.f};
+    const edict_t* pe = prop > 0 && box3d::ragdollHoldPoint(cl.viewentity, hand, holdAt) ? EDICT_NUM(prop) : nullptr;
+    glm::vec3 local{0.f};
+    glm::vec3 server{0.f};
+    if(pe && !pe->free)
+    {
+        entity_t sv{};
+        VectorCopy(pe->v.angles, sv.angles);
+        server = glm::vec3{pe->v.origin[0], pe->v.origin[1], pe->v.origin[2]};
+        local = glm::transpose(entityTurn(sv)) * (holdAt - server);
+    }
+    PR_PopQCVM(oldvm);
+    if(!pe || prop >= cl.num_entities || !cl_entities[prop].model)
+    {
+        return false;
+    }
+    const entity_t& ce = cl_entities[prop];
+    out.prop = prop;
+    out.weaponTurn = entityTurn(ce);
+    const glm::vec3 drawn{ce.origin[0], ce.origin[1], ce.origin[2]};
+    out.at = drawn + out.weaponTurn * local;
+    out.drawnOff = glm::distance(drawn, server);
+    return true;
+}
+
 namespace
 {
 constexpr float limbEaseTime = 0.1f; // s
+constexpr float tugDrawnMost = 1.f;   // m: the most a tug's hand is drawn off its controller (it lets go well before)
 
 // `pos`, `angles` (the controller's pose of `hand`) moved onto the limb it holds, as if its controller were there.
 void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
@@ -1958,9 +1999,22 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     LimbEase& e = limbEase[hand];
     const float dt = e.time >= 0.0 ? static_cast<float>(CLAMP(0.0, cl.time - e.time, 0.1)) : 0.f;
     e.time = cl.time;
-    const float stick = za::fmax(vr_ragdoll_hand_stick.value, 0.f) * 0.01f * units::metresToUnits();
+    float stick = za::fmax(vr_ragdoll_hand_stick.value, 0.f) * 0.01f * units::metresToUnits();
     LimbHold h;
-    const bool on = stick > 0.f && limbHold(hand, h);
+    bool on = limbHold(hand, h);
+    // A tug-of-war (an armed monster's weapon in its hand): the hand drawn on the weapon where it took hold of it, as the
+    // weapon is drawn (on the ragdoll's drawn hand: it lies off the limb's point the hold has, by as much as 25 cm),
+    // however far its controller is (it lets go past vr_agrunt_tug_let_go: vr_box3d_ragparts.cpp), not rested on the
+    // arm's mesh.
+    TugGrab tg;
+    const bool tug = on && tugGrab(hand, h, tg);
+    if(tug)
+    {
+        h.pos = tg.at;
+        h.shape = nullptr;
+        stick = tugDrawnMost * units::metresToUnits();
+    }
+    on = on && stick > 0.f;
     if(on)
     {
         // Turned with the limb (at most vr_ragdoll_hand_turn), about its grip channel where the limb has it: the fingers
@@ -2030,9 +2084,11 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     e.blend = on ? za::fmin(1.f, e.blend + dt / limbEaseTime) : za::fmax(0.f, e.blend - dt / limbEaseTime);
     if(e.blend <= 0.f)
     {
+        e.drawnPos = pos;
         return;
     }
     pos += e.offset * e.blend;
+    e.drawnPos = pos;
     const glm::quat turn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, e.turn, e.blend);
     angles = basisAngles(glm::mat3_cast(turn) * anglesBasis(angles));
 }
@@ -2294,12 +2350,20 @@ void setupHand(const hands::State& s, int hand)
             setManualFingers(held, props::value(slot, Key::FingerManual) >= 0.5f, curl, props::value(slot, Key::FingerThumbAcross));
         }
     }
-    else if(LimbHold limb; limbHold(hand, limb) && limb.shape)
+    else if(LimbHold limb; limbHold(hand, limb) && (limb.shape || limb.tug))
     {
-        // A ragdoll's limb (limbHold): its mesh, as drawn (its part: what keeps its grasp apart from the others').
-        held = {&cl_entities[limb.num], false, limb.part};
-        held.shape = limb.shape;
-        held.toWorld = limb.toWorld;
+        if(TugGrab tg; tugGrab(hand, limb, tg))
+        {
+            // A tug-of-war's: the fingers round the weapon it holds as drawn, not the monster's arm.
+            held = {&cl_entities[tg.prop], false, -1};
+        }
+        else if(limb.shape)
+        {
+            // A ragdoll's limb (limbHold): its mesh, as drawn (its part: what keeps its grasp apart from the others').
+            held = {&cl_entities[limb.num], false, limb.part};
+            held.shape = limb.shape;
+            held.toWorld = limb.toWorld;
+        }
     }
     else if(flashlight::holds(hand) && entities.flashlight.ent.model)
     {

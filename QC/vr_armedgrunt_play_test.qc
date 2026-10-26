@@ -306,6 +306,7 @@ float vr_agpt_m0;   // test 34's: the most the weapon moved before its hand clos
 float vr_agpt_n0;   // test 35's: weapon index,
 float vr_agpt_grip0;   // ... your vr_weapon_grip_mode before it (as it was again at the end),
 float vr_agpt_gripset; // ... 1 while it holds vr_weapon_grip_mode at 1
+float vr_agpt_th;      // tests 31 with scratch4 (the drawn hand on the weapon): before the grab, its stage
 
 void(entity g) VR_AGPT_Watch =
 {
@@ -352,6 +353,7 @@ void() VR_AGPT_RagTug =
         VR_AGPT_EmptyHand(p);
         cvar_set("vr_mock_hand_lift", "0");
         cvar_set("vr_mock_hand_pull", "0");
+        vr_agpt_th = 0;
         vr_agpt_h0a = cvar_hget(cvarh_vr_agrunt_tug_break_force);
         vr_agpt_h0b = cvar_hget(cvarh_vr_agrunt_tug_break_impulse);
         cvar_set("vr_agrunt_disarm_yank", "0"); // (the held grab's touch not before its hand is placed: step 2)
@@ -371,6 +373,17 @@ void() VR_AGPT_RagTug =
             vr_ag_tug_force, g.vr_ag_tug_imp, ragdollreach(p, cVR_MainHand), g.vr_kd_stagger));
         if(g.vr_ag_prop) { VR_AGT_Print(sprintf("  weapon minus hand %v, grunt minus you %v", g.vr_ag_prop.origin - p.handpos, g.origin - p.origin)); }
     }
+    // (scratch4 1 or more: the drawn hand on the weapon every 0.1 s: vr_ragdoll_hand_probe's tug line.)
+    if(g.vr_ag_tug_pl && cvar("scratch4") >= 1 && floor(time * 10) != floor((time - frametime) * 10))
+    {
+        VR_AGT_Print(sprintf("tughand %.2f s: hand pull %.2f m, you %.1f from it", time - g.vr_ag_tug_since,
+            cvar("vr_mock_hand_pull"), vlen(g.origin - p.origin)));
+        localcmd("vr_ragdoll_hand_probe\n");
+        if(floor((time - g.vr_ag_tug_since) * 10) == 10 || floor((time - g.vr_ag_tug_since) * 10) == 25)
+        {
+            cvar_set("vr_eyeshot", "1"); // (the eyes at 1 s and 2.5 s into the tug)
+        }
+    }
     if(time < vr_agt_until && vr_agt_step != 4 && vr_agt_step != 6) { return; }
     if(vr_agt_step == 1)
     {
@@ -383,6 +396,27 @@ void() VR_AGPT_RagTug =
     if(vr_agt_step == 2)
     {
         cvar_set("vr_agrunt_disarm_yank", "1");
+        if(cvar("scratch4") >= 1 && vr_agpt_th < 2)
+        {
+            // (scratch4: the weapon put at the hand, then 0.3 s on its drawn place against the server's, and the eyes)
+            if(vr_agpt_th == 0)
+            {
+                VR_AGPT_ToHand(g, p);
+            }
+            else
+            {
+                localcmd("vr_agrunt_weapon_probe\n");
+                cvar_set("vr_eyeshot", "1");
+            }
+            vr_agpt_th = vr_agpt_th + 1;
+            vr_agt_until = time + 0.3;
+            return;
+        }
+        if(cvar("scratch4") >= 1)
+        {
+            VR_AGT_Print(sprintf("tughand grab: weapon minus hand %v, hand minus grunt %v", g.vr_ag_prop.origin - p.handpos,
+                p.handpos - g.origin));
+        }
         VR_AGPT_GrabRag(g, p);
         VR_AGT_Check(sprintf("ragtug begun: tug %g, physical %g, ragdoll %g, standing %g:", g.vr_ag_tug_pl != world,
             g.vr_ag_tug_rag, isragdoll(g), g.vr_kd_stagger), g.vr_ag_tug_pl == p && g.vr_ag_tug_rag && isragdoll(g));
@@ -413,6 +447,17 @@ void() VR_AGPT_RagTug =
             // (scratch2: m drawn back, scratch3: m/s; a slow one: the long pull's impulse)
             float pull = min(cvar("scratch2") > 0 ? cvar("scratch2") : 0.7,
                 (time - vr_agt_clip) * (cvar("scratch3") > 0 ? cvar("scratch3") : 0.6));
+            if(cvar("scratch4") > 1)
+            {
+                // (scratch4 above 1: you step back at scratch4 - 1 m/s instead, your hand still: up to scratch2 m)
+                vector back = p.origin - g.origin;
+                back_z = 0;
+                if((time - vr_agt_clip) * (cvar("scratch4") - 1) < (cvar("scratch2") > 0 ? cvar("scratch2") : 0.7))
+                {
+                    setorigin(p, p.origin + normalize(back) * (cvar("scratch4") - 1) * frametime / 0.0381);
+                }
+                pull = 0;
+            }
             cvar_set("vr_mock_hand_pull", ftos(pull));
             if(g.vr_ag_tug_pl && time < vr_agt_until) { return; }
             VR_AGT_Check(sprintf("ragtug pulled: %s after %.2f s (peak %.0f N), your hand %s, the grunt holds %s:", vr_ag_tug_why,
@@ -1110,6 +1155,183 @@ void() VR_AGPT_Fresh =
 // Its weapon taken (a tug begun, or yanked at once).
 float(entity g, entity p) VR_AGPT_Taken = { return g.vr_ag_tug_pl == p || (!g.vr_ag_prop && p.weapon == WID_SHOTGUN); };
 
+// Test 39: the hand on the weapon in a tug, and grabs anywhere on it (ROUND22.md, "The tug's hand stays on the
+// weapon"). A calm shotgun grunt (still), its grip put at your main hand, then the hand put `scratch2` of the way along
+// the weapon (0 behind the grip, a gun's stock; 1 its muzzle; negative: at its grip as put) and the grip pressed: the
+// tug must begin (a grab anywhere on it). Then, by `scratch3`: 0 the hand still 2 s; 1, 2, 3, 4, 6 drawn back at 0.2,
+// 0.6, 1.5, 3, 6 m/s (up to 1 m; 7: 10 m/s); 5 you step back 0.5 m/s. Each frame the drawn hand's distance to its grab on the weapon
+// as drawn (vr_ragdoll_hand_probe quiet: vr_agrunt_tug_hand_gap), at most 2 cm while it holds on; how it ended, and the
+// hold's lag (its controller from the hold's point on the limb: ragdollreach) at its most and last. `scratch1` 1: its
+// grip unbreakable: it must end lost, the lag last within 3 cm under to 5 over vr_agrunt_tug_let_go (the let-go there;
+// the last reading is this frame's, after the hand's move: 3 m/s is 4 cm a frame).
+float vr_agpt_thgap;   // test 39's: the most the drawn hand was off its grab while held (cm),
+float vr_agpt_threach; // ... the controller's most, and its last (cm)
+float vr_agpt_thlast;
+float vr_agpt_thn;     // ... samples
+float vr_agpt_thlog;   // ... the grab's printed
+float vr_agpt_thlag;   // ... the hold's lag, most and last (cm)
+float vr_agpt_thlagl;
+
+void() VR_AGPT_TugHand =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    float mode = cvar("scratch3");
+    if(vr_agt_step == 0)
+    {
+        p.flags = p.flags | FL_NOTARGET;
+        VR_AGPT_EmptyHand(p);
+        cvar_set("vr_mock_hand_pull", "0");
+        cvar_set("vr_mock_hand_lift", "0");
+        cvar_set("vr_agrunt_disarm_yank", "0"); // (no grab before its press: step 5)
+        p.mainhand_lastgrabtime = time - 2;
+        p.mainhand_lastreleasetime = time - 1;
+        vr_agpt_h0a = cvar_hget(cvarh_vr_agrunt_tug_break_force);
+        vr_agpt_h0b = cvar_hget(cvarh_vr_agrunt_tug_break_impulse);
+        if(cvar("scratch1") > 0)
+        {
+            cvar_set("vr_agrunt_tug_break_force", "100000");
+            cvar_set("vr_agrunt_tug_break_impulse", "100000");
+        }
+        VR_AGPT_Fresh();
+        vr_agpt_thgap = 0;
+        vr_agpt_threach = 0;
+        vr_agpt_thlast = 0;
+        vr_agpt_thn = 0;
+        vr_agpt_thlag = 0;
+        vr_agpt_thlagl = 0;
+        vr_agt_step = 1;
+        vr_agt_until = time + 0.4;
+        return;
+    }
+    if(time < vr_agt_until && vr_agt_step != 7) { return; }
+    if(vr_agt_step == 1)
+    {
+        g.think = SUB_Null; // (still: its frame, its weapon's pose kept)
+        g.nextthink = -1;
+        g.velocity = '0 0 0';
+        vr_agt_step = 2;
+        vr_agt_until = time + 0.1;
+        return;
+    }
+    if(vr_agt_step == 2 || vr_agt_step == 3)
+    {
+        VR_AGT_HandToHeight(p, g.vr_ag_prop.origin_z);
+        VR_AGPT_ToHand(g, p);
+        vr_agt_step = vr_agt_step + 1;
+        vr_agt_until = time + 0.2;
+        return;
+    }
+    if(vr_agt_step == 4)
+    {
+        if(cvar("scratch2") >= 0)
+        {
+            localcmd(sprintf("vr_mock_hand_to main agweapon %g\n", cvar("scratch2")));
+            p.vr_ag_knock_at = time + 0.6; // (the hand put there at once: no blow on the weapon)
+        }
+        vr_agt_step = 5;
+        vr_agt_until = time + 0.3;
+        return;
+    }
+    if(vr_agt_step == 5)
+    {
+        makevectors(g.vr_ag_prop.angles);
+        vector rel = p.handpos - g.vr_ag_prop.origin;
+        VR_AGT_Print(sprintf("tughand grab %g of the way: the hand %.1f units ahead of its grip, %.1f off its line (hand %v, "
+            "weapon %v, %s)", cvar("scratch2"), rel * v_forward, vlen(rel - v_forward * (rel * v_forward)), p.handpos,
+            g.vr_ag_prop.origin, g.vr_ag_prop.netname));
+        cvar_set("vr_agrunt_disarm_yank", "1");
+        p.mainhand_lastgrabtime = time; // (the grip pressed now: VR_HandGrabUtil_StartedHandGrabbing)
+        p.mainhand_lastreleasetime = time - 1;
+        vr_agt_step = 6;
+        vr_agt_until = time + 0.4;
+        return;
+    }
+    if(vr_agt_step == 6)
+    {
+        VR_AGT_Check(sprintf("tughand grab %g of the way: tug %g, physical %g, your hand %s:", cvar("scratch2"),
+            g.vr_ag_tug_pl == p, g.vr_ag_tug_rag, VR_AGT_Name(p.weapon)), g.vr_ag_tug_pl == p && g.vr_ag_tug_rag);
+        if(g.vr_ag_tug_pl != p)
+        {
+            vr_agt_step = 8;
+            return;
+        }
+        vr_agt_clip = time;
+        vr_agpt_thlog = 0;
+        vr_agt_step = 7;
+        vr_agt_until = time + (mode == 0 ? 2 : 4);
+        return;
+    }
+    if(vr_agt_step == 7)
+    {
+        float t = time - vr_agt_clip;
+        float on = g.vr_ag_tug_pl == p;
+        // (the last frame's reading: the probe below runs after this frame's drawing)
+        float gap = cvar("vr_agrunt_tug_hand_gap");
+        float reach = cvar("vr_agrunt_tug_hand_reach");
+        float lag = ragdollreach(p, cVR_MainHand);
+        if(on && lag >= 0)
+        {
+            vr_agpt_thlagl = lag / VRMetersToUnits() * 100;
+            vr_agpt_thlag = max(vr_agpt_thlag, vr_agpt_thlagl);
+        }
+        if(on && t > 0.15 && gap < 900) // (eased onto it over 0.1 s first: limbEaseTime)
+        {
+            vr_agpt_thgap = max(vr_agpt_thgap, gap);
+            vr_agpt_threach = max(vr_agpt_threach, reach);
+            vr_agpt_thlast = reach;
+            vr_agpt_thn = vr_agpt_thn + 1;
+        }
+        if(floor(t * 10) != floor((t - frametime) * 10))
+        {
+            VR_AGT_Print(sprintf("tughand %.2f s: the drawn hand %.1f cm off its grab, the controller %.1f cm, the hold's lag "
+                "%.1f cm, tug %g", t, gap, reach, vr_agpt_thlagl, on));
+        }
+        float speed = mode == 1 ? 0.2 : mode == 2 ? 0.6 : mode == 3 ? 1.5 : mode == 4 ? 3 : mode == 6 ? 6 : mode == 7 ? 10 : 0;
+        cvar_set("vr_mock_hand_pull", ftos(min(1, t * speed)));
+        if(mode == 5 && t * 0.5 < 1)
+        {
+            vector back = p.origin - g.origin;
+            back_z = 0;
+            setorigin(p, p.origin + normalize(back) * 0.5 * frametime * VRMetersToUnits());
+        }
+        if(on && time < vr_agt_until)
+        {
+            localcmd("vr_ragdoll_hand_probe quiet\n");
+            return;
+        }
+        if(vr_agpt_thn > 0) // (none: let go before the hand was eased onto it)
+        {
+            VR_AGT_Check(sprintf("tughand held: the drawn hand at most %.2f cm off its grab (%g frames), the controller at "
+                "most %.1f cm:", vr_agpt_thgap, vr_agpt_thn, vr_agpt_threach), vr_agpt_thgap <= 2);
+        }
+        VR_AGT_Print(sprintf("tughand ended: %s after %.2f s (%s), your hand %s; the hold's lag at most %.1f cm, last %.1f",
+            on ? "still on" : (g.vr_ag_tug_wins ? "won" : "lost"), t, on ? "-" : vr_ag_tug_why, VR_AGT_Name(p.weapon),
+            vr_agpt_thlag, vr_agpt_thlagl));
+        if(cvar("scratch1") > 0 && mode > 0)
+        {
+            // (unbreakable: drawn back past the let-go, it ends lost there)
+            float d = cvar("vr_agrunt_tug_let_go");
+            VR_AGT_Check(sprintf("tughand let go: %s, the lag last %.1f cm (vr_agrunt_tug_let_go %g):", on ? "held" : vr_ag_tug_why,
+                vr_agpt_thlagl, d), !on && !g.vr_ag_tug_wins && vr_agpt_thlagl <= d + 5 && vr_agpt_thlagl >= d - 3);
+        }
+        else if(mode == 0)
+        {
+            VR_AGT_Check("tughand still: held on 2 s:", on);
+        }
+        vr_agt_step = 8;
+        return;
+    }
+    if(g.vr_ag_tug_pl)
+    {
+        VR_AG_TugEnd(g, FALSE, "test");
+    }
+    cvar_set("vr_mock_hand_pull", "0");
+    cvar_set("vr_agrunt_tug_break_force", ftos(vr_agpt_h0a));
+    cvar_set("vr_agrunt_tug_break_impulse", ftos(vr_agpt_h0b));
+    cvar_set("vr_agrunt_test", "0");
+};
+
 // Test 36: grabs must be deliberate. A calm shotgun grunt (still), its weapon's grip put at your main hand, the grip
 // pressed with the hand still: case 0 on it: taken; cases 1, 2 the hand raised until the fist is 2 cm and 5 cm off the
 // weapon's surface (the engine's reading, vr_agrunt_grab_gap; the old box took it up to 40 cm off its grip): not taken;
@@ -1413,6 +1635,7 @@ void(float t) VR_AGPT_Frame =
     if(t == 36) { VR_AGPT_Grab(); return; }
     if(t == 37) { VR_AGPT_Pull(); return; }
     if(t == 38) { VR_AGPT_FallKeep(); return; }
+    if(t == 39) { VR_AGPT_TugHand(); return; }
     if(t == 20) { VR_AGPT_Ragdoll(); }
     else if(t == 21 || t == 22) { VR_AGPT_Tug(); }
     else if(t == 23) { VR_AGPT_Easy(); }

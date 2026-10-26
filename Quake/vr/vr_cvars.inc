@@ -2970,12 +2970,15 @@ QVR_CVAR(vr_agrunt_tug_strength, "1.5", CVAR_ARCHIVE) // its arms' pull back in 
 QVR_CVAR(vr_agrunt_tug_hold_max, "6", CVAR_ARCHIVE) // s the tug lasts at most: then it wrenches its weapon free (0: no limit)
 // A deliberate tug (ROUND22.md "Armed monsters: a deliberate tug-of-war"; QC vr_armedgrunt_play.qc VR_AG_TugBreak).
 QVR_CVAR(vr_agrunt_grab_slack, "0", CVAR_ARCHIVE)        // cm: your fist takes its weapon within this of the weapon's drawn surface (vr_physics.cpp handOn; never by its box, nor on its arm or chest)
-QVR_CVAR(vr_agrunt_grab_gap, "999", CVAR_NONE)          // (the tests' reading: with vr_agrunt_debug, the main fist's last gap to an armed monster's weapon, cm)
+QVR_CVAR(vr_agrunt_tug_hand_gap, "999", CVAR_NONE)      // (the tests' reading: vr_ragdoll_hand_probe in a tug, the main drawn hand to its grab on the weapon as drawn, cm)
+QVR_CVAR(vr_agrunt_tug_hand_reach, "999", CVAR_NONE)    // (... and its controller to it, cm)
+QVR_CVAR(vr_agrunt_grab_gap, "999", CVAR_NONE)         // (the tests' reading: with vr_agrunt_debug, the main fist's last gap to an armed monster's weapon, cm)
 QVR_CVAR(vr_agrunt_grab_speed, "1.25", CVAR_ARCHIVE)      // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)
 QVR_CVAR(vr_agrunt_tug_pull_force, "270", CVAR_ARCHIVE)  // N (was 200: a still hold peaked at 211): the physical tug's pull that counts: only above it does its grip give (its force x time, the time below)
 QVR_CVAR(vr_agrunt_tug_pull_time, "0.5", CVAR_ARCHIVE)   // s you must keep pulling above that before its weapon can come out (a tug-of-war, not a yank)
 QVR_CVAR(vr_agrunt_tug_snap, "2.5", CVAR_ARCHIVE)        // a yank this many times the break force tears it out at once, before that time (0: never)
 QVR_CVAR(vr_agrunt_tug_hurt_ease, "0.4", CVAR_ARCHIVE)   // how much its wounds weaken its grip (0: not at all; 1: in proportion to its health lost)
+QVR_CVAR(vr_agrunt_tug_let_go, "50", CVAR_ARCHIVE)      // cm: in the physical tug, your hand lets go of its weapon (lost) once its controller is this far from where it holds it (pulled away, or you stepped back) before its grip gives; till then your drawn hand stays on the weapon
 QVR_CVAR(vr_agrunt_tug_won_stumble, "0.1", CVAR_ARCHIVE) // s it stumbles as its weapon is torn away before it stands (as an active ragdoll; then its AI)
 QVR_CVAR(vr_agrunt_parry_disarm, "0.35", CVAR_ARCHIVE) // the chance your weapon's parry of its melee weapon knocks the weapon out of its hand (a well-timed one 1.5x)
 // Armed ones parrying melee blows with their weapon (QC vr_armedgrunt_parry.qc; ROUND22.md "Armed grunts parry").
