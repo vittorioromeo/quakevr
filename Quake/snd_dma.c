@@ -90,6 +90,21 @@ void S_SfxMemory (int *loaded, int *heldBytes, int *fullBytes)
 }
 int S_KnownSfxMax (void) { return MAX_SFX; }
 
+// QVR: the samples of the sounds `match` names freed (the pool's mix joined first): each loads again as it next plays,
+// a playing one at the next S_Update (vr_voice: the player's voice made again at its new settings)
+void S_FlushSfxNamed (qboolean (*match) (const char *name))
+{
+	int i;
+	if (!known_sfx)
+		return;
+	S_MixJoin ();
+	for (i = 0; i < num_sfx; i++)
+	{
+		if (known_sfx[i].cache.data && match (known_sfx[i].name))
+			Cache_Free (&known_sfx[i].cache, false);
+	}
+}
+
 static sfx_t	*ambient_sfx[NUM_AMBIENTS];
 
 static qboolean	sound_started = false;

@@ -702,6 +702,17 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
                   "longer nails. The joints are the same, so grips, weapons and reloads fit as before; "
                   "skin tone, gloves and nails work on both. Changes at once. On the jointed hands (vr_hand_rig 1: the "
                   "default); the older hands (vr_hand_rig 0) have one shape only."),
+        cycle("Voice", vr_voice, {{0.f, "Masculine"}, {1.f, "Feminine"}})
+            .help("Your character's voice: pain, death, the jump's grunt, landing hard, gasping for air, drowning, "
+                  "burning. Feminine: Quake's recordings pitched up with their formants raised as they load (no new "
+                  "recordings). Changes at once. Hear Voice plays one."),
+        slider("Voice Pitch", vr_voice_pitch, 0.f, 8.f, 0.5f, "+%.1f semitones")
+            .help("With the feminine voice: how much higher it is pitched (the sounds keep their length)."),
+        slider("Voice Formants", vr_voice_formant, 0.f, 30.f, 1.f, "+%.0f%%")
+            .help("With the feminine voice: how much its resonances are raised, a smaller throat's. Too little sounds "
+                  "like a man's voice sped up, too much a child's."),
+        command("Hear Voice", "vr_voice_hear")
+            .help("One of your voice's sounds, as set now (a different one each press)."),
         header("Gloves"),
         cycle("Gloves", vr_gloves, {{0.f, "None"}, {1.f, "Fingerless"}, {2.f, "Full"}})
             .help("Leather gloves on your hands: fingerless ones leave the fingertips bare (in your skin tone); full ones "
@@ -742,7 +753,8 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         action("Randomize", randomAppearance)
             .help("A new look at random: skin tone, gloves (none, fingerless or full) and their colour, painted nails "
                   "and their colour, the body shape (feminine one time in four, else your other shape kept) and the hands' "
-                  "shape (feminine with the feminine body, else one time in ten). Nothing else changes. Press again for "
+                  "shape (feminine with the feminine body, else one time in ten) and the voice (feminine nine times in "
+                  "ten with the feminine body, else one time in ten). Nothing else changes. Press again for "
                   "another (vr_appearance_random)."),
         header("Pauldrons"),
         toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),

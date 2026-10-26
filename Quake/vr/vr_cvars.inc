@@ -1602,6 +1602,10 @@ QVR_CVAR(vr_nail_saturation, "0.85", CVAR_ARCHIVE)    // saturation (0 grey .. 1
 QVR_CVAR(vr_nail_lightness, "0.32", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); not tinted by vr_skin_tone, the hand's own shading kept
 QVR_CVAR(vr_nail_gloss, "0.6", CVAR_ARCHIVE)          // the polish's gloss (0 matte .. 1 a glassy top coat): a sharp highlight and the room mirrored in it
 QVR_CVAR(vr_hand_shape, "0", CVAR_ARCHIVE)            // the jointed hands' shape (vr_hand_rig 1): 0 standard, 1 feminine (progs/hand_rig_f.md5mesh, make_hand_feminine.py: slimmer, the same joints and skins); live
+QVR_CVAR(vr_voice, "0", CVAR_ARCHIVE)                 // the player's own voice (pain, death, jump, gasps, drowning, burning: vr_voice.cpp voiceSounds): 0 masculine (Quake's recordings), 1 feminine (the same recordings pitched up and their formants raised as they load); live (those sounds loaded again)
+QVR_CVAR(vr_voice_pitch, "4.5", CVAR_ARCHIVE)         // vr_voice 1: the voice's pitch raised by this many semitones (TD-PSOLA: the duration kept), 0..8
+QVR_CVAR(vr_voice_formant, "17", CVAR_ARCHIVE)        // vr_voice 1: its formants (the vocal tract's resonances) raised by this many percent (so it isn't a chipmunk's), 0..30
+QVR_CVAR(vr_voice_voicing, "0.4", CVAR_ARCHIVE)       // vr_voice 1: how rough a stretch of a voice sound may be and still be pitched up (YIN's threshold, 0.05..0.9: higher pitches more of the screams' growl; the rest only has its formants raised)
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, needs the jointed hand: vr_hand_rig 1)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
 QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
