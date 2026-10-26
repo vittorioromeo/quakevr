@@ -22538,3 +22538,45 @@ eval.sh: no verdict changes (36/44 canary, 163/171 full as before; 4 takes move 
 **In VR:**
 - [ ] Player Appearance > Nails > Painted Nails on: red nails on both jointed hands, glossy; fingerless gloves show
   them, full gloves hide them; the colour and gloss sliders change them live.
+
+## Defaults of 2026-10-26 (worktree `dequant`, branch `agent/promote3`, 2026-10-26; vr_wofs_version 69)
+
+Vittorio's "promote defaults" (2026-10-26). Source: his `quakevr-iw/quakevr/ironwail.cfg` of 10-26 12:45 (read only;
+vr_cfg_version 204, vr_wofs_version 68), diffed against next's defaults with `vr_propose_defaults` (110 settings) and
+against his own proposal of 12:26. Reason for every change: **his config, approved 2026-10-26**.
+
+| setting | old -> new | migration |
+|---|---|---|
+| Widowmaker readout (`vr_wofs_wpntxt_pitch/x/z_35`, index 34, QVR_WEAPON_UNINHERITED) | 66.5 -> 38.8, -4.6 -> -6.59, 0.375 -> -0.245 | wofs 69, each key where still at the old value |
+| Nail pistol hotspot 1 (`vr_wofs_hs1_*_37`, index 36) | off -> a cup (type 3) at -3.279305 -0.810394 -2.73, pitch 9, yaw -2.8, roll -15.247871, overlap 0.3 -> 0.945 | wofs 69, all 8 keys where its type is still 0 |
+
+- **The cup as a whole.** An off hotspot's other keys do nothing, so a config with type 0 takes all eight (a stray X
+  there is no choice of the player's); a hotspot a player set up (type not 0) stays whole, his values and type. A
+  config older than 55 gets the readout's z from step 55 (0.4 -> the new default), then 69 its pitch and x.
+- **Nothing else to promote.** No revolver (`_39`) or flare gun (`_38`) key differs from its default; no held-prop key
+  (his slots `_66`-`_70` only name their models); `vr_agrunt_poses` / `vr_agrunt_grips` are empty; no cvar outside the
+  personal list. Float noise (`_01` muzzle, `_33`/`_50` mass, `_35`/`_50` balance: 1e-5) ignored.
+- **Not promoted (as the brief says):** `vr_heat_haze_half` 0 (agent/capgrip), `vr_agrunt_dual_chance` 1 (test value),
+  personal ones (calibration and body: `vr_body_elbow_*`, `vr_bodycal_*`, `vr_bodytrack_arm_fit`, heights; video,
+  sound, flat-screen: `vid_*`, `vr_foveated`, `fov`, `gamma`, `contrast`, `scr_*`, `volume`, `sensitivity`,
+  `cl_alwaysrun`; recording: `vr_window_view`, `vr_spectator_*`; UI and tools: `vr_menu_*`, `vr_autosave_list_all`,
+  `vr_notes`, `vr_motion_*`, `vr_show_controller_off_own`; toolgun: `vr_toolgun_*`, `vr_debug_spawn_toolgun`, `_27`'s
+  holster poses; runtime `vr_xr_runtime`).
+- **Ambiguous, left for him:** `vr_ambient_light` 0.1 / 0 (new since 10-25; a brightness floor next to gamma: looks like
+  a display preference); `vr_ghost_hands` 1 / 0 (asked before: comfort-like); `vr_gloves` 1 / 0 and
+  `vr_glove_lightness` 0 / 0.2 (his look; his glove look shipped once, config 156); `vr_nails` 1 and hue 295 /
+  saturation 1 / lightness 0.65 (the new feature's colour: his taste, 355/0.85/0.32 shipped); the nailgun's (`_04`)
+  hotspot 3 positions with its type 0 (they do nothing).
+
+**Tests** (headless; `scratch/p3_mig_make.py`, `p3_mig_check.py`, `p3_tests.sh`):
+- Migration, one run (`resetcfg; exec <cfg>; vr_migrate_config; vr_wofs_dump 36`, then the values): old defaults at 68
+  -> all 11 new; chosen at 68 (readout pitch 50 and z 1, a type 1 hotspot with x 2, overlap 0.5, style 1) -> kept, the
+  readout's x the new; an off hotspot with x 5 -> his whole cup, style kept; a config at 54 (readout y -0.85, z 0.4) ->
+  y -0.47, z -0.245, pitch and x new; fresh (`vr_migrate_config new`) -> the new values, version 69; his whole config:
+  23,389 values written back, 0 differ, version 69. `mig3: 23464 passed, 0 failed`.
+- `vr_np_test 1` 17/0, `vr_np_test 5` 7/0, `vr_rv_test 1` 28/0, `vr_flare_test 1` 20/0, `vr_flare_test 5` 5/0,
+  `vr_ad_test 148` PASS (16 of 16), `vr_ad_test 149` 11/0 (`vr_weapon_grip_mode 1`). eval.sh: canary 36/44, 0 differ.
+
+**In VR:**
+- [ ] Fresh config: the Widowmaker's ammo readout sits where you put it; the nail pistol's off-hand cup grip is there
+  (the other hand under and round the grip).

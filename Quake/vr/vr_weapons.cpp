@@ -169,9 +169,11 @@ namespace
 // 66: the AD death guard's sword (slot 43) the death knight's (41) values as its own, inheriting none (takeGuardSword66).
 // 67: the flare gun's slot (37) at its defaults (takeFlareGun67).
 // 68: the heavy revolver's slot (38) at its defaults (takeRevolver68).
-// 69: the Widowmaker's (slot 34) cup, hotspot 1, aims by both hands (Two-Handed Aim, hs1_aim2h: his notes 2026-10-26)
-// where the config holds the old 0 (takeWidowmakerCupAim69).
-constexpr int settingsVersion = 69;
+// 69: his config of 2026-10-26: the Widowmaker's (slot 34) readout place and the nail pistol's (36) cup hotspot
+// (takeHis69).
+// 70: the Widowmaker's (slot 34) cup, hotspot 1, aims by both hands (Two-Handed Aim, hs1_aim2h: his notes 2026-10-26)
+// where the config holds the old 0 (takeWidowmakerCupAim70).
+constexpr int settingsVersion = 70;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -765,9 +767,40 @@ void takeRevolver68()
     resetSlot(38);
 }
 
-// The Widowmaker's cup aiming by both hands (69; the key is new: a config before it holds nothing, or the 0 every slot
+// 69: his config of 2026-10-26 (approved): the Widowmaker's (index 34) readout pitch, x and z (66.5, -4.6, 0.375 ->
+// 38.8, -6.59, -0.245), each taken where the config still holds the old one; the nail pistol's (index 36) hotspot 1 a
+// cup, all of its keys taken where its type is still None (0): an off hotspot's other keys do nothing, so they are not
+// a player's choice, and a hotspot a player set up stays his.
+void takeHis69()
+{
+    constexpr OldValue old[] = {{34, Key::WpnTextPitch, 66.5f}, {34, Key::WpnTextX, -4.6f}, {34, Key::WpnTextZ, 0.375f}};
+    int taken = 0;
+    for(const OldValue& o : old)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+            taken++;
+        }
+    }
+    const bool cup = fabsf(cvarAt(36, Key::Hotspot1Type).value) < 1e-4f;
+    if(cup)
+    {
+        for(const Key key : {Key::Hotspot1Type, Key::Hotspot1X, Key::Hotspot1Y, Key::Hotspot1Z, Key::Hotspot1Pitch,
+                Key::Hotspot1Yaw, Key::Hotspot1Roll, Key::Hotspot1Overlap})
+        {
+            cvar_t& var = cvarAt(36, key);
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+    Con_DPrintf("Weapon settings: the Widowmaker's readout took %d of his values%s\n", taken,
+        cup ? ", the nail pistol his cup grip" : "");
+}
+
+// The Widowmaker's cup aiming by both hands (70; the key is new: a config before it holds nothing, or the 0 every slot
 // had while the key was being made).
-void takeWidowmakerCupAim69()
+void takeWidowmakerCupAim70()
 {
     cvar_t& var = cvarAt(34, Key::Hotspot1CupAim);
     if(!strcmp(var.string, "0"))
@@ -811,7 +844,8 @@ constexpr Step steps[] = {
     {66, takeGuardSword66},
     {67, takeFlareGun67},
     {68, takeRevolver68},
-    {69, takeWidowmakerCupAim69},
+    {69, takeHis69},
+    {70, takeWidowmakerCupAim70},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
