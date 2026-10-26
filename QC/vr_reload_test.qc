@@ -929,6 +929,109 @@ void() VR_Reload_TestReinsert =
     bprint(sprintf("reload reinsertion: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
 };
 
+// Test step 40 (the author: "hide the top nails when a magazine is empty, show 1 nail when only one round is left"):
+// each nail magazine (the nail pistol's, the nailgun's, the super nailgun's) taken out of the off hand's gun at 0, 1 and
+// full, into the main hand, let go of (dropped), and ejected loose: its frame (VR_Reload_MagNailFrame: 0 two nails,
+// 1 one, 2 none) each time; the thunderbolt's cell frame 0. Ends with `reload magnails: N passed, M failed`.
+void() VR_Reload_TestMagNails =
+{
+    vr_reload_test_pass = 0;
+    vr_reload_test_fail = 0;
+    VR_Reload_TestSetup();
+    float i = 0;
+    while(i < 4)
+    {
+        float w = i == 0 ? WID_NAILPISTOL : (i == 1 ? WID_NAILGUN : (i == 2 ? WID_SUPER_NAILGUN : WID_LIGHTNING));
+        VR_WeaponUtil_EntAddWeapon(self, w);
+        float full = WeaponIdToBaseClipSize(w);
+        float k = 0;
+        while(k < 3)
+        {
+            float n = k == 0 ? 0 : (k == 1 ? 1 : full);
+            float want = w == WID_LIGHTNING ? 0 : 2 - k;
+            VRGiveEntWeapon(self, cVR_OffHand, w, 0, n);
+            entity r = VR_Reload_Eject(self, cVR_OffHand, '0 0 0', cVR_MainHand, "test nails");
+            float held = VR_Carry_Held(self, cVR_MainHand) == r;
+            float inHand = r.frame;
+            VR_Carry_Release(cVR_MainHand, r); // (as letting go anywhere: step 3)
+            VR_Reload_Check(held && inHand == want && r.frame == want && r.vr_ammo_count == n,
+                sprintf("%s's magazine of %g: in the hand frame %g, let go of %g (want %g)", WeaponIdToWeaponName(w), n, inHand,
+                    r.frame, want));
+            remove(r);
+            VRGiveEntWeapon(self, cVR_OffHand, w, 0, n);
+            r = VR_Reload_Eject(self, cVR_OffHand, '0 0 -40', -1, "test nails");
+            VR_Reload_Check(r.frame == want, sprintf("%s's magazine of %g ejected loose: frame %g (want %g)",
+                WeaponIdToWeaponName(w), n, r.frame, want));
+            remove(r);
+            k++;
+        }
+        i++;
+    }
+    VR_Reload_TestSetup();
+    bprint(sprintf("reload magnails: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
+};
+
+// The three nail magazines (left to right the nail pistol's, the nailgun's, the super nailgun's) laid out from `xAt`
+// along yaw `xYaw`, each at full, one round and none (front to back), for their top nails.
+void(vector xAt, float xYaw) VR_Reload_MagNailsLayAt =
+{
+    makevectors(xYaw * '0 1 0');
+    vector fwd = v_forward;
+    vector right = v_right;
+    float i = 0;
+    while(i < 3)
+    {
+        float w = i == 0 ? WID_NAILPISTOL : (i == 1 ? WID_NAILGUN : WID_SUPER_NAILGUN);
+        float k = 0;
+        while(k < 3)
+        {
+            float n = k == 0 ? WeaponIdToBaseClipSize(w) : 1 - (k - 1);
+            entity r = VR_Reload_MakeRound(w, AID_NAILS, n, xAt + right * (i - 1) * 10 + fwd * k * 8, xYaw * '0 1 0');
+            bprint(sprintf("reload: laid out a %s magazine of %g (frame %g)\n", WeaponIdToWeaponName(w), n, r.frame));
+            k++;
+        }
+        i++;
+    }
+};
+
+// Test step 41 (Debug > Tests > Reloading, "Lay Out Nail Magazines: Full, One, Empty"): them in front of you.
+void() VR_Reload_TestMagNailsLayout =
+{
+    makevectors(self.v_angle_y * '0 1 0');
+    VR_Reload_MagNailsLayAt(self.origin + v_forward * 36 + '0 0 -12', self.v_angle_y);
+};
+
+// The same as a spawn function (the scenario `magfill`'s `spawn VR_Reload_MagNailsLayout 36 0`, or `vr_physics_spawn
+// VR_Reload_MagNailsLayout 36`; a scenario's commands' impulses don't reach the server while it loads): from the spawn
+// point on the floor ahead, facing the player's way. The marker itself goes a frame later (the scenario counts it made).
+void() VR_Reload_MagNailsLayout =
+{
+    entity p = find(world, classname, "player");
+    VR_Reload_MagNailsLayAt(self.origin + '0 0 12', p ? p.v_angle_y : self.angles_y);
+    self.solid = SOLID_NOT;
+    self.movetype = MOVETYPE_NONE;
+    self.think = SUB_Remove;
+    self.nextthink = time + 0.1;
+};
+
+// Test step 42 (after 41, a save and its load): each magazine lying about, its rounds and frame; the frame must be its
+// rounds' (VR_Reload_MagNailFrame). Ends with `reload magnails lying: N magazines, M wrong`.
+void() VR_Reload_TestMagNailsLying =
+{
+    float n = 0;
+    float wrong = 0;
+    entity r = find(world, classname, VR_RELOAD_MAGCLASS);
+    while(r)
+    {
+        n++;
+        float want = VR_Reload_MagNailFrame(r.vr_ammo_wid, r.vr_ammo_count);
+        wrong = wrong + (r.frame != want ? 1 : 0);
+        bprint(sprintf("reload: lying %s, %g rounds, frame %g (want %g)\n", r.model, r.vr_ammo_count, r.frame, want));
+        r = find(r, classname, VR_RELOAD_MAGCLASS);
+    }
+    bprint(sprintf("reload magnails lying: %g magazines, %g wrong\n", n, wrong));
+};
+
 void() VR_Reload_Test =
 {
     float step = cvar_hget(cvarh_vr_reload_test);
@@ -1020,6 +1123,18 @@ void() VR_Reload_Test =
     else if(step == 28)
     {
         VR_Reload_TestReinsert();
+    }
+    else if(step == 40)
+    {
+        VR_Reload_TestMagNails();
+    }
+    else if(step == 41)
+    {
+        VR_Reload_TestMagNailsLayout();
+    }
+    else if(step == 42)
+    {
+        VR_Reload_TestMagNailsLying();
     }
     else if(step >= 10 && step <= 13)
     {

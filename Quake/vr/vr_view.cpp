@@ -1781,9 +1781,19 @@ void setupPouch(const hands::State& s)
                       holstersetup::highlighted(zones::ZoneGrenadePouch));
 }
 
-// The magazine in the gun `gun` (`show`: the server's mode Immersive and the gun's magazine in): its attached model, the
-// gun's place, turn, mirroring, scale and light, moved with the gun's body by the firing animation (magMounts).
-void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, bool well = false)
+// A nail magazine's frame by the rounds in it (QC VR_Reload_MagNailFrame; make_mags.py emptied_frames): 0 its top two nails,
+// 1 the upper one alone, 2 none; a model with fewer frames (the cell, a well) its last.
+[[nodiscard]] int magFrame(qmodel_t* model, int rounds)
+{
+    const int frame = rounds >= 2 ? 0 : rounds == 1 ? 1 : 2;
+    const auto* hdr = model && model->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(model)) : nullptr;
+    return hdr ? za::clamp(frame, 0, hdr->numframes - 1) : 0;
+}
+
+// The magazine in the gun `gun` (`show`: the server's mode Immersive and the gun's magazine in; `rounds`: what it holds,
+// for its top nails: magFrame; a lying gun's unknown, full): its attached model, the gun's place, turn, mirroring, scale
+// and light, moved with the gun's body by the firing animation (magMounts).
+void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, bool well = false, int rounds = 2)
 {
     const MagMount* mount = show && gun.visible ? magMountFor(gun.ent.model) : nullptr;
     const char* const name = mount ? (well ? mount->well : mount->model) : nullptr; // (a well: none, the nail pistol's)
@@ -1796,7 +1806,7 @@ void setMagazine(view::ViewEntity& mag, const view::ViewEntity& gun, bool show, 
     const qmodel_t* last = mag.lastModel;
     mag = gun;
     mag.ent.model = model;
-    mag.ent.frame = 0;
+    mag.ent.frame = magFrame(model, rounds);
     mag.ent.lerpflags |= LERP_RESETANIM; // (one frame: never blended with the gun's)
     mag.zeroBlend = 0.f;
     mag.morph = 0.f;
@@ -2127,7 +2137,8 @@ void setupHeldMagazines()
     for(int hand = 0; hand < 2; hand++)
     {
         const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
-        setMagazine(entities.mag[hand], entities.weapon[hand], on && !(flags & weaponFlagNoMag));
+        const int clip = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2];
+        setMagazine(entities.mag[hand], entities.weapon[hand], on && !(flags & weaponFlagNoMag), false, clip);
         setMagazine(entities.well[hand], entities.weapon[hand], on, true);
     }
 }
@@ -2154,7 +2165,8 @@ void setupMagazines()
     for(int h = 0; h < HolsterCount; h++)
     {
         const int flags = holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONFLAGS0);
-        setMagazine(entities.holsterMag[h], entities.holster[h], on && !(flags & weaponFlagNoMag));
+        setMagazine(entities.holsterMag[h], entities.holster[h], on && !(flags & weaponFlagNoMag), false,
+            holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONCLIP0));
         setMagazine(entities.holsterWell[h], entities.holster[h], on, true);
     }
     const bool printMags = vr_reload_debug.value >= 1 && developer.value && cl.time >= worldMagPrinted + 1.0;
@@ -2345,7 +2357,8 @@ void setupAmmoPouchItems(const view::ViewEntity& pouch, bool placed)
         const glm::vec3 ax = modelPoint(pouch, it.at + it.axes[0]) - o;
         const glm::vec3 az = modelPoint(pouch, it.at + it.axes[2]) - o;
         const float k = glm::length(az); // world units a pouch unit
-        place(ve, it.model, o, aliasAngles(glm::normalize(ax), glm::normalize(az)), 0, false);
+        place(ve, it.model, o, aliasAngles(glm::normalize(ax), glm::normalize(az)),
+            it.rounds >= 0 ? magFrame(it.model, it.rounds) : 0, false);
         ve.visible = pouch.visible;
         ve.ent.skinnum = it.skin;
         ve.scale = glm::vec3{k * it.share}; // (its held size on top: vr_props.cpp drawnSize)

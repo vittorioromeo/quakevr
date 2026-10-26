@@ -145,6 +145,12 @@ za::Vector<Item> pageDebugAutomation()
                   "Changes the weapons and ammo in your hands; use a test map."),
         command("Run the Self-Test", "vr_reload_test 9; impulse 125")
             .help("Takes, loads, refunds and drops in turn and checks every count: reload: PASS or FAIL lines."),
+        command("Check the Nail Magazines' Top Nails", "vr_reload_test 40; impulse 125")
+            .help("Each nail magazine taken out at 0, 1 and full, held, dropped and ejected: its frame (two nails, one, "
+                  "none) checked. Changes the weapons in your hands."),
+        command("Lay Out Nail Magazines: Full, One, Empty", "vr_reload_test 41; impulse 125")
+            .help("The nail pistol's, nailgun's and super nailgun's magazines lying in front of you, each full, with one "
+                  "round and empty (front to back): two top nails, one, none."),
         command("Toss a Round Into the Off Hand's Gun", "vr_reload_test 10; impulse 125")
             .help("A loose round for it (a shell, the super shotgun's pair, its magazine), lying right, thrown into its "
                   "opening from 8 units out: it goes in by contact (Load Loose Rounds)."),

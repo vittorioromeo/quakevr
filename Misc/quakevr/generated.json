@@ -597,7 +597,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_nail.mdl": {
-  "sha256": "9d426d4c6fd23bb090abb809123d699d76d9b1876466a6af1872fe6b59781db3",
+  "sha256": "ffd4fdc6455aa910cd22ca682524ee44aed9ea2a4ced0b40d590e3757916c0c6",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_nail.mdl_0_norm.png": {
@@ -605,11 +605,11 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_npistol.mdl": {
-  "sha256": "396614e17a30bbe557d623ccc988cf1c4d58537869b9d5e09d797a58422cf30c",
+  "sha256": "e4bfdc4eb567c49ca82c6e3b0fd4b288c4d2e7740536f2ab939ee99018a18712",
   "by": "make_nailpistol_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_lava.mdl": {
-  "sha256": "40897f8e7cc5a8a433e0c7a16969dc6b71fc7ad5b37c75394a6b838fcbacfeff",
+  "sha256": "67e9aee86c3e7635af1343b991892894e247fbe333b34e79d0088ee2464ac743",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_lava.mdl_0_norm.png": {
@@ -617,7 +617,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_lava2.mdl": {
-  "sha256": "9c22bc6c7cc6d2d1eb8e988e3c5d7ef6be3f05db57734fd822f8c0165813e78d",
+  "sha256": "ae35f1514b2aada3016561dcf7e7ac877109a97dcb18335dacf902db2fb99fd6",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_lava2.mdl_0_norm.png": {
@@ -633,7 +633,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_nail.mdl": {
-  "sha256": "44353725faeb195ad478c2ad46ebd2b061d107f6012cb8df08ded278aaa61173",
+  "sha256": "9acd00a1590efee22154b901cbbe455ea9e558b79c9b00bcfeb728e11f9ccd87",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_nail.mdl_0_norm.png": {
@@ -641,7 +641,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_nail2.mdl": {
-  "sha256": "23a6ee1f4b5094cee20ec05af33ff2aec2216c507c8a4d66cd6637d843166ea6",
+  "sha256": "0db85794dd3f3cd7df719b2800766d6d58eb305508521516897e6c66c70b3632",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_nail2.mdl_0_norm.png": {
@@ -649,7 +649,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_nailpistol.mdl": {
-  "sha256": "0fbf69c60c3bef9892e436d7bc5a4b6c1a32067c5daaf3153a52e39837ab6501",
+  "sha256": "638ba2d7a70cf2ee4e2f5c9c938e668bb986a19a1720e13e652b41fa7a6fc749",
   "by": "make_nailpistol_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_plasma.mdl": {
@@ -661,7 +661,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_snail.mdl": {
-  "sha256": "71510acd3a6ebba23a9c8579dacdb92ccf710692e9faf764929676621310b54d",
+  "sha256": "9fed7b8da126168d0b8326d4b771cf882713e98e1cd4e7d9f7d4748c2928b2cc",
   "by": "make_mags.py"
  },
  "quakevr/progs/vr_mag_snail.mdl_0_norm.png": {
@@ -1735,5 +1735,141 @@
  "scratch/gore_out/tear2.wav": {
   "sha256": "997dd75d454ed6a710cd1c65dc691d8085e9a3d0f939d4608ae043745f3633c4",
   "by": "make_gore_sounds.py"
+ },
+ "scratch/magfill_base/vr_mag_light.mdl": {
+  "sha256": "d9ff852f898c628fdb236725effdd7d7f5d765c45167225d9282ab256585c670",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_mag_nail.mdl": {
+  "sha256": "9d426d4c6fd23bb090abb809123d699d76d9b1876466a6af1872fe6b59781db3",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_mag_npistol.mdl": {
+  "sha256": "396614e17a30bbe557d623ccc988cf1c4d58537869b9d5e09d797a58422cf30c",
+  "by": "make_nailpistol_mags.py"
+ },
+ "scratch/magfill_base/vr_mag_on_v_lava.mdl": {
+  "sha256": "40897f8e7cc5a8a433e0c7a16969dc6b71fc7ad5b37c75394a6b838fcbacfeff",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_mag_on_v_lava2.mdl": {
+  "sha256": "9c22bc6c7cc6d2d1eb8e988e3c5d7ef6be3f05db57734fd822f8c0165813e78d",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_mag_on_v_light.mdl": {
+  "sha256": "7ef6f4910d1c174dbe687da4d197725c40aabfbd61a445801135f92a17ee15da",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_mag_on_v_nail.mdl": {
+  "sha256": "44353725faeb195ad478c2ad46ebd2b061d107f6012cb8df08ded278aaa61173",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_mag_on_v_nail2.mdl": {
+  "sha256": "23a6ee1f4b5094cee20ec05af33ff2aec2216c507c8a4d66cd6637d843166ea6",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_mag_on_v_nailpistol.mdl": {
+  "sha256": "0fbf69c60c3bef9892e436d7bc5a4b6c1a32067c5daaf3153a52e39837ab6501",
+  "by": "make_nailpistol_mags.py"
+ },
+ "scratch/magfill_base/vr_mag_on_v_plasma.mdl": {
+  "sha256": "c0d2f61859bb70dae838f7c7da18ca1937b295b53984fac4e4f76b88a757655f",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_mag_snail.mdl": {
+  "sha256": "71510acd3a6ebba23a9c8579dacdb92ccf710692e9faf764929676621310b54d",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_magwell_on_v_lava.mdl": {
+  "sha256": "312801fd4e4953fce325e3b4e38670885cde0426ebf282a6b6f998921cfae1ca",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_magwell_on_v_lava2.mdl": {
+  "sha256": "13616ed45b3e3a198d8c430b633082779ae2574794144a4e5b3f70634c62fb92",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_magwell_on_v_light.mdl": {
+  "sha256": "20ad1906a4598470c841f6b161bcc668bfd0d1ffbaadabc1198b1644fc3185bd",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_magwell_on_v_nail.mdl": {
+  "sha256": "312801fd4e4953fce325e3b4e38670885cde0426ebf282a6b6f998921cfae1ca",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_magwell_on_v_nail2.mdl": {
+  "sha256": "13616ed45b3e3a198d8c430b633082779ae2574794144a4e5b3f70634c62fb92",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_base/vr_magwell_on_v_plasma.mdl": {
+  "sha256": "20ad1906a4598470c841f6b161bcc668bfd0d1ffbaadabc1198b1644fc3185bd",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_mag_light.mdl": {
+  "sha256": "d9ff852f898c628fdb236725effdd7d7f5d765c45167225d9282ab256585c670",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_mag_nail.mdl": {
+  "sha256": "ffd4fdc6455aa910cd22ca682524ee44aed9ea2a4ced0b40d590e3757916c0c6",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_mag_npistol.mdl": {
+  "sha256": "e4bfdc4eb567c49ca82c6e3b0fd4b288c4d2e7740536f2ab939ee99018a18712",
+  "by": "make_nailpistol_mags.py"
+ },
+ "scratch/magfill_new/vr_mag_on_v_lava.mdl": {
+  "sha256": "67e9aee86c3e7635af1343b991892894e247fbe333b34e79d0088ee2464ac743",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_mag_on_v_lava2.mdl": {
+  "sha256": "ae35f1514b2aada3016561dcf7e7ac877109a97dcb18335dacf902db2fb99fd6",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_mag_on_v_light.mdl": {
+  "sha256": "7ef6f4910d1c174dbe687da4d197725c40aabfbd61a445801135f92a17ee15da",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_mag_on_v_nail.mdl": {
+  "sha256": "9acd00a1590efee22154b901cbbe455ea9e558b79c9b00bcfeb728e11f9ccd87",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_mag_on_v_nail2.mdl": {
+  "sha256": "0db85794dd3f3cd7df719b2800766d6d58eb305508521516897e6c66c70b3632",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_mag_on_v_nailpistol.mdl": {
+  "sha256": "638ba2d7a70cf2ee4e2f5c9c938e668bb986a19a1720e13e652b41fa7a6fc749",
+  "by": "make_nailpistol_mags.py"
+ },
+ "scratch/magfill_new/vr_mag_on_v_plasma.mdl": {
+  "sha256": "c0d2f61859bb70dae838f7c7da18ca1937b295b53984fac4e4f76b88a757655f",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_mag_snail.mdl": {
+  "sha256": "9fed7b8da126168d0b8326d4b771cf882713e98e1cd4e7d9f7d4748c2928b2cc",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_magwell_on_v_lava.mdl": {
+  "sha256": "312801fd4e4953fce325e3b4e38670885cde0426ebf282a6b6f998921cfae1ca",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_magwell_on_v_lava2.mdl": {
+  "sha256": "13616ed45b3e3a198d8c430b633082779ae2574794144a4e5b3f70634c62fb92",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_magwell_on_v_light.mdl": {
+  "sha256": "20ad1906a4598470c841f6b161bcc668bfd0d1ffbaadabc1198b1644fc3185bd",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_magwell_on_v_nail.mdl": {
+  "sha256": "312801fd4e4953fce325e3b4e38670885cde0426ebf282a6b6f998921cfae1ca",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_magwell_on_v_nail2.mdl": {
+  "sha256": "13616ed45b3e3a198d8c430b633082779ae2574794144a4e5b3f70634c62fb92",
+  "by": "make_mags.py"
+ },
+ "scratch/magfill_new/vr_magwell_on_v_plasma.mdl": {
+  "sha256": "20ad1906a4598470c841f6b161bcc668bfd0d1ffbaadabc1198b1644fc3185bd",
+  "by": "make_mags.py"
  }
 }

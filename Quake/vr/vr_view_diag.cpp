@@ -1194,6 +1194,15 @@ void dumpView_f()
         const glm::vec3 lag = pouchitems::wobble();
         Con_Printf("ammo pouch: frame %d rounds %d skin %d %s wobble %.3f %.3f %.3f\n", entities.ammoPouch.ent.frame, rounds,
             rounds ? first.skinnum : 0, rounds && first.model ? first.model->name : "-", lag.x, lag.y, lag.z);
+        // The nail magazines' top nails (vr_view.cpp magFrame: 0 two, 1 one, 2 none): the first and last in the pouch,
+        // and the ones seated in the hands' guns.
+        const entity_t& last = entities.ammoPouchItem[za::max(rounds - 1, 0)].ent;
+        const view::ViewEntity* seated = entities.mag;
+        Con_Printf("magazine frames: pouch first %d last %d, seated main %d (%s) off %d (%s)\n", rounds ? first.frame : -1,
+            rounds ? last.frame : -1, seated[HAND_MAIN].visible ? seated[HAND_MAIN].ent.frame : -1,
+            seated[HAND_MAIN].visible ? seated[HAND_MAIN].ent.model->name : "-",
+            seated[HAND_OFF].visible ? seated[HAND_OFF].ent.frame : -1,
+            seated[HAND_OFF].visible ? seated[HAND_OFF].ent.model->name : "-");
         glm::vec3 centre;
         if(ammoPouchCentre(centre))
         {

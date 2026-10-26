@@ -360,6 +360,17 @@ done
 log=$(tb_run_sh -Script "map e1m1;wait60;vr_weapon_grip_mode 1;vr_reload_test 28;impulse 125;wait3;toggleconsole;quit" -Filter "reload reinsertion|reload: FAIL" 2>&1)
 echo "$log" | grep "FAIL"
 check $(echo "$log" | grep -qE "reload reinsertion: [0-9]+ passed, 0 failed" && echo 1 || echo 0) "the reinsertion self-test: clearance and Reinsertion Delay ($(echo "$log" | grep -o "[0-9]* passed, [0-9]* failed"))"
+# The nail magazines' top nails (ROUND22.md, "Empty magazines hide their top nails"): frame 0 two nails, 1 one, 2 none,
+# by the rounds in it. The QC check (each magazine at 0, 1 and full, in the hand, let go of, ejected loose); the nine laid
+# out, saved and loaded (each lying one's frame its rounds'); the seated one's and the pouch's (vr_dumpview: full 0, empty
+# 2; 25 nails in the pouch: a full one and one of 1).
+log=$(tb_run_sh -Script "map e1m1;wait60;vr_reload_mode 3;vr_reload_test 40;impulse 125;wait3;toggleconsole;quit" -Filter "reload magnails|reload: FAIL" 2>&1)
+echo "$log" | grep "FAIL"
+check $(echo "$log" | grep -q "reload magnails: 24 passed, 0 failed" && echo 1 || echo 0) "the nail magazines' top nails by their rounds: in the hand, let go of, ejected ($(echo "$log" | grep -o "[0-9]* passed, [0-9]* failed"))"
+log=$(tb_run_sh -Script "map e1m1;wait60;vr_reload_mode 3;vr_reload_test 41;impulse 125;wait10;save magfill_t;wait3;load magfill_t;wait30;vr_reload_test 42;impulse 125;wait3;toggleconsole;quit" -Filter "reload magnails lying" -QuitOn "reload magnails lying:" 2>&1)
+check $(echo "$log" | grep -q "reload magnails lying: 9 magazines, 0 wrong" && echo 1 || echo 0) "the nail magazines lying about keep their top nails across a save and load ($(echo "$log" | grep -o "[0-9]* magazines, [0-9]* wrong"))"
+log=$(tb_run_sh -Script "$MPRE;vr_dumpview;vr_reload_test 5;impulse 125;wait3;give n 25;wait5;vr_dumpview;echo magnails done;toggleconsole;quit" -Filter "^magazine frames|magnails done" 2>&1)
+check $(echo "$log" | grep -q "seated main -1 (-) off 0 (progs/vr_mag_on_v_nail.mdl)" && echo "$log" | grep -q "pouch first 0 last 1, seated main -1 (-) off 2 " && echo 1 || echo 0) "the seated nailgun magazine's top nails (full 0, empty 2) and the pouch's (25 nails: frames 0 and 1)"
 
 # 9. The ammo button: from its front pressed, from behind never, at cone 80 (the default was; 50 now) and depth 0.5;
 #    from the side refused at cone 50 depth 0, from behind pressed at 180. Then approaches as a finger makes them (a
