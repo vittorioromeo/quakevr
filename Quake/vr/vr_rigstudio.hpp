@@ -23,6 +23,11 @@ void shutdown(); // VR_Shutdown: closed, ImGui let go
 void clientFrame();
 // VR_ServerFrameEnd: its scene (the room's load, the subject made, held where it stands).
 void serverFrame();
+// VR_OnSpawnServerBeforeLoad: a map loading (the subject gone with its edicts: staged again in the new map).
+void beforeLoad();
+// QC's hold query (weapondrawnpose 19) for entity `ent`: the studio's hold on its subject (x the pose, y its phase, z
+// Play's count, as posestudio::qcHold) into `out`. False: not the subject (the Pose Studio's answer stands).
+[[nodiscard]] bool qcHold(int ent, glm::vec3& out);
 
 // R_SetupAliasFrame's end (VR_AnimSmoothPinned): the subject drawn at the timeline's frames. False: not the subject.
 bool pinned(const entity_t* e, const void* aliashdr, short* pose1, short* pose2, float* blend);

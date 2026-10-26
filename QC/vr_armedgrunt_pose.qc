@@ -1558,8 +1558,16 @@ void(entity g, entity p) VR_AGK_Hold =
     float gun = cls == VR_AGK_GUN || cls == VR_AGK_TWOGUNS;
     float aimed = pose == 1 || pose >= 10;
     setorigin(vr_agk_tgt, g.origin + v_forward * (gun ? 200 : 40) + '0 0 10');
+    if(g.vr_rs_aimon)
+    {
+        setorigin(vr_agk_tgt, g.vr_rs_aim); // (the Rig Studio's aim target: an enemy's point standing there)
+    }
     g.enemy = aimed ? vr_agk_tgt : world;
     g.vr_ag_aim = (aimed && gun) ? v_forward : '0 0 0';
+    if(aimed && gun && g.vr_rs_aimon)
+    {
+        g.vr_ag_aim = normalize(g.vr_rs_aim - (p ? p.origin : g.origin)); // (as VR_AG_AimDir from its gun, no error)
+    }
     g.vr_ag_aimw = aimed ? 1 : 0;
     g.vr_agp_rdy = aimed ? 1 : 0;
     g.vr_ag_readyw = cls == VR_AGK_FISTS ? (aimed ? 0.75 : 0) : 0.7;

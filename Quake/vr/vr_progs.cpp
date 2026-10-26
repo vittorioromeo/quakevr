@@ -27,6 +27,7 @@
 #include "vr_walltorch.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_props.hpp"
+#include "vr_rigstudio.hpp"
 #include "vr_scenario.hpp"
 #include "vr_tips.hpp"
 #include "vr_melee_shared.h"
@@ -450,6 +451,7 @@ extern "C" void VR_OnClearMemory()
 extern "C" void VR_OnSpawnServerBeforeLoad()
 {
     resetServerWorld();
+    qvr::rigstudio::beforeLoad(); // (its subject gone with the edicts: staged again in the new map)
     qvr::ad::beforeLoad(); // vr_ad_rules for this map, before anything of it spawns (and QC's hook reads it)
     VR_EdictIndex_Reset(); // (the edicts cleared)
     qvr::physics::precacheWaterSounds();

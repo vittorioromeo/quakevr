@@ -47,6 +47,7 @@
 #include "vr_agpose.hpp"
 #include "vr_poselive.hpp"
 #include "vr_posestudio.hpp"
+#include "vr_rigstudio.hpp"
 #include "vr_adtank.hpp" // (hitmodel_segment's class -1: a tank's hose)
 #include "vr_blade.hpp"
 #include "vr_meleeshow.hpp"
@@ -2364,6 +2365,11 @@ void PF_weapondrawnpose()
         if(what == 19)
         {
             out = posestudio::qcHold(NUM_FOR_EDICT(player), arg / 100, arg % 100);
+            glm::vec3 studio;
+            if(rigstudio::qcHold(NUM_FOR_EDICT(player), studio))
+            {
+                out = studio; // (the Rig Studio's subject: its aim target's Aim stance, or the Pose Handles' key)
+            }
         }
         else
         {

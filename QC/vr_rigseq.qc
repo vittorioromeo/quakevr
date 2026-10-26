@@ -19,6 +19,11 @@
 .float vr_rigseq_t0;    // when it was asked for (its start: the engine takes the request at the frame's end)
 .void(string seq, string ev, float frame) vr_rigseq_on; // the monster's own handler of its events
 
+// The Rig Studio's subject's aim target (vr_rigstudio.cpp writes them each server frame; 0 on every other entity): where
+// it aims, as at an enemy standing there (vr_armedgrunt_pose.qc VR_AGK_Hold).
+.vector vr_rs_aim;  // the point (world)
+.float vr_rs_aimon; // 1: aimed at it
+
 void(entity m, string seq) VR_RigSeq_Play =
 {
     m.vr_rigseq = seq;
@@ -30,6 +35,37 @@ void(entity m, string seq) VR_RigSeq_Play =
 void(entity m) VR_RigSeq_Stop =
 {
     m.vr_rigseq = "-";
+};
+
+// The Rig Studio's subject gone (vr_rigstudio.cpp removeSubject: another subject or weapon picked, the studio closed or
+// opened again): `m`, whatever it owns (its held weapons, vr_ag_weapon, with their records; its worn tank) and whatever
+// those own, each as the scene's cleanup removes it (VR_Scene_Remove: a fire out, AD's attachments).
+void(entity m) VR_RigStudio_Remove =
+{
+    if(m == world || (m.flags & FL_CLIENT))
+    {
+        return;
+    }
+    for(float pass = 0; pass < 2; pass++)
+    {
+        entity e = nextent(world);
+        while(e)
+        {
+            entity o = e.owner;
+            float mine = pass == 0 ? (o != world && o != m && o.owner == m) : o == m;
+            if(mine && !(e.flags & (FL_CLIENT | FL_MONSTER)))
+            {
+                if(e.classname == "vr_ag_weapon" && e.weaponinst && e.weaponinst.classname == "weapon_inst")
+                {
+                    remove(e.weaponinst);
+                    e.weaponinst = world;
+                }
+                VR_Scene_Remove(e);
+            }
+            e = nextent(e); // (after the removal: nextent skips the freed)
+        }
+    }
+    VR_Scene_Remove(m);
 };
 
 // Called by the engine (vr_rigseq.cpp), self the monster.

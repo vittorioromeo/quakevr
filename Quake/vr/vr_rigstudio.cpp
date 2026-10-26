@@ -9,6 +9,7 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_imgui.hpp"
+#include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
@@ -150,6 +151,31 @@ void findStage()
     st.cam.yaw = yaw + 20.f;
     st.cam.pitch = 10.f;
     st.cam.dist = 90.f;
+    if(!st.aim.placed)
+    {
+        st.aim.at = aimDefault(); // (ahead of the subject, level; kept across its changes)
+        st.aim.placed = true;
+    }
+}
+
+// The subject's aim target as QC reads it (vr_rigseq.qc .vr_rs_aim, .vr_rs_aimon), the fields found once a progs.
+struct AimFields
+{
+    const void* progs{nullptr};
+    int at{-1}, on{-1};
+};
+AimFields aimFields;
+
+void tellAim(edict_t* e)
+{
+    if(aimFields.progs != sv.qcvm.progs)
+    {
+        aimFields.progs = sv.qcvm.progs;
+        aimFields.at = ED_FindFieldOffset("vr_rs_aim");
+        aimFields.on = ED_FindFieldOffset("vr_rs_aimon");
+    }
+    progs::setFieldVec(e, aimFields.at, st.aim.at);
+    progs::setFieldFloat(e, aimFields.on, st.aim.on ? 1.f : 0.f);
 }
 
 [[nodiscard]] bool armedClass(const char* spawn)
@@ -157,9 +183,35 @@ void findStage()
     return !strncmp(spawn, "monster_vr_", 11);
 }
 
+// The subject gone with everything it owns (its weapons and their records, a worn tank: QC VR_RigStudio_Remove), and
+// the studio's own hold on it dropped (its edits kept: they are the model's, not the entity's).
+void removeSubject()
+{
+    if(!sv.active)
+    {
+        st.subject = 0;
+        return;
+    }
+    const SvVm vm;
+    edict_t* e = subjectEdict();
+    const func_t fn = progs::findFunction("VR_RigStudio_Remove");
+    if(e && fn && st.subject > svs.maxclients)
+    {
+        pr_global_struct->time = qcvm->time;
+        pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
+        G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+        PR_ExecuteProgram(fn);
+        Con_Printf("rigstudio: subject %d removed\n", st.subject);
+    }
+    st.subject = 0;
+    st.note = posestudio::Note{};
+    st.noteFrame = -1;
+}
+
 void makeSubject()
 {
     st.spawnAt = -1.0;
+    removeSubject(); // (exactly one: a respawn asked twice before its spawn came)
     const glm::vec3 at = st.stage + glm::vec3{0.f, 0.f, 25.f};
     const glm::vec3 angles{0.f, st.stageYaw, 0.f};
     edict_t* e = armedClass(st.choice.spawn)
@@ -188,6 +240,7 @@ void holdSubject(edict_t* e)
         e->v.movetype = MOVETYPE_NONE;
     }
     e->v.takedamage = 0.f;
+    tellAim(e);
 }
 
 // The model to edit: the subject's (its data from the files, or empty).
@@ -281,10 +334,16 @@ void open_f()
         return;
     }
     const bool here = Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "here");
+    if(inGame())
+    {
+        removeSubject(); // (opened again while open: the last subject never left standing beside the new one)
+    }
     st.open = true;
     st.staged = false;
     st.subject = 0;
+    st.spawnAt = -1.0;
     st.model = nullptr;
+    st.aim.placed = false; // (ahead of the subject where it stands)
     keepSettings();
     imgui::setTheme(static_cast<int>(vr_rigstudio_theme.value));
     if(here && inGame())
@@ -811,6 +870,183 @@ void status_f()
         st.dirtyRig || za::anyOf(st.dirtySeq.begin(), st.dirtySeq.end(), [](uint8_t d) { return d != 0; }) ? "unsaved changes" : "saved");
 }
 
+// vr_rigstudio_count: the server's entities in use, and of them the monsters, the held weapons, the weapons' records and
+// the worn tanks (the subject's changes leave exactly one subject and its own weapons: the tests).
+struct Census
+{
+    int used{0}, monsters{0}, weapons{0}, records{0}, tanks{0};
+    int owned{0};   // the subject's: what it owns, and what those own
+    int mineW{0};   // ... of them its held weapons
+    int mineT{0};   // ... its worn tanks
+    int mineR{0};   // the records its weapons hold
+};
+
+[[nodiscard]] Census census()
+{
+    Census c;
+    const SvVm vm;
+    const int instOfs = ED_FindFieldOffset("weaponinst");
+    const edict_t* subj = subjectEdict();
+    const int sp = subj ? EDICT_TO_PROG(subj) : -1;
+    for(int i = 1; i < sv.qcvm.num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(e->free)
+        {
+            continue;
+        }
+        c.used++;
+        const char* cn = PR_GetString(e->v.classname);
+        const bool weapon = !strcmp(cn, "vr_ag_weapon"), tank = !strcmp(cn, "vr_fueltank_worn");
+        c.monsters += (static_cast<int>(e->v.flags) & FL_MONSTER) != 0;
+        c.weapons += weapon;
+        c.records += !strcmp(cn, "weapon_inst");
+        c.tanks += tank;
+        if(sp < 0 || e == subj)
+        {
+            continue;
+        }
+        const edict_t* o = PROG_TO_EDICT(e->v.owner);
+        const bool mine = e->v.owner == sp || (e->v.owner != 0 && o->v.owner == sp && o != subj);
+        c.owned += mine;
+        c.mineW += mine && weapon;
+        c.mineT += mine && tank;
+        c.mineR += mine && weapon && instOfs >= 0 && progs::fieldInt(e, instOfs) != 0;
+    }
+    return c;
+}
+
+void count_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("rigstudio count: no server\n");
+        return;
+    }
+    const Census c = census();
+    Con_Printf("rigstudio count: edicts %d, monsters %d, weapons %d, records %d, tanks %d, subject %d (%s), owned by it %d "
+               "(weapons %d, tanks %d, records %d)\n",
+        c.used, c.monsters, c.weapons, c.records, c.tanks, st.subject, st.made.spawn, c.owned, c.mineW, c.mineT, c.mineR);
+}
+
+// vr_rigstudio_test_subjects: the subject changed through every kind of change (its weapon, its left weapon, its kind,
+// a rigged monster's), the map loaded again, the studio closed and opened again here, twice: after each, exactly one
+// subject and its own weapons (its records, its tank), and the entities besides it the same as after the first. Each
+// step waits for its subject to stand (a few frames for its weapons and tank to be made); the verdict line ends it.
+struct SubjectStep
+{
+    const char* spawn;  // nullptr: an action
+    int weapon, weapon2;
+    int expectW;        // its held weapons
+    int action;         // 1 the map again, 2 close (no subject after), 3 open here
+};
+constexpr SubjectStep subjectSteps[] = {
+    {"monster_vr_grunt", 4, 0, 1, 0},     // the shotgun
+    {"monster_vr_grunt", 2, 0, 1, 0},     // the axe
+    {"monster_vr_grunt", 4, 4, 2, 0},     // two shotguns
+    {"monster_vr_grunt", 26, 0, 1, 0},    // the flamethrower (its tank on its back)
+    {"monster_vr_enforcer", 16, 0, 1, 0}, // the enforcer's laser rifle
+    {"monster_vr_enforcer", 4, 29, 2, 0}, // a shotgun and a nail pistol
+    {"monster_army", 0, 0, 0, 0},         // a rigged monster, unarmed
+    {"monster_vr_grunt", -1, 0, 0, 0},    // fists
+    {"monster_ogre", 0, 0, 0, 0},
+    {"monster_vr_grunt", 4, 0, 1, 0},
+    {nullptr, 0, 0, 1, 1},                // the map loaded again (the subject staged again: the shotgun)
+    {nullptr, 0, 0, 0, 2},                // closed
+    {nullptr, 0, 0, 1, 3},                // opened again, here
+    {nullptr, 0, 0, 1, 3},                // ... and again
+};
+constexpr int subjectStepCount = static_cast<int>(sizeof(subjectSteps) / sizeof(subjectSteps[0]));
+
+struct SubjectTest
+{
+    int step{-1};       // -1 not running
+    int waitFrames{0};  // frames since its subject stood
+    int passed{0}, failed{0};
+    int baseOther{-1};  // the entities besides the subject and its own (the first step's)
+    int baseMonsters{-1};
+};
+SubjectTest stest;
+
+void subjectStepStart()
+{
+    const SubjectStep& s = subjectSteps[stest.step];
+    stest.waitFrames = 0;
+    if(s.action == 1)
+    {
+        Cbuf_AddText(va("map %s\n", sv.name));
+    }
+    else if(s.action == 2)
+    {
+        close();
+    }
+    else if(s.action == 3)
+    {
+        Cbuf_AddText("vr_rigstudio here\n");
+    }
+    else
+    {
+        q_strlcpy(st.choice.spawn, s.spawn, sizeof(st.choice.spawn));
+        st.choice.weapon = s.weapon;
+        st.choice.weapon2 = s.weapon2;
+        respawn();
+    }
+}
+
+void subjectTestTick()
+{
+    if(stest.step < 0 || !inGame())
+    {
+        return;
+    }
+    const SubjectStep& s = subjectSteps[stest.step];
+    const bool closedStep = s.action == 2;
+    const bool ready = closedStep ? !st.open : (st.open && st.staged && st.spawnAt < 0.0 && subjectEdict() != nullptr);
+    if(!ready || ++stest.waitFrames < 8) // (8 frames: its weapons' first thinks, its tank made on its back)
+    {
+        return;
+    }
+    const Census c = census();
+    const bool subj = subjectEdict() != nullptr;
+    const int other = c.used - (subj ? 1 + c.owned + c.mineR : 0);
+    const int otherMonsters = c.monsters - (subj ? 1 : 0);
+    if(stest.baseOther < 0 || s.action == 1) // (a map loaded again: its own count, the next steps' base)
+    {
+        stest.baseOther = other;
+        stest.baseMonsters = otherMonsters;
+    }
+    const bool tankOk = c.mineT == ((s.weapon == 26 || s.weapon == 27) && !s.action ? 1 : 0) || s.action;
+    const bool ok = (closedStep ? !subj : subj) && c.mineW == (closedStep ? 0 : s.expectW) && c.mineR == c.mineW &&
+                    c.weapons == c.mineW && c.tanks == c.mineT && tankOk && other == stest.baseOther &&
+                    otherMonsters == stest.baseMonsters;
+    (ok ? stest.passed : stest.failed)++;
+    Con_Printf("rigstudio subjects %d: %s %s: edicts %d (besides it %d, first %d), monsters %d, its weapons %d of %d, "
+               "records %d, tanks %d of %d: %s\n",
+        stest.step + 1, s.action == 1 ? "map again" : s.action == 2 ? "closed" : s.action == 3 ? "opened here" : s.spawn,
+        s.action ? "" : va("%d %d", s.weapon, s.weapon2), c.used, other, stest.baseOther, c.monsters, c.mineW, c.weapons,
+        c.mineR, c.mineT, c.tanks, ok ? "PASS" : "FAIL");
+    stest.step++;
+    if(stest.step >= subjectStepCount)
+    {
+        Con_Printf("rigstudio subjects: %d passed, %d failed\n", stest.passed, stest.failed);
+        stest.step = -1;
+        return;
+    }
+    subjectStepStart();
+}
+
+void testSubjects_f()
+{
+    if(!st.open || !inGame())
+    {
+        Con_Printf("rigstudio subjects: the studio is not open\n");
+        return;
+    }
+    stest = SubjectTest{};
+    stest.step = 0;
+    subjectStepStart();
+}
+
 void print_f()
 {
     printDefaults();
@@ -933,6 +1169,16 @@ void pushPreEditUndo(const char* what)
 // A Pose Studio key's or grip's entry: its value put back, the one now kept in `back` (the other stack's).
 bool swapExternal(Snapshot& s, Snapshot& back)
 {
+    if(s.aimEntry)
+    {
+        back.aimEntry = true;
+        back.aimAt = st.aim.at;
+        back.what = s.what;
+        st.aim.at = s.aimAt;
+        st.aim.placed = true;
+        st.aim.atCamera = false; // (put back where it was: no longer on the camera)
+        return true;
+    }
     if(s.poseCode >= 0)
     {
         back.poseCode = s.poseCode;
@@ -1023,6 +1269,34 @@ void pushGripUndo(int kind, int slot, int hand)
     s.what = "grip";
     st.undo.pushBack(ZA_MOVE(s));
     st.redo.clear();
+}
+
+void pushAimUndo()
+{
+    Snapshot s;
+    s.aimEntry = true;
+    s.aimAt = st.aim.at;
+    s.what = "aim target";
+    st.undo.pushBack(ZA_MOVE(s));
+    if(st.undo.size() > static_cast<za::SizeT>(maxUndo))
+    {
+        st.undo.erase(st.undo.begin());
+    }
+    st.redo.clear();
+}
+
+glm::vec3 aimDefault()
+{
+    const float yaw = st.stageYaw * deg;
+    return st.stage + glm::vec3{0.f, 0.f, 25.f + aimHeight} + glm::vec3{za::cos(yaw), za::sin(yaw), 0.f} * aimAhead;
+}
+
+void resetAim()
+{
+    pushAimUndo();
+    st.aim.at = aimDefault();
+    st.aim.placed = true;
+    st.aim.atCamera = false;
 }
 
 void publish()
@@ -1210,13 +1484,8 @@ void respawn()
     {
         return;
     }
-    const SvVm vm;
-    if(edict_t* e = subjectEdict())
-    {
-        Cbuf_InsertText("vr_scene_clean all\n");
-        (void)e;
-    }
-    st.subject = 0;
+    removeSubject(); // (it and everything it owns: its weapons, their records, a worn tank)
+    Cbuf_InsertText("vr_scene_clean all\n"); // (what it left about: gibs, shells, fires)
     st.spawnAt = sv.qcvm.time + 0.25;
 }
 
@@ -1234,10 +1503,13 @@ void close()
     SDL_SetRelativeMouseMode(SDL_FALSE);
     if(inGame())
     {
+        removeSubject(); // (the studio's stand-in: never left in the map, unkillable, its AI let go)
         const SvVm vm;
         edict_t* p = EDICT_NUM(1);
         p->v.flags = static_cast<float>(static_cast<int>(p->v.flags) & ~(FL_GODMODE | FL_NOTARGET));
     }
+    st.subject = 0;
+    st.staged = false;
     IN_Activate();
     Con_Printf("rigstudio: closed%s\n", st.dirtyRig || za::anyOf(st.dirtySeq.begin(), st.dirtySeq.end(), [](uint8_t d) { return d != 0; }) ? " (unsaved changes kept in this session: vr_rigstudio to go on)" : "");
 }
@@ -1933,6 +2205,8 @@ void init()
     Cmd_AddCommand("vr_rigstudio_assign", assign_f);
     Cmd_AddCommand("vr_rigstudio_pose", pose_f);
     Cmd_AddCommand("vr_rigstudio_status", status_f);
+    Cmd_AddCommand("vr_rigstudio_count", count_f);
+    Cmd_AddCommand("vr_rigstudio_test_subjects", testSubjects_f);
     Cmd_AddCommand("vr_rigstudio_print", print_f);
     Cmd_AddCommand("vr_rigstudio_play", play_f);
     Cmd_AddCommand("vr_rigstudio_respawn", respawn_f);
@@ -1951,8 +2225,30 @@ bool active()
     return st.open;
 }
 
+void beforeLoad()
+{
+    // (a map loading while open: its edicts cleared, the subject with them; staged again in the new one)
+    st.staged = false;
+    st.subject = 0;
+    st.spawnAt = -1.0;
+    st.note = posestudio::Note{};
+    st.noteFrame = -1;
+    st.aim.placed = false; // (ahead of the new stage)
+}
+
+bool qcHold(int ent, glm::vec3& out)
+{
+    if(!st.open || ent != st.subject || st.subject <= 0)
+    {
+        return false;
+    }
+    out = glm::vec3{st.aim.on ? static_cast<float>(agpose::Aim) : -1.f, 0.f, 0.f};
+    return true;
+}
+
 void serverFrame()
 {
+    subjectTestTick();
     if(!st.open || !inGame())
     {
         return;

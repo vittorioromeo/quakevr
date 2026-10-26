@@ -87,7 +87,25 @@ struct Snapshot
     agpose::Key poseKey;
     int gripKind{-1}, gripSlot{0}, gripHand{0};
     aggrip::Offset grip;
+    // The aim target's place (studio-session state, never in a file): its place before
+    bool aimEntry{false};
+    glm::vec3 aimAt{0.f};
 };
+
+// Where the subject aims (an armed humanoid's guns, its melee guard): a point in the room, as the game aims at an enemy
+// standing there (QC VR_AGK_Hold: its Aim stance, its target's point). Studio-session state: kept across subject
+// changes, not saved.
+struct AimTarget
+{
+    bool on{true};        // the subject aims at it (off: it carries its weapon, as before)
+    bool show{true};      // drawn, with its move handle
+    bool atCamera{false}; // it follows the studio camera
+    bool placed{false};   // its place set (else put ahead of the subject when it stands)
+    bool selected{false}; // picked (its handle drawn)
+    glm::vec3 at{0.f};    // world
+};
+inline constexpr float aimAhead = 200.f; // units: the default target ahead of the subject
+inline constexpr float aimHeight = 12.f; // ... above its origin (its chest: the guns' height, so the aim is level)
 
 struct KeyRef
 {
@@ -99,7 +117,7 @@ struct KeyRef
 struct Choice
 {
     char spawn[64]{"monster_vr_grunt"};
-    int weapon{2};  // the armed list's code (vr_toolgun_armed_list; -1 fists, 0 random)
+    int weapon{4};  // the armed list's code (vr_toolgun_armed_list; -1 fists, 0 random): the shotgun (2 is the axe)
     int weapon2{0}; // its left hand's (0 none)
 };
 
@@ -237,6 +255,7 @@ struct Studio
     glm::vec3 ikTarget{0.f};
     int hoverBone{-1};
     int hoverVert{-1};
+    AimTarget aim;
 };
 extern Studio st;
 
@@ -248,6 +267,9 @@ void keepPreEdit();          // the frame's start (no widget held): the data kep
 void pushPreEditUndo(const char* what);
 void pushPoseUndo(int code);                       // a Pose Studio key about to change
 void pushGripUndo(int kind, int slot, int hand);   // a grip about to change
+void pushAimUndo();                                // the aim target about to move
+void resetAim();                                   // the aim target ahead of the subject, level (undoable)
+[[nodiscard]] glm::vec3 aimDefault();              // ... where that is
 void undo();
 void redo();
 void touchedRig();          // the rig part changed (dirty, published)
