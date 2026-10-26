@@ -506,11 +506,12 @@ int shapesWanted = -100; // host_framecount of the last keepShapes
 }
 
 // The build's proportions (make_vrbody.py: muscularity; the torso a third as much).
-void buildScales(float& m, float& torso)
+void buildScales(float& m, float& torso, float& capSide)
 {
-    const int build = za::clamp(static_cast<int>(vr_body_build.value), 0, 2);
-    m = build == 0 ? 0.9f : build == 2 ? 1.5f : 1.2f;
-    torso = 1.f + (m - 1.f) * 0.35f;
+    const avatar::BuildShape& b = avatar::buildShape(avatar::bodyBuild());
+    m = b.muscle;
+    torso = b.torso;
+    capSide = b.capSide;
 }
 
 void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
@@ -747,8 +748,8 @@ void buildScene(const hands::State& s)
     }
 
     // The body.
-    float m, t;
-    buildScales(m, t);
+    float m, t, capSide;
+    buildScales(m, t, capSide);
     if(rec.body && bodyDrawn())
     {
         sc.torso = avatar::torso(s);
@@ -761,7 +762,7 @@ void buildScene(const hands::State& s)
         // 0.165).
         for(const float side : {-1.f, 1.f})
         {
-            const glm::vec3 cs = ch.rot[1] * (side * 0.058f * t * k) - ch.rot[2] * (0.01f * k);
+            const glm::vec3 cs = ch.rot[1] * (side * 0.058f * t * capSide * k) - ch.rot[2] * (0.01f * k);
             addCap(sc.part[Torso][0], ch.pos + ch.rot[0] * (-0.06f * k) + cs, ch.pos + ch.rot[0] * (0.09f * k) + cs, 0.125f * t * k);
             const glm::vec3 ps = pv.rot[1] * (side * 0.055f * k) - pv.rot[2] * (0.01f * k);
             addCap(sc.part[Torso][0], pv.pos + ps, pv.pos + pv.rot[0] * (0.12f * k) + ps, 0.11f * k);

@@ -24,7 +24,7 @@ except ImportError:
 
 HAND = "hand"
 BODY = "body"
-BODY_BUILDS = ("vrbody.md5mesh", "vrbody_lean.md5mesh", "vrbody_brawny.md5mesh")
+BODY_BUILDS = ("vrbody.md5mesh", "vrbody_lean.md5mesh", "vrbody_brawny.md5mesh", "vrbody_fem.md5mesh")
 GENERATED = ("vrflashlight.mdl", "vrgadget.mdl", "vrgadget_strap.mdl", "vr_shell.mdl", "legholster.mdl",
              "vrpauldron.mdl", "vrpauldron_arm.mdl", "vrpouch.mdl") + tuple("vr_rock%d.mdl" % k for k in range(1, 6)) + \
             tuple("vr_brick%d.mdl" % k for k in range(1, 5)) +             tuple("vr_crate%d.mdl" % k for k in range(1, 3)) + tuple("vr_plank%d.mdl" % k for k in range(1, 5)) + ("vr_barrel.mdl",) +             tuple("gib_brain%d.mdl" % k for k in range(1, 4))

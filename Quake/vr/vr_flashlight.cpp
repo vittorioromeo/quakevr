@@ -639,8 +639,7 @@ bool headModeWas = false; // vr_flashlight was 2 when last set (onModeChanged)
     // The clip on the belt's front (make_vrbody.py's torso rings: the belt 10-20% up from the hips), beltUp above the
     // pelvis joint and beltSide to the side, deeper for the brawnier builds; the tube's axis the torch's greatest
     // radius and 2.5 mm in front of it (2.2 cm: the head's). The torch hangs from there by its tail, over the hip.
-    const int build = static_cast<int>(vr_body_build.value);
-    const float depth = build <= 0 ? 0.9f : build >= 2 ? 1.1f : 1.f;
+    const float depth = avatar::buildShape(avatar::bodyBuild()).belt;
     const float m2w = bodyUnits();
     const glm::vec3 clip = torso.pelvis.pos + (fwd * (beltFront * depth + torchThickness() + 0.0025f + vr_flashlight_forward.value) +
                                                   left * (side * (beltSide + vr_flashlight_out.value)) +

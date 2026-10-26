@@ -2760,11 +2760,32 @@ bool forearmFrame(int hand, float along, ForearmFrame& out)
     return true;
 }
 
+namespace
+{
+// make_vrbody.py's BUILDS (vrbody_lean, vrbody, vrbody_brawny, vrbody_fem: FEMININE).
+constexpr BuildShape buildShapes[bodyBuilds] = {
+    {0.9f, 0.965f, 1.f, 1.f, 0.88f, 0.9f, 0.88f, "progs/vrbody_lean.mdl", "progs/vrbody_lean_bare.mdl"},
+    {1.2f, 1.07f, 1.f, 1.f, 1.f, 1.f, 1.f, "progs/vrbody.mdl", "progs/vrbody_bare.mdl"},
+    {1.5f, 1.175f, 1.f, 1.f, 1.2f, 1.1f, 1.18f, "progs/vrbody_brawny.mdl", "progs/vrbody_brawny_bare.mdl"},
+    {0.9f, 1.f, 0.816f, 0.5f, 0.88f, 1.f, 0.8f, "progs/vrbody_fem.mdl", "progs/vrbody_fem_bare.mdl"},
+};
+} // namespace
+
+int bodyBuild()
+{
+    return CLAMP(0, static_cast<int>(vr_body_build.value), bodyBuilds - 1);
+}
+
+const BuildShape& buildShape(int build)
+{
+    return buildShapes[CLAMP(0, build, bodyBuilds - 1)];
+}
+
 void forearmGirth(int build, float along, float& hint, float& other, bool bare)
 {
-    // make_vrbody.py: BUILDS' muscularity m (0.9, 1.2, 1.5), forearms fm = 1.08 m, wrists wm = 1 + 0.3 (m - 1); the
+    // make_vrbody.py: BUILDS' muscularity m (0.9, 1.2, 1.5, 0.9), forearms fm = 1.08 m, wrists wm = 1 + 0.3 (m - 1); the
     // bracer's rings (loft "bracer") at 0.13, 0.19 and 0.225 m from the elbow and at the wrist (0.26).
-    const float m = build <= 0 ? 0.9f : build >= 2 ? 1.5f : 1.2f;
+    const float m = buildShape(build).muscle;
     const float fm = m * 1.08f;
     const float wm = 1.f + (m - 1.f) * 0.3f;
     struct Ring

@@ -685,8 +685,9 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
 {
     return {
         header("Body"),
-        cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}})
-            .help("The shape of the body you see."),
+        cycle("Body Shape", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}, {3.f, "Feminine"}})
+            .help("The shape of the body you see: lean, athletic or brawny, or feminine (narrower shoulders and waist, "
+                  "wider hips, a modest chest, slimmer arms and legs). Your calibration still sets its size."),
         open("Ranger Head", pageIndex(pageVrsRangerHead))
             .help("The Quake ranger's head on your body (on or off), its size, place and turn, and how far it sinks over "
                   "the neck, with a mirror image of your body beside the menu while the page is open."),
@@ -734,8 +735,9 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
             .help("How shiny the polish is: 0 matte, 1 a glassy top coat with a sharp highlight and the room's light "
                   "mirrored in it."),
         action("Randomize", randomAppearance)
-            .help("A new look at random: skin tone, gloves (none, fingerless or full) and their colour, and painted nails "
-                  "and their colour. Nothing else changes. Press again for another (vr_appearance_random)."),
+            .help("A new look at random: skin tone, gloves (none, fingerless or full) and their colour, painted nails "
+                  "and their colour, and the body shape (feminine one time in four, else your other shape kept). Nothing "
+                  "else changes. Press again for another (vr_appearance_random)."),
         header("Pauldrons"),
         toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
         cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})

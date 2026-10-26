@@ -22828,3 +22828,51 @@ his to tune. The holsters' poses are unchanged and not looked at in game (the mo
   checking `if (error)`, so vsnprintf gets a NULL format: an access violation, or an invalid-parameter fast-fail on
   MSVC CRT builds. Repro: progs.src `min.dat` / `min.qc`, where min.qc is `void() f = { undeclared(); };` followed by
   `#include "inc.qc"`. Expected: the error, then 'compilation errors'. Actual: a crash right after the error line."
+
+## Feminine body build (worktree `dequant`, branch `agent/fembody`, 2026-10-26)
+
+His request (approved 2026-10-26): a fourth body build, feminine, off by default.
+
+- **Model.** `make_vrbody.py` writes `progs/vrbody_fem` and `vrbody_fem_bare` (vr_body_bracers 0) from `FEMININE`: the
+  same skeleton (joints, names, hints, foretwist and wrist helpers, bind pose), the same 1250 vertices and 2186
+  triangles (10874 bare) and the same texture coordinates as the other builds, so the 16 shared skins
+  (`vrbody_NN_00`, armour 0-3 x damage 0-3), the shared normal maps and the Blender add-on's carry-to-builds all work
+  unchanged (the add-on's build lists and the normal-map UV check now include it). The lean, athletic and brawny
+  files come out byte-identical to before.
+- **Proportions** (ratios against the athletic build; the same height, calibration sizes it as the others): shoulders
+  0.90 as wide (deltoid 0.62 as thick), upper arm 0.66-0.71, forearms/bracers/wrists the lean build's (muscularity
+  0.9); ribcage 0.76 as wide, 0.72 as deep; a modest bust: two cups on the front of the chest rings standing 7 cm out
+  of the ring at 1.28 m, their front 5.8 cm before the ring under them (1.19 m); waist 0.81 wide, 0.84 deep (1.06
+  m); hips 1.12-1.27 as wide (0.19 m each side, 0.86-0.95 m); thighs 0.87-0.91, calves 0.88; neck 0.84; feet 0.92.
+  The torso's rings were moved in height (waist, fold under the bust) without moving their texture rows.
+- **Armour.** The plates are the torso's own paint (as for every build), so they follow the new chest: the five
+  lames step over the bust (a rolled lame edge 3 cm over the fold under it, the next two over the bust), and the
+  plates narrow into the waist (`scratch/cmp_armour.png`).
+- **Engine.** One table, `avatar::buildShape(build)` / `avatar::bodyBuild()` (vr_avatar.cpp), replaces the five
+  `build <= 0 ? .. : build >= 2 ? ..` copies (model names, forearm girth for the gadget and blood, holster chest
+  ring, self-contact capsules, bodyblood limb girth, flashlight belt depth, pauldron size); its numbers for builds 0-2
+  are the old ones exactly. The feminine build: the lean arms' numbers, the chest ring 0.816 as wide for the upper
+  holsters, self-contact chest capsules closer together, pauldrons 0.8. Its hip holsters stay where the others' are
+  (the wider hips are still 3.7 cm inside them), so his tuned hip zones fit every build.
+- **Setting.** `vr_body_build 3`; Player Appearance's `Build` row is now **Body Shape** (Lean, Athletic, Brawny,
+  Feminine). Default unchanged (1, athletic). `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
+- **Randomize** (`vr_appearance_random`): rolled last (a seed's other rolls unchanged), feminine 25 percent, else the
+  last non-feminine shape seen this session (athletic if none): 200 presses from seed 7, starting brawny: 50
+  feminine, 150 brawny.
+- **Checks.** Renders front, side, back, arms up, crouch (3/4) and the VR look-down, athletic vs feminine
+  (`scratch/fembody_poses.png`); armour 0-3 and damage 3 vs athletic (`scratch/cmp_armour.png`). With the build:
+  bodytrack_elbow_test 7/7 PASS; holstersetup_test all PASS; holsterzones_test the same 4 FAILs as the default build
+  (pre-existing: its expectations are stale against the current zones); self-contact capsules listed sane
+  (`vr_body_collide_bench 5 list`). eval.sh: no verdict changes (163/171, the same 8 fails; PASS -> PASS numeric noise).
+- **Honest look.** From the side, 3/4 and back the build reads feminine (hourglass waist, hips, bust profile, slimmer
+  arms); straight from the front the bust reads weakly (the dark quilted vest and its centre lacing hide the relief),
+  and the shared skins keep the ranger's muscled-arm paint and the Ranger Head's male face. A feminine head and arm
+  paint would be separate work.
+
+**In VR:**
+- [ ] Player Appearance > Body Shape: Feminine: your body in the mirror (the Player Appearance pages' preview) and
+  looking down at yourself has a narrower waist, wider hips, a modest chest and slimmer arms; your calibration still
+  fits it; back to Athletic restores the old body.
+- [ ] Feminine with green, yellow and red armour: the plates look fitted over the chest, not painted flat.
+- [ ] Feminine: holsters, the wrist gadget, the flashlight clip and blood on the arms sit right on the body.
+- [ ] Randomize sometimes picks Feminine (about 1 in 4) and otherwise keeps your other shape.

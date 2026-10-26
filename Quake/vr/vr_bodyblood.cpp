@@ -394,8 +394,7 @@ void update(const hands::State& s, const avatar::HandPose* const drawnHands[2], 
     const float dt = static_cast<float>(dtd);
 
     const float m2w = units::metresToUnits() * units::bodyScale();
-    const int build = static_cast<int>(vr_body_build.value);
-    const float girth = build <= 0 ? 0.88f : build >= 2 ? 1.2f : 1.f; // lean, athletic, brawny
+    const float girth = avatar::buildShape(avatar::bodyBuild()).limbs; // lean, athletic, brawny, feminine
 
     // The limbs, where they are this frame.
     for(int hand = 0; hand < 2; hand++)
