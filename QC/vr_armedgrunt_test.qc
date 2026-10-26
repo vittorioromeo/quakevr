@@ -1350,6 +1350,7 @@ void(float t) VR_AGCT_Frame; // (vr_armedgrunt_close_test.qc)
 void(float t) VR_AGRT_Frame; // (armed humanoid replacements: vr_armedrepl_test.qc)
 void() VR_AGRT_Begin;
 void() VR_RST_Frame; // (vr_rigseq_test.qc)
+void() VR_RST_TauntFrame;
 
 float vr_agt_running; // the test running (vr_agrunt_test) last frame; 0 none
 
@@ -1413,6 +1414,7 @@ void() VR_AGTest_Frame =
     else if(t == 65 || t == 66) { VR_AGCT_Frame(t); } // (grab anywhere, never a blow; a lying one reached for: vr_armedgrunt_close_test.qc)
     else if(t >= 70 && t <= 73) { VR_AGRT_Frame(t); } // (armed humanoid replacements: vr_armedrepl_test.qc)
     else if(t == 80) { VR_RST_Frame(); } // (the Rig Studio's sequences played by QC: vr_rigseq_test.qc)
+    else if(t == 81) { VR_RST_TauntFrame(); } // (the armed grunt's taunt: vr_rigseq_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
         float base = (t - 6) * 4;
