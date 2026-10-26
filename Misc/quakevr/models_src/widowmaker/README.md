@@ -17,7 +17,7 @@ from the receiver's bottom under the sweep.
 | File | What |
 | --- | --- |
 | `widowmaker.blend` | The source: objects `Body` (everything still) and `Barrels` (what turns), one material `WidowmakerSkin` (the skin, nearest filtering), one UV atlas. Empties `_Muzzle`, `_SightRear`, `_SightFront`, `_HandAnchor`, `_TwoHHandAnchor`, `_ShellPort`, `_EjectSlot` (children of Body, not exported) mark the points below. |
-| `widowmaker_skin.png` | The skin, 512x512 RGB, already in Quake's palette: paint this one. The rear plate and the grips (and their feet) have 1.7 times the texel density of the rest. |
+| `widowmaker_skin.png` | The skin, 512x512 RGB, already in Quake's palette: paint this one. Darkened twice: `SKIN_DARKEN` 0.82 in the build script is the second pass (2026-10-26; `renders/darker_before_after.png`). The rear plate and the grips (and their feet) have 1.7 times the texel density of the rest. |
 | `widowmaker_skin_pal.png` | The skin as palette indices (8-bit), written by every export. |
 | `export_mdl.py` | Writes the MDLs from the .blend (below). |
 | `build_widowmaker.py` | Makes the .blend from nothing (shapes, UVs, a procedurally painted skin) and exports. It **overwrites** the .blend and the skin: once they are edited by hand, don't run it. |
