@@ -637,7 +637,16 @@ def bake(objs, w, h):
 
 # Every painted colour above is scaled by this before it is matched to the palette (his notes 2026-10-26: "a bit darker
 # still"): the last pass was 0.8, this one another 0.82, judged in the game.
-SKIN_DARKEN = 0.82
+SKIN_DARKEN = 0.82 * 0.65
+# ... with a gentle lift of only the darkest values (a plain factor collapsed the near-black rust, mortar and rivet shadows
+# onto a few palette entries): up to SKIN_DARK_LIFT added at 0, fading out by SKIN_DARK_KNEE.
+SKIN_DARK_LIFT = 6.0
+SKIN_DARK_KNEE = 40.0
+
+
+def darken(v):
+    x = v * SKIN_DARKEN
+    return x + SKIN_DARK_LIFT * max(0.0, 1.0 - x / SKIN_DARK_KNEE)
 
 
 def save_image(name, texels):
@@ -647,7 +656,7 @@ def save_image(name, texels):
     px = [0.0] * (SKIN_W * SKIN_H * 4)
     for t in range(SKIN_H):
         for s in range(SKIN_W):
-            c = pal[q.nearest(tuple(v * SKIN_DARKEN for v in texels[t * SKIN_W + s]), False)]
+            c = pal[q.nearest(tuple(darken(v) for v in texels[t * SKIN_W + s]), False)]
             i = ((SKIN_H - 1 - t) * SKIN_W + s) * 4
             px[i:i + 4] = [c[0] / 255.0, c[1] / 255.0, c[2] / 255.0, 1.0]
     img.pixels = px

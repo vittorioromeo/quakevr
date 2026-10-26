@@ -22680,3 +22680,13 @@ super nailgun's (their nails were only painted on the feed end's texture).
 
 **In VR:**
 - [ ] The nailgun's and super nailgun's magazines {test:nailmags} show their top two nails as models over the feed lips, as the nail pistol's (the lava nails' red-hot); seated, no nail pokes out of the gun or its well.
+
+## Widowmaker darker again (branch `agent/wmdark2`, 2026-10-26)
+
+Vittorio: another 30-40% darker. `SKIN_DARKEN` 0.82 -> 0.82 * 0.65 (0.533) in `build_widowmaker.py`, plus a gentle lift of
+only the darkest values (`darken()`: up to 6 added at 0, fading out by 40) because a plain factor left 45 palette colours
+(of 64) and the shadows merged. Skin luma (mean / p10 / p50 / p90): before 39.1 / 20.9 / 32.5 / 62.5 (64 colours), after
+26.9 / 16.9 / 23.8 / 38.0 (35 colours): about 31% darker mean, 27% at the median. Rust, rivets, bricks and brass collars
+still read in `renders/darker2_before_after.png` (in-game `vr_ad_test 98` eyeshot and three_quarter, before at the left).
+`vr_ad_test 148` and `149` PASS with `vr_weapon_grip_mode 1`.
+- [ ] Widowmaker: the darker skin in a lit and a dark room; rust, rivets, bricks and brass still readable.
