@@ -123,6 +123,11 @@ float VR_METAL_SHOT = 0;
 float VR_METAL_BLADE = 1;
 float VR_METAL_BLUNT = 2;
 float vr_metal_soundtime; // a shot's ring once a frame (a shotgun's pellets, a nailgun's stream)
+float vr_metal_hits;      // metal hits' sparks sent, wood hits' splinters, AD's blood (ad_spawn_touchblood): tests count them
+float vr_splinters_sent;
+float vr_ad_blood_sent;
+entity vr_ad_blood_watch; // a test's target: AD's blood on it counted in vr_ad_blood_watched
+float vr_ad_blood_watched;
 string(float xHow) VR_Metal_Sound =
 {
     float r = random();
@@ -141,6 +146,7 @@ string(float xHow) VR_Metal_Sound =
 // ring at what it hit (`targ`); a blow's sound is the blow's own (VR_Melee_HitSoundOn). `developer` logs both.
 void(entity targ, vector org, vector dir, float damage, float xHow) VR_Metal_Hit =
 {
+    vr_metal_hits++;
     particle2(org, dir, QVR_PARTICLE_PRESET_SPARKS, max(3, min(10, damage * 0.5)));
     string s = "";
     if(xHow == VR_METAL_SHOT && time > vr_metal_soundtime)
@@ -229,6 +235,7 @@ void(entity xFrom, float xChan, entity xTarg) VR_Blunt_HitLayer =
 // Splinters and a puff of dust where a shot or a blow hits wood (`damage`: how much).
 void(vector org, vector dir, float damage) VR_Crate_Splinters =
 {
+    vr_splinters_sent++;
     particle2(org, dir, QVR_PARTICLE_PRESET_WOODDUST, max(2, min(8, damage * 0.5)));
 };
 
@@ -263,6 +270,32 @@ void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
         return;
     }
     SpawnBlood(org, vel, damage);
+};
+
+// A shot's hit on `targ` (a projectile's: AD's projectile pellets, ad_Touch_Bullet) when it is no flesh: the effect the
+// hitscan pellets and the nails give it (TraceAttack, spawn_touchblood) sent, TRUE; flesh: nothing sent, FALSE (its
+// blood is the caller's). A fuel tank, an explosive box or a door: sparks and a tink; a crate: splinters; a grenade:
+// sparks; a wall torch: nothing. `dir`: the way the shot flew. (His beta4 pass, 2026-10-26: AD's pellets bled tanks.)
+float(entity targ, vector org, vector dir, float damage) VR_HitNonFlesh =
+{
+    if(VR_WallTorch_IsTorch(targ)) { return TRUE; }
+    if(targ.vr_shootnade)
+    {
+        VR_GrenShot_Sparks(org);
+        return TRUE;
+    }
+    vector back = normalize(-dir) * 60 + [crandom() * 20, crandom() * 20, random() * 20];
+    if(VR_Hit_Metal(targ))
+    {
+        VR_Metal_Hit(targ, org, back, damage, VR_METAL_SHOT);
+        return TRUE;
+    }
+    if(VR_Crate_Wooden(targ))
+    {
+        VR_Crate_Splinters(org, back * 0.7, damage);
+        return TRUE;
+    }
+    return FALSE;
 };
 
 // The same, sprayed every way (SpawnBloodSplash).

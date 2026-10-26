@@ -216,4 +216,93 @@ void(float request, entity p) AD_ShotsTest =
     }
     self = os;
 };
+
+// vr_ad_test 183 (his beta4 pass, 2026-10-26: AD's projectile pellets bled fuel tanks): AD's pellets as fired
+// (AD_FirePellets: the shotgun's one, then the super shotgun's seven, no spread) from your eyes into a flamethrower
+// grunt's worn tank, a wooden crate and a plain grunt, one after another: the tank and the crate spark or splinter and
+// never bleed, the grunt bleeds. Ends with `adpellets: N passed, M failed`.
+entity(entity p) VR_FuelTank_TestWorn;
+entity(entity p, float xWid, float xDist) VR_FuelTank_TestWearer;
+float adpellets_pass, adpellets_fail;
+entity adpellets_crate, adpellets_grunt;
+float adpellets_metal, adpellets_wood, adpellets_blood;
+void() AD_PelletMat_Step =
+{
+    entity p = self.owner;
+    float k = self.count; // the target: 0 the tank, 1 the crate, 2 the grunt; then its check
+    if(self.cnt)
+    {
+        // The last target's hits: what it sent.
+        // (Blood on the target itself: a pellet past the tank may meet its wearer, who bleeds.)
+        float metal = vr_metal_hits - adpellets_metal, wood = vr_splinters_sent - adpellets_wood,
+            blood = vr_ad_blood_watched, elsewhere = vr_ad_blood_sent - adpellets_blood - blood;
+        vr_ad_blood_watch = world;
+        string what = k == 0 ? "worn tank" : (k == 1 ? "wooden crate" : "grunt");
+        float ok = k == 0 ? (metal > 0 && blood == 0) : (k == 1 ? (wood > 0 && blood == 0) : (blood > 0 && metal == 0));
+        if(ok) adpellets_pass++; else adpellets_fail++;
+        bprint(sprintf("adpellets: %s: sparks %g, splinters %g, blood on it %g (elsewhere %g): %s\n", what, metal, wood,
+            blood, elsewhere, ok ? "PASS" : "FAIL"));
+        self.cnt = 0;
+        self.count = k + 1;
+        if(self.count > 2)
+        {
+            bprint(sprintf("adpellets: %g passed, %g failed\n", adpellets_pass, adpellets_fail));
+            remove(self);
+            return;
+        }
+        self.nextthink = time + 0.1;
+        return;
+    }
+    entity t = k == 0 ? VR_FuelTank_TestWorn(p) : (k == 1 ? adpellets_crate : adpellets_grunt);
+    if(!t)
+    {
+        bprint(sprintf("adpellets: target %g missing: FAIL\nadpellets: %g passed, %g failed\n", k, adpellets_pass,
+            adpellets_fail + 1));
+        remove(self);
+        return;
+    }
+    adpellets_metal = vr_metal_hits;
+    adpellets_wood = vr_splinters_sent;
+    adpellets_blood = vr_ad_blood_sent;
+    vr_ad_blood_watch = t;
+    vr_ad_blood_watched = 0;
+    entity os = self;
+    self = p;
+    vector eye = p.origin + p.view_ofs;
+    vector at = (t.absmin + t.absmax) * 0.5;
+    vector dir = normalize(at - eye);
+    float spread = cvar("vr_ad_pellet_spread");
+    cvar_set("vr_ad_pellet_spread", "0");
+    VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, 6);
+    AD_FirePellets(cVR_MainHand, 1, dir, '0 0 0', eye);
+    VRGiveEntWeapon(p, cVR_MainHand, WID_SUPER_SHOTGUN, 0, 6);
+    AD_FirePellets(cVR_MainHand, 7, dir, '0 0 0', eye);
+    cvar_set("vr_ad_pellet_spread", ftos(spread));
+    self = os;
+    self.cnt = 1;
+    self.nextthink = time + 0.4;
+};
+void(entity p) AD_PelletMatTest =
+{
+    adpellets_pass = adpellets_fail = 0;
+    makevectors('0 1 0' * p.angles_y);
+    vector fw = v_forward, rt = v_right;
+    VR_FuelTank_TestWearer(p, WID_ADPYRO, 160);
+    adpellets_crate = AD_TestSpawn("vr_crate", vr_crate, p.origin + fw * 110 - rt * 70 + '0 0 -8');
+    adpellets_grunt = AD_TestSpawn("monster_army", monster_army, p.origin + fw * 130 + rt * 80);
+    // It stands (no aim, no shots), a box as AD_ShotsTest's grunt.
+    setsize(adpellets_grunt, '-16 -16 -24', '16 16 32');
+    adpellets_grunt.flags = adpellets_grunt.flags | FL_MONSTER | FL_ONGROUND;
+    adpellets_grunt.solid = SOLID_SLIDEBOX;
+    adpellets_grunt.movetype = MOVETYPE_STEP;
+    adpellets_grunt.think = SUB_Null;
+    adpellets_grunt.nextthink = -1;
+    adpellets_grunt.takedamage = DAMAGE_AIM;
+    adpellets_grunt.health = 10000;
+    setorigin(adpellets_grunt, adpellets_grunt.origin);
+    entity r = spawn();
+    r.owner = p;
+    r.think = AD_PelletMat_Step;
+    r.nextthink = time + 0.5;
+};
 #endif

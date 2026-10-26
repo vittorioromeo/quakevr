@@ -1032,6 +1032,35 @@ void() VR_Reload_TestMagNailsLying =
     bprint(sprintf("reload magnails lying: %g magazines, %g wrong\n", n, wrong));
 };
 
+// Test step 43 (after 41): each magazine lying about force grabbed (and so sparkling when aimed at) only with rounds in
+// it: an empty one is skipped as a spent enemy gun (VR_EnemyGun_DepletedSkipped; his beta4 pass, 2026-10-26).
+// Ends with `reload magforcegrab: N passed, M failed`.
+float(entity e) VR_Forcegrab_IsEligible;
+entity(float xHand) VR_Forcegrab_FindTarget;
+void() VR_Reload_TestMagForceGrab =
+{
+    vr_reload_test_pass = vr_reload_test_fail = 0;
+    // Each in turn put 48 units along the main hand's aim (the others far below): the force grab's pick (the one that
+    // sparkles) is it only when it has rounds; then back where it lay.
+    makeforward(VRGetHandRot(cVR_MainHand));
+    vector spot = VRGetHandPos(cVR_MainHand) + v_forward * 48;
+    entity r = find(world, classname, VR_RELOAD_MAGCLASS);
+    while(r)
+    {
+        float eligible = VR_Forcegrab_IsEligible(r);
+        vector was = r.origin;
+        setorigin(r, spot);
+        entity picked = VR_Forcegrab_FindTarget(cVR_MainHand);
+        setorigin(r, was);
+        float want = r.vr_ammo_count > 0;
+        VR_Reload_Check(eligible == want && (picked == r) == want, sprintf("%s magazine of %g lying: force grab %g, "
+            "picked when aimed at %g (want %g)", WeaponIdToWeaponName(r.vr_ammo_wid), r.vr_ammo_count, eligible,
+            picked == r, want));
+        r = find(r, classname, VR_RELOAD_MAGCLASS);
+    }
+    bprint(sprintf("reload magforcegrab: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
+};
+
 void() VR_Reload_Test =
 {
     float step = cvar_hget(cvarh_vr_reload_test);
@@ -1135,6 +1164,10 @@ void() VR_Reload_Test =
     else if(step == 42)
     {
         VR_Reload_TestMagNailsLying();
+    }
+    else if(step == 43)
+    {
+        VR_Reload_TestMagForceGrab();
     }
     else if(step >= 10 && step <= 13)
     {

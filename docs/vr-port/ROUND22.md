@@ -23420,3 +23420,52 @@ the dual wielder's backpack, the disarmed's pocket); after: 110 passed, 0 failed
 - [ ] A grunt with the heavy revolver hits you for about 10-15 (no armour; was ~8); say whether that or the proposed 0.75 for
   pistols feels right.
 - [ ] In the firing range (not an AD map), spawn a grunt with AD's Plasma Gun (toolgun 103): its shots are heard.
+
+## Beta4 fixes: Test buttons, AD flicker, empty magazines, AD pellets on tanks (worktree `tghost`, branch `agent/beta4fix`, 2026-10-27)
+
+His beta4 checklist pass (voice notes 2026-10-26 23:47-23:58).
+
+**Checklist Tests that didn't start.** `vr_scenario` found a file's entries by `toolgun::spawnableLabel()`, the toolgun
+panel's text, which puts `"> "` before the entry the toolgun has selected. With "Nailgun" (later "AD Widowmaker")
+picked on his toolgun, every scene naming it said "not started" (magfill, ad_weapon_pickups; agrunt_shootout, nailmags
+and nailpistol_art too). Headless runs never select anything, so the earlier check passed. Fix: lookups by
+`spawnableName()` (vr_scenario.cpp `findEntry`, vr_ragtool.cpp's model pick). `vr_scenario validate` now also selects
+every available toolgun entry in turn and finds it by name (`SCNSEL|188 entries found while selected|0 not`; the
+selection put back, quietly: `selectSpawnable(i, false)`), and `runall` checks that what each spawn line placed is still
+there 3 s later (the same entity, or something within 64 units of its spot: a weapon spawner makes its weapon as a new
+entity; `SCNKEPT|<id>|N of M placed still there`, a note and FAIL otherwise). Regression: `Misc/quakevr/scenario_check.sh
+<agent>` (AD's folders mounted, the toolgun on "Nailgun", validate and runall; ends on `SCNRUNSUM`; PASS/FAIL, exit 1).
+Before (toolgun on Nailgun): 52 run, 5 failed; after: 53 run (with ad_pellet_tanks), 0 failed; all 33 checklist ids OK,
+everything placed kept.
+
+**AD lamps' flicker.** Not a frame-rate dependency: R_AnimateLight steps the styles by `cl.time * 10` (10 Hz). Measured
+with the new `vr_lightstyle_rate 5` (Debug > Lightstyle Rate) at the ad_lighting spot in ad_crucial, fixed frames at 72,
+90 and 120: 10.0 steps/s each, the same travel per second (style 1 `mmnmmommommnonmmonqnmmo`: 12.5-12.9 levels/s; style
+10's abrupt 12-level jumps 6.2-6.4/s). (R_AnimateLight runs twice a frame in VR: 144 calls/s at 72; harmless, same clock.)
+The lamps near him are id's style 1 flicker, as authored. Comfort instead: `vr_lightstyle_comfort` (default 0.5, VR only;
+Comfort > Soften Flickering Lights): each animated style's swing around its own average scaled by 1 - amount and its
+steps always blended (no abrupt jumps; one-letter switched styles untouched; desktop as authored). At 0.5 style 1 swings
+12.41..14.41 (was 12.00..15.92), travel 5.9/s (was 12.5); the strobes (3, 4, 7, 8, 10) lose their 12-level jumps (max
+0.83 a frame at 72, 0.50 at 120). Decision: half the swing by default; 0 restores AD's look, 1 is r_flatlightstyles 1.
+
+**Empty magazines.** As spent enemy guns (`.vr_depleted`): `VR_EnemyGun_DepletedSkipped` now also skips an empty
+magazine (`VR_Reload_MagEmpty`: classname `vr_ammo_mag`, no rounds), so the force grab never picks it and its aim
+sparkles never show (vr_enemy_weapon_depleted_loot 1 lets both back, as for the guns). Loot beams already hid empty
+magazines. Test: `vr_reload_test 41` then `43` (Debug > Automation > Reloading, "Check Empty Magazines Aren't Force
+Grabbed"): each lying magazine put on the main hand's aim: picked only with rounds. 9 passed, 0 failed (with
+vr_enemy_weapon_depleted_loot 1, the old behaviour: 6 passed, 3 failed).
+
+**AD pellets on fuel tanks.** AD's touches (`ad_Touch_Bullet`, the plasma's and the projectiles') sent
+`ad_spawn_touchblood` for anything that takes damage. It now first asks `VR_HitNonFlesh` (vr_crates.qc: the dispatch the
+hitscan pellets and nails use: metal sparks and a tink, wood splinters, grenade sparks, a wall torch nothing; AD's own
+breakables keep their debris colour). Test: `vr_ad_test 183` (any map, AD's data, `vr_ad_projectiles 2`): the shotgun's
+pellet and the super shotgun's seven into a flamethrower grunt's worn tank, a wooden crate, a plain grunt:
+`worn tank: sparks 6, blood on it 0 (elsewhere 1: its wearer)`, `crate: splinters 10, blood 0`, `grunt: blood 10`;
+`adpellets: 3 passed, 0 failed`. New scene `ad_pellet_tanks` (AD's pellets on, both shotguns, the two tank grunts, a
+crate, a grunt). Counters for tests: `vr_metal_hits`, `vr_splinters_sent`, `vr_ad_blood_sent`.
+
+eval.sh: 163/171, no verdict change (3 takes' damage moved by 0.1). Checklist lines suggested:
+- [ ] Press Test on every "for beta4" item with any toolgun entry picked first: each scene starts {test:magfill}
+- [ ] AD's lamps (ad_crucial) with Comfort > Soften Flickering Lights at 0.5, then 0: the flicker is calmer, same rhythm {test:ad_lighting}
+- [ ] Empty nail magazines on the floor: no force grab, no sparkles when aimed at; one with rounds still comes {test:magfill}
+- [ ] AD projectile pellets on a worn flamethrower/poison tank: sparks and tink, no blood; crate splinters; grunt bleeds {test:ad_pellet_tanks}

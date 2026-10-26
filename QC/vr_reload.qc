@@ -411,6 +411,12 @@ float(entity e) VR_Reload_IsRound =
     return e.classname == VR_RELOAD_CLASS || e.classname == VR_RELOAD_MAGCLASS || e.classname == VR_RELOAD_FRONTCLASS;
 };
 
+// An empty magazine (any gun's): as a spent enemy gun, never force grabbed, no grab sparkles (VR_EnemyGun_DepletedSkipped).
+float(entity e) VR_Reload_MagEmpty =
+{
+    return e.classname == VR_RELOAD_MAGCLASS && e.vr_ammo_count <= 0;
+};
+
 // Every round lying about or held (shells, then magazines, then the launchers'): the next after `xFrom` (world: the
 // first), world at the end.
 entity(entity xFrom) VR_Reload_NextRound =

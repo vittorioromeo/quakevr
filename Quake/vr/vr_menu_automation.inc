@@ -151,6 +151,9 @@ za::Vector<Item> pageDebugAutomation()
         command("Lay Out Nail Magazines: Full, One, Empty", "vr_reload_test 41; impulse 125")
             .help("The nail pistol's, nailgun's and super nailgun's magazines lying in front of you, each full, with one "
                   "round and empty (front to back): two top nails, one, none."),
+        command("Check Empty Magazines Aren't Force Grabbed", "vr_reload_test 43; impulse 125")
+            .help("After Lay Out Nail Magazines: each magazine lying about can be force grabbed (and sparkles when aimed "
+                  "at) only with rounds in it, as spent enemy guns. Prints reload magforcegrab: passed, failed."),
         command("Toss a Round Into the Off Hand's Gun", "vr_reload_test 10; impulse 125")
             .help("A loose round for it (a shell, the super shotgun's pair, its magazine), lying right, thrown into its "
                   "opening from 8 units out: it goes in by contact (Load Loose Rounds)."),

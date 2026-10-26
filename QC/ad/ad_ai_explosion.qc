@@ -313,6 +313,14 @@ void(entity ad_source, entity ad_targ, float ad_damage) ad_spawn_touchblood =
 {
 	local vector ad_org, ad_vel;
 
+	// AD support: no flesh (a fuel tank, an explosive box, a crate, a grenade): sparks or splinters as the hitscan
+	// pellets' and the nails' (vr_crates.qc VR_HitNonFlesh), not blood. AD's own breakables keep their debris colour.
+	if (ad_targ.ad_classgroup != ad_CG_BREAKABLE &&
+		VR_HitNonFlesh(ad_targ, ad_source.origin, ad_source.velocity, max(ad_damage, 1))) return;
+	vr_ad_blood_sent++;
+	if (ad_targ == vr_ad_blood_watch) vr_ad_blood_watched++;
+	if (cvar_hget(cvarh_vr_debug_shots)) bprint(sprintf("adshots: blood on %s (%s)\n", ad_targ.classname, ad_source.classname));
+
 	// The vel calculation uses v_up/right, make sure vectors is setup
 	makevectors(ad_source.angles);
 	ad_vel = normalize (ad_source.velocity);
