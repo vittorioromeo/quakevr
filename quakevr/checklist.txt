@@ -10,6 +10,10 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Armed grunts and enforcers aiming, running and firing (nail pistol, shotgun, nailgun): the pauldron turns with the raised arm, no upper arm through the torso, no twisted shoulder; hands stay on their grips
+An armed enforcer with a nail pistol holds it in one hand and stands (no crouch, no belly push) as it fires
+Shove armed humanoids over and kill some: their ragdoll shoulders bend smoothly, nothing torn or folded
+Rig Studio: select an armed upper arm with Limits on: the yellow clavicle and the magenta cone show
 Armed grunts with a burst rifle, enforcer rifle or AD soldier gun fire a whole magazine, reload and fire on; kill one: its backpack has 5 shellsA double-barrelled shotgun grunt fires 9 times before running dry; kill one early: its backpack holds its spare shells; disarm a shotgun grunt and kill it: 16 shells; let one pick its gun back up: it reloads
 A heavy revolver grunt hits you for about 10-15 with no armour: right, or try 0.75 instead of 0.5 for pistols and rifles (Armed Grunts damage scale)?
 Firing range: a toolgun grunt with AD's Plasma Gun (103): its shots are heard
