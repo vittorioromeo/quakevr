@@ -738,7 +738,16 @@ za::Vector<Item> pageWofsTwoHanded()
         slider("Stickiness", hk(23), 0.5f, 4.f, 0.05f, "%.2fx").extend(0.1f, 20.f)
             .help("Once your other hand holds it, times how far it may go off it (20 units), out of line (Aiming: 2H "
                   "Aiming Threshold) and past the muzzle before it lets go; times Aiming: 2H Grip Stickiness too, more "
-                  "while swinging. For heavy weapons swung with two hands."),
+                  "while swinging. For heavy weapons swung with two hands.")
+    );
+    if(h.type == weapons::HotspotType::Cup)
+    {
+        list.pushBack(cycle("Two-Handed Aim", hk(24), {{0.f, "Off"}, {1.f, "On"}})
+                           .help("On: this cup aims the weapon as a grip does, by the line between your hands (the "
+                                 "Widowmaker's front handle). Off: the holding hand alone aims it. A cup beside or under the "
+                                 "holding hand never aims."));
+    }
+    list.pushBackMultiple(
         action("Remove This Hotspot", weaponOffsetsHotspotRemove),
         toggle("Show Hotspots", vr_show_weapon_hotspots).help("Marks the held weapons' hotspots (the edited one white).")
     );
@@ -802,7 +811,7 @@ za::Vector<Item> pageWofsStock()
         toggle("Cup Grips Take the Stock", "vr_2h_cup_stock")
             .help("A Cup hotspot (a two-handed pistol grip, the Widowmaker's) aims from the shoulder too while the holding "
                   "hand is at it: its aim turned towards the line from your shoulder through your hands (Stock Factor of "
-                  "the way). Off: a cup never aims."),
+                  "the way). Off: a cup never aims from the shoulder. A Cup with Two-Handed Aim takes the stock as a grip."),
         open("Hotspots (the Shoulders)", pageIndex(pageHotspotSettings))
     );
     return list;

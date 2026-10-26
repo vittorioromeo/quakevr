@@ -290,6 +290,14 @@ QVR_WEAPON_KEY(Hotspot1Sticky, "hs1_sticky")
 QVR_WEAPON_KEY(Hotspot2Sticky, "hs2_sticky")
 QVR_WEAPON_KEY(Hotspot3Sticky, "hs3_sticky")
 QVR_WEAPON_KEY(Hotspot4Sticky, "hs4_sticky")
+// Cup grips that aim (his voice notes 2026-10-26): a Cup hotspot with this on, ahead of the holding hand, aims the
+// weapon by the line between the hands as a Grip does (still taken and drawn by the palm); off, a cup never aims (a cup
+// beside or under the holding hand never does). Hotspot field 24: weapons::Hotspot::cupAim; 0 by default, the
+// Widowmaker's hotspot 1 (its front handle) on.
+QVR_WEAPON_KEY(Hotspot1CupAim, "hs1_aim2h")
+QVR_WEAPON_KEY(Hotspot2CupAim, "hs2_aim2h")
+QVR_WEAPON_KEY(Hotspot3CupAim, "hs3_aim2h")
+QVR_WEAPON_KEY(Hotspot4CupAim, "hs4_aim2h")
 // Round 21, "Thrown axes: blade leniency, spin in the air": times Throwing and Physics' Spin Alignment
 // (vr_throw_spin_align) for the weapon thrown (Weapon Weights; 1 by default: registerCvars).
 QVR_WEAPON_KEY(SpinAlign, "w_spinalign")
@@ -3377,6 +3385,7 @@ QVR_WEAPON_DEFAULT(34, Hotspot1Z, "-2.03207")
 QVR_WEAPON_DEFAULT(34, Hotspot1Pitch, "12.334094")
 QVR_WEAPON_DEFAULT(34, Hotspot1Yaw, "-8.382117")
 QVR_WEAPON_DEFAULT(34, Hotspot1Roll, "-0.624644")
+QVR_WEAPON_DEFAULT(34, Hotspot1CupAim, "1") // the cup round the rear handle aims by both hands (his notes 2026-10-26; vr_wofs_version 69)
 QVR_WEAPON_DEFAULT(34, Mass, "9.5")
 QVR_WEAPON_DEFAULT(34, Balance, "32.6")
 QVR_WEAPON_DEFAULT(34, Span, "75")

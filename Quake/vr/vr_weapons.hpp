@@ -138,10 +138,13 @@ struct Hotspot
     // How sticky it is once held: times how far the helping hand may go off it, out of line and past the muzzle before
     // it lets go (sticky grips, with vr_2h_sticky*: vr_twohand.cpp). 1: as every grip.
     float sticky{1.f};
+    // A Cup that aims (Two-Handed Aim): ahead of the holding hand, the two hands aim the weapon by the line between them
+    // as at a Grip (vr_view_weapon.cpp, vr_twohand.cpp); false, a cup: the holding hand alone aims it.
+    bool cupAim{false};
 };
 // field: 0 type, 1..3 x y z, 4 bias, 5..7 pitch yaw roll, 8 style, 9 overlap, 10..12 visual x y z, 13..15 visual pitch
-// yaw roll, 16 manual, 17..21 the fingers' curls, 22 the thumb across, 23 the stickiness (times)
-inline constexpr int hotspotFields = 24;
+// yaw roll, 16 manual, 17..21 the fingers' curls, 22 the thumb across, 23 the stickiness (times), 24 a cup's two-handed aim
+inline constexpr int hotspotFields = 25;
 [[nodiscard]] Key hotspotKey(int index, int field);
 [[nodiscard]] bool isGripType(HotspotType type); // a point the other hand holds: Grip or Cup
 // A Blade hotspot's zone along the line from the holding hand to the weapon's tip (shares of the way): from

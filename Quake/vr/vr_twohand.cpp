@@ -737,8 +737,10 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     grip[holding] = GRIP_FOREGRIP;
     const glm::vec3 holdingPos = s.pos[holding];
 
-    // The helping hand's grip point, in the holding hand's frame (mirrored for the off hand).
-    glm::vec3 helpingPos = s.pos[helping];
+    // The helping hand's grip point, in the holding hand's frame (mirrored for the off hand). A cup that aims (Two-Handed
+    // Aim: the Widowmaker's front handle) is held by the palm: the line goes to it.
+    const bool palmAims = holdingWeapon && s.grip2HValid[holding] && s.grip2HPalm[holding] && !s.grip2HCup[holding];
+    glm::vec3 helpingPos = palmAims ? hands::palmPoint(s, helping) : s.pos[helping];
     if(holdingWeapon)
     {
         glm::vec3 off = weapons::vec(slot, Key::TwoHOffsetX, Key::TwoHOffsetY, Key::TwoHOffsetZ);
