@@ -1431,7 +1431,7 @@ void frameSelection()
     }
     st.cam.focus = (lo + hi) * 0.5f;
     const float r = za::max(glm::length(hi - lo) * 0.5f, 4.f);
-    st.cam.dist = za::clamp(r / za::max(st.view.tanY, 0.1f) * 1.3f, 12.f, 4000.f);
+    st.cam.dist = za::clamp(r / za::max(st.view.tanY, 0.1f) * 2.f, 30.f, 4000.f);
 }
 
 void buildGeometry()

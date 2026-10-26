@@ -1497,8 +1497,10 @@ void helpWindow()
         {"F1", "this window"},
         {"` (the console key)", "the console, as ever; vr_rigstudio_close closes the studio"},
     };
-    if(ImGui::BeginTable("help", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp))
+    if(ImGui::BeginTable("help", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV))
     {
+        ImGui::TableSetupColumn("input", ImGuiTableColumnFlags_WidthFixed, 165.f);
+        ImGui::TableSetupColumn("what", ImGuiTableColumnFlags_WidthStretch);
         for(const auto& r : rows)
         {
             ImGui::TableNextRow();

@@ -149,7 +149,7 @@ void findStage()
     st.cam.focus = st.stage + glm::vec3{0.f, 0.f, 24.f};
     st.cam.yaw = yaw + 20.f;
     st.cam.pitch = 10.f;
-    st.cam.dist = 110.f;
+    st.cam.dist = 90.f;
 }
 
 [[nodiscard]] bool armedClass(const char* spawn)
@@ -690,6 +690,20 @@ void view_f()
     else if(!strcmp(w, "frame"))
     {
         frameSelection();
+    }
+    else if(!strcmp(w, "camera"))
+    {
+        // vr_rigstudio_view camera <distance> [yaw from its front] [pitch]: about the subject's middle
+        st.cam.dist = za::clamp(static_cast<float>(Q_atof(v)), 8.f, 4000.f);
+        st.cam.focus = st.stage + glm::vec3{0.f, 0.f, 24.f};
+        if(Cmd_Argc() > 3)
+        {
+            st.cam.yaw = st.stageYaw + 180.f + static_cast<float>(Q_atof(Cmd_Argv(3)));
+        }
+        if(Cmd_Argc() > 4)
+        {
+            st.cam.pitch = static_cast<float>(Q_atof(Cmd_Argv(4)));
+        }
     }
     else if(!strcmp(w, "onion"))
     {
@@ -2014,6 +2028,16 @@ void clientFrame()
         {
             armsTouched = armsTouched || st.live[b].rot != glm::vec3{0.f} || st.live[b].off != glm::vec3{0.f};
         }
+        if(const rigdata::AnimOverride* o = st.source == Source::Anim ? curOverride(false) : nullptr)
+        {
+            for(const rigdata::Track& t : o->tracks)
+            {
+                const char* bn = st.rig->bones[t.bone].name;
+                armsTouched = armsTouched || (!t.keys.empty() && (!strncmp(bn, "upperarm", 8) || !strncmp(bn, "forearm", 7)));
+            }
+        }
+        // (the game's arms on the pose's arm bones: the rest pose posed by hand, an animation's arm changes, a sequence's
+        // Arms; else on the weapons as the game poses them)
         st.armsLayer = st.source == Source::Seq ? (curSeq() && curSeq()->arms) : (st.source == Source::Rest || armsTouched);
         poseGeometry();
         rigseq::setStudio(st.subject, st.F, st.numBones, st.armsLayer);

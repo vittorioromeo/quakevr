@@ -569,6 +569,13 @@ bool bones(const entity_t* e, const ragdoll::Rig& rig, const aliashdr_t* hdr, in
                     {
                         L[tr.bone] = rigdata::compose(L[tr.bone], rigdata::toRigid(d, pivots[tr.bone]));
                         any = true;
+                        // (an arm's track: an armed humanoid's arms follow the animation's arms with it, their hands
+                        // where its forearms are, not on the weapons' grips as the game poses them)
+                        const char* bn = rig.bones[tr.bone].name;
+                        if(arms && (!strncmp(bn, "upperarm", 8) || !strncmp(bn, "forearm", 7)))
+                        {
+                            *arms = true;
+                        }
                     }
                 }
             }
@@ -597,7 +604,7 @@ bool bones(const entity_t* e, const ragdoll::Rig& rig, const aliashdr_t* hdr, in
             }
             if(arms)
             {
-                *arms = s->arms && w > 0.f;
+                *arms = *arms || (s->arms && w > 0.f);
             }
             any = true;
         }

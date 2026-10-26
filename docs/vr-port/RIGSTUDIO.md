@@ -1,0 +1,240 @@
+# The Rig Studio (`vr_rigstudio`)
+
+A flat-screen editor, in the game, for the rigged humanoids' skeletons, skin weights, poses and animations: explore
+and change the armed grunt's (or the enforcer's, or any rigged monster's) bones, which vertices each bone carries, pose
+it, fix its animations with keyed override tracks, and author new keyed sequences that the AI can play. Built with
+Dear ImGui and driven with Blender's mouse.
+
+Code: `Quake/vr/vr_rigstudio.cpp` (the mode, the scene, the edits, undo, saving, the commands),
+`vr_rigstudio_view.cpp` (the viewport: camera, drawing, picks, handles, the weight brush), `vr_rigstudio_ui.cpp` (the
+windows), `vr_rigdata.cpp` (the data and its files), `vr_rigseq.cpp` (the game's side: QC's sequences, the drawing
+layer), `vr_imgui.cpp` (ImGui in the game); `Quake/thirdparty/imgui` (Dear ImGui v1.92.8, MIT); QC
+`vr_rigseq.qc`, the taunt in `vr_armedgrunt.qc`, the test `vr_rigseq_test.qc`.
+
+## Opening it
+
+    ironwail.exe -flatscreenmode        then, in the console: vr_rigstudio
+
+or **Debug > Tools > Rig Studio (Flat Screen)**. It is flat-screen only: with a headset session up it refuses
+("the Rig Studio is flat-screen only"). It loads `vr_rigstudio_map` (vrtesthall), makes you a god-mode, notarget
+onlooker and stands a frozen armed grunt with a shotgun in the middle of the free floor ahead. `vr_rigstudio here`
+keeps the map you are in. `vr_rigstudio <spawn class> [weapon] [weapon2]` picks the subject (the armed list's codes:
+`vr_toolgun_armed_list`), as does the **Subject** menu (every armed humanoid kind, its right and left hand's weapon,
+dual included, and a few unarmed rigged monsters). `vr_rigstudio_close` (or File > Close Studio) gives the game back.
+
+ImGui is made the first time the studio opens; until then nothing of it exists, and while the studio is closed none of
+it runs (the input loop and the swap test one flag each). While it is open the keyboard and mouse are the studio's
+(the game's own keys are held back) except the console's key; the windows' places are kept in `quakevr/imgui.ini`.
+
+## Controls
+
+| Input | What it does |
+|---|---|
+| Middle mouse | orbit round the focus |
+| Shift + middle mouse | pan |
+| Wheel | zoom |
+| Alt + left mouse | orbit (laptops); Alt + Shift + left: pan |
+| Right mouse drag | look about (the camera stays where it is) |
+| F | frame the selection (bones or vertices; else the model) |
+| 1 / 3 / 7 (numpad too) | front / right side / top; Ctrl: back / left / bottom |
+| Left click | select a bone (Shift adds or toggles); on a handle: drag it |
+| Q R G E T W P | tools: Select, Rotate, Move, IK, Rest Pose, Weights, Paint |
+| Ctrl while dragging | snap: 15 degrees, 1 unit (Tools > Snap: always) |
+| I | key the selected bones at the frame |
+| Space, Left, Right | play / pause, a frame back, a frame on |
+| H, Alt+H | hide the selected bones, show them all |
+| Ctrl+Z, Ctrl+Y (Ctrl+Shift+Z) | undo, redo (every edit) |
+| Ctrl+S | save |
+| Esc while dragging | cancel the drag |
+| F1 | the Help window (these controls) |
+
+The handles are drawn with ImGui's lists (no ImGuizmo): the rotate tool's three rings in the bone's own axes and a view
+ring, the move tool's arrows, plane squares and its centre (the view's plane); their size is Preferences > Handle Size.
+
+## The windows
+
+- **Tools**: the tool; Snap, Auto Key. *Display*: the mesh (Game: the game's own drawing, every procedural layer on;
+  Shaded: the studio's skinned mesh, lit flat, its weights shown live; Wire: the game's drawing with the studio mesh's
+  edges; X-Ray: the studio mesh see-through, every edge), colours (none, each vertex its bone's, the selected bone's
+  weights as a heat map: blue 0, green 0.5, red 1), bones (octahedral, stick, off), joints, names on hover, the joints'
+  limits (a ball joint's cone, a hinge's arc), the body proxies (vr_agbody's), the IK targets and the weapon grips as
+  the game solved them. *Layers*: the game's procedural layers on the drawn model, each on or off to see what it adds
+  (the arms on their weapons, vr_agrunt_ik; the legs, vr_aglegs; the upper body held, vr_agrunt_upper; smoothing,
+  r_lerpmodels 3; hit reactions, vr_hit_react), put back on closing. *Weights* (the Weights and Paint tools): select by
+  bone, grow, shrink, none; Assign to Bone, Set Weight, Normalize; the brush (add, subtract, smooth; radius, strength;
+  mirror left/right). *Poses*: save the pose by name, apply one (all bones, or the selected only), delete, mirror,
+  copy, paste.
+- **Outliner**: the bones' tree; a click selects (Shift or Ctrl adds), the box hides or shows, S solos; the search
+  box filters by name; a `*` marks a bone whose rest pose is overridden.
+- **Properties** (the active bone): its joint and parent, how many vertices it owns; *Rest Pose*: its pivot and end
+  (model units), length, the limits (a ball's cone and twist, a hinge's lower, upper and axis), Reset to Computed;
+  *IK*: its two-bone chain if any and the elbow's pole; *Pose*: its turn and offset now (Rest: its local; an animation
+  or a sequence: the change not keyed yet), Key, Clear.
+- **Timeline**: the source (the rest pose; one of the model's own animations, by its frames' names: stand, run, shoot,
+  load, painb...; a new sequence), play, pause, step, loop, speed (0.1x to 2x), the frame; the ruler scrubs (Shift: in
+  between frames); the dope sheet: a row per bone with keys (and the selected bones), diamonds coloured by their
+  interpolation (white smooth, green linear, blue step); click or Shift-click keys, drag them (whole frames), drag a
+  box, right click for the interpolation, Delete or X deletes, Ctrl+C and Ctrl+V copy and paste at the frame; the
+  sequence's events above the rows. Onion: the active bone's previous and next keys ghosted (all the bones, as
+  sticks).
+- **Sequence**: New Sequence (10 frames at 10 fps), its name, frames or seconds, fps, Loop, Arms, Hold, blend in and
+  out, the base frame, its events (a name at a frame: Add at the frame, the frame dragged, deleted), Duplicate, Test on
+  Subject (saved, then played on the subject as QC would: `vr_rigseq_play`).
+- **Pose Studio Data**: the armed humanoids' pose keys (kind, weapon class, pose, phase: the seven parts the Pose
+  Studio drags) and grips (a kind's every-weapon grip, or the subject's weapon's own, per hand), the Pose Studio's own
+  data (vr_agrunt_poses, vr_agrunt_grips), drawn by the game at once; Print writes them as code (vr_agrunt_pose_dump,
+  vr_agrunt_grip_dump). Undo covers them.
+- **Help**, **Preferences** (orbit, pan and zoom speeds, handle size, theme: dark, light, classic).
+
+The File menu: Save, Revert to Files, Print as Defaults, Close Studio. Edit: undo, redo, copy, paste (all bones or the
+selected), mirror the pose, clear the changes not keyed. View: the windows, frame, the six views.
+
+## What it edits (the data model)
+
+A Quake model has no skeleton: the rig is derived from the .mdl's frames when first needed (`vr_ragdoll.cpp`: its
+vertices clustered by how they move, the clusters put on the seed table's bones; each bone's rigid fit to every frame).
+Each vertex is on one bone (`Rig::vertBone`); the armed humanoids' arms are skinned on top by `vr_agarms.cpp` (a blend
+between the upper arm, forearm and hand by the vertex's place along the arm), their legs by `vr_aglegs.cpp`. The QC
+picks a frame; the client draws it with every procedural layer on top: the smoothing between frames (r_lerpmodels 3),
+the hit reactions, the arms on their weapons (IK), the legs, the upper body held.
+
+The studio's pose model: each bone's place is its parent's carried by a local motion in the pivot form,
+`p' = R (p - c) + c + o` (c the bone's rest pivot, R a rotation, o an offset), so a bone's world motion is
+`F_b = F_parent L_b`; every L the identity is the rest pose (the model's first frame). A frame of the model gives each
+bone's rest-to-frame fit P_b, its locals `L_b = P_parent^-1 P_b`. What is drawn: each vertex moved by its bones'
+`F_b P_b^-1` from where the frame has it, weighted.
+
+- **Bone overrides** (the rest pose): a bone's pivot, end, its ball joint's cone and twist, its hinge's lower and upper
+  limits and axis. In the game: the rig as derived, with them laid on.
+- **Weights**: up to four bones a vertex. The studio draws them blended (linear). In the game: the bone with the most
+  weight owns the vertex (`vertBone`; the bones whose vertices changed are fitted again to the frames, and their hulls
+  and the triangles' bones made again), which every rigged system then uses: ragdolls, the smoothing, the hit
+  reactions, the limb cuts, the arms' skin.
+- **Poses**: named, each bone's local (absolute, from the rest pose).
+- **Override tracks**: keyed deltas `D_b` laid after one of the model's own animations' frames' locals
+  (`F_b = F_parent L_b D_b`), by its frames (from 0), for every monster drawn with that model.
+- **Sequences**: new animations, each bone's keyed local (absolute; the bones without a track keep the frame drawn under
+  it), with a length, an fps, a loop, blends in and out, events, a base frame (held while it plays: Hold), and Arms.
+
+Keys are interpolated smooth (Catmull-Rom through them, eased at a track's ends; a loop wraps), linear or step.
+
+### How it reaches the drawn model
+
+`kickInstance` (`vr_animsmooth.cpp`) turns each rigged instance's bones by a rigid motion on top of its animation (the
+hit reactions' path); the studio's layer (`rigseq::layer`) is laid there under the other turns:
+`drawn = kick (F posed^-1) posed`, with F the sequence's or the override tracks' bones over the frame drawn. An armed
+humanoid's arms are not its bones' but its arm skin's, solved each frame by the arms' IK from where its weapons are: a
+sequence with **Arms** on (or an override track on an arm bone, or the studio posing the arms) gives the IK each hand's
+place from its forearm bone (`agarms::Targets::fk`, the weapons drawn on the hands), the elbows' poles from the
+bones'; otherwise the arms stay on the weapons as the game poses them, the shoulders carried by the chest as drawn.
+With no files, no studio and no sequence started, nothing of this runs (the layer's check fails at once) and every
+model is drawn as before.
+
+## The files
+
+Both are text, one record a line, numbers written with `%.6g` and read back with `strtof`: a file read and written
+again comes out byte for byte the same. Bones are named as the rig names them (`vr_rigdata_info <model>` lists them);
+turns are rotation vectors in degrees (the axis times the angle, the model's axes: x forward, y left, z up), offsets
+model units. `<model>` is the model's file name without its folder and extension (progs/vrgrunt.mdl: vrgrunt). The
+folder is the game's (`quakevr/`), or `vr_rigdata_dir` under it (the tests use `rigstudio_test`).
+
+`quakevr/rigs/<model>.rig.txt`:
+
+    qvrrig 1
+    model progs/vrgrunt.mdl
+    bone head pivot 8.5 -0.3 32.5 end 10.4 -0.5 37.7 cone 50 twist 50 lower 0 upper 0 hinge 0 1 0
+    weight 300 thigh_l 0.5 chest 0.5
+    pose twist30
+      key chest 0 0 30 0 0 0
+    end
+    override load
+      track forearm_r
+        key 3 smooth 0 -25 0 0 0 0
+        key 7 linear 0 -10 0 0 0 0
+      end
+    end
+
+`bone`: a rest override (pivot, end, cone, twist, lower, upper in degrees, hinge axis). `weight <vertex> <bone> <w>
+...`: a vertex's weights. `pose <name>`: `key <bone> <turn xyz> <offset xyz>` lines. `override <animation>`: tracks of
+`key <frame> <smooth|linear|step> <turn xyz> <offset xyz>` (the interpolation from that key to the next).
+
+`quakevr/anims/<model>/<name>.anim.txt`:
+
+    qvranim 1
+    model progs/vrgrunt.mdl
+    name taunt
+    fps 10
+    length 16
+    loop 0
+    blend 0.2 0.3
+    arms 0
+    hold 1
+    base stand1
+    event 6 shout
+    track chest
+      key 0 smooth 0 0 0 0 0 0
+      key 6 smooth 0 20 -6 0 0 0
+    end
+
+They are read at a map load (each model's when it is first drawn or asked for); the studio's edits go to the game at
+once (published as they are made), and to the files on Save. The rig's bone overrides and weights are laid on the rig
+when it is derived (`rigdata::applyToRig`, from `ragdoll::rigFor` and `warmRigs`): once a session (the rigs are kept),
+so a changed rig file takes effect at the next start of the game (the studio shows it at once). Unsaved changes are
+marked (`*` in the menu bar, the outliner, the timeline's list); Revert reads the files again (undoable).
+
+**Print as Defaults** (File menu, `vr_rigstudio_print`) writes the bone overrides as rows for the model's seed table
+(`vr_ragdoll.cpp` / `vr_ad_rigs.inc`), the weights and the poses as commented tables, to the console and
+`quakevr/proposed_defaults/rig_<model>_<date>.txt`, as the Pose Studio prints its grips.
+
+## In the game: QC's API
+
+No builtin (the builtin numbers are full): fields the engine reads and writes at each server frame's end, and a QC
+function it calls (`QC/vr_rigseq.qc`):
+
+    .string vr_rigseq;       // a request: the sequence's name ("-": stop); taken by the engine (cleared)
+    .float vr_rigseq_t0;     // when it was asked for (VR_RigSeq_Play sets it: the start's time)
+    .float vr_rigseq_len;    // the engine: its length in seconds once taken (-1: no such sequence for its model)
+    .float vr_rigseq_frame;  // the engine: its frame now, each frame it plays (-1: none)
+    .void(string seq, string ev, float frame) vr_rigseq_on; // the monster's own handler of its events
+
+    void(entity m, string seq) VR_RigSeq_Play;
+    void(entity m) VR_RigSeq_Stop;
+    void(string seq, string ev, float frame) VR_RigSeq_Event; // called by the engine, self the monster
+
+Each event reaches `VR_RigSeq_Event` (and so the monster's `vr_rigseq_on`) at the server frame its frame is reached
+(within 1/72 s at the fixed frame rate), then `"end"` at its end (frame = its length) or `"stopped"` when cut short
+(stopped, or with Hold on, the monster's own frame changed: a pain, a death). With Hold on the engine sets its base
+frame when it starts. Every client is told (`QVR_SVC_RIGSEQ`, reliable) and draws it from that time, blended in and
+out. `vr_rigseq_play <name> [entity|nearest]` and `vr_rigseq_stop` do the same from the console; `vr_rigseq_status`
+lists what plays; `vr_rigseq_debug 1` prints each start, stop and event; `vr_rigseq 0` turns the layer off.
+
+### The proof: the armed grunt's taunt (`vr_agrunt_taunt`, off by default)
+
+An armed grunt seeing a player for the first time (its `th_run`, `vr_ag_hunt`) stands and plays its model's `taunt`
+(`quakevr/anims/vrgrunt/taunt.anim.txt`: 1.6 s, the chest thrown back then forward into a shout, the head nodding, a
+dip; its `shout` event its sight sound), facing him, its weapon still in its hands, then comes for him. A model with no
+taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame changes: `stopped`); 4 seconds at most.
+
+## Tests
+
+- `vr_agrunt_test 80` (`QC/vr_rigseq_test.qc`): a studio sequence played by QC on a frozen armed grunt: its length, its
+  two events at their frames' times, its end, its frame field. Needs the sequence `rstest` (10 frames at 10 fps, events
+  `fire` at 3, `footstep` at 7) where the files are read: the studio's commands make it (below).
+- The studio's commands (each what a window or a handle does; for scripts and headless tests): `vr_rigstudio_select
+  <bone> [add]`, `_rotate <x> <y> <z> [world]`, `_move <x> <y> <z>`, `_key`, `_frame <f>`, `_source rest|anim
+  <name>|seq <name>`, `_seq_new <name> [frames] [fps] [loop]`, `_seq_event <frame> <name>`, `_seq_set <field> <value>`,
+  `_save`, `_revert`, `_undo`, `_redo`, `_weight <vertex> <bone> <w>`, `_vertex <v | first <bone>>` (its weights,
+  rest and posed places), `_rest <bone> pivot|end <xyz> | cone|twist|lower|upper <deg> | reset`, `_selverts`,
+  `_assign <bone>`, `_pose save|load|mirror`, `_panel <window> 0|1`, `_view mesh|colors|bones|tool|snap|frame|onion|
+  proxies ...`, `_play [0|1]`, `_respawn`, `_print`, `_status`; `vr_rigdata_info [model]`, `vr_rigdata_reload`.
+
+## Limits and rough edges
+
+- In the game a vertex is drawn by one bone (its heaviest), except an armed humanoid's arm skin, whose blend is its
+  own: the studio's blended weights show only in the studio's mesh (Shaded, X-Ray).
+- The rig's bone overrides and weights take effect when the rig is derived: the next start of the game.
+- A bone's parent is shown, not edited (the rig's tree is the seed table's).
+- The IK tool solves two-bone chains (a hinge on a ball joint: the arms, the legs) in the plane the elbow is in; the
+  joints' limits are shown, not enforced while posing.
+- The studio's mesh is drawn with ImGui's lists (sorted by depth, no depth buffer): a few crossing triangles may show
+  through at the X-Ray's edges.

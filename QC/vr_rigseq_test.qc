@@ -3,8 +3,8 @@
 // `vr_agrunt_test 80` (an open map: vrtesthall), with the sequence "rstest" of the armed grunt's model where the files
 // are read (vr_rigdata_dir; the studio's test makes it: 10 frames at 10 fps, events "fire" at frame 3 and "footstep" at
 // 7). A frozen armed grunt 160 units ahead plays it: its length comes back (1 s), each event reaches QC at its frame's
-// time (within a server frame: 1/72 s), then "end" at 1 s and its frame field back at -1. Its last line: `agtest: test 80 over:
-// <p> passed, <f> failed`.
+// time (within a server frame: 1/72 s), then "end" at 1 s and its frame field back at -1. Its last line:
+// `agtest: test 80 over: <p> passed, <f> failed`.
 
 float vr_rst_t0;      // when it was asked for
 float vr_rst_end;     // its "end" (s after the start; 0 not yet)
@@ -31,7 +31,7 @@ void(string seq, string ev, float frame) VR_RST_Event =
         return;
     }
     vr_rst_events = vr_rst_events + 1;
-    // (taken at the first server frame end at or after its frame's time: within one frame of it)
+    // (taken at the first server frame end at or after its frame's time: within one frame of it, 1/72 s)
     if(dt >= frame / 10 - 0.001 && dt <= frame / 10 + 0.021)
     {
         vr_rst_timely = vr_rst_timely + 1;

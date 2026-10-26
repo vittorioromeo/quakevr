@@ -142,6 +142,11 @@ za::Vector<Item> pageDebugViews()
                   "place, its frames taped; Pause, scrub (a stick, or < 0.5 s >), Next Glitch, drag the key the readout "
                   "names at that frame. vr_posestudio_live_report prints the tape's playhead: its keys and the glitch "
                   "finder's measures."),
+        command("Rig Studio (Flat Screen)", "vr_rigstudio")
+            .help("vr_rigstudio: the rigged humanoids' skeletons, skin weights, poses and animations edited on the desktop "
+                  "screen, with Blender's mouse (docs/vr-port/RIGSTUDIO.md): a room, an armed grunt frozen in it, an "
+                  "outliner, properties, a timeline with keys, new sequences QC can play. Flat screen only (start the "
+                  "game with -flatscreenmode); vr_rigstudio_close closes it."),
         command("Print Blade Shape", "vr_blade_dump")
             .help("vr_blade_dump [slot]: the main hand's weapon's blade shape and tip as vr_weapons.inc lines (* changed)."),
         command("Print Fist Line", "vr_blade_dump fist")

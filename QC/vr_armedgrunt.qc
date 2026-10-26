@@ -1689,7 +1689,7 @@ void() vr_ag_take6 = { vr_ag_takestep(); };
 float(entity g) VR_AG_Taking =
 {
     return g.think == vr_ag_takestep || g.think == vr_ag_take2 || g.think == vr_ag_take3 || g.think == vr_ag_take4 ||
-           g.think == vr_ag_take5 || g.think == vr_ag_take6 || g.think == vr_ag_run1;
+           g.think == vr_ag_take5 || g.think == vr_ag_take6 || g.think == vr_ag_run1 || g.think == vr_ag_hunt;
 };
 
 // ----------------------------------------------------------------------------
