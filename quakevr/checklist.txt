@@ -2,6 +2,9 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired; older items are in git history.
 
 [new since the beta4 list: test these first]
+Rig Studio: switch subject kinds and weapons (flamethrower, two pistols, ogre) several times: one subject only; Close then vr_rigstudio here: still one
+Rig Studio: the shoot animation on the shotgun grunt aims level at the orange Aim Target; drag the target high and low and the gun follows; At Camera aims at you; Aim off carries the gun as before
+Rig Studio: Pose Keys (O) in Aim: drag the weapon's arrows and rings, an elbow, the torso rings; the arms stay on the gun and the Pose Studio Data numbers follow; Ctrl+Z restores; in Pickup, drag the pelvis and feet
 Grab an armed grunt's gun at the muzzle, barrel and stock: each starts the tug; as the tug begins, and when an armed grunt is knocked down, its gun and arms stay where they were: no jump of the gun or of your hand; the tug's pull feels right (it wins a little faster on quick pulls, slower on very slow ones)
 vr_agrunt_taunt 1: an armed grunt taunts when it first sees you, then charges; shoot it mid-taunt and it stops
 Grab an armed grunt's gun (grip, barrel, stock) and tug: your hand stays on the gun where you took it; pull hard or step back far without winning and it lets go (Armed Grunts > Tug: Let Go Past); say whether the hand's jump onto the gun as the tug starts (~20 cm) reads wrong
