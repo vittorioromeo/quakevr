@@ -85,6 +85,10 @@ float stockTransition[2]{0.f, 0.f}; // per holding hand, 0..1
 bool shouldAim[2]{false, false};    // per holding hand
 bool helpingHand[2]{false, false};
 bool cupHeld[2]{false, false};        // per holding hand: the other hand holds it by a cup hotspot (flickAllowed)
+// Per holding hand: a cup that aims (Two-Handed Aim): the line from the holding hand to the helping hand's palm as it took
+// hold, in the holding hand's frame (forward, right, up: hands::redirect's), and whether it is kept.
+glm::vec3 cupLine[2]{glm::vec3{1.f, 0.f, 0.f}, glm::vec3{1.f, 0.f, 0.f}};
+bool cupLineSet[2]{false, false};
 
 // A weapon's two-handed grips (round 18): where on it the helping hand may take hold. The nearest
 // within reach takes it; once held, that grip holds on until the hand lets go or moves off it.
@@ -766,6 +770,29 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     glm::vec3 origDir, right, up;
     hands::angleVectors(originalRots[holding], origDir, right, up);
 
+    // A cup that aims (palmAims): the line between the hands as it took hold, kept in the holding hand's frame (cupLine).
+    // Its aim is the least turn keeping that line on the hands' line, as a free grip held as a foregrip: taking it never
+    // jumps, and a handle below the barrel (the Widowmaker's front handle) aims along the barrel, not along the line.
+    // Before it holds, its line is the hands' (it is taken anywhere a cup is). Any other grip's line is the aim's.
+    const bool lineKept = palmAims && cupLineSet[holding];
+    const glm::vec3 lineAxis = lineKept ? safeNormalize(hands::redirect(cupLine[holding], originalRots[holding]))
+                               : palmAims ? handDir
+                                          : origDir;
+    // The aim that puts lineAxis on `line` (a grip's: `line` itself).
+    const auto aimFor = [&](const glm::vec3& line) -> glm::vec3 {
+        if(!palmAims)
+        {
+            return line;
+        }
+        const float c = glm::dot(lineAxis, line);
+        if(c < -0.9999f)
+        {
+            return origDir;
+        }
+        const glm::vec3 axis = glm::cross(lineAxis, line);
+        return safeNormalize(glm::normalize(glm::quat{1.f + c, axis.x, axis.y, axis.z}) * origDir);
+    };
+
     const int wpnMode = holdingWeapon ? static_cast<int>(weapons::value(slot, Key::TwoHMode)) : WPN_2H_FORBIDDEN;
 
     const bool useStock = glm::distance(shoulder, holdingPos) < vr_virtual_stock_thresh.value &&
@@ -796,7 +823,7 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     // A cup (a two-handed pistol grip) is held wherever the hands point: it doesn't aim.
     const bool cup = fixedMode && s.grip2HCup[holding];
     const float dotNeed = wasHeld ? heldDot(vr_2h_angle_threshold.value, stick) : vr_2h_angle_threshold.value;
-    const bool goodDot = cup || dotNeed <= -1.f || glm::dot(handDir, origDir) > dotNeed;
+    const bool goodDot = cup || dotNeed <= -1.f || glm::dot(handDir, lineAxis) > dotNeed;
 
     // A grip takes hold only closed on the weapon (the author: a fist moving onto a two-handed hotspot must not attach;
     // vr_2h_grip_edge): its rising edge with the hand there then arms it, until it opens. Held, it keeps hold as before.
@@ -817,6 +844,16 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     gripRefusedSaid[helping] = !wasHeld && canGrab && goodDistance && goodDot && !edgeOk;
     shouldAim[holding] = canGrab && goodDistance && goodDot && edgeOk;
     cupHeld[holding] = shouldAim[holding] && fixedMode && s.grip2HPalm[holding]; // (a cup hotspot itself: grip2HPalm)
+    // A cup that aims, taken now: its line kept (the next frames aim by it, and it eases out by it once let go).
+    if(!palmAims || (!shouldAim[holding] && aimTransition[holding] <= 0.f))
+    {
+        cupLineSet[holding] = false;
+    }
+    else if(shouldAim[holding] && !cupLineSet[holding])
+    {
+        cupLine[holding] = glm::vec3{glm::dot(handDiff, origDir), glm::dot(handDiff, right), glm::dot(handDiff, up)};
+        cupLineSet[holding] = true;
+    }
     if(vr_debug_2h_grip.value && fixedMode && !wasHeld && shouldAim[holding])
     {
         Con_Printf("2h grip: %s hand took it (%.1f units off its grip)\n", holding == HAND_MAIN ? "off" : "main", gripDist);
@@ -849,7 +886,7 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
         }
         else if(!goodDot)
         {
-            reportLetGo(holding, "angle (cosine)", glm::dot(handDir, origDir), dotNeed, stick);
+            reportLetGo(holding, "angle (cosine)", glm::dot(handDir, lineAxis), dotNeed, stick);
         }
         else
         {
@@ -888,7 +925,7 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
         return;
     }
 
-    const glm::vec3 stockDir = glm::mix(handDir, averageDir, stockTransition[holding]);
+    const glm::vec3 stockDir = glm::mix(aimFor(handDir), aimFor(averageDir), stockTransition[holding]);
     const glm::vec3 dir = safeNormalize(glm::mix(origDir, stockDir, t));
 
     glm::vec3 angles = hands::anglesFromVectors(dir, up);
