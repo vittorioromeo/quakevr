@@ -81,3 +81,11 @@ VR Settings > Player Appearance > Randomize (console: `vr_appearance_random [see
 (none 50 percent, fingerless 25, full 25) with leather-like colours, and painted nails (on half the time) with
 polish-like colours and a gloss of 0.3-1. It leaves the gloves' thickness, worn leather and relief, and every other
 setting, alone. Ranges: ROUND22.md, "Player Appearance: Randomize".
+
+## Hand shape
+
+VR Settings > Player Appearance > Hand Shape (`vr_hand_shape`: 0 standard, the default; 1 feminine, slimmer;
+HANDS_IN_BLENDER.md, "The feminine hand"). The feminine hand shares the standard hand's texture layout, so the
+gloves (their masks, painted leather, relief and shells), the nails' masks, the skins and skin tone all work on it
+unchanged: nothing here needs a second copy. Randomize picks it 35 percent of the time. It changes at once (the
+first switch loads the model); with the older hands (`vr_hand_rig 0`) it does nothing.

@@ -2084,7 +2084,8 @@ void resetHandOffsets()
 
 // Randomize (Player Appearance; vr_appearance_random): a new skin tone, gloves and nails, from the client's own rand()
 // (so each press differs). Only these settings: not the gloves' thickness, paint or relief, nor anything else.
-// Weights: gloves none 50 / fingerless 25 / full 25; nails on 50; the colours below are picked by percent.
+// Weights: gloves none 50 / fingerless 25 / full 25; nails on 50; feminine hands 35; the colours below are picked by
+// percent.
 // (The engine's rand() is never seeded, so the first press of every session would repeat: this has its own xorshift
 // state, seeded once from the real clock; in the tests a fixed seed: vr_appearance_random <seed>.)
 uint32_t randomState{0};
@@ -2188,12 +2189,15 @@ void randomAppearance()
         Cvar_SetValueQuick(&vr_nail_lightness, roundf(l * 100.f) / 100.f);
         Cvar_SetValueQuick(&vr_nail_gloss, roundf(randomRange(0.3f, 1.f) * 100.f) / 100.f);
     }
+    // The hands' shape (vr_hand_shape): feminine 35 (rolled last: the rolls above stay as they were for a seed).
+    const bool feminine = randomPercent() < 35;
+    Cvar_SetValueQuick(&vr_hand_shape, feminine ? 1.f : 0.f);
     static constexpr const char* glovesName[] = {"no gloves", "fingerless gloves", "full gloves"};
     Con_Printf("Randomized: skin tone %.2f, %s (hue %.0f sat %.2f light %.2f), nails %s (hue %.0f sat %.2f light %.2f "
-               "gloss %.2f)\n",
+               "gloss %.2f), %s hands\n",
         vr_skin_tone.value, glovesName[gloves], vr_glove_hue.value, vr_glove_saturation.value,
         vr_glove_lightness.value, nails ? "on" : "off", vr_nail_hue.value, vr_nail_saturation.value,
-        vr_nail_lightness.value, vr_nail_gloss.value);
+        vr_nail_lightness.value, vr_nail_gloss.value, feminine ? "feminine" : "standard");
 }
 
 // Holster Setup (drag and drop): the holsters placed by hand (vr_holstersetup.cpp), this page reopened on leaving.

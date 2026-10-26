@@ -696,6 +696,11 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         toggle("Bracers", vr_body_bracers)
             .help("The leather bracers on your forearms. Off: bare forearms with the wrist gadget strapped round the skin, running "
                   "on into the hands (with the jointed hand, vr_hand_rig 1: the default)."),
+        cycle("Hand Shape", vr_hand_shape, {{0.f, "Standard"}, {1.f, "Feminine"}})
+            .help("The shape of your hands. Feminine: slimmer fingers and palm, finer knuckles, a slimmer wrist, tapered "
+                  "fingertips with longer nails. The joints are the same, so grips, weapons and reloads fit as before; "
+                  "skin tone, gloves and nails work on both. Changes at once. On the jointed hands (vr_hand_rig 1: the "
+                  "default); the older hands (vr_hand_rig 0) have one shape only."),
         header("Gloves"),
         cycle("Gloves", vr_gloves, {{0.f, "None"}, {1.f, "Fingerless"}, {2.f, "Full"}})
             .help("Leather gloves on your hands: fingerless ones leave the fingertips bare (in your skin tone); full ones "
@@ -734,8 +739,8 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
             .help("How shiny the polish is: 0 matte, 1 a glassy top coat with a sharp highlight and the room's light "
                   "mirrored in it."),
         action("Randomize", randomAppearance)
-            .help("A new look at random: skin tone, gloves (none, fingerless or full) and their colour, and painted nails "
-                  "and their colour. Nothing else changes. Press again for another (vr_appearance_random)."),
+            .help("A new look at random: skin tone, gloves (none, fingerless or full) and their colour, painted nails "
+                  "and their colour, and the hands' shape. Nothing else changes. Press again for another (vr_appearance_random)."),
         header("Pauldrons"),
         toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
         cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})

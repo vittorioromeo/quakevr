@@ -23,7 +23,11 @@
 // - Kept whatever the file says: the palm's frame (the palm joint doesn't move: it is rig space), the placement
 //   constants and palmCentre (weapon placements and cups are measured from them: they stay where they were on the
 //   controller, and an edited hand changes shape around them), the wrist (where the arm meets the hand).
+// - Two shapes (vr_hand_shape; ROUND22.md, "Feminine hand"): the standard hand and the feminine one
+//   (progs/hand_rig_f.md5mesh, make_hand_feminine.py: the same joints and texture layout, slimmer), each read as its
+//   model loads into its own rig, both derived against the compiled tables; rig() is the drawn shape's.
 
+#include "vr_cvars.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_handrig.hpp"
 #include "vr_mem.hpp"
@@ -131,17 +135,36 @@ Rig compiledRig()
 // Built before main (no first-call guard): only constexpr data goes in (vr_handrig_data.inc).
 const Rig referenceRig = compiledRig();
 
-// The rig in use: the shipped one, or a reloaded one (vr_hand_reload; the main thread).
-Rig currentRig = compiledRig();
+// Each shape's rig (vr_hand_shape): the shipped one (compiled) until its file is read, then the file's, or a
+// reloaded one (vr_hand_reload; the main thread). The feminine shape's is the standard compiled one until its file is
+// read (its tables are not compiled in: its rig comes from its file alone, refitted to it as the edited hands' are).
+Rig currentRigs[ShapeCount] = {compiledRig(), compiledRig()};
+
+// Whether a shape's file was read: not yet (the feminine hand loads when it is first chosen), read and in use, or
+// refused or missing (the standard hand is drawn instead, until vr_hand_reload reads it).
+enum class ShapeState : unsigned char
+{
+    Untried,
+    Ready,
+    Failed
+};
+ShapeState shapeState[ShapeCount] = {ShapeState::Ready, ShapeState::Untried};
+Shape readingShape = StandardShape; // the shape whose files are being read (named in the messages)
 
 const Rig& reference()
 {
     return referenceRig;
 }
 
+// The shape drawn and grasped with: the chosen one once its file is read.
+[[nodiscard]] Shape shapeInUse()
+{
+    return vr_hand_shape.value >= 0.5f && shapeState[FeminineShape] == ShapeState::Ready ? FeminineShape : StandardShape;
+}
+
 Rig& current()
 {
-    return currentRig;
+    return currentRigs[shapeInUse()];
 }
 
 unsigned rigGeneration = 1;
@@ -395,7 +418,7 @@ struct Md5Mesh
 
 bool parseMesh(const char* text, Md5Mesh& m, za::String& error)
 {
-    Reader r(text, meshFile);
+    Reader r(text, meshFiles[readingShape]);
     r.expect("MD5Version");
     if(r.integer() != 10 && !r.failed())
     {
@@ -497,7 +520,7 @@ bool parseMesh(const char* text, Md5Mesh& m, za::String& error)
 // The md5anim's joints (the engine's MD5 loader refuses a model whose anim doesn't list the mesh's joints).
 bool parseAnim(const char* text, za::Vector<za::Pair<za::String, long>>& hierarchy, za::String& error)
 {
-    Reader r(text, animFile);
+    Reader r(text, animFiles[readingShape]);
     r.expect("MD5Version");
     (void)r.integer();
     if(r.peek() == "commandline")
@@ -882,9 +905,11 @@ void derive(Rig& out, Report& report)
     skinSpheres(ref.thenarSpheres, out.thenarSpheres);
 }
 
-// progs/hand_rig.md5mesh (and .md5anim) as a rig, or why not.
+// progs/hand_rig.md5mesh (and .md5anim; the shape's: readingShape) as a rig, or why not.
 bool readRig(const char* meshText, Rig& out, za::String& error, Report& report)
 {
+    const char* const meshFile = meshFiles[readingShape];
+    const char* const animFile = animFiles[readingShape];
     Md5Mesh m;
     if(!parseMesh(meshText, m, error))
     {
@@ -1114,9 +1139,10 @@ bool readRig(const char* meshText, Rig& out, za::String& error, Report& report)
     return true;
 }
 
-void install(Rig&& r)
+void install(Shape shape, Rig&& r)
 {
-    current() = ZA_MOVE(r);
+    currentRigs[shape] = ZA_MOVE(r);
+    shapeState[shape] = ShapeState::Ready;
     rigGeneration++;
     checked = ModelCheck{};
 }
@@ -1690,6 +1716,25 @@ int gloveShellSurfaces(const char* modelName)
     return 0;
 }
 
+const char* modelName()
+{
+    if(vr_hand_shape.value < 0.5f)
+    {
+        return modelNames[StandardShape];
+    }
+    if(shapeState[FeminineShape] == ShapeState::Untried)
+    {
+        // Loaded as it is first chosen (VR_ModelReplacementOk reads its rig); prepareModels loads it with the map.
+        (void)view::viewModel(modelNames[FeminineShape]);
+        if(shapeState[FeminineShape] == ShapeState::Untried)
+        {
+            shapeState[FeminineShape] = ShapeState::Failed;
+            Con_Warning("the feminine hand: %s didn't load: the standard hand is drawn\n", meshFiles[FeminineShape]);
+        }
+    }
+    return modelNames[shapeInUse()];
+}
+
 const Rig& rig()
 {
     return current();
@@ -1697,7 +1742,7 @@ const Rig& rig()
 
 unsigned generation()
 {
-    return rigGeneration;
+    return rigGeneration * 2u + static_cast<unsigned>(shapeInUse());
 }
 
 void pose(const Pose& p, Posed& out)
@@ -1813,6 +1858,9 @@ bool usable(qmodel_t* model)
 
 void reload_f()
 {
+    // The chosen shape's files (vr_hand_shape).
+    const Shape shape = vr_hand_shape.value >= 0.5f ? FeminineShape : StandardShape;
+    const char* const meshFile = meshFiles[shape];
     byte* text = COM_LoadMallocFile(meshFile, nullptr);
     if(!text)
     {
@@ -1822,7 +1870,9 @@ void reload_f()
     Rig r;
     za::String error;
     Report report;
+    readingShape = shape;
     const bool ok = readRig(reinterpret_cast<const char*>(text), r, error, report);
+    readingShape = StandardShape;
     VR_HeapFree(text);
     if(!ok)
     {
@@ -1830,10 +1880,10 @@ void reload_f()
         Con_Printf("vr_hand_reload: kept the hand you had\n");
         return;
     }
-    qmodel_t* model = Mod_ForName(modelName, false);
+    qmodel_t* model = Mod_ForName(modelNames[shape], false);
     if(!model)
     {
-        Con_Warning("vr_hand_reload: %s not found\n", modelName);
+        Con_Warning("vr_hand_reload: %s not found\n", modelNames[shape]);
         return;
     }
     reloading = true;
@@ -1853,9 +1903,10 @@ void info_f()
 {
     const Rig& r = current();
     const Rig& ref = reference();
-    Con_Printf("vr_hand_rig_info: the rig in use is %s (%d vertices, %d triangles, %d + %d + %d spheres)\n", r.source.cStr(),
-        static_cast<int>(r.vertices.size()), static_cast<int>(r.triangles.size()), static_cast<int>(r.segmentSpheres.size()),
-        static_cast<int>(r.palmSpheres.size()), static_cast<int>(r.thenarSpheres.size()));
+    Con_Printf("vr_hand_rig_info: the rig in use is %s (%d vertices, %d triangles, %d + %d + %d spheres), the %s shape\n",
+        r.source.cStr(), static_cast<int>(r.vertices.size()), static_cast<int>(r.triangles.size()),
+        static_cast<int>(r.segmentSpheres.size()), static_cast<int>(r.palmSpheres.size()),
+        static_cast<int>(r.thenarSpheres.size()), shapeInUse() == FeminineShape ? "feminine" : "standard");
     // Against the compiled rig, number for number (== on floats: the same bits, but for signed zeros).
     bool pivots = true, turns = true;
     for(int f = 0; f < FingerCount; f++)
@@ -1907,6 +1958,31 @@ void info_f()
     {
         Con_Printf("vr_hand_rig_info: the rig in use is the compiled one, bit for bit\n");
     }
+    // The feminine shape against the standard one's file: its joints must be the same (only the skin round them moves).
+    if(shapeInUse() == FeminineShape && shapeState[StandardShape] == ShapeState::Ready)
+    {
+        const Rig& s = currentRigs[StandardShape];
+        bool samePivots = true, sameTurns = true;
+        float most = 0.f;
+        for(int f = 0; f < FingerCount; f++)
+        {
+            for(int k = 0; k < jointsPerFinger; k++)
+            {
+                samePivots = samePivots && r.pivot[f][k] == s.pivot[f][k];
+                for(int fr = 0; fr < data::numFrames; fr++)
+                {
+                    sameTurns = sameTurns && r.turns[f][fr][k] == s.turns[f][fr][k];
+                }
+            }
+        }
+        for(size_t v = 0; v < r.vertices.size() && v < s.vertices.size(); v++)
+        {
+            most = za::fmax(most, glm::distance(r.vertices[v].pos, s.vertices[v].pos));
+        }
+        Con_Printf("vr_hand_rig_info: against the standard shape (%s): pivots %s, curl turns %s; the skin moved %.3f units "
+                   "at most\n",
+            s.source.cStr(), same(samePivots), same(sameTurns), most);
+    }
 }
 
 } // namespace qvr::handrig
@@ -1916,28 +1992,39 @@ void info_f()
 extern "C" int VR_ModelReplacementOk(const char* name, const char* md5mesh)
 {
     using namespace qvr::handrig;
-    if(!qvr::modelmeta::describePath(name).has(qvr::modelmeta::Trait::RigHandInsensitive))
+    const qvr::modelmeta::ModelMetadata info = qvr::modelmeta::describePath(name);
+    const bool feminine = info.has(qvr::modelmeta::Trait::RigHandFInsensitive);
+    if(!feminine && !info.has(qvr::modelmeta::Trait::RigHandInsensitive))
     {
         return 1;
     }
+    const Shape shape = feminine ? FeminineShape : StandardShape;
     Rig r;
     za::String error;
     Report report;
     const double start = Sys_DoubleTime();
+    readingShape = shape;
     const bool ok = readRig(md5mesh, r, error, report);
+    readingShape = StandardShape;
     report.ms = (Sys_DoubleTime() - start) * 1000.0;
+    const char* const who = reloading ? "vr_hand_reload" : feminine ? "the feminine hand" : "the jointed hand";
     if(!ok)
     {
-        Con_Warning("%s: %s\n", reloading ? "vr_hand_reload" : "the jointed hand", error.cStr());
-        if(!reloading)
+        Con_Warning("%s: %s\n", who, error.cStr());
+        if(feminine)
+        {
+            shapeState[FeminineShape] = ShapeState::Failed;
+            Con_Printf("the feminine hand: the standard hand is drawn until the file is fixed (then vr_hand_reload)\n");
+        }
+        else if(!reloading)
         {
             Con_Printf("the jointed hand: the six hand models are drawn until the file is fixed (then vr_hand_reload)\n");
         }
         return 0;
     }
-    r.source = meshFile;
-    printReport(reloading ? "vr_hand_reload" : "the jointed hand", r, report, reloading);
-    install(ZA_MOVE(r));
+    r.source = meshFiles[shape];
+    printReport(who, r, report, reloading);
+    install(shape, ZA_MOVE(r));
     return 1;
 }
 
@@ -1946,7 +2033,8 @@ extern "C" int VR_ModelReplacementOk(const char* name, const char* md5mesh)
 extern "C" char* VR_ModelReplacementExtend(const char* name, const char* md5mesh)
 {
     using namespace qvr::handrig;
-    const bool hand = qvr::modelmeta::describePath(name).has(qvr::modelmeta::Trait::RigHandInsensitive);
+    const qvr::modelmeta::ModelMetadata info = qvr::modelmeta::describePath(name);
+    const bool hand = info.has(qvr::modelmeta::Trait::RigHandInsensitive) || info.has(qvr::modelmeta::Trait::RigHandFInsensitive);
     const size_t len = strlen(name);
     const bool body = !strncmp(name, "progs/vrbody", 12) && len > 9 && !strcmp(name + len - 9, "_bare.mdl");
     if(!hand && !body)

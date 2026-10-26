@@ -178,6 +178,18 @@
   "sha256": "7b1af6152c52171ac758a5b12c162c8e912a3daba2698181241e41598ae6e2fd",
   "by": "make_nail_mask.py"
  },
+ "quakevr/progs/hand_rig_f.md5anim": {
+  "sha256": "e962eb2f2b2634ce87f44691a5168d86fd05efe99d86588e59a0b511ccfd17d1",
+  "by": "make_hand_feminine.py"
+ },
+ "quakevr/progs/hand_rig_f.md5mesh": {
+  "sha256": "62ccc92845062aaa4240951e9a0ec640d15c06ceaf8ab54ef8991a1fc3dd49cb",
+  "by": "make_hand_feminine.py"
+ },
+ "quakevr/progs/hand_rig_f.mdl": {
+  "sha256": "c4e98c757e32f4cf04452e4085f691c20332d593f056a03491a70c6bdfcbed96",
+  "by": "make_hand_feminine.py"
+ },
  "quakevr/progs/legholster.mdl": {
   "sha256": "a4a5ea43a1aaa548501fb231547b8ab40c8221c748b84e408e1bf8dc9a1311ea",
   "by": "make_holster.py"
