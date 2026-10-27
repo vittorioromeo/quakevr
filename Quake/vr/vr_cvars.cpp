@@ -515,6 +515,9 @@ const DefaultChange defaultChanges[] = {
     // 207: the flare gun on crates is experimental for beta4: off by default; a config still at the old 0.05 takes 0, any
     // other chance stays.
     {207, &vr_crate_flaregun, "0.05"}, // 0
+    // 208: Soften Flickering Lights off by default again (round 22, "AD flicker": AD's flicker was a NaN fog frame, not
+    // its lamps; beta4 shipped 0.5): a config still at 0.5 takes 0, any other value stays.
+    {208, &vr_lightstyle_comfort, "0.5"}, // 0
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -562,7 +565,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // and the armed grunts' archived pose keys and grips equal to the new shipped ones dropped: agpose::dropShippedEqual,
 // aggrip::dropDefaultEqual; 204: r_lerpmodels 1 -> 3, AD's heads Mass 0 -> -1; 205: vr_heat_haze_half 1 -> 0 unless
 // a graphics preset below High; 206: vr_ambient_light 0 -> 0.1; 207: vr_crate_flaregun 0.05 -> 0)
-constexpr int configVersion = 207;
+constexpr int configVersion = 208;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;

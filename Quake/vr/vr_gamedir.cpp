@@ -1040,9 +1040,12 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
     // The maps more than one campaign has under the same name: start for Quake and its mission packs (they have no end,
     // hub or dm1 of their own: isolating those would hide Quake's while one of them is active); start, end, hub and
     // dm1 while one of the newer campaigns is active (theirs in place of Quake's).
+    // (Arcane Dimensions has a start of its own only: its hub's original slipgates lead to Quake's end, so Quake's end,
+    // hub and dm1 stay visible while it runs; round 22, the hub's end slipgate stopped on "cannot find map".)
+    const bool sharedOthers = activeCampaign >= 3 && activeCampaign != qvr::ad::campaignIndex;
     const bool start = strncmp(filename, "maps/start.", 11) == 0 ||
-        (activeCampaign >= 3 && (strncmp(filename, "maps/end.", 9) == 0 || strncmp(filename, "maps/hub.", 9) == 0 ||
-                                    strncmp(filename, "maps/dm1.", 9) == 0));
+        (sharedOthers && (strncmp(filename, "maps/end.", 9) == 0 || strncmp(filename, "maps/hub.", 9) == 0 ||
+                             strncmp(filename, "maps/dm1.", 9) == 0));
     char name[MAX_OSPATH];
     gameFolderName(path, name, sizeof(name));
     const int i = campaignIndex(name);
@@ -1058,8 +1061,8 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
     {
         char map[MAX_QPATH];
         COM_StripExtension(filename, map, sizeof(map));
-        if(!strcmp(map, "maps/start") || !strcmp(map, "maps/hub") ||
-            !strcmp(map, "maps/end") || !strcmp(map, "maps/dm1")) { return 1; }
+        if(!strcmp(map, "maps/start") ||
+            (sharedOthers && (!strcmp(map, "maps/hub") || !strcmp(map, "maps/end") || !strcmp(map, "maps/dm1")))) { return 1; }
         const Campaign& c = campaigns[activeCampaign];
         for(size_t r = 0; r < c.resourceCount; ++r)
         {
@@ -1184,6 +1187,11 @@ int campaignForMap(const char* map, int current)
     if(!strncmp(map, "r1m", 3) || !strncmp(map, "r2m", 3)) { named = 2; }
     if(!strncmp(map, "e5", 2)) { named = 3; }
     if(named != current && campaigns[named].status != 1 && COM_FileExists(va("maps/%s.bsp", map), nullptr))
+    { return current; }
+    // Arcane Dimensions plays id's episodes in its own rules: its hub's lower level has the original slipgates
+    // (trigger_changelevel to e1m1..e4m1), the maps from id1 under AD's folder. They stay AD's (its progs, its saves),
+    // as in AD itself; they were refused ("use the campaign selector"), the slipgates doing nothing (round 22).
+    if(current == qvr::ad::campaignIndex && named == 0 && map[0] == 'e' && COM_FileExists(va("maps/%s.bsp", map), nullptr))
     { return current; }
     return named;
 }

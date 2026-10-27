@@ -1,0 +1,10 @@
+# ad_fog_flicker: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Arcane Dimensions' fogged
+# outdoor hub of ad_azad at the spot of Vittorio's s3 save (437 -1369 1656, facing -115): AD sends its fog again and
+# again; each time the fog was drawn NaN for a frame (the world black, the sky dimmed: round 22, "AD flicker").
+# Needs Arcane Dimensions mounted (Play > Official Campaigns > Arcane Dimensions, or -game ad).
+title AD fog flicker: ad_azad's snowfield, no black frames
+map ad_azad
+start 437 -1369 1656 -115
+god
+notarget
+hint Turn your head, snap and smooth turn, walk about: the sky and the snow stay steady, no dark frames.

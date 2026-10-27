@@ -49,6 +49,27 @@ extern float skyfog;
 
 /*
 =============
+Fog_FadeLeft
+
+QVR: the share of the old fog still showing (0..1), or 0 with no fade in progress. A fog set at once
+(svc_fog or "fog" with time 0: Arcane Dimensions sends its fog again and again) leaves fade_time 0 and
+fade_done = cl.time, a float rounded from the double clock, so about half the time a few microseconds
+past it: fade_done > cl.time until the clock moved on, and (fade_done - cl.time) / 0 an infinite share,
+the fog's colour huge and its density NaN in the frames drawn before then: the world drawn black and the
+sky dimmed for a frame each time AD sent its fog (round 22, "AD flicker").
+=============
+*/
+static float Fog_FadeLeft (void)
+{
+	float f;
+	if (fade_time <= 0.f || fade_done <= cl.time)
+		return 0.f;
+	f = (fade_done - cl.time) / fade_time;
+	return CLAMP (0.f, f, 1.f);
+}
+
+/*
+=============
 Fog_Update
 
 update internal variables
@@ -60,11 +81,11 @@ void Fog_Update (float density, float red, float green, float blue, float time)
 	if (time > 0)
 	{
 		//check for a fade in progress
-		if (fade_done > cl.time)
+		if (Fog_FadeLeft () > 0.f) // QVR: was fade_done > cl.time (a division by a zero fade_time)
 		{
 			float f;
 
-			f = (fade_done - cl.time) / fade_time;
+			f = Fog_FadeLeft ();
 			old_density = f * old_density + (1.0 - f) * fog_density;
 			old_red = f * old_red + (1.0 - f) * fog_red;
 			old_green = f * old_green + (1.0 - f) * fog_green;
@@ -84,8 +105,7 @@ void Fog_Update (float density, float red, float green, float blue, float time)
 	fog_green = green;
 	fog_blue = blue;
 	fade_time = time;
-	fade_done = cl.time + time;
-}
+	fade_done = cl.time + time;}
 
 /*
 =============
@@ -249,9 +269,9 @@ float *Fog_GetColor (void)
 	float f;
 	int i;
 
-	if (fade_done > cl.time)
+	if (Fog_FadeLeft () > 0.f) // QVR: was fade_done > cl.time (a division by a zero fade_time: NaN fog)
 	{
-		f = (fade_done - cl.time) / fade_time;
+		f = Fog_FadeLeft ();
 		c[0] = f * old_red + (1.0 - f) * fog_red;
 		c[1] = f * old_green + (1.0 - f) * fog_green;
 		c[2] = f * old_blue + (1.0 - f) * fog_blue;
@@ -288,9 +308,9 @@ float Fog_GetDensity (void)
 {
 	float f;
 
-	if (fade_done > cl.time)
+	if (Fog_FadeLeft () > 0.f) // QVR: was fade_done > cl.time (a division by a zero fade_time: NaN fog)
 	{
-		f = (fade_done - cl.time) / fade_time;
+		f = Fog_FadeLeft ();
 		return f * old_density + (1.0 - f) * fog_density;
 	}
 	else
@@ -378,9 +398,70 @@ Fog_Init
 called when quake initializes
 =============
 */
+/*
+=============
+Fog_Check_f
+
+QVR: vr_fog_check: the fog set at once (time 0) at a thousand client clock values, and a fade with the
+clock a little before its start: the fog drawn must be the one set (finite, never NaN) and a fade's share
+stay within 0..1. Prints "fogcheck: N passed, M failed (K clocks rounded up)" (round 22, "AD flicker").
+The fog and the clock are put back.
+=============
+*/
+static void Fog_Check_f (void)
+{
+	const float sd = fog_density, sr = fog_red, sg = fog_green, sb = fog_blue;
+	const float od = old_density, or_ = old_red, og = old_green, ob = old_blue, ft = fade_time, fd = fade_done;
+	const double st = cl.time;
+	int i, passed = 0, failed = 0, roundedUp = 0;
+	float d, *c;
+
+	for (i = 0; i < 1000; i++)
+	{
+		cl.time = 61.0 + i * 0.0137;
+		Fog_Update (0.04f, 0.37f, 0.36f, 0.43f, 0.f);
+		roundedUp += fade_done > cl.time;
+		d = Fog_GetDensity ();
+		c = Fog_GetColor ();
+		if (d == 0.04f && fabsf (c[0] - 0.37f) < 0.01f && fabsf (c[2] - 0.43f) < 0.01f)
+			passed++;
+		else if (failed++ < 5)
+			Con_Printf ("fogcheck: FAIL at cl.time %.6f: density %g colour %g %g %g\n", cl.time, d, c[0], c[1], c[2]);
+	}
+	// a fade over 1 s from that fog to a thicker one, the clock then 0.1 s before the fade began
+	cl.time = 70.0;
+	Fog_Update (0.04f, 0.37f, 0.36f, 0.43f, 0.f);
+	cl.time = 71.0;
+	Fog_Update (0.2f, 0.37f, 0.36f, 0.43f, 1.f);
+	cl.time = 70.9;
+	d = Fog_GetDensity ();
+	if (d >= 0.04f - 1e-6f && d <= 0.04f + 1e-6f)
+		passed++;
+	else
+	{
+		failed++;
+		Con_Printf ("fogcheck: FAIL the clock before a fade: density %g (want 0.04)\n", d);
+	}
+	cl.time = 71.5;
+	d = Fog_GetDensity ();
+	if (d > 0.11f && d < 0.13f)
+		passed++;
+	else
+	{
+		failed++;
+		Con_Printf ("fogcheck: FAIL half way through a fade: density %g (want 0.12)\n", d);
+	}
+
+	fog_density = sd; fog_red = sr; fog_green = sg; fog_blue = sb;
+	old_density = od; old_red = or_; old_green = og; old_blue = ob; fade_time = ft; fade_done = fd;
+	cl.time = st;
+	Con_Printf ("fogcheck: %d passed, %d failed (%d of 1000 clocks rounded up past the fog's time)\n", passed, failed, roundedUp);
+}
+
 void Fog_Init (void)
 {
 	Cmd_AddCommand ("fog",Fog_FogCommand_f);
+	Cmd_AddCommand ("vr_fog_check", Fog_Check_f); // QVR
 
 	//Cvar_RegisterVariable (&r_vfog);
 
