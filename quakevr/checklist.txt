@@ -14,6 +14,7 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Rig Studio > Range of Motion, Mesh drawn on Authored rig: Random Pose, drag the right arm and bend the wrist: the shotgun stays in the hand at its grip; Subject with two revolvers: the left one follows the left hand; Old rig: as before
 Rig Studio > Range of Motion: Mesh drawn on Authored rig vs Old rig in the same pose, up close (face, hands, chest): the same texture resolution, shading and smoothness
 Grab an attacking armed humanoid's weapon anywhere (axe, sword, gun, chainsaw), in and out of bullet time: a tug almost every time; a punch through it still doesn't grab (Armed Grunts: Grab Leniency 5 cm) {test:agrunt_tug}
 Lift, judo-throw or shoulder-charge an armed humanoid: it keeps its weapon until a hard landing (Fall: Drops It on Impact 4.5 m/s) {test:agrunt_fall}
