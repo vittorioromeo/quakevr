@@ -24,8 +24,9 @@ namespace
 // is, but a gun category's (Pistol .. Widowmaker) with no row of its own: the rifle's (Gun's) row of its kind, pose and
 // phase (shippedOf: each category starts as his rifle keys until it is tuned and shipped). An archived key (vr_agrunt_poses) replaces its code's row (agpose::get). Vittorio's, set in the Pose Studio (his
 // vr_agrunt_poses of 2026-10-24 14:24, then of 2026-10-25 17:50: 71 keys, approved 2026-10-25; then of 2026-10-27: 20
-// keys changed or new, 75 in all), written by Misc/quakevr/pose_defaults.py --cfg <his ironwail.cfg> --write.
-// configVersion 202, and again 210, drop the archived keys equal to these (dropShippedEqual: his text then empty).
+// keys changed or new, 75 in all; then of 2026-10-27 evening: his rifle Aim and the Pistol, Launcher, Sprayer and Laser
+// Cannon keys, 6 changed or new, 80 in all), written by Misc/quakevr/pose_defaults.py --cfg <his ironwail.cfg> --write.
+// configVersion 202, and again 210 and 212, drop the archived keys equal to these (dropShippedEqual: his text then empty).
 struct ShippedRow
 {
     int code;
@@ -34,13 +35,13 @@ struct ShippedRow
 constexpr ShippedRow shipped[] = {
     // grunt, the pickup's legs (any weapon)
     {31, {0.f, 0.f, 6.23f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -1.2f, -0.39f, 0.97f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
-    // grunt, a gun, Idle / Carry
+    // grunt, a rifle, Idle / Carry
     {1000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f}},
-    // grunt, a gun, Aim
-    {1010, {-3.5f, 7.04f, 6.75f, 0.1f, 3.5f, -4.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
-    // grunt, a gun, Run
+    // grunt, a rifle, Aim
+    {1010, {1.82f, 6.76f, 6.78f, -3.1f, 1.9f, -2.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, -0.47f, -0.88f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    // grunt, a rifle, Run
     {1020, {4.06f, 0.96f, 0.87f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
-    // grunt, a gun, Pickup
+    // grunt, a rifle, Pickup
     {1030, {-1.29f, 5.65f, 15.86f, -6.f, 20.f, 18.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.83f, -0.26f, 0.49f, -0.13f, 0.99f, 0.07f, 8.4f, -48.6f, 37.2f}},
     // grunt, a one-handed melee weapon, Idle / Carry
     {2000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.16f, -2.61f, -0.17f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.96f, 0.12f, -0.27f, 0.f, 0.f, 0.f}},
@@ -115,12 +116,20 @@ constexpr ShippedRow shipped[] = {
     // grunt, two guns, Run
     {6020, {3.46f, 3.87f, 0.17f, 0.f, 0.f, 0.f, 0.f, -2.95f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a pistol, Aim
-    {17010, {3.88f, 7.97f, 5.5f, 0.4f, 9.2f, -4.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
-    // enforcer, a gun, Idle / Carry
+    {17010, {3.88f, 6.07f, 6.49f, -1.8f, 2.2f, -2.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    // grunt, a pistol, Run
+    {17020, {4.06f, 4.71f, 0.87f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.31f, 0.16f, 0.32f, 0.f, 0.f, 0.f}},
+    // grunt, a shoulder launcher, Aim
+    {18010, {-0.08f, 0.97f, 8.49f, -29.3f, 2.1f, -1.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    // grunt, a sprayer, Aim
+    {19010, {1.09f, 8.34f, -3.01f, 0.3f, -0.5f, -4.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    // grunt, the laser cannon, Aim
+    {20010, {-8.27f, 1.59f, -4.46f, -1.6f, 4.f, -2.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    // enforcer, a rifle, Idle / Carry
     {101000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, 0.89f, -0.42f, 0.f, 0.f, 0.f}},
-    // enforcer, a gun, Aim
+    // enforcer, a rifle, Aim
     {101010, {12.1f, 6.33f, 6.41f, 2.5f, 3.9f, 13.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.45f, -0.7f, -0.55f, -0.83f, 0.1f, -0.55f, 0.f, 0.f, 0.f}},
-    // enforcer, a gun, Run
+    // enforcer, a rifle, Run
     {101020, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.2f, 0.11f, 0.39f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Idle / Carry
     {102000, {5.62f, 2.02f, -1.7f, 5.7f, -51.1f, 9.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
@@ -237,6 +246,10 @@ void parse()
         for(int i = 0; i < agpose::NumParts * 3 && ok; i++)
         {
             const float f = strtof(p, &end);
+            if(end == p && i >= agpose::numOldParts * 3)
+            {
+                break; // (an entry from before the off-hand parts: the rest zero, no change and Auto)
+            }
             ok = end != p;
             e.k.v[i / 3][i % 3] = f;
             p = end;
@@ -254,13 +267,27 @@ void parse()
     }
 }
 
+// How many of key `k`'s parts its text and dump rows carry: the first seven, the off hand's too when any is set (older
+// builds read the first seven and skip the rest of an entry).
+[[nodiscard]] int partsOf(const agpose::Key& k)
+{
+    for(int i = agpose::numOldParts; i < agpose::NumParts; i++)
+    {
+        if(k.v[i] != glm::vec3{0.f})
+        {
+            return agpose::NumParts;
+        }
+    }
+    return agpose::numOldParts;
+}
+
 void write()
 {
     za::String text;
     for(const Entry& e : state.over)
     {
         text += va("%d", e.code);
-        for(int i = 0; i < agpose::NumParts * 3; i++)
+        for(int i = 0; i < partsOf(e.k) * 3; i++)
         {
             text += va(" %g", static_cast<double>(e.k.v[i / 3][i % 3]));
         }
@@ -318,7 +345,7 @@ void write()
     {
         return part == agpose::LegPelvisTurn;
     }
-    return part == agpose::RTurn || part == agpose::LTurn || part == agpose::Torso;
+    return part == agpose::RTurn || part == agpose::LTurn || part == agpose::Torso || part == agpose::GripTurn;
 }
 
 [[nodiscard]] bool same(int code, const agpose::Key& a, const agpose::Key& b)
@@ -400,10 +427,11 @@ void key_f()
         dropCode(c);
         write();
     }
-    else if(Cmd_Argc() >= 2 + agpose::NumParts * 3)
+    else if(Cmd_Argc() >= 2 + agpose::numOldParts * 3)
     {
+        // (21 numbers, the first seven parts: the off hand's left as zero; or all 30)
         agpose::Key k;
-        for(int i = 0; i < agpose::NumParts * 3; i++)
+        for(int i = 0; i < agpose::NumParts * 3 && 2 + i < Cmd_Argc(); i++)
         {
             k.v[i / 3][i % 3] = static_cast<float>(Q_atof(Cmd_Argv(2 + i)));
         }
@@ -414,6 +442,14 @@ void key_f()
         agpose::className(agpose::classOf(c)), agpose::poseName(agpose::classOf(c), agpose::poseOf(c)),
         static_cast<double>(k.v[0].x), static_cast<double>(k.v[0].y), static_cast<double>(k.v[0].z),
         static_cast<double>(k.v[1].x), static_cast<double>(k.v[1].y), static_cast<double>(k.v[1].z));
+    Con_Printf("agpose key %d off hand: %s, grip offset %g %g %g turn %g %g %g, free L %g %g %g turn %g %g %g\n", c,
+        agpose::offModeName(agpose::offModeOf(k.v[agpose::OffHand])), static_cast<double>(k.v[agpose::GripPos].x),
+        static_cast<double>(k.v[agpose::GripPos].y), static_cast<double>(k.v[agpose::GripPos].z),
+        static_cast<double>(k.v[agpose::GripTurn].x), static_cast<double>(k.v[agpose::GripTurn].y),
+        static_cast<double>(k.v[agpose::GripTurn].z), static_cast<double>(k.v[agpose::LPos].x),
+        static_cast<double>(k.v[agpose::LPos].y), static_cast<double>(k.v[agpose::LPos].z),
+        static_cast<double>(k.v[agpose::LTurn].x), static_cast<double>(k.v[agpose::LTurn].y),
+        static_cast<double>(k.v[agpose::LTurn].z));
 }
 
 void dump_f()
@@ -690,12 +726,13 @@ void dumpText(za::String& out)
     parse();
     out += "// vr_agrunt_pose_dump: rows for Quake/vr/vr_agpose.cpp's shipped[] (the changes laid on QC's poses):\n";
     out += "// {code (kind*100000 + class*1000 + pose*10 + phase), {right place, right turn, left place, left turn,\n";
-    out += "//  right elbow's pole, left elbow's pole, torso yaw pitch roll}}\n";
+    out += "//  right elbow's pole, left elbow's pole, torso yaw pitch roll[, off hand's grip place, its grip turn (the gun's\n";
+    out += "//  frame), off hand mode 0 Auto 1 On the Gun 2 Free, 0, 0: when any is set]}}\n";
     for(const Entry& e : state.over)
     {
         const int kind = kindOf(e.code), cls = classOf(e.code), pose = poseOf(e.code), phase = phaseOf(e.code);
         out += va("    {%d, {", e.code);
-        for(int i = 0; i < NumParts * 3; i++)
+        for(int i = 0; i < partsOf(e.k) * 3; i++)
         {
             out += va("%s%.*ff", i ? ", " : "", isTurn(e.code, i / 3) ? 1 : 2, static_cast<double>(e.k.v[i / 3][i % 3]));
         }
@@ -746,6 +783,11 @@ const char* kindsName(int kind)
 const char* kindTitle(int kind)
 {
     return kind == 0 ? "Grunt" : kind == 1 ? "Enforcer" : "?";
+}
+
+const char* offModeName(int mode)
+{
+    return mode == OffGun ? "On the Gun" : mode == OffFree ? "Free" : "Auto (the Weapon Holds)";
 }
 
 const char* className(int cls)

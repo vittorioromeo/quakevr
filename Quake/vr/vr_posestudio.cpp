@@ -60,6 +60,10 @@ enum PartId : int
     PKneeKneel,
     PFootKneel,
     PKneePlant,
+    // The off hand with a single gun (agent/offhand; the Rig Studio's Pose Keys only: shown when its pose is the desk's):
+    // on the gun, its grip offset (the key's GripPos/GripTurn, the gun's frame); off it, the free hand (LPos/LTurn)
+    PGripL,
+    PFreeL,
     PCount
 };
 
@@ -357,7 +361,18 @@ Desk desk;
 
 [[nodiscard]] bool isLeg(int p)
 {
-    return p >= PPelvis && p < PCount;
+    return p >= PPelvis && p <= PKneePlant;
+}
+
+// The off hand's parts (agent/offhand): its weapon class's a single gun's (QC's note), the right hand holding it, and on
+// it (its second grip held, or cupping the right hand) or hanging free.
+[[nodiscard]] bool offHandOnGun(const Note& n)
+{
+    return n.prop > 0 && n.placed.on[0] && (n.placed.held2 || (n.t.cup && !n.t.second));
+}
+[[nodiscard]] bool offHandFree(const Note& n)
+{
+    return n.prop > 0 && n.placed.on[0] && n.propL <= 0 && n.t.goal[1] == agarms::Goal::None && !n.placed.held2 && !n.t.cup;
 }
 
 // The subject's legs as solved now (model space), in the Pickup pose with its kneel up (vr_aglegs); else false.
@@ -394,6 +409,8 @@ Desk desk;
     }
 }
 
+[[nodiscard]] int classOf(int ent);
+
 // Whether part `p` can be taken.
 [[nodiscard]] bool shown(const Note& n, int p)
 {
@@ -406,6 +423,9 @@ Desk desk;
         case PElbowR:
         case PElbowL:
         case PChest: return true;
+        case PGripL:
+        case PFreeL:
+            return desk.pose >= 0 && agpose::isGunCategory(classOf(n.ent)) && (p == PGripL ? offHandOnGun(n) : offHandFree(n));
         default:
         {
             aglegs::Placed L;
@@ -416,7 +436,7 @@ Desk desk;
 
 [[nodiscard]] int sideOf(int p)
 {
-    return p == PWeaponL || p == PHandL || p == PElbowL ? 1 : 0;
+    return p == PWeaponL || p == PHandL || p == PElbowL || p == PGripL || p == PFreeL ? 1 : 0;
 }
 
 // Whether a drag of part `p` edits its pose's key (else a grip: a hand on its weapon, a weapon with Weapon: Grip).
@@ -593,7 +613,9 @@ constexpr glm::vec3 PELVIS_HI{3.f, 5.f, 2.5f};
         case PWeaponR: return toWorld(n.space, n.placed.weapon[0]);
         case PWeaponL: return toWorld(n.space, n.placed.weapon[1]);
         case PHandR: return toWorld(n.space, n.placed.hand[0]);
-        case PHandL: return toWorld(n.space, n.placed.hand[1]);
+        case PHandL:
+        case PGripL:
+        case PFreeL: return toWorld(n.space, n.placed.hand[1]);
         case PElbowR:
         case PElbowL: return toWorld(n.space, Rigid{glm::normalize(n.placed.chest.rot), n.placed.elbow[sideOf(p)]});
         case PChest: return toWorld(n.space, chestFrame(n));
@@ -985,6 +1007,24 @@ void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
         }
         case PHandR:
         case PHandL: k.v[pp] = g.key0.v[pp] + (partNow.pos - g.target0.pos); break;
+        case PGripL:
+        {
+            // (the off hand's grip on the gun: its move and turn from where it was drawn at the grab, in the gun's frame
+            // then: agarms lays them on its grip target there, a second grip's or a cup's)
+            const glm::quat W = glm::normalize(g.weaponNow.rot);
+            k.v[agpose::GripPos] = g.key0.v[agpose::GripPos] + glm::inverse(W) * (partNow.pos - g.part0.pos);
+            const glm::quat dR = glm::normalize(partNow.rot * glm::inverse(g.part0.rot));
+            k.v[agpose::GripTurn] = rotVec(glm::inverse(W) * dR * W * rotQuat(g.key0.v[agpose::GripTurn]));
+            break;
+        }
+        case PFreeL:
+        {
+            // (the free off hand: its move and turn from where it was drawn at the grab, model space: its body's)
+            k.v[agpose::LPos] = g.key0.v[agpose::LPos] + (partNow.pos - g.part0.pos);
+            const glm::quat dR = glm::normalize(partNow.rot * glm::inverse(g.part0.rot));
+            k.v[agpose::LTurn] = rotVec(dR * rotQuat(g.key0.v[agpose::LTurn]));
+            break;
+        }
         case PElbowR:
         case PElbowL:
         {

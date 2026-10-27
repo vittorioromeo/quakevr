@@ -24993,3 +24993,88 @@ tool), `aimline2_close1_*`, `aimline2_close3_*` (the other close views).
 
 **At the desk:**
 - [ ] Rig Studio aim lines, fixed {test:none}: Rig Studio, Pose Keys (O) on a shotgun grunt: the thin cyan line lies along the drawn barrel as you drag the weapon's ring; click the orange "aim target" cross and drag it: it moves, the magenta "shot" diamond follows it, the cyan ring shows where the barrel points.
+
+
+## Off hand: grip offset and Free; his evening poses as defaults (worktree `fastship`, branch `agent/offhand`, 2026-10-27)
+
+**1. The off hand's grip offset per pose key.** A single gun's key (any category) has three new parts after the seven of
+before (`vr_agpose.hpp`): `GripPos`, `GripTurn` (the off hand's grip target on the gun moved, and turned about its grip
+point, in the gun's frame: x along the barrel, y left, z up; so it follows the gun) and `OffHand` (x: 0 Auto, 1 On the
+Gun, 2 Free). QC (`VR_AGK_Add`) blends the offset with the key's weight as every part (`weapondrawnpose(world, code,
+25..27)`); the pose message carries it in an off-hand block (below); `vr_agarms.cpp` lays it on: a second grip's frame
+(`Targets::secondAt` moved and turned before the reach check and the slide back: a grip moved out of reach still slides
+back along the gun), a cup's place (in the gun's frame) and its turn on the hand as solved (about its grip point, then
+held as a frame). Rifle fore-ends, Pistol cups, the Widowmaker's front handle and the Laser Cannon's second handle all go
+through these two. The Rig Studio's Pose Keys tool: a **left hand: grip offset** dot while the off hand is on the gun,
+its arrows and rings in the gun's own axes; the Pose Studio Data window: **Left Grip Place / Left Grip Turn** (gun
+categories only). Undo, Save, Print (`vr_agrunt_pose_dump`: 30 numbers in a row with any off-hand part set, else the 21
+of before), Copy to the other kind (the offset as it is, the gun being the same) cover it.
+
+**2. Per pose: the off hand on the gun or free.** The window's **Off Hand** combo beside the key: Auto (the Weapon
+Holds: its second grip, a cup, or free for a one-handed hold; the default everywhere, nothing changes), On the Gun (on it
+even with a one-handed hold, the gun posed as a two-handed hold has it; a pistol carried low is still never cupped: the
+arm would go through the body), Free (off the gun, hanging; the key's Left Place / Left Turn move and turn the hanging
+hand, the Pose Keys tool's **left hand (free)** dot). Which key decides (QC `VR_AGK_Keys`, each at half weight or more):
+the Pickup's while taking a weapon up if set; else Aim's while aimed (Auto there is the holds'); else Run's while running
+if set; else Carry's. So his example, Run: Free and Aim: Auto, runs free and aims with two hands, running or not. QC's
+gun branch turns it into the existing flags (`VR_AGP_FREE` / `VR_AGP_TWO`), so the hand travels between the grip and its
+hanging place as the holds' own taking and letting go do: round the shoulder over `secondEase` (0.25 s), never a snap.
+
+**Data and migration.** `vr_agrunt_poses` entries and the shipped rows carry the 21 numbers of before, or 30 when any
+off-hand part is set (`partsOf`); an entry or row with 21 reads the rest as zero (Auto, no offset): no configVersion
+step needed, and an older build reading a 30-number entry takes its first 21 and skips the rest. `vr_agrunt_pose_key`
+takes 21 or 30 numbers and prints the off hand's line; `Misc/quakevr/pose_defaults.py` reads either and writes the 21
+unless an off-hand part is set. The pose message (`QVR_SVC_ARMPOSE`): its flags byte was full; `VR_AGP_FREE` and
+`VR_AGP_TWO` are never both set, so both set announces a block at the end (`[byte: 1 free, 2 two, 4 grip offset follows,
+8 free hand follows][short3 place x100, short3 turn x10]...`), sent only with a single gun, the off hand on it or free,
+and some offset or free change non-zero: every message is byte for byte as before otherwise (old demos parse as before).
+Not in the old rigid path (`relinkRigid`) nor the VR Pose Studio (its hands take a second grip as the Grip Editor's
+Second grip; a desk-only part there would be a second dot on the same hand).
+
+**Checked.** `vr_rigstudio_test_posekeys` 14/14 (two new first steps; the off hand measured in the gun's frame, less
+the slide back a grip out of reach takes, `agarms::Placed::slid`). On his old rifle Aim: GripPos +2.06 0 0 by the drag,
+the drawn off hand moved 2.06 -0.00 -0.00, turned 0.00 deg; GripTurn 14.80 0 0, turned 14.80 deg about 1.00 -0.00 0.00,
+moved 0.00. On his new rifle Aim (the gun pushed 5 units further out) the fore-end is past the arm's reach: the hand
+already slides back 2+ units, so the step drags 2 back: GripPos -2.18, the slide 2.0 less, the drawn hand -0.18 (= the
+offset less the slide); the roll 14.90 deg about the gun's x (1.00 -0.00 0.00), the slide 1.0 more. Each undone: the key
+exactly as it was, the hand back 0.000 units. (The torso step, which timed out on origin/next, passes with his new Aim.)
+By hand on a fresh subject (old Aim): GripPos -2 then +2 with roll 15: the off hand at 6.39 then 10.39 along the barrel,
+its x axis's barrel component unchanged (0.725), turned 15.0 deg about it. (His new Aim's fore-end out of reach is what
+the IK stretch would answer.)
+New `vr_rigstudio_test_offhand` 5/5 (the shotgun grunt, Run Free): Run 18.4 units off its grip, not held; Run -> Aim on
+the second grip, the hand 25.4 units over 0.86 s (the gun's own ease with it), its largest step 3.25 units a frame;
+Aim -> Run 0.81 s, largest 2.16 (a snap would be the whole way in a frame); Run's key put back exactly. The nail pistol
+grunt: Free 22.0 off in Run, onto the cup in 0.64 s (largest step 4.24 of 22.7), off again 0.64 s (3.06). With Auto the
+pistol is already off the gun in Run (a pistol carried low is never cupped), so Free shows its difference on the rifles.
+Auto unchanged: the glitch finder (`scratch/agg.sh`, sv_random_seed 7, all subjects) gives the same ALL line on
+origin/next and here, to the digit (flip 57.9/8.3, wrong 179.6/77.3, reach 42.1/4.1, grip2 25.3/1.1, toggle 3.0/2.0,
+stretch 18.2/2.8 ...); two runs the same (it is deterministic with the seed). Rig Studio: `_test_aim` 4/4, `_test_align`
+58/58, `_test_subjects` 14/14. eval.sh 163/171 (36/44 canary), as before. Eyeshots: `scratch/eyes_offhand_gripoffset_before_after.png`
+(the grip offset dot and its gun-axis rings, before / after 2 forward), `scratch/eyes_offhand_free_run_vs_aim.png` (the
+pistol grunt: Run free / Aim cupped).
+
+**3. His poses of 2026-10-27 evening as defaults.** His `vr_agrunt_poses` (6 keys; `vr_agrunt_grips` empty; no Done
+file newer) folded in by `pose_defaults.py --cfg ... --write` (80 rows, was 75). Old -> new (the grunt's):
+
+| code | class | pose | part: old -> new |
+|---|---|---|---|
+| 1010 | rifle | Aim | RPos -3.5 7.04 6.75 -> 1.82 6.76 6.78; RTurn 0.1 3.5 -4.7 -> -3.1 1.9 -2.2; ElbowR 0.01 -0.98 -0.25 -> 0.15 -0.47 -0.88 |
+| 17010 | pistol | Aim | RPos 3.88 7.97 5.5 -> 3.88 6.07 6.49; RTurn 0.4 9.2 -4.2 -> -1.8 2.2 -2.6 |
+| 17020 | pistol | Run | RPos 4.06 0.96 0.87 (the rifle's) -> 4.06 4.71 0.87; ElbowL 0 -> -0.31 0.16 0.32 (new row) |
+| 18010 | launcher | Aim | RPos -3.5 7.04 6.75 (the rifle's) -> -0.08 0.97 8.49; RTurn 0.1 3.5 -4.7 -> -29.3 2.1 -1.2 (new row) |
+| 19010 | sprayer | Aim | RPos (the rifle's) -> 1.09 8.34 -3.01; RTurn -> 0.3 -0.5 -4.7 (new row) |
+| 20010 | laser cannon | Aim | RPos (the rifle's) -> -8.27 1.59 -4.46; RTurn -> -1.6 4 -2.2 (new row) |
+
+(The grunt's Widowmaker Aim has no row of its own: it takes the rifle's, now his new one, as his game already drew it.)
+**Migration** configVersion 212 (after 211's wider codes and categories): `dropShippedEqual` again. Checked: his two
+lines at version 211, `vr_migrate_config`: `vr_agrunt_pose_dump` before, his 6 rows; after, "(no pose keys changed)";
+`vr_agrunt_pose_key 1010` / `17020` print his values from the defaults (`scratch/pose_table.py ... exact`: 6 keys, 0
+differ).
+
+**Not done here: the IK stretch per kind and category** (the coordinator's second addition): out of this round's
+budget; a design is in the report.
+
+**At the desk:**
+- [ ] Off hand grip offset {test:none}: Rig Studio, Pose Keys (O) on the shotgun grunt in Aim: drag the "left hand: grip offset" dot along its red arrow: the off hand slides along the fore-end, the gun's own axes; its rings roll the hand round the barrel; Ctrl+Z puts it back.
+- [ ] Off hand Free per pose {test:none}: Pose Studio Data, Rifle, Run: Off Hand Free: running grunts with shotguns carry them one-handed, the off hand at their side, and take the fore-end again as they aim (a quarter-second reach, no snap).
+- [ ] His evening poses shipped {test:none}: an empty vr_agrunt_poses: the rifle, pistol, launcher, sprayer and laser cannon aims as you left them.

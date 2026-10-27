@@ -61,6 +61,13 @@ struct Targets
     bool second{false};        // the off hand on the right weapon's second grip (its first Grip hotspot):
     rigpose::Rigid secondAt;   // ... its grip frame there, in the right weapon's frame
     bool cup{false};           // the off hand under and round the right hand (a Cup hotspot)
+    // The pose keys' off hand (agpose GripPos/GripTurn, LPos/LTurn; agent/offhand), when `offKeyed`: on the right weapon
+    // (its second grip, a cup) its grip frame moved by gripOff.pos and turned by gripOff.rot about its grip point, both in
+    // the weapon's frame; hanging free, its grip frame moved by freeOff.pos and turned by freeOff.rot about its grip point
+    // (model space). Not keyed: as before, exactly.
+    bool offKeyed{false};
+    rigpose::Rigid gripOff;
+    rigpose::Rigid freeOff;
     bool reaching{false};      // the right hand reaching for a weapon lying (QC VR_AGP_REACH): eased in as it nears (vr_agarms_reach_ease)
     glm::vec3 pole[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // an elbow's pole wanted (model space; its length the share): a strike's (agent/agstrike)
     // The Rig Studio's animations (vr_rigseq.cpp): a hand's motion (rest -> now: its forearm bone's) given, its goal's
@@ -75,6 +82,7 @@ struct Placed
     bool on[2]{false, false};
     rigpose::Rigid weapon[2];
     bool held2{false}; // the off hand on the second grip (else free)
+    float slid{0.f};   // ... slid back along the weapon from it, out of its reach (units)
     // The arms as solved (model space; the Pose Studio's handles): each hand's grip frame, elbow and shoulder; the chest.
     rigpose::Rigid hand[2];
     glm::vec3 elbow[2]{glm::vec3{0.f}, glm::vec3{0.f}};

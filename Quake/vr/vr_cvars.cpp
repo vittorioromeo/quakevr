@@ -591,8 +591,9 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // vr_lightstyle_comfort 0.5 -> 0; 209: his new weapons' tuning of 2026-10-27, the revolver's swipe 0.5 -> 0.8 m/s;
 // 210: his armed grunts' pose keys of 2026-10-27 shipped: the archived keys equal to them dropped, as at 202; 211: the
 // gun pose categories: the pose keys' code wider (an enforcer's 1xxxx now 10xxxx) and the archived rifle keys laid on
-// every category, agpose::migrateCategories)
-constexpr int configVersion = 211;
+// every category, agpose::migrateCategories; 212: his pose keys of 2026-10-27 evening shipped (the rifle Aim, the
+// Pistol, Launcher, Sprayer and Laser Cannon keys): the archived keys equal to them dropped, after 211's migration)
+constexpr int configVersion = 212;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -773,6 +774,13 @@ void migrateConfig()
         const int laid = agpose::migrateCategories(&widened);
         Con_DPrintf("VR: armed grunts' pose keys: %d in the wider code, %d rifle keys laid on the gun categories\n", widened,
             laid);
+    }
+    if(from < 212)
+    {
+        // (212: his keys of 2026-10-27 evening shipped; after 211's: the codes the new ones, the categories laid on. The
+        // off-hand parts of 2026-10-27 need none: an entry without them reads them as zero, Auto)
+        const int poses = agpose::dropShippedEqual();
+        Con_DPrintf("VR: armed grunts: %d pose keys equal to the new defaults dropped\n", poses);
     }
     if(from < 203 && vr_gunmodelpitch.value != 7.f)
     {

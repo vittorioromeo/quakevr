@@ -2369,11 +2369,24 @@ void PF_weapondrawnpose()
         G_VECTOR(OFS_RETURN)[2] = static_cast<float>(agholds::poseClass(arg / 1000, arg % 1000, nullptr));
         return;
     }
+    if(what >= 25 && what <= 27)
+    {
+        // weapondrawnpose(world, code, 25..27): pose key `code`'s off-hand parts (agpose::GripPos, GripTurn, OffHand:
+        // x its OffMode), '0 0 0' none.
+        const agpose::Key k = agpose::value(static_cast<int>(G_FLOAT(OFS_PARM1)));
+        const glm::vec3 out = k.v[agpose::GripPos + (what - 25)];
+        for(int i = 0; i < 3; i++)
+        {
+            G_VECTOR(OFS_RETURN)[i] = out[i];
+        }
+        return;
+    }
     if(what >= 11 && what <= 19)
     {
         // The armed humanoids' pose keys (vr_agpose.hpp; QC vr_armedgrunt_pose.qc VR_AGK_*), the builtin slots being full:
-        // `hand` a key's code, 11..17 its parts (agpose::Part), 18 '1 0 0' if it has one ('0 0 0': all zero). 19 the Pose
-        // Studio's hold on `player` (an armed humanoid; `hand` its kind * 100 + its weapon class): posestudio::qcHold.
+        // `hand` a key's code, 11..17 its parts (agpose::Part; 25..27 the off hand's, above), 18 '1 0 0' if it has one
+        // ('0 0 0': all zero). 19 the Pose Studio's hold on `player` (an armed humanoid; `hand` its kind * 100 + its weapon
+        // class): posestudio::qcHold.
         const int arg = static_cast<int>(G_FLOAT(OFS_PARM1));
         glm::vec3 out{0.f};
         if(what == 19)
