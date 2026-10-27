@@ -79,6 +79,11 @@ struct Swapped
     short previousPose{0}, currentPose{0};
     float lerpStart{0.f}, lerpTime{0.f};
     byte lerpFlags{0};
+    // vr_debug_ragdoll_look: 1 its skinned model at the entity's own matrix (its bones' rest), 2 its .mdl in pose 0, 3
+    // hidden (0: drawn as a ragdoll); its frame and alpha put back.
+    int look{0};
+    int frame{0};
+    byte alpha{0};
 };
 
 struct DrawState

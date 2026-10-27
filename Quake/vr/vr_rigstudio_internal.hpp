@@ -126,6 +126,11 @@ struct Rom
     rig2::Pose reportFor;
     bool reportValid{false};
     int reportRig{-1};
+    // The held weapons placed on the authored rig's hands (rigstudio::authoredWeapon): each hand's entity, its grip
+    // offset and the frame placed (the weapon test reads them back)
+    int wprop[2]{0, 0};
+    rigpose::Rigid woffset[2];
+    int wframe[2]{-1, -1};
 };
 extern Rom rom;
 

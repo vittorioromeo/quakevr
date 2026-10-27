@@ -7,6 +7,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
+#include "vr_mdldequant.hpp"
 #include "vr_rigdata.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -87,24 +88,17 @@ za::Vector<Made> made;
 bool shadeLikeMdl(qmodel_t* src, const aliashdr_t* sh, iqmvert_t* verts, int numVerts)
 {
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(sh) + sh->meshdesc);
-    const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(sh) + sh->vertexes); // pose 0
-    const bool dequant = sh->dequant && sh->dequantready && VR_MdlDequantOn();
-    const auto* frac = dequant ? reinterpret_cast<const unsigned*>(reinterpret_cast<const byte*>(sh) + sh->dequant) : nullptr;
-    const unsigned* smooth = frac ? frac + static_cast<size_t>(sh->numposes) * static_cast<size_t>(sh->numverts) : nullptr;
     const unsigned char* ao = VR_AliasVertexAO(src, sh); // [pose * numverts + vertex], 255 open
-    const auto snorm = [](unsigned packed, int i) { return za::clamp(static_cast<float>(static_cast<signed char>((packed >> (8 * i)) & 255u)) / 127.f, -1.f, 1.f); };
+    mdldequant::prepare(src); // (its offsets now if not uploaded yet)
     for(int v = 0; v < numVerts; v++)
     {
         const int mv = desc[v].vertindex;
-        const trivertx_t& t = tv[mv];
         iqmvert_t& o = verts[v];
-        const unsigned f = frac ? frac[mv] : 0u;
+        signed char n[3];
+        mdldequant::restVertex(sh, v, o.xyz, n);
         for(int i = 0; i < 3; i++)
         {
-            const float step = static_cast<float>(t.v[i]) + (f ? snorm(f, i) * 0.5f : 0.f);
-            o.xyz[i] = step * sh->scale[i] + sh->scale_origin[i];
-            o.norm[i] = smooth ? static_cast<int8_t>(static_cast<signed char>((smooth[mv] >> (8 * i)) & 255u))
-                               : static_cast<int8_t>(127.f * r_avertexnormals[t.lightnormalindex][i]);
+            o.norm[i] = static_cast<int8_t>(n[i]);
         }
         o.norm[3] = ao ? static_cast<int8_t>(-za::clamp(static_cast<int>(static_cast<float>(ao[mv]) * (127.f / 255.f) + 0.5f), 1, 127)) : 0;
     }

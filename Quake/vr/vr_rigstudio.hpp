@@ -36,5 +36,11 @@ bool pinned(const entity_t* e, const void* aliashdr, short* pose1, short* pose2,
 // relinkSkinned (vr_hitreact.cpp): the subject's arms as solved (its IK targets, grips and weapons, shown).
 [[nodiscard]] bool wantsNotes();
 void note(const posestudio::Note& n);
+// relinkArms (vr_hitreact.cpp), for the subject drawn on the authored rig (Range of Motion, vr_rig2 1: its model swapped
+// to "<model>#rig2"): where its weapon `prop` in hand `side` (0 right, 1 left) goes (model space, `out`): on that rig's
+// hand (the right on its `weapon` bone, the left on `weapon_l` or `hand_l`), the hand's rest grip frame
+// (agarms::ragdollGrip) carried by the bone, the weapon at its grip offset `offset` (the Grip Editor's) from it.
+// False: not the subject, or no rig or grip for that hand.
+bool authoredWeapon(int ent, int side, int prop, const rigpose::Rigid& offset, rigpose::Rigid& out);
 
 } // namespace qvr::rigstudio

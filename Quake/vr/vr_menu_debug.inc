@@ -159,7 +159,13 @@ za::Vector<Item> pageDebugViews()
         command("Rig Studio: Range of Motion (Authored Rig)", "vr_rigstudio;vr_rig2 1;vr_rigstudio_rom on")
             .help("The Rig Studio with its Range of Motion window: the new authored grunt rig (quakevr/rigs/vrgrunt.rig2.txt, "
                   "vr_rig2) posed joint by joint within its limits (sliders, a limb dragged by its end, Sweep, Random "
-                  "Pose), the old rig moved the same way at a click (Mesh drawn on: Old rig). Flat screen only."),
+                  "Pose), the old rig moved the same way at a click (Mesh drawn on: Old rig). On the authored rig its held "
+                  "weapons ride its hands (the right's weapon bone, the left hand) at their grip offsets. Flat screen only."),
+        command("Rig Studio: Test Weapons on the Authored Rig", "vr_rigstudio;vr_rigstudio_rom test weapon")
+            .help("vr_rigstudio_rom test weapon: the subject on the authored rig at rest, an arm raised, a wrist bent, the "
+                  "left arm, two random poses: each held weapon's grip read back from where it is drawn against its hand "
+                  "bone's (within 0.5 units, 2 degrees), a screenshot each; the console says how many passed. Flat screen "
+                  "only; pick a dual-wielding subject first (Subject menu) to test the left hand too."),
         command("Check the Authored Grunt Rig", "vr_rig2_check")
             .help("vr_rig2_check: the authored rig swept through every joint's range, joint pairs and 1000 random poses: "
                   "see-through holes, flipped and collapsed triangles, sharp folds, stretch, beside the old rig moved the "
@@ -412,6 +418,13 @@ za::Vector<Item> pageDebugLogging()
                   "also each second the most sent: the broadcast, the reliable messages, a client's own data and entities."),
         toggle("Ragdolls", vr_debug_ragdoll)
             .help("vr_debug_ragdoll: each ragdoll made (when it went limp, its parts), each push on it and each blast's throw."),
+        cycle("Ragdolls' Look Check", vr_debug_ragdoll_look, {{0.f, "Off"}, {1.f, "Skinned Copy at Rest"}, {2.f, "Its .mdl at Rest"}, {3.f, "Hidden"}})
+            .help("vr_debug_ragdoll_look: each ragdoll drawn in its model's rest pose where its entity stands, as its "
+                  "skinned copy or as its own .mdl (the live monster's look): the two should look the same. "
+                  "vr_ragdoll_draw_info in the console: the renderer's data for each that differ."),
+        command("Print the Ragdolls' Drawing", "vr_ragdoll_draw_info")
+            .help("vr_ragdoll_draw_info: each ragdoll drawn, the renderer's data for its skinned copy beside its .mdl's "
+                  "(light, occlusion group, wounds, retro textures): the values that differ."),
         toggle("Ragdolls' Weapons in Hand", vr_debug_ragdoll_gun)
             .help("vr_debug_ragdoll_gun: every 0.25 s, each ragdoll's held weapon (an enforcer's rifle, a grunt's shotgun, "
                   "a knight's sword, an ogre's chainsaw) as drawn: how far from the part holding it, beside the rest "

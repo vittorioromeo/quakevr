@@ -24218,3 +24218,56 @@ against old 0.00). `vr_rig2_check` 33 passed, 2 failed (as before); `vr_rigstudi
 studio at 250 fps): GPU frame 0.314 ms authored / 0.309 old, models 0.037 / 0.033 ms; CPU models 0.035 / 0.033 ms.
 `vr_modelmetadata_test` stops at an older failure (`owned/mg3/progs/v_hammer.mdl` against rule `progs/`), not this.
 - [ ] Authored rig drawing {test:none}: Rig Studio > Range of Motion, Mesh drawn on Authored rig vs Old rig in the same pose, up close (face, hands, chest): the same texture resolution, shading and smoothness
+
+
+## Grunt rig stage 1: the held weapons ride the authored rig's hands (2026-10-27, worktree `fastship`, branch `agent/rig2weapon`)
+
+"The weapon isn't posed when 'authored rig' is selected": on the authored rig the subject's model is swapped to
+`<model>#rig2` before `VR_RelinkArmedGrunts`, so `relinkArms` found no armed rig for it and its weapons stayed where the
+server put them. Now `relinkArms` sends a swapped subject (`rig2::sourceModel`) to `relinkAuthored`: no arm solve (the
+pose is the studio's), each held weapon placed by `rigstudio::authoredWeapon`: the hand's rest grip frame
+(`agarms::ragdollGrip`, the one the old rig's solve uses) carried by the authored rig's bone as drawn this frame
+(`rom.F`: the right on its `weapon` bone, fixed on `hand_r`; the left on `weapon_l` if a rig has one, else `hand_l`,
+the same motion: no left weapon bone added), then the weapon at its grip offset (`gripRigid`: the kind's global one,
+the weapon's own on top). Old rig: unchanged (the arms' solve). The game: unchanged (only the studio's subject is ever
+swapped; `vr_rig2` 0). The weapon is still the same entity, drawn as before (skins, muzzle flash, magazines).
+
+Test: `vr_rigstudio_rom test weapon` (Debug > Tools > Rig Studio: Test Weapons on the Authored Rig; ends on
+`rigstudio rom weapon: N passed, M failed`): at rest, the right arm raised, the right wrist bent, the left arm and
+wrist, two random poses; each weapon's grip read back from its drawn entity (origin, angles, through its grip offset)
+against the hand bone's grip place: shotgun 6/6, dual revolvers 12/12, every one 0.000 units, 0.00 deg (before the
+test waited for the console to be up, a just-stood subject read 0.34 then 0.07 units: its drawn origin settling). `vr_rigstudio_rom test` (it now also
+waits for its subject) 9/9, `_test_subjects` 14/14, `_test_aim` 4/4, `_test_posekeys` 10/10; `vr_rig2_check` 33/35 (as
+before); eval.sh no verdict changes. Note: `vr_rigstudio_rom test` rewrites `quakevr/rigs/vrgrunt.rig2.txt` (its save
+check; line endings and comments): `git checkout` it after a run.
+- [ ] Authored rig weapons {test:none}: Rig Studio > Range of Motion, Mesh drawn on Authored rig: Random Pose, drag the right arm and bend the wrist: the shotgun stays in the hand at its grip; Subject two revolvers: the left one follows the left hand; Old rig: as before
+## Ragdolls drawn as the live monster (worktree `goreflesh`, branch `agent/ragao`, 2026-10-27)
+
+A ragdoll is drawn with a skinned copy of its `.mdl` ("<model>#rag"); lookups keyed on the entity's bones or the
+model's name took it for something else. Causes and fixes:
+- Occlusion (vr_ao.cpp): any bone-posed entity was taken for your body: the player's group (1; the monster's own: 2+)
+  and `addBody`'s occluders from your body's joint names (a ragdoll has none: no occluder at all). Now
+  `render::sourceModel(e)` (the `.mdl` a `#rag` or `#rig2` copy stands for; vr_render.cpp) gives it a monster's own group
+  and an occluder round its body as drawn (`ragdoll::drawnBox`: its bones' ends and thickness, along it level, filled as a
+  monster's frame box).
+- Shading (VR_SyntheticModel): the copy's vertices were the stored bytes with the table's normals; the `.mdl` is drawn
+  dequantised with smoothed normals (vr_mdl_dequant). Both copies now take them from `mdldequant::restVertex` (rig2's
+  `shadeLikeMdl` uses it too), `prepare`d first. Its per-vertex occlusion stays its death poses' average (by design).
+- Retro textures: overrides by model name missed the copy. `modelOverride` now takes a `#`-tagged model's own override,
+  else its file's (`modelmeta::sourceName`: `#rag`, `#rig2`, `#vr`, `#melee`, `#adv<n>`, `#gun<n>`).
+- Wound masks across the swap: `sameLayout` uses `modelmeta::skinnedCopy` + `sourceName` (same behaviour).
+- Checked and already the same (`vr_ragdoll_draw_info`: every instance value equal after): skins and fullbright
+  textures (the `.mdl`'s pointers), normal maps (by texture), retro skin size and lighting share (`quakeSkin`), category,
+  wounds, dents, stumps (the ragdoll's own), light, rim light, parallax, model flags.
+
+Debug (the Debug menu, beside Ragdolls: Ragdolls' Look Check, Print the Ragdolls' Drawing): `vr_debug_ragdoll_look` 1 each ragdoll's
+copy at rest where its entity stands, 2 its `.mdl` in pose 0 there, 3 hidden; `vr_ragdoll_draw_info` the renderer data
+of copy and `.mdl` side by side. Test: `scratch/ragao_test.sh` (vrfiringrange, a dead monster, paused; shots .mdl,
+hidden, copy, hidden, .mdl; mean difference over the model). Before / after (mean /255, the `.mdl` twice in brackets):
+grunt 19.7 / 16.1 (2.6), enforcer 21.1 / 18.6 (0.4), ogre 18.8 / 7.3 (3.9); retro on the same (retro textures resolve to
+no set for monsters here). Left: the copy's death-pose occlusion (grunt 16.1 -> 10.1 with `vr_ao_models 0`) and an
+older difference of the skeletal path itself, fullbright 13.5 / 11.7 with the same textures, UVs, places and silhouette
+box (not found). Not measured: an AD monster (`vr_test_spawn_dead` is for id's monsters only; the AD ones tried did not
+become ragdolls). `vr_ao_show` with 8 grunt ragdolls: 28 -> 36 occluders (one each, groups 2-9), choosing them 0.010
+ms either way. eval.sh: no verdict changes; ragdoll_test flat: as before (first drawn 1.02 rms).
+- [ ] Ragdolls look as alive {test:none}: kill a grunt, an ogre and an enforcer in a bright room and walk round the corpses: the same shading, smoothness and skin as alive, darkening the floor under them as a live monster does
