@@ -12,6 +12,7 @@
 #include "vr_poselive.hpp"
 #include "vr_posestudio.hpp"
 #include "vr_rigseq.hpp"
+#include "vr_rig2.hpp"
 #include "vr_rigstudio.hpp"
 #include "vr_view.hpp"
 #include "vr_render.hpp"
@@ -2675,6 +2676,12 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     {
         return;
     }
+    if(rig->authored)
+    {
+        // vr_rig2 1: drawn on the authored rig, its arms laid on its arm bones within their limits, its weapons carried
+        // by its hands as drawn (vr_rig2_game.cpp)
+        rig2::liveArmed(e, *rig, posed, kicked ? kick : nullptr, placed, pose1, pose2, blend);
+    }
     if(ArmPose* seen = armPoseOf(s.ent, false))
     {
         seen->seenFrame = host_framecount;
@@ -3971,6 +3978,17 @@ void armErr_f()
 }
 
 } // namespace
+
+void resetModels()
+{
+    for(int i = 0; i < numArmedRigs; i++)
+    {
+        armModels[i] = ArmModel{};
+        misfits[i] = Misfit{};
+        armIk.left[i] = LeftHand{};
+        armIk.right[i] = LeftHand{};
+    }
+}
 
 void registerCommands()
 {

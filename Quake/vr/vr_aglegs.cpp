@@ -842,6 +842,11 @@ void loadState(int ent, const unsigned char* in, int len)
     memcpy(st, in, sizeof(Ent));
 }
 
+void resetModels()
+{
+    state = State{};
+}
+
 } // namespace qvr::aglegs
 
 namespace

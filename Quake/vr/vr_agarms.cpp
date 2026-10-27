@@ -1863,6 +1863,9 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         out.elbow[s] = arms[s].elbow;
         out.shoulder[s] = arms[s].S;
         out.clavicle[s] = rigpose::apply(C, m->side[s].K);
+        out.upperM[s] = arms[s].U;
+        out.foreM[s] = arms[s].F;
+        out.handM[s] = arms[s].H;
         out.chest = C;
         out.reach[s] = arms[s].miss;
         out.pushed[s] = pushedBy[s];
@@ -2255,6 +2258,11 @@ bool qvr::agarms::shoulderLimits(const qmodel_t* model, int bone, ShoulderInfo& 
         }
     }
     return false;
+}
+
+void qvr::agarms::resetModels()
+{
+    state = State{};
 }
 
 void qvr::agarms::registerCommands()

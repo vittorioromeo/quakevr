@@ -105,5 +105,6 @@ bool drawnWeaponTurn(int prop, glm::vec3& turn, glm::vec3& off);
 
 // vr_hit_react_trace, vr_hit_react_info (Debug > Tests).
 void registerCommands();
+void resetModels(); // the armed rigs' models forgotten (vr_rig2's latch: the grunt's rig another; made again as drawn)
 
 } // namespace qvr::hitreact

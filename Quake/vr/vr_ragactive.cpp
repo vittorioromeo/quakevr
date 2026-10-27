@@ -4254,7 +4254,7 @@ void drive(State& s, const Parts& p, const Context& c)
             continue;
         }
         any = true;
-        const glm::quat frame = ragpose::jointFrame(bone);
+        // (the joint's frames: ragpose::jointFrameA, jointFrameB; the authored rig's differ)
         const glm::quat qp = bodyRot(p, bone.parent);
         const GroupGains& gg = groupGains(channelOf(bone)); // (vr_ragdoll_active_*_<group>: 1 each by default)
         // (Struggling, its class's arm drive: its arms' springs stiffer, their cap too: struggleFrame's arms.)
@@ -4264,7 +4264,7 @@ void drive(State& s, const Parts& p, const Context& c)
         const float jointDamping = damping * gg.damping;
         if(bone.joint == ragdoll::Joint::Ball)
         {
-            const glm::quat q = ragpose::clampSwingTwist(ragpose::toJoint(frame, s.target[i]), s.lower[i] * 0.95f, s.upper[i] * 0.95f);
+            const glm::quat q = ragpose::clampSwingTwist(ragpose::toJoint(bone, s.target[i]), s.lower[i] * 0.95f, s.upper[i] * 0.95f);
             b3SphericalJoint_EnableSpring(j, true);
             b3SphericalJoint_SetSpringHertz(j, hertz);
             b3SphericalJoint_SetSpringDampingRatio(j, jointDamping);
@@ -4276,7 +4276,7 @@ void drive(State& s, const Parts& p, const Context& c)
         else
         {
             const float lo = za::min(s.lower[i], s.upper[i]) * 0.98f, hi = za::max(s.lower[i], s.upper[i]) * 0.98f;
-            const float angle = za::clamp(ragpose::twistZ(ragpose::toJoint(frame, s.target[i])), lo, hi);
+            const float angle = za::clamp(ragpose::twistZ(ragpose::toJoint(bone, s.target[i])), lo, hi);
             b3RevoluteJoint_EnableSpring(j, true);
             b3RevoluteJoint_SetSpringHertz(j, hertz);
             b3RevoluteJoint_SetSpringDampingRatio(j, jointDamping);

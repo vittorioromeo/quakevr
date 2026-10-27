@@ -6,6 +6,7 @@
 
 #include "vr_box3d_internal.hpp"
 #include "vr_agarms.hpp"
+#include "vr_rig2.hpp"
 
 namespace box3d::detail
 {
@@ -829,6 +830,10 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
     // ragdoll takes over (vr_hitreact.cpp ragdollProps), and a tug's hold on it stays under the hand that took it.
     const auto drawnBone = [&](int b, glm::quat& rot, glm::vec3& pos) {
         ragdoll::bonePose(*rig, drawnPose, b, rot, pos);
+        if(rig->authored && rig2::drawnBone(num, b, rot, pos))
+        {
+            return; // (vr_rig2 1: where the authored rig drew it, its arms on its weapons too: vr_rig2_game.cpp)
+        }
         if(vr_ragdoll_posed_arms.value != 0.f)
         {
             (void)agarms::drawnArmBone(num, model, *rig, b, rot, pos);
@@ -926,16 +931,16 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
         drawnBone(b, rc, tc);
         const glm::vec3 at = ((rp * bone.pivot + tp) + (rc * bone.pivot + tc)) * 0.5f;
         const glm::vec3 inParent = glm::inverse(rp) * (at - tp) * k, inChild = glm::inverse(rc) * (at - tc) * k;
-        const glm::quat frame = ragpose::jointFrame(bone); // (a hinge's axis, else the bone's rest direction: z)
+        const glm::quat frameA = ragpose::jointFrameA(bone), frameB = ragpose::jointFrameB(bone); // (a hinge's axis, else the bone's rest direction: z; the authored rig's cone round its middle)
         const float limits = limitsAll * groupLimits(bone); // (vr_ragdoll_limits_<group>: 1 each by default)
         const auto setBase = [&](b3JointDef& base) {
             base.bodyIdA = r.body[static_cast<za::SizeT>(bone.parent)];
             base.bodyIdB = r.body[static_cast<za::SizeT>(b)];
-            base.localFrameA = b3Transform{b3v(inParent), toB3(frame)};
-            base.localFrameB = b3Transform{b3v(inChild), toB3(frame)};
+            base.localFrameA = b3Transform{b3v(inParent), toB3(frameA)};
+            base.localFrameB = b3Transform{b3v(inChild), toB3(frameB)};
             // Corpses need shoulder contact too: the upper arm is directly jointed to the chest.
             // preSolve exempts the socket itself, so its necessary joint overlap cannot fight the constraint.
-            base.collideConnected = !r.knocked &&
+            base.collideConnected = !r.knocked && !bone.framed && // (the authored rig: on its clavicle, its chest no neighbour)
                 strncmp(bone.name, "upperarm", 8) == 0;
         };
         if(bone.joint == ragdoll::Joint::Ball)
@@ -944,6 +949,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
             setBase(jd.base);
             jd.enableConeLimit = true;
             jd.coneAngle = za::min(bone.cone * limits, glm::pi<float>());
+            jd.coneAngleY = bone.coneY > 0.f ? za::min(bone.coneY * limits, glm::pi<float>()) : 0.f; // (the authored rig's ellipse)
             jd.enableTwistLimit = true;
             jd.lowerTwistAngle = -za::min(bone.twist * limits, 0.99f * glm::pi<float>());
             jd.upperTwistAngle = za::min(bone.twist * limits, 0.99f * glm::pi<float>());

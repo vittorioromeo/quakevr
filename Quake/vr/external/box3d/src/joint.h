@@ -219,6 +219,8 @@ typedef struct b3SphericalJoint
 	float lowerTwistAngle;
 	float upperTwistAngle;
 	float coneAngle;
+	float coneAngleY;   // Quake VR: the ellipse's half angle toward frameA's y (0: round)
+	float coneAngleNow; // ... the cone's half angle toward the swing's direction (b3PrepareSphericalJoint)
 	b3Quat targetRotation;
 
 	int indexA;

@@ -399,4 +399,9 @@ void loadState(int ent, const unsigned char* in, int len)
     memcpy(st, in, sizeof(Upper));
 }
 
+void resetModels()
+{
+    state = State{};
+}
+
 } // namespace qvr::agbody

@@ -76,6 +76,7 @@ struct Placed
 bool placed(int ent, Placed& out);
 
 void registerCommands(); // vr_aglegs_info
+void resetModels();      // the models' legs and the entities' forgotten (vr_rig2's latch: the grunt's rig another)
 
 // The Pose Studio's Live tape (vr_poselive.hpp): `ent`'s state here (its eases, its last frame's) as bytes, its length
 // returned (0: none); and put back (a length of 0: dropped).

@@ -25,6 +25,19 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+namespace qvr::ragdoll
+{
+struct Rig;
+}
+namespace qvr::agarms
+{
+struct Placed;
+}
+namespace qvr::aglegs
+{
+struct Placed;
+}
+
 namespace qvr::rig2
 {
 
@@ -129,5 +142,60 @@ struct Faults
 [[nodiscard]] bool measurePose(qmodel_t* model, const Pose& pose, bool old, Faults& out);
 
 void init(); // its commands (vr_rig2_check, vr_rig2_info, vr_rig2_reload)
+
+// ---- Stage 2: the game on the authored rig (vr_rig2 1; ROUND22.md, "Grunt rig, stage 2"; vr_rig2_game.cpp) ----
+// vr_rig2 1 makes the grunt's ragdoll rig (vr_ragdoll.cpp rigFor: its bones, joints, limits and blended skin the authored
+// rig's), its live drawing (its frames' fits, hit reactions, an armed one's arms and legs, on the authored bones, drawn
+// with "<model>#rig2") and everything made from its rig. Read when a map is spawned (latch: the rigs and what is made
+// from them made again); changed mid-map, the next map takes it.
+[[nodiscard]] bool gameOn();
+void latch(); // VR_NoteMapSpawn (and the first use): vr_rig2 read; the models' rig-made data reset if it changed
+// A joint's local turn (rest -> pose, the parent's rest space) as its angles (unclamped: forward's inverse).
+[[nodiscard]] glm::vec3 anglesOf(const Rig& rig, int b, const glm::quat& local);
+// A joint's local turn from its angles (forward's per joint).
+[[nodiscard]] glm::quat localOf(const Rig& rig, int b, const glm::vec3& angles);
+// A joint as Box3D's (vr_box3d_ragdoll.cpp): its frames in the parent's and its own rest space; a ball's elliptical cone
+// round its swing's middle (half angles, rad, toward frameA's x and y) and its twist either way (rad, round its middle);
+// a hinge's range from the rest pose (rad).
+struct PhysJoint
+{
+    glm::quat frameA{1.f, 0.f, 0.f, 0.f}, frameB{1.f, 0.f, 0.f, 0.f};
+    float coneX{0.f}, coneY{0.f}, twist{0.f}, lower{0.f}, upper{0.f};
+};
+[[nodiscard]] PhysJoint physJoint(const Rig& rig, int b);
+// The skinned copy ("<model>#rig2") drawn for `model` now (made again after the rig's file changed, its occlusion caught
+// up): a ragdoll's (vr_ragdoll.cpp swapModels) and a live one's. Null: none.
+[[nodiscard]] qmodel_t* skinnedFor(const qmodel_t* model);
+// A live entity drawn on the authored rig this frame (the game's: vr_rig2_game.cpp): `F` its bones (rest -> drawn, model
+// space). The Rig Studio's own pose (drawPosed) wins over it.
+void drawLive(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, uint32_t hidden = 0); // (hidden: bones collapsed)
+// Entity `num`'s bone `b` as last drawn on the authored rig (rest -> drawn, model space) if drawn in the last frames (a
+// ragdoll made of it starts there: vr_box3d_ragdoll.cpp). False: not drawn so lately.
+bool drawnBone(int num, int b, glm::quat& rot, glm::vec3& pos);
+[[nodiscard]] bool drawnNow(int num); // published for this frame already (drawLive, drawPosed)
+// Entity `num` as it is outside a frame's drawing (its own model and lerp, not its swapped copy's). False: none.
+bool unswapped(int num, entity_t& out);
+
+// vr_rig2_game.cpp: what the game draws on the authored rig.
+void resetGame(); // the latch changed: what was made from the grunt's rig made again (ragdoll rigs, arm skins, legs...)
+// The bones between the frame lerp's two poses: each bone's local motion on its parent blended (its turn about its
+// joint), carried down the rig.
+void posedBetween(const ragdoll::Rig& rig, int pose1, int pose2, float blend, rigpose::Rigid* out);
+// An armed one's arms (agarms' solve) on the authored bones within their limits: `F` every bone as drawn, its arm bones
+// (clavicle, upper arm, forearm, hand, the weapon on the right hand) set from `placed`; `weaponCorr` each hand's drawn
+// motion against the solve's (its weapon carried by it).
+void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, rigpose::Rigid* weaponCorr);
+// A take's legs (aglegs' solve) on the leg bones (thigh at the knee, the shin's hinge at the ankle, the foot at the toe).
+void legsOnRig(const Rig& a, const aglegs::Placed& lp, rigpose::Rigid* F);
+// hitreact.cpp relinkSkinned: an armed one drawn on the authored rig, its bones `posed` and kicked as that solve has
+// them, its arms and legs laid on; its weapons in `placed` carried by its hands as drawn.
+void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const rigpose::Rigid* kick,
+    agarms::Placed& placed, int pose1, int pose2, float blend);
+// Every other live entity on an authored rig drawn so (VR_RagdollSwap, before swapModels): its frames, its kicks.
+void advanceLerps(); // VR_RagdollSwap (before the armed ones' arms): their frame lerps advanced, their .mdl drawn no more
+void liveAll();
+void armsReport_f(); // vr_rig2_arms: the arms laid on the authored rig since it last printed
+void liveCheck_f();   // vr_rig2_live_check: the live ones drawn on the authored rig against their frames
+void framesCheck_f(); // vr_rig2_frames [model]: its frames against the authored joints as the ragdoll has them
 
 } // namespace qvr::rig2

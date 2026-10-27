@@ -710,6 +710,57 @@ struct Fit
     }
 };
 
+// ... weighted: the best rigid transform for pairs each weighing `w` (the authored rig's blended vertices).
+struct WeightedFit
+{
+    glm::vec3 sa{0.f}, sb{0.f};
+    float s[3][3]{};
+    float w{0.f};
+    int n{0};
+
+    void add(const glm::vec3& a, const glm::vec3& b, float k)
+    {
+        sa += a * k;
+        sb += b * k;
+        for(int i = 0; i < 3; i++)
+        {
+            for(int j = 0; j < 3; j++)
+            {
+                s[i][j] += k * a[i] * b[j];
+            }
+        }
+        w += k;
+        n++;
+    }
+
+    void solve(glm::quat& rot, glm::vec3& pos) const
+    {
+        if(w <= 1e-9f)
+        {
+            rot = glm::quat{1.f, 0.f, 0.f, 0.f};
+            pos = glm::vec3{0.f};
+            return;
+        }
+        const glm::vec3 ca = sa / w, cb = sb / w;
+        float m[3][3];
+        for(int i = 0; i < 3; i++)
+        {
+            for(int j = 0; j < 3; j++)
+            {
+                m[i][j] = s[i][j] - w * ca[i] * cb[j];
+            }
+        }
+        const float sxx = m[0][0], sxy = m[0][1], sxz = m[0][2], syx = m[1][0], syy = m[1][1], syz = m[1][2], szx = m[2][0],
+                    szy = m[2][1], szz = m[2][2];
+        float nm[4][4] = {{sxx + syy + szz, syz - szy, szx - sxz, sxy - syx},
+            {syz - szy, sxx - syy - szz, sxy + syx, szx + sxz},
+            {szx - sxz, sxy + syx, -sxx + syy - szz, syz + szy},
+            {sxy - syx, szx + sxz, syz + szy, -sxx - syy + szz}};
+        rot = largestEigenQuat(nm);
+        pos = cb - rot * ca;
+    }
+};
+
 // ----------------------------------------------------------------------------
 // The derivation.
 
@@ -1439,6 +1490,275 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
 }
 
 // ----------------------------------------------------------------------------
+// vr_rig2 1 (ROUND22.md, "Grunt rig, stage 2"): the authored rig (vr_rig2.cpp, quakevr/rigs/<model>.rig2.txt) as the
+// ragdoll rig, not derived: its bones in its order (its "weapon", fixed on the right hand, a loose bone), its joints and
+// limits (Bone::framed: a ball's elliptical cone round its swing's middle, a hinge's range from its rest bend), each
+// part's hull of the vertices weighing at least hullShare on it, each vertex's blended weights (Rig::weights; vertBone
+// its heaviest), and each frame's bone motions fitted to the frame's vertices by their weights (Horn's, weighted), each
+// bone's pivot held to its parent's as fitted (a heavy pair: the small bones, a clavicle or a hand, keep to their joints).
+constexpr float hullShare = 0.5f; // a vertex in a part's hull with at least this weight on its bone
+constexpr float fitShare = 0.25f; // ... in its bone's fit with at least this (weighing its weight)
+
+bool fromAuthored(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, const rig2::Rig& a, Rig& rig, DeriveLog& log)
+{
+    const double t0 = Sys_DoubleTime();
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || hdr->numverts != table.numVerts ||
+        Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) || a.numBones < 2 || a.numBones > maxBones ||
+        static_cast<int>(a.weights.size()) != hdr->numverts)
+    {
+        q_snprintf(log.text, sizeof(log.text), "ragdoll: %s: its authored rig doesn't fit it (%d bones, %d weights, %d vertices): "
+            "the derived rig\n", model->name, a.numBones, static_cast<int>(a.weights.size()), hdr ? hdr->numverts : 0);
+        log.developer = false;
+        return false;
+    }
+    Mesh m;
+    if(!loadMesh(hdr, m))
+    {
+        return false;
+    }
+    const int nb = a.numBones, nv = m.nv, np = m.np;
+    rig.model = model;
+    rig.authored = true;
+    rig.numBones = nb;
+    rig.numVerts = nv;
+    rig.numPoses = np;
+    for(int b = 0; b < nb; b++)
+    {
+        const rig2::Bone& s = a.bones[b];
+        Bone& bone = rig.bones[b];
+        q_strlcpy(bone.name, s.name, sizeof(bone.name));
+        bone.role = modelmeta::boneRole(bone.name);
+        rig.head = bone.role == modelmeta::BoneRole::Head ? b : rig.head;
+        bone.pivot = s.pivot;
+        bone.end = s.end;
+        bone.parent = s.parent;
+        if(s.joint == rig2::Joint::Fixed)
+        {
+            bone.joint = Joint::Loose; // (his gun: dropped as he dies, welded to his hand when knocked down)
+            bone.parent = -1;
+            continue;
+        }
+        if(s.joint == rig2::Joint::Root)
+        {
+            bone.joint = Joint::Root;
+            continue;
+        }
+        const rig2::PhysJoint j = rig2::physJoint(a, b);
+        bone.framed = true;
+        bone.frameA = j.frameA;
+        bone.frameB = j.frameB;
+        if(s.joint == rig2::Joint::Ball)
+        {
+            bone.joint = Joint::Ball;
+            bone.cone = j.coneX;
+            bone.coneY = j.coneY;
+            bone.twist = j.twist;
+        }
+        else
+        {
+            bone.joint = Joint::Hinge;
+            bone.hinge = glm::length(s.axis) > 1e-4f ? glm::normalize(s.axis) : glm::vec3{0.f, 1.f, 0.f};
+            bone.lower = j.lower;
+            bone.upper = j.upper;
+        }
+    }
+    // The blended weights (the heaviest first), each vertex's heaviest bone.
+    rig.weights.resize(static_cast<za::SizeT>(nv));
+    rig.vertBone.resize(static_cast<za::SizeT>(nv), 0);
+    for(int v = 0; v < nv; v++)
+    {
+        const rig2::Weights& w = a.weights[static_cast<za::SizeT>(v)];
+        ragdoll::VertWeights& o = rig.weights[static_cast<za::SizeT>(v)];
+        int order[rig2::maxWeights] = {0, 1, 2, 3};
+        const int n = za::clamp(w.n, 0, 4);
+        for(int i = 0; i < n; i++)
+        {
+            for(int k = i + 1; k < n; k++)
+            {
+                if(w.w[order[k]] > w.w[order[i]])
+                {
+                    const int x = order[i];
+                    order[i] = order[k];
+                    order[k] = x;
+                }
+            }
+        }
+        o.n = 0;
+        for(int i = 0; i < n; i++)
+        {
+            const int bone = w.bone[order[i]];
+            if(bone < 0 || bone >= nb || w.w[order[i]] <= 0.f)
+            {
+                continue;
+            }
+            o.bone[o.n] = static_cast<uint8_t>(bone);
+            o.w[o.n] = w.w[order[i]];
+            o.n++;
+        }
+        if(o.n == 0)
+        {
+            o.n = 1;
+            o.bone[0] = 0;
+            o.w[0] = 1.f;
+        }
+        float sum = 0.f;
+        for(int i = 0; i < o.n; i++)
+        {
+            sum += o.w[i];
+        }
+        for(int i = 0; i < o.n; i++)
+        {
+            o.w[i] /= za::max(sum, 1e-6f);
+        }
+        rig.vertBone[static_cast<za::SizeT>(v)] = o.bone[0];
+    }
+    const auto weightOn = [&](int v, int b) {
+        const ragdoll::VertWeights& w = rig.weights[static_cast<za::SizeT>(v)];
+        for(int i = 0; i < w.n; i++)
+        {
+            if(w.bone[i] == b)
+            {
+                return w.w[i];
+            }
+        }
+        return 0.f;
+    };
+    za::Vector<int> reps; // (each place once)
+    for(int v = 0; v < nv; v++)
+    {
+        if(m.rep[static_cast<za::SizeT>(v)] == v)
+        {
+            reps.pushBack(v);
+        }
+    }
+    // Each part's hull: its vertices weighing hullShare or more on it (else those it is the heaviest of).
+    for(int b = 0; b < nb; b++)
+    {
+        Bone& bone = rig.bones[b];
+        bone.points.clear();
+        for(const int v : reps)
+        {
+            if(weightOn(v, b) >= hullShare)
+            {
+                bone.points.pushBack(m.at(0, v));
+            }
+        }
+        if(bone.points.size() < 4)
+        {
+            bone.points.clear();
+            for(const int v : reps)
+            {
+                if(rig.vertBone[static_cast<za::SizeT>(v)] == b)
+                {
+                    bone.points.pushBack(m.at(0, v));
+                }
+            }
+        }
+    }
+    // Each frame's fits, parents first (the rig's order); a bone with too few vertices of its own carried by its parent.
+    rig.poseRot.resize(static_cast<za::SizeT>(np * nb));
+    rig.posePos.resize(static_cast<za::SizeT>(np * nb));
+    rig.poseHidden.resize(static_cast<za::SizeT>(np * nb), 0);
+    double err2 = 0.0;
+    za::SizeT errN = 0;
+    for(int pose = 0; pose < np; pose++)
+    {
+        glm::quat* R = rig.poseRot.data() + static_cast<za::SizeT>(pose * nb);
+        glm::vec3* T = rig.posePos.data() + static_cast<za::SizeT>(pose * nb);
+        for(int b = 0; b < nb; b++)
+        {
+            const Bone& bone = rig.bones[b];
+            WeightedFit f;
+            glm::vec3 lo{1e30f}, hi{-1e30f};
+            int own = 0;
+            for(const int v : reps)
+            {
+                const float w = weightOn(v, b);
+                if(w >= fitShare)
+                {
+                    f.add(m.at(0, v), m.at(pose, v), w);
+                }
+                if(w >= hullShare)
+                {
+                    lo = glm::min(lo, m.at(pose, v));
+                    hi = glm::max(hi, m.at(pose, v));
+                    own++;
+                }
+            }
+            const glm::vec3 size = hi - lo;
+            rig.poseHidden[static_cast<za::SizeT>(pose * nb + b)] =
+                own > 0 && za::max(size.x, za::max(size.y, size.z)) < 0.5f ? 1 : 0;
+            const int p = bone.parent;
+            if(p >= 0 && p < b && bone.joint != Joint::Loose)
+            {
+                if(f.n < 3)
+                {
+                    R[b] = R[p];
+                    T[b] = T[p];
+                    continue;
+                }
+                const glm::vec3 joint = R[p] * bone.pivot + T[p]; // (its pivot where its parent carries it)
+                f.add(bone.pivot, joint, za::max(1.f, 0.5f * f.w));
+            }
+            f.solve(R[b], T[b]);
+        }
+        // How near the blend of the fits comes to the frame (vr_ragdoll_info's "bones rms").
+        for(const int v : reps)
+        {
+            const ragdoll::VertWeights& w = rig.weights[static_cast<za::SizeT>(v)];
+            if(rig.poseHidden[static_cast<za::SizeT>(pose * nb + w.bone[0])])
+            {
+                continue;
+            }
+            glm::vec3 q{0.f};
+            for(int i = 0; i < w.n; i++)
+            {
+                q += w.w[i] * (R[w.bone[i]] * m.at(0, v) + T[w.bone[i]]);
+            }
+            const glm::vec3 d = q - m.at(pose, v);
+            err2 += static_cast<double>(glm::dot(d, d));
+            errN++;
+        }
+    }
+    rig.boneRms = static_cast<float>(za::sqrt(err2 / static_cast<double>(za::max<za::SizeT>(errN, 1))));
+    rig.clusterRms = 0.f;
+    rig.triBones.clear();
+    {
+        const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+        const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+        for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+        {
+            uint32_t bits = 0;
+            for(int k = 0; k < 3; k++)
+            {
+                bits |= 1u << rig.vertBone[static_cast<za::SizeT>(desc[idx[i + k]].vertindex)];
+            }
+            bool known = false;
+            for(const uint32_t b : rig.triBones)
+            {
+                known = known || b == bits;
+            }
+            if(!known)
+            {
+                rig.triBones.pushBack(bits);
+            }
+        }
+    }
+    rig.hideLoose = table.looseWeapons;
+    rig.looseInHands = table.loosePerPiece || table.looseKept;
+    rig.deaths = table.deaths;
+    for(int i = 0; i < table.deaths; i++)
+    {
+        rig.deathFirst[i] = table.deathFirst[i];
+        rig.deathLast[i] = table.deathLast[i];
+    }
+    rig.deriveMs = (Sys_DoubleTime() - t0) * 1000.0;
+    q_snprintf(log.text, sizeof(log.text), "ragdoll: %s rigged from its authored rig: %d bones, its blend %.2f units rms off its frames, "
+        "%.1f ms\n", model->name, nb, rig.boneRms, rig.deriveMs);
+    return true;
+}
+
+// ----------------------------------------------------------------------------
 // The rigs kept on disk (vr_ragdoll_rig_cache; vr_diskcache.hpp, cache/rigs): a map's monsters' rigs read back
 // instead of derived (tens of ms each, at every map load of every session). BUMP rigVersion whenever derive, loadMesh,
 // their constants or a seed table (vr_ad_rigs.inc's too) change. vr_ragdoll_rig_cache 2 derives anyway and compares.
@@ -1659,6 +1979,28 @@ struct RigCache
 };
 mem::Cache<RigCache> rigCache{"ragdoll rigs", mem::GameDirChange}; // (not a model reload: ragdolls point to their rigs)
 qvr::jobs::Site warmSite{"ragdoll rigs"}; // (warmRigs' parallelFor: vr_jobs_sites)
+
+// The rigs made from the authored rigs (vr_rig2 1: fromAuthored), apart (both kept: a ragdoll points to its own); those
+// of an older file (retireAuthored: a map spawned after the file changed) kept too, no more handed out.
+struct AuthoredRigs
+{
+    za::Vector<za::UniquePtr<Rig>> rigs, retired;
+    za::Vector<const qmodel_t*> failed;
+    auto members() { return mem::list(rigs, retired, failed); }
+};
+mem::Cache<AuthoredRigs> authoredRigs{"ragdoll rigs (authored)", mem::GameDirChange};
+
+[[nodiscard]] Rig* findAuthored(const qmodel_t* model)
+{
+    for(za::UniquePtr<Rig>& r : authoredRigs.rigs)
+    {
+        if(r->model == model)
+        {
+            return r.get();
+        }
+    }
+    return nullptr;
+}
 
 [[nodiscard]] Rig* findRig(const qmodel_t* model)
 {
@@ -1989,6 +2331,31 @@ const Rig* rigFor(qmodel_t* model)
     {
         return nullptr;
     }
+    if(rig2::gameOn())
+    {
+        // vr_rig2 1: the authored rig's, if it has one (and it fits: else the derived one)
+        if(Rig* r = findAuthored(model))
+        {
+            return r;
+        }
+        const rig2::Rig* a = za::find(authoredRigs.failed.begin(), authoredRigs.failed.end(), model) == authoredRigs.failed.end()
+                                 ? rig2::rigFor(model)
+                                 : nullptr;
+        if(a)
+        {
+            za::UniquePtr<Rig> r = za::makeUnique<Rig>();
+            DeriveLog log;
+            if(fromAuthored(model, static_cast<const aliashdr_t*>(Mod_Extradata(model)), *table, *a, *r, log))
+            {
+                sayLog(log);
+                Rig* made = r.get();
+                authoredRigs.rigs.pushBack(static_cast<za::UniquePtr<Rig>&&>(r));
+                return made;
+            }
+            sayLog(log);
+            authoredRigs.failed.pushBack(model);
+        }
+    }
     if(Rig* r = findRig(model))
     {
         return r;
@@ -2090,6 +2457,35 @@ void warmRigs(qmodel_t* const* models, int count)
             rigCache.failed.pushBack(j.model);
         }
     }
+    // vr_rig2 1: the authored rigs made here too (a few ms each, on this thread)
+    for(int i = 0; i < count && rig2::gameOn(); i++)
+    {
+        if(models[i] && tableOf(models[i]) && rig2::rigFor(models[i]))
+        {
+            (void)rigFor(models[i]);
+        }
+    }
+}
+
+qmodel_t* skinnedModelOf(const Rig& rig)
+{
+    if(rig.authored)
+    {
+        return rig2::skinnedFor(rig.model);
+    }
+    char name[MAX_QPATH];
+    q_snprintf(name, sizeof(name), "%s%s", rig.model->name, skinnedSuffix);
+    return Mod_ForName(name, false);
+}
+
+void retireAuthored()
+{
+    for(za::UniquePtr<Rig>& r : authoredRigs.rigs)
+    {
+        authoredRigs.retired.pushBack(static_cast<za::UniquePtr<Rig>&&>(r));
+    }
+    authoredRigs.rigs.clear();
+    authoredRigs.failed.clear();
 }
 
 void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos)
@@ -2146,7 +2542,11 @@ bool limbJoint(const Rig& rig, int b)
         return false;
     }
     const Bone& bone = rig.bones[b];
-    return bone.parent >= 0 && (bone.joint == Joint::Ball || bone.joint == Joint::Hinge) && strcmp(bone.name, "chest") != 0;
+    // (the authored rig's torso and shoulder girdle too: its spine, neck and clavicles are no limbs to cut; the head's
+    // cut is at its own joint, the arm's at the shoulder)
+    const bool torso = !strcmp(bone.name, "chest") ||
+                       (rig.authored && (!strcmp(bone.name, "spine") || !strcmp(bone.name, "neck") || !strncmp(bone.name, "clavicle", 8)));
+    return bone.parent >= 0 && (bone.joint == Joint::Ball || bone.joint == Joint::Hinge) && !torso;
 }
 
 uint32_t limbBones(const Rig& rig, int b)
@@ -2472,6 +2872,10 @@ namespace
 // (which loads it again). No name built and no model-table scan per drawn ragdoll per frame.
 [[nodiscard]] qmodel_t* skinnedOf(Published& p)
 {
+    if(p.rig->authored)
+    {
+        return rig2::skinnedFor(p.rig->model); // "<model>#rig2": its blended skin (made again after a rig file's edit)
+    }
     const char* base = p.rig->model->name;
     const size_t len = strlen(base);
     qmodel_t* m = p.skinned;
@@ -2598,7 +3002,10 @@ void swapModels()
         {
             continue;
         }
-        catchUpAO(skinned, *p.rig);
+        if(!p.rig->authored)
+        {
+            catchUpAO(skinned, *p.rig); // (the authored rig's copy: its own, rig2::skinnedFor)
+        }
         if(!p.drawn)
         {
             draw.byNum[static_cast<za::SizeT>(num)].drawn = true;
@@ -2847,12 +3254,32 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
         const int b = rig.vertBone[static_cast<za::SizeT>(v)];
         const bool cut = b < p.bodies && (p.cut & (1u << b)); // (its head cut off: at the neck)
         const Neck& neck = necks[static_cast<za::SizeT>(cut ? b : 0)];
-        out[static_cast<za::SizeT>(v)] = cut ? neck.at + neck.rot * ((r - neck.pivot) * (p.scale * neckShrink))
-                                         : b < p.bodies ? rots[static_cast<za::SizeT>(b)] * (r * p.scale) + poss[static_cast<za::SizeT>(b)]
-                                                        : poss[0];
+        const auto place = [&](int bone) {
+            const bool c = bone < p.bodies && (p.cut & (1u << bone));
+            const Neck& nk = necks[static_cast<za::SizeT>(c ? bone : 0)];
+            return c ? nk.at + nk.rot * ((r - nk.pivot) * (p.scale * neckShrink))
+                     : bone < p.bodies ? rots[static_cast<za::SizeT>(bone)] * (r * p.scale) + poss[static_cast<za::SizeT>(bone)]
+                                       : poss[0];
+        };
+        out[static_cast<za::SizeT>(v)] = place(b);
+        if(rig.authored && v < static_cast<int>(rig.weights.size()))
+        {
+            // (the authored rig's blend, as its skinned copy draws it: a cut bone's share at the neck, a hidden one's at
+            // the pelvis)
+            const ragdoll::VertWeights& w = rig.weights[static_cast<za::SizeT>(v)];
+            if(w.n > 1)
+            {
+                glm::vec3 at{0.f};
+                for(int i = 0; i < w.n; i++)
+                {
+                    at += w.w[i] * place(w.bone[i]);
+                }
+                out[static_cast<za::SizeT>(v)] = at;
+            }
+        }
         int bl[3];
         float wl[3];
-        if(!cut && armSkin && agarms::ragdollWeights(rig.model, v, b, bl, wl) && bl[0] < p.bodies && bl[1] < p.bodies && bl[2] < p.bodies &&
+        if(!rig.authored && !cut && armSkin && agarms::ragdollWeights(rig.model, v, b, bl, wl) && bl[0] < p.bodies && bl[1] < p.bodies && bl[2] < p.bodies &&
            !(p.cut & ((1u << bl[0]) | (1u << bl[1]) | (1u << bl[2]))))
         {
             // (vr_ragdoll_arm_skin: as drawn, VR_SyntheticModel's blend)
@@ -3112,8 +3539,19 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
 
 extern "C" void VR_RagdollSwap(void)
 {
-    ragdoll::swapModels();
-    rig2::swapModels(); // (the Rig Studio's subject on the authored rig: vr_rig2.cpp)
+    ragdoll::swapModels(); // (the authored rig's: VR_Rig2Swap, after the armed ones' arms are solved)
+    rig2::advanceLerps();  // (vr_rig2 1: the live grunts' frame lerps, as drawing their .mdl would)
+}
+
+extern "C" void VR_Rig2Swap(void)
+{
+    rig2::liveAll();    // (vr_rig2 1: the live grunts not drawn by their arms' solve, vr_rig2_game.cpp)
+    rig2::swapModels(); // (and the Rig Studio's subject on the authored rig: vr_rig2.cpp)
+}
+
+extern "C" void VR_Rig2Latch(void)
+{
+    rig2::latch();
 }
 
 extern "C" void VR_RagdollRestore(void)
