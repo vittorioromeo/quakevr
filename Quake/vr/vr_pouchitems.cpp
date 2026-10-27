@@ -240,7 +240,8 @@ Rest restCache;
     return props::drawnSize(model);
 }
 
-int layoutShells(int left, Item (&out)[most])
+// (`variant`: the heavy revolver's blue slugs, vr_shell_live.mdl's skin 1; else the shotguns' red shells.)
+int layoutShells(bool variant, int left, Item (&out)[most])
 {
     qmodel_t* const model = view::viewModel("progs/vr_shell_live.mdl");
     if(!model)
@@ -259,6 +260,7 @@ int layoutShells(int left, Item (&out)[most])
         Item& it = out[i];
         it = Item{};
         it.model = model;
+        it.skin = variant ? 1 : 0;
         it.lying = true;
         const float flip = (i * 7) % 3 == 0 ? -1.f : 1.f; // (brass either way: the same line)
         const glm::vec3 a = glm::vec3{za::cos(rad(p.pitch)) * za::cos(rad(p.yaw)),
@@ -1294,7 +1296,7 @@ int layout(int kind, bool variant, int left, Item (&out)[most])
     }
     switch(kind & 7)
     {
-        case 1: return layoutShells(left, out);
+        case 1: return layoutShells(variant, left, out);
         case 2:
         case 3:
         case 4: return layoutMags(kind, variant, left, out);

@@ -43,7 +43,7 @@ void sendHandImpact(struct edict_s* player, int hand, float strength, const floa
 void sendCatchBlend(struct edict_s* player, int hand, int ent, const float origin[3], const float angles[3]);
 
 // `ejectcasings(hand, kind, count, delay, flags)` from QC: `count` spent casings of `kind` (0 shotgun
-// shells) out of the weapon in `player`'s `hand`, `delay` seconds from now (flags: 1 a flick reload).
+// shells, 1 the revolver's blue slugs) out of the weapon in `player`'s `hand`, `delay` seconds from now (flags: 1 a flick reload).
 void sendEject(struct edict_s* player, int hand, int kind, int count, int flags, float delay);
 
 // `watershock(kind, org, radius, duration)` from QC (the lightning gun in water, vr_shock.cpp): kind 0 (`player` shocked)

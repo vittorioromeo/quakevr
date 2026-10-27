@@ -75,10 +75,11 @@
 // a thunderbolt: its magazine), kept while the hands hold nothing of the kind (empty, a melee weapon). And for the
 // clients (STAT_QVR_POUCHKIND, STAT_QVR_POUCHCOUNT): what it shows (1 shells, 2 nailgun magazines, 3 super nailgun
 // magazines, 4 cells, 5 rockets, 6 grenades, 7 proximity grenades; 0 none; 8 more: skin 1, the lava nails, plasma, the
-// multi-rockets) and how many of that ammo are left.
+// multi-rockets, the heavy revolver's blue slug shells) and how many of that ammo are left.
 .float vr_pouch_aid;
 .float vr_pouch_wid;
 .float vr_pouch_front;   // (a launcher's round: the launcher; 0 none)
+.float vr_pouch_slug;    // (shells for the heavy revolver: its blue slugs, the pouch's kind 1 + 8; FALSE the shotguns' red)
 .float vr_pouch_kind;
 .float vr_pouch_count;
 .float vr_ammo_smoke;    // a spent thunderbolt cell (or lava nails' magazine): when it stops smoking (vr_reload_battery_smoke_time; 0 not smoking)
@@ -1121,10 +1122,12 @@ float(float xHand, entity r) VR_Reload_MagAtWell =
 // the launchers' without vr_reload_front: the pouch gives nothing for it).
 float vr_reload_kind_wid;
 float vr_reload_kind_front;
+float vr_reload_kind_slug; // (and TRUE: shells for the heavy revolver, drawn as its blue slugs: skin 1)
 float(float xWeapon, float xFlags) VR_Reload_KindOf =
 {
     vr_reload_kind_wid = 0;
     vr_reload_kind_front = 0;
+    vr_reload_kind_slug = FALSE;
     if(xWeapon == WID_FIST || xWeapon == WID_GRAPPLE)
     {
         return -1;
@@ -1132,6 +1135,7 @@ float(float xWeapon, float xFlags) VR_Reload_KindOf =
     float aid = WeaponIdToAmmoId(xWeapon, xFlags);
     if(aid == AID_SHELLS)
     {
+        vr_reload_kind_slug = xWeapon == WID_REVOLVER;
         return aid; // (the shotgun, the super shotgun, the grunts' shotgun: shells, by hand into the shotgun)
     }
     if(VR_Reload_UsesMag(xWeapon))
@@ -1183,6 +1187,7 @@ void() VR_Reload_PlayerFrame =
         self.vr_pouch_aid = AID_CELLS;
         self.vr_pouch_wid = WID_LIGHTNING;
         self.vr_pouch_front = 0;
+        self.vr_pouch_slug = FALSE;
     }
     // (A gun brought to the pouch to reload there first: the pouch shows its rounds. VR_Reload_PouchFrame.)
     float near = corded ? -1 : VR_Reload_PouchNearHand();
@@ -1199,6 +1204,7 @@ void() VR_Reload_PlayerFrame =
             self.vr_pouch_aid = aid;
             self.vr_pouch_wid = vr_reload_kind_wid;
             self.vr_pouch_front = vr_reload_kind_front;
+            self.vr_pouch_slug = vr_reload_kind_slug;
             break;
         }
     }
@@ -1207,6 +1213,7 @@ void() VR_Reload_PlayerFrame =
         self.vr_pouch_aid = AID_SHELLS;
         self.vr_pouch_wid = 0;
         self.vr_pouch_front = 0;
+        self.vr_pouch_slug = FALSE;
     }
     float w = self.vr_pouch_wid;
     self.vr_pouch_kind = w == WID_NAILGUN ? 2 : (w == WID_SUPER_NAILGUN ? 3 : (w == WID_LIGHTNING ? 4 : 1));
@@ -1220,8 +1227,10 @@ void() VR_Reload_PlayerFrame =
         // (5 rockets, 6 grenades, 7 proximity grenades: the clients draw as many as are left, up to 3, 4 and 4.)
         self.vr_pouch_kind = w == WID_ROCKET_LAUNCHER ? 5 : (w == WID_GRENADE_LAUNCHER ? 6 : 7);
     }
-    if(self.vr_pouch_aid == AID_LAVA_NAILS || self.vr_pouch_aid == AID_PLASMA || self.vr_pouch_aid == AID_MULTI_ROCKETS)
+    if(self.vr_pouch_aid == AID_LAVA_NAILS || self.vr_pouch_aid == AID_PLASMA || self.vr_pouch_aid == AID_MULTI_ROCKETS ||
+       (self.vr_pouch_kind == 1 && self.vr_pouch_slug))
     {
+        // (And the shells for the heavy revolver: its blue slugs, vr_shell_live.mdl's skin 1.)
         self.vr_pouch_kind = self.vr_pouch_kind + 8; // (the clients draw them glowing, or the multi-rounds: skin 1)
     }
     self.vr_pouch_count = VR_AmmoUtil_GetAmmoCountByAmmoId(self, self.vr_pouch_aid);
@@ -1239,6 +1248,7 @@ float(float xHand) VR_Reload_PouchKind =
     }
     vr_reload_kind_wid = self.vr_pouch_wid;
     vr_reload_kind_front = self.vr_pouch_front;
+    vr_reload_kind_slug = self.vr_pouch_slug;
     return self.vr_pouch_aid ? self.vr_pouch_aid : AID_SHELLS;
 };
 
@@ -1251,6 +1261,7 @@ void(float xHand) VR_Reload_Take =
     float aid = VR_Reload_PouchKind(xHand);
     float w = vr_reload_kind_wid;
     float front = vr_reload_kind_front;
+    float slug = vr_reload_kind_slug;
     if(aid < 0 || !VR_Reload_Immersive())
     {
         return;
@@ -1302,6 +1313,10 @@ void(float xHand) VR_Reload_Take =
         vr_reload_make_front = front;
     }
     entity r = VR_Reload_MakeRound(w, aid, n, VRGetEntHandPos(self, xHand), VRGetEntHandRot(self, xHand));
+    if(slug && !w && !front && aid == AID_SHELLS)
+    {
+        r.skin = 1; // (for the heavy revolver: its blue slug, as in its chambers)
+    }
     VR_AmmoUtil_DelAmmoCountByAmmoId(self, aid, n);
     VR_Reload_AmmoChanged(self);
     vr_carry_quiet = TRUE; // (the pouch's own sound)

@@ -536,7 +536,7 @@ void(float xHand, entity r, string xHow) VR_Revolver_Eject =
     VR_Reload_Haptic(self, xHand, 0.05, 140, 0.6);
     if(spent > 0)
     {
-        ejectcasings(xHand, QVR_CASING_SHOTGUNSHELL, spent, 0.02, 0);
+        ejectcasings(xHand, QVR_CASING_SLUG, spent, 0.02, 0); // (blue, as the chambers' spent slugs)
     }
     VR_Revolver_Frame(xHand);
     vector at = vr_rv_port;
@@ -549,6 +549,7 @@ void(float xHand, entity r, string xHow) VR_Revolver_Eject =
         float a = (90 + 60 * i) * 0.0174533;
         vector from = at + (vr_rv_left * cos(a) + vr_rv_up * sin(a)) * 0.9 - vr_rv_axis * 1.5;
         entity s = VR_Reload_MakeRound(0, AID_SHELLS, 1, from, vectoangles(vr_rv_axis));
+        s.skin = 1; // (the blue slug, as in its chambers: vr_shell_live.mdl's skin 1)
         VR_Reload_MarkFresh(s, self); // (not back in by contact until it has left the cylinder)
         s.velocity = VRGetEntHandVel(self, xHand) * VRMetersToUnits() - vr_rv_axis * 40 + '0 0 1' * (20 + random() * 20) +
                      (vr_rv_left * crandom() + vr_rv_up * crandom()) * 15;

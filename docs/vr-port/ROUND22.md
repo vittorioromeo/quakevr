@@ -25159,3 +25159,30 @@ to the other kind (VR Pose Studio) takes it as it is.
 - [ ] IK stretch on his rifle Aim {test:none}: Rig Studio, the shotgun grunt, Pose Studio Data, Rifle: IK Stretch 1.15: in Aim the off hand slides up onto the fore-end (no longer 2 units back), "stretch used" beside it; Ctrl+Z puts the slider back.
 - [ ] IK stretch, the arm's skin {test:none}: IK Stretch 1.3 and drag the Aim key's weapon a few units forward: the arms lengthen to it, the elbow and the wrist smooth (no seam, no crease), both with vr_rig2 0 and 1.
 - [ ] IK stretch in the menu {test:none}: Combat > Armed Grunts > IK Stretch: Grunts, Rifle: each pick +0.05; in the game, armed grunts with shotguns hold the fore-end in his new Aim.
+
+## His weapon skins shipped; the revolver's slugs blue everywhere (worktree `gorefx`, branch `agent/skins`, 2026-10-27)
+
+**Skins.** Vittorio's hand-edited `flaregun_skin.png`, `nailpistol_skin.png` and `revolver_skin.png` (models_src) went
+through each weapon's `export_mdl.py` (not `build_*.py`): `*_skin_pal.png`, `v_flaregun.mdl`, `vr_flare.mdl`,
+`vr_flaregun_preview.mdl`, `v_nailpistol.mdl`, `v_nailpistol_mag.mdl`, `vr_nailpistol_preview.mdl`, the revolver's six
+(`v_revolver_shell.mdl` unchanged), then `make_nailpistol_mags.py` (`vr_mag_npistol.mdl`, `vr_mag_on_v_nailpistol.mdl`,
+made from the magazine's skin). Renders re-made (`render_previews.py`, `render_revolver.py`). The palette conversion
+(nearest of the 224 ordinary colours) keeps his detail: mean error 3.7 / 2.8 / 3.1 per channel (0-255) for the flare gun
+/ nail pistol / revolver, worst texel 27 summed over RGB; side by side his PNG and the palette copy look the same. None of
+the three has a baked normal map (bake_normals.py has never made one for them), so none was re-baked.
+
+**Blue slugs.** The heavy revolver's shells are its blue slug shell wherever they show: in its chambers (as before,
+`v_revolver_shell.mdl` skins 1 and 3), its spent casings out of the cylinder (`ejectcasings` kind `QVR_CASING_SLUG` 1:
+vr_shells.cpp draws `vr_shell.mdl` skin 1), its live shells dropped (skin 1), the shells taken from the pouch for it
+(skin 1: `VR_Reload_KindOf`'s `vr_reload_kind_slug`, the pouch's last kind kept in `.vr_pouch_slug`) and the pouch's pile
+while it is the gun in use (`vr_pouch_kind` 1 + 8: `layoutShells` draws `vr_shell_live.mdl` skin 1). The shotguns keep
+the red. `make_shell.py` gives `vr_shell.mdl`, `vr_shell_live.mdl` and `vr_shell_pair.mdl` a second skin, the reds made
+the blues his `revolver_shell_slug*.png` make them (`SLUG_BLUES`, measured texel by texel against the red skins: 79 ->
+216 ... 71 -> 220); skin 1 shares skin 0's baked normal map (the engine's rule for every skin). A dropped blue shell
+picked up is a shell like any other (the same ammo); it stays blue in the hand.
+
+**Tests.** `vr_rv_test 1` 35 passed, 0 failed (was 30: the pouch kind 9 with the revolver, the three taken from the pouch
+blue, the two live dropped blue, and a new last step: kind 1 with a shotgun, its shell red); with `vr_debug_weaponfx 1` the
+client prints `shells eject hand 1 kind 1 skin 1 x6` and `x2` for its casings. `vr_reload_test 9` 77/0. eval.sh: canary
+36/44, full 163/171, no verdict changes (PASS -> PASS damage noise only). Eyeshots (low-impact, low-res): the three held,
+the cylinder swung out, the casings and live shells on the floor, the pouch red at spawn and blue with the revolver.

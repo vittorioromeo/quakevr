@@ -166,6 +166,7 @@ vector(entity e) forcegrabpoint = #0;
 // QVR_CASING_*; `flags` QVR_EJECT_*.
 void(float hand, float kind, float count, float delay, float flags) ejectcasings = #0;
 float QVR_CASING_SHOTGUNSHELL = 0;
+float QVR_CASING_SLUG = 1; // the heavy revolver's: the blue slug shell (vr_shell.mdl's skin 1)
 float QVR_EJECT_FLICK = 1; // a flick reload: flung by the spinning weapon
 // Weapon effects (engine vr_weaponfx.cpp): `shooter` fired the weapon in its `hand` (-1: a monster's gun): its drawn
 // weapon kicks and its muzzle flashes, as that weapon's settings say (Weapon Offsets > Effects); a grunt's gun flashes

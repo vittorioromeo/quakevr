@@ -87,8 +87,11 @@ constexpr Weapon weaponTable[] = {
         "3.4 0 5.608"},
 };
 
-// The casings' models (the QC's `kind`).
-constexpr const char* kindModels[] = {"progs/vr_shell.mdl"};
+// The casings' models and skins (the QC's `kind`: QVR_CASING_SHOTGUNSHELL 0 the red shotgun shell, QVR_CASING_SLUG 1
+// the heavy revolver's blue slug, make_shell.py's skin 1).
+constexpr const char* kindModels[] = {"progs/vr_shell.mdl", "progs/vr_shell.mdl"};
+constexpr int kindSkins[] = {0, 1};
+static_assert(za::getArraySize(kindSkins) == za::getArraySize(kindModels));
 
 // Their sounds: on a hard surface, into a liquid.
 constexpr const char* tinkSounds[] = {"vr/shell_tink1.wav", "vr/shell_tink2.wav", "vr/shell_tink3.wav"};
@@ -372,7 +375,7 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
     const bool pumped = pumpedEject(weapons, p, rear, backSpeed);
     if(vr_debug_weaponfx.value)
     {
-        Con_Printf("shells eject hand %d t %.3f%s\n", p.hand, cl.time,
+        Con_Printf("shells eject hand %d kind %d skin %d x%d t %.3f%s\n", p.hand, p.kind, kindSkins[p.kind], p.count, cl.time,
             pumped ? va(" (auto pump back at %.3f)", rear) : va(" (due %.3f)", p.time));
     }
 
@@ -709,7 +712,7 @@ void addToScene(Shell& s, qmodel_t* model, float life)
     }
     e.model = model;
     e.frame = 0;
-    e.skinnum = 0;
+    e.skinnum = kindSkins[s.kind];
     e.colormap = vid.colormap;
     e.scale = static_cast<unsigned char>(CLAMP(1.f, units::worldScale() * ENTSCALE_DEFAULT * modelScale + 0.5f, 255.f));
     e.alpha = alpha >= 1.f ? ENTALPHA_DEFAULT : static_cast<unsigned char>(ENTALPHA_ENCODE(alpha));

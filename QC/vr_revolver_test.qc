@@ -30,6 +30,10 @@
 //  15 its damage: a grunt to one slug at its head (x1.5, its head popped), another to two in its body, an ogre to 4-5 in its
 //     body (vr_revolver_heavy_mult); the head pop's chance by range against the shotguns'.
 //  16 an armed grunt with a revolver fires it.
+//  (18 in the code.) 19 the pouch's shells by the gun in use: blue slugs (kind 9) with the revolver, red (1) with a
+//     shotgun and its shell taken red. Steps 7 and 13 also check the revolver's shells blue (skin 1): those taken from the
+//     pouch for it, its live ones dropped. (Its spent casings: the client's, "shells eject ... kind 1 skin 1" with
+//     vr_debug_weaponfx 1.)
 
 float vr_rvt_pass, vr_rvt_fail;
 float vr_rvt_step;     // 0 idle
@@ -43,7 +47,7 @@ float vr_rvt_n, vr_rvt_k;
 float vr_rvt_at0;      // the chamber under the hammer before a spin
 float vr_rvt_turned;   // and the turn since, degrees
 float vr_rvt_prevcyl;
-float vr_rvt_shots0, vr_rvt_dry0, vr_rvt_live0;
+float vr_rvt_shots0, vr_rvt_dry0, vr_rvt_live0, vr_rvt_blue0;
 string vr_rvt_want, vr_rvt_got; // the pulls' outcomes ("F" a shot, "c" a click): expected, seen
 float vr_rvt_mode, vr_rvt_grip, vr_rvt_tv, vr_rvt_notarget;
 vector vr_rvt_flick0, vr_rvt_flick1; // the flicks' settings before (open, close: x speed, y angle)
@@ -213,6 +217,19 @@ float() VR_RVT_LiveRounds =
     while(e)
     {
         if(e.vr_ammo_aid == AID_SHELLS && !e.carry_player) { n++; }
+        e = find(e, classname, VR_RELOAD_CLASS);
+    }
+    return n;
+};
+
+// The live shells lying about drawn as the blue slug (skin 1, the revolver's).
+float() VR_RVT_BlueRounds =
+{
+    float n = 0;
+    entity e = find(world, classname, VR_RELOAD_CLASS);
+    while(e)
+    {
+        if(e.vr_ammo_aid == AID_SHELLS && !e.carry_player && e.skin == 1) { n++; }
         e = find(e, classname, VR_RELOAD_CLASS);
     }
     return n;
@@ -493,11 +510,15 @@ void() VR_Revolver_TestFrame =
         float before = p.ammo_shells;
         float okAll = TRUE;
         string got = "";
+        float blue = 0;
+        VR_RVT_Check(p.vr_pouch_kind == 1 + 8, sprintf("the pouch with the revolver in hand: kind %g (want 9: shells, the blue slugs)",
+            p.vr_pouch_kind));
         for(float c = 0; c < 3; c++)
         {
             float want = c == 0 ? 3 : (c == 1 ? 5 : 0);
             VR_Reload_Take(cVR_OffHand);
             entity sh = VR_Carry_Held(p, cVR_OffHand);
+            if(sh && sh.skin == 1) { blue++; }
             if(!sh || sh.vr_ammo_count != 1)
             {
                 okAll = FALSE;
@@ -515,6 +536,7 @@ void() VR_Revolver_TestFrame =
             VR_Carry_Held(p, cVR_OffHand) == world,
             sprintf("three single shells by chamber (want 3 5 0): into%s; clip %g, shells %g -> %g, chambers %s", got,
                 VRGetWeaponClip(cVR_MainHand), before, p.ammo_shells, VR_Revolver_Desc(rec)));
+        VR_RVT_Check(blue == 3, sprintf("the shells taken from the pouch for it: %g of 3 blue slugs (skin 1)", blue));
         VR_RVT_Next();
     }
     else if(s == 8)
@@ -625,6 +647,7 @@ void() VR_Revolver_TestFrame =
             VR_RVT_Check(vr_rvt_got == vr_rvt_want, sprintf("chamber tracking: the pulls %s (want %s, from its chambers after the spin)",
                 vr_rvt_got, vr_rvt_want));
             vr_rvt_live0 = VR_RVT_LiveRounds();
+            vr_rvt_blue0 = VR_RVT_BlueRounds();
             VR_RVT_Next();
         }
     }
@@ -653,6 +676,9 @@ void() VR_Revolver_TestFrame =
             VR_RVT_Check(sp == 2 && lv == 2 && VR_Revolver_Desc(rec) == "------" && VR_RVT_LiveRounds() == vr_rvt_live0 + 2,
                 sprintf("the muzzle tilted up (aim z %.2f): %g spent and %g live shells dropped (want 2, 2), %g live rounds lying (+%g), chambers %s",
                     v_forward_z, sp, lv, VR_RVT_LiveRounds(), VR_RVT_LiveRounds() - vr_rvt_live0, VR_Revolver_Desc(rec)));
+            VR_RVT_Check(VR_RVT_BlueRounds() - vr_rvt_blue0 == 2,
+                sprintf("its live shells dropped are blue slugs: +%g blue (skin 1) of +%g lying (want 2)",
+                    VR_RVT_BlueRounds() - vr_rvt_blue0, VR_RVT_LiveRounds() - vr_rvt_live0));
             localcmd("vr_mock_hand main 0.15 1.2 -0.45 70 0 0\n");
             VR_RVT_Next();
         }
@@ -744,6 +770,32 @@ void() VR_Revolver_TestFrame =
                     a.vr_ag_prop ? a.vr_ag_prop.netname : "none", a.vr_ag_prop ? a.vr_ag_prop.vr_ag_total_shots - t0 : 0,
                     a.vr_ag_prop ? a.vr_ag_prop.weaponinst.wi_clip : -1));
             VR_AGT_Remove(a);
+            VR_RVT_Next();
+        }
+    }
+    else if(s == 19)
+    {
+        // The pouch's shells by the gun in use: the revolver's blue slugs (kind 1 + 8), a shotgun's red (1), its shell red.
+        if(vr_rvt_frames == 2)
+        {
+            vr_rvt_n = p.vr_pouch_kind;
+            VR_WeaponUtil_EntAddWeapon(p, WID_SHOTGUN);
+            VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, 0);
+            W_SetCurrentAmmoFor(cVR_MainHand);
+        }
+        if(vr_rvt_frames == 4)
+        {
+            VR_Reload_Take(cVR_OffHand);
+            entity rs = VR_Carry_Held(p, cVR_OffHand);
+            VR_RVT_Check(vr_rvt_n == 1 + 8 && p.vr_pouch_kind == 1 && rs && rs.skin == 0,
+                sprintf("the pouch's shells: kind %g with the revolver (want 9, blue), %g with the shotgun (want 1, red), its shell's skin %g (want 0)",
+                    vr_rvt_n, p.vr_pouch_kind, rs ? rs.skin : -1));
+            if(rs)
+            {
+                VR_Carry_SetHeld(p, cVR_OffHand, world);
+                rs.carry_player = world;
+                remove(rs);
+            }
             self = os;
             VR_RVT_End();
             return;

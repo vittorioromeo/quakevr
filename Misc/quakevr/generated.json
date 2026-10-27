@@ -617,7 +617,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_npistol.mdl": {
-  "sha256": "e4bfdc4eb567c49ca82c6e3b0fd4b288c4d2e7740536f2ab939ee99018a18712",
+  "sha256": "ae96379a9a7b567063d4495c39bd53a52072aa1a58e8a656cb6a3274e6379388",
   "by": "make_nailpistol_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_lava.mdl": {
@@ -661,7 +661,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_mag_on_v_nailpistol.mdl": {
-  "sha256": "638ba2d7a70cf2ee4e2f5c9c938e668bb986a19a1720e13e652b41fa7a6fc749",
+  "sha256": "a34a8adac1e83bc2910302c65d67d53218e6f79aa776de695e09fd469e3fb59a",
   "by": "make_nailpistol_mags.py"
  },
  "quakevr/progs/vr_mag_on_v_plasma.mdl": {
@@ -1013,7 +1013,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_shell.mdl": {
-  "sha256": "4e016dc63722ed6798951debc7628fa575b25579e87904d39a9c4be221f98f34",
+  "sha256": "afa1363d330ba56f418ebe4dca358f59a6909caf8e3ef8d8d4a07cdc35fc94ed",
   "by": "make_shell.py"
  },
  "quakevr/progs/vr_shell.mdl_0_norm.png": {
@@ -1021,7 +1021,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_shell_live.mdl": {
-  "sha256": "de9b6a19f2c89bd923aa128a574f03675663063eb03d0a6e1650b24fdb122e61",
+  "sha256": "443a9d169b730e68687f299a536f5b4a97400ddd119dcf0a60fa3c8c84599a59",
   "by": "make_shell.py"
  },
  "quakevr/progs/vr_shell_live.mdl_0_norm.png": {
@@ -1029,7 +1029,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/vr_shell_pair.mdl": {
-  "sha256": "34ca546e3260d6277a14906d3b8de9d45f51da890ec8bffe826a8102a5fbe421",
+  "sha256": "69b09172ce952a01ff43f13d7b56c9767e4aa556ab4fd3b5014cc60a06f466bb",
   "by": "make_shell.py"
  },
  "quakevr/progs/vr_shell_pair.mdl_0_norm.png": {
