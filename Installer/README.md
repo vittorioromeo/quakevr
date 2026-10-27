@@ -82,6 +82,7 @@ qvr-setup install --package dist\QuakeVR.zip --target <dir> --accept-statement [
 qvr-setup verify --target <dir>
 qvr-setup install --feed http://127.0.0.1:8517/latest.json --sandbox <dir> --accept-statement [--hd] [--relight]   # the window's download path
 qvr-setup install --package dist\QuakeVR.zip --hd [--no-feed] --dry-run   # what would be downloaded: --hd is the feed's hdtextures, else the built-in pinned pack
+qvr-setup install ... --ad [--ad-zip <zip>] [--no-stores]   # Arcane Dimensions (experimental, opt-in): see "Arcane Dimensions" below
 qvr-setup serve --dir out\release\<v>-local\assets --port 8517 [--drop-after <bytes>]   # a local release over HTTP (Range), 127.0.0.1 only
 qvr-setup statement                                # the author's statement on AI usage (install exits 3 without --accept-statement)
 qvr-setup vcredist [--check <vc_redist.x64.exe>] [--dry-run [--assume-missing] [--file <exe>]]   # the VC++ runtime (without --dry-run: installs it, one UAC prompt)
@@ -111,8 +112,30 @@ HTTP server; the skin's readers (pak search order, palette, WAD2 pictures and CO
 junk refused) on made-up files, the sounds' mixer (no step in the output: voice fades, stolen voices, the loop's seam, the mute and Play's 0.3 s fade, a smooth limiter), local packages (found beside the installer, checked for a manifest, texture packs
 skipped), and VisPatch's data (made-up `.tgz` archives from a local server: mirror order, pinned hash, safe unpacking,
 installed where the game looks, kept by updates, removed by uninstall). The machine is a `MemorySystemProbe`: no test reads the real registry or writes outside the scratch folder.
+Arcane Dimensions: the pin (built in = `support_assets.json`'s `thirdParty.ad` = the engine's pak2 pin in
+`Quake/vr/vr_ad_data.inc`; the real 1.80p1 on this PC checked read-only when present), a copy found in the owned roots
+(1.80p1 used, an older or incomplete one offers the download, the game's root order), a sandboxed install from a local
+server with a small fake zip (size and SHA-256 pinned, a wrong one refused, unpacked unmodified into `ad\`, recorded,
+kept by updates, restored by a repair, the player's own file never overwritten, removed by the uninstall), and a failed
+or cancelled download that leaves the install as it was.
 xUnit/MSTest were not used because their NuGet packages are not available offline here; moving the tests to xUnit later
 is mechanical.
+
+## Arcane Dimensions (experimental, opt-in)
+
+The Options page's "Arcane Dimensions (experimental) — free, by sock and team" box is **off by default**; its size is
+shown first (306 MB download, about 792 MB on disk), with a link to AD's readme and home page. Ticked, AD's release
+`ad_v1_80p1final.zip` (pinned: 320,914,417 bytes, SHA-256 `7ad993da...a7d`, `BuiltInComponents.ArcaneDimensions()`;
+latest.json's `components.ad` may override it) is downloaded **from its authors' hosts only** (Quaddicted's
+content-addressed copy, Quaddicted's filebase, simonoc.com, born-robotic.net; Quake VR never hosts it), checked (size,
+then SHA-256: anything else is refused) and unpacked as it is into `<install>\ad` (its readme stays with it), recorded
+in install.json as component `ad`. It runs last, after the game is installed and prepared: a failed or cancelled AD
+download never fails the install (the Done page says so; Setup's Update screen then offers "Add Arcane Dimensions").
+Updates keep it, a repair restores a damaged file, the uninstall removes it. A copy of 1.80 patch 1 already in an owned
+Quake root (Steam/GOG/Epic, the Quake folder; validated by pak2.pak's header and directory hash, as the engine does) is
+used where it is: the row says "Found in <path>: will be used" and the box is disabled; an older or incomplete copy is
+reported and the download offered (the copy in Quake VR's folder then wins: it is the game's highest-priority root).
+Core: `Installer/src/QuakeVR.Installer.Core/Packaging/ArcaneDimensions.cs`.
 
 ## Packages
 

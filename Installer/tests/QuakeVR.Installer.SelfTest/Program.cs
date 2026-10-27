@@ -1036,6 +1036,188 @@ var tests = new List<(string Name, Action Body)>
         // No built-in and no feed: nothing.
         Eq(null, new InstallerSettings { BuiltInComponents = [] }.Component(null, Components.HdTextures), "nothing at all");
     }),
+    ("arcane dimensions: the pin (built in = support_assets.json's thirdParty = the doc's hosts in order; the engine's pak2 pin)", () =>
+    {
+        var pinned = BuiltInComponents.ArcaneDimensions();
+        Eq("ad_v1_80p1final.zip", pinned.File, "pinned file");
+        Eq(320_914_417L, pinned.Size, "pinned size");
+        Eq("7ad993da6c760c446ca31fad71e9f5b6c9eee99b6354f161aa746b572fe70a7d", pinned.Sha256, "pinned SHA-256");
+        Eq("www.quaddicted.com|www.quaddicted.com|www.simonoc.com|born-robotic.net", string.Join("|", pinned.Mirrors.Select(u => u.Host)), "hosts in order");
+        True(pinned.Urls[0].Contains("/by-sha256/7a/" + pinned.Sha256 + "/"), "content-addressed first");
+        True(pinned.Urls.All(u => u.StartsWith("https://", StringComparison.Ordinal) && u.EndsWith("/" + pinned.File, StringComparison.Ordinal) && !u.Contains("github.com")),
+            "sock's hosts only, never ours: " + string.Join(", ", pinned.Urls));
+        True(new InstallerSettings().Component(null, Components.ArcaneDimensions) is { BuiltIn: true } d && d.File.Sha256 == pinned.Sha256, "the defaults: the pin");
+        var repo = new DirectoryInfo(AppContext.BaseDirectory);
+        while (repo is not null && !File.Exists(Path.Combine(repo.FullName, "Misc", "release", "support_assets.json")))
+        {
+            repo = repo.Parent;
+        }
+        if (repo is not null)
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(repo.FullName, "Misc", "release", "support_assets.json")));
+            True(!doc.RootElement.GetProperty("files").TryGetProperty("ad", out _), "AD is not one of our hosted support files");
+            var ad = doc.RootElement.GetProperty("thirdParty").GetProperty("ad");
+            Eq(pinned.File, ad.GetProperty("file").GetString(), "support_assets.json's file");
+            Eq(pinned.Size, ad.GetProperty("size").GetInt64(), "support_assets.json's size");
+            Eq(pinned.Sha256, ad.GetProperty("sha256").GetString(), "support_assets.json's SHA-256");
+            Eq(string.Join("|", pinned.Urls), string.Join("|", ad.GetProperty("mirrors").EnumerateArray().Select(m => m.GetString())), "support_assets.json's hosts");
+            var inc = File.ReadAllText(Path.Combine(repo.FullName, "Quake", "vr", "vr_ad_data.inc"));
+            True(inc.Contains($"#define VR_AD_PAK2_SIZE {ArcaneDimensions.Latest.Size}"), "the engine's pak2 size");
+            True(inc.Contains($"#define VR_AD_PAK2_DIRSHA \"{ArcaneDimensions.Latest.DirSha256}\""), "the engine's pak2 directory SHA-256");
+        }
+        // A feed's ad wins (latest.json components.ad), as for the HD textures.
+        var feed = ReleaseFeed.Parse($$"""
+            { "schema": 1, "version": "v9", "components": { "ad": { "file": "ad.zip", "size": 3, "sha256": "{{new string('c', 64)}}", "urls": ["https://example.invalid/ad.zip"] } } }
+            """);
+        True(new InstallerSettings().Component(feed, Components.ArcaneDimensions) is { BuiltIn: false } f && f.File.File == "ad.zip", "the feed's ad wins");
+    }),
+    ("arcane dimensions: an existing copy (1.80p1 used, an older one or an incomplete one offers the download, the game's root order)", () =>
+    {
+        // A fake AD: every required file in pak0, and a pak2 whose signature is this test's pin.
+        AdPak2Pin MakeAd(string root, bool pak2 = true, string? leaveOut = null)
+        {
+            Fixtures.MakePack(root, "ad", leaveOut);
+            var p2 = Path.Combine(root, "ad", "pak2.pak");
+            if (pak2)
+            {
+                PakFile.Write(p2, [("progs/ad_patch1.mdl", Fixtures.Mdl())]);
+            }
+            var sig = ArcaneDimensions.Pak2Signature(p2);
+            return sig is { } s ? new AdPak2Pin(s.Size, s.DirSha256) : new AdPak2Pin(0, "");
+        }
+        var steam = Dir("ad-steam-rerelease");
+        var quake = Dir("ad-quake");
+        var pin = MakeAd(quake);
+        var roots = ArcaneDimensions.SearchRoots([steam], quake);
+        var found = ArcaneDimensions.FindExisting(roots, pin)!;
+        Eq(AdCopyState.Ready, found.State, "1.80p1 in the Quake folder");
+        True(PathUtil.SamePath(found.Folder, Path.Combine(quake, "ad")), "its folder: " + found.Folder);
+        True(ArcaneDimensions.Describe(found).StartsWith($"Found in {found.Folder}: will be used", StringComparison.Ordinal), ArcaneDimensions.Describe(found));
+        Eq(AdCopyState.OtherVersion, ArcaneDimensions.FindExisting(roots)!.State, "the same pak2 against the real pin: another version");
+        // The real release's pin, on a pak2 whose header and directory differ: refused.
+        True(!ArcaneDimensions.IsLatest(Path.Combine(quake, "ad")), "a fake pak2 is not 1.80p1");
+
+        var older = Dir("ad-older");
+        MakeAd(older, pak2: false);
+        var o = ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots([], older), pin)!;
+        Eq(AdCopyState.OtherVersion, o.State, "no pak2: 1.80 or older");
+        True(ArcaneDimensions.Describe(o).Contains("isn't 1.80 patch 1") && ArcaneDimensions.Describe(o).Contains("download"), ArcaneDimensions.Describe(o));
+        var broken = Dir("ad-incomplete");
+        MakeAd(broken, leaveOut: PackLists.Resources("ad")[0]);
+        Eq(AdCopyState.Incomplete, ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots([], broken), pin)!.State, "a missing file: incomplete");
+        Eq(null, ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots([], Dir("ad-none")), pin), "none");
+        // The game's order: the Quake folder over a store root; an empty ad folder (a texture pack's) is skipped.
+        MakeAd(steam, pak2: false);
+        Eq(AdCopyState.Ready, ArcaneDimensions.FindExisting(roots, pin)!.State, "the Quake folder's copy wins over the store's older one");
+        var emptyAd = Dir("ad-texonly");
+        Directory.CreateDirectory(Path.Combine(emptyAd, "ad", "textures"));
+        Eq(AdCopyState.Ready, ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots([quake], emptyAd), pin)!.State, "a folder without AD's data: the next root's copy");
+        // A real 1.80 patch 1 on this PC (read only: pak2's header and directory), when there is one: the engine's check.
+        foreach (var real in new[] { @"C:\Program Files (x86)\Steam\steamapps\common\Quake\ad" })
+        {
+            if (File.Exists(Path.Combine(real, "pak2.pak")))
+            {
+                True(ArcaneDimensions.IsLatest(real), $"the real 1.80p1 in {real} passes the engine's pak2 check");
+                Console.WriteLine($"    (real AD 1.80p1 checked: {real})");
+            }
+        }
+    }),
+    ("arcane dimensions: a sandboxed install from a local server (size and SHA-256 pinned, ad/ unpacked and recorded, update keeps, repair restores, uninstall removes)", () =>
+    {
+        // The fake release zip: AD's layout (one ad/ folder), small; its size and SHA-256 pinned below.
+        var src = Dir("ad-zip-src");
+        Fixtures.MakePack(src, "ad");
+        PakFile.Write(Path.Combine(src, "ad", "pak2.pak"), [("progs/ad_patch1.mdl", Fixtures.Mdl())]);
+        File.WriteAllText(Path.Combine(src, "ad", "quake.rc"), "exec default.cfg");
+        File.WriteAllText(Path.Combine(src, "ad", ArcaneDimensions.ReadmeFile), "Arcane Dimensions readme (must stay with the files)");
+        var zip = Fixtures.Zip(src, Path.Combine(run, "ad_v1_80p1final.zip"));
+        var body = File.ReadAllBytes(zip);
+        var sha = Convert.ToHexStringLower(SHA256.HashData(body));
+        using var server = new LocalHttpServer();
+        server.Serve("quaddicted/ad_v1_80p1final.zip", body);
+        server.Serve("evil/ad_v1_80p1final.zip", [.. body.Select(b => (byte)(b ^ 0x5a))]);
+        var pinnedFile = new FeedFile { File = "ad_v1_80p1final.zip", Size = body.Length, Sha256 = sha,
+            Urls = [server.Url("missing/ad_v1_80p1final.zip").ToString(), server.Url("evil/ad_v1_80p1final.zip").ToString(), server.Url("quaddicted/ad_v1_80p1final.zip").ToString()] };
+        var quake = Dir("adi-quake");
+        var target = Path.Combine(run, "adi-QuakeVR");
+        var downloads = Dir("adi-downloads");
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("adi-pkg1"), "1.0.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        var coreCount = InstallRecord.Load(target)!.Files.Count;
+        using var http = Downloader.CreateClient();
+        var logs = new List<string>();
+        var outcome = ArcaneDimensions.AddAsync(http, target, pinnedFile, downloads, null, new SyncProgress<InstallProgress>(p => { if (p.Log is not null) { logs.Add(p.Log); } }), null,
+            CancellationToken.None, attemptsPerMirror: 1).GetAwaiter().GetResult();
+        True(outcome.Installed, outcome.Message);
+        foreach (var name in new[] { "pak0.pak", "pak2.pak", "quake.rc", ArcaneDimensions.ReadmeFile })
+        {
+            var installed = Path.Combine(target, "ad", name);
+            True(File.Exists(installed), $"ad/{name} installed");
+            True(File.ReadAllBytes(installed).AsSpan().SequenceEqual(File.ReadAllBytes(Path.Combine(src, "ad", name))), $"ad/{name} unmodified");
+        }
+        var r = InstallRecord.Load(target)!;
+        Eq(4, r.Files.Count(f => f.Component == Components.ArcaneDimensions), "4 AD files recorded");
+        Eq(coreCount, r.Files.Count(f => f.Component != Components.ArcaneDimensions), "the program files' records kept");
+        Eq(sha, r.ArcaneDimensionsSha256, "its SHA-256 recorded");
+        True(r.Choices.ArcaneDimensions && r.Directories.Contains("ad"), "chosen, its folder recorded");
+        True(!Directory.EnumerateFiles(target, "*.qvrnew", SearchOption.AllDirectories).Any(), "no staging files left");
+
+        // Anything else is refused: a zip of another size, the right size with another SHA-256.
+        var wrongSize = Path.Combine(Dir("adi-wrong"), "ad_v1_80p1final.zip");
+        File.WriteAllBytes(wrongSize, body[..^1]);
+        True(Throws<InstallException>(() => ArcaneDimensions.Install(target, wrongSize, pinnedFile, null, CancellationToken.None), "wrong size").Message.Contains("bytes"), "size checked first");
+        var wrongSha = Path.Combine(Dir("adi-wrong2"), "ad_v1_80p1final.zip");
+        File.WriteAllBytes(wrongSha, [.. body.Select(b => (byte)(b ^ 1))]);
+        True(Throws<InstallException>(() => ArcaneDimensions.Install(target, wrongSha, pinnedFile, null, CancellationToken.None), "wrong hash").Message.Contains("SHA-256"), "then the SHA-256");
+        // The real pin refuses the small zip too (what --ad-zip with any other file meets).
+        True(Throws<InstallException>(() => ArcaneDimensions.Install(target, zip, BuiltInComponents.ArcaneDimensions(), null, CancellationToken.None), "the real pin").Message.Contains("320914417 bytes"), "the real pin's size");
+
+        // An update keeps AD; its plan keeps, replaces (another pin) or restores (a repair, a file damaged).
+        var r2 = new InstallEngine().Install(new InstallPlan { Mode = InstallMode.Update, PackagePath = Fixtures.MakePackage(Dir("adi-pkg2"), "1.1.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        Eq(4, r2.Files.Count(f => f.Component == Components.ArcaneDimensions), "the update keeps AD recorded");
+        True(File.Exists(Path.Combine(target, "ad", "pak0.pak")) && r2.ArcaneDimensionsSha256 == sha && r2.Choices.ArcaneDimensions, "and on disk, with its SHA-256");
+        Eq(AdAction.Keep, ArcaneDimensions.Plan(target, r2, pinnedFile, verify: false).Action, "same zip: kept");
+        Eq(AdAction.Replace, ArcaneDimensions.Plan(target, r2, new FeedFile { File = "x.zip", Size = 1, Sha256 = new string('d', 64) }, verify: false).Action, "another zip: replaced");
+        File.WriteAllText(Path.Combine(target, "ad", "quake.rc"), "damaged");
+        Eq(AdAction.Restore, ArcaneDimensions.Plan(target, r2, pinnedFile, verify: true).Action, "a repair restores");
+        var restored = ArcaneDimensions.AddAsync(http, target, pinnedFile, downloads, null, null, null, CancellationToken.None, 1).GetAwaiter().GetResult();
+        True(restored.Installed && File.ReadAllText(Path.Combine(target, "ad", "quake.rc")) == "exec default.cfg", "restored from the downloaded zip: " + restored.Message);
+        Eq(AdAction.NotInstalled, ArcaneDimensions.Plan(Dir("adi-none"), new InstallRecord(), pinnedFile, verify: true).Action, "none installed");
+
+        // A file of the player's in ad\ that Setup did not put there: never overwritten.
+        var t2 = Path.Combine(run, "adi-own-QuakeVR");
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("adi-pkg3"), "1.0.0"), TargetDir = t2, QuakeDir = quake }, null, CancellationToken.None);
+        Directory.CreateDirectory(Path.Combine(t2, "ad"));
+        File.WriteAllText(Path.Combine(t2, "ad", "quake.rc"), "the player's own");
+        var own = ArcaneDimensions.AddAsync(http, t2, pinnedFile, downloads, null, null, null, CancellationToken.None, 1).GetAwaiter().GetResult();
+        True(!own.Installed && own.Message.Contains("Setup did not put it there"), own.Message);
+        Eq("the player's own", File.ReadAllText(Path.Combine(t2, "ad", "quake.rc")), "the player's file kept");
+        True(!File.Exists(Path.Combine(t2, "ad", "pak0.pak")), "nothing of AD installed");
+
+        // The uninstall removes ad\ (Setup's) with the rest.
+        Uninstaller.Uninstall(target, new UninstallOptions());
+        True(!Directory.Exists(Path.Combine(target, "ad")), "uninstall removed ad\\");
+        True(!Directory.Exists(target), "and the whole (empty) folder");
+    }),
+    ("arcane dimensions: a failed or cancelled download never fails the install", () =>
+    {
+        using var server = new LocalHttpServer();
+        var quake = Dir("adf-quake");
+        var target = Path.Combine(run, "adf-QuakeVR");
+        new InstallEngine().Install(new InstallPlan { PackagePath = Fixtures.MakePackage(Dir("adf-pkg"), "1.0.0"), TargetDir = target, QuakeDir = quake }, null, CancellationToken.None);
+        var before = File.ReadAllText(Path.Combine(target, InstallRecord.FileName));
+        using var http = Downloader.CreateClient();
+        var missing = new FeedFile { File = "ad_v1_80p1final.zip", Size = 1000, Sha256 = new string('e', 64), Urls = [server.Url("gone/ad_v1_80p1final.zip").ToString()] };
+        var failed = ArcaneDimensions.AddAsync(http, target, missing, Dir("adf-dl"), null, null, null, CancellationToken.None, 1).GetAwaiter().GetResult();
+        True(!failed.Installed && !failed.Cancelled, "not installed");
+        True(failed.Message.Contains("Quake VR itself is installed") && failed.Message.Contains("run Setup again"), failed.Message);
+        Eq(before, File.ReadAllText(Path.Combine(target, InstallRecord.FileName)), "install.json untouched");
+        True(!Directory.Exists(Path.Combine(target, "ad")) && File.Exists(Path.Combine(target, "ironwail.exe")), "no ad folder; the game still installed");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var cancelled = ArcaneDimensions.AddAsync(http, target, missing, Dir("adf-dl2"), null, null, null, cts.Token, 1).GetAwaiter().GetResult();
+        True(cancelled.Cancelled && !cancelled.Installed && cancelled.Message.Contains("cancelled"), cancelled.Message);
+        Eq(before, File.ReadAllText(Path.Combine(target, InstallRecord.FileName)), "install.json untouched after a cancel");
+    }),
     ("sounds: the mixer never steps the output (voice fades, stolen voices, the loop's seam, the mute, a smooth limiter)", () =>
     {
         // The limiter: unchanged below the knee, continuous (and so is its slope) at the knee, never above full scale.

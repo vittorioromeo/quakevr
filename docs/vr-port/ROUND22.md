@@ -25122,3 +25122,48 @@ client prints `shells eject hand 1 kind 1 skin 1 x6` and `x2` for its casings. `
 36/44, full 163/171, no verdict changes (PASS -> PASS damage noise only). Eyeshots (low-impact, low-res): the three held,
 the cylinder swung out, the casings and live shells on the floor, the pouch red at spawn and blue with the revolver.
 - [ ] His night poses and stretch shipped {test:none}: empty vr_agrunt_poses and vr_agrunt_ik_stretch: the grunt's and enforcer's fists, one-handed melee, rifle, pistol, launcher, sprayer, laser cannon and Widowmaker poses and reach as you left them.
+
+## Arcane Dimensions in the installer (worktree `dequant`, branch `agent/adinstall`, 2026-10-27)
+
+An opt-in, off-by-default installer component, as ARCANE_DIMENSIONS.md section 10 designed it (status: built).
+
+- **What the player sees.** Options page, under HD textures: "Arcane Dimensions (experimental) — free, by sock and
+  team", its size on the right ("306 MB download, about 792 MB on disk"), one line ("Experimental, may have bugs: the
+  1.80 patch 1 release, downloaded from its authors' hosts and installed as released...") and a link to AD's readme
+  (a found copy's own `ad_v1_80_readme.txt`) or its Quaddicted page. A copy found: the line says "Found in <path>: will
+  be used (nothing downloaded)", the size says "already installed", the box is disabled. An older or incomplete copy:
+  "Found in <path>, but it isn't 1.80 patch 1...: tick to download 1.80 patch 1 into Quake VR's folder".
+- **Order.** AD is the last step (after the game, the VC++ runtime and the preparation): its 306 MB download failing or
+  cancelled (Cancel during it skips AD only) leaves the install done; the Done page has an "Arcane Dimensions" warning
+  saying how to add it later: Setup again, the Update screen's "Add Arcane Dimensions" box (shown when the install has
+  no AD and no 1.80p1 copy was found), then Update. A repair re-downloads it when a file is damaged; an update keeps it.
+- **Core.** `Installer/src/QuakeVR.Installer.Core/Packaging/ArcaneDimensions.cs`: the pin check (size, then SHA-256),
+  unpacking into `<install>\ad` (a single top folder in the zip is AD's own `ad/`), staged `*.qvrnew` then moved,
+  recorded as component `ad` (install.json `arcaneDimensionsFile`/`Sha256`, `choices.arcaneDimensions`); the player's
+  own file of the same name in `ad\` is never overwritten (AD is then not installed, with a message). `InstallEngine`
+  keeps AD's files and fields through updates and reinstalls; `Uninstaller` removes them. Found-existing: the engine's
+  `discoverCampaigns` order over the owned roots without the Quake VR folder (the stores', the Quake folder's), the
+  engine's `inspectPack` port, then pak2.pak's size and header+directory SHA-256 (vr_ad.cpp `versionStatus`).
+- **Pins.** `BuiltInComponents.ArcaneDimensions()` (the four URLs in the doc's order, all sock's/Quaddicted's), and
+  `Misc/release/support_assets.json` `thirdParty.ad` (a new key: `files` is what we host, so make_release neither
+  checks nor uploads it). latest.json's `components.ad` overrides, as for `hdtextures`.
+- **CLI.** `qvr-setup install|update ... --ad [--ad-zip <zip>] [--no-stores]`; `--dry-run` prints the `ad:` line (found
+  copy, or file, source, sizes, SHA-256, hosts).
+- **Engine.** Confirmed: with `-nosteam -nogog -noepic` and AD only in a second `-basedir` (the Quake VR folder's place),
+  `vr_campaign_status` says `6 ad: installed ...; source <that base>` and `vr_ad_info` "1.80 patch 1, ready"; the
+  Official Campaigns row is selectable (its experimental confirmation). Its label and help said "native in progress" /
+  "campaign play is unavailable", which was wrong for AD: now "Arcane Dimensions: experimental" and "Experimental:
+  starts a new single-player Arcane Dimensions game (asks first). It may have bugs." (`vr_gamedir.cpp`).
+- **Tests.** Self-test: 4 new (pin; found-existing; sandboxed install from a local server with a 663-byte fake zip whose
+  size and SHA-256 are pinned in the test: wrong size, wrong hash and the real pin refused, update/repair/uninstall;
+  failed and cancelled download): 41/41 pass. The real AD 1.80p1 in the Steam Quake folder passes the C# port of the
+  engine's pak2 check (read only). CLI in a sandbox through `qvr-setup serve` (latest.json `components.ad` pinning the
+  fake zip): install --ad unpacks 4 files and records them, `--ad-zip` of another file is refused with the install still
+  exit 0, `--dry-run` on the real Steam Quake prints "Found in ...\Quake\ad: will be used", uninstall removes `ad\`.
+  The screenshot harness renders the row (Options page now scrolls 25 px at the default window size). No real 306 MB
+  download was made.
+
+Checklist lines (suggested):
+- `Setup (installer): Options: Arcane Dimensions row: off by default, "306 MB download, about 792 MB on disk"; with AD in your Steam Quake folder it says "Found in ...: will be used" and is disabled`
+- `Setup: tick Arcane Dimensions on a PC without it (or rename your ad folder): it downloads last, installs into QuakeVR\ad, Official Campaigns > Arcane Dimensions: experimental starts it`
+- `Setup: cancel during the Arcane Dimensions download: Quake VR is installed, the Done page says how to add AD later; Setup again shows "Add Arcane Dimensions" on the Update screen`
