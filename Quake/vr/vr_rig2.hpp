@@ -131,6 +131,10 @@ void drawInfo(); // vr_rig2_draw_info: the drawn subject's models (old, authored
 // The .mdl of an entity drawn now on the authored rig (swapped to "<model>#rig2"), else nullptr: what it is shaded as
 // (its occluder, its occlusion group: vr_ao.cpp), as on the old rig.
 [[nodiscard]] const qmodel_t* sourceModel(const struct entity_s* e);
+// The Rig Studio's subject posed on the authored rig lately (drawPosed this frame or the last), swapped or not: its .mdl,
+// else nullptr. (The swap is undone after each frame's drawing, so code before the next swap, VR_RelinkArmedGrunts, sees
+// the .mdl: sourceModel misses it there.)
+[[nodiscard]] const qmodel_t* studioPosedModel(const struct entity_s* e);
 // Mod_LoadModel's "<model>#rig2": the .mdl's rest pose as a skeletal mesh, 4 weights a vertex (the rig's).
 [[nodiscard]] bool makeSkinnedModel(qmodel_t* mod);
 
