@@ -122,6 +122,8 @@ void write(const Rig& rig, za::String& out);
 // The Rig Studio's subject drawn with the rig (vr_rig2 1, Range of Motion: Game display): `entnum` drawn this frame
 // with these bones (cleared each frame after drawing: swapModels / restoreModels, beside the ragdolls').
 void drawPosed(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones);
+// ... on the derived rig (its "#rag" copy, F its bones'): the Range of Motion's "Old rig" while the game is on the authored one.
+void drawPosedDerived(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones);
 void swapModels();
 void restoreModels();
 [[nodiscard]] int bonePoses(const struct entity_s* e, const float** matrices);

@@ -64,6 +64,7 @@ struct Drawn
     bool swapped{false};
     int drawsFrame{-1}, draws{0}, lastDraws{0}; // its bone matrices handed to the renderer (vr_rig2_draw_info)
     int studioFrame{-1};       // the Rig Studio's pose published at (drawPosed: the game's drawLive yields to it)
+    qmodel_t* useSkinned{nullptr}; // drawn with this skinned copy (drawPosedDerived: the derived rig's "#rag"), else "#rig2"
     rigpose::Rigid F[maxBones]; // the bones as published (drawnBone: a ragdoll made of it starts there)
 };
 za::Vector<Drawn> drawn;
@@ -903,7 +904,7 @@ void reload()
 
 namespace
 {
-void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, bool studio, uint32_t hidden = 0)
+void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, bool studio, uint32_t hidden = 0, qmodel_t* useSkinned = nullptr)
 {
     Drawn* d = nullptr;
     for(Drawn& x : drawn)
@@ -935,6 +936,7 @@ void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, in
     d->model = model;
     d->frame = host_framecount;
     d->studioFrame = studio ? host_framecount : d->studioFrame;
+    d->useSkinned = useSkinned;
     d->bones = za::min(numBones, maxBones);
     const Rig* rig = hidden ? rigFor(model) : nullptr;
     for(int b = 0; b < d->bones; b++)
@@ -954,6 +956,16 @@ void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, in
     }
 }
 } // namespace
+
+void drawPosedDerived(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones)
+{
+    const ragdoll::Rig* rig = model ? ragdoll::derivedRigFor(const_cast<qmodel_t*>(model)) : nullptr;
+    qmodel_t* sk = rig ? ragdoll::skinnedModelOf(*rig) : nullptr;
+    if(sk && sk->type == mod_alias)
+    {
+        publishDrawn(entnum, model, F, numBones, true, 0, sk);
+    }
+}
 
 void drawPosed(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones)
 {
@@ -1036,7 +1048,7 @@ void swapModels()
         {
             continue;
         }
-        qmodel_t* sk = skinnedFor(d.model);
+        qmodel_t* sk = d.useSkinned ? d.useSkinned : skinnedFor(d.model); // (the Rig Studio's old rig: the derived "#rag")
         if(!sk)
         {
             continue;

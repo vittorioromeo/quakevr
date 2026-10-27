@@ -328,6 +328,21 @@ void romFrame()
     else
     {
         oldFromRom(*rig);
+        const ragdoll::Rig* old = rig2::gameOn() && st.model ? ragdoll::derivedRigFor(const_cast<qmodel_t*>(st.model)) : nullptr;
+        if(old)
+        {
+            // (the game on the authored rig, vr_rig2's latch: its subject drawn on the derived rig's "#rag" as the authored
+            // one moves, each old bone as its namesake; the studio's own layer would move the authored ragdoll rig)
+            rigpose::Rigid Fo[ragdoll::maxBones];
+            for(int o = 0; o < old->numBones; o++)
+            {
+                int m = rig2::boneByName(*rig, old->bones[o].name);
+                m = m >= 0 ? m : old->bones[o].joint == ragdoll::Joint::Loose ? rig2::boneByName(*rig, "weapon") : 0;
+                Fo[o] = rom.F[za::max(m, 0)];
+            }
+            clearLive();
+            rig2::drawPosedDerived(st.subject, st.model, Fo, old->numBones);
+        }
     }
     updateReport(*rig);
     romTestTick(*rig);

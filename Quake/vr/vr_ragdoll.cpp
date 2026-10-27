@@ -3637,7 +3637,7 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     char base[MAX_QPATH];
     q_strlcpy(base, mod->name, za::min(sizeof(base), len - suffix + 1));
     qmodel_t* src = Mod_ForName(base, false);
-    const Rig* rig = src ? ragdoll::rigFor(src) : nullptr;
+    const Rig* rig = src ? ragdoll::derivedRigFor(src) : nullptr; // (an authored rig's ragdoll: "#rig2", vr_rig2.cpp)
     if(!rig)
     {
         return false;
@@ -3700,7 +3700,7 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     // about its joint between the chest and the upper arm, the elbow between the arm's bones), not each vertex rigid on
     // one bone (its shoulder's skin torn and folded as a raised arm fell with it). Its skin made now if not yet.
     glm::vec4 armRow{0.f};
-    const bool armSkin = vr_ragdoll_arm_skin.value != 0.f && hitreact::armSkinRow(src, sh, *rig, 0, armRow);
+    const bool armSkin = vr_ragdoll_arm_skin.value != 0.f && !rig2::gameOn() && hitreact::armSkinRow(src, sh, *rig, 0, armRow); // (vr_rig2 1: the arm skin made for the authored rig)
     int blended = 0;
     for(int v = 0; v < numVerts; v++)
     {
