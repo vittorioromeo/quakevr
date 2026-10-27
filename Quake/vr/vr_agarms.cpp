@@ -496,7 +496,16 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
             const Side& sd = m.side[s];
             const float along = glm::dot(p - sd.S, sd.E - sd.S) / (sd.Lu * sd.Lu);
             const float out = (p.y - sd.S.y) * (s == 0 ? -1.f : 1.f);
-            const float onArm = za::min(motionMiss(v, spec.upper[s]), motionMiss(v, spec.fore[s]));
+            float onArm = za::min(motionMiss(v, spec.upper[s]), motionMiss(v, spec.fore[s]));
+            // (the authored rig's hand a bone of its own: its fist moves with it, not its forearm; the enforcer's long
+            // gauntlet past its short forearm was the body's, its grip 5 units back in the fist)
+            for(int h = 0; rig.authored && h < rig.numBones; h++)
+            {
+                if(rig.bones[h].parent == spec.fore[s] && !strncmp(rig.bones[h].name, "hand", 4))
+                {
+                    onArm = za::min(onArm, motionMiss(v, h));
+                }
+            }
             const float onChest = motionMiss(v, spec.chest);
             why.y = along;
             why.z = out;
@@ -1014,7 +1023,7 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
     {
         const glm::vec3 shift = S1 + dir0 * want - W1;
         o.miss = glm::length(shift);
-        if(vr_agrunt_ik_debug.value >= 5.f && o.miss > 4.f)
+        if(vr_agrunt_ik_debug.value >= 5.f && o.miss > (vr_agrunt_ik_debug.value >= 6.f ? 0.5f : 4.f)) // (6: the small ones too)
         {
             Con_Printf("agarms reach: side %d shoulder %.1f %.1f %.1f (on the chest %.1f %.1f %.1f) wrist wanted %.1f %.1f %.1f: %.1f "
                        "away, reach %.1f..%.1f (arm %.1f + %.1f)\n",
@@ -1042,6 +1051,10 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
             const glm::vec3 shift = S1 + dir * dl - W1;
             o.limited = glm::length(shift);
             o.miss += o.limited;
+            if(vr_agrunt_ik_debug.value >= 6.f && o.limited > 0.5f)
+            {
+                Con_Printf("agarms limited: side %d by %.1f (%.0f deg off the shoulder's range)\n", s, o.limited, (off - most2) * (180.f / pi));
+            }
             H.pos += shift;
             W1 += shift;
         }
@@ -1268,6 +1281,10 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S0, const glm::quat& cq,
     ArmOut o2 = solveArmOnce(sd, s, S0, cq, H2, prevElbow, pole, lim);
     o2.cleared = glm::length(W2 - o.W);
     o2.miss += o2.cleared;
+    if(vr_agrunt_ik_debug.value >= 6.f && o2.cleared > 0.5f)
+    {
+        Con_Printf("agarms cleared: side %d by %.1f (its upper arm %.1f in the torso)\n", s, o2.cleared, o.armIn);
+    }
     return o2;
 }
 
@@ -1579,7 +1596,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     lim.armClear = vr_agarms_arm_clear.value != 0.f;
     lim.rest = m->rest.data();
     Limits limHeld = lim; // (a hand on a weapon or its grip, a fist: turned out of the torso a little at most)
-    limHeld.clearMost = armClearHeldMost;
+    limHeld.clearMost = rig.authored ? za::max(vr_rig2_arm_clear.value, 0.f) : armClearHeldMost;
     // A hand's wrist and grip pushed out of the body (its weapon with it).
     float pushedBy[2]{0.f, 0.f}; // (the Pose Studio's: Placed::pushed)
     const auto pushOut = [&](int s, rigpose::Rigid& H) {

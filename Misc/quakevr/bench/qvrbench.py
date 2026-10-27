@@ -532,6 +532,15 @@ def scenarios():
         "vrtesthall", "bench_armed16 with the player's fists jabbing (vr_mock_play) as they close in: melee against "
         "armed humanoids, their strikes, parries and blocks, knockdowns.",
         scene="bench_armed16", hostile=True, motion=punch_motion, warm=60, load_wait=240)
+    # (the enforcer's rig, stage 2b: vr_rig2 0 / 1 with --settings; ROUND22.md, "Enforcer rig, stage 2")
+    add("armed_16_enf", ["rig2"], "16 armed enforcers (guns, dual guns, melee) hunting you, your shotgun",
+        "vrtesthall", "bench_armed16_enf: armed_16's weapons, all on enforcers.",
+        scene="bench_armed16_enf", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    add("ragdolls_32_enf", ["rig2"], "32 enforcer ragdolls tossed by blasts", RANGE,
+        "ragdolls_32_active with enforcers.",
+        setup=["vr_ragdoll_max 32"] + spawn_grid(32, ("monster_enforcer",), x0=100, dy=40) + waits(30)
+        + [f"vr_physics_blast {216 - row * 48} {-556 - side} 40 60" for row in range(4) for side in (-120, -40, 40, 120)],
+        warm=10, body=blasts_every(90, lambda i, r: ["vr_physics_blast 130 -556 40 20"]))
     add("crowd_ad_40", ["r25", "combat"], "40 monsters, Quake's and AD's, hunting you, your shotgun", "vrtesthall",
         "bench_crowd_ad: 40 of 20 kinds (grunts, ogres, knights, enforcers, scrags, fiends, death knights and AD's "
         "death knights, crossbow knights, hunter ogres, rocket and plasma soldiers, gaunts, skull wizards, spiders, "

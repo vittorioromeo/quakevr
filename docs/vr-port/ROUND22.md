@@ -24579,6 +24579,147 @@ Tests: `vr_rig2_check` on vrgrunt and soldier 22/35 each (the table); `vr_rigstu
 compared number for number, then restored).
 - [ ] Grunt rig limits mirrored {test:none}: Rig Studio > Range of Motion: sweep each left-side joint beside its right one (same reach, mirrored twist); try the suggested values for chest twist, the right clavicle twist, the right hand and the left knee 115 if the armpit or wrist creases bother you
 
+## Enforcer rig, stage 2: the game on its authored rig (worktree `gorefx`, branch `agent/rig2s2b`, 2026-10-27)
+
+His go-ahead (in parallel with his VR test of the grunt's stage 2). **The same switch, `vr_rig2 1`** (default 0; Debug >
+Grunt and Enforcer on the Authored Rig (Next Map)) now puts the enforcer (`enforcer.mdl`, the armed `vrenforcer.mdl`)
+on its authored rig (agent/rig2enf) as stage 2 put the grunt: its ragdolls on the authored bones (the power pack a rigid
+part of the chest's body: its weight 1 on the chest, so in the chest's hull), its live drawing with the blended skin
+along r_lerpmodels 3's spline, its hit reactions and limb cuts per authored bone, an armed one's arms laid on the
+authored clavicle / upper arm / forearm / hand and its rifle as the weapon bone, its legs on thigh / shin / foot (the
+Pickup's kneel), its strikes' torso turn at the spine.
+
+**What it took** (the stage 2 code is the rig's, not the grunt's: its bone names are the grunt's, agarms' and hitreact's
+tables find them by name):
+- `ragdoll::rigFor`: the grunt-only check lifted (any model with an authored rig file).
+- `rig2_game.cpp`: the bones' name lookups cached per rig (one rig was assumed: the grunt's two models and the
+  enforcer's two now take turns); `vr_rig2_record` keeps one rig's poses (a model filter, `vr_rig2_record ragdoll 60 1.2
+  check enforcer`; else the first pose's model) and its check runs on that model; a ragdoll set's spacing is `every`
+  when given (more deaths in one set; 0.25 s as before by default).
+- QC (`vr_armedmon.qc`, `vr_rig2_game` set): the enforcer's authored shoulders (-5.5 -12.5 21, -5.5 11.5 21), its arm
+  15 (upper arm 8.3 + forearm 6.7; the derived rig's 20.4), and the grunt-made poses fitted so the grunt's authored
+  shoulders land on the enforcer's (`vr_am_fit_scale` 1 1.3 1, `_shift` -5.8 0 5.8; the old fit put them 2.7 units
+  over them).
+- agarms (authored rig only): an arm's vertex is the arm's if it moves with its upper arm, forearm **or hand bone** (the
+  enforcer's fist past its wrist moved with no bone the test looked at: half the fist was the body's, its grip 5 units
+  back in the fist; the grunt's skin is the same as before, checked line for line).
+- agbody: a proxy's side with 1-3 points takes its farthest (it took the other side's: the enforcer's chest front is
+  under its rifle, 2 points, and the torso proxy reached 15.3 units ahead of the chest, the power pack's depth; now 6.5;
+  the grunt's proxies the same, checked).
+- **The rig** (`make_rig2.py`, `vrenforcer.rig2.txt` / `enforcer.rig2.txt` regenerated; the grunt's files unchanged):
+  the right wrist at the gauntlet's cuff (forearm 4.7 -> 6.7, hand 5.9 -> 3.1 to the grip pivot; the left 7.5 / 3.6): the
+  armed solve's reach was 5 units short p95 and its elbow could not fold the grip to the shoulder (least reach 4.5);
+  `no_skip` (new: an end of a chain keeps none of the other end's weight, the middle's): the right elbow's block none of
+  the fist's, the fist's back none of the upper arm's ("the right fist's weight off the upper arm"); a tie of the right
+  pad's front inner edge (v84, 147, 150, 154: two triangles folded 151-177 as the arm twisted 20 in, "the right pad
+  crease").
+
+**vr_rig2_check** (`progs/vrenforcer.mdl`): **28 of 35** (stage 1: 26). Now passing: the right shoulder (9 folds -> 0), the
+right wrist with its elbow (2 flipped -> 0); the random poses 42 -> 34 flipped, 59 -> 36 folds. Still failing: the hips
+(thigh_l 1 collapsed; thigh_r 4 flipped, 2 collapsed: the long triangle v263-v241-v266 down the side of the hip with
+the leg at 60-65 forward and twisted 30; more thigh weight on v263 made it 18 flipped, reverted), foot_r's twist,
+neck+head's stretch, the thighs with the knees, the random poses (2 see-through lines in 1000).
+
+**Old (derived rig moved alike) / new (authored)** (`vr_rig2_check <model> 0 recorded`; see-through, flipped,
+collapsed, folds, stretch):
+| poses | old | new |
+|---|---|---|
+| 60 ragdoll poses from real deaths and knockdowns (body, head, arm, leg shots, a hit and a blast knocking down, body, head, arm again: `scratch/ragrec.sh`) | 3 (3 poses), 680, 18, 169, 0.08..5.22 | 0, 2, 2, 6, 0.28..2.58 |
+| 200 armed poses as drawn, glitch finder (the 13 enforcer subjects, one every 1.2 s: `scratch/armrec.sh`) | 406 (131 poses), 5723, 94, 862, 0.06..17.50 | 3 (3 poses), 213, 11, 89, 0.18..2.42 |
+Neither set has a self-intersection (selfx 0 both). The arms on the solve (`vr_rig2_arms`, same run): hand 0.11 mean /
+3.96 most units off it, elbow 0.03 / 0.31; past the authored limits (not held: `vr_rig2_arm_limits 0`) clavicle 4.8 /
+22.7, shoulder 24.3 / 200, elbow 0.5 / 30.9, wrist 20.1 / 136 degrees mean / most.
+
+**Glitch finder, the 13 enforcer subjects** (test 46, subjects 13-25, the default fast mode: 72 Hz fixed frames; p95 /
+worst; three runs each):
+| metric | old 1, 2, 3 | authored 1, 2, 3 |
+|---|---|---|
+| reach | 2.72/28.4, 2.71/33.7, 2.37/27.0 | 3.89/31.5, 3.85/36.3, 3.82/36.9 |
+| grip2 | 0.00/24.0, 0.00/23.6, 0.00/22.4 | 0.00/26.4, 0.00/26.2, 0.00/25.4 |
+| aim | 0.02/50.3, 0.02/55.0, 0.02/56.7 | 0.03/47.5, 0.02/53.1, 0.02/53.9 |
+| wrist | 0.00/53.5, 0.00/58.6, 0.00/56.7 | 0.00/55.9, 0.00/54.4, 0.00/58.3 |
+| armpen | 0.76/11.4, 0.76/11.5, 0.78/12.8 | 2.57/11.5, 2.59/11.2, 2.59/13.8 |
+| shoulder (jump) | 0.27/5.9, 0.27/5.2, 0.27/5.9 | 0.46/5.9, 0.47/4.5, 0.49/5.7 |
+| wrong | 91.5/179, 91.7/178, 91.9/179 | 116.5/180, 116.7/180, 116.8/179 |
+| pen | 0.00/12.1, 0.00/11.9, 0.00/13.1 | 0.00/8.3, 0.00/8.1, 0.00/8.1 |
+| stretch | 2.82/17.8, 2.82/19.8, 2.75/21.0 | 1.14/16.6, 1.07/12.4, 1.08/15.2 |
+How it got there (one run each, reach p95): the arm 13 and the old fit 7.1; the refit 6.8; the fist's hand vertices
+6.0; the torso proxy's front 5.0; the right wrist at the cuff 3.9. Left worse than the old: **reach** (run 4.7, pain
+5.1, aim and fire 8-9 p95 against 1.6-5.7: the authored arm is 18.9 units to its grip, the derived one's 24.4: goals the
+derived arm reached are past it), **armpen** (2.6 p95 in every steady state, aim, fire, run, pain: the authored upper
+arm's skin includes the pad's inner edge, and the torso proxy is the authored chest's, wider at the sides: 8.4 against
+7.5; `vr_agbody_torso_sides 0.4` changed nothing; the drawn mesh has no self-intersection in the 200 recorded poses),
+**wrong** (the elbow's way off outward-and-down: 92 -> 117 p95). Better: stretch, pen's worst, swing's worst (173 -> 133).
+His enforcer complaints, as the finder measures them: the arm through the back of the shoulder (swing: p95 92 -> 106,
+worst 173 -> 133), the left arm through the torso two-handing (armpen, above; the shotgun 0.2 -> 1.7 p95), the twisted
+shoulder (twist p95 75 -> 78), the belly / pelvis push shooting (pen: 0 p95 both, worst 12.1 -> 8.3).
+
+**The grunt with vr_rig2 1 unchanged** (subjects 0-12, one run each, origin/next's build against this branch's): reach
+5.02 / 4.59, grip2 1.05 / 1.06, aim 8.27 / 5.59, wrist 10.24 / 6.98, armpen 0.52 / 0.52, shoulder 0.39 / 0.38, wrong
+61.6 / 60.6 p95 (the run-to-run spread; this method's numbers are not the stage 2 table's: 72 Hz fixed frames and the
+nail pistol subject in). Its skin (`vr_agarms_info`) and proxies printed the same before and after.
+
+**Rig Studio** (`-flatscreenmode`: the studio closes under the mock headset): Range of Motion test on the enforcer 9/9
+on both latches, on the grunt 9/9; `_test_subjects` 14/14, `_aim` 4/4, `_posekeys` 10/10 on both latches.
+`vr_rigstudio_rom test weapon` fails 0/6 everywhere (the enforcer and the grunt, `vr_rig2` 0 and 1: "no reading ...
+weapon 0": the subject's weapon entity is not found; not looked into, not checked on origin/next). The rom test
+rewrites the subject's rig file: regenerated with make_rig2.py after.
+
+**Eyeshots** (old | new; a low-impact run: low-res, the camera close: judge them in VR): `scratch/eyes_enf_guns.png`
+(test 45's sheet, the enforcer: the nail pistol one-handed, idle and aim ahead, front and side; then the laser rifle
+two-handed, the same), `scratch/eyes_enf_dead.png` (a body-shot death, then a knockdown by a 30 hit, twice). Looked at:
+the aims alike, the authored elbow bent smoothly and the fist whole on the grip; the laser rifle's idle hold sits at the
+belly on the authored rig (the old one held it out of view, lower); the dead and knocked-down bodies lie whole, nothing
+flung.
+
+**Live drawing** (`vr_rig2_live_check`): a live enforcer.mdl drawn 0.22 units rms off its frames, 0.63 at most (the
+grunt's 0.13-0.15); `{test:pose_enforcers_guns}` starts on the authored latch (25 of 25 spawned).
+
+**Cost** (LTO, exclusive, 3 x 900 frames, `bench.sh --scenarios armed_16_enf,ragdolls_32_enf --settings` a cfg with
+`vr_rig2 0` / `1`; new scenarios: armed_16's scene all enforcers, ragdolls_32_active with enforcers; median, old / new):
+armed_16_enf CPU 3.15 / 2.63 ms (-17%), p99 5.94 / 3.72, GPU 2.91 / 2.22 ms (-24%: one skinned copy); ragdolls_32_enf
+CPU 3.10 / 3.08 ms, p99 6.62 / 6.29, GPU 2.73 / 2.69, max frame 12-15 / 16-17 ms (the 32 made at once: 19 bodies
+each). `vr_agrunt_ik_debug 6` (new): every reach miss over 0.5 units, the shoulder range's and the torso clearance's.
+
+**eval.sh**: no verdict changes with `vr_rig2` 0 and with 1 (`EVAL_PRE` with `vr_rig2 1`): 163/171 both, every
+difference PASS -> PASS (damages 0.1 apart, as stage 2 found).
+
+**Round 2 (same branch, after merging origin/next's agent/rig2anim): the armed solve retuned to the authored arm.**
+- The torso proxy (agbody, authored rigs): a chest with a backpack (back over twice its front) takes its torso's shape
+  from the derived rig's chest (same rest mesh), carried by the authored chest, its sides from the lower 0.4 (6.4 units
+  each way; the derived rig's 0.6 gave 7.5 / 9.1, the right fist and the pads' edges in them). The grunt's proxies are
+  the same (printed).
+- QC's fit drawn in ahead and down (`vr_am_fit_scale` 0.85 1.3 0.9, `_shift` -5.75 0 7.3): the authored arm reaches 18.9
+  to a grip, the derived one 24.4.
+- `vr_rig2_arm_clear` (new, 6 = vr_agarms' as before): the held hands' torso clearance on authored rigs (15: armpen 1.1
+  but reach 4.3: kept at 6).
+- Tried, no effect on `wrong`: `vr_rig2_clavicle` 0.35 / 1, the elbow's pole cost times 3, `vr_agarms_limits 0` (130),
+  `vr_agarms_body 0`; both arms read the same (116 each alone).
+
+| metric (p95 / worst) | old 1, 2, 3 | authored round 2: 1, 2, 3 |
+|---|---|---|
+| reach | 2.72/28.4, 2.71/33.7, 2.37/27.0 | 2.70/28.8, 2.89/33.8, 2.49/32.0 |
+| grip2 | 0.00/24.0, 0.00/23.6, 0.00/22.4 | 0.00/24.6, 0.00/24.8, 0.00/24.7 |
+| armpen | 0.76/11.4, 0.76/11.5, 0.78/12.8 | 0.23/9.9, 0.27/10.5, 0.19/10.3 |
+| wrong | 91.5/179, 91.7/178, 91.9/179 | 116.6/180, 116.0/180, 116.2/179 |
+| shoulder (jump) | 0.27/5.9, 0.27/5.2, 0.27/5.9 | 0.46/5.5, 0.47/7.5, 0.47/5.8 |
+| wrist | 0.00/53.5, 0.00/58.6, 0.00/56.7 | 0.00/58.9, 0.00/57.4, 0.78/52.3 |
+| pen | 0.00/12.1, 0.00/11.9, 0.00/13.1 | 0.00/8.1, 0.00/10.3, 0.00/10.0 |
+| stretch | 2.82/17.8, 2.82/19.8, 2.75/21.0 | 1.11/16.7, 1.12/14.9, 1.12/17.0 |
+armpen measured with the same narrow torso on the old rig (`vr_agbody_torso_sides 0.4`): 0.57 (authored 0.19-0.27). The
+200 armed poses recorded again: new 2 see-through (2 poses), 183 flipped, 9 collapsed, 66 folds, 0.19..2.35; old 407 (132
+poses), 5707, 116, 864, 0.02..17.93; selfx 0 both. The grunt with vr_rig2 1 (once): reach 5.00, grip2 1.02, aim 5.80,
+wrist 7.97, armpen 0.50, shoulder 0.40, wrong 61.1 (origin/next's 5.02, 1.05, 8.27, 10.24, 0.52, 0.39, 61.6).
+The laser rifle's idle hold (`scratch/eyes_enf_rifle2.png`, old | new, 90 units off): at the belt on both rigs (QC's
+idle carry, not the rig's); the aim alike. `vr_rigstudio_rom test weapon`: 0/6 on origin/next too, grunt and enforcer,
+both latches ("no reading ... weapon 0"): not this branch's. The hips: v266 with 0.3 pelvis made thigh_r 7 flipped and the
+random poses 92; the thighs' twist limited to 20 made thigh_l clean but thigh_r still 3 flipped: neither kept.
+
+**Left**: the elbows' way (wrong 116 against 92 p95, in every steady state, both arms; the shoulder jump 0.47 against
+0.27), the hips' long side triangles (the leg up and out), foot_r's twist and neck+head's stretch (stage 1's), the rom
+weapon test (not this branch's).
+- [ ] Enforcer rig stage 2 {test:pose_enforcers_guns}: Debug > Grunt and Enforcer on the Authored Rig on, load a map: enforcers alive with the laser rifle two-handed and a nail pistol one-handed (aiming, running, firing), hit, knocked down, killed, cut, grabbed: elbows, knees, shoulder pads and the fist smooth, the rifle in both hands, the arms out of the torso; tell where a hand misses its grip
+- [ ] Enforcer rig stage 2 ragdolls {test:none}: vr_rig2 1: kill enforcers every way (body, head, arm, leg, blast, a stair fall), knock them down and let them get up: the power pack stays on the back, no part flung, no limb bent the wrong way
 ## Rig Studio: animating the authored rig (worktree `fastship`, branch `agent/rig2anim`, 2026-10-27)
 
 He wants to tweak the grunt's animations on the new rig. **Found** (the brief's question): with `vr_rig2 1` the studio's

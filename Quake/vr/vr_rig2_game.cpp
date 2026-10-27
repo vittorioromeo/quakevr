@@ -145,15 +145,35 @@ struct Bones
     int chest{-1}, pelvis{-1}, weapon{-1};
     Side side[2];
 };
-Bones bonesCache; // (the last rig's: one authored rig in the game)
+// (each authored rig's in the game: the grunt's two models and the enforcer's two; a fifth takes the oldest's place)
+constexpr int bonesCacheSize = 6;
+struct BonesCache
+{
+    Bones rigs[bonesCacheSize];
+    int next{0};
+};
+BonesCache bonesCache;
 
 [[nodiscard]] const Bones& bonesOf(const Rig& a)
 {
-    if(bonesCache.rig == &a && bonesCache.generation == a.generation)
+    for(Bones& c : bonesCache.rigs)
     {
-        return bonesCache;
+        if(c.rig == &a && c.generation == a.generation)
+        {
+            return c;
+        }
     }
-    Bones& o = bonesCache;
+    Bones* slot = nullptr;
+    for(Bones& c : bonesCache.rigs)
+    {
+        slot = !slot && c.rig == &a ? &c : slot; // (its own, made again after an edit)
+    }
+    if(!slot)
+    {
+        slot = &bonesCache.rigs[bonesCache.next];
+        bonesCache.next = (bonesCache.next + 1) % bonesCacheSize;
+    }
+    Bones& o = *slot;
     o = Bones{};
     o.rig = &a;
     o.generation = a.generation;
@@ -338,7 +358,10 @@ struct Recorder
     int mask{0};  // 1 ragdolls, 2 armed ones' drawn poses
     int most{50}; // poses kept each
     float every{0.5f};   // seconds between an entity's kept poses (armed)
+    float ragEvery{0.25f}; // ... (ragdolls: `every` when given, at least 0.25; more deaths in a set)
     bool checkFull{false}; // vr_rig2_check recorded run once full (a test's definite end)
+    char only[32]{};       // poses kept from models whose name has this (empty: the first kept pose's model alone)
+    char model[64]{};      // ... the model the first was kept from (the check's)
     za::Vector<Pose> poses[2];
     za::Vector<int> lastEnt[2];
     za::Vector<Pose> last[2];      // (each entity's last kept: a settled body not kept twice)
@@ -366,6 +389,15 @@ void keep(int set, int ent, const Rig& a, const rigpose::Rigid* F, double now, d
     if(!(recorder.mask & (1 << set)) || static_cast<int>(recorder.poses[set].size()) >= recorder.most)
     {
         return;
+    }
+    // (one rig's poses: the grunt's and the enforcer's joints are named alike but turn from other rest poses)
+    if(recorder.only[0] ? !strstr(a.model.cStr(), recorder.only) : recorder.model[0] && strcmp(a.model.cStr(), recorder.model) != 0)
+    {
+        return;
+    }
+    if(!recorder.model[0])
+    {
+        q_strlcpy(recorder.model, a.model.cStr(), sizeof(recorder.model));
     }
     int at = -1;
     for(za::SizeT i = 0; i < recorder.lastEnt[set].size(); i++)
@@ -404,7 +436,7 @@ void keep(int set, int ent, const Rig& a, const rigpose::Rigid* F, double now, d
         if(recorder.checkFull)
         {
             recorder.checkFull = false;
-            Cbuf_AddText(va("vr_rig2_arms;vr_rig2_check %s 0 recorded\n", a.bones[0].name[0] ? "progs/vrgrunt.mdl" : ""));
+            Cbuf_AddText(va("vr_rig2_arms;vr_rig2_check %s 0 recorded\n", recorder.model)); // (the rig the first pose came from)
         }
     }
 }
@@ -426,7 +458,7 @@ void notePublished(int num, const ragdoll::Rig& rig, int bodies, const glm::quat
     {
         F[b].rot = b < bodies ? rot[b] : rot[0];
     }
-    keep(0, num, *a, F, cl.time, 0.25);
+    keep(0, num, *a, F, cl.time, recorder.ragEvery);
 }
 
 const za::Vector<Pose>& recordedPoses(int set)
@@ -442,7 +474,20 @@ void record_f()
         recorder.mask = !strcmp(what, "ragdoll") ? 1 : !strcmp(what, "armed") ? 2 : 3;
         recorder.most = Cmd_Argc() > 2 ? za::max(atoi(Cmd_Argv(2)), 1) : 50;
         recorder.every = Cmd_Argc() > 3 ? za::max(static_cast<float>(atof(Cmd_Argv(3))), 0.05f) : 0.5f;
-        recorder.checkFull = Cmd_Argc() > 4 && !strcmp(Cmd_Argv(4), "check");
+        recorder.ragEvery = Cmd_Argc() > 3 ? za::max(recorder.every, 0.25f) : 0.25f;
+        recorder.checkFull = false;
+        recorder.only[0] = 0;
+        for(int i = 4; i < Cmd_Argc(); i++)
+        {
+            if(!strcmp(Cmd_Argv(i), "check"))
+            {
+                recorder.checkFull = true;
+            }
+            else
+            {
+                q_strlcpy(recorder.only, Cmd_Argv(i), sizeof(recorder.only)); // (a model: "enforcer", "grunt")
+            }
+        }
     }
     else if(!strcmp(what, "off"))
     {
@@ -451,14 +496,17 @@ void record_f()
     else if(!strcmp(what, "clear"))
     {
         const int mask = recorder.mask, most = recorder.most;
+        char only[sizeof(recorder.only)];
+        q_strlcpy(only, recorder.only, sizeof(only));
         recorder = Recorder{};
         recorder.mask = mask;
         recorder.most = most;
+        q_strlcpy(recorder.only, only, sizeof(recorder.only));
     }
     else if(*what)
     {
-        Con_Printf("vr_rig2_record [ragdoll|armed|all [most [every [check]]]|off|clear]: poses from the game (vr_rig2 1) for vr_rig2_check's "
-                   "\"recorded\"\n");
+        Con_Printf("vr_rig2_record [ragdoll|armed|all [most [every [check] [model]]]|off|clear]: poses from the game (vr_rig2 1) for "
+                   "vr_rig2_check's \"recorded\" (one rig's: models named with `model`, else the first pose's model)\n");
     }
     Con_Printf("rig2 record: %s; %d ragdoll poses, %d armed poses kept (at most %d each)\n",
         recorder.mask == 0 ? "off" : recorder.mask == 1 ? "ragdolls" : recorder.mask == 2 ? "armed" : "both",

@@ -128,9 +128,11 @@ bool fit(const ragdoll::Rig& rig, int bone, agbody::Proxy& out, float sides = 1.
             }
         }
     }
+    // (a side with a few points, 1 to 3, its farthest: the enforcer's chest front under its rifle has 2 (the rifle the
+    // weapon's), and its other side's radius was its power pack's, 15 units ahead of its chest)
     const auto radius = [](za::Vector<float>& s) {
         za::quickSort(s.begin(), s.end());
-        return s.size() < 4 ? -1.f : za::max(0.5f, s[static_cast<za::SizeT>(fitShare * static_cast<float>(s.size() - 1))]);
+        return s.empty() ? -1.f : s.size() < 4 ? za::max(0.5f, s[s.size() - 1]) : za::max(0.5f, s[static_cast<za::SizeT>(fitShare * static_cast<float>(s.size() - 1))]);
     };
     for(int i = 0; i < 3; i++)
     {
@@ -202,6 +204,28 @@ const Proxies* of(const qmodel_t* model, const ragdoll::Rig& rig, int chest, flo
         {
             m.p[m.n] = Proxy{}; // (a part it lacks: none there)
             m.n++;
+        }
+    }
+    // An authored rig's chest with a backpack (its back more than twice as deep as its front: the enforcer's power pack,
+    // rigid on the chest) and little torso of its own (the enforcer's lower chest is its spine's and the pack's: its
+    // sides were the pack's width, its front under the rifle): the torso's shape from the derived rig's chest, the one
+    // tuned for it (same rest mesh), carried by the authored chest.
+    if(rig.authored && m.p[Torso].back.x > 2.f * m.p[Torso].radii.x)
+    {
+        const ragdoll::Rig* d = ragdoll::derivedRigFor(const_cast<qmodel_t*>(model));
+        int dc = -1;
+        for(int b = 0; d && b < d->numBones; b++)
+        {
+            dc = dc < 0 && !strcmp(d->bones[b].name, "chest") ? b : dc;
+        }
+        Proxy p;
+        // (its sides from the lower 0.4: 6.4 units each way, the waist up to the chest's middle; from the lower 0.6, the
+        // derived rig's tuning, 7.5 and 9.1: its right fist's and the pads' edges in them, the authored arms' inner sides
+        // read as in the torso aiming: armpen 1.8 against 0.2 p95)
+        if(dc >= 0 && fit(*d, dc, p, za::min(sides, 0.4f)))
+        {
+            p.bone = chest;
+            m.p[Torso] = p;
         }
     }
     m.ok = true;
