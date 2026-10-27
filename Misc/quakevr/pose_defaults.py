@@ -25,8 +25,9 @@ import os
 import re
 import sys
 
-NUM_PARTS = 7
-TURN_PARTS = (1, 3, 6)  # RTurn, LTurn, Torso: degrees (a tenth); the rest units (a hundredth)
+NUM_PARTS = 10  # (agpose::NumParts: the first 7, then the off hand's: its grip offset place and turn (the gun's frame), its mode)
+OLD_PARTS = 7   # (agpose::numOldParts: older text and rows carry these only; the rest zero)
+TURN_PARTS = (1, 3, 6, 8)  # RTurn, LTurn, Torso, GripTurn: degrees (a tenth); the rest units (a hundredth)
 
 # (agpose::Class: 1 the rifle, the gun categories from 17; 10..16 never a class: an old-format enforcer code's digits)
 CLASSES = {0: "fists", 1: "a rifle", 2: "a one-handed melee weapon", 3: "a two-handed melee weapon", 4: "a chainsaw",
@@ -53,6 +54,16 @@ WEAPON_ROW = re.compile(r'^\s*\{(-?\d+),\s*"([^"]+)",\s*aggrip::(\w+),\s*([^}]*)
 
 def floats(text):
     return [float(x.strip().rstrip("f")) for x in text.split(",") if x.strip()]
+
+
+def padded(v):
+    """A key's numbers, all NUM_PARTS * 3 (an older one's off-hand parts zero)."""
+    return list(v) + [0.0] * (NUM_PARTS * 3 - len(v))
+
+
+def trimmed(v):
+    """The numbers a row carries: the first OLD_PARTS * 3, the off hand's too when any is set (agpose partsOf)."""
+    return v if any(x != 0 for x in v[OLD_PARTS * 3:]) else v[:OLD_PARTS * 3]
 
 
 def fmt(x):
@@ -90,8 +101,8 @@ def read_cfg(path):
                 parts = entry.split()
                 if not parts:
                     continue
-                if m.group(1) == "vr_agrunt_poses" and len(parts) == 1 + NUM_PARTS * 3:
-                    poses[new_code(int(parts[0]))] = [float(x) for x in parts[1:]]
+                if m.group(1) == "vr_agrunt_poses" and 1 + OLD_PARTS * 3 <= len(parts) <= 1 + NUM_PARTS * 3:
+                    poses[new_code(int(parts[0]))] = padded([float(x) for x in parts[1:]])
                 elif m.group(1) == "vr_agrunt_grips" and len(parts) == 9:
                     grips[(int(parts[0]), parts[1], int(parts[2]))] = [float(x) for x in parts[3:]]
     return poses, grips
@@ -105,7 +116,7 @@ def read_done(path):
                 continue
             m = POSE_ROW.match(line)
             if m:
-                poses[new_code(int(m.group(1)))] = floats(m.group(2))
+                poses[new_code(int(m.group(1)))] = padded(floats(m.group(2)))
                 continue
             m = WEAPON_ROW.match(line)
             if m:
@@ -152,7 +163,7 @@ def pose_block(src_lines, a, b, new):
     for line in src_lines[a:b]:
         m = POSE_ROW.match(line)
         if m and int(m.group(1)) >= 0:
-            shipped[int(m.group(1))] = floats(m.group(2))
+            shipped[int(m.group(1))] = padded(floats(m.group(2)))
     changed = {c for c, v in new.items() if c not in shipped or not close(shipped[c], v)}
     for c, v in new.items():
         if all(x == 0 for x in v):
@@ -162,7 +173,7 @@ def pose_block(src_lines, a, b, new):
     out = []
     for c in sorted(shipped):
         out.append("    // %s" % pose_name(c))
-        out.append("    {%d, {%s}}," % (c, ", ".join(fmt(x) for x in shipped[c])))
+        out.append("    {%d, {%s}}," % (c, ", ".join(fmt(x) for x in trimmed(shipped[c]))))
     out.append("    {-1, {}}, // (the end)")
     return out, shipped, changed
 
