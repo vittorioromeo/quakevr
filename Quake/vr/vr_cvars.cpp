@@ -593,7 +593,7 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // gun pose categories: the pose keys' code wider (an enforcer's 1xxxx now 10xxxx) and the archived rifle keys laid on
 // every category, agpose::migrateCategories; 212: his pose keys of 2026-10-27 evening shipped (the rifle Aim, the
 // Pistol, Launcher, Sprayer and Laser Cannon keys): the archived keys equal to them dropped, after 211's migration)
-constexpr int configVersion = 212;
+constexpr int configVersion = 213;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -779,6 +779,13 @@ void migrateConfig()
     {
         // (212: his keys of 2026-10-27 evening shipped; after 211's: the codes the new ones, the categories laid on. The
         // off-hand parts of 2026-10-27 need none: an entry without them reads them as zero, Auto)
+        const int poses = agpose::dropShippedEqual();
+        Con_DPrintf("VR: armed grunts: %d pose keys equal to the new defaults dropped\n", poses);
+    }
+    if(from < 213)
+    {
+        // (213: his keys of 2026-10-27 night shipped (the enforcer's fists, one-handed melee, two guns, pistol, launcher,
+        // sprayer, laser cannon, Widowmaker); an archived key equal to its new default no longer kept)
         const int poses = agpose::dropShippedEqual();
         Con_DPrintf("VR: armed grunts: %d pose keys equal to the new defaults dropped\n", poses);
     }

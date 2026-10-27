@@ -25083,3 +25083,12 @@ budget; a design is in the report.
 ## QC warnings fixed; warnings now fail the build (worktree `dequant`, branch `agent/qcwarn2`, 2026-10-27)
 
 Fixed 3 over-long strcat calls in `vr_armedgrunt_range_test.qc` (nested), a >8-argument sprintf in `vr_armedgrunt_grab_test.qc` (split in two) and two unused globals there. The full QC now compiles with 0 warnings. Kit `build.sh` greps the fteqcc output for `warning` and fails the build (so `ship_next.sh` fails) listing them; verified with a deliberate unused global (fails) and without (built).
+
+
+
+## His poses of 2026-10-27 night as defaults (worktree `dequant`, branch `agent/posepromo3`)
+
+His `vr_agrunt_poses` (43 keys, all the enforcer's kind 1; `vr_agrunt_grips` empty; hold and pose-category cvars all at their defaults; no newer Done file) folded in by `pose_defaults.py --cfg ... --write` (`shipped[]` in `vr_agpose.cpp`: 15 rows replaced, 28 new). Replaced: rifle Idle 101000 (RPos 7.13 2.65 0.06, RTurn -24.1 on the third turn, off-hand grip offset -4.91 1.37), Aim 101010 (RPos 12.1 6.33 6.41 -> 18.43 6.26 6.46, RTurn 2.5 3.9 13.9 -> 3 2 -1.4, free left hand 1.26 -7.45 -3.6, LTurn 13.9), Run 101020 (grip offset 2.21 3.78), and the enforcer's one-handed melee keys 102010, 102141/2, 102150/1/2, 102160/1/2, 102170/1/2 (places and turns, some with a torso turn). New rows: fists Guard/Run/Jab/Cross/Hook/Uppercut (100010..100132), two guns 106000/10/20, pistol 117000/10, launcher 118000/10/20, sprayer 119000/10/20, laser cannon 120000/10/20, Widowmaker 121010 (old and new of each: `git diff Quake/vr/vr_agpose.cpp`). **Migration** configVersion 213: `agpose::dropShippedEqual` again (his config at 212 comes out with an empty `vr_agrunt_poses`; a config with other keys keeps them). Nothing else differed.
+
+**At the desk:**
+- [ ] His night poses shipped {test:none}: an empty vr_agrunt_poses: the enforcer's fists, one-handed melee swings, rifle, pistol, launcher, sprayer and laser cannon poses as you left them.
