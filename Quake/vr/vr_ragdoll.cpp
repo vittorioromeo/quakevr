@@ -17,6 +17,7 @@
 #include "vr_mem.hpp"
 #include "vr_protocol.hpp"
 #include "vr_rigdata.hpp"
+#include "vr_rig2.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
@@ -2948,6 +2949,10 @@ void hideHeadOf(int num)
 // are the .mdl's (its textures, not copies).
 extern "C" int VR_SyntheticModel(qmodel_t* mod)
 {
+    if(rig2::makeSkinnedModel(mod))
+    {
+        return true; // "<model>#rig2": the authored rig's skinned body (vr_rig2.cpp)
+    }
     const size_t len = strlen(mod->name), suffix = strlen(skinnedSuffix);
     if(len <= suffix || !modelmeta::has(mod, modelmeta::Trait::Ragdoll))
     {
@@ -3108,9 +3113,11 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
 extern "C" void VR_RagdollSwap(void)
 {
     ragdoll::swapModels();
+    rig2::swapModels(); // (the Rig Studio's subject on the authored rig: vr_rig2.cpp)
 }
 
 extern "C" void VR_RagdollRestore(void)
 {
     ragdoll::restoreModels();
+    rig2::restoreModels();
 }

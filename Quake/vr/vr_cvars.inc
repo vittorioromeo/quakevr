@@ -3697,7 +3697,9 @@ QVR_CVAR(vr_ragtool_log, "1", CVAR_NONE)              // 1: each run's summary o
 // The Rig Studio (vr_rigstudio.cpp, RIGSTUDIO.md; `vr_rigstudio`, flat screen only) and its data (vr_rigdata.cpp: rig
 // overrides, override tracks, new sequences read from quakevr/rigs and quakevr/anims at a map load).
 QVR_CVAR(vr_rigdata_dir, "", CVAR_NONE)               // the folder under the game's the rig and animation files are read from and written to ("": the game folder itself; the tests' own: rigstudio_test)
-QVR_CVAR(vr_rigseq, "1", CVAR_NONE)                   // 1: the files' override tracks and the sequences QC starts drawn on the rigged monsters (vr_rigseq.cpp); 0: never (nothing changes without the files)
+QVR_CVAR(vr_rig2, "0", CVAR_NONE)                     // 1: the authored grunt rig (vr_rig2.cpp, quakevr/rigs/<model>.rig2.txt: blended weights, anatomical joints and limits) drives the Rig Studio's Range of Motion window and its Game display; 0: the old derived rig (stage 1: nothing in the game uses it)
+QVR_CVAR(vr_rig2_dq, "0", CVAR_NONE)                  // 1: the authored rig skinned with dual quaternions (no candy wrapper at a twist; vr_rig2_check, the Rig Studio's Shaded display); 0: linear blend
+QVR_CVAR(vr_rigseq, "1", CVAR_NONE)                  // 1: the files' override tracks and the sequences QC starts drawn on the rigged monsters (vr_rigseq.cpp); 0: never (nothing changes without the files)
 QVR_CVAR(vr_rigseq_debug, "0", CVAR_NONE)             // 1: each sequence started, stopped and each event sent to QC printed (rigseq:)
 QVR_CVAR(vr_rigstudio_map, "vrtesthall", CVAR_NONE)   // the room vr_rigstudio loads (its subject at the middle of the free floor ahead)
 QVR_CVAR(vr_rigstudio_orbit_speed, "0.4", CVAR_ARCHIVE) // degrees a pixel: the camera's orbit and look (the Preferences window)

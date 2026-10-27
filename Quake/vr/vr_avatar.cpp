@@ -36,6 +36,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_rig2.hpp"
 
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -2900,6 +2901,10 @@ extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
     if(const int ragdollBones = qvr::ragdoll::bonePoses(e, matrices))
     {
         return ragdollBones; // a ragdoll (vr_ragdoll.cpp)
+    }
+    if(const int rig2Bones = qvr::rig2::bonePoses(e, matrices))
+    {
+        return rig2Bones; // the Rig Studio's subject on the authored rig (vr_rig2.cpp)
     }
     if(const entity_t* source = qvr::view::cloneSource(e))
     {
