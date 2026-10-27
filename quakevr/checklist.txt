@@ -14,6 +14,10 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+AD: turn, snap/smooth turn and walk on ad_azad's snowfield (or load your s3 save): no black frames, sky and lamps steady {test:ad_fog_flicker}
+AD hub, lower level: walk into each original slipgate (E1-E4, end): that episode's first map (or end) loads, AD's rules kept
+Comfort > Soften Flickering Lights now defaults to 0 (configs on beta4's 0.5 move to 0): AD's lamps flicker as authored but no black frames
+Widowmaker: the sharper skin (35% more resolution), much darker, near AD's black but not all the way, in a lit and a dark room; rust subdued, brass collars, rivets and the grips' bricks still readable up close {test:widowmaker_art}
 Voice: Feminine, drop from a ledge about 2 m high: the landing grunt is higher-pitched like the jump's; a harder fall's oof too
 Combat > Armed Grunts > Weapon Holds: enforcers one-hand the nail pistol, revolver and flare gun; grunts and enforcers one-hand the axe; switch a row and it changes at once; Reset to Defaults works {test:agrunt_holds_enforcers}
 Armed grunts' Widowmaker: the off hand on the front handle; laser cannon: the off hand on its secondary handle while carried; say how both look while aiming (the off hand may still come free) {test:agrunt_holds_grunts}
