@@ -456,6 +456,10 @@ extern "C" double VR_PlayerRunBegin(void)
     {
         *b.playerTimeOffset = static_cast<float>(playerTime.offset);
     }
+    if(b.handTimeScale)
+    {
+        *b.handTimeScale = qvr::timescale::handScale(); // (QC's grabs judge a hand's speed in real time: VR_AG_PropHandTouch)
+    }
     const double k = qvr::timescale::moveSpeedup();
     if(k == 1.0)
     {

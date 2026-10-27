@@ -29,6 +29,12 @@
 .entity vr_ag_prop2;
 .float vr_ag_reserve2;
 .float vr_ag_left;         // a held weapon's prop: in its left hand
+.vector vr_ag_was_o1;      // ... its place and turn a frame before (VR_AG_PropWas: the grab's sweep, the engine's handOn,
+.vector vr_ag_was_a1;      //     vr_agrunt_grab_sweep: the drawn weapon lags the server's),
+.vector vr_ag_was_o2;      // ... two frames before
+.vector vr_ag_was_a2;
+.float vr_ag_was_n;        // ... how many of them are known (0..2)
+.float vr_ag_saw_fought;   // its chainsaw run while it was after you, alive (VR_AGP_Saw): dropped, it runs on (VR_AG_DropHeld)
 .float vr_ag_dual;         // spawned with two: it goes for a second one-handed weapon when it lost one
 .float vr_ag_act_hand;     // a dual swing's hands: 0 the right, 1 the left, 2 both
 .float vr_ag_act_hitl;     // ... the left's blow struck

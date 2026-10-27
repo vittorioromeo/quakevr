@@ -35,6 +35,7 @@
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
@@ -166,6 +167,69 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
 
 za::Vector<glm::vec4> armedFist; // handOn's: the fist's spheres in the world, on an armed monster's weapon
 
+// An armed monster's weapon as drawn lags the server's by about a frame (the client draws the last place it was sent,
+// the hand's place reaches the server a frame later), and a swung blade or a gun turned with its holder moves 5-20 cm a
+// frame: the fist is also measured against the weapon's places the frames before (QC VR_AG_PropWas, vr_agrunt_grab_sweep
+// of them) and midway to each, the least gap kept (the vrragtriggers_2026-10-27 notes: "I put my hand on it and grab:
+// sometimes nothing happens"). Its own place is put back after. A place farther than sweepFarthest from the next is a
+// jump (onto a ragdoll's limb, a teleport), not a move: the sweep stops there.
+constexpr float sweepFarthest = 32.f; // units
+
+[[nodiscard]] float angleStep(float d)
+{
+    return d - 360.f * za::floor((d + 180.f) / 360.f);
+}
+
+[[nodiscard]] float sweptFistGap(edict_t* target, float allowed)
+{
+    const FieldOffsets& fo = f();
+    if(fo.vr_ag_was_o1 < 0 || fo.vr_ag_was_a1 < 0 || fo.vr_ag_was_o2 < 0 || fo.vr_ag_was_a2 < 0 || fo.vr_ag_was_n < 0)
+    {
+        return ZA_FLOAT_MAX;
+    }
+    const int frames = za::min(za::min(static_cast<int>(vr_agrunt_grab_sweep.value), 2),
+        static_cast<int>(fieldFloatOr(target, fo.vr_ag_was_n, 0.f)));
+    const glm::vec3 keepO = vec(target->v.origin), keepA = vec(target->v.angles);
+    const auto place = [target](const glm::vec3& o, const glm::vec3& a) {
+        for(int i = 0; i < 3; i++)
+        {
+            target->v.origin[i] = o[i];
+            target->v.angles[i] = a[i];
+        }
+    };
+    glm::vec3 prevO = keepO, prevA = keepA;
+    float best = ZA_FLOAT_MAX;
+    for(int k = 0; k < frames && best > allowed; k++)
+    {
+        const glm::vec3 o = fieldVec(target, k == 0 ? fo.vr_ag_was_o1 : fo.vr_ag_was_o2);
+        const glm::vec3 a = fieldVec(target, k == 0 ? fo.vr_ag_was_a1 : fo.vr_ag_was_a2);
+        if(glm::distance(o, prevO) > sweepFarthest)
+        {
+            break;
+        }
+        for(const float t : {0.5f, 1.f})
+        {
+            glm::vec3 at{0.f};
+            for(int i = 0; i < 3; i++)
+            {
+                at[i] = prevA[i] + angleStep(a[i] - prevA[i]) * t;
+            }
+            place(glm::mix(prevO, o, t), at);
+            bool surface = true;
+            best = za::min(best, held::fistGap(target, armedFist, za::max(allowed, 0.25f * units::metresToUnits()), surface,
+                                     allowed));
+            if(best <= allowed)
+            {
+                break;
+            }
+        }
+        prevO = o;
+        prevA = a;
+    }
+    place(keepO, keepA);
+    return best;
+}
+
 // Whether `player`'s hand `h` (0 off, 1 main) grips (QVR_VRBITS0_*HAND_GRABBING) or has just pressed its grip (QC
 // VR_HandGrabUtil_StartedHandGrabbing's 0.125 s: the tests press it so): a grab's time.
 [[nodiscard]] bool gripStarted(edict_t* player, int h)
@@ -235,7 +299,8 @@ constexpr float weaponDrawnReach = 48.f;
     }
     if(armedWeapon(target))
     {
-        const float slack = vr_agrunt_grab_slack.value * 0.01f * m2u;
+        // (vr_agrunt_grab_leniency: a little way off its surface counts, the fist closing round a weapon that moves)
+        const float slack = (vr_agrunt_grab_slack.value + za::max(vr_agrunt_grab_leniency.value, 0.f)) * 0.01f * m2u;
         if(NUM_FOR_EDICT(player) == 1 && !held::fist(h).empty())
         {
             // The fist's spheres against the weapon's surface, by distance alone (not grabTouch's inside test: a held
@@ -253,11 +318,15 @@ constexpr float weaponDrawnReach = 48.f;
             const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
             bool surface = true;
             // (within: the tests' reading wants the gap a little way out too; a grab alone is done at the first sphere on it)
-            const float gap = za::min(999.f * m2u, held::fistGap(target, armedFist, za::max(allowed, 0.25f * m2u), surface,
-                                                      reading ? -1e30f : allowed));
+            float gap = za::min(999.f * m2u, held::fistGap(target, armedFist, za::max(allowed, 0.25f * m2u), surface,
+                                                reading ? -1e30f : allowed));
             if(!surface)
             {
                 return false; // (no surface to measure)
+            }
+            if(gap > allowed)
+            {
+                gap = za::min(gap, sweptFistGap(target, allowed));
             }
             if(vr_agrunt_debug.value && which == HAND_MAIN)
             {

@@ -1273,9 +1273,16 @@ void armedHoldsReset()
         slider("Grab: Precision", vr_agrunt_grab_slack, -2.f, 10.f, 0.5f, "%.1f cm").extend(-10.f, 50.f)
             .help("How far off its weapon's surface your fist may be and still grab it (0: touching it). Never by "
                   "its arm or chest (vr_agrunt_grab_slack)."),
+        slider("Grab: Leniency", vr_agrunt_grab_leniency, 0.f, 15.f, 0.5f, "%.1f cm").extend(0.f, 50.f)
+            .help("How much more than Precision a fist closing near its weapon still grabs it (a tug): a hand on any part "
+                  "of an axe, a sword, a gun or a chainsaw while it attacks (vr_agrunt_grab_leniency)."),
+        slider("Grab: Moving Weapon", vr_agrunt_grab_sweep, 0.f, 2.f, 1.f, "%.0f frames")
+            .help("Your fist also counts where its weapon was this many frames ago, and midway: the weapon you see lags "
+                  "the game's a little, and a swung blade moves 5-20 cm a frame (vr_agrunt_grab_sweep)."),
         slider("Grab: Fastest Hand", vr_agrunt_grab_speed, 0.f, 6.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
-            .help("A hand moving faster than this (a punch, a swipe) doesn't grab its weapon. 0: any speed "
-                  "(vr_agrunt_grab_speed)."),
+            .help("A hand moving faster than this (a punch, a swipe) doesn't grab its weapon: its speed against you or "
+                  "against the weapon (going with a swing to catch it), the lesser, in real time (bullet time too). 0: "
+                  "any speed (vr_agrunt_grab_speed)."),
         slider("Tug: Its Pull", vr_agrunt_tug_strength, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 3.f)
             .help("How hard its arms pull its weapon back in the physical tug (vr_agrunt_tug_strength)."),
         slider("Tug: Longest", vr_agrunt_tug_hold_max, 0.f, 20.f, 0.5f, "%.1f s").extend(0.f, 120.f)
@@ -1331,6 +1338,10 @@ void armedHoldsReset()
             .help("A gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, but while it lies "
                   "there a grab takes it at once and a blow knocks it away. A violent one (below) drops it "
                   "(vr_agrunt_fall_keep)."),
+        slider("Fall: Drops It on Impact", vr_agrunt_fall_keep_impact, 0.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 100.f)
+            .help("Lifted, judo-thrown, shoulder-charged or shoved over, it holds on to its weapon until its body meets "
+                  "the ground this hard (the speed it loses as it lands); a gentle landing keeps it, a slam drops it. "
+                  "Never while your hands hold it. 0: the older rules below instead (vr_agrunt_fall_keep_impact)."),
         slider("Fall: Drops It Below", vr_agrunt_fall_keep_height, 0.f, 5.f, 0.05f, "%.2f m").extend(0.f, 50.f)
             .help("Falling to a floor this far below the one it stood on (off a ledge) it lets go "
                   "(vr_agrunt_fall_keep_height)."),
@@ -1342,6 +1353,10 @@ void armedHoldsReset()
         slider("Fall: Flung Within", vr_agrunt_fall_keep_window, 0.f, 5.f, 0.1f, "%.1f s").extend(0.f, 60.f)
             .help("Flung counts only this long after it goes down: lying there, your body or hand nudging it as you "
                   "come to take its weapon doesn't make it let go. 0: any time while down (vr_agrunt_fall_keep_window)."),
+        toggle("Drops Its Chainsaw Running", vr_agrunt_saw_drop_running)
+            .help("One that was fighting you with a chainsaw drops it with the engine running (killed, disarmed, a tug "
+                  "lost): it runs on as yours does when let go (Runs On When Let Go), so taken up meanwhile it needs no "
+                  "cord pull. One that never saw you drops it off (vr_agrunt_saw_drop_running)."),
         slider("Down: Blow on Its Weapon", vr_agrunt_down_swing, 0.5f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
             .help("Lying with its weapon in its hand, how fast a deliberate blow (a fist or something held) must be "
                   "going to knock it away (with Deliberate Blows Only; 3.2 is a melee hit's least, vr_melee_speed). A "

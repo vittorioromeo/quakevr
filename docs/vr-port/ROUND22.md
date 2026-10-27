@@ -23875,6 +23875,119 @@ Checked: `vr_ad_test 148` PASS (16 of 16); `vr_ad_test 149` 11 passed, 0 failed 
 `-game ad`); in-game A/B of the preview models at e1m1's start (low-impact eyes); eval.sh no verdict changes.
 - [ ] Widowmaker {test:widowmaker_art}: the 692 skin, much darker (near AD's black, not all the way) in a lit and a dark room; rust subdued, brass collars, rivets and the grips' bricks still readable up close.
 
+## Armed humanoids: grabs, holding on, running chainsaws, the toolgun's Reset (worktree `tghost`, branch `agent/aginteract`, 2026-10-27)
+
+His VR notes vrragtriggers_2026-10-27_01-32-59 .. 01-45-10 and 02-03-33.
+
+**1. Grabbing an active humanoid's weapon.** Measured with a new test, `vr_agrunt_test 67` (the grab table:
+`QC/vr_armedgrunt_grab_test.qc`): eight weapon cases (axe, sword, crowbar, chainsaw, shotgun, nailgun, a dual
+wielder's left shotgun, a dual wielder's left axe) on humanoids idle (unaware), running at you, ready (aiming, a blade
+raised) and mid-strike (a swing under way, a shot just fired), your empty hand put on the weapon at 10 points along it
+(5% .. 95%: `vr_mock_hand_to main agweaponpalm <f> 0 [left]`, put there every frame so the hand follows the weapon as a
+catching hand does), pressed once the hand is on its line, in and out of bullet time (`vr_timescale 0.3`). A tug (or the
+weapon at once) is a success; each failure is classed (too fast, fist off it, knocked away, nothing).
+
+What failed, and why:
+- **The hand a frame behind the weapon.** The weapon you see is the last pose the client got; your hand's pose reaches
+  the server a frame later, and the server's fist test (`handOn`, the fist on the weapon's drawn surface, 0 cm slack) was
+  against the weapon's place now. A swung blade or a gun turned with its holder moves 5-20 cm a frame: "fist off it" was
+  most of the failures on moving weapons. Fix: the fist is also measured against the weapon's places one and two frames
+  back and midway (`vr_agrunt_grab_sweep` 2 frames; QC `VR_AG_PropWas` keeps them, the engine's `sweptFistGap` puts the
+  weapon there for the measure and back), and within `vr_agrunt_grab_leniency` (new, 5 cm, on top of
+  `vr_agrunt_grab_slack`; the body grab, `fistOnArmedWeapon`, yields to the weapon by the same test, so a fist within
+  5 cm of the weapon is the weapon's, not the arm's or chest's).
+- **Bullet time read every careful catch as a punch.** The grab's speed limit (`vr_agrunt_grab_speed` 1.25 m/s) was
+  measured on the hand's velocity, which in slow motion is the game's, sped up (x3.3 at 0.3): a 0.5 m/s reach read
+  1.7 m/s. Now the speed is in real time (the new QC global `vr_hand_time_scale`, the engine's `timescale::handScale`),
+  and it is the lesser of the hand's speed against you and against the weapon (a hand going with a swing to catch it is
+  as still as one the blade comes into). A punch through it (test 36's 3 m/s) is still refused.
+- (Ruled out: the off hand's weapon. Both props get the hand's touch (`handTouch` runs on every trigger in reach, not
+  the first a trace meets), and a grab on the left one swaps it into the first slot for the tug: test 68 below.)
+- (A test artifact found on the way: a humanoid told to hunt before `walkmonster_start_go` ran keeps `takedamage` 0,
+  and the hand's wall push (`vr_handpose.cpp stopAtWall`) then stops the hand at its box like a wall. Real monsters
+  start; the test now waits for it.)
+
+The table (taken / tries; "state not reached" left out), before = origin/next's grab code (no leniency, no sweep, the
+old speed rule), after = this branch:
+
+Before (origin/next's grab code; an earlier pass of the test that let you follow it anywhere, so more tries were reached):
+
+| weapon | n idle | n running | n ready | n striking | b idle | b running | b ready | b striking |
+| Axe | 9/10 | 6/10 | 8/10 | 4/10 | 5/10 | 5/10 | 6/10 | 3/10 |
+| Knight's Sword | 10/10 | 4/10 | 9/10 | 3/10 | 5/10 | 6/10 | 8/10 | 2/10 |
+| Crowbar | 9/10 | 6/10 | 8/10 | 2/10 | 4/10 | 5/10 | 10/10 | 1/10 |
+| Ogre's Chainsaw | 8/10 | 8/10 | 9/10 | 8/10 | 9/10 | 9/10 | 9/10 | 8/10 |
+| Shotgun | 8/10 | 8/10 | 4/10 | 6/10 | 7/10 | 6/10 | 4/10 | 0/10 |
+| Nailgun | 10/10 | 5/10 | 6/10 | 1/10 | 10/10 | 8/10 | 2/10 | 0/10 |
+| dual-shotgun(left) | 9/10 | 9/10 | 5/10 | 7/10 | 9/10 | 7/10 | 4/10 | 0/10 |
+| dual-axe(left) | 8/10 | 3/10 | 7/10 | 5/10 | 6/10 | 2/10 | 9/10 | 3/10 |
+normal: 212/320 (66%)
+bullet: 172/320 (54%)
+
+After (this branch; you step in at most 64 units from where you stood, a hand that never got onto the weapon is "not reached", not counted):
+
+| weapon | n idle | n running | n ready | n striking | b idle | b running | b ready | b striking |
+| Axe | 8/8 | 4/4 | 9/10 | 3/3 | 8/8 | 0/0 | 6/8 | 8/8 |
+| Knight's Sword | 9/9 | 7/7 | 10/10 | 6/7 | 9/9 | 5/5 | 9/9 | 6/6 |
+| Crowbar | 10/10 | 6/6 | 10/10 | 3/3 | 9/10 | 1/1 | 9/9 | 6/7 |
+| Ogre's Chainsaw | 7/7 | 7/7 | 8/9 | 7/8 | 9/9 | 2/2 | 7/7 | 8/8 |
+| Shotgun | 5/5 | 6/7 | 1/3 | 5/5 | 8/8 | 7/7 | 2/2 | 0/0 |
+| Nailgun | 8/8 | 2/2 | 8/9 | 0/0 | 9/9 | 5/5 | 1/1 | 0/0 |
+| dual-shotgun(left) | 5/6 | 7/7 | 1/1 | 5/5 | 4/4 | 9/9 | 2/2 | 0/0 |
+| dual-axe(left) | 7/10 | 8/8 | 9/10 | 7/10 | 6/6 | 6/7 | 3/3 | 9/9 |
+normal: 198/214 (93%)
+bullet: 173/178 (97%)
+
+With this branch but `vr_agrunt_grab_leniency 0; vr_agrunt_grab_sweep 0` (the real-time and against-the-weapon speed rules alone): normal 173/217 (80%), bullet 141/171 (82%). What is left after: 8 "fist off" (a fist 5-18 cm off a gun turned fast as it aims, a blade 5 cm off at its tip mid-swing), 8 "knocked" (a fist on the weapon, the humanoid shoved or toppled by your step in, the weapon knocked loose as the grab began: the test's teleporting step in), 3 "too fast" (a swing coming at the hand over 1.25 m/s against both you and it).
+
+Also: a hand going with the weapon is no blow on it (`VR_AG_HandStrike`: the blow's speed is the lesser of the melee tracker's and the hand's against the weapon, in real time): a closed fist following a swing to catch it knocked the weapon away ("knocked" was 32 of the misses before it).
+
+**2. A dual wielder's off hand.** `vr_agrunt_test 68` (new): a shotgun + nailgun dual wielder, idle; the hand on its
+left nailgun: a tug over the nailgun (the right still holding the shotgun), pulled (1.3 x the break force) torn out,
+yours, it keeps the shotgun; then the hand on the shotgun: a tug over it too. 4/4 PASS. The left weapon was grabbable
+before too; the misses he saw were item 1's. Both weapons tug in turn, each on its own arm; a second tug while one is
+on stays "one at a time" (the physical tug holds one arm: `ragdolltug`'s tugArm).
+
+**3. Holding on when lifted, judo-thrown, shoulder-charged.** The old rules (`vr_agrunt_fall_keep_speed` 4.5,
+`_fling` 5 m/s) dropped the weapon the moment such a knockdown began: the lift launches it up at 160 u/s, a charge at
+150-450, and the knockdown's first frame alone reads 10 m/s (its ragdoll made). New `vr_agrunt_fall_keep_impact`
+(4.5 m/s; 0: the old rules): down, it lets go only as its body meets the ground that hard (the speed lost in a frame,
+near the floor, coming down or skidding; never while your hand holds it, `VR_AG_HeldByHand`), `VR_AG_FallImpact`.
+`vr_agrunt_test 69` (new; each case to rest, PASS: kept in the air, let go only at an impact over the threshold):
+
+| case | kept / dropped | hardest impact (m/s) | flung, fell (m/s) | old rules |
+| --- | --- | --- | --- | --- |
+| shoved over (a topple) | kept | 1.8 | 2.6, 1.5 | kept |
+| lifted (160 u/s up) and let go | kept | 3.9 | 6.5, 6.3 | dropped at once |
+| lifted, slammed down at 8 m/s | dropped at landing (0.47 s) | 5.0 | 6.5, 9.9 | dropped at once |
+| judo-thrown (`VR_FoeGrab_Throw`) | kept | 0.0 | 10.4 (the knockdown's first frame), 2.4 | dropped at once |
+| shoulder charge, strike 1 | dropped at landing (0.47 s) | 5.1 | 12.5, 4.3 | dropped at once |
+| shoulder charge, strike 2 (toppled softer this time) | kept | 3.4 | 14.3, 4.6 | dropped at once |
+| down, flung at 8 m/s (test 38's) | dropped at landing (0.39 s) | 6.2 | 7.0, 1.5 | dropped |
+
+The threshold cases: the softest landings that kept it read 3.4-3.9 m/s, the hardest that dropped it 5.0-6.2 (a shove's
+topple 1.6-1.8); 4.5 sits between them (5 left a slam at 5.0 on the line; run to run it read 5.0-6.4). Test 38 (a gentle
+fall keeps it, flung while down drops it) passes as before.
+
+**4. Chainsaws dropped running.** `VR_AG_DropHeld`: a chainsaw with fuel dropped by a humanoid that has an enemy
+(death, disarm, a tug lost) runs on as yours does when let go (`VR_Saw_PropRuns`, `vr_chainsaw_drop_run` 3 s; taken up
+meanwhile it is running, no cord); one that never saw you drops it off. Setting `vr_agrunt_saw_drop_running` (1).
+Test 69's last three: a chainsaw humanoid fighting you killed: it lies running (fuel 99.7); disarmed by a blow: running; one that never saw you killed: off. (Its being after you is kept, `vr_ag_saw_fought`, as its engine runs while it hunts you: a kill sets its enemy only as it dies.)
+
+**5. The toolgun's Armed Humanoid page: Reset and Clear.** On that page Reset was the spawn tool's (`vr_toolgun_reset`:
+the ghost's offsets and turn only) and Clear only cleared the selection (`vr_toolgun_select clear`): the page's Kind,
+Right Hand and Left Hand kept what they showed, so neither looked like it did anything, and Clear then Choose spawned the
+old loadout again. New `vr_toolgun_armed_reset` (the three back to their defaults, the offsets and turn reset, the
+default humanoid chosen) and `vr_toolgun_armed_clear` (the defaults, nothing to spawn); the page's buttons use them.
+Checked by script (`vr_toolgun_select_armed 1 2 3`, then each): after Reset kind 0, right 0 (Random from Pool), left 0, the default chosen; after Clear the same and nothing selected: 7/7.
+
+**Settings** (new, archived): `vr_agrunt_grab_leniency` 5 cm, `vr_agrunt_grab_sweep` 2 frames, `vr_agrunt_fall_keep_impact`
+4.5 m/s, `vr_agrunt_saw_drop_running` 1 (VR Settings > Combat > Armed Grunts rows). Test aids: `vr_mock_hand_to_absolute`
+(the mock hand put at a world point from the play space's place: a hand put there every frame follows a moving thing;
+the old step from its last place spiralled with the frame's lag), `vr_mock_hand_to ... agweapon[palm] <f> <cm> left|right`.
+Debug > Automation rows for tests 67-69. Test 36 now expects a fist 2 cm off taken and 8 cm off refused.
+
+**Regressions.** `vr_agrunt_test` 21, 22, 23, 32, 33, 35, 37, 38, 39, 40, 42, 47, 66, 68, 69: PASS. 1, 31, 36 and 65 fail the same on the branch's base (0e32ade0e, built and run here: 1's proximity gun, 31's slow pull, 36's and 65's fist placed 30 cm off by their old mock hand step); 36 has one FAIL more here, its 2 cm case now expected taken (the same misplaced fist). eval.sh: verdicts unchanged (canary 36/44, full 163/171; 5 takes differ only in the decimals).
 ## Small fixes of 2026-10-27: nail pistol slide, revolver spin, flares on ragdolls, his weapon tuning, legs, QC warnings (worktree `dequant`, branch `agent/smallfix1027`)
 
 From his voice notes of 2026-10-27.

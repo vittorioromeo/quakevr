@@ -1114,6 +1114,11 @@ glm::vec3 rotateYaw(const glm::vec3& v, float degrees)
     return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
 }
 
+glm::vec3 calibrationOffset(int hand)
+{
+    return hand >= 0 && hand < 2 ? calibratedOffset[hand] : glm::vec3{0.f};
+}
+
 glm::vec3 palmPoint(const State& s, int hand)
 {
     return s.palmValid[hand] ? s.pos[hand] + redirect(s.palmLocal[hand], s.rot[hand]) : s.pos[hand];

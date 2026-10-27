@@ -255,7 +255,8 @@ QVR_CVAR(vr_mock_angvel_local, "0", CVAR_NONE)
 // Mock backend: 1 reports the hands' angular velocity from their turns (vr_mock_hand, vr_mock_hand_turn), as a runtime
 // would; 0 (the default): none (only vr_mock_play's motions carry it).
 QVR_CVAR(vr_mock_turn_velocity, "0", CVAR_NONE)
-QVR_CVAR(vr_mock_hand_glide, "0", CVAR_NONE)          // s: vr_mock_hand_to glides the hand there over this long, reporting the glide's velocity (0: a jump in one frame)
+QVR_CVAR(vr_mock_hand_to_absolute, "0", CVAR_NONE)    // 1: vr_mock_hand_to puts the hand at its point from the play space's place (a hand following a moving thing each frame: vr_agrunt_test 67), not by a step from the hand's last place
+QVR_CVAR(vr_mock_hand_glide, "0", CVAR_NONE)         // s: vr_mock_hand_to glides the hand there over this long, reporting the glide's velocity (0: a jump in one frame)
 QVR_CVAR(vr_mock_hand_lift, "0", CVAR_NONE)           // m: the main mock hand raised this much (tracking up; QC tests set it: an armed monster's weapon at its own height)
 QVR_CVAR(vr_mock_hand_pull, "0", CVAR_NONE)           // m: the main mock hand drawn back this much (tracking +z; QC tests set it: a tug's pull)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
@@ -2985,7 +2986,10 @@ QVR_CVAR(vr_agrunt_grab_slack, "0", CVAR_ARCHIVE)        // cm: your fist takes 
 QVR_CVAR(vr_agrunt_tug_hand_gap, "999", CVAR_NONE)      // (the tests' reading: vr_ragdoll_hand_probe in a tug, the main drawn hand to its grab on the weapon as drawn, cm)
 QVR_CVAR(vr_agrunt_tug_hand_reach, "999", CVAR_NONE)    // (... and its controller to it, cm)
 QVR_CVAR(vr_agrunt_grab_gap, "999", CVAR_NONE)         // (the tests' reading: with vr_agrunt_debug, the main fist's last gap to an armed monster's weapon, cm)
-QVR_CVAR(vr_agrunt_grab_speed, "1.25", CVAR_ARCHIVE)      // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)
+QVR_CVAR(vr_agrunt_saw_drop_running, "1", CVAR_ARCHIVE) // 1: an armed humanoid that was fighting you with a chainsaw drops it running (dead, disarmed, a tug won), as yours runs on as it lies (vr_chainsaw_drop_run): taken up meanwhile, no cord to pull; one that never saw you drops it off
+QVR_CVAR(vr_agrunt_grab_leniency, "5", CVAR_ARCHIVE)   // cm more than vr_agrunt_grab_slack: your fist closing within this of its weapon's drawn surface takes it (a tug), however it moves (ROUND22.md, "Armed humanoids: grabs, holding on, running chainsaws")
+QVR_CVAR(vr_agrunt_grab_sweep, "2", CVAR_ARCHIVE)       // frames (0..2): your fist is also measured against its weapon's places this many frames back and midway (the weapon as drawn lags the server's; a swung blade moves 5-20 cm a frame)
+QVR_CVAR(vr_agrunt_grab_speed, "1.25", CVAR_ARCHIVE)     // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)
 QVR_CVAR(vr_agrunt_tug_pull_force, "270", CVAR_ARCHIVE)  // N (was 200: a still hold peaked at 211): the physical tug's pull that counts: only above it does its grip give (its force x time, the time below)
 QVR_CVAR(vr_agrunt_tug_pull_time, "0.5", CVAR_ARCHIVE)   // s you must keep pulling above that before its weapon can come out (a tug-of-war, not a yank)
 QVR_CVAR(vr_agrunt_tug_snap, "2.5", CVAR_ARCHIVE)        // a yank this many times the break force tears it out at once, before that time (0: never)
@@ -3026,7 +3030,8 @@ QVR_CVAR(vr_agrunt_fall_keep, "1", CVAR_ARCHIVE)  // 1: a gentle fall (a shove's
 QVR_CVAR(vr_agrunt_fall_keep_height, "0.75", CVAR_ARCHIVE) // m: the floor under it now this far below the floor it stood on (a ledge): it lets go
 QVR_CVAR(vr_agrunt_fall_keep_speed, "4.5", CVAR_ARCHIVE)   // m/s: its body falling faster than this: it lets go
 QVR_CVAR(vr_agrunt_fall_keep_fling, "5", CVAR_ARCHIVE)     // m/s: its body moving faster than this any way but down (thrown, flung, blown away: a strong force): it lets go
-QVR_CVAR(vr_agrunt_fall_keep_window, "1.5", CVAR_ARCHIVE)   // s: flung (vr_agrunt_fall_keep_fling) counts only this long after it goes down (lying, nudged as you come: kept); 0: any time down
+QVR_CVAR(vr_agrunt_fall_keep_impact, "4.5", CVAR_ARCHIVE)   // m/s: down, it lets go only as its body meets the ground this hard (the speed it loses in a frame, coming down; not while your hands hold it): lifted, judo-thrown or shoulder-charged it holds on till a hard landing (0: the old rules, vr_agrunt_fall_keep_height, _speed, _fling)
+QVR_CVAR(vr_agrunt_fall_keep_window, "1.5", CVAR_ARCHIVE)  // s: flung (vr_agrunt_fall_keep_fling) counts only this long after it goes down (lying, nudged as you come: kept); 0: any time down
 QVR_CVAR(vr_agrunt_seek_timeout, "6", CVAR_ARCHIVE) // s it keeps going for a weapon it doesn't reach (no nearer for 2.5 s: sooner) before giving it up
 QVR_CVAR(vr_agrunt_seek_shun, "20", CVAR_ARCHIVE) // s it leaves a weapon it gave up on before trying it again
 QVR_CVAR(vr_agrunt_rearm, "1", CVAR_ARCHIVE)           // 1: disarmed, it goes for a weapon lying near when it is safe enough

@@ -255,6 +255,18 @@ za::Vector<Item> pageDebugAutomation()
                   "blow (agtest: parry ... PASS when one is parried; its stagger). The mock hand is put in that pose "
                   "(no headset); the weapon stays in a hand not gripping while it runs (vr_weapon_grip_mode 1, as it "
                   "was again at the end)."),
+        command("Armed Grunts: Grab Table", "vr_agrunt_test 67")
+            .help("vr_agrunt_test 67 (vrtesthall; a few minutes): your hand put on each weapon (axe, sword, crowbar, "
+                  "chainsaw, shotgun, nailgun, a dual wielder's left shotgun and axe) at 10 points along it, on humanoids "
+                  "idle, running, ready and mid-strike, in and out of bullet time, and closed: the share that starts the "
+                  "tug (agtest: grabtable ...; PASS when every one does). scratch1..3 pick a weapon, state, time."),
+        command("Armed Grunts: Dual Wielder's Off Hand", "vr_agrunt_test 68")
+            .help("vr_agrunt_test 68: a shotgun and nailgun dual wielder: its left-hand nailgun grabbed (a tug, won: "
+                  "yours, it keeps the shotgun), then its shotgun (a tug too)."),
+        command("Armed Grunts: Holding On", "vr_agrunt_test 69")
+            .help("vr_agrunt_test 69: shoved over, lifted, slammed, judo-thrown, shoulder-charged (twice) and flung: "
+                  "it keeps its weapon until its body meets the ground harder than Fall: Drops It on Impact "
+                  "(agtest: holdon ...)."),
         command("Armed Grunts: Idle Re-Arm", "vr_agrunt_test 13")
             .help("vr_agrunt_test 13: you unseen, an unarmed armed grunt walks to a shotgun lying near and takes it."),
         command("Armed Grunts: Ragdolls Take Shots", "vr_agrunt_test 20")

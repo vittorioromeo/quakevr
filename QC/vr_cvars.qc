@@ -450,6 +450,7 @@ float cvarh_vr_agrunt_fall_keep;
 float cvarh_vr_agrunt_fall_keep_height;
 float cvarh_vr_agrunt_fall_keep_speed;
 float cvarh_vr_agrunt_fall_keep_fling;
+float cvarh_vr_agrunt_fall_keep_impact;
 float cvarh_vr_agrunt_shotdisarm;
 float cvarh_vr_agrunt_shotdisarm_parts;
 float cvarh_vr_agrunt_shotdisarm_weapon_w;
@@ -1661,6 +1662,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_agrunt_fall_keep_height);
     VR_CVAR_HMAKE(vr_agrunt_fall_keep_speed);
     VR_CVAR_HMAKE(vr_agrunt_fall_keep_fling);
+    VR_CVAR_HMAKE(vr_agrunt_fall_keep_impact);
     VR_CVAR_HMAKE(vr_agrunt_shotdisarm);
     VR_CVAR_HMAKE(vr_agrunt_shotdisarm_parts);
     VR_CVAR_HMAKE(vr_agrunt_shotdisarm_weapon_w);

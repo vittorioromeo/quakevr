@@ -130,6 +130,9 @@ void end_sys_globals; // Flag for structure dumping.
 
 nosave float vr_player_time_offset; // QVR: the player's clock ahead of `time` (slow motion's Sandevistan: the engine's,
                                     // vr_timescale.cpp; 0 otherwise): what its melee is timed on (vr_melee.qc)
+nosave float vr_hand_time_scale;    // QVR: the hands' velocities times this are their real-time speeds (slow motion, bullet
+                                    // time: they are the game's, sped up; vr_timescale.cpp handScale; 0 before the
+                                    // engine writes it: 1)
 float spawnServerFromSaveFile; // Whether the last `OnSpawnServerXXX` call was
                                // from a save file or a brand new loaded map.
 

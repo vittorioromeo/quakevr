@@ -92,6 +92,7 @@ struct Bindings
     float* musicTrack{nullptr};
     float* spawnLive{nullptr}; // vr_spawn_live: 1 round a spawn function run in a live game (box3d::spawnClass)
     float* playerTimeOffset{nullptr}; // vr_player_time_offset: the player's clock ahead of time (vr_timescale.cpp)
+    float* handTimeScale{nullptr};    // vr_hand_time_scale: the hands' velocities to real time (timescale::handScale)
     float* extSpawnParms[numExtSpawnParms]{};
 };
 
