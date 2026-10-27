@@ -23758,3 +23758,96 @@ original black skin, but not all the way there". `Misc/quakevr/models_src/widowm
 Checked: `vr_ad_test 148` PASS (16 of 16); `vr_ad_test 149` 11 passed, 0 failed (`vr_weapon_grip_mode 1`, ad_dm1,
 `-game ad`); in-game A/B of the preview models at e1m1's start (low-impact eyes); eval.sh no verdict changes.
 - [ ] Widowmaker {test:widowmaker_art}: the 692 skin, much darker (near AD's black, not all the way) in a lit and a dark room; rust subdued, brass collars, rivets and the grips' bricks still readable up close.
+
+## Grunt rig rebuild, stage 1: an authored rig with blended weights (worktree `goreflesh`, branch `agent/rig2`, 2026-10-27)
+
+His decision (voice notes vrragtriggers 01-28-53 .. 01-30-04, the five screenshots): the grunt's ragdoll shows a sharp
+curve from elbow to hand, a hole where the shoulder attaches, a knee bent with the lower leg behind it, a gap at the
+biceps, sharp angles in hand and leg. "Start from scratch ... in stages". Stage 1: a new experimental rig, checked
+automatically, posable in the Rig Studio; **nothing in the game uses it** (`vr_rig2` 0).
+
+**The rig** (`quakevr/rigs/vrgrunt.rig2.txt`, `soldier.rig2.txt`: the same body vertex for vertex; made by
+`Misc/quakevr/make_rig2.py`, hand-editable text). 20 bones, model units (x forward, y left, z up), the rest frame
+(frame 0, his crouch with the gun in both hands):
+
+| bone | parent | joint | pivot | limits (degrees) |
+|---|---|---|---|---|
+| pelvis | - | root | -4.8 0 -2 | |
+| spine | pelvis | ball | -4 0 2.5 | fwd -20..40, side ±25, twist ±25 |
+| chest | spine | ball | -2.6 0 9 | fwd -15..25, side ±15, twist ±20 |
+| neck | chest | ball | 0.4 0.2 16.6 | fwd -25..35, side ±25, twist ±35 |
+| head | neck | ball | 3 0.3 19.2 | fwd -25..15, side ±20, twist ±20 |
+| clavicle_l/r | chest | ball | 0.5 ±2 15 | fwd -10..15, up -5..15, twist ±8 |
+| upperarm_l/r | clavicle | ball (from hanging) | 0.9 9 15.2 / -0.3 -9.4 15.2 | fwd -20..40, out -10..50, twist ±20 |
+| forearm_l/r | upperarm | hinge | 2.2 9 6.2 / 0.4 -9.7 7 | bend 0..140 (rest 55 / 67) |
+| hand_l/r | forearm | ball | 9.3 6 2.3 / 5.1 -5.2 4.5 | flex ±25, deviation ±10, twist ±10 |
+| thigh_l/r | pelvis | ball (from straight down) | -5.6 4.5 -3 / -4.2 -4.6 -3 | fwd -25..65, out -20..45, twist ±30 |
+| shin_l/r | thigh | hinge | -6.1 6.6 -12.9 / 2.2 -6.5 -11.1 | bend 0..115 (rest 30 / 51) |
+| foot_l/r | shin | ball | -10.6 6.9 -20.3 / 0 -6.6 -20.6 | flex -25..30, ±10, twist ±12 |
+| weapon | hand_r | fixed | 8.6 -4.3 4.2 | (soldier.mdl's gun; vrgrunt's unused gun vertices) |
+
+A ball's swing is an elliptical cone (each quadrant its own radius) in (swing x toward `fwd`, swing y toward `side`)
+from its `neutral` direction (the shoulders' and hips' limb hanging straight down; the others' the rest direction),
+its twist about the bone; a hinge's angle is its bend from straight about `axis` (the rest bend measured), one way
+only: no knee or elbow bends backwards. A pose is each joint's angles; a bone's motion is its parent's carried by its
+joint's turn about its pivot.
+
+**The method** (`make_rig2.py`'s header): joints authored from the mesh's cross-sections, the limb joints moved to the
+middle of the limb's section through them (the left knee 0.8 back of it); each vertex to the nearest bone capsule it
+can see from inside the mesh (the arm's inside not to the chest beside it); at each joint the parent's, the child's
+and the grandparent's vertices within its radius blended by a smoothstep along the limb (bands 0.6 at the wrists to
+3.5 at the shoulders); then a screened diffusion over the surface (40 passes; pulled to the joints' blends by 0.6,
+by 0.05 within 11 units of a shoulder, by 4 in the fists, 2 in the feet and the head), welded copies averaged, at most
+4 bones a vertex, none under 0.03. Found on the way: **the arms are fused to the torso along their inner side down to
+the elbow** (one surface: no armpit), so a raised arm stretches a web of the torso's triangles; the shoulder's wide
+diffusion is what lets that web stretch instead of folding.
+
+**Engine** (`vr_rig2.cpp`): the file read and written, the joints' math (`forward`, `clampAngles`, `aimAngles`,
+`randomPose`), linear-blend skinning (dual quaternions with `vr_rig2_dq 1`: measured, no better: 113 see-through
+against 82 at the time, so linear stays), and the subject drawn by the engine on it: a skeletal model made in memory
+(`<model>#rig2`: 4 weights a vertex) swapped in while a frame draws, beside the ragdolls' (`VR_RagdollSwap`), its
+bone matrices from `VR_AliasBonePoses`. Only the Rig Studio's subject is ever drawn so, and only in Range of Motion
+with `vr_rig2 1`.
+
+**The check** (`vr_rig2_check [model] [detail lines] [joint|random|envelope]`, `vr_rig2_check.cpp`; ends on
+`rig2 check: N passed, M failed`; about 10 s): every joint swept alone (a ball round its swing's edge and half way at
+its twist's ends and none, its twist alone; a hinge in 30 steps), each joint with its child at their ends, 1000
+random poses within every limit (fixed seed); in each pose: see-through (lines through each joint and bone middle
+from 14 directions must meet a front face first; a hit counts only if lines 0.05 either side see it too: the model's
+own sub-0.01 crack), flipped triangles (against their corners' blended turns), collapsed ones (under a tenth of their
+area; slivers under 0.1 square units or 0.15 across skipped), ridges folded past 150 degrees and 60 more than at rest,
+stretch (0.3..2.5), the hinges' bend from the posed bones, a coarse self-intersection count. The old rig is moved the
+same way (each old bone as its namesake; its arms on their ragdoll skin's blend, as its ragdolls draw it).
+`envelope` prints how far each joint turns cleanly each way alone (how the limits were set).
+
+| 3234 poses | see-through | flipped | collapsed | sharp folds | stretch |
+|---|---|---|---|---|---|
+| authored rig | 1 (1 pose) | 78 | 9 | 32 | 0.36..3.33 |
+| old rig, same poses | 655 (460 poses) | 10320 | 237 | 1795 | 0.02..8.22 |
+
+Per joint (new / old): right shoulder alone see-through 0 / 11, flipped 0 / 77; left shoulder with elbow 0 / 23, 0 /
+120; right clavicle with shoulder 0 / 10, 0 / 56; left hip 0 / 1, 0 / 14; left thigh with knee flipped 0 / 17. **33 of
+35 pass**; the two left: the pair right shoulder + elbow (3 triangles of the right armpit's web turn over with the
+shoulder 28-40 forward and the elbow straight: vertex 202, half arm, half torso) and the random poses (the same armpit
+web, a crotch triangle between the thighs; 1 see-through line in 1000 poses, 76 flipped triangles, stretch 3.3 in the
+web).
+
+**Rig Studio: Range of Motion** (`vr_rigstudio_rom.cpp`; RIGSTUDIO.md, "Range of Motion"): View > Range of Motion
+(or Debug > Tools > Rig Studio: Range of Motion (Authored Rig)): the joints' list, a click picks a bone and a second
+click drags its limb by its end within its limits; sliders per axis held to the limits; Sweep, Random Pose, Reset;
+the picked joint's limits drawn; pivots and limits edited live, undoable, Save / Reload; Mesh drawn on: Authored rig /
+Old rig (the old moved the same way); heat colours on the authored weights; the pose's faults live.
+`vr_rigstudio_rom ...` commands for scripts; `vr_rigstudio_rom test` 9 passed, 0 failed.
+
+Tests: `vr_rig2_check` 33/35 (above); `vr_rigstudio_rom test` 9/9; `vr_rigstudio_test_subjects` 14/14, `_aim` 4/4,
+`_posekeys` 10/10; eval.sh no verdict changes (`vr_rig2` 0: nothing in the game changes). Eyeshots (Rig Studio, fists,
+Game display, pairs authored / old): the five situations (elbow bent 140 with the wrist, shoulder 30 forward 40 out,
+knee at 115 under a hip at 65, the arm out 50 with a twist, wrist and ankle at their limits), and joints at their
+limits (Shaded): arms, legs, the spine and neck curled, two random poses.
+
+**Stage 2** (not done): the ragdoll on this skeleton (its bodies per bone, the joints' limits as Box3D's, the drawn
+skin from these weights: one path for the corpse and the living, no `vertBone`); the armed grunts' arm IK skinning
+from these weights (vr_agarms' own blend retired); hit reactions and the limb cuts per authored bone; the enforcer's
+rig the same way; and the mesh's own limit: the arms fused to the torso (a modelled armpit, split along the arm's
+inside, would free the shoulder's range).
+- [ ] Grunt rig stage 1 {test:none}: Rig Studio > View > Range of Motion: pick each joint, Sweep it, drag the limbs, Random Pose; Mesh drawn on Old rig vs Authored rig in the same pose; tell which joints need their pivot moved or their limits changed
