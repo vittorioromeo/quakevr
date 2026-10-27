@@ -33,8 +33,34 @@ struct ShippedRow
     float v[agpose::NumParts * 3];
 };
 constexpr ShippedRow shipped[] = {
+    // grunt, fists, Guard
+    {10, {-0.03f, 3.31f, 7.16f, 0.f, 0.f, 0.f, -0.74f, -1.64f, 4.82f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, the pickup's legs (any weapon)
     {31, {0.f, 0.f, 6.23f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -1.2f, -0.39f, 0.97f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, fists, Jab, wind-up
+    {100, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.55f, 4.9f, -1.64f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.95f, 0.73f, 0.12f, 14.8f, 0.f, 0.f}},
+    // grunt, fists, Jab, blow
+    {101, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.94f, 0.f, 1.16f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.02f, 1.f, -0.05f, -8.7f, 0.f, 0.f}},
+    // grunt, fists, Jab, follow-through
+    {102, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.47f, -1.15f, 2.28f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.06f, 0.93f, -0.37f, -14.7f, 0.f, 0.f}},
+    // grunt, fists, Cross, wind-up
+    {110, {5.26f, -5.09f, -0.62f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.09f, -0.52f, -0.24f, 0.f, 0.f, 0.f, -8.5f, 0.f, 0.f}},
+    // grunt, fists, Cross, blow
+    {111, {1.56f, 1.98f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.19f, -0.8f, -0.57f, 0.f, 0.f, 0.f, 6.3f, 0.f, 0.f}},
+    // grunt, fists, Cross, follow-through
+    {112, {-2.26f, 0.88f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.5f, 0.f, 0.f}},
+    // grunt, fists, Hook, wind-up
+    {120, {3.03f, -6.05f, -10.24f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.64f, 0.36f, -0.76f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, fists, Hook, blow
+    {121, {1.21f, 3.28f, -2.25f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.13f, -0.4f, -0.91f, 0.f, 0.f, 0.f, 4.4f, 0.f, 0.f}},
+    // grunt, fists, Hook, follow-through
+    {122, {-4.58f, 1.53f, 2.27f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.5f, 0.f, 0.f}},
+    // grunt, fists, Uppercut, wind-up
+    {130, {-4.46f, -3.97f, -4.13f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, fists, Uppercut, blow
+    {131, {-2.43f, 2.7f, 0.51f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.25f, -0.38f, -0.89f, 0.f, 0.f, 0.f, 9.4f, 0.f, 0.f}},
+    // grunt, fists, Uppercut, follow-through
+    {132, {-10.57f, 0.f, 4.02f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a rifle, Idle / Carry
     {1000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f}},
     // grunt, a rifle, Aim
@@ -115,16 +141,26 @@ constexpr ShippedRow shipped[] = {
     {6010, {0.94f, 1.83f, 1.78f, 0.5f, 3.9f, -2.4f, -0.22f, -2.8f, 1.75f, 2.2f, 3.1f, -4.2f, 0.f, 0.f, 0.f, -0.33f, 0.19f, -0.92f, 0.f, 0.f, 0.f}},
     // grunt, two guns, Run
     {6020, {3.46f, 3.87f, 0.17f, 0.f, 0.f, 0.f, 0.f, -2.95f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pistol, Idle / Carry
+    {17000, {4.46f, 5.46f, -1.62f, 0.f, 0.f, 0.f, 1.14f, -7.3f, -1.57f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, -0.24f, 0.95f, -0.19f, 0.f, 0.f, 0.f}},
     // grunt, a pistol, Aim
-    {17010, {3.88f, 6.07f, 6.49f, -1.8f, 2.2f, -2.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    {17010, {3.88f, 6.07f, 6.49f, -1.8f, 2.2f, -2.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 0.f, -1.15f, 1.5f, 16.3f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a pistol, Run
-    {17020, {4.06f, 4.71f, 0.87f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.31f, 0.16f, 0.32f, 0.f, 0.f, 0.f}},
+    {17020, {4.06f, 4.71f, 0.87f, 0.f, 0.f, 0.f, -1.72f, 0.f, 0.f, 0.f, 5.8f, 0.f, 0.f, 0.f, 0.f, -0.31f, 0.16f, 0.32f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // grunt, a pistol, Pickup
+    {17030, {-1.29f, 5.65f, 15.86f, -6.f, 20.f, 18.2f, 13.58f, -6.87f, -0.98f, 0.f, -36.6f, 0.f, 0.83f, -0.26f, 0.49f, -0.16f, 0.98f, 0.15f, 8.4f, -48.6f, 37.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
     // grunt, a shoulder launcher, Aim
     {18010, {-0.08f, 0.97f, 8.49f, -29.3f, 2.1f, -1.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
     // grunt, a sprayer, Aim
-    {19010, {1.09f, 8.34f, -3.01f, 0.3f, -0.5f, -4.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    {19010, {-1.59f, 3.04f, -3.88f, 0.3f, -0.5f, -4.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    // grunt, the laser cannon, Idle / Carry
+    {20000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 87.f, -73.f, -12.f, 0.f, 0.f, 0.f}},
     // grunt, the laser cannon, Aim
-    {20010, {-8.27f, 1.59f, -4.46f, -1.6f, 4.f, -2.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    {20010, {-4.42f, 3.5f, -4.46f, -1.4f, 0.f, -1.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 1.7f, 1.45f, 0.f, 87.3f, -73.9f, -12.4f, 0.f, 0.f, 0.f}},
+    // grunt, the laser cannon, Run
+    {20020, {4.06f, 0.96f, 0.87f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.7f, -0.35f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, the Widowmaker, Aim
+    {21010, {2.22f, 3.2f, 6.55f, -3.1f, 1.9f, -1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, -0.47f, -0.88f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
     // enforcer, fists, Guard
     {100010, {0.f, 3.41f, 4.44f, 0.f, 0.f, 0.f, 0.f, -2.9f, 1.83f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, fists, Run
@@ -470,6 +506,13 @@ struct StretchRow
     float by;
 };
 constexpr StretchRow shippedStretch[] = {
+    {0, 0, 1.05f}, // grunt, fists
+    {0, 1, 1.15f}, // grunt, a rifle
+    {0, 17, 1.05f}, // grunt, a pistol
+    {0, 18, 1.15f}, // grunt, a shoulder launcher
+    {0, 19, 1.25f}, // grunt, a sprayer
+    {0, 20, 1.20f}, // grunt, the laser cannon
+    {0, 21, 1.20f}, // grunt, the Widowmaker
     {-1, -1, 1.f}, // (the end)
 };
 
@@ -812,6 +855,25 @@ int copyKind(int from, int to)
 
 int dropShippedEqual()
 {
+    // The IK stretch rows equal to the shipped ones go too (configVersion 213: his stretch shipped).
+    parseStretch();
+    int stretchDropped = 0;
+    for(int k = 0; k < numKinds; k++)
+    {
+        for(int c = 0; c < NumClasses; c++)
+        {
+            float& by = stretchState.by[k][c];
+            if(by > 0.f && isClass(c) && za::abs(rounded(za::clamp(by, 1.f, stretchMost), 100.f) - shippedStretch(k, c)) < 0.005f)
+            {
+                by = 0.f;
+                stretchDropped++;
+            }
+        }
+    }
+    if(stretchDropped > 0)
+    {
+        writeStretch();
+    }
     parse();
     const char* text = vr_agrunt_poses.string ? vr_agrunt_poses.string : "";
     int entries = 0; // (each ';'-ended, and a last one without)
@@ -831,7 +893,7 @@ int dropShippedEqual()
     entries += open ? 1 : 0;
     if(entries != static_cast<int>(state.over.size()))
     {
-        return 0;
+        return stretchDropped;
     }
     za::Vector<Entry> kept;
     for(const Entry& e : state.over)
@@ -849,7 +911,7 @@ int dropShippedEqual()
         state.over = static_cast<za::Vector<Entry>&&>(kept);
         write();
     }
-    return dropped;
+    return dropped + stretchDropped;
 }
 
 int migrateCategories(int* widened)
