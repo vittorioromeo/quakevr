@@ -43,4 +43,8 @@ void note(const posestudio::Note& n);
 // False: not the subject, or no rig or grip for that hand.
 bool authoredWeapon(int ent, int side, int prop, const rigpose::Rigid& offset, rigpose::Rigid& out);
 
+// VR_AliasPostTransform's end: alias entity `e` drawn with `matrix` (its model's vertices -> the world, column-major as
+// R_EntityMatrix's): the subject's held weapons' kept (the aim lines read the barrel from the weapon as drawn).
+void drawnMatrix(const entity_t* e, const float* matrix);
+
 } // namespace qvr::rigstudio
