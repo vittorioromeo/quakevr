@@ -149,6 +149,8 @@ void unpublishAll();
 // end), and their own models put back before the server's messages are read (CL_ReadFromServer).
 void swapModels();
 void restoreModels();
+// vr_ragdoll_draw_info: as the ragdolls are next drawn, each one's renderer data as its skinned copy beside its .mdl's.
+void drawInfo_f();
 
 // vr_knockdown_debug 2: entity `num`'s get-up as drawn followed from server time `from` to `until` (its motion frame by
 // frame, then a line of it: the client's swapModels).

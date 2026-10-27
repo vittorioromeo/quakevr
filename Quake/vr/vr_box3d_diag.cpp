@@ -1809,6 +1809,7 @@ void registerCommands()
         Cmd_AddCommand("vr_ragdoll_speeds", ragdollSpeeds_f);
         Cmd_AddCommand("vr_ragdoll_arm_test", ragdollArmTest_f);
         Cmd_AddCommand("vr_ragdoll_info", ragdoll::info_f);
+        Cmd_AddCommand("vr_ragdoll_draw_info", ragdoll::drawInfo_f);
         Cmd_AddCommand("vr_limb_models", limbmodel::info_f);
         Cmd_AddCommand("vr_drawn_motion_test", ragdoll::motionTest_f);
         Cmd_AddCommand("vr_ragdoll_blast_test", ragdollBlastTest_f);

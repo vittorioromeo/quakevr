@@ -2570,7 +2570,87 @@ void gunCheck(int num, const Published& p)
     Con_Printf("gun: %d its %s %.1f units from its %s (the rest pose's %.1f)\n", num, rig.bones[loose].name,
         glm::distance(gun / n, part / m), rig.bones[hand].name, glm::distance(gunR / n, partR / m) * p.scale);
 }
+bool drawInfoPending = false; // vr_ragdoll_draw_info: printed as the ragdolls are next swapped in (drawn)
+
+// vr_ragdoll_draw_info: each ragdoll drawn now, the renderer's own data for it (VR_AliasInstance: its light, occlusion
+// group, wounds, retro textures and lighting...) as its skinned copy beside its .mdl's in the same place: each value
+// that tells them apart (the stumps' are the ragdoll's own).
+void printDrawInfo()
+{
+    int printed = 0;
+    for(const Swapped& s : draw.swapped)
+    {
+        entity_t* e = &cl_entities[s.num];
+        if(e->model != s.skinned)
+        {
+            continue;
+        }
+        vraliasinstance_t inst[2];
+        for(int k = 0; k < 2; k++)
+        {
+            qmodel_t* m = k == 0 ? s.original : s.skinned;
+            auto* hdr = static_cast<aliashdr_t*>(Mod_Extradata(m));
+            float matrix[16];
+            for(int i = 0; i < 16; i++)
+            {
+                matrix[i] = i % 5 == 0 ? (k == 0 && i < 15 ? hdr->scale[i / 5] : 1.f) : 0.f; // (the .mdl's quantised steps)
+            }
+            e->model = m;
+            VR_AliasInstance(e, matrix, hdr, 1, &inst[k]);
+        }
+        e->model = s.skinned;
+        Con_Printf("ragdoll draw: entity %d, %s drawn as %s (look %d)\n", s.num, s.original->name, s.skinned->name, s.look);
+        int differ = 0;
+        const auto field = [&](const char* name, const float* a, const float* b, int n) {
+            bool same = true;
+            for(int i = 0; i < n; i++)
+            {
+                same = same && za::abs(a[i] - b[i]) <= 1e-4f * za::max(1.f, za::abs(a[i]));
+            }
+            if(same)
+            {
+                return;
+            }
+            differ++;
+            Con_Printf("  %s:", name);
+            for(int i = 0; i < n; i++)
+            {
+                Con_Printf(" %g/%g", a[i], b[i]);
+            }
+            Con_Printf("  (.mdl/copy)\n");
+        };
+#define QVR_RAG_FIELD(f) field(#f, &inst[0].f[0], &inst[1].f[0], static_cast<int>(sizeof(inst[0].f) / sizeof(float)))
+        QVR_RAG_FIELD(lightdir);
+        QVR_RAG_FIELD(glow);
+        field("ambient", &inst[0].ambient[0][0], &inst[1].ambient[0][0], 24);
+        QVR_RAG_FIELD(surface);
+        QVR_RAG_FIELD(ao);
+        QVR_RAG_FIELD(wound);
+        QVR_RAG_FIELD(woundside);
+        QVR_RAG_FIELD(retro);
+        QVR_RAG_FIELD(retropart);
+        QVR_RAG_FIELD(skintint);
+        QVR_RAG_FIELD(skintone);
+        QVR_RAG_FIELD(hotblade);
+        QVR_RAG_FIELD(glove);
+        QVR_RAG_FIELD(dent);
+        QVR_RAG_FIELD(dentscale);
+        QVR_RAG_FIELD(gloveshell);
+        QVR_RAG_FIELD(stump);
+        QVR_RAG_FIELD(nails);
+#undef QVR_RAG_FIELD
+        Con_Printf("  %d of the instance's values differ\n", differ);
+        printed++;
+    }
+    Con_Printf("ragdoll draw: %d ragdoll(s) compared\n", printed);
+}
+
 } // namespace
+
+void drawInfo_f()
+{
+    drawInfoPending = true;
+}
 
 void swapModels()
 {
@@ -2689,12 +2769,42 @@ void swapModels()
                     p.bleeds);
             }
         }
+        s.look = za::clamp(static_cast<int>(vr_debug_ragdoll_look.value), 0, 3);
+        s.frame = e->frame;
+        s.alpha = e->alpha;
+        if(s.look == 1)
+        {
+            // Its skinned model in its rest pose (every bone's matrix the identity) at the entity's own matrix (drawMatrix:
+            // none): where the .mdl's pose 0 is drawn (look 2).
+            for(int b = 0; b < s.bones; b++)
+            {
+                for(int i = 0; i < 12; i++)
+                {
+                    s.skin[static_cast<za::SizeT>(b * 12 + i)] = i % 5 == 0 ? 1.f : 0.f;
+                }
+            }
+        }
+        if(s.look >= 2)
+        {
+            // The .mdl itself in pose 0 (frame 0, no lerp), or nothing drawn (3): the look to compare with.
+            e->frame = 0;
+            e->previouspose = e->currentpose = 0;
+            e->lerpflags |= LERP_RESETANIM;
+            e->alpha = s.look == 3 ? static_cast<byte>(ENTALPHA_ZERO) : e->alpha;
+            draw.swapped.pushBack(s);
+            continue;
+        }
         e->model = skinned;
         e->previouspose = e->currentpose = 0; // (its one pose: no lerp from the corpse's)
         e->lerpflags &= static_cast<byte>(~(LERP_RESETANIM | LERP_RESETANIM2));
         draw.swapped.pushBack(s);
     }
     recordGetup();
+    if(drawInfoPending)
+    {
+        drawInfoPending = false;
+        printDrawInfo();
+    }
 }
 
 #ifdef QVR_TRACY
@@ -2712,7 +2822,17 @@ void restoreModels()
     for(const Swapped& s : draw.swapped)
     {
         entity_t* e = &cl_entities[s.num];
-        if(e->model == s.skinned)
+        if(s.look >= 2 && e->model == s.original)
+        {
+            e->frame = s.frame;
+            e->alpha = s.alpha;
+            e->previouspose = s.previousPose;
+            e->currentpose = s.currentPose;
+            e->lerpstart = s.lerpStart;
+            e->lerptime = s.lerpTime;
+            e->lerpflags = s.lerpFlags;
+        }
+        else if(e->model == s.skinned)
         {
             e->model = s.original;
             e->previouspose = s.previousPose;
@@ -2798,9 +2918,9 @@ void stumpLook(const entity_t* e, float out[4])
 bool drawMatrix(const entity_t* e, float matrix[16])
 {
     const Swapped* s = swappedOf(e);
-    if(!s || e->model != s->skinned)
+    if(!s || e->model != s->skinned || s->look == 1)
     {
-        return false;
+        return false; // (vr_debug_ragdoll_look 1: the entity's own matrix)
     }
     for(int i = 0; i < 16; i++)
     {

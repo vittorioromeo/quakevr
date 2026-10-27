@@ -412,6 +412,13 @@ za::Vector<Item> pageDebugLogging()
                   "also each second the most sent: the broadcast, the reliable messages, a client's own data and entities."),
         toggle("Ragdolls", vr_debug_ragdoll)
             .help("vr_debug_ragdoll: each ragdoll made (when it went limp, its parts), each push on it and each blast's throw."),
+        cycle("Ragdolls' Look Check", vr_debug_ragdoll_look, {{0.f, "Off"}, {1.f, "Skinned Copy at Rest"}, {2.f, "Its .mdl at Rest"}, {3.f, "Hidden"}})
+            .help("vr_debug_ragdoll_look: each ragdoll drawn in its model's rest pose where its entity stands, as its "
+                  "skinned copy or as its own .mdl (the live monster's look): the two should look the same. "
+                  "vr_ragdoll_draw_info in the console: the renderer's data for each that differ."),
+        command("Print the Ragdolls' Drawing", "vr_ragdoll_draw_info")
+            .help("vr_ragdoll_draw_info: each ragdoll drawn, the renderer's data for its skinned copy beside its .mdl's "
+                  "(light, occlusion group, wounds, retro textures): the values that differ."),
         toggle("Ragdolls' Weapons in Hand", vr_debug_ragdoll_gun)
             .help("vr_debug_ragdoll_gun: every 0.25 s, each ragdoll's held weapon (an enforcer's rifle, a grunt's shotgun, "
                   "a knight's sword, an ogre's chainsaw) as drawn: how far from the part holding it, beside the rest "
