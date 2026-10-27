@@ -230,6 +230,10 @@ za::Vector<Item> pageDebugAutomation()
                   "hands shot 100 times a case (shotguns at 2, 5 and 15 m, a nail burst, single far shots, lightning, "
                   "hand only, weapon only, the volumes' size, absorbing, dual wielding): each case's disarm rate printed "
                   "(agshot: ...) and the defaults' targets checked (PASS/FAIL). scratch1: trials a case."),
+        command("Armed Grunts: Aim", "vr_agrunt_test 49")
+            .help("vr_agrunt_test 49 (vrtesthall's start): a grunt with each gun (shotgun, nail guns, the grunt's and the "
+                  "enforcer's rifles) 600 units ahead comes at you firing, no aim error: each shot's miss to your side "
+                  "by 100 units of distance, aimed from its grip (the old way) and as fired (vr_agrunt_aim_converge)."),
         command("Armed Grunts: Fighting Distance", "scratch1 0; scratch2 0; vr_agrunt_test 48")
             .help("vr_agrunt_test 48 (vrtesthall's start; under 3 minutes): an armed grunt per weapon (shotguns, nail "
                   "guns, lightning, rockets, the grunt's and enforcer's guns, an axe) 260 units ahead hunting you, 6 s "

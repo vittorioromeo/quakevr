@@ -1153,7 +1153,18 @@ float(entity p) VR_AG_KickLeft =
 };
 
 // Where it aims: at its target's middle, a little behind it as it moves (the grunt's), up to vr_agrunt_aim_error off.
-vector(vector from) VR_AG_AimDir =
+// A direction's angles as vectoangles gives them (pitch up), exact: the builtin truncates its yaw and pitch to whole
+// degrees (PF_vectoangles), up to a degree off: its shots a few units to one side of you at 300, 15 at 1000 (test 49).
+vector(vector d) VR_AG_Angles =
+{
+    vector a;
+    a_x = atan2(d_z, sqrt(d_x * d_x + d_y * d_y)) * 57.29578;
+    a_y = atan2(d_y, d_x) * 57.29578;
+    a_z = 0;
+    return a;
+};
+
+vector() VR_AG_AimPoint =
 {
     entity t = self.enemy;
     vector at = VR_AI_Origin(t) - t.velocity * 0.15;
@@ -1161,11 +1172,15 @@ vector(vector from) VR_AG_AimDir =
     {
         at_z = at_z + 6; // (a player's chest, not his origin's waist)
     }
-    vector dir = normalize(at - from);
+    return at;
+};
+vector(vector from) VR_AG_AimDir =
+{
+    vector dir = normalize(VR_AG_AimPoint() - from);
     float err = cvar_hget(cvarh_vr_agrunt_aim_error) * (1 + vr_ag_aim_mult);
     if(err > 0)
     {
-        vector a = vectoangles(dir);
+        vector a = VR_AG_Angles(dir);
         a_x = -a_x + crandom() * err; // (a view's pitch for makevectors)
         a_y = a_y + crandom() * err;
         makevectors(a);
@@ -1179,12 +1194,37 @@ float vr_ag_drawn_deg;
 float vr_ag_all_shots;
 // Its hand fields as the player's would be holding the weapon `p` aimed along `dir` (VRGetHandPos, VRGetMuzzlePos,
 // VRGetWeaponFireRot, VRGetWeapon, VRGetEntWeaponInst read them).
+float vr_ag_shot_on;       // VR_AG_ShootProp's shot under way: its straight line (no error) from the grip,
+vector vr_ag_shot_straight;
+float vr_ag_miss_n;        // shots measured (the tests: test 49), each its line's miss at its target's point:
+float vr_ag_miss_d;        // ... the muzzle to that point,
+float vr_ag_miss_raw;      // ... to the right of it (units; - left) as aimed from the grip (before vr_agrunt_aim_converge),
+float vr_ag_miss_lat;      // ... as fired,
+float vr_ag_miss_up;       // ... above it as fired
+
+// The line from `m` along `dir`: its miss at `at`, to its right (vr_ag_miss_up: above).
+float(vector m, vector dir, vector at) VR_AG_MissRight =
+{
+    vector off = m + dir * ((at - m) * dir) - at;
+    vector right;
+    right_x = dir_y; // (dir x up)
+    right_y = -dir_x;
+    right_z = 0;
+    right = normalize(right);
+    vr_ag_miss_up = off_z;
+    return off * right;
+};
+
+// (an angle's difference, -180..180)
+float(float a) VR_AG_Wrap180 = { return a - 360 * floor((a + 180) / 360); };
+
 void(entity p, vector dir) VR_AG_SetHand =
 {
+    vector dir0 = dir; // (as aimed: from its grip, its error and kick in it)
     self.vr_ag_aim = dir;
     VR_AG_PlaceProp(self, p);
     self.handpos = p.origin;
-    vector a = vectoangles(dir);
+    vector a = VR_AG_Angles(dir);
     a_x = -a_x; // (a view's pitch, as the hands')
     self.handrot = a;
     self.shotrot = '0 0 0';
@@ -1207,13 +1247,39 @@ void(entity p, vector dir) VR_AG_SetHand =
             vector off = weapondrawnpose(p, 0, 22);
             dir = normalize(VR_AG_Rotate(dir, ax, ang));
             m = p.origin + off + VR_AG_Rotate(m - p.origin, ax, ang);
-            a = vectoangles(dir);
+            a = VR_AG_Angles(dir);
             a_x = -a_x;
             self.handrot = a;
             vr_ag_drawn_shots = vr_ag_drawn_shots + 1;
             vr_ag_drawn_deg = vr_ag_drawn_deg + ang;
         }
         vr_ag_all_shots = vr_ag_all_shots + 1;
+    }
+    if(vr_ag_shot_on && self.enemy)
+    {
+        // Converging on its target (vr_agrunt_aim_converge): aimed from its grip, its shot left the muzzle beside that
+        // line along it (or along the drawn gun's, turned off it): a miss to one side at any distance. Now its line
+        // from the muzzle it fires from to its target's point, turned by its aim's error and kick as before (unbiased).
+        vector at = VR_AG_AimPoint();
+        vector old = vectoangles(dir); // (the old way, measured: this line, its angles in whole degrees)
+        old_x = -old_x;
+        makevectors(old);
+        vr_ag_miss_raw = VR_AG_MissRight(m, v_forward, at);
+        if(cvar_hget(cvarh_vr_agrunt_aim_converge) && vlen(at - m) > 8)
+        {
+            vector e = VR_AG_Angles(dir0) - VR_AG_Angles(vr_ag_shot_straight);
+            vector c = VR_AG_Angles(normalize(at - m));
+            c_x = -(c_x + VR_AG_Wrap180(e_x)); // (a view's pitch for makevectors)
+            c_y = c_y + VR_AG_Wrap180(e_y);
+            c_z = 0;
+            makevectors(c);
+            dir = v_forward;
+            self.handrot = c;
+        }
+        makevectors(self.handrot); // (as fired: its hand's angles, the shot's line)
+        vr_ag_miss_lat = VR_AG_MissRight(m, v_forward, at);
+        vr_ag_miss_d = vlen(at - m);
+        vr_ag_miss_n = vr_ag_miss_n + 1;
     }
     self.muzzlepos = m;
     self.weapon = p.weapon;
@@ -1356,7 +1422,7 @@ vector(float wid, vector from, vector dir) VR_AG_BlastPoint =
         traceline(from, from + dir * 4096, FALSE, self);
         return trace_endpos;
     }
-    vector a = vectoangles(dir);
+    vector a = VR_AG_Angles(dir);
     a_x = -a_x;
     makevectors(a);
     vector vel = v_forward * 600 + v_up * 200;
@@ -1476,7 +1542,10 @@ void(entity p) VR_AG_ShootProp =
     }
     vr_ag_last_kick = kick;
     vr_ag_last_aimdev = atan2(vlen(dir - straight * (dir * straight)), dir * straight) * 57.29578;
+    vr_ag_shot_on = 1;
+    vr_ag_shot_straight = straight;
     VR_AG_SetHand(p, dir);
+    vr_ag_shot_on = 0;
     if(!VR_AG_BlastSafe(p, dir))
     {
         // Its own blast would reach it (the target came near, a wall ahead): held back, a step aside.
@@ -1637,7 +1706,7 @@ void() VR_AG_Strike =
     else
     {
         self.handpos = from;
-        vector a = vectoangles(dir);
+        vector a = VR_AG_Angles(dir);
         a_x = -a_x;
         self.handrot = a;
         self.shotrot = '0 0 0';
@@ -2241,7 +2310,10 @@ float() VR_AG_CheckAttack =
     }
     if(c == VR_AG_CLASS_FISTS || c == VR_AG_CLASS_MELEE)
     {
-        if(d < VR_AG_GRIP_REACH + (c == VR_AG_CLASS_MELEE ? 10 : 0))
+        // (the chainsaw's thrust reaches less far than a swing: it closes in first, vr_agrunt_saw_start)
+        float reach = self.vr_ag_wid == WID_CHAINSAW ? cvar_hget(cvarh_vr_agrunt_saw_start) :
+                      VR_AG_GRIP_REACH + (c == VR_AG_CLASS_MELEE ? 10 : 0);
+        if(d < reach)
         {
             if(VR_AG_FriendHold(self.origin + self.view_ofs * 0.5, VR_AG_FriendSpread(self.vr_ag_wid)))
             {
@@ -2287,7 +2359,14 @@ float() VR_AG_CheckAttack =
         return FALSE;
     }
     float native = VR_AGR_NativeAlone(self); // (its own gun alone: its monster's chances and pauses, vr_armedrepl.qc)
-    if(random() < (native ? VR_AGR_NativeChance(enemy_range) : VR_AG_Chance(self.vr_ag_wid, enemy_range)))
+    float chance = native ? VR_AGR_NativeChance(enemy_range) : VR_AG_Chance(self.vr_ag_wid, enemy_range);
+    if(!explosive && VR_AG_Ranges(self) && d < vr_ag_rmin)
+    {
+        // Too near for its gun: backing off mostly (VR_AG_RangeMove), firing now and then as it goes (a launcher's
+        // retreat never fires: above). You with a blade or charging: rarer still.
+        chance = chance * (vr_ag_rthreat ? 0.3 : 0.5);
+    }
+    if(random() < chance)
     {
         self.th_missile();
         if(native)
