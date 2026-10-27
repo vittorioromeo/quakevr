@@ -24768,3 +24768,46 @@ load 3 without and with the keys (its right arm raised).
 **Left**: the studio's Bone overrides and Weights windows edit nothing the authored rig saves (its rest and weights are
 Range of Motion's `rig2.txt`); the import's chest/head split is a fixed half and half.
 - [ ] Rig Studio animates the authored rig {test:vr_rigstudio_test_rig2anim}: Debug > Grunt on the Authored Rig on, load a map, Rig Studio (flat): the dope sheet lists spine, clavicles, hands, feet; key the chest and an arm in `load`, save (rigs/vrgrunt.rig2anim.txt), turn vr_agrunt_taunt on and let a grunt see you: the keyed reload and the taunt play on the new rig, its arms on the keys, the weapon in its hand
+
+## Rig fixes: the Rig Studio's weapons, the enforcer's elbows (worktree `fastship`, branch `agent/rig2fix`, 2026-10-27)
+
+**The Rig Studio's weapons on the authored rig** (`vr_rigstudio_rom test weapon` 0/6 on origin/next, "no reading ...
+weapon 0"). Bisected over origin/next's merges (a build and the test at each: `scratch/bisect_weapon.sh`): broken by
+the merge of agent/rig2s2 (d27c26b1c), its ef4309af1 "live grunts' own models back right after drawing"
+(`VR_Rig2Restore`). The feature itself broke, not the test: `relinkArms` found the studio's subject by its "#rig2"
+swap (`rig2::sourceModel`), and the swap is now undone after each frame's drawing and made again after
+`VR_RelinkArmedGrunts`, so at relink time the subject had its .mdl back: the arms' solve placed its weapons, not the
+authored hands. Now `relinkArms` asks `rig2::studioPosedModel` (new: the subject the studio posed on the authored rig
+this frame or the last, swapped or not). Test weapon: grunt shotgun 6/6, grunt two revolvers 12/12, enforcer laser
+rifle 6/6, enforcer two nail pistols 12/12, on `vr_rig2` 0 and 1, all 0.000 units / 0.00 deg. Eyeshot:
+`scratch/rig2fix_weapons_dual.png` (the six cases, a revolver in each hand).
+
+**The enforcer's elbows ("wrong" p95 116 against 92): the measure.** The glitch finder's `wrong` is the elbow's way
+(its offset across the shoulder-wrist line) against a reference, outward and down at 45 degrees each in the chest's
+frame (agarms `preferredPole`). Counted per arm (a temporary print, not kept), the authored enforcer's excess is the
+lowered arms' carry: the nail pistol's right arm hanging (reach down 0.95, out 0.29) with its elbow straight back and
+0.3 in, in 1136 of 1460 frames over 100 degrees (old rig: elbow straight back, 78 frames over 100); the shotgun's right
+arm more upright too (reach down 0.96 against 0.83, the authored shoulders further out and QC's fit drawn in and down),
+its elbow more back. A lowered arm's elbow pointing back is the natural carry, but against outward-and-down with the
+reach straight down the reference is "outward" alone: 90 degrees off and more. Not the hinge (the solve's circle ignores
+it; limits off changed nothing) nor the rig's frames (the reference is the chest's posed rotation, the same on both
+rigs). The eyeshots agree: `scratch/eyes_enf_old.png` / `eyes_enf_new.png` (test 45's sheet: laser rifle aim and run,
+nail pistol aim and run, front and side: the elbows alike, down and back). **Fix**: the reference is now the solve's own
+elbow way (`elbowPref`: down, out, a little back); the 135-degree glitch line unchanged (up and in still reads ~180).
+
+| glitch finder p95 / worst | enforcer authored 1, 2, 3 | enforcer old | grunt authored | grunt old |
+|---|---|---|---|---|
+| wrong (new measure) | 82.3/179, 82.4/180, 82.8/180 | 78.1/180 | 55.5/179 | 65.2/179 |
+| reach | 2.66/28.8, 2.28/29.7, 2.17/29.1 | 2.05/30.2 | 4.18/24.6 | 4.14/26.9 |
+| armpen | 0.24/9.4, 0.19/9.5, 0.21/9.5 | 0.80/12.2 | 0.51/5.1 | 1.74/6.1 |
+| shoulder (jump) | 0.44/6.7, 0.43/6.3, 0.43/6.5 | 0.25/5.6 | 0.38/4.4 | 0.23/3.8 |
+| stretch | 1.11/15.8, 1.10/17.0, 1.10/14.8 | 2.75/18.5 | 1.54/15.1 | 2.70/21.0 |
+
+(The old measure on this build, authored enforcer: 115.6 p95.) The grunt's other numbers as before (reach 4.18, grip2
+1.07, armpen 0.51, shoulder 0.38; aim 2.97 and wrist 3.68 within the earlier runs' spread): only the measure changed.
+**The shoulder jump** (0.43 against 0.25) is the authored rig's clavicle share (`vr_rig2_clavicle` 0.6), not the
+elbow: with both clavicles 0 it is 0.16, but reach 4.41 p95 (one run); the share kept.
+
+Tests: the weapon test above; `vr_rigstudio_rom test` 9/9 grunt and enforcer, `_test_subjects` 14/14, `_aim` 4/4,
+`_posekeys` 10/10, each on both latches; eval.sh no verdict changes (163/171, every difference PASS -> PASS).
+- [ ] Rig Studio weapons on the authored rig {test:none}: Rig Studio > Range of Motion, Authored rig, Subject two revolvers then the enforcer with its laser rifle: Random Pose, drag the arms: each weapon stays in its hand
