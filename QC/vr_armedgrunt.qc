@@ -391,7 +391,9 @@ float(float dt, float firing) VR_AG_WalkFire =
     float side = self.lefty ? 1 : -1;
     if(d < vr_ag_rmin || (!firing && d < vr_ag_rpref))
     {
-        if(VR_AG_RangeStep(yaw + 180, step * (!firing ? 1 : vr_ag_rthreat ? 1.6 : 1.3)))
+        // (faster nearer than its least, a reload's too: you with a blade gain on it otherwise)
+        float back = d < vr_ag_rmin ? (vr_ag_rthreat ? 1.6 : 1.3) : 1;
+        if(VR_AG_RangeStep(yaw + 180, step * back))
         {
             vr_ag_range_backs = vr_ag_range_backs + 1;
             return TRUE;

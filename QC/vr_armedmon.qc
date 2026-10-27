@@ -115,7 +115,7 @@ void(float k) VR_AM_Row =
         vr_am_grip_l = '8.7 11.6 13.4';
         vr_am_gun_fw = '0 0.984 0.18';
         vr_am_range = 0.85; // (armoured, it holds its ground more than a grunt)
-        vr_am_range_threat = 1.2;
+        vr_am_range_threat = 1.3;
         return;
     }
     // The grunt (the first row; k 0, an armed grunt from before the table): Quake VR's soldier.mdl, the gun's vertices
@@ -158,7 +158,7 @@ void(float k) VR_AM_Row =
     vr_am_grip_l = '11.8 5.5 1.9';
     vr_am_gun_fw = '0.394 0.888 -0.235';
     vr_am_range = 1;
-    vr_am_range_threat = 1.4;
+    vr_am_range_threat = 1.5;
 };
 
 // The right hand's middle and the hidden gun's points of `g` as drawn now (modelvertex; trace_fraction 0: not now).
