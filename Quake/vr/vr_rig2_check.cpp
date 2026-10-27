@@ -125,6 +125,7 @@ struct CheckState
     int restSelfX[maxBones]{};
     int restSelfXOld[maxBones]{};
     int detail{0}; // lines of detail left to print (vr_rig2_check <model> <lines>)
+    const Stretches* stretch{nullptr}; // the pose measured's IK stretch (a recorded armed one's; the skin's)
     const qmodel_t* model{nullptr}; // made for (its rig's generation)
     int generation{-1};
 };
@@ -431,7 +432,7 @@ void measure(const rigpose::Rigid* F2, bool old, int focus, int focus2, Tally& t
     else
     {
         p.resize(static_cast<za::SizeT>(cs.s.nv));
-        skin(rig, F2, cs.s.rest.data(), cs.s.nv, p.data(), vr_rig2_dq.value != 0.f);
+        skin(rig, F2, cs.s.rest.data(), cs.s.nv, p.data(), vr_rig2_dq.value != 0.f, cs.stretch);
     }
     triNormals(cs.s, p, cs.n, cs.area);
     t.poses++;
@@ -1063,15 +1064,36 @@ void check_f()
                 continue;
             }
             Tally tn, to;
+            const za::Vector<Stretches>& recSt = recordedStretches(set);
+            int stretched = 0;
+            float stretchMost = 1.f;
             for(za::SizeT i = 0; i < rec.size(); i++)
             {
                 forward(rig, rec[i], F);
+                // (an armed pose's IK stretch: its arm bones lengthened, their children at their ends, the skin so)
+                const Stretches* st = i < recSt.size() && recSt[i].n > 0 ? &recSt[i] : nullptr;
+                if(st)
+                {
+                    stretchChain(rig, F, *st);
+                    stretched++;
+                    for(int k = 0; k < st->n; k++)
+                    {
+                        stretchMost = za::max(stretchMost, st->b[k].by);
+                    }
+                }
                 q_snprintf(what, sizeof(what), "%s %d", set == 0 ? "ragdoll" : "armed", static_cast<int>(i));
+                cs.stretch = st;
                 measure(F, false, -1, -1, tn, what);
+                cs.stretch = nullptr;
                 if(withOld)
                 {
                     measure(F, true, -1, -1, to, what);
                 }
+            }
+            if(stretched > 0)
+            {
+                Con_Printf("rig2 check: %s recorded: %d poses with the IK stretch (at most %.3f)\n", set == 0 ? "ragdoll" : "armed",
+                    stretched, static_cast<double>(stretchMost));
             }
             q_snprintf(what, sizeof(what), "%s recorded (%d poses)", set == 0 ? "ragdoll" : "armed", static_cast<int>(rec.size()));
             printTally("new", what, tn);

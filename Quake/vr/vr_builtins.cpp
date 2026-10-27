@@ -2369,6 +2369,16 @@ void PF_weapondrawnpose()
         G_VECTOR(OFS_RETURN)[2] = static_cast<float>(agholds::poseClass(arg / 1000, arg % 1000, nullptr));
         return;
     }
+    if(what == 28)
+    {
+        // weapondrawnpose(world, kind * 100 + class, 28): '<factor> 0 0', the IK stretch of that kind and pose class
+        // (agpose::stretch; 1 none), sent in the pose message's off-hand block (QC VR_AGP_Pose).
+        const int arg = static_cast<int>(G_FLOAT(OFS_PARM1));
+        G_VECTOR(OFS_RETURN)[0] = agpose::stretch(arg / 100, arg % 100);
+        G_VECTOR(OFS_RETURN)[1] = 0.f;
+        G_VECTOR(OFS_RETURN)[2] = 0.f;
+        return;
+    }
     if(what >= 25 && what <= 27)
     {
         // weapondrawnpose(world, code, 25..27): pose key `code`'s off-hand parts (agpose::GripPos, GripTurn, OffHand:

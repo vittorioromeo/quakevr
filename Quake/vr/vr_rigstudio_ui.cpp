@@ -1439,6 +1439,32 @@ void poseDataWindow()
             helpMarker("A single gun's class is its pose category (Rifle, Pistol, Shoulder Launcher, Sprayer, Laser Cannon, "
                        "Widowmaker): per weapon and kind in Combat > Armed Grunts > Weapon Holds. A category not tuned "
                        "yet starts as the Rifle's keys.");
+            {
+                // The IK stretch of this kind and class (agpose::stretch: every pose of it), the subject's as used
+                float by = agpose::stretch(st.pdKind, st.pdClass);
+                const bool moved = ImGui::SliderFloat("IK Stretch", &by, 1.f, agpose::stretchMost, "%.2f");
+                if(ImGui::IsItemActivated())
+                {
+                    pushStretchUndo(st.pdKind, st.pdClass);
+                }
+                if(moved)
+                {
+                    agpose::setStretch(st.pdKind, st.pdClass, by);
+                }
+                helpMarker("How far this kind's arms may lengthen to put its hands on their goals with this class (every "
+                           "pose of it; 1 none), as your own arms do with Body > Arm Stretch: the upper arm and the forearm "
+                           "alike, only as far as a hand needs (in reach: none), eased; the skin stretches along. Also in "
+                           "Combat > Armed Grunts > IK Stretch. Saved in vr_agrunt_ik_stretch; Print and Copy take it.");
+                if(st.subject > 0 && st.subjKind == st.pdKind && st.subjClass == st.pdClass)
+                {
+                    ImGui::Text("stretch used: %.2f (R) %.2f (L)", static_cast<double>(st.note.placed.stretch[0]),
+                        static_cast<double>(st.note.placed.stretch[1]));
+                }
+                else
+                {
+                    ImGui::TextDisabled("stretch used: (the subject holds another kind or class)");
+                }
+            }
             int poses[agpose::NumPoses];
             const int np = agpose::posesOf(st.pdClass, poses, agpose::NumPoses);
             if(ImGui::BeginCombo("Pose", agpose::poseName(st.pdClass, st.pdPose)))

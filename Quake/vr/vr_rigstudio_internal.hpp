@@ -90,6 +90,8 @@ struct Snapshot
     agpose::Key poseKey;
     int gripKind{-1}, gripSlot{0}, gripHand{0};
     aggrip::Offset grip;
+    int stretchKind{-1}, stretchClass{0}; // ... the IK stretch of a kind and class (vr_agrunt_ik_stretch)
+    float stretchBy{1.f};
     // The aim target's place (studio-session state, never in a file): its place before
     bool aimEntry{false};
     glm::vec3 aimAt{0.f};
@@ -314,6 +316,7 @@ void pushUndo(const char* what);
 void keepPreEdit();          // the frame's start (no widget held): the data kept for pushPreEditUndo
 void pushPreEditUndo(const char* what);
 void pushPoseUndo(int code);                       // a Pose Studio key about to change
+void pushStretchUndo(int kind, int cls);           // ... a kind and class's IK stretch
 void pushGripUndo(int kind, int slot, int hand);   // a grip about to change
 void pushAimUndo();                                // the aim target about to move
 void resetAim();                                   // the aim target ahead of the subject, level (undoable)
