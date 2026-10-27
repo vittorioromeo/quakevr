@@ -1,0 +1,993 @@
+// vr_rig2.cpp -- the authored humanoid rig (vr_rig2.hpp): its file, its joints' math, its skinning, and its drawing
+// as a skeletal model ("<model>#rig2") for the Rig Studio's subject. The checks: vr_rig2_check.cpp.
+
+#include "vr_rig2.hpp"
+#include "vr_api.h"
+#include "vr_api_render.h"
+#include "vr_cvars.hpp"
+#include "vr_engine.hpp"
+#include "vr_files.hpp"
+#include "vr_rigdata.hpp"
+
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/ToString.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+namespace qvr::rig2
+{
+
+namespace
+{
+
+constexpr float pi = 3.14159265358979f;
+constexpr float deg = pi / 180.f;
+constexpr const char* skinnedSuffix = "#rig2";
+
+struct Entry
+{
+    za::String model; // its name
+    za::UniquePtr<Rig> rig; // null: no file
+    bool tried{false};
+};
+za::Vector<Entry> rigs; // the rigs read this session
+
+// A drawn subject (drawPosed), swapped while a frame draws (swapModels / restoreModels).
+struct Drawn
+{
+    int num{0};
+    const qmodel_t* model{nullptr};
+    int frame{-1}; // host_framecount it was published at
+    int bones{0};
+    float skin[maxBones * 12]{};
+    // swapped:
+    qmodel_t* original{nullptr};
+    qmodel_t* skinned{nullptr};
+    short previousPose{0}, currentPose{0};
+    float lerpStart{0.f}, lerpTime{0.f};
+    byte lerpFlags{0};
+    bool swapped{false};
+};
+za::Vector<Drawn> drawn;
+// The generation each skinned model was made from (rebuilt when the rig's weights change: a reload)
+struct Made
+{
+    qmodel_t* mod{nullptr};
+    int generation{-1};
+};
+za::Vector<Made> made;
+
+// ---- Words of a line ----
+struct Words
+{
+    char buf[512]{};
+    const char* w[64]{};
+    int n{0};
+    void split(const char* s, int len)
+    {
+        n = 0;
+        const int l = za::min(len, static_cast<int>(sizeof(buf)) - 1);
+        memcpy(buf, s, static_cast<size_t>(l));
+        buf[l] = 0;
+        char* hash = strchr(buf, '#');
+        if(hash)
+        {
+            *hash = 0;
+        }
+        char* p = buf;
+        while(*p && n < 64)
+        {
+            while(*p == ' ' || *p == '\t' || *p == '\r')
+            {
+                *p++ = 0;
+            }
+            if(!*p)
+            {
+                break;
+            }
+            w[n++] = p;
+            while(*p && *p != ' ' && *p != '\t' && *p != '\r')
+            {
+                p++;
+            }
+        }
+    }
+    [[nodiscard]] bool is(int i, const char* s) const { return i < n && !strcmp(w[i], s); }
+    [[nodiscard]] float f(int i) const { return i < n ? strtof(w[i], nullptr) : 0.f; }
+    [[nodiscard]] glm::vec3 v3(int i) const { return glm::vec3{f(i), f(i + 1), f(i + 2)}; }
+    [[nodiscard]] glm::vec2 v2(int i) const { return glm::vec2{f(i), f(i + 1)}; }
+};
+Words words; // (the parser's line: file scope, not a local static)
+
+void num(za::String& out, float v)
+{
+    char t[32];
+    q_snprintf(t, sizeof(t), " %.6g", za::abs(v) < 5e-7f ? 0.f : v);
+    out += t;
+}
+
+void vec(za::String& out, const glm::vec3& v)
+{
+    num(out, v.x);
+    num(out, v.y);
+    num(out, v.z);
+}
+
+[[nodiscard]] glm::vec3 safeNormalize(const glm::vec3& v, const glm::vec3& fallback)
+{
+    const float l = glm::length(v);
+    return l > 1e-6f ? v / l : fallback;
+}
+
+// A ball joint's frame: its swing's zero `n`, its swings' axes (turning n toward fwd, toward side).
+struct Frame
+{
+    glm::vec3 n{0.f, 0.f, -1.f}, f{1.f, 0.f, 0.f}, s{0.f, 1.f, 0.f};
+    glm::vec3 axF{0.f}, axS{0.f};
+};
+
+[[nodiscard]] Frame frameOf(const Bone& b)
+{
+    Frame fr;
+    fr.n = safeNormalize(b.neutral, glm::vec3{0.f, 0.f, -1.f});
+    const glm::vec3 helper = za::abs(fr.n.x) < 0.9f ? glm::vec3{1.f, 0.f, 0.f} : glm::vec3{0.f, 1.f, 0.f};
+    fr.f = safeNormalize(b.fwd - fr.n * glm::dot(b.fwd, fr.n), glm::normalize(glm::cross(fr.n, helper)));
+    fr.s = safeNormalize(b.side - fr.n * glm::dot(b.side, fr.n) - fr.f * glm::dot(b.side, fr.f), glm::cross(fr.n, fr.f));
+    fr.axF = glm::cross(fr.n, fr.f);
+    fr.axS = glm::cross(fr.n, fr.s);
+    return fr;
+}
+
+[[nodiscard]] glm::quat ballTurn(const Frame& fr, const glm::vec3& a)
+{
+    return rigpose::fromVector((fr.axF * a.x + fr.axS * a.y) * deg) * glm::angleAxis(a.z * deg, fr.n);
+}
+
+[[nodiscard]] glm::vec3 parentDir(const Rig& rig, int b)
+{
+    const Bone& bone = rig.bones[b];
+    if(bone.parent < 0)
+    {
+        return glm::vec3{0.f, 0.f, 1.f};
+    }
+    const Bone& p = rig.bones[bone.parent];
+    return safeNormalize(bone.pivot - p.pivot, safeNormalize(p.end - p.pivot, glm::vec3{0.f, 0.f, 1.f}));
+}
+
+[[nodiscard]] glm::vec3 boneDir(const Bone& b)
+{
+    return safeNormalize(b.end - b.pivot, glm::vec3{0.f, 0.f, 1.f});
+}
+
+// A hinge's bend of direction `d` from its parent's `pd` about `axis` (degrees; both projected on its plane).
+[[nodiscard]] float bendOf(const glm::vec3& axis, const glm::vec3& pd, const glm::vec3& d)
+{
+    const glm::vec3 a = safeNormalize(axis, glm::vec3{0.f, 1.f, 0.f});
+    const glm::vec3 p = pd - a * glm::dot(pd, a);
+    const glm::vec3 q = d - a * glm::dot(d, a);
+    return za::atan2(glm::dot(glm::cross(p, q), a), glm::dot(p, q)) / deg;
+}
+
+[[nodiscard]] float rnd(uint32_t& s)
+{
+    s ^= s << 13;
+    s ^= s >> 17;
+    s ^= s << 5;
+    return static_cast<float>(s & 0xffffffu) / 16777216.f;
+}
+
+void filePath(const char* model, char* out, int size)
+{
+    char base[64], root[MAX_OSPATH];
+    rigdata::baseName(model, base, sizeof(base));
+    rigdata::rootDir(root, sizeof(root));
+    q_snprintf(out, static_cast<size_t>(size), "%s/rigs/%s.rig2.txt", root, base);
+}
+
+[[nodiscard]] qmodel_t* skinnedOf(const qmodel_t* model)
+{
+    char name[MAX_QPATH];
+    q_snprintf(name, sizeof(name), "%s%s", model->name, skinnedSuffix);
+    return Mod_ForName(name, false);
+}
+
+} // namespace
+
+// ---- The joints ----
+
+int boneByName(const Rig& rig, const char* name)
+{
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        if(!q_strcasecmp(rig.bones[b].name, name))
+        {
+            return b;
+        }
+    }
+    return -1;
+}
+
+glm::vec3 restAngles(const Rig& rig, int b)
+{
+    const Bone& bone = rig.bones[b];
+    if(bone.joint == Joint::Ball)
+    {
+        const Frame fr = frameOf(bone);
+        const glm::vec3 d = boneDir(bone);
+        const glm::vec3 v = glm::cross(fr.n, d);
+        const float s = glm::length(v);
+        if(s < 1e-6f)
+        {
+            return glm::vec3{0.f};
+        }
+        const glm::vec3 r = v / s * za::atan2(s, glm::dot(fr.n, d));
+        return glm::vec3{glm::dot(r, fr.axF) / deg, glm::dot(r, fr.axS) / deg, 0.f};
+    }
+    if(bone.joint == Joint::Hinge)
+    {
+        return glm::vec3{bendOf(bone.axis, parentDir(rig, b), boneDir(bone)), 0.f, 0.f};
+    }
+    return glm::vec3{0.f};
+}
+
+Pose restPose(const Rig& rig)
+{
+    Pose p;
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        p.a[b] = restAngles(rig, b);
+    }
+    return p;
+}
+
+glm::vec3 clampAngles(const Rig& rig, int b, const glm::vec3& in)
+{
+    const Bone& bone = rig.bones[b];
+    glm::vec3 a = in;
+    if(bone.joint == Joint::Ball)
+    {
+        const float lx = a.x >= 0.f ? bone.swingX.y : -bone.swingX.x;
+        const float ly = a.y >= 0.f ? bone.swingY.y : -bone.swingY.x;
+        a.x = lx <= 1e-3f ? 0.f : a.x;
+        a.y = ly <= 1e-3f ? 0.f : a.y;
+        const float ex = lx > 1e-3f ? a.x / lx : 0.f, ey = ly > 1e-3f ? a.y / ly : 0.f;
+        const float e = ex * ex + ey * ey;
+        if(e > 1.f)
+        {
+            const float k = 1.f / za::sqrt(e);
+            a.x *= k;
+            a.y *= k;
+        }
+        a.z = za::clamp(a.z, bone.twist.x, bone.twist.y);
+        return a;
+    }
+    if(bone.joint == Joint::Hinge)
+    {
+        return glm::vec3{za::clamp(a.x, bone.range.x, bone.range.y), 0.f, 0.f};
+    }
+    return restAngles(rig, b);
+}
+
+bool withinLimits(const Rig& rig, int b, const glm::vec3& a, float slackDeg)
+{
+    const glm::vec3 c = clampAngles(rig, b, a);
+    return glm::length(c - a) <= slackDeg;
+}
+
+Pose randomPose(const Rig& rig, uint32_t& seed)
+{
+    Pose p = restPose(rig);
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        const Bone& bone = rig.bones[b];
+        if(bone.joint == Joint::Ball)
+        {
+            const float phi = rnd(seed) * 2.f * pi, r = za::sqrt(rnd(seed));
+            const float cx = za::cos(phi), cy = za::sin(phi);
+            p.a[b].x = r * cx * (cx >= 0.f ? bone.swingX.y : -bone.swingX.x);
+            p.a[b].y = r * cy * (cy >= 0.f ? bone.swingY.y : -bone.swingY.x);
+            p.a[b].z = bone.twist.x + (bone.twist.y - bone.twist.x) * rnd(seed);
+        }
+        else if(bone.joint == Joint::Hinge)
+        {
+            p.a[b].x = bone.range.x + (bone.range.y - bone.range.x) * rnd(seed);
+        }
+    }
+    return p;
+}
+
+void forward(const Rig& rig, const Pose& pose, rigpose::Rigid* out)
+{
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        const Bone& bone = rig.bones[b];
+        glm::quat R{1.f, 0.f, 0.f, 0.f};
+        if(bone.joint == Joint::Ball)
+        {
+            const Frame fr = frameOf(bone);
+            R = ballTurn(fr, pose.a[b]) * glm::inverse(ballTurn(fr, restAngles(rig, b)));
+        }
+        else if(bone.joint == Joint::Hinge)
+        {
+            R = glm::angleAxis((pose.a[b].x - restAngles(rig, b).x) * deg, safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f}));
+        }
+        rigpose::Rigid L;
+        L.rot = R;
+        L.pos = bone.pivot - R * bone.pivot;
+        if(bone.parent >= 0 && bone.parent < b)
+        {
+            const rigpose::Rigid& P = out[bone.parent];
+            out[b].rot = glm::normalize(P.rot * L.rot);
+            out[b].pos = P.rot * L.pos + P.pos;
+        }
+        else
+        {
+            out[b] = L;
+        }
+    }
+}
+
+glm::vec3 aimAngles(const Rig& rig, int b, const rigpose::Rigid& Fparent, const glm::vec3& dir, const glm::vec3& current)
+{
+    const Bone& bone = rig.bones[b];
+    const glm::vec3 d = safeNormalize(glm::inverse(Fparent.rot) * dir, boneDir(bone)); // (in the rest pose's space)
+    if(bone.joint == Joint::Ball)
+    {
+        const Frame fr = frameOf(bone);
+        const glm::vec3 v = glm::cross(fr.n, d);
+        const float s = glm::length(v);
+        glm::vec3 a{0.f, 0.f, current.z};
+        if(s > 1e-6f)
+        {
+            const glm::vec3 r = v / s * za::atan2(s, glm::dot(fr.n, d));
+            a.x = glm::dot(r, fr.axF) / deg;
+            a.y = glm::dot(r, fr.axS) / deg;
+        }
+        return clampAngles(rig, b, a);
+    }
+    if(bone.joint == Joint::Hinge)
+    {
+        return clampAngles(rig, b, glm::vec3{bendOf(bone.axis, parentDir(rig, b), d), 0.f, 0.f});
+    }
+    return current;
+}
+
+void skin(const Rig& rig, const rigpose::Rigid* F, const glm::vec3* rest, int numVerts, glm::vec3* out, bool dq)
+{
+    const int nw = static_cast<int>(rig.weights.size());
+    for(int v = 0; v < numVerts; v++)
+    {
+        const glm::vec3 p = rest[v];
+        if(v >= nw || rig.weights[static_cast<za::SizeT>(v)].n == 0)
+        {
+            out[v] = rigpose::apply(F[0], p);
+            continue;
+        }
+        const Weights& w = rig.weights[static_cast<za::SizeT>(v)];
+        if(!dq)
+        {
+            glm::vec3 q{0.f};
+            for(int i = 0; i < w.n; i++)
+            {
+                q += rigpose::apply(F[w.bone[i]], p) * w.w[i];
+            }
+            out[v] = q;
+            continue;
+        }
+        // Dual quaternions (Kavan et al. 2007): the rotations blended on the same hemisphere as the heaviest.
+        const glm::quat r0 = F[w.bone[0]].rot;
+        glm::quat br{0.f, 0.f, 0.f, 0.f}, bd{0.f, 0.f, 0.f, 0.f};
+        for(int i = 0; i < w.n; i++)
+        {
+            const rigpose::Rigid& T = F[w.bone[i]];
+            const float sgn = glm::dot(T.rot, r0) < 0.f ? -1.f : 1.f;
+            const glm::quat d = glm::quat{0.f, T.pos.x, T.pos.y, T.pos.z} * T.rot * 0.5f;
+            br = br + T.rot * (w.w[i] * sgn);
+            bd = bd + d * (w.w[i] * sgn);
+        }
+        const float len = za::max(glm::length(br), 1e-6f);
+        br = br * (1.f / len);
+        bd = bd * (1.f / len);
+        const glm::vec3 rv{br.x, br.y, br.z}, dv{bd.x, bd.y, bd.z};
+        const glm::vec3 t = 2.f * (br.w * dv - bd.w * rv + glm::cross(rv, dv));
+        out[v] = br * p + t;
+    }
+}
+
+float weightOn(const Rig& rig, int v, int bone)
+{
+    if(v < 0 || v >= static_cast<int>(rig.weights.size()))
+    {
+        return 0.f;
+    }
+    const Weights& w = rig.weights[static_cast<za::SizeT>(v)];
+    for(int i = 0; i < w.n; i++)
+    {
+        if(w.bone[i] == bone)
+        {
+            return w.w[i];
+        }
+    }
+    return 0.f;
+}
+
+// ---- The file ----
+
+bool read(const char* text, Rig& out, za::String& error)
+{
+    out.numBones = 0;
+    out.weights.clear();
+    const char* p = text;
+    int line = 0;
+    bool header = false;
+    char msg[160];
+    while(*p)
+    {
+        const char* e = strchr(p, '\n');
+        const int len = e ? static_cast<int>(e - p) : static_cast<int>(strlen(p));
+        words.split(p, len);
+        p += len + (e ? 1 : 0);
+        line++;
+        const Words& w = words;
+        if(w.n == 0)
+        {
+            continue;
+        }
+        if(w.is(0, "qvrrig2"))
+        {
+            header = true;
+        }
+        else if(w.is(0, "model") && w.n >= 2)
+        {
+            out.model = w.w[1];
+        }
+        else if(w.is(0, "bone") && w.n >= 4)
+        {
+            if(out.numBones >= maxBones)
+            {
+                q_snprintf(msg, sizeof(msg), "line %d: more than %d bones", line, maxBones);
+                error = msg;
+                return false;
+            }
+            Bone& b = out.bones[out.numBones];
+            b = Bone{};
+            q_strlcpy(b.name, w.w[1], sizeof(b.name));
+            b.parent = w.is(2, "-") ? -1 : boneByName(out, w.w[2]);
+            if(!w.is(2, "-") && b.parent < 0)
+            {
+                q_snprintf(msg, sizeof(msg), "line %d: bone %s: no parent %s before it", line, w.w[1], w.w[2]);
+                error = msg;
+                return false;
+            }
+            b.joint = w.is(3, "ball") ? Joint::Ball : w.is(3, "hinge") ? Joint::Hinge : w.is(3, "fixed") ? Joint::Fixed : Joint::Root;
+            for(int i = 4; i < w.n; i++)
+            {
+                if(w.is(i, "pivot")) { b.pivot = w.v3(i + 1); i += 3; }
+                else if(w.is(i, "end")) { b.end = w.v3(i + 1); i += 3; }
+                else if(w.is(i, "neutral")) { b.neutral = w.v3(i + 1); i += 3; }
+                else if(w.is(i, "fwd")) { b.fwd = w.v3(i + 1); i += 3; }
+                else if(w.is(i, "side")) { b.side = w.v3(i + 1); i += 3; }
+                else if(w.is(i, "axis")) { b.axis = w.v3(i + 1); i += 3; }
+                else if(w.is(i, "swingx")) { b.swingX = w.v2(i + 1); i += 2; }
+                else if(w.is(i, "swingy")) { b.swingY = w.v2(i + 1); i += 2; }
+                else if(w.is(i, "twist")) { b.twist = w.v2(i + 1); i += 2; }
+                else if(w.is(i, "range")) { b.range = w.v2(i + 1); i += 2; }
+            }
+            out.numBones++;
+        }
+        else if(w.is(0, "w") && w.n >= 4)
+        {
+            const int v = atoi(w.w[1]);
+            if(v < 0 || v > 65535)
+            {
+                continue;
+            }
+            if(static_cast<int>(out.weights.size()) <= v)
+            {
+                out.weights.resize(static_cast<za::SizeT>(v + 1));
+            }
+            Weights& ws = out.weights[static_cast<za::SizeT>(v)];
+            ws = Weights{};
+            for(int i = 2; i + 1 < w.n && ws.n < maxWeights; i += 2)
+            {
+                const int bo = boneByName(out, w.w[i]);
+                if(bo < 0)
+                {
+                    q_snprintf(msg, sizeof(msg), "line %d: vertex %d: no bone %s", line, v, w.w[i]);
+                    error = msg;
+                    return false;
+                }
+                ws.bone[ws.n] = bo;
+                ws.w[ws.n] = w.f(i + 1);
+                ws.n++;
+            }
+        }
+    }
+    if(!header || out.numBones == 0)
+    {
+        error = header ? "no bones" : "not a qvrrig2 file";
+        return false;
+    }
+    out.generation++;
+    return true;
+}
+
+void write(const Rig& rig, za::String& out)
+{
+    out.clear();
+    out += "qvrrig2 1\nmodel ";
+    out += rig.model;
+    out += "\n# Made by Misc/quakevr/make_rig2.py (its header: the method), edited in the Rig Studio (Range of Motion); hand-editable.\n";
+    out += "# Model units, x forward, y left, z up; degrees. bone <name> <parent|-> <root|ball|hinge|fixed> pivot <xyz> end <xyz>\n";
+    out += "#   ball: neutral <xyz> fwd <xyz> side <xyz> swingx <min max> swingy <min max> twist <min max>\n";
+    out += "#   hinge: axis <xyz> range <min max> (its bend from straight; the rest pose's own bend measured)\n";
+    out += "# w <vertex> <bone> <weight> ... (up to 4, summing to 1)\n";
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        const Bone& bone = rig.bones[b];
+        out += "bone ";
+        out += bone.name;
+        out += " ";
+        out += bone.parent >= 0 ? rig.bones[bone.parent].name : "-";
+        out += bone.joint == Joint::Ball ? " ball" : bone.joint == Joint::Hinge ? " hinge" : bone.joint == Joint::Fixed ? " fixed" : " root";
+        out += " pivot";
+        vec(out, bone.pivot);
+        out += " end";
+        vec(out, bone.end);
+        if(bone.joint == Joint::Ball)
+        {
+            out += " neutral";
+            vec(out, bone.neutral);
+            out += " fwd";
+            vec(out, bone.fwd);
+            out += " side";
+            vec(out, bone.side);
+            out += " swingx";
+            num(out, bone.swingX.x);
+            num(out, bone.swingX.y);
+            out += " swingy";
+            num(out, bone.swingY.x);
+            num(out, bone.swingY.y);
+            out += " twist";
+            num(out, bone.twist.x);
+            num(out, bone.twist.y);
+        }
+        else if(bone.joint == Joint::Hinge)
+        {
+            out += " axis";
+            vec(out, bone.axis);
+            out += " range";
+            num(out, bone.range.x);
+            num(out, bone.range.y);
+        }
+        out += "\n";
+    }
+    for(za::SizeT v = 0; v < rig.weights.size(); v++)
+    {
+        const Weights& w = rig.weights[v];
+        out += "w ";
+        out += za::toString(static_cast<int>(v));
+        for(int i = 0; i < w.n; i++)
+        {
+            out += " ";
+            out += rig.bones[w.bone[i]].name;
+            num(out, w.w[i]);
+        }
+        out += "\n";
+    }
+}
+
+bool save(Rig& rig, za::String& pathOut)
+{
+    char path[MAX_OSPATH], dir[MAX_OSPATH], root[MAX_OSPATH];
+    filePath(rig.model.cStr(), path, sizeof(path));
+    rigdata::rootDir(root, sizeof(root));
+    q_snprintf(dir, sizeof(dir), "%s/rigs", root);
+    files::createDirectories(dir);
+    za::String text;
+    write(rig, text);
+    pathOut = path;
+    if(!files::writeText(path, text.toStringView()))
+    {
+        return false;
+    }
+    rig.path = path;
+    return true;
+}
+
+Rig* rigFor(const qmodel_t* model)
+{
+    if(!model)
+    {
+        return nullptr;
+    }
+    for(Entry& e : rigs)
+    {
+        if(!strcmp(e.model.cStr(), model->name))
+        {
+            return e.rig.get();
+        }
+    }
+    Entry e;
+    e.model = model->name;
+    e.tried = true;
+    char path[MAX_OSPATH];
+    filePath(model->name, path, sizeof(path));
+    za::String text, err;
+    if(!files::readText(path, text))
+    {
+        // (the tests' folder has none: the game folder's)
+        char base[64];
+        rigdata::baseName(model->name, base, sizeof(base));
+        q_snprintf(path, sizeof(path), "%s/rigs/%s.rig2.txt", com_gamedir, base);
+        if(!files::readText(path, text))
+        {
+            rigs.pushBack(ZA_MOVE(e));
+            return nullptr;
+        }
+    }
+    za::UniquePtr<Rig> r = za::makeUnique<Rig>();
+    if(!read(text.cStr(), *r, err))
+    {
+        Con_Printf("rig2: %s: %s\n", path, err.cStr());
+        rigs.pushBack(ZA_MOVE(e));
+        return nullptr;
+    }
+    r->path = path;
+    r->model = model->name;
+    e.rig = ZA_MOVE(r);
+    Rig* out = e.rig.get();
+    rigs.pushBack(ZA_MOVE(e));
+    return out;
+}
+
+void reload()
+{
+    // (the rigs are owned here: pointers handed out are stale after this; the studio asks again each frame)
+    for(Entry& e : rigs)
+    {
+        if(!e.rig)
+        {
+            continue;
+        }
+        char path[MAX_OSPATH];
+        q_strlcpy(path, e.rig->path.cStr(), sizeof(path));
+        za::String text, err;
+        if(files::readText(path, text))
+        {
+            Rig fresh;
+            fresh.generation = e.rig->generation;
+            if(read(text.cStr(), fresh, err))
+            {
+                fresh.path = e.rig->path;
+                fresh.model = e.model;
+                *e.rig = ZA_MOVE(fresh);
+            }
+            else
+            {
+                Con_Printf("rig2: %s: %s\n", path, err.cStr());
+            }
+        }
+    }
+    za::Vector<Entry> kept;
+    for(Entry& e : rigs)
+    {
+        if(e.rig)
+        {
+            kept.pushBack(ZA_MOVE(e));
+        }
+    }
+    rigs = ZA_MOVE(kept); // (the models without one are looked for again)
+}
+
+// ---- Drawing ----
+
+void drawPosed(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones)
+{
+    Drawn* d = nullptr;
+    for(Drawn& x : drawn)
+    {
+        d = x.num == entnum ? &x : d;
+    }
+    if(!d)
+    {
+        drawn.pushBack(Drawn{});
+        d = &drawn.back();
+    }
+    d->num = entnum;
+    d->model = model;
+    d->frame = host_framecount;
+    d->bones = za::min(numBones, maxBones);
+    for(int b = 0; b < d->bones; b++)
+    {
+        const glm::mat3 r = glm::mat3_cast(F[b].rot);
+        float* o = d->skin + b * 12;
+        for(int row = 0; row < 3; row++)
+        {
+            o[row * 4 + 0] = r[0][row];
+            o[row * 4 + 1] = r[1][row];
+            o[row * 4 + 2] = r[2][row];
+            o[row * 4 + 3] = F[b].pos[row];
+        }
+    }
+}
+
+void swapModels()
+{
+    if(cls.state != ca_connected || !cl_entities)
+    {
+        return;
+    }
+    for(Drawn& d : drawn)
+    {
+        d.swapped = false;
+        if(d.frame < host_framecount - 2 || d.num <= 0 || d.num >= cl_max_edicts)
+        {
+            continue;
+        }
+        entity_t* e = &cl_entities[d.num];
+        if(e->model != d.model)
+        {
+            continue;
+        }
+        Rig* rig = rigFor(d.model);
+        if(!rig)
+        {
+            continue;
+        }
+        qmodel_t* sk = skinnedOf(d.model);
+        if(!sk || sk->type != mod_alias)
+        {
+            continue;
+        }
+        // (made again when the rig was read again)
+        bool fresh = false;
+        for(Made& m : made)
+        {
+            if(m.mod == sk)
+            {
+                fresh = true;
+                if(m.generation != rig->generation)
+                {
+                    Cache_Free(&sk->cache, false);
+                    m.generation = rig->generation;
+                    sk = skinnedOf(d.model);
+                }
+            }
+        }
+        if(!fresh)
+        {
+            made.pushBack(Made{sk, rig->generation});
+        }
+        if(!sk || sk->type != mod_alias)
+        {
+            continue;
+        }
+        d.original = e->model;
+        d.skinned = sk;
+        d.previousPose = e->previouspose;
+        d.currentPose = e->currentpose;
+        d.lerpStart = e->lerpstart;
+        d.lerpTime = e->lerptime;
+        d.lerpFlags = e->lerpflags;
+        e->model = sk;
+        e->previouspose = e->currentpose = 0;
+        e->lerpflags &= static_cast<byte>(~(LERP_RESETANIM | LERP_RESETANIM2));
+        d.swapped = true;
+    }
+}
+
+void restoreModels()
+{
+    for(Drawn& d : drawn)
+    {
+        if(!d.swapped || d.num <= 0 || d.num >= cl_max_edicts)
+        {
+            continue;
+        }
+        entity_t* e = &cl_entities[d.num];
+        if(e->model == d.skinned)
+        {
+            e->model = d.original;
+            e->previouspose = d.previousPose;
+            e->currentpose = d.currentPose;
+            e->lerpstart = d.lerpStart;
+            e->lerptime = d.lerpTime;
+            e->lerpflags = d.lerpFlags;
+        }
+        d.swapped = false;
+    }
+}
+
+int bonePoses(const entity_t* e, const float** matrices)
+{
+    if(!e || drawn.empty())
+    {
+        return 0;
+    }
+    for(const Drawn& d : drawn)
+    {
+        if(d.swapped && e->model == d.skinned && e == &cl_entities[d.num])
+        {
+            if(matrices)
+            {
+                *matrices = d.skin;
+            }
+            return d.bones;
+        }
+    }
+    return 0;
+}
+
+bool makeSkinnedModel(qmodel_t* mod)
+{
+    const size_t len = strlen(mod->name), suffix = strlen(skinnedSuffix);
+    if(len <= suffix || strcmp(mod->name + len - suffix, skinnedSuffix))
+    {
+        return false;
+    }
+    char base[MAX_QPATH];
+    q_strlcpy(base, mod->name, za::min(sizeof(base), len - suffix + 1));
+    qmodel_t* src = Mod_ForName(base, false);
+    const Rig* rig = src ? rigFor(src) : nullptr;
+    if(!rig || src->type != mod_alias)
+    {
+        return false;
+    }
+    const auto* sh = static_cast<const aliashdr_t*>(Mod_Extradata(src));
+    if(!sh || sh->poseverttype != aliashdr_t::PV_QUAKE1)
+    {
+        return false;
+    }
+    const int numVerts = sh->numverts_vbo, numIndexes = sh->numindexes, numBones = rig->numBones, numFrames = za::max(sh->numframes, 1);
+
+    const int start = Hunk_LowMark();
+    const size_t hdrSize = sizeof(aliashdr_t) + sizeof(maliasframedesc_t) * static_cast<size_t>(numFrames - 1);
+    auto* hdr = static_cast<aliashdr_t*>(Hunk_Alloc(static_cast<int>(hdrSize)));
+    auto* bones = static_cast<boneinfo_t*>(Hunk_Alloc(static_cast<int>(sizeof(boneinfo_t)) * numBones));
+    auto* bind = static_cast<bonepose_t*>(Hunk_Alloc(static_cast<int>(sizeof(bonepose_t)) * numBones));
+    auto* poses = static_cast<bonepose_t*>(Hunk_Alloc(static_cast<int>(sizeof(bonepose_t)) * numBones));
+    auto* verts = static_cast<iqmvert_t*>(Hunk_Alloc(static_cast<int>(sizeof(iqmvert_t)) * numVerts));
+    auto* indexes = static_cast<unsigned short*>(Hunk_Alloc(static_cast<int>(sizeof(unsigned short)) * numIndexes));
+
+    hdr->ident = sh->ident;
+    hdr->version = sh->version;
+    hdr->scale[0] = hdr->scale[1] = hdr->scale[2] = 1.f;
+    hdr->boundingradius = sh->boundingradius;
+    hdr->numskins = sh->numskins;
+    hdr->skinwidth = sh->skinwidth;
+    hdr->skinheight = sh->skinheight;
+    hdr->numverts = numVerts;
+    hdr->numverts_vbo = numVerts;
+    hdr->numtris = sh->numtris;
+    hdr->numframes = numFrames;
+    hdr->synctype = sh->synctype;
+    hdr->flags = sh->flags;
+    hdr->size = sh->size;
+    hdr->numindexes = numIndexes;
+    hdr->numposes = 1;
+    hdr->numbones = numBones;
+    hdr->poseverttype = aliashdr_t::PV_IQM;
+    hdr->nextsurface = 0;
+    for(int f = 0; f < numFrames; f++)
+    {
+        hdr->frames[f] = sh->frames[za::min(f, sh->numframes - 1)];
+        hdr->frames[f].firstpose = 0;
+        hdr->frames[f].numposes = 1;
+    }
+    memcpy(hdr->gltextures, sh->gltextures, sizeof(hdr->gltextures));
+    memcpy(hdr->fbtextures, sh->fbtextures, sizeof(hdr->fbtextures));
+    memcpy(hdr->texels, sh->texels, sizeof(hdr->texels));
+    for(int b = 0; b < numBones; b++)
+    {
+        q_strlcpy(bones[b].name, rig->bones[b].name, sizeof(bones[b].name));
+        bones[b].parent = -1;
+        for(int i = 0; i < 12; i++)
+        {
+            const float id = i % 5 == 0 ? 1.f : 0.f;
+            bones[b].inverse.mat[i] = id;
+            bind[b].mat[i] = id;
+            poses[b].mat[i] = id;
+        }
+    }
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(sh) + sh->meshdesc);
+    const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(sh) + sh->vertexes); // pose 0
+    for(int v = 0; v < numVerts; v++)
+    {
+        const int mv = desc[v].vertindex;
+        const trivertx_t& t = tv[mv];
+        iqmvert_t& o = verts[v];
+        for(int i = 0; i < 3; i++)
+        {
+            o.xyz[i] = t.v[i] * sh->scale[i] + sh->scale_origin[i];
+            o.norm[i] = static_cast<int8_t>(127.f * r_avertexnormals[t.lightnormalindex][i]);
+        }
+        o.norm[3] = 0;
+        o.st[0] = (static_cast<float>(desc[v].st[0]) + 0.5f) / static_cast<float>(TexMgr_PadConditional(sh->skinwidth));
+        o.st[1] = (static_cast<float>(desc[v].st[1]) + 0.5f) / static_cast<float>(TexMgr_PadConditional(sh->skinheight));
+        for(int i = 0; i < 4; i++)
+        {
+            o.weight[i] = 0;
+            o.idx[i] = 0;
+        }
+        const Weights* w = mv < static_cast<int>(rig->weights.size()) ? &rig->weights[static_cast<za::SizeT>(mv)] : nullptr;
+        if(!w || w->n == 0)
+        {
+            o.weight[0] = 255;
+            continue;
+        }
+        // (bytes summing to 255, the heaviest first)
+        int order[maxWeights] = {0, 1, 2, 3};
+        for(int i = 0; i < w->n; i++)
+        {
+            for(int j = i + 1; j < w->n; j++)
+            {
+                if(w->w[order[j]] > w->w[order[i]])
+                {
+                    const int x = order[i];
+                    order[i] = order[j];
+                    order[j] = x;
+                }
+            }
+        }
+        int left = 255;
+        for(int i = 0; i < w->n; i++)
+        {
+            const int k = order[i];
+            const int b = i + 1 < w->n ? static_cast<int>(w->w[k] * 255.f + 0.5f) : left;
+            o.weight[i] = static_cast<uint8_t>(za::clamp(za::min(b, left), 0, 255));
+            o.idx[i] = static_cast<uint8_t>(za::clamp(w->bone[k], 0, numBones - 1));
+            left -= o.weight[i];
+        }
+    }
+    memcpy(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<size_t>(numIndexes));
+    hdr->boneinfo = reinterpret_cast<byte*>(bones) - reinterpret_cast<byte*>(hdr);
+    hdr->bindpose = reinterpret_cast<byte*>(bind) - reinterpret_cast<byte*>(hdr);
+    hdr->boneposedata = reinterpret_cast<byte*>(poses) - reinterpret_cast<byte*>(hdr);
+    hdr->vertexes = reinterpret_cast<byte*>(verts) - reinterpret_cast<byte*>(hdr);
+    hdr->indexes = reinterpret_cast<byte*>(indexes) - reinterpret_cast<byte*>(hdr);
+
+    if(mod->meshvbo)
+    {
+        GLMesh_DeleteVertexBuffer(mod);
+    }
+    GLMesh_LoadVertexBuffer(mod, hdr);
+    mod->type = mod_alias;
+    mod->needload = false;
+    mod->numframes = numFrames;
+    mod->synctype = src->synctype;
+    mod->flags = src->flags;
+    mod->path_id = src->path_id;
+    for(int i = 0; i < 3; i++)
+    {
+        mod->mins[i] = mod->ymins[i] = mod->rmins[i] = -64.f;
+        mod->maxs[i] = mod->ymaxs[i] = mod->rmaxs[i] = 64.f;
+    }
+    const int total = Hunk_LowMark() - start;
+    Cache_Alloc(&mod->cache, total, mod->name);
+    if(!mod->cache.data)
+    {
+        Hunk_FreeToLowMark(start);
+        return false;
+    }
+    memcpy(mod->cache.data, hdr, static_cast<size_t>(total));
+    Hunk_FreeToLowMark(start);
+    Con_DPrintf("rig2: %s made (%d vertices, %d bones)\n", mod->name, numVerts, numBones);
+    return true;
+}
+
+} // namespace qvr::rig2

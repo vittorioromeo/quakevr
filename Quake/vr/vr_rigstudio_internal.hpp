@@ -12,6 +12,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_rig2.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
@@ -92,7 +93,41 @@ struct Snapshot
     // The aim target's place (studio-session state, never in a file): its place before
     bool aimEntry{false};
     glm::vec3 aimAt{0.f};
+    // Range of Motion (vr_rigstudio_rom.cpp): the authored rig's joints (pivots, limits) and the pose before
+    bool romEntry{false};
+    int romNumBones{0};
+    rig2::Bone romBones[rig2::maxBones];
+    rig2::Pose romPose;
 };
+
+// Range of Motion (vr_rigstudio_rom.cpp; ROUND22.md, "Grunt rig rebuild, stage 1"): the authored rig's joints (vr_rig2.hpp)
+// posed within their limits, by sliders or by dragging a limb, swept, randomised; the mesh drawn on the authored rig
+// (vr_rig2 1: its blended weights, Game and Shaded) or on the old rig moved alike (vr_rig2 0: each old bone as its
+// namesake: the comparison). Its pivots and limits edited live, undoable, saved to quakevr/rigs/<model>.rig2.txt.
+struct Rom
+{
+    bool on{false};
+    int joint{-1};                 // the authored rig's bone picked
+    rig2::Pose pose;
+    const void* poseFor{nullptr};  // the rig the pose was made for
+    rigpose::Rigid F[rig2::maxBones];
+    bool showLimits{true};
+    int sweepJoint{-1};            // a sweep playing (its joint) and how far (seconds)
+    float sweepT{0.f};
+    uint32_t seed{20261027u};
+    bool dragging{false};          // a limb dragged by its end
+    int dragBone{-1};
+    // The state as the frame began (an edit's undo)
+    int preNum{0};
+    rig2::Bone preBones[rig2::maxBones];
+    rig2::Pose prePose;
+    bool dirty{false};             // unsaved pivot or limit edits
+    char report[192]{};            // the pose's faults (vr_rig2_check's measures)
+    rig2::Pose reportFor;
+    bool reportValid{false};
+    int reportRig{-1};
+};
+extern Rom rom;
 
 // Where the subject aims (an armed humanoid's guns, its melee guard): a point in the room, as the game aims at an enemy
 // standing there (QC VR_AGK_Hold: its Aim stance, its target's point). Studio-session state: kept across subject
@@ -339,6 +374,23 @@ void cameraView(float* origin, float* angles);
 bool mockDrag(int owner, int part, int axis, float amount);
 void mockFeed();
 [[nodiscard]] bool mockBusy();
+
+// vr_rigstudio_view.cpp: the posed vertices' normals, screen places and facing (poseGeometry's end)
+void finishGeometry();
+
+// vr_rigstudio_rom.cpp
+[[nodiscard]] rig2::Rig* romRig();            // the subject's authored rig (none: nullptr)
+[[nodiscard]] bool romNew();                  // the mesh drawn on the authored rig (vr_rig2 1, a rig)
+void romFrame();                              // each frame before the pose is evaluated
+[[nodiscard]] bool romGeometry();             // posedVerts on the authored rig (true), else the studio's own
+[[nodiscard]] bool romClick(const glm::vec2& m); // a click taken (a joint picked, a limb's drag begun)
+void romDragTick(const glm::vec2& m);
+void romDraw(ImDrawList* dl);
+[[nodiscard]] bool romColor(int v, glm::vec4& out);
+[[nodiscard]] bool romHidesOldBones();
+void romWindow();
+[[nodiscard]] bool romSwap(Snapshot& s, Snapshot& back); // an undo entry of the Range of Motion's
+void romInit();
 
 // vr_rigstudio_ui.cpp
 void windows();

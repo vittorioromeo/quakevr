@@ -156,6 +156,15 @@ za::Vector<Item> pageDebugViews()
                   "screen, with Blender's mouse (docs/vr-port/RIGSTUDIO.md): a room, an armed grunt frozen in it, an "
                   "outliner, properties, a timeline with keys, new sequences QC can play. Flat screen only (start the "
                   "game with -flatscreenmode); vr_rigstudio_close closes it."),
+        command("Rig Studio: Range of Motion (Authored Rig)", "vr_rigstudio;vr_rig2 1;vr_rigstudio_rom on")
+            .help("The Rig Studio with its Range of Motion window: the new authored grunt rig (quakevr/rigs/vrgrunt.rig2.txt, "
+                  "vr_rig2) posed joint by joint within its limits (sliders, a limb dragged by its end, Sweep, Random "
+                  "Pose), the old rig moved the same way at a click (Mesh drawn on: Old rig). Flat screen only."),
+        command("Check the Authored Grunt Rig", "vr_rig2_check")
+            .help("vr_rig2_check: the authored rig swept through every joint's range, joint pairs and 1000 random poses: "
+                  "see-through holes, flipped and collapsed triangles, sharp folds, stretch, beside the old rig moved the "
+                  "same way (the console; ends on 'rig2 check: N passed, M failed'). vr_rig2_check progs/vrgrunt.mdl 0 "
+                  "envelope prints how far each joint turns cleanly."),
         command("Print Blade Shape", "vr_blade_dump")
             .help("vr_blade_dump [slot]: the main hand's weapon's blade shape and tip as vr_weapons.inc lines (* changed)."),
         command("Print Fist Line", "vr_blade_dump fist")

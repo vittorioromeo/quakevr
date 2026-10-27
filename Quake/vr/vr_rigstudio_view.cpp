@@ -173,6 +173,11 @@ ViewState vs;
 
 [[nodiscard]] glm::vec4 vertColor(int v)
 {
+    glm::vec4 romC;
+    if(romColor(v, romC))
+    {
+        return romC; // (the authored rig's blended weights: its joint picked as heat, or its bones' colours)
+    }
     if(st.colors == Colors::Heat)
     {
         return heat(st.active >= 0 ? weightOn(v, st.active) : 0.f);
@@ -1950,6 +1955,10 @@ void poseGeometry()
         return;
     }
     ensureWeights();
+    if(romGeometry())
+    {
+        return; // (Range of Motion: the authored rig's skinned mesh)
+    }
     const int nv = static_cast<int>(st.restVerts.size());
     const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
     const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]}, origin{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
@@ -1985,6 +1994,12 @@ void poseGeometry()
         }
         st.posedVerts[static_cast<za::SizeT>(v)] = sum > 1e-6f ? q / sum : p;
     }
+    finishGeometry();
+}
+
+void finishGeometry()
+{
+    const int nv = static_cast<int>(st.posedVerts.size());
     for(int v = 0; v < nv; v++)
     {
         st.worldVerts[static_cast<za::SizeT>(v)] = toWorld(st.posedVerts[static_cast<za::SizeT>(v)]);
@@ -2056,7 +2071,11 @@ void viewport()
     if(!overUi && !io.KeyAlt && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
     {
         const int posePick = vs.hoverPart < 0 ? pickPosePart(m) : -1;
-        if(vs.hoverPart >= 0 && vs.h.owner == 1)
+        if(vs.hoverPart < 0 && romClick(m))
+        {
+            // (Range of Motion: a joint picked, or its limb's drag begun)
+        }
+        else if(vs.hoverPart >= 0 && vs.h.owner == 1)
         {
             beginDrag(10, vs.hoverPart, m);
         }
@@ -2162,6 +2181,7 @@ void viewport()
         }
     }
     // Drags
+    romDragTick(m);
     if(st.dragging)
     {
         if(ImGui::IsMouseDown(ImGuiMouseButton_Left))
@@ -2219,8 +2239,15 @@ void viewport()
     evaluate(st.frame, st.F, st.P, true);
     drawMesh(dl);
     drawOnion(dl);
-    drawBones(dl, st.F, 1.f, false);
-    drawLimits(dl);
+    if(romHidesOldBones())
+    {
+        romDraw(dl); // (Range of Motion: the authored rig's bones and its joint's limits)
+    }
+    else
+    {
+        drawBones(dl, st.F, 1.f, false);
+        drawLimits(dl);
+    }
     drawProxies(dl);
     drawTargets(dl);
     drawPoseParts(dl, m, overUi);
