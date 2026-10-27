@@ -120,7 +120,7 @@ int copyKind(int from, int to);
 
 // The changes as code: rows for `shipped` (and, for the stances whose place is one QC constant, that constant's line).
 void dumpText(za::String& out);
-// configVersion 202 (the shipped keys became his): the archived keys equal to their shipped ones (or to none, where
+// configVersion 202 and 210 (the shipped keys became his): the archived keys equal to their shipped ones (or to none, where
 // none ships) dropped from vr_agrunt_poses, as set() would; the text left as it is if any entry in it did not parse.
 // Returns how many were dropped.
 int dropShippedEqual();

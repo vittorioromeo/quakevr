@@ -22,9 +22,9 @@ namespace
 // The shipped keys (vr_agrunt_pose_dump prints rows to paste here): the key's code (agpose::code: kind * 10000 +
 // class * 1000 + pose * 10 + phase), then its parts as agpose::Part orders them; a code with no row: QC's pose as it
 // is. An archived key (vr_agrunt_poses) replaces its code's row (agpose::get). Vittorio's, set in the Pose Studio (his
-// vr_agrunt_poses of 2026-10-24 14:24, then of 2026-10-25 17:50: 71 keys, approved 2026-10-25), written by
-// Misc/quakevr/pose_defaults.py --cfg <his ironwail.cfg> --write. configVersion 202 drops the archived keys equal to
-// these (dropShippedEqual: his text then empty).
+// vr_agrunt_poses of 2026-10-24 14:24, then of 2026-10-25 17:50: 71 keys, approved 2026-10-25; then of 2026-10-27: 20
+// keys changed or new, 75 in all), written by Misc/quakevr/pose_defaults.py --cfg <his ironwail.cfg> --write.
+// configVersion 202, and again 210, drop the archived keys equal to these (dropShippedEqual: his text then empty).
 struct ShippedRow
 {
     int code;
@@ -32,39 +32,47 @@ struct ShippedRow
 };
 constexpr ShippedRow shipped[] = {
     // grunt, the pickup's legs (any weapon)
-    {31, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -1.2f, -0.39f, 0.97f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {31, {0.f, 0.f, 6.23f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -1.2f, -0.39f, 0.97f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a gun, Idle / Carry
     {1000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f}},
     // grunt, a gun, Aim
-    {1010, {3.88f, 7.97f, 5.5f, 0.4f, 9.2f, -4.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    {1010, {-3.5f, 7.04f, 6.75f, 0.1f, 3.5f, -4.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    // grunt, a gun, Run
+    {1020, {4.06f, 0.96f, 0.87f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a gun, Pickup
-    {1030, {-1.29f, 5.65f, 15.86f, -6.f, 20.f, 18.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.83f, -0.26f, 0.49f, -0.13f, 0.99f, 0.07f, 7.6f, -50.f, 47.2f}},
+    {1030, {-1.29f, 5.65f, 15.86f, -6.f, 20.f, 18.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.83f, -0.26f, 0.49f, -0.13f, 0.99f, 0.07f, 8.4f, -48.6f, 37.2f}},
+    // grunt, a one-handed melee weapon, Idle / Carry
+    {2000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.16f, -2.61f, -0.17f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.96f, 0.12f, -0.27f, 0.f, 0.f, 0.f}},
+    // grunt, a one-handed melee weapon, Ready
+    {2010, {2.06f, -2.85f, 5.51f, 24.9f, 0.f, 0.f, 3.45f, -2.35f, -1.45f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.73f, 0.28f, -0.62f, 0.f, 0.f, 0.f}},
+    // grunt, a one-handed melee weapon, Run
+    {2020, {3.65f, 0.f, 0.f, 0.f, 0.f, 0.f, -2.7f, 2.47f, 0.77f, 0.f, 0.f, 0.f, -0.89f, 0.19f, -0.41f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Pickup
     {2030, {-4.82f, -8.26f, 14.69f, -13.3f, 6.3f, -9.3f, -4.31f, -6.9f, 14.4f, 0.f, 0.f, 0.f, -0.9f, -0.35f, 0.27f, -0.62f, 0.66f, -0.42f, -4.5f, -50.f, 22.4f}},
     // grunt, a one-handed melee weapon, Overhead, wind-up
-    {2140, {5.01f, -5.35f, 7.79f, 38.4f, 6.9f, -21.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.24f, -0.46f, -0.86f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2140, {3.43f, -2.98f, 5.21f, 38.4f, 6.9f, -21.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.24f, -0.46f, -0.86f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Overhead, blow
-    {2141, {4.4f, -3.21f, 1.07f, 13.2f, -24.2f, -0.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.17f, -0.94f, 0.29f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2141, {4.4f, -3.21f, 1.07f, 13.2f, -24.2f, -0.5f, 2.78f, 0.f, 3.25f, 0.f, 0.f, 0.f, -0.17f, -0.94f, 0.29f, 0.09f, 0.14f, -0.02f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Overhead, follow-through
-    {2142, {5.6f, -3.59f, -1.2f, 33.1f, -36.7f, -20.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.43f, -0.79f, -0.44f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2142, {2.43f, -0.54f, -10.26f, 28.9f, -18.7f, -25.7f, 5.74f, 0.f, 5.54f, 0.f, 0.f, 0.f, -0.26f, -0.86f, -0.43f, 0.63f, 0.44f, -0.06f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Diagonal, wind-up
     {2150, {2.33f, -7.4f, 3.37f, 4.8f, 2.1f, 24.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.29f, -0.02f, -0.91f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Diagonal, blow
-    {2151, {1.88f, -2.27f, -0.51f, -5.f, -3.8f, 6.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.09f, -0.98f, -0.17f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2151, {1.88f, 1.76f, -2.75f, -5.f, -3.8f, 6.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.09f, -0.98f, -0.17f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Diagonal, follow-through
-    {2152, {3.15f, -1.24f, -2.18f, -0.4f, -4.2f, -4.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.81f, -0.5f, 0.31f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2152, {5.58f, 4.01f, -11.66f, -0.4f, -4.2f, -4.1f, 0.3f, -1.68f, -0.29f, 0.f, 0.f, 0.f, 0.81f, -0.5f, 0.31f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Horizontal, wind-up
     {2160, {4.7f, -8.59f, 0.63f, 85.1f, 82.5f, -12.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.5f, 0.34f, -0.29f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Horizontal, blow
-    {2161, {2.6f, -7.13f, -2.87f, 3.2f, 6.9f, -58.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2161, {3.4f, -1.14f, -7.8f, -7.3f, 4.6f, -33.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Horizontal, follow-through
-    {2162, {15.72f, -5.24f, -6.56f, -29.3f, -59.5f, -31.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.55f, -0.83f, 0.09f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2162, {14.44f, 1.84f, -15.43f, -49.5f, -50.5f, -67.4f, -0.42f, 5.91f, -0.14f, 0.f, 0.f, 0.f, 0.55f, -0.83f, 0.09f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Backhand, wind-up
-    {2170, {9.45f, -4.65f, -2.17f, 3.8f, 9.f, -17.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.36f, -0.18f, -0.35f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2170, {9.45f, 4.93f, -3.29f, 3.8f, 9.f, -17.5f, -9.79f, 3.67f, -4.63f, 0.f, 0.f, 0.f, 0.36f, -0.18f, -0.35f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Backhand, blow
-    {2171, {2.06f, -8.06f, -7.11f, -0.7f, 36.f, 28.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.21f, -0.97f, 0.16f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2171, {1.54f, -7.77f, -13.5f, 5.f, 35.3f, 11.f, 1.35f, 3.85f, -2.93f, 0.f, 0.f, 0.f, 0.21f, -0.97f, 0.16f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Backhand, follow-through
-    {2172, {2.26f, -7.09f, -5.34f, -7.7f, 43.2f, 30.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.29f, -0.69f, 0.67f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2172, {1.8f, -8.95f, -24.82f, 25.1f, 45.4f, 22.2f, 0.f, -4.47f, 3.19f, 0.f, 0.f, 0.f, -0.62f, -0.77f, -0.16f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, two melee weapons, Ready
     {5010, {4.62f, -2.16f, 7.14f, -3.5f, 11.4f, 14.9f, 3.02f, 5.07f, 8.85f, 11.4f, 11.9f, 12.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, two melee weapons, Run
@@ -100,9 +108,11 @@ constexpr ShippedRow shipped[] = {
     // grunt, two melee weapons, Dual Strike, follow-through
     {5192, {16.06f, -13.43f, -25.45f, 2.9f, 15.2f, -78.7f, 4.79f, 11.33f, -18.14f, 8.3f, 23.4f, 49.5f, -0.26f, -0.92f, -0.31f, -0.54f, 0.32f, -0.78f, 0.f, 0.f, 0.f}},
     // grunt, two guns, Idle / Carry
-    {6000, {-0.54f, -0.56f, 2.02f, 5.4f, 3.9f, 14.3f, 1.74f, 1.04f, 1.94f, 1.4f, 1.2f, -21.6f, -0.97f, -0.18f, -0.14f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {6000, {2.51f, 0.27f, -0.98f, 5.4f, 3.9f, 14.3f, 6.15f, -4.52f, -1.37f, 1.4f, 1.2f, -21.6f, -0.97f, -0.18f, -0.14f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, two guns, Aim
-    {6010, {0.94f, 1.83f, 1.78f, -1.3f, 3.9f, -2.5f, 0.85f, 1.27f, 2.49f, 2.2f, 3.1f, -3.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {6010, {0.94f, 1.83f, 1.78f, 0.5f, 3.9f, -2.4f, -0.22f, -2.8f, 1.75f, 2.2f, 3.1f, -4.2f, 0.f, 0.f, 0.f, -0.33f, 0.19f, -0.92f, 0.f, 0.f, 0.f}},
+    // grunt, two guns, Run
+    {6020, {3.46f, 3.87f, 0.17f, 0.f, 0.f, 0.f, 0.f, -2.95f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a gun, Idle / Carry
     {11000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, 0.89f, -0.42f, 0.f, 0.f, 0.f}},
     // enforcer, a gun, Aim
