@@ -14,6 +14,8 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Heavy revolver: spent casings, dropped live shells, shells taken from the pouch and the pouch pile are all the blue slug while the revolver is in use; switch to a shotgun: the pouch goes back to red {test:revolver}
+Flare gun, nail pistol and revolver show your new skins in the hand
 IK stretch on your rifle Aim: Rig Studio, shotgun grunt, Pose Studio Data, Rifle: IK Stretch 1.15: in Aim the off hand slides up onto the fore-end (no longer 2 units back), "stretch used" beside it; Ctrl+Z puts the slider back
 IK stretch, the arm's skin: IK Stretch 1.3 and drag the Aim key's weapon a few units forward: the arms lengthen to it, elbow and wrist smooth (no seam, no crease), with vr_rig2 0 and 1
 Combat > Armed Grunts > IK Stretch: Grunts, Rifle: each pick +0.05; in game, shotgun grunts hold the fore-end in your Aim
