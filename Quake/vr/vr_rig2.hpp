@@ -183,6 +183,8 @@ void resetGame(); // the latch changed: what was made from the grunt's rig made 
 // The bones between the frame lerp's two poses: each bone's local motion on its parent blended (its turn about its
 // joint), carried down the rig.
 void posedBetween(const ragdoll::Rig& rig, int pose1, int pose2, float blend, rigpose::Rigid* out);
+// ... or along r_lerpmodels 3's spline through four poses (vr_animsmooth.cpp's keys; the old path's limbs), else posedBetween.
+void posedSmooth(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, int pose1, int pose2, float blend, rigpose::Rigid* out);
 // An armed one's arms (agarms' solve) on the authored bones within their limits: `F` every bone as drawn, its arm bones
 // (clavicle, upper arm, forearm, hand, the weapon on the right hand) set from `placed`; `weaponCorr` each hand's drawn
 // motion against the solve's (its weapon carried by it).

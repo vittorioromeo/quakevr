@@ -813,6 +813,8 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
     trace = Trace{};
 }
 
+void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo, int pose1, int pose2, int poses[4], float span[3]);
+
 [[nodiscard]] int smoothInstance(const entity_t* e, const void* aliashdr, int pose1, int pose2, float blend, int zeroblend,
     int batchindex, int channel, int smooth[4], float weights[4])
 {
@@ -885,8 +887,61 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
     }
 
     // The four keys and their times
-    int poses[4] = {pose1, pose1, pose2, pose2};
-    float span[3] = {pinSpan, pinSpan, pinSpan};
+    int poses[4];
+    float span[3];
+    keysOf(e, hdr, m, memo, pose1, pose2, poses, span);
+    const float tension = za::clamp(vr_anim_smooth_tension.value, 0.f, 1.f);
+    const bool rigged = vr_anim_smooth_rig.value != 0.f && rigData(m, e->model, hdr);
+    const Key key{{poses[0], poses[1], poses[2], poses[3]}, {span[0], span[1], span[2]}, blend, tension, rigged ? m.rigError : -1.f,
+        rebuild ? 1 : 0, rebuild ? m.rebuildError : -1.f, e->model};
+    if(!(memo.key == key))
+    {
+        // Not drawn so yet (another view, another light: the same)
+        memo.key = key;
+        memo.spline = rigpose::spline(blend, span, tension);
+        if(rebuild)
+        {
+            rebuildRows(m, poses, memo.spline, blend, rigged, memo.rows);
+            memo.swung = true;
+            memo.numRows = rebuildRowsPerBone * m.rig->numBones;
+            stats.rebuilt++;
+        }
+        else
+        {
+            memo.swung = rigged && swings(m, poses, memo.spline, memo.rows);
+            memo.numRows = rigged ? 3 * m.rig->numBones : 0;
+        }
+        stats.splines++;
+        stats.history += poses[0] != poses[1] ? 1 : 0;
+        stats.ahead += poses[3] != poses[2] ? 1 : 0;
+        stats.swung += memo.swung ? 1 : 0;
+    }
+    smooth[0] = poses[0];
+    smooth[1] = poses[3];
+    smooth[2] = 0;
+    smooth[3] = 1;
+    for(int i = 0; i < 4; i++)
+    {
+        weights[i] = memo.spline.w[i];
+    }
+    if(memo.swung)
+    {
+        // B: the limbs' swings
+        const za::SizeT at = swing.size();
+        swing.resize(at + static_cast<za::SizeT>(memo.numRows));
+        memcpy(swing.data() + at, memo.rows, sizeof(glm::vec4) * static_cast<size_t>(memo.numRows));
+        smooth[2] = rebuild ? -1 - static_cast<int>(at) : 1 + static_cast<int>(at);
+    }
+    return 1;
+}
+
+// The spline's four keys and their spans for an entity's lerp (pose1 -> pose2): the one before (its history), the one
+// expected after (its animation's next, or learnt); smoothInstance's, and vr_rig2's live drawing's (splineOf).
+void keysOf(const entity_t* e, const aliashdr_t* hdr, SmoothModel& m, Memo& memo, int pose1, int pose2, int poses[4], float span[3])
+{
+    poses[0] = poses[1] = pose1;
+    poses[2] = poses[3] = pose2;
+    span[0] = span[1] = span[2] = pinSpan;
     if(pinned(e))
     {
         poses[0] = framePose(hdr, pin.frame[0]);
@@ -936,49 +991,6 @@ void traceDraw(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, f
         }
         poses[3] = memo.ahead;
     }
-    const float tension = za::clamp(vr_anim_smooth_tension.value, 0.f, 1.f);
-    const bool rigged = vr_anim_smooth_rig.value != 0.f && rigData(m, e->model, hdr);
-    const Key key{{poses[0], poses[1], poses[2], poses[3]}, {span[0], span[1], span[2]}, blend, tension, rigged ? m.rigError : -1.f,
-        rebuild ? 1 : 0, rebuild ? m.rebuildError : -1.f, e->model};
-    if(!(memo.key == key))
-    {
-        // Not drawn so yet (another view, another light: the same)
-        memo.key = key;
-        memo.spline = rigpose::spline(blend, span, tension);
-        if(rebuild)
-        {
-            rebuildRows(m, poses, memo.spline, blend, rigged, memo.rows);
-            memo.swung = true;
-            memo.numRows = rebuildRowsPerBone * m.rig->numBones;
-            stats.rebuilt++;
-        }
-        else
-        {
-            memo.swung = rigged && swings(m, poses, memo.spline, memo.rows);
-            memo.numRows = rigged ? 3 * m.rig->numBones : 0;
-        }
-        stats.splines++;
-        stats.history += poses[0] != poses[1] ? 1 : 0;
-        stats.ahead += poses[3] != poses[2] ? 1 : 0;
-        stats.swung += memo.swung ? 1 : 0;
-    }
-    smooth[0] = poses[0];
-    smooth[1] = poses[3];
-    smooth[2] = 0;
-    smooth[3] = 1;
-    for(int i = 0; i < 4; i++)
-    {
-        weights[i] = memo.spline.w[i];
-    }
-    if(memo.swung)
-    {
-        // B: the limbs' swings
-        const za::SizeT at = swing.size();
-        swing.resize(at + static_cast<za::SizeT>(memo.numRows));
-        memcpy(swing.data() + at, memo.rows, sizeof(glm::vec4) * static_cast<size_t>(memo.numRows));
-        smooth[2] = rebuild ? -1 - static_cast<int>(at) : 1 + static_cast<int>(at);
-    }
-    return 1;
 }
 
 // How an instance's vertices are drawn before its bones' turns (traceDraw's reading of smoothInstance's outputs).
@@ -1241,6 +1253,32 @@ struct HandDraw
 }
 
 } // namespace
+
+bool animsmooth::splineOf(const entity_s* e, const void* aliashdr, int pose1, int pose2, float blend, int poses[4], float w[4],
+    float rot[3])
+{
+    const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
+    if(!e || !e->model || !hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || r_lerpmodels.value != 3.f || pose1 == pose2 ||
+        blend <= 0.f || blend >= 1.f || (cls.demoplayback && cls.demospeed < 0.f) || pose1 < 0 || pose2 < 0 ||
+        pose1 >= hdr->numposes || pose2 >= hdr->numposes)
+    {
+        return false;
+    }
+    SmoothModel& m = modelData(e->model, hdr);
+    Memo& memo = memos.entities[e];
+    float span[3];
+    keysOf(e, hdr, m, memo, pose1, pose2, poses, span);
+    const rigpose::Spline s = rigpose::spline(blend, span, za::clamp(vr_anim_smooth_tension.value, 0.f, 1.f));
+    for(int i = 0; i < 4; i++)
+    {
+        w[i] = s.w[i];
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        rot[i] = s.rot[i];
+    }
+    return true;
+}
 
 bool animsmooth::rigged(const entity_s* e)
 {

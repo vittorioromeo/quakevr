@@ -2509,6 +2509,10 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         posed[i].rot = glm::slerp(k1.rot, k2.rot, b);
         posed[i].pos = glm::mix(k1.pos, k2.pos, b);
     }
+    if(rig->authored)
+    {
+        rig2::posedSmooth(e, hdr, *rig, pose1, pose2, blend, posed); // (vr_rig2 1: drawn from these: r_lerpmodels 3's spline)
+    }
     // The Rig Studio's animations (vr_rigseq.cpp; kickInstance draws them so): its bones from them, the layers below on top.
     bool layerArms = false;
     if(rigseq::wants(e))

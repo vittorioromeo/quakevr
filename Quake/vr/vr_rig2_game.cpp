@@ -16,6 +16,7 @@
 #include "vr_rig2.hpp"
 #include "vr_agarms.hpp"
 #include "vr_agbody.hpp"
+#include "vr_animsmooth.hpp"
 #include "vr_aglegs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -128,6 +129,7 @@ struct ArmStats
     float elbowOff{0.f}, elbowOffMost{0.f}; // the elbow from the solve's (units)
 };
 ArmStats armStats;
+int liveSplined = 0, liveBlended = 0; // (posedSmooth: drawn along the spline, between two poses; vr_rig2_live_check)
 
 // The authored bones' indices of a side (0 right, 1 left), the rig's (by name, once per rig).
 struct Side
@@ -486,6 +488,23 @@ void posedBetween(const ragdoll::Rig& rig, int pose1, int pose2, float blend, ri
     }
 }
 
+void posedSmooth(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, int pose1, int pose2, float blend,
+    rigpose::Rigid* out)
+{
+    // (r_lerpmodels 3: its bones along the animation smoothing's spline through four poses, each bone's turn about its
+    // joint carried by its parent: rigpose::along, the old path's limbs; else between the lerp's two)
+    int poses[4];
+    rigpose::Spline s;
+    if(animsmooth::splineOf(e, hdr, pose1, pose2, blend, poses, s.w, s.rot))
+    {
+        rigpose::along(rig, poses, s, 0u, out);
+        liveSplined++;
+        return;
+    }
+    posedBetween(rig, pose1, pose2, blend, out);
+    liveBlended++;
+}
+
 namespace
 {
 // Each live entity on the authored rig's frame lerp this frame (advanceLerps: R_SetupAliasFrame's, its .mdl drawn no
@@ -627,7 +646,7 @@ void liveAll()
         float blend = 0.f;
         lerpOf(e, hdr, pose1, pose2, blend);
         rigpose::Rigid posed[ragdoll::maxBones];
-        posedBetween(*rig, pose1, pose2, blend, posed);
+        posedSmooth(e, hdr, *rig, pose1, pose2, blend, posed);
         rigpose::Rigid kick[ragdoll::maxBones];
         const bool kicked = vr_hit_react.value == 1.f && hitreact::reacting(e) && hitreact::boneKicks(e, *rig, posed, kick);
         for(int b = 0; kicked && b < rig->numBones; b++)
@@ -802,6 +821,9 @@ void liveCheck_f()
     {
         Con_Printf("rig2 live: nothing drawn on the authored rig now\n");
     }
+    Con_Printf("rig2 live: %d drawings along r_lerpmodels 3's spline, %d between two poses since the last check\n", liveSplined,
+        liveBlended);
+    liveSplined = liveBlended = 0;
 }
 
 // vr_rig2_parts: each ragdoll on an authored rig, each part's middle as drawn (world units) and how far its joint is from
