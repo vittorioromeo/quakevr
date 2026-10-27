@@ -14,6 +14,7 @@
 #include "vr_diskcache.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
+#include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
 #include "vr_protocol.hpp"
 #include "vr_rigdata.hpp"
@@ -2601,6 +2602,22 @@ void printDrawInfo()
         e->model = s.skinned;
         Con_Printf("ragdoll draw: entity %d, %s drawn as %s (look %d)\n", s.num, s.original->name, s.skinned->name, s.look);
         int differ = 0;
+        for(int k = 0; k < 2; k++)
+        {
+            const auto* h = static_cast<const aliashdr_t*>(Mod_Extradata(k == 0 ? s.original : s.skinned));
+            const int skin = e->skinnum >= 0 && e->skinnum < h->numskins ? e->skinnum : 0;
+            const gltexture_t* t = h->gltextures[skin][0];
+            const gltexture_t* f = h->fbtextures[skin][0];
+            Con_Printf("  %s skin %d: %s %dx%d, fullbright %s\n", k == 0 ? ".mdl" : "copy", skin, t ? t->name : "-", t ? t->width : 0,
+                t ? t->height : 0, f ? f->name : "-");
+        }
+        const auto* h0 = static_cast<const aliashdr_t*>(Mod_Extradata(s.original));
+        const auto* h1 = static_cast<const aliashdr_t*>(Mod_Extradata(s.skinned));
+        if(memcmp(h0->gltextures, h1->gltextures, sizeof(h0->gltextures)) || memcmp(h0->fbtextures, h1->fbtextures, sizeof(h0->fbtextures)))
+        {
+            differ++;
+            Con_Printf("  skins: the copy's textures are not its .mdl's now\n");
+        }
         const auto field = [&](const char* name, const float* a, const float* b, int n) {
             bool same = true;
             for(int i = 0; i < n; i++)
@@ -2639,7 +2656,8 @@ void printDrawInfo()
         QVR_RAG_FIELD(stump);
         QVR_RAG_FIELD(nails);
 #undef QVR_RAG_FIELD
-        Con_Printf("  %d of the instance's values differ\n", differ);
+        Con_Printf("  %d of the instance's values differ (its occlusion group %g/%g, retro textures' set %g/%g)\n", differ,
+            inst[0].ao[0], inst[1].ao[0], inst[0].retro[0], inst[1].retro[0]);
         printed++;
     }
     Con_Printf("ragdoll draw: %d ragdoll(s) compared\n", printed);
@@ -2915,6 +2933,76 @@ void stumpLook(const entity_t* e, float out[4])
     out[1] = za::max(stumpReach * sum / static_cast<float>(za::max(n, 1)) * p.scale, 0.5f);
 }
 
+bool drawnBox(const entity_t* e, glm::vec3& centre, glm::vec3 axes[3], glm::vec3& half)
+{
+    const Swapped* s = swappedOf(e);
+    if(!s || e->model != s->skinned || s->look == 1 || s->num >= static_cast<int>(draw.byNum.size()))
+    {
+        return false; // (vr_debug_ragdoll_look 1: drawn at rest where the entity stands, its .mdl's frame box)
+    }
+    const Published& p = draw.byNum[static_cast<za::SizeT>(s->num)];
+    if(!p.rig || p.bodies <= 0)
+    {
+        return false;
+    }
+    // Its bones' ends as drawn, each with its capsule's radius (its thickness; a quarter of its length without one).
+    za::Array<glm::vec4, maxBones * 2> points{};
+    int n = 0;
+    glm::vec3 mid{0.f};
+    for(int b = 0; b < p.bodies && b < p.rig->numBones; b++)
+    {
+        if(p.cut & (1u << b))
+        {
+            continue;
+        }
+        const Bone& bone = p.rig->bones[b];
+        const glm::quat& r = p.drawRot[static_cast<za::SizeT>(b)];
+        const glm::vec3& t = p.drawPos[static_cast<za::SizeT>(b)];
+        const float radius = (bone.capsule > 0.f ? bone.capsule : 0.25f * glm::distance(bone.pivot, bone.end)) * p.scale;
+        for(const glm::vec3& at : {bone.pivot, bone.end})
+        {
+            const glm::vec3 w = r * (at * p.scale) + t;
+            points[static_cast<za::SizeT>(n++)] = glm::vec4{w, radius};
+            mid += w;
+        }
+    }
+    if(n < 2)
+    {
+        return false;
+    }
+    mid /= static_cast<float>(n);
+    // Its length: from the end farthest from its middle to the end farthest from that; then across it, level, and up.
+    const auto farthest = [&](const glm::vec3& from) {
+        int best = 0;
+        for(int i = 1; i < n; i++)
+        {
+            best = glm::distance(glm::vec3{points[static_cast<za::SizeT>(i)]}, from) >
+                           glm::distance(glm::vec3{points[static_cast<za::SizeT>(best)]}, from) ? i : best;
+        }
+        return glm::vec3{points[static_cast<za::SizeT>(best)]};
+    };
+    const glm::vec3 a = farthest(mid), b = farthest(a);
+    glm::vec3 length = b - a;
+    length.z = 0.f; // (level: a body lying or slumped is long along the floor; the box stands on it as the monster's)
+    axes[0] = glm::length(length) > 1e-3f ? glm::normalize(length) : glm::vec3{1.f, 0.f, 0.f};
+    axes[2] = glm::vec3{0.f, 0.f, 1.f};
+    axes[1] = glm::cross(axes[2], axes[0]);
+    glm::vec3 lo{1e30f}, hi{-1e30f};
+    for(int i = 0; i < n; i++)
+    {
+        const glm::vec3 w{points[static_cast<za::SizeT>(i)]};
+        for(int k = 0; k < 3; k++)
+        {
+            const float d = glm::dot(w - mid, axes[k]);
+            lo[k] = za::min(lo[k], d - points[static_cast<za::SizeT>(i)].w);
+            hi[k] = za::max(hi[k], d + points[static_cast<za::SizeT>(i)].w);
+        }
+    }
+    centre = mid + axes[0] * ((lo[0] + hi[0]) * 0.5f) + axes[1] * ((lo[1] + hi[1]) * 0.5f) + axes[2] * ((lo[2] + hi[2]) * 0.5f);
+    half = (hi - lo) * 0.5f;
+    return true;
+}
+
 bool drawMatrix(const entity_t* e, float matrix[16])
 {
     const Swapped* s = swappedOf(e);
@@ -3139,7 +3227,7 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
         }
     }
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(sh) + sh->meshdesc);
-    const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(sh) + sh->vertexes); // pose 0
+    mdldequant::prepare(src); // (its dequantised offsets now if it isn't drawn yet: restVertex)
     // vr_ragdoll_arm_skin: an armed humanoid's arms drawn with their living skin's blend (vr_agarms: the shoulder turned
     // about its joint between the chest and the upper arm, the elbow between the arm's bones), not each vertex rigid on
     // one bone (its shoulder's skin torn and folded as a raised arm fell with it). Its skin made now if not yet.
@@ -3148,12 +3236,13 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     int blended = 0;
     for(int v = 0; v < numVerts; v++)
     {
-        const trivertx_t& t = tv[desc[v].vertindex];
         iqmvert_t& o = verts[v];
+        // Shaded as the .mdl's rest pose is drawn (its dequantised place, its smoothed normal), as the monster was alive.
+        signed char n[3];
+        mdldequant::restVertex(sh, v, o.xyz, n);
         for(int i = 0; i < 3; i++)
         {
-            o.xyz[i] = t.v[i] * sh->scale[i] + sh->scale_origin[i];
-            o.norm[i] = static_cast<int8_t>(127.f * r_avertexnormals[t.lightnormalindex][i]);
+            o.norm[i] = static_cast<int8_t>(n[i]);
         }
         o.norm[3] = 0;
         o.st[0] = (static_cast<float>(desc[v].st[0]) + 0.5f) / static_cast<float>(TexMgr_PadConditional(sh->skinwidth));

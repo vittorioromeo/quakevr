@@ -405,6 +405,22 @@ retro::Category category(const qmodel_t* model)
     return result;
 }
 
+bool sourceName(const char* name, char* out, size_t size)
+{
+    const char* tag = name ? strchr(name, '#') : nullptr;
+    if(!tag || tag == name || size == 0)
+    {
+        return false;
+    }
+    q_strlcpy(out, name, za::min(size, static_cast<size_t>(tag - name) + 1));
+    return true;
+}
+
+bool skinnedCopy(const qmodel_t* model)
+{
+    return has(model, Trait::Ragdoll) || has(model, Trait::AuthoredRig);
+}
+
 bool quakeSkin(const qmodel_t* model, const void* aliashdr)
 {
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
@@ -412,7 +428,7 @@ bool quakeSkin(const qmodel_t* model, const void* aliashdr)
     {
         return false;
     }
-    return hdr->poseverttype == aliashdr_t::PV_QUAKE1 || has(model, Trait::Ragdoll) || has(model, Trait::AuthoredRig);
+    return hdr->poseverttype == aliashdr_t::PV_QUAKE1 || skinnedCopy(model);
 }
 
 bool bodyParts(const qmodel_t* model, float out[4])

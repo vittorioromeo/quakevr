@@ -162,6 +162,9 @@ void watchGetup(int num, double from, double until);
 
 // The skinning matrices (3x4 rows) of a swapped entity, its bone count; 0 if it isn't one.
 [[nodiscard]] int bonePoses(const entity_t* e, const float** matrices);
+// The box round its drawn body (vr_ao.cpp: its occluder, as a monster's frame box is the .mdl's): its middle, its axes
+// (along the body level, across it level, up) and half sizes (units, its limbs' thickness in); false if it isn't one.
+[[nodiscard]] bool drawnBox(const entity_t* e, glm::vec3& centre, glm::vec3 axes[3], glm::vec3& half);
 // Its drawn model matrix (VR_AliasPostTransform): a translation to where its bones are given from; false if it isn't one.
 [[nodiscard]] bool drawMatrix(const entity_t* e, float matrix[16]);
 // Its stumps' look for the alias shaders (InstanceData's Stump; StumpFlesh, vr_glsl.h): out[0] its drawn cut bones

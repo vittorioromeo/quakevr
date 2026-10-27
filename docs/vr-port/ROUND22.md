@@ -24218,3 +24218,34 @@ against old 0.00). `vr_rig2_check` 33 passed, 2 failed (as before); `vr_rigstudi
 studio at 250 fps): GPU frame 0.314 ms authored / 0.309 old, models 0.037 / 0.033 ms; CPU models 0.035 / 0.033 ms.
 `vr_modelmetadata_test` stops at an older failure (`owned/mg3/progs/v_hammer.mdl` against rule `progs/`), not this.
 - [ ] Authored rig drawing {test:none}: Rig Studio > Range of Motion, Mesh drawn on Authored rig vs Old rig in the same pose, up close (face, hands, chest): the same texture resolution, shading and smoothness
+
+## Ragdolls drawn as the live monster (worktree `goreflesh`, branch `agent/ragao`, 2026-10-27)
+
+A ragdoll is drawn with a skinned copy of its `.mdl` ("<model>#rag"); lookups keyed on the entity's bones or the
+model's name took it for something else. Causes and fixes:
+- Occlusion (vr_ao.cpp): any bone-posed entity was taken for your body: the player's group (1; the monster's own: 2+)
+  and `addBody`'s occluders from your body's joint names (a ragdoll has none: no occluder at all). Now
+  `render::sourceModel(e)` (the `.mdl` a `#rag` or `#rig2` copy stands for; vr_render.cpp) gives it a monster's own group
+  and an occluder round its body as drawn (`ragdoll::drawnBox`: its bones' ends and thickness, along it level, filled as a
+  monster's frame box).
+- Shading (VR_SyntheticModel): the copy's vertices were the stored bytes with the table's normals; the `.mdl` is drawn
+  dequantised with smoothed normals (vr_mdl_dequant). Both copies now take them from `mdldequant::restVertex` (rig2's
+  `shadeLikeMdl` uses it too), `prepare`d first. Its per-vertex occlusion stays its death poses' average (by design).
+- Retro textures: overrides by model name missed the copy. `modelOverride` now takes a `#`-tagged model's own override,
+  else its file's (`modelmeta::sourceName`: `#rag`, `#rig2`, `#vr`, `#melee`, `#adv<n>`, `#gun<n>`).
+- Wound masks across the swap: `sameLayout` uses `modelmeta::skinnedCopy` + `sourceName` (same behaviour).
+- Checked and already the same (`vr_ragdoll_draw_info`: every instance value equal after): skins and fullbright
+  textures (the `.mdl`'s pointers), normal maps (by texture), retro skin size and lighting share (`quakeSkin`), category,
+  wounds, dents, stumps (the ragdoll's own), light, rim light, parallax, model flags.
+
+Debug (the Debug menu, beside Ragdolls: Ragdolls' Look Check, Print the Ragdolls' Drawing): `vr_debug_ragdoll_look` 1 each ragdoll's
+copy at rest where its entity stands, 2 its `.mdl` in pose 0 there, 3 hidden; `vr_ragdoll_draw_info` the renderer data
+of copy and `.mdl` side by side. Test: `scratch/ragao_test.sh` (vrfiringrange, a dead monster, paused; shots .mdl,
+hidden, copy, hidden, .mdl; mean difference over the model). Before / after (mean /255, the `.mdl` twice in brackets):
+grunt 19.7 / 16.1 (2.6), enforcer 21.1 / 18.6 (0.4), ogre 18.8 / 7.3 (3.9); retro on the same (retro textures resolve to
+no set for monsters here). Left: the copy's death-pose occlusion (grunt 16.1 -> 10.1 with `vr_ao_models 0`) and an
+older difference of the skeletal path itself, fullbright 13.5 / 11.7 with the same textures, UVs, places and silhouette
+box (not found). Not measured: an AD monster (`vr_test_spawn_dead` is for id's monsters only; the AD ones tried did not
+become ragdolls). `vr_ao_show` with 8 grunt ragdolls: 28 -> 36 occluders (one each, groups 2-9), choosing them 0.010
+ms either way. eval.sh: no verdict changes; ragdoll_test flat: as before (first drawn 1.02 rms).
+- [ ] Ragdolls look as alive {test:none}: kill a grunt, an ogre and an enforcer in a bright room and walk round the corpses: the same shading, smoothness and skin as alive, darkening the floor under them as a live monster does

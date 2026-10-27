@@ -66,6 +66,12 @@ struct ModelMetadata
 [[nodiscard]] ModelMetadata describePath(const char* path);
 [[nodiscard]] Id identifyPath(const char* path);
 [[nodiscard]] const char* path(Id id);
+// A model made from another's file (Mod_LoadModel's "<file>#<tag>": a ragdoll's skinned copy "#rag", the authored rig's
+// "#rig2", drawn in the .mdl's place; AD's VR weapons "#vr", melee weapons "#melee", our guns' "#adv<n>", "#gun<n>"): its
+// file's name (the part before the '#') into `out`; false (`out` untouched) for a model of its own. Any thread.
+bool sourceName(const char* name, char* out, size_t size);
+// A skinned copy of a .mdl drawn in its place (Ragdoll's "#rag", AuthoredRig's "#rig2"): the .mdl's skins and look.
+[[nodiscard]] bool skinnedCopy(const qmodel_s* model);
 // Live type/flags; entity overrides (held weapons, small gibs) belong to the consumer.
 [[nodiscard]] retro::Category category(const qmodel_s* model);
 // Whether an alias model's skin is a Quake .mdl's (skinwidth x skinheight Quake texels): a .mdl's own, or a ragdoll's
