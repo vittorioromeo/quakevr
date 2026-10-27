@@ -14,6 +14,11 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Grab an attacking armed humanoid's weapon anywhere (axe, sword, gun, chainsaw), in and out of bullet time: a tug almost every time; a punch through it still doesn't grab (Armed Grunts: Grab Leniency 5 cm) {test:agrunt_tug}
+Lift, judo-throw or shoulder-charge an armed humanoid: it keeps its weapon until a hard landing (Fall: Drops It on Impact 4.5 m/s) {test:agrunt_fall}
+A chainsaw humanoid that was fighting you drops it running; grab it within 3 s: no cord pull {test:agrunt_tug}
+Dual wielder: grab the left-hand weapon: its own tug {test:agrunt_dual_guns}
+Toolgun > Spawn > Armed Humanoid: Reset and Clear put Kind, Right and Left back to defaults
 Armed grunts and enforcers with shotguns, nailguns, the thunderbolt, the burst and enforcer rifles hold their weapon's distance, strafing and firing; walk at them with an axe and they back off clearly, still firing now and then (the super shotgun still lets you in while it reloads); does the slide while firing look right (Walking Fire 50)?
 Armed humanoids' shots at 400-1000 units hit you, not to one side (Aim From the Muzzle)
 A chainsaw humanoid closes in before it thrusts and the thrust reaches you
