@@ -23209,6 +23209,122 @@ Checklist (suggested):
 - [ ] Rig Studio: Pose Keys (O) on the shotgun grunt in Aim: click the right weapon's dot, drag its arrows and rings,
   the elbow, the torso's rings; the arms stay on the gun, the window's numbers follow; Ctrl+Z puts each back; Pickup:
   the pelvis and the feet.
+
+## Armed humanoids' fighting distance, aim, chainsaw reach (worktree `gorefx`, branch `agent/agrange`, 2026-10-26)
+
+Note 2026-10-26 22:19:49 (vrfiringrange): armed humanoids with guns ran into melee range (the grunt's `ai_run` heads
+straight for you; they stood still to fire). Now a gun's holder keeps its weapon's distance (QC `vr_armedgrunt.qc`,
+"Its fighting distance": `VR_AG_RangeOf`, `VR_AG_Ranges`, `VR_AG_RangeMove`, `VR_AG_WalkFire`; hook in `ai.qc ai_run`
+after `CheckAnyAttack`, so the attack decisions are unchanged and only the moves between attacks differ).
+
+| weapon (class) | least | best | most |
+| --- | --- | --- | --- |
+| super shotgun (and the Widowmaker) | 96 | 150 | 260 |
+| shotgun, pistols, flare gun, other single-shot guns | 128 | 220 | 380 |
+| burst guns (the grunt's burst rifle, AD plasma, centurion) | 160 | 300 | 480 |
+| thunderbolt | 140 | 240 | 400 |
+| nail guns, laser cannon | 224 | 380 | 600 |
+| enforcer's laser rifle, AD crossbow | 192 | 340 | 560 |
+| launchers | blast range + 40 | + 190 | + 440 |
+| flamethrowers (AD pyro, fumigator) | 80 | 45% of the stream | 75% |
+| melee weapons, fists | closes in as before | | |
+
+- Beyond the most: as before (its path, `movetogoal`). Between best + 40 and the most: on at a slant (enemy yaw +-35).
+  About its best: strafes round you facing you (turning round every 1.5-3.5 s or when blocked; boxed in, it holds).
+  Nearer than its least (and on until halfway to its best): backs off facing you (+-30 degrees, 0.85 of its run's
+  step, the full step when threatened); the way back shut: along the wall; hemmed in: as before (its shove, its butt).
+  Every step is `walkmove` (fails on a wall or a ledge: nothing moves).
+- Threatened (a melee weapon in either of your hands, or you coming at it faster than 180 u/s: wary 1.5 s): its least
+  and best times the row's `vr_am_range_threat` (grunt 1.5, enforcer 1.3). Below 35% of its health: x1.2.
+  Per kind (`vr_armedmon.qc` row): `vr_am_range` grunt 1, enforcer 0.85 (holds its ground nearer).
+- Too near for its gun (inside its least, not a launcher): its fire chance x0.5 (x0.3 threatened): it backs off mostly
+  and fires now and then as it goes (the launchers' own retreat, `VR_AG_Run`, never fires: unchanged; `VR_AG_RangeMove`
+  is that retreat generalised to every gun, with walking fire).
+- Walking fire (`vr_agrunt_range_walkfire`, 50 u/s): every aiming frame (its own and a replacement's native frames) steps
+  on (not with a launcher), back (x1.3 inside its least, x1.6 threatened) or round you by the same bands; a reload's
+  frames step back while nearer than its best (as fast inside its least). The attack's legs are its standing frames: it
+  glides a little (check in VR).
+- Cvars (archived, VR Settings > armed humanoids' Behaviour): `vr_agrunt_range` 1 ("Keep Their Distance"; 0 the old
+  way), `vr_agrunt_range_scale` 1, `vr_agrunt_range_walkfire` 50 (0: stands to fire).
+
+**Aim** (note: at 8-10 floor tiles they shoot a little to one side). Two causes, both fixed (`vr_agrunt_aim_converge` 1,
+"Aim From the Muzzle"; 0 the old line): (1) the `vectoangles` builtin truncates yaw and pitch to whole degrees
+(`PF_vectoangles`), and the hand's angles (`handrot`, the shot's line) came from it: up to 1 degree off, 9 units at 500,
+17 at 1000, to the right or the left by the direction it faces (truncation toward 0 of -180..180); now exact
+(`VR_AG_Angles`, atan2) for the aim, its error, the hand and the launchers' burst prediction. (2) It aimed from its
+grip and fired from its muzzle (beside that line, or along the drawn gun turned off it, `vr_agrunt_shot_drawn`): now
+the line from the muzzle it fires from to your chest, its aim's error and kick added as the same turn (unbiased). A
+replacement enforcer's own laser (id's: from 8.5 units right of a line from its origin, parallel) now goes from its
+muzzle to your chest too. The aim point is the player's origin + 6 (chest); a real headset's body/head offset is not
+covered by the headless test.
+
+Test `vr_agrunt_test 49` (Debug > Tests > Armed Grunts: Aim): a grunt 620 ahead (as far as vrtesthall's start allows)
+comes at you firing, aim error 0; each shot's line where it passes you, units to your right (+) by distance:
+
+| weapon | old line (grip, whole degrees) | as fired now |
+| --- | --- | --- |
+| shotgun | +1.8 (100-200), -8.6 (200-300), -8.3 (300-400), -6.8 (400-500) | 0.0 every bin |
+| nailgun | -16.4 (200-300), -16.8 (300-400), -24.9 (400-500) | 0.0 |
+| super nailgun | -3.8 (300-400), -7.2 (400-500) | 0.0 |
+| grunt's burst rifle | +2.7 (0-100), +3.7, +3.9, +1.3 (300-400) | 0.0 |
+| enforcer's rifle | +5.4 (100-200), +5.6, +0.9, +4.9 (400-500) | 0.0 |
+
+(5/5 PASS: every bin within 1.5 units. Facing the other way the truncation's side flips; the grip/muzzle offset stays.)
+
+**Chainsaw**: it thrust from a swing's reach (62 units, middle to middle: first thrust at 50-59). Now
+`vr_agrunt_saw_start` 44 ("Chainsaw Thrust From"; the existing `vr_agrunt_saw_reach` is the arms' reach fix): it closes
+in first; first thrust at 35 (grunt) / 41 (enforcer), it cuts you (test 48's chainsaw row, checked).
+
+**Test** `vr_agrunt_test 48` (Debug > Tests > Armed Grunts: Fighting Distance; `vr_armedgrunt_range_test.qc`; 47 is
+agent/agammo's ammo test): per weapon a grunt 260 units ahead hunting you, 6 s each: you standing, walking at it at
+80 u/s, charging it at 280 u/s with an axe, walking at it at 120 u/s with an axe; you kept within 300 of the start (an
+early run chased one into the hall's wall buttons: a new game). Checked: standing, a gun never within 64 and its mean at
+least 80% of its least; walking at it with an axe, a gun never within 64 and still firing (launchers: no fire needed);
+the axe reaches you; the chainsaw's first thrust within its start and cutting you. `scratch1 N [scratch2 M]` weapons
+N..M. Before = `vr_agrunt_range 0`, `vr_agrunt_aim_converge 0`, `vr_agrunt_saw_start 62`. Grunt 6/18 -> 15/18,
+enforcer 15/18 after. Fails left: the shotgun (0.21-0.29 s), the super shotgun (1.8-1.9 s) and the thunderbolt
+(0.01 s) within 64 with you walking at them with an axe: close-range guns, their least 96-140 (x1.5 threatened), and
+the super shotgun reloads every 2 shots. Burst and enforcer rifles (agent/agammo's magazines: no more single use) now
+hold their distance.
+
+| grunt, 6 s | standing: mean / least / s in 64 | walking at it | charging, axe: s in 64 | walking at it with an axe (120 u/s): mean / least / s in 64 | shots after: stand, walk, charge, axe-walk (walking) |
+| --- | --- | --- | --- | --- | --- |
+| Shotgun | 100 / 35 / 2.00 -> 248 / 236 / 0.00 | 84 / 33 / 2.83 -> 157 / 119 / 0.00 | 4.29 (3 sh) -> 0.88 (3 sh) | 76 / 36 / 3.25 -> 139 / 57 / 0.21 | 3 (3), 3 (3), 3 (3), 4 (4) |
+| Double-barrelled Shotgun | 170 / 113 / 0.00 -> 196 / 180 / 0.00 | 82 / 44 / 3.43 -> 105 / 48 / 1.29 | 4.85 (2 sh) -> 5.24 (0 sh) | 71 / 36 / 3.97 -> 98 / 46 / 1.92 | 2 (2), 2 (2), 0 (0), 2 (2) |
+| Nailgun | 105 / 46 / 1.35 -> 239 / 236 / 0.00 | 86 / 34 / 2.79 -> 237 / 211 / 0.00 | 4.26 (20 sh) -> 0.46 (22 sh) | 77 / 36 / 3.61 -> 200 / 124 / 0.00 | 24 (24), 22 (22), 22 (22), 20 (20) |
+| Super Nailgun | 127 / 99 / 0.00 -> 269 / 236 / 0.00 | 81 / 36 / 3.43 -> 227 / 205 / 0.00 | 4.17 (18 sh) -> 0.36 (18 sh) | 82 / 36 / 3.04 -> 198 / 117 / 0.00 | 18 (18), 18 (18), 18 (18), 18 (18) |
+| Thunderbolt | 164 / 87 / 0.00 -> 274 / 236 / 0.00 | 79 / 32 / 3.19 -> 162 / 125 / 0.00 | 4.04 (17 sh) -> 0.63 (15 sh) | 80 / 36 / 3.22 -> 150 / 63 / 0.01 | 15 (15), 15 (15), 15 (15), 15 (15) |
+| Rocket Launcher | 199 / 134 / 0.00 -> 315 / 236 / 0.00 | 176 / 136 / 0.00 -> 252 / 216 / 0.00 | 1.06 (2 sh) -> 0.75 (2 sh) | 180 / 140 / 0.00 -> 205 / 96 / 0.00 | 3 (3), 3 (3), 2 (2), 2 (2) |
+| Grunt Burst Rifle | 105 / 35 / 1.76 -> 241 / 236 / 0.00 | 90 / 31 / 2.79 -> 185 / 140 / 0.00 | 4.28 (9 sh) -> 0.36 (9 sh) | 80 / 36 / 3.14 -> 162 / 81 / 0.00 | 9 (9), 9 (9), 9 (9), 9 (9) |
+| Enforcer's Laser Rifle | 102 / 34 / 1.67 -> 239 / 236 / 0.00 | 75 / 37 / 3.62 -> 212 / 177 / 0.00 | 4.12 (3 sh) -> 0.46 (3 sh) | 79 / 32 / 3.10 -> 188 / 96 / 0.00 | 3 (3), 3 (3), 3 (3), 3 (3) |
+| Axe | 83 / 44 / 3.29 -> 83 / 44 / 3.29 | 54 / 31 / 5.07 -> 52 / 31 / 5.07 | 5.54 (0 sh) -> 5.54 (0 sh) | 47 / 30 / 5.22 -> 47 / 30 / 5.22 | 0 (0), 0 (0), 0 (0), 0 (0) |
+| Ogre's Chainsaw | 72 / 35 / 4.40 -> 70 / 30 / 4.40 | 53 / 30 / 5.07 -> 51 / 30 / 5.07 | 5.54 (0 sh) -> 5.54 (0 sh) | 47 / 30 / 5.22 -> 47 / 30 / 5.22 | 0 (0), 0 (0), 0 (0), 0 (0) |
+
+| enforcer, 6 s | standing: mean / least / s in 64 | walking at it | charging, axe: s in 64 | walking at it with an axe (120 u/s): mean / least / s in 64 | shots after: stand, walk, charge, axe-walk (walking) |
+| --- | --- | --- | --- | --- | --- |
+| Shotgun | 133 / 38 / 1.93 -> 224 / 216 / 0.00 | 103 / 34 / 2.57 -> 138 / 97 / 0.00 | 0.00 (0 sh) -> 0.94 (3 sh) | 191 / 48 / 1.32 -> 127 / 54 / 0.29 | 3 (3), 3 (3), 3 (3), 3 (3) |
+| Double-barrelled Shotgun | 184 / 136 / 0.00 -> 178 / 163 / 0.00 | 66 / 48 / 4.74 -> 100 / 50 / 1.19 | 0.00 (0 sh) -> 1.53 (2 sh) | 67 / 47 / 4.93 -> 92 / 46 / 1.78 | 2 (2), 2 (2), 2 (2), 2 (2) |
+| Nailgun | 388 / 245 / 0.00 -> 240 / 236 / 0.00 | 135 / 34 / 2.07 -> 205 / 177 / 0.00 | 3.54 (17 sh) -> 0.17 (22 sh) | 93 / 32 / 3.33 -> 189 / 123 / 0.00 | 21 (21), 20 (20), 22 (22), 20 (20) |
+| Super Nailgun | 151 / 124 / 0.00 -> 272 / 236 / 0.00 | 172 / 39 / 1.40 -> 200 / 173 / 0.00 | 3.17 (18 sh) -> 0.17 (18 sh) | 178 / 35 / 1.44 -> 189 / 118 / 0.00 | 18 (18), 18 (18), 18 (18), 18 (18) |
+| Thunderbolt | 230 / 188 / 0.00 -> 256 / 236 / 0.00 | 160 / 34 / 1.76 -> 146 / 106 / 0.00 | 3.49 (20 sh) -> 0.90 (15 sh) | 95 / 39 / 3.19 -> 143 / 64 / 0.01 | 15 (10), 17 (17), 15 (15), 13 (13) |
+| Rocket Launcher | 193 / 177 / 0.00 -> 273 / 236 / 0.00 | 141 / 57 / 0.71 -> 224 / 187 / 0.00 | 1.01 (1 sh) -> 0.04 (2 sh) | 177 / 127 / 0.00 -> 219 / 172 / 0.00 | 1 (1), 2 (2), 2 (2), 2 (2) |
+| Grunt Burst Rifle | 152 / 42 / 1.54 -> 239 / 236 / 0.00 | 179 / 34 / 1.47 -> 162 / 120 / 0.00 | 3.31 (9 sh) -> 0.89 (6 sh) | 182 / 48 / 1.32 -> 158 / 74 / 0.00 | 9 (9), 12 (12), 6 (6), 9 (9) |
+| Enforcer's Laser Rifle | 175 / 111 / 0.00 -> 241 / 236 / 0.00 | 159 / 40 / 1.65 -> 189 / 148 / 0.00 | 3.26 (3 sh) -> 0.18 (3 sh) | 187 / 48 / 1.42 -> 171 / 92 / 0.00 | 3 (3), 3 (3), 3 (3), 3 (3) |
+| Axe | 131 / 46 / 1.72 -> 80 / 46 / 3.51 | 62 / 33 / 4.61 -> 53 / 32 / 5.11 | - -> 5.56 (0 sh) | - -> 49 / 32 / 5.28 | 0 (0), 0 (0), 0 (0), 0 (0) |
+| Ogre's Chainsaw | - -> 68 / 32 / 4.61 | - -> 50 / 33 / 5.11 | - -> 5.56 (0 sh) | - -> 48 / 32 / 5.28 | 0 (0), 0 (0), 0 (0), 0 (0) |
+
+(Rows are mean / least / s within 64 units; "sh" shots. The grunt's after-pass ran before the last tuning (threat 1.4
+-> 1.5, backing x1.3/x1.6 inside the least while reloading); the enforcer's after-pass has it. Runs vary a little; the
+enforcer's before-pass ran on a mixed build (its new cvars absent: their old behaviour) and timed out after the axe.)
+
+Armed grunt test 1: 17/17. eval.sh (first round): canary 36/44 and full 163/171 as the baseline, no verdict changes.
+- [ ] Armed grunts and enforcers with shotguns, nail guns, the thunderbolt, the burst and enforcer rifles: they no longer
+  run into your reach; they hold their weapon's distance strafing and firing, a super shotgun close; walk at them with
+  an axe or a sword and they back off clearly, still firing now and then. Their walking fire's slide (Walking Fire 50
+  u/s) looks right or not.
+- [ ] Armed humanoids' shots at 400-1000 units hit you, not a little to one side (Aim From the Muzzle).
+- [ ] A chainsaw humanoid closes in before it thrusts; its first thrust reaches you.
+
 ## Feminine voice (worktree `dequant`, branch `agent/femvoice`, 2026-10-26)
 
 His request: Player Appearance > **Voice: Masculine / Feminine** (`vr_voice`, default 0 masculine), no new assets: the

@@ -600,6 +600,7 @@ void() VR_AGR_NatStep =
     {
         return;
     }
+    VR_AG_WalkFire(0.1, TRUE); // (walking as it fires: its fighting distance, vr_armedgrunt.qc)
     if(s >= 3)
     {
         vr_ag_aim_mult = -1; // (its gun drawn on its target: no aim error, the monster's own shots have their own)
@@ -642,7 +643,10 @@ void(entity p) VR_AGR_NativeShot =
         vector org = self.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
         if(VR_AI_ShotReady(org))
         {
-            entity laser = LaunchLaser(org, VR_AI_Origin(self.enemy) - self.origin);
+            // (id's line from its origin, the laser 8.5 units to its right: parallel, a miss to the right at any
+            // distance; vr_agrunt_aim_converge: from the muzzle to his chest)
+            vector aimAt = VR_AI_Origin(self.enemy) + ((self.enemy.flags & FL_CLIENT) ? '0 0 6' : '0 0 0');
+            entity laser = LaunchLaser(org, cvar_hget(cvarh_vr_agrunt_aim_converge) ? aimAt - org : VR_AI_Origin(self.enemy) - self.origin);
             laser.vr_ag_native = 1;
             MG3_EnforcerAltLaser(org);
             vr_agr_shots_enf = vr_agr_shots_enf + 1;
