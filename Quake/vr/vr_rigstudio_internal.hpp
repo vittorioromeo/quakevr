@@ -302,6 +302,8 @@ struct Studio
     int hoverBone{-1};
     int hoverVert{-1};
     AimTarget aim;
+    bool aimLines{true};   // Tools > Display > Aim Lines: each weapon's barrel, shot and target lines (with the aim on)
+    bool alignMove{false}; // Align to Target's Also Move: the key's place moved too (the muzzle kept where it was)
 };
 extern Studio st;
 
@@ -405,6 +407,34 @@ void testTyping_f();
 // vr_rigstudio_animtest.cpp: vr_rigstudio_test_rig2anim (the Timeline's keys on the subject's rig, saved, read back)
 void animTestTick();
 void testAnim_f();
+
+// vr_rigstudio_aimline.cpp: the aim lines and Align to Target (RIGSTUDIO.md, "Aim lines and Align to Target")
+struct AimLineReading
+{
+    bool ok{false};
+    glm::vec3 muzzle{0.f}, butt{0.f};  // world, as drawn
+    glm::vec3 barrel{1.f, 0.f, 0.f};   // the barrel's line (butt to muzzle; unit)
+    glm::vec3 toTarget{1.f, 0.f, 0.f}; // the muzzle to the aim target (unit)
+    float dist{0.f};                   // ... how far
+    float yaw{0.f}, pitch{0.f}, total{0.f}; // the barrel off it: yaw (+ left), pitch (+ up), the angle between (degrees)
+    bool shotOk{false};
+    glm::vec3 shot{1.f, 0.f, 0.f};     // the game's shot's line from the muzzle (QC VR_AG_SetHand)
+    const char* shotWhy{""};
+    float shotOff{0.f};                // ... off the barrel (degrees)
+};
+// Weapon `hand` (0 right, 1 left) of the subject as drawn now; false: none drawn.
+bool readAimLine(int hand, AimLineReading& out);
+[[nodiscard]] int alignKeyCode(); // the current pose key Align turns (-1: none: no gun, the aim off)
+void sharedWith(int code, char* out, int size); // "this key also aims: ..." (the key's category's other weapons)
+bool alignStart(bool alsoMove);   // false: said why (alignStatus)
+[[nodiscard]] bool alignBusy();
+[[nodiscard]] const char* alignStatus();
+void alignCancel();
+bool alignResult(float* errR, float* errL);
+void drawAimLines(ImDrawList* dl);
+void alignRow(int shownCode);     // its button, Also Move, the readout (Tools: -1; the Pose Studio Data window: its key)
+void aimLineFrame();              // each studio frame (after the windows): the align's steps, its test's
+void aimLineInit();
 
 // vr_rigstudio_ui.cpp
 void windows();

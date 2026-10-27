@@ -2252,6 +2252,7 @@ void viewport()
     drawTargets(dl);
     drawPoseParts(dl, m, overUi);
     drawAim(dl);
+    drawAimLines(dl);
     placeHandle();
     drawHandle(dl);
     if(st.tool == Tool::Paint && !overUi)

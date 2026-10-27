@@ -318,6 +318,10 @@ void toolsWindow()
         ImGui::Checkbox("IK", &st.ikTargets);
         ImGui::SameLine();
         ImGui::Checkbox("Grips", &st.grips);
+        ImGui::Checkbox("Aim Lines", &st.aimLines);
+        helpMarker("With the aim target on: each weapon's barrel line (cyan, from its muzzle as far as the target, its error "
+                   "beside it: yaw + left, pitch + up), the game's shot line where it is another (dashed magenta: "
+                   "vr_agrunt_aim_converge sends it from the muzzle to the target) and a thin line from the muzzle to the target.");
     }
     if(ImGui::CollapsingHeader("Aim Target", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -352,6 +356,7 @@ void toolsWindow()
         helpMarker("Where the subject aims (an armed humanoid's guns, a melee weapon's guard), as the game aims at an enemy "
                    "standing there: in every animation and pose. Click it in the view and drag its arrows. Off: it carries "
                    "its weapon. Not saved: the studio's own, kept across subject changes.");
+        alignRow(-1);
     }
     if(ImGui::CollapsingHeader("Layers (the game's drawing)"))
     {
@@ -1469,6 +1474,7 @@ void poseDataWindow()
             {
                 agpose::set(code, k);
             }
+            alignRow(code); // (the subject's key now: Align to Target beside it)
             if(st.pdPose == agpose::Pickup)
             {
                 // The Pickup's legs (vr_aglegs: a key of their own, any weapon class)

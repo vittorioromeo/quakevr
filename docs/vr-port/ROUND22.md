@@ -24925,3 +24925,34 @@ sprayers, laser cannon and Widowmaker (AD / mission-pack weapons, not in the she
 **In VR:**
 - [ ] Gun pose categories {test:vr_agrunt_test 83}: an armed grunt with a nail pistol aims with its arms out (not the pistol at its face); with a shotgun as you tuned it; Combat > Armed Grunts > Weapon Holds > Nail Pistol: Poses set to Rifle: the pistol comes back to its face; Auto again.
 - [ ] Pose Studio per category {test:none}: Rig Studio > Pose Studio Data, Follow the Subject on a nail pistol grunt: the Class reads Pistol; drag its Aim: only pistol holders change.
+
+## Rig Studio: aim lines and Align to Target (worktree `fastship`, branch `agent/aimline`, 2026-10-27)
+
+Vittorio: "add a line that shows the gun's aim direction and a button to align it to the target, so I can fine-tune
+the guns' directions in the shoot poses." New `vr_rigstudio_aimline.cpp` (RIGSTUDIO.md, "Aim lines and Align to
+Target"). **Drawn** (Tools > Display > Aim Lines, on while the aim target is on): each held gun's barrel line (the aim
+test's butt-to-muzzle measure) from the muzzle out to the target's distance, the shot line where it is another (dashed;
+with `vr_agrunt_aim_converge` 1 it is the muzzle-to-target line), a thin muzzle-to-target line, the error (yaw + left,
+pitch + up, total) beside the barrel and at the view's foot, the key's shared note ("this key also aims: Revolver,
+Flare Gun" for the grunt's nail pistol), Align's status. **Align to Target** (Tools > Aim Target; Pose Studio Data under
+the subject's key; `vr_rigstudio_align [move 0|1]`): the current key's RTurn (LTurn too for two guns) solved through
+the game's chain: previewed key -> QC pose -> arms IK -> drawn barrel, read once settled (under 0.003 deg/frame for 3
+frames), the barrel-onto-target rotation laid on the key in its body's yaw frame, worse steps undone and halved; kept
+under 0.05 deg (turns rounded to 0.1); one undo step. Also Move (place steps keeping the muzzle) is best-effort: on a
+shouldered gun RPos turns it about its stock (3.5 units = 12.8 deg of aim, 0.45 units of muzzle), so it falls back to
+the turn-only key. No per-weapon grip align: the weapon is drawn on the pose's line, its grip only places the hand.
+Bug found on the way: angles under ~0.03 deg from `acos(dot)` are float noise (0.02-0.04 deg for identical vectors);
+the aim lines use atan2(|cross|, dot).
+
+**Test** `vr_rigstudio_test_align`: 32 passed, 0 failed on `vr_rig2` 0 and 1 (28/28 before the Also Move case).
+Misaligned (10 left, 5 up on the key) -> aligned (drawn, after rounding), steps: grunt shotgun 15.75 -> 0.037 deg (5),
+nail pistol 11.32 -> 0.040 (2), rocket launcher 9.10 -> 0.069 (3); enforcer shotgun 30.56 -> 0.072 (3), nail pistol
+25.55 -> 0.054 (2), rocket launcher 28.38 -> 0.041 (3); grunt two nail pistols 9.22 -> 0.025 / left 0.055 (2); Also
+Move: 0.037, muzzle 3.52 units off (turn alone 3.53); every undo exact. Shipped keys as found (studio, shoot frame 1,
+level target): the grunt's shotgun barrel 8.5 deg off (8.1 high), its nail pistol 13.5 (13.3 low); the enforcer's
+guns ~17-18 deg off in yaw. Rig Studio: subjects 14/14; aim 1/4 and posekeys 8/9 as on origin/next with his keys (the
+posesplit section above; the same with the lines off). eval.sh: 163/171, no verdict changes. Eyeshots:
+`scratch/aimline.png` (per case misaligned | aligned, 8 rows).
+
+**In VR / at the desk:**
+- [ ] Rig Studio aim lines {test:none}: -flatscreenmode, Rig Studio on a shotgun grunt: cyan barrel line, orange line to the target, the error at the view's foot; Align to Target: the cyan ring lands on the target; Ctrl+Z puts it back; check the shotgun's Aim in VR afterwards.
