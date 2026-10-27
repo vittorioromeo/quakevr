@@ -25,7 +25,7 @@ float vr_aggt_line1;    // ... from its line a frame before
 float vr_aggt_hunted;   // the try's humanoid set hunting you (once started)
 float vr_aggt_reach;    // ... from your eyes (units)
 float vr_aggt_lt, vr_aggt_dt; // ... the frame before's time, the frame's
-float vr_aggt_ok, vr_aggt_tug, vr_aggt_yank, vr_aggt_fast, vr_aggt_off, vr_aggt_knock, vr_aggt_none, vr_aggt_nost;
+float vr_aggt_tug, vr_aggt_yank, vr_aggt_fast, vr_aggt_off, vr_aggt_knock, vr_aggt_none, vr_aggt_nost;
 float vr_aggt_all_ok[2], vr_aggt_all_n[2];
 float vr_aggt_keepscale;
 
@@ -349,8 +349,8 @@ void() VR_AGGT_Run =
         vr_aggt_line = VR_AG_SegDist(p.handpos, p.handpos, vr_ag_wa, vr_ag_wb);
         if(cvar("vr_agrunt_debug") >= 1)
         {
-            VR_AGT_Print(sprintf("grabpress: hand %v, its line %v .. %v, the weapon at %v; you at %v, it at %v (%v .. %v)", p.handpos,
-                vr_ag_wa, vr_ag_wb, w.origin, p.origin, g.origin, g.absmin, g.absmax));
+            VR_AGT_Print(strcat(sprintf("grabpress: hand %v, its line %v .. %v, the weapon at %v;", p.handpos,
+                vr_ag_wa, vr_ag_wb, w.origin), sprintf(" you at %v, it at %v (%v .. %v)", p.origin, g.origin, g.absmin, g.absmax)));
             tracebox(p.origin + '0 0 8', '-1 -1 -1', '1 1 1', w.origin, FALSE, p);
             VR_AGT_Print(sprintf("grabpress: a box from your chest to its weapon stops at %.2f on %s (takedamage %g, solid %g, it %g)",
                 trace_fraction, trace_ent.classname, trace_ent.takedamage, trace_ent.solid, trace_ent == g));
@@ -412,7 +412,6 @@ void() VR_AGGT_Run =
 // (vr_ag_tug_test_force 1.3 x the break force) it is torn out, yours; it keeps the shotgun. Then your empty hand on the
 // shotgun: a tug over it too.
 float vr_aggt_leg;      // test 68's leg: 0 the left weapon, 1 the right
-float vr_aggt_ok2;      // ... the left's tug checked
 
 void() VR_AGGT_Dual68 =
 {
