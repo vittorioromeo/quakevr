@@ -24,7 +24,9 @@ float VR_AGP_SWING = 2;
 float VR_AGP_SAW = 3;
 float VR_AGP_LEFT = 2;      // QVR_SVC_ARMPOSE flags: the left hand to its own target
 float VR_AGP_LEFTWPN = 8;   // ... holding its own weapon there (dual wielding: the message goes on with it and its turn)
-float VR_AGP_LEFTMIRROR = 16; // (QC only, never sent) two guns: the left's target wl x the right hand mirrored + vl
+float VR_AGP_LEFTMIRROR = 256; // (QC only, never sent) two guns: the left's target wl x the right hand mirrored + vl
+float VR_AGP_FREE = 4;      // ... the Weapon Holds' one-handed hold: the off hand off the weapon, free (VR_AGH_Hands)
+float VR_AGP_TWO = 16;      // ... their Two-Handed setting: the off hand on the weapon even with no second grip (round the hand)
 float VR_AGP_BODY = 32;     // ... its body's turns in a strike (VR_AGP_TorsoNow: the torso's, the elbows' poles)
 float VR_AGP_FIXED = 1;     // ... the body's turns alone, its hands' targets not turned with it (a take's bend)
 float VR_AGP_TAKE_BEND = 28; // degrees its chest bends forward at the waist taking a weapon up from the floor (vr_agarms; its take frames' kneel)
@@ -35,8 +37,7 @@ vector VR_AGP_SHOULDER_L = '0 9.7 12';
 vector VR_AGP_GUARD_R = '9 -5 13';
 vector VR_AGP_GUARD_L = '11 5 15';
 vector VR_AGP_READY = '10 -7 4';        // a melee weapon's grip, ready: blade up
-vector VR_AGP_READY_FW = '0.3 0.1 0.95';
-vector VR_AGP_FREE_L = '7 9 4';         // a one-handed weapon's free hand
+vector VR_AGP_READY_FW = '0.3 0.1 0.95';vector VR_AGP_FREE_L = '7 9 4';         // a one-handed weapon's free hand
 vector VR_AGP_SAW_READY = '9 -7 1';     // a chainsaw at the hip, bar ahead
 vector VR_AGP_SAW_FW = '0.95 0.05 0.25';
 vector VR_AGP_CARRY_R = '6 -9 3';       // vr_agarms: a one-handed melee weapon carried by its side, the blade ahead, a little down (the fist hanging)
@@ -145,8 +146,9 @@ vector(vector a, vector b, float t) VR_AGP_Nlerp =
 vector(vector a, vector c, vector b, float t) VR_AGP_Bezier = { return a * ((1 - t) * (1 - t)) + c * (2 * t * (1 - t)) + b * (t * t); };
 float(float x, float to, float rate) VR_AGP_Ease = { return x < to ? min(to, x + rate * frametime) : max(to, x - rate * frametime); };
 
-// Two-handed melee weapons (the left hand on the weapon's second grip); the others are swung in the right hand.
-float(entity p) VR_AGP_TwoHanded =
+// The heavy melee weapons (their swings' times and reach: two-handed weapons' as they were, whichever hands hold them);
+// the others are light.
+float(entity p) VR_AGP_Heavy =
 {
     if(p.owner.vr_ag_prop2)
     {
@@ -158,6 +160,53 @@ float(entity p) VR_AGP_TwoHanded =
         return VR_ADMelee_Heavy(VR_ADMelee_Kind(p.weaponflags)); // (AD's hammer and mace; swords one-handed)
     }
     return wid == WID_AXE || wid == WID_MJOLNIR || wid == WID_CHAINSAW || wid == WID_SUPERAXE;
+};
+
+// The Weapon Holds (Combat > Armed Grunts > Weapon Holds; the engine's vr_agholds.inc, its rows by these codes; ROUND22.md,
+// "Armed humanoids' weapon holds"): weapon `p`'s code: its weapon id, AD's upgrades by the armed codes (VR_AG_CODE_*), AD's
+// heavy blades VR_AG_CODE_ADMELEE + their kind (its other swords the Sword's).
+float(entity p) VR_AGH_Code =
+{
+    float wid = p.weapon;
+    if(vr_ad_data && p.weaponinst && p.weaponinst.wi_adup)
+    {
+        if(wid == WID_AXE) { return VR_AG_CODE_SHADOWAXE; }
+        if(wid == WID_SUPER_SHOTGUN) { return VR_AG_CODE_WIDOWMAKER; }
+        if(wid == WID_LIGHTNING) { return VR_AG_CODE_PLASMAGUN; }
+    }
+    if(wid == WID_SWORD)
+    {
+        float k = VR_ADMelee_Kind(p.weaponflags);
+        return VR_ADMelee_Heavy(k) ? VR_AG_CODE_ADMELEE + k : WID_SWORD;
+    }
+    return wid;
+};
+
+// How many hands `g` holds weapon `p` in by the Weapon Holds (1 or 2; 0: no row, or two weapons held: their own poses);
+// vr_agh_set its setting (0 Auto, 1 One-Handed, 2 Two-Handed).
+float vr_agh_set;
+float(entity g, entity p) VR_AGH_Hands =
+{
+    vr_agh_set = 0;
+    if(!p || !g || g.vr_ag_prop2)
+    {
+        return 0;
+    }
+    vector h = weapondrawnpose(world, g.vr_ag_kind * 1000 + VR_AGH_Code(p), 24);
+    vr_agh_set = h_y;
+    return h_x;
+};
+
+// Melee weapons held in both hands (the left hand on the weapon's second grip): the Weapon Holds' (Auto: the axe in one
+// hand, the heavy ones in two), else the heavy ones; the others are swung in the right hand.
+float(entity p) VR_AGP_TwoHanded =
+{
+    if(p.owner.vr_ag_prop2)
+    {
+        return FALSE; // (two held: one in each hand)
+    }
+    float h = VR_AGH_Hands(p.owner, p);
+    return h ? (h == 2) : VR_AGP_Heavy(p);
 };
 
 // An attack's times: its wind-up, strike, hold (a chainsaw's cut) and recovery.
@@ -184,7 +233,7 @@ void(entity g) VR_AGP_Times =
     }
     else
     {
-        float heavy = g.vr_ag_prop && VR_AGP_TwoHanded(g.vr_ag_prop);
+        float heavy = g.vr_ag_prop && VR_AGP_Heavy(g.vr_ag_prop); // (its weight: as before, in one hand or two)
         vr_agp_tw = heavy ? 0.36 : 0.28;
         vr_agp_ts = heavy ? 0.18 : 0.15;
         vr_agp_tr = heavy ? 0.36 : 0.3;
@@ -502,6 +551,10 @@ void(entity g, entity p, vector handL, vector fwCarry, vector upCarry) VR_AGP_Me
             vr_agp_flags = VR_AGP_LEFT;
             vr_agp_wl = 1;
             vr_agp_vl = VR_AGP_Lerp(VR_AGP_Hang(1), VR_AM_Fit(g, VR_AGP_FREE_L), rk) - vr_am_anchor_at;
+        }
+        else if((VR_AGH_Hands(g, p) == 2) && (vr_agh_set == 2))
+        {
+            vr_agp_flags = VR_AGP_TWO; // (the Weapon Holds' Two-Handed: a blade with no second grip held round the hand)
         }
         return;
     }
@@ -962,6 +1015,39 @@ void(entity g, entity p, float left, float a, vector tl) VR_AGP_ArmsOne =
     vr_agp_gunat = at;
 };
 
+// vr_agrunt_second_reach: a long gun's grip `at` (VR_AGP_ArmsGun's space, its frame vr_agp_fw, vr_agp_up) brought in
+// towards the off shoulder until its second grip (the off hand's: a foregrip, the laser cannon's under its body, the
+// Widowmaker's front handle) is within `most` of the off shoulder (the right hand's reach: brought nearer, the off
+// wrist bends past what the arms take), the grip within `most` of the right shoulder (a few rounds, as
+// VR_AGP_SawReach): a second grip beyond it had the off hand slide back to the main handle, or let go.
+vector(entity p, vector at, float most) VR_AGP_SecondReach =
+{
+    VR_AGP_Geo(p);
+    vector sec = p.vr_agp_sec;
+    if(sec == '0 0 0' || sec_z >= 999)
+    {
+        return at;
+    }
+    vector off = VR_AGP_InFrame(sec);
+    float reachL = most; // (the right hand's own: nearer, the off wrist bends past what it takes)
+    for(float i = 0; i < 3; i++)
+    {
+        vector h = at + off;
+        float d = vlen(h - vr_am_sh_l);
+        if(d <= reachL)
+        {
+            break;
+        }
+        at = at - normalize(h - vr_am_sh_l) * (d - reachL);
+        vector fromSh = at - vr_am_sh_r;
+        if(vlen(fromSh) > most)
+        {
+            at = vr_am_sh_r + normalize(fromSh) * most;
+        }
+    }
+    return at;
+};
+
 float vr_agp_onehand; // VR_AGP_ArmsGun: its gun in one hand (a blade in the other: vr_ag_gunaxe)
 void(entity g, entity p, entity pL) VR_AGP_ArmsGun =
 {
@@ -1023,6 +1109,13 @@ void(entity g, entity p, entity pL) VR_AGP_ArmsGun =
         if(vlen(fromSh) > most)
         {
             gR = vr_am_sh_r + normalize(fromSh) * most;
+        }
+        if(cvar_hget(cvarh_vr_agrunt_second_reach))
+        {
+            // (carried only; aimed, the butt in its shoulder's pocket and the barrel on the target as they are: moved
+            // towards the off shoulder its right arm no longer aimed it, drawn back along its line the Pose Studio's
+            // keys no longer placed it)
+            gR = VR_AGP_Lerp(VR_AGP_SecondReach(p, gR, most), gR, a);
         }
     }
     fwR = vr_agp_fw;
@@ -1216,7 +1309,7 @@ float(entity g) VR_AGP_TorsoNow =
         else if(kind == 1) { w = '-28 -5 -8'; f = '24 10 8';   draw = '-5 -1 4'; elbow = '-0.5 -0.8 0.6'; } // diagonal
         else if(kind == 2) { w = '-32 0 -3';  f = '28 4 3';    draw = '-5 -2 1'; elbow = '-0.6 -0.8 0.3'; } // horizontal
         else               { w = '16 4 5';    f = '-20 -5 -6'; draw = '3 3 1';   elbow = '0.3 -0.6 0.5';  } // backhand (its hand out, off the chest)
-        if(g.vr_ag_prop && VR_AGP_TwoHanded(g.vr_ag_prop))
+        if(g.vr_ag_prop && VR_AGP_Heavy(g.vr_ag_prop))
         {
             w = w * 1.15;
             f = f * 1.15;
@@ -1966,9 +2059,20 @@ void(entity g, entity p) VR_AGP_Pose =
     else if(vr_agp_arms)
     {
         float bladeL = pL && VR_AG_Class(pL.weapon) == VR_AG_CLASS_MELEE; // (a gun and an axe: vr_ag_gunaxe)
-        vr_agp_onehand = bladeL; // (the gun one-handed beside a blade: as beside a second gun)
+        // (the Weapon Holds: a gun alone in one hand held as one beside a second gun is, aimed and kicked by that hand,
+        // the off hand free; VR_AGP_FREE below)
+        float gunHands = pL ? 0 : VR_AGH_Hands(g, p);
+        vr_agp_onehand = (bladeL || (gunHands == 1)); // (the gun one-handed beside a blade: as beside a second gun)
         VR_AGP_ArmsGun(g, p, bladeL ? world : pL);
         vr_agp_onehand = 0;
+        if(gunHands == 1)
+        {
+            vr_agp_flags = vr_agp_flags | VR_AGP_FREE; // (a reload's hand, VR_AGP_LEFT, still goes to its belt)
+        }
+        else if((gunHands == 2) && (vr_agh_set == 2))
+        {
+            vr_agp_flags = vr_agp_flags | VR_AGP_TWO;
+        }
         vr_agp_gunpose = 1;
         VR_AGPar_Pose(g, p);
         if(bladeL)
@@ -2380,7 +2484,7 @@ void(float act) VR_AGP_Begin =
     self.vr_ag_aim = '0 0 0';
     if(act == VR_AGP_SWING)
     {
-        float blade = (self.vr_ag_wid == WID_SWORD) && !VR_AGP_TwoHanded(self.vr_ag_prop);
+        float blade = (self.vr_ag_wid == WID_SWORD) && !VR_AGP_Heavy(self.vr_ag_prop);
         string w = blade ? "knight/sword1.wav" : "weapons/ax1.wav";
         VR_SoundVaried(self, CHAN_WEAPON, w, 1, ATTN_NORM); // (the swing's whoosh; its hit sounds are the weapon's)
     }

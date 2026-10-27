@@ -202,7 +202,9 @@ float(entity player, float hand) weaponanygrip = #0;
 // CreateThrownWeapon takes them (the pitch negated), 2 '1 0 0' if known ('0 0 0' else), 3 its tip (its muzzle's anchor); 4 its handle and 5 its tip in the frame of
 // the hand carrying it as drawn (forward, right, up: makevectors of the hand's angles). what 6, any entity: the muzzle of
 // the weapon model `player` itself is drawn with at its origin and angles (its origin if no weapon's: an armed grunt's
-// held weapon, vr_armedgrunt.qc weaponmuzzle).
+// held weapon, vr_armedgrunt.qc weaponmuzzle). what 24: the Weapon Holds (the engine's vr_agholds.inc), `hand` an armed
+// humanoid's kind * 1000 + its weapon's code (vr_armedgrunt_pose.qc VR_AGH_Code): '<hands 1 or 2; 0 no row> <its
+// setting: 0 Auto, 1 One-Handed, 2 Two-Handed> 0'.
 vector(entity player, float hand, float what) weapondrawnpose = #0;
 // AD sword kind's (VR_ADMELEE_*) blade at share f of the line from the hand to its tip, off that line (shares of its
 // length): x along the line's normal in the blade's plane (the model's +y crossed with the line), y along its +y; z 1

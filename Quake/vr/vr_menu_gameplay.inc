@@ -1129,6 +1129,36 @@ void armedGripsDragMode()
     };
 }
 
+// Combat > Armed Grunts > Weapon Holds (vr_agholds.inc; vr_aggrip.cpp agholds; QC vr_armedgrunt_pose.qc VR_AGH_Hands;
+// ROUND22.md, "Armed humanoids' weapon holds"): each kind's hold of each weapon, live.
+void armedHoldsReset()
+{
+    agholds::reset();
+}
+
+[[nodiscard]] za::Vector<Item> pageArmedHolds()
+{
+    za::Vector<Item> items;
+    items.pushBack(action("Reset to Defaults", armedHoldsReset)
+            .help("Every weapon back to Auto for every kind (vr_agholds_reset)."));
+    for(int k = 0; k < agholds::numKinds; k++)
+    {
+        items.pushBack(header(k == 0 ? "Grunts" : "Enforcers"));
+        for(int r = 0; r < agholds::count(); r++)
+        {
+            const bool autoOne = agholds::autoHands(k, r) == 1;
+            items.pushBack(cycle(agholds::label(r), agholds::setting(k, r),
+                {{0.f, autoOne ? "Auto (One-Handed)" : "Auto (Two-Handed)"}, {1.f, "One-Handed"}, {2.f, "Two-Handed"}})
+                    .help("How this kind holds this weapon (one with two weapons, one in each hand, as it is). One-Handed: "
+                          "the off hand free, hanging or in its carry pose, the weapon aimed and kicked by the one hand. "
+                          "Two-Handed: the off hand on the weapon's second grip (a foregrip, a front handle), else under "
+                          "and round the other on its handle. Auto: the built-in hold (the axe and the enforcer's pistols "
+                          "in one hand). Takes effect at once (vr_agrunt_hold_<grunt|enforcer>_<weapon>)."));
+        }
+    }
+    return items;
+}
+
 [[nodiscard]] za::Vector<Item> pageArmedGrunts()
 {
     const auto weight = [](const char* label, cvar_t& c) {
@@ -1140,6 +1170,9 @@ void armedGripsDragMode()
         open("Armed Humanoid Replacements", pageIndex(pageArmedRepl))
             .help("A map's grunts and enforcers as armed ones holding their own guns (their balance kept), and weapon "
                   "variety on top. All off by default."),
+        open("Weapon Holds", pageIndex(pageArmedHolds))
+            .help("Per weapon, for grunts and for enforcers: held in one hand or two (Auto: the axe and the enforcer's "
+                  "pistols in one hand, the rest as built in)."),
         header("Their Weapons"),
         slider("Damage to You", vr_agrunt_damage_scale, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("Their weapon's damage to you, times this (its damage to monsters is your weapon's own): a rocket "

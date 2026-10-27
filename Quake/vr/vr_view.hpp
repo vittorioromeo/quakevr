@@ -263,9 +263,15 @@ struct WeaponHotspot
 // point, a blade's zone's middle. False for none or a cup (tests: vr_mock_hand_to <hand> spot).
 [[nodiscard]] bool groundHotspotPoint(int entity, int index, glm::vec3& out);
 
+// The second grip of a weapon model in its own frame (as weaponLocalGeometry's), where an armed humanoid's off hand holds
+// it: its first Grip hotspot's point (type 1); a weapon whose first is a Cup, its Two-Handed Hand Anchor if that is a
+// handle well ahead of the main one (vr_agarms_cup_handle: the Widowmaker's front handle; type 1), else 2 (a cup under
+// and round the hand on the handle, no point); 0 none (false).
+bool secondGrip(qmodel_t* model, glm::vec3& second, int& type);
+
 // A weapon model's points in its own frame (as a weapon lying about or a monster's held one is drawn off its origin and
 // angles; x forward, y left, z up, units): its muzzle (a blade's tip), its butt (its rearmost along the handle-muzzle
-// line), its second grip (its first Grip hotspot: secondType 1; a Cup: 2, no point; 0 none). False: no weapon's model.
+// line), its second grip (secondGrip's: secondType 1 a point; 2 a Cup's, no point; 0 none). False: no weapon's model.
 // Armed humanoids hold weapons as you do from these (QC vr_armedgrunt_pose.qc, weapondrawnpose 8..10).
 bool weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, glm::vec3& second, int& secondType);
 
