@@ -1,0 +1,20 @@
+# Benchmark scene (Misc/quakevr/bench/qvrbench.py, BENCHMARKS.md): not a checklist test; places only.
+title Benchmark: 16 armed enforcers (guns, dual guns, melee) hunting you
+map vrtesthall
+god
+spawnarmed monster_vr_enforcer 4 0 280 -210
+spawnarmed monster_vr_enforcer 4 4 280 -150
+spawnarmed monster_vr_enforcer 6 6 280 -90
+spawnarmed monster_vr_enforcer 13 0 280 -30
+spawnarmed monster_vr_enforcer 2 2 280 30
+spawnarmed monster_vr_enforcer 14 0 280 90
+spawnarmed monster_vr_enforcer 10 0 280 150
+spawnarmed monster_vr_enforcer 7 0 280 210
+spawnarmed monster_vr_enforcer 16 0 390 -210
+spawnarmed monster_vr_enforcer 7 7 390 -150
+spawnarmed monster_vr_enforcer 11 0 390 -90
+spawnarmed monster_vr_enforcer 13 0 390 -30
+spawnarmed monster_vr_enforcer 5 8 390 30
+spawnarmed monster_vr_enforcer 112 0 390 90
+spawnarmed monster_vr_enforcer 3 0 390 150
+spawnarmed monster_vr_enforcer 17 0 390 210
