@@ -41,6 +41,34 @@ Select. The engine writes the subject's `.vr_rs_aim` and `.vr_rs_aimon` (QC `vr_
 0, so the game's grunts aim as before. Its body keeps facing the stage: a target more than 30 degrees to a side is
 aimed at as far as its arms turn (`VR_AGP_ArmsGun`'s limit; in the game its body would turn).
 
+### Aim lines and Align to Target (`vr_rigstudio_aimline.cpp`)
+
+**Tools > Display > Aim Lines** (on; drawn while the aim target is on): for each weapon the subject holds (both of two
+guns), as drawn: its **barrel line** (cyan: the model's butt-to-muzzle line, the aim test's measure, from the muzzle as
+far as the target, a ring at its end), the **shot line** where it is another (dashed magenta: QC `VR_AG_SetHand`'s:
+with `vr_agrunt_aim_converge` 1, the default, from the muzzle to the target, so it lies on the target line; else the
+drawn gun's line with `vr_agrunt_shot_drawn`, or the hidden gun's), and a thin orange line from the muzzle to the
+target. Beside the barrel's end, and at the view's foot: "aim error: yaw x, pitch y (total z)" (degrees; yaw + left,
+pitch + up), the shot line's source, the key's note ("this key also aims: ..."), Align's status.
+
+**Align to Target** (Tools > Aim Target, and the Pose Studio Data window under the key when it is the subject's;
+`vr_rigstudio_align [move 0|1]`): the **current pose key** (the subject's Aim key for its kind and gun class; with the
+Pose Keys tool, the window's key when it is the subject's) has its weapon turn changed so the drawn barrel points
+exactly at the target: Right Turn, and Left Turn for the left of two guns. It solves through the game's chain: the key
+is previewed (`agpose::setPreview`: QC reads it the next frame), the arms solve, the drawn barrel is read once it has
+settled, and the barrel's rotation onto the target is laid on the key's turn in its body's space (QC turns the
+procedural gun by the key in the body's yaw frame: key' = Y^-1 C Y key); a step that made it worse goes back to the best
+key and halves the next steps. Under 0.05 degrees the key is kept (`agpose::set`, its turns rounded to 0.1 as every
+key's): 2-5 steps, 0.02-0.07 degrees drawn. One undo step (Ctrl+Z puts the key back exactly). The place (Right/Left
+Place) is left alone unless **Also Move**: then, once aligned, place steps try to put the muzzle back where it was (the
+gun turned about its muzzle), each kept only if the muzzle came nearer after re-aiming. On a shouldered gun they do not
+help (the grunt's shotgun: 3.5 units of place turn it 12.8 degrees about its stock and move its muzzle 0.45), so the
+key stays the turn-only one; the muzzle is never left further than the turn alone leaves it.
+
+The key is shared: every weapon of the kind's pose category (Weapon Holds' Pose Category) takes it; the note lists them.
+A weapon's own grip is no tool for its aim (the weapon is drawn on the pose's line; its grip only sets the hand on it),
+so there is no per-weapon align: to aim one weapon apart, give it its own Pose Category.
+
 ## Pose Keys: the Pose Studio's data by handles
 
 The **Pose Keys** tool (O, or Tools) drags the key picked in the Pose Studio Data window on the subject, by handles, with
@@ -277,6 +305,12 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
 - `vr_rigstudio_test_aim [animation] [frame]` (default shoot 1; ends on `rigstudio aim: N passed, M failed`): the shotgun
   grunt aiming off, then at a target level ahead, high left and low right: its barrel's line against the way from its
   muzzle to the target (within 8 degrees), a screenshot of each.
+- `vr_rigstudio_test_align` (ends on `rigstudio align: N passed, M failed`): the grunt and the enforcer with the shotgun
+  (Rifle), the nail pistol (Pistol) and the rocket launcher (Launcher), the grunt with two nail pistols, and the
+  shotgun again with Also Move: the current key's turn(s) turned 10 degrees left and 5 up, Align to Target (drawn error
+  under 0.2 degrees; the place untouched, or with Also Move the muzzle no further than turning alone leaves it), undone
+  (the key exactly as misaligned), put back. A screenshot misaligned and aligned per case. `vr_rigstudio_aimline [0|1]`
+  prints the readout.
 - `vr_rigstudio_test_posekeys` (ends on `rigstudio posekeys: N passed, M failed`): the studio's mock mouse drags the
   Pose Keys handles (the right weapon 4 forward and 20 degrees round z, the right elbow 4 down, the torso 15 degrees, in
   Pickup the pelvis 3 down): the key changed by that in its space, the drawn part with it; undone, the key exactly as

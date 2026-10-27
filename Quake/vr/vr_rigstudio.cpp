@@ -2113,6 +2113,7 @@ void close()
     }
     st.dragging = false;
     st.dragKind = 0;
+    alignCancel(); // (an Align under way: its preview dropped, the key as it was)
     imgui::want(false);
     rigseq::setStudio(0, nullptr, 0, false);
     restoreSettings();
@@ -2849,6 +2850,7 @@ void init()
     rigdata::registerCommands();
     rig2::init(); // the authored rig's commands (vr_rig2.cpp, vr_rig2_check.cpp)
     romInit();    // the Range of Motion's (vr_rigstudio_rom.cpp)
+    aimLineInit(); // the aim lines' and Align's (vr_rigstudio_aimline.cpp)
     rigseq::registerCommands();
 }
 
@@ -3050,6 +3052,7 @@ void clientFrame()
     pkTestTick();
     typingTestTick();
     animTestTick();
+    aimLineFrame(); // (Align to Target's steps and its test's)
 }
 
 bool pinned(const entity_t* e, const void* aliashdr, short* pose1, short* pose2, float* blend)
