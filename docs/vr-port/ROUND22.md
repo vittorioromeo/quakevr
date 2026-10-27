@@ -24218,3 +24218,26 @@ against old 0.00). `vr_rig2_check` 33 passed, 2 failed (as before); `vr_rigstudi
 studio at 250 fps): GPU frame 0.314 ms authored / 0.309 old, models 0.037 / 0.033 ms; CPU models 0.035 / 0.033 ms.
 `vr_modelmetadata_test` stops at an older failure (`owned/mg3/progs/v_hammer.mdl` against rule `progs/`), not this.
 - [ ] Authored rig drawing {test:none}: Rig Studio > Range of Motion, Mesh drawn on Authored rig vs Old rig in the same pose, up close (face, hands, chest): the same texture resolution, shading and smoothness
+
+
+## Grunt rig stage 1: the held weapons ride the authored rig's hands (2026-10-27, worktree `fastship`, branch `agent/rig2weapon`)
+
+"The weapon isn't posed when 'authored rig' is selected": on the authored rig the subject's model is swapped to
+`<model>#rig2` before `VR_RelinkArmedGrunts`, so `relinkArms` found no armed rig for it and its weapons stayed where the
+server put them. Now `relinkArms` sends a swapped subject (`rig2::sourceModel`) to `relinkAuthored`: no arm solve (the
+pose is the studio's), each held weapon placed by `rigstudio::authoredWeapon`: the hand's rest grip frame
+(`agarms::ragdollGrip`, the one the old rig's solve uses) carried by the authored rig's bone as drawn this frame
+(`rom.F`: the right on its `weapon` bone, fixed on `hand_r`; the left on `weapon_l` if a rig has one, else `hand_l`,
+the same motion: no left weapon bone added), then the weapon at its grip offset (`gripRigid`: the kind's global one,
+the weapon's own on top). Old rig: unchanged (the arms' solve). The game: unchanged (only the studio's subject is ever
+swapped; `vr_rig2` 0). The weapon is still the same entity, drawn as before (skins, muzzle flash, magazines).
+
+Test: `vr_rigstudio_rom test weapon` (Debug > Tools > Rig Studio: Test Weapons on the Authored Rig; ends on
+`rigstudio rom weapon: N passed, M failed`): at rest, the right arm raised, the right wrist bent, the left arm and
+wrist, two random poses; each weapon's grip read back from its drawn entity (origin, angles, through its grip offset)
+against the hand bone's grip place: shotgun 6/6, dual revolvers 12/12, every one 0.000 units, 0.00 deg (before the
+test waited for the console to be up, a just-stood subject read 0.34 then 0.07 units: its drawn origin settling). `vr_rigstudio_rom test` (it now also
+waits for its subject) 9/9, `_test_subjects` 14/14, `_test_aim` 4/4, `_test_posekeys` 10/10; `vr_rig2_check` 33/35 (as
+before); eval.sh no verdict changes. Note: `vr_rigstudio_rom test` rewrites `quakevr/rigs/vrgrunt.rig2.txt` (its save
+check; line endings and comments): `git checkout` it after a run.
+- [ ] Authored rig weapons {test:none}: Rig Studio > Range of Motion, Mesh drawn on Authored rig: Random Pose, drag the right arm and bend the wrist: the shotgun stays in the hand at its grip; Subject two revolvers: the left one follows the left hand; Old rig: as before
