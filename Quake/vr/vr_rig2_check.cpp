@@ -45,8 +45,8 @@ namespace
 
 constexpr float pi = 3.14159265358979f;
 constexpr float deg = pi / 180.f;
-constexpr float foldLimit = 120.f;     // degrees between two triangles along a ridge (0 flat)
-constexpr float foldGrowth = 45.f;     // ... more than at rest
+constexpr float foldLimit = 150.f;     // degrees between two triangles along a ridge (0 flat; 180 folded back onto itself)
+constexpr float foldGrowth = 60.f;     // ... more than at rest
 constexpr float collapseRatio = 0.1f;  // a triangle's area against its rest area
 constexpr float stretchHigh = 2.5f, stretchLow = 0.3f;
 constexpr float rayReach = 80.f;
@@ -69,6 +69,7 @@ struct Surface
     za::Vector<Edge> edges;
     za::Vector<glm::vec3> restN;
     za::Vector<float> restArea, restFold, restLen;
+    za::Vector<uint8_t> sliver; // per triangle
 };
 
 // One rig's measures over a set of poses (a joint's sweeps, its pairs, the random poses).
@@ -284,6 +285,18 @@ void prepareRest(Surface& s)
     triNormals(s, s.rest, n, a);
     s.restN = n;
     s.restArea = a;
+    // Slivers (under a tenth of a square unit, or narrower than 0.15 units across): their flips and collapses not counted
+    s.sliver.resize(a.size());
+    for(za::SizeT t = 0; t < a.size(); t++)
+    {
+        float longest = 0.f;
+        for(int k = 0; k < 3; k++)
+        {
+            longest = za::max(longest, glm::length(s.rest[static_cast<za::SizeT>(s.tris[3 * t + static_cast<za::SizeT>(k)])] -
+                                                   s.rest[static_cast<za::SizeT>(s.tris[3 * t + static_cast<za::SizeT>((k + 1) % 3)])]));
+        }
+        s.sliver[t] = a[t] < 0.1f || 2.f * a[t] / za::max(longest, 1e-6f) < 0.15f ? 1 : 0;
+    }
     s.restFold.resize(s.edges.size());
     s.restLen.resize(s.edges.size());
     for(za::SizeT i = 0; i < s.edges.size(); i++)
@@ -427,9 +440,9 @@ void measure(const rigpose::Rigid* F2, bool old, int focus, int focus2, Tally& t
     for(int i = 0; i < nt; i++)
     {
         const za::SizeT ti = static_cast<za::SizeT>(i);
-        if(cs.s.restArea[ti] < 0.02f)
+        if(cs.s.sliver[ti])
         {
-            continue;
+            continue; // (a sliver: too small or thin to see turned over)
         }
         // Flipped: against its corners' bones' turns (blended by their weights) of its rest normal
         glm::vec3 ref{0.f};
@@ -523,7 +536,18 @@ void measure(const rigpose::Rigid* F2, bool old, int focus, int focus2, Tally& t
         for(int i = 0; i < nDirs; i++)
         {
             const glm::vec3 d = rayDir(i);
-            holes += firstHit(cs.s, p, c + d * rayReach, -d, 2.f * rayReach) == 1 ? 1 : 0;
+            if(firstHit(cs.s, p, c + d * rayReach, -d, 2.f * rayReach) != 1)
+            {
+                continue;
+            }
+            // (a hole only if lines a twentieth of a unit either side see it too: not a line through the model's own
+            // sub-0.01 crack, check_mdl_holes.py's, or along an edge)
+            glm::vec3 side = glm::cross(d, glm::vec3{0.f, 0.f, 1.f});
+            side = glm::length(side) < 0.1f ? glm::vec3{1.f, 0.f, 0.f} : glm::normalize(side);
+            const glm::vec3 up = glm::cross(side, d);
+            const int also = (firstHit(cs.s, p, c + d * rayReach + side * 0.05f, -d, 2.f * rayReach) == 1 ? 1 : 0) +
+                             (firstHit(cs.s, p, c + d * rayReach + up * 0.05f, -d, 2.f * rayReach) == 1 ? 1 : 0);
+            holes += also >= 1 ? 1 : 0;
         }
     }
     t.seeThrough += holes;

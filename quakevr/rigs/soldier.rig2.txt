@@ -9,485 +9,485 @@ bone pelvis - root pivot -4.800 0.000 -2.000 end -4.000 0.000 2.500
 bone spine pelvis ball pivot -4.000 0.000 2.500 end -2.600 0.000 9.000 neutral 0.211 0.000 0.978 fwd 0.978 0.000 -0.211 side 0.000 1.000 0.000 swingx -20 40 swingy -25 25 twist -25 25
 bone chest spine ball pivot -2.600 0.000 9.000 end 0.400 0.200 16.600 neutral 0.367 0.024 0.930 fwd 0.930 -0.010 -0.367 side 0.000 1.000 -0.026 swingx -15 25 swingy -15 15 twist -20 20
 bone neck chest ball pivot 0.400 0.200 16.600 end 3.000 0.300 19.200 neutral 0.707 0.027 0.707 fwd 0.707 -0.027 -0.706 side 0.000 0.999 -0.038 swingx -25 35 swingy -25 25 twist -35 35
-bone head neck ball pivot 3.000 0.300 19.200 end 4.700 0.400 26.000 neutral 0.243 0.014 0.970 fwd 0.970 -0.004 -0.242 side 0.000 1.000 -0.015 swingx -25 25 swingy -20 20 twist -30 30
-bone clavicle_l chest ball pivot 0.500 2.000 15.000 end 0.900 9.000 15.200 neutral 0.057 0.998 0.029 fwd 0.998 -0.057 -0.002 side 0.000 -0.029 1.000 swingx -15 20 swingy -10 25 twist -10 10
-bone upperarm_l clavicle_l ball pivot 0.900 9.000 15.200 end 2.227 8.950 6.236 neutral 0.000 0.168 -0.986 fwd 1.000 0.000 0.000 side 0.000 0.986 0.168 swingx -45 135 swingy -20 110 twist -70 70
-bone forearm_l upperarm_l hinge pivot 2.227 8.950 6.236 end 9.309 5.973 2.290 axis -0.413 -0.909 -0.056 range 0 145
-bone hand_l forearm_l ball pivot 9.309 5.973 2.290 end 13.400 6.000 1.800 neutral 0.993 0.007 -0.119 fwd 0.119 0.001 0.993 side 0.007 -1.000 0.000 swingx -60 60 swingy -25 25 twist -60 60
-bone clavicle_r chest ball pivot 0.500 -1.600 15.000 end -0.300 -9.400 15.200 neutral -0.102 -0.994 0.025 fwd 0.995 -0.102 0.003 side 0.000 0.026 1.000 swingx -15 20 swingy -10 25 twist -10 10
-bone upperarm_r clavicle_r ball pivot -0.300 -9.400 15.200 end 0.378 -9.743 7.003 neutral 0.000 -0.168 -0.986 fwd 1.000 0.000 0.000 side 0.000 -0.986 0.168 swingx -45 135 swingy -20 110 twist -70 70
-bone forearm_r upperarm_r hinge pivot 0.378 -9.743 7.003 end 5.104 -5.177 4.504 axis 0.716 -0.693 0.088 range 0 145
-bone hand_r forearm_r ball pivot 5.104 -5.177 4.504 end 8.600 -4.300 4.200 neutral 0.967 0.242 -0.084 fwd 0.082 0.020 0.996 side -0.243 0.970 0.000 swingx -60 60 swingy -25 25 twist -60 60
-bone thigh_l pelvis ball pivot -5.600 4.500 -3.000 end -5.273 6.600 -12.891 neutral 0.000 0.080 -0.997 fwd 1.000 0.000 0.000 side 0.000 0.997 0.080 swingx -25 115 swingy -20 45 twist -35 35
-bone shin_l thigh_l hinge pivot -5.273 6.600 -12.891 end -10.794 6.875 -20.412 axis -0.219 0.956 0.196 range 0 145
-bone foot_l shin_l ball pivot -10.794 6.875 -20.412 end -4.600 7.600 -23.400 neutral 0.896 0.105 -0.432 fwd 0.429 0.050 0.902 side -0.116 0.993 0.000 swingx -30 40 swingy -15 15 twist -12 12
-bone thigh_r pelvis ball pivot -4.200 -4.600 -3.000 end 2.173 -6.472 -11.109 neutral 0.000 -0.080 -0.997 fwd 1.000 0.000 0.000 side 0.000 -0.997 0.080 swingx -25 115 swingy -20 45 twist -35 35
-bone shin_r thigh_r hinge pivot 2.173 -6.472 -11.109 end 0.044 -6.554 -20.595 axis 0.214 0.975 -0.057 range 0 145
-bone foot_r shin_r ball pivot 0.044 -6.554 -20.595 end 7.400 -7.300 -23.400 neutral 0.930 -0.094 -0.355 fwd 0.353 -0.036 0.935 side -0.101 -0.995 0.000 swingx -30 40 swingy -15 15 twist -12 12
+bone head neck ball pivot 3.000 0.300 19.200 end 4.700 0.400 26.000 neutral 0.243 0.014 0.970 fwd 0.970 -0.004 -0.242 side 0.000 1.000 -0.015 swingx -25 15 swingy -20 20 twist -20 20
+bone clavicle_l chest ball pivot 0.500 2.000 15.000 end 0.900 9.000 15.200 neutral 0.057 0.998 0.029 fwd 0.998 -0.057 -0.002 side 0.000 -0.029 1.000 swingx -10 15 swingy -5 15 twist -8 8
+bone upperarm_l clavicle_l ball pivot 0.900 9.000 15.200 end 2.227 8.950 6.236 neutral 0.000 0.168 -0.986 fwd 1.000 0.000 0.000 side 0.000 0.986 0.168 swingx -20 40 swingy -10 50 twist -20 20
+bone forearm_l upperarm_l hinge pivot 2.227 8.950 6.236 end 9.309 5.973 2.290 axis -0.413 -0.909 -0.056 range 0 140
+bone hand_l forearm_l ball pivot 9.309 5.973 2.290 end 13.400 6.000 1.800 neutral 0.993 0.007 -0.119 fwd 0.119 0.001 0.993 side 0.007 -1.000 0.000 swingx -25 25 swingy -10 10 twist -10 10
+bone clavicle_r chest ball pivot 0.500 -2.000 15.000 end -0.300 -9.400 15.200 neutral -0.107 -0.994 0.027 fwd 0.994 -0.107 0.003 side 0.000 0.027 1.000 swingx -10 15 swingy -5 15 twist -8 8
+bone upperarm_r clavicle_r ball pivot -0.300 -9.400 15.200 end 0.378 -9.743 7.003 neutral 0.000 -0.168 -0.986 fwd 1.000 0.000 0.000 side 0.000 -0.986 0.168 swingx -20 40 swingy -10 50 twist -20 20
+bone forearm_r upperarm_r hinge pivot 0.378 -9.743 7.003 end 5.104 -5.177 4.504 axis 0.716 -0.693 0.088 range 0 140
+bone hand_r forearm_r ball pivot 5.104 -5.177 4.504 end 8.600 -4.300 4.200 neutral 0.967 0.242 -0.084 fwd 0.082 0.020 0.996 side -0.243 0.970 0.000 swingx -25 25 swingy -10 10 twist -10 10
+bone thigh_l pelvis ball pivot -5.600 4.500 -3.000 end -6.073 6.600 -12.891 neutral 0.000 0.080 -0.997 fwd 1.000 0.000 0.000 side 0.000 0.997 0.080 swingx -25 65 swingy -20 45 twist -30 30
+bone shin_l thigh_l hinge pivot -6.073 6.600 -12.891 end -10.601 6.901 -20.328 axis -0.286 0.934 0.212 range 0 115
+bone foot_l shin_l ball pivot -10.601 6.901 -20.328 end -4.600 7.600 -23.400 neutral 0.885 0.103 -0.453 fwd 0.450 0.052 0.891 side -0.116 0.993 0.000 swingx -25 30 swingy -10 10 twist -12 12
+bone thigh_r pelvis ball pivot -4.200 -4.600 -3.000 end 2.173 -6.472 -11.109 neutral 0.000 -0.080 -0.997 fwd 1.000 0.000 0.000 side 0.000 -0.997 0.080 swingx -25 65 swingy -20 45 twist -30 30
+bone shin_r thigh_r hinge pivot 2.173 -6.472 -11.109 end 0.044 -6.554 -20.595 axis 0.214 0.975 -0.057 range 0 115
+bone foot_r shin_r ball pivot 0.044 -6.554 -20.595 end 7.400 -7.300 -23.400 neutral 0.930 -0.094 -0.355 fwd 0.353 -0.036 0.935 side -0.101 -0.995 0.000 swingx -25 30 swingy -10 10 twist -12 12
 bone weapon hand_r fixed pivot 8.600 -4.300 4.200 end 16.000 -2.000 4.000
-w 0 forearm_r 0.945 upperarm_r 0.055
-w 1 forearm_r 0.898 hand_r 0.102
-w 2 forearm_r 0.958 upperarm_r 0.042
-w 3 forearm_r 0.966 hand_r 0.034
-w 4 forearm_r 0.93 upperarm_r 0.07
-w 5 forearm_r 1
-w 6 forearm_r 0.951 upperarm_r 0.049
-w 7 forearm_r 0.954 hand_r 0.046
-w 8 forearm_r 0.898 hand_r 0.102
-w 9 forearm_r 0.931 upperarm_r 0.069
-w 10 forearm_r 0.958 upperarm_r 0.042
-w 11 forearm_r 0.861 hand_r 0.139
+w 0 forearm_r 0.799 hand_r 0.106 upperarm_r 0.095
+w 1 forearm_r 0.753 hand_r 0.213 upperarm_r 0.034
+w 2 forearm_r 0.821 hand_r 0.1 upperarm_r 0.079
+w 3 forearm_r 0.839 hand_r 0.123 upperarm_r 0.038
+w 4 forearm_r 0.951 upperarm_r 0.049
+w 5 forearm_r 0.925 hand_r 0.075
+w 6 forearm_r 0.844 upperarm_r 0.089 hand_r 0.067
+w 7 forearm_r 0.947 hand_r 0.053
+w 8 forearm_r 0.753 hand_r 0.213 upperarm_r 0.034
+w 9 forearm_r 0.914 upperarm_r 0.048 hand_r 0.038
+w 10 forearm_r 0.821 hand_r 0.1 upperarm_r 0.079
+w 11 forearm_r 0.891 hand_r 0.109
 w 12 forearm_r 0.939 hand_r 0.061
-w 13 forearm_r 0.952 upperarm_r 0.048
-w 14 forearm_r 0.908 hand_r 0.092
-w 15 forearm_r 0.824 hand_r 0.176
-w 16 forearm_r 0.63 hand_r 0.37
-w 17 hand_r 0.627 forearm_r 0.373
-w 18 hand_r 0.617 forearm_r 0.383
-w 19 forearm_r 0.886 hand_r 0.114
-w 20 forearm_r 0.829 hand_r 0.171
-w 21 forearm_r 0.928 hand_r 0.072
-w 22 forearm_r 0.82 hand_r 0.18
-w 23 hand_r 0.512 forearm_r 0.488
-w 24 forearm_r 0.67 hand_r 0.33
-w 25 forearm_r 0.827 hand_r 0.173
-w 26 forearm_r 0.559 hand_r 0.441
-w 27 forearm_r 0.803 hand_r 0.197
-w 28 hand_r 0.617 forearm_r 0.383
-w 29 hand_r 0.611 forearm_r 0.389
-w 30 forearm_r 0.75 hand_r 0.25
-w 31 forearm_r 0.794 hand_r 0.206
-w 32 hand_r 0.665 forearm_r 0.335
-w 33 hand_r 0.769 forearm_r 0.231
-w 34 hand_r 0.705 forearm_r 0.295
-w 35 hand_r 0.672 forearm_r 0.328
-w 36 pelvis 0.66 spine 0.161 thigh_l 0.114 thigh_r 0.065
-w 37 thigh_r 0.44 pelvis 0.325 thigh_l 0.235
-w 38 pelvis 0.547 spine 0.282 thigh_r 0.171
-w 39 thigh_l 0.427 thigh_r 0.308 pelvis 0.265
-w 40 spine 0.553 pelvis 0.403 thigh_r 0.044
-w 41 spine 0.586 pelvis 0.376 thigh_r 0.038
-w 42 pelvis 0.59 spine 0.29 thigh_r 0.12
-w 43 spine 0.596 pelvis 0.404
-w 44 pelvis 0.707 thigh_r 0.182 spine 0.111
-w 45 thigh_r 0.788 pelvis 0.103 shin_r 0.072 spine 0.037
-w 46 thigh_r 0.846 shin_r 0.101 pelvis 0.053
-w 47 thigh_r 0.774 shin_r 0.226
-w 48 thigh_r 0.785 shin_r 0.215
-w 49 thigh_r 0.817 shin_r 0.129 pelvis 0.054
-w 50 thigh_r 0.691 shin_r 0.309
-w 51 shin_r 0.689 thigh_r 0.311
-w 52 thigh_r 0.703 shin_r 0.201 foot_r 0.096
-w 53 thigh_r 0.707 shin_r 0.177 foot_r 0.116
-w 54 foot_r 0.757 shin_r 0.138 thigh_r 0.105
-w 55 foot_r 0.756 shin_r 0.156 thigh_r 0.088
-w 56 shin_r 0.613 foot_r 0.331 thigh_r 0.056
-w 57 foot_r 0.959 shin_r 0.041
-w 58 foot_r 0.948 shin_r 0.052
-w 59 spine 0.88 pelvis 0.084 chest 0.036
-w 60 spine 0.501 pelvis 0.499
-w 61 spine 0.926 pelvis 0.074
+w 13 forearm_r 1
+w 14 forearm_r 0.884 hand_r 0.116
+w 15 forearm_r 0.735 hand_r 0.265
+w 16 forearm_r 0.658 hand_r 0.342
+w 17 forearm_r 0.705 hand_r 0.295
+w 18 hand_r 0.701 forearm_r 0.299
+w 19 forearm_r 0.891 hand_r 0.109
+w 20 forearm_r 0.827 hand_r 0.173
+w 21 forearm_r 0.927 hand_r 0.073
+w 22 forearm_r 0.829 hand_r 0.171
+w 23 forearm_r 0.562 hand_r 0.438
+w 24 forearm_r 0.718 hand_r 0.282
+w 25 forearm_r 0.793 hand_r 0.207
+w 26 forearm_r 0.512 hand_r 0.488
+w 27 forearm_r 0.76 hand_r 0.24
+w 28 hand_r 0.701 forearm_r 0.299
+w 29 forearm_r 0.792 hand_r 0.208
+w 30 forearm_r 0.724 hand_r 0.276
+w 31 forearm_r 0.741 hand_r 0.259
+w 32 hand_r 0.915 forearm_r 0.085
+w 33 hand_r 0.942 forearm_r 0.058
+w 34 hand_r 0.928 forearm_r 0.072
+w 35 hand_r 0.917 forearm_r 0.083
+w 36 pelvis 0.671 spine 0.155 thigh_l 0.109 thigh_r 0.065
+w 37 thigh_r 0.437 pelvis 0.332 thigh_l 0.231
+w 38 pelvis 0.551 spine 0.279 thigh_r 0.17
+w 39 thigh_l 0.427 thigh_r 0.307 pelvis 0.266
+w 40 spine 0.55 pelvis 0.407 thigh_r 0.043
+w 41 spine 0.582 pelvis 0.38 thigh_r 0.038
+w 42 pelvis 0.593 spine 0.288 thigh_r 0.119
+w 43 spine 0.591 pelvis 0.409
+w 44 pelvis 0.71 thigh_r 0.181 spine 0.109
+w 45 thigh_r 0.775 pelvis 0.103 shin_r 0.085 spine 0.037
+w 46 thigh_r 0.825 shin_r 0.121 pelvis 0.054
+w 47 thigh_r 0.732 shin_r 0.268
+w 48 thigh_r 0.717 shin_r 0.252 foot_r 0.031
+w 49 thigh_r 0.803 shin_r 0.143 pelvis 0.054
+w 50 thigh_r 0.655 shin_r 0.345
+w 51 shin_r 0.64 thigh_r 0.36
+w 52 thigh_r 0.693 shin_r 0.198 foot_r 0.109
+w 53 thigh_r 0.693 shin_r 0.172 foot_r 0.135
+w 54 foot_r 0.891 shin_r 0.06 thigh_r 0.049
+w 55 foot_r 0.891 shin_r 0.069 thigh_r 0.04
+w 56 shin_r 0.603 foot_r 0.344 thigh_r 0.053
+w 57 foot_r 1
+w 58 foot_r 1
+w 59 spine 0.895 pelvis 0.105
+w 60 pelvis 0.517 spine 0.483
+w 61 spine 0.922 pelvis 0.078
 w 62 foot_r 1
 w 63 foot_r 1
 w 64 foot_r 1
-w 65 foot_r 0.915 shin_r 0.085
+w 65 foot_r 0.967 shin_r 0.033
 w 66 foot_r 1
-w 67 foot_r 0.934 shin_r 0.066
-w 68 shin_r 0.874 thigh_r 0.071 foot_r 0.055
+w 67 foot_r 1
+w 68 shin_r 0.875 thigh_r 0.068 foot_r 0.057
 w 69 shin_r 1
-w 70 shin_r 0.871 foot_r 0.066 thigh_r 0.063
-w 71 shin_r 0.968 foot_r 0.032
-w 72 foot_r 0.902 shin_r 0.098
-w 73 shin_r 0.894 foot_r 0.106
-w 74 foot_r 0.934 shin_r 0.066
-w 75 shin_r 0.576 foot_r 0.391 thigh_r 0.033
-w 76 shin_r 0.602 thigh_r 0.342 foot_r 0.056
-w 77 shin_r 0.894 foot_r 0.106
-w 78 shin_r 0.928 foot_r 0.072
-w 79 shin_r 0.602 thigh_r 0.342 foot_r 0.056
-w 80 shin_r 0.576 foot_r 0.391 thigh_r 0.033
-w 81 thigh_r 0.585 shin_r 0.415
-w 82 spine 0.894 chest 0.069 pelvis 0.037
-w 83 spine 0.866 chest 0.095 pelvis 0.039
-w 84 spine 0.882 pelvis 0.083 chest 0.035
-w 85 spine 0.884 pelvis 0.084 chest 0.032
+w 70 shin_r 0.87 foot_r 0.068 thigh_r 0.062
+w 71 shin_r 0.967 foot_r 0.033
+w 72 foot_r 0.96 shin_r 0.04
+w 73 shin_r 0.889 foot_r 0.111
+w 74 foot_r 1
+w 75 shin_r 0.564 foot_r 0.405 thigh_r 0.031
+w 76 shin_r 0.562 thigh_r 0.376 foot_r 0.062
+w 77 shin_r 0.889 foot_r 0.111
+w 78 shin_r 0.924 foot_r 0.076
+w 79 shin_r 0.562 thigh_r 0.376 foot_r 0.062
+w 80 shin_r 0.564 foot_r 0.405 thigh_r 0.031
+w 81 thigh_r 0.548 shin_r 0.452
+w 82 spine 0.923 pelvis 0.044 chest 0.033
+w 83 spine 0.882 pelvis 0.065 chest 0.053
+w 84 spine 0.911 pelvis 0.089
+w 85 spine 0.897 pelvis 0.103
 w 86 pelvis 0.709 spine 0.291
 w 87 pelvis 0.908 spine 0.092
-w 88 pelvis 0.853 thigh_l 0.093 spine 0.054
-w 89 pelvis 0.634 spine 0.366
-w 90 spine 0.862 chest 0.104 pelvis 0.034
-w 91 spine 0.914 chest 0.086
-w 92 spine 0.852 chest 0.084 pelvis 0.064
-w 93 spine 0.749 pelvis 0.251
-w 94 spine 0.845 chest 0.102 pelvis 0.053
-w 95 spine 0.789 pelvis 0.211
-w 96 pelvis 0.897 spine 0.103
-w 97 pelvis 0.729 spine 0.271
-w 98 thigh_r 0.817 shin_r 0.129 pelvis 0.054
+w 88 pelvis 0.836 thigh_l 0.11 spine 0.054
+w 89 pelvis 0.636 spine 0.364
+w 90 spine 0.905 chest 0.051 pelvis 0.044
+w 91 spine 0.78 upperarm_r 0.074 pelvis 0.074 chest 0.072
+w 92 spine 0.849 pelvis 0.076 chest 0.075
+w 93 spine 0.746 pelvis 0.254
+w 94 spine 0.859 chest 0.083 pelvis 0.058
+w 95 spine 0.778 pelvis 0.222
+w 96 pelvis 0.898 spine 0.102
+w 97 pelvis 0.731 spine 0.269
+w 98 thigh_r 0.803 shin_r 0.143 pelvis 0.054
 w 99 pelvis 0.768 thigh_r 0.199 spine 0.033
-w 100 pelvis 0.707 thigh_r 0.182 spine 0.111
-w 101 thigh_r 0.489 shin_r 0.435 pelvis 0.076
-w 102 pelvis 0.877 thigh_r 0.123
-w 103 shin_r 0.496 thigh_r 0.452 pelvis 0.052
-w 104 thigh_r 0.51 shin_r 0.49
-w 105 shin_r 0.526 thigh_r 0.474
-w 106 thigh_r 0.671 shin_r 0.329
-w 107 thigh_r 0.836 shin_r 0.129 pelvis 0.035
-w 108 thigh_r 0.671 shin_r 0.329
-w 109 shin_r 0.689 thigh_r 0.311
-w 110 thigh_r 0.538 shin_r 0.462
-w 111 thigh_r 0.691 shin_r 0.309
-w 112 foot_r 0.915 shin_r 0.085
-w 113 foot_r 0.942 shin_r 0.058
-w 114 shin_r 0.928 foot_r 0.072
-w 115 pelvis 0.677 thigh_l 0.186 thigh_r 0.137
-w 116 spine 0.775 chest 0.225
-w 117 spine 0.744 chest 0.256
-w 118 spine 0.864 pelvis 0.069 chest 0.067
-w 119 spine 0.722 pelvis 0.278
-w 120 pelvis 0.557 thigh_l 0.323 thigh_r 0.083 shin_l 0.037
-w 121 spine 0.783 chest 0.217
-w 122 spine 0.884 pelvis 0.084 chest 0.032
-w 123 spine 0.914 chest 0.086
-w 124 shin_r 0.613 foot_r 0.331 thigh_r 0.056
-w 125 pelvis 0.619 spine 0.381
-w 126 spine 0.596 pelvis 0.404
-w 127 thigh_r 0.836 shin_r 0.129 pelvis 0.035
-w 128 thigh_r 0.44 pelvis 0.325 thigh_l 0.235
-w 129 thigh_l 0.427 thigh_r 0.308 pelvis 0.265
+w 100 pelvis 0.71 thigh_r 0.181 spine 0.109
+w 101 thigh_r 0.493 shin_r 0.431 pelvis 0.076
+w 102 pelvis 0.846 thigh_r 0.12 thigh_l 0.034
+w 103 shin_r 0.482 thigh_r 0.466 pelvis 0.052
+w 104 thigh_r 0.515 shin_r 0.485
+w 105 shin_r 0.517 thigh_r 0.483
+w 106 thigh_r 0.637 shin_r 0.363
+w 107 thigh_r 0.782 shin_r 0.183 pelvis 0.035
+w 108 thigh_r 0.637 shin_r 0.363
+w 109 shin_r 0.64 thigh_r 0.36
+w 110 thigh_r 0.515 shin_r 0.485
+w 111 thigh_r 0.655 shin_r 0.345
+w 112 foot_r 0.967 shin_r 0.033
+w 113 foot_r 1
+w 114 shin_r 0.924 foot_r 0.076
+w 115 pelvis 0.658 thigh_l 0.207 thigh_r 0.135
+w 116 spine 0.77 chest 0.185 pelvis 0.045
+w 117 spine 0.772 chest 0.195 pelvis 0.033
+w 118 spine 0.791 pelvis 0.131 chest 0.078
+w 119 spine 0.71 pelvis 0.29
+w 120 pelvis 0.519 thigh_l 0.367 thigh_r 0.082 shin_l 0.032
+w 121 spine 0.71 chest 0.141 pelvis 0.079 upperarm_r 0.07
+w 122 spine 0.897 pelvis 0.103
+w 123 spine 0.78 upperarm_r 0.074 pelvis 0.074 chest 0.072
+w 124 shin_r 0.603 foot_r 0.344 thigh_r 0.053
+w 125 pelvis 0.622 spine 0.378
+w 126 spine 0.591 pelvis 0.409
+w 127 thigh_r 0.782 shin_r 0.183 pelvis 0.035
+w 128 thigh_r 0.437 pelvis 0.332 thigh_l 0.231
+w 129 thigh_l 0.427 thigh_r 0.307 pelvis 0.266
 w 130 shin_r 1
 w 131 shin_r 1
-w 132 shin_r 0.928 foot_r 0.072
-w 133 shin_r 0.894 foot_r 0.106
+w 132 shin_r 0.924 foot_r 0.076
+w 133 shin_r 0.889 foot_r 0.111
 w 134 shin_r 1
 w 135 shin_r 1
-w 136 pelvis 0.83 spine 0.132 thigh_r 0.038
+w 136 pelvis 0.831 spine 0.131 thigh_r 0.038
 w 137 pelvis 0.842 thigh_r 0.158
 w 138 pelvis 0.914 thigh_r 0.086
-w 139 chest 0.551 spine 0.369 clavicle_r 0.08
-w 140 chest 0.624 spine 0.287 clavicle_r 0.052 upperarm_l 0.037
-w 141 pelvis 0.766 spine 0.234
+w 139 spine 0.643 chest 0.216 clavicle_r 0.078 upperarm_r 0.063
+w 140 spine 0.545 chest 0.289 upperarm_l 0.109 clavicle_r 0.057
+w 141 pelvis 0.767 spine 0.233
 w 142 pelvis 0.878 spine 0.082 thigh_r 0.04
-w 143 chest 0.497 spine 0.292 clavicle_r 0.129 upperarm_r 0.082
-w 144 clavicle_r 0.427 chest 0.423 spine 0.103 upperarm_r 0.047
-w 145 chest 0.732 clavicle_r 0.102 clavicle_l 0.093 upperarm_l 0.073
-w 146 chest 0.556 upperarm_r 0.197 clavicle_r 0.159 spine 0.088
-w 147 clavicle_r 0.574 chest 0.392 neck 0.034
-w 148 clavicle_r 0.597 chest 0.308 clavicle_l 0.054 neck 0.041
-w 149 chest 0.847 clavicle_r 0.153
-w 150 chest 0.509 upperarm_r 0.223 clavicle_r 0.219 spine 0.049
-w 151 clavicle_r 0.537 chest 0.264 upperarm_r 0.199
-w 152 chest 0.654 clavicle_r 0.225 upperarm_r 0.121
-w 153 chest 0.721 clavicle_r 0.279
-w 154 clavicle_r 0.5 chest 0.302 neck 0.158 clavicle_l 0.04
-w 155 neck 0.651 chest 0.161 head 0.142 clavicle_r 0.046
-w 156 clavicle_l 0.429 chest 0.342 neck 0.137 clavicle_r 0.092
-w 157 neck 0.624 head 0.215 chest 0.161
-w 158 upperarm_r 0.412 clavicle_r 0.386 chest 0.161 spine 0.041
-w 159 chest 0.66 clavicle_r 0.304 upperarm_r 0.036
-w 160 chest 0.713 spine 0.173 clavicle_r 0.114
-w 161 chest 0.59 clavicle_r 0.22 upperarm_r 0.151 spine 0.039
-w 162 chest 0.718 spine 0.161 upperarm_l 0.072 clavicle_l 0.049
-w 163 chest 0.617 spine 0.134 clavicle_r 0.126 upperarm_r 0.123
-w 164 neck 0.713 head 0.287
-w 165 neck 0.665 head 0.335
-w 166 chest 0.759 clavicle_r 0.2 upperarm_r 0.041
-w 167 chest 0.845 neck 0.062 clavicle_r 0.061 head 0.032
-w 168 chest 0.759 clavicle_r 0.2 upperarm_r 0.041
-w 169 chest 0.845 neck 0.062 clavicle_r 0.061 head 0.032
-w 170 upperarm_r 0.765 clavicle_r 0.205 chest 0.03
-w 171 clavicle_r 0.654 upperarm_r 0.226 chest 0.12
-w 172 upperarm_r 0.873 clavicle_r 0.127
-w 173 upperarm_r 0.522 clavicle_r 0.411 chest 0.067
-w 174 upperarm_r 0.81 clavicle_r 0.19
-w 175 clavicle_r 0.526 upperarm_r 0.427 chest 0.047
-w 176 upperarm_r 0.632 clavicle_r 0.323 chest 0.045
-w 177 upperarm_r 0.448 clavicle_r 0.391 chest 0.161
-w 178 upperarm_r 0.873 clavicle_r 0.127
-w 179 chest 0.556 upperarm_r 0.197 clavicle_r 0.159 spine 0.088
-w 180 clavicle_r 0.698 chest 0.228 upperarm_r 0.074
-w 181 clavicle_r 0.601 upperarm_r 0.276 chest 0.123
-w 182 clavicle_r 0.739 chest 0.198 upperarm_r 0.063
-w 183 clavicle_r 0.704 upperarm_r 0.24 chest 0.056
-w 184 upperarm_r 0.742 clavicle_r 0.258
-w 185 upperarm_r 0.902 forearm_r 0.052 clavicle_r 0.046
-w 186 upperarm_r 0.877 clavicle_r 0.123
-w 187 upperarm_r 0.84 forearm_r 0.094 clavicle_r 0.066
-w 188 upperarm_r 0.873 clavicle_r 0.127
-w 189 upperarm_r 0.9 forearm_r 0.052 clavicle_r 0.048
-w 190 upperarm_r 0.634 clavicle_r 0.334 chest 0.032
-w 191 upperarm_r 0.94 forearm_r 0.06
-w 192 upperarm_r 0.909 forearm_r 0.091
-w 193 upperarm_r 0.953 clavicle_r 0.047
-w 194 upperarm_r 0.601 clavicle_r 0.399
-w 195 upperarm_r 0.803 forearm_r 0.139 clavicle_r 0.058
-w 196 upperarm_r 0.803 forearm_r 0.139 clavicle_r 0.058
-w 197 upperarm_r 0.601 clavicle_r 0.399
-w 198 upperarm_r 0.877 forearm_r 0.123
-w 199 upperarm_r 0.827 forearm_r 0.173
-w 200 upperarm_r 0.788 forearm_r 0.212
-w 201 upperarm_r 0.852 forearm_r 0.148
-w 202 upperarm_r 0.486 clavicle_r 0.392 chest 0.122
-w 203 chest 0.717 clavicle_r 0.137 neck 0.082 head 0.064
-w 204 clavicle_r 0.748 chest 0.157 neck 0.095
-w 205 chest 0.795 head 0.111 neck 0.094
-w 206 chest 0.795 head 0.111 neck 0.094
-w 207 neck 0.57 head 0.394 chest 0.036
+w 143 spine 0.466 chest 0.239 upperarm_r 0.15 clavicle_r 0.145
+w 144 spine 0.375 chest 0.336 clavicle_r 0.183 neck 0.106
+w 145 chest 0.425 spine 0.289 upperarm_l 0.158 neck 0.128
+w 146 upperarm_r 0.358 clavicle_r 0.221 chest 0.215 spine 0.206
+w 147 chest 0.424 clavicle_r 0.31 spine 0.142 upperarm_r 0.124
+w 148 chest 0.414 clavicle_r 0.254 head 0.216 neck 0.116
+w 149 chest 0.489 clavicle_r 0.205 head 0.197 neck 0.109
+w 150 chest 0.359 spine 0.243 clavicle_r 0.215 upperarm_r 0.183
+w 151 clavicle_r 0.302 chest 0.293 upperarm_r 0.245 spine 0.16
+w 152 chest 0.414 clavicle_r 0.244 upperarm_r 0.184 spine 0.158
+w 153 chest 0.426 clavicle_r 0.308 upperarm_r 0.172 head 0.094
+w 154 chest 0.355 neck 0.236 head 0.215 clavicle_r 0.194
+w 155 head 0.36 neck 0.343 chest 0.251 clavicle_r 0.046
+w 156 chest 0.407 neck 0.221 head 0.211 clavicle_l 0.161
+w 157 head 0.419 neck 0.355 chest 0.175 clavicle_r 0.051
+w 158 upperarm_r 0.346 clavicle_r 0.277 chest 0.205 spine 0.172
+w 159 chest 0.374 clavicle_r 0.298 upperarm_r 0.191 spine 0.137
+w 160 spine 0.382 chest 0.34 clavicle_r 0.153 upperarm_r 0.125
+w 161 chest 0.291 upperarm_r 0.272 clavicle_r 0.251 spine 0.186
+w 162 spine 0.4 chest 0.356 upperarm_l 0.168 clavicle_l 0.076
+w 163 spine 0.3 upperarm_r 0.256 chest 0.255 clavicle_r 0.189
+w 164 neck 0.484 head 0.42 chest 0.096
+w 165 neck 0.719 head 0.281
+w 166 chest 0.436 clavicle_r 0.276 upperarm_r 0.179 head 0.109
+w 167 chest 0.463 head 0.227 neck 0.167 clavicle_r 0.143
+w 168 chest 0.436 clavicle_r 0.276 upperarm_r 0.179 head 0.109
+w 169 chest 0.463 head 0.227 neck 0.167 clavicle_r 0.143
+w 170 upperarm_r 0.562 clavicle_r 0.239 chest 0.117 forearm_r 0.082
+w 171 clavicle_r 0.357 upperarm_r 0.337 chest 0.21 spine 0.096
+w 172 upperarm_r 0.6 clavicle_r 0.224 chest 0.105 forearm_r 0.071
+w 173 upperarm_r 0.456 clavicle_r 0.294 chest 0.152 spine 0.098
+w 174 upperarm_r 0.581 clavicle_r 0.238 chest 0.105 forearm_r 0.076
+w 175 upperarm_r 0.422 clavicle_r 0.336 chest 0.167 spine 0.075
+w 176 upperarm_r 0.54 clavicle_r 0.265 chest 0.114 forearm_r 0.081
+w 177 upperarm_r 0.427 clavicle_r 0.269 chest 0.167 spine 0.137
+w 178 upperarm_r 0.6 clavicle_r 0.224 chest 0.105 forearm_r 0.071
+w 179 upperarm_r 0.358 clavicle_r 0.221 chest 0.215 spine 0.206
+w 180 clavicle_r 0.371 chest 0.271 upperarm_r 0.246 spine 0.112
+w 181 clavicle_r 0.343 upperarm_r 0.333 chest 0.22 spine 0.104
+w 182 clavicle_r 0.399 chest 0.279 upperarm_r 0.236 spine 0.086
+w 183 clavicle_r 0.401 upperarm_r 0.336 chest 0.198 spine 0.065
+w 184 upperarm_r 0.561 clavicle_r 0.226 forearm_r 0.133 chest 0.08
+w 185 upperarm_r 0.547 forearm_r 0.282 clavicle_r 0.126 chest 0.045
+w 186 upperarm_r 0.605 clavicle_r 0.194 forearm_r 0.125 chest 0.076
+w 187 upperarm_r 0.514 forearm_r 0.309 clavicle_r 0.132 chest 0.045
+w 188 upperarm_r 0.602 clavicle_r 0.193 forearm_r 0.122 chest 0.083
+w 189 upperarm_r 0.532 forearm_r 0.303 clavicle_r 0.12 chest 0.045
+w 190 upperarm_r 0.524 clavicle_r 0.245 forearm_r 0.128 chest 0.103
+w 191 upperarm_r 0.534 forearm_r 0.324 clavicle_r 0.102 chest 0.04
+w 192 upperarm_r 0.515 forearm_r 0.347 clavicle_r 0.1 chest 0.038
+w 193 upperarm_r 0.643 clavicle_r 0.176 forearm_r 0.104 chest 0.077
+w 194 upperarm_r 0.511 clavicle_r 0.274 forearm_r 0.121 chest 0.094
+w 195 upperarm_r 0.454 forearm_r 0.389 clavicle_r 0.117 chest 0.04
+w 196 upperarm_r 0.454 forearm_r 0.389 clavicle_r 0.117 chest 0.04
+w 197 upperarm_r 0.511 clavicle_r 0.274 forearm_r 0.121 chest 0.094
+w 198 upperarm_r 0.476 forearm_r 0.403 clavicle_r 0.088 chest 0.033
+w 199 forearm_r 0.48 upperarm_r 0.445 clavicle_r 0.075
+w 200 forearm_r 0.444 upperarm_r 0.432 clavicle_r 0.089 hand_r 0.035
+w 201 upperarm_r 0.467 forearm_r 0.41 clavicle_r 0.091 chest 0.032
+w 202 upperarm_r 0.476 clavicle_r 0.28 chest 0.133 spine 0.111
+w 203 chest 0.404 head 0.31 clavicle_r 0.154 neck 0.132
+w 204 chest 0.307 head 0.296 clavicle_r 0.266 neck 0.131
+w 205 chest 0.401 head 0.325 neck 0.173 clavicle_r 0.101
+w 206 chest 0.401 head 0.325 neck 0.173 clavicle_r 0.101
+w 207 head 0.471 neck 0.463 chest 0.066
 w 208 head 1
-w 209 head 0.878 neck 0.122
-w 210 head 0.743 neck 0.257
-w 211 head 0.967 neck 0.033
+w 209 head 0.775 neck 0.165 chest 0.06
+w 210 head 0.711 neck 0.252 chest 0.037
+w 211 head 0.872 neck 0.084 chest 0.044
 w 212 head 1
 w 213 head 1
 w 214 head 1
 w 215 head 1
 w 216 head 1
-w 217 head 0.962 neck 0.038
-w 218 head 0.919 neck 0.081
-w 219 head 0.811 neck 0.129 chest 0.06
-w 220 neck 0.595 clavicle_r 0.158 head 0.139 chest 0.108
-w 221 neck 0.373 head 0.309 chest 0.269 clavicle_r 0.049
-w 222 chest 0.717 clavicle_r 0.137 neck 0.082 head 0.064
-w 223 clavicle_r 0.748 chest 0.157 neck 0.095
-w 224 head 0.768 neck 0.118 chest 0.114
+w 217 head 1
+w 218 head 1
+w 219 head 0.968 chest 0.032
+w 220 head 0.473 chest 0.212 neck 0.189 clavicle_r 0.126
+w 221 head 0.508 chest 0.244 neck 0.159 clavicle_r 0.089
+w 222 chest 0.404 head 0.31 clavicle_r 0.154 neck 0.132
+w 223 chest 0.307 head 0.296 clavicle_r 0.266 neck 0.131
+w 224 head 0.788 chest 0.113 neck 0.099
 w 225 head 1
 w 226 head 1
-w 227 head 0.889 neck 0.111
-w 228 head 0.849 neck 0.151
+w 227 head 0.964 neck 0.036
+w 228 head 0.926 neck 0.074
 w 229 head 1
-w 230 neck 0.624 head 0.215 chest 0.161
-w 231 chest 0.795 head 0.111 neck 0.094
-w 232 head 0.965 neck 0.035
-w 233 head 0.81 neck 0.19
+w 230 head 0.419 neck 0.355 chest 0.175 clavicle_r 0.051
+w 231 chest 0.401 head 0.325 neck 0.173 clavicle_r 0.101
+w 232 head 1
+w 233 head 0.868 neck 0.132
 w 234 head 1
 w 235 head 1
 w 236 head 1
-w 237 forearm_r 0.931 upperarm_r 0.069
-w 238 forearm_r 0.952 upperarm_r 0.048
-w 239 forearm_r 0.958 upperarm_r 0.042
-w 240 forearm_r 0.945 upperarm_r 0.055
-w 241 forearm_r 0.93 upperarm_r 0.07
-w 242 forearm_r 0.951 upperarm_r 0.049
-w 243 forearm_r 0.951 upperarm_r 0.049
-w 244 upperarm_r 0.877 clavicle_r 0.123
-w 245 upperarm_r 0.742 clavicle_r 0.258
-w 246 upperarm_r 0.634 clavicle_r 0.334 chest 0.032
-w 247 upperarm_r 0.873 clavicle_r 0.127
-w 248 upperarm_r 0.953 clavicle_r 0.047
-w 249 upperarm_r 0.953 clavicle_r 0.047
-w 250 upperarm_r 0.601 clavicle_r 0.399
-w 251 upperarm_r 0.601 clavicle_r 0.399
-w 252 upperarm_r 0.486 clavicle_r 0.392 chest 0.122
-w 253 head 0.952 neck 0.048
+w 237 forearm_r 0.914 upperarm_r 0.048 hand_r 0.038
+w 238 forearm_r 1
+w 239 forearm_r 0.821 hand_r 0.1 upperarm_r 0.079
+w 240 forearm_r 0.799 hand_r 0.106 upperarm_r 0.095
+w 241 forearm_r 0.951 upperarm_r 0.049
+w 242 forearm_r 0.844 upperarm_r 0.089 hand_r 0.067
+w 243 forearm_r 0.844 upperarm_r 0.089 hand_r 0.067
+w 244 upperarm_r 0.605 clavicle_r 0.194 forearm_r 0.125 chest 0.076
+w 245 upperarm_r 0.561 clavicle_r 0.226 forearm_r 0.133 chest 0.08
+w 246 upperarm_r 0.524 clavicle_r 0.245 forearm_r 0.128 chest 0.103
+w 247 upperarm_r 0.602 clavicle_r 0.193 forearm_r 0.122 chest 0.083
+w 248 upperarm_r 0.643 clavicle_r 0.176 forearm_r 0.104 chest 0.077
+w 249 upperarm_r 0.643 clavicle_r 0.176 forearm_r 0.104 chest 0.077
+w 250 upperarm_r 0.511 clavicle_r 0.274 forearm_r 0.121 chest 0.094
+w 251 upperarm_r 0.511 clavicle_r 0.274 forearm_r 0.121 chest 0.094
+w 252 upperarm_r 0.476 clavicle_r 0.28 chest 0.133 spine 0.111
+w 253 head 1
 w 254 head 1
-w 255 neck 0.57 head 0.394 chest 0.036
-w 256 pelvis 0.508 spine 0.492
-w 257 pelvis 0.732 spine 0.174 thigh_l 0.094
-w 258 pelvis 0.551 spine 0.449
-w 259 pelvis 0.718 thigh_l 0.206 spine 0.076
-w 260 thigh_l 0.746 shin_l 0.133 pelvis 0.121
-w 261 thigh_l 0.785 shin_l 0.154 pelvis 0.061
-w 262 thigh_l 0.625 shin_l 0.375
-w 263 thigh_l 0.648 shin_l 0.352
-w 264 thigh_l 0.656 shin_l 0.299 pelvis 0.045
-w 265 shin_l 0.545 thigh_l 0.455
-w 266 shin_l 0.81 thigh_l 0.19
-w 267 thigh_l 0.646 shin_l 0.257 foot_l 0.097
-w 268 thigh_l 0.641 shin_l 0.229 foot_l 0.13
-w 269 foot_l 0.736 shin_l 0.162 thigh_l 0.102
-w 270 foot_l 0.758 shin_l 0.165 thigh_l 0.077
-w 271 shin_l 0.697 foot_l 0.26 thigh_l 0.043
-w 272 foot_l 0.955 shin_l 0.045
-w 273 foot_l 0.949 shin_l 0.051
-w 274 foot_l 0.969 shin_l 0.031
+w 255 head 0.471 neck 0.463 chest 0.066
+w 256 pelvis 0.528 spine 0.472
+w 257 pelvis 0.739 spine 0.167 thigh_l 0.094
+w 258 pelvis 0.538 spine 0.429 thigh_l 0.033
+w 259 pelvis 0.693 thigh_l 0.233 spine 0.074
+w 260 thigh_l 0.756 shin_l 0.124 pelvis 0.12
+w 261 thigh_l 0.796 shin_l 0.142 pelvis 0.062
+w 262 thigh_l 0.66 shin_l 0.34
+w 263 thigh_l 0.66 shin_l 0.308 foot_l 0.032
+w 264 thigh_l 0.668 shin_l 0.289 pelvis 0.043
+w 265 thigh_l 0.528 shin_l 0.472
+w 266 shin_l 0.707 thigh_l 0.293
+w 267 thigh_l 0.669 shin_l 0.231 foot_l 0.1
+w 268 thigh_l 0.66 shin_l 0.197 foot_l 0.143
+w 269 foot_l 0.768 shin_l 0.134 thigh_l 0.098
+w 270 foot_l 0.881 shin_l 0.075 thigh_l 0.044
+w 271 shin_l 0.7 foot_l 0.249 thigh_l 0.051
+w 272 foot_l 1
+w 273 foot_l 1
+w 274 foot_l 1
 w 275 foot_l 1
 w 276 foot_l 1
-w 277 foot_l 0.908 shin_l 0.092
-w 278 foot_l 0.933 shin_l 0.067
-w 279 foot_l 0.969 shin_l 0.031
-w 280 shin_l 0.902 foot_l 0.052 thigh_l 0.046
+w 277 foot_l 0.964 shin_l 0.036
+w 278 foot_l 1
+w 279 foot_l 1
+w 280 shin_l 0.895 thigh_l 0.055 foot_l 0.05
 w 281 shin_l 1
 w 282 shin_l 1
-w 283 shin_l 0.88 foot_l 0.083 thigh_l 0.037
-w 284 foot_l 0.902 shin_l 0.098
-w 285 shin_l 0.885 foot_l 0.115
-w 286 shin_l 0.511 foot_l 0.489
-w 287 foot_l 0.933 shin_l 0.067
-w 288 shin_l 0.758 thigh_l 0.175 foot_l 0.067
-w 289 shin_l 0.885 foot_l 0.115
-w 290 shin_l 0.935 foot_l 0.065
-w 291 shin_l 0.758 thigh_l 0.175 foot_l 0.067
-w 292 shin_l 0.615 thigh_l 0.385
-w 293 shin_l 0.511 foot_l 0.489
-w 294 spine 0.869 pelvis 0.095 chest 0.036
-w 295 spine 0.851 pelvis 0.114 chest 0.035
-w 296 spine 0.867 chest 0.09 pelvis 0.043
-w 297 spine 0.867 chest 0.094 pelvis 0.039
-w 298 pelvis 0.866 thigh_l 0.069 spine 0.065
+w 283 shin_l 0.866 foot_l 0.086 thigh_l 0.048
+w 284 foot_l 0.96 shin_l 0.04
+w 285 shin_l 0.879 foot_l 0.121
+w 286 foot_l 0.513 shin_l 0.487
+w 287 foot_l 1
+w 288 shin_l 0.656 thigh_l 0.27 foot_l 0.074
+w 289 shin_l 0.879 foot_l 0.121
+w 290 shin_l 0.933 foot_l 0.067
+w 291 shin_l 0.656 thigh_l 0.27 foot_l 0.074
+w 292 shin_l 0.546 thigh_l 0.454
+w 293 foot_l 0.513 shin_l 0.487
+w 294 spine 0.755 pelvis 0.197 chest 0.048
+w 295 spine 0.828 pelvis 0.138 chest 0.034
+w 296 spine 0.736 pelvis 0.128 chest 0.085 upperarm_l 0.051
+w 297 spine 0.727 chest 0.101 pelvis 0.097 upperarm_l 0.075
+w 298 pelvis 0.852 thigh_l 0.083 spine 0.065
 w 299 pelvis 0.823 spine 0.177
-w 300 thigh_l 0.656 shin_l 0.299 pelvis 0.045
-w 301 pelvis 0.552 thigh_l 0.408 shin_l 0.04
-w 302 shin_l 0.695 thigh_l 0.247 pelvis 0.058
-w 303 pelvis 0.718 thigh_l 0.206 spine 0.076
-w 304 pelvis 0.561 thigh_l 0.389 shin_l 0.05
-w 305 shin_l 0.688 thigh_l 0.271 pelvis 0.041
-w 306 shin_l 0.753 thigh_l 0.247
-w 307 shin_l 0.735 thigh_l 0.265
-w 308 thigh_l 0.538 shin_l 0.462
-w 309 thigh_l 0.796 shin_l 0.17 pelvis 0.034
-w 310 thigh_l 0.538 shin_l 0.462
-w 311 shin_l 0.81 thigh_l 0.19
-w 312 shin_l 0.545 thigh_l 0.455
-w 313 shin_l 0.643 thigh_l 0.357
-w 314 foot_l 0.908 shin_l 0.092
-w 315 shin_l 0.935 foot_l 0.065
-w 316 foot_l 0.934 shin_l 0.066
-w 317 spine 0.847 pelvis 0.08 chest 0.073
-w 318 spine 0.61 pelvis 0.39
-w 319 spine 0.766 chest 0.201 pelvis 0.033
-w 320 spine 0.851 pelvis 0.114 chest 0.035
-w 321 spine 0.867 chest 0.094 pelvis 0.039
-w 322 shin_l 0.697 foot_l 0.26 thigh_l 0.043
+w 300 thigh_l 0.668 shin_l 0.289 pelvis 0.043
+w 301 pelvis 0.491 thigh_l 0.474 shin_l 0.035
+w 302 shin_l 0.577 thigh_l 0.371 pelvis 0.052
+w 303 pelvis 0.693 thigh_l 0.233 spine 0.074
+w 304 pelvis 0.494 thigh_l 0.464 shin_l 0.042
+w 305 shin_l 0.571 thigh_l 0.392 pelvis 0.037
+w 306 shin_l 0.629 thigh_l 0.371
+w 307 shin_l 0.612 thigh_l 0.388
+w 308 thigh_l 0.591 shin_l 0.409
+w 309 thigh_l 0.791 shin_l 0.176 pelvis 0.033
+w 310 thigh_l 0.591 shin_l 0.409
+w 311 shin_l 0.707 thigh_l 0.293
+w 312 thigh_l 0.528 shin_l 0.472
+w 313 shin_l 0.566 thigh_l 0.434
+w 314 foot_l 0.964 shin_l 0.036
+w 315 shin_l 0.933 foot_l 0.067
+w 316 foot_l 1
+w 317 spine 0.86 pelvis 0.086 chest 0.054
+w 318 spine 0.607 pelvis 0.393
+w 319 spine 0.778 chest 0.138 pelvis 0.043 upperarm_l 0.041
+w 320 spine 0.828 pelvis 0.138 chest 0.034
+w 321 spine 0.727 chest 0.101 pelvis 0.097 upperarm_l 0.075
+w 322 shin_l 0.7 foot_l 0.249 thigh_l 0.051
 w 323 pelvis 0.779 spine 0.221
-w 324 pelvis 0.551 spine 0.449
-w 325 thigh_l 0.796 shin_l 0.17 pelvis 0.034
+w 324 pelvis 0.538 spine 0.429 thigh_l 0.033
+w 325 thigh_l 0.791 shin_l 0.176 pelvis 0.033
 w 326 shin_l 1
 w 327 shin_l 1
-w 328 shin_l 0.935 foot_l 0.065
-w 329 shin_l 0.885 foot_l 0.115
+w 328 shin_l 0.933 foot_l 0.067
+w 329 shin_l 0.879 foot_l 0.121
 w 330 shin_l 1
 w 331 shin_l 1
-w 332 pelvis 0.859 spine 0.074 thigh_l 0.067
-w 333 pelvis 0.582 thigh_l 0.418
-w 334 pelvis 0.617 thigh_l 0.383
-w 335 pelvis 0.858 spine 0.11 thigh_l 0.032
-w 336 pelvis 0.863 thigh_l 0.096 spine 0.041
-w 337 chest 0.561 spine 0.217 upperarm_l 0.156 clavicle_l 0.066
+w 332 pelvis 0.848 thigh_l 0.078 spine 0.074
+w 333 pelvis 0.504 thigh_l 0.496
+w 334 pelvis 0.538 thigh_l 0.462
+w 335 pelvis 0.853 spine 0.109 thigh_l 0.038
+w 336 pelvis 0.846 thigh_l 0.113 spine 0.041
+w 337 spine 0.361 chest 0.307 upperarm_l 0.249 clavicle_l 0.083
 w 338 head 1
-w 339 chest 0.673 spine 0.166 upperarm_l 0.161
-w 340 chest 0.527 upperarm_l 0.294 clavicle_l 0.146 spine 0.033
-w 341 chest 0.594 clavicle_l 0.199 upperarm_l 0.175 neck 0.032
-w 342 upperarm_l 0.427 clavicle_l 0.385 chest 0.188
-w 343 chest 0.585 clavicle_l 0.24 upperarm_l 0.124 neck 0.051
-w 344 clavicle_l 0.66 chest 0.186 upperarm_l 0.115 neck 0.039
-w 345 chest 0.398 neck 0.35 clavicle_r 0.137 clavicle_l 0.115
-w 346 upperarm_l 0.719 clavicle_l 0.179 chest 0.102
-w 347 chest 0.534 upperarm_l 0.311 clavicle_l 0.1 spine 0.055
-w 348 chest 0.646 upperarm_l 0.163 spine 0.151 clavicle_l 0.04
-w 349 chest 0.671 clavicle_r 0.209 clavicle_l 0.077 neck 0.043
-w 350 clavicle_l 0.701 chest 0.152 upperarm_l 0.147
-w 351 chest 0.759 clavicle_r 0.122 neck 0.061 clavicle_l 0.058
-w 352 clavicle_l 0.701 chest 0.152 upperarm_l 0.147
-w 353 chest 0.759 clavicle_r 0.122 neck 0.061 clavicle_l 0.058
-w 354 upperarm_l 0.91 chest 0.046 clavicle_l 0.044
-w 355 upperarm_l 0.964 clavicle_l 0.036
-w 356 upperarm_l 0.611 clavicle_l 0.277 chest 0.112
-w 357 upperarm_l 0.803 clavicle_l 0.129 chest 0.068
-w 358 upperarm_l 0.959 clavicle_l 0.041
-w 359 upperarm_l 0.821 clavicle_l 0.091 chest 0.088
-w 360 upperarm_l 0.843 clavicle_l 0.157
-w 361 upperarm_l 0.622 chest 0.238 clavicle_l 0.086 spine 0.054
-w 362 upperarm_l 0.964 clavicle_l 0.036
-w 363 chest 0.673 spine 0.166 upperarm_l 0.161
-w 364 clavicle_r 0.752 chest 0.159 upperarm_r 0.089
-w 365 clavicle_r 0.704 upperarm_r 0.24 chest 0.056
-w 366 upperarm_l 0.605 clavicle_l 0.334 chest 0.061
-w 367 clavicle_l 0.569 upperarm_l 0.32 chest 0.111
-w 368 clavicle_l 0.507 upperarm_l 0.299 chest 0.194
-w 369 upperarm_l 0.769 chest 0.103 forearm_l 0.074 clavicle_l 0.054
-w 370 forearm_l 0.519 upperarm_l 0.481
-w 371 forearm_l 0.65 upperarm_l 0.28 chest 0.07
-w 372 upperarm_l 0.933 forearm_l 0.067
-w 373 upperarm_l 0.953 forearm_l 0.047
-w 374 upperarm_l 0.55 forearm_l 0.45
-w 375 upperarm_l 0.552 forearm_l 0.448
-w 376 upperarm_l 0.764 chest 0.12 clavicle_l 0.062 forearm_l 0.054
-w 377 forearm_l 0.569 upperarm_l 0.431
-w 378 upperarm_l 0.968 forearm_l 0.032
-w 379 chest 0.676 spine 0.192 upperarm_l 0.09 forearm_l 0.042
-w 380 forearm_l 0.682 upperarm_l 0.238 chest 0.08
-w 381 forearm_l 0.682 upperarm_l 0.238 chest 0.08
-w 382 chest 0.676 spine 0.192 upperarm_l 0.09 forearm_l 0.042
-w 383 upperarm_l 0.7 forearm_l 0.3
-w 384 upperarm_l 0.67 forearm_l 0.33
-w 385 forearm_l 0.958 hand_l 0.042
-w 386 forearm_l 0.897 hand_l 0.103
-w 387 forearm_l 0.826 hand_l 0.174
-w 388 forearm_l 0.961 hand_l 0.039
+w 339 chest 0.355 upperarm_l 0.314 spine 0.254 forearm_l 0.077
+w 340 chest 0.398 upperarm_l 0.269 spine 0.192 clavicle_l 0.141
+w 341 chest 0.439 upperarm_l 0.257 clavicle_l 0.17 head 0.134
+w 342 upperarm_l 0.376 chest 0.29 clavicle_l 0.192 spine 0.142
+w 343 chest 0.371 upperarm_l 0.278 clavicle_l 0.186 spine 0.165
+w 344 chest 0.337 clavicle_l 0.279 upperarm_l 0.278 spine 0.106
+w 345 chest 0.48 spine 0.186 upperarm_l 0.177 clavicle_r 0.157
+w 346 upperarm_l 0.513 chest 0.222 spine 0.14 clavicle_l 0.125
+w 347 chest 0.329 upperarm_l 0.323 spine 0.239 clavicle_l 0.109
+w 348 spine 0.343 chest 0.327 upperarm_l 0.259 clavicle_l 0.071
+w 349 chest 0.529 head 0.207 clavicle_r 0.135 neck 0.129
+w 350 chest 0.327 clavicle_l 0.287 upperarm_l 0.286 head 0.1
+w 351 chest 0.524 head 0.221 neck 0.167 clavicle_l 0.088
+w 352 chest 0.327 clavicle_l 0.287 upperarm_l 0.286 head 0.1
+w 353 chest 0.524 head 0.221 neck 0.167 clavicle_l 0.088
+w 354 upperarm_l 0.617 chest 0.177 forearm_l 0.113 spine 0.093
+w 355 upperarm_l 0.675 chest 0.137 forearm_l 0.103 clavicle_l 0.085
+w 356 upperarm_l 0.476 chest 0.233 clavicle_l 0.164 spine 0.127
+w 357 upperarm_l 0.567 chest 0.208 spine 0.118 clavicle_l 0.107
+w 358 upperarm_l 0.647 chest 0.159 forearm_l 0.112 clavicle_l 0.082
+w 359 upperarm_l 0.568 chest 0.212 forearm_l 0.112 spine 0.108
+w 360 upperarm_l 0.581 chest 0.186 clavicle_l 0.143 spine 0.09
+w 361 upperarm_l 0.443 chest 0.285 spine 0.173 forearm_l 0.099
+w 362 upperarm_l 0.675 chest 0.137 forearm_l 0.103 clavicle_l 0.085
+w 363 chest 0.355 upperarm_l 0.314 spine 0.254 forearm_l 0.077
+w 364 clavicle_r 0.409 chest 0.264 upperarm_r 0.256 spine 0.071
+w 365 clavicle_r 0.401 upperarm_r 0.336 chest 0.198 spine 0.065
+w 366 upperarm_l 0.475 chest 0.227 clavicle_l 0.195 spine 0.103
+w 367 upperarm_l 0.38 chest 0.256 clavicle_l 0.255 spine 0.109
+w 368 upperarm_l 0.362 chest 0.275 clavicle_l 0.22 spine 0.143
+w 369 upperarm_l 0.514 chest 0.202 forearm_l 0.195 spine 0.089
+w 370 forearm_l 0.44 upperarm_l 0.41 chest 0.106 spine 0.044
+w 371 forearm_l 0.492 upperarm_l 0.322 chest 0.133 spine 0.053
+w 372 upperarm_l 0.608 forearm_l 0.189 chest 0.139 spine 0.064
+w 373 upperarm_l 0.637 forearm_l 0.164 chest 0.134 spine 0.065
+w 374 upperarm_l 0.534 forearm_l 0.348 chest 0.082 spine 0.036
+w 375 upperarm_l 0.527 forearm_l 0.436 chest 0.037
+w 376 upperarm_l 0.509 chest 0.218 forearm_l 0.165 spine 0.108
+w 377 upperarm_l 0.468 forearm_l 0.466 chest 0.066
+w 378 upperarm_l 0.68 forearm_l 0.148 chest 0.114 clavicle_l 0.058
+w 379 chest 0.389 upperarm_l 0.299 forearm_l 0.163 spine 0.149
+w 380 forearm_l 0.521 upperarm_l 0.309 chest 0.122 spine 0.048
+w 381 forearm_l 0.521 upperarm_l 0.309 chest 0.122 spine 0.048
+w 382 chest 0.389 upperarm_l 0.299 forearm_l 0.163 spine 0.149
+w 383 upperarm_l 0.704 forearm_l 0.263 chest 0.033
+w 384 upperarm_l 0.686 forearm_l 0.314
+w 385 forearm_l 0.959 hand_l 0.041
+w 386 forearm_l 0.921 hand_l 0.079
+w 387 forearm_l 0.827 hand_l 0.173
+w 388 forearm_l 0.969 hand_l 0.031
 w 389 forearm_l 1
-w 390 forearm_l 0.806 hand_l 0.194
-w 391 forearm_l 0.906 hand_l 0.094
-w 392 forearm_l 0.958 hand_l 0.042
-w 393 forearm_l 0.877 upperarm_l 0.123
-w 394 forearm_l 0.788 upperarm_l 0.212
-w 395 forearm_l 0.897 hand_l 0.103
+w 390 forearm_l 0.791 hand_l 0.209
+w 391 forearm_l 0.897 hand_l 0.103
+w 392 forearm_l 0.956 hand_l 0.044
+w 393 forearm_l 0.652 upperarm_l 0.23 chest 0.085 spine 0.033
+w 394 forearm_l 0.597 upperarm_l 0.293 chest 0.078 spine 0.032
+w 395 forearm_l 0.921 hand_l 0.079
 w 396 forearm_l 1
-w 397 forearm_l 0.901 hand_l 0.099
-w 398 forearm_l 0.961 hand_l 0.039
-w 399 forearm_l 0.906 hand_l 0.094
-w 400 forearm_l 0.955 upperarm_l 0.045
+w 397 forearm_l 0.896 hand_l 0.104
+w 398 forearm_l 0.969 hand_l 0.031
+w 399 forearm_l 0.898 hand_l 0.102
+w 400 forearm_l 0.953 upperarm_l 0.047
 w 401 forearm_l 1
-w 402 chest 0.728 spine 0.179 upperarm_l 0.093
-w 403 chest 0.566 clavicle_r 0.295 neck 0.097 head 0.042
-w 404 chest 0.665 clavicle_r 0.169 neck 0.093 head 0.073
-w 405 chest 0.665 clavicle_r 0.169 neck 0.093 head 0.073
-w 406 head 0.966 neck 0.034
+w 402 chest 0.411 upperarm_l 0.302 spine 0.167 forearm_l 0.12
+w 403 chest 0.432 head 0.284 neck 0.143 clavicle_r 0.141
+w 404 chest 0.474 head 0.281 neck 0.176 clavicle_r 0.069
+w 405 chest 0.474 head 0.281 neck 0.176 clavicle_r 0.069
+w 406 head 0.932 chest 0.036 neck 0.032
 w 407 head 1
-w 408 head 0.949 neck 0.051
+w 408 head 1
 w 409 head 1
-w 410 head 0.919 neck 0.081
-w 411 head 0.768 neck 0.15 chest 0.047 clavicle_r 0.035
-w 412 neck 0.595 clavicle_r 0.158 head 0.139 chest 0.108
-w 413 neck 0.482 chest 0.218 head 0.188 clavicle_r 0.112
-w 414 chest 0.566 clavicle_r 0.295 neck 0.097 head 0.042
-w 415 clavicle_r 0.748 chest 0.157 neck 0.095
-w 416 head 0.683 neck 0.226 chest 0.091
-w 417 head 0.93 neck 0.07
-w 418 head 0.959 neck 0.041
-w 419 chest 0.665 clavicle_r 0.169 neck 0.093 head 0.073
-w 420 neck 0.651 chest 0.161 head 0.142 clavicle_r 0.046
-w 421 neck 0.684 head 0.28 chest 0.036
-w 422 hand_l 0.664 forearm_l 0.336
-w 423 hand_l 0.789 forearm_l 0.211
-w 424 hand_l 0.514 forearm_l 0.486
-w 425 hand_l 0.556 forearm_l 0.444
-w 426 forearm_l 0.69 hand_l 0.31
-w 427 forearm_l 0.625 hand_l 0.375
-w 428 hand_l 0.662 forearm_l 0.338
-w 429 hand_l 0.746 forearm_l 0.254
-w 430 hand_l 0.919 forearm_l 0.081
-w 431 hand_l 0.887 forearm_l 0.113
-w 432 hand_l 0.933 forearm_l 0.067
-w 433 hand_l 0.866 forearm_l 0.134
-w 434 hand_l 0.925 forearm_l 0.075
-w 435 hand_l 0.912 forearm_l 0.088
-w 436 forearm_l 0.69 hand_l 0.31
-w 437 hand_l 0.945 forearm_l 0.055
-w 438 hand_l 0.957 forearm_l 0.043
-w 439 hand_l 0.949 forearm_l 0.051
-w 440 hand_l 0.888 forearm_l 0.112
-w 441 hand_l 0.801 forearm_l 0.199
-w 442 hand_l 0.883 forearm_l 0.117
-w 443 hand_l 0.949 forearm_l 0.051
-w 444 forearm_l 0.961 hand_l 0.039
+w 410 head 1
+w 411 head 0.965 chest 0.035
+w 412 head 0.473 chest 0.212 neck 0.189 clavicle_r 0.126
+w 413 head 0.451 chest 0.272 neck 0.192 clavicle_r 0.085
+w 414 chest 0.432 head 0.284 neck 0.143 clavicle_r 0.141
+w 415 chest 0.307 head 0.296 clavicle_r 0.266 neck 0.131
+w 416 head 0.679 neck 0.173 chest 0.148
+w 417 head 0.804 neck 0.132 chest 0.064
+w 418 head 0.842 neck 0.098 chest 0.06
+w 419 chest 0.474 head 0.281 neck 0.176 clavicle_r 0.069
+w 420 head 0.36 neck 0.343 chest 0.251 clavicle_r 0.046
+w 421 head 0.463 neck 0.41 chest 0.127
+w 422 hand_l 0.906 forearm_l 0.094
+w 423 hand_l 0.956 forearm_l 0.044
+w 424 hand_l 0.561 forearm_l 0.439
+w 425 hand_l 0.615 forearm_l 0.385
+w 426 forearm_l 0.647 hand_l 0.353
+w 427 forearm_l 0.575 hand_l 0.425
+w 428 hand_l 0.725 forearm_l 0.275
+w 429 hand_l 0.937 forearm_l 0.063
+w 430 hand_l 1
+w 431 hand_l 1
+w 432 hand_l 1
+w 433 hand_l 1
+w 434 hand_l 1
+w 435 hand_l 1
+w 436 forearm_l 0.647 hand_l 0.353
+w 437 hand_l 1
+w 438 hand_l 1
+w 439 hand_l 1
+w 440 hand_l 1
+w 441 hand_l 0.951 forearm_l 0.049
+w 442 hand_l 1
+w 443 hand_l 1
+w 444 forearm_l 0.969 hand_l 0.031
 w 445 forearm_l 1
-w 446 forearm_l 0.958 hand_l 0.042
+w 446 forearm_l 0.956 hand_l 0.044
 w 447 forearm_l 1
-w 448 forearm_l 0.955 upperarm_l 0.045
+w 448 forearm_l 0.953 upperarm_l 0.047
 w 449 forearm_l 1
-w 450 forearm_l 0.958 hand_l 0.042
-w 451 upperarm_l 0.933 forearm_l 0.067
-w 452 upperarm_l 0.769 chest 0.103 forearm_l 0.074 clavicle_l 0.054
-w 453 upperarm_l 0.764 chest 0.12 clavicle_l 0.062 forearm_l 0.054
-w 454 upperarm_l 0.953 forearm_l 0.047
-w 455 upperarm_l 0.968 forearm_l 0.032
-w 456 upperarm_l 0.968 forearm_l 0.032
-w 457 chest 0.676 spine 0.192 upperarm_l 0.09 forearm_l 0.042
-w 458 chest 0.676 spine 0.192 upperarm_l 0.09 forearm_l 0.042
-w 459 chest 0.728 spine 0.179 upperarm_l 0.093
-w 460 neck 0.684 head 0.28 chest 0.036
-w 461 neck 0.665 head 0.335
-w 462 neck 0.713 head 0.287
+w 450 forearm_l 0.959 hand_l 0.041
+w 451 upperarm_l 0.608 forearm_l 0.189 chest 0.139 spine 0.064
+w 452 upperarm_l 0.514 chest 0.202 forearm_l 0.195 spine 0.089
+w 453 upperarm_l 0.509 chest 0.218 forearm_l 0.165 spine 0.108
+w 454 upperarm_l 0.637 forearm_l 0.164 chest 0.134 spine 0.065
+w 455 upperarm_l 0.68 forearm_l 0.148 chest 0.114 clavicle_l 0.058
+w 456 upperarm_l 0.68 forearm_l 0.148 chest 0.114 clavicle_l 0.058
+w 457 chest 0.389 upperarm_l 0.299 forearm_l 0.163 spine 0.149
+w 458 chest 0.389 upperarm_l 0.299 forearm_l 0.163 spine 0.149
+w 459 chest 0.411 upperarm_l 0.302 spine 0.167 forearm_l 0.12
+w 460 head 0.463 neck 0.41 chest 0.127
+w 461 neck 0.719 head 0.281
+w 462 neck 0.484 head 0.42 chest 0.096
 w 463 weapon 1
 w 464 weapon 1
 w 465 weapon 1
@@ -574,9 +574,9 @@ w 545 weapon 1
 w 546 weapon 1
 w 547 weapon 1
 w 548 weapon 1
-w 549 head 0.943 neck 0.057
-w 550 upperarm_l 0.781 clavicle_l 0.219
-w 551 upperarm_l 0.781 clavicle_l 0.219
-w 552 clavicle_l 0.507 upperarm_l 0.449 chest 0.044
-w 553 clavicle_l 0.507 upperarm_l 0.449 chest 0.044
-w 554 clavicle_r 0.752 chest 0.159 upperarm_r 0.089
+w 549 head 0.848 neck 0.088 chest 0.064
+w 550 upperarm_l 0.554 chest 0.185 clavicle_l 0.182 spine 0.079
+w 551 upperarm_l 0.554 chest 0.185 clavicle_l 0.182 spine 0.079
+w 552 upperarm_l 0.432 clavicle_l 0.258 chest 0.227 spine 0.083
+w 553 upperarm_l 0.432 clavicle_l 0.258 chest 0.227 spine 0.083
+w 554 clavicle_r 0.409 chest 0.264 upperarm_r 0.256 spine 0.071

@@ -8,6 +8,7 @@
 #include "vr_rigstudio_internal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_rig2.hpp"
 #include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
@@ -32,6 +33,7 @@ using namespace qvr::rigstudio::detail;
 namespace qvr::rigstudio::detail
 {
 Rom rom;
+void romTestTick(rig2::Rig& rig); // (the test's frame: below)
 }
 
 namespace
@@ -318,6 +320,7 @@ void romFrame()
         oldFromRom(*rig);
     }
     updateReport(*rig);
+    romTestTick(*rig);
 }
 
 bool romGeometry()
@@ -719,6 +722,134 @@ void romWindow()
     ImGui::End();
 }
 
+// ---- The test (vr_rigstudio_rom test; ends on "rigstudio rom test: N passed, M failed") ----
+
+namespace
+{
+struct RomTest
+{
+    int step{0}; // 0 none
+    int passed{0}, failed{0};
+    int frames{0};
+};
+RomTest romTest;
+
+void expect(bool ok, const char* what)
+{
+    romTest.passed += ok ? 1 : 0;
+    romTest.failed += ok ? 0 : 1;
+    Con_Printf("rigstudio rom test: %s %s\n", ok ? "PASS" : "FAIL", what);
+}
+
+void finishTest()
+{
+    Con_Printf("rigstudio rom test: %d passed, %d failed\n", romTest.passed, romTest.failed);
+    romTest = RomTest{};
+}
+} // namespace
+
+// A frame of the test (romFrame's, after the pose is made): its steps in turn, a sweep's frames waited for.
+void romTestTick(rig2::Rig& rig)
+{
+    if(romTest.step == 0)
+    {
+        return;
+    }
+    romTest.frames++;
+    if(romTest.frames > 72 * 60)
+    {
+        expect(false, "timed out");
+        finishTest();
+        return;
+    }
+    switch(romTest.step)
+    {
+    case 1:
+    {
+        expect(rig.numBones >= 19 && rig2::boneByName(rig, "upperarm_r") >= 0 && rig2::boneByName(rig, "shin_l") >= 0,
+            va("the authored rig: %d bones", rig.numBones));
+        const int b = rig2::boneByName(rig, "upperarm_r");
+        rom.pose = rig2::restPose(rig);
+        setAngles(rig, b, glm::vec3{200.f, 200.f, 200.f});
+        expect(rig2::withinLimits(rig, b, rom.pose.a[b], 0.05f), va("a slider past the limits is held at them (%.1f %.1f %.1f)",
+            rom.pose.a[b].x, rom.pose.a[b].y, rom.pose.a[b].z));
+        const int k = rig2::boneByName(rig, "shin_l");
+        setAngles(rig, k, glm::vec3{-30.f, 0.f, 0.f});
+        expect(rom.pose.a[k].x >= rig.bones[k].range.x - 0.01f, "the knee does not bend backwards");
+        rom.pose = rig2::restPose(rig);
+        rom.sweepJoint = rig2::boneByName(rig, "upperarm_l");
+        rom.sweepT = 0.f;
+        romTest.step = 2;
+        break;
+    }
+    case 2:
+        if(rom.sweepJoint >= 0)
+        {
+            const int b = rom.sweepJoint;
+            if(!rig2::withinLimits(rig, b, rom.pose.a[b], 0.05f))
+            {
+                expect(false, "the sweep stays within the limits");
+                rom.sweepJoint = -1;
+            }
+            break;
+        }
+        expect(true, "the sweep ran to its end within the limits");
+        {
+            // a limit edited, then undone
+            const int b = rig2::boneByName(rig, "forearm_r");
+            const glm::vec2 before = rig.bones[b].range;
+            pushRomUndoNow(rig, "limit");
+            rig.bones[b].range = glm::vec2{10.f, 90.f};
+            undo();
+            expect(rig.bones[b].range == before, va("a limit's edit undone (%g %g)", rig.bones[b].range.x, rig.bones[b].range.y));
+            // random poses within every limit
+            bool all = true;
+            for(int i = 0; i < 50; i++)
+            {
+                const rig2::Pose p = rig2::randomPose(rig, rom.seed);
+                for(int j = 0; j < rig.numBones; j++)
+                {
+                    all = all && rig2::withinLimits(rig, j, p.a[j], 0.05f);
+                }
+            }
+            expect(all, "50 random poses within every limit");
+            // the file written and read back
+            za::String path, text, err;
+            const bool saved = rig2::save(rig, path);
+            rig2::Rig back;
+            const bool read = saved && files::readText(path.cStr(), text) && rig2::read(text.cStr(), back, err);
+            bool same = read && back.numBones == rig.numBones && back.weights.size() == rig.weights.size();
+            for(int j = 0; same && j < rig.numBones; j++)
+            {
+                same = glm::length(back.bones[j].pivot - rig.bones[j].pivot) < 1e-3f && back.bones[j].joint == rig.bones[j].joint;
+            }
+            expect(same, va("saved and read back (%s)", path.cStr()));
+            rom.pose = rig2::restPose(rig);
+            romTest.step = 3;
+            romTest.frames = 0;
+        }
+        break;
+    case 3:
+        if(romTest.frames < 3)
+        {
+            break; // (a few frames drawn: the authored rig's model made and swapped in)
+        }
+        {
+            char name[MAX_QPATH];
+            q_snprintf(name, sizeof(name), "%s#rig2", st.model->name);
+            qmodel_t* m = Mod_ForName(name, false);
+            const auto* hdr = m && m->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(m)) : nullptr;
+            expect(vr_rig2.value == 0.f || (hdr && hdr->numbones == rig.numBones), va("the game draws it on its %d bones (%s)", hdr ? hdr->numbones : 0, name));
+            rig2::Faults f;
+            const bool measured = rig2::measurePose(const_cast<qmodel_t*>(st.model), rom.pose, false, f);
+            expect(measured && f.seeThrough == 0 && f.flipped == 0 && f.collapsed == 0, "the rest pose measures clean");
+        }
+        finishTest();
+        break;
+    default: finishTest(); break;
+    }
+}
+
 // ---- Commands (the tests and the eyeshots) ----
 
 void rom_f()
@@ -753,6 +884,12 @@ void rom_f()
     {
         Cvar_SetValueQuick(&vr_rig2, Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "old") ? 0.f : 1.f);
         Con_Printf("rigstudio rom: mesh on the %s rig\n", vr_rig2.value != 0.f ? "authored" : "old");
+    }
+    else if(!strcmp(sub, "test"))
+    {
+        rom.on = true;
+        romTest = RomTest{};
+        romTest.step = 1;
     }
     else if(!strcmp(sub, "joint"))
     {

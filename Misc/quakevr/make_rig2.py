@@ -55,46 +55,51 @@ SKELETON = [
     dict(name='neck', parent='chest', joint='ball', pivot=(0.4, 0.2, 16.6), end=(3.0, 0.3, 19.2), blend=1.2,
          radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 35), sy=(-25, 25), tw=(-35, 35)),
     dict(name='head', parent='neck', joint='ball', pivot=(3.0, 0.3, 19.2), end=(4.7, 0.4, 26.0), blend=1.0,
-         radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 25), sy=(-20, 20), tw=(-30, 30)),
+         radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 15), sy=(-20, 20), tw=(-20, 20)),
     dict(name='clavicle_l', parent='chest', joint='ball', pivot=(0.5, 2.0, 15.0), end=(0.9, 9.0, 15.2), blend=2.0,
-         radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-15, 20), sy=(-10, 25), tw=(-10, 10)),
+         radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-10, 15), sy=(-5, 15), tw=(-8, 8)),
     dict(name='upperarm_l', parent='clavicle_l', joint='ball', pivot=(0.9, 9.0, 15.2), end=(2.2, 10.0, 6.0),
-         blend=3.5, radius=7.5, neutral=(0, 0.17, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-45, 135),
-         sy=(-20, 110), tw=(-70, 70)),
+         blend=3.5, radius=7.5, neutral=(0, 0.17, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-20, 40),
+         sy=(-10, 50), tw=(-20, 20)),
     dict(name='forearm_l', parent='upperarm_l', joint='hinge', pivot=(2.2, 10.0, 6.0), end=(9.6, 6.6, 2.7),
-         refine=True, blend=1.6, radius=4.5, range=(0, 145)),
+         refine=True, blend=1.6, radius=4.5, range=(0, 140)),
     dict(name='hand_l', parent='forearm_l', joint='ball', pivot=(9.6, 6.6, 2.7), end=(13.4, 6.0, 1.8), refine=True,
-         blend=0.9, radius=3.5, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-60, 60), sy=(-25, 25), tw=(-60, 60)),
-    dict(name='clavicle_r', parent='chest', joint='ball', pivot=(0.5, -1.6, 15.0), end=(-0.3, -9.4, 15.2),
-         blend=2.0, radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-15, 20), sy=(-10, 25), tw=(-10, 10)),
+         blend=0.6, radius=3.5, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-25, 25), sy=(-10, 10), tw=(-10, 10)),
+    dict(name='clavicle_r', parent='chest', joint='ball', pivot=(0.5, -2.0, 15.0), end=(-0.3, -9.4, 15.2),
+         blend=2.0, radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-10, 15), sy=(-5, 15), tw=(-8, 8)),
     dict(name='upperarm_r', parent='clavicle_r', joint='ball', pivot=(-0.3, -9.4, 15.2), end=(-0.2, -10.4, 6.4),
-         blend=3.5, radius=7.5, neutral=(0, -0.17, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-45, 135),
-         sy=(-20, 110), tw=(-70, 70)),
+         blend=3.5, radius=7.5, neutral=(0, -0.17, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-20, 40),
+         sy=(-10, 50), tw=(-20, 20)),
     dict(name='forearm_r', parent='upperarm_r', joint='hinge', pivot=(-0.2, -10.4, 6.4), end=(5.6, -6.0, 4.4),
-         refine=True, blend=1.6, radius=4.5, range=(0, 145)),
+         refine=True, blend=1.6, radius=4.5, range=(0, 140)),
     dict(name='hand_r', parent='forearm_r', joint='ball', pivot=(5.6, -6.0, 4.4), end=(8.6, -4.3, 4.2), refine=True,
-         blend=0.9, radius=3.5, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-60, 60), sy=(-25, 25), tw=(-60, 60)),
+         blend=0.6, radius=3.5, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-25, 25), sy=(-10, 10), tw=(-10, 10)),
     dict(name='thigh_l', parent='pelvis', joint='ball', pivot=(-5.6, 4.5, -3.0), end=(-4.8, 7.0, -13.0), blend=2.6,
-         radius=8.0, neutral=(0, 0.08, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 115), sy=(-20, 45), tw=(-35, 35)),
+         radius=8.0, neutral=(0, 0.08, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 65), sy=(-20, 45), tw=(-30, 30)),
     dict(name='shin_l', parent='thigh_l', joint='hinge', pivot=(-4.8, 7.0, -13.0), end=(-11.5, 6.8, -20.6),
-         refine=True, blend=1.8, radius=5.0, range=(0, 145)),
+         refine=True, blend=2.6, radius=6.0, nudge=(-0.8, 0.0, 0.0), range=(0, 115)),
     dict(name='foot_l', parent='shin_l', joint='ball', pivot=(-11.5, 6.8, -20.6), end=(-4.6, 7.6, -23.4),
-         refine=True, blend=1.0, radius=4.0, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-30, 40), sy=(-15, 15),
+         refine=True, blend=1.0, radius=4.0, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-25, 30), sy=(-10, 10),
          tw=(-12, 12)),
     dict(name='thigh_r', parent='pelvis', joint='ball', pivot=(-4.2, -4.6, -3.0), end=(2.6, -6.6, -11.0), blend=2.6,
-         radius=8.0, neutral=(0, -0.08, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-25, 115), sy=(-20, 45),
-         tw=(-35, 35)),
+         radius=8.0, neutral=(0, -0.08, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-25, 65), sy=(-20, 45),
+         tw=(-30, 30)),
     dict(name='shin_r', parent='thigh_r', joint='hinge', pivot=(2.6, -6.6, -11.0), end=(0.0, -6.8, -20.6),
-         refine=True, blend=1.8, radius=5.0, range=(0, 145)),
+         refine=True, blend=2.6, radius=6.0, range=(0, 115)),
     dict(name='foot_r', parent='shin_r', joint='ball', pivot=(0.0, -6.8, -20.6), end=(7.4, -7.3, -23.4),
-         refine=True, blend=1.0, radius=4.0, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-30, 40), sy=(-15, 15),
+         refine=True, blend=1.0, radius=4.0, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-25, 30), sy=(-10, 10),
          tw=(-12, 12)),
     dict(name='weapon', parent='hand_r', joint='fixed', pivot=(8.6, -4.3, 4.2), end=(16.0, -2.0, 4.0)),
 ]
 
 # Each bone's thickness (units: about its limb's radius there), for the regions: a vertex goes to the nearest capsule
 SMOOTH_ALPHA = 0.6  # the smoothing's pull to the joints' blends (smaller: wider seams)
-SMOOTH_ITERS = 30
+SMOOTH_ITERS = 40
+REGION_ALPHA = dict(hand=4.0, foot=2.0, head=2.0)  # ... per region
+SHOULDER_ALPHA = 0.05  # ... round the shoulders (the web between the arm and the torso)
+SHOULDER_WEB = 11.0
+REGION_FIX = {}  # the right armpit's web vertex: on the arm it turned its triangle over at 20 degrees forward with a straight elbow
+MAX_HOPS = 9           # bones further than this many joints from a vertex's own dropped (none: the fused arm's web needs the forearm's too)    # units from the shoulder joint
 THICK = dict(pelvis=7.0, spine=7.0, chest=6.5, neck=3.5, head=5.0, clavicle=3.0, upperarm=3.0, forearm=2.3, hand=1.8,
              thigh=3.6, shin=2.8, foot=2.4)
 
@@ -251,6 +256,7 @@ def build(mesh, quiet=False):
         c = mesh.section_centre(b['pivot'], n)
         if not quiet:
             print('  %-11s pivot %s -> %s (%.2f)' % (b['name'], fmt(b['pivot']), fmt(c), length(sub(c, b['pivot']))))
+        c = add(c, b.get('nudge', (0.0, 0.0, 0.0)))  # (a joint moved off its section's middle: a knee's toward its back)
         b['pivot'] = c
         p['end'] = c if p['joint'] != 'root' else p['end']
     # ends of the bones that end at a child's pivot follow it (a chain's)
@@ -300,6 +306,12 @@ def build(mesh, quiet=False):
                 if top != region[v] and votes[top] > 0.6 * sum(votes.values()) and votes.get(region[v], 0) <= 1:
                     new[v] = top
         region = new
+    # hand-picked regions (REGION_FIX: a vertex the rules put on the wrong side of a seam, found by vr_rig2_check's details)
+    for v, name in REGION_FIX.items():
+        if v < mesh.nv:
+            for u in range(mesh.nv):
+                if mesh.weld[u] == mesh.weld[v]:
+                    region[u] = index[name]
     # the gun: the weapon bone
     for v in GUN:
         if v < mesh.nv and v not in set(mesh.used):
@@ -339,6 +351,14 @@ def build(mesh, quiet=False):
     # weights by SMOOTH_ALPHA, to its neighbours' average by 1): every seam between regions, the joints' bands too,
     # eases over a few rings
     anchor = weights
+    # (round the shoulders the arm is fused to the torso along its inner side: a wider web there, SHOULDER_ALPHA)
+    # (the small parts, the fists and the feet, held to their own bone: a uniform smoothing washes them to half)
+    alpha = [REGION_ALPHA.get(bones[region[v]]['name'].rstrip('_lr').rstrip('_'), SMOOTH_ALPHA) for v in range(mesh.nv)]
+    for b in bones:
+        if b["name"].startswith("upperarm"):
+            for v in mesh.used:
+                if length(sub(mesh.rest[v], b["pivot"])) < SHOULDER_WEB:
+                    alpha[v] = SHOULDER_ALPHA
     for _ in range(SMOOTH_ITERS):
         new = []
         for v in range(mesh.nv):
@@ -351,12 +371,27 @@ def build(mesh, quiet=False):
                 for bo, ww in weights[u].items():
                     acc[bo] = acc.get(bo, 0.0) + k * ww
                 tot += k
-            a = SMOOTH_ALPHA
+            a = alpha[v]
             out = {bo: ww / tot / (1 + a) for bo, ww in acc.items()}
             for bo, ww in anchor[v].items():
                 out[bo] = out.get(bo, 0.0) + a * ww / (1 + a)
             new.append(out)
         weights = new
+    # (no bone more than two joints from the vertex's own: the forearm's weight does not reach the chest along the
+    # arm's fused inner side)
+    def hops(a, b):
+        up = {}
+        x, d = a, 0
+        while x >= 0:
+            up[x] = d
+            x, d = bones[x]['pidx'], d + 1
+        x, d = b, 0
+        while x not in up:
+            x, d = bones[x]['pidx'], d + 1
+        return d + up[x]
+    for v in range(mesh.nv):
+        kept = {bo: ww for bo, ww in weights[v].items() if hops(region[v], bo) <= MAX_HOPS}
+        weights[v] = kept or {region[v]: 1.0}
     # 5. welds
     for g in mesh.groups:
         acc = {}
