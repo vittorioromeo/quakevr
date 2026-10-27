@@ -14,6 +14,9 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+IK stretch on your rifle Aim: Rig Studio, shotgun grunt, Pose Studio Data, Rifle: IK Stretch 1.15: in Aim the off hand slides up onto the fore-end (no longer 2 units back), "stretch used" beside it; Ctrl+Z puts the slider back
+IK stretch, the arm's skin: IK Stretch 1.3 and drag the Aim key's weapon a few units forward: the arms lengthen to it, elbow and wrist smooth (no seam, no crease), with vr_rig2 0 and 1
+Combat > Armed Grunts > IK Stretch: Grunts, Rifle: each pick +0.05; in game, shotgun grunts hold the fore-end in your Aim
 Off hand grip offset: Rig Studio, Pose Keys (O) on the shotgun grunt in Aim: drag the "left hand: grip offset" dot along its red arrow: the off hand slides along the fore-end in the gun's own axes; its rings roll the hand round the barrel; Ctrl+Z puts it back
 Off hand Free per pose: Pose Studio Data, Rifle, Run: Off Hand Free: running shotgun grunts carry them one-handed, the off hand at their side, and take the fore-end again as they aim (a quarter-second reach, no snap)
 Your evening grunt poses are the defaults (rifle, pistol, launcher, sprayer, laser cannon aims; pistol run): they look as you left them
