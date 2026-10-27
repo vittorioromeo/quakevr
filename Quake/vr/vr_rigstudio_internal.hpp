@@ -2,7 +2,7 @@
 
 // vr_rigstudio_internal.hpp -- what the Rig Studio's files share (vr_rigstudio.cpp: the mode, the scene, the camera, the
 // edits and the commands; vr_rigstudio_view.cpp: the viewport, its drawing, picking and handles; vr_rigstudio_ui.cpp:
-// the windows). Internal: included by those three alone. All of it the main thread's.
+// the windows; vr_rigstudio_rom.cpp, vr_rigstudio_typetest.cpp). Internal: included by those alone. All of it the main thread's.
 
 #include "vr_rigstudio.hpp"
 #include "vr_aggrip.hpp"
@@ -396,6 +396,11 @@ void romDraw(ImDrawList* dl);
 void romWindow();
 [[nodiscard]] bool romSwap(Snapshot& s, Snapshot& back); // an undo entry of the Range of Motion's
 void romInit();
+
+// vr_rigstudio_typetest.cpp: vr_rigstudio_test_typing (SDL's key, text and mouse events typed into the windows' fields)
+void typingProbe(int which); // after a field the test types in (1 the sequence's FPS, 2 the Outliner's search): its place
+void typingTestTick();       // each studio frame, after the windows
+void testTyping_f();
 
 // vr_rigstudio_ui.cpp
 void windows();

@@ -1485,6 +1485,10 @@ textmode_t Key_TextEntry (void)
 	case key_menu:
 		return M_TextEntry();
 	case key_game:
+		// QVR: a flat-screen tool's ImGui (the Rig Studio) takes the keyboard: SDL's text input on, or its fields get
+		// the keys but never the typed characters (SDL_TEXTINPUT)
+		if (VR_ImGuiTextMode () >= 0)
+			return (textmode_t) VR_ImGuiTextMode ();
 		// Don't return true even during con_forcedup, because that happens while starting a
 		// game and we don't to trigger text input (and the onscreen keyboard on some devices)
 		// during this.

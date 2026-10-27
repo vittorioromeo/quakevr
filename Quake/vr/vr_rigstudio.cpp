@@ -2822,6 +2822,7 @@ void init()
     Cmd_AddCommand("vr_rigstudio_test_subjects", testSubjects_f);
     Cmd_AddCommand("vr_rigstudio_test_aim", testAim_f);
     Cmd_AddCommand("vr_rigstudio_test_posekeys", testPoseKeys_f);
+    Cmd_AddCommand("vr_rigstudio_test_typing", testTyping_f);
     Cmd_AddCommand("vr_rigstudio_aim", aim_f);
     Cmd_AddCommand("vr_rigstudio_posekey", posekey_f);
     Cmd_AddCommand("vr_rigstudio_print", print_f);
@@ -3030,6 +3031,7 @@ void clientFrame()
     windows();
     aimTestTick(); // (the tests' steps: after the frame's note and drags)
     pkTestTick();
+    typingTestTick();
 }
 
 bool pinned(const entity_t* e, const void* aliashdr, short* pose1, short* pose2, float* blend)
