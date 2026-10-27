@@ -192,6 +192,10 @@ release's tag, its URL template and each file's size and SHA-256 (as GitHub repo
   tag of the first URL) and fails on any difference. `qvr-setup install --package <zip> --hd --no-feed --dry-run`
   prints the pack and URLs a build would download. Installers already released keep their old pin: never remove
   a file from a support release.
+- **Third-party components** (`support_assets.json`'s `thirdParty`, not `files`): Arcane Dimensions' release zip,
+  pinned in the installer (`BuiltInComponents.ArcaneDimensions`) and downloaded from its authors' hosts only. It is
+  never uploaded to or hosted on our releases, and make_release does not check or upload it. latest.json may name a
+  `components.ad` to override the pin (same file, size and SHA-256 rules); by default it has none.
 
 ## Which release is Latest
 

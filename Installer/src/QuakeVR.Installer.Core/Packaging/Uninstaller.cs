@@ -29,7 +29,9 @@ public sealed class UninstallResult
 /// <summary>
 /// Removes exactly what <c>install.json</c> lists (section 5: "removes the manifest's files"): the shipped files that
 /// are unchanged, the shortcuts that still point into the install, and the folders the installer made once they are
-/// empty. The player's files stay, and the Quake folder is never touched (nothing in it is ever recorded).
+/// empty. The player's files stay, and the Quake folder is never touched (nothing in it is ever recorded). Arcane
+/// Dimensions in the install's ad folder is Setup's (component <c>ad</c>): removed with the rest; a copy of the player's
+/// elsewhere (in a Quake folder) is never recorded, so never touched.
 /// </summary>
 public static class Uninstaller
 {
@@ -104,6 +106,11 @@ public static class Uninstaller
             if (!record.Files.Any(f => f.Component == Components.HdTextures))
             {
                 record.HdTexturesFile = record.HdTexturesSha256 = null;
+            }
+            if (!record.Files.Any(f => f.Component == Components.ArcaneDimensions))
+            {
+                record.ArcaneDimensionsFile = record.ArcaneDimensionsSha256 = null;
+                record.Choices.ArcaneDimensions = false;
             }
             record.Save(target);
         }

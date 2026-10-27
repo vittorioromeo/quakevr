@@ -921,7 +921,7 @@ extern "C" const char* VR_CampaignLabel(int index)
 {
     return index >= 0 && index < int(countof(campaigns)) ?
         va("%s: %s", campaigns[index].title, campaigns[index].status == 1 && !campaigns[index].nativeReady ?
-            "native in progress" : campaignStatus(index)) : "";
+            (index == qvr::ad::campaignIndex ? "experimental" : "native in progress") : campaignStatus(index)) : "";
 }
 extern "C" const char* VR_CampaignHelp(int index)
 {
@@ -931,7 +931,10 @@ extern "C" const char* VR_CampaignHelp(int index)
         c.status != 1 ? "Supply complete owned campaign files to play." :
         soloOnly(index) && campaignMultiplayerRequested() ? "Accepted for single-player: set coop 0, deathmatch 0, maxplayers 1; multiplayer context/join/respawn is not accepted." :
         index >= 3 && missingLanguage(index) ? "Language data incomplete: supply updated owned rerelease id1 tables, or enable store discovery." :
-        c.nativeReady ? "Starts a new single-player campaign and resets level progress." : "Native gameplay is being ported; campaign play is unavailable.");
+        c.nativeReady ? "Starts a new single-player campaign and resets level progress." :
+        // AD support: playable from Official Campaigns as an experiment (it asks first; vr_menu.cpp selectCampaignRow)
+        index == qvr::ad::campaignIndex ? "Experimental: starts a new single-player Arcane Dimensions game (asks first). It may have bugs." :
+        "Native gameplay is being ported; campaign play is unavailable.");
 }
 extern "C" void VR_SelectCampaign(int index)
 { selectCampaign(index, false, true); }
