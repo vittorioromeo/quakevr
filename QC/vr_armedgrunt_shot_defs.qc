@@ -13,7 +13,7 @@ float QVR_AGS_BLAST = 3;     // a rocket's or a grenade's flight through it (its
 float QVR_AGS_SPLASH = 4;    // an explosion's damage to the grunt
 
 // A player's (`xFrom`) hitscan path xA..xB (where it stopped), going `xDir`, of `xDamage`: what it passed through of a held
-// weapon or its hand adds up. TRUE: it stopped on the weapon (vr_agrunt_shotdisarm_absorb: no damage beyond).
+// weapon or its hand adds up. TRUE: it stopped on the weapon (vr_agrunt_shotdisarm_block: no damage beyond).
 float(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind) VR_AGS_Shot;
 
 // T_DamageDeal, before VR_AG_Hit: an explosion's share (vr_agrunt_shotdisarm_w_splash). TRUE: a player's shot, which the

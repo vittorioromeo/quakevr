@@ -25167,3 +25167,92 @@ Checklist lines (suggested):
 - `Setup (installer): Options: Arcane Dimensions row: off by default, "306 MB download, about 792 MB on disk"; with AD in your Steam Quake folder it says "Found in ...: will be used" and is disabled`
 - `Setup: tick Arcane Dimensions on a PC without it (or rename your ad folder): it downloads last, installs into QuakeVR\ad, Official Campaigns > Arcane Dimensions: experimental starts it`
 - `Setup: cancel during the Arcane Dimensions download: Quake VR is installed, the Done page says how to add AD later; Setup again shows "Add Arcane Dimensions" on the Update screen`
+## Armed humanoids: the stuck tug after a knockdown; a shot on the weapon hurts only the weapon (worktree `gorefx`, branch `agent/agtughit`, 2026-10-28)
+
+His notes: "after an armed humanoid is shoved to the ground, sometimes grabbing their weapon doesn't work: I'm stuck in
+the tug-of-war state no matter how hard I pull and how long I hold the weapon"; "if a player's shot precisely hits an
+armed humanoid's weapon only, only the weapon should be affected and the humanoid itself won't take any damage".
+
+**The stuck grab: cause.** Not the tug at all. While it is down the weapon is meant to be yours at once
+(`VR_AG_TugEasy`: "knocked down"). But a downed armed humanoid is a ragdoll, and the ragdoll's own hand touch
+(`VR_Ragdoll_Handtouch` -> engine `grabRagdoll`) and its weapon's (`VR_AG_PropHandTouch`) both fire in the frame the
+grip closes. Near the grip or the stock the hand is also within the arm's reach (`vr_ragdoll_grab_reach`), and when the
+limb's touch came first the hand took the *arm*: busy, the weapon's grab refused (hand not empty). You then held its
+arm right beside its gun (drawn as holding there), pulling only dragged the body about, the weapon stayed in its hand,
+and nothing ever ended it (a body grab, not a tug: no let-go rule, no win). The barrel, far from the arm, always worked.
+Standing ones never had it: foegrab's `tryTake` already leaves a fist on an armed weapon to the weapon's grab.
+**Fix** (vr_box3d_ragparts.cpp `grabRagdoll`): a living ragdoll's limb is not taken by a hand whose fist is on an armed
+monster's weapon (`physics::fistOnArmedWeapon`, the same test as foegrab's). No setting: it is a bug.
+
+**Test 74** (`vr_agrunt_test 74`, QC/vr_armedgrunt_downtug_test.qc; Debug > Automation > "Armed Grunts: Grab a Downed
+One's Weapon"): a shotgun humanoid knocked down 4 ways (shove, shoulder charge, lift, judo throw; its weapon kept
+however hard it lands meanwhile), then lying still and as it gets up, your empty hand on its weapon (stock, grip,
+barrel), the grip pressed as the engine presses it (`+grabmain`: the touches race as in VR; test 67's press faked by
+its time gave the weapon to a hand whose grip wasn't down yet and dropped it), pulled at 0.6 m/s, 3 m/s or stepping
+back. Outcome per try: yours at once / won / let go / STUCK (7 s on) / nothing. PASS: none stuck, 80% taken.
+
+| kind, rig | before: taken / tries, stuck, nothing | after |
+| --- | --- | --- |
+| grunt, vr_rig2 0 | 9/13, stuck 3, nothing 1 | 15/15, stuck 0 (10 at once, 4 won in 1.90 s, 1 let go) |
+| grunt, vr_rig2 1 | 11/16, stuck 3, nothing 2 | 14/16, stuck 0, nothing 2 |
+| enforcer, vr_rig2 0 | 7/15, stuck 6, nothing 2 | 14/15, stuck 0, nothing 1 |
+| enforcer, vr_rig2 1 | 6/15, stuck 6, nothing 3 | 15/15, stuck 0 (12 at once, 3 won in 1.17 s) |
+
+Every stuck try was the arm taken while it lay (shove, charge, judo; stock, grip and even the barrel of a gun lying
+across its arm; every pull): "your hand holds monster_army, its weapon held, tug 0" for 7 s. Getting up (its get-up
+frames, not a ragdoll) none.
+
+"No state" tries (it rose before lying still, or the mock hand couldn't follow a weapon moving as it got up) are
+not counted: 8-10 of 24 each. A grab that took nothing (1-2 of ~15, as it just got up) is tried again; not stuck.
+
+**A shot on the weapon: before.** `vr_agrunt_shotdisarm_absorb` (default 0) let a pellet or nail on the weapon count
+towards shooting it out and then go on into the body behind it: a gun held across the chest took every pellet aimed
+at the gun. **Now:** `vr_agrunt_shotdisarm_block` (default **1**; replaces `_absorb`, retired: his archived "0" line is
+ignored; VR Settings > Armed Grunts > Shooting It Out > "Weapon Stops the Shot"): a pellet (shotgun, super shotgun,
+revolver slug: `FireBulletsImpl`) or a nail (nailgun, super nailgun) whose *first* hit along its way is the held
+weapon itself stops there: sparks, a ricochet (pellets) or tink (nails), at most one sound per 0.1 s a weapon, no
+damage and no blood on its holder. Precisely: the weapon's volume at size 1 (`VR_AGS_W_RADIUS` round
+`VR_AG_WeaponLine`, not `_size` or `_near`), crossing its line at least half a unit before the body (`VR_AGS_Blocks`;
+a stock pressed to its chest: the chest's). The hand or forearm first: its body's, hurt as ever (decision: hands are
+the body). Each pellet of a blast on its own. Works with shot disarms off; with them on the hit still counts towards
+knocking it out. Not stopped: lightning (a wide beam, three traces 16 units apart: it conducts through), rockets and
+grenades (their blast hurts it about as much either way: a direct rocket 100-120 vs its splash ~110 at 10 units).
+AD's projectile pellets and guns are not covered (their own touches). Test 50 runs its measured cases with the block
+off (its rates unchanged by construction) and case 14 on.
+
+**Test 75** (`vr_agrunt_test 75`; Debug > Automation > "Armed Grunts: Shots on the Weapon Alone"): a humanoid 200
+ahead holding a shotgun, nailgun, axe, sword, chainsaw or super shotgun; your pellet, revolver slug, nail and super
+shotgun blast fired from 96 units off through 0.7 of the way along its weapon towards its chest (or your eyes' way when
+that starts under the floor), block 0 then 1; then a pellet and a nail at its head. 34 passed, 0 failed:
+
+| held | pellet: damage before -> after | revolver slug | nail | super shotgun: damage, stopped before -> after |
+| --- | --- | --- | --- | --- |
+| Shotgun | 5 -> 0 (stopped 1) | 68 -> 0 (stopped 1) | 12 -> 0 (stopped 1) | 70, 0 -> 10, 12 |
+| Nailgun | 5 -> 0 (stopped 1) | 69 -> 0 (stopped 1) | 9 -> 0 (stopped 1) | 70, 0 -> 35, 7 |
+| Axe | 0 -> 0 (stopped 1) | 0 -> 0 (stopped 1) | 0 -> 0 (stopped 1) | 18, 0 -> 20, 8 |
+| Knight's Sword | 5 -> 0 (stopped 1) | 70 -> 0 (stopped 1) | 9 -> 0 (stopped 1) | 70, 0 -> 0, 14 |
+| Ogre's Chainsaw | 3 -> 0 (stopped 1) | 38 -> 0 (stopped 1) | 7 -> 0 (stopped 1) | 42, 0 -> 0, 14 |
+| Double-barrelled Shotgun | 5 -> 0 (stopped 1) | 69 -> 0 (stopped 1) | 9 -> 0 (stopped 1) | 70, 0 -> 20, 10 |
+
+(The axe held low: its body not behind it on that line, so 0 before too. A super shotgun blast's spread puts some
+pellets past the weapon into the body: those hurt, the stopped ones don't. The nailgun's body is within a unit of its
+line there: stopped, not judged.)
+
+Head shots (clear of the weapon) hurt as ever: pellets 6-8, nails 17, nothing stopped.
+
+Regressions: tests 37 8/8, 38 3/3, 69 10/10, 50 10/10 (block off as measured), 67 181/188 normal, 143/161 bullet
+time (as before: misses on standing humanoids, untouched here). Test 31 4/5: "ragtug pulled ... after 5.00 s (peak 72
+N)" fails the same with the ragdoll-grab fix disabled: already failing on origin/next (not this branch; its pull
+peaks at 72 N where 2026-10-26 broke at 1534 N). eval.sh: canary 36/44, full 163/171, 9 differ PASS -> PASS (damage
+noise), no verdict changes.
+
+Files: QC/vr_armedgrunt_shot.qc (`VR_AGS_Blocks`, `VR_AGS_Stopped`, `vr_ags_exact`), vr_armedgrunt_shot_test.qc,
+vr_armedgrunt_downtug_test.qc (new), vr_armedgrunt_test.qc (dispatch 74, 75), vr_cvars.qc; Quake/vr/vr_cvars.inc,
+vr_cvars.cpp (retired), vr_menu_gameplay.inc, vr_menu_automation.inc, vr_box3d_ragparts.cpp.
+
+- [ ] Shove an armed grunt (and an enforcer) down, then grab its gun by the grip or stock while it lies there and as it
+  gets up: it comes into your hand at once; you never end up holding its arm with the gun still in its hand
+  {test:vr_agrunt_test 74}
+- [ ] Shoot an armed grunt's gun (held across its body) with the shotgun, revolver and nailgun: sparks and a ricochet
+  or tink, no blood, its health untouched; a pellet that misses the gun and hits it still hurts; the gun still gets
+  shot out sometimes {test:vr_agrunt_test 75}

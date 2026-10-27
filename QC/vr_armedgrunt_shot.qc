@@ -21,8 +21,11 @@
 //   vr_agrunt_shotdisarm_chance plus _chance_scale for each threshold past it (at most 0.95), and starts over; failed, no
 //   hits add up for vr_agrunt_shotdisarm_cooldown s. Won: the weapon flies off along the shots' way (VR_AG_Disarm: its
 //   clatter, its grunt), sparks and a ricochet where it was.
-// - The shots themselves: a hit on the hand hurts the grunt as ever (it is its body); a pellet or a nail on the weapon goes
-//   on into whatever is behind it, or, with vr_agrunt_shotdisarm_absorb, stops there (sparks). A player's shot no longer
+// - The shots themselves: a hit on the hand hurts the grunt as ever (it is its body). A pellet or a nail whose first hit
+//   along its way is the weapon itself (its volume at size 1, not near it; crossing the weapon's line before it reaches the
+//   body: VR_AGS_Blocks) stops there with vr_agrunt_shotdisarm_block (default 1; even with shot disarms off): sparks, a
+//   tink, no damage and no blood on the holder; each pellet of a blast on its own. Off: on into whatever is behind it.
+//   Lightning (a wide beam) and explosions (their blast hurts it either way) are not stopped. A player's shot no longer
 //   disarms by VR_AG_Hit's blow rule while this is on (VR_AGS_Hit): only by this one.
 // - vr_agrunt_shotdisarm_debug: 1 prints each player's shot on an armed grunt (`shotdisarm:` its part: weapon, hand or
 //   body; the damage adding up; each roll and its result); 2 also shows each held weapon's and hand's volume (sparks).
@@ -53,6 +56,8 @@ float vr_ags_hits_w;    // ... hits counted on weapons,
 float vr_ags_hits_h;    // ... on hands,
 float vr_ags_absorbed;  // ... pellets and nails a weapon stopped
 float vr_ags_last_acc;  // ... the last roll's damage
+float vr_ags_exact;     // VR_AGS_MeetOne: the true volumes (both parts, size 1, no near misses: VR_AGS_Blocks)
+.float vr_ags_tink_at;  // a held weapon: its last blocked shot's tink (one a blast)
 
 void(string s) VR_AGS_Log =
 {
@@ -168,9 +173,9 @@ void(entity g, entity p, vector a, vector b) VR_AGS_MeetOne =
     {
         return;
     }
-    float parts = cvar_hget(cvarh_vr_agrunt_shotdisarm_parts);
-    float size = max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_size));
-    float near = max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_near));
+    float parts = vr_ags_exact ? 2 : cvar_hget(cvarh_vr_agrunt_shotdisarm_parts);
+    float size = vr_ags_exact ? 1 : max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_size));
+    float near = vr_ags_exact ? 0 : max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_near));
     float d;
     float r;
     if(parts != 1)
@@ -259,9 +264,77 @@ void(entity p, float amount, vector dir, float part, vector at, float kind) VR_A
     VR_AGS_Log(sprintf("%s: %.1f, %.1f of %g in %.2f s", what, amount, p.vr_ags_acc, need, time - p.vr_ags_start));
 };
 
+// Whether a pellet's or nail's way a..b (b where it struck, on `xEnd`; or `xBody` along a..b its holder's body first,
+// -1 none) is stopped by a held weapon (vr_agrunt_shotdisarm_block): its first hit along the way the weapon itself at the
+// true volumes (the hand first: the body's), crossing the weapon's line at least half a unit before the body (a stock
+// against its chest: the chest's). `xOnly`: that weapon alone (world: every held one). vr_ags_bp: the weapon (world: not
+// stopped), vr_ags_bs: where along a..b. VR_AGS_Meet's results kept.
+entity vr_ags_bp;
+float vr_ags_bs;
+float(entity xOnly, vector a, vector b, entity xEnd, float xBody) VR_AGS_Blocks =
+{
+    vr_ags_bp = world;
+    if(!cvar_hget(cvarh_vr_agrunt_shotdisarm_block))
+    {
+        return FALSE;
+    }
+    entity kp = vr_ags_mp;
+    float kpart = vr_ags_mpart;
+    float kf = vr_ags_mf;
+    float ks = vr_ags_ms;
+    vr_ags_exact = TRUE;
+    if(xOnly)
+    {
+        vr_ags_mp = world;
+        vr_ags_ms = 2;
+        VR_AGS_MeetOne(xOnly.owner, xOnly, a, b);
+    }
+    else
+    {
+        VR_AGS_Meet(a, b);
+    }
+    vr_ags_exact = FALSE;
+    float len = vlen(b - a);
+    float ok = vr_ags_mp && vr_ags_mpart == 1 && vr_ags_mf >= 1;
+    if(ok && xEnd && xEnd == vr_ags_mp.owner && (1 - vr_ags_ms) * len < 0.5)
+    {
+        ok = FALSE; // (its body where the weapon is: the body's)
+    }
+    if(ok && xBody >= 0 && vr_ags_ms * len + 0.5 > xBody * len)
+    {
+        ok = FALSE;
+    }
+    if(ok)
+    {
+        vr_ags_bp = vr_ags_mp;
+        vr_ags_bs = vr_ags_ms;
+    }
+    vr_ags_mp = kp;
+    vr_ags_mpart = kpart;
+    vr_ags_mf = kf;
+    vr_ags_ms = ks;
+    return ok;
+};
+
+// A shot stopped on the held weapon `p` at `at`: sparks, a tink (one a blast's pellets), no blood.
+void(entity p, vector at, float kind) VR_AGS_Stopped =
+{
+    vr_ags_absorbed = vr_ags_absorbed + 1;
+    particle2(at, '0 0 40', QVR_PARTICLE_PRESET_SPARKS, 4);
+    if(time - p.vr_ags_tink_at >= 0.1)
+    {
+        p.vr_ags_tink_at = time;
+        sound(p, CHAN_AUTO, kind == QVR_AGS_NAIL ? "weapons/tink1.wav" : sprintf("weapons/ric%g.wav", 1 + min(2,
+            floor(random() * 3))), 1, ATTN_NORM);
+    }
+    VR_AGS_Log(sprintf("%s stopped on its weapon (%s): no damage to it", VR_AGS_KindName(kind), p.netname));
+};
+
 float(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind) VR_AGS_Shot =
 {
-    if(!cvar_hget(cvarh_vr_agrunt_shotdisarm) || !(xFrom.flags & FL_CLIENT))
+    float counts = cvar_hget(cvarh_vr_agrunt_shotdisarm);
+    float blocks = xKind == QVR_AGS_PELLET && cvar_hget(cvarh_vr_agrunt_shotdisarm_block);
+    if(!(counts || blocks) || !(xFrom.flags & FL_CLIENT))
     {
         return FALSE;
     }
@@ -273,23 +346,32 @@ float(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKin
     vector tp = trace_endpos;
     float tf = trace_fraction;
     vector tn = trace_plane_normal;
-    VR_AGS_Meet(xA, xB);
     float stopped = FALSE;
+    if(blocks)
+    {
+        stopped = VR_AGS_Blocks(world, xA, xB, tf < 1 ? te : world, -1);
+    }
+    if(counts)
+    {
+        VR_AGS_Meet(xA, xB);
+    }
+    else
+    {
+        vr_ags_mp = world;
+    }
     if(vr_ags_mp)
     {
         vector at = xA + (xB - xA) * vr_ags_ms;
         float w = vr_ags_mpart == 1 ? cvar_hget(cvarh_vr_agrunt_shotdisarm_weapon_w) : cvar_hget(cvarh_vr_agrunt_shotdisarm_hand_w);
         VR_AGS_Add(vr_ags_mp, xDamage * VR_AGS_KindWeight(xKind) * w * vr_ags_mf, xDir, vr_ags_mpart, at, xKind);
-        if(vr_ags_mpart == 1 && vr_ags_mf >= 1 && xKind == QVR_AGS_PELLET && cvar_hget(cvarh_vr_agrunt_shotdisarm_absorb))
-        {
-            stopped = TRUE;
-            vr_ags_absorbed = vr_ags_absorbed + 1;
-            particle2(at, '0 0 40', QVR_PARTICLE_PRESET_SPARKS, 4);
-        }
     }
-    else if(te.vr_ag && te.health > 0)
+    else if(counts && te.vr_ag && te.health > 0)
     {
         VR_AGS_Log(sprintf("%s on its body", VR_AGS_KindName(xKind)));
+    }
+    if(stopped)
+    {
+        VR_AGS_Stopped(vr_ags_bp, xA + (xB - xA) * vr_ags_bs, xKind);
     }
     v_forward = fw;
     v_right = rt;
@@ -369,23 +451,31 @@ void(entity g, entity p) VR_AGS_Projectiles =
         {
             vector a = e.origin - e.velocity * frametime;
             vector b = e.origin + e.velocity * frametime;
-            vr_ags_mp = world;
-            vr_ags_ms = 2;
-            VR_AGS_MeetOne(g, p, a, b);
             float len = vlen(b - a);
-            float body = vr_ags_mp ? hitmodel_segment(g, a, b, 0, HITCLASS_GUNS) : -1;
-            if(vr_ags_mp && (body < 0 || body * len + 4 >= vr_ags_ms * len)) // (its body first: that it hits)
+            float body = -1;
+            if(cvar_hget(cvarh_vr_agrunt_shotdisarm))
             {
-                e.vr_ags_by = p;
-                vector at = a + (b - a) * vr_ags_ms;
-                float w = vr_ags_mpart == 1 ? cvar_hget(cvarh_vr_agrunt_shotdisarm_weapon_w) :
-                    cvar_hget(cvarh_vr_agrunt_shotdisarm_hand_w);
-                VR_AGS_Add(p, VR_AGS_ProjDamage(e, kind) * VR_AGS_KindWeight(kind) * w * vr_ags_mf, e.velocity, vr_ags_mpart,
-                    at, kind);
-                if(kind == QVR_AGS_NAIL && vr_ags_mpart == 1 && vr_ags_mf >= 1 && cvar_hget(cvarh_vr_agrunt_shotdisarm_absorb))
+                vr_ags_mp = world;
+                vr_ags_ms = 2;
+                VR_AGS_MeetOne(g, p, a, b);
+                body = vr_ags_mp ? hitmodel_segment(g, a, b, 0, HITCLASS_GUNS) : -1;
+                if(vr_ags_mp && (body < 0 || body * len + 4 >= vr_ags_ms * len)) // (its body first: that it hits)
                 {
-                    vr_ags_absorbed = vr_ags_absorbed + 1;
-                    particle2(at, '0 0 40', QVR_PARTICLE_PRESET_SPARKS, 4);
+                    e.vr_ags_by = p;
+                    vector at = a + (b - a) * vr_ags_ms;
+                    float w = vr_ags_mpart == 1 ? cvar_hget(cvarh_vr_agrunt_shotdisarm_weapon_w) :
+                        cvar_hget(cvarh_vr_agrunt_shotdisarm_hand_w);
+                    VR_AGS_Add(p, VR_AGS_ProjDamage(e, kind) * VR_AGS_KindWeight(kind) * w * vr_ags_mf, e.velocity,
+                        vr_ags_mpart, at, kind);
+                }
+            }
+            // A nail whose first hit is the weapon: stopped there (vr_agrunt_shotdisarm_block; its body first: the body's).
+            if(kind == QVR_AGS_NAIL && VR_AGS_Blocks(p, a, b, world, -1))
+            {
+                body = hitmodel_segment(g, a, b, 0, HITCLASS_GUNS);
+                if(body < 0 || vr_ags_bs * len + 0.5 <= body * len)
+                {
+                    VR_AGS_Stopped(p, a + (b - a) * vr_ags_bs, kind);
                     remove(e);
                 }
             }
@@ -419,7 +509,8 @@ void(entity g, entity p) VR_AGS_Show =
 // is due. TRUE: shot out of its hand.
 float(entity g, entity p) VR_AGS_Frame =
 {
-    if(!cvar_hget(cvarh_vr_agrunt_shotdisarm) || g.vr_ag_tug_pl || g.vr_ag_prop != p)
+    if(!(cvar_hget(cvarh_vr_agrunt_shotdisarm) || cvar_hget(cvarh_vr_agrunt_shotdisarm_block)) || g.vr_ag_tug_pl ||
+       g.vr_ag_prop != p)
     {
         p.vr_ags_pend = FALSE;
         return FALSE;
@@ -428,7 +519,12 @@ float(entity g, entity p) VR_AGS_Frame =
     {
         VR_AGS_Show(g, p);
     }
-    VR_AGS_Projectiles(g, p);
+    VR_AGS_Projectiles(g, p); // (the nails it stops even with shot disarms off: vr_agrunt_shotdisarm_block)
+    if(!cvar_hget(cvarh_vr_agrunt_shotdisarm))
+    {
+        p.vr_ags_pend = FALSE;
+        return FALSE;
+    }
     if(!p.vr_ags_pend)
     {
         return FALSE;
