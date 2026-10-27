@@ -1909,6 +1909,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         }
     }
     out.held2 = held2;
+    out.slid = slid;
     // The off hand's goal changing (a grip let go, taken): eased a moment.
     {
         const int mode = held2 || releasing ? 3 : t.cup ? 4 : static_cast<int>(t.goal[1]);

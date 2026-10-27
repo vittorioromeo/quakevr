@@ -25031,11 +25031,16 @@ and some offset or free change non-zero: every message is byte for byte as befor
 Not in the old rigid path (`relinkRigid`) nor the VR Pose Studio (its hands take a second grip as the Grip Editor's
 Second grip; a desk-only part there would be a second dot on the same hand).
 
-**Checked.** `vr_rigstudio_test_posekeys` 12/13 (the new first two steps: GripPos +2.06 0 0 by the drag, the drawn off
-hand moved 2.06 -0.00 -0.00 in the gun's frame, turned 0.00 deg; GripTurn 14.80 0 0, the drawn off hand turned 14.80 deg
-about 1.00 -0.00 0.00 in the gun's frame, moved 0.00; each undone: the key exactly as it was, the hand back 0.000 units;
-the torso step's time-out is origin/next's too). By hand on a fresh subject: GripPos -2 then +2 with roll 15: the off
-hand at 6.39 then 10.39 along the barrel, its x axis's barrel component unchanged (0.725), turned 15.0 deg about it.
+**Checked.** `vr_rigstudio_test_posekeys` 14/14 (two new first steps; the off hand measured in the gun's frame, less
+the slide back a grip out of reach takes, `agarms::Placed::slid`). On his old rifle Aim: GripPos +2.06 0 0 by the drag,
+the drawn off hand moved 2.06 -0.00 -0.00, turned 0.00 deg; GripTurn 14.80 0 0, turned 14.80 deg about 1.00 -0.00 0.00,
+moved 0.00. On his new rifle Aim (the gun pushed 5 units further out) the fore-end is past the arm's reach: the hand
+already slides back 2+ units, so the step drags 2 back: GripPos -2.18, the slide 2.0 less, the drawn hand -0.18 (= the
+offset less the slide); the roll 14.90 deg about the gun's x (1.00 -0.00 0.00), the slide 1.0 more. Each undone: the key
+exactly as it was, the hand back 0.000 units. (The torso step, which timed out on origin/next, passes with his new Aim.)
+By hand on a fresh subject (old Aim): GripPos -2 then +2 with roll 15: the off hand at 6.39 then 10.39 along the barrel,
+its x axis's barrel component unchanged (0.725), turned 15.0 deg about it. (His new Aim's fore-end out of reach is what
+the IK stretch would answer.)
 New `vr_rigstudio_test_offhand` 5/5 (the shotgun grunt, Run Free): Run 18.4 units off its grip, not held; Run -> Aim on
 the second grip, the hand 25.4 units over 0.86 s (the gun's own ease with it), its largest step 3.25 units a frame;
 Aim -> Run 0.81 s, largest 2.16 (a snap would be the whole way in a frame); Run's key put back exactly. The nail pistol

@@ -1396,8 +1396,8 @@ struct PkStep
     int pose;     // agpose::Pose
 };
 constexpr PkStep pkSteps[] = {
-    // (the off hand's first: the subject as it stands, its off hand within reach of 2 more forward)
-    {"left hand: grip offset, forward 2 (the gun's x)", 12, 0, 2.f, agpose::Aim},
+    // (the off hand's first: the subject as it stands; a grip moved out of reach slides back, measured)
+    {"left hand: grip offset, back 2 (the gun's -x: his Aim holds the fore-end at the arm's reach)", 12, 0, -2.f, agpose::Aim},
     {"left hand: grip offset, rolled 15 deg (the gun's x)", 12, 20, 15.f, agpose::Aim},
     {"right weapon, forward 4", 0, 0, 4.f, agpose::Aim},
     {"right weapon, turned 20 deg left (z)", 0, 22, 20.f, agpose::Aim},
@@ -1417,6 +1417,7 @@ struct PkTest
     agpose::Key key0;
     rigpose::Rigid part0;
     rigpose::Rigid placed0, target0; // the right weapon as drawn and its target (model space) before
+    float slid0{0.f};                // the off hand slid back along its gun before (out of reach)
     int wait{0};
 };
 PkTest ptest;
@@ -1496,6 +1497,7 @@ void pkTestTick()
         }
         ptest.placed0 = st.note.placed.weapon[0];
         ptest.target0 = st.note.t.weapon[0];
+        ptest.slid0 = st.note.placed.slid;
         if((s.part == 0 || s.part == 12) && s.axis == 0)
         {
             Cbuf_AddText("screenshot\n"); // (before: the grip offset's, the weapon's move)
@@ -1593,18 +1595,21 @@ void pkTestTick()
             const glm::quat rel = glm::normalize(glm::inverse(W) * now.rot * glm::inverse(ptest.part0.rot) * W);
             const float turned = quatDeg(rel, glm::quat{1.f, 0.f, 0.f, 0.f});
             const glm::vec3 ax = glm::length(glm::vec3{rel.x, rel.y, rel.z}) > 1e-5f ? glm::normalize(glm::vec3{rel.x, rel.y, rel.z}) * (rel.w < 0.f ? -1.f : 1.f) : glm::vec3{0.f};
+            // (a grip out of the arm's reach slides back along the gun, a unit at a time: that slide's change taken off)
+            const float slide = st.note.placed.slid - ptest.slid0;
+            const glm::vec3 slideV{-slide, 0.f, 0.f};
             if(s.axis < 3)
             {
-                ok = glm::length(gp - axisB * s.amount) < 0.3f && glm::length(moved - gp) < 0.1f && turned < 0.5f;
-                q_snprintf(text, sizeof(text), "key GripPos +%.2f %.2f %.2f, drawn off hand moved %.2f %.2f %.2f (the gun's frame), turned %.2f deg",
-                    gp.x, gp.y, gp.z, moved.x, moved.y, moved.z, turned);
+                ok = glm::length(gp - axisB * s.amount) < 0.3f && glm::length(moved - (gp + slideV)) < 0.1f && turned < 0.5f;
+                q_snprintf(text, sizeof(text), "key GripPos +%.2f %.2f %.2f, drawn off hand moved %.2f %.2f %.2f (the gun's frame; slid back %.1f more), turned %.2f deg",
+                    gp.x, gp.y, gp.z, moved.x, moved.y, moved.z, slide, turned);
             }
             else
             {
                 const float off = quatDeg(rotOf(k.v[agpose::GripTurn]), glm::angleAxis(s.amount * deg, axisB) * rotOf(ptest.key0.v[agpose::GripTurn]));
-                ok = off < 0.5f && za::abs(turned - s.amount) < 1.f && glm::dot(ax, axisB) > 0.98f && glm::length(moved) < 0.25f;
-                q_snprintf(text, sizeof(text), "key GripTurn %.2f %.2f %.2f (off the asked %.2f deg), drawn off hand turned %.2f deg about %.2f %.2f %.2f (the gun's frame), moved %.2f",
-                    k.v[agpose::GripTurn].x, k.v[agpose::GripTurn].y, k.v[agpose::GripTurn].z, off, turned, ax.x, ax.y, ax.z, glm::length(moved));
+                ok = off < 0.5f && za::abs(turned - s.amount) < 1.f && glm::dot(ax, axisB) > 0.98f && glm::length(moved - slideV) < 0.25f;
+                q_snprintf(text, sizeof(text), "key GripTurn %.2f %.2f %.2f (off the asked %.2f deg), drawn off hand turned %.2f deg about %.2f %.2f %.2f (the gun's frame), moved %.2f (slid back %.1f more)",
+                    k.v[agpose::GripTurn].x, k.v[agpose::GripTurn].y, k.v[agpose::GripTurn].z, off, turned, ax.x, ax.y, ax.z, glm::length(moved), slide);
             }
         }
         else

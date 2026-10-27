@@ -82,6 +82,7 @@ struct Placed
     bool on[2]{false, false};
     rigpose::Rigid weapon[2];
     bool held2{false}; // the off hand on the second grip (else free)
+    float slid{0.f};   // ... slid back along the weapon from it, out of its reach (units)
     // The arms as solved (model space; the Pose Studio's handles): each hand's grip frame, elbow and shoulder; the chest.
     rigpose::Rigid hand[2];
     glm::vec3 elbow[2]{glm::vec3{0.f}, glm::vec3{0.f}};
