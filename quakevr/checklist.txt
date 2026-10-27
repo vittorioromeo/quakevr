@@ -14,6 +14,8 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Enforcer rig stage 2: Debug > Grunt and Enforcer on the Authored Rig (next map): enforcers alive, aiming (nail pistol one-handed, laser rifle two-handed), hit, knocked down, killed, cut: smooth shoulders and pads, no arm through the torso, weapons in hand; say if the elbows point oddly {test:pose_enforcers_guns}
+Enforcer rig stage 2 ragdolls (authored rig on): deaths, knockdowns and get-ups: nothing flung, the power pack stays on the back, smooth corpses
 Rig Studio animates the authored rig: Debug > Grunt on the Authored Rig on, load a map, Rig Studio (flat): the dope sheet lists spine, clavicles, hands, feet; key the chest and an arm in load, save (rigs/vrgrunt.rig2anim.txt); turn vr_agrunt_taunt on and let a grunt see you: the keyed reload and the taunt play on the new rig, its arms on the keys, the weapon in its hand
 Grunt rig stage 2: set vr_rig2 1 (Debug menu) and load a map: grunts alive, hit, knocked down, killed, cut, grabbed: smooth joints, no tears at shoulders, elbows, knees; weapons in hand, off hand on the second grip (Mjolnir may slip); say where it looks wrong {test:pose_grunts_guns}
 Grunt rig stage 2 ragdolls (vr_rig2 1): every kind of death, knockdowns and get-ups: nothing flung, no reversed limbs, smooth corpses
