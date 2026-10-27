@@ -471,6 +471,46 @@ glm::vec3 anglesOf(const Rig& rig, int b, const glm::quat& local)
     return glm::vec3{0.f};
 }
 
+glm::mat3 keyAxes(const Rig& rig, int b)
+{
+    if(b < 0 || b >= rig.numBones)
+    {
+        return glm::mat3{1.f};
+    }
+    const Bone& bone = rig.bones[b];
+    if(bone.joint == Joint::Ball)
+    {
+        const Frame fr = frameOf(bone);
+        return glm::mat3{fr.axF, fr.axS, fr.n}; // (orthonormal, right-handed: s, -f, n)
+    }
+    if(bone.joint == Joint::Hinge)
+    {
+        const glm::vec3 x = safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f});
+        const glm::vec3 d = boneDir(bone);
+        const glm::vec3 z = safeNormalize(d - x * glm::dot(d, x), za::abs(x.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f});
+        const glm::vec3 zz = glm::normalize(z - x * glm::dot(z, x));
+        return glm::mat3{x, glm::cross(zz, x), zz};
+    }
+    return glm::mat3{1.f};
+}
+
+bool clampLocal(const Rig& rig, int b, glm::quat& local)
+{
+    if(b < 0 || b >= rig.numBones || (rig.bones[b].joint != Joint::Ball && rig.bones[b].joint != Joint::Hinge))
+    {
+        return false;
+    }
+    // (a hinge's turn off its axis is not one it makes: its bend alone)
+    const glm::quat held = localOf(rig, b, clampAngles(rig, b, anglesOf(rig, b, local)));
+    const float d = za::abs(glm::dot(glm::normalize(local), held));
+    if(d >= za::cos(0.005f * deg)) // (0.01 degrees)
+    {
+        return false;
+    }
+    local = held;
+    return true;
+}
+
 PhysJoint physJoint(const Rig& rig, int b)
 {
     PhysJoint j;

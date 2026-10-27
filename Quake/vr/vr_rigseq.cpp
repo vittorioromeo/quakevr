@@ -568,11 +568,11 @@ bool bones(const entity_t* e, const ragdoll::Rig& rig, const aliashdr_t* hdr, in
                     if(tr.bone >= 0 && tr.bone < rig.numBones && rigdata::sample(tr, t, 0.f, d))
                     {
                         L[tr.bone] = rigdata::compose(L[tr.bone], rigdata::toRigid(d, pivots[tr.bone]));
+                        (void)rigdata::holdLocal(rig, tr.bone, L[tr.bone], pivots[tr.bone]); // (the authored rig's limits)
                         any = true;
                         // (an arm's track: an armed humanoid's arms follow the animation's arms with it, their hands
                         // where its forearms are, not on the weapons' grips as the game poses them)
-                        const char* bn = rig.bones[tr.bone].name;
-                        if(arms && (!strncmp(bn, "upperarm", 8) || !strncmp(bn, "forearm", 7)))
+                        if(arms && armBone(rig, tr.bone))
                         {
                             *arms = true;
                         }
@@ -600,6 +600,7 @@ bool bones(const entity_t* e, const ragdoll::Rig& rig, const aliashdr_t* hdr, in
                     rigdata::sample(tr, frame, s->loop ? static_cast<float>(s->length) : 0.f, l))
                 {
                     L[tr.bone] = rigdata::lerp(L[tr.bone], rigdata::toRigid(l, pivots[tr.bone]), w);
+                    (void)rigdata::holdLocal(rig, tr.bone, L[tr.bone], pivots[tr.bone]); // (the authored rig's limits)
                 }
             }
             if(arms)
@@ -646,7 +647,13 @@ void adjustTargets(const ragdoll::Rig& rig, const agarms::Spec& spec, const rigp
         {
             continue;
         }
-        const rigpose::Rigid H = kick ? rigdata::compose(kick[fore], posed[fore]) : posed[fore];
+        // (the authored rig: the hand its own bone, on the forearm's end; the old rig's forearm carries the hand)
+        int hand = fore;
+        for(int b = 0; rig.authored && b < rig.numBones; b++)
+        {
+            hand = rig.bones[b].parent == fore && !strncmp(rig.bones[b].name, "hand", 4) ? b : hand;
+        }
+        const rigpose::Rigid H = kick ? rigdata::compose(kick[hand], posed[hand]) : posed[hand];
         const rigpose::Rigid U = kick ? rigdata::compose(kick[upper], posed[upper]) : posed[upper];
         t.fk[s] = true;
         t.fkHand[s] = H;
@@ -658,6 +665,17 @@ void adjustTargets(const ragdoll::Rig& rig, const agarms::Spec& spec, const rigp
     t.second = false;
     t.cup = false;
     t.reaching = false;
+}
+
+bool armBone(const ragdoll::Rig& rig, int b)
+{
+    if(b < 0 || b >= rig.numBones)
+    {
+        return false;
+    }
+    const char* n = rig.bones[b].name;
+    return !strncmp(n, "upperarm", 8) || !strncmp(n, "forearm", 7) ||
+           (rig.authored && (!strncmp(n, "clavicle", 8) || !strncmp(n, "hand", 4)));
 }
 
 void setStudio(int ent, const rigpose::Rigid* F, int numBones, bool arms)

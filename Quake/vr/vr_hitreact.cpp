@@ -2515,11 +2515,26 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     }
     // The Rig Studio's animations (vr_rigseq.cpp; kickInstance draws them so): its bones from them, the layers below on top.
     bool layerArms = false;
+    // (the keys' torso: the chest on the hips as keyed against as the frame has it; the upper body's hold keeps it)
+    rigpose::Rigid layerTorso;
+    bool layered = false;
     if(rigseq::wants(e))
     {
         rigpose::Rigid F[ragdoll::maxBones];
         if(rigseq::bones(e, *rig, hdr, pose1, pose2, blend, posed, F, &layerArms))
         {
+            int hips = spec.chest;
+            for(int n = 0; hips >= 0 && rig->bones[hips].parent >= 0 && n < ragdoll::maxBones; n++)
+            {
+                hips = rig->bones[hips].parent;
+            }
+            if(spec.chest >= 0 && hips >= 0 && hips != spec.chest)
+            {
+                const rigpose::Rigid was = composeRigid(inverseRigid(posed[hips]), posed[spec.chest]);
+                const rigpose::Rigid now = composeRigid(inverseRigid(F[hips]), F[spec.chest]);
+                layerTorso = composeRigid(inverseRigid(was), now);
+                layered = true;
+            }
             for(int i = 0; i < rig->numBones; i++)
             {
                 posed[i] = F[i];
@@ -2565,6 +2580,13 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     if(uppered)
     {
         layOnChest(*rig, spec.chest, upperCorr, posed);
+        if(layered)
+        {
+            // (the Rig Studio's torso keys on the held chest: its turn on the hips as keyed, not taken out with the
+            // frames')
+            const rigpose::Rigid keyed = composeRigid(posed[spec.chest], layerTorso);
+            layOnChest(*rig, spec.chest, composeRigid(keyed, inverseRigid(posed[spec.chest])), posed);
+        }
     }
     const glm::vec3 anchorShift = uppered ? rigpose::apply(upperCorr, s.anchorAt) - s.anchorAt : glm::vec3{0.f};
     // A strike's body (bodyTurn: the torso, hips and head turned as QC turned the hands' targets) under the arms; the
@@ -2692,7 +2714,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     {
         // vr_rig2 1: drawn on the authored rig, its arms laid on its arm bones within their limits, its weapons carried
         // by its hands as drawn (vr_rig2_game.cpp)
-        rig2::liveArmed(e, *rig, posed, kicked ? kick : nullptr, placed, pose1, pose2, blend);
+        rig2::liveArmed(e, *rig, posed, kicked ? kick : nullptr, placed, pose1, pose2, blend, layerArms);
     }
     if(ArmPose* seen = armPoseOf(s.ent, false))
     {
