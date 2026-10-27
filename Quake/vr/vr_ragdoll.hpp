@@ -169,6 +169,7 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
     int heldBy, uint32_t cut, bool bleeds);
 void unpublish(int num);
+[[nodiscard]] bool published(int num); // edict `num` has a ragdoll published (drawn with it, not its animation)
 void unpublishAll();
 
 // The client, around a frame's drawing: the corpses that are ragdolls drawn with their skinned model (CL_RelinkEntities'

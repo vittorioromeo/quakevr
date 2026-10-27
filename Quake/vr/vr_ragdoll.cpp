@@ -2684,6 +2684,11 @@ void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const gl
     }
 }
 
+bool published(int num)
+{
+    return num > 0 && num < static_cast<int>(draw.byNum.size()) && draw.byNum[static_cast<za::SizeT>(num)].rig != nullptr;
+}
+
 void unpublish(int num)
 {
     if(num >= 0 && num < static_cast<int>(draw.byNum.size()))

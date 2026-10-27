@@ -427,7 +427,7 @@ void advanceLerps()
             continue;
         }
         const int num = static_cast<int>(e - cl_entities);
-        const ragdoll::Rig* rig = num > 0 && num < cl_max_edicts && num != cl.viewentity ? ragdoll::rigFor(e->model) : nullptr;
+        const ragdoll::Rig* rig = num > 0 && num < cl_max_edicts && num != cl.viewentity && !ragdoll::published(num) ? ragdoll::rigFor(e->model) : nullptr;
         if(!rig || !rig->authored)
         {
             continue;
@@ -456,7 +456,7 @@ void liveAll()
             continue;
         }
         const int num = static_cast<int>(e - cl_entities);
-        if(num <= 0 || num >= cl_max_edicts || num == cl.viewentity || drawnNow(num))
+        if(num <= 0 || num >= cl_max_edicts || num == cl.viewentity || drawnNow(num) || ragdoll::published(num))
         {
             continue;
         }
