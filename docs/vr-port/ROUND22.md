@@ -24468,5 +24468,41 @@ clavicle taking the reach), the studio's aim and Pickup tests on it, the live gr
 blended now), the enforcer (stage 2b: its rig is there; needs `fromAuthored` for it (the grunt-only check lifted), its
 bone names checked against agarms' armed rig row and hitreact's, its rifle a weapon bone, its arms and legs as the
 grunt's), the ROM window's "Old rig" mesh under the authored latch (it moves the authored ragdoll rig).
+**Stage 2, round 2 (same branch): the armed regressions.** Why the off hand missed its second grip (every gun of the
+frozen `pose_grunts_guns`, "grip-unreached"; `vr_agrunt_ik_debug 4` prints the decision now): **QC placed the weapons for
+the derived rig's shoulders** (`vr_armedmon.qc`: 0.1 -7.7 16.3 and 0.7 6.3 14.5, the arm 16.7): the second grip 18.9
+units from the authored left shoulder, past its 17.7 arm. Fixes: the engine's latch sets `vr_rig2_game` (by the engine
+only) and QC's grunt row takes the authored shoulders (-0.3 -9.4 15.2, 0.9 9.0 15.2) and right arm (15.2); the
+second grip's reach is measured from where the arm's clavicle brings the shoulder (agarms, authored only), the authored
+wrist 10 degrees more onto it (its forearm a hinge), and the clavicle takes `vr_rig2_clavicle` 0.6 of the lift and reach
+(the derived rig's 0.35: its shoulder sat inside the chest). Also found: the leg solve never ran on the authored rig
+(its model was found only by the alias drawing's rows, which a skinned copy never asks for: the Pickup's kneel), a
+strike's torso turn needed the chest on the pelvis (now at the spine), the upper body's hips were the spine (now the
+root). Frozen holds: 21 of 21 second grips taken as on the old rig.
+
+Glitch finder, grunts (worst / p95; three runs of each to show the spread):
+| metric | old 1, 2, 3 | authored 1, 2, 3 (`vr_rig2_clavicle` 1, 1, 0.6) |
+|---|---|---|
+| reach | 27.1/2.31, 21.9/2.11, 23.8/2.11 | 24.0/1.99, 30.3/2.03, 30.3/1.70 |
+| grip2 | 11.6/0.20, 11.7/0.20, 11.4/0.20 | 11.9/0.26, 11.6/0.26, 12.3/0.25 (Mjolnir's run and pain: 1.5 -> 2.2) |
+| aim | 57.4/9.9, 71.7/10.5, 70.7/12.1 | 56.8/8.0, 60.7/9.1, 61.0/8.4 |
+| wrist | 72.5/11.4, 74.8/11.7, 72.2/13.6 | 61.2/9.7, 66.0/9.7, 64.6/9.4 |
+| armpen | 6.5/1.2, 5.5/1.2, 6.6/1.3 | 3.4/0.3, 3.3/0.3 |
+| shoulder (jump) | 6.5/0.26, 4.2/0.28, 4.1/0.27 | 5.0/0.44, 3.7/0.45, 5.3/0.36 |
+| wrong | 178.7/51.2, 179.3/54.1, 178.8/55.9 | 177.4/55.0, 179.9/53.9 |
+With his edited `vrgrunt.rig2.txt` (C:\OHWorkspace\quakevr-iw, 12:18: wider spine, chest, right clavicle and shoulder,
+forearm_r 125, hand_r 30, thigh_r, shin_r 130; pivots unchanged): reach 1.99, grip2 0.26, aim 6.6 p95; `vr_rig2_check` 25
+of 35 with it (the widened joints' sweeps: 521 flips over all its sweeps). The armed poses recorded again (200, test 46):
+new 0 see-through, 354 flipped, 17 collapsed, 156 folds, stretch 0.15..3.58; old 328 (130 poses), 6301, 59, 886,
+0.02..30.72; the arms on the solve: hand 0.02 mean / 2.26 most units off it, elbow 0.01 / 0.13.
+
+Rig Studio on the authored latch: Range of Motion 9/9, subjects 14/14, aim 4/4, pose keys 10/10 (as on the old). The
+Range of Motion's "Old rig" mesh under the authored latch: its subject drawn on the derived rig's `#rag` (as the authored
+one moves), `#rag` now always made from the derived rig. Live grunts (and armed ones) along **r_lerpmodels 3's spline**:
+`animsmooth::splineOf` (its four keys and spans, `keysOf`, shared with its own drawing) and `rigpose::along` (the old
+path's limbs); `vr_rig2_live_check` counts them (55 of 60 drawings mid-lerp on the spline). Eyeshots (old | new):
+`scratch/eyes_nailpistol.png` (test 45's sheet: aim ahead front and side, run front and side, pain), `eyes_shotgun.png`
+(the glitch finder's shotgun: first aim, run, a later moment), `eyes_death.png`, `eyes_knock.png` (a high camera: the body
+kept in view).
 - [ ] Grunt rig stage 2 {test:pose_grunts_guns}: Debug > Grunt on the Authored Rig on, load a map: grunts alive (aiming, running, reloading, a shotgun and a nail pistol), hit, knocked down, killed, cut, grabbed: their joints smooth (no tearing at the elbow, knee, shoulder), their weapons in their hands; tell where the off hand misses its grip
 - [ ] Grunt rig stage 2 ragdolls {test:none}: vr_rig2 1: kill grunts every way (body, head, arm, leg, blast, a stair fall), knock them down and let them get up: no part flung, no limb bent the wrong way, the corpse smooth at every joint
