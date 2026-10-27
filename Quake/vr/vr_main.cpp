@@ -9,6 +9,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
 #include "vr_admelee.hpp"
+#include "vr_agarmor.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_adguns.hpp"
 #include "vr_adweapons.hpp"
@@ -2063,6 +2064,7 @@ extern "C" void VR_Init()
     ragtool::init();  // -ragtool, vr_ragtool (vr_ragtool.cpp): before flatplay, whose mode the flag implies
     flatplay::init(); // -flatscreenmode (vr_flatplay.cpp): the flag the whole mode hangs on, read once here
     rigstudio::init(); // vr_rigstudio (vr_rigstudio.cpp), its data (vr_rigdata.cpp) and the game's side (vr_rigseq.cpp): their commands
+    agarmor::init();   // the armed humanoids' armour shells (vr_agarmor.cpp): vr_agarmor_info, _check, _rebuild, _set
     VR_RegisterPackStatus();
     VR_RegisterContinue();
     Cmd_AddCommand("vr_adgun_models", adguns::info_f); // AD support: the AD soldiers' gun models (vr_adguns.cpp)
