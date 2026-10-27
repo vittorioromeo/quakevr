@@ -25078,3 +25078,8 @@ budget; a design is in the report.
 - [ ] Off hand grip offset {test:none}: Rig Studio, Pose Keys (O) on the shotgun grunt in Aim: drag the "left hand: grip offset" dot along its red arrow: the off hand slides along the fore-end, the gun's own axes; its rings roll the hand round the barrel; Ctrl+Z puts it back.
 - [ ] Off hand Free per pose {test:none}: Pose Studio Data, Rifle, Run: Off Hand Free: running grunts with shotguns carry them one-handed, the off hand at their side, and take the fore-end again as they aim (a quarter-second reach, no snap).
 - [ ] His evening poses shipped {test:none}: an empty vr_agrunt_poses: the rifle, pistol, launcher, sprayer and laser cannon aims as you left them.
+
+
+## QC warnings fixed; warnings now fail the build (worktree `dequant`, branch `agent/qcwarn2`, 2026-10-27)
+
+Fixed 3 over-long strcat calls in `vr_armedgrunt_range_test.qc` (nested), a >8-argument sprintf in `vr_armedgrunt_grab_test.qc` (split in two) and two unused globals there. The full QC now compiles with 0 warnings. Kit `build.sh` greps the fteqcc output for `warning` and fails the build (so `ship_next.sh` fails) listing them; verified with a deliberate unused global (fails) and without (built).

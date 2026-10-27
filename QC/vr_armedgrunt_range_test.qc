@@ -170,9 +170,9 @@ void() VR_AGRG_Frame =
     float mean = vr_agrg_dsum / max(1, vr_agrg_dn);
     // (sprintf: 8 arguments at most)
     string s = sprintf("range: %s: dist min %.0f mean %.0f, inside 64 %.2f s, shots %g (%g walking), backing steps %g",
-        strcat(VR_AGT_Name(wid), " ", VR_AGRG_CaseName(vr_agrg_case)), vr_agrg_dmin, mean, vr_agrg_inside,
+        strcat(strcat(VR_AGT_Name(wid), " "), VR_AGRG_CaseName(vr_agrg_case)), vr_agrg_dmin, mean, vr_agrg_inside,
         vr_agrg_shots, vr_agrg_walkshots, vr_ag_range_backs - vr_agrg_backs0);
-    s = strcat(s, alive ? ", alive, holding " : ", killed, holding ", (g && g.vr_ag_prop) ? g.vr_ag_prop.netname : "nothing", ":");
+    s = strcat(strcat(s, alive ? ", alive, holding " : ", killed, holding "), strcat((g && g.vr_ag_prop) ? g.vr_ag_prop.netname : "nothing", ":"));
     if(wid == WID_CHAINSAW && vr_agrg_case == 0)
     {
         // (its first thrust: begun within the saw's reach, and it reaches you)
@@ -297,7 +297,7 @@ void() VR_AGAIM_Frame =
     {
         return;
     }
-    string s = strcat("aim: ", VR_AGT_Name(VR_AGAIM_Wid(vr_agaim_w)), " (bin: shots, right of you aimed from its grip / as fired):");
+    string s = strcat(strcat("aim: ", VR_AGT_Name(VR_AGAIM_Wid(vr_agaim_w))), " (bin: shots, right of you aimed from its grip / as fired):");
     float ok = TRUE;
     float any = 0;
     for(i = 0; i < 10; i++)
