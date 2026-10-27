@@ -14,6 +14,7 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Enforcer rig stage 1 (flat screen): Rig Studio > Subject: the enforcer; View > Range of Motion: sweep each joint, drag the limbs, Random Pose; Authored vs Old in the same pose (shoulders back, left arm across the chest, knees bent); the rifle in the hands; say which pivots or limits to change
 Ragdolls look as alive: kill a grunt, an ogre and an enforcer in a bright room and walk round the corpses: the same shading, smoothness and skin as alive, darkening the floor under them as a live monster does
 Rig Studio > Range of Motion, Mesh drawn on Authored rig: Random Pose, drag the right arm and bend the wrist: the shotgun stays in the hand at its grip; Subject with two revolvers: the left one follows the left hand; Old rig: as before
 Rig Studio > Range of Motion: Mesh drawn on Authored rig vs Old rig in the same pose, up close (face, hands, chest): the same texture resolution, shading and smoothness
