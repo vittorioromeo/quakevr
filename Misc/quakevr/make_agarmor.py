@@ -16,7 +16,8 @@
 #   inner   (160, 96)-(208, 128): the padding inside (dark leather)
 #   rim     (208, 96)-(256, 128): the plates' edges: b 0 the outer edge (lit) .. 1 the inner (dark)
 #
-# Usage: python Misc/quakevr/make_agarmor.py [output progs folder]   (deterministic: the same bytes every run)
+# Usage: python Misc/quakevr/make_agarmor.py [output progs folder]   (deterministic: the same bytes every run; needs
+# numpy, which make_vrbody's mdlpolish imports: on the author's machine `py -3.13`)
 
 import math
 import os
