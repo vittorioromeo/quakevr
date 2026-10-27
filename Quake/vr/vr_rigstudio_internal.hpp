@@ -402,6 +402,10 @@ void typingProbe(int which); // after a field the test types in (1 the sequence'
 void typingTestTick();       // each studio frame, after the windows
 void testTyping_f();
 
+// vr_rigstudio_animtest.cpp: vr_rigstudio_test_rig2anim (the Timeline's keys on the subject's rig, saved, read back)
+void animTestTick();
+void testAnim_f();
+
 // vr_rigstudio_ui.cpp
 void windows();
 [[nodiscard]] glm::vec4 boneColor(int b);

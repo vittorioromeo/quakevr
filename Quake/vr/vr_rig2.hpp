@@ -156,6 +156,14 @@ void latch(); // VR_NoteMapSpawn (and the first use): vr_rig2 read; the models' 
 [[nodiscard]] glm::vec3 anglesOf(const Rig& rig, int b, const glm::quat& local);
 // A joint's local turn from its angles (forward's per joint).
 [[nodiscard]] glm::quat localOf(const Rig& rig, int b, const glm::vec3& angles);
+// The Rig Studio's keys on the authored rig (vr_rigdata.cpp, RIGSTUDIO.md "Animating the authored rig"): bone b's own
+// frame the files write its keys' turns and offsets in (columns: x, y, z in the rest pose's model space): a ball's
+// swing X axis, swing Y axis and its neutral direction (the key's x, y, z read as Swing X, Swing Y, Twist), a hinge's
+// axis, then across and along the bone; the root and a fixed bone the model's axes.
+[[nodiscard]] glm::mat3 keyAxes(const Rig& rig, int b);
+// A joint's local turn held within its limits (a ball's swing onto its ellipse and its twist, a hinge's bend); the
+// root and fixed bones unchanged. False: it was within them (`local` untouched).
+bool clampLocal(const Rig& rig, int b, glm::quat& local);
 // A joint as Box3D's (vr_box3d_ragdoll.cpp): its frames in the parent's and its own rest space; a ball's elliptical cone
 // round its swing's middle (half angles, rad, toward frameA's x and y) and its twist either way (rad, round its middle);
 // a hinge's range from the rest pose (rad).
@@ -192,9 +200,10 @@ void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, ri
 // A take's legs (aglegs' solve) on the leg bones (thigh at the knee, the shin's hinge at the ankle, the foot at the toe).
 void legsOnRig(const Rig& a, const aglegs::Placed& lp, rigpose::Rigid* F);
 // hitreact.cpp relinkSkinned: an armed one drawn on the authored rig, its bones `posed` and kicked as that solve has
-// them, its arms and legs laid on; its weapons in `placed` carried by its hands as drawn.
+// them, its arms and legs laid on; its weapons in `placed` carried by its hands as drawn. `keyedArms`: the Rig Studio's
+// animation has its arms (vr_rigseq.cpp): the arm bones as `posed` has them, not the solve's.
 void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const rigpose::Rigid* kick,
-    agarms::Placed& placed, int pose1, int pose2, float blend);
+    agarms::Placed& placed, int pose1, int pose2, float blend, bool keyedArms = false);
 // Every other live entity on an authored rig drawn so (VR_RagdollSwap, before swapModels): its frames, its kicks.
 void advanceLerps(); // VR_RagdollSwap (before the armed ones' arms): their frame lerps advanced, their .mdl drawn no more
 void liveAll();
@@ -205,6 +214,7 @@ void record_f();
 void armsReport_f(); // vr_rig2_arms: the arms laid on the authored rig since it last printed
 void partsReport_f(); // vr_rig2_parts: each authored ragdoll's parts as drawn, its joints' gaps
 void liveCheck_f();   // vr_rig2_live_check: the live ones drawn on the authored rig against their frames
+void animCheck_f();   // vr_rig2anim_check: the Rig Studio's override keys as drawn on them (vr_agrunt_test 82)
 void framesCheck_f(); // vr_rig2_frames [model]: its frames against the authored joints as the ragdoll has them
 
 } // namespace qvr::rig2

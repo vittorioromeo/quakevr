@@ -148,6 +148,10 @@ struct ModelData
     // Its sequences (one file each)
     za::Vector<Sequence> seqs;
     bool haveRigFile{false};
+    // For the authored rig (vr_rig2 1: ragdoll::Rig::authored): its own files (rigs/<model>.rig2anim.txt: poses and
+    // override tracks, no bone overrides or weights: the authored rig's file has those; anims/<model>/<name>.anim2.txt),
+    // their keys written in each bone's own frame (rig2::keyAxes), held within its joint's limits.
+    bool authored{false};
     // Read from the files' bone names before a rig is known: kept by name, put to indices on apply.
     za::Vector<za::String> pendingNames; // (internal)
 };
@@ -157,9 +161,10 @@ void baseName(const char* model, char* out, int size);
 
 // The folder the files are read from and written to: com_gamedir, or vr_rigdata_dir under it (the tests' own).
 void rootDir(char* out, int size);
-void rigPath(const char* base, char* out, int size);
+// (`authored`: the authored rig's files: <model>.rig2anim.txt, <name>.anim2.txt)
+void rigPath(const char* base, char* out, int size, bool authored = false);
 void animDir(const char* base, char* out, int size);
-void animPath(const char* base, const char* name, char* out, int size);
+void animPath(const char* base, const char* name, char* out, int size, bool authored = false);
 
 // Text form (the files): the whole file's text. Bones by `rig`'s names.
 void writeRig(const ModelData& m, const ragdoll::Rig& rig, za::String& out);
@@ -184,6 +189,15 @@ void newMap();
 // overrides and weights laid on it (its fits refitted for the bones whose vertices changed). False: no file, untouched.
 bool applyToRig(qmodel_t* model, const aliashdr_t* hdr, ragdoll::Rig& rig);
 
+// The authored rig's limits on a key (rig.authored; else untouched, false): bone b's local `L` (rest -> pose, its
+// parent's rest space: a sequence's key, or the frame's local and an override's delta laid on it) with its turn held
+// within its joint's limits; a jointed bone has no offset of its own (the root keeps its). False: it was within them.
+bool holdLocal(const ragdoll::Rig& rig, int b, rigpose::Rigid& L, const glm::vec3& pivot);
+// ... a key: `base` the local it is laid on (an override's frame; identity for a sequence's absolute key).
+bool holdKey(const ragdoll::Rig& rig, int b, const rigpose::Rigid& base, Local& key, const glm::vec3& pivot);
+// vr_rig2anim_import [model] [force]: the old rig's poses, override tracks and sequences (rigs/<model>.rig.txt,
+// anims/<model>/*.anim.txt, on the derived rig) carried onto the authored rig's bones and written to its files.
+void importToAuthored_f();
 // Evaluation
 // A track at `frame` (its keys' interpolation; before the first key the first's value, after the last the last's; a
 // loop of `length` frames wraps from the last key to the first). False: no keys.

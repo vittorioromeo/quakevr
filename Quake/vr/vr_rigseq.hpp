@@ -39,6 +39,10 @@ bool layer(const entity_t* e, const ragdoll::Rig& rig, const aliashdr_t* hdr, in
 void adjustTargets(const ragdoll::Rig& rig, const agarms::Spec& spec, const rigpose::Rigid* posed, const rigpose::Rigid* kick,
     agarms::Targets& t);
 
+// Whether bone b's keys hand an armed humanoid's arm to them (upper arm, forearm; on the authored rig the clavicle and
+// hand too).
+[[nodiscard]] bool armBone(const ragdoll::Rig& rig, int b);
+
 // The studio: entity `ent` drawn with these bones (model space, rest -> now) this frame; `arms`: its arms by them too.
 // ent 0: none.
 void setStudio(int ent, const rigpose::Rigid* F, int numBones, bool arms);
