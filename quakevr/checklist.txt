@@ -14,6 +14,7 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Rig Studio aim lines (flat screen): shotgun grunt with the Aim Target on: cyan barrel line, orange line to the target, the error at the view's foot; Align to Target: the barrel lands on the target; Ctrl+Z puts it back; then check the shotgun's aim in VR
 Gun pose categories: an armed grunt with a nail pistol aims with its arms out (not the pistol at its face); a shotgun grunt as you tuned it; Weapon Holds > Nail Pistol: Poses set to Rifle brings the pistol back to its face; Auto again
 Rig Studio > Pose Studio Data, Follow the Subject on a nail pistol grunt: the class reads Pistol; dragging its Aim changes only pistol holders; tune Shoulder Launcher, Sprayer, Laser Cannon and Widowmaker (they start as copies of your Rifle poses)
 Your tuned rifle Aim: with the target off to one side (torso turned) the shotgun points 8-14 degrees off and the pose keeps moving; retouch it if you see it
