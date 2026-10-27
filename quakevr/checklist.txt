@@ -14,6 +14,9 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Off hand grip offset: Rig Studio, Pose Keys (O) on the shotgun grunt in Aim: drag the "left hand: grip offset" dot along its red arrow: the off hand slides along the fore-end in the gun's own axes; its rings roll the hand round the barrel; Ctrl+Z puts it back
+Off hand Free per pose: Pose Studio Data, Rifle, Run: Off Hand Free: running shotgun grunts carry them one-handed, the off hand at their side, and take the fore-end again as they aim (a quarter-second reach, no snap)
+Your evening grunt poses are the defaults (rifle, pistol, launcher, sprayer, laser cannon aims; pistol run): they look as you left them
 Rig Studio aim lines, fixed: Pose Keys (O) on a shotgun grunt: the thin cyan line lies along the drawn barrel as you drag the weapon's ring; click the orange 'aim target' cross and drag it: it moves, the magenta 'shot' diamond follows it, the cyan ring shows where the barrel points; Align to Target on the enforcer's guns (about 18 degrees off in yaw)
 Rig Studio aim lines (flat screen): shotgun grunt with the Aim Target on: cyan barrel line, orange line to the target, the error at the view's foot; Align to Target: the barrel lands on the target; Ctrl+Z puts it back; then check the shotgun's aim in VR
 Gun pose categories: an armed grunt with a nail pistol aims with its arms out (not the pistol at its face); a shotgun grunt as you tuned it; Weapon Holds > Nail Pistol: Poses set to Rifle brings the pistol back to its face; Auto again
