@@ -14,6 +14,9 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Combat > Armed Grunts > Weapon Holds: enforcers one-hand the nail pistol, revolver and flare gun; grunts and enforcers one-hand the axe; switch a row and it changes at once; Reset to Defaults works {test:agrunt_holds_enforcers}
+Armed grunts' Widowmaker: the off hand on the front handle; laser cannon: the off hand on its secondary handle while carried; say how both look while aiming (the off hand may still come free) {test:agrunt_holds_grunts}
+Armed grunt with a sword: if the ready pose still looks off (blade straight up before the face), tune it in Rig Studio > Pose Studio Data > grips (v_ksword's Main grip, pitch forward) or with Pose Keys (O)
 Armed grunts and enforcers aiming, running and firing (nail pistol, shotgun, nailgun): the pauldron turns with the raised arm, no upper arm through the torso, no twisted shoulder; hands stay on their grips
 An armed enforcer with a nail pistol holds it in one hand and stands (no crouch, no belly push) as it fires
 Shove armed humanoids over and kill some: their ragdoll shoulders bend smoothly, nothing torn or folded
