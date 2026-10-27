@@ -6,6 +6,7 @@
 #include "vr_files.hpp"
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_rig2.hpp"
 #include "vr_rigpose.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
@@ -160,7 +161,46 @@ struct Words
     return rigdata::Interp::Smooth;
 }
 
-void writeTrack(za::String& out, const rigdata::Track& t, const ragdoll::Rig& rig, const char* indent)
+// The authored rig's files (ModelData::authored): each bone's keys in its own frame (rig2::keyAxes; the model's axes
+// otherwise), written to 0.001 (a file read and written again the same: the frames' turn and back off by ~1e-5).
+struct KeyAxes
+{
+    bool on{false};
+    glm::mat3 m[rigdata::maxBones];
+
+    [[nodiscard]] glm::vec3 toFile(int b, const glm::vec3& v) const
+    {
+        if(!on || b < 0 || b >= rigdata::maxBones)
+        {
+            return v;
+        }
+        const glm::vec3 f = glm::transpose(m[b]) * v;
+        return glm::vec3{snap(f.x), snap(f.y), snap(f.z)};
+    }
+    [[nodiscard]] glm::vec3 fromFile(int b, const glm::vec3& v) const
+    {
+        return on && b >= 0 && b < rigdata::maxBones ? m[b] * v : v;
+    }
+    [[nodiscard]] static float snap(float x) { return za::floor(x * 1000.f + 0.5f) / 1000.f; }
+};
+
+[[nodiscard]] KeyAxes keyAxesOf(const ragdoll::Rig& rig)
+{
+    KeyAxes k;
+    const rig2::Rig* a = rig.authored && rig.model ? rig2::rigFor(rig.model) : nullptr;
+    if(!a || a->numBones != rig.numBones)
+    {
+        return k;
+    }
+    k.on = true;
+    for(int b = 0; b < rig.numBones && b < rigdata::maxBones; b++)
+    {
+        k.m[b] = rig2::keyAxes(*a, b);
+    }
+    return k;
+}
+
+void writeTrack(za::String& out, const rigdata::Track& t, const ragdoll::Rig& rig, const char* indent, const KeyAxes& ax)
 {
     out += indent;
     out += "track ";
@@ -173,8 +213,8 @@ void writeTrack(za::String& out, const rigdata::Track& t, const ragdoll::Rig& ri
         num(out, k.frame);
         out += " ";
         out += rigdata::interpName(k.interp);
-        vec3(out, k.value.rot);
-        vec3(out, k.value.off);
+        vec3(out, ax.toFile(t.bone, k.value.rot));
+        vec3(out, ax.toFile(t.bone, k.value.off));
         out += "\n";
     }
     out += indent;
@@ -204,6 +244,7 @@ void forLines(const char* text, F&& f)
 struct TrackReader
 {
     rigdata::Track* track{nullptr};
+    const KeyAxes* ax{nullptr};
     bool key(const Words& w)
     {
         if(!track || !w.is(0, "key") || w.n < 9)
@@ -213,8 +254,8 @@ struct TrackReader
         rigdata::Key k;
         k.frame = w.f(1);
         k.interp = interpOf(w.s(2));
-        k.value.rot = w.v3(3);
-        k.value.off = w.v3(6);
+        k.value.rot = ax ? ax->fromFile(track->bone, w.v3(3)) : w.v3(3);
+        k.value.off = ax ? ax->fromFile(track->bone, w.v3(6)) : w.v3(6);
         track->keys.pushBack(k);
         return true;
     }
@@ -463,7 +504,8 @@ void loadEntry(Entry& e)
         m->boneName[b] = rig->bones[b].name;
     }
     bool any = false;
-    rigdata::rigPath(base, path, sizeof(path));
+    m->authored = rig->authored; // (the authored rig's own files: vr_rig2 1)
+    rigdata::rigPath(base, path, sizeof(path), rig->authored);
     za::String text, err;
     if(files::readText(path, text))
     {
@@ -481,9 +523,11 @@ void loadEntry(Entry& e)
     if(files::isDirectory(dir))
     {
         za::Vector<za::String> names;
+        const char* suffix = rig->authored ? ".anim2.txt" : ".anim.txt";
+        const size_t sn = strlen(suffix);
         files::forEachEntry(dir, [&](const char* name, bool isDir) {
             const size_t n = strlen(name);
-            if(!isDir && n > 9 && !strcmp(name + n - 9, ".anim.txt"))
+            if(!isDir && n > sn && !strcmp(name + n - sn, suffix))
             {
                 names.pushBack(za::String{name});
             }
@@ -645,11 +689,11 @@ void rootDir(char* out, int size)
     }
 }
 
-void rigPath(const char* base, char* out, int size)
+void rigPath(const char* base, char* out, int size, bool authored)
 {
     char root[MAX_OSPATH];
     rootDir(root, sizeof(root));
-    q_snprintf(out, static_cast<size_t>(size), "%s/rigs/%s.rig.txt", root, base);
+    q_snprintf(out, static_cast<size_t>(size), "%s/rigs/%s.%s", root, base, authored ? "rig2anim.txt" : "rig.txt");
 }
 
 void animDir(const char* base, char* out, int size)
@@ -659,22 +703,33 @@ void animDir(const char* base, char* out, int size)
     q_snprintf(out, static_cast<size_t>(size), "%s/anims/%s", root, base);
 }
 
-void animPath(const char* base, const char* name, char* out, int size)
+void animPath(const char* base, const char* name, char* out, int size, bool authored)
 {
     char dir[MAX_OSPATH], clean[64];
     animDir(base, dir, sizeof(dir));
     cleanName(name, clean, sizeof(clean));
-    q_snprintf(out, static_cast<size_t>(size), "%s/%s.anim.txt", dir, clean);
+    q_snprintf(out, static_cast<size_t>(size), "%s/%s.%s", dir, clean, authored ? "anim2.txt" : "anim.txt");
 }
 
 void writeRig(const ModelData& m, const ragdoll::Rig& rig, za::String& out)
 {
     out.clear();
-    out += "# Quake VR rig overrides (the Rig Studio: docs/vr-port/RIGSTUDIO.md), laid on the rig computed from the model\n";
-    out += "qvrrig 1\nmodel ";
+    const KeyAxes ax = rig.authored ? keyAxesOf(rig) : KeyAxes{};
+    if(rig.authored)
+    {
+        out += "# Quake VR animation of the authored rig (the Rig Studio: docs/vr-port/RIGSTUDIO.md, \"Animating the authored\n";
+        out += "# rig\"): its poses and override tracks; each key's turn (degrees) and offset in its bone's own frame: a ball\n";
+        out += "# joint's x Swing X, y Swing Y, z Twist; a hinge's x its bend; the root's the model's axes\n";
+        out += "qvrrig2anim 1\nmodel ";
+    }
+    else
+    {
+        out += "# Quake VR rig overrides (the Rig Studio: docs/vr-port/RIGSTUDIO.md), laid on the rig computed from the model\n";
+        out += "qvrrig 1\nmodel ";
+    }
     out += m.model;
     out += "\n";
-    for(int b = 0; b < rig.numBones; b++)
+    for(int b = 0; b < rig.numBones && !rig.authored; b++) // (the authored rig's rest and weights: its rig2.txt)
     {
         const BoneEdit& e = m.bones[b];
         if(!e.on)
@@ -701,6 +756,10 @@ void writeRig(const ModelData& m, const ragdoll::Rig& rig, za::String& out)
     }
     for(const VertWeights& w : m.weights)
     {
+        if(rig.authored)
+        {
+            break;
+        }
         out += "weight ";
         out += za::toString(w.v);
         for(int i = 0; i < w.n; i++)
@@ -726,8 +785,8 @@ void writeRig(const ModelData& m, const ragdoll::Rig& rig, za::String& out)
             }
             out += "  key ";
             out += rig.bones[b].name;
-            vec3(out, p.pose.bone[b].rot);
-            vec3(out, p.pose.bone[b].off);
+            vec3(out, ax.toFile(b, p.pose.bone[b].rot));
+            vec3(out, ax.toFile(b, p.pose.bone[b].off));
             out += "\n";
         }
         out += "end\n";
@@ -745,7 +804,7 @@ void writeRig(const ModelData& m, const ragdoll::Rig& rig, za::String& out)
         {
             if(!t.keys.empty())
             {
-                writeTrack(out, t, rig, "  ");
+                writeTrack(out, t, rig, "  ", ax);
             }
         }
         out += "end\n";
@@ -757,8 +816,19 @@ void writeSequence(const ModelData& m, const Sequence& s, const ragdoll::Rig& ri
     char name[64];
     cleanName(s.name.cStr(), name, sizeof(name));
     out.clear();
-    out += "# Quake VR animation (the Rig Studio: docs/vr-port/RIGSTUDIO.md): its bones' keys from the rest pose\n";
-    out += "qvranim 1\nmodel ";
+    const KeyAxes ax = rig.authored ? keyAxesOf(rig) : KeyAxes{};
+    if(rig.authored)
+    {
+        out += "# Quake VR animation of the authored rig (the Rig Studio: docs/vr-port/RIGSTUDIO.md): its bones' keys from the\n";
+        out += "# rest pose, each key's turn (degrees) and offset in its bone's own frame (a ball joint's x Swing X, y Swing Y,\n";
+        out += "# z Twist; a hinge's x its bend; the root's the model's axes)\n";
+        out += "qvranim2 1\nmodel ";
+    }
+    else
+    {
+        out += "# Quake VR animation (the Rig Studio: docs/vr-port/RIGSTUDIO.md): its bones' keys from the rest pose\n";
+        out += "qvranim 1\nmodel ";
+    }
     out += m.model;
     out += "\nname ";
     out += name;
@@ -796,7 +866,7 @@ void writeSequence(const ModelData& m, const Sequence& s, const ragdoll::Rig& ri
     {
         if(!t.keys.empty())
         {
-            writeTrack(out, t, rig, "");
+            writeTrack(out, t, rig, "", ax);
         }
     }
 }
@@ -807,14 +877,17 @@ bool readRig(const char* text, const ragdoll::Rig& rig, ModelData& m, za::String
     NamedPose* pose = nullptr;
     AnimOverride* over = nullptr;
     TrackReader tr;
+    const KeyAxes ax = rig.authored ? keyAxesOf(rig) : KeyAxes{};
+    tr.ax = &ax;
     int lineNo = 0;
     forLines(text, [&](const Words& w) {
         lineNo++;
         if(!header)
         {
-            if(!w.is(0, "qvrrig"))
+            if(!w.is(0, rig.authored ? "qvrrig2anim" : "qvrrig"))
             {
-                error = "not a rig file (no qvrrig line first)";
+                error = rig.authored ? "not the authored rig's animation file (no qvrrig2anim line first)"
+                                     : "not a rig file (no qvrrig line first)";
                 ok = false;
                 return false;
             }
@@ -845,8 +918,8 @@ bool readRig(const char* text, const ragdoll::Rig& rig, ModelData& m, za::String
                 const int b = boneByName(rig, w.s(1));
                 if(b >= 0)
                 {
-                    pose->pose.bone[b].rot = w.v3(2);
-                    pose->pose.bone[b].off = w.v3(5);
+                    pose->pose.bone[b].rot = ax.fromFile(b, w.v3(2));
+                    pose->pose.bone[b].off = ax.fromFile(b, w.v3(5));
                     pose->pose.mask |= 1u << b;
                 }
             }
@@ -875,7 +948,7 @@ bool readRig(const char* text, const ragdoll::Rig& rig, ModelData& m, za::String
         {
             m.model = w.s(1);
         }
-        else if(w.is(0, "bone") && w.n >= 2)
+        else if(w.is(0, "bone") && w.n >= 2 && !rig.authored)
         {
             const int b = boneByName(rig, w.s(1));
             if(b < 0)
@@ -903,7 +976,7 @@ bool readRig(const char* text, const ragdoll::Rig& rig, ModelData& m, za::String
                 else if(w.is(i, "upper")) { e.upper = w.f(++i); }
             }
         }
-        else if(w.is(0, "weight") && w.n >= 4)
+        else if(w.is(0, "weight") && w.n >= 4 && !rig.authored)
         {
             VertWeights vw;
             vw.v = static_cast<int>(strtol(w.s(1), nullptr, 10));
@@ -974,12 +1047,15 @@ bool readSequence(const char* text, const ragdoll::Rig& rig, Sequence& s, za::St
 {
     bool header = false, ok = true;
     TrackReader tr;
+    const KeyAxes ax = rig.authored ? keyAxesOf(rig) : KeyAxes{};
+    tr.ax = &ax;
     forLines(text, [&](const Words& w) {
         if(!header)
         {
-            if(!w.is(0, "qvranim"))
+            if(!w.is(0, rig.authored ? "qvranim2" : "qvranim"))
             {
-                error = "not an animation file (no qvranim line first)";
+                error = rig.authored ? "not the authored rig's animation (no qvranim2 line first)"
+                                     : "not an animation file (no qvranim line first)";
                 ok = false;
                 return false;
             }
@@ -1432,6 +1508,49 @@ void forward(const ragdoll::Rig& rig, const glm::vec3* pivots, const Local* loca
     }
 }
 
+bool holdLocal(const ragdoll::Rig& rig, int b, rigpose::Rigid& L, const glm::vec3& pivot)
+{
+    const rig2::Rig* a = rig.authored && rig.model ? rig2::rigFor(rig.model) : nullptr;
+    if(!a || a->numBones != rig.numBones || b < 0 || b >= rig.numBones)
+    {
+        return false;
+    }
+    glm::quat q = L.rot;
+    if(!rig2::clampLocal(*a, b, q))
+    {
+        return false;
+    }
+    // (its turn held; where its pivot goes kept: a frame's small gap at the joint)
+    const glm::vec3 at = rigpose::apply(L, pivot);
+    L.rot = q;
+    L.pos = at - q * pivot;
+    return true;
+}
+
+bool holdKey(const ragdoll::Rig& rig, int b, const rigpose::Rigid& base, Local& key, const glm::vec3& pivot)
+{
+    const rig2::Rig* a = rig.authored && rig.model ? rig2::rigFor(rig.model) : nullptr;
+    if(!a || a->numBones != rig.numBones || b < 0 || b >= rig.numBones)
+    {
+        return false;
+    }
+    const rig2::Joint j = a->bones[b].joint;
+    if(j != rig2::Joint::Ball && j != rig2::Joint::Hinge)
+    {
+        return false; // (the root: free; a fixed bone: as keyed)
+    }
+    bool changed = glm::length(key.off) > 1e-3f;
+    key.off = glm::vec3{0.f}; // (a joint turns about its pivot: no offset of its own)
+    glm::quat q = glm::normalize(base.rot * toQuat(key.rot));
+    if(rig2::clampLocal(*a, b, q))
+    {
+        key.rot = toRotDeg(glm::normalize(glm::inverse(base.rot) * q));
+        changed = true;
+    }
+    (void)pivot;
+    return changed;
+}
+
 void localsOf(const ragdoll::Rig& rig, const glm::vec3* pivots, const rigpose::Rigid* P, Local* out)
 {
     for(int b = 0; b < rig.numBones; b++)
@@ -1508,12 +1627,221 @@ void reload_f()
     newMap();
     Con_Printf("rigdata: the files are read again as each model is next drawn\n");
 }
+
+// ---- The old rig's animations carried onto the authored rig (vr_rig2anim_import) ----
+
+// An old bone's turns on the authored bones: its namesake, or shared (the old chest the spine and chest, the old head
+// the neck and head: their pivots where the old one's was, the turn split between them).
+struct ImportShare
+{
+    const char* old;
+    const char* to[2];
+    float w[2];
+};
+constexpr ImportShare importShares[] = {
+    {"chest", {"spine", "chest"}, {0.5f, 0.5f}},
+    {"head", {"neck", "head"}, {0.5f, 0.5f}},
+};
+
+// `old`'s tracks onto `to` (the authored rig's bones), each key held within the joints' limits (`baseAt`: the local an
+// override's key is laid on at a frame; null: absolute).
+template <typename BaseAt>
+int importTracks(const ragdoll::Rig& oldRig, const ragdoll::Rig& rig, const za::Vector<Track>& old, za::Vector<Track>& to,
+    const glm::vec3* pivots, BaseAt&& baseAt, int& held)
+{
+    int n = 0;
+    for(const Track& t : old)
+    {
+        if(t.bone < 0 || t.bone >= oldRig.numBones)
+        {
+            continue;
+        }
+        const char* name = oldRig.bones[t.bone].name;
+        const char* targets[2] = {name, nullptr};
+        float w[2] = {1.f, 0.f};
+        for(const ImportShare& s : importShares)
+        {
+            if(!strcmp(s.old, name) && boneByName(rig, s.to[0]) >= 0 && boneByName(rig, s.to[1]) >= 0)
+            {
+                targets[0] = s.to[0];
+                targets[1] = s.to[1];
+                w[0] = s.w[0];
+                w[1] = s.w[1];
+            }
+        }
+        for(int i = 0; i < 2 && targets[i]; i++)
+        {
+            const int b = boneByName(rig, targets[i]);
+            if(b < 0)
+            {
+                Con_Printf("rig2anim import: no bone %s on the authored rig (its track left out)\n", targets[i]);
+                continue;
+            }
+            Track nt;
+            nt.bone = b;
+            for(const Key& k : t.keys)
+            {
+                Key nk = k;
+                nk.value.rot = k.value.rot * w[i];
+                nk.value.off = i == 0 ? k.value.off : glm::vec3{0.f};
+                held += holdKey(rig, b, baseAt(b, k.frame), nk.value, pivots[b]) ? 1 : 0;
+                nt.keys.pushBack(nk);
+            }
+            to.pushBack(ZA_MOVE(nt));
+            n++;
+        }
+    }
+    return n;
+}
+
+void import_f()
+{
+    importToAuthored_f();
+}
 } // namespace
+
+void importToAuthored_f()
+{
+    const char* want = Cmd_Argc() > 1 ? Cmd_Argv(1) : "progs/vrgrunt.mdl";
+    const bool force = Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "force");
+    qmodel_t* model = Mod_ForName(want, false);
+    const ragdoll::Rig* rig = model ? ragdoll::rigFor(model) : nullptr;
+    const ragdoll::Rig* oldRig = model ? ragdoll::derivedRigFor(model) : nullptr;
+    const auto* hdr = model ? static_cast<const aliashdr_t*>(Mod_Extradata(model)) : nullptr;
+    if(!rig || !rig->authored || !oldRig || !hdr)
+    {
+        Con_Printf("rig2anim import: %s is not on an authored rig now (vr_rig2 1, then a map loaded with it)\n", want);
+        return;
+    }
+    char base[64], path[MAX_OSPATH], dir[MAX_OSPATH];
+    baseName(model->name, base, sizeof(base));
+    ModelData old;
+    old.model = model->name;
+    rigPath(base, path, sizeof(path), false);
+    za::String text, err;
+    if(files::readText(path, text) && !readRig(text.cStr(), *oldRig, old, err))
+    {
+        Con_Printf("rig2anim import: %s: %s\n", path, err.cStr());
+    }
+    animDir(base, dir, sizeof(dir));
+    if(files::isDirectory(dir))
+    {
+        files::forEachEntry(dir, [&](const char* name, bool isDir) {
+            const size_t n = strlen(name);
+            char p[MAX_OSPATH];
+            q_snprintf(p, sizeof(p), "%s/%s", dir, name);
+            za::String t2, e2;
+            Sequence s;
+            if(!isDir && n > 9 && !strcmp(name + n - 9, ".anim.txt") && files::readText(p, t2) && readSequence(t2.cStr(), *oldRig, s, e2))
+            {
+                old.seqs.pushBack(ZA_MOVE(s));
+            }
+        });
+    }
+    glm::vec3 pivots[maxBones];
+    restOf(*rig, nullptr, pivots, nullptr);
+    ModelData m;
+    m.model = model->name;
+    m.base = base;
+    m.authored = true;
+    for(int b = 0; b < rig->numBones; b++)
+    {
+        m.boneName[b] = rig->bones[b].name;
+    }
+    int tracks = 0, held = 0;
+    const auto absolute = [](int, float) { return rigpose::Rigid{}; };
+    for(const NamedPose& p : old.poses)
+    {
+        NamedPose np;
+        np.name = p.name;
+        for(int ob = 0; ob < oldRig->numBones; ob++)
+        {
+            if(!(p.pose.mask & (1u << ob)))
+            {
+                continue;
+            }
+            const int b = boneByName(*rig, oldRig->bones[ob].name);
+            if(b >= 0)
+            {
+                np.pose.bone[b] = p.pose.bone[ob];
+                held += holdKey(*rig, b, rigpose::Rigid{}, np.pose.bone[b], pivots[b]) ? 1 : 0;
+                np.pose.mask |= 1u << b;
+            }
+        }
+        m.poses.pushBack(ZA_MOVE(np));
+    }
+    AnimGroup groups[128];
+    const int numGroups = animGroups(hdr, groups, 128);
+    for(const AnimOverride& o : old.overrides)
+    {
+        AnimOverride no;
+        no.anim = o.anim;
+        const AnimGroup* g = nullptr;
+        for(int i = 0; i < numGroups; i++)
+        {
+            g = !q_strcasecmp(groups[i].name, o.anim.cStr()) ? &groups[i] : g;
+        }
+        // (an override's key laid on its frame's local there)
+        const auto frameLocal = [&](int b, float frame) {
+            if(!g)
+            {
+                return rigpose::Rigid{};
+            }
+            const int pose = poseOfFrame(hdr, g->first + za::clamp(static_cast<int>(frame + 0.5f), 0, g->count - 1));
+            const int p = rig->bones[b].parent;
+            const rigpose::Rigid P = rigpose::key(*rig, pose, b);
+            return (p >= 0 && p < b) ? compose(inverse(rigpose::key(*rig, pose, p)), P) : P;
+        };
+        tracks += importTracks(*oldRig, *rig, o.tracks, no.tracks, pivots, frameLocal, held);
+        m.overrides.pushBack(ZA_MOVE(no));
+    }
+    for(const Sequence& s : old.seqs)
+    {
+        Sequence ns = s;
+        ns.tracks.clear();
+        tracks += importTracks(*oldRig, *rig, s.tracks, ns.tracks, pivots, absolute, held);
+        m.seqs.pushBack(ZA_MOVE(ns));
+    }
+    int written = 0, kept = 0;
+    const auto put = [&](const char* p, const za::String& t) {
+        if(files::exists(p) && !force)
+        {
+            Con_Printf("rig2anim import: %s is there already (kept; \"force\" writes over it)\n", p);
+            kept++;
+            return;
+        }
+        written += files::writeText(p, t.toStringView()) ? 1 : 0;
+    };
+    char root[MAX_OSPATH];
+    rootDir(root, sizeof(root));
+    q_snprintf(dir, sizeof(dir), "%s/rigs", root);
+    files::createDirectories(dir);
+    if(!m.poses.empty() || !m.overrides.empty())
+    {
+        rigPath(base, path, sizeof(path), true);
+        writeRig(m, *rig, text);
+        put(path, text);
+    }
+    animDir(base, dir, sizeof(dir));
+    files::createDirectories(dir);
+    for(const Sequence& s : m.seqs)
+    {
+        animPath(base, s.name.cStr(), path, sizeof(path), true);
+        writeSequence(m, s, *rig, text);
+        put(path, text);
+    }
+    newMap(); // (read again as next drawn)
+    Con_Printf("rig2anim import: %s: %d poses, %d overrides, %d sequences, %d tracks on the authored bones (%d keys held "
+               "within the joints' limits); %d files written, %d kept\n",
+        model->name, static_cast<int>(m.poses.size()), static_cast<int>(m.overrides.size()), static_cast<int>(m.seqs.size()),
+        tracks, held, written, kept);
+}
 
 void registerCommands()
 {
     Cmd_AddCommand("vr_rigdata_info", info_f);
     Cmd_AddCommand("vr_rigdata_reload", reload_f);
+    Cmd_AddCommand("vr_rig2anim_import", import_f);
 }
 
 } // namespace qvr::rigdata

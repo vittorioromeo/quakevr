@@ -271,6 +271,7 @@ void takeModel(const qmodel_t* model)
             st.doc.model = model->name;
             st.doc.base = base;
         }
+        st.doc.authored = st.rig->authored; // (vr_rig2 1: the authored rig's bones and its own files)
         for(int b = 0; b < st.numBones; b++)
         {
             st.doc.boneName[b] = st.rig->bones[b].name;
@@ -1942,7 +1943,8 @@ void save()
     rigdata::rootDir(root, sizeof(root));
     q_snprintf(dir, sizeof(dir), "%s/rigs", root);
     files::createDirectories(dir);
-    rigdata::rigPath(st.doc.base.cStr(), path, sizeof(path));
+    const bool authored = st.rig->authored; // (the authored rig's files: rig2anim.txt, anim2.txt)
+    rigdata::rigPath(st.doc.base.cStr(), path, sizeof(path), authored);
     za::String text;
     rigdata::writeRig(st.doc, *st.rig, text);
     int written = 0;
@@ -1958,7 +1960,7 @@ void save()
     files::createDirectories(dir);
     for(const rigdata::Sequence& s : st.doc.seqs)
     {
-        rigdata::animPath(st.doc.base.cStr(), s.name.cStr(), path, sizeof(path));
+        rigdata::animPath(st.doc.base.cStr(), s.name.cStr(), path, sizeof(path), authored);
         rigdata::writeSequence(st.doc, s, *st.rig, text);
         if(files::writeText(path, text.toStringView()))
         {
@@ -1991,6 +1993,7 @@ void revert()
     st.doc = m ? *m : rigdata::ModelData{};
     st.doc.model = model;
     st.doc.base = base;
+    st.doc.authored = st.rig && st.rig->authored;
     for(int b = 0; b < st.numBones; b++)
     {
         st.doc.boneName[b] = st.rig->bones[b].name;
@@ -2272,6 +2275,19 @@ void keyBone(int b)
     rigdata::Key k;
     k.frame = frame;
     k.value = rigdata::fromRigid(v, st.pivots[b]);
+    if(st.rig->authored)
+    {
+        // (the authored rig: the key held within its joint's limits, Range of Motion's; an override's laid on its
+        // frame's own local there, a sequence's absolute)
+        const int p = st.rig->bones[b].parent;
+        const rigpose::Rigid frameLocal = st.source == Source::Seq ? rigpose::Rigid{}
+                                          : (p >= 0 && p < b)      ? rigdata::compose(rigdata::inverse(P[p]), P[b])
+                                                                   : P[b];
+        if(rigdata::holdKey(*st.rig, b, frameLocal, k.value, st.pivots[b]))
+        {
+            say(va("%s: keyed within its joint's limits", st.rig->bones[b].name));
+        }
+    }
     bool replaced = false;
     for(rigdata::Key& old : t->keys)
     {
@@ -2454,6 +2470,7 @@ void evaluate(float frame, rigpose::Rigid* F, rigpose::Rigid* P, bool withLive)
                     continue;
                 }
                 L = s ? rigdata::toRigid(v, st.pivots[b]) : rigdata::compose(L, rigdata::toRigid(v, st.pivots[b]));
+                (void)rigdata::holdLocal(rig, b, L, st.pivots[b]); // (the authored rig: between keys too, as the game)
             }
             if(withLive)
             {
@@ -2823,6 +2840,7 @@ void init()
     Cmd_AddCommand("vr_rigstudio_test_aim", testAim_f);
     Cmd_AddCommand("vr_rigstudio_test_posekeys", testPoseKeys_f);
     Cmd_AddCommand("vr_rigstudio_test_typing", testTyping_f);
+    Cmd_AddCommand("vr_rigstudio_test_rig2anim", testAnim_f);
     Cmd_AddCommand("vr_rigstudio_aim", aim_f);
     Cmd_AddCommand("vr_rigstudio_posekey", posekey_f);
     Cmd_AddCommand("vr_rigstudio_print", print_f);
@@ -3010,8 +3028,7 @@ void clientFrame()
         {
             for(const rigdata::Track& t : o->tracks)
             {
-                const char* bn = st.rig->bones[t.bone].name;
-                armsTouched = armsTouched || (!t.keys.empty() && (!strncmp(bn, "upperarm", 8) || !strncmp(bn, "forearm", 7)));
+                armsTouched = armsTouched || (!t.keys.empty() && rigseq::armBone(*st.rig, t.bone));
             }
         }
         // (the game's arms on the pose's arm bones: the rest pose posed by hand, an animation's arm changes, a sequence's
@@ -3032,6 +3049,7 @@ void clientFrame()
     aimTestTick(); // (the tests' steps: after the frame's note and drags)
     pkTestTick();
     typingTestTick();
+    animTestTick();
 }
 
 bool pinned(const entity_t* e, const void* aliashdr, short* pose1, short* pose2, float* blend)

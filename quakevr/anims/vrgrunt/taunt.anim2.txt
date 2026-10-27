@@ -1,0 +1,53 @@
+# Quake VR animation of the authored rig (the Rig Studio: docs/vr-port/RIGSTUDIO.md): its bones' keys from the
+# rest pose, each key's turn (degrees) and offset in its bone's own frame (a ball joint's x Swing X, y Swing Y,
+# z Twist; a hinge's x its bend; the root's the model's axes)
+qvranim2 1
+model progs/vrgrunt.mdl
+name taunt
+fps 10
+length 16
+loop 0
+blend 0.2 0.3
+arms 0
+hold 1
+base stand1
+event 6 shout
+track pelvis
+  key 0 smooth 0 0 0 0 0 0
+  key 3 smooth 0 0 0 0 0 0.5
+  key 6 smooth 0 0 0 0 0 -1.5
+  key 10 smooth 0 0 0 0 0 -0.5
+  key 15 smooth 0 0 0 0 0 0
+end
+track spine
+  key 0 smooth 0 0 0 0 0 0
+  key 3 smooth -7 1.054 4.888 0 0 0
+  key 6 smooth 10 -0.633 -2.933 0 0 0
+  key 10 smooth 6 0 0 0 0 0
+  key 15 smooth 0 0 0 0 0 0
+end
+track chest
+  key 0 smooth 0 0 0 0 0 0
+  key 3 smooth -7.128 1.764 4.482 0 0 0
+  key 6 smooth 10.075 -1.001 -2.55 0 0 0
+  key 10 smooth 5.998 0.06 0.144 0 0 0
+  key 15 smooth 0 0 0 0 0 0
+end
+track neck
+  key 0 smooth 0 0 0 0 0 0
+  key 3 smooth -8.993 -0.243 -0.243 0 0 0
+  key 6 smooth 10.992 0.297 0.297 0 0 0
+  key 8 smooth 5.996 -3.375 3.696 0 0 0
+  key 10 smooth 5.995 3.699 -3.372 0 0 0
+  key 12 smooth 3.997 0.108 0.108 0 0 0
+  key 15 smooth 0 0 0 0 0 0
+end
+track head
+  key 0 smooth 0 0 0 0 0 0
+  key 3 smooth -8.999 -0.036 -0.126 0 0 0
+  key 6 smooth 10.999 0.044 0.154 0 0 0
+  key 8 smooth 6.002 -4.826 1.299 0 0 0
+  key 10 smooth 5.997 4.874 -1.131 0 0 0
+  key 12 smooth 4 0.016 0.056 0 0 0
+  key 15 smooth 0 0 0 0 0 0
+end

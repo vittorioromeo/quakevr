@@ -171,6 +171,18 @@ za::Vector<Item> pageDebugViews()
                   "the studio's text fields (a sequence's FPS typed, undone, cancelled; the Outliner's search typed; the "
                   "console's key): the console says how many passed. It makes a sequence 'typetest' (not saved). Flat "
                   "screen only; keep the mouse and keyboard still while it runs."),
+        command("Rig Studio: Test Keys on the Authored Rig", "vr_rigstudio;vr_rigstudio_test_rig2anim")
+            .help("vr_rigstudio_test_rig2anim: the Timeline on the subject's rig (Grunt on the Authored Rig on and a map "
+                  "loaded with it: the authored bones): load's chest and right upper arm keyed at frames 3 and 7, a "
+                  "forearm bent past its hinge (held within it) and undone, the pose mirrored and undone, saved and read "
+                  "back. It WRITES the subject's animation files (vr_rigdata_dir rigstudio_test first keeps them apart); "
+                  "the console says how many passed. Flat screen only."),
+        command("Carry the Old Rig's Animations to the Authored Rig", "vr_rig2anim_import")
+            .help("vr_rig2anim_import [model] [force]: the grunt's poses, override tracks and sequences made on the old rig "
+                  "(quakevr/rigs/vrgrunt.rig.txt, anims/vrgrunt/*.anim.txt) written for the authored rig (rig2anim.txt, "
+                  "anim2.txt: the old chest's turns shared by the spine and chest, the head's by the neck and head; every "
+                  "key held within the joints' limits). Files already there are kept unless 'force'. Needs Grunt on the "
+                  "Authored Rig on and a map loaded with it (RIGSTUDIO.md, 'Animating the authored rig')."),
         command("Check the Authored Grunt Rig", "vr_rig2_check")
             .help("vr_rig2_check: the authored rig swept through every joint's range, joint pairs and 1000 random poses: "
                   "see-through holes, flipped and collapsed triangles, sharp folds, stretch, beside the old rig moved the "

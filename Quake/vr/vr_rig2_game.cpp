@@ -23,7 +23,9 @@
 #include "vr_hitreact.hpp"
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_rigseq.hpp"
 
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -191,6 +193,7 @@ void resetGame()
     agbody::resetModels();
     hitreact::resetModels();
     mem::on(mem::ModelReload); // (the animation smoothing's per-model data: vr_animsmooth.cpp)
+    rigdata::newMap();         // (the Rig Studio's animations: each rig's own files, read again)
 }
 
 // ---- The arms and legs laid on the authored rig ----
@@ -561,7 +564,7 @@ void lerpOf(const entity_t* e, const aliashdr_t* hdr, int& pose1, int& pose2, fl
 } // namespace
 
 void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const rigpose::Rigid* kick,
-    agarms::Placed& placed, int pose1, int pose2, float blend)
+    agarms::Placed& placed, int pose1, int pose2, float blend, bool keyedArms)
 {
     const Rig* a = rigFor(rig.model);
     if(!a || a->numBones != rig.numBones || !e || e->model != rig.model || vr_rig2_look.value == 1.f)
@@ -580,7 +583,25 @@ void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
         legsOnRig(*a, lp, F);
     }
     rigpose::Rigid corr[2];
-    armsOnRig(*a, placed, F, corr);
+    if(keyedArms)
+    {
+        // The Rig Studio's arm keys (a sequence's Arms, an override track on an arm bone; vr_rigseq.cpp): the arm bones
+        // as keyed (and drawn: `posed`), the weapons on the hands so (the right on the weapon bone, fixed to its hand).
+        const Bones& k = bonesOf(*a);
+        for(int s = 0; s < 2; s++)
+        {
+            const int hand = k.side[s].hand;
+            corr[s] = hand >= 0 ? compose(F[hand], inverse(placed.handM[s])) : rigpose::Rigid{};
+            if(s == 0 && hand >= 0 && k.weapon >= 0)
+            {
+                F[k.weapon] = F[hand];
+            }
+        }
+    }
+    else
+    {
+        armsOnRig(*a, placed, F, corr);
+    }
     for(int s = 0; s < 2; s++)
     {
         placed.weapon[s] = compose(corr[s], placed.weapon[s]);
@@ -647,6 +668,19 @@ void liveAll()
         lerpOf(e, hdr, pose1, pose2, blend);
         rigpose::Rigid posed[ragdoll::maxBones];
         posedSmooth(e, hdr, *rig, pose1, pose2, blend, posed);
+        if(rigseq::wants(e))
+        {
+            // The Rig Studio's animations (its override tracks, QC's sequences: vr_rigseq.cpp) on the frame's bones,
+            // under the hit reactions (as kickInstance lays them on the old rig).
+            rigpose::Rigid F[ragdoll::maxBones];
+            if(rigseq::bones(e, *rig, hdr, pose1, pose2, blend, posed, F, nullptr))
+            {
+                for(int b = 0; b < rig->numBones; b++)
+                {
+                    posed[b] = F[b];
+                }
+            }
+        }
         rigpose::Rigid kick[ragdoll::maxBones];
         const bool kicked = vr_hit_react.value == 1.f && hitreact::reacting(e) && hitreact::boneKicks(e, *rig, posed, kick);
         for(int b = 0; kicked && b < rig->numBones; b++)
@@ -873,6 +907,170 @@ void armsReport_f()
                "wrist %.1f / %.1f\n",
         t.part[0] / n, t.partMost[0], t.part[1] / n, t.partMost[1], t.part[2] / n, t.partMost[2], t.part[3] / n, t.partMost[3]);
     armStats = ArmStats{};
+}
+
+// ---- vr_rig2anim_check: the Rig Studio's override keys as the live ones on the authored rig are drawn ----
+
+namespace
+{
+struct AnimKept
+{
+    int ent{0};
+    rigpose::Rigid local[maxBones];
+};
+struct AnimCheck
+{
+    za::Vector<AnimKept> kept;
+    int passed{0}, failed{0};
+};
+AnimCheck animCheck;
+
+// Entity `num`'s bones as last drawn, each on its parent (rest -> drawn). False: not drawn lately.
+bool drawnLocals(int num, const ragdoll::Rig& rig, rigpose::Rigid* out)
+{
+    rigpose::Rigid F[maxBones];
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        if(!drawnBone(num, b, F[b].rot, F[b].pos))
+        {
+            return false;
+        }
+    }
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        const int p = rig.bones[b].parent;
+        out[b] = (p >= 0 && p < b) ? compose(inverse(F[p]), F[b]) : F[b];
+    }
+    return true;
+}
+
+void animResult(bool ok, const char* what)
+{
+    Con_Printf("rig2anim check: %s: %s\n", ok ? "ok" : "FAIL", what);
+    (ok ? animCheck.passed : animCheck.failed)++;
+}
+} // namespace
+
+void animCheck_f()
+{
+    // vr_rig2anim_check keep | <animation> <frame> | end: each live one on the authored rig with an override of that
+    // animation: `keep` its bones as drawn now (the keys off: vr_rigseq 0); then (the keys on, it held at that frame of
+    // the animation) each keyed bone drawn as its key has it: an arm's local (its arm handed to the keys) the frame's with
+    // the key on it, held within its joint's limits; another's the kept local with the key on it (the upper body's hold
+    // under it). `end`: the total.
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("usage: vr_rig2anim_check keep | <animation> <frame> | end\n");
+        return;
+    }
+    const char* what = Cmd_Argv(1);
+    if(!strcmp(what, "end"))
+    {
+        Con_Printf("rig2anim check: %d passed, %d failed\n", animCheck.passed, animCheck.failed);
+        animCheck = AnimCheck{};
+        return;
+    }
+    const bool keepNow = !strcmp(what, "keep");
+    const float frame = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 0.f;
+    int seen = 0;
+    for(int i = 0; i < cl_numvisedicts && cl_entities; i++)
+    {
+        entity_t* e = cl_visedicts[i];
+        const int num = e ? static_cast<int>(e - cl_entities) : 0;
+        if(!e || !e->model || e->model->type != mod_alias || strchr(e->model->name, '#') || num <= 0 || num >= cl_max_edicts ||
+            num == cl.viewentity || ragdoll::published(num))
+        {
+            continue;
+        }
+        const ragdoll::Rig* rig = ragdoll::rigFor(e->model);
+        const auto* hdr = rig && rig->authored ? static_cast<const aliashdr_t*>(Mod_Extradata(e->model)) : nullptr;
+        const rigdata::ModelData* m = hdr ? rigdata::of(e->model) : nullptr;
+        const rigdata::AnimOverride* o = nullptr;
+        for(za::SizeT k = 0; m && !keepNow && k < m->overrides.size(); k++)
+        {
+            o = !q_strcasecmp(m->overrides[k].anim.cStr(), what) ? &m->overrides[k] : o;
+        }
+        rigpose::Rigid drawn[maxBones];
+        if(!hdr || !m || (!keepNow && !o) || !drawnLocals(num, *rig, drawn))
+        {
+            continue;
+        }
+        seen++;
+        AnimKept* kept = nullptr;
+        for(AnimKept& k : animCheck.kept)
+        {
+            kept = k.ent == num ? &k : kept;
+        }
+        if(keepNow)
+        {
+            if(!kept)
+            {
+                animCheck.kept.pushBack(AnimKept{});
+                kept = &animCheck.kept.back();
+            }
+            kept->ent = num;
+            for(int b = 0; b < rig->numBones; b++)
+            {
+                kept->local[b] = drawn[b];
+            }
+            Con_Printf("rig2anim check: entity %d's bones kept\n", num);
+            continue;
+        }
+        // It is at that frame of the animation (its lerp over).
+        int pose1 = 0, pose2 = 0;
+        float blend = 0.f;
+        lerpOf(e, hdr, pose1, pose2, blend);
+        rigdata::AnimGroup groups[128];
+        const int n = rigdata::animGroups(hdr, groups, 128);
+        int want = -1;
+        for(int g = 0; g < n; g++)
+        {
+            want = !q_strcasecmp(groups[g].name, what) ? rigdata::poseOfFrame(hdr, groups[g].first + static_cast<int>(frame)) : want;
+        }
+        const int at = pose1 == pose2 || blend >= 0.999f ? pose2 : -1;
+        animResult(at == want && kept, va("entity %d at %s %g (pose %d; it is at %d, blend %.2f), its unkeyed bones kept: %s", num,
+                                            what, frame, want, at, blend, kept ? "yes" : "no"));
+        if(at != want || !kept)
+        {
+            continue;
+        }
+        rigpose::Rigid posed[maxBones];
+        posedSmooth(e, hdr, *rig, pose1, pose2, blend, posed);
+        glm::vec3 pivots[maxBones];
+        rigdata::restOf(*rig, nullptr, pivots, nullptr);
+        bool keyedArms = false;
+        for(const rigdata::Track& tr : o->tracks)
+        {
+            keyedArms = keyedArms || (!tr.keys.empty() && rigseq::armBone(*rig, tr.bone));
+        }
+        for(const rigdata::Track& tr : o->tracks)
+        {
+            rigdata::Local d;
+            const int b = tr.bone;
+            if(b < 0 || b >= rig->numBones || !rigdata::sample(tr, frame, 0.f, d))
+            {
+                continue;
+            }
+            const int p = rig->bones[b].parent;
+            const rigpose::Rigid Lf = (p >= 0 && p < b) ? compose(inverse(posed[p]), posed[b]) : posed[b];
+            rigpose::Rigid keyed = compose(Lf, rigdata::toRigid(d, pivots[b]));
+            const bool held = rigdata::holdLocal(*rig, b, keyed, pivots[b]);
+            const rigpose::Rigid delta = compose(inverse(Lf), keyed);
+            const bool arm = keyedArms && rigseq::armBone(*rig, b);
+            const rigpose::Rigid expected = arm ? keyed : compose(kept->local[b], delta);
+            const float off = turnDeg(expected.rot, drawn[b].rot);
+            const float keyTurn = turnDeg(glm::quat{1.f, 0.f, 0.f, 0.f}, delta.rot);
+            const float drawnTurn = turnDeg(kept->local[b].rot, drawn[b].rot);
+            animResult(off < 1.f, va("entity %d %s %g: %s keyed %.1f degrees%s, drawn %.1f off its unkeyed drawing; %.2f degrees "
+                                     "off the key (%s)", num, what, frame, rig->bones[b].name, keyTurn,
+                                     held ? " (held within its limits)" : "", drawnTurn, off,
+                                     arm ? "its arm handed to the keys" : "on the drawn parent"));
+        }
+    }
+    if(seen == 0)
+    {
+        animResult(false, va("no live one on the authored rig with an override of %s drawn", keepNow ? "any animation" : what));
+    }
 }
 
 } // namespace qvr::rig2
