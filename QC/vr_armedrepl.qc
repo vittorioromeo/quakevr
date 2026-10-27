@@ -646,6 +646,11 @@ void(entity p) VR_AGR_NativeShot =
             // (id's line from its origin, the laser 8.5 units to its right: parallel, a miss to the right at any
             // distance; vr_agrunt_aim_converge: from the muzzle to his chest)
             vector aimAt = VR_AI_Origin(self.enemy) + ((self.enemy.flags & FL_CLIENT) ? '0 0 6' : '0 0 0');
+            if(VR_AG_XOn(self.enemy))
+            {
+                VR_AG_Expose(FALSE);
+                aimAt = VR_AI_Origin(self.enemy) + self.vr_ag_xofs; // (the part of you it can hit: vr_agrunt_aim_exposed)
+            }
             entity laser = LaunchLaser(org, cvar_hget(cvarh_vr_agrunt_aim_converge) ? aimAt - org : VR_AI_Origin(self.enemy) - self.origin);
             laser.vr_ag_native = 1;
             MG3_EnforcerAltLaser(org);

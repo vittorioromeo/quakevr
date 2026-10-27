@@ -25122,3 +25122,62 @@ client prints `shells eject hand 1 kind 1 skin 1 x6` and `x2` for its casings. `
 36/44, full 163/171, no verdict changes (PASS -> PASS damage noise only). Eyeshots (low-impact, low-res): the three held,
 the cylinder swung out, the casings and live shells on the floor, the pouch red at spawn and blue with the revolver.
 - [ ] His night poses and stretch shipped {test:none}: empty vr_agrunt_poses and vr_agrunt_ik_stretch: the grunt's and enforcer's fists, one-handed melee, rifle, pistol, launcher, sprayer, laser cannon and Widowmaker poses and reach as you left them.
+
+## Armed humanoids aim at what shows of you behind cover (worktree `fastship`, branch `agent/agexposed`, 2026-10-28)
+
+**What was wrong.** An armed humanoid's shots aimed at your chest (`VR_AG_AimPoint`: origin + 6, lagged 0.15 s of your
+velocity) and its "can I shoot" test (`VR_AG_CheckAttack`) was its eyes' line to your eyes (`origin + view_ofs`). Behind a
+low wall or a crate your eyes show, so it fired, and every shot went into the cover. What a shot can hit on you is one
+box (`VR_HullHitBox` for `MOVE_HITMODEL` traces and missiles: `vr_hull_hit_width` 24 wide, from your feet to 5 over
+the headset, crouched no higher than the crouched box); your hands are not hit volumes for monsters' shots.
+
+**What it does now** (`vr_agrunt_aim_exposed` 1, vr_armedgrunt.qc `VR_AG_Expose`). Ten points on that box, in order:
+chest (origin + 6, the old point), head (headset - 2), belly (-6), its left and right shoulders (+12, 8 to each side),
+the head's sides (6 to each side), hips (-12, 8 to each side), legs (-18); each clamped inside the box (crouched they
+sink). Rocket launchers add three floor points at your feet (before you, left, right) whose burst reaches your middle
+(the second trace is `T_RadiusDamage`'s `CanDamage` line), only when you stand on the floor. Each look traces from its
+gun's muzzle (`weaponmuzzle`; its eyes if the muzzle is in a wall) as a gun's shot does (`MOVE_HITMODEL`: the world,
+brush entities, props, other monsters' hit models) and takes the first point whose line meets you first. A middle point
+(chest, head, belly) with one side's point hidden and the other showing (a door frame's edge) moves half way to the
+showing side. Looks are at most every 0.1 s (`VR_AG_XSTEP`; `VR_AG_CheckAttack`'s decision at most 0.05 s old); the
+picked part is kept while it still shows (one trace a look) for `vr_agrunt_aim_exposed_hold` (0.5 s), then the best
+showing one again (the chest first). Nothing shows: `VR_AG_CheckAttack` holds fire (`vr_ag_xheld`), and a shot already
+under way goes where it last aimed. Its aim error (`vr_agrunt_aim_error`), its weapon's spread, its kick and
+`vr_agrunt_aim_converge`'s muzzle-to-point line all work about the point as before; the drawn upper body points there
+too (`vr_ag_aim` comes from `VR_AG_AimDir`, which now ends at the point). The enforcer replacement's own laser uses the
+point as well. Left as before: monsters as targets, a target seen through a gate (`vr_ai_gate`: its lines go through
+portals), the lobbing launchers (grenades, proximity mines: an arc, not a line) and the grunt replacement's own gun
+(`army_fire`, its monster's own aim). With the setting off everything is exactly as before (the eye line decides, the
+chest is the point).
+
+**Settings.** `vr_agrunt_aim_exposed` 1 (Armed Grunts: Aim at What They Can Hit), `vr_agrunt_aim_exposed_hold` 0.5 s
+(Keep Aim On a Part), `vr_agrunt_aim_exposed_show` 0 (Debug: Show Armed Humanoids' Aim Points: yellow sparks on the
+part each look picks, red at its last point when nothing shows).
+
+**Test** `vr_agrunt_test 74` (Debug > Tests > Armed Grunts: Aim Behind Cover; `vr_armedgrunt_expose_test.qc`, vrtesthall,
+`sv_random_seed 12345`, 44 s wall clock): a grunt 300 ahead (it stands on the floor below the start's step, about 21
+lower), both held in place, a brush (`vr_brush_box`) 40 before you; each gun twice, the setting 0 then 1. Hits are
+damage events on you (pellet volleys one), shots `vr_ag_shots_fired`; 25 passed, 0 failed. Hit rate old -> new:
+
+| case | shotgun | nailgun | rifle | revolver | rockets | aimed at (new) |
+|---|---|---|---|---|---|---|
+| in the open | 9/9 -> 8/8 | 20/20 -> 20/20 | 10/10 -> 10/10 | 7/8 -> 8/9 | 8/8 -> 7/7 | chest, all |
+| low wall (to +14) | 1/9 -> 6/9 | 6/20 -> 15/20 | 3/11 -> 6/10 | 1/8 -> 4/9 | 1/8 -> 4/8 | head, all |
+| crate (40 wide, to +17) | 0/9 -> 4/8 | 3/20 -> 11/20 | 0/11 -> 3/11 | 0/9 -> 4/9 | 1/8 -> 5/8 | head, all |
+| door frame (edge 1 left of your middle) | 7/9 -> 5/9 | 10/20 -> 10/20 | 6/10 -> 6/10 | 7/8 -> 5/8 | 3/7 -> 5/8 | chest (shifted), shoulder |
+| behind a wall | 0 -> 0 shots | 0 -> 0 | 0 -> 0 | 0 -> 0 | 0 -> 0 | - |
+
+Low wall 21% -> 62%, crate 7% -> 48% of shots; the door frame's is noise about the same (three runs of the test as it was tuned: 57% -> 66%, the
+chest point itself still shows there, as it must for its eyes to see yours: a vertical edge that hides your middle
+hides your eyes too and it never sees you). In the open its aim is the chest as before. The muzzle-only case (its own
+parapet hiding its gun but not its eyes) could not be staged here: vrtesthall's step puts its eyes under the parapet
+line too; `held` stayed 0 in every case (its eyes' and its muzzle's lines agreed).
+
+**Cost.** 20 traces a second per armed humanoid on average over the test's new runs (4598 traces in 229 s); a fully
+hidden target costs a full look each 0.1 s (10 body points + 2 sides, 13 + 2 with a rocket launcher: up to ~150 a
+second), one in the open 1 trace a look (~10 a second). 16 armed humanoids all with you hidden: ~2400 traces a second,
+about 0.1-0.2 ms a 72 Hz frame at a few microseconds a trace (not timed: no exclusive run was taken).
+
+**Regressions.** Armed grunt tests 1, 47, 48, 49 and eval.sh: see the report.
+
+- [ ] Armed humanoids aim at what shows of you behind cover {test:agrunt_aim_cover}: behind the low wall their yellow sparks sit on your head and their shots hit you, not the wall; crouched fully behind it the sparks turn red and they hold fire; stepping out puts them back on your chest; leaning out of the crate's side they aim at that side.

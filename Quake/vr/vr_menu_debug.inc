@@ -134,6 +134,10 @@ za::Vector<Item> pageDebugViews()
                   "idle, yellow while the hand moves fast enough to strike, red just after a blow landed; the lines the "
                   "sweep tested and the blade's swept surface over the last third of a second, fading; a hammer's or "
                   "mace's head as its box. A red dot where a blow landed, its damage above it."),
+        toggle("Show Armed Humanoids' Aim Points", vr_agrunt_aim_exposed_show)
+            .help("vr_agrunt_aim_exposed_show: where each armed humanoid aims on you, each time it looks (every 0.1 s): "
+                  "yellow sparks on the part of you its gun's line reaches, red where it last aimed when nothing of you "
+                  "shows (it holds fire). The setting: Armed Grunts > Aim at What They Can Hit."),
         cycle("Show Shot Disarms", vr_agrunt_shotdisarm_debug, {{0.f, "Off"}, {1.f, "Print"}, {2.f, "Print and Volumes"}})
             .help("vr_agrunt_shotdisarm_debug: each shot of yours on an armed grunt printed (shotdisarm: the part it hit, "
                   "weapon, hand or body; the damage adding up; each roll, its chance and result); Print "

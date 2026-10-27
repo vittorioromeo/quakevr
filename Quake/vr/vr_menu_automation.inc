@@ -237,6 +237,11 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 49 (vrtesthall's start): a grunt with each gun (shotgun, nail guns, the grunt's and the "
                   "enforcer's rifles) 600 units ahead comes at you firing, no aim error: each shot's miss to your side "
                   "by 100 units of distance, aimed from its grip (the old way) and as fired (vr_agrunt_aim_converge)."),
+        command("Armed Grunts: Aim Behind Cover", "scratch1 0; vr_agrunt_test 74")
+            .help("vr_agrunt_test 74 (vrtesthall's start; about 3 minutes): a grunt 300 units ahead, you behind a box 40 "
+                  "units before you (none, a low wall, a door frame, a crate, a wall), each gun (shotgun, nailgun, rifle, "
+                  "revolver, rocket launcher) with vr_agrunt_aim_exposed 0 then 1: its shots, its hits on you, the parts "
+                  "it aimed at (agtest: expose: ...), checked. scratch1 N: the first N guns only."),
         command("Armed Grunts: Fighting Distance", "scratch1 0; scratch2 0; vr_agrunt_test 48")
             .help("vr_agrunt_test 48 (vrtesthall's start; under 3 minutes): an armed grunt per weapon (shotguns, nail "
                   "guns, lightning, rockets, the grunt's and enforcer's guns, an axe) 260 units ahead hunting you, 6 s "

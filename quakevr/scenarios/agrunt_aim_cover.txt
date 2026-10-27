@@ -1,0 +1,14 @@
+# agrunt_aim_cover: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
+title Armed grunts aiming at what shows of you behind a low wall (vr_agrunt_aim_exposed)
+map vrtesthall
+start 0 -288 25 90
+god
+# A shotgun and an enforcer's rifle 300 ahead; a third with a rocket launcher further left.
+spawnarmed monster_vr_grunt 4 0 300 30
+spawnarmed monster_vr_grunt 16 0 300 -30
+spawnarmed monster_vr_grunt 10 0 340 120
+cvar vr_agrunt_aim_exposed_show 1
+# A low wall 40 ahead of you, 14 over your origin (your head and shoulders over it); a crate to your left to crouch behind.
+cmd vr_brush_box -64 -252 0 64 -244 39
+spawn "Wooden Crate" 40 70
+hint Stand behind the low wall: their sparks (yellow) sit on your head, and their shots hit it, not the wall. Crouch fully: red sparks, and they hold fire. Step out: back on your chest. Lean out of the crate's side: the side that shows.
