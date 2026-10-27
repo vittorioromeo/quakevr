@@ -1429,12 +1429,15 @@ vector(entity g, vector posL, vector handL) VR_AGP_TurnPose =
 // picked on its panel (weapondrawnpose(g, kind * 100 + class, 19)).
 // ----------------------------------------------------------------------------
 float VR_AGK_FISTS = 0;     // the classes (agpose::Class)
-float VR_AGK_GUN = 1;
+float VR_AGK_GUN = 1;       // a rifle (a single gun's pose category, VR_AGK_PISTOL.. the others)
 float VR_AGK_MELEE = 2;
 float VR_AGK_MELEE2 = 3;
 float VR_AGK_SAW = 4;
 float VR_AGK_TWOMELEE = 5;
 float VR_AGK_TWOGUNS = 6;
+float VR_AGK_PISTOL = 17;
+float VR_AGK_WIDOWMAKER = 21; // (the last category: 18 a shoulder launcher, 19 a sprayer, 20 the laser cannon)
+float VR_AGK_KIND = 100000; // a key's code: kind * this + class * 1000 + pose * 10 + phase (agpose::code)
 float vr_agk_ww;            // a strike's phases' shares now (VR_AGK_Phases): its wind-up, its blow, its follow-through
 float vr_agk_wb;
 float vr_agk_wf;
@@ -1461,7 +1464,15 @@ float(entity g, entity p) VR_AGK_Class =
     {
         return p.weapon == WID_CHAINSAW ? VR_AGK_SAW : (VR_AGP_TwoHanded(p) ? VR_AGK_MELEE2 : VR_AGK_MELEE);
     }
-    return VR_AGK_GUN;
+    // (one gun: its pose category, the Weapon Holds' Pose Category for its kind; a gun with no row a rifle)
+    vector h = weapondrawnpose(world, g.vr_ag_kind * 1000 + VR_AGH_Code(p), 24);
+    return h_z ? h_z : VR_AGK_GUN;
+};
+
+// Whether class `cls` holds guns (one, its category, or two): aimed.
+float(float cls) VR_AGK_IsGun =
+{
+    return cls == VR_AGK_GUN || cls == VR_AGK_TWOGUNS || (cls >= VR_AGK_PISTOL && cls <= VR_AGK_WIDOWMAKER);
 };
 
 // Key `code` at share `w` added (`mirror`: a left-handed strike on the right's key, the hands swapped and mirrored).
@@ -1476,7 +1487,7 @@ void(float code, float w, float mirror) VR_AGK_Add =
     if(vr_agk_rep)
     {
         // (the Pose Studio's Live tape: this key at this share, negative mirrored; vr_poselive.hpp)
-        float wr = min(w, 0.999);
+        float wr = min(w, 0.99); // (an enforcer's code past 2^16: its float's fraction in steps of 1/128)
         weapondrawnpose(vr_agk_repent, mirror ? -(code + wr) : code + wr, 23);
     }
     vector has = weapondrawnpose(world, code, 18);
@@ -1573,7 +1584,7 @@ void(entity g, entity p) VR_AGK_Keys =
     vr_agk_rep = g.vr_agk_live;
     vr_agk_repent = g;
     float cls = VR_AGK_Class(g, p);
-    float base = (g.vr_ag_kind == VR_AM_ENFORCER ? 10000 : 0) + cls * 1000;
+    float base = g.vr_ag_kind * VR_AGK_KIND + cls * 1000;
     float wp = 0; // (the pickup's: its bend's)
     if(g.vr_ag_took_at > 0 && p)
     {
@@ -1591,7 +1602,7 @@ void(entity g, entity p) VR_AGK_Keys =
     {
         wa = min(1, g.vr_ag_readyw / 0.75);
     }
-    else if(cls == VR_AGK_GUN || cls == VR_AGK_TWOGUNS)
+    else if(VR_AGK_IsGun(cls))
     {
         wa = VR_AGP_Smooth(g.vr_ag_aimw);
     }
@@ -1637,7 +1648,7 @@ void(entity g, entity p) VR_AGK_Keys =
 // told.
 void(entity g, entity p) VR_AGK_Query =
 {
-    vector h = weapondrawnpose(g, (g.vr_ag_kind == VR_AM_ENFORCER ? 100 : 0) + VR_AGK_Class(g, p), 19);
+    vector h = weapondrawnpose(g, g.vr_ag_kind * 100 + VR_AGK_Class(g, p), 19);
     vr_agk_hpose = h_x;
     vr_agk_hphase = h_y;
     vr_agk_hplay = h_z;
@@ -1658,7 +1669,7 @@ void(entity g, entity p) VR_AGK_Hold =
         vr_agk_tgt = spawn();
         vr_agk_tgt.classname = "vr_agk_target";
     }
-    float gun = cls == VR_AGK_GUN || cls == VR_AGK_TWOGUNS;
+    float gun = VR_AGK_IsGun(cls);
     float aimed = pose == 1 || pose >= 10;
     setorigin(vr_agk_tgt, g.origin + v_forward * (gun ? 200 : 40) + '0 0 10');
     if(g.vr_rs_aimon)

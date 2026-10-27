@@ -1,6 +1,7 @@
 // vr_aggrip.cpp -- armed monsters' grip offsets (vr_aggrip.hpp).
 
 #include "vr_aggrip.hpp"
+#include "vr_agpose.hpp"
 #include "vr_cvars.hpp"
 #include "vr_weapons.hpp"
 
@@ -593,14 +594,29 @@ struct HoldRow
     const char* label;
     int autoHands[agholds::numKinds];
     cvar_t* setting[agholds::numKinds];
+    int autoClass;                          // a gun's pose category's Auto (agpose::Class; -1 a melee weapon)
+    const char* poseLabel;                  // ... its Pose Category row's label
+    cvar_t* category[agholds::numKinds];    // ... each kind's setting (nullptr a melee weapon)
 };
 
 #define QVR_AGHOLD(key, code, label, grunt, enforcer) \
-    {#key, code, label, {grunt, enforcer}, {&vr_agrunt_hold_grunt_##key, &vr_agrunt_hold_enforcer_##key}},
+    {#key, code, label, {grunt, enforcer}, {&vr_agrunt_hold_grunt_##key, &vr_agrunt_hold_enforcer_##key}, -1, "", \
+        {nullptr, nullptr}},
+#define QVR_AGGUN(key, code, label, grunt, enforcer, cat) \
+    {#key, code, label, {grunt, enforcer}, {&vr_agrunt_hold_grunt_##key, &vr_agrunt_hold_enforcer_##key}, agpose::cat, \
+        label ": Poses", {&vr_agrunt_posecat_grunt_##key, &vr_agrunt_posecat_enforcer_##key}},
 const HoldRow holdRows[] = {
 #include "vr_agholds.inc"
 };
+#undef QVR_AGGUN
 #undef QVR_AGHOLD
+static_assert(agholds::numKinds == agpose::numKinds, "the Weapon Holds' kinds are the pose keys'");
+
+// Category setting `s` (0 Auto, 1.. agpose::gunCategories) as a class; Auto: `autoClass`.
+[[nodiscard]] int categoryClass(int s, int autoClass)
+{
+    return s >= 1 && s <= agpose::numGunCategories ? agpose::gunCategories[s - 1] : autoClass;
+}
 constexpr int numHoldRows = static_cast<int>(sizeof(holdRows) / sizeof(holdRows[0]));
 
 [[nodiscard]] const char* handsName(int h)
@@ -618,7 +634,12 @@ void holdsInfo_f()
         {
             int set = 0;
             const int h = agholds::hands(k, w.code, &set);
-            Con_Printf("  %s %s (%s)", k == 0 ? "grunt" : "enforcer", handsName(h), set ? "set" : "auto");
+            Con_Printf("  %s %s (%s)", agpose::kindName(k), handsName(h), set ? "set" : "auto");
+            if(w.autoClass >= 0)
+            {
+                const int cls = agholds::poseClass(k, w.code, &set);
+                Con_Printf(" poses %s (%s)", agpose::classTitle(cls), set ? "set" : "auto");
+            }
         }
         Con_Printf("\n");
     }
@@ -684,6 +705,50 @@ int hands(int kind, int code, int* settingOut)
     return 0;
 }
 
+bool isGun(int row)
+{
+    return row >= 0 && row < numHoldRows && holdRows[row].autoClass >= 0;
+}
+
+const char* poseLabel(int row)
+{
+    return row >= 0 && row < numHoldRows ? holdRows[row].poseLabel : "";
+}
+
+cvar_t& categorySetting(int kind, int row)
+{
+    const HoldRow& w = holdRows[za::clamp(row, 0, numHoldRows - 1)];
+    cvar_t* c = w.category[za::clamp(kind, 0, numKinds - 1)];
+    return c ? *c : *w.setting[za::clamp(kind, 0, numKinds - 1)]; // (a melee row has none: never asked)
+}
+
+int autoClass(int row)
+{
+    return row >= 0 && row < numHoldRows && holdRows[row].autoClass >= 0 ? holdRows[row].autoClass : agpose::Gun;
+}
+
+int poseClass(int kind, int code, int* settingOut)
+{
+    if(settingOut)
+    {
+        *settingOut = 0;
+    }
+    for(const HoldRow& w : holdRows)
+    {
+        if(w.code == code && w.autoClass >= 0 && kind >= 0 && kind < numKinds)
+        {
+            const int s = static_cast<int>(w.category[kind]->value);
+            const int cls = categoryClass(s, w.autoClass);
+            if(settingOut)
+            {
+                *settingOut = s >= 1 && s <= agpose::numGunCategories ? s : 0;
+            }
+            return cls;
+        }
+    }
+    return agpose::Gun;
+}
+
 void reset()
 {
     for(const HoldRow& w : holdRows)
@@ -691,6 +756,13 @@ void reset()
         for(cvar_t* c : w.setting)
         {
             Cvar_SetQuick(c, "0");
+        }
+        for(cvar_t* c : w.category)
+        {
+            if(c)
+            {
+                Cvar_SetQuick(c, "0");
+            }
         }
     }
 }

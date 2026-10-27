@@ -81,7 +81,15 @@ inline constexpr int numKinds = 2; // 0 the grunt, 1 the enforcer (QC VR_AM_*)
 [[nodiscard]] int autoHands(int kind, int row);     // Auto's: 1 or 2
 // The hands kind `kind` holds weapon `code` with (1 or 2; 0: no row for it, QC's own rule), and its setting (0 Auto).
 [[nodiscard]] int hands(int kind, int code, int* settingOut);
-// Every setting back to Auto.
+// The gun pose categories (QVR_AGGUN rows): whether row `row` is a gun's; its Pose Category setting for kind `kind`
+// (0 Auto, 1.. agpose::gunCategories; a melee row: its hold's, never asked); its Auto (an agpose::Class); and the class
+// kind `kind`'s poses take for weapon `code` (agpose::Gun for a gun with no row) and its setting (0 Auto).
+[[nodiscard]] bool isGun(int row);
+[[nodiscard]] const char* poseLabel(int row); // its Pose Category row's ("Nail Pistol: Poses"; "" a melee row)
+[[nodiscard]] cvar_t& categorySetting(int kind, int row);
+[[nodiscard]] int autoClass(int row);
+[[nodiscard]] int poseClass(int kind, int code, int* settingOut);
+// Every setting (holds and pose categories) back to Auto.
 void reset();
 // vr_agholds_info: the table (each kind's setting and hands per weapon); vr_agholds_report: each armed humanoid in view
 // as drawn lately: its kind, weapon, the hold asked and the off hand's (on a second grip, cupping, free).

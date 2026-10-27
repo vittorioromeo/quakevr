@@ -24811,3 +24811,117 @@ elbow: with both clavicles 0 it is 0.16, but reach 4.41 p95 (one run); the share
 Tests: the weapon test above; `vr_rigstudio_rom test` 9/9 grunt and enforcer, `_test_subjects` 14/14, `_aim` 4/4,
 `_posekeys` 10/10, each on both latches; eval.sh no verdict changes (163/171, every difference PASS -> PASS).
 - [ ] Rig Studio weapons on the authored rig {test:none}: Rig Studio > Range of Motion, Authored rig, Subject two revolvers then the enforcer with its laser rifle: Random Pose, drag the arms: each weapon stays in its hand
+
+
+## His poses of 2026-10-27 as defaults; gun pose categories (worktree `fastship`, branch `agent/posesplit`, 2026-10-27)
+
+**1. His Pose Studio keys shipped.** Source: his `quakevr/ironwail.cfg` `vr_agrunt_poses` (20 keys; `vr_agrunt_grips`
+empty: no grip changed; no Done file newer than 2026-10-24). `Misc/quakevr/pose_defaults.py --cfg ... --write`: 75 rows
+(was 64 + 11 new). Every part changed (old -> new; the grunt's; units / degrees):
+
+| code | class | pose | part: old -> new |
+|---|---|---|---|
+| 31 | legs | Pickup | pelvis 0 0 0 -> 0 0 6.23 |
+| 1010 | gun | Aim | RPos 3.88 7.97 5.5 -> -3.5 7.04 6.75; RTurn 0.4 9.2 -4.2 -> 0.1 3.5 -4.7 |
+| 1020 | gun | Run | RPos 0 -> 4.06 0.96 0.87 (new) |
+| 1030 | gun | Pickup | Torso 7.6 -50 47.2 -> 8.4 -48.6 37.2 |
+| 2000 | 1h melee | Carry | LPos 0 -> 4.16 -2.61 -0.17; ElbowL 0 -> -0.96 0.12 -0.27 (new) |
+| 2010 | 1h melee | Ready | RPos 0 -> 2.06 -2.85 5.51; RTurn 0 -> 24.9 0 0; LPos 0 -> 3.45 -2.35 -1.45; ElbowL 0 -> -0.73 0.28 -0.62 (new) |
+| 2020 | 1h melee | Run | RPos 0 -> 3.65 0 0; LPos 0 -> -2.7 2.47 0.77; ElbowR 0 -> -0.89 0.19 -0.41 (new) |
+| 2140 | 1h melee | Overhead wind-up | RPos 5.01 -5.35 7.79 -> 3.43 -2.98 5.21 |
+| 2141 | 1h melee | Overhead blow | LPos 0 -> 2.78 0 3.25; ElbowL 0 -> 0.09 0.14 -0.02 |
+| 2142 | 1h melee | Overhead follow | RPos 5.6 -3.59 -1.2 -> 2.43 -0.54 -10.26; RTurn 33.1 -36.7 -20.9 -> 28.9 -18.7 -25.7; LPos 0 -> 5.74 0 5.54; ElbowR -0.43 -0.79 -0.44 -> -0.26 -0.86 -0.43; ElbowL 0 -> 0.63 0.44 -0.06 |
+| 2151 | 1h melee | Diagonal blow | RPos 1.88 -2.27 -0.51 -> 1.88 1.76 -2.75 |
+| 2152 | 1h melee | Diagonal follow | RPos 3.15 -1.24 -2.18 -> 5.58 4.01 -11.66; LPos 0 -> 0.3 -1.68 -0.29 |
+| 2161 | 1h melee | Horizontal blow | RPos 2.6 -7.13 -2.87 -> 3.4 -1.14 -7.8; RTurn 3.2 6.9 -58.3 -> -7.3 4.6 -33.6 |
+| 2162 | 1h melee | Horizontal follow | RPos 15.72 -5.24 -6.56 -> 14.44 1.84 -15.43; RTurn -29.3 -59.5 -31.2 -> -49.5 -50.5 -67.4; LPos 0 -> -0.42 5.91 -0.14 |
+| 2170 | 1h melee | Backhand wind-up | RPos 9.45 -4.65 -2.17 -> 9.45 4.93 -3.29; LPos 0 -> -9.79 3.67 -4.63 |
+| 2171 | 1h melee | Backhand blow | RPos 2.06 -8.06 -7.11 -> 1.54 -7.77 -13.5; RTurn -0.7 36 28.6 -> 5 35.3 11; LPos 0 -> 1.35 3.85 -2.93 |
+| 2172 | 1h melee | Backhand follow | RPos 2.26 -7.09 -5.34 -> 1.8 -8.95 -24.82; RTurn -7.7 43.2 30.7 -> 25.1 45.4 22.2; LPos 0 -> 0 -4.47 3.19; ElbowR -0.29 -0.69 0.67 -> -0.62 -0.77 -0.16 |
+| 6000 | two guns | Carry | RPos -0.54 -0.56 2.02 -> 2.51 0.27 -0.98; LPos 1.74 1.04 1.94 -> 6.15 -4.52 -1.37 |
+| 6010 | two guns | Aim | RTurn -1.3 3.9 -2.5 -> 0.5 3.9 -2.4; LPos 0.85 1.27 2.49 -> -0.22 -2.8 1.75; LTurn 2.2 3.1 -3.7 -> 2.2 3.1 -4.2; ElbowL 0 -> -0.33 0.19 -0.92 |
+| 6020 | two guns | Run | RPos 0 -> 3.46 3.87 0.17; LPos 0 -> 0 -2.95 0 (new) |
+
+His values reproduced exactly from the defaults (`scratch/pd_exact.py`: 20 keys, 0 differ). **Migration** (configVersion
+210, `agpose::dropShippedEqual` again): his config -> `vr_agrunt_poses ""`; an old config with custom keys keeps them
+(the one equal to a new default dropped); fresh: empty.
+
+His gun keys were tuned on the shotgun (the Aim pulls the gun hand back 7.4 units, the stock to the shoulder): on the
+pistols that drew the pistol back to the face (`scratch/eyes_grunt_pistol.png`, row 1), which is what the categories fix.
+
+**2. Gun pose categories** (his plan): a single gun's class is its pose category, per weapon and kind. `agpose::Class`:
+Gun (1) is the **Rifle** (his tuned keys, unchanged), new **Pistol** 17, **Shoulder Launcher** 18, **Sprayer** 19,
+**Laser Cannon** 20, **Widowmaker** 21 (Fists, the melee classes, Saw, TwoMelee, TwoGuns unchanged; 7..9 unused; 10..16
+never a class: see the code). The table (`vr_agholds.inc`, `QVR_AGGUN(key, code, label, grunt, enforcer, category)`):
+
+| category | weapons (Auto, both kinds) |
+|---|---|
+| Pistol | nail pistol, revolver, flare gun (off hand free or cupping per Weapon Holds: the same keys, the IK adds the cup) |
+| Rifle | shotgun, double-barrelled shotgun, grunt's shotgun, enforcer's laser rifle, nailgun, super nailgun, thunderbolt, grenade launcher, proximity gun, AD Plasma Gun, plasma soldier's rifle, defender's shotgun, centurion's plasma gun, crossbow, **grenade soldier's launcher** (not in the plan: put with the grenade launcher) |
+| Shoulder Launcher | rocket launcher, rocket soldier's launcher |
+| Sprayer | pyro's flamethrower, fumigator's poison sprayer |
+| Laser Cannon | laser cannon |
+| Widowmaker | Widowmaker |
+
+A gun with no row (none today): Rifle. **Each category starts as the Rifle's keys**: `shippedOf` falls back to the
+Rifle's shipped row (same kind, pose, phase) for a category code with no row of its own, so nothing changes until a
+category is tuned and shipped (a later Rifle promotion moves the untuned categories with it: they have no rows).
+**Pistol's own start**: the grunt's Pistol Aim ships as the gun Aim of 2026-10-25 (row `17010`, what the pistols had
+before his rifle tuning: the arms out, the pistol on the aim line; `scratch/eyes_grunt_pistol.png` row 2); the enforcer's
+pistol keeps the rifle copy (its one-handed aim, arm out at chest height, already reads as a pistol's:
+`eyes_enf_pistol.png` row 1). Every other category and the pistols' Carry/Run/Pickup: the Rifle copy.
+
+**Setting**: Combat > Armed Grunts > Weapon Holds, under each gun's hold row for each kind, "<weapon>: Poses":
+Auto (<its category>) / Rifle / Pistol / Shoulder Launcher / Sprayer / Laser Cannon / Widowmaker,
+`vr_agrunt_posecat_<grunt|enforcer>_<key>` (0 Auto, 1..6 `agpose::gunCategories`; archived, live, keyed by the row's key
+like the hold settings); Reset to Defaults resets them too; `vr_agholds_info` prints each kind's category. Kinds: the
+grunt and the enforcer (QC's `VR_AM_COUNT` 2); every kind loop runs to `agpose::numKinds` / `agholds::numKinds`
+(asserted equal), names through `agpose::kindName/kindsName/kindTitle`, the copy goes to the next kind: a third kind
+is a table column, two cvar names per row and those name functions.
+
+**The code, wider**: `kind * 100000 + class * 1000 + pose * 10 + phase` (was `kind * 10000`, one class digit). The
+grunt's codes are the same in both; an enforcer's old `1xxxx` is `10xxxx`. An old code reads as a class 10..16
+(never a class), so `agpose::codeFromOld` converts unambiguously wherever a code is read: `vr_agrunt_poses` (parse),
+`vr_agrunt_pose_key`, the Done files and cfg in `pose_defaults.py` (`new_code`); the shipped table rewritten. Helpers
+`kindOf/classOf/poseOf/phaseOf/withinKind`; `vr_poselive.cpp`, `vr_posestudio.cpp`, `vr_rigstudio.cpp` decode through
+them. QC: `VR_AGK_KIND` 100000; the Pose Studio's Live tape sends `code + share` as a float: past 2^16 its fraction
+steps 1/128, so the share is capped at 0.99 (was 0.999) and read back as 1 from 0.985.
+
+**Migration** (configVersion 211, `agpose::migrateCategories`, after 210's drop): the archived keys rewritten in the new
+code, then each archived Rifle key laid on every gun category of its kind, pose and phase that has none (nothing
+changes visually). Measured (`scratch/pd_mig2.py`, `vr_migrate_config` from 209): his config -> `""`; an old config
+`1010 1 2 3...; 11010 4 5 6...; 15010 7 8 9...; 1020 <his>` -> `1010`, `101010`, `105010` kept, `1020` dropped,
+`17010..21010` = 1010's, `117010..121010` = 11010's; fresh: `""`, `117010` = the enforcer's rifle Aim.
+
+**Everything that reads the class**: QC `VR_AGK_Class` (one gun: `weapondrawnpose(world, kind * 1000 + code, 24)`'s z,
+the engine's `agholds::poseClass`), `VR_AGK_IsGun` (the Aim stance's weight, the studio hold's target), `VR_AGK_Keys`'
+base, `VR_AGK_Query` (kind * 100 + class); engine: `agpose` (names, `classTitle` for windows, `classOrder`,
+`isClass/isGunCategory/isGunClass`, `posesOf`, `poseName` "Aim" for every gun class, `copyKind` also copies the
+categories' rifle-fallback keys, `dumpText`), the Rig Studio's Pose Studio Data window (Kind and Class combos by name,
+the classes in order: Rifle, Pistol, Shoulder Launcher, Sprayer, Laser Cannon, Widowmaker, Two Guns, the melee ones,
+Fists), `vr_rigstudio_posekey class <n>` (a class only), Follow the Subject (QC tells the class: picks the category),
+the VR Pose Studio (class notes, Copy > <next kind>, its says), the Live tape. The Grip Editor's grips are per weapon,
+not per class: nothing to change.
+
+**Tests**: test 83 (new, `QC/vr_armedgrunt_posecat_test.qc`, Debug > Automation & Self-Tests > Armed Humanoids: Gun
+Pose Categories): 63/63 — 30 weapons x 2 kinds against the table (melee classes unchanged), a Pistol Aim key 5 forward
+(`vr_agrunt_pose_key`, new console command: print, set or reset one key) moves exactly the 6 pistol holders by (5 0 0)
+and nothing else, reset restores it; the grunt's nail pistol set to Rifle changes the grunt's only, Auto back; the
+enforcer's rocket set to Sprayer the enforcer's only.
+
+Glitch finder (test 46, all 26 subjects, `scratch/pd_glitch_cmp*.txt`): his keys against the old ones raise the grunt
+rifles' p95 (shotgun wrong 33 -> 63, grip2 0 -> 1.5, toggle 1 -> 2; nailgun wrong 34 -> 90; thunderbolt 32 -> 69): his
+rifle Aim, not the split. The split against part 1 alone: the grunt's nail pistol aim 17.0 -> 0.02, wrist 18.5 -> 0.0,
+twist 114 -> 80 (reach 1.6 -> 4.2: its arm out), the all-subjects row the same (wrong 77.2 / 77.2), the rest within
+the run-to-run spread (rows whose keys did not change move 10-20%). Rig Studio: subjects 14/14; aim 1/4 and posekeys
+8/9 (the torso step never settles) with his keys, 4/4 and 10/10 with the old ones on the same build: his rifle Aim
+points the shotgun 8.5-14 degrees off its target (the test allows 8), and with the torso turned 15 degrees the pose
+keeps moving. eval.sh: 163/171, 0 verdict changes. `scenario_check.sh`: 57 files 0 errors, 57 run 0 failed.
+`vr_menu_path_check`: 0 missing. Eyeshots (test 45's sheet, aim ahead, front and side): `scratch/eyes_categories.png`
+(grunt shotgun, nail pistol, rocket launcher; enforcer laser rifle, nail pistol, rocket launcher),
+`eyes_grunt_pistol.png` (the grunt's nail pistol: the rifle copy / its own Aim), `eyes_enf_pistol.png`. Not shot: the
+sprayers, laser cannon and Widowmaker (AD / mission-pack weapons, not in the sheet's sets; their keys are the Rifle's).
+
+**In VR:**
+- [ ] Gun pose categories {test:vr_agrunt_test 83}: an armed grunt with a nail pistol aims with its arms out (not the pistol at its face); with a shotgun as you tuned it; Combat > Armed Grunts > Weapon Holds > Nail Pistol: Poses set to Rifle: the pistol comes back to its face; Auto again.
+- [ ] Pose Studio per category {test:none}: Rig Studio > Pose Studio Data, Follow the Subject on a nail pistol grunt: the Class reads Pistol; drag its Aim: only pistol holders change.

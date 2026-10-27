@@ -19,9 +19,10 @@ using namespace qvr;
 namespace
 {
 
-// The shipped keys (vr_agrunt_pose_dump prints rows to paste here): the key's code (agpose::code: kind * 10000 +
+// The shipped keys (vr_agrunt_pose_dump prints rows to paste here): the key's code (agpose::code: kind * 100000 +
 // class * 1000 + pose * 10 + phase), then its parts as agpose::Part orders them; a code with no row: QC's pose as it
-// is. An archived key (vr_agrunt_poses) replaces its code's row (agpose::get). Vittorio's, set in the Pose Studio (his
+// is, but a gun category's (Pistol .. Widowmaker) with no row of its own: the rifle's (Gun's) row of its kind, pose and
+// phase (shippedOf: each category starts as his rifle keys until it is tuned and shipped). An archived key (vr_agrunt_poses) replaces its code's row (agpose::get). Vittorio's, set in the Pose Studio (his
 // vr_agrunt_poses of 2026-10-24 14:24, then of 2026-10-25 17:50: 71 keys, approved 2026-10-25; then of 2026-10-27: 20
 // keys changed or new, 75 in all), written by Misc/quakevr/pose_defaults.py --cfg <his ironwail.cfg> --write.
 // configVersion 202, and again 210, drop the archived keys equal to these (dropShippedEqual: his text then empty).
@@ -113,74 +114,76 @@ constexpr ShippedRow shipped[] = {
     {6010, {0.94f, 1.83f, 1.78f, 0.5f, 3.9f, -2.4f, -0.22f, -2.8f, 1.75f, 2.2f, 3.1f, -4.2f, 0.f, 0.f, 0.f, -0.33f, 0.19f, -0.92f, 0.f, 0.f, 0.f}},
     // grunt, two guns, Run
     {6020, {3.46f, 3.87f, 0.17f, 0.f, 0.f, 0.f, 0.f, -2.95f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pistol, Aim
+    {17010, {3.88f, 7.97f, 5.5f, 0.4f, 9.2f, -4.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
     // enforcer, a gun, Idle / Carry
-    {11000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, 0.89f, -0.42f, 0.f, 0.f, 0.f}},
+    {101000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, 0.89f, -0.42f, 0.f, 0.f, 0.f}},
     // enforcer, a gun, Aim
-    {11010, {12.1f, 6.33f, 6.41f, 2.5f, 3.9f, 13.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.45f, -0.7f, -0.55f, -0.83f, 0.1f, -0.55f, 0.f, 0.f, 0.f}},
+    {101010, {12.1f, 6.33f, 6.41f, 2.5f, 3.9f, 13.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.45f, -0.7f, -0.55f, -0.83f, 0.1f, -0.55f, 0.f, 0.f, 0.f}},
     // enforcer, a gun, Run
-    {11020, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.2f, 0.11f, 0.39f, 0.f, 0.f, 0.f}},
+    {101020, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.2f, 0.11f, 0.39f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Idle / Carry
-    {12000, {5.62f, 2.02f, -1.7f, 5.7f, -51.1f, 9.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102000, {5.62f, 2.02f, -1.7f, 5.7f, -51.1f, 9.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Ready
-    {12010, {2.83f, -0.89f, 0.62f, -6.1f, 14.9f, 19.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102010, {2.83f, -0.89f, 0.62f, -6.1f, 14.9f, 19.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Overhead, wind-up
-    {12140, {-5.7f, -7.34f, 7.78f, 47.4f, -6.3f, -36.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102140, {-5.7f, -7.34f, 7.78f, 47.4f, -6.3f, -36.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Overhead, blow
-    {12141, {1.41f, -2.18f, -4.53f, 25.9f, -27.f, 0.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.09f, -0.8f, 0.59f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102141, {1.41f, -2.18f, -4.53f, 25.9f, -27.f, 0.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.09f, -0.8f, 0.59f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Overhead, follow-through
-    {12142, {-0.41f, -0.75f, -9.4f, 66.3f, -50.8f, -18.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.18f, -0.94f, -0.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102142, {-0.41f, -0.75f, -9.4f, 66.3f, -50.8f, -18.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.18f, -0.94f, -0.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Diagonal, wind-up
-    {12150, {10.12f, -8.2f, -0.48f, 29.7f, 28.8f, 21.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102150, {10.12f, -8.2f, -0.48f, 29.7f, 28.8f, 21.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Diagonal, blow
-    {12151, {-0.74f, 2.41f, -5.93f, 20.7f, -10.2f, -6.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102151, {-0.74f, 2.41f, -5.93f, 20.7f, -10.2f, -6.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Diagonal, follow-through
-    {12152, {7.11f, -4.65f, -11.28f, -14.9f, -0.1f, -31.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.16f, -0.91f, -0.37f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102152, {7.11f, -4.65f, -11.28f, -14.9f, -0.1f, -31.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.16f, -0.91f, -0.37f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Horizontal, wind-up
-    {12160, {5.12f, -8.26f, -6.03f, 75.7f, 83.3f, -13.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102160, {5.12f, -8.26f, -6.03f, 75.7f, 83.3f, -13.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Horizontal, blow
-    {12161, {-2.53f, -2.72f, -5.31f, 4.5f, 25.8f, -5.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.13f, -0.87f, -0.48f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102161, {-2.53f, -2.72f, -5.31f, 4.5f, 25.8f, -5.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.13f, -0.87f, -0.48f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Horizontal, follow-through
-    {12162, {6.12f, 2.54f, -5.37f, -79.1f, 95.2f, -5.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.35f, -0.67f, -0.66f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102162, {6.12f, 2.54f, -5.37f, -79.1f, 95.2f, -5.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.35f, -0.67f, -0.66f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Backhand, wind-up
-    {12170, {2.08f, -2.01f, -9.96f, 7.8f, -17.f, -18.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.02f, -0.29f, -0.91f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102170, {2.08f, -2.01f, -9.96f, 7.8f, -17.f, -18.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.02f, -0.29f, -0.91f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Backhand, blow
-    {12171, {1.55f, -11.14f, -4.03f, -0.9f, 9.5f, 16.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.23f, -0.97f, -0.06f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102171, {1.55f, -11.14f, -4.03f, -0.9f, 9.5f, 16.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.23f, -0.97f, -0.06f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a one-handed melee weapon, Backhand, follow-through
-    {12172, {-8.8f, -9.21f, -2.33f, 3.1f, -2.2f, -20.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.62f, -0.58f, 0.53f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {102172, {-8.8f, -9.21f, -2.33f, 3.1f, -2.2f, -20.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.62f, -0.58f, 0.53f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Idle / Carry
-    {15000, {3.45f, 0.37f, 1.73f, -10.6f, -13.4f, 0.6f, 5.58f, -0.13f, 1.08f, 4.3f, -9.1f, -3.4f, 0.f, 0.f, 0.f, -0.63f, 0.67f, -0.38f, 0.f, 0.f, 0.f}},
+    {105000, {3.45f, 0.37f, 1.73f, -10.6f, -13.4f, 0.6f, 5.58f, -0.13f, 1.08f, 4.3f, -9.1f, -3.4f, 0.f, 0.f, 0.f, -0.63f, 0.67f, -0.38f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Ready
-    {15010, {4.17f, -0.09f, 6.8f, 6.4f, 26.3f, 34.5f, 2.16f, 1.04f, 6.36f, -8.8f, 18.1f, -34.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105010, {4.17f, -0.09f, 6.8f, 6.4f, 26.3f, 34.5f, 2.16f, 1.04f, 6.36f, -8.8f, 18.1f, -34.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Overhead, wind-up
-    {15140, {5.27f, -2.19f, 0.31f, 4.f, 30.3f, -22.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.58f, -0.45f, -0.73f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105140, {5.27f, -2.19f, 0.31f, 4.f, 30.3f, -22.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.58f, -0.45f, -0.73f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Overhead, blow
-    {15141, {-1.45f, 4.14f, -9.45f, -3.7f, -16.7f, -10.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105141, {-1.45f, 4.14f, -9.45f, -3.7f, -16.7f, -10.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Overhead, follow-through
-    {15142, {-1.77f, 4.05f, -10.01f, 26.2f, -33.3f, -39.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.1f, -0.92f, -0.38f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105142, {-1.77f, 4.05f, -10.01f, 26.2f, -33.3f, -39.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.1f, -0.92f, -0.38f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Diagonal, wind-up
-    {15150, {7.32f, -6.86f, -5.67f, -4.8f, 36.5f, 21.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.59f, -0.35f, -0.74f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105150, {7.32f, -6.86f, -5.67f, -4.8f, 36.5f, 21.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.59f, -0.35f, -0.74f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Diagonal, blow
-    {15151, {-1.52f, 4.46f, -10.23f, -11.7f, -14.4f, -7.4f, -8.81f, 10.03f, -3.08f, -24.f, 12.4f, 13.9f, 0.22f, -0.87f, -0.43f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105151, {-1.52f, 4.46f, -10.23f, -11.7f, -14.4f, -7.4f, -8.81f, 10.03f, -3.08f, -24.f, 12.4f, 13.9f, 0.22f, -0.87f, -0.43f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Diagonal, follow-through
-    {15152, {2.7f, -2.63f, -14.03f, -19.2f, -19.4f, -17.8f, -3.06f, 6.47f, 6.79f, -11.8f, -11.f, -2.f, 0.39f, -0.92f, 0.05f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105152, {2.7f, -2.63f, -14.03f, -19.2f, -19.4f, -17.8f, -3.06f, 6.47f, 6.79f, -11.8f, -11.f, -2.f, 0.39f, -0.92f, 0.05f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Horizontal, wind-up
-    {15160, {9.4f, -5.27f, -4.9f, 11.3f, 88.8f, -6.2f, -0.13f, 11.03f, 3.44f, 1.3f, 2.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105160, {9.4f, -5.27f, -4.9f, 11.3f, 88.8f, -6.2f, -0.13f, 11.03f, 3.44f, 1.3f, 2.f, 8.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Horizontal, blow
-    {15161, {0.36f, -1.17f, -11.69f, -7.7f, -6.8f, -18.1f, -3.25f, 7.78f, 1.3f, -8.7f, -0.8f, 2.5f, 0.34f, -0.86f, -0.38f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105161, {0.36f, -1.17f, -11.69f, -7.7f, -6.8f, -18.1f, -3.25f, 7.78f, 1.3f, -8.7f, -0.8f, 2.5f, 0.34f, -0.86f, -0.38f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Horizontal, follow-through
-    {15162, {8.76f, -1.15f, -17.03f, -39.f, 52.2f, -57.8f, -3.81f, 3.49f, 9.77f, 36.1f, -3.8f, -17.2f, 0.03f, -0.82f, -0.57f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105162, {8.76f, -1.15f, -17.03f, -39.f, 52.2f, -57.8f, -3.81f, 3.49f, 9.77f, 36.1f, -3.8f, -17.2f, 0.03f, -0.82f, -0.57f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Backhand, wind-up
-    {15170, {5.19f, 3.08f, -2.95f, 18.9f, 10.4f, -34.5f, -8.37f, 8.03f, 4.03f, -0.1f, 8.2f, 13.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105170, {5.19f, 3.08f, -2.95f, 18.9f, 10.4f, -34.5f, -8.37f, 8.03f, 4.03f, -0.1f, 8.2f, 13.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Backhand, blow
-    {15171, {1.93f, -3.79f, -13.39f, 16.3f, 1.4f, -5.6f, -0.17f, 5.12f, 0.25f, 11.4f, 7.5f, -1.3f, -0.01f, -0.84f, -0.55f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105171, {1.93f, -3.79f, -13.39f, 16.3f, 1.4f, -5.6f, -0.17f, 5.12f, 0.25f, 11.4f, 7.5f, -1.3f, -0.01f, -0.84f, -0.55f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Backhand, follow-through
-    {15172, {-7.53f, -7.57f, -18.87f, 9.3f, -22.7f, -13.2f, -0.35f, -8.41f, -3.42f, 20.4f, 4.4f, -24.4f, -0.86f, -0.49f, -0.12f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105172, {-7.53f, -7.57f, -18.87f, 9.3f, -22.7f, -13.2f, -0.35f, -8.41f, -3.42f, 20.4f, 4.4f, -24.4f, -0.86f, -0.49f, -0.12f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Dual Strike, wind-up
-    {15190, {5.45f, 8.66f, 10.11f, -76.9f, 46.7f, -35.7f, 1.14f, -5.21f, 11.06f, 70.7f, 65.8f, 46.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {105190, {5.45f, 8.66f, 10.11f, -76.9f, 46.7f, -35.7f, 1.14f, -5.21f, 11.06f, 70.7f, 65.8f, 46.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Dual Strike, blow
-    {15191, {-0.16f, -1.13f, -17.36f, -36.4f, -76.2f, -28.2f, -0.54f, 0.81f, -15.84f, 51.1f, -74.1f, 55.1f, -0.02f, -0.8f, -0.6f, -0.08f, 1.f, -0.03f, 0.f, 0.f, 0.f}},
+    {105191, {-0.16f, -1.13f, -17.36f, -36.4f, -76.2f, -28.2f, -0.54f, 0.81f, -15.84f, 51.1f, -74.1f, 55.1f, -0.02f, -0.8f, -0.6f, -0.08f, 1.f, -0.03f, 0.f, 0.f, 0.f}},
     // enforcer, two melee weapons, Dual Strike, follow-through
-    {15192, {12.89f, -20.68f, -30.38f, -33.6f, -0.2f, -90.3f, 3.35f, 20.39f, -21.96f, 30.f, 41.4f, 73.f, -0.38f, -0.9f, -0.22f, -0.29f, 0.96f, -0.05f, 0.f, 0.f, 0.f}},
+    {105192, {12.89f, -20.68f, -30.38f, -33.6f, -0.2f, -90.3f, 3.35f, 20.39f, -21.96f, 30.f, 41.4f, 73.f, -0.38f, -0.9f, -0.22f, -0.29f, 0.96f, -0.05f, 0.f, 0.f, 0.f}},
     {-1, {}}, // (the end)
 };
 
@@ -208,10 +211,11 @@ State state;
 
 [[nodiscard]] bool validCode(int c)
 {
-    const int kind = c / 10000, cls = (c / 1000) % 10, pose = (c / 10) % 100, phase = c % 10;
-    return c >= 0 && kind < agpose::numKinds && cls < agpose::NumClasses && pose < agpose::NumPoses && phase < agpose::numPhases;
+    return c >= 0 && agpose::kindOf(c) < agpose::numKinds && agpose::isClass(agpose::classOf(c)) &&
+           agpose::poseOf(c) < agpose::NumPoses && agpose::phaseOf(c) < agpose::numPhases;
 }
 
+// (an old-format code read as the new: agpose::codeFromOld; written back new by the next write)
 void parse()
 {
     const char* text = vr_agrunt_poses.string ? vr_agrunt_poses.string : "";
@@ -227,7 +231,7 @@ void parse()
     {
         Entry e;
         char* end = nullptr;
-        e.code = static_cast<int>(strtol(p, &end, 10));
+        e.code = agpose::codeFromOld(static_cast<int>(strtol(p, &end, 10)));
         bool ok = end != p;
         p = end;
         for(int i = 0; i < agpose::NumParts * 3 && ok; i++)
@@ -266,7 +270,7 @@ void write()
     parse();
 }
 
-[[nodiscard]] bool shippedOf(int code, agpose::Key& out)
+[[nodiscard]] bool shippedRow(int code, agpose::Key& out)
 {
     for(const ShippedRow& r : shipped)
     {
@@ -280,6 +284,26 @@ void write()
         }
     }
     return false;
+}
+
+// The rifle's (Gun's) code for a gun category's (the same kind, pose and phase); -1 for any other class.
+[[nodiscard]] int rifleOf(int code)
+{
+    const int cls = agpose::classOf(code);
+    return cls != agpose::Gun && agpose::isGunCategory(cls)
+               ? agpose::code(agpose::kindOf(code), agpose::Gun, agpose::poseOf(code), agpose::phaseOf(code))
+               : -1;
+}
+
+// Code `code`'s shipped key: its row, else a gun category's rifle row.
+[[nodiscard]] bool shippedOf(int code, agpose::Key& out)
+{
+    if(shippedRow(code, out))
+    {
+        return true;
+    }
+    const int rifle = rifleOf(code);
+    return rifle >= 0 && shippedRow(rifle, out);
 }
 
 [[nodiscard]] float rounded(float f, float per)
@@ -353,6 +377,43 @@ constexpr QcConstant qcConstants[] = {
         return v;
     }
     return glm::angleAxis(a * (3.14159265f / 180.f), rotDeg / a) * v;
+}
+
+// vr_agrunt_pose_key <code> [<21 numbers> | reset]: key `code` printed; set (as the Pose Studio's drag keeps it); or
+// its archived change dropped (the shipped key again). Old-format codes are read as the new (codeFromOld).
+void key_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_agrunt_pose_key <code> [<21 numbers> | reset]\n");
+        return;
+    }
+    const int c = agpose::codeFromOld(Q_atoi(Cmd_Argv(1)));
+    if(!validCode(c))
+    {
+        Con_Printf("vr_agrunt_pose_key: %d is no key's code\n", c);
+        return;
+    }
+    if(Cmd_Argc() == 3 && !strcmp(Cmd_Argv(2), "reset"))
+    {
+        parse();
+        dropCode(c);
+        write();
+    }
+    else if(Cmd_Argc() >= 2 + agpose::NumParts * 3)
+    {
+        agpose::Key k;
+        for(int i = 0; i < agpose::NumParts * 3; i++)
+        {
+            k.v[i / 3][i % 3] = static_cast<float>(Q_atof(Cmd_Argv(2 + i)));
+        }
+        agpose::set(c, k);
+    }
+    const agpose::Key k = agpose::value(c);
+    Con_Printf("agpose key %d (%s, %s, %s): R %g %g %g turn %g %g %g\n", c, agpose::kindName(agpose::kindOf(c)),
+        agpose::className(agpose::classOf(c)), agpose::poseName(agpose::classOf(c), agpose::poseOf(c)),
+        static_cast<double>(k.v[0].x), static_cast<double>(k.v[0].y), static_cast<double>(k.v[0].z),
+        static_cast<double>(k.v[1].x), static_cast<double>(k.v[1].y), static_cast<double>(k.v[1].z));
 }
 
 void dump_f()
@@ -469,22 +530,30 @@ int copyKind(int from, int to)
     };
     for(const Entry& e : state.over)
     {
-        if(e.code / 10000 == from)
+        if(kindOf(e.code) == from)
         {
-            note(e.code % 10000);
+            note(withinKind(e.code));
         }
     }
     for(const ShippedRow& r : shipped)
     {
-        if(r.code >= 0 && (r.code / 10000 == from || r.code / 10000 == to))
+        if(r.code >= 0 && (kindOf(r.code) == from || kindOf(r.code) == to))
         {
-            note(r.code % 10000);
+            note(withinKind(r.code));
+            if(classOf(r.code) == Gun)
+            {
+                // (a rifle's shipped key is each gun category's with no row of its own: theirs copied too)
+                for(const int cat : gunCategories)
+                {
+                    note(code(0, cat, poseOf(r.code), phaseOf(r.code)));
+                }
+            }
         }
     }
     za::Vector<Entry> kept;
     for(const Entry& e : state.over)
     {
-        if(e.code / 10000 != to)
+        if(kindOf(e.code) != to)
         {
             kept.pushBack(e);
         }
@@ -494,8 +563,8 @@ int copyKind(int from, int to)
     for(const int within : codes)
     {
         Entry c;
-        c.code = to * 10000 + within;
-        const bool has = get(from * 10000 + within, c.k) && !same(c.code, c.k, Key{});
+        c.code = to * kindStride + within;
+        const bool has = get(from * kindStride + within, c.k) && !same(c.code, c.k, Key{});
         c.k.v[RPos] *= s;
         c.k.v[LPos] *= s;
         if(isLegCode(c.code))
@@ -559,15 +628,72 @@ int dropShippedEqual()
     return dropped;
 }
 
+int migrateCategories(int* widened)
+{
+    parse();
+    // (the old codes: parse read them as the new, write puts them so)
+    int old = 0;
+    const char* p = vr_agrunt_poses.string ? vr_agrunt_poses.string : "";
+    while(*p)
+    {
+        char* end = nullptr;
+        const int c = static_cast<int>(strtol(p, &end, 10));
+        old += end != p && codeFromOld(c) != c ? 1 : 0;
+        const char* semi = strchr(p, ';');
+        if(!semi)
+        {
+            break;
+        }
+        p = semi + 1;
+    }
+    if(widened)
+    {
+        *widened = old;
+    }
+    za::Vector<Entry> added;
+    for(const Entry& e : state.over)
+    {
+        if(classOf(e.code) != Gun)
+        {
+            continue;
+        }
+        for(const int cat : gunCategories)
+        {
+            const int c = code(kindOf(e.code), cat, poseOf(e.code), phaseOf(e.code));
+            bool has = cat == Gun;
+            for(const Entry& o : state.over)
+            {
+                has = has || o.code == c;
+            }
+            if(!has)
+            {
+                added.pushBack(Entry{c, e.k});
+            }
+        }
+    }
+    for(const Entry& a : added)
+    {
+        if(static_cast<int>(state.over.size()) < maxEntries)
+        {
+            state.over.pushBack(a);
+        }
+    }
+    if(old > 0 || !added.empty())
+    {
+        write();
+    }
+    return static_cast<int>(added.size());
+}
+
 void dumpText(za::String& out)
 {
     parse();
     out += "// vr_agrunt_pose_dump: rows for Quake/vr/vr_agpose.cpp's shipped[] (the changes laid on QC's poses):\n";
-    out += "// {code (kind*10000 + class*1000 + pose*10 + phase), {right place, right turn, left place, left turn,\n";
+    out += "// {code (kind*100000 + class*1000 + pose*10 + phase), {right place, right turn, left place, left turn,\n";
     out += "//  right elbow's pole, left elbow's pole, torso yaw pitch roll}}\n";
     for(const Entry& e : state.over)
     {
-        const int kind = e.code / 10000, cls = (e.code / 1000) % 10, pose = (e.code / 10) % 100, phase = e.code % 10;
+        const int kind = kindOf(e.code), cls = classOf(e.code), pose = poseOf(e.code), phase = phaseOf(e.code);
         out += va("    {%d, {", e.code);
         for(int i = 0; i < NumParts * 3; i++)
         {
@@ -576,10 +702,10 @@ void dumpText(za::String& out)
         if(isLegCode(e.code))
         {
             // (vr_aglegs: pelvis place, pelvis turn, planted foot, kneeling knee's pole, kneeling foot, planted knee's pole)
-            out += va("}}, // %s, the pickup's legs (any weapon)\n", kind == 0 ? "grunt" : "enforcer");
+            out += va("}}, // %s, the pickup's legs (any weapon)\n", kindName(kind));
             continue;
         }
-        out += va("}}, // %s, %s, %s%s%s\n", kind == 0 ? "grunt" : "enforcer", className(cls), poseName(cls, pose),
+        out += va("}}, // %s, %s, %s%s%s\n", kindName(kind), className(cls), poseName(cls, pose),
             isStrike(pose) ? ", " : "", isStrike(pose) ? phaseName(phase) : "");
         // (a stance whose place is one QC constant: that constant moved, instead of the row; the grunt's units)
         for(const QcConstant& q : qcConstants)
@@ -590,7 +716,7 @@ void dumpText(za::String& out)
             }
             const glm::vec3 d = e.k.v[q.part] / fitScale[kind];
             const glm::vec3 v = q.value + d;
-            out += va("    //   QC instead (%s): vector %s = '%.2f %.2f %.2f';", kind == 0 ? "grunt" : "enforcer", q.name,
+            out += va("    //   QC instead (%s): vector %s = '%.2f %.2f %.2f';", kindName(kind), q.name,
                 static_cast<double>(v.x), static_cast<double>(v.y), static_cast<double>(v.z));
             if(q.fwName[0])
             {
@@ -607,17 +733,57 @@ void dumpText(za::String& out)
     }
 }
 
+const char* kindName(int kind)
+{
+    return kind == 0 ? "grunt" : kind == 1 ? "enforcer" : "?";
+}
+
+const char* kindsName(int kind)
+{
+    return kind == 0 ? "grunts" : kind == 1 ? "enforcers" : "?";
+}
+
+const char* kindTitle(int kind)
+{
+    return kind == 0 ? "Grunt" : kind == 1 ? "Enforcer" : "?";
+}
+
 const char* className(int cls)
 {
     switch(cls)
     {
         case Fists: return "fists";
-        case Gun: return "a gun";
+        case Gun: return "a rifle";
         case Melee: return "a one-handed melee weapon";
         case Melee2: return "a two-handed melee weapon";
         case Saw: return "a chainsaw";
         case TwoMelee: return "two melee weapons";
         case TwoGuns: return "two guns";
+        case Pistol: return "a pistol";
+        case Launcher: return "a shoulder launcher";
+        case Sprayer: return "a sprayer";
+        case LaserCannon: return "the laser cannon";
+        case Widowmaker: return "the Widowmaker";
+        default: return "?";
+    }
+}
+
+const char* classTitle(int cls)
+{
+    switch(cls)
+    {
+        case Fists: return "Fists";
+        case Gun: return "Rifle";
+        case Melee: return "One-Handed Melee";
+        case Melee2: return "Two-Handed Melee";
+        case Saw: return "Chainsaw";
+        case TwoMelee: return "Two Melee Weapons";
+        case TwoGuns: return "Two Guns";
+        case Pistol: return "Pistol";
+        case Launcher: return "Shoulder Launcher";
+        case Sprayer: return "Sprayer";
+        case LaserCannon: return "Laser Cannon";
+        case Widowmaker: return "Widowmaker";
         default: return "?";
     }
 }
@@ -627,7 +793,7 @@ const char* poseName(int cls, int pose)
     switch(pose)
     {
         case Carry: return cls == Fists ? "Idle" : cls == Melee2 ? "Port Arms" : "Idle / Carry";
-        case Aim: return cls == Fists ? "Guard" : cls == Gun || cls == TwoGuns ? "Aim" : "Ready";
+        case Aim: return cls == Fists ? "Guard" : isGunClass(cls) ? "Aim" : "Ready";
         case Run: return "Run";
         case Pickup: return "Pickup";
         case Jab: return "Jab";
@@ -693,6 +859,7 @@ int posesOf(int cls, int* out, int max)
 void registerCommands()
 {
     Cmd_AddCommand("vr_agrunt_pose_dump", dump_f);
+    Cmd_AddCommand("vr_agrunt_pose_key", key_f);
 }
 
 } // namespace qvr::agpose

@@ -1153,7 +1153,7 @@ void posekey_f()
         const char* w = Cmd_Argv(i);
         const int v = Q_atoi(Cmd_Argv(i + 1));
         if(!strcmp(w, "kind")) { st.pdKind = za::clamp(v, 0, agpose::numKinds - 1); }
-        else if(!strcmp(w, "class")) { st.pdClass = za::clamp(v, 0, agpose::NumClasses - 1); }
+        else if(!strcmp(w, "class")) { st.pdClass = agpose::isClass(v) ? v : st.pdClass; }
         else if(!strcmp(w, "pose")) { st.pdPose = za::clamp(v, 0, agpose::NumPoses - 1); }
         else if(!strcmp(w, "phase")) { st.pdPhase = za::clamp(v, 0, agpose::numPhases - 1); }
         else if(!strcmp(w, "follow")) { st.pdFollow = v != 0; }
@@ -1163,7 +1163,7 @@ void posekey_f()
     const agpose::Key k = agpose::value(code);
     Con_Printf("rigstudio posekey %d (%s, %s, %s): R %.2f %.2f %.2f turn %.2f %.2f %.2f, L %.2f %.2f %.2f turn %.2f %.2f %.2f, "
                "elbows %.3f %.3f %.3f / %.3f %.3f %.3f, torso %.2f %.2f %.2f; subject %d %d\n",
-        code, st.pdKind ? "enforcer" : "grunt", agpose::className(st.pdClass), agpose::poseName(st.pdClass, st.pdPose),
+        code, agpose::kindName(st.pdKind), agpose::className(st.pdClass), agpose::poseName(st.pdClass, st.pdPose),
         k.v[0].x, k.v[0].y, k.v[0].z, k.v[1].x, k.v[1].y, k.v[1].z, k.v[2].x, k.v[2].y, k.v[2].z, k.v[3].x, k.v[3].y, k.v[3].z,
         k.v[4].x, k.v[4].y, k.v[4].z, k.v[5].x, k.v[5].y, k.v[5].z, k.v[6].x, k.v[6].y, k.v[6].z, st.subjKind, st.subjClass);
     aglegs::Placed L;

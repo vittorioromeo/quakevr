@@ -290,6 +290,11 @@ za::Vector<Item> pageDebugAutomation()
                   "disarmed): its clip and spare magazines as it spawns, its damage a hit on you (no armour), a reload, "
                   "its backpack as it dies, every sound it starts (Log Sounds on meanwhile); agammo lines, then a "
                   "verdict. scratch2 n: from case n-1; scratch3 1: that case alone."),
+        command("Armed Humanoids: Gun Pose Categories", "vr_agrunt_test 83")
+            .help("vr_agrunt_test 83 (any map): each kind's pose category for every weapon of the Weapon Holds "
+                  "(Rifle, Pistol, Shoulder Launcher, Sprayer, Laser Cannon, Widowmaker) against the built-in table; a "
+                  "Pistol Aim key moved 5 forward moves the pistols' keys only (then reset: vr_agrunt_pose_key <code> "
+                  "reset); a Pose Category set changes that kind's only. agtest lines, then a verdict."),
         command("Armed Humanoids: Glitch Finder", "scratch2 0; scratch3 0; vr_agglitch_shots 0; vr_agrunt_test 46")
             .help("vr_agrunt_test 46 (vrtesthall; about 11 minutes): you unseen, each kind with each weapon class in turn "
                   "(fists, sword, axe, the guns, the chainsaw, two shotguns, two axes, Mjolnir) plays its real fights "
