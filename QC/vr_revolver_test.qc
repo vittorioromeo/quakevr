@@ -20,7 +20,8 @@
 //     its back face (the engine's load point): into chambers 3, 5 and 0.
 //   8 a fourth by the hands (the off hand's shell at the load point: vr_mock_hand_to off lport): into the next empty one
 //     to come under the hammer.
-//   9 a spin (900 degrees a second): it slows, stops on a chamber; the chamber under the hammer moved with its turn.
+//   9 the off hand's swipes: none spins it right after a shell went in or while it holds one, nor a slow one; a
+//     deliberate one does. Then a spin (900 degrees a second): it slows, stops on a chamber; the chamber under the hammer moved with its turn.
 //  10 a flick of the wrist the other way (the mock's roll with vr_mock_turn_velocity 1): it swings home.
 //  11 pulls until two shots: each pull a shot or a click as its chambers say, from the one after the hammer's on.
 //  12 a flick towards its cylinder's side: it swings out. 13 the muzzle tilted up: its two spent and two live shells drop
@@ -45,6 +46,7 @@ float vr_rvt_prevcyl;
 float vr_rvt_shots0, vr_rvt_dry0, vr_rvt_live0;
 string vr_rvt_want, vr_rvt_got; // the pulls' outcomes ("F" a shot, "c" a click): expected, seen
 float vr_rvt_mode, vr_rvt_grip, vr_rvt_tv, vr_rvt_notarget;
+vector vr_rvt_flick0, vr_rvt_flick1; // the flicks' settings before (open, close: x speed, y angle)
 entity vr_rvt_player;
 entity vr_rvt_target;
 entity vr_rvt_g;
@@ -57,6 +59,36 @@ void(float ok, string what) VR_RVT_Check =
 
 entity() VR_RVT_Rec = { return VRGetEntWeaponInst(vr_rvt_player, cVR_MainHand); };
 
+// A swipe across the swung-out cylinder by the off hand at `xSpeed` m/s: the hand on its rim over the middle, moving
+// round it, and the other hand's own check run as each player frame runs it (VR_Revolver_OtherHand). `xHolding`: the off
+// hand holds something meanwhile. TRUE if it spun (the spin then undone: the test's own spin comes after).
+float(entity rec, float xSpeed, float xHolding) VR_RVT_Swipe =
+{
+    entity p = vr_rvt_player;
+    entity os = self;
+    self = p;
+    entity h = VR_Revolver_Hand(p, cVR_MainHand);
+    float ok = h && VR_Revolver_Frame(cVR_MainHand); // (vr_rv_port, vr_rv_axis, vr_rv_up)
+    vector radial = normalize(vr_rv_up - vr_rv_axis * (vr_rv_up * vr_rv_axis));
+    vector pos0 = p.offhandpos;
+    vector vel0 = p.offhandvel;
+    entity held0 = p.offhand_held;
+    p.offhandpos = vr_rv_port + vr_rv_axis * (RV_CYL_LEN * 0.5 * RV_SCALE) + radial * (RV_CYL_RADIUS * RV_SCALE);
+    p.offhandvel = p.handvel + VR_RV_Cross(vr_rv_axis, radial) * xSpeed;
+    if(xHolding) { p.offhand_held = rec; } // (any thing: a hand that holds one is not empty)
+    float spin0 = rec.wi_rv_spin;
+    rec.wi_rv_spin = 0;
+    if(h) { h.rvh_spun = -10; }
+    if(ok) { VR_Revolver_OtherHand(cVR_MainHand, h, rec); }
+    float spun = rec.wi_rv_spin != 0;
+    rec.wi_rv_spin = spin0;
+    p.offhandpos = pos0;
+    p.offhandvel = vel0;
+    p.offhand_held = held0;
+    self = os;
+    return ok && spun;
+};
+
 void() VR_RVT_End =
 {
     VR_NPT_Freeze(FALSE);
@@ -64,6 +96,14 @@ void() VR_RVT_End =
     cvar_set("vr_reload_mode_revolver", ftos(vr_rvt_mode));
     cvar_set("vr_weapon_grip_mode", ftos(vr_rvt_grip));
     cvar_set("vr_mock_turn_velocity", ftos(vr_rvt_tv));
+    if(vr_rvt_flick0 != '0 0 0')
+    {
+        cvar_set("vr_revolver_open_flick_speed", ftos(vr_rvt_flick0_x));
+        cvar_set("vr_revolver_open_flick_angle", ftos(vr_rvt_flick0_y));
+        cvar_set("vr_revolver_close_flick_speed", ftos(vr_rvt_flick1_x));
+        cvar_set("vr_revolver_close_flick_angle", ftos(vr_rvt_flick1_y));
+        vr_rvt_flick0 = '0 0 0';
+    }
     cvar_set("vr_decap_pop_roll", "-1");
     VR_NPT_Trigger(0);
     localcmd("vr_mock_button main secondary 0\n");
@@ -292,6 +332,14 @@ void() VR_Revolver_TestFrame =
         vr_rvt_tv = cvar("vr_mock_turn_velocity");
         cvar_set("vr_weapon_grip_mode", "1");
         cvar_set("vr_mock_turn_velocity", "1");
+        // The flicks the mock's turns and VR_RVT_Flicks were measured with (the defaults before his of 2026-10-27, 120 and
+        // 75 degrees: the mock's turn of 150 in a frame rolls the wrist about 50), meanwhile.
+        vr_rvt_flick0 = '1 0 0' * cvar("vr_revolver_open_flick_speed") + '0 1 0' * cvar("vr_revolver_open_flick_angle");
+        vr_rvt_flick1 = '1 0 0' * cvar("vr_revolver_close_flick_speed") + '0 1 0' * cvar("vr_revolver_close_flick_angle");
+        cvar_set("vr_revolver_open_flick_speed", "350");
+        cvar_set("vr_revolver_open_flick_angle", "30");
+        cvar_set("vr_revolver_close_flick_speed", "300");
+        cvar_set("vr_revolver_close_flick_angle", "25");
         vr_rvt_notarget = (vr_rvt_player.flags & FL_NOTARGET) != 0;
         vr_rvt_player.flags = vr_rvt_player.flags | FL_NOTARGET;
         VR_NPT_Freeze(TRUE);
@@ -502,6 +550,23 @@ void() VR_Revolver_TestFrame =
     {
         if(vr_rvt_frames == 2)
         {
+            // The swipes (ROUND22.md, "Revolver spins by accident while loading"): none right after a shell went in, nor
+            // while the hand holds one; after vr_revolver_spin_hold, a slow one (under vr_revolver_spin_speed) none, a
+            // deliberate one spins it.
+            entity rh = VR_Revolver_Hand(p, cVR_MainHand);
+            float since = time - rh.rvh_held_at;
+            float spd = cvar_hget(cvarh_vr_revolver_spin_speed);
+            float r0 = vr_rv_refusals;
+            float afterLoad = VR_RVT_Swipe(rec, spd + 0.7, FALSE);
+            float holding = VR_RVT_Swipe(rec, spd + 0.7, TRUE);
+            rh.rvh_held_at = time - cvar_hget(cvarh_vr_revolver_spin_hold) - 0.05;
+            float slow = VR_RVT_Swipe(rec, spd * 0.75, FALSE);
+            float fast = VR_RVT_Swipe(rec, spd + 0.7, FALSE);
+            string swiped = sprintf("%g %g %g %g", afterLoad, holding, slow, fast); // (sprintf: 8 arguments at most)
+            VR_RVT_Check(!afterLoad && !holding && !slow && fast && vr_rv_refusals == r0 + 1 && since < 0.5,
+                sprintf("swipes spun: %.2f s after a shell went in, holding a shell, a slow one (%.2f m/s), a deliberate one "
+                        "(%.2f m/s): %s (want 0 0 0 1; %g refused for loading)", since, spd * 0.75, spd + 0.7, swiped,
+                    vr_rv_refusals - r0));
             vr_rvt_at0 = rec.wi_rv_at;
             vr_rvt_turned = 0;
             vr_rvt_k = VR_Revolver_CylAngle(rec); // (a swipe may have turned it already: from where it is)
@@ -613,7 +678,7 @@ void() VR_Revolver_TestFrame =
         if(alive && g.takedamage && vr_rvt_n < 8 && (vr_rvt_frames % 6) == 2)
         {
             g.enemy = p; // (aware of you: no sneak attack's x vr_stealth_sneak, vr_stealth.qc)
-            g.th_pain = SUB_Null; // (it stands as it is: no flinch bowing its head into a body shot's way)
+            g.th_pain = SUB_NullPain; // (it stands as it is: no flinch bowing its head into a body shot's way)
             g.nextthink = 0;
             VR_RVT_SlugAt(g, s == 15 ? -1 : (s == 16 ? 6 : 16)); // (the ogre's chest)
             vr_rvt_n++;
@@ -636,8 +701,10 @@ void() VR_Revolver_TestFrame =
             }
             else if(s == 16)
             {
-                VR_RVT_Check(!alive && vr_rvt_n == 2 && vr_rv_lastpart == 0,
-                    sprintf("a grunt's body: dead to %g slugs (want 2), the last %.1f", vr_rvt_n, vr_rv_lastdmg));
+                // (His damage 28 of 2026-10-27, up to vr_revolver_dmg_random 0.15 more: a slug's roll may reach 30, one.)
+                VR_RVT_Check(!alive && (vr_rvt_n == 2 || (vr_rvt_n == 1 && vr_rv_lastdmg >= 30)) && vr_rv_lastpart == 0,
+                    sprintf("a grunt's body: dead to %g slugs (want 2, or 1 that rolled 30 or more), the last %.1f", vr_rvt_n,
+                        vr_rv_lastdmg));
                 vr_rvt_g = VR_RVT_Monster(300, -35, TRUE); // (a big body: vr_revolver_heavy_mult)
             }
             else

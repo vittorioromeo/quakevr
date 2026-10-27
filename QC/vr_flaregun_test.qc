@@ -19,6 +19,7 @@
 //     sinking 20 units a second, out after 3 s.
 //   7 an armed grunt from the pool with a flare gun first (vr_agrunt_flaregun 1): its two flares (skins 1, 2), then the
 //     spent flare gun thrown away (depleted) and its own weapon in its hand.
+//   9 a grunt killed (its corpse, a ragdoll): a flare into it sets it on fire; 10 a flare lying burning under it: on fire.
 // vr_flare_test 5: its muzzles ("flaremuzzle: N passed, M failed"). 7: the crates' flare guns, twice from the same plan
 // ("flarecrates: ..."). 2-4, 6: test aids (in your hands, the holsters, the flares' scene).
 
@@ -28,7 +29,6 @@ float vr_flt_frames;    // frames into the step
 float vr_flt_t0;        // a step's moment (a flare stuck, drifting)
 float vr_flt_z0;        // a drifting flare's height at the first measure
 float vr_flt_barrel0, vr_flt_barrel1; // the barrels of the first two shots
-float vr_flt_shots0;
 float vr_flt_notarget, vr_flt_grip, vr_flt_stick, vr_flt_air, vr_flt_fall, vr_flt_agfg, vr_flt_dual; // the settings before
 float vr_flt_mode;      // the test running (1 or 5)
 entity vr_flt_player;
@@ -556,8 +556,63 @@ void() VR_FLT_Frame =
             sprintf("then its own: %s in its hand", ag.vr_ag_prop ? ag.vr_ag_prop.netname : "none"));
         if(thrown) { remove(thrown); }
         VR_AGT_Remove(ag);
-        VR_FLT_End();
-        return;
+        VR_FLT_ClearFlares();
+        // A grunt killed (no gib): its corpse, a ragdoll, for the flares (ROUND22.md, "Flares ignite ragdolls").
+        vr_flt_e = VR_NPT_Grunt(140, -1, 0);
+        vr_flt_t0 = 0;
+        VR_FLT_Next();
+    }
+    else if(s == 9)
+    {
+        // A flare into the corpse (a ragdoll lying): it catches fire.
+        entity cg = vr_flt_e;
+        if(vr_flt_t0 == 0 && cg.takedamage && cg.health > 0)
+        {
+            T_Damage(cg, p, p, cg.health + 20);
+        }
+        // (its death played out, a ragdoll lying: the grunt's last death frame, army_die10's 17 or army_cdie11's 28)
+        float dead = cg.health <= 0 && isragdoll(cg) && (cg.frame == 17 || cg.frame == 28);
+        if(vr_flt_t0 == 0 && dead)
+        {
+            vr_fg_hits = vr_fg_ignited = 0;
+            if(cg.burn_fire) { remove(cg.burn_fire); cg.burn_fire = world; }
+            VR_FLT_FlareAt((cg.absmin + cg.absmax) * 0.5);
+            vr_flt_t0 = time;
+            dprint(sprintf("flaretest: a flare at the corpse (ragdoll %g, corpse %g, dying %g, can burn %g, takedamage %g, solid %g) at %v\n",
+                isragdoll(cg), cg.vr_corpse, cg.vr_corpse_dying, VR_Burn_Can(cg), cg.takedamage, cg.solid, (cg.absmin + cg.absmax) * 0.5));
+        }
+        if(vr_flt_t0 > 0 && (cg.burn_fire != world || time > vr_flt_t0 + 1))
+        {
+            VR_FLT_Check(cg.burn_fire != world && vr_fg_ignited == 1, sprintf("a flare into a corpse (ragdoll %g): on fire %g "
+                "(%g hits) after %.2f s", isragdoll(cg), cg.burn_fire != world, vr_fg_hits, time - vr_flt_t0));
+            if(cg.burn_fire) { remove(cg.burn_fire); cg.burn_fire = world; }
+            VR_FLT_ClearFlares();
+            // A flare burning where it lies, on the floor under the corpse's middle.
+            vector mid = (cg.absmin + cg.absmax) * 0.5;
+            traceline(mid, mid - '0 0 128', TRUE, cg);
+            entity os9 = self;
+            self = p;
+            entity lf = VR_Flare_Launch(trace_endpos + '0 0 1', '1 0 0', 1, '0 0 0');
+            self = os9;
+            VR_Flare_Stick(lf, '0 0 1', '1 0 0', FALSE);
+            vr_flt_t0 = time;
+            dprint(sprintf("flaretest: a flare lying burning at %v, the corpse's middle %v\n", lf.origin, mid));
+            VR_FLT_Next();
+        }
+    }
+    else if(s == 10)
+    {
+        // A flare lying burning under it: it catches fire (its body meets the flare's small flame: VR_Burn_MapBodyLook).
+        entity cg2 = vr_flt_e;
+        if(cg2.burn_fire != world || time > vr_flt_t0 + 2)
+        {
+            VR_FLT_Check(cg2.burn_fire != world, sprintf("a corpse on a flare lying burning: on fire %g after %.2f s",
+                cg2.burn_fire != world, time - vr_flt_t0));
+            if(cg2.burn_fire) { remove(cg2.burn_fire); cg2.burn_fire = world; }
+            VR_AGT_Remove(cg2);
+            VR_FLT_End();
+            return;
+        }
     }
     if(vr_flt_frames > 72 * 12) // (a safety net only: a stuck step)
     {

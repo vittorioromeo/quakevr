@@ -385,10 +385,15 @@ QVR_PROP_DEFAULT(52, Overlap, "0.4")
 QVR_PROP_DEFAULT(56, ID, "progs/vr_mag_npistol.mdl")
 QVR_PROP_DEFAULT(56, Mass, "0.25")
 QVR_PROP_DEFAULT(56, TwoHands, "0")
-QVR_PROP_DEFAULT(56, GripMode, "2")
+// His grip of 2026-10-27 (configVersion 209 moves configs still at In the Palm, 0 0 0, overlap 0.385): Grip Mode 1 with
+// his offsets, a little less overlap.
+QVR_PROP_DEFAULT(56, GripMode, "1")
+QVR_PROP_DEFAULT(56, GripX, "-3.4")
+QVR_PROP_DEFAULT(56, GripY, "-0.5")
+QVR_PROP_DEFAULT(56, GripZ, "-3.3")
 QVR_PROP_DEFAULT(56, Size, "0.55")
 QVR_PROP_DEFAULT(56, HandleTilt, "30.5")
-QVR_PROP_DEFAULT(56, Overlap, "0.385")
+QVR_PROP_DEFAULT(56, Overlap, "0.37")
 QVR_PROP_DEFAULT(56, ThrowDamage, "0.25")
 // Immersive reloading's launcher rounds (QC vr_reload.qc, "Front-loaded launchers"; make_rounds.py: their own models at
 // Size 1, so missile.mdl, grenade.mdl and proxbomb.mdl keep their sizes in flight): the rocket held along the fist (Along

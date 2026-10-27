@@ -518,6 +518,23 @@ const DefaultChange defaultChanges[] = {
     // 208: Soften Flickering Lights off by default again (round 22, "AD flicker": AD's flicker was a NaN fog frame, not
     // its lamps; beta4 shipped 0.5): a config still at 0.5 takes 0, any other value stays.
     {208, &vr_lightstyle_comfort, "0.5"}, // 0
+    // 209: his new weapons' tuning (his config of 2026-10-27, NOTES.md vrragtriggers_2026-10-27_02-01-22: "make all of
+    // them the new defaults"): the heavy revolver's damage, flicks, ejector rod, spin and hand reach; the nail pistol's
+    // well. And the revolver's swipe a little more deliberate (spun by accident while loading). A config still at the
+    // old default takes the new; any other value stays.
+    {209, &vr_dmg_revolver, "26"},                   // 28
+    {209, &vr_revolver_open_flick_speed, "350"},     // 400
+    {209, &vr_revolver_open_flick_angle, "30"},      // 120
+    {209, &vr_revolver_close_flick_speed, "300"},    // 350
+    {209, &vr_revolver_close_flick_angle, "25"},     // 75
+    {209, &vr_revolver_eject_rod_reach, "2.5"},      // 1
+    {209, &vr_revolver_eject_rod_speed, "0.3"},      // 0.35
+    {209, &vr_revolver_spin_speed, "0.5"},           // 0.8
+    {209, &vr_revolver_spin_friction, "720"},        // 760
+    {209, &vr_revolver_spin_max, "1800"},            // 900
+    {209, &vr_revolver_hand_reach, "3"},             // 0.25
+    {209, &vr_reload_port_npistol_z, "0"},           // 1.5
+    {209, &vr_reload_port_npistol_radius, "1.5"},    // 1
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
 struct NamedDefaultChange
@@ -559,13 +576,20 @@ const NamedDefaultChange namedDefaultChanges[] = {
     {204, "vr_prop_mass_62", "0"}, // -1 h_hogreham
     {204, "vr_prop_mass_64", "0"}, // -1 h_dguard
     {204, "vr_prop_mass_71", "0"}, // -1 h_hogre
+    // 209: the nail pistol magazine's grip his (his config of 2026-10-27): Grip Mode 1 at -3.4 -0.5 -3.3, overlap 0.37.
+    {209, "vr_prop_grip_57", "2"},       // 1
+    {209, "vr_prop_grip_x_57", "0"},     // -3.4
+    {209, "vr_prop_grip_y_57", "0"},     // -0.5
+    {209, "vr_prop_grip_z_57", "0"},     // -3.3
+    {209, "vr_prop_overlap_57", "0.385"}, // 0.37
 };
 // (200: the nail pistol's magazine's prop slot 56; 201: a shipped prop slot another model had taken moves that model to
 // another slot, so that the shipped one's tuning reaches its model: props::takeShippedSlots; 202: AD's heads' slots,
 // and the armed grunts' archived pose keys and grips equal to the new shipped ones dropped: agpose::dropShippedEqual,
 // aggrip::dropDefaultEqual; 204: r_lerpmodels 1 -> 3, AD's heads Mass 0 -> -1; 205: vr_heat_haze_half 1 -> 0 unless
-// a graphics preset below High; 206: vr_ambient_light 0 -> 0.1; 207: vr_crate_flaregun 0.05 -> 0)
-constexpr int configVersion = 208;
+// a graphics preset below High; 206: vr_ambient_light 0 -> 0.1; 207: vr_crate_flaregun 0.05 -> 0; 208:
+// vr_lightstyle_comfort 0.5 -> 0; 209: his new weapons' tuning of 2026-10-27, the revolver's swipe 0.5 -> 0.8 m/s)
+constexpr int configVersion = 209;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;

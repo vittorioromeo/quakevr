@@ -11,7 +11,8 @@
 //   1 a nail pistol in the main hand, a full magazine (immersive reloading on it: vr_reload_mode_npistol 3), a target ahead
 //     on its aim; the trigger held 0.55 s: one shot (semi-automatic); its slide back after it, home after.
 //   2 pulls every other frame: the rest of the magazine, 12 in all, each at least vr_nailpistol_cooldown after the last;
-//     12 hits on the target; a 13th pull clicks dry; its slide locked back, empty.
+//     12 hits on the target; a 13th pull clicks dry; its slide locked back, empty; walking
+//     with it empty, the slide stays locked back every frame.
 //   3 the magazine cycle (as the hands do it: B/Y's eject, the other hand at the pouch, the magazine's top at the well the
 //     engine reports): out empty, a new one of 12 from your nails, seated; the slide home; a shot from it.
 //   4 its damage: a grunt killed by nails at its head (each x1.5), another by nails in its body (x1): how many each.
@@ -25,6 +26,8 @@ float vr_npt_seen;      // shots seen so far
 float vr_npt_mingap;    // the shortest gap between two shots
 float vr_npt_slide1;    // the slide's frame just after the first shot (1 back)
 float vr_npt_n;
+float vr_npt_walkjit;   // walking empty: frames its slide was off its locked-back frame
+float vr_npt_walkrun;   // walking empty: frames of the run animation
 .float vr_npt_frozen;   // a map's monster held still for the test (its think put off)
 float vr_npt_notarget;  // the player's FL_NOTARGET before
 float vr_npt_mode;      // vr_reload_mode_npistol before
@@ -443,6 +446,23 @@ void() VR_NailPistol_TestFrame =
             VR_NPT_Check(VRGetWeaponClip(cVR_MainHand) == 0 && VRGetWeaponFrame(cVR_MainHand) == 1,
                 sprintf("empty: clip %g, its slide locked back (frame %g)", VRGetWeaponClip(cVR_MainHand),
                     VRGetWeaponFrame(cVR_MainHand)));
+            vr_npt_walkjit = vr_npt_walkrun = 0;
+        }
+        // Walking with it empty (the run animation's think every 0.1 s, player_run): the slide stays locked back, each
+        // frame (it reset the frame to 0 each think: the slide jittered, ROUND22.md "Nail pistol slide jitters").
+        if(vr_npt_frames > 30 && vr_npt_frames <= 130)
+        {
+            p.velocity_x = (vr_npt_frames & 1) ? 60 : -60;
+            p.velocity_y = 0;
+            if(p.frame >= 6 && p.frame <= 11) vr_npt_walkrun++; // ($rockrun1..6: the run animation)
+            if(vr_npt_frames > 31 && VRGetWeaponFrame(cVR_MainHand) != 1) vr_npt_walkjit++;
+        }
+        if(vr_npt_frames == 131)
+        {
+            p.velocity = '0 0 0';
+            VR_NPT_Check(vr_npt_walkrun > 50 && vr_npt_walkjit == 0, sprintf(
+                "walking empty: the slide off its locked-back frame in %g of 99 frames (want 0; %g frames of the run animation)",
+                vr_npt_walkjit, vr_npt_walkrun));
             VR_NPT_Next();
         }
     }

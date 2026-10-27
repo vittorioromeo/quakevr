@@ -232,7 +232,7 @@ void() VR_AGAM_Frame =
         if(g.vr_ag_prop2)
         {
             ok = (VR_AGAM_SpawnOk(g.vr_ag_prop2, g.vr_ag_reserve2) && ok);
-            line = strcat(line, "; left: ", vr_agam_line);
+            line = strcat(line, strcat("; left: ", vr_agam_line)); // (strcat takes two: a third was dropped)
         }
         VR_AGAM_Check(sprintf("%s spawn: %s:", vr_agam_name, line), ok);
         vr_agam_disarmed = 0;
