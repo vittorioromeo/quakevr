@@ -69,7 +69,7 @@ enum SvcQuakeVr : int
     QVR_SVC_VIEWMESSAGE = 33,     // [short seconds * 10][string]: a message floating in the middle of the view that long (QC viewmessage: target_vr_message; vr_worldtext.cpp); to that player only, reliable
     QVR_SVC_HITREACT = 34,        // [short entity][coord3 at][char3 dir*127][byte part + 1 (0 unknown)][byte damage][byte share of its health * 255]: a living monster struck, its hit reaction drawn (QC hitreact; vr_hitreact.cpp)
     QVR_SVC_GORESOUND = 35,       // [byte kind][short entity][coord3 at][byte strength * 255]: a gore sound (QC goresound; vr_goresound.cpp)
-    QVR_SVC_ARMPOSE = 36,         // [short grunt][short weapon][byte flags][byte wr * 255][coord3 v][short3 fw, up: body's, rifle line's * 32000][byte wo * 255][byte wl * 255][coord3 vl]: an armed grunt's hands and held weapon this server frame (QC VR_AG_SendPose; vr_hitreact.cpp), unreliable
+    QVR_SVC_ARMPOSE = 36,         // [short grunt][short weapon][byte flags][byte wr * 255][coord3 v][short3 fw, up: body's, rifle line's * 32000][byte wo * 255][byte wl * 255][coord3 vl]...[flags 4|16 both: the off-hand block, byte b, short3 x3 each for b & 4 and b & 8 (vr_hitreact.cpp parseArmPose)]: an armed grunt's hands and held weapon this server frame (QC VR_AG_SendPose; vr_hitreact.cpp), unreliable
     QVR_SVC_RIGSEQ = 37,          // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
 };
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)

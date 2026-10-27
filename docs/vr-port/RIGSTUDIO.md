@@ -89,6 +89,26 @@ IK result drawn each frame, the arms staying on their weapons; the window's numb
 the window's kind and class are the subject's and the pose, as the tool is picked, the one it is in (Aim with the aim
 target on, else Carry).
 
+**The off hand with a single gun** (any gun category: Rifle, Pistol, Launcher, Sprayer, Laser Cannon, Widowmaker;
+ROUND22.md, "Off hand: grip offset and Free"):
+- On the gun (its second grip held, or cupping the right hand), a **left hand: grip offset** dot: its arrows and rings are
+  the gun's own axes (x forward along the barrel, y left, z up), and drag the key's **Left Grip Place / Left Grip Turn**
+  (`agpose::GripPos`, `GripTurn`): the off hand's grip target on the gun moved and turned about its grip point, in the
+  gun's frame, so it follows the gun. Zero by default (no change). A second grip moved past the arm's reach still slides
+  back along the gun (`vr_agarms_second`).
+- Off it, hanging free, a **left hand (free)** dot: moved and turned (model space), it drags the key's Left Place / Left
+  Turn, laid on the hanging hand (zero: relaxed at its side).
+- The Pose Studio Data window's **Off Hand** combo beside the key: **Auto (the Weapon Holds)** (the default: its second
+  grip, a cup, or free for a one-handed hold), **On the Gun** (on it even when the hold is one-handed; held as a
+  two-handed hold is; a pistol carried low is still never cupped), **Free** (off the gun). Which pose's setting counts:
+  Pickup's while taking a weapon up (if set), else Aim's while aimed, else Run's while running (if set), else Carry's; so
+  Run Free with Aim Auto: free running, on the gun aimed. Between the hand eases round the shoulder over a quarter second
+  (`vr_agarms`' second-grip ease). `vr_rigstudio_posekey offhand <0|1|2>` sets it from the console.
+
+Undo, Save, Print / `vr_agrunt_pose_dump` (a row carries 30 numbers when any off-hand part is set, else the 21 of
+before), Copy to the other kind (the grip offset as it is: the gun's frame; the free hand's place scaled by the fit) all
+cover them. Not in the VR Pose Studio yet (its hands take the left hand on a second grip as the Grip Editor's Second grip).
+
 ImGui is made the first time the studio opens; until then nothing of it exists, and while the studio is closed none of
 it runs (the input loop and the swap test one flag each). While it is open the keyboard and mouse are the studio's
 (the game's own keys are held back) except the console's key; SDL's text input is on meanwhile (`VR_ImGuiTextMode`:
@@ -322,9 +342,15 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
   clicked (selected), dragged 20 up by its handle and undone. Screenshots misaligned and aligned per case, and close
   side and top views of the aligned gun for three. `vr_rigstudio_aimline [0|1]` prints the readout.
 - `vr_rigstudio_test_posekeys` (ends on `rigstudio posekeys: N passed, M failed`): the studio's mock mouse drags the
-  Pose Keys handles (the right weapon 4 forward and 20 degrees round z, the right elbow 4 down, the torso 15 degrees, in
-  Pickup the pelvis 3 down): the key changed by that in its space, the drawn part with it; undone, the key exactly as
-  it was. Screenshots before and after the weapon's move.
+  Pose Keys handles (the off hand's grip offset 2 forward and rolled 15 degrees round the gun's x, the right weapon 4
+  forward and 20 degrees round z, the right elbow 4 down, the torso 15 degrees, in Pickup the pelvis 3 down): the key
+  changed by that in its space, the drawn part with it (the off hand measured in the gun's frame); undone, the key
+  exactly as it was. Screenshots before and after the grip offset's and the weapon's moves. (The torso step times out
+  on origin/next too: a known one.)
+- `vr_rigstudio_test_offhand [mode]` (open the studio with a gun; ends on `rigstudio offhand: N passed, M failed`): the
+  subject's Run key's Off Hand set to `mode` (default 2 Free), held in Run, Aim, Run: free in Run (not held, no cup, 4
+  units at least off its grip), on the gun in Aim; each change's off hand followed every frame in its chest's space (how
+  long it moves, its largest step a frame: an ease, not a snap); the key put back exactly. Screenshots in each.
 - `vr_rigstudio_test_typing` (ends on `rigstudio typing: N passed, M failed`): SDL key, text and mouse events pushed
   through the game's input loop into the fields: a sequence's FPS typed (Ctrl+click, "12.5r", Enter: 12.5, no tool
   change), Ctrl+Z, a typed value cancelled by Escape, the Outliner's search typed (Backspace; the game's keys untouched),
