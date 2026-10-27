@@ -24672,6 +24672,12 @@ the aims alike, the authored elbow bent smoothly and the fist whole on the grip;
 belly on the authored rig (the old one held it out of view, lower); the dead and knocked-down bodies lie whole, nothing
 flung.
 
+**Cost** (LTO, exclusive, 3 x 900 frames, `bench.sh --scenarios armed_16_enf,ragdolls_32_enf --settings` a cfg with
+`vr_rig2 0` / `1`; new scenarios: armed_16's scene all enforcers, ragdolls_32_active with enforcers; median, old / new):
+armed_16_enf CPU 3.15 / 2.63 ms (-17%), p99 5.94 / 3.72, GPU 2.91 / 2.22 ms (-24%: one skinned copy); ragdolls_32_enf
+CPU 3.10 / 3.08 ms, p99 6.62 / 6.29, GPU 2.73 / 2.69, max frame 12-15 / 16-17 ms (the 32 made at once: 19 bodies
+each). `vr_agrunt_ik_debug 6` (new): every reach miss over 0.5 units, the shoulder range's and the torso clearance's.
+
 **eval.sh**: no verdict changes with `vr_rig2` 0 and with 1 (`EVAL_PRE` with `vr_rig2 1`): 163/171 both, every
 difference PASS -> PASS (damages 0.1 apart, as stage 2 found).
 

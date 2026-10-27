@@ -3099,7 +3099,7 @@ QVR_CVAR(vr_agrunt_strike_shoulder, "1", CVAR_ARCHIVE) // ... the striking shoul
 QVR_CVAR(vr_agrunt_strike_hips, "0.3", CVAR_ARCHIVE)   // ... the share of the torso's twist the hips take (the legs stay planted; client)
 QVR_CVAR(vr_agrunt_strike_head, "0.5", CVAR_ARCHIVE)   // ... the share of the torso's turn the head takes back (its eyes kept on its target; client)
 QVR_CVAR(vr_agrunt_strike_demo, "0", CVAR_NONE)        // debug: armed monsters with a melee weapon or fists and no enemy strike the air ahead every 2 s, standing (scene agrunt_strikes)
-QVR_CVAR(vr_agrunt_ik_debug, "0", CVAR_NONE)           // N: prints each armed grunt's hands' distances to the grips as drawn, every Nth frame (agik lines; 2: also why none; vr_agrunt_ik_info: now)
+QVR_CVAR(vr_agrunt_ik_debug, "0", CVAR_NONE)           // N: prints each armed grunt's hands' distances to the grips as drawn, every Nth frame (agik lines; 2: also why none; 5: reach misses over 4 units; 6: every miss over 0.5, the shoulder range's and the torso clearance's too; vr_agrunt_ik_info: now)
 QVR_CVAR(vr_agrunt_ik_rigid, "1", CVAR_NONE)          // (vr_agarms 0 only) 1: armed monsters' forearms and hands drawn as rigid pieces (their shape kept: no stretched hands), each hand turned at its wrist towards its weapon, the weapon drawn on the hand by its grip offset (vr_agrunt_grips), a ragdoll's on its hand's bone; 0: agdual2's way (before; read when the model's rest data is made: a map load)
 QVR_CVAR(vr_agrunt_ik_wrist, "65", CVAR_NONE)         // armed monsters (vr_agrunt_ik_rigid): a hand's most bend at its wrist (degrees) towards its weapon's turn: past it the weapon turns with the hand
 QVR_CVAR(vr_agrunt_ik_twist, "80", CVAR_NONE)         // ... its most twist about its forearm (degrees)
