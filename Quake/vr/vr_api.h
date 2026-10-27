@@ -378,6 +378,7 @@ void VR_RagdollSwap (void);								// end of CL_RelinkEntities: the server's rag
 void VR_RelinkArmedGrunts (void);						// end of CL_RelinkEntities: armed grunts' weapons drawn on their drawn hands (vr_hitreact.cpp)
 void VR_Rig2Swap (void);								// after VR_RelinkArmedGrunts: live grunts (vr_rig2 1) and the Rig Studio's subject drawn on the authored rig (vr_rig2_game.cpp)
 void VR_AliasLerpNow (struct entity_s *e, int *pose1, int *pose2, float *blend); // r_alias.c: its frame lerp advanced as drawing it would (vr_rig2_game.cpp)
+void VR_Rig2Restore (void);								// after SCR_UpdateScreen: the entities swapped to the authored rig's copy given their own models back (vr_rig2.cpp)
 void VR_Rig2Latch (void);								// SV_SpawnServer: vr_rig2 read for the map (the grunt's rig, authored or old: vr_rig2.cpp)
 void VR_RelinkWornTanks (void);							// ... then their back tanks on their drawn backs (vr_adtank.cpp)
 void VR_RagdollRestore (void);							// CL_ReadFromServer, first: their own models back before the server's messages

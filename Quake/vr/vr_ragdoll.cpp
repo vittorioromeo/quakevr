@@ -3797,6 +3797,11 @@ extern "C" void VR_Rig2Swap(void)
     rig2::swapModels(); // (and the Rig Studio's subject on the authored rig: vr_rig2.cpp)
 }
 
+extern "C" void VR_Rig2Restore(void)
+{
+    rig2::restoreModels(); // (once drawn: code between frames, the console's, the Rig Studio's, sees their own models)
+}
+
 extern "C" void VR_Rig2Latch(void)
 {
     rig2::latch();
