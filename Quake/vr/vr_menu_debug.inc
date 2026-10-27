@@ -70,6 +70,11 @@ za::Vector<Item> pageDebugViews()
             .help("vr_lightstyle_rate 5: for 5 s of game time, each animated lightstyle's steps a second (Quake's 10, "
                   "whatever the frame rate), its swing, changes a second and largest jump a frame, to the console (LSRATE "
                   "lines). Compare Soften Flickering Lights (Comfort) at 0 and on."),
+        command("Fog Check", "vr_fog_check")
+            .help("vr_fog_check: sets the fog at once at a thousand clock values, and checks a fade with the clock just "
+                  "before it began: the fog drawn must be the one set, never NaN (the old division by a zero fade time "
+                  "drew Arcane Dimensions' world black for a frame each time it sent its fog). Prints fogcheck: N passed, "
+                  "M failed. The fog is put back."),
         command("Light Probe", "vr_light_probe")
             .help("vr_light_probe: the baked light at six points round you, as the map has it and as it is drawn with the "
                   "current Ambient Light and Light Contrast (128 is Quake's full light). The same numbers light a model "
