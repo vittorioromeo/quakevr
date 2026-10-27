@@ -20,5 +20,19 @@
       "sha256": "4e5ea11be2194a1c4acac6d6da9d5b5b9f65324fda2d67efa0731d1fd8e0745f",
       "mirrors": ["https://github.com/ericwa/ericw-tools/releases/download/2.0.0-alpha11/ericw-tools-2.0.0-alpha11-win64.zip"]
     }
+  },
+  "_thirdParty": "Optional components downloaded from their authors' own hosts, never hosted or mirrored on our releases (so not in 'files'): the installer pins the same values (Installer BuiltInComponents; its self-test compares them). latest.json's components.<name> may override one.",
+  "thirdParty": {
+    "ad": {
+      "file": "ad_v1_80p1final.zip",
+      "size": 320914417,
+      "sha256": "7ad993da6c760c446ca31fad71e9f5b6c9eee99b6354f161aa746b572fe70a7d",
+      "mirrors": [
+        "https://www.quaddicted.com/files/by-sha256/7a/7ad993da6c760c446ca31fad71e9f5b6c9eee99b6354f161aa746b572fe70a7d/ad_v1_80p1final.zip",
+        "https://www.quaddicted.com/filebase/ad_v1_80p1final.zip",
+        "https://www.simonoc.com/files/ad/ad_v1_80p1final.zip",
+        "https://born-robotic.net/stuff/qstuff/ad_v1_80p1final.zip"
+      ]
+    }
   }
 }

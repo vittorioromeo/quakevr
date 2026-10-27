@@ -447,6 +447,12 @@ skullwiz 225, lostsoul 177, hogremac 150, boil 117.
 
 ## 10. Installer plan
 
+**Status: built** (2026-10-27, `agent/adinstall`): the opt-in component, **off by default**, labelled "Arcane
+Dimensions (experimental) — free, by sock and team" (Installer/README.md, "Arcane Dimensions"). Differences from the
+plan below: never hosted on our releases (decision 4 is not used: the brief of 2026-10-27 says sock's hosts only);
+the size shown is the measured 792 MB on disk; Official Campaigns labels AD "experimental" (it starts after a
+confirmation), not "native in progress".
+
 - **Component** `ad` ("Arcane Dimensions 1.81, free, by sock and team"). Pinned file `ad_v1_80p1final.zip`,
   **320,914,417 bytes**, SHA-256 `7ad993da6c760c446ca31fad71e9f5b6c9eee99b6354f161aa746b572fe70a7d`.
 - **URLs in order:**

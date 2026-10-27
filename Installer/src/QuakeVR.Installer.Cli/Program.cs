@@ -15,17 +15,21 @@ const string Usage = """
                       (--target <dir> [--shortcuts-dir <dir>] | --sandbox <dir>) [--quake <dir>]
                       [--textures <zip>] [--relight] [--vispatch <id1_vis.tgz>...] [--unverified]
                       [--setup-from <QuakeVR-Setup.exe>] [--registry-file <json> | --register] --accept-statement
-                      [--hd] [--no-feed] [--dry-run] [--prepare]
+                      [--hd] [--no-feed] [--dry-run] [--prepare] [--ad [--ad-zip <zip>] [--no-stores]]
                       (--feed: the package downloaded as the window does; QVR_SETUP_FEED is the default feed. --hd: the
                        HD textures, the feed's hdtextures, else the installer's built-in pack (also with --package: the feed
                        is asked, and not needed; --no-feed never asks it). --dry-run: prints what would be downloaded and
                        from where, then stops. --sandbox: <dir>\QuakeVR, shortcuts in <dir>\_shortcuts, downloads in <dir>\_downloads.
-                       --prepare: then the game's preparation, as the window does: see prepare)
+                       --prepare: then the game's preparation, as the window does: see prepare. --ad: Arcane Dimensions
+                       (experimental): a 1.80 patch 1 copy in the owned Quake roots is used where it is (--no-stores: only
+                       the Quake folder's roots are looked in); else the feed's ad, else the built-in pin (306 MB, from
+                       sock's hosts), checked and unpacked into <install>\ad; --ad-zip: a local copy of that zip, checked
+                       against the pin. Never fatal: a failed AD step leaves the install as it is)
     qvr-setup update [--target <dir> | --sandbox <dir>] [--package <zip|folder> | --feed <url>] [--no-feed] [--dry-run]
                       [--downloads <dir>] [--quake <dir>] [--shortcuts-dir <dir>] [--setup-from <QuakeVR-Setup.exe>]
-                      [--registry-file <json> | --register] [--prepare]
+                      [--registry-file <json> | --register] [--prepare] [--ad [--ad-zip <zip>] [--no-stores]]
                       (the install found as detect prints it; a newer package (or another build) updates, the same or an
-                       older one repairs (never a downgrade). Only program files that differ are copied; your files are
+                       older one repairs (never a downgrade); --ad adds Arcane Dimensions when it is not installed. Only program files that differ are copied; your files are
                        kept; files you changed are backed up first; HD textures only when the pack changed; the relight
                        only when its inputs changed. --dry-run prints the plan (from --feed: the file plan needs the
                        package, unless it is in --downloads already). Shortcuts are kept unless --shortcuts-dir)
@@ -143,6 +147,42 @@ string? AlreadyDownloaded(string downloads, FeedFile file)
            string.Equals(PackageManifest.HashFile(path), file.Sha256, StringComparison.OrdinalIgnoreCase) ? path : null;
 }
 
+// Arcane Dimensions (--ad, --ad-zip <zip>): a copy of 1.80 patch 1 in the owned Quake roots (the stores' unless
+// --no-stores, and the Quake folder's) is used where it is; otherwise the zip (the feed's ad, else the built-in pin) is
+// downloaded, checked and unpacked into <install>\ad. Never fatal: a failure leaves the install as it is.
+bool WantAd() => Flag("ad") || Opt("ad-zip") is not null;
+AdCopy? FoundAd(string quake) => ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots(
+    Flag("no-stores") ? [] : ExpansionDetector.StoreRoots(new QuakeDetector(new WindowsSystemProbe())), quake));
+string AdPlanText(AdCopy? found, ResolvedComponent? c) =>
+    Opt("ad-zip") is { } z ? $"ad: {z} (local; checked against {c?.File.File ?? "the pin"})" :
+    found is { Usable: true } ? $"ad: {ArcaneDimensions.Describe(found)}" :
+    c is null ? "ad: no ad component, in the feed or built in" :
+    $"ad: {(found is null ? "" : ArcaneDimensions.Describe(found) + " ")}{c.File.File} {c.SourceText} ({PathUtil.FormatSize(c.File.Size)} download, " +
+    $"about {PathUtil.FormatSize(ArcaneDimensions.InstalledSize)} on disk, sha256 {c.File.Sha256}) from {string.Join(" then ", c.File.Urls)}";
+async Task<int> AdStep(HttpClient http, ReleaseFeed? feed, string target, string quake, string downloads)
+{
+    var found = FoundAd(quake);
+    var c = new InstallerSettings().Component(feed, Components.ArcaneDimensions);
+    if (found is not null)
+    {
+        Console.WriteLine($"Arcane Dimensions: {ArcaneDimensions.Describe(found)}");
+    }
+    if (found is { Usable: true } && Opt("ad-zip") is null)
+    {
+        return 0;
+    }
+    if (c is null)
+    {
+        Console.WriteLine("warning: Arcane Dimensions: no ad component, in the feed or built in: not installed");
+        return 1;
+    }
+    var outcome = await ArcaneDimensions.AddAsync(http, target, c.File, downloads, Opt("ad-zip"), log,
+        new SyncProgress<DownloadProgress>(p => Console.Write($"\r  {p.Source}: {PathUtil.FormatSize(p.Received)} / {PathUtil.FormatSize(p.Total ?? c.File.Size)}   ")),
+        CancellationToken.None, Opt("ad-attempts") is { } n ? int.Parse(n) : 2);
+    Console.WriteLine(outcome.Installed ? outcome.Message : $"warning: {outcome.Message}");
+    return outcome.Installed ? 0 : 1;
+}
+
 ShortcutOptions ShortcutsFor(string? shortcutsDir, InstallChoices? choices) => shortcutsDir is null
     ? new ShortcutOptions { Desktop = false, StartMenu = false }
     : new ShortcutOptions
@@ -193,7 +233,7 @@ async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? rein
     using var http = Downloader.CreateClient();
     ReleaseFeed? feed = null;
     var wantHd = Flag("hd") && textures is null;
-    if ((package is null || wantHd) && !Flag("no-feed"))
+    if ((package is null || wantHd || WantAd()) && !Flag("no-feed"))
     {
         try
         {
@@ -217,6 +257,8 @@ async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? rein
         Console.WriteLine(textures is not null ? $"hdtextures: {textures} (local)"
             : hd is null ? "hdtextures: none"
             : $"hdtextures: {hd.File.File} {hd.SourceText} ({PathUtil.FormatSize(hd.File.Size)}, {hd.File.Size} bytes, sha256 {hd.File.Sha256}) from {string.Join(" then ", hd.File.Urls)}");
+        Console.WriteLine(!WantAd() ? "ad: not asked for (--ad)"
+            : AdPlanText(Opt("quake") is { } dq ? FoundAd(dq) : null, new InstallerSettings().Component(feed, Components.ArcaneDimensions)));
         Console.WriteLine("dry run: nothing downloaded or installed");
         return 0;
     }
@@ -280,7 +322,13 @@ async Task<int> InstallCommand(FoundInstall? reinstallOf, ReinstallOptions? rein
     var engine = new InstallEngine();
     var record = engine.Install(plan, log, CancellationToken.None);
     Console.WriteLine($"installed {record.Files.Count} files, {record.Shortcuts.Count} shortcuts{(engine.LastBackup is { } b ? $"; backup: {b.Dir} ({b.Files.Count} files)" : "")}");
-    return Flag("prepare") ? Prepare(target, quake, record.RelightPending) : 0;
+    var prepared = Flag("prepare") ? Prepare(target, quake, record.RelightPending) : 0;
+    // Arcane Dimensions last: its download failing or stopped never undoes the install (the exit code stays 0).
+    if (WantAd())
+    {
+        await AdStep(http, feed, target, quake, downloads);
+    }
+    return prepared;
 }
 
 // qvr-setup reinstall: the found install, the files the choice sets aside (dry run: listed), then InstallCommand.
@@ -326,7 +374,8 @@ async Task<int> UpdateCommand()
     using var http = Downloader.CreateClient();
     ReleaseFeed? feed = null;
     var hasHd = install.Record.Files.Any(f => f.Component == Components.HdTextures);
-    if (!Flag("no-feed") && (package is null || hasHd))
+    var hasAd = install.Record.Files.Any(f => f.Component == Components.ArcaneDimensions);
+    if (!Flag("no-feed") && (package is null || hasHd || hasAd || WantAd()))
     {
         try
         {
@@ -360,6 +409,11 @@ async Task<int> UpdateCommand()
     var (hdAction, hdText) = MaintenancePlanner.HdTextures(install.Dir, install.Record, hdTarget?.File, verify: mode == InstallMode.Repair);
     Console.WriteLine(hdText);
     var getHd = hdAction is HdTexturesAction.Replace or HdTexturesAction.Restore && hdTarget is not null;
+    // Arcane Dimensions: kept, replaced (another pinned zip), restored (a repair, a file damaged), or added (--ad).
+    var adTarget = new InstallerSettings().Component(feed, Components.ArcaneDimensions);
+    var (adAction, adText) = ArcaneDimensions.Plan(install.Dir, install.Record, adTarget?.File, verify: mode == InstallMode.Repair);
+    var getAd = (adAction is AdAction.Replace or AdAction.Restore && adTarget is not null) || (adAction == AdAction.NotInstalled && WantAd());
+    Console.WriteLine(adAction == AdAction.NotInstalled && WantAd() ? AdPlanText(FoundAd(Opt("quake") ?? install.Record.QuakeDir), adTarget) : adText);
     if (package is null)
     {
         // A dry run from the feed: the package is not downloaded, so the file plan cannot be made.
@@ -413,7 +467,12 @@ async Task<int> UpdateCommand()
     }, log, CancellationToken.None);
     Console.WriteLine($"{mode.ToString().ToLowerInvariant()}: {record.Version}, {engine.LastPlan?.ToCopy.Count() ?? 0} files copied, {record.Files.Count} recorded" +
                       $"{(engine.LastBackup is { } b ? $"; backup: {b.Dir} ({b.Files.Count} files)" : "")}");
-    return Flag("prepare") ? Prepare(install.Dir, quake, record.RelightPending) : 0;
+    var prepared = Flag("prepare") ? Prepare(install.Dir, quake, record.RelightPending) : 0;
+    if (getAd)
+    {
+        await AdStep(http, feed, install.Dir, quake, downloads);
+    }
+    return prepared;
 }
 
 // qvr-setup prepare: the found install's game prepared (GamePreparation).

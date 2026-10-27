@@ -84,6 +84,20 @@
                             </StackPanel>
                         </CheckBox>
                     </DockPanel>
+                    <!-- Arcane Dimensions: experimental, off by default; the size first, the credit, the found copy. -->
+                    <DockPanel Margin="0,0,0,14">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding AdSizeText}" Style="{StaticResource Size}" />
+                        <CheckBox IsChecked="{Binding InstallAd}" IsEnabled="{Binding AdCanTick}">
+                            <StackPanel>
+                                <TextBlock Text="Arcane Dimensions (experimental) — free, by sock and team" Style="{StaticResource Body}" FontWeight="SemiBold" />
+                                <!-- (a copy found in your Quake folders: what happens with it, in place of the description) -->
+                                <TextBlock Style="{StaticResource Small}" Margin="0,2,0,0" TextWrapping="Wrap">
+                                    <Run Text="{Binding AdText, Mode=OneWay}" />
+                                    <Hyperlink Command="{Binding OpenAdHomeCommand}" Foreground="{StaticResource AccentHover}">AD's readme and home page</Hyperlink>
+                                </TextBlock>
+                            </StackPanel>
+                        </CheckBox>
+                    </DockPanel>
                     <DockPanel Margin="0,0,0,14">
                         <TextBlock DockPanel.Dock="Right" Text="about a minute" Style="{StaticResource Size}" />
                         <CheckBox IsChecked="{Binding Relight}">

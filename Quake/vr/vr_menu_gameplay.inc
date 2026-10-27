@@ -1491,9 +1491,10 @@ void ikStretchReset()
                   "shotgun blast all on the gun, 24 on 16: 0.25 + 0.4 (vr_agrunt_shotdisarm_chance_scale)."),
         slider("After a Failed Roll", vr_agrunt_shotdisarm_cooldown, 0.f, 3.f, 0.05f, "%.2f s").extend(0.f, 30.f)
             .help("No hits add up for this long after a roll that failed (vr_agrunt_shotdisarm_cooldown)."),
-        toggle("Weapon Stops the Shot", vr_agrunt_shotdisarm_absorb)
-            .help("A pellet or a nail on the weapon stops there: it doesn't hurt the grunt. Off: it goes on into the body "
-                  "behind (vr_agrunt_shotdisarm_absorb)."),
+        toggle("Weapon Stops the Shot", vr_agrunt_shotdisarm_block)
+            .help("A pellet or a nail whose first hit is the held weapon (not its hand) stops there: sparks and a tink, "
+                  "no damage to the one holding it (each pellet on its own). Explosions and lightning hurt it as ever. "
+                  "Off: it goes on into the body behind (vr_agrunt_shotdisarm_block)."),
         slider("Shotgun Pellets", vr_agrunt_shotdisarm_w_pellet, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
             .help("How much the shotguns' pellets count (vr_agrunt_shotdisarm_w_pellet)."),
         slider("Nails", vr_agrunt_shotdisarm_w_nail, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)

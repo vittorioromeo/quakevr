@@ -10,6 +10,8 @@ public static class Components
     public const string VisPatch = "vispatch";
     /// <summary>Setup's copy in the install (SetupCopy), for the Apps &amp; Features entry's Uninstall.</summary>
     public const string Setup = "setup";
+    /// <summary>Arcane Dimensions (experimental, opt-in): sock's unmodified release in the install's ad folder (ArcaneDimensions).</summary>
+    public const string ArcaneDimensions = "ad";
 }
 
 public sealed class InstalledFile
@@ -29,6 +31,8 @@ public sealed class InstallChoices
     public bool StartMenuShortcuts { get; set; }
     public bool FlatShortcut { get; set; }
     public bool LogShortcut { get; set; }
+    /// <summary>Arcane Dimensions installed by Setup in the install's ad folder (a copy found elsewhere is not recorded).</summary>
+    public bool ArcaneDimensions { get; set; }
 }
 
 /// <summary>
@@ -62,6 +66,9 @@ public sealed class InstallRecord
     /// when the target pack has the same SHA-256. Null: none, or installed before Setup recorded it.</summary>
     public string? HdTexturesFile { get; set; }
     public string? HdTexturesSha256 { get; set; }
+    /// <summary>The Arcane Dimensions zip installed in ad\ (its name and SHA-256, as downloaded and checked). Null: none.</summary>
+    public string? ArcaneDimensionsFile { get; set; }
+    public string? ArcaneDimensionsSha256 { get; set; }
 
     public static InstallRecord? Load(string installDir)
     {

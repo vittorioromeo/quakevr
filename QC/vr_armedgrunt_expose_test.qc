@@ -1,6 +1,6 @@
 #ifdef QVR_TESTS
 // ============================================================================
-// vr_armedgrunt_expose_test.qc: `vr_agrunt_test 74` (Debug > Tests > Armed Grunts: Aim Behind Cover)
+// vr_armedgrunt_expose_test.qc: `vr_agrunt_test 76` (Debug > Tests > Armed Grunts: Aim Behind Cover)
 // ============================================================================
 // Aimed at what it can hit (vr_agrunt_aim_exposed; vr_armedgrunt.qc VR_AG_Expose). vrtesthall's start: an armed grunt
 // 300 units ahead hunting you (on the floor below the start's step), both held in place, its pauses between attacks

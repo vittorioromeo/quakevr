@@ -70,6 +70,13 @@
                                 <Hyperlink Command="{Binding RetryFeedCommand}" Foreground="{StaticResource AccentHover}">Try again</Hyperlink>
                             </TextBlock>
                             <TextBlock Text="{Binding ExistingDetail}" Style="{StaticResource Small}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                            <!-- Arcane Dimensions added to an install (the retry after a failed download): the footer's Update adds it. -->
+                            <CheckBox IsChecked="{Binding InstallAd}" Margin="0,8,0,0" Visibility="{Binding ShowAddAd, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Style="{StaticResource Small}" TextWrapping="Wrap">
+                                    <Run Text="Add Arcane Dimensions (experimental, free, by sock and team):" />
+                                    <Run Text="{Binding AdSizeText, Mode=OneWay}" />
+                                </TextBlock>
+                            </CheckBox>
                             <TextBlock Text="{Binding OtherInstallsText}" Style="{StaticResource Small}" Foreground="{StaticResource Faint}" Margin="0,6,0,0"
                                        TextWrapping="Wrap" Visibility="{Binding HasOtherInstalls, Converter={StaticResource BoolToVis}}" />
                             <WrapPanel Margin="0,8,0,0">

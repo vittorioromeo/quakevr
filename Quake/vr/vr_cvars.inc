@@ -3018,7 +3018,7 @@ QVR_CVAR(vr_agrunt_shotdisarm_window, "0.5", CVAR_ARCHIVE)     // s the damage a
 QVR_CVAR(vr_agrunt_shotdisarm_chance, "0.25", CVAR_ARCHIVE)    // the roll's chance at the threshold
 QVR_CVAR(vr_agrunt_shotdisarm_chance_scale, "0.8", CVAR_ARCHIVE) // ... plus this for each threshold past it (24 on 16: +0.4; at most 0.95)
 QVR_CVAR(vr_agrunt_shotdisarm_cooldown, "0.3", CVAR_ARCHIVE)   // s after a failed roll before hits add up again
-QVR_CVAR(vr_agrunt_shotdisarm_absorb, "0", CVAR_ARCHIVE)       // 1: a pellet or nail on the weapon stops there (no damage to it); 0: it goes on into the body
+QVR_CVAR(vr_agrunt_shotdisarm_block, "1", CVAR_ARCHIVE)        // 1: a pellet or nail whose first hit is the weapon stops there (sparks, a tink; no damage to the holder); 0: on into the body (was vr_agrunt_shotdisarm_absorb, "0")
 QVR_CVAR(vr_agrunt_shotdisarm_w_pellet, "1", CVAR_ARCHIVE)     // the shotguns' pellets count times this
 QVR_CVAR(vr_agrunt_shotdisarm_w_nail, "1", CVAR_ARCHIVE)       // the nailguns' nails
 QVR_CVAR(vr_agrunt_shotdisarm_w_lightning, "0.3", CVAR_ARCHIVE) // the lightning gun's bolts (30 a tenth of a second: a roll every 0.4 s held on it)

@@ -162,6 +162,9 @@ public sealed class MainViewModel : ObservableObject
     string _installDir;
     string? _installDirError;
     bool _hdTextures = true;
+    bool _arcaneDimensions; // (experimental: off by default)
+    AdCopy? _adFound;
+    AdOutcome? _adOutcome;
     bool _relight = true;
     bool _desktopShortcut = true;
     bool _startMenuShortcuts = true;
@@ -237,6 +240,8 @@ public sealed class MainViewModel : ObservableObject
         }, () => _existing is not null && !Installing);
         BrowseExistingCommand = new RelayCommand(BrowseExisting, () => !Installing);
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string ?? ""));
+        OpenAdHomeCommand = new RelayCommand(() => OpenUrl(_adFound is { Usable: true } f && File.Exists(Path.Combine(f.Folder, ArcaneDimensions.ReadmeFile))
+            ? Path.Combine(f.Folder, ArcaneDimensions.ReadmeFile) : ArcaneDimensions.HomeUrl));
         OpenKofiCommand = new RelayCommand(() => OpenUrl(KofiUrl));
         OpenDiscordCommand = new RelayCommand(() => OpenUrl(DiscordUrl));
         ShowCreditsCommand = new RelayCommand(() => new Views.CreditsWindow(Application.Current.MainWindow).ShowDialog());
@@ -338,6 +343,7 @@ public sealed class MainViewModel : ObservableObject
     public ICommand CopySteamOptionsCommand { get; }
     public ICommand UninstallCommand { get; }
     public ICommand OpenUrlCommand { get; }
+    public ICommand OpenAdHomeCommand { get; }
     public ICommand OpenKofiCommand { get; }
     public ICommand OpenDiscordCommand { get; }
     public ICommand ShowCreditsCommand { get; }
@@ -576,7 +582,7 @@ public sealed class MainViewModel : ObservableObject
 
     void RaiseExisting()
     {
-        Raise(nameof(HasExisting), nameof(ExistingTitle), nameof(ExistingText), nameof(ExistingDetail), nameof(OfferedMode), nameof(QuickUpdate),
+        Raise(nameof(HasExisting), nameof(ShowAddAd), nameof(ExistingTitle), nameof(ExistingText), nameof(ExistingDetail), nameof(OfferedMode), nameof(QuickUpdate),
             nameof(ExistingNeedsPackage), nameof(OtherInstallsText), nameof(HasOtherInstalls), nameof(ReinstallSettingsText), nameof(ReinstallSavesText),
             nameof(ReinstallPersonalText), nameof(ReinstallChosen), nameof(BackupText), nameof(NextText), nameof(FooterHint), nameof(InstallTitle));
         CommandManager.InvalidateRequerySuggested();
@@ -706,6 +712,7 @@ public sealed class MainViewModel : ObservableObject
             Record = await new InstallEngine().InstallAsync(plan, progress, ct);
             await EnsureVcRuntimeAsync(http, ct);
             await PrepareGameAsync(ct);
+            await AddArcaneDimensionsAsync(http, ct);
             LoadExisting();
             BuildDoneNotes();
             GoTo(Page.Done);
@@ -924,6 +931,13 @@ public sealed class MainViewModel : ObservableObject
             Expansions.Add(new ExpansionRow(e));
         }
         Raise(nameof(TexturesText));
+        // Arcane Dimensions already there: a copy of 1.80 patch 1 in the owned roots is used where it is.
+        var found = q.BaseDir is { } qb ? await Task.Run(() => ArcaneDimensions.FindExisting(ArcaneDimensions.SearchRoots(report.StoreRoots, qb))) : null;
+        if (version != _detailsVersion)
+        {
+            return;
+        }
+        AdFound = found;
     }
 
     void BuildSystemChecks(DetectionReport r)
@@ -995,7 +1009,8 @@ public sealed class MainViewModel : ObservableObject
     {
         get
         {
-            var need = (_coreSize ?? 200L << 20) + (HdTextures ? 650L << 20 : 0) + (Relight ? 220L << 20 : 0);
+            var need = (_coreSize ?? 200L << 20) + (HdTextures ? 650L << 20 : 0) + (Relight ? 220L << 20 : 0) +
+                       (InstallAd ? ArcaneDimensions.InstalledSize + (320L << 20) : 0);
             try
             {
                 var root = Path.GetPathRoot(Path.GetFullPath(InstallDir));
@@ -1032,6 +1047,51 @@ public sealed class MainViewModel : ObservableObject
 
     public bool HdTextures { get => _hdTextures; set { if (Set(ref _hdTextures, value)) { Raise(nameof(DiskText)); } } }
     public bool Relight { get => _relight; set { if (Set(ref _relight, value)) { Raise(nameof(DiskText)); } } }
+
+    // ---- Arcane Dimensions (experimental, off by default: ARCANE_DIMENSIONS.md section 10) ----
+
+    /// <summary>Ticked: AD's zip is downloaded after the install and unpacked into the install's ad folder (a copy found
+    /// in the owned roots that is 1.80 patch 1 is used instead: the box is then off and disabled).</summary>
+    public bool InstallAd { get => _arcaneDimensions && !AdFoundUsable; set { if (Set(ref _arcaneDimensions, value)) { Raise(nameof(DiskText)); } } }
+
+    /// <summary>The copy of AD the game would use from the owned Quake roots (null: none).</summary>
+    public AdCopy? AdFound
+    {
+        get => _adFound;
+        private set
+        {
+            if (Set(ref _adFound, value))
+            {
+                Raise(nameof(AdFoundUsable));
+                Raise(nameof(AdCanTick));
+                Raise(nameof(InstallAd));
+                Raise(nameof(AdFoundText));
+                Raise(nameof(AdText));
+                Raise(nameof(AdSizeText));
+                Raise(nameof(DiskText));
+                Raise(nameof(ShowAddAd));
+            }
+        }
+    }
+
+    public bool AdFoundUsable => _adFound is { Usable: true };
+    public bool AdCanTick => !AdFoundUsable;
+    public string AdFoundText => _adFound is { } f ? ArcaneDimensions.Describe(f) : "";
+    public bool HasAdFoundText => _adFound is not null;
+
+    public string AdSizeText =>
+        AdFoundUsable ? "already installed" :
+        _settings.Component(_feed, Components.ArcaneDimensions) is { } c
+            ? $"{PathUtil.FormatSize(c.File.Size)} download, about {PathUtil.FormatSize(ArcaneDimensions.InstalledSize)} on disk"
+            : "download unavailable";
+
+    /// <summary>The row's text: a copy found in the owned roots (what happens with it), else what the box does.</summary>
+    public string AdText => _adFound is { } f ? ArcaneDimensions.Describe(f) :
+        "Experimental, may have bugs: the 1.80 patch 1 release, downloaded from its authors' hosts and installed as released. " +
+        "Its campaign is in Official Campaigns; its monsters and items also appear in custom maps.";
+
+    /// <summary>The Update screen's box: an install without AD in its folder, and no copy of 1.80 patch 1 found.</summary>
+    public bool ShowAddAd => _existing is { } e && !e.Files.Any(f => f.Component == Components.ArcaneDimensions) && !AdFoundUsable;
     public bool DesktopShortcut { get => _desktopShortcut; set => Set(ref _desktopShortcut, value); }
     public bool StartMenuShortcuts { get => _startMenuShortcuts; set => Set(ref _startMenuShortcuts, value); }
     public bool FlatShortcut { get => _flatShortcut; set => Set(ref _flatShortcut, value); }
@@ -1366,6 +1426,7 @@ public sealed class MainViewModel : ObservableObject
             Record = await new InstallEngine().InstallAsync(plan, progress, ct);
             await EnsureVcRuntimeAsync(http, ct);
             await PrepareGameAsync(ct);
+            await AddArcaneDimensionsAsync(http, ct);
             LoadExisting();
             BuildDoneNotes();
             GoTo(Page.Done);
@@ -1620,6 +1681,57 @@ public sealed class MainViewModel : ObservableObject
         return result;
     }
 
+    /// <summary>Arcane Dimensions, last (after the game is installed and prepared): ticked, or installed before and
+    /// needing a replace (another pinned zip) or a restore (a repair found a file damaged). Never fails the run: a failed
+    /// or cancelled download is a note on the Done page saying how to add it later (Setup again, the Update screen).</summary>
+    async Task AddArcaneDimensionsAsync(HttpClient http, CancellationToken ct)
+    {
+        _adOutcome = null;
+        var dir = InstallDir;
+        var record = InstallRecord.Load(dir);
+        var c = _settings.Component(_feed, Components.ArcaneDimensions);
+        var want = InstallAd && record is not null && !record.Files.Any(f => f.Component == Components.ArcaneDimensions);
+        if (!want && record is not null && record.Files.Any(f => f.Component == Components.ArcaneDimensions))
+        {
+            var (action, text) = await Task.Run(() => ArcaneDimensions.Plan(dir, record, c?.File, verify: _runMode == InstallMode.Repair), CancellationToken.None);
+            AddLog(LogLevel.Info, text);
+            want = action is AdAction.Replace or AdAction.Restore && c is not null;
+        }
+        if (!want)
+        {
+            return;
+        }
+        if (c is null || _options.Offline)
+        {
+            _adOutcome = new AdOutcome(false, false, $"Arcane Dimensions not installed: {(_options.Offline ? "nothing is downloaded in offline mode" : "its download isn't available")}. " +
+                                                     "Quake VR itself is installed. To add it later, run Setup again (its Update screen) and tick Arcane Dimensions.");
+            AddLog(LogLevel.Warning, _adOutcome.Message);
+            return;
+        }
+        var downloads = _options.Downloads ?? Path.Combine(_probe.GetFolder(KnownFolder.LocalAppData) ?? Path.GetTempPath(), "QuakeVR-Installer", "downloads");
+        var progress = new Progress<InstallProgress>(p =>
+        {
+            StatusText = p.Status;
+            if (p.Log is not null)
+            {
+                AddLog(p.Level, p.Log);
+            }
+        });
+        var download = new Progress<DownloadProgress>(p =>
+        {
+            var total = p.Total ?? c.File.Size;
+            Progress = 100.0 * (total > 0 ? (double)p.Received / total : 0);
+            StatusText = $"Downloading Arcane Dimensions from {p.Source}: {PathUtil.FormatSize(p.Received)} of {PathUtil.FormatSize(total)} (Cancel skips it; Quake VR is installed)";
+        });
+        _adOutcome = await ArcaneDimensions.AddAsync(http, dir, c.File, downloads, null, progress, download, ct);
+        AddLog(_adOutcome.Installed ? LogLevel.Success : LogLevel.Warning, _adOutcome.Message);
+        if (_adOutcome.Cancelled)
+        {
+            // Cancel during AD skips AD only: the rest is done, so the run ends on the Done page.
+            _cts = new CancellationTokenSource();
+        }
+    }
+
     // ---- Done ---------------------------------------------------------------------------------------------------
 
     public InstallRecord? Record
@@ -1653,6 +1765,16 @@ public sealed class MainViewModel : ObservableObject
                   "and skips the rest (the wrist gadget shows its progress). Later: Graphics > Relighting."
                 : "At its first start (Play below, a shortcut or Steam) the game relights every map with the HD textures (a few minutes, about two on a fast PC; the wrist gadget shows its progress). " +
                   "Later: Graphics > Relighting."));
+        }
+        if (_adOutcome is { } ad)
+        {
+            DoneNotes.Add(ad.Installed
+                ? new CheckItem(CheckStatus.Ok, "Arcane Dimensions (experimental)", ad.Message + " Play it from Official Campaigns.")
+                : new CheckItem(CheckStatus.Warning, "Arcane Dimensions (experimental)", ad.Message));
+        }
+        else if (AdFoundUsable)
+        {
+            DoneNotes.Add(new CheckItem(CheckStatus.Ok, "Arcane Dimensions (experimental)", AdFoundText + " Play it from Official Campaigns."));
         }
         if (VcResult is { } vc && vc.Outcome != VcRedistOutcome.AlreadyInstalled)
         {

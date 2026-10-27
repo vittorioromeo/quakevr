@@ -97,8 +97,29 @@ public static class BuiltInComponents
         ],
     };
 
+    /// <summary>Arcane Dimensions 1.80 patch 1 ("1.81"), sock's unmodified release, from its own hosts only (Quake VR
+    /// never hosts or mirrors it): Quaddicted's content-addressed copy first, then Quaddicted's filebase, sock's site and
+    /// born-robotic's (ARCANE_DIMENSIONS.md section 10; pinned in support_assets.json's <c>thirdParty</c> too).</summary>
+    public static FeedFile ArcaneDimensions() => new()
+    {
+        File = "ad_v1_80p1final.zip",
+        Size = 320_914_417,
+        Sha256 = "7ad993da6c760c446ca31fad71e9f5b6c9eee99b6354f161aa746b572fe70a7d",
+        Urls =
+        [
+            "https://www.quaddicted.com/files/by-sha256/7a/7ad993da6c760c446ca31fad71e9f5b6c9eee99b6354f161aa746b572fe70a7d/ad_v1_80p1final.zip",
+            "https://www.quaddicted.com/filebase/ad_v1_80p1final.zip",
+            "https://www.simonoc.com/files/ad/ad_v1_80p1final.zip",
+            "https://born-robotic.net/stuff/qstuff/ad_v1_80p1final.zip",
+        ],
+    };
+
     /// <summary>Every built-in component by its feed name (new copies: a caller may change them).</summary>
-    public static Dictionary<string, FeedFile> All() => new(StringComparer.OrdinalIgnoreCase) { [Components.HdTextures] = HdTextures() };
+    public static Dictionary<string, FeedFile> All() => new(StringComparer.OrdinalIgnoreCase)
+    {
+        [Components.HdTextures] = HdTextures(),
+        [Components.ArcaneDimensions] = ArcaneDimensions(),
+    };
 }
 
 /// <summary>An optional component to download: from the feed, or the installer's built-in copy of it.</summary>

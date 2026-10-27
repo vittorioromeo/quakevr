@@ -557,3 +557,4 @@ The plan as designed:
   unarmed and works up the ladder by killing enemies and taking their weapons (disarms, tug-of-war, pickups). Needs: an
   arena map (or a mode on an existing one), a wave director (kinds, weapon pools, counts, spawn spots), a score/wave
   readout, and a start from the Play menu.
+- **Player armour parity** (Vittorio, 2026-10-28, from the armed humanoids' armour plan: C:\OHWorkspace\qvr-kit\scratch\research_agarmor.md, question 8): once armed humanoids wear generated per-limb plates (helmet, cuirass, pauldrons, bracers, thighs, shins), consider giving the player the same plates fitted to the player body (the generator can fit vrbody too), instead of the armour painted on the body skin; per-piece damage for the player too? Decide after the humanoids' armour ships.
