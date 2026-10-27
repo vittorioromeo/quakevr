@@ -406,6 +406,105 @@ constexpr QcConstant qcConstants[] = {
     return glm::angleAxis(a * (3.14159265f / 180.f), rotDeg / a) * v;
 }
 
+// The IK stretch per kind and class (agpose::stretch): the shipped factors (vr_agrunt_pose_dump prints rows to paste
+// here: {kind, class, factor}; a kind and class with no row 1, no stretch), then vr_agrunt_ik_stretch's changes.
+struct StretchRow
+{
+    int kind, cls;
+    float by;
+};
+constexpr StretchRow shippedStretch[] = {
+    {-1, -1, 1.f}, // (the end)
+};
+
+struct StretchState
+{
+    za::String parsed;
+    bool everParsed{false};
+    float by[agpose::numKinds][agpose::NumClasses]{}; // (0: none archived)
+};
+StretchState stretchState;
+
+[[nodiscard]] float shippedStretchOf(int kind, int cls)
+{
+    for(const StretchRow& r : shippedStretch)
+    {
+        if(r.kind == kind && r.cls == cls && r.kind >= 0)
+        {
+            return r.by;
+        }
+    }
+    return 1.f;
+}
+
+void parseStretch()
+{
+    const char* text = vr_agrunt_ik_stretch.string ? vr_agrunt_ik_stretch.string : "";
+    if(stretchState.everParsed && strcmp(stretchState.parsed.cStr(), text) == 0)
+    {
+        return;
+    }
+    stretchState.everParsed = true;
+    stretchState.parsed = za::String{text};
+    for(auto& row : stretchState.by)
+    {
+        for(float& f : row)
+        {
+            f = 0.f;
+        }
+    }
+    const char* p = text;
+    const auto sep = [&p] {
+        while(*p == ',' || *p == ' ')
+        {
+            p++; // (commas as spaces: "0,1,1.15" set from a script line, where quotes are awkward)
+        }
+    };
+    while(*p)
+    {
+        char* end = nullptr;
+        sep();
+        const int kind = static_cast<int>(strtol(p, &end, 10));
+        bool ok = end != p;
+        p = end;
+        sep();
+        const int cls = ok ? static_cast<int>(strtol(p, &end, 10)) : -1;
+        ok = ok && end != p;
+        p = ok ? end : p;
+        sep();
+        const float by = ok ? strtof(p, &end) : 0.f;
+        ok = ok && end != p;
+        p = ok ? end : p;
+        if(ok && kind >= 0 && kind < agpose::numKinds && agpose::isClass(cls) && by > 0.f)
+        {
+            stretchState.by[kind][cls] = za::clamp(by, 1.f, agpose::stretchMost);
+        }
+        const char* semi = strchr(p, ';');
+        if(!semi)
+        {
+            break;
+        }
+        p = semi + 1;
+    }
+}
+
+void writeStretch()
+{
+    za::String text;
+    for(int k = 0; k < agpose::numKinds; k++)
+    {
+        for(const int c : agpose::classOrder)
+        {
+            if(stretchState.by[k][c] > 0.f)
+            {
+                text += va("%d %d %g;", k, c, static_cast<double>(stretchState.by[k][c]));
+            }
+        }
+    }
+    Cvar_SetQuick(&vr_agrunt_ik_stretch, text.cStr());
+    parseStretch();
+}
+
 // vr_agrunt_pose_key <code> [<21 numbers> | reset]: key `code` printed; set (as the Pose Studio's drag keeps it); or
 // its archived change dropped (the shipped key again). Old-format codes are read as the new (codeFromOld).
 void key_f()
@@ -544,11 +643,44 @@ void resetLegs(int kind)
     write();
 }
 
+float stretch(int kind, int cls)
+{
+    if(kind < 0 || kind >= numKinds || !isClass(cls))
+    {
+        return 1.f;
+    }
+    parseStretch();
+    const float by = stretchState.by[kind][cls];
+    return za::clamp(by > 0.f ? by : shippedStretchOf(kind, cls), 1.f, stretchMost);
+}
+
+float shippedStretch(int kind, int cls)
+{
+    return za::clamp(shippedStretchOf(kind, cls), 1.f, stretchMost);
+}
+
+void setStretch(int kind, int cls, float by)
+{
+    if(kind < 0 || kind >= numKinds || !isClass(cls))
+    {
+        return;
+    }
+    parseStretch();
+    const float r = rounded(za::clamp(by, 1.f, stretchMost), 100.f);
+    stretchState.by[kind][cls] = za::abs(r - shippedStretch(kind, cls)) < 0.005f ? 0.f : r;
+    writeStretch();
+}
+
 int copyKind(int from, int to)
 {
     if(from < 0 || from >= numKinds || to < 0 || to >= numKinds || from == to)
     {
         return 0;
+    }
+    // (the IK stretch as it is: the arms' own proportion, not a place)
+    for(const int c : classOrder)
+    {
+        setStretch(to, c, stretch(from, c));
     }
     parse();
     // The keys `from` has in effect (archived, else shipped), by their code within the kind; and the codes `to` ships
@@ -767,6 +899,28 @@ void dumpText(za::String& out)
     if(state.over.empty())
     {
         out += "// (no pose keys changed)\n";
+    }
+    // The IK stretch (vr_agrunt_ik_stretch): rows for shippedStretch[], every kind and class not at 1.
+    bool any = false;
+    for(int k = 0; k < numKinds; k++)
+    {
+        for(const int c : classOrder)
+        {
+            const float by = stretch(k, c);
+            if(by > 1.0001f)
+            {
+                if(!any)
+                {
+                    out += "// IK stretch: rows for Quake/vr/vr_agpose.cpp's shippedStretch[] ({kind, class, factor}):\n";
+                    any = true;
+                }
+                out += va("    {%d, %d, %.2ff}, // %s, %s\n", k, c, static_cast<double>(by), kindName(k), className(c));
+            }
+        }
+    }
+    if(!any)
+    {
+        out += "// (no IK stretch: every kind and class 1)\n";
     }
 }
 

@@ -74,6 +74,9 @@ struct Targets
     // place ignored (its weapon still drawn on it as the goal holds it); the arm's IK onto it as onto any goal.
     bool fk[2]{false, false};
     rigpose::Rigid fkHand[2];
+    // The IK stretch (agpose::stretch of its kind and pose class; QC sends it): how far both arms may lengthen to reach
+    // their goals (1 none). Eased per entity (stretchEase): a change of class never pops.
+    float stretch{1.f};
 };
 
 // Where the hands put their weapons (model space): drawn there.
@@ -100,6 +103,11 @@ struct Placed
     // The arm's bones as solved (rest -> now, model space): its upper arm, forearm and hand (the authored rig's arms are
     // laid on these within its limits: vr_rig2_game.cpp).
     rigpose::Rigid upperM[2], foreM[2], handM[2];
+    // The IK stretch used by each arm (its upper arm and forearm lengthened alike; 1 none: in reach) and the most it
+    // could (Targets::stretch eased). The bones above take the rest joints to the stretched ones: the upper arm the
+    // shoulder (its elbow at the stretched length along it), the forearm the elbow, the hand the wrist.
+    float stretch[2]{1.f, 1.f};
+    float stretchMost{1.f};
 };
 
 // The Rig Studio's: an armed model's shoulder whose upper arm is rig bone `bone` (its pivot the shoulder): its side, its

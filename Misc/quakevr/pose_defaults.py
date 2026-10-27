@@ -11,7 +11,9 @@ Output: the source rows that ship them (ROUND22.md, "His Pose Studio poses and s
     code: agpose::get takes the archived key, else the shipped one; an all-zero key drops the row: QC's pose as it is);
   - Quake/vr/vr_aggrip.cpp `globalDefaults` (his Every Weapon grips, "*") and `defaults` (a weapon's own): the rows
     of the same kind and hand (and weapon) replaced, new ones added (aggrip::offset takes the archived entry, else the
-    default: a replacement too).
+    default: a replacement too);
+  - Quake/vr/vr_agpose.cpp `shippedStretch[]`: the IK stretch per kind and class (his vr_agrunt_ik_stretch, a Done
+    file's {kind, class, factor} rows) laid in, a factor of 1 dropping its row.
 
 Without --write the new blocks are printed for review; --write puts them into the two files. Afterwards his archived
 cvars equal the defaults (the studio's set() drops an entry equal to its default the next time it stores one; Reset
@@ -46,8 +48,11 @@ PHASES = ["wind-up", "blow", "follow-through"]
 HANDS = {"Main": 0, "Off": 1, "Second": 2}
 HAND_NAMES = {v: k for k, v in HANDS.items()}
 
-CVAR = re.compile(r'^(vr_agrunt_poses|vr_agrunt_grips)\s+"([^"]*)"')
+CVAR = re.compile(r'^(vr_agrunt_poses|vr_agrunt_grips|vr_agrunt_ik_stretch)\s+"([^"]*)"')
 POSE_ROW = re.compile(r'^\s*\{(\d+),\s*\{([^}]*)\}\}')
+# The IK stretch per kind and class (vr_agpose.cpp shippedStretch[]: {kind, class, factor}; vr_agrunt_ik_stretch
+# "kind class factor;" each; a kind and class with no row: 1)
+STRETCH_ROW = re.compile(r'^\s*\{(\d+),\s*(\d+),\s*([0-9.]+)f?\},')
 GLOBAL_ROW = re.compile(r'^\s*\{(-?\d+),\s*aggrip::(\w+),\s*([^}]*)\}')
 WEAPON_ROW = re.compile(r'^\s*\{(-?\d+),\s*"([^"]+)",\s*aggrip::(\w+),\s*([^}]*)\}')
 
@@ -90,7 +95,7 @@ def pose_name(code):
     return text + (", " + PHASES[phase] if pose >= 10 and phase < 3 else "")
 
 
-def read_cfg(path):
+def read_cfg(path, stretch=None):
     poses, grips = {}, {}
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
@@ -105,14 +110,20 @@ def read_cfg(path):
                     poses[new_code(int(parts[0]))] = padded([float(x) for x in parts[1:]])
                 elif m.group(1) == "vr_agrunt_grips" and len(parts) == 9:
                     grips[(int(parts[0]), parts[1], int(parts[2]))] = [float(x) for x in parts[3:]]
+                elif m.group(1) == "vr_agrunt_ik_stretch" and len(parts) == 3 and stretch is not None:
+                    stretch[(int(parts[0]), int(parts[1]))] = float(parts[2])
     return poses, grips
 
 
-def read_done(path):
+def read_done(path, stretch=None):
     poses, grips = {}, {}
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             if line.lstrip().startswith("//"):
+                continue
+            m = STRETCH_ROW.match(line)
+            if m and stretch is not None:
+                stretch[(int(m.group(1)), int(m.group(2)))] = float(m.group(3))
                 continue
             m = POSE_ROW.match(line)
             if m:
@@ -178,6 +189,25 @@ def pose_block(src_lines, a, b, new):
     return out, shipped, changed
 
 
+def stretch_block(src_lines, a, b, new):
+    """shippedStretch[]'s rows with `new` ((kind, class) -> factor) laid in: a factor of 1 drops its row."""
+    shipped = {}
+    for line in src_lines[a:b]:
+        m = STRETCH_ROW.match(line)
+        if m:
+            shipped[(int(m.group(1)), int(m.group(2)))] = float(m.group(3))
+    changed = {k for k, v in new.items() if abs(shipped.get(k, 1.0) - v) > 0.004}
+    for k, v in new.items():
+        if abs(v - 1.0) < 0.004:
+            shipped.pop(k, None)
+        else:
+            shipped[k] = v
+    out = ["    {%d, %d, %.2ff}, // %s, %s" % (k[0], k[1], shipped[k], "grunt" if k[0] == 0 else "enforcer",
+                                              CLASSES.get(k[1], "?")) for k in sorted(shipped)]
+    out.append("    {-1, -1, 1.f}, // (the end)")
+    return out, changed
+
+
 def grip_rows(src_lines, a, b, new, weapon):
     """The block's lines with `new`'s rows put in: a row of the same key replaced (its comment kept), others added."""
     out, seen, changed = [], set(), set()
@@ -222,13 +252,13 @@ def main():
     if not args.cfg and not args.done:
         ap.error("give --cfg and/or --done")
 
-    done_poses, done_grips = {}, {}
+    done_poses, done_grips, stretch = {}, {}, {}
     for d in args.done:
-        p, g = read_done(d)
+        p, g = read_done(d, stretch)
         done_poses.update(p)
         done_grips.update(g)
     if args.cfg:
-        poses, grips = read_cfg(args.cfg)
+        poses, grips = read_cfg(args.cfg, stretch)  # (the cfg's IK stretch over a Done file's)
         if args.done:
             compare("pose key", poses, done_poses, lambda c: "%d (%s)" % (c, pose_name(c)))
             compare("grip", grips, done_grips, lambda k: "%d %s %s" % (k[0], k[1], HAND_NAMES.get(k[2], k[2])))
@@ -245,6 +275,9 @@ def main():
     lines, a, b = block(pose_text, r"^constexpr ShippedRow shipped\[\] = \{")
     rows, shipped, changed = pose_block(lines, a, b, poses)
     pose_text = "\n".join(lines[:a] + rows + lines[b:])
+    lines, a, b = block(pose_text, r"^constexpr StretchRow shippedStretch\[\] = \{")
+    srows, schanged = stretch_block(lines, a, b, stretch)
+    pose_text = "\n".join(lines[:a] + srows + lines[b:])
 
     glob = {k: v for k, v in grips.items() if k[1] == "*"}
     weap = {k: v for k, v in grips.items() if k[1] != "*"}
@@ -264,6 +297,7 @@ def main():
         name = pose_name(kind * KIND_STRIDE + cls * 1000 + pose * 10).replace(", " + PHASES[0], "")
         print("//   %s: %d key%s" % (name, n, "s" if n > 1 else ""), file=sys.stderr)
     print("// grips: %d Every Weapon and %d weapon rows changed" % (len(gchanged), len(wchanged)), file=sys.stderr)
+    print("// IK stretch: %d kinds and classes changed" % len(schanged), file=sys.stderr)
     if weap:
         print("// (a weapon's own default applies with vr_agarms 0 only: vr_aggrip.cpp defaultOf; with vr_agarms 1 the "
               "archived entry is what holds it)", file=sys.stderr)
@@ -281,6 +315,8 @@ def main():
         print("\n".join(grows))
         print("// == vr_aggrip.cpp defaults ==")
         print("\n".join(wrows))
+        print("// == vr_agpose.cpp shippedStretch[] ==")
+        print("\n".join(srows))
 
 
 if __name__ == "__main__":

@@ -104,6 +104,11 @@ ROUND22.md, "Off hand: grip offset and Free"):
   Pickup's while taking a weapon up (if set), else Aim's while aimed, else Run's while running (if set), else Carry's; so
   Run Free with Aim Auto: free running, on the gun aimed. Between the hand eases round the shoulder over a quarter second
   (`vr_agarms`' second-grip ease). `vr_rigstudio_posekey offhand <0|1|2>` sets it from the console.
+- The Pose Studio Data window's **IK Stretch** slider under the Class (per kind and class, every pose of it: 1..1.5,
+  default 1): how far the arms may lengthen to reach their goals, as the player's Arm Stretch; under it **stretch
+  used: 1.07 (R) 1.00 (L)**, the subject's arms as solved now (when it holds that kind and class). Live, one undo step
+  per drag, saved in `vr_agrunt_ik_stretch`; Print adds `shippedStretch` rows; Copy to the other kind takes it as it is.
+  Also Combat > Armed Grunts > IK Stretch (a row per kind and class, each pick +0.05).
 
 Undo, Save, Print / `vr_agrunt_pose_dump` (a row carries 30 numbers when any off-hand part is set, else the 21 of
 before), Copy to the other kind (the grip offset as it is: the gun's frame; the free hand's place scaled by the fit) all
@@ -351,6 +356,12 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
   subject's Run key's Off Hand set to `mode` (default 2 Free), held in Run, Aim, Run: free in Run (not held, no cup, 4
   units at least off its grip), on the gun in Aim; each change's off hand followed every frame in its chest's space (how
   long it moves, its largest step a frame: an ease, not a snap); the key put back exactly. Screenshots in each.
+- `vr_rigstudio_test_stretch [factor] [push]` (open the studio with a gun, the shotgun grunt: `vr_rigstudio
+  monster_vr_grunt 4`; ends on `rigstudio stretch: N passed, M failed`, then `rigstudio stretch: done` after its last
+  screenshot): the IK stretch of the subject's kind and class (Pose Studio Data > IK Stretch; default 1.15), the subject
+  held in Aim at 1, then at the factor (each settled): the off hand on the fore-end (no slide back), the stretch used
+  within the factor, the change eased (no step over a third of the way); with `push`, its Aim key's weapon pushed that
+  far forward meanwhile (an arm stretched to its goal); the slider's undo, the setting and the key put back exactly.
 - `vr_rigstudio_test_typing` (ends on `rigstudio typing: N passed, M failed`): SDL key, text and mouse events pushed
   through the game's input loop into the fields: a sequence's FPS typed (Ctrl+click, "12.5r", Enter: 12.5, no tool
   change), Ctrl+Z, a typed value cancelled by Escape, the Outliner's search typed (Backspace; the game's keys untouched),

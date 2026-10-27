@@ -6,6 +6,7 @@
 #include "vr_agarms.hpp"
 #include "vr_agbody.hpp"
 #include "vr_agglitch.hpp"
+#include "vr_agpose.hpp"
 #include "vr_poselive.hpp"
 #include "vr_cvars.hpp"
 
@@ -46,7 +47,8 @@ constexpr float armClearMost = 20.f;  // ... at most this much (degrees)
 constexpr float armClearHeldMost = 6.f; // ... a hand on a weapon or its grip at most this much (its grip kept: a tucked arm reads better)
 constexpr float handReach = 1.5f;    // the hand's segment (wrist to the forearm bone's end) taken this far on (its fingers)
 constexpr float armRadius = 0.7f;    // an arm's vertex: within this share of its upper arm's length of its bones' lines
-constexpr float reachMost = 0.97f;   // a wrist within this share of the arm's length of its shoulder (straighter: snapping)
+constexpr float stretchEase = 0.12f; // seconds: the IK stretch's most eased to a new class's (Targets::stretch)
+constexpr float reachMost = 0.97f;  // a wrist within this share of the arm's length of its shoulder (straighter: snapping)
 constexpr float elbowMost = 155.f;   // degrees: an elbow's most bend
 constexpr float onIn = 0.12f;        // seconds: posed arms easing in from the animation's
 constexpr float onOut = 0.2f;        // ... and back out (a death, a stale pose)
@@ -168,6 +170,8 @@ struct Ent
     float easeT[2]{0.f, 0.f}, easeDur[2]{0.f, 0.f};
     int leftMode{-1};     // its goal's kind (Goal, 3 the second grip, 4 a cup) and since when
     double leftModeAt{0.0};
+    float stretchMost{1.f}; // the IK stretch it may use (Targets::stretch eased: stretchEase)
+    float stretch[2]{1.f, 1.f}; // ... each arm's as drawn (the skin's: rows, skinned)
 };
 
 struct State
@@ -957,6 +961,7 @@ struct ArmOut
     float armAt{0.f};
     float cleared{0.f}; // ... its wrist turned out of it (units)
     glm::vec3 W{0.f};   // its wrist as solved
+    float stretch{1.f}; // the IK stretch used (Limits::stretchMost: its upper arm and forearm lengthened by it)
 };
 
 // The robust solve's limits each frame (ROUND22.md, "Armed humanoids in motion"): the body's proxies the elbow keeps out
@@ -975,6 +980,7 @@ struct Limits
     const glm::vec3* rest{nullptr};
     bool clearWrist{true};  // ... its wrist turned out of the torso, at most clearMost degrees (a hand on a weapon or a grip: less)
     float clearMost{armClearMost};
+    float stretchMost{1.f}; // the IK stretch (agpose::stretch, eased): the arm lengthened up to this to reach its goal
 };
 
 // The shoulder's cone's axis now (model space): its range's middle on clavicle turn `kq`.
@@ -1000,7 +1006,7 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
     const glm::vec3& pole, const Limits& lim = Limits{})
 {
     ArmOut o;
-    const float a = sd.Lu, b = sd.Lf;
+    float a = sd.Lu, b = sd.Lf; // (the IK stretch lengthens both below)
     const float sideSign = s == 0 ? -1.f : 1.f;
     // The clavicle (vr_agarms_clavicle): turned up and forward about its pivot by a share of the arm's lift above level
     // and of its reach ahead of its side (towards the wrist wanted), at most vr_agarms_clavicle_most; the shoulder joint
@@ -1023,6 +1029,14 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
     const glm::vec3 S1 = rigpose::apply(o.K, sd.S);
     o.S = S1;
     glm::vec3 W1 = rigpose::apply(H, sd.W);
+    if(lim.stretchMost > 1.f)
+    {
+        // The IK stretch (agpose::stretch): a wrist past the arm's reach lengthens its upper arm and forearm alike, as far
+        // as it needs and at most stretchMost (in reach: none); the elbow's circle and the bones below on those lengths.
+        o.stretch = za::clamp(glm::length(W1 - S1) / (reachMost * (a + b)), 1.f, lim.stretchMost);
+        a *= o.stretch;
+        b *= o.stretch;
+    }
     // Reach: the wrist brought within it (the hand and its weapon with it).
     const float most = reachMost * (a + b);
     const float least = za::sqrt(za::max(0.f, a * a + b * b - 2.f * a * b * za::cos((180.f - elbowMost) * (pi / 180.f)))) + 0.05f;
@@ -1309,8 +1323,40 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S0, const glm::quat& cq,
 }
 
 // The vertex `v` of side `s` as RigArm draws it (model units): the CPU's copy (the numbers).
-[[nodiscard]] glm::vec3 skinned(const Skin& m, const rigpose::Rigid* bones, const rigpose::Rigid& chest0, const rigpose::Rigid* clav, int v,
-    const glm::vec3& body)
+// The IK stretch on the skin (RigArm's the same): vertex `v`'s rest place stretched along its arm (side `s`, `bone` and
+// its blend `f` to the next) by `sg` (the stretch - 1), and its blend joint's (the elbow, the wrist) offset on its bone.
+// The upper arm stretches about the shoulder, the forearm about the elbow; the joints' blends go from one to the other
+// (no tear: each bone's transform takes the stretched joint where the next one's does), the hand rigid.
+void stretchedRest(const Side& sd, int bone, float f, float sg, glm::vec3& rest, glm::vec3& jointOff)
+{
+    jointOff = glm::vec3{0.f};
+    if(sg == 0.f || bone > 1)
+    {
+        return;
+    }
+    const glm::vec3 du = sd.E - sd.S, df = sd.W - sd.E;
+    const float lu = glm::length(du), lf = glm::length(df);
+    if(lu < 1e-4f || lf < 1e-4f)
+    {
+        return;
+    }
+    const glm::vec3 u0 = du / lu, f0 = df / lf;
+    const float tf = za::clamp(glm::dot(rest - sd.E, f0), 0.f, lf);
+    if(bone == 0)
+    {
+        const float tu = za::clamp(glm::dot(rest - sd.S, u0), 0.f, lu);
+        rest += sg * ((tu + (lu - tu) * f) * u0 + (f * tf) * f0);
+        jointOff = (sg * lu) * u0;
+    }
+    else
+    {
+        rest += (sg * (tf + (lf - tf) * f)) * f0;
+        jointOff = (sg * lf) * f0;
+    }
+}
+
+[[nodiscard]] glm::vec3 skinned(const Skin& m, const rigpose::Rigid* bones, const rigpose::Rigid& chest0, const rigpose::Rigid* clav,
+    const float* stretch, int v, const glm::vec3& body)
 {
     const glm::vec4& r = m.row[static_cast<za::SizeT>(v)];
     if(r.x < 0.5f)
@@ -1340,12 +1386,17 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S0, const glm::quat& cq,
     {
         return bodyAt;
     }
+    glm::vec3 rs = rest, jOff{0.f}; // (the IK stretch's: stretchedRest)
+    if(stretch && stretch[s] != 1.f)
+    {
+        stretchedRest(m.side[s], bone, f, stretch[s] - 1.f, rs, jOff);
+    }
     if(bone == 0 && f < 0.0005f && wB > 0.0005f)
     {
         // (the shoulder: RigArm's turns blended about it, the body's move off the chest by its share)
         const glm::vec3 s0 = m.side[s].S;
         const glm::quat q = nlerpQ(A.rot, chest.rot, wB);
-        return q * (rest - s0) + rigpose::apply(A, s0) + wB * (bodyAt - chestAt);
+        return q * (rs - s0) + rigpose::apply(A, s0) + wB * (bodyAt - chestAt);
     }
     if(f > 0.0005f && bone < 2)
     {
@@ -1357,12 +1408,12 @@ ArmOut solveArm(const Side& sd, int s, const glm::vec3& S0, const glm::quat& cq,
         }
         const glm::quat q = glm::normalize(glm::quat{A.rot.w + (qb.w - A.rot.w) * f, A.rot.x + (qb.x - A.rot.x) * f,
             A.rot.y + (qb.y - A.rot.y) * f, A.rot.z + (qb.z - A.rot.z) * f});
-        const glm::vec3 j0 = bone == 0 ? m.side[s].E : m.side[s].W;
-        p = q * (rest - j0) + rigpose::apply(A, j0);
+        const glm::vec3 j0 = (bone == 0 ? m.side[s].E : m.side[s].W) + jOff;
+        p = q * (rs - j0) + rigpose::apply(A, j0);
     }
     else
     {
-        p = rigpose::apply(A, rest);
+        p = rigpose::apply(A, rs);
     }
     return glm::mix(p, bodyAt, wB);
 }
@@ -1382,8 +1433,11 @@ void noteErr(const Skin& m, const Ent& st, const aliashdr_t* hdr, int pose1, int
     {
         const Side& sd = m.side[s];
         const rigpose::Rigid* b = st.bones + 3 * s;
-        const float gap = za::max(glm::length(rigpose::apply(b[0], sd.E) - rigpose::apply(b[1], sd.E)),
-            glm::length(rigpose::apply(b[1], sd.W) - rigpose::apply(b[2], sd.W)));
+        // (the IK stretch: each bone takes its joint at the stretched length along it, the next its rest joint)
+        const float sg = st.stretch[s];
+        const glm::vec3 eOn0 = sg == 1.f ? sd.E : sd.S + sg * (sd.E - sd.S), wOn1 = sg == 1.f ? sd.W : sd.E + sg * (sd.W - sd.E);
+        const float gap = za::max(glm::length(rigpose::apply(b[0], eOn0) - rigpose::apply(b[1], sd.E)),
+            glm::length(rigpose::apply(b[1], wOn1) - rigpose::apply(b[2], sd.W)));
         e.gap = za::max(e.gap, gap);
         e.miss[s] = za::max(e.miss[s], arms[s].miss);
         (s == 0 ? e.bend : e.bendL) = za::max(s == 0 ? e.bend : e.bendL, arms[s].bend - arms[s].turned); // (as drawn)
@@ -1397,8 +1451,8 @@ void noteErr(const Skin& m, const Ent& st, const aliashdr_t* hdr, int pose1, int
         for(za::SizeT i = 0; i + 1 < sd.edges.size(); i += 2)
         {
             const int u = sd.edges[i], w = sd.edges[i + 1];
-            const glm::vec3 pu = skinned(m, st.bones, chest, st.clav, u, poseVertex(hdr, pose1, pose2, blend, u));
-            const glm::vec3 pw = skinned(m, st.bones, chest, st.clav, w, poseVertex(hdr, pose1, pose2, blend, w));
+            const glm::vec3 pu = skinned(m, st.bones, chest, st.clav, st.stretch,u, poseVertex(hdr, pose1, pose2, blend, u));
+            const glm::vec3 pw = skinned(m, st.bones, chest, st.clav, st.stretch,w, poseVertex(hdr, pose1, pose2, blend, w));
             const float r0 = glm::length(m.rest[static_cast<za::SizeT>(u)] - m.rest[static_cast<za::SizeT>(w)]);
             if(r0 < 0.05f)
             {
@@ -1478,15 +1532,18 @@ void noteGlitch(const Skin& m, const Ent& st, const ragdoll::Rig& rig, const rig
                 a.penPart = part;
             }
         }
-        g.gap = za::max(g.gap, za::max(glm::length(rigpose::apply(b[0], sd.E) - rigpose::apply(b[1], sd.E)),
-                                   glm::length(rigpose::apply(b[1], sd.W) - rigpose::apply(b[2], sd.W))));
+        // (the IK stretch: each bone takes its joint at the stretched length along it, the next its rest joint: noteErr)
+        const float sg = st.stretch[s];
+        const glm::vec3 eOn0 = sg == 1.f ? sd.E : sd.S + sg * (sd.E - sd.S), wOn1 = sg == 1.f ? sd.W : sd.E + sg * (sd.W - sd.E);
+        g.gap = za::max(g.gap, za::max(glm::length(rigpose::apply(b[0], eOn0) - rigpose::apply(b[1], sd.E)),
+                                   glm::length(rigpose::apply(b[1], wOn1) - rigpose::apply(b[2], sd.W))));
         // The shoulder (ROUND22.md, "Armed humanoids' shoulders"): its upper arm's skin in the torso, its limits, its
         // skin's stretch, as drawn.
         a.swing = arms[s].swing;
         a.twist = arms[s].twist;
         for(const int v : sd.upper)
         {
-            const glm::vec3 p = skinned(m, st.bones, C, st.clav, v, poseVertex(hdr, pose1, pose2, blend, v));
+            const glm::vec3 p = skinned(m, st.bones, C, st.clav, st.stretch,v, poseVertex(hdr, pose1, pose2, blend, v));
             int part = -1;
             const float d = agbody::depth(body, p, 0.f, nullptr, &part);
             if(part == agbody::Torso && d > 0.f)
@@ -1503,8 +1560,8 @@ void noteGlitch(const Skin& m, const Ent& st, const ragdoll::Rig& rig, const rig
             {
                 continue;
             }
-            const glm::vec3 pu = skinned(m, st.bones, C, st.clav, u, poseVertex(hdr, pose1, pose2, blend, u));
-            const glm::vec3 pw = skinned(m, st.bones, C, st.clav, w, poseVertex(hdr, pose1, pose2, blend, w));
+            const glm::vec3 pu = skinned(m, st.bones, C, st.clav, st.stretch,u, poseVertex(hdr, pose1, pose2, blend, u));
+            const glm::vec3 pw = skinned(m, st.bones, C, st.clav, st.stretch,w, poseVertex(hdr, pose1, pose2, blend, w));
             const float ratio = za::max(glm::length(pu - pw), 1e-3f) / r0;
             a.stretch = za::max(a.stretch, za::max(ratio, 1.f / ratio) - 1.f);
         }
@@ -1610,6 +1667,13 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     lim.twistMost = za::clamp(vr_agarms_shoulder_twist.value, 0.f, 180.f) * (pi / 180.f);
     lim.armClear = vr_agarms_arm_clear.value != 0.f;
     lim.rest = m->rest.data();
+    {
+        // The IK stretch it may use: its kind and class's (QC sends it), eased (stretchEase: a class changing never pops)
+        const float want = za::clamp(t.stretch, 1.f, agpose::stretchMost);
+        st->stretchMost = dt > 0.f ? want + (st->stretchMost - want) * za::exp(-dt / stretchEase) : st->stretchMost;
+        st->stretchMost = za::abs(st->stretchMost - want) < 1e-4f ? want : st->stretchMost;
+        lim.stretchMost = st->stretchMost;
+    }
     Limits limHeld = lim; // (a hand on a weapon or its grip, a fist: turned out of the torso a little at most)
     limHeld.clearMost = rig.authored ? za::max(vr_rig2_arm_clear.value, 0.f) : armClearHeldMost;
     // A hand's wrist and grip pushed out of the body (its weapon with it).
@@ -1803,7 +1867,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         // (beyond its reach the hand slides back along the weapon towards the right hand, as a short arm's does: at most
         // to 3 units before the grip)
         const glm::vec3 S1 = rigpose::apply(C, m->side[1].S);
-        const float armLen = m->side[1].Lu + m->side[1].Lf;
+        const float armLen = (m->side[1].Lu + m->side[1].Lf) * lim.stretchMost; // (as far as its IK stretch takes it)
         rigpose::Rigid at = t.secondAt;
         if(t.offKeyed)
         {
@@ -1814,18 +1878,35 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         const float atX = at.pos.x;
         rigpose::Rigid hl;
         float reach = 0.f;
-        for(int step = 0; step < 12; step++)
-        {
-            hl = compose(compose(out.weapon[0], at), inverse(m->side[1].grip));
+        const auto reachAt = [&](const rigpose::Rigid& a) {
+            hl = compose(compose(out.weapon[0], a), inverse(m->side[1].grip));
             // (vr_rig2 1, the authored rig: its shoulders at the arms' own joints, further out than the derived rig's: the
             // reach from where its clavicle brings the shoulder for this grip, as the arm's solve will have it)
             const glm::vec3 from = rig.authored ? solveArm(m->side[1], 1, S1, C.rot, hl, prevOf(1), t.pole[1], limHeld).S : S1;
-            reach = glm::length(rigpose::apply(hl, m->side[1].W) - from);
+            return glm::length(rigpose::apply(hl, m->side[1].W) - from);
+        };
+        for(int step = 0; step < 12; step++)
+        {
+            reach = reachAt(at);
             if(reach <= vr_agarms_second.value * armLen || at.pos.x <= 3.f)
             {
                 break;
             }
             at.pos.x = za::max(3.f, at.pos.x - 1.f);
+        }
+        if(lim.stretchMost > 1.f && at.pos.x < atX && at.pos.x > 3.f && reach <= vr_agarms_second.value * armLen)
+        {
+            // (with the IK stretch: the slide found to a hundredth of a unit, not in whole units: as its stretch eases in
+            // or out the hand glides along the gun, never a unit's jump)
+            float lo = at.pos.x, hi = za::min(atX, at.pos.x + 1.f); // (lo reaches, hi doesn't)
+            for(int i = 0; i < 7; i++)
+            {
+                rigpose::Rigid mid = at;
+                mid.pos.x = (lo + hi) * 0.5f;
+                (reachAt(mid) <= vr_agarms_second.value * armLen ? lo : hi) = mid.pos.x;
+            }
+            at.pos.x = lo;
+            reach = reachAt(at);
         }
         slid = atX - at.pos.x;
         const ArmOut tryL = solveArm(m->side[1], 1, S1, C.rot, hl, prevOf(1), t.pole[1], limHeld);
@@ -1968,6 +2049,9 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         out.wrist[s] = arms[s].turned;
         out.poleOff[s] = arms[s].poleOff;
         out.poleWhy[s] = arms[s].poleWhy;
+        out.stretch[s] = arms[s].stretch;
+        out.stretchMost = st->stretchMost;
+        st->stretch[s] = arms[s].stretch;
         st->bones[3 * s] = arms[s].U;
         st->bones[3 * s + 1] = arms[s].F;
         st->bones[3 * s + 2] = arms[s].H;
@@ -2125,6 +2209,10 @@ bool rows(const entity_t* e, const aliashdr_t* hdr, glm::vec4* out)
             const rigpose::Rigid& b = st->bones[k];
             out[2 + 2 * k] = glm::vec4{b.rot.x, b.rot.y, b.rot.z, b.rot.w};
             out[3 + 2 * k] = glm::vec4{b.pos, 0.f};
+        }
+        for(int s = 0; s < 2; s++)
+        {
+            out[3 + 6 * s].w = st->stretch[s] - 1.f; // (the IK stretch - 1: the upper arm's move row's w; RigArm)
         }
         out[18] = glm::vec4{st->chest.rot.x, st->chest.rot.y, st->chest.rot.z, st->chest.rot.w};
         out[19] = glm::vec4{st->chest.pos, 0.f};

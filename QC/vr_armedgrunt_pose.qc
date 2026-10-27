@@ -124,6 +124,7 @@ vector vr_agk_gp;
 vector vr_agk_gr;
 float vr_agk_mode;
 float vr_agk_gun;          // (a single gun held: its pose category's keys; the off-hand block only then)
+float vr_agk_stretch;      // its kind and class's IK stretch (agpose::stretch, weapondrawnpose(world, kind * 100 + class, 28); 1 none): sent in the off-hand block when over 1
 float VR_AGK_OFF_GUN = 1;  // (agpose::OffGun: on the gun even when the hold is one-handed)
 float VR_AGK_OFF_FREE = 2; // (agpose::OffFree: off the gun, hanging free)
 
@@ -1618,6 +1619,8 @@ void(entity g, entity p) VR_AGK_Keys =
     vr_agk_repent = g;
     float cls = VR_AGK_Class(g, p);
     float base = g.vr_ag_kind * VR_AGK_KIND + cls * 1000;
+    vector st = weapondrawnpose(world, g.vr_ag_kind * 100 + cls, 28);
+    vr_agk_stretch = st_x;
     float wp = 0; // (the pickup's: its bend's)
     if(g.vr_ag_took_at > 0 && p)
     {
@@ -2454,6 +2457,12 @@ void(entity g, entity p) VR_AGP_Pose =
             offFl = offFl | 8;
         }
     }
+    // (the IK stretch of its kind and class, over 1: in the block too, 16 [byte: (factor - 1) x 500])
+    float stretchB = rint(min(255, max(0, (vr_agk_stretch - 1) * 500)));
+    if(stretchB > 0 && !reaching)
+    {
+        offFl = offFl | 16;
+    }
     float sendFl = vr_agp_flags;
     if(offFl)
     {
@@ -2513,6 +2522,10 @@ void(entity g, entity p) VR_AGP_Pose =
         {
             VR_AGP_WriteShorts(vr_agk_lp, 100);
             VR_AGP_WriteShorts(vr_agk_lr, 10);
+        }
+        if(offFl & 16)
+        {
+            WriteByte(MSG_BROADCAST, stretchB); // [16: byte (the IK stretch - 1) x 500]
         }
     }
 };
