@@ -370,6 +370,7 @@ extern "C" void VR_OnProgsLoaded()
 
         b.spawnServerFromSaveFile = globalFloat("spawnServerFromSaveFile");
         b.playerTimeOffset = globalFloat("vr_player_time_offset");
+        b.handTimeScale = globalFloat("vr_hand_time_scale");
         b.musicTrack = globalFloat("vr_music_track");
         b.spawnLive = globalFloat("vr_spawn_live");
         for(int i = 0; i < numExtSpawnParms; i++)

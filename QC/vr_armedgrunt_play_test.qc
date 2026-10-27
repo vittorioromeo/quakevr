@@ -1438,12 +1438,14 @@ void() VR_AGPT_TugHand =
 };
 
 // Test 36: grabs must be deliberate. A calm shotgun grunt (still), its weapon's grip put at your main hand, the grip
-// pressed with the hand still: case 0 on it: taken; cases 1, 2 the hand raised until the fist is 2 cm and 5 cm off the
-// weapon's surface (the engine's reading, vr_agrunt_grab_gap; the old box took it up to 40 cm off its grip): not taken;
-// case 3 on it moving at 3 m/s (a punch through it): not taken.
+// pressed with the hand still: case 0 on it: taken; cases 1, 2 the hand raised until the fist is 2 cm off the weapon's
+// surface (the engine's reading, vr_agrunt_grab_gap): taken (within vr_agrunt_grab_leniency, 5 cm); 3 cm past the
+// leniency (8 cm; the old box took it up to 40 cm off its grip): not taken; case 3 on it moving at 3 m/s (a punch
+// through it): not taken.
+float(float i) VR_AGPT_GrabOff = { return i == 1 ? 2 : i == 2 ? cvar("vr_agrunt_grab_leniency") + cvar("vr_agrunt_grab_slack") + 3 : -999; };
 string(float i) VR_AGPT_GrabCase =
 {
-    return i == 0 ? "on it" : i == 1 ? "2 cm off it" : i == 2 ? "5 cm off it" : "a punch through it";
+    return i == 0 ? "on it" : i == 1 ? "2 cm off it" : i == 2 ? sprintf("%g cm off it", VR_AGPT_GrabOff(2)) : "a punch through it";
 };
 
 void() VR_AGPT_Grab =
@@ -1509,7 +1511,7 @@ void() VR_AGPT_Grab =
             return;
         }
         // Off it: the hand raised half a centimetre a frame until the fist is that far off its surface.
-        float want = vr_agpt_case == 1 ? 2 : vr_agpt_case == 2 ? 5 : -999;
+        float want = VR_AGPT_GrabOff(vr_agpt_case);
         vr_agt_index = vr_agt_index + 1;
         if(vr_agt_index < 4)
         {
@@ -1556,8 +1558,8 @@ void() VR_AGPT_Grab =
         return;
     }
     float on = (vr_agpt_case == 0) || (vr_agpt_case == 3);
-    float placed = on ? (vr_agt_clip <= 0) : (vr_agt_clip >= (vr_agpt_case == 1 ? 2 : 5));
-    float ok = (VR_AGPT_Taken(g, p) == (vr_agpt_case == 0)) && placed;
+    float placed = on ? (vr_agt_clip <= 0) : (vr_agt_clip >= VR_AGPT_GrabOff(vr_agpt_case));
+    float ok = (VR_AGPT_Taken(g, p) == (vr_agpt_case <= 1)) && placed;
     VR_AGT_Check(sprintf("grab %s: the fist %.1f cm off it, taken %g (too fast %g):", VR_AGPT_GrabCase(vr_agpt_case),
         vr_agt_clip, VR_AGPT_Taken(g, p), vr_ag_grab_fast), ok);
     vr_agpt_case = vr_agpt_case + 1;

@@ -911,12 +911,14 @@ const SpawnGrid& spawnGrid(int perPage)
     return g;
 }
 
-// The spawn tool's commands at the bar's right: Pick, Reset, Clear.
-void spawnCommands(Ui& ui, const Rect& bar)
+// The spawn tool's commands at the bar's right: Pick, Reset, Clear (`armed`: the Armed Humanoid page's, its choices to
+// their defaults too: vr_toolgun_armed_reset, vr_toolgun_armed_clear).
+void spawnCommands(Ui& ui, const Rect& bar, bool armed = false)
 {
     const float bw = 52.f;
     const char* const labels[] = {"Pick", "Reset", "Clear"};
-    const char* const commands[] = {"vr_toolgun_pick\n", "vr_toolgun_reset\n", "vr_toolgun_select clear\n"};
+    const char* const commands[] = {"vr_toolgun_pick\n", armed ? "vr_toolgun_armed_reset\n" : "vr_toolgun_reset\n",
+        armed ? "vr_toolgun_armed_clear\n" : "vr_toolgun_select clear\n"};
     for(int i = 0; i < 3; i++)
     {
         const float x1 = bar.x1 - (2 - i) * (bw + 4.f);
@@ -1125,7 +1127,7 @@ void armedPage(Ui& ui)
     {
         toolgun::armed::choose();
     }
-    spawnCommands(ui, bar);
+    spawnCommands(ui, bar, true);
 }
 
 void spawnPage(Ui& ui)

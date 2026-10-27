@@ -154,6 +154,10 @@ struct Calibration
 // Where a hand's palm is (State::palmLocal), or its point if not known.
 [[nodiscard]] glm::vec3 palmPoint(const State& s, int hand);
 
+// The calibration's move of hand `hand` (0 off, 1 main) off its controller this frame (tracking space, metres): a mock
+// hand put at a world point (vr_mock_hand_to_absolute) takes it off.
+[[nodiscard]] glm::vec3 calibrationOffset(int hand);
+
 // The server set the view yaw: turn the play space to match (headset only).
 void setServerYaw(float yaw);
 

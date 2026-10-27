@@ -2810,6 +2810,42 @@ void reset_f()
     Con_Printf("toolgun: offsets and turn reset\n");
 }
 
+// The Armed Humanoid page's own choices (kind, right hand, left hand) back to their defaults (the grunt, a random
+// weapon from the pool, none in the left hand). Its Reset and Clear only reset the spawn's offsets or cleared the
+// selection, the page's lists keeping what they showed (his note vrragtriggers_2026-10-27_02-03-33: "the reset and clear
+// buttons in the armed humanoid toolgun UI don't seem to work properly").
+void armedDefaults()
+{
+    for(cvar_t* cv : {&vr_toolgun_armed_kind, &vr_toolgun_armed_weapon, &vr_toolgun_armed_weapon2})
+    {
+        Cvar_SetQuick(cv, cv->default_string ? cv->default_string : "0");
+    }
+}
+
+// vr_toolgun_armed_reset: the page's Reset: its choices to their defaults and the spawn's offsets and turn reset, the
+// default armed humanoid the spawn tool's choice (no game running: the choices alone).
+void armedReset_f()
+{
+    armedDefaults();
+    tg.offset = tg.turn = glm::vec3{0.f};
+    armedRefresh();
+    if(armedCat.valid && armedCat.kindCount > 0)
+    {
+        toolgun::armed::choose();
+    }
+    Con_Printf("toolgun: armed humanoid reset (kind %g, right %g, left %g; offsets and turn reset)\n",
+        vr_toolgun_armed_kind.value, vr_toolgun_armed_weapon.value, vr_toolgun_armed_weapon2.value);
+}
+
+// vr_toolgun_armed_clear: the page's Clear: its choices to their defaults, nothing to spawn.
+void armedClear_f()
+{
+    armedDefaults();
+    toolgun::selectSpawnable(-1);
+    Con_Printf("toolgun: armed humanoid cleared (kind %g, right %g, left %g; spawn nothing)\n", vr_toolgun_armed_kind.value,
+        vr_toolgun_armed_weapon.value, vr_toolgun_armed_weapon2.value);
+}
+
 // vr_toolgun_menu: the panel opened or closed (as B/Y).
 void menu_f()
 {
@@ -2954,6 +2990,8 @@ void qvr::toolgun::registerCommands()
     Cmd_AddCommand("vr_toolgun_armed_list", armedList_f);
     Cmd_AddCommand("vr_toolgun_pick", pick_f);
     Cmd_AddCommand("vr_toolgun_reset", reset_f);
+    Cmd_AddCommand("vr_toolgun_armed_reset", armedReset_f);
+    Cmd_AddCommand("vr_toolgun_armed_clear", armedClear_f);
     Cmd_AddCommand("vr_toolgun_menu", menu_f);
     Cmd_AddCommand("vr_toolgun_next", next_f);
     Cmd_AddCommand("vr_toolgun_unfreeze_all", unfreezeAll_f);

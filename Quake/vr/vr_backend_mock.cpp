@@ -527,8 +527,9 @@ void mockLook_f()
 // turned `azimuth` degrees round it (vr_weapon_button_cone).
 
 // The thrown_weapon nearest the player (the server's: its qcvm pushed), or null; `armed`: an armed monster's held
-// weapon (QC vr_ag_weapon) instead.
-edict_t* nearestThrownWeapon(bool armed = false)
+// weapon (QC vr_ag_weapon) instead; `side` (armed): 0 either, 1 only one in a left hand, 2 only one in a right hand (QC
+// .vr_ag_left: a dual wielder's).
+edict_t* nearestThrownWeapon(bool armed = false, int side = 0)
 {
     edict_t* player = EDICT_NUM(1);
     edict_t* best = nullptr;
@@ -537,6 +538,10 @@ edict_t* nearestThrownWeapon(bool armed = false)
     {
         edict_t* e = EDICT_NUM(i);
         if(e->free || strcmp(PR_GetString(e->v.classname), armed ? "vr_ag_weapon" : "thrown_weapon") || !e->v.modelindex)
+        {
+            continue;
+        }
+        if(side != 0 && (progs::fieldFloatOr(e, progs::fields().vr_ag_left, 0.f) != 0.f) != (side == 1))
         {
             continue;
         }
@@ -573,8 +578,8 @@ bool weaponSpot(int index, float height, glm::vec3& out)
 }
 
 // `armed` (agweapon): an armed monster's held weapon, `fraction` from the end behind its grip (0, a gun's stock) to the
-// end ahead (1, its muzzle), at the middle of its slice there (in it, not on its top).
-bool weaponPoint(float fraction, float height, glm::vec3& out, bool armed = false)
+// end ahead (1, its muzzle), at the middle of its slice there (in it, not on its top); `side` as nearestThrownWeapon's.
+bool weaponPoint(float fraction, float height, glm::vec3& out, bool armed = false, int side = 0)
 {
     if(!sv.active || svs.maxclients < 1)
     {
@@ -582,7 +587,7 @@ bool weaponPoint(float fraction, float height, glm::vec3& out, bool armed = fals
     }
     qcvm_t* oldVm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldVm);
-    edict_t* best = nearestThrownWeapon(armed);
+    edict_t* best = nearestThrownWeapon(armed, side);
     za::Vector<glm::vec3> verts;
     const bool found = best && held::drawnVertices(best, verts) && !verts.empty();
     glm::vec3 ahead{1.f, 0.f, 0.f};
@@ -668,7 +673,15 @@ void moveHandTo(int hand, const glm::vec3& target)
         mockHandPos[hand] = standingPose().hands[hand].position;
         mockHandSet[hand] = true;
     }
-    const glm::vec3 to = mockHandPos[hand] + glm::vec3{glm::dot(d, right), glm::dot(d, up), -glm::dot(d, fwd)};
+    glm::vec3 to = mockHandPos[hand] + glm::vec3{glm::dot(d, right), glm::dot(d, up), -glm::dot(d, fwd)};
+    if(vr_mock_hand_to_absolute.value != 0.f && hand < 2)
+    {
+        // (From the play space's place, not the hand's last: a hand put each frame on a moving thing follows it; the
+        // hand's last place lags the commands by a frame or two, and the correction from it overshot and spiralled.)
+        const glm::vec3 room = hands::rotateYaw(target - st.spaceOrigin, -st.turnYaw) / units::metresToUnits();
+        const glm::vec3 lifted = hand == HAND_MAIN ? glm::vec3{0.f, vr_mock_hand_lift.value, vr_mock_hand_pull.value} : glm::vec3{0.f};
+        to = glm::vec3{-room.y, room.z, -room.x} - hands::calibrationOffset(hand) - lifted; // (tracking from Quake's axes)
+    }
     if(vr_mock_hand_glide.value > 0.f && hand < HAND_COUNT)
     {
         handGlide[hand] = {mockHandPos[hand], to, realtime, static_cast<double>(vr_mock_hand_glide.value)};
@@ -1165,7 +1178,9 @@ void mockHandTo_f()
         return;
     }
     const float height = Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f;
-    if(weapon && !weaponPoint(Q_atof(Cmd_Argv(3)), height, target, agWeapon))
+    // (agweapon's 5th word: "left" or "right", a dual wielder's weapon in that hand; else the nearest)
+    const int side = agWeapon && Cmd_Argc() >= 6 ? (!q_strcasecmp(Cmd_Argv(5), "left") ? 1 : !q_strcasecmp(Cmd_Argv(5), "right") ? 2 : 0) : 0;
+    if(weapon && !weaponPoint(Q_atof(Cmd_Argv(3)), height, target, agWeapon, side))
     {
         Con_Printf("vr_mock_hand_to: no weapon lying about\n");
         return;
