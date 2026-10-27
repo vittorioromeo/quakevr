@@ -215,6 +215,15 @@ int dropShippedEqual();
 // laid on.
 int migrateCategories(int* widened);
 
+// The IK stretch per kind and class (vr_agrunt_ik_stretch, its changes from shippedStretch; like the player's
+// vr_body_arm_stretch): how far its arms may lengthen to put a hand on its goal (1 none, at most stretchMost). The arm
+// solve (vr_agarms.cpp) lengthens the upper arm and the forearm alike only as far as the goal needs, eased; the skin and
+// the authored rig's arm bones stretch along with them. Copy to the other kind takes it as it is.
+inline constexpr float stretchMost = 1.5f;
+[[nodiscard]] float stretch(int kind, int cls);
+[[nodiscard]] float shippedStretch(int kind, int cls);
+void setStretch(int kind, int cls, float by); // (rounded to 0.01; the shipped value's equal dropped)
+
 [[nodiscard]] const char* className(int cls);  // the dumps' ("a rifle")
 [[nodiscard]] const char* classTitle(int cls); // the windows' ("Rifle")
 [[nodiscard]] const char* poseName(int cls, int pose);

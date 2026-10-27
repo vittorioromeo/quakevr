@@ -110,8 +110,34 @@ void forward(const Rig& rig, const Pose& pose, rigpose::Rigid* out);
 [[nodiscard]] glm::vec3 aimAngles(const Rig& rig, int b, const rigpose::Rigid& Fparent, const glm::vec3& dir,
     const glm::vec3& current);
 
-// Vertices skinned: out[v] = blend of the bones' motions of rest[v] (linear, or dual quaternion with `dq`).
-void skin(const Rig& rig, const rigpose::Rigid* F, const glm::vec3* rest, int numVerts, glm::vec3* out, bool dq);
+// The IK stretch on the authored rig (agarms::Placed::stretch; agpose::stretch): bone `bone` lengthened by `by` along
+// `axis` (unit, rest model space) about `pivot` (its joint): its motion is that scale, then its Rigid. Its children ride
+// at its stretched end (armsOnRig; stretchChain).
+struct BoneStretch
+{
+    int bone{-1};
+    glm::vec3 pivot{0.f}, axis{0.f};
+    float length{0.f}; // (pivot to its child's joint along the axis)
+    float by{1.f};
+};
+inline constexpr int maxStretches = 4;
+struct Stretches
+{
+    BoneStretch b[maxStretches];
+    int n{0};
+};
+// A rest place as bone `s` stretches it (before its Rigid).
+[[nodiscard]] inline glm::vec3 stretchedPlace(const BoneStretch& s, const glm::vec3& p)
+{
+    return p + ((s.by - 1.f) * glm::dot(p - s.pivot, s.axis)) * s.axis;
+}
+// Bones `F` (forward's, no stretch) with `st` laid on: each stretched bone's descendants moved to its stretched end.
+void stretchChain(const Rig& rig, rigpose::Rigid* F, const Stretches& st);
+
+// Vertices skinned: out[v] = blend of the bones' motions of rest[v] (linear, or dual quaternion with `dq`); `st` the IK
+// stretch's bones (linear only).
+void skin(const Rig& rig, const rigpose::Rigid* F, const glm::vec3* rest, int numVerts, glm::vec3* out, bool dq,
+    const Stretches* st = nullptr);
 [[nodiscard]] float weightOn(const Rig& rig, int v, int bone);
 
 // The file (text; the format: make_rig2.py's header and the file's own comment lines).
@@ -182,7 +208,8 @@ struct PhysJoint
 [[nodiscard]] qmodel_t* skinnedFor(const qmodel_t* model);
 // A live entity drawn on the authored rig this frame (the game's: vr_rig2_game.cpp): `F` its bones (rest -> drawn, model
 // space). The Rig Studio's own pose (drawPosed) wins over it.
-void drawLive(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, uint32_t hidden = 0); // (hidden: bones collapsed)
+void drawLive(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, uint32_t hidden = 0,
+    const Stretches* st = nullptr); // (hidden: bones collapsed; st: the IK stretch's bones, scaled along their axes)
 // Entity `num`'s bone `b` as last drawn on the authored rig (rest -> drawn, model space) if drawn in the last frames (a
 // ragdoll made of it starts there: vr_box3d_ragdoll.cpp). False: not drawn so lately.
 bool drawnBone(int num, int b, glm::quat& rot, glm::vec3& pos);
@@ -200,7 +227,9 @@ void posedSmooth(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& r
 // An armed one's arms (agarms' solve) on the authored bones within their limits: `F` every bone as drawn, its arm bones
 // (clavicle, upper arm, forearm, hand, the weapon on the right hand) set from `placed`; `weaponCorr` each hand's drawn
 // motion against the solve's (its weapon carried by it).
-void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, rigpose::Rigid* weaponCorr);
+// `stretchOut`: the IK stretch's arm bones (Placed::stretch: the upper arm and forearm lengthened alike, their children
+// at the stretched ends), for drawLive.
+void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, rigpose::Rigid* weaponCorr, Stretches* stretchOut = nullptr);
 // A take's legs (aglegs' solve) on the leg bones (thigh at the knee, the shin's hinge at the ankle, the foot at the toe).
 void legsOnRig(const Rig& a, const aglegs::Placed& lp, rigpose::Rigid* F);
 // hitreact.cpp relinkSkinned: an armed one drawn on the authored rig, its bones `posed` and kicked as that solve has
@@ -214,6 +243,7 @@ void liveAll();
 // vr_rig2_record: poses from the game kept (set 0 ragdolls' bodies, 1 the armed ones' drawn bones) for vr_rig2_check recorded.
 void notePublished(int num, const ragdoll::Rig& rig, int bodies, const glm::quat* rot);
 [[nodiscard]] const za::Vector<Pose>& recordedPoses(int set);
+[[nodiscard]] const za::Vector<Stretches>& recordedStretches(int set); // (each recorded pose's IK stretch: set 1's)
 void record_f();
 void armsReport_f(); // vr_rig2_arms: the arms laid on the authored rig since it last printed
 void partsReport_f(); // vr_rig2_parts: each authored ragdoll's parts as drawn, its joints' gaps

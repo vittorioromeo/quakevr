@@ -2347,6 +2347,33 @@ QVR_PERMDECAL_FUNCTIONS \
 "	vec3 bodyAt = mix(framed, chest + (fq * 0.001) * (framed - chest), info.w);\n" \
 "	if (body >= 0.9995)\n" \
 "		return (bodyAt - info.xyz) * invS;\n" \
+"	// the IK stretch (the upper arm's move row's w: the stretch - 1; vr_agarms.cpp stretchedRest): the rest place\n" \
+"	// stretched along the upper arm about the shoulder and the forearm about the elbow, the blend's joint on its bone\n" \
+"	vec3 rs = r;\n" \
+"	vec3 jOff = vec3(0.0);\n" \
+"	float sg = SmoothSwing[b + 3u + 6u * uint(side)].w;\n" \
+"	if (sg != 0.0 && bone < 1.5)\n" \
+"	{\n" \
+"		vec3 S0 = SmoothSwing[b + 20u + uint(side)].xyz;\n" \
+"		vec3 E0 = SmoothSwing[b + 14u + uint(side * 2.0)].xyz;\n" \
+"		vec3 W0 = SmoothSwing[b + 15u + uint(side * 2.0)].xyz;\n" \
+"		float lu = length(E0 - S0);\n" \
+"		float lf = length(W0 - E0);\n" \
+"		vec3 u0 = (E0 - S0) / max(lu, 1e-4);\n" \
+"		vec3 f0 = (W0 - E0) / max(lf, 1e-4);\n" \
+"		float tf = clamp(dot(r - E0, f0), 0.0, lf);\n" \
+"		if (bone < 0.5)\n" \
+"		{\n" \
+"			float tu = clamp(dot(r - S0, u0), 0.0, lu);\n" \
+"			rs = r + sg * ((tu + (lu - tu) * f) * u0 + (f * tf) * f0);\n" \
+"			jOff = (sg * lu) * u0;\n" \
+"		}\n" \
+"		else\n" \
+"		{\n" \
+"			rs = r + (sg * (tf + (lf - tf) * f)) * f0;\n" \
+"			jOff = (sg * lf) * f0;\n" \
+"		}\n" \
+"	}\n" \
 "	if (bone < 0.5 && f < 0.0005 && body > 0.0005)\n" \
 "	{\n" \
 "		// the shoulder: the upper arm's turn and the chest's blended about the shoulder (no flap as the arm rises), plus\n" \
@@ -2355,7 +2382,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "			qa = -qa;\n" \
 "		vec4 q = normalize(mix(qa, qc, body));\n" \
 "		vec3 s0 = SmoothSwing[b + 20u + uint(side)].xyz;\n" \
-"		p = QvrQRot(q, r - s0) + QvrQRot(qa, s0) + ta + body * (bodyAt - chest);\n" \
+"		p = QvrQRot(q, rs - s0) + QvrQRot(qa, s0) + ta + body * (bodyAt - chest);\n" \
 "		nor = mix(QvrQRot(q, n0) * max(length(nor), 1e-3), nor, body);\n" \
 "		return (p - info.xyz) * invS;\n" \
 "	}\n" \
@@ -2365,13 +2392,13 @@ QVR_PERMDECAL_FUNCTIONS \
 "		if (dot(qa, qb) < 0.0)\n" \
 "			qb = -qb;\n" \
 "		vec4 q = normalize(mix(qa, qb, f));\n" \
-"		vec3 j0 = SmoothSwing[b + 14u + uint(side * 2.0 + bone)].xyz;\n" \
-"		p = QvrQRot(q, r - j0) + QvrQRot(qa, j0) + ta;\n" \
+"		vec3 j0 = SmoothSwing[b + 14u + uint(side * 2.0 + bone)].xyz + jOff;\n" \
+"		p = QvrQRot(q, rs - j0) + QvrQRot(qa, j0) + ta;\n" \
 "		n = QvrQRot(q, n0);\n" \
 "	}\n" \
 "	else\n" \
 "	{\n" \
-"		p = QvrQRot(qa, r) + ta;\n" \
+"		p = QvrQRot(qa, rs) + ta;\n" \
 "		n = QvrQRot(qa, n0);\n" \
 "	}\n" \
 "	nor = mix(n * max(length(nor), 1e-3), nor, body);\n" \

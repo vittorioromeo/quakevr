@@ -1850,6 +1850,156 @@ void offTestTick()
     otest.phase = 3;
 }
 
+// vr_rigstudio_test_stretch [factor] (open the studio with a gun: the shotgun grunt, vr_rigstudio monster_vr_grunt 4):
+// the IK stretch (agpose::stretch) of the subject's kind and class: the subject held in Aim at 1 (none), then at
+// `factor` (default 1.15): each settled (its off hand still 12 frames), its off hand's slide back along the gun, its grip
+// held, the hands' reach short, the stretch used; the change from 1 to `factor` followed every frame (an ease, not a
+// snap); the slider's undo (exactly back), the setting put back. Screenshots at 1 and at `factor`. Ends on "rigstudio
+// stretch: N passed, M failed".
+struct StretchTest
+{
+    int phase{-1}; // -1 off; 0 waits for the subject; 1 at 1 (settling); 2 at the factor (followed); 3 done
+    float factor{1.15f};
+    float was{1.f}; // (the setting before)
+    float slid1{0.f}, off1{0.f}, reach1[2]{0.f, 0.f};
+    bool held1{false};
+    float push{0.f}; // (its Aim key's right weapon pushed this far forward meanwhile: out of the arm's reach)
+    int code{-1};
+    agpose::Key key0;
+    int passed{0}, failed{0};
+};
+StretchTest sttest;
+
+void stCheck(const char* what, bool ok, const char* text)
+{
+    Con_Printf("rigstudio stretch: %s: %s: %s\n", what, text, ok ? "PASS" : "FAIL");
+    (ok ? sttest.passed : sttest.failed)++;
+}
+
+void stretchTestTick()
+{
+    if(sttest.phase < 0 || !st.open)
+    {
+        return;
+    }
+    if(sttest.phase == 0)
+    {
+        if(!noteNow() || !agpose::isGunCategory(st.subjClass))
+        {
+            if(++otest.frames > 900)
+            {
+                stCheck("subject", false, "no single gun subject (open it with one: vr_rigstudio monster_vr_grunt 4, the shotgun)");
+                sttest.phase = -1;
+                Con_Printf("rigstudio stretch: %d passed, %d failed\n", sttest.passed, sttest.failed);
+            }
+            return;
+        }
+        if(st.tool != Tool::PoseKeys || st.lastTool != Tool::PoseKeys)
+        {
+            st.tool = Tool::PoseKeys; // (held in the window's pose: Aim)
+            st.pdFollow = true;
+            st.aim.selected = false;
+            return;
+        }
+        sttest.was = agpose::stretch(st.subjKind, st.subjClass);
+        agpose::setStretch(st.subjKind, st.subjClass, 1.f);
+        sttest.code = agpose::code(st.subjKind, st.subjClass, agpose::Aim, 0);
+        sttest.key0 = agpose::value(sttest.code);
+        if(sttest.push != 0.f)
+        {
+            agpose::Key k = sttest.key0;
+            k.v[agpose::RPos].x += sttest.push;
+            agpose::set(sttest.code, k);
+        }
+        otFollowBegin(agpose::Aim);
+        sttest.phase = 1;
+        return;
+    }
+    bool onGun = false;
+    if(!noteNow() || !otFollow(onGun))
+    {
+        return;
+    }
+    const agarms::Placed& P = st.note.placed;
+    if(sttest.phase == 2 && za::abs(P.stretchMost - sttest.factor) > 0.002f && otest.frames < 600)
+    {
+        return; // (its most still easing in)
+    }
+    char text[300];
+    if(sttest.phase == 1)
+    {
+        sttest.slid1 = P.slid;
+        sttest.held1 = P.held2;
+        sttest.off1 = offHandFromGun();
+        sttest.reach1[0] = P.reach[0];
+        sttest.reach1[1] = P.reach[1];
+        q_snprintf(text, sizeof(text), "%s, slid back %.2f, %.2f units off the fore-end, reach short R %.2f L %.2f, stretch used %.3f %.3f",
+            P.held2 ? "held" : "not held", P.slid, sttest.off1, P.reach[0], P.reach[1], P.stretch[0], P.stretch[1]);
+        stCheck("at 1: no stretch", P.stretch[0] == 1.f && P.stretch[1] == 1.f, text);
+        Cbuf_AddText("screenshot\n");
+        agpose::setStretch(st.subjKind, st.subjClass, sttest.factor);
+        otFollowBegin(agpose::Aim);
+        sttest.phase = 2;
+        return;
+    }
+    // (phase 2: at the factor)
+    const float t = static_cast<float>(otest.lastMove) / 72.f;
+    const float way = glm::length(otest.last - otest.from);
+    const float off = offHandFromGun();
+    q_snprintf(text, sizeof(text), "%s, slid back %.2f (at 1: %.2f), %.2f units off the fore-end (at 1: %.2f), reach short R %.2f L %.2f (at 1: %.2f %.2f), "
+        "stretch used %.3f (R) %.3f (L), most %.3f", P.held2 ? "held" : "not held", P.slid, sttest.slid1, off, sttest.off1, P.reach[0],
+        P.reach[1], sttest.reach1[0], sttest.reach1[1], P.stretch[0], P.stretch[1], P.stretchMost);
+    if(sttest.push == 0.f)
+    {
+        stCheck("at the factor: the off hand on the fore-end", P.held2 && P.slid <= za::max(0.f, sttest.slid1 - 1.f) + 0.01f &&
+            P.reach[1] <= sttest.reach1[1] + 0.01f, text);
+    }
+    else
+    {
+        // (the weapon pushed out of reach: an arm stretches, its hand short by less or its grip taken now)
+        stCheck("at the factor: an arm stretched to its goal", za::max(P.stretch[0], P.stretch[1]) > 1.01f &&
+            (P.reach[0] + P.reach[1] < sttest.reach1[0] + sttest.reach1[1] - 0.5f || (P.held2 && !sttest.held1)), text);
+    }
+    stCheck("the stretch used within the factor", P.stretch[0] >= 1.f && P.stretch[1] >= 1.f && P.stretch[0] <= sttest.factor + 1e-4f &&
+        P.stretch[1] <= sttest.factor + 1e-4f && za::abs(P.stretchMost - sttest.factor) < 0.01f, text);
+    q_snprintf(text, sizeof(text), "the off hand moved %.2f units over %.3f s, its largest step %.3f units a frame", way, t, otest.most);
+    stCheck("1 -> the factor: eased", way < 0.05f || otest.most <= za::max(0.3f, way / 3.f), text);
+    Cbuf_AddText("screenshot\n");
+    // The slider's undo: one step, the value exactly as it was
+    pushStretchUndo(st.subjKind, st.subjClass);
+    agpose::setStretch(st.subjKind, st.subjClass, 1.3f);
+    undo();
+    const float back = agpose::stretch(st.subjKind, st.subjClass);
+    q_snprintf(text, sizeof(text), "set 1.30, undone: %.3f", back);
+    stCheck("undo", za::abs(back - sttest.factor) < 0.0051f, text);
+    agpose::setStretch(st.subjKind, st.subjClass, sttest.was);
+    if(sttest.push != 0.f)
+    {
+        agpose::set(sttest.code, sttest.key0);
+        const agpose::Key k = agpose::value(sttest.code);
+        stCheck("the Aim key put back", !memcmp(&k, &sttest.key0, sizeof(k)), "as it was");
+    }
+    q_snprintf(text, sizeof(text), "%.3f (was %.3f)", agpose::stretch(st.subjKind, st.subjClass), sttest.was);
+    stCheck("the setting put back", za::abs(agpose::stretch(st.subjKind, st.subjClass) - sttest.was) < 0.0051f, text);
+    Con_Printf("rigstudio stretch: %d passed, %d failed\n", sttest.passed, sttest.failed);
+    Cbuf_AddText("wait\necho rigstudio stretch: done\n"); // (after its last screenshot: a run's end)
+    sttest.phase = -1;
+}
+
+void testStretch_f()
+{
+    if(!st.open)
+    {
+        Con_Printf("rigstudio stretch: the studio is not open\n");
+        return;
+    }
+    sttest = StretchTest{};
+    sttest.factor = Cmd_Argc() > 1 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(1))), 1.f, agpose::stretchMost) : 1.15f;
+    sttest.push = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 0.f;
+    otest.frames = 0;
+    sttest.phase = 0;
+}
+
 void testOffHand_f()
 {
     if(!st.open)
@@ -2028,6 +2178,15 @@ bool swapExternal(Snapshot& s, Snapshot& back)
         aggrip::set(s.gripKind, s.gripSlot, s.gripHand, s.grip);
         return true;
     }
+    if(s.stretchKind >= 0)
+    {
+        back.stretchKind = s.stretchKind;
+        back.stretchClass = s.stretchClass;
+        back.stretchBy = agpose::stretch(s.stretchKind, s.stretchClass);
+        back.what = s.what;
+        agpose::setStretch(s.stretchKind, s.stretchClass, s.stretchBy);
+        return true;
+    }
     return false;
 }
 
@@ -2086,6 +2245,17 @@ void pushPoseUndo(int code)
     s.poseCode = code;
     s.poseKey = agpose::value(code);
     s.what = "pose key";
+    st.undo.pushBack(ZA_MOVE(s));
+    st.redo.clear();
+}
+
+void pushStretchUndo(int kind, int cls)
+{
+    Snapshot s;
+    s.stretchKind = kind;
+    s.stretchClass = cls;
+    s.stretchBy = agpose::stretch(kind, cls);
+    s.what = "IK stretch";
     st.undo.pushBack(ZA_MOVE(s));
     st.redo.clear();
 }
@@ -3065,6 +3235,7 @@ void init()
     Cmd_AddCommand("vr_rigstudio_test_posekeys", testPoseKeys_f);
     Cmd_AddCommand("vr_rigstudio_test_offhand", testOffHand_f);
     Cmd_AddCommand("vr_rigstudio_test_offhand", testOffHand_f);
+    Cmd_AddCommand("vr_rigstudio_test_stretch", testStretch_f);
     Cmd_AddCommand("vr_rigstudio_test_typing", testTyping_f);
     Cmd_AddCommand("vr_rigstudio_test_rig2anim", testAnim_f);
     Cmd_AddCommand("vr_rigstudio_aim", aim_f);
@@ -3277,6 +3448,7 @@ void clientFrame()
     pkTestTick();
     offTestTick();
     offTestTick();
+    stretchTestTick();
     typingTestTick();
     animTestTick();
     aimLineFrame(); // (Align to Target's steps and its test's)

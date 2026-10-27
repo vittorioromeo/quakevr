@@ -873,6 +873,7 @@ struct ArmPoseMsg
     bool offKeyed{false};
     glm::vec3 gripPos{0.f}, gripTurn{0.f};
     glm::vec3 freePos{0.f}, freeTurn{0.f};
+    float stretch{1.f}; // its kind and class's IK stretch (agpose::stretch; the block's 16)
 };
 
 struct ArmPose
@@ -897,6 +898,7 @@ struct ArmPose
     int takeSide{0};
     bool offKeyed{false};                        // the pose keys' off hand (ArmPoseMsg's; the free hand's in model space)
     glm::vec3 gripPos{0.f}, gripTurn{0.f}, freePos{0.f}, freeTurn{0.f};
+    float stretch{1.f};                          // its IK stretch (ArmPoseMsg's: the arms' Targets::stretch)
     // vr_agholds_report: as its arms were last solved (vr_agarms): its kind, its weapon's slot, its off hand's goal (0
     // free, 1 the second grip, 2 cupping the right hand, 3 its own point, 4 its own weapon), the grip held, its point (the
     // weapon's frame, units).
@@ -1046,6 +1048,7 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
         m.freePos = p.freePos + (m.freePos - p.freePos) * f;
         m.freeTurn = p.freeTurn + (m.freeTurn - p.freeTurn) * f;
         m.offKeyed = m.offKeyed || p.offKeyed;
+        m.stretch = p.stretch + (m.stretch - p.stretch) * f;
     }
     const float scale = za::max(ENTSCALE_DECODE(e->scale), 0.01f);
     glm::vec3 hr{0.f};
@@ -1105,6 +1108,7 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     s.gripTurn = m.gripTurn;
     s.freePos = m.freePos / scale;
     s.freeTurn = m.freeTurn;
+    s.stretch = m.stretch;
     if(anchored)
     {
         s.left += anchorAt * m.wl;
@@ -2690,6 +2694,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         t.gripOff = rigpose::Rigid{rotOf(s.gripTurn), s.gripPos};
         t.freeOff = rigpose::Rigid{rotOf(s.freeTurn), s.freePos};
     }
+    t.stretch = s.stretch;
     if(uppered)
     {
         t.weapon[0].pos += anchorShift * s.wr;
@@ -3072,7 +3077,7 @@ void parseArmPose()
         // grip's change on the weapon and the free hand's (places x 100, turns x 10)
         const int b = MSG_ReadByte();
         m.flags = (m.flags & ~(apLeftFree | apTwo)) | ((b & 1) ? apLeftFree : 0) | ((b & 2) ? apTwo : 0);
-        m.offKeyed = true;
+        m.offKeyed = (b & (4 | 8)) != 0; // (16 alone: the IK stretch only)
         const auto readShorts = [](glm::vec3& v, float per) {
             for(int i = 0; i < 3; i++)
             {
@@ -3088,6 +3093,10 @@ void parseArmPose()
         {
             readShorts(m.freePos, 100.f);
             readShorts(m.freeTurn, 10.f);
+        }
+        if(b & 16)
+        {
+            m.stretch = 1.f + static_cast<float>(MSG_ReadByte()) / 500.f; // (its kind and class's IK stretch)
         }
     }
     m.t = cl.mtime[0];

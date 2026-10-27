@@ -1136,6 +1136,67 @@ void armedHoldsReset()
     agholds::reset();
 }
 
+// Combat > Armed Grunts > IK Stretch (agpose::stretch; vr_agrunt_ik_stretch; ROUND22.md, "IK stretch per kind and
+// class"): a row per kind and pose class, each pick a step of 0.05 up to the most, then back to 1. The Rig Studio's Pose
+// Studio Data window has the same as a slider.
+constexpr float ikStretchStep = 0.05f;
+char ikStretchText[agpose::numKinds * agpose::numClassOrder][64]{}; // (each row's text, made as it is drawn)
+
+[[nodiscard]] const char* ikStretchRow(int arg)
+{
+    const int kind = arg / 100, cls = arg % 100;
+    int slot = 0;
+    for(int i = 0; i < agpose::numClassOrder; i++)
+    {
+        slot = agpose::classOrder[i] == cls ? kind * agpose::numClassOrder + i : slot;
+    }
+    const float by = agpose::stretch(kind, cls);
+    q_snprintf(ikStretchText[slot], sizeof(ikStretchText[slot]), "%s: %s", agpose::classTitle(cls),
+        by > 1.0001f ? va("%.2fx", static_cast<double>(by)) : "1 (none)");
+    return ikStretchText[slot];
+}
+
+[[nodiscard]] const char* ikStretchHelp(int)
+{
+    return "How far this kind's arms may lengthen to put its hands on their goals in this class's poses: the upper arm and "
+           "the forearm alike, only as far as a hand needs (in reach: none), eased; the skin stretches with them. Each "
+           "pick adds 0.05, past 1.5 back to 1. The Rig Studio's Pose Studio Data window has it as a slider "
+           "(vr_agrunt_ik_stretch).";
+}
+
+void ikStretchPick(int arg)
+{
+    const int kind = arg / 100, cls = arg % 100;
+    const float by = agpose::stretch(kind, cls) + ikStretchStep;
+    agpose::setStretch(kind, cls, by > agpose::stretchMost + 0.001f ? 1.f : by);
+}
+
+void ikStretchReset()
+{
+    for(int k = 0; k < agpose::numKinds; k++)
+    {
+        for(const int c : agpose::classOrder)
+        {
+            agpose::setStretch(k, c, agpose::shippedStretch(k, c));
+        }
+    }
+}
+
+[[nodiscard]] za::Vector<Item> pageArmedStretch()
+{
+    za::Vector<Item> items;
+    items.pushBack(action("Reset to Defaults", ikStretchReset).help("Every kind and class back to its shipped IK stretch."));
+    for(int k = 0; k < agpose::numKinds; k++)
+    {
+        items.pushBack(header(k == 0 ? "Grunts" : "Enforcers"));
+        for(const int c : agpose::classOrder)
+        {
+            items.pushBack(row(ikStretchRow, ikStretchHelp, ikStretchPick, k * 100 + c, -1));
+        }
+    }
+    return items;
+}
+
 [[nodiscard]] za::Vector<Item> pageArmedHolds()
 {
     za::Vector<Item> items;
@@ -1192,6 +1253,9 @@ void armedHoldsReset()
         open("Weapon Holds", pageIndex(pageArmedHolds))
             .help("Per weapon, for grunts and for enforcers: held in one hand or two (Auto: the axe and the enforcer's "
                   "pistols in one hand, the rest as built in)."),
+        open("IK Stretch", pageIndex(pageArmedStretch))
+            .help("Per pose class (rifle, pistol, shoulder launcher, ...), for grunts and for enforcers: how far their "
+                  "arms may lengthen to put their hands on their weapons, as your own Arm Stretch (1: none)."),
         header("Their Weapons"),
         slider("Damage to You", vr_agrunt_damage_scale, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("Their weapon's damage to you, times this (its damage to monsters is your weapon's own): a rocket "

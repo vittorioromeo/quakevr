@@ -218,9 +218,13 @@ void resetGame()
 
 // ---- The arms and legs laid on the authored rig ----
 
-void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, rigpose::Rigid* weaponCorr)
+void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, rigpose::Rigid* weaponCorr, Stretches* stretchOut)
 {
     const Bones& k = bonesOf(a);
+    if(stretchOut)
+    {
+        stretchOut->n = 0;
+    }
     if(k.chest < 0)
     {
         return;
@@ -250,9 +254,19 @@ void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, ri
         const glm::quat uRot = placed.upperM[s].rot;
         const glm::vec3 uDir = uRot * (Fo.pivot - U.pivot);
         F[d.upper] = limited(a, d.upper, F[d.clav], glm::normalize(between(uDir, placed.elbow[s] - S) * uRot), &hp[1], clampArms);
+        // The IK stretch (Placed::stretch): the upper arm and the forearm lengthened alike along their axes, the forearm at
+        // the upper arm's stretched end, the hand at the forearm's (their skin scaled so: drawLive).
+        const float by = placed.stretch[s];
+        const glm::vec3 uAxis = Fo.pivot - U.pivot, fAxis = H.pivot - Fo.pivot;
+        const glm::vec3 shiftU = by != 1.f ? F[d.upper].rot * ((by - 1.f) * uAxis) : glm::vec3{0.f};
+        if(by != 1.f && stretchOut && stretchOut->n + 2 <= maxStretches && glm::length(uAxis) > 1e-3f && glm::length(fAxis) > 1e-3f)
+        {
+            stretchOut->b[stretchOut->n++] = BoneStretch{d.upper, U.pivot, glm::normalize(uAxis), glm::length(uAxis), by};
+            stretchOut->b[stretchOut->n++] = BoneStretch{d.fore, Fo.pivot, glm::normalize(fAxis), glm::length(fAxis), by};
+        }
         // The forearm's hinge bent toward the wrist the solve put.
         const glm::vec3 W = rigpose::apply(placed.handM[s], H.pivot);
-        const glm::vec3 E = rigpose::apply(F[d.upper], Fo.pivot);
+        const glm::vec3 E = rigpose::apply(F[d.upper], Fo.pivot) + shiftU;
         const glm::vec3 now = anglesOf(a, d.fore, glm::normalize(glm::inverse(F[d.upper].rot) * placed.foreM[s].rot));
         const glm::vec3 bend = aimAngles(a, d.fore, F[d.upper], W - E, now);
         hp[2] += za::abs(clampAngles(a, d.fore, now).x - now.x);
@@ -267,8 +281,13 @@ void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, ri
             const glm::quat turn = glm::angleAxis(wrapped * za::clamp(vr_rig2_forearm_twist.value, 0.f, 1.f), axis);
             F[d.fore] = compose(F[d.fore], rigpose::Rigid{turn, Fo.pivot - turn * Fo.pivot});
         }
+        F[d.fore].pos += shiftU;
         // The hand to its grip frame's turn.
         F[d.hand] = limited(a, d.hand, F[d.fore], placed.handM[s].rot, &hp[3], clampArms);
+        if(by != 1.f)
+        {
+            F[d.hand].pos += F[d.fore].rot * ((by - 1.f) * fAxis);
+        }
         if(s == 0 && k.weapon >= 0)
         {
             F[k.weapon] = F[d.hand]; // (fixed on the right hand)
@@ -363,6 +382,7 @@ struct Recorder
     char only[32]{};       // poses kept from models whose name has this (empty: the first kept pose's model alone)
     char model[64]{};      // ... the model the first was kept from (the check's)
     za::Vector<Pose> poses[2];
+    za::Vector<Stretches> stretches[2]; // (each pose's IK stretch: the armed ones')
     za::Vector<int> lastEnt[2];
     za::Vector<Pose> last[2];      // (each entity's last kept: a settled body not kept twice)
     za::Vector<double> lastAt[2];
@@ -384,7 +404,7 @@ Recorder recorder;
     return p;
 }
 
-void keep(int set, int ent, const Rig& a, const rigpose::Rigid* F, double now, double every)
+void keep(int set, int ent, const Rig& a, const rigpose::Rigid* F, double now, double every, const Stretches* st = nullptr)
 {
     if(!(recorder.mask & (1 << set)) || static_cast<int>(recorder.poses[set].size()) >= recorder.most)
     {
@@ -430,6 +450,7 @@ void keep(int set, int ent, const Rig& a, const rigpose::Rigid* F, double now, d
         recorder.lastAt[set].pushBack(now);
     }
     recorder.poses[set].pushBack(p);
+    recorder.stretches[set].pushBack(st ? *st : Stretches{});
     if(static_cast<int>(recorder.poses[set].size()) == recorder.most)
     {
         Con_Printf("rig2 record: %d %s poses kept (all asked for)\n", recorder.most, set == 0 ? "ragdoll" : "armed");
@@ -464,6 +485,11 @@ void notePublished(int num, const ragdoll::Rig& rig, int bodies, const glm::quat
 const za::Vector<Pose>& recordedPoses(int set)
 {
     return recorder.poses[set & 1];
+}
+
+const za::Vector<Stretches>& recordedStretches(int set)
+{
+    return recorder.stretches[set & 1];
 }
 
 void record_f()
@@ -631,6 +657,7 @@ void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
         legsOnRig(*a, lp, F);
     }
     rigpose::Rigid corr[2];
+    Stretches stretches;
     if(keyedArms)
     {
         // The Rig Studio's arm keys (a sequence's Arms, an override track on an arm bone; vr_rigseq.cpp): the arm bones
@@ -648,14 +675,15 @@ void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
     }
     else
     {
-        armsOnRig(*a, placed, F, corr);
+        armsOnRig(*a, placed, F, corr, &stretches);
     }
     for(int s = 0; s < 2; s++)
     {
         placed.weapon[s] = compose(corr[s], placed.weapon[s]);
     }
-    keep(1, num, *a, F, cl.time, recorder.every); // (vr_rig2_record armed)
-    drawLive(num, rig.model, F, rig.numBones, vr_rig2_look.value == 2.f ? ~0u : hiddenOf(rig, pose1, pose2, blend));
+    keep(1, num, *a, F, cl.time, recorder.every, &stretches); // (vr_rig2_record armed)
+    drawLive(num, rig.model, F, rig.numBones, vr_rig2_look.value == 2.f ? ~0u : hiddenOf(rig, pose1, pose2, blend),
+        stretches.n > 0 ? &stretches : nullptr);
 }
 
 void advanceLerps()

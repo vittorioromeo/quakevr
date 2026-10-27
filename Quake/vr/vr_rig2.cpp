@@ -612,9 +612,44 @@ bool drawnNow(int num)
     return false;
 }
 
-void skin(const Rig& rig, const rigpose::Rigid* F, const glm::vec3* rest, int numVerts, glm::vec3* out, bool dq)
+void stretchChain(const Rig& rig, rigpose::Rigid* F, const Stretches& st)
+{
+    for(int i = 0; i < st.n; i++)
+    {
+        const BoneStretch& s = st.b[i];
+        if(s.bone < 0 || s.bone >= rig.numBones || s.by == 1.f)
+        {
+            continue;
+        }
+        const glm::vec3 shift = F[s.bone].rot * (((s.by - 1.f) * s.length) * s.axis);
+        for(int d = 0; d < rig.numBones; d++)
+        {
+            int p = rig.bones[d].parent;
+            while(p >= 0 && p != s.bone)
+            {
+                p = rig.bones[p].parent;
+            }
+            if(p == s.bone)
+            {
+                F[d].pos += shift;
+            }
+        }
+    }
+}
+
+void skin(const Rig& rig, const rigpose::Rigid* F, const glm::vec3* rest, int numVerts, glm::vec3* out, bool dq, const Stretches* st)
 {
     const int nw = static_cast<int>(rig.weights.size());
+    const auto stretchOf = [st](int bone) -> const BoneStretch* {
+        for(int i = 0; st && i < st->n; i++)
+        {
+            if(st->b[i].bone == bone && st->b[i].by != 1.f)
+            {
+                return &st->b[i];
+            }
+        }
+        return nullptr;
+    };
     for(int v = 0; v < numVerts; v++)
     {
         const glm::vec3 p = rest[v];
@@ -629,7 +664,8 @@ void skin(const Rig& rig, const rigpose::Rigid* F, const glm::vec3* rest, int nu
             glm::vec3 q{0.f};
             for(int i = 0; i < w.n; i++)
             {
-                q += rigpose::apply(F[w.bone[i]], p) * w.w[i];
+                const BoneStretch* s = st ? stretchOf(w.bone[i]) : nullptr;
+                q += rigpose::apply(F[w.bone[i]], s ? stretchedPlace(*s, p) : p) * w.w[i];
             }
             out[v] = q;
             continue;
@@ -944,7 +980,8 @@ void reload()
 
 namespace
 {
-void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, bool studio, uint32_t hidden = 0, qmodel_t* useSkinned = nullptr)
+void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, bool studio, uint32_t hidden = 0,
+    qmodel_t* useSkinned = nullptr, const Stretches* st = nullptr)
 {
     Drawn* d = nullptr;
     for(Drawn& x : drawn)
@@ -983,8 +1020,19 @@ void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, in
     {
         d->F[b] = F[b];
         const bool gone = (hidden >> b) & 1u; // (a hidden bone: its vertices at its pivot, its triangles gone)
-        const glm::mat3 r = gone ? glm::mat3{0.f} : glm::mat3_cast(F[b].rot);
-        const glm::vec3 t = gone ? rigpose::apply(F[b], rig && b < rig->numBones ? rig->bones[b].pivot : glm::vec3{0.f}) : F[b].pos;
+        glm::mat3 r = gone ? glm::mat3{0.f} : glm::mat3_cast(F[b].rot);
+        glm::vec3 t = gone ? rigpose::apply(F[b], rig && b < rig->numBones ? rig->bones[b].pivot : glm::vec3{0.f}) : F[b].pos;
+        for(int i = 0; st && !gone && i < st->n; i++)
+        {
+            // (the IK stretch: the bone's rest places scaled along its axis about its joint, then turned and moved)
+            const BoneStretch& s = st->b[i];
+            if(s.bone == b && s.by != 1.f)
+            {
+                const float k = s.by - 1.f;
+                t += r * (-k * glm::dot(s.axis, s.pivot) * s.axis);
+                r = r * (glm::mat3{1.f} + k * glm::outerProduct(s.axis, s.axis));
+            }
+        }
         float* o = d->skin + b * 12;
         for(int row = 0; row < 3; row++)
         {
@@ -1012,9 +1060,9 @@ void drawPosed(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int n
     publishDrawn(entnum, model, F, numBones, true);
 }
 
-void drawLive(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, uint32_t hidden)
+void drawLive(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, uint32_t hidden, const Stretches* st)
 {
-    publishDrawn(entnum, model, F, numBones, false, hidden);
+    publishDrawn(entnum, model, F, numBones, false, hidden, nullptr, st);
 }
 
 bool drawnBone(int num, int b, glm::quat& rot, glm::vec3& pos)
