@@ -14,6 +14,8 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Grunt rig stage 2: set vr_rig2 1 (Debug menu) and load a map: grunts alive, hit, knocked down, killed, cut, grabbed: smooth joints, no tears at shoulders, elbows, knees; weapons in hand, off hand on the second grip (Mjolnir may slip); say where it looks wrong {test:pose_grunts_guns}
+Grunt rig stage 2 ragdolls (vr_rig2 1): every kind of death, knockdowns and get-ups: nothing flung, no reversed limbs, smooth corpses
 Grunt rig limits mirrored: Rig Studio > Range of Motion: sweep each left-side joint beside its right one (same reach, mirrored twist); if the armpit or wrist creases bother you, try the suggested clean values (chest twist -25..35, right clavicle twist -25..35, right hand x -30..25 y -15..20 twist -30..10, left knee 115)
 Rig Studio typing (flat screen): Ctrl+click a number and type 12.5 + Enter; type in the Outliner's search, a sequence name, Range of Motion's Pivot; Backspace, arrows, Ctrl+A/C/V, Escape and Tab work; Q R G E T W P don't switch tools while typing; the console key still opens the console
 Enforcer rig stage 1 (flat screen): Rig Studio > Subject: the enforcer; View > Range of Motion: sweep each joint, drag the limbs, Random Pose; Authored vs Old in the same pose (shoulders back, left arm across the chest, knees bent); the rifle in the hands; say which pivots or limits to change
