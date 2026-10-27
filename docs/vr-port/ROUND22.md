@@ -23620,6 +23620,8 @@ or move". Fix: gl_fog.c `Fog_FadeLeft` (no fade without a fade time; the share c
 Fog_GetColor, Fog_GetDensity. After (same save, same frames): 0 dark frames in 54 static (frame-to-frame 0.00), and
 while turning 1.5 deg/frame and walking 0 dark in 54 (max change 5.1, the view's own). `vr_lightstyle_comfort` only
 softened authored lamps, so its default goes back to 0 (the option stays: Comfort > Soften Flickering Lights).
+configVersion 208: a config still at beta4's 0.5 takes 0, any other value stays (checked with `vr_migrate_config`: a
+fresh config 0; 207 at 0.5 -> 0; 207 at 0.8 -> 0.8; a 0.5 chosen at 208 stays).
 Test: `vr_fog_check` (Debug > Fog Check): the fog set at once at 1000 clocks and a fade with the clock before its
 start: `fogcheck: 1002 passed, 0 failed`. Scene `ad_fog_flicker` (ad_azad at his save's spot).
 
