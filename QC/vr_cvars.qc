@@ -463,7 +463,7 @@ float cvarh_vr_agrunt_shotdisarm_window;
 float cvarh_vr_agrunt_shotdisarm_chance;
 float cvarh_vr_agrunt_shotdisarm_chance_scale;
 float cvarh_vr_agrunt_shotdisarm_cooldown;
-float cvarh_vr_agrunt_shotdisarm_absorb;
+float cvarh_vr_agrunt_shotdisarm_block;
 float cvarh_vr_agrunt_shotdisarm_w_pellet;
 float cvarh_vr_agrunt_shotdisarm_w_nail;
 float cvarh_vr_agrunt_shotdisarm_w_lightning;
@@ -1676,7 +1676,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_agrunt_shotdisarm_chance);
     VR_CVAR_HMAKE(vr_agrunt_shotdisarm_chance_scale);
     VR_CVAR_HMAKE(vr_agrunt_shotdisarm_cooldown);
-    VR_CVAR_HMAKE(vr_agrunt_shotdisarm_absorb);
+    VR_CVAR_HMAKE(vr_agrunt_shotdisarm_block);
     VR_CVAR_HMAKE(vr_agrunt_shotdisarm_w_pellet);
     VR_CVAR_HMAKE(vr_agrunt_shotdisarm_w_nail);
     VR_CVAR_HMAKE(vr_agrunt_shotdisarm_w_lightning);

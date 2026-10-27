@@ -1043,6 +1043,7 @@ constexpr const char* retiredCvars[] = {
     "vr_adgun_eliminator_speed",
     "vr_adgun_eliminator_splash",
     "vr_toolgun_menu_height", // 1.0.1's: the toolgun's own panel replaced its VR Settings pages (7baa39660)
+    "vr_agrunt_shotdisarm_absorb", // 2026-10-27: vr_agrunt_shotdisarm_block (on by default: a shot on the weapon stops there)
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

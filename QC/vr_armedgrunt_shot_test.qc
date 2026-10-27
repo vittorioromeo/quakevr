@@ -67,7 +67,7 @@ float(float c) VR_AGST_Setup =
     vr_agst_dual = FALSE;
     cvar_set("vr_agrunt_shotdisarm_parts", ftos(vr_agst_keep_parts));
     cvar_set("vr_agrunt_shotdisarm_size", ftos(vr_agst_keep_size));
-    cvar_set("vr_agrunt_shotdisarm_absorb", ftos(vr_agst_keep_absorb));
+    cvar_set("vr_agrunt_shotdisarm_block", "0"); // (the cases as measured: on into the body; case 14 stopped)
     if(c == 0) { vr_agst_name = "shotgun 2 m on the gun"; return TRUE; }
     if(c == 1) { vr_agst_name = "shotgun 5 m on the gun"; vr_agst_dist = 160; return TRUE; }
     if(c == 2) { vr_agst_name = "shotgun 15 m on the gun"; vr_agst_dist = 480; return TRUE; }
@@ -115,7 +115,7 @@ float(float c) VR_AGST_Setup =
     if(c == 14)
     {
         vr_agst_name = "absorb: shotgun 2 m on the gun";
-        cvar_set("vr_agrunt_shotdisarm_absorb", "1");
+        cvar_set("vr_agrunt_shotdisarm_block", "1");
         return TRUE;
     }
     if(c == 15)
@@ -233,7 +233,7 @@ void(float t) VR_AGS_TestFrame =
         {
             vr_agst_keep_parts = cvar("vr_agrunt_shotdisarm_parts");
             vr_agst_keep_size = cvar("vr_agrunt_shotdisarm_size");
-            vr_agst_keep_absorb = cvar("vr_agrunt_shotdisarm_absorb");
+            vr_agst_keep_absorb = cvar("vr_agrunt_shotdisarm_block");
             vr_agst_keep_disarm = cvar("vr_agrunt_fall_drop");
             cvar_set("vr_agrunt_fall_drop", "0"); // (only its shots: not a knockdown's drop)
             vr_agst_passed = 0;
@@ -242,6 +242,7 @@ void(float t) VR_AGS_TestFrame =
         if(!VR_AGST_Setup(vr_agst_case))
         {
             cvar_set("vr_agrunt_fall_drop", ftos(vr_agst_keep_disarm));
+        cvar_set("vr_agrunt_shotdisarm_block", ftos(vr_agst_keep_absorb));
             VR_AGST_Print(sprintf("done: %g passed, %g failed", vr_agst_passed, vr_agst_failed));
             pl.flags = pl.flags - (pl.flags & FL_NOTARGET);
             vr_agst_case = 0;

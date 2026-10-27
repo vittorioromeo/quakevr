@@ -136,7 +136,16 @@ fall. Test: `vr_agrunt_test 40`; eyeshots `vr_agrunt_test 14` with `scratch4 1` 
   `T_DamageDeal` (`VR_AGS_Hit`: splash; a player's shot skips `VR_AG_Hit`'s blow rule) and `VR_AG_WeaponStruck` (each
   held weapon's frame: the nails, rockets and grenades flying through it, the roll: `VR_AGS_Frame`). Each weapon keeps
   its own count on its prop (`.vr_ags_acc`): dual wielding needs nothing more.
-- Test `vr_agrunt_test 50` (`QC/vr_armedgrunt_shot_test.qc`); scenario `agrunt_shootout`.
+- The weapon stops the shot (`vr_agrunt_shotdisarm_block`, default 1, replacing `_absorb`): a pellet or a nail whose
+  first hit along its way is the weapon (its volume at size 1, crossing its line half a unit before the body:
+  `VR_AGS_Blocks`) stops there (`VR_AGS_Stopped`: sparks, a tink; no damage, no blood), each pellet on its own; the hand
+  first is the body's. Lightning and explosions are not stopped. Works with shot disarms off too.
+- Test `vr_agrunt_test 50` (`QC/vr_armedgrunt_shot_test.qc`; its cases with the block off, as measured); scenario
+  `agrunt_shootout`. Test `vr_agrunt_test 75` (`QC/vr_armedgrunt_downtug_test.qc`): weapon-only shots by held weapon
+  and player weapon, block off and on.
+- Grabbing a downed one's weapon: test `vr_agrunt_test 74` (same file): knocked down 4 ways, grabbed at 3 points while
+  down and getting up, pulled 3 ways; never stuck. The engine's ragdoll grab leaves a fist on an armed weapon to the
+  weapon's grab (`grabRagdoll`, as foegrab's `tryTake`).
 
 ## The toolgun's spawn page
 

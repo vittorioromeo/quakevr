@@ -267,6 +267,15 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 69: shoved over, lifted, slammed, judo-thrown, shoulder-charged (twice) and flung: "
                   "it keeps its weapon until its body meets the ground harder than Fall: Drops It on Impact "
                   "(agtest: holdon ...)."),
+        command("Armed Grunts: Grab a Downed One's Weapon", "vr_agrunt_test 74")
+            .help("vr_agrunt_test 74 (vrtesthall; a few minutes): shoved, charged, lifted, judo-thrown, then while "
+                  "it lies and as it gets up your hand grips its weapon (stock, grip, barrel) and pulls (slow, fast, "
+                  "stepping back): yours at once, a tug won, or let go, never stuck holding its body (agtest: downtug "
+                  "...). scratch1 a method, scratch2 a phase."),
+        command("Armed Grunts: Shots on the Weapon Alone", "vr_agrunt_test 75")
+            .help("vr_agrunt_test 75 (vrtesthall): a pellet, a revolver slug, a nail and a super shotgun blast through "
+                  "each held weapon into its holder, with Weapon Stops the Shot off and on: on, no damage and the shot "
+                  "stopped (per pellet); its head shot still hurts (agtest: weaponshot ...)."),
         command("Armed Grunts: Idle Re-Arm", "vr_agrunt_test 13")
             .help("vr_agrunt_test 13: you unseen, an unarmed armed grunt walks to a shotgun lying near and takes it."),
         command("Armed Grunts: Ragdolls Take Shots", "vr_agrunt_test 20")
