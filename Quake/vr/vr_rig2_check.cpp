@@ -1128,6 +1128,7 @@ void init()
     Cmd_AddCommand("vr_rig2_arms", armsReport_f);
     Cmd_AddCommand("vr_rig2_frames", framesCheck_f);
     Cmd_AddCommand("vr_rig2_live_check", liveCheck_f);
+    Cmd_AddCommand("vr_rig2_parts", partsReport_f);
 }
 
 } // namespace qvr::rig2

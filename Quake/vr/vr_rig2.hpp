@@ -195,6 +195,7 @@ void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
 void advanceLerps(); // VR_RagdollSwap (before the armed ones' arms): their frame lerps advanced, their .mdl drawn no more
 void liveAll();
 void armsReport_f(); // vr_rig2_arms: the arms laid on the authored rig since it last printed
+void partsReport_f(); // vr_rig2_parts: each authored ragdoll's parts as drawn, its joints' gaps
 void liveCheck_f();   // vr_rig2_live_check: the live ones drawn on the authored rig against their frames
 void framesCheck_f(); // vr_rig2_frames [model]: its frames against the authored joints as the ragdoll has them
 

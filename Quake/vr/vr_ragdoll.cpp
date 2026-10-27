@@ -1655,6 +1655,26 @@ bool fromAuthored(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table
                 }
             }
         }
+        // A small part (the neck, a clavicle: a few vertices of their own, a sliver of a hull) jointed between two
+        // big ones is too light for its joints (pulled apart, flung): a capsule along it as thick as its vertices lie
+        // from it (all of them weighing fitShare or more on it) gives it its body's share.
+        if(bone.joint != Joint::Loose && bone.points.size() < 24 && glm::length(bone.end - bone.pivot) > 0.5f)
+        {
+            const glm::vec3 a0 = bone.pivot, ab = bone.end - bone.pivot;
+            float sum = 0.f;
+            int n = 0;
+            for(const int v : reps)
+            {
+                if(weightOn(v, b) >= fitShare)
+                {
+                    const glm::vec3 p = m.at(0, v);
+                    const float u = za::clamp(glm::dot(p - a0, ab) / glm::dot(ab, ab), 0.f, 1.f);
+                    sum += glm::length(p - (a0 + ab * u));
+                    n++;
+                }
+            }
+            bone.capsule = za::clamp(n ? sum / static_cast<float>(n) : 1.5f, 1.f, 3.5f);
+        }
     }
     // Each frame's fits, parents first (the rig's order); a bone with too few vertices of its own carried by its parent.
     rig.poseRot.resize(static_cast<za::SizeT>(np * nb));

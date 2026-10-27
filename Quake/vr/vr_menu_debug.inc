@@ -422,6 +422,14 @@ za::Vector<Item> pageDebugLogging()
             .help("vr_debug_ragdoll_look: each ragdoll drawn in its model's rest pose where its entity stands, as its "
                   "skinned copy or as its own .mdl (the live monster's look): the two should look the same. "
                   "vr_ragdoll_draw_info in the console: the renderer's data for each that differ."),
+        toggle("Grunt on the Authored Rig (Next Map)", vr_rig2)
+            .help("vr_rig2: the grunt's authored rig in the game from the next map on (ROUND22.md, \"Grunt rig, stage 2\"): "
+                  "his ragdoll's bodies, joints and limits, his blended skin alive and dead, his hit reactions, an armed "
+                  "one's arms and legs on its bones. vr_rig2_arms prints how the arms sat on it, vr_rig2_live_check how a "
+                  "live one's drawn mesh follows its frames, vr_rig2_frames its frames against the joints' limits."),
+        cycle("Authored Rig: Live Grunts' Look Check", vr_rig2_look, {{0.f, "Off"}, {1.f, "As Their .mdl"}, {2.f, "Hidden"}})
+            .help("vr_rig2_look: vr_rig2 1's live grunts drawn with their own .mdl again instead of the authored rig's "
+                  "skinned copy, to compare the two in the same pose (pause the game, flip this), or hidden."),
         command("Print the Ragdolls' Drawing", "vr_ragdoll_draw_info")
             .help("vr_ragdoll_draw_info: each ragdoll drawn, the renderer's data for its skinned copy beside its .mdl's "
                   "(light, occlusion group, wounds, retro textures): the values that differ."),

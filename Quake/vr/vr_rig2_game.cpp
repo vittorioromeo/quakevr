@@ -389,7 +389,7 @@ void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
     agarms::Placed& placed, int pose1, int pose2, float blend)
 {
     const Rig* a = rigFor(rig.model);
-    if(!a || a->numBones != rig.numBones || !e || e->model != rig.model)
+    if(!a || a->numBones != rig.numBones || !e || e->model != rig.model || vr_rig2_look.value == 1.f)
     {
         return;
     }
@@ -410,7 +410,7 @@ void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
     {
         placed.weapon[s] = compose(corr[s], placed.weapon[s]);
     }
-    drawLive(num, rig.model, F, rig.numBones, hiddenOf(rig, pose1, pose2, blend));
+    drawLive(num, rig.model, F, rig.numBones, vr_rig2_look.value == 2.f ? ~0u : hiddenOf(rig, pose1, pose2, blend));
 }
 
 void advanceLerps()
@@ -444,7 +444,7 @@ void advanceLerps()
 
 void liveAll()
 {
-    if(!gameOn() || cls.state != ca_connected || !cl_entities)
+    if(!gameOn() || cls.state != ca_connected || !cl_entities || vr_rig2_look.value == 1.f)
     {
         return;
     }
@@ -477,7 +477,7 @@ void liveAll()
         {
             posed[b] = compose(kick[b], posed[b]);
         }
-        drawLive(num, e->model, posed, rig->numBones, hiddenOf(*rig, pose1, pose2, blend));
+        drawLive(num, e->model, posed, rig->numBones, vr_rig2_look.value == 2.f ? ~0u : hiddenOf(*rig, pose1, pose2, blend));
     }
 }
 
@@ -644,6 +644,42 @@ void liveCheck_f()
     if(!n)
     {
         Con_Printf("rig2 live: nothing drawn on the authored rig now\n");
+    }
+}
+
+// vr_rig2_parts: each ragdoll on an authored rig, each part's middle as drawn (world units) and how far its joint is from
+// its parent's (a joint pulled apart: an unstable ragdoll).
+void partsReport_f()
+{
+    for(int num = 1; num < cl.num_entities; num++)
+    {
+        glm::quat r0;
+        glm::vec3 p0;
+        float scale = 1.f;
+        const ragdoll::Rig* rig = nullptr;
+        if(!ragdoll::drawnPart(num, 0, r0, p0, scale, &rig) || !rig || !rig->authored)
+        {
+            continue;
+        }
+        Con_Printf("rig2 parts: ent %d\n", num);
+        for(int b = 0; b < rig->numBones; b++)
+        {
+            glm::quat r, rp;
+            glm::vec3 p, pp;
+            float s = 1.f;
+            if(!ragdoll::drawnPart(num, b, r, p, s))
+            {
+                continue;
+            }
+            const ragdoll::Bone& bone = rig->bones[b];
+            const glm::vec3 mid = r * ((bone.pivot + bone.end) * 0.5f * s) + p;
+            float gap = 0.f;
+            if(bone.parent >= 0 && ragdoll::drawnPart(num, bone.parent, rp, pp, s))
+            {
+                gap = glm::length((r * (bone.pivot * s) + p) - (rp * (bone.pivot * s) + pp));
+            }
+            Con_Printf("  %-11s at %7.1f %7.1f %7.1f, joint apart %.2f\n", bone.name, mid.x, mid.y, mid.z, gap);
+        }
     }
 }
 
