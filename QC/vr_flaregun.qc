@@ -52,6 +52,7 @@ float VR_FLAREGUN_BARREL_GAP = 2.3; // model units from the top bore's axis down
 .float vr_flare_born;   // ... when it was fired
 .float vr_flare_struck; // ... it has struck something that takes damage (once only)
 .float vr_flare_phase;  // ... its sway's phase (drifting)
+.vector vr_flare_last;  // ... where it was at its last look for ragdolls on its way (in flight)
 
 float vr_fg_shots;      // flares fired by players (tests)
 float vr_fg_dry;        // dry clicks (tests)
@@ -193,23 +194,28 @@ void(entity f, entity xFrom) VR_Flare_Drop =
     }
 };
 
-// A hit on `e` (it takes damage): vr_dmg_flaregun, and set on fire (vr_flare_burn); an explosive box goes off.
-void(entity f, entity e) VR_Flare_Strike =
+// Flare `f` sets `e` on fire where it meets it (vr_flare_burn; Quake VR's burning, as a lava nail).
+void(entity f, entity e) VR_Flare_Ignite =
 {
-    f.vr_flare_struck = TRUE;
-    vr_fg_hits++;
-    float dmg = VR_WpnDmg(f.owner, cvarh_vr_dmg_flaregun, 6);
-    vector dir = normalize(f.velocity);
-    float burn = cvar_hget(cvarh_vr_flare_burn) != 0;
-    if(burn && VR_Burn_Can(e))
+    if(cvar_hget(cvarh_vr_flare_burn) != 0 && VR_Burn_Can(e))
     {
-        VR_Burn_Ignite(e, f.owner, f.origin, dir, VR_BURN_NAIL); // (before its damage: a piece it lights burns, not bursts)
+        VR_Burn_Ignite(e, f.owner, f.origin, normalize(f.velocity), VR_BURN_NAIL);
         if(e.burn_fire != world)
         {
             vr_fg_ignited++;
             VR_Flare_Log(f, sprintf("set %s on fire", e.classname));
         }
     }
+};
+
+// A hit on `e` (it takes damage): vr_dmg_flaregun, and set on fire (vr_flare_burn); an explosive box goes off.
+void(entity f, entity e) VR_Flare_Strike =
+{
+    f.vr_flare_struck = TRUE;
+    vr_fg_hits++;
+    float dmg = VR_WpnDmg(f.owner, cvarh_vr_dmg_flaregun, 6);
+    float burn = cvar_hget(cvarh_vr_flare_burn) != 0;
+    VR_Flare_Ignite(f, e); // (before its damage: a piece it lights burns, not bursts)
     if(burn && (e.th_die == barrel_explode || e.classname == "misc_explobox" || e.classname == "misc_explobox2"))
     {
         dmg = max(dmg, e.health + 1); // (its burning flare in an explosive box: it goes off)
@@ -251,7 +257,8 @@ void() VR_Flare_Touch =
     {
         dir = '0 0 -1';
     }
-    if(other != world && other.takedamage && !self.vr_flare_struck && self.vr_flare_state == VR_FLARE_FLYING)
+    if(other != world && (other.takedamage || VR_Burn_Can(other)) && !self.vr_flare_struck &&
+       self.vr_flare_state == VR_FLARE_FLYING)
     {
         VR_Flare_Strike(self, other);
         if(self)
@@ -303,6 +310,53 @@ void(entity f) VR_Flare_Drift =
     VR_Flare_Log(f, "drifts down");
 };
 
+// A ragdoll on its way since its last look (a monster's: a corpse lying, a body knocked down; not solid, so its move
+// passes through them; ragdollinbox finds their parts), in steps of 8 units: a knocked-down one alive struck (damage,
+// fire), a dead one set on fire; the flare drops off it and burns at its feet (ROUND22.md, "Flares ignite ragdolls").
+// TRUE if it met one.
+float(entity f) VR_Flare_RagdollHit =
+{
+    vector a = f.vr_flare_last;
+    vector b = f.origin;
+    f.vr_flare_last = b;
+    float len = vlen(b - a);
+    if(len <= 0 || f.vr_flare_struck)
+    {
+        return FALSE;
+    }
+    float n = ceil(len / 8);
+    for(float i = 1; i <= n; i++)
+    {
+        vector p = a + (b - a) * (i / n);
+        entity r = ragdollinbox(p - '4 4 4', p + '4 4 4', world);
+        while(r != world && (r == f.owner || !(r.flags & FL_MONSTER)))
+        {
+            r = ragdollinbox(p - '4 4 4', p + '4 4 4', r);
+        }
+        if(r != world)
+        {
+            setorigin(f, p);
+            if(r.health > 0 && r.takedamage)
+            {
+                VR_Flare_Strike(f, r);
+            }
+            else
+            {
+                f.vr_flare_struck = TRUE;
+                vr_fg_hits++;
+                VR_Flare_Ignite(f, r);
+            }
+            VR_Flare_Log(f, sprintf("met %s's ragdoll (%s)", r.classname, r.health > 0 ? "knocked down" : "dead"));
+            if(f)
+            {
+                VR_Flare_Drop(f, r);
+            }
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+
 void() VR_Flare_Think =
 {
     self.nextthink = time + 0.05;
@@ -316,6 +370,10 @@ void() VR_Flare_Think =
     self.alpha = left < VR_FLARE_FADE ? max(0.05, left / VR_FLARE_FADE) : 1;
     if(self.vr_flare_state == VR_FLARE_FLYING)
     {
+        if(VR_Flare_RagdollHit(self))
+        {
+            return;
+        }
         if(self.velocity != '0 0 0')
         {
             self.angles = vectoangles(self.velocity);
@@ -348,6 +406,7 @@ entity(vector xFrom, vector xDir, float xSpeed, vector xCarried) VR_Flare_Launch
     setmodel(f, "progs/vr_flare.mdl");
     setsize(f, '0 0 0', '0 0 0');
     setorigin(f, xFrom);
+    f.vr_flare_last = xFrom;
     f.velocity = xDir * xSpeed + xCarried;
     f.angles = vectoangles(f.velocity);
     f.touch = VR_Flare_Touch;
@@ -359,8 +418,17 @@ entity(vector xFrom, vector xDir, float xSpeed, vector xCarried) VR_Flare_Launch
     f.vr_flare_end = time + 10; // (still flying then: lost somewhere, out)
     f.vr_flare_up = xDir_z >= sin(max(0, cvar_hget(cvarh_vr_flare_air_pitch)) * 0.0174533);
     f.skin = VR_FLARE_FLYING;
+    VR_Proj_Mark(f); // (its move meets corpses, ragdolls knocked down or dead, gibs: they catch fire, as from a lava nail)
     VR_Flare_Hiss(f);
     return f;
+};
+
+// Whether flare `f` lies burning (stuck in a wall, on the floor; not its last fade) and sets alight what touches it
+// (vr_flare_burn): a body lying on it or by it, a monster walking over it (vr_burning.qc VR_Burn_MapBodyLook).
+float(entity f) VR_Flare_Lit =
+{
+    return f.vr_flare_state == VR_FLARE_STUCK && cvar_hget(cvarh_vr_flare_burn) != 0 &&
+           time < f.vr_flare_end - VR_FLARE_FADE;
 };
 
 // ----------------------------------------------------------------------------

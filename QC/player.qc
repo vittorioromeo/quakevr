@@ -116,7 +116,14 @@ void(float xHand)    player_stand1 =
 
 void(float xHand) player_run =
 {
-    VRSetWeaponFrame(xHand, 0);
+    // QVR: not for the guns whose frame is their own state, set every player frame (the nail pistol's slide, the
+    // revolver's hammer, the chainsaw's cord): this think's reset each 0.1 s while walking made a locked-back slide
+    // jitter (ROUND22.md, "Nail pistol slide jitters").
+    float w = VRGetWeapon(xHand);
+    if(w != WID_NAILPISTOL && w != WID_REVOLVER && w != WID_CHAINSAW)
+    {
+        VRSetWeaponFrame(xHand, 0);
+    }
 
     if(self.health <= 0)
     {

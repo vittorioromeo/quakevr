@@ -103,7 +103,9 @@ float(entity e) VR_Burn_Can =
     {
         return (e.flags & (FL_MONSTER | FL_CLIENT)) && e.takedamage;
     }
-    return cvar_hget(cvarh_vr_burn_corpses) && (e.flags & FL_MONSTER) && (e.vr_corpse || e.vr_corpse_dying);
+    // (A dead monster's ragdoll still dying, not yet armed as a corpse, too: a body the map's flames or a lying flare
+    // meet, VR_Burn_MapBodyLook, burns as a corpse does.)
+    return cvar_hget(cvarh_vr_burn_corpses) && (e.flags & FL_MONSTER) && (e.vr_corpse || e.vr_corpse_dying || isragdoll(e));
 };
 
 // A point from the body's origin in its yaw's axes, and back (no makevectors: callers' v_forward is kept). A crate's in
@@ -1700,6 +1702,7 @@ void() VR_Burn_LavaNailsWater =
 // brazier is not lit before the player comes). Three bodies a server frame, in turn: a room of 60 each looked at about
 // every 0.3 s, at a fixed cost a frame.
 entity vr_burn_mapbody_next;
+float(entity f) VR_Flare_Lit; // (vr_flaregun.qc: a flare burning where it lies is one of the flames)
 
 // Whether the box lo..hi comes within r of the upright flame z0..z1 over o.
 float(vector lo, vector hi, vector o, float z0, float z1, float r) VR_Burn_BoxNearFlame =
@@ -1767,6 +1770,15 @@ void(entity e) VR_Burn_MapBodyLook =
             got = VR_Burn_MapBodyFlame(e, t.origin, t.vr_flameprop == 2 ? 1 : 0);
         }
     }
+    // A flare burning where it lies (stuck, on the floor; vr_flaregun.qc): a small flame (ROUND22.md, "Flares ignite
+    // ragdolls").
+    for(t = find(world, classname, "vr_flare"); t && !got; t = find(t, classname, "vr_flare"))
+    {
+        if(VR_Flare_Lit(t))
+        {
+            got = VR_Burn_MapBodyFlame(e, t.origin, 0);
+        }
+    }
     if(!got || VR_Burn_InWater((e.absmin + e.absmax) * 0.5))
     {
         return;
@@ -1790,7 +1802,7 @@ void() VR_Burn_MapBodiesFrame =
         return;
     }
     if(vr_fire_spots <= 0 && find(world, classname, "light_torch_small_walltorch") == world &&
-       findflags(world, vr_flameprop, 3) == world)
+       findflags(world, vr_flameprop, 3) == world && find(world, classname, "vr_flare") == world)
     {
         return; // (no fire in the map)
     }

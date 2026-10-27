@@ -23758,3 +23758,112 @@ original black skin, but not all the way there". `Misc/quakevr/models_src/widowm
 Checked: `vr_ad_test 148` PASS (16 of 16); `vr_ad_test 149` 11 passed, 0 failed (`vr_weapon_grip_mode 1`, ad_dm1,
 `-game ad`); in-game A/B of the preview models at e1m1's start (low-impact eyes); eval.sh no verdict changes.
 - [ ] Widowmaker {test:widowmaker_art}: the 692 skin, much darker (near AD's black, not all the way) in a lit and a dark room; rust subdued, brass collars, rivets and the grips' bricks still readable up close.
+
+## Small fixes of 2026-10-27: nail pistol slide, revolver spin, flares on ragdolls, his weapon tuning, legs, QC warnings (worktree `dequant`, branch `agent/smallfix1027`)
+
+From his voice notes of 2026-10-27.
+
+### Nail pistol slide jitters (vrragtriggers_2026-10-27_01-52-06)
+- Cause: QC `player.qc` `player_run` (the run animation's think, every 0.1 s while moving) reset the hand's weapon frame
+  to 0; `VR_NailPistol_HandFrame` set it back to 1 (locked back, empty) the next player frame, so the client saw 0 in
+  about one frame of seven: the slide snapped forward and back while walking.
+- Fix: `player_run` leaves the frame alone for the guns that set their own frame every player frame: the nail pistol
+  (slide), the heavy revolver (hammer and trigger) and the chainsaw (the cord's handle).
+- Test: `vr_np_test 1` gains a check: walking empty for 99 frames (the run animation in 96 of them), the slide off its
+  locked-back frame in 14 before the fix, 0 after. 18 passed, 0 failed.
+
+### Revolver cylinder spun by accident while loading (01-55-41)
+- The other hand's swipe across the swung-out cylinder spun it; a hand holding a shell was already refused, but the
+  swipe away right after a shell went in (the hand empty again) spun it.
+- Now: no spin while the other hand holds anything, nor for `vr_revolver_spin_hold` (new, default 0.6 s; Reloading >
+  Heavy Revolver > Spinning It > Wait After Loading) after it held something or a shell went in (by hand or loose by
+  contact); and a more deliberate swipe: `vr_revolver_spin_speed` 0.5 -> 0.8 m/s (configVersion 209 moves configs at 0.5).
+  A refused swipe logs once (`vr_reload_debug`).
+- Test: `vr_rv_test 1` step 9: synthetic swipes (the off hand on the rim, moving round it): 0.04 s after a shell went in
+  (1.5 m/s) none, holding a shell none, a slow one (0.6 m/s) none, a deliberate one (1.5 m/s) spins: 0 0 0 1. 31/0.
+
+### Flares set ragdolls on fire (02-00-31)
+- Cause: a dead or knocked-down monster's ragdoll is SOLID_NOT (the physics body is the engine's), so a flare's move
+  (MOVETYPE_TOSS, not a marked projectile) passed straight through it; and `VR_Burn_Can` refused a dead ragdoll not yet
+  armed as a corpse (`vr_corpse`/`vr_corpse_dying` both 0: the state his notes show, "army_die10, a corpse, ragdoll").
+- Fix: a flying flare looks for monster ragdolls on its way each think (`VR_Flare_RagdollHit`: `ragdollinbox` in 8-unit
+  steps): a knocked-down one alive is struck (damage and fire), a dead one set on fire; the flare drops off it and burns
+  there. Flares are marked projectiles (`VR_Proj_Mark`; the engine's `VR_HitModelMoveFlags` now takes a marked
+  MOVETYPE_TOSS one too), so corpses lying still (touchable) and gibs are met as other missiles meet them. A flare
+  burning where it lies (stuck, on the floor) is one of the flames bodies catch fire from (`VR_Burn_MapBodyLook`, as
+  the map's flames: a corpse on it or a monster walking over it). `VR_Burn_Can` takes a dead monster's ragdoll.
+- Test: `vr_flare_test 1` steps 9-10: a grunt killed (its ragdoll lying): a flare into it sets it on fire (0.06 s), and
+  a flare lying burning under it sets it on fire (0.01 s); both failed before. 22 passed, 0 failed.
+- Note: marked MOVETYPE_TOSS projectiles now meet gibs and touchable corpses; AD's `VR_Proj_Mark`ed projectiles that use
+  toss (if any) do too, which is what their marking says.
+
+### His new weapons' tuning as the defaults (02-01-22)
+From his config of 2026-10-27 (`vr_propose_defaults` on it: every setting differing from the defaults; the new weapons'
+rows promoted). Weapon slots (index 37 the flare gun, cvars `_38`; index 38 the heavy revolver, `_39`), vr_wofs_version
+72 (`takeHis72`: each key taken where the config still holds the old default; hotspot 1's keys all taken where its type
+is still None):
+
+| setting | old | new |
+|---|---|---|
+| flare gun Pitch / Roll / Yaw | -6.85 / 0 / 0 | -6.744877 / -3.832096 / -0.04044 |
+| flare gun Offset X / Y / Z | -0.25 / 0.57 / 0.3 | 0.765076 / 1.031222 / -0.100414 |
+| flare gun hotspot 1 | off | cup (3): -4.024719 -0.87677 -3.507111, pitch 9.568427 yaw -3.31696 roll -16.47328 |
+| revolver Pitch / Roll / Yaw | -6.85 / 0 / 0 | -6.782438 / -5.777755 / -0.076681 |
+| revolver Offset X / Y / Z | -0.18 / 0.57 / -1.05 | 0.16323 / 0.93795 / -0.368335 |
+| revolver Two-Handed | Allowed | Allowed, No Stock (1) |
+| revolver hotspot 1 | off | cup (3): -3.181793 -1.014572 -3.803097, pitch 10.897823 yaw 7.086511 roll -18.555254, overlap 0.63 |
+
+Settings, configVersion 209 (a config still at the old default takes the new):
+
+| setting | old | new |
+|---|---|---|
+| vr_dmg_revolver | 26 | 28 |
+| vr_revolver_open_flick_speed / _angle | 350 / 30 | 400 / 120 |
+| vr_revolver_close_flick_speed / _angle | 300 / 25 | 350 / 75 |
+| vr_revolver_eject_rod_reach / _speed | 2.5 / 0.3 | 1 / 0.35 |
+| vr_revolver_spin_friction / _max | 720 / 1800 | 760 / 900 |
+| vr_revolver_hand_reach | 3 | 0.25 |
+| vr_revolver_spin_speed (ours, item 2) | 0.5 | 0.8 |
+| vr_reload_port_npistol_z / _radius | 0 / 1.5 | 1.5 / 1 |
+| nail pistol magazine (prop slot `_57`): Grip Mode, Grip X/Y/Z, Overlap | 2 (In the Palm), 0 0 0, 0.385 | 1, -3.4 -0.5 -3.3, 0.37 |
+
+- No differences from the defaults in his config for the nail pistol's slot (`_37`) or any `vr_flaregun_*`,
+  `vr_nailpistol_*`, `vr_flare_*` setting.
+- Not promoted (outside the three weapons, or not tuning): `vr_recoil_kick` 4.5 and `vr_recoil_rise` 7.5 (every gun's
+  kick; he may want them), the AD Plasma Gun's readout (`vr_wofs_wpntxt_*_36`), the armed grunts' tug/parry/dual
+  settings (`vr_agrunt_*`), `vr_prop_id_69/70` (held-object slots the loose revolver and nail pistol took, no values),
+  his toolgun, calibration, body, comfort, display and appearance settings.
+- At damage 28 with `vr_revolver_dmg_random` 0.15 a grunt's body shot reaches its 30 about half the time (one slug, was
+  always two); `vr_rv_test` accepts one slug when it rolled 30 or more. The test pins the flicks to the old thresholds it
+  was written for (his 120/75 degrees are more than the mock's one-frame turn gives) and puts them back after.
+- Checked (`scratch/mig_*.py`, `mig_run.sh`: his config with the keys at the old defaults, at the versions before): fresh
+  49/49, old 49/49 (all taken), changed 49/49 (a player's own x, hotspot type, hand reach, magazine grip and damage kept;
+  that hotspot's keys left as they were), his own 49/49.
+
+### Legs too long at the first start (vrstart_2026-10-27_01-24-52)
+- Cause: `vr_hands.cpp` `senseLean` took the head's standing height (it fits the drawn legs to it, vr_avatar.cpp
+  `legFit`, and lifts the pelvis) from the FIRST frame the head was over 85% of the Height setting. At the first start
+  that is often the headset lifted over the head as it is put on; the learnt height only sinks while the head is within
+  12 cm under it, so it stayed: legs fitted to a head 30-40 cm higher, the real head read as a crouch (bent knees).
+  A map load that disconnects resets it (hence "a reload fixes it").
+- Fix: the first standing height is taken from the head held steady (0.5 s within 3 cm) at a plausible standing height
+  (85% to 110% of the Height setting); until then the Height setting.
+- Measured (`scratch/legs_run.sh`, his config, fresh start, the mock's head at 1.95 m for the first 10 frames then
+  1.567): before, learnt 1.950, knees 0.444, ankles 0.076, the same after `map vrstart` again; after, learnt 1.567, knees
+  0.478, ankles 0.084, equal to the run without the lift and to after the reload.
+
+### QC compiler warnings (01-25-19)
+The solution's fteqcc with its flags (`-Wall -Wextra`): 5 before (and one of ours), 0 now, none silenced:
+- `vr_propimpact_test.qc:586`, `vr_armedgrunt_ammo_test.qc:235`: `strcat` takes two strings here, a third was dropped
+  (a test line lost its end): nested.
+- `vr_propimpact_test.qc:847`: a `sprintf` with 9 arguments (over 8): two prints on one line.
+- `vr_revolver_test.qc:663`: `th_pain = SUB_Null` (void()) -> `SUB_NullPain` (the pain function's type).
+- `vr_flaregun_test.qc:31`: `vr_flt_shots0` never used: gone.
+
+Checked: `vr_np_test 1` 18/0, `vr_rv_test 1` 31/0, `vr_flare_test 1` 22/0; e1m1 smoke; `vr_scenario runall` flaregun,
+revolver, nailpistol OK; eval.sh: no verdict changes (PASS -> PASS only; small number jitter).
+- [ ] Nail pistol {test:nailpistol}: empty (slide locked back), walk about with the thumbstick: the slide stays back, still.
+- [ ] Heavy revolver {test:revolver}: load shells by hand one after another: the cylinder never spins by accident; a deliberate swipe across it (empty hand, a moment after loading) still spins it.
+- [ ] Flare gun {test:flaregun}: kill the grunt, then a flare into its ragdoll sets it on fire; a flare lying burning under a corpse lights it too.
+- [ ] Your flare gun and heavy revolver grips (poses, cup hotspots, the revolver's Two-Handed No Stock), revolver flicks, rod, spin, damage 28 and the nail pistol's well and magazine grip are the defaults now: feel the same as yours.
+- [ ] First start from scratch: put the headset on after the game is up; the legs fit (not long, knees not bent), the same as after reloading the map.

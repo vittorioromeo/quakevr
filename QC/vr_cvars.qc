@@ -313,6 +313,7 @@ float cvarh_vr_revolver_eject_rod_reach;
 float cvarh_vr_revolver_eject_rod_speed;
 float cvarh_vr_revolver_spin;
 float cvarh_vr_revolver_spin_speed;
+float cvarh_vr_revolver_spin_hold;
 float cvarh_vr_revolver_spin_mult;
 float cvarh_vr_revolver_spin_friction;
 float cvarh_vr_revolver_spin_max;
@@ -1519,6 +1520,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_revolver_eject_rod_speed);
     VR_CVAR_HMAKE(vr_revolver_spin);
     VR_CVAR_HMAKE(vr_revolver_spin_speed);
+    VR_CVAR_HMAKE(vr_revolver_spin_hold);
     VR_CVAR_HMAKE(vr_revolver_spin_mult);
     VR_CVAR_HMAKE(vr_revolver_spin_friction);
     VR_CVAR_HMAKE(vr_revolver_spin_max);

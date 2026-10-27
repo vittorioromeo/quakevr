@@ -579,11 +579,12 @@ void() VR_PropImp_FtStep =
         }
         float dmg = hurt ? vr_propimp_ft_h0 - m.health : (vr_propimp_ft_frames >= VR_PROPIMP_FT_GIVEUP ? -1 : 0);
         float whole = !tank || (t.modelindex && t.health == t.max_health && vr_fueltank_bursts == vr_propimp_ft_bursts);
+        // (strcat takes two strings: a third was dropped)
         bprint(strcat(sprintf("fueltankhit: %s (%.1f kg) at %g m/s into the %s: ", tank ? "fuel tank" : "small crate",
             propvalue(t, "mass"), speed, ogre ? "ogre" : "grunt"),
-            sprintf("%s after %g frames%s", dmg < 0 ? "no hit" : sprintf("%.1f damage", dmg), vr_propimp_ft_frames,
+            strcat(sprintf("%s after %g frames%s", dmg < 0 ? "no hit" : sprintf("%.1f damage", dmg), vr_propimp_ft_frames,
             tank ? (whole ? ", the tank whole" : ", the tank hurt or burst") : ""),
-            sprintf(" (it at %v, the monster's middle %v)\n", t.origin, (m.absmin + m.absmax) * 0.5)));
+            sprintf(" (it at %v, the monster's middle %v)\n", t.origin, (m.absmin + m.absmax) * 0.5))));
         if(tank)
         {
             vr_propimp_ft_tankdmg = dmg;
@@ -843,8 +844,9 @@ void() VR_PropImp_FhStep =
         string into = onYou ? "you" : "a grunt";
         if(c == 7) { what = "your hand's flail head"; }
         if(c == 9) { what = "its own dropped flail head"; }
-        bprint(sprintf("flailhead_hit: %s (%.1f kg) %s at %g m/s into %s: %.1f damage, %g hits, %g spared\n", what,
-            vr_propimp_fh_mass, how, speed, into, dmg, vr_propimp_fh_hits, spared));
+        // (sprintf takes at most 8 arguments: two prints)
+        bprint(sprintf("flailhead_hit: %s (%.1f kg) %s at %g m/s into %s", what, vr_propimp_fh_mass, how, speed, into));
+        bprint(sprintf(": %.1f damage, %g hits, %g spared\n", dmg, vr_propimp_fh_hits, spared));
         float ok = -1;
         if(c < 6 && !crate)
         {

@@ -1206,6 +1206,9 @@ void resetHandMoves()
                   "which chamber comes under the hammer next."),
         slider("Swipe Speed", "vr_revolver_spin_speed", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f)
             .help("How fast a swipe must cross it."),
+        slider("Wait After Loading", "vr_revolver_spin_hold", 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 10.f)
+            .help("No spin while the other hand holds a shell (or anything), nor this long after it let go or the shell "
+                  "went in: loading a chamber doesn't spin it by accident."),
         slider("Spin Strength", "vr_revolver_spin_mult", 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("How fast a swipe spins it, times."),
         slider("Spin Friction", "vr_revolver_spin_friction", 0.f, 3000.f, 20.f, "%.0f deg/s2").extend(0.f, 20000.f)
