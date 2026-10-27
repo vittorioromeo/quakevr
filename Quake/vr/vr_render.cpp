@@ -11,6 +11,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_render.hpp"
 #include "vr_engine.hpp"
+#include "vr_agarmor.hpp"
 #include "vr_anchor.hpp"
 #include "vr_avatar.hpp"
 #include "vr_client.hpp"
@@ -302,6 +303,10 @@ extern "C" int VR_AliasNearEye(const entity_t* e, const float matrix[16], const 
 
 extern "C" void VR_AliasPreTransform(const entity_t* e, float matrix[16])
 {
+    if(const entity_t* body = agarmor::sourceOf(e))
+    {
+        e = body; // an armed humanoid's armour: placed as its body is (vr_agarmor.cpp)
+    }
     applyPre(e, VR_AliasMirrored(e), nullptr, networkData(e), matrix);
     hitreact::tiltModel(e, matrix); // a living monster struck, with no rig to kick: tilted (vr_hitreact.cpp)
     flamewobble::leanModel(e, matrix); // a map flame stirred by a fast hand (vr_flamewobble.cpp)
@@ -310,6 +315,10 @@ extern "C" void VR_AliasPreTransform(const entity_t* e, float matrix[16])
 
 extern "C" void VR_AliasPostTransform(const entity_t* e, float matrix[16])
 {
+    if(const entity_t* body = agarmor::sourceOf(e))
+    {
+        e = body; // (as its body)
+    }
     if(ragdoll::drawMatrix(e, matrix))
     {
         return; // a ragdoll: placed where its bones are given from (vr_ragdoll.cpp)

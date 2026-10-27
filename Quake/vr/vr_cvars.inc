@@ -3724,7 +3724,15 @@ QVR_CVAR(vr_rig2_clavicle, "0.6", CVAR_NONE)            // vr_rig2 1: an armed g
 QVR_CVAR(vr_rig2_arm_clear, "6", CVAR_NONE)            // vr_rig2 1: an armed one whose upper arm is in its torso has its wrist turned out at most this much with a hand on a weapon (degrees; vr_agarms' 6)
 QVR_CVAR(vr_rig2_game, "0", CVAR_NONE)              // (set by the engine, not by hand) vr_rig2 as read when this map was spawned: the grunt on the authored rig now (QC: its armed grunts' shoulders, vr_armedmon.qc)
 QVR_CVAR(vr_rig2_look, "0", CVAR_NONE)                // vr_rig2 1's look check: 1 the live grunts drawn with their own .mdl again (not the authored rig's skinned copy: the two compared, the same pose), 2 hidden (the comparison's background)
-QVR_CVAR(vr_rig2_dq, "0", CVAR_NONE)                  // 1: the authored rig skinned with dual quaternions (no candy wrapper at a twist; vr_rig2_check, the Rig Studio's Shaded display); 0: linear blend
+QVR_CVAR(vr_agarmor, "0", CVAR_NONE)                  // debug (P0, vr_agarmor.cpp): armour shells on every armed humanoid drawn on its authored rig (P0: the grunt): 0 none, 1 green, 2 yellow, 3 red, 4 one of each by entity number (vr_agarmor_set per entity)
+QVR_CVAR(vr_agarmor_pieces, "3", CVAR_NONE)           // vr_agarmor: the pieces worn: 1 the cuirass, 2 the helmet (a mask)
+QVR_CVAR(vr_agarmor_thick, "0.6", CVAR_NONE)          // vr_agarmor: a plate's thickness (units; read when the shells are made: vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_gap, "0.25", CVAR_NONE)           // vr_agarmor: the plates' gap off the body (units; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_smooth, "6", CVAR_NONE)           // vr_agarmor: the plates' smoothing passes (Taubin; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_subdiv, "1", CVAR_NONE)           // vr_agarmor: the plates' subdivisions of the body's triangles (0-2; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_brow_back, "0.25", CVAR_NONE)     // vr_agarmor: the helmet's edge at the back of the head (the head bone's share up it; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_brow_front, "0.6", CVAR_NONE)     // vr_agarmor: ... at the front (its brow: above the eyes)
+QVR_CVAR(vr_rig2_dq, "0", CVAR_NONE)                 // 1: the authored rig skinned with dual quaternions (no candy wrapper at a twist; vr_rig2_check, the Rig Studio's Shaded display); 0: linear blend
 QVR_CVAR(vr_rigseq, "1", CVAR_NONE)                  // 1: the files' override tracks and the sequences QC starts drawn on the rigged monsters (vr_rigseq.cpp); 0: never (nothing changes without the files)
 QVR_CVAR(vr_rigseq_debug, "0", CVAR_NONE)             // 1: each sequence started, stopped and each event sent to QC printed (rigseq:)
 QVR_CVAR(vr_rigstudio_map, "vrtesthall", CVAR_NONE)   // the room vr_rigstudio loads (its subject at the middle of the free floor ahead)

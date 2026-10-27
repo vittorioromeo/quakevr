@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_avatar.hpp"
+#include "vr_agarmor.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
@@ -2894,6 +2895,10 @@ extern "C" int VR_AliasShadowBonePoses(const entity_t* e, const float** matrices
 extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
 {
     using namespace qvr::avatar;
+    if(const int armour = qvr::agarmor::bonePoses(e, matrices))
+    {
+        return armour; // an armed humanoid's armour: its body's bones as drawn (vr_agarmor.cpp)
+    }
     if(const int hand = qvr::view::handBonePoses(e, matrices))
     {
         return hand; // the jointed hands (vr_handrig.cpp)

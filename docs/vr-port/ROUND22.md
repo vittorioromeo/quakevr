@@ -25167,6 +25167,88 @@ Checklist lines (suggested):
 - `Setup (installer): Options: Arcane Dimensions row: off by default, "306 MB download, about 792 MB on disk"; with AD in your Steam Quake folder it says "Found in ...: will be used" and is disabled`
 - `Setup: tick Arcane Dimensions on a PC without it (or rename your ad folder): it downloads last, installs into QuakeVR\ad, Official Campaigns > Arcane Dimensions: experimental starts it`
 - `Setup: cancel during the Arcane Dimensions download: Quake VR is installed, the Done page says how to add AD later; Setup again shows "Add Arcane Dimensions" on the Update screen`
+
+## Armour for armed humanoids, P0: the spike (worktree `tghost`, branch `agent/armorp0`, 2026-10-28)
+
+The research (`qvr-kit/scratch/research_agarmor.md`, approach B) with Vittorio's decisions (recorded there under
+"Decisions"): authored rig only (no `vr_rig2` read: the old rig is going, agent/rig2only), plates generated from the
+model's own mesh first, the player's absorb rule customizable with a block-until-broken option, helmets absorb and
+block/halve head pops (customizable), blades can't cut an armoured limb until its plate breaks, Quad Damage does not
+ignore armour, broken plates are non-grabbable debris that fade, player parity in the backlog, no free set for the
+enforcer. P0 is the grunt's cuirass and helmet, drawn only: no gameplay, nothing changes unless `vr_agarmor` is set.
+
+**The generator** (`Quake/vr/vr_agarmor.cpp`, run when `"<model>#armor"` loads; ~1 ms): the .mdl's rest pose as drawn
+(`mdldequant::restVertex`, welded) and its authored rig's weights; per piece a field over the vertices (the cuirass:
+weight on spine + chest minus 0.5; the helmet: weight on the head minus 0.5, and above a brow line in the head bone's
+frame, `vr_agarmor_brow_back` 0.25 of the head's length at the back to `_brow_front` 0.6 in front), the triangles
+clipped along its zero line (marching triangles: a clean edge, not the mesh's stair steps), stray patches dropped,
+subdivided once (`vr_agarmor_subdiv` 1), Taubin-smoothed (`_smooth` 6 passes; the open edge along itself), each vertex
+pushed back out wherever smoothing sank it under the body, then offset along its normal: the inner layer a gap off the
+body (`_gap` 0.25), the outer a plate's thickness further (`_thick` 0.6), a rim quad along every open edge: a closed
+two-sided shell. Each vertex weighted like the body under it (four heaviest bones). Texture coordinates into one atlas:
+the cuirass round the torso (front in the middle, the seam down the back) and up it; the helmet a disc from above whose
+rim follows the open edge's height per angle; the inner padding and the rims their own blocks. `vr_agarmor_rebuild`
+makes them again after a setting changes.
+
+**The skins** (`Misc/quakevr/make_agarmor.py` -> `quakevr/progs/vragarmor.mdl`, 256 x 128, skins 0 green, 1 yellow,
+2 red; deterministic, the same bytes twice; needs numpy through make_vrbody: `py -3.13`): the cuirass painted by the
+player's own `armor_texel` (five lames, rolled lit edges, rivets, side straps, scratches) in `ARMOR_RAMPS`; the helmet a
+lit dome with a crest front to back, twelve rivets above a rolled rim; dark quilted padding inside; lit rims.
+
+**Drawing**: one extra entity per armoured body, added in `VR_Rig2Swap` after the authored rig's swaps (live grunts,
+ragdolls and the Rig Studio's subject all draw as `"<model>#rig2"`). Its bones are its body's as drawn
+(`VR_AliasBonePoses` of the body: IK, the IK stretch, hit reactions, ragdolls, a hidden or cut part collapsed alike) and
+it is placed as its body is (`VR_AliasPre/PostTransform` take the body: a ragdoll's own draw matrix). Each piece's bones
+are its own slots of the armour model's 16 bones, so a piece is hidden by zeroing its slots (the body's `hidden` way):
+one draw per armoured body. Who wears what: `vr_agarmor` (0 none, 1 green, 2 yellow, 3 red, 4 one of each by entity
+number), `vr_agarmor_pieces` (1 cuirass, 2 helmet), `vr_agarmor_set <entity> <type> [pieces]` per entity
+(`agarmor::setWorn`, the P1 message's entry). Debug > (Rig Studio section): Armed Humanoids' Armour (P0), Armour
+Pieces, Check the Armour's Fit. P0 wearers: `progs/vrgrunt.mdl` and `progs/soldier.mdl`. Shared files touched: one line
+each in `vr_ragdoll.cpp` (`VR_SyntheticModel`, `VR_Rig2Swap`), `vr_avatar.cpp` (`VR_AliasBonePoses`), `vr_render.cpp`
+(the two transforms), `vr_main.cpp` (init), cvars and the Debug menu.
+
+**Triangles**: vrgrunt 2140 a body (cuirass 1772, helmet 368; 1912 vertices, 16 bone slots) over its own 694; the
+body's welded mesh 350 vertices. `subdiv 0` would be about a quarter (not measured).
+
+**Fit** (`vr_agarmor_check [model] [random poses]`, ends on `agarmor check: N passed, M failed`; 5/5 pass: made, made
+alike twice (hash 99d662c4), closed (0 open edges), at most 2500 triangles, the rest pose sane). Measured by winding
+numbers: body vertices inside a plate's closed shell, and plate outer vertices inside the body, bucketed by the vertex's
+heaviest bone (neck = neck/head, shoulders = clavicles/arms, waist = pelvis/legs, torso = spine/chest); the poses count
+only what their motion adds over the rest pose. Rest pose: 63 of 552 outer plate vertices lie inside the body (under the
+baked-in shoulder pads and where the arms hang against the torso: hidden by them), 3 body vertices inside a plate's rim,
+at most 0.27 deep. Joint sweeps (spine, chest, neck, head, clavicles, upper arms, thighs: 100 poses at their limits):
+body into the cuirass's edge at most 0.28 deep (neck 10, shoulders 50, torso 21 vertex-poses), helmet clean; plate in
+body: torso 272 vertex-poses up to 1.03 (the arms swung across the chest pass through the plate as they pass through the
+torso), shoulders 7 (0.16). Thighs: nothing. Worst joint: the right upper arm forward and in (28). 200 random ragdoll
+poses: body into the cuirass up to 0.28 (neck 84, shoulders 288, torso 272), the helmet's rim 0; plate in body: torso
+1965 up to 1.11 (arms through the chest), waist 23 (1.08: a thigh up into the cuirass's lower edge), helmet 16 (0.98:
+the head bent hard into the chest). So the plates never part from the body (they ride its weights) and the body crosses
+a plate only by a quarter unit at its edges; what shows is the low-poly arms through the chest as they already go
+through the torso. 3.8 s for 301 poses.
+
+**Cost** (16 grunts standing in view on vrfiringrange plus its dummy, `--lto`, `--exclusive`, fast frames, two
+alternations of 600 frames): off 1.294 / 1.287 ms a frame (CPU busy 1.227 / 1.252, GPU eyes 0.855 / 0.841), armoured
+1.368 / 1.381 (CPU 1.326 / 1.328, GPU 0.970 / 0.951): +0.08 ms a frame, CPU +0.09 ms, GPU +0.11 ms for 17 x 2140
+triangles, one extra draw each (eyes and shadows). The headless mock's eyes (low-res): the GPU share at a headset's
+2k eyes is mostly vertex work and should scale little.
+
+**Eyeshots** (`scratch/armorp0_sheet.png`: green, yellow, red at rest from front, side and back in the Rig Studio's
+Range of Motion; the shotgun's aim and the run from front, side, back; a ragdoll on vrfiringrange, green and red).
+`scratch/eyes_rest.txt`, `eyes_act.txt`, `eyes_rag.txt` are the scripts (`scratch/eyes.sh` flat screen,
+`eyes_vr.sh` headless); `scratch/gen_cost.py` writes the cost scene.
+
+**Tests**: `vr_agarmor_check` 5/5; `vr_rigstudio_rom test` 9/9 and `vr_rigstudio_test_subjects` 14/14 with
+`vr_agarmor 4`; build 0 QC warnings; eval.sh: no verdict changes (163/171 as before; only numeric drift).
+
+**P1 needs**: the per-piece pool and type in QC (`.vr_ar_hp[]`), the `T_Damage` hook and a `ragdollbone` builtin for the
+piece hit, a `QVR_SVC_ARMOR` message calling `agarmor::setWorn` (mask and type per entity, damage bits for a skin's
+scratches: the shader or 3 x damage skins), the enforcer's shells (its own rig: `wearers`), a break (the slots
+collapsed, the P3 debris from the same shell), the absorb/block/helmet/blade/quad rules as settings, and the decision on
+`subdiv` (detail vs triangles). Possible polish: lames as geometry on the cuirass, a rolled lip on the rims, the
+cuirass's seam mapped round its own outline (its lames run straight round, cut at the shoulders).
+
+Checklist:
+- `[ ] Armour P0 {test:none}: Rig Studio (vr_rig2 1, Debug > Armed Humanoids' Armour (P0): Green/Yellow/Red): cuirass and helmet on the grunt fit at rest, in Range of Motion sweeps and Random Pose; in a map with vr_rig2 1 and vr_agarmor 4 live grunts, hit reactions and ragdolls keep their plates; judge the look (generated plates vs hand-made)`
 ## Armed humanoids: the stuck tug after a knockdown; a shot on the weapon hurts only the weapon (worktree `gorefx`, branch `agent/agtughit`, 2026-10-28)
 
 His notes: "after an armed humanoid is shoved to the ground, sometimes grabbing their weapon doesn't work: I'm stuck in
