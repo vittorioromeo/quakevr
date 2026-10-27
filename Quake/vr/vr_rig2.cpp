@@ -61,6 +61,7 @@ struct Drawn
     float lerpStart{0.f}, lerpTime{0.f};
     byte lerpFlags{0};
     bool swapped{false};
+    int drawsFrame{-1}, draws{0}, lastDraws{0}; // its bone matrices handed to the renderer (vr_rig2_draw_info)
 };
 za::Vector<Drawn> drawn;
 // The generation each skinned model was made from (rebuilt when the rig's weights change: a reload)
@@ -68,8 +69,66 @@ struct Made
 {
     qmodel_t* mod{nullptr};
     int generation{-1};
+    double aoLookedAt{-1.0}; // its occlusion looked for (made before it was baked: once a second until it is)
 };
 za::Vector<Made> made;
+
+// The skinned model's vertices shaded as the game draws its .mdl's rest pose (pose 0) through the alias renderer
+// (gl_mesh.c, PV_QUAKE1): its dequantised place (vr_mdl_dequant's offset from the stored bytes), its smoothed normal
+// (vr_mdl_dequant's, else the table's), its own baked occlusion (vr_ao.cpp; negated in the normal's 4th byte, the
+// shaders' PoseAO; 0: none yet). The bones' blend moves the places and turns the normals (the alias shader).
+// Returns whether its occlusion was there to fill.
+bool shadeLikeMdl(qmodel_t* src, const aliashdr_t* sh, iqmvert_t* verts, int numVerts)
+{
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(sh) + sh->meshdesc);
+    const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(sh) + sh->vertexes); // pose 0
+    const bool dequant = sh->dequant && sh->dequantready && VR_MdlDequantOn();
+    const auto* frac = dequant ? reinterpret_cast<const unsigned*>(reinterpret_cast<const byte*>(sh) + sh->dequant) : nullptr;
+    const unsigned* smooth = frac ? frac + static_cast<size_t>(sh->numposes) * static_cast<size_t>(sh->numverts) : nullptr;
+    const unsigned char* ao = VR_AliasVertexAO(src, sh); // [pose * numverts + vertex], 255 open
+    const auto snorm = [](unsigned packed, int i) { return za::clamp(static_cast<float>(static_cast<signed char>((packed >> (8 * i)) & 255u)) / 127.f, -1.f, 1.f); };
+    for(int v = 0; v < numVerts; v++)
+    {
+        const int mv = desc[v].vertindex;
+        const trivertx_t& t = tv[mv];
+        iqmvert_t& o = verts[v];
+        const unsigned f = frac ? frac[mv] : 0u;
+        for(int i = 0; i < 3; i++)
+        {
+            const float step = static_cast<float>(t.v[i]) + (f ? snorm(f, i) * 0.5f : 0.f);
+            o.xyz[i] = step * sh->scale[i] + sh->scale_origin[i];
+            o.norm[i] = smooth ? static_cast<int8_t>(static_cast<signed char>((smooth[mv] >> (8 * i)) & 255u))
+                               : static_cast<int8_t>(127.f * r_avertexnormals[t.lightnormalindex][i]);
+        }
+        o.norm[3] = ao ? static_cast<int8_t>(-za::clamp(static_cast<int>(static_cast<float>(ao[mv]) * (127.f / 255.f) + 0.5f), 1, 127)) : 0;
+    }
+    return ao != nullptr;
+}
+
+// A skinned model made before its .mdl's occlusion was baked (queued then): filled once it is, looked for once a second.
+void catchUpAO(qmodel_t* sk, qmodel_t* src)
+{
+    auto* hdr = static_cast<aliashdr_t*>(Mod_Extradata(sk));
+    auto* verts = hdr ? reinterpret_cast<iqmvert_t*>(reinterpret_cast<byte*>(hdr) + hdr->vertexes) : nullptr;
+    const auto* sh = src ? static_cast<const aliashdr_t*>(Mod_Extradata(src)) : nullptr;
+    if(!verts || !sh || hdr->numverts_vbo <= 0 || verts[0].norm[3] < 0)
+    {
+        return;
+    }
+    for(Made& m : made)
+    {
+        if(m.mod != sk || (realtime - m.aoLookedAt < 1.0 && realtime >= m.aoLookedAt))
+        {
+            continue;
+        }
+        m.aoLookedAt = realtime;
+        if(VR_AliasVertexAO(src, sh) && shadeLikeMdl(src, sh, verts, hdr->numverts_vbo))
+        {
+            GLMesh_DeleteVertexBuffer(sk);
+            GLMesh_LoadVertexBuffer(sk, hdr);
+        }
+    }
+}
 
 // ---- Words of a line ----
 struct Words
@@ -777,6 +836,7 @@ void swapModels()
         {
             continue;
         }
+        catchUpAO(sk, const_cast<qmodel_t*>(d.model));
         d.original = e->model;
         d.skinned = sk;
         d.previousPose = e->previouspose;
@@ -819,18 +879,96 @@ int bonePoses(const entity_t* e, const float** matrices)
     {
         return 0;
     }
-    for(const Drawn& d : drawn)
+    for(Drawn& d : drawn)
     {
         if(d.swapped && e->model == d.skinned && e == &cl_entities[d.num])
         {
-            if(matrices)
+            if(!matrices)
             {
-                *matrices = d.skin;
+                return d.bones;
             }
+            *matrices = d.skin;
+            if(d.drawsFrame != host_framecount)
+            {
+                d.lastDraws = d.drawsFrame == host_framecount - 1 ? d.draws : 0;
+                d.drawsFrame = host_framecount;
+                d.draws = 0;
+            }
+            d.draws++;
             return d.bones;
         }
     }
     return 0;
+}
+
+const qmodel_t* sourceModel(const entity_t* e)
+{
+    if(!e || drawn.empty() || !cl_entities)
+    {
+        return nullptr;
+    }
+    for(const Drawn& d : drawn)
+    {
+        if(d.swapped && e->model == d.skinned && e == &cl_entities[d.num])
+        {
+            return d.original;
+        }
+    }
+    return nullptr;
+}
+
+void drawInfo()
+{
+    const auto model = [](const char* what, const qmodel_t* m) {
+        const auto* h = m && m->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(m))) : nullptr;
+        if(!h)
+        {
+            Con_Printf("  %s: none\n", what);
+            return;
+        }
+        int surfaces = 0;
+        for(const aliashdr_t* s = h; s; s = Mod_NextSurface(const_cast<aliashdr_t*>(s)))
+        {
+            surfaces++;
+        }
+        const gltexture_t* t = h->gltextures[0][0];
+        const gltexture_t* n = t ? TexMgr_NormalMap(const_cast<gltexture_t*>(t)) : nullptr;
+        Con_Printf("  %s: %s pv %d surfaces %d verts %d tris %d poses %d bones %d dequant %d flags %d\n", what, m->name,
+            static_cast<int>(h->poseverttype), surfaces, h->numverts_vbo, h->numtris, h->numposes, h->numbones, h->dequant ? 1 : 0, m->flags);
+        Con_Printf("  %s skin: %s %dx%d (source %ux%u) flags 0x%x; fullbright %s; normal map %s %dx%d\n", what, t ? t->name : "-",
+            t ? t->width : 0, t ? t->height : 0, t ? t->source_width : 0u, t ? t->source_height : 0u, t ? static_cast<unsigned>(t->flags) : 0u,
+            h->fbtextures[0][0] ? h->fbtextures[0][0]->name : "-", n ? n->name : "-", n ? n->width : 0, n ? n->height : 0);
+    };
+    if(drawn.empty())
+    {
+        Con_Printf("rig2 draw: nothing drawn on the authored rig\n");
+    }
+    for(const Drawn& d : drawn)
+    {
+        Con_Printf("rig2 draw: entity %d, published frame %d (now %d), swapped %d, drawn %d times last frame\n", d.num, d.frame,
+            host_framecount, d.skinned ? 1 : 0, d.drawsFrame >= host_framecount - 1 ? (d.drawsFrame == host_framecount ? d.draws : d.lastDraws) : 0);
+        model("old", d.model);
+        model("authored", d.skinned);
+        if(d.num > 0 && d.num < cl_max_edicts && cl_entities)
+        {
+            // the per-model shading the renderer looks up (retro textures and lighting: by the model, its name and skin)
+            entity_t e = cl_entities[d.num];
+            for(int k = 0; k < 2; k++)
+            {
+                qmodel_t* m = const_cast<qmodel_t*>(k == 0 ? d.model : d.skinned);
+                const auto* h = m && m->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(m)) : nullptr;
+                if(!h)
+                {
+                    continue;
+                }
+                e.model = m;
+                float retro[4], part[4];
+                VR_RetroAlias(&e, h, 1, retro, part);
+                Con_Printf("  %s retro: set %g, Quake skin %gx%g, light texel share %g\n", k == 0 ? "old" : "authored", retro[0],
+                    retro[1], retro[2], VR_RetroLightSkinScale(m, h, e.skinnum));
+            }
+        }
+    }
 }
 
 bool makeSkinnedModel(qmodel_t* mod)
@@ -905,18 +1043,11 @@ bool makeSkinnedModel(qmodel_t* mod)
         }
     }
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(sh) + sh->meshdesc);
-    const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(sh) + sh->vertexes); // pose 0
+    (void)shadeLikeMdl(src, sh, verts, numVerts); // (its occlusion later if not baked yet: swapModels)
     for(int v = 0; v < numVerts; v++)
     {
         const int mv = desc[v].vertindex;
-        const trivertx_t& t = tv[mv];
         iqmvert_t& o = verts[v];
-        for(int i = 0; i < 3; i++)
-        {
-            o.xyz[i] = t.v[i] * sh->scale[i] + sh->scale_origin[i];
-            o.norm[i] = static_cast<int8_t>(127.f * r_avertexnormals[t.lightnormalindex][i]);
-        }
-        o.norm[3] = 0;
         o.st[0] = (static_cast<float>(desc[v].st[0]) + 0.5f) / static_cast<float>(TexMgr_PadConditional(sh->skinwidth));
         o.st[1] = (static_cast<float>(desc[v].st[1]) + 0.5f) / static_cast<float>(TexMgr_PadConditional(sh->skinheight));
         for(int i = 0; i < 4; i++)

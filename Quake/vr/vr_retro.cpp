@@ -553,6 +553,13 @@ void sayFull()
     {
         return nullptr;
     }
+    if(modelmeta::has(e->model, modelmeta::Trait::AuthoredRig))
+    {
+        // the Rig Studio's subject on the authored rig ("<model>#rig2": vr_rig2.cpp) takes its .mdl's overrides
+        char base[MAX_QPATH];
+        q_strlcpy(base, e->model->name, za::min(sizeof(base), strlen(e->model->name) - strlen("#rig2") + 1));
+        return overrideFor(e->model, false, base);
+    }
     return overrideFor(e->model, false, e->model->name);
 }
 

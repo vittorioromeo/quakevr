@@ -69,7 +69,8 @@ struct ModelMetadata
 // Live type/flags; entity overrides (held weapons, small gibs) belong to the consumer.
 [[nodiscard]] retro::Category category(const qmodel_s* model);
 // Whether an alias model's skin is a Quake .mdl's (skinwidth x skinheight Quake texels): a .mdl's own, or a ragdoll's
-// skinned copy of one ("<model>#rag": skeletal, with the .mdl's skins and size). Other MD3 and IQM models' textures are
+// skinned copy of one ("<model>#rag", the authored rig's "<model>#rig2": skeletal, with the .mdl's skins and size; drawn
+// as coarse as a quarter-size skin, the authored rig looked lower-res). Other MD3 and IQM models' textures are
 // painted at about four times a Quake skin's density (retro textures and lighting take a quarter of their size).
 [[nodiscard]] bool quakeSkin(const qmodel_s* model, const void* aliashdr);
 // Lazily copied skeletal body masks (Hands/Arms/Torso/Legs, two bits per bone, first 48 bones).

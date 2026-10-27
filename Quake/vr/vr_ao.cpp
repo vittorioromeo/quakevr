@@ -4,6 +4,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_ao.hpp"
 #include "vr_portals.hpp"
+#include "vr_rig2.hpp"
 #include "vr_view.hpp"
 #include "vr_engine.hpp"
 #include "vr_avatar.hpp"
@@ -504,9 +505,11 @@ void addBody(const entity_t* e, const aliashdr_t* hdr, float strength, float rea
 
 void addAlias(const entity_t* e, float strength, float reach)
 {
-    const qmodel_t* model = e->model;
+    // (the Rig Studio's subject on the authored rig: its .mdl's, as on the old rig: vr_rig2.cpp)
+    const qmodel_t* source = qvr::rig2::sourceModel(e);
+    const qmodel_t* model = source ? source : e->model;
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
-    if(VR_AliasBonePoses(e, nullptr))
+    if(!source && VR_AliasBonePoses(e, nullptr))
     {
         if(!view::handBonePoses(e, nullptr)) // the jointed hands: the body's shapes stand for them
         {
@@ -1925,7 +1928,7 @@ extern "C" void VR_AliasAO(const entity_t* e, float out[4])
     {
         return;
     }
-    if(VR_IsViewEntity(e) || VR_AliasBonePoses(e, nullptr) || e == &cl.viewent)
+    if(VR_IsViewEntity(e) || (VR_AliasBonePoses(e, nullptr) && !qvr::rig2::sourceModel(e)) || e == &cl.viewent)
     {
         out[0] = PLAYER_GROUP;
         return;

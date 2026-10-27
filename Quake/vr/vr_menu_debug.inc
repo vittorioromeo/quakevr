@@ -165,6 +165,10 @@ za::Vector<Item> pageDebugViews()
                   "see-through holes, flipped and collapsed triangles, sharp folds, stretch, beside the old rig moved the "
                   "same way (the console; ends on 'rig2 check: N passed, M failed'). vr_rig2_check progs/vrgrunt.mdl 0 "
                   "envelope prints how far each joint turns cleanly."),
+        command("Print the Authored Rig's Drawing", "vr_rig2_draw_info")
+            .help("vr_rig2_draw_info: the Rig Studio's subject on the authored rig, as the renderer draws it beside its old "
+                  "rig's .mdl: each model's vertices, triangles, skin and normal map, how often drawn last frame, the retro "
+                  "textures' Quake skin size and lighting share (both must match: the same look)."),
         command("Print Blade Shape", "vr_blade_dump")
             .help("vr_blade_dump [slot]: the main hand's weapon's blade shape and tip as vr_weapons.inc lines (* changed)."),
         command("Print Fist Line", "vr_blade_dump fist")

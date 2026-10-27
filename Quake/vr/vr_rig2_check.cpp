@@ -1123,6 +1123,7 @@ void init()
 {
     Cmd_AddCommand("vr_rig2_check", check_f);
     Cmd_AddCommand("vr_rig2_info", info_f);
+    Cmd_AddCommand("vr_rig2_draw_info", drawInfo);
     Cmd_AddCommand("vr_rig2_reload", reload_f);
 }
 
