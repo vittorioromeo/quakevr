@@ -14,6 +14,7 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Armour P0 (grunt): Rig Studio with Debug > Armed Humanoids' Armour (P0) Green/Yellow/Red: cuirass and helmet fit at rest, in Range of Motion sweeps and Random Pose; in a map with vr_agarmor 4, live grunts, hit reactions and ragdolls keep their plates; judge the generated look
 Shove an armed grunt (and an enforcer) down, then grab its gun by the grip or stock while it lies there and as it gets up: it comes into your hand at once, never holding its arm with the gun still in its hand
 Shoot an armed grunt's gun held across its body with the shotgun, revolver and nailgun: sparks and a tink, no blood, its health untouched; a pellet that misses the gun still hurts (Weapon Stops the Shot)
 Setup, Options: the Arcane Dimensions (experimental) row is off by default and shows "306 MB download, about 792 MB on disk"; with AD in your Steam Quake folder it says "Found in ...: will be used" and the box is disabled
