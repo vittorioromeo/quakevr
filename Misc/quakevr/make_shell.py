@@ -8,6 +8,9 @@
 #                                by a six-fold star crimp, sunk a little.
 #   quakevr/progs/vr_shell_pair.mdl  two unfired shells side by side (along y), taped together round the middle with
 #                                a band of grey cloth tape (the pouch's Shell Pairs: both go in at once).
+# Each has two skins: 0 the red shotgun shell, 1 the heavy revolver's blue slug (QC vr_revolver.qc: its casings, its live
+# shells dropped and taken from the pouch for it, the pouch's pile while it is the gun in use), the reds made blues as
+# the revolver's own slug skins make them (models_src/revolver/revolver_shell_slug*.png: SLUG_BLUES).
 #
 # Usage: python Misc/quakevr/make_shell.py [output game folder]
 #
@@ -305,6 +308,17 @@ def paint_spent():
     return bytes(px)
 
 
+# The blue slug's skin: each red (64..79) the blue (208..223) the revolver's slug skins give it (Vittorio's
+# revolver_shell_slug.png and _slug_spent.png against the red ones, texel by texel: 79 -> 216 ... 71 -> 220, about a
+# blue a shade for two reds), the darkest reds the darkest blues; brass, greys and tape as they are.
+SLUG_BLUES = {79: 216, 78: 216, 77: 217, 76: 217, 75: 218, 74: 219, 73: 219, 72: 220, 71: 220, 70: 221, 69: 221,
+              68: 222, 67: 222, 66: 223, 65: 223, 64: 223}
+
+
+def slug(px):
+    return bytes(SLUG_BLUES.get(c, c) for c in px)
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     game = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr")
@@ -315,12 +329,13 @@ def main():
     live_path = os.path.join(game, "progs", "vr_shell_live.mdl")
     pair_path = os.path.join(game, "progs", "vr_shell_pair.mdl")
     guard = genguard.Guard("make_shell.py", [path, live_path, pair_path])
-    mdlgen.write_mdl(path, mesh, [paint_spent()], "shell")
+    spent = paint_spent()
+    mdlgen.write_mdl(path, mesh, [spent, slug(spent)], "shell")
     print("vr_shell.mdl: %d vertices, %d triangles -> %s" % (len(mesh.verts), len(mesh.tris), os.path.normpath(path)))
     print("  %.2f units long, rim radius %.3f units" % (LENGTH * UNITS, RIM_R * UNITS))
     live = paint_live()
     for p, m, name in ((live_path, build_single(), "shell_live"), (pair_path, build_pair(), "shell_pair")):
-        mdlgen.write_mdl(p, m, [live], name)
+        mdlgen.write_mdl(p, m, [live, slug(live)], name)
         print("%s: %d vertices, %d triangles -> %s" % (os.path.basename(p), len(m.verts), len(m.tris),
                                                        os.path.normpath(p)))
     guard.finish()
