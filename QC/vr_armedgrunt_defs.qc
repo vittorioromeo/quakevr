@@ -34,6 +34,7 @@
 .vector vr_ag_was_o2;      // ... two frames before
 .vector vr_ag_was_a2;
 .float vr_ag_was_n;        // ... how many of them are known (0..2)
+.float vr_ag_saw_fought;   // its chainsaw run while it was after you, alive (VR_AGP_Saw): dropped, it runs on (VR_AG_DropHeld)
 .float vr_ag_dual;         // spawned with two: it goes for a second one-handed weapon when it lost one
 .float vr_ag_act_hand;     // a dual swing's hands: 0 the right, 1 the left, 2 both
 .float vr_ag_act_hitl;     // ... the left's blow struck

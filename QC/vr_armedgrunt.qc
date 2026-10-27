@@ -838,7 +838,8 @@ entity(entity g, vector vel) VR_AG_DropHeld =
     }
     entity w = CreateThrownWeapon(g, p.weapon, p.weaponflags, inst, p.origin, p.v_angle, vel, randomVec(90),
         FALSE /* disappear on hit */, FALSE /* deal damage */, WeaponIdToThrowDamage(p.weapon));
-    if(w && p.weapon == WID_CHAINSAW && inst.wi_clip > 0 && g.enemy && cvar("vr_agrunt_saw_drop_running"))
+    float fought = g.vr_ag_saw_fought || (g.health > 0 && g.enemy && (g.enemy.flags & FL_CLIENT)); // (alive: after you now)
+    if(w && p.weapon == WID_CHAINSAW && inst.wi_clip > 0 && fought && cvar("vr_agrunt_saw_drop_running"))
     {
         // (It was fighting with it, its engine running: dropped running (dead, disarmed, a tug lost), as yours runs on
         // as it lies, vr_chainsaw_drop_run; taken up meanwhile, no cord to pull. His note vrragtriggers_2026-10-27_01-35-21.)

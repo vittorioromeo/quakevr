@@ -657,6 +657,10 @@ void(entity g, entity p) VR_AGP_Saw =
     float s = time - g.vr_ag_act_at;
     float revving = act && s >= vr_agp_tw * 0.5 && s < vr_agp_tw + vr_agp_ts + vr_agp_th;
     float cutting = act && s >= vr_agp_tw + vr_agp_ts * 0.6 && s < vr_agp_tw + vr_agp_ts + vr_agp_th;
+    if(g.health > 0 && g.enemy && (g.enemy.flags & FL_CLIENT))
+    {
+        g.vr_ag_saw_fought = 1; // (alerted to you, its engine running: dropped later, running: VR_AG_DropHeld)
+    }
     if(inst.wi_clip > 0)
     {
         inst.wi_clip = max(0, inst.wi_clip - frametime * (cvar_hget(cvarh_vr_chainsaw_idle_fuel_use) +

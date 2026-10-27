@@ -34,6 +34,8 @@ float VR_AGGT_POINTS = 10;
 float VR_AGGT_TRACK = 12; // frames from your step in to the press (the hand following the weapon from the 4th)
 float VR_AGGT_TRACK_MOST = 90; // ... at most, the hand not there yet (pressed anyway)
 vector vr_aggt_home;      // where you stood as the test began (back there each try)
+float VR_AGGT_ROAM = 64;  // units from there you step in at most
+float vr_aggt_far;        // the try's weapon went farther: not counted (state not reached)
 
 float(float c) VR_AGGT_Wid =
 {
@@ -137,7 +139,7 @@ float(entity g, entity p) VR_AGGT_InState =
     }
     if(vr_aggt_state == 1)
     {
-        return sp > 40 && d < 150 && !VR_AG_Striking(g);
+        return sp > 40 && d < 90 && !VR_AG_Striking(g); // (near enough to meet: you step in at most VR_AGGT_ROAM)
     }
     if(vr_aggt_state == 2)
     {
@@ -164,6 +166,13 @@ void(entity p, entity g, entity w) VR_AGGT_StepIn =
     {
         at = g.origin + normalize(out) * 36;
         at_z = p.origin_z;
+    }
+    vector fromHome = at - vr_aggt_home;
+    fromHome_z = 0;
+    if(vlen(fromHome) > VR_AGGT_ROAM)
+    {
+        vr_aggt_far = 1; // (it went off: not followed; the try isn't counted. Walking about, the hands pressed the hall's
+        return;          // wall buttons: its VR Calibration button opened the calibration and the run stood still an hour)
     }
     setorigin(p, at);
 };
@@ -215,6 +224,7 @@ void() VR_AGGT_Run =
         vr_agt_grunt = g = VR_AGT_Spawn(VR_AGGT_Wid(vr_aggt_case), dist);
         vr_agt_weapon2 = 0;
         vr_aggt_hunted = 0; // (hunting you once it has started: walkmonster_start_go, its takedamage)
+        vr_aggt_far = 0;
         vr_aggt_t0 = time;
         vr_aggt_last = g.origin;
         vr_agt_step = 1;
@@ -288,6 +298,16 @@ void() VR_AGGT_Run =
     }
     else if(vr_agt_step == 2)
     {
+        if(!w)
+        {
+            // (knocked out of its hand as your hand went to it, before the press: a blow, not a grab)
+            vr_aggt_knock = vr_aggt_knock + 1;
+            VR_AGT_Print(sprintf("grabtry %s %s %s: its weapon knocked away before the press", VR_AGGT_Name(vr_aggt_case),
+                VR_AGGT_StateName(vr_aggt_state), vr_aggt_bt ? "bullet" : "normal"));
+            localcmd("-grabmain\n");
+            vr_agt_step = VR_AGGT_Next() ? 0 : 9;
+            return;
+        }
         VR_AGGT_StepIn(p, g, w); // (it moved off: you follow)
     }
     // The hand on it at the try's point, following it (after 3 frames: the client has your step in).
@@ -301,6 +321,12 @@ void() VR_AGGT_Run =
         localcmd(sprintf("vr_mock_hand_to main agweaponpalm %g 0 %s\n", f, VR_AGGT_Dual(vr_aggt_case) ? "left" : "either"));
     }
     vr_aggt_track = vr_aggt_track + 1;
+    if(vr_agt_step == 2 && vr_aggt_far)
+    {
+        vr_aggt_nost = vr_aggt_nost + 1;
+        vr_agt_step = VR_AGGT_Next() ? 0 : 9;
+        return;
+    }
     if(vr_agt_step == 2)
     {
         // (pressed once the hand is there: on its line within 5 units, a palm's breadth; in bullet time the drawn hand
@@ -309,6 +335,13 @@ void() VR_AGGT_Run =
         float near = VR_AG_SegDist(p.handpos, p.handpos, vr_ag_wa, vr_ag_wb) <= 5;
         if(vr_aggt_track < VR_AGGT_TRACK || (!near && vr_aggt_track < VR_AGGT_TRACK_MOST))
         {
+            return;
+        }
+        if(!near)
+        {
+            // (the hand never got onto it: beyond your reach, a gun firing from across the room; not a grab's try)
+            vr_aggt_nost = vr_aggt_nost + 1;
+            vr_agt_step = VR_AGGT_Next() ? 0 : 9;
             return;
         }
         vr_aggt_gap = cvar("vr_agrunt_grab_gap");
@@ -346,7 +379,7 @@ void() VR_AGGT_Run =
     float tug = g.vr_ag_tug_pl == p;
     float yank = p.weapon == VR_AGGT_Wid(vr_aggt_case);
     float knocked = !tug && !yank && g.vr_ag_disarms > vr_aggt_dis0;
-    if(!tug && !yank && !knocked && time < vr_aggt_press + 0.15)
+    if(!tug && !yank && time < vr_aggt_press + 0.15) // (yanked: in your hand a frame after it left its)
     {
         return;
     }
@@ -492,6 +525,71 @@ float vr_aggt_case69;
 float vr_aggt_drop_at;  // when its weapon left its hand (0: kept)
 float vr_aggt_still;    // frames it has lain still
 float VR_AGGT_CASES69 = 7;
+
+// Test 69's last three (his note vrragtriggers_2026-10-27_01-35-21): a chainsaw humanoid fighting you killed (case 7),
+// disarmed by a blow (8): the chainsaw it drops lies running (QVR_WPNFLAG_SAW_RUNNING, its idle heard); one that never
+// saw you killed (9): it lies off.
+void() VR_AGGT_Saw69 =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    float c = vr_aggt_case69 - VR_AGGT_CASES69;
+    if(vr_agt_step == 0)
+    {
+        p.flags = c == 2 ? p.flags | FL_NOTARGET : p.flags - (p.flags & FL_NOTARGET);
+        VR_AGPT_Clear();
+        vr_agt_grunt = g = VR_AGT_Spawn(WID_CHAINSAW, 120);
+        vr_aggt_t0 = time;
+        vr_agt_step = 1;
+        return;
+    }
+    if(vr_agt_step == 1)
+    {
+        if(!g.takedamage || time < vr_aggt_t0 + 0.3)
+        {
+            return;
+        }
+        if(c < 2)
+        {
+            VR_AGT_Hunt(g);
+        }
+        vr_aggt_t0 = time;
+        vr_agt_step = 2;
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        if(time < vr_aggt_t0 + 0.2)
+        {
+            return; // (a moment hunting you)
+        }
+        if(c == 1)
+        {
+            VR_AG_Disarm(g, g.origin - p.origin, 120, "the test's blow");
+        }
+        else
+        {
+            T_Damage(g, p, p, g.health + 1); // (not gibbed: its gibs flew into the next one's weapon and disarmed it)
+        }
+        vr_agt_step = 3;
+        return;
+    }
+    entity w = find(world, classname, "thrown_weapon");
+    while(w && w.weapon != WID_CHAINSAW)
+    {
+        w = find(w, classname, "thrown_weapon");
+    }
+    if(!w && time < vr_aggt_t0 + 3)
+    {
+        return; // (dropped in its death frames)
+    }
+    float running = w && (w.weaponflags & QVR_WPNFLAG_SAW_RUNNING) != 0;
+    VR_AGT_Check(sprintf("holdon chainsaw %s: dropped %g, running %g (fuel %g):", c == 0 ? "of one fighting you, killed" :
+        c == 1 ? "of one fighting you, disarmed" : "of one that never saw you, killed", w != world, running,
+        w ? w.weaponinst.wi_clip : -1), w != world && running == (c < 2));
+    vr_aggt_case69 = vr_aggt_case69 + 1;
+    vr_agt_step = vr_aggt_case69 >= VR_AGGT_CASES69 + 3 ? 9 : 0;
+};
 string(float c) VR_AGGT_Name69 =
 {
     return c == 0 ? "shoved over" : c == 1 ? "lifted, let go" : c == 2 ? "lifted, slammed down" : c == 3 ? "judo-thrown" :
@@ -503,6 +601,11 @@ void() VR_AGGT_Hold69 =
     entity p = vr_agt_player;
     entity g = vr_agt_grunt;
     float u = VRMetersToUnits();
+    if(vr_aggt_case69 >= VR_AGGT_CASES69 && vr_aggt_case69 < VR_AGGT_CASES69 + 3 && vr_agt_step < 9)
+    {
+        VR_AGGT_Saw69();
+        return;
+    }
     if(vr_agt_step == 0)
     {
         if(cvar("scratch1") > 0)
@@ -584,7 +687,7 @@ void() VR_AGGT_Hold69 =
             g.vr_ag_fall_down / u);
         VR_AGT_Check(strcat(a, sprintf(" (the old rules: %s):", (g.vr_ag_fall_fling > 5 * u || g.vr_ag_fall_down > 4.5 * u) ? "dropped" : "kept")), ok);
         vr_aggt_case69 = vr_aggt_case69 + 1;
-        vr_agt_step = (vr_aggt_case69 >= VR_AGGT_CASES69 || cvar("scratch1") > 0) ? 9 : 0;
+        vr_agt_step = cvar("scratch1") > 0 ? 9 : 0; // (after the falls, the chainsaw's three: VR_AGGT_Saw69)
         return;
     }
     vr_aggt_case69 = 0;

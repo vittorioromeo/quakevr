@@ -3029,7 +3029,7 @@ QVR_CVAR(vr_agrunt_fall_keep, "1", CVAR_ARCHIVE)  // 1: a gentle fall (a shove's
 QVR_CVAR(vr_agrunt_fall_keep_height, "0.75", CVAR_ARCHIVE) // m: the floor under it now this far below the floor it stood on (a ledge): it lets go
 QVR_CVAR(vr_agrunt_fall_keep_speed, "4.5", CVAR_ARCHIVE)   // m/s: its body falling faster than this: it lets go
 QVR_CVAR(vr_agrunt_fall_keep_fling, "5", CVAR_ARCHIVE)     // m/s: its body moving faster than this any way but down (thrown, flung, blown away: a strong force): it lets go
-QVR_CVAR(vr_agrunt_fall_keep_impact, "5", CVAR_ARCHIVE)   // m/s: down, it lets go only as its body meets the ground this hard (the speed it loses in a frame, coming down; not while your hands hold it): lifted, judo-thrown or shoulder-charged it holds on till a hard landing (0: the old rules, vr_agrunt_fall_keep_height, _speed, _fling)
+QVR_CVAR(vr_agrunt_fall_keep_impact, "4.5", CVAR_ARCHIVE)   // m/s: down, it lets go only as its body meets the ground this hard (the speed it loses in a frame, coming down; not while your hands hold it): lifted, judo-thrown or shoulder-charged it holds on till a hard landing (0: the old rules, vr_agrunt_fall_keep_height, _speed, _fling)
 QVR_CVAR(vr_agrunt_fall_keep_window, "1.5", CVAR_ARCHIVE)  // s: flung (vr_agrunt_fall_keep_fling) counts only this long after it goes down (lying, nudged as you come: kept); 0: any time down
 QVR_CVAR(vr_agrunt_seek_timeout, "6", CVAR_ARCHIVE) // s it keeps going for a weapon it doesn't reach (no nearer for 2.5 s: sooner) before giving it up
 QVR_CVAR(vr_agrunt_seek_shun, "20", CVAR_ARCHIVE) // s it leaves a weapon it gave up on before trying it again

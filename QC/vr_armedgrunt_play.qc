@@ -839,6 +839,15 @@ float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
     // carries your idle hands along at 5 m/s and more, and the world velocity less yours (a frame behind) read as a
     // blow (vrtesthall_2026-10-24_03-12-16: hands still against the head, 0.0-0.5 m/s, pushed at 4.9 m/s: dropped).
     float sp = VR_AG_SwingSpeed(pl, h);
+    if(p.vr_ag_was_n >= 1 && frametime > 0 && vlen(p.origin - p.vr_ag_was_o1) < 32)
+    {
+        // A blow is the fist against the weapon: a hand going with a swing (closing on it to catch it, his notes
+        // vrragtriggers_2026-10-27_01-41-43) is no blow on it however fast both go; in real time (bullet time's hands
+        // are the game's, sped up).
+        vector wv = (p.origin - p.vr_ag_was_o1) * (1 / frametime);
+        float rel = vlen(VRGetEntHandVel(pl, h) - wv) * (vr_hand_time_scale > 0 ? vr_hand_time_scale : 1) / VRMetersToUnits();
+        sp = min(sp, rel);
+    }
     float need = cvar_hget(cvarh_vr_agrunt_disarm_swing);
     float deliberate = cvar_hget(cvarh_vr_agrunt_disarm_deliberate);
     if(g.vr_knockdown == 1 && !g.vr_kd_stagger)
