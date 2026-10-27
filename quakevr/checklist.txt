@@ -14,6 +14,7 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Grunt rig stage 1 (flat screen, -flatscreenmode): Debug > Tools > Rig Studio: Range of Motion (Authored Rig): pick each joint, Sweep, drag the limbs, Random Pose; switch "Mesh drawn on" between Authored rig and Old rig in the same pose; say which joints need their pivot moved or limits changed (the shoulders are limited to 40 forward / 50 out because the model's arms are fused to its torso: say if a modelled armpit is worth it)
 Nail pistol empty, walk with the thumbstick: the slide stays locked back, no jitter {test:nailpistol}
 Heavy revolver: load shells one after another: no accidental spin (Wait After Loading 0.6 s); a deliberate swipe still spins it {test:revolver}
 Flare gun: a flare into a dead grunt's ragdoll, and one lying under a corpse, set it on fire {test:flaregun}
