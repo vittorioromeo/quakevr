@@ -12,6 +12,7 @@
 #include "vr_poselive.hpp"
 #include "vr_posestudio.hpp"
 #include "vr_rigseq.hpp"
+#include "vr_rig2.hpp"
 #include "vr_rigstudio.hpp"
 #include "vr_view.hpp"
 #include "vr_render.hpp"
@@ -3010,6 +3011,33 @@ void parseArmPose()
     s->cur = m;
 }
 
+// The Rig Studio's subject drawn on the authored rig (Range of Motion, vr_rig2 1; rig2::sourceModel its .mdl, `src`): no
+// arms to solve (the rig's pose is the studio's), its held weapons on that rig's hands (rigstudio::authoredWeapon), each
+// at its grip offset as relinkSkinned holds it (its kind's global one, the weapon's own on top).
+void relinkAuthored(const ArmPose& s, const entity_t* e, const qmodel_t* src)
+{
+    const ArmedRig* a = armedRigOf(src);
+    if(!a)
+    {
+        return;
+    }
+    const int kind = static_cast<int>(a - armedRigs);
+    for(int side = 0; side < 2; side++)
+    {
+        const int num = side == 0 ? s.prop : ((s.flags & apLeftWeapon) ? s.propL : 0);
+        if(!heldProp(num))
+        {
+            continue;
+        }
+        const rigpose::Rigid offset = gripRigid(kind, weapons::slotForModel(cl_entities[num].model), side == 0 ? aggrip::Main : aggrip::Off);
+        rigpose::Rigid w;
+        if(rigstudio::authoredWeapon(s.ent, side, num, offset, w) && placeable(w))
+        {
+            placeProp(cl_entities[num], e, w, nullptr);
+        }
+    }
+}
+
 void relinkArms()
 {
     if(!vr_agrunt_ik.value)
@@ -3044,6 +3072,11 @@ void relinkArms()
         }
         if(s.cur.t < cl.mtime[0] - armPoseStale)
         {
+            continue;
+        }
+        if(const qmodel_t* src = e->model && e->msgtime == cl.mtime[0] ? rig2::sourceModel(e) : nullptr)
+        {
+            relinkAuthored(s, e, src); // (the Rig Studio's subject drawn on the authored rig: swapped to its "#rig2" model)
             continue;
         }
         if(!e->model || e->model->type != mod_alias || e->msgtime != cl.mtime[0] ||

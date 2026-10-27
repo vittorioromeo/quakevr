@@ -302,9 +302,14 @@ game uses it yet.
   live; undoable (Ctrl+Z, with every other edit); **Save** writes the rig file (`vr_rigdata_dir` respected), **Reload**
   reads it again.
 - Heat colours (Display > colours: the selected bone's weights) show the picked joint's blended weights.
+- On the authored rig the held weapons ride its hands: the right on its `weapon` bone, the left on `weapon_l` (or
+  `hand_l`), each hand's grip frame as the old rig's (the rest pose's) at the weapon's grip offset (the Grip Editor's).
+  On the old rig the arms' solve places them, as in the game.
 - Commands: `vr_rigstudio_rom [on|off] | rig old|new | joint <j> | set <j> <x> [y] [z] | reset | random [seed] |
   sweep <j> | limit <j> swingx|swingy|twist|range <min> <max> | pivot <j> <x y z> | save | camera <j> [yaw] [pitch]
-  [dist] | status | test`. `vr_rigstudio_rom test` ends on `rigstudio rom test: N passed, M failed`.
+  [dist] | status | test [weapon]`. `vr_rigstudio_rom test` ends on `rigstudio rom test: N passed, M failed`;
+  `test weapon` (the weapons on the authored rig's hands, six poses, a screenshot each; a dual-wielding subject tests
+  the left hand too) on `rigstudio rom weapon: N passed, M failed`. Both wait for the subject: run them as it opens.
 - `vr_rig2_check [model] [detail lines] [joint|random|envelope]` (ends on `rig2 check: N passed, M failed`): every
   joint swept, joint pairs, 1000 random poses, the old rig on the same poses; `envelope` prints how far each joint
   turns cleanly from rest, each way alone, beside its limit. `vr_rig2_info`, `vr_rig2_reload`.

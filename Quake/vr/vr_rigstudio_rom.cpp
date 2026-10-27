@@ -6,6 +6,7 @@
 // bone as its namesake: the same pose on both, to compare). The pose's faults (vr_rig2_check's measures) are shown live.
 
 #include "vr_rigstudio_internal.hpp"
+#include "vr_agarms.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
@@ -16,6 +17,7 @@
 #include "thirdparty/imgui/imgui.h"
 
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -258,6 +260,14 @@ void updateReport(rig2::Rig& rig)
 void say2(const char* text)
 {
     say(text);
+}
+
+// The authored rig's bone a hand's weapon rides (0 right: `weapon`, fixed on hand_r; 1 left: `weapon_l` if the rig has
+// one, else hand_l: a fixed bone moves as its parent does). -1: none.
+[[nodiscard]] int weaponBone(const rig2::Rig& rig, int side)
+{
+    const int w = rig2::boneByName(rig, side == 0 ? "weapon" : "weapon_l");
+    return w >= 0 ? w : rig2::boneByName(rig, side == 0 ? "hand_r" : "hand_l");
 }
 
 } // namespace
@@ -728,11 +738,75 @@ namespace
 {
 struct RomTest
 {
-    int step{0}; // 0 none
+    int step{0}; // 0 none; 20.. the weapon test's (vr_rigstudio_rom test weapon)
     int passed{0}, failed{0};
     int frames{0};
+    // The weapon test: its case, the frames since the case's pose was set, the mesh's rig before it
+    int wcase{0};
+    int wframes{0};
+    float rigBefore{0.f};
+    bool left{false}; // a weapon in its left hand too
 };
 RomTest romTest;
+
+// The weapon test's poses (each from the rest pose; every angle held to its joint's limits).
+struct WeaponCase
+{
+    const char* name;
+    const char* bone[3];
+    glm::vec3 a[3];
+    bool random;
+};
+constexpr WeaponCase weaponCases[] = {
+    {"at rest", {nullptr, nullptr, nullptr}, {}, false},
+    {"right arm raised", {"upperarm_r", "forearm_r", nullptr}, {glm::vec3{40.f, 45.f, 10.f}, glm::vec3{120.f, 0.f, 0.f}}, false},
+    {"right wrist bent", {"hand_r", "forearm_r", nullptr}, {glm::vec3{25.f, -10.f, 10.f}, glm::vec3{40.f, 0.f, 0.f}}, false},
+    {"left arm and wrist", {"upperarm_l", "forearm_l", "hand_l"}, {glm::vec3{40.f, 45.f, -10.f}, glm::vec3{110.f, 0.f, 0.f},
+        glm::vec3{-25.f, 10.f, -10.f}}, false},
+    {"random pose 1", {nullptr, nullptr, nullptr}, {}, true},
+    {"random pose 2", {nullptr, nullptr, nullptr}, {}, true},
+};
+constexpr int weaponCaseCount = static_cast<int>(sizeof(weaponCases) / sizeof(weaponCases[0]));
+
+struct GripReading
+{
+    bool ok{false};
+    float dist{0.f}, deg{0.f}; // the drawn weapon's grip frame off the hand bone's: units, degrees
+};
+
+// A held weapon as drawn (its entity's origin and angles), taken back through its grip offset to the hand's grip frame,
+// against where the authored rig's hand bone carries the rest grip frame (world).
+[[nodiscard]] GripReading readGrip(const rig2::Rig& rig, int side)
+{
+    GripReading r;
+    const int num = rom.wprop[side];
+    rigpose::Rigid grip;
+    int handBone = -1;
+    const int b = weaponBone(rig, side);
+    const entity_t* e = st.subject > 0 && cl_entities ? &cl_entities[st.subject] : nullptr;
+    if(rom.wframe[side] < 0 || host_framecount - rom.wframe[side] > 2 || num <= 0 || !e || b < 0 ||
+        !agarms::ragdollGrip(st.model, side, grip, handBone))
+    {
+        Con_Printf("rigstudio rom weapon: no reading (placed %d frames ago, weapon %d, bone %d)\n", host_framecount - rom.wframe[side], num, b);
+        return r;
+    }
+    const entity_t& p = cl_entities[num];
+    vec3_t a{-p.angles[0], p.angles[1], p.angles[2]}, f, rt, u;
+    AngleVectors(a, f, rt, u);
+    const glm::mat3 R{glm::vec3{f[0], f[1], f[2]}, -glm::vec3{rt[0], rt[1], rt[2]}, glm::vec3{u[0], u[1], u[2]}};
+    const rigpose::Rigid back = rigdata::inverse(rom.woffset[side]);
+    const glm::vec3 drawn = glm::vec3{p.origin[0], p.origin[1], p.origin[2]} + R * (back.pos * za::max(ENTSCALE_DECODE(e->scale), 0.01f));
+    const glm::mat3 drawnRot = R * glm::mat3_cast(back.rot);
+    const rigpose::Rigid want = rigdata::compose(rom.F[b], grip);
+    const float y = e->angles[1] * (pi / 180.f);
+    const glm::mat3 yawM{glm::vec3{za::cos(y), za::sin(y), 0.f}, glm::vec3{-za::sin(y), za::cos(y), 0.f}, glm::vec3{0.f, 0.f, 1.f}};
+    const glm::mat3 wantRot = yawM * glm::mat3_cast(want.rot);
+    r.dist = glm::length(drawn - worldOf(want.pos));
+    const glm::mat3 d = glm::transpose(wantRot) * drawnRot;
+    r.deg = za::acos(za::clamp((d[0][0] + d[1][1] + d[2][2] - 1.f) * 0.5f, -1.f, 1.f)) * (180.f / pi);
+    r.ok = true;
+    return r;
+}
 
 void expect(bool ok, const char* what)
 {
@@ -745,6 +819,116 @@ void finishTest()
 {
     Con_Printf("rigstudio rom test: %d passed, %d failed\n", romTest.passed, romTest.failed);
     romTest = RomTest{};
+}
+
+void finishWeaponTest()
+{
+    Cvar_SetValueQuick(&vr_rig2, romTest.rigBefore);
+    Con_Printf("rigstudio rom weapon: %d passed, %d failed\n", romTest.passed, romTest.failed);
+    romTest = RomTest{};
+}
+
+// vr_rigstudio_rom test weapon: the subject's held weapons on the authored rig's hands, case by case (weaponCases): each
+// pose set, a few frames drawn (the arms' solve and the weapons placed on it), each weapon's grip read back from its
+// entity against its hand bone's (within 0.5 units and 2 degrees), a screenshot. Ends on "rigstudio rom weapon: N passed,
+// M failed".
+void weaponTestTick(rig2::Rig& rig)
+{
+    if(romTest.step == 20)
+    {
+        // (its subject standing, its right weapon held: noted by the arms' solve, or placed on the authored rig already)
+        const bool noted = st.noteFrame >= 0 && host_framecount - st.noteFrame <= 5 && st.note.ent == st.subject && st.note.prop > 0;
+        const bool placed = rom.wframe[0] >= 0 && host_framecount - rom.wframe[0] <= 2;
+        if(st.subject <= 0 || (!noted && !placed) || (scr_con_current > 0.f && romTest.frames < 144)) // (the console up, for the shots)
+        {
+            return;
+        }
+        romTest.left = noted ? st.note.propL > 0 : rom.wframe[1] >= 0 && host_framecount - rom.wframe[1] <= 2;
+        romTest.rigBefore = vr_rig2.value;
+        Cvar_SetValueQuick(&vr_rig2, 1.f);
+        rigpose::Rigid grip;
+        int handBone = -1;
+        for(int side = 0; side < 2; side++)
+        {
+            const int b = weaponBone(rig, side);
+            if(b >= 0 && agarms::ragdollGrip(st.model, side, grip, handBone))
+            {
+                const rig2::Bone& hb = rig.bones[rig.bones[b].joint == rig2::Joint::Fixed ? za::max(rig.bones[b].parent, 0) : b];
+                Con_Printf("rigstudio rom weapon: the %s hand's rest grip at %.2f %.2f %.2f (%s: %.2f from its pivot, %.2f from its end)\n",
+                    side ? "left" : "right", grip.pos.x, grip.pos.y, grip.pos.z, hb.name, glm::length(grip.pos - hb.pivot),
+                    glm::length(grip.pos - hb.end));
+            }
+        }
+        st.showTools = st.showOutliner = st.showProps = st.showTimeline = st.showSequence = st.showPoseData = false;
+        romTest.wcase = 0;
+        romTest.step = 21;
+        romTest.wframes = 0;
+        return;
+    }
+    const WeaponCase& c = weaponCases[romTest.wcase];
+    if(romTest.step == 21)
+    {
+        // the case's pose
+        rom.pose = rig2::restPose(rig);
+        rom.sweepJoint = -1;
+        if(c.random)
+        {
+            rom.pose = rig2::randomPose(rig, rom.seed);
+        }
+        for(int i = 0; i < 3; i++)
+        {
+            const int b = c.bone[i] ? rig2::boneByName(rig, c.bone[i]) : -1;
+            if(b >= 0)
+            {
+                setAngles(rig, b, c.a[i]);
+            }
+        }
+        // (the camera on the chest, from the subject's front right)
+        const int chest = rig2::boneByName(rig, "chest");
+        const entity_t* e = cl_entities ? &cl_entities[st.subject] : nullptr;
+        st.cam.focus = worldOf(rigpose::apply(rom.F[za::max(chest, 0)], rig.bones[za::max(chest, 0)].pivot)) + glm::vec3{0.f, 0.f, -6.f};
+        st.cam.yaw = (e ? e->angles[1] : 0.f) + 180.f + 35.f;
+        st.cam.pitch = 10.f;
+        st.cam.dist = 40.f;
+        romTest.step = 22;
+        romTest.wframes = 0;
+        return;
+    }
+    if(romTest.step == 22)
+    {
+        if(++romTest.wframes < 4)
+        {
+            return; // (the pose drawn: the arms' solve and the weapons placed on it, a few frames)
+        }
+        for(int side = 0; side < 2; side++)
+        {
+            if(side == 1 && !romTest.left)
+            {
+                continue; // (no left weapon)
+            }
+            const GripReading g = readGrip(rig, side);
+            const bool ok = g.ok && g.dist < 0.5f && g.deg < 2.f;
+            romTest.passed += ok ? 1 : 0;
+            romTest.failed += ok ? 0 : 1;
+            Con_Printf("rigstudio rom weapon %d: %s: the %s weapon's grip off the hand bone's %.3f units, %.2f deg: %s\n",
+                romTest.wcase + 1, c.name, side ? "left" : "right", g.dist, g.deg, !g.ok ? "FAIL (no reading)" : ok ? "PASS" : "FAIL");
+        }
+        Cbuf_AddText("screenshot\n");
+        romTest.step = 23;
+        romTest.wframes = 0;
+        return;
+    }
+    if(++romTest.wframes < 2)
+    {
+        return; // (the screenshot taken first, of this case)
+    }
+    if(++romTest.wcase >= weaponCaseCount)
+    {
+        rom.pose = rig2::restPose(rig);
+        finishWeaponTest();
+        return;
+    }
+    romTest.step = 21;
 }
 } // namespace
 
@@ -759,7 +943,12 @@ void romTestTick(rig2::Rig& rig)
     if(romTest.frames > 72 * 60)
     {
         expect(false, "timed out");
-        finishTest();
+        romTest.step >= 20 ? finishWeaponTest() : finishTest();
+        return;
+    }
+    if(romTest.step >= 20)
+    {
+        weaponTestTick(rig);
         return;
     }
     switch(romTest.step)
@@ -865,6 +1054,14 @@ void rom_f()
         Con_Printf("rigstudio rom: %s\n", rom.on ? "on" : "off");
         return;
     }
+    if(!strcmp(sub, "test"))
+    {
+        // (it waits for its subject: run as the studio opens; `weapon`: the weapon test)
+        rom.on = true;
+        romTest = RomTest{};
+        romTest.step = Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "weapon") ? 20 : 1;
+        return;
+    }
     rig2::Rig* rig = romRig();
     if(!rig)
     {
@@ -884,12 +1081,6 @@ void rom_f()
     {
         Cvar_SetValueQuick(&vr_rig2, Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "old") ? 0.f : 1.f);
         Con_Printf("rigstudio rom: mesh on the %s rig\n", vr_rig2.value != 0.f ? "authored" : "old");
-    }
-    else if(!strcmp(sub, "test"))
-    {
-        rom.on = true;
-        romTest = RomTest{};
-        romTest.step = 1;
     }
     else if(!strcmp(sub, "joint"))
     {
@@ -1003,7 +1194,7 @@ void rom_f()
     else
     {
         Con_Printf("vr_rigstudio_rom [on|off] | rig old|new | joint <j> | set <j> <x> [y] [z] | reset | random [seed] | sweep <j> | "
-                   "limit <j> swingx|swingy|twist|range <min> <max> | pivot <j> <x y z> | save | camera <j> [yaw] [pitch] [dist] | status\n");
+                   "limit <j> swingx|swingy|twist|range <min> <max> | pivot <j> <x y z> | save | camera <j> [yaw] [pitch] [dist] | status | test [weapon]\n");
     }
 }
 
@@ -1013,3 +1204,21 @@ void romInit()
 }
 
 } // namespace qvr::rigstudio::detail
+
+bool qvr::rigstudio::authoredWeapon(int ent, int side, int prop, const rigpose::Rigid& offset, rigpose::Rigid& out)
+{
+    rig2::Rig* rig = st.model && rom.on ? romRig() : nullptr;
+    const int b = rig && side >= 0 && side < 2 ? weaponBone(*rig, side) : -1;
+    rigpose::Rigid grip;
+    int handBone = -1;
+    if(b < 0 || ent <= 0 || ent != st.subject || !agarms::ragdollGrip(st.model, side, grip, handBone))
+    {
+        return false;
+    }
+    // (rom.F: the bones drawn this frame, romFrame's)
+    out = rigdata::compose(rigdata::compose(rom.F[b], grip), offset);
+    rom.wprop[side] = prop;
+    rom.woffset[side] = offset;
+    rom.wframe[side] = host_framecount;
+    return true;
+}
