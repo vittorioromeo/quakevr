@@ -24376,3 +24376,97 @@ box (not found). Not measured: an AD monster (`vr_test_spawn_dead` is for id's m
 become ragdolls). `vr_ao_show` with 8 grunt ragdolls: 28 -> 36 occluders (one each, groups 2-9), choosing them 0.010
 ms either way. eval.sh: no verdict changes; ragdoll_test flat: as before (first drawn 1.02 rms).
 - [ ] Ragdolls look as alive {test:none}: kill a grunt, an ogre and an enforcer in a bright room and walk round the corpses: the same shading, smoothness and skin as alive, darkening the floor under them as a live monster does
+
+## Grunt rig, stage 2: the game on the authored rig (worktree `gorefx`, branch `agent/rig2s2`, 2026-10-27)
+
+His review of stage 1: "New rig looks good, please proceed with phase 2". **The switch: `vr_rig2 1`** (default 0; Debug >
+Grunt on the Authored Rig (Next Map)): read when a map is spawned (`rig2::latch`, SV_SpawnServer; changed mid-map, the
+next map takes it; a change resets what was made from the grunt's rig: the authored ragdoll rigs, agarms' skins and
+states, aglegs, agbody, hitreact's armed models, the animation smoothing's per-model data). Only the grunt
+(`soldier.mdl`, `vrgrunt.mdl`); the enforcer's new authored rig (agent/rig2enf) stays on its derived rig until stage 2b.
+
+**How**: `ragdoll::rigFor` gives, with the latch on, a ragdoll rig **made from the authored rig** (`fromAuthored`,
+vr_ragdoll.cpp) instead of the derived one (`derivedRigFor` keeps the old: the checks' "old rig"), so everything made
+from the grunt's rig is on the authored bones: ragdolls, knockdowns and active ragdolls, hit reactions, the armed arm
+and leg solves, limb cuts, wounds, decals.
+- Its 20 bones in the authored order, the `weapon` a loose bone (dropped as he dies, welded in his hand when knocked
+  down); `Rig::weights` the blended skin (up to 4, the heaviest first; `vertBone` the heaviest); each part's hull the
+  vertices weighing 0.5 or more on it; a small part (fewer than 24 hull points: the neck, the clavicles) gets a capsule
+  as thick as its vertices lie from it (without it the neck and clavicles, a sliver each between two heavy parts, were
+  pulled 90 units apart and flung the body 1000 units up within 2 s).
+- Joints = the rig's: `Bone::framed`, frame A (parent) the swing's middle, frame B (child) the rest pose's less the
+  twist's middle (`rig2::physJoint`), **an elliptical cone in Box3D** (`b3SphericalJointDef::coneAngleY`, spherical_joint.c:
+  the cone's half angle toward the swing's direction, `ab/sqrt((b cos)^2 + (a sin)^2)`; recording format 7), hinges
+  their range from the rest bend. ragpose `jointFrameA/B`, `toJoint(bone, ...)` (the active ragdoll's drive).
+- Each frame's bone motions fitted to the frame's vertices by their weights (weighted Horn; each bone's pivot a heavy
+  pair on its parent's fit): the blend 0.63 units rms off the frames (vrgrunt; soldier 0.64).
+- Drawn with `<model>#rig2` (rig2draw's copy, shaded as the .mdl) for ragdolls (`skinnedOf`) and **live grunts**
+  (`rig2::drawLive`, VR_Rig2Swap after the armed arms are solved; their own models back right after SCR_UpdateScreen:
+  `VR_Rig2Restore`, else the Rig Studio and console saw `#rig2`). A live grunt's frame lerp is advanced as drawing its
+  .mdl would (`VR_AliasLerpNow`, r_alias.c: its .mdl is drawn no more), its bones each one's local motion on its parent
+  blended between the lerp's two poses (`posedBetween`: a turn about its joint, no chord), its hit reaction's kicks
+  (`boneKicks`, per authored bone), its gun collapsed where its frame hides it. The ragdoll made of it starts where it
+  was drawn (`rig2::drawnBone`, every bone). `vr_rig2_live_check`: drawn 0.13-0.15 units rms off its frames (0.35 most).
+- Armed (hitreact.cpp relinkSkinned -> `rig2::liveArmed`): the bones as that solve has them (frame, legs, upper body,
+  turns, kicks), the arms from agarms' solve laid on the authored arm bones (`armsOnRig`: the clavicle aimed at the
+  solve's shoulder within its limits, the upper arm at its elbow with the solve's twist, the forearm's hinge at its
+  wrist, the hand to its grip turn; the forearm takes `vr_rig2_forearm_twist` 0.5 of the hand's twist about it: the
+  hinge has none of its own), the weapon bone on the right hand, the weapons carried by the hands as drawn; a take's legs
+  (`aglegs::placed`) on thigh, shin and foot (`legsOnRig`). agarms on the authored rig: its hand is the hand bone (the
+  wrist the forearm's end, not 34% back from it; the hand's vertices its forearm's), aglegs: the feet the shins' boots.
+- **Decision: `vr_rig2_arm_limits 0`** (the arms follow the solve, its own limits; the authored limits measured only):
+  with them held (1) the hands left their weapons by 23 units and turned 163 degrees off in the glitch finder (fists'
+  guards and aims raise the upper arm past the authored 40 forward / 50 out, the wrist past 25 / 10).
+- Tools (Debug menu too): `vr_rig2_look 1|2` (live grunts as their .mdl / hidden: the look check), `vr_rig2_arms` (how
+  the arms sat: hand and elbow off the solve, the authored limits passed per joint), `vr_rig2_live_check`,
+  `vr_rig2_frames` (the frames against the joints as the ragdoll has them), `vr_rig2_parts` (an authored ragdoll's parts
+  and joint gaps), `vr_rig2_record ragdoll|armed|all [most [every [check]]]` and `vr_rig2_check <model> 0
+  recorded|situations`.
+
+**Numbers, old (derived rig moved alike) / new (authored)** (`vr_rig2_check`, the same poses; see-through, flipped,
+collapsed, folds, stretch):
+| poses | old | new |
+|---|---|---|
+| 60 ragdoll poses from real deaths (body, head, arm, leg shots x2, a blast) and knockdowns | 4 (4 poses), 683, 25, 144, 0.11..12.67 | 0, 11, 2, 4, 0.37..3.32 |
+| 200 armed poses as drawn, glitch finder (test 46, every 1.5 s) | 283 (131 poses), 5522, 77, 830, 0.04..40.35 | 0, 432, 22, 181, 0.12..3.36 |
+| elbow-to-hand curve (elbow 140, wrist 25) | 0, 1, 0, 0, 0.62..1.11 | 0, 0, 0, 0, 0.70..2.22 |
+| shoulder hole (30 fwd, 40 out) | 0, 4, 0, 0, 0.37..3.68 | 0, 0, 0, 0, 0.72..1.94 |
+| knee (115 under a hip at 65) | 0, 2, 0, 2, 0.61..1.84 | 0, 0, 0, 0, 0.72..1.58 |
+| biceps gap (out 50, twist 20) | 0, 1, 0, 0, 0.78..9.25 | 0, 0, 0, 0, 0.74..1.67 |
+| wrist and ankle at their limits | 0, 0, 0, 0 (no hand or foot bones) | 0, 0, 0, 1, 0.45..1.29 |
+The armed set's flips are the armpit web with the shoulder past its authored limits (24 degrees past on average over the
+test; `vr_rig2_arms`: clavicle 2.4 / 18.9, shoulder 24.0 / 176.0, elbow 0.0 / 17.9, wrist 22.0 / 97.5 mean / most
+degrees past), hand off the solve 0.09 mean, 3.6 most units, grip turn 0.0. (The recorded forearm has no twist: the
+check's forward() leaves its share at the wrist.) The glitch finder's own metrics (the solve's: the same code on the
+authored geometry), grunts, old -> new worst / p95: flip 47.6/7.9 -> 41.8/7.7, wrong 178.7/51.2 -> 179.9/68.7, pen
+5.6/0 -> 5.0/0, **reach 27.1/2.3 -> 28.6/3.9, grip2 11.6/0.2 -> 14.1/1.0**, aim 57.4/9.9 -> 61.6/9.4, wrist 72.5/11.4 ->
+61.6/10.7, armpen 6.5/1.2 -> 6.3/0.5, swing 145.7/67.6 -> 154.7/92.8, twist 174.8/74.1 -> 174.6/81.0 (the enforcers'
+run to run: flip 64 / 32, wrong p95 73 / 67). The authored shoulders sit 1.7 (right) and 2.7 (left) units further out,
+the upper arms 8.2 / 9.1 long (old 9.8 / 11.3): the solve reaches less, the off hand takes a second grip less often (the
+frozen ready pose of `pose_grunts_guns`: the off hand hangs out by the hip; eyeshot below). The two stage-1 check
+failures are unchanged (33 of 35): weights tried (the armpit sliver's three vertices sharing one blend, the crotch's
+cross-thigh weight to the pelvis) moved the flips to the next triangles and failed four more joints (29 of 35): reverted.
+
+**Cost** (LTO, exclusive, 3 x 900 frames, `bench.sh`; old / new): armed_16 CPU 3.07 / 2.79 ms (-9%), GPU 2.83 / 2.47 ms
+(-13%: one skinned copy instead of the alias shader's rows); ragdolls_32_active CPU 2.66 / 2.98 ms (+12%: 19 bodies and
+18 joints a grunt instead of 11 and 10), p99 6.38 / 6.87, max frame 11-24 / 26-27 ms (the 32 made at once).
+
+**Tests**: eval.sh no verdict changes with vr_rig2 0 and with 1 (with 1: three damages 0.1 apart); ragdoll_test (TB_SLOW,
+vr_rig2 1 by the baseline config: stairs, blast, shot, gib with the upper arm and thigh cut off at their authored joints,
+save/load, grab, two hands, wounds: all as before, first drawn 1.1-3.0 units rms as the old 1.0-3.0); dismember_test
+arm, leg, head cut at upperarm_l, thigh_l, head; active_test deaths; `vr_rigstudio_rom test` 9/9 and
+`_test_subjects` 14/14 on both latches; on the authored latch `_test_aim` 3/4 (low right: the barrel 9.8 degrees off) and
+`_test_posekeys` 7/9 (the Pickup's pelvis never shown: its legs' solve), both 4/4 and 10/10 on the old; vr_rig2_check
+33/35 as before. The look check (ragao's: copy at rest against its .mdl at rest, lit, the grunt's pixels): authored copy
+9.3 /255 (old `#rag` 16.9 in the same scene); fullbright with `vr_ao_models 0` 7.5; neither occlusion, normal maps nor
+texture filtering (each off: 8.8-10.9); its pattern is texel-sized over the whole skin (a sampling or shading difference
+of the skeletal path, not found). Eyeshots (old left, new right; the worktree's scratch): `scratch/eyes_aim.png` (frozen guns),
+`eyes_melee.png`, `eyes_death.png`, `eyes_knock.png`, `eyes_cut.png`.
+
+**Left for later**: the armed solve tuned to the authored geometry (reach, the second grip: Grip Editor offsets or the
+clavicle taking the reach), the studio's aim and Pickup tests on it, the live grunts' r_lerpmodels 3 spline (two poses
+blended now), the enforcer (stage 2b: its rig is there; needs `fromAuthored` for it (the grunt-only check lifted), its
+bone names checked against agarms' armed rig row and hitreact's, its rifle a weapon bone, its arms and legs as the
+grunt's), the ROM window's "Old rig" mesh under the authored latch (it moves the authored ragdoll rig).
+- [ ] Grunt rig stage 2 {test:pose_grunts_guns}: Debug > Grunt on the Authored Rig on, load a map: grunts alive (aiming, running, reloading, a shotgun and a nail pistol), hit, knocked down, killed, cut, grabbed: their joints smooth (no tearing at the elbow, knee, shoulder), their weapons in their hands; tell where the off hand misses its grip
+- [ ] Grunt rig stage 2 ragdolls {test:none}: vr_rig2 1: kill grunts every way (body, head, arm, leg, blast, a stair fall), knock them down and let them get up: no part flung, no limb bent the wrong way, the corpse smooth at every joint
