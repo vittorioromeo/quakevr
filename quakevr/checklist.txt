@@ -14,6 +14,11 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Nail pistol empty, walk with the thumbstick: the slide stays locked back, no jitter {test:nailpistol}
+Heavy revolver: load shells one after another: no accidental spin (Wait After Loading 0.6 s); a deliberate swipe still spins it {test:revolver}
+Flare gun: a flare into a dead grunt's ragdoll, and one lying under a corpse, set it on fire {test:flaregun}
+Your flare gun, revolver and nail pistol tuning is the default now (offsets, hotspots, revolver damage 28, flick speeds and angles) and feels like yours; not promoted, your call: vr_recoil_kick 4.5 / vr_recoil_rise 7.5 (all guns)
+First start: put the headset on after the game is up: the legs fit, the same as after a reload
 AD: turn, snap/smooth turn and walk on ad_azad's snowfield (or load your s3 save): no black frames, sky and lamps steady {test:ad_fog_flicker}
 AD hub, lower level: walk into each original slipgate (E1-E4, end): that episode's first map (or end) loads, AD's rules kept
 Comfort > Soften Flickering Lights now defaults to 0 (configs on beta4's 0.5 move to 0): AD's lamps flicker as authored but no black frames
