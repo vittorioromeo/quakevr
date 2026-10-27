@@ -551,6 +551,7 @@ int VR_RagtoolView (float *origin, float *angles);		// V_CalcRefdef: the ragdoll
 int VR_RagtoolKey (int key, int down);					// Key_Event in the game: nonzero if the ragdoll tool took the key
 void VR_RagtoolOverlay (void);							// V_RenderView, after R_RenderView: the debug lines over a flat view while the ragdoll tool runs
 int VR_ImGuiEvent (const void *sdlEvent);				// IN_SendKeyEvents, each SDL event first: nonzero when a flat-screen tool's ImGui took it (vr_imgui.cpp; the game skips it)
+int VR_ImGuiTextMode (void);							// Key_TextEntry in the game: -1 no tool's ImGui; else a textmode_t (SDL's text input on while a tool is open: ImGui's fields get typed chars)
 void VR_ImGuiRender (void);								// GL_EndRendering, before the swap: the flat-screen tools' ImGui windows drawn (vr_imgui.cpp)
 int VR_RigStudioView (float *origin, float *angles);	// V_CalcRefdef: the Rig Studio's camera over the view (nonzero: set; vr_rigstudio.cpp)
 int VR_RigStudioHolds (void);							// Host_ServerFrame: nonzero while the Rig Studio holds the game still (its scene frozen)

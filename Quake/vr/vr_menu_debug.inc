@@ -166,6 +166,11 @@ za::Vector<Item> pageDebugViews()
                   "left arm, two random poses: each held weapon's grip read back from where it is drawn against its hand "
                   "bone's (within 0.5 units, 2 degrees), a screenshot each; the console says how many passed. Flat screen "
                   "only; pick a dual-wielding subject first (Subject menu) to test the left hand too."),
+        command("Rig Studio: Test Typing in the Fields", "vr_rigstudio;vr_rigstudio_test_typing")
+            .help("vr_rigstudio_test_typing: keys, typed characters and clicks sent through the game's input loop into "
+                  "the studio's text fields (a sequence's FPS typed, undone, cancelled; the Outliner's search typed; the "
+                  "console's key): the console says how many passed. It makes a sequence 'typetest' (not saved). Flat "
+                  "screen only; keep the mouse and keyboard still while it runs."),
         command("Check the Authored Grunt Rig", "vr_rig2_check")
             .help("vr_rig2_check: the authored rig swept through every joint's range, joint pairs and 1000 random poses: "
                   "see-through holes, flipped and collapsed triangles, sharp folds, stretch, beside the old rig moved the "
