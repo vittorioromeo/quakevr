@@ -25195,6 +25195,12 @@ line there: stopped, not judged.)
 
 Head shots (clear of the weapon) hurt as ever: pellets 6-8, nails 17, nothing stopped.
 
+Regressions: tests 37 8/8, 38 3/3, 69 10/10, 50 10/10 (block off as measured), 67 181/188 normal, 143/161 bullet
+time (as before: misses on standing humanoids, untouched here). Test 31 4/5: "ragtug pulled ... after 5.00 s (peak 72
+N)" fails the same with the ragdoll-grab fix disabled: already failing on origin/next (not this branch; its pull
+peaks at 72 N where 2026-10-26 broke at 1534 N). eval.sh: canary 36/44, full 163/171, 9 differ PASS -> PASS (damage
+noise), no verdict changes.
+
 Files: QC/vr_armedgrunt_shot.qc (`VR_AGS_Blocks`, `VR_AGS_Stopped`, `vr_ags_exact`), vr_armedgrunt_shot_test.qc,
 vr_armedgrunt_downtug_test.qc (new), vr_armedgrunt_test.qc (dispatch 74, 75), vr_cvars.qc; Quake/vr/vr_cvars.inc,
 vr_cvars.cpp (retired), vr_menu_gameplay.inc, vr_menu_automation.inc, vr_box3d_ragparts.cpp.
