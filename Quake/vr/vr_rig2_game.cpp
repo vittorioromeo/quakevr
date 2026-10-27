@@ -355,6 +355,7 @@ struct Recorder
     int mask{0};  // 1 ragdolls, 2 armed ones' drawn poses
     int most{50}; // poses kept each
     float every{0.5f};   // seconds between an entity's kept poses (armed)
+    float ragEvery{0.25f}; // ... (ragdolls: `every` when given, at least 0.25; more deaths in a set)
     bool checkFull{false}; // vr_rig2_check recorded run once full (a test's definite end)
     char only[32]{};       // poses kept from models whose name has this (empty: the first kept pose's model alone)
     char model[64]{};      // ... the model the first was kept from (the check's)
@@ -454,7 +455,7 @@ void notePublished(int num, const ragdoll::Rig& rig, int bodies, const glm::quat
     {
         F[b].rot = b < bodies ? rot[b] : rot[0];
     }
-    keep(0, num, *a, F, cl.time, 0.25);
+    keep(0, num, *a, F, cl.time, recorder.ragEvery);
 }
 
 const za::Vector<Pose>& recordedPoses(int set)
@@ -470,6 +471,7 @@ void record_f()
         recorder.mask = !strcmp(what, "ragdoll") ? 1 : !strcmp(what, "armed") ? 2 : 3;
         recorder.most = Cmd_Argc() > 2 ? za::max(atoi(Cmd_Argv(2)), 1) : 50;
         recorder.every = Cmd_Argc() > 3 ? za::max(static_cast<float>(atof(Cmd_Argv(3))), 0.05f) : 0.5f;
+        recorder.ragEvery = Cmd_Argc() > 3 ? za::max(recorder.every, 0.25f) : 0.25f;
         recorder.checkFull = false;
         recorder.only[0] = 0;
         for(int i = 4; i < Cmd_Argc(); i++)
