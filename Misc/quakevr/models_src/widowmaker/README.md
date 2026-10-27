@@ -17,7 +17,7 @@ from the receiver's bottom under the sweep.
 | File | What |
 | --- | --- |
 | `widowmaker.blend` | The source: objects `Body` (everything still) and `Barrels` (what turns), one material `WidowmakerSkin` (the skin, nearest filtering), one UV atlas. Empties `_Muzzle`, `_SightRear`, `_SightFront`, `_HandAnchor`, `_TwoHHandAnchor`, `_ShellPort`, `_EjectSlot` (children of Body, not exported) mark the points below. |
-| `widowmaker_skin.png` | The skin, 512x512 RGB, already in Quake's palette: paint this one. Darkened three times: `SKIN_DARKEN` 0.82 * 0.65 in the build script is the third pass (2026-10-26; `renders/darker2_before_after.png`), with a small lift of only the darkest values (`SKIN_DARK_LIFT` 6, fading out by 40) so near-black detail does not collapse onto a few palette entries. The rear plate and the grips (and their feet) have 1.7 times the texel density of the rest. |
+| `widowmaker_skin.png` | The skin, 692x692 RGB (512 until 2026-10-27: 1.35 times per side, the same UV layout re-baked at the new density), already in Quake's palette: paint this one. Darkened four times: `SKIN_DARKEN` 0.82 * 0.65 * 0.75 in the build script is the fourth pass (2026-10-27, towards AD's black skin), with a small lift of only the darkest values (`SKIN_DARK_LIFT` 3, fading out by 30) so near-black detail does not collapse onto a few palette entries; rust and stains at `SKIN_RUST` 0.7 of their strength; the brass, the rivets' domes and the sights' tops (`ACCENTS`) `SKIN_ACCENT` 1.25 times brighter than the rest, as darker metal accents. The build prints the skin's mean luma by region. The rear plate and the grips (and their feet) have 1.7 times the texel density of the rest. |
 | `widowmaker_skin_pal.png` | The skin as palette indices (8-bit), written by every export. |
 | `export_mdl.py` | Writes the MDLs from the .blend (below). |
 | `build_widowmaker.py` | Makes the .blend from nothing (shapes, UVs, a procedurally painted skin) and exports. It **overwrites** the .blend and the skin: once they are edited by hand, don't run it. |
@@ -25,7 +25,7 @@ from the receiver's bottom under the sweep.
 
 Triangles: 2592 (`Body` 732: receiver, rear plate, top strip, sights, shell port and ejection slot frames, rail and its
 strap, grips and feet, trigger and guard, the muzzle mark; `Barrels` 1860: three 12-sided barrels with bores, three
-collars and three muzzle rings each). The model made from AD's has 1230. Skin 512x512, one skin.
+collars and three muzzle rings each). The model made from AD's has 1230. Skin 692x692, one skin.
 
 The relief (normal map with heights) is made by the engine from the skin as the model loads, as for every weapon made
 under a `#vr` name (`Quake/vr/vr_skinrelief.cpp`: the dark mortar and seams grooved, the painted rivets raised; cached by

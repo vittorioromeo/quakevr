@@ -23727,3 +23727,34 @@ covered. `vr_debug_sound_log` also prints `voicelog: transformed <name>` per tra
 vrfiringrange, drops of 50/120/330 units): none / `land.wav` / `pain3`+`land2.wav`, all transformed; `vr_voice 0`
 reloads the originals (count unchanged at 24).
 - [ ] Voice: Feminine, drop from a ledge about 2 m high: the landing grunt is high-pitched like the jump's
+
+## Widowmaker skin: 692x692 and much darker (worktree `dequant`, branch `agent/widowtex4`, 2026-10-27)
+
+His note: "still too bright and too low-res: raise the res by like 30-40% and make it much darker, closer to the
+original black skin, but not all the way there". `Misc/quakevr/models_src/widowmaker/build_widowmaker.py`:
+- **Resolution** `SKIN_W, SKIN_H` 512 -> 692 (1.35 a side, a multiple of 4; 1.83 times the texels). The same smart-project
+  UV layout, its corners re-snapped to the new texel centres, and the whole skin re-baked procedurally at the new density
+  (the rust, rivets, bricks, brass, edges and specks are painted per texel from the model's surface, so they are finer,
+  not upscaled). Geometry unchanged (same 2592 triangles, every vertex position equal), so the muzzle, sights, shell port,
+  ejection slot, hand anchors and the readout are unchanged. The engine's relief/normal map follows the skin: 1384x1384
+  (twice the skin, as before); skins over 512x512 take the normal-map generator's one-step-at-a-time path at load.
+- **Darker**: `SKIN_DARKEN` 0.82 * 0.65 -> 0.82 * 0.65 * 0.75; the near-black lift smaller (`SKIN_DARK_LIFT` 6 -> 3, knee
+  40 -> 30) so the darkest parts can reach near-black like AD's; rust and stains at `SKIN_RUST` 0.7 of their strength;
+  the brass, the rivets' domes and the sights' tops (`ACCENTS`) `SKIN_ACCENT` 1.25 times the rest, kept readable as
+  darker metal accents. The build prints the mean luma by region.
+- **Luma** (8-bit sRGB, Rec.709 weights, after the Quake palette, over the texels the triangles use): AD's original
+  `v_shot3.mdl` (256x256) mean 17.5, median 9.9 (black with bright bits); before 26.3 / 22.4; now **19.1 / 16.4**
+  (mean about 80% of the way to AD's, median about half way; 36 palette colours). By region, before -> now: iron 22.6 ->
+  16.0, steel panel 39.8 -> 29.6, olive cover 29.2 -> 20.5, barrels 25.6 -> 17.9, brick grips 26.3 -> 18.4, rear plate
+  21.0 -> 15.4, plate rim/feet 23.8 -> 17.2, brass 25.3 -> 22.0, rivets 34.5 -> 30.9, sight tops 47.8 -> 44.8, bores 10.0
+  -> 7.3. Blender renders (gun pixels' mean, lit room): three-quarter AD 24.4 / before 29.9 / now 25.3; side 21.1 / 22.5 /
+  19.1; rear 24.7 / 33.0 / 29.5.
+- Renders (AD's | before | now; three-quarter, side, rear with the sights, first person; lit and dark room) are kept out
+  of the repository (AD's model): `scratch/wt4/r/cmp_lit.png`, `cmp_dark.png` (`scratch/wt4/render_cmp.py`); the
+  `renders/` views re-rendered.
+- Note: the build is not byte-reproducible run to run (Blender's UV packing order varies: a rebuild with the old
+  constants moved some islands; same means within 0.1); not changed here.
+
+Checked: `vr_ad_test 148` PASS (16 of 16); `vr_ad_test 149` 11 passed, 0 failed (`vr_weapon_grip_mode 1`, ad_dm1,
+`-game ad`); in-game A/B of the preview models at e1m1's start (low-impact eyes); eval.sh no verdict changes.
+- [ ] Widowmaker {test:widowmaker_art}: the 692 skin, much darker (near AD's black, not all the way) in a lit and a dark room; rust subdued, brass collars, rivets and the grips' bricks still readable up close.
