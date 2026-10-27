@@ -1153,6 +1153,15 @@ void posekey_f()
         else if(!strcmp(w, "phase")) { st.pdPhase = za::clamp(v, 0, agpose::numPhases - 1); }
         else if(!strcmp(w, "follow")) { st.pdFollow = v != 0; }
         else if(!strcmp(w, "part")) { st.pdPart = v; }
+        else if(!strcmp(w, "offhand"))
+        {
+            // (the key's off-hand hold, agpose::OffMode: as the window's combo, undoable)
+            const int c = agpose::code(st.pdKind, st.pdClass, st.pdPose, agpose::isStrike(st.pdPose) ? st.pdPhase : 0);
+            agpose::Key k = agpose::value(c);
+            pushPoseUndo(c);
+            k.v[agpose::OffHand] = glm::vec3{static_cast<float>(za::clamp(v, 0, agpose::NumOffModes - 1)), 0.f, 0.f};
+            agpose::set(c, k);
+        }
     }
     const int code = agpose::code(st.pdKind, st.pdClass, st.pdPose, agpose::isStrike(st.pdPose) ? st.pdPhase : 0);
     const agpose::Key k = agpose::value(code);
@@ -1161,6 +1170,9 @@ void posekey_f()
         code, agpose::kindName(st.pdKind), agpose::className(st.pdClass), agpose::poseName(st.pdClass, st.pdPose),
         k.v[0].x, k.v[0].y, k.v[0].z, k.v[1].x, k.v[1].y, k.v[1].z, k.v[2].x, k.v[2].y, k.v[2].z, k.v[3].x, k.v[3].y, k.v[3].z,
         k.v[4].x, k.v[4].y, k.v[4].z, k.v[5].x, k.v[5].y, k.v[5].z, k.v[6].x, k.v[6].y, k.v[6].z, st.subjKind, st.subjClass);
+    Con_Printf("rigstudio posekey %d: off hand %s, grip offset %.2f %.2f %.2f turn %.2f %.2f %.2f\n", code,
+        agpose::offModeName(agpose::offModeOf(k.v[agpose::OffHand])), k.v[agpose::GripPos].x, k.v[agpose::GripPos].y,
+        k.v[agpose::GripPos].z, k.v[agpose::GripTurn].x, k.v[agpose::GripTurn].y, k.v[agpose::GripTurn].z);
     aglegs::Placed L;
     const bool legs = st.subject > 0 && aglegs::placed(st.subject, L);
     Con_Printf("rigstudio posekey: the subject's legs %s (kneel %.2f, weight %.2f), legs layer %s\n", legs ? "placed" : "not placed",
@@ -1375,6 +1387,8 @@ constexpr PkStep pkSteps[] = {
     {"right elbow, down 4", 4, 2, -4.f, agpose::Aim},
     {"torso, turned 15 deg left (z)", 6, 22, 15.f, agpose::Aim},
     {"pelvis, down 3 (Pickup)", 7, 2, -3.f, agpose::Pickup},
+    {"left hand: grip offset, forward 2 (the gun's x)", 12, 0, 2.f, agpose::Aim},
+    {"left hand: grip offset, rolled 15 deg (the gun's x)", 12, 20, 15.f, agpose::Aim},
 };
 constexpr int pkStepCount = static_cast<int>(sizeof(pkSteps) / sizeof(pkSteps[0]));
 
@@ -1466,9 +1480,9 @@ void pkTestTick()
         }
         ptest.placed0 = st.note.placed.weapon[0];
         ptest.target0 = st.note.t.weapon[0];
-        if(ptest.step == 0)
+        if(ptest.step == 0 || (s.part == 12 && s.axis < 3))
         {
-            Cbuf_AddText("screenshot\n"); // (before)
+            Cbuf_AddText("screenshot\n"); // (before; the grip offset's before)
         }
         ptest.wait = 0;
         ptest.phase = 1;
@@ -1552,6 +1566,34 @@ void pkTestTick()
             const float yaw = (za::atan2(f1.y, f1.x) - za::atan2(f0.y, f0.x)) / deg;
             ok = za::abs(got.x - s.amount) < 0.5f && za::abs(got.y) < 0.5f && za::abs(got.z) < 0.5f && za::abs(yaw - s.amount) < 3.f;
             q_snprintf(text, sizeof(text), "key Torso +%.2f %.2f %.2f, drawn chest turned %.2f deg", got.x, got.y, got.z, yaw);
+        }
+        else if(s.part == 12)
+        {
+            // The off hand's grip offset (the gun's frame): the key's GripPos / GripTurn by the drag, the drawn off hand's
+            // grip frame moved / turned by it in the gun's frame
+            const glm::quat W = glm::normalize(body * glm::normalize(ptest.placed0.rot));
+            const glm::vec3 gp = k.v[agpose::GripPos] - ptest.key0.v[agpose::GripPos];
+            const glm::vec3 moved = glm::inverse(W) * (now.pos - ptest.part0.pos);
+            const glm::quat rel = glm::normalize(glm::inverse(W) * now.rot * glm::inverse(ptest.part0.rot) * W);
+            const float turned = quatDeg(rel, glm::quat{1.f, 0.f, 0.f, 0.f});
+            const glm::vec3 ax = glm::length(glm::vec3{rel.x, rel.y, rel.z}) > 1e-5f ? glm::normalize(glm::vec3{rel.x, rel.y, rel.z}) * (rel.w < 0.f ? -1.f : 1.f) : glm::vec3{0.f};
+            if(s.axis < 3)
+            {
+                ok = glm::length(gp - axisB * s.amount) < 0.05f && glm::length(moved - axisB * s.amount) < 0.25f && turned < 1.f;
+                q_snprintf(text, sizeof(text), "key GripPos +%.2f %.2f %.2f, drawn off hand moved %.2f %.2f %.2f (the gun's frame), turned %.2f deg",
+                    gp.x, gp.y, gp.z, moved.x, moved.y, moved.z, turned);
+            }
+            else
+            {
+                const float off = quatDeg(rotOf(k.v[agpose::GripTurn]), glm::angleAxis(s.amount * deg, axisB) * rotOf(ptest.key0.v[agpose::GripTurn]));
+                ok = off < 0.5f && za::abs(turned - s.amount) < 1.f && glm::dot(ax, axisB) > 0.98f && glm::length(moved) < 0.25f;
+                q_snprintf(text, sizeof(text), "key GripTurn %.2f %.2f %.2f (off the asked %.2f deg), drawn off hand turned %.2f deg about %.2f %.2f %.2f (the gun's frame), moved %.2f",
+                    k.v[agpose::GripTurn].x, k.v[agpose::GripTurn].y, k.v[agpose::GripTurn].z, off, turned, ax.x, ax.y, ax.z, glm::length(moved));
+            }
+            if(s.axis < 3)
+            {
+                Cbuf_AddText("screenshot\n"); // (the grip offset's after)
+            }
         }
         else
         {

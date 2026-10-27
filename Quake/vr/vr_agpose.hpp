@@ -95,8 +95,31 @@ enum Part : int
     ElbowR,   // the right elbow's pole (its chest's space; its length its share, added to the strike's own)
     ElbowL,
     Torso,    // the torso's turn about its waist: yaw (left), pitch (forward), roll (to its right); degrees
+    // The off hand on a single gun (2026-10-27, agent/offhand; ROUND22.md, "Off hand: grip offset and Free"): parts
+    // after the first seven, missing from older text (read as zero: no change, Auto). LPos/LTurn above are also the free
+    // off hand's place and turn change (on its hanging place, model space) while it is off the gun.
+    GripPos,  // its grip target on the gun (a second grip, a cup) moved in the weapon's frame (x forward, y left, z up; units)
+    GripTurn, // ... turned about its grip point (a rotation vector in the weapon's frame; degrees)
+    OffHand,  // x: OffMode (the rest unused)
     NumParts
 };
+inline constexpr int numOldParts = 7; // (the parts before 2026-10-27: every text and row has these; the rest may be missing)
+
+// A key's off hand (its OffHand part's x): which hold the off hand takes while this key decides it (QC VR_AGK_Keys: the
+// Pickup's when set, else Aim's while aimed, else Run's when set while running, else Carry's).
+enum OffMode : int
+{
+    OffAuto = 0, // the Weapon Holds' (its second grip, a cup, or free for a one-handed hold)
+    OffGun = 1,  // on the gun (its second grip, else cupping the right hand) even when the hold is one-handed
+    OffFree = 2, // off the gun, hanging free (moved by LPos/LTurn)
+    NumOffModes
+};
+[[nodiscard]] const char* offModeName(int mode); // "Auto (the Weapon Holds)", "On the Gun", "Free"
+[[nodiscard]] inline int offModeOf(const glm::vec3& part)
+{
+    const int m = static_cast<int>(part.x + 0.5f);
+    return m > 0 && m < NumOffModes ? m : OffAuto;
+}
 
 struct Key
 {

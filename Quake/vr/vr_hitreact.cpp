@@ -868,6 +868,11 @@ struct ArmPoseMsg
     glm::vec3 waist{0.f};                  // ... the point QC turned its targets about (its body's space, units)
     float take{0.f};                       // apFixed: a take's weight (vr_aglegs: 0 standing .. 1 at its lowest)
     int takeSide{0};                       // ... its reaching hand (0 right, 1 left)
+    // The pose keys' off hand (QC's off-hand block, told by apLeftFree and apTwo both set: agpose GripPos/GripTurn,
+    // LPos/LTurn): its grip on the right weapon moved and turned (the weapon's frame), the free hand's (its body's space).
+    bool offKeyed{false};
+    glm::vec3 gripPos{0.f}, gripTurn{0.f};
+    glm::vec3 freePos{0.f}, freeTurn{0.f};
 };
 
 struct ArmPose
@@ -890,6 +895,8 @@ struct ArmPose
     float wr{0.f}, wl{0.f};                      // ... its weight in the right and left targets (the upper body moves them with it)
     float take{0.f};                             // a take's weight, its reaching hand (vr_aglegs)
     int takeSide{0};
+    bool offKeyed{false};                        // the pose keys' off hand (ArmPoseMsg's; the free hand's in model space)
+    glm::vec3 gripPos{0.f}, gripTurn{0.f}, freePos{0.f}, freeTurn{0.f};
     // vr_agholds_report: as its arms were last solved (vr_agarms): its kind, its weapon's slot, its off hand's goal (0
     // free, 1 the second grip, 2 cupping the right hand, 3 its own point, 4 its own weapon), the grip held, its point (the
     // weapon's frame, units).
@@ -1034,6 +1041,11 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
         m.elbowR = p.elbowR + (m.elbowR - p.elbowR) * f;
         m.elbowL = p.elbowL + (m.elbowL - p.elbowL) * f;
         m.take = p.take + (m.take - p.take) * f;
+        m.gripPos = p.gripPos + (m.gripPos - p.gripPos) * f; // (zero in a message with none)
+        m.gripTurn = p.gripTurn + (m.gripTurn - p.gripTurn) * f;
+        m.freePos = p.freePos + (m.freePos - p.freePos) * f;
+        m.freeTurn = p.freeTurn + (m.freeTurn - p.freeTurn) * f;
+        m.offKeyed = m.offKeyed || p.offKeyed;
     }
     const float scale = za::max(ENTSCALE_DECODE(e->scale), 0.01f);
     glm::vec3 hr{0.f};
@@ -1088,6 +1100,11 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     s.wl = anchored ? m.wl : 0.f;
     s.take = (m.flags & apFixed) ? m.take : 0.f;
     s.takeSide = m.takeSide;
+    s.offKeyed = m.offKeyed;
+    s.gripPos = m.gripPos;
+    s.gripTurn = m.gripTurn;
+    s.freePos = m.freePos / scale;
+    s.freeTurn = m.freeTurn;
     if(anchored)
     {
         s.left += anchorAt * m.wl;
@@ -2662,6 +2679,17 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
             t.cup = true; // (two-handed and no second grip: the off hand under and round the right on its handle)
         }
     }
+    if(s.offKeyed && hasR && !(s.flags & (apLeft | apLeftWeapon)))
+    {
+        // The pose keys' off hand: its grip on the weapon moved and turned (the weapon's frame), the free hand's
+        const auto rotOf = [](const glm::vec3& r) {
+            const float a = glm::length(r);
+            return a < 1e-4f ? glm::quat{1.f, 0.f, 0.f, 0.f} : glm::angleAxis(glm::radians(a), r / a);
+        };
+        t.offKeyed = true;
+        t.gripOff = rigpose::Rigid{rotOf(s.gripTurn), s.gripPos};
+        t.freeOff = rigpose::Rigid{rotOf(s.freeTurn), s.freePos};
+    }
     if(uppered)
     {
         t.weapon[0].pos += anchorShift * s.wr;
@@ -3036,6 +3064,30 @@ void parseArmPose()
             const int k = MSG_ReadByte(); // (a take's weight x 127, its left hand's reach 128)
             m.take = static_cast<float>(k & 127) / 127.f;
             m.takeSide = (k & 128) ? 1 : 0;
+        }
+    }
+    if((m.flags & (apLeftFree | apTwo)) == (apLeftFree | apTwo))
+    {
+        // The pose keys' off hand (QC VR_AGP_Pose's off-hand block: never both flags otherwise): its own flags, then the
+        // grip's change on the weapon and the free hand's (places x 100, turns x 10)
+        const int b = MSG_ReadByte();
+        m.flags = (m.flags & ~(apLeftFree | apTwo)) | ((b & 1) ? apLeftFree : 0) | ((b & 2) ? apTwo : 0);
+        m.offKeyed = true;
+        const auto readShorts = [](glm::vec3& v, float per) {
+            for(int i = 0; i < 3; i++)
+            {
+                v[i] = static_cast<float>(MSG_ReadShort()) / per;
+            }
+        };
+        if(b & 4)
+        {
+            readShorts(m.gripPos, 100.f);
+            readShorts(m.gripTurn, 10.f);
+        }
+        if(b & 8)
+        {
+            readShorts(m.freePos, 100.f);
+            readShorts(m.freeTurn, 10.f);
         }
     }
     m.t = cl.mtime[0];

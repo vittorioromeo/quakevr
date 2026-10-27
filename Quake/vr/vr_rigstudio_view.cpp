@@ -197,7 +197,14 @@ ViewState vs;
 // Where the handle is (the active bone's pivot, or the rest tool's point; IK: none) and its axes.
 [[nodiscard]] bool rotatablePart(int p)
 {
-    return p == 0 || p == 1 || p == 6 || p == 7; // (the weapons, the chest, the pelvis)
+    return p == 0 || p == 1 || p == 6 || p == 7 || p == 12 || p == 13; // (the weapons, the chest, the pelvis, the off hand's)
+}
+
+// A Pose Keys part's handle axes (world): its key space's (the subject's facing), the off hand's grip offset's the right
+// weapon's frame (its key's space: agpose::GripPos).
+[[nodiscard]] glm::quat poseAxes(int p)
+{
+    return p == 12 ? glm::normalize(bodyTurn() * glm::normalize(st.note.placed.weapon[0].rot)) : bodyTurn();
 }
 
 void placeHandle()
@@ -222,7 +229,7 @@ void placeHandle()
         vs.h.move = st.pdPart != 6;
         vs.h.rot = rotatablePart(st.pdPart);
         vs.h.centre = part.pos;
-        const glm::quat q = bodyTurn();
+        const glm::quat q = poseAxes(st.pdPart);
         vs.h.axis[0] = q * glm::vec3{1.f, 0.f, 0.f};
         vs.h.axis[1] = q * glm::vec3{0.f, 1.f, 0.f};
         vs.h.axis[2] = q * glm::vec3{0.f, 0.f, 1.f};
@@ -635,12 +642,13 @@ void dragDesk(const glm::vec2& m)
     const glm::quat body = bodyTurn();
     if(st.dragKind == 11)
     {
-        glm::vec3 local = glm::inverse(body) * dragDisplacement(m);
+        const glm::quat axes = poseAxes(st.pdPart); // (whole units snapped in the handle's own axes)
+        glm::vec3 local = glm::inverse(axes) * dragDisplacement(m);
         if(ctrl() || st.snap)
         {
             local = glm::floor(local + glm::vec3{0.5f});
         }
-        now.pos += body * local;
+        now.pos += axes * local;
     }
     else
     {
@@ -1388,7 +1396,8 @@ void drawAim(ImDrawList* dl)
 }
 
 constexpr const char* posePartNames[] = {"right weapon", "left weapon", "right fist", "left hand", "right elbow", "left elbow",
-    "torso", "pelvis", "planted foot", "kneeling knee", "kneeling foot", "planted knee"};
+    "torso", "pelvis", "planted foot", "kneeling knee", "kneeling foot", "planted knee", "left hand: grip offset",
+    "left hand (free)"};
 constexpr int posePartCount = static_cast<int>(sizeof(posePartNames) / sizeof(posePartNames[0]));
 
 // The Pose Keys tool's parts: each a dot (the picked one's handle drawn), an elbow's and a knee's pole as a line.

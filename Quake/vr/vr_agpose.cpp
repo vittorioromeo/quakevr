@@ -237,6 +237,10 @@ void parse()
         for(int i = 0; i < agpose::NumParts * 3 && ok; i++)
         {
             const float f = strtof(p, &end);
+            if(end == p && i >= agpose::numOldParts * 3)
+            {
+                break; // (an entry from before the off-hand parts: the rest zero, no change and Auto)
+            }
             ok = end != p;
             e.k.v[i / 3][i % 3] = f;
             p = end;
@@ -254,13 +258,27 @@ void parse()
     }
 }
 
+// How many of key `k`'s parts its text and dump rows carry: the first seven, the off hand's too when any is set (older
+// builds read the first seven and skip the rest of an entry).
+[[nodiscard]] int partsOf(const agpose::Key& k)
+{
+    for(int i = agpose::numOldParts; i < agpose::NumParts; i++)
+    {
+        if(k.v[i] != glm::vec3{0.f})
+        {
+            return agpose::NumParts;
+        }
+    }
+    return agpose::numOldParts;
+}
+
 void write()
 {
     za::String text;
     for(const Entry& e : state.over)
     {
         text += va("%d", e.code);
-        for(int i = 0; i < agpose::NumParts * 3; i++)
+        for(int i = 0; i < partsOf(e.k) * 3; i++)
         {
             text += va(" %g", static_cast<double>(e.k.v[i / 3][i % 3]));
         }
@@ -318,7 +336,7 @@ void write()
     {
         return part == agpose::LegPelvisTurn;
     }
-    return part == agpose::RTurn || part == agpose::LTurn || part == agpose::Torso;
+    return part == agpose::RTurn || part == agpose::LTurn || part == agpose::Torso || part == agpose::GripTurn;
 }
 
 [[nodiscard]] bool same(int code, const agpose::Key& a, const agpose::Key& b)
@@ -400,10 +418,11 @@ void key_f()
         dropCode(c);
         write();
     }
-    else if(Cmd_Argc() >= 2 + agpose::NumParts * 3)
+    else if(Cmd_Argc() >= 2 + agpose::numOldParts * 3)
     {
+        // (21 numbers, the first seven parts: the off hand's left as zero; or all 30)
         agpose::Key k;
-        for(int i = 0; i < agpose::NumParts * 3; i++)
+        for(int i = 0; i < agpose::NumParts * 3 && 2 + i < Cmd_Argc(); i++)
         {
             k.v[i / 3][i % 3] = static_cast<float>(Q_atof(Cmd_Argv(2 + i)));
         }
@@ -414,6 +433,14 @@ void key_f()
         agpose::className(agpose::classOf(c)), agpose::poseName(agpose::classOf(c), agpose::poseOf(c)),
         static_cast<double>(k.v[0].x), static_cast<double>(k.v[0].y), static_cast<double>(k.v[0].z),
         static_cast<double>(k.v[1].x), static_cast<double>(k.v[1].y), static_cast<double>(k.v[1].z));
+    Con_Printf("agpose key %d off hand: %s, grip offset %g %g %g turn %g %g %g, free L %g %g %g turn %g %g %g\n", c,
+        agpose::offModeName(agpose::offModeOf(k.v[agpose::OffHand])), static_cast<double>(k.v[agpose::GripPos].x),
+        static_cast<double>(k.v[agpose::GripPos].y), static_cast<double>(k.v[agpose::GripPos].z),
+        static_cast<double>(k.v[agpose::GripTurn].x), static_cast<double>(k.v[agpose::GripTurn].y),
+        static_cast<double>(k.v[agpose::GripTurn].z), static_cast<double>(k.v[agpose::LPos].x),
+        static_cast<double>(k.v[agpose::LPos].y), static_cast<double>(k.v[agpose::LPos].z),
+        static_cast<double>(k.v[agpose::LTurn].x), static_cast<double>(k.v[agpose::LTurn].y),
+        static_cast<double>(k.v[agpose::LTurn].z));
 }
 
 void dump_f()
@@ -690,12 +717,13 @@ void dumpText(za::String& out)
     parse();
     out += "// vr_agrunt_pose_dump: rows for Quake/vr/vr_agpose.cpp's shipped[] (the changes laid on QC's poses):\n";
     out += "// {code (kind*100000 + class*1000 + pose*10 + phase), {right place, right turn, left place, left turn,\n";
-    out += "//  right elbow's pole, left elbow's pole, torso yaw pitch roll}}\n";
+    out += "//  right elbow's pole, left elbow's pole, torso yaw pitch roll[, off hand's grip place, its grip turn (the gun's\n";
+    out += "//  frame), off hand mode 0 Auto 1 On the Gun 2 Free, 0, 0: when any is set]}}\n";
     for(const Entry& e : state.over)
     {
         const int kind = kindOf(e.code), cls = classOf(e.code), pose = poseOf(e.code), phase = phaseOf(e.code);
         out += va("    {%d, {", e.code);
-        for(int i = 0; i < NumParts * 3; i++)
+        for(int i = 0; i < partsOf(e.k) * 3; i++)
         {
             out += va("%s%.*ff", i ? ", " : "", isTurn(e.code, i / 3) ? 1 : 2, static_cast<double>(e.k.v[i / 3][i % 3]));
         }
@@ -746,6 +774,11 @@ const char* kindsName(int kind)
 const char* kindTitle(int kind)
 {
     return kind == 0 ? "Grunt" : kind == 1 ? "Enforcer" : "?";
+}
+
+const char* offModeName(int mode)
+{
+    return mode == OffGun ? "On the Gun" : mode == OffFree ? "Free" : "Auto (the Weapon Holds)";
 }
 
 const char* className(int cls)

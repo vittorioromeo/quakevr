@@ -1460,15 +1460,51 @@ void poseDataWindow()
             }
             const int code = agpose::code(st.pdKind, st.pdClass, st.pdPose, st.pdPhase);
             agpose::Key k = agpose::value(code);
-            const char* parts[agpose::NumParts] = {"Right Place", "Right Turn", "Left Place", "Left Turn", "Right Elbow Pole", "Left Elbow Pole", "Torso Turn"};
+            const char* parts[agpose::NumParts] = {"Right Place", "Right Turn", "Left Place", "Left Turn", "Right Elbow Pole",
+                "Left Elbow Pole", "Torso Turn", "Left Grip Place", "Left Grip Turn", ""};
             bool changed = false;
-            for(int p = 0; p < agpose::NumParts; p++)
+            for(int p = 0; p < agpose::numOldParts; p++)
             {
                 changed |= ImGui::DragFloat3(parts[p], &k.v[p].x, p == agpose::Torso || p == agpose::RTurn || p == agpose::LTurn ? 0.25f : 0.05f);
                 if(ImGui::IsItemActivated())
                 {
                     pushPoseUndo(code);
                 }
+            }
+            if(agpose::isGunCategory(st.pdClass))
+            {
+                // The off hand (agent/offhand): its hold in this pose, its grip's offset on the gun (the gun's frame)
+                ImGui::SeparatorText("Off Hand");
+                const int mode = agpose::offModeOf(k.v[agpose::OffHand]);
+                if(ImGui::BeginCombo("Off Hand", agpose::offModeName(mode)))
+                {
+                    for(int o = 0; o < agpose::NumOffModes; o++)
+                    {
+                        if(ImGui::Selectable(agpose::offModeName(o), mode == o) && o != mode)
+                        {
+                            pushPoseUndo(code);
+                            k.v[agpose::OffHand] = glm::vec3{static_cast<float>(o), 0.f, 0.f};
+                            changed = true;
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+                helpMarker("Auto: the Weapon Holds' (its second grip, a cup, or free for a one-handed hold). On the Gun: "
+                           "held on it even when the hold is one-handed. Free: off the gun, hanging, moved by Left Place / "
+                           "Left Turn (the Pose Keys tool's \"left hand (free)\"). Which pose's counts: Pickup's while "
+                           "taking a weapon up (if set), else Aim's while aimed, else Run's while running (if set), else "
+                           "Carry's; the hand eases between (a quarter second).");
+                for(int p = agpose::GripPos; p <= agpose::GripTurn; p++)
+                {
+                    changed |= ImGui::DragFloat3(parts[p], &k.v[p].x, p == agpose::GripTurn ? 0.25f : 0.05f);
+                    if(ImGui::IsItemActivated())
+                    {
+                        pushPoseUndo(code);
+                    }
+                }
+                helpMarker("The off hand's grip on the gun (its second grip, a cup) moved (units) and turned (a rotation "
+                           "vector, degrees) in the gun's frame: x forward, y left, z up. The Pose Keys tool's \"left "
+                           "hand: grip offset\" dot.");
             }
             if(changed)
             {

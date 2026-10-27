@@ -117,6 +117,14 @@ vector vr_agk_er;
 vector vr_agk_el;
 vector vr_agk_t;
 float vr_agk_on;
+// ... the off hand's (agpose GripPos, GripTurn, OffHand; agent/offhand): its grip on the gun moved and turned in the
+// gun's frame (blended as the rest); its hold (VR_AGK_OFF_*: the deciding key's, VR_AGK_Keys); sent in the pose's
+// off-hand block (VR_AGP_Pose's end; vr_hitreact.cpp parseArmPose) with vr_agk_lp/lr, the free hand's change.
+vector vr_agk_gp;
+vector vr_agk_gr;
+float vr_agk_mode;
+float VR_AGK_OFF_GUN = 1;  // (agpose::OffGun: on the gun even when the hold is one-handed)
+float VR_AGK_OFF_FREE = 2; // (agpose::OffFree: off the gun, hanging free)
 
 void(entity g) VR_AGP_Body = { makevectors([0, g.angles_y, 0]); vr_agp_f = v_forward; vr_agp_r = v_right; };
 vector(vector l) VR_AGP_ToWorld = { return vr_agp_f * l_x - vr_agp_r * l_y + '0 0 1' * l_z; };
@@ -1207,6 +1215,14 @@ void(vector v) VR_AGP_WriteVec =
     WriteCoord(MSG_BROADCAST, v_z);
 };
 
+// (each of `v` times `per`, a short: clamped to its range)
+void(vector v, float per) VR_AGP_WriteShorts =
+{
+    WriteShort(MSG_BROADCAST, rint(max(-32000, min(32000, v_x * per))));
+    WriteShort(MSG_BROADCAST, rint(max(-32000, min(32000, v_y * per))));
+    WriteShort(MSG_BROADCAST, rint(max(-32000, min(32000, v_z * per))));
+};
+
 // ----------------------------------------------------------------------------
 // The body in a strike (vr_agrunt_strike_*; ROUND22.md, "Armed monsters: the body in their strikes")
 // ----------------------------------------------------------------------------
@@ -1523,7 +1539,20 @@ void(float code, float w, float mirror) VR_AGK_Add =
     vr_agk_er = vr_agk_er + er * w;
     vr_agk_el = vr_agk_el + el * w;
     vr_agk_t = vr_agk_t + t * w;
+    if(!mirror)
+    {
+        // (the off hand's grip on the gun: the gun's frame; a mirrored strike's left a blade's, none)
+        vr_agk_gp = vr_agk_gp + weapondrawnpose(world, code, 25) * w;
+        vr_agk_gr = vr_agk_gr + weapondrawnpose(world, code, 26) * w;
+    }
     vr_agk_on = TRUE;
+};
+
+// Key `code`'s off-hand hold (agpose::OffMode: 0 Auto, VR_AGK_OFF_GUN, VR_AGK_OFF_FREE).
+float(float code) VR_AGK_Mode =
+{
+    vector m = weapondrawnpose(world, code, 27);
+    return rint(m_x);
 };
 
 // A strike's phases' shares at its time now: the wind-up's (1 at its end), the blow's (1 as it is struck: VR_AGP_Phase's
@@ -1580,6 +1609,9 @@ void(entity g, entity p) VR_AGK_Keys =
     vr_agk_er = '0 0 0';
     vr_agk_el = '0 0 0';
     vr_agk_t = '0 0 0';
+    vr_agk_gp = '0 0 0';
+    vr_agk_gr = '0 0 0';
+    vr_agk_mode = 0;
     vr_agk_on = FALSE;
     vr_agk_rep = g.vr_agk_live;
     vr_agk_repent = g;
@@ -1614,6 +1646,30 @@ void(entity g, entity p) VR_AGK_Keys =
     VR_AGK_Add(base + 10, (1 - wp) * wa, FALSE);
     VR_AGK_Add(base + 20, (1 - wp) * g.vr_agp_runw, FALSE);
     VR_AGK_Add(base + 30, wp, FALSE);
+    // The off hand's hold (a single gun's: agpose::OffMode): the Pickup's while taking a weapon up, if set; else Aim's
+    // while aimed (Auto: the Weapon Holds'); else Run's while running, if set; else Carry's. (So Run's Free with Aim's
+    // Auto: free running, on the gun aimed, running or not; the client eases the hand between, vr_agarms secondEase.)
+    if(p && VR_AGK_IsGun(cls) && cls != VR_AGK_TWOGUNS)
+    {
+        float mp = VR_AGK_Mode(base + 30);
+        float mr = VR_AGK_Mode(base + 20);
+        if(wp >= 0.5 && mp)
+        {
+            vr_agk_mode = mp;
+        }
+        else if((1 - wp) * wa >= 0.5)
+        {
+            vr_agk_mode = VR_AGK_Mode(base + 10);
+        }
+        else if((1 - wp) * g.vr_agp_runw >= 0.5 && mr)
+        {
+            vr_agk_mode = mr;
+        }
+        else
+        {
+            vr_agk_mode = VR_AGK_Mode(base);
+        }
+    }
     float act = g.vr_ag_act;
     if(act == VR_AGP_PUNCH || act == VR_AGP_SWING || act == VR_AGP_SAW)
     {
@@ -2077,14 +2133,21 @@ void(entity g, entity p) VR_AGP_Pose =
         // (the Weapon Holds: a gun alone in one hand held as one beside a second gun is, aimed and kicked by that hand,
         // the off hand free; VR_AGP_FREE below)
         float gunHands = pL ? 0 : VR_AGH_Hands(g, p);
+        // (the pose keys' off hand, agpose::OffMode: On the Gun held as a two-handed hold is; Free off it, the gun posed
+        // as its hold has it)
+        float offMode = pL ? 0 : vr_agk_mode;
+        if(offMode == VR_AGK_OFF_GUN)
+        {
+            gunHands = 2;
+        }
         vr_agp_onehand = (bladeL || (gunHands == 1)); // (the gun one-handed beside a blade: as beside a second gun)
         VR_AGP_ArmsGun(g, p, bladeL ? world : pL);
         vr_agp_onehand = 0;
-        if(gunHands == 1)
+        if(gunHands == 1 || offMode == VR_AGK_OFF_FREE)
         {
             vr_agp_flags = vr_agp_flags | VR_AGP_FREE; // (a reload's hand, VR_AGP_LEFT, still goes to its belt)
         }
-        else if((gunHands == 2) && (vr_agh_set == 2))
+        else if((gunHands == 2) && (vr_agh_set == 2 || offMode == VR_AGK_OFF_GUN))
         {
             vr_agp_flags = vr_agp_flags | VR_AGP_TWO;
         }
@@ -2371,11 +2434,32 @@ void(entity g, entity p) VR_AGP_Pose =
         return;
     }
 
+    // The pose keys' off hand on the gun or off it (agent/offhand): its grip's change on the gun, the free hand's; sent in
+    // a block at the end, told by VR_AGP_FREE and VR_AGP_TWO both set (never so otherwise: the block's first byte has them)
+    float offFl = 0;
+    if(p && !reaching && !(vr_agp_flags & (VR_AGP_LEFT | VR_AGP_LEFTWPN)))
+    {
+        if(vlen(vr_agk_gp) > 0.001 || vlen(vr_agk_gr) > 0.01)
+        {
+            offFl = offFl | 4;
+        }
+        if(vlen(vr_agk_lp) > 0.001 || vlen(vr_agk_lr) > 0.01)
+        {
+            offFl = offFl | 8;
+        }
+    }
+    float sendFl = vr_agp_flags;
+    if(offFl)
+    {
+        offFl = offFl | ((vr_agp_flags & VR_AGP_FREE) ? 1 : 0) | ((vr_agp_flags & VR_AGP_TWO) ? 2 : 0);
+        sendFl = sendFl | VR_AGP_FREE | VR_AGP_TWO;
+    }
+
     WriteByte(MSG_BROADCAST, 39); // svc_quakevr
     WriteByte(MSG_BROADCAST, 36); // QVR_SVC_ARMPOSE
     WriteEntity(MSG_BROADCAST, g);
     WriteEntity(MSG_BROADCAST, reaching ? world : p);
-    WriteByte(MSG_BROADCAST, vr_agp_flags);
+    WriteByte(MSG_BROADCAST, sendFl);
     WriteByte(MSG_BROADCAST, rint(min(1, max(0, vr_agp_wr)) * 255));
     VR_AGP_WriteVec(vr_agp_v);
     VR_AGP_WriteDir(VR_AGP_ToLocal(vr_agp_fw));
@@ -2407,6 +2491,22 @@ void(entity g, entity p) VR_AGP_Pose =
         {
             // (a take's weight x 127, its left hand taking it 128: the client's kneel, vr_aglegs)
             WriteByte(MSG_BROADCAST, rint(min(1, max(0, takeW)) * 127) + (pL ? 128 : 0));
+        }
+    }
+    if(offFl)
+    {
+        // [byte: 1 VR_AGP_FREE, 2 VR_AGP_TWO, 4 the grip's change follows, 8 the free hand's][4: short3 place x 100 (the
+        // gun's frame), short3 turn x 10][8: short3 place x 100 (its body's space), short3 turn x 10]
+        WriteByte(MSG_BROADCAST, offFl);
+        if(offFl & 4)
+        {
+            VR_AGP_WriteShorts(vr_agk_gp, 100);
+            VR_AGP_WriteShorts(vr_agk_gr, 10);
+        }
+        if(offFl & 8)
+        {
+            VR_AGP_WriteShorts(vr_agk_lp, 100);
+            VR_AGP_WriteShorts(vr_agk_lr, 10);
         }
     }
 };
