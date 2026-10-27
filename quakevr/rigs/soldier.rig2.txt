@@ -6,23 +6,23 @@ model progs/soldier.mdl
 #   hinge: axis <xyz> range <min max> (its bend from straight; the rest pose's own bend measured)
 # w <vertex> <bone> <weight> ... (up to 4, summing to 1)
 bone pelvis - root pivot -4.800 0.000 -2.000 end -4.000 0.000 2.500
-bone spine pelvis ball pivot -4.000 0.000 2.500 end -2.600 0.000 9.000 neutral 0.211 0.000 0.978 fwd 0.978 0.000 -0.211 side 0.000 1.000 0.000 swingx -20 40 swingy -25 25 twist -25 25
-bone chest spine ball pivot -2.600 0.000 9.000 end 0.400 0.200 16.600 neutral 0.367 0.024 0.930 fwd 0.930 -0.010 -0.367 side 0.000 1.000 -0.026 swingx -15 25 swingy -15 15 twist -20 20
+bone spine pelvis ball pivot -4.000 0.000 2.500 end -2.600 0.000 9.000 neutral 0.211 0.000 0.978 fwd 0.978 0.000 -0.211 side 0.000 1.000 0.000 swingx -35 45 swingy -25 25 twist -35 36
+bone chest spine ball pivot -2.600 0.000 9.000 end 0.400 0.200 16.600 neutral 0.367 0.024 0.930 fwd 0.930 -0.010 -0.367 side 0.000 1.000 -0.026 swingx -20 36 swingy -20 20 twist -40 40
 bone neck chest ball pivot 0.400 0.200 16.600 end 3.000 0.300 19.200 neutral 0.707 0.027 0.707 fwd 0.707 -0.027 -0.706 side 0.000 0.999 -0.038 swingx -25 35 swingy -25 25 twist -35 35
 bone head neck ball pivot 3.000 0.300 19.200 end 4.700 0.400 26.000 neutral 0.243 0.014 0.970 fwd 0.970 -0.004 -0.242 side 0.000 1.000 -0.015 swingx -25 15 swingy -20 20 twist -20 20
-bone clavicle_l chest ball pivot 0.500 2.000 15.000 end 0.900 9.000 15.200 neutral 0.057 0.998 0.029 fwd 0.998 -0.057 -0.002 side 0.000 -0.029 1.000 swingx -10 15 swingy -5 15 twist -8 8
-bone upperarm_l clavicle_l ball pivot 0.900 9.000 15.200 end 2.227 8.950 6.236 neutral 0.000 0.168 -0.986 fwd 1.000 0.000 0.000 side 0.000 0.986 0.168 swingx -20 40 swingy -10 50 twist -20 20
-bone forearm_l upperarm_l hinge pivot 2.227 8.950 6.236 end 9.309 5.973 2.290 axis -0.413 -0.909 -0.056 range 0 140
-bone hand_l forearm_l ball pivot 9.309 5.973 2.290 end 13.400 6.000 1.800 neutral 0.993 0.007 -0.119 fwd 0.119 0.001 0.993 side 0.007 -1.000 0.000 swingx -25 25 swingy -10 10 twist -10 10
-bone clavicle_r chest ball pivot 0.500 -2.000 15.000 end -0.300 -9.400 15.200 neutral -0.107 -0.994 0.027 fwd 0.994 -0.107 0.003 side 0.000 0.027 1.000 swingx -10 15 swingy -5 15 twist -8 8
-bone upperarm_r clavicle_r ball pivot -0.300 -9.400 15.200 end 0.378 -9.743 7.003 neutral 0.000 -0.168 -0.986 fwd 1.000 0.000 0.000 side 0.000 -0.986 0.168 swingx -20 40 swingy -10 50 twist -20 20
-bone forearm_r upperarm_r hinge pivot 0.378 -9.743 7.003 end 5.104 -5.177 4.504 axis 0.716 -0.693 0.088 range 0 140
-bone hand_r forearm_r ball pivot 5.104 -5.177 4.504 end 8.600 -4.300 4.200 neutral 0.967 0.242 -0.084 fwd 0.082 0.020 0.996 side -0.243 0.970 0.000 swingx -25 25 swingy -10 10 twist -10 10
-bone thigh_l pelvis ball pivot -5.600 4.500 -3.000 end -6.073 6.600 -12.891 neutral 0.000 0.080 -0.997 fwd 1.000 0.000 0.000 side 0.000 0.997 0.080 swingx -25 65 swingy -20 45 twist -30 30
-bone shin_l thigh_l hinge pivot -6.073 6.600 -12.891 end -10.601 6.901 -20.328 axis -0.286 0.934 0.212 range 0 115
+bone clavicle_l chest ball pivot 0.500 2.000 15.000 end 0.900 9.000 15.200 neutral 0.057 0.998 0.029 fwd 0.998 -0.057 -0.002 side 0.000 -0.029 1.000 swingx -15 20 swingy -10 20 twist -35 35
+bone upperarm_l clavicle_l ball pivot 0.900 9.000 15.200 end 2.227 8.950 6.236 neutral 0.000 0.168 -0.986 fwd 1.000 0.000 0.000 side 0.000 0.986 0.168 swingx -35 46 swingy -15 50 twist -40 20
+bone forearm_l upperarm_l hinge pivot 2.227 8.950 6.236 end 9.309 5.973 2.290 axis -0.413 -0.909 -0.056 range 0 125
+bone hand_l forearm_l ball pivot 9.309 5.973 2.290 end 13.400 6.000 1.800 neutral 0.993 0.007 -0.119 fwd 0.119 0.001 0.993 side 0.007 -1.000 0.000 swingx -30 30 swingy -30 30 twist -30 30
+bone clavicle_r chest ball pivot 0.500 -2.000 15.000 end -0.300 -9.400 15.200 neutral -0.107 -0.994 0.027 fwd 0.994 -0.107 0.003 side 0.000 0.027 1.000 swingx -15 20 swingy -10 20 twist -35 35
+bone upperarm_r clavicle_r ball pivot -0.300 -9.400 15.200 end 0.378 -9.743 7.003 neutral 0.000 -0.168 -0.986 fwd 1.000 0.000 0.000 side 0.000 -0.986 0.168 swingx -35 46 swingy -15 50 twist -20 40
+bone forearm_r upperarm_r hinge pivot 0.378 -9.743 7.003 end 5.104 -5.177 4.504 axis 0.716 -0.693 0.088 range 0 125
+bone hand_r forearm_r ball pivot 5.104 -5.177 4.504 end 8.600 -4.300 4.200 neutral 0.967 0.242 -0.084 fwd 0.082 0.020 0.996 side -0.243 0.970 0.000 swingx -30 30 swingy -30 30 twist -30 30
+bone thigh_l pelvis ball pivot -5.600 4.500 -3.000 end -6.073 6.600 -12.891 neutral 0.000 0.080 -0.997 fwd 1.000 0.000 0.000 side 0.000 0.997 0.080 swingx -30 65 swingy -20 45 twist -30 30
+bone shin_l thigh_l hinge pivot -6.073 6.600 -12.891 end -10.601 6.901 -20.328 axis -0.286 0.934 0.212 range 0 130
 bone foot_l shin_l ball pivot -10.601 6.901 -20.328 end -4.600 7.600 -23.400 neutral 0.885 0.103 -0.453 fwd 0.450 0.052 0.891 side -0.116 0.993 0.000 swingx -25 30 swingy -10 10 twist -12 12
-bone thigh_r pelvis ball pivot -4.200 -4.600 -3.000 end 2.173 -6.472 -11.109 neutral 0.000 -0.080 -0.997 fwd 1.000 0.000 0.000 side 0.000 -0.997 0.080 swingx -25 65 swingy -20 45 twist -30 30
-bone shin_r thigh_r hinge pivot 2.173 -6.472 -11.109 end 0.044 -6.554 -20.595 axis 0.214 0.975 -0.057 range 0 115
+bone thigh_r pelvis ball pivot -4.200 -4.600 -3.000 end 2.173 -6.472 -11.109 neutral 0.000 -0.080 -0.997 fwd 1.000 0.000 0.000 side 0.000 -0.997 0.080 swingx -30 65 swingy -20 45 twist -30 30
+bone shin_r thigh_r hinge pivot 2.173 -6.472 -11.109 end 0.044 -6.554 -20.595 axis 0.214 0.975 -0.057 range 0 130
 bone foot_r shin_r ball pivot 0.044 -6.554 -20.595 end 7.400 -7.300 -23.400 neutral 0.930 -0.094 -0.355 fwd 0.353 -0.036 0.935 side -0.101 -0.995 0.000 swingx -25 30 swingy -10 10 twist -12 12
 bone weapon hand_r fixed pivot 8.600 -4.300 4.200 end 16.000 -2.000 4.000
 w 0 forearm_r 0.799 hand_r 0.106 upperarm_r 0.095

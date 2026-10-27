@@ -24376,3 +24376,53 @@ box (not found). Not measured: an AD monster (`vr_test_spawn_dead` is for id's m
 become ragdolls). `vr_ao_show` with 8 grunt ragdolls: 28 -> 36 occluders (one each, groups 2-9), choosing them 0.010
 ms either way. eval.sh: no verdict changes; ragdoll_test flat: as before (first drawn 1.02 rms).
 - [ ] Ragdolls look as alive {test:none}: kill a grunt, an ogre and an enforcer in a bright room and walk round the corpses: the same shading, smoothness and skin as alive, darkening the floor under them as a live monster does
+
+## Grunt rig limits: his Range of Motion tuning checked and mirrored (worktree `tghost`, branch `agent/rig2limits`, 2026-10-27)
+
+He tuned the authored grunt rig's limits in the Rig Studio, mostly on the right side. **Shipped**: his values as they
+are, the left mirrored from the right, in `Misc/quakevr/make_rig2.py`'s `GRUNT_SKELETON`; `rigs/vrgrunt.rig2.txt` and
+`rigs/soldier.rig2.txt` regenerated. The regenerated vrgrunt file matches his saved file number for number (the
+generator's 3 decimals against the studio's %g) apart from the six left bones, and its weights are unchanged.
+
+**Mirroring** (in the generator's header): swing x and y keep their values (each side's `fwd`/`side` are mirror images),
+twist (min, max) becomes (-max, -min) (the twist is right-handed about the bone, so a mirrored turn runs the other way),
+and a hinge's range stays as it is (both sides' axes bend the same way). Checked with the engine's joint math
+(`frameOf`/`ballTurn`; its rest angles match `vr_rig2_info` exactly). Bones posed at mirrored angles point and roll as
+mirror images of each other. The error is 0.0 degrees for the upper arm and thigh. For the clavicle (9 degrees), hand
+(15) and foot (6), the error is no larger than the asymmetry of the frames themselves. Keeping the twist sign instead
+gives errors of 60-80 degrees. A vertex-by-vertex mirror check does not apply because the rest pose is asymmetric (the
+gun grip and the stride). Left: clavicle_l swingx -15 20, swingy -10 20, twist -35 35 (his -10 10 swing x on the left
+looked accidental and is replaced by the mirror); upperarm_l -35 46 / -15 50 / twist -40 20; forearm_l 0 125;
+hand_l ±30 ±30 ±30; thigh_l swingx -30 65; shin_l 0 130.
+
+**The check** (`vr_rig2_check`, per joint swept alone; the stage-1 limits were all clean): 33/35 at stage 1 -> his file
+25/35 -> his file with the left mirrored 22/35 (3 see-through lines in 3 of 3234 poses, against 1 at stage 1). Faults
+start at the following angles, and each suggested value is the nearest clean one (a search 5 degrees at a time on the
+joint's own sweep):
+
+| joint | his | faults (alone) | clean at |
+|---|---|---|---|
+| spine | x -35 45, tw -35 36 | none | as his |
+| chest | x -20 36, y ±20, tw ±40 | right armpit web (v170/177/246) flips at tw -40 even with no swing; -35 with swing | x -15 36, tw -25 35 |
+| clavicle_r | x -15 20, y -10 20, tw ±35 | flips at tw -35 with swing; y 20 + upper arm back folds | x -10 20, y -5 15, tw -25 35 |
+| upperarm_r | x -35 46, y -15 50, tw -20 40 | tw 40 with swing x 33-46; x -35 collapses | x -30 41, tw -20 35 |
+| forearm_r / shin_r | 0 125 / 0 130 | none (right knee clean to 171) | as his |
+| hand_r | ±30 ±30 ±30 | tw +30 flips even with no swing; y +30 folds; stretch 0.14 | x -30 25, y -15 20, tw -30 10 |
+| thigh_r | x -30 65 | none | as his |
+| upperarm_l (mirror) | x -35 46 | 3 flipped at x -35 | x -25 46 |
+| shin_l (mirror) | 0 130 | 2 folds from 120 (left knee clean to 115) | 0 115 |
+| hand_l, clavicle_l, forearm_l, thigh_l (mirror) | | none | as mirrored |
+
+The suggested set together scores 31/35. Its remaining failures are pairs: chest+neck stretch 0.28, the right
+shoulder's web, and the stage-1 armpit pair. The right side is worse than the left because of the right arm's fused web
+while it holds the gun. Plausibility: no hinge goes below 0 (no hyperextension); the elbow at 125 and the knee at 130
+are inside human ranges. The spine and chest together twist ±75 and extend -55, which is generous but works for a
+ragdoll.
+
+**`quakevr/rigs/vrgrunt.rig.txt`** (untracked in his checkout, from the Rig Studio's main Save): only the header,
+`qvrrig 1` and `model progs/vrgrunt.mdl`, with no bone, weight, pose or track lines. `rigdata::applyToRig` reads it and
+changes nothing in the old rig, so it is harmless but useless and can be deleted.
+
+Tests: `vr_rig2_check` on vrgrunt and soldier 22/35 each (the table); `vr_rigstudio_rom test` 9/9 (the file it rewrites
+compared number for number, then restored).
+- [ ] Grunt rig limits mirrored {test:none}: Rig Studio > Range of Motion: sweep each left-side joint beside its right one (same reach, mirrored twist); try the suggested values for chest twist, the right clavicle twist, the right hand and the left knee 115 if the armpit or wrist creases bother you
