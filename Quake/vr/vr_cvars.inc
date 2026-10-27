@@ -3160,10 +3160,17 @@ QVR_CVAR(vr_agarms_shoulder_twist, "80", CVAR_ARCHIVE) // vr_agarms_limits: ... 
 QVR_CVAR(vr_agarms_arm_clear, "1", CVAR_ARCHIVE)       // vr_agarms: 1 the upper arm's thickness (its skin's) kept out of the torso as the elbow is chosen; 0 only its bone's line, the elbow and the forearm (before)
 // Armed humanoids' weapon holds (vr_agholds.inc; Combat > Armed Grunts > Weapon Holds): vr_agrunt_hold_<kind>_<weapon>
 // 0 Auto, 1 One-Handed, 2 Two-Handed (vr_agrunt_enforcer_one_hand, retired, is Auto's enforcer pistols in one hand).
+// A gun's pose category (QVR_AGGUN): vr_agrunt_posecat_<kind>_<weapon> 0 Auto, 1 Rifle, 2 Pistol, 3 Shoulder Launcher,
+// 4 Sprayer, 5 Laser Cannon, 6 Widowmaker.
 #define QVR_AGHOLD(key, code, label, grunt, enforcer) \
     QVR_CVAR(vr_agrunt_hold_grunt_##key, "0", CVAR_ARCHIVE) \
     QVR_CVAR(vr_agrunt_hold_enforcer_##key, "0", CVAR_ARCHIVE)
+#define QVR_AGGUN(key, code, label, grunt, enforcer, category) \
+    QVR_AGHOLD(key, code, label, grunt, enforcer) \
+    QVR_CVAR(vr_agrunt_posecat_grunt_##key, "0", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_agrunt_posecat_enforcer_##key, "0", CVAR_ARCHIVE)
 #include "vr_agholds.inc"
+#undef QVR_AGGUN
 #undef QVR_AGHOLD
 QVR_CVAR(vr_agarms_cup_handle, "1", CVAR_ARCHIVE)     // vr_agarms: 1 a weapon whose two-handed hotspot is a Cup but whose Two-Handed Hand Anchor is a handle well ahead (the Widowmaker's front handle) has the off hand there; 0 under and round the hand on its rear handle (before)
 QVR_CVAR(vr_agrunt_second_reach, "1", CVAR_ARCHIVE)  // vr_agarms: 1 a long gun carried or aimed is brought in towards the off shoulder until its second grip is within the off arm's reach (as a chainsaw's front handle is: the laser cannon's); 0 where its rest pose's rifle is (before: the off hand slid back to the main handle or let go)

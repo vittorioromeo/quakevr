@@ -238,7 +238,7 @@ void findMoments()
 
 [[nodiscard]] const char* keyName(int code)
 {
-    const int cls = (code / 1000) % 10, pose = (code / 10) % 100, phase = code % 10;
+    const int cls = agpose::classOf(code), pose = agpose::poseOf(code), phase = agpose::phaseOf(code);
     return va("%s%s%s", agpose::poseName(cls, pose), agpose::isStrike(pose) ? ", " : "",
         agpose::isStrike(pose) ? agpose::phaseName(phase) : "");
 }
@@ -724,7 +724,7 @@ void qcKey(int ent, float arg)
     KeyUse& u = live.keys[live.nKeys++];
     u.code = static_cast<int>(floorf(a));
     u.w = a - static_cast<float>(u.code);
-    u.w = u.w >= 0.998f ? 1.f : u.w;
+    u.w = u.w >= 0.985f ? 1.f : u.w; // (QC sends 0.99 at most: a code past 2^16 has 1/128 steps)
     u.mirror = arg < 0.f;
     u.key = agpose::value(u.code);
 }

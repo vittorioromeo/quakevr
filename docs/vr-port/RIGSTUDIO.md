@@ -118,7 +118,8 @@ ring, the move tool's arrows, plane squares and its centre (the view's plane); t
   out, the base frame, its events (a name at a frame: Add at the frame, the frame dragged, deleted), Duplicate, Test on
   Subject (saved, then played on the subject as QC would: `vr_rigseq_play`).
 - **Pose Studio Data**: the armed humanoids' pose keys (kind, weapon class, pose, phase: the seven parts the Pose
-  Studio drags) and grips (a kind's every-weapon grip, or the subject's weapon's own, per hand), the Pose Studio's own
+  Studio drags; a single gun's class is its pose category, Rifle / Pistol / Shoulder Launcher / Sprayer / Laser Cannon /
+  Widowmaker, per weapon and kind in Combat > Armed Grunts > Weapon Holds; one not tuned yet starts as the Rifle's keys) and grips (a kind's every-weapon grip, or the subject's weapon's own, per hand), the Pose Studio's own
   data (vr_agrunt_poses, vr_agrunt_grips), drawn by the game at once; Print writes them as code (vr_agrunt_pose_dump,
   vr_agrunt_grip_dump). Undo covers them. Follow the Subject (the Pose Keys tool's key the subject's); in Pickup the
   legs' key too (the pelvis's place and turn, the feet, the knees' poles). The Pose Keys tool drags the same key.

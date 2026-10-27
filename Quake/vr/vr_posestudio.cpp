@@ -1198,9 +1198,9 @@ void release()
         const glm::vec3 d = g.keyNow.v[agpose::RPos] - g.key0.v[agpose::RPos] + g.keyNow.v[agpose::LPos] - g.key0.v[agpose::LPos];
         const float turn = glm::length(g.keyNow.v[agpose::RTurn] - g.key0.v[agpose::RTurn]) +
                            glm::length(g.keyNow.v[agpose::LTurn] - g.key0.v[agpose::LTurn]);
-        const int cls = (g.code / 1000) % 10, pose = (g.code / 10) % 100;
+        const int cls = agpose::classOf(g.code), pose = agpose::poseOf(g.code);
         const char* what = va("%s, %s%s%s", agpose::poseName(cls, pose), agpose::isStrike(pose) ? agpose::phaseName(g.code % 10) : "",
-            agpose::isStrike(pose) ? ", " : "", g.kind == 0 ? "grunts" : "enforcers");
+            agpose::isStrike(pose) ? ", " : "", agpose::kindsName(g.kind));
         za::String text{what};
         if(isLeg(g.part))
         {
@@ -1211,10 +1211,10 @@ void release()
                     ? va("pelvis: moved %.2f units, its key %.2f %.2f %.2f, turned %.1f %.1f %.1f (the pickup's legs, %s)",
                           static_cast<double>(glm::length(m)), static_cast<double>(v.x), static_cast<double>(v.y),
                           static_cast<double>(v.z), static_cast<double>(t.x), static_cast<double>(t.y), static_cast<double>(t.z),
-                          g.kind == 0 ? "grunts" : "enforcers")
+                          agpose::kindsName(g.kind))
                     : va("%s: moved %.2f units, its key %.2f %.2f %.2f (the pickup's legs, %s)", partName(ses.locked, g.part),
                           static_cast<double>(glm::length(m)), static_cast<double>(v.x), static_cast<double>(v.y),
-                          static_cast<double>(v.z), g.kind == 0 ? "grunts" : "enforcers"));
+                          static_cast<double>(v.z), agpose::kindsName(g.kind)));
         }
         else if(g.part == PChest)
         {
@@ -1286,7 +1286,7 @@ void resetPose()
         agpose::resetLegs(n->kind); // (its legs' key too)
     }
     dropUnchangedUndo();
-    say(va("%s: %s back to the shipped pose (%s)", n->kind == 0 ? "grunts" : "enforcers", agpose::poseName(cls, ses.pose),
+    say(va("%s: %s back to the shipped pose (%s)", agpose::kindsName(n->kind), agpose::poseName(cls, ses.pose),
         agpose::className(cls)));
 }
 
@@ -1299,13 +1299,13 @@ void copyKind()
         say("no armed humanoid near: walk up to one");
         return;
     }
-    const int to = n->kind == 0 ? 1 : 0;
+    const int to = (n->kind + 1) % agpose::numKinds; // (the next kind)
     pushUndo();
     const int keys = agpose::copyKind(n->kind, to);
     const int grips = aggrip::copyKind(n->kind, to);
     dropUnchangedUndo();
-    say(va("%s' edits copied to the %s: %d pose keys, %d grips (Undo puts theirs back)", n->kind == 0 ? "the grunts" : "the enforcers",
-        to == 0 ? "grunts" : "enforcers", keys, grips));
+    say(va("the %s' edits copied to the %s: %d pose keys, %d grips (Undo puts theirs back)", agpose::kindsName(n->kind),
+        agpose::kindsName(to), keys, grips));
 }
 
 // < Pose >, < Key >: the pose the subject is held in.
@@ -1366,7 +1366,7 @@ void resetGrips()
     if(scopeAll())
     {
         aggrip::resetEntries(n->kind, aggrip::allWeapons);
-        say(va("%s: every weapon's grips back to the defaults", n->kind == 0 ? "grunts" : "enforcers"));
+        say(va("%s: every weapon's grips back to the defaults", agpose::kindsName(n->kind)));
     }
     else
     {
@@ -1377,7 +1377,7 @@ void resetGrips()
                 aggrip::resetEntries(n->kind, slot);
             }
         }
-        say(va("%s: %s's own grips back to the defaults", n->kind == 0 ? "grunts" : "enforcers", slotLabel(n->slot)));
+        say(va("%s: %s's own grips back to the defaults", agpose::kindsName(n->kind), slotLabel(n->slot)));
     }
 }
 
@@ -1521,7 +1521,7 @@ void press(int b)
         case BtnFold: return folded() ? "Unfold" : "Fold";
         case BtnHandle: return ses.panelHand >= 0 ? "(moving)" : "Grip: Move";
         case BtnRecentre: return "Recentre";
-        default: return n && n->kind == 1 ? "Copy > Grunt" : "Copy > Enforcer";
+        default: return va("Copy > %s", agpose::kindTitle(n ? (n->kind + 1) % agpose::numKinds : 1));
     }
 }
 

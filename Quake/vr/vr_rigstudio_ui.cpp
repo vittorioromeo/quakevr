@@ -1394,12 +1394,21 @@ void poseDataWindow()
     }
     ImGui::TextWrapped("The armed humanoids' pose keys and grips, the Pose Studio's own data (vr_agrunt_poses, "
                        "vr_agrunt_grips): edited here, drawn by the game at once.");
-    const char* kinds[] = {"Grunt", "Enforcer"};
     if(st.pdFollow && st.tool == Tool::PoseKeys)
     {
         ImGui::BeginDisabled();
     }
-    ImGui::Combo("Kind", &st.pdKind, kinds, 2);
+    if(ImGui::BeginCombo("Kind", agpose::kindTitle(st.pdKind)))
+    {
+        for(int k = 0; k < agpose::numKinds; k++)
+        {
+            if(ImGui::Selectable(agpose::kindTitle(k), st.pdKind == k))
+            {
+                st.pdKind = k;
+            }
+        }
+        ImGui::EndCombo();
+    }
     if(st.pdFollow && st.tool == Tool::PoseKeys)
     {
         ImGui::EndDisabled();
@@ -1411,17 +1420,20 @@ void poseDataWindow()
     {
         if(ImGui::BeginTabItem("Pose Keys"))
         {
-            if(ImGui::BeginCombo("Class", agpose::className(st.pdClass)))
+            if(ImGui::BeginCombo("Class", agpose::classTitle(st.pdClass)))
             {
-                for(int c = 0; c < agpose::NumClasses; c++)
+                for(const int c : agpose::classOrder)
                 {
-                    if(ImGui::Selectable(agpose::className(c), st.pdClass == c))
+                    if(ImGui::Selectable(agpose::classTitle(c), st.pdClass == c))
                     {
                         st.pdClass = c;
                     }
                 }
                 ImGui::EndCombo();
             }
+            helpMarker("A single gun's class is its pose category (Rifle, Pistol, Shoulder Launcher, Sprayer, Laser Cannon, "
+                       "Widowmaker): per weapon and kind in Combat > Armed Grunts > Weapon Holds. A category not tuned "
+                       "yet starts as the Rifle's keys.");
             int poses[agpose::NumPoses];
             const int np = agpose::posesOf(st.pdClass, poses, agpose::NumPoses);
             if(ImGui::BeginCombo("Pose", agpose::poseName(st.pdClass, st.pdPose)))

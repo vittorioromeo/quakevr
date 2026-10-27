@@ -16,20 +16,53 @@
 namespace qvr::agpose
 {
 
+// The armed kinds (QC vr_armedmon.qc VR_AM_*: its table's rows, VR_AM_COUNT; aggrip and agholds the same).
 inline constexpr int numKinds = 2;
+[[nodiscard]] const char* kindName(int kind);  // "grunt", "enforcer"
+[[nodiscard]] const char* kindsName(int kind); // "grunts", "enforcers"
+[[nodiscard]] const char* kindTitle(int kind); // "Grunt", "Enforcer"
 
-// The weapon classes (QC VR_AGP_KeyClass: the same numbers)
+// The weapon classes (QC VR_AGK_*: the same numbers). A single gun's class is its pose category (the Weapon Holds'
+// Pose Category per kind and weapon, Auto its table's: vr_agholds.inc; agholds::poseClass): Gun the rifle (a long gun
+// shouldered: every gun's class before the categories, his tuned keys), the others from 17. 7..9 unused; 10..16 never a
+// class: a code whose class digits are 10..16 is an old-format enforcer key (codeFromOld).
 enum Class : int
 {
     Fists = 0,
-    Gun = 1,       // one gun
+    Gun = 1,       // a rifle: one long gun (the shotguns, the nailguns, the laser rifle, the plasma guns ...)
     Melee = 2,     // a one-handed melee weapon
     Melee2 = 3,    // a two-handed one (the left hand on its second grip)
     Saw = 4,       // a chainsaw
     TwoMelee = 5,  // a melee weapon in each hand
     TwoGuns = 6,   // a gun in each hand
-    NumClasses = 7
+    Pistol = 17,   // a pistol (the nail pistol, the revolver, the flare gun: the off hand free or cupping, the Weapon Holds')
+    Launcher = 18, // a shoulder launcher (the rocket launchers)
+    Sprayer = 19,  // a sprayer (the flamethrower, the poison sprayer)
+    LaserCannon = 20, // the laser cannon (its own)
+    Widowmaker = 21,  // the Widowmaker (its own)
+    NumClasses = 22   // (the numbers' bound: isClass says which are classes)
 };
+[[nodiscard]] constexpr bool isClass(int cls)
+{
+    return (cls >= Fists && cls <= TwoGuns) || (cls >= Pistol && cls <= Widowmaker);
+}
+// A single gun's class (the categories, Gun first).
+[[nodiscard]] constexpr bool isGunCategory(int cls)
+{
+    return cls == Gun || (cls >= Pistol && cls <= Widowmaker);
+}
+// One gun or two (aimed: the Aim stance).
+[[nodiscard]] constexpr bool isGunClass(int cls)
+{
+    return isGunCategory(cls) || cls == TwoGuns;
+}
+// The pose categories as the Weapon Holds' Pose Category setting numbers them (1.., 0 Auto).
+inline constexpr int gunCategories[] = {Gun, Pistol, Launcher, Sprayer, LaserCannon, Widowmaker};
+inline constexpr int numGunCategories = 6;
+// The classes in the windows' order (the guns, the melee weapons, the fists).
+inline constexpr int classOrder[] = {Gun, Pistol, Launcher, Sprayer, LaserCannon, Widowmaker, TwoGuns, Melee, Melee2,
+    Saw, TwoMelee, Fists};
+inline constexpr int numClassOrder = 12;
 
 // The poses (QC: the same numbers); a strike's keys are its phases, a stance's phase 0 only.
 enum Pose : int
@@ -70,9 +103,38 @@ struct Key
     glm::vec3 v[NumParts]{};
 };
 
+// A key's code: kind * 100000 + class * 1000 + pose * 10 + phase (the class two digits; before 2026-10-27 kind * 10000,
+// one digit: the grunt's codes the same, an enforcer's 1xxxx now 10xxxx: codeFromOld).
+inline constexpr int kindStride = 100000;
 [[nodiscard]] constexpr int code(int kind, int cls, int pose, int phase)
 {
-    return kind * 10000 + cls * 1000 + pose * 10 + phase;
+    return kind * kindStride + cls * 1000 + pose * 10 + phase;
+}
+[[nodiscard]] constexpr int kindOf(int c)
+{
+    return c / kindStride;
+}
+[[nodiscard]] constexpr int classOf(int c)
+{
+    return (c / 1000) % 100;
+}
+[[nodiscard]] constexpr int poseOf(int c)
+{
+    return (c / 10) % 100;
+}
+[[nodiscard]] constexpr int phaseOf(int c)
+{
+    return c % 10;
+}
+[[nodiscard]] constexpr int withinKind(int c)
+{
+    return c % kindStride;
+}
+// An old-format code (kind * 10000: an enforcer's, its 1 and its class read as the class digits 10..16, never a class's:
+// see Class) in the new format; any other code as it is (the grunt's the same in both).
+[[nodiscard]] constexpr int codeFromOld(int c)
+{
+    return c >= 10000 && c < kindStride && classOf(c) >= 10 && classOf(c) <= 16 ? (c / 10000) * kindStride + c % 10000 : c;
 }
 
 [[nodiscard]] constexpr bool isStrike(int pose)
@@ -120,12 +182,18 @@ int copyKind(int from, int to);
 
 // The changes as code: rows for `shipped` (and, for the stances whose place is one QC constant, that constant's line).
 void dumpText(za::String& out);
-// configVersion 202 (the shipped keys became his): the archived keys equal to their shipped ones (or to none, where
+// configVersion 202 and 210 (the shipped keys became his): the archived keys equal to their shipped ones (or to none, where
 // none ships) dropped from vr_agrunt_poses, as set() would; the text left as it is if any entry in it did not parse.
 // Returns how many were dropped.
 int dropShippedEqual();
+// configVersion 211 (the gun categories, the wider code): the archived keys rewritten in the new code (an enforcer's
+// 1xxxx now 10xxxx; `widened` how many), and each archived rifle (Gun) key laid on every gun category of its kind, pose
+// and phase that has none (as the shipped ones start: nothing changes until a category is tuned). Returns how many
+// laid on.
+int migrateCategories(int* widened);
 
-[[nodiscard]] const char* className(int cls);
+[[nodiscard]] const char* className(int cls);  // the dumps' ("a rifle")
+[[nodiscard]] const char* classTitle(int cls); // the windows' ("Rifle")
 [[nodiscard]] const char* poseName(int cls, int pose);
 [[nodiscard]] const char* phaseName(int phase);
 // The poses class `cls` steps through (the Pose Studio's < Pose >), in order; returns how many (at most `max`).

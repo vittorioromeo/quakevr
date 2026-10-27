@@ -7,6 +7,7 @@
 // and the functions another file uses declared here and defined in the file that has them.
 
 #include "vr_aggrip.hpp"
+#include "vr_agpose.hpp"
 #include "vr_cheats.hpp"
 #include "vr_doom.hpp"
 #include "vr_toolgun.hpp"

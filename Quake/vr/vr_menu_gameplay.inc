@@ -1143,7 +1143,7 @@ void armedHoldsReset()
             .help("Every weapon back to Auto for every kind (vr_agholds_reset)."));
     for(int k = 0; k < agholds::numKinds; k++)
     {
-        items.pushBack(header(k == 0 ? "Grunts" : "Enforcers"));
+        items.pushBack(header(k == 0 ? "Grunts" : "Enforcers")); // (agpose::kindsName's, titled)
         for(int r = 0; r < agholds::count(); r++)
         {
             const bool autoOne = agholds::autoHands(k, r) == 1;
@@ -1154,6 +1154,25 @@ void armedHoldsReset()
                           "Two-Handed: the off hand on the weapon's second grip (a foregrip, a front handle), else under "
                           "and round the other on its handle. Auto: the built-in hold (the axe and the enforcer's pistols "
                           "in one hand). Takes effect at once (vr_agrunt_hold_<grunt|enforcer>_<weapon>)."));
+            if(!agholds::isGun(r))
+            {
+                continue;
+            }
+            const int autoCls = agholds::autoClass(r);
+            const char* autoLabel = autoCls == agpose::Pistol        ? "Auto (Pistol)"
+                                    : autoCls == agpose::Launcher    ? "Auto (Shoulder Launcher)"
+                                    : autoCls == agpose::Sprayer     ? "Auto (Sprayer)"
+                                    : autoCls == agpose::LaserCannon ? "Auto (Laser Cannon)"
+                                    : autoCls == agpose::Widowmaker  ? "Auto (Widowmaker)"
+                                                                     : "Auto (Rifle)";
+            items.pushBack(cycle(agholds::poseLabel(r), agholds::categorySetting(k, r),
+                {{0.f, autoLabel}, {1.f, "Rifle"}, {2.f, "Pistol"}, {3.f, "Shoulder Launcher"}, {4.f, "Sprayer"},
+                    {5.f, "Laser Cannon"}, {6.f, "Widowmaker"}})
+                    .help("The pose category this kind's poses take with this weapon: the Pose Studio's keys of that "
+                          "category (its aim, carry, run and pickup; Rig Studio > Pose Studio Data, or the VR Pose Studio). "
+                          "Auto: the built-in one (pistols, rifles, shoulder launchers, sprayers, the laser cannon and the "
+                          "Widowmaker their own). A category not tuned yet poses as the Rifle. Takes effect at once "
+                          "(vr_agrunt_posecat_<grunt|enforcer>_<weapon>)."));
         }
     }
     return items;

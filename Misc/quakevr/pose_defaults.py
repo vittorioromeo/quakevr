@@ -28,8 +28,17 @@ import sys
 NUM_PARTS = 7
 TURN_PARTS = (1, 3, 6)  # RTurn, LTurn, Torso: degrees (a tenth); the rest units (a hundredth)
 
-CLASSES = ["fists", "a gun", "a one-handed melee weapon", "a two-handed melee weapon", "a chainsaw",
-           "two melee weapons", "two guns"]
+# (agpose::Class: 1 the rifle, the gun categories from 17; 10..16 never a class: an old-format enforcer code's digits)
+CLASSES = {0: "fists", 1: "a rifle", 2: "a one-handed melee weapon", 3: "a two-handed melee weapon", 4: "a chainsaw",
+           5: "two melee weapons", 6: "two guns", 17: "a pistol", 18: "a shoulder launcher", 19: "a sprayer",
+           20: "the laser cannon", 21: "the Widowmaker"}
+GUN_CLASSES = (1, 6, 17, 18, 19, 20, 21)
+KIND_STRIDE = 100000  # agpose::code: kind * 100000 + class * 1000 + pose * 10 + phase (before 2026-10-27 kind * 10000)
+
+
+def new_code(c):
+    """agpose::codeFromOld: an old-format (kind * 10000) enforcer code in the new format; any other as it is."""
+    return (c // 10000) * KIND_STRIDE + c % 10000 if 10000 <= c < KIND_STRIDE and 10 <= (c // 1000) % 100 <= 16 else c
 POSES = {0: "Idle / Carry", 1: "Aim", 2: "Run", 3: "Pickup", 10: "Jab", 11: "Cross", 12: "Hook", 13: "Uppercut",
          14: "Overhead", 15: "Diagonal", 16: "Horizontal", 17: "Backhand", 18: "Saw Thrust", 19: "Dual Strike"}
 PHASES = ["wind-up", "blow", "follow-through"]
@@ -54,7 +63,7 @@ def fmt(x):
 
 
 def pose_name(code):
-    kind, cls, pose, phase = code // 10000, (code // 1000) % 10, (code // 10) % 100, code % 10
+    kind, cls, pose, phase = code // KIND_STRIDE, (code // 1000) % 100, (code // 10) % 100, code % 10
     if pose == 3 and phase == 1:
         # (vr_aglegs: the pickup's legs, agpose::legCode: pelvis place, pelvis turn, planted foot, kneeling knee's pole,
         # kneeling foot, planted knee's pole; the same 21 numbers as any key)
@@ -65,8 +74,8 @@ def pose_name(code):
     elif cls == 3 and pose == 0:
         name = "Port Arms"
     elif pose == 1:
-        name = "Guard" if cls == 0 else "Aim" if cls in (1, 6) else "Ready"
-    text = "%s, %s, %s" % ("grunt" if kind == 0 else "enforcer", CLASSES[cls] if cls < len(CLASSES) else "?", name)
+        name = "Guard" if cls == 0 else "Aim" if cls in GUN_CLASSES else "Ready"
+    text = "%s, %s, %s" % ("grunt" if kind == 0 else "enforcer", CLASSES.get(cls, "?"), name)
     return text + (", " + PHASES[phase] if pose >= 10 and phase < 3 else "")
 
 
@@ -82,7 +91,7 @@ def read_cfg(path):
                 if not parts:
                     continue
                 if m.group(1) == "vr_agrunt_poses" and len(parts) == 1 + NUM_PARTS * 3:
-                    poses[int(parts[0])] = [float(x) for x in parts[1:]]
+                    poses[new_code(int(parts[0]))] = [float(x) for x in parts[1:]]
                 elif m.group(1) == "vr_agrunt_grips" and len(parts) == 9:
                     grips[(int(parts[0]), parts[1], int(parts[2]))] = [float(x) for x in parts[3:]]
     return poses, grips
@@ -96,7 +105,7 @@ def read_done(path):
                 continue
             m = POSE_ROW.match(line)
             if m:
-                poses[int(m.group(1))] = floats(m.group(2))
+                poses[new_code(int(m.group(1)))] = floats(m.group(2))
                 continue
             m = WEAPON_ROW.match(line)
             if m:
@@ -237,11 +246,11 @@ def main():
 
     counts = {}
     for c in changed:
-        k = (c // 10000, (c // 1000) % 10, (c // 10) % 100)
+        k = (c // KIND_STRIDE, (c // 1000) % 100, (c // 10) % 100)
         counts[k] = counts.get(k, 0) + 1
     print("// pose keys: %d shipped, %d new or changed" % (len(shipped), len(changed)), file=sys.stderr)
     for (kind, cls, pose), n in sorted(counts.items()):
-        name = pose_name(kind * 10000 + cls * 1000 + pose * 10).replace(", " + PHASES[0], "")
+        name = pose_name(kind * KIND_STRIDE + cls * 1000 + pose * 10).replace(", " + PHASES[0], "")
         print("//   %s: %d key%s" % (name, n, "s" if n > 1 else ""), file=sys.stderr)
     print("// grips: %d Every Weapon and %d weapon rows changed" % (len(gchanged), len(wchanged)), file=sys.stderr)
     if weap:

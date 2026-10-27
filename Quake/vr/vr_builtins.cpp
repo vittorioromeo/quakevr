@@ -2359,13 +2359,14 @@ void PF_weapondrawnpose()
     if(what == 24)
     {
         // weapondrawnpose(world, kind * 1000 + code, 24): the Weapon Holds (vr_agholds.inc; QC VR_AGH_Hands): '<hands>
-        // <setting> 0', hands 1 or 2 (0: no row for that weapon), setting 0 Auto, 1 One-Handed, 2 Two-Handed.
+        // <setting> <class>', hands 1 or 2 (0: no row for that weapon), setting 0 Auto, 1 One-Handed, 2 Two-Handed; class
+        // its pose category (agpose::Class: the Pose Category's, a gun with no row or a melee weapon agpose::Gun).
         const int arg = static_cast<int>(G_FLOAT(OFS_PARM1));
         int set = 0;
         const int h = agholds::hands(arg / 1000, arg % 1000, &set);
         G_VECTOR(OFS_RETURN)[0] = static_cast<float>(h);
         G_VECTOR(OFS_RETURN)[1] = static_cast<float>(set);
-        G_VECTOR(OFS_RETURN)[2] = 0.f;
+        G_VECTOR(OFS_RETURN)[2] = static_cast<float>(agholds::poseClass(arg / 1000, arg % 1000, nullptr));
         return;
     }
     if(what >= 11 && what <= 19)

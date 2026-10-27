@@ -588,8 +588,11 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // and the armed grunts' archived pose keys and grips equal to the new shipped ones dropped: agpose::dropShippedEqual,
 // aggrip::dropDefaultEqual; 204: r_lerpmodels 1 -> 3, AD's heads Mass 0 -> -1; 205: vr_heat_haze_half 1 -> 0 unless
 // a graphics preset below High; 206: vr_ambient_light 0 -> 0.1; 207: vr_crate_flaregun 0.05 -> 0; 208:
-// vr_lightstyle_comfort 0.5 -> 0; 209: his new weapons' tuning of 2026-10-27, the revolver's swipe 0.5 -> 0.8 m/s)
-constexpr int configVersion = 209;
+// vr_lightstyle_comfort 0.5 -> 0; 209: his new weapons' tuning of 2026-10-27, the revolver's swipe 0.5 -> 0.8 m/s;
+// 210: his armed grunts' pose keys of 2026-10-27 shipped: the archived keys equal to them dropped, as at 202; 211: the
+// gun pose categories: the pose keys' code wider (an enforcer's 1xxxx now 10xxxx) and the archived rifle keys laid on
+// every category, agpose::migrateCategories)
+constexpr int configVersion = 211;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -757,11 +760,19 @@ void migrateConfig()
             Cvar_SetQuick(var, var->default_string);
         }
     }
-    if(from < 202)
+    if(from < 210)
     {
+        // (202, and 210: his keys and grips shipped; an archived one equal to its new default no longer kept)
         const int poses = agpose::dropShippedEqual();
         const int grips = aggrip::dropDefaultEqual();
         Con_DPrintf("VR: armed grunts: %d pose keys and %d grips equal to the new defaults dropped\n", poses, grips);
+    }
+    if(from < 211)
+    {
+        int widened = 0;
+        const int laid = agpose::migrateCategories(&widened);
+        Con_DPrintf("VR: armed grunts' pose keys: %d in the wider code, %d rifle keys laid on the gun categories\n", widened,
+            laid);
     }
     if(from < 203 && vr_gunmodelpitch.value != 7.f)
     {
