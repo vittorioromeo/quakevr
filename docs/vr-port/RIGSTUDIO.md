@@ -57,7 +57,8 @@ target on, else Carry).
 
 ImGui is made the first time the studio opens; until then nothing of it exists, and while the studio is closed none of
 it runs (the input loop and the swap test one flag each). While it is open the keyboard and mouse are the studio's
-(the game's own keys are held back) except the console's key; the windows' places are kept in `quakevr/imgui.ini`.
+(the game's own keys are held back) except the console's key; SDL's text input is on meanwhile (`VR_ImGuiTextMode`:
+without it the fields get no typed characters); the windows' places are kept in `quakevr/imgui.ini`.
 
 ## Controls
 
@@ -278,6 +279,10 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
   Pose Keys handles (the right weapon 4 forward and 20 degrees round z, the right elbow 4 down, the torso 15 degrees, in
   Pickup the pelvis 3 down): the key changed by that in its space, the drawn part with it; undone, the key exactly as
   it was. Screenshots before and after the weapon's move.
+- `vr_rigstudio_test_typing` (ends on `rigstudio typing: N passed, M failed`): SDL key, text and mouse events pushed
+  through the game's input loop into the fields: a sequence's FPS typed (Ctrl+click, "12.5r", Enter: 12.5, no tool
+  change), Ctrl+Z, a typed value cancelled by Escape, the Outliner's search typed (Backspace; the game's keys untouched),
+  the console's key opening and closing the console.
 
 ## Range of Motion: the authored rig (stage 1 of the grunt rig rebuild)
 

@@ -195,6 +195,20 @@ extern "C" int VR_ImGuiEvent(const void* event)
     return 1;
 }
 
+// Key_TextEntry in the game (IN_UpdateInputMode, each frame): SDL's text input while a tool is open, or ImGui's fields
+// get Backspace, Enter and the arrows but never a typed character (SDL sends SDL_TEXTINPUT only while it is started,
+// and the game stops it in play). On while a field is being typed in (a device with an on-screen keyboard shows it),
+// else on without the on-screen keyboard (a desktop's typing is ready from the first key: ImGui's WantTextInput comes
+// a frame after the click).
+extern "C" int VR_ImGuiTextMode(void)
+{
+    if(!im.want || !im.ready)
+    {
+        return -1;
+    }
+    return ImGui::GetIO().WantTextInput ? TEXTMODE_ON : TEXTMODE_NOPOPUP;
+}
+
 // GL_EndRendering, after the post-process and before the swap (and vr_screenshot_frames' shot): the frame's windows
 // drawn into the window's framebuffer, the GL state the engine keeps (or caches) put back as it was.
 extern "C" void VR_ImGuiRender(void)

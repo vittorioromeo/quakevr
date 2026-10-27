@@ -24376,3 +24376,27 @@ box (not found). Not measured: an AD monster (`vr_test_spawn_dead` is for id's m
 become ragdolls). `vr_ao_show` with 8 grunt ragdolls: 28 -> 36 occluders (one each, groups 2-9), choosing them 0.010
 ms either way. eval.sh: no verdict changes; ragdoll_test flat: as before (first drawn 1.02 rms).
 - [ ] Ragdolls look as alive {test:none}: kill a grunt, an ogre and an enforcer in a bright room and walk round the corpses: the same shading, smoothness and skin as alive, darkening the floor under them as a live monster does
+
+## Rig Studio: typing in the ImGui text fields (worktree `fastship`, branch `agent/imguitext`, 2026-10-27)
+
+Vittorio: in the Rig Studio only the mouse worked in the text fields (a DragFloat's Ctrl+click / double-click text mode,
+the Range of Motion's Pivot and limits, the Outliner's search, sequence and pose names). Cause: in play (`key_game`)
+`Key_TextEntry` says TEXTMODE_OFF, so `IN_UpdateInputMode` keeps SDL's text input stopped, and SDL sends no
+SDL_TEXTINPUT (the typed characters) while it is stopped. The key events (Backspace, Enter, the arrows, Ctrl+...) did
+reach ImGui; the characters never did. ImGui's SDL2 backend does not start text input itself (its 2023 change).
+
+Fix: `VR_ImGuiTextMode` (vr_imgui.cpp, vr_api.h), asked by `Key_TextEntry` in play: while a flat-screen tool's ImGui is
+open, SDL's text input is on (TEXTMODE_ON while a field is typed in, else NOPOPUP: on a desktop it is on from the first
+key, and no on-screen keyboard pops up on a Steam Deck); off again when the studio closes. The rest was already in
+place: every key goes to ImGui while the studio is open (the game's keys held back), the studio's shortcuts return on
+`io.WantTextInput`, the console's key passes unless a field is typed in, and the backend's clipboard is SDL's.
+
+Test: `vr_rigstudio_test_typing` (vr_rigstudio_typetest.cpp; open the studio first; ends on `rigstudio typing: N
+passed, M failed`). SDL key, text and mouse events are pushed onto SDL's queue (a character only while SDL's text input
+is on, as SDL's own keyboard does) and go through IN_SendKeyEvents and the ImGui backend: the FPS Ctrl+clicked, "12.5r"
++ Enter -> 12.5 with the tool unchanged by the R; Ctrl+Z -> 10; "77" + Escape -> 10; the Outliner's search "armx" +
+Backspace -> "arm", 4 of 11 bones listed, the game's keys not down; the console's key opens and closes the console.
+With the fix 11/11; without it 6/11 (no characters reach the fields). Rig Studio tests: `_test_posekeys` 10/10,
+`_test_aim` 4/4, `_test_subjects` 14/14, `vr_rigstudio_rom test` 9/9. Not covered by the test: the clipboard (Ctrl+C/V
+would overwrite the desktop's clipboard) and Tab between fields (ImGui's own handling).
+- [ ] Rig Studio typing {test:vr_rigstudio_test_typing}: flat screen, Rig Studio: Ctrl+click a DragFloat and type 12.5 + Enter; type in the Outliner's search, a sequence name, Range of Motion's Pivot; Backspace, arrows, Ctrl+A/C/V, Escape and Tab work; Q R G E T W P don't switch tools while typing; the console key still opens the console

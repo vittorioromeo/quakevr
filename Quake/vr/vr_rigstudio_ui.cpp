@@ -579,6 +579,7 @@ void outlinerWindow()
     ImGuiTextFilter filter;
     ImGui::SetNextItemWidth(-1.f);
     ImGui::InputTextWithHint("##search", "search bones", st.search, sizeof(st.search));
+    typingProbe(2);
     q_strlcpy(filter.InputBuf, st.search, sizeof(filter.InputBuf));
     filter.Build();
     if(ImGui::SmallButton("Show All"))
@@ -1269,6 +1270,7 @@ void sequenceWindow()
     undoOnStart("length");
     changed |= ImGui::DragFloat("FPS", &s->fps, 0.1f, 0.5f, 120.f, "%.1f");
     undoOnStart("fps");
+    typingProbe(1);
     changed |= ImGui::Checkbox("Loop", &s->loop);
     undoOnStart("loop");
     ImGui::SameLine();
