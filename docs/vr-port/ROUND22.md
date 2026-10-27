@@ -24658,3 +24658,25 @@ shoulder (twist p95 75 -> 78), the belly / pelvis push shooting (pen: 0 p95 both
 5.02 / 4.59, grip2 1.05 / 1.06, aim 8.27 / 5.59, wrist 10.24 / 6.98, armpen 0.52 / 0.52, shoulder 0.39 / 0.38, wrong
 61.6 / 60.6 p95 (the run-to-run spread; this method's numbers are not the stage 2 table's: 72 Hz fixed frames and the
 nail pistol subject in). Its skin (`vr_agarms_info`) and proxies printed the same before and after.
+
+**Rig Studio** (`-flatscreenmode`: the studio closes under the mock headset): Range of Motion test on the enforcer 9/9
+on both latches, on the grunt 9/9; `_test_subjects` 14/14, `_aim` 4/4, `_posekeys` 10/10 on both latches.
+`vr_rigstudio_rom test weapon` fails 0/6 everywhere (the enforcer and the grunt, `vr_rig2` 0 and 1: "no reading ...
+weapon 0": the subject's weapon entity is not found; not looked into, not checked on origin/next). The rom test
+rewrites the subject's rig file: regenerated with make_rig2.py after.
+
+**Eyeshots** (old | new; a low-impact run: low-res, the camera close: judge them in VR): `scratch/eyes_enf_guns.png`
+(test 45's sheet, the enforcer: the nail pistol one-handed, idle and aim ahead, front and side; then the laser rifle
+two-handed, the same), `scratch/eyes_enf_dead.png` (a body-shot death, then a knockdown by a 30 hit, twice). Looked at:
+the aims alike, the authored elbow bent smoothly and the fist whole on the grip; the laser rifle's idle hold sits at the
+belly on the authored rig (the old one held it out of view, lower); the dead and knocked-down bodies lie whole, nothing
+flung.
+
+**eval.sh**: no verdict changes with `vr_rig2` 0 and with 1 (`EVAL_PRE` with `vr_rig2 1`): 163/171 both, every
+difference PASS -> PASS (damages 0.1 apart, as stage 2 found).
+
+**Left**: the armed solve tuned to the enforcer's authored arm (reach p95 3.9 against 2.5: QC's goals for a 24-unit arm;
+the elbow's way, wrong 117 against 92 p95; the armpen metric with the pads), the hips' long side triangles (the leg up
+and out), foot_r's twist and neck+head's stretch (stage 1's), `vr_rigstudio_rom test weapon` (fails everywhere).
+- [ ] Enforcer rig stage 2 {test:pose_enforcers_guns}: Debug > Grunt and Enforcer on the Authored Rig on, load a map: enforcers alive with the laser rifle two-handed and a nail pistol one-handed (aiming, running, firing), hit, knocked down, killed, cut, grabbed: elbows, knees, shoulder pads and the fist smooth, the rifle in both hands, the arms out of the torso; tell where a hand misses its grip
+- [ ] Enforcer rig stage 2 ragdolls {test:none}: vr_rig2 1: kill enforcers every way (body, head, arm, leg, blast, a stair fall), knock them down and let them get up: the power pack stays on the back, no part flung, no limb bent the wrong way
