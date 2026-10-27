@@ -23603,3 +23603,43 @@ eval.sh: 163/171, no verdict change (3 takes' damage moved by 0.1). Checklist li
 - [ ] AD's lamps (ad_crucial) with Comfort > Soften Flickering Lights at 0.5, then 0: the flicker is calmer, same rhythm {test:ad_lighting}
 - [ ] Empty nail magazines on the floor: no force grab, no sparkles when aimed at; one with rounds still comes {test:magfill}
 - [ ] AD projectile pellets on a worn flamethrower/poison tank: sparks and tink, no blood; crate splinters; grunt bleeds {test:ad_pellet_tanks}
+
+## AD flicker (the real cause), AD hub loadout, AD hub slipgates (worktree `tghost`, branch `agent/adflicker`, 2026-10-27)
+
+**AD flicker: NaN fog for a frame.** Not the lightstyles (the beta4fix section above was wrong). Reproduced headless:
+his `s3.sav` (ad_azad), both eyes' images every frame (`vr_eyeshot 1` each frame), mean luma of the top third (sky)
+and the rest: every 3-8 frames one frame whose world is black and sky dimmed, in both eyes alike (sky 77 -> 23, rest
+53 -> 2.7 of 255; mean frame-to-frame change 19.4 / 18.0, max 54). Unchanged by Soften Flickering Lights 0,
+r_lerplightstyles 0, r_dynamic 0, bloom, tonemap, AO, map-light shadows, water fog, polyblend, r_drawentities 0; the
+frame data showed it: the fog's colour -8.4e6 and density NaN in exactly those frames. Cause (FitzQuake's, upstream):
+a fog set at once (svc_fog / `fog` with time 0: AD sends its fog over and over) leaves `fade_time` 0 and `fade_done =
+cl.time` in a float, which rounds up past the double clock about half the time (497 of 1000 clocks in the check), so
+`fade_done > cl.time` held and `(fade_done - cl.time) / fade_time` divided by zero in the frames drawn before the clock
+moved on. AD sends its fog while you move through its fog zones (and for ~3 s after a load here), hence "when I turn
+or move". Fix: gl_fog.c `Fog_FadeLeft` (no fade without a fade time; the share clamped 0..1), used by Fog_Update,
+Fog_GetColor, Fog_GetDensity. After (same save, same frames): 0 dark frames in 54 static (frame-to-frame 0.00), and
+while turning 1.5 deg/frame and walking 0 dark in 54 (max change 5.1, the view's own). `vr_lightstyle_comfort` only
+softened authored lamps, so its default goes back to 0 (the option stays: Comfort > Soften Flickering Lights).
+Test: `vr_fog_check` (Debug > Fog Check): the fog set at once at 1000 clocks and a fade with the clock before its
+start: `fogcheck: 1002 passed, 0 failed`. Scene `ad_fog_flicker` (ad_azad at his save's spot).
+
+**AD hub loadout (shotgun, super shotgun, nailgun holstered): AD's own.** start.bsp's worldspawn has `give_weapons 7`
+(shotgun, super shotgun, nailgun), `reset_health 75`, `armortype 1`, `armorvalue 25`; a fresh new game in AD's start
+gives exactly that (items 12295, health 75, armour 25) and our holsters show them. His autosave (2.6 s into start)
+matches. Not a bug.
+
+**AD hub's original slipgates did nothing.** Their trigger_changelevel touched fine, but the changelevel was refused:
+`campaignForMap` named e1m1..e4m1 Quake's, AD was the running campaign, so `VR_CanChangeCampaignMap` printed "use the
+campaign selector" (unseen in VR) and stopped; and `end` (the lower level's fifth gate) would have Host_Error'd
+("cannot find map"): while a newer campaign runs, Quake's end/hub/dm1 are hidden for that campaign's own, which AD
+doesn't have. Fix (vr_gamedir.cpp): with AD running, an id episode map (e*) that exists stays AD's (its progs, saves,
+restart); AD keeps Quake's end, hub and dm1 visible (only start is AD's own). Test: `Misc/quakevr/ad_hub_test.sh
+<agent>` (AD native, new game in start: the loadout from a save 200 frames in; then each gate in its own game: the
+player put in it, the run ends on the gate's map title): `adhub: 10 passed, 0 failed` (before: the gates refused, end
+"cannot find map").
+
+eval.sh: canary 36/44, 0 differ. Seen, not fixed: ad_azad prints `R_AliasSetupFrame: no such frame N for
+'progs/ammo_shells1.mdl'` (and shells0, nails1) every frame. Checklist lines suggested:
+- [ ] AD: turn, snap/smooth turn and walk on ad_azad's snowfield (or load your s3 save): no dark frames, sky and lamps steady {test:ad_fog_flicker}
+- [ ] AD hub, lower level: walk into each original slipgate (E1-E4, end): the episode's first map (or end) loads, AD's rules kept
+- [ ] Soften Flickering Lights now defaults to 0 (set yours back to 0 if you want AD's lamps as authored)
