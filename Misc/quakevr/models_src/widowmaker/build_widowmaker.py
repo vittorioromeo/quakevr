@@ -38,11 +38,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import export_mdl  # noqa: E402
 
-SKIN_W, SKIN_H = 512, 512
+SKIN_W, SKIN_H = 692, 692  # 512 until 2026-10-27 ("raise the res by 30-40%"): a multiple of 4, the UVs re-snapped to it
 DETAIL_UV = 1.7  # the rear plate's and the grips' (and their feet's) islands this much larger on the skin (more texels)
 
 # Parts (a face's material index while building, then its wm_part attribute): what the skin paints there.
 IRON, STEEL, OLIVE, BRASS, BARREL, BRICK, BORE, DARK, SIGHT, PLATE = range(10)
+PART_NAMES = ["iron", "steel panel", "olive cover", "brass", "barrels", "brick grips", "bores", "dark", "sights",
+              "plate rim, feet"]
 CHAMFER = 16  # added to a part: a chamfer of it
 
 # The receiver: an octagonal box (chamfered), the rear grip under its back end.
@@ -431,6 +433,11 @@ def mix(a, b, k):
     return a + (b - a) * max(0.0, min(1.0, k))
 
 
+def rusty(col, rust, k):
+    """Rust and stains (subdued by SKIN_RUST)."""
+    return mix(col, rust, k * SKIN_RUST)
+
+
 def smooth(e0, e1, x):
     t = max(0.0, min(1.0, (x - e0) / (e1 - e0)))
     return t * t * (3 - 2 * t)
@@ -466,14 +473,16 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
     fine = noise.noise(p * 3.2 + Vector((9.2, 1.4, 5.5)))
     micro = noise.noise(p * 7.5 + Vector((2.2, 6.1, 4.4)))
     speck = (rnd[0] - 0.5) * (0.14 if part == PLATE else 0.26) + 0.12 * micro
+    region = PART_NAMES[part]
     if part == PLATE and n.x < -0.9 and p.x < RX0 - 0.2:
+        region = "rear plate"
         # The rear plate's face: dark rusty iron, red-brown stains in swirls (the mockup's), rust running down from the
         # rivets and the top edge, pitting, the edge worn bright.
         col = mix(IRON_DARK, IRON_C, 0.5 + 0.5 * mid + 0.25 * fine)
         swirl = noise.noise(Vector((0.0, p.y * 0.9, p.z * 0.9)) + Vector((1.0, 5.0, 3.0)))
-        col = mix(col, IRON_STAIN, 0.65 * smooth(0.05, 0.0, abs(swirl) - 0.04) + 0.25 * smooth(0.2, 0.5, big))
+        col = rusty(col, IRON_STAIN, 0.65 * smooth(0.05, 0.0, abs(swirl) - 0.04) + 0.25 * smooth(0.2, 0.5, big))
         drip = noise.noise(Vector((p.y * 2.6, 0.0, p.z * 0.35)) + Vector((7.0, 1.0, 2.0)))
-        col = mix(col, IRON_RUST, 0.55 * smooth(0.25, 0.45, drip + 0.15 * fine))
+        col = rusty(col, IRON_RUST, 0.55 * smooth(0.25, 0.45, drip + 0.15 * fine))
         if micro > 0.42:
             col *= 0.6  # a pit
         e = plate_edge(p.y, p.z)
@@ -481,10 +490,10 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
     elif part == PLATE:
         # The plate's rim and the grips' feet: rusty iron, brighter worn edges (below).
         col = mix(IRON_DARK, IRON_C, 0.6 + 0.6 * mid + 0.3 * fine)
-        col = mix(col, IRON_STAIN, 0.5 * smooth(0.2, 0.5, big + 0.3 * fine))
+        col = rusty(col, IRON_STAIN, 0.5 * smooth(0.2, 0.5, big + 0.3 * fine))
     elif part == IRON:
         col = mix(IRON_DARK, IRON_C, 0.55 + 0.7 * mid + 0.3 * fine)
-        col = mix(col, IRON_RUST, 0.75 * smooth(0.15, 0.45, 0.8 * big + 0.5 * fine))
+        col = rusty(col, IRON_RUST, 0.75 * smooth(0.15, 0.45, 0.8 * big + 0.5 * fine))
     elif part == STEEL:
         # The light steel side panel: big bright and dull patches (the mockup's), darker olive bars across it.
         blot = noise.noise(Vector((p.x * 0.42, p.y, p.z * 0.55)) + Vector((4.0, 2.0, 1.0)))
@@ -492,7 +501,7 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
         bar = min(abs(p.x - x) for x in (2.6, 11.4, 16.0, 19.6))
         if bar < 0.45 and RZ0 + 1.2 < p.z < RZ1 - R_CHAMFER_TOP - 0.7:
             col = mix(OLIVE_DARK, OLIVE_C, 0.4 + 0.5 * fine)
-        col = mix(col, IRON_RUST, 0.6 * smooth(0.35, 0.6, big + 0.4 * fine))
+        col = rusty(col, IRON_RUST, 0.6 * smooth(0.35, 0.6, big + 0.4 * fine))
     elif part == OLIVE:
         col = mix(OLIVE_DARK, OLIVE_C, 0.6 + 0.6 * mid + 0.3 * fine)
         if rnd[1] < 0.18:
@@ -500,8 +509,8 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
         elif rnd[1] < 0.24:
             col = mix(col, OLIVE_YELLOW, 0.6)
         elif rnd[1] < 0.38:
-            col = mix(col, OLIVE_RUST, 0.7)
-        col = mix(col, OLIVE_RUST, 0.45 * smooth(0.3, 0.6, big + 0.3 * fine))
+            col = rusty(col, OLIVE_RUST, 0.7)
+        col = rusty(col, OLIVE_RUST, 0.45 * smooth(0.3, 0.6, big + 0.3 * fine))
     elif part == BRASS:
         col = mix(BRASS_DARK, BRASS_C, 0.6 + 0.6 * mid + 0.3 * fine)
         col = mix(col, OLIVE_DARK, 0.5 * smooth(0.25, 0.55, big + 0.4 * fine))
@@ -510,7 +519,7 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
         if rnd[1] < 0.3:
             col = mix(col, BARREL_BROWN, 0.7)
         elif rnd[1] < 0.38:
-            col = mix(col, IRON_RUST, 0.5)
+            col = rusty(col, IRON_RUST, 0.5)
     elif part == BRICK:
         mortar, shade = brick(p, n)
         if mortar:
@@ -519,11 +528,12 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
             col = mix(BRICK_C, BRICK_LIGHT, 0.4 + 0.7 * shade + 0.3 * fine + 0.2 * micro)
             if rnd[1] < 0.07:
                 col = mix(col, MORTAR, 0.6)  # a pock
-            col = mix(col, IRON_RUST, 0.3 * smooth(0.35, 0.6, big))  # grime from the hand
+            col = rusty(col, IRON_RUST, 0.3 * smooth(0.35, 0.6, big))  # grime from the hand
     elif part == SIGHT:
         col = mix(IRON_DARK, IRON_C, 0.6 + 0.5 * mid)
         if (n.z > 0.5 or n.x < -0.5) and p.z > SIGHT_Z - 0.25:
             col = BRASS_LIGHT * (0.92 + 0.12 * rnd[0])  # the ears' and the post's tops catch the eye
+            region = "sight tops"
     elif part == BORE:
         col = BORE_C * (0.9 + 0.2 * fine)
     else:
@@ -560,18 +570,22 @@ def paint_texel(p, n, part, chamfer, edges, rvts, ao, rnd):
             col = mix(rgb(46, 38, 30), rgb(150, 136, 118), d ** 1.2)
             if d > 0.93:
                 col = rgb(214, 200, 176)  # the highlight
+            region = "rivets"
         elif k < 1.1:
             col *= 0.45  # its rim, sunk round it
         elif k < 1.6 and v.z < -0.15 * r:
             col *= 0.6  # its shadow below
     col *= ao
     col *= (0.92 + 0.12 * n.z) * 0.74
-    return col
+    if region in ACCENTS:
+        col *= SKIN_ACCENT  # the darker metal accents kept readable against the darkened iron
+    return col, region
 
 
 def bake(objs, w, h):
     """Paints the skin (every object's UV islands) procedurally; returns its RGB texels (top row first)."""
     tex = [None] * (w * h)
+    regions = [None] * (w * h)  # what each painted texel is (PART_NAMES, "rear plate", "rivets", "sight tops")
     rvts = rivets()
     rng = random.Random(1)
     verts, polys = [], []
@@ -619,7 +633,8 @@ def bake(objs, w, h):
                     p = ps[0] * b0 + ps[1] * b1 + ps[2] * b2
                     ao = occlusion(bvh, p, n)
                     rnd = (rng.random(), rng.random())
-                    tex[t * w + s] = paint_texel(p, n, part, chamfer, face_edges[f.index], rvts, 0.35 + 0.65 * ao, rnd)
+                    tex[t * w + s], regions[t * w + s] = paint_texel(p, n, part, chamfer, face_edges[f.index], rvts,
+                                                                     0.35 + 0.65 * ao, rnd)
         bm.free()
     # Bleed each island's edge texels outward (filtered and mipmapped, no dark seams), the rest dark.
     for _ in range(4):
@@ -632,16 +647,23 @@ def bake(objs, w, h):
                 if nb:
                     grown[i] = sum(nb, Vector()) / len(nb)
         tex = grown
-    return [tuple(max(0, min(255, int(round(c[k])))) for k in range(3)) if c is not None else (40, 34, 28) for c in tex]
+    return [tuple(max(0, min(255, int(round(c[k])))) for k in range(3)) if c is not None else (40, 34, 28)
+            for c in tex], regions
 
 
 # Every painted colour above is scaled by this before it is matched to the palette (his notes 2026-10-26: "a bit darker
-# still"): the last pass was 0.8, this one another 0.82, judged in the game.
-SKIN_DARKEN = 0.82 * 0.65
+# still"): the last pass was 0.8, this one another 0.82, judged in the game; then 0.65 ("30-40% darker"); then 0.75 (2026-10-27:
+# "much darker, closer to the original black skin": the painted texels' mean luma 26.3 -> 19.1, AD's v_shot3 17.5).
+SKIN_DARKEN = 0.82 * 0.65 * 0.75
 # ... with a gentle lift of only the darkest values (a plain factor collapsed the near-black rust, mortar and rivet shadows
 # onto a few palette entries): up to SKIN_DARK_LIFT added at 0, fading out by SKIN_DARK_KNEE.
-SKIN_DARK_LIFT = 6.0
-SKIN_DARK_KNEE = 40.0
+SKIN_DARK_LIFT = 3.0
+SKIN_DARK_KNEE = 30.0
+# Rust and stains mixed in at this much of their strength.
+SKIN_RUST = 0.7
+# The metal accents (ACCENTS: the brass collars and cover parts, the rivets' domes, the sights' tops) this much brighter.
+ACCENTS = ("brass", "rivets", "sight tops")
+SKIN_ACCENT = 1.25
 
 
 def darken(v):
@@ -649,16 +671,27 @@ def darken(v):
     return x + SKIN_DARK_LIFT * max(0.0, 1.0 - x / SKIN_DARK_KNEE)
 
 
-def save_image(name, texels):
+def save_image(name, baked):
+    texels, regions = baked
     q = export_mdl.qpal.Quantizer()
     pal = export_mdl.qpal.PALETTE
     img = bpy.data.images.new(name, SKIN_W, SKIN_H, alpha=False)
     px = [0.0] * (SKIN_W * SKIN_H * 4)
+    stats = {}  # region: [count, sum of luma]
     for t in range(SKIN_H):
         for s in range(SKIN_W):
             c = pal[q.nearest(tuple(darken(v) for v in texels[t * SKIN_W + s]), False)]
             i = ((SKIN_H - 1 - t) * SKIN_W + s) * 4
             px[i:i + 4] = [c[0] / 255.0, c[1] / 255.0, c[2] / 255.0, 1.0]
+            r = regions[t * SKIN_W + s]
+            if r is not None:
+                y = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]  # sRGB luma, after the palette
+                for key in (r, "all painted"):
+                    e = stats.setdefault(key, [0, 0.0])
+                    e[0] += 1
+                    e[1] += y
+    print("skin %dx%d, mean luma (8-bit sRGB) by region: %s" % (SKIN_W, SKIN_H, ", ".join(
+        "%s %.1f (%d)" % (k, e[1] / e[0], e[0]) for k, e in sorted(stats.items()))))
     img.pixels = px
     img.filepath_raw = os.path.join(HERE, name + ".png")
     img.file_format = "PNG"
