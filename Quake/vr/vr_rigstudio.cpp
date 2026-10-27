@@ -903,18 +903,13 @@ struct AimReading
         r.gunPitch = za::asin(za::clamp(fwd.z, -1.f, 1.f)) / deg;
         r.wantPitch = za::asin(za::clamp(want.z, -1.f, 1.f)) / deg;
         r.drawnOk = true;
-        // Its barrel: the model's butt-to-muzzle line, against the way from its muzzle to the target
-        glm::vec3 muzzle, butt, second;
-        int secondType = 0;
-        if(n.prop > 0 && n.prop < cl.num_entities && cl_entities[n.prop].model &&
-            view::weaponLocalGeometry(cl_entities[n.prop].model, muzzle, butt, second, secondType) && glm::length(muzzle - butt) > 1.f)
+        // Its barrel: the drawn model's forward from its muzzle (the aim lines' reading), against the way from its muzzle
+        // to the target (before 2026-10-27 the butt-to-muzzle line: a stock's heel sits below the barrel, 5-10 degrees off)
+        AimLineReading line;
+        if(readAimLine(0, line))
         {
-            const auto w = [&](const glm::vec3& l) { return r.gun + yq * (n.placed.weapon[0].rot * (l * n.space.scale)); };
-            const glm::vec3 m = w(muzzle);
-            const glm::vec3 line = glm::normalize(m - w(butt));
-            const glm::vec3 toT = glm::normalize(st.aim.at - m);
-            r.barrel = za::acos(za::clamp(glm::dot(line, toT), -1.f, 1.f)) / deg;
-            r.barrelPitch = za::asin(za::clamp(line.z, -1.f, 1.f)) / deg;
+            r.barrel = line.total;
+            r.barrelPitch = za::asin(za::clamp(line.barrel.z, -1.f, 1.f)) / deg;
             r.barrelOk = true;
         }
     }

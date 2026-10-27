@@ -20,6 +20,7 @@
 #include "vr_props.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_rig2.hpp"
+#include "vr_rigstudio.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_flamewobble.hpp"
 #include "vr_brainjiggle.hpp"
@@ -314,6 +315,7 @@ extern "C" void VR_AliasPostTransform(const entity_t* e, float matrix[16])
         return; // a ragdoll: placed where its bones are given from (vr_ragdoll.cpp)
     }
     applyPost(e, networkData(e), matrix);
+    rigstudio::drawnMatrix(e, matrix); // (the Rig Studio's aim lines: its subject's weapons as drawn)
 }
 
 // Brush entities (the ammo and health boxes are brush models) take the networked scale and offset

@@ -1368,7 +1368,7 @@ void drawAim(ImDrawList* dl)
     dl->AddCircle(iv(s), 9.f, col(c), 20, 2.f);
     dl->AddLine(ImVec2{s.x - 13.f, s.y}, ImVec2{s.x + 13.f, s.y}, col(c), 1.5f);
     dl->AddLine(ImVec2{s.x, s.y - 13.f}, ImVec2{s.x, s.y + 13.f}, col(c), 1.5f);
-    dl->AddText(ImVec2{s.x + 12.f, s.y + 4.f}, col(c), st.aim.on ? (st.aim.atCamera ? "aim (camera)" : "aim") : "aim (off)");
+    dl->AddText(ImVec2{s.x + 12.f, s.y + 4.f}, col(c), st.aim.on ? (st.aim.atCamera ? "aim target (camera)" : "aim target") : "aim target (off)");
     if(st.aim.on && noteFresh() && st.note.placed.on[0])
     {
         const glm::vec3 gun = st.note.space.origin +
@@ -1744,6 +1744,23 @@ void mockFeed()
     io.AddMousePosEvent(s.at.x, s.at.y);
     io.AddMouseButtonEvent(ImGuiMouseButton_Left, s.down);
     vs.mockNext++;
+}
+
+bool mockClick(const glm::vec3& world)
+{
+    glm::vec2 s;
+    if(!project(world, s))
+    {
+        return false;
+    }
+    vs.mock.clear();
+    vs.mockNext = 0;
+    vs.mock.pushBack(MockStep{s, false});
+    vs.mock.pushBack(MockStep{s, false});
+    vs.mock.pushBack(MockStep{s, true});
+    vs.mock.pushBack(MockStep{s, false});
+    vs.mock.pushBack(MockStep{s, false});
+    return true;
 }
 
 bool mockBusy()
@@ -2251,8 +2268,8 @@ void viewport()
     drawProxies(dl);
     drawTargets(dl);
     drawPoseParts(dl, m, overUi);
+    drawAimLines(dl); // (under the aim target's cross: it stays the one to pick)
     drawAim(dl);
-    drawAimLines(dl);
     placeHandle();
     drawHandle(dl);
     if(st.tool == Tool::Paint && !overUi)

@@ -379,6 +379,7 @@ void cameraView(float* origin, float* angles);
 // ImGui before its frame: mockFeed). `owner` 1 the aim target, 2 the Pose Keys' part `part`; `axis` 0..2 an arrow
 // (`amount` units along it), 20..22 a ring (`amount` degrees round it). False: no such handle shown now.
 bool mockDrag(int owner, int part, int axis, float amount);
+bool mockClick(const glm::vec3& world); // a left click on that point (false: not in view)
 void mockFeed();
 [[nodiscard]] bool mockBusy();
 
@@ -412,8 +413,9 @@ void testAnim_f();
 struct AimLineReading
 {
     bool ok{false};
-    glm::vec3 muzzle{0.f}, butt{0.f};  // world, as drawn
-    glm::vec3 barrel{1.f, 0.f, 0.f};   // the barrel's line (butt to muzzle; unit)
+    glm::vec3 muzzle{0.f}, origin{0.f}; // world, as drawn: its muzzle, its entity's origin (its grip)
+    glm::vec3 barrel{1.f, 0.f, 0.f};   // the barrel's line: the drawn model's forward (x; unit)
+    float length{0.f};                 // how far the muzzle is ahead of its origin along it (units)
     glm::vec3 toTarget{1.f, 0.f, 0.f}; // the muzzle to the aim target (unit)
     float dist{0.f};                   // ... how far
     float yaw{0.f}, pitch{0.f}, total{0.f}; // the barrel off it: yaw (+ left), pitch (+ up), the angle between (degrees)

@@ -24,6 +24,7 @@
 #include "vr_agpose.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_render.hpp"
 #include "vr_view.hpp"
 
 #include "thirdparty/imgui/imgui.h"
@@ -167,7 +168,67 @@ struct Align
 };
 Align al;
 
+// The subject's weapons as last drawn (rigstudio::drawnMatrix): each one's entity, frame and matrix (its model's
+// vertices -> the world).
+struct DrawnWeapon
+{
+    int num{0};
+    int frame{-1};
+    glm::mat4 m{1.f};
+};
+DrawnWeapon drawnWeapons[2];
+
+// Weapon entity `num`'s drawn matrix from its model's own frame (x forward, y left, z up, units: weaponLocalGeometry's)
+// to the world: the drawn matrix without the model's vertex scale and origin (the .mdl's packing). False: not drawn in
+// the last two frames.
+[[nodiscard]] bool drawnWeapon(int num, glm::mat4& out)
+{
+    for(const DrawnWeapon& d : drawnWeapons)
+    {
+        if(d.num == num && d.frame >= 0 && host_framecount - d.frame <= 2 && cl_entities[num].model)
+        {
+            // (the model's own frame: its drawing at the origin unturned, every model transform in it, as
+            // weaponLocalGeometry measures it; the drawn matrix after it)
+            entity_t at{};
+            at.model = cl_entities[num].model;
+            at.scale = ENTSCALE_DEFAULT;
+            float m0[16];
+            render::entityMatrix(at, false, ENTSCALE_DEFAULT, glm::vec3{0.f}, m0);
+            glm::mat4 f0;
+            for(int c = 0; c < 4; c++)
+            {
+                f0[c] = glm::vec4{m0[c * 4], m0[c * 4 + 1], m0[c * 4 + 2], m0[c * 4 + 3]};
+            }
+            out = d.m * glm::inverse(f0);
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
+
+void qvr::rigstudio::drawnMatrix(const entity_t* e, const float* matrix)
+{
+    if(!st.open || !cl_entities || e < cl_entities || e >= cl_entities + cl_max_edicts)
+    {
+        return;
+    }
+    const int num = static_cast<int>(e - cl_entities);
+    for(int h = 0; h < 2; h++)
+    {
+        if(num > 0 && num == (h == 0 ? st.note.prop : st.note.propL))
+        {
+            DrawnWeapon& d = drawnWeapons[h];
+            d.num = num;
+            d.frame = host_framecount;
+            for(int c = 0; c < 4; c++)
+            {
+                d.m[c] = glm::vec4{matrix[c * 4], matrix[c * 4 + 1], matrix[c * 4 + 2], matrix[c * 4 + 3]};
+            }
+        }
+    }
+}
 
 namespace qvr::rigstudio::detail
 {
@@ -175,7 +236,7 @@ namespace qvr::rigstudio::detail
 bool readAimLine(int hand, AimLineReading& r)
 {
     r = AimLineReading{};
-    if(hand < 0 || hand > 1 || !fresh() || !st.note.placed.on[hand])
+    if(hand < 0 || hand > 1 || !fresh())
     {
         return false;
     }
@@ -187,17 +248,17 @@ bool readAimLine(int hand, AimLineReading& r)
     }
     glm::vec3 muzzle, butt, second;
     int secondType = 0;
-    if(!view::weaponLocalGeometry(cl_entities[prop].model, muzzle, butt, second, secondType) || glm::length(muzzle - butt) <= 1.f)
+    glm::mat4 w;
+    if(!view::weaponLocalGeometry(cl_entities[prop].model, muzzle, butt, second, secondType) || !drawnWeapon(prop, w))
     {
         return false;
     }
-    const glm::quat yq = bodyYaw();
-    const rigpose::Rigid& w = n.placed.weapon[hand];
-    const glm::vec3 gun = n.space.origin + yq * (w.pos * n.space.scale);
-    const auto world = [&](const glm::vec3& l) { return gun + yq * (w.rot * (l * n.space.scale)); };
-    r.muzzle = world(muzzle);
-    r.butt = world(butt);
-    r.barrel = glm::normalize(r.muzzle - r.butt);
+    // The weapon as drawn last (its model matrix, the renderer's own: every layer, lerp, mirror and rig included): its
+    // muzzle, and its barrel along its model's forward (x)
+    r.muzzle = glm::vec3{w * glm::vec4{muzzle, 1.f}};
+    r.origin = glm::vec3{w * glm::vec4{0.f, 0.f, 0.f, 1.f}};
+    r.barrel = glm::normalize(glm::vec3{w * glm::vec4{1.f, 0.f, 0.f, 0.f}});
+    r.length = glm::length(glm::vec3{w * glm::vec4{muzzle.x, 0.f, 0.f, 0.f}});
     r.dist = glm::length(st.aim.at - r.muzzle);
     if(r.dist < 1.f)
     {
@@ -217,7 +278,7 @@ bool readAimLine(int hand, AimLineReading& r)
     }
     else if(vr_agrunt_shot_drawn.value != 0.f)
     {
-        r.shot = glm::normalize(yq * (w.rot * glm::vec3{1.f, 0.f, 0.f}));
+        r.shot = r.barrel;
         r.shotWhy = "the drawn gun's line";
         r.shotOk = true;
     }
@@ -542,9 +603,9 @@ void drawAimLines(ImDrawList* dl)
         }
         glm::vec2 m, b, e, t;
         const bool pm = project(r.muzzle, m);
-        if(pm && project(r.butt, b))
+        if(pm && project(r.muzzle - r.barrel * r.length, b))
         {
-            dl->AddLine(ImVec2{b.x, b.y}, ImVec2{m.x, m.y}, colU(cBarrel), 1.f);
+            dl->AddLine(ImVec2{b.x, b.y}, ImVec2{m.x, m.y}, colU(cBarrel), 1.5f); // (along the drawn barrel itself)
         }
         if(pm && project(st.aim.at, t))
         {
@@ -553,15 +614,14 @@ void drawAimLines(ImDrawList* dl)
         if(pm && project(r.muzzle + r.barrel * r.dist, e))
         {
             dl->AddLine(ImVec2{m.x, m.y}, ImVec2{e.x, e.y}, colU(cBarrel), 2.f);
-            dl->AddCircle(ImVec2{e.x, e.y}, 4.f, colU(cBarrel), 12, 1.5f);
-            char text[96];
-            q_snprintf(text, sizeof(text), "%s yaw %+.2f pitch %+.2f (%.2f deg)", h ? "L" : "R", r.yaw, r.pitch, r.total);
-            textBox(dl, e.x + 8.f, e.y + (h ? 8.f : -22.f), cBarrel, text);
+            dl->AddCircle(ImVec2{e.x, e.y}, 5.f, colU(cBarrel), 12, 2.f);
+            // (a short name only: the numbers at the view's foot; the target's own label stays clear)
+            textBox(dl, e.x - 10.f, e.y - (h ? 40.f : 24.f), cBarrel, h ? "L barrel" : "R barrel", true);
         }
         glm::vec2 s;
         if(pm && r.shotOk && r.shotOff > 0.05f && project(r.muzzle + r.shot * r.dist, s))
         {
-            // (dashed)
+            // (dashed, its end a diamond: not the target's cross, never dragged)
             constexpr int dashes = 24;
             for(int i = 0; i < dashes; i += 2)
             {
@@ -569,7 +629,9 @@ void drawAimLines(ImDrawList* dl)
                 const glm::vec2 z = m + (s - m) * (static_cast<float>(i + 1) / dashes);
                 dl->AddLine(ImVec2{a.x, a.y}, ImVec2{z.x, z.y}, colU(cShot), 1.5f);
             }
-            textBox(dl, s.x + 8.f, s.y + 4.f, cShot, "shot");
+            constexpr float d = 5.f;
+            dl->AddQuad(ImVec2{s.x, s.y - d}, ImVec2{s.x + d, s.y}, ImVec2{s.x, s.y + d}, ImVec2{s.x - d, s.y}, colU(cShot), 2.f);
+            textBox(dl, s.x - 10.f, s.y + 8.f, cShot, "shot", true);
         }
         char line[200];
         q_snprintf(line, sizeof(line), "%s weapon: aim error: yaw %+.2f deg, pitch %+.2f deg (total %.2f deg); shot: %s%s", h ? "left" : "right",
@@ -698,16 +760,22 @@ struct AlignCase
     int weapon, weapon2;
     const char* name;
     bool move; // Also Move: the muzzle kept where it was (its place moved)
+    int mode;  // 0 as the studio opens (Rotate, Game display, paused), 1 the Pose Keys tool, 2 Shaded display, 3 the
+               // animation playing (the line checked only), 4 the aim target clicked and dragged (no align)
+    bool views; // close side and top screenshots of the aligned gun
 };
 constexpr AlignCase alignCases[] = {
-    {"monster_vr_grunt", 4, 0, "grunt, shotgun (Rifle)", false},
-    {"monster_vr_grunt", 29, 0, "grunt, nail pistol (Pistol)", false},
-    {"monster_vr_grunt", 10, 0, "grunt, rocket launcher (Launcher)", false},
-    {"monster_vr_enforcer", 4, 0, "enforcer, shotgun (Rifle)", false},
-    {"monster_vr_enforcer", 29, 0, "enforcer, nail pistol (Pistol)", false},
-    {"monster_vr_enforcer", 10, 0, "enforcer, rocket launcher (Launcher)", false},
-    {"monster_vr_grunt", 29, 29, "grunt, two nail pistols (two guns)", false},
-    {"monster_vr_grunt", 4, 0, "grunt, shotgun (Rifle), Also Move", true},
+    {"monster_vr_grunt", 4, 0, "grunt, shotgun (Rifle)", false, 0, true},
+    {"monster_vr_grunt", 29, 0, "grunt, nail pistol (Pistol), Pose Keys tool", false, 1, true},
+    {"monster_vr_grunt", 10, 0, "grunt, rocket launcher (Launcher), Shaded", false, 2, false},
+    {"monster_vr_enforcer", 4, 0, "enforcer, shotgun (Rifle), Pose Keys tool", false, 1, true},
+    {"monster_vr_enforcer", 29, 0, "enforcer, nail pistol (Pistol)", false, 0, false},
+    {"monster_vr_enforcer", 10, 0, "enforcer, rocket launcher (Launcher)", false, 0, false},
+    {"monster_vr_grunt", 29, 29, "grunt, two nail pistols (two guns)", false, 0, true},
+    {"monster_vr_grunt", 4, 0, "grunt, shotgun (Rifle), Also Move", true, 0, false},
+    {"monster_vr_grunt", 4, 0, "grunt, shotgun (Rifle), the shoot animation playing", false, 3, false},
+    {"monster_vr_enforcer", 29, 29, "enforcer, two nail pistols, playing", false, 3, false},
+    {"monster_vr_grunt", 4, 0, "the aim target clicked and dragged", false, 4, false},
 };
 constexpr int alignCaseCount = static_cast<int>(sizeof(alignCases) / sizeof(alignCases[0]));
 
@@ -728,8 +796,59 @@ struct AlignTest
     glm::vec3 muzzle{0.f}; // (misaligned, before the align)
     int passed{0}, failed{0};
     int shotWait{0};
+    int endCase{0};         // the case after the last run
+    int view{0};            // the close views' step (case.views)
+    int lineFrames{0};      // mode 3: frames of the line checked while playing, the worst
+    float lineWorst{0.f}, muzzleWorst{0.f};
+    glm::vec3 aimAt{0.f};   // mode 4: the target before the drag
+    Camera cam;             // (put back after the close views)
 };
 AlignTest atl;
+
+// The aim line against the drawn weapon entity itself (its angles and origin through the renderer's own matrix, not
+// the captured one): the barrel's angle off the model's forward (degrees) and the muzzle's distance (units). False: none.
+bool lineVsModel(int hand, float& turn, float& off)
+{
+    AimLineReading r;
+    const int prop = hand == 0 ? st.note.prop : st.note.propL;
+    glm::vec3 muzzle, butt, second;
+    int secondType = 0;
+    if(!readAimLine(hand, r) || prop <= 0 || !view::weaponLocalGeometry(cl_entities[prop].model, muzzle, butt, second, secondType))
+    {
+        return false;
+    }
+    const entity_t& e = cl_entities[prop];
+    float m[16];
+    vec3_t origin, angles;
+    VectorCopy(e.origin, origin);
+    VectorCopy(e.angles, angles);
+    R_EntityMatrix(m, origin, angles, e.scale);
+    glm::mat4 w;
+    for(int c = 0; c < 4; c++)
+    {
+        w[c] = glm::vec4{m[c * 4], m[c * 4 + 1], m[c * 4 + 2], m[c * 4 + 3]};
+    }
+    const glm::vec3 fwd = glm::normalize(glm::vec3{w * glm::vec4{1.f, 0.f, 0.f, 0.f}});
+    turn = angleBetween(r.barrel, fwd);
+    // (a left weapon is drawn mirrored: its muzzle's y the other way)
+    const glm::vec3 lm = hand == 1 && VR_AliasMirrored(&e) ? glm::vec3{muzzle.x, -muzzle.y, muzzle.z} : muzzle;
+    off = glm::length(glm::vec3{w * glm::vec4{lm, 1.f}} - r.muzzle);
+    return true;
+}
+
+void alignCheck(const char* what, bool ok);
+
+void checkLine(int hands, const char* when)
+{
+    for(int h = 0; h < hands; h++)
+    {
+        float turn = 0.f, off = 0.f;
+        const bool ok = lineVsModel(h, turn, off);
+        alignCheck(va("%s: the %s barrel line on the drawn model: %.3f deg off its forward, its muzzle %.3f units off", when,
+                       h ? "left" : "right", turn, off),
+            ok && turn < 0.5f && off < 0.5f);
+    }
+}
 
 constexpr int alignTestGiveUp = 72 * 30; // frames a case waits for its subject or its align (a safety net)
 
@@ -761,8 +880,11 @@ void alignCaseEnd()
         agpose::set(atl.code, atl.original); // (the key as it was before the case)
     }
     atl.code = -1;
+    st.tool = Tool::Rotate;
+    st.mesh = MeshMode::Game;
+    st.playing = false;
     atl.step++;
-    if(atl.step >= alignCaseCount)
+    if(atl.step >= alignCaseCount || atl.step >= atl.endCase)
     {
         Con_Printf("rigstudio align: %d passed, %d failed\n", atl.passed, atl.failed);
         atl.step = -1;
@@ -831,13 +953,64 @@ void alignTestTick()
                     st.group = i;
                 }
             }
-            st.playing = false;
+            st.playing = c.mode == 3;
             setFrame(1.f);
+            st.tool = c.mode == 1 ? Tool::PoseKeys : Tool::Rotate;
+            st.pdFollow = true;
+            st.mesh = c.mode == 2 ? MeshMode::Shaded : MeshMode::Game;
+            st.loop = true;
             atl.posed = true;
+            atl.lineFrames = 0;
+            atl.lineWorst = atl.muzzleWorst = 0.f;
+            return;
+        }
+        if(c.mode == 3)
+        {
+            // Playing: the line on the drawn model every frame for 72 frames (after 36 to start)
+            if(++atl.lineFrames < 36)
+            {
+                return;
+            }
+            for(int h = 0; h < hands; h++)
+            {
+                float turn = 0.f, off = 0.f;
+                if(lineVsModel(h, turn, off))
+                {
+                    atl.lineWorst = za::max(atl.lineWorst, turn);
+                    atl.muzzleWorst = za::max(atl.muzzleWorst, off);
+                }
+                else
+                {
+                    atl.lineWorst = 99.f;
+                }
+            }
+            if(atl.lineFrames == 60)
+            {
+                Cbuf_AddText("screenshot\n");
+            }
+            if(atl.lineFrames < 36 + 72)
+            {
+                return;
+            }
+            alignCheck(va("playing, 72 frames: the barrel line at worst %.3f deg off the drawn model's forward, its muzzle %.3f "
+                          "units off",
+                           atl.lineWorst, atl.muzzleWorst),
+                atl.lineWorst < 0.5f && atl.muzzleWorst < 0.5f);
+            alignCaseEnd();
             return;
         }
         if(!subjectStill(hands))
         {
+            return;
+        }
+        checkLine(hands, "held");
+        if(c.mode == 4)
+        {
+            // The aim target picked by a click on it (not the lines' markers), then dragged 20 along x, undone
+            st.aim.selected = false;
+            atl.aimAt = st.aim.at;
+            alignCheck("the aim target in view to click", mockClick(st.aim.at));
+            atl.phase = 10;
             return;
         }
         atl.code = alignKeyCode();
@@ -861,6 +1034,29 @@ void alignTestTick()
         atl.phase = 1;
         atl.have = false;
         atl.still = 0;
+        return;
+    }
+    if(atl.phase == 10 || atl.phase == 11)
+    {
+        if(mockBusy())
+        {
+            return;
+        }
+        if(atl.phase == 10)
+        {
+            alignCheck("clicked: the aim target selected", st.aim.selected);
+            alignCheck("its handle dragged 20 up (z)", mockDrag(1, 0, 2, 20.f));
+            atl.phase = 11;
+            return;
+        }
+        const glm::vec3 moved = st.aim.at - atl.aimAt;
+        alignCheck(va("dragged: the aim target moved %.2f %.2f %.2f", moved.x, moved.y, moved.z),
+            za::abs(moved.z - 20.f) < 1.f && za::abs(moved.x) < 0.5f && za::abs(moved.y) < 0.5f);
+        Cbuf_AddText("screenshot\n");
+        undo();
+        alignCheck("undone: the aim target back", glm::length(st.aim.at - atl.aimAt) < 0.01f);
+        st.aim.selected = false;
+        alignCaseEnd();
         return;
     }
     if(atl.phase == 1)
@@ -923,17 +1119,47 @@ void alignTestTick()
             alignCheck("place left alone (RPos, LPos)", k.v[agpose::RPos] == atl.misaligned.v[agpose::RPos] &&
                                                            k.v[agpose::LPos] == atl.misaligned.v[agpose::LPos]);
         }
+        checkLine(hands, "aligned");
         Cbuf_AddText("screenshot\n");
         atl.shotWait = 0;
+        atl.view = 0;
         atl.phase = 3;
         return;
     }
-    if(atl.phase == 3 && ++atl.shotWait < 2)
+    if(atl.phase == 3 && ++atl.shotWait < 3)
     {
         return; // (the screenshot taken first)
     }
+    if(atl.phase == 3 && c.views && atl.view < 4)
+    {
+        // Close views of the aligned gun: from its side, then from above (the line along the barrel in both)
+        AimLineReading r;
+        (void)readAimLine(0, r);
+        if(atl.view == 0)
+        {
+            atl.cam = st.cam;
+        }
+        if(atl.view == 0 || atl.view == 2)
+        {
+            st.cam.focus = r.muzzle - r.barrel * (r.length * 0.5f);
+            st.cam.yaw = st.stageYaw + 90.f;
+            st.cam.pitch = atl.view == 0 ? 0.f : 89.f;
+            st.cam.dist = 45.f;
+        }
+        else
+        {
+            Cbuf_AddText("screenshot\n");
+        }
+        atl.view++;
+        atl.shotWait = 0;
+        return;
+    }
     if(atl.phase == 3)
     {
+        if(c.views)
+        {
+            st.cam = atl.cam;
+        }
         undo();
         const agpose::Key k = agpose::value(atl.code);
         bool same = true;
@@ -955,7 +1181,8 @@ void testAlign_f()
         return;
     }
     atl = AlignTest{};
-    atl.step = 0;
+    atl.step = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)) - 1, 0, alignCaseCount - 1) : 0; // ([first case] [count])
+    atl.endCase = Cmd_Argc() > 2 ? atl.step + za::max(1, Q_atoi(Cmd_Argv(2))) : alignCaseCount;
     st.aim.on = true;
     st.aim.show = true;
     st.aimLines = true;

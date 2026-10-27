@@ -24956,3 +24956,40 @@ posesplit section above; the same with the lines off). eval.sh: 163/171, no verd
 
 **In VR / at the desk:**
 - [ ] Rig Studio aim lines {test:none}: -flatscreenmode, Rig Studio on a shotgun grunt: cyan barrel line, orange line to the target, the error at the view's foot; Align to Target: the cyan ring lands on the target; Ctrl+Z puts it back; check the shotgun's Aim in VR afterwards.
+
+## Rig Studio aim lines, fixed (worktree `fastship`, branch `agent/aimline2`, 2026-10-27)
+
+Vittorio, after `agent/aimline`: "the target point seems to not move anymore, only the new 'shot' point does"; "the
+cyan line seems wildly off, it doesn't match the weapon's orientation in pose edit mode".
+
+**The cyan line.** Cause: it was the aim test's measure, the weapon's butt-to-muzzle line in the arms' noted frame
+(`note.placed.weapon`), not the drawn barrel: the butt is a stock's heel (or a pistol grip's base), well below the
+barrel, so the line pointed 5-10 degrees up or down off the gun, more on guns with a dropped stock. Fix: the weapon as
+drawn this frame: `VR_AliasPostTransform` hands the renderer's final model matrix of the subject's two weapon entities
+to `rigstudio::drawnMatrix`; the line is the drawn model's forward (x) from its muzzle anchor, the local points mapped
+through it relative to the same model drawn at the origin (`render::entityMatrix`: the weapon model transforms, the
+mirror of a left gun). Every mode reads the same matrix (Pose Keys tool, playing, Shaded, either rig, one or two guns).
+The aim test (`readAim`) reads it too: `_test_aim` now 4/4 (barrels 4.3 deg and under against 8-14 before), so the
+earlier "his rifle Aim points the shotgun 8.5-14 degrees off" was this artefact; the grunt's shipped keys aim within
+about 2 degrees, the enforcer's still about 18 degrees off in yaw.
+
+**The aim target.** Its click and drag work (tested: clicked, selected; its handle dragged 20 up: moved 0.00 0.00
+20.06; undone). Cause of the confusion: the lines' labels were drawn over it (the "shot" label's backing box covered
+its "aim" label, the cyan ring with its numbers looked like a target). Now the lines are drawn first and the target's
+cross and "aim target" label over them; the barrel's end is a cyan ring "R barrel" / "L barrel" (numbers only at the
+view's foot), the shot's end a magenta diamond "shot" (with converge it sits on the target), neither picked.
+
+**Test** `vr_rigstudio_test_align` 58 passed, 0 failed on `vr_rig2` 0 and 1 (11 cases; `[first] [count]` runs a
+part). The line against the drawn model (the weapon entity through `R_EntityMatrix`, independent of the captured
+matrix): 0.000 deg and 0.000 units in every case, held, aligned and over 72 frames playing. Align with the true line
+(misaligned 10 left / 5 up on the key -> drawn error, steps): grunt shotgun 8.60 -> 0.048 (2), grunt nail pistol
+(Pose Keys tool) 8.64 -> 0.026 (2), grunt rocket launcher (Shaded) 9.13 -> 0.020 (3), enforcer shotgun (Pose Keys)
+27.99 -> 0.038 (3), enforcer nail pistol 25.62 -> 0.022 (2), enforcer rocket launcher 28.36 -> 0.073 (3), grunt two
+nail pistols 8.53 -> 0.024 / 0.051 (2); Also Move now helps: muzzle 0.355 units from where it was (turn alone 1.93).
+Rig Studio: `_test_aim` 4/4, `_test_subjects` 14/14, `_test_posekeys` 8/9 (the torso step, as on origin/next).
+Eyeshots (`vr_rig2 1` run): `scratch/aimline2.png` (every case: misaligned | aligned, close side | top),
+`scratch/aimline2_close2_side_enforcer_shotgun_posekeys.png` / `_top` (the line along the barrel under the Pose Keys
+tool), `aimline2_close1_*`, `aimline2_close3_*` (the other close views).
+
+**At the desk:**
+- [ ] Rig Studio aim lines, fixed {test:none}: Rig Studio, Pose Keys (O) on a shotgun grunt: the thin cyan line lies along the drawn barrel as you drag the weapon's ring; click the orange "aim target" cross and drag it: it moves, the magenta "shot" diamond follows it, the cyan ring shows where the barrel points.
