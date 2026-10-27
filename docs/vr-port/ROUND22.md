@@ -24620,7 +24620,8 @@ armed grunt held at load 3 and 7: chest keyed 15.0 / 18.0 degrees drawn 0.00 / 0
 body), upperarm_r keyed 30.9 (held) / 19.8 drawn 0.00 / 0.00 off (its arm handed to the keys): 6/6. `vr_agrunt_test 81`
 (now also its `shout` at 0.608 s and `end` at 1.608 s) 4/4 on both latches; test 80 4/4 on both (on the authored, its
 `rstest` carried by the import). Rig Studio on both latches: subjects 14/14, aim 4/4, posekeys 10/10, rom test 9/9,
-typing 11/11. Eyeshot `scratch/rig2anim_eyes.png`: the studio at load 3 (the dope sheet's keys), the grunt in the hall at
+typing 11/11. eval.sh full set 163/171 with vr_rig2 0 and with 1, no verdict changes (7 and 9 takes differing by
+damage only, PASS -> PASS). Eyeshot `scratch/rig2anim_eyes.png`: the studio at load 3 (the dope sheet's keys), the grunt in the hall at
 load 3 without and with the keys (its right arm raised).
 
 **Left**: the studio's Bone overrides and Weights windows edit nothing the authored rig saves (its rest and weights are
