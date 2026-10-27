@@ -3,11 +3,13 @@
 # skeleton with anatomical joints, joint limits and blended skin weights (up to 4 bones a vertex), written as
 # quakevr/rigs/<model>.rig2.txt for the engine (vr_rig2.cpp: vr_rig2 1, the Rig Studio's Range of Motion window).
 #
-# Usage: python Misc/quakevr/make_rig2.py [--preview out.png] [--quiet]
-#        (writes quakevr/rigs/vrgrunt.rig2.txt and quakevr/rigs/soldier.rig2.txt: the two share the body, vertex for
-#        vertex; soldier.mdl's gun is its `weapon` bone on the right hand)
+# Usage: python Misc/quakevr/make_rig2.py [grunt|enforcer|all] [--preview out.png] [--quiet]
+#        (default all; each rig in RIGS below is built on its armed model's mesh and written for its models, which
+#        share the body vertex for vertex: grunt -> quakevr/rigs/vrgrunt.rig2.txt and soldier.rig2.txt, soldier.mdl's
+#        gun its `weapon` bone on the right hand; enforcer -> vrenforcer.rig2.txt and enforcer.rig2.txt, the laser
+#        rifle's)
 #
-# The method (all from the rest frame, frame 0, and the choices in SKELETON below):
+# The method (all from the rest frame, frame 0, and the choices in each rig's skeleton below):
 # 1. Joints. Each bone's pivot and end are authored (model units, x forward, y left, z up, read off the mesh's
 #    cross-sections), then each limb joint (`refine`) is moved to the middle of the mesh's cross-section through it,
 #    the plane across the limb there (the bisector of its two bones), the loop of that section nearest the authored
@@ -30,6 +32,7 @@
 # straight down; the others' the rest pose's own direction); twist about the bone, from the rest pose's. A hinge's angle
 # is its bend from straight (0) about `axis`, the rest pose's own bend measured.
 
+import ast
 import math
 import os
 import sys
@@ -40,13 +43,11 @@ import check_mdl_holes as cmh  # noqa: E402
 from rig2png import Canvas  # noqa: E402
 
 ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
-MODELS = {'vrgrunt': 'quakevr/progs/vrgrunt.mdl', 'soldier': 'quakevr/progs/soldier.mdl'}
-GUN = list(range(463, 549))  # soldier.mdl's gun (make_vrgrunt.py's list): the `weapon` bone, fixed on the right hand
 
 # name, parent, joint, pivot, end, refine, blend (units), radius (units), limits
 #   ball:  neutral (None: the rest direction), fwd, side, swing x (min, max), swing y (min, max), twist (min, max)
-#   hinge: bend direction at rest (None: the rest's own bend), range (min, max)
-SKELETON = [
+#   hinge: axis (None: the rest's own bend's, the two bones' cross product), range (min, max)
+GRUNT_SKELETON = [
     dict(name='pelvis', parent=None, joint='root', pivot=(-4.8, 0.0, -2.0), end=(-4.0, 0.0, 2.5)),
     dict(name='spine', parent='pelvis', joint='ball', pivot=(-4.0, 0.0, 2.5), end=(-2.6, 0.0, 9.0), blend=3.0,
          radius=12.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-20, 40), sy=(-25, 25), tw=(-25, 25)),
@@ -92,16 +93,117 @@ SKELETON = [
     dict(name='weapon', parent='hand_r', joint='fixed', pivot=(8.6, -4.3, 4.2), end=(16.0, -2.0, 4.0)),
 ]
 
-# Each bone's thickness (units: about its limb's radius there), for the regions: a vertex goes to the nearest capsule
-SMOOTH_ALPHA = 0.6  # the smoothing's pull to the joints' blends (smaller: wider seams)
-SMOOTH_ITERS = 40
-REGION_ALPHA = dict(hand=4.0, foot=2.0, head=2.0)  # ... per region
-SHOULDER_ALPHA = 0.05  # ... round the shoulders (the web between the arm and the torso)
-SHOULDER_WEB = 11.0
-REGION_FIX = {}  # the right armpit's web vertex: on the arm it turned its triangle over at 20 degrees forward with a straight elbow
-MAX_HOPS = 9           # bones further than this many joints from a vertex's own dropped (none: the fused arm's web needs the forearm's too)    # units from the shoulder joint
-THICK = dict(pelvis=7.0, spine=7.0, chest=6.5, neck=3.5, head=5.0, clavicle=3.0, upperarm=3.0, forearm=2.3, hand=1.8,
-             thigh=3.6, shin=2.8, foot=2.4)
+# A rig's choices besides its skeleton (each rig's dict in RIGS overrides these):
+DEFAULTS = dict(
+    smooth_alpha=0.6,  # the smoothing's pull to the joints' blends (smaller: wider seams)
+    smooth_iters=40,
+    region_alpha=dict(hand=4.0, foot=2.0, head=2.0),  # ... per region
+    shoulder_alpha=0.05,  # ... round the shoulders (the web between the arm and the torso)
+    shoulder_web=11.0,  # units from the shoulder joint
+    region_rules=[],  # (bone, rule(rest place, region's bone) -> bool): the body's vertices a rule gives a bone (the helmet's)
+    region_fix={},  # vertex -> bone: a vertex the rules put on the wrong side of a seam (vr_rig2_check's details)
+    rigid_fix={},  # vertex -> bone: rigid on it, no blend (a shoulder pad: armour turns whole with its arm)
+    weights_fix={},  # vertex -> {bone: weight}: painted, kept (a hip's side above the joint: half the thigh's)
+    ties=[],  # groups of vertices given their average weights (the back of a knee: its triangle turns as one)
+    hold={},  # vertex -> the smoothing's pull to its blend there (as region_alpha, per vertex)
+    pieces={},  # a vertex of a separate piece (welded mesh) -> the bone the whole piece rides, rigid (a backpack)
+    reach=None,  # units past a bone's capsule (its thickness) beyond which its weight is dropped (None: anywhere)
+    max_hops=9,  # bones further than this many joints from a vertex's own dropped (none: the fused arm's web needs the
+                 # forearm's too)
+    # each bone's thickness (units: about its limb's radius there), for the regions: a vertex goes to the nearest capsule
+    thick=dict(pelvis=7.0, spine=7.0, chest=6.5, neck=3.5, head=5.0, clavicle=3.0, upperarm=3.0, forearm=2.3, hand=1.8,
+               thigh=3.6, shin=2.8, foot=2.4),
+)
+
+# Quake VR's enforcer (quakevr/progs/vrenforcer.mdl, the enforcer.mdl without its laser rifle's triangles: 479
+# vertices, 866 triangles; frame 0, $stand1): upright, taller than the grunt (soles z -24.3, helmet top 32.8), the rifle
+# held across his chest pointing to his left (the right fist at its grip, y -11, the left fist on its barrel, y +12),
+# big shoulder pads (the right x -11..0, y -9..-16, z 19..27; the left y 7..16), a power pack on his back (a piece of
+# its own, x -23..-10, z 7..35: the chest's, rigid, as an antenna block beside it and a small block inside the belt),
+# his helmet sunk between the pads (the neck hidden, z 23..25). His arms hang from inside the pads: the right upper arm
+# out and down to an elbow out at his side (y -18.5, z 14), its forearm in across him to the fist; the left straight
+# down to a low elbow (z 10.5) and the forearm forward. His legs nearly straight (the knees 13 degrees): a thigh's
+# vertices are its hip's and its knee's ring (z -9..-12.5; long triangles below it), a shin's its boot (z -19.5 down).
+ENFORCER_SKELETON = [
+    dict(name='pelvis', parent=None, joint='root', pivot=(-4.5, -0.5, -1.0), end=(-5.0, -0.5, 6.5)),
+    dict(name='spine', parent='pelvis', joint='ball', pivot=(-5.0, -0.5, 6.5), end=(-5.0, -0.5, 14.0), blend=3.0,
+         radius=13.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-20, 40), sy=(-25, 25), tw=(-25, 25)),
+    dict(name='chest', parent='spine', joint='ball', pivot=(-5.0, -0.5, 14.0), end=(-5.0, -1.0, 22.5), blend=3.0,
+         radius=13.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-15, 25), sy=(-15, 15), tw=(-20, 20)),
+    dict(name='neck', parent='chest', joint='ball', pivot=(-5.0, -1.0, 22.5), end=(-4.5, -1.2, 25.5), blend=1.2,
+         radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 35), sy=(-25, 25), tw=(-35, 35)),
+    dict(name='head', parent='neck', joint='ball', pivot=(-4.5, -1.2, 25.5), end=(-3.5, -1.2, 32.5), blend=1.0,
+         radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 15), sy=(-20, 20), tw=(-20, 20)),
+    dict(name='clavicle_l', parent='chest', joint='ball', pivot=(-5.0, 2.5, 21.5), end=(-5.5, 11.5, 21.0), blend=2.0,
+         radius=7.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-10, 15), sy=(-5, 15), tw=(-8, 8)),
+    dict(name='upperarm_l', parent='clavicle_l', joint='ball', pivot=(-5.5, 11.5, 21.0), end=(-4.0, 13.5, 10.5),
+         blend=3.5, radius=9.0, neutral=(0, 0.17, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-20, 40),
+         sy=(-10, 50), tw=(-20, 20)),
+    dict(name='forearm_l', parent='upperarm_l', joint='hinge', pivot=(-4.0, 13.5, 10.5), end=(5.3, 13.3, 13.0),
+         refine=True, blend=1.6, radius=5.5, range=(0, 125)),  # (the inner crease's armour: clean to 135, squeezed
+                                                               # under 0.3 of its length past 120)
+    dict(name='hand_l', parent='forearm_l', joint='ball', pivot=(5.3, 13.3, 13.0), end=(10.5, 11.5, 13.5), refine=True,
+         blend=0.6, radius=4.0, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-25, 25), sy=(-10, 10), tw=(-10, 10)),
+    dict(name='clavicle_r', parent='chest', joint='ball', pivot=(-5.0, -3.5, 21.5), end=(-5.5, -12.5, 21.0),
+         blend=2.0, radius=7.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-10, 15), sy=(-5, 15), tw=(-8, 8)),
+    dict(name='upperarm_r', parent='clavicle_r', joint='ball', pivot=(-5.5, -12.5, 21.0), end=(-1.5, -18.5, 14.0),
+         blend=3.5, radius=9.0, neutral=(0, -0.17, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-20, 40),
+         sy=(-10, 50), tw=(-20, 20)),
+    dict(name='forearm_r', parent='upperarm_r', joint='hinge', pivot=(-1.5, -18.5, 14.0), end=(2.5, -13.5, 13.5),
+         refine=True, blend=1.6, radius=5.5, range=(0, 140)),
+    dict(name='hand_r', parent='forearm_r', joint='ball', pivot=(2.5, -13.5, 13.5), end=(5.5, -9.5, 12.5), refine=True,
+         blend=0.6, radius=4.0, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-25, 25), sy=(-10, 10), tw=(-10, 10)),
+    dict(name='thigh_l', parent='pelvis', joint='ball', pivot=(-5.0, 5.2, -3.0), end=(-4.0, 6.5, -10.8), blend=2.6,
+         radius=8.0, neutral=(0, 0.08, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 65), sy=(-20, 45), tw=(-30, 30)),
+    dict(name='shin_l', parent='thigh_l', joint='hinge', pivot=(-4.0, 6.5, -10.8), end=(-6.5, 7.6, -21.5),
+         refine=True, blend=4.5, radius=6.5, axis=(0, 1, 0), range=(0, 115)),
+    dict(name='foot_l', parent='shin_l', joint='ball', pivot=(-6.5, 7.6, -21.5), end=(2.5, 8.0, -23.5),
+         refine=True, blend=1.0, radius=4.5, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-25, 30), sy=(-10, 10),
+         tw=(-12, 12)),
+    dict(name='thigh_r', parent='pelvis', joint='ball', pivot=(-6.0, -6.8, -4.5), end=(-4.5, -7.5, -10.8), blend=2.6,
+         radius=8.0, neutral=(0, -0.08, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-25, 65), sy=(-20, 45),
+         tw=(-30, 30)),
+    dict(name='shin_r', parent='thigh_r', joint='hinge', pivot=(-4.5, -7.5, -10.8), end=(-7.1, -9.0, -21.5),
+         refine=True, blend=4.5, radius=6.5, axis=(0, 1, 0), range=(0, 115)),
+    dict(name='foot_r', parent='shin_r', joint='ball', pivot=(-7.1, -9.0, -21.5), end=(1.5, -9.5, -23.5),
+         refine=True, blend=1.0, radius=4.5, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-25, 30), sy=(-10, 10),
+         tw=(-12, 12)),
+    dict(name='weapon', parent='hand_r', joint='fixed', pivot=(5.5, -9.5, 12.5), end=(5.5, 20.0, 15.0)),
+]
+
+RIGS = {
+    'grunt': dict(build='vrgrunt', models=['vrgrunt', 'soldier'], skeleton=GRUNT_SKELETON,
+                  gun=list(range(463, 549))),  # soldier.mdl's gun (make_vrgrunt.py's list): the `weapon` bone
+    'enforcer': dict(build='vrenforcer', models=['vrenforcer', 'enforcer'], skeleton=ENFORCER_SKELETON,
+                     gun=[22, 23, 100] + list(range(400, 431)) + list(range(455, 479)),  # the laser rifle's
+                     pieces={285: 'chest', 9: 'chest', 0: 'pelvis'},  # the power pack, its antenna block, the belt's
+                     shoulder_web=13.0,
+                     max_hops=3,  # (the helmet's weight was carried onto the right pad: folds as the arm rose)
+                     # (his legs have few vertices: a hip's ring, a knee's ring, a boot's top and its sole, long
+                     # triangles between: the shins and feet held to their own blends, the boot's top not washed to
+                     # the thigh's over the long triangles)
+                     region_alpha=dict(hand=4.0, foot=4.0, head=2.0, shin=4.0),
+                     # the back of each knee ring (a small triangle half way between the thigh and the shin) turns as
+                     # one piece: it collapsed and turned over past a bend of 80 degrees
+                     ties=[[228, 209, 211], [226, 198, 221]],
+                     # the left pad's back edge mostly the arm's (half the clavicle's, it turned over as the arm swung
+                     # back past 7 degrees behind straight down; so, clean to 52)
+                     weights_fix={v: {'upperarm_l': 0.8, 'clavicle_l': 0.2} for v in (129, 177, 144)},
+
+                     # the helmet (z 25..33, y -5.1..2.7) the head's: the chest's thick capsule reaches up into it; the
+                     # hips' top ring, above the joints, the pelvis's: on the thigh it turned back as the leg rose; the
+                     # boots below the ankles the feet's (the heel was the shin's: the sole folded as the foot turned)
+                     region_rules=[('head', lambda p, r: p[2] >= 24.8 and -5.4 <= p[1] <= 3.0),
+                                   ('pelvis', lambda p, r: p[2] >= 0.5 and r.startswith('thigh')),
+                                   ('foot_l', lambda p, r: p[2] <= -22.0 and p[1] > 0),
+                                   ('foot_r', lambda p, r: p[2] <= -22.0 and p[1] < 0)],
+                     # the shoulder pads (18 vertices each) rigid on their upper arms: armour turns whole with the arm,
+                     # the skin between the pad and the chest blends
+                     rigid_fix_off=dict([(v, 'upperarm_l') for v in range(129, 147)] +
+                                    [(v, 'upperarm_r') for v in range(147, 165)]),
+                     thick=dict(pelvis=7.5, spine=8.0, chest=8.0, neck=3.0, head=5.0, clavicle=3.5, upperarm=4.0,
+                                forearm=3.0, hand=2.3, thigh=4.5, shin=4.0, foot=3.0)),
+}
 
 
 def add(a, b): return (a[0] + b[0], a[1] + b[1], a[2] + b[2])
@@ -177,6 +279,16 @@ class Mesh:
                     if a != b:
                         nb[a][b] = 1.0
 
+    def piece(self, seed):
+        """The vertices of the separate piece (welded, connected) that holds `seed`."""
+        seen, todo = {seed}, [seed]
+        while todo:
+            for u in self.nbrs[todo.pop()]:
+                if u not in seen:
+                    seen.add(u)
+                    todo.append(u)
+        return sorted(seen)
+
     def section_centre(self, point, normal):
         """The centroid of the loop of the mesh's section by the plane (point, normal) nearest `point`."""
         segs = []
@@ -240,8 +352,10 @@ class Mesh:
         return best if best is not None else point
 
 
-def build(mesh, quiet=False):
-    bones = [dict(b) for b in SKELETON]
+def build(mesh, cfg, quiet=False):
+    cfg = dict(DEFAULTS, **cfg)
+    gun = set(cfg['gun'])
+    bones = [dict(b) for b in cfg['skeleton']]
     index = {b['name']: i for i, b in enumerate(bones)}
     for b in bones:
         b['pidx'] = index[b['parent']] if b['parent'] else -1
@@ -272,7 +386,7 @@ def build(mesh, quiet=False):
         p = mesh.rest[v]
         # (the nearest capsule's surface: a bone's segment less its limb's thickness, so the wide torso's sides are its own)
         cands = sorted(segbones, key=lambda i: length(sub(closest_on_segment(p, bones[i]['pivot'], bones[i]['end']), p)) -
-                       THICK.get(bones[i]['name'].rstrip('_lr').rstrip('_'), 2.5))
+                       cfg['thick'].get(bones[i]['name'].rstrip('_lr').rstrip('_'), 2.5))
         region[v] = cands[0]
         def sees(q):
             lo = [min(p[k], q[k]) - 0.01 for k in range(3)]
@@ -307,18 +421,35 @@ def build(mesh, quiet=False):
                     new[v] = top
         region = new
     # hand-picked regions (REGION_FIX: a vertex the rules put on the wrong side of a seam, found by vr_rig2_check's details)
-    for v, name in REGION_FIX.items():
+    for name, rule in cfg['region_rules']:
+        new = list(region)
+        for v in mesh.used:
+            if rule(mesh.rest[v], bones[region[v]]['name']):
+                new[v] = index[name]
+        region = new
+    for v, name in cfg['region_fix'].items():
         if v < mesh.nv:
             for u in range(mesh.nv):
                 if mesh.weld[u] == mesh.weld[v]:
                     region[u] = index[name]
     # the gun: the weapon bone
-    for v in GUN:
+    for v in cfg['gun']:
         if v < mesh.nv and v not in set(mesh.used):
             region[v] = index['weapon']
     for v in range(mesh.nv):
         if region[v] < 0:
-            region[v] = index['weapon'] if v in GUN else 0
+            region[v] = index['weapon'] if v in gun else 0
+    # the separate pieces that ride one bone whole (a backpack): rigid, as the gun
+    rigid = {v for v in range(mesh.nv) if region[v] == index['weapon']}
+    for v, name in cfg['rigid_fix'].items():
+        for u in range(mesh.nv):
+            if mesh.weld[u] == mesh.weld[v]:
+                region[u] = index[name]
+                rigid.add(u)
+    for seed, name in cfg['pieces'].items():
+        for v in mesh.piece(seed):
+            region[v] = index[name]
+            rigid.add(v)
     # 3. joint blends
     weights = [{region[v]: 1.0} for v in range(mesh.nv)]
     for ci, b in enumerate(bones):
@@ -334,7 +465,7 @@ def build(mesh, quiet=False):
         # so the armpit and the shoulder's front and back have no rigid seam)
         gpi = p['pidx']
         for v in mesh.used:
-            if region[v] not in (pi, ci, gpi):
+            if region[v] not in (pi, ci, gpi) or v in rigid:
                 continue
             x = mesh.rest[v]
             if length(sub(x, b['pivot'])) > b['radius']:
@@ -347,22 +478,33 @@ def build(mesh, quiet=False):
             out = {bo: ww * (1.0 - wc) for bo, ww in base.items()}
             out[ci] = out.get(ci, 0.0) + wc
             weights[v] = out
+    # painted weights (weights_fix): set and kept, as a rigid vertex's
+    for v, ws in cfg['weights_fix'].items():
+        for u in range(mesh.nv):
+            if mesh.weld[u] == mesh.weld[v]:
+                weights[u] = {index[n]: w for n, w in ws.items()}
+                rigid.add(u)
     # 4. smoothing: a screened diffusion of the blended weights over the surface (each vertex pulled to its step-3
     # weights by SMOOTH_ALPHA, to its neighbours' average by 1): every seam between regions, the joints' bands too,
     # eases over a few rings
     anchor = weights
     # (round the shoulders the arm is fused to the torso along its inner side: a wider web there, SHOULDER_ALPHA)
     # (the small parts, the fists and the feet, held to their own bone: a uniform smoothing washes them to half)
-    alpha = [REGION_ALPHA.get(bones[region[v]]['name'].rstrip('_lr').rstrip('_'), SMOOTH_ALPHA) for v in range(mesh.nv)]
+    alpha = [cfg['region_alpha'].get(bones[region[v]]['name'].rstrip('_lr').rstrip('_'), cfg['smooth_alpha'])
+             for v in range(mesh.nv)]
     for b in bones:
         if b["name"].startswith("upperarm"):
             for v in mesh.used:
-                if length(sub(mesh.rest[v], b["pivot"])) < SHOULDER_WEB:
-                    alpha[v] = SHOULDER_ALPHA
-    for _ in range(SMOOTH_ITERS):
+                if length(sub(mesh.rest[v], b["pivot"])) < cfg['shoulder_web']:
+                    alpha[v] = cfg['shoulder_alpha']
+    for v, a in cfg['hold'].items():
+        for u in range(mesh.nv):
+            if mesh.weld[u] == mesh.weld[v]:
+                alpha[u] = a
+    for _ in range(cfg['smooth_iters']):
         new = []
         for v in range(mesh.nv):
-            if v not in mesh.nbrs or not mesh.nbrs[v] or region[v] == index['weapon']:
+            if v not in mesh.nbrs or not mesh.nbrs[v] or v in rigid:
                 new.append(anchor[v])
                 continue
             acc = {}
@@ -390,10 +532,18 @@ def build(mesh, quiet=False):
             x, d = bones[x]['pidx'], d + 1
         return d + up[x]
     for v in range(mesh.nv):
-        kept = {bo: ww for bo, ww in weights[v].items() if hops(region[v], bo) <= MAX_HOPS}
+        kept = {bo: ww for bo, ww in weights[v].items() if hops(region[v], bo) <= cfg['max_hops']}
+        if cfg['reach'] is not None and v in mesh.nbrs and v not in rigid:
+            # (no weight of a bone beyond its reach: its capsule's surface plus `reach` units; the diffusion carried
+            # a fist's weight up a fused arm's inside, a helmet's onto a shoulder pad)
+            p = mesh.rest[v]
+            kept = {bo: ww for bo, ww in kept.items() if bo == region[v] or
+                    length(sub(closest_on_segment(p, bones[bo]['pivot'], bones[bo]['end']), p)) -
+                    cfg['thick'].get(bones[bo]['name'].rstrip('_lr').rstrip('_'), 2.5) <= cfg['reach']}
         weights[v] = kept or {region[v]: 1.0}
-    # 5. welds
-    for g in mesh.groups:
+    # 5. welds (and the tied groups: vertices given one set of weights, so their triangle turns as one piece)
+    ties = [sorted({u for v in t for u in range(mesh.nv) if mesh.weld[u] == mesh.weld[v]}) for t in cfg['ties']]
+    for g in mesh.groups + ties:
         acc = {}
         for v in g:
             for bo, ww in weights[v].items():
@@ -425,6 +575,12 @@ def frame_of(b):
 def hinge_axis(b, parent):
     pd = norm(sub(b['pivot'], parent['pivot']))
     cd = norm(sub(b['end'], b['pivot']))
+    if b.get('axis'):
+        # an authored axis (a knee nearly straight at rest: its bones' own cross product would tilt it sideways); the
+        # rest bend about it as the engine measures it (vr_rig2.cpp bendOf)
+        a = norm(b['axis'])
+        p, q = sub(pd, mul(a, dot(pd, a))), sub(cd, mul(a, dot(cd, a)))
+        return a, math.degrees(math.atan2(dot(cross(p, q), a), dot(p, q)))
     a = cross(pd, cd)
     return norm(a), math.degrees(math.atan2(length(a), dot(pd, cd)))
 
@@ -464,7 +620,9 @@ COLORS = [(230, 230, 230), (230, 160, 60), (240, 220, 60), (160, 220, 240), (240
 
 
 def preview(mesh, bones, region, weights, path):
-    S, W, H, cy = 12, 420, 640, 300
+    zs = [mesh.rest[v][2] for v in mesh.used]
+    S, W = 12, 480
+    H, cy = int((max(zs) - min(zs) + 6) * S), (max(zs) + 3) * S
     c = Canvas(3 * W, H)
     views = [(lambda p: (W / 2 + S * p[1], cy - S * p[2], p[0]), (1, 0, 0)),
              (lambda p: (W + W / 2 + S * p[0], cy - S * p[2], -p[1]), (0, -1, 0)),
@@ -495,25 +653,40 @@ def main():
     args = sys.argv[1:]
     quiet = '--quiet' in args
     prev = args[args.index('--preview') + 1] if '--preview' in args else None
-    # Built on the armed grunt's mesh (no gun triangles: the gun's vertices are the weapon bone's), written for both
-    mesh = Mesh(os.path.join(ROOT, MODELS['vrgrunt']))
-    if not quiet:
-        print('vrgrunt: %d vertices, %d triangles' % (mesh.nv, len(mesh.tris)))
-    bones, region, weights = build(mesh, quiet)
-    for name, rel in MODELS.items():
-        os.makedirs(os.path.join(ROOT, 'quakevr', 'rigs'), exist_ok=True)
-        out = os.path.join(ROOT, 'quakevr', 'rigs', name + '.rig2.txt')
-        write(out, 'progs/%s.mdl' % name, bones, weights)
-        blended = sum(1 for v in mesh.used if len(weights[v]) > 1)
+    names = [a for a in args if a in RIGS or a == 'all']
+    names = list(RIGS) if not names or 'all' in names else names
+    # --set <bone>.<field>=<python literal> (or <field>=... for the rig's own choices): a try without editing the tables,
+    # e.g. --set shin_l.blend=1.5 --set smooth_iters=20 (then vr_rig2_check)
+    sets = [args[i + 1] for i, a in enumerate(args) if a == '--set']
+    for rig in names:
+        cfg = dict(RIGS[rig], skeleton=[dict(b) for b in RIGS[rig]['skeleton']])
+        for s in sets:
+            key, val = s.split('=', 1)
+            if '.' in key:
+                bone, field = key.split('.', 1)
+                [b for b in cfg['skeleton'] if b['name'] == bone][0][field] = ast.literal_eval(val)
+            else:
+                cfg[key] = ast.literal_eval(val)
+        # Built on the armed model's mesh (no gun triangles: the gun's vertices are the weapon bone's), written for all
+        mesh = Mesh(os.path.join(ROOT, 'quakevr', 'progs', cfg['build'] + '.mdl'))
         if not quiet:
-            print('  wrote %s (%d bones; %d of %d drawn vertices blended)' % (os.path.relpath(out, ROOT), len(bones),
-                                                                            blended, len(mesh.used)))
-            for b in bones:
-                if b['joint'] == 'hinge':
-                    print('  %-11s rest bend %.1f' % (b['name'], b['restbend']))
-        if prev and name == 'vrgrunt':
-            preview(mesh, bones, region, weights, prev)
-            preview(mesh, bones, region, [[(region[v], 1.0)] for v in range(mesh.nv)], prev.replace('.png', '_regions.png'))
+            print('%s: %d vertices, %d triangles' % (cfg['build'], mesh.nv, len(mesh.tris)))
+        bones, region, weights = build(mesh, cfg, quiet)
+        for name in cfg['models']:
+            os.makedirs(os.path.join(ROOT, 'quakevr', 'rigs'), exist_ok=True)
+            out = os.path.join(ROOT, 'quakevr', 'rigs', name + '.rig2.txt')
+            write(out, 'progs/%s.mdl' % name, bones, weights)
+            blended = sum(1 for v in mesh.used if len(weights[v]) > 1)
+            if not quiet:
+                print('  wrote %s (%d bones; %d of %d drawn vertices blended)' % (os.path.relpath(out, ROOT),
+                                                                                len(bones), blended, len(mesh.used)))
+                for b in bones:
+                    if b['joint'] == 'hinge':
+                        print('  %-11s rest bend %.1f' % (b['name'], b['restbend']))
+        if prev:
+            p = prev if len(names) == 1 else prev.replace('.png', '_%s.png' % rig)
+            preview(mesh, bones, region, weights, p)
+            preview(mesh, bones, region, [[(region[v], 1.0)] for v in range(mesh.nv)], p.replace('.png', '_regions.png'))
 
 
 if __name__ == '__main__':

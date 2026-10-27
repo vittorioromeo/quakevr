@@ -24241,6 +24241,111 @@ waits for its subject) 9/9, `_test_subjects` 14/14, `_test_aim` 4/4, `_test_pose
 before); eval.sh no verdict changes. Note: `vr_rigstudio_rom test` rewrites `quakevr/rigs/vrgrunt.rig2.txt` (its save
 check; line endings and comments): `git checkout` it after a run.
 - [ ] Authored rig weapons {test:none}: Rig Studio > Range of Motion, Mesh drawn on Authored rig: Random Pose, drag the right arm and bend the wrist: the shotgun stays in the hand at its grip; Subject two revolvers: the left one follows the left hand; Old rig: as before
+
+## Enforcer rig rebuild, stage 1: an authored rig with blended weights (worktree `fastship`, branch `agent/rig2enf`, 2026-10-27)
+
+His go-ahead after the grunt's stage 1 ("New rig looks good"): the same for the enforcer. **Nothing in the game uses it**
+(`vr_rig2` 0); only the Rig Studio's Range of Motion draws it.
+
+**The rig** (`quakevr/rigs/vrenforcer.rig2.txt`, `enforcer.rig2.txt`: the same body vertex for vertex, the laser
+rifle's vertices the `weapon` bone; `Misc/quakevr/make_rig2.py enforcer`). The mesh (frame 0, `$stand1`): taller
+than the grunt (soles z -24.3, helmet top 32.8), the rifle held across his chest pointing left, big shoulder pads, a
+power pack on his back (a piece of its own: the chest's, rigid, as an antenna block and a small block in the belt), the
+helmet sunk between the pads (no neck vertices: the helmet's lower edge meets the collar at z 23..25), the legs nearly
+straight (knees 19 / 22 degrees at rest) with few vertices (a hip ring, a knee ring, the boot's top, the sole; long
+triangles between). Pivots after `refine` (model units, x forward, y left, z up):
+
+| bone | parent | joint | pivot | limits (degrees) |
+|---|---|---|---|---|
+| pelvis | - | root | -4.5 -0.5 -1.0 |  |
+| spine | pelvis | ball | -5.0 -0.5 6.5 | fwd -20..40, side ±25, twist ±25 |
+| chest | spine | ball | -5.0 -0.5 14.0 | fwd -15..25, side ±15, twist ±20 |
+| neck | chest | ball | -5.0 -1.0 22.5 | fwd -25..35, side ±25, twist ±35 |
+| head | neck | ball | -4.5 -1.2 25.5 | fwd -25..15, side ±20, twist ±20 |
+| clavicle_l/r | chest | ball | -5.0 2.5 21.5 / -5.0 -3.5 21.5 | fwd -10..15, up -5..15, twist ±8 |
+| upperarm_l/r | clavicle | ball (from hanging) | -5.5 11.5 21.0 / -5.5 -12.5 21.0 (inside the pads) | fwd -20..40, out -10..50, twist ±20 |
+| forearm_l/r | upperarm | hinge | -2.2 14.1 13.5 / -1.1 -16.2 15.1 | bend 0..**125** (left) / 0..140 (rest 65 / 72) |
+| hand_l/r | forearm | ball | 5.2 13.0 12.8 / 2.2 -13.2 13.5 | flex ±25, deviation ±10, twist ±10 |
+| thigh_l/r | pelvis | ball (from straight down) | -5.0 5.2 -3.0 / -6.0 -6.8 -4.5 | fwd -25..65, out -20..45, twist ±30 |
+| shin_l/r | thigh | hinge (axis y) | -4.0 6.1 -10.9 / -4.9 -7.8 -10.8 | bend 0..115 (rest 19 / 22) |
+| foot_l/r | shin | ball | -6.1 7.7 -21.2 / -7.2 -9.1 -21.6 | flex -25..30, ±10, twist ±12 |
+| weapon | hand_r | fixed | 5.5 -9.5 12.5 | (enforcer.mdl's rifle; vrenforcer's unused rifle vertices) |
+
+The grunt's limits, but the left elbow's 125 (its inner crease's armour: clean to 135, squeezed under 0.3 of its
+length past 120). The shoulder balls sit in the middle of the pads; the pads are skin of the upper arm and clavicle
+blended (rigid pads, on the arm or tied into one piece, were far worse: 5/35).
+
+**The generator per model** (`make_rig2.py`: `RIGS`, `grunt` and `enforcer`; the grunt's files come out byte for byte
+as before). New per-rig choices, all used by the enforcer only: `region_rules` (the helmet the head's: the chest's thick
+capsule reached into it, 123 flips on the neck; the hips' top ring the pelvis's; the boots below the ankles the feet's),
+`pieces` (a separate piece rigid on one bone: the power pack), `weights_fix` (painted weights: the left pad's back edge
+0.8 arm: it turned over as the arm swung back past 7 degrees behind straight down), `ties` (vertices given one set of
+weights: the back of each knee ring, a small triangle half thigh, half shin, collapsed past a bend of 80 degrees; now
+clean to 144 / 132), `max_hops` 3 (the helmet's weight was carried onto the right pad), `region_alpha` with the shins
+held (the boot's top had 0.2 thigh over the long triangles), a hinge's `axis` (the knees: their bones' own cross
+product tilts sideways on a nearly straight leg), and `--set bone.field=value` / `--set field=value` to try a change
+without editing the tables (also `reach`, unused: a bone's weight dropped beyond its capsule plus N units; 4.5 fixed
+the right pad and the left elbow's stretch but turned the right fist's triangles over).
+
+**The checks** (`vr_rig2_check progs/vrenforcer.mdl`; 3234 poses):
+
+| 3234 poses | see-through | flipped | collapsed | sharp folds | stretch |
+|---|---|---|---|---|---|
+| authored rig | 4 (in 4 poses) | 51 | 9 | 68 | 0.24..2.70 |
+| old rig, same poses | 125 (118 poses) | 7844 | 273 | 2302 | 0.05..5.71 |
+
+**26 of 35 pass** (the first try 14). Left: the right shoulder alone 9 folds (the pad's front inner edge, up and
+forward at once); the hips (left 1 collapsed triangle and stretch 0.27 at the crotch; right 4 flipped, 2 collapsed:
+the long triangle down the side of the hip, the leg up 65 and out); the right ankle's twist (1 see-through line); the
+right wrist with its elbow (2 flipped: the inside of the upper arm by the fist); neck + head (stretch 0.24: the
+helmet's lower edge on the collar with both bent forward); the thighs with the knees; the random poses (2 see-through
+lines in 1000, 42 flipped, against the old rig's 82 and 6586).
+
+**Clean envelopes** (`envelope`: how far each joint turns alone with no fault; enforcer / grunt): every joint clean past its limits each way (the
+left elbow limited to 125 for its stretch, above); the grunt's shin_l is clean only to its limit, 115.
+
+| joint | enforcer: clean / limit | grunt: clean / limit |
+|---|---|---|
+| spine | x+ 95/40 x- -70/-20 y+ 45/25 y- -40/-25 tw+ 95/25 tw- -80/-25 | x+ 75/40 x- -45/-20 y+ 45/25 y- -50/-25 tw+ 130/25 tw- -135/-25 |
+| chest | x+ 75/25 x- -70/-15 y+ 35/15 y- -30/-15 tw+ 40/20 tw- -35/-20 | x+ 50/25 x- -45/-15 y+ 35/15 y- -55/-15 tw+ 65/20 tw- -35/-20 |
+| neck | x+ 55/35 x- -75/-25 y+ 50/25 y- -55/-25 tw+ 75/35 tw- -75/-35 | x+ 75/35 x- -100/-25 y+ 50/25 y- -65/-25 tw+ 100/35 tw- -95/-35 |
+| head | x+ 50/15 x- -65/-25 y+ 65/20 y- -70/-20 tw+ 75/20 tw- -75/-20 | x+ 30/15 x- -105/-25 y+ 70/20 y- -65/-20 tw+ 60/20 tw- -80/-20 |
+| clavicle_l | x+ 60/15 x- -35/-10 y+ 85/15 y- -35/-5 tw+ 95/8 tw- -75/-8 | x+ 80/15 x- -50/-10 y+ 70/15 y- -35/-5 tw+ 50/8 tw- -90/-8 |
+| upperarm_l | x+ 128/40 x- -57/-20 y+ 84/50 y- -91/-10 tw+ 110/20 tw- -25/-20 | x+ 73/40 x- -37/-20 y+ 130/50 y- -45/-10 tw+ 45/20 tw- -75/-20 |
+| forearm_l | bend+ 135/125 bend- -25/0 | bend+ 145/140 bend- -35/0 |
+| hand_l | x+ 65/25 x- -65/-25 y+ 65/10 y- -100/-10 tw+ 115/10 tw- -105/-10 | x+ 70/25 x- -85/-25 y+ 80/10 y- -60/-10 tw+ 95/10 tw- -55/-10 |
+| clavicle_r | x+ 60/15 x- -40/-10 y+ 75/15 y- -30/-5 tw+ 100/8 tw- -105/-8 | x+ 75/15 x- -35/-10 y+ 40/15 y- -30/-5 tw+ 100/8 tw- -45/-8 |
+| upperarm_r | x+ 103/40 x- -97/-20 y+ 100/50 y- -20/-10 tw+ 105/20 tw- -40/-20 | x+ 70/40 x- -40/-20 y+ 73/50 y- -47/-10 tw+ 50/20 tw- -90/-20 |
+| forearm_r | bend+ 177/140 bend- -13/0 | bend+ 148/140 bend- -42/0 |
+| hand_r | x+ 80/25 x- -35/-25 y+ 75/10 y- -60/-10 tw+ 100/10 tw- -110/-10 | x+ 35/25 x- -65/-25 y+ 25/10 y- -35/-10 tw+ 25/10 tw- -70/-10 |
+| thigh_l | x+ 72/65 x- -88/-25 y+ 112/45 y- -88/-20 tw+ 90/30 tw- -60/-30 | x+ 72/65 x- -78/-25 y+ 117/45 y- -78/-20 tw+ 115/30 tw- -100/-30 |
+| shin_l | bend+ 144/115 bend- -66/0 | bend+ 115/115 bend- -55/0 |
+| foot_l | x+ 60/30 x- -55/-25 y+ 65/10 y- -65/-10 tw+ 85/12 tw- -75/-12 | x+ 45/30 x- -70/-25 y+ 45/10 y- -55/-10 tw+ 95/12 tw- -80/-12 |
+| thigh_r | x+ 70/65 x- -85/-25 y+ 114/45 y- -66/-20 tw+ 60/30 tw- -80/-30 | x+ 78/65 x- -62/-25 y+ 92/45 y- -93/-20 tw+ 85/30 tw- -85/-30 |
+| shin_r | bend+ 132/115 bend- -63/0 | bend+ 171/115 bend- -39/0 |
+| foot_r | x+ 60/30 x- -60/-25 y+ 65/10 y- -55/-10 tw+ 55/12 tw- -70/-12 | x+ 70/30 x- -65/-25 y+ 65/10 y- -105/-10 tw+ 75/12 tw- -65/-12 |
+
+
+**Rig Studio**: Subject > the enforcer (laser rifle, or shotgun + nail pistol): Range of Motion draws it on its rig,
+Authored / Old, the weapons on the authored hands. No code change was needed. Tests: `vr_rigstudio_rom test` on the enforcer 9/9, `test weapon` the
+laser rifle 6/6, shotgun + nail pistol 12/12 (both hands); on the grunt 9/9 and 6/6; `vr_rigstudio_test_subjects` 14/14,
+`_aim` 4/4, `_posekeys` 10/10; `vr_rig2_check` on the grunt 33/35 (as before), on `progs/enforcer.mdl` 26/35 (as
+`vrenforcer`). Note: the rom test saves the subject's rig file (rewrites its comments): regenerate with make_rig2.py.
+
+**Eyeshots** (`scratch/enf_eyes.png`, authored | old per pair; Rig Studio, Range of Motion): the right arm swung back
+to its limit (the old rig's "dislocated" shoulder at the back), the left arm across the chest with the elbow at 120
+(two-handing), the right arm out 50 with a twist of 20 (the twisted shoulder), the left arm back with a twist, the
+left knee at 115 under the hip at 65, the neck and head bent forward and twisted with the spine, two random poses.
+The live readout under the window per pair (authored | old): the
+shoulder swung back 0 | 0 flipped, two-handing 0 | 5, the twisted shoulder 0 | 0, the left arm back 0 | 0, the knee
+0 | 3 flipped 2 collapsed, the neck 0 | 1, random 7: 0 | 12, random 42: 0 | 7. (A low-impact run: low-res, the
+studio's panels over much of the view; judge them in VR / flat in the studio.)
+
+**Stage 2 beyond the grunt's**: the enforcer's ragdoll seeds and armed rig (`armedRigs`: `torsoSides`, `wristMore`)
+from these bones; the power pack a rigid piece of the chest (in a ragdoll too); the right fist close to the right upper
+arm (a fist's weight must not reach it: hand-held weapons pull it there); the hips' long side triangles (the leg up and
+out together turns them over: a modelled hip, or the thigh's limit lowered with the leg out); the left elbow's 125.
+- [ ] Enforcer rig stage 1 {test:none}: Rig Studio > Subject: the enforcer; View > Range of Motion: pick each joint, Sweep it, drag the limbs, Random Pose; Mesh drawn on Old rig vs Authored rig in the same pose (the shoulders swung back, the left arm across the chest, the knees bent); the rifle in the hands; tell which pivots or limits to change
 ## Ragdolls drawn as the live monster (worktree `goreflesh`, branch `agent/ragao`, 2026-10-27)
 
 A ragdoll is drawn with a skinned copy of its `.mdl` ("<model>#rag"); lookups keyed on the entity's bones or the
