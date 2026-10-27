@@ -69,6 +69,7 @@ float RV_SWING = -95;        // the crane's swing out, degrees about the bore (+
 .float rvh_toggled; // when it last swung out or home
 .float rvh_rod;     // until when its ejector rod is drawn pushed
 .float rvh_spun;    // its last swipe
+.float rvh_held_at; // the last time the other hand held anything (a shell) or a shell went in: no spin a moment after
 .float rvh_sec;     // B/Y held last frame
 .float rvh_tilt;    // the muzzle tilted up (its eject done; again once it is lowered)
 .entity rvh_inst;   // the record the hand held last frame
@@ -90,6 +91,8 @@ float vr_rv_ej_spent;    // spent and live shells dropped (tests)
 float vr_rv_ej_live;
 float vr_rv_loaded;      // shells loaded by hand, and the last one's chamber (tests)
 float vr_rv_lastch;
+float vr_rv_refusals;    // swipes refused right after loading (tests), the last one's time
+float vr_rv_spinrefused;
 float vr_rv_opened;      // times swung out and home (tests)
 float vr_rv_closed;
 string vr_rv_lasthow;    // what last swung it out, home or dropped its shells (tests)
@@ -582,6 +585,8 @@ float(float xGunHand, entity xRound, float xHeld) VR_Revolver_LoadInto =
         return FALSE;
     }
     VR_Revolver_SetChamber(g, i, 1);
+    entity rh = VR_Revolver_Hand(self, xGunHand);
+    if(rh) { rh.rvh_held_at = time; } // (no spin from the swipe away after it: vr_revolver_spin_hold)
     float clip = VRGetEntWeaponClip(self, xGunHand);
     VRSetEntWeaponClip(self, xGunHand, clip + 1);
     xRound.vr_ammo_count = xRound.vr_ammo_count - 1;
@@ -709,7 +714,12 @@ float(entity h, float xHand) VR_Revolver_Flick =
 void(float xHand, entity h, entity r) VR_Revolver_OtherHand =
 {
     float other = VRGetOtherHand(xHand);
-    if(!VRIsHandEmpty(self, other) || !VR_Revolver_Frame(xHand))
+    if(!VRIsHandEmpty(self, other))
+    {
+        h.rvh_held_at = time; // (a shell in it: its swipe away after loading spins nothing, vr_revolver_spin_hold)
+        return;
+    }
+    if(!VR_Revolver_Frame(xHand))
     {
         return;
     }
@@ -750,6 +760,18 @@ void(float xHand, entity h, entity r) VR_Revolver_OtherHand =
     float vt = rel * t;
     if(fabs(vt) < cvar_hget(cvarh_vr_revolver_spin_speed))
     {
+        return;
+    }
+    // Not while loading (ROUND22.md, "Revolver spins by accident while loading"): the other hand held a shell (or
+    // anything) or a shell went in a moment ago.
+    if(time < h.rvh_held_at + max(0, cvar_hget(cvarh_vr_revolver_spin_hold)))
+    {
+        if(time > vr_rv_spinrefused + 0.5)
+        {
+            VR_Reload_Log(sprintf("the revolver's cylinder: a swipe (%.2f m/s) right after loading, not spun", vt));
+        }
+        vr_rv_spinrefused = time;
+        vr_rv_refusals++;
         return;
     }
     h.rvh_spun = time;

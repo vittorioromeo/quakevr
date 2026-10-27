@@ -23209,6 +23209,122 @@ Checklist (suggested):
 - [ ] Rig Studio: Pose Keys (O) on the shotgun grunt in Aim: click the right weapon's dot, drag its arrows and rings,
   the elbow, the torso's rings; the arms stay on the gun, the window's numbers follow; Ctrl+Z puts each back; Pickup:
   the pelvis and the feet.
+
+## Armed humanoids' fighting distance, aim, chainsaw reach (worktree `gorefx`, branch `agent/agrange`, 2026-10-26)
+
+Note 2026-10-26 22:19:49 (vrfiringrange): armed humanoids with guns ran into melee range (the grunt's `ai_run` heads
+straight for you; they stood still to fire). Now a gun's holder keeps its weapon's distance (QC `vr_armedgrunt.qc`,
+"Its fighting distance": `VR_AG_RangeOf`, `VR_AG_Ranges`, `VR_AG_RangeMove`, `VR_AG_WalkFire`; hook in `ai.qc ai_run`
+after `CheckAnyAttack`, so the attack decisions are unchanged and only the moves between attacks differ).
+
+| weapon (class) | least | best | most |
+| --- | --- | --- | --- |
+| super shotgun (and the Widowmaker) | 96 | 150 | 260 |
+| shotgun, pistols, flare gun, other single-shot guns | 128 | 220 | 380 |
+| burst guns (the grunt's burst rifle, AD plasma, centurion) | 160 | 300 | 480 |
+| thunderbolt | 140 | 240 | 400 |
+| nail guns, laser cannon | 224 | 380 | 600 |
+| enforcer's laser rifle, AD crossbow | 192 | 340 | 560 |
+| launchers | blast range + 40 | + 190 | + 440 |
+| flamethrowers (AD pyro, fumigator) | 80 | 45% of the stream | 75% |
+| melee weapons, fists | closes in as before | | |
+
+- Beyond the most: as before (its path, `movetogoal`). Between best + 40 and the most: on at a slant (enemy yaw +-35).
+  About its best: strafes round you facing you (turning round every 1.5-3.5 s or when blocked; boxed in, it holds).
+  Nearer than its least (and on until halfway to its best): backs off facing you (+-30 degrees, 0.85 of its run's
+  step, the full step when threatened); the way back shut: along the wall; hemmed in: as before (its shove, its butt).
+  Every step is `walkmove` (fails on a wall or a ledge: nothing moves).
+- Threatened (a melee weapon in either of your hands, or you coming at it faster than 180 u/s: wary 1.5 s): its least
+  and best times the row's `vr_am_range_threat` (grunt 1.5, enforcer 1.3). Below 35% of its health: x1.2.
+  Per kind (`vr_armedmon.qc` row): `vr_am_range` grunt 1, enforcer 0.85 (holds its ground nearer).
+- Too near for its gun (inside its least, not a launcher): its fire chance x0.5 (x0.3 threatened): it backs off mostly
+  and fires now and then as it goes (the launchers' own retreat, `VR_AG_Run`, never fires: unchanged; `VR_AG_RangeMove`
+  is that retreat generalised to every gun, with walking fire).
+- Walking fire (`vr_agrunt_range_walkfire`, 50 u/s): every aiming frame (its own and a replacement's native frames) steps
+  on (not with a launcher), back (x1.3 inside its least, x1.6 threatened) or round you by the same bands; a reload's
+  frames step back while nearer than its best (as fast inside its least). The attack's legs are its standing frames: it
+  glides a little (check in VR).
+- Cvars (archived, VR Settings > armed humanoids' Behaviour): `vr_agrunt_range` 1 ("Keep Their Distance"; 0 the old
+  way), `vr_agrunt_range_scale` 1, `vr_agrunt_range_walkfire` 50 (0: stands to fire).
+
+**Aim** (note: at 8-10 floor tiles they shoot a little to one side). Two causes, both fixed (`vr_agrunt_aim_converge` 1,
+"Aim From the Muzzle"; 0 the old line): (1) the `vectoangles` builtin truncates yaw and pitch to whole degrees
+(`PF_vectoangles`), and the hand's angles (`handrot`, the shot's line) came from it: up to 1 degree off, 9 units at 500,
+17 at 1000, to the right or the left by the direction it faces (truncation toward 0 of -180..180); now exact
+(`VR_AG_Angles`, atan2) for the aim, its error, the hand and the launchers' burst prediction. (2) It aimed from its
+grip and fired from its muzzle (beside that line, or along the drawn gun turned off it, `vr_agrunt_shot_drawn`): now
+the line from the muzzle it fires from to your chest, its aim's error and kick added as the same turn (unbiased). A
+replacement enforcer's own laser (id's: from 8.5 units right of a line from its origin, parallel) now goes from its
+muzzle to your chest too. The aim point is the player's origin + 6 (chest); a real headset's body/head offset is not
+covered by the headless test.
+
+Test `vr_agrunt_test 49` (Debug > Tests > Armed Grunts: Aim): a grunt 620 ahead (as far as vrtesthall's start allows)
+comes at you firing, aim error 0; each shot's line where it passes you, units to your right (+) by distance:
+
+| weapon | old line (grip, whole degrees) | as fired now |
+| --- | --- | --- |
+| shotgun | +1.8 (100-200), -8.6 (200-300), -8.3 (300-400), -6.8 (400-500) | 0.0 every bin |
+| nailgun | -16.4 (200-300), -16.8 (300-400), -24.9 (400-500) | 0.0 |
+| super nailgun | -3.8 (300-400), -7.2 (400-500) | 0.0 |
+| grunt's burst rifle | +2.7 (0-100), +3.7, +3.9, +1.3 (300-400) | 0.0 |
+| enforcer's rifle | +5.4 (100-200), +5.6, +0.9, +4.9 (400-500) | 0.0 |
+
+(5/5 PASS: every bin within 1.5 units. Facing the other way the truncation's side flips; the grip/muzzle offset stays.)
+
+**Chainsaw**: it thrust from a swing's reach (62 units, middle to middle: first thrust at 50-59). Now
+`vr_agrunt_saw_start` 44 ("Chainsaw Thrust From"; the existing `vr_agrunt_saw_reach` is the arms' reach fix): it closes
+in first; first thrust at 35 (grunt) / 41 (enforcer), it cuts you (test 48's chainsaw row, checked).
+
+**Test** `vr_agrunt_test 48` (Debug > Tests > Armed Grunts: Fighting Distance; `vr_armedgrunt_range_test.qc`; 47 is
+agent/agammo's ammo test): per weapon a grunt 260 units ahead hunting you, 6 s each: you standing, walking at it at
+80 u/s, charging it at 280 u/s with an axe, walking at it at 120 u/s with an axe; you kept within 300 of the start (an
+early run chased one into the hall's wall buttons: a new game). Checked: standing, a gun never within 64 and its mean at
+least 80% of its least; walking at it with an axe, a gun never within 64 and still firing (launchers: no fire needed);
+the axe reaches you; the chainsaw's first thrust within its start and cutting you. `scratch1 N [scratch2 M]` weapons
+N..M. Before = `vr_agrunt_range 0`, `vr_agrunt_aim_converge 0`, `vr_agrunt_saw_start 62`. Grunt 6/18 -> 15/18,
+enforcer 15/18 after. Fails left: the shotgun (0.21-0.29 s), the super shotgun (1.8-1.9 s) and the thunderbolt
+(0.01 s) within 64 with you walking at them with an axe: close-range guns, their least 96-140 (x1.5 threatened), and
+the super shotgun reloads every 2 shots. Burst and enforcer rifles (agent/agammo's magazines: no more single use) now
+hold their distance.
+
+| grunt, 6 s | standing: mean / least / s in 64 | walking at it | charging, axe: s in 64 | walking at it with an axe (120 u/s): mean / least / s in 64 | shots after: stand, walk, charge, axe-walk (walking) |
+| --- | --- | --- | --- | --- | --- |
+| Shotgun | 100 / 35 / 2.00 -> 248 / 236 / 0.00 | 84 / 33 / 2.83 -> 157 / 119 / 0.00 | 4.29 (3 sh) -> 0.88 (3 sh) | 76 / 36 / 3.25 -> 139 / 57 / 0.21 | 3 (3), 3 (3), 3 (3), 4 (4) |
+| Double-barrelled Shotgun | 170 / 113 / 0.00 -> 196 / 180 / 0.00 | 82 / 44 / 3.43 -> 105 / 48 / 1.29 | 4.85 (2 sh) -> 5.24 (0 sh) | 71 / 36 / 3.97 -> 98 / 46 / 1.92 | 2 (2), 2 (2), 0 (0), 2 (2) |
+| Nailgun | 105 / 46 / 1.35 -> 239 / 236 / 0.00 | 86 / 34 / 2.79 -> 237 / 211 / 0.00 | 4.26 (20 sh) -> 0.46 (22 sh) | 77 / 36 / 3.61 -> 200 / 124 / 0.00 | 24 (24), 22 (22), 22 (22), 20 (20) |
+| Super Nailgun | 127 / 99 / 0.00 -> 269 / 236 / 0.00 | 81 / 36 / 3.43 -> 227 / 205 / 0.00 | 4.17 (18 sh) -> 0.36 (18 sh) | 82 / 36 / 3.04 -> 198 / 117 / 0.00 | 18 (18), 18 (18), 18 (18), 18 (18) |
+| Thunderbolt | 164 / 87 / 0.00 -> 274 / 236 / 0.00 | 79 / 32 / 3.19 -> 162 / 125 / 0.00 | 4.04 (17 sh) -> 0.63 (15 sh) | 80 / 36 / 3.22 -> 150 / 63 / 0.01 | 15 (15), 15 (15), 15 (15), 15 (15) |
+| Rocket Launcher | 199 / 134 / 0.00 -> 315 / 236 / 0.00 | 176 / 136 / 0.00 -> 252 / 216 / 0.00 | 1.06 (2 sh) -> 0.75 (2 sh) | 180 / 140 / 0.00 -> 205 / 96 / 0.00 | 3 (3), 3 (3), 2 (2), 2 (2) |
+| Grunt Burst Rifle | 105 / 35 / 1.76 -> 241 / 236 / 0.00 | 90 / 31 / 2.79 -> 185 / 140 / 0.00 | 4.28 (9 sh) -> 0.36 (9 sh) | 80 / 36 / 3.14 -> 162 / 81 / 0.00 | 9 (9), 9 (9), 9 (9), 9 (9) |
+| Enforcer's Laser Rifle | 102 / 34 / 1.67 -> 239 / 236 / 0.00 | 75 / 37 / 3.62 -> 212 / 177 / 0.00 | 4.12 (3 sh) -> 0.46 (3 sh) | 79 / 32 / 3.10 -> 188 / 96 / 0.00 | 3 (3), 3 (3), 3 (3), 3 (3) |
+| Axe | 83 / 44 / 3.29 -> 83 / 44 / 3.29 | 54 / 31 / 5.07 -> 52 / 31 / 5.07 | 5.54 (0 sh) -> 5.54 (0 sh) | 47 / 30 / 5.22 -> 47 / 30 / 5.22 | 0 (0), 0 (0), 0 (0), 0 (0) |
+| Ogre's Chainsaw | 72 / 35 / 4.40 -> 70 / 30 / 4.40 | 53 / 30 / 5.07 -> 51 / 30 / 5.07 | 5.54 (0 sh) -> 5.54 (0 sh) | 47 / 30 / 5.22 -> 47 / 30 / 5.22 | 0 (0), 0 (0), 0 (0), 0 (0) |
+
+| enforcer, 6 s | standing: mean / least / s in 64 | walking at it | charging, axe: s in 64 | walking at it with an axe (120 u/s): mean / least / s in 64 | shots after: stand, walk, charge, axe-walk (walking) |
+| --- | --- | --- | --- | --- | --- |
+| Shotgun | 133 / 38 / 1.93 -> 224 / 216 / 0.00 | 103 / 34 / 2.57 -> 138 / 97 / 0.00 | 0.00 (0 sh) -> 0.94 (3 sh) | 191 / 48 / 1.32 -> 127 / 54 / 0.29 | 3 (3), 3 (3), 3 (3), 3 (3) |
+| Double-barrelled Shotgun | 184 / 136 / 0.00 -> 178 / 163 / 0.00 | 66 / 48 / 4.74 -> 100 / 50 / 1.19 | 0.00 (0 sh) -> 1.53 (2 sh) | 67 / 47 / 4.93 -> 92 / 46 / 1.78 | 2 (2), 2 (2), 2 (2), 2 (2) |
+| Nailgun | 388 / 245 / 0.00 -> 240 / 236 / 0.00 | 135 / 34 / 2.07 -> 205 / 177 / 0.00 | 3.54 (17 sh) -> 0.17 (22 sh) | 93 / 32 / 3.33 -> 189 / 123 / 0.00 | 21 (21), 20 (20), 22 (22), 20 (20) |
+| Super Nailgun | 151 / 124 / 0.00 -> 272 / 236 / 0.00 | 172 / 39 / 1.40 -> 200 / 173 / 0.00 | 3.17 (18 sh) -> 0.17 (18 sh) | 178 / 35 / 1.44 -> 189 / 118 / 0.00 | 18 (18), 18 (18), 18 (18), 18 (18) |
+| Thunderbolt | 230 / 188 / 0.00 -> 256 / 236 / 0.00 | 160 / 34 / 1.76 -> 146 / 106 / 0.00 | 3.49 (20 sh) -> 0.90 (15 sh) | 95 / 39 / 3.19 -> 143 / 64 / 0.01 | 15 (10), 17 (17), 15 (15), 13 (13) |
+| Rocket Launcher | 193 / 177 / 0.00 -> 273 / 236 / 0.00 | 141 / 57 / 0.71 -> 224 / 187 / 0.00 | 1.01 (1 sh) -> 0.04 (2 sh) | 177 / 127 / 0.00 -> 219 / 172 / 0.00 | 1 (1), 2 (2), 2 (2), 2 (2) |
+| Grunt Burst Rifle | 152 / 42 / 1.54 -> 239 / 236 / 0.00 | 179 / 34 / 1.47 -> 162 / 120 / 0.00 | 3.31 (9 sh) -> 0.89 (6 sh) | 182 / 48 / 1.32 -> 158 / 74 / 0.00 | 9 (9), 12 (12), 6 (6), 9 (9) |
+| Enforcer's Laser Rifle | 175 / 111 / 0.00 -> 241 / 236 / 0.00 | 159 / 40 / 1.65 -> 189 / 148 / 0.00 | 3.26 (3 sh) -> 0.18 (3 sh) | 187 / 48 / 1.42 -> 171 / 92 / 0.00 | 3 (3), 3 (3), 3 (3), 3 (3) |
+| Axe | 131 / 46 / 1.72 -> 80 / 46 / 3.51 | 62 / 33 / 4.61 -> 53 / 32 / 5.11 | - -> 5.56 (0 sh) | - -> 49 / 32 / 5.28 | 0 (0), 0 (0), 0 (0), 0 (0) |
+| Ogre's Chainsaw | - -> 68 / 32 / 4.61 | - -> 50 / 33 / 5.11 | - -> 5.56 (0 sh) | - -> 48 / 32 / 5.28 | 0 (0), 0 (0), 0 (0), 0 (0) |
+
+(Rows are mean / least / s within 64 units; "sh" shots. The grunt's after-pass ran before the last tuning (threat 1.4
+-> 1.5, backing x1.3/x1.6 inside the least while reloading); the enforcer's after-pass has it. Runs vary a little; the
+enforcer's before-pass ran on a mixed build (its new cvars absent: their old behaviour) and timed out after the axe.)
+
+Armed grunt test 1: 17/17. eval.sh (first round): canary 36/44 and full 163/171 as the baseline, no verdict changes.
+- [ ] Armed grunts and enforcers with shotguns, nail guns, the thunderbolt, the burst and enforcer rifles: they no longer
+  run into your reach; they hold their weapon's distance strafing and firing, a super shotgun close; walk at them with
+  an axe or a sword and they back off clearly, still firing now and then. Their walking fire's slide (Walking Fire 50
+  u/s) looks right or not.
+- [ ] Armed humanoids' shots at 400-1000 units hit you, not a little to one side (Aim From the Muzzle).
+- [ ] A chainsaw humanoid closes in before it thrusts; its first thrust reaches you.
+
 ## Feminine voice (worktree `dequant`, branch `agent/femvoice`, 2026-10-26)
 
 His request: Player Appearance > **Voice: Masculine / Feminine** (`vr_voice`, default 0 masculine), no new assets: the
@@ -23872,3 +23988,203 @@ the old step from its last place spiralled with the frame's lag), `vr_mock_hand_
 Debug > Automation rows for tests 67-69. Test 36 now expects a fist 2 cm off taken and 8 cm off refused.
 
 **Regressions.** `vr_agrunt_test` 21, 22, 23, 32, 33, 35, 37, 38, 39, 40, 42, 47, 66, 68, 69: PASS. 1, 31, 36 and 65 fail the same on the branch's base (0e32ade0e, built and run here: 1's proximity gun, 31's slow pull, 36's and 65's fist placed 30 cm off by their old mock hand step); 36 has one FAIL more here, its 2 cm case now expected taken (the same misplaced fist). eval.sh: verdicts unchanged (canary 36/44, full 163/171; 5 takes differ only in the decimals).
+## Small fixes of 2026-10-27: nail pistol slide, revolver spin, flares on ragdolls, his weapon tuning, legs, QC warnings (worktree `dequant`, branch `agent/smallfix1027`)
+
+From his voice notes of 2026-10-27.
+
+### Nail pistol slide jitters (vrragtriggers_2026-10-27_01-52-06)
+- Cause: QC `player.qc` `player_run` (the run animation's think, every 0.1 s while moving) reset the hand's weapon frame
+  to 0; `VR_NailPistol_HandFrame` set it back to 1 (locked back, empty) the next player frame, so the client saw 0 in
+  about one frame of seven: the slide snapped forward and back while walking.
+- Fix: `player_run` leaves the frame alone for the guns that set their own frame every player frame: the nail pistol
+  (slide), the heavy revolver (hammer and trigger) and the chainsaw (the cord's handle).
+- Test: `vr_np_test 1` gains a check: walking empty for 99 frames (the run animation in 96 of them), the slide off its
+  locked-back frame in 14 before the fix, 0 after. 18 passed, 0 failed.
+
+### Revolver cylinder spun by accident while loading (01-55-41)
+- The other hand's swipe across the swung-out cylinder spun it; a hand holding a shell was already refused, but the
+  swipe away right after a shell went in (the hand empty again) spun it.
+- Now: no spin while the other hand holds anything, nor for `vr_revolver_spin_hold` (new, default 0.6 s; Reloading >
+  Heavy Revolver > Spinning It > Wait After Loading) after it held something or a shell went in (by hand or loose by
+  contact); and a more deliberate swipe: `vr_revolver_spin_speed` 0.5 -> 0.8 m/s (configVersion 209 moves configs at 0.5).
+  A refused swipe logs once (`vr_reload_debug`).
+- Test: `vr_rv_test 1` step 9: synthetic swipes (the off hand on the rim, moving round it): 0.04 s after a shell went in
+  (1.5 m/s) none, holding a shell none, a slow one (0.6 m/s) none, a deliberate one (1.5 m/s) spins: 0 0 0 1. 31/0.
+
+### Flares set ragdolls on fire (02-00-31)
+- Cause: a dead or knocked-down monster's ragdoll is SOLID_NOT (the physics body is the engine's), so a flare's move
+  (MOVETYPE_TOSS, not a marked projectile) passed straight through it; and `VR_Burn_Can` refused a dead ragdoll not yet
+  armed as a corpse (`vr_corpse`/`vr_corpse_dying` both 0: the state his notes show, "army_die10, a corpse, ragdoll").
+- Fix: a flying flare looks for monster ragdolls on its way each think (`VR_Flare_RagdollHit`: `ragdollinbox` in 8-unit
+  steps): a knocked-down one alive is struck (damage and fire), a dead one set on fire; the flare drops off it and burns
+  there. Flares are marked projectiles (`VR_Proj_Mark`; the engine's `VR_HitModelMoveFlags` now takes a marked
+  MOVETYPE_TOSS one too), so corpses lying still (touchable) and gibs are met as other missiles meet them. A flare
+  burning where it lies (stuck, on the floor) is one of the flames bodies catch fire from (`VR_Burn_MapBodyLook`, as
+  the map's flames: a corpse on it or a monster walking over it). `VR_Burn_Can` takes a dead monster's ragdoll.
+- Test: `vr_flare_test 1` steps 9-10: a grunt killed (its ragdoll lying): a flare into it sets it on fire (0.06 s), and
+  a flare lying burning under it sets it on fire (0.01 s); both failed before. 22 passed, 0 failed.
+- Note: marked MOVETYPE_TOSS projectiles now meet gibs and touchable corpses; AD's `VR_Proj_Mark`ed projectiles that use
+  toss (if any) do too, which is what their marking says.
+
+### His new weapons' tuning as the defaults (02-01-22)
+From his config of 2026-10-27 (`vr_propose_defaults` on it: every setting differing from the defaults; the new weapons'
+rows promoted). Weapon slots (index 37 the flare gun, cvars `_38`; index 38 the heavy revolver, `_39`), vr_wofs_version
+72 (`takeHis72`: each key taken where the config still holds the old default; hotspot 1's keys all taken where its type
+is still None):
+
+| setting | old | new |
+|---|---|---|
+| flare gun Pitch / Roll / Yaw | -6.85 / 0 / 0 | -6.744877 / -3.832096 / -0.04044 |
+| flare gun Offset X / Y / Z | -0.25 / 0.57 / 0.3 | 0.765076 / 1.031222 / -0.100414 |
+| flare gun hotspot 1 | off | cup (3): -4.024719 -0.87677 -3.507111, pitch 9.568427 yaw -3.31696 roll -16.47328 |
+| revolver Pitch / Roll / Yaw | -6.85 / 0 / 0 | -6.782438 / -5.777755 / -0.076681 |
+| revolver Offset X / Y / Z | -0.18 / 0.57 / -1.05 | 0.16323 / 0.93795 / -0.368335 |
+| revolver Two-Handed | Allowed | Allowed, No Stock (1) |
+| revolver hotspot 1 | off | cup (3): -3.181793 -1.014572 -3.803097, pitch 10.897823 yaw 7.086511 roll -18.555254, overlap 0.63 |
+
+Settings, configVersion 209 (a config still at the old default takes the new):
+
+| setting | old | new |
+|---|---|---|
+| vr_dmg_revolver | 26 | 28 |
+| vr_revolver_open_flick_speed / _angle | 350 / 30 | 400 / 120 |
+| vr_revolver_close_flick_speed / _angle | 300 / 25 | 350 / 75 |
+| vr_revolver_eject_rod_reach / _speed | 2.5 / 0.3 | 1 / 0.35 |
+| vr_revolver_spin_friction / _max | 720 / 1800 | 760 / 900 |
+| vr_revolver_hand_reach | 3 | 0.25 |
+| vr_revolver_spin_speed (ours, item 2) | 0.5 | 0.8 |
+| vr_reload_port_npistol_z / _radius | 0 / 1.5 | 1.5 / 1 |
+| nail pistol magazine (prop slot `_57`): Grip Mode, Grip X/Y/Z, Overlap | 2 (In the Palm), 0 0 0, 0.385 | 1, -3.4 -0.5 -3.3, 0.37 |
+
+- No differences from the defaults in his config for the nail pistol's slot (`_37`) or any `vr_flaregun_*`,
+  `vr_nailpistol_*`, `vr_flare_*` setting.
+- Not promoted (outside the three weapons, or not tuning): `vr_recoil_kick` 4.5 and `vr_recoil_rise` 7.5 (every gun's
+  kick; he may want them), the AD Plasma Gun's readout (`vr_wofs_wpntxt_*_36`), the armed grunts' tug/parry/dual
+  settings (`vr_agrunt_*`), `vr_prop_id_69/70` (held-object slots the loose revolver and nail pistol took, no values),
+  his toolgun, calibration, body, comfort, display and appearance settings.
+- At damage 28 with `vr_revolver_dmg_random` 0.15 a grunt's body shot reaches its 30 about half the time (one slug, was
+  always two); `vr_rv_test` accepts one slug when it rolled 30 or more. The test pins the flicks to the old thresholds it
+  was written for (his 120/75 degrees are more than the mock's one-frame turn gives) and puts them back after.
+- Checked (`scratch/mig_*.py`, `mig_run.sh`: his config with the keys at the old defaults, at the versions before): fresh
+  49/49, old 49/49 (all taken), changed 49/49 (a player's own x, hotspot type, hand reach, magazine grip and damage kept;
+  that hotspot's keys left as they were), his own 49/49.
+
+### Legs too long at the first start (vrstart_2026-10-27_01-24-52)
+- Cause: `vr_hands.cpp` `senseLean` took the head's standing height (it fits the drawn legs to it, vr_avatar.cpp
+  `legFit`, and lifts the pelvis) from the FIRST frame the head was over 85% of the Height setting. At the first start
+  that is often the headset lifted over the head as it is put on; the learnt height only sinks while the head is within
+  12 cm under it, so it stayed: legs fitted to a head 30-40 cm higher, the real head read as a crouch (bent knees).
+  A map load that disconnects resets it (hence "a reload fixes it").
+- Fix: the first standing height is taken from the head held steady (0.5 s within 3 cm) at a plausible standing height
+  (85% to 110% of the Height setting); until then the Height setting.
+- Measured (`scratch/legs_run.sh`, his config, fresh start, the mock's head at 1.95 m for the first 10 frames then
+  1.567): before, learnt 1.950, knees 0.444, ankles 0.076, the same after `map vrstart` again; after, learnt 1.567, knees
+  0.478, ankles 0.084, equal to the run without the lift and to after the reload.
+
+### QC compiler warnings (01-25-19)
+The solution's fteqcc with its flags (`-Wall -Wextra`): 5 before (and one of ours), 0 now, none silenced:
+- `vr_propimpact_test.qc:586`, `vr_armedgrunt_ammo_test.qc:235`: `strcat` takes two strings here, a third was dropped
+  (a test line lost its end): nested.
+- `vr_propimpact_test.qc:847`: a `sprintf` with 9 arguments (over 8): two prints on one line.
+- `vr_revolver_test.qc:663`: `th_pain = SUB_Null` (void()) -> `SUB_NullPain` (the pain function's type).
+- `vr_flaregun_test.qc:31`: `vr_flt_shots0` never used: gone.
+
+Checked: `vr_np_test 1` 18/0, `vr_rv_test 1` 31/0, `vr_flare_test 1` 22/0; e1m1 smoke; `vr_scenario runall` flaregun,
+revolver, nailpistol OK; eval.sh: no verdict changes (PASS -> PASS only; small number jitter).
+- [ ] Nail pistol {test:nailpistol}: empty (slide locked back), walk about with the thumbstick: the slide stays back, still.
+- [ ] Heavy revolver {test:revolver}: load shells by hand one after another: the cylinder never spins by accident; a deliberate swipe across it (empty hand, a moment after loading) still spins it.
+- [ ] Flare gun {test:flaregun}: kill the grunt, then a flare into its ragdoll sets it on fire; a flare lying burning under a corpse lights it too.
+- [ ] Your flare gun and heavy revolver grips (poses, cup hotspots, the revolver's Two-Handed No Stock), revolver flicks, rod, spin, damage 28 and the nail pistol's well and magazine grip are the defaults now: feel the same as yours.
+- [ ] First start from scratch: put the headset on after the game is up; the legs fit (not long, knees not bent), the same as after reloading the map.
+## Grunt rig rebuild, stage 1: an authored rig with blended weights (worktree `goreflesh`, branch `agent/rig2`, 2026-10-27)
+
+His decision (voice notes vrragtriggers 01-28-53 .. 01-30-04, the five screenshots): the grunt's ragdoll shows a sharp
+curve from elbow to hand, a hole where the shoulder attaches, a knee bent with the lower leg behind it, a gap at the
+biceps, sharp angles in hand and leg. "Start from scratch ... in stages". Stage 1: a new experimental rig, checked
+automatically, posable in the Rig Studio; **nothing in the game uses it** (`vr_rig2` 0).
+
+**The rig** (`quakevr/rigs/vrgrunt.rig2.txt`, `soldier.rig2.txt`: the same body vertex for vertex; made by
+`Misc/quakevr/make_rig2.py`, hand-editable text). 20 bones, model units (x forward, y left, z up), the rest frame
+(frame 0, his crouch with the gun in both hands):
+
+| bone | parent | joint | pivot | limits (degrees) |
+|---|---|---|---|---|
+| pelvis | - | root | -4.8 0 -2 | |
+| spine | pelvis | ball | -4 0 2.5 | fwd -20..40, side ±25, twist ±25 |
+| chest | spine | ball | -2.6 0 9 | fwd -15..25, side ±15, twist ±20 |
+| neck | chest | ball | 0.4 0.2 16.6 | fwd -25..35, side ±25, twist ±35 |
+| head | neck | ball | 3 0.3 19.2 | fwd -25..15, side ±20, twist ±20 |
+| clavicle_l/r | chest | ball | 0.5 ±2 15 | fwd -10..15, up -5..15, twist ±8 |
+| upperarm_l/r | clavicle | ball (from hanging) | 0.9 9 15.2 / -0.3 -9.4 15.2 | fwd -20..40, out -10..50, twist ±20 |
+| forearm_l/r | upperarm | hinge | 2.2 9 6.2 / 0.4 -9.7 7 | bend 0..140 (rest 55 / 67) |
+| hand_l/r | forearm | ball | 9.3 6 2.3 / 5.1 -5.2 4.5 | flex ±25, deviation ±10, twist ±10 |
+| thigh_l/r | pelvis | ball (from straight down) | -5.6 4.5 -3 / -4.2 -4.6 -3 | fwd -25..65, out -20..45, twist ±30 |
+| shin_l/r | thigh | hinge | -6.1 6.6 -12.9 / 2.2 -6.5 -11.1 | bend 0..115 (rest 30 / 51) |
+| foot_l/r | shin | ball | -10.6 6.9 -20.3 / 0 -6.6 -20.6 | flex -25..30, ±10, twist ±12 |
+| weapon | hand_r | fixed | 8.6 -4.3 4.2 | (soldier.mdl's gun; vrgrunt's unused gun vertices) |
+
+A ball's swing is an elliptical cone (each quadrant its own radius) in (swing x toward `fwd`, swing y toward `side`)
+from its `neutral` direction (the shoulders' and hips' limb hanging straight down; the others' the rest direction),
+its twist about the bone; a hinge's angle is its bend from straight about `axis` (the rest bend measured), one way
+only: no knee or elbow bends backwards. A pose is each joint's angles; a bone's motion is its parent's carried by its
+joint's turn about its pivot.
+
+**The method** (`make_rig2.py`'s header): joints authored from the mesh's cross-sections, the limb joints moved to the
+middle of the limb's section through them (the left knee 0.8 back of it); each vertex to the nearest bone capsule it
+can see from inside the mesh (the arm's inside not to the chest beside it); at each joint the parent's, the child's
+and the grandparent's vertices within its radius blended by a smoothstep along the limb (bands 0.6 at the wrists to
+3.5 at the shoulders); then a screened diffusion over the surface (40 passes; pulled to the joints' blends by 0.6,
+by 0.05 within 11 units of a shoulder, by 4 in the fists, 2 in the feet and the head), welded copies averaged, at most
+4 bones a vertex, none under 0.03. Found on the way: **the arms are fused to the torso along their inner side down to
+the elbow** (one surface: no armpit), so a raised arm stretches a web of the torso's triangles; the shoulder's wide
+diffusion is what lets that web stretch instead of folding.
+
+**Engine** (`vr_rig2.cpp`): the file read and written, the joints' math (`forward`, `clampAngles`, `aimAngles`,
+`randomPose`), linear-blend skinning (dual quaternions with `vr_rig2_dq 1`: measured, no better: 113 see-through
+against 82 at the time, so linear stays), and the subject drawn by the engine on it: a skeletal model made in memory
+(`<model>#rig2`: 4 weights a vertex) swapped in while a frame draws, beside the ragdolls' (`VR_RagdollSwap`), its
+bone matrices from `VR_AliasBonePoses`. Only the Rig Studio's subject is ever drawn so, and only in Range of Motion
+with `vr_rig2 1`.
+
+**The check** (`vr_rig2_check [model] [detail lines] [joint|random|envelope]`, `vr_rig2_check.cpp`; ends on
+`rig2 check: N passed, M failed`; about 10 s): every joint swept alone (a ball round its swing's edge and half way at
+its twist's ends and none, its twist alone; a hinge in 30 steps), each joint with its child at their ends, 1000
+random poses within every limit (fixed seed); in each pose: see-through (lines through each joint and bone middle
+from 14 directions must meet a front face first; a hit counts only if lines 0.05 either side see it too: the model's
+own sub-0.01 crack), flipped triangles (against their corners' blended turns), collapsed ones (under a tenth of their
+area; slivers under 0.1 square units or 0.15 across skipped), ridges folded past 150 degrees and 60 more than at rest,
+stretch (0.3..2.5), the hinges' bend from the posed bones, a coarse self-intersection count. The old rig is moved the
+same way (each old bone as its namesake; its arms on their ragdoll skin's blend, as its ragdolls draw it).
+`envelope` prints how far each joint turns cleanly each way alone (how the limits were set).
+
+| 3234 poses | see-through | flipped | collapsed | sharp folds | stretch |
+|---|---|---|---|---|---|
+| authored rig | 1 (1 pose) | 78 | 9 | 32 | 0.36..3.33 |
+| old rig, same poses | 655 (460 poses) | 10320 | 237 | 1795 | 0.02..8.22 |
+
+Per joint (new / old): right shoulder alone see-through 0 / 11, flipped 0 / 77; left shoulder with elbow 0 / 23, 0 /
+120; right clavicle with shoulder 0 / 10, 0 / 56; left hip 0 / 1, 0 / 14; left thigh with knee flipped 0 / 17. **33 of
+35 pass**; the two left: the pair right shoulder + elbow (3 triangles of the right armpit's web turn over with the
+shoulder 28-40 forward and the elbow straight: vertex 202, half arm, half torso) and the random poses (the same armpit
+web, a crotch triangle between the thighs; 1 see-through line in 1000 poses, 76 flipped triangles, stretch 3.3 in the
+web).
+
+**Rig Studio: Range of Motion** (`vr_rigstudio_rom.cpp`; RIGSTUDIO.md, "Range of Motion"): View > Range of Motion
+(or Debug > Tools > Rig Studio: Range of Motion (Authored Rig)): the joints' list, a click picks a bone and a second
+click drags its limb by its end within its limits; sliders per axis held to the limits; Sweep, Random Pose, Reset;
+the picked joint's limits drawn; pivots and limits edited live, undoable, Save / Reload; Mesh drawn on: Authored rig /
+Old rig (the old moved the same way); heat colours on the authored weights; the pose's faults live.
+`vr_rigstudio_rom ...` commands for scripts; `vr_rigstudio_rom test` 9 passed, 0 failed.
+
+Tests: `vr_rig2_check` 33/35 (above); `vr_rigstudio_rom test` 9/9; `vr_rigstudio_test_subjects` 14/14, `_aim` 4/4,
+`_posekeys` 10/10; eval.sh no verdict changes (`vr_rig2` 0: nothing in the game changes). Eyeshots (Rig Studio, fists,
+Game display, pairs authored / old): the five situations (elbow bent 140 with the wrist, shoulder 30 forward 40 out,
+knee at 115 under a hip at 65, the arm out 50 with a twist, wrist and ankle at their limits), and joints at their
+limits (Shaded): arms, legs, the spine and neck curled, two random poses.
+
+**Stage 2** (not done): the ragdoll on this skeleton (its bodies per bone, the joints' limits as Box3D's, the drawn
+skin from these weights: one path for the corpse and the living, no `vertBone`); the armed grunts' arm IK skinning
+from these weights (vr_agarms' own blend retired); hit reactions and the limb cuts per authored bone; the enforcer's
+rig the same way; and the mesh's own limit: the arms fused to the torso (a modelled armpit, split along the arm's
+inside, would free the shoulder's range).
+- [ ] Grunt rig stage 1 {test:none}: Rig Studio > View > Range of Motion: pick each joint, Sweep it, drag the limbs, Random Pose; Mesh drawn on Old rig vs Authored rig in the same pose; tell which joints need their pivot moved or their limits changed

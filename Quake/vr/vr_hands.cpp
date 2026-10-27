@@ -187,6 +187,8 @@ struct LeanSense
     float standing{0.f};        // the head's standing height (metres), learnt while over the box and upright
     bool standingSeen{false};   // ... taken from the head (not the Height setting it starts from)
     float calibratedAt{0.f};    // the Height setting it was learnt with (a new one, measured standing, starts it over)
+    float steadyAt{0.f};        // the head's height it has held (within 3 cm) ...
+    float steadyFor{0.f};       // ... this long (seconds): the first standing height is taken from a steady head
     float drop{0.f};            // how far below that it is, smoothed (a walk's bob evened out)
     glm::vec2 handsRef{0.f};    // the hands' middle off the box's middle (metres), learnt while the head is over it
     bool handsRefValid{false};
@@ -241,7 +243,22 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
         ls.standing = calibrated;
         ls.standingSeen = false;
     }
-    if(!ls.standingSeen && height > 0.85f * calibrated)
+    // The first one taken from the head held steady a moment (0.5 s within 3 cm) at a height a standing player's head
+    // has (85% to 110% of the Height setting, which is measured standing): not the first frame over 85%, which was often
+    // the headset lifted over the head as it is put on at the first start, learnt for good (it sinks only from 12 cm
+    // under it): the legs fitted to a head 30 cm higher, long and bent at the knees, until the map was reloaded (his
+    // note vrstart_2026-10-27_01-24-52; ROUND22.md, "Legs too long at the first start").
+    const bool plausible = height > 0.85f * calibrated && height < 1.1f * calibrated;
+    if(plausible && za::fabs(height - ls.steadyAt) < 0.03f)
+    {
+        ls.steadyFor += dt;
+    }
+    else
+    {
+        ls.steadyAt = height;
+        ls.steadyFor = 0.f;
+    }
+    if(!ls.standingSeen && plausible && ls.steadyFor >= 0.5f)
     {
         ls.standing = height;
         ls.standingSeen = true;

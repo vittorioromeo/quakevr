@@ -1772,6 +1772,10 @@ void pushPreEditUndo(const char* what)
 // A Pose Studio key's or grip's entry: its value put back, the one now kept in `back` (the other stack's).
 bool swapExternal(Snapshot& s, Snapshot& back)
 {
+    if(romSwap(s, back))
+    {
+        return true; // (the Range of Motion's joints and pose)
+    }
     if(s.aimEntry)
     {
         back.aimEntry = true;
@@ -2824,6 +2828,8 @@ void init()
     Cmd_AddCommand("vr_rigstudio_play", play_f);
     Cmd_AddCommand("vr_rigstudio_respawn", respawn_f);
     rigdata::registerCommands();
+    rig2::init(); // the authored rig's commands (vr_rig2.cpp, vr_rig2_check.cpp)
+    romInit();    // the Range of Motion's (vr_rigstudio_rom.cpp)
     rigseq::registerCommands();
 }
 
@@ -2954,7 +2960,7 @@ void clientFrame()
     if(inGame() && st.subject > 0 && st.subject < cl_max_edicts && cl_entities)
     {
         const entity_t& e = cl_entities[st.subject];
-        if(e.model && e.model->type == mod_alias)
+        if(e.model && e.model->type == mod_alias && !strstr(e.model->name, "#rig2")) // (not its authored rig's drawing)
         {
             takeModel(e.model);
         }
@@ -2992,6 +2998,7 @@ void clientFrame()
     {
         buildGeometry();
         ensureWeights();
+        romFrame(); // (Range of Motion: its pose, the old rig's locals from it, the authored rig's drawing)
         evaluate(st.frame, st.F, st.P, true);
         bool armsTouched = false;
         for(int b = 0; b < st.numBones; b++)

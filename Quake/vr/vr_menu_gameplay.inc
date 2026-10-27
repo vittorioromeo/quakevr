@@ -1435,6 +1435,22 @@ void armedHoldsReset()
         slider("Gives Up After", vr_agrunt_friendly_giveup, 0.f, 10.f, 0.5f, "%.1f s")
             .help("Held so long for friends in the way, it fires anyway (a friend stepping in mid-burst can still be "
                   "hit). 0: it never does (vr_agrunt_friendly_giveup)."),
+        toggle("Keep Their Distance", vr_agrunt_range)
+            .help("With a gun it fights at its weapon's distance: a super shotgun close but out of your reach, a "
+                  "shotgun near, nail guns and the enforcer's rifle further; nearer than that it backs off facing you "
+                  "(further while you hold a melee weapon or charge it), about it it strafes round you, further it comes "
+                  "on. Off: it closes in as before. Melee weapons always close in (vr_agrunt_range)."),
+        toggle("Aim From the Muzzle", vr_agrunt_aim_converge)
+            .help("Its shots go from its gun's muzzle to your chest, its aim's error kept. Off: aimed from its grip and "
+                  "fired beside that line, a miss to one side at any distance (vr_agrunt_aim_converge)."),
+        slider("Chainsaw Thrust From", vr_agrunt_saw_start, 30.f, 70.f, 1.f, "%.0f units")
+            .help("A chainsaw's holder thrusts it only this near you (its middle to yours); 62 is a swing's "
+                  "(vr_agrunt_saw_start)."),
+        slider("Distance Scale", vr_agrunt_range_scale, 0.5f, 2.f, 0.05f, "%.2fx")
+            .help("Their fighting distances times this (vr_agrunt_range_scale)."),
+        slider("Walking Fire", vr_agrunt_range_walkfire, 0.f, 120.f, 5.f, "%.0f u/s")
+            .help("How fast it walks while it fires (on, back or round you, by its distance) and steps back while it "
+                  "reloads. 0: it stands to fire, as before (vr_agrunt_range_walkfire)."),
         toggle("Hands on the Grips", vr_agrunt_ik)
             .help("Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "
                   "two-handed weapon, or hangs free beside a one-handed one; melee swings carry the arm "

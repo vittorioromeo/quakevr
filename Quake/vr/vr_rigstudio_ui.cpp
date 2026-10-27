@@ -146,6 +146,7 @@ void menuBar()
         ImGui::MenuItem("Timeline", nullptr, &st.showTimeline);
         ImGui::MenuItem("Sequence", nullptr, &st.showSequence);
         ImGui::MenuItem("Pose Studio Data", nullptr, &st.showPoseData);
+        ImGui::MenuItem("Range of Motion (authored rig)", nullptr, &rom.on);
         ImGui::Separator();
         if(ImGui::MenuItem("Frame Selection", "F"))
         {
@@ -1665,6 +1666,7 @@ void windows()
     timelineWindow();
     sequenceWindow();
     poseDataWindow();
+    romWindow();
     helpWindow();
     prefsWindow();
 }

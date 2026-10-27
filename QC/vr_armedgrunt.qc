@@ -214,6 +214,204 @@ float(float wid, float r) VR_AG_Chance =
 };
 
 // ----------------------------------------------------------------------------
+// Its fighting distance (vr_agrunt_range; note 2026-10-26 22:19:49; ROUND22.md, "Armed humanoids' fighting distance")
+// ----------------------------------------------------------------------------
+// A gun's holder keeps its weapon's distance from its enemy, not the grunt's run into his reach: nearer than the least
+// it backs off facing him (along a wall when the way back is shut; as before when hemmed in), about its best it
+// strafes round him, beyond it it comes on at a slant, beyond the most as before (its path). It walks as it fires
+// (vr_agrunt_range_walkfire) and steps back as it reloads. You holding a melee weapon or charging it: its least and
+// best further (its row's vr_am_range_threat), it backs off faster; hurt badly: a little further. Melee weapons and
+// fists close in as before. Each step is walkmove's: never off a ledge nor into a wall (it fails, nothing moves).
+
+float vr_ag_rmin;    // VR_AG_Ranges': nearer than this it backs off,
+float vr_ag_rpref;   // ... about this it strafes (up to 40 beyond),
+float vr_ag_rmax;    // ... beyond this it comes on as before
+float vr_ag_rthreat; // ... its enemy threatens it up close (a melee weapon in his hand, charging it)
+.float vr_ag_rback;       // backing off (until it is halfway from its least to its best)
+.float vr_ag_rflip;       // its strafe's turn round next then
+.float vr_ag_rthreat_until; // its enemy charged it: wary until then
+.float vr_ag_hp0;         // its health at its fullest (seen)
+.float vr_ag_rwalk_at;    // its last step walking as it fired (VR_AG_WalkFire)
+float vr_ag_range_backs;  // steps it took backing off (the tests)
+
+// The fighting distances of weapon `wid` (vr_ag_rmin, vr_ag_rpref, vr_ag_rmax; FALSE: a melee weapon or its fists).
+float(float wid) VR_AG_RangeOf =
+{
+    float c = VR_AG_Class(wid);
+    if(c == VR_AG_CLASS_FISTS || c == VR_AG_CLASS_MELEE) { return FALSE; }
+    vr_ag_rmin = 128; vr_ag_rpref = 220; vr_ag_rmax = 380; // (a shotgun, the grunt's gun, a pistol: near)
+    if(wid == WID_SUPER_SHOTGUN) { vr_ag_rmin = 96; vr_ag_rpref = 150; vr_ag_rmax = 260; } // (close, out of reach)
+    else if(VR_AG_Stream(wid))
+    {
+        float reach = VR_ADGun_Value(wid, "range"); // (a flamethrower: well inside its stream's reach)
+        vr_ag_rmin = 80; vr_ag_rpref = max(110, reach * 0.45); vr_ag_rmax = max(160, reach * 0.75);
+    }
+    else if(wid == WID_LIGHTNING) { vr_ag_rmin = 140; vr_ag_rpref = 240; vr_ag_rmax = 400; } // (its beam's 600)
+    else if(c == VR_AG_CLASS_EXPLOSIVE)
+    {
+        float m = VR_AG_MinRange(wid); // (its blast's: VR_AG_Run backs off nearer still)
+        vr_ag_rmin = m + 40; vr_ag_rpref = m + 190; vr_ag_rmax = m + 440;
+    }
+    else if(c == VR_AG_CLASS_AUTO) { vr_ag_rmin = 224; vr_ag_rpref = 380; vr_ag_rmax = 600; } // (nail guns: far)
+    else if(c == VR_AG_CLASS_BURST) { vr_ag_rmin = 160; vr_ag_rpref = 300; vr_ag_rmax = 480; }
+    else if(wid == WID_ENFRIFLE || wid == WID_ADCROSSBOW) { vr_ag_rmin = 192; vr_ag_rpref = 340; vr_ag_rmax = 560; }
+    return TRUE;
+};
+
+// Its enemy `e` threatens `g` up close: a melee weapon in either hand, or coming at it fast (wary a while after).
+float(entity g, entity e) VR_AG_Threat =
+{
+    if(!(e.flags & FL_CLIENT))
+    {
+        return FALSE;
+    }
+    vector to = g.origin - e.origin;
+    to_z = 0;
+    vector v = e.velocity;
+    v_z = 0;
+    if(vlen(to) > 1 && v * normalize(to) > 180)
+    {
+        g.vr_ag_rthreat_until = time + 1.5;
+    }
+    return VR_AG_Class(e.weapon) == VR_AG_CLASS_MELEE || VR_AG_Class(e.weapon2) == VR_AG_CLASS_MELEE ||
+           time < g.vr_ag_rthreat_until;
+};
+
+// `g`'s fighting distances now (vr_ag_r*: its weapon's, its row's, you, its health); FALSE: it closes in as before.
+float(entity g) VR_AG_Ranges =
+{
+    if(!cvar_hget(cvarh_vr_agrunt_range) || !g.vr_ag_prop || !g.enemy || g.enemy.health <= 0 || !VR_AG_RangeOf(g.vr_ag_wid))
+    {
+        return FALSE;
+    }
+    VR_AM_Row(g.vr_ag_kind);
+    float s = max(0, cvar_hget(cvarh_vr_agrunt_range_scale)) * vr_am_range;
+    float wary = s; // (its least and best's scale)
+    vr_ag_rthreat = VR_AG_Threat(g, g.enemy);
+    if(vr_ag_rthreat)
+    {
+        wary = wary * vr_am_range_threat;
+    }
+    g.vr_ag_hp0 = max(g.vr_ag_hp0, g.health);
+    if(g.health < 0.35 * g.vr_ag_hp0)
+    {
+        wary = wary * 1.2; // (badly hurt: warier)
+    }
+    vr_ag_rmin = max(vr_ag_rmin * wary, VR_AG_MinRange(g.vr_ag_wid) + 10);
+    vr_ag_rpref = max(vr_ag_rpref * wary, vr_ag_rmin + 40);
+    vr_ag_rmax = max(vr_ag_rmax * s, vr_ag_rpref + 80);
+    return TRUE;
+};
+
+// A step of `d` along `yaw` (TRUE: taken; walkmove's checks: no ledge, no wall).
+float(float yaw, float d) VR_AG_RangeStep =
+{
+    if(d <= 0)
+    {
+        return FALSE;
+    }
+    return walkmove(yaw, d);
+};
+
+// ai_run (its moves between its attacks, `dist` its run frame's): keeping its distance; FALSE: as before.
+float(float dist) VR_AG_RangeMove =
+{
+    if(!enemy_vis || !VR_AG_Ranges(self))
+    {
+        self.vr_ag_rback = 0;
+        return FALSE;
+    }
+    float d = vlen(VR_AI_Origin(self.enemy) - self.origin);
+    if(d > vr_ag_rmax)
+    {
+        self.vr_ag_rback = 0;
+        return FALSE; // (far: on along its path, as before)
+    }
+    float yaw = enemy_yaw;
+    self.ideal_yaw = yaw;
+    ChangeYaw(); // (facing him all the while)
+    float side = self.lefty ? 1 : -1;
+    if(d < vr_ag_rmin || (self.vr_ag_rback && d < (vr_ag_rmin + vr_ag_rpref) * 0.5))
+    {
+        // Backing off, facing him (faster from a blade or a charge); the way back shut: along the wall.
+        self.vr_ag_rback = 1;
+        float sp = dist * (vr_ag_rthreat ? 1 : 0.85);
+        if(VR_AG_RangeStep(yaw + 180 + 30 * side, sp) || VR_AG_RangeStep(yaw + 180 - 30 * side, sp) ||
+           VR_AG_RangeStep(yaw + 90 * side, sp))
+        {
+            vr_ag_range_backs = vr_ag_range_backs + 1;
+            return TRUE;
+        }
+        self.lefty = !self.lefty;
+        if(VR_AG_RangeStep(yaw - 90 * side, sp))
+        {
+            vr_ag_range_backs = vr_ag_range_backs + 1;
+            return TRUE;
+        }
+        self.vr_ag_rback = 0;
+        return FALSE; // (hemmed in: as before, its shove and its butt up close)
+    }
+    self.vr_ag_rback = 0;
+    if(d > vr_ag_rpref + 40)
+    {
+        // Gaining ground at a slant (a harder target than straight on); blocked: as before.
+        return VR_AG_RangeStep(yaw + 35 * side, dist);
+    }
+    // About its best: strafing round him, turning round now and then and where it is blocked; boxed in: it holds.
+    if(time > self.vr_ag_rflip)
+    {
+        self.vr_ag_rflip = time + 1.5 + random() * 2;
+        if(random() < 0.5)
+        {
+            self.lefty = !self.lefty;
+            side = -side;
+        }
+    }
+    if(!VR_AG_RangeStep(yaw + 90 * side, dist * 0.6))
+    {
+        self.lefty = !self.lefty;
+        VR_AG_RangeStep(yaw - 90 * side, dist * 0.6);
+    }
+    return TRUE;
+};
+
+// An attack's or a reload's frame lasting `dt`: its step by its fighting distance as it fires (vr_agrunt_range_walkfire;
+// `firing` FALSE: a reload's, only away when nearer than its best). TRUE: it moved.
+float(float dt, float firing) VR_AG_WalkFire =
+{
+    float v = cvar_hget(cvarh_vr_agrunt_range_walkfire);
+    if(v <= 0 || self.health <= 0 || time - self.vr_ag_rwalk_at < 0.09 || !VR_AG_Ranges(self) || !visible(self.enemy))
+    {
+        return FALSE; // (once a frame: an aim cone's wait calls its frame again)
+    }
+    self.vr_ag_rwalk_at = time;
+    float d = vlen(VR_AI_Origin(self.enemy) - self.origin);
+    float yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
+    float step = v * dt;
+    float side = self.lefty ? 1 : -1;
+    if(d < vr_ag_rmin || (!firing && d < vr_ag_rpref))
+    {
+        // (faster nearer than its least, a reload's too: you with a blade gain on it otherwise)
+        float back = d < vr_ag_rmin ? (vr_ag_rthreat ? 1.6 : 1.3) : 1;
+        if(VR_AG_RangeStep(yaw + 180, step * back))
+        {
+            vr_ag_range_backs = vr_ag_range_backs + 1;
+            return TRUE;
+        }
+        return VR_AG_RangeStep(yaw + 90 * side, step * 0.6);
+    }
+    if(!firing)
+    {
+        return FALSE;
+    }
+    if(d > vr_ag_rpref + 40)
+    {
+        return VR_AG_Class(self.vr_ag_wid) != VR_AG_CLASS_EXPLOSIVE && VR_AG_RangeStep(yaw + 20 * side, step);
+    }
+    return VR_AG_RangeStep(yaw + 90 * side, step * 0.6);
+};
+
+// ----------------------------------------------------------------------------
 // Its weapon: the pool, the held prop
 // ----------------------------------------------------------------------------
 
@@ -986,7 +1184,18 @@ float(entity p) VR_AG_KickLeft =
 };
 
 // Where it aims: at its target's middle, a little behind it as it moves (the grunt's), up to vr_agrunt_aim_error off.
-vector(vector from) VR_AG_AimDir =
+// A direction's angles as vectoangles gives them (pitch up), exact: the builtin truncates its yaw and pitch to whole
+// degrees (PF_vectoangles), up to a degree off: its shots a few units to one side of you at 300, 15 at 1000 (test 49).
+vector(vector d) VR_AG_Angles =
+{
+    vector a;
+    a_x = atan2(d_z, sqrt(d_x * d_x + d_y * d_y)) * 57.29578;
+    a_y = atan2(d_y, d_x) * 57.29578;
+    a_z = 0;
+    return a;
+};
+
+vector() VR_AG_AimPoint =
 {
     entity t = self.enemy;
     vector at = VR_AI_Origin(t) - t.velocity * 0.15;
@@ -994,11 +1203,15 @@ vector(vector from) VR_AG_AimDir =
     {
         at_z = at_z + 6; // (a player's chest, not his origin's waist)
     }
-    vector dir = normalize(at - from);
+    return at;
+};
+vector(vector from) VR_AG_AimDir =
+{
+    vector dir = normalize(VR_AG_AimPoint() - from);
     float err = cvar_hget(cvarh_vr_agrunt_aim_error) * (1 + vr_ag_aim_mult);
     if(err > 0)
     {
-        vector a = vectoangles(dir);
+        vector a = VR_AG_Angles(dir);
         a_x = -a_x + crandom() * err; // (a view's pitch for makevectors)
         a_y = a_y + crandom() * err;
         makevectors(a);
@@ -1012,12 +1225,37 @@ float vr_ag_drawn_deg;
 float vr_ag_all_shots;
 // Its hand fields as the player's would be holding the weapon `p` aimed along `dir` (VRGetHandPos, VRGetMuzzlePos,
 // VRGetWeaponFireRot, VRGetWeapon, VRGetEntWeaponInst read them).
+float vr_ag_shot_on;       // VR_AG_ShootProp's shot under way: its straight line (no error) from the grip,
+vector vr_ag_shot_straight;
+float vr_ag_miss_n;        // shots measured (the tests: test 49), each its line's miss at its target's point:
+float vr_ag_miss_d;        // ... the muzzle to that point,
+float vr_ag_miss_raw;      // ... to the right of it (units; - left) as aimed from the grip (before vr_agrunt_aim_converge),
+float vr_ag_miss_lat;      // ... as fired,
+float vr_ag_miss_up;       // ... above it as fired
+
+// The line from `m` along `dir`: its miss at `at`, to its right (vr_ag_miss_up: above).
+float(vector m, vector dir, vector at) VR_AG_MissRight =
+{
+    vector off = m + dir * ((at - m) * dir) - at;
+    vector right;
+    right_x = dir_y; // (dir x up)
+    right_y = -dir_x;
+    right_z = 0;
+    right = normalize(right);
+    vr_ag_miss_up = off_z;
+    return off * right;
+};
+
+// (an angle's difference, -180..180)
+float(float a) VR_AG_Wrap180 = { return a - 360 * floor((a + 180) / 360); };
+
 void(entity p, vector dir) VR_AG_SetHand =
 {
+    vector dir0 = dir; // (as aimed: from its grip, its error and kick in it)
     self.vr_ag_aim = dir;
     VR_AG_PlaceProp(self, p);
     self.handpos = p.origin;
-    vector a = vectoangles(dir);
+    vector a = VR_AG_Angles(dir);
     a_x = -a_x; // (a view's pitch, as the hands')
     self.handrot = a;
     self.shotrot = '0 0 0';
@@ -1040,13 +1278,39 @@ void(entity p, vector dir) VR_AG_SetHand =
             vector off = weapondrawnpose(p, 0, 22);
             dir = normalize(VR_AG_Rotate(dir, ax, ang));
             m = p.origin + off + VR_AG_Rotate(m - p.origin, ax, ang);
-            a = vectoangles(dir);
+            a = VR_AG_Angles(dir);
             a_x = -a_x;
             self.handrot = a;
             vr_ag_drawn_shots = vr_ag_drawn_shots + 1;
             vr_ag_drawn_deg = vr_ag_drawn_deg + ang;
         }
         vr_ag_all_shots = vr_ag_all_shots + 1;
+    }
+    if(vr_ag_shot_on && self.enemy)
+    {
+        // Converging on its target (vr_agrunt_aim_converge): aimed from its grip, its shot left the muzzle beside that
+        // line along it (or along the drawn gun's, turned off it): a miss to one side at any distance. Now its line
+        // from the muzzle it fires from to its target's point, turned by its aim's error and kick as before (unbiased).
+        vector at = VR_AG_AimPoint();
+        vector old = vectoangles(dir); // (the old way, measured: this line, its angles in whole degrees)
+        old_x = -old_x;
+        makevectors(old);
+        vr_ag_miss_raw = VR_AG_MissRight(m, v_forward, at);
+        if(cvar_hget(cvarh_vr_agrunt_aim_converge) && vlen(at - m) > 8)
+        {
+            vector e = VR_AG_Angles(dir0) - VR_AG_Angles(vr_ag_shot_straight);
+            vector c = VR_AG_Angles(normalize(at - m));
+            c_x = -(c_x + VR_AG_Wrap180(e_x)); // (a view's pitch for makevectors)
+            c_y = c_y + VR_AG_Wrap180(e_y);
+            c_z = 0;
+            makevectors(c);
+            dir = v_forward;
+            self.handrot = c;
+        }
+        makevectors(self.handrot); // (as fired: its hand's angles, the shot's line)
+        vr_ag_miss_lat = VR_AG_MissRight(m, v_forward, at);
+        vr_ag_miss_d = vlen(at - m);
+        vr_ag_miss_n = vr_ag_miss_n + 1;
     }
     self.muzzlepos = m;
     self.weapon = p.weapon;
@@ -1189,7 +1453,7 @@ vector(float wid, vector from, vector dir) VR_AG_BlastPoint =
         traceline(from, from + dir * 4096, FALSE, self);
         return trace_endpos;
     }
-    vector a = vectoangles(dir);
+    vector a = VR_AG_Angles(dir);
     a_x = -a_x;
     makevectors(a);
     vector vel = v_forward * 600 + v_up * 200;
@@ -1309,7 +1573,10 @@ void(entity p) VR_AG_ShootProp =
     }
     vr_ag_last_kick = kick;
     vr_ag_last_aimdev = atan2(vlen(dir - straight * (dir * straight)), dir * straight) * 57.29578;
+    vr_ag_shot_on = 1;
+    vr_ag_shot_straight = straight;
     VR_AG_SetHand(p, dir);
+    vr_ag_shot_on = 0;
     if(!VR_AG_BlastSafe(p, dir))
     {
         // Its own blast would reach it (the target came near, a wall ahead): held back, a step aside.
@@ -1470,7 +1737,7 @@ void() VR_AG_Strike =
     else
     {
         self.handpos = from;
-        vector a = vectoangles(dir);
+        vector a = VR_AG_Angles(dir);
         a_x = -a_x;
         self.handrot = a;
         self.shotrot = '0 0 0';
@@ -1626,6 +1893,7 @@ void(float n) VR_AG_AtkFrame =
     {
         return;
     }
+    VR_AG_WalkFire(0.1, TRUE); // (walking as it fires: its fighting distance, vr_agrunt_range_walkfire)
     float c = VR_AG_Class(p.weapon);
     if(n >= 3)
     {
@@ -1700,6 +1968,10 @@ void() vr_ag_swing6 = { VR_AM_Anim(VR_AM_A_SHOVE, 5, vr_ag_swing6); VR_AG_AfterA
 void() VR_AG_ReloadFrame =
 {
     self.nextthink = time + max(0.02, cvar_hget(cvarh_vr_agrunt_reload_time)) / 11;
+    if(self.enemy)
+    {
+        VR_AG_WalkFire(self.nextthink - time, FALSE); // (stepping back as it reloads, nearer than its best)
+    }
 };
 void() vr_ag_reload1 = { VR_AM_Anim(VR_AM_A_RELOAD, 0, vr_ag_reload2); VR_AG_ReloadFrame(); self.vr_agp_rl_at = time; VR_AG_Log("reloading"); };
 void() vr_ag_reload2 = { VR_AM_Anim(VR_AM_A_RELOAD, 1, vr_ag_reload3); VR_AG_ReloadFrame(); };
@@ -2069,7 +2341,10 @@ float() VR_AG_CheckAttack =
     }
     if(c == VR_AG_CLASS_FISTS || c == VR_AG_CLASS_MELEE)
     {
-        if(d < VR_AG_GRIP_REACH + (c == VR_AG_CLASS_MELEE ? 10 : 0))
+        // (the chainsaw's thrust reaches less far than a swing: it closes in first, vr_agrunt_saw_start)
+        float reach = self.vr_ag_wid == WID_CHAINSAW ? cvar_hget(cvarh_vr_agrunt_saw_start) :
+                      VR_AG_GRIP_REACH + (c == VR_AG_CLASS_MELEE ? 10 : 0);
+        if(d < reach)
         {
             if(VR_AG_FriendHold(self.origin + self.view_ofs * 0.5, VR_AG_FriendSpread(self.vr_ag_wid)))
             {
@@ -2115,7 +2390,14 @@ float() VR_AG_CheckAttack =
         return FALSE;
     }
     float native = VR_AGR_NativeAlone(self); // (its own gun alone: its monster's chances and pauses, vr_armedrepl.qc)
-    if(random() < (native ? VR_AGR_NativeChance(enemy_range) : VR_AG_Chance(self.vr_ag_wid, enemy_range)))
+    float chance = native ? VR_AGR_NativeChance(enemy_range) : VR_AG_Chance(self.vr_ag_wid, enemy_range);
+    if(!explosive && VR_AG_Ranges(self) && d < vr_ag_rmin)
+    {
+        // Too near for its gun: backing off mostly (VR_AG_RangeMove), firing now and then as it goes (a launcher's
+        // retreat never fires: above). You with a blade or charging: rarer still.
+        chance = chance * (vr_ag_rthreat ? 0.3 : 0.5);
+    }
+    if(random() < chance)
     {
         self.th_missile();
         if(native)

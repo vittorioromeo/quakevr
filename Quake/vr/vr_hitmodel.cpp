@@ -1812,7 +1812,8 @@ extern "C" int VR_HitModelMoveFlags(edict_t* ent)
     const bool marked = qvr::ad::precisePellet(ent) ||
                         qvr::progs::fieldFloatOr(ent, qvr::progs::fields().vr_projectile, 0.f) != 0.f;
     const int move = static_cast<int>(ent->v.movetype);
-    if(move != MOVETYPE_FLYMISSILE && move != MOVETYPE_BOUNCE && !(marked && move == MOVETYPE_FLY))
+    // (A marked MOVETYPE_TOSS one too: the flare gun's flares, which set the corpses and ragdolls they meet on fire.)
+    if(move != MOVETYPE_FLYMISSILE && move != MOVETYPE_BOUNCE && !(marked && (move == MOVETYPE_FLY || move == MOVETYPE_TOSS)))
     {
         return 0;
     }

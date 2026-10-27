@@ -279,6 +279,36 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
   Pickup the pelvis 3 down): the key changed by that in its space, the drawn part with it; undone, the key exactly as
   it was. Screenshots before and after the weapon's move.
 
+## Range of Motion: the authored rig (stage 1 of the grunt rig rebuild)
+
+**View > Range of Motion (authored rig)**, `vr_rigstudio_rom on`, or **Debug > Tools > Rig Studio: Range of Motion
+(Authored Rig)**. The new grunt rig (`vr_rig2.cpp`, `quakevr/rigs/<model>.rig2.txt`, made by
+`Misc/quakevr/make_rig2.py`; ROUND22.md, "Grunt rig rebuild, stage 1"): 20 bones (pelvis, spine, chest, neck, head,
+clavicles, upper arms, forearms, hands, thighs, shins, feet, the gun), each joint with its limits (a ball's elliptical
+swing cone and twist, a hinge's bend from straight) and blended skin weights (up to 4 bones a vertex). Nothing in the
+game uses it yet.
+
+- **Mesh drawn on**: *Authored rig* (`vr_rig2 1`: its blended weights; Game display the engine's skinned model, Shaded
+  the studio's) or *Old rig* (`vr_rig2 0`: the old derived rig moved the same way, each old bone as its namesake: the
+  comparison). *Dual quaternions* (`vr_rig2_dq`) instead of the linear blend. The line under it: the pose's faults as
+  `vr_rig2_check` measures them (see-through, flipped, collapsed, sharp folds, stretch), live.
+- **The joints**: the list (indented by parent), or a click on a bone in the view; a second click on the picked bone
+  drags its limb by its end (held within its limits). The picked joint's limits are drawn: where its bone's end can go
+  (magenta: a ball's swing ellipse, a hinge's arc) and its twist's two ends (cyan ticks).
+- **Sliders**: Swing X (toward the joint's forward), Swing Y (toward its side), Twist; a hinge's Bend. Each is held
+  within the limits (a swing onto its ellipse). **Sweep** plays the joint through each axis and once round its swing's
+  edge; **Reset Joint**, **Reset All**, **Random Pose** (every joint within its limits, as a ragdoll's).
+- **Joint (rest pose, limits)**: its pivot, end, the limits (and a ball's neutral direction, a hinge's axis), edited
+  live; undoable (Ctrl+Z, with every other edit); **Save** writes the rig file (`vr_rigdata_dir` respected), **Reload**
+  reads it again.
+- Heat colours (Display > colours: the selected bone's weights) show the picked joint's blended weights.
+- Commands: `vr_rigstudio_rom [on|off] | rig old|new | joint <j> | set <j> <x> [y] [z] | reset | random [seed] |
+  sweep <j> | limit <j> swingx|swingy|twist|range <min> <max> | pivot <j> <x y z> | save | camera <j> [yaw] [pitch]
+  [dist] | status | test`. `vr_rigstudio_rom test` ends on `rigstudio rom test: N passed, M failed`.
+- `vr_rig2_check [model] [detail lines] [joint|random|envelope]` (ends on `rig2 check: N passed, M failed`): every
+  joint swept, joint pairs, 1000 random poses, the old rig on the same poses; `envelope` prints how far each joint
+  turns cleanly from rest, each way alone, beside its limit. `vr_rig2_info`, `vr_rig2_reload`.
+
 ## Limits and rough edges
 
 - In the game a vertex is drawn by one bone (its heaviest), except an armed humanoid's arm skin, whose blend is its

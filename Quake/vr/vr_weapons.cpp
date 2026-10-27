@@ -175,7 +175,8 @@ namespace
 // 70: the Widowmaker's (slot 34) cup, hotspot 1, aims by both hands (Two-Handed Aim, hs1_aim2h: his notes 2026-10-26)
 // where the config holds the old 0 (takeWidowmakerCupAim70).
 // 71: the heavy revolver's (slot 38) longer barrel: its muzzle, length, balance and mass (takeRevolverBarrel71).
-constexpr int settingsVersion = 71;
+// 72: his flare gun and heavy revolver (slots 37, 38): grip poses, cup hotspots, the revolver's Two-Handed (takeHis72).
+constexpr int settingsVersion = 72;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -831,6 +832,44 @@ void takeRevolverBarrel71()
     }
 }
 
+// 72: his config of 2026-10-27 (NOTES.md vrragtriggers_2026-10-27_02-01-22: "make all of them the new defaults"): the
+// flare gun's and the heavy revolver's (indices 37, 38) grip poses (Pitch, Roll, Yaw, Offset X..Z) and the revolver's
+// Two-Handed (Allowed, No Stock), each taken where the config still holds the old default; their hotspot 1 a cup, all of
+// its keys taken where its type is still None (0), as takeHis69's.
+void takeHis72()
+{
+    constexpr OldValue old[] = {{37, Key::Pitch, -6.85f}, {37, Key::Roll, 0.f}, {37, Key::Yaw, 0.f},
+        {37, Key::OffsetX, -0.25f}, {37, Key::OffsetY, 0.57f}, {37, Key::OffsetZ, 0.3f}, {38, Key::Pitch, -6.85f},
+        {38, Key::Roll, 0.f}, {38, Key::Yaw, 0.f}, {38, Key::OffsetX, -0.18f}, {38, Key::OffsetY, 0.57f},
+        {38, Key::OffsetZ, -1.05f}, {38, Key::TwoHMode, 0.f}};
+    int taken = 0;
+    for(const OldValue& o : old)
+    {
+        cvar_t& var = cvarAt(o.slot, o.key);
+        if(fabsf(var.value - o.value) < 1e-4f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+            taken++;
+        }
+    }
+    int cups = 0;
+    for(const int slot : {37, 38})
+    {
+        if(fabsf(cvarAt(slot, Key::Hotspot1Type).value) >= 1e-4f)
+        {
+            continue; // (a hotspot a player set up stays his)
+        }
+        for(const Key key : {Key::Hotspot1Type, Key::Hotspot1X, Key::Hotspot1Y, Key::Hotspot1Z, Key::Hotspot1Pitch,
+                Key::Hotspot1Yaw, Key::Hotspot1Roll, Key::Hotspot1Overlap})
+        {
+            cvar_t& var = cvarAt(slot, key);
+            Cvar_SetQuick(&var, var.default_string);
+        }
+        cups++;
+    }
+    Con_DPrintf("Weapon settings: the flare gun and the revolver took %d of his values, %d cup grips\n", taken, cups);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -869,6 +908,7 @@ constexpr Step steps[] = {
     {69, takeHis69},
     {70, takeWidowmakerCupAim70},
     {71, takeRevolverBarrel71},
+    {72, takeHis72},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
