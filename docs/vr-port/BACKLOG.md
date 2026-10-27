@@ -547,3 +547,9 @@ The plan as designed:
   offset by `ad_justice_update_attachment`) with yellow imploding particles (`ad_particle_implode`, its magic attack),
   `EF_MUZZLEFLASH` lights on its attacks and flames off its swings (`ad_PreCache_Flame`). A held sword's equivalent: that
   sprite (or a glow) on the blade (vr_admelee.cpp's model) and a dim light.
+- **Arena mode (armed humanoids survival)** (Vittorio, 2026-10-27): a survival arena that shows off the armed humanoids.
+  Waves get progressively harder and more frequent: first unarmed grunts, then grunts with nail pistols and shotguns,
+  and so on up the weapon ladder, with randomized weapons per wave (enforcers and AD weapons later). The player starts
+  unarmed and works up the ladder by killing enemies and taking their weapons (disarms, tug-of-war, pickups). Needs: an
+  arena map (or a mode on an existing one), a wave director (kinds, weapon pools, counts, spawn spots), a score/wave
+  readout, and a start from the Play menu.
