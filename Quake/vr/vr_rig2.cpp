@@ -1173,6 +1173,23 @@ const qmodel_t* sourceModel(const entity_t* e)
     return nullptr;
 }
 
+const qmodel_t* studioPosedModel(const entity_t* e)
+{
+    if(!e || drawn.empty() || !cl_entities)
+    {
+        return nullptr;
+    }
+    for(const Drawn& d : drawn)
+    {
+        if(e == &cl_entities[d.num] && !d.useSkinned && d.studioFrame >= host_framecount - 1 && d.model &&
+            (e->model == d.model || (d.swapped && e->model == d.skinned)))
+        {
+            return d.model;
+        }
+    }
+    return nullptr;
+}
+
 void drawInfo()
 {
     const auto model = [](const char* what, const qmodel_t* m) {

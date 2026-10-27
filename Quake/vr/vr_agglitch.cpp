@@ -33,7 +33,7 @@ constexpr float refFrame = 1.f / 90.f; // the rates and jumps are given per fram
 enum Metric : int
 {
     Flip = 0,  // the elbow's swing about its reach line (degrees a frame)
-    Wrong,     // the elbow off its outward and downward way (degrees)
+    Wrong,     // the elbow off its way: down, out, a little back (the solve's elbowPref, vr_agarms.cpp preferredPole; degrees)
     Pen,       // an elbow, forearm, wrist or hand inside the torso, pelvis or head (units)
     Reach,     // a wrist brought in, short of its goal (units)
     Grip2,     // the off hand off its second grip, held (units)

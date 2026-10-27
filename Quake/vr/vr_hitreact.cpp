@@ -3114,9 +3114,11 @@ void relinkArms()
         {
             continue;
         }
-        if(const qmodel_t* src = e->model && e->msgtime == cl.mtime[0] ? rig2::sourceModel(e) : nullptr)
+        // (the Rig Studio's subject posed on the authored rig: its "#rig2" swap is undone after each frame's drawing, so
+        // here it has its .mdl again: studioPosedModel finds it by the studio's pose, not by the swap)
+        if(const qmodel_t* src = e->model && e->msgtime == cl.mtime[0] ? rig2::studioPosedModel(e) : nullptr)
         {
-            relinkAuthored(s, e, src); // (the Rig Studio's subject drawn on the authored rig: swapped to its "#rig2" model)
+            relinkAuthored(s, e, src); // (the Rig Studio's subject drawn on the authored rig)
             continue;
         }
         if(!e->model || e->model->type != mod_alias || e->msgtime != cl.mtime[0] ||

@@ -1421,12 +1421,16 @@ void noteErr(const Skin& m, const Ent& st, const aliashdr_t* hdr, int pose1, int
     e.held2 += held2 ? 1 : 0;
 }
 
-// The glitch finder's right way for an elbow (model space): outward and down from its shoulder (its hemisphere: one
-// past 135 degrees off it points up and in, the wrong way), or a strike's or a key's pole where one is sent.
+// The glitch finder's right way for an elbow (model space): the solve's own, elbowPref: down, out and a little back from
+// its shoulder (its hemisphere: one past 135 degrees off it points up and in, the wrong way), or a strike's or a key's
+// pole where one is sent. (It was outward and down, 45 degrees each, with no back: an arm let down, its hand under its
+// shoulder, measured its elbow against outward alone, and a lowered arm's elbow points back: 90 degrees "wrong" for the
+// natural carry. The authored enforcer's carry hangs straighter, its shoulders further out: p95 92 -> 116 by that alone;
+// ROUND22.md, "Rig fixes: the Rig Studio's weapons, the enforcer's elbows".)
 [[nodiscard]] glm::vec3 preferredPole(int s, const glm::quat& cq, const glm::vec3& pole)
 {
     const float sideSign = s == 0 ? -1.f : 1.f;
-    const glm::vec3 pref = cq * glm::normalize(glm::vec3{0.f, sideSign, -1.f});
+    const glm::vec3 pref = cq * glm::normalize(glm::vec3{elbowPref.x, elbowPref.y * sideSign, elbowPref.z});
     const float poleShare = za::min(glm::length(pole), 1.f);
     return poleShare > 1e-3f ? norm(pref * (1.f - poleShare) + pole, pref) : pref;
 }
