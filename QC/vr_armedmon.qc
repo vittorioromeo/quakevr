@@ -122,9 +122,10 @@ void(float k) VR_AM_Row =
             vr_am_sh_l = '-5.5 11.5 21';
             vr_am_arm = 15;
             // The grunt-made poses fitted so the grunt's authored shoulders land on these (the old fit put them 2.7
-            // units over them: its hands' goals out of the shorter authored arms' reach).
-            vr_am_fit_scale = '1 1.3 1';
-            vr_am_fit_shift = '-5.8 0 5.8';
+            // units over them), drawn in ahead and down 15 and 10% (its arm reaches 18.9 to a grip, the derived one
+            // 24.4: the goals the old fit put were out of reach; glitch finder reach p95 3.7 -> 2.6).
+            vr_am_fit_scale = '0.85 1.3 0.9';
+            vr_am_fit_shift = '-5.75 0 7.3';
         }
         vr_am_grip_r = '3.3 -5.5 11';
         vr_am_grip_l = '8.7 11.6 13.4';

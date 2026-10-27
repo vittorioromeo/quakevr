@@ -24684,9 +24684,40 @@ each). `vr_agrunt_ik_debug 6` (new): every reach miss over 0.5 units, the should
 **eval.sh**: no verdict changes with `vr_rig2` 0 and with 1 (`EVAL_PRE` with `vr_rig2 1`): 163/171 both, every
 difference PASS -> PASS (damages 0.1 apart, as stage 2 found).
 
-**Left**: the armed solve tuned to the enforcer's authored arm (reach p95 3.9 against 2.5: QC's goals for a 24-unit arm;
-the elbow's way, wrong 117 against 92 p95; the armpen metric with the pads), the hips' long side triangles (the leg up
-and out), foot_r's twist and neck+head's stretch (stage 1's), `vr_rigstudio_rom test weapon` (fails everywhere).
+**Round 2 (same branch, after merging origin/next's agent/rig2anim): the armed solve retuned to the authored arm.**
+- The torso proxy (agbody, authored rigs): a chest with a backpack (back over twice its front) takes its torso's shape
+  from the derived rig's chest (same rest mesh), carried by the authored chest, its sides from the lower 0.4 (6.4 units
+  each way; the derived rig's 0.6 gave 7.5 / 9.1, the right fist and the pads' edges in them). The grunt's proxies are
+  the same (printed).
+- QC's fit drawn in ahead and down (`vr_am_fit_scale` 0.85 1.3 0.9, `_shift` -5.75 0 7.3): the authored arm reaches 18.9
+  to a grip, the derived one 24.4.
+- `vr_rig2_arm_clear` (new, 6 = vr_agarms' as before): the held hands' torso clearance on authored rigs (15: armpen 1.1
+  but reach 4.3: kept at 6).
+- Tried, no effect on `wrong`: `vr_rig2_clavicle` 0.35 / 1, the elbow's pole cost times 3, `vr_agarms_limits 0` (130),
+  `vr_agarms_body 0`; both arms read the same (116 each alone).
+
+| metric (p95 / worst) | old 1, 2, 3 | authored round 2: 1, 2, 3 |
+|---|---|---|
+| reach | 2.72/28.4, 2.71/33.7, 2.37/27.0 | 2.70/28.8, 2.89/33.8, 2.49/32.0 |
+| grip2 | 0.00/24.0, 0.00/23.6, 0.00/22.4 | 0.00/24.6, 0.00/24.8, 0.00/24.7 |
+| armpen | 0.76/11.4, 0.76/11.5, 0.78/12.8 | 0.23/9.9, 0.27/10.5, 0.19/10.3 |
+| wrong | 91.5/179, 91.7/178, 91.9/179 | 116.6/180, 116.0/180, 116.2/179 |
+| shoulder (jump) | 0.27/5.9, 0.27/5.2, 0.27/5.9 | 0.46/5.5, 0.47/7.5, 0.47/5.8 |
+| wrist | 0.00/53.5, 0.00/58.6, 0.00/56.7 | 0.00/58.9, 0.00/57.4, 0.78/52.3 |
+| pen | 0.00/12.1, 0.00/11.9, 0.00/13.1 | 0.00/8.1, 0.00/10.3, 0.00/10.0 |
+| stretch | 2.82/17.8, 2.82/19.8, 2.75/21.0 | 1.11/16.7, 1.12/14.9, 1.12/17.0 |
+armpen measured with the same narrow torso on the old rig (`vr_agbody_torso_sides 0.4`): 0.57 (authored 0.19-0.27). The
+200 armed poses recorded again: new 2 see-through (2 poses), 183 flipped, 9 collapsed, 66 folds, 0.19..2.35; old 407 (132
+poses), 5707, 116, 864, 0.02..17.93; selfx 0 both. The grunt with vr_rig2 1 (once): reach 5.00, grip2 1.02, aim 5.80,
+wrist 7.97, armpen 0.50, shoulder 0.40, wrong 61.1 (origin/next's 5.02, 1.05, 8.27, 10.24, 0.52, 0.39, 61.6).
+The laser rifle's idle hold (`scratch/eyes_enf_rifle2.png`, old | new, 90 units off): at the belt on both rigs (QC's
+idle carry, not the rig's); the aim alike. `vr_rigstudio_rom test weapon`: 0/6 on origin/next too, grunt and enforcer,
+both latches ("no reading ... weapon 0"): not this branch's. The hips: v266 with 0.3 pelvis made thigh_r 7 flipped and the
+random poses 92; the thighs' twist limited to 20 made thigh_l clean but thigh_r still 3 flipped: neither kept.
+
+**Left**: the elbows' way (wrong 116 against 92 p95, in every steady state, both arms; the shoulder jump 0.47 against
+0.27), the hips' long side triangles (the leg up and out), foot_r's twist and neck+head's stretch (stage 1's), the rom
+weapon test (not this branch's).
 - [ ] Enforcer rig stage 2 {test:pose_enforcers_guns}: Debug > Grunt and Enforcer on the Authored Rig on, load a map: enforcers alive with the laser rifle two-handed and a nail pistol one-handed (aiming, running, firing), hit, knocked down, killed, cut, grabbed: elbows, knees, shoulder pads and the fist smooth, the rifle in both hands, the arms out of the torso; tell where a hand misses its grip
 - [ ] Enforcer rig stage 2 ragdolls {test:none}: vr_rig2 1: kill enforcers every way (body, head, arm, leg, blast, a stair fall), knock them down and let them get up: the power pack stays on the back, no part flung, no limb bent the wrong way
 ## Rig Studio: animating the authored rig (worktree `fastship`, branch `agent/rig2anim`, 2026-10-27)

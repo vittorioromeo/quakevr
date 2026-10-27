@@ -1596,7 +1596,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     lim.armClear = vr_agarms_arm_clear.value != 0.f;
     lim.rest = m->rest.data();
     Limits limHeld = lim; // (a hand on a weapon or its grip, a fist: turned out of the torso a little at most)
-    limHeld.clearMost = armClearHeldMost;
+    limHeld.clearMost = rig.authored ? za::max(vr_rig2_arm_clear.value, 0.f) : armClearHeldMost;
     // A hand's wrist and grip pushed out of the body (its weapon with it).
     float pushedBy[2]{0.f, 0.f}; // (the Pose Studio's: Placed::pushed)
     const auto pushOut = [&](int s, rigpose::Rigid& H) {
