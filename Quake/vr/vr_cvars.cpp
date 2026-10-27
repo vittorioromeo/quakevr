@@ -894,6 +894,9 @@ constexpr const char* retiredCvars[] = {
     // 2026-10-23: the struggling classes' list, replaced by the monster groups' Struggle settings (vr_mgrp_<group>_struggle*;
     // ROUND22.md, "Struggle in the monster groups"); a config older than 190 has its value moved (retiredStruggleClasses).
     "vr_struggle_classes",
+    // 2026-10-27: the enforcer's pistols in one hand, now the Weapon Holds' Auto (vr_agrunt_hold_enforcer_*; its default
+    // 1 was Auto's, it was never in his config; ROUND22.md, "Armed humanoids' weapon holds").
+    "vr_agrunt_enforcer_one_hand",
     "vr_throw_lookahead", // 2026-10-06: unused since the throw's window ends at the release (ROUND21.md, "Throws at any frame rate")
     "vr_throw_slowmo_flick_spin", // 2026-10-08: replaced by vr_throw_slowmo_flick_arm (ROUND21.md, "Wrist flicks in bullet time: the arm tells the tempo"), itself retired below
     "vr_foegrab_throw_topple_hold", // 2026-10-09: vr_foegrab_throw_feet_speed (ROUND21.md, "Holding enemies")

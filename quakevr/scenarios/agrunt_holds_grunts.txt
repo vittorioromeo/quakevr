@@ -1,0 +1,77 @@
+# agrunt_holds_grunts: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one" (generated: ROUND22.md, "Armed humanoids' weapon holds")
+title Weapon Holds: frozen armed grunts, every weapon one each (Combat > Armed Grunts > Weapon Holds)
+map vrtesthall
+god
+notarget
+cvar vr_agrunt_freeze 1
+cvar vr_agrunt_dual_chance 0
+cvar vr_agrunt_flaregun 0
+# Axe
+spawnarmed monster_vr_grunt 2 0 110 -224
+# Shadow Axe (AD)
+spawnarmed monster_vr_grunt 101 0 110 -168
+# Crowbar
+spawnarmed monster_vr_grunt 17 0 110 -112
+# Sword
+spawnarmed monster_vr_grunt 13 0 110 -56
+# Mjolnir
+spawnarmed monster_vr_grunt 3 0 110 0
+# Super Axe
+spawnarmed monster_vr_grunt 18 0 110 56
+# Chainsaw
+spawnarmed monster_vr_grunt 14 0 110 112
+# Hammer (AD)
+spawnarmed monster_vr_grunt 115 0 110 168
+# Mace (AD)
+spawnarmed monster_vr_grunt 116 0 110 224
+# Phantom Sword
+spawnarmed monster_vr_grunt 117 0 180 -224
+# Nail Pistol
+spawnarmed monster_vr_grunt 29 0 180 -168
+# Revolver
+spawnarmed monster_vr_grunt 31 0 180 -112
+# Flare Gun
+spawnarmed monster_vr_grunt 30 0 180 -56
+# Shotgun
+spawnarmed monster_vr_grunt 4 0 180 0
+# Double-Barrelled Shotgun
+spawnarmed monster_vr_grunt 5 0 180 56
+# Widowmaker (AD)
+spawnarmed monster_vr_grunt 102 0 180 112
+# Grunt's Shotgun
+spawnarmed monster_vr_grunt 15 0 180 168
+# Enforcer's Laser Rifle
+spawnarmed monster_vr_grunt 16 0 180 224
+# Nailgun
+spawnarmed monster_vr_grunt 6 0 250 -224
+# Super Nailgun
+spawnarmed monster_vr_grunt 7 0 250 -168
+# Grenade Launcher
+spawnarmed monster_vr_grunt 8 0 250 -112
+# Proximity Gun
+spawnarmed monster_vr_grunt 9 0 250 -56
+# Rocket Launcher
+spawnarmed monster_vr_grunt 10 0 250 0
+# Thunderbolt
+spawnarmed monster_vr_grunt 11 0 250 56
+# Plasma Gun (AD)
+spawnarmed monster_vr_grunt 103 0 250 112
+# Laser Cannon
+spawnarmed monster_vr_grunt 12 0 250 168
+# Rocket Soldier's Launcher
+spawnarmed monster_vr_grunt 20 0 250 224
+# Grenade Soldier's Launcher
+spawnarmed monster_vr_grunt 21 0 320 -224
+# Plasma Soldier's Rifle
+spawnarmed monster_vr_grunt 22 0 320 -168
+# Defender's Shotgun
+spawnarmed monster_vr_grunt 23 0 320 -112
+# Centurion's Plasma Gun
+spawnarmed monster_vr_grunt 25 0 320 -56
+# Pyro's Flamethrower
+spawnarmed monster_vr_grunt 26 0 320 0
+# Fumigator's Poison Sprayer
+spawnarmed monster_vr_grunt 27 0 320 56
+# Crossbow Knight's Crossbow
+spawnarmed monster_vr_grunt 28 0 320 112
+hint Weapon Holds: every weapon an armed grunt holds, one each, frozen; Combat > Armed Grunts > Weapon Holds switches each between one hand and two at once (Debug > Armed Humanoids: Weapon Holds Report prints them).

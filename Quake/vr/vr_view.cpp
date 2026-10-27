@@ -797,6 +797,52 @@ bool view::groundHotspotPoint(int entity, int index, glm::vec3& out)
     return true;
 }
 
+namespace
+{
+// vr_agarms_cup_handle: a Two-Handed Hand Anchor this far ahead of the handle (along the weapon's forward, units) is a
+// handle of its own (the Widowmaker's front handle: 11.7); the pistols' anchors sit at their grips (-2.4..0).
+constexpr float cupHandleAhead = 8.f;
+} // namespace
+
+bool view::secondGrip(qmodel_t* model, glm::vec3& second, int& type)
+{
+    second = glm::vec3{0.f};
+    type = 0;
+    const int slot = model && model->type == mod_alias ? weapons::slotForModel(model) : -1;
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return false;
+    }
+    entity_t e{};
+    e.model = model;
+    e.scale = ENTSCALE_DEFAULT;
+    for(int i = 0; i < weapons::maxHotspots && type == 0; i++)
+    {
+        const weapons::Hotspot h = weapons::hotspot(slot, i);
+        glm::vec3 a, b;
+        if(h.type == weapons::HotspotType::Grip && groundHotspotZone(e, slot, h, a, b))
+        {
+            second = (a + b) * 0.5f;
+            type = 1;
+        }
+        else if(h.type == weapons::HotspotType::Cup)
+        {
+            type = 2;
+            const char* anchor = weapons::anchor(slot, Key::TwoHHandAnchor);
+            if(vr_agarms_cup_handle.value != 0.f && anchor && anchor[0])
+            {
+                const glm::vec3 at = anchorPosition(e, false, 1.f, anchor, glm::vec3{0.f});
+                if(at.x >= cupHandleAhead)
+                {
+                    second = at; // (a front handle: the off hand there, not cupping the hand on the rear one)
+                    type = 1;
+                }
+            }
+        }
+    }
+    return type != 0;
+}
+
 bool view::weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& butt, glm::vec3& second, int& secondType)
 {
     const int slot = model && model->type == mod_alias ? weapons::slotForModel(model) : -1;
@@ -840,23 +886,7 @@ bool view::weaponLocalGeometry(qmodel_t* model, glm::vec3& muzzle, glm::vec3& bu
         }
         butt = n > 0 ? sum / static_cast<float>(n) : glm::vec3{0.f};
     }
-    // Its second grip: its first Grip hotspot's (2: a Cup's under the handle; 0 none).
-    second = glm::vec3{0.f};
-    secondType = 0;
-    for(int i = 0; i < weapons::maxHotspots && secondType == 0; i++)
-    {
-        const weapons::Hotspot h = weapons::hotspot(slot, i);
-        glm::vec3 a, b;
-        if(h.type == weapons::HotspotType::Grip && groundHotspotZone(e, slot, h, a, b))
-        {
-            second = (a + b) * 0.5f;
-            secondType = 1;
-        }
-        else if(h.type == weapons::HotspotType::Cup)
-        {
-            secondType = 2;
-        }
-    }
+    (void)secondGrip(model, second, secondType); // (1 a point; 2 a Cup's under the handle; 0 none)
     return true;
 }
 

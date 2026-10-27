@@ -3147,7 +3147,15 @@ QVR_CVAR(vr_agarms_limits, "1", CVAR_ARCHIVE)          // vr_agarms: 1 the shoul
 QVR_CVAR(vr_agarms_shoulder_cone, "105", CVAR_ARCHIVE) // vr_agarms_limits: the upper arm within this many degrees of the middle of its range (forward, out and a little down from the shoulder)
 QVR_CVAR(vr_agarms_shoulder_twist, "80", CVAR_ARCHIVE) // vr_agarms_limits: ... and twisted about itself at most this many degrees either way from its rest pose's
 QVR_CVAR(vr_agarms_arm_clear, "1", CVAR_ARCHIVE)       // vr_agarms: 1 the upper arm's thickness (its skin's) kept out of the torso as the elbow is chosen; 0 only its bone's line, the elbow and the forearm (before)
-QVR_CVAR(vr_agrunt_enforcer_one_hand, "1", CVAR_ARCHIVE) // armed enforcers hold a pistol (a gun whose off hand cups the other: the nail pistol) in one hand, the other free; 0 cupped in both like the grunt (before)
+// Armed humanoids' weapon holds (vr_agholds.inc; Combat > Armed Grunts > Weapon Holds): vr_agrunt_hold_<kind>_<weapon>
+// 0 Auto, 1 One-Handed, 2 Two-Handed (vr_agrunt_enforcer_one_hand, retired, is Auto's enforcer pistols in one hand).
+#define QVR_AGHOLD(key, code, label, grunt, enforcer) \
+    QVR_CVAR(vr_agrunt_hold_grunt_##key, "0", CVAR_ARCHIVE) \
+    QVR_CVAR(vr_agrunt_hold_enforcer_##key, "0", CVAR_ARCHIVE)
+#include "vr_agholds.inc"
+#undef QVR_AGHOLD
+QVR_CVAR(vr_agarms_cup_handle, "1", CVAR_ARCHIVE)     // vr_agarms: 1 a weapon whose two-handed hotspot is a Cup but whose Two-Handed Hand Anchor is a handle well ahead (the Widowmaker's front handle) has the off hand there; 0 under and round the hand on its rear handle (before)
+QVR_CVAR(vr_agrunt_second_reach, "1", CVAR_ARCHIVE)  // vr_agarms: 1 a long gun carried or aimed is brought in towards the off shoulder until its second grip is within the off arm's reach (as a chainsaw's front handle is: the laser cannon's); 0 where its rest pose's rifle is (before: the off hand slid back to the main handle or let go)
 QVR_CVAR(vr_agrunt_atk_stand, "1", CVAR_ARCHIVE)     // armed humanoids whose own aiming frames crouch and lean back (the enforcer's: a rifle at the hip) stand as they aim and fire, their posed arms holding the weapon (with vr_agarms); 0 their aiming frames (before: the enforcer's belly pushed forward, its legs bent)
 QVR_CVAR(vr_agarms_twist_share, "0", CVAR_NONE)       // vr_agarms (tuning): > 0 the share of a hand's twist about its forearm the forearm takes, every armed model (0: each model's own, 0.5 both)
 QVR_CVAR(vr_posestudio_live_warm,"0.4", CVAR_NONE)   // ... seconds of the tape solved again before a paused frame with an edit laid on (the eases see it as play would)
