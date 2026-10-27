@@ -25178,6 +25178,15 @@ hidden target costs a full look each 0.1 s (10 body points + 2 sides, 13 + 2 wit
 second), one in the open 1 trace a look (~10 a second). 16 armed humanoids all with you hidden: ~2400 traces a second,
 about 0.1-0.2 ms a 72 Hz frame at a few microseconds a trace (not timed: no exclusive run was taken).
 
-**Regressions.** Armed grunt tests 1, 47, 48, 49 and eval.sh: see the report.
+A muzzle inside your box (up close) counts as reaching you; inside a wall it doesn't (its eyes are used then).
 
-- [ ] Armed humanoids aim at what shows of you behind cover {test:agrunt_aim_cover}: behind the low wall their yellow sparks sit on your head and their shots hit you, not the wall; crouched fully behind it the sparks turn red and they hold fire; stepping out puts them back on your chest; leaning out of the crate's side they aim at that side.
+**Regressions** (`sv_random_seed 12345`). Test 1: 17/0. Test 47: 110/0 (it prints "ERROR: ammo count less than zero!"
+once: not from this change's code paths, not checked against the base). Test 49: 5/0. Test 48 runs past 400 s here (low-
+impact mode) and has two FAILs (shotgun and double-barrelled shotgun "walking at it, axe": its time within 64); the
+double-barrelled shotgun alone (`scratch1 2`) gives the same numbers with the setting 0 and 1 under seeds 12345 and 777
+(dist min 47 / 46, inside 64 1.49 / 1.76 s, FAIL both): not from this change. eval.sh: no verdict changes (the author's
+takes archived). The QC compiles with `-DQVR_NO_TESTS`. Checklist scenario `agrunt_aim_cover` (vrtesthall: a shotgun, a
+rifle and a rocket launcher grunt 300-340 ahead, a row of three wooden crates 40 before you, aim points shown) validates
+and places 6 of 6 (a `cmd vr_brush_box` line in a scenario made no brush: the crates instead).
+
+- [ ] Armed humanoids aim at what shows of you behind cover {test:agrunt_aim_cover}: behind the crates their yellow sparks sit on your head or shoulders and their shots hit you, not the crates; crouched fully behind them the sparks turn red and they hold fire; stepping out puts them back on your chest; leaning out past the row's end they aim at the side that shows.
