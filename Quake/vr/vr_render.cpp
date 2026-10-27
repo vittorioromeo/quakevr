@@ -19,6 +19,7 @@
 #include "vr_handrig.hpp"
 #include "vr_props.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_rig2.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_flamewobble.hpp"
 #include "vr_brainjiggle.hpp"
@@ -957,6 +958,15 @@ void VR_AliasGlovePaint(const entity_t* e, gltexture_t* out[3])
 
 namespace qvr::render
 {
+
+const qmodel_t* sourceModel(const entity_t* e)
+{
+    if(const qmodel_t* m = ragdoll::sourceModel(e))
+    {
+        return m;
+    }
+    return rig2::sourceModel(e);
+}
 
 void glovesReload_f()
 {

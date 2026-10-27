@@ -1407,6 +1407,23 @@ glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex)
     return p;
 }
 
+void restVertex(const void* aliashdr, int meshVertex, float xyz[3], signed char normal[3])
+{
+    // (as GLMesh_LoadVertexBuffer uploads pose 0 and the alias shader moves it by PoseFrac)
+    const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
+    const int v = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc)[meshVertex].vertindex;
+    const trivertx_t& t = posesOf(hdr)[v];
+    const bool on = hdr->dequant && hdr->dequantready && VR_MdlDequantOn();
+    const auto* frac = on ? reinterpret_cast<const unsigned*>(reinterpret_cast<const byte*>(hdr) + hdr->dequant) : nullptr;
+    const unsigned smooth = frac ? frac[static_cast<size_t>(hdr->numposes) * static_cast<size_t>(hdr->numverts) + static_cast<size_t>(v)] : 0u;
+    for(int i = 0; i < 3; i++)
+    {
+        xyz[i] = (static_cast<float>(t.v[i]) + (frac ? decode(frac[v], i) : 0.f)) * hdr->scale[i] + hdr->scale_origin[i];
+        normal[i] = frac ? static_cast<signed char>((smooth >> (8 * i)) & 255u)
+                         : static_cast<signed char>(127.f * r_avertexnormals[t.lightnormalindex][i]);
+    }
+}
+
 void poseSuccessors(const void* aliashdr, const char* model, short* next, unsigned char* progs)
 {
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);

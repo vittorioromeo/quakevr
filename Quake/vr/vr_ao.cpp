@@ -4,7 +4,8 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_ao.hpp"
 #include "vr_portals.hpp"
-#include "vr_rig2.hpp"
+#include "vr_ragdoll.hpp"
+#include "vr_render.hpp"
 #include "vr_view.hpp"
 #include "vr_engine.hpp"
 #include "vr_avatar.hpp"
@@ -505,8 +506,9 @@ void addBody(const entity_t* e, const aliashdr_t* hdr, float strength, float rea
 
 void addAlias(const entity_t* e, float strength, float reach)
 {
-    // (the Rig Studio's subject on the authored rig: its .mdl's, as on the old rig: vr_rig2.cpp)
-    const qmodel_t* source = qvr::rig2::sourceModel(e);
+    // A skeletal copy drawn in its .mdl's place (a ragdoll's "#rag", the Rig Studio's subject on the authored rig: not
+    // your body, though bone-posed): a monster's occluder, its own group, as its .mdl had alive.
+    const qmodel_t* source = render::sourceModel(e);
     const qmodel_t* model = source ? source : e->model;
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
     if(!source && VR_AliasBonePoses(e, nullptr))
@@ -528,6 +530,22 @@ void addAlias(const entity_t* e, float strength, float reach)
     }
     if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || hdr->numframes <= 0)
     {
+        return;
+    }
+    glm::vec3 centre, axes[3], half;
+    if(ragdoll::drawnBox(e, centre, axes, half))
+    {
+        // A ragdoll: round its body as drawn (its entity's frame box is the corpse's last frame, not where it lies), as
+        // a monster's inside its box (shapeFromBox's fill).
+        Occluder o;
+        o.centre = centre;
+        constexpr float fill[3] = {0.8f, 0.8f, 1.f};
+        for(int i = 0; i < 3; i++)
+        {
+            o.axes[i] = axes[i];
+            o.size[i] = za::max(half[i] * fill[i], 0.25f);
+        }
+        addEllipsoid(o, strength, reach, -1.f);
         return;
     }
     const int frame = e->frame >= 0 && e->frame < hdr->numframes ? e->frame : 0;
@@ -1928,7 +1946,7 @@ extern "C" void VR_AliasAO(const entity_t* e, float out[4])
     {
         return;
     }
-    if(VR_IsViewEntity(e) || (VR_AliasBonePoses(e, nullptr) && !qvr::rig2::sourceModel(e)) || e == &cl.viewent)
+    if(VR_IsViewEntity(e) || (VR_AliasBonePoses(e, nullptr) && !qvr::render::sourceModel(e)) || e == &cl.viewent)
     {
         out[0] = PLAYER_GROUP;
         return;

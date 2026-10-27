@@ -23,6 +23,11 @@ void drawnPlace(const entity_t& e, glm::vec3& origin, glm::vec3& angles);
 // entityMatrix (not mirrored, no extra) at the place drawnPlace gives.
 void drawnEntityMatrix(const entity_t& e, int scale, float out[16]);
 
+// The .mdl an entity is drawn in place of now as a skeletal copy of it (a ragdoll's "<model>#rag", the Rig Studio's
+// subject on the authored rig "<model>#rig2"), else nullptr: what it is shaded as, the live monster's look (its
+// occlusion group and occluder: vr_ao.cpp). The copies' names: modelmeta::sourceName.
+[[nodiscard]] const qmodel_t* sourceModel(const entity_t* e);
+
 // The gloves' painted leather (vr_glove_paint, vr_render.cpp): read again from its files (vr_gloves_reload); and what a
 // hand has of it (0 none, 1 its detail and wear, 2 its relief too: added to its instance's Glove.w times 4).
 void glovesReload_f();
