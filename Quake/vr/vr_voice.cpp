@@ -52,12 +52,12 @@ namespace
 // death, drowning, the hard landing's "oof"), client.qc / ad_client.qc (the jump's grunt, gasps out of the water,
 // lava and slime pain), vr_burning.qc (burning), vr_melee.qc (the gasps warning of a blow); the engine: vr_climb.cpp's
 // mantle and judo-throw grunts (from these, and vr_audio.cpp's two derived from them). Not his body's other sounds
-// (player/land.wav's thud, the axe's axhit1/2, gibs, splashes, telefrags, the heartbeat), nor anyone else's.
+// (the axe's axhit1/2, gibs, splashes, telefrags, the heartbeat), nor anyone else's.
 constexpr const char* voiceSounds[] = {
     "player/pain1.wav", "player/pain2.wav", "player/pain3.wav", "player/pain4.wav", "player/pain5.wav",
     "player/pain6.wav", "player/death1.wav", "player/death2.wav", "player/death3.wav", "player/death4.wav",
-    "player/death5.wav", "player/plyrjmp8.wav", "player/land2.wav", "player/gasp1.wav", "player/gasp2.wav",
-    "player/drown1.wav", "player/drown2.wav", "player/lburn1.wav", "player/lburn2.wav", "player/slimbrn2.wav",
+    "player/death5.wav", "player/plyrjmp8.wav", "player/land.wav", "player/land2.wav", "player/gasp1.wav",
+    "player/gasp2.wav", "player/drown1.wav", "player/drown2.wav", "player/lburn1.wav", "player/lburn2.wav", "player/slimbrn2.wav",
     "player/h2odeath.wav", "vr/derived/plyrjmp8_low.wav", "vr/derived/land2_low.wav",
 };
 
@@ -1004,6 +1004,19 @@ bool isVoice(const char* name)
             return true;
         }
     }
+    // a sound derived from one of them (VR_SndDerived: the pitched copies) is the same voice
+    float rate = 1.f;
+    const char* source = VR_SndDerived(name, &rate);
+    if(source != nullptr)
+    {
+        for(const char* v : voiceSounds)
+        {
+            if(q_strcasecmp(source, v) == 0)
+            {
+                return true;
+            }
+        }
+    }
     return false;
 }
 
@@ -1055,6 +1068,10 @@ extern "C" short* VR_SndVoice(const char* name, const byte* pcm, int width, int 
     }
     *outSamples = static_cast<int>(out.size());
     *outLoop = loopstart < 0 ? -1 : static_cast<int>(static_cast<double>(loopstart) * outRate / rate);
+    if(qvr::vr_debug_sound_log.value)
+    {
+        Con_Printf("voicelog: transformed %s\n", name);
+    }
     loadStats.count++;
     loadStats.seconds += Sys_DoubleTime() - t0;
     loadStats.audioSeconds += static_cast<double>(samples) / rate;

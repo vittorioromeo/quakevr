@@ -845,6 +845,7 @@ constexpr int apAnchor = 64;         // vr_agarms: wr and wl weigh its chest's a
 constexpr int apBody = 32;           // its body's turns in a strike follow (torso, elbows: bodyTurn)
 constexpr int apFixed = 1;           // ... its hands' targets not turned with them (a take's bend: QC VR_AGP_FIXED)
 constexpr int apReach = 128;         // vr_agarms: the right hand reaching for a weapon lying (none sent): its grip to fw, up (QC VR_AGP_REACH)
+constexpr int apTwo = 16;            // the Weapon Holds' two-handed hold: a weapon with no second grip cupped (QC VR_AGP_TWO); apLeftFree its one-handed (VR_AGP_FREE)
 constexpr float handEase = 0.04f;    // seconds: the animation's hand followed so (its jumps smoothed)
 
 struct ArmPoseMsg
@@ -888,6 +889,15 @@ struct ArmPose
     float wr{0.f}, wl{0.f};                      // ... its weight in the right and left targets (the upper body moves them with it)
     float take{0.f};                             // a take's weight, its reaching hand (vr_aglegs)
     int takeSide{0};
+    // vr_agholds_report: as its arms were last solved (vr_agarms): its kind, its weapon's slot, its off hand's goal (0
+    // free, 1 the second grip, 2 cupping the right hand, 3 its own point, 4 its own weapon), the grip held, its point (the
+    // weapon's frame, units).
+    int seenFrame{-1};
+    int seenKind{-1};
+    int seenSlot{-1};
+    int seenLeft{0};
+    bool seenHeld2{false};
+    glm::vec3 seenSecond{0.f};
 };
 
 struct ArmPoses
@@ -2150,6 +2160,13 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     return agarms::enabled() ? composeRigid(offsetRigid(aggrip::global(kind, hand)), w) : w;
 }
 
+// vr_agarms_arm_clear: a pistol carried low (its barrel down past 27 degrees) in one hand: no cup (the other cupping it
+// there reached across the body, its upper arm through the torso).
+[[nodiscard]] bool lowCarry(const agarms::Targets& t)
+{
+    return vr_agarms_arm_clear.value != 0.f && (t.weapon[0].rot * glm::vec3{1.f, 0.f, 0.f}).z < -0.45f;
+}
+
 void noteDrawnTurn(int num, const entity_t& p, const glm::vec3& at, const glm::vec3& fw);
 
 // A weapon drawn at `w` (model space of `e`; `kick`: its forearm's hit reaction on it, if any).
@@ -2574,6 +2591,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         t.weapon[0].pos = s.right;
     }
     int slotL = -1;
+    glm::vec3 secondPoint{0.f}; // (the second grip's point, the weapon's frame: vr_agholds_report)
     if((s.flags & apLeftWeapon) && heldProp(s.propL))
     {
         slotL = weapons::slotForModel(cl_entities[s.propL].model);
@@ -2589,32 +2607,24 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     }
     else if(!(s.flags & apLeftFree) && hasR)
     {
-        // A two-handed weapon's second grip (its first Grip hotspot, in the weapon's frame), or a Cup under the right hand.
-        const entity_t& p = cl_entities[s.prop];
-        vec3_t sa{-p.angles[0], p.angles[1], p.angles[2]}, f, r, u;
-        AngleVectors(sa, f, r, u);
-        for(int i = 0; slot >= 0 && i < weapons::maxHotspots && !t.second && !t.cup; i++)
+        // A two-handed weapon's second grip (view::secondGrip: its first Grip hotspot, or a front handle, the Widowmaker's;
+        // in the weapon's frame), or a Cup under the right hand. QC's one-handed hold (the Weapon Holds) sends apLeftFree;
+        // its two-handed one apTwo: a weapon with neither cupped.
+        int type = 0;
+        if(view::secondGrip(cl_entities[s.prop].model, secondPoint, type) && type == 1)
         {
-            const weapons::Hotspot h = weapons::hotspot(slot, i);
-            glm::vec3 w;
-            if(h.type == weapons::HotspotType::Grip && view::groundHotspotPoint(s.prop, i, w))
-            {
-                const glm::vec3 d = w - glm::vec3{p.origin[0], p.origin[1], p.origin[2]};
-                const float sc = za::max(ENTSCALE_DECODE(e->scale), 0.01f);
-                t.secondAt = composeRigid(rigpose::Rigid{glm::quat{1.f, 0.f, 0.f, 0.f},
-                                          glm::vec3{glm::dot(d, glm::vec3{f[0], f[1], f[2]}), -glm::dot(d, glm::vec3{r[0], r[1], r[2]}),
-                                              glm::dot(d, glm::vec3{u[0], u[1], u[2]})} /
-                                              sc},
-                    gripRigid(kind, slot, aggrip::Second));
-                t.second = true;
-            }
-            else if(h.type == weapons::HotspotType::Cup && !(kind == 1 && vr_agrunt_enforcer_one_hand.value != 0.f) &&
-                    !(vr_agarms_arm_clear.value != 0.f && (t.weapon[0].rot * glm::vec3{1.f, 0.f, 0.f}).z < -0.45f))
-            {
-                // (vr_agarms_arm_clear: a pistol carried low, pointing down, in one hand: the other cupping it there
-                // reached across the body, its upper arm through the torso)
-                t.cup = true; // (vr_agrunt_enforcer_one_hand: the enforcer's pistols in one hand, the other free)
-            }
+            t.secondAt = composeRigid(rigpose::Rigid{glm::quat{1.f, 0.f, 0.f, 0.f}, secondPoint}, gripRigid(kind, slot, aggrip::Second));
+            t.second = true;
+        }
+        else if(type == 2 && !lowCarry(t))
+        {
+            // (vr_agarms_arm_clear: a pistol carried low, pointing down, in one hand: the other cupping it there reached
+            // across the body, its upper arm through the torso)
+            t.cup = true;
+        }
+        if(!t.second && !t.cup && (s.flags & apTwo) && !lowCarry(t))
+        {
+            t.cup = true; // (two-handed and no second grip: the off hand under and round the right on its handle)
         }
     }
     if(uppered)
@@ -2664,6 +2674,15 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     if(!agarms::solve(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, placed))
     {
         return;
+    }
+    if(ArmPose* seen = armPoseOf(s.ent, false))
+    {
+        seen->seenFrame = host_framecount;
+        seen->seenKind = kind;
+        seen->seenSlot = slot;
+        seen->seenLeft = t.second ? 1 : t.cup ? 2 : t.goal[1] == agarms::Goal::Frame ? 4 : t.goal[1] == agarms::Goal::Point ? 3 : 0;
+        seen->seenHeld2 = placed.held2;
+        seen->seenSecond = secondPoint;
     }
     if(posestudio::active() || rigstudio::wantsNotes())
     {
@@ -3820,6 +3839,53 @@ void gripFit_f()
     Con_Printf("vr_agrunt_grip_fit: pitch %.1f yaw %.1f roll %.1f\n", a.x, a.y, a.z);
 }
 
+// vr_agholds_report (Debug > Armed Humanoids: Weapon Holds Report; ROUND22.md, "Armed humanoids' weapon holds"): each
+// armed humanoid whose arms were solved in the last half second: `aghold <ent> <gru|enf> <weapon model> s<slot>: <hands:
+// 1, 2; 0 dual> off <grip (held) | grip-unreached | cup | point | weapon | free> [ask1 | ask2: the Weapon Holds asked]
+// at <its second grip's point, the weapon's frame>`, then `agholds: <n> armed humanoids, <one> one-handed, <two>
+// two-handed, <dual> dual`.
+void holdsReport_f()
+{
+    int n = 0, counts[3] = {0, 0, 0};
+    for(const ArmPose& s : armPoses.slots)
+    {
+        if(s.ent <= 0 || s.ent >= cl.num_entities || s.seenFrame < 0 || host_framecount - s.seenFrame > 36)
+        {
+            continue;
+        }
+        const entity_t* p = s.prop > 0 && s.prop < cl.num_entities ? &cl_entities[s.prop] : nullptr;
+        const bool two = (s.seenLeft == 1 && s.seenHeld2) || s.seenLeft == 2;
+        const int c = s.seenLeft == 4 ? 2 : two ? 1 : 0;
+        counts[c]++;
+        n++;
+        // (short: the console wraps its lines)
+        const char* left = s.seenLeft == 1 ? (s.seenHeld2 ? "grip" : "grip-unreached") : s.seenLeft == 2 ? "cup"
+                           : s.seenLeft == 3                       ? "point"
+                           : s.seenLeft == 4                       ? "weapon"
+                                                                   : "free";
+        const char* name = p && p->model ? p->model->name : "fists";
+        const char* base = strrchr(name, '/');
+        Con_Printf("aghold %d %s %s s%d: %d off %s%s at %.1f %.1f %.1f\n", s.ent, s.seenKind == 1 ? "enf" : "gru",
+            base ? base + 1 : name, s.seenSlot, c == 2 ? 0 : two ? 2 : 1, left,
+            (s.flags & apLeftFree) ? " ask1" : (s.flags & apTwo) ? " ask2" : "", s.seenSecond.x, s.seenSecond.y,
+            s.seenSecond.z);
+        glm::vec3 muzzle, butt, second;
+        int type = 0;
+        if(vr_agrunt_ik_debug.value >= 1.f && p && view::weaponLocalGeometry(p->model, muzzle, butt, second, type))
+        {
+            entity_t at{};
+            at.model = p->model;
+            at.scale = ENTSCALE_DEFAULT;
+            const glm::vec3 two = view::anchorPosition(at, false, 1.f, weapons::anchor(s.seenSlot, weapons::Key::TwoHHandAnchor),
+                glm::vec3{0.f});
+            Con_Printf("aghold %d: muzzle %.1f %.1f %.1f butt %.1f %.1f %.1f second %.1f %.1f %.1f (%d) 2h %.1f %.1f %.1f\n",
+                s.ent, muzzle.x, muzzle.y, muzzle.z, butt.x, butt.y, butt.z, second.x, second.y, second.z, type, two.x, two.y,
+                two.z);
+        }
+    }
+    Con_Printf("agholds: %d armed humanoids, %d one-handed, %d two-handed, %d dual\n", n, counts[0], counts[1], counts[2]);
+}
+
 void armErr_f()
 {
     if(agarms::enabled())
@@ -3911,6 +3977,7 @@ void registerCommands()
     Cmd_AddCommand("vr_hit_react_info", info_f);
     Cmd_AddCommand("vr_agrunt_ik_info", armInfo_f);
     Cmd_AddCommand("vr_agrunt_ik_err", armErr_f);
+    Cmd_AddCommand("vr_agholds_report", holdsReport_f);
     Cmd_AddCommand("vr_agrunt_grip_fit", gripFit_f);
     aggrip::registerCommands();
     agarms::registerCommands();

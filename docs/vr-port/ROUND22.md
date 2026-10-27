@@ -23643,3 +23643,85 @@ eval.sh: canary 36/44, 0 differ. Seen, not fixed: ad_azad prints `R_AliasSetupFr
 - [ ] AD: turn, snap/smooth turn and walk on ad_azad's snowfield (or load your s3 save): no dark frames, sky and lamps steady {test:ad_fog_flicker}
 - [ ] AD hub, lower level: walk into each original slipgate (E1-E4, end): the episode's first map (or end) loads, AD's rules kept
 - [ ] Soften Flickering Lights now defaults to 0 (set yours back to 0 if you want AD's lamps as authored)
+## Armed humanoids' weapon holds (worktree `goreflesh`, branch `agent/agholds`, 2026-10-27)
+
+Notes 2026-10-26 22:25-22:36 (vrfiringrange, start): the enforcer should one-hand some weapons (the nail pistol); the
+axe in one hand (it strikes with one anyway); the Widowmaker held with both hands on its main handle, not its front
+one; the laser cannon both hands on the main handle, sometimes one-handed, not its secondary handle; the sword's
+position "needs a little work".
+
+**Weapon Holds** (Combat > Armed Grunts > Weapon Holds; `Quake/vr/vr_agholds.inc`, `vr_aggrip.cpp` `agholds`): a row
+per weapon an armed humanoid can hold (34: the melee weapons, the pistols, the long guns, AD's), a section per kind
+(Grunts, Enforcers), each Auto / One-Handed / Two-Handed, Reset to Defaults. One cvar per kind and weapon,
+`vr_agrunt_hold_<grunt|enforcer>_<key>` (0 Auto, 1, 2; archived; live): a row is found by its key, so rows can be added
+anywhere; a dropped row's names go in retiredCvars. Auto's label says what it is ("Auto (One-Handed)"). QC asks the
+engine (`weapondrawnpose(world, kind * 1000 + code, 24)`: `VR_AGH_Hands`; codes `VR_AGH_Code`: the weapon id, AD's
+upgrades 101..103, AD's heavy blades 115..117). Dual wielding never asks. `vr_agrunt_enforcer_one_hand` (a day old,
+never in his config) retired: it is Auto's enforcer pistols.
+- One-handed: a gun is posed as one beside a second gun is (`VR_AGP_ArmsOne`: aimed and kicked by its hand), the off
+  hand free (QC `VR_AGP_FREE`, the engine's `apLeftFree`; a reload's hand still goes to its belt); a melee weapon as
+  the one-handed ones (`VR_AGP_TwoHanded`, its carry by its side, the free hand hanging or raised). Strikes as before:
+  their times, reach and sounds go by the weapon's weight (`VR_AGP_Heavy`, the old rule), not its hold.
+- Two-handed: the off hand on the weapon's second grip, else (the setting itself 2, `VR_AGP_TWO`, wire bit 16; QC's own
+  mirror flag moved to 256) under and round the hand on its handle. Auto keeps every weapon's old hold.
+
+Auto (the defaults table; "as before" but the two asked):
+
+| weapon | grunt | enforcer |
+| --- | --- | --- |
+| axe, Shadow Axe | one (was two) | one (was two) |
+| crowbar, sword (all one-handed swords) | one | one |
+| Mjolnir, Super Axe, chainsaw, AD hammer, mace, Phantom sword | two | two |
+| nail pistol | two (a cup; carried low: one, vr_agarms_arm_clear) | one |
+| revolver, flare gun | one | one |
+| every long gun | two | two |
+
+**The off hand on the second handle** (`view::secondGrip`, used by the arms and by QC's `weapondrawnpose 10`): a weapon
+whose two-handed hotspot is a Cup but whose Two-Handed Hand Anchor is a handle well ahead (8 units or more) is held
+there: only the Widowmaker (its Cup hotspot sits at the rear handle, entity frame -0.4 0.6 -0.2; its anchor is the front
+handle, 11.7 -0.4 -2.6; `vr_agarms_cup_handle`, Debug toggle). The laser cannon's data was right (its Grip hotspot, 13.2
+-2.3 -0.1, where you hold it): its grip was out of the grunt's reach, the hand slid back to the main handle and let go.
+`vr_agrunt_second_reach` (QC `VR_AGP_SecondReach`): a long gun carried is brought in towards the off shoulder until its
+second grip is within the right arm's reach (`most`) of it, the grip within reach of the right shoulder (3 rounds, as the
+chainsaw's `VR_AGP_SawReach`); aimed it is not moved (moved left, the right arm stopped aiming it: Rig Studio aim 3/4;
+drawn back along its line, the Pose Studio's keys no longer placed it: posekeys 6/8). The Pose Studio's per-weapon
+Second grip is laid on the point as before. Changed weapons: the Widowmaker (front handle), and in the carry the laser
+cannon (grunt), the Widowmaker and the crossbow (now held); every other weapon's second grip as before.
+
+**Measured** (`vr_agholds_report`, scenes `agrunt_holds_grunts` / `_enforcers`: every row frozen, carried): grunts 10
+one-handed, 24 two-handed (before: 13 / 21, the Widowmaker, laser cannon and crossbow letting go); enforcers 10 / 24.
+Live: the grunt's shotgun set One-Handed went free at once, back at Reset. Left: two-handed melee at port arms whose
+second grip is down the haft (the Super Axe, AD's hammer and mace; the axe and sword set Two-Handed) let go in the idle
+(their wrist past its bend: as before); aimed in the Rig Studio, the grunt's laser cannon, Widowmaker and shotgun show
+the off hand free (`vr_agholds_report` in the studio; not checked in a fight).
+
+**The sword** (Rig Studio eyeshots, ready): the knight's sword is held upright before its chest as the axe is, its blade
+three times the axe's handle, rising straight up in front of its face. A QC ready direction tipped forward (tried, not
+kept) moved the hand but not the drawn blade: what holds the blade is the grip. His tools: Rig Studio > Pose Studio Data,
+grips, the subject's weapon (v_ksword) own Main grip (pitch it forward: the blade tips forward in every pose, this
+weapon only); or Pose Keys (O) on the "a one-handed melee weapon" Aim and Carry keys (right weapon's place and turn:
+every one-handed melee weapon of that kind).
+
+**Tests:** test 1 16/17 (the Proximity Gun, as before), 42 20/20, 60 6/6, 35 6/6; Rig Studio subjects 14/14, aim 4/4,
+posekeys 10/10; eval.sh canary 36/44, 0 differ. Scripts: `scratch/agh_shots.sh <label> "<class:code>..."` (Rig Studio
+eyeshots), `agh_genscenes.py` (the scenes from the table), `agh_tests.sh`, `agh_check.sh`.
+
+**In VR:**
+- [ ] Combat > Armed Grunts > Weapon Holds: an enforcer with a nail pistol, revolver, flare gun holds it in one hand, the
+  other free; a grunt's axe in one hand; switch one row (a grunt's shotgun One-Handed): it changes at once; Reset to
+  Defaults. Scenes: Weapon Holds (agrunt_holds_grunts, agrunt_holds_enforcers).
+- [ ] An armed grunt or enforcer with the Widowmaker holds its front handle with the off hand; with the laser cannon,
+  its secondary handle as you do (carried; say how it looks aiming).
+- [ ] The sword: tune its grip (Rig Studio > Pose Studio Data, This Weapon) or the one-handed melee keys if it still
+  looks off.
+## Feminine voice: the landing grunt (worktree `fastship`, branch `agent/voiceland`)
+
+Bug: with Voice: Feminine the grunt on landing after a fall was not pitch-shifted. Cause: `player/land.wav` (the
+grunt of every fall past 300 units/s; `land2.wav`, the "oof", is only past 650 with damage) was left out of
+`voiceSounds` as a "thud". Fixed: `land.wav` added (also the armour/item-refused cue, items.qc, plays it). `isVoice`
+now also matches by origin: any `VR_SndDerived` sound made from a voice sound is voice, so new derived copies are
+covered. `vr_debug_sound_log` also prints `voicelog: transformed <name>` per transformed load. Audited: every
+`player/*.wav` the QC/engine plays (udeath, teledth1, gib, tornoff2 stay non-voice: body/gore). Test (`-Sound`,
+vrfiringrange, drops of 50/120/330 units): none / `land.wav` / `pain3`+`land2.wav`, all transformed; `vr_voice 0`
+reloads the originals (count unchanged at 24).
+- [ ] Voice: Feminine, drop from a ledge about 2 m high: the landing grunt is high-pitched like the jump's

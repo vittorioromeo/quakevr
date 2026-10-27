@@ -576,6 +576,129 @@ void registerCommands()
 {
     Cmd_AddCommand("vr_agrunt_grip_dump", dump_f);
     Cmd_AddCommand("vr_agrunt_grip_reset", reset_f);
+    agholds::registerCommands();
 }
 
 } // namespace qvr::aggrip
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Armed humanoids' weapon holds (vr_agholds.inc).
+
+namespace
+{
+struct HoldRow
+{
+    const char* key;
+    int code;
+    const char* label;
+    int autoHands[agholds::numKinds];
+    cvar_t* setting[agholds::numKinds];
+};
+
+#define QVR_AGHOLD(key, code, label, grunt, enforcer) \
+    {#key, code, label, {grunt, enforcer}, {&vr_agrunt_hold_grunt_##key, &vr_agrunt_hold_enforcer_##key}},
+const HoldRow holdRows[] = {
+#include "vr_agholds.inc"
+};
+#undef QVR_AGHOLD
+constexpr int numHoldRows = static_cast<int>(sizeof(holdRows) / sizeof(holdRows[0]));
+
+[[nodiscard]] const char* handsName(int h)
+{
+    return h == 1 ? "one-handed" : h == 2 ? "two-handed" : "auto";
+}
+
+void holdsInfo_f()
+{
+    for(int r = 0; r < numHoldRows; r++)
+    {
+        const HoldRow& w = holdRows[r];
+        Con_Printf("aghold %-14s code %3d", w.key, w.code);
+        for(int k = 0; k < agholds::numKinds; k++)
+        {
+            int set = 0;
+            const int h = agholds::hands(k, w.code, &set);
+            Con_Printf("  %s %s (%s)", k == 0 ? "grunt" : "enforcer", handsName(h), set ? "set" : "auto");
+        }
+        Con_Printf("\n");
+    }
+    Con_Printf("agholds: %d weapons, %d kinds\n", numHoldRows, agholds::numKinds);
+}
+} // namespace
+
+namespace qvr::agholds
+{
+
+int count()
+{
+    return numHoldRows;
+}
+
+const char* label(int row)
+{
+    return row >= 0 && row < numHoldRows ? holdRows[row].label : "";
+}
+
+const char* key(int row)
+{
+    return row >= 0 && row < numHoldRows ? holdRows[row].key : "";
+}
+
+int code(int row)
+{
+    return row >= 0 && row < numHoldRows ? holdRows[row].code : -1;
+}
+
+cvar_t& setting(int kind, int row)
+{
+    return *holdRows[za::clamp(row, 0, numHoldRows - 1)].setting[za::clamp(kind, 0, numKinds - 1)];
+}
+
+int autoHands(int kind, int row)
+{
+    return holdRows[za::clamp(row, 0, numHoldRows - 1)].autoHands[za::clamp(kind, 0, numKinds - 1)];
+}
+
+int hands(int kind, int code, int* settingOut)
+{
+    if(settingOut)
+    {
+        *settingOut = 0;
+    }
+    if(kind < 0 || kind >= numKinds)
+    {
+        return 0;
+    }
+    for(const HoldRow& w : holdRows)
+    {
+        if(w.code == code)
+        {
+            const int s = static_cast<int>(w.setting[kind]->value);
+            if(settingOut)
+            {
+                *settingOut = s == 1 || s == 2 ? s : 0;
+            }
+            return s == 1 || s == 2 ? s : w.autoHands[kind];
+        }
+    }
+    return 0;
+}
+
+void reset()
+{
+    for(const HoldRow& w : holdRows)
+    {
+        for(cvar_t* c : w.setting)
+        {
+            Cvar_SetQuick(c, "0");
+        }
+    }
+}
+
+void registerCommands()
+{
+    Cmd_AddCommand("vr_agholds_info", holdsInfo_f);
+    Cmd_AddCommand("vr_agholds_reset", reset);
+}
+
+} // namespace qvr::agholds

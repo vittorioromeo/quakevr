@@ -66,3 +66,25 @@ int dropDefaultEqual();
 void registerCommands();
 
 } // namespace qvr::aggrip
+
+// Armed humanoids' weapon holds (vr_agholds.inc; Combat > Armed Grunts > Weapon Holds; QC vr_armedgrunt_pose.qc
+// VR_AGH_Hands, through weapondrawnpose(world, kind * 1000 + code, 24)): one or both hands on each weapon, per kind.
+namespace qvr::agholds
+{
+
+inline constexpr int numKinds = 2; // 0 the grunt, 1 the enforcer (QC VR_AM_*)
+[[nodiscard]] int count();                         // the rows (vr_agholds.inc's, in its order)
+[[nodiscard]] const char* label(int row);           // its weapon's name
+[[nodiscard]] const char* key(int row);             // its settings' suffix
+[[nodiscard]] int code(int row);                    // QC's code for its weapon
+[[nodiscard]] cvar_t& setting(int kind, int row);   // 0 Auto, 1 One-Handed, 2 Two-Handed
+[[nodiscard]] int autoHands(int kind, int row);     // Auto's: 1 or 2
+// The hands kind `kind` holds weapon `code` with (1 or 2; 0: no row for it, QC's own rule), and its setting (0 Auto).
+[[nodiscard]] int hands(int kind, int code, int* settingOut);
+// Every setting back to Auto.
+void reset();
+// vr_agholds_info: the table (each kind's setting and hands per weapon); vr_agholds_report: each armed humanoid in view
+// as drawn lately: its kind, weapon, the hold asked and the off hand's (on a second grip, cupping, free).
+void registerCommands();
+
+} // namespace qvr::agholds

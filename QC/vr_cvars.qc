@@ -383,6 +383,7 @@ float cvarh_vr_agrunt_swing_one_hand;
 float cvarh_vr_agrunt_punch_ease;
 float cvarh_vr_agrunt_lift_turn;
 float cvarh_vr_agrunt_saw_reach;
+float cvarh_vr_agrunt_second_reach;
 float cvarh_vr_agrunt_shot_drawn;
 float cvarh_vr_aglegs;
 float cvarh_vr_agrunt_strike_torso;
@@ -1587,6 +1588,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_agrunt_punch_ease);
     VR_CVAR_HMAKE(vr_agrunt_lift_turn);
     VR_CVAR_HMAKE(vr_agrunt_saw_reach);
+    VR_CVAR_HMAKE(vr_agrunt_second_reach);
     VR_CVAR_HMAKE(vr_agrunt_shot_drawn);
     VR_CVAR_HMAKE(vr_aglegs);
     VR_CVAR_HMAKE(vr_agrunt_strike_torso);
