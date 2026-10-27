@@ -105,8 +105,8 @@ void(string seq, string ev, float frame) VR_AG_SeqEvent;
 // (its events seen, then handed on to its own handler: the shout's sound, its run after the end)
 void(string seq, string ev, float frame) VR_RST_TauntEvent =
 {
-    float dt = time - vr_rst_t0;
-    VR_AGT_Print(sprintf("taunt: event %s at frame %g, %.3f s after it saw you", ev, frame, dt));
+    float dt = time - self.vr_rigseq_t0;
+    VR_AGT_Print(sprintf("taunt: event %s at frame %g, %.3f s after its start", ev, frame, dt));
     if(ev == "shout" && !vr_rst_shout)
     {
         vr_rst_shout = dt;
@@ -137,10 +137,6 @@ void() VR_RST_TauntFrame =
             return;
         }
         VR_AGT_Hunt(g); // (it sees you: its th_run, the taunt first)
-        if(g.vr_rigseq_on == VR_AG_SeqEvent)
-        {
-            g.vr_rigseq_on = VR_RST_TauntEvent;
-        }
         vr_rst_t0 = time;
         vr_agt_until = time + 5;
         vr_agt_step = 2;
@@ -149,6 +145,10 @@ void() VR_RST_TauntFrame =
     }
     if(vr_agt_step == 2)
     {
+        if(g.vr_rigseq_on == VR_AG_SeqEvent)
+        {
+            g.vr_rigseq_on = VR_RST_TauntEvent; // (its events seen: its taunt started by its th_run)
+        }
         if(!vr_rst_len && g.vr_rigseq_len != 0)
         {
             vr_rst_len = g.vr_rigseq_len;
@@ -217,7 +217,7 @@ void() VR_RST_KeysFrame =
     }
     if(vr_agt_step == 1)
     {
-        localcmd("vr_rig2anim_check keep\nvr_rigseq 1\n");
+        localcmd(vr_rst_keysframe == 3 ? "screenshot\nvr_rig2anim_check keep\nvr_rigseq 1\n" : "vr_rig2anim_check keep\nvr_rigseq 1\n");
         vr_agt_until = time + 0.3;
         vr_agt_step = 2;
         return;
@@ -227,6 +227,7 @@ void() VR_RST_KeysFrame =
         localcmd(sprintf("vr_rig2anim_check load %g\n", vr_rst_keysframe));
         if(vr_rst_keysframe == 3)
         {
+            localcmd("screenshot\n"); // (the eyeshots: its frame 3 unkeyed, then keyed)
             vr_rst_keysframe = 7;
             vr_rst_hold = 29 + vr_rst_keysframe;
             localcmd("vr_rigseq 0\n");

@@ -24578,3 +24578,51 @@ changes nothing in the old rig, so it is harmless but useless and can be deleted
 Tests: `vr_rig2_check` on vrgrunt and soldier 22/35 each (the table); `vr_rigstudio_rom test` 9/9 (the file it rewrites
 compared number for number, then restored).
 - [ ] Grunt rig limits mirrored {test:none}: Rig Studio > Range of Motion: sweep each left-side joint beside its right one (same reach, mirrored twist); try the suggested values for chest twist, the right clavicle twist, the right hand and the left knee 115 if the armpit or wrist creases bother you
+
+## Rig Studio: animating the authored rig (worktree `fastship`, branch `agent/rig2anim`, 2026-10-27)
+
+He wants to tweak the grunt's animations on the new rig. **Found** (the brief's question): with `vr_rig2 1` the studio's
+subject already had the authored bones (`ragdoll::rigFor` gives the authored ragdoll rig, and the studio and the layer
+are generic over it), but (1) the old rig's files were read onto the authored namesakes (`vr_rigdata_info` on the
+authored latch: the old taunt's `chest`/`head` tracks on the authored chest and head: one file, two meanings); (2) the
+unarmed live drawing (`rig2::liveAll`) never called the layer; (3) an armed one did (`relinkSkinned`), but the upper
+body's hold (`vr_agrunt_upper`, on by default) put the chest back upright (a keyed chest lost: on the old rig too, so the
+taunt's chest never showed in the game) and `armsOnRig` laid the arms' solve over arm keys (its fk hand the forearm's
+motion: the hand bone's key lost).
+
+**Now** (RIGSTUDIO.md, "Animating the authored rig"):
+- **Files**: `quakevr/rigs/<model>.rig2anim.txt` (`qvrrig2anim 1`: poses, override tracks; no bone or weight lines) and
+  `quakevr/anims/<model>/<name>.anim2.txt` (`qvranim2 1`), read when the model's rig is the authored one (the registry
+  emptied when the latch changes). Keys in **each bone's own frame** (`rig2::keyAxes`: a ball's x Swing X, y Swing Y, z
+  Twist; a hinge's x its bend; root and weapon the model's axes), written to 0.001 so a file read and written again is
+  the same (the frames' turn there and back is off by ~1e-5); the studio keeps the model-axes locals inside.
+- **Limits**: a key held within its joint's limits when keyed (`rigdata::holdKey`: an override's on its frame's local
+  there; a jointed bone's offset dropped), and the drawn turn held between keys in the studio and the game
+  (`rigdata::holdLocal`, keeping the frame's small gap at the joint); `rig2::clampLocal`.
+- **Game**: `liveAll` lays `rigseq::bones` on the frames' bones before the kicks; `relinkSkinned` keeps the keys' chest
+  turn on the hips under the upper body's hold (`layerTorso`: both rigs; nothing changes without keys); `liveArmed(...,
+  keyedArms)`: an arm keyed (a sequence's Arms, an override track on a clavicle, upper arm, forearm or hand:
+  `rigseq::armBone`) leaves the arm bones as keyed, the weapons on the hands (the right's weapon bone on hand_r), the
+  solve's fk hand from the hand bone (`adjustTargets`); else the IK as before. Ragdolls start from the pose drawn
+  (`drawnBone`, unchanged).
+- **Carried over**: `vr_rig2anim_import [model] [force]` (Debug > Tools): the old files onto the authored bones, the old
+  chest's turn shared by spine and chest, the old head's by neck and head, keys held. `anims/vrgrunt/taunt.anim2.txt` made
+  so (pelvis, spine, chest, neck, head; 0 keys needed holding). No old override tracks are in the repo (his checkout's
+  untracked `rigs/vrgrunt.rig.txt` is a header only).
+- Per model throughout (`Rig::authored`): the enforcer gets it when stage 2b puts it on the authored latch.
+
+**Tests** (fast mode, verdict lines): `vr_rigstudio_test_rig2anim` (new; open the studio first): authored latch 10/10
+(the dope sheet's 20 authored bones; `load`'s chest and upperarm_r keyed at 3 and 7, drawn 15.0..30.9 degrees off the
+frames, within the limits; forearm_r bent 170: held within its hinge, undone; Mirror Pose: upperarm_l = upperarm_r
+mirrored, 0.00 degrees off, undone; saved `rigstudio_test/rigs/vrgrunt.rig2anim.txt`, read back 0.0007 most off), old
+latch 10/10 (`rig.txt`, nothing held). **`vr_agrunt_test 82`** (new; `vr_rig2 1`, after it; `vr_rig2anim_check`): an
+armed grunt held at load 3 and 7: chest keyed 15.0 / 18.0 degrees drawn 0.00 / 0.44 off its key (on the held upper
+body), upperarm_r keyed 30.9 (held) / 19.8 drawn 0.00 / 0.00 off (its arm handed to the keys): 6/6. `vr_agrunt_test 81`
+(now also its `shout` at 0.608 s and `end` at 1.608 s) 4/4 on both latches; test 80 4/4 on both (on the authored, its
+`rstest` carried by the import). Rig Studio on both latches: subjects 14/14, aim 4/4, posekeys 10/10, rom test 9/9,
+typing 11/11. Eyeshot `scratch/rig2anim_eyes.png`: the studio at load 3 (the dope sheet's keys), the grunt in the hall at
+load 3 without and with the keys (its right arm raised).
+
+**Left**: the studio's Bone overrides and Weights windows edit nothing the authored rig saves (its rest and weights are
+Range of Motion's `rig2.txt`); the import's chest/head split is a fixed half and half.
+- [ ] Rig Studio animates the authored rig {test:vr_rigstudio_test_rig2anim}: Debug > Grunt on the Authored Rig on, load a map, Rig Studio (flat): the dope sheet lists spine, clavicles, hands, feet; key the chest and an arm in `load`, save (rigs/vrgrunt.rig2anim.txt), turn vr_agrunt_taunt on and let a grunt see you: the keyed reload and the taunt play on the new rig, its arms on the keys, the weapon in its hand
