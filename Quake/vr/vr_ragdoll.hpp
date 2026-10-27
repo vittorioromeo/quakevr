@@ -149,6 +149,8 @@ void unpublishAll();
 // end), and their own models put back before the server's messages are read (CL_ReadFromServer).
 void swapModels();
 void restoreModels();
+// vr_ragdoll_draw_info: as the ragdolls are next drawn, each one's renderer data as its skinned copy beside its .mdl's.
+void drawInfo_f();
 
 // vr_knockdown_debug 2: entity `num`'s get-up as drawn followed from server time `from` to `until` (its motion frame by
 // frame, then a line of it: the client's swapModels).
@@ -160,6 +162,9 @@ void watchGetup(int num, double from, double until);
 
 // The skinning matrices (3x4 rows) of a swapped entity, its bone count; 0 if it isn't one.
 [[nodiscard]] int bonePoses(const entity_t* e, const float** matrices);
+// The box round its drawn body (vr_ao.cpp: its occluder, as a monster's frame box is the .mdl's): its middle, its axes
+// (along the body level, across it level, up) and half sizes (units, its limbs' thickness in); false if it isn't one.
+[[nodiscard]] bool drawnBox(const entity_t* e, glm::vec3& centre, glm::vec3 axes[3], glm::vec3& half);
 // Its drawn model matrix (VR_AliasPostTransform): a translation to where its bones are given from; false if it isn't one.
 [[nodiscard]] bool drawMatrix(const entity_t* e, float matrix[16]);
 // Its stumps' look for the alias shaders (InstanceData's Stump; StumpFlesh, vr_glsl.h): out[0] its drawn cut bones

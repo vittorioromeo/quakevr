@@ -3681,7 +3681,8 @@ QVR_CVAR(vr_ragdoll_drag_slime, "3", CVAR_ARCHIVE)     // ... slime's
 QVR_CVAR(vr_ragdoll_drag_lava, "5", CVAR_ARCHIVE)      // ... lava's
 QVR_CVAR(vr_liquid_fall_cushion, "48", CVAR_ARCHIVE)   // units of water, slime or lava over where a monster lands (standing or knocked down) that take all of its fall damage; shallower takes that share of its speed; 0: liquid takes none
 QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made, its pushes and blasts
-QVR_CVAR(vr_debug_ragdoll_gun, "0", CVAR_NONE)        // every 0.25 s, each ragdoll's held weapon (its loose piece) as drawn: how far from the part of it that holds it ("gun:"), beside the rest pose's
+QVR_CVAR(vr_debug_ragdoll_look, "0", CVAR_NONE)       // each ragdoll drawn in its .mdl's rest pose where the entity stands, to compare its look with the .mdl's: 1 its skinned copy ("#rag"), 2 the .mdl itself (pose 0), 3 neither (hidden); vr_ragdoll_draw_info
+QVR_CVAR(vr_debug_ragdoll_gun, "0", CVAR_NONE)      // every 0.25 s, each ragdoll's held weapon (its loose piece) as drawn: how far from the part of it that holds it ("gun:"), beside the rest pose's
 QVR_CVAR(vr_ragdoll_joint_stiffness, "0", CVAR_ARCHIVE) // Hz: a spring in each joint pulling it back towards how he stood (0 none; 1-3 a body with some tone left)
 QVR_CVAR(vr_ragdoll_limits, "1", CVAR_ARCHIVE)        // the joints' limits (cone, twist, the knees' and elbows' range) times this (0.25 stiff .. 1.5 loose)
 QVR_CVAR(vr_ragdoll_limits_legs, "1", CVAR_ARCHIVE)   // the legs' joints' limits times this too (with vr_ragdoll_limits; the next ragdoll made)

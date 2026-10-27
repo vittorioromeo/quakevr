@@ -19,6 +19,13 @@ void registerCommands();
 // vr_mdl_dequant is on. `aliashdr` is a PV_QUAKE1 aliashdr_t.
 [[nodiscard]] glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex);
 
+// Mesh vertex `meshVertex` (of its numverts_vbo: an aliasmesh_t's) of a .mdl's rest pose (pose 0) as the alias renderer
+// draws it (gl_mesh.c, PV_QUAKE1): its place in model units (the stored bytes moved by the dequantised offset while
+// vr_mdl_dequant is on and the offsets are ready: `prepare`) and its normal, 127 long (the smoothed one then, else the
+// table's). For the skeletal copies of a .mdl drawn in its place (a ragdoll's "<model>#rag", the authored rig's "#rig2"):
+// shaded as the .mdl is. `aliashdr` is a PV_QUAKE1 aliashdr_t.
+void restVertex(const void* aliashdr, int meshVertex, float xyz[3], signed char normal[3]);
+
 // The model's dequantised offsets computed now if vr_mdl_dequant is on and its first upload has not yet (the models a
 // map's server side loads are uploaded after it spawns): for code reading its vertices as drawn (poseVertex) before
 // it is drawn, such as the held guns' shapes prepared at map load. The main thread.

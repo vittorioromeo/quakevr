@@ -347,11 +347,12 @@ struct CachedOverride
     unsigned generation{0};
 };
 ankerl::unordered_dense::map<const void*, CachedOverride> overrideCache;
+ankerl::unordered_dense::map<const void*, CachedOverride> sourceOverrideCache; // (by a copy, its file's: modelOverride)
 
-[[nodiscard]] const Override* overrideFor(const void* ptr, bool texture, const char* name)
+[[nodiscard]] const Override* overrideFor(const void* ptr, bool texture, const char* name, bool source = false)
 {
     ensureLoaded();
-    CachedOverride& c = overrideCache[ptr];
+    CachedOverride& c = (source ? sourceOverrideCache : overrideCache)[ptr];
     if(c.generation != generation || c.name != name)
     {
         c.name = name;
@@ -553,14 +554,15 @@ void sayFull()
     {
         return nullptr;
     }
-    if(modelmeta::has(e->model, modelmeta::Trait::AuthoredRig))
+    // A model made from another's file (modelmeta::sourceName: a ragdoll's skinned copy "#rag", the authored rig's
+    // "#rig2", AD's VR guns "#vr"...): its own override if it has one, else its file's (a ragdoll drawn as its monster).
+    const Override* own = overrideFor(e->model, false, e->model->name);
+    char base[MAX_QPATH];
+    if(own || !modelmeta::sourceName(e->model->name, base, sizeof(base)))
     {
-        // the Rig Studio's subject on the authored rig ("<model>#rig2": vr_rig2.cpp) takes its .mdl's overrides
-        char base[MAX_QPATH];
-        q_strlcpy(base, e->model->name, za::min(sizeof(base), strlen(e->model->name) - strlen("#rig2") + 1));
-        return overrideFor(e->model, false, base);
+        return own;
     }
-    return overrideFor(e->model, false, e->model->name);
+    return overrideFor(e->model, false, base, true);
 }
 
 bool bodyParts(const qmodel_t* model, float out[4])
