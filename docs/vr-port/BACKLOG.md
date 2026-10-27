@@ -551,3 +551,9 @@ The plan as designed:
 ## Nail pistol in maps (2026-10-25)
 
 - Vittorio is unsure whether nail pistols should appear as pickups in maps (crates / replacing some weapon spawns); armed grunts carrying them may be enough. Revisit after beta4.
+- **Arena mode (armed humanoids survival)** (Vittorio, 2026-10-27): a survival arena that shows off the armed humanoids.
+  Waves get progressively harder and more frequent: first unarmed grunts, then grunts with nail pistols and shotguns,
+  and so on up the weapon ladder, with randomized weapons per wave (enforcers and AD weapons later). The player starts
+  unarmed and works up the ladder by killing enemies and taking their weapons (disarms, tug-of-war, pickups). Needs: an
+  arena map (or a mode on an existing one), a wave director (kinds, weapon pools, counts, spawn spots), a score/wave
+  readout, and a start from the Play menu.
