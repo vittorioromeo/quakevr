@@ -194,6 +194,10 @@ void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
 // Every other live entity on an authored rig drawn so (VR_RagdollSwap, before swapModels): its frames, its kicks.
 void advanceLerps(); // VR_RagdollSwap (before the armed ones' arms): their frame lerps advanced, their .mdl drawn no more
 void liveAll();
+// vr_rig2_record: poses from the game kept (set 0 ragdolls' bodies, 1 the armed ones' drawn bones) for vr_rig2_check recorded.
+void notePublished(int num, const ragdoll::Rig& rig, int bodies, const glm::quat* rot);
+[[nodiscard]] const za::Vector<Pose>& recordedPoses(int set);
+void record_f();
 void armsReport_f(); // vr_rig2_arms: the arms laid on the authored rig since it last printed
 void partsReport_f(); // vr_rig2_parts: each authored ragdoll's parts as drawn, its joints' gaps
 void liveCheck_f();   // vr_rig2_live_check: the live ones drawn on the authored rig against their frames

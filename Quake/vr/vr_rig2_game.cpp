@@ -97,9 +97,10 @@ constexpr float pi = 3.14159265358979f;
     return compose(Fp, rigpose::Rigid{local, bone.pivot - local * bone.pivot});
 }
 
-// Bone b turned in the world to `want` (rest -> now) as near as its limits let it, on its parent's `Fp`; how far its
-// limits held it off (degrees) added to `held`.
-[[nodiscard]] rigpose::Rigid limited(const Rig& a, int b, const rigpose::Rigid& Fp, const glm::quat& want, float* held)
+// Bone b turned in the world to `want` (rest -> now) on its parent's `Fp`, as near as its limits let it when `clamp`
+// (else as wanted); how far past its limits that is (degrees) added to `held`.
+[[nodiscard]] rigpose::Rigid limited(const Rig& a, int b, const rigpose::Rigid& Fp, const glm::quat& want, float* held,
+    bool clamp = true)
 {
     const glm::quat local = glm::normalize(glm::inverse(Fp.rot) * want);
     const glm::vec3 angles = anglesOf(a, b, local);
@@ -108,7 +109,7 @@ constexpr float pi = 3.14159265358979f;
     {
         *held += glm::length(kept - angles);
     }
-    return child(a.bones[b], Fp, localOf(a, b, kept));
+    return child(a.bones[b], Fp, clamp ? localOf(a, b, kept) : local);
 }
 
 [[nodiscard]] float turnDeg(const glm::quat& a, const glm::quat& b)
@@ -123,6 +124,7 @@ struct ArmStats
     float handOff{0.f}, handOffMost{0.f};   // the hand's grip from the solve's (units)
     float gripTurn{0.f}, gripTurnMost{0.f}; // its turn from the solve's (degrees)
     float held{0.f}, heldMost{0.f};         // the limits' hold on its joints (degrees, summed)
+    float part[4]{}, partMost[4]{};         // ... each joint's (clavicle, shoulder, elbow, wrist)
     float elbowOff{0.f}, elbowOffMost{0.f}; // the elbow from the solve's (units)
 };
 ArmStats armStats;
@@ -206,7 +208,7 @@ void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, ri
         {
             continue;
         }
-        float held = 0.f;
+
         const Bone& C = a.bones[d.clav];
         const Bone& U = a.bones[d.upper];
         const Bone& Fo = a.bones[d.fore];
@@ -215,21 +217,33 @@ void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, ri
         const rigpose::Rigid& Fch = F[C.parent];
         const glm::vec3 cp = rigpose::apply(Fch, C.pivot);
         const glm::vec3 cr = Fch.rot * (U.pivot - C.pivot);
-        F[d.clav] = limited(a, d.clav, Fch, glm::normalize(between(cr, placed.shoulder[s] - cp) * Fch.rot), &held);
+        float hp[4]{};
+        const bool clampArms = vr_rig2_arm_limits.value != 0.f; // (else the solve's turns: its own limits)
+        F[d.clav] = limited(a, d.clav, Fch, glm::normalize(between(cr, placed.shoulder[s] - cp) * Fch.rot), &hp[0]);
         // The upper arm: the solve's turn (its twist: the elbow's plane) re-aimed from the shoulder as now at its elbow.
         const glm::vec3 S = rigpose::apply(F[d.clav], U.pivot);
         const glm::quat uRot = placed.upperM[s].rot;
         const glm::vec3 uDir = uRot * (Fo.pivot - U.pivot);
-        F[d.upper] = limited(a, d.upper, F[d.clav], glm::normalize(between(uDir, placed.elbow[s] - S) * uRot), &held);
+        F[d.upper] = limited(a, d.upper, F[d.clav], glm::normalize(between(uDir, placed.elbow[s] - S) * uRot), &hp[1], clampArms);
         // The forearm's hinge bent toward the wrist the solve put.
         const glm::vec3 W = rigpose::apply(placed.handM[s], H.pivot);
         const glm::vec3 E = rigpose::apply(F[d.upper], Fo.pivot);
         const glm::vec3 now = anglesOf(a, d.fore, glm::normalize(glm::inverse(F[d.upper].rot) * placed.foreM[s].rot));
         const glm::vec3 bend = aimAngles(a, d.fore, F[d.upper], W - E, now);
-        held += za::abs(clampAngles(a, d.fore, now).x - now.x);
+        hp[2] += za::abs(clampAngles(a, d.fore, now).x - now.x);
         F[d.fore] = child(Fo, F[d.upper], localOf(a, d.fore, bend));
+        {
+            // The hand's twist about the forearm half the forearm's (its two bones turning: the skin twists along it,
+            // not all at the wrist), as the arms' own skin shares it (Spec::twistShare); its hinge's bend as it was.
+            const glm::vec3 axis = glm::normalize(H.pivot - Fo.pivot); // (rest space)
+            const glm::quat hl = glm::normalize(glm::inverse(F[d.fore].rot) * placed.handM[s].rot);
+            const float tw = 2.f * za::atan2(glm::dot(glm::vec3{hl.x, hl.y, hl.z}, axis), hl.w);
+            const float wrapped = tw > pi ? tw - 2.f * pi : tw < -pi ? tw + 2.f * pi : tw;
+            const glm::quat turn = glm::angleAxis(wrapped * za::clamp(vr_rig2_forearm_twist.value, 0.f, 1.f), axis);
+            F[d.fore] = compose(F[d.fore], rigpose::Rigid{turn, Fo.pivot - turn * Fo.pivot});
+        }
         // The hand to its grip frame's turn.
-        F[d.hand] = limited(a, d.hand, F[d.fore], placed.handM[s].rot, &held);
+        F[d.hand] = limited(a, d.hand, F[d.fore], placed.handM[s].rot, &hp[3], clampArms);
         if(s == 0 && k.weapon >= 0)
         {
             F[k.weapon] = F[d.hand]; // (fixed on the right hand)
@@ -245,8 +259,14 @@ void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, ri
         t.handOffMost = za::max(t.handOffMost, off);
         t.gripTurn += turn;
         t.gripTurnMost = za::max(t.gripTurnMost, turn);
+        const float held = hp[0] + hp[1] + hp[2] + hp[3];
         t.held += held;
         t.heldMost = za::max(t.heldMost, held);
+        for(int i = 0; i < 4; i++)
+        {
+            t.part[i] += hp[i];
+            t.partMost[i] = za::max(t.partMost[i], hp[i]);
+        }
         t.elbowOff += elbowOff;
         t.elbowOffMost = za::max(t.elbowOffMost, elbowOff);
     }
@@ -302,6 +322,142 @@ void legsOnRig(const Rig& a, const aglegs::Placed& lp, rigpose::Rigid* F)
             F[bones[i]].pos = glm::mix(before[i].pos, solved[i].pos, on);
         }
     }
+}
+
+// ---- Recording poses from the game (vr_rig2_record; vr_rig2_check's "recorded") ----
+
+namespace
+{
+struct Recorder
+{
+    int mask{0};  // 1 ragdolls, 2 armed ones' drawn poses
+    int most{50}; // poses kept each
+    float every{0.5f};   // seconds between an entity's kept poses (armed)
+    bool checkFull{false}; // vr_rig2_check recorded run once full (a test's definite end)
+    za::Vector<Pose> poses[2];
+    za::Vector<int> lastEnt[2];
+    za::Vector<Pose> last[2];      // (each entity's last kept: a settled body not kept twice)
+    za::Vector<double> lastAt[2];
+};
+Recorder recorder;
+
+// The angles of each joint in bones `F` (rest -> now, the rig's order; their locals' turns).
+[[nodiscard]] Pose poseOf(const Rig& a, const rigpose::Rigid* F)
+{
+    Pose p = restPose(a);
+    for(int b = 0; b < a.numBones; b++)
+    {
+        const int par = a.bones[b].parent;
+        if(par >= 0 && (a.bones[b].joint == Joint::Ball || a.bones[b].joint == Joint::Hinge))
+        {
+            p.a[b] = anglesOf(a, b, glm::normalize(glm::inverse(F[par].rot) * F[b].rot));
+        }
+    }
+    return p;
+}
+
+void keep(int set, int ent, const Rig& a, const rigpose::Rigid* F, double now, double every)
+{
+    if(!(recorder.mask & (1 << set)) || static_cast<int>(recorder.poses[set].size()) >= recorder.most)
+    {
+        return;
+    }
+    int at = -1;
+    for(za::SizeT i = 0; i < recorder.lastEnt[set].size(); i++)
+    {
+        at = recorder.lastEnt[set][i] == ent ? static_cast<int>(i) : at;
+    }
+    if(at >= 0 && now - recorder.lastAt[set][static_cast<za::SizeT>(at)] < every && now >= recorder.lastAt[set][static_cast<za::SizeT>(at)])
+    {
+        return;
+    }
+    const Pose p = poseOf(a, F);
+    if(at >= 0)
+    {
+        float moved = 0.f;
+        for(int b = 0; b < a.numBones; b++)
+        {
+            moved = za::max(moved, glm::length(p.a[b] - recorder.last[set][static_cast<za::SizeT>(at)].a[b]));
+        }
+        recorder.lastAt[set][static_cast<za::SizeT>(at)] = now;
+        if(moved < 3.f)
+        {
+            return; // (lying still)
+        }
+        recorder.last[set][static_cast<za::SizeT>(at)] = p;
+    }
+    else
+    {
+        recorder.lastEnt[set].pushBack(ent);
+        recorder.last[set].pushBack(p);
+        recorder.lastAt[set].pushBack(now);
+    }
+    recorder.poses[set].pushBack(p);
+    if(static_cast<int>(recorder.poses[set].size()) == recorder.most)
+    {
+        Con_Printf("rig2 record: %d %s poses kept (all asked for)\n", recorder.most, set == 0 ? "ragdoll" : "armed");
+        if(recorder.checkFull)
+        {
+            recorder.checkFull = false;
+            Cbuf_AddText(va("vr_rig2_arms;vr_rig2_check %s 0 recorded\n", a.bones[0].name[0] ? "progs/vrgrunt.mdl" : ""));
+        }
+    }
+}
+} // namespace
+
+void notePublished(int num, const ragdoll::Rig& rig, int bodies, const glm::quat* rot)
+{
+    if(!(recorder.mask & 1) || !rig.authored || bodies < rig.numBones - 1)
+    {
+        return;
+    }
+    const Rig* a = rigFor(rig.model);
+    if(!a || a->numBones != rig.numBones)
+    {
+        return;
+    }
+    rigpose::Rigid F[maxBones];
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        F[b].rot = b < bodies ? rot[b] : rot[0];
+    }
+    keep(0, num, *a, F, cl.time, 0.25);
+}
+
+const za::Vector<Pose>& recordedPoses(int set)
+{
+    return recorder.poses[set & 1];
+}
+
+void record_f()
+{
+    const char* what = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!strcmp(what, "ragdoll") || !strcmp(what, "armed") || !strcmp(what, "all"))
+    {
+        recorder.mask = !strcmp(what, "ragdoll") ? 1 : !strcmp(what, "armed") ? 2 : 3;
+        recorder.most = Cmd_Argc() > 2 ? za::max(atoi(Cmd_Argv(2)), 1) : 50;
+        recorder.every = Cmd_Argc() > 3 ? za::max(static_cast<float>(atof(Cmd_Argv(3))), 0.05f) : 0.5f;
+        recorder.checkFull = Cmd_Argc() > 4 && !strcmp(Cmd_Argv(4), "check");
+    }
+    else if(!strcmp(what, "off"))
+    {
+        recorder.mask = 0;
+    }
+    else if(!strcmp(what, "clear"))
+    {
+        const int mask = recorder.mask, most = recorder.most;
+        recorder = Recorder{};
+        recorder.mask = mask;
+        recorder.most = most;
+    }
+    else if(*what)
+    {
+        Con_Printf("vr_rig2_record [ragdoll|armed|all [most [every [check]]]|off|clear]: poses from the game (vr_rig2 1) for vr_rig2_check's "
+                   "\"recorded\"\n");
+    }
+    Con_Printf("rig2 record: %s; %d ragdoll poses, %d armed poses kept (at most %d each)\n",
+        recorder.mask == 0 ? "off" : recorder.mask == 1 ? "ragdolls" : recorder.mask == 2 ? "armed" : "both",
+        static_cast<int>(recorder.poses[0].size()), static_cast<int>(recorder.poses[1].size()), recorder.most);
 }
 
 // ---- Live ----
@@ -410,6 +566,7 @@ void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
     {
         placed.weapon[s] = compose(corr[s], placed.weapon[s]);
     }
+    keep(1, num, *a, F, cl.time, recorder.every); // (vr_rig2_record armed)
     drawLive(num, rig.model, F, rig.numBones, vr_rig2_look.value == 2.f ? ~0u : hiddenOf(rig, pose1, pose2, blend));
 }
 
@@ -690,6 +847,9 @@ void armsReport_f()
     Con_Printf("rig2 arms: %d arms laid; hand off its solve %.2f mean, %.2f most (units); grip turned %.1f mean, %.1f most "
                "(deg); elbow off %.2f mean, %.2f most (units); limits held %.1f mean, %.1f most (deg)\n",
         t.n, t.handOff / n, t.handOffMost, t.gripTurn / n, t.gripTurnMost, t.elbowOff / n, t.elbowOffMost, t.held / n, t.heldMost);
+    Con_Printf("rig2 arms: limits held per joint (mean / most, deg): clavicle %.1f / %.1f, shoulder %.1f / %.1f, elbow %.1f / %.1f, "
+               "wrist %.1f / %.1f\n",
+        t.part[0] / n, t.partMost[0], t.part[1] / n, t.partMost[1], t.part[2] / n, t.partMost[2], t.part[3] / n, t.partMost[3]);
     armStats = ArmStats{};
 }
 

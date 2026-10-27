@@ -399,8 +399,17 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
         Side& sd = m.side[s];
         sd.S = at0(spec.upper[s], rig.bones[spec.upper[s]].pivot);
         sd.E = at0(spec.fore[s], rig.bones[spec.fore[s]].pivot);
-        const glm::vec3 H = at0(spec.fore[s], rig.bones[spec.fore[s]].end);
+        glm::vec3 H = at0(spec.fore[s], rig.bones[spec.fore[s]].end);
         sd.W = sd.E + (H - sd.E) * (1.f - wristBack);
+        // (vr_rig2 1, the authored rig: its forearm ends at the wrist, its hand a bone of its own: the hand's end its end)
+        for(int h = 0; rig.authored && h < rig.numBones; h++)
+        {
+            if(rig.bones[h].parent == spec.fore[s] && !strncmp(rig.bones[h].name, "hand", 4))
+            {
+                sd.W = H;
+                H = at0(h, rig.bones[h].end);
+            }
+        }
         sd.end = H;
         sd.Lu = glm::length(sd.E - sd.S);
         sd.Lf = glm::length(sd.W - sd.E);
@@ -452,7 +461,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
             glm::vec3 a = at0(b, rig.bones[b].pivot), e = at0(b, rig.bones[b].end);
             for(int s = 0; s < 2; s++)
             {
-                if(b == spec.fore[s])
+                if(b == spec.fore[s] && !rig.authored) // (the authored rig's hand: a bone of its own)
                 {
                     e = a + (e - a) * (1.f + wristBack * (handReach - 1.f));
                 }
@@ -462,6 +471,12 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
             {
                 best = d;
                 bestBone = b;
+                // (the authored rig's hand: its forearm's here, as the derived rigs' hands are on their forearms)
+                const int par = rig.bones[b].parent;
+                if(rig.authored && par >= 0 && (par == spec.fore[0] || par == spec.fore[1]) && !strncmp(rig.bones[b].name, "hand", 4))
+                {
+                    bestBone = par;
+                }
             }
         }
         for(int s = 0; s < 2; s++)

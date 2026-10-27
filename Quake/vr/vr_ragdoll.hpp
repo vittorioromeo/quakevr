@@ -118,6 +118,8 @@ void retireAuthored();
 // The rig of `model`, derived on first use (tens of milliseconds) and kept: nullptr if it has none or the derivation
 // failed (the model isn't the one the seed table was made for).
 [[nodiscard]] const Rig* rigFor(qmodel_t* model);
+// ... always the derived one (vr_rig2 1's rigFor gives the authored rig's: the checks' "old rig" beside it).
+[[nodiscard]] const Rig* derivedRigFor(qmodel_t* model);
 
 // The rigs of `count` models made at once, on the game's thread pool (the map's start: rigFor's for each, faster).
 void warmRigs(qmodel_t* const* models, int count);

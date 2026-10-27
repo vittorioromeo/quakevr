@@ -2377,6 +2377,16 @@ const Rig* rigFor(qmodel_t* model)
             authoredRigs.failed.pushBack(model);
         }
     }
+    return derivedRigFor(model);
+}
+
+const Rig* derivedRigFor(qmodel_t* model)
+{
+    const SeedTable* table = tableOf(model);
+    if(!table)
+    {
+        return nullptr;
+    }
     if(Rig* r = findRig(model))
     {
         return r;
@@ -2627,6 +2637,10 @@ void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const gl
     if(num < 0)
     {
         return;
+    }
+    if(rig && rig->authored)
+    {
+        rig2::notePublished(num, *rig, bodies, rot); // (vr_rig2_record ragdoll)
     }
     if(num >= static_cast<int>(draw.byNum.size()))
     {
