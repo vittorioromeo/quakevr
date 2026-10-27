@@ -59,6 +59,8 @@ constexpr float bodyWeight = 0.3f;  // ... the elbow's cost of each unit in squa
 constexpr float handClear = 1.0f;   // ... a hand (its wrist and grip) pushed out to this clear of them
 constexpr float secondSlack = 0.05f; // vr_agarms_second_hold: a second grip held is let go only this share of the arm further,
 constexpr float secondBendSlack = 15.f; // ... or its wrist bent this much (degrees) past where it is taken
+constexpr float authoredWristMore = 10.f; // vr_rig2 1: the authored rig's wrist (its forearm to the wrist, the hand a bone) bends this
+                                          // much more onto a second grip (its forearm takes half the twist: vr_rig2_forearm_twist)
 constexpr float jumpEase = 2.f;        // vr_agarms_jump_ease: a goal's wrist jumping more than this (its second difference on the chest, units at 90 Hz)
 constexpr float jumpEaseRate = 100.f;  // ... eased into over its size over this (seconds: units / this),
 constexpr float jumpEaseLeast = 0.06f; // ... at least (a kick stays crisp)
@@ -399,8 +401,17 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
         Side& sd = m.side[s];
         sd.S = at0(spec.upper[s], rig.bones[spec.upper[s]].pivot);
         sd.E = at0(spec.fore[s], rig.bones[spec.fore[s]].pivot);
-        const glm::vec3 H = at0(spec.fore[s], rig.bones[spec.fore[s]].end);
+        glm::vec3 H = at0(spec.fore[s], rig.bones[spec.fore[s]].end);
         sd.W = sd.E + (H - sd.E) * (1.f - wristBack);
+        // (vr_rig2 1, the authored rig: its forearm ends at the wrist, its hand a bone of its own: the hand's end its end)
+        for(int h = 0; rig.authored && h < rig.numBones; h++)
+        {
+            if(rig.bones[h].parent == spec.fore[s] && !strncmp(rig.bones[h].name, "hand", 4))
+            {
+                sd.W = H;
+                H = at0(h, rig.bones[h].end);
+            }
+        }
         sd.end = H;
         sd.Lu = glm::length(sd.E - sd.S);
         sd.Lf = glm::length(sd.W - sd.E);
@@ -452,7 +463,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
             glm::vec3 a = at0(b, rig.bones[b].pivot), e = at0(b, rig.bones[b].end);
             for(int s = 0; s < 2; s++)
             {
-                if(b == spec.fore[s])
+                if(b == spec.fore[s] && !rig.authored) // (the authored rig's hand: a bone of its own)
                 {
                     e = a + (e - a) * (1.f + wristBack * (handReach - 1.f));
                 }
@@ -462,6 +473,12 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
             {
                 best = d;
                 bestBone = b;
+                // (the authored rig's hand: its forearm's here, as the derived rigs' hands are on their forearms)
+                const int par = rig.bones[b].parent;
+                if(rig.authored && par >= 0 && (par == spec.fore[0] || par == spec.fore[1]) && !strncmp(rig.bones[b].name, "hand", 4))
+                {
+                    bestBone = par;
+                }
             }
         }
         for(int s = 0; s < 2; s++)
@@ -997,6 +1014,12 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
     {
         const glm::vec3 shift = S1 + dir0 * want - W1;
         o.miss = glm::length(shift);
+        if(vr_agrunt_ik_debug.value >= 5.f && o.miss > 4.f)
+        {
+            Con_Printf("agarms reach: side %d shoulder %.1f %.1f %.1f (on the chest %.1f %.1f %.1f) wrist wanted %.1f %.1f %.1f: %.1f "
+                       "away, reach %.1f..%.1f (arm %.1f + %.1f)\n",
+                s, S1.x, S1.y, S1.z, S0.x, S0.y, S0.z, W1.x, W1.y, W1.z, glm::length(d), least, most, a, b);
+        }
         H.pos += shift;
         W1 += shift;
         dl = want;
@@ -1546,7 +1569,9 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     lim.twistShare = za::clamp(vr_agarms_twist_share.value > 0.f ? vr_agarms_twist_share.value : m->twistShare, 0.f, 1.f);
     lim.wristMore = m->wristMore;
     lim.maxStep = vr_agarms_elbow_rate.value > 0.f && dt > 0.f ? vr_agarms_elbow_rate.value * (pi / 180.f) * dt : 0.f;
-    lim.clavShare = za::clamp(vr_agarms_clavicle.value, 0.f, 1.f);
+    // (vr_rig2 1: the authored rig's shoulders at the arms' own joints, further out than the derived rig's: its clavicle
+    // takes vr_rig2_clavicle's share, a reach across the body or up brought by the shoulder girdle as well)
+    lim.clavShare = za::clamp(rig.authored ? za::max(vr_agarms_clavicle.value, vr_rig2_clavicle.value) : vr_agarms_clavicle.value, 0.f, 1.f);
     lim.clavMost = za::clamp(vr_agarms_clavicle_most.value, 0.f, 60.f);
     lim.limits = vr_agarms_limits.value != 0.f && vr_agarms_shoulder_cone.value > 0.f;
     lim.cone = za::clamp(vr_agarms_shoulder_cone.value, 10.f, 180.f) * (pi / 180.f);
@@ -1742,7 +1767,10 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         for(int step = 0; step < 12; step++)
         {
             hl = compose(compose(out.weapon[0], at), inverse(m->side[1].grip));
-            reach = glm::length(rigpose::apply(hl, m->side[1].W) - S1);
+            // (vr_rig2 1, the authored rig: its shoulders at the arms' own joints, further out than the derived rig's: the
+            // reach from where its clavicle brings the shoulder for this grip, as the arm's solve will have it)
+            const glm::vec3 from = rig.authored ? solveArm(m->side[1], 1, S1, C.rot, hl, prevOf(1), t.pole[1], limHeld).S : S1;
+            reach = glm::length(rigpose::apply(hl, m->side[1].W) - from);
             if(reach <= vr_agarms_second.value * armLen || at.pos.x <= 3.f)
             {
                 break;
@@ -1755,7 +1783,12 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         // (vr_agarms_second_hold: a grip held is let go a little further than it is taken, no toggling at its edge)
         const bool keep = hold && st->held2;
         bool can = reach <= (vr_agarms_second.value + (keep ? secondSlack : 0.f)) * armLen &&
-                   tryL.bend <= vr_agarms_wrist.value + (keep ? secondBendSlack : 0.f);
+                   tryL.bend <= vr_agarms_wrist.value + (keep ? secondBendSlack : 0.f) + (rig.authored ? authoredWristMore : 0.f);
+        if(vr_agrunt_ik_debug.value >= 4.f)
+        {
+            Con_Printf("agarms second: reach %.1f of arm %.1f (%.2f), wrist bend %.0f, slid %.1f: %s\n", reach, armLen,
+                reach / za::max(armLen, 1e-3f), tryL.bend, t.secondAt.pos.x - at.pos.x, can ? "held" : "not");
+        }
         if(hold && can != st->held2)
         {
             // (... and kept taken or let go a moment before it changes again)
@@ -1863,6 +1896,9 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         out.elbow[s] = arms[s].elbow;
         out.shoulder[s] = arms[s].S;
         out.clavicle[s] = rigpose::apply(C, m->side[s].K);
+        out.upperM[s] = arms[s].U;
+        out.foreM[s] = arms[s].F;
+        out.handM[s] = arms[s].H;
         out.chest = C;
         out.reach[s] = arms[s].miss;
         out.pushed[s] = pushedBy[s];
@@ -2255,6 +2291,11 @@ bool qvr::agarms::shoulderLimits(const qmodel_t* model, int bone, ShoulderInfo& 
         }
     }
     return false;
+}
+
+void qvr::agarms::resetModels()
+{
+    state = State{};
 }
 
 void qvr::agarms::registerCommands()

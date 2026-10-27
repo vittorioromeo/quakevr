@@ -455,6 +455,22 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata
 
 /*
 =================
+VR_AliasLerpNow -- QVR: an entity's frame lerp advanced as drawing it would (R_SetupAliasFrame), for one drawn with
+another model this frame (vr_rig2 1: a grunt on the authored rig's skinned copy, vr/vr_rig2_game.cpp): its poses and blend
+=================
+*/
+void VR_AliasLerpNow (entity_t *e, int *pose1, int *pose2, float *blend)
+{
+	lerpdata_t lerpdata;
+	aliashdr_t *hdr = (aliashdr_t *) Mod_Extradata (e->model);
+	R_SetupAliasFrame (e, hdr, &lerpdata);
+	*pose1 = lerpdata.pose1;
+	*pose2 = lerpdata.pose2;
+	*blend = lerpdata.blend;
+}
+
+/*
+=================
 R_MoveLerpBlend -- QVR: how far along its last move (previousorigin .. currentorigin) a stepping entity is drawn now: over
 the time to its next think as the message that moved it said (movelerpfinish), not as the latest message says. (The
 latest's lerpfinish is its next frame's: once a stepping monster stood still through frames sent with a lerpfinish, as a

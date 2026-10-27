@@ -644,6 +644,8 @@ b3JointId b3CreateSphericalJoint( b3WorldId worldId, const b3SphericalJointDef* 
 	joint->sphericalJoint.dampingRatio = def->dampingRatio;
 	joint->sphericalJoint.targetRotation = def->targetRotation;
 	joint->sphericalJoint.coneAngle = b3ClampFloat( def->coneAngle, 0.0f, 0.5f * B3_PI );
+	joint->sphericalJoint.coneAngleY = def->coneAngleY > 0.0f ? b3ClampFloat( def->coneAngleY, 0.0f, 0.5f * B3_PI ) : 0.0f;
+	joint->sphericalJoint.coneAngleNow = joint->sphericalJoint.coneAngle;
 
 	float lowerAngle = b3MinFloat( def->lowerTwistAngle, def->upperTwistAngle );
 	float upperAngle = b3MaxFloat( def->lowerTwistAngle, def->upperTwistAngle );

@@ -47,6 +47,7 @@ struct Proxies
 // its pivot (the waist; 1: all), so a shoulder pad or a backpack high on the chest does not swell it round the shoulders
 // (the enforcer's: ArmedRig::torsoSides, vr_agbody_torso_sides).
 [[nodiscard]] const Proxies* of(const qmodel_t* model, const ragdoll::Rig& rig, int chest, float sides = 1.f);
+void resetModels(); // the models' proxies and the uppers forgotten (vr_rig2's latch: the grunt's rig another)
 
 // The proxies now: each one's segment and turn (model space) on `posed` (rest -> now, a bone each; `kick` on top, or null).
 struct Posed

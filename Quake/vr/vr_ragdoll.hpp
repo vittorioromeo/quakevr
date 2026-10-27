@@ -28,7 +28,7 @@
 namespace qvr::ragdoll
 {
 
-inline constexpr int maxBones = 16;
+inline constexpr int maxBones = 24; // (the authored grunt rig's 20: vr_rig2.cpp; bits of a uint32_t everywhere)
 
 enum class Joint : uint8_t
 {
@@ -51,6 +51,20 @@ struct Bone
     float lower{0.f}, upper{0.f};   // Hinge: its range from the rest pose (rad)
     float capsule{0.f};             // a capsule from the pivot to the end of this radius (units) besides its hull; 0: none
     za::Vector<glm::vec3> points;   // its vertices in the rest pose, each place once (its hull's)
+    // The authored rig's joints (Rig::authored; vr_rig2.cpp): the joint's frame in the parent's rest space (frameA: a
+    // ball's swing cone about its z, round its middle; a hinge's axis) and in its own (frameB), unlike the derived rigs'
+    // one frame for both (ragpose::jointFrame); a ball's cone an ellipse, `cone` toward frameA's x, `coneY` toward its y.
+    bool framed{false};
+    glm::quat frameA{1.f, 0.f, 0.f, 0.f}, frameB{1.f, 0.f, 0.f, 0.f};
+    float coneY{0.f};
+};
+
+// A vertex's bones and weights (the authored rig's blended skin: up to 4, summing to 1, the heaviest first).
+struct VertWeights
+{
+    int n{0};
+    uint8_t bone[4]{};
+    float w[4]{};
 };
 
 struct Rig
@@ -80,7 +94,19 @@ struct Rig
     // How the derivation went (vr_ragdoll_info).
     float clusterRms{0.f}, boneRms{0.f};
     double deriveMs{0.0};
+    // vr_rig2 1: made from the authored rig (quakevr/rigs/<model>.rig2.txt; vr_rig2.cpp), its bones the authored rig's
+    // in its order (its "weapon" a loose bone), each vertex on up to 4 (`weights`, by .mdl vertex; `vertBone` the
+    // heaviest), drawn with its "<model>#rig2" skinned copy; the frames' fits to the weighted vertices.
+    bool authored{false};
+    za::Vector<VertWeights> weights;
 };
+
+// The skinned copy a ragdoll of `rig` is drawn with ("<model>#rag", or "<model>#rig2" for an authored rig).
+[[nodiscard]] qmodel_t* skinnedModelOf(const Rig& rig);
+
+// vr_rig2's latch (vr_rig2.cpp): the rigs made from the authored rigs handed out no more (kept: ragdolls point to them),
+// made again from the files when next asked for.
+void retireAuthored();
 
 // Whether `model` has a seed table (the grunt's; vr_ragdoll 1): cheap, by its name.
 [[nodiscard]] bool eligible(const qmodel_t* model);
@@ -92,6 +118,8 @@ struct Rig
 // The rig of `model`, derived on first use (tens of milliseconds) and kept: nullptr if it has none or the derivation
 // failed (the model isn't the one the seed table was made for).
 [[nodiscard]] const Rig* rigFor(qmodel_t* model);
+// ... always the derived one (vr_rig2 1's rigFor gives the authored rig's: the checks' "old rig" beside it).
+[[nodiscard]] const Rig* derivedRigFor(qmodel_t* model);
 
 // The rigs of `count` models made at once, on the game's thread pool (the map's start: rigFor's for each, faster).
 void warmRigs(qmodel_t* const* models, int count);
@@ -143,6 +171,7 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
     int heldBy, uint32_t cut, bool bleeds);
 void unpublish(int num);
+[[nodiscard]] bool published(int num); // edict `num` has a ragdoll published (drawn with it, not its animation)
 void unpublishAll();
 
 // The client, around a frame's drawing: the corpses that are ragdolls drawn with their skinned model (CL_RelinkEntities'

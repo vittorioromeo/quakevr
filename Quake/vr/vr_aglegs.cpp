@@ -286,11 +286,14 @@ const Model* modelOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll
         }
         L.H = rig.bones[L.thigh].pivot;
         L.K = rig.bones[L.shin].pivot;
+        // (the authored rig's foot a bone of its own, on the shin: its boot the shin's here, as the derived rigs' boots are)
+        const int foot = rig.authored ? boneNamed(rig, s == 0 ? "foot_r" : "foot_l") : -1;
+        const auto lower = [&](za::SizeT v) { return rig.vertBone[v] == L.shin || (foot >= 0 && rig.vertBone[v] == foot); };
         // (the ankle and the toe: the shin's vertices low down, its foot)
         float zmin = 1e9f;
         for(za::SizeT v = 0; v < nv; v++)
         {
-            if(rig.vertBone[v] == L.shin)
+            if(lower(v))
             {
                 zmin = za::min(zmin, m.rest[v].z);
             }
@@ -309,7 +312,7 @@ const Model* modelOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll
         for(za::SizeT v = 0; v < nv; v++)
         {
             const glm::vec3& r = m.rest[v];
-            if(rig.vertBone[v] == L.shin && r.z < zmin + 0.35f * len)
+            if(lower(v) && r.z < zmin + 0.35f * len)
             {
                 heel = za::min(heel, r.x);
                 toe = za::max(toe, r.x);
@@ -335,13 +338,17 @@ const Model* modelOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll
     m.hipH = hips;
     m.P0 = m.pelvis >= 0 ? rig.bones[m.pelvis].pivot : glm::vec3{0.f};
     m.row.resize(nv);
+    const int feet[2] = {rig.authored ? boneNamed(rig, "foot_r") : -1, rig.authored ? boneNamed(rig, "foot_l") : -1};
+    const auto lowerOf = [&](int s, za::SizeT v) {
+        return rig.vertBone[v] == m.side[s].shin || (feet[s] >= 0 && rig.vertBone[v] == feet[s]);
+    };
     for(za::SizeT v = 0; v < nv && ok; v++)
     {
         glm::vec4 row{0.f};
         for(int s = 0; s < 2; s++)
         {
             const LegRest& L = m.side[s];
-            if(rig.vertBone[v] == L.thigh || rig.vertBone[v] == L.shin)
+            if(rig.vertBone[v] == L.thigh || lowerOf(s, v))
             {
                 weigh(L, s, m.rest[v], row);
                 row.z = octPack(restNormal(hdr, static_cast<int>(v)));
@@ -351,6 +358,10 @@ const Model* modelOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll
         m.row[v] = row;
     }
     m.ok = ok && m.hipH > 4.f;
+    if(!m.ok)
+    {
+        Con_DPrintf("aglegs: %s: no legs found (hips %.1f over the soles)\n", model->name, m.hipH);
+    }
     return m.ok ? &m : nullptr;
 }
 
@@ -679,6 +690,10 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, in
     }
     const int num = numberOf(e);
     const Model* m = num > 0 ? modelFor(e->model) : nullptr;
+    if(!m && num > 0 && rig.authored)
+    {
+        m = modelOf(e->model, hdr, rig); // (vr_rig2 1: drawn skinned, its rest rows never asked for: found here)
+    }
     if(!m || !hdr || hdr->numverts != rig.numVerts)
     {
         return false;
@@ -840,6 +855,11 @@ void loadState(int ent, const unsigned char* in, int len)
         return;
     }
     memcpy(st, in, sizeof(Ent));
+}
+
+void resetModels()
+{
+    state = State{};
 }
 
 } // namespace qvr::aglegs

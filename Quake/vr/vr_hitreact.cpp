@@ -1135,7 +1135,14 @@ bool bodyTurn(const ragdoll::Rig& rig, const rigpose::Rigid* posed, const ArmPos
         return false;
     }
     const int chest = chestOf(rig);
-    const int pelvis = chest >= 0 ? rig.bones[chest].parent : -1;
+    // (the derived rigs' chest on the pelvis; the authored rig's (vr_rig2 1) on its spine on the pelvis: the turn at the
+    // waist, the spine's joint, carrying the chest)
+    int waist = chest;
+    while(rig.authored && waist >= 0 && rig.bones[waist].parent >= 0 && rig.bones[rig.bones[waist].parent].parent >= 0)
+    {
+        waist = rig.bones[waist].parent;
+    }
+    const int pelvis = waist >= 0 ? rig.bones[waist].parent : -1;
     if(pelvis < 0 || rig.bones[pelvis].parent >= 0)
     {
         return false;
@@ -1150,12 +1157,13 @@ bool bodyTurn(const ragdoll::Rig& rig, const rigpose::Rigid* posed, const ArmPos
     const glm::quat q = glm::angleAxis(t.x, Z) * glm::angleAxis(t.y, Y) * glm::angleAxis(t.z, X);
     const glm::quat qp = glm::angleAxis(za::clamp(vr_agrunt_strike_hips.value, 0.f, 1.f) * t.x, Z);
     out[pelvis] = about(qp, rigpose::apply(posed[pelvis], rig.bones[pelvis].pivot));
-    out[chest] = composeRigid(out[pelvis], about(glm::inverse(qp) * q, rigpose::apply(posed[chest], rig.bones[chest].pivot)));
+    out[waist] = composeRigid(out[pelvis], about(glm::inverse(qp) * q, rigpose::apply(posed[waist], rig.bones[waist].pivot)));
+    out[chest] = out[waist];
     const int head = rig.head >= 0 ? rig.head : boneNamed(rig, "head");
     const float hs = za::clamp(vr_agrunt_strike_head.value, 0.f, 1.f);
     for(int b = 0; b < rig.numBones; b++)
     {
-        if(b == chest || b == pelvis || rig.bones[b].joint == ragdoll::Joint::Loose)
+        if(b == chest || b == pelvis || b == waist || rig.bones[b].joint == ragdoll::Joint::Loose)
         {
             continue;
         }
@@ -2501,6 +2509,10 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         posed[i].rot = glm::slerp(k1.rot, k2.rot, b);
         posed[i].pos = glm::mix(k1.pos, k2.pos, b);
     }
+    if(rig->authored)
+    {
+        rig2::posedSmooth(e, hdr, *rig, pose1, pose2, blend, posed); // (vr_rig2 1: drawn from these: r_lerpmodels 3's spline)
+    }
     // The Rig Studio's animations (vr_rigseq.cpp; kickInstance draws them so): its bones from them, the layers below on top.
     bool layerArms = false;
     if(rigseq::wants(e))
@@ -2675,6 +2687,12 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     if(!agarms::solve(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, placed))
     {
         return;
+    }
+    if(rig->authored)
+    {
+        // vr_rig2 1: drawn on the authored rig, its arms laid on its arm bones within their limits, its weapons carried
+        // by its hands as drawn (vr_rig2_game.cpp)
+        rig2::liveArmed(e, *rig, posed, kicked ? kick : nullptr, placed, pose1, pose2, blend);
     }
     if(ArmPose* seen = armPoseOf(s.ent, false))
     {
@@ -4004,6 +4022,17 @@ void armErr_f()
 }
 
 } // namespace
+
+void resetModels()
+{
+    for(int i = 0; i < numArmedRigs; i++)
+    {
+        armModels[i] = ArmModel{};
+        misfits[i] = Misfit{};
+        armIk.left[i] = LeftHand{};
+        armIk.right[i] = LeftHand{};
+    }
+}
 
 void registerCommands()
 {

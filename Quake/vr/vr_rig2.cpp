@@ -63,8 +63,15 @@ struct Drawn
     byte lerpFlags{0};
     bool swapped{false};
     int drawsFrame{-1}, draws{0}, lastDraws{0}; // its bone matrices handed to the renderer (vr_rig2_draw_info)
+    int studioFrame{-1};       // the Rig Studio's pose published at (drawPosed: the game's drawLive yields to it)
+    qmodel_t* useSkinned{nullptr}; // drawn with this skinned copy (drawPosedDerived: the derived rig's "#rag"), else "#rig2"
+    rigpose::Rigid F[maxBones]; // the bones as published (drawnBone: a ragdoll made of it starts there)
 };
 za::Vector<Drawn> drawn;
+
+// vr_rig2 in the game, read when a map is spawned (latch): -1 not read yet.
+int gameLatched = -1;
+int gameGenerations = 0; // the rigs' generations then (a rig's file changed: what is made from it made again)
 // The generation each skinned model was made from (rebuilt when the rig's weights change: a reload)
 struct Made
 {
@@ -419,6 +426,152 @@ glm::vec3 aimAngles(const Rig& rig, int b, const rigpose::Rigid& Fparent, const 
     return current;
 }
 
+glm::quat localOf(const Rig& rig, int b, const glm::vec3& angles)
+{
+    const Bone& bone = rig.bones[b];
+    if(bone.joint == Joint::Ball)
+    {
+        const Frame fr = frameOf(bone);
+        return glm::normalize(ballTurn(fr, angles) * glm::inverse(ballTurn(fr, restAngles(rig, b))));
+    }
+    if(bone.joint == Joint::Hinge)
+    {
+        return glm::angleAxis((angles.x - restAngles(rig, b).x) * deg, safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f}));
+    }
+    return glm::quat{1.f, 0.f, 0.f, 0.f};
+}
+
+glm::vec3 anglesOf(const Rig& rig, int b, const glm::quat& local)
+{
+    const Bone& bone = rig.bones[b];
+    if(bone.joint == Joint::Ball)
+    {
+        // ballTurn(a) = local ballTurn(rest): its twist about n (the swing-twist split), its swing's rotation vector.
+        const Frame fr = frameOf(bone);
+        glm::quat q = glm::normalize(local * ballTurn(fr, restAngles(rig, b)));
+        q = q.w < 0.f ? -q : q;
+        const float tw = 2.f * za::atan2(glm::dot(glm::vec3{q.x, q.y, q.z}, fr.n), q.w);
+        glm::quat swing = glm::normalize(q * glm::inverse(glm::angleAxis(tw, fr.n)));
+        swing = swing.w < 0.f ? -swing : swing;
+        const glm::vec3 im{swing.x, swing.y, swing.z};
+        const float s = glm::length(im);
+        const glm::vec3 r = s > 1e-7f ? im * (2.f * za::atan2(s, swing.w) / s) : im * 2.f;
+        float twDeg = tw / deg;
+        twDeg = twDeg > 180.f ? twDeg - 360.f : twDeg < -180.f ? twDeg + 360.f : twDeg;
+        return glm::vec3{glm::dot(r, fr.axF) / deg, glm::dot(r, fr.axS) / deg, twDeg};
+    }
+    if(bone.joint == Joint::Hinge)
+    {
+        const glm::vec3 axis = safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f});
+        glm::quat q = glm::normalize(local);
+        q = q.w < 0.f ? -q : q;
+        const float tw = 2.f * za::atan2(glm::dot(glm::vec3{q.x, q.y, q.z}, axis), q.w);
+        return glm::vec3{restAngles(rig, b).x + tw / deg, 0.f, 0.f};
+    }
+    return glm::vec3{0.f};
+}
+
+PhysJoint physJoint(const Rig& rig, int b)
+{
+    PhysJoint j;
+    const Bone& bone = rig.bones[b];
+    if(bone.joint == Joint::Ball)
+    {
+        // Its zero's frame F0 (z the swing's zero n, x toward fwd); A: F0 turned to the swing's middle (the cone round
+        // it, its axes toward fwd and side); B: F0 as the rest pose's bone carries it, less the twist's middle. Box3D's
+        // B relative to A is then inverse(F0) inverse(T_mid) T(a) F0 rotZ(-twist mid): no swing nor twist at the middle.
+        const Frame fr = frameOf(bone);
+        const glm::mat3 m0{fr.f, glm::cross(fr.n, fr.f), fr.n};
+        const glm::quat F0 = glm::normalize(glm::quat_cast(m0));
+        const glm::vec3 mid{(bone.swingX.x + bone.swingX.y) * 0.5f, (bone.swingY.x + bone.swingY.y) * 0.5f, 0.f};
+        const float twistMid = (bone.twist.x + bone.twist.y) * 0.5f;
+        j.frameA = glm::normalize(ballTurn(fr, mid) * F0);
+        const glm::vec3 rest = restAngles(rig, b);
+        j.frameB = glm::normalize(ballTurn(fr, glm::vec3{rest.x, rest.y, 0.f}) * F0 * glm::angleAxis(-twistMid * deg, glm::vec3{0.f, 0.f, 1.f}));
+        j.coneX = za::max(bone.swingX.y - bone.swingX.x, 0.f) * 0.5f * deg;
+        j.coneY = za::max(bone.swingY.y - bone.swingY.x, 0.f) * 0.5f * deg;
+        j.twist = za::max(bone.twist.y - bone.twist.x, 0.f) * 0.5f * deg;
+    }
+    else if(bone.joint == Joint::Hinge)
+    {
+        const glm::vec3 axis = safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f});
+        const glm::vec3 z{0.f, 0.f, 1.f};
+        const float c = glm::dot(z, axis);
+        const glm::vec3 cr = glm::cross(z, axis);
+        j.frameA = c < -0.9999f ? glm::quat{0.f, 1.f, 0.f, 0.f} : glm::normalize(glm::quat{1.f + c, cr.x, cr.y, cr.z});
+        j.frameB = j.frameA;
+        const float rest = restAngles(rig, b).x;
+        j.lower = (bone.range.x - rest) * deg;
+        j.upper = (bone.range.y - rest) * deg;
+    }
+    return j;
+}
+
+bool gameOn()
+{
+    if(gameLatched < 0)
+    {
+        latch();
+    }
+    return gameLatched == 1;
+}
+
+void latch()
+{
+    int generations = 0;
+    for(const Entry& e : rigs)
+    {
+        generations += e.rig ? e.rig->generation + 1 : 0;
+    }
+    const int now = vr_rig2.value != 0.f ? 1 : 0;
+    const bool changed = gameLatched >= 0 && (now != gameLatched || (now == 1 && generations != gameGenerations));
+    gameLatched = now;
+    gameGenerations = generations;
+    if(vr_rig2_game.value != static_cast<float>(now))
+    {
+        Cvar_SetValueQuick(&vr_rig2_game, static_cast<float>(now)); // (QC's armed grunts: their shoulders, vr_armedmon.qc)
+    }
+    if(changed)
+    {
+        resetGame();
+        Con_Printf("vr_rig2 %d: the grunt on the %s rig\n", now, now ? "authored" : "old");
+    }
+}
+
+bool unswapped(int num, entity_t& out)
+{
+    if(num <= 0 || num >= cl_max_edicts || !cl_entities)
+    {
+        return false;
+    }
+    out = cl_entities[num];
+    for(const Drawn& d : drawn)
+    {
+        if(d.num == num && d.swapped && out.model == d.skinned)
+        {
+            out.model = d.original;
+            out.previouspose = d.previousPose;
+            out.currentpose = d.currentPose;
+            out.lerpstart = d.lerpStart;
+            out.lerptime = d.lerpTime;
+            out.lerpflags = d.lerpFlags;
+        }
+    }
+    return true;
+}
+
+bool drawnNow(int num)
+{
+    for(const Drawn& d : drawn)
+    {
+        if(d.num == num && d.frame == host_framecount)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void skin(const Rig& rig, const rigpose::Rigid* F, const glm::vec3* rest, int numVerts, glm::vec3* out, bool dq)
 {
     const int nw = static_cast<int>(rig.weights.size());
@@ -749,34 +902,132 @@ void reload()
 
 // ---- Drawing ----
 
-void drawPosed(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones)
+namespace
+{
+void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, bool studio, uint32_t hidden = 0, qmodel_t* useSkinned = nullptr)
 {
     Drawn* d = nullptr;
     for(Drawn& x : drawn)
     {
         d = x.num == entnum ? &x : d;
     }
+    if(d && !studio && d->studioFrame >= host_framecount - 1)
+    {
+        return; // (the Rig Studio's pose of its subject this frame or the last: its own)
+    }
+    if(!d)
+    {
+        // (a slot drawn by nobody lately reused: the drawn entities' list stays as long as the most drawn at once)
+        for(Drawn& x : drawn)
+        {
+            d = !d && x.frame < host_framecount - 2 && !x.swapped ? &x : d;
+        }
+    }
     if(!d)
     {
         drawn.pushBack(Drawn{});
         d = &drawn.back();
     }
+    if(d->num != entnum)
+    {
+        *d = Drawn{};
+    }
     d->num = entnum;
     d->model = model;
     d->frame = host_framecount;
+    d->studioFrame = studio ? host_framecount : d->studioFrame;
+    d->useSkinned = useSkinned;
     d->bones = za::min(numBones, maxBones);
+    const Rig* rig = hidden ? rigFor(model) : nullptr;
     for(int b = 0; b < d->bones; b++)
     {
-        const glm::mat3 r = glm::mat3_cast(F[b].rot);
+        d->F[b] = F[b];
+        const bool gone = (hidden >> b) & 1u; // (a hidden bone: its vertices at its pivot, its triangles gone)
+        const glm::mat3 r = gone ? glm::mat3{0.f} : glm::mat3_cast(F[b].rot);
+        const glm::vec3 t = gone ? rigpose::apply(F[b], rig && b < rig->numBones ? rig->bones[b].pivot : glm::vec3{0.f}) : F[b].pos;
         float* o = d->skin + b * 12;
         for(int row = 0; row < 3; row++)
         {
             o[row * 4 + 0] = r[0][row];
             o[row * 4 + 1] = r[1][row];
             o[row * 4 + 2] = r[2][row];
-            o[row * 4 + 3] = F[b].pos[row];
+            o[row * 4 + 3] = t[row];
         }
     }
+}
+} // namespace
+
+void drawPosedDerived(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones)
+{
+    const ragdoll::Rig* rig = model ? ragdoll::derivedRigFor(const_cast<qmodel_t*>(model)) : nullptr;
+    qmodel_t* sk = rig ? ragdoll::skinnedModelOf(*rig) : nullptr;
+    if(sk && sk->type == mod_alias)
+    {
+        publishDrawn(entnum, model, F, numBones, true, 0, sk);
+    }
+}
+
+void drawPosed(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones)
+{
+    publishDrawn(entnum, model, F, numBones, true);
+}
+
+void drawLive(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, uint32_t hidden)
+{
+    publishDrawn(entnum, model, F, numBones, false, hidden);
+}
+
+bool drawnBone(int num, int b, glm::quat& rot, glm::vec3& pos)
+{
+    for(const Drawn& d : drawn)
+    {
+        if(d.num == num && d.frame >= host_framecount - 2 && b >= 0 && b < d.bones)
+        {
+            rot = d.F[b].rot;
+            pos = d.F[b].pos;
+            return true;
+        }
+    }
+    return false;
+}
+
+qmodel_t* skinnedFor(const qmodel_t* model)
+{
+    Rig* rig = model ? rigFor(model) : nullptr;
+    if(!rig)
+    {
+        return nullptr;
+    }
+    qmodel_t* sk = skinnedOf(model);
+    if(!sk || sk->type != mod_alias)
+    {
+        return nullptr;
+    }
+    // (made again when the rig was read again)
+    bool fresh = false;
+    for(Made& m : made)
+    {
+        if(m.mod == sk)
+        {
+            fresh = true;
+            if(m.generation != rig->generation)
+            {
+                Cache_Free(&sk->cache, false);
+                m.generation = rig->generation;
+                sk = skinnedOf(model);
+            }
+        }
+    }
+    if(!fresh)
+    {
+        made.pushBack(Made{sk, rig->generation});
+    }
+    if(!sk || sk->type != mod_alias)
+    {
+        return nullptr;
+    }
+    catchUpAO(sk, const_cast<qmodel_t*>(model));
+    return sk;
 }
 
 void swapModels()
@@ -797,40 +1048,11 @@ void swapModels()
         {
             continue;
         }
-        Rig* rig = rigFor(d.model);
-        if(!rig)
+        qmodel_t* sk = d.useSkinned ? d.useSkinned : skinnedFor(d.model); // (the Rig Studio's old rig: the derived "#rag")
+        if(!sk)
         {
             continue;
         }
-        qmodel_t* sk = skinnedOf(d.model);
-        if(!sk || sk->type != mod_alias)
-        {
-            continue;
-        }
-        // (made again when the rig was read again)
-        bool fresh = false;
-        for(Made& m : made)
-        {
-            if(m.mod == sk)
-            {
-                fresh = true;
-                if(m.generation != rig->generation)
-                {
-                    Cache_Free(&sk->cache, false);
-                    m.generation = rig->generation;
-                    sk = skinnedOf(d.model);
-                }
-            }
-        }
-        if(!fresh)
-        {
-            made.pushBack(Made{sk, rig->generation});
-        }
-        if(!sk || sk->type != mod_alias)
-        {
-            continue;
-        }
-        catchUpAO(sk, const_cast<qmodel_t*>(d.model));
         d.original = e->model;
         d.skinned = sk;
         d.previousPose = e->previouspose;

@@ -343,6 +343,26 @@ void b3PrepareSphericalJoint( b3JointSim* base, b3StepContext* context )
 		float k = b3Dot( swingAxis, b3MulMV( invInertiaSum, swingAxis ) );
 		joint->swingMass = k > 0.0f ? 1.0f / k : 0.0f;
 		joint->swingAxis = swingAxis;
+
+		// Quake VR: an elliptical cone's half angle toward the twist axis's direction in frame A's xy plane (r =
+		// ab / sqrt((b cos)^2 + (a sin)^2): coneAngle toward x, coneAngleY toward y).
+		joint->coneAngleNow = joint->coneAngle;
+		if ( joint->coneAngleY > 0.0f )
+		{
+			b3Vec3 d = b3InvRotateVector( joint->frameA.q, twistAxis );
+			float planar = sqrtf( d.x * d.x + d.y * d.y );
+			if ( planar > 1e-6f )
+			{
+				float c = d.x / planar, s = d.y / planar;
+				float a = joint->coneAngle, b = joint->coneAngleY;
+				float den = sqrtf( ( b * c ) * ( b * c ) + ( a * s ) * ( a * s ) );
+				joint->coneAngleNow = den > 1e-9f ? a * b / den : b3MinFloat( a, b );
+			}
+			else
+			{
+				joint->coneAngleNow = b3MinFloat( joint->coneAngle, joint->coneAngleY );
+			}
+		}
 	}
 
 	if ( joint->enableTwistLimit )
@@ -579,7 +599,7 @@ void b3SolveSphericalJoint( b3JointSim* base, b3StepContext* context, bool useBi
 
 			b3Vec3 swingAxis = joint->swingAxis;
 
-			float c = joint->coneAngle - swingAngle;
+			float c = joint->coneAngleNow - swingAngle; // (Quake VR: an ellipse's, toward the swing)
 			float bias = 0.0f;
 			float massScale = 1.0f;
 			float impulseScale = 0.0f;

@@ -759,7 +759,7 @@ void jointPoses(const Rig& rig, int b, const Pose& rest, za::Vector<Pose>& out, 
     }
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
     cs.rig = rigFor(model);
-    cs.old = ragdoll::rigFor(model);
+    cs.old = ragdoll::derivedRigFor(model);
     if(!hdr || !cs.rig || hdr->poseverttype != aliashdr_t::PV_QUAKE1)
     {
         Con_Printf("rig2 check: %s has no rig2 file (quakevr/rigs/<model>.rig2.txt: Misc/quakevr/make_rig2.py)\n", modelName);
@@ -1009,6 +1009,78 @@ void check_f()
     {
         envelope(rig, rest);
     }
+    // His five situations (vrragtriggers 01-28-53 .. 01-30-04's screenshots; stage 1's eyeshots): each a pose, the old
+    // rig moved alike beside it. Measured, not passed or failed (the old rig is what they showed).
+    if(only && !strcmp(only, "situations"))
+    {
+        struct Situation
+        {
+            const char* name;
+            const char* bone[2];
+            glm::vec3 a[2];
+        };
+        const Situation sits[] = {
+            {"elbow-to-hand curve (elbow 140, wrist flexed 25)", {"forearm_r", "hand_r"}, {{140.f, 0.f, 0.f}, {25.f, 0.f, 0.f}}},
+            {"shoulder hole (30 forward, 40 out)", {"upperarm_r", nullptr}, {{30.f, 40.f, 0.f}, {}}},
+            {"knee (115 under a hip at 65)", {"thigh_l", "shin_l"}, {{65.f, 0.f, 0.f}, {115.f, 0.f, 0.f}}},
+            {"biceps gap (arm out 50, twisted 20)", {"upperarm_l", nullptr}, {{0.f, 50.f, 20.f}, {}}},
+            {"wrist and ankle at their limits", {"hand_r", "foot_l"}, {{25.f, 10.f, 10.f}, {30.f, 10.f, 12.f}}},
+        };
+        for(const Situation& s : sits)
+        {
+            Pose p = rest;
+            for(int k = 0; k < 2; k++)
+            {
+                const int b = s.bone[k] ? boneByName(rig, s.bone[k]) : -1;
+                if(b >= 0)
+                {
+                    p.a[b] = s.a[k];
+                }
+            }
+            forward(rig, p, F);
+            Tally tn, to;
+            measure(F, false, -1, -1, tn, s.name);
+            if(withOld)
+            {
+                measure(F, true, -1, -1, to, s.name);
+            }
+            printTally("new", s.name, tn);
+            if(withOld)
+            {
+                printTally("old", s.name, to);
+            }
+        }
+    }
+    // Poses from the game (vr_rig2_record: ragdolls' bodies from real deaths and knockdowns, armed ones' drawn arms):
+    // measured as they are (a ragdoll's joints a little past their limits too), the old rig moved alike beside them.
+    if(only && !strcmp(only, "recorded"))
+    {
+        for(int set = 0; set < 2; set++)
+        {
+            const za::Vector<Pose>& rec = recordedPoses(set);
+            if(rec.empty())
+            {
+                continue;
+            }
+            Tally tn, to;
+            for(za::SizeT i = 0; i < rec.size(); i++)
+            {
+                forward(rig, rec[i], F);
+                q_snprintf(what, sizeof(what), "%s %d", set == 0 ? "ragdoll" : "armed", static_cast<int>(i));
+                measure(F, false, -1, -1, tn, what);
+                if(withOld)
+                {
+                    measure(F, true, -1, -1, to, what);
+                }
+            }
+            q_snprintf(what, sizeof(what), "%s recorded (%d poses)", set == 0 ? "ragdoll" : "armed", static_cast<int>(rec.size()));
+            printTally("new", what, tn);
+            if(withOld)
+            {
+                printTally("old", what, to);
+            }
+        }
+    }
     // Ragdoll-like random poses within the limits
     if(!only || !strcmp(only, "random"))
     {
@@ -1125,6 +1197,11 @@ void init()
     Cmd_AddCommand("vr_rig2_info", info_f);
     Cmd_AddCommand("vr_rig2_draw_info", drawInfo);
     Cmd_AddCommand("vr_rig2_reload", reload_f);
+    Cmd_AddCommand("vr_rig2_arms", armsReport_f);
+    Cmd_AddCommand("vr_rig2_frames", framesCheck_f);
+    Cmd_AddCommand("vr_rig2_live_check", liveCheck_f);
+    Cmd_AddCommand("vr_rig2_parts", partsReport_f);
+    Cmd_AddCommand("vr_rig2_record", record_f);
 }
 
 } // namespace qvr::rig2

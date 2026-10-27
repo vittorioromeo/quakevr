@@ -48,6 +48,17 @@ namespace qvr::ragpose
     return zTo(glm::length(along) > 1e-3f ? glm::normalize(along) : glm::vec3{0.f, 0.f, 1.f});
 }
 
+// The joint's frame in the parent's rest space (A) and in the bone's own (B): the authored rig's own two (Bone::framed:
+// a ball's cone round its swing's middle, not its rest direction), else jointFrame for both.
+[[nodiscard]] inline glm::quat jointFrameA(const ragdoll::Bone& bone)
+{
+    return bone.framed ? bone.frameA : jointFrame(bone);
+}
+[[nodiscard]] inline glm::quat jointFrameB(const ragdoll::Bone& bone)
+{
+    return bone.framed ? bone.frameB : jointFrame(bone);
+}
+
 // `q` or `-q`, whichever is nearer `ref` (a shortest blend).
 [[nodiscard]] inline glm::quat nearTo(const glm::quat& q, const glm::quat& ref)
 {
@@ -77,6 +88,11 @@ inline void bonePoseLerp(const ragdoll::Rig& rig, int a, int b2, float t, int b,
 [[nodiscard]] inline glm::quat toJoint(const glm::quat& frame, const glm::quat& relative)
 {
     return glm::normalize(glm::inverse(frame) * relative * frame);
+}
+// ... with the joint's two frames (jointFrameA, jointFrameB).
+[[nodiscard]] inline glm::quat toJoint(const ragdoll::Bone& bone, const glm::quat& relative)
+{
+    return glm::normalize(glm::inverse(jointFrameA(bone)) * relative * jointFrameB(bone));
 }
 
 // And back: the child's turn in its parent's rest space a joint target stands for.

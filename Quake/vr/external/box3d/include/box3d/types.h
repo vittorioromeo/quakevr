@@ -919,6 +919,10 @@ typedef struct b3SphericalJointDef
 	/// The angle for the cone limit in radians. Valid range is [0, pi]
 	float coneAngle;
 
+	/// Quake VR: an elliptical cone (the authored rig's balls, vr_rig2.cpp): its half angle toward frameA's y axis
+	/// (radians), coneAngle then the half angle toward its x axis. 0: a round cone of coneAngle.
+	float coneAngleY;
+
 	/// A flag to enable the twist limit. The twist is centered on the frameB z-axis.
 	bool enableTwistLimit;
 

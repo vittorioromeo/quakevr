@@ -89,6 +89,9 @@ struct Placed
     float poleOff[2]{0.f, 0.f};
     int poleWhy[2]{0, 0};
     glm::vec3 clavicle[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each clavicle's pivot (model space; vr_agarms_clavicle)
+    // The arm's bones as solved (rest -> now, model space): its upper arm, forearm and hand (the authored rig's arms are
+    // laid on these within its limits: vr_rig2_game.cpp).
+    rigpose::Rigid upperM[2], foreM[2], handM[2];
 };
 
 // The Rig Studio's: an armed model's shoulder whose upper arm is rig bone `bone` (its pivot the shoulder): its side, its
@@ -156,6 +159,8 @@ void clearErr();
 void printErr();
 
 void registerCommands();
+// The models' skins and the entities' arms forgotten (vr_rig2's latch: the grunt's rig another; made again as drawn).
+void resetModels();
 
 // The Pose Studio's Live tape (vr_poselive.hpp): `ent`'s state here (its eases, its last frame's) as bytes, its length
 // returned (0: none); and put back (a length of 0: dropped).
