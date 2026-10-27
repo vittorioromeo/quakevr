@@ -111,6 +111,7 @@ DEFAULTS = dict(
     hold={},  # vertex -> the smoothing's pull to its blend there (as region_alpha, per vertex)
     pieces={},  # a vertex of a separate piece (welded mesh) -> the bone the whole piece rides, rigid (a backpack)
     reach=None,  # units past a bone's capsule (its thickness) beyond which its weight is dropped (None: anywhere)
+    no_skip=[],  # (end, middle, end) bone chains: an end's vertex keeps none of the other end's weight (the middle's)
     max_hops=9,  # bones further than this many joints from a vertex's own dropped (none: the fused arm's web needs the
                  # forearm's too)
     # each bone's thickness (units: about its limb's radius there), for the regions: a vertex goes to the nearest capsule
@@ -152,9 +153,12 @@ ENFORCER_SKELETON = [
     dict(name='upperarm_r', parent='clavicle_r', joint='ball', pivot=(-5.5, -12.5, 21.0), end=(-1.5, -18.5, 14.0),
          blend=3.5, radius=9.0, neutral=(0, -0.17, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-20, 40),
          sy=(-10, 50), tw=(-20, 20)),
-    dict(name='forearm_r', parent='upperarm_r', joint='hinge', pivot=(-1.5, -18.5, 14.0), end=(2.5, -13.5, 13.5),
+    # (the right wrist at the gauntlet's cuff, 2 units further than the fist's back edge: a forearm of 4.7 and a hand of
+    # 5.9 to its grip, against the left's 7.5 and 3.6, left the armed solve's reach short and its elbow unable to fold
+    # the grip to the shoulder; stage 2b)
+    dict(name='forearm_r', parent='upperarm_r', joint='hinge', pivot=(-1.5, -18.5, 14.0), end=(3.6, -11.9, 12.8),
          refine=True, blend=1.6, radius=5.5, range=(0, 140)),
-    dict(name='hand_r', parent='forearm_r', joint='ball', pivot=(2.5, -13.5, 13.5), end=(5.5, -9.5, 12.5), refine=True,
+    dict(name='hand_r', parent='forearm_r', joint='ball', pivot=(3.6, -11.9, 12.8), end=(5.5, -9.5, 12.5), refine=True,
          blend=0.6, radius=4.0, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-25, 25), sy=(-10, 10), tw=(-10, 10)),
     dict(name='thigh_l', parent='pelvis', joint='ball', pivot=(-5.0, 5.2, -3.0), end=(-4.0, 6.5, -10.8), blend=2.6,
          radius=8.0, neutral=(0, 0.08, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 65), sy=(-20, 45), tw=(-30, 30)),
@@ -188,7 +192,13 @@ RIGS = {
                      region_alpha=dict(hand=4.0, foot=4.0, head=2.0, shin=4.0),
                      # the back of each knee ring (a small triangle half way between the thigh and the shin) turns as
                      # one piece: it collapsed and turned over past a bend of 80 degrees
-                     ties=[[228, 209, 211], [226, 198, 221]],
+                     ties=[[228, 209, 211], [226, 198, 221],
+                           # the right pad's front inner edge (two triangles): folded 151-177 as the arm twisted 20 in
+                           [84, 147, 150, 154]],
+                     # the elbow's block none of the fist's weight, the fist's back none of the upper arm's (the
+                     # forearm's): the hand's turn dragged the elbow, the elbow's the fist (the wrist with its elbow:
+                     # 2 flipped; stage 2b)
+                     no_skip=[('upperarm_r', 'forearm_r', 'hand_r')],
                      # the left pad's back edge mostly the arm's (half the clavicle's, it turned over as the arm swung
                      # back past 7 degrees behind straight down; so, clean to 52)
                      weights_fix={v: {'upperarm_l': 0.8, 'clavicle_l': 0.2} for v in (129, 177, 144)},
@@ -544,6 +554,17 @@ def build(mesh, cfg, quiet=False):
                     length(sub(closest_on_segment(p, bones[bo]['pivot'], bones[bo]['end']), p)) -
                     cfg['thick'].get(bones[bo]['name'].rstrip('_lr').rstrip('_'), 2.5) <= cfg['reach']}
         weights[v] = kept or {region[v]: 1.0}
+    # (no_skip: a vertex of one end of a chain keeps none of the other end's weight, it goes to the bone between: the
+    # enforcer's fist pulled the elbow's block along as the hand turned, the elbow pulled the fist's back to the upper arm)
+    for a, mid, c in cfg['no_skip']:
+        ia, im, ic = index[a], index[mid], index[c]
+        for v in range(mesh.nv):
+            w = weights[v]
+            if v in rigid or region[v] not in (ia, ic):
+                continue
+            far = ic if region[v] == ia else ia
+            if far in w:
+                w[im] = w.get(im, 0.0) + w.pop(far)
     # 5. welds (and the tied groups: vertices given one set of weights, so their triangle turns as one piece)
     ties = [sorted({u for v in t for u in range(mesh.nv) if mesh.weld[u] == mesh.weld[v]}) for t in cfg['ties']]
     for g in mesh.groups + ties:

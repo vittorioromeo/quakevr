@@ -128,9 +128,11 @@ bool fit(const ragdoll::Rig& rig, int bone, agbody::Proxy& out, float sides = 1.
             }
         }
     }
+    // (a side with a few points, 1 to 3, its farthest: the enforcer's chest front under its rifle has 2 (the rifle the
+    // weapon's), and its other side's radius was its power pack's, 15 units ahead of its chest)
     const auto radius = [](za::Vector<float>& s) {
         za::quickSort(s.begin(), s.end());
-        return s.size() < 4 ? -1.f : za::max(0.5f, s[static_cast<za::SizeT>(fitShare * static_cast<float>(s.size() - 1))]);
+        return s.empty() ? -1.f : s.size() < 4 ? za::max(0.5f, s[s.size() - 1]) : za::max(0.5f, s[static_cast<za::SizeT>(fitShare * static_cast<float>(s.size() - 1))]);
     };
     for(int i = 0; i < 3; i++)
     {

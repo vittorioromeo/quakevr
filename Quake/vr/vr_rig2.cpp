@@ -529,12 +529,12 @@ void latch()
     gameGenerations = generations;
     if(vr_rig2_game.value != static_cast<float>(now))
     {
-        Cvar_SetValueQuick(&vr_rig2_game, static_cast<float>(now)); // (QC's armed grunts: their shoulders, vr_armedmon.qc)
+        Cvar_SetValueQuick(&vr_rig2_game, static_cast<float>(now)); // (QC's armed grunts and enforcers: their shoulders, vr_armedmon.qc)
     }
     if(changed)
     {
         resetGame();
-        Con_Printf("vr_rig2 %d: the grunt on the %s rig\n", now, now ? "authored" : "old");
+        Con_Printf("vr_rig2 %d: the grunt and the enforcer on the %s rig\n", now, now ? "authored" : "old");
     }
 }
 

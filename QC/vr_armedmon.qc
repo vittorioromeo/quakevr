@@ -113,6 +113,19 @@ void(float k) VR_AM_Row =
         vr_am_sh_r = '-6.2 -11.3 21.8';
         vr_am_sh_l = '-5.9 7.2 22.8';
         vr_am_arm = 20.4;
+        if(cvar_hget(cvarh_vr_rig2_game))
+        {
+            // vr_rig2 1 (the engine's, read as the map spawned): the authored rig's shoulders, its upper arms' joints
+            // (quakevr/rigs/vrenforcer.rig2.txt, inside the pads), the left 4.3 further out than the derived rig's;
+            // its right arm shoulder to wrist (upper arm 8.3, forearm 6.7; the grunt's 15.2).
+            vr_am_sh_r = '-5.5 -12.5 21';
+            vr_am_sh_l = '-5.5 11.5 21';
+            vr_am_arm = 15;
+            // The grunt-made poses fitted so the grunt's authored shoulders land on these (the old fit put them 2.7
+            // units over them: its hands' goals out of the shorter authored arms' reach).
+            vr_am_fit_scale = '1 1.3 1';
+            vr_am_fit_shift = '-5.8 0 5.8';
+        }
         vr_am_grip_r = '3.3 -5.5 11';
         vr_am_grip_l = '8.7 11.6 13.4';
         vr_am_gun_fw = '0 0.984 0.18';

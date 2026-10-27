@@ -2359,9 +2359,9 @@ const Rig* rigFor(qmodel_t* model)
         {
             return r;
         }
-        // (stage 2 is the grunt's, soldier.mdl and the armed vrgrunt.mdl; the enforcer's authored rig, stage 2b, not yet)
-        const bool grunt = strstr(model->name, "soldier.mdl") != nullptr || strstr(model->name, "vrgrunt.mdl") != nullptr;
-        const rig2::Rig* a = grunt && za::find(authoredRigs.failed.begin(), authoredRigs.failed.end(), model) == authoredRigs.failed.end()
+        // (every model with an authored rig file: the grunt's, soldier.mdl and the armed vrgrunt.mdl, stage 2; the
+        // enforcer's, enforcer.mdl and the armed vrenforcer.mdl, stage 2b)
+        const rig2::Rig* a = za::find(authoredRigs.failed.begin(), authoredRigs.failed.end(), model) == authoredRigs.failed.end()
                                  ? rig2::rigFor(model)
                                  : nullptr;
         if(a)
