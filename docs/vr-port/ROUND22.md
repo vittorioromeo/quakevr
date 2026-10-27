@@ -23603,3 +23603,15 @@ eval.sh: 163/171, no verdict change (3 takes' damage moved by 0.1). Checklist li
 - [ ] AD's lamps (ad_crucial) with Comfort > Soften Flickering Lights at 0.5, then 0: the flicker is calmer, same rhythm {test:ad_lighting}
 - [ ] Empty nail magazines on the floor: no force grab, no sparkles when aimed at; one with rounds still comes {test:magfill}
 - [ ] AD projectile pellets on a worn flamethrower/poison tank: sparks and tink, no blood; crate splinters; grunt bleeds {test:ad_pellet_tanks}
+
+## Feminine voice: the landing grunt (worktree `fastship`, branch `agent/voiceland`)
+
+Bug: with Voice: Feminine the grunt on landing after a fall was not pitch-shifted. Cause: `player/land.wav` (the
+grunt of every fall past 300 units/s; `land2.wav`, the "oof", is only past 650 with damage) was left out of
+`voiceSounds` as a "thud". Fixed: `land.wav` added (also the armour/item-refused cue, items.qc, plays it). `isVoice`
+now also matches by origin: any `VR_SndDerived` sound made from a voice sound is voice, so new derived copies are
+covered. `vr_debug_sound_log` also prints `voicelog: transformed <name>` per transformed load. Audited: every
+`player/*.wav` the QC/engine plays (udeath, teledth1, gib, tornoff2 stay non-voice: body/gore). Test (`-Sound`,
+vrfiringrange, drops of 50/120/330 units): none / `land.wav` / `pain3`+`land2.wav`, all transformed; `vr_voice 0`
+reloads the originals (count unchanged at 24).
+- [ ] Voice: Feminine, drop from a ledge about 2 m high: the landing grunt is high-pitched like the jump's
