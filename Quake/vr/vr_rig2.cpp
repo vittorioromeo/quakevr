@@ -526,6 +526,10 @@ void latch()
     const bool changed = gameLatched >= 0 && (now != gameLatched || (now == 1 && generations != gameGenerations));
     gameLatched = now;
     gameGenerations = generations;
+    if(vr_rig2_game.value != static_cast<float>(now))
+    {
+        Cvar_SetValueQuick(&vr_rig2_game, static_cast<float>(now)); // (QC's armed grunts: their shoulders, vr_armedmon.qc)
+    }
     if(changed)
     {
         resetGame();

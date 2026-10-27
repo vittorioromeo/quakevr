@@ -219,7 +219,7 @@ void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, ri
         const glm::vec3 cr = Fch.rot * (U.pivot - C.pivot);
         float hp[4]{};
         const bool clampArms = vr_rig2_arm_limits.value != 0.f; // (else the solve's turns: its own limits)
-        F[d.clav] = limited(a, d.clav, Fch, glm::normalize(between(cr, placed.shoulder[s] - cp) * Fch.rot), &hp[0]);
+        F[d.clav] = limited(a, d.clav, Fch, glm::normalize(between(cr, placed.shoulder[s] - cp) * Fch.rot), &hp[0], clampArms);
         // The upper arm: the solve's turn (its twist: the elbow's plane) re-aimed from the shoulder as now at its elbow.
         const glm::vec3 S = rigpose::apply(F[d.clav], U.pivot);
         const glm::quat uRot = placed.upperM[s].rot;

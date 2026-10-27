@@ -156,7 +156,16 @@ void(float k) VR_AM_Row =
     vr_am_anchor_at = '-0.1 0 19.3';
     vr_am_sh_r = '0.1 -7.7 16.3';
     vr_am_sh_l = '0.7 6.3 14.5';
-    vr_am_arm = 16.7;
+    if(cvar_hget(cvarh_vr_rig2_game))
+    {
+        // vr_rig2 1 (the engine's, read as the map spawned): the authored rig's shoulders, its upper arms' joints
+        // (quakevr/rigs/vrgrunt.rig2.txt), wider than the derived rig's: its weapons' second grips brought within reach
+        // of these (VR_AGP_SecondReach), as its arms' solve has them.
+        vr_am_sh_r = '-0.3 -9.4 15.2';
+        vr_am_sh_l = '0.9 9.0 15.2';
+        vr_am_arm = 15.2; // (its right arm, shoulder to wrist: upper arm 8.2, forearm 7.0; the derived rig's 9.8 + 6.9)
+    }
+    vr_am_arm = cvar_hget(cvarh_vr_rig2_game) ? vr_am_arm : 16.7; // (vr_rig2 1: the authored arm's, above)
     vr_am_grip_r = '5.7 -3.6 4.8';
     vr_am_grip_l = '11.8 5.5 1.9';
     vr_am_gun_fw = '0.394 0.888 -0.235';

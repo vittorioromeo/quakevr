@@ -358,6 +358,10 @@ const Model* modelOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll
         m.row[v] = row;
     }
     m.ok = ok && m.hipH > 4.f;
+    if(!m.ok)
+    {
+        Con_DPrintf("aglegs: %s: no legs found (hips %.1f over the soles)\n", model->name, m.hipH);
+    }
     return m.ok ? &m : nullptr;
 }
 
@@ -686,6 +690,10 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, in
     }
     const int num = numberOf(e);
     const Model* m = num > 0 ? modelFor(e->model) : nullptr;
+    if(!m && num > 0 && rig.authored)
+    {
+        m = modelOf(e->model, hdr, rig); // (vr_rig2 1: drawn skinned, its rest rows never asked for: found here)
+    }
     if(!m || !hdr || hdr->numverts != rig.numVerts)
     {
         return false;

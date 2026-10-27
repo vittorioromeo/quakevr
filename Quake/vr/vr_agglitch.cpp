@@ -2,6 +2,7 @@
 // glitch finder and a robust solve").
 
 #include "vr_agglitch.hpp"
+#include "vr_rig2.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -377,6 +378,10 @@ void report_f()
     }
     (void)files::writeText((dir + "/" + label + "_frames.csv").cStr(), rows.toStringView());
     Con_Printf("agglitch: written %s/%s_summary.csv, _top.csv, _frames.csv\n", dir.cStr(), label);
+    if(rig2::gameOn())
+    {
+        rig2::armsReport_f(); // (vr_rig2 1: how the arms sat on the authored rig over the same frames)
+    }
 }
 
 void stop_f()

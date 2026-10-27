@@ -1135,7 +1135,14 @@ bool bodyTurn(const ragdoll::Rig& rig, const rigpose::Rigid* posed, const ArmPos
         return false;
     }
     const int chest = chestOf(rig);
-    const int pelvis = chest >= 0 ? rig.bones[chest].parent : -1;
+    // (the derived rigs' chest on the pelvis; the authored rig's (vr_rig2 1) on its spine on the pelvis: the turn at the
+    // waist, the spine's joint, carrying the chest)
+    int waist = chest;
+    while(rig.authored && waist >= 0 && rig.bones[waist].parent >= 0 && rig.bones[rig.bones[waist].parent].parent >= 0)
+    {
+        waist = rig.bones[waist].parent;
+    }
+    const int pelvis = waist >= 0 ? rig.bones[waist].parent : -1;
     if(pelvis < 0 || rig.bones[pelvis].parent >= 0)
     {
         return false;
@@ -1150,12 +1157,13 @@ bool bodyTurn(const ragdoll::Rig& rig, const rigpose::Rigid* posed, const ArmPos
     const glm::quat q = glm::angleAxis(t.x, Z) * glm::angleAxis(t.y, Y) * glm::angleAxis(t.z, X);
     const glm::quat qp = glm::angleAxis(za::clamp(vr_agrunt_strike_hips.value, 0.f, 1.f) * t.x, Z);
     out[pelvis] = about(qp, rigpose::apply(posed[pelvis], rig.bones[pelvis].pivot));
-    out[chest] = composeRigid(out[pelvis], about(glm::inverse(qp) * q, rigpose::apply(posed[chest], rig.bones[chest].pivot)));
+    out[waist] = composeRigid(out[pelvis], about(glm::inverse(qp) * q, rigpose::apply(posed[waist], rig.bones[waist].pivot)));
+    out[chest] = out[waist];
     const int head = rig.head >= 0 ? rig.head : boneNamed(rig, "head");
     const float hs = za::clamp(vr_agrunt_strike_head.value, 0.f, 1.f);
     for(int b = 0; b < rig.numBones; b++)
     {
-        if(b == chest || b == pelvis || rig.bones[b].joint == ragdoll::Joint::Loose)
+        if(b == chest || b == pelvis || b == waist || rig.bones[b].joint == ragdoll::Joint::Loose)
         {
             continue;
         }
