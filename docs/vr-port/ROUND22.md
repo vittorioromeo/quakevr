@@ -24672,6 +24672,9 @@ the aims alike, the authored elbow bent smoothly and the fist whole on the grip;
 belly on the authored rig (the old one held it out of view, lower); the dead and knocked-down bodies lie whole, nothing
 flung.
 
+**Live drawing** (`vr_rig2_live_check`): a live enforcer.mdl drawn 0.22 units rms off its frames, 0.63 at most (the
+grunt's 0.13-0.15); `{test:pose_enforcers_guns}` starts on the authored latch (25 of 25 spawned).
+
 **Cost** (LTO, exclusive, 3 x 900 frames, `bench.sh --scenarios armed_16_enf,ragdolls_32_enf --settings` a cfg with
 `vr_rig2 0` / `1`; new scenarios: armed_16's scene all enforcers, ragdolls_32_active with enforcers; median, old / new):
 armed_16_enf CPU 3.15 / 2.63 ms (-17%), p99 5.94 / 3.72, GPU 2.91 / 2.22 ms (-24%: one skinned copy); ragdolls_32_enf
