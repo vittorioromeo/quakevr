@@ -1195,12 +1195,207 @@ vector(vector d) VR_AG_Angles =
     return a;
 };
 
+// ----------------------------------------------------------------------------
+// Aimed at what it can hit (vr_agrunt_aim_exposed): the parts of you its muzzle's line reaches
+// ----------------------------------------------------------------------------
+// Behind a low wall, a door frame or a crate it aimed at your chest (its eyes' line to your head deciding it could fire):
+// every shot into the cover. Now a few points on your box as shots meet it (the engine's VR_HullHitBox: vr_hull_hit_width
+// wide, up to 5 over your headset: vr_hull_hit_head) in order, chest, head, belly, shoulders, the head's sides, hips,
+// legs (a rocket's: the floor at your feet, its burst reaching you), each time it looks (VR_AG_XSTEP): the first its
+// muzzle's line reaches as a gun's shot does (MOVE_HITMODEL: the world, props, other monsters in the way). Its aim stays
+// on that part while it still shows for vr_agrunt_aim_exposed_hold s; nothing showing, it holds fire (VR_AG_CheckAttack)
+// and a shot under way goes where it last aimed. Its error and its weapon's spread about the point as before.
+
+float VR_AG_XSTEP = 0.1;    // seconds between its looks (each up to VR_AG_XPARTS + 3 traces, 1 while its part shows)
+float VR_AG_XPARTS = 10;    // your body's points (1 chest .. 10 legs); 11..13 the floor at your feet (a rocket's)
+.vector vr_ag_xofs;         // its aim point off its target's origin (world axes)
+.float vr_ag_xpart;         // ... that point's part (0: none reachable at its last look: VR_AG_XPart)
+.float vr_ag_xlast;         // ... the last part reachable (where it aims while none is)
+.float vr_ag_xat;           // when it last looked
+.float vr_ag_xsince;        // aimed at that part since then
+.float vr_ag_xshift;        // ... moved this far to your right (its left side hidden; - the other way)
+.entity vr_ag_xfor;         // ... on whom
+float vr_ag_xtraces;        // their traces (the tests' cost)
+float vr_ag_xheld;          // their attacks held, nothing of you reachable (the tests)
+float vr_ag_xshots[14];     // shots measured (VR_AG_SetHand) by the part aimed at (0 none: its last)
+
+// A launcher lobbing its rounds (an arc, not a line): aimed as before.
+float(float wid) VR_AG_Lobs = { return wid == WID_GRENADE_LAUNCHER || wid == WID_PROXIMITY_GUN || wid == WID_ADGRENADE; };
+
+// It aims at the parts it can hit: on, at a player, not through a gate (its own lines), not lobbing, its own gun's
+// (vr_armedgrunt.qc's shots; the enforcer's laser; not the grunt's own gun's shots: its monster's own aim).
+float(entity t) VR_AG_XOn =
+{
+    entity p = self.vr_ag_prop;
+    return cvar_hget(cvarh_vr_agrunt_aim_exposed) && (t.flags & FL_CLIENT) && self.vr_ai_gate <= 0 && p &&
+           !VR_AG_Lobs(p.weapon) && (!p.vr_ag_native || p.weapon == WID_ENFRIFLE);
+};
+
+// Part `i`'s point off `t`'s origin: `side` its right as it sees you, `toward` from you to it (flat, unit).
+vector(entity t, float i, vector side, vector toward) VR_AG_XPoint =
+{
+    float head = t.headpos != '0 0 0' ? t.headpos_z - t.origin_z : t.view_ofs_z;
+    float top = t.maxs_z;
+    if(cvar("vr_hull_hit_head"))
+    {
+        top = min(top, max(t.mins_z + 24, head + 5)); // (the engine's: to 5 over the headset, never under 24)
+    }
+    float w = cvar("vr_hull_hit_width");
+    w = (w > 0 ? min(w, 32) : 32) * 0.5;
+    float sd = max(2, w - 4); // (the sides: 4 in from the box's)
+    float z = 0;
+    float s = 0;
+    if(i > VR_AG_XPARTS)
+    {
+        // The floor at its feet: before you (toward it), to your left, to your right.
+        s = i == 12 ? -(w + 14) : (i == 13 ? w + 14 : 0);
+        return side * s + toward * (i == 11 ? w + 14 : 4) + '0 0 1' * (t.mins_z + 3);
+    }
+    if(i == 1) { z = 6; } // (the chest: as before)
+    else if(i == 2) { z = head - 2; }
+    else if(i == 3) { z = -6; }
+    else if(i == 4 || i == 5) { z = 12; s = i == 4 ? -sd : sd; }
+    else if(i == 6 || i == 7) { z = head - 2; s = (i == 6 ? -sd : sd) * 0.75; }
+    else if(i == 8 || i == 9) { z = -12; s = i == 8 ? -sd : sd; }
+    else { z = -18; }
+    z = max(t.mins_z + 2, min(z, top - 2));
+    return side * s + '0 0 1' * z;
+};
+
+// Where its line starts: its gun's muzzle (in a wall, its eyes).
+vector() VR_AG_XFrom =
+{
+    entity p = self.vr_ag_prop;
+    vector m = p ? weaponmuzzle(p) : self.origin + self.view_ofs;
+    if(pointcontents(m) == CONTENT_SOLID)
+    {
+        m = self.origin + self.view_ofs;
+    }
+    return m;
+};
+
+// Its line from `from` reaches part `i` (off `t`'s origin by `ofs`): a body point meets your box first; the floor point,
+// clear to it and from there to your middle (T_RadiusDamage's CanDamage).
+float(vector from, entity t, vector ofs, float i) VR_AG_XReach =
+{
+    vector at = t.origin + ofs;
+    vr_ag_xtraces = vr_ag_xtraces + 1;
+    traceline(from, at, MOVE_HITMODEL, self);
+    if(trace_startsolid)
+    {
+        return trace_ent == t && i <= VR_AG_XPARTS; // (its muzzle in you, up close: a hit; in a wall: none)
+    }
+    if(i <= VR_AG_XPARTS)
+    {
+        return trace_ent == t;
+    }
+    if(trace_ent != t && vlen(trace_endpos - at) > 16)
+    {
+        return FALSE;
+    }
+    vr_ag_xtraces = vr_ag_xtraces + 1;
+    traceline(trace_endpos + '0 0 2', t.origin, TRUE, self);
+    return trace_fraction == 1 || trace_ent == t;
+};
+
+// Its look (every VR_AG_XSTEP; `force`: its attack's decision, at most 0.05 s old): its aim point (vr_ag_xofs) on the
+// part it keeps or the first reachable. TRUE: a part reachable (off: always).
+float(float force) VR_AG_Expose =
+{
+    entity t = self.enemy;
+    if(!t || !VR_AG_XOn(t))
+    {
+        return TRUE;
+    }
+    if(t != self.vr_ag_xfor)
+    {
+        self.vr_ag_xfor = t;
+        self.vr_ag_xpart = 0;
+        self.vr_ag_xlast = 1;
+        self.vr_ag_xshift = 0;
+        self.vr_ag_xofs = '0 0 6';
+        self.vr_ag_xat = -1;
+    }
+    if(self.vr_ag_xat >= 0 && time - self.vr_ag_xat < (force ? 0.05 : VR_AG_XSTEP - 0.001))
+    {
+        return self.vr_ag_xpart > 0;
+    }
+    self.vr_ag_xat = time;
+    vector from = VR_AG_XFrom();
+    vector toward = from - t.origin;
+    toward_z = 0;
+    toward = vlen(toward) > 0.1 ? normalize(toward) : '1 0 0';
+    vector side;
+    side_x = -toward_y; // (its right as it looks at you: its line's x up)
+    side_y = toward_x;
+    side_z = 0;
+    float cur = self.vr_ag_xpart;
+    float i;
+    vector o;
+    float show = cvar_hget(cvarh_vr_agrunt_aim_exposed_show);
+    if(cur > 0 && time - self.vr_ag_xsince < cvar_hget(cvarh_vr_agrunt_aim_exposed_hold))
+    {
+        o = VR_AG_XPoint(t, cur, side, toward) + side * self.vr_ag_xshift;
+        if(VR_AG_XReach(from, t, o, cur))
+        {
+            self.vr_ag_xofs = o; // (kept: still showing)
+            if(show) { particle(t.origin + o, '0 0 0', 192, 4); }
+            return TRUE;
+        }
+    }
+    float n = VR_AG_XPARTS;
+    if(VR_AG_MinRange(self.vr_ag_prop.weapon) > 0 && (t.flags & FL_ONGROUND))
+    {
+        n = n + 3; // (a rocket: the floor at your feet, its burst reaching you, when nothing of you shows)
+    }
+    for(i = 1; i <= n; i++)
+    {
+        o = VR_AG_XPoint(t, i, side, toward);
+        if(VR_AG_XReach(from, t, o, i))
+        {
+            if(i != cur)
+            {
+                self.vr_ag_xsince = time;
+            }
+            self.vr_ag_xshift = 0;
+            if(i <= 3)
+            {
+                // A middle point (chest, head, belly): one side of you hidden (a door frame's edge), its aim half way
+                // toward the other side's (its error and spread then less often in the frame).
+                float l = (i == 1) ? 4 : ((i == 2) ? 6 : 8);
+                vector ol = VR_AG_XPoint(t, l, side, toward);
+                vector orr = VR_AG_XPoint(t, l + 1, side, toward);
+                float rl = VR_AG_XReach(from, t, ol, l);
+                if(rl != VR_AG_XReach(from, t, orr, l + 1))
+                {
+                    self.vr_ag_xshift = ((rl ? ol : orr) - o) * side * 0.5;
+                    o = o + side * self.vr_ag_xshift;
+                }
+            }
+            self.vr_ag_xpart = i;
+            self.vr_ag_xlast = i;
+            self.vr_ag_xofs = o;
+            if(show) { particle(t.origin + o, '0 0 0', 192, 4); }
+            return TRUE;
+        }
+    }
+    self.vr_ag_xpart = 0;
+    self.vr_ag_xofs = VR_AG_XPoint(t, self.vr_ag_xlast, side, toward) + side * self.vr_ag_xshift; // (where it last aimed)
+    if(show) { particle(t.origin + self.vr_ag_xofs, '0 0 0', 73, 4); }
+    return FALSE;
+};
+
 vector() VR_AG_AimPoint =
 {
     entity t = self.enemy;
     vector at = VR_AI_Origin(t) - t.velocity * 0.15;
     if(t.flags & FL_CLIENT)
     {
+        if(VR_AG_XOn(t))
+        {
+            VR_AG_Expose(FALSE);
+            return at + self.vr_ag_xofs; // (the part of you it can hit: vr_agrunt_aim_exposed)
+        }
         at_z = at_z + 6; // (a player's chest, not his origin's waist)
     }
     return at;
@@ -1311,6 +1506,8 @@ void(entity p, vector dir) VR_AG_SetHand =
         vr_ag_miss_lat = VR_AG_MissRight(m, v_forward, at);
         vr_ag_miss_d = vlen(at - m);
         vr_ag_miss_n = vr_ag_miss_n + 1;
+        float xp = VR_AG_XOn(self.enemy) ? min(13, self.vr_ag_xpart) : 1;
+        vr_ag_xshots[xp] = vr_ag_xshots[xp] + 1;
     }
     self.muzzlepos = m;
     self.weapon = p.weapon;
@@ -2363,12 +2560,22 @@ float() VR_AG_CheckAttack =
     {
         return FALSE;
     }
+    float exposed = VR_AG_XOn(targ); // (vr_agrunt_aim_exposed: its muzzle's line to a part of you decides, not its eyes')
     if(trace_ent != targ)
     {
         if((trace_ent.flags & FL_MONSTER) && trace_ent.health > 0 && trace_ent.enemy != self)
         {
             VR_AG_FriendHold(self.origin + self.view_ofs, 0); // (a friend in its sight line: a step aside)
+            return FALSE;
         }
+        if(!exposed)
+        {
+            return FALSE;
+        }
+    }
+    if(exposed && !VR_AG_Expose(TRUE))
+    {
+        vr_ag_xheld = vr_ag_xheld + 1; // (nothing of you its gun's line reaches: no shot into the cover)
         return FALSE;
     }
     if(VR_AG_MinRange(self.vr_ag_wid) > 0 && d < VR_AG_MinRange(self.vr_ag_wid))

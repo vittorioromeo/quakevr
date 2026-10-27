@@ -1527,6 +1527,13 @@ void ikStretchReset()
         toggle("Aim From the Muzzle", vr_agrunt_aim_converge)
             .help("Its shots go from its gun's muzzle to your chest, its aim's error kept. Off: aimed from its grip and "
                   "fired beside that line, a miss to one side at any distance (vr_agrunt_aim_converge)."),
+        toggle("Aim at What They Can Hit", vr_agrunt_aim_exposed)
+            .help("Partly behind cover, they aim at a part of you their gun's line reaches (your chest first, then your "
+                  "head, then whatever shows: shoulders, hips, legs; a rocket the floor at your feet), and hold fire while "
+                  "nothing shows. Off: always your chest, firing whenever they see your head (vr_agrunt_aim_exposed)."),
+        slider("Keep Aim On a Part", vr_agrunt_aim_exposed_hold, 0.f, 2.f, 0.1f, "%.1f s")
+            .help("How long they keep aiming at the part of you they picked while it still shows, before looking for "
+                  "the best one again (vr_agrunt_aim_exposed_hold)."),
         slider("Chainsaw Thrust From", vr_agrunt_saw_start, 30.f, 70.f, 1.f, "%.0f units")
             .help("A chainsaw's holder thrusts it only this near you (its middle to yours); 62 is a swing's "
                   "(vr_agrunt_saw_start)."),
