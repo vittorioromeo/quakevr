@@ -195,9 +195,6 @@ bool applyToRig(qmodel_t* model, const aliashdr_t* hdr, ragdoll::Rig& rig);
 bool holdLocal(const ragdoll::Rig& rig, int b, rigpose::Rigid& L, const glm::vec3& pivot);
 // ... a key: `base` the local it is laid on (an override's frame; identity for a sequence's absolute key).
 bool holdKey(const ragdoll::Rig& rig, int b, const rigpose::Rigid& base, Local& key, const glm::vec3& pivot);
-// vr_rig2anim_import [model] [force]: the old rig's poses, override tracks and sequences (rigs/<model>.rig.txt,
-// anims/<model>/*.anim.txt, on the derived rig) carried onto the authored rig's bones and written to its files.
-void importToAuthored_f();
 // Evaluation
 // A track at `frame` (its keys' interpolation; before the first key the first's value, after the last the last's; a
 // loop of `length` frames wraps from the last key to the first). False: no keys.

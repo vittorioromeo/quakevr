@@ -1,7 +1,8 @@
-// vr_rig2_game.cpp -- the game on the authored rig (vr_rig2 1; vr_rig2.hpp, "Stage 2"; ROUND22.md, "Grunt rig, stage 2").
+// vr_rig2_game.cpp -- the game on the authored rig (vr_rig2.hpp, "The game on the authored rig"; ROUND22.md, "Grunt rig,
+// stage 2").
 //
-// With vr_rig2 1 (read when a map is spawned: latch) the grunt's ragdoll rig is the authored one (vr_ragdoll.cpp
-// fromAuthored: its bones, joints and limits, its blended weights, its frames' fits), so everything made from his rig
+// The grunt's and the enforcer's ragdoll rig is the authored one (vr_ragdoll.cpp fromAuthored: its bones, joints and
+// limits, its blended weights, its frames' fits), so everything made from his rig
 // (ragdolls, knockdowns, hit reactions, an armed one's arm and leg solves, limb cuts, wounds) is on the authored bones,
 // and a live one is drawn here from the same bones with the blended skin ("<model>#rig2", rig2::drawLive):
 // - live: each bone's local motion between the frame lerp's two poses (their fits; a bone's turn about its joint, not a
@@ -531,7 +532,7 @@ void record_f()
     }
     else if(*what)
     {
-        Con_Printf("vr_rig2_record [ragdoll|armed|all [most [every [check] [model]]]|off|clear]: poses from the game (vr_rig2 1) for "
+        Con_Printf("vr_rig2_record [ragdoll|armed|all [most [every [check] [model]]]|off|clear]: poses from the game for "
                    "vr_rig2_check's \"recorded\" (one rig's: models named with `model`, else the first pose's model)\n");
     }
     Con_Printf("rig2 record: %s; %d ragdoll poses, %d armed poses kept (at most %d each)\n",
@@ -641,7 +642,7 @@ void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
     agarms::Placed& placed, int pose1, int pose2, float blend, bool keyedArms)
 {
     const Rig* a = rigFor(rig.model);
-    if(!a || a->numBones != rig.numBones || !e || e->model != rig.model || vr_rig2_look.value == 1.f)
+    if(!a || a->numBones != rig.numBones || !e || e->model != rig.model)
     {
         return;
     }
@@ -682,13 +683,12 @@ void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
         placed.weapon[s] = compose(corr[s], placed.weapon[s]);
     }
     keep(1, num, *a, F, cl.time, recorder.every, &stretches); // (vr_rig2_record armed)
-    drawLive(num, rig.model, F, rig.numBones, vr_rig2_look.value == 2.f ? ~0u : hiddenOf(rig, pose1, pose2, blend),
-        stretches.n > 0 ? &stretches : nullptr);
+    drawLive(num, rig.model, F, rig.numBones, hiddenOf(rig, pose1, pose2, blend), stretches.n > 0 ? &stretches : nullptr);
 }
 
 void advanceLerps()
 {
-    if(!gameOn() || cls.state != ca_connected || !cl_entities)
+    if(cls.state != ca_connected || !cl_entities)
     {
         return;
     }
@@ -717,7 +717,7 @@ void advanceLerps()
 
 void liveAll()
 {
-    if(!gameOn() || cls.state != ca_connected || !cl_entities || vr_rig2_look.value == 1.f)
+    if(cls.state != ca_connected || !cl_entities)
     {
         return;
     }
@@ -763,7 +763,7 @@ void liveAll()
         {
             posed[b] = compose(kick[b], posed[b]);
         }
-        drawLive(num, e->model, posed, rig->numBones, vr_rig2_look.value == 2.f ? ~0u : hiddenOf(*rig, pose1, pose2, blend));
+        drawLive(num, e->model, posed, rig->numBones, hiddenOf(*rig, pose1, pose2, blend));
     }
 }
 
@@ -779,7 +779,7 @@ void framesCheck_f()
     const Rig* a = model ? rigFor(model) : nullptr;
     if(!rig || !rig->authored || !a)
     {
-        Con_Printf("rig2 frames: %s has no authored ragdoll rig (vr_rig2 1 at the map's spawn?)\n", name);
+        Con_Printf("rig2 frames: %s has no authored ragdoll rig\n", name);
         return;
     }
     const auto swingTwist = [](const glm::quat& q, float& swingAz, float& swing, float& twist) {
@@ -870,8 +870,8 @@ void liveCheck_f()
         {
             if(rig)
             {
-                Con_Printf("rig2 live: ent %d %s on its derived rig (vr_rig2 %d at the map's spawn; an authored one %s)\n", num,
-                    e->model->name, gameOn() ? 1 : 0, rigFor(e->model) ? "read" : "none");
+                Con_Printf("rig2 live: ent %d %s on its derived rig (an authored one %s)\n", num, e->model->name,
+                    rigFor(e->model) ? "read" : "none");
                 n++;
             }
             continue;

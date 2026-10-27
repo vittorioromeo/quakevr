@@ -1,3 +1,0 @@
-# Quake VR rig overrides (the Rig Studio: docs/vr-port/RIGSTUDIO.md), laid on the rig computed from the model
-qvrrig 1
-model progs/vrenforcer.mdl

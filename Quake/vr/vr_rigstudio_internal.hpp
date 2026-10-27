@@ -104,8 +104,8 @@ struct Snapshot
 
 // Range of Motion (vr_rigstudio_rom.cpp; ROUND22.md, "Grunt rig rebuild, stage 1"): the authored rig's joints (vr_rig2.hpp)
 // posed within their limits, by sliders or by dragging a limb, swept, randomised; the mesh drawn on the authored rig
-// (vr_rig2 1: its blended weights, Game and Shaded) or on the old rig moved alike (vr_rig2 0: each old bone as its
-// namesake: the comparison). Its pivots and limits edited live, undoable, saved to quakevr/rigs/<model>.rig2.txt.
+// (its blended weights, Game and Shaded). Its pivots and limits edited live, undoable, saved to
+// quakevr/rigs/<model>.rig2.txt.
 struct Rom
 {
     bool on{false};
@@ -127,7 +127,6 @@ struct Rom
     char report[192]{};            // the pose's faults (vr_rig2_check's measures)
     rig2::Pose reportFor;
     bool reportValid{false};
-    int reportRig{-1};
     // The held weapons placed on the authored rig's hands (rigstudio::authoredWeapon): each hand's entity, its grip
     // offset and the frame placed (the weapon test reads them back)
     int wprop[2]{0, 0};
@@ -391,14 +390,13 @@ void finishGeometry();
 
 // vr_rigstudio_rom.cpp
 [[nodiscard]] rig2::Rig* romRig();            // the subject's authored rig (none: nullptr)
-[[nodiscard]] bool romNew();                  // the mesh drawn on the authored rig (vr_rig2 1, a rig)
+[[nodiscard]] bool romNew();                  // the window on and the subject on an authored rig
 void romFrame();                              // each frame before the pose is evaluated
 [[nodiscard]] bool romGeometry();             // posedVerts on the authored rig (true), else the studio's own
 [[nodiscard]] bool romClick(const glm::vec2& m); // a click taken (a joint picked, a limb's drag begun)
 void romDragTick(const glm::vec2& m);
 void romDraw(ImDrawList* dl);
 [[nodiscard]] bool romColor(int v, glm::vec4& out);
-[[nodiscard]] bool romHidesOldBones();
 void romWindow();
 [[nodiscard]] bool romSwap(Snapshot& s, Snapshot& back); // an undo entry of the Range of Motion's
 void romInit();

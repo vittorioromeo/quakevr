@@ -156,11 +156,11 @@ za::Vector<Item> pageDebugViews()
                   "screen, with Blender's mouse (docs/vr-port/RIGSTUDIO.md): a room, an armed grunt frozen in it, an "
                   "outliner, properties, a timeline with keys, new sequences QC can play. Flat screen only (start the "
                   "game with -flatscreenmode); vr_rigstudio_close closes it."),
-        command("Rig Studio: Range of Motion (Authored Rig)", "vr_rigstudio;vr_rig2 1;vr_rigstudio_rom on")
-            .help("The Rig Studio with its Range of Motion window: the new authored grunt rig (quakevr/rigs/vrgrunt.rig2.txt, "
-                  "vr_rig2) posed joint by joint within its limits (sliders, a limb dragged by its end, Sweep, Random "
-                  "Pose), the old rig moved the same way at a click (Mesh drawn on: Old rig). On the authored rig its held "
-                  "weapons ride its hands (the right's weapon bone, the left hand) at their grip offsets. Flat screen only."),
+        command("Rig Studio: Range of Motion (Authored Rig)", "vr_rigstudio;vr_rigstudio_rom on")
+            .help("The Rig Studio with its Range of Motion window: the authored grunt rig (quakevr/rigs/vrgrunt.rig2.txt) "
+                  "posed joint by joint within its limits (sliders, a limb dragged by its end, Sweep, Random Pose). Its "
+                  "held weapons ride its hands (the right's weapon bone, the left hand) at their grip offsets. Flat "
+                  "screen only."),
         command("Rig Studio: Test Weapons on the Authored Rig", "vr_rigstudio;vr_rigstudio_rom test weapon")
             .help("vr_rigstudio_rom test weapon: the subject on the authored rig at rest, an arm raised, a wrist bent, the "
                   "left arm, two random poses: each held weapon's grip read back from where it is drawn against its hand "
@@ -177,16 +177,10 @@ za::Vector<Item> pageDebugViews()
                   "forearm bent past its hinge (held within it) and undone, the pose mirrored and undone, saved and read "
                   "back. It WRITES the subject's animation files (vr_rigdata_dir rigstudio_test first keeps them apart); "
                   "the console says how many passed. Flat screen only."),
-        command("Carry the Old Rig's Animations to the Authored Rig", "vr_rig2anim_import")
-            .help("vr_rig2anim_import [model] [force]: the grunt's poses, override tracks and sequences made on the old rig "
-                  "(quakevr/rigs/vrgrunt.rig.txt, anims/vrgrunt/*.anim.txt) written for the authored rig (rig2anim.txt, "
-                  "anim2.txt: the old chest's turns shared by the spine and chest, the head's by the neck and head; every "
-                  "key held within the joints' limits). Files already there are kept unless 'force'. Needs Grunt on the "
-                  "Authored Rig on and a map loaded with it (RIGSTUDIO.md, 'Animating the authored rig')."),
         command("Check the Authored Grunt Rig", "vr_rig2_check")
             .help("vr_rig2_check: the authored rig swept through every joint's range, joint pairs and 1000 random poses: "
-                  "see-through holes, flipped and collapsed triangles, sharp folds, stretch, beside the old rig moved the "
-                  "same way (the console; ends on 'rig2 check: N passed, M failed'). vr_rig2_check progs/vrgrunt.mdl 0 "
+                  "see-through holes, flipped and collapsed triangles, sharp folds, stretch (the console; ends on "
+                  "'rig2 check: N passed, M failed'). vr_rig2_check progs/vrgrunt.mdl 0 "
                   "envelope prints how far each joint turns cleanly."),
         command("Print the Authored Rig's Drawing", "vr_rig2_draw_info")
             .help("vr_rig2_draw_info: the Rig Studio's subject on the authored rig, as the renderer draws it beside its old "
@@ -439,15 +433,10 @@ za::Vector<Item> pageDebugLogging()
             .help("vr_debug_ragdoll_look: each ragdoll drawn in its model's rest pose where its entity stands, as its "
                   "skinned copy or as its own .mdl (the live monster's look): the two should look the same. "
                   "vr_ragdoll_draw_info in the console: the renderer's data for each that differ."),
-        toggle("Grunt and Enforcer on the Authored Rig (Next Map)", vr_rig2)
-            .help("vr_rig2: the grunt's and the enforcer's authored rigs in the game from the next map on (ROUND22.md, "
-                  "\"Grunt rig, stage 2\", \"Enforcer rig, stage 2\"): their ragdolls' bodies, joints and limits, their "
-                  "blended skin alive and dead, their hit reactions, an armed one's arms and legs on its bones. "
-                  "vr_rig2_arms prints how the arms sat on it, vr_rig2_live_check how a live one's drawn mesh follows its "
-                  "frames, vr_rig2_frames its frames against the joints' limits."),
-        cycle("Authored Rig: Live Ones' Look Check", vr_rig2_look, {{0.f, "Off"}, {1.f, "As Their .mdl"}, {2.f, "Hidden"}})
-            .help("vr_rig2_look: vr_rig2 1's live grunts and enforcers drawn with their own .mdl again instead of the authored rig's "
-                  "skinned copy, to compare the two in the same pose (pause the game, flip this), or hidden."),
+        command("Print the Authored Rig's Arms", "vr_rig2_arms")
+            .help("vr_rig2_arms: how the armed grunts' and enforcers' arms sat on the authored rig since it last printed; "
+                  "vr_rig2_live_check how a live one's drawn mesh follows its frames, vr_rig2_frames its frames against "
+                  "the joints' limits."),
         command("Print the Ragdolls' Drawing", "vr_ragdoll_draw_info")
             .help("vr_ragdoll_draw_info: each ragdoll drawn, the renderer's data for its skinned copy beside its .mdl's "
                   "(light, occlusion group, wounds, retro textures): the values that differ."),
@@ -936,10 +925,6 @@ za::Vector<Item> pageDebugProfiling()
             .help("An armed humanoid made a ragdoll (a tug, a stagger, a death) starts with its arms where they were drawn "
                   "holding its weapon, not its animation frame's: no jump of the weapon or of a tug's hand "
                   "(vr_ragdoll_posed_arms; off: as before)."),
-        toggle("Armed Ragdolls: Arm Skin", vr_ragdoll_arm_skin)
-            .help("An armed humanoid's ragdoll drawn with its living arm skin's blend (the shoulder turned about its joint, "
-                  "the elbow blended), not each vertex on one bone: no torn shoulder as a raised arm falls "
-                  "(vr_ragdoll_arm_skin; read when its ragdoll model is first made: change it, then load the map)."),
         toggle("Armed Humanoids: Shoulder Skin", vr_agarms_shoulder_skin)
             .help("The shoulders' skin from the real joint: the deltoid or pauldron on the arm, its blend into the body "
                   "about the joint, the shoulder's top on the clavicle (vr_agarms_shoulder_skin; read at a map load)."),

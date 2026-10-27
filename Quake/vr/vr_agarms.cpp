@@ -105,7 +105,6 @@ struct Skin
     // its motion off the chest's (under 0.7: the arm's).
     za::Vector<glm::vec4> why;
     za::Vector<float> clav;      // each vertex's share on its side's clavicle (vr_agarms_clavicle: restRow's w's fraction)
-    int upperBone[2]{-1, -1};    // Spec's rig bones (ragdollWeights)
     int foreBone[2]{-1, -1};
     int chest{-1};
     glm::vec3 c0{0.f}, c1{0.f};  // the chest bone's line at rest
@@ -403,7 +402,6 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
     m.chest = spec.chest;
     for(int s = 0; s < 2; s++)
     {
-        m.upperBone[s] = spec.upper[s];
         m.foreBone[s] = spec.fore[s];
     }
     m.torsoSides = spec.torsoSides;
@@ -2136,39 +2134,6 @@ bool drawnArmBone(int num, const qmodel_t* model, const ragdoll::Rig& rig, int b
         return true;
     }
     return false;
-}
-
-bool ragdollWeights(const qmodel_t* model, int v, int bodyBone, int bones[3], float weights[3])
-{
-    const Skin* m = nullptr;
-    for(const Skin& s : state.skins)
-    {
-        m = (s.model == model && s.ok) ? &s : m;
-    }
-    if(!m || v < 0 || static_cast<za::SizeT>(v) >= m->row.size())
-    {
-        return false;
-    }
-    const glm::vec4& r = m->row[static_cast<za::SizeT>(v)];
-    if(r.x < 0.5f || r.x > 8.5f)
-    {
-        return false;
-    }
-    const float code = r.x - 1.f;
-    const int s = za::clamp(static_cast<int>(za::floor(code * 0.25f)), 0, 1);
-    const float c = code - static_cast<float>(s) * 4.f;
-    const int bone = za::min(static_cast<int>(za::floor(c)), 2);
-    const float f = bone < 2 ? c - static_cast<float>(bone) : 0.f;
-    const float wB = bodyShare(r);
-    const int rb[3] = {m->upperBone[s], m->foreBone[s], m->side[s].handBone};
-    const bool armBone = bodyBone == rb[0] || bodyBone == rb[1] || bodyBone == rb[2];
-    bones[0] = rb[bone];
-    weights[0] = (1.f - f) * (1.f - wB);
-    bones[1] = rb[za::min(bone + 1, 2)];
-    weights[1] = f * (1.f - wB);
-    bones[2] = armBone ? m->chest : bodyBone;
-    weights[2] = wB;
-    return bones[0] >= 0 && bones[1] >= 0 && bones[2] >= 0;
 }
 
 bool ragdollWrist(int num, const qmodel_t* model, int side, rigpose::Rigid& out)

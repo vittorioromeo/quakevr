@@ -1,9 +1,8 @@
 // vr_rigstudio_rom.cpp -- the Rig Studio's Range of Motion window (vr_rigstudio_internal.hpp, Rom): the authored rig's
 // joints (vr_rig2.hpp) picked in its list or by a click, each posed within its limits by a slider per axis or by dragging
 // its limb, swept through its range, a random pose within every limit; its limits drawn; its pivots and limits edited
-// live (undoable), saved to quakevr/rigs/<model>.rig2.txt. vr_rig2 picks the rig the mesh is drawn on: 1 the authored
-// rig (its blended weights; Game: the engine's skinned model, Shaded: the studio's), 0 the old rig moved alike (each old
-// bone as its namesake: the same pose on both, to compare). The pose's faults (vr_rig2_check's measures) are shown live.
+// live (undoable), saved to quakevr/rigs/<model>.rig2.txt. The mesh is drawn on the authored rig (its blended weights;
+// Game: the engine's skinned model, Shaded: the studio's). The pose's faults (vr_rig2_check's measures) are shown live.
 
 #include "vr_rigstudio_internal.hpp"
 #include "vr_agarms.hpp"
@@ -183,52 +182,23 @@ void setAngles(rig2::Rig& rig, int b, const glm::vec3& a)
     }
 }
 
-// The old rig moved as the authored one (vr_rig2 0): each old bone's local from its namesake's motion.
-void oldFromRom(const rig2::Rig& rig)
+void updateReport()
 {
-    if(!st.rig)
-    {
-        return;
-    }
-    rigpose::Rigid Fo[maxBones];
-    for(int o = 0; o < st.numBones; o++)
-    {
-        int m = rig2::boneByName(rig, st.rig->bones[o].name);
-        if(m < 0)
-        {
-            m = st.rig->bones[o].joint == ragdoll::Joint::Loose ? rig2::boneByName(rig, "weapon") : 0;
-        }
-        Fo[o] = rom.F[za::max(m, 0)];
-    }
-    rigdata::restOf(*st.rig, &st.doc, st.pivots, st.ends);
-    for(int o = 0; o < st.numBones; o++)
-    {
-        const int p = st.rig->bones[o].parent;
-        const rigpose::Rigid L = p >= 0 && p < o ? rigdata::compose(rigdata::inverse(Fo[p]), Fo[o]) : Fo[o];
-        st.live[o] = rigdata::fromRigid(L, st.pivots[o]);
-    }
-}
-
-void updateReport(rig2::Rig& rig)
-{
-    const int which = romNew() ? 1 : 0;
-    if(rom.reportValid && rom.reportRig == which && !memcmp(&rom.reportFor, &rom.pose, sizeof(rig2::Pose)))
+    if(rom.reportValid && !memcmp(&rom.reportFor, &rom.pose, sizeof(rig2::Pose)))
     {
         return;
     }
     rig2::Faults f;
-    if(rig2::measurePose(const_cast<qmodel_t*>(st.model), rom.pose, which == 0, f))
+    if(rig2::measurePose(const_cast<qmodel_t*>(st.model), rom.pose, f))
     {
-        q_snprintf(rom.report, sizeof(rom.report), "%s rig: see-through %d, flipped %d, collapsed %d, sharp folds %d (ridge %.0f deg), stretch %.2f..%.2f",
-            which ? "authored" : "old", f.seeThrough, f.flipped, f.collapsed, f.folds, f.foldMax, f.stretchMin, f.stretchMax);
+        q_snprintf(rom.report, sizeof(rom.report), "authored rig: see-through %d, flipped %d, collapsed %d, sharp folds %d (ridge %.0f deg), stretch %.2f..%.2f",
+            f.seeThrough, f.flipped, f.collapsed, f.folds, f.foldMax, f.stretchMin, f.stretchMax);
     }
     else
     {
         q_strlcpy(rom.report, "no measure", sizeof(rom.report));
     }
-    (void)rig;
     rom.reportFor = rom.pose;
-    rom.reportRig = which;
     rom.reportValid = true;
 }
 
@@ -282,11 +252,6 @@ rig2::Rig* romRig()
 
 bool romNew()
 {
-    return rom.on && vr_rig2.value != 0.f && romRig() != nullptr;
-}
-
-bool romHidesOldBones()
-{
     return rom.on && romRig() != nullptr;
 }
 
@@ -320,31 +285,9 @@ void romFrame()
     }
     rig2::forward(*rig, rom.pose, rom.F);
     st.source = Source::Rest; // (the pose is the Range of Motion's: on the rest pose)
-    if(romNew())
-    {
-        clearLive();
-        rig2::drawPosed(st.subject, st.model, rom.F, rig->numBones);
-    }
-    else
-    {
-        oldFromRom(*rig);
-        const ragdoll::Rig* old = rig2::gameOn() && st.model ? ragdoll::derivedRigFor(const_cast<qmodel_t*>(st.model)) : nullptr;
-        if(old)
-        {
-            // (the game on the authored rig, vr_rig2's latch: its subject drawn on the derived rig's "#rag" as the authored
-            // one moves, each old bone as its namesake; the studio's own layer would move the authored ragdoll rig)
-            rigpose::Rigid Fo[ragdoll::maxBones];
-            for(int o = 0; o < old->numBones; o++)
-            {
-                int m = rig2::boneByName(*rig, old->bones[o].name);
-                m = m >= 0 ? m : old->bones[o].joint == ragdoll::Joint::Loose ? rig2::boneByName(*rig, "weapon") : 0;
-                Fo[o] = rom.F[za::max(m, 0)];
-            }
-            clearLive();
-            rig2::drawPosedDerived(st.subject, st.model, Fo, old->numBones);
-        }
-    }
-    updateReport(*rig);
+    clearLive();
+    rig2::drawPosed(st.subject, st.model, rom.F, rig->numBones);
+    updateReport();
     romTestTick(*rig);
 }
 
@@ -600,18 +543,6 @@ void romWindow()
         return;
     }
     ensurePose(*rig);
-    int which = vr_rig2.value != 0.f ? 1 : 0;
-    ImGui::TextUnformatted("Mesh drawn on:");
-    ImGui::SameLine();
-    if(ImGui::RadioButton("Authored rig", which == 1))
-    {
-        Cvar_SetValueQuick(&vr_rig2, 1.f);
-    }
-    ImGui::SameLine();
-    if(ImGui::RadioButton("Old rig", which == 0))
-    {
-        Cvar_SetValueQuick(&vr_rig2, 0.f);
-    }
     bool dq = vr_rig2_dq.value != 0.f;
     if(ImGui::Checkbox("Dual quaternions", &dq))
     {
@@ -756,10 +687,9 @@ struct RomTest
     int step{0}; // 0 none; 20.. the weapon test's (vr_rigstudio_rom test weapon)
     int passed{0}, failed{0};
     int frames{0};
-    // The weapon test: its case, the frames since the case's pose was set, the mesh's rig before it
+    // The weapon test: its case, the frames since the case's pose was set
     int wcase{0};
     int wframes{0};
-    float rigBefore{0.f};
     bool left{false}; // a weapon in its left hand too
 };
 RomTest romTest;
@@ -838,7 +768,6 @@ void finishTest()
 
 void finishWeaponTest()
 {
-    Cvar_SetValueQuick(&vr_rig2, romTest.rigBefore);
     Con_Printf("rigstudio rom weapon: %d passed, %d failed\n", romTest.passed, romTest.failed);
     romTest = RomTest{};
 }
@@ -859,8 +788,6 @@ void weaponTestTick(rig2::Rig& rig)
             return;
         }
         romTest.left = noted ? st.note.propL > 0 : rom.wframe[1] >= 0 && host_framecount - rom.wframe[1] <= 2;
-        romTest.rigBefore = vr_rig2.value;
-        Cvar_SetValueQuick(&vr_rig2, 1.f);
         rigpose::Rigid grip;
         int handBone = -1;
         for(int side = 0; side < 2; side++)
@@ -1043,9 +970,9 @@ void romTestTick(rig2::Rig& rig)
             q_snprintf(name, sizeof(name), "%s#rig2", st.model->name);
             qmodel_t* m = Mod_ForName(name, false);
             const auto* hdr = m && m->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(m)) : nullptr;
-            expect(vr_rig2.value == 0.f || (hdr && hdr->numbones == rig.numBones), va("the game draws it on its %d bones (%s)", hdr ? hdr->numbones : 0, name));
+            expect(hdr && hdr->numbones == rig.numBones, va("the game draws it on its %d bones (%s)", hdr ? hdr->numbones : 0, name));
             rig2::Faults f;
-            const bool measured = rig2::measurePose(const_cast<qmodel_t*>(st.model), rom.pose, false, f);
+            const bool measured = rig2::measurePose(const_cast<qmodel_t*>(st.model), rom.pose, f);
             expect(measured && f.seeThrough == 0 && f.flipped == 0 && f.collapsed == 0, "the rest pose measures clean");
         }
         finishTest();
@@ -1092,12 +1019,7 @@ void rom_f()
         }
         return b;
     };
-    if(!strcmp(sub, "rig"))
-    {
-        Cvar_SetValueQuick(&vr_rig2, Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "old") ? 0.f : 1.f);
-        Con_Printf("rigstudio rom: mesh on the %s rig\n", vr_rig2.value != 0.f ? "authored" : "old");
-    }
-    else if(!strcmp(sub, "joint"))
+    if(!strcmp(sub, "joint"))
     {
         const int b = joint(2);
         rom.joint = b >= 0 ? b : rom.joint;
@@ -1197,7 +1119,7 @@ void rom_f()
     else if(!strcmp(sub, "status"))
     {
         rig2::forward(*rig, rom.pose, rom.F);
-        updateReport(*rig);
+        updateReport();
         Con_Printf("rigstudio rom: %s; joint %s", rom.report, rom.joint >= 0 ? rig->bones[rom.joint].name : "-");
         if(rom.joint >= 0)
         {
@@ -1208,7 +1130,7 @@ void rom_f()
     }
     else
     {
-        Con_Printf("vr_rigstudio_rom [on|off] | rig old|new | joint <j> | set <j> <x> [y] [z] | reset | random [seed] | sweep <j> | "
+        Con_Printf("vr_rigstudio_rom [on|off] | joint <j> | set <j> <x> [y] [z] | reset | random [seed] | sweep <j> | "
                    "limit <j> swingx|swingy|twist|range <min> <max> | pivot <j> <x y z> | save | camera <j> [yaw] [pitch] [dist] | status | test [weapon]\n");
     }
 }
