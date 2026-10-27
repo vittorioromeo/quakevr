@@ -24188,3 +24188,33 @@ from these weights (vr_agarms' own blend retired); hit reactions and the limb cu
 rig the same way; and the mesh's own limit: the arms fused to the torso (a modelled armpit, split along the arm's
 inside, would free the shoulder's range).
 - [ ] Grunt rig stage 1 {test:none}: Rig Studio > View > Range of Motion: pick each joint, Sweep it, drag the limbs, Random Pose; Mesh drawn on Old rig vs Authored rig in the same pose; tell which joints need their pivot moved or their limits changed
+
+## The authored rig drawn as the game draws the grunt (worktree `goreflesh`, branch `agent/rig2draw`, 2026-10-27)
+
+His review: "The authored rig looks better, but it seems like it's using a lower-poly or lower-res model/texture than
+the old rig." **Cause**: the authored rig was already drawn by the game's alias renderer, with the same mesh (469
+vertices, 694 triangles), the same 256x256 skin and normal map (`vr_rig2_draw_info`). What differed is everything the
+renderer looks up by the model's name or its .mdl data, which the skinned copy `progs/vrgrunt.mdl#rig2` (skeletal)
+did not have: **retro textures and retro lighting took it for an IQM model painted at four times a Quake skin's
+density** (`modelmeta::quakeSkin` knew only the ragdolls' `#rag` copies): its Quake skin 64x64 instead of 256x256, the
+lighting's texel share 0.25 instead of 1, so its retro blocks were 4 skin texels wide (the "lower-res texture"); and
+it had none of the .mdl's own shading: no baked occlusion (`vr_ao`'s per-vertex, flat and bright), the 162-entry table's
+normals instead of `vr_mdl_dequant`'s smoothed ones (faceted: the "lower-poly"), the stored bytes instead of the
+dequantised places; and `vr_ao` took it for your own body (an entity with bone matrices: the player's occlusion group,
+your body's occluders built from its bones) instead of a monster with its own occluder.
+
+**Fix**: a `#rig2` copy is a Quake skin (trait `AuthoredRig`, beside `Ragdoll`), takes its .mdl's retro overrides;
+its vertices are made as `gl_mesh.c` makes the .mdl's rest pose (`shadeLikeMdl`: dequantised places, smoothed normals,
+baked occlusion, filled later if not baked yet); `vr_ao` shades it as its .mdl (`rig2::sourceModel`); wound masks stay
+across its swap as a ragdoll's. Only the places and normals come from the blended bones (the shader). The studio's
+Shaded / Wire / X-Ray and the heat map are the studio's own mesh, unchanged. `vr_rig2_draw_info` (Debug > Tools)
+prints both models as drawn (vertices, triangles, skin, normal map, draws, retro size and share).
+
+Tests: eyeshots (Rig Studio, Game display, rest pose, head, chest, right hand; authored | old): retro blocks now the
+old rig's size; mean difference over the subject 7.2 / 31.9 / 36.4 before, 5.6 / 16.7 / 23.2 after (what is left: the
+old rig's own drawing, its `r_lerpmodels 3` rebuild from the bones and its arms on the gun, not the shading; old
+against old 0.00). `vr_rig2_check` 33 passed, 2 failed (as before); `vr_rigstudio_rom test` 9/9, `_test_subjects`
+14/14, `_test_aim` 4/4, `_test_posekeys` 10/10; eval.sh no verdict changes. Cost (LTO, exclusive, 4 s each, the
+studio at 250 fps): GPU frame 0.314 ms authored / 0.309 old, models 0.037 / 0.033 ms; CPU models 0.035 / 0.033 ms.
+`vr_modelmetadata_test` stops at an older failure (`owned/mg3/progs/v_hammer.mdl` against rule `progs/`), not this.
+- [ ] Authored rig drawing {test:none}: Rig Studio > Range of Motion, Mesh drawn on Authored rig vs Old rig in the same pose, up close (face, hands, chest): the same texture resolution, shading and smoothness

@@ -112,6 +112,10 @@ void drawPosed(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int n
 void swapModels();
 void restoreModels();
 [[nodiscard]] int bonePoses(const struct entity_s* e, const float** matrices);
+void drawInfo(); // vr_rig2_draw_info: the drawn subject's models (old, authored), their skins and how often drawn
+// The .mdl of an entity drawn now on the authored rig (swapped to "<model>#rig2"), else nullptr: what it is shaded as
+// (its occluder, its occlusion group: vr_ao.cpp), as on the old rig.
+[[nodiscard]] const qmodel_t* sourceModel(const struct entity_s* e);
 // Mod_LoadModel's "<model>#rig2": the .mdl's rest pose as a skeletal mesh, 4 weights a vertex (the rig's).
 [[nodiscard]] bool makeSkinnedModel(qmodel_t* mod);
 

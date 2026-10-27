@@ -412,7 +412,7 @@ bool quakeSkin(const qmodel_t* model, const void* aliashdr)
     {
         return false;
     }
-    return hdr->poseverttype == aliashdr_t::PV_QUAKE1 || has(model, Trait::Ragdoll);
+    return hdr->poseverttype == aliashdr_t::PV_QUAKE1 || has(model, Trait::Ragdoll) || has(model, Trait::AuthoredRig);
 }
 
 bool bodyParts(const qmodel_t* model, float out[4])
@@ -520,7 +520,7 @@ void test_f()
                 rule.match == Match::Suffix ? n >= len && strcmp(fixture.name + n - len, rule.text) == 0 :
                 rule.match == Match::PrefixInsensitive ? q_strncasecmp(fixture.name, rule.text, len) == 0 :
                 strncmp(rule.match == Match::FilePrefix ? fileOf(fixture.name) : fixture.name, rule.text, len) == 0;
-            require(info.has(static_cast<Trait>(i)) == expected, "legacy path predicate");
+            require(info.has(static_cast<Trait>(i)) == expected, va("legacy path predicate (%s, rule %d '%s')", fixture.name, i, rule.text));
         }
         for(const auto type : {mod_alias, mod_brush, mod_sprite})
         {
