@@ -123,6 +123,7 @@ float vr_agk_on;
 vector vr_agk_gp;
 vector vr_agk_gr;
 float vr_agk_mode;
+float vr_agk_gun;          // (a single gun held: its pose category's keys; the off-hand block only then)
 float VR_AGK_OFF_GUN = 1;  // (agpose::OffGun: on the gun even when the hold is one-handed)
 float VR_AGK_OFF_FREE = 2; // (agpose::OffFree: off the gun, hanging free)
 
@@ -1649,7 +1650,12 @@ void(entity g, entity p) VR_AGK_Keys =
     // The off hand's hold (a single gun's: agpose::OffMode): the Pickup's while taking a weapon up, if set; else Aim's
     // while aimed (Auto: the Weapon Holds'); else Run's while running, if set; else Carry's. (So Run's Free with Aim's
     // Auto: free running, on the gun aimed, running or not; the client eases the hand between, vr_agarms secondEase.)
+    vr_agk_gun = FALSE;
     if(p && VR_AGK_IsGun(cls) && cls != VR_AGK_TWOGUNS)
+    {
+        vr_agk_gun = TRUE;
+    }
+    if(vr_agk_gun)
     {
         float mp = VR_AGK_Mode(base + 30);
         float mr = VR_AGK_Mode(base + 20);
@@ -2437,7 +2443,7 @@ void(entity g, entity p) VR_AGP_Pose =
     // The pose keys' off hand on the gun or off it (agent/offhand): its grip's change on the gun, the free hand's; sent in
     // a block at the end, told by VR_AGP_FREE and VR_AGP_TWO both set (never so otherwise: the block's first byte has them)
     float offFl = 0;
-    if(p && !reaching && !(vr_agp_flags & (VR_AGP_LEFT | VR_AGP_LEFTWPN)))
+    if(p && vr_agk_gun && !reaching && !(vr_agp_flags & (VR_AGP_LEFT | VR_AGP_LEFTWPN)))
     {
         if(vlen(vr_agk_gp) > 0.001 || vlen(vr_agk_gr) > 0.01)
         {

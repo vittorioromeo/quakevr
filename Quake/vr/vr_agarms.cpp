@@ -1836,8 +1836,9 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
                    tryL.bend <= vr_agarms_wrist.value + (keep ? secondBendSlack : 0.f) + (rig.authored ? authoredWristMore : 0.f);
         if(vr_agrunt_ik_debug.value >= 4.f)
         {
-            Con_Printf("agarms second: reach %.1f of arm %.1f (%.2f), wrist bend %.0f, slid %.1f: %s\n", reach, armLen,
-                reach / za::max(armLen, 1e-3f), tryL.bend, atX - at.pos.x, can ? "held" : "not");
+            Con_Printf("agarms second: reach %.1f of arm %.1f (%.2f), wrist bend %.0f, slid %.1f: %s; key offset %s %.2f %.2f %.2f\n",
+                reach, armLen, reach / za::max(armLen, 1e-3f), tryL.bend, atX - at.pos.x, can ? "held" : "not",
+                t.offKeyed ? "on" : "off", t.gripOff.pos.x, t.gripOff.pos.y, t.gripOff.pos.z);
         }
         if(hold && can != st->held2)
         {
