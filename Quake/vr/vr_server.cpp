@@ -4,6 +4,7 @@
 #include "vr_rigstudio.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_axestick.hpp"
+#include "vr_agarmor.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_limbmodel.hpp"
@@ -1099,6 +1100,7 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
         worldtext::serverWriteAll(msg);
         tips::serverWriteAll(msg);
         serverrules::serverWriteAll(msg);
+        agarmor::serverWriteAll(msg); // (the armed humanoids' armour: vr_agarmor.cpp)
     }
 }
 
@@ -1139,6 +1141,7 @@ extern "C" void VR_ServerFrameEnd()
     QVR_TRACY_CALL("sv end: limb models", qvr::limbmodel::spawnFrame()); // a kind of monster first spawned now: its limbs made ahead of its first cut
     progs::loadNoticeFrame(); // a loaded save's warning (another build's), once the player is in
     QVR_TRACY_CALL("sv end: rig sequences", qvr::rigseq::serverFrame()); // QC's Rig Studio sequences: started, their events sent to QC (vr_rigseq.cpp)
+    QVR_TRACY_CALL("sv end: armour", qvr::agarmor::serverFrame()); // the armed humanoids' armour sent where it changed (vr_agarmor.cpp)
     qvr::rigstudio::serverFrame(); // the Rig Studio's scene: its subject made and held (nothing while closed)
 
     if(!vrProtocol())

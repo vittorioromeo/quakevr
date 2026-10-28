@@ -3743,13 +3743,30 @@ QVR_CVAR(vr_rig2_forearm_twist, "0.5", CVAR_NONE)      // the share of an armed 
 QVR_CVAR(vr_rig2_clavicle, "0.6", CVAR_NONE)            // an armed grunt's clavicle's share of its arm's lift and reach across its body (vr_agarms_clavicle's, at least: the authored rig's shoulders sit at the arms' own joints, wider than the derived rig's, its girdle reaching with them)
 QVR_CVAR(vr_rig2_arm_clear, "6", CVAR_NONE)            // an armed one whose upper arm is in its torso has its wrist turned out at most this much with a hand on a weapon (degrees; vr_agarms' 6)
 QVR_CVAR(vr_agarmor, "0", CVAR_NONE)                  // debug (P0, vr_agarmor.cpp): armour shells on every armed humanoid drawn on its authored rig (P0: the grunt): 0 none, 1 green, 2 yellow, 3 red, 4 one of each by entity number (vr_agarmor_set per entity)
-QVR_CVAR(vr_agarmor_pieces, "3", CVAR_NONE)           // vr_agarmor: the pieces worn: 1 the cuirass, 2 the helmet (a mask)
+QVR_CVAR(vr_agarmor_pieces, "1023", CVAR_NONE)        // vr_agarmor: the pieces worn (a mask): 1 the cuirass, 2 the helmet, 4/8 the pauldrons (left/right), 16/32 the bracers, 64/128 the thighs, 256/512 the shins; 1023 all
 QVR_CVAR(vr_agarmor_thick, "0.6", CVAR_NONE)          // vr_agarmor: a plate's thickness (units; read when the shells are made: vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_gap, "0.25", CVAR_NONE)           // vr_agarmor: the plates' gap off the body (units; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_smooth, "6", CVAR_NONE)           // vr_agarmor: the plates' smoothing passes (Taubin; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_subdiv, "1", CVAR_NONE)           // vr_agarmor: the plates' subdivisions of the body's triangles (0-2; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_brow_back, "0.12", CVAR_NONE)     // vr_agarmor: the helmet's lower edge at the back of the head, its nape (the head bone's length up from its pivot, below it negative; vr_agarmor_rebuild)
-QVR_CVAR(vr_agarmor_brow_front, "0.5", CVAR_NONE)     // vr_agarmor: the helmet bucket's lower edge (its brow: above the eyes; the cheek guards come down under it)
+QVR_CVAR(vr_agarmor_rule, "0", CVAR_ARCHIVE)          // armour on armed humanoids (vr_agarmor.qc; Combat > Armed Grunts > Armour): 0 the player's rule (a plate saves its type's share of a hit, 30/60/80%, from its pool), 1 a plate stops the whole hit until its pool is gone
+QVR_CVAR(vr_agarmor_helmet_head, "1", CVAR_ARCHIVE)   // armour: a helmet also halves the headshot multiplier's extra and stops head pops while it is on (0: it only absorbs)
+QVR_CVAR(vr_agarmor_block_cuts, "1", CVAR_ARCHIVE)    // armour: no limb is cut or popped under an unbroken plate
+QVR_CVAR(vr_agarmor_debris_time, "10", CVAR_ARCHIVE)  // armour: a broken plate's debris lies about this long (s), then fades out
+QVR_CVAR(vr_agarmor_skill0, "0", CVAR_ARCHIVE)        // armour: the chance an armed grunt spawns armoured on Easy
+QVR_CVAR(vr_agarmor_skill0_type, "1", CVAR_ARCHIVE)   // armour on Easy: its best type (1 green, 2 yellow, 3 red: rolled up to it)
+QVR_CVAR(vr_agarmor_skill0_pieces, "2", CVAR_ARCHIVE) // armour on Easy: how many pieces (1 the cuirass, 2 and the helmet, more: the rest picked at random; 10 all)
+QVR_CVAR(vr_agarmor_skill1, "0.15", CVAR_ARCHIVE)     // armour: the chance on Normal
+QVR_CVAR(vr_agarmor_skill1_type, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_skill1_pieces, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_skill2, "0.35", CVAR_ARCHIVE)     // armour: the chance on Hard
+QVR_CVAR(vr_agarmor_skill2_type, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_skill2_pieces, "5", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_skill3, "0.6", CVAR_ARCHIVE)      // armour: the chance on Nightmare
+QVR_CVAR(vr_agarmor_skill3_type, "3", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_skill3_pieces, "10", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_test, "0", CVAR_NONE)             // the QC tests armour on armed humanoids (vr_agarmor_test.qc; Debug > Tests): 1 all; ends on "agarmor test: N passed, M failed"
+QVR_CVAR(vr_agarmor_brow_front, "0.5", CVAR_NONE)    // vr_agarmor: the helmet bucket's lower edge (its brow: above the eyes; the cheek guards come down under it)
 QVR_CVAR(vr_rig2_dq, "0", CVAR_NONE)                 // 1: the authored rig skinned with dual quaternions (no candy wrapper at a twist; vr_rig2_check, the Rig Studio's Shaded display); 0: linear blend
 QVR_CVAR(vr_rigseq, "1", CVAR_NONE)                  // 1: the files' override tracks and the sequences QC starts drawn on the rigged monsters (vr_rigseq.cpp); 0: never (nothing changes without the files)
 QVR_CVAR(vr_rigseq_debug, "0", CVAR_NONE)             // 1: each sequence started, stopped and each event sent to QC printed (rigseq:)
