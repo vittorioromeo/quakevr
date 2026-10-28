@@ -921,3 +921,26 @@ up mid-fade).
 **In VR**: a grunt strafing round you turns its hips and feet into the step, its chest and gun still on you; if the
 stuck shotgun shows again, `developer 1` and look for a `dropcap:` line (a mended fade), and note how it got there
 (thrown, force-pulled, knocked out of a hand, a corpse's).
+
+## Low and empty ammo colours on the guns' screens (agent/ammocolor)
+
+His ask: a held gun's ammo numbers turn red when it is empty and orange under a quarter of its magazine, on by default,
+the colours customizable. `vr_ammo_color_warn` 1, `vr_ammo_color_low` 30 and `vr_ammo_color_empty` 0 (hues in degrees,
+the menu's sliders like the other colour settings; `"r g b"` in the console works too), `vr_ammo_low_frac` 0.25.
+Rows: HUD and Menus > Screens, "Weapons' Ammo Screens" (Low Ammo Colours, Low/Empty Ammo Hue, Low Ammo Fraction).
+
+What counts (vr_view_weapon.cpp `ammoWarning`): with reloading on, the magazine's rounds against its size (shotgun 8,
+nailgun 24, nail pistol 12, revolver 6, the Widowmaker's tube 16, super shotgun 2: one shell left is not low, only
+none); the reserve never counts. With reloading off, the ammo it fires from against a magazine's worth. Guns whose counter
+is their own clip with no size (an enemy's gun, the flare gun) and the chainsaw's fuel go red only at 0. Only the held
+guns' screens (both hands); holstered and lying guns keep the screen's colour. The text tint goes through text3d's
+`queue(..., tint)`: the CRT image is keyed on it too, the face stays the screen's (with White Ammo Screen Text off, the CRT
+phosphor takes the tint, so the face is tinted as well).
+
+Test: `vr_ammocolor_test 1` (Debug > Tests > Ammo Screen Colours; `vr_ammo_color_debug 1` logs each readout's state
+and colour) on e1m1: 16 passed, 0 failed (shotgun, nailgun, nail pistol, revolver full / a fifth / empty, the off hand,
+the option off = the screen's colour). The Widowmaker cases skip without AD mounted (this base has no AD maps). Ends by
+`-QuitOn "ammocolor: .* passed"`. Eyeshot: the shotgun's "1/8" in orange (`vr_ammocolor_test 2`).
+
+**In VR**: fire a shotgun down to its last shell (orange) and empty (red); a reload brings the screen's colour back.
+The nail pistol and revolver have no ammo screen by default (their Ammo Screen weapon setting): shown, they warn too.

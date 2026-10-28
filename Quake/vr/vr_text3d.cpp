@@ -50,6 +50,8 @@ struct Queued
     Align align;
     float scale;
     bool screen;
+    bool tinted{false}; // a screen's text in `tint`, not the screen's colour (queue's `tint`)
+    glm::vec3 tint{1.f};
     bool overlay{false}; // over the eye's image, not depth tested (queueOverlay)
     za::Vector<OverlayBar> bars; // queueOverlay's
     float backing{0.55f};
@@ -554,10 +556,18 @@ struct ScreenLook
     bool trueColor;
 };
 
-[[nodiscard]] ScreenLook screenLook()
+// A tinted screen's text (queue's `tint`): the colour at the screen's brightness (the gear lights too).
+[[nodiscard]] glm::vec3 tintedText(const glm::vec3& tint)
+{
+    const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f) * gearlights::screen();
+    return glm::min(glm::max(tint, glm::vec3{0.f}) * bright, glm::vec3{1.f});
+}
+
+[[nodiscard]] ScreenLook screenLook(const glm::vec3* tint = nullptr)
 {
     const bool trueColor = screenWhiteness() > 0.f;
-    return {trueColor ? screenFaceLit() : screenFace(), trueColor ? screenInk() : screenText(), trueColor};
+    return {trueColor ? screenFaceLit() : screenFace(),
+        tint ? tintedText(*tint) : trueColor ? screenInk() : screenText(), trueColor};
 }
 
 // The image that shows `text` so (whenever it was drawn: what it shows still holds), or -1.
@@ -576,7 +586,7 @@ struct ScreenLook
 }
 
 void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
-    bool screen = false)
+    bool screen = false, const glm::vec3* tint = nullptr)
 {
     const size_t longest = splitLines(text);
     if(longest == 0)
@@ -614,6 +624,10 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
     // face through the CRT shader, with a glitch of its own: the screens glitch at other moments.
     glm::vec4 textColor{1.f};
     glm::vec4 inkColor{1.f}; // the glyphs' (a screen's whitened text: vr_ammo_screen_text_white)
+    if(tint)
+    {
+        textColor = glm::vec4{glm::clamp(*tint, glm::vec3{0.f}, glm::vec3{1.f}), 1.f}; // (plain floating text)
+    }
     za::Vector<gfx::Vertex>* glyphs = &vertices;
     bool imaged = false;
     if(screen)
@@ -621,8 +635,8 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         const int index = screenCount++;
         const glm::vec3 n = glm::normalize(glm::cross(right, up));
         const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
-        textColor = glm::vec4{screenText(), 1.f};
-        inkColor = glm::vec4{screenInk(), 1.f};
+        textColor = glm::vec4{tint ? tintedText(*tint) : screenText(), 1.f};
+        inkColor = glm::vec4{tint ? tintedText(*tint) : screenInk(), 1.f};
         glyphs = screenWhiteness() > 0.f ? &screenGlyphs : &vertices;
 
         const float halfW = charSize * static_cast<float>(longest) * 0.5f;
@@ -641,7 +655,7 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         const glm::vec3 tl = c - right * (halfW + pad) + up * (halfH + pad);
 
         const float crt = screenCrt();
-        int slot = findScreenImage(text, static_cast<int>(align), screenLook());
+        int slot = findScreenImage(text, static_cast<int>(align), screenLook(tint));
         if(slot < 0 && index < maxScreenImages)
         {
             slot = screenSlots.byOrder[static_cast<size_t>(index)]; // (its text changed: last frame's, stretched)
@@ -1121,7 +1135,8 @@ void drawOverlay()
     }
 }
 
-void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen)
+void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen,
+    const glm::vec3* tint)
 {
     Queued& q = nextQueued();
     q.text = text;
@@ -1130,6 +1145,8 @@ void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, A
     q.align = align;
     q.scale = scale;
     q.screen = screen;
+    q.tinted = tint != nullptr;
+    q.tint = tint ? *tint : glm::vec3{1.f};
     q.overlay = false;
     q.bars.clear();
     builtFrame = -1;
@@ -1145,6 +1162,7 @@ void queueOverlay(za::StringView text, const glm::vec3& pos, const glm::vec3& an
     q.align = Align::Centre;
     q.scale = scale;
     q.screen = false;
+    q.tinted = false;
     q.overlay = true;
     q.bars.assignRange(bars.begin(), bars.end());
     q.backing = backing;
@@ -1190,7 +1208,7 @@ void renderScreens()
     }
 
     // First the screens whose text an image shows (kept, shared), then the others into the images left.
-    const ScreenLook look = screenLook();
+    const ScreenLook plainLook = screenLook(); // (a tinted screen's text: its own, vr_ammo_color_warn)
     const int pad = screenPad();
     za::Array<int, maxScreenImages>& byOrder = screenSlots.byOrder;
     int count = 0;
@@ -1210,6 +1228,7 @@ void renderScreens()
         {
             continue;
         }
+        const ScreenLook look = q.tinted ? screenLook(&q.tint) : plainLook;
         const int slot = findScreenImage(q.text, static_cast<int>(q.align), look);
         if(slot >= 0)
         {
@@ -1251,6 +1270,7 @@ void renderScreens()
         const int width = static_cast<int>(longest) * 8 + pad * 2;
         const int height = static_cast<int>(textLines.size()) * 8 + pad * 2;
         // Shown since an earlier screen of this frame drew it (two screens with one new text)?
+        const ScreenLook look = q.tinted ? screenLook(&q.tint) : plainLook;
         int slot = findScreenImage(q.text, static_cast<int>(q.align), look);
         if(slot >= 0)
         {
@@ -1411,7 +1431,7 @@ extern "C" void VR_DrawSceneOpaque()
                 }
                 else
                 {
-                    layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen);
+                    layout(q.text, q.pos, q.angles, q.align, q.scale, q.screen, q.tinted ? &q.tint : nullptr);
                 }
             }
         }
