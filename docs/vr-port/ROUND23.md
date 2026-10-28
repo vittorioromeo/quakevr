@@ -9,13 +9,15 @@ what changed, how it was verified (numbers), settings and their defaults, what t
 *Survival mode needs its own map (`vrarena`): the space its waves of armed humanoids fight in. The wave code is the
 next task; this one is the map and the menu row that reaches it.*
 
-**What changed.** `Misc/quakevr/maps/vrarena_gen.py` writes `quakevr/maps/vrarena.map` (130 brushes, 40 entities)
-and compiles it. Play > Maps gained "Survival Arena" -- `command("Survival Arena", "map vrarena")` with a help line,
-in `pagePlay()` in `Quake/vr/vr_menu.cpp`, after the Melee Recording Room.
+**What changed.** `Misc/quakevr/maps/vrarena_gen.py` writes `quakevr/maps/vrarena.map` (130 brushes, 40 entities; as
+the map now stands 230 brushes and the same 40 entities -- see "the map's look" at the end of this round) and compiles
+it. Play > Maps gained "Survival Arena" -- `command("Survival Arena", "map vrarena")` with a help line, in
+`pagePlay()` in `Quake/vr/vr_menu.cpp`, after the Melee Recording Room.
 
-The room is an octagon 1728 units across (49 m at 32.8 units to the metre), 800 high with its corners cut 200, the
-floor at 0, walls 64 thick out to 864 and a ceiling at 800: a solid shell, so the arena is sealed and the fight
-happens in the middle of it. In it:
+The room is an octagon 1728 units across (49 m at 32.8 units to the metre), its corners cut 200, the floor at 0, walls
+64 thick out to 864 and a ceiling at 384 (11.7 m): a solid shell, so the arena is sealed and the fight happens in the
+middle of it. (This paragraph used to say the room was 800 high: 800 is the octagon's half-width -- `H` in the
+generator; the shell has topped out at 384 -- `ZH` -- since the map's first commit.) In it:
 
 - a central dais, 232 to its flat sides and 96 (2.9 m) high, climbed from the north, the south, the east and the
   west -- six steps each, 16 high and 24 deep -- and the player starts on top of it (`info_player_start` 0 0 120);
@@ -24,10 +26,11 @@ happens in the middle of it. In it:
 - a wall walk at 256: a 128-wide deck along the east and the west wall (y -576..576) joined to the tower tops it
   passes by 64-wide bridges, so the high ring is reached only through the towers and a step off it is a 256 drop;
 - eight covers, 48 high and 80 wide, 520 out at 45 degrees apart -- (480, 200), (200, 480) and their mirrors -- each
-  its own `func_detail`, so sight lines break up but the open ring stays walkable;
-- 24 lights: 8 ceiling lamps (a 64-square `qvr_light` block flush with the ceiling) with a light 300 and falloff
-  0.47 forty units under each; one of 180 over each tower top and 160 over each walk landing; 150 in each corner of
-  the floor and 140 over the dais, one facing each staircase; worldspawn `light 90`.
+  its own `func_detail`, so sight lines break up but the open ring stays walkable (they are 96 wide at 512 out now,
+  grown inwards: the bullet below and "the map's look" at the end of this round);
+- 24 lights: 8 ceiling lamps (a 64-square `qvr_light` block flush with the ceiling, now eight coffered recesses) with
+  a light 300 and falloff 0.47 forty units under each; one of 180 over each tower top and 160 over each walk landing;
+  150 in each corner of the floor and 140 over the dais, one facing each staircase; worldspawn `light 90`.
 
 12 `info_arena_spawn` points carry a `kind`: 1 for the four ground points (640, 640, 0 -- the corners of the open
 ring) and 2 for the eight high ones (the tower tops at 402 402 256 and the walk landings at 736 +-288 256). 3
@@ -378,21 +381,43 @@ closed: "Survival Arena: the cleanup", below.)
 *Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: a Quad Damage picked up is not cut to 2 s by a Quad Strike
 hand kill`
 
-## Survival Arena: the map's look (id's base textures)
+## Survival Arena: the map's look, part two (trim, fixtures, tiles that butt)
 
-*The author's ask, 2026-10-28: "texture the new arena map -- give it an idbase look." Until now `vrarena` wore
-`quakevr/wads/quakevr_dev.wad`'s six flat grids, the stand-in set for a map being laid out (`MAPPING.md`, "Textures and
-id's data"). `vrcalibration.bsp` and the hub maps are already built from id's own base textures; this is the same
-decision, taken for the first time on a map players fight in.*
+*His playtest of the arena as textured above, 2026-10-28: "Few issues with the texturing: the crate textures are
+misaligned. The wall textures do not fit well, they look more like computers, and the wall geometry is too flat. Use
+proper wall textures with nice trims and light fixtures. The spawn square in center pillar has misaligned textures. The
+ceiling has same textures as the wall. It should have texture that fit a ceiling and also have light fixtures." Four
+complaints, one of them about geometry rather than paint: an 11.7 m wall that is one flat prism reads flat whatever is
+put on it.*
 
-**What changed: only the textures.** `Misc/quakevr/maps/vrarena_gen.py` now sets a role table instead of six names, and
-worldspawn lists two WADs -- `"wad" "quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad"`, the same pair
-`make_vrcalibration_map.py` uses. id's textures come from the git-ignored `id_textures.wad` that
-`Misc/trenchbroom/make_id_wad.py` builds from your own paks, so nothing of id's is committed: what ships is the
-*compiled* `vrarena.bsp`, which carries the mip chains it was lit with. Nine of the thirteen are e1m1's own; `metal1_1`
-is e1m8's, `metal4_4` e1m5's, `sfloor4_1` e2m1's and `sfloor4_2` start's.
+**Why the first pass looked wrong.** mapgeom lays a face world-aligned: the picture's own grid sits on world
+coordinates, which is what a floor wants and what a discrete object does not get on. The covers were 80 wide and 48
+high with `crate0_side` at 0.75 -- 1.25 tiles across a face -- so a crate's rim ran across the middle of the block and
+its outer edges were cut short, and the lid at 1.25 tiled only where the world grid happened to line up. The spawn pad
+was 96 wide and 2 thick with `plat_side1` (a 64x16 lip) at 0.125: id's 16-unit lip squeezed into 2 units and repeated
+eight times along the face. Each cardinal wall was one 384-high prism in `twall1_1` and each cut corner one in
+`twall2_1`: panels with a control-desk look, nothing proud of them, no fixture anywhere. The ceiling wore `sfloor4_1`,
+a floor plate, and its eight lamps were plain 64-square boxes. (One sentence in the section above was wrong with it:
+"the engine keys light emission off that name". Nothing in `Quake/` mentions `qvr_light`. What glows is decided by the
+relighting system -- `quakevr/relight_textures.cfg`, whose patterns say `kind=fixture|glow|liquid|off` with `scale`,
+`light`, `color` and `reach`, and which falls back on the name only as a rule of thumb -- plus fullbright pixels
+(palette 224..254) or a QRP `_glow`/`_luma` map. Measured in the WAD: `tlight01` has 2.3% fullbright pixels and
+`ceil1_1` 14.1%; `light3_3`, `tech04_*`, `metal*`, `crate0_*` and `plat_*` have none.)
 
-| the part of the room | texture | how it is scaled |
+**What changed: the palette, the laying, and 100 new brushes.** `vrarena_gen.py` keeps one role table and a small
+laying layer under it. `texture_sizes()` reads the width and height of every texture out of the WADs the map names;
+`laid()` writes a face's texture axes, its offsets and its scales from the face's own extent and anchor, in three
+modes:
+
+- **world** -- mapgeom's paraxial projection with the picture's corner asked to land at `anchor`: coplanar faces
+  continue into one another, which is what a floor, a ceiling and a deck want, and what lets a field of wall panels
+  butt exactly with the mouldings that bound them;
+- **fitv** -- `reps`[1] tiles exactly down the face at the same scale across it: id's way of making a band of plates or
+  of trim land where the band is (make_vrcalibration_map.py's `fitv`);
+- **fit** -- whole tiles across and down, one for a face that is a single thing: a crate, a lamp, the lit back of a
+  coffer. `reps` 0 means "as many as come nearest at this scale", so nothing gets squashed.
+
+| the part of the room | texture (size) | how it is laid |
 |---|---|---|
 | the 1728-wide floor | `ground1_2` (64) | 1.0: the 64-unit plate id lays floors with |
 | the four cardinal walls | `twall1_1` (64x128) | 1.0: panel and its band, three tiers up the 800-high wall |
@@ -689,3 +714,100 @@ skill roll's rule), so yellow and red come in gradually.
 *Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: armoured foes from wave 4 (Normal; 7 Easy, 2 Hard and
 Nightmare), more of them, more plates and heavier kinds as the waves go; the enforcer boss in a kind above; armoured
 kills pay more; Can Opener perk (Combat > Survival Arena > Armour) {test:vr_arena_test 10}`
+| the floor | `ground1_2` (64) | world, anchored at the origin: id's 64-unit plates, 49 m of them |
+| the eight walls | `tech14_1` (128) | world, anchored at z=96: three panel rows, 96 to 352, butted with the rail under them and the cornice above |
+| the four towers | `tech14_1` (128) | fitv, 2 tiles down a 256-high face |
+| the wainscot band (16..80) | `metal4_4` (64) | fitv, one plate exactly in the 64-high band |
+| skirting (0..16), rail (80..96), cornice (352..368), the ceiling's border moulding (368..384) | `tech04_1` (128x16) | fitv, one 16-row exactly, mitred round the octagon |
+| the twelve uprights | `tech04_3` (16x128) | fit, one flute across the upright and as many down it as it is tall (2 down a 256-high run, 1 down a 96-high one), measured along its wall |
+| the dais' eight sides | `tech04_3` (16x128) | fit, whole flutes across -- 17 along a 272-wide face, 6 along the 96 a cut corner measures -- and one 128-tall flute scaled 0.75 down the 96-high face |
+| the ceiling, the coffers' linings, every step | `metal1_1` (64) | world: the ceiling's own plates, not the walls' |
+| the eight coffers' frames | `tech04_1` (128x16) | fitv, 2 rows in a 32-high frame |
+| the rings under the coffers | `ceil1_1` (16, 14.1% fullbright) | fit: whole 16-unit glowing tiles |
+| a coffer's back | `light3_3` (64) | fit: 2 x 2 panels in the 128-square recess |
+| the twelve lamps | `tlight01` (32, 2.3% fullbright) | fit, one lamp per upright, measured along the wall so a cut-corner lamp is not squashed |
+| the dais' top, the tower tops, both walks, the four bridges | `sfloor4_2` (64) | world: everything you stand on up high is deck plate |
+| the walks' and bridges' 64-thick edges | `metal4_4` (64) | world: one plate spans the thickness |
+| the eight covers | `crate0_side` (64), lids `crate0_top` (64) | fit at 0.75: 2 crates along 96, 1 up 48, 2 x 2 across the lid |
+| the spawn pad (128 wide, 16 thick) | `plat_top1` (64), lip `plat_side1` (64x16) | world: 2 plates across, 1 lip row up, 2 across |
+
+
+**The dressing: 130 brushes to 230.** Nothing a fight uses moved. What was added is the room's own trim, 4 to 16 units
+out of a wall, all of it flush-mounted on the shell:
+
+- 40 band segments -- five bands (skirting 0..16, wainscot 16..80, rail 80..96, cornice 352..368, and the ceiling's
+  border moulding 368..384) mitred round the octagon, each band eight runs corner to corner;
+- 12 uprights in fluting, 16 wide and 8 proud, standing on the rail and stopping where the cornice begins: at the
+  third and the two-thirds mark of each cardinal wall and at the middle of each cut corner. On the east and the west
+  wall each upright is two brushes (96..192 and 256..352) so the walkway bridges pass between them -- 16 brushes in
+  all. Their first version ran up to 368 and pierced the cornice: `--check`'s interpenetration test printed all 12
+  clashes, and they now stop at `PIL_TOP = 352`. Their first *texture* was wrong too, and only a probe found it:
+  `tech04_3` and the dais' sides were laid `fitv`, which pins the pattern vertically and forces the horizontal scale to
+  match it, so a flute was cut in the middle wherever an upright or a dais face ended. They are laid `fit` now --
+  `reps=(1,0)` across an upright, `(0,1)` down the dais -- with each upright's U taken along its own wall, which is
+  what took `tech04_3` from 24 clean faces to 68;
+- 12 lamp hoods, 8 proud, one on the front of every upright, carrying `tlight01` at 272..304 -- the lamp's 32 units fit
+  the hood exactly, and on a cut corner the face is measured along the wall (its own U axis, taken from the wall's
+  direction) so a 45-degree lamp is not squashed to 11 units wide;
+- 40 coffer parts: 8 coffers, each a frame of four 32-high arms around a 128-square recess lined with `metal1_1` and
+  backed by `light3_3`, ringed under the frame by `ceil1_1`. They reach out to about 746 from the centre, clear of the
+  ceiling's border moulding (which starts at 784 out).
+
+The eight covers grew from 80 wide at 520 out to 96 wide at 512 -- **inwards only**: their outer faces are exactly where
+they were (x 144..240 and y 424..520 for the north-east one, and the same for the rest), so the 8-unit clearances to
+the tower staircases are unchanged and they are still 48 high (64 would block a standing player's eye at 56). The spawn
+pad grew from 96 to 128 wide and from 2 to 16 thick for the same reason as the covers: at that size `plat_top1` and
+`plat_side1` land on whole tiles. The shell, the dais and its four flights, the towers and their pinwheel stairs, both
+decks and all four bridges, the 12 `info_arena_spawn` points, the 3 `info_arena_item` points, `info_player_start` and
+all 24 light entities are where they were -- the number of lights did not even change, because the lamps and the
+coffer rings bring their own fullbright pixels.
+
+**How the fit was checked, not just looked at.** `scratch/arena/align_probe.py` reads every face in the written
+`.map`, takes the tile size out of the WAD, and for every corner computes `S = dot(U,P)/uscale + uoff` and asks how far
+it is from a whole texel; `flute_probe.py` and `bad_faces.py` then say, per texture, how many tiles a face spans and
+which faces do not span whole ones. The 106 faces that must read as one object -- 40 `crate0_side` and 8 `crate0_top`,
+2 `plat_top1` and 4 `plat_side1`, 12 `tlight01`, 32 `ceil1_1` and 8 `light3_3` -- are clean at every corner, worst
+residual 0.0017 texels (the rounding in the file's 6 decimals: a thousandth of a unit). The fluting next: 68 of its 89
+faces carry whole flutes at their own edges, one flute across each of the 12 uprights and 17 across each 272-wide face
+of the dais. The 21 left are its 12 upright bottoms and the dais' footprint, all buried in the brush they stand on, and
+the four cut-corner uprights, whose 45-degree corners snap to the 8-unit grid and so measure 15.9 or 16.1 instead of
+exactly 16 wide -- their flutes are whole to within 1.8% and their 5.75-unit flanks carry a flute scaled 1.06. The
+room's other 1276 faces are laid on the world grid: `tech14_1` panels are exact where the rail at 96 and the cornice at
+352 bound them and crop at the mitres, `metal4_4` and `tech04_1` are exact across each band's height and crop along its
+run as mitred trim does, and `ground1_2`, `metal1_1` and `sfloor4_2` crop only at corners buried in the shell.
+`scratch/arena/face_census.py` then census-checks the *assignment*: 230 brushes, 225 of them 6-faced, 4 five-faced (the
+corner wedges) and 1 ten-faced (the dais' octagonal prism), and `tech04_3` on exactly 16 upright brushes (5 faces each)
+and the dais (9) -- no face wearing a texture that was meant for something else.
+
+**The room itself is untouched where it matters.** 40 entities as before, the shell still sealed, every point where it
+was, `_qvr_prelit 1` and `light 90` kept. `vrarena.map` went 1588 lines to 2488 -- 100 new brushes.
+
+**Compiled** with ericw-tools 2.0.0-alpha11 with the **final** light preset -- new surfaces mean new radiosity, so the
+lighting is rebuilt with the map: `--compile --preset final --holes 400128` after a fast-preset pass (qbsp 0.2 s, vis
+0.0 s, light 0.1 s) to prove the shell first. Final: qbsp `-bsp2 -wadpath <tree>` 0.2 s, vis 0.9 s, light `-extra4
+-dirt -dirtscale 1.5 -dirtdepth 96 -bounce -lit -lux -lightgrid -lightgrid_dist 64 64 64` 2.2 s, no warning, error or
+leak. `bsp_holes.py`: 400256 rays, 1948 world faces, 391 leaves, 0 missing-face hits, 0 undrawn, 0 unlisted, `holes: 0`.
+`vrarena.map` 76,522 -> 137,694 bytes, `vrarena.bsp` 346,028 -> 445,872, the lightmaps 200,384 -> 229,652
+(`vrarena.map` with its `.bsp`, `.lit` and `.lux` is committed together: the lighting belongs to the surfaces it was
+computed for).
+`--check` before compiling: 230 brushes, 0 duplicates, 0 brushes running into another, 0 features standing in the open
+ring, 12 spawns (8 high, 4 ground), 3 items, 88 stair steps with 0 unclimbable, 112 under the player start.
+
+**Verified in the game**, on the new BSP: `map vrarena` loads with no missing-texture and no bad-surface line;
+`vr_arena_test 4` 7 passed / 0 failed (ground 4, high 8, a place with ground under it, a taken place skipped) and
+`vr_arena_test 5` 467 / 0. `vr_arena_test 1` is 256 / 1 here -- the same single failure, `a fallen monster is not
+alive`, that reproduces on the previous BSP at the same commit and gives 257 / 0 on `vrtesthall`: the live arena in the
+room, not its surfaces.
+
+**For the author.** `vrarena.bsp` is a committed Quake map carrying id's artwork, which is what `MAPPING.md`'s
+carve-out for `vrcalibration` and the hub maps allows and what its "Keep that to the maps that need it" line is about --
+that rule is left as written, for you to extend or walk back. The generator keeps the flat look buildable for anyone
+whose checkout has no `id_textures.wad`: `--dev-textures` swaps the whole palette back to `quakevr_dev.wad`'s grids and
+lists that WAD alone, and without the file and without the flag it says so and stops; either way `main()` now refuses to
+write a map naming a texture that is not in a WAD it lists. What your eye is still the judge of: whether `tech14_1`
+panels with `tech04_1` bands and `tech04_3` fluting are the trim families you want (that is `make_vrcalibration_map.py`'s
+own vocabulary, so it matches the calibration room); uprights at the third and two-thirds mark of a 16 m wall; coffers
+128 square with a `ceil1_1` ring; and whether 96-wide covers read better than 80. What came out is in
+`scratch/arena_dress.png` (a headless frame from the player start on the dais, composed by `run.sh -Out`) and
+`scratch/arena/idbase_spawn.png` from the first pass, if you want to look before walking it -- this session's model
+cannot see images, so every number above is a number, not a verdict.
