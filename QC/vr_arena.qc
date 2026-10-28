@@ -20,9 +20,12 @@
 //                             +1, a boss less often)
 //   vr_arena_boss_health  1.25 a boss's health times this (times the skill's factor too; a Nightmare boss wave
 //                             brings two of them, the second half as big)
-//   vr_arena_medkits_after 2   medkits after every wave (0: none)
-//   vr_arena_armor_every  4    an armour after every this many waves (0: none)
-//   vr_arena_score_kill   100  the score of a kill, times its ladder tier (a boss: four of those)
+//   vr_arena_medkits_after 2   medkits after every wave (0: none; at Normal skill: an Easy clear drops more, a
+//                             Nightmare one less)
+//   vr_arena_armor_every  4    an armour after every this many waves (0: none; at Normal skill: the harder the
+//                             skill, the longer its gap)
+//   vr_arena_score_kill   100  the score of a kill, times its ladder tier (a boss: four of those; at Normal skill:
+//                             a harder skill pays more)
 //   vr_arena_seed         0    the waves' rolls: 0 a different ladder every run, else that seed's ladder
 //   vr_arena_skill_impact 1    Difficulty Impact: how far the game's difficulty (skill) moves the waves -- 0 the
 //                             arena is the same at every skill, 1 the steps below (Easy softer, Nightmare harder)
@@ -165,6 +168,12 @@ float(float easy, float hard, float nightmare) VR_ARENA_Skill =
 {
     float m = skill < 1 ? easy : skill < 2 ? 1 : skill < 3 ? hard : nightmare;
     return max(0, 1 + cvar("vr_arena_skill_impact") * (m - 1));
+}
+
+// The difficulty's own word, for the line the player reads: one word per skill.
+string(float xSkill) VR_ARENA_SkillName =
+{
+    return xSkill < 1 ? "Easy" : xSkill < 2 ? "Normal" : xSkill < 3 ? "Hard" : "Nightmare";
 }
 
 float() VR_ARENA_Opt_MaxAlive   { return VR_ARENA_Clamp(cvar("vr_arena_max_alive"), 1, AR_PLAN_MAX); }
@@ -1170,7 +1179,10 @@ void() VR_ARENA_WorldSpawn =
     ar_mgr.think = VR_ARENA_WaveStart;
     ar_mgr.nextthink = time + 1; // (after the map's own spawns, so its info_arena_spawn points are known)
 
-    dprint(sprintf("arena: %s on (max alive %g, boss every %g, seed %g)\n", mapname, VR_ARENA_FieldCap(),
+    float sk = cvar("skill"); // (world spawn runs before world.qc's StartFrame refresh, so this line reads the cvar:
+                              // the skill the run started on)
+    dprint(sprintf("arena: %s on (skill %g %s, impact %g, max alive %g, boss every %g, seed %g)\n", mapname,
+                   sk, VR_ARENA_SkillName(sk), cvar("vr_arena_skill_impact"), VR_ARENA_FieldCap(),
                    VR_ARENA_BossEvery(), cvar("vr_arena_seed")));
 }
 
@@ -1183,7 +1195,7 @@ void() VR_ARENA_Frame =
         if(!p) { return; } // (its clients are not in yet)
         ar_stripped = 1;
         VR_ARENA_StripPlayers();
-        VR_ARENA_PrintAll("ARENA - unarmed, wave 1 coming\n");
+        VR_ARENA_PrintAll(sprintf("ARENA - %s: unarmed, wave 1 coming\n", VR_ARENA_SkillName(skill)));
     }
     VR_ARK_Frame(); // QVR: the perks that have to keep their word (vr_arena_perks.qc)
 }
