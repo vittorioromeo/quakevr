@@ -14,6 +14,9 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Survival Arena (Combat > Survival Arena, Difficulty Impact 1): Easy's waves are smaller, calmer, later to the heavy guns and better supplied; Nightmare's are bigger, quicker, thicker, reach the launchers and death knights earlier and drop less; Normal plays exactly as before; at 0 the difficulty changes nothing
+Survival Arena: the run names the difficulty it is on (ARENA - Nightmare: unarmed, wave 1 coming) and its numbers match it from wave 1; Nightmare's boss wave brings two big ones, Easy's boss waves come a wave further apart, and a boss clear offers 2 / 3 / 4 / 5 pedestals at Easy / Normal / Hard / Nightmare
+Survival Arena: Combat > Survival Arena now holds the arena's own knobs (wave delay, foes at once, boss waves, supplies, score, perks, seed) and the Skill cycle; nothing here touches the armed humanoids' AI Behaviour page (vr_agrunt_ai_skill)
 Survival Arena: a boss wave's clear offers three pedestals standing in the arena, and the one you walk over is the perk you keep for the rest of the run {test:arena_intro}
 Survival Arena: what a taken perk does -- the melee kill's 2 s of quad, the snapped neck's 20 health, armour worth 25 more, a wave clear topping up the gun in your hand
 Survival Arena (Play > Survival Arena, map vrarena): it starts unarmed and wave 1 is one or two unarmed grunts; pick their guns up off the bodies -- that is how you climb to nail pistols, shotguns and the heavier guns later
