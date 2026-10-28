@@ -36,7 +36,9 @@
 //   vr_arena_gun_max      24   guns the arena's foes dropped lying about at most: past it the oldest fades (0: no
 //                             limit; twice this with the Spoils perk)
 //   vr_arena_test         0    the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss
-//                             wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 none of it off the arena
+//                             wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 none of
+//                             it off the arena, 9 the wave flow, 10 the foes' armour, 11 the loot the waves leave
+//                             behind
 //
 // None of the cleanup ever takes a thing a hand holds, a force grab pulls or a body still dying: it waits for it.
 //

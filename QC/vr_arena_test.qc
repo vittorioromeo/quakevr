@@ -28,17 +28,22 @@
 //   armour before the first wave or with it off, the plan's guns untouched by it; then live: wave 5's foes wear what
 //   was planned and the skill's own roll is held (vr_agarmor_skill1 set to certain), the armoured boss's kill pays
 //   more, and a grunt spawned outside the director still gets the skill's roll.
+// - 11 (vrtesthall with vr_arena 1): the loot the waves leave behind: with the player owning none of them, the waves'
+//   tier 2 and 3 guns are eligible and a foe's launcher and an ammo box's gun fall; the pack's own rules and
+//   vr_enemy_drops never hold; out of a run the gate is ownership again; and wave 20's armed humanoids hold their
+//   plan's strong guns in their hands with the player owning none of them. (vrarena's name alone keeps its run on, so
+//   its off-run half needs a map where the cvar is the only thing saying "arena".)
 
 // ---------------------------------------------------------------------------
 // The test's own state
 // ---------------------------------------------------------------------------
 
-float vr_at_case;        // 0 idle; 1 .. 8 running
+float vr_at_case;        // 0 idle; 1 .. 11 running
 float vr_at_pass;
 float vr_at_fail;
 float vr_at_step;
 float vr_at_until;
-float vr_at_keep[21];    // the cvars the tests set, put back at the end
+float vr_at_keep[24];    // the cvars the tests set, put back at the end
 float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
 float vr_at_kills0;
 float vr_at_score0;
@@ -68,9 +73,12 @@ string(float i) VR_AT_CvarName =
     if(i == 18) { return "vr_arena_foe_armor_scale"; }
     if(i == 19) { return "vr_arena_foe_armor_from"; }
     if(i == 20) { return "vr_agarmor_skill1"; } // (test 10 sets the skill's own roll to certain, to see it held)
+    if(i == 21) { return "vr_arena"; }         // (test 11 looks at a run and at the same map with the run off)
+    if(i == 22) { return "vr_enemy_drops"; }   // (test 11: what a foe may leave behind, and its "never")
+    if(i == 23) { return "vr_ammobox_drops"; } // (... the same for what an ammo box may carry)
     return "";
 }
-float VR_AT_NCVARS = 21;
+float VR_AT_NCVARS = 24;
 
 void() VR_AT_Save =
 {
@@ -2042,6 +2050,243 @@ void() VR_AT10_Frame =
     }
 }
 
+// ---------------------------------------------------------------------------
+// Test 11: the loot the waves leave behind (a foe's gun is not gated on what the player carries)
+// ---------------------------------------------------------------------------
+//
+// VR_WeaponUtil_EntIsEligibleForWeapon (vr_weaponutil.qc) asks whether a player owns a weapon -- the axe and the
+// shotgun always count. That gates what a dying monster may drop (TryEnemyDrop), what an ammo box may carry
+// (TryAmmoBoxDrop), what a crate fills with (vr_crates.qc) and, through VR_AGR_Owned (vr_armedrepl.qc), which tiers a
+// replacement gun may come from. A Survival Arena run is the exception this test is about: an arena map has no
+// authored weapon pickups, and a run begins with the player stripped to the fists (VR_ARENA_StripPlayers) -- with
+// ownership as the gate, every gun the waves carry would stay out of the player's reach for the whole run, because
+// nothing on such a map can ever make them own one. In a run the rule is the pack's instead: any gun this build has
+// is eligible (a soldier's launcher this pack has not, MG3's super axe without MG3's data, are out either way), and
+// the drop settings' "never" is not overridden. The waves' own guns were never gated on the player -- the ladder picks
+// them (VR_ARENA_PickGun) and an armed humanoid holds what its plan gave it (VR_AM_Spawn, VR_AG_Usable) -- so the live
+// half watches wave 20 hold that, which is the same wave's foes and the same guns the first half drops.
+
+float VR_AT11_N = 6; // the guns a wave's tier 2 and 3 humanoids carry: none of them owned by the player
+
+float(float i) VR_AT11_Wid =
+{
+    if(i == 0) { return WID_SUPER_SHOTGUN; }
+    if(i == 1) { return WID_NAILGUN; }
+    if(i == 2) { return WID_SUPER_NAILGUN; }
+    if(i == 3) { return WID_GRENADE_LAUNCHER; }
+    if(i == 4) { return WID_ROCKET_LAUNCHER; }
+    return WID_LIGHTNING;
+}
+
+string(float wid) VR_AT11_Name =
+{
+    if(wid == WID_SUPER_SHOTGUN)    { return "the super shotgun"; }
+    if(wid == WID_NAILGUN)          { return "the nail gun"; }
+    if(wid == WID_SUPER_NAILGUN)    { return "the super nail gun"; }
+    if(wid == WID_GRENADE_LAUNCHER) { return "the grenade launcher"; }
+    if(wid == WID_ROCKET_LAUNCHER)  { return "the rocket launcher"; }
+    return "the lightning gun";
+}
+
+// How many of `wid` lie about -- a drop is a thrown_weapon prop (CreateWeaponDrop, weapons.qc) -- ...
+float(float wid) VR_AT11_Lying =
+{
+    float n = 0;
+    for(entity e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
+    {
+        if(e.weapon == wid) { n = n + 1; }
+    }
+    return n;
+}
+
+// ... and the test's own taken back again (the next find is held before the removal: a removed entity is not a
+// handle to search from).
+void(float wid) VR_AT11_Clear =
+{
+    entity e = find(world, classname, "thrown_weapon");
+    while(e)
+    {
+        entity nx = find(e, classname, "thrown_weapon");
+        if(e.weapon == wid) { remove(e); }
+        e = nx;
+    }
+}
+
+// A stand-in for the ogre whose death the drop helpers are asked about: they read only its origin, and it is put out
+// of the way (4096 over the player) and removed in the same frame, so nothing lies about when the live wave arrives.
+entity(vector at) VR_AT11_Foe =
+{
+    entity f = spawn();
+    f.classname = "vr_at11_foe";
+    setorigin(f, at);
+    return f;
+}
+
+void(entity p) VR_AT11_Eligible =
+{
+    float i;
+    for(i = 0; i < VR_AT11_N; i++)
+    {
+        float wid = VR_AT11_Wid(i);
+        VR_WeaponUtil_EntDelWeapon(p, wid);
+        VR_AT_Check(!VR_WeaponUtil_EntHasWeapon(p, wid),
+                    sprintf("the run leaves the player with no %s (its map has no pickup that could change that)", VR_AT11_Name(wid)));
+    }
+    for(i = 0; i < VR_AT11_N; i++)
+    {
+        float wid = VR_AT11_Wid(i);
+        VR_AT_Check(VR_WeaponUtil_EntIsEligibleForWeapon(p, wid),
+                    sprintf("in the run %s is eligible with the player holding none of it", VR_AT11_Name(wid)));
+    }
+    // The pack still rules what a run may hold out: a gun this build does not have stays out of its waves' loot too.
+    VR_AT_Check(VR_WeaponUtil_EntIsEligibleForWeapon(p, WID_ADROCKET) == VR_Pack_WeaponAvailable(WID_ADROCKET),
+                "in the run a soldier's launcher this pack has not is out of its loot as ever");
+    VR_AT_Check(VR_WeaponUtil_EntIsEligibleForWeapon(p, WID_SUPERAXE) == VR_Pack_WeaponAvailable(WID_SUPERAXE),
+                "in the run MG3's super axe follows the pack, not the run");
+}
+
+void(entity p) VR_AT11_Drops =
+{
+    entity foe = VR_AT11_Foe(p.origin + '0 0 4096');
+    float n;
+
+    n = VR_AT11_Lying(WID_ROCKET_LAUNCHER);
+    VR_AT_Check(TryEnemyDrop(foe, p, WID_ROCKET_LAUNCHER, 1) && VR_AT11_Lying(WID_ROCKET_LAUNCHER) == n + 1,
+                "in the run a foe's rocket launcher falls: the ogres the waves send from their wave on carry them");
+    VR_AT11_Clear(WID_ROCKET_LAUNCHER);
+
+    n = VR_AT11_Lying(WID_LIGHTNING);
+    VR_AT_Check(TryAmmoBoxDrop(foe, p, WID_LIGHTNING, 1) && VR_AT11_Lying(WID_LIGHTNING) == n + 1,
+                "in the run an ammo box's lightning gun falls");
+    VR_AT11_Clear(WID_LIGHTNING);
+
+    // The settings are not overridden: "never" is never, in a run as out of one.
+    cvar_set("vr_enemy_drops", ftos(QVR_ENEMYDROPS_DISABLE));
+    n = VR_AT11_Lying(WID_ROCKET_LAUNCHER);
+    VR_AT_Check(!TryEnemyDrop(foe, p, WID_ROCKET_LAUNCHER, 1) && VR_AT11_Lying(WID_ROCKET_LAUNCHER) == n,
+                "vr_enemy_drops never: not in a run either");
+    cvar_set("vr_enemy_drops", ftos(QVR_ENEMYDROPS_WHENELIGIBLE));
+
+    // And off the run the gate is the player's own guns, as ever. (vrarena's name alone keeps its run on, so this
+    // half is run on a map where the cvar is the only thing saying "arena".)
+    cvar_set("vr_arena", "0");
+    if(VR_ARK_Running())
+    {
+        VR_AT_Check(FALSE, "test 11 needs a map that is not vrarena: its name alone keeps the run on");
+    }
+    else
+    {
+        VR_AT_Check(!VR_WeaponUtil_EntIsEligibleForWeapon(p, WID_ROCKET_LAUNCHER),
+                    "out of the run the rocket launcher is owned-or-nothing again");
+        n = VR_AT11_Lying(WID_ROCKET_LAUNCHER);
+        VR_AT_Check(!TryEnemyDrop(foe, p, WID_ROCKET_LAUNCHER, 1) && VR_AT11_Lying(WID_ROCKET_LAUNCHER) == n,
+                    "out of the run a foe keeps its launcher to itself until a player has one");
+    }
+    cvar_set("vr_arena", "1");
+
+    // A wave's own humanoid, spawned the way the director spawns one, holds its plan's strong gun although nobody
+    // owns it -- the run's loot and its foes were never two different rules.
+    entity keep = self;
+    entity g = spawn();
+    self = g;
+    g.classname = "monster_army";
+    setorigin(g, p.origin + '0 0 4096');
+    g.weapon = WID_ROCKET_LAUNCHER;
+    vr_ar_hold_roll = 1; // (as VR_ARENA_SpawnMonster holds a wave foe's armour roll, and its gun, to itself)
+    monster_vr_grunt();
+    vr_ar_hold_roll = 0;
+    self = keep;
+    dprint(sprintf("arena: t11 grunt: kind %g, wid %g, in hand %g, reserve %g\n",
+                   g.vr_ag_kind, g.vr_ag_wid, g.vr_ag_prop != world, g.vr_ag_reserve));
+    VR_AT_Check(g.vr_ag_wid == WID_ROCKET_LAUNCHER && g.vr_ag_prop != world,
+                "an armed grunt holds the rocket launcher it was given, although no player owns one");
+    remove(g);
+}
+
+// The ladder's strong humanoids, with the player owning none of their guns: waves 18 on.
+void() VR_AT11_Plans =
+{
+    float hums = 0;
+    float t2 = 0;
+    float t3 = 0;
+    float w;
+    for(w = 18; w <= 30; w++)
+    {
+        VR_ARENA_Plan(w);
+        for(float i = 0; i < ar_plan_n; i++)
+        {
+            if(!VR_AT_IsHumanoid(ar_plan_kind[i])) { continue; }
+            hums = hums + 1;
+            float t = VR_ARENA_WeaponTier(ar_plan_kind[i], ar_plan_gun[i]);
+            if(t == 2) { t2 = t2 + 1; }
+            if(t == 3) { t3 = t3 + 1; }
+        }
+    }
+    dprint(sprintf("arena: t11 plans 18..30: %g humanoids, %g at tier 2, %g at tier 3\n", hums, t2, t3));
+    VR_AT_Check(t2 + t3 > 0 && t3 > 0,
+                sprintf("the waves from 18 on bring %g tier-2 and %g tier-3 humanoids, whatever the player holds", t2, t3));
+}
+
+void() VR_AT11_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 11 needs the arena running (vrtesthall with vr_arena 1)"); VR_AT_End(); return; }
+    entity p = VR_ARENA_FindPlayer();
+    if(!p) { VR_AT_Check(FALSE, "test 11 needs a player"); VR_AT_End(); return; }
+
+    // The normal setting for both: what falls is filtered by eligibility, which is the gate this test is about.
+    cvar_set("vr_enemy_drops", ftos(QVR_ENEMYDROPS_WHENELIGIBLE));
+    cvar_set("vr_ammobox_drops", ftos(QVR_AMMOBOXDROPS_WHENELIGIBLE));
+
+    VR_AT11_Eligible(p);
+    VR_AT11_Drops(p);
+    VR_AT11_Plans();
+
+    // Live: wave 20 (tier 2 from 10, tier 3 from 18), the player still owning none of it.
+    VR_ARENA_FastForward(20);
+    vr_at_until = time + 90;
+    dprint("arena: test 11 live wave 20\n");
+}
+
+void() VR_AT11_Frame =
+{
+    if(ar_wave < 20 || ar_plan_left > 0) { return; } // (the whole wave in, as test 10 waits for it)
+
+    entity p = VR_ARENA_FindPlayer();
+    float planned = 0;
+    float worn = 0;
+    float hums = 0;
+    float held = 0;
+    float owns = 0;
+    float tier;
+
+    for(float i = 0; i < ar_plan_n; i++)
+    {
+        if(VR_AT_IsHumanoid(ar_plan_kind[i]) && VR_ARENA_WeaponTier(ar_plan_kind[i], ar_plan_gun[i]) >= 2) { planned = planned + 1; }
+    }
+
+    for(entity e = findflags(world, ar_slot, ar_wave); e; e = findflags(e, ar_slot, ar_wave))
+    {
+        if(e.ar_slot != ar_wave || e.health <= 0) { continue; }
+        if(!e.vr_ag) { continue; } // (a grunt or an enforcer: what the waves send in armed)
+        hums = hums + 1;
+        if(e.vr_ag_prop != world) { held = held + 1; }
+        tier = VR_ARENA_WeaponTier(AR_SP_GRUNT, e.vr_ag_wid); // (the gun in its hand now, not the one its plan named)
+        if(tier >= 2) { worn = worn + 1; }
+    }
+
+    for(float i = 0; i < VR_AT11_N; i++) { if(VR_WeaponUtil_EntHasWeapon(p, VR_AT11_Wid(i))) { owns = owns + 1; } }
+
+    dprint(sprintf("arena: t11 live wave %g: %g armed humanoids (%g holding a gun), %g of %g strong guns worn, player owns %g of %g\n",
+                   ar_wave, hums, held, worn, planned, owns, VR_AT11_N));
+
+    VR_AT_Check(owns == 0, sprintf("wave %g arrives with the player owning none of its humanoids' guns", ar_wave));
+    VR_AT_Check(planned > 0, sprintf("wave %g's plan has strong guns for its humanoids (%g of them)", ar_wave, planned));
+    VR_AT_Check(worn == planned, sprintf("its humanoids hold its %g tier-2 and tier-3 guns (%g hold one)", planned, worn));
+    VR_AT_Check(held >= worn, "and those guns are props in their hands, not a number in a field");
+
+    VR_AT_End();
+}
+
 void() VR_ARENA_Test_Frame =
 {
     float c = cvar("vr_arena_test");
@@ -2080,6 +2325,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 8) { VR_AT8_Begin(); return; }
         if(c == 9) { VR_AT9_Begin(); return; }
         if(c == 10) { VR_AT10_Begin(); return; }
+        if(c == 11) { VR_AT11_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -2104,5 +2350,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 8) { VR_AT8_Frame(); return; }
     if(vr_at_case == 9) { VR_AT9_Frame(); return; }
     if(vr_at_case == 10) { VR_AT10_Frame(); return; }
+    if(vr_at_case == 11) { VR_AT11_Frame(); return; }
 }
 #endif
