@@ -14,6 +14,7 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Survival Arena: pick up a Quad Damage, then make a hand kill with the Quad Strike perk: the quad keeps its remaining time (not cut to 2 s); a stalled wave clears only its own foes, and a foe in your hand is let go first
 Survival Arena (Combat > Survival Arena, Difficulty Impact 1): Easy's waves are smaller, calmer, later to the heavy guns and better supplied; Nightmare's are bigger, quicker, thicker, reach the launchers and death knights earlier and drop less; Normal plays exactly as before; at 0 the difficulty changes nothing
 Survival Arena: the run names the difficulty it is on (ARENA - Nightmare: unarmed, wave 1 coming) and its numbers match it from wave 1; Nightmare's boss wave brings two big ones, Easy's boss waves come a wave further apart, and a boss clear offers 2 / 3 / 4 / 5 pedestals at Easy / Normal / Hard / Nightmare
 Survival Arena: Combat > Survival Arena now holds the arena's own knobs (wave delay, foes at once, boss waves, supplies, score, perks, seed) and the Skill cycle; nothing here touches the armed humanoids' AI Behaviour page (vr_agrunt_ai_skill)
