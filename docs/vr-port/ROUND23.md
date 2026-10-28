@@ -304,7 +304,7 @@ itself is clamped 0..3 by the engine (`Quake/sv_main.c`).
 QC-precedence checks passing, and the engine rebuilt with the menu page below. `vr_arena_test 1..5` with `developer 1`
 and `god`, on vrtesthall (`vr_arena 1`) and on vrarena -- the QC's own beat in `world.qc` under `QVR_TESTS`, e.g.
 `bash /c/OHWorkspace/qvr-kit/run.sh arenaskill -Filter "arena:" -QuitOn "arena: test 5 over" -Timeout 300 -Script
-"developer 1; god; vr_arena 1; vr_arena_seed 7; map vrtesthall; wait15; vr_arena_test 5; wait6000"`. Test 5 is the
+"developer 1; vr_arena 1; vr_arena_seed 7; map vrtesthall; wait15; god; vr_arena_test 5; wait6000"`. Test 5 is the
 difficulty family (its sections pin the skill each one needs); every family starts at Normal, where the factor is exactly
 1 (`VR_AT_Start`), and puts the run's own skill back at the end (`VR_AT_End`), so tests 1..4 keep the expectations they
 were written against. Test 5: **467 passed, 0 failed** on both maps. The families it could have broken, run again after
@@ -368,7 +368,7 @@ Plan arrays survive a save and load mid-wave (the second foe after loading keeps
 **New test.** `vr_arena_test 6`, the long run: the live director through 32 waves (1 s apart, every foe felled by the
 test's blow), edicts counted every 5 waves; `arena: test 6 over: P passed, F failed`. Run:
 `run.sh <name> -Filter "arena: (t6|test|fail)" -QuitOn "arena: test [0-9]+ over" -Timeout 1500 -Script "developer 1;
-god; vr_arena_seed 7; map vrarena; wait15; vr_arena_test 6; wait60000"`. **It fails today, on purpose**: nothing in
+vr_arena_seed 7; map vrarena; wait15; god; vr_arena_test 6; wait60000"`. **It fails today, on purpose**: nothing in
 the arena ever cleans up its fallen bodies or the player weapons its armed humanoids drop -- 99 edicts at wave 2, 928
 at wave 32, with 233 bodies and 196 `thrown_weapon`s lying in the map (about 28 edicts a wave; the unpicked medkits
 and armour are only 67 of them). The Horde (vr_mg_horde.qc, `MGH_corpse_expire`) fades its bodies after 11..16 s;
@@ -620,3 +620,72 @@ shift); the limb plates share the cuirass's atlas, so their marks repeat its pat
 
 Checklist:
 - `[ ] Armour P2 {test:vr_agarmor_test}: armed enforcers wear plates too (Hard/Nightmare), the cuirass a breastplate that leaves the power pack bare (shots on the pack go through); plates look dented and scratched at 2/3, battered and scorched at 1/3 (Debug > Tests > Armour Damage Marks There); toolgun Spawn > Monsters > Armed Humanoid: Armour and Pieces apply to grunts and enforcers, Reset/Clear put them back`
+
+## Survival Arena: armoured foes (agent/arenaarmor)
+
+Vittorio: armoured enemies in the arena, more for bosses, rising with the wave and the difficulty. `QC/vr_arena.qc`:
+the plan now dresses its grunts and enforcers (`VR_ARENA_PlanArmour`, after `VR_ARENA_PlanFoes`), and a wave foe
+gets the plan's armour at spawn (`VR_AgArmor_Give`) while the skill's own roll is held (`vr_ar_hold_roll` around its
+spawn call: no double roll, the skill's sequence does not move). Outside the arena nothing changes.
+
+**The roll.** No armour before `vr_arena_foe_armor_from` (4) as the difficulty counts gates (`VR_ARENA_WaveAdj`: 7 /
+4 / 2 / 2). The chance: 10% at that wave, 3% more a wave, times the difficulty's factor (`VR_ARENA_Skill` 0.75 / 1 /
+1.25 / 1.5) and `vr_arena_foe_armor_scale`, capped at 85%. The best type follows the weapon ladder: green until the
+foes have carried the second rung two waves (`AR_W_TIER2 + 2`: wave 12 at Normal, when a super shotgun or nailgun can
+be off a body), yellow from there, red from `AR_W_TIER3 + 4` (22: the launchers four waves about); a foe's type 1..best
+evenly. Plates: the cuirass and the helmet, one limb plate more every 3 waves by the factor. A grunt or enforcer
+**boss** is always armoured from the armour's first wave, a type above the wave's best, 4 more plates; a boss wave's
+other humanoids have 15% more (its guard). The rolls are the wave seed's own salted stream (the chance and the type a
+low-discrepancy pair off it), so a seed replays them and the wave's guns and gaps are exactly what they were.
+
+| wave | 2 | 4 | 7 | 10 | 12 | 15 | 20 | 25 | 30 |
+|---|---|---|---|---|---|---|---|---|---|
+| Easy (from 7) | -- | -- | 8% G 2 | 14% G 2 | 19% G 3 | 26% G-Y 4 | 37% G-Y 5 | 48% G-R 6 | 59% G-R 7 |
+| Normal (from 4) | -- | 10% G 2 | 19% G 3 | 28% G 4 | 34% G-Y 4 | 43% G-Y 5 | 58% G-Y 7 | 73% G-R 9 | 85% G-R 10 |
+| Hard (from 2) | 12% G 2 | 20% G 2 | 31% G 4 | 42% G-Y 5 | 50% G-Y 6 | 61% G-Y 7 | 80% G-R 9 | 85% G-R 10 | 85% G-R 10 |
+| Nightmare (from 2) | 15% G 2 | 24% G 3 | 38% G 4 | 51% G-Y 6 | 60% G-Y 7 | 74% G-Y 8 | 85% G-R 10 | 85% G-R 10 | 85% G-R 10 |
+| boss (grunt/enforcer) | always from the first armour wave: a type above the wave's best (yellow at 5), the wave's plates + 4 (6 at Normal wave 5, 7 at Hard/Nightmare) | | | | | | | | |
+
+(chance, the types a foe may wear, plates; G green, Y yellow, R red.) The enforcer bosses are the armoured ones (waves 5
+and, at Easy, 12; both of Nightmare's two); the ogre and death knight bosses have no plates (the shells exist for the
+grunt and the enforcer only), so their waves' armour is their guard's +15%.
+
+**The fit.** Green at wave 4 against the shotgun and the nail pistol: a green cuirass (31) saves 30% of a hit, so a
+shotgun blast on the chest (24) loses 8 to it and four break it -- a grunt takes about one blast more. Yellow
+arrives as the super shotgun and the nailgun do, red after the launchers; a plate is a pool, so the stronger rungs
+break it in a hit or two. The drops stay as they are (an armoured foe is a few more shots, which the guns lying about
+and Quartermaster cover); the wave sizes (x1.75) need nothing: the chance is per foe. **Score:** an armoured kill pays
+a quarter more per type (`AR_ARM_PAY`: 1.25 / 1.5 / 1.75; the wave 5 boss in yellow 600, not 400). **Perk:** Can Opener
+(the pool's eighth, `ARK_OPEN`, a crowbar on its pedestal): a plate pays twice from its pool for what it saves from
+the player's hits (`VR_ARK_PlateCost`, asked in `VR_AgArmor_Damage`), so it breaks in half the hits; the save while
+it lasts is unchanged. **Readout:** `ARENA - Wave 12: 9 foes, 3 in armour (score ...)` when any are.
+
+**Settings** (Combat > Survival Arena > Armour, archived, with help): `vr_arena_foe_armor` 1 (Armoured Foes),
+`vr_arena_foe_armor_scale` 1 (Armour Chance, 0..4), `vr_arena_foe_armor_from` 4 (Armour From Wave, 2..30). Perks
+Offered now goes to 8.
+
+**Tests.** New `vr_arena_test 10` (vrtesthall with `vr_arena 1`, or vrarena): the table's numbers at each skill;
+400 rolls per (wave, skill) cell (the first wave and the one before, 12, 24, 36, a boss before and at the first armour
+wave and at 24, a boss wave's guard at 15) within 3% of the table, every type within it, every armour the cuirass,
+the helmet and the table's plates; plans of waves 1..30 at each skill: none before the first wave, only humanoids, each
+humanoid boss a type above; the off switch, the scale, the first wave knob; the plan's guns the same with it on or off;
+live: wave 5 at Normal with `vr_agarmor_skill1 1` (the skill's roll certain) -- its foes wear exactly the plan's
+armour, the skill's sequence did not move, the boss enforcer in yellow with 6 plates, its kill 600; a grunt spawned
+outside the director still gets the skill's roll. Fixed on the way: `VR_ARENA_BossMidway`'s rotation now carries the
+armour with its foe (the first live run had the boss bare and a grunt in its armour). The test defaults pin the three
+new knobs. `vr_arena_test 5`'s perk-count clamp check reads `ARK_POOL_N`.
+
+**Verified.** `build.sh`: 0 QC warnings. `vr_arena_test` 1 **257**, 2 **13**, 3 **9**, 5 **467** (vrtesthall), 4
+**7**, 6 (the soak, 32 waves) **6**, 7 **19**, 9 **37**, 10 **160** (vrarena; also 160 on vrtesthall), 8 **3** (e1m1);
+`vr_arena_perks_test` 1 **19**, 2 **15**, 3 **43** (vrtesthall: two checks need a map's item points), 4 **14**; outside
+the arena `vr_agarmor_test 1` **26** -- all 0 failed. The rolls land within 0.025 of the table in every cell (e.g. Normal
+wave 12: 0.3425 for 0.34; wave 24: 0.70 for 0.70).
+
+*Decisions:* the gates move in whole waves like every arena gate (`VR_ARENA_WaveAdj`), so Hard and Nightmare start at
+wave 2 (12% / 15%, green chest and helmet); an Easy run's first boss (wave 6) comes before its first armour wave and
+is bare. Bosses past the enforcer cannot wear plates, hence the guard bonus. A roll's type is even over 1..best (the
+skill roll's rule), so yellow and red come in gradually.
+
+*Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: armoured foes from wave 4 (Normal; 7 Easy, 2 Hard and
+Nightmare), more of them, more plates and heavier kinds as the waves go; the enforcer boss in a kind above; armoured
+kills pay more; Can Opener perk (Combat > Survival Arena > Armour) {test:vr_arena_test 10}`
