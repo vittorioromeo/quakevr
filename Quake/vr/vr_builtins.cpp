@@ -1833,6 +1833,11 @@ void PF_ragdollbone()
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::pieceAt(G_EDICT(OFS_PARM0), p));
         return;
     }
+    if(within == -1001.f) // QVR_ARMOR_CLIENT: the client's word on e's armour (p_x: 0 type, 1 pieces, 2 wear; -1 none)
+    {
+        G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::clientState(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(p[0])));
+        return;
+    }
     G_FLOAT(OFS_RETURN) =
         static_cast<float>(box3d::ragdollBone(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}, within));
 }

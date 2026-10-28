@@ -5,6 +5,9 @@
 // pieces, a cut stopped by a plate then let through once it broke, the unarmoured grunt's damage untouched, a gibbing
 // shedding every plate, and the skill rolls over 200 spawns each. Ends on "agarmor test: N passed, M failed".
 // `vr_agarmor_test 2`: three armed grunts ahead in full green, yellow and red sets (the eyeshots).
+// P2: an armed enforcer too (its pieces at their places, its power pack no plate, its debris, the skill's roll dressing
+// it, its wear's word reaching the client), the damage marks' thresholds; `vr_agarmor_test 3` three enforcers in full
+// sets, `4` three grunts in yellow, whole, at two thirds and at a third (the eyeshots).
 
 entity vr_art_a, vr_art_b; // the armoured grunt, the bare one
 float vr_art_state;       // 0 idle, 1 the checks, 2 waiting for the debris to fade
@@ -26,7 +29,11 @@ void(float ok, string what) VR_ART_Check =
     }
 };
 
-entity(entity p, float side) VR_ART_Spawn =
+entity vr_art_c;          // P2: the armoured enforcer
+float vr_art_cwear;       // its wear the server set (the client's word awaited in state 2)
+
+// An armed humanoid of `kind` (0 the grunt, 1 the enforcer) ahead of the player, `side` to the right, `ahead` out.
+entity(entity p, float side, float kind, float ahead) VR_ART_SpawnKind =
 {
     makevectors(p.angles);
     vector fw = v_forward;
@@ -34,10 +41,10 @@ entity(entity p, float side) VR_ART_Spawn =
     fw = normalize(fw);
     entity oldself = self;
     self = spawn();
-    setorigin(self, p.origin + fw * 128 + v_right * side);
+    setorigin(self, p.origin + fw * ahead + v_right * side);
     self.angles_y = vectoyaw(p.origin - self.origin);
     self.weapon = -1; // (its fists)
-    VR_AM_Spawn(0);
+    VR_AM_Spawn(kind);
     entity g = self;
     self = oldself;
     g.vr_ar_type = 0;
@@ -45,6 +52,8 @@ entity(entity p, float side) VR_ART_Spawn =
     g.health = 1000;
     return g;
 };
+
+entity(entity p, float side) VR_ART_Spawn = { return VR_ART_SpawnKind(p, side, 0, 128); };
 
 // A hit of `d` at `p` (PositionalDamage's `part`): the health it took.
 float(entity g, vector p, float part, float d) VR_ART_Hit =
@@ -202,6 +211,81 @@ void() VR_ART_Run =
         VR_ART_Check(fabs(got / 200 - chance) <= 0.05 && bad == 0,
             sprintf("skill %g: %g of 200 armoured (chance %g), %g of them off the cap or the count", sk, got, chance, bad));
     }
+
+    // P2: damage marks. Green's cuirass pool 31: 11 leaves 20 (0.65: dented), 10 more leaves 10 (0.32: battered).
+    cvar_set("vr_agarmor_rule", "1");
+    VR_AgArmor_Give(a, 1, 1023);
+    a.frame = f0;
+    VR_ART_Hit(a, pc, 0, 11);
+    float w1 = a.vr_ar_wear;
+    a.frame = f0;
+    VR_ART_Hit(a, pc, 0, 10);
+    VR_ART_Check(w1 == 1 && a.vr_ar_wear == 1 + 1024 && a.vr_ar_hp[0] == 10,
+        sprintf("wear: the cuirass at 20 of 31 dented (wear %g), at 10 battered (%g)", w1, a.vr_ar_wear));
+    cvar_set("vr_agarmor_rule", "0");
+};
+
+// P2: the enforcer: its pieces at their places, the power pack no plate, a break's debris its own, the skill's roll
+// its too; its wear set for the client's word (state 2).
+void() VR_ART_RunEnforcer =
+{
+    entity c = vr_art_c;
+    float d, hp;
+    float f0 = c.frame;
+    vector pc = limbpiece(c, 0, 10);
+    vector ph = limbpiece(c, 1, 10);
+    vector pp = limbpiece(c, 3, 10);
+    vector ps = limbpiece(c, 8, 10);
+    float c0 = ragdollbone(c, pc, QVR_ARMOR_PIECE_AT);
+    float c1 = ragdollbone(c, ph, QVR_ARMOR_PIECE_AT);
+    float c3 = ragdollbone(c, pp, QVR_ARMOR_PIECE_AT);
+    float c8 = ragdollbone(c, ps, QVR_ARMOR_PIECE_AT);
+    VR_ART_Check(c.model == "progs/vrenforcer.mdl" && c0 == 0 && c1 == 1 && c3 == 3 && c8 == 8,
+        sprintf("enforcer (%s): the pieces found at their places (cuirass %g, helmet %g, pauldron %g, shin %g)", c.model, c0, c1, c3, c8));
+    // Its power pack (behind the cuirass's cut: rest x -20): no plate there, the whole of a hit.
+    makevectors(c.angles);
+    vector pack = c.origin - v_forward * 20 + v_up * 15;
+    float cp = ragdollbone(c, pack, QVR_ARMOR_PIECE_AT);
+    cvar_set("vr_agarmor_rule", "1");
+    VR_AgArmor_Give(c, 2, 1023);
+    hp = c.vr_ar_hp[0];
+    c.frame = f0;
+    d = VR_ART_Hit(c, pack, 0, 10);
+    VR_ART_Check(cp == -1 && d == 10 && c.vr_ar_hp[0] == hp, sprintf("enforcer: the power pack no plate (piece %g), 10 there takes %g", cp, d));
+    c.frame = f0;
+    d = VR_ART_Hit(c, pc, 0, 10);
+    VR_ART_Check(d == 0 && c.vr_ar_hp[0] == hp - 10, sprintf("enforcer: rule 1: 10 on the cuirass takes %g (0), pool %g", d, c.vr_ar_hp[0]));
+    float made = vr_ar_debris_made;
+    c.frame = f0;
+    d = VR_ART_Hit(c, pp, 2, 60);
+    entity deb = find(world, classname, "vr_ar_debris");
+    while(deb != world && deb.model != "progs/vrenforcer.mdl#plate3")
+    {
+        deb = find(deb, classname, "vr_ar_debris");
+    }
+    VR_ART_Check(!VR_AgArmor_On(c, 3) && vr_ar_debris_made == made + 1 && deb != world && deb.skin == 1 + 6,
+        sprintf("enforcer: the right pauldron broken, its debris %s (skin %g: the battered yellow)", deb.model, deb.skin));
+    cvar_set("vr_agarmor_rule", "0");
+    // The skill's roll dresses enforcers too (this skill's chance at 1 for one spawn).
+    string base = strcat("vr_agarmor_skill", ftos(max(0, min(3, floor(skill)))));
+    float chance = cvar(base);
+    cvar_set(base, "1");
+    c.vr_ar_type = 0;
+    c.vr_ar_mask = 0;
+    VR_AgArmor_Spawn(c);
+    float rolled = c.vr_ar_type;
+    cvar_set(base, ftos(chance));
+    VR_ART_Check(rolled > 0 && (c.vr_ar_mask & 1), sprintf("enforcer: the skill's roll dresses it (type %g, pieces %g)", rolled, c.vr_ar_mask));
+    // Its wear for the client: yellow (cuirass pool 47, helmet 19): the cuirass to 15 (battered), the helmet to 12 (dented).
+    VR_AgArmor_Give(c, 2, 1023);
+    cvar_set("vr_agarmor_rule", "1");
+    c.frame = f0;
+    VR_ART_Hit(c, pc, 0, 32);
+    c.frame = f0;
+    VR_ART_Hit(c, ph, 0, 7); // (no headshot's multiplier: the piece is the point's)
+    cvar_set("vr_agarmor_rule", "0");
+    vr_art_cwear = c.vr_ar_wear;
+    VR_ART_Check(vr_art_cwear == 1 + 2 + 1024, sprintf("enforcer: wear on the server %g (1027: the cuirass battered, the helmet dented)", vr_art_cwear));
 };
 
 void() VR_AgArmor_TestFrame =
@@ -227,6 +311,30 @@ void() VR_AgArmor_TestFrame =
             VR_AgArmor_Give(VR_ART_Spawn(p, 44), 3, 1023);
             return;
         }
+        if(request == 3)
+        {
+            // (P2's eyeshots: enforcers in full green, yellow and red sets)
+            VR_AgArmor_Give(VR_ART_SpawnKind(p, -44, 1, 128), 1, 1023);
+            VR_AgArmor_Give(VR_ART_SpawnKind(p, 0, 1, 128), 2, 1023);
+            VR_AgArmor_Give(VR_ART_SpawnKind(p, 44, 1, 128), 3, 1023);
+            return;
+        }
+        if(request == 4)
+        {
+            // (P2's eyeshots: three grunts in full yellow, every piece whole, at two thirds, at a third of its pool)
+            float k, i;
+            for(k = 0; k < 3; k++)
+            {
+                entity g = VR_ART_SpawnKind(p, -36 + 36 * k, 0, 96);
+                VR_AgArmor_Give(g, 2, 1023);
+                for(i = 0; i < VR_AR_PIECES; i++)
+                {
+                    g.vr_ar_hp[i] = floor(VR_AgArmor_Full(2, i) * (1 - k / 3));
+                    VR_AgArmor_Wear(g, i);
+                }
+            }
+            return;
+        }
         vr_art_pass = 0;
         vr_art_fail = 0;
         vr_art_rule = cvar("vr_agarmor_rule");
@@ -238,24 +346,34 @@ void() VR_AgArmor_TestFrame =
         cvar_set("vr_agarmor_debris_time", "0.5");
         vr_art_a = VR_ART_Spawn(p, -40);
         vr_art_b = VR_ART_Spawn(p, 40);
+        vr_art_c = VR_ART_SpawnKind(p, 0, 1, 200);
         vr_art_state = 1;
         return; // (their poses first drawn)
     }
     if(vr_art_state == 1)
     {
         VR_ART_Run();
+        VR_ART_RunEnforcer();
         vr_art_state = 2;
         vr_art_until = time + 5;
         return;
     }
-    // The debris fades out (vr_agarmor_debris_time 0.5, then a second's fade).
-    if(find(world, classname, "vr_ar_debris") != world && time < vr_art_until)
+    // The debris fades out (vr_agarmor_debris_time 0.5, then a second's fade); the enforcer's wear reaches the client
+    // (QVR_SVC_ARMOR: the server's frame end, then the client's read).
+    entity c = vr_art_c;
+    float heard = ragdollbone(c, '2 0 0', QVR_ARMOR_CLIENT) == vr_art_cwear && ragdollbone(c, '0 0 0', QVR_ARMOR_CLIENT) == c.vr_ar_type &&
+        ragdollbone(c, '1 0 0', QVR_ARMOR_CLIENT) == c.vr_ar_mask;
+    if((find(world, classname, "vr_ar_debris") != world || !heard) && time < vr_art_until)
     {
         return;
     }
+    VR_ART_Check(heard, sprintf("enforcer: the client's word: type %g, pieces %g, wear %g (the server's %g, %g, %g)",
+        ragdollbone(c, '0 0 0', QVR_ARMOR_CLIENT), ragdollbone(c, '1 0 0', QVR_ARMOR_CLIENT), ragdollbone(c, '2 0 0', QVR_ARMOR_CLIENT),
+        c.vr_ar_type, c.vr_ar_mask, vr_art_cwear));
     VR_ART_Check(find(world, classname, "vr_ar_debris") == world, "the debris gone after its fade (else timed out)");
     remove(vr_art_a);
     remove(vr_art_b);
+    remove(vr_art_c);
     cvar_set("vr_agarmor_rule", ftos(vr_art_rule));
     cvar_set("vr_agarmor_helmet_head", ftos(vr_art_helm));
     cvar_set("vr_agarmor_block_cuts", ftos(vr_art_cuts));

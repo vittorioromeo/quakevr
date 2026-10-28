@@ -536,6 +536,12 @@ za::Vector<Item> pageDebugTests()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Armour on Armed Grunts", "developer 1; vr_agarmor_test 1"),
+        command("Armoured Enforcers There", "vr_agarmor_test 3")
+            .help("Three armed enforcers ahead in full green, yellow and red armour (vr_agarmor_test 3)."),
+        command("Armour Damage Marks There", "vr_agarmor_test 4")
+            .help("Three armed grunts ahead in full yellow armour: every piece whole, at two thirds and at a third of its "
+                  "pool (the dented, then battered and scorched skins; vr_agarmor_test 4). vr_agarmor_wear 1 / 2 draws "
+                  "every piece so."),
         command("Enemy Weapon Drop Cap", "developer 1; vr_dropcap_test 1")
             .help("vr_dropcap_test 1: 60 grunts spawned ahead and killed one by one (vr_dropcap_test_n), the first one's "
                   "rifle taken into an empty hand, a chainsaw thrown up and three other weapons dropped: the burst rifles "

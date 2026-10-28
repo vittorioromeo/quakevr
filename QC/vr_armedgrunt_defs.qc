@@ -142,6 +142,8 @@ float(entity g) VR_AG_Still = { return cvar("vr_agrunt_freeze") && g.health > 0 
 .float vr_ar_type;     // 0 none, 1 green, 2 yellow, 3 red
 .float vr_ar_mask;     // the pieces still on (bits: 1 the cuirass, 2 the helmet, 4/8 pauldrons, 16/32 bracers, 64/128 thighs, 256/512 shins)
 .float vr_ar_hp[10];   // each piece's pool left
+.float vr_ar_wear;     // the damage marks (P2; sent with the rest): bits 0-9 the pieces at two thirds of their pool or under, 10-19 at a third or under
+void(entity e, float armour, float pieces) VR_AgArmor_Toolgun; // the toolgun's Armed Humanoid page's armour on what it spawned
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) VR_AgArmor_Damage; // T_DamageDeal: the damage left
 void(entity targ) VR_AgArmor_Guard;      // a cut or a pop armed at a limb or the head under an unbroken plate: off
 void() VR_AgArmor_PelletsClear;          // ClearMultiDamagePellets

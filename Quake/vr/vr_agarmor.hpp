@@ -56,8 +56,11 @@ void plateWhere(struct edict_s* ent, int piece, int what, float* out);
 [[nodiscard]] unsigned char* derivedFile(const char* name, unsigned int* path_id);
 
 // ---- The client's ----
-// QVR_SVC_ARMOR: [short entity, -1 all cleared][byte type][short pieces].
+// QVR_SVC_ARMOR: [short entity, -1 all cleared][byte type][short pieces][short at 2/3 or under][short at 1/3 or under].
 void parseEvent();
+// The client's word on entity `num` (the tests: ragdollbone's QVR_ARMOR_CLIENT): `what` 0 its type, 1 its pieces, 2 its
+// wear (bits 0-9 at two thirds, 10-19 at a third); -1 none heard.
+[[nodiscard]] int clientState(int num, int what);
 
 // Mod_LoadModel's "<model>#armor" (vr_ragdoll.cpp VR_SyntheticModel). False: not one (or no rig, no armour for it).
 [[nodiscard]] bool makeModel(qmodel_t* mod);

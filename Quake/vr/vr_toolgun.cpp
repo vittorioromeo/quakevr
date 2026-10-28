@@ -1125,6 +1125,35 @@ void probeLook()
     removeTarget(NUM_FOR_EDICT(e), true);
 }
 
+// The Armed Humanoid page's armour (vr_toolgun_armed_armor, _pieces) on the armed monster just spawned (QC
+// VR_AgArmor_Toolgun: None strips the skill's roll too).
+void armedArmour(edict_t* e)
+{
+    const func_t fn = qvr::progs::findFunction("VR_AgArmor_Toolgun");
+    if(!fn || !e || e->free)
+    {
+        return;
+    }
+    const ServerVm vm;
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
+    G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+    G_FLOAT(OFS_PARM1) = static_cast<float>(za::clamp(static_cast<int>(vr_toolgun_armed_armor.value), 0, 4));
+    G_FLOAT(OFS_PARM2) = static_cast<float>(za::clamp(static_cast<int>(vr_toolgun_armed_pieces.value), 0, 2));
+    PR_ExecuteProgram(fn);
+}
+
+[[nodiscard]] edict_t* spawnChoice(const Selection& sel, const glm::vec3& origin, const glm::vec3& angles)
+{
+    edict_t* e = box3d::spawnClass(sel.classname, origin, angles, sel.setModel ? sel.model : nullptr, sel.key[0] ? sel.key : nullptr,
+        sel.value, false, sel.weaponFlags, sel.key2[0] ? sel.key2 : nullptr, sel.value2);
+    if(e && sel.armed)
+    {
+        armedArmour(e);
+    }
+    return e;
+}
+
 void spawnHere()
 {
     if(!tg.ghost)
@@ -1134,8 +1163,7 @@ void spawnHere()
     }
     const Selection& sel = tg.sel;
     if(sel.entry >= 0 && !toolgun::spawnableAvailable(sel.entry)) { return; } // AD support
-    edict_t* e = box3d::spawnClass(sel.classname, tg.ghostOrigin, tg.ghostAngles, sel.setModel ? sel.model : nullptr,
-        sel.key[0] ? sel.key : nullptr, sel.value, false, sel.weaponFlags, sel.key2[0] ? sel.key2 : nullptr, sel.value2);
+    edict_t* e = spawnChoice(sel, tg.ghostOrigin, tg.ghostAngles);
     if(e)
     {
         const glm::vec3 off = fieldVec(e, fields().model_offset);
@@ -2816,7 +2844,8 @@ void reset_f()
 // buttons in the armed humanoid toolgun UI don't seem to work properly").
 void armedDefaults()
 {
-    for(cvar_t* cv : {&vr_toolgun_armed_kind, &vr_toolgun_armed_weapon, &vr_toolgun_armed_weapon2})
+    for(cvar_t* cv : {&vr_toolgun_armed_kind, &vr_toolgun_armed_weapon, &vr_toolgun_armed_weapon2, &vr_toolgun_armed_armor,
+            &vr_toolgun_armed_pieces})
     {
         Cvar_SetQuick(cv, cv->default_string ? cv->default_string : "0");
     }
@@ -2844,6 +2873,77 @@ void armedClear_f()
     toolgun::selectSpawnable(-1);
     Con_Printf("toolgun: armed humanoid cleared (kind %g, right %g, left %g; spawn nothing)\n", vr_toolgun_armed_kind.value,
         vr_toolgun_armed_weapon.value, vr_toolgun_armed_weapon2.value);
+}
+
+// vr_toolgun_armed_armor_test: the Armed Humanoid page's Armour and Pieces on what it spawns: a grunt and an enforcer
+// (the table's rows 0 and 1), every Armour (None .. Random) by every Pieces (Chest+Helmet, Full, Random), spawned ahead of
+// the player as the spawn tool does (spawnChoice), checked and removed; then Reset and Clear putting both back to their
+// defaults. Ends on "toolgun armour test: N passed, M failed".
+void armedArmourTest_f()
+{
+    int passed = 0, failed = 0;
+    const auto verdict = [&](bool ok, const char* what) {
+        Con_Printf("toolgun armour test: %s: %s\n", ok ? "PASS" : "FAIL", what);
+        (ok ? passed : failed)++;
+    };
+    armedRefresh();
+    const progs::FieldOffsets& f = fields();
+    if(!sv.active || svs.maxclients < 1 || !armedCat.valid || armedCat.kindCount < 2 || f.vr_ar_type < 0 || f.vr_ar_mask < 0)
+    {
+        verdict(false, "a game with the armed monsters' table (grunt, enforcer) and the armour's fields");
+        Con_Printf("toolgun armour test: %d passed, %d failed\n", passed, failed);
+        return;
+    }
+    glm::vec3 at{0.f}, angles{0.f};
+    {
+        const ServerVm vm;
+        const edict_t* player = EDICT_NUM(1);
+        const float yaw = glm::radians(player->v.angles[1]);
+        at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 128.f, player->v.origin[1] + za::sin(yaw) * 128.f, player->v.origin[2] + 1.f};
+        angles = glm::vec3{0.f, player->v.angles[1] + 180.f, 0.f};
+    }
+    constexpr const char* kindModels[2] = {"progs/vrgrunt.mdl", "progs/vrenforcer.mdl"};
+    constexpr const char* armourNames[5] = {"None", "Green", "Yellow", "Red", "Random"};
+    constexpr const char* piecesNames[3] = {"Chest+Helmet", "Full", "Random"};
+    for(int kind = 0; kind < 2; kind++)
+    {
+        Cvar_SetValueQuick(&vr_toolgun_armed_kind, static_cast<float>(kind));
+        Cvar_SetValueQuick(&vr_toolgun_armed_weapon, -1.f); // (its fists: the quickest spawn)
+        Cvar_SetValueQuick(&vr_toolgun_armed_weapon2, 0.f);
+        toolgun::armed::choose();
+        for(int armour = 0; armour < 5; armour++)
+        {
+            for(int pieces = 0; pieces < 3; pieces++)
+            {
+                Cvar_SetValueQuick(&vr_toolgun_armed_armor, static_cast<float>(armour));
+                Cvar_SetValueQuick(&vr_toolgun_armed_pieces, static_cast<float>(pieces));
+                edict_t* e = spawnChoice(tg.sel, at, angles);
+                const ServerVm vm;
+                const int type = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_type)) : -1;
+                const int mask = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) : -1;
+                const char* model = e ? PR_GetString(e->v.model) : "";
+                const bool typeOk = armour == 0 ? type == 0 : armour < 4 ? type == armour : type >= 1 && type <= 3;
+                const bool maskOk = armour == 0 ? mask == 0 : pieces == 0 ? mask == 3 : pieces == 1 ? mask == 1023 : (mask & 3) == 3 && mask <= 1023;
+                char what[160];
+                q_snprintf(what, sizeof(what), "%s, %s, %s: %s type %d, pieces %d", kind ? "enforcer" : "grunt", armourNames[armour],
+                    piecesNames[pieces], model, type, mask);
+                verdict(e && !strcmp(model, kindModels[kind]) && typeOk && maskOk, what);
+                if(e)
+                {
+                    removeTarget(NUM_FOR_EDICT(e), true);
+                }
+            }
+        }
+    }
+    Cvar_SetValueQuick(&vr_toolgun_armed_armor, 3.f);
+    Cvar_SetValueQuick(&vr_toolgun_armed_pieces, 2.f);
+    armedReset_f();
+    verdict(vr_toolgun_armed_armor.value == 0.f && vr_toolgun_armed_pieces.value == 1.f, "Reset: Armour None, Pieces Full again");
+    Cvar_SetValueQuick(&vr_toolgun_armed_armor, 2.f);
+    Cvar_SetValueQuick(&vr_toolgun_armed_pieces, 0.f);
+    armedClear_f();
+    verdict(vr_toolgun_armed_armor.value == 0.f && vr_toolgun_armed_pieces.value == 1.f, "Clear: Armour None, Pieces Full again");
+    Con_Printf("toolgun armour test: %d passed, %d failed\n", passed, failed);
 }
 
 // vr_toolgun_menu: the panel opened or closed (as B/Y).
@@ -2992,6 +3092,7 @@ void qvr::toolgun::registerCommands()
     Cmd_AddCommand("vr_toolgun_reset", reset_f);
     Cmd_AddCommand("vr_toolgun_armed_reset", armedReset_f);
     Cmd_AddCommand("vr_toolgun_armed_clear", armedClear_f);
+    Cmd_AddCommand("vr_toolgun_armed_armor_test", armedArmourTest_f);
     Cmd_AddCommand("vr_toolgun_menu", menu_f);
     Cmd_AddCommand("vr_toolgun_next", next_f);
     Cmd_AddCommand("vr_toolgun_unfreeze_all", unfreezeAll_f);

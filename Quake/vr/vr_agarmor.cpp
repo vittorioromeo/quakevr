@@ -46,13 +46,23 @@ namespace
 {
 
 constexpr float pi = 3.14159265358979f;
-constexpr int maxWorn = 64;   // armour entities a frame
+constexpr int maxWorn = 128;  // armour entities a frame (up to three a body: P2's wear)
 constexpr int maxSlots = 128; // the armour model's bones (each piece's bones its own)
 constexpr int maxNamed = 256; // vr_agarmor_set's entities
 constexpr const char* armorSuffix = "#armor";
 constexpr const char* rigSuffix = "#rig2";
 constexpr const char* skinModelName = "progs/vragarmor.mdl";
-constexpr const char* wearers[] = {"progs/vrgrunt.mdl", "progs/soldier.mdl"}; // P0: the grunt
+// Who wears it, and where the cuirass stops behind (model x; -1e9 nowhere): the enforcer's power pack is its own, so its
+// cuirass is a breastplate to its back's surface (x -10: the pack from -10.5 to -23, up past its head; P2).
+struct Wearer
+{
+    const char* model;
+    float backCut;
+};
+constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {"progs/vrenforcer.mdl", -10.5f},
+    {"progs/enforcer.mdl", -10.5f}};
+// The ones with authored rigs the check runs on (no argument).
+constexpr const char* checked[] = {"progs/vrgrunt.mdl", "progs/vrenforcer.mdl"};
 
 // The atlas (make_agarmor.py's REGIONS): texels of its 256 x 128 skins.
 struct Block
@@ -285,8 +295,21 @@ struct PieceFrame
     uint32_t bones{0};            // the region's bones
     glm::vec3 origin{0.f}, up{0.f, 0.f, 1.f}, fwd{1.f, 0.f, 0.f}, left{0.f, 1.f, 0.f};
     float length{1.f};
+    float backCut{-1e9f}; // (the cuirass: nothing behind this model x; Wearer::backCut)
     bool ok{false};
 };
+
+[[nodiscard]] float backCutOf(const char* model, int piece)
+{
+    for(const Wearer& w : wearers)
+    {
+        if(piece == Cuirass && model && !strcmp(model, w.model))
+        {
+            return w.backCut;
+        }
+    }
+    return -1e9f;
+}
 
 [[nodiscard]] PieceFrame frameOf(const rig2::Rig& rig, int piece)
 {
@@ -349,7 +372,8 @@ struct PieceFrame
     {
         region += ((f.bones >> static_cast<unsigned>(i)) & 1u) ? w.w[i] : 0.f;
     }
-    const float field = region - 0.5f;
+    // (behind the back's cut: out, linear in x so the crossing lands on the cut)
+    const float field = za::min(region - 0.5f, (at(b.p, v).x - f.backCut) * 0.25f);
     return za::abs(field) < 1e-4f ? 1e-4f : field;
 }
 
@@ -1162,7 +1186,8 @@ bool buildShell(qmodel_t* src, Shell& s)
     s.generation = rig->generation;
     for(int piece = 0; piece < NumPieces; piece++)
     {
-        const PieceFrame f = frameOf(*rig, piece);
+        PieceFrame f = frameOf(*rig, piece);
+        f.backCut = backCutOf(src->name, piece);
         const int firstVert = count(s.verts), firstTri = count(s.tris);
         if(f.ok && piece == Helmet)
         {
@@ -1249,9 +1274,9 @@ za::Vector<Kind> kinds;
 
 [[nodiscard]] bool isWearer(const char* base)
 {
-    for(const char* w : wearers)
+    for(const Wearer& w : wearers)
     {
-        if(!strcmp(base, w))
+        if(!strcmp(base, w.model))
         {
             return true;
         }
@@ -1334,20 +1359,45 @@ za::Vector<Kind> kinds;
     return k.armor;
 }
 
-// The server's word on each entity (QVR_SVC_ARMOR): type << 16 | pieces; and how many are armoured.
+// An entity's armour in a word (the server's, the client's): its type (bits 30-31), its worn pieces' wear (bits 20-29
+// at a third of their pool or under, 10-19 at two thirds or under; P2's damage marks), its pieces (0-9).
+[[nodiscard]] uint32_t packState(int type, int pieces, int wear)
+{
+    pieces &= allPieces;
+    wear &= pieces | pieces << NumPieces;
+    return type > 0 && pieces ? static_cast<uint32_t>(type) << 30u | static_cast<uint32_t>(wear) << 10u | static_cast<uint32_t>(pieces) : 0u;
+}
+[[nodiscard]] int stateType(uint32_t s)
+{
+    return static_cast<int>(s >> 30u);
+}
+[[nodiscard]] int statePieces(uint32_t s)
+{
+    return static_cast<int>(s & static_cast<uint32_t>(allPieces));
+}
+[[nodiscard]] int stateWear(uint32_t s)
+{
+    return static_cast<int>((s >> 10u) & 0xfffffu);
+}
+
+// The server's word on each entity (QVR_SVC_ARMOR: packState); and how many are armoured.
 za::Vector<uint32_t> served;
 int numServed = 0;
 
-// Who wears what: vr_agarmor_set's entities, else vr_agarmor (debug: everyone, forced), else the server's word.
-void wornBy(int num, int& type, int& pieces)
+// Who wears what: vr_agarmor_set's entities, else vr_agarmor (debug: everyone, forced), else the server's word; `wear`
+// its pieces' wear (packState's bits 10-29, shifted down: the server's word only, or vr_agarmor_wear's debug look).
+void wornBy(int num, int& type, int& pieces, int& wear)
 {
     type = za::clamp(static_cast<int>(vr_agarmor.value), 0, 4);
     type = type == 4 ? 1 + num % 3 : type;
     pieces = static_cast<int>(vr_agarmor_pieces.value) & allPieces;
+    const int forced = za::clamp(static_cast<int>(vr_agarmor_wear.value), 0, 2);
+    wear = forced == 0 ? 0 : forced == 1 ? allPieces : allPieces << NumPieces | allPieces;
     if(type == 0 && num >= 0 && num < count(served))
     {
-        type = static_cast<int>(at(served, num) >> 16u);
-        pieces = static_cast<int>(at(served, num) & 0xffffu) & allPieces;
+        type = stateType(at(served, num));
+        pieces = statePieces(at(served, num));
+        wear = forced ? wear : stateWear(at(served, num));
     }
     for(const Named& n : named)
     {
@@ -1375,8 +1425,9 @@ void forgetModels()
 // ---- Commands ----
 void info_f()
 {
-    for(const char* w : wearers)
+    for(const Wearer& wearer : wearers)
     {
+        const char* w = wearer.model;
         qmodel_t* src = Mod_ForName(w, false);
         Shell* s = src ? shellFor(src) : nullptr;
         if(!s)
@@ -1714,13 +1765,11 @@ void printTally(const char* what, const Tally& t)
     }
 }
 
-void check_f()
+void checkModel(const char* modelName, int randoms, int& passed, int& failed)
 {
-    const char* modelName = Cmd_Argc() > 1 ? Cmd_Argv(1) : wearers[0];
-    const int randoms = Cmd_Argc() > 2 ? za::clamp(Q_atoi(Cmd_Argv(2)), 0, 5000) : 200;
-    int passed = 0, failed = 0;
+    Con_Printf("agarmor check: %s\n", modelName);
     const auto verdict = [&](bool ok, const char* what) {
-        Con_Printf("agarmor check: %s: %s\n", ok ? "PASS" : "FAIL", what);
+        Con_Printf("agarmor check: %s: %s (%s)\n", ok ? "PASS" : "FAIL", what, modelName);
         (ok ? passed : failed)++;
     };
     qmodel_t* src = Mod_ForName(modelName, false);
@@ -1729,7 +1778,6 @@ void check_f()
     verdict(sp && rig, "the shells made");
     if(!sp || !rig)
     {
-        Con_Printf("agarmor check: %d passed, %d failed\n", passed, failed);
         return;
     }
     // Made again: alike.
@@ -1916,6 +1964,25 @@ void check_f()
     }
     printTally("random poses", random);
     Con_Printf("agarmor check: measured in %.0f ms\n", (Sys_DoubleTime() - t0) * 1000.0);
+}
+
+// vr_agarmor_check [model | all] [random poses]: one model's shells, or (no model, "all") every authored wearer's.
+void check_f()
+{
+    const bool all = Cmd_Argc() < 2 || !q_strcasecmp(Cmd_Argv(1), "all");
+    const int randoms = Cmd_Argc() > 2 ? za::clamp(Q_atoi(Cmd_Argv(2)), 0, 5000) : 200;
+    int passed = 0, failed = 0;
+    if(all)
+    {
+        for(const char* m : checked)
+        {
+            checkModel(m, randoms, passed, failed);
+        }
+    }
+    else
+    {
+        checkModel(Cmd_Argv(1), randoms, passed, failed);
+    }
     Con_Printf("agarmor check: %d passed, %d failed\n", passed, failed);
 }
 
@@ -2099,8 +2166,8 @@ void relink()
             continue;
         }
         const int num = static_cast<int>(e - cl_entities);
-        int type = 0, pieces = 0;
-        wornBy(num, type, pieces);
+        int type = 0, pieces = 0, wear = 0;
+        wornBy(num, type, pieces, wear);
         qmodel_t* armor = type > 0 && pieces ? armorFor(e->model) : nullptr;
         if(!armor)
         {
@@ -2114,19 +2181,33 @@ void relink()
         {
             continue;
         }
-        const int k = numWorn++;
-        entity_t& a = worn[k];
-        a = *e;
-        a.model = armor;
-        a.skinnum = type - 1;
-        a.frame = 0;
-        a.previouspose = a.currentpose = 0;
-        a.lerpflags &= static_cast<byte>(~(LERP_RESETANIM | LERP_RESETANIM2));
-        wornSource[k] = num;
-        wornPieces[k] = pieces;
-        wornShell[k] = shell;
-        wornSlots[k] = at(shells, shell).numSlots;
-        cl_visedicts[cl_numvisedicts++] = &a;
+        // P2's damage marks: the pieces at each wear (whole, two thirds, a third) drawn with that wear's skin (type - 1 +
+        // 3 x wear: make_agarmor.py's nine), an entity each (the pieces of the others collapsed). An old vragarmor.mdl
+        // of three skins: all whole.
+        const int numSkins = armor->type == mod_alias ? static_cast<const aliashdr_t*>(Mod_Extradata(armor))->numskins : 0;
+        const int w66 = wear & allPieces, w33 = (wear >> NumPieces) & allPieces;
+        const int byWear[3] = {numSkins >= 9 ? pieces & ~w66 & ~w33 : pieces, numSkins >= 9 ? pieces & w66 & ~w33 : 0,
+            numSkins >= 9 ? pieces & w33 : 0};
+        for(int level = 0; level < 3 && numWorn < maxWorn && cl_numvisedicts < MAX_VISEDICTS; level++)
+        {
+            if(!byWear[level])
+            {
+                continue;
+            }
+            const int k = numWorn++;
+            entity_t& a = worn[k];
+            a = *e;
+            a.model = armor;
+            a.skinnum = type - 1 + 3 * level;
+            a.frame = 0;
+            a.previouspose = a.currentpose = 0;
+            a.lerpflags &= static_cast<byte>(~(LERP_RESETANIM | LERP_RESETANIM2));
+            wornSource[k] = num;
+            wornPieces[k] = byWear[level];
+            wornShell[k] = shell;
+            wornSlots[k] = at(shells, shell).numSlots;
+            cl_visedicts[cl_numvisedicts++] = &a;
+        }
     }
 }
 
@@ -2172,7 +2253,7 @@ const entity_t* sourceOf(const entity_t* e)
 // ---- P1: the server's armour (QC's .vr_ar_type, .vr_ar_mask) sent to the clients ----
 namespace
 {
-za::Vector<uint32_t> sent; // per entity: what the clients were last told (type << 16 | pieces)
+za::Vector<uint32_t> sent; // per entity: what the clients were last told (packState)
 
 [[nodiscard]] uint32_t stateOf(edict_t* e)
 {
@@ -2183,7 +2264,8 @@ za::Vector<uint32_t> sent; // per entity: what the clients were last told (type 
     }
     const int type = za::clamp(static_cast<int>(progs::fieldFloat(e, f.vr_ar_type)), 0, 3);
     const int mask = static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) & allPieces;
-    return type > 0 && mask ? static_cast<uint32_t>(type << 16 | mask) : 0u;
+    const int wear = f.vr_ar_wear >= 0 ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_wear)) : 0;
+    return packState(type, mask, wear);
 }
 
 void writeState(sizebuf_t* msg, int num, uint32_t state)
@@ -2191,8 +2273,10 @@ void writeState(sizebuf_t* msg, int num, uint32_t state)
     MSG_WriteByte(msg, protocol::svc_quakevr);
     MSG_WriteByte(msg, protocol::QVR_SVC_ARMOR);
     MSG_WriteShort(msg, num);
-    MSG_WriteByte(msg, static_cast<int>(state >> 16u));
-    MSG_WriteShort(msg, static_cast<int>(state & 0xffffu));
+    MSG_WriteByte(msg, stateType(state));
+    MSG_WriteShort(msg, statePieces(state));
+    MSG_WriteShort(msg, stateWear(state) & allPieces);
+    MSG_WriteShort(msg, stateWear(state) >> NumPieces);
 }
 
 // ---- A piece as a model of its own (the broken plate's debris) ----
@@ -2351,6 +2435,8 @@ void parseEvent()
     const int num = MSG_ReadShort();
     const int type = MSG_ReadByte();
     const int pieces = MSG_ReadShort() & allPieces;
+    const int w66 = MSG_ReadShort() & allPieces;
+    const int w33 = MSG_ReadShort() & allPieces;
     if(num < 0)
     {
         served.clear();
@@ -2361,12 +2447,14 @@ void parseEvent()
     {
         served.resize(static_cast<za::SizeT>(num + 1), 0u);
     }
-    const uint32_t now = type > 0 && pieces ? static_cast<uint32_t>(type << 16 | pieces) : 0u;
+    const uint32_t now = packState(za::clamp(type, 0, 3), pieces, w66 | w33 << NumPieces);
     numServed += (now != 0u ? 1 : 0) - (at(served, num) != 0u ? 1 : 0);
     at(served, num) = now;
 }
 
-int pieceAt(edict_t* ent, const float* p)
+namespace
+{
+int pieceOfBone(edict_t* ent, const float* p)
 {
     const char* name = nullptr;
     if(box3d::boneAt(ent, glm::vec3{p[0], p[1], p[2]}, &name) < 0 || !name)
@@ -2391,6 +2479,55 @@ int pieceAt(edict_t* ent, const float* p)
     return -1;
 }
 
+// A plate's three anchors as `ent` is drawn now (hitmodel's poses; else its rest pose where it stands).
+void posedAnchors(edict_t* ent, const Shell& s, const PlateFrame& pf, glm::vec3* posed)
+{
+    bool drawn = true;
+    for(int i = 0; i < 3; i++)
+    {
+        drawn = drawn && hitmodel::vertexPoint(ent, pf.anchor[i], posed[i]);
+    }
+    if(!drawn)
+    {
+        const glm::mat3 axes = held::axesFromAngles(ent->v.angles, false);
+        for(int i = 0; i < 3; i++)
+        {
+            posed[i] = glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} + axes * at(s.body.mdlRest, pf.anchor[i]);
+        }
+    }
+}
+} // namespace
+
+int clientState(int num, int what)
+{
+    if(num < 0 || num >= count(served) || at(served, num) == 0u)
+    {
+        return -1;
+    }
+    const uint32_t s = at(served, num);
+    return what == 0 ? stateType(s) : what == 1 ? statePieces(s) : stateWear(s);
+}
+
+int pieceAt(edict_t* ent, const float* p)
+{
+    const int piece = pieceOfBone(ent, p);
+    // (behind the cuirass's back cut, its own: the enforcer's power pack; the point taken back to the rest pose by the
+    // cuirass's frame as drawn)
+    const char* base = piece == Cuirass ? baseOf(ent) : nullptr;
+    const float cut = backCutOf(base, Cuirass);
+    const Shell* s = cut > -1e8f ? serverShell(base) : nullptr;
+    const PlateFrame pf = s ? plateFrameOf(*s, Cuirass) : PlateFrame{};
+    if(!pf.ok)
+    {
+        return piece;
+    }
+    glm::vec3 posed[3];
+    posedAnchors(ent, *s, pf, posed);
+    const glm::mat3 turn = frameFrom(posed[0], posed[1], posed[2]) * glm::transpose(pf.rest);
+    const glm::vec3 rest = at(s->body.mdlRest, pf.anchor[0]) + glm::transpose(turn) * (glm::vec3{p[0], p[1], p[2]} - posed[0]);
+    return rest.x < cut ? -1 : piece;
+}
+
 void plateWhere(edict_t* ent, int piece, int what, float* out)
 {
     out[0] = out[1] = out[2] = 0.f;
@@ -2405,20 +2542,7 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
         return;
     }
     glm::vec3 posed[3];
-    bool drawn = true;
-    for(int i = 0; i < 3; i++)
-    {
-        drawn = drawn && hitmodel::vertexPoint(ent, pf.anchor[i], posed[i]);
-    }
-    if(!drawn)
-    {
-        // (its rest pose where it stands)
-        const glm::mat3 axes = held::axesFromAngles(ent->v.angles, false);
-        for(int i = 0; i < 3; i++)
-        {
-            posed[i] = glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} + axes * at(s->body.mdlRest, pf.anchor[i]);
-        }
-    }
+    posedAnchors(ent, *s, pf, posed);
     const glm::mat3 now = frameFrom(posed[0], posed[1], posed[2]);
     const glm::mat3 turn = now * glm::transpose(pf.rest);
     if(what == 0)
