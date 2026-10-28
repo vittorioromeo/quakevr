@@ -804,6 +804,193 @@ void(float xSkill) VR_AT5_ObeyGates =
     VR_AT_SetSkill(1);
 }
 
+// A boss wave's plan at this skill: how many of its foes are marked big ones (vr_arena_seed 7).
+float(float xWave) VR_AT5_PlanBosses =
+{
+    float n = 0;
+    float i;
+    VR_ARENA_Plan(xWave);
+    for(i = 0; i < ar_plan_n; i++) { if(ar_plan_boss[i]) { n = n + 1; } }
+    return n;
+}
+
+// xWave at this skill must carry xWant marked big ones, and a plan the cap still holds.
+void(float xWave, float xSkill, float xWant, string xWhat) VR_AT5_BossPlan =
+{
+    VR_AT_SetSkill(xSkill);
+    float got = VR_AT5_PlanBosses(xWave);
+    float sz  = VR_AT5_PlanSize(xWave);
+    VR_AT_Check(got == xWant, sprintf("%s: wave %g at skill %g plans %g bosses (want %g)", xWhat, xWave, xSkill, got, xWant));
+    VR_AT_Check(sz >= 1 && sz <= AR_PLAN_MAX, sprintf("%s: its plan of %g foes stays under the cap", xWhat, sz));
+    dprint(sprintf("arena: t5 %s: wave %g at skill %g -> %g foes, %g of them bosses\n", xWhat, xWave, xSkill, sz, got));
+    VR_AT_SetSkill(1);
+}
+
+// A boss wave at this difficulty: its gap, how many marked big ones it brings, and how big they are.
+void() VR_AT5_Bosses =
+{
+    float sk;
+    float wantEvery;
+    float wantTwice;
+
+    // The gap (vr_arena_boss_every 5): a wave longer at Easy only. The big ones: two at Nightmare, one elsewhere.
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        wantEvery = sk < 1 ? 6 : 5;
+        wantTwice = sk >= 3 ? 1 : 0;
+        VR_AT_Check(VR_ARENA_BossEvery() == wantEvery, sprintf("a boss every %g waves at skill %g", wantEvery, sk));
+        VR_AT_Check(VR_ARENA_BossTwice() == wantTwice, sprintf("%g big ones on a boss wave at skill %g", 1 + wantTwice, sk));
+        dprint(sprintf("arena: t5 boss gap at skill %g -> every %g waves, %g big ones\n", sk, VR_ARENA_BossEvery(), 1 + VR_ARENA_BossTwice()));
+    }
+
+    // The cadence itself: at Easy the boss wave moves a wave later, everywhere else it is the knob's own.
+    VR_AT_SetSkill(0);
+    VR_AT_Check(!VR_ARENA_IsBossWave(5),  "no boss wave on wave 5 at Easy");
+    VR_AT_Check(VR_ARENA_IsBossWave(6),   "the boss wave comes on wave 6 at Easy");
+    VR_AT_Check(VR_ARENA_IsBossWave(12),  "and on wave 12 (a boss every 6 there)");
+    VR_AT_SetSkill(1);
+    VR_AT_Check(VR_ARENA_IsBossWave(5) && !VR_ARENA_IsBossWave(6), "at Normal wave 5 as the knob says");
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_ARENA_IsBossWave(5),   "and at Nightmare");
+
+    // vr_arena_skill_impact 0: the gap and the one boss are the knobs' own at every skill. vr_arena_boss_every 0:
+    // no boss waves at any skill.
+    cvar_set("vr_arena_skill_impact", "0");
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        VR_AT_Check(VR_ARENA_BossEvery() == 5,  "at impact 0 the gap is vr_arena_boss_every at every skill");
+        VR_AT_Check(!VR_ARENA_BossTwice(),      "at impact 0 a boss wave brings the one it always had");
+    }
+    cvar_set("vr_arena_skill_impact", "1");
+    cvar_set("vr_arena_boss_every", "0");
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        VR_AT_Check(VR_ARENA_BossEvery() == 0 && !VR_ARENA_IsBossWave(5) && !VR_ARENA_IsBossWave(6),
+                    "vr_arena_boss_every 0 means no boss waves at any skill");
+    }
+    cvar_set("vr_arena_boss_every", "5");
+    VR_AT_SetSkill(1);
+
+    // Which waves carry them, and how many.
+    VR_AT5_BossPlan(5,  0, 0, "Easy holds its boss wave back");
+    VR_AT5_BossPlan(6,  0, 1, "Easy's boss wave, a wave later");
+    VR_AT5_BossPlan(12, 0, 1, "Easy's next one");
+    VR_AT5_BossPlan(5,  1, 1, "Normal's boss wave");
+    VR_AT5_BossPlan(10, 1, 1, "and the next, still the one it had");
+    VR_AT5_BossPlan(5,  2, 1, "Hard's");
+    VR_AT5_BossPlan(5,  3, 2, "Nightmare brings two at once");
+    VR_AT5_BossPlan(10, 3, 2, "two on every boss wave there");
+    VR_AT5_BossPlan(15, 3, 2, "two even where its boss is a death knight");
+
+    // A Nightmare boss wave's two are the same kind, the second flagged as the half one (ar_plan_boss 2).
+    VR_AT_SetSkill(3);
+    VR_ARENA_Plan(10);
+    VR_AT_Check(ar_plan_boss[0] == 1 && ar_plan_boss[1] == 2, "its second big one is the flagged half one");
+    VR_AT_Check(ar_plan_kind[0] == AR_SP_OGRE && ar_plan_kind[1] == AR_SP_OGRE, "the same ogre twice");
+    VR_ARENA_Plan(15);
+    VR_AT_Check(ar_plan_kind[0] == AR_SP_HKNIGHT && ar_plan_kind[1] == AR_SP_HKNIGHT, "the same death knight twice where its boss is one");
+    dprint(sprintf("arena: t5 a Nightmare boss wave plans kind %g (boss %g) and %g (boss %g)\n",
+                   ar_plan_kind[0], ar_plan_boss[0], ar_plan_kind[1], ar_plan_boss[1]));
+    VR_AT_SetSkill(1);
+
+    // A boss's bulk: its kind's own health (an enforcer's is 80) times vr_arena_boss_health (1.25) times the
+    // difficulty's factor, and half that for the second one.
+    float want1;
+    float want2;
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        want1 = sk < 1 ? 76 : sk < 2 ? 101 : sk < 3 ? 126 : 151;
+        want2 = sk < 1 ? 38 : sk < 2 ? 51 : sk < 3 ? 63 : 76;
+        VR_AT_Check(VR_ARENA_BossHealth(80, 1) == want1, sprintf("a boss's bulk at skill %g is %g", sk, want1));
+        VR_AT_Check(VR_ARENA_BossHealth(80, 2) == want2, sprintf("and its second half that (%g) at skill %g", want2, sk));
+        dprint(sprintf("arena: t5 boss bulk at skill %g -> %g and %g\n", sk, VR_ARENA_BossHealth(80, 1), VR_ARENA_BossHealth(80, 2)));
+    }
+
+    cvar_set("vr_arena_skill_impact", "0");
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        VR_AT_Check(VR_ARENA_BossHealth(80, 1) == 101 && VR_ARENA_BossHealth(80, 2) == 51,
+                    "at impact 0 a boss is vr_arena_boss_health's own bulk at every skill");
+    }
+    cvar_set("vr_arena_skill_impact", "1");
+
+    VR_AT_SetSkill(3);
+    cvar_set("vr_arena_boss_health", "2");
+    VR_AT_Check(VR_ARENA_BossHealth(80, 1) == 241, "vr_arena_boss_health 2 times Nightmare's 1.5");
+    VR_AT_Check(VR_ARENA_BossHealth(80, 2) == 121, "and its second one half that");
+    cvar_set("vr_arena_boss_health", "1.25");
+
+    // A factor of 0 (impact 4 at Easy) never leaves a boss with nothing to run on.
+    cvar_set("vr_arena_skill_impact", "4");
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARENA_BossHealth(80, 1) == 1 && VR_ARENA_BossHealth(80, 2) == 1, "a boss is never left with no bulk");
+    cvar_set("vr_arena_skill_impact", "1");
+    VR_AT_SetSkill(1);
+}
+
+// The boss wave live, the way test 3 reaches one: pinned to Nightmare, where a boss wave brings two of them.
+void() VR_AT5_BossWave =
+{
+    if(!ar_mgr)
+    {
+        VR_AT_Check(FALSE, "test 5's live boss wave needs the arena on (vr_arena 1)");
+        VR_AT_End();
+        return;
+    }
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_ARENA_IsBossWave(5), "wave 5 is a boss wave at Nightmare");
+    VR_ARENA_FastForward(5);
+    vr_at_step = 1;
+    vr_at_until = time + 90;
+    dprint("arena: t5 boss wave (Nightmare)\n");
+}
+
+void() VR_AT5_Frame =
+{
+    entity boss1 = world;
+    entity boss2 = world;
+    entity e;
+    float n = 0;
+    float hi;
+    float lo;
+
+    if(vr_at_step != 1) { return; }
+    if(ar_wave < 5) { return; } // (its jump has not landed yet)
+
+    e = findflags(world, ar_slot, 5);
+    while(e)
+    {
+        if(e.health > 0 && e.ar_tier >= AR_BOSS_MARK)
+        {
+            n = n + 1;
+            if(boss1 == world) { boss1 = e; }
+            else if(boss2 == world) { boss2 = e; }
+        }
+        e = findflags(e, ar_slot, 5);
+    }
+    if(n < 2) { return; } // (its second big one comes a beat after the first)
+
+    VR_AT_Check(n == 2, sprintf("a Nightmare boss wave has its two big ones in the field (%g)", n));
+    VR_AT_Check(boss1.vr_ag == 1 && boss2.vr_ag == 1, "both of them armed humanoids");
+    VR_AT_Check(boss1.ar_tier == 1 + AR_BOSS_MARK && boss2.ar_tier == 1 + AR_BOSS_MARK, "both worth a boss's tier");
+    VR_AT_Check(boss1.classname == boss2.classname, "the same kind of big one");
+
+    // An enforcer's own health is 80: vr_arena_boss_health 1.25 times Nightmare's 1.5, and half that for the second.
+    hi = max(boss1.health, boss2.health);
+    lo = min(boss1.health, boss2.health);
+    VR_AT_Check(hi == 151 && lo == 76, sprintf("their bulk %g and %g (want 151 and 76)", hi, lo));
+    dprint(sprintf("arena: t5 live boss wave %g: bulk %g and %g, tiers %g and %g, %s\n",
+                   ar_wave, hi, lo, boss1.ar_tier, boss2.ar_tier, boss1.classname));
+
+    vr_at_step = 0;
+    VR_AT_End();
+}
+
 // What one test family needs is exactness, not tolerance: every step below is a binary-exact number.
 void() VR_AT5_Scaling =
 {
@@ -818,13 +1005,15 @@ void() VR_AT5_Scaling =
     VR_AT_Check(w1night >= w1norm, "wave 1 at Nightmare is not thinner than at Normal");
     dprint(sprintf("arena: t5 wave 1 -> %g %g %g foes (Easy Normal Nightmare)\n", w1easy, w1norm, w1night));
 
-    // Wave 6: three grunts, an enforcer, a dog. Its groups of one are its own floor, so only the grunts move.
-    VR_AT5_PlanSizes(6, 4, 5, 5, 6, "wave 6");
+    // Wave 6: three grunts, an enforcer, a dog. Its groups of one are its own floor, so only the grunts move. At
+    // Easy this is where its first boss wave lands (a gap of 6, not 5), so it carries its big one on top of them.
+    VR_AT5_PlanSizes(6, 5, 5, 5, 6, "wave 6");
     // Wave 11: four grunts, an enforcer, two ogres -- Hard is where a group of four grows.
     VR_AT5_PlanSizes(11, 5, 7, 8, 10, "wave 11");
     // Wave 14 (past the table): four grunts, an enforcer, a classic.
     VR_AT5_PlanSizes(14, 5, 6, 7, 8, "wave 14");
-    // Wave 15: a boss wave past the table -- its boss takes a place, at every skill.
+    // Wave 15: a boss wave at Normal, Hard and Nightmare (at Easy its boss waves are 6 and 12) -- its boss or
+    // bosses take a place, at every skill.
     VR_AT5_PlanSizes(15, 5, 6, 7, 8, "wave 15 (a boss wave)");
 
     // The field's cap: vr_arena_max_alive by the factor, whole foes, never past the plan's cap.
@@ -930,9 +1119,10 @@ void() VR_AT5_Begin =
     VR_AT5_Bestiary();   // (which species, and which boss, from which wave)
     VR_AT5_ObeyGates(1); // (the live plans obey the gates at Normal ...)
     VR_AT5_ObeyGates(3); // (... and at Nightmare, where everything arrives early)
+    VR_AT5_Bosses();     // (a boss wave's gap, how many big ones it brings, and how big they are)
 
-    VR_AT_SetSkill(1);
-    VR_AT_End();
+    // Last, so nothing re-plans under it: a boss wave live, the way test 3 fast-forwards to one.
+    VR_AT5_BossWave();
 }
 
 // ---------------------------------------------------------------------------
@@ -990,5 +1180,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 2) { VR_AT2_Frame(); return; }
     if(vr_at_case == 3) { VR_AT3_Frame(); return; }
     if(vr_at_case == 4) { VR_AT4_Frame(); return; }
+    if(vr_at_case == 5) { VR_AT5_Frame(); return; }
 }
 #endif
