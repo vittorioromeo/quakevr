@@ -1459,6 +1459,21 @@ void ikStretchReset()
         slider("Perks Offered", vr_arena_perk_count, 1.f, 7.f, 1.f, "%.0f")
             .help("How many of the pool's seven a boss clear offers, at Normal -- the difficulty takes its share (3 is 2 "
                    "at Easy, 4 at Hard, 5 at Nightmare); never the same perk twice (vr_arena_perk_count)."),
+        header("Cleanup"),
+        slider("Bodies Fade After", vr_arena_corpse_fade, 0.f, 60.f, 1.f, "%.0f s")
+            .help("A fallen foe's body (its head, a gibbed one's) lies this long, give or take 3 s, then fades out and "
+                   "is gone, as the Horde's do. 0: never by time. One in your hand, or still dying, waits for you: let "
+                   "go of, it lies 3 s more (vr_arena_corpse_fade)."),
+        slider("Bodies Kept", vr_arena_corpse_max, 0.f, 64.f, 1.f, "%.0f")
+            .help("At most this many fallen bodies lie at once: past it the oldest fades first (one in your hand "
+                   "stays: the next oldest goes). 0: no limit (vr_arena_corpse_max)."),
+        slider("Supplies Last", vr_arena_item_waves, 0.f, 10.f, 1.f, "%.0f waves")
+            .help("A wave clear's medkits and armour still lying there this many wave clears later fade out and are "
+                   "gone (one in your hand stays). 0: they stay for the run (vr_arena_item_waves)."),
+        slider("Dropped Guns Kept", vr_arena_gun_max, 0.f, 96.f, 1.f, "%.0f")
+            .help("At most this many of the guns the foes dropped lie about: past it the oldest fades away. Never a "
+                   "gun in your hands or holsters, one you dropped or threw, one carried, pulled by a force grab or in "
+                   "flight. The Spoils perk keeps twice as many. 0: no limit (vr_arena_gun_max)."),
         header("This Run"),
         slider("Wave Seed", vr_arena_seed, 0.f, 1000.f, 1.f, "%.0f")
             .help("0: a different ladder of guns every run; a number: that seed's waves, so one difficulty's run can be "

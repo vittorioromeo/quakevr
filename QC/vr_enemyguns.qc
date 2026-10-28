@@ -107,7 +107,8 @@ void(float xHand, float xLeft, float xNext) VR_SetBurst =
 // own) that monsters dropped, lying about: at most vr_enemy_weapon_drop_max (48; 0: no limit). Past it, as one more is
 // made (a monster's drop, a player's drop or throw of one), the oldest (.vr_drop_born: saved, so the order survives a load) fades away; one in a hand
 // (not lying about), being carried, pulled by a force grab or in flight is spared: the next oldest goes. Every other
-// weapon, drop and prop stays.
+// weapon, drop and prop stays. In a running Survival Arena its own cap takes over (vr_arena_gun_max, 24; twice that
+// with the Spoils perk): every gun its foes dropped counts, single use or not (VR_EnemyWeapons_CountedIn).
 
 float VR_DROPCAP_FLYING = 40; // units/s: one moving faster is in flight (thrown, falling), never taken away
 float VR_DROPCAP_FADE = 0.4;  // seconds its fade takes
@@ -153,20 +154,28 @@ void(entity e) VR_EnemyWeapons_Fade =
     e.nextthink = time + 0.02;
 };
 
-// QVR: Survival Arena's Spoils perk (vr_arena_perks.qc, compiled late): a fallen foe's gun keeps its place.
-float() VR_ARK_Kept;
+// QVR: Survival Arena (vr_arena.qc VR_ARENA_GunMost): in a running arena every gun its foes dropped (not only the
+// single-use ones: its armed humanoids hold the player's own weapons) is counted, at most vr_arena_gun_max (twice
+// that with the Spoils perk). A gun last dropped or thrown by a player (.vr_monster_drop 0) is never counted.
+float(entity e, float xArena) VR_EnemyWeapons_CountedIn =
+{
+    if(xArena) { return e.vr_monster_drop > 0 && !e.vr_drop_fade; }
+    return VR_EnemyWeapons_Counted(e);
+};
 
-// `xNew` made (CreateThrownWeapon): if it is a single-use enemy weapon, the oldest of them go past the cap.
+// `xNew` made (CreateThrownWeapon): if it is a single-use enemy weapon (in the arena: any gun a foe dropped), the
+// oldest of them go past the cap.
 void(entity xNew) VR_EnemyWeapons_MakeRoom =
 {
-    float most = cvar_hget(cvarh_vr_enemy_weapon_drop_max);
-    if(most <= 0 || !VR_EnemyWeapons_Counted(xNew))
+    float most = VR_ARENA_GunMost();
+    float arena = most >= 0;
+    if(!arena)
+    {
+        most = cvar_hget(cvarh_vr_enemy_weapon_drop_max);
+    }
+    if(most <= 0 || !VR_EnemyWeapons_CountedIn(xNew, arena))
     {
         return;
-    }
-    if(VR_ARK_Kept())
-    {
-        return; // QVR: the arena's Spoils perk: the cap leaves the guns that fell where they fell
     }
     float n = 0;
     entity e;
@@ -175,8 +184,8 @@ void(entity xNew) VR_EnemyWeapons_MakeRoom =
     entity oldest = world;
     for(e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
     {
-        n = n + VR_EnemyWeapons_Counted(e);
-        if(e != xNew && VR_EnemyWeapons_Counted(e) && !VR_EnemyWeapons_Spared(e) &&
+        n = n + VR_EnemyWeapons_CountedIn(e, arena);
+        if(e != xNew && VR_EnemyWeapons_CountedIn(e, arena) && !VR_EnemyWeapons_Spared(e) &&
            (oldest == world || e.vr_drop_born < oldest.vr_drop_born))
         {
             oldest = e;
@@ -190,7 +199,7 @@ void(entity xNew) VR_EnemyWeapons_MakeRoom =
             oldest = world;
             for(e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
             {
-                if(e != xNew && VR_EnemyWeapons_Counted(e) && !VR_EnemyWeapons_Spared(e) &&
+                if(e != xNew && VR_EnemyWeapons_CountedIn(e, arena) && !VR_EnemyWeapons_Spared(e) &&
                    (oldest == world || e.vr_drop_born < oldest.vr_drop_born))
                 {
                     oldest = e;

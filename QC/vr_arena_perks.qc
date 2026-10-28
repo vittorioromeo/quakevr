@@ -11,7 +11,7 @@
 // world.qc never calls this file directly. vr_arena.qc asks for the offer on a boss wave's clear
 // (VR_ARK_WaveDone) and reports its frame (VR_ARK_Frame); combat.qc's Killed reports a foe's fall with its killer
 // at hand (VR_ARK_Kill); vr_decap.qc reports a beheading (VR_ARK_Decap), items.qc an armour picked up
-// (VR_ARK_ArmorBonus), vr_enemyguns.qc the cap on dropped enemy weapons (VR_ARK_Kept). The tests are
+// (VR_ARK_ArmorBonus), vr_arena.qc the cap on dropped guns (VR_ARK_Kept: Spoils doubles it). The tests are
 // vr_arena_perks_test.qc (vr_arena_perks_test N).
 //
 // No perk promises moving faster: nothing already in the engine lets QC speed a player up without overwriting his
@@ -27,7 +27,7 @@ float ARK_IRON  = 4;   // Iron Skin: every armour you pick up is 25 heavier
 float ARK_WIND  = 8;   // Second Wind: your health reaches 15 past its normal top
 float ARK_FEED  = 16;  // Feeder: a kill heals 5, at most once a second
 float ARK_QUART = 32;  // Quartermaster: a wave clear tops up the ammo of the guns you hold
-float ARK_SPOIL = 64;  // Spoils: a fallen foe's gun stays where it fell
+float ARK_SPOIL = 64;  // Spoils: twice as many of the guns the foes dropped lie about (vr_arena_gun_max)
 
 float ARK_POOL_N = 7;  // the pool: every one of these is offered before any is offered twice
 
@@ -92,7 +92,7 @@ string(float xBit) VR_ARK_What =
     if(xBit == ARK_WIND)  { return "Your health reaches 15 past its normal top"; }
     if(xBit == ARK_FEED)  { return "A kill heals 5, at most once a second"; }
     if(xBit == ARK_QUART) { return "A wave clear tops up the ammo of the guns you hold"; }
-    if(xBit == ARK_SPOIL) { return "A fallen foe's gun stays where it fell"; }
+    if(xBit == ARK_SPOIL) { return "Twice as many fallen foes' guns stay lying about"; }
     return "";
 }
 
@@ -480,8 +480,8 @@ void(entity p, float xValue) VR_ARK_ArmorBonus =
     dprint(sprintf("arena_perks: Iron Skin: armour worth %g, not %g\n", p.armorvalue, xValue));
 }
 
-// vr_enemyguns.qc: with Spoils taken the drop cap leaves a fallen foe's gun where it fell (it fades only by its own
-// `vr_drop_fade` knob, and the arena's own waves make the room up to `vr_enemy_weapon_drop_max` guns).
+// vr_arena.qc VR_ARENA_GunMost (vr_enemyguns.qc's cap on dropped guns, in the arena): with Spoils taken twice
+// vr_arena_gun_max of the guns the foes dropped lie about (48 by default) before the oldest fades.
 float() VR_ARK_Kept =
 {
     if(!VR_ARK_Running()) { return FALSE; }

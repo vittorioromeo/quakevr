@@ -18,17 +18,21 @@
 //   field's cap, its pacing, the waves Quake's own monsters and the higher rungs join at, the unarmed share of the
 //   early waves, a boss wave's bosses and their health, a wave clear's supplies, a kill's score and the perks a boss
 //   clear offers. Every test family pins the skill (Normal) so its own numbers mean the cvars' values.
+// - 6 (vrarena): the long run, 32 waves: no wave stalls, the edicts stay bounded, the cleanup's caps hold.
+// - 7 (vrarena): the cleanup: bodies fade by time and past their cap, never one held, pulled or dying; a wave clear's
+//   drops go two clears on; the foes' guns capped, a player's own never counted, Spoils doubling the cap.
+// - 8 (e1m1, no arena): off the arena every body stays.
 
 // ---------------------------------------------------------------------------
 // The test's own state
 // ---------------------------------------------------------------------------
 
-float vr_at_case;        // 0 idle; 1, 2, 3, 4, 5 running
+float vr_at_case;        // 0 idle; 1 .. 8 running
 float vr_at_pass;
 float vr_at_fail;
 float vr_at_step;
 float vr_at_until;
-float vr_at_keep[8];     // the cvars the tests set, put back at the end
+float vr_at_keep[12];    // the cvars the tests set, put back at the end
 float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
 float vr_at_kills0;
 float vr_at_score0;
@@ -45,9 +49,13 @@ string(float i) VR_AT_CvarName =
     if(i == 5) { return "vr_arena_score_kill"; }
     if(i == 6) { return "vr_arena_max_alive"; }
     if(i == 7) { return "vr_arena_skill_impact"; }
+    if(i == 8) { return "vr_arena_corpse_fade"; }
+    if(i == 9) { return "vr_arena_corpse_max"; }
+    if(i == 10) { return "vr_arena_item_waves"; }
+    if(i == 11) { return "vr_arena_gun_max"; }
     return "";
 }
-float VR_AT_NCVARS = 8;
+float VR_AT_NCVARS = 12;
 
 void() VR_AT_Save =
 {
@@ -80,6 +88,10 @@ void() VR_AT_SetDefaults =
     cvar_set("vr_arena_score_kill", "100");
     cvar_set("vr_arena_max_alive", "8");
     cvar_set("vr_arena_skill_impact", "1");
+    cvar_set("vr_arena_corpse_fade", "14");
+    cvar_set("vr_arena_corpse_max", "12");
+    cvar_set("vr_arena_item_waves", "2");
+    cvar_set("vr_arena_gun_max", "24");
     VR_AT_SetSkill(1); // (Normal, where the skill's factor is exactly 1: every family's own numbers mean the cvars)
 }
 
@@ -1292,14 +1304,48 @@ void() VR_AT5_Begin =
 }
 
 // ---------------------------------------------------------------------------
+// The cleanup's counts (tests 6 and 7)
+// ---------------------------------------------------------------------------
+
+// Bodies lying on (not fading yet).
+float() VR_AT_LyingBodies =
+{
+    float n = 0;
+    entity e = findflags(world, ar_expiring, 1);
+    while(e) { n = n + VR_ARENA_BodyLies(e); e = findflags(e, ar_expiring, 1); }
+    return n;
+}
+
+// The foes' guns lying about that the arena's cap counts.
+float() VR_AT_FoeGuns =
+{
+    float n = 0;
+    entity e = find(world, classname, "thrown_weapon");
+    while(e) { n = n + VR_EnemyWeapons_CountedIn(e, TRUE); e = find(e, classname, "thrown_weapon"); }
+    return n;
+}
+
+// Whether `xEnt` is still in use (nextent passes over freed edicts).
+float(entity xEnt) VR_AT_Live =
+{
+    if(xEnt == world) { return FALSE; }
+    entity e = nextent(world);
+    while(e) { if(e == xEnt) { return TRUE; } e = nextent(e); }
+    return FALSE;
+}
+
+// ---------------------------------------------------------------------------
 // Test 6: the long run (soak). The live director driven through AR_T6_WAVES waves, every foe felled by the test's
 // own blow once its kind's start is through, 1 s between waves; the edicts counted as it goes. It checks that no
-// wave stalled, that every wave was planned and cleared in turn, and that what stays in the map grows no faster than
-// a wave clear's own unpicked drops (the player never walks over them here).
+// wave stalled, that every wave was planned and cleared in turn, and that once the map has settled (AR_T6_FROM: the
+// things that go by themselves -- gibs, limbs, backpacks -- at their steady count) what stays grows no faster than a
+// wave clear's own unpicked drops (the player never walks over them here), and the cleanup's caps hold.
 // ---------------------------------------------------------------------------
 
 float AR_T6_WAVES = 32;      // waves the soak runs through
+float AR_T6_FROM  = 16;      // the wave its edicts are counted from (the map settled)
 float AR_T6_LEAK  = 1;       // edicts a wave may leave behind on top of its own drops, on average
+float AR_T6_DROPS = 3;       // a wave clear's drops at most (two medkits, an armour, at Normal)
 float vr_at6_delay;          // vr_arena_wave_delay as the run had it
 float vr_at6_wave;           // the wave the soak last saw
 float vr_at6_e0;             // the edicts at its first counted wave, and its drops then
@@ -1373,6 +1419,10 @@ void() VR_AT6_Finish =
     VR_AT_Check(ar_wave >= AR_T6_WAVES, "the soak reached its last wave");
     VR_AT_Check(vr_at6_long < AR_STALL, "no wave stalled");
     VR_AT_Check(grow <= AR_T6_LEAK * waves, "the map grows no faster than a wave clear's drops");
+    // The cleanup's caps (vr_arena.qc): the bodies lying (not fading), the foes' guns, a wave clear's drops.
+    VR_AT_Check(VR_AT_LyingBodies() <= cvar("vr_arena_corpse_max"), "no more bodies lie than vr_arena_corpse_max");
+    VR_AT_Check(VR_AT_FoeGuns() <= cvar("vr_arena_gun_max"), "no more of the foes' guns lie than vr_arena_gun_max");
+    VR_AT_Check(d1 <= AR_T6_DROPS * (cvar("vr_arena_item_waves") + 1), "a wave clear's drops go vr_arena_item_waves clears on");
     cvar_set("vr_arena_wave_delay", ftos(vr_at6_delay));
     VR_AT_End();
 }
@@ -1387,8 +1437,8 @@ void() VR_AT6_Frame =
         vr_at_until = time + 400;
         float n = VR_AT6_Edicts();
         if(n > vr_at6_peak) { vr_at6_peak = n; }
-        if(ar_wave == 2) { vr_at6_e0 = n; vr_at6_d0 = VR_AT6_Drops(); vr_at6_w0 = ar_wave; }
-        if(VR_ARENA_Mod(ar_wave, 5) == 0)
+        if(ar_wave == AR_T6_FROM) { vr_at6_e0 = n; vr_at6_d0 = VR_AT6_Drops(); vr_at6_w0 = ar_wave; }
+        if(VR_ARENA_Mod(ar_wave, 4) == 0)
         {
             dprint(sprintf("arena: t6 wave %g edicts %g drops %g bodies %g guns %g score %g\n", ar_wave, n,
                            VR_AT6_Drops(), VR_AT6_Bodies(), VR_AT6_CountClass("thrown_weapon"), ar_score));
@@ -1398,6 +1448,228 @@ void() VR_AT6_Frame =
 
     if(ar_wave >= 1 && time - ar_wave_at > vr_at6_long) { vr_at6_long = time - ar_wave_at; }
     VR_AT_KillOne(ar_wave);
+}
+
+// ---------------------------------------------------------------------------
+// Test 7: the cleanup (vr_arena.qc, "The cleanup"; vr_enemyguns.qc's cap in the arena). Stand-in bodies and drops
+// handed to the cleanup's own hooks: past vr_arena_corpse_max the oldest body not held fades; held (a hand on it,
+// re-taken every beat as a held ragdoll's limb would be, or a force grab's pull) or still dying, a body outlives its
+// time and goes once let go of; a wave clear's drops go vr_arena_item_waves clears on, one picked up at once, one
+// pulled not; the foes' guns are capped at vr_arena_gun_max (one pulled spared, a player's own never counted) and
+// the Spoils perk doubles that.
+// ---------------------------------------------------------------------------
+
+entity vr_at7_b0; entity vr_at7_b1; entity vr_at7_b2; entity vr_at7_b3; entity vr_at7_b4; entity vr_at7_b5;
+entity vr_at7_d1; entity vr_at7_d2; entity vr_at7_d4;
+entity vr_at7_held0;         // the player's main hand as it was
+float vr_at7_let;            // when the held ones were let go of
+
+entity() VR_AT7_Body =
+{
+    entity b = spawn();
+    b.classname = "vr_at7_body";
+    b.health = -10;
+    b.ar_slot = -1;
+    VR_ARENA_BodyDown(b);
+    return b;
+}
+
+entity(float xWave, string xModel) VR_AT7_Drop =
+{
+    entity d = spawn();
+    d.classname = "vr_at7_drop";
+    d.ar_drop = 1;
+    d.ar_drop_wave = xWave;
+    d.model = xModel;
+    return d;
+}
+
+entity(entity xBy) VR_AT7_Gun =
+{
+    entity g = CreateThrownWeapon(xBy, WID_SHOTGUN, 0, WeaponInst_New(WeaponIdToBaseClipSize(WID_SHOTGUN)),
+        xBy.origin + '0 0 24', '0 0 0', '0 0 0', '0 0 0', FALSE, FALSE, 0);
+    return g;
+}
+
+// A test gun put away (one fading goes by itself).
+void(entity g) VR_AT7_PutAway =
+{
+    if(g != world && !g.vr_drop_fade) { VR_Carry_Forget(g); remove(g); }
+}
+
+// The guns' half, all in one frame (nothing falls meanwhile: none of them is in flight).
+void(entity p) VR_AT7_Guns =
+{
+    float g0 = VR_AT_FoeGuns();
+    float taken0 = ar_mgr.ark_taken;
+    ar_mgr.ark_taken = 0;
+    cvar_set("vr_arena_gun_max", ftos(g0 + 2));
+
+    entity m = spawn();
+    m.classname = "vr_at7_foe";
+    m.flags = FL_MONSTER;
+    setorigin(m, p.origin);
+
+    entity g1 = VR_AT7_Gun(m);
+    entity g2 = VR_AT7_Gun(m);
+    VR_AT_Check(g1 != world && g2 != world, "guns: a foe's drop made");
+    if(g1 == world || g2 == world) { remove(m); ar_mgr.ark_taken = taken0; return; }
+    VR_AT_Check(VR_EnemyWeapons_CountedIn(g1, TRUE), "guns: a foe's drop is counted");
+    g1.fg_state = 1; // (pulled by a force grab: spared)
+    entity g3 = VR_AT7_Gun(m);
+    VR_AT_Check(VR_AT_FoeGuns() == g0 + 2, "guns: past vr_arena_gun_max the oldest fades");
+    VR_AT_Check(!g1.vr_drop_fade && g2.vr_drop_fade, "guns: one pulled is spared, the next oldest fades");
+
+    entity gp = VR_AT7_Gun(p);
+    VR_AT_Check(!VR_EnemyWeapons_CountedIn(gp, TRUE), "guns: one the player dropped is never counted");
+    VR_AT_Check(VR_AT_FoeGuns() == g0 + 2 && !g3.vr_drop_fade, "guns: and takes nothing's place");
+
+    ar_mgr.ark_taken = ARK_SPOIL;
+    entity g4 = VR_AT7_Gun(m);
+    entity g5 = VR_AT7_Gun(m);
+    VR_AT_Check(VR_AT_FoeGuns() == g0 + 4 && !g3.vr_drop_fade, "guns: Spoils keeps twice vr_arena_gun_max");
+    ar_mgr.ark_taken = 0;
+    entity g6 = VR_AT7_Gun(m);
+    VR_AT_Check(VR_AT_FoeGuns() == g0 + 2 && !g1.vr_drop_fade, "guns: Spoils gone, the cap is vr_arena_gun_max again");
+
+    g1.fg_state = 0;
+    VR_AT7_PutAway(g1); VR_AT7_PutAway(g2); VR_AT7_PutAway(g3); VR_AT7_PutAway(g4); VR_AT7_PutAway(g5); VR_AT7_PutAway(g6);
+    VR_AT7_PutAway(gp);
+    remove(m);
+    ar_mgr.ark_taken = taken0;
+}
+
+void() VR_AT7_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 7 needs the arena (vrarena, or vr_arena 1)"); VR_AT_End(); return; }
+    entity p = VR_ARENA_FindPlayer();
+    if(p == world) { VR_AT_Check(FALSE, "test 7 needs a player"); VR_AT_End(); return; }
+
+    VR_AT7_Guns(p);
+
+    float n0 = VR_AT_LyingBodies();
+    cvar_set("vr_arena_corpse_fade", "2");
+    cvar_set("vr_arena_corpse_max", ftos(n0 + 3));
+    vr_at7_held0 = p.mainhand_held;
+    vr_at7_b0 = VR_AT7_Body();
+    p.mainhand_held = vr_at7_b0; // (a hand on it)
+    vr_at7_b1 = VR_AT7_Body();
+    vr_at7_b2 = VR_AT7_Body();
+    vr_at7_b3 = VR_AT7_Body();
+    VR_AT_Check(VR_AT_LyingBodies() == n0 + 3, "bodies: past vr_arena_corpse_max the oldest fades");
+    VR_AT_Check(VR_ARENA_BodyLies(vr_at7_b0) && !VR_ARENA_BodyLies(vr_at7_b1),
+                "bodies: one held is kept, the next oldest fades");
+    VR_AT_Check(vr_at7_b2.ar_expire >= time + 1.5 - 0.01 && vr_at7_b2.ar_expire <= time + 2.5 + 0.01,
+                "bodies: one's time is vr_arena_corpse_fade give or take a quarter");
+    cvar_set("vr_arena_corpse_max", "0");
+    vr_at7_b4 = VR_AT7_Body();
+    vr_at7_b4.vr_corpse = 1; // (still dying)
+    vr_at7_b5 = VR_AT7_Body();
+    vr_at7_b5.fg_state = 1;  // (pulled by a force grab)
+
+    cvar_set("vr_arena_item_waves", "2");
+    vr_at7_d1 = VR_AT7_Drop(1, "progs/w_medkit.mdl");
+    vr_at7_d2 = VR_AT7_Drop(2, "progs/w_medkit.mdl");
+    entity d3 = VR_AT7_Drop(2, "");
+    vr_at7_d4 = VR_AT7_Drop(1, "progs/w_medkit.mdl");
+    vr_at7_d4.fg_state = 1;
+    VR_ARENA_DropsExpire(3);
+    VR_AT_Check(!VR_AT_Live(d3), "drops: one picked up goes at the next clear");
+    VR_AT_Check(vr_at7_d1.ar_expiring && !vr_at7_d2.ar_expiring, "drops: two clears old they fade, one clear old not");
+
+    vr_at_step = 1;
+    vr_at_until = time + 20;
+    dprint("arena: test 7 cleanup\n");
+}
+
+void() VR_AT7_Frame =
+{
+    entity p = VR_ARENA_FindPlayer();
+    if(vr_at_step == 1)
+    {
+        if(p) { p.mainhand_held = vr_at7_b0; } // (held: taken again every beat, as a held ragdoll's limb is)
+        VR_ARENA_Leftovers();
+        if(VR_AT_Live(vr_at7_b1) || VR_AT_Live(vr_at7_b2) || VR_AT_Live(vr_at7_b3) || VR_AT_Live(vr_at7_d1)) { return; }
+        VR_AT_Check(VR_AT_Live(vr_at7_b0) && vr_at7_b0.alpha == 0, "bodies: held, it outlives its time, seen whole");
+        VR_AT_Check(VR_AT_Live(vr_at7_b5), "bodies: pulled by a force grab, it outlives its time");
+        VR_AT_Check(VR_AT_Live(vr_at7_b4), "bodies: still dying, it outlives its time");
+        VR_AT_Check(VR_AT_Live(vr_at7_d4), "drops: pulled by a force grab, it outlives its time");
+        VR_AT_Check(VR_AT_Live(vr_at7_d2), "drops: one clear old, it lies on");
+        if(p) { p.mainhand_held = vr_at7_held0; }
+        vr_at7_b5.fg_state = 0;
+        vr_at7_d4.fg_state = 0;
+        vr_at7_b4.vr_corpse = 2;
+        vr_at7_let = time;
+        vr_at_step = 2;
+        return;
+    }
+    if(VR_AT_Live(vr_at7_b0) || VR_AT_Live(vr_at7_b5) || VR_AT_Live(vr_at7_b4) || VR_AT_Live(vr_at7_d4)) { return; }
+    VR_AT_Check(time - vr_at7_let <= AR_HELD_GRACE + 0.1, "let go of, they fade out and go");
+    remove(vr_at7_d2);
+    VR_AT_End();
+}
+
+// ---------------------------------------------------------------------------
+// Test 8 (a map with no arena: e1m1): the cleanup is the arena's alone. Every monster felled whole (a blow just past
+// its health: no gibbing), then AR_T8_WAIT of game time, longer than any arena body lies (vr_arena_corpse_fade's
+// most): every body is still there.
+// ---------------------------------------------------------------------------
+
+float AR_T8_WAIT = 20; // s: past vr_arena_corpse_fade (14) and its jitter (3)
+float vr_at8_n0;
+float vr_at8_t0;
+
+float() VR_AT8_Bodies =
+{
+    float n = 0;
+    entity e = nextent(world);
+    while(e)
+    {
+        if(substring(e.classname, 0, 8) == "monster_" && e.health <= 0) { n = n + 1; }
+        e = nextent(e);
+    }
+    return n;
+}
+
+void() VR_AT8_Begin =
+{
+    if(ar_mgr) { VR_AT_Check(FALSE, "test 8 needs a map with no arena (e1m1)"); VR_AT_End(); return; }
+    entity p = find(world, classname, "player");
+    if(p == world) { VR_AT_Check(FALSE, "test 8 needs a player"); VR_AT_End(); return; }
+    float n = 0;
+    entity e = findflags(world, flags, FL_MONSTER);
+    while(e)
+    {
+        entity next = findflags(e, flags, FL_MONSTER);
+        if(e.health > 0 && e.takedamage) { T_Damage(e, p, p, e.health + 1); n = n + 1; }
+        e = next;
+    }
+    VR_AT_Check(n > 0, "the map's monsters felled");
+    vr_at8_n0 = -1;
+    vr_at8_t0 = time;
+    vr_at_until = time + AR_T8_WAIT + 10;
+    dprint(sprintf("arena: test 8 felled %g monsters\n", n));
+}
+
+void() VR_AT8_Frame =
+{
+    if(vr_at8_n0 < 0) { vr_at8_n0 = VR_AT8_Bodies(); return; } // (a frame on: their deaths through)
+    if(time < vr_at8_t0 + AR_T8_WAIT) { return; }
+    float n1 = VR_AT8_Bodies();
+    float marked = 0;
+    entity e = nextent(world);
+    while(e)
+    {
+        if(e.ar_expiring || e.ar_fell || e.ar_expire) { marked = marked + 1; }
+        e = nextent(e);
+    }
+    // (The count of bodies is the map's own business: its other systems -- the ragdolls' cap, a corpse's gibbing --
+    // may take some. What this checks is that the arena's cleanup never touched one.)
+    dprint(sprintf("arena: t8 bodies %g -> %g after %g s, marked by the arena's cleanup %g\n", vr_at8_n0, n1,
+                   time - vr_at8_t0, marked));
+    VR_AT_Check(vr_at8_n0 > 0, "the felled monsters left bodies");
+    VR_AT_Check(marked == 0, "off the arena the cleanup marks nothing");
+    VR_AT_End();
 }
 
 // ---------------------------------------------------------------------------
@@ -1438,6 +1710,8 @@ void() VR_ARENA_Test_Frame =
         if(c == 4) { VR_AT4_Begin(); return; }
         if(c == 5) { VR_AT5_Begin(); return; }
         if(c == 6) { VR_AT6_Begin(); return; }
+        if(c == 7) { VR_AT7_Begin(); return; }
+        if(c == 8) { VR_AT8_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -1458,5 +1732,7 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 4) { VR_AT4_Frame(); return; }
     if(vr_at_case == 5) { VR_AT5_Frame(); return; }
     if(vr_at_case == 6) { VR_AT6_Frame(); return; }
+    if(vr_at_case == 7) { VR_AT7_Frame(); return; }
+    if(vr_at_case == 8) { VR_AT8_Frame(); return; }
 }
 #endif
