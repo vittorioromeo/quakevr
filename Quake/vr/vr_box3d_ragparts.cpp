@@ -7,6 +7,7 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_goresound.hpp"
 #include "vr_handfit.hpp"
+#include "vr_physics.hpp"
 
 #include <cstring>
 
@@ -488,6 +489,18 @@ bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
     GrabStart gs;
     if(vr_ragdoll_grab.value < 1.f || !grabStart(corpse, player, hand, gs))
     {
+        return false;
+    }
+    // (A living one down, its weapon still in its hand: the fist on that weapon takes the weapon (QC VR_AG_PropHandTouch:
+    // at once while it is down), not the limb beside it. Both touches came in the same frame and the limb's could go
+    // first: the hand then held its arm, dragging the body about, the weapon never yours: "stuck in the tug". As
+    // foegrab's tryTake for one standing.)
+    if(corpse->v.health > 0.f && qvr::physics::fistOnArmedWeapon(player, hand))
+    {
+        if(vr_debug_ragdoll.value)
+        {
+            Con_Printf("ragdoll: %d hand %d on its weapon: left to the weapon's grab\n", gs.num, hand);
+        }
         return false;
     }
     RagdollBodies* r = gs.r;

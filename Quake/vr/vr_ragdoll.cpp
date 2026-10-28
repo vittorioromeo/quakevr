@@ -7,6 +7,7 @@
 #include "vr_tracy.h"
 #include "vr_api_render.h"
 #include "vr_cvars.hpp"
+#include "vr_agarmor.hpp"
 #include "vr_agarms.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_box3d.hpp"
@@ -3612,6 +3613,10 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     {
         return true; // "<model>#rig2": the authored rig's skinned body (vr_rig2.cpp)
     }
+    if(agarmor::makeModel(mod))
+    {
+        return true; // "<model>#armor": its armour shells (vr_agarmor.cpp)
+    }
     const size_t len = strlen(mod->name), suffix = strlen(skinnedSuffix);
     if(len <= suffix || !modelmeta::has(mod, modelmeta::Trait::Ragdoll))
     {
@@ -3745,6 +3750,7 @@ extern "C" void VR_Rig2Swap(void)
 {
     rig2::liveAll();    // (the live grunts not drawn by their arms' solve, vr_rig2_game.cpp)
     rig2::swapModels(); // (and the Rig Studio's subject on the authored rig: vr_rig2.cpp)
+    agarmor::relink();  // (their armour, drawn with their bones: vr_agarmor.cpp)
 }
 
 extern "C" void VR_Rig2Restore(void)

@@ -25123,6 +25123,73 @@ client prints `shells eject hand 1 kind 1 skin 1 x6` and `x2` for its casings. `
 the cylinder swung out, the casings and live shells on the floor, the pouch red at spawn and blue with the revolver.
 - [ ] His night poses and stretch shipped {test:none}: empty vr_agrunt_poses and vr_agrunt_ik_stretch: the grunt's and enforcer's fists, one-handed melee, rifle, pistol, launcher, sprayer, laser cannon and Widowmaker poses and reach as you left them.
 
+## Armed humanoids aim at what shows of you behind cover (worktree `fastship`, branch `agent/agexposed`, 2026-10-28)
+
+**What was wrong.** An armed humanoid's shots aimed at your chest (`VR_AG_AimPoint`: origin + 6, lagged 0.15 s of your
+velocity) and its "can I shoot" test (`VR_AG_CheckAttack`) was its eyes' line to your eyes (`origin + view_ofs`). Behind a
+low wall or a crate your eyes show, so it fired, and every shot went into the cover. What a shot can hit on you is one
+box (`VR_HullHitBox` for `MOVE_HITMODEL` traces and missiles: `vr_hull_hit_width` 24 wide, from your feet to 5 over
+the headset, crouched no higher than the crouched box); your hands are not hit volumes for monsters' shots.
+
+**What it does now** (`vr_agrunt_aim_exposed` 1, vr_armedgrunt.qc `VR_AG_Expose`). Ten points on that box, in order:
+chest (origin + 6, the old point), head (headset - 2), belly (-6), its left and right shoulders (+12, 8 to each side),
+the head's sides (6 to each side), hips (-12, 8 to each side), legs (-18); each clamped inside the box (crouched they
+sink). Rocket launchers add three floor points at your feet (before you, left, right) whose burst reaches your middle
+(the second trace is `T_RadiusDamage`'s `CanDamage` line), only when you stand on the floor. Each look traces from its
+gun's muzzle (`weaponmuzzle`; its eyes if the muzzle is in a wall) as a gun's shot does (`MOVE_HITMODEL`: the world,
+brush entities, props, other monsters' hit models) and takes the first point whose line meets you first. A middle point
+(chest, head, belly) with one side's point hidden and the other showing (a door frame's edge) moves half way to the
+showing side. Looks are at most every 0.1 s (`VR_AG_XSTEP`; `VR_AG_CheckAttack`'s decision at most 0.05 s old); the
+picked part is kept while it still shows (one trace a look) for `vr_agrunt_aim_exposed_hold` (0.5 s), then the best
+showing one again (the chest first). Nothing shows: `VR_AG_CheckAttack` holds fire (`vr_ag_xheld`), and a shot already
+under way goes where it last aimed. Its aim error (`vr_agrunt_aim_error`), its weapon's spread, its kick and
+`vr_agrunt_aim_converge`'s muzzle-to-point line all work about the point as before; the drawn upper body points there
+too (`vr_ag_aim` comes from `VR_AG_AimDir`, which now ends at the point). The enforcer replacement's own laser uses the
+point as well. Left as before: monsters as targets, a target seen through a gate (`vr_ai_gate`: its lines go through
+portals), the lobbing launchers (grenades, proximity mines: an arc, not a line) and the grunt replacement's own gun
+(`army_fire`, its monster's own aim). With the setting off everything is exactly as before (the eye line decides, the
+chest is the point).
+
+**Settings.** `vr_agrunt_aim_exposed` 1 (Armed Grunts: Aim at What They Can Hit), `vr_agrunt_aim_exposed_hold` 0.5 s
+(Keep Aim On a Part), `vr_agrunt_aim_exposed_show` 0 (Debug: Show Armed Humanoids' Aim Points: yellow sparks on the
+part each look picks, red at its last point when nothing shows).
+
+**Test** `vr_agrunt_test 76` (74 before merging next, whose 74 and 75 are the downed tug tests; runs end on `-QuitOn "agtest: test [0-9]+ over"`; Debug > Tests > Armed Grunts: Aim Behind Cover; `vr_armedgrunt_expose_test.qc`, vrtesthall,
+`sv_random_seed 12345`, 44 s wall clock): a grunt 300 ahead (it stands on the floor below the start's step, about 21
+lower), both held in place, a brush (`vr_brush_box`) 40 before you; each gun twice, the setting 0 then 1. Hits are
+damage events on you (pellet volleys one), shots `vr_ag_shots_fired`; 25 passed, 0 failed. Hit rate old -> new:
+
+| case | shotgun | nailgun | rifle | revolver | rockets | aimed at (new) |
+|---|---|---|---|---|---|---|
+| in the open | 9/9 -> 8/8 | 20/20 -> 20/20 | 10/10 -> 10/10 | 7/8 -> 8/9 | 8/8 -> 7/7 | chest, all |
+| low wall (to +14) | 1/9 -> 6/9 | 6/20 -> 15/20 | 3/11 -> 6/10 | 1/8 -> 4/9 | 1/8 -> 4/8 | head, all |
+| crate (40 wide, to +17) | 0/9 -> 4/8 | 3/20 -> 11/20 | 0/11 -> 3/11 | 0/9 -> 4/9 | 1/8 -> 5/8 | head, all |
+| door frame (edge 1 left of your middle) | 7/9 -> 5/9 | 10/20 -> 10/20 | 6/10 -> 6/10 | 7/8 -> 5/8 | 3/7 -> 5/8 | chest (shifted), shoulder |
+| behind a wall | 0 -> 0 shots | 0 -> 0 | 0 -> 0 | 0 -> 0 | 0 -> 0 | - |
+
+Low wall 21% -> 62%, crate 7% -> 48% of shots; the door frame's is noise about the same (three runs of the test as it was tuned: 57% -> 66%, the
+chest point itself still shows there, as it must for its eyes to see yours: a vertical edge that hides your middle
+hides your eyes too and it never sees you). In the open its aim is the chest as before. The muzzle-only case (its own
+parapet hiding its gun but not its eyes) could not be staged here: vrtesthall's step puts its eyes under the parapet
+line too; `held` stayed 0 in every case (its eyes' and its muzzle's lines agreed).
+
+**Cost.** 20 traces a second per armed humanoid on average over the test's new runs (4598 traces in 229 s); a fully
+hidden target costs a full look each 0.1 s (10 body points + 2 sides, 13 + 2 with a rocket launcher: up to ~150 a
+second), one in the open 1 trace a look (~10 a second). 16 armed humanoids all with you hidden: ~2400 traces a second,
+about 0.1-0.2 ms a 72 Hz frame at a few microseconds a trace (not timed: no exclusive run was taken).
+
+A muzzle inside your box (up close) counts as reaching you; inside a wall it doesn't (its eyes are used then).
+
+**Regressions** (`sv_random_seed 12345`). Test 1: 17/0. Test 47: 110/0 (it prints "ERROR: ammo count less than zero!"
+once: not from this change's code paths, not checked against the base). Test 49: 5/0. Test 48 runs past 400 s here (low-
+impact mode) and has two FAILs (shotgun and double-barrelled shotgun "walking at it, axe": its time within 64); the
+double-barrelled shotgun alone (`scratch1 2`) gives the same numbers with the setting 0 and 1 under seeds 12345 and 777
+(dist min 47 / 46, inside 64 1.49 / 1.76 s, FAIL both): not from this change. eval.sh: no verdict changes (the author's
+takes archived). The QC compiles with `-DQVR_NO_TESTS`. Checklist scenario `agrunt_aim_cover` (vrtesthall: a shotgun, a
+rifle and a rocket launcher grunt 300-340 ahead, a row of three wooden crates 40 before you, aim points shown) validates
+and places 6 of 6 (a `cmd vr_brush_box` line in a scenario made no brush: the crates instead).
+
+- [ ] Armed humanoids aim at what shows of you behind cover {test:agrunt_aim_cover}: behind the crates their yellow sparks sit on your head or shoulders and their shots hit you, not the crates; crouched fully behind them the sparks turn red and they hold fire; stepping out puts them back on your chest; leaning out past the row's end they aim at the side that shows.
 ## Arcane Dimensions in the installer (worktree `dequant`, branch `agent/adinstall`, 2026-10-27)
 
 An opt-in, off-by-default installer component, as ARCANE_DIMENSIONS.md section 10 designed it (status: built).
@@ -25167,3 +25234,304 @@ Checklist lines (suggested):
 - `Setup (installer): Options: Arcane Dimensions row: off by default, "306 MB download, about 792 MB on disk"; with AD in your Steam Quake folder it says "Found in ...: will be used" and is disabled`
 - `Setup: tick Arcane Dimensions on a PC without it (or rename your ad folder): it downloads last, installs into QuakeVR\ad, Official Campaigns > Arcane Dimensions: experimental starts it`
 - `Setup: cancel during the Arcane Dimensions download: Quake VR is installed, the Done page says how to add AD later; Setup again shows "Add Arcane Dimensions" on the Update screen`
+
+## Armour for armed humanoids, P0: the spike (worktree `tghost`, branch `agent/armorp0`, 2026-10-28)
+
+The research (`qvr-kit/scratch/research_agarmor.md`, approach B) with Vittorio's decisions (recorded there under
+"Decisions"): authored rig only (no `vr_rig2` read: the old rig is going, agent/rig2only), plates generated from the
+model's own mesh first, the player's absorb rule customizable with a block-until-broken option, helmets absorb and
+block/halve head pops (customizable), blades can't cut an armoured limb until its plate breaks, Quad Damage does not
+ignore armour, broken plates are non-grabbable debris that fade, player parity in the backlog, no free set for the
+enforcer. P0 is the grunt's cuirass and helmet, drawn only: no gameplay, nothing changes unless `vr_agarmor` is set.
+
+**The generator** (`Quake/vr/vr_agarmor.cpp`, run when `"<model>#armor"` loads; ~1 ms): the .mdl's rest pose as drawn
+(`mdldequant::restVertex`, welded) and its authored rig's weights; per piece a field over the vertices (the cuirass:
+weight on spine + chest minus 0.5; the helmet: weight on the head minus 0.5, and above a brow line in the head bone's
+frame, `vr_agarmor_brow_back` 0.25 of the head's length at the back to `_brow_front` 0.6 in front), the triangles
+clipped along its zero line (marching triangles: a clean edge, not the mesh's stair steps), stray patches dropped,
+subdivided once (`vr_agarmor_subdiv` 1), Taubin-smoothed (`_smooth` 6 passes; the open edge along itself), each vertex
+pushed back out wherever smoothing sank it under the body, then offset along its normal: the inner layer a gap off the
+body (`_gap` 0.25), the outer a plate's thickness further (`_thick` 0.6), a rim quad along every open edge: a closed
+two-sided shell. Each vertex weighted like the body under it (four heaviest bones). Texture coordinates into one atlas:
+the cuirass round the torso (front in the middle, the seam down the back) and up it; the helmet a disc from above whose
+rim follows the open edge's height per angle; the inner padding and the rims their own blocks. `vr_agarmor_rebuild`
+makes them again after a setting changes.
+
+**The skins** (`Misc/quakevr/make_agarmor.py` -> `quakevr/progs/vragarmor.mdl`, 256 x 128, skins 0 green, 1 yellow,
+2 red; deterministic, the same bytes twice; needs numpy through make_vrbody: `py -3.13`): the cuirass painted by the
+player's own `armor_texel` (five lames, rolled lit edges, rivets, side straps, scratches) in `ARMOR_RAMPS`; the helmet a
+lit dome with a crest front to back, twelve rivets above a rolled rim; dark quilted padding inside; lit rims.
+
+**Drawing**: one extra entity per armoured body, added in `VR_Rig2Swap` after the authored rig's swaps (live grunts,
+ragdolls and the Rig Studio's subject all draw as `"<model>#rig2"`). Its bones are its body's as drawn
+(`VR_AliasBonePoses` of the body: IK, the IK stretch, hit reactions, ragdolls, a hidden or cut part collapsed alike) and
+it is placed as its body is (`VR_AliasPre/PostTransform` take the body: a ragdoll's own draw matrix). Each piece's bones
+are its own slots of the armour model's 16 bones, so a piece is hidden by zeroing its slots (the body's `hidden` way):
+one draw per armoured body. Who wears what: `vr_agarmor` (0 none, 1 green, 2 yellow, 3 red, 4 one of each by entity
+number), `vr_agarmor_pieces` (1 cuirass, 2 helmet), `vr_agarmor_set <entity> <type> [pieces]` per entity
+(`agarmor::setWorn`, the P1 message's entry). Debug > (Rig Studio section): Armed Humanoids' Armour (P0), Armour
+Pieces, Check the Armour's Fit. P0 wearers: `progs/vrgrunt.mdl` and `progs/soldier.mdl`. Shared files touched: one line
+each in `vr_ragdoll.cpp` (`VR_SyntheticModel`, `VR_Rig2Swap`), `vr_avatar.cpp` (`VR_AliasBonePoses`), `vr_render.cpp`
+(the two transforms), `vr_main.cpp` (init), cvars and the Debug menu.
+
+**Triangles**: vrgrunt 2140 a body (cuirass 1772, helmet 368; 1912 vertices, 16 bone slots) over its own 694; the
+body's welded mesh 350 vertices. `subdiv 0` would be about a quarter (not measured).
+
+**Fit** (`vr_agarmor_check [model] [random poses]`, ends on `agarmor check: N passed, M failed`; 5/5 pass: made, made
+alike twice (hash 99d662c4), closed (0 open edges), at most 2500 triangles, the rest pose sane). Measured by winding
+numbers: body vertices inside a plate's closed shell, and plate outer vertices inside the body, bucketed by the vertex's
+heaviest bone (neck = neck/head, shoulders = clavicles/arms, waist = pelvis/legs, torso = spine/chest); the poses count
+only what their motion adds over the rest pose. Rest pose: 63 of 552 outer plate vertices lie inside the body (under the
+baked-in shoulder pads and where the arms hang against the torso: hidden by them), 3 body vertices inside a plate's rim,
+at most 0.27 deep. Joint sweeps (spine, chest, neck, head, clavicles, upper arms, thighs: 100 poses at their limits):
+body into the cuirass's edge at most 0.28 deep (neck 10, shoulders 50, torso 21 vertex-poses), helmet clean; plate in
+body: torso 272 vertex-poses up to 1.03 (the arms swung across the chest pass through the plate as they pass through the
+torso), shoulders 7 (0.16). Thighs: nothing. Worst joint: the right upper arm forward and in (28). 200 random ragdoll
+poses: body into the cuirass up to 0.28 (neck 84, shoulders 288, torso 272), the helmet's rim 0; plate in body: torso
+1965 up to 1.11 (arms through the chest), waist 23 (1.08: a thigh up into the cuirass's lower edge), helmet 16 (0.98:
+the head bent hard into the chest). So the plates never part from the body (they ride its weights) and the body crosses
+a plate only by a quarter unit at its edges; what shows is the low-poly arms through the chest as they already go
+through the torso. 3.8 s for 301 poses.
+
+**Cost** (16 grunts standing in view on vrfiringrange plus its dummy, `--lto`, `--exclusive`, fast frames, two
+alternations of 600 frames): off 1.294 / 1.287 ms a frame (CPU busy 1.227 / 1.252, GPU eyes 0.855 / 0.841), armoured
+1.368 / 1.381 (CPU 1.326 / 1.328, GPU 0.970 / 0.951): +0.08 ms a frame, CPU +0.09 ms, GPU +0.11 ms for 17 x 2140
+triangles, one extra draw each (eyes and shadows). The headless mock's eyes (low-res): the GPU share at a headset's
+2k eyes is mostly vertex work and should scale little.
+
+**Eyeshots** (`scratch/armorp0_sheet.png`: green, yellow, red at rest from front, side and back in the Rig Studio's
+Range of Motion; the shotgun's aim and the run from front, side, back; a ragdoll on vrfiringrange, green and red).
+`scratch/eyes_rest.txt`, `eyes_act.txt`, `eyes_rag.txt` are the scripts (`scratch/eyes.sh` flat screen,
+`eyes_vr.sh` headless); `scratch/gen_cost.py` writes the cost scene.
+
+**Tests**: `vr_agarmor_check` 5/5; `vr_rigstudio_rom test` 9/9 and `vr_rigstudio_test_subjects` 14/14 with
+`vr_agarmor 4`; build 0 QC warnings; eval.sh: no verdict changes (163/171 as before; only numeric drift).
+
+**P1 needs**: the per-piece pool and type in QC (`.vr_ar_hp[]`), the `T_Damage` hook and a `ragdollbone` builtin for the
+piece hit, a `QVR_SVC_ARMOR` message calling `agarmor::setWorn` (mask and type per entity, damage bits for a skin's
+scratches: the shader or 3 x damage skins), the enforcer's shells (its own rig: `wearers`), a break (the slots
+collapsed, the P3 debris from the same shell), the absorb/block/helmet/blade/quad rules as settings, and the decision on
+`subdiv` (detail vs triangles). Possible polish: lames as geometry on the cuirass, a rolled lip on the rims, the
+cuirass's seam mapped round its own outline (its lames run straight round, cut at the shoulders).
+
+Checklist:
+- `[ ] Armour P0 {test:none}: Rig Studio (Debug > Armed Humanoids' Armour (P0): Green/Yellow/Red): cuirass and helmet on the grunt fit at rest, in Range of Motion sweeps and Random Pose; in a map with vr_agarmor 4 live grunts, hit reactions and ragdolls keep their plates; judge the look (generated plates vs hand-made)`
+## Armed humanoids: the stuck tug after a knockdown; a shot on the weapon hurts only the weapon (worktree `gorefx`, branch `agent/agtughit`, 2026-10-28)
+
+His notes: "after an armed humanoid is shoved to the ground, sometimes grabbing their weapon doesn't work: I'm stuck in
+the tug-of-war state no matter how hard I pull and how long I hold the weapon"; "if a player's shot precisely hits an
+armed humanoid's weapon only, only the weapon should be affected and the humanoid itself won't take any damage".
+
+**The stuck grab: cause.** Not the tug at all. While it is down the weapon is meant to be yours at once
+(`VR_AG_TugEasy`: "knocked down"). But a downed armed humanoid is a ragdoll, and the ragdoll's own hand touch
+(`VR_Ragdoll_Handtouch` -> engine `grabRagdoll`) and its weapon's (`VR_AG_PropHandTouch`) both fire in the frame the
+grip closes. Near the grip or the stock the hand is also within the arm's reach (`vr_ragdoll_grab_reach`), and when the
+limb's touch came first the hand took the *arm*: busy, the weapon's grab refused (hand not empty). You then held its
+arm right beside its gun (drawn as holding there), pulling only dragged the body about, the weapon stayed in its hand,
+and nothing ever ended it (a body grab, not a tug: no let-go rule, no win). The barrel, far from the arm, always worked.
+Standing ones never had it: foegrab's `tryTake` already leaves a fist on an armed weapon to the weapon's grab.
+**Fix** (vr_box3d_ragparts.cpp `grabRagdoll`): a living ragdoll's limb is not taken by a hand whose fist is on an armed
+monster's weapon (`physics::fistOnArmedWeapon`, the same test as foegrab's). No setting: it is a bug.
+
+**Test 74** (`vr_agrunt_test 74`, QC/vr_armedgrunt_downtug_test.qc; Debug > Automation > "Armed Grunts: Grab a Downed
+One's Weapon"): a shotgun humanoid knocked down 4 ways (shove, shoulder charge, lift, judo throw; its weapon kept
+however hard it lands meanwhile), then lying still and as it gets up, your empty hand on its weapon (stock, grip,
+barrel), the grip pressed as the engine presses it (`+grabmain`: the touches race as in VR; test 67's press faked by
+its time gave the weapon to a hand whose grip wasn't down yet and dropped it), pulled at 0.6 m/s, 3 m/s or stepping
+back. Outcome per try: yours at once / won / let go / STUCK (7 s on) / nothing. PASS: none stuck, 80% taken.
+
+| kind, rig | before: taken / tries, stuck, nothing | after |
+| --- | --- | --- |
+| grunt, vr_rig2 0 | 9/13, stuck 3, nothing 1 | 15/15, stuck 0 (10 at once, 4 won in 1.90 s, 1 let go) |
+| grunt, vr_rig2 1 | 11/16, stuck 3, nothing 2 | 14/16, stuck 0, nothing 2 |
+| enforcer, vr_rig2 0 | 7/15, stuck 6, nothing 2 | 14/15, stuck 0, nothing 1 |
+| enforcer, vr_rig2 1 | 6/15, stuck 6, nothing 3 | 15/15, stuck 0 (12 at once, 3 won in 1.17 s) |
+
+Every stuck try was the arm taken while it lay (shove, charge, judo; stock, grip and even the barrel of a gun lying
+across its arm; every pull): "your hand holds monster_army, its weapon held, tug 0" for 7 s. Getting up (its get-up
+frames, not a ragdoll) none.
+
+"No state" tries (it rose before lying still, or the mock hand couldn't follow a weapon moving as it got up) are
+not counted: 8-10 of 24 each. A grab that took nothing (1-2 of ~15, as it just got up) is tried again; not stuck.
+
+**A shot on the weapon: before.** `vr_agrunt_shotdisarm_absorb` (default 0) let a pellet or nail on the weapon count
+towards shooting it out and then go on into the body behind it: a gun held across the chest took every pellet aimed
+at the gun. **Now:** `vr_agrunt_shotdisarm_block` (default **1**; replaces `_absorb`, retired: his archived "0" line is
+ignored; VR Settings > Armed Grunts > Shooting It Out > "Weapon Stops the Shot"): a pellet (shotgun, super shotgun,
+revolver slug: `FireBulletsImpl`) or a nail (nailgun, super nailgun) whose *first* hit along its way is the held
+weapon itself stops there: sparks, a ricochet (pellets) or tink (nails), at most one sound per 0.1 s a weapon, no
+damage and no blood on its holder. Precisely: the weapon's volume at size 1 (`VR_AGS_W_RADIUS` round
+`VR_AG_WeaponLine`, not `_size` or `_near`), crossing its line at least half a unit before the body (`VR_AGS_Blocks`;
+a stock pressed to its chest: the chest's). The hand or forearm first: its body's, hurt as ever (decision: hands are
+the body). Each pellet of a blast on its own. Works with shot disarms off; with them on the hit still counts towards
+knocking it out. Not stopped: lightning (a wide beam, three traces 16 units apart: it conducts through), rockets and
+grenades (their blast hurts it about as much either way: a direct rocket 100-120 vs its splash ~110 at 10 units).
+AD's projectile pellets and guns are not covered (their own touches). Test 50 runs its measured cases with the block
+off (its rates unchanged by construction) and case 14 on.
+
+**Test 75** (`vr_agrunt_test 75`; Debug > Automation > "Armed Grunts: Shots on the Weapon Alone"): a humanoid 200
+ahead holding a shotgun, nailgun, axe, sword, chainsaw or super shotgun; your pellet, revolver slug, nail and super
+shotgun blast fired from 96 units off through 0.7 of the way along its weapon towards its chest (or your eyes' way when
+that starts under the floor), block 0 then 1; then a pellet and a nail at its head. 34 passed, 0 failed:
+
+| held | pellet: damage before -> after | revolver slug | nail | super shotgun: damage, stopped before -> after |
+| --- | --- | --- | --- | --- |
+| Shotgun | 5 -> 0 (stopped 1) | 68 -> 0 (stopped 1) | 12 -> 0 (stopped 1) | 70, 0 -> 10, 12 |
+| Nailgun | 5 -> 0 (stopped 1) | 69 -> 0 (stopped 1) | 9 -> 0 (stopped 1) | 70, 0 -> 35, 7 |
+| Axe | 0 -> 0 (stopped 1) | 0 -> 0 (stopped 1) | 0 -> 0 (stopped 1) | 18, 0 -> 20, 8 |
+| Knight's Sword | 5 -> 0 (stopped 1) | 70 -> 0 (stopped 1) | 9 -> 0 (stopped 1) | 70, 0 -> 0, 14 |
+| Ogre's Chainsaw | 3 -> 0 (stopped 1) | 38 -> 0 (stopped 1) | 7 -> 0 (stopped 1) | 42, 0 -> 0, 14 |
+| Double-barrelled Shotgun | 5 -> 0 (stopped 1) | 69 -> 0 (stopped 1) | 9 -> 0 (stopped 1) | 70, 0 -> 20, 10 |
+
+(The axe held low: its body not behind it on that line, so 0 before too. A super shotgun blast's spread puts some
+pellets past the weapon into the body: those hurt, the stopped ones don't. The nailgun's body is within a unit of its
+line there: stopped, not judged.)
+
+Head shots (clear of the weapon) hurt as ever: pellets 6-8, nails 17, nothing stopped.
+
+Regressions: tests 37 8/8, 38 3/3, 69 10/10, 50 10/10 (block off as measured), 67 181/188 normal, 143/161 bullet
+time (as before: misses on standing humanoids, untouched here). Test 31 4/5: "ragtug pulled ... after 5.00 s (peak 72
+N)" fails the same with the ragdoll-grab fix disabled: already failing on origin/next (not this branch; its pull
+peaks at 72 N where 2026-10-26 broke at 1534 N). eval.sh: canary 36/44, full 163/171, 9 differ PASS -> PASS (damage
+noise), no verdict changes.
+
+Files: QC/vr_armedgrunt_shot.qc (`VR_AGS_Blocks`, `VR_AGS_Stopped`, `vr_ags_exact`), vr_armedgrunt_shot_test.qc,
+vr_armedgrunt_downtug_test.qc (new), vr_armedgrunt_test.qc (dispatch 74, 75), vr_cvars.qc; Quake/vr/vr_cvars.inc,
+vr_cvars.cpp (retired), vr_menu_gameplay.inc, vr_menu_automation.inc, vr_box3d_ragparts.cpp.
+
+- [ ] Shove an armed grunt (and an enforcer) down, then grab its gun by the grip or stock while it lies there and as it
+  gets up: it comes into your hand at once; you never end up holding its arm with the gun still in its hand
+  {test:vr_agrunt_test 74}
+- [ ] Shoot an armed grunt's gun (held across its body) with the shotgun, revolver and nailgun: sparks and a ricochet
+  or tink, no blood, its health untouched; a pellet that misses the gun and hits it still hurts; the gun still gets
+  shot out sometimes {test:vr_agrunt_test 75}
+
+## Armed humanoids' shove (worktree `gorefx`, branch `agent/agshove`, 2026-10-28)
+
+Vittorio: armed humanoids shove the player up close, but no shove animation plays. Their arms are posed (vr_agarms), so
+the model's shove frames (make_enemyshove.py) moved only the legs; the arms stayed aimed. Now they play a new pose,
+**Shove** (agpose::Shove, pose 20: codes `kind*100000 + class*1000 + 200 + phase`), with keys per kind and pose class
+like the strikes', its phases the **wind-up**, the **push** and the **recover**.
+
+The flow (QC vr_enemyshove.qc, vr_armedgrunt_pose.qc):
+- The trigger is unchanged: within `vr_enemy_shove_range` for `vr_enemy_shove_delay` (0.5 s), facing you, not
+  staggered, then `vr_enemy_shove_cooldown`. `VR_EnemyShove_Play` starts it. An armed one with `vr_agrunt_shove` 1 or 2
+  runs `VR_AGP_Shove` (act `VR_AGP_SHOVE`); anyone else plays its frames as before.
+- `VR_AGP_Shove` plays over its stand frames. It doesn't step in, a gun stays aimed ahead (the Aim stance under the
+  keys) and it keeps facing you. The keys blend wind-up 0..0.18 s, then wind-up into push to 0.30 s (the push key whole
+  at the push phase's end), then push into recover to 0.40 s, then back to the stance by 0.56 s. The act's own 0.1 s
+  think ends it at 0.6 s, then `VR_AG_AfterAttack`.
+- The push lands at contact, in `VR_AGP_Pose` on the first server frame at or after 0.30 s (the frames' blow was at
+  0.3 s too). It calls `VR_EnemyShove_Hit` (reach, parry, damage, the slide: all as before) and keeps that time in
+  `vr_ag_shove_s`. Not while the Pose Studio holds it, and not after its act's frames stopped (a pain).
+- The off hand: while the shove leads (its weights at least 0.5), the leading phase key's Off Hand mode sets the gun's
+  off hand: Free to push with it, On the Gun to push the gun. A long gun that its Weapon Holds put in one hand uses the
+  Pistol class's Shove keys (the spec's "one-handed weapon"), so a one-handed hold always pushes with the free hand.
+- `vr_agrunt_shove` (archived, default **2**; Combat > Enemy Shoves > Armed Humanoids' Shove): 0 the model frames,
+  guns only (as before); 1 posed, guns only; 2 posed, and melee weapons and the fists shove too (before, those only
+  struck).
+
+The default keys (agent-made from his spec, in vr_agpose.cpp `shipped`; the enforcer's places are the grunt's times its
+fit, 1 / 1.35 / 1.1). Places are in units (forward, left, up), turns are rotation vectors in degrees and the torso is
+yaw / pitch / roll. Push key:
+- **Rifle** (and every gun category without its own rows: launcher, sprayer, laser cannon, Widowmaker) and **Saw**:
+  the gun across the body in both hands (Off Hand On the Gun), right turn (0, 0, 85), thrust to (10, 0, -1), torso
+  leaning forward 12 (wind-up: pulled in to (-5, 0, -3), leaning back 5).
+- **Pistol**: the off hand Free, out to (21, 0, 22) on its hanging place, palm out and fingers up (turn (77, -124.7,
+  25.7)), its elbow pole out and down; the gun drawn back 3; the torso turned right 10 (the left shoulder forward) and
+  leaning 10.
+- **One-handed melee**: the free hand out (16, 0, 12) and the weapon drawn back 4.
+- **Two-handed melee**: the weapon turned across the body (-85, 0, 0) and thrust to (8, 0, -3).
+- **Two guns, two melee weapons**: both hands palm out holding them, right (-69.3, -69.3, -69.3), left (69.3, -69.3,
+  69.3), pushed out 10.
+- **Fists**: both pushed out 10, up 4.
+
+Editing: the Rig Studio's Pose Studio Data lists Shove with its phases (wind-up, push, recover; `agpose::phaseName(pose,
+phase)`) and Play previews it. So do the VR Pose Studio's pose list and its hold and Play (QC `VR_AGK_Hold`), the dump
+and the key's names, `pose_defaults.py` (pose 20, its phase names) and Copy to the other kind.
+
+Test 84 (`vr_agrunt_test 84`, `-QuitOn "test 84 over"`; Debug > Tests: "Armed Grunts: Their Shove"): five cases, each
+walked up to until it shoves. **20 passed, 0 failed** in three runs:
+
+| case | starts after | wind-up over | push lands | your slide | over |
+| --- | --- | --- | --- | --- | --- |
+| grunt, shotgun | 0.44 s | 0.18 s | 0.300 s | 546 u/s | 0.60 s |
+| grunt, nail pistol | 0.44 s | 0.18 s | 0.300 s | 546 u/s | 0.60 s |
+| grunt, two nail pistols | 1.14 s | 0.19 s | 0.308 s | 546 u/s | 0.61 s |
+| grunt, axe | 0.49 s | 0.19 s | 0.311 s | 546 u/s | 0.60 s |
+| enforcer, laser rifle | 0.43 s | 0.19 s | 0.300 s | 671 u/s | 0.61 s |
+
+`scratch2 1`: a super axe, a chainsaw, two crowbars, the fists, all shove (16 checks pass). The rocket launcher grunt
+never got in reach in 10 s: it backs off faster than the test walks (its fighting distance; not this change).
+Eyeshots: the push landing in your view, then held at the push key from the front and the side (contact sheets in the
+agent's scratch: `agshove_sheet_final.png`, `agshove_sheet_more.png`; `Misc/quakevr/eyeshot_sheet.py` makes them).
+Regressions: test 83 (pose categories) 63/63; eval.sh: the melee takes archived (skip-pass), no verdict changes.
+
+Files: QC/vr_enemyshove.qc, vr_armedgrunt_pose.qc, vr_armedgrunt_play.qc (the tug's shove), vr_armedgrunt_shove_test.qc
+(new), vr_armedgrunt_test.qc, vr_cvars.qc, progs.src; Quake/vr/vr_agpose.hpp/.cpp (Shove, its rows, phaseName),
+vr_posestudio.cpp, vr_poselive.cpp, vr_rigstudio_ui.cpp, vr_cvars.inc, vr_menu_gameplay.inc, vr_menu_automation.inc;
+Misc/quakevr/pose_defaults.py, eyeshot_sheet.py (new); docs/vr-port/TESTING.md.
+
+- [ ] Stand close to an armed grunt with a shotgun, then a nail pistol: it shoves you. The shotgun is turned across its
+  body in both hands and thrust at you; with the pistol, its off hand comes off the gun and pushes palm out while the
+  gun draws back a little. The push lands as its arms reach you, not before. {test:vr_agrunt_test 84}
+- [ ] Same with two pistols, an axe, a super axe and its fists, and with an enforcer: two held, its palms turn to you
+  still holding them; the axe's free hand pushes; a two-handed weapon goes across its body. Tune any in the Pose
+  Studio (Shove: wind-up, push, recover) {test:vr_agrunt_test 84}
+
+## The authored rig the only one (worktree `goreflesh`, branch `agent/rig2only`, 2026-10-28)
+
+His ask: the new rig the only rig of the grunt and the enforcer, the old one and its setting gone, the code paths and
+the Rig Studio simpler. The behaviour is origin/next's `vr_rig2 1`, always.
+
+**Removed**
+- Settings: `vr_rig2`, `vr_rig2_game` (QC's mirror), `vr_rig2_look` (the live ones drawn as their .mdl again: the
+  old look), `vr_ragdoll_arm_skin` (the derived rig's arm-skin blend on armed ragdolls): in `retiredCvars`, an old
+  config's lines are ignored quietly. No configVersion step (nothing to carry over).
+- `rig2::gameOn`; the latch (`VR_Rig2Latch`, a map spawned) now only remakes what a reloaded rig file feeds.
+- QC (`vr_armedmon.qc`): the old rig's shoulders, arm length and the enforcer's old fit; the authored ones kept.
+- The derived rig's arm skin for armed ragdolls (`VR_SyntheticModel`, `skinnedVertices`, `agarms::ragdollWeights`):
+  only an armed model (vrgrunt, vrenforcer) had one, and they are on the authored rig.
+- vr_rig2_check's old-rig comparison (the old rig moved alike beside every measure, `measurePose`'s `old`): the
+  authored rig's measures, verdicts and lines as before.
+- Rig Studio: Range of Motion's "Mesh drawn on: Authored / Old rig" and the old rig moved alike (`oldFromRom`,
+  `rig2::drawPosedDerived`, `vr_rigstudio_rom rig old|new`); `vr_rig2anim_import` (the old animations carried over:
+  done, the old files gone) and its Debug menu entry. For an authored subject the Rest Pose, Weights and Paint tools
+  (and T/W/P, the Properties' Rest Pose header, `vr_rigstudio_weight`, `_rest`, `_assign`) are gone: they edited the
+  derived rig's overrides, which an authored subject never reads (its rest, limits and weights are its rig2.txt's,
+  Range of Motion's). Other monsters' subjects keep them all, and the Timeline, as before.
+- Debug menu: "Grunt and Enforcer on the Authored Rig (Next Map)", "Authored Rig: Live Ones' Look Check", "Armed
+  Ragdolls: Arm Skin" and "Carry the Old Rig's Animations to the Authored Rig" gone; "Print the Authored Rig's Arms"
+  (`vr_rig2_arms`) added where the toggle was (its help named it).
+- Data: `quakevr/rigs/vrgrunt.rig.txt`, `vrenforcer.rig.txt` (empty override files of the old rig) and
+  `quakevr/anims/vrgrunt/taunt.anim.txt` (the old rig's taunt; `taunt.anim2.txt` is the one read).
+
+**Kept**
+- Other monsters (knight, ogre, zombie, dog, scrag, death knight, the AD monsters, the player): their derived rigs,
+  untouched (`rigFor` gives the authored rig only to a model with a rig2.txt; else the derived one, as before).
+- The grunt's and the enforcer's seed tables: the authored rig reads their vertex counts and death frames, the
+  enforcer's torso proxy is fitted on its derived chest (`agbody`), the AD soldier uses the grunt's seeds, and a model
+  whose authored rig doesn't fit falls back to the derived one (as before).
+- Not removed (follow-up): `vr_agarms 0` (the rigid arms) and the GPU arm/leg skin (`RigArm`/`RigLeg` in vr_glsl.h,
+  `hitreact::armSkinRow`, `agarms::restRow`/`rows`, the rest rows' 4th row) are unreachable now (an armed one is drawn
+  as "#rig2", which `kickInstance` never takes), but they are entangled with `vr_agarms 0`'s hand stats and agarms'
+  CPU skin that the glitch finder still measures: a separate change.
+
+**Size**: the code (Quake, QC) 854 lines removed, 248 added (most of the added: comments rewritten); with the docs and
+data 932 removed, 280 added. The most: vr_rig2_check.cpp -218, vr_rigdata.cpp -209 (the importer), the Range of Motion
+-94, vr_ragdoll.cpp -78.
+
+**Merged origin/next** with agent/armorp0's armour (`vr_agarmor`): it had no vr_rig2 check of its own (it draws on
+whatever is on the authored rig); its Debug menu help and its checklist line no longer say "Grunt on the Authored Rig
+on" / "vr_rig2 1".
+
+**Tests** (A/B: origin/next with `vr_rig2 1` before each test, this branch with nothing: `scratch/r2o_suite.sh`,
+`r2o_ab.sh`; every verdict line the same on both): armed grunt tests 1 17/17, 35 6/6, 38 3/3, 42 20/20, 47 110/110,
+49 5/5, 66 1/1, 68 4/4, 69 10/10, 81 4/4, 83 63/63 on both; 60 5/1, 67 0/2, 80 0/4 and 48 (timed out at 400 s) the
+same on origin/next (not from this change); 82 "0 passed, 0 failed" on both (it needs `vr_rigstudio_test_rig2anim`'s
+keys in the same `vr_rigdata_dir`: the suite ran it so, still 0/0: worth a look). Rig Studio: subjects 14/14, aim 3/1
+(as origin/next), align 58/58, posekeys 13/1 (as origin/next), offhand 5/5, stretch done, rom 9/9, rom weapon 6/6,
+typing 11/11, rig2anim 10/10. `vr_rig2_check`: grunt 22 passed 13 failed, enforcer 28/7, the same on origin/next
+(the failing joints are the rig's own, measured as before). Glitch finder (test 46): the same lines; its "close"
+numbers move a few degrees between runs of the same build (two runs of this branch: the nailgun's up worst 7 then 4,
+origin/next's 12), so no change beyond the spread.

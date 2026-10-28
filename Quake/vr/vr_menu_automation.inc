@@ -220,6 +220,12 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 6-9: four armed grunts in a row ahead of you (6 melee weapons, 7 and 8 guns, 9 the rest); "
                   "notarget to look at them. vr_agrunt_test 4 prints every armed grunt's weapon, clip and reserve."),
         command("Armed Grunts: Spawn a Row (Melee)", "vr_agrunt_test 6"),
+        command("Armed Grunts: Their Shove", "vr_agrunt_test 84")
+            .help("vr_agrunt_test 84 (vrtesthall's start; about 15 s): a grunt with a shotgun, a nail pistol, two nail "
+                  "pistols, an axe, then an enforcer with its laser rifle, each walked up to until it shoves you (the "
+                  "Shove pose): its phases' times, the push landing as its push phase ends, eyeshots as it lands and "
+                  "held at its push key from its front and side (agtest: shove ... PASS). scratch2 1 first: a super "
+                  "axe, a chainsaw, two crowbars, the fists, a rocket launcher instead."),
         command("Armed Grunts: Print Their State", "vr_agrunt_test 4"),
         command("Armed Grunts: AD's Weapons", "vr_agrunt_test 12")
             .help("vr_agrunt_test 12 (with Arcane Dimensions' data): as Every Weapon, AD's soldiers' guns, the Shadow "
@@ -237,6 +243,11 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 49 (vrtesthall's start): a grunt with each gun (shotgun, nail guns, the grunt's and the "
                   "enforcer's rifles) 600 units ahead comes at you firing, no aim error: each shot's miss to your side "
                   "by 100 units of distance, aimed from its grip (the old way) and as fired (vr_agrunt_aim_converge)."),
+        command("Armed Grunts: Aim Behind Cover", "scratch1 0; vr_agrunt_test 76")
+            .help("vr_agrunt_test 76 (vrtesthall's start; under a minute): a grunt 300 units ahead, you behind a box 40 "
+                  "units before you (none, a low wall, a door frame, a crate, a wall), each gun (shotgun, nailgun, rifle, "
+                  "revolver, rocket launcher) with vr_agrunt_aim_exposed 0 then 1: its shots, its hits on you, the parts "
+                  "it aimed at (agtest: expose: ...), checked. scratch1 N: the first N guns only."),
         command("Armed Grunts: Fighting Distance", "scratch1 0; scratch2 0; vr_agrunt_test 48")
             .help("vr_agrunt_test 48 (vrtesthall's start; under 3 minutes): an armed grunt per weapon (shotguns, nail "
                   "guns, lightning, rockets, the grunt's and enforcer's guns, an axe) 260 units ahead hunting you, 6 s "
@@ -267,6 +278,15 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 69: shoved over, lifted, slammed, judo-thrown, shoulder-charged (twice) and flung: "
                   "it keeps its weapon until its body meets the ground harder than Fall: Drops It on Impact "
                   "(agtest: holdon ...)."),
+        command("Armed Grunts: Grab a Downed One's Weapon", "vr_agrunt_test 74")
+            .help("vr_agrunt_test 74 (vrtesthall; a few minutes): shoved, charged, lifted, judo-thrown, then while "
+                  "it lies and as it gets up your hand grips its weapon (stock, grip, barrel) and pulls (slow, fast, "
+                  "stepping back): yours at once, a tug won, or let go, never stuck holding its body (agtest: downtug "
+                  "...). scratch1 a method, scratch2 a phase."),
+        command("Armed Grunts: Shots on the Weapon Alone", "vr_agrunt_test 75")
+            .help("vr_agrunt_test 75 (vrtesthall): a pellet, a revolver slug, a nail and a super shotgun blast through "
+                  "each held weapon into its holder, with Weapon Stops the Shot off and on: on, no damage and the shot "
+                  "stopped (per pellet); its head shot still hurts (agtest: weaponshot ...)."),
         command("Armed Grunts: Idle Re-Arm", "vr_agrunt_test 13")
             .help("vr_agrunt_test 13: you unseen, an unarmed armed grunt walks to a shotgun lying near and takes it."),
         command("Armed Grunts: Ragdolls Take Shots", "vr_agrunt_test 20")

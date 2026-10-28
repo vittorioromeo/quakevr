@@ -57,6 +57,12 @@
             .help("An enforcer's shove's damage, times Damage."),
         slider("Enforcer Push", vr_enemy_shove_enforcer_distance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("How far an enforcer's shove pushes you, times Push Distance."),
+        cycle("Armed Humanoids' Shove", "vr_agrunt_shove", {{0.f, "Model Frames, Guns"}, {1.f, "Posed, Guns"},
+            {2.f, "Posed, Every Weapon"}})
+            .help("How armed grunts and enforcers shove you: posed (the Shove pose's keys, per weapon class: the off "
+                  "hand pushing beside a one-handed gun, a long gun pushed across the body in both hands, the palms "
+                  "out holding two weapons or the fists), with every weapon and their fists, or with guns only; or as "
+                  "before (their model's shove frames, the arms held as they aim, guns only)."),
         toggle("Vores Shove", vr_enemy_shove_vore)
             .help("Vores shove you too, swinging their arms down at you: the hardest shove of all. They reach a little "
                   "farther (they are wider)."),
@@ -1491,9 +1497,10 @@ void ikStretchReset()
                   "shotgun blast all on the gun, 24 on 16: 0.25 + 0.4 (vr_agrunt_shotdisarm_chance_scale)."),
         slider("After a Failed Roll", vr_agrunt_shotdisarm_cooldown, 0.f, 3.f, 0.05f, "%.2f s").extend(0.f, 30.f)
             .help("No hits add up for this long after a roll that failed (vr_agrunt_shotdisarm_cooldown)."),
-        toggle("Weapon Stops the Shot", vr_agrunt_shotdisarm_absorb)
-            .help("A pellet or a nail on the weapon stops there: it doesn't hurt the grunt. Off: it goes on into the body "
-                  "behind (vr_agrunt_shotdisarm_absorb)."),
+        toggle("Weapon Stops the Shot", vr_agrunt_shotdisarm_block)
+            .help("A pellet or a nail whose first hit is the held weapon (not its hand) stops there: sparks and a tink, "
+                  "no damage to the one holding it (each pellet on its own). Explosions and lightning hurt it as ever. "
+                  "Off: it goes on into the body behind (vr_agrunt_shotdisarm_block)."),
         slider("Shotgun Pellets", vr_agrunt_shotdisarm_w_pellet, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
             .help("How much the shotguns' pellets count (vr_agrunt_shotdisarm_w_pellet)."),
         slider("Nails", vr_agrunt_shotdisarm_w_nail, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
@@ -1526,6 +1533,13 @@ void ikStretchReset()
         toggle("Aim From the Muzzle", vr_agrunt_aim_converge)
             .help("Its shots go from its gun's muzzle to your chest, its aim's error kept. Off: aimed from its grip and "
                   "fired beside that line, a miss to one side at any distance (vr_agrunt_aim_converge)."),
+        toggle("Aim at What They Can Hit", vr_agrunt_aim_exposed)
+            .help("Partly behind cover, they aim at a part of you their gun's line reaches (your chest first, then your "
+                  "head, then whatever shows: shoulders, hips, legs; a rocket the floor at your feet), and hold fire while "
+                  "nothing shows. Off: always your chest, firing whenever they see your head (vr_agrunt_aim_exposed)."),
+        slider("Keep Aim On a Part", vr_agrunt_aim_exposed_hold, 0.f, 2.f, 0.1f, "%.1f s")
+            .help("How long they keep aiming at the part of you they picked while it still shows, before looking for "
+                  "the best one again (vr_agrunt_aim_exposed_hold)."),
         slider("Chainsaw Thrust From", vr_agrunt_saw_start, 30.f, 70.f, 1.f, "%.0f units")
             .help("A chainsaw's holder thrusts it only this near you (its middle to yours); 62 is a swing's "
                   "(vr_agrunt_saw_start)."),

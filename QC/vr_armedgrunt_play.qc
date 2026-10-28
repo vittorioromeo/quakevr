@@ -583,7 +583,7 @@ void() VR_AG_TugFight =
         VR_AG_TugEnd(self, FALSE, "shoved off");
         self.vr_eshove_target = pl;
         self.vr_eshove_next = time + cvar_hget(cvarh_vr_enemy_shove_cooldown);
-        self.th_vrshove();
+        VR_EnemyShove_Play(); // (posed: vr_agrunt_shove)
         return;
     }
     VR_AG_TugEnd(self, FALSE, "headbutted");

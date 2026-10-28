@@ -134,6 +134,10 @@ za::Vector<Item> pageDebugViews()
                   "idle, yellow while the hand moves fast enough to strike, red just after a blow landed; the lines the "
                   "sweep tested and the blade's swept surface over the last third of a second, fading; a hammer's or "
                   "mace's head as its box. A red dot where a blow landed, its damage above it."),
+        toggle("Show Armed Humanoids' Aim Points", vr_agrunt_aim_exposed_show)
+            .help("vr_agrunt_aim_exposed_show: where each armed humanoid aims on you, each time it looks (every 0.1 s): "
+                  "yellow sparks on the part of you its gun's line reaches, red where it last aimed when nothing of you "
+                  "shows (it holds fire). The setting: Armed Grunts > Aim at What They Can Hit."),
         cycle("Show Shot Disarms", vr_agrunt_shotdisarm_debug, {{0.f, "Off"}, {1.f, "Print"}, {2.f, "Print and Volumes"}})
             .help("vr_agrunt_shotdisarm_debug: each shot of yours on an armed grunt printed (shotdisarm: the part it hit, "
                   "weapon, hand or body; the damage adding up; each roll, its chance and result); Print "
@@ -182,6 +186,18 @@ za::Vector<Item> pageDebugViews()
                   "see-through holes, flipped and collapsed triangles, sharp folds, stretch (the console; ends on "
                   "'rig2 check: N passed, M failed'). vr_rig2_check progs/vrgrunt.mdl 0 "
                   "envelope prints how far each joint turns cleanly."),
+        cycle("Armed Humanoids' Armour (P0)", vr_agarmor, {{0.f, "None"}, {1.f, "Green"}, {2.f, "Yellow"}, {3.f, "Red"}, {4.f, "One of Each"}})
+            .help("vr_agarmor (debug, the armour spike: drawn only, no gameplay): armour shells made from the grunt's own mesh "
+                  "(a cuirass and a helmet) on every grunt and enforcer drawn on the authored rig (the Rig Studio's "
+                  "subject too), in the player's armour colours. One of Each: green, "
+                  "yellow, red by entity number. vr_agarmor_set <entity> <type> [pieces] for one."),
+        cycle("Armour Pieces", vr_agarmor_pieces, {{3.f, "Cuirass and Helmet"}, {1.f, "Cuirass"}, {2.f, "Helmet"}})
+            .help("vr_agarmor_pieces: which pieces the armoured grunts wear (each piece hidden by collapsing its bones)."),
+        command("Check the Armour's Fit", "vr_agarmor_check")
+            .help("vr_agarmor_check [model] [random poses]: the armour shells made twice (alike), closed, then measured on "
+                  "the authored rig's rest pose, every joint near them swept and 200 random poses: body vertices inside "
+                  "a plate and plate vertices inside the body, by neck, shoulders, waist and torso (the console; ends on "
+                  "'agarmor check: N passed, M failed'). vr_agarmor_info prints their sizes."),
         command("Print the Authored Rig's Drawing", "vr_rig2_draw_info")
             .help("vr_rig2_draw_info: the Rig Studio's subject on the authored rig, as the renderer draws it beside its old "
                   "rig's .mdl: each model's vertices, triangles, skin and normal map, how often drawn last frame, the retro "

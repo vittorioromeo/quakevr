@@ -3018,7 +3018,7 @@ QVR_CVAR(vr_agrunt_shotdisarm_window, "0.5", CVAR_ARCHIVE)     // s the damage a
 QVR_CVAR(vr_agrunt_shotdisarm_chance, "0.25", CVAR_ARCHIVE)    // the roll's chance at the threshold
 QVR_CVAR(vr_agrunt_shotdisarm_chance_scale, "0.8", CVAR_ARCHIVE) // ... plus this for each threshold past it (24 on 16: +0.4; at most 0.95)
 QVR_CVAR(vr_agrunt_shotdisarm_cooldown, "0.3", CVAR_ARCHIVE)   // s after a failed roll before hits add up again
-QVR_CVAR(vr_agrunt_shotdisarm_absorb, "0", CVAR_ARCHIVE)       // 1: a pellet or nail on the weapon stops there (no damage to it); 0: it goes on into the body
+QVR_CVAR(vr_agrunt_shotdisarm_block, "1", CVAR_ARCHIVE)        // 1: a pellet or nail whose first hit is the weapon stops there (sparks, a tink; no damage to the holder); 0: on into the body (was vr_agrunt_shotdisarm_absorb, "0")
 QVR_CVAR(vr_agrunt_shotdisarm_w_pellet, "1", CVAR_ARCHIVE)     // the shotguns' pellets count times this
 QVR_CVAR(vr_agrunt_shotdisarm_w_nail, "1", CVAR_ARCHIVE)       // the nailguns' nails
 QVR_CVAR(vr_agrunt_shotdisarm_w_lightning, "0.3", CVAR_ARCHIVE) // the lightning gun's bolts (30 a tenth of a second: a roll every 0.4 s held on it)
@@ -3086,6 +3086,9 @@ QVR_CVAR(vr_agrunt_friendly_giveup, "2.5", CVAR_ARCHIVE) // s: held so long for 
 QVR_CVAR(vr_agrunt_range, "1", CVAR_ARCHIVE)           // 1: an armed humanoid with a gun keeps its weapon's fighting distance (vr_armedgrunt.qc VR_AG_RangeOf: backs off nearer than its least, strafes about its best, comes on beyond its most; further while you hold a melee weapon or charge); 0: it closes in as before. Melee weapons and fists: always as before
 QVR_CVAR(vr_agrunt_saw_start, "44", CVAR_ARCHIVE)     // units (its middle to yours): an armed humanoid with a chainsaw thrusts it only this near (it closes in first; 62 a swing's, before)
 QVR_CVAR(vr_agrunt_aim_converge, "1", CVAR_ARCHIVE)  // 1: an armed humanoid's shot goes from the muzzle it leaves to your chest (its aim's error kept, unbiased); 0: aimed from its grip and fired parallel from its muzzle (or along its drawn gun), a miss to one side at any distance (before)
+QVR_CVAR(vr_agrunt_aim_exposed, "1", CVAR_ARCHIVE)   // 1: an armed humanoid aims at a part of you its muzzle's line reaches (chest, head, belly, shoulders, the head's sides, hips, legs; a rocket the floor at your feet), looked for each 0.1 s, and holds fire while none is (no shots into cover); 0: always your chest, its eyes' line to your head deciding (before). vr_armedgrunt.qc VR_AG_Expose
+QVR_CVAR(vr_agrunt_aim_exposed_hold, "0.5", CVAR_ARCHIVE) // seconds it keeps aiming at the part it picked while that part stays reachable (then the best reachable one again: the chest first)
+QVR_CVAR(vr_agrunt_aim_exposed_show, "0", CVAR_NONE)  // 1: each armed humanoid's aim point on you shown each look (sparks: yellow reachable, red none reachable, at its last)
 QVR_CVAR(vr_agrunt_range_scale, "1", CVAR_ARCHIVE)    // armed humanoids' fighting distances (vr_agrunt_range) times this
 QVR_CVAR(vr_agrunt_range_walkfire, "50", CVAR_ARCHIVE) // units/s: with vr_agrunt_range, an armed humanoid walks while it fires (on, back or round you, by its fighting distance); 0: it stands to fire, as before
 QVR_CVAR(vr_agrunt_ik, "1", CVAR_ARCHIVE)              // 1: its arms posed onto the held weapon's grips (client: the main hand on the grip, the other on a second grip or hanging free)
@@ -3721,6 +3724,14 @@ QVR_CVAR(vr_rig2_arm_limits, "0", CVAR_NONE)          // an armed grunt's upper 
 QVR_CVAR(vr_rig2_forearm_twist, "0.5", CVAR_NONE)      // the share of an armed grunt's hand's twist about its forearm its forearm takes (the authored forearm a hinge: its skin twisted along it, not all at the wrist; 0: all at the wrist)
 QVR_CVAR(vr_rig2_clavicle, "0.6", CVAR_NONE)            // an armed grunt's clavicle's share of its arm's lift and reach across its body (vr_agarms_clavicle's, at least: the authored rig's shoulders sit at the arms' own joints, wider than the derived rig's, its girdle reaching with them)
 QVR_CVAR(vr_rig2_arm_clear, "6", CVAR_NONE)            // an armed one whose upper arm is in its torso has its wrist turned out at most this much with a hand on a weapon (degrees; vr_agarms' 6)
+QVR_CVAR(vr_agarmor, "0", CVAR_NONE)                  // debug (P0, vr_agarmor.cpp): armour shells on every armed humanoid drawn on its authored rig (P0: the grunt): 0 none, 1 green, 2 yellow, 3 red, 4 one of each by entity number (vr_agarmor_set per entity)
+QVR_CVAR(vr_agarmor_pieces, "3", CVAR_NONE)           // vr_agarmor: the pieces worn: 1 the cuirass, 2 the helmet (a mask)
+QVR_CVAR(vr_agarmor_thick, "0.6", CVAR_NONE)          // vr_agarmor: a plate's thickness (units; read when the shells are made: vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_gap, "0.25", CVAR_NONE)           // vr_agarmor: the plates' gap off the body (units; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_smooth, "6", CVAR_NONE)           // vr_agarmor: the plates' smoothing passes (Taubin; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_subdiv, "1", CVAR_NONE)           // vr_agarmor: the plates' subdivisions of the body's triangles (0-2; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_brow_back, "0.25", CVAR_NONE)     // vr_agarmor: the helmet's edge at the back of the head (the head bone's share up it; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_brow_front, "0.6", CVAR_NONE)     // vr_agarmor: ... at the front (its brow: above the eyes)
 QVR_CVAR(vr_rig2_dq, "0", CVAR_NONE)                  // 1: the authored rig skinned with dual quaternions (no candy wrapper at a twist; vr_rig2_check, the Rig Studio's Shaded display); 0: linear blend
 QVR_CVAR(vr_rigseq, "1", CVAR_NONE)                  // 1: the files' override tracks and the sequences QC starts drawn on the rigged monsters (vr_rigseq.cpp); 0: never (nothing changes without the files)
 QVR_CVAR(vr_rigseq_debug, "0", CVAR_NONE)             // 1: each sequence started, stopped and each event sent to QC printed (rigseq:)
@@ -4298,6 +4309,7 @@ QVR_CVAR(vr_enemy_shove_enforcer_distance, "1.5", CVAR_ARCHIVE) // an enforcer's
 QVR_CVAR(vr_enemy_shove_vore, "1", CVAR_ARCHIVE)         // vores shove you too (a swing of their arms; their reach is 16 units longer: they are wider)
 QVR_CVAR(vr_enemy_shove_vore_damage, "2", CVAR_ARCHIVE)  // a vore's shove's damage, times vr_enemy_shove_damage
 QVR_CVAR(vr_enemy_shove_vore_distance, "2", CVAR_ARCHIVE) // a vore's shove's push, times vr_enemy_shove_distance (harder than anyone's)
+QVR_CVAR(vr_agrunt_shove, "2", CVAR_ARCHIVE)             // armed humanoids' shove: 0 their model's shove frames (guns only, as before), 1 the Shove pose (the pose keys; guns only), 2 the Shove pose with every weapon and the fists (QC vr_armedgrunt_pose.qc VR_AGP_Shove)
 // Holding enemies (vr_foegrab.cpp, QC vr_foegrab.qc; Combat > Holding Enemies): an empty hand that grips on a living
 // monster's model holds on to that spot, slows it and drags it, until let go or pulled too far.
 QVR_CVAR(vr_foegrab, "1", CVAR_ARCHIVE)                  // experimental: an empty hand can hold on to a living enemy
