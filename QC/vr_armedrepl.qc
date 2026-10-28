@@ -548,10 +548,10 @@ void() VR_AGR_NativeFinished =
 {
     if(self.vr_ag_kind == VR_AM_ENFORCER)
     {
-        SUB_AttackFinished(2 * random());
+        VR_AGAI_AttackFinished(2 * random()); // (vr_agrunt_ai_firerate: vr_armedgrunt_ai.qc)
         return;
     }
-    SUB_AttackFinished(1 + random());
+    VR_AGAI_AttackFinished(1 + random());
 };
 
 // Its attack's step `s` (1..): the row's aiming frame drawn (VR_AM_A_ATK's index; -1: the attack is over). The
@@ -651,19 +651,30 @@ void(entity p) VR_AGR_NativeShot =
                 VR_AG_Expose(FALSE);
                 aimAt = VR_AI_Origin(self.enemy) + self.vr_ag_xofs; // (the part of you it can hit: vr_agrunt_aim_exposed)
             }
-            entity laser = LaunchLaser(org, cvar_hget(cvarh_vr_agrunt_aim_converge) ? aimAt - org : VR_AI_Origin(self.enemy) - self.origin);
+            vector ldir = cvar_hget(cvarh_vr_agrunt_aim_converge) ? aimAt - org : VR_AI_Origin(self.enemy) - self.origin;
+            if(VR_AGAI_Accuracy() < 1)
+            {
+                ldir = VR_AGAI_LaserError(ldir); // (vr_agrunt_ai_accuracy under 1: off by some of its aim error)
+                makevectors(self.angles);
+            }
+            entity laser = LaunchLaser(org, ldir);
             laser.vr_ag_native = 1;
             MG3_EnforcerAltLaser(org);
             vr_agr_shots_enf = vr_agr_shots_enf + 1;
         }
     }
-    else if(cvar_hget(cvarh_vr_grunt_burst))
-    {
-        army_burst_round();
-    }
     else
     {
-        army_fire();
+        vr_fire_spread_extra = VR_AGAI_SpreadExtra(0); // (vr_agrunt_ai_accuracy: its bullets' spread; 0 at 1)
+        if(cvar_hget(cvarh_vr_grunt_burst))
+        {
+            army_burst_round();
+        }
+        else
+        {
+            army_fire();
+        }
+        vr_fire_spread_extra = 0;
     }
     vr_agr_native_fire = 0;
     weaponfired(p, -1); // its muzzle flash on the held weapon (vr_weaponfx.cpp)

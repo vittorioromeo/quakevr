@@ -1245,6 +1245,150 @@ void ikStretchReset()
     return items;
 }
 
+// Combat > Armed Grunts > AI Behaviour (QC vr_armedgrunt_ai.qc; ROUND22.md, "Armed humanoids' AI behaviour"): every
+// armed humanoid's decision in one place, the knobs (1: as before at Normal) and the skill's impact on them.
+[[nodiscard]] za::Vector<Item> pageArmedAI()
+{
+    const auto knob = [](const char* label, cvar_t& c, const char* what) {
+        return slider(label, c, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help(what);
+    };
+    return {
+        header("Difficulty"),
+        slider("Difficulty Impact", vr_agrunt_ai_skill, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much the skill level moves the knobs below, Normal always as set. At 1: Easy aggressiveness "
+                  "0.85x, accuracy 0.8x, reaction 1.3x, fire rate 0.9x, retreat 0.85x; Hard 1.2x, 1.25x, 0.7x, 1.15x, "
+                  "1.15x; Nightmare 1.4x, 1.5x, no reaction delay, 1.15x, 1.3x (and their parry's chance and speed "
+                  "by skill). 0: the skill changes none of them (Quake's own rules for every monster stay: "
+                  "Nightmare's attacks without pauses) (vr_agrunt_ai_skill)."),
+        header("Fighting"),
+        knob("Aggressiveness", vr_agrunt_ai_aggression,
+            "How readily they attack and press you: their chance to attack whenever they can, times this, and their "
+            "best and furthest fighting distances nearer as it rises (times 2 / (1 + this): at 2 two-thirds as far, "
+            "at 0.5 a third further). Under 1 they hold back and fire less (vr_agrunt_ai_aggression)."),
+        knob("Accuracy", vr_agrunt_ai_accuracy,
+            "Their aim error and their guns' spread divided by this: 2 half as much, 0.5 twice. An enforcer's own "
+            "laser (no error of its own) strays under 1 (vr_agrunt_ai_accuracy)."),
+        slider("Aim Error", vr_agrunt_aim_error, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
+            .help("How far off its aim is at most, each shot, besides the weapon's own spread; divided by Accuracy "
+                  "(vr_agrunt_aim_error)."),
+        slider("Reaction Time", vr_agrunt_ai_reaction, 0.f, 3.f, 0.05f, "%.2f s").extend(0.f, 10.f)
+            .help("From first seeing you to their first attack, at Normal (Quake's 1 s; by Difficulty Impact "
+                  "Nightmare none) (vr_agrunt_ai_reaction)."),
+        knob("Fire Rate", vr_agrunt_ai_firerate,
+            "Their pause after an attack (a shot or a burst, a swing) divided by this: 2 half the pause "
+            "(vr_agrunt_ai_firerate)."),
+        header("Fighting Distance"),
+        toggle("Keep Their Distance", vr_agrunt_range)
+            .help("With a gun it fights at its weapon's distance: a super shotgun close but out of your reach, a "
+                  "shotgun near, nail guns and the enforcer's rifle further; nearer than that it backs off facing you "
+                  "(further while you hold a melee weapon or charge it), about it it strafes round you, further it comes "
+                  "on. Off: it closes in as before. Melee weapons always close in (vr_agrunt_range)."),
+        slider("Distance Scale", vr_agrunt_range_scale, 0.5f, 2.f, 0.05f, "%.2fx")
+            .help("Their fighting distances times this (vr_agrunt_range_scale)."),
+        knob("Retreat Readiness", vr_agrunt_ai_retreat,
+            "How readily a gun's holder backs off: the distance it backs away from you nearer than (its weapon's "
+            "least), times this, and the health share it turns warier below (0.35 times this). 0: it never backs "
+            "off (only from its own blast) (vr_agrunt_ai_retreat)."),
+        slider("Walking Fire", vr_agrunt_range_walkfire, 0.f, 120.f, 5.f, "%.0f u/s")
+            .help("How fast it walks while it fires (on, back or round you, by its distance) and steps back while it "
+                  "reloads. 0: it stands to fire, as before (vr_agrunt_range_walkfire)."),
+        slider("Chainsaw Thrust From", vr_agrunt_saw_start, 30.f, 70.f, 1.f, "%.0f units")
+            .help("A chainsaw's holder thrusts it only this near you (its middle to yours); 62 is a swing's "
+                  "(vr_agrunt_saw_start)."),
+        header("Aiming"),
+        toggle("Aim From the Muzzle", vr_agrunt_aim_converge)
+            .help("Its shots go from its gun's muzzle to your chest, its aim's error kept. Off: aimed from its grip and "
+                  "fired beside that line, a miss to one side at any distance (vr_agrunt_aim_converge)."),
+        toggle("Aim at What They Can Hit", vr_agrunt_aim_exposed)
+            .help("Partly behind cover, they aim at a part of you their gun's line reaches (your chest first, then your "
+                  "head, then whatever shows: shoulders, hips, legs; a rocket the floor at your feet), and hold fire while "
+                  "nothing shows. Off: always your chest, firing whenever they see your head (vr_agrunt_aim_exposed)."),
+        slider("Keep Aim On a Part", vr_agrunt_aim_exposed_hold, 0.f, 2.f, 0.1f, "%.1f s")
+            .help("How long they keep aiming at the part of you they picked while it still shows, before looking for "
+                  "the best one again (vr_agrunt_aim_exposed_hold)."),
+        header("Friends and Blasts"),
+        slider("Careful of Friends", vr_agrunt_friendly_care, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How careful it is not to shoot or strike its friends: with another monster in its line of fire (a "
+                  "few lines for a shotgun's spread), the chance it holds fire and sidesteps for a clear shot. 1: "
+                  "always, 0: never, it fires through them as before (vr_agrunt_friendly_care)."),
+        slider("Gives Up After", vr_agrunt_friendly_giveup, 0.f, 10.f, 0.5f, "%.1f s")
+            .help("Held so long for friends in the way, it fires anyway (a friend stepping in mid-burst can still be "
+                  "hit). 0: it never does (vr_agrunt_friendly_giveup)."),
+        toggle("Launchers Fired Safely", vr_agrunt_blast_safe)
+            .help("With a grenade or rocket launcher or a proximity gun, it fires only when the round's predicted burst "
+                  "(its arc, its bounces, a wall just ahead) is far enough from itself; otherwise it backs off or "
+                  "steps aside first, and keeps away from its mines (vr_agrunt_blast_safe)."),
+        header("Weapons Lying About"),
+        toggle("Picks Weapons Up", vr_agrunt_rearm)
+            .help("Disarmed, it fights with its fists and goes for a weapon lying near (its own or another) when you are "
+                  "not nearer to it than it is (vr_agrunt_rearm)."),
+        slider("Weapon Search Distance", vr_agrunt_rearm_range, 64.f, 1024.f, 32.f, "%.0f units").extend(0.f, 4096.f)
+            .help("How far an unarmed one goes for a weapon lying on the floor (its own or another) rather than fight "
+                  "with its fists, when you are not nearer to it than it is (vr_agrunt_rearm_range)."),
+        slider("Punches Instead Within", vr_agrunt_rearm_punch, 0.f, 512.f, 16.f, "%.0f units").extend(0.f, 4096.f)
+            .help("Unarmed with you this near, it fights with its fists rather than going for a weapon further than "
+                  "64 units from it (one at its feet it still takes up). 0: off, as before (vr_agrunt_rearm_punch)."),
+        toggle("Re-Arms Out of a Fight", vr_agrunt_rearm_idle)
+            .help("Unarmed and not fighting, it also walks over to a weapon lying near and takes it up "
+                  "(vr_agrunt_rearm_idle; with Picks Weapons Up)."),
+        slider("Gives Up on a Weapon After", vr_agrunt_seek_timeout, 1.f, 30.f, 0.5f, "%.1f s").extend(0.f, 120.f)
+            .help("How long it keeps going for a weapon it doesn't reach (no nearer for 2.5 s: sooner) before giving "
+                  "it up for a while; it only goes for weapons it can walk to on the floor, not in liquid or up a "
+                  "ledge (vr_agrunt_seek_timeout)."),
+        slider("Leaves It Alone For", vr_agrunt_seek_shun, 0.f, 120.f, 1.f, "%.0f s").extend(0.f, 600.f)
+            .help("How long it leaves a weapon it gave up on before trying it again (vr_agrunt_seek_shun)."),
+        toggle("Pick Up a Second", vr_agrunt_dual_pickup)
+            .help("One holding a single weapon that pairs goes for a second lying about, out of a fight, and holds it in "
+                  "its left hand (vr_agrunt_dual_pickup)."),
+        header("Loadout"),
+        slider("Dual Wielding", vr_agrunt_dual_chance, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance one from the pool holding a weapon that pairs gets a second in its left hand: one-handed "
+                  "blades and clubs (a sword, the crowbar, the axe) swung in turn or both at once; guns one in each "
+                  "hand (not the rocket launcher, the Laser Cannon, the chainsaw, the hammers). Each can be knocked or "
+                  "pulled out of its hand, and it goes for another (vr_agrunt_dual_chance)."),
+        slider("Flare Gun First", vr_agrunt_flaregun, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance one from the pool (or a replacement) holding one weapon carries a flare gun too: it fires "
+                  "its two flares first (setting you on fire), throws it away and takes its own weapon "
+                  "(vr_agrunt_flaregun)."),
+        header("Parrying Your Blows (Experimental)"),
+        toggle("They Parry", vr_agrunt_parry)
+            .help("One holding a weapon defends against a melee blow as you do: seeing it coming it raises and angles its "
+                  "weapon into the blow's way, and a blow that meets its weapon before its body is parried (the ring, "
+                  "sparks, your hand knocked back). A blow to its head, legs or a side its weapon doesn't cover lands in "
+                  "full. Never from behind, unaware of you, staggered or in pain. Monsters' blows on it too "
+                  "(vr_agrunt_parry)."),
+        toggle("Parry: Real Strikes Only", vr_agrunt_parry_strikes_only)
+            .help("It raises its parry only for a real strike: a held weapon swung at it, or a closed fist punching "
+                  "faster than a melee hit's least (vr_melee_speed). Your hands near it, an open hand or a grab reaching "
+                  "for its weapon never (0: any hand within 30 units of its chest, as before; "
+                  "vr_agrunt_parry_strikes_only)."),
+        slider("Parry: Damage Kept", vr_agrunt_parry_damage, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of a parried blow's damage it still takes (vr_agrunt_parry_damage)."),
+        slider("Parry: Parries Before Disarm", vr_agrunt_parry_count, 1.f, 6.f, 0.5f, "%.1f").extend(0.1f, 50.f)
+            .help("Its parry stamina: the parry that spends it all knocks its weapon out of its hand. 2: the second "
+                  "parry in a row (vr_agrunt_parry_count)."),
+        slider("Parry: Stamina Per Parry", vr_agrunt_parry_cost, 0.f, 3.f, 0.25f, "%.2f").extend(0.f, 50.f)
+            .help("What each parry spends of it (vr_agrunt_parry_cost)."),
+        slider("Parry: Recovery", vr_agrunt_parry_recover, 0.f, 2.f, 0.05f, "%.2f /s").extend(0.f, 20.f)
+            .help("The stamina it gets back a second: at 0.35 a parry's worth in about 3 s (vr_agrunt_parry_recover)."),
+        slider("Parry: Reaction Time", vr_agrunt_parry_react, 0.f, 1.f, 0.01f, "%.2f s").extend(0.f, 5.f)
+            .help("From seeing a blow coming to its weapon raised into its way, at Normal skill (Easy 1.4x, Hard 0.85x, "
+                  "Nightmare 0.7x): a quick swing gets through (vr_agrunt_parry_react)."),
+        slider("Parry: Chance", vr_agrunt_parry_chance, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance it sees a blow coming in time, at Normal skill (Easy 0.6x, Hard 1.15x, Nightmare 1.3x); "
+                  "caught out, its weapon stays where it was: a blow still meeting it there is parried "
+                  "(vr_agrunt_parry_chance)."),
+        header("Manner"),
+        toggle("Taunt on First Sight", vr_agrunt_taunt)
+            .help("An armed grunt seeing you for the first time plays its taunt before it comes for you "
+                  "(vr_agrunt_taunt)."),
+        slider("Strafe Lean", vr_agrunt_strafe_lean, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 30.f)
+            .help("Moving sideways (strafing round you, side-stepping), its pelvis and legs tip toward the way it goes, "
+                  "this far at a strafe's speed (less slower), eased in and out; its upper body stays aimed. 0: "
+                  "none (vr_agrunt_strafe_lean)."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageArmedGrunts()
 {
     const auto weight = [](const char* label, cvar_t& c) {
@@ -1253,6 +1397,10 @@ void ikStretchReset()
                   "set) holds this, against the others' weights. 0: never.");
     };
     return {
+        open("AI Behaviour", pageIndex(pageArmedAI))
+            .help("Their fighting: aggressiveness, accuracy, reaction time, fire rate, retreat, their fighting "
+                  "distance and aim, weapons lying about, their loadout and parries, and how much the skill "
+                  "level changes them (Difficulty Impact). Also their strafe lean."),
         open("Armed Humanoid Replacements", pageIndex(pageArmedRepl))
             .help("A map's grunts and enforcers as armed ones holding their own guns (their balance kept), and weapon "
                   "variety on top. All off by default."),
@@ -1271,26 +1419,12 @@ void ikStretchReset()
                   "the gun away and fights with its fists. The guns whose clip is a shot or two carry more at the same "
                   "setting (the double-barrelled shotgun 4x, the flare gun 2x, the super nailgun 1.5x). Its backpack "
                   "holds what is left of them (vr_agrunt_reserve)."),
-        slider("Dual Wielding", vr_agrunt_dual_chance, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The chance one from the pool holding a weapon that pairs gets a second in its left hand: one-handed "
-                  "blades and clubs (a sword, the crowbar, the axe) swung in turn or both at once; guns one in each "
-                  "hand (not the rocket launcher, the Laser Cannon, the chainsaw, the hammers). Each can be knocked or "
-                  "pulled out of its hand, and it goes for another (vr_agrunt_dual_chance)."),
-        slider("Flare Gun First", vr_agrunt_flaregun, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The chance one from the pool (or a replacement) holding one weapon carries a flare gun too: it fires "
-                  "its two flares first (setting you on fire), throws it away and takes its own weapon "
-                  "(vr_agrunt_flaregun)."),
         slider("Dual Guns' Penalty", vr_agrunt_dual_penalty, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("Two guns held one in each hand aim as yours do in one hand: no two-hand spread reduction (spread "
                   "and aim error x2 at 1) and heavy guns kick their aim up a shot by their heft. This times those "
                   "penalties; 0: as accurate as with one gun in both hands (vr_agrunt_dual_penalty)."),
-        toggle("Pick Up a Second", vr_agrunt_dual_pickup)
-            .help("One holding a single weapon that pairs goes for a second lying about, out of a fight, and holds it in "
-                  "its left hand (vr_agrunt_dual_pickup)."),
         slider("Reload Time", vr_agrunt_reload_time, 0.2f, 5.f, 0.1f, "%.1f s").extend(0.f, 20.f)
             .help("How long it stands reloading (vr_agrunt_reload_time)."),
-        slider("Aim Error", vr_agrunt_aim_error, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
-            .help("How far off its aim is at most, each shot, besides the weapon's own spread (vr_agrunt_aim_error)."),
         header("Their Strikes"),
         slider("Torso Twist", vr_agrunt_strike_torso, 0.f, 2.f, 0.05f, "%.2fx")
             .help("How far its torso twists and leans in its melee strikes and punches: wound back, driven through the "
@@ -1392,34 +1526,6 @@ void ikStretchReset()
         slider("Parry Disarm Chance", vr_agrunt_parry_disarm, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
             .help("The chance your weapon's parry of its melee blow knocks its weapon out of its hand; a well-timed "
                   "parry's 1.5 times (vr_agrunt_parry_disarm)."),
-        header("Parrying Your Blows (Experimental)"),
-        toggle("They Parry", vr_agrunt_parry)
-            .help("One holding a weapon defends against a melee blow as you do: seeing it coming it raises and angles its "
-                  "weapon into the blow's way, and a blow that meets its weapon before its body is parried (the ring, "
-                  "sparks, your hand knocked back). A blow to its head, legs or a side its weapon doesn't cover lands in "
-                  "full. Never from behind, unaware of you, staggered or in pain. Monsters' blows on it too "
-                  "(vr_agrunt_parry)."),
-        toggle("Parry: Real Strikes Only", vr_agrunt_parry_strikes_only)
-            .help("It raises its parry only for a real strike: a held weapon swung at it, or a closed fist punching "
-                  "faster than a melee hit's least (vr_melee_speed). Your hands near it, an open hand or a grab reaching "
-                  "for its weapon never (0: any hand within 30 units of its chest, as before; "
-                  "vr_agrunt_parry_strikes_only)."),
-        slider("Parry: Damage Kept", vr_agrunt_parry_damage, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The share of a parried blow's damage it still takes (vr_agrunt_parry_damage)."),
-        slider("Parry: Parries Before Disarm", vr_agrunt_parry_count, 1.f, 6.f, 0.5f, "%.1f").extend(0.1f, 50.f)
-            .help("Its parry stamina: the parry that spends it all knocks its weapon out of its hand. 2: the second "
-                  "parry in a row (vr_agrunt_parry_count)."),
-        slider("Parry: Stamina Per Parry", vr_agrunt_parry_cost, 0.f, 3.f, 0.25f, "%.2f").extend(0.f, 50.f)
-            .help("What each parry spends of it (vr_agrunt_parry_cost)."),
-        slider("Parry: Recovery", vr_agrunt_parry_recover, 0.f, 2.f, 0.05f, "%.2f /s").extend(0.f, 20.f)
-            .help("The stamina it gets back a second: at 0.35 a parry's worth in about 3 s (vr_agrunt_parry_recover)."),
-        slider("Parry: Reaction Time", vr_agrunt_parry_react, 0.f, 1.f, 0.01f, "%.2f s").extend(0.f, 5.f)
-            .help("From seeing a blow coming to its weapon raised into its way, at Normal skill (Easy 1.4x, Hard 0.85x, "
-                  "Nightmare 0.7x): a quick swing gets through (vr_agrunt_parry_react)."),
-        slider("Parry: Chance", vr_agrunt_parry_chance, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The chance it sees a blow coming in time, at Normal skill (Easy 0.6x, Hard 1.15x, Nightmare 1.3x); "
-                  "caught out, its weapon stays where it was: a blow still meeting it there is parried "
-                  "(vr_agrunt_parry_chance)."),
         toggle("Drops It When Floored", vr_agrunt_fall_drop)
             .help("Knocked down onto the floor (not just staggered by a shove) it drops its weapon beside it, and "
                   "takes it back as it gets up unless you took it (vr_agrunt_fall_drop; with Hits Disarm)."),
@@ -1450,20 +1556,6 @@ void ikStretchReset()
             .help("Lying with its weapon in its hand, how fast a deliberate blow (a fist or something held) must be "
                   "going to knock it away (with Deliberate Blows Only; 3.2 is a melee hit's least, vr_melee_speed). A "
                   "hand reaching to take it never does (vr_agrunt_down_swing)."),
-        toggle("Picks Weapons Up", vr_agrunt_rearm)
-            .help("Disarmed, it fights with its fists and goes for a weapon lying near (its own or another) when you are "
-                  "not nearer to it than it is (vr_agrunt_rearm)."),
-        slider("Looks For Weapons Within", vr_agrunt_rearm_range, 64.f, 1024.f, 32.f, "%.0f units").extend(0.f, 4096.f)
-            .help("How far it looks for a weapon to pick up (vr_agrunt_rearm_range)."),
-        toggle("Re-Arms Out of a Fight", vr_agrunt_rearm_idle)
-            .help("Unarmed and not fighting, it also walks over to a weapon lying near and takes it up "
-                  "(vr_agrunt_rearm_idle; with Picks Weapons Up)."),
-        slider("Gives Up on a Weapon After", vr_agrunt_seek_timeout, 1.f, 30.f, 0.5f, "%.1f s").extend(0.f, 120.f)
-            .help("How long it keeps going for a weapon it doesn't reach (no nearer for 2.5 s: sooner) before giving "
-                  "it up for a while; it only goes for weapons it can walk to on the floor, not in liquid or up a "
-                  "ledge (vr_agrunt_seek_timeout)."),
-        slider("Leaves It Alone For", vr_agrunt_seek_shun, 0.f, 120.f, 1.f, "%.0f s").extend(0.f, 600.f)
-            .help("How long it leaves a weapon it gave up on before trying it again (vr_agrunt_seek_shun)."),
         header("Disarming: Shooting It Out"),
         toggle("Shoot Weapons Out", vr_agrunt_shotdisarm)
             .help("Your shots on the weapon an armed grunt holds, or the hand holding it, add up; each time they pass "
@@ -1513,41 +1605,7 @@ void ikStretchReset()
         slider("Explosions", vr_agrunt_shotdisarm_w_splash, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
             .help("How much an explosion's damage to the grunt counts on its weapons. 0: never "
                   "(vr_agrunt_shotdisarm_w_splash)."),
-        header("Behaviour"),
-        toggle("Launchers Fired Safely", vr_agrunt_blast_safe)
-            .help("With a grenade or rocket launcher or a proximity gun, it fires only when the round's predicted burst "
-                  "(its arc, its bounces, a wall just ahead) is far enough from itself; otherwise it backs off or "
-                  "steps aside first, and keeps away from its mines (vr_agrunt_blast_safe)."),
-        slider("Careful of Friends", vr_agrunt_friendly_care, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How careful it is not to shoot or strike its friends: with another monster in its line of fire (a "
-                  "few lines for a shotgun's spread), the chance it holds fire and sidesteps for a clear shot. 1: "
-                  "always, 0: never, it fires through them as before (vr_agrunt_friendly_care)."),
-        slider("Gives Up After", vr_agrunt_friendly_giveup, 0.f, 10.f, 0.5f, "%.1f s")
-            .help("Held so long for friends in the way, it fires anyway (a friend stepping in mid-burst can still be "
-                  "hit). 0: it never does (vr_agrunt_friendly_giveup)."),
-        toggle("Keep Their Distance", vr_agrunt_range)
-            .help("With a gun it fights at its weapon's distance: a super shotgun close but out of your reach, a "
-                  "shotgun near, nail guns and the enforcer's rifle further; nearer than that it backs off facing you "
-                  "(further while you hold a melee weapon or charge it), about it it strafes round you, further it comes "
-                  "on. Off: it closes in as before. Melee weapons always close in (vr_agrunt_range)."),
-        toggle("Aim From the Muzzle", vr_agrunt_aim_converge)
-            .help("Its shots go from its gun's muzzle to your chest, its aim's error kept. Off: aimed from its grip and "
-                  "fired beside that line, a miss to one side at any distance (vr_agrunt_aim_converge)."),
-        toggle("Aim at What They Can Hit", vr_agrunt_aim_exposed)
-            .help("Partly behind cover, they aim at a part of you their gun's line reaches (your chest first, then your "
-                  "head, then whatever shows: shoulders, hips, legs; a rocket the floor at your feet), and hold fire while "
-                  "nothing shows. Off: always your chest, firing whenever they see your head (vr_agrunt_aim_exposed)."),
-        slider("Keep Aim On a Part", vr_agrunt_aim_exposed_hold, 0.f, 2.f, 0.1f, "%.1f s")
-            .help("How long they keep aiming at the part of you they picked while it still shows, before looking for "
-                  "the best one again (vr_agrunt_aim_exposed_hold)."),
-        slider("Chainsaw Thrust From", vr_agrunt_saw_start, 30.f, 70.f, 1.f, "%.0f units")
-            .help("A chainsaw's holder thrusts it only this near you (its middle to yours); 62 is a swing's "
-                  "(vr_agrunt_saw_start)."),
-        slider("Distance Scale", vr_agrunt_range_scale, 0.5f, 2.f, 0.05f, "%.2fx")
-            .help("Their fighting distances times this (vr_agrunt_range_scale)."),
-        slider("Walking Fire", vr_agrunt_range_walkfire, 0.f, 120.f, 5.f, "%.0f u/s")
-            .help("How fast it walks while it fires (on, back or round you, by its distance) and steps back while it "
-                  "reloads. 0: it stands to fire, as before (vr_agrunt_range_walkfire)."),
+        header("Their Hands"),
         toggle("Hands on the Grips", vr_agrunt_ik)
             .help("Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "
                   "two-handed weapon, or hangs free beside a one-handed one; melee swings carry the arm "

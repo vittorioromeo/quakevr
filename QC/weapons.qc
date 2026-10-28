@@ -2341,6 +2341,7 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
     dir = VR_AimCone_Bend(dir, VR_AIM_NARROW); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
 
     weaponfired(self, -1); // VR: its gun's muzzle flash (a grunt's: vr_weaponfx.cpp)
+    spread = spread * (1 + vr_fire_spread_extra); // VR: an armed humanoid's own gun, its accuracy (vr_armedrepl.qc VR_AGR_NativeShot)
     if(AD_EnemyPellets(shotcount, dir, spread, src)) return; // AD support: AD's pellets (vr_ad_bridge.qc)
     vr_tracer_hand = -1;
     vr_tracer_from = src; // (the clients start a grunt's tracers at its gun's muzzle)

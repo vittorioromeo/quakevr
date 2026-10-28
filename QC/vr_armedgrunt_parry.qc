@@ -37,9 +37,10 @@ float vr_agpar_dis;    // weapons knocked away by a parry
 vector vr_agpar_x;     // where the blow met its weapon
 string vr_agpar_why;   // why the last blow was not parried (the tests, developer)
 
-// Its chance and reaction by skill (easy: slow, often caught out; nightmare: quick, sure).
-float() VR_AGPar_SkillChance = { return skill < 1 ? 0.6 : skill < 2 ? 1 : skill < 3 ? 1.15 : 1.3; };
-float() VR_AGPar_SkillReact = { return skill < 1 ? 1.4 : skill < 2 ? 1 : skill < 3 ? 0.85 : 0.7; };
+// Its chance and reaction by skill (easy: slow, often caught out; nightmare: quick, sure), by Difficulty Impact
+// (vr_agrunt_ai_skill: these at 1, none at 0; vr_armedgrunt_ai.qc).
+float() VR_AGPar_SkillChance = { return VR_AGAI_Skill(0.6, 1.15, 1.3); };
+float() VR_AGPar_SkillReact = { return VR_AGAI_Skill(1.4, 0.85, 0.7); };
 
 // An armed one holding a weapon, parrying on (VR_Guard_Hand: it parries instead of throwing its arms up, whose drawn
 // guard would move its weapon where the game's line is not).

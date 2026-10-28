@@ -248,6 +248,16 @@ za::Vector<Item> pageDebugAutomation()
                   "units before you (none, a low wall, a door frame, a crate, a wall), each gun (shotgun, nailgun, rifle, "
                   "revolver, rocket launcher) with vr_agrunt_aim_exposed 0 then 1: its shots, its hits on you, the parts "
                   "it aimed at (agtest: expose: ...), checked. scratch1 N: the first N guns only."),
+        command("Armed Grunts: AI Behaviour", "scratch1 0; vr_agrunt_test 86")
+            .help("vr_agrunt_test 86 (vrtesthall's start): the skill table, then one armed humanoid ahead per case with "
+                  "the AI Behaviour knobs set: reaction time (its first shot), accuracy (its aim and spread off you), "
+                  "aggressiveness and fire rate (its distance, its shots), retreat readiness (its backing off), weapon "
+                  "search (does an unarmed one go for a shotgun lying 200 behind it), each checked against the defaults "
+                  "(agtest: ai: ...). scratch1 N: case N alone."),
+        command("Armed Grunts: Strafe Lean", "scratch1 0; vr_agrunt_test 87")
+            .help("vr_agrunt_test 87: a grunt 120 ahead moved sideways at 0 to 100 u/s; then its lean, its pelvis's roll "
+                  "and its chest's by sideways speed (aglean: ..., vr_agrunt_lean_info). scratch1 1: a screenshot at 80 "
+                  "u/s and one standing."),
         command("Armed Grunts: Fighting Distance", "scratch1 0; scratch2 0; vr_agrunt_test 48")
             .help("vr_agrunt_test 48 (vrtesthall's start; under 3 minutes): an armed grunt per weapon (shotguns, nail "
                   "guns, lightning, rockets, the grunt's and enforcer's guns, an axe) 260 units ahead hunting you, 6 s "

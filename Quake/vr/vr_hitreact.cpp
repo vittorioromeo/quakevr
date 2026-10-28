@@ -2562,6 +2562,17 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
             }
         }
     }
+    // (the strafe lean's measure, vr_agrunt_lean_info: its pelvis's roll by it, its chest's as solved)
+    const auto rollOf = [](const rigpose::Rigid& r) {
+        const glm::vec3 u = r.rot * glm::vec3{0.f, 0.f, 1.f};
+        return za::atan2(-u.y, u.z) * (180.f / 3.14159265f);
+    };
+    int leanHips = spec.chest;
+    for(int n = 0; leanHips >= 0 && rig->bones[leanHips].parent >= 0 && n < ragdoll::maxBones; n++)
+    {
+        leanHips = rig->bones[leanHips].parent;
+    }
+    float leanPelvis = 0.f;
     {
         // A take's kneel (vr_aglegs: its legs posed, the body above carried by its pelvis, the arms solved on it)
         float yawDeg = 0.f;
@@ -2591,6 +2602,18 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
                 posed[i] = composeRigid(legs[i], posed[i]);
             }
         }
+        // The strafe lean (vr_agrunt_strafe_lean): moving sideways, its pelvis and legs tipped toward the way it goes,
+        // about the floor under it, on every bone; the upper body's hold below keeps the chest aimed on the hips.
+        rigpose::Rigid leanTurn;
+        if(aglegs::lean(e, *rig, origin, yawDeg, s.take > 0.002f, leanTurn))
+        {
+            const float before = leanHips >= 0 ? rollOf(posed[leanHips]) : 0.f;
+            for(int i = 0; i < rig->numBones; i++)
+            {
+                posed[i] = composeRigid(leanTurn, posed[i]);
+            }
+            leanPelvis = leanHips >= 0 ? rollOf(posed[leanHips]) - before : 0.f;
+        }
     }
     // The procedural upper body (vr_agrunt_upper: the chest held on the hips, not the frames'; a pickup's crouch keeps
     // the frames'): laid under everything else, drawn too (boneTurns); the targets placed from the chest's anchor move
@@ -2609,6 +2632,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
             layOnChest(*rig, spec.chest, composeRigid(keyed, inverseRigid(posed[spec.chest])), posed);
         }
     }
+    aglegs::leanMeasured(e, leanPelvis, spec.chest >= 0 ? rollOf(posed[spec.chest]) : 0.f);
     const glm::vec3 anchorShift = uppered ? rigpose::apply(upperCorr, s.anchorAt) - s.anchorAt : glm::vec3{0.f};
     // A strike's body (bodyTurn: the torso, hips and head turned as QC turned the hands' targets) under the arms; the
     // same turns drawn on the bones (boneTurns).
@@ -3586,6 +3610,12 @@ bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
         {
             posedL[b] = legged ? composeRigid(legs[b], posed[b]) : posed[b];
         }
+        rigpose::Rigid leanTurn; // (the strafe lean on the legs': aglegs::lean, as relinkSkinned laid it)
+        const bool leaned = aglegs::leanNow(e, leanTurn);
+        for(int b = 0; b < rig.numBones && leaned; b++)
+        {
+            posedL[b] = composeRigid(leanTurn, posedL[b]);
+        }
         rigpose::Rigid upperCorr;
         const bool uppered = agarms::active(e) && agbody::upperNow(numberOf(e), upperCorr);
         rigpose::Rigid lay[ragdoll::maxBones];
@@ -3610,11 +3640,15 @@ bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
         {
             out[b] = composeRigid(out[b], lay[b]);
         }
+        for(int b = 0; b < rig.numBones && leaned; b++)
+        {
+            out[b] = composeRigid(out[b], leanTurn);
+        }
         for(int b = 0; b < rig.numBones && legged; b++)
         {
             out[b] = composeRigid(out[b], legs[b]);
         }
-        return kicked || bodied || legged || uppered || agarms::active(e);
+        return kicked || bodied || legged || leaned || uppered || agarms::active(e);
     }
     const bool armed = armsWanted(e) && armsNow(e, rig, posed, hdr, pose1, pose2, blend, arms);
     const bool kicked = reacting(e) && boneKicks(e, rig, posed, out);

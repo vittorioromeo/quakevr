@@ -467,6 +467,10 @@ void() HuntTarget =
     self.ideal_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
     self.nextthink = time + 0.1;
     SUB_AttackFinished (1);    // wait a while before first attack
+    if(self.vr_ag)
+    {
+        VR_AGAI_React(); // VR: an armed humanoid's reaction time (vr_agrunt_ai_reaction: 1 s at Normal, as above)
+    }
 };
 
 void() SightSound =
