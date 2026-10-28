@@ -1492,7 +1492,7 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
 }
 
 // ----------------------------------------------------------------------------
-// vr_rig2 1 (ROUND22.md, "Grunt rig, stage 2"): the authored rig (vr_rig2.cpp, quakevr/rigs/<model>.rig2.txt) as the
+// ROUND22.md, "Grunt rig, stage 2": the authored rig (vr_rig2.cpp, quakevr/rigs/<model>.rig2.txt) as the
 // ragdoll rig, not derived: its bones in its order (its "weapon", fixed on the right hand, a loose bone), its joints and
 // limits (Bone::framed: a ball's elliptical cone round its swing's middle, a hinge's range from its rest bend), each
 // part's hull of the vertices weighing at least hullShare on it, each vertex's blended weights (Rig::weights; vertBone
@@ -2002,7 +2002,7 @@ struct RigCache
 mem::Cache<RigCache> rigCache{"ragdoll rigs", mem::GameDirChange}; // (not a model reload: ragdolls point to their rigs)
 qvr::jobs::Site warmSite{"ragdoll rigs"}; // (warmRigs' parallelFor: vr_jobs_sites)
 
-// The rigs made from the authored rigs (vr_rig2 1: fromAuthored), apart (both kept: a ragdoll points to its own); those
+// The rigs made from the authored rigs (fromAuthored), apart (both kept: a ragdoll points to its own); those
 // of an older file (retireAuthored: a map spawned after the file changed) kept too, no more handed out.
 struct AuthoredRigs
 {
@@ -2353,32 +2353,29 @@ const Rig* rigFor(qmodel_t* model)
     {
         return nullptr;
     }
-    if(rig2::gameOn())
+    // The authored rig's, if it has one (and it fits: else the derived one)
+    if(Rig* r = findAuthored(model))
     {
-        // vr_rig2 1: the authored rig's, if it has one (and it fits: else the derived one)
-        if(Rig* r = findAuthored(model))
+        return r;
+    }
+    // (every model with an authored rig file: the grunt's, soldier.mdl and the armed vrgrunt.mdl; the enforcer's,
+    // enforcer.mdl and the armed vrenforcer.mdl)
+    const rig2::Rig* a = za::find(authoredRigs.failed.begin(), authoredRigs.failed.end(), model) == authoredRigs.failed.end()
+                             ? rig2::rigFor(model)
+                             : nullptr;
+    if(a)
+    {
+        za::UniquePtr<Rig> r = za::makeUnique<Rig>();
+        DeriveLog log;
+        if(fromAuthored(model, static_cast<const aliashdr_t*>(Mod_Extradata(model)), *table, *a, *r, log))
         {
-            return r;
-        }
-        // (every model with an authored rig file: the grunt's, soldier.mdl and the armed vrgrunt.mdl, stage 2; the
-        // enforcer's, enforcer.mdl and the armed vrenforcer.mdl, stage 2b)
-        const rig2::Rig* a = za::find(authoredRigs.failed.begin(), authoredRigs.failed.end(), model) == authoredRigs.failed.end()
-                                 ? rig2::rigFor(model)
-                                 : nullptr;
-        if(a)
-        {
-            za::UniquePtr<Rig> r = za::makeUnique<Rig>();
-            DeriveLog log;
-            if(fromAuthored(model, static_cast<const aliashdr_t*>(Mod_Extradata(model)), *table, *a, *r, log))
-            {
-                sayLog(log);
-                Rig* made = r.get();
-                authoredRigs.rigs.pushBack(static_cast<za::UniquePtr<Rig>&&>(r));
-                return made;
-            }
             sayLog(log);
-            authoredRigs.failed.pushBack(model);
+            Rig* made = r.get();
+            authoredRigs.rigs.pushBack(static_cast<za::UniquePtr<Rig>&&>(r));
+            return made;
         }
+        sayLog(log);
+        authoredRigs.failed.pushBack(model);
     }
     return derivedRigFor(model);
 }
@@ -2491,8 +2488,8 @@ void warmRigs(qmodel_t* const* models, int count)
             rigCache.failed.pushBack(j.model);
         }
     }
-    // vr_rig2 1: the authored rigs made here too (a few ms each, on this thread)
-    for(int i = 0; i < count && rig2::gameOn(); i++)
+    // The authored rigs made here too (a few ms each, on this thread)
+    for(int i = 0; i < count; i++)
     {
         if(models[i] && tableOf(models[i]) && rig2::rigFor(models[i]))
         {
@@ -3487,7 +3484,6 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
     {
         normals->resize(static_cast<za::SizeT>(rig.numVerts));
     }
-    const bool armSkin = vr_ragdoll_arm_skin.value != 0.f;
     za::Array<Neck, maxBones> necks{}; // (each cut bone's, once: not once per vertex)
     for(int b = 0; b < p.bodies && p.cut; b++)
     {
@@ -3526,19 +3522,6 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
                 }
                 out[static_cast<za::SizeT>(v)] = at;
             }
-        }
-        int bl[3];
-        float wl[3];
-        if(!rig.authored && !cut && armSkin && agarms::ragdollWeights(rig.model, v, b, bl, wl) && bl[0] < p.bodies && bl[1] < p.bodies && bl[2] < p.bodies &&
-           !(p.cut & ((1u << bl[0]) | (1u << bl[1]) | (1u << bl[2]))))
-        {
-            // (vr_ragdoll_arm_skin: as drawn, VR_SyntheticModel's blend)
-            glm::vec3 at{0.f};
-            for(int i = 0; i < 3; i++)
-            {
-                at += wl[i] * (rots[static_cast<za::SizeT>(bl[i])] * (r * p.scale) + poss[static_cast<za::SizeT>(bl[i])]);
-            }
-            out[static_cast<za::SizeT>(v)] = at;
         }
         if(normals)
         {
@@ -3701,12 +3684,6 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     }
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(sh) + sh->meshdesc);
     mdldequant::prepare(src); // (its dequantised offsets now if it isn't drawn yet: restVertex)
-    // vr_ragdoll_arm_skin: an armed humanoid's arms drawn with their living skin's blend (vr_agarms: the shoulder turned
-    // about its joint between the chest and the upper arm, the elbow between the arm's bones), not each vertex rigid on
-    // one bone (its shoulder's skin torn and folded as a raised arm fell with it). Its skin made now if not yet.
-    glm::vec4 armRow{0.f};
-    const bool armSkin = vr_ragdoll_arm_skin.value != 0.f && !rig2::gameOn() && hitreact::armSkinRow(src, sh, *rig, 0, armRow); // (vr_rig2 1: the arm skin made for the authored rig)
-    int blended = 0;
     for(int v = 0; v < numVerts; v++)
     {
         iqmvert_t& o = verts[v];
@@ -3724,35 +3701,6 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
         o.weight[1] = o.weight[2] = o.weight[3] = 0;
         o.idx[0] = rig->vertBone[desc[v].vertindex];
         o.idx[1] = o.idx[2] = o.idx[3] = 0;
-        int bl[3];
-        float wl[3];
-        if(armSkin && agarms::ragdollWeights(src, desc[v].vertindex, rig->vertBone[desc[v].vertindex], bl, wl))
-        {
-            // (bytes summing to 255, the heaviest first: the wounds' side and the stumps read the first)
-            int order[3] = {0, 1, 2};
-            for(int i = 0; i < 2; i++)
-            {
-                for(int j = i + 1; j < 3; j++)
-                {
-                    if(wl[order[j]] > wl[order[i]])
-                    {
-                        const int t = order[i];
-                        order[i] = order[j];
-                        order[j] = t;
-                    }
-                }
-            }
-            int left = 255;
-            blended += wl[order[0]] < 0.999f ? 1 : 0;
-            for(int i = 0; i < 3; i++)
-            {
-                const int k = order[i];
-                const int b = i < 2 ? static_cast<int>(wl[k] * 255.f + 0.5f) : left;
-                o.weight[i] = static_cast<uint8_t>(za::clamp(za::min(b, left), 0, 255));
-                o.idx[i] = static_cast<uint8_t>(bl[k]);
-                left -= o.weight[i];
-            }
-        }
     }
     (void)fillAO(*rig, verts, numVerts); // (else later: catchUpAO)
     memcpy(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<size_t>(numIndexes));
@@ -3788,19 +3736,19 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
     }
     memcpy(mod->cache.data, hdr, static_cast<size_t>(total));
     Hunk_FreeToLowMark(start);
-    Con_DPrintf("ragdoll: %s made (%d vertices, %d bones, %d on the arm skin's blend)\n", mod->name, numVerts, numBones, blended);
+    Con_DPrintf("ragdoll: %s made (%d vertices, %d bones)\n", mod->name, numVerts, numBones);
     return true;
 }
 
 extern "C" void VR_RagdollSwap(void)
 {
     ragdoll::swapModels(); // (the authored rig's: VR_Rig2Swap, after the armed ones' arms are solved)
-    rig2::advanceLerps();  // (vr_rig2 1: the live grunts' frame lerps, as drawing their .mdl would)
+    rig2::advanceLerps();  // (the live grunts' frame lerps, as drawing their .mdl would)
 }
 
 extern "C" void VR_Rig2Swap(void)
 {
-    rig2::liveAll();    // (vr_rig2 1: the live grunts not drawn by their arms' solve, vr_rig2_game.cpp)
+    rig2::liveAll();    // (the live grunts not drawn by their arms' solve, vr_rig2_game.cpp)
     rig2::swapModels(); // (and the Rig Studio's subject on the authored rig: vr_rig2.cpp)
     agarmor::relink();  // (their armour, drawn with their bones: vr_agarmor.cpp)
 }

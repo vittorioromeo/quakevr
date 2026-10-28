@@ -832,7 +832,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
         ragdoll::bonePose(*rig, drawnPose, b, rot, pos);
         if(rig->authored && rig2::drawnBone(num, b, rot, pos))
         {
-            return; // (vr_rig2 1: where the authored rig drew it, its arms on its weapons too: vr_rig2_game.cpp)
+            return; // (where the authored rig drew it, its arms on its weapons too: vr_rig2_game.cpp)
         }
         if(vr_ragdoll_posed_arms.value != 0.f)
         {

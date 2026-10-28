@@ -271,7 +271,7 @@ void takeModel(const qmodel_t* model)
             st.doc.model = model->name;
             st.doc.base = base;
         }
-        st.doc.authored = st.rig->authored; // (vr_rig2 1: the authored rig's bones and its own files)
+        st.doc.authored = st.rig->authored; // (the authored rig's bones and its own files)
         for(int b = 0; b < st.numBones; b++)
         {
             st.doc.boneName[b] = st.rig->bones[b].name;
@@ -591,9 +591,25 @@ void redo_f()
     redo();
 }
 
+// The derived rig's own overrides (its bones' rests and limits, its weights: rigs/<model>.rig.txt) refused for an
+// authored rig's subject: its rest, limits and weights are its rig2.txt's (the Range of Motion window edits them).
+[[nodiscard]] bool overridesRefused()
+{
+    if(st.doc.authored)
+    {
+        Con_Printf("rigstudio: the authored rig's rest, limits and weights are its rig2.txt's (Range of Motion)\n");
+        return true;
+    }
+    return false;
+}
+
 // vr_rigstudio_weight <vertex> <bone> <weight>: the vertex's weight on the bone set (the others scaled to make 1).
 void weight_f()
 {
+    if(overridesRefused())
+    {
+        return;
+    }
     if(Cmd_Argc() < 4 || !st.rig)
     {
         Con_Printf("usage: vr_rigstudio_weight <vertex> <bone> <weight>\n");
@@ -652,6 +668,10 @@ void vertex_f()
 // vr_rigstudio_rest <bone> pivot|end <x> <y> <z> | cone|twist|lower|upper <deg> | reset
 void rest_f()
 {
+    if(overridesRefused())
+    {
+        return;
+    }
     if(Cmd_Argc() < 3 || !st.rig)
     {
         Con_Printf("usage: vr_rigstudio_rest <bone> pivot|end <x> <y> <z> | cone|twist|lower|upper <degrees> | reset\n");
@@ -821,7 +841,7 @@ void selverts_f()
 
 void assign_f()
 {
-    if(Cmd_Argc() < 2)
+    if(Cmd_Argc() < 2 || overridesRefused())
     {
         return;
     }
@@ -3415,7 +3435,7 @@ void clientFrame()
     {
         buildGeometry();
         ensureWeights();
-        romFrame(); // (Range of Motion: its pose, the old rig's locals from it, the authored rig's drawing)
+        romFrame(); // (Range of Motion: its pose, the authored rig's drawing)
         evaluate(st.frame, st.F, st.P, true);
         bool armsTouched = false;
         for(int b = 0; b < st.numBones; b++)

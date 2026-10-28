@@ -1046,6 +1046,12 @@ constexpr const char* retiredCvars[] = {
     "vr_adgun_eliminator_splash",
     "vr_toolgun_menu_height", // 1.0.1's: the toolgun's own panel replaced its VR Settings pages (7baa39660)
     "vr_agrunt_shotdisarm_absorb", // 2026-10-27: vr_agrunt_shotdisarm_block (on by default: a shot on the weapon stops there)
+    // The old derived rig of the grunt and the enforcer (ROUND22.md, "The authored rig the only one"): the authored rig
+    // always theirs, its choice and the old rig's own looks gone.
+    "vr_rig2",
+    "vr_rig2_game",
+    "vr_rig2_look",
+    "vr_ragdoll_arm_skin",
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

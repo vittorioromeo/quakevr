@@ -158,10 +158,6 @@ bool drawnArmBone(int num, const qmodel_t* model, const ragdoll::Rig& rig, int b
 // with no hand bone: its weapon is drawn by it on the forearm, vr_hitreact.cpp ragdollProps). False: none.
 bool ragdollWrist(int num, const qmodel_t* model, int side, rigpose::Rigid& out);
 
-// vr_ragdoll_arm_skin: an armed model's ragdoll drawn with its arm skin's blend (vr_ragdoll.cpp VR_SyntheticModel and
-// skinnedVertices): vertex `v`'s rig bones and weights (up to 3, summing to 1; `bodyBone` its own bone, for its share of the
-// body: the chest's if that is an arm's). False: rigid on its own bone (not an arm's vertex, or no skin made yet).
-bool ragdollWeights(const qmodel_t* model, int v, int bodyBone, int bones[3], float weights[3]);
 
 // kickInstance: `e`'s arm rows (blockRows, the poses' units), its model's skin's. False: none (its rest data has no skin).
 bool rows(const entity_t* e, const aliashdr_t* hdr, glm::vec4* out);
@@ -175,7 +171,7 @@ void clearErr();
 void printErr();
 
 void registerCommands();
-// The models' skins and the entities' arms forgotten (vr_rig2's latch: the grunt's rig another; made again as drawn).
+// The models' skins and the entities' arms forgotten (a rig file reloaded: rig2::latch; made again as drawn).
 void resetModels();
 
 // The Pose Studio's Live tape (vr_poselive.hpp): `ent`'s state here (its eases, its last frame's) as bytes, its length

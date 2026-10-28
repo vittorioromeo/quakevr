@@ -25315,7 +25315,7 @@ collapsed, the P3 debris from the same shell), the absorb/block/helmet/blade/qua
 cuirass's seam mapped round its own outline (its lames run straight round, cut at the shoulders).
 
 Checklist:
-- `[ ] Armour P0 {test:none}: Rig Studio (vr_rig2 1, Debug > Armed Humanoids' Armour (P0): Green/Yellow/Red): cuirass and helmet on the grunt fit at rest, in Range of Motion sweeps and Random Pose; in a map with vr_rig2 1 and vr_agarmor 4 live grunts, hit reactions and ragdolls keep their plates; judge the look (generated plates vs hand-made)`
+- `[ ] Armour P0 {test:none}: Rig Studio (Debug > Armed Humanoids' Armour (P0): Green/Yellow/Red): cuirass and helmet on the grunt fit at rest, in Range of Motion sweeps and Random Pose; in a map with vr_agarmor 4 live grunts, hit reactions and ragdolls keep their plates; judge the look (generated plates vs hand-made)`
 ## Armed humanoids: the stuck tug after a knockdown; a shot on the weapon hurts only the weapon (worktree `gorefx`, branch `agent/agtughit`, 2026-10-28)
 
 His notes: "after an armed humanoid is shoved to the ground, sometimes grabbing their weapon doesn't work: I'm stuck in
@@ -25481,3 +25481,60 @@ Misc/quakevr/pose_defaults.py, eyeshot_sheet.py (new); docs/vr-port/TESTING.md.
 - [ ] Same with two pistols, an axe, a super axe and its fists, and with an enforcer: two held, its palms turn to you
   still holding them; the axe's free hand pushes; a two-handed weapon goes across its body. Tune any in the Pose
   Studio (Shove: wind-up, push, recover) {test:vr_agrunt_test 84}
+
+## The authored rig the only one (worktree `goreflesh`, branch `agent/rig2only`, 2026-10-28)
+
+His ask: the new rig the only rig of the grunt and the enforcer, the old one and its setting gone, the code paths and
+the Rig Studio simpler. The behaviour is origin/next's `vr_rig2 1`, always.
+
+**Removed**
+- Settings: `vr_rig2`, `vr_rig2_game` (QC's mirror), `vr_rig2_look` (the live ones drawn as their .mdl again: the
+  old look), `vr_ragdoll_arm_skin` (the derived rig's arm-skin blend on armed ragdolls): in `retiredCvars`, an old
+  config's lines are ignored quietly. No configVersion step (nothing to carry over).
+- `rig2::gameOn`; the latch (`VR_Rig2Latch`, a map spawned) now only remakes what a reloaded rig file feeds.
+- QC (`vr_armedmon.qc`): the old rig's shoulders, arm length and the enforcer's old fit; the authored ones kept.
+- The derived rig's arm skin for armed ragdolls (`VR_SyntheticModel`, `skinnedVertices`, `agarms::ragdollWeights`):
+  only an armed model (vrgrunt, vrenforcer) had one, and they are on the authored rig.
+- vr_rig2_check's old-rig comparison (the old rig moved alike beside every measure, `measurePose`'s `old`): the
+  authored rig's measures, verdicts and lines as before.
+- Rig Studio: Range of Motion's "Mesh drawn on: Authored / Old rig" and the old rig moved alike (`oldFromRom`,
+  `rig2::drawPosedDerived`, `vr_rigstudio_rom rig old|new`); `vr_rig2anim_import` (the old animations carried over:
+  done, the old files gone) and its Debug menu entry. For an authored subject the Rest Pose, Weights and Paint tools
+  (and T/W/P, the Properties' Rest Pose header, `vr_rigstudio_weight`, `_rest`, `_assign`) are gone: they edited the
+  derived rig's overrides, which an authored subject never reads (its rest, limits and weights are its rig2.txt's,
+  Range of Motion's). Other monsters' subjects keep them all, and the Timeline, as before.
+- Debug menu: "Grunt and Enforcer on the Authored Rig (Next Map)", "Authored Rig: Live Ones' Look Check", "Armed
+  Ragdolls: Arm Skin" and "Carry the Old Rig's Animations to the Authored Rig" gone; "Print the Authored Rig's Arms"
+  (`vr_rig2_arms`) added where the toggle was (its help named it).
+- Data: `quakevr/rigs/vrgrunt.rig.txt`, `vrenforcer.rig.txt` (empty override files of the old rig) and
+  `quakevr/anims/vrgrunt/taunt.anim.txt` (the old rig's taunt; `taunt.anim2.txt` is the one read).
+
+**Kept**
+- Other monsters (knight, ogre, zombie, dog, scrag, death knight, the AD monsters, the player): their derived rigs,
+  untouched (`rigFor` gives the authored rig only to a model with a rig2.txt; else the derived one, as before).
+- The grunt's and the enforcer's seed tables: the authored rig reads their vertex counts and death frames, the
+  enforcer's torso proxy is fitted on its derived chest (`agbody`), the AD soldier uses the grunt's seeds, and a model
+  whose authored rig doesn't fit falls back to the derived one (as before).
+- Not removed (follow-up): `vr_agarms 0` (the rigid arms) and the GPU arm/leg skin (`RigArm`/`RigLeg` in vr_glsl.h,
+  `hitreact::armSkinRow`, `agarms::restRow`/`rows`, the rest rows' 4th row) are unreachable now (an armed one is drawn
+  as "#rig2", which `kickInstance` never takes), but they are entangled with `vr_agarms 0`'s hand stats and agarms'
+  CPU skin that the glitch finder still measures: a separate change.
+
+**Size**: the code (Quake, QC) 854 lines removed, 248 added (most of the added: comments rewritten); with the docs and
+data 932 removed, 280 added. The most: vr_rig2_check.cpp -218, vr_rigdata.cpp -209 (the importer), the Range of Motion
+-94, vr_ragdoll.cpp -78.
+
+**Merged origin/next** with agent/armorp0's armour (`vr_agarmor`): it had no vr_rig2 check of its own (it draws on
+whatever is on the authored rig); its Debug menu help and its checklist line no longer say "Grunt on the Authored Rig
+on" / "vr_rig2 1".
+
+**Tests** (A/B: origin/next with `vr_rig2 1` before each test, this branch with nothing: `scratch/r2o_suite.sh`,
+`r2o_ab.sh`; every verdict line the same on both): armed grunt tests 1 17/17, 35 6/6, 38 3/3, 42 20/20, 47 110/110,
+49 5/5, 66 1/1, 68 4/4, 69 10/10, 81 4/4, 83 63/63 on both; 60 5/1, 67 0/2, 80 0/4 and 48 (timed out at 400 s) the
+same on origin/next (not from this change); 82 "0 passed, 0 failed" on both (it needs `vr_rigstudio_test_rig2anim`'s
+keys in the same `vr_rigdata_dir`: the suite ran it so, still 0/0: worth a look). Rig Studio: subjects 14/14, aim 3/1
+(as origin/next), align 58/58, posekeys 13/1 (as origin/next), offhand 5/5, stretch done, rom 9/9, rom weapon 6/6,
+typing 11/11, rig2anim 10/10. `vr_rig2_check`: grunt 22 passed 13 failed, enforcer 28/7, the same on origin/next
+(the failing joints are the rig's own, measured as before). Glitch finder (test 46): the same lines; its "close"
+numbers move a few degrees between runs of the same build (two runs of this branch: the nailgun's up worst 7 then 4,
+origin/next's 12), so no change beyond the spread.

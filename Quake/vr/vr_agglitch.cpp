@@ -378,10 +378,7 @@ void report_f()
     }
     (void)files::writeText((dir + "/" + label + "_frames.csv").cStr(), rows.toStringView());
     Con_Printf("agglitch: written %s/%s_summary.csv, _top.csv, _frames.csv\n", dir.cStr(), label);
-    if(rig2::gameOn())
-    {
-        rig2::armsReport_f(); // (vr_rig2 1: how the arms sat on the authored rig over the same frames)
-    }
+    rig2::armsReport_f(); // (how the arms sat on the authored rig over the same frames)
 }
 
 void stop_f()

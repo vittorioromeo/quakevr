@@ -798,7 +798,7 @@ void CL_RelinkEntities (void)
 	VR_RelinkHeld (); // QVR: what the local player carries is drawn in the hands
 	VR_RagdollSwap (); // QVR: the ragdolls drawn with their skinned models (vr/vr_ragdoll.cpp)
 	VR_RelinkArmedGrunts (); // QVR: armed grunts' weapons on their drawn hands (vr/vr_hitreact.cpp)
-	VR_Rig2Swap (); // QVR: vr_rig2 1: live grunts drawn on the authored rig, and the Rig Studio's subject (vr/vr_rig2_game.cpp)
+	VR_Rig2Swap (); // QVR: live grunts and enforcers drawn on the authored rig, and the Rig Studio's subject (vr/vr_rig2_game.cpp)
 	VR_RelinkWornTanks (); // QVR: their back tanks on their drawn backs (vr/vr_adtank.cpp)
 }
 

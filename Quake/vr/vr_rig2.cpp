@@ -64,14 +64,13 @@ struct Drawn
     bool swapped{false};
     int drawsFrame{-1}, draws{0}, lastDraws{0}; // its bone matrices handed to the renderer (vr_rig2_draw_info)
     int studioFrame{-1};       // the Rig Studio's pose published at (drawPosed: the game's drawLive yields to it)
-    qmodel_t* useSkinned{nullptr}; // drawn with this skinned copy (drawPosedDerived: the derived rig's "#rag"), else "#rig2"
     rigpose::Rigid F[maxBones]; // the bones as published (drawnBone: a ragdoll made of it starts there)
 };
 za::Vector<Drawn> drawn;
 
-// vr_rig2 in the game, read when a map is spawned (latch): -1 not read yet.
-int gameLatched = -1;
-int gameGenerations = 0; // the rigs' generations then (a rig's file changed: what is made from it made again)
+// The rigs' generations as a map was last spawned (latch: a rig's file changed, what is made from it made again); -1 not
+// read yet.
+int gameGenerations = -1;
 // The generation each skinned model was made from (rebuilt when the rig's weights change: a reload)
 struct Made
 {
@@ -547,15 +546,6 @@ PhysJoint physJoint(const Rig& rig, int b)
     return j;
 }
 
-bool gameOn()
-{
-    if(gameLatched < 0)
-    {
-        latch();
-    }
-    return gameLatched == 1;
-}
-
 void latch()
 {
     int generations = 0;
@@ -563,18 +553,12 @@ void latch()
     {
         generations += e.rig ? e.rig->generation + 1 : 0;
     }
-    const int now = vr_rig2.value != 0.f ? 1 : 0;
-    const bool changed = gameLatched >= 0 && (now != gameLatched || (now == 1 && generations != gameGenerations));
-    gameLatched = now;
+    const bool changed = gameGenerations >= 0 && generations != gameGenerations;
     gameGenerations = generations;
-    if(vr_rig2_game.value != static_cast<float>(now))
-    {
-        Cvar_SetValueQuick(&vr_rig2_game, static_cast<float>(now)); // (QC's armed grunts and enforcers: their shoulders, vr_armedmon.qc)
-    }
     if(changed)
     {
         resetGame();
-        Con_Printf("vr_rig2 %d: the grunt and the enforcer on the %s rig\n", now, now ? "authored" : "old");
+        Con_Printf("rig2: an authored rig's file changed: what is made from it made again\n");
     }
 }
 
@@ -981,7 +965,7 @@ void reload()
 namespace
 {
 void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, bool studio, uint32_t hidden = 0,
-    qmodel_t* useSkinned = nullptr, const Stretches* st = nullptr)
+    const Stretches* st = nullptr)
 {
     Drawn* d = nullptr;
     for(Drawn& x : drawn)
@@ -1013,7 +997,6 @@ void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, in
     d->model = model;
     d->frame = host_framecount;
     d->studioFrame = studio ? host_framecount : d->studioFrame;
-    d->useSkinned = useSkinned;
     d->bones = za::min(numBones, maxBones);
     const Rig* rig = hidden ? rigFor(model) : nullptr;
     for(int b = 0; b < d->bones; b++)
@@ -1045,16 +1028,6 @@ void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, in
 }
 } // namespace
 
-void drawPosedDerived(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones)
-{
-    const ragdoll::Rig* rig = model ? ragdoll::derivedRigFor(const_cast<qmodel_t*>(model)) : nullptr;
-    qmodel_t* sk = rig ? ragdoll::skinnedModelOf(*rig) : nullptr;
-    if(sk && sk->type == mod_alias)
-    {
-        publishDrawn(entnum, model, F, numBones, true, 0, sk);
-    }
-}
-
 void drawPosed(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones)
 {
     publishDrawn(entnum, model, F, numBones, true);
@@ -1062,7 +1035,7 @@ void drawPosed(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int n
 
 void drawLive(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones, uint32_t hidden, const Stretches* st)
 {
-    publishDrawn(entnum, model, F, numBones, false, hidden, nullptr, st);
+    publishDrawn(entnum, model, F, numBones, false, hidden, st);
 }
 
 bool drawnBone(int num, int b, glm::quat& rot, glm::vec3& pos)
@@ -1136,7 +1109,7 @@ void swapModels()
         {
             continue;
         }
-        qmodel_t* sk = d.useSkinned ? d.useSkinned : skinnedFor(d.model); // (the Rig Studio's old rig: the derived "#rag")
+        qmodel_t* sk = skinnedFor(d.model);
         if(!sk)
         {
             continue;
@@ -1229,7 +1202,7 @@ const qmodel_t* studioPosedModel(const entity_t* e)
     }
     for(const Drawn& d : drawn)
     {
-        if(e == &cl_entities[d.num] && !d.useSkinned && d.studioFrame >= host_framecount - 1 && d.model &&
+        if(e == &cl_entities[d.num] && d.studioFrame >= host_framecount - 1 && d.model &&
             (e->model == d.model || (d.swapped && e->model == d.skinned)))
         {
             return d.model;
@@ -1268,7 +1241,7 @@ void drawInfo()
     {
         Con_Printf("rig2 draw: entity %d, published frame %d (now %d), swapped %d, drawn %d times last frame\n", d.num, d.frame,
             host_framecount, d.skinned ? 1 : 0, d.drawsFrame >= host_framecount - 1 ? (d.drawsFrame == host_framecount ? d.draws : d.lastDraws) : 0);
-        model("old", d.model);
+        model("mdl", d.model);
         model("authored", d.skinned);
         if(d.num > 0 && d.num < cl_max_edicts && cl_entities)
         {
@@ -1285,7 +1258,7 @@ void drawInfo()
                 e.model = m;
                 float retro[4], part[4];
                 VR_RetroAlias(&e, h, 1, retro, part);
-                Con_Printf("  %s retro: set %g, Quake skin %gx%g, light texel share %g\n", k == 0 ? "old" : "authored", retro[0],
+                Con_Printf("  %s retro: set %g, Quake skin %gx%g, light texel share %g\n", k == 0 ? "mdl" : "authored", retro[0],
                     retro[1], retro[2], VR_RetroLightSkinScale(m, h, e.skinnum));
             }
         }
