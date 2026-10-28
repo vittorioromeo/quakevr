@@ -551,9 +551,11 @@ The plan as designed:
 ## Nail pistol in maps (2026-10-25)
 
 - Vittorio is unsure whether nail pistols should appear as pickups in maps (crates / replacing some weapon spawns); armed grunts carrying them may be enough. Revisit after beta4.
-- **Arena mode (armed humanoids survival)** (Vittorio, 2026-10-27; IN PROGRESS 2026-10-28: the map and the wave
-  director are on `next` (`feature/arenamap`, `feature/arenadir`); the boss-wave perks are the next piece
-  (`agent/arenaperk`); also check there that a wave foe's dropped gun is reachable before `vr_dropcap` fades it; plan
+- **Arena mode (armed humanoids survival)** (Vittorio, 2026-10-27; SHIPPED to `next` 2026-10-28 for his playtest: the
+  map `feature/arenamap`, the wave director `feature/arenadir`, the boss-wave perks `feature/arenaperk`; open afterwards:
+  may a perk push armour past 100 (Iron Skin reads 125/175/225), raise the dropped-gun cap
+  (`vr_enemy_weapon_drop_max` 48, enemy guns only) for arena runs instead of the Spoils exemption, a boss "heaviness"
+  knob, perks surviving a death (a death restarts the run today); movement speed was dropped — no safe knob; plan
   `C:\OHWorkspace\qvr-kit\scratch\arena\PLAN.md`):
   a survival arena that shows off the armed humanoids.
   Waves get progressively harder and more frequent: first unarmed grunts, then grunts with nail pistols and shotguns,
