@@ -1049,6 +1049,7 @@ void() VR_AT5_Supplies =
     cvar_set("vr_arena_perk_count", "3");
 
     // vr_arena_skill_impact 0: the generosity is the knobs' own value at every skill -- the arena as it was.
+    VR_AT_SetDefaults(); // (the knobs back to their defaults first: this block reads vr_arena_medkits_after 2 ...)
     cvar_set("vr_arena_skill_impact", "0");
     for(sk = 0; sk <= 3; sk++)
     {
