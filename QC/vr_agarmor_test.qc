@@ -4,6 +4,7 @@
 // break (the bit off, the debris a prop you can't force-grab, gone after its fade), a shotgun's pellets over two
 // pieces, a cut stopped by a plate then let through once it broke, the unarmoured grunt's damage untouched, a gibbing
 // shedding every plate, and the skill rolls over 200 spawns each. Ends on "agarmor test: N passed, M failed".
+// `vr_agarmor_test 2`: three armed grunts ahead in full green, yellow and red sets (the eyeshots).
 
 entity vr_art_a, vr_art_b; // the armoured grunt, the bare one
 float vr_art_state;       // 0 idle, 1 the checks, 2 waiting for the debris to fade
@@ -211,10 +212,19 @@ void() VR_AgArmor_TestFrame =
         {
             return;
         }
+        float request = cvar("vr_agarmor_test");
         cvar_set("vr_agarmor_test", "0");
         entity p = find(world, classname, "player");
         if(!p)
         {
+            return;
+        }
+        if(request == 2)
+        {
+            // (the eyeshots: green, yellow and red full sets side by side, facing the player)
+            VR_AgArmor_Give(VR_ART_Spawn(p, -44), 1, 1023);
+            VR_AgArmor_Give(VR_ART_Spawn(p, 0), 2, 1023);
+            VR_AgArmor_Give(VR_ART_Spawn(p, 44), 3, 1023);
             return;
         }
         vr_art_pass = 0;
