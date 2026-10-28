@@ -144,6 +144,18 @@ same ticks file (a passed item's text a line, a failed one's after `[fail] `; an
 mock: `menu_vr 72`, five `vr_mock_key downarrow` select the first item, `rightarrow`/`leftarrow` pick its button,
 `enter` presses it; `developer 1` prints `checklist: item <n>, <button> pressed`.
 
+### Test numbers
+
+The numbered test cvars (`vr_agrunt_test N`, `vr_ad_test N`, `vr_rv_test`, `vr_np_test`, `vr_flare_test`,
+`vr_reload_test`, `vr_pickup_test`) have one registry: `QC/test_numbers.txt` (its header has the format). To add a
+test, **claim its number there** in the same commit as its dispatch branch: a number no line has (a block such as
+`vr_agrunt_test 50-59` belongs to its file). `python Misc/quakevr/check_test_numbers.py` (run by the kit's build.sh,
+which fails on it) checks: no number claimed by two lines or taken by two dispatch branches (the second would be dead
+code: 74 and 84 clashed this way), every dispatched number and every Debug menu command's number registered, every
+registered number dispatched (`N*`: run by the dispatcher's fall-through). `--list` prints the dispatched numbers. A new
+dispatcher (another cvar, or a sub-dispatcher a range is handed to) gets a `dispatch` line. Every `vr_agrunt_test` ends
+on `agtest: test N over: P passed, F failed` (`-QuitOn "test N over"`).
+
 ### Checklist scenarios: how to write one
 
 A checklist line gets a one-press test scene by ending with ` {test:<id>}` (the tag is not shown, not part of the

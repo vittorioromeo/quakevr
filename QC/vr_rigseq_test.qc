@@ -48,6 +48,8 @@ void() VR_RST_Frame =
         vr_rst_end = vr_rst_events = vr_rst_timely = vr_rst_stopped = vr_rst_len = vr_rst_frames = 0;
         vr_rst_lastframe = -1;
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 160);
+        // (the sequence: the test's own, in memory, as the studio's commands make it; read from the files at the end)
+        localcmd("vr_rig2anim_check fixture seq\n");
         vr_agt_until = time + 0.5;
         vr_agt_step = 1;
         return;
@@ -89,6 +91,7 @@ void() VR_RST_Frame =
     VR_AGT_Check(sprintf("rigseq: its frame climbed through %g values, -1 after its end (%g)", vr_rst_frames, g.vr_rigseq_frame),
         vr_rst_frames >= 8 && g.vr_rigseq_frame == -1);
     VR_AGT_Print(sprintf("rigseq: %g passed, %g failed", vr_agt_passed, vr_agt_failed));
+    localcmd("vr_rig2anim_check fixture off\n");
     VR_AGT_Remove(g);
     vr_agt_grunt = world;
     cvar_set("vr_agrunt_freeze", ftos(vr_rst_freeze));
@@ -206,7 +209,8 @@ void() VR_RST_KeysFrame =
         vr_rst_keysframe = 3;
         vr_rst_hold = 29 + vr_rst_keysframe;
         g.frame = vr_rst_hold;
-        localcmd("vr_rigseq 0\n");
+        // (its keys: the test's own, in memory, as vr_rigstudio_test_rig2anim keys them; read from the files at the end)
+        localcmd("vr_rig2anim_check fixture keys\nvr_rigseq 0\n");
         vr_agt_until = time + 0.6; // (its frame's lerp over, the upper body's hold settled)
         vr_agt_step = 1;
         return;
@@ -239,8 +243,24 @@ void() VR_RST_KeysFrame =
         vr_agt_step = 3;
         return;
     }
-    VR_AGT_Print("rig2anim: test 82 over");
-    localcmd("vr_rig2anim_check end\n");
+    if(vr_agt_step == 3)
+    {
+        cvar_set("vr_rig2anim_check_failed", "-1");
+        localcmd("vr_rig2anim_check end\n");
+        vr_agt_until = time + 2; // (a give-up only: the engine sets it at its next command buffer)
+        vr_agt_step = 4;
+        return;
+    }
+    // The engine's totals (each keyed bone drawn against its key) counted as this test's.
+    float pa = cvar("vr_rig2anim_check_passed");
+    float fa = cvar("vr_rig2anim_check_failed");
+    if(fa < 0 && time < vr_agt_until)
+    {
+        return;
+    }
+    VR_AGT_Check(fa < 0 ? "rig2anim: timed out waiting for the check's totals" : sprintf("rig2anim: the check %g passed, %g failed",
+        pa, fa), fa == 0 && pa > 0);
+    localcmd("vr_rig2anim_check fixture off\n");
     VR_AGT_Remove(g);
     vr_agt_grunt = world;
     cvar_set("vr_agrunt_test", "0");

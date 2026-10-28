@@ -245,6 +245,7 @@ void armsReport_f(); // vr_rig2_arms: the arms laid on the authored rig since it
 void partsReport_f(); // vr_rig2_parts: each authored ragdoll's parts as drawn, its joints' gaps
 void liveCheck_f();   // vr_rig2_live_check: the live ones drawn on the authored rig against their frames
 void animCheck_f();   // vr_rig2anim_check: the Rig Studio's override keys as drawn on them (vr_agrunt_test 82)
+void animCheckInit(); // ... its totals' cvars (vr_rig2anim_check_passed, _failed)
 void framesCheck_f(); // vr_rig2_frames [model]: its frames against the authored joints as the ragdoll has them
 
 } // namespace qvr::rig2
