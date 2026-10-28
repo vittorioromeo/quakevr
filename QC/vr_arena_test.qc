@@ -13,18 +13,23 @@
 // - 4 (vrarena, or any map with vr_arena 1): the places a wave comes in on: the map's ground and high places are
 //   known, each has ground under it to land on, the two kinds do not share a place, and a place already holding a
 //   foe of this wave is passed over. On a map with no info_arena_spawn of its own the same checks run on the ring.
+// - 5 (vrtesthall with vr_arena 1, vrarena, or any map with vr_arena 1): the difficulty scaling (vr_arena_skill_impact,
+//   VR_ARENA_Skill): the factor at each skill and at impact 0 / 1 / 2, and what it does to a wave -- its size, the
+//   field's cap, its pacing, the waves Quake's own monsters and the higher rungs join at, the unarmed share of the
+//   early waves, a boss wave's bosses and their health, a wave clear's supplies, a kill's score and the perks a boss
+//   clear offers. Every test family pins the skill (Normal) so its own numbers mean the cvars' values.
 
 // ---------------------------------------------------------------------------
 // The test's own state
 // ---------------------------------------------------------------------------
 
-float vr_at_case;        // 0 idle; 1, 2, 3, 4 running
+float vr_at_case;        // 0 idle; 1, 2, 3, 4, 5 running
 float vr_at_pass;
 float vr_at_fail;
 float vr_at_step;
 float vr_at_until;
 float vr_at_keep[8];     // the cvars the tests set, put back at the end
-float vr_at_skill0;
+float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
 float vr_at_kills0;
 float vr_at_score0;
 float vr_at_a[AR_PLAN_MAX];
@@ -39,9 +44,10 @@ string(float i) VR_AT_CvarName =
     if(i == 4) { return "vr_arena_armor_every"; }
     if(i == 5) { return "vr_arena_score_kill"; }
     if(i == 6) { return "vr_arena_max_alive"; }
+    if(i == 7) { return "vr_arena_skill_impact"; }
     return "";
 }
-float VR_AT_NCVARS = 7;
+float VR_AT_NCVARS = 8;
 
 void() VR_AT_Save =
 {
@@ -55,6 +61,14 @@ void() VR_AT_Restore =
     for(i = 0; i < VR_AT_NCVARS; i++) { cvar_set(VR_AT_CvarName(i), ftos(vr_at_keep[i])); }
 }
 
+// The tests' own difficulty, both halves of it: the cvar (world.qc reads it into the `skill` global every frame)
+// and the global itself. 0 Easy, 1 Normal, 2 Hard, 3 Nightmare.
+void(float xSkill) VR_AT_SetSkill =
+{
+    cvar_set("skill", ftos(xSkill));
+    skill = xSkill;
+}
+
 // The tests' settings: the arena's own defaults, so a check says what the plan says and not what a config said.
 void() VR_AT_SetDefaults =
 {
@@ -65,6 +79,8 @@ void() VR_AT_SetDefaults =
     cvar_set("vr_arena_armor_every", "4");
     cvar_set("vr_arena_score_kill", "100");
     cvar_set("vr_arena_max_alive", "8");
+    cvar_set("vr_arena_skill_impact", "1");
+    VR_AT_SetSkill(1); // (Normal, where the skill's factor is exactly 1: every family's own numbers mean the cvars)
 }
 
 void(float ok, string what) VR_AT_Check =
@@ -78,7 +94,7 @@ void() VR_AT_End =
 {
     dprint(sprintf("arena: test %g over: %g passed, %g failed\n", vr_at_case, vr_at_pass, vr_at_fail));
     VR_AT_Restore();
-    skill = vr_at_skill0;
+    VR_AT_SetSkill(vr_at_skill0);
     cvar_set("vr_arena_test", "0");
     vr_at_case = 0;
 }
@@ -590,6 +606,63 @@ void() VR_AT4_Frame =
 }
 
 // ---------------------------------------------------------------------------
+// Test 5: the difficulty scaling (vr_arena_skill_impact, VR_ARENA_Skill)
+// ---------------------------------------------------------------------------
+
+// The steps this test measures the factor against -- the ones VR_ARENA_Skill's table promises (Normal 1).
+float VR_AT5_EASY      = 0.75;
+float VR_AT5_HARD      = 1.25;
+float VR_AT5_NIGHTMARE = 1.5;
+
+float() VR_AT5_Factor = { return VR_ARENA_Skill(VR_AT5_EASY, VR_AT5_HARD, VR_AT5_NIGHTMARE); }
+
+// The factor at every skill for one impact: xEasy / xHard / xNightmare what it must come to at Easy, Hard and
+// Nightmare (Normal is always exactly 1 -- as the knobs say).
+void(float xImpact, float xEasy, float xHard, float xNight, string xWhat) VR_AT5_FactorAt =
+{
+    cvar_set("vr_arena_skill_impact", ftos(xImpact));
+
+    VR_AT_SetSkill(0); VR_AT_Check(VR_AT5_Factor() == xEasy,  sprintf("%s at Easy", xWhat));
+    VR_AT_SetSkill(1); VR_AT_Check(VR_AT5_Factor() == 1,      sprintf("%s at Normal", xWhat));
+    VR_AT_SetSkill(2); VR_AT_Check(VR_AT5_Factor() == xHard,  sprintf("%s at Hard", xWhat));
+    VR_AT_SetSkill(3); VR_AT_Check(VR_AT5_Factor() == xNight, sprintf("%s at Nightmare", xWhat));
+
+    float sk;
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        dprint(sprintf("arena: t5 impact %g skill %g factor %g\n", cvar("vr_arena_skill_impact"), sk, VR_AT5_Factor()));
+    }
+}
+
+void() VR_AT5_Begin =
+{
+    cvar_set("vr_arena_skill_impact", "1");
+    VR_AT5_FactorAt(1, VR_AT5_EASY, VR_AT5_HARD, VR_AT5_NIGHTMARE, "impact 1");   // the table's own steps
+    VR_AT5_FactorAt(0, 1, 1, 1, "impact 0");                                      // the skill changes nothing
+    VR_AT5_FactorAt(2, 0.5, 1.5, 2, "impact 2");                                  // the deviation from 1 doubled
+
+    // Normal always means the knobs themselves, whatever the impact and whatever the steps.
+    cvar_set("vr_arena_skill_impact", "10");
+    VR_AT_SetSkill(1);
+    VR_AT_Check(VR_ARENA_Skill(0, 5, 9) == 1, "Normal is always as the knobs say");
+
+    // A step of 0 at a soft skill does not carry past 0 (a knob never turns negative).
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARENA_Skill(0, 2, 3) == 0, "the factor is never below 0");
+
+    // And the order: Easy softer, Hard and Nightmare harder.
+    cvar_set("vr_arena_skill_impact", "1");
+    VR_AT_SetSkill(0); float soft = VR_AT5_Factor();
+    VR_AT_SetSkill(2); float hard = VR_AT5_Factor();
+    VR_AT_SetSkill(3); float worst = VR_AT5_Factor();
+    VR_AT_Check(soft < 1 && hard > 1 && worst > hard, "Easy softer, Hard and Nightmare harder");
+
+    VR_AT_SetSkill(1);
+    VR_AT_End();
+}
+
+// ---------------------------------------------------------------------------
 // world.qc's test beat (StartFrame, under QVR_TESTS)
 // ---------------------------------------------------------------------------
 
@@ -599,7 +672,7 @@ void() VR_ARENA_Test_Frame =
 
     if(c == 0)
     {
-        if(vr_at_case) { VR_AT_Restore(); skill = vr_at_skill0; vr_at_case = 0; dprint("arena: test stopped\n"); }
+        if(vr_at_case) { VR_AT_Restore(); VR_AT_SetSkill(vr_at_skill0); vr_at_case = 0; dprint("arena: test stopped\n"); }
         return;
     }
 
@@ -611,7 +684,7 @@ void() VR_ARENA_Test_Frame =
         vr_at_step = 0;
         vr_at_until = time + 30;
         VR_AT_Save();
-        vr_at_skill0 = skill;
+        vr_at_skill0 = cvar("skill");
         VR_AT_SetDefaults();
         dprint(sprintf("arena: test %g begin\n", c));
 
@@ -625,6 +698,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 2) { VR_AT2_Begin(); return; }
         if(c == 3) { VR_AT3_Begin(); return; }
         if(c == 4) { VR_AT4_Begin(); return; }
+        if(c == 5) { VR_AT5_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();

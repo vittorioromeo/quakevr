@@ -21,7 +21,10 @@
 //   vr_arena_armor_every  4    an armour after every this many waves (0: none)
 //   vr_arena_score_kill   100  the score of a kill, times its ladder tier (a boss: four of those)
 //   vr_arena_seed         0    the waves' rolls: 0 a different ladder every run, else that seed's ladder
-//   vr_arena_test         0    the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave
+//   vr_arena_skill_impact 1    Difficulty Impact: how far the game's difficulty (skill) moves the waves -- 0 the
+//                             arena is the same at every skill, 1 the steps below (Easy softer, Nightmare harder)
+//   vr_arena_test         0    the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss
+//                             wave, 4 the places, 5 the difficulty scaling
 //
 
 // ---------------------------------------------------------------------------
@@ -139,6 +142,22 @@ float(float x, float xMod) VR_ARENA_Mod =
     if(r < 0)  { r = r + xMod; }
     if(r >= xMod) { r = r - xMod; }
     return r;
+}
+
+// The skill's factor for a knob: `easy`, `hard`, `nightmare` its steps (Normal 1), by vr_arena_skill_impact -- the
+// shape of the armed humanoids' VR_AGAI_Skill (vr_armedgrunt_ai.qc), the arena's own impact knob, and nothing to do
+// with vr_agrunt_ai_skill or the armed humanoids' AI.
+//
+// The skill's steps (impact 1):                   Easy   Normal  Hard   Nightmare
+//   a wave's size, its pacing, a boss's health,
+//   a wave clear's supplies, a kill's score,
+//   and how many perks a boss clear offers:       0.75   1       1.25   1.5
+//   (impact 0: 1 at every skill -- the skill changes nothing about the arena; impact 2: the deviation from 1
+//   doubled; the factor is never below 0, so a knob it multiplies never turns negative)
+float(float easy, float hard, float nightmare) VR_ARENA_Skill =
+{
+    float m = skill < 1 ? easy : skill < 2 ? 1 : skill < 3 ? hard : nightmare;
+    return max(0, 1 + cvar("vr_arena_skill_impact") * (m - 1));
 }
 
 float() VR_ARENA_Opt_MaxAlive   { return VR_ARENA_Clamp(cvar("vr_arena_max_alive"), 1, AR_PLAN_MAX); }
