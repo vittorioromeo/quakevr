@@ -811,3 +811,29 @@ own vocabulary, so it matches the calibration room); uprights at the third and t
 `scratch/arena_dress.png` (a headless frame from the player start on the dais, composed by `run.sh -Out`) and
 `scratch/arena/idbase_spawn.png` from the first pass, if you want to look before walking it -- this session's model
 cannot see images, so every number above is a number, not a verdict.
+
+## Armed grunts choppy (agent/agchoppy)
+
+**Bug** (Vittorio, VR): armed humanoids' animations choppy and low-fps, other enemies smooth.
+
+**Cause**: `rig2::restoreModels` (vr_rig2.cpp, from 38c624563; live by default since rig2only 2011d7c64 retired
+`vr_rig2` 0) put back every lerpflag it saved before the swap, LERP_RESETMOVE too. Drawing the skinned copy spends that
+flag (R_SetupEntityTransform); restored, it was there again the next frame, so a grunt or enforcer drawn on the authored
+rig never had its move lerped from its first frame on: drawn at each step's end, jumping up to 15 units ten times a
+second, its arms, weapons and armour with it (they follow the drawn place). The frame lerp, the spline and the arm IK
+were fine.
+
+**Fix**: the move lerp's reset flag left as drawing left it; the frame lerp's flags restored as before.
+
+**Measured** (`vr_rig2_motion_test 300`, new: Debug > Automation > Monsters' Drawn Motion; vrtesthall, `vr_agrunt_test
+1` and a walking knight; per drawn frame, in the world at the drawn place): the armed grunt's drawn origin before:
+largest step 15.03 units, still 95% of frames, jerk 2.01 (lerpflags MOVESTEP|RESETMOVE every frame); after: 2.13, 36%
+(it stands to shoot), 0.15; the knight 2.84, 0%, 0.10. Its mesh's worst point before x22.0 max/mean, jerk 1.26; after
+x8.7, 0.38 (what is left: its arms swinging as it aims, no still-then-jump; the knight x2.2, 0.10). The test fails a
+drawn origin stepping over 8 units in a frame: 3 passed, 0 failed.
+
+**Checked**: build 0 warnings; `vr_agrunt_test 1` 17/17; Rig Studio subjects 13/14, aim 3/4, posekeys 13/14: the same
+three failures with the fix taken out (subjects 4 the flamethrower's records, aim 3 never settled, posekeys 5 the right
+elbow), so not this.
+
+**In VR**: a walking armed grunt and enforcer glide like the knights; their weapons and armour stay on them.

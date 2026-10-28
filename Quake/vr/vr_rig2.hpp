@@ -246,5 +246,7 @@ void partsReport_f(); // vr_rig2_parts: each authored ragdoll's parts as drawn, 
 void liveCheck_f();   // vr_rig2_live_check: the live ones drawn on the authored rig against their frames
 void animCheck_f();   // vr_rig2anim_check: the Rig Studio's override keys as drawn on them (vr_agrunt_test 82)
 void framesCheck_f(); // vr_rig2_frames [model]: its frames against the authored joints as the ragdoll has them
+void motionTest_f();  // vr_rig2_motion_test <frames>: the monsters' meshes as drawn each frame, how evenly they move
+void motionSample();  // VR_Rig2Restore (once drawn): vr_rig2_motion_test's frame
 
 } // namespace qvr::rig2

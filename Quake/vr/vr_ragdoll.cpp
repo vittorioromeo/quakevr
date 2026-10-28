@@ -3756,6 +3756,7 @@ extern "C" void VR_Rig2Swap(void)
 extern "C" void VR_Rig2Restore(void)
 {
     rig2::restoreModels(); // (once drawn: code between frames, the console's, the Rig Studio's, sees their own models)
+    rig2::motionSample();  // (vr_rig2_motion_test: the meshes as just drawn)
 }
 
 extern "C" void VR_Rig2Latch(void)

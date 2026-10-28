@@ -532,6 +532,8 @@ za::Vector<Item> pageDebugAutomation()
         command("Blast Beside the Nearest Ragdoll", "vr_ragdoll_blast_test").help("vr_ragdoll_blast_test [damage]: a blast's push (no damage) 24 units beside the nearest ragdoll, on your side: it is thrown away from you."),
         command("Ragdoll and Prop Drawn Motion", "vr_drawn_motion_test 90 nearest")
             .help("vr_drawn_motion_test <frames> [<entity> | nearest | held]: over the next 90 frames, how evenly the nearest ragdoll's parts, the nearest loose prop (held: the one in your hand) and your hands move frame to frame (the console: uneven near 0 is smooth; about 2 with stalls: a step shown twice). Throw or hold one first. vr_debug_ragdoll 2: each frame's blend between the steps."),
+        command("Monsters' Drawn Motion", "vr_rig2_motion_test 300")
+            .help("vr_rig2_motion_test <frames> [<model>]: over the next frames, every visible monster's mesh as drawn (its top, bottom and side vertices, and its drawn origin, in the world) frame to frame: the mean and largest step, the frames it did not move, the jerk (the step's change over the mean). A 10 Hz stair-step shows as a largest step many times the mean with most frames still. <model> (\"vrgrunt\"): its every frame's steps printed."),
         command("Drop the Nearest Prop on the Nearest Corpse", "vr_corpse_drop").help("vr_corpse_drop [height]: the loose prop nearest you put 32 units over the nearest corpse, to fall on it (Gibs and Corpses > Corpse Collision)."),
         command("Gib Props: Gib the Nearest", "vr_gibprops_test 1")
             .help("vr_gibprops_test 1: the nearest live monster gibbed; the console (developer 1) says whether its head and gibs are props (grabbable, destroyable). Then the rows below on its head."),
