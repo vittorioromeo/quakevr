@@ -25427,7 +25427,10 @@ The flow (QC vr_enemyshove.qc, vr_armedgrunt_pose.qc):
 - The off hand: while the shove leads (its weights at least 0.5), the leading phase key's Off Hand mode sets the gun's
   off hand: Free to push with it, On the Gun to push the gun. A long gun that its Weapon Holds put in one hand uses the
   Pistol class's Shove keys (the spec's "one-handed weapon"), so a one-handed hold always pushes with the free hand.
-- `vr_agrunt_shove` (archived, default **2**; Combat > Enemy Shoves > Armed Humanoids' Shove): 0 the model frames,
+- (Changed 2026-10-28, branch `agent/shovedef`: the default is now **1**, guns only, as he wants only humanoids with
+  guns to shove; configVersion 214 moves a config still at 2 to 1, 0 and 1 stay. Test 84 sets 2 itself for its melee
+  classes.)
+- `vr_agrunt_shove` (archived, was default 2, now 1; Combat > Enemy Shoves > Armed Humanoids' Shove): 0 the model frames,
   guns only (as before); 1 posed, guns only; 2 posed, and melee weapons and the fists shove too (before, those only
   struck).
 

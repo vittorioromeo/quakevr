@@ -530,6 +530,7 @@ const DefaultChange defaultChanges[] = {
     {209, &vr_revolver_eject_rod_reach, "2.5"},      // 1
     {209, &vr_revolver_eject_rod_speed, "0.3"},      // 0.35
     {209, &vr_revolver_spin_speed, "0.5"},           // 0.8
+    {214, &vr_agrunt_shove, "2"},                    // 1 (guns only; it shipped with 2 for a few hours)
     {209, &vr_revolver_spin_friction, "720"},        // 760
     {209, &vr_revolver_spin_max, "1800"},            // 900
     {209, &vr_revolver_hand_reach, "3"},             // 0.25
@@ -593,7 +594,8 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // gun pose categories: the pose keys' code wider (an enforcer's 1xxxx now 10xxxx) and the archived rifle keys laid on
 // every category, agpose::migrateCategories; 212: his pose keys of 2026-10-27 evening shipped (the rifle Aim, the
 // Pistol, Launcher, Sprayer and Laser Cannon keys): the archived keys equal to them dropped, after 211's migration)
-constexpr int configVersion = 213;
+// 214: vr_agrunt_shove 2 -> 1 (only humanoids with guns shove by default)
+constexpr int configVersion = 214;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;

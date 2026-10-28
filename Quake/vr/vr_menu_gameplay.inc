@@ -61,8 +61,8 @@
             {2.f, "Posed, Every Weapon"}})
             .help("How armed grunts and enforcers shove you: posed (the Shove pose's keys, per weapon class: the off "
                   "hand pushing beside a one-handed gun, a long gun pushed across the body in both hands, the palms "
-                  "out holding two weapons or the fists), with every weapon and their fists, or with guns only; or as "
-                  "before (their model's shove frames, the arms held as they aim, guns only)."),
+                  "out holding two weapons or the fists), with guns only (the default; melee and fist humanoids just "
+                  "strike) or with every weapon and their fists; or as before (their model's shove frames, the arms held as they aim, guns only)."),
         toggle("Vores Shove", vr_enemy_shove_vore)
             .help("Vores shove you too, swinging their arms down at you: the hardest shove of all. They reach a little "
                   "farther (they are wider)."),
