@@ -313,10 +313,15 @@ void() VR_AgArmor_TestFrame =
         }
         if(request == 3)
         {
-            // (P2's eyeshots: enforcers in full green, yellow and red sets)
-            VR_AgArmor_Give(VR_ART_SpawnKind(p, -44, 1, 128), 1, 1023);
-            VR_AgArmor_Give(VR_ART_SpawnKind(p, 0, 1, 128), 2, 1023);
-            VR_AgArmor_Give(VR_ART_SpawnKind(p, 44, 1, 128), 3, 1023);
+            // (P2's eyeshots: enforcers in full green (facing), yellow (side on) and red (its back: the power pack) sets)
+            entity e3 = VR_ART_SpawnKind(p, -44, 1, 128);
+            VR_AgArmor_Give(e3, 1, 1023);
+            e3 = VR_ART_SpawnKind(p, 0, 1, 128);
+            e3.angles_y = e3.angles_y + 90;
+            VR_AgArmor_Give(e3, 2, 1023);
+            e3 = VR_ART_SpawnKind(p, 44, 1, 128);
+            e3.angles_y = e3.angles_y + 180;
+            VR_AgArmor_Give(e3, 3, 1023);
             return;
         }
         if(request == 4)

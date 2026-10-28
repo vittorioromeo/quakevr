@@ -541,3 +541,35 @@ the default Normal 15% changes old tests that kill armed grunts at skill 1 by ex
 
 Checklist:
 - `[ ] Armour P1 {test:vr_agarmor_test}: Normal/Hard/Nightmare maps with armed grunts: some wear plates (Hard: up to yellow, 5 pieces; Nightmare: red full sets); shots on a plate spark and ring and do less; a plate broken falls off (you can't force-grab it) and fades; helmets stop head pops; blades don't cut an armoured limb until its plate breaks; Combat > Armed Grunts > Armour's rules`
+
+## Armour P2: the enforcer, damage marks, the toolgun's option (worktree `armor`, branch `agent/armorp2`, 2026-10-28)
+
+**Enforcer** (`vr_agarmor.cpp` `wearers`): the same ten pieces from `vrenforcer.rig2.txt` (and `enforcer.mdl`'s, the same
+mesh). Its power pack (chest-weighted, x -10.5 to -23 and up past its head) is its own: the enforcer's cuirass stops at
+its back's surface (`Wearer::backCut` -10.5, a plane folded into the clip field), a breastplate; its pads are under the
+pauldrons. A hit on the pack is no plate's (`pieceAt`: the point taken back to the rest pose by the cuirass's frame as
+drawn; behind the cut -1). Gameplay identical: `VR_AgArmor_Spawn` takes kinds 0 and 1 (decision: no free set, the
+grunts' chances). `vr_agarmor_check` with no model checks both (10/10: enforcer 3408 triangles, 54 slots, at rest 116
+of 1097 plate vertices hidden, 0.27 deep); `vr_agarmor_check <model>` one.
+
+**Damage marks**: QC `.vr_ar_wear` (bits 0-9 at two thirds of a pool or under, 10-19 at a third; `VR_AgArmor_Wear` after
+each hit, cleared by Give, Break, Shed) sent in `QVR_SVC_ARMOR` (two more shorts). `make_agarmor.py`: nine skins,
+type - 1 + 3 x wear (1: scratches and dents; 2: more, chips to bare metal, scorch and soot). The client draws a body's
+pieces in up to three armour entities, one per wear (`maxWorn` 128); a broken plate's debris uses the battered skin.
+`vr_agarmor_wear` 1/2 (debug) draws every piece so. The 66% look is subtle at a distance (the 33% one reads).
+
+**Toolgun**: Spawn > Monsters > Armed Humanoid has Armour (None / Green / Yellow / Red / Random) and Pieces
+(Chest+Helmet / Full / Random: the cuirass, the helmet, each limb plate at 50%) under the hands (`vr_toolgun_armed_armor`
+0, `_pieces` 1; QC `VR_AgArmor_Toolgun` on each one spawned; None strips the skill's roll too). Reset and Clear put both
+back. `vr_toolgun_armed_armor_test`: grunt and enforcer by every Armour x Pieces, then Reset and Clear (32/32).
+
+**Tests**: `vr_agarmor_test 1` 26/26 (P1's 18, the wear thresholds, the enforcer's places, its pack no plate, its debris
+and skin, the skill's roll dressing it, its wear reaching the client: `ragdollbone(e, [what], QVR_ARMOR_CLIENT)` -1001);
+`vr_agarmor_test 3` enforcers in green (facing), yellow (side on), red (back: the pack), `4` yellow grunts whole, at 2/3
+and 1/3 (Debug > Tests). `scratch/armor_p2_sheet.png` (low-impact eyeshots). Build 0 QC warnings.
+
+**Open**: the default Normal 15% now also dresses enforcers (old tests that kill enforcers by exact damage at skill 1 may
+shift); the limb plates share the cuirass's atlas, so their marks repeat its pattern.
+
+Checklist:
+- `[ ] Armour P2 {test:vr_agarmor_test}: armed enforcers wear plates too (Hard/Nightmare), the cuirass a breastplate that leaves the power pack bare (shots on the pack go through); plates look dented and scratched at 2/3, battered and scorched at 1/3 (Debug > Tests > Armour Damage Marks There); toolgun Spawn > Monsters > Armed Humanoid: Armour and Pieces apply to grunts and enforcers, Reset/Clear put them back`

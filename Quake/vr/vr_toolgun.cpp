@@ -1129,12 +1129,16 @@ void probeLook()
 // VR_AgArmor_Toolgun: None strips the skill's roll too).
 void armedArmour(edict_t* e)
 {
-    const func_t fn = qvr::progs::findFunction("VR_AgArmor_Toolgun");
-    if(!fn || !e || e->free)
+    if(!sv.active || !e)
     {
         return;
     }
     const ServerVm vm;
+    const func_t fn = qvr::progs::findFunction("VR_AgArmor_Toolgun");
+    if(!fn || e->free)
+    {
+        return;
+    }
     pr_global_struct->time = qcvm->time;
     pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
     G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
