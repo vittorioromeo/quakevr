@@ -1,0 +1,15 @@
+# arena_intro: the survival arena (vrarena) and what a boss wave's clear offers. Wave 1 starts a few seconds after the
+# map loads; a wave is cleared by killing it. vr_arena_boss_every is 1 here so the offer arrives with the first wave
+# instead of the fifth: walk over one of the three things that appear to take that perk for the rest of the run (the
+# game names them as it puts them up -- Quad Strike, Neck Snapper, Iron Skin, Second Wind, Feeder, Quartermaster,
+# Spoils). The pedestals stand off the map's three info_arena_item points, 96 units further out from the centre than
+# the medkits and armour a wave clear drops there, so the two never share a spot. Normal play: a boss every
+# vr_arena_boss_every (5) waves, and no perk is offered twice in a run.
+title The arena's first boss wave: three perks standing in the arena, walk over one
+map vrarena
+start 0 0 120 45
+cvar vr_arena 1
+cvar vr_arena_seed 3
+cvar vr_arena_boss_every 1
+cvar vr_arena_max_alive 4
+hint Kill the wave; three lit items then stand in the arena, each named for a perk, and walking over one takes it for the rest of the run (a melee kill gives 2 s of Quad Strike, a snapped neck 20 health, armour you pick up is worth 25 more, a wave clear tops up the gun in your hand -- whichever you chose is the one that does it).
