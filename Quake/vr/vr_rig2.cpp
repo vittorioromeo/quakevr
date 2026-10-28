@@ -1144,7 +1144,11 @@ void restoreModels()
             e->currentpose = d.currentPose;
             e->lerpstart = d.lerpStart;
             e->lerptime = d.lerpTime;
-            e->lerpflags = d.lerpFlags;
+            // Its frame lerp's flags back, not its move lerp's: drawing it (R_SetupEntityTransform) spent a
+            // LERP_RESETMOVE (a new entity's, a teleport's), and putting that back reset its move lerp every frame
+            // after: a walking grunt drawn at each step's end, jumping up to 15 units ten times a second (ROUND23,
+            // "Armed grunts choppy").
+            e->lerpflags = static_cast<byte>((d.lerpFlags & ~LERP_RESETMOVE) | (e->lerpflags & LERP_RESETMOVE));
         }
         d.swapped = false;
     }
