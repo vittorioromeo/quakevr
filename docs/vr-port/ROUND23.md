@@ -31,8 +31,10 @@ happens in the middle of it. In it:
 
 12 `info_arena_spawn` points carry a `kind`: 1 for the four ground points (640, 640, 0 -- the corners of the open
 ring) and 2 for the eight high ones (the tower tops at 402 402 256 and the walk landings at 736 +-288 256). 3
-`info_arena_item` points sit at 196 196 48, -196 196 48 and 196 -196 48. Worldspawn: `quakevr_dev.wad`, `mapname
-vrarena`, `message "Quake VR Survival Arena"`, `worldtype 2`, `_tb_mod`, `_vr_debris 0` and `_qvr_prelit 1`.
+`info_arena_item` points sit at 196 196 48, -196 196 48 and 196 -196 48. Worldspawn: `mapname vrarena`, `message
+"Quake VR Survival Arena"`, `worldtype 2`, `_tb_mod`, `_vr_debris 0` and `_qvr_prelit 1`; its WAD list and its
+textures were the `quakevr_dev.wad` placeholders and are id's base set -- see "the map's look" at the end of this
+round.
 
 **Verified.** `python Misc/quakevr/maps/vrarena_gen.py --check` reads the map back and counts it: 12 spawns (8 kind
 2, 4 kind 1), 3 items; 88 stair steps, 0 unclimbable (every step's rise over the tread before it is at most 16 and
@@ -373,3 +375,60 @@ how the arena should (a fade, a cap, bodies older than two waves) is the author'
 
 *Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: a Quad Damage picked up is not cut to 2 s by a Quad Strike
 hand kill`
+
+## Survival Arena: the map's look (id's base textures)
+
+*The author's ask, 2026-10-28: "texture the new arena map -- give it an idbase look." Until now `vrarena` wore
+`quakevr/wads/quakevr_dev.wad`'s six flat grids, the stand-in set for a map being laid out (`MAPPING.md`, "Textures and
+id's data"). `vrcalibration.bsp` and the hub maps are already built from id's own base textures; this is the same
+decision, taken for the first time on a map players fight in.*
+
+**What changed: only the textures.** `Misc/quakevr/maps/vrarena_gen.py` now sets a role table instead of six names, and
+worldspawn lists two WADs -- `"wad" "quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad"`, the same pair
+`make_vrcalibration_map.py` uses. id's textures come from the git-ignored `id_textures.wad` that
+`Misc/trenchbroom/make_id_wad.py` builds from your own paks, so nothing of id's is committed: what ships is the
+*compiled* `vrarena.bsp`, which carries the mip chains it was lit with. Nine of the thirteen are e1m1's own; `metal1_1`
+is e1m8's, `metal4_4` e1m5's, `sfloor4_1` e2m1's and `sfloor4_2` start's.
+
+| the part of the room | texture | how it is scaled |
+|---|---|---|
+| the 1728-wide floor | `ground1_2` (64) | 1.0: the 64-unit plate id lays floors with |
+| the four cardinal walls | `twall1_1` (64x128) | 1.0: panel and its band, three tiers up the 800-high wall |
+| the four cut corners | `twall2_1` (64x128) | 1.0: a second panel of the same family, so the octagon is not one wall |
+| the 800-high ceiling | `sfloor4_1` (64) | 1.0, the plate `vrcalibration` also wears overhead |
+| the dais' eight sides | `twall5_3` (64) | 1.5: one panel spans each 96-high face exactly |
+| the dais top, the tower tops, both walks, the four bridges | `sfloor4_2` (64) | 1.0: everything you stand on up high is deck plate |
+| the walks' and bridges' 64-thick edges | `metal4_4` (64) | 1.0: one plate across the 64-unit thickness |
+| the four towers | `twall5_1` (128) | 1.0: exactly two panels up each 256-high tower |
+| every step, the dais' four flights and the towers' four pinwheels | `metal1_1` (64) | 1.0, the stair metal |
+| the eight covers | `crate0_side` (64), lids `crate0_top` (64) | 0.75 and 1.25: a 64-wide crate reads as 48 high and 80 across |
+| the 96-wide spawn pad | `plat_top1` (64), edge `plat_side1` (64x16) | 1.5 and 0.125: id's platform, its lip exactly 2 units high |
+| the eight lamps | `qvr_light` (32) | unchanged: the engine keys light emission off that name, so it stays ours |
+
+**The room itself is untouched.** No brush moved, added or removed: 130 brushes and 40 entities as before, the shell
+still sealed, the spawn pad and every `info_arena_spawn` and `info_arena_item` point where they were, `_qvr_prelit 1`
+and `light 90` kept. `vrarena.map` is 1587 lines both ways; read past the texture names and the `"wad"` line, and only
+63 lines differ -- 63 scale numbers, the ones the table above sets. `--check` still reports 8 high and 4 ground spawns,
+3 items, 88 stair steps with 0 that are not climbable, 0 duplicates and 0 overlaps.
+
+**Compiled** with ericw-tools 2.0.0-alpha11 with the **final** light preset, since new textures mean new radiosity:
+qbsp `-bsp2 -wadpath <tree>` in 0.2 s, vis 0.2 s, light `-extra4 -dirt -dirtscale 1.5 -dirtdepth 96 -bounce -lit -lux
+-lightgrid -lightgrid_dist 64 64 64` in 2.8 s, no warning, error or leak. `bsp_holes.py --rays 400128`: 1161 world
+faces, 231 leaves, 0 missing-face hits, 0 undrawn, 0 unlisted, `holes: 0`. The BSP now carries 15 texinfos -- thirteen
+of id's textures, our `qvr_light` and qbsp's own `skip` -- 101,240 bytes of mip data, so `vrarena.bsp` grew 272,176 ->
+346,028 bytes and the lightmaps 198,236 -> 200,384 (`vrarena.map`, `.bsp`, `.lit` and `.lux` are committed together --
+the lighting belongs to the surfaces it was computed for).
+
+**Verified in the game.** `map vrarena` loads clean -- no missing-texture or bad-surface line, `ARENA - Normal:
+unarmed, wave 1 coming` -- and the map-facing tests pass on the new BSP: `vr_arena_test 4` 7 passed / 0 failed (ground 4,
+high 8, a place with ground under it, a taken place skipped) and `vr_arena_test 5` 467 / 0. `vr_arena_test 1` reports
+256 / 1 here, and the same single failure -- `a fallen monster is not alive`, its death-hook case finding a live wave's
+foe still on the field -- reproduces on the *old* BSP at the same commit, and the same run on `vrtesthall` gives 257 / 0:
+it is the live arena in the room, not the textures. Nobody has looked at the result yet: this session's model cannot see
+images, so the look itself is unverified -- walk it and say what you think.
+
+**For the author.** `vrarena.bsp` is now a committed Quake map carrying id's artwork, which is what
+`MAPPING.md`'s carve-out for `vrcalibration` and the hub maps allows and what its "Keep that to the maps that need it"
+line is about -- that rule is left as written, for the author to extend or walk back. The generator keeps the old flat
+look buildable for anyone whose checkout has no `id_textures.wad`: `--dev-textures` swaps the whole palette back to
+`quakevr_dev.wad`'s grids and lists that WAD alone, and without the file and without the flag it says so and stops.
