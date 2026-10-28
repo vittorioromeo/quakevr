@@ -1858,6 +1858,12 @@ void snapView(int which, bool flip)
     }
 }
 
+void orbitView(float yawFromFront)
+{
+    const entity_t* e = subjectEntity();
+    st.cam.yaw = (e ? e->angles[1] : st.stageYaw) + 180.f + yawFromFront;
+}
+
 void frameSelection()
 {
     glm::vec3 lo{1e30f}, hi{-1e30f};

@@ -24,6 +24,7 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Base/Swap.hpp"
 #include "Zancle/String/String.hpp"
 
 #include <glm/glm.hpp>
@@ -53,7 +54,10 @@ struct Block
     float x0, y0, x1, y1;
 };
 constexpr Block cuirassBlock{0.f, 0.f, 160.f, 128.f};
-constexpr Block helmetBlock{160.f, 0.f, 256.f, 96.f};
+constexpr Block helmetBlock{160.f, 0.f, 256.f, 64.f}; // the helmet's walls (mirrored left and right)
+constexpr Block helmCapBlock{160.f, 64.f, 192.f, 96.f};
+constexpr Block liningBlock{192.f, 64.f, 224.f, 96.f};
+constexpr Block bracketBlock{224.f, 64.f, 256.f, 96.f};
 constexpr Block innerBlock{160.f, 96.f, 208.f, 128.f};
 constexpr Block rimBlock{208.f, 96.f, 256.f, 128.f};
 
@@ -312,9 +316,8 @@ struct PieceFrame
     return f;
 }
 
-// The piece's field at a body vertex: >= 0 covered (its weight on the region's bones past 0.5; the helmet above its
-// brow line too: low at the back, above the eyes in front).
-[[nodiscard]] float fieldOf(const Body& b, int v, int piece, const PieceFrame& f)
+// The piece's field at a body vertex: >= 0 covered (its weight on the region's bones past 0.5).
+[[nodiscard]] float fieldOf(const Body& b, int v, const PieceFrame& f)
 {
     const W& w = at(b.w, v);
     float region = 0.f;
@@ -322,14 +325,7 @@ struct PieceFrame
     {
         region += ((f.bones >> static_cast<unsigned>(i)) & 1u) ? w.w[i] : 0.f;
     }
-    float field = region - 0.5f;
-    if(piece == Helmet)
-    {
-        const glm::vec3 q = at(b.p, v) - f.origin;
-        const float h = glm::dot(q, f.up) / f.length, fw = glm::dot(q, f.fwd) / f.length;
-        const float brow = vr_agarmor_brow_back.value + (vr_agarmor_brow_front.value - vr_agarmor_brow_back.value) * za::clamp(fw / 0.4f, 0.f, 1.f);
-        field = za::min(field, (h - brow) * 2.f);
-    }
+    const float field = region - 0.5f;
     return za::abs(field) < 1e-4f ? 1e-4f : field;
 }
 
@@ -354,7 +350,8 @@ struct Shell
     int numSlots{0};
     int slotBone[maxSlots]{}, slotPiece[maxSlots]{};
     uint32_t hash{0};
-    float made{0.f}; // ms
+    float made{0.f};    // ms
+    char helmFit[192]{}; // the helmet's rings against the head (vr_agarmor_info, the check)
 };
 
 // A piece's surface as made (before the shell): its vertices on the body (orig), smoothed (p), their weights.
@@ -365,14 +362,14 @@ struct Local
     za::Vector<int> tris;
 };
 
-void clipPiece(const Body& b, int piece, const PieceFrame& f, Local& L)
+void clipPiece(const Body& b, const PieceFrame& f, Local& L)
 {
     L = Local{};
     const int nv = count(b.p);
     za::Vector<float> field(static_cast<za::SizeT>(nv), 0.f);
     for(int v = 0; v < nv; v++)
     {
-        at(field, v) = fieldOf(b, v, piece, f);
+        at(field, v) = fieldOf(b, v, f);
     }
     za::Vector<int> local(static_cast<za::SizeT>(nv), -1);
     EdgeMap crossings;
@@ -619,9 +616,10 @@ void addTri(Shell& s, int a, int b, int c)
     s.tris.pushBack(c);
 }
 
-// One piece's shell from its surface: outer and inner layers, a rim along its open edge, texture coordinates.
-void shellOf(Shell& s, Local& L, int piece, const PieceFrame& f)
+// The cuirass's shell from its surface: outer and inner layers, a rim along its open edge, texture coordinates.
+void shellOf(Shell& s, Local& L, const PieceFrame& f)
 {
+    constexpr int piece = Cuirass;
     const float gap = za::max(vr_agarmor_gap.value, 0.f), thick = za::max(vr_agarmor_thick.value, 0.05f);
     const int nv = count(L.p);
     za::Vector<glm::vec3> n;
@@ -639,64 +637,23 @@ void shellOf(Shell& s, Local& L, int piece, const PieceFrame& f)
     za::Vector<int> openEdges;
     neighbours(L, nb, open, openEdges);
 
-    // Texture coordinates (a, b) of the outer place: the cuirass round the torso and up it; the helmet a disc from
-    // above, its open edge at the rim's radius whatever its height there.
+    // Texture coordinates (a, b) of the outer place: round the torso (its front in the middle) and up it.
     za::Vector<glm::vec2> ab(static_cast<za::SizeT>(nv), glm::vec2{0.f});
-    if(piece == Cuirass)
+    float hLo = 1e9f, hHi = -1e9f;
+    for(int v = 0; v < nv; v++)
     {
-        float lo = 1e9f, hi = -1e9f;
-        for(int v = 0; v < nv; v++)
-        {
-            const float h = glm::dot(at(L.p, v) - f.origin, f.up);
-            lo = za::min(lo, h);
-            hi = za::max(hi, h);
-        }
-        for(int v = 0; v < nv; v++)
-        {
-            const glm::vec3 q = at(L.p, v) - f.origin;
-            const float az = za::atan2(glm::dot(q, f.left), glm::dot(q, f.fwd)) / (2.f * pi); // -0.5..0.5, 0 the front
-            const float h = glm::dot(q, f.up);
-            at(ab, v) = glm::vec2{az + 0.5f, 1.f - (h - lo) / za::max(hi - lo, 1e-3f)};
-        }
+        const float h = glm::dot(at(L.p, v) - f.origin, f.up);
+        hLo = za::min(hLo, h);
+        hHi = za::max(hHi, h);
     }
-    else
+    for(int v = 0; v < nv; v++)
     {
-        const glm::vec3 centre = f.origin + f.up * (0.3f * f.length);
-        constexpr int bins = 24;
-        float edge[bins];
-        for(float& e : edge)
-        {
-            e = 0.f;
-        }
-        za::Vector<glm::vec2> polar(static_cast<za::SizeT>(nv), glm::vec2{0.f});
-        for(int v = 0; v < nv; v++)
-        {
-            const glm::vec3 d = safeNormalize(at(L.p, v) - centre, f.up);
-            const float pol = za::acos(za::clamp(glm::dot(d, f.up), -1.f, 1.f));
-            const float az = za::atan2(glm::dot(d, f.left), glm::dot(d, f.fwd));
-            at(polar, v) = glm::vec2{pol, az};
-            const int bin = za::clamp(static_cast<int>((az + pi) / (2.f * pi) * bins), 0, bins - 1);
-            edge[bin] = at(open, v) ? za::max(edge[bin], pol) : edge[bin];
-        }
-        float fallback = 0.f;
-        for(float e : edge)
-        {
-            fallback = za::max(fallback, e);
-        }
-        for(int v = 0; v < nv; v++)
-        {
-            const float pol = at(polar, v).x, az = at(polar, v).y;
-            // The rim's radius at its angle (bins blended, an empty bin its neighbours' or the widest)
-            const float x = (az + pi) / (2.f * pi) * bins - 0.5f;
-            const int b0 = (static_cast<int>(x + bins) % bins), b1 = (b0 + 1) % bins;
-            const float t = x + bins - static_cast<float>(static_cast<int>(x + bins));
-            const float e0 = edge[b0] > 0.f ? edge[b0] : fallback, e1 = edge[b1] > 0.f ? edge[b1] : fallback;
-            const float rim = za::max(e0 + (e1 - e0) * t, 1e-3f);
-            const float r = za::min(0.9f * pol / rim, 0.97f);
-            at(ab, v) = glm::vec2{0.5f + 0.5f * r * za::cos(az), 0.5f - 0.5f * r * za::sin(az)};
-        }
+        const glm::vec3 q = at(L.p, v) - f.origin;
+        const float az = za::atan2(glm::dot(q, f.left), glm::dot(q, f.fwd)) / (2.f * pi); // -0.5..0.5, 0 the front
+        const float h = glm::dot(q, f.up);
+        at(ab, v) = glm::vec2{az + 0.5f, 1.f - (h - hLo) / za::max(hHi - hLo, 1e-3f)};
     }
-    const Block& outerBlock = piece == Cuirass ? cuirassBlock : helmetBlock;
+    const Block& outerBlock = cuirassBlock;
 
     // Outer and inner layers: each vertex twice (a cuirass vertex again past the seam at its back for the triangles
     // across it).
@@ -733,7 +690,7 @@ void shellOf(Shell& s, Local& L, int piece, const PieceFrame& f)
             for(int k = 0; k < 3; k++)
             {
                 out[k] = base + layer * nv + c[k];
-                if(piece == Cuirass && hi - lo > 0.5f && at(ab, c[k]).x < 0.5f)
+                if(hi - lo > 0.5f && at(ab, c[k]).x < 0.5f)
                 {
                     // across the seam: this corner at the seam's far side (a = 1)
                     int& dup = at(seam, layer * nv + c[k]);
@@ -783,6 +740,346 @@ void shellOf(Shell& s, Local& L, int piece, const PieceFrame& f)
         addTri(s, first, first + 2, first + 3);
     }
     s.pieceOpen[piece] = count(openEdges) / 2;
+}
+
+// ---- The helmet: the Ranger's (the player's face in the status bar), built round the head ----
+// A flat-topped bucket over the crown (its top edge chamfered, its lower edge a ledge over the brow), cheek guards from
+// under it down the sides of the face to the jaw line, the back down to the nape, the face open; a bracket on each side
+// at the guards' top. In the head bone's frame (x forward, y left, z up its length from its pivot) each ring of it is an
+// octagon (a front, a back, two sides, four chamfers) fitted round the head's vertices a gap off them: the ring takes
+// every vertex of the bands above and below it (a face vertex only above the guards), so any place between two rings is
+// clear too. Rigid on the head bone. Texture: the walls mirrored left and right (u from the front's middle round the
+// side to the back's, v down the rows: make_agarmor.py's HELM_U and HELM_V), the cap a disc, the open edges the lining.
+struct Ring
+{
+    float F{0.f}, B{0.f}, W{0.f}; // front, back, half width
+    float Df{0.f}, Db{0.f};       // the chamfers: x + |y| <= Df, -x + |y| <= Db
+};
+enum HelmRow : int
+{
+    HCap,    // the top's edge
+    HCrown,  // below its chamfer
+    HBrow,   // the bucket's lower edge
+    HLedge,  // under it, stepped in: the guards' top (the face's top in front)
+    HCheek,  // the cheekbones
+    HJaw,    // the jaw line (lower at the back: the nape)
+    NumHelmRows
+};
+constexpr float helmV[NumHelmRows] = {0.f, 0.08f, 0.38f, 0.46f, 0.7f, 1.f};
+// The octagon's points on its left half, front to back: the front's middle, the front chamfer's ends, the back chamfer's
+// ends, the back's middle; round the helmet: 0..5 down its left, 6..9 back up its right.
+constexpr int numHelmPoints = 6, numHelmCols = 10;
+constexpr float helmU[numHelmPoints] = {0.f, 0.16f, 0.3f, 0.7f, 0.84f, 1.f};
+[[nodiscard]] int pointOf(int col)
+{
+    return col <= 5 ? col : 10 - col;
+}
+[[nodiscard]] glm::vec2 ringPoint(const Ring& r, int point, int col)
+{
+    const float side = col <= 5 ? 1.f : -1.f;
+    glm::vec2 p{0.f};
+    switch(point)
+    {
+    case 0: p = {r.F, 0.f}; break;
+    case 1: p = {r.F, r.Df - r.F}; break;
+    case 2: p = {r.Df - r.W, r.W}; break;
+    case 3: p = {r.W - r.Db, r.W}; break;
+    case 4: p = {-r.B, r.Db - r.B}; break;
+    default: p = {-r.B, 0.f}; break;
+    }
+    return glm::vec2{p.x, p.y * side};
+}
+[[nodiscard]] Ring grown(const Ring& r, float d)
+{
+    constexpr float root2 = 1.41421356f;
+    return Ring{r.F + d, r.B + d, r.W + d, r.Df + d * root2, r.Db + d * root2};
+}
+// The lowest row of the strip from column c to c + 1: the face's two strips end under the bucket.
+[[nodiscard]] int stripBottom(int c)
+{
+    return c == 0 || c == numHelmCols - 1 ? HLedge : HJaw;
+}
+
+struct HelmBuild
+{
+    Shell& s;
+    glm::vec3 origin, fwd, left, up;
+    W w;
+    glm::vec3 toModel(const glm::vec3& h) const { return origin + fwd * h.x + left * h.y + up * h.z; }
+    // A flat face (3 or 4 corners, wound outward), its own vertices.
+    void face(const glm::vec3* p, const glm::vec2* st, int n, int layer)
+    {
+        const glm::vec3 a = toModel(p[0]), b = toModel(p[1]), c = toModel(p[2]);
+        const glm::vec3 nrm = safeNormalize(glm::cross(b - a, c - a), up);
+        const int first = count(s.verts);
+        for(int k = 0; k < n; k++)
+        {
+            Vert o;
+            o.p = toModel(p[k]);
+            o.n = nrm;
+            o.st = st[k];
+            o.w = w;
+            o.piece = Helmet;
+            o.layer = layer;
+            s.verts.pushBack(o);
+        }
+        for(int k = 1; k + 1 < n; k++)
+        {
+            addTri(s, first, first + k, first + k + 1);
+        }
+    }
+};
+
+void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone)
+{
+    const float gap = za::max(vr_agarmor_gap.value, 0.f), thick = za::max(vr_agarmor_thick.value, 0.05f);
+    const float L = f.length;
+    constexpr float root2 = 1.41421356f;
+    // The head: its surface where it is weighted to it (its neck's top too; points across each triangle, the low-poly
+    // head's big triangles having no vertices between its crown and its jaw), in its frame, |y| (the helmet is symmetric).
+    za::Vector<glm::vec3> pts;
+    float top = 0.f;
+    constexpr int steps = 6;
+    for(int t = 0; t + 2 < count(b.tris); t += 3)
+    {
+        const int i0 = at(b.tris, t), i1 = at(b.tris, t + 1), i2 = at(b.tris, t + 2);
+        const float w0 = at(b.w, i0).w[headBone], w1 = at(b.w, i1).w[headBone], w2 = at(b.w, i2).w[headBone];
+        if(za::max(w0, w1, w2) < 0.2f)
+        {
+            continue;
+        }
+        for(int u = 0; u <= steps; u++)
+        {
+            for(int v = 0; u + v <= steps; v++)
+            {
+                const float bu = static_cast<float>(u) / steps, bv = static_cast<float>(v) / steps, bw = 1.f - bu - bv;
+                if(w0 * bw + w1 * bu + w2 * bv < 0.2f)
+                {
+                    continue;
+                }
+                const glm::vec3 q = at(b.p, i0) * bw + at(b.p, i1) * bu + at(b.p, i2) * bv - f.origin;
+                const glm::vec3 h{glm::dot(q, f.fwd), za::abs(glm::dot(q, f.left)), glm::dot(q, f.up)};
+                pts.pushBack(h);
+                top = za::max(top, h.z);
+            }
+        }
+    }
+    if(pts.empty())
+    {
+        return;
+    }
+    // The rows' heights (inner surface) per point: the bucket's lower edge and the guards' rows lower toward the back,
+    // the jaw's down to the nape there.
+    const float chamfer = 0.1f * L, faceHalf = 0.34f * L, taper = 0.08f * L;
+    const float zTop = top + gap;
+    float rowZ[NumHelmRows][numHelmPoints];
+    const float zRow[NumHelmRows] = {zTop, zTop - chamfer, vr_agarmor_brow_front.value * L, (vr_agarmor_brow_front.value - 0.06f) * L, 0.26f * L, -0.07f * L};
+    constexpr float browDrop[numHelmPoints] = {0.f, 0.f, 0.04f, 0.13f, 0.2f, 0.2f}, cheekDrop[numHelmPoints] = {0.f, 0.f, 0.f, 0.03f, 0.07f, 0.07f};
+    for(int r = 0; r < NumHelmRows; r++)
+    {
+        for(int k = 0; k < numHelmPoints; k++)
+        {
+            const float drop = r == HBrow || r == HLedge ? browDrop[k] : r == HCheek ? cheekDrop[k] : 0.f;
+            rowZ[r][k] = zRow[r] - drop * L;
+        }
+    }
+    const float nape = za::min(vr_agarmor_brow_back.value * L, rowZ[HCheek][5] - 0.05f * L);
+    rowZ[HJaw][3] = nape; // (the side's back corner clear of the neck as the head turns)
+    rowZ[HJaw][4] = rowZ[HJaw][5] = nape;
+    // The fit: each ring round every vertex of its bands (the cap's ring the crown's, stepped in).
+    Ring ring[NumHelmRows];
+    for(Ring& r : ring)
+    {
+        r = Ring{0.1f * L, 0.1f * L, 0.1f * L, 0.2f * L, 0.2f * L};
+    }
+    const auto need = [&](Ring& r, const glm::vec3& p, float in) {
+        r.F = za::max(r.F, p.x + gap + in);
+        r.B = za::max(r.B, -p.x + gap + in);
+        r.W = za::max(r.W, p.y + gap + in);
+        r.Df = za::max(r.Df, p.x + p.y + (gap + in) * root2);
+        r.Db = za::max(r.Db, -p.x + p.y + (gap + in) * root2);
+    };
+    // A row's height at a place front to back (the points' places about the head's front and back: its chamfers' ends
+    // near half way to its middle).
+    float xFront = 0.f, xBack = 0.f;
+    for(const glm::vec3& p : pts)
+    {
+        xFront = za::max(xFront, p.x);
+        xBack = za::max(xBack, -p.x);
+    }
+    const float knotX[4] = {xFront, 0.5f * xFront, -0.5f * xBack, -xBack};
+    const auto zAt = [&](int r, float x) {
+        if(x >= knotX[0])
+        {
+            return rowZ[r][1];
+        }
+        for(int i = 0; i < 3; i++)
+        {
+            if(x >= knotX[i + 1])
+            {
+                const float t = (knotX[i] - x) / za::max(knotX[i] - knotX[i + 1], 1e-3f);
+                return rowZ[r][i + 1] + (rowZ[r][i + 2] - rowZ[r][i + 1]) * t;
+            }
+        }
+        return rowZ[r][4];
+    };
+    constexpr float margin = 0.25f;
+    for(int r = 0; r + 1 < NumHelmRows; r++)
+    {
+        for(const glm::vec3& p : pts)
+        {
+            const float hi = zAt(r, p.x), lo = zAt(r + 1, p.x);
+            const bool face = r + 1 > HLedge && p.x > 0.f && p.y < faceHalf;
+            if(p.z > hi + margin || p.z < lo - margin || face)
+            {
+                continue;
+            }
+            if(r == HCrown)
+            {
+                // the bucket's wall, its brow ring the crown's grown by the taper: the crown's ring as far in as that
+                // lets it (a point a share s down the wall needs crown + taper s)
+                const float s = za::clamp((hi - p.z) / za::max(hi - lo, 1e-3f), 0.f, 1.f);
+                need(ring[HCrown], p, -taper * s);
+                continue;
+            }
+            need(ring[r == HCap ? HCrown : r], p, r == HCap ? chamfer : 0.f);
+            need(ring[r + 1], p, 0.f);
+        }
+    }
+    // The style: the bucket a little wider at its brow than its crown and a ledge over the guards; its chamfers at most
+    // half its side (the guards' a third); the face's opening at least faceHalf wide.
+    Ring& crown = ring[HCrown];
+    Ring& brow = ring[HBrow];
+    const Ring wider = grown(crown, taper), ledge = grown(ring[HLedge], 0.04f * L);
+    brow = Ring{za::max(brow.F, wider.F, ledge.F), za::max(brow.B, wider.B, ledge.B), za::max(brow.W, wider.W, ledge.W),
+        za::max(brow.Df, wider.Df, ledge.Df), za::max(brow.Db, wider.Db, ledge.Db)};
+    for(int r = HCrown; r < NumHelmRows; r++)
+    {
+        Ring& x = ring[r];
+        const float cut = (r <= HBrow ? 0.5f : 0.34f) * x.W; // the bucket rounder than the guards
+        x.Df = za::clamp(za::max(x.Df, x.F + x.W - cut), 0.f, x.F + x.W);
+        x.Db = za::clamp(za::max(x.Db, x.B + x.W - 0.5f * x.W), 0.f, x.B + x.W); // (the back round: clear of the upper back)
+        x.Df = r >= HLedge ? za::clamp(x.F + faceHalf, x.Df, x.F + x.W) : x.Df;
+    }
+    ring[HCap] = grown(crown, -chamfer);
+
+    HelmBuild hb{s, f.origin, f.fwd, f.left, f.up, W{}};
+    hb.w.w[headBone] = 1.f;
+    // The grid: (column, row) -> its place, inner (layer 1) and outer (layer 0: grown a thickness, its top raised).
+    const auto place = [&](int col, int row, int layer) {
+        const Ring r = layer == 0 ? grown(ring[row], thick) : ring[row];
+        const glm::vec2 xy = ringPoint(r, pointOf(col), col);
+        const float z = rowZ[row][pointOf(col)] + (layer == 0 && row <= HCrown ? thick : 0.f);
+        return glm::vec3{xy.x, xy.y, z};
+    };
+    const auto wallST = [&](int col, int row, int layer) {
+        return toBlock(layer == 0 ? helmetBlock : innerBlock, helmU[pointOf(col)], helmV[row]);
+    };
+    for(int layer = 0; layer < 2; layer++)
+    {
+        for(int c = 0; c < numHelmCols; c++)
+        {
+            const int d = (c + 1) % numHelmCols;
+            for(int r = 0; r < stripBottom(c); r++)
+            {
+                glm::vec3 p[4] = {place(c, r, layer), place(c, r + 1, layer), place(d, r + 1, layer), place(d, r, layer)};
+                glm::vec2 st[4] = {wallST(c, r, layer), wallST(c, r + 1, layer), wallST(d, r + 1, layer), wallST(d, r, layer)};
+                // (round from the front to the left: c, its row below, then d's, is wound outward)
+                if(layer == 1)
+                {
+                    za::genericSwap(p[1], p[3]);
+                    za::genericSwap(st[1], st[3]);
+                }
+                hb.face(p, st, 4, layer);
+            }
+        }
+        // The cap: a fan from its middle.
+        const Ring cr = layer == 0 ? grown(ring[HCap], thick) : ring[HCap];
+        const float z = zTop + (layer == 0 ? thick : 0.f), rad = za::max(cr.F, cr.B, cr.W);
+        const glm::vec3 mid{(cr.F - cr.B) * 0.5f, 0.f, z};
+        const auto capST = [&](const glm::vec3& p) {
+            return toBlock(layer == 0 ? helmCapBlock : innerBlock, 0.5f + 0.5f * p.x / rad, 0.5f - 0.5f * p.y / rad);
+        };
+        for(int c = 0; c < numHelmCols; c++)
+        {
+            const int d = (c + 1) % numHelmCols;
+            glm::vec3 p[3] = {mid, place(c, HCap, layer), place(d, HCap, layer)};
+            if(layer == 1)
+            {
+                za::genericSwap(p[1], p[2]);
+            }
+            const glm::vec2 st[3] = {capST(p[0]), capST(p[1]), capST(p[2])};
+            hb.face(p, st, 3, layer);
+        }
+    }
+    // The lining: a face along each open edge from the outer layer to the inner (the outer wall's edge a -> b, wound
+    // outward, its rim b, a, then the inner's a, b).
+    const auto rim = [&](int ca, int ra, int cb, int rb) {
+        const glm::vec3 p[4] = {place(cb, rb, 0), place(ca, ra, 0), place(ca, ra, 1), place(cb, rb, 1)};
+        const glm::vec2 st[4] = {toBlock(liningBlock, 0.75f, 0.1f), toBlock(liningBlock, 0.25f, 0.1f), toBlock(liningBlock, 0.25f, 0.9f),
+            toBlock(liningBlock, 0.75f, 0.9f)};
+        hb.face(p, st, 4, 2);
+        s.pieceOpen[Helmet]++;
+    };
+    for(int c = 0; c < numHelmCols; c++)
+    {
+        const int d = (c + 1) % numHelmCols, bot = stripBottom(c);
+        rim(c, bot, d, bot); // its lower edge (the outer quad's c, bot -> d, bot)
+    }
+    // The guards' front edges: down column 1 (the left; the face strip ends above it) and column 9 (the right).
+    for(int r = HLedge; r < HJaw; r++)
+    {
+        rim(1, r, 1, r + 1);
+        rim(numHelmCols - 1, r + 1, numHelmCols - 1, r);
+    }
+    // The brackets: a small block on each side at the guards' top, set into the plate.
+    for(int side = 0; side < 2; side++)
+    {
+        const float sy = side == 0 ? 1.f : -1.f;
+        const Ring g = grown(ring[HLedge], thick);
+        const float size = 0.075f * L, out = 0.11f * L;
+        const float cx = g.Df - g.W - size * 1.3f, cz = rowZ[HLedge][2] - size * 1.3f;
+        const Ring gc = grown(ring[HCheek], thick);
+        const float wy = za::max(g.W, gc.W) - 0.1f;
+        const glm::vec3 lo{cx - size, wy * sy, cz - size}, hi{cx + size, (wy + out + 0.1f) * sy, cz + size};
+        // corners: bit 0 x, bit 1 y (out from the plate), bit 2 z
+        glm::vec3 k[8];
+        for(int i = 0; i < 8; i++)
+        {
+            k[i] = glm::vec3{(i & 1) ? hi.x : lo.x, (i & 2) ? hi.y : lo.y, (i & 4) ? hi.z : lo.z};
+        }
+        const glm::vec3 boxMid = (lo + hi) * 0.5f;
+        const int quads[6][4] = {{2, 3, 7, 6}, {0, 4, 5, 1}, {1, 5, 7, 3}, {0, 2, 6, 4}, {4, 6, 7, 5}, {0, 1, 3, 2}};
+        for(int q = 0; q < 6; q++)
+        {
+            glm::vec3 p[4];
+            for(int i = 0; i < 4; i++)
+            {
+                p[i] = k[quads[q][i]];
+            }
+            const glm::vec3 nrm = glm::cross(p[1] - p[0], p[2] - p[0]);
+            if(glm::dot(nrm, (p[0] + p[2]) * 0.5f - boxMid) < 0.f)
+            {
+                za::genericSwap(p[1], p[3]);
+            }
+            // its outer face the whole block (seen from outside: forward to the left on the left side), the rest a corner
+            glm::vec2 st[4];
+            for(int i = 0; i < 4; i++)
+            {
+                const float a = (p[i].x - lo.x) / (hi.x - lo.x), c2 = (hi.z - p[i].z) / (hi.z - lo.z);
+                st[i] = q == 0 ? toBlock(bracketBlock, side == 0 ? a : 1.f - a, c2) : toBlock(bracketBlock, 0.02f + 0.1f * a, 0.02f + 0.1f * c2);
+            }
+            hb.face(p, st, 4, 0);
+        }
+    }
+    const Ring& gk = ring[HCheek];
+    q_snprintf(s.helmFit, sizeof(s.helmFit),
+        "head top %.2f, helmet top %.2f (inner); brow ring front %.2f back %.2f half width %.2f; cheek ring %.2f %.2f %.2f; "
+        "face opening +-%.2f; brow %.2f, jaw %.2f, nape %.2f",
+        static_cast<double>(top), static_cast<double>(zTop), static_cast<double>(brow.F), static_cast<double>(brow.B),
+        static_cast<double>(brow.W), static_cast<double>(gk.F), static_cast<double>(gk.B), static_cast<double>(gk.W),
+        static_cast<double>(gk.Df - gk.F), static_cast<double>(zRow[HBrow]), static_cast<double>(zRow[HJaw]),
+        static_cast<double>(nape));
 }
 
 [[nodiscard]] uint32_t fnv(uint32_t h, const void* data, size_t size)
@@ -843,10 +1140,14 @@ bool buildShell(qmodel_t* src, Shell& s)
     {
         const PieceFrame f = frameOf(*rig, piece);
         const int firstVert = count(s.verts), firstTri = count(s.tris);
-        if(f.ok)
+        if(f.ok && piece == Helmet)
+        {
+            helmetOf(s, s.body, f, rig2::boneByName(*rig, "head"));
+        }
+        else if(f.ok)
         {
             Local L;
-            clipPiece(s.body, piece, f, L);
+            clipPiece(s.body, f, L);
             for(int i = 0; i < za::clamp(static_cast<int>(vr_agarmor_subdiv.value), 0, 2); i++)
             {
                 subdivide(L);
@@ -854,7 +1155,7 @@ bool buildShell(qmodel_t* src, Shell& s)
             smooth(L, za::clamp(static_cast<int>(vr_agarmor_smooth.value), 0, 50));
             if(!L.tris.empty())
             {
-                shellOf(s, L, piece, f);
+                shellOf(s, L, f);
             }
         }
         s.pieceVerts[piece] = count(s.verts) - firstVert;
@@ -1056,6 +1357,7 @@ void info_f()
             Con_Printf("agarmor:   %s: %d vertices, %d triangles, %d rim edges\n", pieceNames[p], s->pieceVerts[p], s->pieceTris[p],
                 s->pieceOpen[p]);
         }
+        Con_Printf("agarmor:   helmet fit: %s\n", s->helmFit);
     }
     Con_Printf("agarmor: %d drawn last frame\n", numWorn);
 }
@@ -1374,6 +1676,7 @@ void check_f()
     (void)buildShell(src, again);
     Con_Printf("agarmor check: hash %08x, again %08x; %d vertices, %d triangles (cuirass %d, helmet %d), %d slots\n", sp->hash, again.hash,
         count(sp->verts), count(sp->tris) / 3, sp->pieceTris[Cuirass], sp->pieceTris[Helmet], sp->numSlots);
+    Con_Printf("agarmor check: helmet fit: %s\n", sp->helmFit);
     verdict(again.hash == sp->hash && again.hash != 0u, "made alike twice");
     const Shell& s = *sp;
     // Closed: every edge of each piece's shell used twice.
