@@ -58,7 +58,8 @@
 // The waves' tables
 // ---------------------------------------------------------------------------
 
-#define AR_PLAN_MAX 12   // a wave's planned foes at most (vr_arena_max_alive caps how many of them are up at once)
+#define AR_PLAN_MAX 40   // a wave's planned foes at most (its alive pool caps how many of them are up at once)
+#define AR_FIELD_MAX 16  // vr_arena_max_alive's own clamp, after the skill's factor: never more foes up at once
 #define AR_RING_MAX 8    // the fallback ring's places around the player, when a map has no info_arena_spawn
 #define AR_ASIDE_MAX 5   // a place is tried as the map drew it, then aside this many ways
 #define AR_ASIDE_STEP 48 // how far a step off a taken place goes (a monster's own box is 32 wide)
@@ -89,7 +90,9 @@ float AR_W_HKNIGHT = 16;
 float AR_FIST        = -1;   // the plan's "no gun": an armed humanoid at their fists (monster_vr_grunt's "weapon" -1)
 float AR_BOSS_MARK   = 8;    // a boss's ar_tier carries this (its worth: the tier times four)
 float AR_TICK        = 0.5;  // the director's beat (s)
-float AR_SPAWN_GAP   = 1.5;  // a wave's foes come in this far apart, at least
+float AR_BOSS_WARN   = 3;    // s a mid-wave boss is announced before it comes in (in place of its gap)
+float AR_NEAR        = 320;  // a foe comes in no nearer the player's eyes than this, when the map has a farther place
+float AR_VIEW_COS    = 0.5;  // a place within this cosine of the player's view (about 60 degrees off it) is in view
 float AR_RING_R      = 400;  // no info_arena_spawn in the map: foes come in this far off the player
 float AR_DROP_R      = 220;  // its medkits and armour land about this far off the player
 float AR_STALL       = 300;  // a wave this long over is cleared (its stragglers removed) so the arena keeps going
@@ -135,9 +138,19 @@ float ar_serverflags0;   // the map's serverflags as they were, for a fresh run 
 float ar_stripped;         // the players have been put down to their fists already
 float ar_down;             // the players are down: a fresh run is on its way
 float ar_fell_n;           // the run's bodies so far (their .ar_fell order)
+float ar_pool;             // this wave's alive pool: its foes up at once at most (VR_ARENA_Pool)
+float ar_burst_left;       // this wave's opening burst: foes still to come in at once, without a gap
+float ar_gap_from;         // the time the pending gap was started (a slot freed up), 0: no gap pending
+float ar_last_spawn;       // the time this wave's last foe came in (the stall is counted from it)
+float ar_wave_peak;        // the most of this wave's foes up at once
+float ar_gap_lo;           // this wave's shortest and longest trickle gap (s; the tests read them)
+float ar_gap_hi;
+float ar_gap_n;            // this wave's trickle gaps so far
 
 // The director's own beats (vr_arena.qc's own cycle; world.qc only calls WorldSpawn and Frame).
 void() VR_ARENA_WaveStart;
+float() VR_ARENA_Rand;
+float(float x) VR_ARENA_SkillWhole;
 void() VR_ARENA_ManagerThink;
 void() VR_ARENA_RestartThink;
 
@@ -201,7 +214,12 @@ string(float xSkill) VR_ARENA_SkillName =
     return xSkill < 1 ? "Easy" : xSkill < 2 ? "Normal" : xSkill < 3 ? "Hard" : "Nightmare";
 }
 
-float() VR_ARENA_Opt_MaxAlive   { return VR_ARENA_Clamp(cvar("vr_arena_max_alive"), 1, AR_PLAN_MAX); }
+float() VR_ARENA_Opt_MaxAlive   { return VR_ARENA_Clamp(cvar("vr_arena_max_alive"), 1, AR_FIELD_MAX); }
+float() VR_ARENA_Opt_WaveSize   { return VR_ARENA_Clamp(cvar("vr_arena_wave_size"), 0.25, 4); }
+float() VR_ARENA_Opt_AliveMax   { return VR_ARENA_Clamp(cvar("vr_arena_alive_max"), 1, AR_FIELD_MAX); }
+float() VR_ARENA_Opt_AliveGrow  { return VR_ARENA_Clamp(cvar("vr_arena_alive_grow"), 0, 20); }
+float() VR_ARENA_Opt_Burst      { return VR_ARENA_Clamp(cvar("vr_arena_burst"), 1, AR_FIELD_MAX); }
+float() VR_ARENA_Opt_Gap        { return VR_ARENA_Clamp(cvar("vr_arena_spawn_gap"), AR_TICK, 10); }
 float() VR_ARENA_Opt_Delay      { return VR_ARENA_Clamp(cvar("vr_arena_wave_delay"), 1, 60); }
 float() VR_ARENA_Opt_BossEvery  { return VR_ARENA_Clamp(cvar("vr_arena_boss_every"), 0, 20); }
 float() VR_ARENA_Opt_BossHealth { return VR_ARENA_Clamp(cvar("vr_arena_boss_health"), 1, 8); }
@@ -215,7 +233,28 @@ float(float xN) VR_ARENA_SkillCount = { return max(1, floor(VR_ARENA_Skill(0.75,
 
 // How many of a wave's foes may be up at once: vr_arena_max_alive (clamped to what works, above) by the skill, and
 // still never more than a wave can plan and never below one.
-float() VR_ARENA_FieldCap = { return VR_ARENA_Clamp(VR_ARENA_SkillCount(VR_ARENA_Opt_MaxAlive()), 1, AR_PLAN_MAX); }
+float() VR_ARENA_FieldCap = { return VR_ARENA_Clamp(VR_ARENA_SkillCount(VR_ARENA_Opt_MaxAlive()), 1, AR_FIELD_MAX); }
+
+// A crowd group of a wave's foes: the ladder's own count times vr_arena_wave_size (whole foes, rounded), then by the
+// skill's factor as every group is (VR_ARENA_SkillCount). A wave's single signature foe and its boss are not crowds.
+float(float xN) VR_ARENA_WaveCount = { return VR_ARENA_SkillCount(VR_ARENA_SkillWhole(xN * VR_ARENA_Opt_WaveSize())); }
+
+// A wave's alive pool: vr_arena_alive_max, one more every vr_arena_alive_grow waves (0: never more), by the skill's
+// factor, and never past the field's cap (vr_arena_max_alive by the factor).
+float(float xWave) VR_ARENA_Pool =
+{
+    float grow = VR_ARENA_Opt_AliveGrow();
+    float n = VR_ARENA_Opt_AliveMax() + (grow > 0 ? floor(max(0, xWave - 1) / grow) : 0);
+    return VR_ARENA_Clamp(VR_ARENA_SkillCount(n), 1, VR_ARENA_FieldCap());
+}
+
+// The wait before the next foe comes in, once a slot in the pool is free: vr_arena_spawn_gap at this skill (the
+// harder the skill, the shorter), and up to as long again at random -- 1.5 to 3 s at Normal.
+float() VR_ARENA_SpawnGap =
+{
+    float lo = VR_ARENA_SkillTime(VR_ARENA_Opt_Gap(), AR_TICK);
+    return lo + lo * VR_ARENA_Rand();
+}
 
 // A span of seconds the arena waits, at this skill: the harder the skill the less it waits (the factor divides the
 // span), never below xMin. A factor of 0 leaves the span as the knob sets it -- it does not make a wave arrive all
@@ -468,8 +507,8 @@ void(float xKind, float xGun, float xBoss) VR_ARENA_PlanAdd =
 
 // The wave's plan, wave 1 to the waves past the table (13 and on: the same ladder, thicker).
 //
-// The counts written below are the wave's Normal-skill counts: VR_ARENA_SkillCount moves every group of them by
-// the skill's factor (whole foes, a group never emptied -- a wave's own zombie, dog or boss stays). The cap on a
+// The counts written below are the wave's Normal-skill counts at vr_arena_wave_size 1: VR_ARENA_WaveCount scales
+// every crowd group by the wave size, then VR_ARENA_SkillCount moves it by the skill's factor (whole foes, a group never emptied -- a wave's own zombie, dog or boss stays). The cap on a
 // wave's whole plan is VR_ARENA_PlanAdd's (AR_PLAN_MAX), the cap on the field is VR_ARENA_FieldCap's.
 void(float xWave) VR_ARENA_Plan =
 {
@@ -496,14 +535,14 @@ void(float xWave) VR_ARENA_Plan =
 
     if(xWave == 1)
     {
-        n = VR_ARENA_SkillCount(1 + (VR_ARENA_Rand() < 0.5)); // (one or two grunts, all of them unarmed)
+        n = VR_ARENA_WaveCount(1 + (VR_ARENA_Rand() < 0.5)); // (one or two grunts, all of them unarmed)
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, AR_FIST, 0); }
         return;
     }
     if(xWave == 2)
     {
         // One unarmed and one with a nail pistol; a thinner wave brings the armed one, so the ladder's step stays.
-        n = VR_ARENA_SkillCount(2);
+        n = VR_ARENA_WaveCount(2);
         if(n < 2)
         {
             VR_ARENA_PlanAdd(AR_SP_GRUNT, WID_NAILPISTOL, 0);
@@ -517,27 +556,27 @@ void(float xWave) VR_ARENA_Plan =
     }
     if(xWave == 3)
     {
-        n = VR_ARENA_SkillCount(3 + (VR_ARENA_Rand() < 0.5));
+        n = VR_ARENA_WaveCount(3 + (VR_ARENA_Rand() < 0.5));
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickEarlyGun(3), 0); }
         VR_ARENA_PlanAdd(AR_SP_ZOMBIE, 0, 0);
         return;
     }
     if(xWave == 4)
     {
-        n = VR_ARENA_SkillCount(4);
+        n = VR_ARENA_WaveCount(4);
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickEarlyGun(4), 0); }
         VR_ARENA_PlanAdd(AR_SP_KNIGHT, 0, 0);
         return;
     }
     if(xWave == 5) // (its boss, an enforcer with a gun, was planned above)
     {
-        n = VR_ARENA_SkillCount(3 + (VR_ARENA_Rand() < 0.5));
+        n = VR_ARENA_WaveCount(3 + (VR_ARENA_Rand() < 0.5));
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(5), 0); }
         return;
     }
     if(xWave == 6)
     {
-        n = VR_ARENA_SkillCount(3);
+        n = VR_ARENA_WaveCount(3);
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(6), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(6), 0);
         VR_ARENA_PlanAdd(AR_SP_DOG, 0, 0);
@@ -545,7 +584,7 @@ void(float xWave) VR_ARENA_Plan =
     }
     if(xWave == 7)
     {
-        n = VR_ARENA_SkillCount(3 + (VR_ARENA_Rand() < 0.4));
+        n = VR_ARENA_WaveCount(3 + (VR_ARENA_Rand() < 0.4));
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(7), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(7), 0);
         VR_ARENA_PlanAdd(AR_SP_DOG, 0, 0);
@@ -553,7 +592,7 @@ void(float xWave) VR_ARENA_Plan =
     }
     if(xWave == 8)
     {
-        n = VR_ARENA_SkillCount(3);
+        n = VR_ARENA_WaveCount(3);
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(8), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(8), 0);
         VR_ARENA_PlanAdd(AR_SP_KNIGHT, 0, 0);
@@ -562,7 +601,7 @@ void(float xWave) VR_ARENA_Plan =
     }
     if(xWave == 9)
     {
-        n = VR_ARENA_SkillCount(4);
+        n = VR_ARENA_WaveCount(4);
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(9), 0); }
         VR_ARENA_PlanAdd(AR_SP_ZOMBIE, 0, 0);
         VR_ARENA_PlanAdd(AR_SP_OGRE, 0, 0);
@@ -570,25 +609,25 @@ void(float xWave) VR_ARENA_Plan =
     }
     if(xWave == 10) // (its boss, an ogre, was planned above)
     {
-        n = VR_ARENA_SkillCount(2);
+        n = VR_ARENA_WaveCount(2);
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(10), 0); }
-        n = VR_ARENA_SkillCount(2);
+        n = VR_ARENA_WaveCount(2);
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(10), 0); }
         VR_ARENA_PlanAdd(AR_SP_DOG, 0, 0);
         return;
     }
     if(xWave == 11)
     {
-        n = VR_ARENA_SkillCount(4);
+        n = VR_ARENA_WaveCount(4);
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(11), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(11), 0);
-        n = VR_ARENA_SkillCount(2);
+        n = VR_ARENA_WaveCount(2);
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_OGRE, 0, 0); }
         return;
     }
     if(xWave == 12)
     {
-        n = VR_ARENA_SkillCount(4);
+        n = VR_ARENA_WaveCount(4);
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(12), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(12), 0);
         VR_ARENA_PlanAdd(AR_SP_FIEND, 0, 0);
@@ -600,14 +639,14 @@ void(float xWave) VR_ARENA_Plan =
     // or bosses take a place, as they do at Normal. Where the ladder starts thickening stays wave 13 at every skill
     // -- how thick a wave there is VR_ARENA_SkillCount's business (its own gates, the guns and the species it draws,
     // are the difficulty's: VR_ARENA_WaveAdj, inside VR_ARENA_PickGun and VR_ARENA_ClassicKind).
-    n = VR_ARENA_SkillCount(VR_ARENA_Clamp(4 + floor((xWave - 13) / 4), 1, 7));
+    n = VR_ARENA_WaveCount(VR_ARENA_Clamp(4 + floor((xWave - 13) / 4), 1, 7));
     if(boss) { n = max(1, n - nb); } // (its boss or bosses take a place)
     for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(xWave), 0); }
 
-    float nenf = VR_ARENA_SkillCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
+    float nenf = VR_ARENA_WaveCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
     for(i = 0; i < nenf; i++) { VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(xWave), 0); }
 
-    float nclass = VR_ARENA_SkillCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
+    float nclass = VR_ARENA_WaveCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
     for(i = 0; i < nclass; i++) { VR_ARENA_PlanAdd(VR_ARENA_ClassicKind(xWave, i), 0, 0); }
 }
 
@@ -735,6 +774,24 @@ float(vector o) VR_ARENA_HasFloor =
     return !trace_allsolid && !trace_startsolid && trace_fraction < 1;
 }
 
+// How a place sits for the player: 0 out of his sight (behind him, off to the side, or a wall between) and not
+// near, 1 in his sight, 2 near him (AR_NEAR off his eyes). No player: 0.
+float(vector o) VR_ARENA_PlaceSeen =
+{
+    entity p = VR_ARENA_FindPlayer();
+    if(p == world) { return 0; }
+
+    vector eye = p.origin + p.view_ofs;
+    vector at = o + '0 0 24'; // (about a foe's chest)
+    vector d = at - eye;
+    if(vlen(d) < AR_NEAR) { return 2; }
+
+    makevectors(p.v_angle);
+    if(normalize(d) * v_forward < AR_VIEW_COS) { return 0; }
+    traceline(eye, at, TRUE, p);
+    return trace_fraction < 1 ? 0 : 1;
+}
+
 // Where this wave's foe comes in. Its own kind of place first: the map's high places (kind 2: a tower top, a wall
 // walk) for the fiend and the enforcer, its floor places (kind 1) for everything that walks. The places are gone
 // through in order from where this wave starts and each one is used at most once, so 12 foes do not arrive in 4
@@ -750,16 +807,22 @@ vector(float xHigh) VR_ARENA_SpawnPlace =
     if(xHigh) { used = ar_used_high; ar_used_high = ar_used_high + 1; }
     else { used = ar_used_ground; ar_used_ground = ar_used_ground + 1; }
 
+    // Three passes over the places: first one out of the player's sight and not near him, then one not near him,
+    // then any free one (a small map, a player standing in the middle of its places).
     float k;
-    for(k = 0; k < total; k++)
+    float pass;
+    for(pass = 0; pass < 3; pass++)
     {
-        entity e = VR_ARENA_SpawnSpot(want, VR_ARENA_Mod(used + ar_wave + k, total));
-        if(!e) { break; } // (out of this kind of place: the ring below)
-
-        vector here = e.origin;
-        if(xHigh && e.kind == 2) { here_z = here_z + 96; } // (over a high place: it drops onto the ledge it belongs to)
-        if(!VR_ARENA_PlaceTaken(here))
+        for(k = 0; k < total; k++)
         {
+            entity e = VR_ARENA_SpawnSpot(want, VR_ARENA_Mod(used + ar_wave + k, total));
+            if(!e) { break; } // (out of this kind of place: the ring below)
+
+            vector here = e.origin;
+            if(xHigh && e.kind == 2) { here_z = here_z + 96; } // (over a high place: it drops onto the ledge it belongs to)
+            if(VR_ARENA_PlaceTaken(here)) { continue; }
+            float seen = VR_ARENA_PlaceSeen(here);
+            if((pass == 0 && seen != 0) || (pass == 1 && seen == 2)) { continue; }
             ar_spot_next = ar_spot_next + 1;
             return here;
         }
@@ -777,16 +840,22 @@ vector(float xHigh) VR_ARENA_SpawnPlace =
     vector o = ring;
     float ground = FALSE; // (any place with ground under it: the last resort)
     float free = FALSE;   // (a place with ground under it and no foe of this wave on it)
-    for(k2 = 0; k2 < AR_RING_MAX && !free; k2++)
+    float pass2;          // (the first pass wants one out of the player's sight as well)
+    for(pass2 = 0; pass2 < 2 && !free; pass2++)
     {
-        vector r = (k2 == 0) ? ring : base + AR_RING_R * VR_ARENA_RingDir(ar_spot_next + k2);
-        float t;
-        for(t = 0; t < AR_ASIDE_MAX; t++)
+        for(k2 = 0; k2 < AR_RING_MAX && !free; k2++)
         {
-            vector c = r + VR_ARENA_Aside(t);
-            if(!VR_ARENA_HasFloor(c)) { continue; }
-            if(!ground) { ground = TRUE; o = c; }
-            if(!VR_ARENA_PlaceTaken(c)) { o = c; free = TRUE; break; }
+            vector r = (k2 == 0) ? ring : base + AR_RING_R * VR_ARENA_RingDir(ar_spot_next + k2);
+            float t;
+            for(t = 0; t < AR_ASIDE_MAX; t++)
+            {
+                vector c = r + VR_ARENA_Aside(t);
+                if(!VR_ARENA_HasFloor(c)) { continue; }
+                if(!ground) { ground = TRUE; o = c; }
+                if(VR_ARENA_PlaceTaken(c)) { continue; }
+                if(pass2 == 0 && VR_ARENA_PlaceSeen(c) != 0) { continue; }
+                o = c; free = TRUE; break;
+            }
         }
     }
 
@@ -1041,6 +1110,9 @@ void() VR_ARENA_MonsterDie =
     ar_wave_kills = ar_wave_kills + 1;
     ar_score = ar_score + VR_ARENA_KillScore(VR_ARENA_TierOf(self.ar_tier), self.ar_tier >= AR_BOSS_MARK);
     VR_ARENA_BodyDown(self); // (its body's time: the cleanup)
+
+    // Its slot in the pool is free: the director looks at once, so the next foe's gap runs from this fall.
+    if(ar_mgr.think == VR_ARENA_ManagerThink && ar_mgr.nextthink > time + 0.05) { ar_mgr.nextthink = time + 0.05; }
 }
 
 // (a stalled wave, and the tests' jump: its monsters still up leave). Exactly that wave's: findflags matches any
@@ -1214,6 +1286,53 @@ void() VR_ARENA_Leftovers =
 // The director's cycle
 // ---------------------------------------------------------------------------
 
+// A boss wave's big ones are planned first (so a thick plan never cuts them out); they come in halfway through it,
+// after the opening burst: the plan's head is turned so they sit at its middle.
+void() VR_ARENA_BossMidway =
+{
+    float nb = 0;
+    while(nb < ar_plan_n && ar_plan_boss[nb]) { nb = nb + 1; }
+    if(nb <= 0 || nb >= ar_plan_n) { return; }
+
+    float mid = min(max(floor(ar_plan_n / 2), ar_burst_left), ar_plan_n - nb); // (where the first of them goes)
+    float len = mid + nb;
+    float r;
+    float j;
+    for(r = 0; r < nb; r++) // (the head [0, len) turned left by one, nb times: the bosses end at [mid, len))
+    {
+        float k0 = ar_plan_kind[0];
+        float g0 = ar_plan_gun[0];
+        float t0 = ar_plan_tier[0];
+        float b0 = ar_plan_boss[0];
+        for(j = 0; j + 1 < len; j++)
+        {
+            ar_plan_kind[j] = ar_plan_kind[j + 1];
+            ar_plan_gun[j]  = ar_plan_gun[j + 1];
+            ar_plan_tier[j] = ar_plan_tier[j + 1];
+            ar_plan_boss[j] = ar_plan_boss[j + 1];
+        }
+        ar_plan_kind[len - 1] = k0;
+        ar_plan_gun[len - 1]  = g0;
+        ar_plan_tier[len - 1] = t0;
+        ar_plan_boss[len - 1] = b0;
+    }
+}
+
+// This wave's next planned foe into the field: TRUE when it came in (its kind's spawn may hold it back).
+float() VR_ARENA_SpawnNext =
+{
+    float i = ar_plan_n - ar_plan_left;
+    entity m = VR_ARENA_SpawnMonster(ar_plan_kind[i], ar_plan_gun[i], ar_plan_tier[i], ar_plan_boss[i]);
+    if(!m) { return FALSE; }
+    ar_plan_left = ar_plan_left - 1;
+    ar_plan_live = ar_plan_live + 1;
+    ar_last_spawn = time;
+    return TRUE;
+}
+
+// Is the wave's next planned foe one of its bosses.
+float() VR_ARENA_NextIsBoss = { return ar_plan_left > 0 && ar_plan_boss[ar_plan_n - ar_plan_left] > 0; }
+
 void() VR_ARENA_WaveStart =
 {
     ar_wave = ar_wave + 1;
@@ -1228,9 +1347,21 @@ void() VR_ARENA_WaveStart =
     ar_used_high = 0;
     ar_spot_next = ar_spot_next + AR_ASIDE_MAX; // (a wave begins at another place on the map's spots)
 
+    // The alive pool: the wave opens with a small burst, then the rest trickle in a gap after each other while a
+    // slot is free (VR_ARENA_ManagerThink). Its boss comes in halfway through, announced.
+    ar_pool = VR_ARENA_Pool(ar_wave);
+    ar_burst_left = min(VR_ARENA_Opt_Burst(), ar_pool);
+    ar_gap_from = 0;
+    ar_last_spawn = time;
+    ar_wave_peak = 0;
+    ar_gap_lo = 0;
+    ar_gap_hi = 0;
+    ar_gap_n = 0;
+    VR_ARENA_BossMidway();
+
     VR_ARENA_PrintAll(sprintf("ARENA - Wave %g: %g foes (score %g)\n", ar_wave, ar_plan_n, ar_score));
     if(VR_ARENA_IsBossWave(ar_wave)) { VR_ARENA_PrintAll("A BOSS is with this wave\n"); }
-    dprint(sprintf("arena: wave %g score %g alive %g\n", ar_wave, ar_score, ar_plan_n));
+    dprint(sprintf("arena: wave %g score %g alive %g pool %g\n", ar_wave, ar_score, ar_plan_n, ar_pool));
 
     self.think = VR_ARENA_ManagerThink;
     self.nextthink = time + 0.2;
@@ -1271,20 +1402,54 @@ void() VR_ARENA_ManagerThink =
         return;
     }
 
-    // Its foes trickle in as the field frees up: vr_arena_max_alive is the most up at once, by the skill's factor.
-    float cap = VR_ARENA_FieldCap();
-    if(ar_plan_left > 0 && alive < cap && time >= ar_next_spawn)
+    // The alive pool (ar_pool, VR_ARENA_Pool): its opening burst comes in at once; after that, each free slot is
+    // filled a randomized gap after it freed up (vr_arena_spawn_gap), a boss after its warning instead.
+    while(ar_burst_left > 0 && ar_plan_left > 0 && alive < ar_pool && !VR_ARENA_NextIsBoss())
     {
-        float i = ar_plan_n - ar_plan_left;
-        entity m = VR_ARENA_SpawnMonster(ar_plan_kind[i], ar_plan_gun[i], ar_plan_tier[i], ar_plan_boss[i]);
-        if(m)
-        {
-            ar_plan_left = ar_plan_left - 1;
-            ar_plan_live = ar_plan_live + 1;
-        }
-        // (one per beat at most, then this far apart: the harder the skill, the sooner the next one)
-        ar_next_spawn = time + VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) + VR_ARENA_Rand();
+        if(!VR_ARENA_SpawnNext()) { break; } // (held back: the next beat tries again)
+        ar_burst_left = ar_burst_left - 1;
+        alive = alive + 1;
     }
+    if(ar_burst_left > 0 && VR_ARENA_NextIsBoss()) { ar_burst_left = 0; } // (a thin wave: its boss ends the burst)
+
+    if(ar_burst_left <= 0 && ar_plan_left > 0 && alive < ar_pool)
+    {
+        if(ar_gap_from <= 0)
+        {
+            ar_gap_from = time;
+            if(VR_ARENA_NextIsBoss())
+            {
+                ar_next_spawn = time + AR_BOSS_WARN;
+                VR_ARENA_PrintAll("ARENA - A BOSS is coming!\n");
+            }
+            else
+            {
+                ar_next_spawn = time + VR_ARENA_SpawnGap();
+            }
+        }
+        else if(time >= ar_next_spawn)
+        {
+            float boss = VR_ARENA_NextIsBoss();
+            if(VR_ARENA_SpawnNext())
+            {
+                alive = alive + 1;
+                if(!boss)
+                {
+                    float gap = time - ar_gap_from;
+                    if(ar_gap_n == 0 || gap < ar_gap_lo) { ar_gap_lo = gap; }
+                    if(ar_gap_n == 0 || gap > ar_gap_hi) { ar_gap_hi = gap; }
+                    ar_gap_n = ar_gap_n + 1;
+                }
+                ar_gap_from = 0;
+            }
+            else
+            {
+                ar_next_spawn = time + AR_TICK; // (held back: tried again a beat later, the gap still running)
+            }
+        }
+    }
+    if(alive > ar_wave_peak) { ar_wave_peak = alive; }
+    if(alive > ar_alive_peak) { ar_alive_peak = alive; }
 
     if(ar_plan_left == 0 && VR_ARENA_CountAlive() == 0)
     {
@@ -1294,7 +1459,9 @@ void() VR_ARENA_ManagerThink =
 
     VR_ARENA_HuntPlayer(); // (a wave foe that has come to and has not spotted anyone: it comes at you)
 
-    if(time - ar_wave_at > AR_STALL) // (a foe that could not be reached: the wave lets go and the arena goes on)
+    // (a foe that could not be reached: the wave lets go and the arena goes on; counted from its last foe's arrival,
+    // since a big wave trickling in takes its time)
+    if(time - max(ar_wave_at, ar_last_spawn) > AR_STALL)
     {
         dprint(sprintf("arena: wave %g stalled alive %g\n", ar_wave, VR_ARENA_CountAlive()));
         VR_ARENA_ClearField(ar_wave);
@@ -1303,6 +1470,7 @@ void() VR_ARENA_ManagerThink =
     }
 
     self.nextthink = time + AR_TICK;
+    if(ar_gap_from > 0 && ar_next_spawn > time && ar_next_spawn < self.nextthink) { self.nextthink = ar_next_spawn; }
 }
 
 void() VR_ARENA_RestartThink =
@@ -1359,6 +1527,11 @@ void() VR_ARENA_WorldSpawn =
     ar_stripped = 0;
     ar_down = 0;
     ar_fell_n = 0;
+    ar_pool = 0;
+    ar_burst_left = 0;
+    ar_gap_from = 0;
+    ar_last_spawn = 0;
+    ar_wave_peak = 0;
 
     MGH_PrecacheMonsters(); // (vr_mg_horde.qc: the models and sounds of the monsters the waves bring)
 
@@ -1368,6 +1541,7 @@ void() VR_ARENA_WorldSpawn =
     dprint(sprintf("arena: %s on (skill %g %s, impact %g, max alive %g, boss every %g, seed %g)\n", mapname,
                    VR_ARENA_SkillLevel(), VR_ARENA_SkillName(VR_ARENA_SkillLevel()), cvar("vr_arena_skill_impact"),
                    VR_ARENA_FieldCap(), VR_ARENA_BossEvery(), cvar("vr_arena_seed")));
+    dprint(sprintf("arena: pool %g at wave 1, wave size %g\n", VR_ARENA_Pool(1), VR_ARENA_Opt_WaveSize()));
 }
 
 void() VR_ARENA_Frame =

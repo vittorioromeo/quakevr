@@ -491,6 +491,53 @@ with or without the arena (its own systems: ragdoll cap, corpses); test 8 checks
 clear's medkits/armour go two waves later, foes' dropped guns capped at 24 (48 with Spoils); a body you hold never
 vanishes`
 
+## Survival Arena: the wave flow (agent/arenaflow)
+
+Vittorio: more foes per wave, not all at once; an "alive pool" so the flow feels natural. `QC/vr_arena.qc`:
+
+- **Bigger waves.** `vr_arena_wave_size` (1.75): every crowd group of the ladder (grunts, enforcers, wave 11's ogres,
+  the 13+ groups) times it, rounded, then the difficulty's `VR_ARENA_SkillCount` as before (`VR_ARENA_WaveCount`). A
+  wave's one signature foe (wave 3's zombie, 4's knight ...) and its boss stay one. `AR_PLAN_MAX` 12 -> 40 (a
+  Nightmare wave 40 plans 32, uncut); `vr_arena_max_alive` keeps its own clamp, now `AR_FIELD_MAX` 16.
+- **The alive pool.** `vr_arena_alive_max` (6) up at once at wave 1, one more every `vr_arena_alive_grow` (4) waves,
+  by the difficulty, never past `vr_arena_max_alive` (8, by the difficulty): `VR_ARENA_Pool`. A wave opens with
+  `vr_arena_burst` (3) at once; after that, a free slot is filled `vr_arena_spawn_gap` (1.5) to twice that at random
+  after it freed up (2-4 / 1.5-3 / 1.2-2.4 / 1-2 s by the difficulty). A foe's fall wakes the director at once, and
+  its think lands exactly on the gap's end, so the gap is the gap.
+- **Where.** A foe comes in out of the player's sight (outside ~60 degrees of his view, or a wall between) and at
+  least 320 units off his eyes when the map has such a free place; then a far one in sight; then any free one
+  (the same three passes on the ring for maps without spots).
+- **The boss** is planned first as before but comes in halfway through its wave, after the burst, announced
+  (`ARENA - A BOSS is coming!`) 3 s before.
+- **The stall** (300 s) now counts from the wave's last arrival, not its start (a big wave trickles in).
+- Menu: Combat > Survival Arena > The Waves: Wave Size, Alive Pool, Pool Grows Every, Opening Burst, Spawn Gap, and
+  Foes Up At Once (now the pool's ceiling, 1..16), each with help.
+
+At Normal, seed 7:
+
+| wave | 1 | 5 (boss) | 10 (boss) | 20 (boss) |
+|---|---|---|---|---|
+| total (before) | 4 (2) | 8 (5) | 10 (6) | 13 (7) |
+| pool | 6 | 7 | 8 | 8 |
+
+**Tests.** The tests' defaults pin `vr_arena_wave_size 1` (the ladder's own counts, so tests 1-5 and 7 check what
+they did); test 6 (the soak) and the new test 9 run at 1.75. Changed by design: test 3 no longer wants the boss at
+the plan's head (it checks the boss is an enforcer and comes after the opening burst: one check more); test 5's
+spawn-gap checks read `vr_arena_spawn_gap`, and its clamp check `AR_FIELD_MAX`. **New `vr_arena_test 9`** (vrarena,
+the wave flow): the table above, the pool's growth, cap and difficulty share, a Nightmare wave 40 planned whole;
+then waves 1, 5, 10, 20 live, the test felling one foe every 8 s: each wave puts its whole plan in the field, ends
+with all of it felled, never has more up than its pool (and does fill it), trickles after its burst, and every gap
+is within 1.5..3 s.
+
+**Verified.** `build.sh`: 0 QC warnings. `vr_arena_test` 1 **257**, 2 **13**, 3 **9** (was 52: its plan checks ran
+every frame while it waited for the boss, now once when it is in), 4 **7**, 5 **467**, 7 **19**, 8 **3**, 9 **37**,
+all 0 failed; `vr_arena_perks_test 2` **15**/0. Test 9 live (peak / pool, gaps): wave 1 4/6, one gap 2.98 s; wave 5
+7/7, 1.84..2.57 s; wave 10 8/8, 1.87..2.69 s; wave 20 8/8, 2.30..2.91 s. Soak (test 6, 1.75): 6 passed, edicts 308 ->
+286 over waves 16..32 (peak 329; before 298 -> 299 at size 1), bodies 6, guns 25, drops 4, longest wave 48 s.
+
+*Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: waves are ~1.75x bigger but come in a few at a time (3 at
+once, then one every 1.5-3 s after a kill, up to 6-8 up), out of your sight; the boss arrives mid-wave with a warning`
+
 ## Armour for armed humanoids, P1: limb plates and gameplay (worktree `armor`, branch `agent/armor`, 2026-10-28)
 
 Builds on P0 and the Ranger's helmet (ROUND22.md) and the research's decisions (`qvr-kit/scratch/research_agarmor.md`).

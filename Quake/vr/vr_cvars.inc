@@ -3041,7 +3041,12 @@ QVR_CVAR(vr_agrunt_test_kind, "0", CVAR_NONE)                  // the armed mons
 // Survival Arena (QC/vr_arena.qc): the wave director's knobs.
 QVR_CVAR(vr_arena, "0", CVAR_NONE)                             // 1: its waves run in this map too (the map "vrarena" runs them on its own)
 QVR_CVAR(vr_arena_wave_delay, "6", CVAR_ARCHIVE)              // s from a wave clear to the next wave
-QVR_CVAR(vr_arena_max_alive, "8", CVAR_ARCHIVE)               // foes up at once at most; the rest of a thick wave trickles in as they free up
+QVR_CVAR(vr_arena_max_alive, "8", CVAR_ARCHIVE)               // the ceiling on a wave's alive pool (foes up at once), by the difficulty
+QVR_CVAR(vr_arena_wave_size, "1.75", CVAR_ARCHIVE)            // a wave's crowd groups times this (1: the ladder's own counts)
+QVR_CVAR(vr_arena_alive_max, "6", CVAR_ARCHIVE)               // a wave's alive pool at wave 1: foes up at once; the rest come in as these fall
+QVR_CVAR(vr_arena_alive_grow, "4", CVAR_ARCHIVE)              // the pool takes one more foe every this many waves (0: never), up to vr_arena_max_alive
+QVR_CVAR(vr_arena_burst, "3", CVAR_ARCHIVE)                   // a wave opens with this many foes at once, then they trickle in
+QVR_CVAR(vr_arena_spawn_gap, "1.5", CVAR_ARCHIVE)             // s from a foe's fall (a free slot) to the next one, up to twice this at random, by the difficulty
 QVR_CVAR(vr_arena_boss_every, "5", CVAR_ARCHIVE)              // a boss wave every this many waves (0: none)
 QVR_CVAR(vr_arena_boss_health, "1.25", CVAR_ARCHIVE)          // a boss's health times this
 QVR_CVAR(vr_arena_medkits_after, "2", CVAR_ARCHIVE)           // medkits a wave clear drops (0: none)
@@ -3051,7 +3056,7 @@ QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' roll
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
 QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set
-QVR_CVAR(vr_arena_test, "0", CVAR_NONE)                       // the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 no cleanup off the arena (e1m1)
+QVR_CVAR(vr_arena_test, "0", CVAR_NONE)                       // the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 no cleanup off the arena (e1m1), 9 the wave flow (alive pool, burst, gaps)
 // Survival Arena's cleanup (QC/vr_arena.qc, "The cleanup"): what the waves leave lying. Nothing held is ever taken.
 QVR_CVAR(vr_arena_corpse_fade, "14", CVAR_ARCHIVE)           // s a fallen foe's body lies before it fades out (give or take 3 s; 0: never by time)
 QVR_CVAR(vr_arena_corpse_max, "12", CVAR_ARCHIVE)            // fallen bodies kept at most: past it the oldest fades first (0: no limit)
