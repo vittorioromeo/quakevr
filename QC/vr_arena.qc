@@ -1202,7 +1202,7 @@ void() VR_ARENA_Frame =
         if(!p) { return; } // (its clients are not in yet)
         ar_stripped = 1;
         VR_ARENA_StripPlayers();
-        VR_ARENA_PrintAll(sprintf("ARENA - %s: unarmed, wave 1 coming\n", VR_ARENA_SkillName(skill)));
+        VR_ARENA_PrintAll(sprintf("ARENA - %s: unarmed, wave 1 coming\n", VR_ARENA_SkillName(VR_ARENA_SkillLevel())));
     }
     VR_ARK_Frame(); // QVR: the perks that have to keep their word (vr_arena_perks.qc)
 }
