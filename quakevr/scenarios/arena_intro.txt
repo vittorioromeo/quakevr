@@ -3,7 +3,8 @@
 # instead of the fifth: walk over one of the three things that appear to take that perk for the rest of the run (the
 # game names them as it puts them up -- Quad Strike, Neck Snapper, Iron Skin, Second Wind, Feeder, Quartermaster,
 # Spoils). The pedestals stand off the map's three info_arena_item points, 96 units further out from the centre than
-# the medkits and armour a wave clear drops there, so the two never share a spot. Normal play: a boss every
+# the medkits and armour a wave clear drops there, so the two never share a spot. The offer's number follows the game's
+# difficulty: three is Normal's (2 at Easy, 4 at Hard, 5 at Nightmare). Normal play: a boss every
 # vr_arena_boss_every (5) waves, and no perk is offered twice in a run.
 title The arena's first boss wave: three perks standing in the arena, walk over one
 map vrarena

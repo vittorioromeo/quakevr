@@ -244,3 +244,104 @@ somebody chooses (today the next wave starts on its normal delay regardless); an
 line in the readout, which today only says "A BOSS is with this wave".
 
 *Suggested `quakevr/checklist.txt` lines:* `+ Survival Arena: a boss wave's clear offers three pedestals, and the one you walk over is the perk you keep {test:arena_intro}` and `+ Survival Arena: what a taken perk does -- the melee kill's 2 s of quad, the snapped neck's 20 health, armour worth 25 more, a wave clear's ammo`
+
+## Survival Arena: the waves follow the game's difficulty
+
+*The arena is now a different arena at each of Quake's four difficulties: Easy is smaller, slower and more generous,
+Nightmare bigger, quicker and meaner -- and one knob, the arena's own Difficulty Impact, says how far.*
+
+**What is in.** `vr_arena_skill_impact` (1) is the arena's impact knob, in the shape of the armed humanoids'
+`vr_agrunt_ai_skill`: `VR_ARENA_Skill(easy, hard, nightmare)` takes the game's difficulty (`skill`, from the `skill`
+cvar) and returns the difficulty's step, Normal always as the knobs are set. At impact 1 the steps are **0.75 Easy / 1
+Normal / 1.25 Hard / 1.5 Nightmare**; at 0 the skill changes nothing about the arena; at 2 the step from 1 is doubled
+(0.5 at Easy, 2 at Nightmare); it is never below 0. The house shape is copied, not its numbers -- this knob has nothing
+to do with `vr_agrunt_ai_skill`, and what the armed humanoids' AI does at each difficulty is that feature's business and
+is untouched. Two things are not the factor: a wave's *gates* move in whole waves (`VR_ARENA_WaveAdj`: 3 waves later at
+Easy, 2 sooner at Hard, 4 sooner at Nightmare, times the impact, never earlier than wave 2), and the boss waves have
+rules of their own (an Easy run's big ones a wave less often; a Nightmare run brings two). The readout says which
+difficulty the run is on: the opening line is `ARENA - Nightmare: unarmed, wave 1 coming`.
+
+**What the difficulty moves, at impact 1** (Easy / Normal / Hard / Nightmare):
+
+- *a wave's size* -- every group of every recipe and of the waves past the table, whole foes, a group never emptied:
+  wave 6 is 5 / 5 / 5 / 6 foes, wave 11 5 / 7 / 8 / 10, waves 14 and 15 5 / 6 / 7 / 8.
+- *how many are up at once* -- `vr_arena_max_alive` 8 is a field of 6 / 8 / 10 / 12 (and 12 is 9 / 12 / 12 / 12), never
+  more than the wave plans.
+- *the pacing* -- `vr_arena_wave_delay` 6 s is 8 / 6 / 4.8 / 4 s of rest, and a thick wave's trickle 2 / 1.5 / 1.2 / 1 s
+  apart.
+- *when the ladder opens* -- the second rung of the guns at wave 13 / 10 / 8 / 6 and the third at 21 / 18 / 16 / 14; a
+  knight 7 / 4 / 2 / 2, a dog 9 / 6 / 4 / 2, an ogre 11 / 8 / 6 / 4, fiends 15 / 12 / 10 / 8, death knights 19 / 16 / 14
+  / 12. Where the waves past the table start thickening stays wave 13 at every skill.
+- *how the run starts* -- the share of the first waves' humanoids that come unarmed is 0.30 / 0.20 / 0.15 / 0.10, and
+  the unarmed window (wave `4` adjusted) reaches to wave 7 / 4 / 2 / 2.
+- *the boss waves* -- `vr_arena_boss_every` 5 is a boss every 6 waves at Easy and every 5 at every other skill; a boss's
+  kind arrives earlier (an ogre boss from wave 13 / 10 / 8 / 6 and a death knight boss from 19 / 16 / 14 / 12, an enforcer
+  with a rolled gun before that); `vr_arena_boss_health` 1.25 stands an enforcer boss at 76 / 101 / 126 / 151 health; and
+  a Nightmare boss wave carries two, the second the same kind at half its bulk (38 / 51 / 63 / 76).
+- *what a wave clear gives* -- the other way round, because a softer run is the more generous one: `vr_arena_medkits_after`
+  2 drops 3 / 2 / 2 / 1, and `vr_arena_armor_every` 4 is an armour every 3 / 4 / 5 / 6 waves.
+- *what it pays* -- `vr_arena_score_kill` 100 is 75 / 100 / 125 / 150 for a first-rung kill and 900 / 1200 / 1500 / 1800
+  for a third-rung boss; a wave clear's 250 x wave bonus is 563 / 750 / 938 / 1125 at wave 3.
+- *what a boss clear offers* -- `vr_arena_perk_count` 3 puts up 2 / 3 / 4 / 5 pedestals (the pool's 7 is the clamp; the
+  perks section's "three at a time" is Normal's number).
+
+**What it does not touch.** The armed humanoids' own AI and `vr_agrunt_ai_skill` (their feature, its own impact knob);
+which guns and which species a wave *rolls* for its size (the seed's business); the map's spawn and item places, and the
+pedestals' places; the heavier armour's own wave (a run earns it at wave 12 whatever the difficulty -- only how often an
+armour comes moves); the fall path and its 10 s restart; the 300 s stall call-off; the tests.
+
+**The clamps.** The factor is never below 0, and a factor of 0 leaves a span or a supply as its knob sets it rather than
+emptying the arena. A group of foes is never below 1 (a thinned wave still brings its zombie and its boss), the field cap
+1..`AR_PLAN_MAX` (12), a wait never below its floor (1 s between waves, `AR_TICK` 0.5 s in the trickle), medkits 0..4
+(`AR_KIT_MAX`), an armour gap 0..12 (`AR_ARMOR_MAX`) and 0 when the knob is 0, a boss's health never below 1, a gate
+never earlier than wave 2, a kill's score never below 1. The knobs themselves keep the clamps they had, and the skill
+itself is clamped 0..3 by the engine (`Quake/sv_main.c`).
+
+**Verified.** `build.sh arenaskill`: QC with 0 warnings, fgdgen (376 entities), the statics, test-number and
+QC-precedence checks passing, and the engine rebuilt with the menu page below. `vr_arena_test 1..5` with `developer 1`
+and `god`, on vrtesthall (`vr_arena 1`) and on vrarena -- the QC's own beat in `world.qc` under `QVR_TESTS`, e.g.
+`bash /c/OHWorkspace/qvr-kit/run.sh arenaskill -Filter "arena:" -QuitOn "arena: test 5 over" -Timeout 300 -Script
+"developer 1; god; vr_arena 1; vr_arena_seed 7; map vrtesthall; wait15; vr_arena_test 5; wait6000"`. Test 5 is the
+difficulty family (its sections pin the skill each one needs); every family starts at Normal, where the factor is exactly
+1 (`VR_AT_Start`), and puts the run's own skill back at the end (`VR_AT_End`), so tests 1..4 keep the expectations they
+were written against. Test 5: **467 passed, 0 failed** on both maps. The families it could have broken, run again after
+it: test 1 (the plans) **254**, test 2 (the live waves) **13**, test 3 (a boss wave) **52**, test 4 (the places) **7** on
+vrarena and **5** on vrtesthall, `vr_arena_perks_test 1..4` **19 / 15 / 40** and **14** (`arena_full:`). The perk tests
+pin the impact at 0, so the perk numbers stay what that section documents. One finding, logged and fixed: the first live
+run on vrarena at `skill 3` printed `ARENA - Nightmare` while its start-of-run line said `max alive 6, boss every 6` --
+Easy's numbers, because `world.qc` reads the skill cvar into the `skill` global only at the top of each frame, so at
+world spawn the global is still 0 (the same reason `QC/triggerS.qc` reads the cvar). `VR_ARENA_SkillLevel()` takes the
+cvar where the global is not set yet; the same run then read `arena: vrarena on (skill 3 Nightmare, impact 1, max alive
+12, boss every 5, seed 3)`.
+
+**Settings and defaults.** Combat > Survival Arena is the page (`vr_menu_gameplay.inc`): Difficulty Impact (0..3,
+extendable to 10), the Skill cycle, the waves, the boss waves, what a clear drops and pays, the perks and the seed --
+`vr_arena_skill_impact` 1, `vr_arena_medkits_after` 2, `vr_arena_armor_every` 4, `vr_arena_perk_count` 3 (1 to the pool's
+7), the rest as the wave director's section lists them. The Play page's Survival Arena line says the waves follow the
+difficulty.
+
+**To test in VR.** Play the same map at each difficulty and feel the difference: Easy -- wave 1 and 2 read as a shove,
+more unarmed humanoids in the first waves, a boss at wave 6 rather than 5, three medkits after each clear; Nightmare --
+fiends and death knights in the waves within a few clears, a cap of 12 with the wave arriving in trickles, 4 s of rest,
+two bosses in a boss wave, one medkit. Normal is what the last two sections describe. Play it at a seed and at each
+skill and compare the same wave's size, which is the number the difficulty is for.
+
+**Decisions.** A wave's *gates* move in whole waves rather than by the factor, because "fiends from wave 10" is what a
+player can tell, and a gate earlier than wave 2 would put a fiend in wave 1. The 13-and-on thickness rule keeps its
+anchor at wave 13 at every skill -- the difficulty makes those waves thicker, not the ladder start sooner. In the fixed
+recipes (waves 2..12) a boss wave *adds* its big one rather than trading away a foe the recipe wrote, so Easy's wave 6 is
+its 4 foes plus its boss. The armour's *kind* stays the table's (the heavier one from wave 12 of the run): what the
+player earned is theirs, and the difficulty moves how often supplies come, not what they are worth. An interval is
+therefore multiplied by the factor while a count is divided -- dividing an interval would make Easy the less generous
+run, which is the wrong way round. A kill's score never falls to 0, so a Nightmare run can never pay nothing. And the
+difficulty is asked of the cvar at world spawn, because the QC's `skill` global is not set yet there.
+
+*Open:* whether Easy should soften the boss *kinds* as well as their gap (today an Easy run meets its first ogre boss at
+wave 13, a Nightmare one at 6); whether a Nightmare run's second boss should be its own knob rather than a rule; and
+whether the impact should reach the pedestal count at all, since a run that offers 2 perks has less to choose from.
+
+*Suggested `quakevr/checklist.txt` lines:* `+ Survival Arena: the waves follow the game's difficulty -- size, field cap,
+rest, the ladder's gates, a boss's bulk, a clear's supplies and a kill's score (vr_arena_skill_impact)` , `+ Survival
+Arena: Nightmare brings two bosses and Easy one fewer boss wave; the run says which difficulty it is on (ARENA -
+Nightmare: unarmed, wave 1 coming)` and `+ Survival Arena: the arena's own Difficulty Impact knob, and nothing about the
+armed humanoids' AI (vr_agrunt_ai_skill) touched by it`
