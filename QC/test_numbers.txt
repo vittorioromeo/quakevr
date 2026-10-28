@@ -1,0 +1,183 @@
+# test_numbers.txt -- the registry of the numbered test cvars' numbers (docs/vr-port/TESTING.md, "Test numbers").
+# Checked on every build (Misc/quakevr/check_test_numbers.py, run by the kit's build.sh): the build FAILS when two
+# lines claim one number, two dispatch branches take one number, a dispatched number is missing here, a line here is
+# dispatched by nothing, or a Debug menu command runs a number not here.
+#
+# Claiming a number: add its line here in the same commit as its dispatch branch (pick a number no line has; a block
+# like 50-59 belongs to its file: a number inside it is that file's to give). Two workers claiming the same number
+# then conflict in this file at the merge, and the build fails on whatever slips through.
+#
+#   dispatch <cvar> <file> <function> <variable> [within A-B|A+]
+#       a function whose `if(<variable> == N)` / `if(<variable> >= A && <variable> <= B)` branches dispatch the cvar;
+#       a branch calling another dispatch function hands it those numbers (its own branches are the numbers then)
+#   <cvar> <N | A-B | A+> <file> <what it tests>
+#       N* (A-B*): run by the dispatcher's fall-through (`if(req) { ... }` past its numbered branches), no branch of its own
+dispatch vr_agrunt_test QC/vr_armedgrunt_test.qc VR_AGTest_Frame t
+dispatch vr_agrunt_test QC/vr_armedgrunt_play_test.qc VR_AGPT_Frame t within 20-39
+dispatch vr_ad_test QC/vr_ad_bridge_test.qc AD_Test request
+dispatch vr_ad_test QC/vr_ad_test.qc AD_RulesTest request within 10+
+dispatch vr_rv_test QC/vr_revolver_test.qc VR_Revolver_TestFrame req
+dispatch vr_np_test QC/vr_nailpistol_test.qc VR_NailPistol_TestFrame req
+dispatch vr_flare_test QC/vr_flaregun_test.qc VR_FlareGun_TestFrame req
+dispatch vr_reload_test QC/vr_reload_test.qc VR_Reload_Test step
+dispatch vr_pickup_test QC/vr_pickup_test.qc VR_PickupTest_Frame ask
+
+vr_ad_test       1        vr_ad_bridge_test.qc             (see vr_ad_bridge_test.qc)
+vr_ad_test       2*       vr_ad_bridge_test.qc             (the cinematic report (AD_Test's fall-through))
+vr_ad_test       3        vr_ad_bridge_test.qc             (VRGiveEntWeapon)
+vr_ad_test       4        vr_ad_bridge_test.qc             (VRGiveEntWeapon)
+vr_ad_test       5        vr_ad_bridge_test.qc             (see vr_ad_bridge_test.qc)
+vr_ad_test       6        vr_ad_bridge_test.qc             (WeaponIdToWeaponName)
+vr_ad_test       7        vr_ad_bridge_test.qc             (AD_UpgradesToWeapons)
+vr_ad_test       8        vr_ad_bridge_test.qc             (SetChangeParms)
+vr_ad_test       9        vr_ad_bridge_test.qc             (SetChangeParms)
+vr_ad_test       10       vr_ad_test.qc                    (AD_TestTouch)
+vr_ad_test       11       vr_ad_test.qc                    (AD_SharpSpread)
+vr_ad_test       12       vr_ad_test.qc                    (AD_TestTouch)
+vr_ad_test       13       vr_ad_test.qc                    (VR_Scene_Remove)
+vr_ad_test       14       vr_ad_test.qc                    (AD_Burning)
+vr_ad_test       15       vr_ad_test.qc                    (AD_Burning)
+vr_ad_test       16       vr_ad_test.qc                    (see vr_ad_test.qc)
+vr_ad_test       17       vr_ad_test.qc                    (see vr_ad_test.qc)
+vr_ad_test       18       vr_ad_test.qc                    (see vr_ad_test.qc)
+vr_ad_test       19       vr_ad_test.qc                    (see vr_ad_test.qc)
+vr_ad_test       20       vr_ad_test.qc                    (AD_TestTouch)
+vr_ad_test       21       vr_ad_test.qc                    (AD_TestSpawn)
+vr_ad_test       22       vr_ad_test.qc                    (AD_AxeScale)
+vr_ad_test       23       vr_ad_test.qc                    (VR_AD_SetSkill)
+vr_ad_test       24       vr_ad_test.qc                    (see vr_ad_test.qc)
+vr_ad_test       25       vr_ad_test.qc                    (VRHasBit)
+vr_ad_test       26       vr_ad_test.qc                    (VR_SF_MapRuleset)
+vr_ad_test       27       vr_ad_test.qc                    (VRHasBit)
+vr_ad_test       40-42    vr_ad_test.qc                    (VRGiveEntWeapon)
+vr_ad_test       44       vr_ad_test.qc                    (VRGiveEntWeapon)
+vr_ad_test       50-60    vr_ad_test.qc                    (AD_ShotsTest)
+vr_ad_test       61-64    vr_ad_test.qc                    (AD_WorldTest)
+vr_ad_test       65       vr_ad_test.qc                    (AD_Rules)
+vr_ad_test       66       vr_ad_test.qc                    (VR_AD_Skybox)
+vr_ad_test       70-102   vr_ad_test.qc                    (AD_GunTest)
+vr_ad_test       110-129  vr_ad_test.qc                    (AD_MeleeTest)
+vr_ad_test       130      vr_ad_test.qc                    (AD_ProjHitTest)
+vr_ad_test       131-139  vr_ad_test.qc                    (AD_MeleeTest)
+vr_ad_test       140      vr_ad_test.qc                    (AD_UpgradesTest)
+vr_ad_test       141      vr_ad_test.qc                    (AD_UpgradesTest)
+vr_ad_test       142-144  vr_ad_test.qc                    (AD_HealthItemsTest)
+vr_ad_test       145-147  vr_ad_test.qc                    (AD_MeleeTest)
+vr_ad_test       148      vr_ad_test.qc                    (AD_UpgradesTest)
+vr_ad_test       149      vr_ad_test.qc                    (AD_UpgradesTest)
+vr_ad_test       150-164  vr_ad_test.qc                    (AD_GunTest)
+vr_ad_test       165-170  vr_ad_test.qc                    (AD_MeleeTest)
+vr_ad_test       175-182  vr_ad_test.qc                    (AD_GunTest)
+vr_ad_test       183      vr_ad_test.qc                    (AD_PelletMatTest)
+vr_ad_test       191-197  vr_ad_test.qc                    (AD_GunTest)
+
+vr_agrunt_test   1        vr_armedgrunt_test.qc            every weapon in turn ahead of you
+vr_agrunt_test   2        vr_armedgrunt_test.qc            reload, disarm, re-arm, drop (the sequence)
+vr_agrunt_test   3        vr_armedgrunt_test.qc            the yank
+vr_agrunt_test   4        vr_armedgrunt_test.qc            print every armed grunt's state
+vr_agrunt_test   5        vr_armedgrunt_test.qc            a few hunting you (eyeshots, save and load)
+vr_agrunt_test   6-9      vr_armedgrunt_test.qc            a row of armed grunts ahead (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
+vr_agrunt_test   10       vr_armedgrunt_test.qc            every armed grunt hunts you now
+vr_agrunt_test   11       vr_armedgrunt_test.qc            launchers by walls
+vr_agrunt_test   12       vr_armedgrunt_test.qc            AD's weapons (as 1)
+vr_agrunt_test   13       vr_armedgrunt_test.qc            idle re-arm
+vr_agrunt_test   14       vr_armedgrunt_test.qc            the attacks' eyeshots, held at a phase
+vr_agrunt_test   15       vr_armedgrunt_test.qc            the attacks' eyeshots (15)
+vr_agrunt_test   20       vr_armedgrunt_play_test.qc       ragdoll (VR_AGPT_Ragdoll)
+vr_agrunt_test   21       vr_armedgrunt_play_test.qc       tug (VR_AGPT_Tug)
+vr_agrunt_test   22       vr_armedgrunt_play_test.qc       tug (22) (VR_AGPT_Tug)
+vr_agrunt_test   23       vr_armedgrunt_play_test.qc       easy (VR_AGPT_Easy)
+vr_agrunt_test   24       vr_armedgrunt_play_test.qc       blows (VR_AGPT_Blows)
+vr_agrunt_test   25       vr_armedgrunt_play_test.qc       fall (VR_AGPT_Fall)
+vr_agrunt_test   26       vr_armedgrunt_play_test.qc       reach (VR_AGPT_Reach)
+vr_agrunt_test   27       vr_armedgrunt_play_test.qc       give up (VR_AGPT_GiveUp)
+vr_agrunt_test   28       vr_armedgrunt_play_test.qc       loot (VR_AGPT_Loot)
+vr_agrunt_test   29       vr_armedgrunt_play_test.qc       weapon blow (VR_AGPT_WeaponBlow)
+vr_agrunt_test   30       vr_armedgrunt_play_test.qc       weapon throw (VR_AGPT_WeaponThrow)
+vr_agrunt_test   31       vr_armedgrunt_play_test.qc       ragdoll tug (VR_AGPT_RagTug)
+vr_agrunt_test   32       vr_armedgrunt_play_test.qc       ragdoll tug (32) (VR_AGPT_RagTug)
+vr_agrunt_test   33       vr_armedgrunt_play_test.qc       disarm paths (VR_AGPT_Paths)
+vr_agrunt_test   34       vr_armedgrunt_play_test.qc       pickup (VR_AGPT_Pickup)
+vr_agrunt_test   35       vr_armedgrunt_play_test.qc       parry (VR_AGPT_Parry)
+vr_agrunt_test   36       vr_armedgrunt_play_test.qc       grab (VR_AGPT_Grab)
+vr_agrunt_test   37       vr_armedgrunt_play_test.qc       pull (VR_AGPT_Pull)
+vr_agrunt_test   38       vr_armedgrunt_play_test.qc       fall, keep (VR_AGPT_FallKeep)
+vr_agrunt_test   39       vr_armedgrunt_play_test.qc       tug hand (VR_AGPT_TugHand)
+vr_agrunt_test   40       vr_armedgrunt_test.qc            dual wielders
+vr_agrunt_test   41       vr_armedgrunt_test.qc            the frame sweep
+vr_agrunt_test   42       vr_armedgrunt_test.qc            dual guns
+vr_agrunt_test   43       vr_armedgrunt_test.qc            the frame sweep: a shotgun and a nail gun
+vr_agrunt_test   44       vr_armedgrunt_test.qc            a row of dual wielders
+vr_agrunt_test   45       vr_armedgrunt_test.qc            the arms' contact sheet (vr_agarms)
+vr_agrunt_test   46       vr_armedgrunt_glitch_test.qc     the glitch finder
+vr_agrunt_test   47       vr_armedgrunt_ammo_test.qc       ammo, loot, damage, sounds
+vr_agrunt_test   48       vr_armedgrunt_range_test.qc      their fighting distance
+vr_agrunt_test   49       vr_armedgrunt_range_test.qc      their aim's miss to the side by distance
+vr_agrunt_test   50-59    vr_armedgrunt_shot_test.qc       shooting the weapon out
+vr_agrunt_test   60       vr_armedgrunt_parry_test.qc      they parry your blows
+vr_agrunt_test   61-64    vr_armedgrunt_bugs_test.qc       pickups drawn, drops up close, friendly fire
+vr_agrunt_test   65       vr_armedgrunt_close_test.qc      grab anywhere, never a blow; a lying one reached for
+vr_agrunt_test   66       vr_armedgrunt_close_test.qc      grab anywhere, never a blow; a lying one reached for
+vr_agrunt_test   67-69    vr_armedgrunt_grab_test.qc       the grab table, a dual wielder's off hand, holding on
+vr_agrunt_test   70-73    vr_armedrepl_test.qc             armed humanoid replacements
+vr_agrunt_test   74       vr_armedgrunt_downtug_test.qc    a knocked-down one's weapon grabbed; shots on the weapon
+vr_agrunt_test   75       vr_armedgrunt_downtug_test.qc    a knocked-down one's weapon grabbed; shots on the weapon
+vr_agrunt_test   76       vr_armedgrunt_expose_test.qc     aimed at what it can hit, you behind cover
+vr_agrunt_test   80       vr_rigseq_test.qc                the Rig Studio's sequences played by QC
+vr_agrunt_test   81       vr_rigseq_test.qc                the armed grunt's taunt
+vr_agrunt_test   82       vr_rigseq_test.qc                the Rig Studio's keys on the authored rig, drawn
+vr_agrunt_test   83       vr_armedgrunt_posecat_test.qc    the gun pose categories
+vr_agrunt_test   84       vr_armedgrunt_shove_test.qc      their posed shove
+vr_agrunt_test   86       vr_armedgrunt_ai_test.qc         the AI behaviour knobs
+vr_agrunt_test   87       vr_armedgrunt_ai_test.qc         the strafe lean
+vr_agrunt_test   100+     vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
+
+vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
+vr_flare_test    2-4      vr_flaregun_test.qc              (VR_FLT_Give)
+vr_flare_test    5*       vr_flaregun_test.qc              (the muzzles test (its fall-through: vr_flt_mode 5, VR_FLM_Frame))
+vr_flare_test    6        vr_flaregun_test.qc              (VR_FLT_Scene)
+vr_flare_test    7        vr_flaregun_test.qc              (VR_FLC_Frame)
+vr_flare_test    8        vr_flaregun_test.qc              (VR_FLC_Frame)
+vr_flare_test    9        vr_flaregun_test.qc              (VR_FLT_Scene)
+
+vr_np_test       1*       vr_nailpistol_test.qc            (the self-test (its fall-through))
+vr_np_test       2        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
+vr_np_test       3        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
+vr_np_test       4        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
+vr_np_test       5        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
+
+vr_pickup_test   1        vr_pickup_test.qc                (VR_PickupTest_Row)
+vr_pickup_test   2        vr_pickup_test.qc                (VR_PickupTest_Take)
+vr_pickup_test   3        vr_pickup_test.qc                (VR_PickupTest_View)
+vr_pickup_test   4        vr_pickup_test.qc                (VR_PickupTest_EnemyGuns)
+vr_pickup_test   5        vr_pickup_test.qc                (VR_PickupTest_Lying)
+vr_pickup_test   6        vr_pickup_test.qc                (VR_PickupTest_Float)
+
+vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
+vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)
+vr_reload_test   3        vr_reload_test.qc                (VR_Reload_IsRound)
+vr_reload_test   4        vr_reload_test.qc                (VR_Reload_IsRound)
+vr_reload_test   5        vr_reload_test.qc                (VRGetEntWeapon)
+vr_reload_test   6        vr_reload_test.qc                (VR_Reload_MagIn)
+vr_reload_test   9        vr_reload_test.qc                (VR_Reload_SelfTest)
+vr_reload_test   10-13    vr_reload_test.qc                (VR_Reload_TestLoosePlace)
+vr_reload_test   14       vr_reload_test.qc                (VR_Reload_TestLooseReport)
+vr_reload_test   15       vr_reload_test.qc                (VRGetEntWeapon)
+vr_reload_test   16       vr_reload_test.qc                (VRGetEntWeapon)
+vr_reload_test   17       vr_reload_test.qc                (VR_Reload_TestHeldAt)
+vr_reload_test   18       vr_reload_test.qc                (VR_Reload_TestHeldAt)
+vr_reload_test   19       vr_reload_test.qc                (VR_Reload_NextRound)
+vr_reload_test   20-24    vr_reload_test.qc                (VR_Reload_TestLying)
+vr_reload_test   25       vr_reload_test.qc                (VR_Reload_TestHeldShape)
+vr_reload_test   26       vr_reload_test.qc                (VR_Reload_TestLying)
+vr_reload_test   27       vr_reload_test.qc                (VR_Reload_TestLying)
+vr_reload_test   28       vr_reload_test.qc                (VR_Reload_TestReinsert)
+vr_reload_test   30       vr_reload_test.qc                (VRGetEntWeapon)
+vr_reload_test   40       vr_reload_test.qc                (VR_Reload_TestMagNails)
+vr_reload_test   41       vr_reload_test.qc                (VR_Reload_TestMagNailsLayout)
+vr_reload_test   42       vr_reload_test.qc                (VR_Reload_TestMagNailsLying)
+vr_reload_test   43       vr_reload_test.qc                (VR_Reload_TestMagForceGrab)
+
+vr_rv_test       1*       vr_revolver_test.qc              (the self-test (its fall-through))
+vr_rv_test       2-4      vr_revolver_test.qc              (VR_WeaponUtil_EntAddWeapon)
+vr_rv_test       5        vr_revolver_test.qc              (VR_NPT_Grunt)
