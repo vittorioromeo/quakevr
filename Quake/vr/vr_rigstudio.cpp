@@ -769,6 +769,14 @@ void view_f()
             st.cam.pitch = static_cast<float>(Q_atof(Cmd_Argv(4)));
         }
     }
+    else if(!strcmp(w, "orbit"))
+    {
+        // vr_rigstudio_view orbit <yaw from its front> [pitch] [distance]: about the focus as it is (after "frame": a
+        // close look at the selection from any side)
+        orbitView(static_cast<float>(Q_atof(v)));
+        st.cam.pitch = Cmd_Argc() > 3 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : st.cam.pitch;
+        st.cam.dist = Cmd_Argc() > 4 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(4))), 8.f, 4000.f) : st.cam.dist;
+    }
     else if(!strcmp(w, "onion"))
     {
         st.onion = Q_atoi(v) != 0;

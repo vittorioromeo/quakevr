@@ -373,6 +373,7 @@ void viewport();            // the 3D view's overlays, picks, handles, camera in
 bool project(const glm::vec3& world, glm::vec2& out, float* depth = nullptr);
 void frameSelection();
 void snapView(int which, bool flip);
+void orbitView(float yawFromFront); // about the focus as it is
 void cameraView(float* origin, float* angles);
 // The Pose Keys tool's part `part` (posestudio's numbers) as the subject's note has it now (world; the chest's at its
 // waist): false when not a pose key's part now.
