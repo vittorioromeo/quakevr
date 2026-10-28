@@ -331,6 +331,7 @@ void() VR_AGAIT_Frame =
     {
         VR_AGPT_Clear();
         VR_AGAIT_Defaults();
+        VR_AGAIT_Table(); // (again at the end: the first can be lost to the map's load in a run's log)
         skill = vr_agait_skill0;
         cvar_set("skill", ftos(vr_agait_skill0));
         setorigin(p, vr_agait_start);
