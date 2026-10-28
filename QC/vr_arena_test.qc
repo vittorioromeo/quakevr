@@ -323,6 +323,18 @@ void() VR_AT_Plans =
 }
 
 // combat.qc's hook, on a dummy of the wave: its score, once, and a boss's worth.
+// Is `xEnt` still in use: an arena-marked edict findflags still walks to (it passes over freed ones).
+float(entity xEnt) VR_AT_InUse =
+{
+    entity e = findflags(world, ar_slot, xEnt.ar_slot);
+    while(e)
+    {
+        if(e == xEnt) { return TRUE; }
+        e = findflags(e, ar_slot, xEnt.ar_slot);
+    }
+    return FALSE;
+}
+
 void() VR_AT_HookCheck =
 {
     entity save = self;
@@ -355,6 +367,29 @@ void() VR_AT_HookCheck =
     dummy.ar_tier = 2 + AR_BOSS_MARK;
     VR_ARENA_MonsterDie();
     VR_AT_Check(ar_score == 1000, "a boss fall is scored four of its tier");
+
+    // A stalled wave's clear takes exactly its own foes still up: not an older wave's body (ar_slot -1 shares a bit
+    // with 5), and a foe in a player's hand is let go of before it goes.
+    entity body = spawn();
+    body.classname = "monster_army";
+    body.ar_slot = -1;
+    entity foe = spawn();
+    foe.classname = "monster_army";
+    foe.ar_slot = 5;
+    foe.health = 30;
+    entity holder = VR_ARENA_FindPlayer();
+    entity held0 = world;
+    if(holder) { held0 = holder.mainhand_held; holder.mainhand_held = foe; foe.carry_player = holder; }
+    VR_ARENA_ClearField(5);
+    VR_AT_Check(VR_AT_InUse(body), "a stalled wave's clear leaves an older wave's body");
+    VR_AT_Check(!VR_AT_InUse(foe), "a stalled wave's clear takes its foe still up");
+    if(holder)
+    {
+        VR_AT_Check(holder.mainhand_held == world, "a stalled wave's foe in a hand is let go of first");
+        holder.mainhand_held = held0;
+    }
+    if(VR_AT_InUse(foe)) { remove(foe); }
+    if(VR_AT_InUse(body)) { remove(body); }
 
     remove(dummy);
     self = save;

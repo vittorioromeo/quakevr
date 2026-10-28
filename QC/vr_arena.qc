@@ -1023,14 +1023,21 @@ void() VR_ARENA_MonsterDie =
     ar_score = ar_score + VR_ARENA_KillScore(VR_ARENA_TierOf(self.ar_tier), self.ar_tier >= AR_BOSS_MARK);
 }
 
-void(float xWave) VR_ARENA_ClearField = // (a stalled wave, and the tests' jump: its monsters leave)
+// (a stalled wave, and the tests' jump: its monsters still up leave). Exactly that wave's: findflags matches any
+// shared bit, so it would also take other waves' foes and every fallen body (a negative ar_slot shares bits with
+// nearly any wave). One in a hand is let go of first, as the Horde's expiring bodies are (VR_Carry_Forget).
+void(float xWave) VR_ARENA_ClearField =
 {
     if(xWave <= 0) { return; }
     entity e = findflags(world, ar_slot, xWave);
     while(e)
     {
         entity next = findflags(e, ar_slot, xWave);
-        remove(e);
+        if(e.ar_slot == xWave)
+        {
+            VR_Carry_Forget(e);
+            remove(e);
+        }
         e = next;
     }
 }
