@@ -25577,3 +25577,155 @@ typing 11/11, rig2anim 10/10. `vr_rig2_check`: grunt 22 passed 13 failed, enforc
 (the failing joints are the rig's own, measured as before). Glitch finder (test 46): the same lines; its "close"
 numbers move a few degrees between runs of the same build (two runs of this branch: the nailgun's up worst 7 then 4,
 origin/next's 12), so no change beyond the spread.
+
+## Armed humanoids' AI behaviour, Difficulty Impact and the strafe lean (worktree `fastship`, branch `agent/agai`, 2026-10-28)
+
+Two requests: "make side-strafing armed humanoids tilt their legs/pelvis a bit towards the direction of the strafe",
+and "sliders to control the armed humanoids' AI ... organize all these sliders under a new submenu", with one
+"Difficulty Impact" slider.
+
+**The submenu.** Combat > Armed Grunts (Experimental) > AI Behaviour (`pageArmedAI`, vr_menu_gameplay.inc; also linked
+from the VR Settings index as "Armed Humanoids' AI Behaviour"). Every armed-humanoid decision setting moved there
+from the long Armed Grunts page (their cvars kept; "Looks For Weapons Within" is now "Weapon Search Distance"); the
+weapon, strike, disarm, tug, fall and shot-disarm rows stay on the Armed Grunts page (its "Behaviour" header, left
+with Hands on the Grips and the Grip Editor, is now "Their Hands"). Rows (cvar, default):
+
+| section | row | cvar | default |
+|---|---|---|---|
+| Difficulty | Difficulty Impact (new) | `vr_agrunt_ai_skill` | 1 |
+| Fighting | Aggressiveness (new) | `vr_agrunt_ai_aggression` | 1 |
+| | Accuracy (new) | `vr_agrunt_ai_accuracy` | 1 |
+| | Aim Error (moved) | `vr_agrunt_aim_error` | 3 deg |
+| | Reaction Time (new) | `vr_agrunt_ai_reaction` | 1 s |
+| | Fire Rate (new) | `vr_agrunt_ai_firerate` | 1 |
+| Fighting Distance | Keep Their Distance | `vr_agrunt_range` | 1 |
+| | Distance Scale | `vr_agrunt_range_scale` | 1 |
+| | Retreat Readiness (new) | `vr_agrunt_ai_retreat` | 1 |
+| | Walking Fire | `vr_agrunt_range_walkfire` | 50 u/s |
+| | Chainsaw Thrust From | `vr_agrunt_saw_start` | 44 |
+| Aiming | Aim From the Muzzle | `vr_agrunt_aim_converge` | 1 |
+| | Aim at What They Can Hit | `vr_agrunt_aim_exposed` | 1 |
+| | Keep Aim On a Part | `vr_agrunt_aim_exposed_hold` | 0.5 s |
+| Friends and Blasts | Careful of Friends | `vr_agrunt_friendly_care` | 1 |
+| | Gives Up After | `vr_agrunt_friendly_giveup` | 2.5 s |
+| | Launchers Fired Safely | `vr_agrunt_blast_safe` | 1 |
+| Weapons Lying About | Picks Weapons Up | `vr_agrunt_rearm` | 1 |
+| | Weapon Search Distance | `vr_agrunt_rearm_range` | 384 |
+| | Punches Instead Within (new) | `vr_agrunt_rearm_punch` | 0 (off) |
+| | Re-Arms Out of a Fight | `vr_agrunt_rearm_idle` | 1 |
+| | Gives Up on a Weapon After | `vr_agrunt_seek_timeout` | 6 s |
+| | Leaves It Alone For | `vr_agrunt_seek_shun` | 20 s |
+| | Pick Up a Second | `vr_agrunt_dual_pickup` | 0 |
+| Loadout | Dual Wielding | `vr_agrunt_dual_chance` | 0.25 |
+| | Flare Gun First | `vr_agrunt_flaregun` | 0.1 |
+| Parrying Your Blows | They Parry, Real Strikes Only, Damage Kept, Parries Before Disarm, Stamina Per Parry, Recovery, Reaction Time, Chance | `vr_agrunt_parry*` | as before |
+| Manner | Taunt on First Sight (was in no menu) | `vr_agrunt_taunt` | 0 |
+| | Strafe Lean (new) | `vr_agrunt_strafe_lean` | 5 deg |
+
+**The knobs** (QC `vr_armedgrunt_ai.qc`; each 1 is the behaviour before, both the pool's armed humanoids and a
+replacement's own gun):
+
+- Aggressiveness: their chance to attack whenever they could (`VR_AG_CheckAttack`, its own gun's chances too) times
+  it; their best and furthest fighting distances times 2 / (1 + it) (2: two-thirds as far; 0.5: a third further).
+- Accuracy: `vr_agrunt_aim_error` and their guns' spread (`vr_fire_spread_extra`: FireBullets, AD's pellets, and now
+  EnemyFireBullets for a replacement's own gun) divided by it; an enforcer's own laser, which has no error, strays by
+  the aim error times (1 / it - 1) when it is under 1.
+- Reaction Time: seconds from first seeing you (HuntTarget, `VR_AGAI_React`) to the first attack; id's was 1 s
+  (`SUB_AttackFinished(1)`), 0 on Nightmare.
+- Retreat Readiness: the distance a gun's holder backs off from (its weapon's least) times it, and the health share it
+  turns warier below (0.35) times it (at most 0.9); 0: it never backs off (its own blast's back-off stays).
+- Fire Rate: their pause after an attack (a shot, a burst, a swing; its own gun's pause too) divided by it.
+- Punches Instead Within: an unarmed one with you nearer than this fights with its fists rather than going for a
+  weapon further than 64 from it (one at its feet it still takes). 0: off (as before). Weapon Search Distance stays the
+  furthest it looks (and it still never goes for one you are nearer to).
+
+**Difficulty Impact** (`vr_agrunt_ai_skill`, default 1): each knob's value at a skill is its setting times
+1 + impact x (the skill's step - 1); Normal's step is 1, so Normal is always as set, and at the defaults every factor is
+exactly 1 (no random number drawn more or less: Normal at the defaults is the game as before). Quake's own skill rules
+for every monster stay (Nightmare: no pause between attacks, its refire). The parry's chance and reaction by skill
+(`VR_AGPar_SkillChance`, `SkillReact`) now go by the same impact (at 1 exactly as before). Effective values at the
+default impact 1 (multipliers; reaction in seconds at its 1 s default):
+
+| | Easy | Normal | Hard | Nightmare |
+|---|---|---|---|---|
+| Aggressiveness | 0.85 | 1 | 1.2 | 1.4 |
+| Accuracy (error and spread divided by) | 0.8 | 1 | 1.25 | 1.5 |
+| Reaction Time | 1.3 s | 1 s | 0.7 s | 0 (as id's) |
+| Retreat Readiness | 0.85 | 1 | 1.15 | 1.3 |
+| Fire Rate | 0.9 | 1 | 1.15 | (no pauses: id's) |
+| Parry chance / reaction (as before) | 0.6 / 1.4 | 1 / 1 | 1.15 / 0.85 | 1.3 / 0.7 |
+
+At 0 the skill changes none of them (Nightmare's reaction 1 s then, as Normal's); at 2 the steps double (Easy accuracy
+0.6, Nightmare 2). Before this only the parry and id's Nightmare rules went by skill for them.
+
+**The strafe lean** (`vr_agrunt_strafe_lean` 5 degrees, engine `aglegs::lean`, vr_aglegs.cpp): each armed humanoid's
+drawn place's motion across its facing, eased over 0.15 s, tips its whole body about the floor under its middle by up
+to the setting (full at 80 u/s, a strafe round you is 60-70), toward the way it goes, the lean itself following over
+0.12 s; laid on every bone after the take's legs (vr_aglegs) and before the upper body's hold (vr_agrunt_upper), which
+puts the chest back upright on the leaned hips (its 0.3 share of the hips' turn: the chest rolls about a third as
+much), the arms then solved on it as ever: the pelvis and legs lean, the upper body stays aimed. relinkSkinned lays it
+for the arms' solve, boneTurns draws it (between the legs' turn and the upper body's). Eased out during a take's kneel
+(its legs are the leg layer's own), held 0 while frozen (vr_agrunt_freeze). Rig-agnostic (any rig's bones; with the
+authored rig the only one once agent/rig2only lands). Needs vr_agarms (the default), like the upper-body hold.
+
+**Tests.** `vr_agrunt_test 84` (Debug > Tests > Armed Grunts: AI Behaviour; `vr_armedgrunt_ai_test.qc`, vrtesthall,
+`sv_random_seed 12345`; ends on "agtest: test 84 over"): the skill table (Normal and impact 0: every knob exactly 1),
+then 25 cases, each its own end (a first shot, 8 shots, its seconds):
+
+| case | result |
+|---|---|
+| reaction 1 (Normal) / 0.3 / 2 | first shot after 1.90 / 1.11 / 2.61 s |
+| reaction at Easy / Hard / Nightmare (impact 1) | 1.81 / 1.11 / 0.61 s (want at least 1.3 / 0.7 / 0) |
+| reaction at Hard, impact 0 | 1.40 s (as Normal's 1 s) |
+| accuracy 1 / 2 / 0.5 (a shotgun, 8 shots) | aim off 2.19 / 1.16 / 5.28 deg, pellets off it 0.38 / 0.20 / 0.77 deg |
+| accuracy at Nightmare | 1.52 deg, 0.29 deg |
+| accuracy 1 / 0.5, a replacement's own gun (the grunt's burst) | pellets off 3.70 / 5.34 deg |
+| aggressiveness 1 / 2 / 0.5 (a shotgun from 400) | mean distance 261 / 223 / 328, shots in 8 s 4 / 5 / 3 |
+| fire rate 2 | 6 shots in 8 s (4 at 1) |
+| retreat 1 / 0 / 2 (a nailgun 150 from you) | mean distance 236 / 129 / 314, backing steps 21 / 0 / 47 |
+| weapon search 384 / 100 (unarmed 136 from you, a shotgun 140 behind it) | went for it at 0.1 s / left it |
+| punches within 200 / 100 (you 136 from it) | left it / went for it |
+
+27 passed, 0 failed (the table's check included; the hit counts are frames it hurt you, up close its shoves too: not a
+measure here).
+
+`vr_agrunt_test 85` (Armed Grunts: Strafe Lean): a shotgun grunt 120 ahead, its think stopped, moved sideways by the
+test at 0..100 u/s, 1.5 s each; `vr_agrunt_lean_info` (new console command) by sideways speed:
+
+| sideways speed | frames | lean | pelvis roll by it | chest roll |
+|---|---|---|---|---|
+| 0-20 u/s | ~385 | 0.6 deg | 0.6 | 0.2 |
+| 20-40 | 164 | 1.70 | 1.70 | 0.53 |
+| 40-60 | 130 | 2.47 | 2.47 | 0.69 |
+| 60-80 | 77 | 3.80 | 3.80 | 1.06 |
+| 80 and up | 48 | 4.39 | 4.39 | 1.25 |
+
+(the means include the ease in and out, and the turns at the ends of its 40-unit runs; the chest rolls about 0.29 of
+the hips: the upper body's hold, its 0.3 share of the hips' turn).
+
+Eyeshot (scratch1 1; 80 u/s, lean 0 against 5): the hips and legs tip toward the way it goes, the chest and the gun
+held as they were (subtle at 4.4 degrees, by design: "a bit").
+
+**Normal at the defaults = before** (`sv_random_seed 12345`, against the branch point 11a1d4f7b built the same way):
+with `vr_agrunt_strafe_lean 0` tests 49, 1, 46 (the glitch finder, its whole summary CSV) and 48 (shotgun) print
+exactly the base's lines; 76 and 70 are identical even with the lean on. With the lean on (5), 49 differs by -0.0 for
++0.0, and 1, 46, 48 by small amounts: QC reads the drawn muzzle (weapondrawnpose, modelanchorpoint), which a grunt
+walking slightly sideways now leans: test 1 17/0 both, 46's worst gun tilts 4 -> 5, 10 -> 12, 8 -> 5 deg (noise either
+way), 48's shotgun "walking at it, axe" FAILs both (inside 64: 0.06 -> 0.24 s; the known failure, ROUND22 "aim at
+exposed parts"). eval.sh: no verdict changes (the author's takes archived). Build: 0 QC warnings. Merged origin/next
+(agent/rig2only: the lean has no vr_rig2 code; tests 84 and 85 rerun after it, the same numbers).
+
+**Menu.** `vr_menu_path_check maps/vrcalibration.map`: 6 found, 0 missing (no board line names a moved row);
+`{menu:Armed Grunts - AI Behaviour>Difficulty Impact}` resolves (via the VR Settings index's link). The checklist's
+"Combat > Armed Grunts > Careful of Friends, Gives Up After" and "Armed Grunts > Flare Gun First 1" now live under
+Armed Grunts > AI Behaviour (the coordinator's lines to update). Older ROUND22 sections keep their paths as written.
+
+- [ ] Armed humanoids' AI Behaviour (Combat > Armed Grunts > AI Behaviour): try Aggressiveness 2 (they press in and
+  fire more), Accuracy 0.5 (their shots stray), Reaction Time 2 (a long pause before their first shot), Retreat
+  Readiness 0 (they no longer back off), Punches Instead Within 200 (a disarmed one up close punches instead of fetching
+  a gun); then all back to 1 {test:vr_agrunt_test 84}
+- [ ] Difficulty Impact: on Easy armed humanoids miss more and react later than on Normal, on Hard and Nightmare they
+  are clearly sharper (Nightmare fires at once); Impact 0 makes every skill fight like Normal {test:vr_agrunt_test 84}
+- [ ] Strafe lean: an armed grunt or enforcer strafing round you tips its hips and legs a little toward the way it
+  moves, its chest and gun still aimed at you; standing still it is upright; Strafe Lean 0 turns it off
+  {test:vr_agrunt_test 85}
