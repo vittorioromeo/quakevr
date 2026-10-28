@@ -40,8 +40,10 @@ float ARK_FEED_HP    = 5;
 float ARK_FEED_GAP   = 1;   // s between two Feeder heals
 float ARK_QUART_AMMO = 15;  // of each kind a Quartermaster wave clear gives
 
-// What a pedestal is: its touch box, and how long its label stays on the screen.
-float ARK_PED_LIFE   = 240; // s a standing offer is re-named for the player (0: never)
+// What a pedestal is: its touch box, and how long its label keeps being repeated for the player. A pedestal does
+// not expire: it stands until the player walks over it, or until the next boss wave's offer clears it (ARK_PED_LABEL
+// only bounds the reminders).
+float ARK_PED_LABEL  = 240; // s a standing offer is re-named for the player (0: never)
 float ARK_PED_NOTE   = 20;  // s between those reminders
 
 // The entity fields this file owns: the director's taken perks and the beats of the ones that repeat,
@@ -50,7 +52,7 @@ float ARK_PED_NOTE   = 20;  // s between those reminders
 .float ark_feed_at;    // (ar_mgr) the time Feeder last healed
 .float ark_offer_wave; // (ar_mgr) the wave the standing offer was made on
 .float ark_perk;       // (a pedestal) which perk it offers
-.float ark_until;      // (a pedestal) how long its label keeps being said
+.float ark_label_end;  // (a pedestal) when its label stops repeating -- not a timer on the pedestal itself
 
 // ---------------------------------------------------------------------------
 // The pool, and what it is called
@@ -230,21 +232,22 @@ float() VR_ARK_ClearPeds =
     return n;
 }
 
-// The line a pedestal stands under, said again every ARK_PED_NOTE s while the offer stands (ARK_PED_LIFE s).
+// The line a pedestal stands under, said again every ARK_PED_NOTE s for ARK_PED_LABEL s.
 void() VR_ARK_PedLabel =
 {
     VR_ARENA_PrintAll(sprintf("%s\n%s\n", VR_ARK_Name(self.ark_perk), VR_ARK_What(self.ark_perk)));
-    if(time + ARK_PED_NOTE <= self.ark_until) { self.nextthink = time + ARK_PED_NOTE; }
+    if(time + ARK_PED_NOTE <= self.ark_label_end) { self.nextthink = time + ARK_PED_NOTE; }
 }
 
 // One pedestal: its perk's model, on `xAt`, named `xOrder` of the way in so the three lines do not speak at once.
+// It stands there until it is chosen or the next boss wave's offer replaces it -- nothing removes it on a timer.
 entity(float xPerk, vector xAt, float xOrder) VR_ARK_SpawnPed =
 {
     entity p = spawn();
 
     p.classname = ARK_PED_NAME;
     p.ark_perk  = xPerk;
-    p.ark_until = time + ARK_PED_LIFE;
+    p.ark_label_end = time + ARK_PED_LABEL;
     setmodel(p, VR_ARK_Model(xPerk));
     if(!p.modelindex)
     {
@@ -311,7 +314,7 @@ void(float xWave) VR_ARK_Offer =
 
     for(i = 0; i < ark_offer_n; i++)
     {
-        if(VR_ARK_SpawnPed(ark_offer_bit[i], VR_ARENA_DropPlace(i), i)) { made = made + 1; }
+        if(VR_ARK_SpawnPed(ark_offer_bit[i], VR_ARENA_PedPlace(i), i)) { made = made + 1; }
     }
 
     VR_ARENA_PrintAll(sprintf("ARENA - %g perks to choose: walk over one\n", made));

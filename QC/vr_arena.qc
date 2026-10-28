@@ -620,6 +620,37 @@ vector(float i) VR_ARENA_DropPlace =
     return o;
 }
 
+// QVR: Where a perk's pedestal stands (vr_arena_perks.qc asks for it). The same info_arena_item points a wave clear
+// drops its medkits and armour on, but pushed AR_PED_OUT away from the map's centre; with no item points, the same
+// ring off the player at its own wider radius. So a wave's medkit and a pedestal never stand in one spot -- a
+// grabbable item inside a trigger box plays badly in VR. And unlike VR_ARENA_DropPlace this does not walk the item
+// cursor: a wave's drops keep every point they had.
+float AR_PED_OUT = 96;
+
+vector(float i) VR_ARENA_PedPlace =
+{
+    entity e = VR_ARENA_ItemSpot(i);
+    vector o;
+
+    if(e)
+    {
+        vector d = e.origin - ar_mgr.origin;
+        d.z = 0;
+        float l = vlen(d);
+        if(l < 1) { d = VR_ARENA_RingDir(i); l = 1; }
+        o = e.origin + (AR_PED_OUT / l) * d;
+    }
+    else
+    {
+        entity p = VR_ARENA_FindPlayer();
+        vector base = ar_mgr.origin;
+        if(p != world) { base = p.origin; }
+        o = base + (AR_DROP_R + AR_PED_OUT) * VR_ARENA_RingDir(i);
+    }
+
+    return o;
+}
+
 // ---------------------------------------------------------------------------
 // A wave's monster: its place, its gun, its kind's own spawn
 // ---------------------------------------------------------------------------
