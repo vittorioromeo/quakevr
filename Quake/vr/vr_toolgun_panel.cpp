@@ -1079,10 +1079,26 @@ void armedPage(Ui& ui)
             Cvar_SetValueQuick(&vr_toolgun_armed_weapon2, static_cast<float>(l.leftCode[lc]));
             toolgun::armed::choose();
         }
+        // Its armour (vr_agarmor.qc VR_AgArmor_Toolgun, on each one spawned): the type, and which pieces.
+        constexpr const char* armours[] = {"None", "Green", "Yellow", "Red", "Random"};
+        constexpr const char* pieceSets[] = {"Chest+Helmet", "Full", "Random"};
+        const float xm = (x0 + x1) * 0.5f;
+        const int ar = dropdown(ui, Rect{x0, 115.f, xm - 2.f, 128.f}, "Armour", armours, 5,
+            za::clamp(static_cast<int>(vr_toolgun_armed_armor.value), 0, 4));
+        if(ar >= 0)
+        {
+            Cvar_SetValueQuick(&vr_toolgun_armed_armor, static_cast<float>(ar));
+        }
+        const int ap = dropdown(ui, Rect{xm + 2.f, 115.f, x1, 128.f}, "Pieces", pieceSets, 3,
+            za::clamp(static_cast<int>(vr_toolgun_armed_pieces.value), 0, 2), vr_toolgun_armed_armor.value != 0.f);
+        if(ap >= 0)
+        {
+            Cvar_SetValueQuick(&vr_toolgun_armed_pieces, static_cast<float>(ap));
+        }
         if(ui.mode == Mode::Draw && !ps.drop.name[0]) // (none under an open list: the pictures are drawn after it)
         {
             // The pictures: the kind, its right hand's, its left hand's; a word on what it will do.
-            const float y0 = 116.f, y1 = 170.f, w = 50.f;
+            const float y0 = 132.f, y1 = 171.f, w = 50.f;
             pictureBox(Rect{x0, y0, x0 + w, y1}, toolgun::armed::kindModel(kind), false, toolgun::armed::kindName(kind), nullptr);
             pictureBox(Rect{x0 + w + 3.f, y0, x0 + 2.f * w + 3.f, y1}, toolgun::armed::ghostModel(0), true,
                 code == 0 ? "Random" : code < 0 ? "Fists" : toolgun::armed::codeName(code), code == 0 ? "?" : "-");

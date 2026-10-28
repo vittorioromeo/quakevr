@@ -3748,7 +3748,8 @@ QVR_CVAR(vr_rig2_forearm_twist, "0.5", CVAR_NONE)      // the share of an armed 
 QVR_CVAR(vr_rig2_clavicle, "0.6", CVAR_NONE)            // an armed grunt's clavicle's share of its arm's lift and reach across its body (vr_agarms_clavicle's, at least: the authored rig's shoulders sit at the arms' own joints, wider than the derived rig's, its girdle reaching with them)
 QVR_CVAR(vr_rig2_arm_clear, "6", CVAR_NONE)            // an armed one whose upper arm is in its torso has its wrist turned out at most this much with a hand on a weapon (degrees; vr_agarms' 6)
 QVR_CVAR(vr_agarmor, "0", CVAR_NONE)                  // debug (P0, vr_agarmor.cpp): armour shells on every armed humanoid drawn on its authored rig (P0: the grunt): 0 none, 1 green, 2 yellow, 3 red, 4 one of each by entity number (vr_agarmor_set per entity)
-QVR_CVAR(vr_agarmor_pieces, "1023", CVAR_NONE)        // vr_agarmor: the pieces worn (a mask): 1 the cuirass, 2 the helmet, 4/8 the pauldrons (left/right), 16/32 the bracers, 64/128 the thighs, 256/512 the shins; 1023 all
+QVR_CVAR(vr_agarmor_wear, "0", CVAR_NONE)            // debug (vr_agarmor.cpp): every armour piece drawn with this wear's damage marks: 0 the server's (each piece at two thirds and a third of its pool), 1 dented, 2 battered and scorched
+QVR_CVAR(vr_agarmor_pieces, "1023", CVAR_NONE)       // vr_agarmor: the pieces worn (a mask): 1 the cuirass, 2 the helmet, 4/8 the pauldrons (left/right), 16/32 the bracers, 64/128 the thighs, 256/512 the shins; 1023 all
 QVR_CVAR(vr_agarmor_thick, "0.6", CVAR_NONE)          // vr_agarmor: a plate's thickness (units; read when the shells are made: vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_gap, "0.25", CVAR_NONE)           // vr_agarmor: the plates' gap off the body (units; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_smooth, "6", CVAR_NONE)           // vr_agarmor: the plates' smoothing passes (Taubin; vr_agarmor_rebuild)
@@ -3770,7 +3771,7 @@ QVR_CVAR(vr_agarmor_skill2_pieces, "5", CVAR_ARCHIVE)
 QVR_CVAR(vr_agarmor_skill3, "0.6", CVAR_ARCHIVE)      // armour: the chance on Nightmare
 QVR_CVAR(vr_agarmor_skill3_type, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_agarmor_skill3_pieces, "10", CVAR_ARCHIVE)
-QVR_CVAR(vr_agarmor_test, "0", CVAR_NONE)             // the QC tests armour on armed humanoids (vr_agarmor_test.qc; Debug > Tests): 1 all; ends on "agarmor test: N passed, M failed"
+QVR_CVAR(vr_agarmor_test, "0", CVAR_NONE)             // the QC tests armour on armed humanoids (vr_agarmor_test.qc; Debug > Tests): 1 all; ends on "agarmor test: N passed, M failed"; 2 / 3 grunts / enforcers in full green, yellow, red; 4 grunts in yellow whole, at 2/3, at 1/3 (damage marks)
 QVR_CVAR(vr_agarmor_brow_front, "0.5", CVAR_NONE)    // vr_agarmor: the helmet bucket's lower edge (its brow: above the eyes; the cheek guards come down under it)
 QVR_CVAR(vr_rig2_dq, "0", CVAR_NONE)                 // 1: the authored rig skinned with dual quaternions (no candy wrapper at a twist; vr_rig2_check, the Rig Studio's Shaded display); 0: linear blend
 QVR_CVAR(vr_rigseq, "1", CVAR_NONE)                  // 1: the files' override tracks and the sequences QC starts drawn on the rigged monsters (vr_rigseq.cpp); 0: never (nothing changes without the files)
@@ -5246,7 +5247,9 @@ QVR_CVAR(vr_toolgun_brush_sides, "8", CVAR_ARCHIVE)     // ... a cylinder's or p
 QVR_CVAR(vr_toolgun_armed_kind, "0", CVAR_ARCHIVE)      // the spawn panel's Armed Humanoid page: its kind (QC vr_armedmon.qc's row: 0 grunt, 1 enforcer, ...)
 QVR_CVAR(vr_toolgun_armed_weapon, "0", CVAR_ARCHIVE)    // ... its right hand's weapon (the "weapon" key: 0 random from the pool, -1 unarmed, else the weapon's code)
 QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's ("weapon2": 0 none; a one-handed weapon, with a one-handed one in the right)
-QVR_CVAR(vr_toolgun_armed_tiles, "0", CVAR_ARCHIVE)     // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
+QVR_CVAR(vr_toolgun_armed_armor, "0", CVAR_ARCHIVE)     // ... its armour (vr_agarmor.qc VR_AgArmor_Toolgun): 0 none, 1 green, 2 yellow, 3 red, 4 one of them at random
+QVR_CVAR(vr_toolgun_armed_pieces, "1", CVAR_ARCHIVE)    // ... its armour's pieces: 0 the cuirass and the helmet, 1 all ten, 2 random (the cuirass, the helmet and some of the rest)
+QVR_CVAR(vr_toolgun_armed_tiles,"0", CVAR_ARCHIVE)     // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
 QVR_CVAR(vr_toolgun_brush_texlock, "1", CVAR_ARCHIVE)   // ... Rotate turns the textures with the faces (0: each face gets the world's alignment)
 
 // Runtime brushes (vr_brushes.cpp; docs/vr-port/BRUSH_TOOL.md): boxes made in the game, the map's kind of geometry.

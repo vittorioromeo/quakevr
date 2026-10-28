@@ -8,6 +8,9 @@
 // can't force-grab, fading out after vr_agarmor_debris_time). Helmets halve a headshot's extra and stop head pops
 // (vr_agarmor_helmet_head); no limb is cut under an unbroken plate (vr_agarmor_block_cuts). Quad Damage does not pass
 // through. Corpses keep their plates; a gibbing sheds them. Nothing changes for a humanoid without armour.
+// P2 (ROUND23.md, "Armour P2"): the enforcer wears it too (the same rolls); each piece's damage marks at two thirds and a
+// third of its pool (.vr_ar_wear, drawn with the dented and the battered skins); the toolgun's spawn page dresses what
+// it spawns (VR_AgArmor_Toolgun).
 
 float VR_AR_PIECES = 10;
 float VR_AR_HELMET = 1;
@@ -45,17 +48,36 @@ float(float type) VR_AgArmor_Frac =
     return 0.3;
 };
 
+// Piece `i`'s full pool in `type` (its share of Quake's total).
+float(float type, float i) VR_AgArmor_Full = { return max(1, rint((50 + 50 * type) * VR_AgArmor_Share(i) / 96)); };
+
+// P2's damage marks: piece `i`'s wear bits from its pool left (two thirds or under, a third or under: the engine draws
+// its dented, then battered and scorched skins).
+void(entity e, float i) VR_AgArmor_Wear =
+{
+    float b = VR_AgArmor_Bit(i);
+    float b2 = b * 1024;
+    e.vr_ar_wear = e.vr_ar_wear - (e.vr_ar_wear & (b | b2));
+    if(!VR_AgArmor_On(e, i))
+    {
+        return;
+    }
+    float left = e.vr_ar_hp[i] / VR_AgArmor_Full(e.vr_ar_type, i);
+    if(left <= 0.66) e.vr_ar_wear = e.vr_ar_wear | b;
+    if(left <= 0.33) e.vr_ar_wear = e.vr_ar_wear | b2;
+};
+
 // `e` wears `type` (0 none) on the pieces of `mask`: each pool full.
 void(entity e, float type, float mask) VR_AgArmor_Give =
 {
     float i;
     e.vr_ar_type = type;
     e.vr_ar_mask = (type > 0) ? mask : 0;
-    float total = 50 + 50 * type;
+    e.vr_ar_wear = 0;
     for(i = 0; i < VR_AR_PIECES; i++)
     {
         float on = (e.vr_ar_type > 0) && VR_AgArmor_On(e, i);
-        e.vr_ar_hp[i] = on ? max(1, rint(total * VR_AgArmor_Share(i) / 96)) : 0;
+        e.vr_ar_hp[i] = on ? VR_AgArmor_Full(type, i) : 0;
     }
     if(type > 0)
     {
@@ -131,15 +153,38 @@ void(float sk, vector at) VR_AgArmor_Roll =
 
 void(entity e) VR_AgArmor_Spawn =
 {
-    if(e.vr_ag_kind != 0 || deathmatch) // (VR_AM_GRUNT)
+    if(e.vr_ag_kind > 1 || deathmatch) // (VR_AM_GRUNT 0, VR_AM_ENFORCER 1: vr_armedmon.qc, compiled later)
     {
-        return; // (P1: the grunt; the enforcer later)
+        return; // (P2: the enforcer too, by the same chances: no free set)
     }
     VR_AgArmor_Roll(skill, e.origin);
     if(vr_ar_roll_type > 0)
     {
         VR_AgArmor_Give(e, vr_ar_roll_type, vr_ar_roll_mask);
     }
+};
+
+// The toolgun's Armed Humanoid page (vr_toolgun.cpp; vr_toolgun_armed_armor, _pieces) on what it spawned: `armour` 0
+// none (not even the skill's roll), 1 green, 2 yellow, 3 red, 4 one of them at random; `pieces` 0 the cuirass and the
+// helmet, 1 all ten, 2 random (the cuirass, the helmet and 0..8 of the limb plates).
+void(entity e, float armour, float pieces) VR_AgArmor_Toolgun =
+{
+    float type = armour >= 4 ? 1 + floor(random() * 2.999) : max(0, min(3, floor(armour)));
+    float mask = 3;
+    if(pieces == 1)
+    {
+        mask = 1023;
+    }
+    else if(pieces >= 2)
+    {
+        float i;
+        for(i = 2; i < VR_AR_PIECES; i++)
+        {
+            if(random() < 0.5) mask = mask | VR_AgArmor_Bit(i);
+        }
+    }
+    VR_AgArmor_Give(e, type, type > 0 ? mask : 0);
+    dprint(sprintf("agarmor: toolgun: %s (kind %g) wears type %g, pieces %g\n", e.classname, e.vr_ag_kind, e.vr_ar_type, e.vr_ar_mask));
 };
 
 // ----------------------------------------------------------------------------
@@ -161,6 +206,19 @@ string(entity e, float i) VR_AgArmor_Model =
         if(i == 7) return "progs/soldier.mdl#plate7";
         if(i == 8) return "progs/soldier.mdl#plate8";
         return "progs/soldier.mdl#plate9";
+    }
+    if(e.model == "progs/vrenforcer.mdl")
+    {
+        if(i == 0) return "progs/vrenforcer.mdl#plate0";
+        if(i == 1) return "progs/vrenforcer.mdl#plate1";
+        if(i == 2) return "progs/vrenforcer.mdl#plate2";
+        if(i == 3) return "progs/vrenforcer.mdl#plate3";
+        if(i == 4) return "progs/vrenforcer.mdl#plate4";
+        if(i == 5) return "progs/vrenforcer.mdl#plate5";
+        if(i == 6) return "progs/vrenforcer.mdl#plate6";
+        if(i == 7) return "progs/vrenforcer.mdl#plate7";
+        if(i == 8) return "progs/vrenforcer.mdl#plate8";
+        return "progs/vrenforcer.mdl#plate9";
     }
     if(e.model != "progs/vrgrunt.mdl") return "";
     if(i == 0) return "progs/vrgrunt.mdl#plate0";
@@ -209,7 +267,7 @@ entity(entity e, float i) VR_AgArmor_Debris =
     entity h = spawn();
     h.classname = "vr_ar_debris";
     setmodel(h, m);
-    h.skin = max(0, e.vr_ar_type - 1);
+    h.skin = max(0, e.vr_ar_type - 1) + 6; // (battered and scorched: make_agarmor.py's last three)
     setorigin(h, at);
     h.angles = limbpiece(e, i, 11);
     h.movetype = MOVETYPE_BOUNCE;
@@ -249,6 +307,7 @@ void(entity e) VR_AgArmor_Shed =
     }
     e.vr_ar_mask = 0;
     e.vr_ar_type = 0;
+    e.vr_ar_wear = 0;
 };
 
 // ----------------------------------------------------------------------------
@@ -398,6 +457,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
             {
                 VR_AgArmor_Break(targ, i);
             }
+            VR_AgArmor_Wear(targ, i);
         }
     }
     if(saved > 0)
