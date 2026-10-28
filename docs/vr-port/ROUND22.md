@@ -1,7 +1,7 @@
 # Round 22: after 1.0.0 (patch 1.0.1 onwards)
 
 Notes for the work after the 1.0.0 release (2026-10-10). Round 21 (`ROUND21.md`) ends at 1.0.0; its older
-sections are in `archive/`. Append new sections at the end of this file.
+sections are in `archive/`. Closed at 1.1.0-beta4 (2026-10-27): new sections go in `ROUND23.md`.
 
 ## Crash reports for every crash and fatal error (1.0.1, 2026-10-10)
 
