@@ -221,6 +221,7 @@ void(entity targ, entity attacker) Killed =
 
     self.takedamage = DAMAGE_NO;
     MGH_Kill(attacker);
+    VR_ARENA_MonsterDie(); // QVR: Survival Arena: one of its wave's monsters fell, and what that is worth (vr_arena.qc)
     self.touch = SUB_Null;
 
     monster_death_use();

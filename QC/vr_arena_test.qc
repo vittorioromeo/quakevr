@@ -1,0 +1,545 @@
+#ifdef QVR_TESTS
+// vr_arena_test.qc -- the Survival Arena's tests (vr_arena.qc). `vr_arena_test N` (Debug > Automation &
+// Self-Tests; VR_ARENA_Test_Frame, world.qc's StartFrame), the player kept alive (`god`); each ends on
+// `arena: test N over: P passed, F failed` (run.sh -QuitOn "arena: test [0-9]+ over").
+// - 1 (any open map): the waves' plans: wave 1 unarmed, the ladder's rungs no earlier than their wave, Quake's own
+//   monsters no earlier than theirs, the boss cadence and its kind, a plan never thicker than the cap, the score's
+//   sums, a wave clear's drops, the knobs at work, the seed's determinism, and a fall counted once through
+//   combat.qc's hook.
+// - 2 (vrtesthall, vr_arena 1, god): the waves live: wave 1 unarmed in the field, the alive cap held (set to 2),
+//   a fall scored the way combat scores it, the medkits a wave clear dropped, wave 2 with its nail pistol.
+// - 3 (vrtesthall, vr_arena 1, god): the boss wave: the arena jumped to wave 5 has one boss, an enforcer with a
+//   gun, worth a boss's tier, and no left-over foes of the wave it jumped over.
+
+// ---------------------------------------------------------------------------
+// The test's own state
+// ---------------------------------------------------------------------------
+
+float vr_at_case;        // 0 idle; 1, 2, 3 running
+float vr_at_pass;
+float vr_at_fail;
+float vr_at_step;
+float vr_at_until;
+float vr_at_keep[8];     // the cvars the tests set, put back at the end
+float vr_at_skill0;
+float vr_at_kills0;
+float vr_at_score0;
+float vr_at_a[AR_PLAN_MAX];
+float vr_at_b[AR_PLAN_MAX];
+
+string(float i) VR_AT_CvarName =
+{
+    if(i == 0) { return "vr_arena_seed"; }
+    if(i == 1) { return "vr_arena_boss_every"; }
+    if(i == 2) { return "vr_arena_boss_health"; }
+    if(i == 3) { return "vr_arena_medkits_after"; }
+    if(i == 4) { return "vr_arena_armor_every"; }
+    if(i == 5) { return "vr_arena_score_kill"; }
+    if(i == 6) { return "vr_arena_max_alive"; }
+    return "";
+}
+float VR_AT_NCVARS = 7;
+
+void() VR_AT_Save =
+{
+    float i;
+    for(i = 0; i < VR_AT_NCVARS; i++) { vr_at_keep[i] = cvar(VR_AT_CvarName(i)); }
+}
+
+void() VR_AT_Restore =
+{
+    float i;
+    for(i = 0; i < VR_AT_NCVARS; i++) { cvar_set(VR_AT_CvarName(i), ftos(vr_at_keep[i])); }
+}
+
+// The tests' settings: the arena's own defaults, so a check says what the plan says and not what a config said.
+void() VR_AT_SetDefaults =
+{
+    cvar_set("vr_arena_seed", "7");
+    cvar_set("vr_arena_boss_every", "5");
+    cvar_set("vr_arena_boss_health", "1.25");
+    cvar_set("vr_arena_medkits_after", "2");
+    cvar_set("vr_arena_armor_every", "4");
+    cvar_set("vr_arena_score_kill", "100");
+    cvar_set("vr_arena_max_alive", "8");
+}
+
+void(float ok, string what) VR_AT_Check =
+{
+    if(ok) { vr_at_pass = vr_at_pass + 1; return; }
+    vr_at_fail = vr_at_fail + 1;
+    dprint(sprintf("arena: fail %s\n", what));
+}
+
+void() VR_AT_End =
+{
+    dprint(sprintf("arena: test %g over: %g passed, %g failed\n", vr_at_case, vr_at_pass, vr_at_fail));
+    VR_AT_Restore();
+    skill = vr_at_skill0;
+    cvar_set("vr_arena_test", "0");
+    vr_at_case = 0;
+}
+
+// ---------------------------------------------------------------------------
+// Test 1: the waves' plans (no live monsters needed)
+// ---------------------------------------------------------------------------
+
+float(float xKind) VR_AT_CountKind =
+{
+    float n = 0;
+    float i;
+    for(i = 0; i < ar_plan_n; i++) { if(ar_plan_kind[i] == xKind) { n = n + 1; } }
+    return n;
+}
+
+float(float xKind) VR_AT_IsHumanoid = { return xKind == AR_SP_GRUNT || xKind == AR_SP_ENFORCER; }
+
+// The highest ladder rung an armed humanoid of the wave in the plan arrays holds.
+float() VR_AT_HumanoidMaxTier =
+{
+    float m = 0;
+    float i;
+    for(i = 0; i < ar_plan_n; i++)
+    {
+        if(!VR_AT_IsHumanoid(ar_plan_kind[i])) { continue; }
+        float t = VR_ARENA_WeaponTier(ar_plan_kind[i], ar_plan_gun[i]);
+        if(t > m) { m = t; }
+    }
+    return m;
+}
+
+float() VR_AT_HumanoidCount =
+{
+    float n = 0;
+    float i;
+    for(i = 0; i < ar_plan_n; i++) { if(ar_plan_kind[i] == AR_SP_GRUNT) { n = n + 1; } }
+    return n;
+}
+
+float() VR_AT_BossCount =
+{
+    float n = 0;
+    float i;
+    for(i = 0; i < ar_plan_n; i++) { if(ar_plan_boss[i]) { n = n + 1; } }
+    return n;
+}
+
+float() VR_AT_GunSum =
+{
+    float s = 0;
+    float i;
+    for(i = 0; i < ar_plan_n; i++) { s = s + ar_plan_gun[i] * (i + 1); }
+    return s;
+}
+
+void() VR_AT_Plans =
+{
+    float i;
+    float w;
+
+    // wave 1: one or two grunts, all of them unarmed, no boss
+    VR_ARENA_Plan(1);
+    VR_AT_Check(ar_plan_n >= 1 && ar_plan_n <= 2, "wave 1 size");
+    VR_AT_Check(VR_AT_HumanoidCount() == ar_plan_n, "wave 1 is grunts only");
+    for(i = 0; i < ar_plan_n; i++) { VR_AT_Check(ar_plan_gun[i] == AR_FIST, "wave 1 unarmed"); }
+    VR_AT_Check(VR_AT_BossCount() == 0, "wave 1 has no boss");
+
+    // wave 2: an unarmed grunt and one with a nail pistol, nothing above the ladder's first rung
+    VR_ARENA_Plan(2);
+    VR_AT_Check(ar_plan_n == 2, "wave 2 size");
+    float fists = 0;
+    float nailp = 0;
+    for(i = 0; i < ar_plan_n; i++)
+    {
+        if(ar_plan_gun[i] == AR_FIST) { fists = fists + 1; }
+        if(ar_plan_gun[i] == WID_NAILPISTOL) { nailp = nailp + 1; }
+    }
+    VR_AT_Check(fists == 1, "wave 2 keeps an unarmed grunt");
+    VR_AT_Check(nailp == 1, "wave 2 brings a nail pistol");
+    VR_AT_Check(VR_AT_HumanoidMaxTier() == 1, "wave 2 stays on the first rung");
+
+    // wave 3: three or four grunts and a zombie; wave 4: four grunts and a knight
+    VR_ARENA_Plan(3);
+    VR_AT_Check(VR_AT_HumanoidCount() >= 3 && VR_AT_HumanoidCount() <= 4, "wave 3 grunt count");
+    VR_AT_Check(VR_AT_CountKind(AR_SP_ZOMBIE) == 1, "wave 3 brings a zombie");
+    VR_AT_Check(VR_AT_HumanoidMaxTier() == 1, "wave 3 stays on the first rung");
+
+    VR_ARENA_Plan(4);
+    VR_AT_Check(VR_AT_CountKind(AR_SP_KNIGHT) == 1, "wave 4 brings a knight");
+    VR_AT_Check(VR_AT_HumanoidCount() == 4, "wave 4 grunt count");
+    VR_AT_Check(VR_AT_HumanoidMaxTier() == 1, "wave 4 stays on the first rung");
+    VR_AT_Check(VR_AT_CountKind(AR_SP_OGRE) == 0 && VR_AT_CountKind(AR_SP_FIEND) == 0 &&
+                VR_AT_CountKind(AR_SP_HKNIGHT) == 0 && VR_AT_CountKind(AR_SP_DOG) == 0, "wave 4 monster mix");
+
+    // boss waves: every vr_arena_boss_every (5), the boss first in the plan
+    VR_ARENA_Plan(5);
+    VR_AT_Check(VR_AT_BossCount() == 1, "wave 5 has one boss");
+    VR_AT_Check(ar_plan_boss[0] && ar_plan_kind[0] == AR_SP_ENFORCER, "wave 5's boss is an enforcer");
+    VR_AT_Check(ar_plan_tier[0] == 1 + AR_BOSS_MARK, "wave 5's boss is worth a boss's tier");
+    VR_AT_Check(VR_AT_HumanoidMaxTier() <= 1, "wave 5 stays on the first rung");
+
+    VR_ARENA_Plan(10);
+    VR_AT_Check(VR_AT_BossCount() == 1 && ar_plan_kind[0] == AR_SP_OGRE, "wave 10's boss is an ogre");
+    VR_AT_Check(VR_AT_HumanoidMaxTier() <= 2, "wave 10 reaches the second rung");
+
+    VR_ARENA_Plan(15);
+    VR_AT_Check(VR_AT_BossCount() == 1 && ar_plan_kind[0] == AR_SP_OGRE, "wave 15's boss is an ogre");
+
+    VR_ARENA_Plan(20);
+    VR_AT_Check(VR_AT_BossCount() == 1 && ar_plan_kind[0] == AR_SP_HKNIGHT, "wave 20's boss is a death knight");
+    VR_AT_Check(VR_AT_HumanoidMaxTier() <= 3, "wave 20 reaches the third rung");
+
+    // the ladder's rungs, and Quake's own monsters: none of them before their wave
+    for(w = 1; w <= 24; w++)
+    {
+        VR_ARENA_Plan(w);
+        VR_AT_Check(ar_plan_n >= 1 && ar_plan_n <= AR_PLAN_MAX, "a wave is planned 1 to the cap");
+        VR_AT_Check(VR_AT_HumanoidCount() <= 7, "a wave's grunts are capped");
+        VR_AT_Check(VR_AT_CountKind(AR_SP_ENFORCER) <= 4, "a wave's enforcers are capped");
+
+        if(w < AR_W_TIER2)   { VR_AT_Check(VR_AT_HumanoidMaxTier() <= 1, "no second rung before wave 10"); }
+        if(w < AR_W_TIER3)   { VR_AT_Check(VR_AT_HumanoidMaxTier() <= 2, "no third rung before wave 18"); }
+        if(w < AR_W_ZOMBIE)  { VR_AT_Check(VR_AT_CountKind(AR_SP_ZOMBIE) == 0, "no zombie before wave 2"); }
+        if(w < 4)            { VR_AT_Check(VR_AT_CountKind(AR_SP_KNIGHT) == 0, "no knight before wave 4"); }
+        if(w < AR_W_DOG)     { VR_AT_Check(VR_AT_CountKind(AR_SP_DOG) == 0, "no dog before wave 6"); }
+        if(w < AR_W_OGRE)    { VR_AT_Check(VR_AT_CountKind(AR_SP_OGRE) == 0, "no ogre before wave 8"); }
+        if(w < AR_W_FIEND)   { VR_AT_Check(VR_AT_CountKind(AR_SP_FIEND) == 0, "no fiend before wave 12"); }
+        if(w < AR_W_HKNIGHT) { VR_AT_Check(VR_AT_CountKind(AR_SP_HKNIGHT) == 0, "no death knight before wave 16"); }
+
+        float boss = VR_ARENA_IsBossWave(w);
+        VR_AT_Check(boss == (VR_ARENA_Mod(w, 5) == 0), "the boss cadence");
+        VR_AT_Check(boss ? VR_AT_BossCount() == 1 : VR_AT_BossCount() == 0, "one boss on a boss wave");
+    }
+
+    // the third rung does show up once the waves have reached it
+    float tier3 = 0;
+    for(w = 19; w <= 24; w++)
+    {
+        VR_ARENA_Plan(w);
+        if(VR_AT_HumanoidMaxTier() == 3) { tier3 = 1; }
+    }
+    VR_AT_Check(tier3 == 1, "the third rung comes once the waves reach it");
+
+    // the score's sums: 100 a kill, times the tier, a boss four of that; 250 a wave clear, times the wave
+    VR_AT_Check(VR_ARENA_KillScore(1, 0) == 100, "a first rung kill is 100");
+    VR_AT_Check(VR_ARENA_KillScore(2, 0) == 200, "a second rung kill is 200");
+    VR_AT_Check(VR_ARENA_KillScore(3, 0) == 300, "a third rung kill is 300");
+    VR_AT_Check(VR_ARENA_KillScore(1, 1) == 400, "a boss kill is four of its tier");
+    VR_AT_Check(VR_ARENA_KillScore(3, 1) == 1200, "a third rung boss is 1200");
+    VR_AT_Check(VR_ARENA_KillScore(0, 0) == 100, "an unset tier counts as the first rung");
+    VR_AT_Check(VR_ARENA_WaveBonus(3) == 750, "a wave clear is 250 times the wave");
+
+    // what a wave clear drops
+    VR_AT_Check(VR_ARENA_MedkitCount(1) == 2, "two medkits after a wave");
+    VR_AT_Check(VR_ARENA_MedkitCount(9) == 2, "a wave clear's medkits do not thin out");
+    VR_AT_Check(VR_ARENA_ArmourKind(4) == 1, "an armour after every 4 waves");
+    VR_AT_Check(VR_ARENA_ArmourKind(5) == 0, "no armour between");
+    VR_AT_Check(VR_ARENA_ArmourKind(12) == 2, "the heavier armour from wave 12");
+    VR_AT_Check(VR_ARENA_ArmourKind(16) == 1, "the light armour still comes");
+
+    // what a monster or a gun is worth on the ladder
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_GRUNT, AR_FIST) == 1, "fists are the first rung");
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_GRUNT, WID_SHOTGUN) == 1, "a shotgun is the first rung");
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_GRUNT, WID_NAILPISTOL) == 1, "a nail pistol is the first rung");
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_GRUNT, WID_AXE) == 1, "an axe is the first rung");
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_GRUNT, WID_SUPER_SHOTGUN) == 2, "a super shotgun is the second rung");
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_GRUNT, WID_NAILGUN) == 2, "a nail gun is the second rung");
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_GRUNT, WID_LIGHTNING) == 3, "lightning is the third rung");
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_GRUNT, WID_ROCKET_LAUNCHER) == 3, "a rocket launcher is the third rung");
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_OGRE, 0) == 2, "an ogre is worth the second rung");
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_FIEND, 0) == 2, "a fiend is worth the second rung");
+    VR_AT_Check(VR_ARENA_WeaponTier(AR_SP_HKNIGHT, 0) == 3, "a death knight is worth the third rung");
+
+    // the knobs: they drive the plans, they are not baked in
+    cvar_set("vr_arena_boss_every", "0");
+    float anyboss = 0;
+    for(w = 1; w <= 20; w++) { VR_ARENA_Plan(w); if(VR_AT_BossCount()) { anyboss = 1; } }
+    VR_AT_Check(anyboss == 0, "vr_arena_boss_every 0: no boss waves");
+    cvar_set("vr_arena_boss_every", "3");
+    VR_ARENA_Plan(3);
+    VR_AT_Check(VR_AT_BossCount() == 1, "vr_arena_boss_every 3: wave 3 has a boss");
+    VR_ARENA_Plan(4);
+    VR_AT_Check(VR_AT_BossCount() == 0, "vr_arena_boss_every 3: wave 4 has none");
+    cvar_set("vr_arena_boss_every", "5");
+
+    cvar_set("vr_arena_score_kill", "50");
+    VR_AT_Check(VR_ARENA_KillScore(2, 0) == 100, "vr_arena_score_kill 50: a second rung kill is 100");
+    cvar_set("vr_arena_score_kill", "100");
+
+    cvar_set("vr_arena_medkits_after", "0");
+    VR_AT_Check(VR_ARENA_MedkitCount(3) == 0, "vr_arena_medkits_after 0: no medkits");
+    cvar_set("vr_arena_medkits_after", "2");
+
+    cvar_set("vr_arena_armor_every", "0");
+    VR_AT_Check(VR_ARENA_ArmourKind(4) == 0, "vr_arena_armor_every 0: no armour");
+    cvar_set("vr_arena_armor_every", "4");
+
+    // the seed: the same seed's ladder every run, another seed another ladder
+    cvar_set("vr_arena_seed", "7");
+    VR_ARENA_Plan(7);  vr_at_a[0] = VR_AT_GunSum(); vr_at_a[3] = ar_plan_n;
+    VR_ARENA_Plan(11); vr_at_a[1] = VR_AT_GunSum(); vr_at_a[4] = ar_plan_n;
+    VR_ARENA_Plan(19); vr_at_a[2] = VR_AT_GunSum(); vr_at_a[5] = ar_plan_n;
+    VR_ARENA_Plan(7);  vr_at_b[0] = VR_AT_GunSum(); vr_at_b[3] = ar_plan_n;
+    VR_ARENA_Plan(11); vr_at_b[1] = VR_AT_GunSum(); vr_at_b[4] = ar_plan_n;
+    VR_ARENA_Plan(19); vr_at_b[2] = VR_AT_GunSum(); vr_at_b[5] = ar_plan_n;
+    VR_AT_Check(vr_at_a[0] == vr_at_b[0] && vr_at_a[1] == vr_at_b[1] && vr_at_a[2] == vr_at_b[2] &&
+                vr_at_a[3] == vr_at_b[3] && vr_at_a[4] == vr_at_b[4] && vr_at_a[5] == vr_at_b[5],
+                "the same seed draws the same ladder twice");
+    cvar_set("vr_arena_seed", "2031");
+    VR_ARENA_Plan(7);  vr_at_b[0] = VR_AT_GunSum();
+    VR_ARENA_Plan(11); vr_at_b[1] = VR_AT_GunSum();
+    VR_ARENA_Plan(19); vr_at_b[2] = VR_AT_GunSum();
+    VR_AT_Check(vr_at_b[0] != vr_at_a[0] || vr_at_b[1] != vr_at_a[1] || vr_at_b[2] != vr_at_a[2],
+                "another seed draws another ladder");
+    cvar_set("vr_arena_seed", "7");
+
+    // the wave in the field is planned, and re-planned the same way
+    VR_ARENA_Plan(13);
+    vr_at_a[0] = VR_AT_GunSum(); float n13 = ar_plan_n;
+    VR_ARENA_Plan(13);
+    VR_AT_Check(vr_at_a[0] == VR_AT_GunSum() && n13 == ar_plan_n, "a wave re-planned is the same wave");
+}
+
+// combat.qc's hook, on a dummy of the wave: its score, once, and a boss's worth.
+void() VR_AT_HookCheck =
+{
+    entity save = self;
+    entity mgr0 = ar_mgr;
+    float wave0 = ar_wave;
+    float score0 = ar_score;
+    float kills0 = ar_kills;
+    entity dummy;
+
+    if(!ar_mgr) { ar_mgr = spawn(); } // (the hook's own gate: the arena runs)
+
+    ar_wave = 3;
+    ar_score = 0;
+    ar_kills = 0;
+
+    dummy = spawn();
+    self = dummy;
+    dummy.classname = "monster_army";
+    dummy.ar_slot = 3;
+    dummy.ar_tier = 2;
+    VR_ARENA_MonsterDie();
+    VR_AT_Check(ar_score == 200, "a second rung fall is scored 200");
+    VR_AT_Check(ar_kills == 1, "a fall is counted once");
+    VR_AT_Check(dummy.ar_slot == -3, "the fall's monster stops being counted");
+    VR_AT_Check(VR_ARENA_CountAlive() == 0, "a fallen monster is not alive");
+    VR_ARENA_MonsterDie();
+    VR_AT_Check(ar_score == 200 && ar_kills == 1, "the same fall is not scored twice");
+
+    dummy.ar_slot = 3;
+    dummy.ar_tier = 2 + AR_BOSS_MARK;
+    VR_ARENA_MonsterDie();
+    VR_AT_Check(ar_score == 1000, "a boss fall is scored four of its tier");
+
+    remove(dummy);
+    self = save;
+    if(!mgr0) { remove(ar_mgr); }
+    ar_mgr = mgr0;
+    ar_wave = wave0;
+    ar_score = score0;
+    ar_kills = kills0;
+}
+
+// ---------------------------------------------------------------------------
+// Test 2: the waves, live
+// ---------------------------------------------------------------------------
+
+void() VR_AT2_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 2 needs the arena on (vr_arena 1)"); VR_AT_End(); return; }
+    cvar_set("vr_arena_max_alive", "2"); // (the field's cap, small enough for the waves to have to respect it)
+    vr_at_until = time + 40;
+    dprint("arena: test 2 waves\n");
+}
+
+void() VR_AT2_Frame =
+{
+    entity e;
+    entity p = VR_ARENA_FindPlayer();
+
+    if(!p) { VR_AT_Check(FALSE, "test 2 needs a player in the map"); VR_AT_End(); return; }
+
+    if(vr_at_step == 0) // (wave 1: its foes, all of them unarmed grunts)
+    {
+        if(ar_wave < 1 || ar_plan_live < ar_plan_n) { return; }
+
+        float armed = 0;
+        float fists = 0;
+        float up = 0;
+        e = findflags(world, ar_slot, 1);
+        while(e)
+        {
+            if(e.health > 0)
+            {
+                up = up + 1;
+                if(e.vr_ag) { armed = armed + 1; }
+                if(e.vr_ag_code == AR_FIST) { fists = fists + 1; }
+            }
+            e = findflags(e, ar_slot, 1);
+        }
+        VR_AT_Check(ar_plan_n >= 1 && ar_plan_n <= 2, "wave 1 puts 1 to 2 foes in the field");
+        VR_AT_Check(up == ar_plan_n, "wave 1's plan is in the field");
+        VR_AT_Check(armed == up, "wave 1's foes are armed humanoids");
+        VR_AT_Check(fists == up, "wave 1's foes are at their fists");
+        VR_AT_Check(ar_alive_peak <= 2, "the field's cap is held");
+
+        vr_at_kills0 = ar_kills;
+        vr_at_score0 = ar_score;
+        e = findflags(world, ar_slot, 1);
+        while(e)
+        {
+            entity next = findflags(e, ar_slot, 1);
+            if(e.health > 0) { T_Damage(e, p, p, e.health + 100); break; } // (one fall: the score's path through combat.qc)
+            e = next;
+        }
+        vr_at_step = 1;
+        vr_at_until = time + 40;
+        return;
+    }
+
+    if(vr_at_step == 1) // (that fall was scored the way the arena says)
+    {
+        VR_AT_Check(ar_kills - vr_at_kills0 == 1, "combat.qc's hook counted the fall");
+        VR_AT_Check(ar_score - vr_at_score0 == 100, "an unarmed fall is worth 100");
+        vr_at_step = 2;
+        return;
+    }
+
+    if(vr_at_step == 2) // (the rest of the wave goes: its clear drops the medkits)
+    {
+        e = findflags(world, ar_slot, 1);
+        while(e)
+        {
+            entity next = findflags(e, ar_slot, 1);
+            if(e.health > 0) { T_Damage(e, p, p, e.health + 100); }
+            e = next;
+        }
+        if(ar_wave >= 2)
+        {
+            float kits = 0;
+            entity it = findflags(world, ar_drop, 1);
+            while(it) { kits = kits + 1; it = findflags(it, ar_drop, 1); }
+            VR_AT_Check(ar_drop_health == VR_ARENA_MedkitCount(1), "the wave clear made its medkits");
+            VR_AT_Check(kits >= 1, "the medkits are in the map");
+            VR_AT_Check(ar_score >= 100 + 250, "the wave clear's bonus was paid");
+            vr_at_step = 3;
+            vr_at_until = time + 40;
+        }
+        return;
+    }
+
+    if(vr_at_step == 3) // (wave 2: the ladder's next rung, a nail pistol)
+    {
+        if(ar_plan_live < ar_plan_n) { return; }
+        float got = 0;
+        e = findflags(world, ar_slot, 2);
+        while(e)
+        {
+            if(e.health > 0 && e.vr_ag_code == WID_NAILPISTOL) { got = 1; }
+            e = findflags(e, ar_slot, 2);
+        }
+        VR_AT_Check(ar_wave == 2, "the arena went on to wave 2");
+        VR_AT_Check(got == 1, "wave 2 brings a nail pistol");
+        VR_AT_Check(ar_alive_peak <= 2, "the field's cap held across the waves");
+        VR_AT_End();
+        return;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test 3: a boss wave, live
+// ---------------------------------------------------------------------------
+
+void() VR_AT3_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 3 needs the arena on (vr_arena 1)"); VR_AT_End(); return; }
+    VR_ARENA_FastForward(5);
+    vr_at_until = time + 40;
+    dprint("arena: test 3 boss\n");
+}
+
+void() VR_AT3_Frame =
+{
+    if(vr_at_step == 0)
+    {
+        if(ar_wave < 5) { return; }
+
+        VR_AT_Check(ar_wave == 5, "the arena jumped to its boss wave");
+        VR_AT_Check(ar_plan_boss[0] == 1 && ar_plan_kind[0] == AR_SP_ENFORCER, "wave 5's plan leads with its boss");
+        VR_AT_Check(VR_AT_BossCount() == 1, "a boss wave has one boss");
+
+        entity boss = world;
+        entity e = findflags(world, ar_slot, 5);
+        while(e)
+        {
+            if(e.health > 0 && e.ar_tier >= AR_BOSS_MARK) { boss = e; }
+            e = findflags(e, ar_slot, 5);
+        }
+        if(!boss) { return; } // (its own spawn comes a beat after the wave begins)
+
+        VR_AT_Check(boss.vr_ag == 1, "the boss is an armed humanoid");
+        VR_AT_Check(boss.ar_tier == 1 + AR_BOSS_MARK, "the boss is worth a boss's tier");
+        VR_AT_Check(boss.vr_ag_code > 0, "the boss holds a gun");
+        VR_AT_Check(ar_alive_peak <= VR_ARENA_Opt_MaxAlive(), "the boss wave respects the field's cap");
+        VR_AT_End();
+        return;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// world.qc's test beat (StartFrame, under QVR_TESTS)
+// ---------------------------------------------------------------------------
+
+void() VR_ARENA_Test_Frame =
+{
+    float c = cvar("vr_arena_test");
+
+    if(c == 0)
+    {
+        if(vr_at_case) { VR_AT_Restore(); skill = vr_at_skill0; vr_at_case = 0; dprint("arena: test stopped\n"); }
+        return;
+    }
+
+    if(vr_at_case == 0)
+    {
+        vr_at_case = c;
+        vr_at_pass = 0;
+        vr_at_fail = 0;
+        vr_at_step = 0;
+        vr_at_until = time + 30;
+        VR_AT_Save();
+        vr_at_skill0 = skill;
+        VR_AT_SetDefaults();
+        dprint(sprintf("arena: test %g begin\n", c));
+
+        if(c == 1)
+        {
+            VR_AT_Plans();
+            VR_AT_HookCheck();
+            VR_AT_End();
+            return;
+        }
+        if(c == 2) { VR_AT2_Begin(); return; }
+        if(c == 3) { VR_AT3_Begin(); return; }
+
+        VR_AT_Check(FALSE, "no such arena test");
+        VR_AT_End();
+        return;
+    }
+
+    if(vr_at_case != c) { return; } // (a different case asked for while one runs: the running one finishes)
+
+    if(time > vr_at_until)
+    {
+        VR_AT_Check(FALSE, "the test timed out");
+        VR_AT_End();
+        return;
+    }
+
+    if(vr_at_case == 2) { VR_AT2_Frame(); return; }
+    if(vr_at_case == 3) { VR_AT3_Frame(); return; }
+}
+#endif

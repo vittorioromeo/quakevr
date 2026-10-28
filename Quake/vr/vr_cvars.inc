@@ -3038,6 +3038,17 @@ QVR_CVAR(vr_agrunt_rearm, "1", CVAR_ARCHIVE)           // 1: disarmed, it goes f
 QVR_CVAR(vr_agrunt_rearm_range, "384", CVAR_ARCHIVE)   // how far (units) it looks for one
 QVR_CVAR(vr_agrunt_test, "0", CVAR_NONE)                       // the QC's armed grunt tests (vr_armedgrunt_test.qc): 1 every weapon, 2 ammo/death/disarm/re-arm, 3 the yank, 4 save/load
 QVR_CVAR(vr_agrunt_test_kind, "0", CVAR_NONE)                  // the armed monster the vr_agrunt_test tests spawn (QC vr_armedmon.qc: 0 grunt, 1 enforcer)
+// Survival Arena (QC/vr_arena.qc): the wave director's knobs.
+QVR_CVAR(vr_arena, "0", CVAR_NONE)                             // 1: its waves run in this map too (the map "vrarena" runs them on its own)
+QVR_CVAR(vr_arena_wave_delay, "6", CVAR_ARCHIVE)              // s from a wave clear to the next wave
+QVR_CVAR(vr_arena_max_alive, "8", CVAR_ARCHIVE)               // foes up at once at most; the rest of a thick wave trickles in as they free up
+QVR_CVAR(vr_arena_boss_every, "5", CVAR_ARCHIVE)              // a boss wave every this many waves (0: none)
+QVR_CVAR(vr_arena_boss_health, "1.25", CVAR_ARCHIVE)          // a boss's health times this
+QVR_CVAR(vr_arena_medkits_after, "2", CVAR_ARCHIVE)           // medkits a wave clear drops (0: none)
+QVR_CVAR(vr_arena_armor_every, "4", CVAR_ARCHIVE)             // an armour after every this many waves (0: none; the heavier one from wave 12)
+QVR_CVAR(vr_arena_score_kill, "100", CVAR_ARCHIVE)            // the score of a kill, times the ladder tier it held (a boss: four of those)
+QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' rolls: 0 a different ladder every run, else that seed's ladder
+QVR_CVAR(vr_arena_test, "0", CVAR_NONE)                       // the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave
 QVR_CVAR(vr_agrunt_debug, "0", CVAR_NONE)                    // 1: prints its weapon, shots, reloads, disarms and pickups
 QVR_CVAR(vr_agrunt_w_fists, "1", CVAR_ARCHIVE)         // the pool's weights (0: never): unarmed, its fists
 QVR_CVAR(vr_agrunt_w_axe, "1", CVAR_ARCHIVE)
