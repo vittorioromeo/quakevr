@@ -3,7 +3,7 @@
 # (qbsp, vis and light: ericw-tools 2.0, make_vrtesthall_map.py's and make_vrcalibration_map.py's profile).
 #
 #   python Misc/quakevr/maps/vrarena_gen.py [--compile [--preset fast|final]] [--check] [--holes RAYS]
-#                                          [--tools DIR] [--work DIR]
+#                                          [--tools DIR] [--work DIR] [--dev-textures]
 #
 # The arena (VR scale: MAPPING.md's 32.8 units = 1 m; every number below is in units). One sealed octagonal room, no
 # sky, lit here (`_qvr_prelit 1`, like vrtesthall's and vrcalibration's):
@@ -22,6 +22,11 @@
 # 130 brushes (light on Quest 3). Brushes are kept apart: they meet face to face, exactly coplanar, none runs into
 # another, and the shell is closed (qbsp sees no leak). --check verifies the points, the stair steps, that, and that
 # the open ring of the floor (700..1000 out, below 160 high) holds nothing.
+# The look is id's own base set -- e1m1's textures and the base maps around it (the author's ask, 2026-10-28) -- read
+# from quakevr/wads/id_textures.wad, which Misc/trenchbroom/make_id_wad.py makes from your own paks and the repository
+# never sees; like vrcalibration's and vrstart's, the compiled vrarena.bsp carries them (MAPPING.md, "Textures and id's
+# data"). --dev-textures builds the same arena with quakevr_dev.wad's flat grids instead. No new geometry: every face
+# is what it was, only its texture changed, so the 130 brushes, the points, the steps and the play are untouched.
 #
 # Entities (point entities for the wave director; none is in quakevr.fgd -- no QuakeC spawn function names them yet,
 # as with vrtesthall's plain info_player_start, so Misc/trenchbroom/fgdgen.py --check stays green):
@@ -54,7 +59,36 @@ PRESETS = {
                                  "-lux", "-lightgrid", "-lightgrid_dist", "64", "64", "64"]),
 }
 
-FLOOR, WALL, CEIL, PANEL, TRIM, LAMP = "qvr_floor", "qvr_wall", "qvr_ceiling", "qvr_panel", "qvr_trim", "qvr_light"
+# The palette: role -> (texture name, scale). The names are id's (quakevr/wads/id_textures.wad; `--list` there prints
+# them with their sizes and the map each came from). The scale is only where a texture is meant to span a face
+# exactly -- the dais' 96-high panels, the 48-high crates, the spawn pad's plate -- and 1.0 everywhere else, so the
+# faces keep Tex's world-aligned axes and neighbouring brushes still continue into each other.
+IDTEX = dict(floor=("ground1_2", 1.0),         # 64: id's base floor plates: the whole 49 m room
+             wall=("twall1_1", 1.0),           # 64 x 128: the 4 cardinal walls: a panel and its band, three high
+             wall2=("twall2_1", 1.0),          # 64 x 128: the 4 cut corners: the same family, another panel
+             ceiling=("sfloor4_1", 1.0),       # 64: the ceiling's plates, over the whole room
+             dais=("twall5_3", 1.5),           # 64 at 1.5: one panel exactly spans the dais' 96-high faces
+             tower=("twall5_1", 1.0),          # 128: exactly two panels up each 256-high tower
+             deck=("sfloor4_2", 1.0),          # 64: the dais' top, the tower tops, the decks and the bridges
+             deck_side=("metal4_4", 1.0),      # 64: one plate spans the 64-thick decks and the bridges
+             stair=("metal1_1", 1.0),          # 64: every step, the dais' six and the towers' sixteen
+             cover=("crate0_side", 0.75),      # 64 at 0.75: id's crate, exactly the cover's 48 high
+             cover_top=("crate0_top", 1.25),   # 64 at 1.25: one crate top across the 80-wide cover
+             pad=("plat_top1", 1.5),           # 64 at 1.5: one plate across the 96-wide spawn pad
+             pad_side=("plat_side1", 0.125),   # 16 at 0.125: id's platform lip, exactly the pad's 2-high edge
+             lamp=("qvr_light", 1.0))          # quakevr_dev.wad: the engine's own emitting texture, not an id one
+DEVTEX = dict(floor=("qvr_floor", 1.0), wall=("qvr_wall", 1.0), wall2=("qvr_wall", 1.0), ceiling=("qvr_ceiling", 1.0),
+              dais=("qvr_panel", 1.0), tower=("qvr_panel", 1.0), deck=("qvr_floor", 1.0), deck_side=("qvr_wall", 1.0),
+              stair=("qvr_floor", 1.0), cover=("qvr_panel", 1.0), cover_top=("qvr_panel", 1.0), pad=("qvr_panel", 1.0),
+              pad_side=("qvr_trim", 1.0), lamp=("qvr_light", 1.0))
+TEX = IDTEX                        # --dev-textures swaps the palette for DEVTEX (and the WAD list for the one WAD)
+WADS = ["quakevr/wads/id_textures.wad", "quakevr/wads/quakevr_dev.wad"]
+
+
+def T(role):
+    """The palette's `role` as a mapgeom Tex: its name and its scale."""
+    name, sc = TEX[role]
+    return mg.Tex(name, sc)
 
 H, CUT, TH = 800, 200, 64                    # the octagon: sides at +-800, corners cut 200 (1000 out); walls 64 thick
 XOUT, ZH, ZTOP, ZF = H + TH, 384, 448, 0     # the shell: walls 0..384, the floor slab down to -64, the ceiling to 448
@@ -93,12 +127,12 @@ def inset(poly, d):
 
 def texf(top, side, bottom=None):
     """A TexFn for mapgeom (it wants a face's texture as a (name, U, V, uoff, voff, scale, scale) tuple): `top` on the
-    upward face, `bottom` on the downward one (by default `side` too), `side` on the rest. Tex's world-aligned default
-    axes are kept, so coplanar faces of neighbouring brushes continue into each other."""
-    tex = {n: mg.Tex(n) for n in (top, side, bottom) if n}
+    upward face, `bottom` on the downward one (by default `side` too), `side` on the rest -- each of them a Tex, as
+    T(role) makes one. Tex's world-aligned default axes are kept, so coplanar faces of neighbouring brushes continue
+    into each other."""
     def f(n, c):
-        name = top if n[2] > 0.99 else ((bottom or side) if n[2] < -0.99 else side)
-        return tex[name].spec(n, c)
+        t = top if n[2] > 0.99 else ((bottom or side) if n[2] < -0.99 else side)
+        return t.spec(n, c)
     return f
 
 
@@ -115,10 +149,10 @@ def flight(dst, what, x0, y0, dx, dy, wide, steps, rise, tread):
     for k in range(steps):
         if dx:
             a, b = (x0 + tread * k, x0 + tread * (k + 1)) if dx > 0 else (x0 - tread * (k + 1), x0 - tread * k)
-            dst.append(mg.box(a, y0, ZF, b, y0 + wide, rise * (k + 1), texf(FLOOR, WALL)))
+            dst.append(mg.box(a, y0, ZF, b, y0 + wide, rise * (k + 1), texf(T("stair"), T("stair"))))
         else:
             a, b = (y0 + tread * k, y0 + tread * (k + 1)) if dy > 0 else (y0 - tread * (k + 1), y0 - tread * k)
-            dst.append(mg.box(x0, a, ZF, x0 + wide, b, rise * (k + 1), texf(FLOOR, WALL)))
+            dst.append(mg.box(x0, a, ZF, x0 + wide, b, rise * (k + 1), texf(T("stair"), T("stair"))))
         STEPS.append((what, rise, tread))
 
 
@@ -130,18 +164,21 @@ def geometry(mw):
 
     # ---- the shell: the floor slab, one wall brush behind each of the octagon's 8 sides, the 4 wedges that close its
     # cut corners against the shell's own corners, and the ceiling
-    shell.append(mg.box(-XOUT, -XOUT, ZF - TH, XOUT, XOUT, ZF, texf(FLOOR, WALL)))
-    shell.append(mg.box(-XOUT, -XOUT, ZH, XOUT, XOUT, ZTOP, texf(CEIL, WALL)))
+    shell.append(mg.box(-XOUT, -XOUT, ZF - TH, XOUT, XOUT, ZF, texf(T("floor"), T("wall"))))
+    shell.append(mg.box(-XOUT, -XOUT, ZH, XOUT, XOUT, ZTOP, texf(T("ceiling"), T("wall"))))
     for i in range(8):
         j = (i + 1) % 8
-        shell.append(prism([oct8[i], oct8[j], outer[j], outer[i]], ZF, ZH, WALL, WALL))
+        # octagon() alternates a cut corner with a cardinal side, so sides 1, 3, 5 and 7 (the east, north, west and
+        # south walls) get id's tall panel and sides 0, 2, 4 and 6 (the cut corners' faces) get its second panel
+        shell.append(prism([oct8[i], oct8[j], outer[j], outer[i]], ZF, ZH, T("wall"),
+                           T("wall" if i % 2 else "wall2")))
     for i in range(0, 8, 2):
         far = (XOUT if outer[i][0] > 0 else -XOUT, XOUT if outer[i + 1][1] > 0 else -XOUT)
-        shell.append(prism([outer[i], outer[i + 1], far], ZF, ZH, WALL, WALL))
+        shell.append(prism([outer[i], outer[i + 1], far], ZF, ZH, T("wall2"), T("wall2")))
 
     # ---- the dais, its spawn pad (vrtesthall's own: 2 high) and its 4 staircases, one onto each cardinal face
-    dais.append(prism(octagon(DAIS_A, DAIS_C), ZF, DAIS_TOP, PANEL, WALL))
-    dais.append(mg.box(-48, -48, DAIS_TOP, 48, 48, DAIS_TOP + 2, texf(PANEL, TRIM)))
+    dais.append(prism(octagon(DAIS_A, DAIS_C), ZF, DAIS_TOP, T("deck"), T("dais")))
+    dais.append(mg.box(-48, -48, DAIS_TOP, 48, 48, DAIS_TOP + 2, texf(T("pad"), T("pad_side"))))
     flight(dais, "dais stair (north)", -48, 376, 0, -1, 96, 6, 16, 24)
     flight(dais, "dais stair (south)", -48, -376, 0, 1, 96, 6, 16, 24)
     flight(dais, "dais stair (east)", 376, -48, -1, 0, 96, 6, 16, 24)
@@ -149,7 +186,7 @@ def geometry(mw):
 
     # ---- the 4 corner towers and their pinwheel staircases: each flight hugs the face its neighbour's gives
     for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
-        towers.append(mg.box(sx * TOW_A, sy * TOW_A, ZF, sx * TOW_B, sy * TOW_B, WALK_TOP, texf(PANEL, WALL)))
+        towers.append(mg.box(sx * TOW_A, sy * TOW_A, ZF, sx * TOW_B, sy * TOW_B, WALK_TOP, texf(T("deck"), T("tower"))))
     flight(towers, "tower stair (north-east)", 248, 236, 0, 1, 64, 16, 16, 16)     # up the north-east tower's west face
     flight(towers, "tower stair (north-west)", -236, 248, -1, 0, 64, 16, 16, 16)   # up the north-west tower's south face
     flight(towers, "tower stair (south-west)", -312, -236, 0, -1, 64, 16, 16, 16)  # up the south-west tower's east face
@@ -158,16 +195,18 @@ def geometry(mw):
     # ---- the wall walk at 256: 2 decks along the east and the west wall, and a bridge from each to the two tower
     # tops it passes (so the high ring is reached only by way of the towers, and drops 256 to the floor)
     for s in (1, -1):
-        walk.append(mg.box(s * H, -DECK_Y, WALK_TOP - 64, s * DECK_X0, DECK_Y, WALK_TOP, texf(PANEL, WALL)))
+        walk.append(mg.box(s * H, -DECK_Y, WALK_TOP - 64, s * DECK_X0, DECK_Y, WALK_TOP,
+                           texf(T("deck"), T("deck_side"))))
     for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
-        walk.append(mg.box(sx * TOW_B, sy * 370, WALK_TOP - 64, sx * DECK_X0, sy * 434, WALK_TOP, texf(PANEL, WALL)))
+        walk.append(mg.box(sx * TOW_B, sy * 370, WALK_TOP - 64, sx * DECK_X0, sy * 434, WALK_TOP,
+                           texf(T("deck"), T("deck_side"))))
 
     # ---- the 8 covers, 45 deg apart at radius ~520, each its own func_detail
     for i in range(8):
         a = math.radians(22.5 + 45 * i)
         cx, cy = (round(COVER_R * math.cos(a) / 8) * 8, round(COVER_R * math.sin(a) / 8) * 8)
         covers.append(mg.box(cx - COVER_HALF, cy - COVER_HALF, ZF, cx + COVER_HALF, cy + COVER_HALF, COVER_TOP,
-                             texf(TRIM, PANEL)))
+                             texf(T("cover_top"), T("cover"))))
         mw.detail("cover %d" % (i + 1)).append(covers[-1])
 
     # ---- the lamps (vrtesthall's pattern: a glowing block at the ceiling, its light entity under it)
@@ -175,7 +214,7 @@ def geometry(mw):
     for i in range(8):
         a = math.radians(22.5 + 45 * i)
         x, y = (round(650 * math.cos(a) / 8) * 8, round(650 * math.sin(a) / 8) * 8)
-        lamps.append(mg.box(x - 32, y - 32, ZH - 4, x + 32, y + 32, ZH, LAMP))
+        lamps.append(mg.box(x - 32, y - 32, ZH - 4, x + 32, y + 32, ZH, T("lamp")))
         lights.append(((x, y, ZH - 44), "300", "0.47"))
     for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
         lights.append(((sx * 402, sy * 402, 320), "180", "0.6"))      # over each tower's top
@@ -215,7 +254,7 @@ def all_brushes(mw):
 def write(path):
     mw = mg.MapWriter()
     ents, feat = geometry(mw)
-    keys = {"classname": "worldspawn", "mapversion": "220", "wad": "quakevr/wads/quakevr_dev.wad",
+    keys = {"classname": "worldspawn", "mapversion": "220", "wad": ";".join(WADS),
             "_tb_mod": "hipnotic;rogue;quakevr", "mapname": MAPNAME, "message": "Quake VR Survival Arena",
             "worldtype": "2", "light": LIGHT_MIN, "_vr_debris": "0", "_qvr_prelit": "1"}
     header = ("// %s.map -- generated by Misc/quakevr/maps/%s_gen.py: regenerate it, do not edit it by hand.\n"
@@ -418,7 +457,17 @@ def main():
     ap.add_argument("--tools", default=DEFAULT_TOOLS)
     ap.add_argument("--work", default=os.path.join(ROOT, "scratch", MAPNAME + "_build"),
                     help="the folder the compile runs in")
+    ap.add_argument("--dev-textures", action="store_true", help="texture the arena with quakevr_dev.wad's flat grids "
+                        "instead of id's base ones: for a checkout without quakevr/wads/id_textures.wad, which "
+                        "Misc/trenchbroom/make_id_wad.py makes from your own paks")
     args = ap.parse_args()
+    global TEX, WADS
+    if args.dev_textures:
+        TEX, WADS = DEVTEX, WADS[-1:]
+    elif not os.path.exists(os.path.join(ROOT, WADS[0])):
+        print("no %s: run python Misc/trenchbroom/make_id_wad.py (it reads your own paks and git never sees the "
+              "result), or pass --dev-textures" % WADS[0])
+        sys.exit(1)
     mw, ents, feat = write(OUT)
     brushes = all_brushes(mw)
     print("wrote %s: %d brushes, %d entities (%d info_arena_spawn, %d info_arena_item, %d light)"
