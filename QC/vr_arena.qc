@@ -13,8 +13,9 @@
 //
 // The knobs (Quake/vr/vr_cvars.inc; read here with plain cvar()):
 //   vr_arena              0    the arena runs even in a map that is not "vrarena"
-//   vr_arena_wave_delay   6    seconds from a wave clear to the next wave
-//   vr_arena_max_alive    8    foes alive at once at most; the rest of the wave trickles in as they free up
+//   vr_arena_wave_delay   6    seconds from a wave clear to the next wave (at Normal skill: a harder skill waits less)
+//   vr_arena_max_alive    8    foes alive at once at most; the rest of the wave trickles in as they free up (at
+//                             Normal skill: a harder skill has more of them up at once)
 //   vr_arena_boss_every   5    a boss wave every this many waves (0: no boss waves)
 //   vr_arena_boss_health  1.25 a boss's health times this
 //   vr_arena_medkits_after 2   medkits after every wave (0: none)
@@ -167,6 +168,24 @@ float() VR_ARENA_Opt_BossHealth { return VR_ARENA_Clamp(cvar("vr_arena_boss_heal
 float() VR_ARENA_Opt_Medkits    { return VR_ARENA_Clamp(cvar("vr_arena_medkits_after"), 0, 4); }
 float() VR_ARENA_Opt_ArmorEvery { return VR_ARENA_Clamp(cvar("vr_arena_armor_every"), 0, 12); }
 float() VR_ARENA_Opt_ScoreKill  { return VR_ARENA_Clamp(cvar("vr_arena_score_kill"), 1, 10000); }
+
+// A group of a wave's foes at this skill: the wave's own count times the skill's factor, whole foes (floor), and a
+// group is never emptied out -- the wave the difficulty thins still brings its zombie, its dog, its boss.
+float(float xN) VR_ARENA_SkillCount = { return max(1, floor(VR_ARENA_Skill(0.75, 1.25, 1.5) * xN)); }
+
+// How many of a wave's foes may be up at once: vr_arena_max_alive (clamped to what works, above) by the skill, and
+// still never more than a wave can plan and never below one.
+float() VR_ARENA_FieldCap = { return VR_ARENA_Clamp(VR_ARENA_SkillCount(VR_ARENA_Opt_MaxAlive()), 1, AR_PLAN_MAX); }
+
+// A span of seconds the arena waits, at this skill: the harder the skill the less it waits (the factor divides the
+// span), never below xMin. A factor of 0 leaves the span as the knob sets it -- it does not make a wave arrive all
+// at once.
+float(float xSec, float xMin) VR_ARENA_SkillTime =
+{
+    float f = VR_ARENA_Skill(0.75, 1.25, 1.5);
+    if(f <= 0) { return xSec; }
+    return max(xMin, xSec / f);
+}
 
 // What a wave monster's ar_tier is worth on the ladder: its mark (AR_BOSS_MARK) is not a rung, so it comes off
 // before the tier is scored (a boss is worth four of its rung, not four of the mark).
@@ -322,6 +341,10 @@ void(float xKind, float xGun, float xBoss) VR_ARENA_PlanAdd =
 }
 
 // The wave's plan, wave 1 to the waves past the table (13 and on: the same ladder, thicker).
+//
+// The counts written below are the wave's Normal-skill counts: VR_ARENA_SkillCount moves every group of them by
+// the skill's factor (whole foes, a group never emptied -- a wave's own zombie, dog or boss stays). The cap on a
+// wave's whole plan is VR_ARENA_PlanAdd's (AR_PLAN_MAX), the cap on the field is VR_ARENA_FieldCap's.
 void(float xWave) VR_ARENA_Plan =
 {
     float boss = VR_ARENA_IsBossWave(xWave);
@@ -341,45 +364,56 @@ void(float xWave) VR_ARENA_Plan =
 
     if(xWave == 1)
     {
-        n = 1 + (VR_ARENA_Rand() < 0.5); // (one or two grunts, all of them unarmed)
+        n = VR_ARENA_SkillCount(1 + (VR_ARENA_Rand() < 0.5)); // (one or two grunts, all of them unarmed)
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, AR_FIST, 0); }
         return;
     }
     if(xWave == 2)
     {
-        VR_ARENA_PlanAdd(AR_SP_GRUNT, AR_FIST, 0);
-        VR_ARENA_PlanAdd(AR_SP_GRUNT, WID_NAILPISTOL, 0);
+        // One unarmed and one with a nail pistol; a thinner wave brings the armed one, so the ladder's step stays.
+        n = VR_ARENA_SkillCount(2);
+        if(n < 2)
+        {
+            VR_ARENA_PlanAdd(AR_SP_GRUNT, WID_NAILPISTOL, 0);
+        }
+        else
+        {
+            VR_ARENA_PlanAdd(AR_SP_GRUNT, AR_FIST, 0);
+            for(i = 1; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, WID_NAILPISTOL, 0); }
+        }
         return;
     }
     if(xWave == 3)
     {
-        n = 3 + (VR_ARENA_Rand() < 0.5);
+        n = VR_ARENA_SkillCount(3 + (VR_ARENA_Rand() < 0.5));
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickEarlyGun(3), 0); }
         VR_ARENA_PlanAdd(AR_SP_ZOMBIE, 0, 0);
         return;
     }
     if(xWave == 4)
     {
-        for(i = 0; i < 4; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickEarlyGun(4), 0); }
+        n = VR_ARENA_SkillCount(4);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickEarlyGun(4), 0); }
         VR_ARENA_PlanAdd(AR_SP_KNIGHT, 0, 0);
         return;
     }
     if(xWave == 5) // (its boss, an enforcer with a gun, was planned above)
     {
-        n = 3 + (VR_ARENA_Rand() < 0.5);
+        n = VR_ARENA_SkillCount(3 + (VR_ARENA_Rand() < 0.5));
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(5), 0); }
         return;
     }
     if(xWave == 6)
     {
-        for(i = 0; i < 3; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(6), 0); }
+        n = VR_ARENA_SkillCount(3);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(6), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(6), 0);
         VR_ARENA_PlanAdd(AR_SP_DOG, 0, 0);
         return;
     }
     if(xWave == 7)
     {
-        n = 3 + (VR_ARENA_Rand() < 0.4);
+        n = VR_ARENA_SkillCount(3 + (VR_ARENA_Rand() < 0.4));
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(7), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(7), 0);
         VR_ARENA_PlanAdd(AR_SP_DOG, 0, 0);
@@ -387,7 +421,8 @@ void(float xWave) VR_ARENA_Plan =
     }
     if(xWave == 8)
     {
-        for(i = 0; i < 3; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(8), 0); }
+        n = VR_ARENA_SkillCount(3);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(8), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(8), 0);
         VR_ARENA_PlanAdd(AR_SP_KNIGHT, 0, 0);
         VR_ARENA_PlanAdd(AR_SP_OGRE, 0, 0);
@@ -395,42 +430,50 @@ void(float xWave) VR_ARENA_Plan =
     }
     if(xWave == 9)
     {
-        for(i = 0; i < 4; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(9), 0); }
+        n = VR_ARENA_SkillCount(4);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(9), 0); }
         VR_ARENA_PlanAdd(AR_SP_ZOMBIE, 0, 0);
         VR_ARENA_PlanAdd(AR_SP_OGRE, 0, 0);
         return;
     }
     if(xWave == 10) // (its boss, an ogre, was planned above)
     {
-        for(i = 0; i < 2; i++) { VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(10), 0); }
-        for(i = 0; i < 2; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(10), 0); }
+        n = VR_ARENA_SkillCount(2);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(10), 0); }
+        n = VR_ARENA_SkillCount(2);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(10), 0); }
         VR_ARENA_PlanAdd(AR_SP_DOG, 0, 0);
         return;
     }
     if(xWave == 11)
     {
-        for(i = 0; i < 4; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(11), 0); }
+        n = VR_ARENA_SkillCount(4);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(11), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(11), 0);
-        for(i = 0; i < 2; i++) { VR_ARENA_PlanAdd(AR_SP_OGRE, 0, 0); }
+        n = VR_ARENA_SkillCount(2);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_OGRE, 0, 0); }
         return;
     }
     if(xWave == 12)
     {
-        for(i = 0; i < 4; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(12), 0); }
+        n = VR_ARENA_SkillCount(4);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(12), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(12), 0);
         VR_ARENA_PlanAdd(AR_SP_FIEND, 0, 0);
         VR_ARENA_PlanAdd(AR_SP_KNIGHT, 0, 0);
         return;
     }
 
-    // 13 and on: the same ladder, thicker, a boss every vr_arena_boss_every waves.
-    n = VR_ARENA_Clamp(4 + floor((xWave - 13) / 4), 1, 7) - (boss ? 1 : 0);
+    // 13 and on: the same ladder, thicker, a boss every vr_arena_boss_every waves. Its boss takes a place, as it
+    // does at Normal.
+    n = VR_ARENA_SkillCount(VR_ARENA_Clamp(4 + floor((xWave - 13) / 4), 1, 7));
+    if(boss) { n = max(1, n - 1); }
     for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(xWave), 0); }
 
-    float nenf = VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3);
+    float nenf = VR_ARENA_SkillCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
     for(i = 0; i < nenf; i++) { VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(xWave), 0); }
 
-    float nclass = VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3);
+    float nclass = VR_ARENA_SkillCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
     for(i = 0; i < nclass; i++) { VR_ARENA_PlanAdd(VR_ARENA_ClassicKind(xWave, i), 0, 0); }
 }
 
@@ -915,7 +958,7 @@ void() VR_ARENA_WaveClear =
     VR_ARK_WaveDone(w); // QVR: the boss wave's clear offers the player his choice of perks (vr_arena_perks.qc)
 
     self.think = VR_ARENA_WaveStart;
-    self.nextthink = time + VR_ARENA_Opt_Delay();
+    self.nextthink = time + VR_ARENA_SkillTime(VR_ARENA_Opt_Delay(), 1); // (the harder the skill, the less rest between waves)
 }
 
 void() VR_ARENA_ManagerThink =
@@ -935,8 +978,9 @@ void() VR_ARENA_ManagerThink =
         return;
     }
 
-    // Its foes trickle in as the field frees up: vr_arena_max_alive is the most up at once.
-    if(ar_plan_left > 0 && alive < VR_ARENA_Opt_MaxAlive() && time >= ar_next_spawn)
+    // Its foes trickle in as the field frees up: vr_arena_max_alive is the most up at once, by the skill's factor.
+    float cap = VR_ARENA_FieldCap();
+    if(ar_plan_left > 0 && alive < cap && time >= ar_next_spawn)
     {
         float i = ar_plan_n - ar_plan_left;
         entity m = VR_ARENA_SpawnMonster(ar_plan_kind[i], ar_plan_gun[i], ar_plan_tier[i], ar_plan_boss[i]);
@@ -945,7 +989,8 @@ void() VR_ARENA_ManagerThink =
             ar_plan_left = ar_plan_left - 1;
             ar_plan_live = ar_plan_live + 1;
         }
-        ar_next_spawn = time + AR_SPAWN_GAP + VR_ARENA_Rand(); // (one per beat at most, then this apart)
+        // (one per beat at most, then this far apart: the harder the skill, the sooner the next one)
+        ar_next_spawn = time + VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) + VR_ARENA_Rand();
     }
 
     if(ar_plan_left == 0 && VR_ARENA_CountAlive() == 0)
@@ -1026,7 +1071,7 @@ void() VR_ARENA_WorldSpawn =
     ar_mgr.think = VR_ARENA_WaveStart;
     ar_mgr.nextthink = time + 1; // (after the map's own spawns, so its info_arena_spawn points are known)
 
-    dprint(sprintf("arena: %s on (max alive %g, boss every %g, seed %g)\n", mapname, VR_ARENA_Opt_MaxAlive(),
+    dprint(sprintf("arena: %s on (max alive %g, boss every %g, seed %g)\n", mapname, VR_ARENA_FieldCap(),
                    VR_ARENA_Opt_BossEvery(), cvar("vr_arena_seed")));
 }
 

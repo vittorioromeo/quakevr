@@ -531,7 +531,7 @@ void() VR_AT3_Frame =
         VR_AT_Check(boss.vr_ag == 1, "the boss is an armed humanoid");
         VR_AT_Check(boss.ar_tier == 1 + AR_BOSS_MARK, "the boss is worth a boss's tier");
         VR_AT_Check(boss.vr_ag_code > 0, "the boss holds a gun");
-        VR_AT_Check(ar_alive_peak <= VR_ARENA_Opt_MaxAlive(), "the boss wave respects the field's cap");
+        VR_AT_Check(ar_alive_peak <= VR_ARENA_FieldCap(), "the boss wave respects the field's cap");
         VR_AT_End();
         return;
     }
@@ -635,6 +635,120 @@ void(float xImpact, float xEasy, float xHard, float xNight, string xWhat) VR_AT5
     }
 }
 
+// A wave's plan at this skill: the same seed and the same rolls as always -- only its counts move.
+float(float xWave) VR_AT5_PlanSize = { VR_ARENA_Plan(xWave); return ar_plan_n; }
+
+// xWave with what it must plan at Easy, Normal, Hard and Nightmare (vr_arena_seed 7).
+void(float xWave, float xEasy, float xNormal, float xHard, float xNight, string xWhat) VR_AT5_PlanSizes =
+{
+    float sk;
+    for(sk = 0; sk <= 3; sk++)
+    {
+        float want = sk == 0 ? xEasy : sk == 1 ? xNormal : sk == 2 ? xHard : xNight;
+        VR_AT_SetSkill(sk);
+        float got = VR_AT5_PlanSize(xWave);
+        VR_AT_Check(got == want, sprintf("%s at skill %g plans %g foes (want %g)", xWhat, sk, got, want));
+        dprint(sprintf("arena: t5 %s skill %g -> %g foes\n", xWhat, sk, got));
+    }
+    VR_AT_SetSkill(1);
+}
+
+// vr_arena_max_alive as the field reads it at each skill: the knob times the factor, whole foes, never past the
+// plan's cap and never below one.
+void(float xKnob, float xEasy, float xNormal, float xHard, float xNight) VR_AT5_Caps =
+{
+    float sk;
+    cvar_set("vr_arena_max_alive", ftos(xKnob));
+    for(sk = 0; sk <= 3; sk++)
+    {
+        float want = sk == 0 ? xEasy : sk == 1 ? xNormal : sk == 2 ? xHard : xNight;
+        VR_AT_SetSkill(sk);
+        float got = VR_ARENA_FieldCap();
+        VR_AT_Check(got == want && got >= 1 && got <= AR_PLAN_MAX,
+                    sprintf("vr_arena_max_alive %g at skill %g is the field's cap %g (got %g)", xKnob, sk, want, got));
+        dprint(sprintf("arena: t5 cap of knob %g at skill %g -> %g up at once\n", xKnob, sk, got));
+    }
+    cvar_set("vr_arena_max_alive", "8");
+    VR_AT_SetSkill(1);
+}
+
+// What one test family needs is exactness, not tolerance: every step below is a binary-exact number.
+void() VR_AT5_Scaling =
+{
+    float w;
+
+    // Wave 1 (all unarmed) and the waves the plan writes by hand: the counts the factor gives.
+    VR_AT_SetSkill(0); float w1easy = VR_AT5_PlanSize(1);
+    VR_AT_SetSkill(1); float w1norm = VR_AT5_PlanSize(1);
+    VR_AT_SetSkill(3); float w1night = VR_AT5_PlanSize(1);
+    VR_AT_Check(w1easy == 1, "wave 1 at Easy is a single unarmed grunt");
+    VR_AT_Check(w1norm >= 1 && w1norm <= 2, "wave 1 at Normal is one or two grunts");
+    VR_AT_Check(w1night >= w1norm, "wave 1 at Nightmare is not thinner than at Normal");
+    dprint(sprintf("arena: t5 wave 1 -> %g %g %g foes (Easy Normal Nightmare)\n", w1easy, w1norm, w1night));
+
+    // Wave 6: three grunts, an enforcer, a dog. Its groups of one are its own floor, so only the grunts move.
+    VR_AT5_PlanSizes(6, 4, 5, 5, 6, "wave 6");
+    // Wave 11: four grunts, an enforcer, two ogres -- Hard is where a group of four grows.
+    VR_AT5_PlanSizes(11, 5, 7, 8, 10, "wave 11");
+    // Wave 14 (past the table): four grunts, an enforcer, a classic.
+    VR_AT5_PlanSizes(14, 5, 6, 7, 8, "wave 14");
+    // Wave 15: a boss wave past the table -- its boss takes a place, at every skill.
+    VR_AT5_PlanSizes(15, 5, 6, 7, 8, "wave 15 (a boss wave)");
+
+    // The field's cap: vr_arena_max_alive by the factor, whole foes, never past the plan's cap.
+    VR_AT5_Caps(8, 6, 8, 10, 12);
+    VR_AT5_Caps(12, 9, 12, 12, 12); // (12 at Hard and Nightmare too: the plan's cap holds)
+
+    // No wave plans past the cap, whatever the skill, and a wave never plans nobody.
+    for(w = 1; w <= 40; w++)
+    {
+        VR_AT_SetSkill(3);
+        VR_ARENA_Plan(w);
+        VR_AT_Check(ar_plan_n >= 1 && ar_plan_n <= AR_PLAN_MAX, sprintf("wave %g at Nightmare plans within the cap", w));
+        VR_AT_SetSkill(1);
+        VR_ARENA_Plan(w);
+        VR_AT_Check(ar_plan_n >= 1 && ar_plan_n <= AR_PLAN_MAX, sprintf("wave %g at Normal plans within the cap", w));
+    }
+
+    // A knob set out of range is still clamped to what works before the skill's factor moves it.
+    cvar_set("vr_arena_max_alive", "0");
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_ARENA_FieldCap() == 1, "vr_arena_max_alive 0 plays by its clamp (one foe up at once)");
+    cvar_set("vr_arena_max_alive", "99");
+    VR_AT_Check(VR_ARENA_FieldCap() == AR_PLAN_MAX, "vr_arena_max_alive 99 plays by its clamp (the plan's cap)");
+    cvar_set("vr_arena_max_alive", "8");
+    VR_AT_SetSkill(1);
+
+    // A factor of 0 (vr_arena_skill_impact 4 at Easy) still leaves a wave somebody to send and the field one foe.
+    cvar_set("vr_arena_skill_impact", "4");
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARENA_FieldCap() == 1, "a factor of 0 leaves the field's cap at one");
+    for(w = 1; w <= 20; w++)
+    {
+        VR_ARENA_Plan(w);
+        VR_AT_Check(ar_plan_n >= 1, sprintf("wave %g still plans a foe at a factor of 0", w));
+    }
+    cvar_set("vr_arena_skill_impact", "1");
+    VR_AT_SetSkill(1);
+
+    // The arena's own beats: vr_arena_wave_delay and the gap its foes come in at, shorter the harder the skill.
+    VR_AT_SetSkill(0); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 8 && VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) == 2,
+                                   "at Easy the arena waits longer between waves and between its foes");
+    VR_AT_SetSkill(1); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 6 && VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) == 1.5,
+                                   "at Normal the beats are the knobs themselves");
+    VR_AT_SetSkill(2); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 4.8 && VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) == 1.2,
+                                   "at Hard they are shorter");
+    VR_AT_SetSkill(3); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 4 && VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) == 1,
+                                   "at Nightmare shortest");
+    VR_AT_Check(VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) >= AR_TICK, "a wave's foes never come in faster than its beat");
+    cvar_set("vr_arena_skill_impact", "4");
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 6, "a factor of 0 leaves the beats as the knobs set them");
+    cvar_set("vr_arena_skill_impact", "1");
+    dprint("arena: t5 beats: wave delay 8 6 4.8 4 and spawn gap 2 1.5 1.2 1 (Easy Normal Hard Nightmare)\n");
+    VR_AT_SetSkill(1);
+}
+
 void() VR_AT5_Begin =
 {
     cvar_set("vr_arena_skill_impact", "1");
@@ -657,6 +771,8 @@ void() VR_AT5_Begin =
     VR_AT_SetSkill(2); float hard = VR_AT5_Factor();
     VR_AT_SetSkill(3); float worst = VR_AT5_Factor();
     VR_AT_Check(soft < 1 && hard > 1 && worst > hard, "Easy softer, Hard and Nightmare harder");
+
+    VR_AT5_Scaling();  // (what the factor does to a wave: its counts, the field's cap, the arena's beats)
 
     VR_AT_SetSkill(1);
     VR_AT_End();
