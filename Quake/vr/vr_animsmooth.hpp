@@ -21,7 +21,7 @@ void registerDiagCommands(); // (vr_animsmooth_diag.cpp)
 // for the session: ROUND22.md "Frame spikes").
 void prepare();
 
-// r_lerpmodels 3 for an entity drawn on its bones elsewhere (vr_rig2 1's live grunts: vr_rig2_game.cpp): the spline's
+// r_lerpmodels 3 for an entity drawn on its bones elsewhere (the live grunts and enforcers: vr_rig2_game.cpp): the spline's
 // four poses and its weights for its lerp (pose1 -> pose2 at blend), as its own drawing would take them. False: no
 // spline now (another r_lerpmodels, at a pose itself): Quake's blend.
 bool splineOf(const entity_s* e, const void* aliashdr, int pose1, int pose2, float blend, int poses[4], float w[4], float rot[3]);

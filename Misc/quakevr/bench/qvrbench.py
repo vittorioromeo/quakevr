@@ -532,7 +532,7 @@ def scenarios():
         "vrtesthall", "bench_armed16 with the player's fists jabbing (vr_mock_play) as they close in: melee against "
         "armed humanoids, their strikes, parries and blocks, knockdowns.",
         scene="bench_armed16", hostile=True, motion=punch_motion, warm=60, load_wait=240)
-    # (the enforcer's rig, stage 2b: vr_rig2 0 / 1 with --settings; ROUND22.md, "Enforcer rig, stage 2")
+    # (the enforcer's rig, stage 2b; ROUND22.md, "Enforcer rig, stage 2")
     add("armed_16_enf", ["rig2"], "16 armed enforcers (guns, dual guns, melee) hunting you, your shotgun",
         "vrtesthall", "bench_armed16_enf: armed_16's weapons, all on enforcers.",
         scene="bench_armed16_enf", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))

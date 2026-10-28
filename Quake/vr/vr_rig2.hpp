@@ -1,15 +1,16 @@
 #pragma once
 
-// vr_rig2.hpp -- the authored humanoid rig, stage 1 of the grunt rig rebuild (docs/vr-port/ROUND22.md, "Grunt rig
-// rebuild, stage 1"; vr_rig2 1): a skeleton with anatomical joints (pelvis, spine, chest, neck, head, clavicles, upper
-// arms, forearms, hands, thighs, shins, feet), each joint's limits (a ball's elliptical swing cone and twist, a hinge's
-// range from straight) and blended skin weights (up to 4 bones a vertex), read from quakevr/rigs/<model>.rig2.txt
-// (made by Misc/quakevr/make_rig2.py; hand-editable; the Rig Studio's Range of Motion window edits and saves it).
+// vr_rig2.hpp -- the authored humanoid rig of the grunt and the enforcer (docs/vr-port/ROUND22.md, "Grunt rig rebuild,
+// stage 1" .. "The authored rig the only one"): a skeleton with anatomical joints (pelvis, spine, chest, neck, head,
+// clavicles, upper arms, forearms, hands, thighs, shins, feet), each joint's limits (a ball's elliptical swing cone and
+// twist, a hinge's range from straight) and blended skin weights (up to 4 bones a vertex), read from
+// quakevr/rigs/<model>.rig2.txt (made by Misc/quakevr/make_rig2.py; hand-editable; the Rig Studio's Range of Motion
+// window edits and saves it). The only rig of the models with such a file (the other monsters keep the rig derived from
+// their frames, vr_ragdoll.cpp).
 //
-// Nothing in the game uses it yet: the Rig Studio draws its subject with it (Range of Motion, vr_rig2 1) and
 // vr_rig2_check measures it (every joint swept through its range, pairs of joints, ragdoll-like random poses within the
 // limits: see-through holes, flipped and collapsed triangles, folds, the knees' and elbows' bend, stretch, a coarse
-// self-intersection count), beside the old derived rig (vr_ragdoll.cpp) on the same poses.
+// self-intersection count).
 //
 // A pose: each joint's angles in degrees: a ball's (swing x toward its `fwd`, swing y toward its `side`, twist about
 // the bone), a hinge's (bend from straight, 0, 0). Each bone's motion is its parent's carried by its joint's turn
@@ -145,15 +146,13 @@ void skin(const Rig& rig, const rigpose::Rigid* F, const glm::vec3* rest, int nu
 void write(const Rig& rig, za::String& out);
 [[nodiscard]] bool save(Rig& rig, za::String& pathOut);
 
-// The Rig Studio's subject drawn with the rig (vr_rig2 1, Range of Motion: Game display): `entnum` drawn this frame
+// The Rig Studio's subject drawn with the rig (Range of Motion: Game display): `entnum` drawn this frame
 // with these bones (cleared each frame after drawing: swapModels / restoreModels, beside the ragdolls').
 void drawPosed(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones);
-// ... on the derived rig (its "#rag" copy, F its bones'): the Range of Motion's "Old rig" while the game is on the authored one.
-void drawPosedDerived(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones);
 void swapModels();
 void restoreModels();
 [[nodiscard]] int bonePoses(const struct entity_s* e, const float** matrices);
-void drawInfo(); // vr_rig2_draw_info: the drawn subject's models (old, authored), their skins and how often drawn
+void drawInfo(); // vr_rig2_draw_info: the drawn subject's models (its .mdl, the authored skinned copy), their skins and how often drawn
 // The .mdl of an entity drawn now on the authored rig (swapped to "<model>#rig2"), else nullptr: what it is shaded as
 // (its occluder, its occlusion group: vr_ao.cpp), as on the old rig.
 [[nodiscard]] const qmodel_t* sourceModel(const struct entity_s* e);
@@ -164,24 +163,21 @@ void drawInfo(); // vr_rig2_draw_info: the drawn subject's models (old, authored
 // Mod_LoadModel's "<model>#rig2": the .mdl's rest pose as a skeletal mesh, 4 weights a vertex (the rig's).
 [[nodiscard]] bool makeSkinnedModel(qmodel_t* mod);
 
-// vr_rig2_check's measures of one pose (the Rig Studio's live report): of the authored rig, or of the old rig moved alike
-// (`old`: each old bone as its namesake). False: no rig.
+// vr_rig2_check's measures of one pose (the Rig Studio's live report) of the authored rig. False: no rig.
 struct Faults
 {
     int seeThrough{0}, flipped{0}, collapsed{0}, folds{0};
     float foldMax{0.f}, stretchMin{1.f}, stretchMax{1.f};
 };
-[[nodiscard]] bool measurePose(qmodel_t* model, const Pose& pose, bool old, Faults& out);
+[[nodiscard]] bool measurePose(qmodel_t* model, const Pose& pose, Faults& out);
 
 void init(); // its commands (vr_rig2_check, vr_rig2_info, vr_rig2_reload)
 
-// ---- Stage 2: the game on the authored rig (vr_rig2 1; ROUND22.md, "Grunt rig, stage 2"; vr_rig2_game.cpp) ----
-// vr_rig2 1 makes the grunt's ragdoll rig (vr_ragdoll.cpp rigFor: its bones, joints, limits and blended skin the authored
-// rig's), its live drawing (its frames' fits, hit reactions, an armed one's arms and legs, on the authored bones, drawn
-// with "<model>#rig2") and everything made from its rig. Read when a map is spawned (latch: the rigs and what is made
-// from them made again); changed mid-map, the next map takes it.
-[[nodiscard]] bool gameOn();
-void latch(); // VR_NoteMapSpawn (and the first use): vr_rig2 read; the models' rig-made data reset if it changed
+// ---- The game on the authored rig (ROUND22.md, "Grunt rig, stage 2"; vr_rig2_game.cpp) ----
+// The grunt's and the enforcer's ragdoll rig (vr_ragdoll.cpp rigFor: its bones, joints, limits and blended skin the
+// authored rig's), their live drawing (their frames' fits, hit reactions, an armed one's arms and legs, on the authored
+// bones, drawn with "<model>#rig2") and everything made from their rig.
+void latch(); // VR_Rig2Latch (a map spawned): a rig's file changed since (vr_rig2_reload), what is made from it made again
 // A joint's local turn (rest -> pose, the parent's rest space) as its angles (unclamped: forward's inverse).
 [[nodiscard]] glm::vec3 anglesOf(const Rig& rig, int b, const glm::quat& local);
 // A joint's local turn from its angles (forward's per joint).
@@ -218,7 +214,7 @@ bool drawnBone(int num, int b, glm::quat& rot, glm::vec3& pos);
 bool unswapped(int num, entity_t& out);
 
 // vr_rig2_game.cpp: what the game draws on the authored rig.
-void resetGame(); // the latch changed: what was made from the grunt's rig made again (ragdoll rigs, arm skins, legs...)
+void resetGame(); // a rig's file changed: what was made from it made again (ragdoll rigs, arm skins, legs...)
 // The bones between the frame lerp's two poses: each bone's local motion on its parent blended (its turn about its
 // joint), carried down the rig.
 void posedBetween(const ragdoll::Rig& rig, int pose1, int pose2, float blend, rigpose::Rigid* out);

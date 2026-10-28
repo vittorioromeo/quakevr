@@ -226,8 +226,8 @@ sequence with **Arms** on (or an override track on an arm bone, or the studio po
 place from its forearm bone (`agarms::Targets::fk`, the weapons drawn on the hands), the elbows' poles from the
 bones'; otherwise the arms stay on the weapons as the game poses them, the shoulders carried by the chest as drawn.
 With no files, no studio and no sequence started, nothing of this runs (the layer's check fails at once) and every
-model is drawn as before. On the authored rig (`vr_rig2 1`) its live drawing lays the same layer on its authored bones:
-"Animating the authored rig" below.
+model is drawn as before. On the authored rig (the grunt's and the enforcer's) its live drawing lays the same layer on
+its authored bones: "Animating the authored rig" below.
 
 ## The files
 
@@ -310,7 +310,7 @@ lists what plays; `vr_rigseq_debug 1` prints each start, stop and event; `vr_rig
 ### The proof: the armed grunt's taunt (`vr_agrunt_taunt`, off by default)
 
 An armed grunt seeing a player for the first time (its `th_run`, `vr_ag_hunt`) stands and plays its model's `taunt`
-(`quakevr/anims/vrgrunt/taunt.anim.txt`: 1.6 s, the chest thrown back then forward into a shout, the head nodding, a
+(`quakevr/anims/vrgrunt/taunt.anim2.txt`: 1.6 s, the chest thrown back then forward into a shout, the head nodding, a
 dip; its `shout` event its sight sound), facing him, its weapon still in its hands, then comes for him. A model with no
 taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame changes: `stopped`); 4 seconds at most.
 
@@ -370,15 +370,15 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
 ## Range of Motion: the authored rig (stage 1 of the grunt rig rebuild)
 
 **View > Range of Motion (authored rig)**, `vr_rigstudio_rom on`, or **Debug > Tools > Rig Studio: Range of Motion
-(Authored Rig)**. The new grunt rig (`vr_rig2.cpp`, `quakevr/rigs/<model>.rig2.txt`, made by
-`Misc/quakevr/make_rig2.py`; ROUND22.md, "Grunt rig rebuild, stage 1"): 20 bones (pelvis, spine, chest, neck, head,
-clavicles, upper arms, forearms, hands, thighs, shins, feet, the gun), each joint with its limits (a ball's elliptical
-swing cone and twist, a hinge's bend from straight) and blended skin weights (up to 4 bones a vertex). With `vr_rig2 1`
-the game draws the grunt on it (stage 2) and the Timeline animates it (below: "Animating the authored rig").
+(Authored Rig)**. The grunt's and the enforcer's rig (`vr_rig2.cpp`, `quakevr/rigs/<model>.rig2.txt`, made by
+`Misc/quakevr/make_rig2.py`; ROUND22.md, "Grunt rig rebuild, stage 1" .. "The authored rig the only one"): 20 bones
+(pelvis, spine, chest, neck, head, clavicles, upper arms, forearms, hands, thighs, shins, feet, the gun), each joint with
+its limits (a ball's elliptical swing cone and twist, a hinge's bend from straight) and blended skin weights (up to 4
+bones a vertex). Their only rig: the game draws them on it and the Timeline animates it (below: "Animating the authored
+rig"). The other monsters keep the rig derived from their frames.
 
-- **Mesh drawn on**: *Authored rig* (`vr_rig2 1`: its blended weights; Game display the engine's skinned model, Shaded
-  the studio's) or *Old rig* (`vr_rig2 0`: the old derived rig moved the same way, each old bone as its namesake: the
-  comparison). *Dual quaternions* (`vr_rig2_dq`) instead of the linear blend. The line under it: the pose's faults as
+- **The mesh** is drawn on the authored rig (its blended weights; Game display the engine's skinned model, Shaded the
+  studio's). *Dual quaternions* (`vr_rig2_dq`) instead of the linear blend. The line under it: the pose's faults as
   `vr_rig2_check` measures them (see-through, flipped, collapsed, sharp folds, stretch), live.
 - **The joints**: the list (indented by parent), or a click on a bone in the view; a second click on the picked bone
   drags its limb by its end (held within its limits). The picked joint's limits are drawn: where its bone's end can go
@@ -391,22 +391,20 @@ the game draws the grunt on it (stage 2) and the Timeline animates it (below: "A
   reads it again.
 - Heat colours (Display > colours: the selected bone's weights) show the picked joint's blended weights.
 - On the authored rig the held weapons ride its hands: the right on its `weapon` bone, the left on `weapon_l` (or
-  `hand_l`), each hand's grip frame as the old rig's (the rest pose's) at the weapon's grip offset (the Grip Editor's).
-  On the old rig the arms' solve places them, as in the game.
-- Commands: `vr_rigstudio_rom [on|off] | rig old|new | joint <j> | set <j> <x> [y] [z] | reset | random [seed] |
+  `hand_l`), each hand's grip frame as the rest pose's at the weapon's grip offset (the Grip Editor's).
+- Commands: `vr_rigstudio_rom [on|off] | joint <j> | set <j> <x> [y] [z] | reset | random [seed] |
   sweep <j> | limit <j> swingx|swingy|twist|range <min> <max> | pivot <j> <x y z> | save | camera <j> [yaw] [pitch]
   [dist] | status | test [weapon]`. `vr_rigstudio_rom test` ends on `rigstudio rom test: N passed, M failed`;
   `test weapon` (the weapons on the authored rig's hands, six poses, a screenshot each; a dual-wielding subject tests
   the left hand too) on `rigstudio rom weapon: N passed, M failed`. Both wait for the subject: run them as it opens.
 - `vr_rig2_check [model] [detail lines] [joint|random|envelope]` (ends on `rig2 check: N passed, M failed`): every
-  joint swept, joint pairs, 1000 random poses, the old rig on the same poses; `envelope` prints how far each joint
+  joint swept, joint pairs, 1000 random poses; `envelope` prints how far each joint
   turns cleanly from rest, each way alone, beside its limit. `vr_rig2_info`, `vr_rig2_reload`.
 
-## Animating the authored rig (`vr_rig2 1`)
+## Animating the authored rig
 
-With **Debug > Grunt on the Authored Rig (Next Map)** on (`vr_rig2 1`) and a map loaded with it, the grunt is drawn on
-the authored rig, and so is the studio's subject: the Timeline is the authored rig's. Everything works as on the old
-rig; what differs:
+The grunt and the enforcer are drawn on the authored rig, and so is the studio's subject: the Timeline is the authored
+rig's. Everything works as on another monster's derived rig; what differs:
 
 - **The bones**: the dope sheet and the outliner list the authored bones (pelvis, spine, chest, neck, head, clavicles,
   upper arms, forearms, hands, thighs, shins, feet, the weapon). Rotate, Move, the IK tool, named poses (load, mirror),
@@ -415,13 +413,15 @@ rig; what differs:
   bend), an override's laid on its frame's own turn there; the console says `<bone>: keyed within its joint's limits`
   when it held one. A jointed bone turns about its pivot only: Move keys only the pelvis (the root). Between keys the
   drawn turn is held too (the game does the same).
-- **Its own files**, the old rig's left as they are: `quakevr/rigs/<model>.rig2anim.txt` (header `qvrrig2anim 1`: poses
+- **No Rest Pose, Weights or Paint tools** (nor the Properties' Rest Pose, `vr_rigstudio_weight`, `_rest`, `_assign`):
+  the authored rig's rest, limits and weights are its `rig2.txt`'s, edited by Range of Motion.
+- **Its own files**: `quakevr/rigs/<model>.rig2anim.txt` (header `qvrrig2anim 1`: poses
   and override tracks, no bone overrides or weights: the authored rig's rest and weights are its `rig2.txt`, edited by
   Range of Motion) and `quakevr/anims/<model>/<name>.anim2.txt` (header `qvranim2 1`, otherwise the sequences' format).
   Each key's turn and offset are written **in its bone's own frame**, to 0.001: a ball joint's `x` is Swing X, `y`
   Swing Y, `z` Twist (degrees, as Range of Motion's sliders; exact for one axis alone, a rotation vector when mixed); a
   hinge's `x` is its bend (`y`, `z` across and along it); the pelvis's and the weapon's are the model's axes. Hand-edit
-  them as the old files (`vr_rigdata_reload`, or the studio's Revert, reads them again).
+  them as the derived rigs' files (`vr_rigdata_reload`, or the studio's Revert, reads them again).
 
       qvrrig2anim 1
       model progs/vrgrunt.mdl
@@ -432,32 +432,27 @@ rig; what differs:
         end
       end
 
-- **Carrying the old rig's animations over**: `vr_rig2anim_import [model] [force]` (Debug > Tools: Carry the Old Rig's
-  Animations to the Authored Rig) reads the old files and writes the authored ones (kept if there, unless `force`): each
-  track on its namesake, the old chest's turns shared half and half by the spine and the chest, the old head's by the
-  neck and the head (their pivots where the old ones were), every key held within the limits. The shipped taunt was
-  made so (`anims/vrgrunt/taunt.anim2.txt`).
 - **In the game** the authored live drawing (`vr_rig2_game.cpp`) plays them on the frames' authored bone poses, under the
-  hit reactions, as the old path does: a model's override tracks by its animation group, QC's sequences (`vr_rigseq`
+  hit reactions, as the derived rigs' path does: a model's override tracks by its animation group, QC's sequences (`vr_rigseq`
   requests: the taunt, blends in and out, events, Hold, Arms). An armed one: the upper body's hold (`vr_agrunt_upper`)
-  keeps the keys' turn of the chest on the hips (on both rigs); an arm keyed (a sequence's Arms, an override track on a
+  keeps the keys' turn of the chest on the hips; an arm keyed (a sequence's Arms, an override track on a
   clavicle, upper arm, forearm or hand) hands its arms to the keys (the arm bones as keyed, its hand targets from the hand
   bones, the weapons on its hands: the right on the weapon bone), else the arms' IK as before. A ragdoll starts from the
-  pose drawn. The enforcer gets the same once its rig is on the authored latch (all of it is per model).
+  pose drawn. The enforcer gets the same (all of it is per model).
 
-**How to animate the new rig, step by step**: Debug > Grunt on the Authored Rig on; load a map; Debug > Tools > Rig Studio
+**How to animate the authored rig, step by step**: load a map; Debug > Tools > Rig Studio
 (flat screen); the Timeline: pick an animation (an override of the grunt's own: `load`, `shoot`...) or a sequence (New:
 its length, fps, loop; events, Hold, Arms in its properties); pick a bone, Rotate (R) or Move (G) it: Auto Key keys it
 at the frame (I by hand); scrub, play, onion skin; File > Save writes `rig2anim.txt` / `anim2.txt`. The
 game draws the edits at once (no save needed to see them on grunts in the map). QC plays a sequence with
 `VR_RigSeq_Play(monster, "name")` or `vr_rigseq_play <name> nearest`.
 
-Tests: `vr_rigstudio_test_rig2anim` (open the studio first; ends on `rigstudio rig2anim: N passed, M failed`; on either
-latch: the dope sheet's bones, `load`'s chest and right upper arm keyed at frames 3 and 7, a forearm bent past its
+Tests: `vr_rigstudio_test_rig2anim` (open the studio first; ends on `rigstudio rig2anim: N passed, M failed`: the
+dope sheet's bones the authored rig's, `load`'s chest and right upper arm keyed at frames 3 and 7, a forearm bent past its
 hinge held and undone, Mirror Pose and undo, saved and read back; it writes the subject's files: use `vr_rigdata_dir
-rigstudio_test`), then `vr_agrunt_test 82` (`vrtesthall`, `vr_rig2 1`; those keys measured on a live armed grunt held at
+rigstudio_test`), then `vr_agrunt_test 82` (`vrtesthall`; those keys measured on a live armed grunt held at
 load's frames 3 and 7: each keyed bone drawn against its key, `vr_rig2anim_check`; ends on `rig2anim check: N passed, M
-failed`). `vr_agrunt_test 81` checks the taunt's shout event (0.6 s) and end (1.6 s) on both rigs.
+failed`). `vr_agrunt_test 81` checks the taunt's shout event (0.6 s) and end (1.6 s).
 
 ## Limits and rough edges
 
