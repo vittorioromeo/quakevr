@@ -146,7 +146,7 @@ void skin(const Rig& rig, const rigpose::Rigid* F, const glm::vec3* rest, int nu
 void write(const Rig& rig, za::String& out);
 [[nodiscard]] bool save(Rig& rig, za::String& pathOut);
 
-// The Rig Studio's subject drawn with the rig (vr_rig2 1, Range of Motion: Game display): `entnum` drawn this frame
+// The Rig Studio's subject drawn with the rig (Range of Motion: Game display): `entnum` drawn this frame
 // with these bones (cleared each frame after drawing: swapModels / restoreModels, beside the ragdolls').
 void drawPosed(int entnum, const qmodel_t* model, const rigpose::Rigid* F, int numBones);
 void swapModels();

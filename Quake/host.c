@@ -1687,7 +1687,7 @@ void _Host_Frame (double time)
 	              // S_ExtraUpdate was it); S_Update joins it, as does any sound call before (snd_mixstats lists them)
 	VR_ProfileBegin ("screen"); // QVR: profile
 	SCR_UpdateScreen ();
-	VR_Rig2Restore (); // QVR: live grunts drawn on the authored rig (vr_rig2 1) given their own models back once drawn (vr/vr_rig2.cpp)
+	VR_Rig2Restore (); // QVR: live grunts drawn on the authored rig given their own models back once drawn (vr/vr_rig2.cpp)
 	VR_ProfileEnd (); // QVR
 
 	VR_ProfileBegin ("run particles"); // QVR: profile

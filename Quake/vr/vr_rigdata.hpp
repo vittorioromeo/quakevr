@@ -148,7 +148,7 @@ struct ModelData
     // Its sequences (one file each)
     za::Vector<Sequence> seqs;
     bool haveRigFile{false};
-    // For the authored rig (vr_rig2 1: ragdoll::Rig::authored): its own files (rigs/<model>.rig2anim.txt: poses and
+    // For the authored rig (ragdoll::Rig::authored): its own files (rigs/<model>.rig2anim.txt: poses and
     // override tracks, no bone overrides or weights: the authored rig's file has those; anims/<model>/<name>.anim2.txt),
     // their keys written in each bone's own frame (rig2::keyAxes), held within its joint's limits.
     bool authored{false};

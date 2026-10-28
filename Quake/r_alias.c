@@ -456,7 +456,7 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata
 /*
 =================
 VR_AliasLerpNow -- QVR: an entity's frame lerp advanced as drawing it would (R_SetupAliasFrame), for one drawn with
-another model this frame (vr_rig2 1: a grunt on the authored rig's skinned copy, vr/vr_rig2_game.cpp): its poses and blend
+another model this frame (a grunt on the authored rig's skinned copy, vr/vr_rig2_game.cpp): its poses and blend
 =================
 */
 void VR_AliasLerpNow (entity_t *e, int *pose1, int *pose2, float *blend)

@@ -504,7 +504,7 @@ void loadEntry(Entry& e)
         m->boneName[b] = rig->bones[b].name;
     }
     bool any = false;
-    m->authored = rig->authored; // (the authored rig's own files: vr_rig2 1)
+    m->authored = rig->authored; // (the authored rig's own files)
     rigdata::rigPath(base, path, sizeof(path), rig->authored);
     za::String text, err;
     if(files::readText(path, text))

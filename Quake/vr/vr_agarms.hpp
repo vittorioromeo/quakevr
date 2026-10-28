@@ -171,7 +171,7 @@ void clearErr();
 void printErr();
 
 void registerCommands();
-// The models' skins and the entities' arms forgotten (vr_rig2's latch: the grunt's rig another; made again as drawn).
+// The models' skins and the entities' arms forgotten (a rig file reloaded: rig2::latch; made again as drawn).
 void resetModels();
 
 // The Pose Studio's Live tape (vr_poselive.hpp): `ent`'s state here (its eases, its last frame's) as bytes, its length

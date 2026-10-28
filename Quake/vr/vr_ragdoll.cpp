@@ -1491,7 +1491,7 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
 }
 
 // ----------------------------------------------------------------------------
-// vr_rig2 1 (ROUND22.md, "Grunt rig, stage 2"): the authored rig (vr_rig2.cpp, quakevr/rigs/<model>.rig2.txt) as the
+// ROUND22.md, "Grunt rig, stage 2": the authored rig (vr_rig2.cpp, quakevr/rigs/<model>.rig2.txt) as the
 // ragdoll rig, not derived: its bones in its order (its "weapon", fixed on the right hand, a loose bone), its joints and
 // limits (Bone::framed: a ball's elliptical cone round its swing's middle, a hinge's range from its rest bend), each
 // part's hull of the vertices weighing at least hullShare on it, each vertex's blended weights (Rig::weights; vertBone
@@ -2001,7 +2001,7 @@ struct RigCache
 mem::Cache<RigCache> rigCache{"ragdoll rigs", mem::GameDirChange}; // (not a model reload: ragdolls point to their rigs)
 qvr::jobs::Site warmSite{"ragdoll rigs"}; // (warmRigs' parallelFor: vr_jobs_sites)
 
-// The rigs made from the authored rigs (vr_rig2 1: fromAuthored), apart (both kept: a ragdoll points to its own); those
+// The rigs made from the authored rigs (fromAuthored), apart (both kept: a ragdoll points to its own); those
 // of an older file (retireAuthored: a map spawned after the file changed) kept too, no more handed out.
 struct AuthoredRigs
 {
@@ -3738,12 +3738,12 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
 extern "C" void VR_RagdollSwap(void)
 {
     ragdoll::swapModels(); // (the authored rig's: VR_Rig2Swap, after the armed ones' arms are solved)
-    rig2::advanceLerps();  // (vr_rig2 1: the live grunts' frame lerps, as drawing their .mdl would)
+    rig2::advanceLerps();  // (the live grunts' frame lerps, as drawing their .mdl would)
 }
 
 extern "C" void VR_Rig2Swap(void)
 {
-    rig2::liveAll();    // (vr_rig2 1: the live grunts not drawn by their arms' solve, vr_rig2_game.cpp)
+    rig2::liveAll();    // (the live grunts not drawn by their arms' solve, vr_rig2_game.cpp)
     rig2::swapModels(); // (and the Rig Studio's subject on the authored rig: vr_rig2.cpp)
 }
 
