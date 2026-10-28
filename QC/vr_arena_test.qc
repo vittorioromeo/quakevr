@@ -1421,8 +1421,109 @@ float() VR_AT6_Bodies =
     return n;
 }
 
+// The broken-gun scan (ROUND23.md, "Arena: a glitched shotgun"): every frame of the soak, each weapon lying about or
+// held by a foe that is drawn but can't be what it looks like: a gun lying (thrown_weapon) with no rigid body once it
+// has had a frame to get one (stuck as it was left), or not to be taken (no hand touch, no force grab) without fading,
+// or a fade stalled (still there a good while after its fade began); a foe's held weapon (vr_ag_weapon) whose holder no
+// longer holds it (left where it was drawn last). Each is counted once (.vr_at_gunbad), its first few printed.
+.float vr_at_gunbad;         // 1: counted by the scan; 2..: frames seen without a body (a frame's grace)
+float vr_at6_gunbad;         // broken guns the soak saw
+float vr_at6_gunscans;       // weapons scanned (summed over frames)
+
+void(entity e, string xWhy) VR_AT_GunBad =
+{
+    if(e.vr_at_gunbad == 1) { return; }
+    e.vr_at_gunbad = 1;
+    vr_at6_gunbad = vr_at6_gunbad + 1;
+    if(vr_at6_gunbad <= 8)
+    {
+        dprint(sprintf("arena: t6 broken gun #%g: %s %s at %v: %s;", vr_at6_gunbad, e.classname, e.netname, e.origin,
+                       xWhy));
+        dprint(sprintf(" owner %s (health %g), alpha %g, fade %g, flags %g, solid %g, movetype %g;", e.owner.classname,
+                       e.owner.health, e.alpha, e.vr_drop_fade, e.flags, e.solid, e.movetype));
+        dprint(sprintf(" nextthink in %g, born %g, now %g\n", e.nextthink - time, e.vr_drop_born, time));
+    }
+};
+
+void() VR_AT_GunScan =
+{
+    entity e;
+    for(e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
+    {
+        if(e.model == "") { continue; }
+        vr_at6_gunscans = vr_at6_gunscans + 1;
+        if(e.vr_drop_fade)
+        {
+            if(time > e.vr_drop_fade + VR_DROPCAP_FADE + 0.5) { VR_AT_GunBad(e, "its fade stalled"); }
+            continue;
+        }
+        // (VR_Forcegrab_IsEligible: a thrown_weapon not SOLID_NOT; the hand's: its own handtouch)
+        if(e.carry_player == world && e.fg_state == 0 && (e.solid == SOLID_NOT || e.handtouch != wpnthrow_handtouch))
+        {
+            VR_AT_GunBad(e, "not to be taken (no hand touch or force grab), not fading");
+        }
+        if(e.vr_rigid && e.carry_player == world && !physicsdamp(e, '0 0 0', 1, 1, 0, '0 0 0'))
+        {
+            // (a frame's grace: its body is made at the next physics step)
+            if(e.vr_at_gunbad == 0) { e.vr_at_gunbad = 2; }
+            else if(e.vr_at_gunbad >= 2) { e.vr_at_gunbad = e.vr_at_gunbad + 1; }
+            if(e.vr_at_gunbad >= 4) { VR_AT_GunBad(e, "no rigid body"); }
+        }
+        else if(e.vr_at_gunbad >= 2)
+        {
+            e.vr_at_gunbad = 0;
+        }
+    }
+    for(e = find(world, classname, "vr_ag_weapon"); e; e = find(e, classname, "vr_ag_weapon"))
+    {
+        vr_at6_gunscans = vr_at6_gunscans + 1;
+        entity g = e.owner;
+        if(e.model != "" && (g == world || (g.vr_ag_prop != e && g.vr_ag_prop2 != e)))
+        {
+            VR_AT_GunBad(e, "a foe's held weapon its holder no longer holds");
+        }
+    }
+};
+
+// The soak's blows, varied so the guns go every way they go in play: a gib (as before), a plain death (its body lying,
+// the corpse cleanup's fade on it), and a disarm first (its gun knocked out of its hand; it is spared AR_T6_SPARE s to
+// go for a gun lying, the cap's fades and its takes meeting), felled after.
+float AR_T6_SPARE = 3;
+.float vr_at6_spare;         // a disarmed foe spared until then
+float vr_at6_blows;
+
+float(float xWave) VR_AT6_KillOne =
+{
+    entity p = VR_ARENA_FindPlayer();
+    if(p == world) { return 0; }
+    entity e = findflags(world, ar_slot, xWave);
+    while(e)
+    {
+        entity next = findflags(e, ar_slot, xWave);
+        if(e.health > 0 && e.takedamage && e.ar_slot == xWave && time >= e.vr_at6_spare)
+        {
+            vr_at6_blows = vr_at6_blows + 1;
+            float mode = VR_ARENA_Mod(vr_at6_blows, 3);
+            if(mode == 2 && e.vr_ag_prop && !e.vr_at6_spare)
+            {
+                makevectors(e.angles);
+                VR_AG_Disarm(e, v_right * crandom() - v_forward, 150, "the soak's blow");
+                e.vr_at6_spare = time + AR_T6_SPARE;
+                return 1;
+            }
+            T_Damage(e, p, p, e.health + (mode == 0 ? 100 : 1));
+            return 1;
+        }
+        e = next;
+    }
+    return 0;
+}
+
 void() VR_AT6_Begin =
 {
+    vr_at6_gunbad = 0;
+    vr_at6_blows = 0;
+    vr_at6_gunscans = 0;
     vr_at6_delay = cvar("vr_arena_wave_delay");
     cvar_set("vr_arena_wave_delay", "1");
     cvar_set("vr_arena_wave_size", "1.75"); // (the default's bigger waves: the soak is bounded with them)
@@ -1451,6 +1552,21 @@ void() VR_AT6_Finish =
     VR_AT_Check(VR_AT_LyingBodies() <= cvar("vr_arena_corpse_max"), "no more bodies lie than vr_arena_corpse_max");
     VR_AT_Check(VR_AT_FoeGuns() <= cvar("vr_arena_gun_max"), "no more of the foes' guns lie than vr_arena_gun_max");
     VR_AT_Check(d1 <= AR_T6_DROPS * (cvar("vr_arena_item_waves") + 1), "a wave clear's drops go vr_arena_item_waves clears on");
+    dprint(sprintf("arena: t6 gun scan: %g weapons scanned, %g broken, %g fades mended\n", vr_at6_gunscans, vr_at6_gunbad,
+                   vr_dropcap_mended));
+    // The fades' safety net (VR_EnemyWeapons_MendFades): a fade stopped midway (its think replaced) on again; one long
+    // overdue gone.
+    entity pl = VR_ARENA_FindPlayer();
+    entity w = CreateThrownWeapon(pl, WID_SHOTGUN, 0, world, pl.origin + '64 0 16', '0 0 0', '0 0 0', '0 0 0', FALSE, FALSE, 0);
+    VR_EnemyWeapons_Fade(w);
+    w.think = SUB_Null;
+    VR_EnemyWeapons_MendFades();
+    float on = w.think == VR_EnemyWeapons_FadeThink;
+    w.think = SUB_Null;
+    w.vr_drop_fade = time - 5;
+    VR_EnemyWeapons_MendFades();
+    VR_AT_Check(on && !VR_AT_Live(w), "a stopped gun fade is taken up again, a long overdue one removed");
+    VR_AT_Check(vr_at6_gunscans > 0 && vr_at6_gunbad == 0, "no broken guns (no body, not to be taken, a stalled fade, an orphaned held one)");
     cvar_set("vr_arena_wave_delay", ftos(vr_at6_delay));
     VR_AT_End();
 }
@@ -1475,7 +1591,8 @@ void() VR_AT6_Frame =
     }
 
     if(ar_wave >= 1 && time - ar_wave_at > vr_at6_long) { vr_at6_long = time - ar_wave_at; }
-    VR_AT_KillOne(ar_wave);
+    VR_AT_GunScan();
+    VR_AT6_KillOne(ar_wave);
 }
 
 // ---------------------------------------------------------------------------

@@ -912,3 +912,30 @@ three failures with the fix taken out (subjects 4 the flamethrower's records, ai
 elbow), so not this.
 
 **In VR**: a walking armed grunt and enforcer glide like the knights; their weapons and armour stay on them.
+
+## Strafe turn; arena: a glitched shotgun (agent/strafe2)
+
+**Strafe turn** (Vittorio, VR: the strafe lean tilts the hips; he wants them and the legs to turn toward the step too):
+`vr_agrunt_strafe_turn` (28 deg, AI Behaviour > Manner > Strafe Turn, next to Strafe Lean). `aglegs::lean` eases a yaw
+toward the sideways motion (its sideways speed alone, eased over 0.18 s: backing off to a side turns the same way,
+never flipped round) and lays it with the lean on every bone, about the upright through its middle. The upper body's
+hold (`agbody::upper`, new `hipsTwist`) takes that yaw out of the hips' turn its chest shares (`vr_agrunt_upper_hips`
+0.3), so the spine turns back and the chest, arms and gun stay aimed; the drawn bones (boneTurns) get the same.
+`vr_agrunt_test 87` (vrtesthall) now also measures the pelvis's yaw toward the step and the chest's yaw by sideways
+speed and prints a verdict (`aglean twist: ... PASS`): pelvis yaw toward 7.8 / 14.2 / 19.0 / 21.4 deg at 20-40 / 40-60 /
+60-80 / 80+ u/s (the ease's lag under the 28), chest yaw at most 0.01 deg at every speed; roll as before (4.1 deg at
+80+).
+
+**Arena gun scan** (Vittorio: a shotgun lying "stuck in a straight orientation, and non-interactable"): `vr_arena_test 6`
+(the 32-wave soak) now scans every frame: a gun lying with no rigid body (after a 3-frame grace), not to be taken (not
+SOLID_NOT, its own hand touch) without fading, a fade stalled, a foe's held weapon (vr_ag_weapon) its holder no longer
+holds. Its blows are varied too (a gib, a plain death, a disarm with 3 s to go for a gun lying, then the blow): 0 broken
+in ~1.5M weapon-frames. Not reproduced headless, so no single cause found. What a gun cap fade leaves if it stops midway
+fits the report (hand touch, touch and force grab gone for good: seen, never to be taken), so: `VR_EnemyWeapons_MendFades`
+(vr_enemyguns.qc), run by every cap and twice a second by the arena's cleanup, takes a stopped fade up again and removes
+one long overdue (checked in test 6); and armed humanoids no longer go for a gun fading past the cap (they could take one
+up mid-fade).
+
+**In VR**: a grunt strafing round you turns its hips and feet into the step, its chest and gun still on you; if the
+stuck shotgun shows again, `developer 1` and look for a `dropcap:` line (a mended fade), and note how it got there
+(thrown, force-pulled, knocked out of a hand, a corpse's).

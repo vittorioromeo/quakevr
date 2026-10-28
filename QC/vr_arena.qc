@@ -1417,8 +1417,14 @@ float() VR_ARENA_GunMost =
 
 // Every frame (VR_ARENA_Frame): the leftovers whose time has come fade out and go; one spared waits (let go of, it
 // lies AR_HELD_GRACE more, seen whole again).
+float ar_mend_next; // VR_EnemyWeapons_MendFades: its next look
 void() VR_ARENA_Leftovers =
 {
+    if(time >= ar_mend_next || ar_mend_next > time + 1)
+    {
+        ar_mend_next = time + 0.5;
+        VR_EnemyWeapons_MendFades(); // (the gun cap's fades: none left half done)
+    }
     entity e = findflags(world, ar_expiring, 1);
     while(e)
     {

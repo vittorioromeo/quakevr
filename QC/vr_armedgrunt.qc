@@ -2335,6 +2335,7 @@ entity() VR_AG_FindWeapon =
     while(e)
     {
         if(e.classname == "thrown_weapon" && VR_AG_Usable(e.weapon) && !e.vr_depleted && !VR_EnemyWeapons_Spared(e) &&
+           !e.vr_drop_fade && // (fading past the cap: not to be taken)
            (VR_AG_Class(e.weapon) == VR_AG_CLASS_MELEE || e.weaponinst.wi_clip > 0) &&
            (!self.vr_ag_prop || VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, e.weapon, e.weaponflags))) // (armed: its pair's second only)
         {
@@ -2377,9 +2378,9 @@ float() VR_AG_Seeking =
         return FALSE;
     }
     entity w = self.vr_ag_seek;
-    if(w && (w.classname != "thrown_weapon" || VR_EnemyWeapons_Spared(w)))
+    if(w && (w.classname != "thrown_weapon" || VR_EnemyWeapons_Spared(w) || w.vr_drop_fade))
     {
-        self.vr_ag_seek = world; // (taken by someone else, or flying)
+        self.vr_ag_seek = world; // (taken by someone else, flying, or fading past the cap)
     }
     if(self.vr_ag_seek && !VR_AG_SeekCheck(self))
     {
