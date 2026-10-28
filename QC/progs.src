@@ -509,6 +509,7 @@ vr_armedgrunt_parry.qc
 vr_armedrepl.qc
 // Survival Arena: the wave director (the waves, their ladder, their boss, their drops).
 vr_arena.qc
+vr_arena_perks.qc // Survival Arena: the boss wave's perk choice (its offers, and what each perk does)
 vr_adtankworn.qc
 vr_armedmon_ui.qc
 vr_armedgrunt_test.qc
@@ -526,6 +527,7 @@ vr_armedgrunt_ai_test.qc
 vr_armedgrunt_ammo_test.qc
 vr_armedrepl_test.qc
 vr_arena_test.qc // Survival Arena's tests (vr_arena_test)
+vr_arena_perks_test.qc // Survival Arena's perk tests (vr_arena_perks_test)
 vr_rigseq_test.qc
 vr_armedgrunt_posecat_test.qc
 vr_armedgrunt_shove_test.qc

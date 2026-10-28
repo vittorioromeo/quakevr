@@ -573,6 +573,7 @@ void() VR_AGTest_Frame; // (vr_armedgrunt_test.qc, after the armed grunts)
 void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
 void() VR_PropImp_TestFrame; // (vr_propimpact_test.qc, after AD's files)
 void() VR_ARENA_Test_Frame; // (vr_arena_test.qc, after the arena's own file)
+void() VR_ARENA_PERKS_Test_Frame; // (vr_arena_perks_test.qc, after the arena's perk file)
 #endif
 void() VR_Buzzsaw_Frame; // (rogue_buzzsaw.qc: its blade cuts ragdolls)
 void() VR_DeadAnim_Frame; // (vr_deadanim.qc, after AD's files)
@@ -661,6 +662,7 @@ void() StartFrame =
     VR_Shock_TestFrame(); // VR: lightning's lasting shock's test (vr_shock_hit_test, vr_shock.qc)
     VR_DentsTest_Frame(); // VR: every hit dents, the damage paths' test (vr_dents_test, vr_dents_test.qc)
     VR_ARENA_Test_Frame(); // VR: the Survival Arena's tests (vr_arena_test, vr_arena_test.qc)
+    VR_ARENA_PERKS_Test_Frame(); // VR: the Survival Arena's perk tests (vr_arena_perks_test, vr_arena_perks_test.qc)
 #endif
     VR_Burn_MapFrame(); // VR: visible mapper flames burn tracked hands/body (vr_burning.qc)
     VR_Burn_NailFrame(); // VR: nails through a torch's flame become lava nails (vr_burning.qc)
