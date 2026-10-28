@@ -1491,6 +1491,21 @@ void ikStretchReset()
             .help("A boss's health times this and the difficulty's factor: an enforcer boss at 1.25 stands at 76 health "
                    "at Easy, 101 at Normal, 126 at Hard, 151 at Nightmare (a Nightmare boss wave's second at half that) "
                    "(vr_arena_boss_health)."),
+        header("Armour"),
+        toggle("Armoured Foes", vr_arena_foe_armor)
+            .help("1: the waves' grunts and enforcers may wear armour plates (Combat > Armed Grunts > Armour's rules), "
+                   "more of them, in more plates and heavier kinds as the waves go and the harder the skill: green "
+                   "cuirass and helmet first, yellow from wave 12 at Normal, red from wave 22. A grunt or enforcer boss "
+                   "always wears a kind above its wave's. In the arena this replaces the skill's own armour roll; 0: no "
+                   "wave foe wears any (vr_arena_foe_armor)."),
+        slider("Armour Chance", vr_arena_foe_armor_scale, 0.f, 4.f, 0.05f, "%.2fx")
+            .help("The armour's chance times this: at 1 a foe at the armour's first wave has 10% at Normal, 3% more each "
+                   "wave after (34% at wave 12, 58% at wave 20), times the difficulty's factor, never past 85%. A boss "
+                   "wave's foes have 15% more. 0: none (vr_arena_foe_armor_scale)."),
+        slider("Armour From Wave", vr_arena_foe_armor_from, 2.f, 30.f, 1.f, "%.0f")
+            .help("The first wave a foe may wear armour, at Normal; the difficulty moves it as it moves every gate "
+                   "(4 is wave 7 at Easy, 4 at Normal, 2 at Hard and Nightmare). Its plates grow from there: the "
+                   "cuirass and the helmet, one limb plate more every 3 waves (vr_arena_foe_armor_from)."),
         header("Wave Clears"),
         slider("Medkits", vr_arena_medkits_after, 0.f, 4.f, 1.f, "%.0f")
             .help("Medkits every wave clear drops (0: none), the difficulty dividing them: 2 is 3 at Easy, 2 at Normal "
@@ -1503,15 +1518,16 @@ void ikStretchReset()
         slider("Score For A Kill", vr_arena_score_kill, 1.f, 10000.f, 5.f, "%.0f")
             .help("A kill's score, times the rung its holder was on (a boss four of that) and the difficulty: at 100 a "
                    "first rung kill is worth 75 / 100 / 125 / 150 (Easy / Normal / Hard / Nightmare), a third rung boss "
-                   "900 / 1200 / 1500 / 1800. A wave clear adds 250 times its wave, by the difficulty too (wave 3: 563 / "
-                   "750 / 938 / 1125) (vr_arena_score_kill)."),
+                   "900 / 1200 / 1500 / 1800; an armoured foe a quarter more per kind (green 1.25x, yellow 1.5x, red "
+                   "1.75x). A wave clear adds 250 times its wave, by the difficulty too (wave 3: 563 / 750 / 938 / 1125) "
+                   "(vr_arena_score_kill)."),
         header("Perks"),
         toggle("Boss Perks", vr_arena_perks)
             .help("1: clearing a boss wave offers your choice of perks -- pedestals standing in the field, on the places "
                    "a wave clear's drops use; walk over one to take that perk for the rest of the run. 0: it offers "
                    "nothing (vr_arena_perks)."),
-        slider("Perks Offered", vr_arena_perk_count, 1.f, 7.f, 1.f, "%.0f")
-            .help("How many of the pool's seven a boss clear offers, at Normal -- the difficulty takes its share (3 is 2 "
+        slider("Perks Offered", vr_arena_perk_count, 1.f, 8.f, 1.f, "%.0f")
+            .help("How many of the pool's eight a boss clear offers, at Normal -- the difficulty takes its share (3 is 2 "
                    "at Easy, 4 at Hard, 5 at Nightmare); never the same perk twice (vr_arena_perk_count)."),
         header("Cleanup"),
         slider("Bodies Fade After", vr_arena_corpse_fade, 0.f, 60.f, 1.f, "%.0f s")

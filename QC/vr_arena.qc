@@ -48,6 +48,7 @@
 .float kind;    // info_arena_spawn: 1 a ground point, 2 a high one (a wave's ranged and flying foes come in above the floor)
 .float ar_slot; // > 0: one of the arena's wave monsters, of the wave that number (its fall flips it to that number's negative)
 .float ar_tier; // what a wave monster is worth on the ladder: 1, 2, 3 (a boss: plus AR_BOSS_MARK)
+.float ar_armour; // the armour type the arena dressed a wave monster in (0 none): its kill pays more
 .float ar_drop; // > 0: an arena's own drop between waves: 1 a medkit, 2 an armour
 .float ar_drop_wave; // a drop: the wave whose clear dropped it (vr_arena_item_waves)
 .float ar_fell;     // a fallen foe's body: its place in the order the run's foes fell (the oldest goes first)
@@ -106,6 +107,15 @@ float AR_HELD_GRACE  = 3;    // s a leftover a hand let go of lies on at least b
 float AR_DYING_MAX   = 10;   // s a body still dying is waited for at most (then it goes as any other)
 float AR_SPOILS_GUNS = 2;    // the Spoils perk: vr_arena_gun_max times this guns lie about
 
+// A wave's humanoids' armour (vr_agarmor.qc's plates; VR_ARENA_ArmourChance and the rest below; ROUND23.md's table).
+float AR_ARM_BASE     = 0.10; // the chance at the armour's first wave (Normal, vr_arena_foe_armor_scale 1)
+float AR_ARM_STEP     = 0.03; // and this much more each wave after it
+float AR_ARM_CAP      = 0.85; // never past this (a wave always has some bare foes)
+float AR_ARM_PIECE_W  = 3;    // one more plate past the cuirass and helmet every this many waves (by the factor)
+float AR_ARM_GUARD    = 0.15; // a boss wave's humanoids: this much more chance (the boss's guard)
+float AR_ARM_BOSS_PCS = 4;    // a humanoid boss wears this many plates past the wave's
+float AR_ARM_PAY      = 0.25; // an armoured kill's score: this much more per armour type (green 1.25, red 1.75)
+
 // ---------------------------------------------------------------------------
 // The run's state (file-scope: QC has no function-local statics)
 // ---------------------------------------------------------------------------
@@ -124,6 +134,10 @@ float ar_plan_kind[AR_PLAN_MAX];
 float ar_plan_gun[AR_PLAN_MAX];
 float ar_plan_tier[AR_PLAN_MAX];
 float ar_plan_boss[AR_PLAN_MAX];
+float ar_plan_armour[AR_PLAN_MAX]; // its armour's type (0 none; vr_agarmor.qc's 1 green, 2 yellow, 3 red)
+float ar_plan_amask[AR_PLAN_MAX];  // and its plates (vr_agarmor.qc's piece bits)
+float ar_arm_type;         // VR_ARENA_ArmourRoll's answer: the type (0 none) and the plates
+float ar_arm_mask;
 float ar_next_spawn;       // the time the next planned foe may come in
 float ar_wave_at;          // the time this wave began
 float ar_alive_peak;       // the most foes the arena had up at once, this run (its wave cap at work)
@@ -150,6 +164,7 @@ float ar_gap_n;            // this wave's trickle gaps so far
 // The director's own beats (vr_arena.qc's own cycle; world.qc only calls WorldSpawn and Frame).
 void() VR_ARENA_WaveStart;
 float() VR_ARENA_Rand;
+float(float xKind) VR_ARENA_ArmsHumanoid;
 float(float x) VR_ARENA_SkillWhole;
 void() VR_ARENA_ManagerThink;
 void() VR_ARENA_RestartThink;
@@ -502,7 +517,142 @@ void(float xKind, float xGun, float xBoss) VR_ARENA_PlanAdd =
     ar_plan_gun[ar_plan_n]   = xGun;
     ar_plan_boss[ar_plan_n]  = xBoss;
     ar_plan_tier[ar_plan_n]  = VR_ARENA_WeaponTier(xKind, xGun);
+    ar_plan_armour[ar_plan_n] = 0; // (VR_ARENA_PlanArmour dresses the humanoids once the plan is written)
+    ar_plan_amask[ar_plan_n]  = 0;
     ar_plan_n = ar_plan_n + 1;
+}
+
+// ---------------------------------------------------------------------------
+// The humanoids' armour (vr_agarmor.qc's plates): the arena's own roll, in place of the skill's
+// (vr_agarmor_skill*), for its wave foes only. Every number below rises with the wave and the difficulty:
+//   - none before vr_arena_foe_armor_from (4) as the difficulty counts waves (VR_ARENA_WaveAdj: 7 / 4 / 2 / 2);
+//   - the chance AR_ARM_BASE (10%) at that wave, AR_ARM_STEP (3%) more each wave after, times the difficulty's
+//     factor and vr_arena_foe_armor_scale, never past AR_ARM_CAP (85%); a boss wave's humanoids AR_ARM_GUARD more;
+//   - the best type: green until the second rung of guns has been in the foes' hands two waves (AR_W_TIER2 + 2,
+//     wave 12 at Normal: the player can pick up a super shotgun or a nailgun by then), yellow from there, red from
+//     AR_W_TIER3 + 4 (wave 22 at Normal: the launchers have been about four waves); a foe's type 1..best at random;
+//   - the plates: the cuirass and the helmet, one more limb plate every AR_ARM_PIECE_W (3) waves by the factor;
+//   - a humanoid boss: always armoured from the armour's first wave, a type above the wave's best and
+//     AR_ARM_BOSS_PCS (4) more plates.
+// The rolls are their own stream (the wave's seed, salted), so they never move the wave's guns or its gaps.
+// ---------------------------------------------------------------------------
+
+float AR_ARM_SALT = 1000; // the armour stream's offset in VR_ARENA_SeedWaves' waves
+float ar_arm_seq;         // the wave's armour rolls so far, and their offset (VR_ARENA_ArmourSeed)
+float ar_arm_off;
+
+// The wave's armour rolls start: the salted stream (its plates), and the chance and the type off a low-discrepancy
+// pair (R2: the golden and the plastic ratio's steps) from an offset that stream rolls -- so a wave's armoured share
+// is the table's share, with no streaks, and the type is spread evenly over the armoured ones.
+void(float xWave) VR_ARENA_ArmourSeed =
+{
+    VR_ARENA_SeedWaves(xWave + AR_ARM_SALT);
+    ar_arm_off = VR_ARENA_Rand();
+    ar_arm_seq = 0;
+}
+
+float() VR_ARENA_Opt_ArmourScale { return VR_ARENA_Clamp(cvar("vr_arena_foe_armor_scale"), 0, 4); }
+float() VR_ARENA_Opt_ArmourFrom  { return VR_ARENA_Clamp(cvar("vr_arena_foe_armor_from"), 2, 60); }
+float() VR_ARENA_Opt_FoeArmour   { return cvar("vr_arena_foe_armor") != 0 && VR_ARENA_Opt_ArmourScale() > 0; }
+
+// The first wave a foe may wear armour, as this difficulty counts waves.
+float() VR_ARENA_ArmourFrom = { return VR_ARENA_WaveAdj(VR_ARENA_Opt_ArmourFrom()); }
+
+// A wave's humanoid's chance to be armoured (0 before the first armour wave, or with the armour off).
+float(float xWave) VR_ARENA_ArmourChance =
+{
+    if(!VR_ARENA_Opt_FoeArmour()) { return 0; }
+    float from = VR_ARENA_ArmourFrom();
+    if(xWave < from) { return 0; }
+    float c = (AR_ARM_BASE + AR_ARM_STEP * (xWave - from)) * VR_ARENA_Skill(0.75, 1.25, 1.5) * VR_ARENA_Opt_ArmourScale();
+    return VR_ARENA_Clamp(c, 0, AR_ARM_CAP);
+}
+
+// The best type a wave's armour may be (1 green, 2 yellow, 3 red), gated on the weapon ladder's rungs.
+float(float xWave) VR_ARENA_ArmourBest =
+{
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_TIER3 + 4)) { return 3; }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_TIER2 + 2)) { return 2; }
+    return 1;
+}
+
+// How many plates a wave's armour has: 2 (the cuirass and the helmet), one more every AR_ARM_PIECE_W waves past the
+// first armour wave by the difficulty's factor, at most all ten.
+float(float xWave) VR_ARENA_ArmourPieces =
+{
+    float past = max(0, xWave - VR_ARENA_ArmourFrom());
+    return VR_ARENA_Clamp(2 + floor(past * VR_ARENA_Skill(0.75, 1.25, 1.5) / AR_ARM_PIECE_W), 2, 10);
+}
+
+// One foe's roll, off the wave stream as it stands (ar_arm_type 0: bare). xBoss: one of the wave's marked big ones;
+// xBossWave: a boss wave (its guard's chance is higher).
+void(float xWave, float xBoss, float xBossWave) VR_ARENA_ArmourRoll =
+{
+    float c = VR_ARENA_ArmourChance(xWave);
+    float best = VR_ARENA_ArmourBest(xWave);
+    float n = VR_ARENA_ArmourPieces(xWave);
+    float i;
+
+    ar_arm_type = 0;
+    ar_arm_mask = 0;
+    if(c <= 0) { return; }
+    if(xBoss)
+    {
+        ar_arm_type = min(3, best + 1);
+        n = min(10, n + AR_ARM_BOSS_PCS);
+    }
+    else
+    {
+        if(xBossWave) { c = VR_ARENA_Clamp(c + AR_ARM_GUARD * VR_ARENA_Opt_ArmourScale(), 0, AR_ARM_CAP); }
+        ar_arm_seq = ar_arm_seq + 1;
+        float r = ar_arm_off + ar_arm_seq * 0.7548776662;
+        float rt = ar_arm_off + ar_arm_seq * 0.5698402910;
+        if(r - floor(r) >= c) { return; }
+        ar_arm_type = 1 + min(best - 1, floor((rt - floor(rt)) * best));
+    }
+
+    // The cuirass and the helmet (vr_agarmor.qc's pieces 0 and 1), then n - 2 of the eight limb plates (2..9), each
+    // taken with the chance still needed over the ones still to go: exactly n - 2 of them.
+    ar_arm_mask = 3;
+    float need = n - 2;
+    for(i = 2; i < 10 && need > 0; i++)
+    {
+        if(VR_ARENA_Rand() * (10 - i) < need)
+        {
+            ar_arm_mask = ar_arm_mask | VR_AgArmor_Bit(i);
+            need = need - 1;
+        }
+    }
+}
+
+// The plan's humanoids dressed, once the plan is written: the wave's own stream (salted), so the plan's guns and the
+// wave's gaps roll exactly as they do with the armour off; the wave stream is put back after.
+void(float xWave) VR_ARENA_PlanArmour =
+{
+    float s1 = ar_s1;
+    float s2 = ar_s2;
+    float s3 = ar_s3;
+    float bw = VR_ARENA_IsBossWave(xWave);
+    float i;
+
+    if(VR_ARENA_ArmourChance(xWave) <= 0) { return; }
+    VR_ARENA_ArmourSeed(xWave);
+    for(i = 0; i < ar_plan_n; i++)
+    {
+        if(!VR_ARENA_ArmsHumanoid(ar_plan_kind[i])) { continue; }
+        VR_ARENA_ArmourRoll(xWave, ar_plan_boss[i] > 0, bw);
+        ar_plan_armour[i] = ar_arm_type;
+        ar_plan_amask[i]  = ar_arm_mask;
+    }
+    ar_s1 = s1;
+    ar_s2 = s2;
+    ar_s3 = s3;
+}
+
+// An armoured kill's score: AR_ARM_PAY more per type (whole points).
+float(float xScore, float xType) VR_ARENA_ArmourWorth =
+{
+    return VR_ARENA_SkillWhole(xScore * (1 + AR_ARM_PAY * VR_ARENA_Clamp(xType, 0, 3)));
 }
 
 // The wave's plan, wave 1 to the waves past the table (13 and on: the same ladder, thicker).
@@ -510,7 +660,7 @@ void(float xKind, float xGun, float xBoss) VR_ARENA_PlanAdd =
 // The counts written below are the wave's Normal-skill counts at vr_arena_wave_size 1: VR_ARENA_WaveCount scales
 // every crowd group by the wave size, then VR_ARENA_SkillCount moves it by the skill's factor (whole foes, a group never emptied -- a wave's own zombie, dog or boss stays). The cap on a
 // wave's whole plan is VR_ARENA_PlanAdd's (AR_PLAN_MAX), the cap on the field is VR_ARENA_FieldCap's.
-void(float xWave) VR_ARENA_Plan =
+void(float xWave) VR_ARENA_PlanFoes =
 {
     float boss = VR_ARENA_IsBossWave(xWave);
     float n;
@@ -648,6 +798,13 @@ void(float xWave) VR_ARENA_Plan =
 
     float nclass = VR_ARENA_WaveCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
     for(i = 0; i < nclass; i++) { VR_ARENA_PlanAdd(VR_ARENA_ClassicKind(xWave, i), 0, 0); }
+}
+
+// The wave's plan: who it sends (VR_ARENA_PlanFoes), then what armour its humanoids wear (VR_ARENA_PlanArmour).
+void(float xWave) VR_ARENA_Plan =
+{
+    VR_ARENA_PlanFoes(xWave);
+    VR_ARENA_PlanArmour(xWave);
 }
 
 // ---------------------------------------------------------------------------
@@ -949,7 +1106,7 @@ float(float xKind) VR_ARENA_ArmsHumanoid = { return xKind == AR_SP_GRUNT || xKin
 // The wave's monster at its place: an armed humanoid holding its plan's gun (or its fists), or one of Quake's
 // own monsters. Its kind's spawn function does the rest (its health, its sounds, its pains, its death).
 // world when it could not be put in the field at all (its kind's spawn held it back): the spawner tries again.
-entity(float xKind, float xGun, float xTier, float xBoss) VR_ARENA_SpawnMonster =
+entity(float xKind, float xGun, float xTier, float xBoss, float xArmour, float xMask) VR_ARENA_SpawnMonster =
 {
     entity manager = self;
     entity m = spawn();
@@ -971,13 +1128,23 @@ entity(float xKind, float xGun, float xTier, float xBoss) VR_ARENA_SpawnMonster 
     if(p != world) { m.angles = vectoangles(p.origin - o); }
     setorigin(m, o + '0 0 32');
 
-    VR_ARENA_CallSpawn(xKind); // (the monster's own spawn, on self)
+    // (the monster's own spawn, on self; its armour is the plan's, so the skill's roll is held: vr_agarmor.qc)
+    vr_ar_hold_roll = 1;
+    VR_ARENA_CallSpawn(xKind);
+    vr_ar_hold_roll = 0;
 
     if(!self.modelindex && !self.MG_deferred)
     {
         remove(self);
         self = manager;
         return world;
+    }
+
+    if(VR_ARENA_ArmsHumanoid(xKind) && xArmour > 0)
+    {
+        VR_AgArmor_Give(self, xArmour, xMask);
+        self.ar_armour = self.vr_ar_type;
+        dprint(sprintf("arena: armour type %g pieces %g on kind %g%s\n", xArmour, xMask, xKind, xBoss ? " (boss)" : ""));
     }
 
     if(xBoss)
@@ -1108,7 +1275,9 @@ void() VR_ARENA_MonsterDie =
     self.ar_slot = -ar_wave;
     ar_kills = ar_kills + 1;
     ar_wave_kills = ar_wave_kills + 1;
-    ar_score = ar_score + VR_ARENA_KillScore(VR_ARENA_TierOf(self.ar_tier), self.ar_tier >= AR_BOSS_MARK);
+    float worth = VR_ARENA_KillScore(VR_ARENA_TierOf(self.ar_tier), self.ar_tier >= AR_BOSS_MARK);
+    if(self.ar_armour > 0) { worth = VR_ARENA_ArmourWorth(worth, self.ar_armour); } // (an armoured foe pays more)
+    ar_score = ar_score + worth;
     VR_ARENA_BodyDown(self); // (its body's time: the cleanup)
 
     // Its slot in the pool is free: the director looks at once, so the next foe's gap runs from this fall.
@@ -1304,17 +1473,23 @@ void() VR_ARENA_BossMidway =
         float g0 = ar_plan_gun[0];
         float t0 = ar_plan_tier[0];
         float b0 = ar_plan_boss[0];
+        float a0 = ar_plan_armour[0];
+        float m0 = ar_plan_amask[0];
         for(j = 0; j + 1 < len; j++)
         {
             ar_plan_kind[j] = ar_plan_kind[j + 1];
             ar_plan_gun[j]  = ar_plan_gun[j + 1];
             ar_plan_tier[j] = ar_plan_tier[j + 1];
             ar_plan_boss[j] = ar_plan_boss[j + 1];
+            ar_plan_armour[j] = ar_plan_armour[j + 1]; // (its armour goes with it)
+            ar_plan_amask[j]  = ar_plan_amask[j + 1];
         }
         ar_plan_kind[len - 1] = k0;
         ar_plan_gun[len - 1]  = g0;
         ar_plan_tier[len - 1] = t0;
         ar_plan_boss[len - 1] = b0;
+        ar_plan_armour[len - 1] = a0;
+        ar_plan_amask[len - 1]  = m0;
     }
 }
 
@@ -1322,7 +1497,8 @@ void() VR_ARENA_BossMidway =
 float() VR_ARENA_SpawnNext =
 {
     float i = ar_plan_n - ar_plan_left;
-    entity m = VR_ARENA_SpawnMonster(ar_plan_kind[i], ar_plan_gun[i], ar_plan_tier[i], ar_plan_boss[i]);
+    entity m = VR_ARENA_SpawnMonster(ar_plan_kind[i], ar_plan_gun[i], ar_plan_tier[i], ar_plan_boss[i],
+                                     ar_plan_armour[i], ar_plan_amask[i]);
     if(!m) { return FALSE; }
     ar_plan_left = ar_plan_left - 1;
     ar_plan_live = ar_plan_live + 1;
@@ -1359,9 +1535,19 @@ void() VR_ARENA_WaveStart =
     ar_gap_n = 0;
     VR_ARENA_BossMidway();
 
-    VR_ARENA_PrintAll(sprintf("ARENA - Wave %g: %g foes (score %g)\n", ar_wave, ar_plan_n, ar_score));
+    float armoured = 0;
+    float i;
+    for(i = 0; i < ar_plan_n; i++) { if(ar_plan_armour[i] > 0) { armoured = armoured + 1; } }
+    if(armoured > 0)
+    {
+        VR_ARENA_PrintAll(sprintf("ARENA - Wave %g: %g foes, %g in armour (score %g)\n", ar_wave, ar_plan_n, armoured, ar_score));
+    }
+    else
+    {
+        VR_ARENA_PrintAll(sprintf("ARENA - Wave %g: %g foes (score %g)\n", ar_wave, ar_plan_n, ar_score));
+    }
     if(VR_ARENA_IsBossWave(ar_wave)) { VR_ARENA_PrintAll("A BOSS is with this wave\n"); }
-    dprint(sprintf("arena: wave %g score %g alive %g pool %g\n", ar_wave, ar_score, ar_plan_n, ar_pool));
+    dprint(sprintf("arena: wave %g score %g alive %g pool %g armoured %g\n", ar_wave, ar_score, ar_plan_n, ar_pool, armoured));
 
     self.think = VR_ARENA_ManagerThink;
     self.nextthink = time + 0.2;

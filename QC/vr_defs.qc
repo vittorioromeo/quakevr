@@ -435,6 +435,7 @@ void(entity e, entity by) VR_ARK_Kill; // combat.qc's Killed: Quad Strike, Feede
 void(entity e, entity by, float xHow) VR_ARK_Decap;
 void(entity p, float xValue) VR_ARK_ArmorBonus;
 float() VR_ARK_Kept;                 // Spoils taken (vr_arena.qc's VR_ARENA_GunMost: more guns lie about)
+float(entity xBy) VR_ARK_PlateCost;  // vr_agarmor.qc's damage: what a plate's pool pays per point it saves (Can Opener 2)
 
 // ----------------------------------------------------------------------------
 // Item Names

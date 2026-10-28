@@ -29,7 +29,8 @@ float ARK_FEED  = 16;  // Feeder: a kill heals 5, at most once a second
 float ARK_QUART = 32;  // Quartermaster: a wave clear tops up the ammo of the guns you hold
 float ARK_SPOIL = 64;  // Spoils: twice as many of the guns the foes dropped lie about (vr_arena_gun_max)
 
-float ARK_POOL_N = 7;  // the pool: every one of these is offered before any is offered twice
+float ARK_OPEN  = 128; // Can Opener: your hits on a foe's armour plates wear them down twice as fast
+float ARK_POOL_N = 8;  // the pool: every one of these is offered before any is offered twice
 
 // What each perk gives (the numbers the tests read).
 float ARK_QUAD_SECS  = 2;
@@ -39,6 +40,7 @@ float ARK_WIND_HP    = 15;
 float ARK_FEED_HP    = 5;
 float ARK_FEED_GAP   = 1;   // s between two Feeder heals
 float ARK_QUART_AMMO = 15;  // of each kind a Quartermaster wave clear gives
+float ARK_OPEN_COST  = 2;   // Can Opener: a plate's pool pays this per point it saves from the player's hit
 
 // What a pedestal is: its touch box, and how long its label keeps being repeated for the player. A pedestal does
 // not expire: it stands until the player walks over it, or until the next boss wave's offer clears it (ARK_PED_LABEL
@@ -69,6 +71,7 @@ float(float xIndex) VR_ARK_PoolBit =
     if(xIndex == 4) { return ARK_FEED;  }
     if(xIndex == 5) { return ARK_QUART; }
     if(xIndex == 6) { return ARK_SPOIL; }
+    if(xIndex == 7) { return ARK_OPEN;  }
     return 0;
 }
 
@@ -81,6 +84,7 @@ string(float xBit) VR_ARK_Name =
     if(xBit == ARK_FEED)  { return "Feeder"; }
     if(xBit == ARK_QUART) { return "Quartermaster"; }
     if(xBit == ARK_SPOIL) { return "Spoils"; }
+    if(xBit == ARK_OPEN)  { return "Can Opener"; }
     return "";
 }
 
@@ -93,6 +97,7 @@ string(float xBit) VR_ARK_What =
     if(xBit == ARK_FEED)  { return "A kill heals 5, at most once a second"; }
     if(xBit == ARK_QUART) { return "A wave clear tops up the ammo of the guns you hold"; }
     if(xBit == ARK_SPOIL) { return "Twice as many fallen foes' guns stay lying about"; }
+    if(xBit == ARK_OPEN)  { return "Your hits wear a foe's armour plates down twice as fast"; }
     return "";
 }
 
@@ -106,6 +111,7 @@ string(float xBit) VR_ARK_Model =
     if(xBit == ARK_FEED)  { return "progs/gib2.mdl"; }
     if(xBit == ARK_QUART) { return "progs/vrpouch_ammo.mdl"; }
     if(xBit == ARK_SPOIL) { return "progs/v_shot.mdl"; }
+    if(xBit == ARK_OPEN)  { return "progs/v_crowbar.mdl"; } // (world.qc precaches it always: VR_Crowbar_Precache)
     return "";
 }
 
@@ -122,7 +128,7 @@ string(float xBit) VR_ARK_Label =
 float() VR_ARK_Opt_On    { return cvar("vr_arena_perks") != 0; }
 
 // How many pedestals a boss clear offers: vr_arena_perk_count (the Normal value) times the difficulty's factor --
-// a Hard or Nightmare clear offers a fourth, an Easy one two -- still clamped 1 .. the pool's 7, and
+// a Hard or Nightmare clear offers a fourth, an Easy one two -- still clamped 1 .. the pool's size (8), and
 // VR_ARK_Choose still skips what this run already took, so nothing is ever offered twice.
 float() VR_ARK_Opt_Count =
 {
@@ -486,4 +492,15 @@ float() VR_ARK_Kept =
 {
     if(!VR_ARK_Running()) { return FALSE; }
     return (ar_mgr.ark_taken & ARK_SPOIL) != 0;
+}
+
+// vr_agarmor.qc VR_AgArmor_Damage: what a plate's pool pays for each point of a hit it saves. 1 everywhere but a
+// player's own hit with Can Opener taken: 2, so a plate breaks in half the hits (it still saves what it saves
+// while it lasts -- the hit is not made bigger, the plate is made thinner).
+float(entity xBy) VR_ARK_PlateCost =
+{
+    if(!VR_ARK_Running()) { return 1; }
+    if((ar_mgr.ark_taken & ARK_OPEN) == 0) { return 1; }
+    if(!(xBy.flags & FL_CLIENT)) { return 1; }
+    return ARK_OPEN_COST;
 }
