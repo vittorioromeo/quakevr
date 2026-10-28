@@ -19,7 +19,7 @@
 #     and the walls is otherwise clear, so the 8 blocks are where a fight gets broken up;
 #   - 24 lights: 8 ceiling lamps (a qvr_light block each, as vrtesthall's), 4 over the towers, 4 over the walkways, 4
 #     over the dais, 4 in the corners, with a soft minimum light so no corner goes black.
-# 187 brushes (light on Quest 3). Brushes are kept apart: they meet face to face, exactly coplanar, none runs into
+# 130 brushes (light on Quest 3). Brushes are kept apart: they meet face to face, exactly coplanar, none runs into
 # another, and the shell is closed (qbsp sees no leak). --check verifies the points, the stair steps, that, and that
 # the open ring of the floor (700..1000 out, below 160 high) holds nothing.
 #
