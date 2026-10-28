@@ -79,11 +79,14 @@ bool placed(int ent, Placed& out);
 // place, `origin` and `yawDeg`, across its facing; eased) tips its pelvis and legs toward the way it goes, about the
 // floor under its middle; `hold` eases it out (a take's kneel). relinkSkinned lays it on every bone after the legs and
 // before the upper body's hold (which keeps the chest aimed on the leaned hips). Out: the turn (model space); false:
-// none now. leanNow: the same this frame (boneTurns); leanMeasured: its pelvis's roll by it and its chest's as solved
-// (vr_agrunt_lean_info).
+// none now. The strafe turn (vr_agrunt_strafe_turn) is in it too: a yaw toward the way it goes about the upright
+// through its middle, over the lean; twistNow: that yaw alone this frame (the upper body's hold takes it out of the
+// hips' turn it shares, so the chest stays aimed). leanNow: the same this frame (boneTurns); leanMeasured: its
+// pelvis's roll and yaw by it and its chest's as solved (vr_agrunt_lean_info).
 bool lean(const entity_t* e, const ragdoll::Rig& rig, const glm::vec3& origin, float yawDeg, bool hold, rigpose::Rigid& out);
 bool leanNow(const entity_t* e, rigpose::Rigid& out);
-void leanMeasured(const entity_t* e, float pelvisRoll, float chestRoll);
+glm::quat twistNow(const entity_t* e);
+void leanMeasured(const entity_t* e, float pelvisRoll, float chestRoll, float pelvisYaw, float chestYaw);
 
 void registerCommands(); // vr_aglegs_info, vr_agrunt_lean_info
 void resetModels();      // the models' legs and the entities' forgotten (a rig file reloaded: rig2::latch)

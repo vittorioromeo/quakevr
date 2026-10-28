@@ -300,7 +300,8 @@ float depth(const Posed& q, const glm::vec3& p, float margin, glm::vec3* push, i
     return most;
 }
 
-bool upper(int ent, const ragdoll::Rig& rig, int chest, const rigpose::Rigid* posed, bool keepFrames, rigpose::Rigid& corr)
+bool upper(int ent, const ragdoll::Rig& rig, int chest, const rigpose::Rigid* posed, bool keepFrames, rigpose::Rigid& corr,
+    const glm::quat& hipsTwist)
 {
     corr = rigpose::Rigid{};
     int pelvis = chest >= 0 && chest < rig.numBones ? rig.bones[chest].parent : -1;
@@ -335,7 +336,9 @@ bool upper(int ent, const ragdoll::Rig& rig, int chest, const rigpose::Rigid* po
     const rigpose::Rigid rest = rigpose::key(rig, 0, chest);
     const rigpose::Rigid onHips = composeR(posed[pelvis], composeR(inverseR(rigpose::key(rig, 0, pelvis)), rest));
     rigpose::Rigid want;
-    want.rot = glm::normalize(glm::slerp(rest.rot, onHips.rot, za::clamp(vr_agrunt_upper_hips.value, 0.f, 1.f)));
+    // (the strafe turn not shared: the chest's share of the hips' turn without it)
+    const glm::quat hipsShared = glm::inverse(hipsTwist) * onHips.rot;
+    want.rot = glm::normalize(glm::slerp(rest.rot, hipsShared, za::clamp(vr_agrunt_upper_hips.value, 0.f, 1.f)));
     const glm::vec3 waistNow = rigpose::apply(onHips, rig.bones[chest].pivot);
     want.pos = waistNow - want.rot * rig.bones[chest].pivot;
     if(u->have && dt > 0.f)

@@ -3801,6 +3801,7 @@ QVR_CVAR(vr_agrunt_ai_retreat, "1", CVAR_ARCHIVE)     // Retreat Readiness: the 
 QVR_CVAR(vr_agrunt_ai_firerate, "1", CVAR_ARCHIVE)    // Fire Rate: their pause between attacks divided by this; 1 as before
 QVR_CVAR(vr_agrunt_rearm_punch, "0", CVAR_ARCHIVE)    // units: an unarmed one with you this near fights with its fists rather than going for a weapon lying further than 64 from it; 0 off (as before)
 QVR_CVAR(vr_agrunt_strafe_lean, "5", CVAR_ARCHIVE)    // degrees: armed humanoids moving sideways tip their pelvis and legs this far toward the way they go (at 80 u/s; scaled by speed, eased), the upper body held aimed; 0 none
+QVR_CVAR(vr_agrunt_strafe_turn, "28", CVAR_ARCHIVE)   // degrees: armed humanoids moving sideways turn their pelvis and legs this far toward the way they go (at 80 u/s; scaled by sideways speed, eased; backing off: never flipped), the spine turning back so the chest and gun stay aimed; 0 none
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
 QVR_CVAR(vr_ragdoll_self_collide, "1", CVAR_ARCHIVE)  // a ragdoll's own parts meet each other (an arm stays out of the chest, a leg out of the other), all but jointed neighbours, a loose piece (his gun), parts deep in each other (until apart) and an arm reaching for a wound, a stump or a wall; 0 they pass through each other, as before (a ragdoll made from now on)
 QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand (an old config's 2: the same)
