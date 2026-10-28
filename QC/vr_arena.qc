@@ -154,6 +154,12 @@ float(float x, float xMod) VR_ARENA_Mod =
     return r;
 }
 
+// The difficulty this arena is running at. world.qc reads the skill cvar into the `skill` global at the top of every
+// frame (world.qc:588); at world spawn the global is not set yet -- triggers.qc's own note -- so there the arena
+// takes the cvar, the difficulty the run started on. (0 is Easy's own value too, so falling back changes nothing
+// where the global is already right.)
+float() VR_ARENA_SkillLevel = { return skill > 0 ? skill : cvar("skill"); }
+
 // The skill's factor for a knob: `easy`, `hard`, `nightmare` its steps (Normal 1), by vr_arena_skill_impact -- the
 // shape of the armed humanoids' VR_AGAI_Skill (vr_armedgrunt_ai.qc), the arena's own impact knob, and nothing to do
 // with vr_agrunt_ai_skill or the armed humanoids' AI.
@@ -166,7 +172,8 @@ float(float x, float xMod) VR_ARENA_Mod =
 //   doubled; the factor is never below 0, so a knob it multiplies never turns negative)
 float(float easy, float hard, float nightmare) VR_ARENA_Skill =
 {
-    float m = skill < 1 ? easy : skill < 2 ? 1 : skill < 3 ? hard : nightmare;
+    float s = VR_ARENA_SkillLevel();
+    float m = s < 1 ? easy : s < 2 ? 1 : s < 3 ? hard : nightmare;
     return max(0, 1 + cvar("vr_arena_skill_impact") * (m - 1));
 }
 
@@ -240,7 +247,8 @@ float(float xValue) VR_ARENA_SkillWorth =
 // the death knights and the launchers arrive early and on Easy they hold off.
 float(float xWave) VR_ARENA_WaveAdj =
 {
-    float d = skill < 1 ? 3 : skill < 2 ? 0 : skill < 3 ? -2 : -4;
+    float s = VR_ARENA_SkillLevel();
+    float d = s < 1 ? 3 : s < 2 ? 0 : s < 3 ? -2 : -4;
     return max(2, xWave + d * cvar("vr_arena_skill_impact"));
 }
 
@@ -249,7 +257,8 @@ float(float xWave) VR_ARENA_WaveAdj =
 // and held to a share).
 float() VR_ARENA_EarlyUnarmed =
 {
-    float m = skill < 1 ? 0.30 : skill < 2 ? 0.20 : skill < 3 ? 0.15 : 0.10;
+    float s = VR_ARENA_SkillLevel();
+    float m = s < 1 ? 0.30 : s < 2 ? 0.20 : s < 3 ? 0.15 : 0.10;
     return VR_ARENA_Clamp(0.20 + cvar("vr_arena_skill_impact") * (m - 0.20), 0, 0.5);
 }
 
@@ -260,13 +269,13 @@ float() VR_ARENA_BossEvery =
 {
     float every = VR_ARENA_Opt_BossEvery();
     if(every <= 0) { return 0; }
-    if(skill >= 1) { return every; }
+    if(VR_ARENA_SkillLevel() >= 1) { return every; }
     return every + cvar("vr_arena_skill_impact");
 }
 
 // How many marked big ones a boss wave brings: Nightmare brings two (the second the same kind at half its bulk),
 // every other skill the one it always had.
-float() VR_ARENA_BossTwice = { return skill >= 3 && cvar("vr_arena_skill_impact") > 0; }
+float() VR_ARENA_BossTwice = { return VR_ARENA_SkillLevel() >= 3 && cvar("vr_arena_skill_impact") > 0; }
 
 // A boss's bulk: its kind's own health times vr_arena_boss_health times the difficulty's factor (0.75 Easy /
 // 1 Normal / 1.25 Hard / 1.5 Nightmare), and a boss wave's second boss (ar_plan_boss 2) half as much. Its
@@ -1179,11 +1188,9 @@ void() VR_ARENA_WorldSpawn =
     ar_mgr.think = VR_ARENA_WaveStart;
     ar_mgr.nextthink = time + 1; // (after the map's own spawns, so its info_arena_spawn points are known)
 
-    float sk = cvar("skill"); // (world spawn runs before world.qc's StartFrame refresh, so this line reads the cvar:
-                              // the skill the run started on)
     dprint(sprintf("arena: %s on (skill %g %s, impact %g, max alive %g, boss every %g, seed %g)\n", mapname,
-                   sk, VR_ARENA_SkillName(sk), cvar("vr_arena_skill_impact"), VR_ARENA_FieldCap(),
-                   VR_ARENA_BossEvery(), cvar("vr_arena_seed")));
+                   VR_ARENA_SkillLevel(), VR_ARENA_SkillName(VR_ARENA_SkillLevel()), cvar("vr_arena_skill_impact"),
+                   VR_ARENA_FieldCap(), VR_ARENA_BossEvery(), cvar("vr_arena_seed")));
 }
 
 void() VR_ARENA_Frame =
