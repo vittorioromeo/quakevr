@@ -1016,6 +1016,13 @@ za::Vector<Item> pageDebugTests()
             .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "
                   "0.2 degrees, at several poses and distances, both hands (\"npaim: N passed, M failed\"). In the headset: "
                   "Developer Shots (vr_debug_shots 1) prints each nail's angle off the shot line and what it carried."),
+        header("Ammo Screen Colours"),
+        command("Low and Empty Guns in Hand", "vr_ammocolor_test 2")
+            .help("A shotgun with a fifth of its magazine in the main hand (its numbers orange) and an empty nailgun in the "
+                  "off hand (red): Low Ammo Colours (vr_ammo_color_warn)."),
+        command("Ammo Colours Self-Test", "vr_ammocolor_test 1")
+            .help("Headless checks: the shotgun, nailgun, nail pistol, revolver and Widowmaker full, at a fifth and empty, "
+                  "the off hand, the option off (\"ammocolor: N passed, M failed\"; vr_ammo_color_debug prints each readout)."),
         header("Flare Gun"),
         command("A Flare Gun in Your Hand", "vr_flare_test 2").help("A loaded flare gun (two flares) in the main hand."),
         command("Flare Guns in Both Hands", "vr_flare_test 3").help("A loaded flare gun in each hand."),

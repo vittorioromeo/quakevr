@@ -191,6 +191,35 @@ namespace
 {
 double carriedPrintAt[2]{-1.0, -1.0}; // vr_debug_2h_grip 2, per hand: the next print of its weapon's drawn pose
 
+// vr_ammo_color_debug, per hand: the warning last printed ("state loaded capacity"; reprinted when it changes).
+za::Array<za::String, 2> ammoWarnPrinted;
+
+// A warning colour setting: a hue in degrees (the menu's slider), or "r g b" (0..1).
+[[nodiscard]] glm::vec3 ammoWarnColor(const cvar_t& cvar)
+{
+    float r = 0.f, g = 0.f, b = 0.f;
+    if(sscanf(cvar.string, "%f %f %f", &r, &g, &b) == 3)
+    {
+        return glm::clamp(glm::vec3{r, g, b}, glm::vec3{0.f}, glm::vec3{1.f});
+    }
+    return hsv(za::fmod(za::fmod(cvar.value, 360.f) + 360.f, 360.f), 1.f, 1.f);
+}
+
+// A held gun's ammo warning (vr_ammo_color_warn): 2 no round loaded, 1 fewer than vr_ammo_low_frac of its magazine, 0
+// none. Loaded: its magazine's rounds when reloading (`clip` of `clipSize`); else the ammo it fires from (`ammo`, shown),
+// against a magazine's worth. A gun with no magazine size (an enemy's, the flare gun: their counter is their clip) warns
+// only when empty.
+[[nodiscard]] int ammoWarning(int clip, int clipSize, int ammo, bool reloading, int& loaded)
+{
+    loaded = reloading && clipSize != 0 ? clip : ammo;
+    if(loaded <= 0)
+    {
+        return 2;
+    }
+    const float frac = CLAMP(0.f, vr_ammo_low_frac.value, 1.f);
+    return clipSize > 0 && static_cast<float>(loaded) < frac * static_cast<float>(clipSize) ? 1 : 0;
+}
+
 void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const view::ViewEntity& ve, int slot)
 {
     // The view may be set up more than once per frame; queue once.
@@ -235,8 +264,35 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
         q_snprintf(buf, sizeof(buf), "%d", ammo);
     }
 
+    // Its warning colour (vr_ammo_color_warn): low or empty.
+    int loaded = 0;
+    const int warning = vr_ammo_color_warn.value != 0.f ? ammoWarning(clip, clipSize, ammo, reloading, loaded) : 0;
+    const glm::vec3 tint = warning == 2 ? ammoWarnColor(vr_ammo_color_empty) : ammoWarnColor(vr_ammo_color_low);
+    if(vr_ammo_color_debug.value != 0.f)
+    {
+        char seen[96];
+        q_snprintf(seen, sizeof(seen), "%d %d %d %.2f %.2f %.2f", warning, loaded, clipSize, warning ? tint.x : -1.f,
+            warning ? tint.y : -1.f, warning ? tint.z : -1.f);
+        Cvar_SetValue(main ? "vr_ammo_color_seen" : "vr_ammo_color_seen2",
+            static_cast<float>(za::max(loaded, 0) * 10000 + za::clamp(clipSize, 0, 999) * 10 + warning));
+        if(ammoWarnPrinted[static_cast<size_t>(hand)] != seen)
+        {
+            ammoWarnPrinted[static_cast<size_t>(hand)] = seen;
+            char text[64], rgb[48];
+            q_strlcpy(text, buf, sizeof(text));
+            for(char& c : text)
+            {
+                c = c == '\n' ? '|' : c;
+            }
+            q_snprintf(rgb, sizeof(rgb), "%.2f %.2f %.2f", tint.x, tint.y, tint.z);
+            Con_Printf("ammocolor: %s hand, %s, \"%s\": %s (loaded %d of %d), colour %s\n", main ? "main" : "off",
+                ve.ent.model ? ve.ent.model->name : "?", text, warning == 2 ? "empty" : warning == 1 ? "low" : "normal",
+                loaded, clipSize, warning ? rgb : "the screen's");
+        }
+    }
+
     text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale),
-        vr_weapon_screen.value != 0.f);
+        vr_weapon_screen.value != 0.f, warning ? &tint : nullptr);
     if(vr_weapon_screen.value != 0.f)
     {
         emissive::weaponScreenLight(hand, pos, angles); // its faint glow (vr_weapon_screen_light)

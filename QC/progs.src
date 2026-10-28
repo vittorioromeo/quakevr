@@ -537,3 +537,4 @@ vr_armedgrunt_shove_test.qc
 vr_nailpistol_test.qc
 vr_flaregun_test.qc
 vr_revolver_test.qc
+vr_ammocolor_test.qc // the ammo screens' warning colours (vr_ammocolor_test)

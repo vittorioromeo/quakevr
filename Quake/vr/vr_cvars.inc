@@ -5023,6 +5023,19 @@ QVR_CVAR(vr_weapon_screen, "1", CVAR_ARCHIVE)          // the weapons' ammo coun
 QVR_CVAR(vr_weapon_screen_padding, "1", CVAR_ARCHIVE)  // room around the text on it
 QVR_CVAR(vr_weapon_screen_crt, "1", CVAR_ARCHIVE)      // it looks like a small CRT, as the wrist gadget's (scanlines, a flicker, faint static, now and then a glitch): strength (0 off, up to 2)
 QVR_CVAR(vr_ammo_screen_text_white, "1", CVAR_ARCHIVE) // the ammo screens' and the ammo pouch counter's text: 1 near-white (the wrist gadget's), 0 the screen's colour (between: a mix); their face and glow stay the screen's colour
+// A held gun's ammo screen warns (vr_view_weapon.cpp ammoWarning): its text turns vr_ammo_color_empty when no round is
+// loaded (the magazine, clip or chamber; with reloading off, the ammo it fires from) and vr_ammo_color_low when fewer than
+// vr_ammo_low_frac of the magazine's capacity are (with reloading off: of a magazine's worth; a gun with no magazine size,
+// as an enemy's or the flare gun, warns only when empty). The colours: a hue in degrees (0 red, 30 orange: the menu's
+// sliders), or "r g b" (0..1) typed in the console.
+QVR_CVAR(vr_ammo_color_warn, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_color_low, "30", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_color_empty, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_low_frac, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_color_debug, "0", CVAR_NONE)          // 1: print each change of a held gun's ammo screen warning (its state, the loaded rounds, the colour) and keep it in vr_ammo_color_seen / _seen2 (main / off hand: loaded * 10000 + capacity * 10 + state, state 0 normal, 1 low, 2 empty; the test vr_ammocolor_test.qc reads them)
+QVR_CVAR(vr_ammo_color_seen, "-1", CVAR_NONE)
+QVR_CVAR(vr_ammo_color_seen2, "-1", CVAR_NONE)
+QVR_CVAR(vr_ammocolor_test, "0", CVAR_NONE)            // 1: the ammo screens' warning colours test (vr_ammocolor_test.qc; Debug > Tests): guns in hand at full, 20% and empty magazines, the option off; ends "ammocolor: N passed, M failed"
 QVR_CVAR(vr_weapon_screen_idle, "1", CVAR_ARCHIVE)    // the weapons in the holsters and lying in the world show their ammo screen and button too (0: only held ones)
 // The weapons lying in the world that carry their attachments (ammo screen, button, magazine and well): the nearest
 // vr_weapon_world_attach_max of them (up to 48) within vr_weapon_world_attach_range units of the head (were 6 within 320;

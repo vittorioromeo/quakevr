@@ -815,6 +815,16 @@ void hologramTestMessage()
         slider("Ammo Screen Margin", "vr_weapon_screen_padding", 0.f, 2.f, 0.1f, "%.1f").extend(),
         slider("Ammo Screen CRT Look", "vr_weapon_screen_crt", 0.f, 2.f, 0.1f, "%.1fx").extend().help("Scanlines, a slight flicker, faint static and now and then a glitch, as on the wrist gadget's screen (0 off)."),
         toggle("White Ammo Screen Text", "vr_ammo_screen_text_white").help("The numbers on the ammo screens (and the ammo pouch's counter) near-white, as the wrist gadget's, for readability; their frame and glow keep the screen's colour. Off: in the screen's colour."),
+        toggle("Low Ammo Colours", vr_ammo_color_warn)
+            .help("A held gun's ammo numbers turn orange when less than a quarter of its magazine is left (Low Ammo "
+                  "Fraction), and red when it is empty (nothing loaded). With reloading off, the ammo it fires from "
+                  "against a magazine's worth. Off: always the screen's colour."),
+        slider("Low Ammo Hue", vr_ammo_color_low, 0.f, 355.f, 5.f, "%.0f")
+            .help("The numbers' colour when ammo is low: 30 orange, 55 yellow, 0 red, 200 blue (console: \"r g b\" too)."),
+        slider("Empty Ammo Hue", vr_ammo_color_empty, 0.f, 355.f, 5.f, "%.0f")
+            .help("The numbers' colour when the gun is empty: 0 red, 30 orange, 280 purple (console: \"r g b\" too)."),
+        slider("Low Ammo Fraction", vr_ammo_low_frac, 0.05f, 0.75f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("Below this share of the magazine's capacity, the numbers turn the low colour (0.25: a quarter)."),
         toggle("Screens on Weapons at Rest", "vr_weapon_screen_idle").help("Weapons in your holsters and lying in the world show their ammo screen and button too, not only the ones in your hands."),
         slider("Lying Weapons' Parts Range", "vr_weapon_world_attach_range", 250.f, 5000.f, 250.f, "%.0f units").extend(0.f, 20000.f)
             .help("How far off a weapon lying in the world still shows its magazine, ammo screen and button (Quake units: 32 is about a metre)."),

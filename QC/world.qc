@@ -569,6 +569,7 @@ void() worldspawn =
 
 #ifdef QVR_TESTS
 void() VR_DCTest_Frame; // (vr_dmgcredit_test.qc, after the weapons it fires)
+void() VR_AmmoColor_TestFrame; // (vr_ammocolor_test.qc, after the AD bridge)
 void() VR_AGTest_Frame; // (vr_armedgrunt_test.qc, after the armed grunts)
 void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
 void() VR_PropImp_TestFrame; // (vr_propimpact_test.qc, after AD's files)
@@ -619,6 +620,7 @@ void() StartFrame =
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     VR_NailPistol_TestFrame(); // vr_np_test (vr_nailpistol_test.qc)
     VR_FlareGun_TestFrame(); // vr_flare_test (vr_flaregun_test.qc)
+    VR_AmmoColor_TestFrame(); // vr_ammocolor_test (vr_ammocolor_test.qc)
     VR_Revolver_TestFrame(); // vr_rv_test (vr_revolver_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)
     AD_MonstersTestFrame(); // AD support: vr_ad_mtest (vr_ad_monsters_test.qc)
