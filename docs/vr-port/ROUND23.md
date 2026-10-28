@@ -1,4 +1,4 @@
-# Round 23: after 1.1.0-beta4
+﻿# Round 23: after 1.1.0-beta4
 
 Notes for the work after the 1.1.0-beta4 prerelease (2026-10-27, commit c9aedff6). Round 22 (`ROUND22.md`) covers
 1.0.1 to 1.1.0-beta4; grep it for anything older. Append new sections at the end of this file, one per shipped task:
@@ -789,104 +789,6 @@ skill roll's rule), so yellow and red come in gradually.
 *Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: armoured foes from wave 4 (Normal; 7 Easy, 2 Hard and
 Nightmare), more of them, more plates and heavier kinds as the waves go; the enforcer boss in a kind above; armoured
 kills pay more; Can Opener perk (Combat > Survival Arena > Armour) {test:vr_arena_test 10}`
-| the floor | `ground1_2` (64) | world, anchored at the origin: id's 64-unit plates, 49 m of them |
-| the eight walls | `tech14_1` (128) | world, anchored at z=96: three panel rows, 96 to 352, butted with the rail under them and the cornice above |
-| the four towers | `tech14_1` (128) | fitv, 2 tiles down a 256-high face |
-| the wainscot band (16..80) | `metal4_4` (64) | fitv, one plate exactly in the 64-high band |
-| skirting (0..16), rail (80..96), cornice (352..368), the ceiling's border moulding (368..384) | `tech04_1` (128x16) | fitv, one 16-row exactly, mitred round the octagon |
-| the twelve uprights | `tech04_3` (16x128) | fit, one flute across the upright and as many down it as it is tall (2 down a 256-high run, 1 down a 96-high one), measured along its wall |
-| the dais' eight sides | `tech04_3` (16x128) | fit, whole flutes across -- 17 along a 272-wide face, 6 along the 96 a cut corner measures -- and one 128-tall flute scaled 0.75 down the 96-high face |
-| the ceiling, the coffers' linings, every step | `metal1_1` (64) | world: the ceiling's own plates, not the walls' |
-| the eight coffers' frames | `tech04_1` (128x16) | fitv, 2 rows in a 32-high frame |
-| the rings under the coffers | `ceil1_1` (16, 14.1% fullbright) | fit: whole 16-unit glowing tiles |
-| a coffer's back | `light3_3` (64) | fit: 2 x 2 panels in the 128-square recess |
-| the twelve lamps | `tlight01` (32, 2.3% fullbright) | fit, one lamp per upright, measured along the wall so a cut-corner lamp is not squashed |
-| the dais' top, the tower tops, both walks, the four bridges | `sfloor4_2` (64) | world: everything you stand on up high is deck plate |
-| the walks' and bridges' 64-thick edges | `metal4_4` (64) | world: one plate spans the thickness |
-| the eight covers | `crate0_side` (64), lids `crate0_top` (64) | fit at 0.75: 2 crates along 96, 1 up 48, 2 x 2 across the lid |
-| the spawn pad (128 wide, 16 thick) | `plat_top1` (64), lip `plat_side1` (64x16) | world: 2 plates across, 1 lip row up, 2 across |
-
-
-**The dressing: 130 brushes to 230.** Nothing a fight uses moved. What was added is the room's own trim, 4 to 16 units
-out of a wall, all of it flush-mounted on the shell:
-
-- 40 band segments -- five bands (skirting 0..16, wainscot 16..80, rail 80..96, cornice 352..368, and the ceiling's
-  border moulding 368..384) mitred round the octagon, each band eight runs corner to corner;
-- 12 uprights in fluting, 16 wide and 8 proud, standing on the rail and stopping where the cornice begins: at the
-  third and the two-thirds mark of each cardinal wall and at the middle of each cut corner. On the east and the west
-  wall each upright is two brushes (96..192 and 256..352) so the walkway bridges pass between them -- 16 brushes in
-  all. Their first version ran up to 368 and pierced the cornice: `--check`'s interpenetration test printed all 12
-  clashes, and they now stop at `PIL_TOP = 352`. Their first *texture* was wrong too, and only a probe found it:
-  `tech04_3` and the dais' sides were laid `fitv`, which pins the pattern vertically and forces the horizontal scale to
-  match it, so a flute was cut in the middle wherever an upright or a dais face ended. They are laid `fit` now --
-  `reps=(1,0)` across an upright, `(0,1)` down the dais -- with each upright's U taken along its own wall, which is
-  what took `tech04_3` from 24 clean faces to 68;
-- 12 lamp hoods, 8 proud, one on the front of every upright, carrying `tlight01` at 272..304 -- the lamp's 32 units fit
-  the hood exactly, and on a cut corner the face is measured along the wall (its own U axis, taken from the wall's
-  direction) so a 45-degree lamp is not squashed to 11 units wide;
-- 40 coffer parts: 8 coffers, each a frame of four 32-high arms around a 128-square recess lined with `metal1_1` and
-  backed by `light3_3`, ringed under the frame by `ceil1_1`. They reach out to about 746 from the centre, clear of the
-  ceiling's border moulding (which starts at 784 out).
-
-The eight covers grew from 80 wide at 520 out to 96 wide at 512 -- **inwards only**: their outer faces are exactly where
-they were (x 144..240 and y 424..520 for the north-east one, and the same for the rest), so the 8-unit clearances to
-the tower staircases are unchanged and they are still 48 high (64 would block a standing player's eye at 56). The spawn
-pad grew from 96 to 128 wide and from 2 to 16 thick for the same reason as the covers: at that size `plat_top1` and
-`plat_side1` land on whole tiles. The shell, the dais and its four flights, the towers and their pinwheel stairs, both
-decks and all four bridges, the 12 `info_arena_spawn` points, the 3 `info_arena_item` points, `info_player_start` and
-all 24 light entities are where they were -- the number of lights did not even change, because the lamps and the
-coffer rings bring their own fullbright pixels.
-
-**How the fit was checked, not just looked at.** `scratch/arena/align_probe.py` reads every face in the written
-`.map`, takes the tile size out of the WAD, and for every corner computes `S = dot(U,P)/uscale + uoff` and asks how far
-it is from a whole texel; `flute_probe.py` and `bad_faces.py` then say, per texture, how many tiles a face spans and
-which faces do not span whole ones. The 106 faces that must read as one object -- 40 `crate0_side` and 8 `crate0_top`,
-2 `plat_top1` and 4 `plat_side1`, 12 `tlight01`, 32 `ceil1_1` and 8 `light3_3` -- are clean at every corner, worst
-residual 0.0017 texels (the rounding in the file's 6 decimals: a thousandth of a unit). The fluting next: 68 of its 89
-faces carry whole flutes at their own edges, one flute across each of the 12 uprights and 17 across each 272-wide face
-of the dais. The 21 left are its 12 upright bottoms and the dais' footprint, all buried in the brush they stand on, and
-the four cut-corner uprights, whose 45-degree corners snap to the 8-unit grid and so measure 15.9 or 16.1 instead of
-exactly 16 wide -- their flutes are whole to within 1.8% and their 5.75-unit flanks carry a flute scaled 1.06. The
-room's other 1276 faces are laid on the world grid: `tech14_1` panels are exact where the rail at 96 and the cornice at
-352 bound them and crop at the mitres, `metal4_4` and `tech04_1` are exact across each band's height and crop along its
-run as mitred trim does, and `ground1_2`, `metal1_1` and `sfloor4_2` crop only at corners buried in the shell.
-`scratch/arena/face_census.py` then census-checks the *assignment*: 230 brushes, 225 of them 6-faced, 4 five-faced (the
-corner wedges) and 1 ten-faced (the dais' octagonal prism), and `tech04_3` on exactly 16 upright brushes (5 faces each)
-and the dais (9) -- no face wearing a texture that was meant for something else.
-
-**The room itself is untouched where it matters.** 40 entities as before, the shell still sealed, every point where it
-was, `_qvr_prelit 1` and `light 90` kept. `vrarena.map` went 1588 lines to 2488 -- 100 new brushes.
-
-**Compiled** with ericw-tools 2.0.0-alpha11 with the **final** light preset -- new surfaces mean new radiosity, so the
-lighting is rebuilt with the map: `--compile --preset final --holes 400128` after a fast-preset pass (qbsp 0.2 s, vis
-0.0 s, light 0.1 s) to prove the shell first. Final: qbsp `-bsp2 -wadpath <tree>` 0.2 s, vis 0.9 s, light `-extra4
--dirt -dirtscale 1.5 -dirtdepth 96 -bounce -lit -lux -lightgrid -lightgrid_dist 64 64 64` 2.2 s, no warning, error or
-leak. `bsp_holes.py`: 400256 rays, 1948 world faces, 391 leaves, 0 missing-face hits, 0 undrawn, 0 unlisted, `holes: 0`.
-`vrarena.map` 76,522 -> 137,694 bytes, `vrarena.bsp` 346,028 -> 445,872, the lightmaps 200,384 -> 229,652
-(`vrarena.map` with its `.bsp`, `.lit` and `.lux` is committed together: the lighting belongs to the surfaces it was
-computed for).
-`--check` before compiling: 230 brushes, 0 duplicates, 0 brushes running into another, 0 features standing in the open
-ring, 12 spawns (8 high, 4 ground), 3 items, 88 stair steps with 0 unclimbable, 112 under the player start.
-
-**Verified in the game**, on the new BSP: `map vrarena` loads with no missing-texture and no bad-surface line;
-`vr_arena_test 4` 7 passed / 0 failed (ground 4, high 8, a place with ground under it, a taken place skipped) and
-`vr_arena_test 5` 467 / 0. `vr_arena_test 1` is 256 / 1 here -- the same single failure, `a fallen monster is not
-alive`, that reproduces on the previous BSP at the same commit and gives 257 / 0 on `vrtesthall`: the live arena in the
-room, not its surfaces.
-
-**For the author.** `vrarena.bsp` is a committed Quake map carrying id's artwork, which is what `MAPPING.md`'s
-carve-out for `vrcalibration` and the hub maps allows and what its "Keep that to the maps that need it" line is about --
-that rule is left as written, for you to extend or walk back. The generator keeps the flat look buildable for anyone
-whose checkout has no `id_textures.wad`: `--dev-textures` swaps the whole palette back to `quakevr_dev.wad`'s grids and
-lists that WAD alone, and without the file and without the flag it says so and stops; either way `main()` now refuses to
-write a map naming a texture that is not in a WAD it lists. What your eye is still the judge of: whether `tech14_1`
-panels with `tech04_1` bands and `tech04_3` fluting are the trim families you want (that is `make_vrcalibration_map.py`'s
-own vocabulary, so it matches the calibration room); uprights at the third and two-thirds mark of a 16 m wall; coffers
-128 square with a `ceil1_1` ring; and whether 96-wide covers read better than 80. What came out is in
-`scratch/arena_dress.png` (a headless frame from the player start on the dais, composed by `run.sh -Out`) and
-`scratch/arena/idbase_spawn.png` from the first pass, if you want to look before walking it -- this session's model
-cannot see images, so every number above is a number, not a verdict.
-
 ## Armed grunts choppy (agent/agchoppy)
 
 **Bug** (Vittorio, VR): armed humanoids' animations choppy and low-fps, other enemies smooth.
@@ -912,3 +814,84 @@ three failures with the fix taken out (subjects 4 the flamethrower's records, ai
 elbow), so not this.
 
 **In VR**: a walking armed grunt and enforcer glide like the knights; their weapons and armour stay on them.
+
+
+## Survival Arena: what its waves leave behind (the loot gate, and the run's exception)
+
+**The question.** Later waves send humanoids with stronger guns, but an arena map has no authored weapon pickups, so a
+run can never make the player "eligible" for those guns -- make sure the strong ones still come, and if nothing was in
+place, choose between an "in arena mode" check and making the player eligible for everything on arena load.
+
+**What was already in place.** The waves' spawn side never asks that question. `VR_ARENA_PickGun`/`VR_ARENA_PickTierGun`
+choose from the ladder (tier 2 from `AR_W_TIER2` = 10, tier 3 from `AR_W_TIER3` = 18), `VR_ARENA_SpawnMonster` hands the
+gun to the spawner as its `weapon`, and `vr_arena.qc` never mentions eligibility, `VR_Pack_WeaponAvailable` or item
+ownership anywhere. Nor does the armed-monster side: `VR_AM_Spawn` reads the spawner's fields, `VR_AG_Usable` only asks
+whether this pack has the gun and which class can hold it. So a wave-18 rocket launcher was already in the field over an
+unarmed player's head, and an armed humanoid's own death (`VR_AG_SoldierDrop` -- its held guns, its main gun, its
+backpack) was never eligibility-filtered either. Test 11's live leg says so in the open: wave 20 at Normal plans 4
+humanoids, 2 of them with a tier-2 gun; 5 were up, all 5 holding a gun, 2 of 2 strong guns worn, the player holding
+none of the six ids the test measures.
+
+**Where the gate did bite.** `VR_WeaponUtil_EntIsEligibleForWeapon` -- TRUE for the fist, the axe and the shotgun, and
+otherwise "this player holds it" -- is asked in three places: the monsters' drop helpers (`VR_WeaponUtil_TryEnemyDrop`
+and `TryAmmoBoxDrop`, both reached through `ShouldDropEnemyWpn` from the monsters' own death code) and `vr_crates.qc`
+(which ammo a crate holds), plus `vr_armedrepl.qc`'s eligibility gate (`VR_AGR_Owned` -> `VR_AGR_Eligible` -> the tier
+tables). Inside a vrarena run only one of those exists: the arena's classic kinds are zombie, dog, knight, ogre, fiend
+and hell knight, and the only one with weapon-drop code is the ogre (`OgreDrop`, `orig_mon_ogre.qc`: after
+`ShouldDropEnemyWpn(0.45)`, a first-success chain grenade launcher, proximity gun, rocket launcher, super nailgun,
+nailgun, axe at 0.5 each, then the super shotgun and the shotgun at 0.1). An ogre killed by a player who held none of
+them could therefore leave an axe or a shotgun and nothing else: the strong half of its chain was filtered out every
+single time, from `AR_W_OGRE` = 8 on. vrarena has no authored items or ammo boxes at all -- its three `info_arena_item`
+points are the director's medkit and armour drops -- so nothing else on the map ever asked the question.
+
+**The fix, and the one not taken.** The exception sits inside `VR_WeaponUtil_EntIsEligibleForWeapon`, after the fist,
+axe and shotgun lines: with `VR_ARK_Running()` (the arena's own "a run is on this map now": its manager exists and
+`VR_ARENA_ON` holds -- mapname `vrarena`, or `vr_arena` non-zero) the answer is the pack's, not the player's --
+`VR_Pack_WeaponAvailable(xWeaponId)`. `VR_ARK_Running` is forward-declared in `vr_arena_perks.qc`, which comes later in
+`progs.src`; `vr_weaponutil.qc` already asks a later file for its guns (AD's soldiers' guns: the comment at
+`progs.src`:19), so this is the shape this tree already uses.
+
+"Eligible for everything on arena load" is what was asked for, and it is what this port cannot mean: here owning a
+weapon *is* the hand inventory, not a bit -- `VR_WeaponUtil_EntAddWeapon`/`EntDelWeapon` set the item flag that
+`EntHasWeapon` reads, `VRGiveEntWeapon` gives the hand a `WeaponInst_New` of its own, the cycle command skips weapons
+the player does not have (`GetCycledWeapon`) and impulse 150 + a weapon id "puts that weapon, loaded, in your hand"
+(`VR_Motion_Equip`). A blanket grant at load would begin the run holding the whole armory, undoing
+`VR_ARENA_StripPlayers` (every run starts unarmed -- `ARENA - <Skill>: unarmed, wave 1 coming`) and the ladder with it.
+Also rejected: raising `vr_enemy_drops` / `vr_ammobox_drops` to "always" for the length of a run -- those two are the
+player's own comfort settings, one of them saying "never drop monster guns".
+
+What the exception keeps: a weapon this pack does not have is out of it too (AD's soldiers' guns without AD's data,
+MG3's super axe without MG3's data), and both drop helpers return on the settings' "never" before they ever ask this --
+so `vr_enemy_drops 2` / `vr_ammobox_drops 2` still stand in a run. Outside a run nothing changed at all.
+
+**Tests.** `vr_arena_test 11` (new; 25 checks; run on vrtesthall with `vr_arena 1` -- it needs the director and a
+player). Its static leg strips the player of the six measured ids (super shotgun, nailgun, super nailgun, grenade
+launcher, rocket launcher, lightning), asks the eligibility question for each (the axe and shotgun unconditionally),
+asks the pack for AD's revolver's gun and MG3's super axe, then has `TryEnemyDrop` and `TryAmmoBoxDrop` actually create
+the props and counts the `thrown_weapon` entities lying there -- one each; with `vr_enemy_drops 2` nothing falls; back
+to "when eligible" nothing falls either; with `vr_arena 0` on the same map the run is over, the question is about
+ownership again and the drop is refused; and a soldier spawned inside a run with `.weapon = WID_ROCKET_LAUNCHER` wears
+it (`arena: t11 grunt: kind 0, wid 10, in hand 1, reserve 8`). Its plan leg recounts waves 18..30 (103 humanoids, 42 at
+tier 2, 19 at tier 3). Its live leg fast-forwards to wave 20, checks the field against the plan and that the player
+still owns nothing. `vr_arena_test`'s two doc lines (`vr_arena.qc`, `vr_cvars.inc`) listed the cases only as far as 8;
+they now list 11.
+
+**Verified.** `build.sh`: 0 QC warnings. `vr_arena_test` 11 **25** (vrtesthall, `vr_arena 1`); 1 **257**, 4 **7**, 6
+(the soak, 32 waves) **6**, 7 **19**, 9 **37**, 10 **160** (vrarena); 2 **13**, 3 **9**, 5 **467**, 10 **160**
+(vrtesthall) -- all 0 failed. The soak's counts did not grow: edicts 315 -> 277 (peak 331), the director's drops 4 ->
+4, the foe guns lying about held at their cap (25 counted against `vr_arena_gun_max` 24), longest wave 47.8 s. The
+ROUND22 eligibility paragraph now points here.
+
+*Open for the author:*
+- Balance. An ogre from wave 8 can now leave a grenade launcher, a proximity gun, a rocket launcher or a super nailgun
+  at its table's chances. If that is too early for you, the knob I would use is the wave's own tier (the ladder knows
+  tiers 1/2/3 and `AR_W_TIER2`/`AR_W_TIER3`) rather than the player's inventory -- a short follow-up, your word.
+- Ammo boxes and crates follow the same rule in a run: in an arena map that has them (vrarena has none), a box or crate
+  can carry rockets or shells for a gun the player does not hold yet.
+- `vr_armedrepl.qc` (soldier replacement, still default off, its default-on decision pending) consults the same gate,
+  so its tiers are open in a run; its rare-guns gate `vr_agrunt_repl_rare_map` reads a map *number* ("digit m"), so
+  `vrarena` stays barred from the rare tier either way.
+
+*Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: a foe's gun -- an ogre's grenade or rocket launcher, an
+ammo box's lightning gun -- falls whatever you are holding: in an arena run eligibility follows the pack, not your
+inventory ("never drop monster guns" still stands) {test:vr_arena_test 11}`
