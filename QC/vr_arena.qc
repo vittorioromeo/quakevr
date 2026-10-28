@@ -29,8 +29,16 @@
 //   vr_arena_seed         0    the waves' rolls: 0 a different ladder every run, else that seed's ladder
 //   vr_arena_skill_impact 1    Difficulty Impact: how far the game's difficulty (skill) moves the waves -- 0 the
 //                             arena is the same at every skill, 1 the steps below (Easy softer, Nightmare harder)
+//   vr_arena_corpse_fade  14   s a fallen foe's body lies before it fades out (give or take 3 s; 0: never by time)
+//   vr_arena_corpse_max   12   fallen bodies kept at most: past it the oldest fades first (0: no limit)
+//   vr_arena_item_waves   2    a wave clear's medkits and armour still lying there this many wave clears later are
+//                             removed (0: never)
+//   vr_arena_gun_max      24   guns the arena's foes dropped lying about at most: past it the oldest fades (0: no
+//                             limit; twice this with the Spoils perk)
 //   vr_arena_test         0    the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss
-//                             wave, 4 the places, 5 the difficulty scaling
+//                             wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 none of it off the arena
+//
+// None of the cleanup ever takes a thing a hand holds, a force grab pulls or a body still dying: it waits for it.
 //
 
 // ---------------------------------------------------------------------------
@@ -41,6 +49,10 @@
 .float ar_slot; // > 0: one of the arena's wave monsters, of the wave that number (its fall flips it to that number's negative)
 .float ar_tier; // what a wave monster is worth on the ladder: 1, 2, 3 (a boss: plus AR_BOSS_MARK)
 .float ar_drop; // > 0: an arena's own drop between waves: 1 a medkit, 2 an armour
+.float ar_drop_wave; // a drop: the wave whose clear dropped it (vr_arena_item_waves)
+.float ar_fell;     // a fallen foe's body: its place in the order the run's foes fell (the oldest goes first)
+.float ar_expiring; // 1: an arena leftover on the cleanup's walk (findflags): a body, a drop on its way out
+.float ar_expire;   // > 0: when the cleanup removes it (its last second fades it out); 0 not by time
 
 // ---------------------------------------------------------------------------
 // The waves' tables
@@ -85,6 +97,11 @@ float AR_WAVE_BONUS  = 250;  // a wave clear's score times the wave
 float AR_KILL_BOSS   = 4;    // a boss is worth this many of its tier's kills
 float AR_KIT_MAX     = 4;    // vr_arena_medkits_after's own clamp: a wave clear never drops more medkits than this
 float AR_ARMOR_MAX   = 12;   // vr_arena_armor_every's own clamp: an armour's gap never stretches past this
+float AR_FADE        = 1;    // s a leftover's fade out takes, at the end of its time (the Horde's bodies' own)
+float AR_FADE_JITTER = 3;    // s vr_arena_corpse_fade is given or taken at random (at most a quarter of it)
+float AR_HELD_GRACE  = 3;    // s a leftover a hand let go of lies on at least before its fade
+float AR_DYING_MAX   = 10;   // s a body still dying is waited for at most (then it goes as any other)
+float AR_SPOILS_GUNS = 2;    // the Spoils perk: vr_arena_gun_max times this guns lie about
 
 // ---------------------------------------------------------------------------
 // The run's state (file-scope: QC has no function-local statics)
@@ -117,6 +134,7 @@ float ar_s1; float ar_s2; float ar_s3; // the wave rolls' three states (Levy's t
 float ar_serverflags0;   // the map's serverflags as they were, for a fresh run (as vr_mg_horde.qc keeps its own)
 float ar_stripped;         // the players have been put down to their fists already
 float ar_down;             // the players are down: a fresh run is on its way
+float ar_fell_n;           // the run's bodies so far (their .ar_fell order)
 
 // The director's own beats (vr_arena.qc's own cycle; world.qc only calls WorldSpawn and Frame).
 void() VR_ARENA_WaveStart;
@@ -947,6 +965,7 @@ entity(float xWhat, vector xAt) VR_ARENA_SpawnDrop =
     }
 
     it.ar_drop = xWhat == 1 ? 1 : 2;
+    it.ar_drop_wave = ar_wave;
     self = manager;
     return it;
 }
@@ -1021,6 +1040,7 @@ void() VR_ARENA_MonsterDie =
     ar_kills = ar_kills + 1;
     ar_wave_kills = ar_wave_kills + 1;
     ar_score = ar_score + VR_ARENA_KillScore(VR_ARENA_TierOf(self.ar_tier), self.ar_tier >= AR_BOSS_MARK);
+    VR_ARENA_BodyDown(self); // (its body's time: the cleanup)
 }
 
 // (a stalled wave, and the tests' jump: its monsters still up leave). Exactly that wave's: findflags matches any
@@ -1037,6 +1057,154 @@ void(float xWave) VR_ARENA_ClearField =
         {
             VR_Carry_Forget(e);
             remove(e);
+        }
+        e = next;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The cleanup: what the waves leave lying (ROUND23.md, "Survival Arena: the cleanup"). A fallen foe's body fades
+// out after vr_arena_corpse_fade (as the Horde's do, vr_mg_horde.qc MGH_corpse_expire) and at most
+// vr_arena_corpse_max of them lie (the oldest goes first); a wave clear's drops go vr_arena_item_waves clears later;
+// the guns the foes dropped are capped in vr_enemyguns.qc (VR_ARENA_GunMost). Nothing in a hand, pulled by a force
+// grab or still dying is taken: its time waits on it.
+// ---------------------------------------------------------------------------
+
+// Held: carried, a hand on it (a ragdoll's limb, VR_Carry_SetHeld), or pulled by a force grab.
+float(entity e) VR_ARENA_Held =
+{
+    if(e.carry_player != world || e.fg_state != 0) { return TRUE; }
+    entity p = find(world, classname, "player");
+    while(p)
+    {
+        if(p.mainhand_held == e || p.offhand_held == e) { return TRUE; }
+        p = find(p, classname, "player");
+    }
+    return FALSE;
+}
+
+// Not to be taken now: held, or a body still dying (its death animation, its corpse's gibbing: VR_Corpse_Think2),
+// AR_DYING_MAX at most.
+float(entity e) VR_ARENA_Spared =
+{
+    if(VR_ARENA_Held(e)) { return TRUE; }
+    return (e.vr_corpse == 1 || e.vr_corpse_dying) && time < e.ar_expire + AR_DYING_MAX;
+}
+
+// Its fade begins now: gone AR_FADE from now (a body past vr_arena_corpse_max, a drop past vr_arena_item_waves).
+void(entity e) VR_ARENA_FadeNow =
+{
+    e.ar_expiring = 1;
+    if(e.ar_expire <= 0 || e.ar_expire > time + AR_FADE) { e.ar_expire = time + AR_FADE; }
+}
+
+// A body lying on (not fading yet).
+float(entity e) VR_ARENA_BodyLies = { return e.ar_fell > 0 && (e.ar_expire <= 0 || e.ar_expire > time + AR_FADE); }
+
+// Past vr_arena_corpse_max: the oldest bodies not spared fade (one held stays: the next oldest goes).
+void() VR_ARENA_BodyRoom =
+{
+    float most = cvar("vr_arena_corpse_max");
+    if(most <= 0) { return; }
+    float guard;
+    for(guard = 0; guard < 64; guard++)
+    {
+        float n = 0;
+        entity oldest = world;
+        entity e = findflags(world, ar_expiring, 1);
+        while(e)
+        {
+            if(VR_ARENA_BodyLies(e))
+            {
+                n = n + 1;
+                if(!VR_ARENA_Spared(e) && (oldest == world || e.ar_fell < oldest.ar_fell)) { oldest = e; }
+            }
+            e = findflags(e, ar_expiring, 1);
+        }
+        if(n <= most || oldest == world) { return; }
+        VR_ARENA_FadeNow(oldest);
+    }
+}
+
+// VR_ARENA_MonsterDie: `e`, one of the waves' foes, fell. Its body's time (vr_arena_corpse_fade, give or take
+// AR_FADE_JITTER), then room under vr_arena_corpse_max.
+void(entity e) VR_ARENA_BodyDown =
+{
+    ar_fell_n = ar_fell_n + 1;
+    e.ar_fell = ar_fell_n;
+    e.ar_expiring = 1;
+    e.ar_expire = 0;
+    float lie = cvar("vr_arena_corpse_fade");
+    if(lie > 0)
+    {
+        e.ar_expire = time + max(AR_FADE, lie + crandom() * min(AR_FADE_JITTER, lie * 0.25));
+    }
+    VR_ARENA_BodyRoom();
+}
+
+// A wave clear (before its own drops): the earlier clears' drops vr_arena_item_waves clears old fade (one held stays
+// till let go of); the ones picked up already (items.qc leaves them, unseen, in a single player game) go now.
+void(float xWave) VR_ARENA_DropsExpire =
+{
+    float waves = cvar("vr_arena_item_waves");
+    entity e = findflags(world, ar_drop, 3);
+    while(e)
+    {
+        entity next = findflags(e, ar_drop, 3);
+        if(e.model == "" && !VR_ARENA_Held(e))
+        {
+            VR_Carry_Forget(e);
+            remove(e);
+        }
+        else if(waves > 0 && e.ar_drop_wave <= xWave - waves)
+        {
+            VR_ARENA_FadeNow(e);
+        }
+        e = next;
+    }
+}
+
+// vr_enemyguns.qc VR_EnemyWeapons_MakeRoom: in a running arena, the most guns its foes dropped may lie about
+// (vr_arena_gun_max; 0 no limit; the Spoils perk: AR_SPOILS_GUNS times that); -1 off the arena (the shipped cap).
+float() VR_ARENA_GunMost =
+{
+    if(!ar_mgr) { return -1; }
+    float most = max(0, floor(cvar("vr_arena_gun_max")));
+    if(VR_ARK_Kept()) { most = most * AR_SPOILS_GUNS; }
+    return most;
+}
+
+// Every frame (VR_ARENA_Frame): the leftovers whose time has come fade out and go; one spared waits (let go of, it
+// lies AR_HELD_GRACE more, seen whole again).
+void() VR_ARENA_Leftovers =
+{
+    entity e = findflags(world, ar_expiring, 1);
+    while(e)
+    {
+        entity next = findflags(e, ar_expiring, 1);
+        if(e.ar_fell > 0 && e.health > 0) // (up again: no body)
+        {
+            e.ar_expiring = 0;
+            e.ar_expire = 0;
+            e.alpha = 0;
+        }
+        else if(e.ar_expire > 0 && time > e.ar_expire - AR_FADE)
+        {
+            if(VR_ARENA_Spared(e))
+            {
+                if(VR_ARENA_Held(e)) { e.ar_expire = time + AR_HELD_GRACE; }
+                e.alpha = 0;
+            }
+            else if(time >= e.ar_expire)
+            {
+                VR_Carry_Forget(e);
+                VR_Head_StopFlies(e);
+                remove(e);
+            }
+            else
+            {
+                e.alpha = max(0.01, e.ar_expire - time);
+            }
         }
         e = next;
     }
@@ -1073,6 +1241,7 @@ void() VR_ARENA_WaveClear =
     float w = ar_wave;
 
     ar_score = ar_score + VR_ARENA_WaveBonus(w);
+    VR_ARENA_DropsExpire(w); // (the earlier clears' drops still lying there: vr_arena_item_waves)
     VR_ARENA_Drops(w);
 
     VR_ARENA_PrintAll(sprintf("ARENA - Wave %g clear: %g foes down (score %g)\n", w, ar_wave_kills, ar_score));
@@ -1189,6 +1358,7 @@ void() VR_ARENA_WorldSpawn =
     ar_used_high = 0;
     ar_stripped = 0;
     ar_down = 0;
+    ar_fell_n = 0;
 
     MGH_PrecacheMonsters(); // (vr_mg_horde.qc: the models and sounds of the monsters the waves bring)
 
@@ -1212,6 +1382,7 @@ void() VR_ARENA_Frame =
         VR_ARENA_PrintAll(sprintf("ARENA - %s: unarmed, wave 1 coming\n", VR_ARENA_SkillName(VR_ARENA_SkillLevel())));
     }
     VR_ARK_Frame(); // QVR: the perks that have to keep their word (vr_arena_perks.qc)
+    VR_ARENA_Leftovers(); // (the cleanup: bodies and drops whose time has come fade out)
 }
 
 // ---------------------------------------------------------------------------

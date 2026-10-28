@@ -368,7 +368,7 @@ void() VR_APK3_Off =
     VR_APK_Check(ark_t_p.health == 50, "with no perk taken a hand kill heals nobody");
     VR_APK_Check(ark_t_p.super_damage_finished == 0, "with no perk taken a hand kill gives no quad");
 
-    VR_APK_Check(!VR_ARK_Kept(), "with no perk taken the drop cap works as shipped");
+    VR_APK_Check(!VR_ARK_Kept(), "with no perk taken the arena's gun cap is as set");
     VR_APK_Check(ark_t_p.max_health == VR_MaxHealth(ark_t_p), "with no perk taken health tops at what it always did");
 }
 
@@ -505,9 +505,14 @@ void() VR_APK3_Quart =
 void() VR_APK3_Spoils =
 {
     ar_mgr.ark_taken = ARK_SPOIL;
-    VR_APK_Check(VR_ARK_Kept(), "Spoils: taken, the cap on dropped enemy weapons leaves them where they fell");
+    float gun0 = cvar("vr_arena_gun_max");
+    cvar_set("vr_arena_gun_max", "24");
+    VR_APK_Check(VR_ARK_Kept(), "Spoils: taken");
+    VR_APK_Check(VR_ARENA_GunMost() == 48, "Spoils: taken, twice vr_arena_gun_max of the foes' guns lie about");
     ar_mgr.ark_taken = 0;
-    VR_APK_Check(!VR_ARK_Kept(), "Spoils: not taken, the cap works as shipped");
+    VR_APK_Check(!VR_ARK_Kept(), "Spoils: not taken");
+    VR_APK_Check(VR_ARENA_GunMost() == 24, "Spoils: not taken, vr_arena_gun_max of them");
+    cvar_set("vr_arena_gun_max", ftos(gun0));
     VR_APK_Check(VR_ARK_Running(), "Spoils: and the perks only ever work inside a running arena run");
 }
 
