@@ -523,6 +523,7 @@ vr_armedgrunt_ammo_test.qc
 vr_armedrepl_test.qc
 vr_rigseq_test.qc
 vr_armedgrunt_posecat_test.qc
+vr_armedgrunt_shove_test.qc
 vr_nailpistol_test.qc
 vr_flaregun_test.qc
 vr_revolver_test.qc

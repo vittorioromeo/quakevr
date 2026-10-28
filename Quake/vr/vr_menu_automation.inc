@@ -220,6 +220,12 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 6-9: four armed grunts in a row ahead of you (6 melee weapons, 7 and 8 guns, 9 the rest); "
                   "notarget to look at them. vr_agrunt_test 4 prints every armed grunt's weapon, clip and reserve."),
         command("Armed Grunts: Spawn a Row (Melee)", "vr_agrunt_test 6"),
+        command("Armed Grunts: Their Shove", "vr_agrunt_test 84")
+            .help("vr_agrunt_test 84 (vrtesthall's start; about 15 s): a grunt with a shotgun, a nail pistol, two nail "
+                  "pistols, an axe, then an enforcer with its laser rifle, each walked up to until it shoves you (the "
+                  "Shove pose): its phases' times, the push landing as its push phase ends, eyeshots as it lands and "
+                  "held at its push key from its front and side (agtest: shove ... PASS). scratch2 1 first: a super "
+                  "axe, a chainsaw, two crowbars, the fists, a rocket launcher instead."),
         command("Armed Grunts: Print Their State", "vr_agrunt_test 4"),
         command("Armed Grunts: AD's Weapons", "vr_agrunt_test 12")
             .help("vr_agrunt_test 12 (with Arcane Dimensions' data): as Every Weapon, AD's soldiers' guns, the Shadow "
