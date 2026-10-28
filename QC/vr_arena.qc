@@ -39,7 +39,7 @@
 
 #define AR_PLAN_MAX 12   // a wave's planned foes at most (vr_arena_max_alive caps how many of them are up at once)
 #define AR_RING_MAX 8    // the fallback ring's places around the player, when a map has no info_arena_spawn
-#define AR_ASIDE_MAX 4   // a place used twice in one wave is stepped aside this many ways
+#define AR_ASIDE_MAX 5   // a place is tried as the map drew it, then aside this many ways
 #define AR_ASIDE_STEP 48 // how far a step off a taken place goes (a monster's own box is 32 wide)
 #define AR_PLACE_GAP  48 // a place this close to one of this wave's live foes counts as taken
 
@@ -98,6 +98,8 @@ float ar_drop_health;      // a wave clear's medkits
 float ar_drop_armour;      // a wave clear's armours
 float ar_spot_next;        // the round robin over the map's spawn points
 float ar_item_next;        // the round robin over the map's item points
+float ar_used_ground;      // this wave's foes placed on the map's floor places
+float ar_used_high;        // this wave's foes placed on the map's high places
 float ar_s1; float ar_s2; float ar_s3; // the wave rolls' three states (Levy's triple, as vr_armedrepl.qc's)
 float ar_serverflags0;   // the map's serverflags as they were, for a fresh run (as vr_mg_horde.qc keeps its own)
 float ar_stripped;         // the players have been put down to their fists already
@@ -444,6 +446,38 @@ entity(string xClassname, float xIndex) VR_ARENA_MapSpot =
     return e;
 }
 
+// How many of the map's spawn places are of a kind ("kind" 1 the floor, 2 the high places).
+float(float xWant) VR_ARENA_SpotCount =
+{
+    float total = 0;
+    entity e = find(world, classname, "info_arena_spawn");
+    while(e)
+    {
+        if(e.kind == xWant) { total = total + 1; }
+        e = find(e, classname, "info_arena_spawn");
+    }
+    return total;
+}
+
+// The xIndex'th place of a kind: world when the map has no more of it (its places are used up, not walked twice).
+entity(float xWant, float xIndex) VR_ARENA_SpawnSpot =
+{
+    float total = VR_ARENA_SpotCount(xWant);
+    if(!total || xIndex >= total) { return world; }
+
+    entity e = find(world, classname, "info_arena_spawn");
+    while(e)
+    {
+        if(e.kind == xWant)
+        {
+            if(xIndex <= 0) { return e; }
+            xIndex = xIndex - 1;
+        }
+        e = find(e, classname, "info_arena_spawn");
+    }
+    return world;
+}
+
 // A ring around the player, for a map with no info_arena_spawn / info_arena_item of its own.
 vector(float i) VR_ARENA_RingDir =
 {
@@ -458,14 +492,16 @@ vector(float i) VR_ARENA_RingDir =
     return '-0.7 -0.7 0';
 }
 
-// A spot used twice in one wave is stepped aside, so two foes never spawn inside one another.
+// A spot used twice in one wave is stepped aside, so two foes never spawn inside one another. The first is the
+// place as the map drew it; then the four diagonals a little over a monster's box (its own box is 32 wide) off it.
 vector(float i) VR_ARENA_Aside =
 {
     float k = VR_ARENA_Mod(i, AR_ASIDE_MAX);
-    vector v = '0 0 0';
-    v_x = AR_ASIDE_STEP * (VR_ARENA_Mod(k, 2) * 2 - 1);
-    v_y = AR_ASIDE_STEP * (floor(k / 2) * 2 - 1);
-    return v;
+    if(k == 0) { return '0 0 0'; }
+    if(k == 1) { return AR_ASIDE_STEP * '1 1 0'; }
+    if(k == 2) { return AR_ASIDE_STEP * '-1 1 0'; }
+    if(k == 3) { return AR_ASIDE_STEP * '1 -1 0'; }
+    return AR_ASIDE_STEP * '-1 -1 0';
 }
 
 // A place already holding one of this wave's foes is stepped aside. The step is small on purpose (a monster's own
@@ -488,32 +524,68 @@ float(vector o) VR_ARENA_PlaceTaken =
 
 entity(float xIndex) VR_ARENA_ItemSpot { return VR_ARENA_MapSpot("info_arena_item", xIndex); }
 
-// Where this wave's foe comes in: the map's info_arena_spawn, or the ring off the player.
+// Is there ground under a place, read off the brushes: 600 units down, this wave's own foes not counted. A place
+// inside a wall counts as having none (the trace starts inside solid), and a place with nothing under it is a foe
+// falling out of the map.
+float(vector o) VR_ARENA_HasFloor =
+{
+    traceline(o + '0 0 4', o + '0 0 -600', TRUE, world);
+    return !trace_allsolid && !trace_startsolid && trace_fraction < 1;
+}
+
+// Where this wave's foe comes in. Its own kind of place first: the map's high places (kind 2: a tower top, a wall
+// walk) for the fiend and the enforcer, its floor places (kind 1) for everything that walks. The places are gone
+// through in order from where this wave starts and each one is used at most once, so 12 foes do not arrive in 4
+// corners; a place already holding a foe of this wave is passed over rather than shared. A high foe whose places are
+// all taken comes in on the floor places instead of being stepped off its ledge, and a map with no places of its own
+// gets the ring around the player, stepped aside until it is free and never over a hole or into a wall.
 vector(float xHigh) VR_ARENA_SpawnPlace =
 {
-    entity e = VR_ARENA_MapSpot("info_arena_spawn", ar_spot_next);
-    vector o;
+    float want = xHigh ? 2 : 1;
+    float total = VR_ARENA_SpotCount(want);
 
-    if(e)
+    float used;
+    if(xHigh) { used = ar_used_high; ar_used_high = ar_used_high + 1; }
+    else { used = ar_used_ground; ar_used_ground = ar_used_ground + 1; }
+
+    float k;
+    for(k = 0; k < total; k++)
     {
-        o = e.origin;
-        if(e.kind == 2 && xHigh) { o_z = o_z + 96; } // (the map's high point: its ranged and flying foe comes in above the floor)
-    }
-    else
-    {
-        entity p = VR_ARENA_FindPlayer();
-        vector base = ar_mgr.origin;
-        if(p != world) { base = p.origin; }
-        o = base + AR_RING_R * VR_ARENA_RingDir(ar_spot_next);
+        entity e = VR_ARENA_SpawnSpot(want, VR_ARENA_Mod(used + ar_wave + k, total));
+        if(!e) { break; } // (out of this kind of place: the ring below)
+
+        vector here = e.origin;
+        if(xHigh && e.kind == 2) { here_z = here_z + 96; } // (over a high place: it drops onto the ledge it belongs to)
+        if(!VR_ARENA_PlaceTaken(here))
+        {
+            ar_spot_next = ar_spot_next + 1;
+            return here;
+        }
     }
 
-    // Its own place first; only when that is already holding a foe of this wave, the next aside off it.
-    float t;
-    for(t = 0; t < AR_ASIDE_MAX; t++)
+    // Every high place is holding one of this wave's foes already: better its ground places than a step off a ledge.
+    if(xHigh && VR_ARENA_SpotCount(1) > 0) { return VR_ARENA_SpawnPlace(0); }
+
+    entity p = VR_ARENA_FindPlayer();
+    vector base = ar_mgr.origin;
+    if(p != world) { base = p.origin; }
+    vector ring = base + AR_RING_R * VR_ARENA_RingDir(ar_spot_next);
+
+    float k2;
+    vector o = ring;
+    float ground = FALSE; // (any place with ground under it: the last resort)
+    float free = FALSE;   // (a place with ground under it and no foe of this wave on it)
+    for(k2 = 0; k2 < AR_RING_MAX && !free; k2++)
     {
-        vector c = o + VR_ARENA_Aside(ar_spot_next + t);
-        o = c;
-        if(!VR_ARENA_PlaceTaken(c)) { break; }
+        vector r = (k2 == 0) ? ring : base + AR_RING_R * VR_ARENA_RingDir(ar_spot_next + k2);
+        float t;
+        for(t = 0; t < AR_ASIDE_MAX; t++)
+        {
+            vector c = r + VR_ARENA_Aside(t);
+            if(!VR_ARENA_HasFloor(c)) { continue; }
+            if(!ground) { ground = TRUE; o = c; }
+            if(!VR_ARENA_PlaceTaken(c)) { o = c; free = TRUE; break; }
+        }
     }
 
     ar_spot_next = ar_spot_next + 1;
@@ -612,6 +684,8 @@ entity(float xKind, float xGun, float xTier, float xBoss) VR_ARENA_SpawnMonster 
         self.health = floor(self.health * VR_ARENA_Opt_BossHealth()) + 1;
         dprint(sprintf("arena: boss kind %g health %g tier %g\n", xKind, self.health, xTier));
     }
+
+    dprint(sprintf("arena: foe kind %g gun %g tier %g at %g %g %g\n", xKind, xGun, xTier, o_x, o_y, o_z));
 
     // Its kind's own start runs as it always does (monsters.qc's walkmonster_start_go: its takedamage, its full
     // health, its AI): a wave monster must not be started another way, or it never becomes something you can hit.
@@ -759,6 +833,8 @@ void() VR_ARENA_WaveStart =
     ar_wave_kills = 0;
     ar_next_spawn = 0;
     ar_wave_at = time;
+    ar_used_ground = 0;
+    ar_used_high = 0;
     ar_spot_next = ar_spot_next + AR_ASIDE_MAX; // (a wave begins at another place on the map's spots)
 
     VR_ARENA_PrintAll(sprintf("ARENA - Wave %g: %g foes (score %g)\n", ar_wave, ar_plan_n, ar_score));
@@ -882,6 +958,8 @@ void() VR_ARENA_WorldSpawn =
     ar_drop_armour = 0;
     ar_spot_next = 0;
     ar_item_next = 0;
+    ar_used_ground = 0;
+    ar_used_high = 0;
     ar_stripped = 0;
     ar_down = 0;
 
