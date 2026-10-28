@@ -15,22 +15,28 @@
 #     hugs one of its faces (16 steps: 16 high, 16 deep) -- the four flights are rotations of one, pinwheel-wise;
 #   - the wall walk at 256: a 128-wide deck along the east and the west wall (y -576..576), joined to each tower's top
 #     by a 64-wide bridge, so the high ring is reached only by way of the towers and drops 256 (7.8 m) to the floor;
-#   - 8 waist-high covers (`func_detail`, 80 x 80, 48 high) at 45 deg apart at radius ~520: the ring between the dais
-#     and the walls is otherwise clear, so the 8 blocks are where a fight gets broken up;
-#   - 24 lights: 8 ceiling lamps (a qvr_light block each, as vrtesthall's), 4 over the towers, 4 over the walkways, 4
-#     over the dais, 4 in the corners, with a soft minimum light so no corner goes black.
-# 130 brushes (light on Quest 3). Brushes are kept apart: they meet face to face, exactly coplanar, none runs into
+#   - 8 waist-high covers (`func_detail`, 96 x 96, 48 high) at 45 deg apart at radius ~512: the ring between the dais
+#     and the walls is otherwise clear, so the 8 blocks are where a fight gets broken up. Each is two id crates long
+#     and one high, so the crate's own picture fits its faces instead of being cut across;
+#   - the room dressed the way id dresses a room (the author's ask, 2026-10-28): skirting, wainscot, rail and cornice
+#     bands mitred round the octagon, an upright carrying a lamp at the third and the two-thirds mark of each cardinal
+#     wall and one at the middle of each cut corner, a border moulding where the ceiling meets the walls, and a coffer
+#     over each of the 8 ceiling lights: a frame, a ring of glowing tiles under it, a lit panel in its recess;
+#   - 24 lights: 8 under the coffers, 4 over the towers, 4 over the walkways, 4 over the dais, 4 in the corners, with
+#     a soft minimum light so no corner goes black.
+# 230 brushes (light on Quest 3). Brushes are kept apart: they meet face to face, exactly coplanar, none runs into
 # another, and the shell is closed (qbsp sees no leak). --check verifies the points, the stair steps, that, and that
 # the open ring of the floor (700..1000 out, below 160 high) holds nothing.
-# The look is id's own base set -- e1m1's textures and the base maps around it (the author's ask, 2026-10-28) -- read
-# from quakevr/wads/id_textures.wad, which Misc/trenchbroom/make_id_wad.py makes from your own paks and the repository
+# The textures are id's own base set -- e1m1's and the base maps around it (the author's ask) -- read from
+# quakevr/wads/id_textures.wad, which Misc/trenchbroom/make_id_wad.py makes from your own paks and the repository
 # never sees; like vrcalibration's and vrstart's, the compiled vrarena.bsp carries them (MAPPING.md, "Textures and id's
-# data"). --dev-textures builds the same arena with quakevr_dev.wad's flat grids instead. No new geometry: every face
-# is what it was, only its texture changed, so the 130 brushes, the points, the steps and the play are untouched.
+# data"). --dev-textures builds the same arena with quakevr_dev.wad's flat grids instead. Nothing a fight uses moved:
+# the points, the steps, the 48-high covers and the shell are as they were (the covers grew inwards, so their
+# clearance to the staircases is the same), and the new brushes are the room's own trim: 4 to 16 units out of a wall.
 #
 # Entities (point entities for the wave director; none is in quakevr.fgd -- no QuakeC spawn function names them yet,
 # as with vrtesthall's plain info_player_start, so Misc/trenchbroom/fgdgen.py --check stays green):
-#   info_player_start   (1)  0 0 120                the pad on the dais' top (the player starts unarmed)
+#   info_player_start   (1)  0 0 120                8 above the 16-high pad on the dais' top (its top face is at 112)
 #   info_arena_spawn   (12)  "kind" 1 = ground level, 2 = high (a drop):
 #                            4 tower tops     402 402 256   and 4 walkway landings 736 +-288 256  -> kind 2
 #                            4 ground corners 640 640 0                                           -> kind 1
@@ -40,6 +46,7 @@ import math
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import time
@@ -59,44 +66,178 @@ PRESETS = {
                                  "-lux", "-lightgrid", "-lightgrid_dist", "64", "64", "64"]),
 }
 
-# The palette: role -> (texture name, scale). The names are id's (quakevr/wads/id_textures.wad; `--list` there prints
-# them with their sizes and the map each came from). The scale is only where a texture is meant to span a face
-# exactly -- the dais' 96-high panels, the 48-high crates, the spawn pad's plate -- and 1.0 everywhere else, so the
-# faces keep Tex's world-aligned axes and neighbouring brushes still continue into each other.
-IDTEX = dict(floor=("ground1_2", 1.0),         # 64: id's base floor plates: the whole 49 m room
-             wall=("twall1_1", 1.0),           # 64 x 128: the 4 cardinal walls: a panel and its band, three high
-             wall2=("twall2_1", 1.0),          # 64 x 128: the 4 cut corners: the same family, another panel
-             ceiling=("sfloor4_1", 1.0),       # 64: the ceiling's plates, over the whole room
-             dais=("twall5_3", 1.5),           # 64 at 1.5: one panel exactly spans the dais' 96-high faces
-             tower=("twall5_1", 1.0),          # 128: exactly two panels up each 256-high tower
-             deck=("sfloor4_2", 1.0),          # 64: the dais' top, the tower tops, the decks and the bridges
-             deck_side=("metal4_4", 1.0),      # 64: one plate spans the 64-thick decks and the bridges
-             stair=("metal1_1", 1.0),          # 64: every step, the dais' six and the towers' sixteen
-             cover=("crate0_side", 0.75),      # 64 at 0.75: id's crate, exactly the cover's 48 high
-             cover_top=("crate0_top", 1.25),   # 64 at 1.25: one crate top across the 80-wide cover
-             pad=("plat_top1", 1.5),           # 64 at 1.5: one plate across the 96-wide spawn pad
-             pad_side=("plat_side1", 0.125),   # 16 at 0.125: id's platform lip, exactly the pad's 2-high edge
-             lamp=("qvr_light", 1.0))          # quakevr_dev.wad: the engine's own emitting texture, not an id one
-DEVTEX = dict(floor=("qvr_floor", 1.0), wall=("qvr_wall", 1.0), wall2=("qvr_wall", 1.0), ceiling=("qvr_ceiling", 1.0),
-              dais=("qvr_panel", 1.0), tower=("qvr_panel", 1.0), deck=("qvr_floor", 1.0), deck_side=("qvr_wall", 1.0),
-              stair=("qvr_floor", 1.0), cover=("qvr_panel", 1.0), cover_top=("qvr_panel", 1.0), pad=("qvr_panel", 1.0),
-              pad_side=("qvr_trim", 1.0), lamp=("qvr_light", 1.0))
+# The palette: role -> (texture name, how it is laid, how many tiles, at what scale, from what anchor). The names are
+# id's (quakevr/wads/id_textures.wad; `--list` there prints them with their sizes and the map each came from). `laid`
+# (below) does the laying, three ways:
+#   world -- mapgeom's own paraxial projection, the texture's corner at `anchor`: coplanar faces continue into each
+#          other, which is what a floor and a ceiling want; `anchor` is where a tile corner is asked to land, so a
+#          field of panels can butt exactly with the mouldings that bound it;
+#   fitv  -- `reps`[1] tiles exactly down the face and the same scale across it, tiles still on the world grid: id's
+#          way of making a band of plates or of trim land where the band is (make_vrcalibration_map.py's fitv);
+#   fit   -- `reps` tiles across and `reps`[1] down, exactly (`0`: as many as come nearest at `scale`): for a face
+#          that is one thing -- a crate, a lamp, the lit panel at the bottom of a coffer.
+# `reps` may be fractional (1.5 tiles) and `scale` multiplies the texture: either lets a face land on whole tiles
+# without squashing the picture, which is what the crate faces, the dais' fluting and a 32-high coffer frame need.
+IDTEX = dict(floor=("ground1_2", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),      # 64: id's base floor plates: 49 m of them
+             wall=("tech14_1", "world", (0, 1), 1.0, (0.0, 0.0, 96.0)),       # 128: the walls' panels, butted with the
+                                                                              # rail at 96 and the cornice at 352
+             tower=("tech14_1", "fitv", (0, 2), 1.0, (0.0, 0.0, 0.0)),        # 128: exactly two panels up a 256 tower
+             wainscot=("metal4_4", "fitv", (0, 1), 1.0, (0.0, 0.0, 0.0)),     # 64: one plate exactly in the 64-high band
+             strip=("tech04_1", "fitv", (0, 1), 1.0, (0.0, 0.0, 0.0)),        # 128 x 16: skirting, rail, cornice, frame
+             pilaster=("tech04_3", "fit", (1, 0), 1.0, (0.0, 0.0, 0.0)),      # 16 x 128: one flute across an upright exactly
+                                                                            # and as many down it as it is tall, its U being
+                                                                            # the wall's own direction (geometry())
+             dais=("tech04_3", "fit", (0, 1), 1.0, (0.0, 0.0, 0.0)),          # 16 x 128 at 0.75 down the dais' 96: whole
+                                                                            # flutes across a 272-wide face and across the
+                                                                            # 96 a cut corner measures
+             ceiling=("metal1_1", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),     # 64: the ceiling's plates, not the walls'
+             recess=("metal1_1", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),      # 64: the lining inside a coffer, a hood
+             frame=("tech04_1", "fitv", (0, 2), 1.0, (0.0, 0.0, 0.0)),        # 128 x 16: a 32-high coffer frame
+             ring=("ceil1_1", "fit", (0, 0), 1.0, (0.0, 0.0, 0.0)),           # 16, and it glows: the ring's tiles
+             lit=("light3_3", "fit", (0, 0), 1.0, (0.0, 0.0, 0.0)),           # 64: 2 x 2 lit panels in a coffer's back
+             lamp=("tlight01", "fit", (1, 1), 1.0, (0.0, 0.0, 0.0)),          # 32, and it glows: one lamp per upright
+             deck=("sfloor4_2", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),       # 64: the dais' top, the tower tops, decks
+             deck_side=("metal4_4", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),   # 64: one plate spans a 64-thick deck
+             stair=("metal1_1", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),       # 64: every step, the dais' six, the towers' sixteen
+             cover=("crate0_side", "fit", (2, 1), 1.0, (0.0, 0.0, 0.0)),      # 64 at 0.75: 2 crates along 96, 1 up 48
+             cover_top=("crate0_top", "fit", (2, 2), 1.0, (0.0, 0.0, 0.0)),   # 64 at 0.75: 2 x 2 tops on a 96 square
+             pad=("plat_top1", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),        # 64: 2 plates across the 128-wide pad
+             pad_side=("plat_side1", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)))  # 64 x 16: 1 up the 16-high lip, 2 across
+DEVTEX = dict(floor=("qvr_floor", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              wall=("qvr_wall", "world", (0, 1), 1.0, (0.0, 0.0, 96.0)),
+              tower=("qvr_panel", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              wainscot=("qvr_wall", "world", (0, 1), 1.0, (0.0, 0.0, 16.0)),
+              strip=("qvr_trim", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              pilaster=("qvr_trim", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              dais=("qvr_panel", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              ceiling=("qvr_ceiling", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              recess=("qvr_ceiling", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              frame=("qvr_trim", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              ring=("qvr_light", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              lit=("qvr_light", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              lamp=("qvr_lantern", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              deck=("qvr_floor", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              deck_side=("qvr_wall", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              stair=("qvr_floor", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              cover=("qvr_panel", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              cover_top=("qvr_panel", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              pad=("qvrc_pad", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              pad_side=("qvr_trim", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)))
 TEX = IDTEX                        # --dev-textures swaps the palette for DEVTEX (and the WAD list for the one WAD)
 WADS = ["quakevr/wads/id_textures.wad", "quakevr/wads/quakevr_dev.wad"]
 
 
-def T(role):
-    """The palette's `role` as a mapgeom Tex: its name and its scale."""
-    name, sc = TEX[role]
-    return mg.Tex(name, sc)
+def texture_sizes():
+    """The width and height of every texture in the WADs this map names. mapgeom lays a face without knowing them;
+    `laid` needs them to fit a face to a whole number of tiles. Later WADs win on a name, and a WAD that is not there
+    is skipped -- main() says what to do about that."""
+    out = {}
+    for wad in WADS:
+        path = os.path.join(ROOT, wad)
+        if not os.path.exists(path):
+            continue
+        with open(path, "rb") as f:
+            d = f.read()
+        n, ofs = struct.unpack("<ii", d[4:12])
+        for i in range(n):
+            pos = struct.unpack("<i", d[ofs + 32 * i: ofs + 32 * i + 4])[0]
+            name = d[ofs + 32 * i + 16: ofs + 32 * i + 32].split(b"\0")[0].decode("latin1")
+            out[name.lower()] = struct.unpack("<II", d[pos + 16:pos + 24])
+    return out
+
+
+TEXSIZE = texture_sizes()
+
+
+def fit(extent, size, reps, scale):
+    """The scale that puts `reps` tiles of a texture `size` wide exactly along `extent` (0 `reps`: as many tiles as
+    come nearest at `scale`) -- make_vrcalibration_map.py's fitted()."""
+    reps = reps or max(1, round(extent / (size * scale)))
+    return extent / (size * float(reps))
+
+
+def axes(n, rot=False):
+    """The face's U and V: mapgeom's own paraxial choice, so a face laid by `laid` and one laid by a Tex agree."""
+    ax, ay, az = abs(n[0]), abs(n[1]), abs(n[2])
+    if az >= ax and az >= ay:
+        u, v = (1.0, 0.0, 0.0), (0.0, -1.0, 0.0)
+    elif ax >= ay:
+        u, v = (0.0, 1.0, 0.0), (0.0, 0.0, -1.0)
+    else:
+        u, v = (1.0, 0.0, 0.0), (0.0, 0.0, -1.0)
+    if rot:
+        u, v = v, (-u[0], -u[1], -u[2])
+    return u, v
+
+
+def face_points(points, n):
+    """The corners that lie on the face of the brush `points` builds which faces along `n`. A TexFn is handed only the
+    normal and the centre, but a fit needs that face's own extent -- the mitred end of a band is longer than the band
+    is deep, and a 1200-long wall is not a 64-thick box."""
+    k = [mg.dot(n, p) for p in points]
+    top = max(k)
+    on = [p for p, d in zip(points, k) if d >= top - 1e-4]
+    return on if len(on) >= 3 else list(points)
+
+
+def laid(points, name, mode="world", reps=(0, 1), scale=1.0, anchor=(0.0, 0.0, 0.0), rot=False, u_axis=None):
+    """A TexFn for mapgeom: `name` laid on the faces of the brush built from `points`, the way the palette asks.
+    mapgeom wants (name, U, V, u offset, v offset, u scale, v scale). `world` keeps mapgeom's scales and puts a tile
+    corner at `anchor`, so a field of plates continues across brushes and butts with the mouldings around it. `fit`
+    pins the tiles to the face's own four edges; `fitu` and `fitv` do it along one axis only -- and `fitv` at one
+    scale both ways, so a moulding or a pilaster is exact at its own top and bottom without being stretched.
+    `u_axis` asks for that as the face's U (a lamp on a slanted upright: measured along the wall, not across it)."""
+    def f(n, c):
+        if u_axis is not None and abs(mg.dot(n, u_axis)) < 1e-6:
+            u = u_axis
+            v = mg.cross(u, n)                       # (U, V, N) the same way round as mapgeom's own axes
+        else:
+            u, v = axes(n, rot)
+        tw, th = TEXSIZE[name.lower()]
+        fc = face_points(points, n)
+        us = [mg.dot(u, p) for p in fc]
+        vs = [mg.dot(v, p) for p in fc]
+        if mode == "world":
+            su = sv = float(scale)
+            ou, ov = -mg.dot(anchor, u) / su, -mg.dot(anchor, v) / sv
+        else:
+            su = sv = float(scale)                  # fitu leaves the other axis at that scale
+            if mode != "fitv":
+                su = fit(max(us) - min(us), tw, reps[0], scale)
+            if mode != "fitu":
+                sv = fit(max(vs) - min(vs), th, reps[1], scale)
+            if mode == "fitv":
+                su = sv
+            ou, ov = -min(us) / su, -min(vs) / sv
+        return (name, u, v, ou % tw, ov % th, su, sv)
+    return f
+
+
+def bind(spec, points):
+    """A palette role -- 'wall', or ('frame', dict(reps=(0, 1))) for one use that wants other tiles -- as a TexFn
+    bound to the corners of the brush it is laid on. A mapgeom Tex or a TexFn passes through as it was."""
+    if isinstance(spec, str):
+        return laid(points, *TEX[spec])
+    if isinstance(spec, tuple) and isinstance(spec[0], str):
+        name, mode, reps, scale, anchor = TEX[spec[0]]
+        over = spec[1]
+        return laid(points, name, over.get("mode", mode), over.get("reps", reps), over.get("scale", scale),
+                    over.get("anchor", anchor), over.get("rot", False), over.get("u_axis"))
+    return mg.as_texfn(spec)
 
 H, CUT, TH = 800, 200, 64                    # the octagon: sides at +-800, corners cut 200 (1000 out); walls 64 thick
 XOUT, ZH, ZTOP, ZF = H + TH, 384, 448, 0     # the shell: walls 0..384, the floor slab down to -64, the ceiling to 448
 DAIS_A, DAIS_C, DAIS_TOP = 232, 96, 96       # the dais: sides at 232, corners 268 out, its top at 96
 TOW_A, TOW_B, WALK_TOP = 312, 492, 256       # the towers: 312..492 in x and y, 256 high; the wall walk at 256
 DECK_X0, DECK_Y = 672, 576                   # the decks: x 672..800, y -576..576, z 192..256 (the bridges 370..434)
-COVER_R, COVER_HALF, COVER_TOP = 520, 40, 48  # the covers: 80 x 80 blocks, 48 high, at radius ~520
-LIGHT_MIN = "90"                             # the worldspawn's minimum light (soft: the room seen everywhere)
+COVER_R, COVER_HALF, COVER_TOP = 512, 48, 48  # the covers: 96 x 96 blocks, 48 high, at radius ~512 (2 crates long, 1 high)
+SKIRT, WAIN, RAIL = 16, 80, 96                # the walls' bands: skirting, wainscot, rail (the panels run 96..352)
+CORN = 368                                    # ... the cornice 352..368, the ceiling's border 368..384
+PIL_W, PIL_D = 16, 8                          # the uprights: 16 wide, 8 out of the wall, from the rail to the cornice
+PIL_TOP = CORN - 16                           # ... stopping exactly where the cornice begins (they meet face to face)
+LAMP_D, LAMP_Z0, LAMP_Z1 = 8, 272, 304        # their lamps: 32 square, 8 out from the upright, at eye level on the walk
+COFFER_R, COFFER_DROP = 650, 32               # the ceiling's coffers: 192 frames, hung 32 below the ceiling
+LIGHT_MIN = "90"                              # the worldspawn's minimum light (soft: the room seen everywhere)
 
 SPAWNS, ITEMS, STEPS = [], [], []   # filled by geometry(): the spawn points, the item points, every stair step
 
@@ -125,21 +266,41 @@ def inset(poly, d):
     return out
 
 
-def texf(top, side, bottom=None):
-    """A TexFn for mapgeom (it wants a face's texture as a (name, U, V, uoff, voff, scale, scale) tuple): `top` on the
-    upward face, `bottom` on the downward one (by default `side` too), `side` on the rest -- each of them a Tex, as
-    T(role) makes one. Tex's world-aligned default axes are kept, so coplanar faces of neighbouring brushes continue
-    into each other."""
+def roles(top, side, bottom, pts):
+    """A TexFn for mapgeom (it wants a face's texture as a (name, U, V, uoff, voff, scale, scale) tuple, and is given
+    only the face's normal and centre) out of the three palette roles of a brush: `top` on the upward face, `bottom` on
+    the downward one (`side` again if none is given), `side` on the rest. Each is fitted to `pts`, the corners of the
+    brush it belongs to, so a fitted texture is exact at that face's own edges."""
+    t, s = bind(top, pts), bind(side, pts)
+    b = None if bottom is None else bind(bottom, pts)
     def f(n, c):
-        t = top if n[2] > 0.99 else ((bottom or side) if n[2] < -0.99 else side)
-        return t.spec(n, c)
+        fn = t if n[2] > 0.99 else (b if (n[2] < -0.99 and b is not None) else s)
+        return fn(n, c)
     return f
 
 
 def prism(poly, zb, zt, top, side):
     """The prism over the polygon `poly`: mapgeom.hull of its rings at zb and zt (the points are snapped, so the faces
     come out exactly as meant, mapgeom.precision). (mapgeom.prism is terrain's own: its sides are only 64 tall.)"""
-    return mg.hull([(x, y, z) for z in (zt, zb) for x, y in poly], texf(top, side))
+    pts = [(x, y, z) for z in (zt, zb) for x, y in poly]
+    return mg.hull(pts, roles(top, side, None, pts))
+
+
+def cuboid(x0, y0, z0, x1, y1, z1, top, side, bottom=None):
+    """A box, its faces each laid for themselves: mapgeom.box with the three roles bound to the box's own corners."""
+    pts = [(x, y, z) for x in (x0, x1) for y in (y0, y1) for z in (z0, z1)]
+    return mg.box(x0, y0, z0, x1, y1, z1, roles(top, side, bottom, pts))
+
+
+def band(dst, poly, z0, z1, depth, role, reps=None):
+    """A moulding standing `depth` out of the room's walls from z0 to z1: one prism per side of `poly`, mitred where
+    two sides meet (make_vrcalibration_map.py's band). They belong to the shell: each one stands face to face on the
+    wall behind it and on the band below it, and none of them reaches into another brush (--check)."""
+    spec = role if reps is None else (role, dict(reps=reps))
+    inner = inset(poly, depth)
+    for i in range(len(poly)):
+        j = (i + 1) % len(poly)
+        dst.append(prism([poly[i], poly[j], inner[j], inner[i]], z0, z1, spec, spec))
 
 
 def flight(dst, what, x0, y0, dx, dy, wide, steps, rise, tread):
@@ -149,36 +310,71 @@ def flight(dst, what, x0, y0, dx, dy, wide, steps, rise, tread):
     for k in range(steps):
         if dx:
             a, b = (x0 + tread * k, x0 + tread * (k + 1)) if dx > 0 else (x0 - tread * (k + 1), x0 - tread * k)
-            dst.append(mg.box(a, y0, ZF, b, y0 + wide, rise * (k + 1), texf(T("stair"), T("stair"))))
+            dst.append(cuboid(a, y0, ZF, b, y0 + wide, rise * (k + 1), "stair", "stair"))
         else:
             a, b = (y0 + tread * k, y0 + tread * (k + 1)) if dy > 0 else (y0 - tread * (k + 1), y0 - tread * k)
-            dst.append(mg.box(x0, a, ZF, x0 + wide, b, rise * (k + 1), texf(T("stair"), T("stair"))))
+            dst.append(cuboid(x0, a, ZF, x0 + wide, b, rise * (k + 1), "stair", "stair"))
         STEPS.append((what, rise, tread))
 
 
 def geometry(mw):
     """Builds the arena into `mw` (a mapgeom.MapWriter) and returns (its point entities, its feature brushes -- the
     dais, the towers, the stairs, the wall walk, the covers -- the shell being everything else)."""
-    shell, lamps, dais, towers, walk, covers = [], [], [], [], [], []
+    shell, coffers, dais, towers, walk, covers = [], [], [], [], [], []
     oct8, outer = octagon(H, CUT), inset(octagon(H, CUT), -TH)
 
+    def at(a, t, nin, s, d):
+        """A point on a wall: from its corner `a`, `s` along the wall's own direction `t`, `d` inwards along `nin`."""
+        return (a[0] + t[0] * s + nin[0] * d, a[1] + t[1] * s + nin[1] * d)
+
     # ---- the shell: the floor slab, one wall brush behind each of the octagon's 8 sides, the 4 wedges that close its
-    # cut corners against the shell's own corners, and the ceiling
-    shell.append(mg.box(-XOUT, -XOUT, ZF - TH, XOUT, XOUT, ZF, texf(T("floor"), T("wall"))))
-    shell.append(mg.box(-XOUT, -XOUT, ZH, XOUT, XOUT, ZTOP, texf(T("ceiling"), T("wall"))))
+    # cut corners against the shell's own corners, and the ceiling. The walls' own faces carry id's panels, butted with
+    # the rail and the cornice that stand in front of them; the wedges are inside the shell and never seen.
+    shell.append(cuboid(-XOUT, -XOUT, ZF - TH, XOUT, XOUT, ZF, "floor", "wall"))
+    shell.append(cuboid(-XOUT, -XOUT, ZH, XOUT, XOUT, ZTOP, "ceiling", "ceiling"))
     for i in range(8):
         j = (i + 1) % 8
-        # octagon() alternates a cut corner with a cardinal side, so sides 1, 3, 5 and 7 (the east, north, west and
-        # south walls) get id's tall panel and sides 0, 2, 4 and 6 (the cut corners' faces) get its second panel
-        shell.append(prism([oct8[i], oct8[j], outer[j], outer[i]], ZF, ZH, T("wall"),
-                           T("wall" if i % 2 else "wall2")))
+        shell.append(prism([oct8[i], oct8[j], outer[j], outer[i]], ZF, ZH, "wall", "wall"))
     for i in range(0, 8, 2):
         far = (XOUT if outer[i][0] > 0 else -XOUT, XOUT if outer[i + 1][1] > 0 else -XOUT)
-        shell.append(prism([outer[i], outer[i + 1], far], ZF, ZH, T("wall2"), T("wall2")))
+        shell.append(prism([outer[i], outer[i + 1], far], ZF, ZH, "wall", "wall"))
 
-    # ---- the dais, its spawn pad (vrtesthall's own: 2 high) and its 4 staircases, one onto each cardinal face
-    dais.append(prism(octagon(DAIS_A, DAIS_C), ZF, DAIS_TOP, T("deck"), T("dais")))
-    dais.append(mg.box(-48, -48, DAIS_TOP, 48, 48, DAIS_TOP + 2, texf(T("pad"), T("pad_side"))))
+    # ---- the walls dressed in bands, mitred where two sides meet (the calibration room's idioms at the arena's
+    # height): 16 of skirting on the floor, 64 of plated wainscot, 16 of rail, the wall's own panels from 96 to 352,
+    # then 16 of cornice and 16 of border moulding where the ceiling meets the walls. The wall walk at 192..256 passes
+    # between the rail and the cornice, and nothing here reaches into the walk or the bridges (--check).
+    band(shell, oct8, ZF, SKIRT, 8, "strip")
+    band(shell, oct8, SKIRT, WAIN, 4, "wainscot")
+    band(shell, oct8, WAIN, RAIL, 8, "strip")
+    band(shell, oct8, CORN - 16, CORN, 8, "strip")
+    band(shell, oct8, CORN, ZH, 16, "strip")
+
+    # ---- the uprights and their lamps: one at the middle of each cut corner, one at the third and one at the
+    # two-thirds mark of each cardinal wall -- 16 wide, 8 out of the wall, from the rail to the cornice, each with a
+    # hooded lamp (id's tlight01, one lamp exactly on its front face) at eye level for someone on the wall walk. On the
+    # east and the west wall each upright is cut in two where the walk passes, so the walk keeps its 128 width.
+    for i in range(8):
+        a, b = oct8[i], oct8[(i + 1) % 8]
+        t = mg.norm((b[0] - a[0], b[1] - a[1], 0.0))
+        nin = (-t[1], t[0], 0.0)                                   # the wall's inward normal
+        span = mg.length((b[0] - a[0], b[1] - a[1], 0.0))
+        for frac in ((0.5,) if i % 2 == 0 else (1.0 / 3.0, 2.0 / 3.0)):
+            c = (a[0] + t[0] * span * frac, a[1] + t[1] * span * frac)     # the upright, on the wall
+            for z0, z1 in (((RAIL, WALK_TOP - 64), (WALK_TOP, PIL_TOP)) if i in (1, 5) else ((RAIL, PIL_TOP),)):
+                q = [at(c, t, nin, -8, 0), at(c, t, nin, 8, 0), at(c, t, nin, 8, PIL_D), at(c, t, nin, -8, PIL_D)]
+                flute = ("pilaster", dict(u_axis=(-t[0], -t[1], 0.0)))     # measured along the wall, as the lamp is
+                shell.append(prism(q, z0, z1, "recess", flute))
+            q = [at(c, t, nin, -16, PIL_D), at(c, t, nin, 16, PIL_D),
+                 at(c, t, nin, 16, PIL_D + LAMP_D), at(c, t, nin, -16, PIL_D + LAMP_D)]
+            pts = [(x, y, z) for z in (LAMP_Z1, LAMP_Z0) for x, y in q]
+            lamp = laid(pts, *TEX["lamp"], u_axis=(-t[0], -t[1], 0.0))      # one lamp, along the wall, not across it
+            shell.append(mg.hull(pts, roles("recess", "frame", "recess", pts),
+                                 lambda n, c, nin=nin, lamp=lamp: lamp if mg.dot(n, nin) > 0.9 else None))
+
+    # ---- the dais, its spawn pad (a 16-high lip of id's platform plate, 2 plates across its top) and its 4
+    # staircases, one onto each cardinal face
+    dais.append(prism(octagon(DAIS_A, DAIS_C), ZF, DAIS_TOP, "deck", "dais"))
+    dais.append(cuboid(-64, -64, DAIS_TOP, 64, 64, DAIS_TOP + 16, "pad", "pad_side", "pad"))
     flight(dais, "dais stair (north)", -48, 376, 0, -1, 96, 6, 16, 24)
     flight(dais, "dais stair (south)", -48, -376, 0, 1, 96, 6, 16, 24)
     flight(dais, "dais stair (east)", 376, -48, -1, 0, 96, 6, 16, 24)
@@ -186,7 +382,7 @@ def geometry(mw):
 
     # ---- the 4 corner towers and their pinwheel staircases: each flight hugs the face its neighbour's gives
     for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
-        towers.append(mg.box(sx * TOW_A, sy * TOW_A, ZF, sx * TOW_B, sy * TOW_B, WALK_TOP, texf(T("deck"), T("tower"))))
+        towers.append(cuboid(sx * TOW_A, sy * TOW_A, ZF, sx * TOW_B, sy * TOW_B, WALK_TOP, "deck", "tower"))
     flight(towers, "tower stair (north-east)", 248, 236, 0, 1, 64, 16, 16, 16)     # up the north-east tower's west face
     flight(towers, "tower stair (north-west)", -236, 248, -1, 0, 64, 16, 16, 16)   # up the north-west tower's south face
     flight(towers, "tower stair (south-west)", -312, -236, 0, -1, 64, 16, 16, 16)  # up the south-west tower's east face
@@ -195,26 +391,30 @@ def geometry(mw):
     # ---- the wall walk at 256: 2 decks along the east and the west wall, and a bridge from each to the two tower
     # tops it passes (so the high ring is reached only by way of the towers, and drops 256 to the floor)
     for s in (1, -1):
-        walk.append(mg.box(s * H, -DECK_Y, WALK_TOP - 64, s * DECK_X0, DECK_Y, WALK_TOP,
-                           texf(T("deck"), T("deck_side"))))
+        walk.append(cuboid(s * H, -DECK_Y, WALK_TOP - 64, s * DECK_X0, DECK_Y, WALK_TOP, "deck", "deck_side"))
     for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
-        walk.append(mg.box(sx * TOW_B, sy * 370, WALK_TOP - 64, sx * DECK_X0, sy * 434, WALK_TOP,
-                           texf(T("deck"), T("deck_side"))))
+        walk.append(cuboid(sx * TOW_B, sy * 370, WALK_TOP - 64, sx * DECK_X0, sy * 434, WALK_TOP, "deck", "deck_side"))
 
-    # ---- the 8 covers, 45 deg apart at radius ~520, each its own func_detail
+    # ---- the 8 covers, 45 deg apart at radius ~512, each its own func_detail: 96 x 96 x 48, so id's crate fits them
     for i in range(8):
         a = math.radians(22.5 + 45 * i)
         cx, cy = (round(COVER_R * math.cos(a) / 8) * 8, round(COVER_R * math.sin(a) / 8) * 8)
-        covers.append(mg.box(cx - COVER_HALF, cy - COVER_HALF, ZF, cx + COVER_HALF, cy + COVER_HALF, COVER_TOP,
-                             texf(T("cover_top"), T("cover"))))
+        covers.append(cuboid(cx - COVER_HALF, cy - COVER_HALF, ZF, cx + COVER_HALF, cy + COVER_HALF, COVER_TOP,
+                             "cover_top", "cover"))
         mw.detail("cover %d" % (i + 1)).append(covers[-1])
 
-    # ---- the lamps (vrtesthall's pattern: a glowing block at the ceiling, its light entity under it)
+    # ---- the ceiling's own fixtures, over each of the 8 ceiling lights: a coffer hung 32 below the ceiling -- a frame
+    # 192 square with 32-wide arms of id's trim, a ring of glowing tiles under it (ceil1_1: relight_textures.cfg makes
+    # it a fixture, so it gives its own light in the game) and a 16-deep recess lined with plates whose back is a lit
+    # panel (light3_3), the light entity a little under the mouth of it
     lights = []
     for i in range(8):
         a = math.radians(22.5 + 45 * i)
-        x, y = (round(650 * math.cos(a) / 8) * 8, round(650 * math.sin(a) / 8) * 8)
-        lamps.append(mg.box(x - 32, y - 32, ZH - 4, x + 32, y + 32, ZH, T("lamp")))
+        x, y = (round(COFFER_R * math.cos(a) / 8) * 8, round(COFFER_R * math.sin(a) / 8) * 8)
+        for dx0, dy0, dx1, dy1 in ((-96, -96, 96, -64), (-96, 64, 96, 96), (-96, -64, -64, 64), (64, -64, 96, 64)):
+            coffers.append(cuboid(x + dx0, y + dy0, ZH - COFFER_DROP, x + dx1, y + dy1, ZH, "recess", "frame", "ring"))
+        coffers.append(cuboid(x - 64, y - 64, ZH - 16, x + 64, y + 64, ZH, "recess", ("frame", dict(reps=(0, 1))),
+                              "lit"))
         lights.append(((x, y, ZH - 44), "300", "0.47"))
     for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
         lights.append(((sx * 402, sy * 402, 320), "180", "0.6"))      # over each tower's top
@@ -223,7 +423,7 @@ def geometry(mw):
     for sx, sy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         lights.append(((sx * 180, sy * 180, 140), "140", "0.66"))     # over the dais, one facing each staircase
 
-    mw.world.extend(shell + lamps)
+    mw.world.extend(shell + coffers)
     mw.group("dais").extend(dais)
     mw.group("towers").extend(towers)
     mw.group("walkways").extend(walk)
@@ -467,6 +667,13 @@ def main():
     elif not os.path.exists(os.path.join(ROOT, WADS[0])):
         print("no %s: run python Misc/trenchbroom/make_id_wad.py (it reads your own paks and git never sees the "
               "result), or pass --dev-textures" % WADS[0])
+        sys.exit(1)
+    # every name in the palette must exist in a WAD: `laid` fits a face to a whole number of TILES, so it needs to know
+    # the tile's size, and a name that is simply wrong would compile as the tools' flat checkerboard
+    missing = sorted(name for name in (spec[0] for spec in TEX.values()) if name.lower() not in TEXSIZE)
+    if missing:
+        print("no such texture in %s: %s (Misc/trenchbroom/make_id_wad.py --list prints what the WADs hold)"
+              % (", ".join(WADS), ", ".join(missing)))
         sys.exit(1)
     mw, ents, feat = write(OUT)
     brushes = all_brushes(mw)
