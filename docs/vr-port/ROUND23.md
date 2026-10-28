@@ -79,3 +79,123 @@ the 3 `info_arena_item` points are where its drops should land.
 
 *Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: vrarena, the arena's own map (generator, compiled, Play
 menu row)`
+
+## Survival Arena: the wave director
+
+*The mode: waves of armed humanoids that get thicker and quicker, Quake's own monsters joining as the waves go, a boss
+wave every fifth wave, and a player who starts with nothing and climbs the weapon ladder off the bodies.*
+
+**What changed.** `QC/vr_arena.qc` (1022 lines) is the director. `world.qc` starts it at world spawn
+(`VR_ARENA_WorldSpawn()`), `combat.qc` tells it about a kill (one line in `Killed()`, next to `MGH_Kill`), and the Play
+> Survival Arena row from the last task is how it is reached. Nothing runs unless the map is `vrarena` or `vr_arena` is
+set, deathmatch is left alone, and the mode adds no engine code: it is QuakeC on top of the armed humanoids, the AD
+weapons and the grabbable items that already exist.
+
+*The plan.* A wave is written down before it is sent (`VR_ARENA_Plan`): 12 recipes for waves 1 to 12, then one rule
+(wave 13 and on: the same ladder, thicker -- 1 to 7 humanoids, 1 to 3 enforcers, 1 to 3 of Quake's own monsters, plus
+the boss). Wave 1 is one or two grunts, all unarmed. Wave 2 is an unarmed grunt and one with a nail pistol. Wave 3
+brings 3 or 4 grunts with the bottom rungs of the ladder and the first zombie. After that the classics arrive at their
+waves and never before: zombies 2, knights 4, dogs 6, ogres 8, fiends 12, death knights 16, each wave cycling the
+kinds unlocked by now. The humanoids' guns are rolled per wave from the rungs it has reached -- axe, shotgun and nail
+pistol until wave 10, super shotgun, nailgun and super nailgun from wave 10, rocket launcher, lightning and grenade
+launcher from wave 18 -- and mixed within a wave, so a wave's five humanoids do not all carry the same gun.
+`vr_arena_seed 0` (the default) rolls a different ladder every run; a number replays that run's ladder exactly (the
+waves are rolled with a Levy triple reseeded from the seed and the wave, not with `random()`).
+
+*The boss.* Every `vr_arena_boss_every` (5) waves, the wave's plan starts with its big one: an enforcer carrying a
+rolled gun until wave 10, an ogre until wave 16, a death knight from there -- `vr_arena_boss_health` (1.25) times its
+kind's health, on the field with the rest of the wave, worth four kills on the score. What else a boss does (its perk
+pedestal) is the next task.
+
+*Where they come in.* A wave's monster is put on the map's own place of its kind: the floor places (`kind 1`) for
+everything that walks, the high places (`kind 2`: a tower top, a wall walk) for the fiend and the enforcer, 96 over the
+point so it arrives by dropping onto its ledge. Places are gone through in order from where this wave started and each
+is used at most once -- 12 foes do not arrive in 4 corners -- and a place already holding one of this wave's foes is
+passed over, not shared. A high foe whose high places are all held comes in on a floor place rather than be stepped off
+its ledge. A map with no places of its own gets the ring 400 around the player, stepped 48 aside and walked round
+until a spot has ground under it (read off the brushes, 600 down) and no foe on it. The alive cap (`vr_arena_max_alive`
+8, for Quest 3) holds the field: the rest of a thick wave trickles in, 1.5 s apart, as places free up; a wave that
+nothing has moved for 300 s is called off rather than stall the run. Every wave monster keeps its kind's own start --
+its `walkmonster_start_go`, its `takedamage`, its full health, its AI -- and is given the player once that is through
+(`VR_ARENA_HuntPlayer`), because a monster started any other way is something you cannot hit.
+
+*The player's side.* The run starts stripped (`VR_ARENA_StripPlayers`: no weapons, fists only) and the weapons come
+from the foes: an armed humanoid drops the gun it was holding when it dies, as it always has (`VR_AG_SoldierDrop` /
+`VR_AG_DropHeld`), so the ladder is climbed by picking up what fell. Each wave clear drops `vr_arena_medkits_after` (2)
+medkits and, every `vr_arena_armor_every` (4) waves, an armour -- the light one until the waves reach fiends and the
+heavy one and the light one by turns after that -- on the map's `info_arena_item` points (or the ring, off the player).
+Score: `vr_arena_score_kill` (100) times the rung its gun was on (fists/shotgun/nail pistol 1, super shotgun/nailgun/
+super nailgun/ogre/fiend 2, rocket launcher/lightning/grenade launcher/death knight 3), a boss four of that, plus 250
+times the wave for clearing it. The readout is centerprint, with the same in the console for a log: `ARENA - unarmed,
+wave 1 coming`, `ARENA - Wave 2: 2 foes (score 450)`, `ARENA - Wave 1 clear: 2 foes down (score 450)`. If the player
+falls, the run says so (`ARENA - you fell at wave 2 (score 450)`) and restarts after 10 s (`restart fresh`), the way
+the horde does.
+
+*The map's fix.* `vrarena_gen.py` built its 40 points and never handed them to the map writer, and `--check` counted
+the lists in memory rather than the file it wrote -- so the `vrarena.map`/`.bsp` the last task shipped had 20 entities:
+worldspawn, 11 `func_group`, 8 `func_detail`, and nothing else. No `info_player_start`, no spawn places, no item points,
+no lights; every foe came in on the ring and the player had no start. Now the writer is given the points (`mw.add(e)`)
+and `--check` reads the points back off the written file, prints what is missing and refuses to compile until they are
+there. `vrarena.map` has 60 entities: the same 20 solid ones plus 12 `info_arena_spawn` (4 kind 1, 8 kind 2), 3
+`info_arena_item`, 24 `light`, 1 `info_player_start`. Its solid geometry is untouched -- 980 solid brush lines, sha1
+`cad99ec111884e2fe8ec74a08e88bdf06b018897` before and after -- but qbsp's output is not: with no entities in the map it
+padded the shell with filler, which is what the last section's "No entities in empty space" warnings were. Compiled the
+same way (`-bsp2 -wadpath`, vis, light `-extra4 -dirt -bounce -lit -lux -lightgrid 64 64 64`): 780 visible faces, 1142
+faces, 231 leafs, 1349 clipnodes, 13 texinfos (was 2209 faces, 678 leafs, 10119 clipnodes, 14 texinfos), no fill
+warnings, and `.lit`/`.lux` now come from real light entities. `bsp_holes.py` with 2000 rays: 0 missing-face hits, 0
+undrawn hits, 0 holes.
+
+**Verified.** `build.sh arenadir`: QC with 0 warnings, fgdgen over every spawn function (376 entities), the statics,
+test-number and QC-precedence checks passing. Four tests, run with `developer 1` and `vr_arena_test 1..4` (the QC's own
+beat in `world.qc` under `QVR_TESTS`):
+
+- test 1, the plans, the hooks, the score and the supplies (vrtesthall, seed 7): **254 passed, 0 failed**
+- test 2, the waves live -- every foe can be hit, the alive cap holds, each wave comes in at its own place: **13, 0**
+  (`arena: foe kind 0 gun -1 tier 1 at -640 640 0`, `arena: foe kind 0 gun -1 tier 1 at -640 -640 0` for wave 1's two
+  corners; `arena: foe kind 0 gun 29 tier 1 at 640 -640 0` for wave 2's nail pistol; `arena: wave 1 clear kills 2
+  medkits 2 armour 0 score 450`)
+- test 3, jumped to the boss wave -- its kind, its health, its tier, the cap: **52, 0** (`arena: wave 5 score 0 alive
+  5`, `arena: boss kind 1 health 101 tier 1`, `arena: foe kind 1 gun 4 tier 1 at -736 288 352` -- an enforcer on a wall
+  walk: a kind 2 point at -736 288 256, 96 over it)
+- test 4, the places a wave comes in on: vrarena (4 ground, 8 high) **7, 0** -- `arena: t4 ground place -640 640 0,
+  -0.03125 down` (on the floor), `arena: t4 high place -402 402 352, 95.9688 down` (a tower top, dropped onto it),
+  `arena: t4 past a taken place: -640 -640 0` (a held corner passed over); vrtesthall, which has no places of its own
+  and gets the ring: **5, 0** (`arena: t4 ground place 200 60 25, 24.9688 down`).
+
+Live on vrarena (seed 3, `god` after the map loads): `ARENA - unarmed, wave 1 coming`, wave 1 and 2 as above, boss
+waves at 5, 10 and 15 (`arena: boss kind 5 health 251 tier 2` at 15), the medkit and armour lines, and the fall path
+(`arena: fell wave 2 score 450` then `ARENA - you fell at wave 2 (score 450)`, restart 10 s later).
+
+**Settings and defaults.** All in the engine's cvar list, none of them needed to play: `vr_arena` 0 (1: its waves run
+in this map too -- vrarena runs them on its own, so a mode map never needs it), `vr_arena_wave_delay` 6 s from a wave
+clear to the next, `vr_arena_max_alive` 8, `vr_arena_boss_every` 5 (0: none), `vr_arena_boss_health` 1.25,
+`vr_arena_medkits_after` 2 (0..4), `vr_arena_armor_every` 4 (0: none), `vr_arena_score_kill` 100, `vr_arena_seed` 0 (a
+different ladder every run), `vr_arena_test` 0 (1 the plans, 2 the live waves, 3 a boss wave, 4 the places).
+
+**To test in VR.** Play > Survival Arena: does it start unarmed and does wave 1 feel right (one or two unarmed grunts
+-- the fight should read as a shove, not a gunfight); pick their guns up off the bodies and check a dropped gun is
+reachable where it fell, since that is how the ladder is climbed; wave 2 with the nail pistol, then the waves where the
+humanoids carry shotguns and the classics arrive -- ogres, dogs, knights, fiends, death knights, and the high ones
+(fiends and enforcers) arriving on a tower top or the wall walk; the alive cap (8): a thick wave should come in trickles
+with room to breathe, not all at once; a boss wave (5) -- whether a 101-health enforcer is a fair step up at that
+point; the medkits and armours landing on the three item points; the readout legible in the headset; the fall -- die and
+see the run say so and restart. Play it twice with `vr_arena_seed 0` and check the two runs differ, then once with a
+seed and check it repeats.
+
+**Decisions.** A wave monster is spawned through its kind's own spawn function and never started another way: the first
+version set `think = FoundTarget` at spawn, which skipped `walkmonster_start_go` and produced foes with `takedamage 0`
+-- things that stand there and cannot be hit. High foes drop 96 onto their ledge instead of being placed on it, because
+that is how the fiend and the enforcer arrive in Quake's own maps. The alive cap (8) is a Quest 3 choice, not a design
+one. `vr_arena_seed 0` rolling its own ladder rather than a fixed one is what makes two runs differ, which the brief
+asks for; the Levy triple rather than `random()` is what makes a seeded run replayable and a soak reproducible. The
+300 s stall call-off exists because a headless soak cannot fight: without it a wave that nobody kills never ends.
+Enemies are armed by the director's own pools, so `vr_agrunt_repl` stays off. No new performance caps.
+
+*Open for the perks (W3):* the boss wave's reward -- its pedestal and its 1-of-3 choice -- is not in yet, so a boss wave
+today is only a thicker one; and whether a dropped gun should be kept off the `vr_dropcap` fade in the arena, since a
+player who is slow to the next weapon can find the gun they wanted gone.
+
+*Suggested `quakevr/checklist.txt` lines:* `+ Survival Arena: the wave director (12 wave recipes and the ladder past
+them, a boss wave every 5, the map's own spawn places, medkits and armour between waves, score and readout)` and
+`+ Survival Arena: vrarena's point entities (spawn places, item points, lights) written for real, and its checks reading
+the file they went into`
