@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # make_rig2.py -- the authored grunt rig ("rig2": docs/vr-port/ROUND22.md, "Grunt rig rebuild, stage 1"): a humanoid
 # skeleton with anatomical joints, joint limits and blended skin weights (up to 4 bones a vertex), written as
-# quakevr/rigs/<model>.rig2.txt for the engine (vr_rig2.cpp: vr_rig2 1, the Rig Studio's Range of Motion window).
+# quakevr/rigs/<model>.rig2.txt for the engine (vr_rig2.cpp: the game's grunt and enforcer, the Rig Studio's Range of Motion window).
 #
 # Usage: python Misc/quakevr/make_rig2.py [grunt|enforcer|all] [--preview out.png] [--quiet]
 #        (default all; each rig in RIGS below is built on its armed model's mesh and written for its models, which

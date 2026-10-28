@@ -270,9 +270,23 @@ void toolsWindow()
         return;
     }
     const char* tools[toolCount] = {"Select (Q)", "Rotate (R)", "Move (G)", "IK (E)", "Rest Pose (T)", "Weights (W)", "Paint (P)", "Pose Keys (O)"};
+    // (an authored rig's subject: no Rest Pose, Weights or Paint, the derived rig's overrides; its rest, limits and
+    // weights are its rig2.txt's, the Range of Motion window's)
+    const auto derivedOnly = [](int i) {
+        return i == static_cast<int>(Tool::Rest) || i == static_cast<int>(Tool::Weights) || i == static_cast<int>(Tool::Paint);
+    };
+    if(st.doc.authored && derivedOnly(static_cast<int>(st.tool)))
+    {
+        st.tool = Tool::Select;
+    }
     int tool = static_cast<int>(st.tool);
+    int shown = 0;
     for(int i = 0; i < toolCount; i++)
     {
+        if(st.doc.authored && derivedOnly(i))
+        {
+            continue;
+        }
         if(ImGui::RadioButton(tools[i], tool == i))
         {
             st.tool = static_cast<Tool>(i);
@@ -281,10 +295,14 @@ void toolsWindow()
                 st.showPoseData = true; // (its key's numbers beside it)
             }
         }
-        if(i % 2 == 0)
+        if(shown++ % 2 == 0)
         {
             ImGui::SameLine(115.f);
         }
+    }
+    if(shown % 2 == 1)
+    {
+        ImGui::NewLine(); // (an odd count: the last button's line ended)
     }
     if(st.tool == Tool::PoseKeys)
     {
@@ -639,7 +657,7 @@ void propertiesWindow()
         verts += st.rig->vertBone[static_cast<za::SizeT>(v)] == b ? 1 : 0;
     }
     ImGui::TextDisabled("%d vertices own it", verts);
-    if(ImGui::CollapsingHeader("Rest Pose", ImGuiTreeNodeFlags_DefaultOpen))
+    if(!st.doc.authored && ImGui::CollapsingHeader("Rest Pose", ImGuiTreeNodeFlags_DefaultOpen))
     {
         rigdata::BoneEdit& e = st.doc.bones[b];
         rigdata::BoneEdit cur = e;
@@ -1482,7 +1500,7 @@ void poseDataWindow()
             st.pdPhase = za::clamp(st.pdPhase, 0, phases - 1);
             if(phases > 1)
             {
-                ImGui::SliderInt("Phase", &st.pdPhase, 0, phases - 1, agpose::phaseName(st.pdPhase));
+                ImGui::SliderInt("Phase", &st.pdPhase, 0, phases - 1, agpose::phaseName(st.pdPose, st.pdPhase));
             }
             const int code = agpose::code(st.pdKind, st.pdClass, st.pdPose, st.pdPhase);
             agpose::Key k = agpose::value(code);

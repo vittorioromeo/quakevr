@@ -179,7 +179,7 @@ void() VR_RST_TauntFrame =
     cvar_set("vr_agrunt_test", "0");
 };
 
-// `vr_agrunt_test 82` (vr_rig2 1): the Rig Studio's override keys on a live grunt drawn on the authored rig (RIGSTUDIO.md,
+// `vr_agrunt_test 82`: the Rig Studio's override keys on a live grunt drawn on the authored rig (RIGSTUDIO.md,
 // "Animating the authored rig"; its keys those vr_rigstudio_test_rig2anim made: `load`'s chest and right upper arm at
 // frames 3 and 7). An armed grunt 160 units ahead, its AI held (its think holds its frame), at load's frame 3 then 7;
 // at each the engine's `vr_rig2anim_check` keeps its bones as drawn with the keys off (vr_rigseq 0), then measures each

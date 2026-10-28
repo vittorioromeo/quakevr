@@ -1057,7 +1057,7 @@
   "by": "make_teeth.py"
  },
  "quakevr/progs/vragarmor.mdl": {
-  "sha256": "90482af0bf4a2ef80afeea9e8b94c0c7b810b405c066af690519638cba365601",
+  "sha256": "6d2123995f9705eeb950d1b24fc535335d0e3d741f432a28a243b3bb1b708dc8",
   "by": "make_agarmor.py"
  },
  "quakevr/progs/vrbody.md5anim": {

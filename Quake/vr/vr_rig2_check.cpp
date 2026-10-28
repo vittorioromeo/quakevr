@@ -1,6 +1,5 @@
-// vr_rig2_check.cpp -- vr_rig2_check (vr_rig2.hpp): the authored rig measured through its whole range of motion, beside
-// the old derived rig (vr_ragdoll.cpp, as its ragdolls draw it: each vertex on its bone, an armed model's arms on their
-// skin's blend) moved the same way (each old bone as its namesake moves). Ends on "rig2 check: N passed, M failed".
+// vr_rig2_check.cpp -- vr_rig2_check (vr_rig2.hpp): the authored rig measured through its whole range of motion. Ends
+// on "rig2 check: N passed, M failed".
 //
 // Poses: every joint alone through its range (a ball's swing round its ellipse's edge and half way, at its twist's ends
 // and none; a hinge in 30 steps), each joint with its child (the parent round its edge, the child at its ends) and 1000
@@ -15,11 +14,8 @@
 // - a coarse self-intersection count near the joint swept (an edge through a triangle not its own, more than at rest).
 
 #include "vr_rig2.hpp"
-#include "vr_agarms.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
-#include "vr_hitreact.hpp"
-#include "vr_ragdoll.hpp"
 #include "vr_rigpose.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -112,18 +108,11 @@ struct CheckState
 {
     Surface s;
     const Rig* rig{nullptr};
-    const ragdoll::Rig* old{nullptr};
-    za::Vector<int> oldBone;            // per vertex: the old rig's bone
-    za::Vector<Weights> oldWeights;     // per vertex: the old rig's (as its ragdolls draw it)
-    int oldMap[ragdoll::maxBones]{};    // old bone -> rig2 bone (its namesake)
     za::Vector<glm::vec3> posed, n;
     za::Vector<float> area;
-    za::Vector<int> dom;                // per triangle: its heaviest bone (new rig)
-    za::Vector<int> domOld;             // ... the old rig's
     za::Vector<glm::vec3> pointsScratch;
     int restSeeThrough{0};
     int restSelfX[maxBones]{};
-    int restSelfXOld[maxBones]{};
     int detail{0}; // lines of detail left to print (vr_rig2_check <model> <lines>)
     const Stretches* stretch{nullptr}; // the pose measured's IK stretch (a recorded armed one's; the skin's)
     const qmodel_t* model{nullptr}; // made for (its rig's generation)
@@ -383,28 +372,6 @@ void prepareRest(Surface& s)
     return glm::normalize(glm::vec3{dirs[i][0], dirs[i][1] * 1.07f, dirs[i][2] * 0.93f});
 }
 
-// The old rig's vertices for rig2 bones' motions F2 (each old bone as its namesake).
-void skinOld(const rigpose::Rigid* F2, za::Vector<glm::vec3>& out)
-{
-    rigpose::Rigid Fo[ragdoll::maxBones];
-    for(int o = 0; o < cs.old->numBones; o++)
-    {
-        Fo[o] = F2[cs.oldMap[o]];
-    }
-    out.resize(static_cast<za::SizeT>(cs.s.nv));
-    for(int v = 0; v < cs.s.nv; v++)
-    {
-        const Weights& w = cs.oldWeights[static_cast<za::SizeT>(v)];
-        glm::vec3 q{0.f};
-        for(int i = 0; i < w.n; i++)
-        {
-            q += rigpose::apply(Fo[w.bone[i]], cs.s.rest[static_cast<za::SizeT>(v)]) * w.w[i];
-        }
-        out[static_cast<za::SizeT>(v)] = q;
-    }
-}
-
-
 void describe(const Rig& rig, int v)
 {
     Con_Printf(" v%d(", v);
@@ -421,19 +388,12 @@ void describe(const Rig& rig, int v)
 }
 
 // The measure of one pose. `focus`: the joint swept (its rays and its self-intersections; -1 all joints' rays).
-void measure(const rigpose::Rigid* F2, bool old, int focus, int focus2, Tally& t, const char* what)
+void measure(const rigpose::Rigid* F2, int focus, int focus2, Tally& t, const char* what)
 {
     const Rig& rig = *cs.rig;
     za::Vector<glm::vec3>& p = cs.posed;
-    if(old)
-    {
-        skinOld(F2, p);
-    }
-    else
-    {
-        p.resize(static_cast<za::SizeT>(cs.s.nv));
-        skin(rig, F2, cs.s.rest.data(), cs.s.nv, p.data(), vr_rig2_dq.value != 0.f, cs.stretch);
-    }
+    p.resize(static_cast<za::SizeT>(cs.s.nv));
+    skin(rig, F2, cs.s.rest.data(), cs.s.nv, p.data(), vr_rig2_dq.value != 0.f, cs.stretch);
     triNormals(cs.s, p, cs.n, cs.area);
     t.poses++;
     const int nt = static_cast<int>(cs.s.tris.size() / 3);
@@ -450,17 +410,16 @@ void measure(const rigpose::Rigid* F2, bool old, int focus, int focus2, Tally& t
         for(int k = 0; k < 3; k++)
         {
             const int v = cs.s.tris[3 * ti + static_cast<za::SizeT>(k)];
-            const Weights* w = old ? &cs.oldWeights[static_cast<za::SizeT>(v)]
-                                   : v < static_cast<int>(rig.weights.size()) ? &rig.weights[static_cast<za::SizeT>(v)] : nullptr;
+            const Weights* w = v < static_cast<int>(rig.weights.size()) ? &rig.weights[static_cast<za::SizeT>(v)] : nullptr;
             for(int j = 0; w && j < w->n; j++)
             {
-                ref += F2[old ? cs.oldMap[w->bone[j]] : w->bone[j]].rot * cs.s.restN[ti] * w->w[j];
+                ref += F2[w->bone[j]].rot * cs.s.restN[ti] * w->w[j];
             }
         }
         const bool flip = glm::dot(cs.n[ti], ref) < 0.f, collapse = cs.area[ti] < collapseRatio * cs.s.restArea[ti];
         flips += flip ? 1 : 0;
         collapses += collapse ? 1 : 0;
-        if((flip || collapse) && !old && cs.detail > 0)
+        if((flip || collapse) && cs.detail > 0)
         {
             cs.detail--;
             Con_Printf("  [%s] %s tri %d:", what, flip ? "flipped" : "collapsed", i);
@@ -498,7 +457,7 @@ void measure(const rigpose::Rigid* F2, bool old, int focus, int focus2, Tally& t
         t.foldGrowthMax = za::max(t.foldGrowthMax, f - cs.s.restFold[i]);
         const bool fold = f > foldLimit && f - cs.s.restFold[i] > foldGrowth;
         t.folds += fold ? 1 : 0;
-        if(fold && !old && cs.detail > 0)
+        if(fold && cs.detail > 0)
         {
             cs.detail--;
             Con_Printf("  [%s] fold %.0f (rest %.0f) edge", what, f, cs.s.restFold[i]);
@@ -575,19 +534,6 @@ void measure(const rigpose::Rigid* F2, bool old, int focus, int focus2, Tally& t
     {
         const int par = rig.bones[focus].parent;
         const auto zone = [&](int v) {
-            if(old)
-            {
-                const Weights& w = cs.oldWeights[static_cast<za::SizeT>(v)];
-                for(int i = 0; i < w.n; i++)
-                {
-                    const int m = cs.oldMap[w.bone[i]];
-                    if(m == focus || m == par)
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            }
             return weightOn(rig, v, focus) > 0.f || (par >= 0 && weightOn(rig, v, par) > 0.f);
         };
         int count = 0;
@@ -612,8 +558,7 @@ void measure(const rigpose::Rigid* F2, bool old, int focus, int focus2, Tally& t
                              : 0;
             }
         }
-        const int base = old ? cs.restSelfXOld[focus] : cs.restSelfX[focus];
-        t.selfX = za::max(t.selfX, count - base);
+        t.selfX = za::max(t.selfX, count - cs.restSelfX[focus]);
     }
     if(holes > 0 && !t.worst[0])
     {
@@ -653,7 +598,7 @@ void envelope(const Rig& rig, const Pose& rest)
                 p.a[b][axis] = a;
                 forward(rig, p, F);
                 Tally t;
-                measure(F, false, b, -1, t, "envelope");
+                measure(F, b, -1, t, "envelope");
                 if(t.seeThrough || t.flipped || t.collapsed || t.folds)
                 {
                     if(keep > 0)
@@ -663,7 +608,7 @@ void envelope(const Rig& rig, const Pose& rest)
                         q_snprintf(why, sizeof(why), "%s %c%d at %.0f", bone.name, sgn > 0.f ? '+' : '-', axis, a);
                         cs.detail = 3;
                         Tally d;
-                        measure(F, false, b, -1, d, why);
+                        measure(F, b, -1, d, why);
                         cs.detail = 0;
                         if(d.seeThrough)
                         {
@@ -760,7 +705,6 @@ void jointPoses(const Rig& rig, int b, const Pose& rest, za::Vector<Pose>& out, 
     }
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
     cs.rig = rigFor(model);
-    cs.old = ragdoll::derivedRigFor(model);
     if(!hdr || !cs.rig || hdr->poseverttype != aliashdr_t::PV_QUAKE1)
     {
         Con_Printf("rig2 check: %s has no rig2 file (quakevr/rigs/<model>.rig2.txt: Misc/quakevr/make_rig2.py)\n", modelName);
@@ -777,83 +721,6 @@ void jointPoses(const Rig& rig, int b, const Pose& rest, za::Vector<Pose>& out, 
     cs.model = model;
     cs.generation = cs.rig->generation;
     prepareRest(cs.s);
-    const Rig& rig = *cs.rig;
-    // The triangles' heaviest bones
-    const int nt = static_cast<int>(cs.s.tris.size() / 3);
-    cs.dom.resize(static_cast<za::SizeT>(nt));
-    cs.domOld.resize(static_cast<za::SizeT>(nt));
-    for(int t = 0; t < nt; t++)
-    {
-        float sum[maxBones]{};
-        for(int k = 0; k < 3; k++)
-        {
-            const int v = cs.s.tris[static_cast<za::SizeT>(3 * t + k)];
-            for(int b = 0; b < rig.numBones; b++)
-            {
-                sum[b] += weightOn(rig, v, b);
-            }
-        }
-        int best = 0;
-        for(int b = 1; b < rig.numBones; b++)
-        {
-            best = sum[b] > sum[best] ? b : best;
-        }
-        cs.dom[static_cast<za::SizeT>(t)] = best;
-    }
-    // The old rig: its bones' namesakes, its vertices' weights as its ragdolls draw them
-    if(cs.old)
-    {
-        const int weaponBone = boneByName(rig, "weapon");
-        for(int o = 0; o < cs.old->numBones; o++)
-        {
-            const int m = boneByName(rig, cs.old->bones[o].name);
-            cs.oldMap[o] = m >= 0 ? m : cs.old->bones[o].joint == ragdoll::Joint::Loose && weaponBone >= 0 ? weaponBone : 0;
-        }
-        glm::vec4 row{0.f};
-        const bool armSkin = vr_ragdoll_arm_skin.value != 0.f && hitreact::armSkinRow(model, hdr, *cs.old, 0, row);
-        cs.oldWeights.resize(static_cast<za::SizeT>(cs.s.nv));
-        for(int v = 0; v < cs.s.nv; v++)
-        {
-            Weights& w = cs.oldWeights[static_cast<za::SizeT>(v)];
-            w = Weights{};
-            const int own = v < cs.old->numVerts ? cs.old->vertBone[static_cast<za::SizeT>(v)] : 0;
-            int bl[3];
-            float wl[3];
-            if(armSkin && agarms::ragdollWeights(model, v, own, bl, wl))
-            {
-                for(int i = 0; i < 3; i++)
-                {
-                    if(wl[i] > 0.f)
-                    {
-                        w.bone[w.n] = bl[i];
-                        w.w[w.n] = wl[i];
-                        w.n++;
-                    }
-                }
-            }
-            if(w.n == 0)
-            {
-                w.n = 1;
-                w.bone[0] = own;
-                w.w[0] = 1.f;
-            }
-        }
-        for(int t = 0; t < nt; t++)
-        {
-            int votes[ragdoll::maxBones]{};
-            for(int k = 0; k < 3; k++)
-            {
-                const Weights& w = cs.oldWeights[static_cast<za::SizeT>(cs.s.tris[static_cast<za::SizeT>(3 * t + k)])];
-                votes[w.bone[0]]++;
-            }
-            int best = 0;
-            for(int b = 1; b < cs.old->numBones; b++)
-            {
-                best = votes[b] > votes[best] ? b : best;
-            }
-            cs.domOld[static_cast<za::SizeT>(t)] = best;
-        }
-    }
     return true;
 }
 
@@ -866,7 +733,6 @@ void check_f()
         return;
     }
     const Rig& rig = *cs.rig;
-    const bool withOld = cs.old != nullptr;
     const Pose rest = restPose(rig);
     rigpose::Rigid F[maxBones];
     int passed = 0, failed = 0;
@@ -882,18 +748,13 @@ void check_f()
                     Con_Printf("rig2 check: %s's rest pose (%.1f %.1f %.1f) is outside its limits\n", rig.bones[b].name, rest.a[b].x,
                         rest.a[b].y, rest.a[b].z);
                 }
-                Tally t0, t1;
-                measure(F, false, b, -1, t0, "rest");
+                Tally t0;
+                measure(F, b, -1, t0, "rest");
                 cs.restSelfX[b] = t0.selfX;
-                if(withOld)
-                {
-                    measure(F, true, b, -1, t1, "rest");
-                    cs.restSelfXOld[b] = t1.selfX;
-                }
             }
         }
         Tally t;
-        measure(F, false, -1, -1, t, "rest");
+        measure(F, -1, -1, t, "rest");
         Con_Printf("rig2 check: %s, %d bones, %d vertices, %d triangles, %d edges (%d open); rest: see-through %d\n", modelName,
             rig.numBones, cs.s.nv, static_cast<int>(cs.s.tris.size() / 3), static_cast<int>(cs.s.edges.size()),
             static_cast<int>([&] {
@@ -915,7 +776,7 @@ void check_f()
             passed++;
         }
     }
-    Tally allNew, allOld;
+    Tally allNew;
     cs.detail = Cmd_Argc() > 2 ? atoi(Cmd_Argv(2)) : 0;
     const char* only = Cmd_Argc() > 3 ? Cmd_Argv(3) : nullptr; // (a joint's name: its sweeps and pairs alone; "random")
     za::Vector<Pose> poses;
@@ -929,24 +790,15 @@ void check_f()
         }
         poses.clear();
         jointPoses(rig, b, rest, poses, false);
-        Tally tn, to;
+        Tally tn;
         for(za::SizeT i = 0; i < poses.size(); i++)
         {
             forward(rig, poses[i], F);
             q_snprintf(what, sizeof(what), "%s %.0f %.0f %.0f", rig.bones[b].name, poses[i].a[b].x, poses[i].a[b].y, poses[i].a[b].z);
-            measure(F, false, b, -1, tn, what);
-            if(withOld)
-            {
-                measure(F, true, b, -1, to, what);
-            }
+            measure(F, b, -1, tn, what);
         }
         printTally("new", rig.bones[b].name, tn);
-        if(withOld)
-        {
-            printTally("old", rig.bones[b].name, to);
-        }
         allNew.add(tn);
-        allOld.add(to);
         if(tn.clean())
         {
             passed++;
@@ -970,7 +822,7 @@ void check_f()
         za::Vector<Pose> outer, inner;
         jointPoses(rig, b, rest, outer, true);
         jointPoses(rig, c, rest, inner, true);
-        Tally tn, to;
+        Tally tn;
         for(const Pose& po : outer)
         {
             for(const Pose& pi : inner)
@@ -980,22 +832,13 @@ void check_f()
                 forward(rig, p, F);
                 q_snprintf(what, sizeof(what), "%s %.0f %.0f %.0f + %s %.0f %.0f %.0f", rig.bones[b].name, p.a[b].x, p.a[b].y, p.a[b].z,
                     rig.bones[c].name, p.a[c].x, p.a[c].y, p.a[c].z);
-                measure(F, false, c, b, tn, what);
-                if(withOld)
-                {
-                    measure(F, true, c, b, to, what);
-                }
+                measure(F, c, b, tn, what);
             }
         }
         char name[64];
         q_snprintf(name, sizeof(name), "%s+%s", rig.bones[b].name, rig.bones[c].name);
         printTally("new", name, tn);
-        if(withOld)
-        {
-            printTally("old", name, to);
-        }
         allNew.add(tn);
-        allOld.add(to);
         if(tn.clean())
         {
             passed++;
@@ -1010,8 +853,8 @@ void check_f()
     {
         envelope(rig, rest);
     }
-    // His five situations (vrragtriggers 01-28-53 .. 01-30-04's screenshots; stage 1's eyeshots): each a pose, the old
-    // rig moved alike beside it. Measured, not passed or failed (the old rig is what they showed).
+    // His five situations (vrragtriggers 01-28-53 .. 01-30-04's screenshots; stage 1's eyeshots): each a pose. Measured,
+    // not passed or failed.
     if(only && !strcmp(only, "situations"))
     {
         struct Situation
@@ -1039,21 +882,13 @@ void check_f()
                 }
             }
             forward(rig, p, F);
-            Tally tn, to;
-            measure(F, false, -1, -1, tn, s.name);
-            if(withOld)
-            {
-                measure(F, true, -1, -1, to, s.name);
-            }
+            Tally tn;
+            measure(F, -1, -1, tn, s.name);
             printTally("new", s.name, tn);
-            if(withOld)
-            {
-                printTally("old", s.name, to);
-            }
         }
     }
     // Poses from the game (vr_rig2_record: ragdolls' bodies from real deaths and knockdowns, armed ones' drawn arms):
-    // measured as they are (a ragdoll's joints a little past their limits too), the old rig moved alike beside them.
+    // measured as they are (a ragdoll's joints a little past their limits too).
     if(only && !strcmp(only, "recorded"))
     {
         for(int set = 0; set < 2; set++)
@@ -1063,7 +898,7 @@ void check_f()
             {
                 continue;
             }
-            Tally tn, to;
+            Tally tn;
             const za::Vector<Stretches>& recSt = recordedStretches(set);
             int stretched = 0;
             float stretchMost = 1.f;
@@ -1083,12 +918,8 @@ void check_f()
                 }
                 q_snprintf(what, sizeof(what), "%s %d", set == 0 ? "ragdoll" : "armed", static_cast<int>(i));
                 cs.stretch = st;
-                measure(F, false, -1, -1, tn, what);
+                measure(F, -1, -1, tn, what);
                 cs.stretch = nullptr;
-                if(withOld)
-                {
-                    measure(F, true, -1, -1, to, what);
-                }
             }
             if(stretched > 0)
             {
@@ -1097,35 +928,22 @@ void check_f()
             }
             q_snprintf(what, sizeof(what), "%s recorded (%d poses)", set == 0 ? "ragdoll" : "armed", static_cast<int>(rec.size()));
             printTally("new", what, tn);
-            if(withOld)
-            {
-                printTally("old", what, to);
-            }
         }
     }
     // Ragdoll-like random poses within the limits
     if(!only || !strcmp(only, "random"))
     {
         uint32_t seed = 0x2f6b9e1du;
-        Tally tn, to;
+        Tally tn;
         for(int i = 0; i < randomPoses; i++)
         {
             const Pose p = randomPose(rig, seed);
             forward(rig, p, F);
             q_snprintf(what, sizeof(what), "random %d", i);
-            measure(F, false, -1, -1, tn, what);
-            if(withOld)
-            {
-                measure(F, true, -1, -1, to, what);
-            }
+            measure(F, -1, -1, tn, what);
         }
         printTally("new", "random", tn);
-        if(withOld)
-        {
-            printTally("old", "random", to);
-        }
         allNew.add(tn);
-        allOld.add(to);
         if(tn.clean())
         {
             passed++;
@@ -1137,10 +955,6 @@ void check_f()
         }
     }
     printTally("new", "ALL", allNew);
-    if(withOld)
-    {
-        printTally("old", "ALL", allOld);
-    }
     Con_Printf("rig2 check: %d passed, %d failed\n", passed, failed);
 }
 
@@ -1189,10 +1003,10 @@ void reload_f()
 
 } // namespace
 
-bool measurePose(qmodel_t* model, const Pose& pose, bool old, Faults& out)
+bool measurePose(qmodel_t* model, const Pose& pose, Faults& out)
 {
     out = Faults{};
-    if(!model || !setup(model->name) || (old && !cs.old))
+    if(!model || !setup(model->name))
     {
         return false;
     }
@@ -1201,7 +1015,7 @@ bool measurePose(qmodel_t* model, const Pose& pose, bool old, Faults& out)
     Tally t;
     const int keep = cs.detail;
     cs.detail = 0;
-    measure(F, old, -1, -1, t, "studio");
+    measure(F, -1, -1, t, "studio");
     cs.detail = keep;
     out.seeThrough = t.seeThrough;
     out.flipped = t.flipped;

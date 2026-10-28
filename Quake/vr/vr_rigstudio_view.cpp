@@ -1605,9 +1605,9 @@ void keyInput()
         if(ImGui::IsKeyPressed(ImGuiKey_R, false)) { st.tool = Tool::Rotate; }
         if(ImGui::IsKeyPressed(ImGuiKey_G, false)) { st.tool = Tool::Move; }
         if(ImGui::IsKeyPressed(ImGuiKey_E, false)) { st.tool = Tool::IK; }
-        if(ImGui::IsKeyPressed(ImGuiKey_T, false)) { st.tool = Tool::Rest; }
-        if(ImGui::IsKeyPressed(ImGuiKey_W, false)) { st.tool = Tool::Weights; }
-        if(ImGui::IsKeyPressed(ImGuiKey_P, false)) { st.tool = Tool::Paint; }
+        if(ImGui::IsKeyPressed(ImGuiKey_T, false) && !st.doc.authored) { st.tool = Tool::Rest; }
+        if(ImGui::IsKeyPressed(ImGuiKey_W, false) && !st.doc.authored) { st.tool = Tool::Weights; }
+        if(ImGui::IsKeyPressed(ImGuiKey_P, false) && !st.doc.authored) { st.tool = Tool::Paint; } // (T, W, P: the derived rig's)
         if(ImGui::IsKeyPressed(ImGuiKey_I, false)) { pushUndo("key"); keySelected(); publish(); }
         if(ImGui::IsKeyPressed(ImGuiKey_Space, false)) { st.playing = !st.playing; }
         if(ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) { setFrame(za::floor(st.frame + 0.5f) - 1.f); }
@@ -1856,6 +1856,12 @@ void snapView(int which, bool flip)
         break;
     default: break;
     }
+}
+
+void orbitView(float yawFromFront)
+{
+    const entity_t* e = subjectEntity();
+    st.cam.yaw = (e ? e->angles[1] : st.stageYaw) + 180.f + yawFromFront;
 }
 
 void frameSelection()
@@ -2265,7 +2271,7 @@ void viewport()
     evaluate(st.frame, st.F, st.P, true);
     drawMesh(dl);
     drawOnion(dl);
-    if(romHidesOldBones())
+    if(romNew())
     {
         romDraw(dl); // (Range of Motion: the authored rig's bones and its joint's limits)
     }

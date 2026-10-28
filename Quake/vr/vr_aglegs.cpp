@@ -722,7 +722,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, in
     const Model* m = num > 0 ? modelFor(e->model) : nullptr;
     if(!m && num > 0 && rig.authored)
     {
-        m = modelOf(e->model, hdr, rig); // (vr_rig2 1: drawn skinned, its rest rows never asked for: found here)
+        m = modelOf(e->model, hdr, rig); // (drawn skinned, its rest rows never asked for: found here)
     }
     if(!m || !hdr || hdr->numverts != rig.numVerts)
     {

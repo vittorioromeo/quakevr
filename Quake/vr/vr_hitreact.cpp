@@ -1156,7 +1156,7 @@ bool bodyTurn(const ragdoll::Rig& rig, const rigpose::Rigid* posed, const ArmPos
         return false;
     }
     const int chest = chestOf(rig);
-    // (the derived rigs' chest on the pelvis; the authored rig's (vr_rig2 1) on its spine on the pelvis: the turn at the
+    // (the derived rigs' chest on the pelvis; the authored rig's on its spine on the pelvis: the turn at the
     // waist, the spine's joint, carrying the chest)
     int waist = chest;
     while(rig.authored && waist >= 0 && rig.bones[waist].parent >= 0 && rig.bones[rig.bones[waist].parent].parent >= 0)
@@ -2532,7 +2532,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     }
     if(rig->authored)
     {
-        rig2::posedSmooth(e, hdr, *rig, pose1, pose2, blend, posed); // (vr_rig2 1: drawn from these: r_lerpmodels 3's spline)
+        rig2::posedSmooth(e, hdr, *rig, pose1, pose2, blend, posed); // (drawn from these: r_lerpmodels 3's spline)
     }
     // The Rig Studio's animations (vr_rigseq.cpp; kickInstance draws them so): its bones from them, the layers below on top.
     bool layerArms = false;
@@ -2769,7 +2769,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     }
     if(rig->authored)
     {
-        // vr_rig2 1: drawn on the authored rig, its arms laid on its arm bones within their limits, its weapons carried
+        // drawn on the authored rig, its arms laid on its arm bones within their limits, its weapons carried
         // by its hands as drawn (vr_rig2_game.cpp)
         rig2::liveArmed(e, *rig, posed, kicked ? kick : nullptr, placed, pose1, pose2, blend, layerArms);
     }
@@ -3136,7 +3136,7 @@ void parseArmPose()
     s->cur = m;
 }
 
-// The Rig Studio's subject drawn on the authored rig (Range of Motion, vr_rig2 1; rig2::sourceModel its .mdl, `src`): no
+// The Rig Studio's subject drawn on the authored rig (Range of Motion; rig2::sourceModel its .mdl, `src`): no
 // arms to solve (the rig's pose is the studio's), its held weapons on that rig's hands (rigstudio::authoredWeapon), each
 // at its grip offset as relinkSkinned holds it (its kind's global one, the weapon's own on top).
 void relinkAuthored(const ArmPose& s, const entity_t* e, const qmodel_t* src)

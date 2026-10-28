@@ -86,7 +86,7 @@ bool leanNow(const entity_t* e, rigpose::Rigid& out);
 void leanMeasured(const entity_t* e, float pelvisRoll, float chestRoll);
 
 void registerCommands(); // vr_aglegs_info, vr_agrunt_lean_info
-void resetModels();      // the models' legs and the entities' forgotten (vr_rig2's latch: the grunt's rig another)
+void resetModels();      // the models' legs and the entities' forgotten (a rig file reloaded: rig2::latch)
 
 // The Pose Studio's Live tape (vr_poselive.hpp): `ent`'s state here (its eases, its last frame's) as bytes, its length
 // returned (0: none); and put back (a length of 0: dropped).

@@ -5,6 +5,10 @@
 //   (VR_EnemyShove_Ready: alive, on its feet, not staggered, not sliding from a push) starts its shove (a grunt's and an
 //   enforcer's model's shove1..shove6 frames: Misc/quakevr/make_enemyshove.py; a vore's two-handed push, its model's
 //   shove1..shove7: Misc/quakevr/make_voreshove.py, orig_mon_shalrath.qc shal_shove1) instead of what it was about to do;
+//   An armed grunt or enforcer (vr_armedgrunt.qc) plays the Shove pose instead (vr_agrunt_shove 1, 2: ROUND22.md,
+//   "Armed humanoids' shove"; vr_armedgrunt_pose.qc VR_AGP_Shove: the pose keys' wind-up, push and recover over its
+//   stand frames, 0.56 s), its blow as the push phase ends (0.3 s in, as the frames' was); with vr_agrunt_shove 2 also
+//   with a melee weapon or its fists (before, and with 0 or 1, those only strike);
 // - its blow (a grunt's and an enforcer's 4th frame, a vore's 5th) deals vr_enemy_shove_damage and pushes you
 //   vr_enemy_shove_distance units away, if you are still in reach and ahead of it (an enforcer's:
 //   vr_enemy_shove_enforcer_damage and _distance times as much; a vore's: vr_enemy_shove_vore_damage and _distance);
@@ -82,12 +86,28 @@ entity(entity m) VR_EnemyShove_Target =
 };
 
 // In the AI's stand, walk and run thinks (self: the monster): TRUE when it starts its shove (the think is its own).
+// An armed humanoid's shove (vr_armedgrunt_pose.qc VR_AGP_Shove: the Shove pose, its push at the push phase's end).
+void() VR_AGP_Shove;
+
+// Self (the monster) starts its shove: an armed grunt's or enforcer's posed (vr_agrunt_shove 1 and 2), else its
+// animation (its model's shove frames).
+void() VR_EnemyShove_Play =
+{
+    if(self.vr_ag && cvar_hget(cvarh_vr_agrunt_shove) >= 1)
+    {
+        VR_AGP_Shove();
+        return;
+    }
+    self.th_vrshove();
+};
+
 float() VR_EnemyShove_Check =
 {
     vr_eshove_holdfire = FALSE;
-    if(self.vr_ag && (self.vr_ag_wid < 0 || VR_AG_Class(self.vr_ag_wid) <= VR_AG_CLASS_MELEE_DEF))
+    if(self.vr_ag && (self.vr_ag_wid < 0 || VR_AG_Class(self.vr_ag_wid) <= VR_AG_CLASS_MELEE_DEF) &&
+       cvar_hget(cvarh_vr_agrunt_shove) < 2)
     {
-        return FALSE; // (an armed grunt's fists or melee weapon: its own blows, vr_armedgrunt_pose.qc, never the shove)
+        return FALSE; // (an armed grunt's fists or melee weapon: its own blows, vr_armedgrunt_pose.qc; vr_agrunt_shove 2 also the shove)
     }
     if(!self.th_vrshove || self.vr_oblivious)
     {
@@ -163,7 +183,7 @@ float() VR_EnemyShove_Check =
     }
     dprint(sprintf("enemy shove: %s starts its shove at %.2f (from frame %g), the player %.0f units away (reach %.0f)\n",
         self.classname, time, self.frame, vlen(toP), VR_EnemyShove_Reach(self)));
-    self.th_vrshove();
+    VR_EnemyShove_Play();
     return TRUE;
 };
 

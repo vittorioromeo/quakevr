@@ -101,32 +101,20 @@ void(float k) VR_AM_Row =
         vr_am_loot_aid = AID_CELLS;
         vr_am_loot_n = 5;
         vr_am_classes = VR_AM_CLASSES_ALL;
-        // Its shoulders (the rig's upperarm joints: x -4.3 .. -5.9, y +-13.4, z 19.4 .. 21.7) against the grunt's
-        // (x 0, y +-9.7, z 12). Moved back 6 (was 3: its weapons held 3 units too far ahead of its shoulders, its
-        // wrists and reach at their limits aiming; ROUND22.md, "The enforcer's rig fixed").
-        vr_am_fit_scale = '1 1.35 1.1';
-        vr_am_fit_shift = '-6 0 7';
         vr_am_back_lo = '328 332 0'; // (its power pack's back, low: x -20.3, z 7.8, standing)
         vr_am_back_hi = '343 351 0'; // (... high: x -22.8, z 22.7)
         vr_am_anchor = 322;
         vr_am_anchor_at = '-9.9 -1.6 21.9';
-        vr_am_sh_r = '-6.2 -11.3 21.8';
-        vr_am_sh_l = '-5.9 7.2 22.8';
-        vr_am_arm = 20.4;
-        if(cvar_hget(cvarh_vr_rig2_game))
-        {
-            // vr_rig2 1 (the engine's, read as the map spawned): the authored rig's shoulders, its upper arms' joints
-            // (quakevr/rigs/vrenforcer.rig2.txt, inside the pads), the left 4.3 further out than the derived rig's;
-            // its right arm shoulder to wrist (upper arm 8.3, forearm 6.7; the grunt's 15.2).
-            vr_am_sh_r = '-5.5 -12.5 21';
-            vr_am_sh_l = '-5.5 11.5 21';
-            vr_am_arm = 15;
-            // The grunt-made poses fitted so the grunt's authored shoulders land on these (the old fit put them 2.7
-            // units over them), drawn in ahead and down 15 and 10% (its arm reaches 18.9 to a grip, the derived one
-            // 24.4: the goals the old fit put were out of reach; glitch finder reach p95 3.7 -> 2.6).
-            vr_am_fit_scale = '0.85 1.3 0.9';
-            vr_am_fit_shift = '-5.75 0 7.3';
-        }
+        // The authored rig's shoulders, its upper arms' joints (quakevr/rigs/vrenforcer.rig2.txt, inside the pads); its
+        // right arm shoulder to wrist (upper arm 8.3, forearm 6.7; the grunt's 15.2).
+        vr_am_sh_r = '-5.5 -12.5 21';
+        vr_am_sh_l = '-5.5 11.5 21';
+        vr_am_arm = 15;
+        // The grunt-made poses fitted so the grunt's authored shoulders land on these, drawn in ahead and down 15 and
+        // 10% (its arm reaches 18.9 to a grip: the goals a plain shift put were out of reach; glitch finder reach p95
+        // 3.7 -> 2.6; ROUND22.md, "The enforcer's rig fixed").
+        vr_am_fit_scale = '0.85 1.3 0.9';
+        vr_am_fit_shift = '-5.75 0 7.3';
         vr_am_grip_r = '3.3 -5.5 11';
         vr_am_grip_l = '8.7 11.6 13.4';
         vr_am_gun_fw = '0 0.984 0.18';
@@ -168,18 +156,11 @@ void(float k) VR_AM_Row =
     vr_am_back_hi = '160 162 0'; // (... at the shoulder blades, x -6.2, z 14.8)
     vr_am_anchor = 148;
     vr_am_anchor_at = '-0.1 0 19.3';
-    vr_am_sh_r = '0.1 -7.7 16.3';
-    vr_am_sh_l = '0.7 6.3 14.5';
-    if(cvar_hget(cvarh_vr_rig2_game))
-    {
-        // vr_rig2 1 (the engine's, read as the map spawned): the authored rig's shoulders, its upper arms' joints
-        // (quakevr/rigs/vrgrunt.rig2.txt), wider than the derived rig's: its weapons' second grips brought within reach
-        // of these (VR_AGP_SecondReach), as its arms' solve has them.
-        vr_am_sh_r = '-0.3 -9.4 15.2';
-        vr_am_sh_l = '0.9 9.0 15.2';
-        vr_am_arm = 15.2; // (its right arm, shoulder to wrist: upper arm 8.2, forearm 7.0; the derived rig's 9.8 + 6.9)
-    }
-    vr_am_arm = cvar_hget(cvarh_vr_rig2_game) ? vr_am_arm : 16.7; // (vr_rig2 1: the authored arm's, above)
+    // The authored rig's shoulders, its upper arms' joints (quakevr/rigs/vrgrunt.rig2.txt): its weapons' second grips
+    // brought within reach of these (VR_AGP_SecondReach), as its arms' solve has them.
+    vr_am_sh_r = '-0.3 -9.4 15.2';
+    vr_am_sh_l = '0.9 9.0 15.2';
+    vr_am_arm = 15.2; // (its right arm, shoulder to wrist: upper arm 8.2, forearm 7.0)
     vr_am_grip_r = '5.7 -3.6 4.8';
     vr_am_grip_l = '11.8 5.5 1.9';
     vr_am_gun_fw = '0.394 0.888 -0.235';

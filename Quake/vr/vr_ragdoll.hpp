@@ -94,7 +94,7 @@ struct Rig
     // How the derivation went (vr_ragdoll_info).
     float clusterRms{0.f}, boneRms{0.f};
     double deriveMs{0.0};
-    // vr_rig2 1: made from the authored rig (quakevr/rigs/<model>.rig2.txt; vr_rig2.cpp), its bones the authored rig's
+    // made from the authored rig (quakevr/rigs/<model>.rig2.txt; vr_rig2.cpp), its bones the authored rig's
     // in its order (its "weapon" a loose bone), each vertex on up to 4 (`weights`, by .mdl vertex; `vertBone` the
     // heaviest), drawn with its "<model>#rig2" skinned copy; the frames' fits to the weighted vertices.
     bool authored{false};
@@ -104,7 +104,7 @@ struct Rig
 // The skinned copy a ragdoll of `rig` is drawn with ("<model>#rag", or "<model>#rig2" for an authored rig).
 [[nodiscard]] qmodel_t* skinnedModelOf(const Rig& rig);
 
-// vr_rig2's latch (vr_rig2.cpp): the rigs made from the authored rigs handed out no more (kept: ragdolls point to them),
+// rig2::latch (a rig file reloaded): the rigs made from the authored rigs handed out no more (kept: ragdolls point to them),
 // made again from the files when next asked for.
 void retireAuthored();
 
@@ -118,7 +118,7 @@ void retireAuthored();
 // The rig of `model`, derived on first use (tens of milliseconds) and kept: nullptr if it has none or the derivation
 // failed (the model isn't the one the seed table was made for).
 [[nodiscard]] const Rig* rigFor(qmodel_t* model);
-// ... always the derived one (vr_rig2 1's rigFor gives the authored rig's: the checks' "old rig" beside it).
+// ... always the derived one (rigFor gives the authored rig's where a model has one: the enforcer's torso proxy is fitted on its derived chest).
 [[nodiscard]] const Rig* derivedRigFor(qmodel_t* model);
 
 // The rigs of `count` models made at once, on the game's thread pool (the map's start: rigFor's for each, faster).

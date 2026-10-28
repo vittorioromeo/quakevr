@@ -1,7 +1,6 @@
-// vr_rigstudio_animtest.cpp -- vr_rigstudio_test_rig2anim: the Timeline's keys on the rig the subject is drawn on
-// (RIGSTUDIO.md, "Animating the authored rig"). With vr_rig2 1 the subject is on the authored rig: the dope sheet's
-// bones are its (clavicles, spine, hands...), its keys held within its joints' limits and saved to its own files
-// (rigs/<model>.rig2anim.txt, each key in its bone's frame); with vr_rig2 0 the old rig's, as before.
+// vr_rigstudio_animtest.cpp -- vr_rigstudio_test_rig2anim: the Timeline's keys on the authored rig the subject is drawn
+// on (RIGSTUDIO.md, "Animating the authored rig"): the dope sheet's bones are its (clavicles, spine, hands...), its keys
+// held within its joints' limits and saved to its own files (rigs/<model>.rig2anim.txt, each key in its bone's frame).
 //
 // The steps (run once the subject stands; the studio's own commands, as a script would): its `load` animation's
 // override cleared; the chest turned (0 15 0) and the right upper arm (0 -30 20) at frame 3, the chest (10 0 0) and the
@@ -85,18 +84,14 @@ void localsAt(int b, float frame, rigpose::Rigid& frameLocal, rigpose::Rigid& ke
 
 void runTest()
 {
-    const bool authored = st.rig->authored;
-    Con_Printf("rigstudio rig2anim: the subject on the %s rig, %d bones\n", authored ? "authored" : "old", st.numBones);
-    const rig2::Rig* a = authored ? rig2::rigFor(st.model) : nullptr;
-    if(authored)
+    const rig2::Rig* a = st.rig->authored ? rig2::rigFor(st.model) : nullptr;
+    Con_Printf("rigstudio rig2anim: the subject on the %s rig, %d bones\n", a ? "authored" : "derived", st.numBones);
+    check(va("the dope sheet's bones the authored rig's (%d of %d; clavicle_r %d, spine %d, hand_l %d)", st.numBones,
+              a ? a->numBones : -1, boneByName("clavicle_r"), boneByName("spine"), boneByName("hand_l")),
+        a && st.numBones == a->numBones && boneByName("clavicle_r") >= 0 && boneByName("spine") >= 0 && boneByName("hand_l") >= 0);
+    if(!a)
     {
-        check(va("the dope sheet's bones the authored rig's (%d of %d; clavicle_r %d, spine %d, hand_l %d)", st.numBones,
-                  a ? a->numBones : -1, boneByName("clavicle_r"), boneByName("spine"), boneByName("hand_l")),
-            a && st.numBones == a->numBones && boneByName("clavicle_r") >= 0 && boneByName("spine") >= 0 && boneByName("hand_l") >= 0);
-    }
-    else
-    {
-        check(va("the dope sheet's bones the old rig's (%d; no clavicle)", st.numBones), boneByName("clavicle_r") < 0 && st.numBones > 0);
+        return;
     }
     run("vr_rigstudio_source anim load");
     check("the load animation picked", st.source == Source::Anim);
@@ -142,8 +137,8 @@ void runTest()
             }
         }
         check(va("the keys drawn at their frames: turned %.1f..%.1f degrees off the frames, within the joints' limits (%s)",
-                  turned, worst, authored ? "authored" : "the old rig: not held"),
-            turned > 5.f && (within || !authored));
+                  turned, worst, "authored"),
+            turned > 5.f && within);
     }
     // A bend past the forearm's hinge: held within it (the authored rig); undone.
     {
@@ -152,14 +147,14 @@ void runTest()
         run("vr_rigstudio_rotate 0 170 0");
         const rigdata::Track* fore = trackNamed("forearm_r");
         bool held = false;
-        if(fore && authored && a)
+        if(fore)
         {
             const int b = boneByName("forearm_r");
             rigpose::Rigid fl, kl;
             localsAt(b, 5.f, fl, kl);
             held = rig2::withinLimits(*a, b, rig2::anglesOf(*a, b, kl.rot), 0.05f);
         }
-        check(va("forearm_r bent 170 degrees: keyed%s", authored ? ", held within its hinge" : ""), fore && (held || !authored));
+        check("forearm_r bent 170 degrees: keyed, held within its hinge", fore && held);
         run("vr_rigstudio_undo");
         check("undone: its track gone, the others kept", !trackNamed("forearm_r") && trackNamed("chest") && trackNamed("upperarm_r"));
     }
@@ -174,10 +169,7 @@ void runTest()
         localsAt(l, 3.f, flL, klL);
         const glm::vec3 rv = rigdata::toRotDeg(klR.rot);
         glm::quat mirrored = rigdata::toQuat(glm::vec3{-rv.x, rv.y, -rv.z});
-        if(a)
-        {
-            (void)rig2::clampLocal(*a, l, mirrored); // (held within the left's own limits)
-        }
+        (void)rig2::clampLocal(*a, l, mirrored); // (held within the left's own limits)
         const float off = turnDeg(mirrored, klL.rot);
         check(va("mirrored: upperarm_l keyed as upperarm_r mirrored (%.2f degrees off)", off), trackNamed("upperarm_l") && off < 3.f);
         run("vr_rigstudio_undo");
@@ -187,11 +179,11 @@ void runTest()
     rigdata::Track keep[2] = {*trackNamed("chest"), *trackNamed("upperarm_r")};
     save();
     char path[MAX_OSPATH];
-    rigdata::rigPath(st.doc.base.cStr(), path, sizeof(path), authored);
+    rigdata::rigPath(st.doc.base.cStr(), path, sizeof(path), true);
     za::String text;
     const bool read = files::readText(path, text);
-    check(va("saved to %s (%s)", path, authored ? "qvrrig2anim" : "qvrrig"),
-        read && strstr(text.cStr(), authored ? "qvrrig2anim 1" : "qvrrig 1") && strstr(text.cStr(), "track upperarm_r") &&
+    check(va("saved to %s (qvrrig2anim)", path),
+        read && strstr(text.cStr(), "qvrrig2anim 1") && strstr(text.cStr(), "track upperarm_r") &&
             strstr(text.cStr(), "override load"));
     revert();
     run("vr_rigstudio_source anim load");

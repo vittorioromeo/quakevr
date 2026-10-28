@@ -306,7 +306,7 @@ bool upper(int ent, const ragdoll::Rig& rig, int chest, const rigpose::Rigid* po
     int pelvis = chest >= 0 && chest < rig.numBones ? rig.bones[chest].parent : -1;
     while(rig.authored && pelvis >= 0 && rig.bones[pelvis].parent >= 0)
     {
-        pelvis = rig.bones[pelvis].parent; // (vr_rig2 1: the authored chest on its spine on the pelvis: the hips the root's)
+        pelvis = rig.bones[pelvis].parent; // (the authored chest on its spine on the pelvis: the hips the root's)
     }
     Upper* u = vr_agrunt_upper.value != 0.f && pelvis >= 0 ? upperOf(ent, true) : nullptr;
     if(!u)

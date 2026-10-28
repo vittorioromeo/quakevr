@@ -470,6 +470,12 @@ vertices) hidden in 21 death frames", "the laser rifle (58 vertices) hidden in 2
 prints each shot ("grunt's shotgun fired: hand 1, 9 left") and each empty click. Level mock hands for aimed shots:
 `vr_mock_hand main 0.25 1.20 -0.40 70 0 0`. The grunts' burst rifles and the rifle's lasers (ROUND21.md, "The grunts' burst rifles; the enforcer rifle's faster lasers"): `vr_debug_shots 1` prints each burst round and each rifle laser (fired: its speed; what it hit, its damage); `vr_hull_hittest <distance> <spread>` gives a spread's share of hits on you; `hullhit/hit_test.sh <worktree> 2160 "0:256" 24` a grunt's damage to you in 30 s (`vr_grunt_burst 0`: the shotgun's). `Misc/quakevr/make_enemyguns.py` makes the models (`check_mdl_holes.py`
 checks them).
+Armed humanoids' posed shove (ROUND22.md, "Armed humanoids' shove"): `map vrtesthall; developer 1; vr_agrunt_test 84`
+(`-QuitOn "test 84 over"`): five cases (shotgun, nail pistol, two nail pistols, axe; an enforcer's laser rifle; `scratch2
+1`: super axe, chainsaw, two crowbars, fists, rocket launcher), each walked up to until it shoves: the phases' times,
+the push landing at the push phase's end (`vr_ag_shove_s`), eyeshots as it lands and held at the push key front and
+side (15 eyeshots, `vrtesthall_000..014`: a case's three in a row); `python Misc/quakevr/eyeshot_sheet.py sheet.png 3 2
+512,600,560 <the _L images>` makes their contact sheet.
 Enemy shoves (ROUND21.md, "Grunts and enforcers shove you"): `developer 1`, `vr_test_spawn 0` (or `8`),
 `vr_test_spawn_dist 40`, `impulse 241` on vrtesthall's open floor: "enemy shove: ... shoves the player ...", "the player
 slid 63.7 units"; parry with the crowbar across (`vr_weapon_grip_mode 1; impulse 167; vr_mock_hand main 0.15 1.35 -0.35
