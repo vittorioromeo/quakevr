@@ -97,6 +97,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageArmedHolds();
 [[nodiscard]] za::Vector<Item> pageArmedStretch();
 [[nodiscard]] za::Vector<Item> pageArmedAI();
+[[nodiscard]] za::Vector<Item> pageArena();
 [[nodiscard]] za::Vector<Item> pageKnockdowns();
 [[nodiscard]] za::Vector<Item> pageKdTriggers();
 [[nodiscard]] za::Vector<Item> pageKdTrigLedge();
@@ -439,6 +440,7 @@ inline constexpr Page pages[] = {
     {"Graphics Presets", pageGraphicsPresets, pageMain, LevelStandard}, // (vr_menu_pages.inc; vr_gfxpresets.cpp)
     {"Graphics - Shoreline Foam", pageGraphicsFoam, pageGraphicsLiquids}, // (vr_menu_pages.inc; vr_water.cpp foamLook)
     {"Death Sergeant's Flail", pageFlail, pageMeleeSettings}, // AD support (vr_menu_ad_guns.inc; vr_box3d_flail.cpp)
+    {"Survival Arena", pageArena, pageCombat}, // (vr_menu_gameplay.inc; QC vr_arena.qc, vr_arena_perks.qc)
 };
 inline constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

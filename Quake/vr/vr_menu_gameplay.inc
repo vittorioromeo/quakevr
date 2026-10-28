@@ -1,6 +1,6 @@
 // vr_menu_gameplay.inc -- VR Settings > Gameplay: enemies (shoves, melee, holding, knockdowns, weapons), damage, sound,
-// blood feedback, parry, stamina, batting. Part of vr_menu.cpp (included where it was: the same translation unit, so
-// its anonymous namespace).
+// blood feedback, parry, stamina, batting, the Survival Arena's waves. Part of vr_menu.cpp (included where it was: the
+// same translation unit, so its anonymous namespace).
 
 [[nodiscard]] za::Vector<Item> pageGameplay()
 {
@@ -1386,6 +1386,83 @@ void ikStretchReset()
             .help("Moving sideways (strafing round you, side-stepping), its pelvis and legs tip toward the way it goes, "
                   "this far at a strafe's speed (less slower), eased in and out; its upper body stays aimed. 0: "
                   "none (vr_agrunt_strafe_lean)."),
+    };
+}
+
+// Combat > Survival Arena (QC vr_arena.qc and vr_arena_perks.qc; docs/vr-port/ROUND23.md, "Survival Arena"): the wave
+// director's knobs, how far the game's difficulty (skill) moves them, and the perks a boss wave's clear offers. Which
+// foes a wave brings is the ladder in vr_arena.qc; this page is what a run is built from. The waves follow the Skill
+// below exactly as the armed humanoids' fighting follows its own Difficulty Impact above -- the two knobs are separate
+// and neither touches the other's feature.
+[[nodiscard]] za::Vector<Item> pageArena()
+{
+    return {
+        header("Difficulty"),
+        slider("Difficulty Impact", vr_arena_skill_impact, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much the skill level (the Skill below) moves the arena's waves, Normal always as set. At 1: Easy "
+                  "0.75x, Hard 1.25x, Nightmare 1.5x of a wave's size, of how many foes are up at once, of a boss's bulk, "
+                  "of a kill's and a wave clear's score and of how many perks a boss clear offers, and the other way of "
+                  "the waits (6 s between waves is 8 at Easy, 4.8 at Hard, 4 at Nightmare) and of a wave clear's supplies "
+                  "(2 medkits is 3 at Easy, 1 at Nightmare; an armour every 4 waves is one every 3 at Easy, 6 at "
+                  "Nightmare). The ladder's gates move in whole waves: the second rung at wave 13 / 10 / 8 / 6 (Easy / "
+                  "Normal / Hard / Nightmare), a knight 7 / 4 / 2 / 2, a dog 9 / 6 / 4 / 2, an ogre 11 / 8 / 6 / 4, fiends "
+                  "15 / 12 / 10 / 8, death knights 19 / 16 / 14 / 12, and the first waves' unarmed humanoids 0.30 / 0.20 / "
+                  "0.15 / 0.10 of them; an Easy boss wave comes a wave less often, a Nightmare one carries two bosses. "
+                  "0: the skill changes nothing about the arena; 2: those steps doubled (0.5x at Easy, 2x at Nightmare); "
+                  "a count never below 1 and a score never below 1 (vr_arena_skill_impact)."),
+        cycle("Skill", "skill", {{0.f, "Easy"}, {1.f, "Normal"}, {2.f, "Hard"}, {3.f, "Nightmare"}})
+            .help("skill: the game's difficulty, which the arena's waves follow through the Difficulty Impact above (its "
+                   "own knob: the arena's scaling is nothing to do with vr_agrunt_ai_skill). The opening line names it "
+                   "(ARENA - Nightmare: unarmed, wave 1 coming). From the next map, or Restart the Map (Debug > "
+                   "Cheats)."),
+        header("The Waves"),
+        toggle("Arena In Any Map", vr_arena)
+            .help("1: the waves run in this map too, off its info_arena_spawn and info_arena_item spots; the map vrarena "
+                   "runs them without it (vr_arena)."),
+        slider("Rest Between Waves", vr_arena_wave_delay, 1.f, 60.f, 0.5f, "%.1f s")
+            .help("From a wave cleared to the next wave: this many seconds at Normal (by Difficulty Impact 6 is 8 at "
+                   "Easy, 4.8 at Hard, 4 at Nightmare) (vr_arena_wave_delay)."),
+        slider("Foes Up At Once", vr_arena_max_alive, 1.f, 12.f, 1.f, "%.0f")
+            .help("How many of a wave's foes may be up at once, at Normal -- the difficulty takes its share of this (8 is "
+                   "6 at Easy, 10 at Hard, 12 at Nightmare), and never more than the wave plans. The rest of a thick wave "
+                   "trickles in as places free up: one per beat, 1.5 s apart at Normal (2 / 1.5 / 1.2 / 1 by the "
+                   "difficulty) (vr_arena_max_alive)."),
+        header("Boss Waves"),
+        slider("Boss Every", vr_arena_boss_every, 0.f, 20.f, 1.f, "%.0f")
+            .help("A wave with a marked big one in it every this many waves (0: none) -- an enforcer boss early, an ogre "
+                   "from wave 10, a death knight from wave 16 at Normal (earlier the harder the skill). At Easy the gap is "
+                   "one longer (5 is 6); Normal, Hard and Nightmare keep it, and a Nightmare boss wave carries two, the "
+                   "second the same kind at half its bulk (vr_arena_boss_every)."),
+        slider("Boss Bulk", vr_arena_boss_health, 1.f, 8.f, 0.05f, "%.2fx")
+            .help("A boss's health times this and the difficulty's factor: an enforcer boss at 1.25 stands at 76 health "
+                   "at Easy, 101 at Normal, 126 at Hard, 151 at Nightmare (a Nightmare boss wave's second at half that) "
+                   "(vr_arena_boss_health)."),
+        header("Wave Clears"),
+        slider("Medkits", vr_arena_medkits_after, 0.f, 4.f, 1.f, "%.0f")
+            .help("Medkits every wave clear drops (0: none), the difficulty dividing them: 2 is 3 at Easy, 2 at Normal "
+                   "and Hard, 1 at Nightmare (vr_arena_medkits_after)."),
+        slider("An Armour Every", vr_arena_armor_every, 0.f, 12.f, 1.f, "%.0f waves")
+            .help("A wave clear adds an armour every this many waves (0: none); the harder the skill the longer its gap: "
+                   "4 is one every 3 waves at Easy, 4 at Normal, 5 at Hard, 6 at Nightmare. From wave 12 of the run they "
+                   "alternate with the heavier kind -- what you have earned is yours, whatever the difficulty "
+                   "(vr_arena_armor_every)."),
+        slider("Score For A Kill", vr_arena_score_kill, 1.f, 10000.f, 5.f, "%.0f")
+            .help("A kill's score, times the rung its holder was on (a boss four of that) and the difficulty: at 100 a "
+                   "first rung kill is worth 75 / 100 / 125 / 150 (Easy / Normal / Hard / Nightmare), a third rung boss "
+                   "900 / 1200 / 1500 / 1800. A wave clear adds 250 times its wave, by the difficulty too (wave 3: 563 / "
+                   "750 / 938 / 1125) (vr_arena_score_kill)."),
+        header("Perks"),
+        toggle("Boss Perks", vr_arena_perks)
+            .help("1: clearing a boss wave offers your choice of perks -- pedestals standing in the field, on the places "
+                   "a wave clear's drops use; walk over one to take that perk for the rest of the run. 0: it offers "
+                   "nothing (vr_arena_perks)."),
+        slider("Perks Offered", vr_arena_perk_count, 1.f, 7.f, 1.f, "%.0f")
+            .help("How many of the pool's seven a boss clear offers, at Normal -- the difficulty takes its share (3 is 2 "
+                   "at Easy, 4 at Hard, 5 at Nightmare); never the same perk twice (vr_arena_perk_count)."),
+        header("This Run"),
+        slider("Wave Seed", vr_arena_seed, 0.f, 1000.f, 1.f, "%.0f")
+            .help("0: a different ladder of guns every run; a number: that seed's waves, so one difficulty's run can be "
+                   "compared against another's (vr_arena_seed). Not saved: set it every map."),
     };
 }
 

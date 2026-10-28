@@ -989,6 +989,10 @@ za::Vector<Item> pageCombat()
         open("Armed Humanoids' AI Behaviour", pageIndex(pageArmedAI))
             .help("How armed grunts and enforcers fight: aggressiveness, accuracy, reaction time, fire rate, retreat, "
                   "weapon search, and how much the skill level changes them (Difficulty Impact)."),
+        open("Survival Arena", pageIndex(pageArena))
+            .help("The map vrarena's waves: how big they are, how many foes are up at once, their boss waves, what a "
+                  "wave clear drops and pays, the perks a boss clear offers, and how far the game's difficulty (Skill) "
+                  "moves all of it."),
         open("Enemy Melee", pageIndex(pageEnemyMelee))
             .help("Monsters' melee blows: the arc ahead of them where they land and their reach (both growing with "
                   "size), how fast they turn after you while swinging, how close they come; Show Melee Arcs."),
