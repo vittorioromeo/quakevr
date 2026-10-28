@@ -398,6 +398,11 @@ vector(entity e, float what, ...) ragdollcut = #0; // [float bone]: 4 and 5 the 
 // velocity, 3 a point on its own bone's surface (the tests' hit).
 float(entity e, float bone, vector blade, ...) ragdollcutlimb = #0;
 float(entity e, vector p) ragdolllimb = #0;
+// Armour for the armed humanoids (vr_agarmor.qc; the builtins' table is full, so on two others): ragdollbone(e, p,
+// QVR_ARMOR_PIECE_AT) the piece a hit at p strikes (-1 none there, -2 no rig); limbpiece(e, piece, 10 / 11) that piece's
+// own model's ("<model>#plate<piece>") origin / angles now, as drawn.
+float QVR_ARMOR_PIECE_AT = -1000;
+float QVR_ARMOR_CLIENT = -1001; // ragdollbone(e, [what, 0, 0], ...): the client's word on e's armour (the tests): 0 type, 1 pieces, 2 wear; -1 none
 float(entity e, float what, ...) ragdolllimbs = #0;
 string(entity e, float bone) limbmodel = #0;
 vector(entity e, float bone, float what) limbplace = #0;

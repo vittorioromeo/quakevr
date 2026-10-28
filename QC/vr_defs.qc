@@ -423,6 +423,7 @@ float QVR_PARTICLE_PRESET_TANKCLOUD      = 27; // count big puffs of the poison 
 void() VR_ARENA_WorldSpawn;
 void() VR_ARENA_Frame;
 void() VR_ARENA_MonsterDie;
+float() VR_ARENA_GunMost; // vr_enemyguns.qc's cap on dropped guns: the arena's own (-1 off the arena)
 
 // Survival Arena: the boss wave's perks (vr_arena_perks.qc). vr_arena.qc asks for the offer on a boss wave's clear
 // and reports every kill it counted; vr_decap.qc reports a beheading, items.qc an armour picked up, vr_enemyguns.qc
@@ -433,7 +434,8 @@ void() VR_ARK_Frame;                 // vr_arena.qc's Frame: Second Wind keeps i
 void(entity e, entity by) VR_ARK_Kill; // combat.qc's Killed: Quad Strike, Feeder (with the killer at hand)
 void(entity e, entity by, float xHow) VR_ARK_Decap;
 void(entity p, float xValue) VR_ARK_ArmorBonus;
-float() VR_ARK_Kept;
+float() VR_ARK_Kept;                 // Spoils taken (vr_arena.qc's VR_ARENA_GunMost: more guns lie about)
+float(entity xBy) VR_ARK_PlateCost;  // vr_agarmor.qc's damage: what a plate's pool pays per point it saves (Can Opener 2)
 
 // ----------------------------------------------------------------------------
 // Item Names

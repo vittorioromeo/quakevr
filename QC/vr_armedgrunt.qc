@@ -2974,6 +2974,7 @@ void(float kind) VR_AM_Spawn =
     vr_ag_arm_rolled = (pooled && want2 == 0); // (a flare gun too: one from the pool, one weapon)
     vr_ag_arm_roll = random();
     VR_AM_ArmAll(want, flags, inst, want2, flags2);
+    VR_AgArmor_Spawn(self); // (its armour by the skill: vr_agarmor.qc)
 };
 
 // Its weapons from its keys (as VR_AM_Spawn's: "weapon" decoded to `want`, `flags`, `inst`; "weapon2" `want2`,

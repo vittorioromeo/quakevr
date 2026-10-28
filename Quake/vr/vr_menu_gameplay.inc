@@ -1078,6 +1078,42 @@ void armedGripsDragMode()
     };
 }
 
+// Combat > Armed Grunts > Armour (QC vr_agarmor.qc; ROUND23.md, "Armour for armed humanoids, P1"): armed grunts' breakable
+// armour, its rules and how often they wear it.
+[[nodiscard]] za::Vector<Item> pageArmedArmour()
+{
+    const auto skillRows = [](za::Vector<Item>& out, const char* name, cvar_t& chance, cvar_t& type, cvar_t& pieces) {
+        out.pushBack(header(name));
+        out.pushBack(slider("Chance Armoured", chance, 0.f, 1.f, 0.05f, "%.2f")
+                .help("The chance an armed grunt spawns wearing armour at this skill."));
+        out.pushBack(slider("Best Armour", type, 1.f, 3.f, 1.f, "%.0f")
+                .help("Its armour is rolled up to this type: 1 green (saves 30% of a hit, 100 in all), 2 yellow (60%, "
+                      "150), 3 red (80%, 200)."));
+        out.pushBack(slider("Pieces", pieces, 1.f, 10.f, 1.f, "%.0f")
+                .help("How many pieces it wears: 1 the cuirass, 2 and the helmet, more: pauldrons, bracers, thigh and "
+                      "shin plates picked at random; 10 the full set."));
+    };
+    za::Vector<Item> items{
+        header("Rules"),
+        cycle("Absorb", "vr_agarmor_rule", {{0.f, "Player's Rule"}, {1.f, "Plate Blocks All"}})
+            .help("Player's Rule: a plate saves its type's share of a hit (green 30%, yellow 60%, red 80%) from its own "
+                  "pool, as your armour does. Plate Blocks All: a plate stops the whole hit until its pool is gone. "
+                  "A plate at 0 breaks off and falls."),
+        toggle("Helmets Stop Headshots", vr_agarmor_helmet_head)
+            .help("On: a helmet also halves a headshot's extra damage and no head pops off while it holds. Off: it only "
+                  "absorbs, as any plate."),
+        toggle("Plates Stop Cuts", vr_agarmor_block_cuts)
+            .help("No limb is cut or popped off under an unbroken plate: break it first."),
+        slider("Broken Plates Last", vr_agarmor_debris_time, 1.f, 60.f, 1.f, "%.0f s")
+            .help("A broken plate falls as debris (you can't force-grab it) and fades out after this long."),
+    };
+    skillRows(items, "Easy", vr_agarmor_skill0, vr_agarmor_skill0_type, vr_agarmor_skill0_pieces);
+    skillRows(items, "Normal", vr_agarmor_skill1, vr_agarmor_skill1_type, vr_agarmor_skill1_pieces);
+    skillRows(items, "Hard", vr_agarmor_skill2, vr_agarmor_skill2_type, vr_agarmor_skill2_pieces);
+    skillRows(items, "Nightmare", vr_agarmor_skill3, vr_agarmor_skill3_type, vr_agarmor_skill3_pieces);
+    return items;
+}
+
 // Combat > Armed Grunts > Armed Humanoid Replacements (QC vr_armedrepl.qc; ROUND22.md, "Armed humanoid replacements"):
 // a map's grunts and enforcers as armed ones. Everything off by default; a map's new loadouts at its next load.
 [[nodiscard]] za::Vector<Item> pageArmedRepl()
@@ -1422,11 +1458,29 @@ void ikStretchReset()
         slider("Rest Between Waves", vr_arena_wave_delay, 1.f, 60.f, 0.5f, "%.1f s")
             .help("From a wave cleared to the next wave: this many seconds at Normal (by Difficulty Impact 6 is 8 at "
                    "Easy, 4.8 at Hard, 4 at Nightmare) (vr_arena_wave_delay)."),
-        slider("Foes Up At Once", vr_arena_max_alive, 1.f, 12.f, 1.f, "%.0f")
-            .help("How many of a wave's foes may be up at once, at Normal -- the difficulty takes its share of this (8 is "
-                   "6 at Easy, 10 at Hard, 12 at Nightmare), and never more than the wave plans. The rest of a thick wave "
-                   "trickles in as places free up: one per beat, 1.5 s apart at Normal (2 / 1.5 / 1.2 / 1 by the "
-                   "difficulty) (vr_arena_max_alive)."),
+        slider("Wave Size", vr_arena_wave_size, 0.25f, 4.f, 0.25f, "%.2fx")
+            .help("A wave's crowds (its grunts, enforcers and the like) times this; its one signature foe and its boss "
+                   "stay one. 1 is the ladder's own counts; at 1.75 (the default) wave 10 brings 10 foes instead of 6 "
+                   "and wave 20 brings 13 instead of 7. "
+                   "The difficulty then takes its share as it does of every count (vr_arena_wave_size)."),
+        slider("Alive Pool", vr_arena_alive_max, 1.f, 16.f, 1.f, "%.0f")
+            .help("How many of a wave's foes are up at once, at its start and at Normal: the rest come in one by one as "
+                   "these fall. The difficulty takes its share (6 is 4 at Easy, 7 at Hard, 9 at Nightmare), and it "
+                   "never passes Foes Up At Once (vr_arena_alive_max)."),
+        slider("Pool Grows Every", vr_arena_alive_grow, 0.f, 20.f, 1.f, "%.0f waves")
+            .help("The alive pool takes one more foe every this many waves (4: 6 at wave 1, 7 at 5, 8 at 9 ...), up to "
+                   "Foes Up At Once; 0: it never grows (vr_arena_alive_grow)."),
+        slider("Opening Burst", vr_arena_burst, 1.f, 16.f, 1.f, "%.0f")
+            .help("A wave opens with this many foes at once (never more than its pool); the rest trickle in "
+                   "(vr_arena_burst)."),
+        slider("Spawn Gap", vr_arena_spawn_gap, 0.5f, 10.f, 0.25f, "%.2f s")
+            .help("Once a foe falls, the next one comes in this long after, up to twice as long at random (1.5: 1.5 to 3 "
+                   "s), at Normal: the harder the difficulty, the shorter (2 / 1.5 / 1.2 / 1). A wave's boss comes in "
+                   "halfway through it, 3 s after its warning, instead (vr_arena_spawn_gap)."),
+        slider("Foes Up At Once", vr_arena_max_alive, 1.f, 16.f, 1.f, "%.0f")
+            .help("The ceiling on a wave's alive pool, at Normal -- the difficulty takes its share of this (8 is 6 at "
+                   "Easy, 10 at Hard, 12 at Nightmare; 16 at most). New foes come in out of your sight and not right "
+                   "next to you when the map has such a place (vr_arena_max_alive)."),
         header("Boss Waves"),
         slider("Boss Every", vr_arena_boss_every, 0.f, 20.f, 1.f, "%.0f")
             .help("A wave with a marked big one in it every this many waves (0: none) -- an enforcer boss early, an ogre "
@@ -1437,6 +1491,21 @@ void ikStretchReset()
             .help("A boss's health times this and the difficulty's factor: an enforcer boss at 1.25 stands at 76 health "
                    "at Easy, 101 at Normal, 126 at Hard, 151 at Nightmare (a Nightmare boss wave's second at half that) "
                    "(vr_arena_boss_health)."),
+        header("Armour"),
+        toggle("Armoured Foes", vr_arena_foe_armor)
+            .help("1: the waves' grunts and enforcers may wear armour plates (Combat > Armed Grunts > Armour's rules), "
+                   "more of them, in more plates and heavier kinds as the waves go and the harder the skill: green "
+                   "cuirass and helmet first, yellow from wave 12 at Normal, red from wave 22. A grunt or enforcer boss "
+                   "always wears a kind above its wave's. In the arena this replaces the skill's own armour roll; 0: no "
+                   "wave foe wears any (vr_arena_foe_armor)."),
+        slider("Armour Chance", vr_arena_foe_armor_scale, 0.f, 4.f, 0.05f, "%.2fx")
+            .help("The armour's chance times this: at 1 a foe at the armour's first wave has 10% at Normal, 3% more each "
+                   "wave after (34% at wave 12, 58% at wave 20), times the difficulty's factor, never past 85%. A boss "
+                   "wave's foes have 15% more. 0: none (vr_arena_foe_armor_scale)."),
+        slider("Armour From Wave", vr_arena_foe_armor_from, 2.f, 30.f, 1.f, "%.0f")
+            .help("The first wave a foe may wear armour, at Normal; the difficulty moves it as it moves every gate "
+                   "(4 is wave 7 at Easy, 4 at Normal, 2 at Hard and Nightmare). Its plates grow from there: the "
+                   "cuirass and the helmet, one limb plate more every 3 waves (vr_arena_foe_armor_from)."),
         header("Wave Clears"),
         slider("Medkits", vr_arena_medkits_after, 0.f, 4.f, 1.f, "%.0f")
             .help("Medkits every wave clear drops (0: none), the difficulty dividing them: 2 is 3 at Easy, 2 at Normal "
@@ -1449,16 +1518,32 @@ void ikStretchReset()
         slider("Score For A Kill", vr_arena_score_kill, 1.f, 10000.f, 5.f, "%.0f")
             .help("A kill's score, times the rung its holder was on (a boss four of that) and the difficulty: at 100 a "
                    "first rung kill is worth 75 / 100 / 125 / 150 (Easy / Normal / Hard / Nightmare), a third rung boss "
-                   "900 / 1200 / 1500 / 1800. A wave clear adds 250 times its wave, by the difficulty too (wave 3: 563 / "
-                   "750 / 938 / 1125) (vr_arena_score_kill)."),
+                   "900 / 1200 / 1500 / 1800; an armoured foe a quarter more per kind (green 1.25x, yellow 1.5x, red "
+                   "1.75x). A wave clear adds 250 times its wave, by the difficulty too (wave 3: 563 / 750 / 938 / 1125) "
+                   "(vr_arena_score_kill)."),
         header("Perks"),
         toggle("Boss Perks", vr_arena_perks)
             .help("1: clearing a boss wave offers your choice of perks -- pedestals standing in the field, on the places "
                    "a wave clear's drops use; walk over one to take that perk for the rest of the run. 0: it offers "
                    "nothing (vr_arena_perks)."),
-        slider("Perks Offered", vr_arena_perk_count, 1.f, 7.f, 1.f, "%.0f")
-            .help("How many of the pool's seven a boss clear offers, at Normal -- the difficulty takes its share (3 is 2 "
+        slider("Perks Offered", vr_arena_perk_count, 1.f, 8.f, 1.f, "%.0f")
+            .help("How many of the pool's eight a boss clear offers, at Normal -- the difficulty takes its share (3 is 2 "
                    "at Easy, 4 at Hard, 5 at Nightmare); never the same perk twice (vr_arena_perk_count)."),
+        header("Cleanup"),
+        slider("Bodies Fade After", vr_arena_corpse_fade, 0.f, 60.f, 1.f, "%.0f s")
+            .help("A fallen foe's body (its head, a gibbed one's) lies this long, give or take 3 s, then fades out and "
+                   "is gone, as the Horde's do. 0: never by time. One in your hand, or still dying, waits for you: let "
+                   "go of, it lies 3 s more (vr_arena_corpse_fade)."),
+        slider("Bodies Kept", vr_arena_corpse_max, 0.f, 64.f, 1.f, "%.0f")
+            .help("At most this many fallen bodies lie at once: past it the oldest fades first (one in your hand "
+                   "stays: the next oldest goes). 0: no limit (vr_arena_corpse_max)."),
+        slider("Supplies Last", vr_arena_item_waves, 0.f, 10.f, 1.f, "%.0f waves")
+            .help("A wave clear's medkits and armour still lying there this many wave clears later fade out and are "
+                   "gone (one in your hand stays). 0: they stay for the run (vr_arena_item_waves)."),
+        slider("Dropped Guns Kept", vr_arena_gun_max, 0.f, 96.f, 1.f, "%.0f")
+            .help("At most this many of the guns the foes dropped lie about: past it the oldest fades away. Never a "
+                   "gun in your hands or holsters, one you dropped or threw, one carried, pulled by a force grab or in "
+                   "flight. The Spoils perk keeps twice as many. 0: no limit (vr_arena_gun_max)."),
         header("This Run"),
         slider("Wave Seed", vr_arena_seed, 0.f, 1000.f, 1.f, "%.0f")
             .help("0: a different ladder of guns every run; a number: that seed's waves, so one difficulty's run can be "
@@ -1481,6 +1566,9 @@ void ikStretchReset()
         open("Armed Humanoid Replacements", pageIndex(pageArmedRepl))
             .help("A map's grunts and enforcers as armed ones holding their own guns (their balance kept), and weapon "
                   "variety on top. All off by default."),
+        open("Armour", pageIndex(pageArmedArmour))
+            .help("Armed grunts wearing breakable armour (a cuirass, a helmet, pauldrons, bracers, thigh and shin "
+                  "plates): how it absorbs, helmets and headshots, cuts, and how often they wear it at each skill."),
         open("Weapon Holds", pageIndex(pageArmedHolds))
             .help("Per weapon, for grunts and for enforcers: held in one hand or two (Auto: the axe and the enforcer's "
                   "pistols in one hand, the rest as built in)."),

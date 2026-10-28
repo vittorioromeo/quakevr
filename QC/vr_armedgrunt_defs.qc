@@ -136,3 +136,17 @@ void(float d) VR_AGR_GunAxe;                                               // VR
 .float vr_agk_live; // run live by the Pose Studio (its real loops where it stands: vr_armedgrunt_pose.qc VR_AGK_Live)
 // Held still (vr_agrunt_freeze: the Grip Editor, the Pose Studio; not the studio's Live subject): no AI, no tug, no blow.
 float(entity g) VR_AG_Still = { return cvar("vr_agrunt_freeze") && g.health > 0 && !g.vr_agk_live; };
+
+// Armour for armed humanoids (vr_agarmor.qc; ROUND23.md, "Armour for armed humanoids, P1"): the fields (the engine sends
+// .vr_ar_type and .vr_ar_mask to the clients: vr_agarmor.cpp) and the hooks combat.qc, weapons.qc and player.qc call.
+.float vr_ar_type;     // 0 none, 1 green, 2 yellow, 3 red
+.float vr_ar_mask;     // the pieces still on (bits: 1 the cuirass, 2 the helmet, 4/8 pauldrons, 16/32 bracers, 64/128 thighs, 256/512 shins)
+.float vr_ar_hp[10];   // each piece's pool left
+.float vr_ar_wear;     // the damage marks (P2; sent with the rest): bits 0-9 the pieces at two thirds of their pool or under, 10-19 at a third or under
+void(entity e, float armour, float pieces) VR_AgArmor_Toolgun; // the toolgun's Armed Humanoid page's armour on what it spawned
+float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) VR_AgArmor_Damage; // T_DamageDeal: the damage left
+void(entity targ) VR_AgArmor_Guard;      // a cut or a pop armed at a limb or the head under an unbroken plate: off
+void() VR_AgArmor_PelletsClear;          // ClearMultiDamagePellets
+void(entity hit) VR_AgArmor_PelletAdd;   // AddMultiDamage: the pellet's piece counted
+void(entity e) VR_AgArmor_Shed;          // gibbed (ThrowHead): every piece left falls as debris
+void(entity e) VR_AgArmor_Spawn;         // VR_AM_Spawn: an armed grunt's armour rolled by the skill

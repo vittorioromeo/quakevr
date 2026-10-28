@@ -9,6 +9,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "vr_melee_shared.h"
+#include "vr_agarmor.hpp"
 #include "vr_box3d.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_carry2h.hpp"
@@ -1820,11 +1821,23 @@ void PF_ragdollreach()
 }
 
 // float ragdollbone(entity e, vector p, [float within]): the limb of e's ragdoll nearest p; -1 if e isn't one (or, with
-// `within`, if its surface is farther from p than that: the landing crush's feet, vr_ragimpact.qc).
+// `within`, if its surface is farther from p than that: the landing crush's feet, vr_ragimpact.qc). `within`
+// QVR_ARMOR_PIECE_AT (-1000; the builtins' table is full): the armed humanoid's armour piece a hit at p strikes
+// (vr_agarmor.cpp pieceAt: its bone as drawn; -1 no plate there, -2 no rig).
 void PF_ragdollbone()
 {
     const float* p = G_VECTOR(OFS_PARM1);
     const float within = qcvm->argc > 2 ? G_FLOAT(OFS_PARM2) : -1.f;
+    if(within == -1000.f)
+    {
+        G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::pieceAt(G_EDICT(OFS_PARM0), p));
+        return;
+    }
+    if(within == -1001.f) // QVR_ARMOR_CLIENT: the client's word on e's armour (p_x: 0 type, 1 pieces, 2 wear; -1 none)
+    {
+        G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::clientState(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(p[0])));
+        return;
+    }
     G_FLOAT(OFS_RETURN) =
         static_cast<float>(box3d::ragdollBone(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}, within));
 }
@@ -1928,8 +1941,16 @@ void PF_ragdolllimbs()
 // vector limbpiece(entity e, float bone, float what): the piece a cut at `bone` (-1 the head) takes (box3d::limbPiece): 0
 // {kg it weighs (its share of the ragdoll's mass by the kind of limb), the ragdoll's mass, the share}, 1 its cut end in
 // its model's space.
+// `what` 10 / 11 (the builtins' table being full): armour piece `bone` of an armed humanoid as its own model
+// ("<model>#plate<piece>", vr_agarmor.cpp): its origin / its angles now, as drawn.
 void PF_limbpiece()
 {
+    const int what = static_cast<int>(G_FLOAT(OFS_PARM2));
+    if(what == 10 || what == 11)
+    {
+        agarmor::plateWhere(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), what - 10, G_VECTOR(OFS_RETURN));
+        return;
+    }
     const glm::vec3 v = box3d::limbPiece(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), static_cast<int>(G_FLOAT(OFS_PARM2)));
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;

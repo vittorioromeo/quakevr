@@ -213,7 +213,8 @@ a time (`vr_arena_perk_count` 1-4; an empty pool offers nothing): **Quad Strike*
 Damage), **Neck Snapper** (a snapped neck restores 20 health), **Iron Skin** (armour you pick up is worth 25 more --
 125/175/225), **Second Wind** (health tops at 15 past normal), **Feeder** (5 health per kill, no more than once a
 second), **Quartermaster** (every wave clear tops up the ammo of the gun in your hand by 15, to the ordinary caps) and
-**Spoils** (a foe's dropped gun stays rather than fading under the arena's drop cap). Every one hangs off a place the
+**Spoils** (a foe's dropped gun stays rather than fading under the arena's drop cap; since "the cleanup" below:
+twice `vr_arena_gun_max` of them lie about). Every one hangs off a place the
 game already reports -- `Killed` in combat.qc, the decap hook in vr_decap.qc, `armor_touch` in items.qc,
 `VR_EnemyWeapons_MakeRoom` in vr_enemyguns.qc, and the director's own wave clear -- and each returns at once unless the
 arena is running and that perk was taken (`VR_ARK_Running`). `vr_arena_perks 1` (on by default), with `vr_arena 1`. A
@@ -306,7 +307,7 @@ itself is clamped 0..3 by the engine (`Quake/sv_main.c`).
 QC-precedence checks passing, and the engine rebuilt with the menu page below. `vr_arena_test 1..5` with `developer 1`
 and `god`, on vrtesthall (`vr_arena 1`) and on vrarena -- the QC's own beat in `world.qc` under `QVR_TESTS`, e.g.
 `bash /c/OHWorkspace/qvr-kit/run.sh arenaskill -Filter "arena:" -QuitOn "arena: test 5 over" -Timeout 300 -Script
-"developer 1; god; vr_arena 1; vr_arena_seed 7; map vrtesthall; wait15; vr_arena_test 5; wait6000"`. Test 5 is the
+"developer 1; vr_arena 1; vr_arena_seed 7; map vrtesthall; wait15; god; vr_arena_test 5; wait6000"`. Test 5 is the
 difficulty family (its sections pin the skill each one needs); every family starts at Normal, where the factor is exactly
 1 (`VR_AT_Start`), and puts the run's own skill back at the end (`VR_AT_End`), so tests 1..4 keep the expectations they
 were written against. Test 5: **467 passed, 0 failed** on both maps. The families it could have broken, run again after
@@ -370,11 +371,12 @@ Plan arrays survive a save and load mid-wave (the second foe after loading keeps
 **New test.** `vr_arena_test 6`, the long run: the live director through 32 waves (1 s apart, every foe felled by the
 test's blow), edicts counted every 5 waves; `arena: test 6 over: P passed, F failed`. Run:
 `run.sh <name> -Filter "arena: (t6|test|fail)" -QuitOn "arena: test [0-9]+ over" -Timeout 1500 -Script "developer 1;
-god; vr_arena_seed 7; map vrarena; wait15; vr_arena_test 6; wait60000"`. **It fails today, on purpose**: nothing in
+vr_arena_seed 7; map vrarena; wait15; god; vr_arena_test 6; wait60000"`. **It fails today, on purpose**: nothing in
 the arena ever cleans up its fallen bodies or the player weapons its armed humanoids drop -- 99 edicts at wave 2, 928
 at wave 32, with 233 bodies and 196 `thrown_weapon`s lying in the map (about 28 edicts a wave; the unpicked medkits
 and armour are only 67 of them). The Horde (vr_mg_horde.qc, `MGH_corpse_expire`) fades its bodies after 11..16 s;
-how the arena should (a fade, a cap, bodies older than two waves) is the author's call, so it is left open.
+how the arena should (a fade, a cap, bodies older than two waves) is the author's call, so it is left open. (Since
+closed: "Survival Arena: the cleanup", below.)
 
 *Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: a Quad Damage picked up is not cut to 2 s by a Quad Strike
 hand kill`
@@ -417,6 +419,301 @@ modes:
 
 | the part of the room | texture (size) | how it is laid |
 |---|---|---|
+| the 1728-wide floor | `ground1_2` (64) | 1.0: the 64-unit plate id lays floors with |
+| the four cardinal walls | `twall1_1` (64x128) | 1.0: panel and its band, three tiers up the 800-high wall |
+| the four cut corners | `twall2_1` (64x128) | 1.0: a second panel of the same family, so the octagon is not one wall |
+| the 800-high ceiling | `sfloor4_1` (64) | 1.0, the plate `vrcalibration` also wears overhead |
+| the dais' eight sides | `twall5_3` (64) | 1.5: one panel spans each 96-high face exactly |
+| the dais top, the tower tops, both walks, the four bridges | `sfloor4_2` (64) | 1.0: everything you stand on up high is deck plate |
+| the walks' and bridges' 64-thick edges | `metal4_4` (64) | 1.0: one plate across the 64-unit thickness |
+| the four towers | `twall5_1` (128) | 1.0: exactly two panels up each 256-high tower |
+| every step, the dais' four flights and the towers' four pinwheels | `metal1_1` (64) | 1.0, the stair metal |
+| the eight covers | `crate0_side` (64), lids `crate0_top` (64) | 0.75 and 1.25: a 64-wide crate reads as 48 high and 80 across |
+| the 96-wide spawn pad | `plat_top1` (64), edge `plat_side1` (64x16) | 1.5 and 0.125: id's platform, its lip exactly 2 units high |
+| the eight lamps | `qvr_light` (32) | unchanged: the engine keys light emission off that name, so it stays ours |
+
+**The room itself is untouched.** No brush moved, added or removed: 130 brushes and 40 entities as before, the shell
+still sealed, the spawn pad and every `info_arena_spawn` and `info_arena_item` point where they were, `_qvr_prelit 1`
+and `light 90` kept. `vrarena.map` is 1587 lines both ways; read past the texture names and the `"wad"` line, and only
+63 lines differ -- 63 scale numbers, the ones the table above sets. `--check` still reports 8 high and 4 ground spawns,
+3 items, 88 stair steps with 0 that are not climbable, 0 duplicates and 0 overlaps.
+
+**Compiled** with ericw-tools 2.0.0-alpha11 with the **final** light preset, since new textures mean new radiosity:
+qbsp `-bsp2 -wadpath <tree>` in 0.2 s, vis 0.2 s, light `-extra4 -dirt -dirtscale 1.5 -dirtdepth 96 -bounce -lit -lux
+-lightgrid -lightgrid_dist 64 64 64` in 2.8 s, no warning, error or leak. `bsp_holes.py --rays 400128`: 1161 world
+faces, 231 leaves, 0 missing-face hits, 0 undrawn, 0 unlisted, `holes: 0`. The BSP now carries 15 texinfos -- thirteen
+of id's textures, our `qvr_light` and qbsp's own `skip` -- 101,240 bytes of mip data, so `vrarena.bsp` grew 272,176 ->
+346,028 bytes and the lightmaps 198,236 -> 200,384 (`vrarena.map`, `.bsp`, `.lit` and `.lux` are committed together --
+the lighting belongs to the surfaces it was computed for).
+
+**Verified in the game.** `map vrarena` loads clean -- no missing-texture or bad-surface line, `ARENA - Normal:
+unarmed, wave 1 coming` -- and the map-facing tests pass on the new BSP: `vr_arena_test 4` 7 passed / 0 failed (ground 4,
+high 8, a place with ground under it, a taken place skipped) and `vr_arena_test 5` 467 / 0. `vr_arena_test 1` reports
+256 / 1 here, and the same single failure -- `a fallen monster is not alive`, its death-hook case finding a live wave's
+foe still on the field -- reproduces on the *old* BSP at the same commit, and the same run on `vrtesthall` gives 257 / 0:
+it is the live arena in the room, not the textures. Nobody has looked at the result yet: this session's model cannot see
+images, so the look itself is unverified -- walk it and say what you think.
+
+**For the author.** `vrarena.bsp` is now a committed Quake map carrying id's artwork, which is what
+`MAPPING.md`'s carve-out for `vrcalibration` and the hub maps allows and what its "Keep that to the maps that need it"
+line is about -- that rule is left as written, for the author to extend or walk back. The generator keeps the old flat
+look buildable for anyone whose checkout has no `id_textures.wad`: `--dev-textures` swaps the whole palette back to
+`quakevr_dev.wad`'s grids and lists that WAD alone, and without the file and without the flag it says so and stops.
+## Survival Arena: the cleanup (agent/arenaclean)
+
+The leak the review found (928 edicts by wave 32) is closed. Everything below runs only while an arena runs (`ar_mgr`
+set: the map vrarena or `vr_arena 1`); every hook returns at once otherwise. Settings (archived; Combat > Survival
+Arena > *Cleanup*):
+
+| Setting | Default | What |
+|---|---|---|
+| `vr_arena_corpse_fade` | 14 | s a fallen foe's body (or its head, gibbed) lies before it fades out over 1 s, as the Horde's do; give or take 3 s (a quarter of it at most); 0: never by time |
+| `vr_arena_corpse_max` | 12 | bodies lying at most; past it the oldest fades first; 0: no limit |
+| `vr_arena_item_waves` | 2 | a wave clear's medkits and armour still lying there this many clears later fade out; 0: never. Ones already picked up (items.qc leaves them as invisible edicts in single player) go at the next clear |
+| `vr_arena_gun_max` | 24 | guns the foes dropped lying about at most; past it the oldest fades (vr_enemyguns.qc's fade); 0: no limit |
+
+**How.** `VR_ARENA_MonsterDie` hands the body to `VR_ARENA_BodyDown` (its time, its place in the fall order, then
+the cap); `VR_ARENA_WaveClear` calls `VR_ARENA_DropsExpire` before its new drops; `VR_ARENA_Frame` walks the leftovers
+each frame (`findflags(ar_expiring)`, the Horde's pattern) and fades and removes what is due (`VR_Carry_Forget`,
+`VR_Head_StopFlies`, `remove`). **Never taken:** a thing a hand holds (`carry_player`, or a player's
+`mainhand_held`/`offhand_held`: a ragdoll's limb), one a force grab pulls (`fg_state`), or a body still dying or being
+gibbed as a corpse (`vr_corpse 1`, `vr_corpse_dying`; waited for 10 s at most). Held, its time waits; let go of, it
+lies 3 s more and fades. Past the body cap a held one stays and the next oldest goes.
+
+**Guns.** In a running arena `VR_EnemyWeapons_MakeRoom` takes `VR_ARENA_GunMost` instead of the shipped
+`vr_enemy_weapon_drop_max`, and counts every gun a monster dropped (`.vr_monster_drop`), not only the single-use enemy
+guns: the arena's humanoids carry the player's own weapons, which the shipped cap never counted (196 of them by wave 32).
+A gun a player dropped or threw is never counted; one in a hand or holster is not lying about; one carried, pulled or in
+flight is spared (the shipped rules). **Spoils** used to switch the cap off (the leak's worst case); now it doubles
+`vr_arena_gun_max` (48 by default), and its pedestal reads "Twice as many fallen foes' guns stay lying about". The stale
+comment about a "`vr_drop_fade` knob" (it is a field) is gone.
+
+**Tests.** `vr_arena_test 6` (the soak) now counts its growth from wave 16 (`AR_T6_FROM`, the map settled: gibs,
+limbs and backpacks remove themselves on their own timers and sit at a steady count) and also checks the three caps.
+`vr_arena_test 7` (vrarena): stand-in bodies, drops and guns through the real hooks -- the body cap fades the oldest not
+held, a held / pulled / dying body outlives its time and goes within 3 s of being let go, drops two clears old fade and
+picked-up ones go, the gun cap (a pulled gun spared, a player's own never counted) and Spoils doubling it.
+`vr_arena_test 8` (e1m1): every monster felled whole, 20 s on, nothing carries an arena cleanup mark.
+
+**Verified.** `build.sh arenaclean`: 0 QC warnings. `vr_arena_test` 1 **257**, 2 **13**, 3 **52** (vrtesthall), 4 **7**,
+5 **467**, 7 **19**, 8 **3** (e1m1), all 0 failed; `vr_arena_perks_test` 1 **19**, 2 **15**, 3 **45** (two new Spoils
+checks), 4 **14**, all 0 failed. eval.sh: no verdict changes. Soak (`vr_arena_test 6`, seed 7):
+
+| wave | 4 | 8 | 12 | 16 | 20 | 24 | 28 | 32 |
+|---|---|---|---|---|---|---|---|---|
+| edicts (before: 99 at wave 2, 928 at 32) | 183 | 269 | 296 | 298 | 293 | 287 | 288 | 299 |
+| bodies (before: 233 at 32) | 6 | 5 | 7 | 7 | 7 | 6 | 6 | 6 |
+| `thrown_weapon` (before: 196 at 32) | 5 | 23 | 25 | 25 | 25 | 25 | 25 | 25 |
+| drops lying | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+
+6 passed, 0 failed; flat from wave 12 (298 -> 299 over waves 16..32). What fills the ~200 over the empty map at the
+plateau (an end-of-soak dump): ~115 gibs and small gibs, ~44 backpacks, ~10 limbs -- every one on its own removal timer
+(gibs 10..20 s, backpacks 120 s), so a steady count, not a leak; and 25 `weapon_inst` records, one per gun lying. The
+bodies stay few in the soak because its blows gib (only the heads lie). Off the arena, e1m1's bodies go 23 -> 8 in 20 s
+with or without the arena (its own systems: ragdoll cap, corpses); test 8 checks only that the arena marked none.
+
+*Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: fallen bodies fade after ~14 s (12 kept at most), a wave
+clear's medkits/armour go two waves later, foes' dropped guns capped at 24 (48 with Spoils); a body you hold never
+vanishes`
+
+## Survival Arena: the wave flow (agent/arenaflow)
+
+Vittorio: more foes per wave, not all at once; an "alive pool" so the flow feels natural. `QC/vr_arena.qc`:
+
+- **Bigger waves.** `vr_arena_wave_size` (1.75): every crowd group of the ladder (grunts, enforcers, wave 11's ogres,
+  the 13+ groups) times it, rounded, then the difficulty's `VR_ARENA_SkillCount` as before (`VR_ARENA_WaveCount`). A
+  wave's one signature foe (wave 3's zombie, 4's knight ...) and its boss stay one. `AR_PLAN_MAX` 12 -> 40 (a
+  Nightmare wave 40 plans 32, uncut); `vr_arena_max_alive` keeps its own clamp, now `AR_FIELD_MAX` 16.
+- **The alive pool.** `vr_arena_alive_max` (6) up at once at wave 1, one more every `vr_arena_alive_grow` (4) waves,
+  by the difficulty, never past `vr_arena_max_alive` (8, by the difficulty): `VR_ARENA_Pool`. A wave opens with
+  `vr_arena_burst` (3) at once; after that, a free slot is filled `vr_arena_spawn_gap` (1.5) to twice that at random
+  after it freed up (2-4 / 1.5-3 / 1.2-2.4 / 1-2 s by the difficulty). A foe's fall wakes the director at once, and
+  its think lands exactly on the gap's end, so the gap is the gap.
+- **Where.** A foe comes in out of the player's sight (outside ~60 degrees of his view, or a wall between) and at
+  least 320 units off his eyes when the map has such a free place; then a far one in sight; then any free one
+  (the same three passes on the ring for maps without spots).
+- **The boss** is planned first as before but comes in halfway through its wave, after the burst, announced
+  (`ARENA - A BOSS is coming!`) 3 s before.
+- **The stall** (300 s) now counts from the wave's last arrival, not its start (a big wave trickles in).
+- Menu: Combat > Survival Arena > The Waves: Wave Size, Alive Pool, Pool Grows Every, Opening Burst, Spawn Gap, and
+  Foes Up At Once (now the pool's ceiling, 1..16), each with help.
+
+At Normal, seed 7:
+
+| wave | 1 | 5 (boss) | 10 (boss) | 20 (boss) |
+|---|---|---|---|---|
+| total (before) | 4 (2) | 8 (5) | 10 (6) | 13 (7) |
+| pool | 6 | 7 | 8 | 8 |
+
+**Tests.** The tests' defaults pin `vr_arena_wave_size 1` (the ladder's own counts, so tests 1-5 and 7 check what
+they did); test 6 (the soak) and the new test 9 run at 1.75. Changed by design: test 3 no longer wants the boss at
+the plan's head (it checks the boss is an enforcer and comes after the opening burst: one check more); test 5's
+spawn-gap checks read `vr_arena_spawn_gap`, and its clamp check `AR_FIELD_MAX`. **New `vr_arena_test 9`** (vrarena,
+the wave flow): the table above, the pool's growth, cap and difficulty share, a Nightmare wave 40 planned whole;
+then waves 1, 5, 10, 20 live, the test felling one foe every 8 s: each wave puts its whole plan in the field, ends
+with all of it felled, never has more up than its pool (and does fill it), trickles after its burst, and every gap
+is within 1.5..3 s.
+
+**Verified.** `build.sh`: 0 QC warnings. `vr_arena_test` 1 **257**, 2 **13**, 3 **9** (was 52: its plan checks ran
+every frame while it waited for the boss, now once when it is in), 4 **7**, 5 **467**, 7 **19**, 8 **3**, 9 **37**,
+all 0 failed; `vr_arena_perks_test 2` **15**/0. Test 9 live (peak / pool, gaps): wave 1 4/6, one gap 2.98 s; wave 5
+7/7, 1.84..2.57 s; wave 10 8/8, 1.87..2.69 s; wave 20 8/8, 2.30..2.91 s. Soak (test 6, 1.75): 6 passed, edicts 308 ->
+286 over waves 16..32 (peak 329; before 298 -> 299 at size 1), bodies 6, guns 25, drops 4, longest wave 48 s.
+
+*Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: waves are ~1.75x bigger but come in a few at a time (3 at
+once, then one every 1.5-3 s after a kill, up to 6-8 up), out of your sight; the boss arrives mid-wave with a warning`
+
+## Armour for armed humanoids, P1: limb plates and gameplay (worktree `armor`, branch `agent/armor`, 2026-10-28)
+
+Builds on P0 and the Ranger's helmet (ROUND22.md) and the research's decisions (`qvr-kit/scratch/research_agarmor.md`).
+The grunt only (the enforcer later).
+
+**Limb plates** (`vr_agarmor.cpp`): pauldrons (upper arms), bracers (forearms), thighs, shins, left and right, made like
+the cuirass from the authored rig's weights (each the triangles weighing past 0.5 on its bone), not subdivided (a
+quarter of the triangles), painted with the cuirass's lames. Ten pieces, a bit each (`vr_agarmor_pieces` 1023 all; 1
+cuirass, 2 helmet, 4/8 pauldrons, 16/32 bracers, 64/128 thighs, 256/512 shins). vrgrunt: 3460 triangles a body (was
+2140), 54 bone slots (`maxSlots` 128). `vr_agarmor_check` 5/5 (its cap now 4000 triangles).
+
+**Server to client**: QC keeps `.vr_ar_type` and `.vr_ar_mask` (vr_fields.inc); `agarmor::serverFrame` (VR_ServerFrameEnd)
+sends each entity's change as `QVR_SVC_ARMOR` (reliable), `serverWriteAll` the whole set after a clear with the spawn
+state (loads, new maps). The client draws: `vr_agarmor_set` (debug, per entity) > `vr_agarmor` (debug, forced) > the
+server's word. `vr_agarmor_set` in a live game sets the QC armour (`VR_AgArmor_SetCmd`: pools and all).
+
+**No builtin slots left** (the table's static assert): the piece at a point is `ragdollbone(e, p, QVR_ARMOR_PIECE_AT)`
+(-1000; `box3d::boneAt`'s bone mapped to a piece: head the helmet, spine/chest the cuirass, the limb bones theirs) and a
+piece's place `limbpiece(e, piece, 10 / 11)` (origin / angles of its own model `"<model>#plate<n>"`, a derived .mdl made
+from the shell, rigid on three body vertices under it, as drawn by `hitmodel::vertexPoint`, else its rest pose).
+
+**Gameplay** (`QC/vr_agarmor.qc`): pools from Quake's totals (100/150/200) by share (cuirass 30, helmet 12, pauldrons 7,
+bracers 6, thighs 8, shins 6, out of 96). `T_DamageDeal` before the target's own save (after Quad: it does not pass
+through): one hit's piece by its point; a shotgun's pellets each on their own piece (`AddMultiDamage`), the blast split
+by their counts; a blast or a beam by the pieces facing it (each its share of the facing body's shares). `vr_agarmor_rule`
+0 the player's rule (ceil(type x part) from the pool), 1 the plate stops the part while its pool lasts. Helmet
+(`vr_agarmor_helmet_head` 1): halves the headshot multiplier's extra and stops head pops. `vr_agarmor_block_cuts` 1: no
+cut or pop under an unbroken limb plate (living and corpses: `VR_AgArmor_Guard`). Absorbed: sparks, a ricochet. At 0:
+the bit off, `items/armor1.wav`, the plate as debris (MOVETYPE_BOUNCE, `vr_rigid` 1, not FL_FORCEGRABBABLE, fades after
+`vr_agarmor_debris_time` 10 s over a second). Corpses keep their plates; `ThrowHead` sheds them. Spawn roll
+(`VR_AM_Spawn`): `vr_agarmor_skill0..3` (chance 0 / 0.15 / 0.35 / 0.6), `_type` (best type 1/1/2/3, rolled up to it),
+`_pieces` (2/2/5/10: the cuirass, the helmet, the rest at random among the limb plates). Not `random()`: a
+low-discrepancy sequence offset by the spawn point, so the game's other rolls don't shift. Menu: Combat > Armed Grunts >
+Armour; Debug > Tests > Armour on Armed Grunts.
+
+**Test** `vr_agarmor_test 1` (18/18): pieces found at their places; rule 0 green 10 -> 7 (pool -3), red 10 -> 2; rule 1
+10 -> 0, 60 past a pool of 21 -> 39 and the cuirass breaks (mask 1022), its debris `#plate0` rigid, not force-grabbable;
+headshot 15 on a helmet -> 9 and the pop stopped, without -> 15 and the pop stands; pellets 3+3 split over the cuirass
+and a pauldron (-4 each, health -16); a cut stopped under a pauldron, let through after it broke; an unarmoured grunt
+takes 10 of 10 and 13 of 13; a gibbing sheds 8 of 8; skill rolls over 200 spawns 0/30/70/121 (chances 0/.15/.35/.6);
+the debris gone after its fade. `vr_agarmor_test 2`: three grunts in full green, yellow, red (`scratch/armor_sheet.png`,
+a low-impact eyeshot). Build 0 QC warnings.
+
+**Open**: the enforcer's shells; the toolgun's spawn page row; damage skins at 66/33%; a cut limb (block_cuts 0) does not
+shed its plate as debris (it collapses with the limb); the piece-at-point uses the entity's current frame while a
+plate's place uses the kept poses (the test puts its frame back between hits; a real hit traces the same frame);
+the default Normal 15% changes old tests that kill armed grunts at skill 1 by exact damage (none run here).
+
+Checklist:
+- `[ ] Armour P1 {test:vr_agarmor_test}: Normal/Hard/Nightmare maps with armed grunts: some wear plates (Hard: up to yellow, 5 pieces; Nightmare: red full sets); shots on a plate spark and ring and do less; a plate broken falls off (you can't force-grab it) and fades; helmets stop head pops; blades don't cut an armoured limb until its plate breaks; Combat > Armed Grunts > Armour's rules`
+
+## Armour P2: the enforcer, damage marks, the toolgun's option (worktree `armor`, branch `agent/armorp2`, 2026-10-28)
+
+**Enforcer** (`vr_agarmor.cpp` `wearers`): the same ten pieces from `vrenforcer.rig2.txt` (and `enforcer.mdl`'s, the same
+mesh). Its power pack (chest-weighted, x -10.5 to -23 and up past its head) is its own: the enforcer's cuirass stops at
+its back's surface (`Wearer::backCut` -10.5, a plane folded into the clip field), a breastplate; its pads are under the
+pauldrons. A hit on the pack is no plate's (`pieceAt`: the point taken back to the rest pose by the cuirass's frame as
+drawn; behind the cut -1). Gameplay identical: `VR_AgArmor_Spawn` takes kinds 0 and 1 (decision: no free set, the
+grunts' chances). `vr_agarmor_check` with no model checks both (10/10: enforcer 3408 triangles, 54 slots, at rest 116
+of 1097 plate vertices hidden, 0.27 deep); `vr_agarmor_check <model>` one.
+
+**Damage marks**: QC `.vr_ar_wear` (bits 0-9 at two thirds of a pool or under, 10-19 at a third; `VR_AgArmor_Wear` after
+each hit, cleared by Give, Break, Shed) sent in `QVR_SVC_ARMOR` (two more shorts). `make_agarmor.py`: nine skins,
+type - 1 + 3 x wear (1: scratches and dents; 2: more, chips to bare metal, scorch and soot). The client draws a body's
+pieces in up to three armour entities, one per wear (`maxWorn` 128); a broken plate's debris uses the battered skin.
+`vr_agarmor_wear` 1/2 (debug) draws every piece so. The 66% look is subtle at a distance (the 33% one reads).
+
+**Toolgun**: Spawn > Monsters > Armed Humanoid has Armour (None / Green / Yellow / Red / Random) and Pieces
+(Chest+Helmet / Full / Random: the cuirass, the helmet, each limb plate at 50%) under the hands (`vr_toolgun_armed_armor`
+0, `_pieces` 1; QC `VR_AgArmor_Toolgun` on each one spawned; None strips the skill's roll too). Reset and Clear put both
+back. `vr_toolgun_armed_armor_test`: grunt and enforcer by every Armour x Pieces, then Reset and Clear (32/32).
+
+**Tests**: `vr_agarmor_test 1` 26/26 (P1's 18, the wear thresholds, the enforcer's places, its pack no plate, its debris
+and skin, the skill's roll dressing it, its wear reaching the client: `ragdollbone(e, [what], QVR_ARMOR_CLIENT)` -1001);
+`vr_agarmor_test 3` enforcers in green (facing), yellow (side on), red (back: the pack), `4` yellow grunts whole, at 2/3
+and 1/3 (Debug > Tests). `scratch/armor_p2_sheet.png` (low-impact eyeshots). Build 0 QC warnings.
+
+**Open**: the default Normal 15% now also dresses enforcers (old tests that kill enforcers by exact damage at skill 1 may
+shift); the limb plates share the cuirass's atlas, so their marks repeat its pattern.
+
+Checklist:
+- `[ ] Armour P2 {test:vr_agarmor_test}: armed enforcers wear plates too (Hard/Nightmare), the cuirass a breastplate that leaves the power pack bare (shots on the pack go through); plates look dented and scratched at 2/3, battered and scorched at 1/3 (Debug > Tests > Armour Damage Marks There); toolgun Spawn > Monsters > Armed Humanoid: Armour and Pieces apply to grunts and enforcers, Reset/Clear put them back`
+
+## Survival Arena: armoured foes (agent/arenaarmor)
+
+Vittorio: armoured enemies in the arena, more for bosses, rising with the wave and the difficulty. `QC/vr_arena.qc`:
+the plan now dresses its grunts and enforcers (`VR_ARENA_PlanArmour`, after `VR_ARENA_PlanFoes`), and a wave foe
+gets the plan's armour at spawn (`VR_AgArmor_Give`) while the skill's own roll is held (`vr_ar_hold_roll` around its
+spawn call: no double roll, the skill's sequence does not move). Outside the arena nothing changes.
+
+**The roll.** No armour before `vr_arena_foe_armor_from` (4) as the difficulty counts gates (`VR_ARENA_WaveAdj`: 7 /
+4 / 2 / 2). The chance: 10% at that wave, 3% more a wave, times the difficulty's factor (`VR_ARENA_Skill` 0.75 / 1 /
+1.25 / 1.5) and `vr_arena_foe_armor_scale`, capped at 85%. The best type follows the weapon ladder: green until the
+foes have carried the second rung two waves (`AR_W_TIER2 + 2`: wave 12 at Normal, when a super shotgun or nailgun can
+be off a body), yellow from there, red from `AR_W_TIER3 + 4` (22: the launchers four waves about); a foe's type 1..best
+evenly. Plates: the cuirass and the helmet, one limb plate more every 3 waves by the factor. A grunt or enforcer
+**boss** is always armoured from the armour's first wave, a type above the wave's best, 4 more plates; a boss wave's
+other humanoids have 15% more (its guard). The rolls are the wave seed's own salted stream (the chance and the type a
+low-discrepancy pair off it), so a seed replays them and the wave's guns and gaps are exactly what they were.
+
+| wave | 2 | 4 | 7 | 10 | 12 | 15 | 20 | 25 | 30 |
+|---|---|---|---|---|---|---|---|---|---|
+| Easy (from 7) | -- | -- | 8% G 2 | 14% G 2 | 19% G 3 | 26% G-Y 4 | 37% G-Y 5 | 48% G-R 6 | 59% G-R 7 |
+| Normal (from 4) | -- | 10% G 2 | 19% G 3 | 28% G 4 | 34% G-Y 4 | 43% G-Y 5 | 58% G-Y 7 | 73% G-R 9 | 85% G-R 10 |
+| Hard (from 2) | 12% G 2 | 20% G 2 | 31% G 4 | 42% G-Y 5 | 50% G-Y 6 | 61% G-Y 7 | 80% G-R 9 | 85% G-R 10 | 85% G-R 10 |
+| Nightmare (from 2) | 15% G 2 | 24% G 3 | 38% G 4 | 51% G-Y 6 | 60% G-Y 7 | 74% G-Y 8 | 85% G-R 10 | 85% G-R 10 | 85% G-R 10 |
+| boss (grunt/enforcer) | always from the first armour wave: a type above the wave's best (yellow at 5), the wave's plates + 4 (6 at Normal wave 5, 7 at Hard/Nightmare) | | | | | | | | |
+
+(chance, the types a foe may wear, plates; G green, Y yellow, R red.) The enforcer bosses are the armoured ones (waves 5
+and, at Easy, 12; both of Nightmare's two); the ogre and death knight bosses have no plates (the shells exist for the
+grunt and the enforcer only), so their waves' armour is their guard's +15%.
+
+**The fit.** Green at wave 4 against the shotgun and the nail pistol: a green cuirass (31) saves 30% of a hit, so a
+shotgun blast on the chest (24) loses 8 to it and four break it -- a grunt takes about one blast more. Yellow
+arrives as the super shotgun and the nailgun do, red after the launchers; a plate is a pool, so the stronger rungs
+break it in a hit or two. The drops stay as they are (an armoured foe is a few more shots, which the guns lying about
+and Quartermaster cover); the wave sizes (x1.75) need nothing: the chance is per foe. **Score:** an armoured kill pays
+a quarter more per type (`AR_ARM_PAY`: 1.25 / 1.5 / 1.75; the wave 5 boss in yellow 600, not 400). **Perk:** Can Opener
+(the pool's eighth, `ARK_OPEN`, a crowbar on its pedestal): a plate pays twice from its pool for what it saves from
+the player's hits (`VR_ARK_PlateCost`, asked in `VR_AgArmor_Damage`), so it breaks in half the hits; the save while
+it lasts is unchanged. **Readout:** `ARENA - Wave 12: 9 foes, 3 in armour (score ...)` when any are.
+
+**Settings** (Combat > Survival Arena > Armour, archived, with help): `vr_arena_foe_armor` 1 (Armoured Foes),
+`vr_arena_foe_armor_scale` 1 (Armour Chance, 0..4), `vr_arena_foe_armor_from` 4 (Armour From Wave, 2..30). Perks
+Offered now goes to 8.
+
+**Tests.** New `vr_arena_test 10` (vrtesthall with `vr_arena 1`, or vrarena): the table's numbers at each skill;
+400 rolls per (wave, skill) cell (the first wave and the one before, 12, 24, 36, a boss before and at the first armour
+wave and at 24, a boss wave's guard at 15) within 3% of the table, every type within it, every armour the cuirass,
+the helmet and the table's plates; plans of waves 1..30 at each skill: none before the first wave, only humanoids, each
+humanoid boss a type above; the off switch, the scale, the first wave knob; the plan's guns the same with it on or off;
+live: wave 5 at Normal with `vr_agarmor_skill1 1` (the skill's roll certain) -- its foes wear exactly the plan's
+armour, the skill's sequence did not move, the boss enforcer in yellow with 6 plates, its kill 600; a grunt spawned
+outside the director still gets the skill's roll. Fixed on the way: `VR_ARENA_BossMidway`'s rotation now carries the
+armour with its foe (the first live run had the boss bare and a grunt in its armour). The test defaults pin the three
+new knobs. `vr_arena_test 5`'s perk-count clamp check reads `ARK_POOL_N`.
+
+**Verified.** `build.sh`: 0 QC warnings. `vr_arena_test` 1 **257**, 2 **13**, 3 **9**, 5 **467** (vrtesthall), 4
+**7**, 6 (the soak, 32 waves) **6**, 7 **19**, 9 **37**, 10 **160** (vrarena; also 160 on vrtesthall), 8 **3** (e1m1);
+`vr_arena_perks_test` 1 **19**, 2 **15**, 3 **43** (vrtesthall: two checks need a map's item points), 4 **14**; outside
+the arena `vr_agarmor_test 1` **26** -- all 0 failed. The rolls land within 0.025 of the table in every cell (e.g. Normal
+wave 12: 0.3425 for 0.34; wave 24: 0.70 for 0.70).
+
+*Decisions:* the gates move in whole waves like every arena gate (`VR_ARENA_WaveAdj`), so Hard and Nightmare start at
+wave 2 (12% / 15%, green chest and helmet); an Easy run's first boss (wave 6) comes before its first armour wave and
+is bare. Bosses past the enforcer cannot wear plates, hence the guard bonus. A roll's type is even over 1..best (the
+skill roll's rule), so yellow and red come in gradually.
+
+*Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: armoured foes from wave 4 (Normal; 7 Easy, 2 Hard and
+Nightmare), more of them, more plates and heavier kinds as the waves go; the enforcer boss in a kind above; armoured
+kills pay more; Can Opener perk (Combat > Survival Arena > Armour) {test:vr_arena_test 10}`
 | the floor | `ground1_2` (64) | world, anchored at the origin: id's 64-unit plates, 49 m of them |
 | the eight walls | `tech14_1` (128) | world, anchored at z=96: three panel rows, 96 to 352, butted with the rail under them and the cornice above |
 | the four towers | `tech14_1` (128) | fitv, 2 tiles down a 256-high face |
