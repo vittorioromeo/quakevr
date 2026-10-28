@@ -110,6 +110,12 @@ void() VR_ARENA_WaveStart;
 void() VR_ARENA_ManagerThink;
 void() VR_ARENA_RestartThink;
 
+// The boss wave's perk choice (vr_arena_perks.qc, compiled after this file): every wave clear reports itself to
+// it, and so does every kill the director counted. Neither does anything unless the run took a perk / the offer
+// knob is on.
+void(float xWave) VR_ARK_WaveDone;
+void(entity e) VR_ARK_Kill;
+
 // ---------------------------------------------------------------------------
 // The knobs, and the small maths they need
 // ---------------------------------------------------------------------------
@@ -855,6 +861,8 @@ void() VR_ARENA_WaveClear =
     VR_ARENA_PrintAll(sprintf("ARENA - Wave %g clear: %g foes down (score %g)\n", w, ar_wave_kills, ar_score));
     dprint(sprintf("arena: wave %g clear kills %g medkits %g armour %g score %g\n", w, ar_wave_kills,
                    ar_drop_health, ar_drop_armour, ar_score));
+
+    VR_ARK_WaveDone(w); // QVR: the boss wave's clear offers the player his choice of perks (vr_arena_perks.qc)
 
     self.think = VR_ARENA_WaveStart;
     self.nextthink = time + VR_ARENA_Opt_Delay();

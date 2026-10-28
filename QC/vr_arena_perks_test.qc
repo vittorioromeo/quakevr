@@ -5,7 +5,9 @@
 // `arena_perks: N passed, N failed` (run.sh -QuitOn "arena_perks: [0-9]+ passed").
 // - 1 the pool and its knobs: seven distinct perks, each named, described and wearing its own model; the label
 //   line; the taken perks kept on the director, never twice; how many are left to offer; the offer count clamped.
-// - 2 (more below, as the offer and the perks are built)
+// - 2 the offer: three pedestals after a boss wave, each another perk, each with its model and a trigger's touch
+//   box; a new offer replaces the ones standing; a taken perk is never offered again; the knobs; walking over one
+//   pedestal takes that perk and clears the other two, while a foe walking over one means nothing.
 
 // ---------------------------------------------------------------------------
 // The test's own state
@@ -61,6 +63,142 @@ void() VR_APK_End =
     if(ar_mgr) { ar_mgr.ark_taken = ark_t_taken0; } // (the run's perks are the test's, not the player's)
     cvar_set("vr_arena_perks_test", "0");
     ark_t_case = 0;
+}
+
+// ---------------------------------------------------------------------------
+// Test 2: the offer (vrtesthall with vr_arena 1, or vrarena; god)
+// ---------------------------------------------------------------------------
+
+// The pedestals standing, collected into one bit mask (0: none).
+float() VR_APK2_PedBits =
+{
+    float bits = 0;
+    entity ped;
+    for(ped = find(world, classname, ARK_PED_NAME); ped; ped = find(ped, classname, ARK_PED_NAME))
+    {
+        bits = bits | ped.ark_perk;
+    }
+    return bits;
+}
+
+void() VR_APK2_OfferChecks =
+{
+    VR_APK_Check(VR_ARK_CountPeds() == 3, "a boss wave's clear offers three pedestals");
+
+    entity ped;
+    float bits = 0;
+    float apart = TRUE;
+    for(ped = find(world, classname, ARK_PED_NAME); ped; ped = find(ped, classname, ARK_PED_NAME))
+    {
+        if((bits & ped.ark_perk) != 0) { apart = FALSE; }
+        bits = bits | ped.ark_perk;
+        if(!VR_ARK_CanOffer(ped.ark_perk)) { apart = FALSE; }
+        if(ped.modelindex <= 0) { apart = FALSE; }         // (its perk's shipped model really loaded)
+        if(ped.solid != SOLID_TRIGGER) { apart = FALSE; }  // (a touch box: nobody walks into a pedestal)
+    }
+    VR_APK_Check(apart, "the three stand apart: another perk each, a model each, a trigger each");
+    VR_APK_Check((bits != 0) && VR_ARK_CountTaken() == 0, "an offer standing takes nothing by itself");
+    VR_APK_Check(VR_ARK_OfferTurn(5) != VR_ARK_OfferTurn(10), "a later boss turns to another three");
+
+    // The first offer's pedestals are the next boss wave's to replace, and a perk already taken is not offered.
+    VR_ARK_Take(ARK_QUAD);
+    VR_ARK_Offer(10);
+    float later = VR_APK2_PedBits();
+    VR_APK_Check(VR_ARK_CountPeds() == 3, "a new offer replaces the pedestals standing, it does not add to them");
+    VR_APK_Check((later & ARK_QUAD) == 0, "a perk this run took is not offered again");
+    VR_APK_Check(later != 0, "and it still offers three");
+
+    // A knob off, and a pool used up: an offer stands nothing.
+    cvar_set("vr_arena_perks", "0");
+    VR_ARK_Offer(15);
+    VR_APK_Check(VR_ARK_CountPeds() == 0, "vr_arena_perks 0: a boss wave's clear offers nothing");
+    cvar_set("vr_arena_perks", "1");
+
+    cvar_set("vr_arena_perk_count", "2");
+    VR_ARK_Offer(20);
+    VR_APK_Check(VR_ARK_CountPeds() == 2, "vr_arena_perk_count says how many pedestals stand");
+    cvar_set("vr_arena_perk_count", "3");
+
+    float i;
+    for(i = 0; i < ARK_POOL_N; i++) { VR_ARK_Take(VR_ARK_PoolBit(i)); }
+    VR_ARK_Offer(25);
+    VR_APK_Check(VR_ARK_CountPeds() == 0, "a run that took every perk is offered nothing");
+    ar_mgr.ark_taken = 0;
+    VR_ARK_ClearPeds();
+}
+
+void() VR_APK2_TouchChecks =
+{
+    entity p = VR_ARENA_FindPlayer();
+    if(p == world)
+    {
+        VR_APK_Check(FALSE, "no player is up to choose (god, and the map's own player)");
+        return;
+    }
+
+    VR_ARK_Offer(5);
+    entity ped = find(world, classname, ARK_PED_NAME);
+    if(!ped)
+    {
+        VR_APK_Check(FALSE, "the offer's pedestals are not in the field");
+        return;
+    }
+    float chosen = ped.ark_perk;
+
+    entity keep = self;
+    self = ped;
+    other = p;
+    VR_ARK_PedTouch();
+    self = keep;
+
+    VR_APK_Check(VR_ARK_Has(chosen), "walking over a pedestal takes its perk");
+    VR_APK_Check(VR_ARK_CountTaken() == 1, "and exactly one perk: the choice is one of three");
+    VR_APK_Check(ar_mgr.ark_taken == chosen, "the perks not chosen stay untaken");
+    VR_APK_Check(VR_ARK_CountPeds() == 0, "the other two pedestals go away with it");
+
+    // A monster walking over a pedestal means nothing.
+    VR_ARK_Offer(5);
+    ped = find(world, classname, ARK_PED_NAME);
+    entity foe = find(world, classname, "monster_enforcer");
+    if(!foe) { foe = find(world, classname, "monster_grunt"); }
+    if(foe)
+    {
+        entity keep2 = self;
+        entity keep3 = other;
+        self = ped;
+        other = foe;
+        VR_ARK_PedTouch();
+        self = keep2;
+        other = keep3;
+        VR_APK_Check((VR_ARK_CountTaken() == 1) && (VR_ARK_CountPeds() == 3), "a foe walking over a pedestal changes nothing");
+    }
+    else
+    {
+        VR_APK_Check(TRUE, "no foe in this run to walk over a pedestal (nothing to check)");
+    }
+    VR_ARK_ClearPeds();
+}
+
+void() VR_APK2_Begin =
+{
+    ark_t_step = 1;
+
+    if(!ar_mgr)
+    {
+        VR_APK_Check(FALSE, "the arena's director is not in this map (vr_arena 1 before the map, or vrarena)");
+        VR_APK_End();
+        return;
+    }
+    if(VR_ARK_CountPeds()) { VR_ARK_ClearPeds(); }
+    ar_mgr.ark_taken = 0;
+    VR_ARK_Offer(5); // (the fifth boss cleared: the offer, on the map's item points, or the ring if it has none)
+}
+
+void() VR_APK2_Frame =
+{
+    if(ark_t_step == 1) { ark_t_step = 2; return; } // (a frame, so the pedestals are properly in the field)
+    if(ark_t_step == 2) { VR_APK2_OfferChecks(); ark_t_step = 3; return; }
+    if(ark_t_step == 3) { VR_APK2_TouchChecks(); VR_APK_End(); return; }
 }
 
 // ---------------------------------------------------------------------------
@@ -191,6 +329,11 @@ void() VR_ARENA_PERKS_Test_Frame =
             VR_APK_End();
             return;
         }
+        if(c == 2)
+        {
+            VR_APK2_Begin();
+            return;
+        }
 
         VR_APK_Check(FALSE, "no such arena perk test");
         VR_APK_End();
@@ -205,5 +348,7 @@ void() VR_ARENA_PERKS_Test_Frame =
         VR_APK_End();
         return;
     }
+
+    if(ark_t_case == 2) { VR_APK2_Frame(); return; }
 }
 #endif

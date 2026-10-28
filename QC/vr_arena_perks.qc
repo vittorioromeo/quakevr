@@ -46,6 +46,7 @@ float ARK_PED_NOTE   = 20;  // s between those reminders
 .float ark_feed_at;    // (ar_mgr) the time Feeder last healed
 .float ark_offer_wave; // (ar_mgr) the wave the standing offer was made on
 .float ark_perk;       // (a pedestal) which perk it offers
+.float ark_until;      // (a pedestal) how long its label keeps being said
 
 // ---------------------------------------------------------------------------
 // The pool, and what it is called
@@ -167,11 +168,164 @@ float(float xBit) VR_ARK_CanOffer = { return (xBit != 0) && VR_ARK_Untaken(xBit)
 entity() VR_ARK_Player = { return VR_ARENA_FindPlayer(); }
 
 // ---------------------------------------------------------------------------
+// The offer: three pedestals on the places a wave clear's drops already use
+// ---------------------------------------------------------------------------
+
+string ARK_PED_NAME = "vr_arena_perk"; // the pedestals' classname (what VR_ARK_ClearPeds puts away)
+
+// The field's fields are declared above: ark_perk (a pedestal's perk) and, on the director, ark_offer_wave.
+
+float ark_offer_bit[8]; // the perks the standing offer shows, ark_offer_n of them
+float ark_offer_n;
+
+// The offer's turning point in the pool: the tenth boss shows a different three from the fifth's, and a run whose
+// boss waves land the same way offers the same ones (the tests read this).
+float(float xWave) VR_ARK_OfferTurn = { return VR_ARENA_Mod(xWave, ARK_POOL_N); }
+
+// Which perks this offer shows: from its turning point, skipping what this run already took, so no perk is
+// offered twice in a run.
+void(float xWave) VR_ARK_Choose =
+{
+    float want = VR_ARK_Opt_Count();
+    float left = VR_ARK_CountLeft();
+    float turn = VR_ARK_OfferTurn(xWave);
+    float n = 0;
+    float i;
+
+    if(want > left) { want = left; }
+    for(i = 0; (i < ARK_POOL_N) && (n < want); i++)
+    {
+        float bit = VR_ARK_PoolBit(VR_ARENA_Mod(turn + i, ARK_POOL_N));
+        if(!VR_ARK_CanOffer(bit)) { continue; }
+        ark_offer_bit[n] = bit;
+        n = n + 1;
+    }
+    ark_offer_n = n;
+}
+
+// The pedestals standing in the field (a new offer replaces them; they block nothing: a trigger's touch box).
+float() VR_ARK_CountPeds =
+{
+    float n = 0;
+    entity p;
+    for(p = find(world, classname, ARK_PED_NAME); p; p = find(p, classname, ARK_PED_NAME)) { n = n + 1; }
+    return n;
+}
+
+float() VR_ARK_ClearPeds =
+{
+    float n = 0;
+    entity p;
+    entity nx;
+    for(p = find(world, classname, ARK_PED_NAME); p; p = nx)
+    {
+        nx = find(p, classname, ARK_PED_NAME);
+        remove(p);
+        n = n + 1;
+    }
+    return n;
+}
+
+// The line a pedestal stands under, said again every ARK_PED_NOTE s while the offer stands (ARK_PED_LIFE s).
+void() VR_ARK_PedLabel =
+{
+    VR_ARENA_PrintAll(sprintf("%s\n%s\n", VR_ARK_Name(self.ark_perk), VR_ARK_What(self.ark_perk)));
+    if(time + ARK_PED_NOTE <= self.ark_until) { self.nextthink = time + ARK_PED_NOTE; }
+}
+
+// One pedestal: its perk's model, on `xAt`, named `xOrder` of the way in so the three lines do not speak at once.
+entity(float xPerk, vector xAt, float xOrder) VR_ARK_SpawnPed =
+{
+    entity p = spawn();
+
+    p.classname = ARK_PED_NAME;
+    p.ark_perk  = xPerk;
+    p.ark_until = time + ARK_PED_LIFE;
+    setmodel(p, VR_ARK_Model(xPerk));
+    if(!p.modelindex)
+    {
+        remove(p);
+        dprint(sprintf("arena_perks: no model for %s\n", VR_ARK_Name(xPerk)));
+        return world;
+    }
+    setorigin(p, xAt + '0 0 8');
+    p.movetype = MOVETYPE_NONE;
+    p.solid    = SOLID_TRIGGER; // (walk over it: it stands in nobody's way, and a monster walking over means nothing)
+    p.takedamage = DAMAGE_NO;
+    p.size     = '32 32 48';
+    p.touch    = VR_ARK_PedTouch;
+    p.think    = VR_ARK_PedLabel;
+    p.nextthink = time + 0.8 * (xOrder + 1);
+
+    if(cvar("developer")) dprint(sprintf("arena_perks: pedestal for %s at %s\n", VR_ARK_Name(xPerk), vtos(xAt)));
+    return p;
+}
+
+// Walking over a pedestal is the choice: that perk is this run's, and the other two go away.
+void() VR_ARK_PedTouch =
+{
+    if(!ar_mgr) { return; }
+    if(!(other.flags & FL_CLIENT)) { return; }
+
+    float bit = self.ark_perk;
+    string name = VR_ARK_Name(bit);
+    string what = VR_ARK_What(bit);
+
+    VR_ARK_Take(bit);
+    VR_ARK_ClearPeds();
+
+    centerprint(other, sprintf("%s\n%s\n", name, what));
+    VR_ARENA_PrintAll(sprintf("ARENA - %s taken\n", name));
+    stuffcmd(other, "bf\n"); // (the same little haptic the shipped pickups give)
+    dprint(sprintf("arena_perks: %s chosen (%g perks, %g pedestals left)\n", name, VR_ARK_CountTaken(),
+                   VR_ARK_CountPeds()));
+}
+
+// A boss wave cleared: the offer. The old pedestals go; the pool's last rung having been taken, it offers nothing.
+void(float xWave) VR_ARK_Offer =
+{
+    float made = 0;
+    float i;
+
+    VR_ARK_ClearPeds();
+    ark_offer_n = 0;
+    ar_mgr.ark_offer_wave = xWave;
+
+    if(!VR_ARK_Opt_On())
+    {
+        dprint("arena_perks: a boss wave offers nothing (vr_arena_perks 0)\n");
+        return;
+    }
+
+    VR_ARK_Choose(xWave);
+    if(ark_offer_n == 0)
+    {
+        VR_ARENA_PrintAll("ARENA - every perk is taken already\n");
+        dprint("arena_perks: the pool is empty, nothing to offer\n");
+        return;
+    }
+
+    for(i = 0; i < ark_offer_n; i++)
+    {
+        if(VR_ARK_SpawnPed(ark_offer_bit[i], VR_ARENA_DropPlace(i), i)) { made = made + 1; }
+    }
+
+    VR_ARENA_PrintAll(sprintf("ARENA - %g perks to choose: walk over one\n", made));
+    dprint(sprintf("arena_perks: wave %g offers %g pedestals (%g standing, %g perks left)\n", xWave, made,
+                   VR_ARK_CountPeds(), VR_ARK_CountLeft()));
+}
+
+// ---------------------------------------------------------------------------
 // The hooks, all inert until the perk is taken (filled in as each perk is built)
 // ---------------------------------------------------------------------------
 
-// vr_arena.qc: a wave clear, and every kill it counted.
-void(float xWave) VR_ARK_WaveDone = { };
+// vr_arena.qc: a wave clear (a boss wave's clear makes the offer), and every kill it counted.
+void(float xWave) VR_ARK_WaveDone =
+{
+    if(!VR_ARK_Running()) { return; }
+    if(VR_ARENA_IsBossWave(xWave)) { VR_ARK_Offer(xWave); }
+}
+
 void(entity e) VR_ARK_Kill = { };
 
 // vr_decap.qc: a foe beheaded by `by`.
