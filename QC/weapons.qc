@@ -1797,6 +1797,7 @@ void() ClearMultiDamagePellets =
     multi_pellets_head = 0;
     multi_pellets_limb = 0;
     multi_pellets_leg = 0;
+    VR_AgArmor_PelletsClear(); // (armour: each pellet's piece, vr_agarmor.qc)
 };
 
 void() ClearMultiDamage =
@@ -1843,6 +1844,7 @@ float(entity hit, float damage) AddMultiDamage =
         else if(vr_hitpart == 2) multi_pellets_limb = multi_pellets_limb + 1;
         else if(vr_hitpart == 3) multi_pellets_leg = multi_pellets_leg + 1;
     }
+    VR_AgArmor_PelletAdd(hit); // (armour: the pellet's piece, vr_agarmor.qc)
 
     // HONEY
     return VR_DamageCredit_Accepts(hit, self); // (the shooter's hitscan shot: FireBullets credited him)

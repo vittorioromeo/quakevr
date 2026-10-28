@@ -111,6 +111,8 @@ vr_chainsaw.qc
 vr_decap.qc
 vr_decap_test.qc
 vr_limbs.qc
+// Armour for armed humanoids (after vr_limbs.qc, vr_decap.qc: their cut and pop globals; vr_armedgrunt_defs.qc has its fields).
+vr_agarmor.qc
 // Teeth knocked out by a punch to the face (after vr_decap.qc: its head zone and blunt hardness).
 vr_teeth.qc
 vr_limbs_test.qc

@@ -849,6 +849,10 @@ void(string gibname, float dm) ThrowHead =
     VR_Gore_Gibbed(); // VR: blood all round (vr_gore, vr_carry.qc)
     VR_SmallGib_Gibbed(dm); // VR: and small gibs (vr_smallgibs.qc)
     VR_Limb_GibAll(dm); // VR: and its own limbs (vr_gib_limbs; vr_limbs.qc)
+    if(self.vr_ar_type > 0)
+    {
+        VR_AgArmor_Shed(self); // VR: and its armour's plates left (vr_agarmor.qc)
+    }
     setmodel(self, gibname);
     self.frame = 0;
 //   self.nextthink = -1;

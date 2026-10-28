@@ -810,6 +810,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     // thrown brick's hit on a ragdoll left no wound and no dent (a shotgun's pellets paint their own: VR_Wound_Pellet).
     VR_Wound_Hit(targ, inflictor, attacker, ceil(damage));
     damage = damage / VR_Corpse_PositionalFactor(targ);
+    VR_AgArmor_Guard(targ); // (no cut or pop under a corpse's unbroken plate: vr_agarmor.qc)
 
     // A headshot on a corpse pops its head, leaving the physical body in place.
     // Use the same weapon toggles and head-share test as a living killing blow.
@@ -1600,6 +1601,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     // VR: the motion recorder's events (vr_motion.qc): a hand's or the head's hit.
     VR_Motion_Hit(targ, attacker, damage, isVRMelee);
+
+    // VR: an armed humanoid's plates take their share first (vr_agarmor.qc; Quad's damage included)
+    if(targ.vr_ar_type > 0)
+    {
+        damage = VR_AgArmor_Damage(targ, inflictor, attacker, damage, isVRMelee);
+    }
 
 // save damage based on the target's armor level
 
