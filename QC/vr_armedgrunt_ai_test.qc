@@ -1,11 +1,11 @@
 #ifdef QVR_TESTS
 // vr_armedgrunt_ai_test.qc -- armed humanoids' AI behaviour knobs (vr_armedgrunt_ai.qc; ROUND22.md, "Armed humanoids'
-// AI behaviour"). `vr_agrunt_test 84` (Debug > Tests > Armed Grunts: AI Behaviour), vrtesthall from its start, the
+// AI behaviour"). `vr_agrunt_test 86` (Debug > Tests > Armed Grunts: AI Behaviour), vrtesthall from its start, the
 // player kept alive and still: case by case one armed humanoid ahead with the knobs set as the case has them (skill
 // set as the case has it, the map's back after), each printing its numbers (`agtest: ai: <case>: ...`); the checks
 // compare cases (each knob moves its measure the way it should, Normal at the defaults as the knobs at 1). Every case
 // ends on its own condition (a first shot, a count of shots, its seconds of watching); the run ends on "agtest: test 84
-// over". `vr_agrunt_test 85` (Armed Grunts: Strafe Lean): a still grunt moved sideways at 0..100 u/s; the engine's
+// over". `vr_agrunt_test 87` (Armed Grunts: Strafe Lean): a still grunt moved sideways at 0..100 u/s; the engine's
 // numbers by speed printed (vr_agrunt_lean_info: its lean, its pelvis's roll, its chest's); scratch1 1: a screenshot
 // at 80 u/s and one standing (the eyeshots).
 
@@ -339,7 +339,7 @@ void() VR_AGAIT_Frame =
     }
 };
 
-// `vr_agrunt_test 85`: a shotgun grunt 120 ahead, side-on to nothing (facing you), its own think stopped (it stands
+// `vr_agrunt_test 87`: a shotgun grunt 120 ahead, side-on to nothing (facing you), its own think stopped (it stands
 // in its frame), moved sideways by the test at 0, 20, ..., 100 u/s for 1.5 s each (the way turned each phase, back
 // and forth about where it stood); vr_agrunt_lean_info cleared at the start and printed at the end (the engine's
 // numbers: the lean, its pelvis's roll by it and its chest's as solved, by sideways speed). scratch1 1: a screenshot

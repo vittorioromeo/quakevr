@@ -25668,8 +25668,8 @@ for the arms' solve, boneTurns draws it (between the legs' turn and the upper bo
 (its legs are the leg layer's own), held 0 while frozen (vr_agrunt_freeze). Rig-agnostic (any rig's bones; with the
 authored rig the only one once agent/rig2only lands). Needs vr_agarms (the default), like the upper-body hold.
 
-**Tests.** `vr_agrunt_test 84` (Debug > Tests > Armed Grunts: AI Behaviour; `vr_armedgrunt_ai_test.qc`, vrtesthall,
-`sv_random_seed 12345`; ends on "agtest: test 84 over"): the skill table (Normal and impact 0: every knob exactly 1),
+**Tests.** `vr_agrunt_test 86` (84 before the merge with agent/agshove's shove test; Debug > Tests > Armed Grunts: AI Behaviour; `vr_armedgrunt_ai_test.qc`, vrtesthall,
+`sv_random_seed 12345`; ends on "agtest: test 86 over"): the skill table (Normal and impact 0: every knob exactly 1),
 then 25 cases, each its own end (a first shot, 8 shots, its seconds):
 
 | case | result |
@@ -25689,7 +25689,7 @@ then 25 cases, each its own end (a first shot, 8 shots, its seconds):
 27 passed, 0 failed (the table's check included; the hit counts are frames it hurt you, up close its shoves too: not a
 measure here).
 
-`vr_agrunt_test 85` (Armed Grunts: Strafe Lean): a shotgun grunt 120 ahead, its think stopped, moved sideways by the
+`vr_agrunt_test 87` (Armed Grunts: Strafe Lean): a shotgun grunt 120 ahead, its think stopped, moved sideways by the
 test at 0..100 u/s, 1.5 s each; `vr_agrunt_lean_info` (new console command) by sideways speed:
 
 | sideways speed | frames | lean | pelvis roll by it | chest roll |
@@ -25723,9 +25723,9 @@ Armed Grunts > AI Behaviour (the coordinator's lines to update). Older ROUND22 s
 - [ ] Armed humanoids' AI Behaviour (Combat > Armed Grunts > AI Behaviour): try Aggressiveness 2 (they press in and
   fire more), Accuracy 0.5 (their shots stray), Reaction Time 2 (a long pause before their first shot), Retreat
   Readiness 0 (they no longer back off), Punches Instead Within 200 (a disarmed one up close punches instead of fetching
-  a gun); then all back to 1 {test:vr_agrunt_test 84}
+  a gun); then all back to 1 {test:vr_agrunt_test 86}
 - [ ] Difficulty Impact: on Easy armed humanoids miss more and react later than on Normal, on Hard and Nightmare they
-  are clearly sharper (Nightmare fires at once); Impact 0 makes every skill fight like Normal {test:vr_agrunt_test 84}
+  are clearly sharper (Nightmare fires at once); Impact 0 makes every skill fight like Normal {test:vr_agrunt_test 86}
 - [ ] Strafe lean: an armed grunt or enforcer strafing round you tips its hips and legs a little toward the way it
   moves, its chest and gun still aimed at you; standing still it is upright; Strafe Lean 0 turns it off
-  {test:vr_agrunt_test 85}
+  {test:vr_agrunt_test 87}
