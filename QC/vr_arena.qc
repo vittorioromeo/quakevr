@@ -40,6 +40,8 @@
 #define AR_PLAN_MAX 12   // a wave's planned foes at most (vr_arena_max_alive caps how many of them are up at once)
 #define AR_RING_MAX 8    // the fallback ring's places around the player, when a map has no info_arena_spawn
 #define AR_ASIDE_MAX 4   // a place used twice in one wave is stepped aside this many ways
+#define AR_ASIDE_STEP 48 // how far a step off a taken place goes (a monster's own box is 32 wide)
+#define AR_PLACE_GAP  48 // a place this close to one of this wave's live foes counts as taken
 
 // The species a wave sends (the plan's kind: its monster's own spawn function).
 float AR_SP_GRUNT    = 0; // monster_vr_grunt: a grunt holding one of the player's weapons
@@ -139,6 +141,14 @@ float() VR_ARENA_Opt_Medkits    { return VR_ARENA_Clamp(cvar("vr_arena_medkits_a
 float() VR_ARENA_Opt_ArmorEvery { return VR_ARENA_Clamp(cvar("vr_arena_armor_every"), 0, 12); }
 float() VR_ARENA_Opt_ScoreKill  { return VR_ARENA_Clamp(cvar("vr_arena_score_kill"), 1, 10000); }
 
+// What a wave monster's ar_tier is worth on the ladder: its mark (AR_BOSS_MARK) is not a rung, so it comes off
+// before the tier is scored (a boss is worth four of its rung, not four of the mark).
+float(float xTier) VR_ARENA_TierOf =
+{
+    if(xTier >= AR_BOSS_MARK) { return xTier - AR_BOSS_MARK; }
+    return xTier;
+}
+
 // The score of one kill: 100 (vr_arena_score_kill) times the ladder tier it held, a boss four of those.
 float(float xTier, float xBoss) VR_ARENA_KillScore =
 {
@@ -151,14 +161,16 @@ float(float xTier, float xBoss) VR_ARENA_KillScore =
 // A wave clear's bonus: 250 times the wave.
 float(float xWave) VR_ARENA_WaveBonus = { return AR_WAVE_BONUS * xWave; }
 
-// A wave clear's medkits, and which armour it adds (the stronger one from AR_W_FIEND's wave).
+// A wave clear's medkits, and which armour it adds: the light one until the waves reach AR_W_FIEND's wave, and
+// from there the heavier one and the light one by turns (a run's armours keep meaning something both ways).
 float(float xWave) VR_ARENA_MedkitCount = { return VR_ARENA_Opt_Medkits(); }
 float(float xWave) VR_ARENA_ArmourKind =
 {
     float every = VR_ARENA_Opt_ArmorEvery();
     if(every <= 0) { return 0; }
     if(VR_ARENA_Mod(xWave, every) != 0) { return 0; }
-    return xWave >= AR_W_FIEND ? 2 : 1;
+    if(xWave < AR_W_FIEND) { return 1; }
+    return VR_ARENA_Mod(xWave / every, 2) == 1 ? 2 : 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -451,9 +463,27 @@ vector(float i) VR_ARENA_Aside =
 {
     float k = VR_ARENA_Mod(i, AR_ASIDE_MAX);
     vector v = '0 0 0';
-    v_x = 128 * (VR_ARENA_Mod(k, 2) * 2 - 1);
-    v_y = 128 * (floor(k / 2) * 2 - 1);
+    v_x = AR_ASIDE_STEP * (VR_ARENA_Mod(k, 2) * 2 - 1);
+    v_y = AR_ASIDE_STEP * (floor(k / 2) * 2 - 1);
     return v;
+}
+
+// A place already holding one of this wave's foes is stepped aside. The step is small on purpose (a monster's own
+// box is 32 wide): from a tower top, a wall walk or the octagon's cut corner it stays on the ground it belongs to.
+float(vector o) VR_ARENA_PlaceTaken =
+{
+    entity e = findflags(world, ar_slot, ar_wave);
+    while(e)
+    {
+        if(e.health > 0)
+        {
+            vector d = e.origin - o;
+            d_z = 0; // (apart on the ground it stands on: a foe on the floor below is not in this place)
+            if(vlen(d) < AR_PLACE_GAP) { return 1; }
+        }
+        e = findflags(e, ar_slot, ar_wave);
+    }
+    return 0;
 }
 
 entity(float xIndex) VR_ARENA_ItemSpot { return VR_ARENA_MapSpot("info_arena_item", xIndex); }
@@ -477,7 +507,15 @@ vector(float xHigh) VR_ARENA_SpawnPlace =
         o = base + AR_RING_R * VR_ARENA_RingDir(ar_spot_next);
     }
 
-    o = o + VR_ARENA_Aside(ar_spot_next);
+    // Its own place first; only when that is already holding a foe of this wave, the next aside off it.
+    float t;
+    for(t = 0; t < AR_ASIDE_MAX; t++)
+    {
+        vector c = o + VR_ARENA_Aside(ar_spot_next + t);
+        o = c;
+        if(!VR_ARENA_PlaceTaken(c)) { break; }
+    }
+
     ar_spot_next = ar_spot_next + 1;
     return o;
 }
@@ -575,13 +613,9 @@ entity(float xKind, float xGun, float xTier, float xBoss) VR_ARENA_SpawnMonster 
         dprint(sprintf("arena: boss kind %g health %g tier %g\n", xKind, self.health, xTier));
     }
 
-    // Its first aim, as the Machine Games' horde starts its monsters (ai.qc's FoundTarget from there).
-    self.enemy = p;
-    if(self.enemy != world)
-    {
-        self.think = FoundTarget;
-        self.nextthink = time + 0.1 + 0.1 * VR_ARENA_Rand();
-    }
+    // Its kind's own start runs as it always does (monsters.qc's walkmonster_start_go: its takedamage, its full
+    // health, its AI): a wave monster must not be started another way, or it never becomes something you can hit.
+    // VR_ARENA_HuntPlayer gives it the player once that start is through.
 
     self = manager;
     return m;
@@ -664,6 +698,29 @@ float() VR_ARENA_CountAlive =
     return n;
 }
 
+// A wave foe whose kind's own start is through (monsters.qc: its takedamage is on) and who has not spotted anyone
+// yet: it is given the player, so a wave comes at you instead of standing where it landed. Its own run takes over
+// from there (ai.qc's FoundTarget puts it on its th_run).
+void() VR_ARENA_HuntPlayer =
+{
+    if(ar_wave <= 0) { return; }
+
+    entity p = VR_ARENA_FindPlayer();
+    if(p == world) { return; }
+
+    entity e = findflags(world, ar_slot, ar_wave);
+    while(e)
+    {
+        if(e.health > 0 && e.takedamage && e.enemy == world && e.th_run)
+        {
+            e.enemy = p;
+            e.think = FoundTarget;
+            e.nextthink = time + 0.1 + 0.1 * VR_ARENA_Rand();
+        }
+        e = findflags(e, ar_slot, ar_wave);
+    }
+}
+
 // combat.qc (after MGH_Kill): this monster fell. Its score, once (its ar_slot flips negative).
 void() VR_ARENA_MonsterDie =
 {
@@ -673,7 +730,7 @@ void() VR_ARENA_MonsterDie =
     self.ar_slot = -ar_wave;
     ar_kills = ar_kills + 1;
     ar_wave_kills = ar_wave_kills + 1;
-    ar_score = ar_score + VR_ARENA_KillScore(self.ar_tier, self.ar_tier >= AR_BOSS_MARK);
+    ar_score = ar_score + VR_ARENA_KillScore(VR_ARENA_TierOf(self.ar_tier), self.ar_tier >= AR_BOSS_MARK);
 }
 
 void(float xWave) VR_ARENA_ClearField = // (a stalled wave, and the tests' jump: its monsters leave)
@@ -762,6 +819,8 @@ void() VR_ARENA_ManagerThink =
         VR_ARENA_WaveClear();
         return;
     }
+
+    VR_ARENA_HuntPlayer(); // (a wave foe that has come to and has not spotted anyone: it comes at you)
 
     if(time - ar_wave_at > AR_STALL) // (a foe that could not be reached: the wave lets go and the arena goes on)
     {

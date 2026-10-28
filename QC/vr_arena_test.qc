@@ -175,7 +175,10 @@ void() VR_AT_Plans =
     VR_ARENA_Plan(5);
     VR_AT_Check(VR_AT_BossCount() == 1, "wave 5 has one boss");
     VR_AT_Check(ar_plan_boss[0] && ar_plan_kind[0] == AR_SP_ENFORCER, "wave 5's boss is an enforcer");
-    VR_AT_Check(ar_plan_tier[0] == 1 + AR_BOSS_MARK, "wave 5's boss is worth a boss's tier");
+    // A plan's tier is the rung its boss holds (the boss's own mark lands on the monster's ar_tier, where test 3
+    // reads it); what it is worth: four of that rung.
+    VR_AT_Check(ar_plan_tier[0] == 1, "wave 5's boss holds a first rung gun");
+    VR_AT_Check(VR_ARENA_KillScore(ar_plan_tier[0], TRUE) == 400, "a first rung boss is scored four of its rung");
     VR_AT_Check(VR_AT_HumanoidMaxTier() <= 1, "wave 5 stays on the first rung");
 
     VR_ARENA_Plan(10);
@@ -351,8 +354,30 @@ void() VR_AT2_Begin =
 {
     if(!ar_mgr) { VR_AT_Check(FALSE, "test 2 needs the arena on (vr_arena 1)"); VR_AT_End(); return; }
     cvar_set("vr_arena_max_alive", "2"); // (the field's cap, small enough for the waves to have to respect it)
-    vr_at_until = time + 40;
+    vr_at_until = time + 60;
     dprint("arena: test 2 waves\n");
+}
+
+// One of a wave's foes, brought down by the test's own blow (its path out of combat.qc, so the score's whole route
+// is walked). Its kind's start has to be through first (monsters.qc: that is where its takedamage comes on), so a
+// foe still on its way to the floor is left for the next frame. 1 when a blow landed.
+float(float xWave) VR_AT_KillOne =
+{
+    entity p = VR_ARENA_FindPlayer();
+    if(p == world) { return 0; }
+
+    entity e = findflags(world, ar_slot, xWave);
+    while(e)
+    {
+        entity next = findflags(e, ar_slot, xWave);
+        if(e.health > 0 && e.takedamage)
+        {
+            T_Damage(e, p, p, e.health + 100);
+            return 1;
+        }
+        e = next;
+    }
+    return 0;
 }
 
 void() VR_AT2_Frame =
@@ -388,35 +413,39 @@ void() VR_AT2_Frame =
 
         vr_at_kills0 = ar_kills;
         vr_at_score0 = ar_score;
-        e = findflags(world, ar_slot, 1);
-        while(e)
-        {
-            entity next = findflags(e, ar_slot, 1);
-            if(e.health > 0) { T_Damage(e, p, p, e.health + 100); break; } // (one fall: the score's path through combat.qc)
-            e = next;
-        }
         vr_at_step = 1;
-        vr_at_until = time + 40;
+        vr_at_until = time + 60;
         return;
     }
 
-    if(vr_at_step == 1) // (that fall was scored the way the arena says)
+    if(vr_at_step == 1) // (one fall: the score's path through combat.qc)
     {
+        if(!VR_AT_KillOne(1)) { return; }
+        vr_at_step = 2;
+        vr_at_until = time + 60;
+        return;
+    }
+
+    if(vr_at_step == 2) // (that fall was scored the way the arena says)
+    {
+        entity d = findflags(world, ar_slot, 1);
+        while(d) // (what the blow left behind, so a miss here says where it went)
+        {
+            dprint(sprintf("arena: t2 foe health %g slot %g tier %g takedamage %g class %s\n",
+                           d.health, d.ar_slot, d.ar_tier, d.takedamage, d.classname));
+            d = findflags(d, ar_slot, 1);
+        }
+        dprint(sprintf("arena: t2 kills %g score %g wave %g alive %g\n", ar_kills, ar_score, ar_wave, VR_ARENA_CountAlive()));
+
         VR_AT_Check(ar_kills - vr_at_kills0 == 1, "combat.qc's hook counted the fall");
         VR_AT_Check(ar_score - vr_at_score0 == 100, "an unarmed fall is worth 100");
-        vr_at_step = 2;
+        vr_at_step = 3;
         return;
     }
 
-    if(vr_at_step == 2) // (the rest of the wave goes: its clear drops the medkits)
+    if(vr_at_step == 3) // (the rest of the wave goes: its clear drops the medkits)
     {
-        e = findflags(world, ar_slot, 1);
-        while(e)
-        {
-            entity next = findflags(e, ar_slot, 1);
-            if(e.health > 0) { T_Damage(e, p, p, e.health + 100); }
-            e = next;
-        }
+        VR_AT_KillOne(1);
         if(ar_wave >= 2)
         {
             float kits = 0;
@@ -425,13 +454,13 @@ void() VR_AT2_Frame =
             VR_AT_Check(ar_drop_health == VR_ARENA_MedkitCount(1), "the wave clear made its medkits");
             VR_AT_Check(kits >= 1, "the medkits are in the map");
             VR_AT_Check(ar_score >= 100 + 250, "the wave clear's bonus was paid");
-            vr_at_step = 3;
-            vr_at_until = time + 40;
+            vr_at_step = 4;
+            vr_at_until = time + 60;
         }
         return;
     }
 
-    if(vr_at_step == 3) // (wave 2: the ladder's next rung, a nail pistol)
+    if(vr_at_step == 4) // (wave 2: the ladder's next rung, a nail pistol)
     {
         if(ar_plan_live < ar_plan_n) { return; }
         float got = 0;
