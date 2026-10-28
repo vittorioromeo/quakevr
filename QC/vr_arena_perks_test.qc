@@ -390,6 +390,11 @@ void() VR_APK3_Quad =
     VR_APK3_Kill(world, world, QVR_HITKIND_MELEE);
     VR_APK_Check(ark_t_p.super_damage_finished == 0, "Quad Strike: a foe another foe killed is nobody's perk");
 
+    ark_t_p.super_damage_finished = time + 25; // (a picked-up Quad Damage with 25 s left)
+    VR_APK3_Kill(world, ark_t_p, QVR_HITKIND_MELEE);
+    VR_APK_Check(VR_APK_Near(ark_t_p.super_damage_finished - time, 25), "Quad Strike never cuts a longer quad short");
+    ark_t_p.super_damage_finished = 0;
+
     ark_t_quad_at = time + ARK_QUAD_SECS + 0.5; // (measured again once its 2 seconds are past)
 }
 

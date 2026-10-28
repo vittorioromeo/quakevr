@@ -344,9 +344,11 @@ void(entity p, float xUp) VR_ARK_Heal =
     p.health = min(p.health + xUp, p.max_health);
 }
 
-// Quad Strike: the shipped powerup's own fields (items.qc's powerup_touch), only much shorter.
+// Quad Strike: the shipped powerup's own fields (items.qc's powerup_touch), only much shorter. A quad already running
+// longer (a picked-up Quad Damage) is left as it is: the perk only ever adds quad time, never cuts it short.
 void(entity p, float xSecs) VR_ARK_GiveQuad =
 {
+    if(p.super_damage_finished >= time + xSecs) { return; }
     p.super_time = 1;
     p.super_damage_finished = time + xSecs;
     VR_ItemUtil_EntAddItem(p, IID_QUAD);
