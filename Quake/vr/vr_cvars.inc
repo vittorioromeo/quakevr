@@ -4313,6 +4313,7 @@ QVR_CVAR(vr_enemy_shove_enforcer_distance, "1.5", CVAR_ARCHIVE) // an enforcer's
 QVR_CVAR(vr_enemy_shove_vore, "1", CVAR_ARCHIVE)         // vores shove you too (a swing of their arms; their reach is 16 units longer: they are wider)
 QVR_CVAR(vr_enemy_shove_vore_damage, "2", CVAR_ARCHIVE)  // a vore's shove's damage, times vr_enemy_shove_damage
 QVR_CVAR(vr_enemy_shove_vore_distance, "2", CVAR_ARCHIVE) // a vore's shove's push, times vr_enemy_shove_distance (harder than anyone's)
+QVR_CVAR(vr_agrunt_shove, "2", CVAR_ARCHIVE)             // armed humanoids' shove: 0 their model's shove frames (guns only, as before), 1 the Shove pose (the pose keys; guns only), 2 the Shove pose with every weapon and the fists (QC vr_armedgrunt_pose.qc VR_AGP_Shove)
 // Holding enemies (vr_foegrab.cpp, QC vr_foegrab.qc; Combat > Holding Enemies): an empty hand that grips on a living
 // monster's model holds on to that spot, slows it and drags it, until let go or pulled too far.
 QVR_CVAR(vr_foegrab, "1", CVAR_ARCHIVE)                  // experimental: an empty hand can hold on to a living enemy

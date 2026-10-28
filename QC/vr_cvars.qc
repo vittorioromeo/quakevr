@@ -1179,6 +1179,7 @@ float cvarh_vr_enemy_shove;
 float cvarh_vr_enemy_shove_range;
 float cvarh_vr_enemy_shove_delay;
 float cvarh_vr_enemy_shove_cooldown;
+float cvarh_vr_agrunt_shove;
 float cvarh_vr_enemy_shove_damage;
 float cvarh_vr_enemy_shove_distance;
 float cvarh_vr_enemy_shove_parry_reduction;
@@ -2395,6 +2396,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_enemy_shove_range);
     VR_CVAR_HMAKE(vr_enemy_shove_delay);
     VR_CVAR_HMAKE(vr_enemy_shove_cooldown);
+    VR_CVAR_HMAKE(vr_agrunt_shove);
     VR_CVAR_HMAKE(vr_enemy_shove_damage);
     VR_CVAR_HMAKE(vr_enemy_shove_distance);
     VR_CVAR_HMAKE(vr_enemy_shove_parry_reduction);

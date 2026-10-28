@@ -285,6 +285,104 @@ constexpr ShippedRow shipped[] = {
     {120020, {0.56f, -1.79f, -3.44f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.2f, 0.11f, 0.39f, 0.f, 0.f, 0.f}},
     // enforcer, the Widowmaker, Aim
     {121010, {16.33f, 5.66f, 7.19f, 3.f, 2.f, -1.4f, 3.48f, -5.75f, -2.08f, 0.f, 13.2f, 0.f, 0.45f, -0.7f, -0.55f, -0.83f, 0.1f, -0.55f, 0.f, 0.f, 0.f}},
+    // The Shove pose's (2026-10-28, agent/agshove; ROUND22.md, "Armed humanoids' shove": agent-made starting keys,
+    // his spec; the gun categories take the rifle's, a long gun held one-handed the pistol's: QC VR_AGK_Keys)
+    // grunt, fists, Shove, wind-up
+    {200, {-3.f, 0.f, -1.f, 0.f, 0.f, 0.f, -3.f, 0.f, -1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, fists, Shove, push
+    {201, {10.f, 2.f, 4.f, 0.f, 0.f, 0.f, 10.f, -2.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, fists, Shove, recover
+    {202, {4.f, 1.f, 2.f, 0.f, 0.f, 0.f, 4.f, -1.f, 2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a rifle, Shove, wind-up
+    {1200, {-5.f, 0.f, -3.f, 0.f, 0.f, 80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // grunt, a rifle, Shove, push
+    {1201, {10.f, 0.f, -1.f, 0.f, 0.f, 85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // grunt, a rifle, Shove, recover
+    {1202, {3.f, 0.f, -2.f, 0.f, 0.f, 70.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // grunt, a one-handed melee weapon, Shove, wind-up
+    {2200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 6.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 8.f, -3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a one-handed melee weapon, Shove, push
+    {2201, {-4.f, 0.f, -1.f, 0.f, 0.f, 0.f, 16.f, 0.f, 12.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -10.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a one-handed melee weapon, Shove, recover
+    {2202, {-2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 7.f, -1.f, 6.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Shove, wind-up
+    {3200, {-4.f, 0.f, -4.f, -80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Shove, push
+    {3201, {8.f, 0.f, -3.f, -85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Shove, recover
+    {3202, {2.f, 0.f, -3.f, -70.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a chainsaw, Shove, wind-up
+    {4200, {-5.f, 0.f, -3.f, 0.f, 0.f, 80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // grunt, a chainsaw, Shove, push
+    {4201, {10.f, 0.f, -1.f, 0.f, 0.f, 85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // grunt, a chainsaw, Shove, recover
+    {4202, {3.f, 0.f, -2.f, 0.f, 0.f, 70.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // grunt, two melee weapons, Shove, wind-up
+    {5200, {-3.f, 0.f, 2.f, -69.3f, -69.3f, -69.3f, -3.f, 0.f, 2.f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, two melee weapons, Shove, push
+    {5201, {10.f, 1.f, 4.f, -69.3f, -69.3f, -69.3f, 10.f, -1.f, 4.f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, two melee weapons, Shove, recover
+    {5202, {4.f, 0.f, 3.f, -69.3f, -69.3f, -69.3f, 4.f, 0.f, 3.f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, two guns, Shove, wind-up
+    {6200, {-3.f, 0.f, 2.f, -69.3f, -69.3f, -69.3f, -3.f, 0.f, 2.f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, two guns, Shove, push
+    {6201, {10.f, 1.f, 4.f, -69.3f, -69.3f, -69.3f, 10.f, -1.f, 4.f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, two guns, Shove, recover
+    {6202, {4.f, 0.f, 3.f, -69.3f, -69.3f, -69.3f, 4.f, 0.f, 3.f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a pistol, Shove, wind-up
+    {17200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 1.f, 12.f, 77.f, -124.7f, 25.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 8.f, -3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    // grunt, a pistol, Shove, push
+    {17201, {-3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 21.f, 0.f, 22.f, 77.f, -124.7f, 25.7f, 0.f, 0.f, 0.f, 0.f, 0.6f, -0.3f, -10.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    // grunt, a pistol, Shove, recover
+    {17202, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 1.f, 14.f, 77.f, -124.7f, 25.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    // enforcer, fists, Shove, wind-up
+    {100200, {-3.f, 0.f, -1.1f, 0.f, 0.f, 0.f, -3.f, 0.f, -1.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, fists, Shove, push
+    {100201, {10.f, 2.7f, 4.4f, 0.f, 0.f, 0.f, 10.f, -2.7f, 4.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, fists, Shove, recover
+    {100202, {4.f, 1.35f, 2.2f, 0.f, 0.f, 0.f, 4.f, -1.35f, 2.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, a rifle, Shove, wind-up
+    {101200, {-5.f, 0.f, -3.3f, 0.f, 0.f, 80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // enforcer, a rifle, Shove, push
+    {101201, {10.f, 0.f, -1.1f, 0.f, 0.f, 85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // enforcer, a rifle, Shove, recover
+    {101202, {3.f, 0.f, -2.2f, 0.f, 0.f, 70.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // enforcer, a one-handed melee weapon, Shove, wind-up
+    {102200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 6.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 8.f, -3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, a one-handed melee weapon, Shove, push
+    {102201, {-4.f, 0.f, -1.1f, 0.f, 0.f, 0.f, 16.f, 0.f, 13.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -10.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, a one-handed melee weapon, Shove, recover
+    {102202, {-2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 7.f, -1.35f, 6.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, a two-handed melee weapon, Shove, wind-up
+    {103200, {-4.f, 0.f, -4.4f, -80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, a two-handed melee weapon, Shove, push
+    {103201, {8.f, 0.f, -3.3f, -85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, a two-handed melee weapon, Shove, recover
+    {103202, {2.f, 0.f, -3.3f, -70.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, a chainsaw, Shove, wind-up
+    {104200, {-5.f, 0.f, -3.3f, 0.f, 0.f, 80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // enforcer, a chainsaw, Shove, push
+    {104201, {10.f, 0.f, -1.1f, 0.f, 0.f, 85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // enforcer, a chainsaw, Shove, recover
+    {104202, {3.f, 0.f, -2.2f, 0.f, 0.f, 70.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // enforcer, two melee weapons, Shove, wind-up
+    {105200, {-3.f, 0.f, 2.2f, -69.3f, -69.3f, -69.3f, -3.f, 0.f, 2.2f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, two melee weapons, Shove, push
+    {105201, {10.f, 1.35f, 4.4f, -69.3f, -69.3f, -69.3f, 10.f, -1.35f, 4.4f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, two melee weapons, Shove, recover
+    {105202, {4.f, 0.f, 3.3f, -69.3f, -69.3f, -69.3f, 4.f, 0.f, 3.3f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, two guns, Shove, wind-up
+    {106200, {-3.f, 0.f, 2.2f, -69.3f, -69.3f, -69.3f, -3.f, 0.f, 2.2f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, two guns, Shove, push
+    {106201, {10.f, 1.35f, 4.4f, -69.3f, -69.3f, -69.3f, 10.f, -1.35f, 4.4f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, two guns, Shove, recover
+    {106202, {4.f, 0.f, 3.3f, -69.3f, -69.3f, -69.3f, 4.f, 0.f, 3.3f, 69.3f, -69.3f, 69.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, a pistol, Shove, wind-up
+    {117200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 1.35f, 13.2f, 77.f, -124.7f, 25.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 8.f, -3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    // enforcer, a pistol, Shove, push
+    {117201, {-3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 21.f, 0.f, 24.2f, 77.f, -124.7f, 25.7f, 0.f, 0.f, 0.f, 0.f, 0.6f, -0.3f, -10.f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    // enforcer, a pistol, Shove, recover
+    {117202, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 1.35f, 15.4f, 77.f, -124.7f, 25.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
     {-1, {}}, // (the end)
 };
 
@@ -993,7 +1091,7 @@ void dumpText(za::String& out)
             continue;
         }
         out += va("}}, // %s, %s, %s%s%s\n", kindName(kind), className(cls), poseName(cls, pose),
-            isStrike(pose) ? ", " : "", isStrike(pose) ? phaseName(phase) : "");
+            isStrike(pose) ? ", " : "", isStrike(pose) ? phaseName(pose, phase) : "");
         // (a stance whose place is one QC constant: that constant moved, instead of the row; the grunt's units)
         for(const QcConstant& q : qcConstants)
         {
@@ -1120,6 +1218,7 @@ const char* poseName(int cls, int pose)
         case Backhand: return "Backhand";
         case SawThrust: return "Saw Thrust";
         case Dual: return "Dual Strike";
+        case Shove: return "Shove";
         default: return "?";
     }
 }
@@ -1127,6 +1226,15 @@ const char* poseName(int cls, int pose)
 const char* phaseName(int phase)
 {
     return phase == 0 ? "wind-up" : phase == 1 ? "blow" : "follow-through";
+}
+
+const char* phaseName(int pose, int phase)
+{
+    if(pose == Shove)
+    {
+        return phase == 0 ? "wind-up" : phase == 1 ? "push" : "recover";
+    }
+    return phaseName(phase);
 }
 
 int posesOf(int cls, int* out, int max)
@@ -1167,6 +1275,7 @@ int posesOf(int cls, int* out, int max)
     {
         add(Dual);
     }
+    add(Shove); // (every class: its push of the player up close)
     return n;
 }
 

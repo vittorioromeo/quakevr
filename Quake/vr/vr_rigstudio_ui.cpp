@@ -1482,7 +1482,7 @@ void poseDataWindow()
             st.pdPhase = za::clamp(st.pdPhase, 0, phases - 1);
             if(phases > 1)
             {
-                ImGui::SliderInt("Phase", &st.pdPhase, 0, phases - 1, agpose::phaseName(st.pdPhase));
+                ImGui::SliderInt("Phase", &st.pdPhase, 0, phases - 1, agpose::phaseName(st.pdPose, st.pdPhase));
             }
             const int code = agpose::code(st.pdKind, st.pdClass, st.pdPose, st.pdPhase);
             agpose::Key k = agpose::value(code);

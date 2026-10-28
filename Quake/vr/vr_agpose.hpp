@@ -81,10 +81,14 @@ enum Pose : int
     Backhand = 17, // (two held: a left hand's swing mirrors the right's key)
     SawThrust = 18,
     Dual = 19,     // two held, both at once (the scissor)
-    NumPoses = 20
+    // The shove (2026-10-28, agent/agshove; ROUND22.md, "Armed humanoids' shove"): every class's push of the player up
+    // close (QC vr_enemyshove.qc, VR_AGP_SHOVE): its phases the wind-up, the push (the contact: the push lands as it
+    // ends) and the recovery.
+    Shove = 20,
+    NumPoses = 21
 };
 
-inline constexpr int numPhases = 3; // a strike's: 0 the wind-up, 1 the blow, 2 the follow-through
+inline constexpr int numPhases = 3; // a strike's: 0 the wind-up, 1 the blow, 2 the follow-through (the shove's: push, recover)
 
 enum Part : int
 {
@@ -228,6 +232,7 @@ void setStretch(int kind, int cls, float by); // (rounded to 0.01; the shipped v
 [[nodiscard]] const char* classTitle(int cls); // the windows' ("Rifle")
 [[nodiscard]] const char* poseName(int cls, int pose);
 [[nodiscard]] const char* phaseName(int phase);
+[[nodiscard]] const char* phaseName(int pose, int phase); // (the Shove's: "wind-up", "push", "recover")
 // The poses class `cls` steps through (the Pose Studio's < Pose >), in order; returns how many (at most `max`).
 int posesOf(int cls, int* out, int max);
 
