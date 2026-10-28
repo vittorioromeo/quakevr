@@ -16,8 +16,10 @@
 //   vr_arena_wave_delay   6    seconds from a wave clear to the next wave (at Normal skill: a harder skill waits less)
 //   vr_arena_max_alive    8    foes alive at once at most; the rest of the wave trickles in as they free up (at
 //                             Normal skill: a harder skill has more of them up at once)
-//   vr_arena_boss_every   5    a boss wave every this many waves (0: no boss waves)
-//   vr_arena_boss_health  1.25 a boss's health times this
+//   vr_arena_boss_every   5    a boss wave every this many waves (0: no boss waves; at Easy skill: effectively
+//                             +1, a boss less often)
+//   vr_arena_boss_health  1.25 a boss's health times this (times the skill's factor too; a Nightmare boss wave
+//                             brings two of them, the second half as big)
 //   vr_arena_medkits_after 2   medkits after every wave (0: none)
 //   vr_arena_armor_every  4    an armour after every this many waves (0: none)
 //   vr_arena_score_kill   100  the score of a kill, times its ladder tier (a boss: four of those)
@@ -208,6 +210,31 @@ float() VR_ARENA_EarlyUnarmed =
     return VR_ARENA_Clamp(0.20 + cvar("vr_arena_skill_impact") * (m - 0.20), 0, 0.5);
 }
 
+// A boss wave's gap, as this difficulty counts it: at Easy the marked big ones come a wave LESS often
+// (vr_arena_boss_every effectively +1); Normal, Hard and Nightmare keep the knob as it is, and at
+// vr_arena_skill_impact 0 every skill keeps it exactly.
+float() VR_ARENA_BossEvery =
+{
+    float every = VR_ARENA_Opt_BossEvery();
+    if(every <= 0) { return 0; }
+    if(skill >= 1) { return every; }
+    return every + cvar("vr_arena_skill_impact");
+}
+
+// How many marked big ones a boss wave brings: Nightmare brings two (the second the same kind at half its bulk),
+// every other skill the one it always had.
+float() VR_ARENA_BossTwice = { return skill >= 3 && cvar("vr_arena_skill_impact") > 0; }
+
+// A boss's bulk: its kind's own health times vr_arena_boss_health times the difficulty's factor (0.75 Easy /
+// 1 Normal / 1.25 Hard / 1.5 Nightmare), and a boss wave's second boss (ar_plan_boss 2) half as much. Its
+// ar_tier still carries AR_BOSS_MARK exactly as it did.
+float(float xHealth, float xPlanBoss) VR_ARENA_BossHealth =
+{
+    float h = xHealth * VR_ARENA_Opt_BossHealth() * VR_ARENA_Skill(0.75, 1.25, 1.5);
+    if(xPlanBoss >= 2) { h = h / 2; }
+    return max(1, floor(h) + 1);
+}
+
 // What a wave monster's ar_tier is worth on the ladder: its mark (AR_BOSS_MARK) is not a rung, so it comes off
 // before the tier is scored (a boss is worth four of its rung, not four of the mark).
 float(float xTier) VR_ARENA_TierOf =
@@ -325,7 +352,7 @@ float(float xWave) VR_ARENA_PickEarlyGun =
 
 float(float xWave) VR_ARENA_IsBossWave =
 {
-    float every = VR_ARENA_Opt_BossEvery();
+    float every = VR_ARENA_BossEvery(); // (vr_arena_boss_every, a wave longer at Easy)
     if(every <= 0) { return FALSE; }
     return VR_ARENA_Mod(xWave, every) == 0;
 }
@@ -377,15 +404,21 @@ void(float xWave) VR_ARENA_Plan =
     float n;
     float i;
     float bk;
+    float nb = 1; // (a boss wave's marked big ones: one, two at Nightmare)
 
     ar_plan_n = 0;
     VR_ARENA_SeedWaves(xWave);
 
     if(boss)
     {
-        // Its big one first, so a thick wave's plan never cuts the boss out.
+        // Its big ones first, so a thick wave's plan never cuts them out. Nightmare brings two of them, the
+        // second the same kind at half its bulk (ar_plan_boss 2), still under VR_ARENA_PlanAdd's cap.
         bk = VR_ARENA_BossKind(xWave);
-        VR_ARENA_PlanAdd(bk, bk == AR_SP_ENFORCER ? VR_ARENA_PickGun(xWave) : 0, 1);
+        nb = VR_ARENA_BossTwice() ? 2 : 1;
+        for(i = 0; i < nb; i++)
+        {
+            VR_ARENA_PlanAdd(bk, bk == AR_SP_ENFORCER ? VR_ARENA_PickGun(xWave) : 0, 1 + i);
+        }
     }
 
     if(xWave == 1)
@@ -490,12 +523,12 @@ void(float xWave) VR_ARENA_Plan =
         return;
     }
 
-    // 13 and on: the same ladder, thicker, a boss every vr_arena_boss_every waves. Its boss takes a place, as it
-    // does at Normal. Where the ladder starts thickening stays wave 13 at every skill -- how thick a wave there is
-    // VR_ARENA_SkillCount's business (its own gates, the guns and the species it draws, are the difficulty's:
-    // VR_ARENA_WaveAdj, inside VR_ARENA_PickGun and VR_ARENA_ClassicKind).
+    // 13 and on: the same ladder, thicker, a boss every vr_arena_boss_every waves (a wave longer at Easy). Its boss
+    // or bosses take a place, as they do at Normal. Where the ladder starts thickening stays wave 13 at every skill
+    // -- how thick a wave there is VR_ARENA_SkillCount's business (its own gates, the guns and the species it draws,
+    // are the difficulty's: VR_ARENA_WaveAdj, inside VR_ARENA_PickGun and VR_ARENA_ClassicKind).
     n = VR_ARENA_SkillCount(VR_ARENA_Clamp(4 + floor((xWave - 13) / 4), 1, 7));
-    if(boss) { n = max(1, n - 1); }
+    if(boss) { n = max(1, n - nb); } // (its boss or bosses take a place)
     for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(xWave), 0); }
 
     float nenf = VR_ARENA_SkillCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
@@ -807,9 +840,10 @@ entity(float xKind, float xGun, float xTier, float xBoss) VR_ARENA_SpawnMonster 
 
     if(xBoss)
     {
-        // A boss is a thicker one of its kind (what else a boss does is worker W3's boss pass).
-        self.health = floor(self.health * VR_ARENA_Opt_BossHealth()) + 1;
-        dprint(sprintf("arena: boss kind %g health %g tier %g\n", xKind, self.health, xTier));
+        // A boss is a thicker one of its kind: vr_arena_boss_health times the difficulty's factor (and a boss wave's
+        // second one, ar_plan_boss 2, half as much). What else a boss does is worker W3's boss pass.
+        self.health = VR_ARENA_BossHealth(self.health, xBoss);
+        dprint(sprintf("arena: boss kind %g health %g tier %g plan %g\n", xKind, self.health, xTier, xBoss));
     }
 
     dprint(sprintf("arena: foe kind %g gun %g tier %g at %g %g %g\n", xKind, xGun, xTier, o_x, o_y, o_z));
@@ -1100,7 +1134,7 @@ void() VR_ARENA_WorldSpawn =
     ar_mgr.nextthink = time + 1; // (after the map's own spawns, so its info_arena_spawn points are known)
 
     dprint(sprintf("arena: %s on (max alive %g, boss every %g, seed %g)\n", mapname, VR_ARENA_FieldCap(),
-                   VR_ARENA_Opt_BossEvery(), cvar("vr_arena_seed")));
+                   VR_ARENA_BossEvery(), cvar("vr_arena_seed")));
 }
 
 void() VR_ARENA_Frame =
