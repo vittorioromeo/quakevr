@@ -490,3 +490,54 @@ with or without the arena (its own systems: ragdoll cap, corpses); test 8 checks
 *Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: fallen bodies fade after ~14 s (12 kept at most), a wave
 clear's medkits/armour go two waves later, foes' dropped guns capped at 24 (48 with Spoils); a body you hold never
 vanishes`
+
+## Armour for armed humanoids, P1: limb plates and gameplay (worktree `armor`, branch `agent/armor`, 2026-10-28)
+
+Builds on P0 and the Ranger's helmet (ROUND22.md) and the research's decisions (`qvr-kit/scratch/research_agarmor.md`).
+The grunt only (the enforcer later).
+
+**Limb plates** (`vr_agarmor.cpp`): pauldrons (upper arms), bracers (forearms), thighs, shins, left and right, made like
+the cuirass from the authored rig's weights (each the triangles weighing past 0.5 on its bone), not subdivided (a
+quarter of the triangles), painted with the cuirass's lames. Ten pieces, a bit each (`vr_agarmor_pieces` 1023 all; 1
+cuirass, 2 helmet, 4/8 pauldrons, 16/32 bracers, 64/128 thighs, 256/512 shins). vrgrunt: 3460 triangles a body (was
+2140), 54 bone slots (`maxSlots` 128). `vr_agarmor_check` 5/5 (its cap now 4000 triangles).
+
+**Server to client**: QC keeps `.vr_ar_type` and `.vr_ar_mask` (vr_fields.inc); `agarmor::serverFrame` (VR_ServerFrameEnd)
+sends each entity's change as `QVR_SVC_ARMOR` (reliable), `serverWriteAll` the whole set after a clear with the spawn
+state (loads, new maps). The client draws: `vr_agarmor_set` (debug, per entity) > `vr_agarmor` (debug, forced) > the
+server's word. `vr_agarmor_set` in a live game sets the QC armour (`VR_AgArmor_SetCmd`: pools and all).
+
+**No builtin slots left** (the table's static assert): the piece at a point is `ragdollbone(e, p, QVR_ARMOR_PIECE_AT)`
+(-1000; `box3d::boneAt`'s bone mapped to a piece: head the helmet, spine/chest the cuirass, the limb bones theirs) and a
+piece's place `limbpiece(e, piece, 10 / 11)` (origin / angles of its own model `"<model>#plate<n>"`, a derived .mdl made
+from the shell, rigid on three body vertices under it, as drawn by `hitmodel::vertexPoint`, else its rest pose).
+
+**Gameplay** (`QC/vr_agarmor.qc`): pools from Quake's totals (100/150/200) by share (cuirass 30, helmet 12, pauldrons 7,
+bracers 6, thighs 8, shins 6, out of 96). `T_DamageDeal` before the target's own save (after Quad: it does not pass
+through): one hit's piece by its point; a shotgun's pellets each on their own piece (`AddMultiDamage`), the blast split
+by their counts; a blast or a beam by the pieces facing it (each its share of the facing body's shares). `vr_agarmor_rule`
+0 the player's rule (ceil(type x part) from the pool), 1 the plate stops the part while its pool lasts. Helmet
+(`vr_agarmor_helmet_head` 1): halves the headshot multiplier's extra and stops head pops. `vr_agarmor_block_cuts` 1: no
+cut or pop under an unbroken limb plate (living and corpses: `VR_AgArmor_Guard`). Absorbed: sparks, a ricochet. At 0:
+the bit off, `items/armor1.wav`, the plate as debris (MOVETYPE_BOUNCE, `vr_rigid` 1, not FL_FORCEGRABBABLE, fades after
+`vr_agarmor_debris_time` 10 s over a second). Corpses keep their plates; `ThrowHead` sheds them. Spawn roll
+(`VR_AM_Spawn`): `vr_agarmor_skill0..3` (chance 0 / 0.15 / 0.35 / 0.6), `_type` (best type 1/1/2/3, rolled up to it),
+`_pieces` (2/2/5/10: the cuirass, the helmet, the rest at random among the limb plates). Not `random()`: a
+low-discrepancy sequence offset by the spawn point, so the game's other rolls don't shift. Menu: Combat > Armed Grunts >
+Armour; Debug > Tests > Armour on Armed Grunts.
+
+**Test** `vr_agarmor_test 1` (18/18): pieces found at their places; rule 0 green 10 -> 7 (pool -3), red 10 -> 2; rule 1
+10 -> 0, 60 past a pool of 21 -> 39 and the cuirass breaks (mask 1022), its debris `#plate0` rigid, not force-grabbable;
+headshot 15 on a helmet -> 9 and the pop stopped, without -> 15 and the pop stands; pellets 3+3 split over the cuirass
+and a pauldron (-4 each, health -16); a cut stopped under a pauldron, let through after it broke; an unarmoured grunt
+takes 10 of 10 and 13 of 13; a gibbing sheds 8 of 8; skill rolls over 200 spawns 0/30/70/121 (chances 0/.15/.35/.6);
+the debris gone after its fade. `vr_agarmor_test 2`: three grunts in full green, yellow, red (`scratch/armor_sheet.png`,
+a low-impact eyeshot). Build 0 QC warnings.
+
+**Open**: the enforcer's shells; the toolgun's spawn page row; damage skins at 66/33%; a cut limb (block_cuts 0) does not
+shed its plate as debris (it collapses with the limb); the piece-at-point uses the entity's current frame while a
+plate's place uses the kept poses (the test puts its frame back between hits; a real hit traces the same frame);
+the default Normal 15% changes old tests that kill armed grunts at skill 1 by exact damage (none run here).
+
+Checklist:
+- `[ ] Armour P1 {test:vr_agarmor_test}: Normal/Hard/Nightmare maps with armed grunts: some wear plates (Hard: up to yellow, 5 pieces; Nightmare: red full sets); shots on a plate spark and ring and do less; a plate broken falls off (you can't force-grab it) and fades; helmets stop head pops; blades don't cut an armoured limb until its plate breaks; Combat > Armed Grunts > Armour's rules`

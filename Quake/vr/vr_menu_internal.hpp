@@ -404,6 +404,7 @@ extern int mainPageSnap;
 [[nodiscard]] za::Vector<Item> pageArmedHolds();
 [[nodiscard]] za::Vector<Item> pageArmedStretch();
 [[nodiscard]] za::Vector<Item> pageArmedRepl();
+[[nodiscard]] za::Vector<Item> pageArmedArmour();
 [[nodiscard]] za::Vector<Item> pageBloodFeedback();
 [[nodiscard]] za::Vector<Item> pageBodyArms();
 [[nodiscard]] za::Vector<Item> pageBodyCalibration();

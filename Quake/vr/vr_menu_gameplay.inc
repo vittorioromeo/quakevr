@@ -1078,6 +1078,42 @@ void armedGripsDragMode()
     };
 }
 
+// Combat > Armed Grunts > Armour (QC vr_agarmor.qc; ROUND23.md, "Armour for armed humanoids, P1"): armed grunts' breakable
+// armour, its rules and how often they wear it.
+[[nodiscard]] za::Vector<Item> pageArmedArmour()
+{
+    const auto skillRows = [](za::Vector<Item>& out, const char* name, cvar_t& chance, cvar_t& type, cvar_t& pieces) {
+        out.pushBack(header(name));
+        out.pushBack(slider("Chance Armoured", chance, 0.f, 1.f, 0.05f, "%.2f")
+                .help("The chance an armed grunt spawns wearing armour at this skill."));
+        out.pushBack(slider("Best Armour", type, 1.f, 3.f, 1.f, "%.0f")
+                .help("Its armour is rolled up to this type: 1 green (saves 30% of a hit, 100 in all), 2 yellow (60%, "
+                      "150), 3 red (80%, 200)."));
+        out.pushBack(slider("Pieces", pieces, 1.f, 10.f, 1.f, "%.0f")
+                .help("How many pieces it wears: 1 the cuirass, 2 and the helmet, more: pauldrons, bracers, thigh and "
+                      "shin plates picked at random; 10 the full set."));
+    };
+    za::Vector<Item> items{
+        header("Rules"),
+        cycle("Absorb", "vr_agarmor_rule", {{0.f, "Player's Rule"}, {1.f, "Plate Blocks All"}})
+            .help("Player's Rule: a plate saves its type's share of a hit (green 30%, yellow 60%, red 80%) from its own "
+                  "pool, as your armour does. Plate Blocks All: a plate stops the whole hit until its pool is gone. "
+                  "A plate at 0 breaks off and falls."),
+        toggle("Helmets Stop Headshots", vr_agarmor_helmet_head)
+            .help("On: a helmet also halves a headshot's extra damage and no head pops off while it holds. Off: it only "
+                  "absorbs, as any plate."),
+        toggle("Plates Stop Cuts", vr_agarmor_block_cuts)
+            .help("No limb is cut or popped off under an unbroken plate: break it first."),
+        slider("Broken Plates Last", vr_agarmor_debris_time, 1.f, 60.f, 1.f, "%.0f s")
+            .help("A broken plate falls as debris (you can't force-grab it) and fades out after this long."),
+    };
+    skillRows(items, "Easy", vr_agarmor_skill0, vr_agarmor_skill0_type, vr_agarmor_skill0_pieces);
+    skillRows(items, "Normal", vr_agarmor_skill1, vr_agarmor_skill1_type, vr_agarmor_skill1_pieces);
+    skillRows(items, "Hard", vr_agarmor_skill2, vr_agarmor_skill2_type, vr_agarmor_skill2_pieces);
+    skillRows(items, "Nightmare", vr_agarmor_skill3, vr_agarmor_skill3_type, vr_agarmor_skill3_pieces);
+    return items;
+}
+
 // Combat > Armed Grunts > Armed Humanoid Replacements (QC vr_armedrepl.qc; ROUND22.md, "Armed humanoid replacements"):
 // a map's grunts and enforcers as armed ones. Everything off by default; a map's new loadouts at its next load.
 [[nodiscard]] za::Vector<Item> pageArmedRepl()
@@ -1496,6 +1532,9 @@ void ikStretchReset()
         open("Armed Humanoid Replacements", pageIndex(pageArmedRepl))
             .help("A map's grunts and enforcers as armed ones holding their own guns (their balance kept), and weapon "
                   "variety on top. All off by default."),
+        open("Armour", pageIndex(pageArmedArmour))
+            .help("Armed grunts wearing breakable armour (a cuirass, a helmet, pauldrons, bracers, thigh and shin "
+                  "plates): how it absorbs, helmets and headshots, cuts, and how often they wear it at each skill."),
         open("Weapon Holds", pageIndex(pageArmedHolds))
             .help("Per weapon, for grunts and for enforcers: held in one hand or two (Auto: the axe and the enforcer's "
                   "pistols in one hand, the rest as built in)."),

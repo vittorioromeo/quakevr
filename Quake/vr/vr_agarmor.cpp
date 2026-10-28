@@ -10,8 +10,14 @@
 
 #include "vr_agarmor.hpp"
 
+#include "vr_api.h"
+#include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_held.hpp"
+#include "vr_hitmodel.hpp"
+#include "vr_progs.hpp"
+#include "vr_protocol.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_rig2.hpp"
 #include "vr_rigpose.hpp"
@@ -41,8 +47,8 @@ namespace
 
 constexpr float pi = 3.14159265358979f;
 constexpr int maxWorn = 64;   // armour entities a frame
-constexpr int maxSlots = 64;  // the armour model's bones (each piece's bones its own)
-constexpr int maxNamed = 64;  // vr_agarmor_set's entities
+constexpr int maxSlots = 128; // the armour model's bones (each piece's bones its own)
+constexpr int maxNamed = 256; // vr_agarmor_set's entities
 constexpr const char* armorSuffix = "#armor";
 constexpr const char* rigSuffix = "#rig2";
 constexpr const char* skinModelName = "progs/vragarmor.mdl";
@@ -61,7 +67,11 @@ constexpr Block bracketBlock{224.f, 64.f, 256.f, 96.f};
 constexpr Block innerBlock{160.f, 96.f, 208.f, 128.f};
 constexpr Block rimBlock{208.f, 96.f, 256.f, 128.f};
 
-constexpr const char* pieceNames[NumPieces] = {"cuirass", "helmet"};
+constexpr const char* pieceNames[NumPieces] = {"cuirass", "helmet", "pauldron_l", "pauldron_r", "bracer_l", "bracer_r", "thigh_l",
+    "thigh_r", "shin_l", "shin_r"};
+// A limb piece's bone (its region: the triangles weighing mostly on it), by piece.
+constexpr const char* limbBone[NumPieces] = {nullptr, nullptr, "upperarm_l", "upperarm_r", "forearm_l", "forearm_r", "thigh_l", "thigh_r",
+    "shin_l", "shin_r"};
 
 template <typename T>
 [[nodiscard]] T& at(za::Vector<T>& v, int i)
@@ -296,6 +306,20 @@ struct PieceFrame
             f.origin = rig.bones[s].pivot;
             f.up = safeNormalize(rig.bones[c].end - rig.bones[s].pivot, glm::vec3{0.f, 0.f, 1.f});
             f.length = glm::length(rig.bones[c].end - rig.bones[s].pivot);
+        }
+    }
+    else if(limbBone[piece])
+    {
+        // A limb: round its bone, up it from its pivot (the texture's rows run down it).
+        f.bones = bit(limbBone[piece]);
+        const int b = rig2::boneByName(rig, limbBone[piece]);
+        f.ok = b >= 0;
+        if(f.ok)
+        {
+            const glm::vec3 d = rig.bones[b].end - rig.bones[b].pivot;
+            f.up = safeNormalize(d, glm::vec3{0.f, 0.f, 1.f});
+            f.length = za::max(glm::length(d), 1.f);
+            f.origin = rig.bones[b].pivot;
         }
     }
     else
@@ -616,10 +640,10 @@ void addTri(Shell& s, int a, int b, int c)
     s.tris.pushBack(c);
 }
 
-// The cuirass's shell from its surface: outer and inner layers, a rim along its open edge, texture coordinates.
-void shellOf(Shell& s, Local& L, const PieceFrame& f)
+// A piece's shell from its surface (the cuirass, a limb's plate): outer and inner layers, a rim along its open edge,
+// texture coordinates round its frame's axis and up it (a limb's plate wears the cuirass's paint, its lames round it).
+void shellOf(Shell& s, Local& L, const PieceFrame& f, int piece)
 {
-    constexpr int piece = Cuirass;
     const float gap = za::max(vr_agarmor_gap.value, 0.f), thick = za::max(vr_agarmor_thick.value, 0.05f);
     const int nv = count(L.p);
     za::Vector<glm::vec3> n;
@@ -1148,14 +1172,15 @@ bool buildShell(qmodel_t* src, Shell& s)
         {
             Local L;
             clipPiece(s.body, f, L);
-            for(int i = 0; i < za::clamp(static_cast<int>(vr_agarmor_subdiv.value), 0, 2); i++)
+            // (a limb's plate is small: not subdivided, a quarter of the triangles)
+            for(int i = 0; i < (limbBone[piece] ? 0 : za::clamp(static_cast<int>(vr_agarmor_subdiv.value), 0, 2)); i++)
             {
                 subdivide(L);
             }
             smooth(L, za::clamp(static_cast<int>(vr_agarmor_smooth.value), 0, 50));
             if(!L.tris.empty())
             {
-                shellOf(s, L, f);
+                shellOf(s, L, f, piece);
             }
         }
         s.pieceVerts[piece] = count(s.verts) - firstVert;
@@ -1309,11 +1334,21 @@ za::Vector<Kind> kinds;
     return k.armor;
 }
 
+// The server's word on each entity (QVR_SVC_ARMOR): type << 16 | pieces; and how many are armoured.
+za::Vector<uint32_t> served;
+int numServed = 0;
+
+// Who wears what: vr_agarmor_set's entities, else vr_agarmor (debug: everyone, forced), else the server's word.
 void wornBy(int num, int& type, int& pieces)
 {
     type = za::clamp(static_cast<int>(vr_agarmor.value), 0, 4);
     type = type == 4 ? 1 + num % 3 : type;
-    pieces = static_cast<int>(vr_agarmor_pieces.value) & ((1 << NumPieces) - 1);
+    pieces = static_cast<int>(vr_agarmor_pieces.value) & allPieces;
+    if(type == 0 && num >= 0 && num < count(served))
+    {
+        type = static_cast<int>(at(served, num) >> 16u);
+        pieces = static_cast<int>(at(served, num) & 0xffffu) & allPieces;
+    }
     for(const Named& n : named)
     {
         if(n.num == num)
@@ -1373,10 +1408,37 @@ void set_f()
 {
     if(Cmd_Argc() < 3)
     {
-        Con_Printf("vr_agarmor_set <entity> <type 0 none, 1 green, 2 yellow, 3 red | -1 vr_agarmor's> [pieces: 1 cuirass, 2 helmet]\n");
+        Con_Printf("vr_agarmor_set <entity> <type 0 none, 1 green, 2 yellow, 3 red | -1 vr_agarmor's> [pieces: 1 cuirass, 2 helmet, 4/8 "
+                   "pauldrons, 16/32 bracers, 64/128 thighs, 256/512 shins; 1023 all]\n");
         return;
     }
-    setWorn(Q_atoi(Cmd_Argv(1)), Q_atoi(Cmd_Argv(2)), Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : (1 << NumPieces) - 1);
+    const int num = Q_atoi(Cmd_Argv(1)), type = Q_atoi(Cmd_Argv(2));
+    const int pieces = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : allPieces;
+    // A live game's entity: its armour in QC (pools and all: vr_agarmor.qc VR_AgArmor_SetCmd), sent back as the server's.
+    if(sv.active && num > svs.maxclients && num < sv.qcvm.num_edicts)
+    {
+        qcvm_t* old = nullptr;
+        PR_PushQCVM(&sv.qcvm, &old);
+        const func_t fn = progs::findFunction("VR_AgArmor_SetCmd");
+        bool done = false;
+        if(fn && !EDICT_NUM(num)->free)
+        {
+            pr_global_struct->time = qcvm->time;
+            pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
+            G_INT(OFS_PARM0) = EDICT_TO_PROG(EDICT_NUM(num));
+            G_FLOAT(OFS_PARM1) = static_cast<float>(type);
+            G_FLOAT(OFS_PARM2) = static_cast<float>(pieces);
+            PR_ExecuteProgram(fn);
+            done = G_FLOAT(OFS_RETURN) != 0.f;
+        }
+        PR_PopQCVM(old);
+        if(done)
+        {
+            setWorn(num, -1, 0); // (the server's word, not a drawn-only override)
+            return;
+        }
+    }
+    setWorn(num, type, pieces);
 }
 
 // ---- The check ----
@@ -1713,7 +1775,7 @@ void check_f()
         }
         Con_Printf("agarmor check: edges not shared by exactly two triangles: %d\n", open);
         verdict(open == 0, "each shell closed");
-        verdict(count(s.tris) / 3 <= 2500, "at most 2500 triangles a body");
+        verdict(count(s.tris) / 3 <= 4000, "at most 4000 triangles a body (the full set)");
     }
     // What is measured against what: body vertices near each piece at rest; regions by heaviest bone.
     const Body& b = s.body;
@@ -1871,7 +1933,7 @@ void setWorn(int num, int type, int pieces)
     }
     if(type >= 0 && named.size() < static_cast<za::SizeT>(maxNamed))
     {
-        named.pushBack(Named{num, za::clamp(type, 0, 3), pieces & ((1 << NumPieces) - 1)});
+        named.pushBack(Named{num, za::clamp(type, 0, 3), pieces & allPieces});
     }
 }
 
@@ -2024,7 +2086,7 @@ bool makeModel(qmodel_t* mod)
 void relink()
 {
     numWorn = 0;
-    if(cls.state != ca_connected || !cl_entities || (vr_agarmor.value == 0.f && named.empty()))
+    if(cls.state != ca_connected || !cl_entities || (vr_agarmor.value == 0.f && named.empty() && numServed == 0))
     {
         return;
     }
@@ -2105,6 +2167,400 @@ const entity_t* sourceOf(const entity_t* e)
         return nullptr;
     }
     return &cl_entities[wornSource[e - &worn[0]]];
+}
+
+// ---- P1: the server's armour (QC's .vr_ar_type, .vr_ar_mask) sent to the clients ----
+namespace
+{
+za::Vector<uint32_t> sent; // per entity: what the clients were last told (type << 16 | pieces)
+
+[[nodiscard]] uint32_t stateOf(edict_t* e)
+{
+    const progs::FieldOffsets& f = progs::fields();
+    if(e->free || f.vr_ar_type < 0 || f.vr_ar_mask < 0)
+    {
+        return 0u;
+    }
+    const int type = za::clamp(static_cast<int>(progs::fieldFloat(e, f.vr_ar_type)), 0, 3);
+    const int mask = static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) & allPieces;
+    return type > 0 && mask ? static_cast<uint32_t>(type << 16 | mask) : 0u;
+}
+
+void writeState(sizebuf_t* msg, int num, uint32_t state)
+{
+    MSG_WriteByte(msg, protocol::svc_quakevr);
+    MSG_WriteByte(msg, protocol::QVR_SVC_ARMOR);
+    MSG_WriteShort(msg, num);
+    MSG_WriteByte(msg, static_cast<int>(state >> 16u));
+    MSG_WriteShort(msg, static_cast<int>(state & 0xffffu));
+}
+
+// ---- A piece as a model of its own (the broken plate's debris) ----
+// The piece's rigid frame: three body vertices under it (the nearest its middle, the farthest from that, the farthest
+// from their line), its middle; rest -> as drawn.
+struct PlateFrame
+{
+    int anchor[3]{-1, -1, -1}; // .mdl vertices
+    glm::vec3 mid{0.f};
+    glm::mat3 rest{1.f};
+    bool ok{false};
+};
+
+[[nodiscard]] glm::mat3 frameFrom(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
+{
+    const glm::vec3 x = safeNormalize(b - a, glm::vec3{1.f, 0.f, 0.f});
+    const glm::vec3 z = safeNormalize(glm::cross(x, c - a), glm::vec3{0.f, 0.f, 1.f});
+    return glm::mat3{x, glm::cross(z, x), z};
+}
+
+[[nodiscard]] PlateFrame plateFrameOf(const Shell& s, int piece)
+{
+    PlateFrame pf;
+    int n = 0;
+    for(const Vert& v : s.verts)
+    {
+        pf.mid += v.piece == piece ? v.p : glm::vec3{0.f};
+        n += v.piece == piece ? 1 : 0;
+    }
+    if(n == 0)
+    {
+        return pf;
+    }
+    pf.mid /= static_cast<float>(n);
+    // The body's vertices under the piece: the bone(s) most of its vertices weigh on.
+    W sum;
+    for(const Vert& v : s.verts)
+    {
+        for(int i = 0; i < rig2::maxBones && v.piece == piece; i++)
+        {
+            sum.w[i] += v.w.w[i];
+        }
+    }
+    const int bone = heaviest(sum);
+    const Body& b = s.body;
+    int a = -1, c = -1, d = -1;
+    float best = 1e9f;
+    for(int v = 0; v < count(b.p); v++)
+    {
+        const float dist = glm::length(at(b.p, v) - pf.mid);
+        a = at(b.w, v).w[bone] > 0.5f && dist < best ? v : a;
+        best = at(b.w, v).w[bone] > 0.5f && dist < best ? dist : best;
+    }
+    if(a < 0)
+    {
+        return pf;
+    }
+    best = -1.f;
+    for(int v = 0; v < count(b.p); v++)
+    {
+        const float dist = glm::length(at(b.p, v) - at(b.p, a));
+        c = at(b.w, v).w[bone] > 0.5f && dist > best ? v : c;
+        best = at(b.w, v).w[bone] > 0.5f && dist > best ? dist : best;
+    }
+    best = -1.f;
+    const glm::vec3 axis = safeNormalize(at(b.p, c) - at(b.p, a), glm::vec3{1.f, 0.f, 0.f});
+    for(int v = 0; v < count(b.p); v++)
+    {
+        const glm::vec3 q = at(b.p, v) - at(b.p, a);
+        const float dist = glm::length(q - axis * glm::dot(q, axis));
+        d = at(b.w, v).w[bone] > 0.5f && dist > best ? v : d;
+        best = at(b.w, v).w[bone] > 0.5f && dist > best ? dist : best;
+    }
+    if(c < 0 || d < 0 || c == a || d == a || best < 0.5f)
+    {
+        return pf;
+    }
+    pf.anchor[0] = at(b.rep, a);
+    pf.anchor[1] = at(b.rep, c);
+    pf.anchor[2] = at(b.rep, d);
+    pf.rest = frameFrom(at(b.p, a), at(b.p, c), at(b.p, d));
+    pf.ok = true;
+    return pf;
+}
+
+[[nodiscard]] const char* baseOf(edict_t* ent)
+{
+    const char* m = ent && !ent->free && ent->v.model ? PR_GetString(ent->v.model) : "";
+    return isWearer(m) ? m : nullptr;
+}
+
+[[nodiscard]] const Shell* serverShell(const char* base)
+{
+    qmodel_t* src = base ? Mod_ForName(base, false) : nullptr;
+    return src ? shellFor(src) : nullptr;
+}
+
+void putWord(za::Vector<byte>& f, int v)
+{
+    for(int i = 0; i < 4; i++)
+    {
+        f.pushBack(static_cast<byte>((static_cast<unsigned>(v) >> (8u * static_cast<unsigned>(i))) & 0xffu));
+    }
+}
+void putFloat(za::Vector<byte>& f, float v)
+{
+    int i = 0;
+    memcpy(&i, &v, 4);
+    putWord(f, i);
+}
+} // namespace
+
+void serverFrame()
+{
+    if(!sv.active || progs::fields().vr_ar_type < 0)
+    {
+        return;
+    }
+    const int n = sv.qcvm.num_edicts;
+    if(count(sent) < n)
+    {
+        sent.resize(static_cast<za::SizeT>(n), 0u);
+    }
+    for(int i = svs.maxclients + 1; i < count(sent); i++)
+    {
+        const uint32_t now = i < n ? stateOf(EDICT_NUM(i)) : 0u;
+        if(now != at(sent, i) && sv.reliable_datagram.cursize + 16 < sv.reliable_datagram.maxsize)
+        {
+            writeState(&sv.reliable_datagram, i, now);
+            at(sent, i) = now;
+        }
+    }
+}
+
+void serverWriteAll(sizebuf_t* msg)
+{
+    sent.clear();
+    if(!sv.active || progs::fields().vr_ar_type < 0)
+    {
+        return;
+    }
+    writeState(msg, -1, 0u);
+    sent.resize(static_cast<za::SizeT>(sv.qcvm.num_edicts), 0u);
+    for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
+    {
+        at(sent, i) = stateOf(EDICT_NUM(i));
+        if(at(sent, i) && msg->cursize + 16 < msg->maxsize)
+        {
+            writeState(msg, i, at(sent, i));
+        }
+    }
+}
+
+void parseEvent()
+{
+    const int num = MSG_ReadShort();
+    const int type = MSG_ReadByte();
+    const int pieces = MSG_ReadShort() & allPieces;
+    if(num < 0)
+    {
+        served.clear();
+        numServed = 0;
+        return;
+    }
+    if(num >= count(served))
+    {
+        served.resize(static_cast<za::SizeT>(num + 1), 0u);
+    }
+    const uint32_t now = type > 0 && pieces ? static_cast<uint32_t>(type << 16 | pieces) : 0u;
+    numServed += (now != 0u ? 1 : 0) - (at(served, num) != 0u ? 1 : 0);
+    at(served, num) = now;
+}
+
+int pieceAt(edict_t* ent, const float* p)
+{
+    const char* name = nullptr;
+    if(box3d::boneAt(ent, glm::vec3{p[0], p[1], p[2]}, &name) < 0 || !name)
+    {
+        return -2;
+    }
+    if(!q_strcasecmp(name, "head"))
+    {
+        return Helmet;
+    }
+    if(!q_strcasecmp(name, "spine") || !q_strcasecmp(name, "chest"))
+    {
+        return Cuirass;
+    }
+    for(int piece = 0; piece < NumPieces; piece++)
+    {
+        if(limbBone[piece] && !q_strcasecmp(name, limbBone[piece]))
+        {
+            return piece;
+        }
+    }
+    return -1;
+}
+
+void plateWhere(edict_t* ent, int piece, int what, float* out)
+{
+    out[0] = out[1] = out[2] = 0.f;
+    const Shell* s = serverShell(baseOf(ent));
+    if(!s || piece < 0 || piece >= NumPieces)
+    {
+        return;
+    }
+    const PlateFrame pf = plateFrameOf(*s, piece);
+    if(!pf.ok)
+    {
+        return;
+    }
+    glm::vec3 posed[3];
+    bool drawn = true;
+    for(int i = 0; i < 3; i++)
+    {
+        drawn = drawn && hitmodel::vertexPoint(ent, pf.anchor[i], posed[i]);
+    }
+    if(!drawn)
+    {
+        // (its rest pose where it stands)
+        const glm::mat3 axes = held::axesFromAngles(ent->v.angles, false);
+        for(int i = 0; i < 3; i++)
+        {
+            posed[i] = glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} + axes * at(s->body.mdlRest, pf.anchor[i]);
+        }
+    }
+    const glm::mat3 now = frameFrom(posed[0], posed[1], posed[2]);
+    const glm::mat3 turn = now * glm::transpose(pf.rest);
+    if(what == 0)
+    {
+        const glm::vec3 restA = at(s->body.mdlRest, pf.anchor[0]);
+        const glm::vec3 o = posed[0] + turn * (pf.mid - restA);
+        out[0] = o.x;
+        out[1] = o.y;
+        out[2] = o.z;
+        return;
+    }
+    held::anglesFromAxes(now, out, false);
+}
+
+unsigned char* derivedFile(const char* name, unsigned int* path_id)
+{
+    const char* hash = strstr(name, "#plate");
+    if(!hash)
+    {
+        return nullptr;
+    }
+    char base[MAX_QPATH];
+    q_strlcpy(base, name, za::min(sizeof(base), static_cast<size_t>(hash - name) + 1));
+    const int piece = Q_atoi(hash + 6);
+    const Shell* s = isWearer(base) ? serverShell(base) : nullptr;
+    if(!s || piece < 0 || piece >= NumPieces)
+    {
+        return nullptr;
+    }
+    const PlateFrame pf = plateFrameOf(*s, piece);
+    unsigned int skinPath = 0;
+    byte* skin = pf.ok ? COM_LoadMallocFile(skinModelName, &skinPath) : nullptr;
+    if(!skin)
+    {
+        return nullptr;
+    }
+    const size_t skinSize = static_cast<size_t>(com_filesize);
+    int hdr[3] = {0, 0, 0}; // numskins, width, height
+    memcpy(hdr, skin + 48, sizeof(hdr));
+    const size_t skinBytes = static_cast<size_t>(hdr[0]) * (4u + static_cast<size_t>(hdr[1]) * static_cast<size_t>(hdr[2]));
+    if(skinSize < 84u + skinBytes || hdr[0] <= 0)
+    {
+        VR_HeapFree(skin);
+        return nullptr;
+    }
+    // Its vertices in its own frame (rest -> the frame's axes, round its middle).
+    za::Vector<int> map(s->verts.size(), -1);
+    za::Vector<glm::vec3> local;
+    za::Vector<glm::vec2> st;
+    glm::vec3 lo{1e9f}, hi{-1e9f};
+    for(int v = 0; v < count(s->verts); v++)
+    {
+        if(at(s->verts, v).piece == piece)
+        {
+            at(map, v) = count(local);
+            const glm::vec3 q = glm::transpose(pf.rest) * (at(s->verts, v).p - pf.mid);
+            local.pushBack(q);
+            st.pushBack(at(s->verts, v).st);
+            lo = glm::min(lo, q);
+            hi = glm::max(hi, q);
+        }
+    }
+    za::Vector<int> tris;
+    for(int i = 0; i + 2 < count(s->tris); i += 3)
+    {
+        if(at(map, at(s->tris, i)) >= 0)
+        {
+            tris.pushBack(at(map, at(s->tris, i)));
+            tris.pushBack(at(map, at(s->tris, s->body.nativeFlip ? i + 2 : i + 1)));
+            tris.pushBack(at(map, at(s->tris, s->body.nativeFlip ? i + 1 : i + 2)));
+        }
+    }
+    const glm::vec3 scale = glm::max((hi - lo) / 255.f, glm::vec3{1e-4f});
+    za::Vector<byte> f;
+    putWord(f, IDPOLYHEADER);
+    putWord(f, ALIAS_VERSION);
+    for(int i = 0; i < 3; i++)
+    {
+        putFloat(f, scale[i]);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        putFloat(f, lo[i]);
+    }
+    putFloat(f, glm::length(glm::max(glm::abs(lo), glm::abs(hi))));
+    for(int i = 0; i < 3; i++)
+    {
+        putFloat(f, 0.f);
+    }
+    putWord(f, hdr[0]);
+    putWord(f, hdr[1]);
+    putWord(f, hdr[2]);
+    putWord(f, count(local));
+    putWord(f, count(tris) / 3);
+    putWord(f, 1);
+    putWord(f, 0); // synctype
+    putWord(f, 0); // flags
+    putFloat(f, 8.f);
+    for(size_t i = 0; i < skinBytes; i++)
+    {
+        f.pushBack(skin[84 + i]);
+    }
+    VR_HeapFree(skin);
+    for(const glm::vec2& t : st)
+    {
+        putWord(f, 0);
+        putWord(f, za::clamp(static_cast<int>(t.x), 0, hdr[1] - 1));
+        putWord(f, za::clamp(static_cast<int>(t.y), 0, hdr[2] - 1));
+    }
+    for(int i = 0; i + 2 < count(tris); i += 3)
+    {
+        putWord(f, 1);
+        putWord(f, at(tris, i));
+        putWord(f, at(tris, i + 1));
+        putWord(f, at(tris, i + 2));
+    }
+    putWord(f, 0); // a single frame
+    const byte box[8] = {0, 0, 0, 0, 255, 255, 255, 0};
+    for(byte b : box)
+    {
+        f.pushBack(b);
+    }
+    for(int i = 0; i < 16; i++)
+    {
+        f.pushBack(static_cast<byte>(i < 5 ? "plate"[i] : 0));
+    }
+    for(const glm::vec3& q : local)
+    {
+        for(int i = 0; i < 3; i++)
+        {
+            f.pushBack(static_cast<byte>(za::clamp(static_cast<int>((q[i] - lo[i]) / scale[i] + 0.5f), 0, 255)));
+        }
+        f.pushBack(0);
+    }
+    byte* out = static_cast<byte*>(VR_HeapMalloc(f.size()));
+    memcpy(out, f.data(), f.size());
+    com_filesize = static_cast<int>(f.size());
+    if(path_id)
+    {
+        *path_id = skinPath;
+    }
+    return out;
 }
 
 void init()
