@@ -25478,3 +25478,43 @@ Misc/quakevr/pose_defaults.py, eyeshot_sheet.py (new); docs/vr-port/TESTING.md.
 - [ ] Same with two pistols, an axe, a super axe and its fists, and with an enforcer: two held, its palms turn to you
   still holding them; the axe's free hand pushes; a two-handed weapon goes across its body. Tune any in the Pose
   Studio (Shove: wind-up, push, recover) {test:vr_agrunt_test 84}
+
+## Armour P0 follow-up: the helmet as the Ranger's (worktree `tghost`, branch `agent/armorhelm`, 2026-10-28)
+
+Vittorio: the helmet looked like a hat; make it like the player's (the Ranger's, the fan art in
+`qvr-kit/scratch/armor/ref_ranger_helmet.webp`).
+
+**The helmet** (`vr_agarmor.cpp` `helmetOf`) is no longer the head's mesh offset: it is built round the head bone. In
+its frame (x forward, y left, z up from its pivot) six rings, each an octagon (front, back, two sides, four chamfers),
+lofted into a flat-topped bucket (the top's edge chamfered; tapered, its brow ring 0.08 of the head's length wider than
+its crown; its lower edge at `vr_agarmor_brow_front` 0.5 of the head's length in front, lower toward the back), a step
+in under it (the ledge), cheek guards down the sides to the jaw line (-0.07), the back down to the nape
+(`vr_agarmor_brow_back`, now 0.12), the face open (at least 0.34 of the head's length each side of the middle), a small
+bracket block on each side at the guards' top. Each ring is fitted round the head's surface (points across every
+triangle weighted to the head: the low-poly head has no vertices between its crown and its jaw at the back), a
+`vr_agarmor_gap` off it, taking the points of the bands above and below it (the face's only above the guards); the
+outer layer a `vr_agarmor_thick` further out, a lining face along every open edge: a closed shell. Flat faces (each its
+own vertices: the faceted low-poly look), rigid on the head bone. 256 triangles (was 368).
+
+**The skins** (`make_agarmor.py`, new atlas places shared with `vr_agarmor.cpp`): the walls (160,0)-(256,64) mirrored
+left and right (u round from the front's middle to the back's, v down the rows: `HELM_U` / `HELM_V` = `helmU` /
+`helmV`): each face's own light from above and ahead, the top chamfer and the bucket's lip lit, the ledge dark, the
+guards' edges round the face and at the jaw lit, three slanted vents low on each guard, scratches, chips and grime; the
+cap (160,64), the lining (192,64: dark orange-brown leather), the bracket (224,64: a frame with a dark slot).
+
+**Fit** (`vr_agarmor_check`, 5/5; `helmet fit:` line: head top 7.15, helmet top 7.40 inner, brow ring front 5.58 /
+back 4.61 / half width 4.44, cheek ring 5.25 / 4.37 / 4.34, face opening +-3.17): rest pose clean; the joint sweeps
+(neck, head, chest, spine, clavicles, arms, thighs: 100 poses) clean for the helmet (the side's back corner raised to
+the nape and the back rounded for that: it touched the neck as the head turned). 200 random ragdoll poses: helmet in
+body 225 vertex-poses up to 2.26 deep (old helmet 16 / 0.98), almost all the bucket's and guards' back corners in the
+upper back (chest bone) with the head flung back, and the left arm crossing the head; body in helmet 13 (0.25).
+
+**Shots**: `qvr-kit/scratch/armor/armorhelm_sheet.png` (green, yellow, red; front, three-quarter, side, back in the Rig
+Studio's rest pose, the reference at each row's end). `vr_rigstudio_view orbit <yaw from its front> [pitch] [distance]`
+(new) turns the Rig Studio's camera about its focus (after `vr_rigstudio_view frame`: a close look from any side).
+
+**Tests**: `vr_agarmor_check` 5/5; `vr_rigstudio_rom test` 9/9, `vr_rigstudio_test_subjects` 14/14 (with
+`vr_agarmor 4`); build 0 QC warnings.
+
+Checklist:
+- `[ ] Armour helmet {test:none}: Rig Studio (vr_rig2 1, Debug > Armed Humanoids' Armour (P0): Green/Yellow/Red): the grunt's helmet reads as the Ranger's (flat-topped bucket, cheek guards framing the face, side brackets, vents, lining); no poke-through in Range of Motion and Random Pose, and on live grunts and ragdolls with vr_agarmor 4`
