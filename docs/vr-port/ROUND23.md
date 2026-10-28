@@ -345,3 +345,31 @@ rest, the ladder's gates, a boss's bulk, a clear's supplies and a kill's score (
 Arena: Nightmare brings two bosses and Easy one fewer boss wave; the run says which difficulty it is on (ARENA -
 Nightmare: unarmed, wave 1 coming)` and `+ Survival Arena: the arena's own Difficulty Impact knob, and nothing about the
 armed humanoids' AI (vr_agrunt_ai_skill) touched by it`
+
+## Survival Arena: review (agent/arenareview)
+
+A review of the arena's commits (`8aedc7766..next`). The shared-file hooks (combat.qc's Killed, items.qc's
+armor_touch, vr_decap.qc, vr_enemyguns.qc, world.qc) all return at once off the arena (`ar_mgr` is world unless the map
+is vrarena or `vr_arena` is set); e1m1 with every monster killed (`impulse 205`) prints no error, and eval.sh passes.
+Plan arrays survive a save and load mid-wave (the second foe after loading keeps its planned gun).
+
+**Fixed.**
+- *Quad Strike cut a real quad short*: a hand kill set `super_damage_finished = time + 2` whatever was running, so a
+  picked-up Quad Damage with 25 s left dropped to 2 s. It now only ever adds quad time (`vr_arena_perks_test 3`: 43
+  passed on vrarena, 41 on vrtesthall).
+- *A stalled wave's clear took too much*: `VR_ARENA_ClearField` walked `findflags(ar_slot, wave)`, which matches any
+  shared bit, so it also removed other waves' foes and nearly every fallen body (a negative `ar_slot` shares bits with
+  almost any wave), and it removed a foe held in a hand without `VR_Carry_Forget`. It now removes exactly
+  `ar_slot == wave`, let go of first (`vr_arena_test 1`: 257 passed; test 3 still 52).
+
+**New test.** `vr_arena_test 6`, the long run: the live director through 32 waves (1 s apart, every foe felled by the
+test's blow), edicts counted every 5 waves; `arena: test 6 over: P passed, F failed`. Run:
+`run.sh <name> -Filter "arena: (t6|test|fail)" -QuitOn "arena: test [0-9]+ over" -Timeout 1500 -Script "developer 1;
+god; vr_arena_seed 7; map vrarena; wait15; vr_arena_test 6; wait60000"`. **It fails today, on purpose**: nothing in
+the arena ever cleans up its fallen bodies or the player weapons its armed humanoids drop -- 99 edicts at wave 2, 928
+at wave 32, with 233 bodies and 196 `thrown_weapon`s lying in the map (about 28 edicts a wave; the unpicked medkits
+and armour are only 67 of them). The Horde (vr_mg_horde.qc, `MGH_corpse_expire`) fades its bodies after 11..16 s;
+how the arena should (a fade, a cap, bodies older than two waves) is the author's call, so it is left open.
+
+*Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: a Quad Damage picked up is not cut to 2 s by a Quad Strike
+hand kill`
