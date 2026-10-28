@@ -153,6 +153,9 @@ void(entity e) VR_EnemyWeapons_Fade =
     e.nextthink = time + 0.02;
 };
 
+// QVR: Survival Arena's Spoils perk (vr_arena_perks.qc, compiled late): a fallen foe's gun keeps its place.
+float() VR_ARK_Kept;
+
 // `xNew` made (CreateThrownWeapon): if it is a single-use enemy weapon, the oldest of them go past the cap.
 void(entity xNew) VR_EnemyWeapons_MakeRoom =
 {
@@ -160,6 +163,10 @@ void(entity xNew) VR_EnemyWeapons_MakeRoom =
     if(most <= 0 || !VR_EnemyWeapons_Counted(xNew))
     {
         return;
+    }
+    if(VR_ARK_Kept())
+    {
+        return; // QVR: the arena's Spoils perk: the cap leaves the guns that fell where they fell
     }
     float n = 0;
     entity e;

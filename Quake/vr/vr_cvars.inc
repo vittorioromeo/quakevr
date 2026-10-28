@@ -3049,6 +3049,10 @@ QVR_CVAR(vr_arena_armor_every, "4", CVAR_ARCHIVE)             // an armour after
 QVR_CVAR(vr_arena_score_kill, "100", CVAR_ARCHIVE)            // the score of a kill, times the ladder tier it held (a boss: four of those)
 QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' rolls: 0 a different ladder every run, else that seed's ladder
 QVR_CVAR(vr_arena_test, "0", CVAR_NONE)                       // the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave, 4 the places
+// Survival Arena: the boss wave's perk choice (QC/vr_arena_perks.qc).
+QVR_CVAR(vr_arena_perks, "1", CVAR_ARCHIVE)                   // 0: a boss wave's clear offers nothing, 1: it offers the player his choice of the perks
+QVR_CVAR(vr_arena_perk_count, "3", CVAR_ARCHIVE)             // how many pedestals a boss wave's clear offers (1 to the pool's 7)
+QVR_CVAR(vr_arena_perks_test, "0", CVAR_NONE)                // the QC's arena perk tests (vr_arena_perks_test.qc): 1 the pool and its knobs, 2 the offer, 3 the perks' numbers, 4 both maps
 QVR_CVAR(vr_agrunt_debug, "0", CVAR_NONE)                    // 1: prints its weapon, shots, reloads, disarms and pickups
 QVR_CVAR(vr_agrunt_w_fists, "1", CVAR_ARCHIVE)         // the pool's weights (0: never): unarmed, its fists
 QVR_CVAR(vr_agrunt_w_axe, "1", CVAR_ARCHIVE)

@@ -199,3 +199,48 @@ player who is slow to the next weapon can find the gun they wanted gone.
 them, a boss wave every 5, the map's own spawn places, medkits and armour between waves, score and readout)` and
 `+ Survival Arena: vrarena's point entities (spawn places, item points, lights) written for real, and its checks reading
 the file they went into`
+
+## Survival Arena: the boss-wave perks
+
+**What is in.** Clearing a boss wave puts three lit items in the arena, each named for a perk, and walking over one is
+the choice: that perk is yours for the rest of the run and no later boss offers it again. Seven perks, three offered at
+a time (`vr_arena_perk_count` 1-4; an empty pool offers nothing): **Quad Strike** (a melee kill gives 2 s of Quad
+Damage), **Neck Snapper** (a snapped neck restores 20 health), **Iron Skin** (armour you pick up is worth 25 more --
+125/175/225), **Second Wind** (health tops at 15 past normal), **Feeder** (5 health per kill, no more than once a
+second), **Quartermaster** (every wave clear tops up the ammo of the gun in your hand by 15, to the ordinary caps) and
+**Spoils** (a foe's dropped gun stays rather than fading under the arena's drop cap). Every one hangs off a place the
+game already reports -- `Killed` in combat.qc, the decap hook in vr_decap.qc, `armor_touch` in items.qc,
+`VR_EnemyWeapons_MakeRoom` in vr_enemyguns.qc, and the director's own wave clear -- and each returns at once unless the
+arena is running and that perk was taken (`VR_ARK_Running`). `vr_arena_perks 1` (on by default), with `vr_arena 1`. A
+pedestal does not expire: it stands until it is walked over, and the next boss wave's offer replaces the ones left.
+
+**Where the pedestals stand.** Off the map's own `info_arena_item` points, 96 units further from the centre than the
+medkits and armour a wave clear drops there (`VR_ARENA_PedPlace`), so the two never occupy one spot; that placement
+never walks the drop cursor, so a wave's drops keep every point they had. On vrarena: 263.9 263.9 48, -263.9 263.9 48
+and 263.9 -263.9 48, from the three points at 196 196 48, -196 196 48, 196 -196 48. A map with no item points gets the
+drop ring at 220 plus the same 96 (vrtesthall: 306.2 -367.6 24 and its two neighbours).
+
+**How it is tested.** `vr_arena_perks_test 1..4` (`arena_perks: N passed, 0 failed`; test 4 is the full-map check and
+prints `arena_full:`). Test 1 is the pool and the offer (19), test 2 the pedestals themselves (15), test 3 walks every
+perk through the game's own calls -- `Killed`, the decap hook, `armor_touch`, a wave clear (40 on vrtesthall, 42 on
+vrarena), test 4 drives the live director to its first boss wave, checks the offer there, takes one pedestal by
+touching it and asks the next boss wave for another offer (14, on both maps). On vrarena the director's own family
+still passes (`arena: test 2 over: 13 passed`, `arena: test 3 over: 49 passed`), as does `vr_scenario validate` (59
+files, 3 errors -- all three ad_* files, which need Arcane Dimensions mounted) and `vr_scenario runall quit`.
+`quakevr/scenarios/arena_intro.txt` is the one-press version: vrarena with `vr_arena_boss_every 1`, so the offer
+arrives with the first wave instead of the fifth.
+
+**Deviations.** Iron Skin is +25 at the moment `armor_touch` sets the value, so it is never more than 25 above the
+shipped armour, and it does nothing to a suit already worn. Second Wind raises `max_health` from the director's frame
+(client.qc puts `max_health` back on a level change) and lifts a player who was full at the old top; a megahealth's 250
+is untouched. Quartermaster adds ammunition through vr_ammoutil rather than dropping a new item class -- the brief's
+"reuse the arena's own drop path" read as "the arena's own wave clear", which is where the ammo now comes from. A
+heavier boss was tried through `.vr_heavy_move` and nothing else the engine exposes: that is a slowdown knob
+(vr_fatigue.cpp), while `sv_maxspeed` is a server-info change that fights the stick calibration in vr_input.cpp and
+overrides the player's own setting, so a boss is bigger in count and health, not in scale.
+
+*Open:* whether Quartermaster should reach a player holding nothing; whether the offer should hold the next wave until
+somebody chooses (today the next wave starts on its normal delay regardless); and whether a taken perk deserves its own
+line in the readout, which today only says "A BOSS is with this wave".
+
+*Suggested `quakevr/checklist.txt` lines:* `+ Survival Arena: a boss wave's clear offers three pedestals, and the one you walk over is the perk you keep {test:arena_intro}` and `+ Survival Arena: what a taken perk does -- the melee kill's 2 s of quad, the snapped neck's 20 health, armour worth 25 more, a wave clear's ammo`
