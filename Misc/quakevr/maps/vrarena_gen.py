@@ -261,6 +261,31 @@ def intrudes(na, pa, nb, pb):
     return True
 
 
+def inside(b, p):
+    """Is a point inside convex brush `b`? The average of its corners is inside, so the point must lie on the same
+    side of every face as that point -- exactly on a face counts as inside (a spawn standing on a floor is on it)."""
+    cp = sorted(set(f[i] for f in b.faces for i in range(3)))
+    cen = tuple(sum(q[k] for q in cp) / len(cp) for k in range(3))
+    for f in b.faces:
+        n = mg.cross(mg.sub(f[1], f[0]), mg.sub(f[2], f[0]))
+        if mg.dot(n, mg.sub(p, f[0])) * mg.dot(n, mg.sub(cen, f[0])) < 0:
+            return False
+    return True
+
+
+def surfaces(brushes, p):
+    """The heights of the solid surfaces straight below a point, topmost first (scanned down in 8-unit steps): the
+    first is what a spawn there stands on, the next what a fall from it lands on."""
+    out, d, was = [], 0, False
+    while d <= 700:
+        hit = any(inside(b, (p[0], p[1], p[2] - d)) for b in brushes)
+        if hit and not was:
+            out.append(p[2] - d)
+        was = hit
+        d += 8
+    return out
+
+
 def check(brushes, feat, ents):
     """The map's own checks: the point counts, every stair step, no duplicate brush, no brush running into another,
     and the open ring of the floor clear of the features. Returns the number of problems."""
@@ -274,6 +299,32 @@ def check(brushes, feat, ents):
             bad += 1
     high = sum(1 for e in ents if e["classname"] == "info_arena_spawn" and e.get("kind") == "2")
     print("  spawn points: %d high (kind 2), %d ground (kind 1)" % (high, 12 - high))
+    # every spawn stands on a floor (or on the 24 it may sit above it), and how far a fall from it is: the ground ones
+    # have none, the high ones a real drop -- the numbers the wave director needs to keep both kinds safe
+    buried, hangs, drops = 0, 0, {}
+    for e in ents:
+        cn = e["classname"]
+        if cn not in ("info_arena_spawn", "info_player_start", "info_arena_item"):
+            continue
+        p = tuple(int(v) for v in e["origin"].split())
+        if cn == "info_arena_item":
+            buried += sum(1 for b in brushes if inside(b, p))
+            continue
+        s = surfaces(brushes, p)
+        if not s or p[2] - s[0] > 24:      # a spawn sits on its floor or up to 24 above it (the house's entity height)
+            hangs += 1
+            continue
+        drops.setdefault(e.get("kind", "start"), []).append(s[0] - (s[1] if len(s) > 1 else 0))
+    for k, what in (("1", "ground spawns"), ("2", "high spawns"), ("start", "player start")):
+        got = sorted(drops.get(k, []))
+        print("  how far one falls from the %s: %s" % (what, ", ".join("%d" % v for v in got)))
+        if k == "1":
+            bad += sum(1 for v in got if v > 16)
+        elif k == "2":
+            bad += sum(1 for v in got if v < 128)
+    if hangs or buried:
+        print("  BAD: %d spawn point(s) not standing on a floor, %d item point(s) inside solid" % (hangs, buried))
+        bad += hangs + buried
     steps_bad = sum(1 for w, r, d in STEPS if r > 16 or d < 16)
     print("  stair steps: %d, %d not climbable (each step's rise over the previous tread, and its depth)"
           % (len(STEPS), steps_bad))
