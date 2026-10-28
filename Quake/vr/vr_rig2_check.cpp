@@ -1039,6 +1039,7 @@ void init()
     Cmd_AddCommand("vr_rig2anim_check", animCheck_f);
     Cmd_AddCommand("vr_rig2_parts", partsReport_f);
     Cmd_AddCommand("vr_rig2_record", record_f);
+    Cmd_AddCommand("vr_rig2_motion_test", motionTest_f);
 }
 
 } // namespace qvr::rig2
