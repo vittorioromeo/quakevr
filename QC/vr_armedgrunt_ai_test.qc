@@ -342,7 +342,8 @@ void() VR_AGAIT_Frame =
 // `vr_agrunt_test 87`: a shotgun grunt 120 ahead, side-on to nothing (facing you), its own think stopped (it stands
 // in its frame), moved sideways by the test at 0, 20, ..., 100 u/s for 1.5 s each (the way turned each phase, back
 // and forth about where it stood); vr_agrunt_lean_info cleared at the start and printed at the end (the engine's
-// numbers: the lean, its pelvis's roll by it and its chest's as solved, by sideways speed). scratch1 1: a screenshot
+// numbers: the lean, its pelvis's roll by it and its chest's as solved, by sideways speed; the strafe turn's pelvis
+// yaw toward the way it goes and the chest's yaw, and its verdict line "aglean twist: ... PASS"). scratch1 1: a screenshot
 // at the 80 u/s phase's middle and one at the standing phase's.
 float vr_aglt_phase;
 float vr_aglt_t0;
@@ -387,6 +388,17 @@ void() VR_AGLT_Frame =
         vr_agt_step = 2;
         return;
     }
+    if(vr_agt_step == 3)
+    {
+        // (vr_agrunt_lean_info ran last frame: its "aglean twist: ... PASS/FAIL" line is the strafe turn's verdict)
+        p.flags = p.flags - (p.flags & FL_NOTARGET);
+        VR_AGT_Check(sprintf("lean: %g phases moved, vr_agrunt_strafe_lean %g, vr_agrunt_strafe_turn %g (the numbers: "
+            "aglean lines; the turn's verdict: aglean twist):", vr_aglt_phase, cvar("vr_agrunt_strafe_lean"),
+            cvar("vr_agrunt_strafe_turn")), g != world);
+        VR_AGPT_Clear();
+        cvar_set("vr_agrunt_test", "0");
+        return;
+    }
     float t = time - vr_aglt_t0;
     float speed = vr_aglt_phase < 6 ? vr_aglt_phase * 20 : 0;
     float dir = (vr_aglt_phase & 1) ? -1 : 1;
@@ -415,10 +427,6 @@ void() VR_AGLT_Frame =
         return;
     }
     localcmd("vr_agrunt_lean_info\n");
-    p.flags = p.flags - (p.flags & FL_NOTARGET);
-    VR_AGT_Check(sprintf("lean: %g phases moved, vr_agrunt_strafe_lean %g (the numbers: aglean lines):", vr_aglt_phase,
-        cvar("vr_agrunt_strafe_lean")), g != world);
-    VR_AGPT_Clear();
-    cvar_set("vr_agrunt_test", "0");
+    vr_agt_step = 3;
 };
 #endif

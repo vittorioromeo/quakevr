@@ -154,6 +154,43 @@ void(entity e) VR_EnemyWeapons_Fade =
     e.nextthink = time + 0.02;
 };
 
+// The fades' safety net (ROUND23.md, "Arena: a glitched shotgun"): a fade began takes the weapon's hand touch, touch and
+// force grab away for good, so one whose fade stopped midway (its think replaced by something else's) would lie there
+// for the rest of the game, seen and never to be taken. Each such fade is taken up again where it was (its think
+// back); one long overdue goes at once. The arena's cleanup runs it twice a second (VR_ARENA_Leftovers), every cap
+// as it makes room. Returns the fades it mended (the tests).
+float vr_dropcap_mended;   // fades mended so far (the tests; never reset by the game)
+float() VR_EnemyWeapons_MendFades =
+{
+    float n = 0;
+    entity e = find(world, classname, "thrown_weapon");
+    while(e)
+    {
+        entity next = find(e, classname, "thrown_weapon");
+        if(e.vr_drop_fade > 0)
+        {
+            if(time > e.vr_drop_fade + VR_DROPCAP_FADE + 1)
+            {
+                dprint(sprintf("dropcap: %s's fade stalled %.1f s ago: removed\n", e.netname,
+                    time - e.vr_drop_fade - VR_DROPCAP_FADE));
+                VR_Saw_PropStop(e);
+                remove(e);
+                n = n + 1;
+            }
+            else if(e.think != VR_EnemyWeapons_FadeThink || e.nextthink <= 0)
+            {
+                dprint(sprintf("dropcap: %s's fade had stopped: on again\n", e.netname));
+                e.think = VR_EnemyWeapons_FadeThink;
+                e.nextthink = time + 0.02;
+                n = n + 1;
+            }
+        }
+        e = next;
+    }
+    vr_dropcap_mended = vr_dropcap_mended + n;
+    return n;
+};
+
 // QVR: Survival Arena (vr_arena.qc VR_ARENA_GunMost): in a running arena every gun its foes dropped (not only the
 // single-use ones: its armed humanoids hold the player's own weapons) is counted, at most vr_arena_gun_max (twice
 // that with the Spoils perk). A gun last dropped or thrown by a player (.vr_monster_drop 0) is never counted.
@@ -177,6 +214,7 @@ void(entity xNew) VR_EnemyWeapons_MakeRoom =
     {
         return;
     }
+    VR_EnemyWeapons_MendFades();
     float n = 0;
     entity e;
     // The count and the first oldest in one walk (nothing changes between them: the tests only read; MG3.md

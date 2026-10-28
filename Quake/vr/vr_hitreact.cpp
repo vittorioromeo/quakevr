@@ -2567,6 +2567,11 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         const glm::vec3 u = r.rot * glm::vec3{0.f, 0.f, 1.f};
         return za::atan2(-u.y, u.z) * (180.f / 3.14159265f);
     };
+    const auto yawOf = [](const rigpose::Rigid& r) {
+        const glm::vec3 f = r.rot * glm::vec3{1.f, 0.f, 0.f};
+        return za::atan2(f.y, f.x) * (180.f / 3.14159265f);
+    };
+    float leanPelvisYaw = 0.f;
     int leanHips = spec.chest;
     for(int n = 0; leanHips >= 0 && rig->bones[leanHips].parent >= 0 && n < ragdoll::maxBones; n++)
     {
@@ -2608,11 +2613,13 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         if(aglegs::lean(e, *rig, origin, yawDeg, s.take > 0.002f, leanTurn))
         {
             const float before = leanHips >= 0 ? rollOf(posed[leanHips]) : 0.f;
+            const float beforeYaw = leanHips >= 0 ? yawOf(posed[leanHips]) : 0.f;
             for(int i = 0; i < rig->numBones; i++)
             {
                 posed[i] = composeRigid(leanTurn, posed[i]);
             }
             leanPelvis = leanHips >= 0 ? rollOf(posed[leanHips]) - before : 0.f;
+            leanPelvisYaw = leanHips >= 0 ? std::remainder(yawOf(posed[leanHips]) - beforeYaw, 360.f) : 0.f;
         }
     }
     // The procedural upper body (vr_agrunt_upper: the chest held on the hips, not the frames'; a pickup's crouch keeps
@@ -2620,7 +2627,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     // with it.
     rigpose::Rigid upperCorr;
     const bool pickup = (s.flags & apReach) || ((s.flags & apBody) && (s.flags & apFixed));
-    const bool uppered = agbody::upper(s.ent, *rig, spec.chest, posed, pickup, upperCorr);
+    const bool uppered = agbody::upper(s.ent, *rig, spec.chest, posed, pickup, upperCorr, aglegs::twistNow(e));
     if(uppered)
     {
         layOnChest(*rig, spec.chest, upperCorr, posed);
@@ -2632,7 +2639,8 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
             layOnChest(*rig, spec.chest, composeRigid(keyed, inverseRigid(posed[spec.chest])), posed);
         }
     }
-    aglegs::leanMeasured(e, leanPelvis, spec.chest >= 0 ? rollOf(posed[spec.chest]) : 0.f);
+    aglegs::leanMeasured(e, leanPelvis, spec.chest >= 0 ? rollOf(posed[spec.chest]) : 0.f, leanPelvisYaw,
+        spec.chest >= 0 ? std::remainder(yawOf(posed[spec.chest]) - yawOf(rigpose::key(*rig, 0, spec.chest)), 360.f) : 0.f);
     const glm::vec3 anchorShift = uppered ? rigpose::apply(upperCorr, s.anchorAt) - s.anchorAt : glm::vec3{0.f};
     // A strike's body (bodyTurn: the torso, hips and head turned as QC turned the hands' targets) under the arms; the
     // same turns drawn on the bones (boneTurns).

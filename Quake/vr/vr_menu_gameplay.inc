@@ -1422,6 +1422,11 @@ void ikStretchReset()
             .help("Moving sideways (strafing round you, side-stepping), its pelvis and legs tip toward the way it goes, "
                   "this far at a strafe's speed (less slower), eased in and out; its upper body stays aimed. 0: "
                   "none (vr_agrunt_strafe_lean)."),
+        slider("Strafe Turn", vr_agrunt_strafe_turn, 0.f, 45.f, 1.f, "%.0f deg").extend(0.f, 60.f)
+            .help("Moving sideways, its pelvis and legs turn toward the way it goes (hips and feet partly along the "
+                  "step), this far at a strafe's speed (less slower), eased in and out; the spine turns back so its "
+                  "chest and gun stay aimed at you. Backing off to a side turns the same way. 0: none "
+                  "(vr_agrunt_strafe_turn)."),
     };
 }
 
