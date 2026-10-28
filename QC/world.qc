@@ -649,6 +649,7 @@ void() StartFrame =
     VR_Guard_Frame(); // VR: monsters guard their heads from a hand swung at them (vr_ragdoll_active_guard, vr_hitreact.qc)
 #ifdef QVR_TESTS
     VR_DropCapTest_Frame(); // VR: the cap on dropped enemy weapons' test (vr_dropcap_test, vr_dropcap_test.qc)
+    VR_AgArmor_TestFrame(); // VR: armour on armed humanoids' test (vr_agarmor_test, vr_agarmor_test.qc)
     VR_CrouchTest_Frame(); // VR: the crouched box's shots test (vr_crouch_test, vr_crouch_test.qc)
     VR_Decap_TestFrame(); // VR: decapitation's tests (vr_decap_test, vr_decap.qc)
     VR_Melee_SweepTestFrame(); // VR: the swept blade's test (vr_melee_sweep_test, vr_melee_sweep_test.qc)
