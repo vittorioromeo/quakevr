@@ -120,7 +120,14 @@ string(float xBit) VR_ARK_Label =
 // ---------------------------------------------------------------------------
 
 float() VR_ARK_Opt_On    { return cvar("vr_arena_perks") != 0; }
-float() VR_ARK_Opt_Count { return VR_ARENA_Clamp(cvar("vr_arena_perk_count"), 1, ARK_POOL_N); }
+
+// How many pedestals a boss clear offers: vr_arena_perk_count (the Normal value) times the difficulty's factor --
+// a Hard or Nightmare clear offers a fourth, an Easy one two -- still clamped 1 .. the pool's 7, and
+// VR_ARK_Choose still skips what this run already took, so nothing is ever offered twice.
+float() VR_ARK_Opt_Count =
+{
+    return VR_ARENA_Clamp(VR_ARENA_SkillWhole(cvar("vr_arena_perk_count") * VR_ARENA_Skill(0.75, 1.25, 1.5)), 1, ARK_POOL_N);
+}
 
 // The perks this file can hand out at all: an arena run, and a director to keep them on.
 float() VR_ARK_Running =

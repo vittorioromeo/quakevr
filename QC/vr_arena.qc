@@ -80,6 +80,8 @@ float AR_DROP_R      = 220;  // its medkits and armour land about this far off t
 float AR_STALL       = 300;  // a wave this long over is cleared (its stragglers removed) so the arena keeps going
 float AR_WAVE_BONUS  = 250;  // a wave clear's score times the wave
 float AR_KILL_BOSS   = 4;    // a boss is worth this many of its tier's kills
+float AR_KIT_MAX     = 4;    // vr_arena_medkits_after's own clamp: a wave clear never drops more medkits than this
+float AR_ARMOR_MAX   = 12;   // vr_arena_armor_every's own clamp: an armour's gap never stretches past this
 
 // ---------------------------------------------------------------------------
 // The run's state (file-scope: QC has no function-local statics)
@@ -169,8 +171,8 @@ float() VR_ARENA_Opt_MaxAlive   { return VR_ARENA_Clamp(cvar("vr_arena_max_alive
 float() VR_ARENA_Opt_Delay      { return VR_ARENA_Clamp(cvar("vr_arena_wave_delay"), 1, 60); }
 float() VR_ARENA_Opt_BossEvery  { return VR_ARENA_Clamp(cvar("vr_arena_boss_every"), 0, 20); }
 float() VR_ARENA_Opt_BossHealth { return VR_ARENA_Clamp(cvar("vr_arena_boss_health"), 1, 8); }
-float() VR_ARENA_Opt_Medkits    { return VR_ARENA_Clamp(cvar("vr_arena_medkits_after"), 0, 4); }
-float() VR_ARENA_Opt_ArmorEvery { return VR_ARENA_Clamp(cvar("vr_arena_armor_every"), 0, 12); }
+float() VR_ARENA_Opt_Medkits    { return VR_ARENA_Clamp(cvar("vr_arena_medkits_after"), 0, AR_KIT_MAX); }
+float() VR_ARENA_Opt_ArmorEvery { return VR_ARENA_Clamp(cvar("vr_arena_armor_every"), 0, AR_ARMOR_MAX); }
 float() VR_ARENA_Opt_ScoreKill  { return VR_ARENA_Clamp(cvar("vr_arena_score_kill"), 1, 10000); }
 
 // A group of a wave's foes at this skill: the wave's own count times the skill's factor, whole foes (floor), and a
@@ -189,6 +191,38 @@ float(float xSec, float xMin) VR_ARENA_SkillTime =
     float f = VR_ARENA_Skill(0.75, 1.25, 1.5);
     if(f <= 0) { return xSec; }
     return max(xMin, xSec / f);
+}
+
+// A whole number the difficulty buys: the scaled value rounded to the nearest whole thing it buys (a medkit, a
+// wave of gap, a point of score), so a run's supplies and score are readable off the console.
+float(float x) VR_ARENA_SkillWhole = { return floor(x + 0.5); }
+
+// A wave clear's supplies at this skill: the knob's Normal value divided by the factor -- an Easy clear is the more
+// generous one, a Nightmare the thinner -- never below xMin, never past the knob's own clamp xMax, and a knob of 0
+// (no medkits, no armour) means none at every skill. A factor of 0 leaves the knob as it is set: the arena does not
+// drop an infinite number of medkits.
+float(float xN, float xMin, float xMax) VR_ARENA_SkillSupply =
+{
+    float f = VR_ARENA_Skill(0.75, 1.25, 1.5);
+    if(xN <= 0) { return 0; }
+    if(f <= 0) { return xN; }
+    return VR_ARENA_Clamp(VR_ARENA_SkillWhole(xN / f), xMin, xMax);
+}
+
+// The gap between one of a wave clear's armours and the next, at this skill: an interval divides the generosity, so
+// it moves the other way from a count -- times the factor (vr_arena_armor_every 4 is an armour every 3 waves at
+// Easy, every 4 at Normal, every 6 at Nightmare).
+float(float xN, float xMax) VR_ARENA_SkillGap =
+{
+    if(xN <= 0) { return 0; }
+    return VR_ARENA_Clamp(VR_ARENA_SkillWhole(xN * VR_ARENA_Skill(0.75, 1.25, 1.5)), 1, xMax);
+}
+
+// What something is worth at this skill: times the factor (risk pays -- a Nightmare kill is worth half again),
+// whole points, and never nothing.
+float(float xValue) VR_ARENA_SkillWorth =
+{
+    return max(1, VR_ARENA_SkillWhole(xValue * VR_ARENA_Skill(0.75, 1.25, 1.5)));
 }
 
 // A wave number of the ladder -- a gate a rung or a species arrives at -- as this difficulty counts it: whole
@@ -243,26 +277,29 @@ float(float xTier) VR_ARENA_TierOf =
     return xTier;
 }
 
-// The score of one kill: 100 (vr_arena_score_kill) times the ladder tier it held, a boss four of those.
+// The score of one kill: 100 (vr_arena_score_kill) times the ladder tier it held, a boss four of those, by the
+// difficulty's factor -- risk pays, so a Nightmare kill is worth half again what an Easy one is.
 float(float xTier, float xBoss) VR_ARENA_KillScore =
 {
     float t = VR_ARENA_Clamp(xTier, 1, 3);
     float per = VR_ARENA_Opt_ScoreKill() * t;
     if(xBoss) { per = per * AR_KILL_BOSS; }
-    return per;
+    return VR_ARENA_SkillWorth(per);
 }
 
-// A wave clear's bonus: 250 times the wave.
-float(float xWave) VR_ARENA_WaveBonus = { return AR_WAVE_BONUS * xWave; }
+// A wave clear's bonus: 250 times the wave, by the difficulty's factor.
+float(float xWave) VR_ARENA_WaveBonus = { return VR_ARENA_SkillWorth(AR_WAVE_BONUS * xWave); }
 
-// A wave clear's medkits, and which armour it adds: the light one until the waves reach AR_W_FIEND's wave, and
-// from there the heavier one and the light one by turns (a run's armours keep meaning something both ways). The
-// armour's wave is the table's, not the difficulty's: what the player has earned is the player's own progression,
-// and the difficulty moves the arena's generosity in waves and counts instead (VR_ARENA_Skill).
-float(float xWave) VR_ARENA_MedkitCount = { return VR_ARENA_Opt_Medkits(); }
+// A wave clear's medkits, and which armour it adds. The medkits are vr_arena_medkits_after divided by the factor
+// (an Easy clear drops three where a Nightmare one drops one), never past the knob's own clamp, and still at least
+// one wherever the knob asks for any. Which armour it adds follows the interval (vr_arena_armor_every by the
+// factor: the harder the skill, the longer its gap) and the table's own wave for the heavier one (AR_W_FIEND): what
+// the player has earned is the player's own progression, and the difficulty moves how often it comes, not when the
+// heavier kind joins.
+float(float xWave) VR_ARENA_MedkitCount = { return VR_ARENA_SkillSupply(VR_ARENA_Opt_Medkits(), 1, AR_KIT_MAX); }
 float(float xWave) VR_ARENA_ArmourKind =
 {
-    float every = VR_ARENA_Opt_ArmorEvery();
+    float every = VR_ARENA_SkillGap(VR_ARENA_Opt_ArmorEvery(), AR_ARMOR_MAX);
     if(every <= 0) { return 0; }
     if(VR_ARENA_Mod(xWave, every) != 0) { return 0; }
     if(xWave < AR_W_FIEND) { return 1; }
