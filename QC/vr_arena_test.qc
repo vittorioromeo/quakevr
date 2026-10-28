@@ -10,12 +10,15 @@
 //   a fall scored the way combat scores it, the medkits a wave clear dropped, wave 2 with its nail pistol.
 // - 3 (vrtesthall, vr_arena 1, god): the boss wave: the arena jumped to wave 5 has one boss, an enforcer with a
 //   gun, worth a boss's tier, and no left-over foes of the wave it jumped over.
+// - 4 (vrarena, or any map with vr_arena 1): the places a wave comes in on: the map's ground and high places are
+//   known, each has ground under it to land on, the two kinds do not share a place, and a place already holding a
+//   foe of this wave is passed over. On a map with no info_arena_spawn of its own the same checks run on the ring.
 
 // ---------------------------------------------------------------------------
 // The test's own state
 // ---------------------------------------------------------------------------
 
-float vr_at_case;        // 0 idle; 1, 2, 3 running
+float vr_at_case;        // 0 idle; 1, 2, 3, 4 running
 float vr_at_pass;
 float vr_at_fail;
 float vr_at_step;
@@ -519,6 +522,74 @@ void() VR_AT3_Frame =
 }
 
 // ---------------------------------------------------------------------------
+// Test 4: the places a wave comes in on
+// ---------------------------------------------------------------------------
+
+// How far down from a place the first solid is, read off the brushes (a big number when nothing is under it): a foe
+// put on a place has to land on something.
+float(vector p) VR_AT_FloorUnder =
+{
+    traceline(p + '0 0 4', p + '0 0 -600', TRUE, world); // (TRUE: its own foes are not what is being looked for)
+    if(trace_allsolid || trace_startsolid || trace_fraction >= 1) { return 9999; }
+    return p_z - trace_endpos_z;
+}
+
+void() VR_AT4_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 4 needs the arena on (vr_arena 1)"); VR_AT_End(); return; }
+    vr_at_step = 0;
+    vr_at_until = time + 60;
+    dprint("arena: t4 places\n");
+}
+
+void() VR_AT4_Frame =
+{
+    if(vr_at_step == 0)
+    {
+        // Its first wave has to be out: the places are chosen as the waves are built, and a place is only known to
+        // be held while that wave is in the field.
+        if(ar_wave < 1) { return; }
+
+        float ground = VR_ARENA_SpotCount(1);
+        float high = VR_ARENA_SpotCount(2);
+        dprint(sprintf("arena: t4 places: ground %g high %g\n", ground, high));
+
+        vector g = VR_ARENA_SpawnPlace(0);
+        vector h = VR_ARENA_SpawnPlace(1);
+        float fg = VR_AT_FloorUnder(g);
+        float fh = VR_AT_FloorUnder(h);
+        dprint(sprintf("arena: t4 ground place %g %g %g, %g down\n", g_x, g_y, g_z, fg));
+        dprint(sprintf("arena: t4 high place %g %g %g, %g down\n", h_x, h_y, h_z, fh));
+
+        VR_AT_Check(fg < 300, "a foe put on a ground place has ground under it");
+        VR_AT_Check(fh < 300, "a foe put on a high place has ground to drop onto");
+        VR_AT_Check(vlen(g - h) > 1, "the two kinds of place are not the same place");
+
+        if(high > 0)
+        {
+            VR_AT_Check(ground > 0, "a map with high places has ground places too");
+            VR_AT_Check(h_z > g_z, "the high places are above the ground ones");
+        }
+
+        // A place already holding a foe of this wave is passed over, not shared.
+        entity dummy = spawn();
+        dummy.classname = "arena_test_place";
+        dummy.origin = g;
+        dummy.health = 1; // (a place only counts as held while something live is standing on it)
+        dummy.ar_slot = ar_wave;
+
+        vector next = VR_ARENA_SpawnPlace(0);
+        dprint(sprintf("arena: t4 past a taken place: %g %g %g\n", next_x, next_y, next_z));
+        VR_AT_Check(vlen(next - g) > 1, "a place already holding a foe is passed over");
+        VR_AT_Check(VR_AT_FloorUnder(next) < 600, "the place it fell back to has ground under it");
+
+        remove(dummy);
+        VR_AT_End();
+        return;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // world.qc's test beat (StartFrame, under QVR_TESTS)
 // ---------------------------------------------------------------------------
 
@@ -553,6 +624,7 @@ void() VR_ARENA_Test_Frame =
         }
         if(c == 2) { VR_AT2_Begin(); return; }
         if(c == 3) { VR_AT3_Begin(); return; }
+        if(c == 4) { VR_AT4_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -570,5 +642,6 @@ void() VR_ARENA_Test_Frame =
 
     if(vr_at_case == 2) { VR_AT2_Frame(); return; }
     if(vr_at_case == 3) { VR_AT3_Frame(); return; }
+    if(vr_at_case == 4) { VR_AT4_Frame(); return; }
 }
 #endif
