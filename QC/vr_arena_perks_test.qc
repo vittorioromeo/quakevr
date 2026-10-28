@@ -25,7 +25,7 @@ entity ark_t_p;
 float ark_t_health0; float ark_t_max0; float ark_t_armor0; float ark_t_items0;
 float ark_t_shells0; float ark_t_quad0; float ark_t_saved;
 void() VR_APK3_Restore;
-float ark_t_keep[4];     // the cvars the tests set, put back at the end
+float ark_t_keep[5];     // the cvars the tests set, put back at the end
 float ark_t_taken0;      // the perks the run had already taken
 string ark_t_prefix;     // its verdict line ("arena_perks"; the full-map check prints `arena_full: ...`)
 
@@ -35,9 +35,10 @@ string(float i) VR_APK_CvarName =
     if(i == 1) { return "vr_arena_perk_count"; }
     if(i == 2) { return "vr_arena_max_alive"; }
     if(i == 3) { return "vr_arena_wave_delay"; }
+    if(i == 4) { return "vr_arena_skill_impact"; }
     return "";
 }
-float VR_APK_NCVARS = 4;
+float VR_APK_NCVARS = 5;
 
 void() VR_APK_Save =
 {
@@ -56,6 +57,7 @@ void() VR_APK_SetDefaults =
 {
     cvar_set("vr_arena_perks", "1");
     cvar_set("vr_arena_perk_count", "3");
+    cvar_set("vr_arena_skill_impact", "0"); // (the arena these tests drive is its knobs themselves: no difficulty in the way)
 }
 
 void(float ok, string what) VR_APK_Check =

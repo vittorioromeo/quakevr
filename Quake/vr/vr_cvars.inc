@@ -3048,7 +3048,10 @@ QVR_CVAR(vr_arena_medkits_after, "2", CVAR_ARCHIVE)           // medkits a wave 
 QVR_CVAR(vr_arena_armor_every, "4", CVAR_ARCHIVE)             // an armour after every this many waves (0: none; the heavier one from wave 12)
 QVR_CVAR(vr_arena_score_kill, "100", CVAR_ARCHIVE)            // the score of a kill, times the ladder tier it held (a boss: four of those)
 QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' rolls: 0 a different ladder every run, else that seed's ladder
-QVR_CVAR(vr_arena_test, "0", CVAR_NONE)                       // the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave, 4 the places
+// Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
+// this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
+QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set
+QVR_CVAR(vr_arena_test, "0", CVAR_NONE)                       // the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave, 4 the places, 5 the difficulty scaling
 // Survival Arena: the boss wave's perk choice (QC/vr_arena_perks.qc).
 QVR_CVAR(vr_arena_perks, "1", CVAR_ARCHIVE)                   // 0: a boss wave's clear offers nothing, 1: it offers the player his choice of the perks
 QVR_CVAR(vr_arena_perk_count, "3", CVAR_ARCHIVE)             // how many pedestals a boss wave's clear offers (1 to the pool's 7)

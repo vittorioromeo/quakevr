@@ -13,15 +13,24 @@
 //
 // The knobs (Quake/vr/vr_cvars.inc; read here with plain cvar()):
 //   vr_arena              0    the arena runs even in a map that is not "vrarena"
-//   vr_arena_wave_delay   6    seconds from a wave clear to the next wave
-//   vr_arena_max_alive    8    foes alive at once at most; the rest of the wave trickles in as they free up
-//   vr_arena_boss_every   5    a boss wave every this many waves (0: no boss waves)
-//   vr_arena_boss_health  1.25 a boss's health times this
-//   vr_arena_medkits_after 2   medkits after every wave (0: none)
-//   vr_arena_armor_every  4    an armour after every this many waves (0: none)
-//   vr_arena_score_kill   100  the score of a kill, times its ladder tier (a boss: four of those)
+//   vr_arena_wave_delay   6    seconds from a wave clear to the next wave (at Normal skill: a harder skill waits less)
+//   vr_arena_max_alive    8    foes alive at once at most; the rest of the wave trickles in as they free up (at
+//                             Normal skill: a harder skill has more of them up at once)
+//   vr_arena_boss_every   5    a boss wave every this many waves (0: no boss waves; at Easy skill: effectively
+//                             +1, a boss less often)
+//   vr_arena_boss_health  1.25 a boss's health times this (times the skill's factor too; a Nightmare boss wave
+//                             brings two of them, the second half as big)
+//   vr_arena_medkits_after 2   medkits after every wave (0: none; at Normal skill: an Easy clear drops more, a
+//                             Nightmare one less)
+//   vr_arena_armor_every  4    an armour after every this many waves (0: none; at Normal skill: the harder the
+//                             skill, the longer its gap)
+//   vr_arena_score_kill   100  the score of a kill, times its ladder tier (a boss: four of those; at Normal skill:
+//                             a harder skill pays more)
 //   vr_arena_seed         0    the waves' rolls: 0 a different ladder every run, else that seed's ladder
-//   vr_arena_test         0    the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave
+//   vr_arena_skill_impact 1    Difficulty Impact: how far the game's difficulty (skill) moves the waves -- 0 the
+//                             arena is the same at every skill, 1 the steps below (Easy softer, Nightmare harder)
+//   vr_arena_test         0    the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss
+//                             wave, 4 the places, 5 the difficulty scaling
 //
 
 // ---------------------------------------------------------------------------
@@ -53,7 +62,9 @@ float AR_SP_OGRE     = 5; // monster_ogre
 float AR_SP_FIEND    = 6; // monster_demon1: a fiend
 float AR_SP_HKNIGHT  = 7; // monster_hell_knight: a death knight
 
-// The ladder's rungs a wave may draw from, and the waves Quake's own monsters join at.
+// The ladder's rungs a wave may draw from, and the waves Quake's own monsters join at. These are the Normal
+// skill's waves: VR_ARENA_WaveAdj moves every one of them by the difficulty (earlier at Hard and Nightmare,
+// later at Easy).
 float AR_W_TIER2   = 10; // the second tier (the super shotgun, the nail guns) from this wave
 float AR_W_TIER3   = 18; // the third tier (the launchers, the lightning) from this wave
 float AR_W_ZOMBIE  = 2;  // (a wave 3's zombie: the plan's own line; the table's floor)
@@ -72,6 +83,8 @@ float AR_DROP_R      = 220;  // its medkits and armour land about this far off t
 float AR_STALL       = 300;  // a wave this long over is cleared (its stragglers removed) so the arena keeps going
 float AR_WAVE_BONUS  = 250;  // a wave clear's score times the wave
 float AR_KILL_BOSS   = 4;    // a boss is worth this many of its tier's kills
+float AR_KIT_MAX     = 4;    // vr_arena_medkits_after's own clamp: a wave clear never drops more medkits than this
+float AR_ARMOR_MAX   = 12;   // vr_arena_armor_every's own clamp: an armour's gap never stretches past this
 
 // ---------------------------------------------------------------------------
 // The run's state (file-scope: QC has no function-local statics)
@@ -141,13 +154,138 @@ float(float x, float xMod) VR_ARENA_Mod =
     return r;
 }
 
+// The difficulty this arena is running at. world.qc reads the skill cvar into the `skill` global at the top of every
+// frame (world.qc:588); at world spawn the global is not set yet -- triggers.qc's own note -- so there the arena
+// takes the cvar, the difficulty the run started on. (0 is Easy's own value too, so falling back changes nothing
+// where the global is already right.)
+float() VR_ARENA_SkillLevel = { return skill > 0 ? skill : cvar("skill"); }
+
+// The skill's factor for a knob: `easy`, `hard`, `nightmare` its steps (Normal 1), by vr_arena_skill_impact -- the
+// shape of the armed humanoids' VR_AGAI_Skill (vr_armedgrunt_ai.qc), the arena's own impact knob, and nothing to do
+// with vr_agrunt_ai_skill or the armed humanoids' AI.
+//
+// The skill's steps (impact 1):                   Easy   Normal  Hard   Nightmare
+//   a wave's size, its pacing, a boss's health,
+//   a wave clear's supplies, a kill's score,
+//   and how many perks a boss clear offers:       0.75   1       1.25   1.5
+//   (impact 0: 1 at every skill -- the skill changes nothing about the arena; impact 2: the deviation from 1
+//   doubled; the factor is never below 0, so a knob it multiplies never turns negative)
+float(float easy, float hard, float nightmare) VR_ARENA_Skill =
+{
+    float s = VR_ARENA_SkillLevel();
+    float m = s < 1 ? easy : s < 2 ? 1 : s < 3 ? hard : nightmare;
+    return max(0, 1 + cvar("vr_arena_skill_impact") * (m - 1));
+}
+
+// The difficulty's own word, for the line the player reads: one word per skill.
+string(float xSkill) VR_ARENA_SkillName =
+{
+    return xSkill < 1 ? "Easy" : xSkill < 2 ? "Normal" : xSkill < 3 ? "Hard" : "Nightmare";
+}
+
 float() VR_ARENA_Opt_MaxAlive   { return VR_ARENA_Clamp(cvar("vr_arena_max_alive"), 1, AR_PLAN_MAX); }
 float() VR_ARENA_Opt_Delay      { return VR_ARENA_Clamp(cvar("vr_arena_wave_delay"), 1, 60); }
 float() VR_ARENA_Opt_BossEvery  { return VR_ARENA_Clamp(cvar("vr_arena_boss_every"), 0, 20); }
 float() VR_ARENA_Opt_BossHealth { return VR_ARENA_Clamp(cvar("vr_arena_boss_health"), 1, 8); }
-float() VR_ARENA_Opt_Medkits    { return VR_ARENA_Clamp(cvar("vr_arena_medkits_after"), 0, 4); }
-float() VR_ARENA_Opt_ArmorEvery { return VR_ARENA_Clamp(cvar("vr_arena_armor_every"), 0, 12); }
+float() VR_ARENA_Opt_Medkits    { return VR_ARENA_Clamp(cvar("vr_arena_medkits_after"), 0, AR_KIT_MAX); }
+float() VR_ARENA_Opt_ArmorEvery { return VR_ARENA_Clamp(cvar("vr_arena_armor_every"), 0, AR_ARMOR_MAX); }
 float() VR_ARENA_Opt_ScoreKill  { return VR_ARENA_Clamp(cvar("vr_arena_score_kill"), 1, 10000); }
+
+// A group of a wave's foes at this skill: the wave's own count times the skill's factor, whole foes (floor), and a
+// group is never emptied out -- the wave the difficulty thins still brings its zombie, its dog, its boss.
+float(float xN) VR_ARENA_SkillCount = { return max(1, floor(VR_ARENA_Skill(0.75, 1.25, 1.5) * xN)); }
+
+// How many of a wave's foes may be up at once: vr_arena_max_alive (clamped to what works, above) by the skill, and
+// still never more than a wave can plan and never below one.
+float() VR_ARENA_FieldCap = { return VR_ARENA_Clamp(VR_ARENA_SkillCount(VR_ARENA_Opt_MaxAlive()), 1, AR_PLAN_MAX); }
+
+// A span of seconds the arena waits, at this skill: the harder the skill the less it waits (the factor divides the
+// span), never below xMin. A factor of 0 leaves the span as the knob sets it -- it does not make a wave arrive all
+// at once.
+float(float xSec, float xMin) VR_ARENA_SkillTime =
+{
+    float f = VR_ARENA_Skill(0.75, 1.25, 1.5);
+    if(f <= 0) { return xSec; }
+    return max(xMin, xSec / f);
+}
+
+// A whole number the difficulty buys: the scaled value rounded to the nearest whole thing it buys (a medkit, a
+// wave of gap, a point of score), so a run's supplies and score are readable off the console.
+float(float x) VR_ARENA_SkillWhole = { return floor(x + 0.5); }
+
+// A wave clear's supplies at this skill: the knob's Normal value divided by the factor -- an Easy clear is the more
+// generous one, a Nightmare the thinner -- never below xMin, never past the knob's own clamp xMax, and a knob of 0
+// (no medkits, no armour) means none at every skill. A factor of 0 leaves the knob as it is set: the arena does not
+// drop an infinite number of medkits.
+float(float xN, float xMin, float xMax) VR_ARENA_SkillSupply =
+{
+    float f = VR_ARENA_Skill(0.75, 1.25, 1.5);
+    if(xN <= 0) { return 0; }
+    if(f <= 0) { return xN; }
+    return VR_ARENA_Clamp(VR_ARENA_SkillWhole(xN / f), xMin, xMax);
+}
+
+// The gap between one of a wave clear's armours and the next, at this skill: an interval divides the generosity, so
+// it moves the other way from a count -- times the factor (vr_arena_armor_every 4 is an armour every 3 waves at
+// Easy, every 4 at Normal, every 6 at Nightmare).
+float(float xN, float xMax) VR_ARENA_SkillGap =
+{
+    if(xN <= 0) { return 0; }
+    return VR_ARENA_Clamp(VR_ARENA_SkillWhole(xN * VR_ARENA_Skill(0.75, 1.25, 1.5)), 1, xMax);
+}
+
+// What something is worth at this skill: times the factor (risk pays -- a Nightmare kill is worth half again),
+// whole points, and never nothing.
+float(float xValue) VR_ARENA_SkillWorth =
+{
+    return max(1, VR_ARENA_SkillWhole(xValue * VR_ARENA_Skill(0.75, 1.25, 1.5)));
+}
+
+// A wave number of the ladder -- a gate a rung or a species arrives at -- as this difficulty counts it: whole
+// waves, not a factor (3 waves later at Easy, none at Normal, 2 sooner at Hard, 4 sooner at Nightmare, times
+// vr_arena_skill_impact), and never earlier than wave 2, the bestiary's own floor. So on Nightmare the fiends,
+// the death knights and the launchers arrive early and on Easy they hold off.
+float(float xWave) VR_ARENA_WaveAdj =
+{
+    float s = VR_ARENA_SkillLevel();
+    float d = s < 1 ? 3 : s < 2 ? 0 : s < 3 ? -2 : -4;
+    return max(2, xWave + d * cvar("vr_arena_skill_impact"));
+}
+
+// How many of the first waves' humanoids come unarmed: the softer the difficulty, the wider the share (its own
+// ladder 0.30 Easy / 0.20 Normal / 0.15 Hard / 0.10 Nightmare, moved by vr_arena_skill_impact from Normal's 0.20
+// and held to a share).
+float() VR_ARENA_EarlyUnarmed =
+{
+    float s = VR_ARENA_SkillLevel();
+    float m = s < 1 ? 0.30 : s < 2 ? 0.20 : s < 3 ? 0.15 : 0.10;
+    return VR_ARENA_Clamp(0.20 + cvar("vr_arena_skill_impact") * (m - 0.20), 0, 0.5);
+}
+
+// A boss wave's gap, as this difficulty counts it: at Easy the marked big ones come a wave LESS often
+// (vr_arena_boss_every effectively +1); Normal, Hard and Nightmare keep the knob as it is, and at
+// vr_arena_skill_impact 0 every skill keeps it exactly.
+float() VR_ARENA_BossEvery =
+{
+    float every = VR_ARENA_Opt_BossEvery();
+    if(every <= 0) { return 0; }
+    if(VR_ARENA_SkillLevel() >= 1) { return every; }
+    return every + cvar("vr_arena_skill_impact");
+}
+
+// How many marked big ones a boss wave brings: Nightmare brings two (the second the same kind at half its bulk),
+// every other skill the one it always had.
+float() VR_ARENA_BossTwice = { return VR_ARENA_SkillLevel() >= 3 && cvar("vr_arena_skill_impact") > 0; }
+
+// A boss's bulk: its kind's own health times vr_arena_boss_health times the difficulty's factor (0.75 Easy /
+// 1 Normal / 1.25 Hard / 1.5 Nightmare), and a boss wave's second boss (ar_plan_boss 2) half as much. Its
+// ar_tier still carries AR_BOSS_MARK exactly as it did.
+float(float xHealth, float xPlanBoss) VR_ARENA_BossHealth =
+{
+    float h = xHealth * VR_ARENA_Opt_BossHealth() * VR_ARENA_Skill(0.75, 1.25, 1.5);
+    if(xPlanBoss >= 2) { h = h / 2; }
+    return max(1, floor(h) + 1);
+}
 
 // What a wave monster's ar_tier is worth on the ladder: its mark (AR_BOSS_MARK) is not a rung, so it comes off
 // before the tier is scored (a boss is worth four of its rung, not four of the mark).
@@ -157,24 +295,29 @@ float(float xTier) VR_ARENA_TierOf =
     return xTier;
 }
 
-// The score of one kill: 100 (vr_arena_score_kill) times the ladder tier it held, a boss four of those.
+// The score of one kill: 100 (vr_arena_score_kill) times the ladder tier it held, a boss four of those, by the
+// difficulty's factor -- risk pays, so a Nightmare kill is worth half again what an Easy one is.
 float(float xTier, float xBoss) VR_ARENA_KillScore =
 {
     float t = VR_ARENA_Clamp(xTier, 1, 3);
     float per = VR_ARENA_Opt_ScoreKill() * t;
     if(xBoss) { per = per * AR_KILL_BOSS; }
-    return per;
+    return VR_ARENA_SkillWorth(per);
 }
 
-// A wave clear's bonus: 250 times the wave.
-float(float xWave) VR_ARENA_WaveBonus = { return AR_WAVE_BONUS * xWave; }
+// A wave clear's bonus: 250 times the wave, by the difficulty's factor.
+float(float xWave) VR_ARENA_WaveBonus = { return VR_ARENA_SkillWorth(AR_WAVE_BONUS * xWave); }
 
-// A wave clear's medkits, and which armour it adds: the light one until the waves reach AR_W_FIEND's wave, and
-// from there the heavier one and the light one by turns (a run's armours keep meaning something both ways).
-float(float xWave) VR_ARENA_MedkitCount = { return VR_ARENA_Opt_Medkits(); }
+// A wave clear's medkits, and which armour it adds. The medkits are vr_arena_medkits_after divided by the factor
+// (an Easy clear drops three where a Nightmare one drops one), never past the knob's own clamp, and still at least
+// one wherever the knob asks for any. Which armour it adds follows the interval (vr_arena_armor_every by the
+// factor: the harder the skill, the longer its gap) and the table's own wave for the heavier one (AR_W_FIEND): what
+// the player has earned is the player's own progression, and the difficulty moves how often it comes, not when the
+// heavier kind joins.
+float(float xWave) VR_ARENA_MedkitCount = { return VR_ARENA_SkillSupply(VR_ARENA_Opt_Medkits(), 1, AR_KIT_MAX); }
 float(float xWave) VR_ARENA_ArmourKind =
 {
-    float every = VR_ARENA_Opt_ArmorEvery();
+    float every = VR_ARENA_SkillGap(VR_ARENA_Opt_ArmorEvery(), AR_ARMOR_MAX);
     if(every <= 0) { return 0; }
     if(VR_ARENA_Mod(xWave, every) != 0) { return 0; }
     if(xWave < AR_W_FIEND) { return 1; }
@@ -241,20 +384,22 @@ float(float xTier) VR_ARENA_PickTierGun =
     return WID_AXE;
 }
 
-// A wave's humanoid's gun, from the tiers this wave has reached.
+// A wave's humanoid's gun, from the tiers this wave has reached (the tiers arrive earlier the harder the skill).
 float(float xWave) VR_ARENA_PickGun =
 {
     float r = VR_ARENA_Rand();
-    if(xWave >= AR_W_TIER3 && r < 0.25) { return VR_ARENA_PickTierGun(3); }
-    if(xWave >= AR_W_TIER2 && r < 0.60) { return VR_ARENA_PickTierGun(2); }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_TIER3) && r < 0.25) { return VR_ARENA_PickTierGun(3); }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_TIER2) && r < 0.60) { return VR_ARENA_PickTierGun(2); }
     return VR_ARENA_PickTierGun(1);
 }
 
-// The first waves' humanoids: still some of them unarmed, and only the ladder's bottom rungs.
+// The first waves' humanoids: still some of them unarmed, and only the ladder's bottom rungs. The unarmed share is
+// wider at a softer difficulty, and reaches further into the early waves there (VR_ARENA_EarlyUnarmed,
+// VR_ARENA_WaveAdj).
 float(float xWave) VR_ARENA_PickEarlyGun =
 {
     float r = VR_ARENA_Rand();
-    if(xWave <= 4 && r < 0.20) { return AR_FIST; }
+    if(xWave <= VR_ARENA_WaveAdj(4) && r < VR_ARENA_EarlyUnarmed()) { return AR_FIST; }
     if(r < 0.60) { return WID_SHOTGUN; }
     if(r < 0.90) { return WID_NAILPISTOL; }
     return WID_AXE;
@@ -262,33 +407,34 @@ float(float xWave) VR_ARENA_PickEarlyGun =
 
 float(float xWave) VR_ARENA_IsBossWave =
 {
-    float every = VR_ARENA_Opt_BossEvery();
+    float every = VR_ARENA_BossEvery(); // (vr_arena_boss_every, a wave longer at Easy)
     if(every <= 0) { return FALSE; }
     return VR_ARENA_Mod(xWave, every) == 0;
 }
 
 float(float xWave) VR_ARENA_BossKind =
 {
-    if(xWave < AR_W_TIER2) { return AR_SP_ENFORCER; } // (a boss with a gun of its own before the classic bosses)
-    if(xWave < AR_W_HKNIGHT) { return AR_SP_OGRE; }
+    if(xWave < VR_ARENA_WaveAdj(AR_W_TIER2)) { return AR_SP_ENFORCER; } // (a boss with a gun of its own before the classic bosses)
+    if(xWave < VR_ARENA_WaveAdj(AR_W_HKNIGHT)) { return AR_SP_OGRE; }
     return AR_SP_HKNIGHT;
 }
 
-// Which of Quake's own monsters this wave sends, cycling the kinds unlocked by now (never one before its wave).
+// Which of Quake's own monsters this wave sends, cycling the kinds unlocked by now (never one before its wave --
+// and the wave it joins at is the difficulty's, not the table's).
 float(float xWave, float i) VR_ARENA_ClassicKind =
 {
     float k = VR_ARENA_Mod(i, 4);
     if(k == 0) { return AR_SP_ZOMBIE; }
-    if(k == 1) { return xWave >= AR_W_DOG ? AR_SP_DOG : AR_SP_ZOMBIE; }
+    if(k == 1) { return xWave >= VR_ARENA_WaveAdj(AR_W_DOG) ? AR_SP_DOG : AR_SP_ZOMBIE; }
     if(k == 2)
     {
-        if(xWave >= AR_W_OGRE)   { return AR_SP_OGRE; }
-        if(xWave >= AR_W_KNIGHT) { return AR_SP_KNIGHT; }
+        if(xWave >= VR_ARENA_WaveAdj(AR_W_OGRE))   { return AR_SP_OGRE; }
+        if(xWave >= VR_ARENA_WaveAdj(AR_W_KNIGHT)) { return AR_SP_KNIGHT; }
         return AR_SP_ZOMBIE;
     }
-    if(xWave >= AR_W_HKNIGHT) { return AR_SP_HKNIGHT; }
-    if(xWave >= AR_W_FIEND)   { return AR_SP_FIEND; }
-    if(xWave >= AR_W_KNIGHT)  { return AR_SP_KNIGHT; }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_HKNIGHT)) { return AR_SP_HKNIGHT; }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_FIEND))   { return AR_SP_FIEND; }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_KNIGHT))  { return AR_SP_KNIGHT; }
     return AR_SP_ZOMBIE;
 }
 
@@ -303,64 +449,85 @@ void(float xKind, float xGun, float xBoss) VR_ARENA_PlanAdd =
 }
 
 // The wave's plan, wave 1 to the waves past the table (13 and on: the same ladder, thicker).
+//
+// The counts written below are the wave's Normal-skill counts: VR_ARENA_SkillCount moves every group of them by
+// the skill's factor (whole foes, a group never emptied -- a wave's own zombie, dog or boss stays). The cap on a
+// wave's whole plan is VR_ARENA_PlanAdd's (AR_PLAN_MAX), the cap on the field is VR_ARENA_FieldCap's.
 void(float xWave) VR_ARENA_Plan =
 {
     float boss = VR_ARENA_IsBossWave(xWave);
     float n;
     float i;
     float bk;
+    float nb = 1; // (a boss wave's marked big ones: one, two at Nightmare)
 
     ar_plan_n = 0;
     VR_ARENA_SeedWaves(xWave);
 
     if(boss)
     {
-        // Its big one first, so a thick wave's plan never cuts the boss out.
+        // Its big ones first, so a thick wave's plan never cuts them out. Nightmare brings two of them, the
+        // second the same kind at half its bulk (ar_plan_boss 2), still under VR_ARENA_PlanAdd's cap.
         bk = VR_ARENA_BossKind(xWave);
-        VR_ARENA_PlanAdd(bk, bk == AR_SP_ENFORCER ? VR_ARENA_PickGun(xWave) : 0, 1);
+        nb = VR_ARENA_BossTwice() ? 2 : 1;
+        for(i = 0; i < nb; i++)
+        {
+            VR_ARENA_PlanAdd(bk, bk == AR_SP_ENFORCER ? VR_ARENA_PickGun(xWave) : 0, 1 + i);
+        }
     }
 
     if(xWave == 1)
     {
-        n = 1 + (VR_ARENA_Rand() < 0.5); // (one or two grunts, all of them unarmed)
+        n = VR_ARENA_SkillCount(1 + (VR_ARENA_Rand() < 0.5)); // (one or two grunts, all of them unarmed)
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, AR_FIST, 0); }
         return;
     }
     if(xWave == 2)
     {
-        VR_ARENA_PlanAdd(AR_SP_GRUNT, AR_FIST, 0);
-        VR_ARENA_PlanAdd(AR_SP_GRUNT, WID_NAILPISTOL, 0);
+        // One unarmed and one with a nail pistol; a thinner wave brings the armed one, so the ladder's step stays.
+        n = VR_ARENA_SkillCount(2);
+        if(n < 2)
+        {
+            VR_ARENA_PlanAdd(AR_SP_GRUNT, WID_NAILPISTOL, 0);
+        }
+        else
+        {
+            VR_ARENA_PlanAdd(AR_SP_GRUNT, AR_FIST, 0);
+            for(i = 1; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, WID_NAILPISTOL, 0); }
+        }
         return;
     }
     if(xWave == 3)
     {
-        n = 3 + (VR_ARENA_Rand() < 0.5);
+        n = VR_ARENA_SkillCount(3 + (VR_ARENA_Rand() < 0.5));
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickEarlyGun(3), 0); }
         VR_ARENA_PlanAdd(AR_SP_ZOMBIE, 0, 0);
         return;
     }
     if(xWave == 4)
     {
-        for(i = 0; i < 4; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickEarlyGun(4), 0); }
+        n = VR_ARENA_SkillCount(4);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickEarlyGun(4), 0); }
         VR_ARENA_PlanAdd(AR_SP_KNIGHT, 0, 0);
         return;
     }
     if(xWave == 5) // (its boss, an enforcer with a gun, was planned above)
     {
-        n = 3 + (VR_ARENA_Rand() < 0.5);
+        n = VR_ARENA_SkillCount(3 + (VR_ARENA_Rand() < 0.5));
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(5), 0); }
         return;
     }
     if(xWave == 6)
     {
-        for(i = 0; i < 3; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(6), 0); }
+        n = VR_ARENA_SkillCount(3);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(6), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(6), 0);
         VR_ARENA_PlanAdd(AR_SP_DOG, 0, 0);
         return;
     }
     if(xWave == 7)
     {
-        n = 3 + (VR_ARENA_Rand() < 0.4);
+        n = VR_ARENA_SkillCount(3 + (VR_ARENA_Rand() < 0.4));
         for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(7), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(7), 0);
         VR_ARENA_PlanAdd(AR_SP_DOG, 0, 0);
@@ -368,7 +535,8 @@ void(float xWave) VR_ARENA_Plan =
     }
     if(xWave == 8)
     {
-        for(i = 0; i < 3; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(8), 0); }
+        n = VR_ARENA_SkillCount(3);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(8), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(8), 0);
         VR_ARENA_PlanAdd(AR_SP_KNIGHT, 0, 0);
         VR_ARENA_PlanAdd(AR_SP_OGRE, 0, 0);
@@ -376,42 +544,52 @@ void(float xWave) VR_ARENA_Plan =
     }
     if(xWave == 9)
     {
-        for(i = 0; i < 4; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(9), 0); }
+        n = VR_ARENA_SkillCount(4);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(9), 0); }
         VR_ARENA_PlanAdd(AR_SP_ZOMBIE, 0, 0);
         VR_ARENA_PlanAdd(AR_SP_OGRE, 0, 0);
         return;
     }
     if(xWave == 10) // (its boss, an ogre, was planned above)
     {
-        for(i = 0; i < 2; i++) { VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(10), 0); }
-        for(i = 0; i < 2; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(10), 0); }
+        n = VR_ARENA_SkillCount(2);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(10), 0); }
+        n = VR_ARENA_SkillCount(2);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(10), 0); }
         VR_ARENA_PlanAdd(AR_SP_DOG, 0, 0);
         return;
     }
     if(xWave == 11)
     {
-        for(i = 0; i < 4; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(11), 0); }
+        n = VR_ARENA_SkillCount(4);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(11), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(11), 0);
-        for(i = 0; i < 2; i++) { VR_ARENA_PlanAdd(AR_SP_OGRE, 0, 0); }
+        n = VR_ARENA_SkillCount(2);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_OGRE, 0, 0); }
         return;
     }
     if(xWave == 12)
     {
-        for(i = 0; i < 4; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(12), 0); }
+        n = VR_ARENA_SkillCount(4);
+        for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(12), 0); }
         VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(12), 0);
         VR_ARENA_PlanAdd(AR_SP_FIEND, 0, 0);
         VR_ARENA_PlanAdd(AR_SP_KNIGHT, 0, 0);
         return;
     }
 
-    // 13 and on: the same ladder, thicker, a boss every vr_arena_boss_every waves.
-    n = VR_ARENA_Clamp(4 + floor((xWave - 13) / 4), 1, 7) - (boss ? 1 : 0);
+    // 13 and on: the same ladder, thicker, a boss every vr_arena_boss_every waves (a wave longer at Easy). Its boss
+    // or bosses take a place, as they do at Normal. Where the ladder starts thickening stays wave 13 at every skill
+    // -- how thick a wave there is VR_ARENA_SkillCount's business (its own gates, the guns and the species it draws,
+    // are the difficulty's: VR_ARENA_WaveAdj, inside VR_ARENA_PickGun and VR_ARENA_ClassicKind).
+    n = VR_ARENA_SkillCount(VR_ARENA_Clamp(4 + floor((xWave - 13) / 4), 1, 7));
+    if(boss) { n = max(1, n - nb); } // (its boss or bosses take a place)
     for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(xWave), 0); }
 
-    float nenf = VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3);
+    float nenf = VR_ARENA_SkillCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
     for(i = 0; i < nenf; i++) { VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(xWave), 0); }
 
-    float nclass = VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3);
+    float nclass = VR_ARENA_SkillCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
     for(i = 0; i < nclass; i++) { VR_ARENA_PlanAdd(VR_ARENA_ClassicKind(xWave, i), 0, 0); }
 }
 
@@ -717,9 +895,10 @@ entity(float xKind, float xGun, float xTier, float xBoss) VR_ARENA_SpawnMonster 
 
     if(xBoss)
     {
-        // A boss is a thicker one of its kind (what else a boss does is worker W3's boss pass).
-        self.health = floor(self.health * VR_ARENA_Opt_BossHealth()) + 1;
-        dprint(sprintf("arena: boss kind %g health %g tier %g\n", xKind, self.health, xTier));
+        // A boss is a thicker one of its kind: vr_arena_boss_health times the difficulty's factor (and a boss wave's
+        // second one, ar_plan_boss 2, half as much). What else a boss does is worker W3's boss pass.
+        self.health = VR_ARENA_BossHealth(self.health, xBoss);
+        dprint(sprintf("arena: boss kind %g health %g tier %g plan %g\n", xKind, self.health, xTier, xBoss));
     }
 
     dprint(sprintf("arena: foe kind %g gun %g tier %g at %g %g %g\n", xKind, xGun, xTier, o_x, o_y, o_z));
@@ -896,7 +1075,7 @@ void() VR_ARENA_WaveClear =
     VR_ARK_WaveDone(w); // QVR: the boss wave's clear offers the player his choice of perks (vr_arena_perks.qc)
 
     self.think = VR_ARENA_WaveStart;
-    self.nextthink = time + VR_ARENA_Opt_Delay();
+    self.nextthink = time + VR_ARENA_SkillTime(VR_ARENA_Opt_Delay(), 1); // (the harder the skill, the less rest between waves)
 }
 
 void() VR_ARENA_ManagerThink =
@@ -916,8 +1095,9 @@ void() VR_ARENA_ManagerThink =
         return;
     }
 
-    // Its foes trickle in as the field frees up: vr_arena_max_alive is the most up at once.
-    if(ar_plan_left > 0 && alive < VR_ARENA_Opt_MaxAlive() && time >= ar_next_spawn)
+    // Its foes trickle in as the field frees up: vr_arena_max_alive is the most up at once, by the skill's factor.
+    float cap = VR_ARENA_FieldCap();
+    if(ar_plan_left > 0 && alive < cap && time >= ar_next_spawn)
     {
         float i = ar_plan_n - ar_plan_left;
         entity m = VR_ARENA_SpawnMonster(ar_plan_kind[i], ar_plan_gun[i], ar_plan_tier[i], ar_plan_boss[i]);
@@ -926,7 +1106,8 @@ void() VR_ARENA_ManagerThink =
             ar_plan_left = ar_plan_left - 1;
             ar_plan_live = ar_plan_live + 1;
         }
-        ar_next_spawn = time + AR_SPAWN_GAP + VR_ARENA_Rand(); // (one per beat at most, then this apart)
+        // (one per beat at most, then this far apart: the harder the skill, the sooner the next one)
+        ar_next_spawn = time + VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) + VR_ARENA_Rand();
     }
 
     if(ar_plan_left == 0 && VR_ARENA_CountAlive() == 0)
@@ -1007,8 +1188,9 @@ void() VR_ARENA_WorldSpawn =
     ar_mgr.think = VR_ARENA_WaveStart;
     ar_mgr.nextthink = time + 1; // (after the map's own spawns, so its info_arena_spawn points are known)
 
-    dprint(sprintf("arena: %s on (max alive %g, boss every %g, seed %g)\n", mapname, VR_ARENA_Opt_MaxAlive(),
-                   VR_ARENA_Opt_BossEvery(), cvar("vr_arena_seed")));
+    dprint(sprintf("arena: %s on (skill %g %s, impact %g, max alive %g, boss every %g, seed %g)\n", mapname,
+                   VR_ARENA_SkillLevel(), VR_ARENA_SkillName(VR_ARENA_SkillLevel()), cvar("vr_arena_skill_impact"),
+                   VR_ARENA_FieldCap(), VR_ARENA_BossEvery(), cvar("vr_arena_seed")));
 }
 
 void() VR_ARENA_Frame =
@@ -1020,7 +1202,7 @@ void() VR_ARENA_Frame =
         if(!p) { return; } // (its clients are not in yet)
         ar_stripped = 1;
         VR_ARENA_StripPlayers();
-        VR_ARENA_PrintAll("ARENA - unarmed, wave 1 coming\n");
+        VR_ARENA_PrintAll(sprintf("ARENA - %s: unarmed, wave 1 coming\n", VR_ARENA_SkillName(VR_ARENA_SkillLevel())));
     }
     VR_ARK_Frame(); // QVR: the perks that have to keep their word (vr_arena_perks.qc)
 }
