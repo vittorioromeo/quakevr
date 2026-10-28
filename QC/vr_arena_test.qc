@@ -32,7 +32,7 @@ float vr_at_pass;
 float vr_at_fail;
 float vr_at_step;
 float vr_at_until;
-float vr_at_keep[12];    // the cvars the tests set, put back at the end
+float vr_at_keep[17];    // the cvars the tests set, put back at the end
 float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
 float vr_at_kills0;
 float vr_at_score0;
@@ -53,9 +53,14 @@ string(float i) VR_AT_CvarName =
     if(i == 9) { return "vr_arena_corpse_max"; }
     if(i == 10) { return "vr_arena_item_waves"; }
     if(i == 11) { return "vr_arena_gun_max"; }
+    if(i == 12) { return "vr_arena_wave_size"; }
+    if(i == 13) { return "vr_arena_alive_max"; }
+    if(i == 14) { return "vr_arena_alive_grow"; }
+    if(i == 15) { return "vr_arena_burst"; }
+    if(i == 16) { return "vr_arena_spawn_gap"; }
     return "";
 }
-float VR_AT_NCVARS = 12;
+float VR_AT_NCVARS = 17;
 
 void() VR_AT_Save =
 {
@@ -92,6 +97,11 @@ void() VR_AT_SetDefaults =
     cvar_set("vr_arena_corpse_max", "12");
     cvar_set("vr_arena_item_waves", "2");
     cvar_set("vr_arena_gun_max", "24");
+    cvar_set("vr_arena_wave_size", "1"); // (the ladder's own counts: tests 1 to 5 check them; 6 and 9 the default 1.75)
+    cvar_set("vr_arena_alive_max", "6");
+    cvar_set("vr_arena_alive_grow", "4");
+    cvar_set("vr_arena_burst", "3");
+    cvar_set("vr_arena_spawn_gap", "1.5");
     VR_AT_SetSkill(1); // (Normal, where the skill's factor is exactly 1: every family's own numbers mean the cvars)
 }
 
@@ -563,7 +573,10 @@ void() VR_AT3_Frame =
         if(ar_wave < 5) { return; }
 
         VR_AT_Check(ar_wave == 5, "the arena jumped to its boss wave");
-        VR_AT_Check(ar_plan_boss[0] == 1 && ar_plan_kind[0] == AR_SP_ENFORCER, "wave 5's plan leads with its boss");
+        float ib = 0;
+        while(ib < ar_plan_n && !ar_plan_boss[ib]) { ib = ib + 1; }
+        VR_AT_Check(ib < ar_plan_n && ar_plan_kind[ib] == AR_SP_ENFORCER, "wave 5's plan has its boss, an enforcer");
+        VR_AT_Check(ib >= min(VR_ARENA_Opt_Burst(), ar_plan_n - 1), "wave 5's boss comes in after the opening burst");
         VR_AT_Check(VR_AT_BossCount() == 1, "a boss wave has one boss");
 
         entity boss = world;
@@ -1213,7 +1226,7 @@ void() VR_AT5_Scaling =
     VR_AT_SetSkill(3);
     VR_AT_Check(VR_ARENA_FieldCap() == 1, "vr_arena_max_alive 0 plays by its clamp (one foe up at once)");
     cvar_set("vr_arena_max_alive", "99");
-    VR_AT_Check(VR_ARENA_FieldCap() == AR_PLAN_MAX, "vr_arena_max_alive 99 plays by its clamp (the plan's cap)");
+    VR_AT_Check(VR_ARENA_FieldCap() == AR_FIELD_MAX, "vr_arena_max_alive 99 plays by its clamp (AR_FIELD_MAX)");
     cvar_set("vr_arena_max_alive", "8");
     VR_AT_SetSkill(1);
 
@@ -1230,15 +1243,15 @@ void() VR_AT5_Scaling =
     VR_AT_SetSkill(1);
 
     // The arena's own beats: vr_arena_wave_delay and the gap its foes come in at, shorter the harder the skill.
-    VR_AT_SetSkill(0); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 8 && VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) == 2,
+    VR_AT_SetSkill(0); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 8 && VR_ARENA_SkillTime(VR_ARENA_Opt_Gap(), AR_TICK) == 2,
                                    "at Easy the arena waits longer between waves and between its foes");
-    VR_AT_SetSkill(1); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 6 && VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) == 1.5,
+    VR_AT_SetSkill(1); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 6 && VR_ARENA_SkillTime(VR_ARENA_Opt_Gap(), AR_TICK) == 1.5,
                                    "at Normal the beats are the knobs themselves");
-    VR_AT_SetSkill(2); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 4.8 && VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) == 1.2,
+    VR_AT_SetSkill(2); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 4.8 && VR_ARENA_SkillTime(VR_ARENA_Opt_Gap(), AR_TICK) == 1.2,
                                    "at Hard they are shorter");
-    VR_AT_SetSkill(3); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 4 && VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) == 1,
+    VR_AT_SetSkill(3); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 4 && VR_ARENA_SkillTime(VR_ARENA_Opt_Gap(), AR_TICK) == 1,
                                    "at Nightmare shortest");
-    VR_AT_Check(VR_ARENA_SkillTime(AR_SPAWN_GAP, AR_TICK) >= AR_TICK, "a wave's foes never come in faster than its beat");
+    VR_AT_Check(VR_ARENA_SkillTime(VR_ARENA_Opt_Gap(), AR_TICK) >= AR_TICK, "a wave's foes never come in faster than its beat");
     cvar_set("vr_arena_skill_impact", "4");
     VR_AT_SetSkill(0);
     VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 6, "a factor of 0 leaves the beats as the knobs set them");
@@ -1398,6 +1411,7 @@ void() VR_AT6_Begin =
 {
     vr_at6_delay = cvar("vr_arena_wave_delay");
     cvar_set("vr_arena_wave_delay", "1");
+    cvar_set("vr_arena_wave_size", "1.75"); // (the default's bigger waves: the soak is bounded with them)
     vr_at6_wave = ar_wave;
     vr_at6_e0 = 0;
     vr_at6_peak = 0;
@@ -1676,6 +1690,121 @@ void() VR_AT8_Frame =
 // world.qc's test beat (StartFrame, under QVR_TESTS)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Test 9: the wave flow (vrarena) -- the alive pool, the opening burst, the gaps, a wave's total, its end
+// ---------------------------------------------------------------------------
+// The live director at the default wave size (1.75) through waves 1, 5 (a boss wave), 10 and 20 at Normal. The test
+// fells one foe every AR_T9_KILL s (slower than the trickle, so the pool fills up). Every wave has to end with its
+// whole plan put in the field and felled, never more of it up at once than its pool, and every trickle gap within
+// vr_arena_spawn_gap's range (at Normal 1.5 to 3 s). It prints the waves' table (total, pool) first.
+
+float AR_T9_KILL  = 4;    // s between the test's kills
+float AR_T9_EPS   = 0.05; // s a gap may run past its range (a frame or so)
+float AR_T9_WAVES = 4;    // waves watched (VR_AT9_Wave)
+float vr_at9_target;      // the wave being watched
+float vr_at9_peak;        // the most of it up at once, as the test counted it
+float vr_at9_kill;        // the time of the test's next kill
+float vr_at9_n;           // waves checked so far
+
+float(float i) VR_AT9_Wave =
+{
+    if(i == 0) { return 1; }
+    if(i == 1) { return 5; }
+    if(i == 2) { return 10; }
+    return 20;
+}
+
+// The next wave watched: the arena jumps to it (VR_ARENA_FastForward clears the field and plans it afresh).
+void() VR_AT9_Next =
+{
+    vr_at9_target = VR_AT9_Wave(vr_at9_n);
+    VR_ARENA_FastForward(vr_at9_target);
+    vr_at9_peak = 0;
+    vr_at9_kill = time + AR_T9_KILL;
+    vr_at_until = time + 200;
+}
+
+void() VR_AT9_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 9 needs the arena (vrarena, or vr_arena 1)"); VR_AT_End(); return; }
+
+    // The table at Normal, off the plans alone: the default size's waves are bigger than the ladder's own counts.
+    float i;
+    for(i = 0; i < AR_T9_WAVES; i++)
+    {
+        float w = VR_AT9_Wave(i);
+        cvar_set("vr_arena_wave_size", "1");
+        VR_ARENA_Plan(w);
+        float n1 = ar_plan_n;
+        cvar_set("vr_arena_wave_size", "1.75");
+        VR_ARENA_Plan(w);
+        dprint(sprintf("arena: t9 table wave %g total %g (size 1: %g) pool %g\n", w, ar_plan_n, n1, VR_ARENA_Pool(w)));
+        VR_AT_Check(ar_plan_n > n1, sprintf("wave %g is bigger at wave size 1.75 than at 1", w));
+    }
+
+    // The pool: 6 at wave 1, one more every 4 waves, never past the field's cap (8 at Normal); the difficulty's share.
+    VR_AT_Check(VR_ARENA_Pool(1) == 6 && VR_ARENA_Pool(5) == 7 && VR_ARENA_Pool(9) == 8 && VR_ARENA_Pool(20) == 8,
+                "the pool grows 6, 7, 8 and stops at the field's cap");
+    cvar_set("vr_arena_alive_grow", "0");
+    VR_AT_Check(VR_ARENA_Pool(20) == 6, "vr_arena_alive_grow 0: the pool never grows");
+    cvar_set("vr_arena_alive_grow", "4");
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARENA_Pool(1) == 4, "the pool at Easy is the difficulty's share of it (6 is 4)");
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_ARENA_Pool(1) == 9, "the pool at Nightmare is the difficulty's share of it (6 is 9)");
+    VR_ARENA_Plan(40);
+    dprint(sprintf("arena: t9 wave 40 at Nightmare plans %g\n", ar_plan_n));
+    VR_AT_Check(ar_plan_n < AR_PLAN_MAX, "a Nightmare wave 40 is planned whole, under the plan's cap");
+    VR_AT_SetSkill(1);
+
+    vr_at9_n = 0;
+    VR_AT9_Next();
+    dprint("arena: test 9 the wave flow\n");
+}
+
+void() VR_AT9_Frame =
+{
+    if(ar_wave != vr_at9_target) { return; } // (its jump: the wave has not begun yet)
+
+    float up = VR_ARENA_CountAlive();
+    if(up > vr_at9_peak) { vr_at9_peak = up; }
+
+    if(ar_mgr.think == VR_ARENA_WaveStart) // (the wave is over: its clear ran, the next one waits for its rest)
+    {
+        float w = ar_wave;
+        float lo = VR_ARENA_SkillTime(VR_ARENA_Opt_Gap(), AR_TICK);
+        dprint(sprintf("arena: t9 wave %g total %g spawned %g felled %g pool %g peak %g gaps %g\n", w, ar_plan_n,
+                       ar_plan_live, ar_wave_kills, ar_pool, ar_wave_peak, ar_gap_n));
+        dprint(sprintf("arena: t9 wave %g gap range %g..%g s (allowed %g..%g), took %g s\n", w, ar_gap_lo, ar_gap_hi,
+                       lo, 2 * lo, time - ar_wave_at));
+        VR_AT_Check(ar_plan_left == 0 && ar_plan_live == ar_plan_n, sprintf("wave %g put its whole plan in the field", w));
+        VR_AT_Check(ar_wave_kills == ar_plan_n, sprintf("wave %g ended with every one of its foes felled", w));
+        VR_AT_Check(ar_wave_peak <= ar_pool && vr_at9_peak <= ar_pool, sprintf("wave %g never had more up than its pool", w));
+        VR_AT_Check(ar_wave_peak >= min(ar_pool, ar_plan_n) - 1, sprintf("wave %g filled its pool (or nearly)", w));
+        VR_AT_Check(time - ar_wave_at < AR_STALL, sprintf("wave %g ended, not stalled", w));
+        if(ar_plan_n > VR_ARENA_Opt_Burst())
+        {
+            VR_AT_Check(ar_gap_n >= 1, sprintf("wave %g trickled in after its burst", w));
+        }
+        if(ar_gap_n > 0)
+        {
+            VR_AT_Check(ar_gap_lo >= lo - AR_T9_EPS && ar_gap_hi <= 2 * lo + AR_T9_EPS,
+                        sprintf("wave %g's gaps are within vr_arena_spawn_gap's range", w));
+        }
+
+        vr_at9_n = vr_at9_n + 1;
+        if(vr_at9_n >= AR_T9_WAVES) { VR_AT_End(); return; }
+        VR_AT9_Next();
+        return;
+    }
+
+    if(time >= vr_at9_kill && up > 0)
+    {
+        VR_AT_KillOne(ar_wave);
+        vr_at9_kill = time + AR_T9_KILL;
+    }
+}
+
 void() VR_ARENA_Test_Frame =
 {
     float c = cvar("vr_arena_test");
@@ -1712,6 +1841,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 6) { VR_AT6_Begin(); return; }
         if(c == 7) { VR_AT7_Begin(); return; }
         if(c == 8) { VR_AT8_Begin(); return; }
+        if(c == 9) { VR_AT9_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -1734,5 +1864,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 6) { VR_AT6_Frame(); return; }
     if(vr_at_case == 7) { VR_AT7_Frame(); return; }
     if(vr_at_case == 8) { VR_AT8_Frame(); return; }
+    if(vr_at_case == 9) { VR_AT9_Frame(); return; }
 }
 #endif

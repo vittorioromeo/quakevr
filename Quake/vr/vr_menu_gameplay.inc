@@ -1458,11 +1458,28 @@ void ikStretchReset()
         slider("Rest Between Waves", vr_arena_wave_delay, 1.f, 60.f, 0.5f, "%.1f s")
             .help("From a wave cleared to the next wave: this many seconds at Normal (by Difficulty Impact 6 is 8 at "
                    "Easy, 4.8 at Hard, 4 at Nightmare) (vr_arena_wave_delay)."),
-        slider("Foes Up At Once", vr_arena_max_alive, 1.f, 12.f, 1.f, "%.0f")
-            .help("How many of a wave's foes may be up at once, at Normal -- the difficulty takes its share of this (8 is "
-                   "6 at Easy, 10 at Hard, 12 at Nightmare), and never more than the wave plans. The rest of a thick wave "
-                   "trickles in as places free up: one per beat, 1.5 s apart at Normal (2 / 1.5 / 1.2 / 1 by the "
-                   "difficulty) (vr_arena_max_alive)."),
+        slider("Wave Size", vr_arena_wave_size, 0.25f, 4.f, 0.25f, "%.2fx")
+            .help("A wave's crowds (its grunts, enforcers and the like) times this; its one signature foe and its boss "
+                   "stay one. 1 is the ladder's own counts, 1.75 (the default) a wave 3 of 5 foes, a wave 20 of 13. "
+                   "The difficulty then takes its share as it does of every count (vr_arena_wave_size)."),
+        slider("Alive Pool", vr_arena_alive_max, 1.f, 16.f, 1.f, "%.0f")
+            .help("How many of a wave's foes are up at once, at its start and at Normal: the rest come in one by one as "
+                   "these fall. The difficulty takes its share (6 is 4 at Easy, 7 at Hard, 9 at Nightmare), and it "
+                   "never passes Foes Up At Once (vr_arena_alive_max)."),
+        slider("Pool Grows Every", vr_arena_alive_grow, 0.f, 20.f, 1.f, "%.0f waves")
+            .help("The alive pool takes one more foe every this many waves (4: 6 at wave 1, 7 at 5, 8 at 9 ...), up to "
+                   "Foes Up At Once; 0: it never grows (vr_arena_alive_grow)."),
+        slider("Opening Burst", vr_arena_burst, 1.f, 16.f, 1.f, "%.0f")
+            .help("A wave opens with this many foes at once (never more than its pool); the rest trickle in "
+                   "(vr_arena_burst)."),
+        slider("Spawn Gap", vr_arena_spawn_gap, 0.5f, 10.f, 0.25f, "%.2f s")
+            .help("Once a foe falls, the next one comes in this long after, up to twice as long at random (1.5: 1.5 to 3 "
+                   "s), at Normal: the harder the difficulty, the shorter (2 / 1.5 / 1.2 / 1). A wave's boss comes in "
+                   "halfway through it, 3 s after its warning, instead (vr_arena_spawn_gap)."),
+        slider("Foes Up At Once", vr_arena_max_alive, 1.f, 16.f, 1.f, "%.0f")
+            .help("The ceiling on a wave's alive pool, at Normal -- the difficulty takes its share of this (8 is 6 at "
+                   "Easy, 10 at Hard, 12 at Nightmare; 16 at most). New foes come in out of your sight and not right "
+                   "next to you when the map has such a place (vr_arena_max_alive)."),
         header("Boss Waves"),
         slider("Boss Every", vr_arena_boss_every, 0.f, 20.f, 1.f, "%.0f")
             .help("A wave with a marked big one in it every this many waves (0: none) -- an enforcer boss early, an ogre "

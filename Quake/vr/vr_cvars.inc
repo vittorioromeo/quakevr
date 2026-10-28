@@ -3041,7 +3041,12 @@ QVR_CVAR(vr_agrunt_test_kind, "0", CVAR_NONE)                  // the armed mons
 // Survival Arena (QC/vr_arena.qc): the wave director's knobs.
 QVR_CVAR(vr_arena, "0", CVAR_NONE)                             // 1: its waves run in this map too (the map "vrarena" runs them on its own)
 QVR_CVAR(vr_arena_wave_delay, "6", CVAR_ARCHIVE)              // s from a wave clear to the next wave
-QVR_CVAR(vr_arena_max_alive, "8", CVAR_ARCHIVE)               // foes up at once at most; the rest of a thick wave trickles in as they free up
+QVR_CVAR(vr_arena_max_alive, "8", CVAR_ARCHIVE)               // the ceiling on a wave's alive pool (foes up at once), by the difficulty
+QVR_CVAR(vr_arena_wave_size, "1.75", CVAR_ARCHIVE)            // a wave's crowd groups times this (1: the ladder's own counts)
+QVR_CVAR(vr_arena_alive_max, "6", CVAR_ARCHIVE)               // a wave's alive pool at wave 1: foes up at once; the rest come in as these fall
+QVR_CVAR(vr_arena_alive_grow, "4", CVAR_ARCHIVE)              // the pool takes one more foe every this many waves (0: never), up to vr_arena_max_alive
+QVR_CVAR(vr_arena_burst, "3", CVAR_ARCHIVE)                   // a wave opens with this many foes at once, then they trickle in
+QVR_CVAR(vr_arena_spawn_gap, "1.5", CVAR_ARCHIVE)             // s from a foe's fall (a free slot) to the next one, up to twice this at random, by the difficulty
 QVR_CVAR(vr_arena_boss_every, "5", CVAR_ARCHIVE)              // a boss wave every this many waves (0: none)
 QVR_CVAR(vr_arena_boss_health, "1.25", CVAR_ARCHIVE)          // a boss's health times this
 QVR_CVAR(vr_arena_medkits_after, "2", CVAR_ARCHIVE)           // medkits a wave clear drops (0: none)
