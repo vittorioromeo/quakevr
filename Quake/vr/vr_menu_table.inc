@@ -96,6 +96,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageArmedGrips();
 [[nodiscard]] za::Vector<Item> pageArmedHolds();
 [[nodiscard]] za::Vector<Item> pageArmedStretch();
+[[nodiscard]] za::Vector<Item> pageArmedAI();
 [[nodiscard]] za::Vector<Item> pageKnockdowns();
 [[nodiscard]] za::Vector<Item> pageKdTriggers();
 [[nodiscard]] za::Vector<Item> pageKdTrigLedge();
@@ -434,6 +435,7 @@ inline constexpr Page pages[] = {
     {"Armed Humanoid Replacements", pageArmedRepl, pageArmedGrunts}, // (vr_menu_gameplay.inc; QC vr_armedrepl.qc)
     {"Armed Grunts - Weapon Holds", pageArmedHolds, pageArmedGrunts}, // (vr_menu_gameplay.inc; vr_agholds.inc)
     {"Armed Grunts - IK Stretch", pageArmedStretch, pageArmedGrunts}, // (vr_menu_gameplay.inc; agpose::stretch)
+    {"Armed Grunts - AI Behaviour", pageArmedAI, pageArmedGrunts}, // (vr_menu_gameplay.inc; QC vr_armedgrunt_ai.qc)
     {"Graphics Presets", pageGraphicsPresets, pageMain, LevelStandard}, // (vr_menu_pages.inc; vr_gfxpresets.cpp)
     {"Graphics - Shoreline Foam", pageGraphicsFoam, pageGraphicsLiquids}, // (vr_menu_pages.inc; vr_water.cpp foamLook)
     {"Death Sergeant's Flail", pageFlail, pageMeleeSettings}, // AD support (vr_menu_ad_guns.inc; vr_box3d_flail.cpp)

@@ -3745,6 +3745,16 @@ QVR_CVAR(vr_rigstudio_zoom_speed, "0.12", CVAR_ARCHIVE) // the wheel's zoom a st
 QVR_CVAR(vr_rigstudio_handle_size, "90", CVAR_ARCHIVE) // pixels: the transform handles' size
 QVR_CVAR(vr_rigstudio_theme, "0", CVAR_ARCHIVE)       // the studio's colours: 0 dark, 1 light, 2 classic
 QVR_CVAR(vr_agrunt_taunt, "0", CVAR_ARCHIVE)          // 1: an armed grunt seeing you for the first time plays its taunt (the Rig Studio sequence quakevr/anims/vrgrunt/taunt.anim.txt) before it comes for you; 0 off
+// Armed humanoids' AI (Combat > Armed Grunts > AI Behaviour; QC vr_armedgrunt_ai.qc; ROUND22.md, "Armed humanoids' AI
+// behaviour"): each 1 is today's behaviour at Normal skill; the skill's factor (vr_agrunt_ai_skill) on top.
+QVR_CVAR(vr_agrunt_ai_skill, "1", CVAR_ARCHIVE)       // Difficulty Impact: how much the skill level moves the knobs below (Easy weaker, Hard and Nightmare stronger); 0 skill changes none of them, Normal always as set
+QVR_CVAR(vr_agrunt_ai_aggression, "1", CVAR_ARCHIVE)  // Aggressiveness: their chance to attack when they can (times this) and their fighting distances (nearer as it rises: 2 / (1 + this)); 1 as before
+QVR_CVAR(vr_agrunt_ai_accuracy, "1", CVAR_ARCHIVE)    // Accuracy: their aim error and their guns' spread divided by this (2: half); 1 as before
+QVR_CVAR(vr_agrunt_ai_reaction, "1", CVAR_ARCHIVE)    // Reaction Time: seconds from first seeing you to their first attack (id's 1); Nightmare's none by Difficulty Impact
+QVR_CVAR(vr_agrunt_ai_retreat, "1", CVAR_ARCHIVE)     // Retreat Readiness: the distance a gun's holder backs off from (times this) and the health share it turns wary below (0.35 times this); 0 never backs off
+QVR_CVAR(vr_agrunt_ai_firerate, "1", CVAR_ARCHIVE)    // Fire Rate: their pause between attacks divided by this; 1 as before
+QVR_CVAR(vr_agrunt_rearm_punch, "0", CVAR_ARCHIVE)    // units: an unarmed one with you this near fights with its fists rather than going for a weapon lying further than 64 from it; 0 off (as before)
+QVR_CVAR(vr_agrunt_strafe_lean, "5", CVAR_ARCHIVE)    // degrees: armed humanoids moving sideways tip their pelvis and legs this far toward the way they go (at 80 u/s; scaled by speed, eased), the upper body held aimed; 0 none
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
 QVR_CVAR(vr_ragdoll_self_collide, "1", CVAR_ARCHIVE)  // a ragdoll's own parts meet each other (an arm stays out of the chest, a leg out of the other), all but jointed neighbours, a loose piece (his gun), parts deep in each other (until apart) and an arm reaching for a wound, a stump or a wall; 0 they pass through each other, as before (a ragdoll made from now on)
 QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand (an old config's 2: the same)

@@ -75,7 +75,17 @@ struct Placed
 };
 bool placed(int ent, Placed& out);
 
-void registerCommands(); // vr_aglegs_info
+// The strafe lean (vr_agrunt_strafe_lean; ROUND22.md, "Armed humanoids' strafe lean"): `e` moving sideways (its drawn
+// place, `origin` and `yawDeg`, across its facing; eased) tips its pelvis and legs toward the way it goes, about the
+// floor under its middle; `hold` eases it out (a take's kneel). relinkSkinned lays it on every bone after the legs and
+// before the upper body's hold (which keeps the chest aimed on the leaned hips). Out: the turn (model space); false:
+// none now. leanNow: the same this frame (boneTurns); leanMeasured: its pelvis's roll by it and its chest's as solved
+// (vr_agrunt_lean_info).
+bool lean(const entity_t* e, const ragdoll::Rig& rig, const glm::vec3& origin, float yawDeg, bool hold, rigpose::Rigid& out);
+bool leanNow(const entity_t* e, rigpose::Rigid& out);
+void leanMeasured(const entity_t* e, float pelvisRoll, float chestRoll);
+
+void registerCommands(); // vr_aglegs_info, vr_agrunt_lean_info
 void resetModels();      // the models' legs and the entities' forgotten (vr_rig2's latch: the grunt's rig another)
 
 // The Pose Studio's Live tape (vr_poselive.hpp): `ent`'s state here (its eases, its last frame's) as bytes, its length

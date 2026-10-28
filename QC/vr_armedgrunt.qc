@@ -293,13 +293,15 @@ float(entity g) VR_AG_Ranges =
         wary = wary * vr_am_range_threat;
     }
     g.vr_ag_hp0 = max(g.vr_ag_hp0, g.health);
-    if(g.health < 0.35 * g.vr_ag_hp0)
+    float retreat = VR_AGAI_Retreat(); // (vr_agrunt_ai_retreat: its least and its wariness; vr_armedgrunt_ai.qc)
+    float press = VR_AGAI_Press();     // (vr_agrunt_ai_aggression: its best and most nearer)
+    if(g.health < min(0.9, 0.35 * retreat) * g.vr_ag_hp0)
     {
         wary = wary * 1.2; // (badly hurt: warier)
     }
-    vr_ag_rmin = max(vr_ag_rmin * wary, VR_AG_MinRange(g.vr_ag_wid) + 10);
-    vr_ag_rpref = max(vr_ag_rpref * wary, vr_ag_rmin + 40);
-    vr_ag_rmax = max(vr_ag_rmax * s, vr_ag_rpref + 80);
+    vr_ag_rmin = max(vr_ag_rmin * wary * retreat, VR_AG_MinRange(g.vr_ag_wid) + 10);
+    vr_ag_rpref = max(vr_ag_rpref * wary * press, vr_ag_rmin + 40);
+    vr_ag_rmax = max(vr_ag_rmax * s * press, vr_ag_rpref + 80);
     return TRUE;
 };
 
@@ -1403,7 +1405,7 @@ vector() VR_AG_AimPoint =
 vector(vector from) VR_AG_AimDir =
 {
     vector dir = normalize(VR_AG_AimPoint() - from);
-    float err = cvar_hget(cvarh_vr_agrunt_aim_error) * (1 + vr_ag_aim_mult);
+    float err = cvar_hget(cvarh_vr_agrunt_aim_error) * (1 + vr_ag_aim_mult) / VR_AGAI_Accuracy(); // (vr_agrunt_ai_accuracy)
     if(err > 0)
     {
         vector a = VR_AG_Angles(dir);
@@ -1804,6 +1806,7 @@ void(entity p) VR_AG_ShootProp =
     float rounds = 1;
     self.button0 = 1; // (its trigger held: the laser cannon fires only so)
     vr_fire_spread_extra = pen * (1 / max(0.05, cvar_hget(cvarh_vr_2h_spread_reduction)) - 1); // (FireBullets: x2 at 1)
+    vr_fire_spread_extra = VR_AGAI_SpreadExtra(vr_fire_spread_extra); // (vr_agrunt_ai_accuracy)
     if(wid == WID_SHOTGUN)              { W_FireShotgun(h); }
     else if(wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst)) { AD_FireWidowmaker(h); } // (AD's upgrades: vr_ad_bridge.qc)
     else if(wid == WID_LIGHTNING && AD_PlasmaGun(h, p.weaponflags)) { AD_FirePlasma(h); }
@@ -2319,6 +2322,13 @@ float(entity g) VR_AG_Taking =
 entity() VR_AG_FindWeapon =
 {
     float range = cvar_hget(cvarh_vr_agrunt_rearm_range);
+    // (vr_agrunt_rearm_punch: unarmed with its target this near, it punches rather than going further than 64 for one)
+    float punch = cvar_hget(cvarh_vr_agrunt_rearm_punch);
+    if(punch > 0 && !self.vr_ag_prop && self.enemy && self.enemy.health > 0 &&
+       vlen(VR_AI_Origin(self.enemy) - self.origin) < punch)
+    {
+        range = min(range, 64);
+    }
     entity best = world;
     float bestDist = range + 1;
     entity e = findradius(self.origin, range);
@@ -2548,7 +2558,7 @@ float() VR_AG_CheckAttack =
                 return FALSE; // (a friend between: no swing through it)
             }
             self.th_melee();
-            SUB_AttackFinished(0.6 + random() * 0.4);
+            VR_AGAI_AttackFinished(0.6 + random() * 0.4); // (vr_agrunt_ai_firerate)
             return TRUE;
         }
         return FALSE;
@@ -2604,6 +2614,7 @@ float() VR_AG_CheckAttack =
         // retreat never fires: above). You with a blade or charging: rarer still.
         chance = chance * (vr_ag_rthreat ? 0.3 : 0.5);
     }
+    chance = chance * VR_AGAI_Aggression(); // (vr_agrunt_ai_aggression)
     if(random() < chance)
     {
         self.th_missile();
@@ -2613,7 +2624,7 @@ float() VR_AG_CheckAttack =
         }
         else
         {
-            SUB_AttackFinished(1 + random());
+            VR_AGAI_AttackFinished(1 + random()); // (vr_agrunt_ai_firerate)
         }
         if(!(native && self.vr_ag_kind == VR_AM_ENFORCER) && random() < 0.3) // (the enforcer's CheckAttack: never)
         {

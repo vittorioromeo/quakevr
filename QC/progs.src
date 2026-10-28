@@ -500,6 +500,7 @@ vr_propimpact_test.qc
 // Armed grunts (after every weapon they fire and the grunt's own frames) and their test (vr_agrunt_test).
 vr_rigseq.qc
 vr_armedmon.qc
+vr_armedgrunt_ai.qc
 vr_armedgrunt.qc
 vr_armedgrunt_pose.qc
 vr_armedgrunt_play.qc
@@ -519,6 +520,7 @@ vr_armedgrunt_grab_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_range_test.qc
 vr_armedgrunt_expose_test.qc
+vr_armedgrunt_ai_test.qc
 vr_armedgrunt_ammo_test.qc
 vr_armedrepl_test.qc
 vr_rigseq_test.qc

@@ -13,6 +13,7 @@
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
@@ -109,11 +110,40 @@ struct Stats
     int wildVert{-1};
 };
 
+// The strafe lean (vr_agrunt_strafe_lean) of one armed humanoid: its sideways speed (eased) and its lean.
+constexpr float leanSpeed = 80.f;  // u/s: the full lean at this sideways speed (a strafe round you: 60-70)
+constexpr float leanEase = 0.15f;  // seconds the sideways speed is eased over (a monster's 0.1 s steps)
+constexpr float leanSettle = 0.12f; // seconds the lean follows its target over (in and out: a take, a stop)
+constexpr float leanJump = 64.f;   // units a frame: more is a teleport (no speed from it)
+constexpr int leanBins = 5;        // the measure's bins: |sideways speed| by 20 u/s (the last 80 and more)
+
+struct Lean
+{
+    int ent{0};
+    int frame{-1}; // host_framecount laid on
+    double time{0.0};
+    glm::vec3 last{0.f}; // its drawn place then (world)
+    bool have{false};
+    float lat{0.f};      // its sideways speed (u/s, + to its left), eased
+    float deg{0.f};      // its lean now (degrees, + to its left)
+    rigpose::Rigid turn; // the turn laid on its bones (model space)
+};
+
+struct LeanStats
+{
+    int n[leanBins]{};
+    float lean[leanBins]{};   // the sums of |lean| (degrees),
+    float pelvis[leanBins]{}; // ... of |its pelvis's roll by it| (as solved),
+    float chest[leanBins]{};  // ... of |its chest's roll| (as solved: the upper body's hold)
+};
+
 struct State
 {
     Model models[maxModels];
     Ent ents[maxEnts];
     Stats stats[agpose::numKinds];
+    Lean leans[maxEnts];
+    LeanStats leanStats;
 };
 State state;
 
@@ -862,6 +892,112 @@ void resetModels()
     state = State{};
 }
 
+bool lean(const entity_t* e, const ragdoll::Rig& rig, const glm::vec3& origin, float yawDeg, bool hold, rigpose::Rigid& out)
+{
+    out = rigpose::Rigid{};
+    const int num = numberOf(e);
+    if(num <= 0)
+    {
+        return false;
+    }
+    Lean* free = nullptr;
+    Lean* st = nullptr;
+    for(Lean& l : state.leans)
+    {
+        if(l.ent == num)
+        {
+            st = &l;
+            break;
+        }
+        if(!free && (l.ent == 0 || l.frame < host_framecount - 600))
+        {
+            free = &l;
+        }
+    }
+    const float most = za::max(vr_agrunt_strafe_lean.value, 0.f);
+    if(!st)
+    {
+        if(most <= 0.f || !free)
+        {
+            return false;
+        }
+        *free = Lean{};
+        free->ent = num;
+        st = free;
+    }
+    if(st->frame == host_framecount)
+    {
+        out = st->turn;
+        return st->deg != 0.f;
+    }
+    const float dt = st->have ? static_cast<float>(za::clamp(cl.time - st->time, 0.0, 0.25)) : 0.f;
+    if(dt > 0.f)
+    {
+        const glm::vec3 d = origin - st->last;
+        if(glm::length(d) < leanJump)
+        {
+            // (its motion across its facing: + to its left)
+            const float yaw = yawDeg * d2r;
+            const float side = (-za::sin(yaw) * d.x + za::cos(yaw) * d.y) / dt;
+            st->lat += (side - st->lat) * (1.f - za::exp(-dt / leanEase));
+        }
+    }
+    st->have = true;
+    st->last = origin;
+    st->time = cl.time;
+    st->frame = host_framecount;
+    const float want = hold || vr_agrunt_freeze.value != 0.f ? 0.f : most * za::clamp(st->lat / leanSpeed, -1.f, 1.f);
+    st->deg = dt > 0.f ? st->deg + (want - st->deg) * (1.f - za::exp(-dt / leanSettle)) : st->deg;
+    if(za::abs(st->deg) < 0.01f && want == 0.f)
+    {
+        st->deg = 0.f;
+    }
+    // About the floor under its middle (its rest's lowest point): the top toward its left for a lean to its left.
+    float floorZ = 1e9f;
+    for(int b = 0; b < rig.numBones; b++)
+    {
+        floorZ = za::min(floorZ, za::min(rig.bones[b].pivot.z, rig.bones[b].end.z));
+    }
+    const glm::vec3 pivot{0.f, 0.f, floorZ < 1e8f ? floorZ : 0.f};
+    st->turn.rot = glm::angleAxis(-st->deg * d2r, glm::vec3{1.f, 0.f, 0.f});
+    st->turn.pos = pivot - st->turn.rot * pivot;
+    out = st->turn;
+    return st->deg != 0.f;
+}
+
+bool leanNow(const entity_t* e, rigpose::Rigid& out)
+{
+    const int num = numberOf(e);
+    for(const Lean& l : state.leans)
+    {
+        if(num > 0 && l.ent == num && l.frame == host_framecount && l.deg != 0.f)
+        {
+            out = l.turn;
+            return true;
+        }
+    }
+    out = rigpose::Rigid{};
+    return false;
+}
+
+void leanMeasured(const entity_t* e, float pelvisRoll, float chestRoll)
+{
+    const int num = numberOf(e);
+    for(const Lean& l : state.leans)
+    {
+        if(num > 0 && l.ent == num && l.frame == host_framecount)
+        {
+            const int bin = za::clamp(static_cast<int>(za::abs(l.lat) / 20.f), 0, leanBins - 1);
+            LeanStats& s = state.leanStats;
+            s.n[bin]++;
+            s.lean[bin] += za::abs(l.deg);
+            s.pelvis[bin] += za::abs(pelvisRoll);
+            s.chest[bin] += za::abs(chestRoll);
+            return;
+        }
+    }
+}
+
 } // namespace qvr::aglegs
 
 namespace
@@ -946,9 +1082,39 @@ void info_f()
     }
 }
 
+// vr_agrunt_lean_info [clear]: the strafe lean (vr_agrunt_strafe_lean) by sideways speed since the last clear: its
+// frames, their mean lean, its pelvis's roll by it and its chest's roll as solved (the upper body held aimed); then
+// each armed humanoid's now.
+void leanInfo_f()
+{
+    if(Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "clear") == 0)
+    {
+        state.leanStats = LeanStats{};
+        Con_Printf("vr_agrunt_lean_info: cleared\n");
+        return;
+    }
+    const LeanStats& s = state.leanStats;
+    for(int b = 0; b < leanBins; b++)
+    {
+        const float n = static_cast<float>(za::max(s.n[b], 1));
+        Con_Printf("aglean: sideways %d-%s u/s: %d frames, lean %.2f deg, pelvis roll %.2f deg, chest roll %.2f deg\n",
+            b * 20, b == leanBins - 1 ? "up" : va("%d", b * 20 + 20), s.n[b], static_cast<double>(s.lean[b] / n),
+            static_cast<double>(s.pelvis[b] / n), static_cast<double>(s.chest[b] / n));
+    }
+    for(const Lean& l : state.leans)
+    {
+        if(l.ent > 0 && l.frame >= host_framecount - 2)
+        {
+            Con_Printf("aglean: ent %d: sideways %.1f u/s, lean %.2f deg\n", l.ent, static_cast<double>(l.lat),
+                static_cast<double>(l.deg));
+        }
+    }
+}
+
 } // namespace
 
 void qvr::aglegs::registerCommands()
 {
     Cmd_AddCommand("vr_aglegs_info", info_f);
+    Cmd_AddCommand("vr_agrunt_lean_info", leanInfo_f);
 }
