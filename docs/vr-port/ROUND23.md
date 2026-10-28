@@ -789,3 +789,84 @@ skill roll's rule), so yellow and red come in gradually.
 *Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: armoured foes from wave 4 (Normal; 7 Easy, 2 Hard and
 Nightmare), more of them, more plates and heavier kinds as the waves go; the enforcer boss in a kind above; armoured
 kills pay more; Can Opener perk (Combat > Survival Arena > Armour) {test:vr_arena_test 10}`
+
+## Survival Arena: what its waves leave behind (the loot gate, and the run's exception)
+
+**The question.** Later waves send humanoids with stronger guns, but an arena map has no authored weapon pickups, so a
+run can never make the player "eligible" for those guns -- make sure the strong ones still come, and if nothing was in
+place, choose between an "in arena mode" check and making the player eligible for everything on arena load.
+
+**What was already in place.** The waves' spawn side never asks that question. `VR_ARENA_PickGun`/`VR_ARENA_PickTierGun`
+choose from the ladder (tier 2 from `AR_W_TIER2` = 10, tier 3 from `AR_W_TIER3` = 18), `VR_ARENA_SpawnMonster` hands the
+gun to the spawner as its `weapon`, and `vr_arena.qc` never mentions eligibility, `VR_Pack_WeaponAvailable` or item
+ownership anywhere. Nor does the armed-monster side: `VR_AM_Spawn` reads the spawner's fields, `VR_AG_Usable` only asks
+whether this pack has the gun and which class can hold it. So a wave-18 rocket launcher was already in the field over an
+unarmed player's head, and an armed humanoid's own death (`VR_AG_SoldierDrop` -- its held guns, its main gun, its
+backpack) was never eligibility-filtered either. Test 11's live leg says so in the open: wave 20 at Normal plans 4
+humanoids, 2 of them with a tier-2 gun; 5 were up, all 5 holding a gun, 2 of 2 strong guns worn, the player holding
+none of the six ids the test measures.
+
+**Where the gate did bite.** `VR_WeaponUtil_EntIsEligibleForWeapon` -- TRUE for the fist, the axe and the shotgun, and
+otherwise "this player holds it" -- is asked in three places: the monsters' drop helpers (`VR_WeaponUtil_TryEnemyDrop`
+and `TryAmmoBoxDrop`, both reached through `ShouldDropEnemyWpn` from the monsters' own death code) and `vr_crates.qc`
+(which ammo a crate holds), plus `vr_armedrepl.qc`'s eligibility gate (`VR_AGR_Owned` -> `VR_AGR_Eligible` -> the tier
+tables). Inside a vrarena run only one of those exists: the arena's classic kinds are zombie, dog, knight, ogre, fiend
+and hell knight, and the only one with weapon-drop code is the ogre (`OgreDrop`, `orig_mon_ogre.qc`: after
+`ShouldDropEnemyWpn(0.45)`, a first-success chain grenade launcher, proximity gun, rocket launcher, super nailgun,
+nailgun, axe at 0.5 each, then the super shotgun and the shotgun at 0.1). An ogre killed by a player who held none of
+them could therefore leave an axe or a shotgun and nothing else: the strong half of its chain was filtered out every
+single time, from `AR_W_OGRE` = 8 on. vrarena has no authored items or ammo boxes at all -- its three `info_arena_item`
+points are the director's medkit and armour drops -- so nothing else on the map ever asked the question.
+
+**The fix, and the one not taken.** The exception sits inside `VR_WeaponUtil_EntIsEligibleForWeapon`, after the fist,
+axe and shotgun lines: with `VR_ARK_Running()` (the arena's own "a run is on this map now": its manager exists and
+`VR_ARENA_ON` holds -- mapname `vrarena`, or `vr_arena` non-zero) the answer is the pack's, not the player's --
+`VR_Pack_WeaponAvailable(xWeaponId)`. `VR_ARK_Running` is forward-declared in `vr_arena_perks.qc`, which comes later in
+`progs.src`; `vr_weaponutil.qc` already asks a later file for its guns (AD's soldiers' guns: the comment at
+`progs.src`:19), so this is the shape this tree already uses.
+
+"Eligible for everything on arena load" is what was asked for, and it is what this port cannot mean: here owning a
+weapon *is* the hand inventory, not a bit -- `VR_WeaponUtil_EntAddWeapon`/`EntDelWeapon` set the item flag that
+`EntHasWeapon` reads, `VRGiveEntWeapon` gives the hand a `WeaponInst_New` of its own, the cycle command skips weapons
+the player does not have (`GetCycledWeapon`) and impulse 150 + a weapon id "puts that weapon, loaded, in your hand"
+(`VR_Motion_Equip`). A blanket grant at load would begin the run holding the whole armory, undoing
+`VR_ARENA_StripPlayers` (every run starts unarmed -- `ARENA - <Skill>: unarmed, wave 1 coming`) and the ladder with it.
+Also rejected: raising `vr_enemy_drops` / `vr_ammobox_drops` to "always" for the length of a run -- those two are the
+player's own comfort settings, one of them saying "never drop monster guns".
+
+What the exception keeps: a weapon this pack does not have is out of it too (AD's soldiers' guns without AD's data,
+MG3's super axe without MG3's data), and both drop helpers return on the settings' "never" before they ever ask this --
+so `vr_enemy_drops 2` / `vr_ammobox_drops 2` still stand in a run. Outside a run nothing changed at all.
+
+**Tests.** `vr_arena_test 11` (new; 25 checks; run on vrtesthall with `vr_arena 1` -- it needs the director and a
+player). Its static leg strips the player of the six measured ids (super shotgun, nailgun, super nailgun, grenade
+launcher, rocket launcher, lightning), asks the eligibility question for each (the axe and shotgun unconditionally),
+asks the pack for AD's revolver's gun and MG3's super axe, then has `TryEnemyDrop` and `TryAmmoBoxDrop` actually create
+the props and counts the `thrown_weapon` entities lying there -- one each; with `vr_enemy_drops 2` nothing falls; back
+to "when eligible" nothing falls either; with `vr_arena 0` on the same map the run is over, the question is about
+ownership again and the drop is refused; and a soldier spawned inside a run with `.weapon = WID_ROCKET_LAUNCHER` wears
+it (`arena: t11 grunt: kind 0, wid 10, in hand 1, reserve 8`). Its plan leg recounts waves 18..30 (103 humanoids, 42 at
+tier 2, 19 at tier 3). Its live leg fast-forwards to wave 20, checks the field against the plan and that the player
+still owns nothing. `vr_arena_test`'s two doc lines (`vr_arena.qc`, `vr_cvars.inc`) listed the cases only as far as 8;
+they now list 11.
+
+**Verified.** `build.sh`: 0 QC warnings. `vr_arena_test` 11 **25** (vrtesthall, `vr_arena 1`); 1 **257**, 4 **7**, 6
+(the soak, 32 waves) **6**, 7 **19**, 9 **37**, 10 **160** (vrarena); 2 **13**, 3 **9**, 5 **467**, 10 **160**
+(vrtesthall) -- all 0 failed. The soak's counts did not grow: edicts 315 -> 277 (peak 331), the director's drops 4 ->
+4, the foe guns lying about held at their cap (25 counted against `vr_arena_gun_max` 24), longest wave 47.8 s. The
+ROUND22 eligibility paragraph now points here.
+
+*Open for the author:*
+- Balance. An ogre from wave 8 can now leave a grenade launcher, a proximity gun, a rocket launcher or a super nailgun
+  at its table's chances. If that is too early for you, the knob I would use is the wave's own tier (the ladder knows
+  tiers 1/2/3 and `AR_W_TIER2`/`AR_W_TIER3`) rather than the player's inventory -- a short follow-up, your word.
+- Ammo boxes and crates follow the same rule in a run: in an arena map that has them (vrarena has none), a box or crate
+  can carry rockets or shells for a gun the player does not hold yet.
+- `vr_armedrepl.qc` (soldier replacement, still default off, its default-on decision pending) consults the same gate,
+  so its tiers are open in a run; its rare-guns gate `vr_agrunt_repl_rare_map` reads a map *number* ("digit m"), so
+  `vrarena` stays barred from the rare tier either way.
+
+*Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: a foe's gun -- an ogre's grenade or rocket launcher, an
+ammo box's lightning gun -- falls whatever you are holding: in an arena run eligibility follows the pack, not your
+inventory ("never drop monster guns" still stands) {test:vr_arena_test 11}`
+
