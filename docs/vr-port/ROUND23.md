@@ -208,7 +208,8 @@ a time (`vr_arena_perk_count` 1-4; an empty pool offers nothing): **Quad Strike*
 Damage), **Neck Snapper** (a snapped neck restores 20 health), **Iron Skin** (armour you pick up is worth 25 more --
 125/175/225), **Second Wind** (health tops at 15 past normal), **Feeder** (5 health per kill, no more than once a
 second), **Quartermaster** (every wave clear tops up the ammo of the gun in your hand by 15, to the ordinary caps) and
-**Spoils** (a foe's dropped gun stays rather than fading under the arena's drop cap). Every one hangs off a place the
+**Spoils** (a foe's dropped gun stays rather than fading under the arena's drop cap; since "the cleanup" below:
+twice `vr_arena_gun_max` of them lie about). Every one hangs off a place the
 game already reports -- `Killed` in combat.qc, the decap hook in vr_decap.qc, `armor_touch` in items.qc,
 `VR_EnemyWeapons_MakeRoom` in vr_enemyguns.qc, and the director's own wave clear -- and each returns at once unless the
 arena is running and that perk was taken (`VR_ARK_Running`). `vr_arena_perks 1` (on by default), with `vr_arena 1`. A
@@ -369,7 +370,65 @@ god; vr_arena_seed 7; map vrarena; wait15; vr_arena_test 6; wait60000"`. **It fa
 the arena ever cleans up its fallen bodies or the player weapons its armed humanoids drop -- 99 edicts at wave 2, 928
 at wave 32, with 233 bodies and 196 `thrown_weapon`s lying in the map (about 28 edicts a wave; the unpicked medkits
 and armour are only 67 of them). The Horde (vr_mg_horde.qc, `MGH_corpse_expire`) fades its bodies after 11..16 s;
-how the arena should (a fade, a cap, bodies older than two waves) is the author's call, so it is left open.
+how the arena should (a fade, a cap, bodies older than two waves) is the author's call, so it is left open. (Since
+closed: "Survival Arena: the cleanup", below.)
 
 *Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: a Quad Damage picked up is not cut to 2 s by a Quad Strike
 hand kill`
+
+## Survival Arena: the cleanup (agent/arenaclean)
+
+The leak the review found (928 edicts by wave 32) is closed. Everything below runs only while an arena runs (`ar_mgr`
+set: the map vrarena or `vr_arena 1`); every hook returns at once otherwise. Settings (archived; Combat > Survival
+Arena > *Cleanup*):
+
+| Setting | Default | What |
+|---|---|---|
+| `vr_arena_corpse_fade` | 14 | s a fallen foe's body (or its head, gibbed) lies before it fades out over 1 s, as the Horde's do; give or take 3 s (a quarter of it at most); 0: never by time |
+| `vr_arena_corpse_max` | 12 | bodies lying at most; past it the oldest fades first; 0: no limit |
+| `vr_arena_item_waves` | 2 | a wave clear's medkits and armour still lying there this many clears later fade out; 0: never. Ones already picked up (items.qc leaves them as invisible edicts in single player) go at the next clear |
+| `vr_arena_gun_max` | 24 | guns the foes dropped lying about at most; past it the oldest fades (vr_enemyguns.qc's fade); 0: no limit |
+
+**How.** `VR_ARENA_MonsterDie` hands the body to `VR_ARENA_BodyDown` (its time, its place in the fall order, then
+the cap); `VR_ARENA_WaveClear` calls `VR_ARENA_DropsExpire` before its new drops; `VR_ARENA_Frame` walks the leftovers
+each frame (`findflags(ar_expiring)`, the Horde's pattern) and fades and removes what is due (`VR_Carry_Forget`,
+`VR_Head_StopFlies`, `remove`). **Never taken:** a thing a hand holds (`carry_player`, or a player's
+`mainhand_held`/`offhand_held`: a ragdoll's limb), one a force grab pulls (`fg_state`), or a body still dying or being
+gibbed as a corpse (`vr_corpse 1`, `vr_corpse_dying`; waited for 10 s at most). Held, its time waits; let go of, it
+lies 3 s more and fades. Past the body cap a held one stays and the next oldest goes.
+
+**Guns.** In a running arena `VR_EnemyWeapons_MakeRoom` takes `VR_ARENA_GunMost` instead of the shipped
+`vr_enemy_weapon_drop_max`, and counts every gun a monster dropped (`.vr_monster_drop`), not only the single-use enemy
+guns: the arena's humanoids carry the player's own weapons, which the shipped cap never counted (196 of them by wave 32).
+A gun a player dropped or threw is never counted; one in a hand or holster is not lying about; one carried, pulled or in
+flight is spared (the shipped rules). **Spoils** used to switch the cap off (the leak's worst case); now it doubles
+`vr_arena_gun_max` (48 by default), and its pedestal reads "Twice as many fallen foes' guns stay lying about". The stale
+comment about a "`vr_drop_fade` knob" (it is a field) is gone.
+
+**Tests.** `vr_arena_test 6` (the soak) now counts its growth from wave 16 (`AR_T6_FROM`, the map settled: gibs,
+limbs and backpacks remove themselves on their own timers and sit at a steady count) and also checks the three caps.
+`vr_arena_test 7` (vrarena): stand-in bodies, drops and guns through the real hooks -- the body cap fades the oldest not
+held, a held / pulled / dying body outlives its time and goes within 3 s of being let go, drops two clears old fade and
+picked-up ones go, the gun cap (a pulled gun spared, a player's own never counted) and Spoils doubling it.
+`vr_arena_test 8` (e1m1): every monster felled whole, 20 s on, nothing carries an arena cleanup mark.
+
+**Verified.** `build.sh arenaclean`: 0 QC warnings. `vr_arena_test` 1 **257**, 2 **13**, 3 **52** (vrtesthall), 4 **7**,
+5 **467**, 7 **19**, 8 **3** (e1m1), all 0 failed; `vr_arena_perks_test` 1 **19**, 2 **15**, 3 **45** (two new Spoils
+checks), 4 **14**, all 0 failed. eval.sh: no verdict changes. Soak (`vr_arena_test 6`, seed 7):
+
+| wave | 4 | 8 | 12 | 16 | 20 | 24 | 28 | 32 |
+|---|---|---|---|---|---|---|---|---|
+| edicts (before: 99 at wave 2, 928 at 32) | 183 | 269 | 296 | 298 | 293 | 287 | 288 | 299 |
+| bodies (before: 233 at 32) | 6 | 5 | 7 | 7 | 7 | 6 | 6 | 6 |
+| `thrown_weapon` (before: 196 at 32) | 5 | 23 | 25 | 25 | 25 | 25 | 25 | 25 |
+| drops lying | 4 | 4 | 4 | 4 | 4 | 4 | 4 | 4 |
+
+6 passed, 0 failed; flat from wave 12 (298 -> 299 over waves 16..32). What fills the ~200 over the empty map at the
+plateau (an end-of-soak dump): ~115 gibs and small gibs, ~44 backpacks, ~10 limbs -- every one on its own removal timer
+(gibs 10..20 s, backpacks 120 s), so a steady count, not a leak; and 25 `weapon_inst` records, one per gun lying. The
+bodies stay few in the soak because its blows gib (only the heads lie). Off the arena, e1m1's bodies go 23 -> 8 in 20 s
+with or without the arena (its own systems: ragdoll cap, corpses); test 8 checks only that the arena marked none.
+
+*Suggested `quakevr/checklist.txt` line:* `+ Survival Arena: fallen bodies fade after ~14 s (12 kept at most), a wave
+clear's medkits/armour go two waves later, foes' dropped guns capped at 24 (48 with Spoils); a body you hold never
+vanishes`
