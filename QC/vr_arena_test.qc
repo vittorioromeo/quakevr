@@ -672,6 +672,138 @@ void(float xKnob, float xEasy, float xNormal, float xHard, float xNight) VR_AT5_
     VR_AT_SetSkill(1);
 }
 
+// A gate of the ladder (a rung, a species, the early waves' unarmed window) at each skill: whole waves earlier at
+// Hard and Nightmare, later at Easy, never earlier than wave 2. The numbers below are the table's gate plus
+// +3 / 0 / -2 / -4.
+void(float xGate, float xEasy, float xNormal, float xHard, float xNight, string xWhat) VR_AT5_Gate =
+{
+    float sk;
+    for(sk = 0; sk <= 3; sk++)
+    {
+        float want = sk == 0 ? xEasy : sk == 1 ? xNormal : sk == 2 ? xHard : xNight;
+        VR_AT_SetSkill(sk);
+        float got = VR_ARENA_WaveAdj(xGate);
+        VR_AT_Check(got == want && got >= 2, sprintf("%s arrives at wave %g at skill %g (got %g)", xWhat, want, sk, got));
+        dprint(sprintf("arena: t5 %s at skill %g -> wave %g\n", xWhat, sk, got));
+    }
+    VR_AT_SetSkill(1);
+}
+
+// How many of a wave's planned humanoids come unarmed (ar_gun AR_FIST).
+float() VR_AT5_Unarmed =
+{
+    float n = 0;
+    float i;
+    for(i = 0; i < ar_plan_n; i++)
+    {
+        if(VR_AT_IsHumanoid(ar_plan_kind[i]) && ar_plan_gun[i] == AR_FIST) { n = n + 1; }
+    }
+    return n;
+}
+
+// The first waves' unarmed share and its window of waves: wider, and further into the early waves, the softer the
+// difficulty. (The share itself is not a binary-exact number, so it is checked as an order and a bound.)
+void() VR_AT5_Early =
+{
+    VR_AT_SetSkill(0); float e = VR_ARENA_EarlyUnarmed(); float ew = VR_ARENA_WaveAdj(4);
+    VR_AT_SetSkill(1); float n = VR_ARENA_EarlyUnarmed(); float nw = VR_ARENA_WaveAdj(4);
+    VR_AT_SetSkill(2); float h = VR_ARENA_EarlyUnarmed();
+    VR_AT_SetSkill(3); float m = VR_ARENA_EarlyUnarmed(); float mw = VR_ARENA_WaveAdj(4);
+
+    VR_AT_Check(e > n && n > h && h > m, "more of the first waves' humanoids come unarmed at Easy, fewer at Nightmare");
+    VR_AT_Check(m > 0 && e <= 0.5, "the unarmed share stays a share");
+    VR_AT_Check(ew == 7 && nw == 4 && mw == 2, "and its window reaches wave 7 at Easy, wave 4 at Normal, wave 2 at Nightmare");
+
+    // The plan obeys the window: at Nightmare the early waves send nobody unarmed.
+    VR_ARENA_Plan(3); VR_AT_Check(VR_AT5_Unarmed() == 0, "no unarmed grunt at wave 3 at Nightmare");
+    VR_ARENA_Plan(4); VR_AT_Check(VR_AT5_Unarmed() == 0, "no unarmed grunt at wave 4 at Nightmare");
+
+    // vr_arena_skill_impact 0: the first waves are today's, whatever the skill.
+    cvar_set("vr_arena_skill_impact", "0");
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_ARENA_EarlyUnarmed() == 0.20 && VR_ARENA_WaveAdj(4) == 4, "vr_arena_skill_impact 0 leaves the early waves as the knobs set them");
+    cvar_set("vr_arena_skill_impact", "1");
+    dprint(sprintf("arena: t5 unarmed share %g %g %g %g (Easy Normal Hard Nightmare), window wave %g / %g / %g\n", e, n, h, m, ew, nw, mw));
+    VR_AT_SetSkill(1);
+}
+
+// The bestiary and a boss's own kind follow the gates: a species never before its wave, and its wave is the
+// difficulty's.
+void() VR_AT5_Bestiary =
+{
+    VR_AT_SetSkill(1);
+    VR_AT_Check(VR_ARENA_ClassicKind(5, 1) == AR_SP_ZOMBIE && VR_ARENA_ClassicKind(6, 1) == AR_SP_DOG, "a dog from wave 6 at Normal");
+    VR_AT_Check(VR_ARENA_ClassicKind(3, 2) == AR_SP_ZOMBIE && VR_ARENA_ClassicKind(4, 2) == AR_SP_KNIGHT, "a knight from wave 4 at Normal");
+    VR_AT_Check(VR_ARENA_ClassicKind(7, 2) == AR_SP_KNIGHT && VR_ARENA_ClassicKind(8, 2) == AR_SP_OGRE, "an ogre from wave 8 at Normal");
+    VR_AT_Check(VR_ARENA_ClassicKind(11, 3) == AR_SP_KNIGHT && VR_ARENA_ClassicKind(12, 3) == AR_SP_FIEND, "a fiend from wave 12 at Normal");
+    VR_AT_Check(VR_ARENA_ClassicKind(15, 3) == AR_SP_FIEND && VR_ARENA_ClassicKind(16, 3) == AR_SP_HKNIGHT, "a death knight from wave 16 at Normal");
+    VR_AT_Check(VR_ARENA_BossKind(9) == AR_SP_ENFORCER && VR_ARENA_BossKind(10) == AR_SP_OGRE, "an ogre boss from wave 10 at Normal");
+    VR_AT_Check(VR_ARENA_BossKind(15) == AR_SP_OGRE && VR_ARENA_BossKind(16) == AR_SP_HKNIGHT, "a death knight boss from wave 16 at Normal");
+
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_ARENA_ClassicKind(1, 1) == AR_SP_ZOMBIE && VR_ARENA_ClassicKind(2, 1) == AR_SP_DOG, "a dog from wave 2 at Nightmare");
+    VR_AT_Check(VR_ARENA_ClassicKind(3, 2) == AR_SP_KNIGHT && VR_ARENA_ClassicKind(4, 2) == AR_SP_OGRE, "a knight from wave 2 and an ogre from wave 4 at Nightmare");
+    VR_AT_Check(VR_ARENA_ClassicKind(7, 3) == AR_SP_KNIGHT && VR_ARENA_ClassicKind(8, 3) == AR_SP_FIEND, "a fiend from wave 8 at Nightmare");
+    VR_AT_Check(VR_ARENA_ClassicKind(11, 3) == AR_SP_FIEND && VR_ARENA_ClassicKind(12, 3) == AR_SP_HKNIGHT, "a death knight from wave 12 at Nightmare");
+    VR_AT_Check(VR_ARENA_BossKind(5) == AR_SP_ENFORCER && VR_ARENA_BossKind(6) == AR_SP_OGRE, "an ogre boss from wave 6 at Nightmare");
+    VR_AT_Check(VR_ARENA_BossKind(11) == AR_SP_OGRE && VR_ARENA_BossKind(12) == AR_SP_HKNIGHT, "a death knight boss from wave 12 at Nightmare");
+
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARENA_ClassicKind(8, 1) == AR_SP_ZOMBIE && VR_ARENA_ClassicKind(9, 1) == AR_SP_DOG, "a dog not before wave 9 at Easy");
+    VR_AT_Check(VR_ARENA_ClassicKind(3, 2) == AR_SP_ZOMBIE && VR_ARENA_ClassicKind(7, 2) == AR_SP_KNIGHT, "a knight from wave 7 at Easy");
+    VR_AT_Check(VR_ARENA_ClassicKind(10, 2) == AR_SP_KNIGHT && VR_ARENA_ClassicKind(11, 2) == AR_SP_OGRE, "an ogre not before wave 11 at Easy");
+    VR_AT_Check(VR_ARENA_ClassicKind(18, 3) == AR_SP_FIEND && VR_ARENA_ClassicKind(19, 3) == AR_SP_HKNIGHT, "a death knight not before wave 19 at Easy");
+    VR_AT_Check(VR_ARENA_BossKind(12) == AR_SP_ENFORCER && VR_ARENA_BossKind(13) == AR_SP_OGRE, "an ogre boss not before wave 13 at Easy");
+    dprint("arena: t5 boss kinds: an ogre boss from wave 13 / 10 / 6 and a death knight boss from wave 19 / 16 / 12 (Easy Normal Nightmare)\n");
+    VR_AT_SetSkill(1);
+}
+
+// The live plans obey the gates whatever the skill: no rung and no species before its wave, and a rung that its
+// wave has unlocked does turn up (VR_ARENA_PickGun picks the gun, so its first appearance is the gate's wave or
+// a wave or two after it).
+void(float xSkill) VR_AT5_ObeyGates =
+{
+    float w;
+    float seen2 = 0;
+    float seen3 = 0;
+    float first2 = 0;
+    float g2;
+    float g3;
+    float gd;
+    float go;
+    float gf;
+    float gh;
+
+    // (This test's whole point is the order: pin the difficulty first, then read what its gates are.)
+    VR_AT_SetSkill(xSkill);
+    g2 = VR_ARENA_WaveAdj(AR_W_TIER2);
+    g3 = VR_ARENA_WaveAdj(AR_W_TIER3);
+    gd = VR_ARENA_WaveAdj(AR_W_DOG);
+    go = VR_ARENA_WaveAdj(AR_W_OGRE);
+    gf = VR_ARENA_WaveAdj(AR_W_FIEND);
+    gh = VR_ARENA_WaveAdj(AR_W_HKNIGHT);
+    for(w = 1; w <= 34; w++)
+    {
+        VR_ARENA_Plan(w);
+        if(w < g2) { VR_AT_Check(VR_AT_HumanoidMaxTier() <= 1, sprintf("no second rung before wave %g at skill %g", g2, xSkill)); }
+        if(w < g3) { VR_AT_Check(VR_AT_HumanoidMaxTier() <= 2, sprintf("no third rung before wave %g at skill %g", g3, xSkill)); }
+        if(w < gd) { VR_AT_Check(VR_AT_CountKind(AR_SP_DOG) == 0, sprintf("no dog before wave %g at skill %g", gd, xSkill)); }
+        if(w < go) { VR_AT_Check(VR_AT_CountKind(AR_SP_OGRE) == 0, sprintf("no ogre before wave %g at skill %g", go, xSkill)); }
+        if(w < gf) { VR_AT_Check(VR_AT_CountKind(AR_SP_FIEND) == 0, sprintf("no fiend before wave %g at skill %g", gf, xSkill)); }
+        if(w < gh) { VR_AT_Check(VR_AT_CountKind(AR_SP_HKNIGHT) == 0, sprintf("no death knight before wave %g at skill %g", gh, xSkill)); }
+        if(w >= g2 && VR_AT_HumanoidMaxTier() >= 2)
+        {
+            seen2 = 1;
+            if(!first2) { first2 = w; }
+        }
+        if(w >= g3 && VR_AT_HumanoidMaxTier() >= 3) { seen3 = 1; }
+    }
+    VR_AT_Check(seen2 && first2 >= g2 && first2 <= g2 + 6, sprintf("the second rung arrives at wave %g (its gate %g) at skill %g", first2, g2, xSkill));
+    VR_AT_Check(seen3, sprintf("the third rung arrives too at skill %g", xSkill));
+    dprint(sprintf("arena: t5 gates at skill %g: second rung %g, third rung %g, dog %g, ogre %g, fiend %g, death knight %g\n", xSkill, g2, g3, gd, go, gf, gh));
+    VR_AT_SetSkill(1);
+}
+
 // What one test family needs is exactness, not tolerance: every step below is a binary-exact number.
 void() VR_AT5_Scaling =
 {
@@ -773,6 +905,31 @@ void() VR_AT5_Begin =
     VR_AT_Check(soft < 1 && hard > 1 && worst > hard, "Easy softer, Hard and Nightmare harder");
 
     VR_AT5_Scaling();  // (what the factor does to a wave: its counts, the field's cap, the arena's beats)
+
+    // The gates, moved by whole waves rather than by the factor: when a rung, a species, and the thickening arrive.
+    VR_AT5_Gate(AR_W_TIER2, 13, 10, 8, 6, "the ladder's second rung");
+    VR_AT5_Gate(AR_W_TIER3, 21, 18, 16, 14, "the ladder's third rung");
+    VR_AT5_Gate(AR_W_KNIGHT, 7, 4, 2, 2, "the knights");
+    VR_AT5_Gate(AR_W_DOG, 9, 6, 4, 2, "the dogs");
+    VR_AT5_Gate(AR_W_OGRE, 11, 8, 6, 4, "the ogres");
+    VR_AT5_Gate(AR_W_FIEND, 15, 12, 10, 8, "the fiends");
+    VR_AT5_Gate(AR_W_HKNIGHT, 19, 16, 14, 12, "the death knights");
+    VR_AT5_Gate(4, 7, 4, 2, 2, "the unarmed window of the early waves");
+
+    // vr_arena_skill_impact moves the gates too: 0 leaves every one of them where the table has it, 2 doubles the
+    // step, 4 at its most extreme holds the bestiary's own floor (wave 2).
+    cvar_set("vr_arena_skill_impact", "0");
+    VR_AT5_Gate(AR_W_FIEND, 12, 12, 12, 12, "the fiends at impact 0");
+    cvar_set("vr_arena_skill_impact", "2");
+    VR_AT5_Gate(AR_W_HKNIGHT, 22, 16, 12, 8, "the death knights at impact 2");
+    cvar_set("vr_arena_skill_impact", "4");
+    VR_AT5_Gate(AR_W_HKNIGHT, 28, 16, 8, 2, "the death knights at impact 4 (wave 2 is the floor)");
+    cvar_set("vr_arena_skill_impact", "1");
+
+    VR_AT5_Early();      // (the first waves' unarmed share and its window)
+    VR_AT5_Bestiary();   // (which species, and which boss, from which wave)
+    VR_AT5_ObeyGates(1); // (the live plans obey the gates at Normal ...)
+    VR_AT5_ObeyGates(3); // (... and at Nightmare, where everything arrives early)
 
     VR_AT_SetSkill(1);
     VR_AT_End();

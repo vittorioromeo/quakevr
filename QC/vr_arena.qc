@@ -57,7 +57,9 @@ float AR_SP_OGRE     = 5; // monster_ogre
 float AR_SP_FIEND    = 6; // monster_demon1: a fiend
 float AR_SP_HKNIGHT  = 7; // monster_hell_knight: a death knight
 
-// The ladder's rungs a wave may draw from, and the waves Quake's own monsters join at.
+// The ladder's rungs a wave may draw from, and the waves Quake's own monsters join at. These are the Normal
+// skill's waves: VR_ARENA_WaveAdj moves every one of them by the difficulty (earlier at Hard and Nightmare,
+// later at Easy).
 float AR_W_TIER2   = 10; // the second tier (the super shotgun, the nail guns) from this wave
 float AR_W_TIER3   = 18; // the third tier (the launchers, the lightning) from this wave
 float AR_W_ZOMBIE  = 2;  // (a wave 3's zombie: the plan's own line; the table's floor)
@@ -187,6 +189,25 @@ float(float xSec, float xMin) VR_ARENA_SkillTime =
     return max(xMin, xSec / f);
 }
 
+// A wave number of the ladder -- a gate a rung or a species arrives at -- as this difficulty counts it: whole
+// waves, not a factor (3 waves later at Easy, none at Normal, 2 sooner at Hard, 4 sooner at Nightmare, times
+// vr_arena_skill_impact), and never earlier than wave 2, the bestiary's own floor. So on Nightmare the fiends,
+// the death knights and the launchers arrive early and on Easy they hold off.
+float(float xWave) VR_ARENA_WaveAdj =
+{
+    float d = skill < 1 ? 3 : skill < 2 ? 0 : skill < 3 ? -2 : -4;
+    return max(2, xWave + d * cvar("vr_arena_skill_impact"));
+}
+
+// How many of the first waves' humanoids come unarmed: the softer the difficulty, the wider the share (its own
+// ladder 0.30 Easy / 0.20 Normal / 0.15 Hard / 0.10 Nightmare, moved by vr_arena_skill_impact from Normal's 0.20
+// and held to a share).
+float() VR_ARENA_EarlyUnarmed =
+{
+    float m = skill < 1 ? 0.30 : skill < 2 ? 0.20 : skill < 3 ? 0.15 : 0.10;
+    return VR_ARENA_Clamp(0.20 + cvar("vr_arena_skill_impact") * (m - 0.20), 0, 0.5);
+}
+
 // What a wave monster's ar_tier is worth on the ladder: its mark (AR_BOSS_MARK) is not a rung, so it comes off
 // before the tier is scored (a boss is worth four of its rung, not four of the mark).
 float(float xTier) VR_ARENA_TierOf =
@@ -208,7 +229,9 @@ float(float xTier, float xBoss) VR_ARENA_KillScore =
 float(float xWave) VR_ARENA_WaveBonus = { return AR_WAVE_BONUS * xWave; }
 
 // A wave clear's medkits, and which armour it adds: the light one until the waves reach AR_W_FIEND's wave, and
-// from there the heavier one and the light one by turns (a run's armours keep meaning something both ways).
+// from there the heavier one and the light one by turns (a run's armours keep meaning something both ways). The
+// armour's wave is the table's, not the difficulty's: what the player has earned is the player's own progression,
+// and the difficulty moves the arena's generosity in waves and counts instead (VR_ARENA_Skill).
 float(float xWave) VR_ARENA_MedkitCount = { return VR_ARENA_Opt_Medkits(); }
 float(float xWave) VR_ARENA_ArmourKind =
 {
@@ -279,20 +302,22 @@ float(float xTier) VR_ARENA_PickTierGun =
     return WID_AXE;
 }
 
-// A wave's humanoid's gun, from the tiers this wave has reached.
+// A wave's humanoid's gun, from the tiers this wave has reached (the tiers arrive earlier the harder the skill).
 float(float xWave) VR_ARENA_PickGun =
 {
     float r = VR_ARENA_Rand();
-    if(xWave >= AR_W_TIER3 && r < 0.25) { return VR_ARENA_PickTierGun(3); }
-    if(xWave >= AR_W_TIER2 && r < 0.60) { return VR_ARENA_PickTierGun(2); }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_TIER3) && r < 0.25) { return VR_ARENA_PickTierGun(3); }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_TIER2) && r < 0.60) { return VR_ARENA_PickTierGun(2); }
     return VR_ARENA_PickTierGun(1);
 }
 
-// The first waves' humanoids: still some of them unarmed, and only the ladder's bottom rungs.
+// The first waves' humanoids: still some of them unarmed, and only the ladder's bottom rungs. The unarmed share is
+// wider at a softer difficulty, and reaches further into the early waves there (VR_ARENA_EarlyUnarmed,
+// VR_ARENA_WaveAdj).
 float(float xWave) VR_ARENA_PickEarlyGun =
 {
     float r = VR_ARENA_Rand();
-    if(xWave <= 4 && r < 0.20) { return AR_FIST; }
+    if(xWave <= VR_ARENA_WaveAdj(4) && r < VR_ARENA_EarlyUnarmed()) { return AR_FIST; }
     if(r < 0.60) { return WID_SHOTGUN; }
     if(r < 0.90) { return WID_NAILPISTOL; }
     return WID_AXE;
@@ -307,26 +332,27 @@ float(float xWave) VR_ARENA_IsBossWave =
 
 float(float xWave) VR_ARENA_BossKind =
 {
-    if(xWave < AR_W_TIER2) { return AR_SP_ENFORCER; } // (a boss with a gun of its own before the classic bosses)
-    if(xWave < AR_W_HKNIGHT) { return AR_SP_OGRE; }
+    if(xWave < VR_ARENA_WaveAdj(AR_W_TIER2)) { return AR_SP_ENFORCER; } // (a boss with a gun of its own before the classic bosses)
+    if(xWave < VR_ARENA_WaveAdj(AR_W_HKNIGHT)) { return AR_SP_OGRE; }
     return AR_SP_HKNIGHT;
 }
 
-// Which of Quake's own monsters this wave sends, cycling the kinds unlocked by now (never one before its wave).
+// Which of Quake's own monsters this wave sends, cycling the kinds unlocked by now (never one before its wave --
+// and the wave it joins at is the difficulty's, not the table's).
 float(float xWave, float i) VR_ARENA_ClassicKind =
 {
     float k = VR_ARENA_Mod(i, 4);
     if(k == 0) { return AR_SP_ZOMBIE; }
-    if(k == 1) { return xWave >= AR_W_DOG ? AR_SP_DOG : AR_SP_ZOMBIE; }
+    if(k == 1) { return xWave >= VR_ARENA_WaveAdj(AR_W_DOG) ? AR_SP_DOG : AR_SP_ZOMBIE; }
     if(k == 2)
     {
-        if(xWave >= AR_W_OGRE)   { return AR_SP_OGRE; }
-        if(xWave >= AR_W_KNIGHT) { return AR_SP_KNIGHT; }
+        if(xWave >= VR_ARENA_WaveAdj(AR_W_OGRE))   { return AR_SP_OGRE; }
+        if(xWave >= VR_ARENA_WaveAdj(AR_W_KNIGHT)) { return AR_SP_KNIGHT; }
         return AR_SP_ZOMBIE;
     }
-    if(xWave >= AR_W_HKNIGHT) { return AR_SP_HKNIGHT; }
-    if(xWave >= AR_W_FIEND)   { return AR_SP_FIEND; }
-    if(xWave >= AR_W_KNIGHT)  { return AR_SP_KNIGHT; }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_HKNIGHT)) { return AR_SP_HKNIGHT; }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_FIEND))   { return AR_SP_FIEND; }
+    if(xWave >= VR_ARENA_WaveAdj(AR_W_KNIGHT))  { return AR_SP_KNIGHT; }
     return AR_SP_ZOMBIE;
 }
 
@@ -465,7 +491,9 @@ void(float xWave) VR_ARENA_Plan =
     }
 
     // 13 and on: the same ladder, thicker, a boss every vr_arena_boss_every waves. Its boss takes a place, as it
-    // does at Normal.
+    // does at Normal. Where the ladder starts thickening stays wave 13 at every skill -- how thick a wave there is
+    // VR_ARENA_SkillCount's business (its own gates, the guns and the species it draws, are the difficulty's:
+    // VR_ARENA_WaveAdj, inside VR_ARENA_PickGun and VR_ARENA_ClassicKind).
     n = VR_ARENA_SkillCount(VR_ARENA_Clamp(4 + floor((xWave - 13) / 4), 1, 7));
     if(boss) { n = max(1, n - 1); }
     for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(xWave), 0); }
