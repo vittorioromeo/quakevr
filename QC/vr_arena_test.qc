@@ -1257,6 +1257,115 @@ void() VR_AT5_Begin =
 }
 
 // ---------------------------------------------------------------------------
+// Test 6: the long run (soak). The live director driven through AR_T6_WAVES waves, every foe felled by the test's
+// own blow once its kind's start is through, 1 s between waves; the edicts counted as it goes. It checks that no
+// wave stalled, that every wave was planned and cleared in turn, and that what stays in the map grows no faster than
+// a wave clear's own unpicked drops (the player never walks over them here).
+// ---------------------------------------------------------------------------
+
+float AR_T6_WAVES = 32;      // waves the soak runs through
+float AR_T6_LEAK  = 1;       // edicts a wave may leave behind on top of its own drops, on average
+float vr_at6_delay;          // vr_arena_wave_delay as the run had it
+float vr_at6_wave;           // the wave the soak last saw
+float vr_at6_e0;             // the edicts at its first counted wave, and its drops then
+float vr_at6_d0;
+float vr_at6_w0;
+float vr_at6_peak;           // the most edicts seen
+float vr_at6_long;           // the longest a wave took (s)
+
+float() VR_AT6_Edicts =
+{
+    float n = 0;
+    entity e = nextent(world);
+    while(e) { n = n + 1; e = nextent(e); }
+    return n;
+}
+
+float(string xClass) VR_AT6_CountClass =
+{
+    float n = 0;
+    entity e = find(world, classname, xClass);
+    while(e) { n = n + 1; e = find(e, classname, xClass); }
+    return n;
+}
+
+float() VR_AT6_Drops =
+{
+    float n = 0;
+    entity e = nextent(world);
+    while(e)
+    {
+        if(e.ar_drop > 0 && e.model != "") { n = n + 1; } // (a drop still lying there: not picked up)
+        e = nextent(e);
+    }
+    return n;
+}
+
+float() VR_AT6_Bodies =
+{
+    float n = 0;
+    entity e = nextent(world);
+    while(e)
+    {
+        if(e.ar_slot < 0) { n = n + 1; }
+        e = nextent(e);
+    }
+    return n;
+}
+
+void() VR_AT6_Begin =
+{
+    vr_at6_delay = cvar("vr_arena_wave_delay");
+    cvar_set("vr_arena_wave_delay", "1");
+    vr_at6_wave = ar_wave;
+    vr_at6_e0 = 0;
+    vr_at6_peak = 0;
+    vr_at6_long = 0;
+    vr_at_until = time + 400;
+    dprint(sprintf("arena: test 6 soak to wave %g\n", AR_T6_WAVES));
+}
+
+void() VR_AT6_Finish =
+{
+    float e1 = VR_AT6_Edicts();
+    float d1 = VR_AT6_Drops();
+    float waves = ar_wave - vr_at6_w0;
+    float grow = (e1 - vr_at6_e0) - (d1 - vr_at6_d0);
+    dprint(sprintf("arena: t6 waves %g edicts %g -> %g (peak %g) drops %g -> %g\n", waves, vr_at6_e0, e1, vr_at6_peak,
+                   vr_at6_d0, d1));
+    dprint(sprintf("arena: t6 bodies %g guns %g longest wave %g s\n", VR_AT6_Bodies(), VR_AT6_CountClass("thrown_weapon"),
+                   vr_at6_long));
+    VR_AT_Check(ar_wave >= AR_T6_WAVES, "the soak reached its last wave");
+    VR_AT_Check(vr_at6_long < AR_STALL, "no wave stalled");
+    VR_AT_Check(grow <= AR_T6_LEAK * waves, "the map grows no faster than a wave clear's drops");
+    cvar_set("vr_arena_wave_delay", ftos(vr_at6_delay));
+    VR_AT_End();
+}
+
+void() VR_AT6_Frame =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 6 needs the arena (vrarena, or vr_arena 1)"); VR_AT6_Finish(); return; }
+
+    if(ar_wave != vr_at6_wave) // (a new wave: count what the last one left)
+    {
+        vr_at6_wave = ar_wave;
+        vr_at_until = time + 400;
+        float n = VR_AT6_Edicts();
+        if(n > vr_at6_peak) { vr_at6_peak = n; }
+        if(ar_wave == 2) { vr_at6_e0 = n; vr_at6_d0 = VR_AT6_Drops(); vr_at6_w0 = ar_wave; }
+        if(VR_ARENA_Mod(ar_wave, 5) == 0)
+        {
+            dprint(sprintf("arena: t6 wave %g edicts %g drops %g bodies %g guns %g score %g\n", ar_wave, n,
+                           VR_AT6_Drops(), VR_AT6_Bodies(), VR_AT6_CountClass("thrown_weapon"), ar_score));
+        }
+        if(ar_wave >= AR_T6_WAVES) { VR_AT6_Finish(); return; }
+    }
+
+    if(ar_wave >= 1 && time - ar_wave_at > vr_at6_long) { vr_at6_long = time - ar_wave_at; }
+    VR_AT_KillOne(ar_wave);
+}
+
+// ---------------------------------------------------------------------------
 // world.qc's test beat (StartFrame, under QVR_TESTS)
 // ---------------------------------------------------------------------------
 
@@ -1293,6 +1402,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 3) { VR_AT3_Begin(); return; }
         if(c == 4) { VR_AT4_Begin(); return; }
         if(c == 5) { VR_AT5_Begin(); return; }
+        if(c == 6) { VR_AT6_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -1312,5 +1422,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 3) { VR_AT3_Frame(); return; }
     if(vr_at_case == 4) { VR_AT4_Frame(); return; }
     if(vr_at_case == 5) { VR_AT5_Frame(); return; }
+    if(vr_at_case == 6) { VR_AT6_Frame(); return; }
 }
 #endif
