@@ -153,6 +153,9 @@ Killed
 */
 void(entity m) VR_Parry_Unsway;
 
+// QVR: Survival Arena's perks read a foe's fall, with its killer at hand (vr_arena_perks.qc, compiled late).
+void(entity e, entity by) VR_ARK_Kill;
+
 void(entity targ, entity attacker) Killed =
 {
     entity oself;
@@ -222,6 +225,7 @@ void(entity targ, entity attacker) Killed =
     self.takedamage = DAMAGE_NO;
     MGH_Kill(attacker);
     VR_ARENA_MonsterDie(); // QVR: Survival Arena: one of its wave's monsters fell, and what that is worth (vr_arena.qc)
+    VR_ARK_Kill(self, attacker); // QVR: Survival Arena's perks: a foe's fall, by whom (vr_arena_perks.qc)
     self.touch = SUB_Null;
 
     monster_death_use();

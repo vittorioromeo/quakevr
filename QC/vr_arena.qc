@@ -111,10 +111,10 @@ void() VR_ARENA_ManagerThink;
 void() VR_ARENA_RestartThink;
 
 // The boss wave's perk choice (vr_arena_perks.qc, compiled after this file): every wave clear reports itself to
-// it, and so does every kill the director counted. Neither does anything unless the run took a perk / the offer
-// knob is on.
+// it, and so does the director's frame. Neither does anything unless the run took a perk / the offer knob is on.
+// (A foe's fall goes to it from combat.qc's Killed, where the killer is at hand.)
 void(float xWave) VR_ARK_WaveDone;
-void(entity e) VR_ARK_Kill;
+void() VR_ARK_Frame;
 
 // ---------------------------------------------------------------------------
 // The knobs, and the small maths they need
@@ -991,6 +991,7 @@ void() VR_ARENA_Frame =
         VR_ARENA_StripPlayers();
         VR_ARENA_PrintAll("ARENA - unarmed, wave 1 coming\n");
     }
+    VR_ARK_Frame(); // QVR: the perks that have to keep their word (vr_arena_perks.qc)
 }
 
 // ---------------------------------------------------------------------------

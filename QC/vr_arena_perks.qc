@@ -9,9 +9,13 @@
 // nothing.
 //
 // world.qc never calls this file directly. vr_arena.qc asks for the offer on a boss wave's clear
-// (VR_ARK_WaveDone) and reports every kill (VR_ARK_Kill); vr_decap.qc reports a beheading (VR_ARK_Decap),
-// items.qc an armour picked up (VR_ARK_ArmorBonus), vr_enemyguns.qc the cap on dropped enemy weapons
-// (VR_ARK_Kept). The tests are vr_arena_perks_test.qc (vr_arena_perks_test N).
+// (VR_ARK_WaveDone) and reports its frame (VR_ARK_Frame); combat.qc's Killed reports a foe's fall with its killer
+// at hand (VR_ARK_Kill); vr_decap.qc reports a beheading (VR_ARK_Decap), items.qc an armour picked up
+// (VR_ARK_ArmorBonus), vr_enemyguns.qc the cap on dropped enemy weapons (VR_ARK_Kept). The tests are
+// vr_arena_perks_test.qc (vr_arena_perks_test N).
+//
+// No perk promises moving faster: nothing already in the engine lets QC speed a player up without overwriting his
+// own sv_maxspeed (vr_fatigue.qc's .vr_heavy_move only slows), so that one is left out rather than built fragile.
 
 // ---------------------------------------------------------------------------
 // The perks: each one a bit of ar_mgr.ark_taken
@@ -316,23 +320,158 @@ void(float xWave) VR_ARK_Offer =
 }
 
 // ---------------------------------------------------------------------------
-// The hooks, all inert until the perk is taken (filled in as each perk is built)
+// The perks at work: every hook says nothing unless its perk was taken, and nothing at all off the arena
 // ---------------------------------------------------------------------------
 
-// vr_arena.qc: a wave clear (a boss wave's clear makes the offer), and every kill it counted.
+// Heal `p` by xUp, never past what ordinary healing tops at (its .max_health: Second Wind included). A megahealth
+// top is left as it is.
+void(entity p, float xUp) VR_ARK_Heal =
+{
+    if(!(p.flags & FL_CLIENT)) { return; }
+    if(p.health <= 0) { return; }
+    if(p.max_health <= 0) { p.max_health = VR_MaxHealth(p); }
+    if(p.health >= p.max_health) { return; }
+    p.health = min(p.health + xUp, p.max_health);
+}
+
+// Quad Strike: the shipped powerup's own fields (items.qc's powerup_touch), only much shorter.
+void(entity p, float xSecs) VR_ARK_GiveQuad =
+{
+    p.super_time = 1;
+    p.super_damage_finished = time + xSecs;
+    VR_ItemUtil_EntAddItem(p, IID_QUAD);
+    VR_QuadSound(p, "the arena's Quad Strike");
+}
+
+// Second Wind: what ordinary healing tops at, 15 past normal. Said from the director's frame: the arena strips its
+// players once, client.qc puts .max_health back on a level change, and the perk must simply survive both. Only ever
+// raises; a top already higher than that (a megahealth) is left alone.
+void() VR_ARK_SecondWind =
+{
+    entity p;
+    for(p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    {
+        if(!(p.flags & FL_CLIENT)) { continue; }
+        float top = VR_MaxHealth(p) + ARK_WIND_HP;
+        if(p.max_health < top)
+        {
+            float was = p.max_health;
+            p.max_health = top;
+            if((was > 0) && (p.health > 0) && (p.health >= was)) { p.health = top; } // (full at the old top: 15 more)
+            dprint(sprintf("arena_perks: Second Wind: %s's health tops at %g\n", p.classname, top));
+        }
+    }
+}
+
+// Quartermaster: how much of one ammunition a wave clear gives, up to the ordinary cap (vr_ammoutil.qc), and how
+// much it actually could.
+float(entity p, float xAid) VR_ARK_TopUp =
+{
+    float have = VR_AmmoUtil_GetAmmoCountByAmmoId(p, xAid);
+    float top = VR_MaxAmmo(p, xAid);
+    if(have >= top) { return 0; }
+    float gave = min(ARK_QUART_AMMO, top - have);
+    VR_AmmoUtil_AddAmmoCountByAmmoId(p, xAid, gave);
+    return gave;
+}
+
+// The guns this player holds, by their ammunition: nothing is handed out, no item is made — its own ammo is topped.
+float(entity p) VR_ARK_Quartermaster =
+{
+    float gave = 0;
+    if(((p.items & IT_SHOTGUN) != 0) || ((p.items & IT_SUPER_SHOTGUN) != 0)) { gave = gave + VR_ARK_TopUp(p, AID_SHELLS); }
+    if(((p.items & IT_NAILGUN) != 0) || ((p.items & IT_SUPER_NAILGUN) != 0)) { gave = gave + VR_ARK_TopUp(p, AID_NAILS); }
+    if(((p.items & IT_GRENADE_LAUNCHER) != 0) || ((p.items & IT_ROCKET_LAUNCHER) != 0)) { gave = gave + VR_ARK_TopUp(p, AID_ROCKETS); }
+    if((p.items & IT_LIGHTNING) != 0) { gave = gave + VR_ARK_TopUp(p, AID_CELLS); }
+    return gave;
+}
+
+// ---------------------------------------------------------------------------
+// The hooks
+// ---------------------------------------------------------------------------
+
+// vr_arena.qc's frame (Second Wind), and a wave clear (Quartermaster; a boss wave's clear makes the offer).
+void() VR_ARK_Frame =
+{
+    if(!VR_ARK_Running()) { return; }
+    if((ar_mgr.ark_taken & ARK_WIND) != 0) { VR_ARK_SecondWind(); }
+}
+
 void(float xWave) VR_ARK_WaveDone =
 {
     if(!VR_ARK_Running()) { return; }
+
+    if((ar_mgr.ark_taken & ARK_QUART) != 0)
+    {
+        float gave = 0;
+        float living = 0;
+        entity p;
+        for(p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+        {
+            if(!(p.flags & FL_CLIENT)) { continue; }
+            if(p.health <= 0) { continue; }
+            gave = gave + VR_ARK_Quartermaster(p);
+            living = living + 1;
+        }
+        VR_ARENA_PrintAll(sprintf("ARENA - Quartermaster: %g rounds back (%g armed)\n", gave, living));
+        dprint(sprintf("arena_perks: Quartermaster: wave %g gave %g rounds to %g players\n", xWave, gave, living));
+    }
+
     if(VR_ARENA_IsBossWave(xWave)) { VR_ARK_Offer(xWave); }
 }
 
-void(entity e) VR_ARK_Kill = { };
+// combat.qc's Killed: `e` fell, by `by` (Quad Strike, Feeder). The killer comes through as an argument: a foe
+// killed by another foe's sword is nobody's perk.
+void(entity e, entity by) VR_ARK_Kill =
+{
+    if(!VR_ARK_Running()) { return; }
+    if(!by || !(by.flags & FL_CLIENT)) { return; }
 
-// vr_decap.qc: a foe beheaded by `by`.
-void(entity e, entity by, float xHow) VR_ARK_Decap = { };
+    float bits = ar_mgr.ark_taken;
+    if(bits == 0) { return; }
 
-// items.qc: the armour `p` just picked up, already carrying `xValue`.
-void(entity p, float xValue) VR_ARK_ArmorBonus = { };
+    if(((bits & ARK_QUAD) != 0) && (vr_hitkind == QVR_HITKIND_MELEE))
+    {
+        VR_ARK_GiveQuad(by, ARK_QUAD_SECS);
+        dprint(sprintf("arena_perks: Quad Strike: %g s of quad for a hand kill of %s\n", ARK_QUAD_SECS, e.classname));
+    }
 
-// vr_enemyguns.qc: the cap on dropped enemy weapons leaves them alone with Spoils taken.
-float() VR_ARK_Kept = { return FALSE; }
+    if(((bits & ARK_FEED) != 0) && (time >= ar_mgr.ark_feed_at))
+    {
+        ar_mgr.ark_feed_at = time + ARK_FEED_GAP;
+        float before = by.health;
+        VR_ARK_Heal(by, ARK_FEED_HP);
+        dprint(sprintf("arena_perks: Feeder: %g back for %s (%g health)\n", by.health - before, e.classname, by.health));
+    }
+}
+
+// vr_decap.qc: a foe beheaded by `by` (Neck Snapper).
+void(entity e, entity by, float xHow) VR_ARK_Decap =
+{
+    if(!VR_ARK_Running()) { return; }
+    if((ar_mgr.ark_taken & ARK_SNAP) == 0) { return; }
+    if(!by || !(by.flags & FL_CLIENT)) { return; }
+
+    float before = by.health;
+    VR_ARK_Heal(by, ARK_SNAP_HP);
+    dprint(sprintf("arena_perks: Neck Snapper: %g back for %s (%g health)\n", by.health - before, e.classname, by.health));
+}
+
+// items.qc's armor_touch, just after it set what the armour is worth (Iron Skin: 25 heavier). Its own value, so
+// green goes to 125, yellow to 175, red to 225 — never more than 25 past what the shipped armour is worth.
+void(entity p, float xValue) VR_ARK_ArmorBonus =
+{
+    if(!VR_ARK_Running()) { return; }
+    if((ar_mgr.ark_taken & ARK_IRON) == 0) { return; }
+    if(!(p.flags & FL_CLIENT)) { return; }
+    p.armorvalue = xValue + ARK_IRON_ARM;
+    dprint(sprintf("arena_perks: Iron Skin: armour worth %g, not %g\n", p.armorvalue, xValue));
+}
+
+// vr_enemyguns.qc: with Spoils taken the drop cap leaves a fallen foe's gun where it fell (it fades only by its own
+// `vr_drop_fade` knob, and the arena's own waves make the room up to `vr_enemy_weapon_drop_max` guns).
+float() VR_ARK_Kept =
+{
+    if(!VR_ARK_Running()) { return FALSE; }
+    return (ar_mgr.ark_taken & ARK_SPOIL) != 0;
+}

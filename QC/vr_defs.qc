@@ -428,8 +428,9 @@ void() VR_ARENA_MonsterDie;
 // and reports every kill it counted; vr_decap.qc reports a beheading, items.qc an armour picked up, vr_enemyguns.qc
 // the cap on dropped enemy weapons. The tests' beat (VR_ARENA_PERKS_Test_Frame) is declared in world.qc, under
 // QVR_TESTS. (vr_arena.qc, vr_decap.qc, items.qc and vr_enemyguns.qc each say what they call, next to the call.)
-void(float xWave) VR_ARK_WaveDone;
-void(entity e) VR_ARK_Kill;
+void(float xWave) VR_ARK_WaveDone;   // vr_arena.qc's WaveClear: Quartermaster, and a boss wave's offer
+void() VR_ARK_Frame;                 // vr_arena.qc's Frame: Second Wind keeps its word
+void(entity e, entity by) VR_ARK_Kill; // combat.qc's Killed: Quad Strike, Feeder (with the killer at hand)
 void(entity e, entity by, float xHow) VR_ARK_Decap;
 void(entity p, float xValue) VR_ARK_ArmorBonus;
 float() VR_ARK_Kept;
