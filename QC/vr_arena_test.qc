@@ -572,13 +572,6 @@ void() VR_AT3_Frame =
     {
         if(ar_wave < 5) { return; }
 
-        VR_AT_Check(ar_wave == 5, "the arena jumped to its boss wave");
-        float ib = 0;
-        while(ib < ar_plan_n && !ar_plan_boss[ib]) { ib = ib + 1; }
-        VR_AT_Check(ib < ar_plan_n && ar_plan_kind[ib] == AR_SP_ENFORCER, "wave 5's plan has its boss, an enforcer");
-        VR_AT_Check(ib >= min(VR_ARENA_Opt_Burst(), ar_plan_n - 1), "wave 5's boss comes in after the opening burst");
-        VR_AT_Check(VR_AT_BossCount() == 1, "a boss wave has one boss");
-
         entity boss = world;
         entity e = findflags(world, ar_slot, 5);
         while(e)
@@ -586,7 +579,15 @@ void() VR_AT3_Frame =
             if(e.health > 0 && e.ar_tier >= AR_BOSS_MARK) { boss = e; }
             e = findflags(e, ar_slot, 5);
         }
-        if(!boss) { return; } // (its own spawn comes a beat after the wave begins)
+        if(!boss) { return; } // (it comes in halfway through its wave, after the opening burst and its warning)
+
+        VR_AT_Check(ar_wave == 5, "the arena jumped to its boss wave");
+        float ib = 0;
+        while(ib < ar_plan_n && !ar_plan_boss[ib]) { ib = ib + 1; }
+        VR_AT_Check(ib < ar_plan_n && ar_plan_kind[ib] == AR_SP_ENFORCER, "wave 5's plan has its boss, an enforcer");
+        VR_AT_Check(ib >= min(VR_ARENA_Opt_Burst(), ar_plan_n - 1), "wave 5's boss comes in after the opening burst");
+        VR_AT_Check(ar_plan_live > ib, "the boss came in after the foes planned ahead of it");
+        VR_AT_Check(VR_AT_BossCount() == 1, "a boss wave has one boss");
 
         VR_AT_Check(boss.vr_ag == 1, "the boss is an armed humanoid");
         VR_AT_Check(boss.ar_tier == 1 + AR_BOSS_MARK, "the boss is worth a boss's tier");
@@ -724,7 +725,7 @@ void(float xKnob, float xEasy, float xNormal, float xHard, float xNight) VR_AT5_
         float want = sk == 0 ? xEasy : sk == 1 ? xNormal : sk == 2 ? xHard : xNight;
         VR_AT_SetSkill(sk);
         float got = VR_ARENA_FieldCap();
-        VR_AT_Check(got == want && got >= 1 && got <= AR_PLAN_MAX,
+        VR_AT_Check(got == want && got >= 1 && got <= AR_FIELD_MAX,
                     sprintf("vr_arena_max_alive %g at skill %g is the field's cap %g (got %g)", xKnob, sk, want, got));
         dprint(sprintf("arena: t5 cap of knob %g at skill %g -> %g up at once\n", xKnob, sk, got));
     }
@@ -1208,7 +1209,7 @@ void() VR_AT5_Scaling =
 
     // The field's cap: vr_arena_max_alive by the factor, whole foes, never past the plan's cap.
     VR_AT5_Caps(8, 6, 8, 10, 12);
-    VR_AT5_Caps(12, 9, 12, 12, 12); // (12 at Hard and Nightmare too: the plan's cap holds)
+    VR_AT5_Caps(12, 9, 12, 15, 16); // (16 at Nightmare: AR_FIELD_MAX holds)
 
     // No wave plans past the cap, whatever the skill, and a wave never plans nobody.
     for(w = 1; w <= 40; w++)
@@ -1698,7 +1699,7 @@ void() VR_AT8_Frame =
 // whole plan put in the field and felled, never more of it up at once than its pool, and every trickle gap within
 // vr_arena_spawn_gap's range (at Normal 1.5 to 3 s). It prints the waves' table (total, pool) first.
 
-float AR_T9_KILL  = 4;    // s between the test's kills
+float AR_T9_KILL  = 8;    // s between the test's kills (slower than the trickle: the pool fills)
 float AR_T9_EPS   = 0.05; // s a gap may run past its range (a frame or so)
 float AR_T9_WAVES = 4;    // waves watched (VR_AT9_Wave)
 float vr_at9_target;      // the wave being watched

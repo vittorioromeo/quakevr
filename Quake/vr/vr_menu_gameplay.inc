@@ -1460,7 +1460,8 @@ void ikStretchReset()
                    "Easy, 4.8 at Hard, 4 at Nightmare) (vr_arena_wave_delay)."),
         slider("Wave Size", vr_arena_wave_size, 0.25f, 4.f, 0.25f, "%.2fx")
             .help("A wave's crowds (its grunts, enforcers and the like) times this; its one signature foe and its boss "
-                   "stay one. 1 is the ladder's own counts, 1.75 (the default) a wave 3 of 5 foes, a wave 20 of 13. "
+                   "stay one. 1 is the ladder's own counts; at 1.75 (the default) wave 10 brings 10 foes instead of 6 "
+                   "and wave 20 brings 13 instead of 7. "
                    "The difficulty then takes its share as it does of every count (vr_arena_wave_size)."),
         slider("Alive Pool", vr_arena_alive_max, 1.f, 16.f, 1.f, "%.0f")
             .help("How many of a wave's foes are up at once, at its start and at Normal: the rest come in one by one as "
