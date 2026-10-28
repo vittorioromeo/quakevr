@@ -14,6 +14,8 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Survival Arena: a boss wave's clear offers three pedestals standing in the arena, and the one you walk over is the perk you keep for the rest of the run {test:arena_intro}
+Survival Arena: what a taken perk does -- the melee kill's 2 s of quad, the snapped neck's 20 health, armour worth 25 more, a wave clear topping up the gun in your hand
 Survival Arena (Play > Survival Arena, map vrarena): it starts unarmed and wave 1 is one or two unarmed grunts; pick their guns up off the bodies -- that is how you climb to nail pistols, shotguns and the heavier guns later
 Survival Arena: the waves get thicker (up to 8 foes at once, trickled in as places free up), Quake's own monsters join at their wave (zombies 2, knights 4, dogs 6, ogres 8, fiends 12, death knights 16), and a boss wave comes every 5th (a beefier enforcer, ogre or death knight); medkits after each wave, an armour every 4th
 Survival Arena: foes come in on the map's own places -- the four floor corners, the four tower tops and the four wall-walk landings (fiends and enforcers arrive high); nothing spawns inside a wall or over a pit; fall and the run says so and restarts in 10 s
