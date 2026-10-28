@@ -104,6 +104,8 @@ float(entity e, float type, float pieces) VR_AgArmor_SetCmd =
 float vr_ar_seq;
 float vr_ar_roll_type; // VR_AgArmor_Roll's answer
 float vr_ar_roll_mask;
+float vr_ar_hold_roll; // 1 while the Survival Arena spawns a wave foe: its armour is the arena's roll, not the skill's
+                       // (vr_arena.qc VR_ARENA_SpawnMonster; the skill's sequence does not move either)
 
 float(float k, vector at) VR_AgArmor_Rand =
 {
@@ -153,7 +155,7 @@ void(float sk, vector at) VR_AgArmor_Roll =
 
 void(entity e) VR_AgArmor_Spawn =
 {
-    if(e.vr_ag_kind > 1 || deathmatch) // (VR_AM_GRUNT 0, VR_AM_ENFORCER 1: vr_armedmon.qc, compiled later)
+    if(e.vr_ag_kind > 1 || deathmatch || vr_ar_hold_roll) // (VR_AM_GRUNT 0, VR_AM_ENFORCER 1: vr_armedmon.qc, compiled later)
     {
         return; // (P2: the enforcer too, by the same chances: no free set)
     }
@@ -444,14 +446,19 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     float frac = VR_AgArmor_Frac(targ.vr_ar_type);
     float rule = cvar("vr_agarmor_rule");
     float saved = 0;
+    float cost = VR_ARK_PlateCost(attacker); // (1; the Survival Arena's Can Opener: a plate pays twice what it saves)
     for(i = 0; i < VR_AR_PIECES; i++)
     {
         if(vr_ar_share[i] > 0 && VR_AgArmor_On(targ, i))
         {
             float part = damage * vr_ar_share[i];
             float save = rule ? part : ceil(frac * part);
-            save = min(save, min(part, targ.vr_ar_hp[i]));
-            targ.vr_ar_hp[i] = targ.vr_ar_hp[i] - save;
+            save = min(save, part);
+            if(save * cost > targ.vr_ar_hp[i])
+            {
+                save = targ.vr_ar_hp[i] / cost;
+            }
+            targ.vr_ar_hp[i] = targ.vr_ar_hp[i] - save * cost;
             saved = saved + save;
             if(targ.vr_ar_hp[i] <= 0)
             {

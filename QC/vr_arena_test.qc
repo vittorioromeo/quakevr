@@ -22,6 +22,12 @@
 // - 7 (vrarena): the cleanup: bodies fade by time and past their cap, never one held, pulled or dying; a wave clear's
 //   drops go two clears on; the foes' guns capped, a player's own never counted, Spoils doubling the cap.
 // - 8 (e1m1, no arena): off the arena every body stays.
+// - 9 (vrarena): the wave flow (alive pool, burst, gaps).
+// - 10 (vrtesthall with vr_arena 1, or vrarena): the foes' armour: its table at each skill (first wave, chance, best
+//   type, plates), the roll over many spawns per (wave, skill) against the table, the bosses' and the guard's, no
+//   armour before the first wave or with it off, the plan's guns untouched by it; then live: wave 5's foes wear what
+//   was planned and the skill's own roll is held (vr_agarmor_skill1 set to certain), the armoured boss's kill pays
+//   more, and a grunt spawned outside the director still gets the skill's roll.
 
 // ---------------------------------------------------------------------------
 // The test's own state
@@ -32,7 +38,7 @@ float vr_at_pass;
 float vr_at_fail;
 float vr_at_step;
 float vr_at_until;
-float vr_at_keep[17];    // the cvars the tests set, put back at the end
+float vr_at_keep[21];    // the cvars the tests set, put back at the end
 float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
 float vr_at_kills0;
 float vr_at_score0;
@@ -58,9 +64,13 @@ string(float i) VR_AT_CvarName =
     if(i == 14) { return "vr_arena_alive_grow"; }
     if(i == 15) { return "vr_arena_burst"; }
     if(i == 16) { return "vr_arena_spawn_gap"; }
+    if(i == 17) { return "vr_arena_foe_armor"; }
+    if(i == 18) { return "vr_arena_foe_armor_scale"; }
+    if(i == 19) { return "vr_arena_foe_armor_from"; }
+    if(i == 20) { return "vr_agarmor_skill1"; } // (test 10 sets the skill's own roll to certain, to see it held)
     return "";
 }
-float VR_AT_NCVARS = 17;
+float VR_AT_NCVARS = 21;
 
 void() VR_AT_Save =
 {
@@ -102,6 +112,9 @@ void() VR_AT_SetDefaults =
     cvar_set("vr_arena_alive_grow", "4");
     cvar_set("vr_arena_burst", "3");
     cvar_set("vr_arena_spawn_gap", "1.5");
+    cvar_set("vr_arena_foe_armor", "1");
+    cvar_set("vr_arena_foe_armor_scale", "1");
+    cvar_set("vr_arena_foe_armor_from", "4");
     VR_AT_SetSkill(1); // (Normal, where the skill's factor is exactly 1: every family's own numbers mean the cvars)
 }
 
@@ -1102,7 +1115,7 @@ void() VR_AT5_Supplies =
     cvar_set("vr_arena_score_kill", "100");
     cvar_set("vr_arena_perk_count", "5");
     VR_AT_SetSkill(3);
-    VR_AT_Check(VR_ARK_Opt_Count() == 7, "a Nightmare boss clear never offers more than the pool's 7");
+    VR_AT_Check(VR_ARK_Opt_Count() == ARK_POOL_N, "a Nightmare boss clear never offers more than the pool's size");
     VR_AT_Check(VR_AT5_OfferDupes(5) == 0, "and its offer is a different perk on each pedestal");
     VR_AT_SetSkill(0);
     VR_AT_Check(VR_ARK_Opt_Count() == 4, "an Easy one offers four of them");
@@ -1806,6 +1819,229 @@ void() VR_AT9_Frame =
     }
 }
 
+// ---------------------------------------------------------------------------
+// Test 10: the foes' armour (vr_arena.qc's VR_ARENA_Armour*; ROUND23.md's table)
+// ---------------------------------------------------------------------------
+
+float AR_T10_N   = 400;  // rolls per (wave, skill) cell
+float AR_T10_TOL = 0.03; // the share armoured within this of the table's chance (a low-discrepancy roll: 0.01 off at most here)
+float vr_at10_seq;       // vr_agarmor.qc's skill sequence when the live wave was asked for
+float vr_at10_score;
+
+float(float xMask) VR_AT10_Plates =
+{
+    float n = 0;
+    float i;
+    for(i = 0; i < 10; i++) { if(xMask & VR_AgArmor_Bit(i)) { n = n + 1; } }
+    return n;
+}
+
+// One (wave, skill) cell: AR_T10_N rolls off the armour's own stream, against the table.
+void(float xWave, float xBoss, float xBossWave) VR_AT10_Cell =
+{
+    float c = VR_ARENA_ArmourChance(xWave);
+    float best = VR_ARENA_ArmourBest(xWave);
+    float pcs = VR_ARENA_ArmourPieces(xWave);
+    float want = c;
+    float wtype = 0;
+    float wpcs = pcs;
+    if(xBoss) { want = c > 0 ? 1 : 0; wtype = min(3, best + 1); wpcs = min(10, pcs + AR_ARM_BOSS_PCS); }
+    else if(xBossWave && c > 0) { want = VR_ARENA_Clamp(c + AR_ARM_GUARD, 0, AR_ARM_CAP); }
+
+    float n = 0;
+    float okType = TRUE;
+    float okMask = TRUE;
+    float seenBest = FALSE;
+    float k;
+    VR_ARENA_ArmourSeed(xWave);
+    for(k = 0; k < AR_T10_N; k++)
+    {
+        VR_ARENA_ArmourRoll(xWave, xBoss, xBossWave);
+        if(ar_arm_type <= 0) { if(ar_arm_mask) { okMask = FALSE; } continue; }
+        n = n + 1;
+        if(xBoss && ar_arm_type != wtype) { okType = FALSE; }
+        if(!xBoss && (ar_arm_type < 1 || ar_arm_type > best)) { okType = FALSE; }
+        if(ar_arm_type == best) { seenBest = TRUE; }
+        if((ar_arm_mask & 3) != 3 || VR_AT10_Plates(ar_arm_mask) != wpcs) { okMask = FALSE; }
+    }
+    float share = n / AR_T10_N;
+    string where = sprintf("skill %g wave %g%s%s", VR_ARENA_SkillLevel(), xWave, xBoss ? " boss" : "", xBossWave ? " (boss wave)" : "");
+    dprint(sprintf("arena: t10 %s: chance %g got %g, best %g, plates %g\n", where, want, share, xBoss ? wtype : best, wpcs));
+    VR_AT_Check(fabs(share - want) <= AR_T10_TOL, sprintf("%s: %g armoured, the table says %g", where, share, want));
+    VR_AT_Check(okType, sprintf("%s: every type within the table's (best %g)", where, best));
+    VR_AT_Check(okMask, sprintf("%s: every armour the cuirass, the helmet and %g plates in all", where, wpcs));
+    if(n > 0 && !xBoss && best > 1) { VR_AT_Check(seenBest, sprintf("%s: the best type turns up", where)); }
+}
+
+void() VR_AT10_Tables =
+{
+    float sk;
+    float w;
+    float i;
+    float bare;
+
+    // The table at each skill (impact 1): the first wave, the best type's gates, the plates, the chance.
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARENA_ArmourFrom() == 7, "Easy: armour from wave 7");
+    VR_AT_Check(VR_ARENA_ArmourBest(14) == 1 && VR_ARENA_ArmourBest(15) == 2 && VR_ARENA_ArmourBest(25) == 3, "Easy: yellow from 15, red from 25");
+    VR_AT_SetSkill(1);
+    VR_AT_Check(VR_ARENA_ArmourFrom() == 4, "Normal: armour from wave 4");
+    VR_AT_Check(VR_ARENA_ArmourChance(3) == 0 && fabs(VR_ARENA_ArmourChance(4) - 0.10) < 0.001 &&
+                fabs(VR_ARENA_ArmourChance(12) - 0.34) < 0.001 && fabs(VR_ARENA_ArmourChance(20) - 0.58) < 0.001 &&
+                VR_ARENA_ArmourChance(40) == AR_ARM_CAP, "Normal: 0 at 3, 10% at 4, 34% at 12, 58% at 20, the cap by 40");
+    VR_AT_Check(VR_ARENA_ArmourBest(11) == 1 && VR_ARENA_ArmourBest(12) == 2 && VR_ARENA_ArmourBest(21) == 2 && VR_ARENA_ArmourBest(22) == 3, "Normal: yellow from 12, red from 22");
+    VR_AT_Check(VR_ARENA_ArmourPieces(4) == 2 && VR_ARENA_ArmourPieces(7) == 3 && VR_ARENA_ArmourPieces(10) == 4 &&
+                VR_ARENA_ArmourPieces(28) == 10 && VR_ARENA_ArmourPieces(40) == 10, "Normal: plates 2 at 4, 3 at 7, 4 at 10, all ten from 28");
+    VR_AT_SetSkill(2);
+    VR_AT_Check(VR_ARENA_ArmourFrom() == 2 && fabs(VR_ARENA_ArmourChance(2) - 0.125) < 0.001, "Hard: from wave 2 at 12.5%");
+    VR_AT_Check(VR_ARENA_ArmourBest(10) == 2 && VR_ARENA_ArmourBest(20) == 3 && VR_ARENA_ArmourBest(9) == 1, "Hard: yellow from 10, red from 20");
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_ARENA_ArmourFrom() == 2 && fabs(VR_ARENA_ArmourChance(2) - 0.15) < 0.001, "Nightmare: from wave 2 at 15%");
+    VR_AT_Check(VR_ARENA_ArmourBest(8) == 2 && VR_ARENA_ArmourBest(18) == 3 && VR_ARENA_ArmourBest(7) == 1, "Nightmare: yellow from 8, red from 18");
+    VR_AT_Check(VR_ARENA_ArmourPieces(4) == 3 && VR_ARENA_ArmourPieces(18) == 10, "Nightmare: 3 plates at 4, all ten at 18");
+
+    // The rolls over many spawns, per (wave, skill), against the table; the bosses and a boss wave's guard.
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        float from = VR_ARENA_ArmourFrom();
+        VR_AT10_Cell(from - 1, FALSE, FALSE); // (none before the first wave)
+        VR_AT10_Cell(from, FALSE, FALSE);
+        VR_AT10_Cell(12, FALSE, FALSE);
+        VR_AT10_Cell(24, FALSE, FALSE);
+        VR_AT10_Cell(36, FALSE, FALSE);
+        VR_AT10_Cell(from - 1, TRUE, TRUE);  // (a boss before the first wave: bare)
+        VR_AT10_Cell(max(from, 5), TRUE, TRUE);
+        VR_AT10_Cell(24, TRUE, TRUE);
+        VR_AT10_Cell(15, FALSE, TRUE);
+    }
+
+    // The plans: no armour before the first wave (at each skill), only on grunts and enforcers, a humanoid boss
+    // always armoured a type above its wave's, and the plan's guns the same with the armour on or off.
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        bare = TRUE;
+        float onlyHum = TRUE;
+        float bossOk = TRUE;
+        float bosses = 0;
+        for(w = 1; w <= 30; w++)
+        {
+            VR_ARENA_Plan(w);
+            for(i = 0; i < ar_plan_n; i++)
+            {
+                if(ar_plan_armour[i] > 0 && w < VR_ARENA_ArmourFrom()) { bare = FALSE; }
+                if(ar_plan_armour[i] > 0 && !VR_AT_IsHumanoid(ar_plan_kind[i])) { onlyHum = FALSE; }
+                if(ar_plan_boss[i] > 0 && VR_AT_IsHumanoid(ar_plan_kind[i]) && w >= VR_ARENA_ArmourFrom())
+                {
+                    bosses = bosses + 1;
+                    if(ar_plan_armour[i] != min(3, VR_ARENA_ArmourBest(w) + 1)) { bossOk = FALSE; }
+                }
+            }
+        }
+        VR_AT_Check(bare, sprintf("skill %g: no plan armours a foe before wave %g", sk, VR_ARENA_ArmourFrom()));
+        VR_AT_Check(onlyHum, sprintf("skill %g: only grunts and enforcers are armoured", sk));
+        VR_AT_Check(bossOk, sprintf("skill %g: each of its %g humanoid bosses a type above its wave's", sk, bosses));
+    }
+    VR_AT_SetSkill(1);
+    VR_ARENA_Plan(5);
+    float boss5 = -1;
+    for(i = 0; i < ar_plan_n; i++) { if(ar_plan_boss[i] > 0) { boss5 = i; } }
+    VR_AT_Check(boss5 >= 0 && ar_plan_armour[boss5] == 2 && VR_AT10_Plates(ar_plan_amask[boss5]) == 6,
+                "Normal: wave 5's enforcer boss wears yellow, 6 plates");
+
+    cvar_set("vr_arena_foe_armor", "0");
+    VR_ARENA_Plan(20);
+    float gunsOff = VR_AT_GunSum();
+    bare = TRUE;
+    for(i = 0; i < ar_plan_n; i++) { if(ar_plan_armour[i] > 0) { bare = FALSE; } }
+    VR_AT_Check(bare && VR_ARENA_ArmourChance(30) == 0, "vr_arena_foe_armor 0: nobody armoured");
+    cvar_set("vr_arena_foe_armor", "1");
+    VR_ARENA_Plan(20);
+    VR_AT_Check(VR_AT_GunSum() == gunsOff, "the armour never moves the plan's guns (its own stream)");
+    cvar_set("vr_arena_foe_armor_scale", "0");
+    VR_AT_Check(VR_ARENA_ArmourChance(30) == 0, "an armour chance of 0: nobody armoured");
+    cvar_set("vr_arena_foe_armor_scale", "2");
+    VR_AT_Check(fabs(VR_ARENA_ArmourChance(4) - 0.2) < 0.001, "an armour chance of 2: 20% at its first wave");
+    cvar_set("vr_arena_foe_armor_scale", "1");
+    cvar_set("vr_arena_foe_armor_from", "8");
+    VR_AT_Check(VR_ARENA_ArmourChance(7) == 0 && VR_ARENA_ArmourChance(8) > 0, "armour from wave 8: none at 7");
+    cvar_set("vr_arena_foe_armor_from", "4");
+
+    // The score: an armoured kill a quarter more per type.
+    VR_AT_Check(VR_ARENA_ArmourWorth(100, 1) == 125 && VR_ARENA_ArmourWorth(100, 2) == 150 &&
+                VR_ARENA_ArmourWorth(400, 3) == 700 && VR_ARENA_ArmourWorth(100, 0) == 100, "an armoured kill: 1.25 / 1.5 / 1.75");
+}
+
+void() VR_AT10_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 10 needs the arena (vrarena, or vr_arena 1)"); VR_AT_End(); return; }
+    VR_AT10_Tables();
+
+    // Live: wave 5 at Normal, with the skill's own roll set to certain -- the arena's roll must replace it.
+    VR_AT_SetSkill(1);
+    cvar_set("vr_agarmor_skill1", "1");
+    vr_at10_seq = vr_ar_seq;
+    VR_ARENA_FastForward(5);
+    vr_at_until = time + 60;
+    dprint("arena: test 10 live wave 5\n");
+}
+
+void() VR_AT10_Frame =
+{
+    entity e;
+    entity boss = world;
+    float i;
+    if(vr_at_step == 0)
+    {
+        if(ar_wave < 5 || ar_plan_left > 0) { return; } // (the whole wave in, its boss too)
+        float planned = 0;
+        float worn = 0;
+        float match = TRUE;
+        for(i = 0; i < ar_plan_n; i++) { if(ar_plan_armour[i] > 0) { planned = planned + 1; } }
+        e = findflags(world, ar_slot, ar_wave);
+        while(e)
+        {
+            if(e.ar_slot == ar_wave && e.health > 0)
+            {
+                if(e.vr_ar_type > 0) { worn = worn + 1; }
+                if(e.vr_ar_type != e.ar_armour) { match = FALSE; }
+                if(e.ar_tier >= AR_BOSS_MARK) { boss = e; }
+            }
+            e = findflags(e, ar_slot, ar_wave);
+        }
+        dprint(sprintf("arena: t10 live wave 5: %g of %g planned armoured, %g wearing it, skill seq moved %g\n",
+                       planned, ar_plan_n, worn, vr_ar_seq - vr_at10_seq));
+        VR_AT_Check(worn == planned, sprintf("wave 5's foes wear the plan's armour (%g, %g planned)", worn, planned));
+        VR_AT_Check(match, "every foe's armour is the one the arena gave it");
+        VR_AT_Check(vr_ar_seq == vr_at10_seq, "the skill's own roll was held for every wave foe (no double roll)");
+        VR_AT_Check(worn < ar_plan_n, "with the skill's roll certain, the wave still has bare foes (the arena's roll rules)");
+        VR_AT_Check(boss != world && boss.vr_ar_type == 2 && VR_AT10_Plates(boss.vr_ar_mask) == 6, "the boss enforcer in yellow, 6 plates");
+        if(boss != world)
+        {
+            entity p = VR_ARENA_FindPlayer();
+            vr_at10_score = ar_score;
+            T_Damage(boss, p, p, boss.health + 1000);
+            float want = VR_ARENA_ArmourWorth(VR_ARENA_KillScore(VR_ARENA_TierOf(boss.ar_tier), 1), 2);
+            VR_AT_Check(ar_score - vr_at10_score == want, sprintf("the armoured boss's kill pays %g (got %g)", want, ar_score - vr_at10_score));
+        }
+
+        // Outside the director: a grunt spawned the ordinary way still gets the skill's roll (certain here).
+        entity keep = self;
+        float seq = vr_ar_seq;
+        entity g = spawn();
+        self = g;
+        g.classname = "monster_army";
+        setorigin(g, VR_ARENA_FindPlayer().origin + '0 0 4096'); // (out of the way; it is removed at once)
+        monster_vr_grunt();
+        self = keep;
+        VR_AT_Check(vr_ar_seq == seq + 1 && g.vr_ar_type > 0 && g.ar_armour == 0, "a grunt outside the waves rolls the skill's armour as before");
+        dprint(sprintf("arena: t10 outside grunt: type %g pieces %g\n", g.vr_ar_type, g.vr_ar_mask));
+        remove(g);
+        VR_AT_End();
+    }
+}
+
 void() VR_ARENA_Test_Frame =
 {
     float c = cvar("vr_arena_test");
@@ -1843,6 +2079,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 7) { VR_AT7_Begin(); return; }
         if(c == 8) { VR_AT8_Begin(); return; }
         if(c == 9) { VR_AT9_Begin(); return; }
+        if(c == 10) { VR_AT10_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -1866,5 +2103,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 7) { VR_AT7_Frame(); return; }
     if(vr_at_case == 8) { VR_AT8_Frame(); return; }
     if(vr_at_case == 9) { VR_AT9_Frame(); return; }
+    if(vr_at_case == 10) { VR_AT10_Frame(); return; }
 }
 #endif
