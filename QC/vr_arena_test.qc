@@ -933,6 +933,135 @@ void() VR_AT5_Bosses =
     VR_AT_SetSkill(1);
 }
 
+// The armour's gap as this difficulty counts it: the distance between the waves its armour actually lands on.
+float() VR_AT5_ArmourGap =
+{
+    float first = 0;
+    float w;
+    for(w = 1; w <= 24; w++)
+    {
+        if(!VR_ARENA_ArmourKind(w)) { continue; }
+        if(!first) { first = w; continue; }
+        return w - first;
+    }
+    return 0;
+}
+
+// What one boss clear's offer looks like at this difficulty: how many pedestals, and whether any perk is on it twice.
+float(float xWave) VR_AT5_OfferDupes =
+{
+    float dup = 0;
+    float i;
+    float j;
+    VR_ARK_Choose(xWave);
+    for(i = 0; i < ark_offer_n; i++)
+    {
+        for(j = i + 1; j < ark_offer_n; j++) { if(ark_offer_bit[i] == ark_offer_bit[j]) { dup = dup + 1; } }
+    }
+    return dup;
+}
+
+// A wave clear's generosity, a kill's worth and a boss clear's offers, at each difficulty -- the knobs left at
+// their defaults (vr_arena_medkits_after 2, vr_arena_armor_every 4, vr_arena_score_kill 100, vr_arena_perk_count 3),
+// so every number below is what the difficulty makes of them.
+void() VR_AT5_Supplies =
+{
+    float sk;
+    float want;
+
+    // Medkits divided by the factor: an Easy clear drops three, a Nightmare one one. An armour's gap is an
+    // interval, so it times the factor: an armour every 3 waves at Easy, every 6 at Nightmare. A kill's score, a
+    // wave clear's bonus and a boss clear's offers all times it too (risk pays).
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        want = sk < 1 ? 3 : sk < 2 ? 2 : sk < 3 ? 2 : 1;
+        VR_AT_Check(VR_ARENA_MedkitCount(3) == want, sprintf("a wave clear drops %g medkits at skill %g", want, sk));
+        VR_AT_Check(VR_ARENA_MedkitCount(9) == want, sprintf("its medkits do not thin out with the wave (skill %g)", sk));
+        want = sk < 1 ? 3 : sk < 2 ? 4 : sk < 3 ? 5 : 6;
+        VR_AT_Check(VR_AT5_ArmourGap() == want, sprintf("an armour every %g waves at skill %g", want, sk));
+        want = sk < 1 ? 75 : sk < 2 ? 100 : sk < 3 ? 125 : 150;
+        VR_AT_Check(VR_ARENA_KillScore(1, 0) == want, sprintf("a first rung kill is worth %g at skill %g", want, sk));
+        want = sk < 1 ? 900 : sk < 2 ? 1200 : sk < 3 ? 1500 : 1800;
+        VR_AT_Check(VR_ARENA_KillScore(3, 1) == want, sprintf("a third rung boss is worth %g at skill %g", want, sk));
+        want = sk < 1 ? 563 : sk < 2 ? 750 : sk < 3 ? 938 : 1125;
+        VR_AT_Check(VR_ARENA_WaveBonus(3) == want, sprintf("a wave clear's bonus is %g at skill %g", want, sk));
+        want = sk < 1 ? 2 : sk < 2 ? 3 : sk < 3 ? 4 : 5;
+        VR_AT_Check(VR_ARK_Opt_Count() == want, sprintf("a boss clear offers %g pedestals at skill %g", want, sk));
+        dprint(sprintf("arena: t5 at skill %g: %g medkits, an armour every %g waves, a kill %g, a clear %g, %g pedestals\n",
+                       sk, VR_ARENA_MedkitCount(3), VR_AT5_ArmourGap(), VR_ARENA_KillScore(1, 0),
+                       VR_ARENA_WaveBonus(3), VR_ARK_Opt_Count()));
+    }
+
+    // Where the armour actually lands at the two ends (the heavier kind still from the table's wave 12).
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARENA_ArmourKind(3) == 1 && VR_ARENA_ArmourKind(4) == 0, "at Easy its armour comes on wave 3, not 4");
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_ARENA_ArmourKind(4) == 0 && VR_ARENA_ArmourKind(6) == 1, "at Nightmare it waits until wave 6");
+    VR_AT_Check(VR_ARENA_ArmourKind(12) != 0 && VR_ARENA_ArmourKind(18) == 2, "and the heavier one still from wave 12 on");
+    VR_AT_SetSkill(1);
+
+    // Never past the knobs' own clamps, never below one where the knob asks for any, and 0 means none at any skill.
+    cvar_set("vr_arena_medkits_after", "4");
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARENA_MedkitCount(3) == AR_KIT_MAX, "an Easy clear never drops more than vr_arena_medkits_after's 4");
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_ARENA_MedkitCount(3) == 3, "a Nightmare clear thins even vr_arena_medkits_after 4 (to 3)");
+    cvar_set("vr_arena_medkits_after", "1");
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        VR_AT_Check(VR_ARENA_MedkitCount(3) >= 1, "a wave clear still gives at least one medkit");
+    }
+    cvar_set("vr_arena_medkits_after", "0");
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        VR_AT_Check(VR_ARENA_MedkitCount(3) == 0, "vr_arena_medkits_after 0: no medkits at any skill");
+    }
+    cvar_set("vr_arena_armor_every", "12");
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_AT5_ArmourGap() == AR_ARMOR_MAX, "a Nightmare gap never stretches past vr_arena_armor_every's 12");
+    cvar_set("vr_arena_armor_every", "0");
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        VR_AT_Check(VR_AT5_ArmourGap() == 0, "vr_arena_armor_every 0: no armour at any skill");
+    }
+
+    // vr_arena_score_kill 50 at the two ends, and the perk pool's own cap.
+    cvar_set("vr_arena_score_kill", "50");
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARENA_KillScore(1, 0) == 38, "vr_arena_score_kill 50 at Easy is 38");
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_ARENA_KillScore(1, 0) == 75, "and at Nightmare 75");
+    cvar_set("vr_arena_score_kill", "1");
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARENA_KillScore(1, 0) >= 1, "a kill is never worth nothing");
+    cvar_set("vr_arena_score_kill", "100");
+    cvar_set("vr_arena_perk_count", "5");
+    VR_AT_SetSkill(3);
+    VR_AT_Check(VR_ARK_Opt_Count() == 7, "a Nightmare boss clear never offers more than the pool's 7");
+    VR_AT_Check(VR_AT5_OfferDupes(5) == 0, "and its offer is a different perk on each pedestal");
+    VR_AT_SetSkill(0);
+    VR_AT_Check(VR_ARK_Opt_Count() == 4, "an Easy one offers four of them");
+    VR_AT_Check(VR_AT5_OfferDupes(10) == 0, "and nothing is offered twice there either");
+    cvar_set("vr_arena_perk_count", "3");
+
+    // vr_arena_skill_impact 0: the generosity is the knobs' own value at every skill -- the arena as it was.
+    cvar_set("vr_arena_skill_impact", "0");
+    for(sk = 0; sk <= 3; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        VR_AT_Check(VR_ARENA_MedkitCount(3) == 2,    "at impact 0 a wave clear drops vr_arena_medkits_after's 2");
+        VR_AT_Check(VR_AT5_ArmourGap() == 4,         "at impact 0 an armour comes every vr_arena_armor_every's 4");
+        VR_AT_Check(VR_ARENA_KillScore(1, 0) == 100, "at impact 0 a kill is vr_arena_score_kill's 100");
+        VR_AT_Check(VR_ARENA_WaveBonus(3) == 750,    "at impact 0 a clear is 250 times the wave");
+        VR_AT_Check(VR_ARK_Opt_Count() == 3,         "at impact 0 a boss clear offers vr_arena_perk_count's 3");
+    }
+    VR_AT_SetDefaults(); // (the knobs back to their defaults, the skill back to Normal)
+}
+
 // The boss wave live, the way test 3 reaches one: pinned to Nightmare, where a boss wave brings two of them.
 void() VR_AT5_BossWave =
 {
@@ -1120,6 +1249,7 @@ void() VR_AT5_Begin =
     VR_AT5_ObeyGates(1); // (the live plans obey the gates at Normal ...)
     VR_AT5_ObeyGates(3); // (... and at Nightmare, where everything arrives early)
     VR_AT5_Bosses();     // (a boss wave's gap, how many big ones it brings, and how big they are)
+    VR_AT5_Supplies();   // (a wave clear's medkits and armour, a kill's and a clear's score, a boss clear's offers)
 
     // Last, so nothing re-plans under it: a boss wave live, the way test 3 fast-forwards to one.
     VR_AT5_BossWave();
