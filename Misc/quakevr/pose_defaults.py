@@ -43,8 +43,10 @@ def new_code(c):
     """agpose::codeFromOld: an old-format (kind * 10000) enforcer code in the new format; any other as it is."""
     return (c // 10000) * KIND_STRIDE + c % 10000 if 10000 <= c < KIND_STRIDE and 10 <= (c // 1000) % 100 <= 16 else c
 POSES = {0: "Idle / Carry", 1: "Aim", 2: "Run", 3: "Pickup", 10: "Jab", 11: "Cross", 12: "Hook", 13: "Uppercut",
-         14: "Overhead", 15: "Diagonal", 16: "Horizontal", 17: "Backhand", 18: "Saw Thrust", 19: "Dual Strike"}
+         14: "Overhead", 15: "Diagonal", 16: "Horizontal", 17: "Backhand", 18: "Saw Thrust", 19: "Dual Strike",
+         20: "Shove"}
 PHASES = ["wind-up", "blow", "follow-through"]
+SHOVE_PHASES = ["wind-up", "push", "recover"]  # (agpose::phaseName(Shove, phase))
 HANDS = {"Main": 0, "Off": 1, "Second": 2}
 HAND_NAMES = {v: k for k, v in HANDS.items()}
 
@@ -92,7 +94,7 @@ def pose_name(code):
     elif pose == 1:
         name = "Guard" if cls == 0 else "Aim" if cls in GUN_CLASSES else "Ready"
     text = "%s, %s, %s" % ("grunt" if kind == 0 else "enforcer", CLASSES.get(cls, "?"), name)
-    return text + (", " + PHASES[phase] if pose >= 10 and phase < 3 else "")
+    return text + (", " + (SHOVE_PHASES if pose == 20 else PHASES)[phase] if pose >= 10 and phase < 3 else "")
 
 
 def read_cfg(path, stretch=None):

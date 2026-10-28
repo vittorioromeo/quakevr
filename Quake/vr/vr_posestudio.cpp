@@ -1239,7 +1239,7 @@ void release()
         const float turn = glm::length(g.keyNow.v[agpose::RTurn] - g.key0.v[agpose::RTurn]) +
                            glm::length(g.keyNow.v[agpose::LTurn] - g.key0.v[agpose::LTurn]);
         const int cls = agpose::classOf(g.code), pose = agpose::poseOf(g.code);
-        const char* what = va("%s, %s%s%s", agpose::poseName(cls, pose), agpose::isStrike(pose) ? agpose::phaseName(g.code % 10) : "",
+        const char* what = va("%s, %s%s%s", agpose::poseName(cls, pose), agpose::isStrike(pose) ? agpose::phaseName(pose, g.code % 10) : "",
             agpose::isStrike(pose) ? ", " : "", agpose::kindsName(g.kind));
         za::String text{what};
         if(isLeg(g.part))
@@ -1373,7 +1373,7 @@ void stepKey(int by)
         return;
     }
     ses.phase = ((ses.phase + by) % agpose::numPhases + agpose::numPhases) % agpose::numPhases;
-    say(va("key: %s", agpose::phaseName(ses.phase)));
+    say(va("key: %s", agpose::phaseName(ses.pose, ses.phase)));
 }
 
 void cycleGrabSet()
@@ -1768,7 +1768,7 @@ void drawPanel()
             for(int ph = 0; ph < agpose::numPhases; ph++)
             {
                 char name[32];
-                q_strlcpy(name, agpose::phaseName(ph), sizeof(name));
+                q_strlcpy(name, agpose::phaseName(ses.pose, ph), sizeof(name));
                 for(char* c = name; ph == ses.phase && *c; c++)
                 {
                     *c = static_cast<char>(*c | 0x80);

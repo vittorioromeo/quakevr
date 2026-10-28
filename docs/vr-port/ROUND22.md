@@ -25256,3 +25256,76 @@ vr_cvars.cpp (retired), vr_menu_gameplay.inc, vr_menu_automation.inc, vr_box3d_r
 - [ ] Shoot an armed grunt's gun (held across its body) with the shotgun, revolver and nailgun: sparks and a ricochet
   or tink, no blood, its health untouched; a pellet that misses the gun and hits it still hurts; the gun still gets
   shot out sometimes {test:vr_agrunt_test 75}
+
+## Armed humanoids' shove (worktree `gorefx`, branch `agent/agshove`, 2026-10-28)
+
+Vittorio: armed humanoids shove the player up close, but no shove animation plays. Their arms are posed (vr_agarms), so
+the model's shove frames (make_enemyshove.py) moved only the legs; the arms stayed aimed. Now they play a new pose,
+**Shove** (agpose::Shove, pose 20: codes `kind*100000 + class*1000 + 200 + phase`), with keys per kind and pose class
+like the strikes', its phases the **wind-up**, the **push** and the **recover**.
+
+The flow (QC vr_enemyshove.qc, vr_armedgrunt_pose.qc):
+- The trigger is unchanged: within `vr_enemy_shove_range` for `vr_enemy_shove_delay` (0.5 s), facing you, not
+  staggered, then `vr_enemy_shove_cooldown`. `VR_EnemyShove_Play` starts it. An armed one with `vr_agrunt_shove` 1 or 2
+  runs `VR_AGP_Shove` (act `VR_AGP_SHOVE`); anyone else plays its frames as before.
+- `VR_AGP_Shove` plays over its stand frames. It doesn't step in, a gun stays aimed ahead (the Aim stance under the
+  keys) and it keeps facing you. The keys blend wind-up 0..0.18 s, then wind-up into push to 0.30 s (the push key whole
+  at the push phase's end), then push into recover to 0.40 s, then back to the stance by 0.56 s. The act's own 0.1 s
+  think ends it at 0.6 s, then `VR_AG_AfterAttack`.
+- The push lands at contact, in `VR_AGP_Pose` on the first server frame at or after 0.30 s (the frames' blow was at
+  0.3 s too). It calls `VR_EnemyShove_Hit` (reach, parry, damage, the slide: all as before) and keeps that time in
+  `vr_ag_shove_s`. Not while the Pose Studio holds it, and not after its act's frames stopped (a pain).
+- The off hand: while the shove leads (its weights at least 0.5), the leading phase key's Off Hand mode sets the gun's
+  off hand: Free to push with it, On the Gun to push the gun. A long gun that its Weapon Holds put in one hand uses the
+  Pistol class's Shove keys (the spec's "one-handed weapon"), so a one-handed hold always pushes with the free hand.
+- `vr_agrunt_shove` (archived, default **2**; Combat > Enemy Shoves > Armed Humanoids' Shove): 0 the model frames,
+  guns only (as before); 1 posed, guns only; 2 posed, and melee weapons and the fists shove too (before, those only
+  struck).
+
+The default keys (agent-made from his spec, in vr_agpose.cpp `shipped`; the enforcer's places are the grunt's times its
+fit, 1 / 1.35 / 1.1). Places are in units (forward, left, up), turns are rotation vectors in degrees and the torso is
+yaw / pitch / roll. Push key:
+- **Rifle** (and every gun category without its own rows: launcher, sprayer, laser cannon, Widowmaker) and **Saw**:
+  the gun across the body in both hands (Off Hand On the Gun), right turn (0, 0, 85), thrust to (10, 0, -1), torso
+  leaning forward 12 (wind-up: pulled in to (-5, 0, -3), leaning back 5).
+- **Pistol**: the off hand Free, out to (21, 0, 22) on its hanging place, palm out and fingers up (turn (77, -124.7,
+  25.7)), its elbow pole out and down; the gun drawn back 3; the torso turned right 10 (the left shoulder forward) and
+  leaning 10.
+- **One-handed melee**: the free hand out (16, 0, 12) and the weapon drawn back 4.
+- **Two-handed melee**: the weapon turned across the body (-85, 0, 0) and thrust to (8, 0, -3).
+- **Two guns, two melee weapons**: both hands palm out holding them, right (-69.3, -69.3, -69.3), left (69.3, -69.3,
+  69.3), pushed out 10.
+- **Fists**: both pushed out 10, up 4.
+
+Editing: the Rig Studio's Pose Studio Data lists Shove with its phases (wind-up, push, recover; `agpose::phaseName(pose,
+phase)`) and Play previews it. So do the VR Pose Studio's pose list and its hold and Play (QC `VR_AGK_Hold`), the dump
+and the key's names, `pose_defaults.py` (pose 20, its phase names) and Copy to the other kind.
+
+Test 84 (`vr_agrunt_test 84`, `-QuitOn "test 84 over"`; Debug > Tests: "Armed Grunts: Their Shove"): five cases, each
+walked up to until it shoves. **20 passed, 0 failed** in three runs:
+
+| case | starts after | wind-up over | push lands | your slide | over |
+| --- | --- | --- | --- | --- | --- |
+| grunt, shotgun | 0.44 s | 0.18 s | 0.300 s | 546 u/s | 0.60 s |
+| grunt, nail pistol | 0.44 s | 0.18 s | 0.300 s | 546 u/s | 0.60 s |
+| grunt, two nail pistols | 1.14 s | 0.19 s | 0.308 s | 546 u/s | 0.61 s |
+| grunt, axe | 0.49 s | 0.19 s | 0.311 s | 546 u/s | 0.60 s |
+| enforcer, laser rifle | 0.43 s | 0.19 s | 0.300 s | 671 u/s | 0.61 s |
+
+`scratch2 1`: a super axe, a chainsaw, two crowbars, the fists, all shove (16 checks pass). The rocket launcher grunt
+never got in reach in 10 s: it backs off faster than the test walks (its fighting distance; not this change).
+Eyeshots: the push landing in your view, then held at the push key from the front and the side (contact sheets in the
+agent's scratch: `agshove_sheet_final.png`, `agshove_sheet_more.png`; `Misc/quakevr/eyeshot_sheet.py` makes them).
+Regressions: test 83 (pose categories) 63/63; eval.sh: the melee takes archived (skip-pass), no verdict changes.
+
+Files: QC/vr_enemyshove.qc, vr_armedgrunt_pose.qc, vr_armedgrunt_play.qc (the tug's shove), vr_armedgrunt_shove_test.qc
+(new), vr_armedgrunt_test.qc, vr_cvars.qc, progs.src; Quake/vr/vr_agpose.hpp/.cpp (Shove, its rows, phaseName),
+vr_posestudio.cpp, vr_poselive.cpp, vr_rigstudio_ui.cpp, vr_cvars.inc, vr_menu_gameplay.inc, vr_menu_automation.inc;
+Misc/quakevr/pose_defaults.py, eyeshot_sheet.py (new); docs/vr-port/TESTING.md.
+
+- [ ] Stand close to an armed grunt with a shotgun, then a nail pistol: it shoves you. The shotgun is turned across its
+  body in both hands and thrust at you; with the pistol, its off hand comes off the gun and pushes palm out while the
+  gun draws back a little. The push lands as its arms reach you, not before. {test:vr_agrunt_test 84}
+- [ ] Same with two pistols, an axe, a super axe and its fists, and with an enforcer: two held, its palms turn to you
+  still holding them; the axe's free hand pushes; a two-handed weapon goes across its body. Tune any in the Pose
+  Studio (Shove: wind-up, push, recover) {test:vr_agrunt_test 84}

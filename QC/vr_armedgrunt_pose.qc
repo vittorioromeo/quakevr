@@ -22,6 +22,8 @@
 float VR_AGP_PUNCH = 1;
 float VR_AGP_SWING = 2;
 float VR_AGP_SAW = 3;
+float VR_AGP_SHOVE = 4; // its shove of the player up close (VR_AGP_Shove; the Shove pose's keys, agpose::Shove)
+.float vr_ag_shove_s;   // its last shove's push landed this far into it (s; the tests read it)
 float VR_AGP_LEFT = 2;      // QVR_SVC_ARMPOSE flags: the left hand to its own target
 float VR_AGP_LEFTWPN = 8;   // ... holding its own weapon there (dual wielding: the message goes on with it and its turn)
 float VR_AGP_LEFTMIRROR = 256; // (QC only, never sent) two guns: the left's target wl x the right hand mirrored + vl
@@ -224,6 +226,10 @@ float vr_agp_tw;
 float vr_agp_ts;
 float vr_agp_th;
 float vr_agp_tr;
+float VR_AGP_SHOVE_WIND = 0.18;    // the shove's wind-up (s)
+float VR_AGP_SHOVE_PUSH = 0.12;    // ... its push: the push lands as it ends
+float VR_AGP_SHOVE_RECOVER = 0.1;  // ... into its recover key
+float VR_AGP_SHOVE_BACK = 0.16;    // ... back to the stance
 void(entity g) VR_AGP_Times =
 {
     vr_agp_th = 0;
@@ -240,6 +246,15 @@ void(entity g) VR_AGP_Times =
         vr_agp_ts = 0.15;
         vr_agp_th = 0.7;
         vr_agp_tr = 0.3;
+    }
+    else if(g.vr_ag_act == VR_AGP_SHOVE)
+    {
+        // (the shove: its wind-up, its push (the contact at its end, 0.3 s in: as the model's shove frames' blow), its
+        // recovery into the recover key, then back: 0.56 s in all)
+        vr_agp_tw = VR_AGP_SHOVE_WIND;
+        vr_agp_ts = VR_AGP_SHOVE_PUSH;
+        vr_agp_th = VR_AGP_SHOVE_RECOVER;
+        vr_agp_tr = VR_AGP_SHOVE_BACK;
     }
     else
     {
@@ -1569,6 +1584,33 @@ void(entity g) VR_AGK_Phases =
     vr_agk_ww = 0;
     vr_agk_wb = 0;
     vr_agk_wf = 0;
+    if(g.vr_ag_act == VR_AGP_SHOVE)
+    {
+        // The shove's: into the wind-up, from it into the push (whole as the push lands: its phase's end), from that
+        // into the recover key, then back to the stance.
+        float u2;
+        if(s < vr_agp_tw)
+        {
+            vr_agk_ww = VR_AGP_Smooth(s / vr_agp_tw);
+        }
+        else if(s < tS)
+        {
+            u2 = VR_AGP_Smooth((s - vr_agp_tw) / vr_agp_ts);
+            vr_agk_ww = 1 - u2;
+            vr_agk_wb = u2;
+        }
+        else if(s < tS + vr_agp_th)
+        {
+            u2 = VR_AGP_Smooth((s - tS) / vr_agp_th);
+            vr_agk_wb = 1 - u2;
+            vr_agk_wf = u2;
+        }
+        else
+        {
+            vr_agk_wf = 1 - VR_AGP_Smooth((s - tS - vr_agp_th) / max(vr_agp_tr, 0.01));
+        }
+        return;
+    }
     if(s < vr_agp_tw)
     {
         vr_agk_ww = VR_AGP_Smooth(s / vr_agp_tw);
@@ -1707,6 +1749,30 @@ void(entity g, entity p) VR_AGK_Keys =
         VR_AGK_Add(base + pose * 10 + 1, vr_agk_wb, mir);
         VR_AGK_Add(base + pose * 10 + 2, vr_agk_wf, mir);
     }
+    else if(act == VR_AGP_SHOVE)
+    {
+        // The Shove pose's keys (agpose::Shove, 20). A long gun its Weapon Holds have in one hand shoves as a pistol
+        // does (the Pistol class's keys: the off hand pushes beside it).
+        float sb = base;
+        if(vr_agk_gun && cls != VR_AGK_PISTOL && VR_AGH_Hands(g, p) == 1)
+        {
+            sb = g.vr_ag_kind * VR_AGK_KIND + VR_AGK_PISTOL * 1000;
+        }
+        VR_AGK_Phases(g);
+        VR_AGK_Add(sb + 200, vr_agk_ww, FALSE);
+        VR_AGK_Add(sb + 201, vr_agk_wb, FALSE);
+        VR_AGK_Add(sb + 202, vr_agk_wf, FALSE);
+        if(vr_agk_gun && vr_agk_ww + vr_agk_wb + vr_agk_wf >= 0.5)
+        {
+            // (its off hand: the leading phase's key's, when set: Free to push with it, On the Gun to push the gun)
+            float ph = ((vr_agk_wb >= vr_agk_ww) && (vr_agk_wb >= vr_agk_wf)) ? 1 : ((vr_agk_ww >= vr_agk_wf) ? 0 : 2);
+            float ms = VR_AGK_Mode(sb + 200 + ph);
+            if(ms)
+            {
+                vr_agk_mode = ms;
+            }
+        }
+    }
 };
 
 // The studio's hold this frame on `g` (its weapon `p`, pre-sorted: the class's the same): asked, and its kind and class
@@ -1775,8 +1841,9 @@ void(entity g, entity p) VR_AGK_Hold =
         g.vr_agk_play = vr_agk_hplay;
         return;
     }
-    g.vr_ag_act = pose <= 13 ? VR_AGP_PUNCH : pose == 18 ? VR_AGP_SAW : VR_AGP_SWING;
-    g.vr_ag_act_kind = pose == 10 ? 0 : pose == 11 ? 1 : pose == 12 ? 3 : pose == 13 ? 4 : pose == 18 ? 0 : pose == 19 ? 2 : pose - 14;
+    g.vr_ag_act = pose == 20 ? VR_AGP_SHOVE : pose <= 13 ? VR_AGP_PUNCH : pose == 18 ? VR_AGP_SAW : VR_AGP_SWING;
+    g.vr_ag_act_kind = pose == 10 ? 0 : pose == 11 ? 1 : pose == 12 ? 3 : pose == 13 ? 4 : pose == 18 ? 0 : pose == 19 ? 2 :
+        pose == 20 ? 0 : pose - 14;
     g.vr_ag_act_hand = pose == 19 ? 2 : 0;
     g.vr_ag_act_var = 0.5;
     g.vr_ag_act_hit = 2; // (no blow dealt, no cut)
@@ -1792,7 +1859,12 @@ void(entity g, entity p) VR_AGK_Hold =
     if(time >= g.vr_agk_play_end)
     {
         float s = vr_agp_tw * 0.999;
-        if(vr_agk_hphase == 1)
+        if(g.vr_ag_act == VR_AGP_SHOVE)
+        {
+            // (the shove's keys whole: the wind-up's end, the push's (its contact), the recover key's)
+            s = vr_agk_hphase == 1 ? vr_agp_tw + vr_agp_ts + 0.0005 : vr_agk_hphase == 2 ? vr_agp_tw + vr_agp_ts + vr_agp_th + 0.0005 : s;
+        }
+        else if(vr_agk_hphase == 1)
         {
             s = vr_agp_tw + vr_agp_ts * (g.vr_ag_act == VR_AGP_PUNCH ? 0.8 : 0.5334); // (Smooth(0.5334) = 0.55: a swing's blow)
         }
@@ -2083,6 +2155,22 @@ void(entity g, entity p) VR_AGP_Pose =
     if(g.vr_ag_act && time - g.vr_ag_act_tick > 0.25)
     {
         g.vr_ag_act = 0; // (its attack's frames stopped: a pain, a knockdown)
+    }
+    if(g.vr_ag_act == VR_AGP_SHOVE && !vr_agp_quiet && !g.vr_ag_act_hit && time - g.vr_ag_act_tick < 0.15)
+    {
+        VR_AGP_Times(g);
+        if(time - g.vr_ag_act_at >= vr_agp_tw + vr_agp_ts - 0.001)
+        {
+            // The push lands as its push phase ends (its key whole: the contact), if you are still in reach and ahead.
+            g.vr_ag_act_hit = 1;
+            g.vr_ag_shove_s = time - g.vr_ag_act_at;
+            VR_AG_Log(sprintf("agp: shove lands %.3f s in (wind-up %.2f, push %.2f)", g.vr_ag_shove_s, vr_agp_tw,
+                vr_agp_ts));
+            entity shoveSelf = self;
+            self = g;
+            VR_EnemyShove_Hit();
+            self = shoveSelf;
+        }
     }
     entity pL = world; // (two held: the right hand's in `p`, the left's here; the slots don't say which)
     if(p && g.vr_ag_prop2)
@@ -2625,6 +2713,37 @@ void(float act) VR_AGP_Begin =
     vr_agp_act();
 };
 
+// The shove's aim: a gun held at you (the Aim stance under the Shove pose's keys, as the Pose Studio shows it).
+void(entity g) VR_AGP_ShoveAim =
+{
+    entity p = g.vr_ag_prop;
+    g.vr_ag_aim = '0 0 0';
+    if(p && g.enemy && VR_AG_Class(p.weapon) != VR_AG_CLASS_MELEE)
+    {
+        makevectors([0, g.angles_y, 0]);
+        g.vr_ag_aim = v_forward; // (straight ahead: ai_face turns it to you)
+    }
+};
+
+// Its shove of the player up close (vr_enemyshove.qc VR_EnemyShove_Play, vr_agrunt_shove 1 and 2; self: the grunt): the
+// Shove pose's keys over its stand frames, the push dealt as the push phase ends (VR_AGP_Pose: VR_EnemyShove_Hit), then
+// on as after any attack (VR_AG_AfterAttack).
+void() VR_AGP_Shove =
+{
+    self.vr_ag_act = VR_AGP_SHOVE;
+    self.vr_ag_act_kind = 0;
+    self.vr_ag_act_hand = 0;
+    self.vr_ag_act_at = time;
+    self.vr_ag_act_var = random();
+    self.vr_ag_act_hit = 0;
+    self.vr_ag_act_hitl = 1; // (no left blow)
+    self.vr_ag_act_tick = time;
+    self.vr_ag_demo = 0;
+    VR_AGP_ShoveAim(self);
+    VR_AG_Log(sprintf("agp: shove starts (%s)", self.vr_ag_prop ? self.vr_ag_prop.netname : "fists"));
+    vr_agp_act();
+};
+
 // Its th_melee: a punch, a swing or the chainsaw's thrust (VR_AG_CheckAttack: its target within reach).
 void() VR_AGP_Attack =
 {
@@ -2659,7 +2778,11 @@ void() VR_AGP_Frame =
     float s = time - self.vr_ag_act_at;
     VR_AGP_Times(self);
     self.frame = VR_AM_StandFrame(self, floor(s * 10)); // (its stand frames: its legs under the arms)
-    if(s < vr_agp_tw + vr_agp_ts && !demo)
+    if(self.vr_ag_act == VR_AGP_SHOVE)
+    {
+        VR_AGP_ShoveAim(self); // (no step in: the shove is from where it stands, as the model's frames were)
+    }
+    else if(s < vr_agp_tw + vr_agp_ts && !demo)
     {
         ai_charge(s < vr_agp_tw ? 1 : 3);
     }

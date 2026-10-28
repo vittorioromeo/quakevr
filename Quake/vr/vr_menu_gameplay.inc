@@ -57,6 +57,12 @@
             .help("An enforcer's shove's damage, times Damage."),
         slider("Enforcer Push", vr_enemy_shove_enforcer_distance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("How far an enforcer's shove pushes you, times Push Distance."),
+        cycle("Armed Humanoids' Shove", "vr_agrunt_shove", {{0.f, "Model Frames, Guns"}, {1.f, "Posed, Guns"},
+            {2.f, "Posed, Every Weapon"}})
+            .help("How armed grunts and enforcers shove you: posed (the Shove pose's keys, per weapon class: the off "
+                  "hand pushing beside a one-handed gun, a long gun pushed across the body in both hands, the palms "
+                  "out holding two weapons or the fists), with every weapon and their fists, or with guns only; or as "
+                  "before (their model's shove frames, the arms held as they aim, guns only)."),
         toggle("Vores Shove", vr_enemy_shove_vore)
             .help("Vores shove you too, swinging their arms down at you: the hardest shove of all. They reach a little "
                   "farther (they are wider)."),
