@@ -14,6 +14,7 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Armour helmet: Rig Studio with Debug > Armed Humanoids' Armour (P0) Green/Yellow/Red: the grunt's helmet reads as the Ranger's (flat-topped bucket, cheek guards framing the face, side brackets, vents, lining); check live grunts and ragdolls with vr_agarmor 4: the helmet's back may poke into the upper back when the head is flung back
 The authored rig is the only rig for grunts and enforcers: an old config with vr_rig2 0 loads with no error; grunts and enforcers live, hit and dead look as with the new rig before
 Rig Studio: the grunt subject has no Rest Pose/Weights/Paint tools; a knight subject still has them and saves its overrides
 Melee and fist armed humanoids only strike again (Enemy Shoves: guns only by default); gun carriers still do the posed shove
