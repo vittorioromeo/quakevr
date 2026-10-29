@@ -469,3 +469,41 @@ Checklist:
   hand through the stagger, the fall, lying and the get-up; never floats off it.
 - Shoved over, its weapon never goes into its chest; its hand stays out of it (the grunt's may still dip in briefly).
 - A downed armed grunt's weapon can still be grabbed off it `{test:agrunt_fall}`.
+
+## Armed humanoids shove up close; dual guns' shots from each muzzle (branch `agent/shovemuzzle`)
+
+His notes (2026-10-29): armed humanoids with guns "don't really shove the player away anymore because they prefer
+backpedaling"; really close they should walk up and shove, a bit further backpedal, otherwise as now. And dual-wielding
+enforcers with two laser rifles fire both bolts "from the same weapon's muzzle... the right weapon".
+
+**Shove up close.** Cause: a gun's holder backs off whenever you are nearer than its weapon's least distance
+(`VR_AG_RangeMove`, and `VR_AG_WalkFire` as it fires), so you never stayed in its shove's reach (50 units) for the
+shove's 0.5 s delay. Now (`vr_agrunt_shove_close`, default 24, Combat > Enemy Shoves > Armed Shove: Step In; 0 the old
+behaviour): you within its reach plus 24 units (74 for a grunt) and its shove ready (cooldown over, on its feet, not
+in a tug), it holds its fire and steps in facing you (`VR_AG_ShoveCloseIn`, from `VR_AG_Run` before the explosive
+back-off and `ai_run`), then shoves once the delay passes (`VR_EnemyShove_Check`); its walk-fire doesn't back away
+there either. Between that and its least distance it backs off as before; during the shove's cooldown too. Melee
+weapons and fists are unchanged (their own blows). Gun holders only (his standing decision).
+
+**Dual guns' muzzles.** Cause: a replacement's own gun (`vr_ag_native`: the enforcer's laser rifle, the grunt's gun)
+fires its monster's own shot from the monster's own place (`VR_AGR_NativeShot`: the enforcer's `v_right * 8.5`, the
+grunt's `EnemyFireBullets` middle), whichever hand holds it. Every other dual pair already fired from each gun's
+`muzzlepos` (measured). Now with a gun in each hand the native shot leaves that gun's drawn muzzle
+(`VR_AG_DrawnMuzzle`, split out of `VR_AG_SetHand`: the server muzzle turned onto the drawn gun under
+vr_agrunt_shot_drawn); `EnemyFireBullets` takes it through `vr_agr_native_from`. A single native gun is unchanged.
+
+**Tests.** Test 89 (`QC/vr_armedgrunt_shoveclose_test.qc`): shotgun, nail pistol, nailgun, enforcer's laser rifle;
+in reach (40 apart) and just beyond (64): 8/8 shoved in 0.6-0.9 s, 0 backing steps; the band (101-149, halfway to its
+least): 4/4 backed off, 0 shoves; far (420): 4/4 no step-ins. With `vr_agrunt_shove_close 0` the near check fails (it
+backs off). Test 85 (`QC/vr_armedgrunt_muzzle_test.qc`): every pair for grunt and enforcer (shotguns, super shotguns,
+nail guns, super nail guns, nail pistols, grenade launchers, thunderbolts, laser rifles, both natives; AD's plasma
+skipped without AD data), 3 shots a gun: every shot 0-2.4 units from its own drawn muzzle, 11-22 from the other: 15/15;
+before the fix both native pairs fail (the left gun's shots 22 units from it, nearer the right gun). Test 48 (fighting
+distance) case "walking at it, axe": now passes when it shoves you up close (it used to require never within 64).
+Tests 84 (shove) 20/20, 42 (dual guns) 20/20.
+
+Checklist:
+- Walk right up to a grunt holding a shotgun (or an enforcer with its rifle): it stops backing off, steps in and shoves
+  you; stand a little further (about two body widths) and it backs off as before.
+- Dual-wielding enforcer with two laser rifles, a grunt with two of its own guns `{test:agrunt_dual_guns}`: each bolt
+  or burst leaves its own gun, the left gun's from the left hand.
