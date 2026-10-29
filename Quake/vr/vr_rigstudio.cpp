@@ -1212,7 +1212,7 @@ void posekey_f()
         const glm::vec3 z = iw * (glm::normalize(H.rot) * glm::vec3{0.f, 0.f, 1.f});
         Con_Printf("rigstudio posekey: off hand drawn in the gun's frame: at %.2f %.2f %.2f, x %.3f %.3f %.3f, z %.3f %.3f %.3f; "
                    "second grip %s, cup %s\n", p.x, p.y, p.z, x.x, x.y, x.z, z.x, z.y, z.z, st.note.placed.held2 ? "held" : "not held",
-            st.note.t.cup ? "on" : "off");
+            st.note.placed.cupped ? "on" : "off");
     }
     aglegs::Placed L;
     const bool legs = st.subject > 0 && aglegs::placed(st.subject, L);
@@ -1745,7 +1745,7 @@ OffTest otest;
 [[nodiscard]] glm::vec3 offHandInChest(bool& onGun)
 {
     const rigpose::Rigid& C = st.note.placed.chest;
-    onGun = st.note.placed.held2 || (st.note.t.cup && !st.note.t.second);
+    onGun = st.note.placed.held2 || st.note.placed.cupped;
     return glm::inverse(glm::normalize(C.rot)) * (st.note.placed.hand[1].pos - C.pos);
 }
 
@@ -1753,7 +1753,7 @@ OffTest otest;
 [[nodiscard]] float offHandFromGun()
 {
     const rigpose::Rigid& W = st.note.placed.weapon[0];
-    const glm::vec3 grip = st.note.t.second ? rigpose::apply(W, st.note.t.secondAt.pos) : st.note.placed.hand[0].pos;
+    const glm::vec3 grip = st.note.t.second && !st.note.placed.cupped ? rigpose::apply(W, st.note.t.secondAt.pos) : st.note.placed.hand[0].pos;
     return glm::length(st.note.placed.hand[1].pos - grip);
 }
 
@@ -1852,7 +1852,7 @@ void offTestTick()
             otCheck("Aim -> Run: the off hand eased off the gun", !free || (t >= 0.15f && t <= 1.2f && otest.most <= za::max(0.5f, way / 5.f)), text);
         }
         q_snprintf(text, sizeof(text), "second grip %s, cup %s, %.2f units from the grip", st.note.placed.held2 ? "held" : "not held",
-            st.note.t.cup ? "on" : "off", off);
+            st.note.placed.cupped ? "on" : "off", off);
         otCheck(otest.phase == 1 ? "Run: the off hand" : "Run again: the off hand", free ? (!onGun && off >= 4.f) : otest.mode == agpose::OffGun ? onGun : true, text);
         Cbuf_AddText("screenshot\n");
         if(otest.phase == 1)
@@ -1870,12 +1870,250 @@ void offTestTick()
     }
     // (phase 2: Aim)
     q_snprintf(text, sizeof(text), "moved %.2f units over %.3f s, its largest step %.3f units a frame (%.1f units/s); second grip %s, cup %s",
-        way, t, otest.most, otest.most * 72.f, st.note.placed.held2 ? "held" : "not held", st.note.t.cup ? "on" : "off");
+        way, t, otest.most, otest.most * 72.f, st.note.placed.held2 ? "held" : "not held", st.note.placed.cupped ? "on" : "off");
     otCheck("Run -> Aim: the off hand eased onto the gun", onGun && (otest.mode != agpose::OffFree ||
         (t >= 0.15f && t <= 1.2f && otest.most <= za::max(0.5f, way / 5.f))), text);
     Cbuf_AddText("screenshot\n");
     otFollowBegin(agpose::Run);
     otest.phase = 3;
+}
+
+// vr_rigstudio_test_offmodes (open the studio with a single gun: vr_rigstudio monster_vr_grunt 4, the shotgun): every
+// held pose of the subject's class that decides the off hand (Carry, Aim, Run, Pickup, the Shove's push) with its key's
+// Off Hand set to Auto, On the Gun, Free in turn, each settled (still 12 frames): On the Gun on it (its second grip held
+// or cupping), Free off it (4 units at least from its grip, and 4 from where On the Gun held it). Then saved and
+// reloaded: the keys' text (vr_agrunt_poses) with Carry's Free, then with Carry's On the Gun, each taken away (the keys
+// as before the test) and read back: the mode read back and the hand again off (on) the gun. Every key and the text put
+// back exactly. Ends on "rigstudio offmodes: N passed, M failed".
+struct OffModesStep
+{
+    int pose;
+    int phase;
+    int mode;
+};
+inline constexpr OffModesStep omSteps[] = {
+    {agpose::Carry, 0, agpose::OffAuto}, {agpose::Carry, 0, agpose::OffGun}, {agpose::Carry, 0, agpose::OffFree},
+    {agpose::Aim, 0, agpose::OffAuto}, {agpose::Aim, 0, agpose::OffGun}, {agpose::Aim, 0, agpose::OffFree},
+    {agpose::Run, 0, agpose::OffAuto}, {agpose::Run, 0, agpose::OffGun}, {agpose::Run, 0, agpose::OffFree},
+    {agpose::Pickup, 0, agpose::OffAuto}, {agpose::Pickup, 0, agpose::OffGun}, {agpose::Pickup, 0, agpose::OffFree},
+    {agpose::Shove, 1, agpose::OffAuto}, {agpose::Shove, 1, agpose::OffGun}, {agpose::Shove, 1, agpose::OffFree},
+};
+inline constexpr int omNumSteps = static_cast<int>(sizeof(omSteps) / sizeof(omSteps[0]));
+inline constexpr int omMaxCodes = 8;
+
+struct OffModesTest
+{
+    int phase{-1}; // -1 off; 0 waits for the subject; 1 the steps; 2 reloaded with Carry Free; 3 with Carry On the Gun
+    int step{0};
+    bool begun{false}; // (this step's key set)
+    int codes[omMaxCodes]{};
+    agpose::Key keys0[omMaxCodes];
+    int numCodes{0};
+    za::String text0; // (vr_agrunt_poses before)
+    za::String saved; // (the text saved with this reload's key)
+    int frames{0}, still{0};
+    bool have{false};
+    glm::vec3 last{0.f};
+    float gunOff{0.f}; // (this pose's On the Gun distance from its grip)
+    float reloadOff[2]{0.f, 0.f};
+    int passed{0}, failed{0};
+};
+OffModesTest omtest;
+
+void omCheck(const char* what, bool ok, const char* text)
+{
+    Con_Printf("rigstudio offmodes: %s: %s: %s\n", what, text, ok ? "PASS" : "FAIL");
+    (ok ? omtest.passed : omtest.failed)++;
+}
+
+[[nodiscard]] int omCode(int pose, int phase)
+{
+    return agpose::code(st.subjKind, st.subjClass, pose, phase);
+}
+
+// Key `code` (one of the test's) as before the test with its Off Hand `mode`.
+void omSetMode(int code, int mode)
+{
+    for(int i = 0; i < omtest.numCodes; i++)
+    {
+        if(omtest.codes[i] == code)
+        {
+            agpose::Key k = omtest.keys0[i];
+            k.v[agpose::OffHand] = glm::vec3{static_cast<float>(mode), 0.f, 0.f};
+            agpose::set(code, k);
+        }
+    }
+}
+
+void omHold(int pose, int phase)
+{
+    st.pdPose = pose;
+    st.pdPhase = phase;
+    omtest.frames = omtest.still = 0;
+    omtest.have = false;
+}
+
+// The off hand followed a frame: true once still 12 frames, or after two seconds (past every ease: the hand's, a quarter
+// second, the gun's, under 1.2; a run's sway is never still).
+inline constexpr int omSettleFrames = 144;
+[[nodiscard]] bool omSettled()
+{
+    bool onGun = false;
+    const glm::vec3 p = offHandInChest(onGun);
+    omtest.frames++;
+    if(omtest.have)
+    {
+        omtest.still = glm::length(p - omtest.last) > 0.02f ? 0 : omtest.still + 1;
+    }
+    omtest.last = p;
+    omtest.have = true;
+    return (omtest.frames > 10 && omtest.still >= 12) || omtest.frames >= omSettleFrames;
+}
+
+// The keys' text saved with Carry's Off Hand `mode`, the keys then as before the test, then the text read back.
+void omSaveReload(int mode)
+{
+    const int carry = omCode(agpose::Carry, 0);
+    omSetMode(carry, mode);
+    omtest.saved = za::String{vr_agrunt_poses.string ? vr_agrunt_poses.string : ""};
+    Cvar_Set(vr_agrunt_poses.name, omtest.text0.cStr());
+    const int before = agpose::offModeOf(agpose::value(carry).v[agpose::OffHand]);
+    Cvar_Set(vr_agrunt_poses.name, omtest.saved.cStr());
+    const int read = agpose::offModeOf(agpose::value(carry).v[agpose::OffHand]);
+    char text[200];
+    q_snprintf(text, sizeof(text), "saved %s, taken away %s, read back %s", agpose::offModeName(mode),
+        agpose::offModeName(before), agpose::offModeName(read));
+    omCheck("Carry's Off Hand saved and reloaded", read == mode && before == agpose::offModeOf(omtest.keys0[0].v[agpose::OffHand]), text);
+    omHold(agpose::Carry, 0);
+}
+
+void offModesTestTick()
+{
+    if(omtest.phase < 0 || !st.open)
+    {
+        return;
+    }
+    char text[300];
+    if(omtest.phase == 0)
+    {
+        if(!noteNow() || !agpose::isGunCategory(st.subjClass))
+        {
+            if(++omtest.frames > 900)
+            {
+                omCheck("subject", false, "no single gun subject (open it with one: vr_rigstudio monster_vr_grunt 4, the shotgun)");
+                Con_Printf("rigstudio offmodes: %d passed, %d failed\n", omtest.passed, omtest.failed);
+                omtest.phase = -1;
+            }
+            return;
+        }
+        if(st.tool != Tool::PoseKeys || st.lastTool != Tool::PoseKeys)
+        {
+            st.tool = Tool::PoseKeys;
+            st.pdFollow = true;
+            st.aim.selected = false;
+            return;
+        }
+        omtest.text0 = za::String{vr_agrunt_poses.string ? vr_agrunt_poses.string : ""};
+        omtest.numCodes = 0;
+        for(const OffModesStep& s : omSteps)
+        {
+            const int c = omCode(s.pose, s.phase);
+            bool known = false;
+            for(int i = 0; i < omtest.numCodes; i++)
+            {
+                known = known || omtest.codes[i] == c;
+            }
+            if(!known && omtest.numCodes < omMaxCodes)
+            {
+                omtest.codes[omtest.numCodes] = c;
+                omtest.keys0[omtest.numCodes] = agpose::value(c);
+                omtest.numCodes++;
+            }
+        }
+        omtest.step = 0;
+        omtest.begun = false;
+        omtest.phase = 1;
+        return;
+    }
+    if(omtest.phase == 1)
+    {
+        const OffModesStep& s = omSteps[omtest.step];
+        const int code = omCode(s.pose, s.phase);
+        if(!omtest.begun)
+        {
+            omSetMode(code, s.mode);
+            omHold(s.pose, s.phase);
+            omtest.begun = true;
+            return;
+        }
+        if(!noteNow() || !omSettled())
+        {
+            return;
+        }
+        bool onGun = false;
+        (void)offHandInChest(onGun);
+        const float off = offHandFromGun();
+        q_snprintf(text, sizeof(text), "%s %s: second grip %s, cup %s, %.2f units from the grip%s",
+            agpose::poseName(st.subjClass, s.pose), agpose::offModeName(s.mode), st.note.placed.held2 ? "held" : "not held",
+            st.note.placed.cupped ? "on" : "off", off, omtest.frames >= omSettleFrames ? " (still moving)" : "");
+        if(s.mode == agpose::OffGun)
+        {
+            omtest.gunOff = off;
+            omCheck("On the Gun: on it", onGun, text);
+        }
+        else if(s.mode == agpose::OffFree)
+        {
+            omCheck("Free: off it", !onGun && off >= 4.f && off >= omtest.gunOff + 4.f, text);
+        }
+        else
+        {
+            omCheck("Auto", true, text);
+        }
+        for(int i = 0; i < omtest.numCodes; i++)
+        {
+            if(omtest.codes[i] == code)
+            {
+                agpose::set(code, omtest.keys0[i]); // (this pose's key as it was: the next pose's off hand its own)
+            }
+        }
+        omtest.begun = false;
+        if(++omtest.step < omNumSteps)
+        {
+            return;
+        }
+        omSaveReload(agpose::OffFree);
+        omtest.phase = 2;
+        return;
+    }
+    if(!noteNow() || !omSettled())
+    {
+        return;
+    }
+    bool onGun = false;
+    (void)offHandInChest(onGun);
+    const float off = offHandFromGun();
+    const bool free = omtest.phase == 2;
+    omtest.reloadOff[free ? 0 : 1] = off;
+    q_snprintf(text, sizeof(text), "Carry %s reloaded: second grip %s, cup %s, %.2f units from the grip",
+        free ? "Free" : "On the Gun", st.note.placed.held2 ? "held" : "not held", st.note.placed.cupped ? "on" : "off", off);
+    omCheck(free ? "reloaded Free: off the gun" : "reloaded On the Gun: on it",
+        (free ? (!onGun && off >= 4.f) : (onGun && omtest.reloadOff[0] >= off + 4.f)), text);
+    if(free)
+    {
+        omSaveReload(agpose::OffGun);
+        omtest.phase = 3;
+        return;
+    }
+    Cvar_Set(vr_agrunt_poses.name, omtest.text0.cStr());
+    bool same = strcmp(vr_agrunt_poses.string, omtest.text0.cStr()) == 0;
+    for(int i = 0; i < omtest.numCodes; i++)
+    {
+        const agpose::Key k = agpose::value(omtest.codes[i]);
+        same = same && !memcmp(&k, &omtest.keys0[i], sizeof(k));
+    }
+    omCheck("the keys put back", same, "the text and every key as before");
+    Con_Printf("rigstudio offmodes: %d passed, %d failed\n", omtest.passed, omtest.failed);
+    omtest.phase = -1;
 }
 
 // vr_rigstudio_test_stretch [factor] (open the studio with a gun: the shotgun grunt, vr_rigstudio monster_vr_grunt 4):
@@ -2038,6 +2276,18 @@ void testOffHand_f()
     otest = OffTest{};
     otest.mode = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)), 0, agpose::NumOffModes - 1) : agpose::OffFree;
     otest.phase = 0;
+}
+
+void testOffModes_f()
+{
+    if(!st.open)
+    {
+        Con_Printf("rigstudio offmodes: the studio is not open\n");
+        Con_Printf("rigstudio offmodes: 0 passed, 1 failed\n");
+        return;
+    }
+    omtest = OffModesTest{};
+    omtest.phase = 0;
 }
 
 void testSubjects_f()
@@ -3262,7 +3512,7 @@ void init()
     Cmd_AddCommand("vr_rigstudio_test_aim", testAim_f);
     Cmd_AddCommand("vr_rigstudio_test_posekeys", testPoseKeys_f);
     Cmd_AddCommand("vr_rigstudio_test_offhand", testOffHand_f);
-    Cmd_AddCommand("vr_rigstudio_test_offhand", testOffHand_f);
+    Cmd_AddCommand("vr_rigstudio_test_offmodes", testOffModes_f);
     Cmd_AddCommand("vr_rigstudio_test_stretch", testStretch_f);
     Cmd_AddCommand("vr_rigstudio_test_typing", testTyping_f);
     Cmd_AddCommand("vr_rigstudio_test_rig2anim", testAnim_f);
@@ -3475,7 +3725,7 @@ void clientFrame()
     aimTestTick(); // (the tests' steps: after the frame's note and drags)
     pkTestTick();
     offTestTick();
-    offTestTick();
+    offModesTestTick();
     stretchTestTick();
     typingTestTick();
     animTestTick();

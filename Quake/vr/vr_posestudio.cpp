@@ -368,11 +368,11 @@ Desk desk;
 // it (its second grip held, or cupping the right hand) or hanging free.
 [[nodiscard]] bool offHandOnGun(const Note& n)
 {
-    return n.prop > 0 && n.placed.on[0] && (n.placed.held2 || (n.t.cup && !n.t.second));
+    return n.prop > 0 && n.placed.on[0] && (n.placed.held2 || n.placed.cupped);
 }
 [[nodiscard]] bool offHandFree(const Note& n)
 {
-    return n.prop > 0 && n.placed.on[0] && n.propL <= 0 && n.t.goal[1] == agarms::Goal::None && !n.placed.held2 && !n.t.cup;
+    return n.prop > 0 && n.placed.on[0] && n.propL <= 0 && n.t.goal[1] == agarms::Goal::None && !n.placed.held2 && !n.placed.cupped;
 }
 
 // The subject's legs as solved now (model space), in the Pickup pose with its kneel up (vr_aglegs); else false.

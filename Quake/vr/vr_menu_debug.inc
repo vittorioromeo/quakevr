@@ -170,6 +170,11 @@ za::Vector<Item> pageDebugViews()
                   "left arm, two random poses: each held weapon's grip read back from where it is drawn against its hand "
                   "bone's (within 0.5 units, 2 degrees), a screenshot each; the console says how many passed. Flat screen "
                   "only; pick a dual-wielding subject first (Subject menu) to test the left hand too."),
+        command("Rig Studio: Test the Off Hand per Pose", "vr_rigstudio monster_vr_grunt 29;vr_rigstudio_test_offmodes")
+            .help("vr_rigstudio_test_offmodes: the nail pistol grunt held in Carry, Aim, Run, Pickup and the Shove, each "
+                  "pose's Off Hand set to Auto, On the Gun and Free in turn (on the gun, off it), then saved and read back "
+                  "with Carry Free and On the Gun; every key put back after. The console says how many passed. Flat screen "
+                  "only."),
         command("Rig Studio: Test Typing in the Fields", "vr_rigstudio;vr_rigstudio_test_typing")
             .help("vr_rigstudio_test_typing: keys, typed characters and clicks sent through the game's input loop into "
                   "the studio's text fields (a sequence's FPS typed, undone, cancelled; the Outliner's search typed; the "

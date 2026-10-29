@@ -871,6 +871,7 @@ struct ArmPoseMsg
     // The pose keys' off hand (QC's off-hand block, told by apLeftFree and apTwo both set: agpose GripPos/GripTurn,
     // LPos/LTurn): its grip on the right weapon moved and turned (the weapon's frame), the free hand's (its body's space).
     bool offKeyed{false};
+    bool keyGun{false}; // its key's Off Hand On the Gun (the block's 32): cupped even with a pistol carried low
     glm::vec3 gripPos{0.f}, gripTurn{0.f};
     glm::vec3 freePos{0.f}, freeTurn{0.f};
     float stretch{1.f}; // its kind and class's IK stretch (agpose::stretch; the block's 16)
@@ -897,6 +898,7 @@ struct ArmPose
     float take{0.f};                             // a take's weight, its reaching hand (vr_aglegs)
     int takeSide{0};
     bool offKeyed{false};                        // the pose keys' off hand (ArmPoseMsg's; the free hand's in model space)
+    bool keyGun{false};                          // its key's Off Hand On the Gun (ArmPoseMsg's; in offKeyed's padding)
     glm::vec3 gripPos{0.f}, gripTurn{0.f}, freePos{0.f}, freeTurn{0.f};
     float stretch{1.f};                          // its IK stretch (ArmPoseMsg's: the arms' Targets::stretch)
     // vr_agholds_report: as its arms were last solved (vr_agarms): its kind, its weapon's slot, its off hand's goal (0
@@ -1109,6 +1111,7 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     s.freePos = m.freePos / scale;
     s.freeTurn = m.freeTurn;
     s.stretch = m.stretch;
+    s.keyGun = m.keyGun;
     if(anchored)
     {
         s.left += anchorAt * m.wl;
@@ -2704,16 +2707,17 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
             t.secondAt = composeRigid(rigpose::Rigid{glm::quat{1.f, 0.f, 0.f, 0.f}, secondPoint}, gripRigid(kind, slot, aggrip::Second));
             t.second = true;
         }
-        else if(type == 2 && !lowCarry(t))
+        else if(type == 2 && (s.keyGun || !lowCarry(t)))
         {
             // (vr_agarms_arm_clear: a pistol carried low, pointing down, in one hand: the other cupping it there reached
-            // across the body, its upper arm through the torso)
+            // across the body, its upper arm through the torso; unless its pose key chose On the Gun)
             t.cup = true;
         }
-        if(!t.second && !t.cup && (s.flags & apTwo) && !lowCarry(t))
+        if(!t.second && !t.cup && (s.flags & apTwo) && (s.keyGun || !lowCarry(t)))
         {
             t.cup = true; // (two-handed and no second grip: the off hand under and round the right on its handle)
         }
+        t.keyGun = s.keyGun; // (its second grip out of reach: cupping the right hand instead, vr_agarms)
     }
     if(s.offKeyed && hasR && !(s.flags & (apLeft | apLeftWeapon)))
     {
@@ -3110,6 +3114,7 @@ void parseArmPose()
         const int b = MSG_ReadByte();
         m.flags = (m.flags & ~(apLeftFree | apTwo)) | ((b & 1) ? apLeftFree : 0) | ((b & 2) ? apTwo : 0);
         m.offKeyed = (b & (4 | 8)) != 0; // (16 alone: the IK stretch only)
+        m.keyGun = (b & 32) != 0;        // (its key's On the Gun: no flag of its own follows)
         const auto readShorts = [](glm::vec3& v, float per) {
             for(int i = 0; i < 3; i++)
             {
