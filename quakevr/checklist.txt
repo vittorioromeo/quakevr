@@ -14,6 +14,10 @@ Comfort > Soften Flickering Lights now defaults to 0 (configs on beta4's 0.5 mov
 Widowmaker: the sharper skin (35% more resolution), much darker, near AD's black but not all the way, in a lit and a dark room; brass collars, rivets and grips still readable up close {test:widowmaker_art}
 First start: put the headset on after the game is up: the legs fit, the same as after a reload
 Autosaves: play a map a while: Load Autosave (main and pause menus; death menu, under Restart) lists this game's autosaves newest first; none is made while monsters are on you or health is low
+Per-weapon recoil: Weapon Offsets > Effects' Recoil Kick Back and Recoil Muzzle Rise change only that weapon's kick back and muzzle rise; at 1x it feels as before.
+Relighting > Ambient Light Level 32, then Relight This Map: no pitch-black corners, the rest looks as before.
+Nails: drawn ~35% smaller and 18% faster for you and enemies, still hitting what they visibly touch; enemy nails still dodgeable (look: vr_nail_test 2).
+Rig Studio off-hand: a pistol grunt's Carry/Run set On the Gun cups the gun without the arm clipping the torso; Free hangs; rifle Pickup On the Gun cups the right hand.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns; no stuck, non-interactable guns (if one appears: developer 1, note any 'dropcap:' line and how it got there)
