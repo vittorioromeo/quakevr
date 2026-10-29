@@ -13,6 +13,9 @@ Per-weapon recoil: at 1x it feels as before
 Relighting > Ambient Light Level 32, then Relight This Map: no pitch-black corners, the rest looks as before
 Rig Studio off-hand: a pistol grunt's Carry/Run set On the Gun cups the gun without the arm clipping the torso; Free hangs
 Rig Studio off-hand: rifle Pickup On the Gun cups the right hand
+Shove an armed grunt and an enforcer into a stagger and over {test:agrunt_fall}: the weapon stays in the drawn hand through the stagger, the fall, lying and the get-up; never floats off it.
+Shoved over, its weapon never goes into its chest; its hand stays out of it (the grunt's may still dip in briefly).
+A downed armed grunt's weapon can still be grabbed off it {test:agrunt_fall}.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
