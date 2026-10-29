@@ -426,3 +426,46 @@ On the mock: Collapse All, Expand All and the first section's fold row add 3 row
 - Relighting > Ambient Light Level at 32, Relight This Map: no pitch-black corner left, the rest of the map as before.
 - Nails `{test:vr_nail_test 1}`: nails drawn ~35% smaller (Nail Size in Flight 0.65, `vr_nail_test 2` to look), 18%
   faster for you and enemies (Nail Speed 2065, Nail Pistol Speed 3070), still hitting what they visibly touch.
+
+## Armed humanoids: the held weapon on an active ragdoll's hand
+
+His notes (2026-10-29): shoved into a stagger or an active ragdoll, an armed humanoid's weapon "floats in the wrong
+position", still attached to it but not to its hand; sometimes the weapon and hand get into or behind its torso.
+
+**Cause.** The client draws a ragdoll's held weapons on its hands (vr_hitreact.cpp `ragdollProps`), but only from the
+rigid arms' model (`armModelOf`, vr_agrunt_ik_rigid), which is never made with vr_agarms on (its rig checks fail for
+the authored grunt). So every ragdoll weapon was left to the server's placing (QC `VR_AG_RagProp`): riding the limb
+nearest it as the ragdoll began, at the server's pose, not the drawn hand's (the grunt's 14-16 units and ~100 degrees
+off). Using the bone alone (agarms' hand bone and grip) was still 0.6 units and 20 degrees off on the grunt: the
+authored rig blends the hand's vertices over hand, forearm and fingers.
+
+**Fix.** With vr_agarms, `ragdollProps` takes agarms' grip frame (`agarms::ragdollGrip`, as the posed arms held it alive)
+and places it on the hand as drawn: the rigid fit of the hand's own vertices (`agarms::handSkin`'s) from rest to the
+ragdoll's drawn vertices (`drawnHandFit`), every frame. Physics: `vr_ragdoll_weapon_collide` 1 (new): a living
+ragdoll's welded weapon (its loose piece) meets its own chest, pelvis, spine, neck and head (`selfMeets`; before, a loose
+piece met nothing of its own), so an arm can't fold it into the chest.
+
+**Test 88** (`vr_agrunt_test 88`, QC/vr_armedgrunt_ragweapon_test.qc; `vr_agrunt_ragweapon_check` 1 / 2 per frame,
+`vr_agrunt_ragweapon_err`): grunt and enforcer with a shotgun, a stagger and a topple (lying, getting up), every drawn
+frame: the weapon's grip against the drawn hand's fitted grip, the hand's vertices and the weapon's line inside the
+torso proxies (vr_agbody). Weapon grip off the hand, max (mean) units / degrees:
+
+| case | before | bone only | after |
+| --- | --- | --- | --- |
+| grunt stagger | 19.1 (13.8) / 96 | 0.62 (0.29) / 18.5 | 0.00 / 0.1 |
+| grunt topple | 24.2 (16.2) / 115 | 0.62 (0.52) / 22 | 0.00 / 0.1 |
+| enforcer stagger | 1.09 (0.34) / 15 | 0.15 / 1.3 | 0.00 / 0.0 |
+| enforcer topple | 1.86 (0.49) / 15 | 0.19 / 3.3 | 0.00 / 0.1 |
+
+In the torso (most, units): enforcer and grunt stagger 0 throughout; the grunt topple, before 2.0 hand / 2.0 weapon,
+after the fix (no weapon collision) 1.4 / 2.1, with it 1.8 / 0 and 2.3 / 0.8 (two runs): the weapon is mostly kept
+out, the grunt's **hand still dips up to ~2 units into its chest for ~0.5 s of its topple** (test 88: 3 passed, 1
+failed). Open: why the hand-chest contact lets it in there (selfMeets skips contacts already deep at the 0.7 core;
+selfTouches' living exceptions), and the welded loose piece is the .mdl's own gun on forearm_l (looseHolder), not the
+drawn weapon on the right hand. Test 74 (disarm by grab): PASS 18/19, stuck 0.
+
+Checklist:
+- Shove an armed grunt and an enforcer into a stagger and over `{test:agrunt_fall}`: the weapon stays in the drawn
+  hand through the stagger, the fall, lying and the get-up; never floats off it.
+- Shoved over, its weapon never goes into its chest; its hand stays out of it (the grunt's may still dip in briefly).
+- A downed armed grunt's weapon can still be grabbed off it `{test:agrunt_fall}`.

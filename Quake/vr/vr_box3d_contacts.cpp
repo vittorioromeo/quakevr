@@ -79,8 +79,23 @@ constexpr float selfApart = 0.002f; // m: two of a ragdoll's parts nearer than t
         pa = pa < 0 && B3_ID_EQUALS(body, ba) ? p : pa;
         pb = pb < 0 && B3_ID_EQUALS(body, bb) ? p : pb;
     }
-    return pa >= 0 && pb >= 0 && pa != pb && r.rig->bones[pa].joint != ragdoll::Joint::Loose &&
-           r.rig->bones[pb].joint != ragdoll::Joint::Loose && (!r.knocked || shapeGap(a, b, 0.7f) > selfApart);
+    if(pa < 0 || pb < 0 || pa == pb)
+    {
+        return false;
+    }
+    const bool looseA = r.rig->bones[pa].joint == ragdoll::Joint::Loose, looseB = r.rig->bones[pb].joint == ragdoll::Joint::Loose;
+    if(looseA || looseB)
+    {
+        // vr_ragdoll_weapon_collide: a living one's weapon (knocked down or staggering: welded in its hand,
+        // vr_knockdown_weld) meets its torso and head (not its arms and legs), so its arm can't fold it into its chest;
+        // a corpse's meets nothing of its own.
+        const char* other = r.rig->bones[looseA ? pb : pa].name;
+        const bool body = !strncmp(other, "chest", 5) || !strncmp(other, "pelvis", 6) || !strncmp(other, "spine", 5) ||
+                          !strncmp(other, "neck", 4) || !strncmp(other, "head", 4);
+        return r.knocked && !(looseA && looseB) && body && vr_ragdoll_weapon_collide.value != 0.f &&
+               shapeGap(a, b, 0.7f) > selfApart;
+    }
+    return !r.knocked || shapeGap(a, b, 0.7f) > selfApart;
 }
 
 // Whether part `p` of ragdoll `r` is in an arm its drive reaches with now (a hand to a wound or a stump, a catch, a lean,

@@ -170,6 +170,11 @@ bool rows(const entity_t* e, const aliashdr_t* hdr, glm::vec4* out);
 // is on. False: none.
 bool ragdollGrip(const qmodel_t* model, int side, rigpose::Rigid& grip, int& bone);
 
+// vr_agrunt_ragweapon_check: hand `side`'s vertices (wholly its hand's), the model's rest places (every vertex's) and
+// the hand's grip frame at rest (model units), as the posed arms hold a weapon in it. False: none.
+bool handSkin(const qmodel_t* model, int side, const za::Vector<int>*& verts, const za::Vector<glm::vec3>*& rest,
+    rigpose::Rigid& grip);
+
 // vr_agrunt_ik_err with vr_agarms 1: the arm numbers under vr_agrunt_ik_tag.
 void clearErr();
 void printErr();

@@ -3157,7 +3157,8 @@ QVR_CVAR(vr_agrunt_grip_z, "0", CVAR_NONE)            // ... up (units)
 QVR_CVAR(vr_agrunt_grip_pitch, "0", CVAR_NONE)        // ... pitch (degrees)
 QVR_CVAR(vr_agrunt_grip_yaw, "0", CVAR_NONE)          // ... yaw (degrees)
 QVR_CVAR(vr_agrunt_grip_roll, "0", CVAR_NONE)         // ... roll (degrees)
-QVR_CVAR(vr_agarms, "1", CVAR_NONE)                  // 1: armed humanoids' arms posed by their weapons (QC: where a player would hold each) and IK, drawn skinned (vr_agarms.cpp; read at a map load); 0: the animation's arms bent onto the weapons (vr_agrunt_ik_rigid: before)
+QVR_CVAR(vr_agrunt_ragweapon_check, "0", CVAR_NONE)  // 1: measure each frame how far an armed humanoid ragdoll's held weapon is drawn from its drawn hand's grip, and how deep its hand and weapon are in its torso (vr_agrunt_ragweapon_err prints and clears; vr_agrunt_test 88)
+QVR_CVAR(vr_agarms, "1", CVAR_NONE)                // 1: armed humanoids' arms posed by their weapons (QC: where a player would hold each) and IK, drawn skinned (vr_agarms.cpp; read at a map load); 0: the animation's arms bent onto the weapons (vr_agrunt_ik_rigid: before)
 QVR_CVAR(vr_agarms_shoulder, "0.5", CVAR_ARCHIVE)     // vr_agarms: a long gun aimed is raised from its rest pose's hold (0: as it held its own rifle, its wrists as made) to its shoulder (1: the butt in its pocket, at its cheek) by this
 QVR_CVAR(vr_agarms_second, "0.97", CVAR_NONE)        // vr_agarms: the off hand takes a two-handed weapon's second grip only while its wrist is within this share of its arm's length of its shoulder
 QVR_CVAR(vr_agarms_wrist_most, "100", CVAR_NONE)      // vr_agarms: a wrist bends at most this much (degrees); past it the hand, and its weapon, turn back towards the forearm
@@ -3810,7 +3811,8 @@ QVR_CVAR(vr_agrunt_rearm_punch, "0", CVAR_ARCHIVE)    // units: an unarmed one w
 QVR_CVAR(vr_agrunt_strafe_lean, "5", CVAR_ARCHIVE)    // degrees: armed humanoids moving sideways tip their pelvis and legs this far toward the way they go (at 80 u/s; scaled by speed, eased), the upper body held aimed; 0 none
 QVR_CVAR(vr_agrunt_strafe_turn, "28", CVAR_ARCHIVE)   // degrees: armed humanoids moving sideways turn their pelvis and legs this far toward the way they go (at 80 u/s; scaled by sideways speed, eased; backing off: never flipped), the spine turning back so the chest and gun stay aimed; 0 none
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
-QVR_CVAR(vr_ragdoll_self_collide, "1", CVAR_ARCHIVE)  // a ragdoll's own parts meet each other (an arm stays out of the chest, a leg out of the other), all but jointed neighbours, a loose piece (his gun), parts deep in each other (until apart) and an arm reaching for a wound, a stump or a wall; 0 they pass through each other, as before (a ragdoll made from now on)
+QVR_CVAR(vr_ragdoll_weapon_collide, "1", CVAR_NONE)  // vr_ragdoll_self_collide: a living ragdoll's weapon (knocked down or staggering, welded in its hand) meets its own torso and head, so its arms can't fold it into its chest; 0 it passes through its body, as before
+QVR_CVAR(vr_ragdoll_self_collide, "1", CVAR_ARCHIVE)// a ragdoll's own parts meet each other (an arm stays out of the chest, a leg out of the other), all but jointed neighbours, a loose piece (his gun), parts deep in each other (until apart) and an arm reaching for a wound, a stump or a wall; 0 they pass through each other, as before (a ragdoll made from now on)
 QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand (an old config's 2: the same)
 QVR_CVAR(vr_ragdoll_grab_force, "4000", CVAR_ARCHIVE) // N: the most a hand pulls a held limb with (3000: a grunt lifted by his chest sags a unit; 1500: about 18)
 QVR_CVAR(vr_ragdoll_grab_reach, "2", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
