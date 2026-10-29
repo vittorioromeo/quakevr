@@ -3,6 +3,7 @@
 // numbers; the drawing is camera-facing quads of 1.5 x scale units, turned by their angle about
 // the view direction, as the old geometry shader built them.
 
+#include "vr_random.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_particles.hpp"
 #include "vr_tracy.h"
@@ -163,11 +164,6 @@ double lastRun = -1.0;
 
 za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // a new sequence every run (vr_particle_seed: a fixed one)
 
-[[nodiscard]] float rnd(float lo, float hi)
-{
-    return lo + (hi - lo) * rng.getF(0.f, 1.f); // (lo > hi too)
-}
-
 [[nodiscard]] int rndi(int lo, int hiExclusive)
 {
     return rng.getI(lo, hiExclusive - 1);
@@ -175,7 +171,7 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
 
 [[nodiscard]] float rndAngle()
 {
-    return rnd(0.f, 2.f * 3.14159265f);
+    return vrand::range(rng, 0.f, 2.f * 3.14159265f);
 }
 
 [[nodiscard]] glm::vec3 paletteColor(int index)
@@ -218,18 +214,18 @@ void setColor(Particle& p, int index, float alpha255)
 // at random: a short segment each frame still gets its share).
 [[nodiscard]] float perLength(float length, float spacing)
 {
-    return za::floor(length / spacing + rnd(0.f, 1.f));
+    return za::floor(length / spacing + vrand::range(rng, 0.f, 1.f));
 }
 
 [[nodiscard]] glm::vec3 inBox(float half)
 {
-    return {rnd(-half, half), rnd(-half, half), rnd(-half, half)};
+    return {vrand::range(rng, -half, half), vrand::range(rng, -half, half), vrand::range(rng, -half, half)};
 }
 
 // A random direction.
 [[nodiscard]] glm::vec3 onSphere()
 {
-    const float z = rnd(-1.f, 1.f);
+    const float z = vrand::range(rng, -1.f, 1.f);
     const float a = rndAngle();
     const float r = za::sqrt(za::max(0.f, 1.f - z * z));
     return {r * za::cos(a), r * za::sin(a), z};
@@ -244,55 +240,55 @@ void explosion(const glm::vec3& org)
         setColor(p, ramp1[0], 255);
         p.die = cl.time + 1.5;
         p.ramp = static_cast<float>(rndi(0, 4));
-        p.scale = rnd(0.6f, 1.2f);
+        p.scale = vrand::range(rng, 0.6f, 1.2f);
         p.acc = gravity(0.5f);
         p.type = i & 1 ? Explode : Explode2;
-        p.org = org + glm::vec3{rnd(-16, 16), rnd(-16, 16), rnd(-16, 16)};
-        p.vel = {rnd(-256, 256), rnd(-256, 256), rnd(-256, 256)};
+        p.org = org + glm::vec3{vrand::range(rng, -16, 16), vrand::range(rng, -16, 16), vrand::range(rng, -16, 16)};
+        p.vel = {vrand::range(rng, -256, 256), vrand::range(rng, -256, 256), vrand::range(rng, -256, 256)};
     });
     make(64, [&](Particle& p, int) {
         p.cell = CellSpark;
         setColor(p, ramp1[0], 255);
         p.die = cl.time + 1.5;
-        p.scale = rnd(1.9f, 2.9f) * 0.55f;
+        p.scale = vrand::range(rng, 1.9f, 2.9f) * 0.55f;
         p.acc = gravity(0.5f);
         p.type = Rock;
         p.spinBack = rndi(0, 2);
-        p.org = org + glm::vec3{rnd(-16, 16), rnd(-16, 16), rnd(-16, 16)};
-        p.vel = {rnd(-256, 256), rnd(-256, 256), rnd(-256, 256)};
+        p.org = org + glm::vec3{vrand::range(rng, -16, 16), vrand::range(rng, -16, 16), vrand::range(rng, -16, 16)};
+        p.vel = {vrand::range(rng, -256, 256), vrand::range(rng, -256, 256), vrand::range(rng, -256, 256)};
     });
     make(48, [&](Particle& p, int) {
         p.cell = CellRock;
         setColor(p, 167 + rndi(0, 8), 255);
         p.die = cl.time + 1.5;
-        p.scale = rnd(0.9f, 1.9f);
+        p.scale = vrand::range(rng, 0.9f, 1.9f);
         p.acc = gravity(0.5f);
         p.type = Rock;
         p.spinBack = rndi(0, 2);
-        p.org = org + glm::vec3{rnd(-16, 16), rnd(-16, 16), rnd(-16, 16)};
-        p.vel = {rnd(-256, 256), rnd(-256, 256), rnd(-256, 256)};
+        p.org = org + glm::vec3{vrand::range(rng, -16, 16), vrand::range(rng, -16, 16), vrand::range(rng, -16, 16)};
+        p.vel = {vrand::range(rng, -256, 256), vrand::range(rng, -256, 256), vrand::range(rng, -256, 256)};
     });
     make(za::clamp(vr_explosion_particles.value, 0.f, 16.f), [&](Particle& p, int) {
         p.cell = CellExplosion;
         // The fire texture is neutral: tint it as flame, rather than the sparks' sulphur-yellow palette entry.
         p.color = glm::vec4{1.f, 0.48f, 0.12f, 1.f};
         p.die = cl.time + 1.5;
-        p.scale = rnd(0.5f, 2.1f) * 2.f;
+        p.scale = vrand::range(rng, 0.5f, 2.1f) * 2.f;
         p.acc = gravity(0.05f);
         p.type = TxExplode;
         p.spinBack = rndi(0, 2);
-        p.org = org + glm::vec3{rnd(-11, 11), rnd(-11, 11), rnd(-11, 11)};
-        p.vel = {rnd(-8, 8), rnd(-8, 8), rnd(-8, 8)};
+        p.org = org + glm::vec3{vrand::range(rng, -11, 11), vrand::range(rng, -11, 11), vrand::range(rng, -11, 11)};
+        p.vel = {vrand::range(rng, -8, 8), vrand::range(rng, -8, 8), vrand::range(rng, -8, 8)};
     }, false); // Exact large-fireball count; the general particle multiplier controls the other particles.
     make(3, [&](Particle& p, int) {
         p.cell = CellSmoke;
         setColor(p, rndi(0, 8), 225);
         p.die = cl.time + 3.5;
-        p.scale = rnd(1.2f, 1.5f);
+        p.scale = vrand::range(rng, 1.2f, 1.5f);
         p.type = TxSmoke;
         p.acc = gravity(-0.09f);
         p.org = org + glm::vec3{rndi(-4, 4), rndi(-4, 4), rndi(-4, 4)};
-        p.vel = {rnd(-24, 24), rnd(-24, 24), rnd(-24, 24)};
+        p.vel = {vrand::range(rng, -24, 24), vrand::range(rng, -24, 24), vrand::range(rng, -24, 24)};
     });
 }
 
@@ -304,43 +300,43 @@ void bulletPuff(const glm::vec3& org, const glm::vec3& dir, int color, int count
         p.cell = CellRock;
         setColor(p, debris(), 255);
         p.die = cl.time + 0.7 * rndi(0, 5);
-        p.scale = rnd(0.5f, 0.9f);
+        p.scale = vrand::range(rng, 0.5f, 0.9f);
         p.type = Rock;
         p.spinBack = rndi(0, 2);
         p.acc = gravity(0.26f);
         p.org = org + glm::vec3{rndi(-4, 4), rndi(-4, 4), rndi(-4, 4)};
-        p.vel = (dir + 0.3f) * glm::vec3{rnd(-75, 75), rnd(-75, 75), rnd(-75, 75)};
+        p.vel = (dir + 0.3f) * glm::vec3{vrand::range(rng, -75, 75), vrand::range(rng, -75, 75), vrand::range(rng, -75, 75)};
     });
     make(1, [&](Particle& p, int) {
         p.cell = CellSmoke;
         setColor(p, rndi(0, 8), 45);
         p.die = cl.time + 1.25 * rndi(0, 5);
-        p.scale = rnd(0.3f, 0.5f);
+        p.scale = vrand::range(rng, 0.3f, 0.5f);
         p.type = TxSmoke;
         p.acc = gravity(-0.09f);
         p.org = org + glm::vec3{rndi(-2, 2), rndi(-2, 2), rndi(-2, 2)};
-        p.vel = {rnd(-12, 12), rnd(-12, 12), rnd(-12, 12)};
+        p.vel = {vrand::range(rng, -12, 12), vrand::range(rng, -12, 12), vrand::range(rng, -12, 12)};
     });
     make(count * 0.7f, [&](Particle& p, int) {
         p.cell = CellCircle;
         setColor(p, debris(), 255);
         p.die = cl.time + 0.75 * rndi(0, 5);
-        p.scale = rnd(0.05f, 0.3f);
+        p.scale = vrand::range(rng, 0.05f, 0.3f);
         p.type = Static;
         p.acc = gravity(0.08f);
         p.org = org + glm::vec3{rndi(-4, 4), rndi(-4, 4), rndi(-4, 4)};
-        p.vel = {rnd(-24, 24), rnd(-24, 24), rnd(-24, 24) + rnd(10, 40)};
+        p.vel = {vrand::range(rng, -24, 24), vrand::range(rng, -24, 24), vrand::range(rng, -24, 24) + vrand::range(rng, 10, 40)};
     });
     make(count * 0.4f, [&](Particle& p, int) {
         p.cell = CellSpark;
         setColor(p, 109 + rndi(0, 8), 255);
         p.die = cl.time + 1.25 * rndi(0, 5);
-        p.scale = rnd(1.95f, 2.87f) * 0.35f;
+        p.scale = vrand::range(rng, 1.95f, 2.87f) * 0.35f;
         p.type = Rock;
         p.spinBack = rndi(0, 2);
         p.acc = gravity(1.f);
         p.org = org + glm::vec3{rndi(-4, 4), rndi(-4, 4), rndi(-4, 4)};
-        p.vel = {rnd(-48, 48), rnd(-48, 48), rnd(60, 360)};
+        p.vel = {vrand::range(rng, -48, 48), vrand::range(rng, -48, 48), vrand::range(rng, 60, 360)};
     });
 }
 
@@ -351,7 +347,7 @@ void mist(const glm::vec3& org, const glm::vec3& dir, int count, bool wet = fals
 // a slowly blooming cloud. (Blood crossing a surface on its way, a ragdoll half in: not yet; BACKLOG.md.)
 void soak(Particle& p, float lifeMult = 1.f)
 {
-    const float life = rnd(2.f, 4.f) * lifeMult;
+    const float life = vrand::range(rng, 2.f, 4.f) * lifeMult;
     p.type = Custom;
     p.vel *= 0.25f;
     p.drag = 5.f;
@@ -361,7 +357,7 @@ void soak(Particle& p, float lifeMult = 1.f)
     p.fade = -p.color.a / life;
     p.scale *= 1.6f;
     p.grow = p.scale * 2.f / life; // (three times as big as it fades)
-    p.spin = rnd(-0.3f, 0.3f);
+    p.spin = vrand::range(rng, -0.3f, 0.3f);
     p.streak = 0.f;
     p.plink = false;
 }
@@ -375,12 +371,12 @@ void blood(const glm::vec3& org, const glm::vec3& dir, int count)
         p.cell = CellBlood;
         setColor(p, colors[rndi(0, 5)], 100);
         p.die = cl.time + 0.7 * rndi(0, 3);
-        p.scale = rnd(0.35f, 0.6f) * 6.5f;
+        p.scale = vrand::range(rng, 0.35f, 0.6f) * 6.5f;
         p.type = Static;
         p.acc = gravity(0.29f);
-        p.org = org + glm::vec3{rnd(-2, 2), rnd(-2, 2), rnd(-2, 2)};
-        p.vel = (dir + 0.3f) * glm::vec3{rnd(-10, 10), rnd(-10, 10), rnd(-10, 10)};
-        p.vel.z += rnd(0, 40);
+        p.org = org + glm::vec3{vrand::range(rng, -2, 2), vrand::range(rng, -2, 2), vrand::range(rng, -2, 2)};
+        p.vel = (dir + 0.3f) * glm::vec3{vrand::range(rng, -10, 10), vrand::range(rng, -10, 10), vrand::range(rng, -10, 10)};
+        p.vel.z += vrand::range(rng, 0, 40);
         if(wet)
         {
             soak(p);
@@ -390,12 +386,12 @@ void blood(const glm::vec3& org, const glm::vec3& dir, int count)
         p.cell = CellCircle;
         setColor(p, colors[rndi(0, 5)], 175);
         p.die = cl.time + 0.4 * rndi(0, 3);
-        p.scale = rnd(0.12f, 0.2f);
+        p.scale = vrand::range(rng, 0.12f, 0.2f);
         p.type = Static;
         p.acc = gravity(0.45f);
-        p.org = org + glm::vec3{rnd(-2, 2), rnd(-2, 2), rnd(-2, 2)};
-        p.vel = (dir + 0.3f) * glm::vec3{rnd(-3, 3), rnd(-3, 3), rnd(-3, 3)} * 13.f;
-        p.vel.z += rnd(20, 60);
+        p.org = org + glm::vec3{vrand::range(rng, -2, 2), vrand::range(rng, -2, 2), vrand::range(rng, -2, 2)};
+        p.vel = (dir + 0.3f) * glm::vec3{vrand::range(rng, -3, 3), vrand::range(rng, -3, 3), vrand::range(rng, -3, 3)} * 13.f;
+        p.vel.z += vrand::range(rng, 20, 60);
         if(wet)
         {
             soak(p, 0.6f);
@@ -407,10 +403,10 @@ void blood(const glm::vec3& org, const glm::vec3& dir, int count)
         p.cell = CellBloodMist;
         setColor(p, 225, 38);
         p.die = cl.time + 2.0;
-        p.scale = rnd(1.1f, 2.4f) * 15.f;
+        p.scale = vrand::range(rng, 1.1f, 2.4f) * 15.f;
         p.acc = gravity(-0.03f);
         p.type = TxSmoke;
-        p.org = org + glm::vec3{rnd(-8, 8), rnd(-8, 8), rnd(-8, 8)};
+        p.org = org + glm::vec3{vrand::range(rng, -8, 8), vrand::range(rng, -8, 8), vrand::range(rng, -8, 8)};
         p.vel = glm::vec3{-4.f};
         if(wet)
         {
@@ -428,13 +424,13 @@ void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count)
     const bool wet = water::bloodInLiquid(org); // (a gib sinking: a trail of little clouds, hanging)
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellBlood;
-        setColor(p, colors[rndi(0, 5)], rnd(80, 120));
-        p.die = cl.time + rnd(0.4f, 0.8f);
-        p.scale = rnd(0.35f, 0.6f) * 7.f;
+        setColor(p, colors[rndi(0, 5)], vrand::range(rng, 80, 120));
+        p.die = cl.time + vrand::range(rng, 0.4f, 0.8f);
+        p.scale = vrand::range(rng, 0.35f, 0.6f) * 7.f;
         p.type = Drip;
         p.acc = gravity(0.12f);
-        p.org = org + glm::vec3{rnd(-1.5f, 1.5f), rnd(-1.5f, 1.5f), rnd(-1.5f, 1.5f)};
-        p.vel = dir * rnd(0.f, 12.f) + glm::vec3{rnd(-4, 4), rnd(-4, 4), rnd(-4, 4)};
+        p.org = org + glm::vec3{vrand::range(rng, -1.5f, 1.5f), vrand::range(rng, -1.5f, 1.5f), vrand::range(rng, -1.5f, 1.5f)};
+        p.vel = dir * vrand::range(rng, 0.f, 12.f) + glm::vec3{vrand::range(rng, -4, 4), vrand::range(rng, -4, 4), vrand::range(rng, -4, 4)};
         if(wet)
         {
             soak(p);
@@ -446,13 +442,13 @@ void bloodTrail(const glm::vec3& org, const glm::vec3& dir, int count)
     }
     make(count * 2.f, [&](Particle& p, int) {
         p.cell = CellCircle;
-        setColor(p, colors[rndi(0, 5)], rnd(190, 240));
-        p.die = cl.time + rnd(0.5f, 1.f);
-        p.scale = rnd(0.25f, 0.45f);
+        setColor(p, colors[rndi(0, 5)], vrand::range(rng, 190, 240));
+        p.die = cl.time + vrand::range(rng, 0.5f, 1.f);
+        p.scale = vrand::range(rng, 0.25f, 0.45f);
         p.type = Static;
         p.acc = gravity(0.8f);
-        p.org = org + glm::vec3{rnd(-4, 4), rnd(-4, 4), rnd(-4, 4)};
-        p.vel = dir * rnd(0.f, 25.f) + glm::vec3{rnd(-10, 10), rnd(-10, 10), rnd(-6, 14)};
+        p.org = org + glm::vec3{vrand::range(rng, -4, 4), vrand::range(rng, -4, 4), vrand::range(rng, -4, 4)};
+        p.vel = dir * vrand::range(rng, 0.f, 25.f) + glm::vec3{vrand::range(rng, -10, 10), vrand::range(rng, -10, 10), vrand::range(rng, -6, 14)};
     });
 }
 
@@ -460,12 +456,12 @@ void lightning(const glm::vec3& org, int count)
 {
     make(count, [&](Particle& p, int) {
         p.cell = CellLightning;
-        setColor(p, 254, rnd(180, 220));
+        setColor(p, 254, vrand::range(rng, 180, 220));
         p.die = cl.time + 1.2 * rndi(0, 3);
-        p.scale = rnd(0.35f, 0.6f) * 6.2f;
+        p.scale = vrand::range(rng, 0.35f, 0.6f) * 6.2f;
         p.type = Lightning;
-        p.org = org + glm::vec3{rnd(-3, 3), rnd(-3, 3), rnd(-3, 3)};
-        p.vel = {rnd(-185, 185), rnd(-185, 185), rnd(-185, 185)};
+        p.org = org + glm::vec3{vrand::range(rng, -3, 3), vrand::range(rng, -3, 3), vrand::range(rng, -3, 3)};
+        p.vel = {vrand::range(rng, -185, 185), vrand::range(rng, -185, 185), vrand::range(rng, -185, 185)};
     });
 }
 
@@ -475,12 +471,12 @@ void smoke(const glm::vec3& org, int count, bool big)
         p.cell = CellSmoke;
         setColor(p, rndi(0, 8), big ? 255 : 125);
         p.die = cl.time + 2.5 * rndi(0, 5);
-        p.scale = big ? rnd(1.2f, 1.7f) * 2.8f : rnd(1.2f, 1.5f) * 0.8f;
+        p.scale = big ? vrand::range(rng, 1.2f, 1.7f) * 2.8f : vrand::range(rng, 1.2f, 1.5f) * 0.8f;
         p.type = big ? TxBigSmoke : TxSmoke;
         p.acc = gravity(-0.09f);
         const int spread = big ? 5 : 4;
         p.org = org + glm::vec3{rndi(-spread, spread), rndi(-spread, spread), rndi(-spread, spread)};
-        p.vel = {rnd(-24, 24), rnd(-24, 24), rnd(-24, 24)};
+        p.vel = {vrand::range(rng, -24, 24), vrand::range(rng, -24, 24), vrand::range(rng, -24, 24)};
     });
 }
 
@@ -489,13 +485,13 @@ void steam(const glm::vec3& org, int count)
 {
     make(count, [&](Particle& p, int) {
         p.cell = CellSmoke;
-        setColor(p, rndi(11, 15), rnd(70, 110));
-        p.die = cl.time + rnd(0.7f, 1.3f);
-        p.scale = rnd(0.9f, 1.4f) * 0.9f;
+        setColor(p, rndi(11, 15), vrand::range(rng, 70, 110));
+        p.die = cl.time + vrand::range(rng, 0.7f, 1.3f);
+        p.scale = vrand::range(rng, 0.9f, 1.4f) * 0.9f;
         p.type = TxSmoke;
         p.acc = gravity(-0.3f);
-        p.org = org + glm::vec3{rnd(-3, 3), rnd(-3, 3), rnd(0, 2)};
-        p.vel = {rnd(-14, 14), rnd(-14, 14), rnd(20, 45)};
+        p.org = org + glm::vec3{vrand::range(rng, -3, 3), vrand::range(rng, -3, 3), vrand::range(rng, 0, 2)};
+        p.vel = {vrand::range(rng, -14, 14), vrand::range(rng, -14, 14), vrand::range(rng, 20, 45)};
     });
 }
 
@@ -506,12 +502,12 @@ void sparks(const glm::vec3& org, int count, int lo, int hi, float scale, double
         p.cell = CellSpark;
         setColor(p, rndi(lo, hi), 255);
         p.die = cl.time + (life > 0.0 ? life : 2.0 * rndi(0, 5));
-        p.scale = rnd(1.55f, 2.87f) * scale;
+        p.scale = vrand::range(rng, 1.55f, 2.87f) * scale;
         p.type = Rock;
         p.spinBack = rndi(0, 2);
         p.acc = gravity(1.f);
         p.org = org + glm::vec3{rndi(-4, 4), rndi(-4, 4), rndi(-4, 4)};
-        p.vel = {rnd(-48, 48), rnd(-48, 48), rnd(60, 360)};
+        p.vel = {vrand::range(rng, -48, 48), vrand::range(rng, -48, 48), vrand::range(rng, 60, 360)};
     });
 }
 
@@ -519,14 +515,14 @@ void gunSmoke(const glm::vec3& org, int count)
 {
     make(count, [&](Particle& p, int) {
         p.cell = CellGunSmoke;
-        p.angle = rnd(-10.f, 10.f) * 0.0174533f + 1.5707963f;
-        setColor(p, rndi(10, 16), rnd(85, 125));
+        p.angle = vrand::range(rng, -10.f, 10.f) * 0.0174533f + 1.5707963f;
+        setColor(p, rndi(10, 16), vrand::range(rng, 85, 125));
         p.die = cl.time + 3.5;
-        p.scale = rnd(0.9f, 1.5f) * 0.1f;
+        p.scale = vrand::range(rng, 0.9f, 1.5f) * 0.1f;
         p.type = GunSmoke;
         p.acc = gravity(-0.09f);
         p.org = org + glm::vec3{0.f, 0.f, 3.f};
-        p.vel = {rnd(-3, 3), rnd(-3, 3), rnd(-3, 3)};
+        p.vel = {vrand::range(rng, -3, 3), vrand::range(rng, -3, 3), vrand::range(rng, -3, 3)};
     });
 }
 
@@ -536,13 +532,13 @@ void sparkles(const glm::vec3& org, int count, int lo, int hi, float alphaLo, fl
 {
     make(count, [&](Particle& p, int) {
         p.cell = CellSpark;
-        setColor(p, rndi(lo, hi), rnd(alphaLo, alphaHi));
+        setColor(p, rndi(lo, hi), vrand::range(rng, alphaLo, alphaHi));
         p.die = cl.time + life;
-        p.scale = rnd(1.55f, 2.87f) * scale;
+        p.scale = vrand::range(rng, 1.55f, 2.87f) * scale;
         p.type = GunPickup;
         p.acc = gravity(grav);
-        p.org = org + glm::vec3{rnd(-spread, spread), rnd(-spread, spread), rnd(-spread, spread)};
-        p.vel = {rnd(-speed, speed), rnd(-speed, speed), upHi > upLo ? rnd(upLo, upHi) : rnd(-speed, speed)};
+        p.org = org + glm::vec3{vrand::range(rng, -spread, spread), vrand::range(rng, -spread, spread), vrand::range(rng, -spread, spread)};
+        p.vel = {vrand::range(rng, -speed, speed), vrand::range(rng, -speed, speed), upHi > upLo ? vrand::range(rng, upLo, upHi) : vrand::range(rng, -speed, speed)};
     });
 }
 
@@ -817,8 +813,7 @@ struct CellRandom
     za::U32 state;
     float next()
     {
-        state = state * 1664525u + 1013904223u;
-        return static_cast<float>(state >> 8) / 16777216.f;
+        return vrand::lcg01(state);
     }
 };
 
@@ -1063,11 +1058,11 @@ void explosion2(const glm::vec3& org, int colorStart, int colorLength)
         p.cell = CellCircle;
         setColor(p, colorStart + (colorMod++ % za::max(colorLength, 1)), 255);
         p.die = cl.time + 1.5;
-        p.scale = rnd(1.6f, 3.5f);
+        p.scale = vrand::range(rng, 1.6f, 3.5f);
         p.acc = gravity(0.5f);
         p.type = Blob;
-        p.org = org + glm::vec3{rnd(-16, 16), rnd(-16, 16), rnd(-16, 16)};
-        p.vel = {rnd(-256, 256), rnd(-256, 256), rnd(-256, 256)};
+        p.org = org + glm::vec3{vrand::range(rng, -16, 16), vrand::range(rng, -16, 16), vrand::range(rng, -16, 16)};
+        p.vel = {vrand::range(rng, -256, 256), vrand::range(rng, -256, 256), vrand::range(rng, -256, 256)};
     });
     explosion(org); // the rest as the plain explosion's (minus its ramp circles, close enough)
 }
@@ -1081,7 +1076,7 @@ const glm::vec3 vorePurple{0.95f, 0.4f, 0.9f};
 
 [[nodiscard]] glm::vec3 fireColor()
 {
-    return glm::mix(glm::vec3{1.f, 0.42f, 0.1f}, glm::vec3{1.f, 0.8f, 0.35f}, rnd(0.f, 1.f));
+    return glm::mix(glm::vec3{1.f, 0.42f, 0.1f}, glm::vec3{1.f, 0.8f, 0.35f}, vrand::range(rng, 0.f, 1.f));
 }
 
 // Flames licking off something burning as it flies (rockets, lava balls, hell knight flames), at
@@ -1092,14 +1087,14 @@ void flames(const glm::vec3& from, const glm::vec3& to, float spacing, float sca
     make(perLength(glm::length(d), spacing), [&](Particle& p, int) {
         p.cell = CellExplosion;
         p.additive = true;
-        p.color = glm::vec4{fireColor() * tint, rnd(0.45f, 0.7f)};
+        p.color = glm::vec4{fireColor() * tint, vrand::range(rng, 0.45f, 0.7f)};
         p.die = cl.time + 0.45;
-        p.scale = rnd(0.8f, 1.2f) * scale;
+        p.scale = vrand::range(rng, 0.8f, 1.2f) * scale;
         p.type = Custom;
-        p.fade = -rnd(1.8f, 2.6f);
+        p.fade = -vrand::range(rng, 1.8f, 2.6f);
         p.grow = 2.5f * scale;
-        p.spin = rnd(-3.f, 3.f);
-        p.org = from + d * rnd(0.f, 1.f) + inBox(1.f);
+        p.spin = vrand::range(rng, -3.f, 3.f);
+        p.org = from + d * vrand::range(rng, 0.f, 1.f) + inBox(1.f);
         p.vel = inBox(8.f) + glm::vec3{0.f, 0.f, 12.f};
     });
 }
@@ -1112,16 +1107,16 @@ void embers(const glm::vec3& from, const glm::vec3& to, float spacing, const glm
         p.cell = CellSpark;
         p.additive = true;
         p.color = glm::vec4{color, 1.f};
-        p.die = cl.time + rnd(0.5f, 0.9f);
-        p.scale = rnd(0.22f, 0.4f);
+        p.die = cl.time + vrand::range(rng, 0.5f, 0.9f);
+        p.scale = vrand::range(rng, 0.22f, 0.4f);
         p.type = Custom;
         p.fade = -1.5f;
         p.grow = -0.2f;
         p.drag = 1.2f;
-        p.spin = rnd(-6.f, 6.f);
+        p.spin = vrand::range(rng, -6.f, 6.f);
         p.acc = gravity(grav);
-        p.org = from + d * rnd(0.f, 1.f);
-        p.vel = onSphere() * rnd(0.3f, 1.f) * speed;
+        p.org = from + d * vrand::range(rng, 0.f, 1.f);
+        p.vel = onSphere() * vrand::range(rng, 0.3f, 1.f) * speed;
     });
 }
 
@@ -1131,17 +1126,17 @@ void smokeTrail(const glm::vec3& from, const glm::vec3& to, float spacing, float
     const glm::vec3 d = to - from;
     make(perLength(glm::length(d), spacing), [&](Particle& p, int) {
         p.cell = CellSmoke;
-        const float g = grey * rnd(0.85f, 1.15f);
-        p.color = glm::vec4{g, g, g * 0.97f, alpha * rnd(0.8f, 1.2f)};
-        p.die = cl.time + rnd(1.8f, 2.6f);
-        p.scale = rnd(0.8f, 1.2f) * scale;
+        const float g = grey * vrand::range(rng, 0.85f, 1.15f);
+        p.color = glm::vec4{g, g, g * 0.97f, alpha * vrand::range(rng, 0.8f, 1.2f)};
+        p.die = cl.time + vrand::range(rng, 1.8f, 2.6f);
+        p.scale = vrand::range(rng, 0.8f, 1.2f) * scale;
         p.type = Custom;
         p.fade = -alpha / 2.2f;
         p.grow = 3.5f * scale;
         p.drag = 0.8f;
-        p.spin = rnd(-0.6f, 0.6f);
+        p.spin = vrand::range(rng, -0.6f, 0.6f);
         p.acc = gravity(-0.02f);
-        p.org = from + d * rnd(0.f, 1.f) + inBox(1.5f);
+        p.org = from + d * vrand::range(rng, 0.f, 1.f) + inBox(1.5f);
         p.vel = inBox(6.f);
     });
 }
@@ -1153,15 +1148,15 @@ void woodDust(const glm::vec3& org, const glm::vec3& dir, int count)
     const glm::vec3 push = glm::length(dir) > 0.01f ? glm::normalize(dir) * 50.f : glm::vec3{0.f}; // (sent as a way: QVR_SVC_PARTICLE2)
     make(count, [&](Particle& p, int) {
         p.cell = CellSmoke;
-        const float g = rnd(0.85f, 1.1f);
-        p.color = glm::vec4{0.78f * g, 0.67f * g, 0.5f * g, rnd(0.45f, 0.7f)};
-        p.die = cl.time + rnd(1.8f, 3.0f);
-        p.scale = rnd(2.f, 3.5f) * 1.6f;
+        const float g = vrand::range(rng, 0.85f, 1.1f);
+        p.color = glm::vec4{0.78f * g, 0.67f * g, 0.5f * g, vrand::range(rng, 0.45f, 0.7f)};
+        p.die = cl.time + vrand::range(rng, 1.8f, 3.0f);
+        p.scale = vrand::range(rng, 2.f, 3.5f) * 1.6f;
         p.type = Custom;
         p.fade = -0.24f;
         p.grow = 7.f;
         p.drag = 2.5f;
-        p.spin = rnd(-0.8f, 0.8f);
+        p.spin = vrand::range(rng, -0.8f, 0.8f);
         p.acc = gravity(0.03f);
         p.org = org + inBox(8.f);
         p.vel = inBox(50.f) + push;
@@ -1170,13 +1165,13 @@ void woodDust(const glm::vec3& org, const glm::vec3& dir, int count)
         p.cell = CellSpark;
         setColor(p, rndi(20, 30), 255);
         p.lighting = Lighting::Lit; // wood chips (the spark's shape, not hot)
-        p.die = cl.time + rnd(1.f, 1.8f);
-        p.scale = rnd(1.8f, 3.2f);
+        p.die = cl.time + vrand::range(rng, 1.f, 1.8f);
+        p.scale = vrand::range(rng, 1.8f, 3.2f);
         p.type = Rock;
         p.spinBack = rndi(0, 2);
         p.acc = gravity(1.f);
         p.org = org + inBox(8.f);
-        p.vel = glm::vec3{rnd(-110, 110), rnd(-110, 110), rnd(40, 200)} + push;
+        p.vel = glm::vec3{vrand::range(rng, -110, 110), vrand::range(rng, -110, 110), vrand::range(rng, 40, 200)} + push;
     });
 }
 
@@ -1190,26 +1185,26 @@ void sparkleTrail(const glm::vec3& from, const glm::vec3& to, const glm::vec3& c
         p.additive = true;
         p.color = glm::vec4{color, 0.22f};
         p.die = cl.time + 0.45;
-        p.scale = rnd(0.9f, 1.1f) * glowScale;
+        p.scale = vrand::range(rng, 0.9f, 1.1f) * glowScale;
         p.type = Custom;
         p.fade = -0.5f;
         p.grow = -glowScale * 1.8f;
-        p.org = from + d * rnd(0.f, 1.f);
+        p.org = from + d * vrand::range(rng, 0.f, 1.f);
     });
     make(perLength(length, 4.f), [&](Particle& p, int) {
         p.cell = CellSpark;
         p.additive = true;
-        p.color = glm::vec4{glm::mix(color, glm::vec3{1.f}, rnd(0.f, 0.4f)), 1.f};
-        p.die = cl.time + rnd(0.5f, 0.8f);
-        p.scale = rnd(0.25f, 0.45f);
+        p.color = glm::vec4{glm::mix(color, glm::vec3{1.f}, vrand::range(rng, 0.f, 0.4f)), 1.f};
+        p.die = cl.time + vrand::range(rng, 0.5f, 0.8f);
+        p.scale = vrand::range(rng, 0.25f, 0.45f);
         p.type = Custom;
         p.fade = -1.4f;
         p.grow = -0.25f;
         p.drag = 1.5f;
-        p.spin = rnd(-8.f, 8.f);
+        p.spin = vrand::range(rng, -8.f, 8.f);
         p.acc = gravity(0.03f);
-        p.org = from + d * rnd(0.f, 1.f) + inBox(1.5f);
-        p.vel = onSphere() * rnd(12.f, 36.f);
+        p.org = from + d * vrand::range(rng, 0.f, 1.f) + inBox(1.5f);
+        p.vel = onSphere() * vrand::range(rng, 12.f, 36.f);
     });
 }
 
@@ -1237,7 +1232,7 @@ void rocketTrail(const glm::vec3& from, const glm::vec3& to, int type, float siz
             const float n = perLength(length, (type & 127) == 2 ? 6.f : 12.f);
             for(int i = 0; i < static_cast<int>(n); i++)
             {
-                bloodTrail(from + d * rnd(0.f, 1.f), dir, 1);
+                bloodTrail(from + d * vrand::range(rng, 0.f, 1.f), dir, 1);
             }
             break;
         }
@@ -1268,16 +1263,16 @@ void magicImpact(const glm::vec3& org, const glm::vec3& color, int count)
     make(count, [&](Particle& p, int) {
         p.cell = CellSpark;
         p.additive = true;
-        p.color = glm::vec4{glm::mix(color, glm::vec3{1.f}, rnd(0.f, 0.35f)), 1.f};
-        p.die = cl.time + rnd(0.4f, 0.8f);
-        p.scale = rnd(0.3f, 0.55f);
+        p.color = glm::vec4{glm::mix(color, glm::vec3{1.f}, vrand::range(rng, 0.f, 0.35f)), 1.f};
+        p.die = cl.time + vrand::range(rng, 0.4f, 0.8f);
+        p.scale = vrand::range(rng, 0.3f, 0.55f);
         p.type = Custom;
         p.fade = -1.4f;
         p.drag = 2.f;
-        p.spin = rnd(-8.f, 8.f);
+        p.spin = vrand::range(rng, -8.f, 8.f);
         p.acc = gravity(0.2f);
         p.org = org + inBox(2.f);
-        p.vel = onSphere() * rnd(40.f, 120.f);
+        p.vel = onSphere() * vrand::range(rng, 40.f, 120.f);
     });
 }
 
@@ -1288,8 +1283,8 @@ void blobExplosion(const glm::vec3& org)
         p.cell = CellGlow;
         p.additive = true;
         p.color = glm::vec4{i & 1 ? glm::vec3{0.65f, 0.25f, 1.f} : glm::vec3{1.f, 0.2f, 0.35f}, 0.9f};
-        p.die = cl.time + rnd(1.f, 1.4f);
-        p.scale = rnd(1.4f, 2.4f);
+        p.die = cl.time + vrand::range(rng, 1.f, 1.4f);
+        p.scale = vrand::range(rng, 1.4f, 2.4f);
         p.type = Custom;
         p.fade = -0.8f;
         p.grow = -0.6f;
@@ -1303,7 +1298,7 @@ void blobExplosion(const glm::vec3& org)
         p.additive = true;
         p.color = glm::vec4{0.6f, 0.3f, 1.f, 1.f};
         p.die = cl.time + 1.5;
-        p.scale = rnd(1.2f, 2.f) * 2.f;
+        p.scale = vrand::range(rng, 1.2f, 2.f) * 2.f;
         p.type = TxExplode;
         p.spinBack = rndi(0, 2);
         p.org = org + inBox(8.f);
@@ -1312,9 +1307,9 @@ void blobExplosion(const glm::vec3& org)
     make(48, [&](Particle& p, int) {
         p.cell = CellSpark;
         p.additive = true;
-        p.color = glm::vec4{glm::mix(glm::vec3{0.7f, 0.35f, 1.f}, glm::vec3{1.f}, rnd(0.f, 0.4f)), 1.f};
+        p.color = glm::vec4{glm::mix(glm::vec3{0.7f, 0.35f, 1.f}, glm::vec3{1.f}, vrand::range(rng, 0.f, 0.4f)), 1.f};
         p.die = cl.time + 1.2;
-        p.scale = rnd(0.9f, 1.4f);
+        p.scale = vrand::range(rng, 0.9f, 1.4f);
         p.type = Rock;
         p.spinBack = rndi(0, 2);
         p.acc = gravity(0.5f);
@@ -1325,7 +1320,7 @@ void blobExplosion(const glm::vec3& org)
         p.cell = CellSmoke;
         p.color = glm::vec4{0.22f, 0.16f, 0.26f, 0.8f};
         p.die = cl.time + 3.5;
-        p.scale = rnd(1.4f, 1.9f);
+        p.scale = vrand::range(rng, 1.4f, 1.9f);
         p.type = TxSmoke;
         p.acc = gravity(-0.09f);
         p.org = org + inBox(6.f);
@@ -1338,22 +1333,22 @@ void blobExplosion(const glm::vec3& org)
 void lavaSplash(const glm::vec3& org)
 {
     const auto spot = [&](glm::vec3& dir) {
-        dir = {rnd(-128.f, 128.f), rnd(-128.f, 128.f), 256.f};
-        return org + glm::vec3{dir.x, dir.y, rnd(0.f, 63.f)};
+        dir = {vrand::range(rng, -128.f, 128.f), vrand::range(rng, -128.f, 128.f), 256.f};
+        return org + glm::vec3{dir.x, dir.y, vrand::range(rng, 0.f, 63.f)};
     };
     make(260, [&](Particle& p, int) {
         glm::vec3 dir;
         p.org = spot(dir);
         p.cell = CellGlow;
         p.additive = true;
-        p.color = glm::vec4{1.f, rnd(0.25f, 0.55f), 0.05f, 0.9f};
-        p.die = cl.time + rnd(1.6f, 2.4f);
-        p.scale = rnd(0.9f, 1.6f);
+        p.color = glm::vec4{1.f, vrand::range(rng, 0.25f, 0.55f), 0.05f, 0.9f};
+        p.die = cl.time + vrand::range(rng, 1.6f, 2.4f);
+        p.scale = vrand::range(rng, 0.9f, 1.6f);
         p.type = Custom;
         p.fade = -0.4f;
         p.grow = -0.3f;
         p.acc = gravity(0.12f);
-        p.vel = glm::normalize(dir) * rnd(60.f, 140.f);
+        p.vel = glm::normalize(dir) * vrand::range(rng, 60.f, 140.f);
     });
     make(200, [&](Particle& p, int) {
         glm::vec3 dir;
@@ -1361,14 +1356,14 @@ void lavaSplash(const glm::vec3& org)
         p.cell = CellSpark;
         p.additive = true;
         p.color = glm::vec4{fireColor(), 1.f};
-        p.die = cl.time + rnd(1.f, 2.f);
-        p.scale = rnd(0.35f, 0.6f);
+        p.die = cl.time + vrand::range(rng, 1.f, 2.f);
+        p.scale = vrand::range(rng, 0.35f, 0.6f);
         p.type = Custom;
         p.fade = -0.6f;
         p.drag = 0.5f;
-        p.spin = rnd(-6.f, 6.f);
+        p.spin = vrand::range(rng, -6.f, 6.f);
         p.acc = gravity(0.2f);
-        p.vel = glm::normalize(dir) * rnd(90.f, 220.f) + inBox(30.f);
+        p.vel = glm::normalize(dir) * vrand::range(rng, 90.f, 220.f) + inBox(30.f);
     });
     make(24, [&](Particle& p, int) {
         glm::vec3 dir;
@@ -1377,12 +1372,12 @@ void lavaSplash(const glm::vec3& org)
         p.additive = true;
         p.color = glm::vec4{fireColor(), 0.8f};
         p.die = cl.time + 1.2;
-        p.scale = rnd(3.f, 5.f);
+        p.scale = vrand::range(rng, 3.f, 5.f);
         p.type = Custom;
         p.fade = -0.9f;
         p.grow = 6.f;
-        p.spin = rnd(-1.f, 1.f);
-        p.vel = {0.f, 0.f, rnd(30.f, 70.f)};
+        p.spin = vrand::range(rng, -1.f, 1.f);
+        p.vel = {0.f, 0.f, vrand::range(rng, 30.f, 70.f)};
     });
     make(10, [&](Particle& p, int) {
         glm::vec3 dir;
@@ -1390,10 +1385,10 @@ void lavaSplash(const glm::vec3& org)
         p.cell = CellSmoke;
         p.color = glm::vec4{0.2f, 0.18f, 0.16f, 0.7f};
         p.die = cl.time + 4.0;
-        p.scale = rnd(4.f, 6.f);
+        p.scale = vrand::range(rng, 4.f, 6.f);
         p.type = TxBigSmoke;
         p.acc = gravity(-0.05f);
-        p.vel = {rnd(-10.f, 10.f), rnd(-10.f, 10.f), rnd(20.f, 40.f)};
+        p.vel = {vrand::range(rng, -10.f, 10.f), vrand::range(rng, -10.f, 10.f), vrand::range(rng, 20.f, 40.f)};
     });
 }
 
@@ -1413,33 +1408,33 @@ void teleportSplash(const glm::vec3& org)
         p.org = org + glm::vec3{0.f, 0.f, 4.f};
     });
     make(180, [&](Particle& p, int) {
-        const glm::vec3 at{rnd(-16.f, 16.f), rnd(-16.f, 16.f), rnd(-24.f, 32.f)};
+        const glm::vec3 at{vrand::range(rng, -16.f, 16.f), vrand::range(rng, -16.f, 16.f), vrand::range(rng, -24.f, 32.f)};
         p.cell = CellSpark;
         p.additive = true;
-        p.color = glm::vec4{glm::mix(pale, glm::vec3{1.f}, rnd(0.f, 1.f)), 1.f};
-        p.die = cl.time + rnd(0.6f, 1.2f);
-        p.scale = rnd(0.3f, 0.55f);
+        p.color = glm::vec4{glm::mix(pale, glm::vec3{1.f}, vrand::range(rng, 0.f, 1.f)), 1.f};
+        p.die = cl.time + vrand::range(rng, 0.6f, 1.2f);
+        p.scale = vrand::range(rng, 0.3f, 0.55f);
         p.type = Custom;
         p.fade = -1.1f;
         p.drag = 1.8f;
-        p.spin = rnd(-8.f, 8.f);
+        p.spin = vrand::range(rng, -8.f, 8.f);
         p.acc = gravity(0.05f);
         p.org = org + at;
-        p.vel = glm::normalize(at + glm::vec3{0.f, 0.f, 1e-3f}) * rnd(50.f, 120.f);
+        p.vel = glm::normalize(at + glm::vec3{0.f, 0.f, 1e-3f}) * vrand::range(rng, 50.f, 120.f);
     });
     make(60, [&](Particle& p, int) {
         const float a = rndAngle();
-        const float r = rnd(4.f, 16.f);
+        const float r = vrand::range(rng, 4.f, 16.f);
         p.cell = CellGlow;
         p.additive = true;
         p.color = glm::vec4{pale, 0.5f};
-        p.die = cl.time + rnd(0.8f, 1.3f);
-        p.scale = rnd(1.f, 1.6f);
+        p.die = cl.time + vrand::range(rng, 0.8f, 1.3f);
+        p.scale = vrand::range(rng, 1.f, 1.6f);
         p.type = Custom;
         p.fade = -0.5f;
         p.grow = -0.6f;
-        p.org = org + glm::vec3{za::cos(a) * r, za::sin(a) * r, rnd(-24.f, 24.f)};
-        p.vel = {0.f, 0.f, rnd(30.f, 80.f)};
+        p.org = org + glm::vec3{za::cos(a) * r, za::sin(a) * r, vrand::range(rng, -24.f, 24.f)};
+        p.vel = {0.f, 0.f, vrand::range(rng, 30.f, 80.f)};
     });
 }
 
@@ -1561,20 +1556,20 @@ void mist(const glm::vec3& org, const glm::vec3& dir, int count, bool wet)
     const glm::vec3 way = len > 1e-3f ? dir / len : glm::vec3{0.f};
     // (In a liquid: slower, longer, sinking slowly, spreading less fast: soak's cloud.)
     const float drag = wet ? 3.f : 1.2f; // the part of their speed lost a second: they hang in the air
-    make(amount * za::clamp(2.f + static_cast<float>(count) / 10.f, 2.f, 6.f) + rnd(0.f, 1.f), [&](Particle& p, int) {
+    make(amount * za::clamp(2.f + static_cast<float>(count) / 10.f, 2.f, 6.f) + vrand::range(rng, 0.f, 1.f), [&](Particle& p, int) {
         p.cell = CellBloodMist;
-        p.color = glm::vec4{colour, alpha * rnd(0.7f, 1.f)};
+        p.color = glm::vec4{colour, alpha * vrand::range(rng, 0.7f, 1.f)};
         p.type = Custom;
-        const float lives = life * rnd(0.8f, 1.2f) * (wet ? 2.f : 1.f);
+        const float lives = life * vrand::range(rng, 0.8f, 1.2f) * (wet ? 2.f : 1.f);
         p.fade = -p.color.a / lives;
         p.die = cl.time + lives;
-        p.scale = rnd(1.6f, 2.6f) * 15.f * size * (wet ? 0.6f : 1.f);
-        p.grow = rnd(22.f, 34.f) * size * za::max(0.f, vr_gore_mist_grow.value) * (wet ? 0.35f : 1.f);
+        p.scale = vrand::range(rng, 1.6f, 2.6f) * 15.f * size * (wet ? 0.6f : 1.f);
+        p.grow = vrand::range(rng, 22.f, 34.f) * size * za::max(0.f, vr_gore_mist_grow.value) * (wet ? 0.35f : 1.f);
         p.drag = drag;
-        p.spin = rnd(-0.4f, 0.4f);
+        p.spin = vrand::range(rng, -0.4f, 0.4f);
         p.acc = glm::vec3{0.f, 0.f, (wet ? -4.f : vr_gore_mist_rise.value) * drag}; // (rising at that speed, once its push is spent)
         p.org = org + inBox(8.f * size);
-        p.vel = (way * rnd(12.f, 36.f) + onSphere() * rnd(4.f, 14.f)) * speed * (wet ? 0.3f : 1.f);
+        p.vel = (way * vrand::range(rng, 12.f, 36.f) + onSphere() * vrand::range(rng, 4.f, 14.f)) * speed * (wet ? 0.3f : 1.f);
     });
 }
 
@@ -1599,7 +1594,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
     const glm::vec3 tint = lava ? glm::vec3{1.f, 0.42f, 0.1f} : slime ? glm::vec3{0.42f, 0.78f, 0.2f} : glm::vec3{0.8f, 0.9f, 1.f};
     const glm::vec3 drops = tint * shade;
     // Lava's drops, alpha blended (added to the bright lava, they vanish): hot yellow to orange.
-    const auto hotLava = [] { return glm::mix(glm::vec3{1.f, 0.38f, 0.06f}, glm::vec3{1.f, 0.88f, 0.5f}, rnd(0.f, 1.f)); };
+    const auto hotLava = [] { return glm::mix(glm::vec3{1.f, 0.38f, 0.06f}, glm::vec3{1.f, 0.88f, 0.5f}, vrand::range(rng, 0.f, 1.f)); };
     const glm::vec3 foam = glm::mix(tint, glm::vec3{1.f}, lava ? 0.1f : 0.45f) * shade;
     const float surface = org.z;
 
@@ -1611,7 +1606,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
     // A drop: streaked along its motion, falling back in (gone at the surface).
     const auto drop = [&](Particle& p, float alpha) {
         p.cell = CellDrop;
-        p.color = glm::vec4{lava ? hotLava() : drops * rnd(0.85f, 1.2f), lava ? 1.f : alpha};
+        p.color = glm::vec4{lava ? hotLava() : drops * vrand::range(rng, 0.85f, 1.2f), lava ? 1.f : alpha};
         p.type = Custom;
         p.acc = gravity(1.f);
         p.floor = surface - 0.5f;
@@ -1629,53 +1624,53 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
     make((10.f + 22.f * s) * amount, [&](Particle& p, int i) {
         const float a = rndAngle();
         const glm::vec3 out{za::cos(a), za::sin(a), 0.f};
-        drop(p, rnd(0.6f, 0.9f));
+        drop(p, vrand::range(rng, 0.6f, 0.9f));
         p.die = cl.time + 2.5;
-        p.scale = rnd(0.7f, 1.4f) * (0.85f + 0.2f * size) * big; // 2-5 cm across
+        p.scale = vrand::range(rng, 0.7f, 1.4f) * (0.85f + 0.2f * size) * big; // 2-5 cm across
         p.fade = lava ? -0.5f : -0.12f;
         p.plink = !lava && i % 4 == 0;
-        p.org = org + out * rnd(0.5f, 3.f) * size + glm::vec3{0.f, 0.f, 0.5f};
-        p.vel = out * rnd(15.f, 55.f) * size + lean * rnd(10.f, 45.f) * size +
-                glm::vec3{0.f, 0.f, rnd(70.f, 180.f) * za::max(size, 0.75f)};
+        p.org = org + out * vrand::range(rng, 0.5f, 3.f) * size + glm::vec3{0.f, 0.f, 0.5f};
+        p.vel = out * vrand::range(rng, 15.f, 55.f) * size + lean * vrand::range(rng, 10.f, 45.f) * size +
+                glm::vec3{0.f, 0.f, vrand::range(rng, 70.f, 180.f) * za::max(size, 0.75f)};
     });
 
     // Fine spray: many small drops flung wider and lower, gone sooner.
     make((8.f + 30.f * s) * amount, [&](Particle& p, int) {
         const float a = rndAngle();
         const glm::vec3 out{za::cos(a), za::sin(a), 0.f};
-        drop(p, rnd(0.45f, 0.75f));
-        p.die = cl.time + rnd(0.8f, 1.4f);
-        p.scale = rnd(0.35f, 0.7f) * (0.9f + 0.2f * size) * big;
+        drop(p, vrand::range(rng, 0.45f, 0.75f));
+        p.die = cl.time + vrand::range(rng, 0.8f, 1.4f);
+        p.scale = vrand::range(rng, 0.35f, 0.7f) * (0.9f + 0.2f * size) * big;
         p.fade = -0.5f;
-        p.org = org + out * rnd(0.5f, 2.5f) * size + glm::vec3{0.f, 0.f, 0.5f};
-        p.vel = out * rnd(30.f, 95.f) * size + lean * rnd(10.f, 50.f) * size + glm::vec3{0.f, 0.f, rnd(40.f, 150.f) * size};
+        p.org = org + out * vrand::range(rng, 0.5f, 2.5f) * size + glm::vec3{0.f, 0.f, 0.5f};
+        p.vel = out * vrand::range(rng, 30.f, 95.f) * size + lean * vrand::range(rng, 10.f, 50.f) * size + glm::vec3{0.f, 0.f, vrand::range(rng, 40.f, 150.f) * size};
     });
 
     // The jet: a thin column of big drops thrown straight up (a bullet's is most of its splash), in a plume of spray.
     make((3.f + 4.f * s) * amount, [&](Particle& p, int i) {
         drop(p, 0.85f);
         p.die = cl.time + 3.0;
-        p.scale = rnd(0.9f, 1.7f) * (0.85f + 0.35f * size) * big;
+        p.scale = vrand::range(rng, 0.9f, 1.7f) * (0.85f + 0.35f * size) * big;
         p.fade = lava ? -0.4f : -0.1f;
         p.streak *= 1.3f;
         p.plink = !lava && i % 2 == 0;
         p.org = org + inBox(0.5f + 0.5f * size) + glm::vec3{0.f, 0.f, 1.f};
-        p.vel = inBox(5.f + 6.f * size) + lean * rnd(0.f, 30.f) + glm::vec3{0.f, 0.f, rnd(130.f, 260.f) * za::clamp(size, 0.7f, 1.5f)};
+        p.vel = inBox(5.f + 6.f * size) + lean * vrand::range(rng, 0.f, 30.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 130.f, 260.f) * za::clamp(size, 0.7f, 1.5f)};
     });
     make((0.6f + 0.4f * s) * amount, [&](Particle& p, int) {
         p.cell = lava ? CellExplosion : CellSpray;
         p.additive = lava;
         p.color = glm::vec4{foam, lava ? 0.4f : 0.55f};
         p.die = cl.time + 0.9;
-        p.scale = rnd(1.6f, 2.4f) * (0.7f + 0.4f * size) * big;
+        p.scale = vrand::range(rng, 1.6f, 2.4f) * (0.7f + 0.4f * size) * big;
         p.type = Custom;
         p.fade = -0.7f;
         p.grow = 2.5f * size * big;
         p.drag = 1.5f;
-        p.spin = rnd(-0.8f, 0.8f);
+        p.spin = vrand::range(rng, -0.8f, 0.8f);
         p.acc = gravity(0.35f);
         p.org = org + glm::vec3{0.f, 0.f, 2.f * size};
-        p.vel = inBox(6.f) + lean * rnd(0.f, 20.f) + glm::vec3{0.f, 0.f, rnd(60.f, 110.f) * za::clamp(size, 0.7f, 1.5f)};
+        p.vel = inBox(6.f) + lean * vrand::range(rng, 0.f, 20.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 60.f, 110.f) * za::clamp(size, 0.7f, 1.5f)};
     });
 
     // Spray: clouds of fine droplets thrown up and out round the crown, spreading and falling.
@@ -1684,17 +1679,17 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
         const glm::vec3 out{za::cos(a), za::sin(a), 0.f};
         p.cell = lava ? CellExplosion : CellSpray;
         p.additive = lava;
-        p.color = glm::vec4{foam * rnd(0.9f, 1.1f), lava ? 0.4f : rnd(0.4f, 0.6f)};
+        p.color = glm::vec4{foam * vrand::range(rng, 0.9f, 1.1f), lava ? 0.4f : vrand::range(rng, 0.4f, 0.6f)};
         p.die = cl.time + 1.2;
-        p.scale = rnd(1.8f, 3.2f) * (0.6f + 0.45f * size) * big;
+        p.scale = vrand::range(rng, 1.8f, 3.2f) * (0.6f + 0.45f * size) * big;
         p.type = Custom;
         p.fade = lava ? -0.6f : -0.55f;
         p.grow = 2.8f * size * big;
         p.drag = 1.8f;
-        p.spin = rnd(-1.f, 1.f);
+        p.spin = vrand::range(rng, -1.f, 1.f);
         p.acc = gravity(0.4f);
-        p.org = org + out * rnd(0.5f, 3.f) * size + glm::vec3{0.f, 0.f, rnd(1.f, 3.f) * size};
-        p.vel = out * rnd(20.f, 55.f) * size + lean * rnd(5.f, 30.f) * size + glm::vec3{0.f, 0.f, rnd(25.f, 70.f) * size};
+        p.org = org + out * vrand::range(rng, 0.5f, 3.f) * size + glm::vec3{0.f, 0.f, vrand::range(rng, 1.f, 3.f) * size};
+        p.vel = out * vrand::range(rng, 20.f, 55.f) * size + lean * vrand::range(rng, 5.f, 30.f) * size + glm::vec3{0.f, 0.f, vrand::range(rng, 25.f, 70.f) * size};
     });
 
     // Mist over a hard splash: faint, wide and slow.
@@ -1702,17 +1697,17 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
     {
         make((0.5f + 0.4f * s) * amount, [&](Particle& p, int) {
             p.cell = CellSmoke;
-            p.color = glm::vec4{foam, rnd(0.1f, 0.16f)};
+            p.color = glm::vec4{foam, vrand::range(rng, 0.1f, 0.16f)};
             p.die = cl.time + 2.2;
-            p.scale = rnd(3.f, 4.5f) * size * big;
+            p.scale = vrand::range(rng, 3.f, 4.5f) * size * big;
             p.type = Custom;
             p.fade = -0.075f;
             p.grow = 3.f * big;
             p.drag = 1.2f;
-            p.spin = rnd(-0.4f, 0.4f);
+            p.spin = vrand::range(rng, -0.4f, 0.4f);
             p.acc = gravity(-0.02f);
             p.org = org + inBox(2.f * size) + glm::vec3{0.f, 0.f, 3.f * size};
-            p.vel = inBox(12.f * size) + glm::vec3{0.f, 0.f, rnd(8.f, 25.f)};
+            p.vel = inBox(12.f * size) + glm::vec3{0.f, 0.f, vrand::range(rng, 8.f, 25.f)};
         });
     }
 
@@ -1720,19 +1715,19 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
     make((1.f + 0.8f * s) * amount, [&](Particle& p, int) {
         const float a = rndAngle();
         const glm::vec3 out{za::cos(a), za::sin(a), 0.f};
-        const float life = rnd(2.f, 3.f);
+        const float life = vrand::range(rng, 2.f, 3.f);
         p.cell = CellFoam;
         lying(p);
-        p.color = glm::vec4{lava ? glm::vec3{0.2f, 0.06f, 0.02f} : foam, lava ? 0.6f : rnd(0.5f, 0.7f)};
+        p.color = glm::vec4{lava ? glm::vec3{0.2f, 0.06f, 0.02f} : foam, lava ? 0.6f : vrand::range(rng, 0.5f, 0.7f)};
         p.die = cl.time + life;
-        p.scale = rnd(2.2f, 3.5f) * (0.6f + 0.45f * size) * big;
+        p.scale = vrand::range(rng, 2.2f, 3.5f) * (0.6f + 0.45f * size) * big;
         p.type = Custom;
         p.fade = -p.color.a / life;
-        p.grow = rnd(1.f, 1.6f) * size * big;
+        p.grow = vrand::range(rng, 1.f, 1.6f) * size * big;
         p.drag = 2.f;
-        p.spin = rnd(-0.3f, 0.3f);
-        p.org = org + out * rnd(0.f, 3.f) * size + glm::vec3{0.f, 0.f, 0.3f};
-        p.vel = out * rnd(4.f, 14.f) * size;
+        p.spin = vrand::range(rng, -0.3f, 0.3f);
+        p.org = org + out * vrand::range(rng, 0.f, 3.f) * size + glm::vec3{0.f, 0.f, 0.3f};
+        p.vel = out * vrand::range(rng, 4.f, 14.f) * size;
     });
 
     // Rings: riding the ripples' crest out (vr_water_ripple_speed times vr_water_splash_ring_speed), one more for a
@@ -1764,21 +1759,21 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
             p.cell = CellSpark;
             p.additive = true;
             p.color = glm::vec4{fireColor(), 1.f};
-            p.die = cl.time + rnd(0.6f, 1.2f);
-            p.scale = rnd(0.25f, 0.45f);
+            p.die = cl.time + vrand::range(rng, 0.6f, 1.2f);
+            p.scale = vrand::range(rng, 0.25f, 0.45f);
             p.type = Custom;
             p.fade = -1.f;
             p.drag = 0.8f;
-            p.spin = rnd(-6.f, 6.f);
+            p.spin = vrand::range(rng, -6.f, 6.f);
             p.acc = gravity(0.35f);
             p.org = org + inBox(2.f) + glm::vec3{0.f, 0.f, 1.f};
-            p.vel = onSphere() * rnd(20.f, 60.f) * size + glm::vec3{0.f, 0.f, rnd(40.f, 120.f) * size};
+            p.vel = onSphere() * vrand::range(rng, 20.f, 60.f) * size + glm::vec3{0.f, 0.f, vrand::range(rng, 40.f, 120.f) * size};
         });
         make(1.f + s * 0.5f, [&](Particle& p, int) {
             p.cell = CellSmoke;
             p.color = glm::vec4{0.2f, 0.17f, 0.15f, 0.5f};
             p.die = cl.time + 2.5;
-            p.scale = rnd(1.2f, 1.8f) * size;
+            p.scale = vrand::range(rng, 1.2f, 1.8f) * size;
             p.type = TxSmoke;
             p.acc = gravity(-0.05f);
             p.org = org + inBox(2.f) + glm::vec3{0.f, 0.f, 2.f};
@@ -1799,7 +1794,7 @@ void adStreamTongues(const glm::vec3& org, const glm::vec3& vel, int count, bool
 // `n` rounded up or down at random (a fraction's share of the time up): a few a second from a fraction an emission.
 [[nodiscard]] float someOf(float n)
 {
-    return za::floor(n + rnd(0.f, 1.f));
+    return za::floor(n + vrand::range(rng, 0.f, 1.f));
 }
 
 // AD support: a flamethrower's stream (Preset::AdFlame, AdPoison): our torches' fire tongues (CellFire, as fireSource)
@@ -1823,31 +1818,31 @@ void adStreamFire(const glm::vec3& org, const glm::vec3& dir, int count, bool po
             p.cell = CellSpark;
             p.type = Custom;
             p.additive = true;
-            p.color = glm::vec4{glm::mix(glm::vec3{1.f, 0.45f, 0.1f}, glm::vec3{1.f, 0.85f, 0.4f}, rnd(0.f, 0.6f)), 1.f};
-            const float life = rnd(0.5f, 1.1f);
+            p.color = glm::vec4{glm::mix(glm::vec3{1.f, 0.45f, 0.1f}, glm::vec3{1.f, 0.85f, 0.4f}, vrand::range(rng, 0.f, 0.6f)), 1.f};
+            const float life = vrand::range(rng, 0.5f, 1.1f);
             p.die = cl.time + life;
             p.fade = -0.9f / life;
-            p.scale = rnd(0.25f, 0.45f);
+            p.scale = vrand::range(rng, 0.25f, 0.45f);
             p.grow = -0.15f;
             p.drag = 1.2f;
             p.org = org + inBox(4.f);
-            p.vel = vel * rnd(0.3f, 0.7f) + inBox(60.f) + glm::vec3{0.f, 0.f, rnd(20.f, 70.f)};
+            p.vel = vel * vrand::range(rng, 0.3f, 0.7f) + inBox(60.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 20.f, 70.f)};
             p.acc = gravity(0.35f);
         });
         make(someOf(0.15f * embers * static_cast<float>(count)), [&](Particle& p, int) {
             p.cell = CellSmoke;
             p.type = Custom;
-            const float g = rnd(0.12f, 0.2f);
-            p.color = glm::vec4{g, g * 0.95f, g * 0.9f, rnd(0.18f, 0.28f)};
-            const float life = rnd(1.f, 1.6f);
+            const float g = vrand::range(rng, 0.12f, 0.2f);
+            p.color = glm::vec4{g, g * 0.95f, g * 0.9f, vrand::range(rng, 0.18f, 0.28f)};
+            const float life = vrand::range(rng, 1.f, 1.6f);
             p.die = cl.time + life;
             p.fade = -p.color.a / life;
-            p.scale = rnd(2.f, 3.f);
+            p.scale = vrand::range(rng, 2.f, 3.f);
             p.grow = 3.f;
-            p.spin = rnd(-0.8f, 0.8f);
+            p.spin = vrand::range(rng, -0.8f, 0.8f);
             p.drag = 1.5f;
             p.org = org + vel * 0.08f + inBox(6.f);
-            p.vel = vel * 0.25f + inBox(8.f) + glm::vec3{0.f, 0.f, rnd(15.f, 30.f)};
+            p.vel = vel * 0.25f + inBox(8.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 15.f, 30.f)};
             p.acc = glm::vec3{0.f, 0.f, 12.f};
         });
     }
@@ -1859,14 +1854,14 @@ void adStreamFire(const glm::vec3& org, const glm::vec3& dir, int count, bool po
             p.cell = CellSmoke;
             p.type = Custom;
             p.additive = true;
-            const float g = rnd(0.8f, 1.1f);
-            p.color = glm::vec4{0.25f * g, 0.6f * g, 0.1f * g, rnd(0.08f, 0.13f)};
-            const float life = rnd(2.2f, 3.4f);
+            const float g = vrand::range(rng, 0.8f, 1.1f);
+            p.color = glm::vec4{0.25f * g, 0.6f * g, 0.1f * g, vrand::range(rng, 0.08f, 0.13f)};
+            const float life = vrand::range(rng, 2.2f, 3.4f);
             p.die = cl.time + life;
             p.fade = -p.color.a / life;
-            p.scale = rnd(3.5f, 5.f);
+            p.scale = vrand::range(rng, 3.5f, 5.f);
             p.grow = 1.5f;
-            p.spin = rnd(-0.3f, 0.3f);
+            p.spin = vrand::range(rng, -0.3f, 0.3f);
             p.drag = 3.f;
             p.org = org + inBox(8.f);
             p.vel = vel * 0.4f + inBox(10.f);
@@ -1882,18 +1877,18 @@ void adStreamTongues(const glm::vec3& org, const glm::vec3& vel, int count, bool
         p.cell = CellFire;
         p.type = Custom;
         p.additive = true;
-        const glm::vec3 c = poison ? glm::mix(glm::vec3{0.2f, 0.85f, 0.12f}, glm::vec3{0.55f, 1.f, 0.25f}, rnd(0.f, 1.f))
+        const glm::vec3 c = poison ? glm::mix(glm::vec3{0.2f, 0.85f, 0.12f}, glm::vec3{0.55f, 1.f, 0.25f}, vrand::range(rng, 0.f, 1.f))
                                    : fireColor();
-        const float life = rnd(0.25f, 0.45f);
+        const float life = vrand::range(rng, 0.25f, 0.45f);
         p.color = glm::vec4{c, poison ? 0.5f : 0.65f};
         p.die = cl.time + life;
         p.fade = -p.color.a / life;
-        p.scale = rnd(6.f, 10.f);
+        p.scale = vrand::range(rng, 6.f, 10.f);
         p.grow = 16.f;
-        p.spin = rnd(-2.5f, 2.5f);
+        p.spin = vrand::range(rng, -2.5f, 2.5f);
         p.drag = 2.f;
         p.org = org + inBox(3.f);
-        p.vel = vel * rnd(0.5f, 0.9f) + inBox(12.f) + glm::vec3{0.f, 0.f, 10.f};
+        p.vel = vel * vrand::range(rng, 0.5f, 0.9f) + inBox(12.f) + glm::vec3{0.f, 0.f, 10.f};
         p.acc = glm::vec3{0.f, 0.f, poison ? 8.f : 45.f};
     });
 }
@@ -1908,17 +1903,17 @@ void poisonPuff(const glm::vec3& org, const glm::vec3& half, int count)
         p.type = Custom;
         // (Faintly glowing, as AD's poison: additive, so that it shows in the dark too.)
         p.additive = true;
-        const float g = rnd(0.8f, 1.1f);
-        p.color = glm::vec4{0.32f * g, 0.75f * g, 0.12f * g, rnd(0.3f, 0.45f)};
-        const float life = rnd(1.f, 1.6f);
+        const float g = vrand::range(rng, 0.8f, 1.1f);
+        p.color = glm::vec4{0.32f * g, 0.75f * g, 0.12f * g, vrand::range(rng, 0.3f, 0.45f)};
+        const float life = vrand::range(rng, 1.f, 1.6f);
         p.die = cl.time + life;
         p.fade = -p.color.a / life;
-        p.scale = rnd(2.4f, 3.6f);
+        p.scale = vrand::range(rng, 2.4f, 3.6f);
         p.grow = 2.5f;
-        p.spin = rnd(-0.6f, 0.6f);
+        p.spin = vrand::range(rng, -0.6f, 0.6f);
         p.drag = 0.8f;
-        p.org = org + glm::vec3{rnd(-box.x, box.x), rnd(-box.y, box.y), rnd(-box.z, box.z)} * 0.8f;
-        p.vel = inBox(6.f) + glm::vec3{0.f, 0.f, rnd(6.f, 14.f)};
+        p.org = org + glm::vec3{vrand::range(rng, -box.x, box.x), vrand::range(rng, -box.y, box.y), vrand::range(rng, -box.z, box.z)} * 0.8f;
+        p.vel = inBox(6.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 6.f, 14.f)};
         p.acc = glm::vec3{0.f, 0.f, 4.f};
     });
 }
@@ -1927,7 +1922,7 @@ void poisonPuff(const glm::vec3& org, const glm::vec3& half, int count)
 [[nodiscard]] glm::vec3 inDisc(float radius)
 {
     const float a = rndAngle();
-    const float r = radius * za::sqrt(rnd(0.f, 1.f));
+    const float r = radius * za::sqrt(vrand::range(rng, 0.f, 1.f));
     return {r * za::cos(a), r * za::sin(a), 0.f};
 }
 
@@ -1946,33 +1941,33 @@ void tankFire(const glm::vec3& org, const glm::vec3& dir, int count)
         p.type = Custom;
         // Some glowing (added to the scene: a dark place's fire), most drawn over it in deep oranges, so that they read
         // on a bright floor too (added light vanishes on one: vrtesthall's).
-        p.additive = rnd(0.f, 1.f) < 0.4f;
-        const float life = rnd(0.35f, 0.7f);
+        p.additive = vrand::range(rng, 0.f, 1.f) < 0.4f;
+        const float life = vrand::range(rng, 0.35f, 0.7f);
         const glm::vec3 c = p.additive ? fireColor()
-                                       : glm::mix(glm::vec3{0.85f, 0.2f, 0.02f}, glm::vec3{1.f, 0.55f, 0.1f}, rnd(0.f, 1.f));
-        p.color = glm::vec4{c, (p.additive ? rnd(0.55f, 0.75f) : rnd(0.65f, 0.85f)) * alpha};
+                                       : glm::mix(glm::vec3{0.85f, 0.2f, 0.02f}, glm::vec3{1.f, 0.55f, 0.1f}, vrand::range(rng, 0.f, 1.f));
+        p.color = glm::vec4{c, (p.additive ? vrand::range(rng, 0.55f, 0.75f) : vrand::range(rng, 0.65f, 0.85f)) * alpha};
         p.die = cl.time + life;
         p.fade = -p.color.a / life;
-        p.scale = rnd(5.f, 8.f) * size;
-        p.grow = rnd(2.f, 6.f) * size;
-        p.spin = rnd(-0.6f, 0.6f);
+        p.scale = vrand::range(rng, 5.f, 8.f) * size;
+        p.grow = vrand::range(rng, 2.f, 6.f) * size;
+        p.spin = vrand::range(rng, -0.6f, 0.6f);
         p.drag = 1.2f;
-        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(2.f, 8.f) * size};
-        p.vel = glm::vec3{rnd(-3.f, 3.f), rnd(-3.f, 3.f), rnd(55.f, 95.f) * size};
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, vrand::range(rng, 2.f, 8.f) * size};
+        p.vel = glm::vec3{vrand::range(rng, -3.f, 3.f), vrand::range(rng, -3.f, 3.f), vrand::range(rng, 55.f, 95.f) * size};
         p.acc = glm::vec3{0.f, 0.f, 30.f};
     });
     make(someOf(0.25f * static_cast<float>(count)), [&](Particle& p, int) {
         p.cell = CellSpark;
         p.type = Custom;
         p.additive = true;
-        p.color = glm::vec4{glm::mix(glm::vec3{1.f, 0.45f, 0.1f}, glm::vec3{1.f, 0.85f, 0.4f}, rnd(0.f, 0.6f)), alpha};
-        const float life = rnd(0.7f, 1.4f);
+        p.color = glm::vec4{glm::mix(glm::vec3{1.f, 0.45f, 0.1f}, glm::vec3{1.f, 0.85f, 0.4f}, vrand::range(rng, 0.f, 0.6f)), alpha};
+        const float life = vrand::range(rng, 0.7f, 1.4f);
         p.die = cl.time + life;
         p.fade = -alpha / life;
-        p.scale = rnd(0.2f, 0.4f);
+        p.scale = vrand::range(rng, 0.2f, 0.4f);
         p.drag = 0.6f;
-        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(8.f, 24.f)};
-        p.vel = glm::vec3{rnd(-12.f, 12.f), rnd(-12.f, 12.f), rnd(60.f, 130.f)};
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, vrand::range(rng, 8.f, 24.f)};
+        p.vel = glm::vec3{vrand::range(rng, -12.f, 12.f), vrand::range(rng, -12.f, 12.f), vrand::range(rng, 60.f, 130.f)};
         p.acc = gravity(0.08f);
     });
 }
@@ -1986,17 +1981,17 @@ void tankSmoke(const glm::vec3& org, const glm::vec3& dir, int count)
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellSmoke;
         p.type = Custom;
-        const float g = rnd(0.08f, 0.16f);
-        p.color = glm::vec4{g, g * 0.94f, g * 0.88f, rnd(0.32f, 0.48f) * alpha};
-        const float life = rnd(2.5f, 3.8f);
+        const float g = vrand::range(rng, 0.08f, 0.16f);
+        p.color = glm::vec4{g, g * 0.94f, g * 0.88f, vrand::range(rng, 0.32f, 0.48f) * alpha};
+        const float life = vrand::range(rng, 2.5f, 3.8f);
         p.die = cl.time + life;
         p.fade = -p.color.a / life;
-        p.scale = rnd(4.f, 7.f) * size;
-        p.grow = rnd(2.5f, 4.f) * size;
-        p.spin = rnd(-0.5f, 0.5f);
+        p.scale = vrand::range(rng, 4.f, 7.f) * size;
+        p.grow = vrand::range(rng, 2.5f, 4.f) * size;
+        p.spin = vrand::range(rng, -0.5f, 0.5f);
         p.drag = 0.5f;
-        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(28.f, 44.f) * size};
-        p.vel = glm::vec3{rnd(-6.f, 6.f), rnd(-6.f, 6.f), rnd(22.f, 40.f)};
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, vrand::range(rng, 28.f, 44.f) * size};
+        p.vel = glm::vec3{vrand::range(rng, -6.f, 6.f), vrand::range(rng, -6.f, 6.f), vrand::range(rng, 22.f, 40.f)};
         p.acc = glm::vec3{0.f, 0.f, 5.f};
     });
 }
@@ -2011,34 +2006,34 @@ void tankCloud(const glm::vec3& org, const glm::vec3& dir, int count)
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellSmoke;
         p.type = Custom;
-        const float g = rnd(0.8f, 1.15f);
-        p.color = glm::vec4{0.15f * g, 0.4f * g, 0.08f * g, rnd(0.35f, 0.5f) * alpha};
-        const float life = rnd(2.4f, 3.6f);
+        const float g = vrand::range(rng, 0.8f, 1.15f);
+        p.color = glm::vec4{0.15f * g, 0.4f * g, 0.08f * g, vrand::range(rng, 0.35f, 0.5f) * alpha};
+        const float life = vrand::range(rng, 2.4f, 3.6f);
         p.die = cl.time + life;
         p.fade = -p.color.a / life;
-        p.scale = rnd(10.f, 15.f) * size;
-        p.grow = rnd(2.f, 4.f) * size;
-        p.spin = rnd(-0.35f, 0.35f);
+        p.scale = vrand::range(rng, 10.f, 15.f) * size;
+        p.grow = vrand::range(rng, 2.f, 4.f) * size;
+        p.spin = vrand::range(rng, -0.35f, 0.35f);
         p.drag = 0.8f;
-        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(8.f, 48.f) * size};
-        p.vel = glm::vec3{rnd(-8.f, 8.f), rnd(-8.f, 8.f), rnd(2.f, 9.f)};
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, vrand::range(rng, 8.f, 48.f) * size};
+        p.vel = glm::vec3{vrand::range(rng, -8.f, 8.f), vrand::range(rng, -8.f, 8.f), vrand::range(rng, 2.f, 9.f)};
         p.acc = glm::vec3{0.f, 0.f, 1.5f};
     });
     make(someOf(0.35f * static_cast<float>(count)), [&](Particle& p, int) {
         p.cell = CellSmoke;
         p.type = Custom;
         p.additive = true;
-        const float g = rnd(0.8f, 1.1f);
-        p.color = glm::vec4{0.25f * g, 0.62f * g, 0.1f * g, rnd(0.06f, 0.1f) * alpha};
-        const float life = rnd(2.f, 3.f);
+        const float g = vrand::range(rng, 0.8f, 1.1f);
+        p.color = glm::vec4{0.25f * g, 0.62f * g, 0.1f * g, vrand::range(rng, 0.06f, 0.1f) * alpha};
+        const float life = vrand::range(rng, 2.f, 3.f);
         p.die = cl.time + life;
         p.fade = -p.color.a / life;
-        p.scale = rnd(5.f, 7.f) * size;
+        p.scale = vrand::range(rng, 5.f, 7.f) * size;
         p.grow = 1.5f * size;
-        p.spin = rnd(-0.3f, 0.3f);
+        p.spin = vrand::range(rng, -0.3f, 0.3f);
         p.drag = 0.8f;
-        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, rnd(6.f, 26.f) * size};
-        p.vel = glm::vec3{rnd(-6.f, 6.f), rnd(-6.f, 6.f), rnd(1.f, 5.f)};
+        p.org = org + inDisc(spread) + glm::vec3{0.f, 0.f, vrand::range(rng, 6.f, 26.f) * size};
+        p.vel = glm::vec3{vrand::range(rng, -6.f, 6.f), vrand::range(rng, -6.f, 6.f), vrand::range(rng, 1.f, 5.f)};
         p.acc = glm::vec3{0.f, 0.f, 1.f};
     });
 }
@@ -2050,13 +2045,13 @@ void electricArcs(const glm::vec3& org, float count, float reach, float size)
         p.cell = CellLightning;
         p.type = Custom;
         p.additive = true;
-        const float w = rnd(0.8f, 1.f);
-        p.color = glm::vec4{w * rnd(0.55f, 0.75f), w * rnd(0.75f, 0.9f), w, rnd(0.7f, 1.f)};
-        const float life = rnd(0.05f, 0.14f);
+        const float w = vrand::range(rng, 0.8f, 1.f);
+        p.color = glm::vec4{w * vrand::range(rng, 0.55f, 0.75f), w * vrand::range(rng, 0.75f, 0.9f), w, vrand::range(rng, 0.7f, 1.f)};
+        const float life = vrand::range(rng, 0.05f, 0.14f);
         p.die = cl.time + life;
         p.fade = -p.color.a / life;
-        p.scale = rnd(0.7f, 1.3f) * size;
-        p.spin = rnd(-20.f, 20.f);
+        p.scale = vrand::range(rng, 0.7f, 1.3f) * size;
+        p.spin = vrand::range(rng, -20.f, 20.f);
         p.org = org + inBox(reach);
     });
 }
@@ -2069,11 +2064,11 @@ void electricSparks(const glm::vec3& org, const glm::vec3& dir, int count)
     electricArcs(org + d * 2.f, za::max(1.f, count * 0.4f), 2.f, 2.2f);
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellSpark;
-        const float w = rnd(0.8f, 1.f);
-        p.color = glm::vec4{w * rnd(0.6f, 0.85f), w * rnd(0.8f, 1.f), w, 1.f};
-        const float life = rnd(0.12f, 0.35f);
+        const float w = vrand::range(rng, 0.8f, 1.f);
+        p.color = glm::vec4{w * vrand::range(rng, 0.6f, 0.85f), w * vrand::range(rng, 0.8f, 1.f), w, 1.f};
+        const float life = vrand::range(rng, 0.12f, 0.35f);
         p.die = cl.time + life;
-        p.scale = rnd(0.2f, 0.4f);
+        p.scale = vrand::range(rng, 0.2f, 0.4f);
         p.type = Custom;
         p.fade = -1.f / life;
         p.grow = -0.3f;
@@ -2082,7 +2077,7 @@ void electricSparks(const glm::vec3& org, const glm::vec3& dir, int count)
         p.streak = 0.025f;
         p.acc = gravity(0.5f);
         p.org = org + inBox(0.5f);
-        p.vel = d * rnd(40.f, 140.f) + onSphere() * rnd(30.f, 80.f);
+        p.vel = d * vrand::range(rng, 40.f, 140.f) + onSphere() * vrand::range(rng, 30.f, 80.f);
     });
 }
 
@@ -2096,23 +2091,23 @@ void electricTrail(const glm::vec3& from, const glm::vec3& to)
     const float arcs = perLength(length, 9.f);
     for(int i = 0; i < static_cast<int>(arcs); i++)
     {
-        electricArcs(from + d * rnd(0.f, 1.f), 1.f, 1.5f, 1.4f);
+        electricArcs(from + d * vrand::range(rng, 0.f, 1.f), 1.f, 1.5f, 1.4f);
     }
     make(perLength(length, 12.f), [&](Particle& p, int) {
         p.cell = CellSpark;
-        const float w = rnd(0.8f, 1.f);
-        p.color = glm::vec4{w * rnd(0.6f, 0.85f), w * rnd(0.8f, 1.f), w, 1.f};
-        const float life = rnd(0.15f, 0.3f);
+        const float w = vrand::range(rng, 0.8f, 1.f);
+        p.color = glm::vec4{w * vrand::range(rng, 0.6f, 0.85f), w * vrand::range(rng, 0.8f, 1.f), w, 1.f};
+        const float life = vrand::range(rng, 0.15f, 0.3f);
         p.die = cl.time + life;
-        p.scale = rnd(0.18f, 0.32f);
+        p.scale = vrand::range(rng, 0.18f, 0.32f);
         p.type = Custom;
         p.fade = -1.f / life;
         p.drag = 2.f;
         p.additive = true;
         p.streak = 0.02f;
         p.acc = gravity(0.3f);
-        p.org = from + d * rnd(0.f, 1.f) + inBox(1.f);
-        p.vel = onSphere() * rnd(25.f, 70.f);
+        p.org = from + d * vrand::range(rng, 0.f, 1.f) + inBox(1.f);
+        p.vel = onSphere() * vrand::range(rng, 25.f, 70.f);
     });
 }
 
@@ -2306,13 +2301,13 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
         Particle p;
         p.cell = CellCircle;
         p.color = glm::vec4{color, 0.85f};
-        p.scale = rnd(0.12f, 0.22f);
+        p.scale = vrand::range(rng, 0.12f, 0.22f);
         p.type = Static;
         p.acc = gravity(1.f);
         p.org = org + normal * 0.3f;
         const float a = rndAngle();
-        p.vel = glm::vec3{za::cos(a), za::sin(a), 0.f} * rnd(15.f, 35.f) + normal * rnd(25.f, 50.f);
-        p.die = cl.time + rnd(0.15f, 0.3f);
+        p.vel = glm::vec3{za::cos(a), za::sin(a), 0.f} * vrand::range(rng, 15.f, 35.f) + normal * vrand::range(rng, 25.f, 50.f);
+        p.die = cl.time + vrand::range(rng, 0.15f, 0.3f);
         p.floor = org.z - 0.5f;
         pool.pushBack(p);
     }
@@ -2354,16 +2349,16 @@ int fireSource(const glm::vec3& at, float sourceScale)
     const za::SizeT before = pool.size();
     const auto range = [](float a, float b, float low, float high) {
         a = za::clamp(a, low, high); b = za::clamp(b, low, high);
-        return rnd(za::min(a, b), za::max(a, b));
+        return vrand::range(rng, za::min(a, b), za::max(a, b));
     };
     make(za::clamp(vr_fire_particles_count.value, 0.f, 16.f), [&](Particle& p, int) {
         p.cell = CellFire;
         p.type = Custom;
         p.additive = true;
-        p.angle = -1.5707963f + rnd(-0.25f, 0.25f); // clockwise: the shader rotates +angle counterclockwise
+        p.angle = -1.5707963f + vrand::range(rng, -0.25f, 0.25f); // clockwise: the shader rotates +angle counterclockwise
         const float s = sourceScale * za::clamp(vr_fire_particles_size.value, 0.1f, 4.f);
-        p.scale = rnd(2.f, 3.f) * s;
-        p.org = at + glm::vec3{rnd(-1.f, 1.f), rnd(-1.f, 1.f), rnd(-0.5f, 0.5f)} * sourceScale;
+        p.scale = vrand::range(rng, 2.f, 3.f) * s;
+        p.org = at + glm::vec3{vrand::range(rng, -1.f, 1.f), vrand::range(rng, -1.f, 1.f), vrand::range(rng, -0.5f, 0.5f)} * sourceScale;
         const float life = range(vr_fire_particles_life_min.value, vr_fire_particles_life_max.value, 0.05f, 5.f);
         const float speed = range(vr_fire_particles_speed_min.value, vr_fire_particles_speed_max.value, 0.f, 10.f);
         const float up = range(vr_fire_particles_up_min.value, vr_fire_particles_up_max.value, 0.f, 10.f);
@@ -2373,7 +2368,7 @@ int fireSource(const glm::vec3& at, float sourceScale)
         p.die = cl.time + life;
         p.fade = -p.color.a / life;
         p.grow = s * 1.5f;
-        p.spin = rnd(-0.3f, 0.3f);
+        p.spin = vrand::range(rng, -0.3f, 0.3f);
         p.acc = glm::vec3{0.f, 0.f, units::metresToUnits() * 0.3f};
     }, false);
     return static_cast<int>(pool.size() - before);
@@ -2414,28 +2409,28 @@ void explosionDebrisTrail(const glm::vec3& from, const glm::vec3& to, float size
     const float count = perLength(length, za::max(1.f, size) / density);
     make(count, [&](Particle& p, int) {
         p.cell = CellExplosion;
-        p.org = glm::mix(from, to, rnd(0.f, 1.f));
+        p.org = glm::mix(from, to, vrand::range(rng, 0.f, 1.f));
         p.color = glm::vec4{1.f, 0.3f + 0.2f * heat, 0.04f, 0.65f * heat};
         p.additive = true;
         p.type = Custom;
-        p.scale = size * rnd(0.6f, 1.f);
-        p.die = cl.time + rnd(0.15f, 0.3f);
+        p.scale = size * vrand::range(rng, 0.6f, 1.f);
+        p.die = cl.time + vrand::range(rng, 0.15f, 0.3f);
         p.fade = -3.f;
         p.grow = size * 2.f;
         p.vel = inBox(4.f) + glm::vec3{0.f, 0.f, 12.f};
-        p.spin = rnd(-2.f, 2.f);
+        p.spin = vrand::range(rng, -2.f, 2.f);
     });
     make(count * 0.5f, [&](Particle& p, int) {
         p.cell = CellSmoke;
-        p.org = glm::mix(from, to, rnd(0.f, 1.f));
+        p.org = glm::mix(from, to, vrand::range(rng, 0.f, 1.f));
         p.color = glm::vec4{0.25f, 0.22f, 0.2f, 0.32f};
         p.type = Custom;
-        p.scale = size * rnd(0.8f, 1.4f);
-        p.die = cl.time + rnd(0.7f, 1.2f);
+        p.scale = size * vrand::range(rng, 0.8f, 1.4f);
+        p.die = cl.time + vrand::range(rng, 0.7f, 1.2f);
         p.fade = -0.3f;
         p.grow = size * 4.f;
         p.vel = inBox(5.f) + glm::vec3{0.f, 0.f, 14.f};
-        p.spin = rnd(-0.5f, 0.5f);
+        p.spin = vrand::range(rng, -0.5f, 0.5f);
     });
 }
 
@@ -2449,19 +2444,19 @@ void chainsawSmoke(const glm::vec3& org, const glm::vec3& dir, int count)
     // A two-stroke's thin blue-grey wisp: small as it leaves, spreading, slowing and rising as it fades.
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellSmoke;
-        const float g = rnd(0.5f, 0.6f);
-        p.color = glm::vec4{g * 0.94f, g * 0.97f, g, alpha * rnd(0.75f, 1.15f)};
-        const float life = rnd(1.6f, 2.4f);
+        const float g = vrand::range(rng, 0.5f, 0.6f);
+        p.color = glm::vec4{g * 0.94f, g * 0.97f, g, alpha * vrand::range(rng, 0.75f, 1.15f)};
+        const float life = vrand::range(rng, 1.6f, 2.4f);
         p.die = cl.time + life;
-        p.scale = rnd(0.3f, 0.45f);
+        p.scale = vrand::range(rng, 0.3f, 0.45f);
         p.type = Custom;
         p.fade = -p.color.a / life;
-        p.grow = rnd(1.2f, 2.f);
+        p.grow = vrand::range(rng, 1.2f, 2.f);
         p.drag = 2.f;
-        p.spin = rnd(-0.8f, 0.8f);
+        p.spin = vrand::range(rng, -0.8f, 0.8f);
         p.acc = gravity(-0.035f);
         p.org = org + inBox(0.3f);
-        p.vel = dir * rnd(6.f, 12.f) + inBox(2.5f);
+        p.vel = dir * vrand::range(rng, 6.f, 12.f) + inBox(2.5f);
     });
 }
 
@@ -2474,11 +2469,11 @@ void contactSparks(const glm::vec3& org, int count)
     // An electric arc's spatter: tiny blue-white points, glowing, streaked by their speed, gone in a fraction of a second.
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellSpark;
-        const float w = rnd(0.8f, 1.f);
-        p.color = glm::vec4{w * rnd(0.7f, 0.9f), w * rnd(0.85f, 1.f), w, 1.f};
-        const float life = rnd(0.12f, 0.4f);
+        const float w = vrand::range(rng, 0.8f, 1.f);
+        p.color = glm::vec4{w * vrand::range(rng, 0.7f, 0.9f), w * vrand::range(rng, 0.85f, 1.f), w, 1.f};
+        const float life = vrand::range(rng, 0.12f, 0.4f);
         p.die = cl.time + life;
-        p.scale = rnd(0.2f, 0.4f);
+        p.scale = vrand::range(rng, 0.2f, 0.4f);
         p.type = Custom;
         p.fade = -1.f / life;
         p.grow = -0.3f;
@@ -2487,7 +2482,7 @@ void contactSparks(const glm::vec3& org, int count)
         p.streak = 0.025f;
         p.acc = gravity(0.6f);
         p.org = org + inBox(0.3f);
-        p.vel = glm::vec3{rnd(-70.f, 70.f), rnd(-70.f, 70.f), rnd(-20.f, 100.f)};
+        p.vel = glm::vec3{vrand::range(rng, -70.f, 70.f), vrand::range(rng, -70.f, 70.f), vrand::range(rng, -20.f, 100.f)};
     });
 }
 
@@ -2501,19 +2496,19 @@ void batterySmoke(const glm::vec3& org, int count)
     // Burnt insulation's thin acrid wisp: small as it leaves the contact, spreading and rising as it fades.
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellSmoke;
-        const float g = rnd(0.3f, 0.42f);
-        p.color = glm::vec4{g, g * 0.98f, g * 0.94f, alpha * rnd(0.7f, 1.1f)};
-        const float life = rnd(1.4f, 2.2f);
+        const float g = vrand::range(rng, 0.3f, 0.42f);
+        p.color = glm::vec4{g, g * 0.98f, g * 0.94f, alpha * vrand::range(rng, 0.7f, 1.1f)};
+        const float life = vrand::range(rng, 1.4f, 2.2f);
         p.die = cl.time + life;
-        p.scale = rnd(0.2f, 0.35f);
+        p.scale = vrand::range(rng, 0.2f, 0.35f);
         p.type = Custom;
         p.fade = -p.color.a / life;
-        p.grow = rnd(1.f, 1.7f);
+        p.grow = vrand::range(rng, 1.f, 1.7f);
         p.drag = 2.f;
-        p.spin = rnd(-0.8f, 0.8f);
+        p.spin = vrand::range(rng, -0.8f, 0.8f);
         p.acc = gravity(-0.04f);
         p.org = org + inBox(0.25f);
-        p.vel = inBox(1.5f) + glm::vec3{0.f, 0.f, rnd(4.f, 9.f)};
+        p.vel = inBox(1.5f) + glm::vec3{0.f, 0.f, vrand::range(rng, 4.f, 9.f)};
     });
 }
 
@@ -2527,19 +2522,19 @@ void torchSmoke(const glm::vec3& org, const glm::vec3& drift, int count, float a
     // Pitch-black wisps off the flame's tips: small and dense as they leave, spreading, slowing and thinning as they rise.
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellSmoke;
-        const float g = rnd(0.16f, 0.26f);
-        p.color = glm::vec4{g * 1.05f, g, g * 0.95f, alpha * rnd(0.7f, 1.2f)};
-        const float life = rnd(2.4f, 3.6f);
+        const float g = vrand::range(rng, 0.16f, 0.26f);
+        p.color = glm::vec4{g * 1.05f, g, g * 0.95f, alpha * vrand::range(rng, 0.7f, 1.2f)};
+        const float life = vrand::range(rng, 2.4f, 3.6f);
         p.die = cl.time + life;
-        p.scale = rnd(1.6f, 2.6f);
+        p.scale = vrand::range(rng, 1.6f, 2.6f);
         p.type = Custom;
         p.fade = -p.color.a / life;
-        p.grow = rnd(4.f, 6.5f);
+        p.grow = vrand::range(rng, 4.f, 6.5f);
         p.drag = 1.4f;
-        p.spin = rnd(-0.7f, 0.7f);
+        p.spin = vrand::range(rng, -0.7f, 0.7f);
         p.acc = gravity(-0.012f) + inBox(3.f);
         p.org = org + inBox(1.2f);
-        p.vel = drift + glm::vec3{0.f, 0.f, rnd(10.f, 18.f)} + inBox(2.5f);
+        p.vel = drift + glm::vec3{0.f, 0.f, vrand::range(rng, 10.f, 18.f)} + inBox(2.5f);
     });
 }
 
@@ -2554,19 +2549,19 @@ void smoulderSmoke(const glm::vec3& org, const glm::vec3& out, int count, float 
     // and fainter than a torch's pitch smoke).
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellSmoke;
-        const float g = rnd(0.48f, 0.62f);
-        p.color = glm::vec4{g * 1.03f, g, g * 0.96f, alpha * rnd(0.6f, 1.1f)};
-        const float life = rnd(1.6f, 2.6f);
+        const float g = vrand::range(rng, 0.48f, 0.62f);
+        p.color = glm::vec4{g * 1.03f, g, g * 0.96f, alpha * vrand::range(rng, 0.6f, 1.1f)};
+        const float life = vrand::range(rng, 1.6f, 2.6f);
         p.die = cl.time + life;
-        p.scale = rnd(1.2f, 2.f);
+        p.scale = vrand::range(rng, 1.2f, 2.f);
         p.type = Custom;
         p.fade = -p.color.a / life;
-        p.grow = rnd(3.f, 4.5f);
+        p.grow = vrand::range(rng, 3.f, 4.5f);
         p.drag = 1.2f;
-        p.spin = rnd(-0.6f, 0.6f);
+        p.spin = vrand::range(rng, -0.6f, 0.6f);
         p.acc = gravity(-0.01f) + inBox(2.5f);
         p.org = org + out * 1.5f + inBox(0.6f);
-        p.vel = out * rnd(2.f, 5.f) + glm::vec3{0.f, 0.f, rnd(7.f, 13.f)} + inBox(2.f);
+        p.vel = out * vrand::range(rng, 2.f, 5.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 7.f, 13.f)} + inBox(2.f);
     });
 }
 
@@ -2580,14 +2575,14 @@ void torchDrip(const glm::vec3& org, const glm::vec3& vel)
     make(1.f, [&](Particle& p, int) {
         p.cell = CellSpark;
         p.additive = true;
-        p.color = glm::vec4{1.f, rnd(0.42f, 0.62f), rnd(0.1f, 0.2f), 1.f};
-        p.die = cl.time + rnd(0.6f, 1.1f);
-        p.scale = rnd(0.2f, 0.32f);
+        p.color = glm::vec4{1.f, vrand::range(rng, 0.42f, 0.62f), vrand::range(rng, 0.1f, 0.2f), 1.f};
+        p.die = cl.time + vrand::range(rng, 0.6f, 1.1f);
+        p.scale = vrand::range(rng, 0.2f, 0.32f);
         p.type = Custom;
         p.fade = -0.9f;
         p.grow = -0.12f;
         p.drag = 0.3f;
-        p.spin = rnd(-6.f, 6.f);
+        p.spin = vrand::range(rng, -6.f, 6.f);
         p.acc = gravity(1.f);
         p.org = org + inBox(0.6f);
         p.vel = vel + inBox(4.f);
@@ -2604,33 +2599,33 @@ void shellEject(const glm::vec3& org, const glm::vec3& dir, float smoke, int spa
     // A faint grey puff out of the port, drifting after the shell and spreading.
     make(za::ceil(2.f * smoke), [&](Particle& p, int) {
         p.cell = CellSmoke;
-        const float g = rnd(0.5f, 0.62f);
-        p.color = glm::vec4{g, g, g * 0.97f, rnd(0.14f, 0.22f) * za::min(smoke, 1.5f)};
+        const float g = vrand::range(rng, 0.5f, 0.62f);
+        p.color = glm::vec4{g, g, g * 0.97f, vrand::range(rng, 0.14f, 0.22f) * za::min(smoke, 1.5f)};
         p.die = cl.time + 1.8;
-        p.scale = rnd(0.35f, 0.55f);
+        p.scale = vrand::range(rng, 0.35f, 0.55f);
         p.type = Custom;
         p.fade = -p.color.a / 1.6f;
-        p.grow = rnd(1.4f, 2.2f);
+        p.grow = vrand::range(rng, 1.4f, 2.2f);
         p.drag = 2.5f;
-        p.spin = rnd(-1.f, 1.f);
+        p.spin = vrand::range(rng, -1.f, 1.f);
         p.acc = gravity(-0.03f);
         p.org = org + inBox(0.4f);
-        p.vel = dir * rnd(4.f, 14.f) + inBox(3.f);
+        p.vel = dir * vrand::range(rng, 4.f, 14.f) + inBox(3.f);
     });
     // A few tiny sparks of burning powder, gone in a blink.
     make(static_cast<float>(sparks), [&](Particle& p, int) {
         p.cell = CellSpark;
         p.additive = true;
-        p.color = glm::vec4{1.f, rnd(0.55f, 0.8f), rnd(0.2f, 0.35f), 1.f};
-        p.die = cl.time + rnd(0.12f, 0.35f);
-        p.scale = rnd(0.1f, 0.18f);
+        p.color = glm::vec4{1.f, vrand::range(rng, 0.55f, 0.8f), vrand::range(rng, 0.2f, 0.35f), 1.f};
+        p.die = cl.time + vrand::range(rng, 0.12f, 0.35f);
+        p.scale = vrand::range(rng, 0.1f, 0.18f);
         p.type = Custom;
         p.fade = -3.f;
         p.drag = 3.f;
-        p.spin = rnd(-8.f, 8.f);
+        p.spin = vrand::range(rng, -8.f, 8.f);
         p.acc = gravity(0.3f);
         p.org = org;
-        p.vel = dir * rnd(30.f, 80.f) + onSphere() * rnd(5.f, 25.f);
+        p.vel = dir * vrand::range(rng, 30.f, 80.f) + onSphere() * vrand::range(rng, 5.f, 25.f);
     });
 }
 
@@ -2648,29 +2643,29 @@ void lavaNailTrail(const glm::vec3& from, const glm::vec3& to)
     make(perLength(length, 5.f), [&](Particle& p, int) {
         p.cell = CellGlow;
         p.additive = true;
-        p.color = glm::vec4{1.f, rnd(0.38f, 0.5f), 0.12f, 0.55f};
+        p.color = glm::vec4{1.f, vrand::range(rng, 0.38f, 0.5f), 0.12f, 0.55f};
         p.die = cl.time + 0.16;
-        p.scale = rnd(1.4f, 1.9f);
+        p.scale = vrand::range(rng, 1.4f, 1.9f);
         p.type = Custom;
         p.fade = -3.4f;
         p.grow = -6.f;
-        p.org = from + d * rnd(0.f, 1.f);
+        p.org = from + d * vrand::range(rng, 0.f, 1.f);
     });
     // Embers shed on the way, falling and dimming.
     make(perLength(length, 22.f), [&](Particle& p, int) {
         p.cell = CellSpark;
         p.additive = true;
-        p.color = glm::vec4{1.f, rnd(0.35f, 0.6f), rnd(0.08f, 0.18f), 1.f};
-        p.die = cl.time + rnd(0.35f, 0.7f);
-        p.scale = rnd(0.18f, 0.32f);
+        p.color = glm::vec4{1.f, vrand::range(rng, 0.35f, 0.6f), vrand::range(rng, 0.08f, 0.18f), 1.f};
+        p.die = cl.time + vrand::range(rng, 0.35f, 0.7f);
+        p.scale = vrand::range(rng, 0.18f, 0.32f);
         p.type = Custom;
         p.fade = -1.6f;
         p.grow = -0.2f;
         p.drag = 1.6f;
-        p.spin = rnd(-8.f, 8.f);
+        p.spin = vrand::range(rng, -8.f, 8.f);
         p.acc = gravity(0.25f);
-        p.org = from + d * rnd(0.f, 1.f) + inBox(0.8f);
-        p.vel = onSphere() * rnd(8.f, 28.f);
+        p.org = from + d * vrand::range(rng, 0.f, 1.f) + inBox(0.8f);
+        p.vel = onSphere() * vrand::range(rng, 8.f, 28.f);
     });
 }
 
@@ -2686,14 +2681,14 @@ void counterEmber(const glm::vec3& org, const glm::vec3& vel, float bright)
     make(1.f, [&](Particle& p, int) {
         p.cell = CellSpark;
         p.additive = true;
-        p.color = glm::vec4{1.f, rnd(0.68f, 0.86f), rnd(0.22f, 0.36f), za::min(1.f, bright)};
-        p.die = cl.time + rnd(0.4f, 0.75f);
-        p.scale = rnd(0.34f, 0.56f);
+        p.color = glm::vec4{1.f, vrand::range(rng, 0.68f, 0.86f), vrand::range(rng, 0.22f, 0.36f), za::min(1.f, bright)};
+        p.die = cl.time + vrand::range(rng, 0.4f, 0.75f);
+        p.scale = vrand::range(rng, 0.34f, 0.56f);
         p.type = Custom;
         p.fade = -1.5f;
         p.grow = -0.35f;
         p.drag = 1.8f;
-        p.spin = rnd(-6.f, 6.f);
+        p.spin = vrand::range(rng, -6.f, 6.f);
         p.acc = gravity(-0.02f);
         p.org = org;
         p.vel = vel;
@@ -2711,15 +2706,15 @@ void hotEmber(const glm::vec3& org, const glm::vec3& vel, const glm::vec3& color
     make(1.f, [&](Particle& p, int) {
         p.cell = CellSpark;
         p.additive = true;
-        const float yellow = rnd(0.f, 0.45f);
+        const float yellow = vrand::range(rng, 0.f, 0.45f);
         p.color = glm::vec4{glm::mix(color, glm::vec3{1.f, 0.85f, 0.45f}, yellow), za::min(1.f, bright)};
-        p.die = cl.time + rnd(0.35f, 0.8f);
-        p.scale = rnd(0.3f, 0.55f);
+        p.die = cl.time + vrand::range(rng, 0.35f, 0.8f);
+        p.scale = vrand::range(rng, 0.3f, 0.55f);
         p.type = Custom;
         p.fade = -1.4f;
         p.grow = -0.3f;
         p.drag = 1.6f;
-        p.spin = rnd(-6.f, 6.f);
+        p.spin = vrand::range(rng, -6.f, 6.f);
         p.acc = gravity(-0.025f);
         p.org = org;
         p.vel = vel;
@@ -2738,32 +2733,32 @@ void hotTrail(const glm::vec3& org, const glm::vec3& vel, const glm::vec3& color
         p.type = Custom;
         p.org = org;
         p.vel = vel;
-        const float l = life * rnd(0.6f, 1.f);
+        const float l = life * vrand::range(rng, 0.6f, 1.f);
         p.die = cl.time + l;
         if(spark)
         {
             // A spark thrown off the hot metal: bright, tiny, falling a little.
             p.cell = CellSpark;
-            p.color = glm::vec4{glm::mix(color, glm::vec3{1.f, 0.9f, 0.6f}, rnd(0.3f, 0.7f)), za::min(1.f, bright)};
-            p.scale = rnd(0.25f, 0.45f);
+            p.color = glm::vec4{glm::mix(color, glm::vec3{1.f, 0.9f, 0.6f}, vrand::range(rng, 0.3f, 0.7f)), za::min(1.f, bright)};
+            p.scale = vrand::range(rng, 0.25f, 0.45f);
             p.fade = -za::min(1.f, bright) / l;
             p.grow = -0.15f;
             p.drag = 2.5f;
             p.acc = gravity(0.06f);
-            p.spin = rnd(-8.f, 8.f);
+            p.spin = vrand::range(rng, -8.f, 8.f);
         }
         else
         {
             // A small tongue of flame hanging in the air where the blade passed, rising as it fades.
             p.cell = CellFire;
-            p.angle = -1.5707963f + rnd(-0.4f, 0.4f); // upright (the shader turns +angle counterclockwise)
+            p.angle = -1.5707963f + vrand::range(rng, -0.4f, 0.4f); // upright (the shader turns +angle counterclockwise)
             p.color = glm::vec4{glm::mix(color, glm::vec3{1.f, 0.6f, 0.15f}, 0.35f), 0.75f * za::min(1.f, bright)};
-            p.scale = rnd(1.f, 1.8f);
+            p.scale = vrand::range(rng, 1.f, 1.8f);
             p.fade = -p.color.a / l;
             p.grow = 0.6f;
             p.drag = 3.f;
             p.acc = gravity(-0.03f);
-            p.spin = rnd(-0.4f, 0.4f);
+            p.spin = vrand::range(rng, -0.4f, 0.4f);
         }
     }, false);
 }
@@ -2778,17 +2773,17 @@ void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
     const glm::vec3 d = to - from;
     make(perLength(glm::length(d), 1.6f), [&](Particle& p, int) {
         p.cell = CellSmoke;
-        const float g = rnd(0.52f, 0.62f);
-        p.color = glm::vec4{g, g, g * 0.97f, rnd(0.05f, 0.09f) * strength};
+        const float g = vrand::range(rng, 0.52f, 0.62f);
+        p.color = glm::vec4{g, g, g * 0.97f, vrand::range(rng, 0.05f, 0.09f) * strength};
         p.die = cl.time + 1.4;
-        p.scale = rnd(0.22f, 0.36f);
+        p.scale = vrand::range(rng, 0.22f, 0.36f);
         p.type = Custom;
         p.fade = -p.color.a / 1.2f;
         p.grow = 1.1f;
         p.drag = 1.5f;
-        p.spin = rnd(-0.8f, 0.8f);
+        p.spin = vrand::range(rng, -0.8f, 0.8f);
         p.acc = gravity(-0.03f);
-        p.org = from + d * rnd(0.f, 1.f) + inBox(0.2f);
+        p.org = from + d * vrand::range(rng, 0.f, 1.f) + inBox(0.2f);
         p.vel = inBox(1.5f);
     });
 }
@@ -2902,22 +2897,22 @@ void shoreFoam()
         }
         const glm::vec2 d = s.b - s.a;
         const float len = glm::length(d);
-        const int n = static_cast<int>(len * rate[s.liquid] * scale * dt + rnd(0.f, 1.f));
+        const int n = static_cast<int>(len * rate[s.liquid] * scale * dt + vrand::range(rng, 0.f, 1.f));
         for(int k = 0; k < n && pool.size() < maxParticles; k++)
         {
-            const glm::vec2 at = s.a + d * rnd(0.f, 1.f);
+            const glm::vec2 at = s.a + d * vrand::range(rng, 0.f, 1.f);
             const float away = glm::length(glm::vec3{at.x, at.y, s.z} - eye);
-            if(away > kShoreReach || (away > kShoreNear && rnd(kShoreNear, kShoreReach) < away))
+            if(away > kShoreReach || (away > kShoreNear && vrand::range(rng, kShoreNear, kShoreReach) < away))
             {
                 continue;
             }
             const water::FoamLook& l = looks[s.liquid];
             const bool lava = s.liquid == 1;
             const float size = l.particleSize;
-            const float life = l.particleLife * rnd(0.7f, 1.3f);
+            const float life = l.particleLife * vrand::range(rng, 0.7f, 1.3f);
             const glm::vec2 along = d / len;
             // on the shore's line (the particle shore setting out from it), a little either side: over the hard edge
-            const glm::vec3 org{at + s.in * (l.particleShore + rnd(-0.5f, 1.5f) * size), s.z};
+            const glm::vec3 org{at + s.in * (l.particleShore + vrand::range(rng, -0.5f, 1.5f) * size), s.z};
             Particle p;
             p.angle = rndAngle();
             p.type = Custom;
@@ -2928,40 +2923,40 @@ void shoreFoam()
                 // Spray (ROUND22.md, "Shore foam as spray"): water thrown up where it hits the wall. A soft blurry cloud
                 // (CellShoreSpray), bigger and fainter than the old puffs, bursts up off the shore line, slows, falls
                 // back and spreads as it goes; it fades in over its first moments and out by its end (no pop).
-                const float alpha = kSprayOpacity * l.particleOpacity * rnd(0.6f, 1.f);
+                const float alpha = kSprayOpacity * l.particleOpacity * vrand::range(rng, 0.6f, 1.f);
                 p.cell = CellShoreSpray;
                 p.plain = true; // (smooth unless vr_water_foam_particle_retro: buildInstances)
-                p.color = glm::vec4{l.color * (lava ? 1.f : shadeAt(org)) * rnd(0.9f, 1.1f), 0.02f * alpha};
-                const float big = rnd(5.f, 8.f) * size; // 5 to 8 units across at 1 (half again the old puffs'), spreading
+                p.color = glm::vec4{l.color * (lava ? 1.f : shadeAt(org)) * vrand::range(rng, 0.9f, 1.1f), 0.02f * alpha};
+                const float big = vrand::range(rng, 5.f, 8.f) * size; // 5 to 8 units across at 1 (half again the old puffs'), spreading
                 p.scale = 0.7f * big;
                 p.grow = 0.6f * big / life;
                 p.ramp = kSprayFadeIn * life;
                 p.fade = alpha / p.ramp;
-                p.spin = rnd(-0.3f, 0.3f);
-                // Up to its top at kSprayRise of its life (a short burst: its height rnd(1.5, 3.5) x the size, at most
+                p.spin = vrand::range(rng, -0.3f, 0.3f);
+                // Up to its top at kSprayRise of its life (a short burst: its height vrand::range(rng, 1.5, 3.5) x the size, at most
                 // 6 units), back at the surface by twice that, still falling as it fades; out from the wall a little.
-                const float up = za::min(rnd(1.5f, 3.5f) * size, 6.f);
+                const float up = za::min(vrand::range(rng, 1.5f, 3.5f) * size, 6.f);
                 const float tUp = kSprayRise * life;
                 const float g = 2.f * up / (tUp * tUp);
                 p.org = org + glm::vec3{0.f, 0.f, 0.15f * p.scale};
-                p.vel = glm::vec3{along * rnd(-3.f, 3.f) + s.in * rnd(1.f, 5.f), g * tUp};
+                p.vel = glm::vec3{along * vrand::range(rng, -3.f, 3.f) + s.in * vrand::range(rng, 1.f, 5.f), g * tUp};
                 p.acc = glm::vec3{0.f, 0.f, -g};
             }
             else
             {
-                const float alpha = l.particleOpacity * rnd(0.7f, 1.f);
+                const float alpha = l.particleOpacity * vrand::range(rng, 0.7f, 1.f);
                 p.cell = CellFoam;
-                p.color = glm::vec4{l.color * (lava ? 1.f : shadeAt(org)) * rnd(0.9f, 1.1f), alpha};
-                const float big = rnd(3.f, 5.f) * size; // 3 to 4.5 units across, growing to 7 to 11
+                p.color = glm::vec4{l.color * (lava ? 1.f : shadeAt(org)) * vrand::range(rng, 0.9f, 1.1f), alpha};
+                const float big = vrand::range(rng, 3.f, 5.f) * size; // 3 to 4.5 units across, growing to 7 to 11
                 p.scale = 0.6f * big;
                 p.grow = 0.9f * big / life;
                 p.fade = -alpha / life;
-                p.spin = rnd(-0.6f, 0.6f);
+                p.spin = vrand::range(rng, -0.6f, 0.6f);
                 p.drag = 0.8f;
                 // a little above the surface (the bottom in the liquid), drifting along the shore and out
-                p.org = org + glm::vec3{0.f, 0.f, rnd(0.1f, 0.5f) * 0.75f * p.scale};
-                const float drift = rnd(-4.f, 4.f);
-                p.vel = glm::vec3{along * drift + s.in * rnd(0.5f, 2.5f), rnd(0.f, 1.5f)};
+                p.org = org + glm::vec3{0.f, 0.f, vrand::range(rng, 0.1f, 0.5f) * 0.75f * p.scale};
+                const float drift = vrand::range(rng, -4.f, 4.f);
+                p.vel = glm::vec3{along * drift + s.in * vrand::range(rng, 0.5f, 2.5f), vrand::range(rng, 0.f, 1.5f)};
             }
             pool.pushBack(p);
             shoreNear.spawned++;
@@ -3007,9 +3002,9 @@ void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
         const glm::vec3 out{za::cos(a), za::sin(a), 0.f};
         p.cell = CellDrop;
         p.type = Custom;
-        p.color = glm::vec4{lava ? glm::mix(glm::vec3{1.f, 0.38f, 0.06f}, glm::vec3{1.f, 0.88f, 0.5f}, rnd(0.f, 1.f))
-                                 : tint * shade * rnd(0.85f, 1.2f),
-            lava ? 1.f : rnd(0.6f, 0.85f)};
+        p.color = glm::vec4{lava ? glm::mix(glm::vec3{1.f, 0.38f, 0.06f}, glm::vec3{1.f, 0.88f, 0.5f}, vrand::range(rng, 0.f, 1.f))
+                                 : tint * shade * vrand::range(rng, 0.85f, 1.2f),
+            lava ? 1.f : vrand::range(rng, 0.6f, 0.85f)};
         p.acc = gravity(1.f);
         p.floor = org.z - 0.5f;
         p.liquid = liquid;
@@ -3017,11 +3012,11 @@ void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
         p.plink = !lava && i % 2 == 0;
         p.die = cl.time + 1.2;
         p.fade = lava ? -0.6f : -0.2f;
-        p.scale = rnd(0.25f, 0.45f) * big;
+        p.scale = vrand::range(rng, 0.25f, 0.45f) * big;
         const bool jet = i < 2;
-        p.org = org + out * rnd(0.2f, 0.8f) + glm::vec3{0.f, 0.f, 0.3f};
-        p.vel = jet ? inBox(3.f) + glm::vec3{0.f, 0.f, rnd(45.f, 70.f) * (0.8f + 0.3f * s)}
-                    : out * rnd(8.f, 22.f) + lean * rnd(5.f, 15.f) + glm::vec3{0.f, 0.f, rnd(28.f, 50.f) * (0.8f + 0.3f * s)};
+        p.org = org + out * vrand::range(rng, 0.2f, 0.8f) + glm::vec3{0.f, 0.f, 0.3f};
+        p.vel = jet ? inBox(3.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 45.f, 70.f) * (0.8f + 0.3f * s)}
+                    : out * vrand::range(rng, 8.f, 22.f) + lean * vrand::range(rng, 5.f, 15.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 28.f, 50.f) * (0.8f + 0.3f * s)};
     });
 
     // One ring spreading from it, small and faint.
@@ -3047,19 +3042,19 @@ void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
 
     // A wisp of foam where it went in (lava: a dark crust), and an ember.
     make(1.f, [&](Particle& p, int) {
-        const float life = rnd(1.f, 1.6f);
+        const float life = vrand::range(rng, 1.f, 1.6f);
         p.cell = CellFoam;
         p.flat = true;
         p.floor = org.z;
         p.liquid = liquid;
-        p.color = glm::vec4{lava ? glm::vec3{0.2f, 0.06f, 0.02f} : foam, lava ? 0.5f : rnd(0.3f, 0.4f)};
+        p.color = glm::vec4{lava ? glm::vec3{0.2f, 0.06f, 0.02f} : foam, lava ? 0.5f : vrand::range(rng, 0.3f, 0.4f)};
         p.die = cl.time + life;
-        p.scale = rnd(0.7f, 1.f) * big;
+        p.scale = vrand::range(rng, 0.7f, 1.f) * big;
         p.type = Custom;
         p.fade = -p.color.a / life;
         p.grow = 0.4f * big;
         p.drag = 2.f;
-        p.spin = rnd(-0.3f, 0.3f);
+        p.spin = vrand::range(rng, -0.3f, 0.3f);
         p.org = org + glm::vec3{0.f, 0.f, 0.3f};
     });
     if(lava)
@@ -3068,15 +3063,15 @@ void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
             p.cell = CellSpark;
             p.additive = true;
             p.color = glm::vec4{fireColor(), 1.f};
-            p.die = cl.time + rnd(0.4f, 0.8f);
-            p.scale = rnd(0.2f, 0.35f);
+            p.die = cl.time + vrand::range(rng, 0.4f, 0.8f);
+            p.scale = vrand::range(rng, 0.2f, 0.35f);
             p.type = Custom;
             p.fade = -1.5f;
             p.drag = 0.8f;
-            p.spin = rnd(-6.f, 6.f);
+            p.spin = vrand::range(rng, -6.f, 6.f);
             p.acc = gravity(0.35f);
             p.org = org + glm::vec3{0.f, 0.f, 0.5f};
-            p.vel = onSphere() * rnd(8.f, 20.f) + glm::vec3{0.f, 0.f, rnd(20.f, 45.f)};
+            p.vel = onSphere() * vrand::range(rng, 8.f, 20.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 20.f, 45.f)};
         });
     }
 }

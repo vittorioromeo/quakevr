@@ -5,6 +5,7 @@
 // second (the panel shows the last two), and, for a frame over budget, the hitch log's line. A sum keeps each system's
 // total and its worst frame.
 
+#include "vr_strings.hpp"
 #include "vr_profile_systems.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_box3d.hpp"
@@ -332,16 +333,6 @@ za::Vector<text3d::OverlayBar> panelBars;
 float panelYaw = 0.f; // vr_profile_overlay 2: the panel's direction, easing after the head's
 bool panelPlaced = false;
 
-void appendf(za::String& out, const char* fmt, ...)
-{
-    char buf[512];
-    va_list args;
-    va_start(args, fmt);
-    q_vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-    out += buf;
-}
-
 [[nodiscard]] za::String stamp(const char* fmt)
 {
     return files::timestamp(time(nullptr), fmt);
@@ -528,7 +519,7 @@ void csvRow(const Second& s, double time)
     za::String top;
     for(za::SizeT k = 0; k < s.qcTop.size() && k < 5; k++)
     {
-        appendf(top, "%s%s %.0f%%", top.empty() ? "" : " ", s.qcTop[k].name.cStr(),
+        qvr::strings::appendf(top, "%s%s %.0f%%", top.empty() ? "" : " ", s.qcTop[k].name.cStr(),
             100.0 * s.qcTop[k].instructions / za::max(s.qcInstructions, 1.0));
     }
     fprintf(f, ",%s\n", top.cStr());
@@ -574,7 +565,7 @@ void hitch(double periodMs, double hostMs, double budget, const int counts[Count
         za::String line;
         for(za::SizeT k = 0; k < parts.size() && k < 5; k++)
         {
-            appendf(line, "%s%s %.1f", k ? ", " : "", defs[parts[k].system].name, parts[k].ms);
+            qvr::strings::appendf(line, "%s%s %.1f", k ? ", " : "", defs[parts[k].system].name, parts[k].ms);
         }
         Con_Printf("vr_profile: hitch %.1f ms (%.1f budgets), %s: %s\n", periodMs, periodMs / budget, mapNow.cStr(),
             line.cStr());
@@ -807,7 +798,7 @@ void panelRow(za::Vector<za::String>& lines, const char* name, double avg, doubl
     bool waiting)
 {
     za::String l;
-    appendf(l, "%-16.16s %5.2f %5.2f ", name, avg, max);
+    qvr::strings::appendf(l, "%-16.16s %5.2f %5.2f ", name, avg, max);
     l.resize(l.size() + static_cast<za::SizeT>(barCells) + 1, ' ');
     const float cells = static_cast<float>(avg / budget) * barCells;
     if(avg > budget && !waiting)
@@ -835,16 +826,16 @@ void buildPanel()
     const double budget = s.budgetMs > 0.0 ? s.budgetMs : 1000.0 / 90.0;
     za::Vector<za::String> lines;
     za::String l;
-    appendf(l, "PROFILE %-12.12s %5.1f fps %6.2f ms, worst %6.2f", mapNow.cStr(), period > 0.0 ? 1000.0 / period : 0.0,
+    qvr::strings::appendf(l, "PROFILE %-12.12s %5.1f fps %6.2f ms, worst %6.2f", mapNow.cStr(), period > 0.0 ? 1000.0 / period : 0.0,
         period, s.periodMax);
     lines.pushBack(l);
     l.clear();
-    appendf(l, "budget %5.2f   CPU busy %5.2f   GPU %5.2f", budget, s.busySum / frames, s.gpuTotalSum / gpuFrames);
+    qvr::strings::appendf(l, "budget %5.2f   CPU busy %5.2f   GPU %5.2f", budget, s.busySum / frames, s.gpuTotalSum / gpuFrames);
     lines.pushBack(l);
     l.clear();
     for(int g = 0; g < GroupCount; g++)
     {
-        appendf(l, "%s%s %.2f", g ? "  " : "", groupShort[g], s.groupSum[g] / frames);
+        qvr::strings::appendf(l, "%s%s %.2f", g ? "  " : "", groupShort[g], s.groupSum[g] / frames);
     }
     lines.pushBack(l);
     lines.emplaceBack("CPU               avg   max  (bar: the budget)");
@@ -871,17 +862,17 @@ void buildPanel()
         panelRow(lines, defs[r.index].name, r.avg, s.gpuMax[r.index], budget, gpuColor, false);
     }
     l.clear();
-    appendf(l, "traces %.0f  draw calls %.0f  models %.0f", s.countSum[Traces] / frames, s.countSum[DrawCalls] / frames,
+    qvr::strings::appendf(l, "traces %.0f  draw calls %.0f  models %.0f", s.countSum[Traces] / frames, s.countSum[DrawCalls] / frames,
         s.countSum[AliasDrawn] / frames);
     lines.pushBack(l);
     l.clear();
-    appendf(l, "box3d %.0f (%.0f awake, %.0f contacts)  edicts %.0f", s.countSum[Box3dBodies] / frames,
+    qvr::strings::appendf(l, "box3d %.0f (%.0f awake, %.0f contacts)  edicts %.0f", s.countSum[Box3dBodies] / frames,
         s.countSum[Box3dAwake] / frames, s.countSum[Box3dContacts] / frames, s.countSum[Edicts] / frames);
     lines.pushBack(l);
     if(s.hitches || s.slowFrames)
     {
         l.clear();
-        appendf(l, "hitches %d  missed refreshes %d", s.hitches, s.slowFrames);
+        qvr::strings::appendf(l, "hitches %d  missed refreshes %d", s.hitches, s.slowFrames);
         lines.pushBack(l);
     }
 
@@ -1023,14 +1014,14 @@ void frameLogGpu(double total)
     {
         if(i >= 0 && frameGpu[i] >= 0.01)
         {
-            appendf(line, ", %s %.2f", defs[i].name, frameGpu[i]);
+            qvr::strings::appendf(line, ", %s %.2f", defs[i].name, frameGpu[i]);
         }
     }
     for(int i = 0; i < SysCount; i++)
     {
         if(!strcmp(defs[i].name, "particles"))
         {
-            appendf(line, " (particles %.2f)", frameGpu[i]); // (always: the system these lines were made for)
+            qvr::strings::appendf(line, " (particles %.2f)", frameGpu[i]); // (always: the system these lines were made for)
         }
     }
     frameLogLine(va("framelog: %d gpu %.2f ms%s\n", host_framecount, total, line.cStr()));

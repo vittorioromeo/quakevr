@@ -1,3 +1,4 @@
+#include "vr_strings.hpp"
 #include "vr_alloccount.h"
 // vr_debris.cpp -- rocks and bricks lying about the maps; see vr_debris.hpp and docs/vr-port/ROUND21.md, "Rocks and
 // bricks". The models are Misc/quakevr/make_debris.py's; QC vr_debris.qc spawns and handles them.
@@ -521,18 +522,13 @@ struct FloorGrid
     }
 };
 
-[[nodiscard]] bool startsWith(const char* s, const char* prefix)
-{
-    return !strncmp(s, prefix, strlen(prefix));
-}
-
 void obstaclesOf(za::Vector<Obstacle>& out, float extra)
 {
     for(const StaticThing& t : statics)
     {
         // A static brush (a func_illusionary: fake walls, cobwebs, a secret's way through) only as a still brush is
         // for the crates (an `extra`); the rocks keep 40 from every static thing, as they always did.
-        const float margin = extra > 0.f && startsWith(t.classname.cStr(), "func_") ? 8.f : 40.f + extra;
+        const float margin = extra > 0.f && qvr::strings::startsWith(t.classname.cStr(), "func_") ? 8.f : 40.f + extra;
         out.pushBack({t.lo - glm::vec3{margin}, t.hi + glm::vec3{margin}, t.classname.cStr()});
     }
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
@@ -552,10 +548,10 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
         float margin = 0.f;
         const char* why = cls;
         glm::vec3 reach{0.f};
-        if(startsWith(cls, "func_"))
+        if(qvr::strings::startsWith(cls, "func_"))
         {
             if(!strcmp(cls, "func_wall") || !strcmp(cls, "func_illusionary") || !strcmp(cls, "func_episodegate") ||
-                !strcmp(cls, "func_bossgate") || startsWith(cls, "func_detail") || !strcmp(cls, "func_group"))
+                !strcmp(cls, "func_bossgate") || qvr::strings::startsWith(cls, "func_detail") || !strcmp(cls, "func_group"))
             {
                 margin = 8.f; // still brushes: not under or in them
             }
@@ -565,24 +561,24 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
                 // (a door slides about its width, a lift goes down its height).
                 margin = 48.f;
                 reach = glm::min(size, glm::vec3{128.f});
-                if(startsWith(cls, "func_plat") || startsWith(cls, "func_new_plat") || startsWith(cls, "func_elvtr"))
+                if(qvr::strings::startsWith(cls, "func_plat") || qvr::strings::startsWith(cls, "func_new_plat") || qvr::strings::startsWith(cls, "func_elvtr"))
                 {
                     reach.z = za::max(reach.z, 256.f);
                 }
             }
         }
         else if(!strcmp(cls, "trigger_teleport") || !strcmp(cls, "info_teleport_destination") ||
-                startsWith(cls, "info_player") || startsWith(cls, "trigger_changelevel"))
+                qvr::strings::startsWith(cls, "info_player") || qvr::strings::startsWith(cls, "trigger_changelevel"))
         {
             margin = 64.f;
         }
-        else if(startsWith(cls, "trigger_"))
+        else if(qvr::strings::startsWith(cls, "trigger_"))
         {
             margin = 24.f;
         }
-        else if(startsWith(cls, "item_") || startsWith(cls, "weapon_") || startsWith(cls, "ammo_") ||
-                startsWith(cls, "misc_explobox") || startsWith(cls, "monster_") || startsWith(cls, "path_corner") ||
-                startsWith(cls, "light_torch") || startsWith(cls, "light_flame") || startsWith(cls, "func_weapon"))
+        else if(qvr::strings::startsWith(cls, "item_") || qvr::strings::startsWith(cls, "weapon_") || qvr::strings::startsWith(cls, "ammo_") ||
+                qvr::strings::startsWith(cls, "misc_explobox") || qvr::strings::startsWith(cls, "monster_") || qvr::strings::startsWith(cls, "path_corner") ||
+                qvr::strings::startsWith(cls, "light_torch") || qvr::strings::startsWith(cls, "light_flame") || qvr::strings::startsWith(cls, "func_weapon"))
         {
             margin = 40.f;
         }

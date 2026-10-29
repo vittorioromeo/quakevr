@@ -13,6 +13,7 @@
 //   intermission and the level exit (decision 1; QC vr_ad_bridge.qc adapts AD's keys and flags on them);
 // - a map key no field of Quake VR's has goes to AD's field of that name, ad_<key> (pr_edict.c ED_ParseEdict).
 
+#include "vr_strings.hpp"
 #include "vr_ad.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -105,11 +106,6 @@ struct MapState
 
 int versionWarned = 0; // (said once per start)
 
-[[nodiscard]] bool startsWith(const char* s, const char* prefix)
-{
-    return !strncmp(s, prefix, strlen(prefix));
-}
-
 template <size_t N>
 [[nodiscard]] bool listed(const char* const (&list)[N], const char* s)
 {
@@ -159,7 +155,7 @@ void countSignals(const char* data)
             if(world && listed(worldSignals, key)) { addSignal(key); }
             if(strcmp(key, "classname") || listed(notSignals, com_token)) { continue; }
             bool excluded = false;
-            for(const char* p : notSignalPrefixes) { excluded |= startsWith(com_token, p); }
+            for(const char* p : notSignalPrefixes) { excluded |= qvr::strings::startsWith(com_token, p); }
             if(excluded || VR_ED_FindFunction(com_token) || !VR_ED_FindFunction(va("ad_%s", com_token))) { continue; }
             bool dup = false;
             for(const za::String& s : seen) { dup |= !strcmp(s.cStr(), com_token); }
@@ -257,11 +253,11 @@ bool skipOutside(const char* filename)
     }
     // Its models, sprites and sounds, its HUD icons, its brush models (maps/<folder>/...); never its maps, skies,
     // textures, effect files or menu art, which could change another campaign's look.
-    if(startsWith(filename, "progs/") || startsWith(filename, "sound/") || startsWith(filename, "gfx/ad"))
+    if(qvr::strings::startsWith(filename, "progs/") || qvr::strings::startsWith(filename, "sound/") || qvr::strings::startsWith(filename, "gfx/ad"))
     {
         return false;
     }
-    return !(startsWith(filename, "maps/") && strchr(filename + 5, '/'));
+    return !(qvr::strings::startsWith(filename, "maps/") && strchr(filename + 5, '/'));
 }
 
 void beforeLoad()
@@ -306,8 +302,8 @@ extern "C" int VR_AD_OwnsClassname(const char* classname, int ours)
     bool ad = true;
     if(ours && !listed(adOwnedClashes, classname))
     {
-        ad = !(startsWith(classname, "monster_") || startsWith(classname, "item_") || startsWith(classname, "weapon_") ||
-               startsWith(classname, "info_player_") || !strcmp(classname, "info_intermission") ||
+        ad = !(qvr::strings::startsWith(classname, "monster_") || qvr::strings::startsWith(classname, "item_") || qvr::strings::startsWith(classname, "weapon_") ||
+               qvr::strings::startsWith(classname, "info_player_") || !strcmp(classname, "info_intermission") ||
                !strcmp(classname, "trigger_changelevel") || !strcmp(classname, "worldspawn"));
     }
     if(ad) { ++mapState.adSpawns; } else { ++mapState.oursShared; }

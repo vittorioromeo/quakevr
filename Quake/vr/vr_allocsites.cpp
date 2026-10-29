@@ -3,6 +3,7 @@
 
 // vr_heap [stats | collect | test | stress [threads] [ms]]: the process's C heap (mimalloc, vr_crtheap.c).
 
+#include "vr_random.hpp"
 #include "vr_engine.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_alloccount.h"
@@ -227,10 +228,7 @@ void heapStressThread(HeapStressShared& shared, za::U32 seed)
     Slot held[slots] = {};
     za::U32 x = seed * 2654435761u + 1;
     const auto next = [&] {
-        x ^= x << 13;
-        x ^= x >> 17;
-        x ^= x << 5;
-        return x;
+        return vrand::xorshift32(x);
     };
     za::U64 ops = 0, errors = 0;
     const auto release = [&](Slot& s) {

@@ -1,6 +1,7 @@
 // vr_rig2.cpp -- the authored humanoid rig (vr_rig2.hpp): its file, its joints' math, its skinning, and its drawing
 // as a skeletal model ("<model>#rig2") for the Rig Studio's subject. The checks: vr_rig2_check.cpp.
 
+#include "vr_random.hpp"
 #include "vr_rig2.hpp"
 #include "vr_api.h"
 #include "vr_api_render.h"
@@ -241,14 +242,6 @@ struct Frame
     return za::atan2(glm::dot(glm::cross(p, q), a), glm::dot(p, q)) / deg;
 }
 
-[[nodiscard]] float rnd(uint32_t& s)
-{
-    s ^= s << 13;
-    s ^= s >> 17;
-    s ^= s << 5;
-    return static_cast<float>(s & 0xffffffu) / 16777216.f;
-}
-
 void filePath(const char* model, char* out, int size)
 {
     char base[64], root[MAX_OSPATH];
@@ -355,15 +348,15 @@ Pose randomPose(const Rig& rig, uint32_t& seed)
         const Bone& bone = rig.bones[b];
         if(bone.joint == Joint::Ball)
         {
-            const float phi = rnd(seed) * 2.f * pi, r = za::sqrt(rnd(seed));
+            const float phi = vrand::xorshift01(seed) * 2.f * pi, r = za::sqrt(vrand::xorshift01(seed));
             const float cx = za::cos(phi), cy = za::sin(phi);
             p.a[b].x = r * cx * (cx >= 0.f ? bone.swingX.y : -bone.swingX.x);
             p.a[b].y = r * cy * (cy >= 0.f ? bone.swingY.y : -bone.swingY.x);
-            p.a[b].z = bone.twist.x + (bone.twist.y - bone.twist.x) * rnd(seed);
+            p.a[b].z = bone.twist.x + (bone.twist.y - bone.twist.x) * vrand::xorshift01(seed);
         }
         else if(bone.joint == Joint::Hinge)
         {
-            p.a[b].x = bone.range.x + (bone.range.y - bone.range.x) * rnd(seed);
+            p.a[b].x = bone.range.x + (bone.range.y - bone.range.x) * vrand::xorshift01(seed);
         }
     }
     return p;

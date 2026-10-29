@@ -1,5 +1,6 @@
 // vr_decals.cpp -- see vr_decals.hpp.
 
+#include "vr_random.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_decals.hpp"
 #include "vr_brushes.hpp"
@@ -225,8 +226,7 @@ long long bakedAtOnce = 0; // marks baked straight into the permanent layer (Mar
 thread_local unsigned rngState = 12345u; // (the atlas is made on a worker thread, and by vr_decal_atlas)
 [[nodiscard]] float frand()
 {
-    rngState = rngState * 1664525u + 1013904223u;
-    return static_cast<float>(rngState >> 8) / 16777216.f;
+    return vrand::lcg01(rngState);
 }
 
 [[nodiscard]] float hash(int i, int seed)

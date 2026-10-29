@@ -12,6 +12,7 @@
 // The page groups are in vr_menu_pages_debug.cpp, vr_menu_pages_gameplay.cpp and vr_menu_pages_settings.cpp;
 // what they share with this file is in vr_menu_internal.hpp.
 
+#include "vr_random.hpp"
 #include "vr_menu_internal.hpp"
 
 namespace menu_detail
@@ -2190,10 +2191,7 @@ int randomOtherShape{1}; // the last body shape other than the feminine one Rand
     {
         randomState = static_cast<uint32_t>(Sys_DoubleTime() * 1000000.0) | 1u;
     }
-    randomState ^= randomState << 13;
-    randomState ^= randomState >> 17;
-    randomState ^= randomState << 5;
-    return randomState;
+    return vrand::xorshift32(randomState);
 }
 
 [[nodiscard]] float randomRange(float lo, float hi)

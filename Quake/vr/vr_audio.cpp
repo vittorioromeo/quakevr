@@ -30,6 +30,7 @@
 //   it; the direct paths 30 times a second and the reverb every vr_snd_reverb_interval, each a pool task, their
 //   results taken under a mutex.
 
+#include "vr_random.hpp"
 #include "vr_audio.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_audiobench.hpp"
@@ -2200,8 +2201,7 @@ void benchFrame()
     }
     // The combat: a sound every 1 / shotsPerSecond, at random, 100-900 units away.
     const auto random = [&]() {
-        b.rng = b.rng * 1664525u + 1013904223u;
-        return static_cast<float>(b.rng >> 8) / static_cast<float>(1u << 24);
+        return vrand::lcg01(b.rng);
     };
     while(b.shotsPerSecond > 0.f && realtime >= b.nextShot && cls.state == ca_connected)
     {

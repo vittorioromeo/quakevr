@@ -1,5 +1,6 @@
 // vr_hotblade.cpp -- see vr_hotblade.hpp.
 
+#include "vr_random.hpp"
 #include "vr_hotblade.hpp"
 #include "vr_anchor.hpp"
 #include "vr_client.hpp"
@@ -113,11 +114,6 @@ int trailLast = 0;
 double statFrom = -1.0;
 
 za::FastNonCryptoRng rng{0x407B1ADEu}; // a fixed seed: the same embers every run
-
-[[nodiscard]] float rnd(float lo, float hi)
-{
-    return lo + (hi - lo) * rng.getF(0.f, 1.f);
-}
 
 [[nodiscard]] bool connected()
 {
@@ -307,8 +303,8 @@ void emberPoint(const entity_t& e, const float m[16], const Blade& b, glm::vec3&
         out = l > 1e-3f ? out / l : glm::vec3{0.f, 0.f, 1.f};
         return;
     }
-    at = glm::mix(b.root, b.tip, rnd(0.f, 1.f));
-    out = glm::normalize(glm::vec3{rnd(-1.f, 1.f), rnd(-1.f, 1.f), rnd(0.2f, 1.f)});
+    at = glm::mix(b.root, b.tip, vrand::range(rng, 0.f, 1.f));
+    out = glm::normalize(glm::vec3{vrand::range(rng, -1.f, 1.f), vrand::range(rng, -1.f, 1.f), vrand::range(rng, 0.2f, 1.f)});
 }
 
 // The trail a moving blade `e` (drawn by `m`) leaves this frame between where its heated part was (`t`, last frame) and
@@ -337,7 +333,7 @@ void trail(Track& t, const entity_t& e, const float m[16], const Blade& b, float
     int made = 0;
     for(; t.due >= 1.f && made < trailMaxPerFrame; t.due -= 1.f, made++)
     {
-        const float u = rnd(0.f, 1.f);
+        const float u = vrand::range(rng, 0.f, 1.f);
         glm::vec3 was, now, posed;
         if(t.model == e.model && bladeVertex(e, b, posed))
         {
@@ -346,16 +342,16 @@ void trail(Track& t, const entity_t& e, const float m[16], const Blade& b, float
         }
         else
         {
-            const float s = rnd(0.f, 1.f);
+            const float s = vrand::range(rng, 0.f, 1.f);
             was = glm::mix(t.root, t.tip, s);
             now = glm::mix(b.root, b.tip, s);
         }
         const glm::vec3 at = glm::mix(was, now, u);
         const glm::vec3 vel = glm::distance(was, now) < trailMaxStep ? (now - was) / dt : glm::mix(rootVel, tipVel, 0.5f);
-        const bool spark = rnd(0.f, 1.f) < trailSparkShare;
+        const bool spark = vrand::range(rng, 0.f, 1.f) < trailSparkShare;
         // Left behind in the air: a flame keeps a little of the blade's speed, a spark flies off with more of it.
-        const glm::vec3 drift = spark ? vel * rnd(0.15f, 0.35f) + glm::vec3{rnd(-12.f, 12.f), rnd(-12.f, 12.f), rnd(-4.f, 14.f)}
-                                      : vel * 0.04f + glm::vec3{rnd(-2.f, 2.f), rnd(-2.f, 2.f), rnd(1.f, 5.f)};
+        const glm::vec3 drift = spark ? vel * vrand::range(rng, 0.15f, 0.35f) + glm::vec3{vrand::range(rng, -12.f, 12.f), vrand::range(rng, -12.f, 12.f), vrand::range(rng, -4.f, 14.f)}
+                                      : vel * 0.04f + glm::vec3{vrand::range(rng, -2.f, 2.f), vrand::range(rng, -2.f, 2.f), vrand::range(rng, 1.f, 5.f)};
         particles::hotTrail(at, drift, color, 0.6f + 0.4f * glow, life, spark);
     }
     if(t.due >= 1.f)
@@ -519,7 +515,7 @@ void queue(const hands::State& s)
                 glm::vec3 at, out;
                 emberPoint(*src1.e, m, b, at, out);
                 particles::hotEmber(at + out * 0.2f,
-                    out * rnd(1.5f, 6.f) + glm::vec3{rnd(-1.5f, 1.5f), rnd(-1.5f, 1.5f), rnd(3.f, 9.f)}, color,
+                    out * vrand::range(rng, 1.5f, 6.f) + glm::vec3{vrand::range(rng, -1.5f, 1.5f), vrand::range(rng, -1.5f, 1.5f), vrand::range(rng, 3.f, 9.f)}, color,
                     za::min(1.f, (0.45f + 0.55f * g) * bright));
                 embersMade++;
             }

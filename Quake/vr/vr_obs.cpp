@@ -19,6 +19,7 @@
 // The main thread never waits: poll() hands over the cvars and takes the thread's last state, under a lock held for a
 // copy.
 
+#include "vr_random.hpp"
 #include "vr_obs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -191,10 +192,7 @@ za::U32 rngState = 0;
     {
         rngState = static_cast<za::U32>(SDL_GetPerformanceCounter()) | 1u;
     }
-    rngState ^= rngState << 13;
-    rngState ^= rngState >> 17;
-    rngState ^= rngState << 5;
-    return rngState;
+    return vrand::xorshift32(rngState);
 }
 
 [[nodiscard]] bool isLocal(const char* host)

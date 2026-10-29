@@ -11,6 +11,7 @@
 // vr_motion_eval plays many takes, each in the map loaded afresh (the same start every time: nothing
 // left from the one before), and checks each one's events against quakevr/motions/expect.cfg.
 
+#include "vr_strings.hpp"
 #include "vr_anchor.hpp"
 #include "vr_angvel.hpp"
 #include "vr_avatar.hpp"
@@ -158,17 +159,6 @@ za::Vector<za::String> split(za::StringView s, char sep)
 namespace
 {
 
-[[nodiscard]] za::String trim(za::StringView s)
-{
-    const size_t a = s.findFirstNotOf(" \t\r\n");
-    if(a == za::StringView::nPos)
-    {
-        return "";
-    }
-    const size_t b = s.findLastNotOf(" \t\r\n");
-    return za::String{s.substrByPosLen(a, b - a + 1)};
-}
-
 // The events of a row: kind:sub:hand:value:x:y:z:target:detail, ';' between them.
 [[nodiscard]] za::Vector<Event> parseEvents(const za::String& cell)
 {
@@ -233,7 +223,7 @@ namespace
             const size_t colon = line.find(':');
             if(colon != za::StringView::nPos)
             {
-                take.header[trim(line.substrByPosLen(1, colon - 1))] = trim(line.substrByPosLen(colon + 1));
+                take.header[qvr::strings::trim(line.substrByPosLen(1, colon - 1))] = qvr::strings::trim(line.substrByPosLen(colon + 1));
             }
             continue;
         }
@@ -242,7 +232,7 @@ namespace
             names = split(line, ',');
             for(size_t i = 0; i < names.size(); i++)
             {
-                col[trim(names[i])] = static_cast<int>(i);
+                col[qvr::strings::trim(names[i])] = static_cast<int>(i);
             }
             continue;
         }

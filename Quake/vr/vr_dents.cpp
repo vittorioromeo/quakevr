@@ -1,5 +1,6 @@
 // vr_dents.cpp -- flesh dents (vr_dents.hpp; ROUND22.md, "Flesh dents").
 
+#include "vr_random.hpp"
 #include "vr_geom.hpp"
 #include "vr_dents.hpp"
 #include "vr_engine.hpp"
@@ -115,12 +116,6 @@ za::U32 rng = 0x2545f491u;
 int writesTotal = 0;     // bodies' rows written (the info)
 double strikeSeconds = 0.0; // time spent placing dents (the info)
 int strikes = 0;
-
-[[nodiscard]] float rnd(float lo, float hi)
-{
-    rng = rng * 1664525u + 1013904223u;
-    return lo + (hi - lo) * static_cast<float>(rng >> 8) * (1.f / 16777216.f);
-}
 
 [[nodiscard]] const qmodel_t* sourceOf(const entity_t* e)
 {
@@ -410,12 +405,12 @@ struct Size
 {
     switch(kind)
     {
-        case kindShot: return {rnd(2.f, 2.6f), rnd(0.9f, 1.2f), 1.f};
-        case kindNail: return {za::min(2.4f + 0.05f * amount, 3.6f) * rnd(0.9f, 1.1f), rnd(1.2f, 1.6f), 1.f};
-        case kindMelee: return {za::min(3.f + 0.03f * amount, 5.f) * rnd(0.9f, 1.1f), rnd(1.4f, 1.9f), rnd(2.2f, 3.f)};
-        case kindBlunt: return {za::min(3.4f + 0.035f * amount, 5.5f) * rnd(0.9f, 1.1f), rnd(1.5f, 2.f), rnd(1.f, 1.3f)};
-        case kindBlast: return {za::min(3.8f + 0.015f * amount, 5.5f) * rnd(0.9f, 1.1f), za::min(2.f + 0.01f * amount, 3.f), 1.f};
-        default: return {rnd(2.6f, 3.4f), rnd(1.1f, 1.5f), 1.f};
+        case kindShot: return {vrand::lcgRange(rng, 2.f, 2.6f), vrand::lcgRange(rng, 0.9f, 1.2f), 1.f};
+        case kindNail: return {za::min(2.4f + 0.05f * amount, 3.6f) * vrand::lcgRange(rng, 0.9f, 1.1f), vrand::lcgRange(rng, 1.2f, 1.6f), 1.f};
+        case kindMelee: return {za::min(3.f + 0.03f * amount, 5.f) * vrand::lcgRange(rng, 0.9f, 1.1f), vrand::lcgRange(rng, 1.4f, 1.9f), vrand::lcgRange(rng, 2.2f, 3.f)};
+        case kindBlunt: return {za::min(3.4f + 0.035f * amount, 5.5f) * vrand::lcgRange(rng, 0.9f, 1.1f), vrand::lcgRange(rng, 1.5f, 2.f), vrand::lcgRange(rng, 1.f, 1.3f)};
+        case kindBlast: return {za::min(3.8f + 0.015f * amount, 5.5f) * vrand::lcgRange(rng, 0.9f, 1.1f), za::min(2.f + 0.01f * amount, 3.f), 1.f};
+        default: return {vrand::lcgRange(rng, 2.6f, 3.4f), vrand::lcgRange(rng, 1.1f, 1.5f), 1.f};
     }
 }
 
