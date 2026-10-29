@@ -1706,6 +1706,27 @@ int boneAt(edict_t* ent, const glm::vec3& at, const char** name, glm::vec3* end)
     return hit;
 }
 
+int boneNamed(edict_t* ent, const char* name)
+{
+    const ragdoll::Rig* rig = nullptr;
+    za::Array<glm::quat, ragdoll::maxBones> rot{};
+    za::Array<glm::vec3, ragdoll::maxBones> pos{};
+    float scale = 1.f;
+    uint32_t cut = 0;
+    if(!name || !posedBones(ent, rig, rot, pos, scale, cut))
+    {
+        return -1;
+    }
+    for(int b = 0; b < rig->numBones; b++)
+    {
+        if(!q_strcasecmp(rig->bones[b].name, name))
+        {
+            return b;
+        }
+    }
+    return -1;
+}
+
 uint32_t limbInfo(edict_t* ent, int what, int bone)
 {
     const ragdoll::Rig* rig = nullptr;

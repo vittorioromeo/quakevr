@@ -108,6 +108,7 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	int		len;
 	float	stepscale;
 	float	ratescale;
+	int	reversed;
 	int	fullband;
 	sfxcache_t	*sc;
 
@@ -140,6 +141,7 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 
 	// VR: a sound made from one of Quake's when no file has its name (VR_SndDerived: played slower, lower)
 	ratescale = 1.f;
+	reversed = 0;
 	if (!data)
 	{
 		const char *source = VR_SndDerived (s->name, &ratescale);
@@ -148,6 +150,7 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 			q_strlcpy(namebuffer, "sound/", sizeof(namebuffer));
 			q_strlcat(namebuffer, source, sizeof(namebuffer));
 			data = COM_LoadMallocFile (namebuffer, NULL);
+			reversed = data ? VR_SndDerivedReversed (s->name) : 0;
 		}
 	}
 
@@ -183,6 +186,23 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 
 	if (ratescale != 1.f) // VR: a derived sound's rate (slower: lower and longer)
 		info.rate = (int)(info.rate * ratescale + 0.5f);
+
+	// VR: a derived sound played backwards (VR_SndDerivedReversed): its samples turned end to end, no loop
+	if (reversed && info.samples > 1 && info.dataofs + info.samples * info.width <= com_filesize)
+	{
+		byte *pcm = data + info.dataofs;
+		int a = 0, b = info.samples - 1, k;
+		for (; a < b; a++, b--)
+		{
+			for (k = 0; k < info.width; k++)
+			{
+				byte t = pcm[a * info.width + k];
+				pcm[a * info.width + k] = pcm[b * info.width + k];
+				pcm[b * info.width + k] = t;
+			}
+		}
+		info.loopstart = -1;
+	}
 
 	// QVR: the player's own voice made feminine (vr_voice 1): 16-bit at the mix's rate, so not resampled again
 	if (info.samples > 0)

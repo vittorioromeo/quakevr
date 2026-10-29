@@ -820,14 +820,17 @@ float(entity e, entity by, vector xVel, float xHow) VR_Decap_Cut =
     {
         e.solid = SOLID_NOT; // (a dead monster to the engine: its ragdoll)
     }
+    VR_AgArmor_CutPrepare(e, ragdolllimbs(e, 1)); // (its helmet: vr_agarmor.qc)
     // (A head pop: the shot's force went into the head; the body keeps vr_decap_pop_body_speed of its knock.)
     if(!ragdolldecap(e, xVel, VR_Decap_IsPop(xHow) ? max(0, cvar_hget(cvarh_vr_decap_pop_body_speed)) : 1))
     {
+        VR_AgArmor_CutDone(e, FALSE, xVel);
         e.solid = oldSolid;
         dprint(sprintf("decap: no: %s has no ragdoll to behead (Ragdolls off?)\n", e.classname));
         return FALSE;
     }
     e.vr_headless = 1; // (the engine's too)
+    VR_AgArmor_CutDone(e, TRUE, VR_Decap_IsPop(xHow) ? xVel * 0.5 : ragdollcut(e, 2)); // (dislodged with the head)
     VR_Decap_Effects(e, xVel, xHow);
     vr_decap_count++;
     VR_ARK_Decap(e, by, xHow); // QVR: Survival Arena's Neck Snapper (vr_arena_perks.qc)

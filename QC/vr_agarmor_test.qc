@@ -185,7 +185,7 @@ void() VR_ART_Run =
     // A gibbing sheds every plate left.
     VR_AgArmor_Give(a, 2, 1023 - 1 - 16);
     made = vr_ar_debris_made;
-    VR_AgArmor_Shed(a);
+    VR_AgArmor_Shed(a, -40);
     VR_ART_Check(vr_ar_debris_made == made + 8 && a.vr_ar_mask == 0, sprintf("gibbed: %g plates shed (8)", vr_ar_debris_made - made));
 
     // The skill rolls: 200 spawns each.

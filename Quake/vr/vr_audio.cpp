@@ -2829,33 +2829,52 @@ namespace
 {
 
 // Sounds made from Quake's own as they load (S_LoadSound, when no file has the name): one of id's recordings played
-// slower, so lower and a little longer. Nothing of id's is shipped or written; a file of the name wins. (The mantle's
-// deeper grunts, vr_climb_mantle_grunt_sound: vr_climb.cpp.)
+// slower, so lower and a little longer, or backwards. Nothing of id's is shipped or written; a file of the name wins.
+// (The mantle's deeper grunts, vr_climb_mantle_grunt_sound: vr_climb.cpp; an armed humanoid's plate breaking:
+// QC vr_agarmor.qc VR_AgArmor_Break, the armour pickup's chime backwards and lower, so it is never taken for a pickup.)
 struct DerivedSound
 {
     const char* name;
     const char* source;
     float rate;
+    bool reversed; // played backwards
 };
 
 constexpr DerivedSound derivedSounds[] = {
-    {"vr/derived/plyrjmp8_low.wav", "player/plyrjmp8.wav", 0.8f}, // the jump's grunt, ~4 semitones down
-    {"vr/derived/land2_low.wav", "player/land2.wav", 0.88f},      // a hard landing's, ~2 semitones down
+    {"vr/derived/plyrjmp8_low.wav", "player/plyrjmp8.wav", 0.8f, false}, // the jump's grunt, ~4 semitones down
+    {"vr/derived/land2_low.wav", "player/land2.wav", 0.88f, false},      // a hard landing's, ~2 semitones down
+    {"vr/derived/armor_break.wav", "items/armor1.wav", 0.7f, true},      // a plate off: the pickup backwards, ~6 down
 };
 
-} // namespace
-
-extern "C" const char* VR_SndDerived(const char* name, float* rate)
+[[nodiscard]] const DerivedSound* derivedSound(const char* name)
 {
     for(const DerivedSound& d : derivedSounds)
     {
         if(!strcmp(d.name, name))
         {
-            *rate = d.rate;
-            return d.source;
+            return &d;
         }
     }
     return nullptr;
+}
+
+} // namespace
+
+extern "C" const char* VR_SndDerived(const char* name, float* rate)
+{
+    const DerivedSound* d = derivedSound(name);
+    if(!d)
+    {
+        return nullptr;
+    }
+    *rate = d->rate;
+    return d->source;
+}
+
+extern "C" int VR_SndDerivedReversed(const char* name)
+{
+    const DerivedSound* d = derivedSound(name);
+    return d && d->reversed ? 1 : 0;
 }
 
 // vr_snd_fullband: 0 Quake's 11 kHz lowpass on every sound (as it was), 1 not on the voices (the default), 2 on none.

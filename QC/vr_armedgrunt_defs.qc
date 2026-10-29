@@ -148,5 +148,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 void(entity targ) VR_AgArmor_Guard;      // a cut or a pop armed at a limb or the head under an unbroken plate: off
 void() VR_AgArmor_PelletsClear;          // ClearMultiDamagePellets
 void(entity hit) VR_AgArmor_PelletAdd;   // AddMultiDamage: the pellet's piece counted
-void(entity e) VR_AgArmor_Shed;          // gibbed (ThrowHead): every piece left falls as debris
+void(entity e, float dm) VR_AgArmor_Shed; // gibbed (ThrowHead, VR_Corpse_Gib): every piece left flies off as debris
 void(entity e) VR_AgArmor_Spawn;         // VR_AM_Spawn: an armed grunt's armour rolled by the skill
+float(entity targ, vector org, vector vel, float damage) VR_AgArmor_HitFx; // a hit's sparks on a plate; the blood's share returned
+void(entity e, float takes) VR_AgArmor_CutPrepare;        // VR_Limb_Cut, VR_Decap_Cut: the plates on the bones a cut takes
+void(entity e, float done, vector vel) VR_AgArmor_CutDone; // and after it: those plates dislodged as debris
+float(entity e, float joint) VR_AgArmor_Holds;            // VR_Limb_WearInto: a corpse's piece kept on by an unbroken plate
+void(entity h) VR_AgArmor_DebrisGrabbed;                  // VR_Carry_Start: a plate's debris taken, its fade put off

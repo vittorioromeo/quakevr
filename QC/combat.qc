@@ -811,6 +811,15 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     VR_Wound_Hit(targ, inflictor, attacker, ceil(damage));
     damage = damage / VR_Corpse_PositionalFactor(targ);
     VR_AgArmor_Guard(targ); // (no cut or pop under a corpse's unbroken plate: vr_agarmor.qc)
+    // A ragdoll's plates take their share first, as the living's (vr_agarmor.qc): a plate breaks before its limb pops.
+    if(targ.vr_ar_type > 0)
+    {
+        damage = VR_AgArmor_Damage(targ, inflictor, attacker, damage, FALSE);
+        if(damage <= 0)
+        {
+            return TRUE;
+        }
+    }
 
     // A headshot on a corpse pops its head, leaving the physical body in place.
     // Use the same weapon toggles and head-share test as a living killing blow.
@@ -917,6 +926,10 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
     else
     {
         VR_SmallGib_Gibbed(dm); // (ThrowHead's, with a head)
+        if(self.vr_ar_type > 0)
+        {
+            VR_AgArmor_Shed(self, dm); // (and its armour's plates left: vr_agarmor.qc)
+        }
         VR_Limb_GibAll(dm); // (and its own limbs: vr_gib_limbs, vr_limbs.qc)
         self.solid = SOLID_NOT;
         self.model = string_null;

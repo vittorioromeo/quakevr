@@ -403,6 +403,7 @@ float(entity e, vector p) ragdolllimb = #0;
 // own model's ("<model>#plate<piece>") origin / angles now, as drawn.
 float QVR_ARMOR_PIECE_AT = -1000;
 float QVR_ARMOR_CLIENT = -1001; // ragdollbone(e, [what, 0, 0], ...): the client's word on e's armour (the tests): 0 type, 1 pieces, 2 wear; -1 none
+float QVR_ARMOR_PIECE_BONES = -1002; // ragdollbone(e, [piece, 0, 0], ...): the rig's bones that piece rides (bits, as ragdolllimbs'); 0 none
 float(entity e, float what, ...) ragdolllimbs = #0;
 string(entity e, float bone) limbmodel = #0;
 vector(entity e, float bone, float what) limbplace = #0;
