@@ -27,6 +27,10 @@
 //                             Nightmare one less)
 //   vr_arena_armor_every  4    an armour after every this many waves (0: none; at Normal skill: the harder the
 //                             skill, the longer its gap)
+//   vr_arena_shards       2    armour shards (+5 each) a wave clear drops on top: 1 to this many at random (0: none)
+//   vr_arena_scatter      1    a wave clear's medkits, armour and shards land at random walkable places all over the
+//                             map, its ledges too (vr_arena_supply.qc); 0: on the map's info_arena_item points
+//   vr_arena_countdown_sound 1 the countdown's beeps' volume (0: silent)
 //   vr_arena_score_kill   100  the score of a kill, times its ladder tier (a boss: four of those; at Normal skill:
 //                             a harder skill pays more)
 //   vr_arena_seed         0    the waves' rolls: 0 a different ladder every run, else that seed's ladder
@@ -41,7 +45,8 @@
 //   vr_arena_test         0    the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss
 //                             wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 none of
 //                             it off the arena, 9 the wave flow, 10 the foes' armour, 11 the loot the waves leave
-//                             behind, 12 the weapon schedule, 13 no overlapping spawns, 14 the rest and countdown
+//                             behind, 12 the weapon schedule, 13 no overlapping spawns, 14 the rest and countdown,
+//                             15 the scattered supplies
 //
 // None of the cleanup ever takes a thing a hand holds, a force grab pulls or a body still dying: it waits for it.
 //
@@ -54,7 +59,7 @@
 .float ar_slot; // > 0: one of the arena's wave monsters, of the wave that number (its fall flips it to that number's negative)
 .float ar_tier; // what a wave monster is worth on the ladder: 1, 2, 3 (a boss: plus AR_BOSS_MARK)
 .float ar_armour; // the armour type the arena dressed a wave monster in (0 none): its kill pays more
-.float ar_drop; // > 0: an arena's own drop between waves: 1 a medkit, 2 an armour
+.float ar_drop; // > 0: an arena's own drop between waves: 1 a medkit, 2 an armour (or an armour shard)
 .float ar_drop_wave; // a drop: the wave whose clear dropped it (vr_arena_item_waves)
 .float ar_fell;     // a fallen foe's body: its place in the order the run's foes fell (the oldest goes first)
 .float ar_expiring; // 1: an arena leftover on the cleanup's walk (findflags): a body, a drop on its way out
@@ -148,6 +153,13 @@ float ar_wave_at;          // the time this wave began
 float ar_alive_peak;       // the most foes the arena had up at once, this run (its wave cap at work)
 float ar_drop_health;      // a wave clear's medkits
 float ar_drop_armour;      // a wave clear's armours
+float ar_drop_armour_kind; // ... and its kind (SpawnDrop's 2 the light one, 3 the heavier)
+float ar_drop_shards;      // a wave clear's armour shards
+float ar_supply_say;       // 1: the clear's supplies line is still to be said (the perk cards were up over it)
+float ar_shard_mg3;        // Dawn of the Machine's shard model is there (else a small armour stands for it)
+float ar_count_sounds;     // the countdown's beeps so far (the tests read it)
+float ar_sc_n;             // this clear's supplies put on random places (vr_arena_supply.qc)
+float ar_sc_high;          // ... and how many of them up high
 float ar_spot_next;        // the round robin over the map's spawn points
 float ar_item_next;        // the round robin over the map's item points
 float ar_used_ground;      // this wave's foes placed on the map's floor places
@@ -184,6 +196,13 @@ void() VR_ARENA_RestartThink;
 // (A foe's fall goes to it from combat.qc's Killed, where the killer is at hand.) While its cards are up the director
 // is held on VR_ARK_HoldThink: still between two waves.
 void(float xWave) VR_ARK_WaveDone;
+// QVR: where a wave clear's supplies land (vr_arena_supply.qc).
+void(float xWave) VR_ARENA_ScatterBegin;
+vector() VR_ARENA_ScatterPlace;
+float() VR_ARENA_ShardCount;
+string() VR_ARENA_SupplyLine;
+void() VR_ARENA_SupplyFrame;
+void() VR_ARENA_SupplyReset;
 void() VR_ARK_Frame;
 void() VR_ARK_HoldThink;
 
@@ -1335,11 +1354,14 @@ vector(vector xAt) VR_ARENA_FreeNear =
     return xAt;
 }
 
-// Where a wave clear's medkit or armour lands: the map's info_arena_item, or the ring off the player.
+// Where a wave clear's medkit, armour or shard lands: a walkable place at random (vr_arena_scatter, the default:
+// vr_arena_supply.qc), else the map's info_arena_item, else the ring off the player.
 vector(float i) VR_ARENA_DropPlace =
 {
+    vector o = VR_ARENA_ScatterPlace();
+    if(ar_place_ok) { return o; }
+
     entity e = VR_ARENA_ItemSpot(ar_item_next);
-    vector o;
 
     if(e)
     {
@@ -1477,7 +1499,19 @@ entity(float xKind, float xGun, float xTier, float xBoss, float xArmour, float x
 // A wave clear's drops: items.qc's medkit and armour makers, made grabbable as they are
 // ---------------------------------------------------------------------------
 
-// xWhat: 1 a medkit, 2 the light armour, 3 the heavier one.
+// No Dawn of the Machine model to draw a shard with: the armour's own model stands for it, green, at the pickups'
+// size (a shard's own rule, items.qc), the shard's own touch (+5, up to 200).
+void() VR_ARENA_PlainShard =
+{
+    setmodel(self, "progs/armor.mdl");
+    self.skin = 0;
+    self.handtouch = MG3_armor_shard_touch;
+    setsize(self, '-16 -16 0', '16 16 56');
+    StartItem();
+    VR_PickupObj_Mark(QVR_PICKUPOBJ_ARMOUR);
+}
+
+// xWhat: 1 a medkit, 2 the light armour, 3 the heavier one, 4 an armour shard. xAt: the middle of its floor.
 entity(float xWhat, vector xAt) VR_ARENA_SpawnDrop =
 {
     entity manager = self;
@@ -1488,8 +1522,14 @@ entity(float xWhat, vector xAt) VR_ARENA_SpawnDrop =
     {
         it.classname = "item_health";
         it.spawnflags = 0; // (items.qc's plain medkit: 25 health, its own grabbable placement)
-        setorigin(it, xAt + '0 0 8');
+        setorigin(it, xAt + '-16 -16 8'); // (its box's corner is its origin: centred on the place)
         item_health();
+    }
+    else if(xWhat == 4)
+    {
+        it.classname = "item_armor_shard";
+        setorigin(it, xAt + '0 0 8');
+        if(ar_shard_mg3) { item_armor_shard(); } else { VR_ARENA_PlainShard(); }
     }
     else
     {
@@ -1524,6 +1564,10 @@ void(float xWave) VR_ARENA_Drops =
 
     ar_drop_health = 0;
     ar_drop_armour = 0;
+    ar_drop_armour_kind = 0;
+    ar_drop_shards = 0;
+    VR_ARENA_ScatterBegin(xWave); // (the supplies' own rolls, and the map's walkable places ready)
+    float shards = VR_ARENA_ShardCount();
 
     vector at;
     for(i = 0; i < n; i++)
@@ -1536,8 +1580,16 @@ void(float xWave) VR_ARENA_Drops =
     {
         at = VR_ARENA_DropPlace(n + 1);
         if(!ar_place_ok) { dprint("arena: no free place for an armour\n"); }
-        else if(VR_ARENA_SpawnDrop(armour + 1, at)) { ar_drop_armour = 1; }
+        else if(VR_ARENA_SpawnDrop(armour + 1, at)) { ar_drop_armour = 1; ar_drop_armour_kind = armour + 1; }
     }
+    for(i = 0; i < shards; i++)
+    {
+        at = VR_ARENA_DropPlace(n + 2 + i);
+        if(!ar_place_ok) { dprint("arena: no free place for an armour shard\n"); continue; }
+        if(VR_ARENA_SpawnDrop(4, at)) { ar_drop_shards = ar_drop_shards + 1; }
+    }
+    dprint(sprintf("arena: supplies wave %g: %g medkits, armour %g, %g shards, %g on random places (%g high)\n", xWave,
+                   ar_drop_health, ar_drop_armour_kind, ar_drop_shards, ar_sc_n, ar_sc_high));
 }
 
 // ---------------------------------------------------------------------------
@@ -1892,15 +1944,39 @@ void() VR_ARENA_WaveClear =
     VR_ARENA_Drops(w);
 
     float rest = VR_ARENA_RestTime();
-    VR_ARENA_ShowAll(sprintf("WAVE %g CLEAR\n\n%g foes down\nscore %g\n", w, ar_wave_kills, ar_score), max(AR_SAY, rest));
-    dprint(sprintf("arena: wave %g clear kills %g medkits %g armour %g score %g\n", w, ar_wave_kills,
-                   ar_drop_health, ar_drop_armour, ar_score));
+    string supplies = VR_ARENA_SupplyLine(); // (what the clear dropped: "" nothing)
+    VR_ARENA_ShowAll(sprintf("WAVE %g CLEAR\n\n%g foes down\nscore %g\n%s", w, ar_wave_kills, ar_score,
+                             supplies != "" ? sprintf("\n%s\n", supplies) : ""), max(AR_SAY, rest));
+    dprint(sprintf("arena: wave %g clear kills %g medkits %g armour %g shards %g score %g\n", w, ar_wave_kills,
+                   ar_drop_health, ar_drop_armour, ar_drop_shards, ar_score));
 
     VR_ARENA_RestBegin(rest);
 
     // QVR: the boss wave's clear offers the player his choice of perks (vr_arena_perks.qc): its cards hold the rest
-    // just begun until he picks one.
+    // just begun until he picks one. The view's line is not drawn over the cards: the supplies are said again once
+    // they are down (VR_ARENA_SupplyFrame).
     VR_ARK_WaveDone(w);
+    ar_supply_say = supplies != "" ? 2 : 0; // (2: to look whether the cards came up over it)
+}
+
+// The countdown's beeps (vr_arena_countdown_sound, their volume): Quake's own menu tick, a little higher each of the
+// last three seconds, and its message chime, lower, as the wave comes in -- the game's own sounds played at another
+// pitch, nothing new shipped.
+string AR_BEEP_TICK = "misc/menu1.wav";
+string AR_BEEP_GO   = "misc/talk.wav";
+
+void(float xLeft) VR_ARENA_CountSound =
+{
+    float vol = VR_ARENA_Clamp(cvar("vr_arena_countdown_sound"), 0, 1);
+    if(vol <= 0) { return; }
+    string s = AR_BEEP_TICK;
+    float pitch = 100;
+    if(xLeft <= 0) { s = AR_BEEP_GO; pitch = 80; }
+    else if(xLeft <= 3) { pitch = 150 - 10 * xLeft; } // (3 2 1: 120 130 140)
+    entity p = find(world, classname, "player");
+    while(p) { sound_pitch(p, CHAN_AUTO, s, vol, ATTN_NONE, pitch); p = find(p, classname, "player"); }
+    ar_count_sounds = ar_count_sounds + 1;
+    dprint(sprintf("arena: countdown sound %s at %g%% (%g left)\n", s, pitch, xLeft));
 }
 
 // The boss a wave brings, by name, for its countdown ("" no boss wave).
@@ -1924,6 +2000,7 @@ void() VR_ARENA_CountThink =
 {
     if(ar_count <= 0)
     {
+        if(VR_ARENA_Opt_Countdown() > 0) { VR_ARENA_CountSound(0); }
         VR_ARENA_WaveStart();
         return;
     }
@@ -1933,6 +2010,7 @@ void() VR_ARENA_CountThink =
     if(boss != "") { VR_ARENA_ShowAll(sprintf("BOSS WAVE %g in %g...\n\n%s\n", w, ar_count, boss), 1.2); }
     else { VR_ARENA_ShowAll(sprintf("Wave %g in %g...\n\n", w, ar_count), 1.2); }
     dprint(sprintf("arena: countdown wave %g %g at %g\n", w, ar_count, time - ar_count_at));
+    VR_ARENA_CountSound(ar_count);
 
     ar_count = ar_count - 1;
     ar_count_said = ar_count_said + 1;
@@ -2107,6 +2185,21 @@ void() VR_ARENA_WorldSpawn =
 
     MGH_PrecacheMonsters(); // (vr_mg_horde.qc: the models and sounds of the monsters the waves bring)
 
+    // QVR: the supplies' and the countdown's own (vr_arena_supply.qc): the shard's model (Dawn of the Machine's, else
+    // the armour's), the beeps.
+    ar_shard_mg3 = (VR_Has("progs/armorshard.mdl") || VR_Has("owned/mg3/progs/armorshard.mdl"));
+    if(VR_Has("progs/armorshard.mdl")) { precache_model("progs/armorshard.mdl"); }
+    else if(ar_shard_mg3) { precache_model("owned/mg3/progs/armorshard.mdl"); }
+    precache_model("progs/armor.mdl");
+    precache_sound("items/armor1.wav");
+    precache_sound(AR_BEEP_TICK);
+    precache_sound(AR_BEEP_GO);
+    ar_drop_shards = 0;
+    ar_drop_armour_kind = 0;
+    ar_supply_say = 0;
+    ar_count_sounds = 0;
+    VR_ARENA_SupplyReset();
+
     // The run's first rest, then wave 1's countdown (both after the map's own spawns, so its info_arena_spawn points
     // are known).
     ar_count = 0;
@@ -2135,6 +2228,7 @@ void() VR_ARENA_Frame =
                                  VR_ARENA_SkillName(VR_ARENA_SkillLevel())), max(AR_SAY, ar_mgr.nextthink - time));
     }
     VR_ARK_Frame(); // QVR: the perks that have to keep their word (vr_arena_perks.qc)
+    VR_ARENA_SupplyFrame(); // QVR: the map's walkable places found; a supplies line said again after the perk cards
     VR_ARENA_Leftovers(); // (the cleanup: bodies and drops whose time has come fade out)
 }
 

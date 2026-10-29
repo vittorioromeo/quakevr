@@ -2096,7 +2096,7 @@ QVR_CVAR(vr_relight_maplights, "1", CVAR_ARCHIVE)    // the map's own lights (as
 QVR_CVAR(vr_relight_sunlight, "1", CVAR_ARCHIVE)     // the map's sunlight and sky light (maps that have them)
 QVR_CVAR(vr_relight_bounce, "0", CVAR_ARCHIVE)       // bounced light (light -bounce -bouncescale; 0 none, as relight_maps.py)
 QVR_CVAR(vr_relight_ao, "1.5", CVAR_ARCHIVE)         // ambient occlusion in corners (light -dirt -dirtscale; 0 none)
-QVR_CVAR(vr_relight_minlight, "0", CVAR_ARCHIVE)     // Ambient Light Level: the least light anywhere (the worldspawn's minlight raised to it, not darkened by the AO; 0 the map's own)
+QVR_CVAR(vr_relight_minlight, "0", CVAR_ARCHIVE)     // Ambient Light Level: light added everywhere (on top of the worldspawn's own minlight, not darkened by the AO; 0 the map's own)
 QVR_CVAR(vr_relight_quality, "1", CVAR_ARCHIVE)      // shadows' edges: 1 smooth (-extra4, relight_maps.py's), 0 fast (-extra)
 QVR_CVAR(vr_relight_seethrough, "1", CVAR_ARCHIVE)   // id's maps relit with see-through water, slime and teleporters: VisPatch's water-vised visibility put in (vr_relight_vis.cpp; needs its data files, quakevr/tools/vispatch; 0: the map's own, liquids opaque)
 QVR_CVAR(vr_relight_vispatch_dir, "", CVAR_NONE)     // testing: the only folder the VisPatch data (id1.vis, hipnotic.vis, rogue.vis) is looked for in ("": tools/vispatch in each game folder, then QUAKEVR_VISPATCH)
@@ -3045,6 +3045,9 @@ QVR_CVAR(vr_agrunt_test_kind, "0", CVAR_NONE)                  // the armed mons
 // Survival Arena (QC/vr_arena.qc): the wave director's knobs.
 QVR_CVAR(vr_arena, "0", CVAR_NONE)                             // 1: its waves run in this map too (the map "vrarena" runs them on its own)
 QVR_CVAR(vr_arena_wave_rest, "5", CVAR_ARCHIVE)               // s of rest from a wave clear to the next wave's countdown (by the difficulty)
+QVR_CVAR(vr_arena_countdown_sound, "1", CVAR_ARCHIVE)         // the countdown's beeps' volume (Quake's own menu tick and chime, pitched; 0: silent)
+QVR_CVAR(vr_arena_scatter, "1", CVAR_ARCHIVE)                 // 1: a wave clear's medkits, armour and shards land at random walkable places all over the map, ledges too (QC vr_arena_supply.qc); 0: on the map's info_arena_item points
+QVR_CVAR(vr_arena_shards, "2", CVAR_ARCHIVE)                  // armour shards (+5 each) a wave clear drops on top: 1 to this many at random (0: none)
 QVR_CVAR(vr_arena_countdown, "5", CVAR_ARCHIVE)               // s of countdown in the middle of the view before each wave ("Wave 7 in 5..."; 0: none)
 QVR_CVAR(vr_arena_max_alive, "8", CVAR_ARCHIVE)               // the ceiling on a wave's alive pool (foes up at once), by the difficulty
 QVR_CVAR(vr_arena_wave_size, "1.75", CVAR_ARCHIVE)            // a wave's crowd groups times this (1: the ladder's own counts)
@@ -3064,7 +3067,7 @@ QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' roll
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
 QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set
-QVR_CVAR(vr_arena_test, "0", CVAR_NONE)                       // the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 no cleanup off the arena (e1m1), 9 the wave flow (alive pool, burst, gaps), 10 the foes' armour, 11 the loot the waves leave behind, 12 the weapon schedule, 13 no overlapping spawns, 14 the rest and countdown
+QVR_CVAR(vr_arena_test, "0", CVAR_NONE)                       // the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 no cleanup off the arena (e1m1), 9 the wave flow (alive pool, burst, gaps), 10 the foes' armour, 11 the loot the waves leave behind, 12 the weapon schedule, 13 no overlapping spawns, 14 the rest and countdown (and its beeps), 15 the scattered supplies
 // Survival Arena's cleanup (QC/vr_arena.qc, "The cleanup"): what the waves leave lying. Nothing held is ever taken.
 QVR_CVAR(vr_arena_corpse_fade, "14", CVAR_ARCHIVE)           // s a fallen foe's body lies before it fades out (give or take 3 s; 0: never by time)
 QVR_CVAR(vr_arena_corpse_max, "12", CVAR_ARCHIVE)            // fallen bodies kept at most: past it the oldest fades first (0: no limit)

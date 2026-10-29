@@ -409,7 +409,38 @@ after Reload List and after a restart; ticking its first item drops its count 35
 On the mock: Collapse All, Expand All and the first section's fold row add 3 rows before the first item (eight
 `vr_mock_key downarrow` now select it).
 
-## 10. Suggested checklist lines still pending (coordinator owns `quakevr/checklist.txt`)
+## 9c. Survival Arena: supplies anywhere, armour shards, countdown beeps; the Ambient Light Level on vrarena (branch `agent/arenaspawns`)
+
+His voice notes (2026-10-29): randomise where health, armour and other pickups spawn (ledges too, anywhere walkable)
+so the player explores instead of camping, name what spawned in the middle of the view, add one or two armour shards
+a wave; a sound for the wave countdown; the Ambient Light Level made no difference on vrarena (0 vs 64).
+
+- **Supplies anywhere** (`vr_arena_scatter` 1, new, Gameplay > Survival Arena > Wave Clears "Supplies Anywhere";
+  `QC/vr_arena_supply.qc`). At the run's first frame the engine walks the map from the player start
+  (`navplace(-1, start, grid, most)`, `vr_builtins.cpp`): a 48-unit lattice, every move between cells walked with the
+  player's box (step up/down 18, never off a ledge, floor normal >= 0.7, a narrow bridge or stair looked for 16 to
+  either side). vrarena: **1203 places, 274 high, 5.6 ms**. So a place is somewhere he can walk to: tower tops and wall
+  walks yes, the 48-high covers' tops no. A wave clear's medkits, armour and shards each take a random place: 35% of the
+  picks look up high (>= 128 over the lowest place), never within 256 of the player, 160 of another supply of the same
+  clear, in a liquid, or on anything lying/standing there (`VR_ARENA_SupplyRoom`). The rolls are their own Levy stream
+  (`vr_arena_seed` salted 2000), so the waves' plans do not move. Weapons (the foes' guns with their loot pillars) are
+  untouched, as he decided. No walk / no room: the old `info_arena_item` points, then the ring. The medkit (corner-origin
+  box) is now centred on its place in every path. The walk is held by the engine: the QC's globals are at the id
+  format's limit (a 1536-place QC array forced FTE32 progs, which the engine rejects).
+- **Armour shards** (`vr_arena_shards` 2, new, "Armour Shards" 0..4): every clear drops 1 to N at random on top
+  (+5, up to 200: `MG3_armor_shard_touch`). Dawn of the Machine's `armorshard.mdl` when there, else the green armour model
+  at the pickups' size stands for it (`VR_ARENA_PlainShard`). `ar_drop` 2 so the supplies' cleanup takes them.
+- **What came, in the view**: the clear's line gains "Supplies around the arena: 2 medkits, green armour, 2 armour
+  shards". The view text is not drawn over the perk cards (`vr_worldtext.cpp`), so after a boss clear's pick the line is
+  said again (`VR_ARENA_SupplyFrame`).
+- **Countdown beeps** (`vr_arena_countdown_sound` 1 = volume, new, "Countdown Sound" under Wave Countdown):
+  `misc/menu1.wav` each second at 100%, 120/130/140% for 3-2-1, `misc/talk.wav` at 80% as the wave comes in
+  (`sound_pitch`, ATTN_NONE; nothing new shipped).
+- **Ambient Light Level**: nothing wrong with the relight step or BSP2; vrarena's worldspawn has `"light" "90"` and the
+  level was a floor (raised only where the map's own was lower), so 0..64 all left 90. It is now **added** to the map's
+  own minimum (cap 255) with `_minlight_dirt 0` always (`scaledLights`; `relight_maps.py --ambient` the same). id maps
+  have none, so they relight exactly as before. Menu help and cvar text updated.
+- `firstVrBuiltin` 900 -> 800 (the VR builtins had filled 900..1079; Ironwail's highest numbered is #627).
 
 - Survival Arena: map, wave director (readout, 5 s rest + 5 s countdown, teleport arrivals, never inside anything, guns
   arriving one at a time, waves ~1.75x bigger in trickles out of sight, mid-wave boss with a warning), difficulty knob

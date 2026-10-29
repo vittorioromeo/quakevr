@@ -541,6 +541,11 @@ void(vector org, string text, vector colour, float scale) floattext = #0; // a t
 // `text` floating in the middle of `player`'s view (eye level, as VR Calibration's text; not the wrist's hologram) for
 // `seconds`; without a headset, a centre print held that long (target_vr_message; vr_server.hpp). No new tip meanwhile.
 void(entity player, string text, float seconds) viewmessage = #0;
+// The places the player can walk to from `start` (his origin, standing): a walk over a lattice `grid` apart, each move
+// as he walks (his box, a step up or down of 18 at most, never off a ledge or up a slope too steep), `most` at most;
+// how many: navplace(-1, start, grid, most)_x (vr_builtins.cpp; Survival Arena's supplies, vr_arena_supply.qc).
+// navplace(i): the last walk's place i (his origin standing there; '0 0 0' past the last).
+vector(float i, ...) navplace = #0;
 
 void(float to, vector v) WriteVec3 = #0; // three WriteCoords
 

@@ -176,9 +176,10 @@ def without_map_light_settings(text):
 
 
 def with_ambient(text, level):
-    """The worldspawn's minimum light ("light" / "_minlight") raised to `level` (> 0) where the map's own is lower,
-    and not darkened by the ambient occlusion ("_minlight_dirt" 0; -dirt darkens minlight otherwise): --ambient, the
-    game's vr_relight_minlight (vr_relight.cpp's scaledLights). Light's -minlight would override a brighter map's own.
+    """`level` (> 0) added to the worldspawn's minimum light ("light" / "_minlight"; most of id's maps have none),
+    not darkened by the ambient occlusion ("_minlight_dirt" 0; -dirt darkens minlight otherwise): --ambient, the
+    game's vr_relight_minlight (vr_relight.cpp's scaledLights). Added, not a floor, so a map with its own minimum
+    above the level still gets brighter (2026-10-29). Light's -minlight would override the map's own.
     For `light` only: the relit map keeps its own entities."""
     first = re.search(r"\{[^{}]*\}", text)
     if level <= 0 or not first or '"worldspawn"' not in first.group(0):
@@ -191,8 +192,7 @@ def with_ambient(text, level):
                 own = max(own, float(value))
             except ValueError:
                 pass
-    if level <= own:
-        return text
+    level = min(255.0, own + level)
     block = re.sub(r'(?m)^[ \t]*"(light|_minlight|_minlight_dirt)"[ \t]+"[^"]*"[ \t]*\r?\n?', "", block) # (keys: a line each)
     block = block[:-1].rstrip() + '\n"light" "%g"\n"_minlight" "%g"\n"_minlight_dirt" "0"\n}' % (level, level)
     return text[: first.start()] + block + text[first.end() :]

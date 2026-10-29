@@ -72,8 +72,8 @@ namespace
 {
 
 // Ironwail numbers its unnumbered builtins downwards from MAX_BUILTINS - 2 (none today: its highest numbered one is
-// #627). The VR ones from 900 (1000 until they filled the 80 slots below the 200 kept for Ironwail's).
-constexpr int firstVrBuiltin = 900;
+// #627). The VR ones from 800 (1000, then 900, until they filled the slots below the 200 kept for Ironwail's).
+constexpr int firstVrBuiltin = 800;
 
 // ----------------------------------------------------------------------------
 // Math and vectors
@@ -2211,6 +2211,218 @@ void PF_viewmessage()
     server::sendViewMessage(G_EDICT(OFS_PARM0), G_STRING(OFS_PARM1), G_FLOAT(OFS_PARM2));
 }
 
+// ----------------------------------------------------------------------------
+// navwalk(start, grid, most) / navplace(i): the places the player can walk to from `start` (Survival Arena's supplies,
+// QC vr_arena_supply.qc): a walk out over a lattice `grid` apart, every move between two cells taken the way he walks
+// (his box, a step up of navStepUp at most and down as much, never off a ledge, never onto a slope too steep to stand
+// on), a narrow way (a bridge, a stair) between two cells looked for navAside to either side. The QC keeps none of it:
+// its globals are near the id format's limit.
+
+struct NavWalk
+{
+    struct Place
+    {
+        float o[3]; // the player's origin standing there
+    };
+    za::Vector<Place> places;
+    za::Vector<int> slots; // a lattice cell's place + 1 (0: none), open addressing
+    float org[3]{};
+    float grid{48.f};
+};
+NavWalk navWalk;
+
+constexpr float navStepUp = 18.f; // sv_move's STEPSIZE
+constexpr float navSub = 16.f;    // a move walked in steps this long (a stair's tread)
+constexpr float navLevel = 48.f;  // two places in one cell this far apart in height are two (a deck over a floor)
+constexpr float navAside = 16.f;
+constexpr float navFloorNormal = 0.7f;
+
+trace_t navTrace(const float* from, const float* to)
+{
+    vec3_t a{from[0], from[1], from[2]}, b{to[0], to[1], to[2]};
+    vec3_t mins{-16.f, -16.f, -24.f}, maxs{16.f, 16.f, 32.f};
+    return SV_Move(a, mins, maxs, b, MOVE_NOMONSTERS, qcvm->edicts);
+}
+
+bool navKey(const float* o, za::U64& key)
+{
+    const long long ix = static_cast<long long>(floorf((o[0] - navWalk.org[0]) / navWalk.grid + 0.5f)) + 32768;
+    const long long iy = static_cast<long long>(floorf((o[1] - navWalk.org[1]) / navWalk.grid + 0.5f)) + 32768;
+    const long long iz = static_cast<long long>(floorf((o[2] - navWalk.org[2]) / navLevel + 0.5f)) + 32768;
+    if(ix < 0 || ix > 65535 || iy < 0 || iy > 65535 || iz < 0 || iz > 65535)
+    {
+        return false;
+    }
+    key = (static_cast<za::U64>(ix) << 32) | (static_cast<za::U64>(iy) << 16) | static_cast<za::U64>(iz);
+    return true;
+}
+
+// The slot of o's cell: holding its place, or the empty one it would take (-1: off the lattice).
+int navSlot(const float* o)
+{
+    za::U64 key = 0;
+    if(!navKey(o, key))
+    {
+        return -1;
+    }
+    const za::SizeT mask = navWalk.slots.size() - 1;
+    za::U64 h = key * 0x9E3779B97F4A7C15ull;
+    za::SizeT s = static_cast<za::SizeT>(h >> 40) & mask;
+    for(za::SizeT k = 0; k <= mask; k++)
+    {
+        const int v = navWalk.slots[s];
+        if(v == 0)
+        {
+            return static_cast<int>(s);
+        }
+        za::U64 other = 0;
+        if(navKey(navWalk.places[static_cast<za::SizeT>(v - 1)].o, other) && other == key)
+        {
+            return static_cast<int>(s);
+        }
+        s = (s + 1) & mask;
+    }
+    return -1;
+}
+
+bool navAdd(const float* o, za::SizeT most)
+{
+    if(navWalk.places.size() >= most)
+    {
+        return false;
+    }
+    const int s = navSlot(o);
+    if(s < 0 || navWalk.slots[static_cast<za::SizeT>(s)] != 0)
+    {
+        return false;
+    }
+    navWalk.places.pushBack(NavWalk::Place{{o[0], o[1], o[2]}});
+    navWalk.slots[static_cast<za::SizeT>(s)] = static_cast<int>(navWalk.places.size());
+    return true;
+}
+
+// The player walking from `a` to `b`'s x and y; true: `end` is where he stands.
+bool navMove(const float* a, const float* b, float* end)
+{
+    const float dx = b[0] - a[0], dy = b[1] - a[1];
+    const int steps = za::max(1, static_cast<int>(ceilf(sqrtf(dx * dx + dy * dy) / navSub)));
+    float cur[3] = {a[0], a[1], a[2]};
+    for(int i = 1; i <= steps; i++)
+    {
+        const float up[3] = {cur[0], cur[1], cur[2] + navStepUp};
+        trace_t tr = navTrace(cur, up);
+        if(tr.startsolid)
+        {
+            return false;
+        }
+        const float top[3] = {tr.endpos[0], tr.endpos[1], tr.endpos[2]};
+        const float f = static_cast<float>(i) / static_cast<float>(steps);
+        const float to[3] = {a[0] + dx * f, a[1] + dy * f, top[2]};
+        tr = navTrace(top, to);
+        if(tr.fraction < 1.f || tr.startsolid)
+        {
+            return false;
+        }
+        const float down[3] = {to[0], to[1], cur[2] - navStepUp};
+        tr = navTrace(to, down);
+        if(tr.fraction >= 1.f || tr.startsolid || tr.allsolid || tr.plane.normal[2] < navFloorNormal)
+        {
+            return false; // (a ledge, a hole, a slope too steep)
+        }
+        cur[0] = tr.endpos[0];
+        cur[1] = tr.endpos[1];
+        cur[2] = tr.endpos[2];
+    }
+    end[0] = cur[0];
+    end[1] = cur[1];
+    end[2] = cur[2];
+    return true;
+}
+
+// The walk from `start` (a standing origin, the first place): how many places.
+int navWalkFrom(const float* start, float grid, int mostIn)
+{
+    const double t0 = Sys_DoubleTime();
+    navWalk.grid = za::max(16.f, grid);
+    const za::SizeT most = static_cast<za::SizeT>(CLAMP(1, mostIn, 65536));
+    za::SizeT tableSize = 16;
+    while(tableSize < most * 2)
+    {
+        tableSize *= 2;
+    }
+    navWalk.places.clear();
+    navWalk.slots.clear();
+    navWalk.slots.resize(tableSize, 0);
+    navWalk.org[0] = start[0];
+    navWalk.org[1] = start[1];
+    navWalk.org[2] = start[2];
+    navAdd(start, most);
+
+    int moves = 0;
+    for(za::SizeT head = 0; head < navWalk.places.size(); head++)
+    {
+        const NavWalk::Place here = navWalk.places[head];
+        const float ix = floorf((here.o[0] - navWalk.org[0]) / navWalk.grid + 0.5f);
+        const float iy = floorf((here.o[1] - navWalk.org[1]) / navWalk.grid + 0.5f);
+        for(int dx = -1; dx <= 1; dx++)
+        {
+            for(int dy = -1; dy <= 1; dy++)
+            {
+                if(dx == 0 && dy == 0)
+                {
+                    continue;
+                }
+                const float c[3] = {navWalk.org[0] + (ix + static_cast<float>(dx)) * navWalk.grid,
+                    navWalk.org[1] + (iy + static_cast<float>(dy)) * navWalk.grid, here.o[2]};
+                const int s = navSlot(c);
+                if(s < 0 || navWalk.slots[static_cast<za::SizeT>(s)] != 0)
+                {
+                    continue; // (walked to already at this height, or off the lattice)
+                }
+                const bool straight = dx == 0 || dy == 0;
+                for(int t = 0; t < (straight ? 3 : 1); t++)
+                {
+                    const float side = t == 0 ? 0.f : (t == 1 ? navAside : -navAside);
+                    const float to[3] = {c[0] + (dx == 0 ? side : 0.f), c[1] + (dx != 0 ? side : 0.f), c[2]};
+                    float end[3];
+                    moves++;
+                    if(navMove(here.o, to, end))
+                    {
+                        navAdd(end, most);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    Con_DPrintf("navwalk: %d places from %.0f %.0f %.0f (grid %.0f, %d moves) in %.1f ms\n",
+        static_cast<int>(navWalk.places.size()), start[0], start[1], start[2], navWalk.grid, moves,
+        (Sys_DoubleTime() - t0) * 1000.0);
+    return static_cast<int>(navWalk.places.size());
+}
+
+// vector navplace(float i, vector start, float grid, float most): i < 0 walks from `start` (the places found in its
+// x); else the last walk's place i ('0 0 0' past its last). One builtin for both: the VR builtins' range is full.
+void PF_navplace()
+{
+    const int i = static_cast<int>(G_FLOAT(OFS_PARM0));
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = out[1] = out[2] = 0.f;
+    if(i < 0)
+    {
+        out[0] = static_cast<float>(navWalkFrom(G_VECTOR(OFS_PARM1), G_FLOAT(OFS_PARM2),
+            static_cast<int>(G_FLOAT(OFS_PARM3))));
+        return;
+    }
+    if(static_cast<za::SizeT>(i) < navWalk.places.size())
+    {
+        const NavWalk::Place& p = navWalk.places[static_cast<za::SizeT>(i)];
+        out[0] = p.o[0];
+        out[1] = p.o[1];
+        out[2] = p.o[2];
+    }
+}
+
 void PF_watershock()
 {
     server::sendShock(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)), G_VECTOR(OFS_PARM1),
@@ -3027,6 +3239,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"watershock", PF_watershock},
     {"playershock", PF_playershock},
     {"viewmessage", PF_viewmessage},
+    {"navplace", PF_navplace},
     {"portal_ai_sight", PF_portal_ai_sight},
     {"portal_ai_map", PF_portal_ai_map},
     {"portal_ai_client", PF_portal_ai_client},
