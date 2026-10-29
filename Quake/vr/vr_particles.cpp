@@ -4,6 +4,7 @@
 // the view direction, as the old geometry shader built them.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_trace.hpp"
 #include "vr_particles.hpp"
 #include "vr_tracy.h"
 #include "vr_units.hpp"
@@ -1448,17 +1449,8 @@ void teleportSplash(const glm::vec3& org)
 // The client's map's contents at `p`: a liquid's (currents are water), or 0 for anything else.
 [[nodiscard]] int liquidAt(const glm::vec3& p)
 {
-    if(!cl.worldmodel)
-    {
-        return 0;
-    }
-    vec3_t v{p.x, p.y, p.z};
-    const int c = VR_LiquidContents(cl.worldmodel, v, Mod_PointInLeaf(v, cl.worldmodel)->contents);
-    if(c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA)
-    {
-        return c;
-    }
-    return c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN ? CONTENTS_WATER : 0;
+    const int c = worldtrace::liquidContents(p, true);
+    return worldtrace::isLiquid(c) ? c : worldtrace::isLiquid(c, true) ? CONTENTS_WATER : 0; // (a current: water)
 }
 
 // The liquid a splash on its surface is in (just under it): CONTENTS_WATER, _SLIME or _LAVA; water

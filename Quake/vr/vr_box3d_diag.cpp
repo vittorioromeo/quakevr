@@ -1,4 +1,5 @@
 #include "vr_alloccount.h"
+#include "vr_progs.hpp"
 // vr_box3d_diag.cpp -- the physics commands: spawning, piles, blasts, lists, hashes, benches and tests (and their
 // registration).
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
@@ -48,7 +49,7 @@ void loose_f()
         Con_Printf("usage: vr_physics_loose <number | classname>\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     for(edict_t* e : entitiesNamed(Cmd_Argv(1)))
     {
         e->v.movetype = MOVETYPE_TOSS;
@@ -83,7 +84,7 @@ void stack_f()
         Con_Printf("usage: vr_physics_stack <number | classname | props> <count> <x> <y> <z> [<yaw> [<gap>]]\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
     const size_t count = za::min(list.size(), static_cast<size_t>(za::max(0, Q_atoi(Cmd_Argv(2)))));
     glm::vec3 at{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
@@ -110,7 +111,7 @@ void pyramid_f()
         Con_Printf("usage: vr_physics_pyramid <number | classname | props> <rows> <x> <y> <z> [<yaw>]\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
     const int rows = za::max(1, Q_atoi(Cmd_Argv(2)));
     const glm::vec3 centre{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
@@ -147,7 +148,7 @@ void pile_f()
         Con_Printf("usage: vr_physics_pile <number | classname | props> <per column> <x> <y> <z> [<spacing>]\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
     const size_t per = static_cast<size_t>(za::max(1, Q_atoi(Cmd_Argv(2))));
     const glm::vec3 base{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
@@ -272,7 +273,7 @@ void bigPile_f()
         const float v = kind == PileKind::Crates ? vr_test_pile_crates.value : vr_test_pile_count.value;
         count = CLAMP(1, static_cast<int>(v), 2000);
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const func_t pieceFn = qvr::progs::findFunction("vr_debris_piece");
     const func_t crateFn = qvr::progs::findFunction("vr_crate");
     if((kind != PileKind::Crates && !pieceFn) || ((kind == PileKind::Crates || kind == PileKind::Mixed) && !crateFn))
@@ -387,7 +388,7 @@ void clearPiles_f()
         Con_Printf("vr_physics_clearpiles: in a game\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     int removed = 0;
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
@@ -415,7 +416,7 @@ void blast_f()
         Con_Printf("usage: vr_physics_blast <x> <y> <z> [<damage>]\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     dfunction_t* fn = nullptr;
     for(int i = 1; i < qcvm->progs->numfunctions && !fn; i++)
     {
@@ -485,7 +486,7 @@ void hash_f()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const bool piles = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "piles");
     uint64_t h = 1469598103934665603ull;
     int count = 0;
@@ -750,7 +751,7 @@ void mtbench_f()
 void ragdollArmTest_f()
 {
     if(!sv.active || !world) { Con_Printf("armtest: no Box3D world\n"); return; }
-    const VmScope vm;
+    const progs::ServerVm vm;
     for(RagdollBodies& r : world->ragdolls)
     {
         if(r.num <= 0 || r.knocked || EDICT_NUM(r.num)->v.health > 0.f) { continue; }
@@ -801,7 +802,7 @@ void ragdollSpeeds_f()
         Con_Printf("vr_ragdoll_speeds: no Box3D world\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     for(RagdollBodies& r : world->ragdolls)
     {
         if(r.num <= 0)
@@ -822,7 +823,7 @@ void ragdollList_f()
         Con_Printf("vr_ragdoll_list: no Box3D world\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     int count = 0;
     for(const RagdollBodies& r : world->ragdolls)
     {
@@ -930,7 +931,7 @@ void ragdollActiveList_f()
         Con_Printf("vr_ragdoll_active_list: no Box3D world\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     int driven = 0;
     for(const RagdollBodies& r : world->ragdolls)
     {
@@ -959,7 +960,7 @@ void ragdollEnvHit_f()
         Con_Printf("vr_ragdoll_env_hit: no Box3D world\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const float speed = Cmd_Argc() > 1 ? static_cast<float>(Q_atof(Cmd_Argv(1))) : 200.f;
     int struck = 0;
     for(za::SizeT i = 0; i < world->ragdolls.size(); i++)
@@ -1001,7 +1002,7 @@ void ragdollBlastTest_f()
         Con_Printf("vr_ragdoll_blast_test: no Box3D world\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const glm::vec3 player = vec(svs.clients[0].edict->v.origin);
     RagdollBodies* best = nullptr;
     float bestD = 1e30f;
@@ -1035,7 +1036,7 @@ void corpseList_f()
         Con_Printf("vr_corpse_list: no Box3D world\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     static constexpr const char* modes[] = {"none", "fixed box", "pushable box", "fixed pose", "pushable pose"};
     int count = 0;
     za::Vector<b3ContactData>& contacts = scratch.pushContacts;
@@ -1082,7 +1083,7 @@ void corpsePoses_f()
         Con_Printf("vr_corpse_poses: no Box3D world\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const bool brief = Cmd_Argc() > 1 && Q_atoi(Cmd_Argv(1)) != 0;
     int dead = 0, ragdolls = 0, lying = 0, notLying = 0, placed = 0;
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
@@ -1140,7 +1141,7 @@ void corpseDrop_f()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const glm::vec3 eye = vec(EDICT_NUM(1)->v.origin);
     int corpse = 0, prop = 0;
     float corpseD = 1e9f, propD = 1e9f;
@@ -1186,7 +1187,7 @@ void list_f()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "props");
     Con_Printf("%d, %s:\n", static_cast<int>(list.size()), world ? "Box3D" : "no Box3D world");
     for(edict_t* e : list)
@@ -1287,7 +1288,7 @@ void shapes_f()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const float cm = 100.f / world->m2u;
     const auto box = [&](const char* what, const glm::vec3& lo, const glm::vec3& hi) {
         const glm::vec3 s = hi - lo;
@@ -1356,7 +1357,6 @@ void shapes_f()
     {
         return;
     }
-    const FieldOffsets& f = fields();
     edict_t* player = EDICT_NUM(1);
     for(int h = 0; h < 2; h++)
     {
@@ -1365,7 +1365,7 @@ void shapes_f()
         {
             continue;
         }
-        const glm::vec3 port = fieldVec(player, h ? f.loadportpos : f.offloadportpos);
+        const glm::vec3 port = fieldVec(player, progs::handFields(h).loadPortPos);
         glm::vec3 lo, hi;
         float depth = 0.f;
         if(!hullExtents(hb.reach, lo, hi, &port, &depth))
@@ -1410,7 +1410,7 @@ void forcegrabCheck_f()
         Con_Printf("usage: vr_physics_forcegrab <number | classname | props>\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const func_t fn = qvr::progs::findFunction("VR_Forcegrab_IsEligible");
     if(!fn)
     {
@@ -1441,7 +1441,7 @@ void spawn_f()
         Con_Printf("usage: vr_physics_spawn <classname> [<distance> [<left>]]\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     edict_t* player = EDICT_NUM(1);
     vec3_t yaw{0.f, player->v.angles[1], 0.f};
     vec3_t forward, right, up;
@@ -1512,7 +1512,7 @@ void fling_f()
         Con_Printf("usage: vr_physics_fling <number | classname | props | nearest> <speed> [<yaw> [<up>]]\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     edict_t* player = EDICT_NUM(1);
     za::Vector<edict_t*> list;
     if(!strcmp(Cmd_Argv(1), "nearest"))
@@ -1564,7 +1564,7 @@ void sink_f()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "props");
     za::Vector<glm::vec3> vertices; // (a debug command's: made each call)
     float worst = 0.f, total = 0.f;
@@ -1651,7 +1651,7 @@ void player_f()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     edict_t* p = EDICT_NUM(1);
     if(Cmd_Argc() > 2 && !strcmp(Cmd_Argv(1), "onto"))
     {
@@ -1730,7 +1730,7 @@ bool commandsRegistered = false; // (registerCommands: once)
 
 void portalInfo_f()
 {
-    const VmScope vm;
+    const progs::ServerVm vm;
     Con_Printf("physicsportals: generation=%d current=%d copies=%d\n", world ? world->generation : -1,
         worldGeneration(), world ? static_cast<int>(world->portalCopies.size()) : 0);
     if(world)
@@ -1830,7 +1830,7 @@ void inLevel_f()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     for(edict_t* e : entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "props"))
     {
         const int num = NUM_FOR_EDICT(e);
@@ -1872,7 +1872,7 @@ void approach_f()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "misc_explobox");
     edict_t* prop = list.empty() ? nullptr : list.front();
     if(!prop || !solidProp(NUM_FOR_EDICT(prop)))
@@ -1948,7 +1948,7 @@ void shotBench_f()
         Con_Printf("vr_physics_shotbench: no physics world\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     int g = 0;
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts && !g; i++)
     {
@@ -2021,7 +2021,7 @@ void fire_f()
         Con_Printf("usage: vr_physics_fire <kind> [<x> <y> <z>]\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     edict_t* player = EDICT_NUM(1);
     dfunction_t* fn = nullptr;
     for(int i = 1; i < qcvm->progs->numfunctions && !fn; i++)
@@ -2089,7 +2089,7 @@ void shockCheck_f()
         Con_Printf("vr_shock_ragdoll_check: no game\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     int count = 0;
     for(const RagdollBodies& r : world->ragdolls)
     {
@@ -2141,7 +2141,7 @@ void knockdownTest_f()
         Con_Printf("usage: vr_knockdown_test <mode> (in a game)\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     edict_t* player = EDICT_NUM(1);
     dfunction_t* fn = nullptr;
     if(Cmd_Argc() >= 2 && Q_atof(Cmd_Argv(1)) == 9 && world)

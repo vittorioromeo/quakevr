@@ -59,13 +59,6 @@ constexpr int edictReserve = 512;   // entities always left to the game (ED_Allo
 constexpr int maxPending = 32;      // explosions a frame (more: dropped)
 constexpr float fadeMost = 0.5f;    // s: the fade, at most (a third of a short life)
 
-struct VmScope
-{
-    qcvm_t* old{nullptr};
-    VmScope() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~VmScope() { PR_PopQCVM(old); }
-};
-
 float lifeMin() { return za::clamp(vr_explosion_debris_life_min.value, 0.1f, 30.f); }
 float lifeMax() { return za::clamp(vr_explosion_debris_life_max.value, 0.1f, 30.f); }
 
@@ -482,7 +475,7 @@ void stats_f()
     int asleep = 0;
     if(sv.active)
     {
-        const VmScope vm;
+        const progs::ServerVm vm;
         for(int i = 0; i < s.count; i++)
         {
             if(valid(s.live[i]) && (static_cast<int>(EDICT_NUM(s.live[i].num)->v.flags) & FL_ONGROUND))
@@ -505,7 +498,7 @@ void list_f()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const Server& s = server;
     for(int i = 0; i < s.count; i++)
     {
@@ -534,7 +527,7 @@ void launch_f()
         Con_Printf("usage: vr_explosion_debris_launch <x y z> <vx vy vz> [size] [life] (in a game)\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     if(!usable())
     {
         Con_Printf("vr_explosion_debris_launch: not Quake VR's progs\n");
@@ -674,7 +667,7 @@ void serverClear()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     server.evicted += removeIf([](const Live&) { return true; }, true);
 }
 

@@ -288,7 +288,7 @@ const Posed* posed(int num, const entity_t& e)
         R_EntityMatrix(m16, origin, angles, e.scale);
         VR_AliasPreTransform(&e, m16);
         VR_AliasPostTransform(&e, m16); // (the copy's scale 1, its origin 0: makeSkinnedModel)
-        p.m = toMat4(m16);
+        p.m = glm::make_mat4(m16);
         p.vertsFrame = host_framecount;
         p.lo = glm::vec3{1e30f};
         p.hi = glm::vec3{-1e30f};

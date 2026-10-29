@@ -1,4 +1,5 @@
 #include "vr_alloccount.h"
+#include "vr_progs.hpp"
 // vr_box3d_ragparts.cpp -- a ragdoll's parts: blasts, cuts, the players' grabs and holds, points, parts in a box, limbs
 // and heads.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
@@ -267,9 +268,8 @@ namespace
 // Hand `hand` (QC's: 1 the main) of `player`: its point and its turn (world units).
 void handPose(edict_t* player, int hand, glm::vec3& at, glm::quat& turn)
 {
-    const FieldOffsets& f = fields();
-    at = fieldVec(player, hand ? f.handpos : f.offhandpos);
-    const glm::vec3 angles = fieldVec(player, hand ? f.handrot : f.offhandrot);
+    at = fieldVec(player, progs::handFields(hand).pos);
+    const glm::vec3 angles = fieldVec(player, progs::handFields(hand).rot);
     turn = glm::normalize(glm::quat_cast(held::axesFromAngles(&angles[0], true)));
 }
 } // namespace
@@ -948,7 +948,7 @@ void syncRagdollGrabs(float dt)
             continue;
         }
         // (A hold the QC no longer has: its hand holds something else, or nothing. A tug's: the QC's to end.)
-        const int heldOfs = g.hand ? fields().mainhand_held : fields().offhand_held;
+        const int heldOfs = progs::handFields(g.hand).held;
         if(!g.tug && heldOfs >= 0 && fieldInt(player, heldOfs) != EDICT_TO_PROG(EDICT_NUM(g.num)))
         {
             endGrab(i);

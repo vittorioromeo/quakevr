@@ -702,8 +702,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     qcvm_t* oldVm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldVm);
     za::String out;
-    const auto& f = progs::fields();
-    const int ofs = hand == HAND_MAIN ? f.mainhand_held : f.offhand_held;
+    const int ofs = progs::handFields(hand == HAND_MAIN).held;
     edict_t* const player = EDICT_NUM(1);
     const int num = ofs >= 0 && !player->free ? progs::fieldInt(player, ofs) : 0;
     // (An edict reference in range and on an edict's start; one freed since is skipped below.)
@@ -1043,26 +1042,15 @@ bool armedOrRecording();
 // The nearest live monster to `from` (FL_MONSTER, the training dummy too), or null.
 [[nodiscard]] edict_t* nearestMonster(const glm::vec3& from)
 {
-    edict_t* best = nullptr;
-    float bestDist = 4096.f;
-    for(int i = 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f ||
-           static_cast<int>(e->v.solid) == SOLID_NOT)
+    return progs::nearestBy(1, 4096.f, [&](const edict_t* e) {
+        if(!(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f || static_cast<int>(e->v.solid) == SOLID_NOT)
         {
-            continue;
+            return 4096.f;
         }
         const glm::vec3 mid{e->v.origin[0] + (e->v.mins[0] + e->v.maxs[0]) * 0.5f,
             e->v.origin[1] + (e->v.mins[1] + e->v.maxs[1]) * 0.5f, e->v.origin[2] + (e->v.mins[2] + e->v.maxs[2]) * 0.5f};
-        const float d = glm::distance(mid, from);
-        if(d < bestDist)
-        {
-            bestDist = d;
-            best = e;
-        }
-    }
-    return best;
+        return glm::distance(mid, from);
+    });
 }
 
 // ----------------------------------------------------------------------------
@@ -1202,14 +1190,6 @@ void countTakes()
     return n;
 }
 
-void haptic(int hand, float seconds, float amplitude)
-{
-    if(Backend* be = backend(); be && !vr_disablehaptics.value)
-    {
-        be->haptic(hand, seconds, 160.f, amplitude);
-    }
-}
-
 void startTake(const za::String& label)
 {
     if(rec != Rec::Off)
@@ -1239,7 +1219,7 @@ void startTake(const za::String& label)
     }
     preroll.clear();
     rec = Rec::Recording;
-    haptic(recordHand(), 0.06f, 0.8f);
+    haptics::pulse(recordHand(), 0.06f, 0.8f);
     S_LocalSound("misc/talk.wav");
     Con_Printf("Motion recorder: recording %s #%d\n", takeLabel.cStr(), takeNumber);
 }
@@ -1325,7 +1305,7 @@ void finishTake()
         Con_Printf("Motion recorder: %s #%d too short (%.2f s), not kept\n", takeLabel.cStr(), takeNumber, held);
         feedbackText = va("NOT KEPT: too short (%.2f s)", held);
         feedbackUntil = realtime + 2.0;
-        haptic(recordHand(), 0.25f, 0.4f);
+        haptics::pulse(recordHand(), 0.25f, 0.4f);
         S_LocalSound("doors/basetry.wav");
         return;
     }
@@ -1391,7 +1371,7 @@ void pollSaves(bool wait)
             unsaved.pushBack({p.info, *p.rows});
             feedbackText = "NOT SAVED! (see the console)";
             feedbackUntil = realtime + 6.0;
-            haptic(recordHand(), 0.4f, 1.f);
+            haptics::pulse(recordHand(), 0.4f, 1.f);
             S_LocalSound("doors/basetry.wav");
             continue;
         }
@@ -1416,7 +1396,7 @@ void pollSaves(bool wait)
             static_cast<int>(p.rows->size()), events, category.cStr(), count, count == 1 ? "" : "s");
         feedbackText = va("SAVED %s #%d (%s: %d)", label.cStr(), p.info.take, category.cStr(), count);
         feedbackUntil = realtime + 2.5;
-        haptic(recordHand(), 0.12f, 0.6f);
+        haptics::pulse(recordHand(), 0.12f, 0.6f);
         S_LocalSound("misc/menu2.wav");
     }
 }
@@ -1631,7 +1611,7 @@ void sampleEntities(edict_t* player)
     if(replayAgProgs != qcvm->progs)
     {
         replayAgProgs = qcvm->progs;
-        replayAgFieldWid = ED_FindFieldOffset("vr_ag_wid");
+        replayAgFieldWid = progs::fields().vr_ag_wid;
     }
     const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     const auto& f = progs::fields();

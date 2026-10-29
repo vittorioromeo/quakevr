@@ -106,43 +106,6 @@ CardsState cs;
 // ---------------------------------------------------------------------------------------------------------------------
 // The QC's offer.
 
-// The server's VM pushed while the QC is asked (as a command does).
-struct ServerVm
-{
-    qcvm_t* old{nullptr};
-    ServerVm() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~ServerVm() { PR_PopQCVM(old); }
-};
-
-bool callQc(const char* name, float a = 0.f)
-{
-    const func_t fn = progs::findFunction(name);
-    if(!fn)
-    {
-        return false;
-    }
-    pr_global_struct->time = qcvm->time;
-    pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
-    G_FLOAT(OFS_PARM0) = a;
-    PR_ExecuteProgram(fn);
-    return true;
-}
-
-[[nodiscard]] float qcFloat(const char* name, float a = 0.f)
-{
-    return callQc(name, a) ? G_FLOAT(OFS_RETURN) : 0.f;
-}
-
-void qcText(char* dst, size_t size, const char* name, float a = 0.f)
-{
-    q_strlcpy(dst, callQc(name, a) ? PR_GetString(G_INT(OFS_RETURN)) : "", size);
-}
-
-[[nodiscard]] glm::vec3 qcVec(const char* name, float a = 0.f)
-{
-    return callQc(name, a) ? glm::vec3{G_FLOAT(OFS_RETURN), G_FLOAT(OFS_RETURN + 1), G_FLOAT(OFS_RETURN + 2)} : glm::vec3{0.5f};
-}
-
 void clearOffer()
 {
     if(cs.serial != 0)
@@ -175,12 +138,12 @@ void poll()
         clearOffer();
         return;
     }
-    const ServerVm vm;
+    const progs::ServerVm vm;
     if(cs.pickPending >= 0 && cs.serial != 0)
     {
         const int pick = cs.pickPending;
         cs.pickPending = -1;
-        if(qcFloat("VR_ARK_CardPick", static_cast<float>(pick)) != 0.f)
+        if(progs::qcFloat(progs::findFunction("VR_ARK_CardPick"), static_cast<float>(pick)) != 0.f)
         {
             Con_DPrintf("arena cards: card %d picked (%s)\n", pick + 1, cs.cards[pick].name);
             S_LocalSound("misc/menu3.wav");
@@ -188,7 +151,7 @@ void poll()
     }
     cs.pickPending = -1;
 
-    const int serial = static_cast<int>(qcFloat("VR_ARK_CardSerial"));
+    const int serial = static_cast<int>(progs::qcFloat(progs::findFunction("VR_ARK_CardSerial")));
     if(serial <= 0)
     {
         clearOffer();
@@ -198,25 +161,25 @@ void poll()
     {
         clearOffer();
         cs.serial = serial;
-        cs.count = za::clamp(static_cast<int>(qcFloat("VR_ARK_CardCount")), 0, maxCards);
+        cs.count = za::clamp(static_cast<int>(progs::qcFloat(progs::findFunction("VR_ARK_CardCount"))), 0, maxCards);
         for(int i = 0; i < cs.count; i++)
         {
             Card& c = cs.cards[i];
-            c.bit = static_cast<int>(qcFloat("VR_ARK_CardBit", static_cast<float>(i)));
-            qcText(c.name, sizeof(c.name), "VR_ARK_Name", static_cast<float>(c.bit));
-            qcText(c.what, sizeof(c.what), "VR_ARK_What", static_cast<float>(c.bit));
-            qcText(c.model, sizeof(c.model), "VR_ARK_Model", static_cast<float>(c.bit));
-            c.colour = qcVec("VR_ARK_Colour", static_cast<float>(c.bit));
+            c.bit = static_cast<int>(progs::qcFloat(progs::findFunction("VR_ARK_CardBit"), static_cast<float>(i)));
+            progs::qcText(c.name, sizeof(c.name), progs::findFunction("VR_ARK_Name"), static_cast<float>(c.bit));
+            progs::qcText(c.what, sizeof(c.what), progs::findFunction("VR_ARK_What"), static_cast<float>(c.bit));
+            progs::qcText(c.model, sizeof(c.model), progs::findFunction("VR_ARK_Model"), static_cast<float>(c.bit));
+            c.colour = progs::qcVec(progs::findFunction("VR_ARK_Colour"), static_cast<float>(c.bit), glm::vec3{0.5f});
         }
-        qcText(cs.title, sizeof(cs.title), "VR_ARK_CardTitle");
-        cs.pool = za::max(1, static_cast<int>(qcFloat("VR_ARK_PoolSize")));
+        progs::qcText(cs.title, sizeof(cs.title), progs::findFunction("VR_ARK_CardTitle"));
+        cs.pool = za::max(1, static_cast<int>(progs::qcFloat(progs::findFunction("VR_ARK_PoolSize"))));
         cs.shownAt = cl.time;
         Con_DPrintf("arena cards: offer %d, %d cards\n", serial, cs.count);
         S_LocalSound("misc/talk.wav");
     }
     if(vrActive())
     {
-        cs.held = static_cast<int>(qcFloat("VR_ARK_CardsSeen"));
+        cs.held = static_cast<int>(progs::qcFloat(progs::findFunction("VR_ARK_CardsSeen")));
     }
 }
 
@@ -536,8 +499,8 @@ void offer_f()
         Con_Printf("vr_arena_cards_offer: no game running\n");
         return;
     }
-    const ServerVm vm;
-    if(!callQc("VR_ARK_DebugOffer"))
+    const progs::ServerVm vm;
+    if(!progs::callQc(progs::findFunction("VR_ARK_DebugOffer")))
     {
         Con_Printf("vr_arena_cards_offer: these progs have no Survival Arena perks\n");
     }
@@ -609,7 +572,7 @@ void frame(const hands::State& s)
         cs.hovered[h] = cs.hit[h] ? cardAt(cs.cursor[h]) : -1;
         if(cs.hovered[h] >= 0 && cs.hovered[h] != was)
         {
-            toolgun::haptic(h, 0.01f, 0.15f); // (a tick on each card the laser comes onto)
+            haptics::pulse(h, 0.01f, 0.15f, 200.f); // (a tick on each card the laser comes onto)
         }
     }
 }
@@ -632,7 +595,7 @@ bool button(int hand, posing::Button b, bool down)
     if(cs.hovered[hand] >= 0 && cl.time - cs.shownAt >= armSeconds)
     {
         cs.pickPending = cs.hovered[hand];
-        toolgun::haptic(hand, 0.03f, 0.5f);
+        haptics::pulse(hand, 0.03f, 0.5f, 200.f);
     }
     return true;
 }

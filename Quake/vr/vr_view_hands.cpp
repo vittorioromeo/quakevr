@@ -1947,7 +1947,7 @@ bool tugGrab(int hand, const LimbHold& limb, TugGrab& out)
     }
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
-    const int propOfs = ED_FindFieldOffset("vr_ag_prop");
+    const int propOfs = progs::fields().vr_ag_prop;
     const int prop = propOfs >= 0 && limb.num < qcvm->num_edicts
                          ? NUM_FOR_EDICT(PROG_TO_EDICT(progs::fieldInt(EDICT_NUM(limb.num), propOfs)))
                          : 0;

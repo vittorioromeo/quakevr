@@ -205,9 +205,7 @@ za::Vector<glm::vec3> scratchRest, scratchNow, scratchTris;
 
 [[nodiscard]] bool inLiquid(const glm::vec3& p)
 {
-    vec3_t v = {p.x, p.y, p.z};
-    const mleaf_t* leaf = Mod_PointInLeaf(v, cl.worldmodel);
-    return leaf && leaf->contents < CONTENTS_SOLID;
+    return worldtrace::clientContents(p) < CONTENTS_SOLID; // (water, slime, lava, sky, currents)
 }
 
 [[nodiscard]] glm::vec3 bytePoint(const float m[16], const glm::vec3& v)

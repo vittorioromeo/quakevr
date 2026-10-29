@@ -63,14 +63,6 @@ struct Built
     int texofs[TEXTYPE_COUNT + 1]{};
 };
 
-// The server's VM while brushes change its edicts (as a command does).
-struct ServerVm
-{
-    qcvm_t* old{nullptr};
-    ServerVm() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~ServerVm() { PR_PopQCVM(old); }
-};
-
 void build(const Brush* b, Built& out);
 void apply(qmodel_t* mod, Built* b, int sortId);
 bool parseVec(int first, glm::dvec3& v);

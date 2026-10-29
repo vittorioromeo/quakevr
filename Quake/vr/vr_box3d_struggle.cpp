@@ -3,6 +3,7 @@
 // its class's profile (its monster group's Struggle settings), its drive begun; the overlay (vr_struggle_debug) and vr_struggle_status.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_progs.hpp"
 
 #include "vr_mgroups.hpp"
 #include "vr_ragtool.hpp"
@@ -316,7 +317,7 @@ za::String noteRagdoll(int num)
     {
         return {};
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     for(const RagdollBodies& r : world->ragdolls)
     {
         if(r.num != num)
@@ -348,7 +349,7 @@ za::String noteRagdollHold(int player, int hand)
     {
         return {};
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const char* part = "?";
     for(const RagdollBodies& r : world->ragdolls)
     {
@@ -373,7 +374,7 @@ void struggleStatus_f()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     uint64_t h = 1469598103934665603ull;
     int struggling = 0;
     for(RagdollBodies& r : world->ragdolls)

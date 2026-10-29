@@ -506,7 +506,7 @@ void collectSettings(const za::String& value, bool pairs, za::Vector<za::Pair<za
     }
 }
 
-za::Vector<za::Pair<cvar_t*, za::String>> savedSettings; // the values before a playback
+cvars::Snapshot savedSettings; // the values before a playback
 za::String setupFoegrab; // vr_foegrab's value, held off during the setup (startPlayback); "" when not
 
 // The training dummies as the take's enemy now (QC VR_Dummy_RetypeAll: vr_dummy_type, just applied), before the take
@@ -635,7 +635,7 @@ void applySettings(const Take& take, bool melee)
         {
             continue;
         }
-        savedSettings.emplaceBack(var, var->string);
+        savedSettings.keep(*var);
         Cvar_SetQuick(var, value.cStr());
         applied++;
     }
@@ -653,11 +653,7 @@ void applySettings(const Take& take, bool melee)
 
 void restoreSettings()
 {
-    for(const auto& [cvar, value] : za::reversed(savedSettings))
-    {
-        Cvar_SetQuick(cvar, value.cStr());
-    }
-    savedSettings.clear();
+    savedSettings.restore();
     setupFoegrab.clear();
 }
 
@@ -1395,13 +1391,13 @@ void stopPlayback(const char* why)
     // The training dummy's attacks off (put back afterwards): in a replay it strikes only as the take has it.
     if(vr_dummy_attacks.value != 0.f)
     {
-        savedSettings.emplaceBack(&vr_dummy_attacks, vr_dummy_attacks.string);
+        savedSettings.keep(vr_dummy_attacks);
         Cvar_SetQuick(&vr_dummy_attacks, "0");
     }
     // Nor gibbed by the take's blows (vr_dummy_gib): it stays to take them all.
     if(vr_dummy_gib.value != 0.f)
     {
-        savedSettings.emplaceBack(&vr_dummy_gib, vr_dummy_gib.string);
+        savedSettings.keep(vr_dummy_gib);
         Cvar_SetQuick(&vr_dummy_gib, "0");
     }
     // Nor held (vr_foegrab) by a grip the setup closes beside it: in the take that hand had held its weapon since long
@@ -1409,7 +1405,7 @@ void stopPlayback(const char* why)
     // plays: a grip already closed doesn't take hold later.
     if(vr_foegrab.value != 0.f)
     {
-        savedSettings.emplaceBack(&vr_foegrab, vr_foegrab.string);
+        savedSettings.keep(vr_foegrab);
         setupFoegrab = vr_foegrab.string;
         Cvar_SetQuick(&vr_foegrab, "0");
     }

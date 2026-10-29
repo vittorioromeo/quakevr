@@ -818,6 +818,15 @@ const EntityVr* entityVr(int num)
     return &entityData[num];
 }
 
+int entityNumber(const entity_t* e, int limit)
+{
+    if(!e || !cl_entities || e <= cl_entities || e >= cl_entities + (limit < 0 ? cl.num_entities : limit))
+    {
+        return -1;
+    }
+    return static_cast<int>(e - cl_entities);
+}
+
 bool lateBrushModel(const qmodel_t* model)
 {
     for(const qmodel_t* m : lateBrushModels)

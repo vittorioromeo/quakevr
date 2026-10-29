@@ -1,6 +1,8 @@
 // vr_avatar.cpp -- see vr_avatar.hpp.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_trace.hpp"
+#include "vr_progs.hpp"
 #include "vr_avatar.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_selfcollide.hpp"
@@ -1228,12 +1230,6 @@ struct Water
 
 Water water;
 
-[[nodiscard]] bool isLiquid(int c)
-{
-    return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ||
-           (c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN);
-}
-
 // How high the liquid stands above the body's floor, in metres of the body: sampled up the pelvis's
 // column from the floor to a little above `top` (solid below the water is the bottom, the floor
 // being where the head's height puts it).
@@ -1252,7 +1248,7 @@ Water water;
     {
         vec3_t v{p.x, p.y, b.floorZ + h * b.m2w};
         const int c = Mod_PointInLeaf(v, cl.worldmodel)->contents;
-        if(isLiquid(c))
+        if(worldtrace::isLiquid(c, true))
         {
             wet = true;
             surface = h + STEP * 0.5f;
@@ -1626,7 +1622,7 @@ struct FootHit
 [[nodiscard]] FootHit footTrace(const glm::vec3& a, const glm::vec3& z)
 {
     FootHit h;
-    if(!sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
+    if(!progs::localPlayer())
     {
         return h;
     }

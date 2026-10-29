@@ -1,4 +1,5 @@
 #include "vr_alloccount.h"
+#include "vr_progs.hpp"
 // vr_box3d_api.cpp -- the API: loads, pins, tool joints, blasts, pushes, shots and rays, held boxes, ropes and level
 // checks, counts and queries.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
@@ -87,7 +88,7 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
     {
         return nullptr;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     func_t fn = qvr::progs::findFunction(classname);
     // AD support: AD's version where it owns the classname in an AD map, AD's artifacts, pickups and ladders in any
     // map (vr_ad.cpp), as ED_LoadFromFile
@@ -136,7 +137,7 @@ edict_t* spawnClass(const char* classname, const glm::vec3& origin, const glm::v
     }
     if(weaponFlags != 0.f) // (func_weapon_grabbable's weapon flags: AD support, an AD melee weapon's kind)
     {
-        const int ofs = ED_FindFieldOffset("weaponflags");
+        const int ofs = progs::fields().weaponflags;
         if(ofs >= 0)
         {
             fieldFloat(e, ofs) = weaponFlags;
@@ -1232,7 +1233,7 @@ void profileAwakeKinds(AwakeKinds& out)
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const int n = glm::min(qcvm->num_edicts, static_cast<int>(world->slots.size()));
     for(int i = 1; i < n; i++)
     {
@@ -1281,7 +1282,7 @@ int nearestProp()
     {
         return 0;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const edict_t* player = EDICT_NUM(1);
     float best = 1e9f;
     int found = 0;

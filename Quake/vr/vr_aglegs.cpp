@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <string.h>
 #include "vr_aglegs.hpp"
+#include "vr_client.hpp"
 #include "vr_agpose.hpp"
 #include "vr_cvars.hpp"
 #include "vr_geom.hpp"
@@ -225,12 +226,6 @@ State state;
         }
     }
     return -1;
-}
-
-[[nodiscard]] int numberOf(const entity_t* e)
-{
-    const int n = static_cast<int>(e - cl_entities);
-    return (n > 0 && n < cl.num_entities) ? n : -1;
 }
 
 // The knee's way across the hip-to-ankle line (u): towards `pole`, else forward.
@@ -717,7 +712,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, in
     {
         carryOut[b] = rigpose::Rigid{};
     }
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     const Model* m = num > 0 ? modelFor(e->model) : nullptr;
     if(!m && num > 0 && rig.authored)
     {
@@ -792,7 +787,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, in
 
 bool carry(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, rigpose::Rigid* out)
 {
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     const Model* m = num > 0 ? modelFor(e->model) : nullptr;
     const Ent* st = m ? entOf(num, false) : nullptr;
     if(!st || st->frame != host_framecount || st->model != e->model || st->on <= 0.f)
@@ -811,7 +806,7 @@ void rows(const entity_t* e, const aliashdr_t* hdr, glm::vec4* out)
     }
     out[0] = glm::vec4{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2], 0.f};
     out[1] = glm::vec4{1.f / hdr->scale[0], 1.f / hdr->scale[1], 1.f / hdr->scale[2], 0.f};
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     const Model* m = num > 0 ? modelFor(e->model) : nullptr;
     const Ent* st = m ? entOf(num, false) : nullptr;
     if(!st || st->frame != host_framecount || st->model != e->model)
@@ -894,7 +889,7 @@ void resetModels()
 bool lean(const entity_t* e, const ragdoll::Rig& rig, const glm::vec3& origin, float yawDeg, bool hold, rigpose::Rigid& out)
 {
     out = rigpose::Rigid{};
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     if(num <= 0)
     {
         return false;
@@ -979,7 +974,7 @@ bool lean(const entity_t* e, const ragdoll::Rig& rig, const glm::vec3& origin, f
 
 glm::quat twistNow(const entity_t* e)
 {
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     for(const Lean& l : state.leans)
     {
         if(num > 0 && l.ent == num && l.frame == host_framecount)
@@ -992,7 +987,7 @@ glm::quat twistNow(const entity_t* e)
 
 bool leanNow(const entity_t* e, rigpose::Rigid& out)
 {
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     for(const Lean& l : state.leans)
     {
         if(num > 0 && l.ent == num && l.frame == host_framecount && (l.deg != 0.f || l.twist != 0.f))
@@ -1007,7 +1002,7 @@ bool leanNow(const entity_t* e, rigpose::Rigid& out)
 
 void leanMeasured(const entity_t* e, float pelvisRoll, float chestRoll, float pelvisYaw, float chestYaw)
 {
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     for(const Lean& l : state.leans)
     {
         if(num > 0 && l.ent == num && l.frame == host_framecount)

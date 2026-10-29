@@ -74,13 +74,6 @@ struct Groups
 };
 Groups groups;
 
-struct SvVm
-{
-    qcvm_t* old{nullptr};
-    SvVm() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~SvVm() { PR_PopQCVM(old); }
-};
-
 [[nodiscard]] bool inGame()
 {
     return sv.active && svs.maxclients >= 1 && cls.state == ca_connected && cls.signon == SIGNONS;
@@ -176,8 +169,8 @@ void tellAim(edict_t* e)
     if(aimFields.progs != sv.qcvm.progs)
     {
         aimFields.progs = sv.qcvm.progs;
-        aimFields.at = ED_FindFieldOffset("vr_rs_aim");
-        aimFields.on = ED_FindFieldOffset("vr_rs_aimon");
+        aimFields.at = progs::fields().vr_rs_aim;
+        aimFields.on = progs::fields().vr_rs_aimon;
     }
     progs::setFieldVec(e, aimFields.at, st.aim.at);
     progs::setFieldFloat(e, aimFields.on, st.aim.on ? 1.f : 0.f);
@@ -197,7 +190,7 @@ void removeSubject()
         st.subject = 0;
         return;
     }
-    const SvVm vm;
+    const progs::ServerVm vm;
     edict_t* e = subjectEdict();
     const func_t fn = progs::findFunction("VR_RigStudio_Remove");
     if(e && fn && st.subject > svs.maxclients)
@@ -944,7 +937,7 @@ struct AimReading
     }
     if(sv.active && st.note.prop > 0 && st.note.prop < sv.qcvm.num_edicts)
     {
-        const SvVm vm;
+        const progs::ServerVm vm;
         const edict_t* p = EDICT_NUM(st.note.prop);
         if(!p->free)
         {
@@ -1007,8 +1000,8 @@ struct Census
 [[nodiscard]] Census census()
 {
     Census c;
-    const SvVm vm;
-    const int instOfs = ED_FindFieldOffset("weaponinst");
+    const progs::ServerVm vm;
+    const int instOfs = progs::fields().weaponinst;
     const edict_t* subj = subjectEdict();
     const int sp = subj ? EDICT_TO_PROG(subj) : -1;
     for(int i = 1; i < sv.qcvm.num_edicts; i++)
@@ -2793,7 +2786,7 @@ void close()
     if(inGame())
     {
         removeSubject(); // (the studio's stand-in: never left in the map, unkillable, its AI let go)
-        const SvVm vm;
+        const progs::ServerVm vm;
         edict_t* p = EDICT_NUM(1);
         p->v.flags = static_cast<float>(static_cast<int>(p->v.flags) & ~(FL_GODMODE | FL_NOTARGET));
     }
@@ -3581,7 +3574,7 @@ void serverFrame()
         return; // (the room not loaded yet)
     }
     st.wantMap = false;
-    const SvVm vm;
+    const progs::ServerVm vm;
     edict_t* p = EDICT_NUM(1);
     p->v.flags = static_cast<float>(static_cast<int>(p->v.flags) | FL_GODMODE | FL_NOTARGET);
     if(!st.staged)

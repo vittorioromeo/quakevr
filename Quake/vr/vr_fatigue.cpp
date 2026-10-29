@@ -59,12 +59,13 @@ float heldAt = -1.f; // vr_debug_stamina_hold: the share the game's stamina is k
 // The local server's player, its stamina's fields (the VR progs), or null.
 [[nodiscard]] edict_t* player()
 {
-    if(!sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict || !bindings().isVrProgs)
+    edict_t* const p = localPlayer();
+    if(!p || !bindings().isVrProgs)
     {
         return nullptr;
     }
     const FieldOffsets& f = fields();
-    return f.vr_stamina_used >= 0 && f.vr_stamina_time >= 0 ? svs.clients[0].edict : nullptr;
+    return f.vr_stamina_used >= 0 && f.vr_stamina_time >= 0 ? p : nullptr;
 }
 
 [[nodiscard]] float staminaMax()

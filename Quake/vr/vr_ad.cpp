@@ -173,10 +173,10 @@ void countSignals(const char* data)
 void statusCommand()
 {
     Con_Printf("Arcane Dimensions: data %s (vr_ad_status %d); campaign %s\n",
-        Cvar_VariableValue("vr_ad_status") == 1.f ? "1.80 patch 1, ready" :
-        Cvar_VariableValue("vr_ad_status") == 3.f ? "another version: install ad_v1_80p1final.zip" :
-        Cvar_VariableValue("vr_ad_status") == 2.f ? "incomplete/corrupt" : "missing",
-        static_cast<int>(Cvar_VariableValue("vr_ad_status")), VR_ActiveCampaign() == qvr::ad::campaignIndex ? "active" : "not active");
+        qvr::vr_ad_status.value == 1.f ? "1.80 patch 1, ready" :
+        qvr::vr_ad_status.value == 3.f ? "another version: install ad_v1_80p1final.zip" :
+        qvr::vr_ad_status.value == 2.f ? "incomplete/corrupt" : "missing",
+        static_cast<int>(qvr::vr_ad_status.value), VR_ActiveCampaign() == qvr::ad::campaignIndex ? "active" : "not active");
     Con_Printf("AD rules on this map: %s (%s; %d signals%s%s)\n", mapState.rules ? "on" : "off",
         mapState.campaign ? "the AD campaign" : "detection", mapState.signals, mapState.signals ? ": " : "",
         mapState.firstSignals);
@@ -320,7 +320,7 @@ extern "C" int VR_AD_OwnsClassname(const char* classname, int ours)
 extern "C" int VR_AD_SpawnsOutside(const char* classname)
 {
     if(mapState.rules || qvr::vr_ad_everywhere.value == 0.f || !listed(everywhereClasses, classname) ||
-        Cvar_VariableValue("vr_ad_mounted") == 0.f || !VR_ED_FindFunction(va("ad_%s", classname)))
+        qvr::vr_ad_mounted.value == 0.f || !VR_ED_FindFunction(va("ad_%s", classname)))
     {
         return 0;
     }
@@ -338,7 +338,7 @@ extern "C" int VR_AD_ToolgunSpawnsOutside(const char* classname)
     {
         return 1;
     }
-    if(mapState.rules || !listed(toolgunAnywhereClasses, classname) || Cvar_VariableValue("vr_ad_mounted") == 0.f ||
+    if(mapState.rules || !listed(toolgunAnywhereClasses, classname) || qvr::vr_ad_mounted.value == 0.f ||
         !VR_ED_FindFunction(va("ad_%s", classname)))
     {
         return 0;
@@ -369,7 +369,7 @@ namespace qvr::ad
 
 bool spawnAvailable(const char* model, bool rulesOnly)
 {
-    const bool rules = Cvar_VariableValue("vr_ad_rules") != 0.f;
+    const bool rules = qvr::vr_ad_rules.value != 0.f;
     const bool everywhere = vr_ad_everywhere.value != 0.f;
     const float upgrades = vr_ad_upgrades.value;
     // (the upgrades: QC AD_UpgradeScope, "With AD Content" any map while Additional Content is Everywhere)
@@ -381,7 +381,7 @@ bool spawnAvailable(const char* model, bool rulesOnly)
         q_strlcpy(file, model, sizeof(file));
         if(char* cut = strchr(file, '#')) { *cut = '\0'; }
     }
-    return Cvar_VariableValue("vr_ad_mounted") != 0.f && scope && (!file[0] || COM_FileExists(file, nullptr));
+    return qvr::vr_ad_mounted.value != 0.f && scope && (!file[0] || COM_FileExists(file, nullptr));
 }
 
 } // namespace qvr::ad

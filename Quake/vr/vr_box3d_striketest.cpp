@@ -5,6 +5,7 @@
 // Split from vr_box3d_diag.cpp's tests; the shared declarations are in vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_progs.hpp"
 #include "vr_handpose.hpp"
 #include "vr_hands.hpp"
 
@@ -65,7 +66,7 @@ void strikeTest_f()
         Con_Printf("striketest: no game\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const glm::vec3 eye = vec(EDICT_NUM(1)->v.origin);
     int best = 0;
     float bestDist = 1e30f;

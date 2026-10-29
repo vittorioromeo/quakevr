@@ -1,6 +1,7 @@
 // vr_hitreact.cpp -- living hit reactions (vr_hitreact.hpp; ROUND22.md, "Active ragdolls: living hit reactions").
 
 #include "vr_hitreact.hpp"
+#include "vr_client.hpp"
 #include "vr_agarms.hpp"
 #include "vr_agbody.hpp"
 #include "vr_aglegs.hpp"
@@ -138,16 +139,6 @@ void countCost(long long ns)
         cost.lastTime = cl.time;
         cost.frames++;
     }
-}
-
-// The number of a client entity (-1: not one of cl_entities: your gun, a temporary entity).
-[[nodiscard]] int numberOf(const entity_t* e)
-{
-    if(!e || !cl_entities || e < cl_entities || e >= cl_entities + cl.num_entities)
-    {
-        return -1;
-    }
-    return static_cast<int>(e - cl_entities);
 }
 
 [[nodiscard]] float timeScale()
@@ -486,7 +477,7 @@ void resolveTilt(Kick& k, const entity_t* e)
     {
         return nullptr;
     }
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     if(num < 0)
     {
         return nullptr;
@@ -530,7 +521,7 @@ void traceLine(const entity_t* e, Reaction& r, const ragdoll::Rig* rig, const gl
     }
     r.traced = cl.time;
     char line[512];
-    int n = snprintf(line, sizeof(line), "hittrace %d t %.3f kicks %d", numberOf(e), cl.time, r.count);
+    int n = snprintf(line, sizeof(line), "hittrace %d t %.3f kicks %d", client::entityNumber(e), cl.time, r.count);
     if(rig)
     {
         float most = 0.f;
@@ -1132,7 +1123,7 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
 // The arm pose of `e` placed this frame (relinkArms'), or none.
 [[nodiscard]] const ArmPose* armPoseNow(const entity_t* e)
 {
-    const ArmPose* s = armPoseOf(numberOf(e), false);
+    const ArmPose* s = armPoseOf(client::entityNumber(e), false);
     return (s && s->frame == host_framecount) ? s : nullptr;
 }
 
@@ -1980,7 +1971,7 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     {
         if(vr_agrunt_ik_debug.value >= 2.f)
         {
-            Con_Printf("agik ent %d: %d vertices (its rig's %d)\n", numberOf(e), hdr->numverts, rig.numVerts);
+            Con_Printf("agik ent %d: %d vertices (its rig's %d)\n", client::entityNumber(e), hdr->numverts, rig.numVerts);
         }
         return false;
     }
@@ -1990,7 +1981,7 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
         {
             if(vr_agrunt_ik_debug.value >= 2.f)
             {
-                Con_Printf("agik ent %d: pose %d a death's (frame %d, poses %d %d)\n", numberOf(e), pose1, e->frame,
+                Con_Printf("agik ent %d: pose %d a death's (frame %d, poses %d %d)\n", client::entityNumber(e), pose1, e->frame,
                     e->previouspose, e->currentpose);
             }
             return false; // (dying: its weapon dropped)
@@ -2013,7 +2004,7 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     {
         if(vr_agrunt_ik_debug.value >= 2.f)
         {
-            Con_Printf("agik ent %d: no arm bones\n", numberOf(e));
+            Con_Printf("agik ent %d: no arm bones\n", client::entityNumber(e));
         }
         return false;
     }
@@ -2051,7 +2042,7 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     {
         if(vr_agrunt_ik_debug.value >= 2.f)
         {
-            Con_Printf("agik ent %d: pose %d, no weapon within %.0f of its hand (%d held weapons)\n", numberOf(e), pose1,
+            Con_Printf("agik ent %d: pose %d, no weapon within %.0f of its hand (%d held weapons)\n", client::entityNumber(e), pose1,
                 propReach, armIk.numProps);
         }
         return false; // (its fists: the animation's arms)
@@ -2074,7 +2065,7 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     if(vr_agrunt_ik_debug.value >= 3.f)
     {
         Con_Printf("agfit ent %d fitted %d ok %d W %.2f P %.1f %.1f %.1f D %.1f %.1f %.1f hr %.1f %.1f %.1f; left ok %d W %.2f\n",
-            numberOf(e), fitted ? 1 : 0, fitR.ok ? 1 : 0, fitR.W, fitR.P.x, fitR.P.y, fitR.P.z, fitR.D.x, fitR.D.y, fitR.D.z, hr.x,
+            client::entityNumber(e), fitted ? 1 : 0, fitR.ok ? 1 : 0, fitR.W, fitR.P.x, fitR.P.y, fitR.P.z, fitR.D.x, fitR.D.y, fitR.D.z, hr.x,
             hr.y, hr.z, handsDrawn.left.ok ? 1 : 0, handsDrawn.left.W);
     }
     const float mainAfter = (fitted && fitR.ok)
@@ -2087,7 +2078,7 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     {
         if(vr_agrunt_ik_debug.value >= 2.f)
         {
-            Con_Printf("agik ent %d: no left hand found (main %.2f -> %.2f)\n", numberOf(e), mainBefore, mainAfter);
+            Con_Printf("agik ent %d: no left hand found (main %.2f -> %.2f)\n", client::entityNumber(e), mainBefore, mainAfter);
         }
         return true;
     }
@@ -2148,20 +2139,20 @@ bool armsNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* p
     {
         const glm::vec3 S = rigpose::apply(posed[ul], rig.bones[ul].pivot);
         Con_Printf("agfitl ent %d kind %d P %.1f %.1f %.1f D %.1f %.1f %.1f tl %.1f %.1f %.1f S %.1f %.1f %.1f miss %.2f\n",
-            numberOf(e), kind, fitL.P.x, fitL.P.y, fitL.P.z, fitL.D.x, fitL.D.y, fitL.D.z, tl.x, tl.y, tl.z, S.x, S.y, S.z,
+            client::entityNumber(e), kind, fitL.P.x, fitL.P.y, fitL.P.z, fitL.D.x, fitL.D.y, fitL.D.z, tl.x, tl.y, tl.z, S.x, S.y, S.z,
             secondAfter);
     }
     if(vr_agrunt_ik_debug.value < 0.f)
     {
         // The jitter trace (scratch/agjit.py): the targets and the animation's hands in its model space, each frame.
-        Con_Printf("agj %d %.4f %d %d %.3f tr %.3f %.3f %.3f tl %.3f %.3f %.3f hr %.3f %.3f %.3f kind %d\n", numberOf(e),
+        Con_Printf("agj %d %.4f %d %d %.3f tr %.3f %.3f %.3f tl %.3f %.3f %.3f hr %.3f %.3f %.3f kind %d\n", client::entityNumber(e),
             cl.time, pose1, pose2, blend, tr.x, tr.y, tr.z, tl.x, tl.y, tl.z, hr.x, hr.y, hr.z, kind);
     }
     const int every = static_cast<int>(vr_agrunt_ik_debug.value);
     if((every > 0 && host_framecount % every == 0) || armIk.forcePrint)
     {
         const float sc = ENTSCALE_DECODE(e->scale);
-        Con_Printf("agik ent %d hf %d frame %d slot %d %s kind %d main %.2f %.2f second %.2f %.2f\n", numberOf(e), host_framecount,
+        Con_Printf("agik ent %d hf %d frame %d slot %d %s kind %d main %.2f %.2f second %.2f %.2f\n", client::entityNumber(e), host_framecount,
             pose1, slot, pe ? pe->model->name : "(fists)", kind, mainBefore * sc, mainAfter * sc, secondBefore * sc,
             secondAfter * sc);
     }
@@ -2502,7 +2493,7 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
         glm::quat rot;
         glm::vec3 pos;
         float scale = 1.f;
-        if(!ragdoll::drawnPart(numberOf(e), handBone, rot, pos, scale))
+        if(!ragdoll::drawnPart(client::entityNumber(e), handBone, rot, pos, scale))
         {
             continue;
         }
@@ -2512,13 +2503,13 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
         // vr_agarms: the hand as drawn (its vertices' fit, rest -> now), as the posed arms moved those vertices when it
         // held the weapon alive. Its bone alone is not that: the authored rig blends the hand's vertices over the hand and
         // its forearm and fingers (the grunt's weapon was drawn 0.6 units and 20 degrees off its hand by it).
-        if(rigpose::Rigid H; skinned && drawnHandFit(numberOf(e), src, side, scale, H))
+        if(rigpose::Rigid H; skinned && drawnHandFit(client::entityNumber(e), src, side, scale, H))
         {
             rot = H.rot;
             pos = H.pos;
         }
         // (Made from its posed arms, its hand on its forearm's bone: the hand's turn on it then, the weapon where it was.)
-        else if(rigpose::Rigid wrist; agarms::ragdollWrist(numberOf(e), src, side, wrist))
+        else if(rigpose::Rigid wrist; agarms::ragdollWrist(client::entityNumber(e), src, side, wrist))
         {
             w = composeRigid(wrist, w);
         }
@@ -2576,7 +2567,7 @@ void ragWeaponMeasure(const ArmPose& s, const entity_t* e)
     const qmodel_t* src = ragdoll::sourceModel(e);
     const ArmedRig* a = armedRigOf(src);
     const ragdoll::Rig* rig = a ? ragdoll::rigFor(const_cast<qmodel_t*>(src)) : nullptr;
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     za::Vector<glm::vec3>& drawn = ragWeaponScratch.drawn;
     if(!rig || !ragdoll::skinnedVertices(num, drawn, nullptr, true))
     {
@@ -3649,7 +3640,7 @@ bool boneKicksNow(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rig
             resolveRig(k, e, rig, posed);
             if(vr_hit_react_debug.value >= 1.f)
             {
-                Con_Printf("hitreact: ent %d struck on %s (part %d), %d bones turned\n", numberOf(e),
+                Con_Printf("hitreact: ent %d struck on %s (part %d), %d bones turned\n", client::entityNumber(e),
                     k.hitBone >= 0 ? rig.bones[k.hitBone].name : "-", k.part, __builtin_popcount(k.bones));
             }
         }
@@ -3768,11 +3759,11 @@ bool reacting(const entity_t* e)
 
 bool armsWanted(const entity_t* e)
 {
-    const bool want = vr_agrunt_ik.value != 0.f && e && e->model && e->model->type == mod_alias && numberOf(e) > 0 &&
+    const bool want = vr_agrunt_ik.value != 0.f && e && e->model && e->model->type == mod_alias && client::entityNumber(e) > 0 &&
                       armedRigOf(e->model) != nullptr;
     if(!want && vr_agrunt_ik_debug.value >= 2.f && e && e->model && strstr(e->model->name, "vrgrunt"))
     {
-        Con_Printf("agik ent %d: not wanted (%s)\n", numberOf(e), e->model->name);
+        Con_Printf("agik ent %d: not wanted (%s)\n", client::entityNumber(e), e->model->name);
     }
     return want;
 }
@@ -3817,7 +3808,7 @@ bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
             posedL[b] = composeRigid(leanTurn, posedL[b]);
         }
         rigpose::Rigid upperCorr;
-        const bool uppered = agarms::active(e) && agbody::upperNow(numberOf(e), upperCorr);
+        const bool uppered = agarms::active(e) && agbody::upperNow(client::entityNumber(e), upperCorr);
         rigpose::Rigid lay[ragdoll::maxBones];
         for(int b = 0; b < rig.numBones; b++)
         {

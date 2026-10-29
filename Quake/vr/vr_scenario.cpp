@@ -119,13 +119,6 @@ double placedAt = 0.0;      // the server's time when the current one was placed
 static constexpr double runAllHoldSeconds = 3.0;
 bool swapped = false;       // the config's write: the saved values swapped in (VR_ScenarioConfigWrite)
 
-struct ServerVm
-{
-    qcvm_t* old{nullptr};
-    ServerVm() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~ServerVm() { PR_PopQCVM(old); }
-};
-
 [[nodiscard]] za::String dirPath()
 {
     return za::String{com_gamedir} + "/scenarios";
@@ -250,7 +243,7 @@ void error(int line, const char* text)
     {
         return strchr(what, '_') != nullptr && strchr(what, ' ') == nullptr;
     }
-    const ServerVm vm;
+    const progs::ServerVm vm;
     return progs::findFunction(what) != 0;
 }
 
@@ -504,25 +497,20 @@ void end()
     hintUntil = 0.0;
 }
 
-[[nodiscard]] edict_t* player()
-{
-    return sv.active && svs.maxclients >= 1 && svs.clients[0].active ? svs.clients[0].edict : nullptr;
-}
-
 // Takes the weapon a toolgun Weapons entry made (`spawner`: a func_weapon_grabbable makes the weapon itself as a new
 // entity, or an AD upgrade's prop is one) into `hand` of `p`, as a grab does (QC VR_ADMelee_Take: either hand, any
 // grabbable weapon). False: none found that a hand can take.
 bool takeIntoHand(edict_t* p, edict_t* spawner, int hand, za::Vector<int>& taken)
 {
     const func_t fn = progs::findFunction("VR_ADMelee_Take");
-    const int handtouch = ED_FindFieldOffset("handtouch");
+    const int handtouch = progs::fields().handtouch;
     if(!fn || handtouch < 0)
     {
         return false;
     }
     // The weapon made now (QC CreateThrownWeapon: its vr_drop_born this frame's time; any free slot, below the
     // spawner's too), a hand able to take it; else the spawner itself (an upgrade's prop). The nearest to it.
-    const int born = ED_FindFieldOffset("vr_drop_born");
+    const int born = progs::fields().vr_drop_born;
     edict_t* w = nullptr;
     float best = 1e9f;
     for(int n = 1; n < qcvm->num_edicts; n++)
@@ -570,10 +558,10 @@ void note(const char* text)
 // Everything placed: you, your hands, what stands around you, the commands; the hint shown.
 void place()
 {
-    const ServerVm vm;
+    const progs::ServerVm vm;
     const Scenario& s = state.run;
     state.notes.clear();
-    edict_t* p = player();
+    edict_t* p = progs::localPlayer();
     if(!p)
     {
         note("no player");
@@ -621,7 +609,7 @@ void place()
         }
         gaveTo[g.hand == 0 ? 0 : 1] = true;
     }
-    const int weapon2 = ED_FindFieldOffset("weapon2");
+    const int weapon2 = progs::fields().weapon2;
     // Held as if just grabbed: in the hand until its grip is let go there (QC VR_Scene_HoldGiven), whatever the grip mode.
     const func_t hold = progs::findFunction("VR_Scene_HoldGiven");
     for(const int h : {0, 1})
@@ -809,8 +797,8 @@ void validate()
 // vr_scenario where: where you stand and face (a start line), how far the walls are, the nearest water.
 void where()
 {
-    const ServerVm vm;
-    edict_t* p = player();
+    const progs::ServerVm vm;
+    edict_t* p = progs::localPlayer();
     if(!p)
     {
         Con_Printf("vr_scenario where: no game running\n");
@@ -1009,9 +997,9 @@ void frame()
         bool held = true;
         if(sv.active)
         {
-            const ServerVm vm;
-            edict_t* p = player();
-            const int weapon2 = ED_FindFieldOffset("weapon2");
+            const progs::ServerVm vm;
+            edict_t* p = progs::localPlayer();
+            const int weapon2 = progs::fields().weapon2;
             const float now[2] = {!p ? -1.f : weapon2 >= 0 ? progs::fieldFloat(p, weapon2) : -1.f, !p ? -1.f : p->v.weapon};
             held = givenWeapon[0] == now[0] || givenWeapon[0] < 0.f;
             held = held && (givenWeapon[1] == now[1] || givenWeapon[1] < 0.f);

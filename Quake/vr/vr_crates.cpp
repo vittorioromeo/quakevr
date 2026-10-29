@@ -3,6 +3,7 @@
 // vr_crates.qc spawns them, breaks them and drops what they hold.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_trace.hpp"
 #include "vr_crates.hpp"
 
 #include "vr_box3d.hpp"
@@ -39,9 +40,7 @@ namespace
 {
 
 using progs::fields;
-using debris::contents;
 using debris::hashString;
-using debris::traceLine;
 
 // The crates' models and their half sizes (units, unscaled: make_crates.py's CRATES; the explosive boxes' size), and
 // the barrel (make_crates.py's BARRELS: 22 across its belly's facets, 23 across their edges, 32 high; QC vr_barrel: a
@@ -356,7 +355,7 @@ struct Planner
     {
         if(onFloor)
         {
-            const trace_t down = traceLine({c.x, c.y, floorZ + 6.f}, {c.x, c.y, floorZ - 6.f});
+            const trace_t down = worldtrace::serverLine({c.x, c.y, floorZ + 6.f}, {c.x, c.y, floorZ - 6.f});
             if(down.fraction >= 1.f || down.startsolid || down.ent != qcvm->edicts || down.plane.normal[2] < 0.95f)
             {
                 reason = RNoFloor;
@@ -378,7 +377,7 @@ struct Planner
             footprint(o, {c.x, c.y, floorZ}, 1.f, pts);
             for(const glm::vec3& p : pts)
             {
-                const trace_t t = traceLine(p + glm::vec3{0.f, 0.f, 4.f}, p - glm::vec3{0.f, 0.f, 4.f});
+                const trace_t t = worldtrace::serverLine(p + glm::vec3{0.f, 0.f, 4.f}, p - glm::vec3{0.f, 0.f, 4.f});
                 if(t.fraction >= 1.f || t.startsolid || t.ent != qcvm->edicts || za::abs(t.endpos[2] - floorZ) > 1.5f ||
                     t.plane.normal[2] < 0.95f)
                 {
@@ -389,7 +388,7 @@ struct Planner
         }
         for(const float h : {2.f, height - 2.f})
         {
-            const int inside = contents({c.x, c.y, floorZ + h});
+            const int inside = worldtrace::contents({c.x, c.y, floorZ + h});
             if(inside != CONTENTS_EMPTY)
             {
                 if(vr_debug_crates.value >= 3)
@@ -409,7 +408,7 @@ struct Planner
             footprint(o, mid, 0.5f, pts);
             for(int k = 0; k < 8; k++)
             {
-                if(traceLine(mid, pts[k]).fraction < 1.f || (k < 4 && traceLine(pts[k], pts[(k + 1) % 4]).fraction < 1.f))
+                if(worldtrace::serverLine(mid, pts[k]).fraction < 1.f || (k < 4 && worldtrace::serverLine(pts[k], pts[(k + 1) % 4]).fraction < 1.f))
                 {
                     reason = RSolid;
                     return false;
@@ -422,7 +421,7 @@ struct Planner
         for(int k = -1; k < 4; k++)
         {
             const glm::vec3 p = k < 0 ? glm::vec3{c.x, c.y, floorZ + 1.f} : pts[k];
-            if(traceLine(p, p + glm::vec3{0.f, 0.f, height + headroom - 1.f}).fraction < 1.f)
+            if(worldtrace::serverLine(p, p + glm::vec3{0.f, 0.f, height + headroom - 1.f}).fraction < 1.f)
             {
                 reason = RLow;
                 return false;
@@ -461,7 +460,7 @@ struct Planner
             for(const float k : {-1.f, 1.f})
             {
                 const glm::vec3 p = glm::vec3{c.x, c.y, floorZ + h} + glm::vec3{s.out * -back + s.along * (k * side), 0.f};
-                if(traceLine(p + glm::vec3{s.out, 0.f}, p - glm::vec3{s.out * (gap + 6.f), 0.f}).fraction >= 1.f)
+                if(worldtrace::serverLine(p + glm::vec3{s.out, 0.f}, p - glm::vec3{s.out * (gap + 6.f), 0.f}).fraction >= 1.f)
                 {
                     return false;
                 }
@@ -804,7 +803,7 @@ int plan()
             {
                 const glm::vec3 at = a + edge * (t / len);
                 const glm::vec3 probe = at + glm::vec3{out * 2.f, 0.f};
-                const trace_t down = traceLine(probe + glm::vec3{0.f, 0.f, 4.f}, probe - glm::vec3{0.f, 0.f, 4.f});
+                const trace_t down = worldtrace::serverLine(probe + glm::vec3{0.f, 0.f, 4.f}, probe - glm::vec3{0.f, 0.f, 4.f});
                 if(down.fraction >= 1.f || down.startsolid || down.ent != qcvm->edicts || za::abs(down.endpos[2] - at.z) > 1.5f)
                 {
                     noFloor++;
@@ -842,8 +841,8 @@ int plan()
         }
         // A corner: a wall beside the spot, along its own wall (either way), and how far.
         const glm::vec3 side = s.at + glm::vec3{s.out * 8.f, 6.f};
-        const trace_t plus = traceLine(side, side + glm::vec3{s.along * 36.f, 0.f});
-        const trace_t minus = traceLine(side, side - glm::vec3{s.along * 36.f, 0.f});
+        const trace_t plus = worldtrace::serverLine(side, side + glm::vec3{s.along * 36.f, 0.f});
+        const trace_t minus = worldtrace::serverLine(side, side - glm::vec3{s.along * 36.f, 0.f});
         const bool corner = plus.fraction < 1.f || minus.fraction < 1.f;
         if(pl.rng.uniform() >= chance * (corner ? cornerMult : 1.f))
         {
@@ -1189,7 +1188,7 @@ int putPlaced(edict_t* e)
     for(int k = -1; k < 4; k++)
     {
         const glm::vec3 p = k < 0 ? at : pts[k];
-        const trace_t down = traceLine(p + glm::vec3{0.f, 0.f, 1.f}, p - glm::vec3{0.f, 0.f, 128.f});
+        const trace_t down = worldtrace::serverLine(p + glm::vec3{0.f, 0.f, 1.f}, p - glm::vec3{0.f, 0.f, 128.f});
         if(!down.startsolid && down.fraction < 1.f)
         {
             top = za::max(top, down.endpos[2]);

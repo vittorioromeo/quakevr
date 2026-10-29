@@ -588,12 +588,12 @@ void debugFrame()
         }
         PR_SwitchQCVM(&sv.qcvm);
     }
-    const int stateOfs = ED_FindFieldOffset("stl_state");
-    const int phaseOfs = ED_FindFieldOffset("stl_phase");
-    const int meterOfs = ED_FindFieldOffset("stl_meter");
-    const int lostOfs = ED_FindFieldOffset("stl_lost_time");
-    const int trailOfs = ED_FindFieldOffset("stl_trail");
-    const int classOfs = ED_FindFieldOffset("stl_class");
+    const int stateOfs = progs::fields().stl_state;
+    const int phaseOfs = progs::fields().stl_phase;
+    const int meterOfs = progs::fields().stl_meter;
+    const int lostOfs = progs::fields().stl_lost_time;
+    const int trailOfs = progs::fields().stl_trail;
+    const int classOfs = progs::fields().stl_class;
     const glm::vec3 head = hands::current().head;
     if(meterOfs >= 0)
     {

@@ -118,7 +118,7 @@ void describeHand(za::String& out, edict_t* player, int hand)
     }
     out += va(", ammo %.0f (counter %.0f)\n", ammo, counter);
 
-    if(edict_t* held = entityOf(progs::fieldInt(player, main ? f.mainhand_held : f.offhand_held)))
+    if(edict_t* held = entityOf(progs::fieldInt(player, progs::handFields(main).held)))
     {
         out += va("%s held: %s (%s) #%d\n", h, modelOf(held), PR_GetString(held->v.classname), NUM_FOR_EDICT(held));
     }
@@ -162,7 +162,7 @@ void describeNearby(za::String& out, edict_t* player)
         }
     }
     za::quickSort(closeBy.begin(), closeBy.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
-    const int agOfs = ED_FindFieldOffset("vr_ag");
+    const int agOfs = progs::fields().vr_ag;
     for(const auto& [d, i] : closeBy)
     {
         edict_t* e = EDICT_NUM(i);

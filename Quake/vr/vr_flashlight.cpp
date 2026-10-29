@@ -1328,14 +1328,6 @@ void sound(const char* name, const glm::vec3& point)
     }
 }
 
-void haptic(int hand, float seconds, float amplitude)
-{
-    if(Backend* be = backend(); be && !vr_disablehaptics.value)
-    {
-        be->haptic(hand, seconds, 160.f, amplitude);
-    }
-}
-
 void toggle(int hand)
 {
     st.on = !st.on;
@@ -1343,7 +1335,7 @@ void toggle(int hand)
     sound(st.on ? "vr/flashlight_on.wav" : "vr/flashlight_off.wav", shape().switchAt);
     if(hand >= 0)
     {
-        haptic(hand, 0.03f, 0.55f);
+        haptics::pulse(hand, 0.03f, 0.55f);
     }
 }
 
@@ -1386,7 +1378,7 @@ void take(int hand)
     chooseGrip(hand);
     st.mode = Mode::Held;
     st.holder = hand;
-    haptic(hand, 0.05f, 0.45f);
+    haptics::pulse(hand, 0.05f, 0.45f);
 }
 
 // Into the other hand, from the hand holding it (or just let go of): switched as it was, in the grip nearer its beam
@@ -1417,7 +1409,7 @@ void handOver(const hands::State& s, int hand)
     Con_DPrintf("flashlight: passed to the %s hand (%s)\n", hand == HAND_MAIN ? "main" : "off", st.on ? "on" : "off");
     if(st.mode == Mode::Held)
     {
-        haptic(st.holder, 0.03f, 0.3f);
+        haptics::pulse(st.holder, 0.03f, 0.3f);
     }
     sound("vr/flashlight_grab.wav", glm::vec3{0.f}); // (taken by the other hand: the same cue)
     chooseGrip(hand);
@@ -1427,7 +1419,7 @@ void handOver(const hands::State& s, int hand)
     const glm::quat inv = glm::inverse(to.rot);
     st.handOverFrom = {inv * (from.pos - to.pos), glm::normalize(inv * from.rot)};
     st.handOverAt = vr_gametime;
-    haptic(hand, 0.05f, 0.45f);
+    haptics::pulse(hand, 0.05f, 0.45f);
 }
 
 void letGo(const hands::State& s, const Pose& mount)
@@ -1468,7 +1460,7 @@ void flip(int hand)
     st.flipAt[hand] = vr_gametime - flipTime * (1.f - remaining);
     Con_DPrintf("flashlight: %s grip in the %s hand\n", st.overhead[hand] ? "overhead" : "low", hand == HAND_MAIN ? "main" : "off");
     sound("vr/flashlight_flip.wav", glm::vec3{0.f});
-    haptic(hand, 0.025f, 0.3f);
+    haptics::pulse(hand, 0.025f, 0.3f);
 }
 
 // Once a frame (voice note vrfiringrange 17:28): a sharp flick of the wrist up or down turns the torch held in a hand
@@ -1562,10 +1554,10 @@ void clipOn(int gunHand, const view::WeaponMount& m)
     startClipEase();
     Con_DPrintf("flashlight: clipped on the %s hand's gun\n", gunHand == HAND_MAIN ? "main" : "off");
     sound("vr/flashlight_attach.wav", glm::vec3{0.f});
-    haptic(gunHand, 0.04f, 0.6f);
+    haptics::pulse(gunHand, 0.04f, 0.6f);
     if(hand >= 0)
     {
-        haptic(hand, 0.04f, 0.6f);
+        haptics::pulse(hand, 0.04f, 0.6f);
     }
 }
 
@@ -1582,7 +1574,7 @@ void clipOnHead(float side)
     sound("vr/flashlight_attach.wav", glm::vec3{0.f});
     if(hand >= 0)
     {
-        haptic(hand, 0.04f, 0.6f);
+        haptics::pulse(hand, 0.04f, 0.6f);
     }
 }
 
@@ -1652,7 +1644,7 @@ void clipOff(const hands::State& s, int hand)
     sound("vr/flashlight_detach.wav", glm::vec3{0.f});
     if(gunHand >= 0)
     {
-        haptic(gunHand, 0.03f, 0.4f);
+        haptics::pulse(gunHand, 0.03f, 0.4f);
     }
     if(hand >= 0)
     {
@@ -2402,7 +2394,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         }
         if(inReach && !st.nearGun)
         {
-            haptic(st.holder, 0.015f, 0.25f);
+            haptics::pulse(st.holder, 0.015f, 0.25f);
         }
         st.nearGun = inReach;
 
@@ -2411,7 +2403,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         const bool atHead = key_dest == key_game && !inReach && headDistance(s, p, side) < headZone(s).radius;
         if(atHead && !st.nearHead)
         {
-            haptic(st.holder, 0.015f, 0.25f);
+            haptics::pulse(st.holder, 0.015f, 0.25f);
         }
         st.nearHead = atHead;
         st.nearHeadSide = side;
@@ -2484,7 +2476,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         const bool atLamp = key_dest == key_game && reachesLamp(game, hand);
         if(atLamp && !st.hovered[hand])
         {
-            haptic(hand, 0.015f, 0.2f);
+            haptics::pulse(hand, 0.015f, 0.2f);
         }
         st.hovered[hand] = atLamp;
         st.drawnAt[hand] = st.mode != Mode::Held && hand != st.gunHand && handAt(s, hand); // (vr_flashlight_probe)

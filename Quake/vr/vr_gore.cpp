@@ -1,6 +1,7 @@
 // vr_gore.cpp -- see vr_gore.hpp.
 
 #include "vr_gore.hpp"
+#include "vr_trace.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_goresound.hpp"
 #include "vr_cvars.hpp"
@@ -88,9 +89,7 @@ lightcache_t dropLight{}; // dropColor's light lookup (the client's frame)
 
 [[nodiscard]] bool inLiquid(const glm::vec3& p)
 {
-    vec3_t v = {p.x, p.y, p.z};
-    const mleaf_t* leaf = Mod_PointInLeaf(v, cl.worldmodel);
-    return leaf && leaf->contents < CONTENTS_SOLID; // water, slime, lava
+    return worldtrace::clientContents(p) < CONTENTS_SOLID; // water, slime, lava (sky, currents)
 }
 
 // ---- Lines of blood flung out by a hit or a burst, traced a few a frame --------------------------
