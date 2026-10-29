@@ -22,6 +22,7 @@
 #include "vr_mdldequant.hpp"
 #include "vr_rig2.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -46,7 +47,7 @@ namespace qvr::agarmor
 namespace
 {
 
-constexpr float pi = 3.14159265358979f;
+using geom::pi;
 constexpr int maxWorn = 128;  // armour entities a frame (up to three a body: P2's wear)
 constexpr int maxSlots = 128; // the armour model's bones (each piece's bones its own)
 constexpr int maxNamed = 256; // vr_agarmor_set's entities
@@ -123,12 +124,6 @@ struct W
     return best;
 }
 
-[[nodiscard]] glm::vec3 safeNormalize(const glm::vec3& v, const glm::vec3& fallback)
-{
-    const float l = glm::length(v);
-    return l > 1e-6f ? v / l : fallback;
-}
-
 // (a, b) -> slot: an open-addressed map of an undirected edge to a vertex or a count.
 struct EdgeMap
 {
@@ -199,7 +194,7 @@ void normalsOf(const za::Vector<glm::vec3>& p, const za::Vector<int>& tris, za::
     }
     for(glm::vec3& x : n)
     {
-        x = safeNormalize(x, glm::vec3{0.f, 0.f, 1.f});
+        x = geom::safeNormalize(x, glm::vec3{0.f, 0.f, 1.f}, 1e-6f);
     }
 }
 
@@ -327,7 +322,7 @@ struct PieceFrame
         if(f.ok)
         {
             f.origin = rig.bones[s].pivot;
-            f.up = safeNormalize(rig.bones[c].end - rig.bones[s].pivot, glm::vec3{0.f, 0.f, 1.f});
+            f.up = geom::safeNormalize(rig.bones[c].end - rig.bones[s].pivot, glm::vec3{0.f, 0.f, 1.f}, 1e-6f);
             f.length = glm::length(rig.bones[c].end - rig.bones[s].pivot);
         }
     }
@@ -340,7 +335,7 @@ struct PieceFrame
         if(f.ok)
         {
             const glm::vec3 d = rig.bones[b].end - rig.bones[b].pivot;
-            f.up = safeNormalize(d, glm::vec3{0.f, 0.f, 1.f});
+            f.up = geom::safeNormalize(d, glm::vec3{0.f, 0.f, 1.f}, 1e-6f);
             f.length = za::max(glm::length(d), 1.f);
             f.origin = rig.bones[b].pivot;
         }
@@ -353,12 +348,12 @@ struct PieceFrame
         if(f.ok)
         {
             const glm::vec3 d = rig.bones[h].end - rig.bones[h].pivot;
-            f.up = safeNormalize(d, glm::vec3{0.f, 0.f, 1.f});
+            f.up = geom::safeNormalize(d, glm::vec3{0.f, 0.f, 1.f}, 1e-6f);
             f.length = za::max(glm::length(d), 1.f);
             f.origin = rig.bones[h].pivot;
         }
     }
-    f.fwd = safeNormalize(glm::vec3{1.f, 0.f, 0.f} - f.up * f.up.x, glm::vec3{1.f, 0.f, 0.f});
+    f.fwd = geom::safeNormalize(glm::vec3{1.f, 0.f, 0.f} - f.up * f.up.x, glm::vec3{1.f, 0.f, 0.f}, 1e-6f);
     f.left = glm::cross(f.up, f.fwd);
     return f;
 }
@@ -768,7 +763,7 @@ void shellOf(Shell& s, Local& L, const PieceFrame& f, int piece)
         const int a = at(openEdges, e), b = at(openEdges, e + 1);
         const glm::vec3 oa = at(L.p, a) + at(n, a) * (gap + thick), ob = at(L.p, b) + at(n, b) * (gap + thick);
         const glm::vec3 ia = at(L.p, a) + at(n, a) * gap, ib = at(L.p, b) + at(n, b) * gap;
-        const glm::vec3 face = safeNormalize(glm::cross(ia - oa, ib - oa), at(n, a));
+        const glm::vec3 face = geom::safeNormalize(glm::cross(ia - oa, ib - oa), at(n, a), 1e-6f);
         const glm::vec3 places[4] = {oa, ia, ib, ob};
         const int from[4] = {a, a, b, b};
         const float vb[4] = {0.1f, 0.9f, 0.9f, 0.1f};
@@ -859,7 +854,7 @@ struct HelmBuild
     void face(const glm::vec3* p, const glm::vec2* st, int n, int layer)
     {
         const glm::vec3 a = toModel(p[0]), b = toModel(p[1]), c = toModel(p[2]);
-        const glm::vec3 nrm = safeNormalize(glm::cross(b - a, c - a), up);
+        const glm::vec3 nrm = geom::safeNormalize(glm::cross(b - a, c - a), up, 1e-6f);
         const int first = count(s.verts);
         for(int k = 0; k < n; k++)
         {
@@ -2338,8 +2333,8 @@ struct PlateFrame
 
 [[nodiscard]] glm::mat3 frameFrom(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
 {
-    const glm::vec3 x = safeNormalize(b - a, glm::vec3{1.f, 0.f, 0.f});
-    const glm::vec3 z = safeNormalize(glm::cross(x, c - a), glm::vec3{0.f, 0.f, 1.f});
+    const glm::vec3 x = geom::safeNormalize(b - a, glm::vec3{1.f, 0.f, 0.f}, 1e-6f);
+    const glm::vec3 z = geom::safeNormalize(glm::cross(x, c - a), glm::vec3{0.f, 0.f, 1.f}, 1e-6f);
     return glm::mat3{x, glm::cross(z, x), z};
 }
 
@@ -2388,7 +2383,7 @@ struct PlateFrame
         best = at(b.w, v).w[bone] > 0.5f && dist > best ? dist : best;
     }
     best = -1.f;
-    const glm::vec3 axis = safeNormalize(at(b.p, c) - at(b.p, a), glm::vec3{1.f, 0.f, 0.f});
+    const glm::vec3 axis = geom::safeNormalize(at(b.p, c) - at(b.p, a), glm::vec3{1.f, 0.f, 0.f}, 1e-6f);
     for(int v = 0; v < count(b.p); v++)
     {
         const glm::vec3 q = at(b.p, v) - at(b.p, a);

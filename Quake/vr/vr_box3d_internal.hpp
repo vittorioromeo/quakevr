@@ -151,8 +151,8 @@ enum class Kind : uint8_t
     Corpse,  // a dead monster lying still (vr_corpse_collide): kinematic (Fixed) or a heavy dynamic body (Pushable)
 };
 [[nodiscard]] const char* kindName(Kind k);
-[[nodiscard]] glm::vec3 vec(const float* v);
-void store(const glm::vec3& g, float* v);
+using geom::vec;
+using geom::store;
 [[nodiscard]] qmodel_t* modelOf(edict_t* ent);
 [[nodiscard]] bool hasFlag(edict_t* ent, int flag);
 void setFlag(edict_t* ent, int flag, bool on);

@@ -45,6 +45,7 @@
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -315,14 +316,6 @@ void reportLetGo(int holding, const char* why, float value, float limit, float s
     return hands::anglesFromVectors(turn(fwd), turn(up));
 }
 
-[[nodiscard]] float segmentDistance(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b)
-{
-    const glm::vec3 ab = b - a;
-    const float len2 = glm::dot(ab, ab);
-    const float t = len2 > 0.f ? za::clamp(glm::dot(p - a, ab) / len2, 0.f, 1.f) : 0.f;
-    return glm::distance(p, a + ab * t);
-}
-
 void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)
 {
     const glm::vec3 holdingPos = s.pos[holding];
@@ -367,7 +360,7 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
     {
         const glm::vec3 toTip = s.muzzle[holding] - holdingPos;
         bladeDist =
-            segmentDistance(s.pos[helping], holdingPos + toTip * bladeFrom, holdingPos + toTip * bladeTo) - bladeBias;
+            geom::segmentDistance(s.pos[helping], holdingPos + toTip * bladeFrom, holdingPos + toTip * bladeTo, nullptr, 0.f) - bladeBias;
     }
 
     bool held = false;

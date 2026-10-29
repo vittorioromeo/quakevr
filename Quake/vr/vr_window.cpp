@@ -30,6 +30,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <glm/gtc/quaternion.hpp>
 
@@ -43,10 +44,7 @@ View currentView = View::Raw;
 int currentEye = 0; // the eye shown (eye()): 0, 1, -1 both
 
 // OpenXR tracking space (+x right, +y up, -z forward) to Quake axes (+x forward, +y left, +z up).
-[[nodiscard]] glm::vec3 quakeFromTracking(const glm::vec3& v)
-{
-    return {-v.z, -v.x, v.y};
-}
+using geom::quakeFromTracking;
 
 // A tracking-space orientation as a turn of Quake axes (columns: forward, left, up), in tracking space.
 [[nodiscard]] glm::quat quakeTurn(const glm::quat& q)

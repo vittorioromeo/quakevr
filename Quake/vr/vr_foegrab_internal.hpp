@@ -43,6 +43,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <glm/gtc/constants.hpp>
 
@@ -175,7 +176,7 @@ struct Pin
     double last{-1.0};
 };
 inline Pin pins[2];
-[[nodiscard]] glm::vec3 vec(const float* v);
+using geom::vec;
 [[nodiscard]] glm::vec3 forwardFlat(edict_t* player);
 [[nodiscard]] const char* handName(int h);
 [[nodiscard]] float cm();

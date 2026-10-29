@@ -55,6 +55,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "vr_geom.hpp"
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -888,10 +889,7 @@ void levelAxes(const glm::vec3& dir, glm::vec3& fwd, glm::vec3& right)
     right = glm::vec3{fwd.y, -fwd.x, 0.f};
 }
 
-[[nodiscard]] float yawOf(const glm::vec3& dir)
-{
-    return glm::degrees(za::atan2(dir.y, dir.x));
-}
+using geom::yawOf;
 
 // How much of a change in a hand's (Euler) yaw counts as its way turning: all of it while it points within 60 degrees of
 // level, none past 80 (near straight up or down its yaw and roll trade off: a small tilt or twist swings the yaw, by a

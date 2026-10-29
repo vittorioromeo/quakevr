@@ -198,3 +198,22 @@ Test code stays out of releases: a QC file of tests (`*_test.qc`, listed in `pro
 the release packaging does), and every call or declaration of it from game code is wrapped the same way. A new test file:
 wrap it, and compile once with `-DQVR_NO_TESTS` (no errors allowed; the compile writes `quakevr/progs.dat`: build again
 for the development one).
+
+## Canonical helpers
+
+One implementation each; new code uses these, a local copy is a review finding. Other clusters add their own lists below.
+
+### Geometry and math (`Quake/vr/vr_geom.hpp`, namespace `qvr::geom`)
+
+- `geom::vec(const float*)` and `geom::store(vec3, float*)`: Quake `vec3_t` to/from `glm::vec3` (a file may write
+  `using geom::vec;` to keep the short name). Not yet merged: the `setVec(float*, vec3)` spellings (climb, foegrab, portals).
+- `geom::pi`, `geom::deg` (float pi; degrees to radians), `geom::up` (+z).
+- `geom::safeNormalize(v, fallback = up, eps = 1e-5f)`: pass the site's eps when it differs.
+- `geom::wrap180(a)` (round form, no loop: the old `while` wraps hung on inf/NaN), `geom::yawDelta(to, from)`,
+  `geom::yawOf(dir)`.
+- `geom::smooth01(t)`, `geom::smoothstep(e0, e1, x, minWidth)`, `geom::approachExp(now, target, dt, tau)`.
+- `geom::closestOnSegment(p, a, b, &t, eps)`, `geom::segmentDistance(p, a, b, &t, eps)`, `geom::closestOnTriangle`.
+- `geom::quakeFromTracking(v)`: tracking space to Quake axes.
+- Angles to axes and back: `held::axesFromAngles` / `held::anglesFromAxes` (vr_held.hpp); the rest of the angle helpers
+  are in `hands::`.
+- A matrix from a float[16]: `glm::make_mat4` (no local `toMat4`). Angle between two vectors: `still::degreesBetween`.

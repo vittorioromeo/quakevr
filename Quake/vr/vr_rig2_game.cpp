@@ -28,6 +28,7 @@
 #include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
 #include "vr_rigseq.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -49,7 +50,7 @@ namespace qvr::rig2
 namespace
 {
 
-constexpr float pi = 3.14159265358979f;
+using geom::pi;
 
 [[nodiscard]] rigpose::Rigid compose(const rigpose::Rigid& a, const rigpose::Rigid& b) // a after b
 {

@@ -19,6 +19,7 @@
 #include "vr_engine.hpp"
 #include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -59,19 +60,6 @@ struct State
     float vomitYawRef{0.f};
 };
 State state;
-
-[[nodiscard]] float wrap180(float a)
-{
-    while(a > 180.f)
-    {
-        a -= 360.f;
-    }
-    while(a < -180.f)
-    {
-        a += 360.f;
-    }
-    return a;
-}
 
 [[nodiscard]] edict_t* serverEdict(int num)
 {
@@ -236,11 +224,11 @@ void update(const hands::State& s)
         state.anchor += (state.headEyes - state.anchor) * k;
         if(vr_death_view_turn.value != 0.f)
         {
-            const float want = wrap180(state.headYaw - state.yawRef);
-            float step = wrap180(want - state.yaw) * k;
+            const float want = geom::wrap180(state.headYaw - state.yawRef);
+            float step = geom::wrap180(want - state.yaw) * k;
             const float most = za::max(vr_death_view_turn_speed.value, 0.f) * dt;
             step = za::clamp(step, -most, most);
-            state.yaw = wrap180(state.yaw + step);
+            state.yaw = geom::wrap180(state.yaw + step);
         }
         else
         {
@@ -297,7 +285,7 @@ void eyeView(const hands::State& s, int eye, glm::vec3& origin, glm::vec3& angle
             state.vomitYawRef = angles.y;
         }
         const glm::mat3 own = hands::basisOf(angles); // (forward, left, up)
-        const glm::mat3 rel = hands::basisOf(glm::vec3{angles.x, wrap180(angles.y - state.vomitYawRef), angles.z});
+        const glm::mat3 rel = hands::basisOf(glm::vec3{angles.x, geom::wrap180(angles.y - state.vomitYawRef), angles.z});
         const glm::quat full = glm::normalize(state.headRot * glm::quat_cast(rel));
         const glm::mat3 view = glm::mat3_cast(full);
         const glm::vec3 spacing = glm::transpose(own) * (origin - s.head);

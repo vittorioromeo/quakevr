@@ -39,6 +39,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
+#include <glm/gtc/type_ptr.hpp>
 
 
 namespace qvr::modelcollide
@@ -234,16 +235,6 @@ struct Lerped
     return l;
 }
 
-[[nodiscard]] glm::mat4 toMat4(const float m[16])
-{
-    glm::mat4 r;
-    for(int c = 0; c < 16; c++)
-    {
-        r[c / 4][c % 4] = m[c];
-    }
-    return r;
-}
-
 // The pose of an alias model's frame that `pose` is in (its bounds), or -1.
 [[nodiscard]] int frameOfPose(const aliashdr_t* hdr, int pose)
 {
@@ -372,7 +363,7 @@ const Posed* posed(int num, const entity_t& e)
         blo = glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
         bhi = glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
     }
-    p.m = toMat4(m16);
+    p.m = glm::make_mat4(m16);
     p.lo = glm::vec3{1e30f};
     p.hi = glm::vec3{-1e30f};
     for(int c = 0; c < 8; c++)

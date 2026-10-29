@@ -9,6 +9,7 @@
 #include "vr_files.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_rigdata.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -35,8 +36,8 @@ namespace qvr::rig2
 namespace
 {
 
-constexpr float pi = 3.14159265358979f;
-constexpr float deg = pi / 180.f;
+using geom::pi;
+using geom::deg;
 constexpr const char* skinnedSuffix = "#rig2";
 
 struct Entry
@@ -186,12 +187,6 @@ void vec(za::String& out, const glm::vec3& v)
     num(out, v.z);
 }
 
-[[nodiscard]] glm::vec3 safeNormalize(const glm::vec3& v, const glm::vec3& fallback)
-{
-    const float l = glm::length(v);
-    return l > 1e-6f ? v / l : fallback;
-}
-
 // A ball joint's frame: its swing's zero `n`, its swings' axes (turning n toward fwd, toward side).
 struct Frame
 {
@@ -202,10 +197,10 @@ struct Frame
 [[nodiscard]] Frame frameOf(const Bone& b)
 {
     Frame fr;
-    fr.n = safeNormalize(b.neutral, glm::vec3{0.f, 0.f, -1.f});
+    fr.n = geom::safeNormalize(b.neutral, glm::vec3{0.f, 0.f, -1.f}, 1e-6f);
     const glm::vec3 helper = za::abs(fr.n.x) < 0.9f ? glm::vec3{1.f, 0.f, 0.f} : glm::vec3{0.f, 1.f, 0.f};
-    fr.f = safeNormalize(b.fwd - fr.n * glm::dot(b.fwd, fr.n), glm::normalize(glm::cross(fr.n, helper)));
-    fr.s = safeNormalize(b.side - fr.n * glm::dot(b.side, fr.n) - fr.f * glm::dot(b.side, fr.f), glm::cross(fr.n, fr.f));
+    fr.f = geom::safeNormalize(b.fwd - fr.n * glm::dot(b.fwd, fr.n), glm::normalize(glm::cross(fr.n, helper)), 1e-6f);
+    fr.s = geom::safeNormalize(b.side - fr.n * glm::dot(b.side, fr.n) - fr.f * glm::dot(b.side, fr.f), glm::cross(fr.n, fr.f), 1e-6f);
     fr.axF = glm::cross(fr.n, fr.f);
     fr.axS = glm::cross(fr.n, fr.s);
     return fr;
@@ -224,18 +219,18 @@ struct Frame
         return glm::vec3{0.f, 0.f, 1.f};
     }
     const Bone& p = rig.bones[bone.parent];
-    return safeNormalize(bone.pivot - p.pivot, safeNormalize(p.end - p.pivot, glm::vec3{0.f, 0.f, 1.f}));
+    return geom::safeNormalize(bone.pivot - p.pivot, geom::safeNormalize(p.end - p.pivot, glm::vec3{0.f, 0.f, 1.f}, 1e-6f), 1e-6f);
 }
 
 [[nodiscard]] glm::vec3 boneDir(const Bone& b)
 {
-    return safeNormalize(b.end - b.pivot, glm::vec3{0.f, 0.f, 1.f});
+    return geom::safeNormalize(b.end - b.pivot, glm::vec3{0.f, 0.f, 1.f}, 1e-6f);
 }
 
 // A hinge's bend of direction `d` from its parent's `pd` about `axis` (degrees; both projected on its plane).
 [[nodiscard]] float bendOf(const glm::vec3& axis, const glm::vec3& pd, const glm::vec3& d)
 {
-    const glm::vec3 a = safeNormalize(axis, glm::vec3{0.f, 1.f, 0.f});
+    const glm::vec3 a = geom::safeNormalize(axis, glm::vec3{0.f, 1.f, 0.f}, 1e-6f);
     const glm::vec3 p = pd - a * glm::dot(pd, a);
     const glm::vec3 q = d - a * glm::dot(d, a);
     return za::atan2(glm::dot(glm::cross(p, q), a), glm::dot(p, q)) / deg;
@@ -382,7 +377,7 @@ void forward(const Rig& rig, const Pose& pose, rigpose::Rigid* out)
         }
         else if(bone.joint == Joint::Hinge)
         {
-            R = glm::angleAxis((pose.a[b].x - restAngles(rig, b).x) * deg, safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f}));
+            R = glm::angleAxis((pose.a[b].x - restAngles(rig, b).x) * deg, geom::safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f}, 1e-6f));
         }
         rigpose::Rigid L;
         L.rot = R;
@@ -403,7 +398,7 @@ void forward(const Rig& rig, const Pose& pose, rigpose::Rigid* out)
 glm::vec3 aimAngles(const Rig& rig, int b, const rigpose::Rigid& Fparent, const glm::vec3& dir, const glm::vec3& current)
 {
     const Bone& bone = rig.bones[b];
-    const glm::vec3 d = safeNormalize(glm::inverse(Fparent.rot) * dir, boneDir(bone)); // (in the rest pose's space)
+    const glm::vec3 d = geom::safeNormalize(glm::inverse(Fparent.rot) * dir, boneDir(bone), 1e-6f); // (in the rest pose's space)
     if(bone.joint == Joint::Ball)
     {
         const Frame fr = frameOf(bone);
@@ -435,7 +430,7 @@ glm::quat localOf(const Rig& rig, int b, const glm::vec3& angles)
     }
     if(bone.joint == Joint::Hinge)
     {
-        return glm::angleAxis((angles.x - restAngles(rig, b).x) * deg, safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f}));
+        return glm::angleAxis((angles.x - restAngles(rig, b).x) * deg, geom::safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f}, 1e-6f));
     }
     return glm::quat{1.f, 0.f, 0.f, 0.f};
 }
@@ -461,7 +456,7 @@ glm::vec3 anglesOf(const Rig& rig, int b, const glm::quat& local)
     }
     if(bone.joint == Joint::Hinge)
     {
-        const glm::vec3 axis = safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f});
+        const glm::vec3 axis = geom::safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f}, 1e-6f);
         glm::quat q = glm::normalize(local);
         q = q.w < 0.f ? -q : q;
         const float tw = 2.f * za::atan2(glm::dot(glm::vec3{q.x, q.y, q.z}, axis), q.w);
@@ -484,9 +479,9 @@ glm::mat3 keyAxes(const Rig& rig, int b)
     }
     if(bone.joint == Joint::Hinge)
     {
-        const glm::vec3 x = safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f});
+        const glm::vec3 x = geom::safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f}, 1e-6f);
         const glm::vec3 d = boneDir(bone);
-        const glm::vec3 z = safeNormalize(d - x * glm::dot(d, x), za::abs(x.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f});
+        const glm::vec3 z = geom::safeNormalize(d - x * glm::dot(d, x), za::abs(x.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f}, 1e-6f);
         const glm::vec3 zz = glm::normalize(z - x * glm::dot(z, x));
         return glm::mat3{x, glm::cross(zz, x), zz};
     }
@@ -533,7 +528,7 @@ PhysJoint physJoint(const Rig& rig, int b)
     }
     else if(bone.joint == Joint::Hinge)
     {
-        const glm::vec3 axis = safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f});
+        const glm::vec3 axis = geom::safeNormalize(bone.axis, glm::vec3{0.f, 1.f, 0.f}, 1e-6f);
         const glm::vec3 z{0.f, 0.f, 1.f};
         const float c = glm::dot(z, axis);
         const glm::vec3 cr = glm::cross(z, axis);

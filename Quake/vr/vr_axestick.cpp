@@ -39,6 +39,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <stdarg.h>
 #include <string.h>
@@ -90,17 +91,9 @@ enum Kind : int
     MonsterBox = 4, // a monster without a model to go by (vr_hit_precise off): its origin and yaw
 };
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
-void store(const glm::vec3& v, float* out)
-{
-    out[0] = v.x;
-    out[1] = v.y;
-    out[2] = v.z;
-}
+using geom::store;
 
 [[nodiscard]] qmodel_t* modelOf(edict_t* ent)
 {

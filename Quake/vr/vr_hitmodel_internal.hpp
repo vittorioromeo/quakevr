@@ -50,10 +50,7 @@
 namespace qvr::hitmodel::detail
 {
 
-[[nodiscard]] inline glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 struct Stats
 {

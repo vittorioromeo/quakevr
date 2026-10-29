@@ -9,6 +9,7 @@
 #include "vr_agpose.hpp"
 #include "vr_poselive.hpp"
 #include "vr_cvars.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -29,7 +30,7 @@ using namespace qvr;
 namespace
 {
 
-constexpr float pi = 3.14159265f;
+using geom::pi;
 constexpr float wristBack = 0.34f;   // the wrist: this share of the forearm bone's length back from its end (its hand)
 constexpr float wristBand = 0.16f;   // the wrist's: this share of the forearm's, mostly on the forearm's side
 constexpr float shoulderIn = 0.12f;  // the shoulder's blend into the body: from this share of the upper arm inside it
@@ -184,12 +185,6 @@ struct State
 };
 State state;
 
-[[nodiscard]] float smoothstep(float a, float b, float x)
-{
-    const float t = za::clamp((x - a) / za::max(b - a, 1e-4f), 0.f, 1.f);
-    return t * t * (3.f - 2.f * t);
-}
-
 [[nodiscard]] glm::vec3 norm(const glm::vec3& v, const glm::vec3& fallback)
 {
     const float l = glm::length(v);
@@ -230,17 +225,7 @@ State state;
     return along >= -0.45f && along <= 0.45f && out >= -0.1f * Lu;
 }
 
-[[nodiscard]] float segmentDistance(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, float* tOut = nullptr)
-{
-    const glm::vec3 ab = b - a;
-    const float len2 = glm::dot(ab, ab);
-    const float t = len2 > 1e-6f ? za::clamp(glm::dot(p - a, ab) / len2, 0.f, 1.f) : 0.f;
-    if(tOut)
-    {
-        *tOut = t;
-    }
-    return glm::length(p - (a + t * ab));
-}
+using geom::segmentDistance;
 
 [[nodiscard]] rigpose::Rigid compose(const rigpose::Rigid& a, const rigpose::Rigid& b)
 {
@@ -614,15 +599,15 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
         const float bW = wristBand * sd.Lf;
         const float u4 = za::max(dU, 0.2f) * za::max(dU, 0.2f), f4 = za::max(dF, 0.2f) * za::max(dF, 0.2f);
         const float wF = (u4 * u4) / (u4 * u4 + f4 * f4);
-        const float wH = smoothstep(sd.Lu + sd.Lf - 1.4f * bW, sd.Lu + sd.Lf + 0.4f * bW, along);
+        const float wH = geom::smoothstep(sd.Lu + sd.Lf - 1.4f * bW, sd.Lu + sd.Lf + 0.4f * bW, along, 1e-4f);
         // (vr_agarms_shoulder_skin: none of the forearm's turn on the upper arm's top half: a vertex with any is drawn by
         // the elbow's blend, its share of the body moved straight towards the chest, and an arm raised folded the
         // shoulder's skin flat; the shoulder's blend turns it about the joint)
-        const float c = wH > 0.f ? 1.f + wH : wF * (shoulderSkin ? smoothstep(0.45f * sd.Lu, 0.75f * sd.Lu, along) : 1.f);
+        const float c = wH > 0.f ? 1.f + wH : wF * (shoulderSkin ? geom::smoothstep(0.45f * sd.Lu, 0.75f * sd.Lu, along, 1e-4f) : 1.f);
         row.x = 1.f + static_cast<float>(s) * 4.f + za::min(c, 2.f);
         // (vr_agarms_shoulder_skin: blended into the body about the joint itself, not over the upper arm's top half)
-        row.y = shoulderSkin ? 1.f - smoothstep(-jointIn * sd.Lu, jointOut * sd.Lu, along)
-                             : 1.f - smoothstep(-shoulderIn * sd.Lu, shoulderOut * sd.Lu, along);
+        row.y = shoulderSkin ? 1.f - geom::smoothstep(-jointIn * sd.Lu, jointOut * sd.Lu, along, 1e-4f)
+                             : 1.f - geom::smoothstep(-shoulderIn * sd.Lu, shoulderOut * sd.Lu, along, 1e-4f);
         sd.verts.pushBack(v);
         if(wH >= 1.f)
         {
@@ -814,8 +799,8 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
             const glm::vec3& p = m.rest[static_cast<za::SizeT>(v)];
             const glm::vec3 ks = sd.S - sd.K;
             const float t = glm::dot(p - sd.K, ks) / za::max(glm::dot(ks, ks), 1e-4f);
-            m.clav[static_cast<za::SizeT>(v)] = (1.f - smoothstep(0.5f * sd.Lu, 1.f * sd.Lu, glm::length(p - sd.S))) *
-                                                smoothstep(-0.2f, 0.6f, t) * smoothstep(sd.S.z - 0.6f * sd.Lu, sd.S.z - 0.2f * sd.Lu, p.z);
+            m.clav[static_cast<za::SizeT>(v)] = (1.f - geom::smoothstep(0.5f * sd.Lu, 1.f * sd.Lu, glm::length(p - sd.S), 1e-4f)) *
+                                                geom::smoothstep(-0.2f, 0.6f, t, 1e-4f) * geom::smoothstep(sd.S.z - 0.6f * sd.Lu, sd.S.z - 0.2f * sd.Lu, p.z, 1e-4f);
         }
     }
     for(int s = 0; s < 2; s++)
@@ -1747,7 +1732,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
             // (a weapon lying out of its reach: the hand comes from hanging towards it as it nears, not stretched at
             // it from afar)
             const float away = glm::length(rigpose::apply(Hm[s], sd.W) - S1) / (sd.Lu + sd.Lf);
-            Hm[s] = blendAbout(S1, sd.W, hang, Hm[s], 1.f - smoothstep(reachNear, reachFar, away));
+            Hm[s] = blendAbout(S1, sd.W, hang, Hm[s], 1.f - geom::smoothstep(reachNear, reachFar, away, 1e-4f));
         }
         pushOut(s, Hm[s]);
         // vr_agarms_jump_ease: a goal that jumps (on its chest: a weapon taken up into the carry, a kick, a key's
@@ -1771,7 +1756,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         if(st->easeT[s] < st->easeDur[s] && vr_agarms_jump_ease.value != 0.f)
         {
             st->easeT[s] += dt;
-            const float w = smoothstep(0.f, 1.f, st->easeT[s] / za::max(st->easeDur[s], 1e-3f));
+            const float w = geom::smoothstep(0.f, 1.f, st->easeT[s] / za::max(st->easeDur[s], 1e-3f), 1e-4f);
             const glm::quat turn = Hm[s].rot;
             Hm[s] = blendAbout(S1, sd.W, compose(C, st->easeFrom[s]), Hm[s], w);
             if(vr_agarms_aim_line.value != 0.f && g == Goal::Frame && !(s == 0 && t.reaching))
@@ -1848,7 +1833,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
                              st->grip2w > 0.f && dt > 0.f && t.goal[1] != Goal::Frame && !t.cup;
         st->grip2w = release ? za::max(0.f, st->grip2w - dt / secondEase) : 0.f;
         st->held2 = false;
-        const float w = smoothstep(0.f, 1.f, st->grip2w);
+        const float w = geom::smoothstep(0.f, 1.f, st->grip2w, 1e-4f);
         if(release && w > 0.001f)
         {
             const glm::vec3 S1 = rigpose::apply(C, m->side[1].S);
@@ -1951,7 +1936,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
             // ... and taken and let go over secondEase, the hand going round its shoulder between its free place and
             // the grip (pushed out of the body), not along the straight line through it.
             st->grip2w = dt > 0.f ? za::clamp(st->grip2w + (can ? dt : -dt) / secondEase, 0.f, 1.f) : (can ? 1.f : st->grip2w);
-            const float w = smoothstep(0.f, 1.f, st->grip2w);
+            const float w = geom::smoothstep(0.f, 1.f, st->grip2w, 1e-4f);
             st->grip2Rel = compose(inverse(C), hl);
             st->haveGrip2 = true;
             held2 = w >= 0.5f;

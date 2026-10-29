@@ -16,6 +16,7 @@
 #include "vr_server.hpp"
 #include "vr_stereo.hpp"
 #include "vr_view.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -138,10 +139,7 @@ bool eyeRectAll = true;
     return drawDepth > 0 ? path[drawDepth] : -1;
 }
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 [[nodiscard]] glm::mat3 turnAboutZ(float degrees)
 {

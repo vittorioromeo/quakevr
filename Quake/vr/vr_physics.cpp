@@ -40,6 +40,7 @@
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <stdlib.h>
 #include <string.h>
@@ -70,10 +71,7 @@ constexpr float easyHandTouchBonus = 4.5f;
     return fields();
 }
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 [[nodiscard]] bool finite(const glm::vec3& v)
 {

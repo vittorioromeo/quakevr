@@ -22,6 +22,7 @@
 #include "vr_engine.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -106,20 +107,6 @@ Test test;
 [[nodiscard]] edict_t* serverPlayer()
 {
     return sv.active && svs.maxclients >= 1 && svs.clients[0].active ? svs.clients[0].edict : nullptr;
-}
-
-[[nodiscard]] float yawDelta(float a, float b)
-{
-    float d = a - b;
-    while(d > 180.f)
-    {
-        d -= 360.f;
-    }
-    while(d < -180.f)
-    {
-        d += 360.f;
-    }
-    return d;
 }
 
 void pushKey(bool down)
@@ -262,9 +249,9 @@ void measure()
     edict_t* p = serverPlayer();
     if(test.mouse)
     {
-        mark(StageInput, za::fabs(yawDelta(cl.viewangles[YAW], test.yaw0)) > 0.01f);
-        mark(StageCmd, p && za::fabs(yawDelta(p->v.v_angle[YAW], test.svYaw0)) > 0.01f);
-        mark(StageView, za::fabs(yawDelta(r_refdef.viewangles[YAW], test.viewYaw0)) > 0.01f);
+        mark(StageInput, za::fabs(geom::yawDelta(cl.viewangles[YAW], test.yaw0)) > 0.01f);
+        mark(StageCmd, p && za::fabs(geom::yawDelta(p->v.v_angle[YAW], test.svYaw0)) > 0.01f);
+        mark(StageView, za::fabs(geom::yawDelta(r_refdef.viewangles[YAW], test.viewYaw0)) > 0.01f);
     }
     else
     {
@@ -291,7 +278,7 @@ void measure()
         if(speed > 50.f)
         {
             const float moveYaw = atan2f(p->v.velocity[1], p->v.velocity[0]) * 180.f / static_cast<float>(M_PI);
-            mark(StageAlong, za::fabs(yawDelta(moveYaw, cl.viewangles[YAW])) < 5.f);
+            mark(StageAlong, za::fabs(geom::yawDelta(moveYaw, cl.viewangles[YAW])) < 5.f);
         }
         if(test.keyHeld)
         {

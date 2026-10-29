@@ -17,6 +17,7 @@
 #include "vr_view.hpp"
 #include "vr_render.hpp"
 #include "vr_weapons.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
 
@@ -199,14 +200,7 @@ void countCost(long long ns)
     return out;
 }
 
-[[nodiscard]] float segmentDistance(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b)
-{
-    const glm::vec3 ab = b - a;
-    const float len2 = glm::dot(ab, ab);
-    const float t = len2 > 1e-6f ? za::clamp(glm::dot(p - a, ab) / len2, 0.f, 1.f) : 0.f;
-    const glm::vec3 d = p - (a + t * ab);
-    return za::sqrt(glm::dot(d, d));
-}
+using geom::segmentDistance;
 
 // The bone nearest `h` (posed model space), of region `want` if any is (else of any); loose bones never.
 [[nodiscard]] int nearestBone(const ragdoll::Rig& rig, const rigpose::Rigid* posed, const glm::vec3& h, int want)

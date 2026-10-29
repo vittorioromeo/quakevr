@@ -20,6 +20,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "vr_geom.hpp"
 
 namespace qvr::gearlights
 {
@@ -220,7 +221,7 @@ void pressButton(const hands::State& s, int hand)
 void ring(const glm::vec3& c, const glm::vec3& a, const glm::vec3& b, float r, const glm::vec4& colour)
 {
     constexpr int steps = 24;
-    constexpr float pi = 3.14159265f;
+    using geom::pi;
     for(int i = 0; i < steps; i++)
     {
         const float t0 = 2.f * pi * static_cast<float>(i) / steps;

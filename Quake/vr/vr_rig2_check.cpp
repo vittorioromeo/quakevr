@@ -17,6 +17,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -39,8 +40,8 @@ namespace qvr::rig2
 namespace
 {
 
-constexpr float pi = 3.14159265358979f;
-constexpr float deg = pi / 180.f;
+using geom::pi;
+using geom::deg;
 constexpr float foldLimit = 150.f;     // degrees between two triangles along a ridge (0 flat; 180 folded back onto itself)
 constexpr float foldGrowth = 60.f;     // ... more than at rest
 constexpr float collapseRatio = 0.1f;  // a triangle's area against its rest area

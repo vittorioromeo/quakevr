@@ -1506,7 +1506,7 @@ void headZone(const ZonePolygon& poly, int num, const glm::vec3& centre, float r
     const glm::vec3 side = glm::cross(normal, axis);
     ZonePolygon remaining = poly, in, out;
     constexpr int sides = 64;
-    constexpr float pi = 3.14159265f;
+    using geom::pi;
     const float apothem = r * za::cos(pi / sides);
     for(int i = 0; i < sides && remaining.size() >= 3; ++i)
     {
@@ -1534,7 +1534,7 @@ void capsuleZone(const ZonePolygon& poly, int num, const glm::vec3& bottom, cons
     headZone(above, num, top, radius, outside, 4, lift, fill);
     headZone(below, num, bottom, radius, outside, 4, lift, fill);
     constexpr int sides = 64;
-    constexpr float pi = 3.14159265f;
+    using geom::pi;
     const float apothem = radius * za::cos(pi / sides);
     ZonePolygon remaining = middle, in, out;
     for(int i = 0; i < sides && remaining.size() >= 3; ++i)
@@ -1722,7 +1722,7 @@ void zonesDraw()
                     width, c, c);
             }
         };
-        constexpr float pi = 3.14159265f;
+        using geom::pi;
         ring(top, f, l, 0.f, 2.f * pi);
         ring(top, f, u, 0.f, pi);
         ring(top, l, u, 0.f, pi);

@@ -6,6 +6,7 @@
 #include "vr_aglegs.hpp"
 #include "vr_agpose.hpp"
 #include "vr_cvars.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -28,7 +29,7 @@ using namespace qvr;
 namespace
 {
 
-constexpr float pi = 3.14159265f;
+using geom::pi;
 constexpr float d2r = pi / 180.f;
 constexpr int maxModels = 4;
 constexpr int maxEnts = 64;
@@ -151,12 +152,6 @@ struct State
 };
 State state;
 
-[[nodiscard]] float smoothstep(float a, float b, float x)
-{
-    const float t = za::clamp((x - a) / za::max(b - a, 1e-4f), 0.f, 1.f);
-    return t * t * (3.f - 2.f * t);
-}
-
 [[nodiscard]] glm::vec3 norm(const glm::vec3& v, const glm::vec3& fallback)
 {
     const float l = glm::length(v);
@@ -256,9 +251,9 @@ void weigh(const LegRest& L, int side, const glm::vec3& r, glm::vec4& row)
     const glm::vec3 dS = norm(L.A - L.K, glm::vec3{0.f, 0.f, -1.f});
     const glm::vec3 nk = norm(dT + dS, dS);
     const float bandK = 0.16f * L.L2 + 0.5f;
-    const float fK = smoothstep(-bandK, bandK, glm::dot(r - L.K, nk));
+    const float fK = geom::smoothstep(-bandK, bandK, glm::dot(r - L.K, nk), 1e-4f);
     const float bandA = 0.25f * (L.A.z - L.sole) + 0.3f;
-    const float fF = smoothstep(-bandA, bandA, L.A.z - r.z);
+    const float fF = geom::smoothstep(-bandA, bandA, L.A.z - r.z, 1e-4f);
     float bone = 0.f, f = 0.f, hip = 0.f;
     if(fF > 0.0005f)
     {
@@ -272,7 +267,7 @@ void weigh(const LegRest& L, int side, const glm::vec3& r, glm::vec4& row)
     }
     else
     {
-        hip = 1.f - smoothstep(-0.1f * L.L1, 0.35f * L.L1, glm::dot(r - L.H, dT));
+        hip = 1.f - geom::smoothstep(-0.1f * L.L1, 0.35f * L.L1, glm::dot(r - L.H, dT), 1e-4f);
     }
     row.x = 9.f + static_cast<float>(side) * 4.f + bone + za::min(f, 0.999f);
     row.y = hip;
@@ -630,7 +625,7 @@ void pose(const Model& m, Ent& st, const aglegs::Take& take, float dt, const glm
             stepEnd = 0.6f;
         }
         // (stepping there from its rest place: lifted on the way)
-        const float sp = smoothstep(stepAt, stepEnd, w);
+        const float sp = geom::smoothstep(stepAt, stepEnd, w, 1e-4f);
         glm::vec3 A = glm::mix(L.A, A1, sp);
         A.z += stepLift * hh * za::sin(pi * sp);
         const glm::vec3 restPole = rigpose::apply(st.pelvis, L.K);
@@ -752,7 +747,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, in
         st->side = take.side;
         st->kind = kind;
     }
-    const float target = want ? smoothstep(0.f, onUp, st->w) : 0.f;
+    const float target = want ? geom::smoothstep(0.f, onUp, st->w, 1e-4f) : 0.f;
     st->on = za::max(target, st->on - dt / onOut);
     if(st->on <= 0.f)
     {

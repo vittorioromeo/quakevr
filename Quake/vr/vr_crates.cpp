@@ -29,6 +29,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <string.h>
 
@@ -77,10 +78,7 @@ struct Rng
     float range(float a, float b) { return a + (b - a) * uniform(); }
 };
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 // The player's box (Quake's hull 1) from `a` to `b`, the level only.
 [[nodiscard]] trace_t tracePlayer(const glm::vec3& a, const glm::vec3& b)

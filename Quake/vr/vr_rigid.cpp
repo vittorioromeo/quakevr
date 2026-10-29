@@ -22,6 +22,7 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -34,18 +35,6 @@ using namespace qvr::progs;
 namespace
 {
 
-[[nodiscard]] glm::vec3 toGlm(const vec3_t v)
-{
-    return {v[0], v[1], v[2]};
-}
-
-void fromGlm(const glm::vec3& g, vec3_t v)
-{
-    v[0] = g.x;
-    v[1] = g.y;
-    v[2] = g.z;
-}
-
 [[nodiscard]] qmodel_t* modelOf(edict_t* ent)
 {
     const int index = static_cast<int>(ent->v.modelindex);
@@ -57,18 +46,6 @@ void fromGlm(const glm::vec3& g, vec3_t v)
 {
     const qmodel_t* model = modelOf(ent);
     return model && model->type == mod_brush;
-}
-
-// Model axes of an entity's angles as the renderer turns it (brush and alias models differ in
-// pitch), and back: see vr_held.hpp.
-[[nodiscard]] glm::mat3 axesFromAngles(const vec3_t angles, bool brush)
-{
-    return held::axesFromAngles(angles, brush);
-}
-
-void anglesFromAxes(const glm::mat3& m, vec3_t out, bool brush)
-{
-    held::anglesFromAxes(m, out, brush);
 }
 
 [[nodiscard]] glm::mat3 orthonormalize(const glm::mat3& m)
@@ -97,8 +74,8 @@ void makeLocalBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
     }
     if(!model || model->type != mod_alias)
     {
-        lo = toGlm(ent->v.mins);
-        hi = toGlm(ent->v.maxs);
+        lo = geom::vec(ent->v.mins);
+        hi = geom::vec(ent->v.maxs);
         if(static_cast<int>(ent->v.solid) != SOLID_BBOX) // (as vr_box3d.cpp's localBox)
         {
             const float size = props::drawnSize(model); // a brush item's Size (Held Object Offsets)
@@ -186,14 +163,14 @@ void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
 
 [[nodiscard]] const glm::mat3& shapeAxes(edict_t* ent, ShapeMemo& memo)
 {
-    const glm::vec3 angles = toGlm(ent->v.angles);
+    const glm::vec3 angles = geom::vec(ent->v.angles);
     if(!memo.axesValid || memo.angles != angles)
     {
-        memo.axes = axesFromAngles(ent->v.angles, memo.key.model && memo.key.model->type == mod_brush);
+        memo.axes = held::axesFromAngles(ent->v.angles, memo.key.model && memo.key.model->type == mod_brush);
         memo.angles = angles;
         memo.axesValid = true;
     }
-    if(vr_prop_query_verify.value && memo.axes != axesFromAngles(ent->v.angles, brushModel(ent)))
+    if(vr_prop_query_verify.value && memo.axes != held::axesFromAngles(ent->v.angles, brushModel(ent)))
     {
         Sys_Error("rigid axes cache changed entity %d", NUM_FOR_EDICT(ent));
     }
@@ -240,9 +217,9 @@ enum class Depth
     // of the level). Buried with both in a wall, free with neither. The box's middle alone is often outside the shape: a
     // nailgun resting against the firing range's south wall had it in the wall, and was put back every frame ("buried at
     // -233 -952", round 21); an axe sinking into the floor has it in first.
-    const glm::mat3 axes = axesFromAngles(ent->v.angles, brushModel(ent));
+    const glm::mat3 axes = held::axesFromAngles(ent->v.angles, brushModel(ent));
     const auto inSolid = [&](const glm::vec3& local) {
-        const glm::vec3 at = toGlm(ent->v.origin) + axes * local;
+        const glm::vec3 at = geom::vec(ent->v.origin) + axes * local;
         vec3_t c{at.x, at.y, at.z};
         return SV_PointContents(c) == CONTENTS_SOLID;
     };
@@ -275,14 +252,14 @@ void keepInWorld(edict_t* ent, bool rigid)
 
     // Resting where it was last found free: whether it is buried changes nothing (buried or not, it
     // stays and its free place is this one), so it is not asked (a trace every frame for every item).
-    if(place.valid && (static_cast<int>(ent->v.flags) & FL_ONGROUND) && toGlm(ent->v.origin) == place.origin)
+    if(place.valid && (static_cast<int>(ent->v.flags) & FL_ONGROUND) && geom::vec(ent->v.origin) == place.origin)
     {
         return;
     }
     const Depth depth = buried(ent, rigid);
     if(depth == Depth::Free)
     {
-        place.origin = toGlm(ent->v.origin);
+        place.origin = geom::vec(ent->v.origin);
         place.valid = true;
         return;
     }
@@ -297,7 +274,7 @@ void keepInWorld(edict_t* ent, bool rigid)
     }
     // Already put back there and still buried (a door or a lift moved in): moving it back again would
     // loop every frame. Leave it to fall or be moved.
-    if(toGlm(ent->v.origin) == place.origin)
+    if(geom::vec(ent->v.origin) == place.origin)
     {
         place.valid = false;
         return;
@@ -315,7 +292,7 @@ void keepInWorld(edict_t* ent, bool rigid)
     }
     Con_DPrintf("VR: %s buried at %.0f %.0f %.0f, back to %.0f %.0f %.0f\n", PR_GetString(ent->v.classname), ent->v.origin[0],
         ent->v.origin[1], ent->v.origin[2], place.origin.x, place.origin.y, place.origin.z);
-    fromGlm(place.origin, ent->v.origin);
+    geom::store(place.origin, ent->v.origin);
     VectorCopy(vec3_origin, ent->v.velocity);
     VectorCopy(vec3_origin, ent->v.avelocity);
     if(rigid)
@@ -383,7 +360,7 @@ void place_f()
         const glm::vec3 angles = fieldVec(player, main ? f.handrot : f.offhandrot);
         const glm::vec3 at = fieldVec(player, main ? f.handpos : f.offhandpos) +
                              held::axesFromAngles(&angles[0], true) * glm::vec3{arg(3), arg(4), arg(5)};
-        fromGlm(at, ent->v.origin);
+        geom::store(at, ent->v.origin);
         if(Cmd_Argc() >= 9)
         {
             for(int i = 0; i < 3; i++)
@@ -468,30 +445,30 @@ namespace qvr::physics
 void carryAngles(edict_t* ent, const float* handAngles, bool grab, float* out)
 {
     const bool brush = brushModel(ent);
-    const glm::mat3 hand = axesFromAngles(handAngles, true); // view angles: pitch as a brush model's
+    const glm::mat3 hand = held::axesFromAngles(handAngles, true); // view angles: pitch as a brush model's
     const int num = NUM_FOR_EDICT(ent);
     const auto it = carried.find(num);
     if(grab || it == carried.end())
     {
-        carried[num] = glm::transpose(hand) * axesFromAngles(ent->v.angles, brush);
+        carried[num] = glm::transpose(hand) * held::axesFromAngles(ent->v.angles, brush);
         VectorCopy(ent->v.angles, out);
         return;
     }
-    anglesFromAxes(orthonormalize(hand * it->second), out, brush);
+    held::anglesFromAxes(orthonormalize(hand * it->second), out, brush);
 }
 
 void setCarryTurn(edict_t* ent, const float* handAngles, const glm::mat3& turnInHand)
 {
     const bool brush = brushModel(ent);
     carried[NUM_FOR_EDICT(ent)] = turnInHand;
-    anglesFromAxes(orthonormalize(axesFromAngles(handAngles, true) * turnInHand), ent->v.angles, brush);
+    held::anglesFromAxes(orthonormalize(held::axesFromAngles(handAngles, true) * turnInHand), ent->v.angles, brush);
 }
 
 bool pointInModelBox(edict_t* ent, const glm::vec3& p, float margin)
 {
     ShapeMemo& memo = shapeOf(ent);
     const glm::vec3 lo = memo.lo, hi = memo.hi;
-    const glm::vec3 local = glm::transpose(shapeAxes(ent, memo)) * (p - toGlm(ent->v.origin));
+    const glm::vec3 local = glm::transpose(shapeAxes(ent, memo)) * (p - geom::vec(ent->v.origin));
     // Thin things (a dropped gun) at least 6 units thick, so a hand can still find them.
     const glm::vec3 half = glm::max((hi - lo) * 0.5f, glm::vec3{3.f}) + glm::vec3{margin};
     return glm::all(glm::lessThanEqual(glm::abs(local - (lo + hi) * 0.5f), half));
@@ -501,10 +478,10 @@ glm::vec3 modelCentre(edict_t* ent)
 {
     if(!modelOf(ent) || box3d::isRagdoll(NUM_FOR_EDICT(ent))) // (a ragdoll's box: round its parts, vr_box3d.cpp)
     {
-        return toGlm(ent->v.origin) + (toGlm(ent->v.mins) + toGlm(ent->v.maxs)) * 0.5f;
+        return geom::vec(ent->v.origin) + (geom::vec(ent->v.mins) + geom::vec(ent->v.maxs)) * 0.5f;
     }
     ShapeMemo& memo = shapeOf(ent);
-    return toGlm(ent->v.origin) + shapeAxes(ent, memo) * ((memo.lo + memo.hi) * 0.5f);
+    return geom::vec(ent->v.origin) + shapeAxes(ent, memo) * ((memo.lo + memo.hi) * 0.5f);
 }
 
 void testModelQueries()
@@ -525,15 +502,15 @@ void testModelQueries()
         const auto check = [&] {
             glm::vec3 lo, hi;
             makeLocalBox(ent, lo, hi);
-            const glm::mat3 axes = axesFromAngles(ent->v.angles, brushModel(ent));
+            const glm::mat3 axes = held::axesFromAngles(ent->v.angles, brushModel(ent));
             const glm::vec3 expected = !modelOf(ent) || box3d::isRagdoll(num)
-                ? toGlm(ent->v.origin) + (toGlm(ent->v.mins) + toGlm(ent->v.maxs)) * 0.5f
-                : toGlm(ent->v.origin) + axes * ((lo + hi) * 0.5f);
+                ? geom::vec(ent->v.origin) + (geom::vec(ent->v.mins) + geom::vec(ent->v.maxs)) * 0.5f
+                : geom::vec(ent->v.origin) + axes * ((lo + hi) * 0.5f);
             if(modelCentre(ent) != expected) { Sys_Error("model centre cache differs at %d", num); }
             for(const glm::vec3 delta : {glm::vec3{0.f}, glm::vec3{2.f}, glm::vec3{-8.f}, glm::vec3{128.f}})
             {
                 const glm::vec3 point = expected + delta;
-                const glm::vec3 local = glm::transpose(axes) * (point - toGlm(ent->v.origin));
+                const glm::vec3 local = glm::transpose(axes) * (point - geom::vec(ent->v.origin));
                 const glm::vec3 half = glm::max((hi - lo) * 0.5f, glm::vec3{3.f}) + glm::vec3{2.f};
                 const bool inside = glm::all(glm::lessThanEqual(glm::abs(local - (lo + hi) * 0.5f), half));
                 if(pointInModelBox(ent, point, 2.f) != inside) { Sys_Error("model point query differs at %d", num); }

@@ -9,6 +9,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -85,11 +86,7 @@ struct SvVm
     ~SvVm() { PR_PopQCVM(old); }
 };
 
-[[nodiscard]] float smooth01(float x)
-{
-    const float t = za::clamp(x, 0.f, 1.f);
-    return t * t * (3.f - 2.f * t);
-}
+using geom::smooth01;
 
 [[nodiscard]] int numberOf(const entity_t* e)
 {
