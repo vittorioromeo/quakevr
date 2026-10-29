@@ -48,11 +48,15 @@ def read_registry(errors):
                 continue
             words = line.split()
             if words[0] == "dispatch":
-                if len(words) not in (5, 7) or (len(words) == 7 and words[5] != "within"):
-                    errors.append("%s:%d: dispatch <cvar> <file> <function> <variable> [within A-B]" % (REGISTRY, n))
+                opts = words[5:]
+                loose = "loose" in opts
+                if loose:
+                    opts.remove("loose")
+                if len(words) < 5 or len(opts) not in (0, 2) or (opts and opts[0] != "within"):
+                    errors.append("%s:%d: dispatch <cvar> <file> <function> <variable> [within A-B] [loose]" % (REGISTRY, n))
                     continue
-                within = parse_numbers(words[6]) if len(words) == 7 else None
-                dispatchers.append((words[1], words[2], words[3], words[4], within, n))
+                within = parse_numbers(opts[1]) if opts else None
+                dispatchers.append((words[1], words[2], words[3], words[4], within, n, loose))
                 continue
             if len(words) < 3:
                 errors.append("%s:%d: <cvar> <number|A-B|A+> <file> <what it tests>" % (REGISTRY, n))
@@ -187,31 +191,35 @@ def main():
     os.chdir(os.environ.get("QVR_TREE", "."))
     errors = []
     dispatchers, entries = read_registry(errors)
-    subs = {d[2] for d in dispatchers}
+    subs_of = {}  # cvar -> its dispatch functions
+    for d in dispatchers:
+        subs_of.setdefault(d[0], set()).add(d[2])
     leaves = {}  # cvar -> [(lo, hi, where)]
-    for cvar, path, func, var, within, n in dispatchers:
+    for cvar, path, func, var, within, n, loose in dispatchers:
         got = function_body(path, func, errors)
         if not got:
             continue
         body, line0 = got
         for nums, start, end, dl in branches(body, var):
             where = "%s:%d (%s)" % (path, line0 + dl, func)
-            if calls_in(body, start, end) & (subs - {func}):
+            if calls_in(body, start, end) & (subs_of[cvar] - {func}):
                 continue  # (it hands these numbers to a sub-dispatcher of its own registry line)
             for lo, hi in nums:
                 if lo == 0 and hi == 0:
                     continue  # (0: no test)
                 if within and not (within[0] <= lo and hi <= within[1]):
                     errors.append("%s: %s %s outside its dispatcher's range %s" % (where, cvar, fmt(lo, hi), fmt(*within)))
-                leaves.setdefault(cvar, []).append((lo, hi, where))
+                leaves.setdefault(cvar, []).append((lo, hi, where, func if loose else None))
     if "--list" in sys.argv:
         for cvar in sorted(leaves):
-            print(cvar + ": " + " ".join(sorted({fmt(lo, hi) for lo, hi, _ in leaves[cvar]}, key=lambda s: int(re.match(r"\d+", s).group()))))
+            print(cvar + ": " + " ".join(sorted({fmt(lo, hi) for lo, hi, _, _ in leaves[cvar]}, key=lambda s: int(re.match(r"\d+", s).group()))))
         return 0
-    # Dispatch clashes.
+    # Dispatch clashes (a `loose` dispatcher's own branches may share numbers: set-up branches, then the cases).
     for cvar, ls in leaves.items():
         for i in range(len(ls)):
             for j in range(i + 1, len(ls)):
+                if ls[i][3] and ls[i][3] == ls[j][3]:
+                    continue
                 if overlap(ls[i], ls[j]):
                     errors.append("%s test number clash: %s takes %s and %s takes %s" % (
                         cvar, ls[i][2], fmt(ls[i][0], ls[i][1]), ls[j][2], fmt(ls[j][0], ls[j][1])))
@@ -225,9 +233,21 @@ def main():
         for lo, hi, n, fallthrough in es:
             if not fallthrough and not any(overlap((lo, hi), l) for l in leaves.get(cvar, [])):
                 errors.append("%s:%d: %s %s is registered but no dispatcher runs it" % (REGISTRY, n, cvar, fmt(lo, hi)))
+    def covered(cvar, lo, hi):
+        # (lo..hi within the union of the cvar's registry lines)
+        pos = lo
+        while pos <= hi:
+            e = next((e for e in entries.get(cvar, []) if e[0] <= pos <= e[1]), None)
+            if not e:
+                return False
+            if e[1] >= INF:
+                return True
+            pos = e[1] + 1
+        return True
+
     for cvar, ls in leaves.items():
-        for lo, hi, where in ls:
-            if not any(e[0] <= lo and hi <= e[1] for e in entries.get(cvar, [])):
+        for lo, hi, where, _ in ls:
+            if not covered(cvar, lo, hi):
                 errors.append("%s: %s %s is not in %s (claim it there)" % (where, cvar, fmt(lo, hi), REGISTRY))
     # The menus' commands.
     cvars = set(entries) | set(leaves)

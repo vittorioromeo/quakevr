@@ -7,9 +7,11 @@
 # like 50-59 belongs to its file: a number inside it is that file's to give). Two workers claiming the same number
 # then conflict in this file at the merge, and the build fails on whatever slips through.
 #
-#   dispatch <cvar> <file> <function> <variable> [within A-B|A+]
+#   dispatch <cvar> <file> <function> <variable> [within A-B|A+] [loose]
 #       a function whose `if(<variable> == N)` / `if(<variable> >= A && <variable> <= B)` branches dispatch the cvar;
-#       a branch calling another dispatch function hands it those numbers (its own branches are the numbers then)
+#       a branch calling another dispatch function hands it those numbers (its own branches are the numbers then);
+#       `loose`: its own branches may share a number (a set-up branch, then the case's): only the registry's
+#       claims, the coverage and the clashes with the cvar's other dispatchers are checked
 #   <cvar> <N | A-B | A+> <file> <what it tests>
 #       N* (A-B*): run by the dispatcher's fall-through (`if(req) { ... }` past its numbered branches), no branch of its own
 dispatch vr_agrunt_test QC/vr_armedgrunt_test.qc VR_AGTest_Frame t
@@ -130,6 +132,9 @@ vr_agrunt_test   83       vr_armedgrunt_posecat_test.qc    the gun pose categori
 vr_agrunt_test   84       vr_armedgrunt_shove_test.qc      their posed shove
 vr_agrunt_test   86       vr_armedgrunt_ai_test.qc         the AI behaviour knobs
 vr_agrunt_test   87       vr_armedgrunt_ai_test.qc         the strafe lean
+vr_agrunt_test   85       vr_armedgrunt_muzzle_test.qc     dual guns: each shot from its own muzzle
+vr_agrunt_test   88       vr_armedgrunt_ragweapon_test.qc  the held weapon on an active ragdoll's hand
+vr_agrunt_test   89       vr_armedgrunt_shoveclose_test.qc a gun's holder shoves up close
 vr_agrunt_test   100+     vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
@@ -181,3 +186,323 @@ vr_reload_test   43       vr_reload_test.qc                (VR_Reload_TestMagFor
 vr_rv_test       1*       vr_revolver_test.qc              (the self-test (its fall-through))
 vr_rv_test       2-4      vr_revolver_test.qc              (VR_WeaponUtil_EntAddWeapon)
 vr_rv_test       5        vr_revolver_test.qc              (VR_NPT_Grunt)
+
+# The other QC test cvars' dispatchers (2026-10-29). `loose`: the dispatcher's own branches may share a
+# number (a set-up branch, then the case's), so only the registry's claims and the coverage are checked.
+dispatch vr_agarmor_test QC/vr_agarmor_test.qc VR_AgArmor_TestFrame request loose
+dispatch vr_ammocolor_test QC/vr_ammocolor_test.qc VR_AmmoColor_TestFrame req loose
+dispatch vr_arena_perks_test QC/vr_arena_perks_test.qc VR_ARENA_PERKS_Test_Frame c loose
+dispatch vr_arena_test QC/vr_arena_test.qc VR_ARENA_Test_Frame c loose
+dispatch vr_burn_test QC/vr_burning_test.qc VR_Burn_TestFrame ask loose
+dispatch vr_deadanim_test QC/vr_deadanim.qc VR_DeadAnim_Test xMode loose
+dispatch vr_decap_test QC/vr_decap_test.qc VR_Decap_Test xTest loose
+dispatch vr_dents_test QC/vr_dents_test.qc VR_DentsTest_Frame n loose
+dispatch vr_dropcap_test QC/vr_dropcap_test.qc VR_DropCapTest_Frame request loose
+dispatch vr_dummy_test QC/vr_dummy_test.qc VR_Dummy_Test xTest loose
+dispatch vr_gibprops_test QC/vr_gibprops_test.qc VR_GibProps_TestFrame request loose
+dispatch vr_hotblade_test QC/vr_hotblade_test.qc VR_HotBlade_TestFrame ask loose
+dispatch vr_kdtrig_test QC/vr_kdtrig.qc VR_KdTrig_Frame want loose
+dispatch vr_limb_test QC/vr_limbs_test.qc VR_Limb_Test xTest loose
+dispatch vr_melee_sweep_test QC/vr_melee_sweep_test.qc VR_Melee_SweepTestFrame mode loose
+dispatch vr_mg3_test QC/vr_mg3_test.qc MG3_T_RouteFrame request loose
+dispatch vr_mg3_test QC/vr_mg3_test.qc MG3_TestFrame request loose
+dispatch vr_mg_horde_test QC/vr_mg_horde_test.qc MGH_TestFrame request loose
+dispatch vr_mg_hub_test QC/vr_mg_hub_test.qc MG1_H_TestFrame request loose
+dispatch vr_mg_trigger_test QC/vr_mg_trigger_test.qc MG_TriggerTestFrame request loose
+dispatch vr_mg_world_test QC/vr_mg_world_test.qc MG_TestFrame request loose
+dispatch vr_nail_test QC/vr_nail_test.qc VR_NailTest_Frame req loose
+dispatch vr_portals_ai_test QC/vr_portal_ai_test.qc VR_AI_TestFrame ask loose
+dispatch vr_prop_impact_test QC/vr_propimpact_test.qc VR_PropImp_TestFrame ask loose
+dispatch vr_smallgibs_test QC/vr_smallgibs_test.qc VR_SmallGib_TestStart xCase loose
+dispatch vr_stealth_test QC/vr_stealth_test.qc VR_Stealth_TestFrame ask loose
+
+vr_agarmor_test  1*       vr_agarmor_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
+vr_agarmor_test  2        vr_agarmor_test.qc               (VR_AgArmor_Give)
+vr_agarmor_test  3        vr_agarmor_test.qc               (VR_ART_SpawnKind)
+vr_agarmor_test  4        vr_agarmor_test.qc               (VR_ART_SpawnKind)
+vr_agarmor_test  5        vr_agarmor_test.qc               (VR_AgArmor_FxTestFrame)
+vr_agarmor_test  6        vr_agarmor_test.qc               (VR_AgArmor_Give)
+
+vr_ammocolor_test 1*       vr_ammocolor_test.qc             (the Debug menu runs it: the dispatcher's fall-through)
+vr_ammocolor_test 2        vr_ammocolor_test.qc             (VR_ACT_Give)
+vr_ammocolor_test 3        vr_ammocolor_test.qc             (VR_ACT_Give)
+
+vr_arena_perks_test 1        vr_arena_perks_test.qc           (VR_APK1_Run)
+vr_arena_perks_test 2        vr_arena_perks_test.qc           (VR_APK2_Begin)
+vr_arena_perks_test 3        vr_arena_perks_test.qc           (VR_APK3_Begin)
+vr_arena_perks_test 4        vr_arena_perks_test.qc           (VR_APK4_Begin)
+vr_arena_perks_test 5        vr_arena_perks_test.qc           (VR_APK5_Begin)
+
+vr_arena_test    1        vr_arena_test.qc                 (VR_AT_Plans)
+vr_arena_test    2        vr_arena_test.qc                 (VR_AT2_Begin)
+vr_arena_test    3        vr_arena_test.qc                 (VR_AT3_Begin)
+vr_arena_test    4        vr_arena_test.qc                 (VR_AT4_Begin)
+vr_arena_test    5        vr_arena_test.qc                 (VR_AT5_Begin)
+vr_arena_test    6        vr_arena_test.qc                 (VR_AT6_Begin)
+vr_arena_test    7        vr_arena_test.qc                 (VR_AT7_Begin)
+vr_arena_test    8        vr_arena_test.qc                 (VR_AT8_Begin)
+vr_arena_test    9        vr_arena_test.qc                 (VR_AT9_Begin)
+vr_arena_test    10       vr_arena_test.qc                 (VR_AT10_Begin)
+vr_arena_test    11       vr_arena_test.qc                 (VR_AT11_Begin)
+vr_arena_test    12       vr_arena_test.qc                 (VR_AT12_Run)
+vr_arena_test    13       vr_arena_test.qc                 (VR_AT13_Begin)
+vr_arena_test    14       vr_arena_test.qc                 (VR_AT14_Begin)
+vr_arena_test    15       vr_arena_test.qc                 (VR_AT15_Begin)
+
+vr_burn_test     1*       vr_burning_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
+vr_burn_test     2*       vr_burning_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
+vr_burn_test     3*       vr_burning_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
+vr_burn_test     4        vr_burning_test.qc               (VR_Burn_TestFlamesOff)
+vr_burn_test     5        vr_burning_test.qc               (VRGetEntWeapon)
+vr_burn_test     6        vr_burning_test.qc               (VR_WallTorch_Head)
+vr_burn_test     7        vr_burning_test.qc               (VR_WallTorch_Head)
+vr_burn_test     8        vr_burning_test.qc               (VR_Burn_TestCrate)
+vr_burn_test     9        vr_burning_test.qc               (VR_Burn_TestCrate)
+vr_burn_test     10       vr_burning_test.qc               (VR_Burn_TestPieces)
+vr_burn_test     11       vr_burning_test.qc               (VR_CratePiece_Is)
+vr_burn_test     12       vr_burning_test.qc               (VR_Burn_FireVolume)
+vr_burn_test     13       vr_burning_test.qc               (VR_Burn_Ignite)
+vr_burn_test     14       vr_burning_test.qc               (VR_Burn_TestFlamesOff)
+vr_burn_test     15       vr_burning_test.qc               (findflags)
+vr_burn_test     16       vr_burning_test.qc               (launch_spike)
+
+vr_deadanim_test 1        vr_deadanim.qc                   (VR_DeadAnim_IsDead)
+vr_deadanim_test 2        vr_deadanim.qc                   (ragdollcanstagger)
+vr_deadanim_test 3        vr_deadanim.qc                   (ragdollcanstagger)
+vr_deadanim_test 4        vr_deadanim.qc                   (ad_zombiek_knockdown)
+vr_deadanim_test 5        vr_deadanim.qc                   (use)
+vr_deadanim_test 6        vr_deadanim.qc                   (T_Damage)
+vr_deadanim_test 7        vr_deadanim.qc                   (VR_DeadAnim_AiThink)
+vr_deadanim_test 8        vr_deadanim.qc                   (ad_zombiek_onground)
+vr_deadanim_test 9        vr_deadanim.qc                   (isragdoll)
+
+vr_decap_test    1*       vr_decap_test.qc                 (the Debug menu runs it: the dispatcher's fall-through)
+vr_decap_test    2        vr_decap_test.qc                 (see vr_decap_test.qc)
+vr_decap_test    3        vr_decap_test.qc                 (see vr_decap_test.qc)
+vr_decap_test    4        vr_decap_test.qc                 (max)
+vr_decap_test    5        vr_decap_test.qc                 (VR_Decap_TestBlow)
+vr_decap_test    6        vr_decap_test.qc                 (VR_Decap_TestBlow)
+vr_decap_test    7        vr_decap_test.qc                 (see vr_decap_test.qc)
+vr_decap_test    8        vr_decap_test.qc                 (T_Damage)
+vr_decap_test    9*       vr_decap_test.qc                 (the Debug menu runs it: the dispatcher's fall-through)
+vr_decap_test    10       vr_decap_test.qc                 (VR_Decap_TestBlow)
+vr_decap_test    11       vr_decap_test.qc                 (VR_Gore_Print)
+vr_decap_test    12-18    vr_decap_test.qc                 (VR_Decap_TestBlastDamage)
+vr_decap_test    19       vr_decap_test.qc                 (VR_Decap_Sweep)
+vr_decap_test    20-22    vr_decap_test.qc                 (VR_Decap_TestShot)
+vr_decap_test    23-27    vr_decap_test.qc                 (VR_Decap_TestBlow)
+vr_decap_test    30       vr_decap_test.qc                 (VR_Button_Thrown)
+vr_decap_test    31       vr_decap_test.qc                 (gremlin_flip8)
+vr_decap_test    32       vr_decap_test.qc                 (VR_Gore_Print)
+vr_decap_test    40-48    vr_decap_test.qc                 (VR_Decap_PopTest)
+vr_decap_test    49-58    vr_decap_test.qc                 (VR_Decap_BluntTest)
+vr_decap_test    61       vr_decap_test.qc                 (VR_Decap_TestSweep)
+
+vr_dents_test    1        vr_dents_test.qc                 (setmodel)
+vr_dents_test    2        vr_dents_test.qc                 (VR_SetHitKind)
+vr_dents_test    3        vr_dents_test.qc                 (VR_SetHitKind)
+vr_dents_test    4        vr_dents_test.qc                 (VR_DentsTest_SwordLine)
+vr_dents_test    5        vr_dents_test.qc                 (VR_DentsTest_SwordLine)
+vr_dents_test    6        vr_dents_test.qc                 (VR_Wound_Pellet)
+
+vr_dropcap_test  1*       vr_dropcap_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
+vr_dropcap_test  2        vr_dropcap_test.qc               (VR_DropCapTest_Count)
+
+vr_dummy_test    1        vr_dummy_test.qc                 (VR_Dummy_Name)
+vr_dummy_test    2        vr_dummy_test.qc                 (max)
+vr_dummy_test    3        vr_dummy_test.qc                 (max)
+vr_dummy_test    4*       vr_dummy_test.qc                 (the Debug menu runs it: the dispatcher's fall-through)
+vr_dummy_test    5        vr_dummy_test.qc                 (VR_Knockdown_Try)
+
+vr_gibprops_test 0-3      vr_gibprops_test.qc              (see vr_gibprops_test.qc)
+vr_gibprops_test 4        vr_gibprops_test.qc              (physicsdamp)
+vr_gibprops_test 5        vr_gibprops_test.qc              (heldbox)
+vr_gibprops_test 6        vr_gibprops_test.qc              (T_Damage)
+vr_gibprops_test 7        vr_gibprops_test.qc              (heldbox)
+vr_gibprops_test 8        vr_gibprops_test.qc              (see vr_gibprops_test.qc)
+vr_gibprops_test 9        vr_gibprops_test.qc              (see vr_gibprops_test.qc)
+
+vr_hotblade_test 1        vr_hotblade_test.qc              (VRGetEntWeaponInst)
+vr_hotblade_test 2        vr_hotblade_test.qc              (VRGetEntWeaponInst)
+vr_hotblade_test 3        vr_hotblade_test.qc              (VR_HotBlade_Desc)
+vr_hotblade_test 4        vr_hotblade_test.qc              (VRGetEntWeaponInst)
+vr_hotblade_test 5        vr_hotblade_test.qc              (VRGetEntWeaponInst)
+vr_hotblade_test 6        vr_hotblade_test.qc              (findradius)
+vr_hotblade_test 7        vr_hotblade_test.qc              (VR_HotBlade_TestFlame)
+vr_hotblade_test 8        vr_hotblade_test.qc              (VR_HotBlade_TestFind)
+vr_hotblade_test 9        vr_hotblade_test.qc              (findradius)
+vr_hotblade_test 10       vr_hotblade_test.qc              (VR_Carry_Held)
+vr_hotblade_test 11       vr_hotblade_test.qc              (VR_HotBlade_TestFind)
+vr_hotblade_test 12       vr_hotblade_test.qc              (VR_HotBlade_Heatable)
+vr_hotblade_test 13       vr_hotblade_test.qc              (VRGetHandPos)
+vr_hotblade_test 14       vr_hotblade_test.qc              (VRGetHandPos)
+
+vr_kdtrig_test   1*       vr_kdtrig.qc                     (the Debug menu runs it: the dispatcher's fall-through)
+vr_kdtrig_test   2*       vr_kdtrig.qc                     (the Debug menu runs it: the dispatcher's fall-through)
+vr_kdtrig_test   5*       vr_kdtrig.qc                     (the Debug menu runs it: the dispatcher's fall-through)
+vr_kdtrig_test   6*       vr_kdtrig.qc                     (the Debug menu runs it: the dispatcher's fall-through)
+vr_kdtrig_test   7*       vr_kdtrig.qc                     (the Debug menu runs it: the dispatcher's fall-through)
+vr_kdtrig_test   10*      vr_kdtrig.qc                     (the Debug menu runs it: the dispatcher's fall-through)
+vr_kdtrig_test   12       vr_kdtrig.qc                     (isragdoll)
+vr_kdtrig_test   13       vr_kdtrig.qc                     (VR_KdTrig_TestTarget)
+vr_kdtrig_test   14*      vr_kdtrig.qc                     (the Debug menu runs it: the dispatcher's fall-through)
+vr_kdtrig_test   20       vr_kdtrig.qc                     (VR_KdTrig_TestSpawn)
+vr_kdtrig_test   21       vr_kdtrig.qc                     (VRForwardOf)
+vr_kdtrig_test   22       vr_kdtrig.qc                     (VR_KdTrig_TestClear)
+vr_kdtrig_test   31+      vr_kdtrig.qc                     (VR_KdTrig_TestClear)
+
+vr_limb_test     1        vr_limbs_test.qc                 (ragdolllimbs)
+vr_limb_test     2        vr_limbs_test.qc                 (ragdolllimbs)
+vr_limb_test     3        vr_limbs_test.qc                 (ragdolllimbs)
+vr_limb_test     4*       vr_limbs_test.qc                 (the Debug menu runs it: the dispatcher's fall-through)
+vr_limb_test     5        vr_limbs_test.qc                 (VR_Decap_TestBlow)
+vr_limb_test     6        vr_limbs_test.qc                 (VR_Limb_IsZombie)
+vr_limb_test     7        vr_limbs_test.qc                 (VR_Limb_IsZombie)
+vr_limb_test     8        vr_limbs_test.qc                 (VR_Decap_Roll)
+vr_limb_test     9        vr_limbs_test.qc                 (T_RadiusDamage)
+vr_limb_test     10       vr_limbs_test.qc                 (T_Damage)
+vr_limb_test     11       vr_limbs_test.qc                 (VR_Limb_TestTarget)
+vr_limb_test     12*      vr_limbs_test.qc                 (the Debug menu runs it: the dispatcher's fall-through)
+vr_limb_test     13       vr_limbs_test.qc                 (ragdolllimbs)
+vr_limb_test     14       vr_limbs_test.qc                 (VR_Gore_Print)
+vr_limb_test     15       vr_limbs_test.qc                 (VR_Gore_Print)
+vr_limb_test     16       vr_limbs_test.qc                 (VR_Limb_TestTarget)
+vr_limb_test     17       vr_limbs_test.qc                 (pointcontents)
+vr_limb_test     18       vr_limbs_test.qc                 (modelpoint)
+vr_limb_test     19       vr_limbs_test.qc                 (ragdolllimbs)
+vr_limb_test     20       vr_limbs_test.qc                 (VR_Limb_TestTarget)
+vr_limb_test     21       vr_limbs_test.qc                 (VR_Limb_TestTarget)
+vr_limb_test     22       vr_limbs_test.qc                 (VR_Limb_TestTarget)
+vr_limb_test     23       vr_limbs_test.qc                 (VR_Limb_TestTarget)
+vr_limb_test     24-28    vr_limbs_test.qc                 (VR_Limb_TestTarget)
+vr_limb_test     29       vr_limbs_test.qc                 (VR_Limb_TestTarget)
+vr_limb_test     30-38    vr_limbs_test.qc                 (VR_Limb_WearTest)
+vr_limb_test     39       vr_limbs_test.qc                 (VR_Limb_TestLookAtCut)
+vr_limb_test     40       vr_limbs_test.qc                 (VR_Limb_TestLookAtCut)
+
+vr_melee_sweep_test 1*       vr_melee_sweep_test.qc           (the Debug menu runs it: the dispatcher's fall-through)
+vr_melee_sweep_test 2        vr_melee_sweep_test.qc           (VR_BladeDump)
+vr_melee_sweep_test 3        vr_melee_sweep_test.qc           (VR_Melee_BladeShapeTest)
+vr_melee_sweep_test 4        vr_melee_sweep_test.qc           (VR_Melee_FistLineTest)
+vr_melee_sweep_test 5        vr_melee_sweep_test.qc           (VR_Melee_LineEndsTest)
+vr_melee_sweep_test 6        vr_melee_sweep_test.qc           (VR_Melee_MultiTest)
+
+vr_mg3_test      1        vr_mg3_test.qc                   (MG3_T_Report)
+vr_mg3_test      2        vr_mg3_test.qc                   (MG3_SetUpgradeMask)
+vr_mg3_test      3        vr_mg3_test.qc                   (MG3_SetUpgradeMask)
+vr_mg3_test      4        vr_mg3_test.qc                   (MG3_T_Caps)
+vr_mg3_test      5        vr_mg3_test.qc                   (MG3_T_Collect)
+vr_mg3_test      6        vr_mg3_test.qc                   (MG3_T_Caps)
+vr_mg3_test      7        vr_mg3_test.qc                   (MG3_T_Caps)
+vr_mg3_test      8        vr_mg3_test.qc                   (MG3_T_Keys)
+vr_mg3_test      9        vr_mg3_test.qc                   (MG3_T_Items)
+vr_mg3_test      10       vr_mg3_test.qc                   (MG3_T_Runes)
+vr_mg3_test      11       vr_mg3_test.qc                   (MG3_T_Hub)
+vr_mg3_test      12       vr_mg3_test.qc                   (MG3_T_RuneReport)
+vr_mg3_test      13       vr_mg3_test.qc                   (MG3_T_Touch)
+vr_mg3_test      14       vr_mg3_test.qc                   (ExitIntermission)
+vr_mg3_test      15       vr_mg3_test.qc                   (MG3_T_SkillButtons)
+vr_mg3_test      16       vr_mg3_test.qc                   (MG3_T_SeedLoadout)
+vr_mg3_test      17       vr_mg3_test.qc                   (MG3_T_CheckLoadout)
+vr_mg3_test      18       vr_mg3_test.qc                   (MG3_T_BNDamage)
+vr_mg3_test      19       vr_mg3_test.qc                   (see vr_mg3_test.qc)
+vr_mg3_test      20       vr_mg3_test.qc                   (MG3_T_Touch)
+vr_mg3_test      21       vr_mg3_test.qc                   (MG3_BossEnding)
+vr_mg3_test      22       vr_mg3_test.qc                   (MG3_ShubEnding)
+vr_mg3_test      23       vr_mg3_test.qc                   (MG3_T_RuneState)
+vr_mg3_test      24       vr_mg3_test.qc                   (MG3_T_Sacrifices)
+vr_mg3_test      31       vr_mg3_test.qc                   (MG3_T_RouteReport)
+vr_mg3_test      32       vr_mg3_test.qc                   (MG1_H_Route)
+vr_mg3_test      36       vr_mg3_test.qc                   (see vr_mg3_test.qc)
+vr_mg3_test      37       vr_mg3_test.qc                   (MG1_H_Presser)
+vr_mg3_test      38       vr_mg3_test.qc                   (MG1_H_Presser)
+vr_mg3_test      40-43    vr_mg3_test.qc                   (stof)
+vr_mg3_test      100-139  vr_mg3_test.qc                   (MG3_T_RouteWalk)
+vr_mg3_test      200-299  vr_mg3_test.qc                   (MG3_T_PressButton)
+vr_mg3_test      300-1299 vr_mg3_test.qc                   (MG3_T_KillMonster)
+
+vr_mg_horde_test 1        vr_mg_horde_test.qc              (MGH_Unit)
+vr_mg_horde_test 2        vr_mg_horde_test.qc              (MGH_Report)
+vr_mg_horde_test 3        vr_mg_horde_test.qc              (MGH_KillWave)
+vr_mg_horde_test 4        vr_mg_horde_test.qc              (MGH_Countdown)
+vr_mg_horde_test 5        vr_mg_horde_test.qc              (MGH_horde_key_touch)
+vr_mg_horde_test 6        vr_mg_horde_test.qc              (PlayerDie)
+vr_mg_horde_test 7        vr_mg_horde_test.qc              (MGH_horde_spawn_powerup)
+vr_mg_horde_test 8        vr_mg_horde_test.qc              (MGH_horde_key_give)
+vr_mg_horde_test 9        vr_mg_horde_test.qc              (see vr_mg_horde_test.qc)
+vr_mg_horde_test 10       vr_mg_horde_test.qc              (MG_MonsterActivate)
+vr_mg_horde_test 11       vr_mg_horde_test.qc              (changelevel_touch)
+vr_mg_horde_test 12       vr_mg_horde_test.qc              (ExitIntermission)
+vr_mg_horde_test 13       vr_mg_horde_test.qc              (see vr_mg_horde_test.qc)
+vr_mg_horde_test 14       vr_mg_horde_test.qc              (see vr_mg_horde_test.qc)
+vr_mg_horde_test 15       vr_mg_horde_test.qc              (MGH_HordeGetMonstersAlive)
+vr_mg_horde_test 16       vr_mg_horde_test.qc              (see vr_mg_horde_test.qc)
+vr_mg_horde_test 17       vr_mg_horde_test.qc              (PlayerDie)
+vr_mg_horde_test 18       vr_mg_horde_test.qc              (MGH_horde_key_remove_all)
+
+vr_mg_hub_test   1        vr_mg_hub_test.qc                (MG1_H_Unit)
+vr_mg_hub_test   2        vr_mg_hub_test.qc                (MG1_H_Puzzle)
+vr_mg_hub_test   3        vr_mg_hub_test.qc                (MG1_H_Report)
+vr_mg_hub_test   20*      vr_mg_hub_test.qc                (the Debug menu runs it: the dispatcher's fall-through)
+vr_mg_hub_test   30*      vr_mg_hub_test.qc                (the Debug menu runs it: the dispatcher's fall-through)
+vr_mg_hub_test   36*      vr_mg_hub_test.qc                (the Debug menu runs it: the dispatcher's fall-through)
+
+vr_mg_trigger_test 1*       vr_mg_trigger_test.qc            (the Debug menu runs it: the dispatcher's fall-through)
+vr_mg_trigger_test 2        vr_mg_trigger_test.qc            (MG_T_MapStart)
+vr_mg_trigger_test 3        vr_mg_trigger_test.qc            (MG_T_LightningDamage)
+vr_mg_trigger_test 4        vr_mg_trigger_test.qc            (MG_T_RetargetGate)
+
+vr_mg_world_test 1        vr_mg_world_test.qc              (see vr_mg_world_test.qc)
+vr_mg_world_test 2*       vr_mg_world_test.qc              (the Debug menu runs it: the dispatcher's fall-through)
+vr_mg_world_test 3        vr_mg_world_test.qc              (MG_ActivationTest)
+vr_mg_world_test 4+       vr_mg_world_test.qc              (MG_ProgressTest)
+
+vr_nail_test     1*       vr_nail_test.qc                  (the Debug menu runs it: the dispatcher's fall-through)
+vr_nail_test     2        vr_nail_test.qc                  (VR_NLT_Hang)
+
+vr_portals_ai_test 1        vr_portal_ai_test.qc             (precache_model)
+vr_portals_ai_test 2        vr_portal_ai_test.qc             (EnemyFireBullets)
+vr_portals_ai_test 3        vr_portal_ai_test.qc             (enforcer_fire)
+vr_portals_ai_test 4        vr_portal_ai_test.qc             (CastLightning)
+vr_portals_ai_test 5        vr_portal_ai_test.qc             (Wiz_StartFast)
+vr_portals_ai_test 6        vr_portal_ai_test.qc             (see vr_portal_ai_test.qc)
+vr_portals_ai_test 7        vr_portal_ai_test.qc             (anglemod)
+vr_portals_ai_test 8        vr_portal_ai_test.qc             (setsize)
+vr_portals_ai_test 9        vr_portal_ai_test.qc             (setsize)
+vr_portals_ai_test 10       vr_portal_ai_test.qc             (see vr_portal_ai_test.qc)
+vr_portals_ai_test 11       vr_portal_ai_test.qc             (VR_AI_ShotReady)
+vr_portals_ai_test 12       vr_portal_ai_test.qc             (see vr_portal_ai_test.qc)
+vr_portals_ai_test 13       vr_portal_ai_test.qc             (see vr_portal_ai_test.qc)
+vr_portals_ai_test 16       vr_portal_ai_test.qc             (anglemod)
+vr_portals_ai_test 18       vr_portal_ai_test.qc             (see vr_portal_ai_test.qc)
+
+vr_prop_impact_test 1*       vr_propimpact_test.qc            (the Debug menu runs it: the dispatcher's fall-through)
+vr_prop_impact_test 2        vr_propimpact_test.qc            (VR_PropImp_LightStep)
+vr_prop_impact_test 3        vr_propimpact_test.qc            (VR_PropImp_BlastStep)
+vr_prop_impact_test 4        vr_propimpact_test.qc            (VR_PropImp_FtClear)
+vr_prop_impact_test 5        vr_propimpact_test.qc            (VR_PropImp_FhClear)
+
+vr_smallgibs_test 0-5      vr_smallgibs_test.qc             (see vr_smallgibs_test.qc)
+vr_smallgibs_test 6        vr_smallgibs_test.qc             (VR_SmallGib_TestGoreMark)
+vr_smallgibs_test 7        vr_smallgibs_test.qc             (ThrowGib)
+vr_smallgibs_test 8        vr_smallgibs_test.qc             (VR_SmallGib_Spawn)
+vr_smallgibs_test 9        vr_smallgibs_test.qc             (VR_SmallGib_Spawn)
+vr_smallgibs_test 10       vr_smallgibs_test.qc             (see vr_smallgibs_test.qc)
+vr_smallgibs_test 11       vr_smallgibs_test.qc             (VR_SmallGib_SlotLive)
+vr_smallgibs_test 12       vr_smallgibs_test.qc             (traceline)
+vr_smallgibs_test 13       vr_smallgibs_test.qc             (see vr_smallgibs_test.qc)
+vr_smallgibs_test 14       vr_smallgibs_test.qc             (misc_explobox)
+vr_smallgibs_test 15       vr_smallgibs_test.qc             (traceline)
+vr_smallgibs_test 16       vr_smallgibs_test.qc             (traceline)
+vr_smallgibs_test 17       vr_smallgibs_test.qc             (traceline)
+vr_smallgibs_test 18       vr_smallgibs_test.qc             (ThrowGib)
+vr_smallgibs_test 19       vr_smallgibs_test.qc             (traceline)
+vr_smallgibs_test 20       vr_smallgibs_test.qc             (DropBackpack)
+vr_smallgibs_test 21       vr_smallgibs_test.qc             (VR_SmallGib_BurstOf)
+vr_smallgibs_test 22       vr_smallgibs_test.qc             (max)
+vr_smallgibs_test 23       vr_smallgibs_test.qc             (VR_SmallGib_TestBloodless)
+vr_smallgibs_test 24       vr_smallgibs_test.qc             (see vr_smallgibs_test.qc)
+vr_smallgibs_test 25       vr_smallgibs_test.qc             (VR_SmallGib_TestImpact)
+vr_smallgibs_test 26       vr_smallgibs_test.qc             (cos)
+
+vr_stealth_test  1+       vr_stealth_test.qc               (findflags)
