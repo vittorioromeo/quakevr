@@ -43,7 +43,7 @@ float vr_at_pass;
 float vr_at_fail;
 float vr_at_step;
 float vr_at_until;
-float vr_at_keep[24];    // the cvars the tests set, put back at the end
+float vr_at_keep[26];    // the cvars the tests set, put back at the end
 float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
 float vr_at_kills0;
 float vr_at_score0;
@@ -76,9 +76,11 @@ string(float i) VR_AT_CvarName =
     if(i == 21) { return "vr_arena"; }         // (test 11 looks at a run and at the same map with the run off)
     if(i == 22) { return "vr_enemy_drops"; }   // (test 11: what a foe may leave behind, and its "never")
     if(i == 23) { return "vr_ammobox_drops"; } // (... the same for what an ammo box may carry)
+    if(i == 24) { return "vr_arena_wave_rest"; }
+    if(i == 25) { return "vr_arena_countdown"; }
     return "";
 }
-float VR_AT_NCVARS = 24;
+float VR_AT_NCVARS = 26;
 
 void() VR_AT_Save =
 {
@@ -123,6 +125,8 @@ void() VR_AT_SetDefaults =
     cvar_set("vr_arena_foe_armor", "1");
     cvar_set("vr_arena_foe_armor_scale", "1");
     cvar_set("vr_arena_foe_armor_from", "4");
+    cvar_set("vr_arena_wave_rest", "5");
+    cvar_set("vr_arena_countdown", "5");
     VR_AT_SetSkill(1); // (Normal, where the skill's factor is exactly 1: every family's own numbers mean the cvars)
 }
 
@@ -1264,7 +1268,7 @@ void() VR_AT5_Scaling =
     cvar_set("vr_arena_skill_impact", "1");
     VR_AT_SetSkill(1);
 
-    // The arena's own beats: vr_arena_wave_delay and the gap its foes come in at, shorter the harder the skill.
+    // The arena's own beats: vr_arena_wave_rest and the gap its foes come in at, shorter the harder the skill.
     VR_AT_SetSkill(0); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 8 && VR_ARENA_SkillTime(VR_ARENA_Opt_Gap(), AR_TICK) == 2,
                                    "at Easy the arena waits longer between waves and between its foes");
     VR_AT_SetSkill(1); VR_AT_Check(VR_ARENA_SkillTime(6, 1) == 6 && VR_ARENA_SkillTime(VR_ARENA_Opt_Gap(), AR_TICK) == 1.5,
@@ -1381,7 +1385,7 @@ float AR_T6_WAVES = 32;      // waves the soak runs through
 float AR_T6_FROM  = 16;      // the wave its edicts are counted from (the map settled)
 float AR_T6_LEAK  = 1;       // edicts a wave may leave behind on top of its own drops, on average
 float AR_T6_DROPS = 3;       // a wave clear's drops at most (two medkits, an armour, at Normal)
-float vr_at6_delay;          // vr_arena_wave_delay as the run had it
+float vr_at6_delay;          // vr_arena_wave_rest as the run had it
 float vr_at6_wave;           // the wave the soak last saw
 float vr_at6_e0;             // the edicts at its first counted wave, and its drops then
 float vr_at6_d0;
@@ -1532,8 +1536,9 @@ void() VR_AT6_Begin =
     vr_at6_gunbad = 0;
     vr_at6_blows = 0;
     vr_at6_gunscans = 0;
-    vr_at6_delay = cvar("vr_arena_wave_delay");
-    cvar_set("vr_arena_wave_delay", "1");
+    vr_at6_delay = cvar("vr_arena_wave_rest");
+    cvar_set("vr_arena_wave_rest", "1");
+    cvar_set("vr_arena_countdown", "0"); // (the soak: no countdown either; VR_AT_End puts it back)
     cvar_set("vr_arena_wave_size", "1.75"); // (the default's bigger waves: the soak is bounded with them)
     vr_at6_wave = ar_wave;
     vr_at6_e0 = 0;
@@ -1575,7 +1580,7 @@ void() VR_AT6_Finish =
     VR_EnemyWeapons_MendFades();
     VR_AT_Check(on && !VR_AT_Live(w), "a stopped gun fade is taken up again, a long overdue one removed");
     VR_AT_Check(vr_at6_gunscans > 0 && vr_at6_gunbad == 0, "no broken guns (no body, not to be taken, a stalled fade, an orphaned held one)");
-    cvar_set("vr_arena_wave_delay", ftos(vr_at6_delay));
+    cvar_set("vr_arena_wave_rest", ftos(vr_at6_delay));
     VR_AT_End();
 }
 

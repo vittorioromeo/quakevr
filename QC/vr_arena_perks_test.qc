@@ -25,7 +25,7 @@ entity ark_t_p;
 float ark_t_health0; float ark_t_max0; float ark_t_armor0; float ark_t_items0;
 float ark_t_shells0; float ark_t_quad0; float ark_t_saved;
 void() VR_APK3_Restore;
-float ark_t_keep[5];     // the cvars the tests set, put back at the end
+float ark_t_keep[6];     // the cvars the tests set, put back at the end
 float ark_t_taken0;      // the perks the run had already taken
 string ark_t_prefix;     // its verdict line ("arena_perks"; the full-map check prints `arena_full: ...`)
 
@@ -34,11 +34,12 @@ string(float i) VR_APK_CvarName =
     if(i == 0) { return "vr_arena_perks"; }
     if(i == 1) { return "vr_arena_perk_count"; }
     if(i == 2) { return "vr_arena_max_alive"; }
-    if(i == 3) { return "vr_arena_wave_delay"; }
+    if(i == 3) { return "vr_arena_wave_rest"; }
     if(i == 4) { return "vr_arena_skill_impact"; }
+    if(i == 5) { return "vr_arena_countdown"; }
     return "";
 }
-float VR_APK_NCVARS = 5;
+float VR_APK_NCVARS = 6;
 
 void() VR_APK_Save =
 {
@@ -707,7 +708,8 @@ void() VR_APK4_Begin =
     VR_ARK_ClearPeds();
     ar_mgr.ark_taken = 0;
     cvar_set("vr_arena_max_alive", "2");   // (small waves: the drive to the first boss wave has to fit in a test)
-    cvar_set("vr_arena_wave_delay", "1");
+    cvar_set("vr_arena_wave_rest", "1");
+    cvar_set("vr_arena_countdown", "0"); // (no countdown: the perk tests time their own waves)
     ark_t_until = time + 90;
     ark_t_step = 1;
     dprint("arena_full: driving this map's arena to its first boss wave\n");

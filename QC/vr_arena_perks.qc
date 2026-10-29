@@ -276,6 +276,7 @@ entity(float xPerk, vector xAt, float xOrder) VR_ARK_SpawnPed =
     p.touch    = VR_ARK_PedTouch;
     p.think    = VR_ARK_PedLabel;
     p.nextthink = time + 0.8 * (xOrder + 1);
+    VR_ARENA_Tfog(xAt + '0 0 24'); // (its arrival seen and heard, as every arena spawn)
 
     if(cvar("developer")) dprint(sprintf("arena_perks: pedestal for %s at %s\n", VR_ARK_Name(xPerk), vtos(xAt)));
     return p;

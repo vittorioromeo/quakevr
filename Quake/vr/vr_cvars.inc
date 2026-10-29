@@ -3040,7 +3040,8 @@ QVR_CVAR(vr_agrunt_test, "0", CVAR_NONE)                       // the QC's armed
 QVR_CVAR(vr_agrunt_test_kind, "0", CVAR_NONE)                  // the armed monster the vr_agrunt_test tests spawn (QC vr_armedmon.qc: 0 grunt, 1 enforcer)
 // Survival Arena (QC/vr_arena.qc): the wave director's knobs.
 QVR_CVAR(vr_arena, "0", CVAR_NONE)                             // 1: its waves run in this map too (the map "vrarena" runs them on its own)
-QVR_CVAR(vr_arena_wave_delay, "6", CVAR_ARCHIVE)              // s from a wave clear to the next wave
+QVR_CVAR(vr_arena_wave_rest, "5", CVAR_ARCHIVE)               // s of rest from a wave clear to the next wave's countdown (by the difficulty)
+QVR_CVAR(vr_arena_countdown, "5", CVAR_ARCHIVE)               // s of countdown in the middle of the view before each wave ("Wave 7 in 5..."; 0: none)
 QVR_CVAR(vr_arena_max_alive, "8", CVAR_ARCHIVE)               // the ceiling on a wave's alive pool (foes up at once), by the difficulty
 QVR_CVAR(vr_arena_wave_size, "1.75", CVAR_ARCHIVE)            // a wave's crowd groups times this (1: the ladder's own counts)
 QVR_CVAR(vr_arena_alive_max, "6", CVAR_ARCHIVE)               // a wave's alive pool at wave 1: foes up at once; the rest come in as these fall
