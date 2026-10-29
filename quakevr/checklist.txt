@@ -27,6 +27,8 @@ Nails: enemy nails still dodgeable (look: vr_nail_test 2)
 Rig Studio off-hand: a pistol grunt's Carry/Run set On the Gun cups the gun without the arm clipping the torso; Free hangs
 Rig Studio off-hand: rifle Pickup On the Gun cups the right hand
 Checklist: headers show open/total; the row under each header folds it; Collapse All / Expand All; folds kept after a restart.
+Survival Arena perk cards: a boss clear shows perk cards in front of you and the arena waits; laser + trigger picks; turn away or open the menu and they come back.
+Survival Arena perk cards: panel size, distance and height feel right (Combat > Survival Arena sliders); effect text readable; a trigger held through the last kill never picks a card.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
