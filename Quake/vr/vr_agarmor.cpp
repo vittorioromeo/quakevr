@@ -11,6 +11,7 @@
 #include "vr_agarmor.hpp"
 
 #include "vr_api.h"
+#include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -73,7 +74,6 @@ constexpr Block cuirassBlock{0.f, 0.f, 160.f, 128.f};
 constexpr Block helmetBlock{160.f, 0.f, 256.f, 64.f}; // the helmet's walls (mirrored left and right)
 constexpr Block helmCapBlock{160.f, 64.f, 192.f, 96.f};
 constexpr Block liningBlock{192.f, 64.f, 224.f, 96.f};
-constexpr Block bracketBlock{224.f, 64.f, 256.f, 96.f};
 constexpr Block innerBlock{160.f, 96.f, 208.f, 128.f};
 constexpr Block rimBlock{208.f, 96.f, 256.f, 128.f};
 
@@ -399,7 +399,7 @@ struct Shell
     int slotBone[maxSlots]{}, slotPiece[maxSlots]{};
     uint32_t hash{0};
     float made{0.f};    // ms
-    char helmFit[192]{}; // the helmet's rings against the head (vr_agarmor_info, the check)
+    char helmFit[320]{}; // the helmet's rings against the head (vr_agarmor_info, the check)
 };
 
 // A piece's surface as made (before the shell): its vertices on the body (orig), smoothed (p), their weights.
@@ -792,8 +792,9 @@ void shellOf(Shell& s, Local& L, const PieceFrame& f, int piece)
 
 // ---- The helmet: the Ranger's (the player's face in the status bar), built round the head ----
 // A flat-topped bucket over the crown (its top edge chamfered, its lower edge a ledge over the brow), cheek guards from
-// under it down the sides of the face to the jaw line, the back down to the nape, the face open; a bracket on each side
-// at the guards' top. In the head bone's frame (x forward, y left, z up its length from its pivot) each ring of it is an
+// under it down the sides of the face to the jaw line, the back down to the nape, the face open (the eyes under the
+// brow; no side brackets: they stood off as flanges, 2026-10-29). Fitted close: a small gap and taper, round chamfers,
+// the guards round the head proper (not the collar blended onto it). In the head bone's frame (x forward, y left, z up its length from its pivot) each ring of it is an
 // octagon (a front, a back, two sides, four chamfers) fitted round the head's vertices a gap off them: the ring takes
 // every vertex of the bands above and below it (a face vertex only above the guards), so any place between two rings is
 // clear too. Rigid on the head bone. Texture: the walls mirrored left and right (u from the front's middle round the
@@ -880,12 +881,14 @@ struct HelmBuild
 
 void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone)
 {
-    const float gap = za::max(vr_agarmor_gap.value, 0.f), thick = za::max(vr_agarmor_thick.value, 0.05f);
+    // (rigid on the head: closer than the body's plates, and thinner; vr_agarmor_helmet_gap, _thick)
+    const float gap = za::max(vr_agarmor_helmet_gap.value, 0.f), thick = za::max(vr_agarmor_helmet_thick.value, 0.05f);
     const float L = f.length;
     constexpr float root2 = 1.41421356f;
     // The head: its surface where it is weighted to it (its neck's top too; points across each triangle, the low-poly
     // head's big triangles having no vertices between its crown and its jaw), in its frame, |y| (the helmet is symmetric).
     za::Vector<glm::vec3> pts;
+    za::Vector<float> ptW; // (its weight on the head)
     float top = 0.f;
     constexpr int steps = 6;
     for(int t = 0; t + 2 < count(b.tris); t += 3)
@@ -901,10 +904,12 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone)
             for(int v = 0; u + v <= steps; v++)
             {
                 const float bu = static_cast<float>(u) / steps, bv = static_cast<float>(v) / steps, bw = 1.f - bu - bv;
-                if(w0 * bw + w1 * bu + w2 * bv < 0.2f)
+                const float wp = w0 * bw + w1 * bu + w2 * bv;
+                if(wp < 0.2f)
                 {
                     continue;
                 }
+                ptW.pushBack(wp);
                 const glm::vec3 q = at(b.p, i0) * bw + at(b.p, i1) * bu + at(b.p, i2) * bv - f.origin;
                 const glm::vec3 h{glm::dot(q, f.fwd), za::abs(glm::dot(q, f.left)), glm::dot(q, f.up)};
                 pts.pushBack(h);
@@ -918,10 +923,10 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone)
     }
     // The rows' heights (inner surface) per point: the bucket's lower edge and the guards' rows lower toward the back,
     // the jaw's down to the nape there.
-    const float chamfer = 0.1f * L, faceHalf = 0.34f * L, taper = 0.08f * L;
+    const float chamfer = 0.18f * L, faceHalf = 0.4f * L, taper = 0.03f * L;
     const float zTop = top + gap;
     float rowZ[NumHelmRows][numHelmPoints];
-    const float zRow[NumHelmRows] = {zTop, zTop - chamfer, vr_agarmor_brow_front.value * L, (vr_agarmor_brow_front.value - 0.06f) * L, 0.26f * L, -0.07f * L};
+    const float zRow[NumHelmRows] = {zTop, zTop - chamfer, vr_agarmor_brow_front.value * L, (vr_agarmor_brow_front.value - 0.06f) * L, 0.3f * L, 0.04f * L};
     constexpr float browDrop[numHelmPoints] = {0.f, 0.f, 0.04f, 0.13f, 0.2f, 0.2f}, cheekDrop[numHelmPoints] = {0.f, 0.f, 0.f, 0.03f, 0.07f, 0.07f};
     for(int r = 0; r < NumHelmRows; r++)
     {
@@ -974,11 +979,15 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone)
     constexpr float margin = 0.25f;
     for(int r = 0; r + 1 < NumHelmRows; r++)
     {
-        for(const glm::vec3& p : pts)
+        for(int i = 0; i < count(pts); i++)
         {
+            const glm::vec3& p = at(pts, i);
             const float hi = zAt(r, p.x), lo = zAt(r + 1, p.x);
             const bool face = r + 1 > HLedge && p.x > 0.f && p.y < faceHalf;
-            if(p.z > hi + margin || p.z < lo - margin || face)
+            // (the guards round the head proper: not the collar's vertices blended onto it, the enforcer's out to its
+            // shoulders, that made its guards flanges)
+            const bool collar = r >= HLedge && at(ptW, i) < 0.5f;
+            if(p.z > hi + margin || p.z < lo - margin || face || collar)
             {
                 continue;
             }
@@ -990,23 +999,31 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone)
                 need(ring[HCrown], p, -taper * s);
                 continue;
             }
-            need(ring[r == HCap ? HCrown : r], p, r == HCap ? chamfer : 0.f);
+            // (the cap's chamfer: a point a share s up it needs the crown's ring chamfer s further out)
+            const float up = r == HCap ? za::clamp((p.z - lo) / za::max(hi - lo, 1e-3f), 0.f, 1.f) : 0.f;
+            need(ring[r == HCap ? HCrown : r], p, chamfer * up);
             need(ring[r + 1], p, 0.f);
         }
     }
-    // The style: the bucket a little wider at its brow than its crown and a ledge over the guards; its chamfers at most
-    // half its side (the guards' a third); the face's opening at least faceHalf wide.
+    // The guards no wider than the ledge over them and a little (what sticks out further below is the neck's and the
+    // collar's, not the head's: the enforcer's shoulders made its guards side flanges).
+    for(int r = HCheek; r < NumHelmRows; r++)
+    {
+        ring[r].W = za::min(ring[r].W, ring[HLedge].W + 0.1f * L);
+    }
+    // The style: the bucket a touch wider at its brow than its crown and a small ledge over the guards; its chamfers at
+    // most 0.7 of its side (the guards' half: round, close to the head); the face's opening at least faceHalf wide.
     Ring& crown = ring[HCrown];
     Ring& brow = ring[HBrow];
-    const Ring wider = grown(crown, taper), ledge = grown(ring[HLedge], 0.04f * L);
+    const Ring wider = grown(crown, taper), ledge = grown(ring[HLedge], 0.015f * L);
     brow = Ring{za::max(brow.F, wider.F, ledge.F), za::max(brow.B, wider.B, ledge.B), za::max(brow.W, wider.W, ledge.W),
         za::max(brow.Df, wider.Df, ledge.Df), za::max(brow.Db, wider.Db, ledge.Db)};
     for(int r = HCrown; r < NumHelmRows; r++)
     {
         Ring& x = ring[r];
-        const float cut = (r <= HBrow ? 0.5f : 0.34f) * x.W; // the bucket rounder than the guards
+        const float cut = (r <= HBrow ? 0.7f : 0.5f) * x.W; // the bucket rounder than the guards
         x.Df = za::clamp(za::max(x.Df, x.F + x.W - cut), 0.f, x.F + x.W);
-        x.Db = za::clamp(za::max(x.Db, x.B + x.W - 0.5f * x.W), 0.f, x.B + x.W); // (the back round: clear of the upper back)
+        x.Db = za::clamp(za::max(x.Db, x.B + x.W - 0.7f * x.W), 0.f, x.B + x.W); // (the back round: clear of the upper back)
         x.Df = r >= HLedge ? za::clamp(x.F + faceHalf, x.Df, x.F + x.W) : x.Df;
     }
     ring[HCap] = grown(crown, -chamfer);
@@ -1080,54 +1097,24 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone)
         rim(1, r, 1, r + 1);
         rim(numHelmCols - 1, r + 1, numHelmCols - 1, r);
     }
-    // The brackets: a small block on each side at the guards' top, set into the plate.
-    for(int side = 0; side < 2; side++)
-    {
-        const float sy = side == 0 ? 1.f : -1.f;
-        const Ring g = grown(ring[HLedge], thick);
-        const float size = 0.075f * L, out = 0.11f * L;
-        const float cx = g.Df - g.W - size * 1.3f, cz = rowZ[HLedge][2] - size * 1.3f;
-        const Ring gc = grown(ring[HCheek], thick);
-        const float wy = za::max(g.W, gc.W) - 0.1f;
-        const glm::vec3 lo{cx - size, wy * sy, cz - size}, hi{cx + size, (wy + out + 0.1f) * sy, cz + size};
-        // corners: bit 0 x, bit 1 y (out from the plate), bit 2 z
-        glm::vec3 k[8];
-        for(int i = 0; i < 8; i++)
-        {
-            k[i] = glm::vec3{(i & 1) ? hi.x : lo.x, (i & 2) ? hi.y : lo.y, (i & 4) ? hi.z : lo.z};
-        }
-        const glm::vec3 boxMid = (lo + hi) * 0.5f;
-        const int quads[6][4] = {{2, 3, 7, 6}, {0, 4, 5, 1}, {1, 5, 7, 3}, {0, 2, 6, 4}, {4, 6, 7, 5}, {0, 1, 3, 2}};
-        for(int q = 0; q < 6; q++)
-        {
-            glm::vec3 p[4];
-            for(int i = 0; i < 4; i++)
-            {
-                p[i] = k[quads[q][i]];
-            }
-            const glm::vec3 nrm = glm::cross(p[1] - p[0], p[2] - p[0]);
-            if(glm::dot(nrm, (p[0] + p[2]) * 0.5f - boxMid) < 0.f)
-            {
-                za::genericSwap(p[1], p[3]);
-            }
-            // its outer face the whole block (seen from outside: forward to the left on the left side), the rest a corner
-            glm::vec2 st[4];
-            for(int i = 0; i < 4; i++)
-            {
-                const float a = (p[i].x - lo.x) / (hi.x - lo.x), c2 = (hi.z - p[i].z) / (hi.z - lo.z);
-                st[i] = q == 0 ? toBlock(bracketBlock, side == 0 ? a : 1.f - a, c2) : toBlock(bracketBlock, 0.02f + 0.1f * a, 0.02f + 0.1f * c2);
-            }
-            hb.face(p, st, 4, 0);
-        }
-    }
     const Ring& gk = ring[HCheek];
+    // (its outside's size in the head's frame: front to back, side to side, top to bottom)
+    glm::vec3 lo{1e9f}, hi{-1e9f};
+    for(const Vert& v : s.verts)
+    {
+        const glm::vec3 q = v.p - f.origin;
+        const glm::vec3 h{glm::dot(q, f.fwd), glm::dot(q, f.left), glm::dot(q, f.up)};
+        lo = v.piece == Helmet ? glm::min(lo, h) : lo;
+        hi = v.piece == Helmet ? glm::max(hi, h) : hi;
+    }
+    const glm::vec3 size = hi - lo;
     q_snprintf(s.helmFit, sizeof(s.helmFit),
         "head top %.2f, helmet top %.2f (inner); brow ring front %.2f back %.2f half width %.2f; cheek ring %.2f %.2f %.2f; "
-        "face opening +-%.2f; brow %.2f, jaw %.2f, nape %.2f",
+        "face opening +-%.2f; brow %.2f, jaw %.2f, nape %.2f; outside %.2f deep, %.2f wide, %.2f high",
         static_cast<double>(top), static_cast<double>(zTop), static_cast<double>(brow.F), static_cast<double>(brow.B),
         static_cast<double>(brow.W), static_cast<double>(gk.F), static_cast<double>(gk.B), static_cast<double>(gk.W),
         static_cast<double>(gk.Df - gk.F), static_cast<double>(zRow[HBrow]), static_cast<double>(zRow[HJaw]),
-        static_cast<double>(nape));
+        static_cast<double>(nape), static_cast<double>(size.x), static_cast<double>(size.y), static_cast<double>(size.z));
 }
 
 [[nodiscard]] uint32_t fnv(uint32_t h, const void* data, size_t size)
@@ -1446,6 +1433,65 @@ void info_f()
         Con_Printf("agarmor:   helmet fit: %s\n", s->helmFit);
     }
     Con_Printf("agarmor: %d drawn last frame\n", numWorn);
+}
+
+// vr_agarmor_headcam [view] [distance]: (the mock headset; the helmet's eyeshots) the eyes on two heads: the left on the
+// nearest grunt's, the right on the nearest enforcer's (vrgrunt / vrenforcer, armoured or not), `distance` units off
+// (default 22) at the helmet's middle (its rest pose where the body stands): view 1 front, 2 side (its right), 3
+// three-quarter (front right), 4 behind; 0 (or none) the eyes from the head again.
+void headcam_f()
+{
+    const int view = Cmd_Argc() > 1 ? atoi(Cmd_Argv(1)) : 0;
+    const float dist = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : 22.f;
+    if(view <= 0 || view > 4)
+    {
+        setMockEyeCameras(false);
+        Con_Printf("agarmor headcam: off\n");
+        return;
+    }
+    const char* wanted[2] = {"progs/vrgrunt.mdl", "progs/vrenforcer.mdl"};
+    const glm::vec3 me = cl.viewentity > 0 && cl.viewentity < cl.num_entities ?
+        glm::vec3{cl_entities[cl.viewentity].origin[0], cl_entities[cl.viewentity].origin[1], cl_entities[cl.viewentity].origin[2]} :
+        glm::vec3{0.f};
+    glm::vec3 camAt[2]{};
+    float pitch[2] = {0.f, 0.f}, yaw[2] = {0.f, 0.f};
+    for(int k = 0; k < 2; k++)
+    {
+        int found = -1;
+        float best = 1e30f;
+        for(int i = 1; i < cl.num_entities; i++)
+        {
+            const entity_t& e = cl_entities[i];
+            const float d = glm::distance(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, me);
+            found = e.model && !strcmp(e.model->name, wanted[k]) && d < best ? i : found;
+            best = e.model && !strcmp(e.model->name, wanted[k]) && d < best ? d : best;
+        }
+        const Shell* s = found > 0 ? shellFor(cl_entities[found].model) : nullptr;
+        glm::vec3 mid{0.f};
+        int n = 0;
+        for(int v = 0; s && v < count(s->verts); v++)
+        {
+            mid += at(s->verts, v).piece == Helmet ? at(s->verts, v).p : glm::vec3{0.f};
+            n += at(s->verts, v).piece == Helmet ? 1 : 0;
+        }
+        if(n == 0)
+        {
+            Con_Printf("agarmor headcam: no %s with a helmet in view\n", wanted[k]);
+            continue;
+        }
+        const entity_t& e = cl_entities[found];
+        mid /= static_cast<float>(n);
+        const float y = e.angles[1] * (pi / 180.f);
+        const glm::vec3 fw{za::cos(y), za::sin(y), 0.f}, left{-za::sin(y), za::cos(y), 0.f};
+        const glm::vec3 head = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} + fw * mid.x + left * mid.y + glm::vec3{0.f, 0.f, mid.z};
+        const glm::vec3 dirs[4] = {fw, -left, glm::normalize(fw - left), -fw};
+        const float yaws[4] = {180.f, 90.f, 135.f, 0.f};
+        camAt[k] = head + dirs[view - 1] * dist;
+        yaw[k] = e.angles[1] + yaws[view - 1];
+        Con_Printf("agarmor headcam: %s (entity %d) head at %.1f %.1f %.1f, view %d\n", wanted[k], found, static_cast<double>(head.x),
+            static_cast<double>(head.y), static_cast<double>(head.z), view);
+    }
+    setMockEyeCameras(true, camAt, pitch, yaw);
 }
 
 void rebuild_f()
@@ -2508,9 +2554,99 @@ int clientState(int num, int what)
     return what == 0 ? stateType(s) : what == 1 ? statePieces(s) : stateWear(s);
 }
 
+// The point of triangle a, b, c nearest `p`.
+[[nodiscard]] glm::vec3 nearestOnTri(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
+{
+    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
+    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
+    if(d1 <= 0.f && d2 <= 0.f)
+    {
+        return a;
+    }
+    const glm::vec3 bp = p - b;
+    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
+    if(d3 >= 0.f && d4 <= d3)
+    {
+        return b;
+    }
+    const float vc = d1 * d4 - d3 * d2;
+    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
+    {
+        return a + ab * (d1 / (d1 - d3));
+    }
+    const glm::vec3 cp = p - c;
+    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
+    if(d6 >= 0.f && d5 <= d6)
+    {
+        return c;
+    }
+    const float vb = d5 * d2 - d1 * d6;
+    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
+    {
+        return a + ac * (d2 / (d2 - d6));
+    }
+    const float va = d3 * d6 - d5 * d4;
+    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
+    {
+        return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
+    }
+    const float denom = 1.f / za::max(va + vb + vc, 1e-12f);
+    return a + ab * (vb * denom) + ac * (vc * denom);
+}
+
+// The plate nearest world point `p` on `ent` (each plate's own frame as drawn: the point taken back to its rest pose),
+// within `reach` units; -1 none. What a hit there strikes: the ragdoll rig's nearest vertex (pieceOfBone) read a thigh
+// plate's lower half as the shin's (the shin's vertices lie nearer the knee's skin than the thigh's do).
+int plateNear(edict_t* ent, const Shell& s, const float* p, float reach, float& dist)
+{
+    bool ok[NumPieces]{};
+    glm::vec3 rest[NumPieces]{};
+    const glm::vec3 at3{p[0], p[1], p[2]};
+    for(int piece = 0; piece < NumPieces; piece++)
+    {
+        const PlateFrame pf = plateFrameOf(s, piece);
+        if(!pf.ok)
+        {
+            continue;
+        }
+        glm::vec3 posed[3];
+        posedAnchors(ent, s, pf, posed);
+        const glm::mat3 turn = frameFrom(posed[0], posed[1], posed[2]) * glm::transpose(pf.rest);
+        rest[piece] = at(s.body.mdlRest, pf.anchor[0]) + glm::transpose(turn) * (at3 - posed[0]);
+        ok[piece] = true;
+    }
+    int best = -1;
+    float bestD = reach;
+    for(int t = 0; t + 2 < count(s.tris); t += 3)
+    {
+        const Vert& v0 = at(s.verts, at(s.tris, t));
+        if(!ok[v0.piece])
+        {
+            continue;
+        }
+        const glm::vec3& q = rest[v0.piece];
+        const glm::vec3 n = nearestOnTri(q, v0.p, at(s.verts, at(s.tris, t + 1)).p, at(s.verts, at(s.tris, t + 2)).p);
+        const float d = glm::distance(q, n);
+        best = d < bestD ? v0.piece : best;
+        bestD = za::min(d, bestD);
+    }
+    dist = bestD;
+    return best;
+}
+
 int pieceAt(edict_t* ent, const float* p)
 {
-    const int piece = pieceOfBone(ent, p);
+    int piece = pieceOfBone(ent, p);
+    // (on a limb, or off every piece's bone: the limb plate struck, the nearest within a plate's reach of the skin
+    // under it; the cuirass's and the helmet's hits stay their bones')
+    const char* plateBase = baseOf(ent);
+    const Shell* ps = plateBase ? serverShell(plateBase) : nullptr;
+    const float reach = za::max(vr_agarmor_gap.value, 0.f) + za::max(vr_agarmor_thick.value, 0.05f) + 1.5f;
+    float d = reach;
+    const int nearPlate = ps ? plateNear(ent, *ps, p, reach, d) : -1;
+    // (and on a limb plate itself, or just under it: that plate, whatever bone is nearest: a ragdoll's arm on its chest)
+    const bool onPlate = d <= za::max(vr_agarmor_gap.value, 0.f) + za::max(vr_agarmor_thick.value, 0.05f) + 0.25f;
+    piece = nearPlate >= 0 && limbBone[nearPlate] && (piece < 0 || limbBone[piece] || onPlate) ? nearPlate : piece;
     // (behind the cuirass's back cut, its own: the enforcer's power pack; the point taken back to the rest pose by the
     // cuirass's frame as drawn)
     const char* base = piece == Cuirass ? baseOf(ent) : nullptr;
@@ -2570,10 +2706,31 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
     posedAnchors(ent, *s, pf, posed);
     const glm::mat3 now = frameFrom(posed[0], posed[1], posed[2]);
     const glm::mat3 turn = now * glm::transpose(pf.rest);
-    if(what == 0)
+    if(what == 0 || (what >= 2 && what <= 4))
     {
         const glm::vec3 restA = at(s->body.mdlRest, pf.anchor[0]);
-        const glm::vec3 o = posed[0] + turn * (pf.mid - restA);
+        // (2, 3, 4: a point on its outer face 15% / 85% / 50% of its length along its frame's first axis: its ends, its middle)
+        glm::vec3 restP = pf.mid;
+        if(what != 0)
+        {
+            const glm::vec3 axis = pf.rest[0];
+            float lo = 1e9f, hi = -1e9f;
+            for(const Vert& v : s->verts)
+            {
+                const float x = glm::dot(v.p, axis);
+                lo = v.piece == piece && v.layer == 0 ? za::min(lo, x) : lo;
+                hi = v.piece == piece && v.layer == 0 ? za::max(hi, x) : hi;
+            }
+            const float want = lo + (hi - lo) * (what == 2 ? 0.15f : what == 3 ? 0.85f : 0.5f);
+            float best = 1e9f;
+            for(const Vert& v : s->verts)
+            {
+                const float d = za::abs(glm::dot(v.p, axis) - want);
+                restP = v.piece == piece && v.layer == 0 && d < best ? v.p : restP;
+                best = v.piece == piece && v.layer == 0 && d < best ? d : best;
+            }
+        }
+        const glm::vec3 o = posed[0] + turn * (restP - restA);
         out[0] = o.x;
         out[1] = o.y;
         out[2] = o.z;
@@ -2718,6 +2875,7 @@ void init()
     Cmd_AddCommand("vr_agarmor_rebuild", rebuild_f);
     Cmd_AddCommand("vr_agarmor_set", set_f);
     Cmd_AddCommand("vr_agarmor_check", check_f);
+    Cmd_AddCommand("vr_agarmor_headcam", headcam_f);
 }
 
 } // namespace qvr::agarmor

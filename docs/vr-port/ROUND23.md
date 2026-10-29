@@ -463,6 +463,41 @@ His voice notes of 2026-10-29 (five items).
    enforcer/enfire 0.72x + weapons/lstart 1.15x (0.22 s) + weapons/grenade 1.25x (0.3 s); revolver: weapons/shotgn2 0.8x +
    weapons/r_exp3 1.35x (0.35 s) + weapons/guncock 0.72x, drive 1.8. `soundlist`: both load (16b, 81664 and 158764).
 
+## 9d. Armour: smaller helmets, limb plates by the plate struck, the right leg's wear (branch `agent/helmets`)
+
+His voice notes of 2026-10-29: the grunt's helmet too big (eyes hidden, a hat), the enforcer's too wide with side flanges.
+- **Helmet fit** (`helmetOf`, vr_agarmor.cpp). The enforcer's flanges were its cheek guards fitted round collar/shoulder
+  vertices blended onto the head (head weight 0.2-0.5, out to 9.3 units each side): the guards now fit only the head
+  proper (weight >= 0.5) and are never wider than the ledge over them + 0.1 head lengths. The side brackets are gone.
+  Brow higher (`vr_agarmor_brow_front` 0.5 -> 0.62: the eyes show), face opening 0.34 -> 0.4, taper 0.08 -> 0.03, ledge
+  0.04 -> 0.015, rounder chamfers (0.7 of the side, the guards 0.5), a sloped cap chamfer (0.18, fitted per point up
+  it), guards end higher (jaw row -0.07 -> 0.04). Its own gap and thickness: `vr_agarmor_helmet_gap` 0.15,
+  `vr_agarmor_helmet_thick` 0.45 (the body's plates keep 0.25 / 0.6). The helmet fit line now ends with its outside size.
+- **Size** (`vr_agarmor_check`, outside front-back x side-side x high, units): grunt 11.11 x 11.43 x 8.50 -> 10.38 x 9.39
+  x 7.47 (front area -28%, volume -32%); enforcer 14.39 x 21.73 x 8.70 -> 13.56 x 10.63 x 7.67 (front area -57%). The
+  depth is near the head's own (the enforcer's head with its baked visor is 11.5 deep). Check 10/10 passed both
+  models; over all the poses (rest, neck/head/spine/arm/leg joint-limit sweeps, random poses) the body inside the helmet
+  144 -> 133 vertices, deepest 0.40 -> 0.24 (under the 0.45 thickness: nothing through), helmet inside the body 4019 ->
+  2178. Eyeshots: `scratch/helmets_before_after.png` (left before, right after; rows front, side, three-quarter; each
+  pair grunt | enforcer), from `vr_agarmor_test 6` + `vr_agarmor_headcam 1-3 20`.
+- **Thigh plate read as the shin's** (`pieceAt`). The ragdoll rig's nearest vertex read a thigh plate's knee end as the
+  shin's (and a few bracer/pauldron ends as their neighbours'). Now a hit on a limb (or on no piece's bone) takes the
+  nearest limb plate within the plate's reach (gap + thickness + 1.5) by the plate's own triangles, each plate's frame
+  as drawn (`plateNear`); a point on/just under a limb plate takes that plate whatever bone is nearest (a ragdoll's arm
+  lying on its chest). Cuirass and helmet hits stay their bones'.
+- **Right leg's wear on corpses** (QC). The per-joint arrays (`vr_limb_corpse_dmg`, `_bdmg`, `_wn`) and the joint loops
+  kept 16 slots; the authored rig's right leg is joints 16-18 (thigh_r 17, shin_r 18 measured), so its hits wore the
+  whole body (and `VR_Limb_TopJoints` never threw it on a gib). `VR_LIMB_JOINTS` 24 (ragdoll::maxBones) everywhere.
+- **Tests.** `vr_agarmor_test 5` gains: on the dead ragdoll, the active one and a standing grunt, every limb plate's
+  outer face near both ends and at its middle (`limbpiece` 12/13/14, new) reads as its own piece: 24/24 each (the old
+  lookup: 17, 14, 16 of 24); the corpse's right thigh and shin worn as their own joints 17 and 18, body health 160 kept
+  (old: joint -1, body 160 -> 150). **23 passed, 0 failed.** `vr_agarmor_test 1` **26/26**.
+- **Debug.** Debug > Tests > Helmets There: Grunt and Enforcer (`vr_agarmor_test 6`); `vr_agarmor_headcam <1 front | 2
+  side | 3 three-quarter | 4 behind> [distance]` puts the mock eyes on the nearest grunt's (left) and enforcer's
+  (right) heads, 0 back.
+- **Found, not fixed.** `vr_limb_test 28/29` (Misc/quakevr/ragdoll/limb_wear_test.sh) fail the same with the old 16
+  slots (a blunt blow wears nothing into joint 7 of the firing range's monster_army): not this change.
+
 ## 10. Suggested checklist lines still pending (coordinator owns `quakevr/checklist.txt`)
 
 - Survival Arena: map, wave director (readout, 5 s rest + 5 s countdown, teleport arrivals, never inside anything, guns

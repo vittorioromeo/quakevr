@@ -8,6 +8,7 @@
 // P2: an armed enforcer too (its pieces at their places, its power pack no plate, its debris, the skill's roll dressing
 // it, its wear's word reaching the client), the damage marks' thresholds; `vr_agarmor_test 3` three enforcers in full
 // sets, `4` three grunts in yellow, whole, at two thirds and at a third (the eyeshots).
+// `vr_agarmor_test 6`: a grunt and an enforcer close ahead in full yellow (the helmets' eyeshots: vr_agarmor_headcam).
 
 entity vr_art_a, vr_art_b; // the armoured grunt, the bare one
 float vr_art_state;       // 0 idle, 1 the checks, 2 waiting for the debris to fade
@@ -335,6 +336,14 @@ void() VR_AgArmor_TestFrame =
             e3 = VR_ART_SpawnKind(p, 44, 1, 128);
             e3.angles_y = e3.angles_y + 180;
             VR_AgArmor_Give(e3, 3, 1023);
+            return;
+        }
+        if(request == 6)
+        {
+            // (the helmets' eyeshots: a grunt and an enforcer close ahead in full yellow, facing the player;
+            // vr_agarmor_headcam puts the mock eyes on their heads)
+            VR_AgArmor_Give(VR_ART_SpawnKind(p, -40, 0, 80), 2, 1023);
+            VR_AgArmor_Give(VR_ART_SpawnKind(p, 40, 1, 80), 2, 1023);
             return;
         }
         if(request == 4)
