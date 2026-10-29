@@ -640,7 +640,10 @@ nail guns, super nail guns, nail pistols, grenade launchers, thunderbolts, laser
 skipped without AD data), 3 shots a gun: every shot 0-2.4 units from its own drawn muzzle, 11-22 from the other: 15/15;
 before the fix both native pairs fail (the left gun's shots 22 units from it, nearer the right gun). Test 48 (fighting
 distance) case "walking at it, axe": now passes when it shoves you up close (it used to require never within 64).
-Tests 84 (shove) 20/20, 42 (dual guns) 20/20.
+Tests 84 (shove) 20/20, 42 (dual guns) 20/20. Test 48 run one weapon a run (`scratch1 N`, each ending on its own
+`test 48 over` line): weapons 1-3 6/6, 4-8 2/2 each, 9-10 1/1 each (all pass; the whole test in one run outlasts a
+590 s low-impact run). Numbers 85 and 89 are `vr_agrunt_test`'s; `vr_ad_test` 85/89 (vr_ad_enemyguns_test.qc) are
+another cvar's dispatcher, no clash.
 
 Checklist:
 - Walk right up to a grunt holding a shotgun (or an enforcer with its rifle): it stops backing off, steps in and shoves
