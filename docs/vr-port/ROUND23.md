@@ -650,3 +650,31 @@ Checklist:
   you; stand a little further (about two body widths) and it backs off as before.
 - Dual-wielding enforcer with two laser rifles, a grunt with two of its own guns `{test:agrunt_dual_guns}`: each bolt
   or burst leaves its own gun, the left gun's from the left hand.
+
+## Refactor pass, phase 0: the test and bench baseline (branch `agent/agtests`)
+
+The baseline every refactor phase is checked against (the kit's `scratch/refactor/baseline.md`, its rerun script
+`scratch/refactor/run_baseline.sh <agent>`: about 2.3 hours of tests, then the LTO bench).
+- **Test-number registry** (`QC/test_numbers.txt`): every QC test cvar that takes a number now has its dispatcher
+  listed: 26 more (`vr_arena_test`, `vr_arena_perks_test`, `vr_limb_test`, `vr_decap_test`, `vr_agarmor_test`,
+  `vr_mg3_test`, `vr_burn_test`, `vr_smallgibs_test`, ...), as `loose` dispatchers (their set-up branches share numbers
+  with the cases: only the registry's claims, coverage and the clashes between dispatchers are checked), plus next's
+  `vr_agrunt_test` 85, 88, 89 and the Debug menu's fall-through numbers (26 `N*` lines). 422 registered, 0 problems; a
+  copy with a second claim, a second dispatch branch or an unclaimed branch fails the check (exit 1, the build fails).
+  Not numbered tests: `vr_shock_hit_test` (a damage amount), `vr_crouch_test`, `vr_dmgcredit_test`.
+- **Fixed: tests 69 and 74 hung** on a QC bounds check (`0 <= 19 < 17 is false`): `vr_rimp_next[17]`
+  (vr_ragimpact.qc) was missed when the limb arrays grew to every rig joint (`VR_LIMB_JOINTS` 24, commit 0b7f067ae):
+  the right leg's joints 16-18 overran it. Now `[VR_LIMB_JOINTS + 1]`; 69 10/0, 74 1/0. Any ragdoll impact on the
+  authored rig's right leg hit it in play (the ragtest suite's `Host_Error: Program error` was likely the same).
+- **Test 31 (ragtug pull), not fixed: a tuning question.** The physical tug's pull never reads above ~110 N now (peak
+  109-112 N; a 0.6 m/s pull to 0.7 m), under `vr_agrunt_tug_pull_force` 270 N, so the steady pull never wins and the
+  test times out its 5 s, the grunt still armed. ROUND22 measured 1185-1650 N for the same pull. The drawn hand stays
+  on its grab (0.5 units), the grunt's arm follows the hand (test 39: the hold's lag 15 cm at a 32 cm controller gap),
+  the grunt's body does not move. Likely since the tug's hand drawn on the weapon (670a9305b, 10-26) or a later spring
+  change; not the close shove (`vr_agrunt_shove_close 0`: the same). Whether a real pull in VR still wins needs him.
+- **Test 60 (parries), not fixed: geometry.** The grunt (kind 0) fails the ogre case 4 runs of 5: its parry's pose
+  (up 1.00) holds the sword 9-11 units to its right of the blow's line (weapon middle 16 -10 22 body space, upright),
+  outside `VR_AGPAR_RMON` (5 units), "missed its weapon". The enforcer (kind 1) passed 4 of 5.
+
+Checklist:
+- Throw or slam a grunt so its right leg hits the floor (or a wall) hard: the dent and wound land, no stall.

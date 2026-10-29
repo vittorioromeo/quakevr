@@ -1032,7 +1032,136 @@ void animResult(bool ok, const char* what)
     Con_Printf("rig2anim check: %s: %s\n", ok ? "ok" : "FAIL", what);
     (ok ? animCheck.passed : animCheck.failed)++;
 }
+
+// `vr_rig2anim_check fixture keys|seq|off [model]`: the tests' own data put on a model in memory (published as the
+// studio publishes its edits; no file written; a map's load or `off` reads its files again), so vr_agrunt_test 80 and
+// 82 need no studio run first (the studio is flat-screen only). `keys`: its `load` animation's override keyed as
+// vr_rigstudio_test_rig2anim keys it (the chest and the right upper arm at frames 3 and 7). `seq`: the sequence
+// "rstest" (10 frames at 10 fps, events "fire" at 3 and "footstep" at 7).
+void animFixture(const char* kind, const char* modelName)
+{
+    qmodel_t* model = Mod_ForName(modelName, false);
+    const ragdoll::Rig* rig = model ? ragdoll::rigFor(model) : nullptr;
+    if(!rig)
+    {
+        Con_Printf("rig2anim fixture: FAIL: no rig for %s\n", modelName);
+        return;
+    }
+    if(!strcmp(kind, "off"))
+    {
+        rigdata::reload(model);
+        Con_Printf("rig2anim fixture: %s read from its files again\n", modelName);
+        return;
+    }
+    const rigdata::ModelData* had = rigdata::of(model);
+    rigdata::ModelData m = had ? *had : rigdata::ModelData{};
+    if(!had)
+    {
+        char base[64];
+        rigdata::baseName(model->name, base, sizeof(base));
+        m.model = model->name;
+        m.base = base;
+        m.authored = rig->authored;
+    }
+    for(int b = 0; b < rig->numBones; b++)
+    {
+        if(m.boneName[b].empty())
+        {
+            m.boneName[b] = rig->bones[b].name;
+        }
+    }
+    if(!strcmp(kind, "seq"))
+    {
+        for(za::SizeT i = 0; i < m.seqs.size(); i++)
+        {
+            if(!q_strcasecmp(m.seqs[i].name.cStr(), "rstest"))
+            {
+                m.seqs.erase(m.seqs.begin() + static_cast<za::PtrDiffT>(i));
+                break;
+            }
+        }
+        rigdata::Sequence s;
+        s.name = "rstest";
+        s.length = 10;
+        s.fps = 10.f;
+        s.events.pushBack(rigdata::Event{3, za::String{"fire"}});
+        s.events.pushBack(rigdata::Event{7, za::String{"footstep"}});
+        m.seqs.pushBack(ZA_MOVE(s));
+        rigdata::publish(model, m);
+        Con_Printf("rig2anim fixture: %s: sequence rstest (10 frames at 10 fps; fire 3, footstep 7)\n", modelName);
+        return;
+    }
+    if(strcmp(kind, "keys"))
+    {
+        Con_Printf("usage: vr_rig2anim_check fixture keys|seq|off [model]\n");
+        return;
+    }
+    if(!rig->authored)
+    {
+        Con_Printf("rig2anim fixture: FAIL: %s is not on the authored rig (vr_rig2 1)\n", modelName);
+        return;
+    }
+    struct FixKey
+    {
+        const char* bone;
+        float frame;
+        glm::vec3 rot;
+    };
+    static constexpr FixKey fixKeys[] = {{"chest", 3.f, {0.f, 15.f, 0.f}}, {"chest", 7.f, {10.f, 0.f, 0.f}},
+                                         {"upperarm_r", 3.f, {0.f, -30.f, 20.f}}, {"upperarm_r", 7.f, {0.f, 20.f, 0.f}}};
+    rigdata::AnimOverride o;
+    o.anim = "load";
+    for(const FixKey& k : fixKeys)
+    {
+        int b = -1;
+        for(int i = 0; i < rig->numBones; i++)
+        {
+            b = !q_strcasecmp(rig->bones[i].name, k.bone) ? i : b;
+        }
+        if(b < 0)
+        {
+            Con_Printf("rig2anim fixture: FAIL: no bone %s\n", k.bone);
+            return;
+        }
+        rigdata::Track* t = nullptr;
+        for(rigdata::Track& tr : o.tracks)
+        {
+            t = tr.bone == b ? &tr : t;
+        }
+        if(!t)
+        {
+            o.tracks.pushBack(rigdata::Track{});
+            t = &o.tracks.back();
+            t->bone = b;
+        }
+        rigdata::Key key;
+        key.frame = k.frame;
+        key.value.rot = k.rot;
+        t->keys.pushBack(key);
+    }
+    for(za::SizeT i = 0; i < m.overrides.size(); i++)
+    {
+        if(!q_strcasecmp(m.overrides[i].anim.cStr(), "load"))
+        {
+            m.overrides.erase(m.overrides.begin() + static_cast<za::PtrDiffT>(i));
+            break;
+        }
+    }
+    m.overrides.pushBack(ZA_MOVE(o));
+    rigdata::publish(model, m);
+    Con_Printf("rig2anim fixture: %s: load keyed (chest, upperarm_r at frames 3 and 7)\n", modelName);
+}
 } // namespace
+
+// The last `vr_rig2anim_check end`'s totals (vr_agrunt_test 82 counts them; not saved).
+cvar_t vr_rig2anim_check_passed = {"vr_rig2anim_check_passed", "0", CVAR_NONE};
+cvar_t vr_rig2anim_check_failed = {"vr_rig2anim_check_failed", "0", CVAR_NONE};
+
+void animCheckInit()
+{
+    Cvar_RegisterVariable(&vr_rig2anim_check_passed);
+    Cvar_RegisterVariable(&vr_rig2anim_check_failed);
+}
 
 void animCheck_f()
 {
@@ -1050,7 +1179,14 @@ void animCheck_f()
     if(!strcmp(what, "end"))
     {
         Con_Printf("rig2anim check: %d passed, %d failed\n", animCheck.passed, animCheck.failed);
+        Cvar_SetValueQuick(&vr_rig2anim_check_passed, static_cast<float>(animCheck.passed)); // (QC's test reads them)
+        Cvar_SetValueQuick(&vr_rig2anim_check_failed, static_cast<float>(animCheck.failed));
         animCheck = AnimCheck{};
+        return;
+    }
+    if(!strcmp(what, "fixture"))
+    {
+        animFixture(Cmd_Argc() > 2 ? Cmd_Argv(2) : "", Cmd_Argc() > 3 ? Cmd_Argv(3) : "progs/vrgrunt.mdl");
         return;
     }
     const bool keepNow = !strcmp(what, "keep");

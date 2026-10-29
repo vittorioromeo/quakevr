@@ -147,6 +147,22 @@ Sections fold (ROUND23.md, "Checklist: folding sections"): each header shows ope
 unfolds it, kept by name in `quakevr/checklist_sections.txt` (ignored); `vr_checklist` prints CLSEC lines,
 `vr_checklist collapse|expand <s|all>` and `folds_default`; `python Misc/quakevr/checklist_fold_check.py <agent>` tests it.
 
+### Test numbers
+
+The numbered test cvars (`vr_agrunt_test N`, `vr_ad_test N`, `vr_rv_test`, `vr_np_test`, `vr_flare_test`,
+`vr_reload_test`, `vr_pickup_test`) have one registry: `QC/test_numbers.txt` (its header has the format). To add a
+test, **claim its number there** in the same commit as its dispatch branch: a number no line has (a block such as
+`vr_agrunt_test 50-59` belongs to its file). `python Misc/quakevr/check_test_numbers.py` (run by the kit's build.sh,
+which fails on it) checks: no number claimed by two lines or taken by two dispatch branches (the second would be dead
+code: 74 and 84 clashed this way), every dispatched number and every Debug menu command's number registered, every
+registered number dispatched (`N*`: run by the dispatcher's fall-through). `--list` prints the dispatched numbers. A new
+dispatcher (another cvar, or a sub-dispatcher a range is handed to) gets a `dispatch` line. Since 2026-10-29 every QC
+`vr_*_test` cvar that takes a test number has one (26 more: `vr_arena_test`, `vr_limb_test`, `vr_agarmor_test`,
+`vr_decap_test`, `vr_mg3_test`, ...), as `loose` dispatchers (their set-up branches share numbers with the cases);
+`vr_shock_hit_test` (a damage amount), `vr_crouch_test` and `vr_dmgcredit_test` (no numbered branches) are not
+numbered tests. Every `vr_agrunt_test` ends
+on `agtest: test N over: P passed, F failed` (`-QuitOn "test N over"`).
+
 ### Checklist scenarios: how to write one
 
 A checklist line gets a one-press test scene by ending with ` {test:<id>}` (the tag is not shown, not part of the

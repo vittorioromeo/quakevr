@@ -35,7 +35,7 @@
 //   (VR_RagImpact_Test); Misc/quakevr/foegrab/ragimpact_test.py runs them.
 
 float VR_RIMP_GAP = 0.15; // s: strikes on one piece this close together count as one (the first: the hardest of its frame)
-.float vr_rimp_next[17];  // until when a strike on each piece does not count again (the torso 0, the head 1, a limb its joint + 1)
+.float vr_rimp_next[VR_LIMB_JOINTS + 1]; // until when a strike on each piece does not count again (the torso 0, the head 1, a limb its joint + 1: every rig joint, vr_limbs.qc)
 float vr_rimp_test;       // in a test (VR_RagImpact_Test): each strike printed whatever vr_knockdown_debug says
 float vr_rimp_dealt;      // the tests: strikes dealt, and the damage in all
 float vr_rimp_total;

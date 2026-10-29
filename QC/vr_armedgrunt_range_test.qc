@@ -31,6 +31,8 @@ float vr_agrg_shoves0; // vr_ag_close_shoves at the case's start
 float vr_agrg_yaw0;
 float vr_agrg_keepw;
 float vr_agrg_keepw2;
+float vr_agrg_keepgrip; // vr_weapon_grip_mode before it (held at 1: the mock's grip open, a weapon put in your hand
+                        // with mode 0 is let go of at once: one dropped every frame, thousands lying at your feet)
 vector vr_agrg_lastpos;
 vector vr_agrg_start;
 
@@ -74,6 +76,8 @@ void() VR_AGRG_Frame =
         vr_agrg_yaw0 = p.angles_y;
         vr_agrg_keepw = p.weapon;
         vr_agrg_keepw2 = p.weapon2;
+        vr_agrg_keepgrip = cvar("vr_weapon_grip_mode");
+        cvar_set("vr_weapon_grip_mode", "1");
         vr_agrg_w = (one >= 1 && one <= VR_AGRG_N) ? one - 1 : 0;
         vr_agrg_case = 0;
         VR_AGT_Print(sprintf("range: vr_agrunt_range %g, scale %g, walkfire %g, kind %g", cvar("vr_agrunt_range"),
@@ -225,6 +229,7 @@ void() VR_AGRG_Frame =
             setorigin(p, vr_agrg_start);
             p.weapon = vr_agrg_keepw;
             p.weapon2 = vr_agrg_keepw2;
+            cvar_set("vr_weapon_grip_mode", ftos(vr_agrg_keepgrip));
             cvar_set("vr_agrunt_test", "0");
         }
     }
