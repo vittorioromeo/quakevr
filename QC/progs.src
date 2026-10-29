@@ -149,6 +149,7 @@ vr_cheats.qc
 vr_smallgibs_test.qc
 vr_dropcap_test.qc
 vr_agarmor_test.qc
+vr_agarmor_fx_test.qc
 vr_crouch_test.qc
 vr_melee_sweep_test.qc
 vr_blade_test.qc

@@ -2528,6 +2528,31 @@ int pieceAt(edict_t* ent, const float* p)
     return rest.x < cut ? -1 : piece;
 }
 
+uint32_t pieceBones(edict_t* ent, int piece)
+{
+    if(piece < 0 || piece >= NumPieces)
+    {
+        return 0u;
+    }
+    const char* names[2] = {limbBone[piece], nullptr};
+    if(piece == Helmet)
+    {
+        names[0] = "head";
+    }
+    else if(piece == Cuirass)
+    {
+        names[0] = "spine";
+        names[1] = "chest";
+    }
+    uint32_t m = 0u;
+    for(const char* n : names)
+    {
+        const int b = n ? box3d::boneNamed(ent, n) : -1;
+        m |= b >= 0 && b < 32 ? 1u << b : 0u;
+    }
+    return m;
+}
+
 void plateWhere(edict_t* ent, int piece, int what, float* out)
 {
     out[0] = out[1] = out[2] = 0.f;

@@ -1838,6 +1838,11 @@ void PF_ragdollbone()
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::clientState(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(p[0])));
         return;
     }
+    if(within == -1002.f) // QVR_ARMOR_PIECE_BONES: the rig's bones piece p_x rides (bits, as ragdolllimbs')
+    {
+        G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::pieceBones(G_EDICT(OFS_PARM0), static_cast<int>(p[0])));
+        return;
+    }
     G_FLOAT(OFS_RETURN) =
         static_cast<float>(box3d::ragdollBone(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}, within));
 }

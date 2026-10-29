@@ -2873,6 +2873,7 @@ struct SoundLayer
     float delay{0.f};  // s into the sound it starts
     float length{0.f}; // s of it kept (0: all of it), its last `fade` s faded out
     float fade{0.f};
+    bool reversed{false}; // played backwards
 };
 
 struct LayeredSound
@@ -2897,6 +2898,9 @@ constexpr LayeredSound layeredSounds[] = {
         {{"weapons/shotgn2.wav", 0.8f, 0.85f, 0.f, 0.f, 0.f}, {"weapons/r_exp3.wav", 1.35f, 0.45f, 0.f, 0.35f, 0.25f},
             {"weapons/guncock.wav", 0.72f, 0.45f, 0.f, 0.f, 0.f}},
         1.8f},
+    // An armed humanoid's plate breaking (QC vr_agarmor.qc VR_AgArmor_Break): the armour pickup's chime backwards and
+    // ~6 semitones down, so it is never taken for a pickup; barely driven (clean).
+    {"vr/derived/armor_break.wav", {{"items/armor1.wav", 0.7f, 1.f, 0.f, 0.f, 0.f, true}}, 0.1f},
 };
 
 [[nodiscard]] int readLe(const byte* p, int bytes)
@@ -2986,7 +2990,16 @@ extern "C" byte* VR_SndLayered(const char* name, int* size)
             }
             continue;
         }
-        const double step = static_cast<double>(layer.rate) * rate / layeredRate; // its samples an output sample
+        if(layer.reversed)
+        {
+            for(za::SizeT a = 0, b = pcm.size() - 1; a < b; a++, b--)
+            {
+                const float t = pcm[a];
+                pcm[a] = pcm[b];
+                pcm[b] = t;
+            }
+        }
+        const double step =static_cast<double>(layer.rate) * rate / layeredRate; // its samples an output sample
         int n = static_cast<int>(static_cast<double>(pcm.size() - 1) / step);
         if(layer.length > 0.f)
         {

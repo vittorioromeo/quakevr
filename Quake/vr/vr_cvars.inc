@@ -3788,7 +3788,7 @@ QVR_CVAR(vr_agarmor_skill2_pieces, "5", CVAR_ARCHIVE)
 QVR_CVAR(vr_agarmor_skill3, "0.6", CVAR_ARCHIVE)      // armour: the chance on Nightmare
 QVR_CVAR(vr_agarmor_skill3_type, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_agarmor_skill3_pieces, "10", CVAR_ARCHIVE)
-QVR_CVAR(vr_agarmor_test, "0", CVAR_NONE)             // the QC tests armour on armed humanoids (vr_agarmor_test.qc; Debug > Tests): 1 all; ends on "agarmor test: N passed, M failed"; 2 / 3 grunts / enforcers in full green, yellow, red; 4 grunts in yellow whole, at 2/3, at 1/3 (damage marks)
+QVR_CVAR(vr_agarmor_test, "0", CVAR_NONE)             // the QC tests armour on armed humanoids (vr_agarmor_test.qc; Debug > Tests): 1 all; ends on "agarmor test: N passed, M failed"; 2 / 3 grunts / enforcers in full green, yellow, red; 4 grunts in yellow whole, at 2/3, at 1/3 (damage marks); 5 ragdolls, cuts, debris and sparks (vr_agarmor_fx_test.qc), ends on "agarmor fx test: N passed, M failed"
 QVR_CVAR(vr_agarmor_brow_front, "0.5", CVAR_NONE)    // vr_agarmor: the helmet bucket's lower edge (its brow: above the eyes; the cheek guards come down under it)
 QVR_CVAR(vr_rig2_dq, "0", CVAR_NONE)                 // 1: the authored rig skinned with dual quaternions (no candy wrapper at a twist; vr_rig2_check, the Rig Studio's Shaded display); 0: linear blend
 QVR_CVAR(vr_rigseq, "1", CVAR_NONE)                  // 1: the files' override tracks and the sequences QC starts drawn on the rigged monsters (vr_rigseq.cpp); 0: never (nothing changes without the files)

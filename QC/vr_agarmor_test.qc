@@ -185,7 +185,7 @@ void() VR_ART_Run =
     // A gibbing sheds every plate left.
     VR_AgArmor_Give(a, 2, 1023 - 1 - 16);
     made = vr_ar_debris_made;
-    VR_AgArmor_Shed(a);
+    VR_AgArmor_Shed(a, -40);
     VR_ART_Check(vr_ar_debris_made == made + 8 && a.vr_ar_mask == 0, sprintf("gibbed: %g plates shed (8)", vr_ar_debris_made - made));
 
     // The skill rolls: 200 spawns each.
@@ -288,8 +288,16 @@ void() VR_ART_RunEnforcer =
     VR_ART_Check(vr_art_cwear == 1 + 2 + 1024, sprintf("enforcer: wear on the server %g (1027: the cuirass battered, the helmet dented)", vr_art_cwear));
 };
 
+float vr_aft_busy; // `vr_agarmor_test 5` (vr_agarmor_fx_test.qc) running
+void(float start) VR_AgArmor_FxTestFrame;
+
 void() VR_AgArmor_TestFrame =
 {
+    if(vr_aft_busy)
+    {
+        VR_AgArmor_FxTestFrame(0);
+        return;
+    }
     if(vr_art_state == 0)
     {
         if(cvar("vr_agarmor_test") == 0)
@@ -301,6 +309,11 @@ void() VR_AgArmor_TestFrame =
         entity p = find(world, classname, "player");
         if(!p)
         {
+            return;
+        }
+        if(request == 5)
+        {
+            VR_AgArmor_FxTestFrame(1); // (ragdolls, cuts, debris, sparks: vr_agarmor_fx_test.qc)
             return;
         }
         if(request == 2)

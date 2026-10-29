@@ -318,7 +318,12 @@ void(entity targ, vector org, float damage) VR_HitBloodSplash =
         VR_Crate_Splinters(org, [crandom() * 48, crandom() * 48, random() * 24 + 20], damage);
         return;
     }
-    SpawnBloodSplash(org, damage);
+    // An armed humanoid's unbroken plate there: sparks, and blood only for what it lets through (vr_agarmor.qc).
+    float bleed = VR_AgArmor_HitFx(targ, org, '0 0 0', damage);
+    if(bleed > 0)
+    {
+        SpawnBloodSplash(org, damage * bleed);
+    }
 };
 
 // ----------------------------------------------------------------------------

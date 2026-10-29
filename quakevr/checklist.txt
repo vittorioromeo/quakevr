@@ -23,6 +23,11 @@ The revolver's shot is its own heavy blast, not the super shotgun's.
 Shove an armed grunt and an enforcer into a stagger and over {test:agrunt_fall}: the weapon stays in the drawn hand through the stagger, the fall, lying and the get-up; never floats off it.
 Shoved over, its weapon never goes into its chest; its hand stays out of it (the grunt's may still dip in briefly).
 A downed armed grunt's weapon can still be grabbed off it {test:agrunt_fall}.
+Armour: a plate breaking sounds like a reversed, lower armour pickup, never like picking armour up.
+Armour: shooting a plate on a dead or knocked-down armoured grunt breaks the plate first; only later hits pop that limb.
+Armour: armour debris can be picked up and thrown; it stays longer after being held; it can't be force-grabbed, worn or put away.
+Armour: cutting off or popping an armoured limb or head, or gibbing the body, throws its plates as debris; none vanish.
+Armour: shots on plates spark; blood only shows when damage got through.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

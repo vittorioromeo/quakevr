@@ -348,13 +348,16 @@ float(entity e, entity by, vector xVel, float xHow, float xBone, float xLive) VR
     {
         settle = max(0, cvar_hget(cvarh_vr_decap_pop_body_speed)) * 0.5 + 0.5;
     }
+    VR_AgArmor_CutPrepare(e, ragdolllimbs(e, 4, xBone)); // (the plates it carries: vr_agarmor.qc)
     if(!ragdollcutlimb(e, xBone, xVel, settle))
     {
+        VR_AgArmor_CutDone(e, FALSE, xVel);
         e.solid = oldSolid;
         dprint(sprintf("limbs: no: %s's limb %g can't be cut (Ragdolls off? cut already?)\n", e.classname, xBone));
         return FALSE;
     }
     vector mid = ragdollcut(e, 0);
+    VR_AgArmor_CutDone(e, TRUE, pop ? xVel * 0.5 : ragdollcut(e, 2)); // (dislodged, flying off with the limb's way)
     if(pop)
     {
         VR_Limb_PopEffects(e, mid, xVel);
@@ -571,6 +574,13 @@ float(entity targ, entity attacker, float xPiece, float xDamage, vector xVel, fl
         targ.vr_limb_corpse_dmg[xPiece], xHp));
     if(targ.vr_limb_corpse_dmg[xPiece] < xHp)
     {
+        return FALSE;
+    }
+    if(VR_AgArmor_Holds(targ, xPiece))
+    {
+        // An unbroken plate on it (vr_agarmor.qc): it stays on until the plate breaks; the next hit after takes it.
+        targ.vr_limb_corpse_dmg[xPiece] = xHp - 0.01;
+        dprint(sprintf("corpse limb: %s joint %g held on by its armour\n", targ.classname, xPiece));
         return FALSE;
     }
     if(xPiece == 0)
