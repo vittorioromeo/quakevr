@@ -2508,9 +2508,95 @@ int clientState(int num, int what)
     return what == 0 ? stateType(s) : what == 1 ? statePieces(s) : stateWear(s);
 }
 
+// The point of triangle a, b, c nearest `p`.
+[[nodiscard]] glm::vec3 nearestOnTri(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
+{
+    const glm::vec3 ab = b - a, ac = c - a, ap = p - a;
+    const float d1 = glm::dot(ab, ap), d2 = glm::dot(ac, ap);
+    if(d1 <= 0.f && d2 <= 0.f)
+    {
+        return a;
+    }
+    const glm::vec3 bp = p - b;
+    const float d3 = glm::dot(ab, bp), d4 = glm::dot(ac, bp);
+    if(d3 >= 0.f && d4 <= d3)
+    {
+        return b;
+    }
+    const float vc = d1 * d4 - d3 * d2;
+    if(vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
+    {
+        return a + ab * (d1 / (d1 - d3));
+    }
+    const glm::vec3 cp = p - c;
+    const float d5 = glm::dot(ab, cp), d6 = glm::dot(ac, cp);
+    if(d6 >= 0.f && d5 <= d6)
+    {
+        return c;
+    }
+    const float vb = d5 * d2 - d1 * d6;
+    if(vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
+    {
+        return a + ac * (d2 / (d2 - d6));
+    }
+    const float va = d3 * d6 - d5 * d4;
+    if(va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
+    {
+        return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
+    }
+    const float denom = 1.f / za::max(va + vb + vc, 1e-12f);
+    return a + ab * (vb * denom) + ac * (vc * denom);
+}
+
+// The plate nearest world point `p` on `ent` (each plate's own frame as drawn: the point taken back to its rest pose),
+// within `reach` units; -1 none. What a hit there strikes: the ragdoll rig's nearest vertex (pieceOfBone) read a thigh
+// plate's lower half as the shin's (the shin's vertices lie nearer the knee's skin than the thigh's do).
+int plateNear(edict_t* ent, const Shell& s, const float* p, float reach)
+{
+    bool ok[NumPieces]{};
+    glm::vec3 rest[NumPieces]{};
+    const glm::vec3 at3{p[0], p[1], p[2]};
+    for(int piece = 0; piece < NumPieces; piece++)
+    {
+        const PlateFrame pf = plateFrameOf(s, piece);
+        if(!pf.ok)
+        {
+            continue;
+        }
+        glm::vec3 posed[3];
+        posedAnchors(ent, s, pf, posed);
+        const glm::mat3 turn = frameFrom(posed[0], posed[1], posed[2]) * glm::transpose(pf.rest);
+        rest[piece] = at(s.body.mdlRest, pf.anchor[0]) + glm::transpose(turn) * (at3 - posed[0]);
+        ok[piece] = true;
+    }
+    int best = -1;
+    float bestD = reach;
+    for(int t = 0; t + 2 < count(s.tris); t += 3)
+    {
+        const Vert& v0 = at(s.verts, at(s.tris, t));
+        if(!ok[v0.piece])
+        {
+            continue;
+        }
+        const glm::vec3& q = rest[v0.piece];
+        const glm::vec3 n = nearestOnTri(q, v0.p, at(s.verts, at(s.tris, t + 1)).p, at(s.verts, at(s.tris, t + 2)).p);
+        const float d = glm::distance(q, n);
+        best = d < bestD ? v0.piece : best;
+        bestD = za::min(d, bestD);
+    }
+    return best;
+}
+
 int pieceAt(edict_t* ent, const float* p)
 {
-    const int piece = pieceOfBone(ent, p);
+    int piece = pieceOfBone(ent, p);
+    // (on a limb: the plate struck, the nearest within a plate's reach of the skin under it)
+    const char* plateBase = baseOf(ent);
+    const Shell* ps = plateBase ? serverShell(plateBase) : nullptr;
+    const float reach = za::max(vr_agarmor_gap.value, 0.f) + za::max(vr_agarmor_thick.value, 0.05f) + 1.5f;
+    const int nearPlate = ps ? plateNear(ent, *ps, p, reach) : -1;
+    const bool limbish = (piece >= 0 && limbBone[piece]) || (nearPlate >= 0 && limbBone[nearPlate]);
+    piece = nearPlate >= 0 && limbish ? nearPlate : piece;
     // (behind the cuirass's back cut, its own: the enforcer's power pack; the point taken back to the rest pose by the
     // cuirass's frame as drawn)
     const char* base = piece == Cuirass ? baseOf(ent) : nullptr;
@@ -2570,10 +2656,31 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
     posedAnchors(ent, *s, pf, posed);
     const glm::mat3 now = frameFrom(posed[0], posed[1], posed[2]);
     const glm::mat3 turn = now * glm::transpose(pf.rest);
-    if(what == 0)
+    if(what == 0 || (what >= 2 && what <= 4))
     {
         const glm::vec3 restA = at(s->body.mdlRest, pf.anchor[0]);
-        const glm::vec3 o = posed[0] + turn * (pf.mid - restA);
+        // (2, 3, 4: a point on its outer face 15% / 85% / 50% of its length along its frame's first axis: its ends, its middle)
+        glm::vec3 restP = pf.mid;
+        if(what != 0)
+        {
+            const glm::vec3 axis = pf.rest[0];
+            float lo = 1e9f, hi = -1e9f;
+            for(const Vert& v : s->verts)
+            {
+                const float x = glm::dot(v.p, axis);
+                lo = v.piece == piece && v.layer == 0 ? za::min(lo, x) : lo;
+                hi = v.piece == piece && v.layer == 0 ? za::max(hi, x) : hi;
+            }
+            const float want = lo + (hi - lo) * (what == 2 ? 0.15f : what == 3 ? 0.85f : 0.5f);
+            float best = 1e9f;
+            for(const Vert& v : s->verts)
+            {
+                const float d = za::abs(glm::dot(v.p, axis) - want);
+                restP = v.piece == piece && v.layer == 0 && d < best ? v.p : restP;
+                best = v.piece == piece && v.layer == 0 && d < best ? d : best;
+            }
+        }
+        const glm::vec3 o = posed[0] + turn * (restP - restA);
         out[0] = o.x;
         out[1] = o.y;
         out[2] = o.z;

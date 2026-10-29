@@ -59,12 +59,59 @@ float(entity e) VR_AFT_LimbPiece =
     {
         vector at = limbpiece(e, i, 10);
         float j = VR_Limb_At(e, at);
-        if(ragdollbone(e, at, QVR_ARMOR_PIECE_AT) == i && j > 0 && j < 16) // (a corpse wears joints 1-15: VR_Limb_WearPiece)
+        if(ragdollbone(e, at, QVR_ARMOR_PIECE_AT) == i && j > 0 && j < VR_LIMB_JOINTS) // (a corpse wears every limb joint: VR_Limb_WearPiece)
         {
             return i;
         }
     }
     return -1;
+};
+
+// Every limb plate of `e` read as its own piece where a hit meets its outer face: near both ends and at its middle
+// (limbpiece 12, 13, 14). The ragdoll rig's nearest vertex read a thigh plate's knee end as the shin's.
+void(entity e, string xWhat) VR_AFT_PiecesAt =
+{
+    float i, k, own = 0;
+    string bad = "";
+    for(i = 2; i < VR_AR_PIECES; i++)
+    {
+        for(k = 12; k <= 14; k++)
+        {
+            float got = ragdollbone(e, limbpiece(e, i, k), QVR_ARMOR_PIECE_AT);
+            own = own + (got == i);
+            bad = (got == i) ? bad : sprintf("%s %g@%g->%g", bad, i, k, got);
+        }
+    }
+    VR_ART_Check(own == (VR_AR_PIECES - 2) * 3, sprintf("%s: %g of %g points on the limb plates read as their own piece%s", xWhat,
+        own, (VR_AR_PIECES - 2) * 3, bad));
+};
+
+// Corpse `e`'s right leg (the authored rig's joints 17 and 18: past the old 16 slots) worn as its own piece by a hit
+// there, the whole body's health untouched (it wore as the torso's).
+void(entity e) VR_AFT_RightLegWear =
+{
+    float keepType = e.vr_ar_type;
+    float keepMask = e.vr_ar_mask;
+    float chance = cvar("vr_limbs_chance_scale");
+    cvar_set("vr_limbs_chance_scale", "0");
+    VR_AgArmor_Give(e, 0, 0);
+    float i, ok = 0;
+    string got = "";
+    for(i = 7; i <= 9; i = i + 2)
+    {
+        vector at = limbpiece(e, i, 10);
+        float j = VR_Limb_WearPiece(e, at);
+        float d0 = (j >= 0) ? e.vr_limb_corpse_dmg[j] : 0;
+        float hp0 = e.vr_corpse_hp;
+        VR_ClearHitKind();
+        VR_ART_Hit(e, at, 3, 3);
+        float worn = (j >= 0) ? e.vr_limb_corpse_dmg[j] - d0 : 0;
+        ok = ok + (j >= 16 && worn > 0 && e.vr_corpse_hp == hp0);
+        got = sprintf("%s plate %g: joint %g worn %g, body %g -> %g;", got, i, j, worn, hp0, e.vr_corpse_hp);
+    }
+    VR_ART_Check(ok == 2, sprintf("corpse's right thigh and shin (joints 16+) worn as their own pieces %g of 2:%s", ok, got));
+    VR_AgArmor_Give(e, keepType, keepMask);
+    cvar_set("vr_limbs_chance_scale", ftos(chance));
 };
 
 void(entity p) VR_AFT_Run =
@@ -79,6 +126,10 @@ void(entity p) VR_AFT_Run =
 
     // A limb plate of each ragdoll found at its own place as it lies (legs first; some plates' middles lie nearer the
     // next bone's skin: a thigh plate's by the knee reads as the shin's).
+    VR_AFT_PiecesAt(a, "dead ragdoll");
+    VR_AFT_PiecesAt(b, "active ragdoll");
+    VR_AFT_PiecesAt(d, "standing");
+    VR_AFT_RightLegWear(a);
     float pb = VR_AFT_LimbPiece(b);
     float pa = VR_AFT_LimbPiece(a);
     VR_ART_Check(pa >= 2 && pb >= 2, sprintf("a limb plate found at its place on the dead ragdoll (%g) and the active one (%g)", pa, pb));
