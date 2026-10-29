@@ -3,32 +3,16 @@
 # Sections run in test order: newest and most important first, dev tools last. A line's text is the key of its tick: reword a line and it is untested again.
 
 [1. New: ammo screens, grunt movement, AD]
-Ammo screens: orange under a quarter of the magazine, red when empty, normal after a reload (HUD and Menus > Screens > Weapons' Ammo Screens)
-Ammo screens: also on holstered and dropped guns (once the gun was in your hand)
-Ammo screens: also on an enemy-dropped gun you never held, before pickup
-Armed grunts and enforcers walk smoothly, like knights (no 10 Hz stepping); weapons and armour stay on them
-Armed grunts strafing: hips and feet turn toward the step (Strafe Turn 28 degrees) and tilt (Strafe Lean 5 degrees) while chest and gun stay aimed (AI Behaviour > Manner)
-Armed humanoids aim at what shows of you behind cover: yellow sparks (Debug > Show Armed Humanoids' Aim Points) on your head or shoulders, shots hit you not the crates {test:agrunt_aim_cover}
-Armed humanoids, crouched fully behind cover: the sparks turn red and they hold fire; leaning out they aim at the side that shows
-Armed humanoids' shots at 400-1000 units hit you, not to one side (Aim From the Muzzle)
 AD: turn, snap/smooth turn and walk on ad_azad's snowfield (or load your s3 save): no black frames, sky and lamps steady {test:ad_fog_flicker}
 AD hub, lower level: walk into each original slipgate (E1-E4, end): that episode's first map (or end) loads, AD's rules kept
 Comfort > Soften Flickering Lights now defaults to 0 (configs on beta4's 0.5 move to 0): AD's lamps flicker as authored but no black frames
-Widowmaker: the sharper skin (35% more resolution), much darker, near AD's black but not all the way, in a lit and a dark room {test:widowmaker_art}
-Widowmaker: brass collars, rivets and grips still readable up close
-First start: put the headset on after the game is up: the legs fit, the same as after a reload
 Autosaves: play a map a while: Load Autosave (main and pause menus; death menu, under Restart) lists this game's autosaves newest first
 Autosaves: none is made while monsters are on you or health is low
 Per-weapon recoil: Weapon Offsets > Effects' Recoil Kick Back and Recoil Muzzle Rise change only that weapon's kick back and muzzle rise
 Per-weapon recoil: at 1x it feels as before
 Relighting > Ambient Light Level 32, then Relight This Map: no pitch-black corners, the rest looks as before
-Nails: drawn ~35% smaller and 18% faster for you and enemies, still hitting what they visibly touch
-Nails: enemy nails still dodgeable (look: vr_nail_test 2)
 Rig Studio off-hand: a pistol grunt's Carry/Run set On the Gun cups the gun without the arm clipping the torso; Free hangs
 Rig Studio off-hand: rifle Pickup On the Gun cups the right hand
-Checklist: headers show open/total; the row under each header folds it; Collapse All / Expand All; folds kept after a restart.
-Survival Arena perk cards: a boss clear shows perk cards in front of you and the arena waits; laser + trigger picks; turn away or open the menu and they come back.
-Survival Arena perk cards: panel size, distance and height feel right (Combat > Survival Arena sliders); effect text readable; a trigger held through the last kill never picks a card.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
@@ -72,19 +56,11 @@ AI Behaviour (Combat > Armed Grunts): try Aggressiveness, Accuracy, Reaction Tim
 AI Behaviour: Difficulty Impact 1: weaker on Easy, clearly stronger on Hard and Nightmare, 0 changes nothing, Normal as before
 Armed grunts and enforcers with shotguns, nailguns, thunderbolt, burst and enforcer rifles hold their weapon's distance, strafing and firing
 Armed grunts and enforcers: an axe walking at them makes them back off, still firing now and then (SSG lets you in while it reloads)
-Armed grunts and enforcers: does the slide while firing look right (Walking Fire 50)?
-Armed grunts careful of friends: the back row holds fire and sidesteps instead of shooting the front row; they still fight (AI Behaviour > Careful of Friends, Gives Up After) {test:agrunt_friendly_fire}
-Taunt (vr_agrunt_taunt 1): a grunt taunts when it first sees you, then charges; shoot it mid-taunt and it stops
-Chainsaw humanoid closes in before it thrusts and the thrust reaches you {test:agrunt_tug}
-Chainsaw humanoid: one that was fighting you drops the saw running, grab it within 3 s: no cord pull
 Ammo: burst rifle, enforcer rifle or AD soldier gun grunts fire a magazine, reload, fire on; its backpack holds 5 shells
 Ammo: a double-barrelled shotgun grunt fires 9 times before running dry, dies with its spare shells, disarmed 16 shells, picks its gun up and reloads
-Damage: a heavy revolver grunt hits for about 10-15 unarmoured: right?
-Damage: 0.75 instead of 0.5 for pistols and rifles (Armed Grunts damage scale)?
 Armour on grunts and enforcers (Combat > Armed Grunts > Armour; Normal 15% green chest+helmet, Hard 35% up to yellow, Nightmare 60% full red; vr_agarmor_set forces one)
 Armour: plates spark and ring, break off and fade as debris you can't grab; helmets stop head pops
 Armour: blades don't cut a limb until its plate breaks
-Armour: enforcers wear a breastplate leaving the power pack bare
 Armour: dented at 2/3 (readable?), battered at 1/3
 Armour: toolgun Armed Humanoid Armour and Pieces apply to spawned ones, Reset/Clear restore
 Armour fit (Rig Studio with Debug > Armed Humanoids' Armour Green/Yellow/Red; live: vr_agarmor 4): cuirass and helmet fit at rest, in Range of Motion and Random Pose, keep plates through hits and ragdolls
@@ -92,41 +68,14 @@ Armour fit: the helmet reads as the Ranger's (its back may poke into the upper b
 Shoves: stand close to a grunt with a shotgun (turned across its body, thrust at you) or a nail pistol (off hand pushes palm out)
 Shoves: two pistols, axe, super axe, fists and an enforcer likewise (Enemy Shoves, vr_agrunt_shove 2: guns only by default; tune in the Pose Studio)
 Shoves: the push lands as its arms reach you; melee and fist ones only strike
-Disarm: point-blank shotgun on the gun knocks it away ~2 times in 3, far grunts mostly hold on, a single nail never; the hand/forearm counts {test:agrunt_shootout}
 Disarm: Debug > Show Shot Disarms prints the part hit
 Disarm: a gun held across the body shot with shotgun, revolver, nailgun: sparks and a tink, no blood, health untouched, a missing pellet still hurts
-Shove a grunt or enforcer down, then grab its gun by grip or stock while it lies there and as it gets up: it comes into your hand at once, never holding its arm with the gun in its hand
-Tug (grab an armed humanoid's weapon anywhere: axe, sword, gun, chainsaw; muzzle, barrel, stock; in and out of bullet time): a tug almost every time, a punch through it doesn't grab (Grab Leniency 5 cm) {test:agrunt_tug} {test:agrunt_disarm}
-Tug: no parry sound; your hand stays where it took the gun, no jump of gun or hand as the tug starts or when it is knocked down
-Tug: holding still it holds on (too easy to pull out?); a steady pull of ~0.5 s tears it free, a sharp yank wins at once
-Tug: it stands right back up; a calm one staggers after your hand; letting go lets it keep the gun
-Tug: pull back ~25 cm for over a second: tug-of-war, headbutt, shove or fire
-Tug: hurt, staggered or just-parried lets go; pull hard or step far without winning and it lets go (Let Go Past)
-Tug: does the enforcer's pull feel too abrupt?
-Knocked down keeps the gun: a shove that floors it keeps the gun, grab or hit it down there to take it at once {test:agrunt_fall}
-Knocked down: lifting, judo-throwing or shoulder-charging keeps it until a hard landing (Fall: Drops It on Impact 4.5 m/s) or a ledge fall
-Knocked down: no loot beam or sparkles on held guns
-Dual wielding guns: two shotguns/nailguns/plasma guns/grenade launchers, one per hand, second fires 0.1 s later, wider misses, both reload, both fall {test:agrunt_dual_guns} {test:dual_wield}
 Dual wielding guns: toolgun Left Hand and Pick Up a Second (off)
 Dual wielding blades: AI Behaviour > Dual Wielding 1 (or vr_agrunt_dual_chance 1): swung in turn and together
 Dual wielding blades: knock or pull either out and it fights on with the other then re-arms
 Dual wielding: grab the left-hand weapon: its own tug; enforcers' chainsaw height OK?
-Parrying (experimental, AI Behaviour > Parrying Your Blows): they raise the weapon into your swing; a blow on it rings and does little, a second within ~1.4 s knocks it away {test:agrunt_theyparry}
-Parrying: head, legs, open side take full damage; quick swings and feints get through; does the guard look natural?
-Parrying: punch or swing at a gun carrier: guards with the gun across the chest
-Pickup: knocked-out weapon: it kneels on one knee, other foot planted ahead, crouches, reaches, the chest bends, the hand closes at the bottom, rises with it {test:agrunt_pickup}
 Pickup: hit mid-reach it stays down; no foot sliding (vr_aglegs 0 for the old kneel)
-Back tanks: pyro/sprayer grunts wear tank and hose while running and shooting {test:agrunt_tanks}
-Back tanks: shoot only the tank: it turns on you, no damage; from behind: it bursts on them (field, gun spent, fists)
-Back tanks: kill one mid-stream: the hiss stops
-Weapon Holds (Combat > Armed Grunts): enforcers one-hand the nail pistol, revolver and flare gun; grunts and enforcers one-hand the axe {test:agrunt_holds_enforcers}
-Weapon Holds: a row change applies at once; Reset to Defaults works
-Weapon Holds: a nail pistol enforcer stands (no crouch, no belly push) as it fires
-Widowmaker grunts: off hand on the front handle; laser cannon: off hand on its secondary handle while carried {test:agrunt_holds_grunts}
-Widowmaker grunts: a sword grunt's ready pose (blade straight up before the face?)
 Replacements (Combat > Armed Grunts): "replace all" in e1m1 or e2m1: as hard as before while guns can be grabbed, tugged and shot out
-Replacements: scene agrunt_repl_gunaxe: axe in the left hand next to the one-handed gun looks right {test:agrunt_repl_gunaxe}
-Toolgun > Spawn > Armed Humanoid: Reset and Clear put Kind, Right and Left back to defaults
 Firing range: a toolgun grunt with AD's Plasma Gun (103): its shots are heard
 
 [4. Armed humanoids: rig, arms and poses]
@@ -137,112 +86,20 @@ Ragdolls look alive: kill a grunt, ogre and enforcer in a bright room: same shad
 Arms: aiming, running and firing (nail pistol, shotgun, nailgun): the pauldron turns with the raised arm, no upper arm through the torso, hands on their grips
 Arms: an armed enforcer aiming with a gun: wrist not kinked, gun not too close to its chest, elbows near its left pauldron don't clip
 Arms: ragdoll shoulders bend smoothly; Rig Studio: an armed upper arm with Limits on shows the yellow clavicle and magenta cone
-Armed arms and weapon hands (procedural IK, vr_agarms 0 + reload for the old system as A/B; A/B vr_agrunt_upper 0, vr_agarms_body 0): no gaps at wrist or elbow, hands keep their shape {test:agrunt_weapon_hands}
 Armed weapon hands: weapons on the hand by the handle and staying in it (axe, sword, shotgun, pairs, dual; runs, reloads, crouching pains, pickups, swings; Model Animation Smooth and Linear)
 Armed arms: arms out of the torso, chest steady when firing, elbows don't flip
 Armed arms: axe/Mjolnir swing one-handed and the off hand returns to the haft; fire up or down shoots where the muzzle points
 Armed weapon hands: getting pushed by blows with idle hands drops nothing, a real swing on the weapon still knocks it out
-Armed long guns carried low, raised to the shoulder to aim, off hand on the fore-end (vr_agarms_shoulder) {test:agrunt_weapon_hands}
 Armed dual guns at the sides, both coming up to aim
 Chainsaw grunts: both hands on the saw, carried low, level when ready, both on the thrust
 Dual axes/swords/crowbars at the sides, blades ahead
-Strikes with the whole body: wind-up twists the torso back and lifts shoulder and elbow, the drive leans through the blow, follow-through; repeats vary; punches too {test:agrunt_strikes}
-Strikes: tune in Combat > Armed Grunts > Their Strikes (your values become defaults)
-Defaults from your poses and tuning: poses of the 27th night and the evening (fists, one-handed melee, rifle, pistol, launcher, sprayer, laser cannon, Widowmaker; pistol run) look and reach as you left them
-Defaults from your tuning: IK stretch values (rifle 1.15, sprayer 1.25, laser cannon and Widowmaker 1.2...) look and reach as you left them
-Defaults: saved poses/grips are folded in (vr_agrunt_poses and vr_agrunt_grips empty): gun and sword poses unchanged in the Pose Studio
-Pose categories: a nail pistol grunt aims with arms out (not the pistol at its face); a shotgun grunt as you tuned it
-Pose categories: Weapon Holds > Nail Pistol: Poses Rifle brings it to the face, Auto again
-Pose categories: Pose Studio Data, Follow the Subject on a pistol grunt: the class reads Pistol, dragging Aim changes only pistol holders
-Pose categories: tune Shoulder Launcher, Sprayer, Laser Cannon, Widowmaker (copies of Rifle at first)
-Pose categories: rifle Aim with the target off to one side points 8-14 degrees off and keeps moving: retouch if seen
-IK stretch (Combat > Armed Grunts > IK Stretch: Grunts, Rifle, +0.05 a pick): shotgun grunts hold the fore-end in your Aim
-IK stretch: Rig Studio, shotgun grunt, Pose Studio Data, Rifle IK Stretch 1.15: the off hand slides onto the fore-end, "stretch used" beside it, Ctrl+Z restores
-IK stretch: 1.3 with the Aim weapon dragged forward: arms lengthen, elbow and wrist smooth with vr_rig2 0 and 1
-Off hand: Pose Keys (O) on the shotgun grunt in Aim: the "left hand: grip offset" dot slides the hand along the fore-end, its rings roll it round the barrel, Ctrl+Z restores
-Off hand: Pose Studio Data, Rifle, Run: Off Hand Free: running grunts carry one-handed and take the fore-end again as they aim (a quarter-second reach, no snap)
-Rig Studio aiming: shoot animation on the shotgun grunt aims level at the orange Aim Target, follows it high and low, At Camera aims at you, Aim off as before
-Rig Studio aiming: Pose Keys (O) cyan line lies along the drawn barrel, clicking and dragging the target moves it, the magenta 'shot' diamond follows
-Rig Studio aiming: Align to Target (enforcer guns about 18 degrees off in yaw); Ctrl+Z puts it back; then check the shotgun's aim in VR
-Rig Studio drag edits: Pose Keys (O) in Aim: weapon arrows and rings, an elbow, the torso rings: arms stay on the gun, Pose Studio Data numbers follow, Ctrl+Z restores
 Rig Studio drag edits: in Pickup, drag the pelvis and feet
-Rig Studio weapons: Range of Motion, Authored rig, two revolvers then the enforcer's laser rifle: Random Pose, drag the arms and bend the wrist
-Rig Studio weapons: each weapon stays in its hand at its grip, the left revolver follows the left hand
-Rig Studio weapons: Mesh drawn on Authored vs Old rig in the same pose, up close: same texture resolution, shading and smoothness (shoulders back, left arm across the chest, knees bent)
-Rig Studio Range of Motion (flat screen, -flatscreenmode; grunt and enforcer): pick each joint, Sweep, drag limbs, Random Pose
-Rig Studio Range of Motion: left-side joints sweep like their right ones (mirrored twist)
-Rig Studio Range of Motion: say which pivots or limits to change (shoulders limited to 40 forward / 50 out: is a modelled armpit worth it?)
-Rig Studio Range of Motion: suggested clean values: chest twist -25..35, right clavicle twist -25..35, right hand x -30..25 y -15..20 twist -30..10, left knee 115
-Rig Studio: the grunt subject has no Rest Pose/Weights/Paint tools, a knight still has them
-Rig Studio: switching subject kinds and weapons several times leaves one subject, Close then vr_rigstudio here: still one
-Rig Studio: dope sheet lists spine, clavicles, hands, feet, key the chest and an arm in load, save (rigs/vrgrunt.rig2anim.txt): the keyed reload and the taunt play with arms on the keys
-Rig Studio typing (flat screen): Ctrl+click a number and type 12.5 + Enter; type in the Outliner's search, a sequence name, Range of Motion's Pivot
-Rig Studio typing: Backspace, arrows, Ctrl+A/C/V, Escape and Tab work; Q R G E T W P don't switch tools while typing; the console key still opens the console
-Invisible sword (not reproduced): if a grunt's picked-up sword is invisible again, record a note right away saying how it got the sword
 
 [5. Weapons: heavy revolver, flare gun, nail pistol]
-Your flare gun, revolver and nail pistol tuning is the default (offsets, hotspots, revolver damage 28, flick speeds and angles) and feels like yours; the new skins show in the hand
 Not promoted, your call: vr_recoil_kick 4.5 / vr_recoil_rise 7.5 (all guns)
-Heavy revolver, shots: a shot each pull, hammer cocks and falls, cylinder turns a chamber, heavy kick and flash {test:revolver}
-Heavy revolver, shots: the barrel half as long again, front sight in the rear notch, no hole at the frame (look from above and behind), shots and smoke from the new muzzle
-Heavy revolver, shots: sits in both holsters without poking through you
-Heavy revolver, shots: a grunt dies to one headshot or two body shots, an ogre to 4-5
-Heavy revolver, opening: a normal flick opens and closes it; a slow roll only if Flick Open/Close Time is raised {test:revolver}
-Heavy revolver, opening: the Flick Speed, Time and Sustain sliders do what their help says
-Heavy revolver, opening: a flick toward the cylinder (or B/Y) swings it out; a flick back or push from below closes it
-Heavy revolver, opening: muzzle up, B/Y or the ejector rod drops spent casings and live shells
-Heavy revolver, loading: single shells go into the chamber you hold them at {test:revolver}
-Heavy revolver, loading: loading one after another causes no accidental spin (Wait After Loading 0.6 s), a deliberate swipe still spins
-Heavy revolver, loading: empty chambers click and advance
-Heavy revolver, loading: casings, dropped shells and the pouch are the blue slug while it is in use, red again after switching to a shotgun
-Heavy revolver, loading: armed grunts rarely carry and fire one
-Flare gun, handling: the fist round the grip, finger on the trigger, brass blade in the rear notch {test:flaregun}
-Flare gun, handling: a pull each, top barrel first, kick and thump, muzzles sooted, a third pull clicks, throw it away
-Flare gun, handling: holster (hip, upper) and draw it loaded and half-fired
-Flare gun, flares: into a grunt sets it on fire (also a dead ragdoll, and one lying under a corpse), an explosive box blows up, a crate burns {test:flaregun}
-Flare gun, flares: into a wall sticks burning red about 25 s and lights a dark room
-Flare gun, flares: straight up drifts down lighting a wide area about 15 s
-Flare gun: some crates have one on top (Physics > Crates: Flare Gun on Crates 1 to see many) {test:flaregun_crates}
-Flare gun: an armed grunt with one (AI Behaviour > Flare Gun First 1) fires two flares, throws it away and takes its own weapon {test:flaregun}
-Nail pistol, aim and fire (scene nailpistol): grip in the palm, index finger in the guard; front post in the rear notch, nails land on it (10 m) {test:nailpistol}
-Nail pistol, aim and fire: one shot per pull, kick, flash, slide, smoke, punchy sound?
-Nail pistol, aim and fire: empty with thumbstick walking: the slide stays locked back, no jitter
-Nail pistol, magazine: empty, the slide stays back; B/Y drops it; one from the pouch slapped up seats {test:nailpistol} {test:magfill}
-Nail pistol, magazine: the pouch shows its magazines
-Nail pistol, magazine: magazines show two top nails with 2+ rounds, one with one, none empty (hand, pouch, floor, dropped)
-Nail pistol, handling: two headshots or three body shots kill a grunt {test:nailpistol}
-Nail pistol, handling: holster (hip upright muzzle down; upper across the chest), draw, drop, throw, pick up
-Nail pistol, handling: armed grunts fire it, one and a pair
-Nail pistol, handling: fresh config has the off-hand cup grip (your tuning): Hotspots > Two-Handed Aim On, keep it off or make it default?
 
-[6. Setup and install]
-Setup, Options: the Arcane Dimensions (experimental) row is off by default and shows "306 MB download, about 792 MB on disk"
-Setup, Options: with AD in your Steam Quake folder it says "Found in ...: will be used" and the box is disabled
-Setup on a PC without AD (or the ad folder renamed): tick AD; it installs last into QuakeVR\ad
-Setup on a PC without AD: Official Campaigns > "Arcane Dimensions: experimental" starts it
-Setup, cancel during the AD download: Quake VR is installed and the Done page explains how to add AD later
-Relighting without ericw-tools: Download ericw-tools (27.5 MB) with progress and Cancel, then relights
 
-[7. Still open from 1.0.x: MG1 and MG3]
-MG3 campaign: Dawn of the Machine start to both endings: Super Axe, axe buttons, lore, hub upgrades, new monsters' hits and ragdolls
-MG3 Shub (boss2): sinking pillars comfortable; zombies rise and ragdoll; beam readable; lights out and credits at her death
-MG3 Chthon (boss map): fade at both arena moves comfortable; bat his spheres back; fight length fair
-MG1 Horde (horde1, horde5): dead and holding fire does nothing; release and press restarts; coop teammate returns at wave end
-MG1 developer tests: rune returns, electrode buttons, revival; quake vibration comfortable
 
-[8. Tools and Motion Recorder]
-Ragdoll tool (flat: ironwail.exe -ragtool, -game ad for AD; or Debug > Ragdoll Tool): orbit with the mouse, B/M behaviour/model, Space play, P/./[ ] pause/step/speed, Tab for parameters
-Ragdoll tool: several behaviours on several models, Struggle with each hold, change a Joint Groups slider and replay
-Ragdoll tool: save/load a preset (docs/vr-port/RAGTOOL.md)
-Ragdoll test page (Debug > Tests > Ragdoll Behaviours): each button on a grunt ahead does its behaviour {test:ragdoll_behaviours}
-Brush tool (toolgun 6th tile): create, move, resize, paint, copy, delete boxes; wedge, cylinder, pyramid, Rotate, Undo {test:toolgun_bench}
-Brush tool: stand on, climb and shoot them
-Brush tool: lighting flat to shadowed (flickers next to a flickering light)
-Brush tool: save/load restores brushes; Bake Map keeps the original and writes a complete separate map
-Leg sweep takes (vrmelee-recording, Motion Recorder): Expected with shotgun, crowbar, super shotgun; Not Expected with the axe and slow swings {test:leg_takes}
-Lift, judo and neck snap takes: Lift Expected (both hands, pull up hard), Judo Throw Expected (turn it down), Neck Snap Expected (grip the head, twist hard) {test:lift_takes}
-Lift, judo and neck snap takes: Not Expected for each (slow pull, small turn, shoulders, push-pull with wrist roll)
-Lift, judo and neck snap takes: the dummy stays holdable, Review Takes lists them
 
 [9. Pose Studio, Grip Editor, blade editor (dev)]
 Pose Studio Live: walk up to a monster, Live On, pick Loop (All, Aim+Fire, Reload, Run, Strikes, Pickup) and Speed (1x to 0.1x) {test:agrunt_pose_studio}
