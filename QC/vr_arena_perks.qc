@@ -1,18 +1,21 @@
 // vr_arena_perks.qc -- Survival Arena: the perk a boss wave's clear offers (the director's own file is
 // vr_arena.qc).
 //
-// A boss wave cleared offers the player his choice of three perks off the pool below. Three pedestals come up
-// on the map's info_arena_item points, each wearing a shipped item's model and each named by a centerprint line
-// saying what it does; the player walks over the one he wants, the other two go away, and what he took is kept
-// on the arena's director (ar_mgr.ark_taken). A perk does nothing until it is taken: every hook below starts by
-// asking VR_ARK_Has. The same perk is never offered twice in a run; when the pool is empty a boss wave offers
-// nothing.
+// A boss wave cleared offers the player his choice of three perks off the pool below, as cards: the engine's panel
+// (Quake/vr/vr_arenacards.cpp) floats them in front of him -- each its perk's name, colour, item picture and what it
+// does -- and he points at one with either hand's laser and pulls the trigger (or presses its number key). While the
+// cards are up the arena waits: its director is held between the two waves (VR_ARK_HoldThink: the rest after the
+// clear, so the countdown and the next wave, keeps what it had left), and an offer only ever comes after a wave's
+// last foe is down, so nothing is in the field meanwhile. What he took is kept on the arena's director
+// (ar_mgr.ark_taken). A perk does nothing until it is taken: every hook below starts by asking VR_ARK_Has. The same
+// perk is never offered twice in a run; when the pool is empty a boss wave offers nothing.
 //
 // world.qc never calls this file directly. vr_arena.qc asks for the offer on a boss wave's clear
 // (VR_ARK_WaveDone) and reports its frame (VR_ARK_Frame); combat.qc's Killed reports a foe's fall with its killer
 // at hand (VR_ARK_Kill); vr_decap.qc reports a beheading (VR_ARK_Decap), items.qc an armour picked up
-// (VR_ARK_ArmorBonus), vr_arena.qc the cap on dropped guns (VR_ARK_Kept: Spoils doubles it). The tests are
-// vr_arena_perks_test.qc (vr_arena_perks_test N).
+// (VR_ARK_ArmorBonus), vr_arena.qc the cap on dropped guns (VR_ARK_Kept: Spoils doubles it). The engine's panel
+// reads the cards and answers through the VR_ARK_Card* functions below. The tests are vr_arena_perks_test.qc
+// (vr_arena_perks_test N; 5 the panel itself, picked by the mock laser and trigger).
 //
 // No perk promises moving faster: nothing already in the engine lets QC speed a player up without overwriting his
 // own sv_maxspeed (vr_fatigue.qc's .vr_heavy_move only slows), so that one is left out rather than built fragile.
@@ -42,19 +45,20 @@ float ARK_FEED_GAP   = 1;   // s between two Feeder heals
 float ARK_QUART_AMMO = 15;  // of each kind a Quartermaster wave clear gives
 float ARK_OPEN_COST  = 2;   // Can Opener: a plate's pool pays this per point it saves from the player's hit
 
-// What a pedestal is: its touch box, and how long its label keeps being repeated for the player. A pedestal does
-// not expire: it stands until the player walks over it, or until the next boss wave's offer clears it (ARK_PED_LABEL
-// only bounds the reminders).
-float ARK_PED_LABEL  = 240; // s a standing offer is re-named for the player (0: never)
-float ARK_PED_NOTE   = 20;  // s between those reminders
+// An offer whose cards no panel has said it shows for this long is withdrawn (nothing taken), so a game without the
+// engine's panel (no headset) never waits for a choice it cannot make. With a headset this never fires: the panel says
+// it sees the cards at the start of every host frame (VR_BeginFrame, menu open or not), before that frame's server
+// ticks, and one sighting is enough for good; a hitch runs at most host_fixedtick_max ticks (under 1 s) between two
+// sightings, a closed-menu pause runs none, and a menu's live preview still polls.
+float ARK_UNSEEN = 3;
 
-// The entity fields this file owns: the director's taken perks and the beats of the ones that repeat,
-// and a pedestal's perk.
-.float ark_taken;      // (ar_mgr) the perks this run has taken, as bits
-.float ark_feed_at;    // (ar_mgr) the time Feeder last healed
-.float ark_offer_wave; // (ar_mgr) the wave the standing offer was made on
-.float ark_perk;       // (a pedestal) which perk it offers
-.float ark_label_end;  // (a pedestal) when its label stops repeating -- not a timer on the pedestal itself
+// The entity fields this file owns: the director's taken perks, the beats of the ones that repeat, and what the
+// director was doing when the cards held it.
+.float ark_taken;        // (ar_mgr) the perks this run has taken, as bits
+.float ark_feed_at;      // (ar_mgr) the time Feeder last healed
+.float ark_offer_wave;   // (ar_mgr) the wave the last offer was made on
+.void() ark_resume;      // (ar_mgr) its think while the cards hold it
+.float ark_resume_left;  // (ar_mgr) and the seconds that think still had to wait
 
 // ---------------------------------------------------------------------------
 // The pool, and what it is called
@@ -101,7 +105,8 @@ string(float xBit) VR_ARK_What =
     return "";
 }
 
-// The model a pedestal wears: a shipped item's model, one per perk, no two the same.
+// The picture on a perk's card (the panel draws the model's thumbnail): a shipped item's model, one per perk, no two
+// the same.
 string(float xBit) VR_ARK_Model =
 {
     if(xBit == ARK_QUAD)  { return "progs/quaddama.mdl"; }
@@ -115,10 +120,19 @@ string(float xBit) VR_ARK_Model =
     return "";
 }
 
-// The line a pedestal is named by: "<perk name> - <what it does>".
-string(float xBit) VR_ARK_Label =
+// A card's colour (its title band and edge): what the perk is about -- red the fight, green health, steel armour,
+// gold supplies.
+vector(float xBit) VR_ARK_Colour =
 {
-    return sprintf("%s - %s", VR_ARK_Name(xBit), VR_ARK_What(xBit));
+    if(xBit == ARK_QUAD)  { return '0.45 0.55 1'; }    // (the quad's own blue)
+    if(xBit == ARK_SNAP)  { return '0.85 0.25 0.2'; }
+    if(xBit == ARK_IRON)  { return '0.6 0.65 0.7'; }
+    if(xBit == ARK_WIND)  { return '0.3 0.8 0.4'; }
+    if(xBit == ARK_FEED)  { return '0.65 0.85 0.25'; }
+    if(xBit == ARK_QUART) { return '0.9 0.7 0.25'; }
+    if(xBit == ARK_SPOIL) { return '0.8 0.5 0.2'; }
+    if(xBit == ARK_OPEN)  { return '0.75 0.35 0.75'; }
+    return '0.5 0.5 0.5';
 }
 
 // ---------------------------------------------------------------------------
@@ -127,7 +141,7 @@ string(float xBit) VR_ARK_Label =
 
 float() VR_ARK_Opt_On    { return cvar("vr_arena_perks") != 0; }
 
-// How many pedestals a boss clear offers: vr_arena_perk_count (the Normal value) times the difficulty's factor --
+// How many cards a boss clear offers: vr_arena_perk_count (the Normal value) times the difficulty's factor --
 // a Hard or Nightmare clear offers a fourth, an Easy one two -- still clamped 1 .. the pool's size (8), and
 // VR_ARK_Choose still skips what this run already took, so nothing is ever offered twice.
 float() VR_ARK_Opt_Count =
@@ -187,15 +201,17 @@ float(float xBit) VR_ARK_CanOffer = { return (xBit != 0) && VR_ARK_Untaken(xBit)
 entity() VR_ARK_Player = { return VR_ARENA_FindPlayer(); }
 
 // ---------------------------------------------------------------------------
-// The offer: three pedestals on the places a wave clear's drops already use
+// The offer: cards on the engine's panel, the arena held until one is picked
 // ---------------------------------------------------------------------------
 
-string ARK_PED_NAME = "vr_arena_perk"; // the pedestals' classname (what VR_ARK_ClearPeds puts away)
-
-// The field's fields are declared above: ark_perk (a pedestal's perk) and, on the director, ark_offer_wave.
-
-float ark_offer_bit[8]; // the perks the standing offer shows, ark_offer_n of them
+float ark_offer_bit[8]; // the perks the last offer showed, ark_offer_n of them
 float ark_offer_n;
+
+float ark_open;         // 1: an offer's cards are up and unanswered (the director held meanwhile)
+float ark_open_serial;  // each offer its own number (the panel takes a new one for a new offer: placed in front again)
+float ark_open_at;      // the time the cards went up
+float ark_seen_at;      // the last time the engine's panel said it shows them (0: not yet)
+float ark_hold_at;      // the time the director was held (0: it is not)
 
 // The offer's turning point in the pool: the tenth boss shows a different three from the fifth's, and a run whose
 // boss waves land the same way offers the same ones (the tests read this).
@@ -222,93 +238,66 @@ void(float xWave) VR_ARK_Choose =
     ark_offer_n = n;
 }
 
-// The pedestals standing in the field (a new offer replaces them; they block nothing: a trigger's touch box).
-float() VR_ARK_CountPeds =
-{
-    float n = 0;
-    entity p;
-    for(p = find(world, classname, ARK_PED_NAME); p; p = find(p, classname, ARK_PED_NAME)) { n = n + 1; }
-    return n;
-}
-
-float() VR_ARK_ClearPeds =
-{
-    float n = 0;
-    entity p;
-    entity nx;
-    for(p = find(world, classname, ARK_PED_NAME); p; p = nx)
-    {
-        nx = find(p, classname, ARK_PED_NAME);
-        remove(p);
-        n = n + 1;
-    }
-    return n;
-}
-
-// The line a pedestal stands under, said again every ARK_PED_NOTE s for ARK_PED_LABEL s.
-void() VR_ARK_PedLabel =
-{
-    VR_ARENA_PrintAll(sprintf("%s\n%s\n", VR_ARK_Name(self.ark_perk), VR_ARK_What(self.ark_perk)));
-    if(time + ARK_PED_NOTE <= self.ark_label_end) { self.nextthink = time + ARK_PED_NOTE; }
-}
-
-// One pedestal: its perk's model, on `xAt`, named `xOrder` of the way in so the three lines do not speak at once.
-// It stands there until it is chosen or the next boss wave's offer replaces it -- nothing removes it on a timer.
-entity(float xPerk, vector xAt, float xOrder) VR_ARK_SpawnPed =
-{
-    entity p = spawn();
-
-    p.classname = ARK_PED_NAME;
-    p.ark_perk  = xPerk;
-    p.ark_label_end = time + ARK_PED_LABEL;
-    setmodel(p, VR_ARK_Model(xPerk));
-    if(!p.modelindex)
-    {
-        remove(p);
-        dprint(sprintf("arena_perks: no model for %s\n", VR_ARK_Name(xPerk)));
-        return world;
-    }
-    setorigin(p, xAt + '0 0 8');
-    p.movetype = MOVETYPE_NONE;
-    p.solid    = SOLID_TRIGGER; // (walk over it: it stands in nobody's way, and a monster walking over means nothing)
-    p.takedamage = DAMAGE_NO;
-    p.size     = '32 32 48';
-    p.touch    = VR_ARK_PedTouch;
-    p.think    = VR_ARK_PedLabel;
-    p.nextthink = time + 0.8 * (xOrder + 1);
-    VR_ARENA_Tfog(xAt + '0 0 24'); // (its arrival seen and heard, as every arena spawn)
-
-    if(cvar("developer")) dprint(sprintf("arena_perks: pedestal for %s at %s\n", VR_ARK_Name(xPerk), vtos(xAt)));
-    return p;
-}
-
-// Walking over a pedestal is the choice: that perk is this run's, and the other two go away.
-void() VR_ARK_PedTouch =
+// The director let go: what it was doing goes on with the time it still had (the rest's own start moved on by the
+// hold, so the rest it reports is the rest it had).
+void() VR_ARK_Resume =
 {
     if(!ar_mgr) { return; }
-    if(!(other.flags & FL_CLIENT)) { return; }
-
-    float bit = self.ark_perk;
-    string name = VR_ARK_Name(bit);
-    string what = VR_ARK_What(bit);
-
-    VR_ARK_Take(bit);
-    VR_ARK_ClearPeds();
-
-    centerprint(other, sprintf("%s\n%s\n", name, what));
-    VR_ARENA_PrintAll(sprintf("ARENA - %s taken\n", name));
-    stuffcmd(other, "bf\n"); // (the same little haptic the shipped pickups give)
-    dprint(sprintf("arena_perks: %s chosen (%g perks, %g pedestals left)\n", name, VR_ARK_CountTaken(),
-                   VR_ARK_CountPeds()));
+    if(ar_mgr.think != VR_ARK_HoldThink) { return; }
+    float held = time - ark_hold_at;
+    if(ar_rest_at > 0) { ar_rest_at = ar_rest_at + held; }
+    ar_mgr.think = ar_mgr.ark_resume;
+    ar_mgr.nextthink = time + ar_mgr.ark_resume_left;
+    ark_hold_at = 0;
+    dprint(sprintf("arena_perks: the arena goes on after %g s held (%g s of its rest left)\n", held,
+                   ar_mgr.ark_resume_left));
 }
 
-// A boss wave cleared: the offer. The old pedestals go; the pool's last rung having been taken, it offers nothing.
+// The cards taken down (picked, or withdrawn) and the director let go.
+void() VR_ARK_CloseOffer =
+{
+    ark_open = 0;
+    VR_ARK_Resume();
+}
+
+// The director held while the cards are up: only between two waves (a boss clear's rest), so no countdown, wave or
+// spawn comes meanwhile; mid-wave (a test's own offer) it is left alone.
+void() VR_ARK_Hold =
+{
+    if(!ar_mgr) { return; }
+    if(ar_mgr.think == VR_ARK_HoldThink) { return; }
+    if(!VR_ARENA_Between()) { return; }
+    ar_mgr.ark_resume = ar_mgr.think;
+    ar_mgr.ark_resume_left = max(0, ar_mgr.nextthink - time);
+    ar_mgr.think = VR_ARK_HoldThink;
+    ar_mgr.nextthink = time + AR_TICK;
+    ark_hold_at = time;
+    dprint(sprintf("arena_perks: the arena waits for the choice (%g s of its rest left)\n", ar_mgr.ark_resume_left));
+}
+
+// The held director's beat: it waits while the cards are up. Cards no panel has shown (no headset: nothing could pick
+// them) are withdrawn after ARK_UNSEEN s, so such a game goes on without a perk rather than wait for ever.
+void() VR_ARK_HoldThink =
+{
+    if(ark_open && (ark_seen_at <= 0) && (time - ark_open_at > ARK_UNSEEN))
+    {
+        VR_ARENA_PrintAll("ARENA - no perk panel to choose on: the offer is withdrawn\n");
+        dprint("arena_perks: no panel showed the cards, the offer is withdrawn\n");
+        ark_open = 0;
+    }
+    if(!ark_open)
+    {
+        VR_ARK_Resume();
+        return;
+    }
+    self.nextthink = time + AR_TICK;
+}
+
+// A boss wave cleared: the offer. One still open is withdrawn first; the pool's last rung having been taken, it offers
+// nothing.
 void(float xWave) VR_ARK_Offer =
 {
-    float made = 0;
-    float i;
-
-    VR_ARK_ClearPeds();
+    VR_ARK_CloseOffer();
     ark_offer_n = 0;
     ar_mgr.ark_offer_wave = xWave;
 
@@ -326,14 +315,75 @@ void(float xWave) VR_ARK_Offer =
         return;
     }
 
-    for(i = 0; i < ark_offer_n; i++)
-    {
-        if(VR_ARK_SpawnPed(ark_offer_bit[i], VR_ARENA_PedPlace(i), i)) { made = made + 1; }
-    }
+    ark_open = 1;
+    ark_open_serial = ark_open_serial + 1;
+    ark_open_at = time;
+    ark_seen_at = 0;
+    VR_ARK_Hold();
+    dprint(sprintf("arena_perks: wave %g offers %g cards (%g perks left)\n", xWave, ark_offer_n, VR_ARK_CountLeft()));
+}
 
-    VR_ARENA_PrintAll(sprintf("ARENA - %g perks to choose: walk over one\n", made));
-    dprint(sprintf("arena_perks: wave %g offers %g pedestals (%g standing, %g perks left)\n", xWave, made,
-                   VR_ARK_CountPeds(), VR_ARK_CountLeft()));
+// The engine's panel (vr_arenacards.cpp) asks, once a frame, through these: the open offer's number (0: none), its
+// cards and their perks, its title, and says it shows them (VR_ARK_CardsSeen: the perks held, for its footer).
+float() VR_ARK_CardSerial =
+{
+    if(!VR_ARK_Running() || !ark_open) { return 0; }
+    return ark_open_serial;
+}
+
+float() VR_ARK_CardCount = { return VR_ARK_CardSerial() ? ark_offer_n : 0; }
+
+float(float i) VR_ARK_CardBit =
+{
+    if(i < 0 || i >= ark_offer_n) { return 0; }
+    return ark_offer_bit[i];
+}
+
+string() VR_ARK_CardTitle = { return sprintf("BOSS WAVE %g CLEARED", ar_mgr.ark_offer_wave); }
+
+float() VR_ARK_PoolSize = { return ARK_POOL_N; }
+
+float() VR_ARK_CardsSeen =
+{
+    if(ark_open && ark_seen_at <= 0) { dprint(sprintf("arena_perks: the panel shows the %g cards\n", ark_offer_n)); }
+    ark_seen_at = time;
+    return VR_ARK_CountTaken();
+}
+
+// Card `i` (0 first) picked: its perk is this run's, the cards go and the arena goes on. 1 when it took.
+float(float i) VR_ARK_CardPick =
+{
+    if(!ark_open || !ar_mgr) { return 0; }
+    float bit = VR_ARK_CardBit(i);
+    if(bit == 0) { return 0; }
+
+    string name = VR_ARK_Name(bit);
+    VR_ARK_Take(bit);
+    VR_ARK_CloseOffer();
+
+    entity p = VR_ARK_Player();
+    if(p != world)
+    {
+        centerprint(p, sprintf("%s\n%s\n", name, VR_ARK_What(bit)));
+        stuffcmd(p, "bf\n"); // (the same little haptic the shipped pickups give)
+    }
+    VR_ARENA_PrintAll(sprintf("ARENA - %s taken\n", name));
+    dprint(sprintf("arena_perks: %s chosen (card %g of %g, %g perks)\n", name, i + 1, ark_offer_n, VR_ARK_CountTaken()));
+    return 1;
+}
+
+// The engine's vr_arena_cards_offer (Debug > Automation & Self-Tests): the offer the next boss wave's clear would make,
+// now -- only between two waves, where a real one comes.
+void() VR_ARK_DebugOffer =
+{
+    if(!VR_ARK_Running()) { dprint("arena_perks: no Survival Arena run here (map vrarena)\n"); return; }
+    if(!VR_ARENA_Between())
+    {
+        VR_ARENA_PrintAll("ARENA - perk cards come only between two waves\n");
+        return;
+    }
+    float every = max(1, VR_ARENA_BossEvery());
+    VR_ARK_Offer(max(every, ceil(max(ar_wave, 1) / every) * every));
 }
 
 // ---------------------------------------------------------------------------

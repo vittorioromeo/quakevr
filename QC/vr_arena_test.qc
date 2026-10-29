@@ -52,7 +52,7 @@ float vr_at_pass;
 float vr_at_fail;
 float vr_at_step;
 float vr_at_until;
-float vr_at_keep[26];    // the cvars the tests set, put back at the end
+float vr_at_keep[27];    // the cvars the tests set, put back at the end
 float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
 float vr_at_kills0;
 float vr_at_score0;
@@ -87,9 +87,10 @@ string(float i) VR_AT_CvarName =
     if(i == 23) { return "vr_ammobox_drops"; } // (... the same for what an ammo box may carry)
     if(i == 24) { return "vr_arena_wave_rest"; }
     if(i == 25) { return "vr_arena_countdown"; }
+    if(i == 26) { return "vr_arena_perks"; }     // (off: a boss clear's cards would hold the director for a pick)
     return "";
 }
-float VR_AT_NCVARS = 26;
+float VR_AT_NCVARS = 27;
 
 void() VR_AT_Save =
 {
@@ -136,6 +137,7 @@ void() VR_AT_SetDefaults =
     cvar_set("vr_arena_foe_armor_from", "4");
     cvar_set("vr_arena_wave_rest", "5");
     cvar_set("vr_arena_countdown", "5");
+    cvar_set("vr_arena_perks", "0"); // (the perk cards hold the arena until picked: vr_arena_perks_test drives them)
     VR_AT_SetSkill(1); // (Normal, where the skill's factor is exactly 1: every family's own numbers mean the cvars)
 }
 
@@ -1082,7 +1084,7 @@ float() VR_AT5_ArmourGap =
     return 0;
 }
 
-// What one boss clear's offer looks like at this difficulty: how many pedestals, and whether any perk is on it twice.
+// What one boss clear's offer looks like at this difficulty: how many cards, and whether any perk is on it twice.
 float(float xWave) VR_AT5_OfferDupes =
 {
     float dup = 0;
@@ -1122,8 +1124,8 @@ void() VR_AT5_Supplies =
         want = sk < 1 ? 563 : sk < 2 ? 750 : sk < 3 ? 938 : 1125;
         VR_AT_Check(VR_ARENA_WaveBonus(3) == want, sprintf("a wave clear's bonus is %g at skill %g", want, sk));
         want = sk < 1 ? 2 : sk < 2 ? 3 : sk < 3 ? 4 : 5;
-        VR_AT_Check(VR_ARK_Opt_Count() == want, sprintf("a boss clear offers %g pedestals at skill %g", want, sk));
-        dprint(sprintf("arena: t5 at skill %g: %g medkits, an armour every %g waves, a kill %g, a clear %g, %g pedestals\n",
+        VR_AT_Check(VR_ARK_Opt_Count() == want, sprintf("a boss clear offers %g cards at skill %g", want, sk));
+        dprint(sprintf("arena: t5 at skill %g: %g medkits, an armour every %g waves, a kill %g, a clear %g, %g cards\n",
                        sk, VR_ARENA_MedkitCount(3), VR_AT5_ArmourGap(), VR_ARENA_KillScore(1, 0),
                        VR_ARENA_WaveBonus(3), VR_ARK_Opt_Count()));
     }
@@ -1177,7 +1179,7 @@ void() VR_AT5_Supplies =
     cvar_set("vr_arena_perk_count", "5");
     VR_AT_SetSkill(3);
     VR_AT_Check(VR_ARK_Opt_Count() == ARK_POOL_N, "a Nightmare boss clear never offers more than the pool's size");
-    VR_AT_Check(VR_AT5_OfferDupes(5) == 0, "and its offer is a different perk on each pedestal");
+    VR_AT_Check(VR_AT5_OfferDupes(5) == 0, "and its offer is a different perk on each card");
     VR_AT_SetSkill(0);
     VR_AT_Check(VR_ARK_Opt_Count() == 4, "an Easy one offers four of them");
     VR_AT_Check(VR_AT5_OfferDupes(10) == 0, "and nothing is offered twice there either");

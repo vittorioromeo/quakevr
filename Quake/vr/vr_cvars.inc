@@ -3071,9 +3071,11 @@ QVR_CVAR(vr_arena_corpse_max, "12", CVAR_ARCHIVE)            // fallen bodies ke
 QVR_CVAR(vr_arena_item_waves, "2", CVAR_ARCHIVE)             // a wave clear's medkits and armour still lying there this many wave clears later are removed (0: never)
 QVR_CVAR(vr_arena_gun_max, "24", CVAR_ARCHIVE)               // guns the arena's foes dropped lying about at most: past it the oldest fades (0: no limit; twice this with the Spoils perk)
 // Survival Arena: the boss wave's perk choice (QC/vr_arena_perks.qc).
-QVR_CVAR(vr_arena_perks, "1", CVAR_ARCHIVE)                   // 0: a boss wave's clear offers nothing, 1: it offers the player his choice of the perks
-QVR_CVAR(vr_arena_perk_count, "3", CVAR_ARCHIVE)             // how many pedestals a boss wave's clear offers (1 to the pool's 8)
-QVR_CVAR(vr_arena_perks_test, "0", CVAR_NONE)                // the QC's arena perk tests (vr_arena_perks_test.qc): 1 the pool and its knobs, 2 the offer, 3 the perks' numbers, 4 both maps
+QVR_CVAR(vr_arena_perks, "1", CVAR_ARCHIVE)                   // 0: a boss wave's clear offers nothing, 1: it offers the player his choice of the perks, as cards floating in front of him (the arena waits for the pick)
+QVR_CVAR(vr_arena_cards_distance, "34", CVAR_ARCHIVE)         // the perk cards' panel (vr_arenacards.cpp): how far in front of the head (units; 34 about 1.3 m)
+QVR_CVAR(vr_arena_cards_width, "32", CVAR_ARCHIVE)            // ... and how wide (units; its height five eighths of it)
+QVR_CVAR(vr_arena_perk_count, "3", CVAR_ARCHIVE)             // how many cards a boss wave's clear offers (1 to the pool's 8)
+QVR_CVAR(vr_arena_perks_test, "0", CVAR_NONE)                // the QC's arena perk tests (vr_arena_perks_test.qc): 1 the pool and its knobs, 2 the offer, 3 the perks' numbers, 4 a run to its first boss, 5 the card panel (mock laser and trigger)
 QVR_CVAR(vr_agrunt_debug, "0", CVAR_NONE)                    // 1: prints its weapon, shots, reloads, disarms and pickups
 QVR_CVAR(vr_agrunt_w_fists, "1", CVAR_ARCHIVE)         // the pool's weights (0: never): unarmed, its fists
 QVR_CVAR(vr_agrunt_w_axe, "1", CVAR_ARCHIVE)

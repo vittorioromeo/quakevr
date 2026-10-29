@@ -181,9 +181,11 @@ void() VR_ARENA_RestartThink;
 
 // The boss wave's perk choice (vr_arena_perks.qc, compiled after this file): every wave clear reports itself to
 // it, and so does the director's frame. Neither does anything unless the run took a perk / the offer knob is on.
-// (A foe's fall goes to it from combat.qc's Killed, where the killer is at hand.)
+// (A foe's fall goes to it from combat.qc's Killed, where the killer is at hand.) While its cards are up the director
+// is held on VR_ARK_HoldThink: still between two waves.
 void(float xWave) VR_ARK_WaveDone;
 void() VR_ARK_Frame;
+void() VR_ARK_HoldThink;
 
 // ---------------------------------------------------------------------------
 // The knobs, and the small maths they need
@@ -1102,7 +1104,7 @@ vector(float i) VR_ARENA_Aside =
 // box is 32 wide): from a tower top, a wall walk or the octagon's cut corner it stays on the ground it belongs to.
 // ---------------------------------------------------------------------------
 // No overlaps: a box at a place is clear of everything standing in the world -- monsters (any wave's, the map's),
-// the players, items, guns lying about, props, pedestals: anything with a model that is not a brush (the world's,
+// the players, items, guns lying about, props: anything with a model that is not a brush (the world's,
 // a door's, a trigger's). A fallen body (SOLID_NOT, which findradius passes over) is not in the way.
 // ---------------------------------------------------------------------------
 
@@ -1294,7 +1296,7 @@ vector(float xHigh) VR_ARENA_SpawnPlace =
     return o;
 }
 
-// A drop's (a medkit's, an armour's, a pedestal's) spacing: its place as given, then a step of AR_DROP_STEP off it
+// A drop's (a medkit's, an armour's) spacing: its place as given, then a step of AR_DROP_STEP off it
 // each of eight ways, then two steps -- the first with ground under it and its box clear (a medkit's corner-origin
 // box and an armour's centred one both inside it, padded). FALSE in ar_place_ok when there is none.
 float AR_DROP_STEP = 64;
@@ -1365,37 +1367,6 @@ vector(float i) VR_ARENA_DropPlace =
 
     ar_item_next = ar_item_next + 1;
     return o;
-}
-
-// QVR: Where a perk's pedestal stands (vr_arena_perks.qc asks for it). The same info_arena_item points a wave clear
-// drops its medkits and armour on, but pushed AR_PED_OUT away from the map's centre; with no item points, the same
-// ring off the player at its own wider radius. So a wave's medkit and a pedestal never stand in one spot -- a
-// grabbable item inside a trigger box plays badly in VR. And unlike VR_ARENA_DropPlace this does not walk the item
-// cursor: a wave's drops keep every point they had.
-float AR_PED_OUT = 96;
-
-vector(float i) VR_ARENA_PedPlace =
-{
-    entity e = VR_ARENA_ItemSpot(i);
-    vector o;
-
-    if(e)
-    {
-        vector d = e.origin - ar_mgr.origin;
-        d.z = 0;
-        float l = vlen(d);
-        if(l < 1) { d = VR_ARENA_RingDir(i); l = 1; }
-        o = e.origin + (AR_PED_OUT / l) * d;
-    }
-    else
-    {
-        entity p = VR_ARENA_FindPlayer();
-        vector base = ar_mgr.origin;
-        if(p != world) { base = p.origin; }
-        o = base + (AR_DROP_R + AR_PED_OUT) * VR_ARENA_RingDir(i);
-    }
-
-    return VR_ARENA_FreeNear(o); // (stepped round a medkit, a gun or the player standing there)
 }
 
 // ---------------------------------------------------------------------------
@@ -1925,9 +1896,11 @@ void() VR_ARENA_WaveClear =
     dprint(sprintf("arena: wave %g clear kills %g medkits %g armour %g score %g\n", w, ar_wave_kills,
                    ar_drop_health, ar_drop_armour, ar_score));
 
-    VR_ARK_WaveDone(w); // QVR: the boss wave's clear offers the player his choice of perks (vr_arena_perks.qc)
-
     VR_ARENA_RestBegin(rest);
+
+    // QVR: the boss wave's clear offers the player his choice of perks (vr_arena_perks.qc): its cards hold the rest
+    // just begun until he picks one.
+    VR_ARK_WaveDone(w);
 }
 
 // The boss a wave brings, by name, for its countdown ("" no boss wave).
@@ -1967,11 +1940,12 @@ void() VR_ARENA_CountThink =
     self.nextthink = time + 1;
 }
 
-// Between two waves: the rest after a clear, the countdown, or a jump's wave about to begin.
+// Between two waves: the rest after a clear, the countdown, a jump's wave about to begin, or a boss clear's perk cards
+// holding the rest (vr_arena_perks.qc).
 float() VR_ARENA_Between =
 {
     return ar_mgr.think == VR_ARENA_CountStart || ar_mgr.think == VR_ARENA_CountThink ||
-           ar_mgr.think == VR_ARENA_WaveStart;
+           ar_mgr.think == VR_ARENA_WaveStart || ar_mgr.think == VR_ARK_HoldThink;
 }
 
 void() VR_ARENA_CountStart =
