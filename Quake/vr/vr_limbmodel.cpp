@@ -1,5 +1,7 @@
 // vr_limbmodel.cpp -- see vr_limbmodel.hpp.
 
+#include "vr_mdlbuild.hpp"
+#include "vr_bytes.hpp"
 #include "vr_limbmodel.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
@@ -135,20 +137,6 @@ constexpr LeftOff leftOff[] = {
     return false;
 }
 
-[[nodiscard]] int rd(const byte* b, size_t at)
-{
-    int v;
-    memcpy(&v, b + at, 4);
-    return LittleLong(v);
-}
-
-[[nodiscard]] float rdf(const byte* b, size_t at)
-{
-    float v;
-    memcpy(&v, b + at, 4);
-    return LittleFloat(v);
-}
-
 void put(za::Vector<byte>& out, int v)
 {
     const int le = LittleLong(v);
@@ -181,22 +169,6 @@ void putf(za::Vector<byte>& out, float v)
         if(d < bestD)
         {
             bestD = d;
-            best = i;
-        }
-    }
-    return static_cast<byte>(best);
-}
-
-[[nodiscard]] byte nearestNormal(const glm::vec3& d)
-{
-    int best = 0;
-    float bestDot = -2.f;
-    for(int i = 0; i < NUMVERTEXNORMALS; i++)
-    {
-        const float k = d.x * r_avertexnormals[i][0] + d.y * r_avertexnormals[i][1] + d.z * r_avertexnormals[i][2];
-        if(k > bestDot)
-        {
-            bestDot = k;
             best = i;
         }
     }
@@ -249,13 +221,13 @@ struct Built
 // The limb model of `bone` of `rig`'s .mdl (its file `src`, `srcSize` bytes) into `out`. False: it can't be.
 [[nodiscard]] bool build(const ragdoll::Rig& rig, int bone, uint32_t only, const byte* src, size_t srcSize, bool zombie, Built& out, const char*& why)
 {
-    if(srcSize < headerSize || rd(src, 0) != IDPOLYHEADER)
+    if(srcSize < headerSize || qvr::bytes::le32(src, 0) != IDPOLYHEADER)
     {
         why = "not an alias model";
         return false;
     }
-    const int numSkins = rd(src, 48), skinW = rd(src, 52), skinH = rd(src, 56), numVerts = rd(src, 60), numTris = rd(src, 64),
-              numFrames = rd(src, 68);
+    const int numSkins = qvr::bytes::le32(src, 48), skinW = qvr::bytes::le32(src, 52), skinH = qvr::bytes::le32(src, 56), numVerts = qvr::bytes::le32(src, 60), numTris = qvr::bytes::le32(src, 64),
+              numFrames = qvr::bytes::le32(src, 68);
     if(numSkins < 1 || skinW <= 0 || skinH <= 0 || numVerts <= 0 || numTris <= 0 || numFrames <= 0)
     {
         why = "bad header";
@@ -266,8 +238,8 @@ struct Built
         why = "another model than its rig's";
         return false;
     }
-    const glm::vec3 scale{rdf(src, 8), rdf(src, 12), rdf(src, 16)};
-    const glm::vec3 origin{rdf(src, 20), rdf(src, 24), rdf(src, 28)};
+    const glm::vec3 scale{qvr::bytes::lef32(src, 8), qvr::bytes::lef32(src, 12), qvr::bytes::lef32(src, 16)};
+    const glm::vec3 origin{qvr::bytes::lef32(src, 20), qvr::bytes::lef32(src, 24), qvr::bytes::lef32(src, 28)};
     const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
     size_t at = headerSize;
     for(int s = 0; s < numSkins; s++)
@@ -277,13 +249,13 @@ struct Built
             why = "short";
             return false;
         }
-        if(rd(src, at) == 0)
+        if(qvr::bytes::le32(src, at) == 0)
         {
             at += 4 + skinBytes;
         }
         else
         {
-            const int n = at + 8 <= srcSize ? rd(src, at + 4) : 0;
+            const int n = at + 8 <= srcSize ? qvr::bytes::le32(src, at + 4) : 0;
             at += 8 + static_cast<size_t>(za::max(n, 0)) * (4 + skinBytes);
         }
     }
@@ -297,13 +269,13 @@ struct Built
         return false;
     }
     size_t poseAt = 0; // the first frame's vertices (the rig's rest pose)
-    if(rd(src, framesAt) == 0)
+    if(qvr::bytes::le32(src, framesAt) == 0)
     {
         poseAt = framesAt + 4 + 24;
     }
     else
     {
-        const int n = framesAt + 8 <= srcSize ? rd(src, framesAt + 4) : 0;
+        const int n = framesAt + 8 <= srcSize ? qvr::bytes::le32(src, framesAt + 4) : 0;
         poseAt = framesAt + 16 + static_cast<size_t>(za::max(n, 0)) * 4 + 24;
     }
     if(poseAt + static_cast<size_t>(numVerts) * 4 > srcSize || skinsEnd > srcSize)
@@ -339,12 +311,12 @@ struct Built
     for(int t = 0; t < numTris; t++)
     {
         const size_t o = trisAt + static_cast<size_t>(t) * 16;
-        const int front = rd(src, o);
+        const int front = qvr::bytes::le32(src, o);
         int v[3];
         int on = 0;
         for(int c = 0; c < 3; c++)
         {
-            v[c] = rd(src, o + 4 + static_cast<size_t>(c) * 4);
+            v[c] = qvr::bytes::le32(src, o + 4 + static_cast<size_t>(c) * 4);
             if(v[c] < 0 || v[c] >= numVerts)
             {
                 why = "bad triangle";
@@ -362,9 +334,9 @@ struct Built
                 {
                     OutVert ov;
                     ov.p = posOf(v[c]);
-                    ov.onseam = rd(src, stAt + static_cast<size_t>(v[c]) * 12);
-                    ov.s = rd(src, stAt + static_cast<size_t>(v[c]) * 12 + 4);
-                    ov.t = rd(src, stAt + static_cast<size_t>(v[c]) * 12 + 8);
+                    ov.onseam = qvr::bytes::le32(src, stAt + static_cast<size_t>(v[c]) * 12);
+                    ov.s = qvr::bytes::le32(src, stAt + static_cast<size_t>(v[c]) * 12 + 4);
+                    ov.t = qvr::bytes::le32(src, stAt + static_cast<size_t>(v[c]) * 12 + 8);
                     ov.normal = src[poseAt + static_cast<size_t>(v[c]) * 4 + 3];
                     k = static_cast<int>(verts.size());
                     verts.pushBack(ov);
@@ -408,7 +380,7 @@ struct Built
     const ragdoll::Bone& root = rig.bones[bone];
     const glm::vec3 axis = root.pivot - root.end;
     const glm::vec3 capOut = glm::length(axis) > 1e-3f ? glm::normalize(axis) : glm::vec3{0.f, 0.f, -1.f};
-    const byte capNormal = nearestNormal(capOut);
+    const byte capNormal = qvr::mdlbuild::nearestNormal(capOut);
     int capMid = -1;
     float capTexels = 1.f; // the cap's radius on the strip (texels): its rim, for the bone in its middle
     if(capCorners > 0)
@@ -478,7 +450,7 @@ struct Built
     put(f, 1);
     put(f, 0);
     put(f, zombie ? EF_ZOMGIB : EF_GIB);
-    putf(f, rdf(src, 80));
+    putf(f, qvr::bytes::lef32(src, 80));
 
     // The skins, each with the strip under it: the cut's flesh (fleshColour), the bone in the left square's middle (the
     // cap's), the palette's nearest to each colour (looked up once a colour).
@@ -521,7 +493,7 @@ struct Built
     at = headerSize;
     for(int s = 0; s < numSkins; s++)
     {
-        if(rd(src, at) == 0)
+        if(qvr::bytes::le32(src, at) == 0)
         {
             put(f, 0);
             image(src + at + 4);
@@ -529,7 +501,7 @@ struct Built
         }
         else
         {
-            const int n = za::max(rd(src, at + 4), 0);
+            const int n = za::max(qvr::bytes::le32(src, at + 4), 0);
             put(f, 1);
             put(f, n);
             f.emplaceBackRange(src + at + 8, static_cast<size_t>(n) * 4);

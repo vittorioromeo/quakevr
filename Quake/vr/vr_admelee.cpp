@@ -1,5 +1,7 @@
 // vr_admelee.cpp -- see vr_admelee.hpp.
 
+#include "vr_mdlbuild.hpp"
+#include "vr_bytes.hpp"
 #include "vr_admelee.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -116,36 +118,6 @@ constexpr Weapon weapons[] = {
 constexpr glm::vec3 swordHand{-0.9793f, 1.4925f, -2.6023f};
 constexpr glm::vec3 swordTip{28.9816f, 0.121f, 76.4247f};
 constexpr float swordScale = 2.6f;
-
-[[nodiscard]] int rd(const byte* b, size_t at)
-{
-    int v;
-    memcpy(&v, b + at, 4);
-    return LittleLong(v);
-}
-
-[[nodiscard]] float rdf(const byte* b, size_t at)
-{
-    float v;
-    memcpy(&v, b + at, 4);
-    return LittleFloat(v);
-}
-
-[[nodiscard]] byte nearestNormal(const glm::vec3& d)
-{
-    int best = 0;
-    float bestDot = -2.f;
-    for(int i = 0; i < NUMVERTEXNORMALS; i++)
-    {
-        const float k = d.x * r_avertexnormals[i][0] + d.y * r_avertexnormals[i][1] + d.z * r_avertexnormals[i][2];
-        if(k > bestDot)
-        {
-            bestDot = k;
-            best = i;
-        }
-    }
-    return static_cast<byte>(best);
-}
 
 [[nodiscard]] const Weapon* weaponOf(const char* base)
 {
@@ -273,20 +245,20 @@ struct Source
 
 [[nodiscard]] bool readSource(const Frame& fr, const byte* src, size_t size, Source& out, const char*& why)
 {
-    if(size < headerSize || rd(src, 0) != IDPOLYHEADER || rd(src, 4) != ALIAS_VERSION)
+    if(size < headerSize || qvr::bytes::le32(src, 0) != IDPOLYHEADER || qvr::bytes::le32(src, 4) != ALIAS_VERSION)
     {
         why = "not an alias model";
         return false;
     }
-    const int numSkins = rd(src, 48), skinW = rd(src, 52), skinH = rd(src, 56);
-    const int numVerts = rd(src, 60), numTris = rd(src, 64), numFrames = rd(src, 68);
+    const int numSkins = qvr::bytes::le32(src, 48), skinW = qvr::bytes::le32(src, 52), skinH = qvr::bytes::le32(src, 56);
+    const int numVerts = qvr::bytes::le32(src, 60), numTris = qvr::bytes::le32(src, 64), numFrames = qvr::bytes::le32(src, 68);
     if(numSkins < 1 || skinW <= 0 || skinH <= 0 || numVerts <= 0 || numTris <= 0 || numFrames <= 0)
     {
         why = "bad header";
         return false;
     }
-    const glm::vec3 scale{rdf(src, 8), rdf(src, 12), rdf(src, 16)};
-    const glm::vec3 origin{rdf(src, 20), rdf(src, 24), rdf(src, 28)};
+    const glm::vec3 scale{qvr::bytes::lef32(src, 8), qvr::bytes::lef32(src, 12), qvr::bytes::lef32(src, 16)};
+    const glm::vec3 origin{qvr::bytes::lef32(src, 20), qvr::bytes::lef32(src, 24), qvr::bytes::lef32(src, 28)};
     const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
     size_t at = headerSize;
     for(int s = 0; s < numSkins; s++)
@@ -296,13 +268,13 @@ struct Source
             why = "truncated (skins)";
             return false;
         }
-        if(rd(src, at) == 0)
+        if(qvr::bytes::le32(src, at) == 0)
         {
             at += 4 + skinBytes;
         }
         else
         {
-            const int n = za::max(rd(src, at + 4), 1);
+            const int n = za::max(qvr::bytes::le32(src, at + 4), 1);
             at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
         }
     }
@@ -311,7 +283,7 @@ struct Source
     out.skinsEnd = at;
     const size_t st = at, tr = st + static_cast<size_t>(numVerts) * 12;
     at = tr + static_cast<size_t>(numTris) * 16;
-    if(at + 4 + 24 + static_cast<size_t>(numVerts) * 4 > size || rd(src, at) != 0)
+    if(at + 4 + 24 + static_cast<size_t>(numVerts) * 4 > size || qvr::bytes::le32(src, at) != 0)
     {
         why = "truncated, or its first frame a group";
         return false;
@@ -337,21 +309,21 @@ struct Source
     {
         const size_t o = tr + static_cast<size_t>(i) * 16;
         Source::Tri t;
-        const bool front = rd(src, o) != 0;
+        const bool front = qvr::bytes::le32(src, o) != 0;
         int keys[3];
         for(int c = 0; c < 3; c++)
         {
-            const int v = rd(src, o + 4 + static_cast<size_t>(c) * 4);
+            const int v = qvr::bytes::le32(src, o + 4 + static_cast<size_t>(c) * 4);
             if(v < 0 || v >= numVerts)
             {
                 why = "bad triangle";
                 return false;
             }
             const size_t sv = st + static_cast<size_t>(v) * 12;
-            const bool back = !front && rd(src, sv) != 0;
+            const bool back = !front && qvr::bytes::le32(src, sv) != 0;
             t.v[c] = v;
-            t.s[c] = static_cast<float>(rd(src, sv + 4) + (back ? skinW / 2 : 0));
-            t.t[c] = static_cast<float>(rd(src, sv + 8));
+            t.s[c] = static_cast<float>(qvr::bytes::le32(src, sv + 4) + (back ? skinW / 2 : 0));
+            t.t[c] = static_cast<float>(qvr::bytes::le32(src, sv + 8));
             keys[c] = v * 2 + (back ? 1 : 0);
         }
         const glm::vec3 c = glm::cross(out.pos[t.v[2]] - out.pos[t.v[0]], out.pos[t.v[1]] - out.pos[t.v[0]]);
@@ -1164,7 +1136,7 @@ constexpr float flailHeadScale = swordScale * 0.34f;
         const int le = LittleLong(v);
         memcpy(f + off, &le, 4);
     };
-    const glm::vec3 eye = fr.place(fr.local(glm::vec3{rdf(src, 36), rdf(src, 40), rdf(src, 44)}));
+    const glm::vec3 eye = fr.place(fr.local(glm::vec3{qvr::bytes::lef32(src, 36), qvr::bytes::lef32(src, 40), qvr::bytes::lef32(src, 44)}));
     for(int i = 0; i < 3; i++)
     {
         setf(8 + static_cast<size_t>(i) * 4, scale[i]);
@@ -1214,7 +1186,7 @@ constexpr float flailHeadScale = swordScale * 0.34f;
             lo[i] = za::min(lo[i], f[at + i]);
             hi[i] = za::max(hi[i], f[at + i]);
         }
-        f[at + 3] = nearestNormal(fr.dir(m.nrm[v]));
+        f[at + 3] = qvr::mdlbuild::nearestNormal(fr.dir(m.nrm[v]));
         if(glm::dot(p - fr.base, A) > farthest - (w.flail ? 0.5f : 2.f))
         {
             out.tip += p;

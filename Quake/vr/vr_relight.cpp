@@ -38,6 +38,7 @@
 // script's (vr_relight_lights writes them, to compare), and the water-vis patch is its vis_maps.py's (the same bytes:
 // vr_relight_vispatch patches a file to compare). What neither does: the BSP2 maps' glowing textures.
 
+#include "vr_bytes.hpp"
 #include "vr_strings.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_maps.hpp"
@@ -192,42 +193,9 @@ struct V3
 // ---------------------------------------------------------------------------------------------------------------------
 // The .bsp.
 
-struct Bsp
+struct Bsp : bytes::View
 {
-    const unsigned char* data{nullptr};
-    za::SizeT size{0};
-
-    [[nodiscard]] int i32(za::SizeT at) const
-    {
-        int v = 0;
-        if(at + 4 <= size)
-        {
-            memcpy(&v, data + at, 4);
-        }
-        return LittleLong(v);
-    }
-    [[nodiscard]] short i16(za::SizeT at) const
-    {
-        short v = 0;
-        if(at + 2 <= size)
-        {
-            memcpy(&v, data + at, 2);
-        }
-        return LittleShort(v);
-    }
-    [[nodiscard]] unsigned short u16(za::SizeT at) const
-    {
-        return static_cast<unsigned short>(i16(at));
-    }
-    [[nodiscard]] double f32(za::SizeT at) const
-    {
-        float v = 0.f;
-        if(at + 4 <= size)
-        {
-            memcpy(&v, data + at, 4);
-        }
-        return static_cast<double>(LittleFloat(v));
-    }
+    [[nodiscard]] double f32(za::SizeT at) const { return static_cast<double>(View::f32(at)); }
     [[nodiscard]] int lumpOffset(int index) const
     {
         return i32(4 + static_cast<za::SizeT>(index) * 8);
