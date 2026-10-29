@@ -6,6 +6,7 @@
 // The effects are few at once (the surfaces: one a place, however many bolts go in there; kept a
 // moment past the last).
 
+#include "vr_random.hpp"
 #include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_shock.hpp"
@@ -123,8 +124,7 @@ struct Random
 
     float operator()()
     {
-        seed = seed * 1664525u + 1013904223u;
-        return static_cast<float>(seed >> 8) / static_cast<float>(1u << 24);
+        return vrand::lcg01(seed);
     }
 
     glm::vec3 dir()

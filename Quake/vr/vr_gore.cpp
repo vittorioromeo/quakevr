@@ -1,5 +1,6 @@
 // vr_gore.cpp -- see vr_gore.hpp.
 
+#include "vr_random.hpp"
 #include "vr_gore.hpp"
 #include "vr_trace.hpp"
 #include "vr_bloodstream.hpp"
@@ -40,15 +41,10 @@ using decals::MarkOptions;
 
 za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // a new sequence every run
 
-[[nodiscard]] float rnd(float lo, float hi)
-{
-    return lo + (hi - lo) * rng.getF(0.f, 1.f); // (lo > hi too)
-}
-
 [[nodiscard]] glm::vec3 onSphere()
 {
-    const float z = rnd(-1.f, 1.f);
-    const float a = rnd(0.f, 6.2831853f);
+    const float z = vrand::range(rng, -1.f, 1.f);
+    const float a = vrand::range(rng, 0.f, 6.2831853f);
     const float r = za::sqrt(za::max(0.f, 1.f - z * z));
     return {r * za::cos(a), r * za::sin(a), z};
 }
@@ -56,7 +52,7 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
 // A count from a rate: rounded at random, so fractions still come out right on average.
 [[nodiscard]] int stochastic(float n)
 {
-    return static_cast<int>(za::floor(n + rnd(0.f, 1.f)));
+    return static_cast<int>(za::floor(n + vrand::range(rng, 0.f, 1.f)));
 }
 
 [[nodiscard]] float sizeMult()
@@ -173,7 +169,7 @@ void addSource(int ent, const glm::vec3& pos, float seconds, float spread, float
     s.pos = pos;
     s.until = cl.time + delay + seconds;
     s.interval = interval;
-    s.next = cl.time + delay + rnd(0.1f, 0.6f) * interval;
+    s.next = cl.time + delay + vrand::range(rng, 0.1f, 0.6f) * interval;
     s.spread = spread;
     s.dropsLeft = drops;
     s.color = dropColor(pos);
@@ -215,14 +211,14 @@ bool fall(const glm::vec3& p, float dropSize, const glm::vec3& color, float mark
 
 void drip(Source& s)
 {
-    const float a = rnd(0.f, 6.2831853f);
-    const float r = s.spread * za::sqrt(rnd(0.f, 1.f));
+    const float a = vrand::range(rng, 0.f, 6.2831853f);
+    const float r = s.spread * za::sqrt(vrand::range(rng, 0.f, 1.f));
     const glm::vec3 p = s.pos + glm::vec3{za::cos(a) * r, za::sin(a) * r, 0.f};
     // The first few mark the floor (the first starts a puddle spreading while it drips), the
     // others splash on them.
     const float puddle = !s.puddle ? za::clamp(static_cast<float>(s.until - cl.time), 4.f, 12.f) : 0.f;
-    const float mark = s.puddle && s.marks < 5 && rnd(0.f, 1.f) < 0.7f ? rnd(2.5f, 4.5f) * sizeMult() : 0.f;
-    if(fall(p, rnd(0.6f, 0.85f), s.color, mark, puddle))
+    const float mark = s.puddle && s.marks < 5 && vrand::range(rng, 0.f, 1.f) < 0.7f ? vrand::range(rng, 2.5f, 4.5f) * sizeMult() : 0.f;
+    if(fall(p, vrand::range(rng, 0.6f, 0.85f), s.color, mark, puddle))
     {
         s.puddle = true;
         s.marks += mark > 0.f ? 1 : 0;
@@ -240,7 +236,7 @@ void streak(const glm::vec3& where, const glm::vec3& n, float width, float delay
         return;
     }
     down = glm::normalize(down);
-    float length = width * rnd(2.f, 3.8f);
+    float length = width * vrand::range(rng, 2.f, 3.8f);
     glm::vec3 w, hn;
     float f;
     const glm::vec3 start = where + n * 1.f;
@@ -255,8 +251,8 @@ void streak(const glm::vec3& where, const glm::vec3& n, float width, float delay
     MarkOptions o;
     o.along = down;
     o.aspect = length / width;
-    o.delay = delay + rnd(0.1f, 0.4f);
-    o.grow = rnd(2.f, 5.f);
+    o.delay = delay + vrand::range(rng, 0.1f, 0.4f);
+    o.grow = vrand::range(rng, 2.f, 5.f);
     o.growFrom = 0.15f;
     o.fromStart = true;
     o.darken = 0.25f;
@@ -313,15 +309,15 @@ void cast(const Ray& r)
     {
         return;
     }
-    if(n.z < -0.6f && rnd(0.f, 1.f) < r.dripChance && dripMult() > 0.f)
+    if(n.z < -0.6f && vrand::range(rng, 0.f, 1.f) < r.dripChance && dripMult() > 0.f)
     {
         // On the ceiling: it drips a while.
-        const float seconds = rnd(2.5f, 6.f) * dripMult();
-        addSource(0, where + n * 1.5f, seconds, size * 0.2f, rnd(0.25f, 0.5f), static_cast<int>(seconds * 4.f), delay);
+        const float seconds = vrand::range(rng, 2.5f, 6.f) * dripMult();
+        addSource(0, where + n * 1.5f, seconds, size * 0.2f, vrand::range(rng, 0.25f, 0.5f), static_cast<int>(seconds * 4.f), delay);
     }
-    else if(za::fabs(n.z) < 0.35f && rnd(0.f, 1.f) < r.streakChance)
+    else if(za::fabs(n.z) < 0.35f && vrand::range(rng, 0.f, 1.f) < r.streakChance)
     {
-        streak(where, n, size * rnd(0.3f, 0.5f), delay);
+        streak(where, n, size * vrand::range(rng, 0.3f, 0.5f), delay);
     }
 }
 
@@ -360,19 +356,19 @@ void pool(const PendingPool& p)
     }
     // Spreading slowly, darkening as it thickens; a second, off to one side, a little later.
     MarkOptions o;
-    o.grow = rnd(12.f, 18.f);
+    o.grow = vrand::range(rng, 12.f, 18.f);
     o.growFrom = 0.12f;
     o.darken = 0.35f;
     decals::place(Mark::Pool, where, n, p.size, o);
-    const float a = rnd(0.f, 6.2831853f);
+    const float a = vrand::range(rng, 0.f, 6.2831853f);
     const glm::vec3 side = glm::vec3{za::cos(a), za::sin(a), 0.f} * (p.size * 0.25f);
-    o.delay = rnd(1.f, 2.5f);
-    o.grow = rnd(14.f, 20.f);
+    o.delay = vrand::range(rng, 1.f, 2.5f);
+    o.grow = vrand::range(rng, 14.f, 20.f);
     o.growFrom = 0.1f;
     o.darken = 0.4f;
     if(decals::trace(where + side + n * 4.f, where + side - n * 8.f, where, n, f) && n.z > 0.7f)
     {
-        decals::place(Mark::Pool, where, n, p.size * rnd(0.55f, 0.75f), o);
+        decals::place(Mark::Pool, where, n, p.size * vrand::range(rng, 0.55f, 0.75f), o);
     }
 }
 
@@ -412,8 +408,8 @@ void hit(const glm::vec3& org, const glm::vec3& dir, int damage, int kind, int l
     for(int i = 0; i < count; i++)
     {
         // Behind the hit, spreading, falling a little.
-        const glm::vec3 r = d + onSphere() * (spread * rnd(0.3f, 1.f)) + glm::vec3{0.f, 0.f, -0.25f};
-        Ray ray{org, glm::normalize(r), reach * rnd(0.6f, 1.f), size * rnd(0.7f, 1.3f), lvl >= 2 ? 0.35f : 0.1f,
+        const glm::vec3 r = d + onSphere() * (spread * vrand::range(rng, 0.3f, 1.f)) + glm::vec3{0.f, 0.f, -0.25f};
+        Ray ray{org, glm::normalize(r), reach * vrand::range(rng, 0.6f, 1.f), size * vrand::range(rng, 0.7f, 1.3f), lvl >= 2 ? 0.35f : 0.1f,
             lvl >= 2 ? 0.5f : 0.15f, false};
         ray.wet = wet;
         queue(ray);
@@ -430,10 +426,10 @@ void hit(const glm::vec3& org, const glm::vec3& dir, int damage, int kind, int l
         const float cone = kind == HitPellets ? 0.2f : 0.12f;
         for(int i = 0; i < streaks; i++)
         {
-            const glm::vec3 r = d + onSphere() * (cone * rnd(0.2f, 1.f)) + glm::vec3{0.f, 0.f, -0.04f};
-            const float width = rnd(3.5f, 7.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.75f) * za::clamp(0.8f + damage / 80.f, 0.8f, 1.5f);
-            Ray ray{org + d * 4.f, glm::normalize(r), distance * rnd(0.6f, 1.f), width, 0.f, lvl >= 2 ? 0.25f : 0.f, false};
-            ray.aspect = rnd(4.f, 8.f);
+            const glm::vec3 r = d + onSphere() * (cone * vrand::range(rng, 0.2f, 1.f)) + glm::vec3{0.f, 0.f, -0.04f};
+            const float width = vrand::range(rng, 3.5f, 7.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.75f) * za::clamp(0.8f + damage / 80.f, 0.8f, 1.5f);
+            Ray ray{org + d * 4.f, glm::normalize(r), distance * vrand::range(rng, 0.6f, 1.f), width, 0.f, lvl >= 2 ? 0.25f : 0.f, false};
+            ray.aspect = vrand::range(rng, 4.f, 8.f);
             ray.axis = d;
             queue(ray);
         }
@@ -456,7 +452,7 @@ void burst(const glm::vec3& org, const glm::vec3& dir, float size, int lvl)
     // from a ceiling.
     if(glm::dot(d, d) > 0.f && mult > 0.f)
     {
-        Ray ray{org, d, wet ? 32.f : 64.f, rnd(56.f, 80.f) * za::sqrt(scale) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f), 1.f,
+        Ray ray{org, d, wet ? 32.f : 64.f, vrand::range(rng, 56.f, 80.f) * za::sqrt(scale) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f), 1.f,
             lvl >= 2 ? 1.f : 0.3f, true};
         ray.wet = wet;
         queue(ray);
@@ -479,8 +475,8 @@ void burst(const glm::vec3& org, const glm::vec3& dir, float size, int lvl)
             r = onSphere();
             r.z *= 0.8f;
         }
-        const float s = rnd(32.f, 56.f) * za::sqrt(scale) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
-        Ray ray{org, glm::normalize(r), range * rnd(0.6f, 1.f), s, lvl >= 2 ? 1.f : 0.4f, lvl >= 2 ? 0.6f : 0.2f, (i % 3) == 0};
+        const float s = vrand::range(rng, 32.f, 56.f) * za::sqrt(scale) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
+        Ray ray{org, glm::normalize(r), range * vrand::range(rng, 0.6f, 1.f), s, lvl >= 2 ? 1.f : 0.4f, lvl >= 2 ? 0.6f : 0.2f, (i % 3) == 0};
         ray.wet = wet;
         queue(ray);
     }
@@ -494,10 +490,10 @@ void burst(const glm::vec3& org, const glm::vec3& dir, float size, int lvl)
     {
         MarkOptions o;
         o.delay = 0.2f + f * 0.3f;
-        o.grow = rnd(4.f, 7.f);
+        o.grow = vrand::range(rng, 4.f, 7.f);
         o.growFrom = 0.3f;
         o.darken = 0.3f;
-        decals::place(Mark::Pool, where, n, rnd(48.f, 72.f) * scale * sizeMult() * pools * (lvl >= 2 ? 1.f : 0.7f), o);
+        decals::place(Mark::Pool, where, n, vrand::range(rng, 48.f, 72.f) * scale * sizeMult() * pools * (lvl >= 2 ? 1.f : 0.7f), o);
     }
 }
 
@@ -566,11 +562,11 @@ void playerBleed()
         playerOwed -= 1.f;
         // From the body (about the waist), round it: in view looking down, never before the eyes.
         const entity_t& pl = cl_entities[cl.viewentity];
-        const float a = rnd(0.f, 6.2831853f);
-        const float r = rnd(4.f, 11.f);
-        const glm::vec3 p{pl.origin[0] + za::cos(a) * r, pl.origin[1] + za::sin(a) * r, pl.origin[2] + rnd(-6.f, 6.f)};
-        const bool mark = rnd(0.f, 1.f) < markChance;
-        fall(p, rnd(0.5f, 0.7f) * amount, dropColor(p), mark ? rnd(3.5f, 6.5f) * markSize * za::sqrt(amount) : 0.f, 0.f);
+        const float a = vrand::range(rng, 0.f, 6.2831853f);
+        const float r = vrand::range(rng, 4.f, 11.f);
+        const glm::vec3 p{pl.origin[0] + za::cos(a) * r, pl.origin[1] + za::sin(a) * r, pl.origin[2] + vrand::range(rng, -6.f, 6.f)};
+        const bool mark = vrand::range(rng, 0.f, 1.f) < markChance;
+        fall(p, vrand::range(rng, 0.5f, 0.7f) * amount, dropColor(p), mark ? vrand::range(rng, 3.5f, 6.5f) * markSize * za::sqrt(amount) : 0.f, 0.f);
     }
     playerOwed = za::min(playerOwed, 2.f);
 }
@@ -639,14 +635,14 @@ bool gibImpact(const glm::vec3& where, const glm::vec3& normal, float strength, 
     {
         return true;
     }
-    if(normal.z < -0.6f && (lvl >= 2 || rnd(0.f, 1.f) < 0.5f) && dripMult() > 0.f)
+    if(normal.z < -0.6f && (lvl >= 2 || vrand::range(rng, 0.f, 1.f) < 0.5f) && dripMult() > 0.f)
     {
-        const float seconds = rnd(3.f, 6.f) * dripMult();
-        addSource(0, where + normal * 1.5f, seconds, size * 0.2f, rnd(0.25f, 0.45f), static_cast<int>(seconds * 4.f));
+        const float seconds = vrand::range(rng, 3.f, 6.f) * dripMult();
+        addSource(0, where + normal * 1.5f, seconds, size * 0.2f, vrand::range(rng, 0.25f, 0.45f), static_cast<int>(seconds * 4.f));
     }
     else if(za::fabs(normal.z) < 0.35f && lvl >= 2)
     {
-        streak(where, normal, size * rnd(0.35f, 0.5f), 0.f);
+        streak(where, normal, size * vrand::range(rng, 0.35f, 0.5f), 0.f);
     }
     return true;
 }
@@ -660,10 +656,10 @@ void gibRest(const glm::vec3& where, const glm::vec3& normal)
         return;
     }
     MarkOptions o;
-    o.grow = rnd(5.f, 8.f);
+    o.grow = vrand::range(rng, 5.f, 8.f);
     o.growFrom = 0.2f;
     o.darken = 0.3f;
-    decals::place(Mark::Pool, where, normal, rnd(16.f, 26.f) * sizeMult() * pools * (lvl >= 2 ? 1.f : 0.7f), o);
+    decals::place(Mark::Pool, where, normal, vrand::range(rng, 16.f, 26.f) * sizeMult() * pools * (lvl >= 2 ? 1.f : 0.7f), o);
 }
 
 void gibHanging(int ent, const glm::vec3& org)
@@ -682,7 +678,7 @@ void gibHanging(int ent, const glm::vec3& org)
         }
     }
     // It bleeds a while (dry after so many drops; hanging again later, it bleeds again).
-    addSource(ent, org - glm::vec3{0.f, 0.f, 3.f}, 0.25f, 2.f, rnd(0.25f, 0.45f) / za::max(0.25f, dripMult()),
+    addSource(ent, org - glm::vec3{0.f, 0.f, 3.f}, 0.25f, 2.f, vrand::range(rng, 0.25f, 0.45f) / za::max(0.25f, dripMult()),
         static_cast<int>(24.f * dripMult()));
 }
 
@@ -729,7 +725,7 @@ void frame()
         for(int n = 0; n < 3 && cl.time >= s.next && cl.time < s.until && s.dropsLeft > 0; n++)
         {
             drip(s);
-            s.next += s.interval * rnd(0.6f, 1.4f);
+            s.next += s.interval * vrand::range(rng, 0.6f, 1.4f);
         }
         if(s.next < cl.time - 1.0)
         {
@@ -760,7 +756,7 @@ void frame()
                 o.grow = l.puddleGrow;
                 o.growFrom = 0.2f;
                 o.darken = 0.3f;
-                decals::place(Mark::Pool, l.where, l.normal, rnd(9.f, 15.f) * sizeMult(), o);
+                decals::place(Mark::Pool, l.where, l.normal, vrand::range(rng, 9.f, 15.f) * sizeMult(), o);
             }
             else if(l.size > 0.f && markBudget())
             {

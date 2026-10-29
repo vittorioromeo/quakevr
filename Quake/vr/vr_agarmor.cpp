@@ -8,6 +8,7 @@
 // shoulders and arms, waist and legs, the torso itself) and its deepest. Ends on "agarmor check: N passed, M failed":
 // the shells made, made alike twice (the same hash), closed, and clean in the rest pose.
 
+#include "vr_testkit.hpp"
 #include "vr_agarmor.hpp"
 
 #include "vr_api.h"
@@ -2024,7 +2025,7 @@ void check_f()
     {
         checkModel(Cmd_Argv(1), randoms, passed, failed);
     }
-    Con_Printf("agarmor check: %d passed, %d failed\n", passed, failed);
+    qvr::testkit::verdict("agarmor check", passed, failed);
 }
 
 } // namespace

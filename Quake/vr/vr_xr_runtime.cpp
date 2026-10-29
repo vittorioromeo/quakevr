@@ -1,6 +1,7 @@
 // vr_xr_runtime.cpp -- which OpenXR runtime the OpenXR backend loads, and the order it tries the others in
 // (vr_xr_runtime.hpp).
 
+#include "vr_strings.hpp"
 #include "vr_xr_runtime.hpp"
 #include "vr_runlogs.hpp"
 
@@ -325,16 +326,6 @@ struct Environment
     VdSetting vd;
 };
 
-[[nodiscard]] za::String lower(const char* s)
-{
-    za::String out;
-    for(; *s; s++)
-    {
-        out += static_cast<char>(tolower(static_cast<unsigned char>(*s)));
-    }
-    return out;
-}
-
 [[nodiscard]] Environment environment()
 {
     Environment env;
@@ -345,7 +336,7 @@ struct Environment
         env.active = vr_xr_test_active.string;
         for(const za::String& p : splitList(vr_xr_test_processes.string))
         {
-            env.processes.pushBack(lower(p.cStr()));
+            env.processes.pushBack(qvr::strings::lower(p.cStr()));
         }
         env.vd = vdSetting(true);
         return env;

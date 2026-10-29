@@ -3,6 +3,7 @@
 // at a target. The only GL in the module besides the stereo view setup (vr_stereo.cpp), the
 // OpenXR graphics binding and the engine's own entity hooks.
 
+#include "vr_glutil.hpp"
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -1077,30 +1078,7 @@ unsigned glProgram(const char* vertex, const char* fragment, const char* name)
 {
     const GLuint vs = compile(GL_VERTEX_SHADER, vertex, name);
     const GLuint fs = fragment ? compile(GL_FRAGMENT_SHADER, fragment, name) : 0;
-    const GLuint p = GL_CreateProgramFunc();
-    GL_AttachShaderFunc(p, vs);
-    if(fs)
-    {
-        GL_AttachShaderFunc(p, fs);
-    }
-    VR_GLStep("link %s", name);
-    GL_LinkProgramFunc(p);
-    GL_DeleteShaderFunc(vs);
-    if(fs)
-    {
-        GL_DeleteShaderFunc(fs);
-    }
-
-    GLint ok = 0;
-    GL_GetProgramivFunc(p, GL_LINK_STATUS, &ok);
-    if(!ok)
-    {
-        Con_Warning("VR: %s shader failed to link\n", name);
-        GL_DeleteProgramFunc(p);
-        return 0;
-    }
-    GL_ObjectLabelFunc(GL_PROGRAM, p, -1, name);
-    return p;
+    return gfx::linkProgram(vs, fs, name);
 }
 
 namespace

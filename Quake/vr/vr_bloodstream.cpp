@@ -1,5 +1,6 @@
 // vr_bloodstream.cpp -- see vr_bloodstream.hpp.
 
+#include "vr_random.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_anchor.hpp"
 #include "vr_cvars.hpp"
@@ -53,11 +54,6 @@ constexpr int maxDropsAFrame = 12;  // spurts, and splashes, a stream throws in 
 constexpr float splashRate = 45.f;  // splash drops a second at vr_gore_streams_splash 1, at its strongest
 
 za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())};
-
-[[nodiscard]] float rnd(float lo, float hi)
-{
-    return lo + (hi - lo) * rng.getF(0.f, 1.f);
-}
 
 struct Point
 {
@@ -237,9 +233,9 @@ void across(const glm::vec3& a, glm::vec3& u, glm::vec3& w)
     }
     glm::vec3 u, w;
     across(a, u, w);
-    const float c = 1.f - rnd(0.f, 1.f) * (1.f - za::cos(degrees * 0.0174532925f));
+    const float c = 1.f - vrand::range(rng, 0.f, 1.f) * (1.f - za::cos(degrees * 0.0174532925f));
     const float s = za::sqrt(za::max(0.f, 1.f - c * c));
-    const float phi = rnd(0.f, 6.2831853f);
+    const float phi = vrand::range(rng, 0.f, 6.2831853f);
     return glm::normalize(a * c + (u * za::cos(phi) + w * za::sin(phi)) * s);
 }
 
@@ -669,8 +665,8 @@ void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float
     }
     for(int i = 0; i < 3; i++)
     {
-        s.thkFreq[i] = i == 0 ? rnd(0.55f, 0.9f) : i == 1 ? rnd(1.3f, 2.1f) : rnd(2.9f, 4.4f);
-        s.thkPhase[i] = rnd(0.f, 1.f);
+        s.thkFreq[i] = i == 0 ? vrand::range(rng, 0.55f, 0.9f) : i == 1 ? vrand::range(rng, 1.3f, 2.1f) : vrand::range(rng, 2.9f, 4.4f);
+        s.thkPhase[i] = vrand::range(rng, 0.f, 1.f);
     }
     // It pours back toward the shot (the hole faces it) and out from the body's middle, a little up.
     glm::vec3 drawnAt, drawnTurn;
@@ -678,21 +674,21 @@ void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float
     glm::vec3 radial = at - glm::vec3{drawnAt.x, drawnAt.y, at.z};
     radial = glm::length(radial) > 0.1f ? glm::normalize(radial) : glm::vec3{0.f};
     const glm::vec3 back = glm::length(dir) > 0.01f ? -glm::normalize(dir) : radial;
-    glm::vec3 out = back * 0.6f + radial * 0.6f + glm::vec3{rnd(-0.2f, 0.2f), rnd(-0.2f, 0.2f), rnd(0.05f, 0.3f)};
+    glm::vec3 out = back * 0.6f + radial * 0.6f + glm::vec3{vrand::range(rng, -0.2f, 0.2f), vrand::range(rng, -0.2f, 0.2f), vrand::range(rng, 0.05f, 0.3f)};
     s.outWorld = glm::length(out) > 0.01f ? glm::normalize(out) : glm::vec3{0.f, 0.f, 1.f};
     // Each its own way (one blast's pellets all share the hit's direction), force and wander.
     s.outWorld = inCone(s.outWorld, za::clamp(vr_gore_streams_spread.value, 0.f, 90.f));
     const float speedVar = za::clamp(vr_gore_streams_speed_var.value, 0.f, 0.9f);
-    s.speedMul = rnd(1.f - speedVar, 1.f + speedVar);
+    s.speedMul = vrand::range(rng, 1.f - speedVar, 1.f + speedVar);
     for(int i = 0; i < 4; i++)
     {
-        s.wobFreq[i] = (i % 2 == 0) ? rnd(0.7f, 1.3f) : rnd(1.7f, 2.6f);
-        s.wobPhase[i] = rnd(0.f, 1.f);
+        s.wobFreq[i] = (i % 2 == 0) ? vrand::range(rng, 0.7f, 1.3f) : vrand::range(rng, 1.7f, 2.6f);
+        s.wobPhase[i] = vrand::range(rng, 0.f, 1.f);
     }
     s.start = cl.time;
-    s.duration = za::clamp(vr_gore_streams_time.value, 1.f, 30.f) * rnd(0.75f, 1.25f);
+    s.duration = za::clamp(vr_gore_streams_time.value, 1.f, 30.f) * vrand::range(rng, 0.75f, 1.25f);
     s.power = za::clamp(0.7f + amount / 40.f, 0.7f, 1.4f);
-    s.phase = rnd(0.f, 1.f);
+    s.phase = vrand::range(rng, 0.f, 1.f);
     s.nextArc = 0.0;
     s.nextPaint = cl.time + 0.2;
     if(!locate(s))
@@ -802,13 +798,13 @@ void spurt(Stream& s, float dt, float strength, const glm::vec3& axis, float spe
     for(int i = 0; i < n; i++)
     {
         const glm::vec3 d = inCone(axis, cone);
-        float sp = speed * k * rnd(0.45f, 1.3f);
-        float l = life * rnd(0.5f, 1.5f);
-        float size = dropSize() * rnd(0.6f, 1.4f);
-        if(rnd(0.f, 1.f) < outliers) // (a few fly further and last)
+        float sp = speed * k * vrand::range(rng, 0.45f, 1.3f);
+        float l = life * vrand::range(rng, 0.5f, 1.5f);
+        float size = dropSize() * vrand::range(rng, 0.6f, 1.4f);
+        if(vrand::range(rng, 0.f, 1.f) < outliers) // (a few fly further and last)
         {
-            l = outlierLife * rnd(0.7f, 1.3f);
-            sp *= rnd(1.f, 1.4f);
+            l = outlierLife * vrand::range(rng, 0.7f, 1.3f);
+            sp *= vrand::range(rng, 1.f, 1.4f);
             size *= 1.25f;
         }
         particles::bloodDroplet(s.wound + d * 0.3f, d * sp + bodyVel, size, l, s.color, floorZ, s.wet);
@@ -843,12 +839,12 @@ void splash(Stream& s, float dt, float strength, const glm::vec3& vin, float wid
     const float outliers = za::clamp(vr_gore_streams_spurt_outliers.value, 0.f, 1.f);
     for(int i = 0; i < n && size > 0.f; i++)
     {
-        const float a = rnd(0.f, 6.2831853f);
+        const float a = vrand::range(rng, 0.f, 6.2831853f);
         const glm::vec3 side = u * za::cos(a) + w * za::sin(a);
-        const glm::vec3 vel = nrm * (rnd(0.12f, 0.4f) * za::min(into, 300.f) + rnd(8.f, 20.f)) + along * rnd(0.1f, 0.35f) +
-                              side * speed * rnd(0.08f, 0.35f);
-        const float l = rnd(0.12f, 0.32f) * (rnd(0.f, 1.f) < outliers ? 2.f : 1.f);
-        particles::bloodDroplet(s.land + nrm * 0.35f + side * rnd(0.f, width), vel, size * rnd(0.5f, 1.2f), l, s.color, floorZ);
+        const glm::vec3 vel = nrm * (vrand::range(rng, 0.12f, 0.4f) * za::min(into, 300.f) + vrand::range(rng, 8.f, 20.f)) + along * vrand::range(rng, 0.1f, 0.35f) +
+                              side * speed * vrand::range(rng, 0.08f, 0.35f);
+        const float l = vrand::range(rng, 0.12f, 0.32f) * (vrand::range(rng, 0.f, 1.f) < outliers ? 2.f : 1.f);
+        particles::bloodDroplet(s.land + nrm * 0.35f + side * vrand::range(rng, 0.f, width), vel, size * vrand::range(rng, 0.5f, 1.2f), l, s.color, floorZ);
         splashesMade++;
     }
 }
@@ -877,7 +873,7 @@ void paint(Stream& s, float strength)
             o.grow = za::max(1.5f, static_cast<float>(s.start + s.duration - cl.time)) + 3.f;
             o.growFrom = 0.12f;
             o.darken = 0.35f;
-            const float pool = rnd(16.f, 24.f) * size * za::sqrt(za::max(0.3f, strength));
+            const float pool = vrand::range(rng, 16.f, 24.f) * size * za::sqrt(za::max(0.3f, strength));
             if(decals::place(decals::Mark::Pool, s.land, s.landN, pool, o))
             {
                 s.poolAt = s.land;
@@ -885,14 +881,14 @@ void paint(Stream& s, float strength)
                 s.pools++;
             }
         }
-        else if(moved && rnd(0.f, 1.f) < 0.5f)
+        else if(moved && vrand::range(rng, 0.f, 1.f) < 0.5f)
         {
-            decals::place(decals::Mark::Drop, s.land, s.landN, rnd(2.5f, 4.f) * size);
+            decals::place(decals::Mark::Drop, s.land, s.landN, vrand::range(rng, 2.5f, 4.f) * size);
         }
     }
     else if(za::fabs(s.landN.z) < 0.35f && s.runs < 3 && (s.runs == 0 || glm::distance(s.land, s.runAt) > 6.f))
     {
-        gore::wallRun(s.land, s.landN, rnd(3.f, 5.f) * size);
+        gore::wallRun(s.land, s.landN, vrand::range(rng, 3.f, 5.f) * size);
         s.runAt = s.land;
         s.runs++;
     }
@@ -1028,7 +1024,7 @@ void update(Stream& s, float dt)
                 const glm::vec3 at = s.wet ? s.wound + out * 0.5f
                                            : s.wound + v0 * intoTime + glm::vec3{0.f, 0.f, -0.5f * gravity() * intoTime * intoTime};
                 const glm::vec3 vel = s.wet ? v0 * 0.6f : (v0 + glm::vec3{0.f, 0.f, -gravity() * intoTime}) * 0.25f;
-                particles::bloodDroplet(at, vel, dropSize() * rnd(3.f, 6.f) * s.power, 1.f, s.color, -1e9f, true);
+                particles::bloodDroplet(at, vel, dropSize() * vrand::range(rng, 3.f, 6.f) * s.power, 1.f, s.color, -1e9f, true);
             }
             if(s.wet)
             {
@@ -1047,7 +1043,7 @@ void update(Stream& s, float dt)
             p.vel = v0;
             p.age = back * dt;
             p.life = intoTime;
-            p.width = width * (1.f + thickAmount * rnd(-0.12f, 0.12f)); // (an uneven edge)
+            p.width = width * (1.f + thickAmount * vrand::range(rng, -0.12f, 0.12f)); // (an uneven edge)
             p.speed0 = za::max(10.f, glm::length(v0));
             p.pos += p.vel * p.age;
             p.cut = jumped && k == 0;
@@ -1162,7 +1158,7 @@ void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int a
     {
         meleeTally.seen[tally]++;
     }
-    if(rnd(0.f, 1.f) >= za::clamp(chance.value, 0.f, 1.f))
+    if(vrand::range(rng, 0.f, 1.f) >= za::clamp(chance.value, 0.f, 1.f))
     {
         return;
     }
@@ -1402,8 +1398,8 @@ void test_f()
     const float mid = (e.model->mins[2] + e.model->maxs[2]) * 0.5f;
     for(int i = 0; i < n; i++)
     {
-        const glm::vec3 side = glm::vec3{-toEye.y, toEye.x, 0.f} * rnd(-6.f, 6.f);
-        const glm::vec3 at = o + toEye * 12.f + side + glm::vec3{0.f, 0.f, mid + 4.f + rnd(-6.f, 6.f)};
+        const glm::vec3 side = glm::vec3{-toEye.y, toEye.x, 0.f} * vrand::range(rng, -6.f, 6.f);
+        const glm::vec3 at = o + toEye * 12.f + side + glm::vec3{0.f, 0.f, mid + 4.f + vrand::range(rng, -6.f, 6.f)};
         start(best, at, -toEye, 20, 64.f);
     }
     Con_Printf("vr_gore_stream_test: %d on entity %d (%s)\n", n, best, e.model->name);

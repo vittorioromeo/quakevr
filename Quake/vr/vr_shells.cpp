@@ -10,6 +10,7 @@
 // there (a lift gone down). Going into water, slime or lava it makes a tiny splash, a ripple and a quiet plip
 // (enterLiquid), and the liquid takes most of its speed: it then sinks slowly.
 
+#include "vr_random.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_shells.hpp"
 #include "vr_autopump.hpp"
@@ -160,15 +161,10 @@ int lastFrame = -1;
 
 za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // a new sequence every run
 
-[[nodiscard]] float rnd(float lo, float hi)
-{
-    return lo + (hi - lo) * rng.getF(0.f, 1.f); // (lo > hi too)
-}
-
 [[nodiscard]] glm::vec3 onSphere()
 {
-    const float z = rnd(-1.f, 1.f);
-    const float a = rnd(0.f, 6.2831853f);
+    const float z = vrand::range(rng, -1.f, 1.f);
+    const float a = vrand::range(rng, 0.f, 6.2831853f);
     const float r = za::sqrt(za::max(0.f, 1.f - z * z));
     return {r * za::cos(a), r * za::sin(a), z};
 }
@@ -307,8 +303,8 @@ void trackPorts(const view::ViewEntity (&weapons)[2])
     {
         handVel *= cap / glm::length(handVel);
     }
-    const float speed = rnd(1.1f, 1.7f) * upm;
-    return out * speed + side * (rnd(-0.35f, 0.35f) * upm) + glm::vec3{0.f, 0.f, rnd(0.3f, 0.7f) * upm} + handVel +
+    const float speed = vrand::range(rng, 1.1f, 1.7f) * upm;
+    return out * speed + side * (vrand::range(rng, -0.35f, 0.35f) * upm) + glm::vec3{0.f, 0.f, vrand::range(rng, 0.3f, 0.7f) * upm} + handVel +
            glm::vec3{cl.velocity[0], cl.velocity[1], cl.velocity[2]};
 }
 
@@ -425,7 +421,7 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         }
         else
         {
-            const float speed = w->speed * upm * rnd(0.8f, 1.2f);
+            const float speed = w->speed * upm * vrand::range(rng, 0.8f, 1.2f);
             const glm::vec3 scatter = onSphere() * (speed * 0.15f);
             s.vel = dir * speed + scatter + tracks[p.hand].vel * 0.9f;
             if(pumped)
@@ -440,10 +436,10 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         // Lying in the chamber: its open end forward, the weapon's up its up.
         s.rot = glm::quat_cast(glm::mat3{fwd, left, up});
         const glm::vec3 spinAxis = worldDir(ve, at, w->spinAxis);
-        s.angVel = spinAxis * (w->spin * rnd(0.75f, 1.25f)) + onSphere() * rnd(1.f, 4.f);
+        s.angVel = spinAxis * (w->spin * vrand::range(rng, 0.75f, 1.25f)) + onSphere() * vrand::range(rng, 1.f, 4.f);
         if(flick)
         {
-            s.angVel += onSphere() * rnd(12.f, 22.f);
+            s.angVel += onSphere() * vrand::range(rng, 12.f, 22.f);
         }
 
         particles::shellEject(pos, dir, w->smoke * (flick ? 1.5f : 1.f), w->sparks);
@@ -580,7 +576,7 @@ void fly(Shell& s, float dt)
         const float into = -glm::dot(s.vel, n);
         glm::vec3 tangent = s.vel + n * into;
         tangent *= 0.65f; // friction of the hit
-        const float bounce = into * rnd(0.3f, 0.45f);
+        const float bounce = into * vrand::range(rng, 0.3f, 0.45f);
         s.vel = tangent + n * bounce;
         s.angVel = s.angVel * 0.5f + onSphere() * za::min(into / unitsPerMetre() * 6.f, 25.f);
         s.pos = worldtrace::endPos(tr) + n * restHeight();
@@ -668,7 +664,7 @@ void roll(Shell& s, float dt)
     {
         s.resting = true;
         s.vel = glm::vec3{0.f};
-        s.nextCheck = cl.time + rnd(0.3f, 0.6f);
+        s.nextCheck = cl.time + vrand::range(rng, 0.3f, 0.6f);
     }
 }
 
@@ -679,7 +675,7 @@ void rest(Shell& s)
     {
         return;
     }
-    s.nextCheck = cl.time + rnd(0.3f, 0.6f);
+    s.nextCheck = cl.time + vrand::range(rng, 0.3f, 0.6f);
     const float r = restHeight();
     const trace_t down = worldtrace::world(s.pos, s.pos - s.ground * (r + 1.f));
     if(down.fraction >= 1.f && !down.startsolid)

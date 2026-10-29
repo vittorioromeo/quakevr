@@ -1,6 +1,7 @@
 // vr_rigstudio.cpp -- the Rig Studio: see vr_rigstudio.hpp (its mode, its scene, its camera's hook, the edits, undo and
 // redo, saving, the commands). The viewport is vr_rigstudio_view.cpp's, the windows vr_rigstudio_ui.cpp's.
 
+#include "vr_testkit.hpp"
 #include "vr_rigstudio_internal.hpp"
 #include "vr_aggrip.hpp"
 #include "vr_aglegs.hpp"
@@ -1154,7 +1155,7 @@ void subjectTestTick()
     stest.step++;
     if(stest.step >= subjectStepCount)
     {
-        Con_Printf("rigstudio subjects: %d passed, %d failed\n", stest.passed, stest.failed);
+        qvr::testkit::verdict("rigstudio subjects", stest.passed, stest.failed);
         stest.step = -1;
         return;
     }
@@ -1381,7 +1382,7 @@ void aimTestTick()
     atest.step++;
     if(atest.step >= aimCaseCount)
     {
-        Con_Printf("rigstudio aim: %d passed, %d failed\n", atest.passed, atest.failed);
+        qvr::testkit::verdict("rigstudio aim", atest.passed, atest.failed);
         atest.step = -1;
         return;
     }
@@ -1689,7 +1690,7 @@ void pkTestTick()
     ptest.step++;
     if(ptest.step >= pkStepCount)
     {
-        Con_Printf("rigstudio posekeys: %d passed, %d failed\n", ptest.passed, ptest.failed);
+        qvr::testkit::verdict("rigstudio posekeys", ptest.passed, ptest.failed);
         ptest.step = -1;
         return;
     }
@@ -1858,7 +1859,7 @@ void offTestTick()
         agpose::set(otest.code, otest.key0);
         const agpose::Key k = agpose::value(otest.code);
         otCheck("the key put back", !memcmp(&k, &otest.key0, sizeof(k)), "Run's key as it was");
-        Con_Printf("rigstudio offhand: %d passed, %d failed\n", otest.passed, otest.failed);
+        qvr::testkit::verdict("rigstudio offhand", otest.passed, otest.failed);
         otest.phase = -1;
         return;
     }
@@ -1995,7 +1996,7 @@ void offModesTestTick()
             if(++omtest.frames > 900)
             {
                 omCheck("subject", false, "no single gun subject (open it with one: vr_rigstudio monster_vr_grunt 4, the shotgun)");
-                Con_Printf("rigstudio offmodes: %d passed, %d failed\n", omtest.passed, omtest.failed);
+                qvr::testkit::verdict("rigstudio offmodes", omtest.passed, omtest.failed);
                 omtest.phase = -1;
             }
             return;
@@ -2106,7 +2107,7 @@ void offModesTestTick()
         same = same && !memcmp(&k, &omtest.keys0[i], sizeof(k));
     }
     omCheck("the keys put back", same, "the text and every key as before");
-    Con_Printf("rigstudio offmodes: %d passed, %d failed\n", omtest.passed, omtest.failed);
+    qvr::testkit::verdict("rigstudio offmodes", omtest.passed, omtest.failed);
     omtest.phase = -1;
 }
 
@@ -2150,7 +2151,7 @@ void stretchTestTick()
             {
                 stCheck("subject", false, "no single gun subject (open it with one: vr_rigstudio monster_vr_grunt 4, the shotgun)");
                 sttest.phase = -1;
-                Con_Printf("rigstudio stretch: %d passed, %d failed\n", sttest.passed, sttest.failed);
+                qvr::testkit::verdict("rigstudio stretch", sttest.passed, sttest.failed);
             }
             return;
         }
@@ -2241,7 +2242,7 @@ void stretchTestTick()
     }
     q_snprintf(text, sizeof(text), "%.3f (was %.3f)", agpose::stretch(st.subjKind, st.subjClass), sttest.was);
     stCheck("the setting put back", za::abs(agpose::stretch(st.subjKind, st.subjClass) - sttest.was) < 0.0051f, text);
-    Con_Printf("rigstudio stretch: %d passed, %d failed\n", sttest.passed, sttest.failed);
+    qvr::testkit::verdict("rigstudio stretch", sttest.passed, sttest.failed);
     Cbuf_AddText("wait\necho rigstudio stretch: done\n"); // (after its last screenshot: a run's end)
     sttest.phase = -1;
 }

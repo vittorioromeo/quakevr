@@ -1,5 +1,6 @@
 // vr_hitreact.cpp -- living hit reactions (vr_hitreact.hpp; ROUND22.md, "Active ragdolls: living hit reactions").
 
+#include "vr_testkit.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_client.hpp"
 #include "vr_agarms.hpp"
@@ -4365,7 +4366,7 @@ void ragWeaponErr_f()
     }
     if(!strcmp(what, "done"))
     {
-        Con_Printf("ragweapon: %d passed, %d failed\n", ragWeaponTally.passed, ragWeaponTally.failed);
+        qvr::testkit::verdict("ragweapon", ragWeaponTally.passed, ragWeaponTally.failed);
         ragWeaponTally = RagWeaponTally{};
         return;
     }

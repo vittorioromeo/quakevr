@@ -18,6 +18,7 @@
 // a lookup made while the main thread listed a directory or cleared the cache crashed the game now and then (a
 // test run's start: an access violation or a fast fail).
 
+#include "vr_testkit.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_jobs.hpp"
@@ -494,7 +495,7 @@ void testCommand()
     qvr::files::removeAll(root.cStr());
     check(has(root + "/other/c.tmp") == 0, "all gone after");
     VR_FileCacheEnable(wasEnabled ? 1 : 0);
-    Con_Printf("fscache test: %d passed, %d failed\n", passed, failed);
+    qvr::testkit::verdict("fscache test", passed, failed);
 }
 
 } // namespace

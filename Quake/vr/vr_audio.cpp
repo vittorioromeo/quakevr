@@ -30,6 +30,8 @@
 //   it; the direct paths 30 times a second and the reverb every vr_snd_reverb_interval, each a pool task, their
 //   results taken under a mutex.
 
+#include "vr_stats.hpp"
+#include "vr_random.hpp"
 #include "vr_audio.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_audiobench.hpp"
@@ -2138,7 +2140,7 @@ void benchFinish()
         }
         za::quickSort(ms.begin(), ms.end());
         const int n = static_cast<int>(ms.size());
-        const auto at = [&](double q) { return bench::quantile(ms.data(), n, q); };
+        const auto at = [&](double q) { return vrstats::quantileSorted(ms.data(), ms.size(), q, vrstats::Rank::Nearest); };
         Con_Printf("  sim %s (a worker): %d runs, median %.3f ms, p95 %.3f, max %.3f\n", name, n, at(0.5), at(0.95),
             ms[n - 1]);
         if(csv)
@@ -2200,8 +2202,7 @@ void benchFrame()
     }
     // The combat: a sound every 1 / shotsPerSecond, at random, 100-900 units away.
     const auto random = [&]() {
-        b.rng = b.rng * 1664525u + 1013904223u;
-        return static_cast<float>(b.rng >> 8) / static_cast<float>(1u << 24);
+        return vrand::lcg01(b.rng);
     };
     while(b.shotsPerSecond > 0.f && realtime >= b.nextShot && cls.state == ca_connected)
     {

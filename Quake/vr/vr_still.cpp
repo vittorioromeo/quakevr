@@ -1,5 +1,6 @@
 // vr_still.cpp -- see vr_still.hpp.
 
+#include "vr_menuui.hpp"
 #include "vr_still.hpp"
 #include "vr_engine.hpp"
 
@@ -53,12 +54,12 @@ bool Countdown::update(double now)
     const int due = static_cast<int>((now - started) / (length / total)) + 1;
     while(beeps < za::min(due, total))
     {
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         beeps++;
     }
     if(now - started >= length)
     {
-        S_LocalSound("misc/menu2.wav"); // go
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Select); // go
         done = true;
         active = false;
     }

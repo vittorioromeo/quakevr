@@ -9,6 +9,7 @@
 // mirrored) and undone; saved, read back from the files (Revert): the same keys. Ends on
 // `rigstudio rig2anim: N passed, M failed`. The keys stay published: `vr_agrunt_test 82` then measures them drawn.
 
+#include "vr_testkit.hpp"
 #include "vr_rigstudio_internal.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
@@ -226,7 +227,7 @@ void animTestTick()
     }
     animTest.pending = false;
     runTest();
-    Con_Printf("rigstudio rig2anim: %d passed, %d failed\n", animTest.passed, animTest.failed);
+    qvr::testkit::verdict("rigstudio rig2anim", animTest.passed, animTest.failed);
 }
 
 void testAnim_f()

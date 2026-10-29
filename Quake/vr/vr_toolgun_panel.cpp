@@ -474,7 +474,7 @@ bool interact(Ui& ui, const Rect& r, const char* name, int& id, bool enabled = t
     {
         ps.pressed = false;
         ps.dragging = id;
-        S_LocalSound("misc/menu3.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
         haptics::pulse(laserHand(), 0.015f, 0.3f, 200.f);
         return true;
     }

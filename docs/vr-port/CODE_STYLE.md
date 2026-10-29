@@ -241,3 +241,19 @@ constants, and then its body calls the canonical one).
 | every cvar | `cvars::forEach(fn)` | vr_cvars.hpp |
 | a VR cvar's value | `vr_x.value` directly, never `Cvar_VariableValue("vr_x")` (by name only for names typed or made at run time) | vr_cvars.hpp |
 | a client entity's number | `client::entityNumber(e, limit)` (-1: null, the world, not one of cl_entities) | vr_client.hpp |
+
+### Small libraries (refactor A3)
+
+Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appendf`, `nearestNormal`, LE reader, quantile, UI click or verdict line).
+
+| need | helper | where |
+|---|---|---|
+| a float in [lo, hi] from a file's own `za::FastNonCryptoRng` (lo > hi allowed) | `vrand::range(rng, lo, hi)` | `vr_random.hpp` |
+| the small seeded streams (xorshift32, the 1664525 LCG) as `[0,1)` floats / ranges | `vrand::xorshift32/xorshift01/xorshiftRange`, `vrand::lcg01/lcgRange` | `vr_random.hpp` |
+| `startsWith` / `endsWith` on C strings, `lower`, `trim` (space, tab, CR, LF), `appendf(za::String&, fmt, ...)` (any length) | `strings::startsWith/endsWith/lower/trim/appendf` | `vr_strings.hpp` |
+| a quantile of sorted samples; the rank rule is a parameter (`Floor`, `Nearest`, `Count`) | `vrstats::quantileSorted`, `rankIndex` | `vr_stats.hpp` |
+| little-endian int/float from model bytes (unchecked); a bounds-checked reader (0 past the end) | `bytes::le32/lef32`, `bytes::View` | `vr_bytes.hpp` |
+| the MDL normal index nearest to a direction | `mdlbuild::nearestNormal` | `vr_mdlbuild.hpp` |
+| a verdict line `<name>: N passed, M failed`; a pass/fail counter | `testkit::verdict`, `testkit::Tally` | `vr_testkit.hpp` |
+| a UI click / cue sound by kind (the path table) | `menuui::uiSound(UiSound::Move/Select/Adjust/Deny/Talk/Pickup)` | `vr_menuui.hpp` |
+| linking a GL program (info log, label, shader cleanup); a bound-FBO completeness check | `gfx::linkProgram`, `gfx::boundFramebufferComplete` | `vr_glutil.hpp` |

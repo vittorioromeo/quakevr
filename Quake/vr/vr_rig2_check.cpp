@@ -13,6 +13,7 @@
 // - the hinges' bend from the posed bones (the knee's shin behind it: below 0);
 // - a coarse self-intersection count near the joint swept (an edge through a triangle not its own, more than at rest).
 
+#include "vr_testkit.hpp"
 #include "vr_rig2.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -956,7 +957,7 @@ void check_f()
         }
     }
     printTally("new", "ALL", allNew);
-    Con_Printf("rig2 check: %d passed, %d failed\n", passed, failed);
+    qvr::testkit::verdict("rig2 check", passed, failed);
 }
 
 void info_f()

@@ -1,6 +1,8 @@
 // vr_motion_review.cpp -- reviewing the motion takes: see vr_motion_review.hpp and docs/vr-port/MOTIONS.md
 // ("Reviewing failing takes").
 
+#include "vr_menuui.hpp"
+#include "vr_strings.hpp"
 #include "vr_motion_review.hpp"
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
@@ -62,16 +64,6 @@ namespace
 // ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------
-
-[[nodiscard]] za::String trim(za::StringView s)
-{
-    const size_t a = s.findFirstNotOf(" \t\r\n");
-    if(a == za::StringView::nPos)
-    {
-        return "";
-    }
-    return za::String{s.substrByPosLen(a, s.findLastNotOf(" \t\r\n") - a + 1)};
-}
 
 // A CSV cell: no commas or line breaks (the eval's tables are read by splitting on commas).
 [[nodiscard]] za::String cell(za::String s)
@@ -240,7 +232,7 @@ const char* const statusColumns =
         {
             for(size_t i = 0; i < cells.size(); i++)
             {
-                col[trim(cells[i])] = i;
+                col[qvr::strings::trim(cells[i])] = i;
             }
             continue;
         }
@@ -287,7 +279,7 @@ struct Suspect
     za::Vector<Suspect> out;
     for(za::String line : linesOf(motionsPath() / "suspects.cfg"))
     {
-        line = trim(line);
+        line = qvr::strings::trim(line);
         if(line.empty() || line[0] == '#')
         {
             continue;
@@ -295,7 +287,7 @@ struct Suspect
         const size_t space = line.findFirstOf(" \t");
         Suspect s;
         s.pattern = line.substrByPosLen(0, space);
-        s.reason = space == za::StringView::nPos ? za::String{"suspect"} : trim(line.substrByPosLen(space));
+        s.reason = space == za::StringView::nPos ? za::String{"suspect"} : qvr::strings::trim(line.substrByPosLen(space));
         if(s.pattern.size() < 4 || !s.pattern.endsWith(".csv"))
         {
             s.pattern += ".csv";
@@ -687,7 +679,7 @@ void saveReview()
     if(!writeMarks() || !writeJournal())
     {
         Con_Warning("Review Takes: can't write motions/review/reviewed.csv or undo.csv\n");
-        S_LocalSound("doors/basetry.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
     }
 }
 
@@ -791,7 +783,7 @@ void pollJob()
     za::String text;
     if(readWhole(jobFile("eval_progress.txt"), text))
     {
-        jobProgress = trim(text);
+        jobProgress = qvr::strings::trim(text);
     }
     if(child::running())
     {
@@ -805,7 +797,7 @@ void pollJob()
         done.clear();
     }
     changed();
-    if(code == 0 && trim(done).rfind("done", 0) == 0)
+    if(code == 0 && qvr::strings::trim(done).rfind("done", 0) == 0)
     {
         say(va("re-evaluated %d take%s (%.0f s)", jobCount, jobCount == 1 ? "" : "s", realtime - jobStart), true);
     }
@@ -944,7 +936,7 @@ const za::String noCell; // (loadGhost: a column the table does not have)
             const size_t colon = line.find(':');
             if(colon != za::StringView::nPos)
             {
-                header[trim(line.substrByPosLen(1, colon - 1))] = trim(line.substrByPosLen(colon + 1));
+                header[qvr::strings::trim(line.substrByPosLen(1, colon - 1))] = qvr::strings::trim(line.substrByPosLen(colon + 1));
             }
             continue;
         }
@@ -953,7 +945,7 @@ const za::String noCell; // (loadGhost: a column the table does not have)
         {
             for(size_t i = 0; i < cells.size(); i++)
             {
-                col[trim(cells[i])] = static_cast<int>(i);
+                col[qvr::strings::trim(cells[i])] = static_cast<int>(i);
             }
             if(const auto it = header.find("yaw0"); it != header.end())
             {
@@ -1321,7 +1313,7 @@ void wrapInto(za::Vector<za::String>& out, const za::String& text)
             }
         }
         out.pushBack((first ? "" : indent) + rest.substrByPosLen(0, n));
-        rest = trim(rest.substrByPosLen(n));
+        rest = qvr::strings::trim(rest.substrByPosLen(n));
         first = false;
     }
 }
@@ -1899,7 +1891,7 @@ void relabel()
             out += line;
             continue;
         }
-        const za::String key = trim(line.substrByPosLen(1, line.find(':') == za::StringView::nPos ? 0 : line.find(':') - 1));
+        const za::String key = qvr::strings::trim(line.substrByPosLen(1, line.find(':') == za::StringView::nPos ? 0 : line.find(':') - 1));
         const za::String nl = line.size() >= 2 && line[line.size() - 2] == '\r' ? "\r\n" : "\n";
         if(key == "label")
         {

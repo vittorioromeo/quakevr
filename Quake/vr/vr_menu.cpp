@@ -12,6 +12,9 @@
 // The page groups are in vr_menu_pages_debug.cpp, vr_menu_pages_gameplay.cpp and vr_menu_pages_settings.cpp;
 // what they share with this file is in vr_menu_internal.hpp.
 
+#include "vr_menuui.hpp"
+#include "vr_testkit.hpp"
+#include "vr_random.hpp"
 #include "vr_menu_internal.hpp"
 
 namespace menu_detail
@@ -1109,11 +1112,11 @@ void checklistUndo()
     const za::String what = checklist::undoText();
     if(checklist::undo() == -1)
     {
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     pageTexts.checklistUndone = what;
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
 }
 
 [[nodiscard]] za::Vector<Item> pageChecklist()
@@ -2188,10 +2191,7 @@ int randomOtherShape{1}; // the last body shape other than the feminine one Rand
     {
         randomState = static_cast<uint32_t>(Sys_DoubleTime() * 1000000.0) | 1u;
     }
-    randomState ^= randomState << 13;
-    randomState ^= randomState >> 17;
-    randomState ^= randomState << 5;
-    return randomState;
+    return vrand::xorshift32(randomState);
 }
 
 [[nodiscard]] float randomRange(float lo, float hi)
@@ -3224,7 +3224,7 @@ void showPage(int target)
         ui().refusedTime = realtime;
         ui().refusedBy = by;
         Con_Printf("%s: open in panel %d (one panel at a time)\n", pages[target].title, by + 1);
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     ui().page = target;
@@ -3304,7 +3304,7 @@ void resetAll()
         }
     }
     Con_Printf("Reset All to Defaults: %d settings back to their defaults\n", n);
-    S_LocalSound("misc/menu2.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
 }
 
 void resetThisPage()
@@ -3381,7 +3381,7 @@ void openPage(int target)
     navSyncTop();
     navPush(target);
     showPage(target);
-    S_LocalSound("misc/menu2.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
 }
 
 // The page listing `p` in the menus' tree (VR Settings: itself).
@@ -3412,7 +3412,7 @@ void openInTree(int target)
     }
     if(!chain.empty())
     {
-        S_LocalSound("misc/menu2.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     }
 }
 
@@ -3433,7 +3433,7 @@ void openFromAnywhere(int target)
         navSyncTop();
         navPush(target);
         showPage(target);
-        S_LocalSound("misc/menu2.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
         return;
     }
     navEnterFrom(outsideMenu());
@@ -3461,7 +3461,7 @@ void goBack()
         if(dest >= 0)
         {
             showPage(dest);
-            S_LocalSound("misc/menu2.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
         }
         else if(currentMenu != 0)
         {
@@ -3491,13 +3491,13 @@ void goBack()
         // menu button does, and the calibration goes on (not up the tree, the menu still open and it still waiting)
         navPush(ui().page);
         menuui::backToGame(HAND_MAIN);
-        S_LocalSound("misc/menu2.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
         return;
     }
     const int dest = homeOf(ui().page);
     navPush(dest);
     showPage(dest);
-    S_LocalSound("misc/menu2.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
 }
 
 // Where Back goes from the page shown (menu_vr pos): a page's number, or -1 with `outside` the menu (m_none: Options).
@@ -3692,7 +3692,7 @@ void change(const Item& item, int dir, bool repeat = false)
 {
     if(lockedItem(item))
     {
-        S_LocalSound("misc/menu3.wav"); // the server's rule: not changed from here
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust); // the server's rule: not changed from here
         return;
     }
     switch(item.kind)
@@ -3718,10 +3718,10 @@ void change(const Item& item, int dir, bool repeat = false)
                 const int b = CLAMP(0, ui().button, item.buttons - 1);
                 if(item.buttonDim && item.buttonDim(item.arg, b))
                 {
-                    S_LocalSound("misc/menu1.wav"); // (a dimmed button: Test without a scenario)
+                    qvr::menuui::uiSound(qvr::menuui::UiSound::Move); // (a dimmed button: Test without a scenario)
                     return;
                 }
-                S_LocalSound("misc/menu3.wav");
+                qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
                 item.buttonPress(item.arg, b); // (`item` may be gone after this)
                 return;
             }
@@ -3753,7 +3753,7 @@ void change(const Item& item, int dir, bool repeat = false)
             break;
         default: break;
     }
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
 }
 
 // An Off/On choice.
@@ -3921,7 +3921,7 @@ void setSliderAt(const Item& item, float cx)
         Cvar_SetValueQuick(item.cvar, v);
         if(ui_mouse_sound.value)
         {
-            S_LocalSound("misc/menu1.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         }
     }
 }
@@ -4032,7 +4032,7 @@ void openDropDown(const Item& item, int row)
     const int rowY = l.listTop + rowTop(items(ui().page), ui().scrolls[ui().page], row);
     d.top = rowY - (cur - d.scroll) * 8;
     d.top = CLAMP(l.top + 12, d.top, q_max(l.top + 12, l.bottom - 12 - d.rows * 8));
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
 }
 
 // Sets the hovered choice and closes the list.
@@ -4042,7 +4042,7 @@ void pickDropDown(const Item& item)
     cvar_t* const cvar = item.cvar;
     closeDropDown();
     Cvar_SetValueQuick(cvar, v); // (`item` may be gone after this: a page rebuilt by the setting's change)
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
 }
 
 [[nodiscard]] bool insideDropDown(float cx, float cy)
@@ -4144,13 +4144,13 @@ bool dropDownKey(int key)
         case K_MOUSE2:
         case K_MOUSE4:
             closeDropDown();
-            S_LocalSound("misc/menu2.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
             break;
         case K_UPARROW:
         case K_DOWNARROW:
             d.hover = CLAMP(0, d.hover + (key == K_DOWNARROW ? 1 : -1), d.count - 1);
             dropDownShowHover();
-            S_LocalSound("misc/menu1.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
             break;
         case K_MWHEELUP:
         case K_MWHEELDOWN:
@@ -4183,7 +4183,7 @@ bool dropDownKey(int key)
             else if(!insideDropDown(m_mousex, m_mousey))
             {
                 closeDropDown(); // a click outside: closed, nothing else done
-                S_LocalSound("misc/menu2.wav");
+                qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
             }
             break;
         }
@@ -4215,7 +4215,7 @@ bool dropDownMousemove(float cx, float cy)
         d.hover = i;
         if(ui_mouse_sound.value)
         {
-            S_LocalSound("misc/menu1.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         }
     }
     return true;
@@ -5156,7 +5156,7 @@ extern "C" int VR_NavBack(int state)
     {
         enterVrMenu();
         showPage(dest);
-        S_LocalSound("misc/menu2.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     }
     else
     {
@@ -5292,7 +5292,7 @@ void menuExpectCommand(const char* text)
     }
     if(!q_strcasecmp(want, "done"))
     {
-        Con_Printf("menu expect: %d passed, %d failed\n", menuExpect.passed, menuExpect.failed);
+        qvr::testkit::verdict("menu expect", menuExpect.passed, menuExpect.failed);
         menuExpect = {};
         return;
     }
@@ -5714,7 +5714,7 @@ bool qvr::menu::openInstance()
     if(!panel::menuQuad(hands::current(), 0, corner, xAxis, yAxis))
     {
         Con_Printf("New Panel: only with the menu in the headset\n");
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return false;
     }
     int slot = -1;
@@ -5725,7 +5725,7 @@ bool qvr::menu::openInstance()
     if(slot < 0)
     {
         Con_Printf("New Panel: %d panels open at most\n", instanceCount);
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return false;
     }
 
@@ -5759,7 +5759,7 @@ bool qvr::menu::openInstance()
         openInTree(target);
     }
     panel::openMenuPanel(slot);
-    S_LocalSound("misc/menu2.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     Con_DPrintf("menu panel %d opened: %s\n", slot + 1, pages[ui().page].title);
     return true;
 }
@@ -5787,7 +5787,7 @@ void qvr::menu::closeInstance(int instance)
     if(instance > 0 && instance < instanceCount && menuInstances[instance].open)
     {
         closeQuietly(instance);
-        S_LocalSound("misc/menu2.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     }
 }
 
@@ -5977,7 +5977,7 @@ void qvr::menu::jumpToAdvanced()
     }
     if(m_state == m_vr && ui().page == PageAdvanced)
     {
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     openFromAnywhere(PageAdvanced); // (Back: where it was pressed)
@@ -6170,7 +6170,7 @@ void qvr::menu::jumpToChecklist()
     checklist::refresh(true);
     if(m_state == m_vr && ui().page == target)
     {
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     openFromAnywhere(target);
@@ -6180,7 +6180,7 @@ void qvr::menu::jumpToSettings()
 {
     if(m_state == m_vr && ui().page == PageMain)
     {
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     openFromAnywhere(PageMain);
@@ -6191,7 +6191,7 @@ void qvr::menu::jumpToMainMenu()
 {
     if(m_state == m_main && key_dest == key_menu)
     {
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     navReset();
@@ -6203,7 +6203,7 @@ void qvr::menu::jumpToRagtool()
     const int target = pageIndex(pageRagtool);
     if(m_state == m_vr && key_dest == key_menu && ui().page == target)
     {
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     openFromAnywhere(target);
@@ -6218,7 +6218,7 @@ void qvr::menu::jumpToRelighting()
     }
     if(m_state == m_vr && ui().page == target)
     {
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     openFromAnywhere(target); // (Back: where it was pressed)
@@ -6229,7 +6229,7 @@ void qvr::menu::jumpToRecording()
     const int target = pageIndex(pageRecording);
     if(m_state == m_vr && ui().page == target)
     {
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     openFromAnywhere(target); // (Back: where it was pressed)
@@ -6542,7 +6542,7 @@ extern "C" void VR_Menu_Key(int key, int repeat)
                 }
                 break;
             }
-            S_LocalSound("misc/menu1.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
             moveCursor(list, -1);
             break;
 
@@ -6556,7 +6556,7 @@ extern "C" void VR_Menu_Key(int key, int repeat)
                 }
                 break;
             }
-            S_LocalSound("misc/menu1.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
             moveCursor(list, 1);
             break;
 
@@ -6569,7 +6569,7 @@ extern "C" void VR_Menu_Key(int key, int repeat)
                 if(b != ui().button)
                 {
                     ui().button = b;
-                    S_LocalSound("misc/menu1.wav");
+                    qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
                 }
                 break;
             }
@@ -6608,7 +6608,7 @@ extern "C" void VR_Menu_Key(int key, int repeat)
                     {
                         setSliderAt(item, m_mousex);
                     }
-                    S_LocalSound("misc/menu3.wav");
+                    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
                 }
                 break;
             }
@@ -6722,7 +6722,7 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
         ui().button = buttonAt(list[raw], cx);
         if(ui_mouse_sound.value)
         {
-            S_LocalSound("misc/menu1.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         }
     }
 
@@ -6734,6 +6734,6 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
     cursor = i;
     if(ui_mouse_sound.value)
     {
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
     }
 }

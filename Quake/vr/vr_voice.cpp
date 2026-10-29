@@ -1,3 +1,4 @@
+#include "vr_testkit.hpp"
 #include "vr_alloccount.h"
 // vr_voice.cpp -- the player's voice, masculine or feminine (vr_voice; see vr_voice.hpp).
 //
@@ -813,7 +814,7 @@ void test_f()
     }
     Con_Printf("vr_voice_test: the %d voice sounds: %.2f s of sound transformed in %.1f ms\n",
         static_cast<int>(sizeof voiceSounds / sizeof voiceSounds[0]), totalAudio, totalMs);
-    Con_Printf("vr_voice_test: %d passed, %d failed\n", passed, failed);
+    qvr::testkit::verdict("vr_voice_test", passed, failed);
 }
 
 void writeWav(const char* path, const za::Vector<float>& x, const int rate)

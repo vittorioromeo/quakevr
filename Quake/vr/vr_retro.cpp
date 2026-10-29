@@ -1,5 +1,6 @@
 // vr_retro.cpp -- see vr_retro.hpp (the settings, the overrides) and vr_retro.h (the shaders' side).
 
+#include "vr_strings.hpp"
 #include "vr_retro.hpp"
 #include "vr_physsound.hpp"
 #include "vr_modelmetadata.hpp"
@@ -178,16 +179,6 @@ OverrideMap shipped, user;
 unsigned generation = 1;
 za::String loadedGamedir; // the game folder the files were read from ("": not yet)
 
-[[nodiscard]] za::String lower(za::StringView s)
-{
-    za::String out{s};
-    for(za::SizeT i = 0; i < out.size(); i++)
-    {
-        out[i] = static_cast<char>(tolower(static_cast<unsigned char>(out[i])));
-    }
-    return out;
-}
-
 // A world texture's name as the overrides know it: an animation's frames ("+0button", "+1button") and alternate frames
 // ("+abutton") all the texture's ("button").
 [[nodiscard]] za::String textureKeyName(const char* name)
@@ -196,12 +187,12 @@ za::String loadedGamedir; // the game folder the files were read from ("": not y
     {
         name += 2;
     }
-    return lower(name);
+    return qvr::strings::lower(name);
 }
 
 [[nodiscard]] za::String keyOf(bool texture, za::StringView name)
 {
-    return za::String{texture ? "texture:" : "model:"} + lower(name);
+    return za::String{texture ? "texture:" : "model:"} + qvr::strings::lower(name);
 }
 
 [[nodiscard]] const Override* effective(const za::String& key)

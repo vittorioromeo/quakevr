@@ -1,3 +1,4 @@
+#include "vr_stats.hpp"
 #include "vr_alloccount.h"
 #include "vr_progs.hpp"
 // vr_box3d_diag.cpp -- the physics commands: spawning, piles, blasts, lists, hashes, benches and tests (and their
@@ -525,9 +526,7 @@ namespace
 // The q quantile (0..1) of sorted samples (0: none).
 [[nodiscard]] double quantile(const za::Vector<float>& sorted, double q)
 {
-    return sorted.empty() ? 0.0
-                          : static_cast<double>(sorted[za::min(static_cast<za::SizeT>(q * static_cast<double>(sorted.size())),
-                                sorted.size() - 1)]);
+    return static_cast<double>(vrstats::quantileSorted(sorted.data(), sorted.size(), q, vrstats::Rank::Count));
 }
 
 // vr_physics_steptime [bins]: Box3D's step time a frame since it last printed (the average, the median, the 95th

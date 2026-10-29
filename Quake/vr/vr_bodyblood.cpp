@@ -1,5 +1,6 @@
 // vr_bodyblood.cpp -- see vr_bodyblood.hpp.
 
+#include "vr_random.hpp"
 #include "vr_bodyblood.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -99,11 +100,6 @@ const qmodel_t* lastWorld = nullptr;
 
 za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // a new sequence every run
 
-[[nodiscard]] float rnd(float lo, float hi)
-{
-    return lo + (hi - lo) * rng.getF(0.f, 1.f); // (lo > hi too)
-}
-
 // A point on the limb's axis, the direction along it, and the limb's radius there.
 bool axisPoint(const Limb& l, Segment segment, float along, glm::vec3& centre, glm::vec3& axis, float& radius)
 {
@@ -143,14 +139,14 @@ bool pickSpot(const Limb& l, Segment& segment, float& along)
     {
         return false;
     }
-    segment = !l.hand ? Forearm : !l.forearm ? Hand : rnd(0.f, 1.f) < 0.65f ? Forearm : Hand;
-    along = rnd(0.1f, 0.95f);
+    segment = !l.hand ? Forearm : !l.forearm ? Hand : vrand::range(rng, 0.f, 1.f) < 0.65f ? Forearm : Hand;
+    along = vrand::range(rng, 0.1f, 0.95f);
 
     const glm::vec3 top = l.forearm ? l.elbow : l.wrist;
     const glm::vec3 bottom = l.hand ? l.knuckles : l.armWrist;
     const float slope = geom::safeNormalize(bottom - top, glm::vec3{0.f}, 1e-4f).z; // < 0: the fingers are lower
     const float steep = za::clamp((za::fabs(slope) - 0.35f) / 0.5f, 0.f, 1.f);
-    if(rnd(0.f, 1.f) < steep)
+    if(vrand::range(rng, 0.f, 1.f) < steep)
     {
         if(slope < 0.f)
         {
@@ -183,17 +179,17 @@ void addDrop(const hands::State& s, int hand, bool flung)
         return;
     }
     d.hand = static_cast<za::U8>(hand);
-    d.size = rnd(0.006f, 0.01f) * l.m2w * za::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
+    d.size = vrand::range(rng, 0.006f, 0.01f) * l.m2w * za::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
     if(flung)
     {
         // Thrown off the swung arm at once, a little behind its speed.
         d.phase = Phase::Falling;
-        d.vel = handVel[hand] * rnd(0.6f, 1.f);
+        d.vel = handVel[hand] * vrand::range(rng, 0.6f, 1.f);
     }
     else
     {
         // It hangs a moment, swelling; less just after a hit, when the blood runs faster.
-        d.life = rnd(0.35f, 0.8f) / (1.f + burst);
+        d.life = vrand::range(rng, 0.35f, 0.8f) / (1.f + burst);
     }
     drops.pushBack(d);
 }
@@ -211,22 +207,22 @@ void land(const Drop& d, const glm::vec3& where, const glm::vec3& normal, float 
     }
     const float amount = za::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
     goresound::drip(where, za::clamp(0.6f + 0.4f * d.size, 0.6f, 1.f));
-    if(rnd(0.f, 1.f) < za::clamp(vr_body_blood_marks.value, 0.f, 1.f) && (cl.time < lastMark || cl.time - lastMark > 0.08))
+    if(vrand::range(rng, 0.f, 1.f) < za::clamp(vr_body_blood_marks.value, 0.f, 1.f) && (cl.time < lastMark || cl.time - lastMark > 0.08))
     {
         lastMark = cl.time;
-        decals::drop(where, rnd(3.5f, 6.5f) * za::clamp(vr_body_blood_mark_size.value, 0.25f, 4.f) * za::sqrt(amount));
+        decals::drop(where, vrand::range(rng, 3.5f, 6.5f) * za::clamp(vr_body_blood_mark_size.value, 0.25f, 4.f) * za::sqrt(amount));
     }
-    const int specks = static_cast<int>((2.f + rnd(0.f, 2.99f)) * za::sqrt(amount));
+    const int specks = static_cast<int>((2.f + vrand::range(rng, 0.f, 2.99f)) * za::sqrt(amount));
     for(int i = 0; i < specks && drops.size() + splashes.size() < maxDrops; i++)
     {
         Drop sp;
         sp.phase = Phase::Speck;
         sp.pos = where + normal * 0.1f;
-        const float a = rnd(0.f, 6.2831853f);
-        const float out = rnd(0.2f, 0.6f) * m2w;
-        sp.vel = {za::cos(a) * out, za::sin(a) * out, rnd(0.4f, 0.9f) * m2w};
-        sp.size = d.size * rnd(0.3f, 0.5f);
-        sp.life = rnd(0.15f, 0.3f);
+        const float a = vrand::range(rng, 0.f, 6.2831853f);
+        const float out = vrand::range(rng, 0.2f, 0.6f) * m2w;
+        sp.vel = {za::cos(a) * out, za::sin(a) * out, vrand::range(rng, 0.4f, 0.9f) * m2w};
+        sp.size = d.size * vrand::range(rng, 0.3f, 0.5f);
+        sp.life = vrand::range(rng, 0.15f, 0.3f);
         sp.floorZ = where.z;
         splashes.pushBack(sp);
     }
@@ -258,7 +254,7 @@ void simulate(float dt, float m2w)
                 if(d.age >= d.life || swung)
                 {
                     d.phase = Phase::Falling;
-                    d.vel = handVel[d.hand] * (swung ? rnd(0.6f, 1.f) : 0.8f);
+                    d.vel = handVel[d.hand] * (swung ? vrand::range(rng, 0.6f, 1.f) : 0.8f);
                     d.age = 0.f;
                 }
                 break;
@@ -452,7 +448,7 @@ void update(const hands::State& s, const avatar::HandPose* const drawnHands[2], 
             continue;
         }
         const float rate = (dripRate[damage] + burst * 2.f) * mult;
-        pending[hand] += rate * dt * rnd(0.4f, 1.6f);
+        pending[hand] += rate * dt * vrand::range(rng, 0.4f, 1.6f);
         while(pending[hand] >= 1.f)
         {
             pending[hand] -= 1.f;
@@ -461,7 +457,7 @@ void update(const hands::State& s, const avatar::HandPose* const drawnHands[2], 
 
         // Swinging a hurt arm hard flings drops off it.
         const float speed = glm::length(handVel[hand]) / units::metresToUnits(); // m/s
-        if(speed > 2.2f && rnd(0.f, 1.f) < (speed - 2.2f) * 1.5f * mult * damage / 3.f * dt)
+        if(speed > 2.2f && vrand::range(rng, 0.f, 1.f) < (speed - 2.2f) * 1.5f * mult * damage / 3.f * dt)
         {
             addDrop(s, hand, true);
         }

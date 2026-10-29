@@ -305,7 +305,7 @@ void confirm()
         c.palmFitted, current.holster.kind, current.model, c.inHolsterPos, c.inHolsterFwd, c.inHolsterUp};
     solvedUntil = realtime + solvedShowSeconds; // the grip it gives, for a moment
     say(buf);
-    S_LocalSound("weapons/pkup.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Pickup);
     haptics::pulse(posingHand(), 0.05f, 0.7f);
     haptics::pulse(confirmHand(), 0.05f, 0.7f);
 }
@@ -330,7 +330,7 @@ void undo()
         current.holster.grabHand = -1;
     }
     say("undone: " + step.what);
-    S_LocalSound("misc/menu2.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     if(current.active)
     {
         haptics::pulse(confirmHand(), 0.03f, 0.4f);
@@ -349,7 +349,7 @@ void next()
         h.grabHand = -1;
         Cvar_SetValueQuick(&vr_weapon_holster, static_cast<float>(static_cast<int>(h.kind) + 1));
         latest.valid = false;
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     if(current.target == Target::Weapon)
@@ -370,7 +370,7 @@ void next()
         current.type = typeFor(current.slot, current.hotspot);
     }
     latest.valid = false;
-    S_LocalSound("misc/menu1.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
 }
 
 // A hotspot's type: grip -> cup -> blade -> grip.
@@ -384,7 +384,7 @@ void nextType()
                    : current.type == HotspotType::Cup ? HotspotType::Blade
                                                       : HotspotType::Grip;
     latest.valid = false;
-    S_LocalSound("misc/menu1.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
 }
 
 // The floating weapon turned by `yaw` (left, about the vertical) and `tilt` (the muzzle up, about the axis across the
@@ -703,7 +703,7 @@ bool start(int slot, qmodel_t* model, int weaponHand, Target target, int hotspot
         Con_Printf("Posing %s%s: %s. Confirm with %s, undo with %s; the menu button leaves.\n", slotName(slot).cStr(),
             whose.cStr(), targetLine().cStr(), lowerButton(confirmHand()), upperButton(confirmHand()));
     }
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
     return true;
 }
 

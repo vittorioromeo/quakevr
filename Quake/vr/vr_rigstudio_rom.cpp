@@ -4,6 +4,7 @@
 // live (undoable), saved to quakevr/rigs/<model>.rig2.txt. The mesh is drawn on the authored rig (its blended weights;
 // Game: the engine's skinned model, Shaded: the studio's). The pose's faults (vr_rig2_check's measures) are shown live.
 
+#include "vr_testkit.hpp"
 #include "vr_rigstudio_internal.hpp"
 #include "vr_agarms.hpp"
 #include "vr_cvars.hpp"
@@ -763,13 +764,13 @@ void expect(bool ok, const char* what)
 
 void finishTest()
 {
-    Con_Printf("rigstudio rom test: %d passed, %d failed\n", romTest.passed, romTest.failed);
+    qvr::testkit::verdict("rigstudio rom test", romTest.passed, romTest.failed);
     romTest = RomTest{};
 }
 
 void finishWeaponTest()
 {
-    Con_Printf("rigstudio rom weapon: %d passed, %d failed\n", romTest.passed, romTest.failed);
+    qvr::testkit::verdict("rigstudio rom weapon", romTest.passed, romTest.failed);
     romTest = RomTest{};
 }
 

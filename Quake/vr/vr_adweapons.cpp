@@ -1,5 +1,7 @@
 // vr_adweapons.cpp -- see vr_adweapons.hpp. AD support.
 
+#include "vr_mdlbuild.hpp"
+#include "vr_bytes.hpp"
 #include "vr_adweapons.hpp"
 
 #include "vr_backend.hpp"
@@ -136,20 +138,6 @@ constexpr glm::vec3 lightSeat{11.6f, 0.f, 3.f};  // the lightning gun's (vr_view
 // so that it shows a little more; vr_view.cpp magMounts, vr_view_internal.hpp loadPorts.)
 constexpr glm::vec3 plasmaSeat{11.6f, 2.1f, 4.5f};
 
-[[nodiscard]] int rd(const byte* b, size_t at)
-{
-    int v;
-    memcpy(&v, b + at, 4);
-    return LittleLong(v);
-}
-
-[[nodiscard]] float rdf(const byte* b, size_t at)
-{
-    float v;
-    memcpy(&v, b + at, 4);
-    return LittleFloat(v);
-}
-
 void put(za::Vector<byte>& out, int v)
 {
     const int le = LittleLong(v);
@@ -177,13 +165,13 @@ struct Mesh
 {
     const byte* b = bytes.data();
     const size_t size = bytes.size();
-    if(size < headerSize || rd(b, 0) != IDPOLYHEADER || rd(b, 4) != ALIAS_VERSION || rd(b, 52) != src.skinW || rd(b, 56) != src.skinH ||
-        rd(b, 60) != src.numVerts || rd(b, 64) != src.numTris || rd(b, 48) < 1)
+    if(size < headerSize || qvr::bytes::le32(b, 0) != IDPOLYHEADER || qvr::bytes::le32(b, 4) != ALIAS_VERSION || qvr::bytes::le32(b, 52) != src.skinW || qvr::bytes::le32(b, 56) != src.skinH ||
+        qvr::bytes::le32(b, 60) != src.numVerts || qvr::bytes::le32(b, 64) != src.numTris || qvr::bytes::le32(b, 48) < 1)
     {
         return false;
     }
-    const int numSkins = rd(b, 48), numFrames = rd(b, 68), nv = src.numVerts, nt = src.numTris;
-    const glm::vec3 scale{rdf(b, 8), rdf(b, 12), rdf(b, 16)}, origin{rdf(b, 20), rdf(b, 24), rdf(b, 28)};
+    const int numSkins = qvr::bytes::le32(b, 48), numFrames = qvr::bytes::le32(b, 68), nv = src.numVerts, nt = src.numTris;
+    const glm::vec3 scale{qvr::bytes::lef32(b, 8), qvr::bytes::lef32(b, 12), qvr::bytes::lef32(b, 16)}, origin{qvr::bytes::lef32(b, 20), qvr::bytes::lef32(b, 24), qvr::bytes::lef32(b, 28)};
     const size_t skinBytes = static_cast<size_t>(src.skinW) * static_cast<size_t>(src.skinH);
     size_t at = headerSize;
     m.skin.clear();
@@ -194,14 +182,14 @@ struct Mesh
             return false;
         }
         const byte* picture = nullptr;
-        if(rd(b, at) == 0)
+        if(qvr::bytes::le32(b, at) == 0)
         {
             picture = b + at + 4;
             at += 4 + skinBytes;
         }
         else
         {
-            const int n = za::max(rd(b, at + 4), 1);
+            const int n = za::max(qvr::bytes::le32(b, at + 4), 1);
             picture = b + at + 8 + static_cast<size_t>(n) * 4;
             at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
         }
@@ -223,13 +211,13 @@ struct Mesh
     m.st.clear();
     for(int i = 0; i < nv * 3; i++)
     {
-        m.st.pushBack(rd(b, at + static_cast<size_t>(i) * 4));
+        m.st.pushBack(qvr::bytes::le32(b, at + static_cast<size_t>(i) * 4));
     }
     at += static_cast<size_t>(nv) * 12;
     m.tris.clear();
     for(int i = 0; i < nt * 4; i++)
     {
-        const int v = rd(b, at + static_cast<size_t>(i) * 4);
+        const int v = qvr::bytes::le32(b, at + static_cast<size_t>(i) * 4);
         if(i % 4 && (v < 0 || v >= nv))
         {
             return false;
@@ -244,12 +232,12 @@ struct Mesh
         {
             return false;
         }
-        const int type = rd(b, at);
+        const int type = qvr::bytes::le32(b, at);
         at += 4;
         int members = 1;
         if(type != 0)
         {
-            members = za::max(rd(b, at), 1);
+            members = za::max(qvr::bytes::le32(b, at), 1);
             at += 4 + 8 + static_cast<size_t>(members) * 4;
         }
         for(int k = 0; k < members && !poseAt; k++)
@@ -702,22 +690,6 @@ int seal(Out& out, const Recipe& r, int capS, int capT)
         }
     }
     return static_cast<int>(loops.size());
-}
-
-[[nodiscard]] byte nearestNormal(const glm::vec3& d)
-{
-    int best = 0;
-    float bestDot = -2.f;
-    for(int i = 0; i < NUMVERTEXNORMALS; i++)
-    {
-        const float k = d.x * r_avertexnormals[i][0] + d.y * r_avertexnormals[i][1] + d.z * r_avertexnormals[i][2];
-        if(k > bestDot)
-        {
-            bestDot = k;
-            best = i;
-        }
-    }
-    return static_cast<byte>(best);
 }
 
 struct Built
@@ -1462,7 +1434,7 @@ void plasmaParts(Parts& p)
                     bmax[k] = za::max(bmax[k], b[k]);
                 }
                 const glm::vec3 n = posed(frame, i, normal[w[i]], false);
-                b[3] = nearestNormal(glm::length(n) > 1e-12f ? glm::normalize(n) : glm::vec3{0.f, 0.f, 1.f});
+                b[3] = qvr::mdlbuild::nearestNormal(glm::length(n) > 1e-12f ? glm::normalize(n) : glm::vec3{0.f, 0.f, 1.f});
                 packed.emplaceBackRange(b, 4);
             }
         }
@@ -1505,15 +1477,15 @@ void setf(byte* f, size_t at, float v)
         return nullptr;
     }
     const size_t size = static_cast<size_t>(com_filesize);
-    if(size < headerSize || rd(f, 0) != IDPOLYHEADER || rd(f, 4) != ALIAS_VERSION)
+    if(size < headerSize || qvr::bytes::le32(f, 0) != IDPOLYHEADER || qvr::bytes::le32(f, 4) != ALIAS_VERSION)
     {
         VR_HeapFree(f);
         return nullptr;
     }
-    const int numSkins = rd(f, 48), skinW = rd(f, 52), skinH = rd(f, 56), numVerts = rd(f, 60), numTris = rd(f, 64),
-              numFrames = rd(f, 68);
-    const glm::vec3 scale{rdf(f, 8), rdf(f, 12), rdf(f, 16)}, origin{rdf(f, 20), rdf(f, 24), rdf(f, 28)};
-    const glm::vec3 eye{rdf(f, 36), rdf(f, 40), rdf(f, 44)};
+    const int numSkins = qvr::bytes::le32(f, 48), skinW = qvr::bytes::le32(f, 52), skinH = qvr::bytes::le32(f, 56), numVerts = qvr::bytes::le32(f, 60), numTris = qvr::bytes::le32(f, 64),
+              numFrames = qvr::bytes::le32(f, 68);
+    const glm::vec3 scale{qvr::bytes::lef32(f, 8), qvr::bytes::lef32(f, 12), qvr::bytes::lef32(f, 16)}, origin{qvr::bytes::lef32(f, 20), qvr::bytes::lef32(f, 24), qvr::bytes::lef32(f, 28)};
+    const glm::vec3 eye{qvr::bytes::lef32(f, 36), qvr::bytes::lef32(f, 40), qvr::bytes::lef32(f, 44)};
     const glm::vec3 p = lightSeat, s = plasmaSeat;
     const glm::vec3 scale2{scale.x, scale.z, scale.y};
     const glm::vec3 origin2{origin.x - p.x + s.x, s.y + p.z - origin.z - 255.f * scale.z, origin.y - p.y + s.z};
@@ -1529,7 +1501,7 @@ void setf(byte* f, size_t at, float v)
     size_t at = headerSize;
     for(int k = 0; k < numSkins && at + 8 <= size; k++)
     {
-        at += rd(f, at) == 0 ? 4 + skinBytes : 8 + static_cast<size_t>(za::max(rd(f, at + 4), 1)) * (4 + skinBytes);
+        at += qvr::bytes::le32(f, at) == 0 ? 4 + skinBytes : 8 + static_cast<size_t>(za::max(qvr::bytes::le32(f, at + 4), 1)) * (4 + skinBytes);
     }
     at += static_cast<size_t>(numVerts) * 12 + static_cast<size_t>(numTris) * 16;
     const auto turnBox = [&](size_t boxAt) {
@@ -1544,12 +1516,12 @@ void setf(byte* f, size_t at, float v)
     float radius = 0.f;
     for(int fr = 0; fr < numFrames && at + 4 <= size; fr++)
     {
-        const int type = rd(f, at);
+        const int type = qvr::bytes::le32(f, at);
         at += 4;
         int members = 1;
         if(type != 0)
         {
-            members = za::max(rd(f, at), 1);
+            members = za::max(qvr::bytes::le32(f, at), 1);
             turnBox(at + 4);
             at += 4 + 8 + static_cast<size_t>(members) * 4;
         }
@@ -1569,7 +1541,7 @@ void setf(byte* f, size_t at, float v)
                 b[1] = static_cast<byte>(255 - z);
                 b[2] = y;
                 const int ni = za::min(static_cast<int>(b[3]), NUMVERTEXNORMALS - 1);
-                b[3] = nearestNormal(glm::vec3{r_avertexnormals[ni][0], -r_avertexnormals[ni][2], r_avertexnormals[ni][1]});
+                b[3] = qvr::mdlbuild::nearestNormal(glm::vec3{r_avertexnormals[ni][0], -r_avertexnormals[ni][2], r_avertexnormals[ni][1]});
                 const glm::vec3 q{b[0] * scale2.x + origin2.x, b[1] * scale2.y + origin2.y, b[2] * scale2.z + origin2.z};
                 radius = za::max(radius, glm::length(q));
             }

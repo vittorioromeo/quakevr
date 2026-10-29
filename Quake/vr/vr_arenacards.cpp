@@ -146,7 +146,7 @@ void poll()
         if(progs::qcFloat(progs::findFunction("VR_ARK_CardPick"), static_cast<float>(pick)) != 0.f)
         {
             Con_DPrintf("arena cards: card %d picked (%s)\n", pick + 1, cs.cards[pick].name);
-            S_LocalSound("misc/menu3.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
         }
     }
     cs.pickPending = -1;
@@ -175,7 +175,7 @@ void poll()
         cs.pool = za::max(1, static_cast<int>(progs::qcFloat(progs::findFunction("VR_ARK_PoolSize"))));
         cs.shownAt = cl.time;
         Con_DPrintf("arena cards: offer %d, %d cards\n", serial, cs.count);
-        S_LocalSound("misc/talk.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Talk);
     }
     if(vrActive())
     {

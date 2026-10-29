@@ -1,3 +1,4 @@
+#include "vr_strings.hpp"
 #include "vr_alloccount.h"
 // vr_detail.cpp -- see vr_detail.hpp.
 
@@ -95,16 +96,6 @@ const qmodel_t* cacheWorld = nullptr;
 char cacheWorldName[MAX_QPATH] = {};
 int cacheGeneration = -1;
 
-za::String lower(const char* s)
-{
-    za::String r(s);
-    for(char& c : r)
-    {
-        c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
-    }
-    return r;
-}
-
 // * any run of characters, ? one; both lower case.
 bool match(const char* p, const char* s)
 {
@@ -184,7 +175,7 @@ void loadCfg()
                 }
                 if(j > i)
                 {
-                    tokens.pushBack(lower(za::String{line.substrByPosLen(i, j - i)}.cStr()));
+                    tokens.pushBack(qvr::strings::lower(za::String{line.substrByPosLen(i, j - i)}.cStr()));
                 }
                 i = j;
             }
@@ -490,7 +481,7 @@ za::String mapName()
     {
         COM_FileBase(cl.worldmodel->name, base, sizeof(base));
     }
-    return lower(base);
+    return qvr::strings::lower(base);
 }
 
 Entry resolve(const texture_t* t)
@@ -501,7 +492,7 @@ Entry resolve(const texture_t* t)
     {
         return e;
     }
-    const za::String name = lower(t->name);
+    const za::String name = qvr::strings::lower(t->name);
     // an animated texture's +0 / +a prefix: matched with and without
     const za::String bare = name.size() > 2 && name[0] == '+' ? za::String{name.substrByPosLen(2)} : name;
     const za::String map = mapName();
@@ -632,11 +623,11 @@ void list_f()
         return;
     }
     checkWorld();
-    const za::String pattern = Cmd_Argc() > 1 ? lower(Cmd_Argv(1)) : za::String("*");
+    const za::String pattern = Cmd_Argc() > 1 ? qvr::strings::lower(Cmd_Argv(1)) : za::String("*");
     for(int i = 0; i < cl.worldmodel->numtextures; i++)
     {
         const texture_t* t = cl.worldmodel->textures[i];
-        if(!t || t == r_notexture_mip || t == r_notexture_mip2 || !match(pattern.cStr(), lower(t->name).cStr()))
+        if(!t || t == r_notexture_mip || t == r_notexture_mip2 || !match(pattern.cStr(), qvr::strings::lower(t->name).cStr()))
         {
             continue;
         }

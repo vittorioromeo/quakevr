@@ -1,5 +1,6 @@
 // vr_bttrails.cpp -- see vr_bttrails.hpp.
 
+#include "vr_random.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_bttrails.hpp"
 #include "vr_bullettime.hpp"
@@ -95,12 +96,6 @@ int seenPlaces = 0, allPlaces = 0;
 float strongest = 0.f;
 unsigned seedState = 0x9E3779B9u;
 
-[[nodiscard]] float random01()
-{
-    seedState = seedState * 1664525u + 1013904223u;
-    return static_cast<float>(seedState >> 8) / static_cast<float>(1u << 24);
-}
-
 [[nodiscard]] float lifeSeconds()
 {
     return za::clamp(vr_bullettime_trails_life.value, 0.05f, 10.f);
@@ -162,7 +157,7 @@ unsigned seedState = 0x9E3779B9u;
     best->used = true;
     best->live = true;
     best->kind = kind;
-    best->seed = random01() * 6.2831853f;
+    best->seed = vrand::lcg01(seedState) * 6.2831853f;
     return *best;
 }
 

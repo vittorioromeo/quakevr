@@ -19,6 +19,7 @@
 // aligned (its drawn error under 0.2 degrees), undone (the key exactly as misaligned), put back. Ends on
 // `rigstudio align: N passed, M failed`.
 
+#include "vr_testkit.hpp"
 #include "vr_rigstudio_internal.hpp"
 #include "vr_progs.hpp"
 #include "vr_aggrip.hpp"
@@ -876,7 +877,7 @@ void alignCaseEnd()
     atl.step++;
     if(atl.step >= alignCaseCount || atl.step >= atl.endCase)
     {
-        Con_Printf("rigstudio align: %d passed, %d failed\n", atl.passed, atl.failed);
+        qvr::testkit::verdict("rigstudio align", atl.passed, atl.failed);
         atl.step = -1;
         return;
     }

@@ -612,7 +612,7 @@ bool qvr::menuui::versionLinkPress()
         return true; // (taken: the page is opening already)
     }
     pressed = realtime;
-    S_LocalSound("misc/menu2.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     if(update)
     {
         openLink(notice->page.cStr(), updateNotice.opened);

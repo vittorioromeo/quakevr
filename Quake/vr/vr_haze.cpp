@@ -1,5 +1,6 @@
 // vr_haze.cpp -- see vr_haze.hpp.
 
+#include "vr_glutil.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_haze.hpp"
 #include "vr_bttrails.hpp"
@@ -239,6 +240,14 @@ bool ensureCopy(int width, int height, GLint format, bool half)
     GL_GenFramebuffersFunc(1, &copy.fbo);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, copy.fbo);
     GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, copy.texture, 0);
+    if(!gfx::boundFramebufferComplete())
+    {
+        Con_Warning("VR: haze: the scene copy's framebuffer is incomplete (format %d), no copy\n", format);
+        GL_DeleteFramebuffersFunc(1, &copy.fbo);
+        GL_DeleteNativeTexture(copy.texture);
+        copy = Copy{};
+        return false;
+    }
     copy.width = width;
     copy.height = height;
     copy.format = format;

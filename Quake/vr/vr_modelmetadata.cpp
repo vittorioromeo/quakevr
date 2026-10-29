@@ -1,4 +1,5 @@
 // vr_modelmetadata.cpp -- shared main-thread cache; string-only identification is pure.
+#include "vr_strings.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_retro.hpp"
 #include "vr_engine.hpp"
@@ -18,11 +19,6 @@ namespace qvr::modelmeta
 namespace
 {
 using retro::Category;
-[[nodiscard]] bool startsWith(const char* s, const char* prefix)
-{
-    return ZA_STRNCMP(s, prefix, ZA_STRLEN(prefix)) == 0;
-}
-
 [[nodiscard]] const char* fileOf(const char* name)
 {
     const char* f = name;
@@ -40,7 +36,7 @@ using retro::Category;
 // in its own pack ("progs/v_hammer.mdl"), whose traits it has (a view weapon, ...); its identity stays its full name.
 [[nodiscard]] const char* packPathOf(const char* name)
 {
-    if(!startsWith(name, "owned/"))
+    if(!qvr::strings::startsWith(name, "owned/"))
     {
         return name;
     }
@@ -53,7 +49,7 @@ template <za::SizeT N>
 {
     for(const char* p : prefixes)
     {
-        if(startsWith(f, p))
+        if(qvr::strings::startsWith(f, p))
         {
             return true;
         }
@@ -87,11 +83,11 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
         {
             return Category::Brush;
         }
-        if(startsWith(f, "b_explob") || startsWith(f, "b_exbox"))
+        if(qvr::strings::startsWith(f, "b_explob") || qvr::strings::startsWith(f, "b_exbox"))
         {
             return Category::Props;
         }
-        return startsWith(f, "b_") ? Category::Items : Category::Props;
+        return qvr::strings::startsWith(f, "b_") ? Category::Items : Category::Props;
     }
     if(m->type == mod_sprite)
     {
@@ -105,11 +101,11 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
     {
         return Category::Gibs;
     }
-    if(startsWith(f, "v_") || startsWith(f, "g_"))
+    if(qvr::strings::startsWith(f, "v_") || qvr::strings::startsWith(f, "g_"))
     {
         return Category::Weapons;
     }
-    if(startsWith(f, "vrbody"))
+    if(qvr::strings::startsWith(f, "vrbody"))
     {
         return Category::Torso; // (by part: bodyParts)
     }
@@ -142,11 +138,11 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
     {
         return Category::Gibs;
     }
-    if(startsWith(f, "v_") || startsWith(f, "g_"))
+    if(qvr::strings::startsWith(f, "v_") || qvr::strings::startsWith(f, "g_"))
     {
         return Category::Weapons;
     }
-    if(startsWith(f, "vrbody"))
+    if(qvr::strings::startsWith(f, "vrbody"))
     {
         return Category::Torso; // (by part: bodyParts)
     }
@@ -198,7 +194,7 @@ constexpr const char* legBones[] = {"thigh_", "calf_", "foot_", "toe"};
 bool makeBodyParts(const qmodel_t* model, float out[4])
 {
     out[0] = out[1] = out[2] = out[3] = 0.f;
-    if(!model || model->type != mod_alias || !startsWith(fileOf(model->name), "vrbody"))
+    if(!model || model->type != mod_alias || !qvr::strings::startsWith(fileOf(model->name), "vrbody"))
     {
         return false;
     }
@@ -361,7 +357,7 @@ ModelMetadata describePath(const char* name)
             rule.match == Match::PrefixInsensitive ? !q_strncasecmp(name, rule.text, len) :
             rule.match == Match::Contains ? strstr(name, rule.text) != nullptr :
             rule.match == Match::Suffix ? n >= len && !strcmp(name + n - len, rule.text) :
-            startsWith(rule.match == Match::FilePrefix ? file : name, rule.text);
+            qvr::strings::startsWith(rule.match == Match::FilePrefix ? file : name, rule.text);
         if(match) { result.traits |= za::U64{1} << i; }
     }
     return result;
@@ -377,7 +373,7 @@ bool isSubmodel(const qmodel_t* model)
     // (describePath's test for the trait's rule, Prefix "*", on the same name)
     constexpr Rule rule = rules[static_cast<int>(Trait::Submodel)];
     static_assert(rule.match == Match::Prefix && rule.text[0] == '*' && rule.text[1] == 0, "isSubmodel has the rule's test");
-    return model && startsWith(packPathOf(model->name), "*");
+    return model && qvr::strings::startsWith(packPathOf(model->name), "*");
 }
 
 retro::Category category(const qmodel_t* model)

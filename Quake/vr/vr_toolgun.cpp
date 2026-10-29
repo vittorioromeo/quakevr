@@ -23,6 +23,7 @@
 // (X/A held: the one before). B/Y opens and closes its panel over the gun (vr_toolgun_panel.cpp). Single player: the
 // listen server's edicts, changed between its frames (as a console command does).
 
+#include "vr_testkit.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_toolgun_brush.hpp"
 
@@ -2838,7 +2839,7 @@ void armedArmourTest_f()
     if(!sv.active || svs.maxclients < 1 || !armedCat.valid || armedCat.kindCount < 2 || f.vr_ar_type < 0 || f.vr_ar_mask < 0)
     {
         verdict(false, "a game with the armed monsters' table (grunt, enforcer) and the armour's fields");
-        Con_Printf("toolgun armour test: %d passed, %d failed\n", passed, failed);
+        qvr::testkit::verdict("toolgun armour test", passed, failed);
         return;
     }
     glm::vec3 at{0.f}, angles{0.f};
@@ -2890,7 +2891,7 @@ void armedArmourTest_f()
     Cvar_SetValueQuick(&vr_toolgun_armed_pieces, 0.f);
     armedClear_f();
     verdict(vr_toolgun_armed_armor.value == 0.f && vr_toolgun_armed_pieces.value == 1.f, "Clear: Armour None, Pieces Full again");
-    Con_Printf("toolgun armour test: %d passed, %d failed\n", passed, failed);
+    qvr::testkit::verdict("toolgun armour test", passed, failed);
 }
 
 // vr_toolgun_menu: the panel opened or closed (as B/Y).

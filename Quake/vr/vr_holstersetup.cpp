@@ -993,7 +993,7 @@ bool start(int returnPage)
     memset(ses.eaten, 0, sizeof(ses.eaten));
     placePanel(hands::current());
     say(seated::active() ? "started (seated: the seated layout is edited)" : "started");
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
     return true;
 }
 
