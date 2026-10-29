@@ -198,3 +198,27 @@ Test code stays out of releases: a QC file of tests (`*_test.qc`, listed in `pro
 the release packaging does), and every call or declaration of it from game code is wrapped the same way. A new test file:
 wrap it, and compile once with `-DQVR_NO_TESTS` (no errors allowed; the compile writes `quakevr/progs.dat`: build again
 for the development one).
+
+## Canonical helpers: engine access (refactor A2)
+
+Use these; don't write a local copy (a file's own wrapper is fine only when it bakes in that site's own rule or
+constants, and then its body calls the canonical one).
+
+| need | helper | where |
+|---|---|---|
+| the server's VM current for a scope | `progs::ServerVm vm;` (RAII) | vr_progs.hpp |
+| the local player | `progs::localPlayer()` (null when not hosting / client 0 not in game) | vr_progs.hpp |
+| a server edict by number | `progs::edictAt(num)` (null: out of range, free, not hosting) | vr_progs.hpp |
+| edict loops, nearest one | `progs::forEachEdict(first, fn)`, `progs::nearestBy(first, limit, distance, &best)` | vr_progs.hpp |
+| calling QC | `progs::callQc(fn, a, b, c)`, `qcFloat`, `qcText(dst, size, fn, a)`, `qcVec(fn, a, fallback)`; by name with `progs::findFunction` (or bind it in `Bindings`) | vr_progs.hpp |
+| builtin vector parms / returns | `progs::vecParm(OFS_PARMn)`, `returnVec(v)`, `setVecParm(ofs, v)`, `returnedVec()` | vr_progs.hpp |
+| entity fields | `progs::fields().name` (add the field to vr_fields.inc; no `ED_FindFieldOffset("...")` for a fixed name) | vr_fields.inc |
+| a hand's fields | `progs::handFields(hand).pos / rot / held / muzzle / shotRot / loadPortPos / loadPortAxis / loadPortFace / throwVel / avel` (`hand` nonzero: the main hand) | vr_progs.hpp |
+| point contents, liquids | `worldtrace::contents(p)` (server), `clientContents(p)`, `liquidContents(p, client)`, `isLiquid(c, currents)`; each site keeps its own rule of what is liquid | vr_trace.hpp |
+| a server line trace | `worldtrace::serverLine(a, b)` (passes the world) / `serverLine(a, b, pass, type)` | vr_trace.hpp |
+| a controller buzz | `haptics::pulse(hand, seconds, amplitude, hz = 160)` (vr_disablehaptics and the hand's bounds inside) | vr_backend.hpp |
+| a cvar set for a scope | `cvars::Override o{cvar, value};` (RAII) | vr_cvars.hpp |
+| cvars kept and put back later | `cvars::Snapshot` (`keep(cvar)`, `restore()`) | vr_cvars.hpp |
+| every cvar | `cvars::forEach(fn)` | vr_cvars.hpp |
+| a VR cvar's value | `vr_x.value` directly, never `Cvar_VariableValue("vr_x")` (by name only for names typed or made at run time) | vr_cvars.hpp |
+| a client entity's number | `client::entityNumber(e, limit)` (-1: null, the world, not one of cl_entities) | vr_client.hpp |

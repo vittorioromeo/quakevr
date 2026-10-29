@@ -352,6 +352,14 @@ void liftAgain()
 }
 } // namespace
 
+// Ragdolls and corpses in water, slime and lava (NOTES.md start_2026-10-09_15-27-59; before, they fell through a pool at
+// full gravity and landed on its floor at full speed): each part lifted by how deep it is in it, its weight times the
+// liquid's Float (vr_ragdoll_float_water, _slime, _lava) at full depth (above 1 it floats, below it sinks; the torso
+// floats more than the head and limbs, so a body floats face down, and an armoured knight less: it sinks), and dragged:
+// its motion and spin damped at the liquid's Drag (vr_ragdoll_drag_*, 1/s) by how deep it is, more the faster it goes
+// (twice at 60 units/s), so a fall into it is braked as it goes in (the splash) and a sink is slow. A knocked-down
+// monster's landing under it is cushioned too (liquidFallShare). The liquid at a point: worldtrace::liquidContents(p,
+// false) (CONTENTS_WATER, _SLIME, _LAVA; else what is there; SV_PointContents: a current is water).
 namespace
 {
 // The liquid's Float and Drag (false: not a liquid).

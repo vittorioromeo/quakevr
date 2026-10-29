@@ -678,3 +678,35 @@ The baseline every refactor phase is checked against (the kit's `scratch/refacto
 
 Checklist:
 - Throw or slam a grunt so its right leg hits the floor (or a wall) hard: the dent and wound land, no stall.
+
+## Refactor pass, wave A2: canonical engine-access helpers (branch `agent/refaccess`)
+
+The helpers (table in CODE_STYLE.md, "Canonical helpers: engine access"): `progs::ServerVm`, `localPlayer`, `edictAt`,
+`forEachEdict`, `nearestBy`, `callQc/qcFloat/qcText/qcVec`, `vecParm/returnVec/setVecParm/returnedVec`, `handFields`
+(vr_progs.hpp); `worldtrace::contents/clientContents/liquidContents/isLiquid/serverLine` (vr_trace.hpp);
+`haptics::pulse` (vr_backend.hpp, vr_main.cpp); `cvars::forEach/Override/Snapshot` (vr_cvars.hpp); `client::entityNumber`
+(vr_client.hpp); 21 fields moved from `ED_FindFieldOffset("...")` at each use into vr_fields.inc (weaponflags, weapon2,
+weaponinst, handtouch, vr_drop_born, vr_kd_until, vr_ag*, vr_rigseq*, vr_rs_aim*, stl_*).
+
+Copies removed: 13 VM guard structs, 2 sets of QC-call helpers (arenacards by name, toolgun by func_t), 2 serverEdict,
+scenario's player(), 4 numberOf, 9 haptic wrappers (bladeedit, flashlight, holstersetup, posestudio, posing, motion,
+menuui, toolgun::haptic, voicenotes) plus 7 inline gated blocks, avatar/physics isLiquid, physics contentsAt,
+debris::contents, box3d_step liquidAt and its two declarations (P25), debris::traceLine and ragtest's traceLine,
+ragtest's CvarOverride, motion_play's saved-settings vector, 3 nearest-monster loops, VR cvars read by name (vr_ad,
+toolgun, toolgun_panel, menu, tracy), 69 `hand ? f.x : f.offx` pairs. The liquid wrappers that carry their own rule
+(bloodprints, bloodstream, gore, knockdown, particles, shells) stay, their bodies on the worldtrace primitives (D3).
+
+Bugs fixed: bullet time's and the gear lights' buzzes ignored vr_disablehaptics (R01 W02); vr_hit_precise is put back as
+it was after the precise-hits diagnostic (M45: it was left 0 when on but enabled() off); the menu's hipnotic/rogue
+monster choices read their always-registered cvars directly (S14).
+
+Left on purpose: vr_timescale.cpp's VmScope (switches only when another VM is current); vr_gamedir.cpp's
+`Cvar_FindVar("vr_hipnotic_available")`/`("vr_campaign")` (they run from the filesystem init, before the cvars are
+registered: not always true); engine cvars read by name (host_timescale, host_maxfps, vid_vsync, sv_friction...: no
+extern in the VR headers); ragtool's player() (EDICT_NUM(1), unguarded); climb's traceLine (its own traceBox);
+dynamic-name field lookups (box3d_api keys, edictindex, notectx) and `mangle` (portals: also read with non-VR progs).
+Inline spellings not yet on the helpers (each differs in its guards or needs a hand conversion: wave B or a follow-up):
+EDICT_NUM(1) 79 sites / 33 files, svs.clients[0].edict 27/15, manual PR_PushQCVM pairs 87/40, `num_edicts` loops
+101/55, SV_PointContents 19/7, ungated or combined-condition be->haptic 12/9, G_VECTOR(OFS_*) pointer reads 173/4.
+Behaviour notes: haptics::pulse also drops a hand number outside 0..1 (some wrappers passed it on to the backend);
+hitreact's entity number of the world reads -1 (was 0; only its prints, never for the world).
