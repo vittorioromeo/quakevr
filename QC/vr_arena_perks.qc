@@ -46,7 +46,10 @@ float ARK_QUART_AMMO = 15;  // of each kind a Quartermaster wave clear gives
 float ARK_OPEN_COST  = 2;   // Can Opener: a plate's pool pays this per point it saves from the player's hit
 
 // An offer whose cards no panel has said it shows for this long is withdrawn (nothing taken), so a game without the
-// engine's panel (no headset) never waits for a choice it cannot make.
+// engine's panel (no headset) never waits for a choice it cannot make. With a headset this never fires: the panel says
+// it sees the cards at the start of every host frame (VR_BeginFrame, menu open or not), before that frame's server
+// ticks, and one sighting is enough for good; a hitch runs at most host_fixedtick_max ticks (under 1 s) between two
+// sightings, a closed-menu pause runs none, and a menu's live preview still polls.
 float ARK_UNSEEN = 3;
 
 // The entity fields this file owns: the director's taken perks, the beats of the ones that repeat, and what the

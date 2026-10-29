@@ -126,7 +126,7 @@ countdown timed **7**. Example: `run.sh <name> -Filter "arena:" -QuitOn "arena: 
 `-Timeout 1500`). Known: test 1 is 256/1 on vrarena (`a fallen monster is not alive`, harness case; 257/0 on vrtesthall).
 
 **Open:** whether the rest + countdown (10 s before wave 1) is too long; whether Quartermaster should reach a player
-holding nothing; whether the next wave should wait for a pedestal choice (today it does not).
+holding nothing. (Whether the next wave should wait for the perk choice: it does now, "Perk cards" below.)
 
 ## 3. Survival Arena: difficulty (`vr_arena_skill_impact`)
 
