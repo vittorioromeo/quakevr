@@ -4,8 +4,9 @@
 // a plate (its bone, as drawn: ragdollbone's QVR_ARMOR_PIECE_AT) is absorbed by the player's rule (vr_agarmor_rule 0:
 // ceil(type x damage) from the pool) or stopped whole (1) while the pool lasts; a shotgun's pellets each count on their
 // own piece; a blast or a hit with no point is shared by the pieces facing it. At 0 the plate breaks: its bit off (the
-// engine sends the mask), a clank, and it falls as debris (its own model, "<model>#plate<piece>": a physics prop you
-// can't force-grab, fading out after vr_agarmor_debris_time). Helmets halve a headshot's extra and stop head pops
+// engine sends the mask), the pickup's chime backwards (vr/derived/armor_break.wav), and it falls as debris
+// ("<model>#plate<piece>": a prop you take in a hand, never force-grab or wear, fading out after
+// vr_agarmor_debris_time, its time counted again when taken). Helmets halve a headshot's extra and stop head pops
 // (vr_agarmor_helmet_head); no limb is cut under an unbroken plate (vr_agarmor_block_cuts). Quad Damage does not pass
 // through. Corpses keep their plates; a gibbing sheds them. Nothing changes for a humanoid without armour.
 // P2 (ROUND23.md, "Armour P2"): the enforcer wears it too (the same rolls); each piece's damage marks at two thirds and a
@@ -422,11 +423,19 @@ void(entity e, float done, vector vel) VR_AgArmor_CutDone =
 };
 
 // A corpse's piece worn through (VR_Limb_WearInto; `joint` 0 its head, else a limb's joint): TRUE while an unbroken
-// plate on the bones it would take keeps it on (vr_agarmor_block_cuts; the head: vr_agarmor_helmet_head): the plate
-// breaks first.
+// plate on the bones it would take keeps it on (vr_agarmor_block_cuts; the head: vr_agarmor_helmet_head), or this hit
+// struck a plate still on as it landed (VR_AgArmor_Damage: the hit that breaks it pops nothing): the plate breaks first.
+entity vr_ar_plate_hit_ent; // the last hit at a point struck an unbroken plate of it (VR_AgArmor_Damage)
+float vr_ar_plate_hit_time;
+
 float(entity e, float joint) VR_AgArmor_Holds =
 {
     float i;
+    if(vr_ar_plate_hit_ent == e && vr_ar_plate_hit_time == time && e.vr_ar_type > 0 &&
+       cvar(joint == 0 ? "vr_agarmor_helmet_head" : "vr_agarmor_block_cuts"))
+    {
+        return TRUE;
+    }
     if(e.vr_ar_type <= 0 || !e.vr_ar_mask)
     {
         return FALSE;
@@ -553,6 +562,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     vector at = (targ.absmin + targ.absmax) * 0.5;
     vr_ar_last_save = 0;
     vr_ar_last_piece = -1;
+    vr_ar_plate_hit_ent = world;
     if(targ.vr_ar_type <= 0 || !targ.vr_ar_mask || damage <= 0)
     {
         return damage;
@@ -623,6 +633,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         {
             vr_ar_share[i] = vr_ar_share[i] / max(1, facing);
         }
+    }
+    if(vr_ar_last_piece >= 0 && VR_AgArmor_On(targ, vr_ar_last_piece))
+    {
+        vr_ar_plate_hit_ent = targ; // (a corpse's piece this hit wears pops nothing: VR_AgArmor_Holds)
+        vr_ar_plate_hit_time = time;
     }
     float frac = VR_AgArmor_Frac(targ.vr_ar_type);
     float rule = cvar("vr_agarmor_rule");

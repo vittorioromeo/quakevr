@@ -409,6 +409,34 @@ after Reload List and after a restart; ticking its first item drops its count 35
 On the mock: Collapse All, Expand All and the first section's fold row add 3 rows before the first item (eight
 `vr_mock_key downarrow` now select it).
 
+## 9b. Armour: ragdolls, dislodging, debris, sparks, the break's sound (branch `agent/armorfx`)
+
+His voice notes of 2026-10-29 (five items).
+- **Break sound.** `vr/derived/armor_break.wav` is made as it loads from `items/armor1.wav` (vr_audio.cpp
+  `derivedSounds`, new `reversed` flag; snd_mem.c turns the samples end to end, no loop): the pickup chime backwards at
+  0.7 rate (~6 semitones down). Nothing shipped. `VR_AgArmor_Break` plays it (the ricochet on the hit stays).
+- **Ragdolls.** A corpse's hit (`VR_Corpse_Damage`) now goes through `VR_AgArmor_Damage` first (it never did: corpse
+  plates were inert, and the limb wear popped limbs under them). A wear-pop is held (`VR_AgArmor_Holds`, from
+  `VR_Limb_WearInto`) while an unbroken plate rides a bone the cut would take, or when the hit itself landed on a plate
+  that was on (so the breaking hit pops nothing; the next one does). `vr_agarmor_block_cuts` / `_helmet_head` gate it.
+  Active (knocked-down, alive) ragdolls already went through T_Damage: Guard stops the armed killing cut as the plate
+  breaks. Blows at a ragdoll point (`vr_limb_wear_at`) now count as a single-point hit for the plates.
+- **Dislodging.** `VR_Limb_Cut` / `VR_Decap_Cut` take the plates on the bones they cut (new builtin query
+  `ragdollbone(e, [piece,0,0], QVR_ARMOR_PIECE_BONES)`: agarmor::pieceBones via box3d::boneNamed) as debris, placed
+  before the cut, thrown with the limb. Gibbing sheds before the limbs fly (ThrowHead) and now also on a headless
+  corpse's gib (that path shed nothing: the plates vanished), with gib-like velocities.
+- **Debris.** Hand-grabbable (model box, SOLID_NOT_BUT_TOUCHABLE, `VR_Carry_Setup`, carry_use nothing), never
+  FL_FORCEGRABBABLE or an item; `VR_Carry_Start` resets its fade (`VR_AgArmor_DebrisGrabbed`), and a fade due while
+  held is put off.
+- **Sparks.** `VR_AgArmor_HitFx` at TraceAttack, spawn_touchblood and VR_HitBloodSplash: on an unbroken plate, sparks
+  where it struck, and the blood (and a pellet's wound) scaled by the predicted share let through (none when it all
+  stopped). `VR_AgArmor_Damage`'s own sparks remain for hits with no blood site (blasts, beams), larger.
+- **Test.** `vr_agarmor_test 5` (QC/vr_agarmor_fx_test.qc): **19 passed, 0 failed**; `vr_agarmor_test 1` still 26/26.
+- **Found, not fixed.** (1) A thigh plate's middle reads as the shin's piece (`pieceAt` by nearest vertex): hits on a
+  thigh plate's lower half count on the shin plate. (2) The authored rig has 20 bones but corpse limb wear keeps 16
+  (`vr_limb_corpse_dmg[16]`, `VR_Limb_WearPiece` `bone < 16`): rig2 joints 16-19 (shins/feet) wear as torso hits.
+  (3) The sound can't be heard headless (no sound device): check it in VR.
+
 ## 10. Suggested checklist lines still pending (coordinator owns `quakevr/checklist.txt`)
 
 - Survival Arena: map, wave director (readout, 5 s rest + 5 s countdown, teleport arrivals, never inside anything, guns
