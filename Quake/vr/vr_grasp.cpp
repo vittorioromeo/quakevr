@@ -44,10 +44,7 @@ constexpr int halvings = 7;          // opening from the fist to the first clear
 constexpr float searchReach = 0.6f;  // hand units beyond a sphere's radius a distance query looks (farther: "clear by this")
 constexpr float cellHandUnits = 2.f; // the shapes' grid cells, in hand units (as big as they are in the hand)
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 // ----------------------------------------------------------------------------
 // The hand as spheres (made with the mesh: make_hand_rig.py; following an edited mesh, handrig::rig()): each finger

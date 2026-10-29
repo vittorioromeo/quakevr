@@ -831,7 +831,6 @@ struct RigHand
 inline RigHand rigHands[2];
 [[nodiscard]] glm::vec3 vec3Of(const float* v);
 [[nodiscard]] float rigCurl(int hand, int finger);
-[[nodiscard]] glm::mat4 toMat4(const float m[16]);
 [[nodiscard]] glm::vec3 drawnInRig(const RigHand& rh, const glm::vec3& p);
 // Each hand's weapon, or the prop it holds alone, drawn pressed back by the other, free hand against it (pushAgainst;
 // NOTES.md vrfiringrange_2026-10-01_12-12-28, 17-15-34): the model collision adds it to that hand next frame

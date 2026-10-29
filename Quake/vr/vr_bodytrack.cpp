@@ -18,6 +18,7 @@
 #include "vr_profile.hpp"
 #include "vr_seated.hpp"
 #include "vr_units.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -129,32 +130,14 @@ int debugFrame = -1;
     return (st.raw.flags[j] & POS_VALID) != 0 && st.have[j];
 }
 
-[[nodiscard]] glm::vec3 quakeFromTracking(const glm::vec3& v)
-{
-    return {-v.z, -v.x, v.y};
-}
+using geom::quakeFromTracking;
 
-[[nodiscard]] glm::vec3 safeNormalize(const glm::vec3& v, const glm::vec3& fallback)
-{
-    const float l = glm::length(v);
-    return l > 1e-5f ? v / l : fallback;
-}
-
-[[nodiscard]] float wrapYaw(float a)
-{
-    return za::remainder(a, 360.f);
-}
+using geom::safeNormalize;
 
 [[nodiscard]] float yawOfLine(const glm::vec3& left)
 {
     const glm::vec3 fwd = glm::cross(left, UP); // +x forward, +y left: forward is left x up
     return glm::degrees(za::atan2(fwd.y, fwd.x));
-}
-
-[[nodiscard]] float smooth01(float e0, float e1, float x)
-{
-    const float u = za::clamp((x - e0) / (e1 - e0), 0.f, 1.f);
-    return u * u * (3.f - 2.f * u);
 }
 
 // `v` without its part along unit `axis`.
@@ -213,7 +196,7 @@ bool trackedWrist(int side, const glm::vec3& fallback, glm::vec3& out)
 [[nodiscard]] float ease(float now, float target, float dt)
 {
     const float fade = vr_bodytrack_fade.value;
-    float w = fade > 0.f ? now + (target - now) * (1.f - za::exp(-dt / fade)) : target;
+    float w = fade > 0.f ? geom::approachExp(now, target, dt, fade) : target;
     if(target <= 0.f && w < 1e-3f)
     {
         w = 0.f;
@@ -637,7 +620,7 @@ Trunk trunk()
     const glm::vec3 h{s.x, s.y, 0.f};
     t.dir = glm::length(h) > 1e-4f ? glm::normalize(h) : glm::vec3{0.f};
     t.hipsYaw = hipsYaw();
-    t.twist = wrapYaw(chestYaw() - t.hipsYaw);
+    t.twist = geom::wrap180(chestYaw() - t.hipsYaw);
     return t;
 }
 
@@ -647,7 +630,7 @@ float bodyYaw(float estimated)
     {
         return estimated;
     }
-    return estimated + st.torso * wrapYaw(hipsYaw() - estimated);
+    return estimated + st.torso * geom::wrap180(hipsYaw() - estimated);
 }
 
 float leanSure(float estimated, const glm::vec2& offMetres)
@@ -663,8 +646,8 @@ float leanSure(float estimated, const glm::vec2& offMetres)
     const glm::vec2 sh{s.x, s.y};
     const float offLen = glm::length(offMetres);
     const float went = offLen > 1e-3f ? glm::dot(sh, offMetres / offLen) / offLen : 0.f;
-    const float offWeight = smooth01(0.01f, 0.03f, offLen);
-    const float tracked = glm::mix(smooth01(0.03f, 0.1f, glm::length(sh)), smooth01(0.15f, 0.5f, went), offWeight);
+    const float offWeight = geom::smoothstep(0.01f, 0.03f, offLen);
+    const float tracked = glm::mix(geom::smoothstep(0.03f, 0.1f, glm::length(sh)), geom::smoothstep(0.15f, 0.5f, went), offWeight);
     return estimated + (tracked - estimated) * st.torso;
 }
 
@@ -684,7 +667,7 @@ void swivelElbow(int side, const glm::vec3& shoulder, const glm::vec3& wristPos,
     const glm::vec3 want = across(tOut, axis);
     const glm::vec3 now = across(elbow - shoulder, axis);
     // A straight tracked arm says nothing of its swivel: none taken (2 to 6 cm off the line, eased in).
-    const float sure = smooth01(0.02f, 0.06f, glm::length(tOut) / za::max(st.m2u, 1e-3f));
+    const float sure = geom::smoothstep(0.02f, 0.06f, glm::length(tOut) / za::max(st.m2u, 1e-3f));
     if(sure <= 0.f || glm::length(want) < 1e-4f || glm::length(now) < 1e-4f)
     {
         return;
@@ -835,7 +818,7 @@ void posed(const Posed& p)
     s.hold += p.leanHold;
     if(valid(ArmUpperL) && valid(ArmUpperR))
     {
-        const double twist = za::fabs(wrapYaw(yawOfLine(p.shoulder[0] - p.shoulder[1]) - chestYaw()));
+        const double twist = za::fabs(geom::wrap180(yawOfLine(p.shoulder[0] - p.shoulder[1]) - chestYaw()));
         s.twist += twist;
         s.twistMax = za::max(s.twistMax, twist);
     }

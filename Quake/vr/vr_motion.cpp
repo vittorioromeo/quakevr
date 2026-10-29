@@ -40,6 +40,7 @@
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -380,11 +381,6 @@ constexpr const char* wxyz[3] = {"wx", "wy", "wz"};
 constexpr const char* gxyz[3] = {"gx", "gy", "gz"};
 constexpr const char* avxyz[3] = {"avx", "avy", "avz"};
 
-[[nodiscard]] float wrapYaw(float y)
-{
-    return za::remainder(y, 360.f);
-}
-
 [[nodiscard]] za::String eventField(za::String s)
 {
     for(char& c : s)
@@ -437,7 +433,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 
     // The player: world, its own frame's, and relative to the monster.
     s.vec("org_w_", true, r.origin, 3, xyz);
-    s.num("yaw", wrapYaw(r.headAngles.y), 3);
+    s.num("yaw", geom::wrap180(r.headAngles.y), 3);
     s.num("play_yaw", r.playYaw, 3);
     const bool svPlayer = sv && sv->player;
     const glm::vec3 pvel = svPlayer ? dir(sv->velocity) : glm::vec3{0.f};
@@ -453,18 +449,18 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         s.empty("sv_onground");
     }
     s.pos("lean", true, dir(r.lean), u2m);
-    s.num("body_yaw", wrapYaw(r.bodyYaw - yaw0), 3);
+    s.num("body_yaw", geom::wrap180(r.bodyYaw - yaw0), 3);
     s.num("crouch", r.crouch, 4);
     s.num("view_pitch", r.headAngles.x, 3);
-    s.num("view_yaw", wrapYaw(r.headAngles.y - yaw0), 3);
+    s.num("view_yaw", geom::wrap180(r.headAngles.y - yaw0), 3);
     s.num("view_roll", r.headAngles.z, 3);
     s.num("aim_pitch", r.aim.x, 3);
-    s.num("aim_yaw", wrapYaw(r.aim.y - yaw0), 3);
+    s.num("aim_yaw", geom::wrap180(r.aim.y - yaw0), 3);
     s.num("aim_roll", r.aim.z, 3);
     s.pos("org_d", mon, df(r.origin), u2m);
     if(mon)
     {
-        s.num("view_yaw_d", wrapYaw(r.headAngles.y - sv->monAngles.y), 3);
+        s.num("view_yaw_d", geom::wrap180(r.headAngles.y - sv->monAngles.y), 3);
     }
     else
     {
@@ -487,11 +483,11 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         s.vec(p + "pos_w_", true, hr.pos, 3, xyz);
         s.pos(p + "pos_d", mon, df(hr.pos), u2m);
         s.num(name("pitch").cStr(), hr.rot.x, 3);
-        s.num(name("yaw").cStr(), wrapYaw(hr.rot.y - yaw0), 3);
+        s.num(name("yaw").cStr(), geom::wrap180(hr.rot.y - yaw0), 3);
         s.num(name("roll").cStr(), hr.rot.z, 3);
         if(mon)
         {
-            s.num(name("yaw_d").cStr(), wrapYaw(hr.rot.y - sv->monAngles.y), 3);
+            s.num(name("yaw_d").cStr(), geom::wrap180(hr.rot.y - sv->monAngles.y), 3);
         }
         else
         {
@@ -618,9 +614,9 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     if(mon)
     {
         s.num("mon_pitch", sv->monAngles.x, 3);
-        s.num("mon_yaw_w", wrapYaw(sv->monAngles.y), 3);
+        s.num("mon_yaw_w", geom::wrap180(sv->monAngles.y), 3);
         s.num("mon_roll", sv->monAngles.z, 3);
-        s.num("mon_yaw", wrapYaw(sv->monAngles.y - yaw0), 3);
+        s.num("mon_yaw", geom::wrap180(sv->monAngles.y - yaw0), 3);
     }
     else
     {

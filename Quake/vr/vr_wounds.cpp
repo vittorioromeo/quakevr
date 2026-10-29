@@ -18,6 +18,7 @@
 #include "vr_handrig.hpp"
 #include "vr_progs.hpp"
 #include "vr_water.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Remove.hpp"
@@ -1124,13 +1125,7 @@ PlayerCapsules playerCapsules(entity_t* const own[3])
     return out;
 }
 
-[[nodiscard]] glm::vec3 closestOnSegment(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b)
-{
-    const glm::vec3 ab = b - a;
-    const float l2 = glm::dot(ab, ab);
-    const float t = l2 > 1e-6f ? za::clamp(glm::dot(p - a, ab) / l2, 0.f, 1.f) : 0.f;
-    return a + ab * t;
-}
+using geom::closestOnSegment;
 
 // The first capsule the line through `org` going `dir` goes into (48 units either side): where, and its normal there.
 bool strikeCapsules(za::Span<const Capsule> caps, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)

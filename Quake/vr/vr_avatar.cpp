@@ -43,6 +43,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <string.h>
+#include "vr_geom.hpp"
 
 namespace qvr::avatar
 {
@@ -115,11 +116,7 @@ constexpr glm::vec3 UP{0.f, 0.f, 1.f};
 constexpr glm::vec3 FWD{1.f, 0.f, 0.f};
 constexpr glm::vec3 BACK{-1.f, 0.f, 0.f};
 
-[[nodiscard]] glm::vec3 safeNormalize(const glm::vec3& v, const glm::vec3& fallback = UP)
-{
-    const float len = glm::length(v);
-    return len > 1e-5f ? v / len : fallback;
-}
+using geom::safeNormalize;
 
 // Columns: x along `dir`, z towards `hint`, y = z x x (make_vrbody.py's frame()).
 [[nodiscard]] glm::mat3 basis(const glm::vec3& dir, const glm::vec3& hint)
@@ -1393,10 +1390,7 @@ constexpr float STEP_LIFT = 0.06f;    // metres
 constexpr float STEP_DISTANCE = 0.25f; // metres the body may move from the feet before they step
 
 // Degrees from `from` to `to`, -180 .. 180.
-[[nodiscard]] float yawDelta(float to, float from)
-{
-    return za::remainder(to - from, 360.f);
-}
+using geom::yawDelta;
 
 [[nodiscard]] glm::vec3 yawForward(float yaw)
 {

@@ -23,6 +23,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 
 namespace qvr::bodyblood
@@ -103,12 +104,6 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
     return lo + (hi - lo) * rng.getF(0.f, 1.f); // (lo > hi too)
 }
 
-[[nodiscard]] glm::vec3 safeNormalize(const glm::vec3& v, const glm::vec3& fallback)
-{
-    const float len = glm::length(v);
-    return len > 1e-4f ? v / len : fallback;
-}
-
 // A point on the limb's axis, the direction along it, and the limb's radius there.
 bool axisPoint(const Limb& l, Segment segment, float along, glm::vec3& centre, glm::vec3& axis, float& radius)
 {
@@ -119,7 +114,7 @@ bool axisPoint(const Limb& l, Segment segment, float along, glm::vec3& centre, g
     const glm::vec3 a = segment == Forearm ? l.elbow : l.wrist;
     const glm::vec3 b = segment == Forearm ? l.armWrist : l.knuckles;
     centre = glm::mix(a, b, along);
-    axis = safeNormalize(b - a, glm::vec3{0.f, 0.f, -1.f});
+    axis = geom::safeNormalize(b - a, glm::vec3{0.f, 0.f, -1.f}, 1e-4f);
     radius = (segment == Forearm ? glm::mix(elbowRadius, wristRadius, along) : handRadius) * l.m2w;
     return true;
 }
@@ -153,7 +148,7 @@ bool pickSpot(const Limb& l, Segment& segment, float& along)
 
     const glm::vec3 top = l.forearm ? l.elbow : l.wrist;
     const glm::vec3 bottom = l.hand ? l.knuckles : l.armWrist;
-    const float slope = safeNormalize(bottom - top, glm::vec3{0.f}).z; // < 0: the fingers are lower
+    const float slope = geom::safeNormalize(bottom - top, glm::vec3{0.f}, 1e-4f).z; // < 0: the fingers are lower
     const float steep = za::clamp((za::fabs(slope) - 0.35f) / 0.5f, 0.f, 1.f);
     if(rnd(0.f, 1.f) < steep)
     {
@@ -411,7 +406,7 @@ void update(const hands::State& s, const avatar::HandPose* const drawnHands[2], 
             avatar::ForearmFrame fa;
             const float along = avatar::forearmFrame(hand, 0.f, fa) ? fa.length // (as solved: calibrated arms their own)
                                                                     : forearmLength * m2w * za::max(0.5f, vr_body_arm_length.value);
-            l.elbow = wrist - safeNormalize(direction, glm::vec3{0.f, 0.f, 1.f}) * along;
+            l.elbow = wrist - geom::safeNormalize(direction, glm::vec3{0.f, 0.f, 1.f}, 1e-4f) * along;
         }
         if(const avatar::HandPose* hp = drawnHands[hand])
         {

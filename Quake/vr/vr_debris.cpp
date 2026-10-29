@@ -35,6 +35,7 @@
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <ctype.h>
 #include <string.h>
@@ -399,10 +400,7 @@ mem::Cache<KeptPlan> kept{"debris plan", mem::GameDirChange};
     return static_cast<unsigned>(layout ^ (layout >> 32));
 }
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 } // namespace
 

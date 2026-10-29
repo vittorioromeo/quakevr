@@ -12,6 +12,7 @@
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_flatplay.hpp"
+#include <glm/gtc/type_ptr.hpp>
 
 namespace view_detail
 {
@@ -4414,7 +4415,7 @@ bool weaponFrame(const hands::State& s, int hand, WeaponFrame& out)
     {
         float m[16];
         render::entityMatrix(he.ent, he.mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, m); // the rig as drawn
-        out.fist = glm::vec3{toMat4(m) * glm::vec4{cp, 1.f}};
+        out.fist = glm::vec3{glm::make_mat4(m) * glm::vec4{cp, 1.f}};
     }
     else
     {
@@ -4893,7 +4894,7 @@ static selfcollide::Drawn selfCollideDrawn(const hands::State& s)
             const view::ViewEntity& he = entities.hand[hand][FingerBase];
             float mm[16];
             render::entityMatrix(he.ent, he.mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, mm); // the rig as drawn
-            const glm::mat4 m = toMat4(mm);
+            const glm::mat4 m = glm::make_mat4(mm);
             const float unit = glm::length(glm::vec3{m[0]});
             for(const glm::vec4& sp : rig)
             {

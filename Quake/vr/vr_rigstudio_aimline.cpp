@@ -26,6 +26,7 @@
 #include "vr_engine.hpp"
 #include "vr_render.hpp"
 #include "vr_view.hpp"
+#include "vr_geom.hpp"
 
 #include "thirdparty/imgui/imgui.h"
 
@@ -52,7 +53,7 @@ using namespace qvr::rigstudio::detail;
 namespace
 {
 
-constexpr float deg = 3.14159265f / 180.f;
+using geom::deg;
 constexpr float alignDone = 0.05f;     // degrees: every barrel this near its target: kept
 constexpr int alignMaxSteps = 16;      // steps before it gives up (keeps the best)
 constexpr int alignSettleMax = 150;    // frames a step waits for the drawn weapon to settle (then reads it anyway)
@@ -88,11 +89,6 @@ void textBox(ImDrawList* dl, float x, float y, const glm::vec4& c, const char* t
 [[nodiscard]] float angleBetween(const glm::vec3& a, const glm::vec3& b)
 {
     return za::atan2(glm::length(glm::cross(a, b)), glm::dot(a, b)) / deg;
-}
-
-[[nodiscard]] float wrap180(float a)
-{
-    return a - 360.f * za::floor((a + 180.f) / 360.f);
 }
 
 // A key's turn (a rotation vector: its axis, its length in degrees) and back.
@@ -266,7 +262,7 @@ bool readAimLine(int hand, AimLineReading& r)
     }
     r.toTarget = (st.aim.at - r.muzzle) / r.dist;
     r.total = angleBetween(r.barrel, r.toTarget);
-    r.yaw = wrap180((za::atan2(r.barrel.y, r.barrel.x) - za::atan2(r.toTarget.y, r.toTarget.x)) / deg);
+    r.yaw = geom::wrap180((za::atan2(r.barrel.y, r.barrel.x) - za::atan2(r.toTarget.y, r.toTarget.x)) / deg);
     r.pitch = (za::asin(za::clamp(r.barrel.z, -1.f, 1.f)) - za::asin(za::clamp(r.toTarget.z, -1.f, 1.f))) / deg;
     // The game's shot (QC VR_AG_SetHand): converging, from the muzzle to its target; else along the drawn gun's line
     // (vr_agrunt_shot_drawn) or the hidden gun's (its entity's angles, the server's)

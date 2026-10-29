@@ -45,6 +45,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -1927,7 +1928,7 @@ void zoneCapsule(const glm::vec3& a, const glm::vec3& b, float radius, const glm
             prev = pt;
         }
     };
-    constexpr float pi = 3.14159265f;
+    using geom::pi;
     for(const glm::vec3& c : {a, 0.5f * (a + b), b})
     {
         arc(c, u, v, 0.f, 2.f * pi);

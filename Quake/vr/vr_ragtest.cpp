@@ -12,6 +12,7 @@
 #include "vr_cvars.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_progs.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
@@ -108,10 +109,7 @@ struct CvarOverride
     CvarOverride& operator=(const CvarOverride&) = delete;
 };
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return glm::vec3{v[0], v[1], v[2]};
-}
+using geom::vec;
 
 [[nodiscard]] const char* nameOf(const Action& a)
 {
@@ -123,10 +121,7 @@ struct CvarOverride
     return PR_GetString(EDICT_NUM(num)->v.classname);
 }
 
-[[nodiscard]] float yawOf(const glm::vec3& dir)
-{
-    return glm::degrees(za::atan2(dir.y, dir.x));
-}
+using geom::yawOf;
 
 // QC function `name` run now, self the first player, its first parameter an entity (`ent`, null: world) or a float.
 // False: no such function in the progs.

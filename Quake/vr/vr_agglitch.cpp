@@ -19,6 +19,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <string.h>
 
@@ -27,7 +28,7 @@ using namespace qvr;
 namespace
 {
 
-constexpr float pi = 3.14159265f;
+using geom::pi;
 constexpr float refFrame = 1.f / 90.f; // the rates and jumps are given per frame at 90 Hz
 
 enum Metric : int

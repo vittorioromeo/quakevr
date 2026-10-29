@@ -2,6 +2,7 @@
 
 #include "vr_foegrab_internal.hpp"
 #include "vr_physics.hpp"
+#include "vr_geom.hpp"
 
 namespace foegrab::detail
 {
@@ -93,10 +94,7 @@ struct FoeGrabScratch
 mem::Scratch<FoeGrabScratch> scratch{"foegrab"};
 } // namespace
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return glm::vec3{v[0], v[1], v[2]};
-}
+using geom::vec;
 
 // Where `player` faces, level (his yaw).
 [[nodiscard]] glm::vec3 forwardFlat(edict_t* player)

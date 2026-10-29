@@ -31,6 +31,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <glm/gtc/quaternion.hpp>
 
@@ -538,19 +539,6 @@ int subjectPoses(const Note* n, int* out)
     return s < 1e-5f ? glm::vec3{0.f} : glm::vec3{q.x, q.y, q.z} / s * (a * (180.f / 3.14159265f));
 }
 
-[[nodiscard]] float wrap180(float d)
-{
-    while(d > 180.f)
-    {
-        d -= 360.f;
-    }
-    while(d < -180.f)
-    {
-        d += 360.f;
-    }
-    return d;
-}
-
 // The chest's box: round its shoulders' middle, turned with it (model space)
 [[nodiscard]] Rigid chestFrame(const Note& n)
 {
@@ -943,7 +931,7 @@ void poseDragLive(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
             const glm::vec3 now = chestTurnNow(g, n, c);
             for(int i = 0; i < 3; i++)
             {
-                d.v[agpose::Torso][i] = wrap180(now[i] - g.torso0[i]) * sc;
+                d.v[agpose::Torso][i] = geom::wrap180(now[i] - g.torso0[i]) * sc;
             }
             break;
         }
@@ -1050,7 +1038,7 @@ void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
             for(int i = 0; i < 3; i++)
             {
                 const float most = i == 0 ? 70.f : 50.f;
-                const float ask = t[i] + wrap180(now[i] - g.torso0[i]);
+                const float ask = t[i] + geom::wrap180(now[i] - g.torso0[i]);
                 t[i] = za::clamp(ask, -most, most);
                 g.torsoClamped = g.torsoClamped || t[i] != ask;
             }
@@ -1075,7 +1063,7 @@ void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
         if(g.part == PPelvis)
         {
             const glm::vec3 t0 = torsoOf(g.part0.rot), t1 = torsoOf(partNow.rot);
-            glm::vec3 dt{wrap180(t1.x - t0.x), wrap180(t1.y - t0.y), wrap180(t1.z - t0.z)};
+            glm::vec3 dt{geom::wrap180(t1.x - t0.x), geom::wrap180(t1.y - t0.y), geom::wrap180(t1.z - t0.z)};
             if(g.legMirror)
             {
                 dt.x = -dt.x;

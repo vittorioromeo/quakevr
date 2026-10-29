@@ -12,6 +12,7 @@
 #include "vr_rig2.hpp"
 #include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_geom.hpp"
 
 #include "thirdparty/imgui/imgui.h"
 
@@ -40,7 +41,7 @@ void romTestTick(rig2::Rig& rig); // (the test's frame: below)
 namespace
 {
 
-constexpr float pi = 3.14159265f;
+using geom::pi;
 constexpr float sweepPhase = 1.6f; // seconds a sweep's leg takes (min to max)
 
 [[nodiscard]] ImU32 col(const glm::vec4& c)

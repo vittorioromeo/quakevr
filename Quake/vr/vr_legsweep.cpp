@@ -46,6 +46,7 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -171,10 +172,7 @@ State state;
     return vr_legsweep_debug.value != 0.f;
 }
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return glm::vec3{v[0], v[1], v[2]};
-}
+using geom::vec;
 
 // The sharp part of a weapon (the QC melee layout's edge: vr_melee.qc VR_Melee_PartAt; the hot blades' too,
 // vr_hotblade.cpp bladeShare): from this share of the grip-to-tip way; -1 for none (a gun, the crowbar's bar, Mjolnir).

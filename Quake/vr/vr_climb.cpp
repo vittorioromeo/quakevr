@@ -168,6 +168,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 
 using namespace qvr;
@@ -214,10 +215,7 @@ constexpr float minFooting = 3.f;      // units of a ledge's top (from the lip i
 constexpr double mantleRetry = 0.15;   // seconds a search for the mantle that found no room holds (the body and hold still),
 constexpr float mantleRetryMove = 1.f; // unless the body moved this far
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 void setVec(float* out, const glm::vec3& v)
 {

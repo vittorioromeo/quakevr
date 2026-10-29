@@ -17,6 +17,7 @@
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
+#include "vr_geom.hpp"
 
 #include <initializer_list>
 #include <limits.h>
@@ -79,11 +80,7 @@ struct Floats
     float operator[](size_t i) const { return p[i]; }
 };
 
-float smooth01(float x)
-{
-    x = x < 0.f ? 0.f : (x > 1.f ? 1.f : x);
-    return x * x * (3.f - 2.f * x);
-}
+using qvr::geom::smooth01;
 
 float clampf(float x, float lo, float hi)
 {

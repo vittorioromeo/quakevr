@@ -14,6 +14,7 @@
 #include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -30,10 +31,7 @@ namespace
 {
 namespace physics = qvr::ragtool::physics;
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return glm::vec3{v[0], v[1], v[2]};
-}
+using geom::vec;
 
 // ---- The behaviours ----
 

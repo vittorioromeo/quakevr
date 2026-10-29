@@ -281,11 +281,6 @@ void bump()
 }
 
 
-[[nodiscard]] float angleBetween(const glm::vec3& a, const glm::vec3& b)
-{
-    return still::degreesBetween(a, b);
-}
-
 // Columns: forward, left, up, from Quake angles.
 [[nodiscard]] glm::mat3 axesOf(const glm::vec3& angles)
 {
@@ -2223,25 +2218,25 @@ bool begin(za::Vector<int> todo, int returnPage)
                 {
                     return "look ahead";
                 }
-                if(angleBetween(d, {0.f, 0.f, -1.f}) > 30.f || len < 0.7f * reach)
+                if(still::degreesBetween(d, {0.f, 0.f, -1.f}) > 30.f || len < 0.7f * reach)
                 {
                     return va("%s arm: straight down at your side", sides[side]);
                 }
                 break;
             case TPose:
-                if(angleBetween(d, out) > 30.f || len < 0.6f * reach)
+                if(still::degreesBetween(d, out) > 30.f || len < 0.6f * reach)
                 {
                     return va("%s arm: straight out to the side", sides[side]);
                 }
                 break;
             case Forward:
-                if(angleBetween(d, {1.f, 0.f, 0.f}) > 30.f || len < 0.6f * reach)
+                if(still::degreesBetween(d, {1.f, 0.f, 0.f}) > 30.f || len < 0.6f * reach)
                 {
                     return va("%s arm: straight out in front", sides[side]);
                 }
                 break;
             case Up:
-                if(angleBetween(d, {0.f, 0.f, 1.f}) > 35.f || len < 0.6f * reach)
+                if(still::degreesBetween(d, {0.f, 0.f, 1.f}) > 35.f || len < 0.6f * reach)
                 {
                     return va("%s arm: straight up", sides[side]);
                 }

@@ -17,6 +17,7 @@
 #include "vr_rigseq.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_view.hpp"
+#include "vr_geom.hpp"
 
 #include "thirdparty/imgui/imgui.h"
 
@@ -61,7 +62,7 @@ Studio st;
 namespace
 {
 
-constexpr float deg = 3.14159265f / 180.f;
+using geom::deg;
 constexpr float stageAhead = 160.f; // units: the subject this far ahead of the start
 
 // The model's frame groups (made with its geometry).
