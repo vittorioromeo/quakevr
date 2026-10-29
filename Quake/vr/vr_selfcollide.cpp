@@ -1,5 +1,6 @@
 // vr_selfcollide.cpp -- see vr_selfcollide.hpp.
 
+#include "vr_stats.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_avatar.hpp"
@@ -240,7 +241,7 @@ float percentile(za::Vector<float>& v, float q)
     {
         return 0.f;
     }
-    const za::SizeT i = za::min(v.size() - 1, static_cast<za::SizeT>(q * static_cast<float>(v.size() - 1) + 0.5f));
+    const za::SizeT i = vrstats::rankIndex(v.size(), q, vrstats::Rank::Nearest);
     za::nthElement(v.begin(), v.begin() + i, v.end()); // (v[i] as a full sort would have it)
     return v[i];
 }

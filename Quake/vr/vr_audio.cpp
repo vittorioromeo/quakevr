@@ -30,6 +30,7 @@
 //   it; the direct paths 30 times a second and the reverb every vr_snd_reverb_interval, each a pool task, their
 //   results taken under a mutex.
 
+#include "vr_stats.hpp"
 #include "vr_random.hpp"
 #include "vr_audio.hpp"
 #include "vr_alloccount.hpp"
@@ -2139,7 +2140,7 @@ void benchFinish()
         }
         za::quickSort(ms.begin(), ms.end());
         const int n = static_cast<int>(ms.size());
-        const auto at = [&](double q) { return bench::quantile(ms.data(), n, q); };
+        const auto at = [&](double q) { return vrstats::quantileSorted(ms.data(), ms.size(), q, vrstats::Rank::Nearest); };
         Con_Printf("  sim %s (a worker): %d runs, median %.3f ms, p95 %.3f, max %.3f\n", name, n, at(0.5), at(0.95),
             ms[n - 1]);
         if(csv)

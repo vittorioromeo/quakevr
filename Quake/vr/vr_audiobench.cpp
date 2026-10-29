@@ -1,5 +1,6 @@
 // vr_audiobench.cpp -- the spatial audio's benchmark recorder; see vr_audiobench.hpp.
 
+#include "vr_stats.hpp"
 #include "vr_audiobench.hpp"
 #include "vr_engine.hpp"
 
@@ -149,7 +150,7 @@ Stats stats(int stage, int rate)
     }
     za::quickSort(sorted.begin(), sorted.end());
     const int n = static_cast<int>(sorted.size());
-    const auto at = [&](double q) { return static_cast<double>(quantile(sorted.data(), n, q)); };
+    const auto at = [&](double q) { return static_cast<double>(vrstats::quantileSorted(sorted.data(), sorted.size(), q, vrstats::Rank::Nearest)); };
     st.n = n;
     st.median = at(0.5);
     st.p95 = at(0.95);
