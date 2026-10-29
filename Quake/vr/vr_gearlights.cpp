@@ -103,10 +103,7 @@ mem::Scratch<DrawScratch> scratch{"gear lights"};
 
 void buzz(int hand, float amplitude)
 {
-    if(Backend* const be = backend(); be && (hand == HAND_OFF || hand == HAND_MAIN))
-    {
-        be->haptic(hand, 0.025f, 200.f, amplitude);
-    }
+    haptics::pulse(hand, 0.025f, amplitude, 200.f);
 }
 
 // A press of the button (the fingertip's arrival, or vr_gadget_button_press). While Doom is on the gadget one press

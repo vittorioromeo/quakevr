@@ -1,6 +1,7 @@
 // vr_trace.cpp -- see vr_trace.hpp.
 
 #include "vr_client.hpp"
+#include "vr_progs.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_trace.hpp"
 #include "vr_engine.hpp"
@@ -15,7 +16,7 @@ namespace qvr::worldtrace
 za::Optional<trace_t> move(
     const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type, int pass)
 {
-    if(!sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
+    if(!progs::localPlayer())
     {
         return za::nullOpt;
     }

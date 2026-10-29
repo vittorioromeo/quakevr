@@ -90,14 +90,6 @@ za::String baseName;                 // notes/<map>_<date>_<time>, without the e
     return nullptr;
 }
 
-void haptic(float seconds, float amplitude)
-{
-    if(Backend* be = backend(); be && !vr_disablehaptics.value)
-    {
-        be->haptic(HAND_OFF, seconds, 120.f, amplitude);
-    }
-}
-
 void writeLE(FILE* f, za::U32 v, int bytes)
 {
     for(int i = 0; i < bytes; i++)
@@ -327,7 +319,7 @@ void start(bool fromButton)
     byButton = fromButton;
     startTime = realtime;
     Cbuf_InsertText("screenshot\n"); // (next: a test script's commands wait behind it; its PNG saved on the pool)
-    haptic(0.08f, 0.6f);
+    haptics::pulse(HAND_OFF, 0.08f, 0.6f, 120.f);
     Con_Printf("VR notes: recording from %s\n", name ? name : "the default microphone");
 }
 
@@ -360,14 +352,14 @@ void stop()
     {
         dropContext(baseName);
         Con_Printf("VR notes: too short, dropped\n");
-        haptic(0.03f, 0.3f);
+        haptics::pulse(HAND_OFF, 0.03f, 0.3f, 120.f);
         return;
     }
     // Saved on the pool (a 3-minute note is 5.8 MB): its message when written (pollFiles).
     saveFile(baseName + ".wav", {}, va("VR notes: saved %s.wav (%.1f s)\n", baseName.cStr(), seconds),
         [take = ZA_MOVE(samples), rate = rate](const za::String& part) { return writeWav(part, take, rate); });
     samples = {};
-    haptic(0.05f, 0.5f);
+    haptics::pulse(HAND_OFF, 0.05f, 0.5f, 120.f);
 }
 
 // Whether the off hand is at the mouth: within reach of a point a little below and in front of

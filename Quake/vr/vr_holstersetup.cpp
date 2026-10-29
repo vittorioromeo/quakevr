@@ -191,14 +191,6 @@ void say(const za::String& text)
     Con_Printf("Holster Setup: %s\n", text.cStr());
 }
 
-void haptic(int hand, float seconds, float amplitude)
-{
-    if(Backend* be = backend(); be && !vr_disablehaptics.value && hand >= 0 && hand < HAND_COUNT)
-    {
-        be->haptic(hand, seconds, 160.f, amplitude);
-    }
-}
-
 [[nodiscard]] bool isHolster(int zone)
 {
     return zone >= 0 && zone < body::HolsterCount;
@@ -413,18 +405,18 @@ void grab(int hand, int zone)
         e.hands = 1 << hand;
         ses.lastZone = zone;
         rebase(s);
-        haptic(hand, 0.04f, 0.6f);
+        haptics::pulse(hand, 0.04f, 0.6f);
         return;
     }
     if(e.zone != zone || (e.hands & (1 << hand)))
     {
-        haptic(hand, 0.02f, 0.15f); // (one holster at a time)
+        haptics::pulse(hand, 0.02f, 0.15f); // (one holster at a time)
         return;
     }
     e.hands |= 1 << hand; // both hands: resize it (and move it with their middle)
     rebase(s);
     e.live = true;
-    haptic(hand, 0.04f, 0.6f);
+    haptics::pulse(hand, 0.04f, 0.6f);
 }
 
 void release(int hand)
@@ -435,7 +427,7 @@ void release(int hand)
         return;
     }
     e.hands &= ~(1 << hand);
-    haptic(hand, 0.02f, 0.3f);
+    haptics::pulse(hand, 0.02f, 0.3f);
     if(e.hands == 0)
     {
         endEdit();
@@ -497,7 +489,7 @@ void editFrame(const hands::State& s)
             {
                 if(e.hands & (1 << h))
                 {
-                    haptic(h, 0.03f, 0.5f);
+                    haptics::pulse(h, 0.03f, 0.5f);
                 }
             }
         }
@@ -520,7 +512,7 @@ void editFrame(const hands::State& s)
             {
                 if(e.hands & (1 << h))
                 {
-                    haptic(h, 0.01f, 0.12f);
+                    haptics::pulse(h, 0.01f, 0.12f);
                 }
             }
         }
@@ -698,7 +690,7 @@ void hoverFrame(const hands::State& s)
         const int button = buttonAtHand(s.pos[h]);
         if((best != ses.hover[h] && best >= 0) || (button != ses.hoverButton[h] && button >= 0))
         {
-            haptic(h, 0.015f, 0.25f);
+            haptics::pulse(h, 0.015f, 0.25f);
         }
         ses.hover[h] = best;
         ses.hoverButton[h] = button;
@@ -1067,7 +1059,7 @@ bool button(int hand, posing::Button b, bool down)
         case posing::Button::Trigger:
             if(ses.hoverButton[hand] >= 0)
             {
-                haptic(hand, 0.03f, 0.5f);
+                haptics::pulse(hand, 0.03f, 0.5f);
                 press(ses.hoverButton[hand]);
             }
             break;

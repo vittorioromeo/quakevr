@@ -66,9 +66,9 @@ State state;
 
 void buzz(int hand, float amplitude)
 {
-    if(Backend* const be = backend(); be && !vr_disablehaptics.value && amplitude > 0.f)
+    if(amplitude > 0.f)
     {
-        be->haptic(hand, 0.02f, 220.f, za::min(1.f, amplitude));
+        haptics::pulse(hand, 0.02f, za::min(1.f, amplitude), 220.f);
     }
 }
 

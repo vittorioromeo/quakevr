@@ -159,14 +159,6 @@ struct WalkTest
 };
 inline WalkTest walkTest;
 
-// The server's QuakeC VM for a console command's while (its edicts).
-struct VmScope
-{
-    qcvm_t* old{nullptr};
-    VmScope() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~VmScope() { PR_PopQCVM(old); }
-};
-
 // Client: the drawn hands' pins.
 struct Pin
 {

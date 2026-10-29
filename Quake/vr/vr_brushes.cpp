@@ -4,6 +4,7 @@
 // flat light) and the vr_brush_* commands.
 
 #include "vr_brushes_internal.hpp"
+#include "vr_progs.hpp"
 
 #include "vr_box3d.hpp"
 #include "vr_brushbake.hpp"
@@ -986,7 +987,7 @@ void rebuild(Entry& e, bool empty, bool texturesOnly = false)
 // The entity of brush `e` placed at its model (made if it has none).
 bool placeEntity(Entry& e)
 {
-    const ServerVm vm;
+    const progs::ServerVm vm;
     char name[MAX_QPATH];
     q_snprintf(name, sizeof(name), "%s%d", modelPrefix, e.brush.id);
     int index = -1;
@@ -1408,7 +1409,7 @@ void here_f()
     const double size = Cmd_Argc() > 1 ? za::max(Q_atof(Cmd_Argv(1)), 1.0f) : 64.0;
     const double height = Cmd_Argc() > 2 ? za::max(Q_atof(Cmd_Argv(2)), 1.0f) : size;
     const double distance = Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : size * 0.5 + 48.0;
-    const ServerVm vm;
+    const progs::ServerVm vm;
     edict_t* player = EDICT_NUM(1);
     const double yaw = glm::radians(static_cast<double>(player->v.angles[1]));
     const glm::dvec3 fwd{za::cos(yaw), za::sin(yaw), 0.0};
@@ -1680,7 +1681,7 @@ void spawn_f()
     edict_t* e = box3d::spawnClass(Cmd_Argv(1), glm::vec3{at}, glm::vec3{0.f, yaw, 0.f}, nullptr, nullptr, 0.f);
     if(e)
     {
-        const ServerVm vm;
+        const progs::ServerVm vm;
         registry.lastSpawned = NUM_FOR_EDICT(e);
         Con_Printf("brush: spawned %d %s\n", registry.lastSpawned, Cmd_Argv(1));
         if(Cmd_Argc() > 6 && !q_strcasecmp(Cmd_Argv(6), "drop"))
@@ -1698,7 +1699,7 @@ void ent_f()
     {
         return;
     }
-    const ServerVm vm;
+    const progs::ServerVm vm;
     const int num = !q_strcasecmp(Cmd_Argv(1), "last") ? registry.lastSpawned : Q_atoi(Cmd_Argv(1));
     if(num <= 0 || num >= qcvm->num_edicts)
     {
@@ -2670,7 +2671,7 @@ bool remove(int id)
     registry.entries[static_cast<za::SizeT>(id - 1)].reset();
     if(num > 0 && sv.active)
     {
-        const ServerVm vm;
+        const progs::ServerVm vm;
         edict_t* ed = EDICT_NUM(num);
         if(!ed->free)
         {
@@ -2978,7 +2979,7 @@ void restoreAfterLoad()
         Con_Printf("brush: the saved game's brushes can't be read (%s)\n", error.cStr());
         return;
     }
-    const ServerVm vm;
+    const progs::ServerVm vm;
     registry.undoing = true;
     int made = 0;
     for(const Brush& b : list)
@@ -3391,7 +3392,7 @@ void frame()
     if(registry.sweep && sv.active && sv.state == ss_active)
     {
         registry.sweep = false;
-        const ServerVm vm;
+        const progs::ServerVm vm;
         int strays = 0;
         for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
         {

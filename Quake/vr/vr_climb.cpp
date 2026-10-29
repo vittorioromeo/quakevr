@@ -2968,7 +2968,7 @@ void probe(edict_t* ent, float yaw)
 // tests. Takes nothing.
 void try_f()
 {
-    if(Cmd_Argc() < 4 || !sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
+    if(Cmd_Argc() < 4 || !progs::localPlayer())
     {
         Con_Printf("vr_climb_try <x> <y> <z> [off|main] [<vx> <vy> <vz>]\n");
         return;
@@ -3014,7 +3014,7 @@ void try_f()
 
 void probe_f()
 {
-    if(!sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
+    if(!progs::localPlayer())
     {
         return;
     }

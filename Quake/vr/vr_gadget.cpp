@@ -2298,10 +2298,7 @@ void setPose(const Pose& pose)
     if(buzzAgain >= 0.0 && realtime >= buzzAgain)
     {
         buzzAgain = -1.0;
-        if(Backend* be = backend(); be && !vr_disablehaptics.value)
-        {
-            be->haptic(gadgetHand(), 0.05f, 160.f, 0.4f);
-        }
+        haptics::pulse(gadgetHand(), 0.05f, 0.4f, 160.f);
     }
 }
 

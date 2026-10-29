@@ -1206,14 +1206,6 @@ void countTakes()
     return n;
 }
 
-void haptic(int hand, float seconds, float amplitude)
-{
-    if(Backend* be = backend(); be && !vr_disablehaptics.value)
-    {
-        be->haptic(hand, seconds, 160.f, amplitude);
-    }
-}
-
 void startTake(const za::String& label)
 {
     if(rec != Rec::Off)
@@ -1243,7 +1235,7 @@ void startTake(const za::String& label)
     }
     preroll.clear();
     rec = Rec::Recording;
-    haptic(recordHand(), 0.06f, 0.8f);
+    haptics::pulse(recordHand(), 0.06f, 0.8f);
     S_LocalSound("misc/talk.wav");
     Con_Printf("Motion recorder: recording %s #%d\n", takeLabel.cStr(), takeNumber);
 }
@@ -1329,7 +1321,7 @@ void finishTake()
         Con_Printf("Motion recorder: %s #%d too short (%.2f s), not kept\n", takeLabel.cStr(), takeNumber, held);
         feedbackText = va("NOT KEPT: too short (%.2f s)", held);
         feedbackUntil = realtime + 2.0;
-        haptic(recordHand(), 0.25f, 0.4f);
+        haptics::pulse(recordHand(), 0.25f, 0.4f);
         S_LocalSound("doors/basetry.wav");
         return;
     }
@@ -1395,7 +1387,7 @@ void pollSaves(bool wait)
             unsaved.pushBack({p.info, *p.rows});
             feedbackText = "NOT SAVED! (see the console)";
             feedbackUntil = realtime + 6.0;
-            haptic(recordHand(), 0.4f, 1.f);
+            haptics::pulse(recordHand(), 0.4f, 1.f);
             S_LocalSound("doors/basetry.wav");
             continue;
         }
@@ -1420,7 +1412,7 @@ void pollSaves(bool wait)
             static_cast<int>(p.rows->size()), events, category.cStr(), count, count == 1 ? "" : "s");
         feedbackText = va("SAVED %s #%d (%s: %d)", label.cStr(), p.info.take, category.cStr(), count);
         feedbackUntil = realtime + 2.5;
-        haptic(recordHand(), 0.12f, 0.6f);
+        haptics::pulse(recordHand(), 0.12f, 0.6f);
         S_LocalSound("misc/menu2.wav");
     }
 }
@@ -1635,7 +1627,7 @@ void sampleEntities(edict_t* player)
     if(replayAgProgs != qcvm->progs)
     {
         replayAgProgs = qcvm->progs;
-        replayAgFieldWid = ED_FindFieldOffset("vr_ag_wid");
+        replayAgFieldWid = progs::fields().vr_ag_wid;
     }
     const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     const auto& f = progs::fields();

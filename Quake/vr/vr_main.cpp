@@ -1432,6 +1432,14 @@ Backend* backend()
     return state ? state->backend.get() : nullptr;
 }
 
+void haptics::pulse(int hand, float seconds, float amplitude, float hz)
+{
+    if(Backend* const be = backend(); be && !vr_disablehaptics.value && hand >= 0 && hand < HAND_COUNT)
+    {
+        be->haptic(hand, seconds, hz, amplitude);
+    }
+}
+
 // The runtime's own menu (SteamVR's dashboard, Virtual Desktop's or Meta's menu: the session VISIBLE, not FOCUSED)
 // pausing a single player game as the game's menu does (vr_xr_unfocused_pause): no physics, no player moves (host.c,
 // sv_user.c: VR_RuntimeMenuPause), the game's time still; the sounds faded (vr_xr_unfocused_volume), the music paused.

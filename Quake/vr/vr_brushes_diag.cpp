@@ -2,6 +2,7 @@
 // Split from vr_brushes.cpp (a pure move); what they share is in vr_brushes_internal.hpp.
 
 #include "vr_brushes_internal.hpp"
+#include "vr_progs.hpp"
 
 #include "vr_box3d.hpp"
 #include "vr_brushbake.hpp"
@@ -53,7 +54,7 @@ void trace_f()
         Con_Printf("usage: vr_brush_trace <x y z> <X Y Z> [size]\n");
         return;
     }
-    const ServerVm vm;
+    const progs::ServerVm vm;
     const float half = Cmd_Argc() > 7 ? Q_atof(Cmd_Argv(7)) * 0.5f : 0.f;
     vec3_t start{static_cast<float>(a.x), static_cast<float>(a.y), static_cast<float>(a.z)};
     vec3_t end{static_cast<float>(c.x), static_cast<float>(c.y), static_cast<float>(c.z)};

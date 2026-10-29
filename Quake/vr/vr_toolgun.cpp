@@ -212,11 +212,11 @@ constexpr int spawnableTotal = static_cast<int>(sizeof(spawnables) / sizeof(spaw
 {
     if(s.adOnly && adBackpack(s.classname)) // (any map, AD's data permitting)
     {
-        return Cvar_VariableValue("vr_ad_mounted") != 0.f && modelFileExists(s.model);
+        return vr_ad_mounted.value != 0.f && modelFileExists(s.model);
     }
     if(s.adOnly && !ad::spawnAvailable(s.model, s.rulesOnly)) { return false; } // AD support
     if(s.needs == 2 && !VR_AD_RulesOn()) { return false; }
-    if(s.needs == 3) { return Cvar_VariableValue("vr_campaign") == 5.f; } // (QC MG3_Campaign)
+    if(s.needs == 3) { return vr_campaign.value == 5.f; } // (QC MG3_Campaign)
     return s.needs == 0 || (modelFileExists(s.model) && (!s.probe || modelFileExists(s.probe)));
 }
 
@@ -423,14 +423,6 @@ struct Readouts
 };
 Readouts readouts;
 
-// The server's VM while the toolgun changes its edicts (from the host frame and the console, as a command does).
-struct ServerVm
-{
-    qcvm_t* old{nullptr};
-    ServerVm() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~ServerVm() { PR_PopQCVM(old); }
-};
-
 [[nodiscard]] Tool currentTool()
 {
     return static_cast<Tool>(za::clamp(static_cast<int>(vr_toolgun_tool.value), 0, static_cast<int>(Tool::Count) - 1));
@@ -535,37 +527,6 @@ struct ArmedGhost
 };
 ArmedGhost armedGhost;
 
-// QC function `fn` of the server's (its VM pushed) called with these parameters; false: none.
-bool callQc(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
-{
-    if(!fn)
-    {
-        return false;
-    }
-    pr_global_struct->time = qcvm->time;
-    pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
-    G_FLOAT(OFS_PARM0) = a;
-    G_FLOAT(OFS_PARM1) = b;
-    G_FLOAT(OFS_PARM2) = c;
-    PR_ExecuteProgram(fn);
-    return true;
-}
-
-[[nodiscard]] float qcFloat(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
-{
-    return callQc(fn, a, b, c) ? G_FLOAT(OFS_RETURN) : 0.f;
-}
-
-void qcText(char* dst, size_t size, func_t fn, float a = 0.f)
-{
-    copyText(dst, size, callQc(fn, a) ? PR_GetString(G_INT(OFS_RETURN)) : "");
-}
-
-[[nodiscard]] glm::vec3 qcVec(func_t fn, float a = 0.f)
-{
-    return callQc(fn, a) ? glm::vec3{G_FLOAT(OFS_RETURN), G_FLOAT(OFS_RETURN + 1), G_FLOAT(OFS_RETURN + 2)} : glm::vec3{0.f};
-}
-
 // The catalogue made again when the map, the progs or AD's data changed (the host frame, a game running).
 void armedRefresh()
 {
@@ -575,12 +536,12 @@ void armedRefresh()
         c.valid = false;
         return;
     }
-    const float ad = Cvar_VariableValue("vr_ad_mounted");
+    const float ad = vr_ad_mounted.value;
     if(c.valid && c.progs == sv.qcvm.progs && c.ad == ad && !strcmp(c.map, sv.name))
     {
         return;
     }
-    const ServerVm vm;
+    const progs::ServerVm vm;
     const func_t count = findFunction("VR_AM_UiCount");
     const func_t kindName = findFunction("VR_AM_UiKindName");
     const func_t kindSpawn = findFunction("VR_AM_UiKindSpawn");
@@ -593,14 +554,14 @@ void armedRefresh()
     c.progs = sv.qcvm.progs;
     c.ad = ad;
     copyText(c.map, sizeof(c.map), sv.name);
-    c.kindCount = za::clamp(static_cast<int>(qcFloat(count)), 0, armedMaxKinds);
+    c.kindCount = za::clamp(static_cast<int>(progs::qcFloat(count)), 0, armedMaxKinds);
     for(int k = 0; k < c.kindCount; k++)
     {
         ArmedKind& r = c.kinds[k];
-        qcText(r.name, sizeof(r.name), kindName, static_cast<float>(k));
-        qcText(r.spawn, sizeof(r.spawn), kindSpawn, static_cast<float>(k));
-        qcText(r.model, sizeof(r.model), kindModel, static_cast<float>(k));
-        r.frame = static_cast<int>(qcFloat(kindFrame, static_cast<float>(k)));
+        progs::qcText(r.name, sizeof(r.name), kindName, static_cast<float>(k));
+        progs::qcText(r.spawn, sizeof(r.spawn), kindSpawn, static_cast<float>(k));
+        progs::qcText(r.model, sizeof(r.model), kindModel, static_cast<float>(k));
+        r.frame = static_cast<int>(progs::qcFloat(kindFrame, static_cast<float>(k)));
     }
     c.weapons.clear();
     for(int code = 1; code < armedCodeTop && c.weapons.size() < c.weapons.capacity(); code++)
@@ -610,14 +571,14 @@ void armedRefresh()
         bool any = false;
         for(int k = 0; k < c.kindCount; k++)
         {
-            w.fits[k] = static_cast<int>(qcFloat(weapon, static_cast<float>(k), static_cast<float>(code)));
+            w.fits[k] = static_cast<int>(progs::qcFloat(weapon, static_cast<float>(k), static_cast<float>(code)));
             any = any || w.fits[k] != 0;
         }
         if(!any)
         {
             continue;
         }
-        qcText(w.name, sizeof(w.name), weaponName, static_cast<float>(code));
+        progs::qcText(w.name, sizeof(w.name), weaponName, static_cast<float>(code));
         // Its place: after the weapons of a lower class (VR_AG_CLASS_*: melee, guns, launchers, streams, bursts).
         const auto classOf = [&](const ArmedWeapon& x) {
             int f = 0;
@@ -701,17 +662,17 @@ void armedGhostRefresh()
     g.kind = sel.kind;
     g.code = sel.value;
     g.code2 = sel.value2;
-    const ServerVm vm;
+    const progs::ServerVm vm;
     const func_t ghost = findFunction("VR_AM_UiGhost");
     const func_t model = findFunction("VR_AM_UiGhostModel");
     const func_t origin = findFunction("VR_AM_UiGhostOrigin");
     const func_t angles = findFunction("VR_AM_UiGhostAngles");
-    g.count = za::clamp(static_cast<int>(qcFloat(ghost, static_cast<float>(sel.kind), sel.value, sel.value2)), 0, 2);
+    g.count = za::clamp(static_cast<int>(progs::qcFloat(ghost, static_cast<float>(sel.kind), sel.value, sel.value2)), 0, 2);
     for(int h = 0; h < g.count; h++)
     {
-        qcText(g.model[h], sizeof(g.model[h]), model, static_cast<float>(h));
-        g.origin[h] = qcVec(origin, static_cast<float>(h));
-        g.angles[h] = qcVec(angles, static_cast<float>(h));
+        progs::qcText(g.model[h], sizeof(g.model[h]), model, static_cast<float>(h));
+        g.origin[h] = progs::qcVec(origin, static_cast<float>(h));
+        g.angles[h] = progs::qcVec(angles, static_cast<float>(h));
     }
 }
 
@@ -954,7 +915,7 @@ void pick(int num)
         sel.lift = 8.f;
         // AD support: an AD melee weapon's kind (QC vr_ad_guns_defs.qc: the sword's weapon flags, bits 8-11) kept;
         // the rest of its flags are the one picked's state (a new one is made, loaded).
-        const int flagsOfs = ED_FindFieldOffset("weaponflags");
+        const int flagsOfs = progs::fields().weaponflags;
         if(flagsOfs >= 0)
         {
             // (the sword, id 13, also keeps QC QVR_WPNFLAG_USE_SECONDARY_AMMO: the death knight's)
@@ -1108,7 +1069,7 @@ void probeLook()
     {
         return;
     }
-    const ServerVm vm;
+    const progs::ServerVm vm;
     const char* model = PR_GetString(e->v.model);
     if(model[0])
     {
@@ -1133,7 +1094,7 @@ void armedArmour(edict_t* e)
     {
         return;
     }
-    const ServerVm vm;
+    const progs::ServerVm vm;
     const func_t fn = qvr::progs::findFunction("VR_AgArmor_Toolgun");
     if(!fn || e->free)
     {
@@ -2027,7 +1988,7 @@ void frame(const hands::State& s)
     const bool jointTool = tg.hand >= 0 && currentTool() == Tool::Joint && key_dest == key_game;
     if(sv.active)
     {
-        const ServerVm jointVm;
+        const progs::ServerVm jointVm;
         box3d::forEachToolJoint([jointTool](const glm::vec3& atA, const glm::vec3& atB, box3d::ToolJoint kind) {
             if(kind == box3d::ToolJoint::Rope || kind == box3d::ToolJoint::Spring)
             {
@@ -2049,7 +2010,7 @@ void frame(const hands::State& s)
         // Put down (or dead, or no game): what the physgun held falls, the tool's holds end.
         if(tg.drag.num && sv.active)
         {
-            const ServerVm vm;
+            const progs::ServerVm vm;
             dragEnd(false);
         }
         tg.drag = {};
@@ -2060,7 +2021,7 @@ void frame(const hands::State& s)
         toolgun::brushtool::reset();
         return;
     }
-    const ServerVm vm;
+    const progs::ServerVm vm;
     const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
     updateAim(s);
     ghostHoldFrame(s, dt);
@@ -2420,16 +2381,7 @@ void setTool(int tool)
     tool = za::clamp(tool, 0, static_cast<int>(Tool::Count) - 1);
     Cvar_SetValueQuick(&vr_toolgun_tool, static_cast<float>(tool));
     Con_Printf("toolgun: tool %s\n", toolNames[tool]);
-    haptic(heldHand(), 0.02f, 0.25f);
-}
-
-void haptic(int hand, float seconds, float amplitude)
-{
-    Backend* be = backend();
-    if(be && hand >= 0 && !vr_disablehaptics.value)
-    {
-        be->haptic(hand, seconds, 200.f, amplitude);
-    }
+    haptics::pulse(heldHand(), 0.02f, 0.25f, 200.f);
 }
 
 const char* screenText()
@@ -2490,13 +2442,6 @@ struct SpawnTest
 };
 SpawnTest spawnTest;
 
-struct SvVmScope
-{
-    qcvm_t* old{nullptr};
-    SvVmScope() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~SvVmScope() { PR_PopQCVM(old); }
-};
-
 // How the client draws edict `num` (the server's VM pushed): "drawn", "modelless" (the server gave it none: a spawner,
 // a hidden thing), or "invisible (...)": the server has a model the client doesn't draw (it never got it, or a brush
 // model loaded after the map: client::lateBrushModel).
@@ -2523,7 +2468,7 @@ void spawnTestCheck()
 {
     int alive = 0, gone = 0, invisible = 0;
     {
-        const SvVmScope vm;
+        const progs::ServerVm vm;
         for(const SpawnTestMade& m : spawnTest.made)
         {
             // (its class as it is now: a spawn function may rename it, weapon_bloody_sg a weapon_shotgun)
@@ -2538,7 +2483,7 @@ void spawnTestCheck()
     }
     for(const SpawnTestMade& m : spawnTest.made)
     {
-        const SvVmScope vm;
+        const progs::ServerVm vm;
         if(!EDICT_NUM(m.num)->free)
         {
             removeTarget(m.num);
@@ -2602,7 +2547,7 @@ void traceFrame()
     {
         return;
     }
-    const SvVmScope vm;
+    const progs::ServerVm vm;
     t.frame++;
     traceLine();
     if(t.num && t.frame >= t.frames)
@@ -2632,7 +2577,7 @@ void spawnTrace_f()
         Con_Printf("spawntrace: %d %s unavailable\n", i, s.label);
         return;
     }
-    const SvVmScope vm;
+    const progs::ServerVm vm;
     if(spawnTrace.num && !EDICT_NUM(spawnTrace.num)->free)
     {
         removeTarget(spawnTrace.num, true);
@@ -2670,7 +2615,7 @@ void spawnTest_f()
     glm::vec3 feet{0.f};
     float yaw = 0.f;
     {
-        const SvVmScope vm;
+        const progs::ServerVm vm;
         const edict_t* player = EDICT_NUM(1);
         feet = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2] + player->v.mins[2]};
         yaw = player->v.angles[1];
@@ -2694,7 +2639,7 @@ void spawnTest_f()
             s.weaponFlags);
         if(e)
         {
-            const SvVmScope vm;
+            const progs::ServerVm vm;
             Con_Printf("spawntest: %d %s \"%s\" %s: spawned %d\n", i, s.section, s.label, s.classname, NUM_FOR_EDICT(e));
             if(spawnTest.made.size() < spawnTest.made.capacity())
             {
@@ -2900,7 +2845,7 @@ void armedArmourTest_f()
     }
     glm::vec3 at{0.f}, angles{0.f};
     {
-        const ServerVm vm;
+        const progs::ServerVm vm;
         const edict_t* player = EDICT_NUM(1);
         const float yaw = glm::radians(player->v.angles[1]);
         at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 128.f, player->v.origin[1] + za::sin(yaw) * 128.f, player->v.origin[2] + 1.f};
@@ -2922,7 +2867,7 @@ void armedArmourTest_f()
                 Cvar_SetValueQuick(&vr_toolgun_armed_armor, static_cast<float>(armour));
                 Cvar_SetValueQuick(&vr_toolgun_armed_pieces, static_cast<float>(pieces));
                 edict_t* e = spawnChoice(tg.sel, at, angles);
-                const ServerVm vm;
+                const progs::ServerVm vm;
                 const int type = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_type)) : -1;
                 const int mask = e ? static_cast<int>(progs::fieldFloat(e, f.vr_ar_mask)) : -1;
                 const char* model = e ? PR_GetString(e->v.model) : "";
@@ -2982,7 +2927,7 @@ void scaleReset_f()
     {
         return;
     }
-    const ServerVm vm;
+    const progs::ServerVm vm;
     const int num = tg.gizmo.num ? tg.gizmo.num : tg.aim.target;
     if(num <= 0 || num >= qcvm->num_edicts || EDICT_NUM(num)->free)
     {
@@ -2996,7 +2941,7 @@ void scaleReset_f()
 // vr_toolgun_status: the tool, the hand, the aim and what is held, pinned and joined (tests).
 void status_f()
 {
-    const ServerVm vm;
+    const progs::ServerVm vm;
     const Aim& a = tg.aim;
     Con_Printf("toolgun: hand %d, tool %s, panel %s, adjust %d, screen \"%s\"\n", toolgun::heldHand(),
         toolNames[static_cast<int>(currentTool())], toolgun::panel::shown() ? "open" : "closed", tg.adjust ? 1 : 0,

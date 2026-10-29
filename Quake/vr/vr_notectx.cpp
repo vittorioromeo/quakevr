@@ -162,7 +162,7 @@ void describeNearby(za::String& out, edict_t* player)
         }
     }
     za::quickSort(closeBy.begin(), closeBy.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
-    const int agOfs = ED_FindFieldOffset("vr_ag");
+    const int agOfs = progs::fields().vr_ag;
     for(const auto& [d, i] : closeBy)
     {
         edict_t* e = EDICT_NUM(i);

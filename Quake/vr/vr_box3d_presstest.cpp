@@ -4,6 +4,7 @@
 // Split from vr_box3d_diag.cpp's tests; the shared declarations are in vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_progs.hpp"
 
 namespace box3d::detail
 {
@@ -98,7 +99,7 @@ void pressTest_f()
         Con_Printf("presstest: no game\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     edict_t* player = EDICT_NUM(1);
     const glm::vec3 eye = vec(player->v.origin);
     int best = 0;

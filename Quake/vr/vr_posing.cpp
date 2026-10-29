@@ -139,14 +139,6 @@ constexpr float turnSpeed = 120.f; // degrees a second, the stick all the way
     return hand == HAND_MAIN ? "B" : "Y";
 }
 
-void haptic(int hand, float seconds, float amplitude)
-{
-    if(Backend* be = backend(); be && !vr_disablehaptics.value)
-    {
-        be->haptic(hand, seconds, 160.f, amplitude);
-    }
-}
-
 void say(const za::String& text, double seconds = 4.0)
 {
     feedback = text;
@@ -314,8 +306,8 @@ void confirm()
     solvedUntil = realtime + solvedShowSeconds; // the grip it gives, for a moment
     say(buf);
     S_LocalSound("weapons/pkup.wav");
-    haptic(posingHand(), 0.05f, 0.7f);
-    haptic(confirmHand(), 0.05f, 0.7f);
+    haptics::pulse(posingHand(), 0.05f, 0.7f);
+    haptics::pulse(confirmHand(), 0.05f, 0.7f);
 }
 
 void undo()
@@ -341,7 +333,7 @@ void undo()
     S_LocalSound("misc/menu2.wav");
     if(current.active)
     {
-        haptic(confirmHand(), 0.03f, 0.4f);
+        haptics::pulse(confirmHand(), 0.03f, 0.4f);
     }
 }
 
@@ -746,7 +738,7 @@ bool button(int hand, Button b, bool down)
         if(mine && b == Button::Grip && current.holster.grabHand == hand)
         {
             current.holster.grabHand = -1; // let go: the weapon stays where it is
-            haptic(hand, 0.03f, 0.4f);
+            haptics::pulse(hand, 0.03f, 0.4f);
         }
         // A grip held since before posing stays held for the game (its release is kept from it): the weapon or thing
         // the hand held is still there afterwards, with vr_weapon_grip_mode 0 too.
@@ -776,7 +768,7 @@ bool button(int hand, Button b, bool down)
             case Button::Grip:
                 current.holster.grabHand = hand;
                 current.holster.grabTaken = false;
-                haptic(hand, 0.03f, 0.5f);
+                haptics::pulse(hand, 0.03f, 0.5f);
                 break;
             case Button::Primary: confirm(); break;
             case Button::Secondary: undo(); break;

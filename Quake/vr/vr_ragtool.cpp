@@ -319,13 +319,6 @@ struct Tool
 };
 Tool tool;
 
-struct SvVm
-{
-    qcvm_t* old{nullptr};
-    SvVm() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~SvVm() { PR_PopQCVM(old); }
-};
-
 [[nodiscard]] bool inGame()
 {
     return sv.active && svs.maxclients >= 1 && cls.state == ca_connected && cls.signon == SIGNONS;
@@ -460,7 +453,7 @@ void endRun(const char* why)
 
 void respawn(int playAfter)
 {
-    const SvVm vm; // (from a command too)
+    const progs::ServerVm vm; // (from a command too)
     endRun("respawned");
     releaseHand();
     if(!inGame() || !tool.staged)
@@ -772,7 +765,7 @@ void exit_f()
     {
         return;
     }
-    const SvVm vm;
+    const progs::ServerVm vm;
     endRun("the tool closed");
     releaseHand();
     if(tool.timescaleSet)
@@ -897,7 +890,7 @@ void grab_f()
     {
         return;
     }
-    const SvVm vm;
+    const progs::ServerVm vm;
     const auto h = static_cast<physics::Hold>(
         za::clamp(static_cast<int>(vr_ragtool_hold.value), 0, static_cast<int>(physics::Hold::Count) - 1));
     glm::vec3 grip{0.f};
@@ -919,7 +912,7 @@ void status_f()
     Con_Printf("ragtool: %s, %s\n", tool.on ? "on" : "off", tool.status);
     if(inGame() && tool.subject)
     {
-        const SvVm vm;
+        const progs::ServerVm vm;
         const physics::Sample s = physics::sample(tool.subject);
         Con_Printf("ragtool: subject %d ragdoll %d driven %d error %.2f deg strength %.2f pelvis %.1f over the floor\n",
             tool.subject, s.ragdoll ? 1 : 0, s.driven ? 1 : 0, s.error, s.strength, s.pelvis.z - s.floor);
@@ -932,7 +925,7 @@ void cameraView(float* origin, float* angles)
     glm::vec3 focus{0.f};
     bool got = false;
     {
-        const SvVm vm;
+        const progs::ServerVm vm;
         got = physics::focus(tool.subject, focus);
     }
     if(!got)
@@ -1028,7 +1021,7 @@ void serverFrame()
         // (Kept down while the hand holds him, as a player's hand keeps him: QC's VR_Knockdown_Keep, which sees only
         // players' hands, not this one: its timer pushed on.)
         edict_t* e = subjectEnt();
-        const int kd = progs::fields().vr_knockdown, until = ED_FindFieldOffset("vr_kd_until");
+        const int kd = progs::fields().vr_knockdown, until = progs::fields().vr_kd_until;
         if(e && tool.holding && kd >= 0 && until >= 0 && progs::fieldFloat(e, kd) == 1.f && e->v.health > 0.f)
         {
             float& t = progs::fieldFloat(e, until);
@@ -1052,7 +1045,7 @@ void draw()
     show.balance = vr_ragtool_show_balance.value != 0.f;
     show.scale = vrActive() ? 1.f : za::clamp(vr_ragtool_cam_dist.value / 40.f, 1.f, 12.f); // (flat: about 2 pixels)
     {
-        const SvVm vm;
+        const progs::ServerVm vm;
         physics::draw(tool.subject, show);
     }
     if(tool.holding)

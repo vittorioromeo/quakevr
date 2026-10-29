@@ -7,6 +7,7 @@
 // test (Misc/quakevr/ragdoll/ragtest_test.sh, which reads this table) follow.
 
 #include "vr_ragtest.hpp"
+#include "vr_trace.hpp"
 
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
@@ -83,31 +84,7 @@ struct Tests
 };
 Tests tests;
 
-// The server's QuakeC VM for a console command's while (its edicts).
-struct VmScope
-{
-    qcvm_t* old{nullptr};
-    VmScope() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~VmScope() { PR_PopQCVM(old); }
-};
-
 // A setting changed for a call's length (a test's: Knockdowns' Chance, Killing Blows), set back as it was after.
-struct CvarOverride
-{
-    cvar_t& var;
-    za::String was;
-    CvarOverride(cvar_t& v, float value) : var(v), was(v.string)
-    {
-        Cvar_SetValueQuick(&var, value);
-    }
-    ~CvarOverride()
-    {
-        Cvar_SetQuick(&var, was.cStr());
-    }
-    CvarOverride(const CvarOverride&) = delete;
-    CvarOverride& operator=(const CvarOverride&) = delete;
-};
-
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
     return glm::vec3{v[0], v[1], v[2]};
@@ -202,16 +179,10 @@ ragtest::Force& force(int num)
 
 // ---- Places (a wall behind him, a ledge's lip) ----
 
-[[nodiscard]] trace_t traceLine(const glm::vec3& a, const glm::vec3& b, edict_t* pass)
-{
-    vec3_t s{a.x, a.y, a.z}, e{b.x, b.y, b.z}, zero{0.f, 0.f, 0.f};
-    return SV_Move(s, zero, zero, e, MOVE_NOMONSTERS, pass);
-}
-
 // The floor under `at` within `depth` units (its height), or -1e30: none.
 [[nodiscard]] float floorUnder(const glm::vec3& at, float depth, edict_t* pass)
 {
-    const trace_t tr = traceLine(at, at - glm::vec3{0.f, 0.f, depth}, pass);
+    const trace_t tr = worldtrace::serverLine(at, at - glm::vec3{0.f, 0.f, depth}, pass);
     return tr.fraction < 1.f && !tr.startsolid ? tr.endpos[2] : -1e30f;
 }
 
@@ -256,7 +227,7 @@ bool toWall(edict_t* ent)
     {
         const float a = twoPi * static_cast<float>(i) / 16.f;
         const glm::vec3 dir{za::cos(a), za::sin(a), 0.f};
-        const trace_t tr = traceLine(chest, chest + dir * wallSearch, ent);
+        const trace_t tr = worldtrace::serverLine(chest, chest + dir * wallSearch, ent);
         if(tr.fraction >= 1.f || tr.startsolid || za::abs(tr.plane.normal[2]) > 0.3f)
         {
             continue;
@@ -295,7 +266,7 @@ bool toLedge(edict_t* ent)
         for(float s = 8.f; s <= ledgeSearch; s += 8.f)
         {
             const glm::vec3 q = o + dir * s;
-            if(traceLine(o + dir * (s - 8.f), q, ent).fraction < 1.f)
+            if(worldtrace::serverLine(o + dir * (s - 8.f), q, ent).fraction < 1.f)
             {
                 break; // (a wall)
             }
@@ -369,7 +340,7 @@ bool fireStumble(edict_t* t, Run& run)
     const float yaw = glm::radians(t->v.angles[1]);
     const float speed = za::max(1.5f * vr_ragdoll_active_stumble.value, stumbleLeast);
     force(run.num).walk = glm::vec3{za::cos(yaw), za::sin(yaw), 0.f} * speed;
-    const CvarOverride push{vr_kill_push, 0.f};
+    const cvars::Override push{vr_kill_push, 0.f};
     return kill(t, 1.f);
 }
 
@@ -476,7 +447,7 @@ bool killBody(edict_t* t, Run&)
 
 bool killNoPush(edict_t* t, Run&)
 {
-    const CvarOverride push{vr_kill_push, 0.f}; // (he topples over the lip by his death animation, as env_test.sh's)
+    const cvars::Override push{vr_kill_push, 0.f}; // (he topples over the lip by his death animation, as env_test.sh's)
     return kill(t, 1.f);
 }
 
@@ -484,7 +455,7 @@ bool killHardPush(edict_t* t, Run& run)
 {
     // (Thrown forwards: harder, his pelvis not pulled along his death animation's, which may fall back.)
     force(run.num).noPin = true;
-    const CvarOverride push{vr_kill_push, catchPush};
+    const cvars::Override push{vr_kill_push, catchPush};
     return kill(t, 1.f);
 }
 
@@ -550,13 +521,13 @@ bool fireHitLeg(edict_t* t, Run&)
 
 bool fireStagger(edict_t* t, Run&)
 {
-    const CvarOverride chance{vr_knockdown_chance, 0.01f}; // (its balance all but full: it recovers)
+    const cvars::Override chance{vr_knockdown_chance, 0.01f}; // (its balance all but full: it recovers)
     return knockdownTest(t, 21.f);
 }
 
 bool fireStaggerFall(edict_t* t, Run&)
 {
-    const CvarOverride chance{vr_knockdown_chance, 100.f};
+    const cvars::Override chance{vr_knockdown_chance, 100.f};
     return knockdownTest(t, 22.f);
 }
 
@@ -590,7 +561,7 @@ bool fireDrown(edict_t* t, Run& run)
         force(run.num).liquid = ragactive::Liquid::Water;
         Con_Printf("ragact: his head not under water: felt on dry land (his strokes alone, no buoyancy)\n");
     }
-    const CvarOverride chance{vr_ragdoll_active_drown, 1.f};
+    const cvars::Override chance{vr_ragdoll_active_drown, 1.f};
     return callQc("VR_Knockdown_Drown", Parm::Entity, t);
 }
 
@@ -601,7 +572,7 @@ bool toppleOver(edict_t* t, Run&)
     t->v.velocity[0] = -za::cos(yaw) * 70.f;
     t->v.velocity[1] = -za::sin(yaw) * 70.f;
     t->v.velocity[2] = 30.f;
-    const CvarOverride push{vr_knockdown_push, 1.f};
+    const cvars::Override push{vr_knockdown_push, 1.f};
     return callQc("VR_Knockdown_Start", Parm::Entity, t);
 }
 
@@ -1073,7 +1044,7 @@ void act_f()
         Con_Printf("ragact: %s: not in a game\n", nameOf(*a));
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     if(EDICT_NUM(1)->free)
     {
         Con_Printf("ragact: %s: no player\n", nameOf(*a));
@@ -1147,7 +1118,7 @@ void ragtest::frame()
         return;
     }
     tests.last = sv.qcvm.time;
-    const VmScope vm;
+    const progs::ServerVm vm;
     for(Run& run : tests.runs)
     {
         const Action& a = *run.action;

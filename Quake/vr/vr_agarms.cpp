@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <string.h>
 #include "vr_agarms.hpp"
+#include "vr_client.hpp"
 #include "vr_agbody.hpp"
 #include "vr_agglitch.hpp"
 #include "vr_agpose.hpp"
@@ -926,12 +927,6 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
     return free;
 }
 
-[[nodiscard]] int numberOf(const entity_t* e)
-{
-    const int n = static_cast<int>(e - cl_entities);
-    return (n > 0 && n < cl.num_entities) ? n : -1;
-}
-
 // The chest as drawn: rest (pose 0) -> model space now.
 [[nodiscard]] rigpose::Rigid chestNow(const ragdoll::Rig& rig, int chest, const rigpose::Rigid* posed, const rigpose::Rigid* kick)
 {
@@ -1614,7 +1609,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     out = Placed{};
     const double solveStart = Sys_DoubleTime();
     const Skin* m = enabled() ? skinOf(e->model, hdr, rig, spec) : nullptr;
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     Ent* st = (m && num > 0) ? entOf(num, true) : nullptr;
     if(!st)
     {
@@ -2097,7 +2092,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
 
 bool active(const entity_t* e)
 {
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     Ent* st = num > 0 ? entOf(num, false) : nullptr;
     if(!st || st->model != e->model)
     {
@@ -2176,7 +2171,7 @@ bool rows(const entity_t* e, const aliashdr_t* hdr, glm::vec4* out)
     {
         return false;
     }
-    const int num = numberOf(e);
+    const int num = client::entityNumber(e);
     const Ent* st = (num > 0 && active(e)) ? entOf(num, false) : nullptr;
     if(st)
     {

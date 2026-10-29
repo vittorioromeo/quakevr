@@ -319,6 +319,11 @@ extern "C" void VR_OnProgsLoaded()
 #define QVR_FIELD(name) b.fields.name = ED_FindFieldOffset(#name);
 #include "vr_fields.inc"
 #undef QVR_FIELD
+        const FieldOffsets& f = b.fields;
+        b.hands[0] = HandFields{f.offhandpos, f.offhandrot, f.offhand_held, f.offmuzzlepos, f.offshotrot,
+            f.offloadportpos, f.offloadportaxis, f.offloadportface, f.offhandthrowvel, f.offhandavel};
+        b.hands[1] = HandFields{f.handpos, f.handrot, f.mainhand_held, f.muzzlepos, f.shotrot, f.loadportpos,
+            f.loadportaxis, f.loadportface, f.handthrowvel, f.handavel};
 
         b.OnSpawnServerBeforeLoad = findFunction("OnSpawnServerBeforeLoad");
         b.OnSpawnServerAfterLoad = findFunction("OnSpawnServerAfterLoad");

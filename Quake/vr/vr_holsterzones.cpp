@@ -396,10 +396,7 @@ namespace
 
 void dragHaptic(int hand)
 {
-    if(Backend* be = backend(); be && !vr_disablehaptics.value)
-    {
-        be->haptic(hand, 0.03f, 200.f, 0.3f);
-    }
+    haptics::pulse(hand, 0.03f, 0.3f, 200.f);
 }
 
 // A dragged value, to `step` and within the menu's extended range; set only when it changes.

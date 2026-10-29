@@ -1612,17 +1612,6 @@ struct Box
            (!model || cl_entities[ent].model == model) && cl_entities[ent].model->type != mod_sprite;
 }
 
-// A listen server's edict `num` (nullptr: a remote server, or none there).
-[[nodiscard]] edict_t* serverEdict(int num)
-{
-    if(!sv.active || num <= 0 || num >= sv.qcvm.num_edicts)
-    {
-        return nullptr;
-    }
-    edict_t* ed = reinterpret_cast<edict_t*>(reinterpret_cast<byte*>(sv.qcvm.edicts) + num * sv.qcvm.edict_size);
-    return ed->free ? nullptr : ed;
-}
-
 // A listen server: where the server has entity `ent` (drawn with `model`) in the local player's hand `h`: its place
 // and turn in the server's hand (the move's, moved with the body: vr_server.cpp rebaseHands), both as the server's last
 // frame left them. Exact, whatever the hand and the body did since. Taken from where the server has it and this
@@ -1635,8 +1624,8 @@ struct Box
     const FieldOffsets& f = fields();
     const int posField = h == 0 ? f.offhandpos : f.handpos;
     const int rotField = h == 0 ? f.offhandrot : f.handrot;
-    edict_t* ed = serverEdict(ent);
-    edict_t* player = serverEdict(cl.viewentity);
+    edict_t* ed = progs::edictAt(ent);
+    edict_t* player = progs::edictAt(cl.viewentity);
     if(!ed || !player || posField < 0 || rotField < 0)
     {
         return false;
@@ -1763,8 +1752,8 @@ void reset()
 // while your hand holds it (mainhand_held/offhand_held): a dropped crate easing back to its body is drawn where it is.
 void localBodyFrame(int num, carry2h::Frame& to)
 {
-    edict_t* ent = serverEdict(num);
-    edict_t* player = serverEdict(cl.viewentity);
+    edict_t* ent = progs::edictAt(num);
+    edict_t* player = progs::edictAt(cl.viewentity);
     if(!ent || !player) { return; }
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
@@ -2250,7 +2239,7 @@ void bothFrame(const hands::State& s, int ent)
         // A listen server: the server's own hold (its grips and turns in the hands as it took them when the second
         // hand gripped), so that both place it alike. Recorded here, a frame or more later from hands that moved since,
         // the grips differed from the server's by as much. A remote server: from where it is drawn now.
-        if(!serverEdict(ent) || !carry2h::serverHold(ent, both.hold))
+        if(!progs::edictAt(ent) || !carry2h::serverHold(ent, both.hold))
         {
             both.hold = carry2h::record(object, hands);
         }
@@ -2265,7 +2254,7 @@ void bothFrame(const hands::State& s, int ent)
     both.hands[0] = hands[0];
     both.hands[1] = hands[1];
     both.object = carry2h::solve(both.hold, hands);
-    if(serverEdict(ent))
+    if(progs::edictAt(ent))
     {
         carry2h::clear(ent, last, both.object); // (a listen server: its level; as the server holds it)
     }

@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 
 struct qmodel_s;
+struct entity_s;
 
 namespace qvr::client
 {
@@ -46,5 +47,9 @@ void init(); // registers input commands
 
 // A brush model precached after the map loaded: not drawn (its lightmaps and vertices are built with the map).
 [[nodiscard]] bool lateBrushModel(const qmodel_s* model);
+
+// The number of a client entity: 1 up to below `limit` (-1: cl.num_entities), else -1 (null, the world, not one of
+// cl_entities: your gun, a temporary or static entity).
+[[nodiscard]] int entityNumber(const entity_s* e, int limit = -1);
 
 } // namespace qvr::client

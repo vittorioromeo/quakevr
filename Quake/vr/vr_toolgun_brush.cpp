@@ -97,11 +97,7 @@ BrushToolReadouts readouts;
 
 void tick(int hand, float amplitude)
 {
-    Backend* be = backend();
-    if(be && hand >= 0 && !vr_disablehaptics.value)
-    {
-        be->haptic(hand, 0.015f, 200.f, amplitude);
-    }
+    haptics::pulse(hand, 0.015f, amplitude, 200.f);
 }
 
 [[nodiscard]] int axisOf(const glm::vec3& n)

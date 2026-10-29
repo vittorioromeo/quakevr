@@ -2944,12 +2944,7 @@ extern "C" int VR_PortalAlias(const entity_t* e, const float boundsMatrix[16], c
     using namespace qvr::portals;
     if(!e || !e->model || !walkOn()) { return 0; }
     if(!current()) { build(); }
-    struct VmScope
-    {
-        qcvm_t* old = nullptr;
-        VmScope() { PR_PushQCVM(&sv.qcvm, &old); }
-        ~VmScope() { PR_PopQCVM(old); }
-    } scope;
+    progs::ServerVm scope;
     const glm::mat4 bounds = glm::make_mat4(boundsMatrix);
     glm::vec3 corners[8], centre{0.f};
     for(int c = 0; c < 8; c++)

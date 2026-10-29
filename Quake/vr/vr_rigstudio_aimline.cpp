@@ -20,6 +20,7 @@
 // `rigstudio align: N passed, M failed`.
 
 #include "vr_rigstudio_internal.hpp"
+#include "vr_progs.hpp"
 #include "vr_aggrip.hpp"
 #include "vr_agpose.hpp"
 #include "vr_cvars.hpp"
@@ -59,13 +60,6 @@ constexpr int alignSettleMax = 150;    // frames a step waits for the drawn weap
 constexpr float settleTurn = 0.003f;   // degrees a frame: settled
 constexpr float settleMove = 0.003f;   // units a frame
 constexpr int settleFrames = 3;        // ... for this many frames
-
-struct SvVm
-{
-    qcvm_t* old{nullptr};
-    SvVm() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~SvVm() { PR_PopQCVM(old); }
-};
 
 [[nodiscard]] ImU32 colU(const glm::vec4& c)
 {
@@ -284,7 +278,7 @@ bool readAimLine(int hand, AimLineReading& r)
     }
     else if(sv.active && prop < sv.qcvm.num_edicts)
     {
-        const SvVm vm;
+        const progs::ServerVm vm;
         const edict_t* p = EDICT_NUM(prop);
         if(!p->free)
         {

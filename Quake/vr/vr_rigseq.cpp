@@ -1,6 +1,7 @@
 // vr_rigseq.cpp -- the Rig Studio's animations in the game: see vr_rigseq.hpp.
 
 #include "vr_rigseq.hpp"
+#include "vr_client.hpp"
 #include "vr_agarms.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -78,23 +79,10 @@ struct RigSeqState
 };
 RigSeqState rs;
 
-struct SvVm
-{
-    qcvm_t* old{nullptr};
-    SvVm() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~SvVm() { PR_PopQCVM(old); }
-};
-
 [[nodiscard]] float smooth01(float x)
 {
     const float t = za::clamp(x, 0.f, 1.f);
     return t * t * (3.f - 2.f * t);
-}
-
-[[nodiscard]] int numberOf(const entity_t* e)
-{
-    const int n = static_cast<int>(e - cl_entities);
-    return (cl_entities && n > 0 && n < cl_max_edicts) ? n : -1;
 }
 
 [[nodiscard]] const rigdata::Sequence* findSeq(const rigdata::ModelData* m, const char* name)
@@ -198,10 +186,10 @@ void resolveQc()
     {
         return;
     }
-    rs.qc.req = ED_FindFieldOffset("vr_rigseq");
-    rs.qc.len = ED_FindFieldOffset("vr_rigseq_len");
-    rs.qc.frame = ED_FindFieldOffset("vr_rigseq_frame");
-    rs.qc.t0 = ED_FindFieldOffset("vr_rigseq_t0");
+    rs.qc.req = progs::fields().vr_rigseq;
+    rs.qc.len = progs::fields().vr_rigseq_len;
+    rs.qc.frame = progs::fields().vr_rigseq_frame;
+    rs.qc.t0 = progs::fields().vr_rigseq_t0;
     rs.qc.event = progs::findFunction("VR_RigSeq_Event");
 }
 
@@ -429,7 +417,7 @@ void play_f()
         Con_Printf("usage: vr_rigseq_play <sequence> [entity | nearest] (a running game; as QC's .vr_rigseq)\n");
         return;
     }
-    const SvVm vm;
+    const progs::ServerVm vm;
     resolveQc();
     edict_t* e = entityArg(Cmd_Argc() > 2 ? Cmd_Argv(2) : "nearest");
     if(!e)
@@ -446,7 +434,7 @@ void stop_f()
     {
         return;
     }
-    const SvVm vm;
+    const progs::ServerVm vm;
     resolveQc();
     edict_t* e = entityArg(Cmd_Argc() > 1 ? Cmd_Argv(1) : "nearest");
     if(e)
@@ -484,7 +472,7 @@ bool wants(const entity_t* e)
     {
         return false;
     }
-    const int n = numberOf(e);
+    const int n = client::entityNumber(e, cl_max_edicts);
     if(n <= 0)
     {
         return false;
@@ -508,7 +496,7 @@ bool bones(const entity_t* e, const ragdoll::Rig& rig, const aliashdr_t* hdr, in
     {
         *arms = false;
     }
-    const int n = numberOf(e);
+    const int n = client::entityNumber(e, cl_max_edicts);
     if(n <= 0)
     {
         return false;
@@ -732,7 +720,7 @@ void serverFrame()
     {
         return;
     }
-    const SvVm vm;
+    const progs::ServerVm vm;
     resolveQc();
     if(rs.qc.req < 0)
     {

@@ -20,6 +20,7 @@
 // program, waits for it (ROUND21.md, "Flat-screen input lag").
 
 #include "vr_engine.hpp"
+#include "vr_progs.hpp"
 #include "vr_input.hpp"
 #include "vr_main.hpp"
 
@@ -105,7 +106,7 @@ Test test;
 
 [[nodiscard]] edict_t* serverPlayer()
 {
-    return sv.active && svs.maxclients >= 1 && svs.clients[0].active ? svs.clients[0].edict : nullptr;
+    return qvr::progs::localPlayer();
 }
 
 [[nodiscard]] float yawDelta(float a, float b)

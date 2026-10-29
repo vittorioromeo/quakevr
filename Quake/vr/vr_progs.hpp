@@ -39,12 +39,28 @@ struct MeleeHistoryFields
     int rgrip{-1};  // .vector mh_rgrip: the grip now (from the head, in the play space)
 };
 
+// One hand's fields of the player (handFields: index 1 the main hand's, 0 the off hand's), from FieldOffsets.
+struct HandFields
+{
+    int pos{-1};          // .handpos / .offhandpos
+    int rot{-1};          // .handrot / .offhandrot
+    int held{-1};         // .mainhand_held / .offhand_held
+    int muzzle{-1};       // .muzzlepos / .offmuzzlepos
+    int shotRot{-1};      // .shotrot / .offshotrot
+    int loadPortPos{-1};  // .loadportpos / .offloadportpos
+    int loadPortAxis{-1}; // .loadportaxis / .offloadportaxis
+    int loadPortFace{-1}; // .loadportface / .offloadportface
+    int throwVel{-1};     // .handthrowvel / .offhandthrowvel
+    int avel{-1};         // .handavel / .offhandavel
+};
+
 // Resolved for sv.qcvm each time progs are loaded.
 struct Bindings
 {
     bool isVrProgs{false};
     FieldOffsets fields;
     MeleeHistoryFields melee;
+    HandFields hands[2]; // [0] the off hand's, [1] the main hand's
 
     func_t OnSpawnServerBeforeLoad{0};
     func_t OnSpawnServerAfterLoad{0};
@@ -177,6 +193,137 @@ inline void setFieldFloat(edict_t* ent, int ofs, float value)
 
 // A function of the current qcvm by name (0 when absent).
 [[nodiscard]] func_t findFunction(const char* name);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Canonical engine-access helpers (docs/vr-port/CODE_STYLE.md, "Canonical helpers").
+
+// The server's VM made current for a scope (RAII; as a console command or the host frame touching its edicts does).
+struct ServerVm
+{
+    qcvm_t* old{nullptr};
+    ServerVm() { PR_PushQCVM(&sv.qcvm, &old); }
+    ~ServerVm() { PR_PopQCVM(old); }
+    ServerVm(const ServerVm&) = delete;
+    ServerVm& operator=(const ServerVm&) = delete;
+};
+
+// The local (listen) server's player, client 0's edict; null when not hosting or that client is not in the game.
+[[nodiscard]] inline edict_t* localPlayer()
+{
+    return sv.active && svs.maxclients >= 1 && svs.clients[0].active ? svs.clients[0].edict : nullptr;
+}
+
+// The local server's edict `num` in use (null: not hosting, out of range or free). Any current VM.
+[[nodiscard]] inline edict_t* edictAt(int num)
+{
+    if(!sv.active || num <= 0 || num >= sv.qcvm.num_edicts)
+    {
+        return nullptr;
+    }
+    edict_t* ed = reinterpret_cast<edict_t*>(reinterpret_cast<byte*>(sv.qcvm.edicts) + num * sv.qcvm.edict_size);
+    return ed->free ? nullptr : ed;
+}
+
+// fn(edict_t*) for each edict in use of the current VM, from number `first` up.
+template <typename F>
+void forEachEdict(int first, F&& fn)
+{
+    for(int i = first; i < qcvm->num_edicts; ++i)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(!e->free)
+        {
+            fn(e);
+        }
+    }
+}
+
+// The edict in use of the current VM from number `first` up whose distance(e) is the least below `limit` (strictly:
+// the first such on a tie; distance returns `limit` or more to skip one), or null; `bestOut` its distance (else limit).
+template <typename F>
+[[nodiscard]] edict_t* nearestBy(int first, float limit, F&& distance, float* bestOut = nullptr)
+{
+    edict_t* best = nullptr;
+    float bestDist = limit;
+    forEachEdict(first, [&](edict_t* e) {
+        const float d = distance(e);
+        if(d < bestDist)
+        {
+            bestDist = d;
+            best = e;
+        }
+    });
+    if(bestOut)
+    {
+        *bestOut = bestDist;
+    }
+    return best;
+}
+
+// QC function `fn` of the current VM run with `self` the world and up to three float parameters (time set to the VM's);
+// false (nothing run) when fn is 0. qcFloat, qcText and qcVec read its return (0, "", `fallback` when not run).
+inline bool callQc(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
+{
+    if(!fn)
+    {
+        return false;
+    }
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
+    G_FLOAT(OFS_PARM0) = a;
+    G_FLOAT(OFS_PARM1) = b;
+    G_FLOAT(OFS_PARM2) = c;
+    PR_ExecuteProgram(fn);
+    return true;
+}
+
+[[nodiscard]] inline float qcFloat(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
+{
+    return callQc(fn, a, b, c) ? G_FLOAT(OFS_RETURN) : 0.f;
+}
+
+inline void qcText(char* dst, size_t size, func_t fn, float a = 0.f)
+{
+    const char* s = callQc(fn, a) ? PR_GetString(G_INT(OFS_RETURN)) : "";
+    q_strlcpy(dst, s ? s : "", size);
+}
+
+// A builtin's (or a QC call's) vector parameter at `ofs` (OFS_PARM0...), its vector return now, and setting them.
+[[nodiscard]] inline glm::vec3 vecParm(int ofs)
+{
+    const float* v = G_VECTOR(ofs);
+    return {v[0], v[1], v[2]};
+}
+
+[[nodiscard]] inline glm::vec3 returnedVec()
+{
+    return vecParm(OFS_RETURN);
+}
+
+inline void setVecParm(int ofs, const glm::vec3& v)
+{
+    float* f = G_VECTOR(ofs);
+    f[0] = v.x;
+    f[1] = v.y;
+    f[2] = v.z;
+}
+
+inline void returnVec(const glm::vec3& v)
+{
+    setVecParm(OFS_RETURN, v);
+}
+
+[[nodiscard]] inline glm::vec3 qcVec(func_t fn, float a = 0.f, const glm::vec3& fallback = glm::vec3{0.f})
+{
+    return callQc(fn, a) ? returnedVec() : fallback;
+}
+
+// The player's per-hand fields (the main hand's or the off hand's: `hand` nonzero is the main hand, as `hand ? main :
+// off` reads), -1 when absent.
+[[nodiscard]] inline const HandFields& handFields(int hand)
+{
+    return bindings().hands[hand ? 1 : 0];
+}
 
 // Whether the progs carry the QC tests (QC/vr_macros.qc QVR_TESTS; the release flavour leaves them out). True too while
 // no progs are loaded (the main menu before any map): unknown, so nothing is claimed missing.

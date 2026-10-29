@@ -504,10 +504,7 @@ void runHaptics()
     {
         if(realtime >= it->time)
         {
-            if(Backend* be = backend(); be && !vr_disablehaptics.value)
-            {
-                be->haptic(it->hand, it->seconds, it->frequency, it->amplitude);
-            }
+            haptics::pulse(it->hand, it->seconds, it->amplitude, it->frequency);
             it = pendingHaptics.erase(it);
         }
         else
@@ -635,7 +632,7 @@ void stickCheck(bool ok, const char* what)
 
 [[nodiscard]] edict_t* stickPlayer()
 {
-    return sv.active && svs.maxclients >= 1 && svs.clients[0].active ? svs.clients[0].edict : nullptr;
+    return qvr::progs::localPlayer();
 }
 
 [[nodiscard]] float stickPlayerSpeed()

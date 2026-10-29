@@ -190,12 +190,7 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
 
 [[nodiscard]] bool inLiquid(const glm::vec3& p)
 {
-    if(!cl.worldmodel)
-    {
-        return false;
-    }
-    vec3_t v{p.x, p.y, p.z};
-    const int c = VR_LiquidContents(cl.worldmodel, v, Mod_PointInLeaf(v, cl.worldmodel)->contents);
+    const int c = worldtrace::liquidContents(p, true);
     return c <= CONTENTS_WATER && c != CONTENTS_SKY;
 }
 

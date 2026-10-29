@@ -73,16 +73,6 @@ State state;
     return a;
 }
 
-[[nodiscard]] edict_t* serverEdict(int num)
-{
-    if(!sv.active || num <= 0 || num >= sv.qcvm.num_edicts)
-    {
-        return nullptr;
-    }
-    edict_t* ed = reinterpret_cast<edict_t*>(reinterpret_cast<byte*>(sv.qcvm.edicts) + num * sv.qcvm.edict_size);
-    return ed->free ? nullptr : ed;
-}
-
 // The ragdoll body of player `player` (a listen server's edicts; QC vr_deathdoll.qc): its edict, 0 none.
 [[nodiscard]] int dollOf(int player)
 {
@@ -91,14 +81,14 @@ State state;
     {
         return 0;
     }
-    edict_t* p = serverEdict(player);
+    edict_t* p = progs::edictAt(player);
     const int ref = p ? progs::fieldInt(p, f.vr_deathdoll_body) : 0;
     if(ref <= 0 || sv.qcvm.edict_size <= 0)
     {
         return 0;
     }
     const int num = ref / sv.qcvm.edict_size;
-    edict_t* b = serverEdict(num);
+    edict_t* b = progs::edictAt(num);
     return b && progs::fieldInt(b, f.vr_deathdoll) == player * sv.qcvm.edict_size ? num : 0; // (its player: an entity)
 }
 
@@ -253,7 +243,7 @@ void update(const hands::State& s)
 void status_f()
 {
     const progs::FieldOffsets& f = progs::fields();
-    edict_t* p = serverEdict(cl.viewentity);
+    edict_t* p = progs::edictAt(cl.viewentity);
     const bool hiddenFromOthers = p && f.vr_deathdoll_body >= 0 && progs::fieldInt(p, f.vr_deathdoll_body) != 0;
     const int doll = dollOf(cl.viewentity);
     glm::vec3 eyes{0.f};
