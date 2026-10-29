@@ -1838,6 +1838,11 @@ void PF_ragdollbone()
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::clientState(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(p[0])));
         return;
     }
+    if(within == -1002.f) // QVR_ARMOR_PIECE_BONES: the rig's bones piece p_x rides (bits, as ragdolllimbs')
+    {
+        G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::pieceBones(G_EDICT(OFS_PARM0), static_cast<int>(p[0])));
+        return;
+    }
     G_FLOAT(OFS_RETURN) =
         static_cast<float>(box3d::ragdollBone(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}, within));
 }
@@ -1942,11 +1947,12 @@ void PF_ragdolllimbs()
 // {kg it weighs (its share of the ragdoll's mass by the kind of limb), the ragdoll's mass, the share}, 1 its cut end in
 // its model's space.
 // `what` 10 / 11 (the builtins' table being full): armour piece `bone` of an armed humanoid as its own model
-// ("<model>#plate<piece>", vr_agarmor.cpp): its origin / its angles now, as drawn.
+// ("<model>#plate<piece>", vr_agarmor.cpp): its origin / its angles now, as drawn; 12 / 13 / 14 a point on its outer face
+// near one end / the other / at its middle (15% / 85% / 50% along it: the tests' hits on a plate).
 void PF_limbpiece()
 {
     const int what = static_cast<int>(G_FLOAT(OFS_PARM2));
-    if(what == 10 || what == 11)
+    if(what >= 10 && what <= 14)
     {
         agarmor::plateWhere(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), what - 10, G_VECTOR(OFS_RETURN));
         return;

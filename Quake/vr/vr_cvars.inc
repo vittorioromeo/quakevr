@@ -2819,6 +2819,7 @@ QVR_CVAR(vr_nail_speed, "2065", CVAR_ARCHIVE)
 QVR_CVAR(vr_nailpistol_cooldown, "0.12", CVAR_ARCHIVE) // s at least from a shot to the next (each a new pull)
 QVR_CVAR(vr_nailpistol_spread, "0.25", CVAR_ARCHIVE)   // degrees its nails stray at most from its aim
 QVR_CVAR(vr_nailpistol_mag, "12", CVAR_ARCHIVE)        // the rounds its magazine holds (a nail each)
+QVR_CVAR(vr_nailpistol_mag_pull, "0", CVAR_ARCHIVE)   // 1: its magazine pulls off by hand as the other guns' (vr_reload_pull_*); 0: only its eject button lets it out (his note 2026-10-29)
 QVR_CVAR(vr_nailpistol_volume, "1", CVAR_ARCHIVE)      // its shot's volume (0..4)
 QVR_CVAR(vr_nailpistol_slide_time, "0.07", CVAR_ARCHIVE) // s its slide stays back after a shot before it runs home (empty: it locks back)
 QVR_CVAR(vr_nailpistol_smoke, "1", CVAR_ARCHIVE)       // a wisp of smoke from its muzzle after shots (0 none; more after a quick string)
@@ -3160,7 +3161,8 @@ QVR_CVAR(vr_agrunt_grip_z, "0", CVAR_NONE)            // ... up (units)
 QVR_CVAR(vr_agrunt_grip_pitch, "0", CVAR_NONE)        // ... pitch (degrees)
 QVR_CVAR(vr_agrunt_grip_yaw, "0", CVAR_NONE)          // ... yaw (degrees)
 QVR_CVAR(vr_agrunt_grip_roll, "0", CVAR_NONE)         // ... roll (degrees)
-QVR_CVAR(vr_agarms, "1", CVAR_NONE)                  // 1: armed humanoids' arms posed by their weapons (QC: where a player would hold each) and IK, drawn skinned (vr_agarms.cpp; read at a map load); 0: the animation's arms bent onto the weapons (vr_agrunt_ik_rigid: before)
+QVR_CVAR(vr_agrunt_ragweapon_check, "0", CVAR_NONE)  // 1: measure each frame how far an armed humanoid ragdoll's held weapon is drawn from its drawn hand's grip, and how deep its hand and weapon are in its torso (vr_agrunt_ragweapon_err prints and clears; vr_agrunt_test 88)
+QVR_CVAR(vr_agarms, "1", CVAR_NONE)                // 1: armed humanoids' arms posed by their weapons (QC: where a player would hold each) and IK, drawn skinned (vr_agarms.cpp; read at a map load); 0: the animation's arms bent onto the weapons (vr_agrunt_ik_rigid: before)
 QVR_CVAR(vr_agarms_shoulder, "0.5", CVAR_ARCHIVE)     // vr_agarms: a long gun aimed is raised from its rest pose's hold (0: as it held its own rifle, its wrists as made) to its shoulder (1: the butt in its pocket, at its cheek) by this
 QVR_CVAR(vr_agarms_second, "0.97", CVAR_NONE)        // vr_agarms: the off hand takes a two-handed weapon's second grip only while its wrist is within this share of its arm's length of its shoulder
 QVR_CVAR(vr_agarms_wrist_most, "100", CVAR_NONE)      // vr_agarms: a wrist bends at most this much (degrees); past it the hand, and its weapon, turn back towards the forearm
@@ -3770,6 +3772,8 @@ QVR_CVAR(vr_agarmor_wear, "0", CVAR_NONE)            // debug (vr_agarmor.cpp): 
 QVR_CVAR(vr_agarmor_pieces, "1023", CVAR_NONE)       // vr_agarmor: the pieces worn (a mask): 1 the cuirass, 2 the helmet, 4/8 the pauldrons (left/right), 16/32 the bracers, 64/128 the thighs, 256/512 the shins; 1023 all
 QVR_CVAR(vr_agarmor_thick, "0.6", CVAR_NONE)          // vr_agarmor: a plate's thickness (units; read when the shells are made: vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_gap, "0.25", CVAR_NONE)           // vr_agarmor: the plates' gap off the body (units; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_helmet_gap, "0.15", CVAR_NONE)    // vr_agarmor: the helmet's gap off the head (units; rigid on the head bone, so closer than the body's plates; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_helmet_thick, "0.45", CVAR_NONE)  // vr_agarmor: the helmet's thickness (units; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_smooth, "6", CVAR_NONE)           // vr_agarmor: the plates' smoothing passes (Taubin; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_subdiv, "1", CVAR_NONE)           // vr_agarmor: the plates' subdivisions of the body's triangles (0-2; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_brow_back, "0.12", CVAR_NONE)     // vr_agarmor: the helmet's lower edge at the back of the head, its nape (the head bone's length up from its pivot, below it negative; vr_agarmor_rebuild)
@@ -3789,8 +3793,8 @@ QVR_CVAR(vr_agarmor_skill2_pieces, "5", CVAR_ARCHIVE)
 QVR_CVAR(vr_agarmor_skill3, "0.6", CVAR_ARCHIVE)      // armour: the chance on Nightmare
 QVR_CVAR(vr_agarmor_skill3_type, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_agarmor_skill3_pieces, "10", CVAR_ARCHIVE)
-QVR_CVAR(vr_agarmor_test, "0", CVAR_NONE)             // the QC tests armour on armed humanoids (vr_agarmor_test.qc; Debug > Tests): 1 all; ends on "agarmor test: N passed, M failed"; 2 / 3 grunts / enforcers in full green, yellow, red; 4 grunts in yellow whole, at 2/3, at 1/3 (damage marks)
-QVR_CVAR(vr_agarmor_brow_front, "0.5", CVAR_NONE)    // vr_agarmor: the helmet bucket's lower edge (its brow: above the eyes; the cheek guards come down under it)
+QVR_CVAR(vr_agarmor_test, "0", CVAR_NONE)             // the QC tests armour on armed humanoids (vr_agarmor_test.qc; Debug > Tests): 1 all; ends on "agarmor test: N passed, M failed"; 2 / 3 grunts / enforcers in full green, yellow, red; 4 grunts in yellow whole, at 2/3, at 1/3 (damage marks); 5 ragdolls, cuts, debris and sparks (vr_agarmor_fx_test.qc), ends on "agarmor fx test: N passed, M failed"
+QVR_CVAR(vr_agarmor_brow_front, "0.62", CVAR_NONE)   // vr_agarmor: the helmet bucket's lower edge (its brow: above the eyes, the head bone's length up from its pivot; the cheek guards come down under it; vr_agarmor_rebuild)
 QVR_CVAR(vr_rig2_dq, "0", CVAR_NONE)                 // 1: the authored rig skinned with dual quaternions (no candy wrapper at a twist; vr_rig2_check, the Rig Studio's Shaded display); 0: linear blend
 QVR_CVAR(vr_rigseq, "1", CVAR_NONE)                  // 1: the files' override tracks and the sequences QC starts drawn on the rigged monsters (vr_rigseq.cpp); 0: never (nothing changes without the files)
 QVR_CVAR(vr_rigseq_debug, "0", CVAR_NONE)             // 1: each sequence started, stopped and each event sent to QC printed (rigseq:)
@@ -3813,7 +3817,8 @@ QVR_CVAR(vr_agrunt_rearm_punch, "0", CVAR_ARCHIVE)    // units: an unarmed one w
 QVR_CVAR(vr_agrunt_strafe_lean, "5", CVAR_ARCHIVE)    // degrees: armed humanoids moving sideways tip their pelvis and legs this far toward the way they go (at 80 u/s; scaled by speed, eased), the upper body held aimed; 0 none
 QVR_CVAR(vr_agrunt_strafe_turn, "28", CVAR_ARCHIVE)   // degrees: armed humanoids moving sideways turn their pelvis and legs this far toward the way they go (at 80 u/s; scaled by sideways speed, eased; backing off: never flipped), the spine turning back so the chest and gun stay aimed; 0 none
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
-QVR_CVAR(vr_ragdoll_self_collide, "1", CVAR_ARCHIVE)  // a ragdoll's own parts meet each other (an arm stays out of the chest, a leg out of the other), all but jointed neighbours, a loose piece (his gun), parts deep in each other (until apart) and an arm reaching for a wound, a stump or a wall; 0 they pass through each other, as before (a ragdoll made from now on)
+QVR_CVAR(vr_ragdoll_weapon_collide, "1", CVAR_NONE)  // vr_ragdoll_self_collide: a living ragdoll's weapon (knocked down or staggering, welded in its hand) meets its own torso and head, so its arms can't fold it into its chest; 0 it passes through its body, as before
+QVR_CVAR(vr_ragdoll_self_collide, "1", CVAR_ARCHIVE)// a ragdoll's own parts meet each other (an arm stays out of the chest, a leg out of the other), all but jointed neighbours, a loose piece (his gun), parts deep in each other (until apart) and an arm reaching for a wound, a stump or a wall; 0 they pass through each other, as before (a ragdoll made from now on)
 QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand (an old config's 2: the same)
 QVR_CVAR(vr_ragdoll_grab_force, "4000", CVAR_ARCHIVE) // N: the most a hand pulls a held limb with (3000: a grunt lifted by his chest sags a unit; 1500: about 18)
 QVR_CVAR(vr_ragdoll_grab_reach, "2", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
@@ -5343,6 +5348,7 @@ QVR_CVAR(vr_lootbeam_hue_armor, "120", CVAR_ARCHIVE)    // ... armour green
 QVR_CVAR(vr_lootbeam_hue_powerups, "285", CVAR_ARCHIVE) // ... power-ups violet
 QVR_CVAR(vr_lootbeam_hue_keys, "225", CVAR_ARCHIVE)     // ... keys and runes blue
 QVR_CVAR(vr_lootbeam_hue_backpacks, "25", CVAR_ARCHIVE) // ... backpacks orange
+QVR_CVAR(vr_lootbeam_hue_weapons_empty, "0", CVAR_ARCHIVE) // a reloadable weapon lying with its magazine empty (or out; reloading on): red, so it is known as needing ammo before it is grabbed (his note 2026-10-29); below 0: the weapons' hue
 QVR_CVAR(vr_lootbeam_hue_toolgun, "305", CVAR_ARCHIVE)  // a dropped toolgun's (a weapon, but its own): magenta, found among many weapons (his note vrfiringrange_2026-10-23_21-18-02)
 QVR_CVAR(vr_lootbeam_toolgun_length, "2", CVAR_ARCHIVE) // a dropped toolgun's beam this many times vr_lootbeam_length
 QVR_CVAR(vr_lootbeam_fade_in, "0.5", CVAR_ARCHIVE)      // seconds it takes to fade in once the thing has rested vr_lootbeam_settle seconds

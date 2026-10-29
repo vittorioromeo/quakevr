@@ -81,11 +81,11 @@ float(entity m) VR_Limb_TestBone =
 {
     float top = VR_Limb_TopJoints(m);
     float all = ragdolllimbs(m, 0);
-    for(float b = 1; b < 16; b++)
+    for(float b = 1; b < VR_LIMB_JOINTS; b++)
     {
         if(top & VR_Limb_Bit(b))
         {
-            for(float c = b + 1; c < 16; c++)
+            for(float c = b + 1; c < VR_LIMB_JOINTS; c++)
             {
                 if((all & VR_Limb_Bit(c)) && ragdolllimbs(m, 5, c) == b)
                 {
@@ -112,7 +112,7 @@ void(float xTest) VR_Limb_TestLookAtCut =
         entity m = VR_Limb_TestTarget(0);
         float stumps = (m != world && isragdoll(m)) ? ragdolllimbs(m, 2) : 0;
         float b = -1;
-        for(float k = 1; k < 16 && b < 0; k++)
+        for(float k = 1; k < VR_LIMB_JOINTS && b < 0; k++)
         {
             b = (stumps & VR_Limb_Bit(k)) ? k : -1;
         }
@@ -266,7 +266,7 @@ void(float xTest) VR_Limb_Test =
             string line = sprintf("limbtest: 19 %s (ragdoll %.0f kg, x%g): head %.1f kg %.1f%%", e.classname, hp_y,
                 cvar_hget(cvarh_vr_limbs_mass_scale), hp_x, hp_z * 100);
             all = ragdolllimbs(e, 0);
-            for(b = 1; b < 16; b++)
+            for(b = 1; b < VR_LIMB_JOINTS; b++)
             {
                 if(all & VR_Limb_Bit(b))
                 {
@@ -542,7 +542,7 @@ void(float xTest) VR_Limb_Test =
     {
         all = ragdolllimbs(m, 0);
         float n = 0;
-        for(b = 1; b < 16; b++)
+        for(b = 1; b < VR_LIMB_JOINTS; b++)
         {
             if(!(all & VR_Limb_Bit(b)))
             {
@@ -564,7 +564,7 @@ void(float xTest) VR_Limb_Test =
     if(xTest == 13)
     {
         all = ragdolllimbs(m, 0);
-        for(b = 1; b < 16; b++)
+        for(b = 1; b < VR_LIMB_JOINTS; b++)
         {
             if(all & VR_Limb_Bit(b))
             {
@@ -587,7 +587,7 @@ void(float xTest) VR_Limb_Test =
             }
             float pick = -1;
             float pool = (xTest == 3) ? VR_Limb_TopJoints(m) : all;
-            for(b = 1; b < 16; b++)
+            for(b = 1; b < VR_LIMB_JOINTS; b++)
             {
                 if(pool & VR_Limb_Bit(b))
                 {

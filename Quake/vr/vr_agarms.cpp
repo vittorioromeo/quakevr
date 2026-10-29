@@ -2223,6 +2223,22 @@ bool ragdollGrip(const qmodel_t* model, int side, rigpose::Rigid& grip, int& bon
     return false;
 }
 
+bool handSkin(const qmodel_t* model, int side, const za::Vector<int>*& verts, const za::Vector<glm::vec3>*& rest,
+    rigpose::Rigid& grip)
+{
+    for(const Skin& s : state.skins)
+    {
+        if(s.model == model && s.ok && side >= 0 && side < 2)
+        {
+            verts = &s.side[side].hand;
+            rest = &s.rest;
+            grip = s.side[side].grip;
+            return true;
+        }
+    }
+    return false;
+}
+
 void clearErr()
 {
     for(Err& e : state.errs)

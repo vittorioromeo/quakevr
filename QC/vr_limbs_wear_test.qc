@@ -149,7 +149,7 @@ void(float xTest) VR_Limb_WearTest =
     float pops = vr_limb_pops;
     float hpBefore = m.vr_corpse_hp;
     float dmgBefore = 0; // (the test limb's worn damage; 37: every piece's)
-    for(float j = 0; j < 16; j++)
+    for(float j = 0; j < VR_LIMB_JOINTS; j++)
     {
         if(torso || j == b)
         {
@@ -170,7 +170,7 @@ void(float xTest) VR_Limb_WearTest =
     float ok = FALSE;
     if(torso)
     {
-        for(float i = 0; i < 16; i++)
+        for(float i = 0; i < VR_LIMB_JOINTS; i++)
         {
             worn = worn + m.vr_limb_corpse_dmg[i]; // (none worn into a piece: the torso's blasts are the whole body's)
         }

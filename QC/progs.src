@@ -149,6 +149,7 @@ vr_cheats.qc
 vr_smallgibs_test.qc
 vr_dropcap_test.qc
 vr_agarmor_test.qc
+vr_agarmor_fx_test.qc
 vr_crouch_test.qc
 vr_melee_sweep_test.qc
 vr_blade_test.qc
@@ -525,6 +526,7 @@ vr_armedgrunt_bugs_test.qc
 vr_armedgrunt_close_test.qc
 vr_armedgrunt_grab_test.qc
 vr_armedgrunt_downtug_test.qc
+vr_armedgrunt_ragweapon_test.qc
 vr_armedgrunt_range_test.qc
 vr_armedgrunt_expose_test.qc
 vr_armedgrunt_ai_test.qc
