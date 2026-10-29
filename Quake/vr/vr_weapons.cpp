@@ -979,8 +979,8 @@ void registerCvars()
     // The weapon effects' (vr_weaponfx.cpp): off, at the shotgun's strength and size; the tracers as Weapon Effects'.
     for(int slot = 0; slot < numSlots; slot++)
     {
-        for(const Key key : {Key::RecoilStrength, Key::FlashSize, Key::TracerSpeed, Key::TracerLength, Key::TracerWidth,
-                Key::TracerChance, Key::TracerRed})
+        for(const Key key : {Key::RecoilStrength, Key::RecoilKick, Key::RecoilRise, Key::FlashSize, Key::TracerSpeed,
+                Key::TracerLength, Key::TracerWidth, Key::TracerChance, Key::TracerRed})
         {
             cvarAt(slot, key).string = "1";
         }

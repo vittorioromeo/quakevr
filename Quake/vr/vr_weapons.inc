@@ -411,6 +411,13 @@ QVR_WEAPON_KEY(BladeOrgZ, "bl_org_z")
 QVR_WEAPON_KEY(BladeTipX, "bl_tip_x")
 QVR_WEAPON_KEY(BladeTipY, "bl_tip_y")
 QVR_WEAPON_KEY(BladeTipZ, "bl_tip_z")
+// The weapon's recoil kick and rise apart (ROUND23.md, "Per-weapon recoil kick and rise"; Weapon Offsets > Effects, Recoil
+// Kick Back and Recoil Muzzle Rise; vr_weaponfx.cpp recoilAmount): times its Recoil Strength and Weapon Effects' Kick Back
+// (vr_recoil_kick cm) for how far a shot kicks it back, and Muzzle Rise (vr_recoil_rise degrees) for how far it tips its
+// muzzle up (and the little turn sideways). 1 by default (registerCvars): every weapon's recoil as before. New cvars: no
+// migration.
+QVR_WEAPON_KEY(RecoilKick, "fx_recoil_kick")
+QVR_WEAPON_KEY(RecoilRise, "fx_recoil_rise")
 #endif
 
 
