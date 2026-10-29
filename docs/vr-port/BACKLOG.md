@@ -58,13 +58,6 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 
 ## Next round (approved)
 
-### Active humanoid coverage for AD's soldiers (author, 2026-10-12)
-
-Done 2026-10-15 (branch `agent/adrigs`; ROUND22.md, "Active rigs for AD's humanoids"): AD's soldier, enforcer and
-knight variants, the death knights, guard, sergeant, fury, crossbow knight, zombie knight and mummy are driven alive and
-dying (stagger, get-up, lift flail, swim, active deaths); the zombie knight's head zone moved onto its head. Left out:
-the centurion (hover board) and the skull wizard (a robe, no legs). Awaiting his VR check.
-
 ### Active ragdolls: research a reference video (author, 2026-10-22)
 
 Research https://www.youtube.com/watch?v=r8Q1nwHPwJ0 for active ragdoll improvements (stagger, balance, get-up, the
@@ -98,12 +91,6 @@ ML at runtime. Borrow ideas only unless noted. Not started.
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 
 Research climbing by bracing a hand on each side of a pillar or pipe and moving upward hand-over-hand. Open.
-
-### Fold vr_struggle_classes into the monster groups (author, 2026-10-19)
-
-The struggle classes list should become a per-group setting like the lift, neck snap and throw lists did
-(ROUND22.md, "Monster groups"); then retire `vr_struggle_classes`. Done 2026-10-23 (branch `agent/dec11`; ROUND22.md,
-"1.1 decisions: particle cap, shadow atlas on demand, struggle in the groups"): config 190, awaiting his VR check.
 
 ### Repository chores
 
@@ -181,20 +168,6 @@ this file; the workers' ROUND22.md sections carry them.
   sounds.
 - **Wounded monsters bleed a trail, then crawling half-bodies:** live low-health monsters drip decals; big monsters
   split in half and drag the torso with a smear (a "finish it" beat).
-
-### Droppable, usable swords: AD's Dark Prince and the Phantom Swordsman (the author, 2026-10-22) -- done
-
-Done (ROUND22.md, "Four monster swords", branch `agent/swords4`, 2026-10-23): the Phantom Swordsman falls as its very
-heavy two-handed sword (Rogue's data), the Dark Prince, the justice knight and the judicator drop theirs (AD's), as the
-other AD melee weapons (QC `vr_ad_melee.qc`, kinds 7-10; Weapon Offsets slots 47-50). Left: VR checks of the grips.
-
-### Droppable, usable mace: AD's Death Sergeant (the author, 2026-10-23): done, follow-ups
-
-Done in round 22 (ROUND22.md, "The death sergeant's flail"): it drops its flail, the head a Box3D body on a rope,
-striking by its own speed and mass (its handle placed in the hand, slow motion in the hands' time, the chain's rattle:
-"The flail after swords4"). Left: the hand's grip pose round its short handle and two-hand grips (Weapon Offsets slot
-51, his tuning); a chain of a few links that wraps round things instead of one rope; holstering it (its head hanging
-from the holster).
 
 ### Enemies' own weapons for the player (the author, 2026-10-15)
 
