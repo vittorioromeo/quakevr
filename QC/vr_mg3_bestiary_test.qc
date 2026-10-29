@@ -17,7 +17,6 @@
 //     the campaign, skill and serverflags it runs in: e1m1 expects none of it)
 //   4 (Dawn of the Machine's map8) each of the map's victims used: the counter (8) counts down, its target fired once
 
-float mg3bt_pass, mg3bt_fail;
 float mg3bt_step;  // the running request's step, 0: none
 float mg3bt_next;  // when its next step runs
 entity mg3bt_a, mg3bt_b;
@@ -27,15 +26,10 @@ float mg3bt_used;         // uses of the tests' target (MG3_BT_TargetUse)
 float mg3bt_c0, mg3bt_c1; // slime children and stuck ones before
 entity mg3bt_ctr;
 
-void(float ok, string label) MG3_BT_Check =
-{
-    if(ok) mg3bt_pass++; else mg3bt_fail++;
-    dprint(sprintf("mg3btest: %s %s\n", ok ? "PASS" : "FAIL", label));
-};
 
 void() MG3_BT_Total =
 {
-    dprint(sprintf("mg3btest: total %g/%g\n", mg3bt_pass, mg3bt_fail));
+    dprint(sprintf("mg3btest: total %g/%g\n", vr_test_pass, vr_test_fail));
     mg3bt_step = 0;
 };
 
@@ -127,21 +121,21 @@ void() MG3_BT_OrbStep =
     entity oldself = self;
     if(mg3bt_step == 1)
     {
-        mg3bt_pass = mg3bt_fail = 0;
+        VR_Test_Begin("mg3btest");
         p.flags = p.flags | FL_GODMODE;
         float total = total_monsters;
         mg3bt_a = MG3_BT_Spawn(p, 40, 160, 0, 48);
-        MG3_BT_Check(mg3bt_a.classname == "monster_orb" && mg3bt_a.model == "owned/mg3/progs/teleporter_eye_blink.mdl",
+        VR_Test_Check(mg3bt_a.classname == "monster_orb" && mg3bt_a.model == "owned/mg3/progs/teleporter_eye_blink.mdl",
             sprintf("an orb ahead (%s, %s)", mg3bt_a.classname, mg3bt_a.model));
-        MG3_BT_Check(mg3bt_a.health == 300 && total_monsters == total + 1, sprintf("300 health (%g), counted (%g)", mg3bt_a.health, total_monsters - total));
-        MG3_BT_Check(VR_Grapple_MonsterMass(mg3bt_a) == 120, "the grapple weighs it 120 kg");
-        MG3_BT_Check(VR_Dummy_Available(30), "the training dummy can stand as one (type 30)");
+        VR_Test_Check(mg3bt_a.health == 300 && total_monsters == total + 1, sprintf("300 health (%g), counted (%g)", mg3bt_a.health, total_monsters - total));
+        VR_Test_Check(VR_Grapple_MonsterMass(mg3bt_a) == 120, "the grapple weighs it 120 kg");
+        VR_Test_Check(VR_Dummy_Available(30), "the training dummy can stand as one (type 30)");
         mg3bt_step = 2; mg3bt_next = time + 1;
         return;
     }
     if(mg3bt_step == 2)
     {
-        MG3_BT_Check((mg3bt_a.flags & FL_FLY) && (mg3bt_a.flags & FL_MONSTER) && mg3bt_a.takedamage, "it flies, a monster, hurt by shots");
+        VR_Test_Check((mg3bt_a.flags & FL_FLY) && (mg3bt_a.flags & FL_MONSTER) && mg3bt_a.takedamage, "it flies, a monster, hurt by shots");
         // Its eye at its back: facing away, it still sees you; a scrag facing away does not.
         self = mg3bt_a;
         self.angles_y = vectoyaw(self.origin - p.origin);
@@ -151,7 +145,7 @@ void() MG3_BT_OrbStep =
         self.angles_y = 90 + vectoyaw(p.origin - self.origin);
         float side = infront(p);
         self = oldself;
-        MG3_BT_Check(behind && ahead && !side, sprintf("its eyes: ahead %g, behind %g, aside %g", ahead, behind, side));
+        VR_Test_Check(behind && ahead && !side, sprintf("its eyes: ahead %g, behind %g, aside %g", ahead, behind, side));
         mg3bt_n = mg3_orb_spheres;
         mg3bt_n2 = p.health;
         MG3_BT_Wake(mg3bt_a, p);
@@ -162,13 +156,13 @@ void() MG3_BT_OrbStep =
     {
         float fired = mg3_orb_spheres - mg3bt_n;
         dprint(sprintf("mg3btest: in 6 s: %g spheres, enemy %s, state %g, frame %g\n", fired, mg3bt_a.enemy.classname, mg3bt_a.attack_state, mg3bt_a.frame));
-        MG3_BT_Check(fired >= 4 && mg3bt_a.enemy == p, sprintf("awake, it bursts spheres at you (%g in 6 s)", fired));
+        VR_Test_Check(fired >= 4 && mg3bt_a.enemy == p, sprintf("awake, it bursts spheres at you (%g in 6 s)", fired));
         // A hard hit: it flinches (eyes shut), throws lightning.
         self = mg3bt_a;
         self.pain_finished = 0;
         Orb_Pain(p, 250);
         self = oldself;
-        MG3_BT_Check(mg3bt_a.pain_finished > time && mg3bt_a.think == orb_pain2, "a hard hit: its pain (lightning about it)");
+        VR_Test_Check(mg3bt_a.pain_finished > time && mg3bt_a.think == orb_pain2, "a hard hit: its pain (lightning about it)");
         mg3bt_step = 4; mg3bt_next = time + 1.2;
         return;
     }
@@ -177,15 +171,15 @@ void() MG3_BT_OrbStep =
         mg3bt_n = killed_monsters;
         mg3bt_n2 = mg3_orb_blowups;
         T_Damage(mg3bt_a, p, p, 1000);
-        MG3_BT_Check(mg3bt_a.health <= 0 && killed_monsters == mg3bt_n + 1, "killed, counted once");
-        MG3_BT_Check(!(mg3bt_a.flags & FL_FLY) && vlen(mg3bt_a.velocity) > 100 && mg3bt_a.size == '0 0 0',
+        VR_Test_Check(mg3bt_a.health <= 0 && killed_monsters == mg3bt_n + 1, "killed, counted once");
+        VR_Test_Check(!(mg3bt_a.flags & FL_FLY) && vlen(mg3bt_a.velocity) > 100 && mg3bt_a.size == '0 0 0',
             sprintf("flung (%v), falling", mg3bt_a.velocity));
         mg3bt_step = 5; mg3bt_next = time + 8;
         return;
     }
     if(mg3bt_step == 5)
     {
-        MG3_BT_Check(mg3_orb_blowups == mg3bt_n2 + 1 && killed_monsters == mg3bt_n + 1,
+        VR_Test_Check(mg3_orb_blowups == mg3bt_n2 + 1 && killed_monsters == mg3bt_n + 1,
             sprintf("it blew up where it landed (%g), still counted once", mg3_orb_blowups - mg3bt_n2));
         if(mg3_orb_blowups == mg3bt_n2)
             dprint(sprintf("mg3btest: the orb's body: model %s at %v velocity %v flags %g touch %g\n", mg3bt_a.model, mg3bt_a.origin,
@@ -211,27 +205,27 @@ void() MG3_BT_GhostSlimeStep =
     entity oldself = self, oldother = other, oldact = activator;
     if(mg3bt_step == 10)
     {
-        mg3bt_pass = mg3bt_fail = 0;
+        VR_Test_Begin("mg3btest");
         p.flags = p.flags | FL_GODMODE;
         float total = total_monsters;
         mg3bt_a = MG3_BT_Spawn(p, 42, 96, 0, 0);
-        MG3_BT_Check(mg3bt_a.classname == "monster_ghost" && mg3bt_a.model == "progs/player.mdl" && mg3bt_a.health == 10,
+        VR_Test_Check(mg3bt_a.classname == "monster_ghost" && mg3bt_a.model == "progs/player.mdl" && mg3bt_a.health == 10,
             sprintf("a ghost ahead (%s, %s, %g)", mg3bt_a.classname, mg3bt_a.model, mg3bt_a.health));
-        MG3_BT_Check(!(mg3bt_a.flags & FL_MONSTER) && total_monsters == total && mg3bt_a.movetype == MOVETYPE_FLY,
+        VR_Test_Check(!(mg3bt_a.flags & FL_MONSTER) && total_monsters == total && mg3bt_a.movetype == MOVETYPE_FLY,
             "not a monster, not counted, it flies");
-        MG3_BT_Check(mg3bt_a.handtouch == mg3_ghost_touch, "a hand's touch lays it to rest too");
+        VR_Test_Check(mg3bt_a.handtouch == mg3_ghost_touch, "a hand's touch lays it to rest too");
         mg3bt_n = mg3_ghosts_gone;
         self = mg3bt_a; other = p;
         mg3_ghost_touch();
         self = oldself; other = oldother;
-        MG3_BT_Check(mg3bt_a.health <= 0 && mg3bt_a.takedamage == DAMAGE_NO, "your touch: it dies");
+        VR_Test_Check(mg3bt_a.health <= 0 && mg3bt_a.takedamage == DAMAGE_NO, "your touch: it dies");
         mg3bt_b = MG3_BT_Spawn(p, 42, 96, 48, 0);
-        MG3_BT_Check(mg3bt_b.alpha == (cvar("vr_mg3_ghost_alpha") >= 1 ? 0 : max(0.05, cvar("vr_mg3_ghost_alpha"))),
+        VR_Test_Check(mg3bt_b.alpha == (cvar("vr_mg3_ghost_alpha") >= 1 ? 0 : max(0.05, cvar("vr_mg3_ghost_alpha"))),
             sprintf("drawn see-through: alpha %.2f (vr_mg3_ghost_alpha)", mg3bt_b.alpha));
         float gibs0 = vr_sgib_made, cuts0 = vr_limb_cuts + vr_limb_pops;
         T_Damage(mg3bt_b, p, p, 200);
-        MG3_BT_Check(mg3bt_b.health <= 0, "a blow: it dies");
-        MG3_BT_Check(vr_sgib_made == gibs0 && vr_limb_cuts + vr_limb_pops == cuts0 && !isragdoll(mg3bt_b) &&
+        VR_Test_Check(mg3bt_b.health <= 0, "a blow: it dies");
+        VR_Test_Check(vr_sgib_made == gibs0 && vr_limb_cuts + vr_limb_pops == cuts0 && !isragdoll(mg3bt_b) &&
             mg3bt_b.model == "progs/player.mdl",
             sprintf("a heavy blow (200): no gibs (%g), limbs (%g) or ragdoll; it plays its death", vr_sgib_made - gibs0,
             vr_limb_cuts + vr_limb_pops - cuts0));
@@ -240,7 +234,7 @@ void() MG3_BT_GhostSlimeStep =
     }
     if(mg3bt_step == 11)
     {
-        MG3_BT_Check(mg3_ghosts_gone == mg3bt_n + 2 && mg3bt_a.model == "" && mg3bt_b.model == "",
+        VR_Test_Check(mg3_ghosts_gone == mg3bt_n + 2 && mg3bt_a.model == "" && mg3bt_b.model == "",
             sprintf("both faded away after their deaths (%g)", mg3_ghosts_gone - mg3bt_n));
         // A sacrifice struck down: gibbed, its target fired.
         mg3bt_a = MG3_BT_Spawn(p, 43, 96, 0, 48);
@@ -248,11 +242,11 @@ void() MG3_BT_GhostSlimeStep =
         mg3bt_a.target = "mg3bt_target";
         mg3bt_used = 0;
         mg3bt_n = mg3_sacrifices;
-        MG3_BT_Check(mg3bt_a.classname == "misc_sacrifice" && mg3bt_a.takedamage == DAMAGE_AIM && mg3bt_a.health == 100,
+        VR_Test_Check(mg3bt_a.classname == "misc_sacrifice" && mg3bt_a.takedamage == DAMAGE_AIM && mg3bt_a.health == 100,
             sprintf("a sacrifice ahead (%s, %s)", mg3bt_a.classname, mg3bt_a.model));
         activator = p;
         T_Damage(mg3bt_a, p, p, 150);
-        MG3_BT_Check(mg3_sacrifices == mg3bt_n + 1 && mg3bt_used == 1 && mg3bt_a.model == "", "struck down: gibbed, its target fired");
+        VR_Test_Check(mg3_sacrifices == mg3bt_n + 1 && mg3bt_used == 1 && mg3bt_a.model == "", "struck down: gibbed, its target fired");
         // A counter of 3: two uses say how many are left, the third fires its target once.
         self = spawn();
         self.classname = "trigger_sacrifice_counter";
@@ -268,10 +262,10 @@ void() MG3_BT_GhostSlimeStep =
         float used2 = mg3bt_used;
         activator = p; self.use();
         self = oldself;
-        MG3_BT_Check(after2 == 1 && used2 == 0 && mg3bt_used == 1 && mg3bt_ctr.count == 0,
+        VR_Test_Check(after2 == 1 && used2 == 0 && mg3bt_used == 1 && mg3bt_ctr.count == 0,
             sprintf("a counter of 3: %g left after two, fired on the third (%g)", after2, mg3bt_used));
         self = mg3bt_ctr; activator = p; self.use(); self = oldself;
-        MG3_BT_Check(mg3bt_used == 1, "and never again");
+        VR_Test_Check(mg3bt_used == 1, "and never again");
         activator = oldact;
         // The slime.
         mg3bt_t = total_monsters;
@@ -280,7 +274,7 @@ void() MG3_BT_GhostSlimeStep =
         mg3bt_c0 = mg3_slime_children;
         mg3bt_c1 = mg3_slime_stuck + mg3_slime_hits;
         mg3bt_a = MG3_BT_Spawn(p, 41, 220, 0, 0);
-        MG3_BT_Check(mg3bt_a.classname == "monster_tarbaby" && mg3bt_a.mg3_slime == 2 && mg3bt_a.skin == 0 && mg3bt_a.health == 80 &&
+        VR_Test_Check(mg3bt_a.classname == "monster_tarbaby" && mg3bt_a.mg3_slime == 2 && mg3bt_a.skin == 0 && mg3bt_a.health == 80 &&
             mg3bt_a.th_pain == SUB_NullPain && total_monsters == mg3bt_t + 1, "a slime ahead: a plain spawn, two generations to come, counted");
         mg3bt_step = 12; mg3bt_next = time + 1;
         return;
@@ -298,9 +292,9 @@ void() MG3_BT_GhostSlimeStep =
         float kids = mg3_slime_children - mg3bt_c0;
         dprint(sprintf("mg3btest: slime: %g blobs, %g children started, %g blew up in a wall; monsters %g (+%g), killed %g\n",
             blobs, kids, mg3_slime_stuck - mg3bt_c1, total_monsters, total_monsters - mg3bt_t, killed_monsters - mg3bt_k));
-        MG3_BT_Check(blobs >= 2 && blobs <= 3, sprintf("it blew up throwing %g blobs", blobs));
+        VR_Test_Check(blobs >= 2 && blobs <= 3, sprintf("it blew up throwing %g blobs", blobs));
         float lost = mg3_slime_stuck + mg3_slime_hits - mg3bt_c1; // (where they land: walls and you vary with the spot)
-        MG3_BT_Check(kids + lost == blobs && total_monsters == mg3bt_t + 1 + kids,
+        VR_Test_Check(kids + lost == blobs && total_monsters == mg3bt_t + 1 + kids,
             sprintf("each blob a child or a blast (%g children, %g blasts), each child counted once", kids, lost));
         mg3bt_n2 = kids;
         mg3bt_n = mg3_slime_blobs;
@@ -316,7 +310,7 @@ void() MG3_BT_GhostSlimeStep =
         float blobs2 = mg3_slime_blobs - mg3bt_n;
         float lost2 = mg3_slime_stuck + mg3_slime_hits - mg3bt_c1;
         dprint(sprintf("mg3btest: second generation: %g blobs: %g started, %g blew up (a wall, something alive)\n", blobs2, kids2, lost2));
-        MG3_BT_Check(blobs2 >= 2 * mg3bt_n2 && blobs2 <= 3 * mg3bt_n2 && kids2 + lost2 == blobs2,
+        VR_Test_Check(blobs2 >= 2 * mg3bt_n2 && blobs2 <= 3 * mg3bt_n2 && kids2 + lost2 == blobs2,
             sprintf("the children split again: %g blobs from %g, each a spawn or a blast", blobs2, mg3bt_n2));
         MG3_BT_KillSpawns(p);
         mg3bt_n2 = mg3_slime_children;
@@ -325,7 +319,7 @@ void() MG3_BT_GhostSlimeStep =
     }
     if(mg3bt_step == 15)
     {
-        MG3_BT_Check(mg3_slime_children == mg3bt_n2, "the grandchildren do not split");
+        VR_Test_Check(mg3_slime_children == mg3bt_n2, "the grandchildren do not split");
         MG3_BT_KillSpawns(p);
         mg3bt_step = 16; mg3bt_next = time + 1;
         return;
@@ -335,7 +329,7 @@ void() MG3_BT_GhostSlimeStep =
         float alive = 0;
         entity e = find(world, classname, "monster_tarbaby");
         while(e) { if(e.health > 0) alive++; e = find(e, classname, "monster_tarbaby"); }
-        MG3_BT_Check(!alive && killed_monsters - mg3bt_k == total_monsters - mg3bt_t,
+        VR_Test_Check(!alive && killed_monsters - mg3bt_k == total_monsters - mg3bt_t,
             sprintf("all dead: %g killed of %g counted", killed_monsters - mg3bt_k, total_monsters - mg3bt_t));
         p.flags = p.flags - (p.flags & FL_GODMODE);
         MG3_BT_Total();
@@ -348,10 +342,10 @@ void() MG3_BT_MapSacrifices =
 {
     entity p = VR_Player();
     entity oldself = self;
-    mg3bt_pass = mg3bt_fail = 0;
+    VR_Test_Begin("mg3btest");
     mg3bt_ctr = find(world, classname, "trigger_sacrifice_counter");
     if(!mg3bt_ctr) { dprint("mg3btest: no trigger_sacrifice_counter here (Dawn of the Machine's map8 has one)\n"); return; }
-    MG3_BT_Check(mg3bt_ctr.count == 8 && mg3bt_ctr.use == sacrifice_counter_use, sprintf("the counter %s needs %g", mg3bt_ctr.targetname, mg3bt_ctr.count));
+    VR_Test_Check(mg3bt_ctr.count == 8 && mg3bt_ctr.use == sacrifice_counter_use, sprintf("the counter %s needs %g", mg3bt_ctr.targetname, mg3bt_ctr.count));
     mg3bt_n = mg3_sacrifices;
     float used = 0;
     entity s = find(world, classname, "misc_sacrifice");
@@ -370,8 +364,8 @@ void() MG3_BT_MapSacrifices =
     }
     dprint(sprintf("mg3btest: %g victims used, %g gibbed; the counter at %g, next think %g (now %g)\n", used,
         mg3_sacrifices - mg3bt_n, mg3bt_ctr.count, mg3bt_ctr.nextthink, time));
-    MG3_BT_Check(used == 8 && mg3_sacrifices == mg3bt_n + 8, "the 8 victims gibbed");
-    MG3_BT_Check(mg3bt_ctr.count == 0 && mg3bt_ctr.nextthink > time, "the counter reached 0 and fired its target");
+    VR_Test_Check(used == 8 && mg3_sacrifices == mg3bt_n + 8, "the 8 victims gibbed");
+    VR_Test_Check(mg3bt_ctr.count == 0 && mg3bt_ctr.nextthink > time, "the counter reached 0 and fired its target");
     MG3_BT_Total();
 };
 
@@ -390,15 +384,15 @@ void() MG3_BT_LavaStep =
     entity oldself = self, oldact = activator;
     if(mg3bt_step == 30)
     {
-        mg3bt_pass = mg3bt_fail = 0;
+        VR_Test_Begin("mg3btest");
         p.flags = p.flags | FL_GODMODE;
         mg3bt_t = total_monsters;
         mg3bt_a = MG3_BT_Spawn(p, 44, 260, -60, 0);
-        MG3_BT_Check(mg3bt_a.classname == "monster_lava_man" && mg3bt_a.mg3_lavaman && mg3bt_a.model == "owned/mg3/progs/lavaman.mdl",
+        VR_Test_Check(mg3bt_a.classname == "monster_lava_man" && mg3bt_a.mg3_lavaman && mg3bt_a.model == "owned/mg3/progs/lavaman.mdl",
             sprintf("an MG3 lava man ahead (%s, %s)", mg3bt_a.classname, mg3bt_a.model));
-        MG3_BT_Check(mg3bt_a.movetype == MOVETYPE_FLY && mg3bt_a.health == 1250 + 250 * skill && total_monsters == mg3bt_t + 1,
+        VR_Test_Check(mg3bt_a.movetype == MOVETYPE_FLY && mg3bt_a.health == 1250 + 250 * skill && total_monsters == mg3bt_t + 1,
             sprintf("it flies (stays at the lava's surface), %g health, counted", mg3bt_a.health));
-        MG3_BT_Check(mg3bt_a.use == lavaman_force_death && PositionalHead(mg3bt_a) && xHeadUp == 70, "a use kills it; its head zone");
+        VR_Test_Check(mg3bt_a.use == lavaman_force_death && PositionalHead(mg3bt_a) && xHeadUp == 70, "a use kills it; its head zone");
         // Rogue's beside it, unchanged (when Dissolution of Eternity is here).
         mg3bt_b = world;
         if(VR_Pack_Rogue())
@@ -410,7 +404,7 @@ void() MG3_BT_LavaStep =
             monster_lava_man();
             mg3bt_b = self;
             self = oldself;
-            MG3_BT_Check(!mg3bt_b.mg3_lavaman && mg3bt_b.movetype == MOVETYPE_STEP && mg3bt_b.model == "progs/lavaman.mdl" &&
+            VR_Test_Check(!mg3bt_b.mg3_lavaman && mg3bt_b.movetype == MOVETYPE_STEP && mg3bt_b.model == "progs/lavaman.mdl" &&
                 mg3bt_b.use != lavaman_force_death && !PositionalHead(mg3bt_b), "Rogue's lava man beside it: its own (walks, its model, no head zone)");
         }
         else
@@ -423,8 +417,8 @@ void() MG3_BT_LavaStep =
         float h = mg3bt_a.health;
         T_Damage(mg3bt_a, p, p, 100);
         float d1 = h - mg3bt_a.health;
-        MG3_BT_Check(d1 == 80, sprintf("a blow: 0.8 of it (%g of 100)", d1));
-        MG3_BT_Check(mg3bt_a.count == 1 && mg3bt_a.frame == 80, sprintf("its first hit staggers it (frame %g)", mg3bt_a.frame));
+        VR_Test_Check(d1 == 80, sprintf("a blow: 0.8 of it (%g of 100)", d1));
+        VR_Test_Check(mg3bt_a.count == 1 && mg3bt_a.frame == 80, sprintf("its first hit staggers it (frame %g)", mg3bt_a.frame));
         entity bolt = spawn();
         bolt.classname = "hiplaser";
         h = mg3bt_a.health;
@@ -439,18 +433,18 @@ void() MG3_BT_LavaStep =
         float d3 = h - mg3bt_a.health;
         VR_ClearHitKind();
         p.weapon = w1; p.weapon2 = w2;
-        MG3_BT_Check(d2 == 100 && d3 == 100, sprintf("the laser cannon's bolt %g, the lightning gun's %g: whole", d2, d3));
+        VR_Test_Check(d2 == 100 && d3 == 100, sprintf("the laser cannon's bolt %g, the lightning gun's %g: whole", d2, d3));
         entity chthon = spawn();
         chthon.classname = "monster_boss";
         h = mg3bt_a.health;
         T_Damage(mg3bt_a, chthon, chthon, 100);
         remove(chthon);
-        MG3_BT_Check(mg3bt_a.health == h, "nothing from Chthon");
+        VR_Test_Check(mg3bt_a.health == h, "nothing from Chthon");
         if(mg3bt_b)
         {
             h = mg3bt_b.health;
             T_Damage(mg3bt_b, p, p, 100);
-            MG3_BT_Check(h - mg3bt_b.health == 100, sprintf("Rogue's takes the whole blow (%g)", h - mg3bt_b.health));
+            VR_Test_Check(h - mg3bt_b.health == 100, sprintf("Rogue's takes the whole blow (%g)", h - mg3bt_b.health));
         }
         MG3_BT_Wake(mg3bt_a, p);
         self = mg3bt_a;
@@ -468,21 +462,21 @@ void() MG3_BT_LavaStep =
         traceline(mg3bt_a.origin + '0 0 64', p.origin, FALSE, mg3bt_a);
         dprint(sprintf("mg3btest: lava man frame %g enemy %s attack_finished %g (now %g) sight %s; origin %v\n", mg3bt_a.frame,
             mg3bt_a.enemy.classname, mg3bt_a.attack_finished, time, trace_ent.classname, mg3bt_a.origin));
-        MG3_BT_Check(mg3bt_n >= 1, sprintf("awake, it throws lava balls (%g in flight at once)", mg3bt_n));
-        MG3_BT_Check(mg3bt_a.origin_z - mg3bt_n2 > -1, sprintf("it never fell (%g)", mg3bt_a.origin_z - mg3bt_n2));
+        VR_Test_Check(mg3bt_n >= 1, sprintf("awake, it throws lava balls (%g in flight at once)", mg3bt_n));
+        VR_Test_Check(mg3bt_a.origin_z - mg3bt_n2 > -1, sprintf("it never fell (%g)", mg3bt_a.origin_z - mg3bt_n2));
         mg3bt_k = killed_monsters;
         activator = p;
         self = mg3bt_a;
         self.use();
         self = oldself; activator = oldact;
-        MG3_BT_Check(mg3bt_a.health <= 0 && killed_monsters == mg3bt_k + 1, "used again: it dies, counted");
+        VR_Test_Check(mg3bt_a.health <= 0 && killed_monsters == mg3bt_k + 1, "used again: it dies, counted");
         if(mg3bt_b) T_Damage(mg3bt_b, p, p, 5000);
         mg3bt_step = 40; mg3bt_next = time + 2;
         return;
     }
     if(mg3bt_step == 40)
     {
-        MG3_BT_Check(mg3bt_a.model == "" && killed_monsters == mg3bt_k + 1 + (mg3bt_b != world), "it sank and is gone, counted once");
+        VR_Test_Check(mg3bt_a.model == "" && killed_monsters == mg3bt_k + 1 + (mg3bt_b != world), "it sank and is gone, counted once");
         p.flags = p.flags - (p.flags & FL_GODMODE);
         MG3_BT_Total();
         return;
@@ -498,7 +492,7 @@ void() MG3_BT_MapLavaStep =
     float n = 0, waiting = 0, risen = 0, dead = 0;
     if(mg3bt_step == 50)
     {
-        mg3bt_pass = mg3bt_fail = 0;
+        VR_Test_Begin("mg3btest");
         p.flags = p.flags | FL_GODMODE;
         e = find(world, classname, "monster_lava_man");
         while(e)
@@ -507,7 +501,7 @@ void() MG3_BT_MapLavaStep =
             if(e.mg3_lavaman && e.use == lavaman_awake && !e.takedamage && e.targetname != "") waiting++;
             e = find(e, classname, "monster_lava_man");
         }
-        MG3_BT_Check(n >= 1 && waiting == n, sprintf("%g lava men of MG3's, %g waiting for their trigger", n, waiting));
+        VR_Test_Check(n >= 1 && waiting == n, sprintf("%g lava men of MG3's, %g waiting for their trigger", n, waiting));
         mg3bt_t = total_monsters;
         mg3bt_k = killed_monsters;
         e = find(world, classname, "monster_lava_man");
@@ -530,7 +524,7 @@ void() MG3_BT_MapLavaStep =
             if(e.takedamage && e.movetype == MOVETYPE_FLY && e.model == "owned/mg3/progs/lavaman.mdl" && e.use == lavaman_force_death && e.enemy == p) risen++;
             e = find(e, classname, "monster_lava_man");
         }
-        MG3_BT_Check(n >= 1 && risen == n, sprintf("its trigger fired: %g of %g risen, flying, after you", risen, n));
+        VR_Test_Check(n >= 1 && risen == n, sprintf("its trigger fired: %g of %g risen, flying, after you", risen, n));
         e = find(world, classname, "monster_lava_man");
         while(e)
         {
@@ -538,14 +532,14 @@ void() MG3_BT_MapLavaStep =
             e = find(e, classname, "monster_lava_man");
         }
         activator = oldact;
-        MG3_BT_Check(killed_monsters == mg3bt_k + n && total_monsters == mg3bt_t, sprintf("used again: all dead, counted (%g)", killed_monsters - mg3bt_k));
+        VR_Test_Check(killed_monsters == mg3bt_k + n && total_monsters == mg3bt_t, sprintf("used again: all dead, counted (%g)", killed_monsters - mg3bt_k));
         mg3bt_n = n;
         mg3bt_step = 52; mg3bt_next = time + 2;
         return;
     }
     if(mg3bt_step == 52)
     {
-        MG3_BT_Check(!find(world, classname, "monster_lava_man") && killed_monsters == mg3bt_k + mg3bt_n, "sunk, gone, counted once");
+        VR_Test_Check(!find(world, classname, "monster_lava_man") && killed_monsters == mg3bt_k + mg3bt_n, "sunk, gone, counted once");
         p.flags = p.flags - (p.flags & FL_GODMODE);
         MG3_BT_Total();
         return;
@@ -559,21 +553,21 @@ void() MG3_BT_SuperShamblerStep =
     entity oldself = self;
     if(mg3bt_step == 60)
     {
-        mg3bt_pass = mg3bt_fail = 0;
+        VR_Test_Begin("mg3btest");
         p.flags = p.flags | FL_GODMODE;
         mg3bt_t = total_monsters;
         mg3bt_a = MG3_BT_Spawn(p, 45, 200, 0, 0);
-        MG3_BT_Check(mg3bt_a.classname == "monster_super_shambler" && mg3bt_a.model == "owned/mg3/progs/shambler_blood.mdl" &&
+        VR_Test_Check(mg3bt_a.classname == "monster_super_shambler" && mg3bt_a.model == "owned/mg3/progs/shambler_blood.mdl" &&
             mg3bt_a.health == 2000 && total_monsters == mg3bt_t + 1, sprintf("a super shambler ahead (%s, %g health), counted", mg3bt_a.model, mg3bt_a.health));
-        MG3_BT_Check(PositionalHead(mg3bt_a) && xHeadUp == 53 && VR_Decap_HeadModel(mg3bt_a) == "progs/h_shams.mdl", "its head zone and head gib");
-        MG3_BT_Check(VR_Parry_MeleeMonster(mg3bt_a) && VR_Grapple_MonsterMass(mg3bt_a) == 800 && VR_Dummy_Available(33),
+        VR_Test_Check(PositionalHead(mg3bt_a) && xHeadUp == 53 && VR_Decap_HeadModel(mg3bt_a) == "progs/h_shams.mdl", "its head zone and head gib");
+        VR_Test_Check(VR_Parry_MeleeMonster(mg3bt_a) && VR_Grapple_MonsterMass(mg3bt_a) == 800 && VR_Dummy_Available(33),
             "its blows parried, 800 kg to the grapple, the dummy's enemy 33");
         mg3bt_step = 61; mg3bt_next = time + 1; // (started: hurt by shots)
         return;
     }
     if(mg3bt_step == 61)
     {
-        MG3_BT_Check(mg3bt_a.takedamage && canragdoll(mg3bt_a) && mg3bt_a.vr_kd_chance_h == cvarh_vr_knockdown_chance_shambler,
+        VR_Test_Check(mg3bt_a.takedamage && canragdoll(mg3bt_a) && mg3bt_a.vr_kd_chance_h == cvarh_vr_knockdown_chance_shambler,
             "started; a rig, knocked down as a shambler");
         entity boom = spawn();
         setorigin(boom, mg3bt_a.origin);
@@ -581,7 +575,7 @@ void() MG3_BT_SuperShamblerStep =
         T_RadiusDamage(boom, p, 100, world);
         remove(boom);
         float lost = h - mg3bt_a.health;
-        MG3_BT_Check(lost > 0 && lost <= 50, sprintf("a blast at it: half (%g of 100 at most)", lost));
+        VR_Test_Check(lost > 0 && lost <= 50, sprintf("a blast at it: half (%g of 100 at most)", lost));
         mg3bt_a.enemy = p;
         mg3bt_n = mg3_supsham_plasma;
         self = mg3bt_a; supsham_smash1(); self = oldself;
@@ -590,7 +584,7 @@ void() MG3_BT_SuperShamblerStep =
     }
     if(mg3bt_step == 62)
     {
-        MG3_BT_Check(mg3_supsham_plasma - mg3bt_n == 11, sprintf("its smash sprays 11 plasma balls (%g)", mg3_supsham_plasma - mg3bt_n));
+        VR_Test_Check(mg3_supsham_plasma - mg3bt_n == 11, sprintf("its smash sprays 11 plasma balls (%g)", mg3_supsham_plasma - mg3bt_n));
         mg3bt_n = mg3_supsham_plasma;
         self = mg3bt_a; supsham_swingl1(); self = oldself;
         mg3bt_step = 63; mg3bt_next = time + 1.2;
@@ -598,7 +592,7 @@ void() MG3_BT_SuperShamblerStep =
     }
     if(mg3bt_step == 63)
     {
-        MG3_BT_Check(mg3_supsham_plasma - mg3bt_n == 9, sprintf("a claw sprays 9 (%g)", mg3_supsham_plasma - mg3bt_n));
+        VR_Test_Check(mg3_supsham_plasma - mg3bt_n == 9, sprintf("a claw sprays 9 (%g)", mg3_supsham_plasma - mg3bt_n));
         mg3bt_n = mg3_supsham_bolts;
         self = mg3bt_a; supsham_magic_b1(); self = oldself;
         mg3bt_step = 64; mg3bt_next = time + 1.6;
@@ -606,17 +600,17 @@ void() MG3_BT_SuperShamblerStep =
     }
     if(mg3bt_step == 64)
     {
-        MG3_BT_Check(mg3_supsham_bolts - mg3bt_n == 3 && !mg3bt_a.supsham_child, sprintf("its fast cast: 3 bolts (%g), its glow gone", mg3_supsham_bolts - mg3bt_n));
+        VR_Test_Check(mg3_supsham_bolts - mg3bt_n == 3 && !mg3bt_a.supsham_child, sprintf("its fast cast: 3 bolts (%g), its glow gone", mg3_supsham_bolts - mg3bt_n));
         mg3bt_k = killed_monsters;
         mg3bt_a.health = 10;
         T_Damage(mg3bt_a, p, p, 20); // (dies whole: not below -60)
-        MG3_BT_Check(mg3bt_a.health <= 0 && killed_monsters == mg3bt_k + 1, "killed, counted");
+        VR_Test_Check(mg3bt_a.health <= 0 && killed_monsters == mg3bt_k + 1, "killed, counted");
         mg3bt_step = 65; mg3bt_next = time + 2;
         return;
     }
     if(mg3bt_step == 65)
     {
-        MG3_BT_Check(isragdoll(mg3bt_a) && ragdolllimbs(mg3bt_a, 0) > 0, sprintf("he lies as a ragdoll (vr_ragdoll %g), his limb bits %g", cvar("vr_ragdoll"), ragdolllimbs(mg3bt_a, 0)));
+        VR_Test_Check(isragdoll(mg3bt_a) && ragdolllimbs(mg3bt_a, 0) > 0, sprintf("he lies as a ragdoll (vr_ragdoll %g), his limb bits %g", cvar("vr_ragdoll"), ragdolllimbs(mg3bt_a, 0)));
         p.flags = p.flags - (p.flags & FL_GODMODE);
         MG3_BT_Total();
         return;
@@ -628,7 +622,7 @@ void() MG3_BT_SuperShamblerStep =
 void(float xPart) MG3_BT_MapSuperShambler =
 {
     entity p = VR_Player();
-    mg3bt_pass = mg3bt_fail = 0;
+    VR_Test_Begin("mg3btest");
     entity s = find(world, classname, "monster_super_shambler");
     while(s && s.health <= 0) s = find(s, classname, "monster_super_shambler");
     if(!s) { dprint("mg3btest: no living monster_super_shambler here (Dawn of the Machine's map8 has one)\n"); return; }
@@ -637,7 +631,7 @@ void(float xPart) MG3_BT_MapSuperShambler =
         float relays = 0;
         entity r = find(world, targetname, s.health_target);
         while(r) { if(r.classname == "trigger_health_relay") relays++; r = find(r, targetname, s.health_target); }
-        MG3_BT_Check(s.model == "owned/mg3/progs/shambler_blood.mdl" && s.health == 2000 && s.max_health == 2000 && relays >= 1,
+        VR_Test_Check(s.model == "owned/mg3/progs/shambler_blood.mdl" && s.health == 2000 && s.max_health == 2000 && relays >= 1,
             sprintf("map8's super shambler (%g health, health_target %s: %g relays)", s.health, s.health_target, relays));
         s.enemy = p;
         T_Damage(s, p, p, 1100);
@@ -645,15 +639,15 @@ void(float xPart) MG3_BT_MapSuperShambler =
         float left = 0;
         r = find(world, targetname, s.health_target);
         while(r) { if(r.classname == "trigger_health_relay") left++; r = find(r, targetname, s.health_target); }
-        MG3_BT_Check(s.health == 899 && left < relays, sprintf("hurt to %g: %g of its %g relays fired", s.health, relays - left, relays));
+        VR_Test_Check(s.health == 899 && left < relays, sprintf("hurt to %g: %g of its %g relays fired", s.health, relays - left, relays));
     }
     else
     {
-        MG3_BT_Check(s.health == 899 && s.takedamage && s.model == "owned/mg3/progs/shambler_blood.mdl" && s.th_die == supsham_die,
+        VR_Test_Check(s.health == 899 && s.takedamage && s.model == "owned/mg3/progs/shambler_blood.mdl" && s.th_die == supsham_die,
             sprintf("after the load: %g health, its model and death", s.health));
         mg3bt_k = killed_monsters;
         T_Damage(s, p, p, 950);
-        MG3_BT_Check(s.health <= 0 && killed_monsters == mg3bt_k + 1, "killed, counted once");
+        VR_Test_Check(s.health <= 0 && killed_monsters == mg3bt_k + 1, "killed, counted once");
     }
     MG3_BT_Total();
 };
@@ -698,7 +692,7 @@ void() MG3_BT_StockStep =
     float sk3 = skill > 2;
     if(mg3bt_step == 70)
     {
-        mg3bt_pass = mg3bt_fail = 0;
+        VR_Test_Begin("mg3btest");
         p.flags = p.flags | FL_GODMODE;
         dprint(sprintf("mg3btest: stock monsters: campaign 5 %g, skill %g, Bloody Nightmare %g\n", mg3, skill, bn));
         // Backpacks.
@@ -706,12 +700,12 @@ void() MG3_BT_StockStep =
         entity g = MG3_BT_Spawn(p, 0, 120, -60, 0);
         g.ammo_shells = 5; // (as its death code gives it)
         self = g; DropBackpack(); self = oldself;
-        MG3_BT_Check(MG3_BT_Backpacks() == packs + (!mg3), sprintf("a grunt's backpack: %g (campaign 5: none)", MG3_BT_Backpacks() - packs));
+        VR_Test_Check(MG3_BT_Backpacks() == packs + (!mg3), sprintf("a grunt's backpack: %g (campaign 5: none)", MG3_BT_Backpacks() - packs));
         // Skill 3's harder skin (a 1-damage blow, 20 times).
         float f1 = MG3_BT_Flinches(g, 20, 1);
         entity en = MG3_BT_Spawn(p, 8, 120, 60, 0);
         float f2 = MG3_BT_Flinches(en, 20, 1);
-        MG3_BT_Check((mg3 && sk3) ? (f1 <= 2 && f2 <= 2) : (f1 >= 15 && f2 >= 15), sprintf("light blows: the grunt flinched %g of 20, the enforcer %g", f1, f2));
+        VR_Test_Check((mg3 && sk3) ? (f1 <= 2 && f2 <= 2) : (f1 >= 15 && f2 >= 15), sprintf("light blows: the grunt flinched %g of 20, the enforcer %g", f1, f2));
         remove(g); remove(en);
         // The nightmare pain rest spares zombies (T_Damage; a fiend for comparison).
         entity z = MG3_BT_Spawn(p, 2, 120, 0, 0);
@@ -726,7 +720,7 @@ void() MG3_BT_StockStep =
         T_Damage(mg3bt_a, p, p, 30);
         T_Damage(mg3bt_b, p, p, 100);
         float zr = mg3bt_a.pain_finished - time, dr = mg3bt_b.pain_finished - time;
-        MG3_BT_Check(sk3 ? (dr > 4.9 && (mg3 ? (zr < 4.9) : (zr > 4.9))) : TRUE,
+        VR_Test_Check(sk3 ? (dr > 4.9 && (mg3 ? (zr < 4.9) : (zr > 4.9))) : TRUE,
             sprintf("the nightmare pain rest: the fiend's %g s, the zombie's %g s", dr, zr));
         remove(mg3bt_a); remove(mg3bt_b);
         // The shambler's lightning after its blows (skill 3).
@@ -736,7 +730,7 @@ void() MG3_BT_StockStep =
         float calls = 0, cast = 0;
         while(calls < 6 && !cast) { calls++; cast = MG3_ShamblerCasts(); }
         self = oldself;
-        MG3_BT_Check((mg3 && sk3) ? (cast && calls <= (bn ? 4 : 5) && calls >= (bn ? 3 : 4)) : (!cast),
+        VR_Test_Check((mg3 && sk3) ? (cast && calls <= (bn ? 4 : 5) && calls >= (bn ? 3 : 4)) : (!cast),
             sprintf("the shambler's lightning after %g blows (cast %g)", calls, cast));
         remove(s);
         // A vore's ball.
@@ -748,7 +742,7 @@ void() MG3_BT_StockStep =
         entity e2 = MG3_BT_Spawn(p, 8, 200, -80, 0);
         e2.enemy = p;
         self = e2; enforcer_fire(); self = oldself;
-        MG3_BT_Check(mg3_bn_extra - mg3bt_n == bn, sprintf("the enforcer's shot: %g more lasers", mg3_bn_extra - mg3bt_n));
+        VR_Test_Check(mg3_bn_extra - mg3bt_n == bn, sprintf("the enforcer's shot: %g more lasers", mg3_bn_extra - mg3bt_n));
         remove(e2);
         entity h = MG3_BT_Spawn(p, 6, 200, 80, 0);
         h.enemy = p;
@@ -756,7 +750,7 @@ void() MG3_BT_StockStep =
         entity k = find(world, classname, "knightspike");
         entity newest = world;
         while(k) { if(k.owner == h) newest = k; k = find(k, classname, "knightspike"); }
-        MG3_BT_Check((newest != world) && fabs(vlen(newest.velocity) - (bn ? 500 : 300)) < 1, sprintf("the death knight's spike: %g a second", vlen(newest.velocity)));
+        VR_Test_Check((newest != world) && fabs(vlen(newest.velocity) - (bn ? 500 : 300)) < 1, sprintf("the death knight's spike: %g a second", vlen(newest.velocity)));
         remove(h);
         mg3bt_b = MG3_BT_Spawn(p, 4, 200, 0, 64);
         mg3bt_b.enemy = p;
@@ -780,7 +774,7 @@ void() MG3_BT_StockStep =
                 float speed = vlen(ball.velocity);
                 if(fabs(late - 0.1) < 0.01 && fabs(speed - want) < 1) steered = TRUE;
             }
-            MG3_BT_Check(steered, sprintf("the vore's ball steers every 0.1 s at %g (%s)", vlen(ball.velocity), ball.classname));
+            VR_Test_Check(steered, sprintf("the vore's ball steers every 0.1 s at %g (%s)", vlen(ball.velocity), ball.classname));
         }
         remove(mg3bt_a);
         mg3bt_step = 73; mg3bt_next = time + 1.2;
@@ -789,7 +783,7 @@ void() MG3_BT_StockStep =
     if(mg3bt_step == 73)
     {
         float wiz = mg3_bn_extra - mg3bt_n;
-        MG3_BT_Check(bn ? (wiz >= 1) : (wiz == 0), sprintf("the scrag's six spikes brought %g more", wiz));
+        VR_Test_Check(bn ? (wiz >= 1) : (wiz == 0), sprintf("the scrag's six spikes brought %g more", wiz));
         remove(mg3bt_b);
         mg3bt_a = MG3_BT_Spawn(p, 1, 250, 0, 0); // (an ogre: started, then its volleys)
         mg3bt_step = 74; mg3bt_next = time + 1;
@@ -809,7 +803,7 @@ void() MG3_BT_StockStep =
     }
     if(mg3bt_step == 75)
     {
-        MG3_BT_Check(mg3_bn_extra - mg3bt_n == (bn ? 2 : 0), sprintf("the ogre's burst: %g more grenades", mg3_bn_extra - mg3bt_n));
+        VR_Test_Check(mg3_bn_extra - mg3bt_n == (bn ? 2 : 0), sprintf("the ogre's burst: %g more grenades", mg3_bn_extra - mg3bt_n));
         remove(mg3bt_a);
         // Zombies: hanging, and throwing only up close.
         self = spawn();
@@ -825,9 +819,9 @@ void() MG3_BT_StockStep =
         monster_zombie();
         mg3bt_b = self;
         self = oldself;
-        MG3_BT_Check(mg3 ? (mg3bt_a.movetype == MOVETYPE_NONE && mg3bt_a.think == mg3_zombie_hang1) : (mg3bt_a.think != mg3_zombie_hang1),
+        VR_Test_Check(mg3 ? (mg3bt_a.movetype == MOVETYPE_NONE && mg3bt_a.think == mg3_zombie_hang1) : (mg3bt_a.think != mg3_zombie_hang1),
             "a zombie with spawnflag 8388608 hangs (campaign 5)");
-        MG3_BT_Check(mg3 ? (mg3bt_b.th_melee == zombie_missile && mg3bt_b.th_missile == SUB_Null) : (mg3bt_b.th_missile == zombie_missile),
+        VR_Test_Check(mg3 ? (mg3bt_b.th_melee == zombie_missile && mg3bt_b.th_missile == SUB_Null) : (mg3bt_b.th_missile == zombie_missile),
             "spawnflag 128: its flesh thrown only up close (campaign 5)");
         p.flags = p.flags - (p.flags & FL_GODMODE);
         MG3_BT_Total();

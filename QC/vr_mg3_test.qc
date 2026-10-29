@@ -1,11 +1,6 @@
 #ifdef QVR_TESTS
 // Dawn of the Machine acceptance aids (Debug > Tests > Dawn of the Machine Tests, `vr_mg3_test`). Its campaign
 // only (Official Campaigns, or `vr_campaign_native mg3`); results print with developer 1 as "mg3test:" lines.
-float MG3_test_pass, MG3_test_fail;
-void(float ok, string label) MG3_Check = {
-    if(ok) MG3_test_pass++; else MG3_test_fail++;
-    dprint(sprintf("mg3test: %s %s\n", ok ? "PASS" : "FAIL", label));
-};
 void() MG3_T_Report = {
     entity p = VR_Player();
     dprint(sprintf("mg3test: report map %s worldtype %g skill %g serverflags %g\n", mapname, world.worldtype, skill, serverflags));
@@ -26,21 +21,21 @@ void() MG3_T_Caps = {
     dprint(sprintf("mg3test: caps campaign %g skill %g dm %g health %g max_health %g mega %g", cvar("vr_campaign"), skill, deathmatch, mh, p.max_health, mega));
     dprint(sprintf(" shells %g nails %g rockets %g cells %g", s, n, r, c));
     dprint(sprintf(" lava %g multi %g plasma %g\n", VR_MaxAmmo(p, AID_LAVA_NAILS), VR_MaxAmmo(p, AID_MULTI_ROCKETS), VR_MaxAmmo(p, AID_PLASMA)));
-    MG3_test_pass = MG3_test_fail = 0;
-    MG3_Check(p.max_health == mh, "the player's max_health is its capacity");
+    VR_Test_Begin("mg3test");
+    VR_Test_Check(p.max_health == mh, "the player's max_health is its capacity");
     p.ammo_shells = p.ammo_nails = p.ammo_rockets = p.ammo_cells = 1000;
     p.ammo_lava_nails = p.ammo_multi_rockets = p.ammo_plasma = 1000;
     other = p; bound_other_ammo();
     dprint(sprintf("mg3test: bounded shells %g nails %g rockets %g cells %g", p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells));
     dprint(sprintf(" lava %g multi %g plasma %g\n", p.ammo_lava_nails, p.ammo_multi_rockets, p.ammo_plasma));
-    MG3_Check(p.ammo_shells == s && p.ammo_nails == n && p.ammo_rockets == r && p.ammo_cells == c, "bound_other_ammo caps at the capacities");
+    VR_Test_Check(p.ammo_shells == s && p.ammo_nails == n && p.ammo_rockets == r && p.ammo_cells == c, "bound_other_ammo caps at the capacities");
     p.health = 1; other = p; T_Heal(p, 1000, FALSE);
     float healed = p.health;
     T_Heal(p, 1000, TRUE);
     dprint(sprintf("mg3test: healed %g mega %g\n", healed, p.health));
-    MG3_Check(healed == mh, "ordinary healing stops at the capacity");
-    MG3_Check(p.health == mega, "megahealth stops at the mega cap");
-    dprint(sprintf("mg3test: caps %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    VR_Test_Check(healed == mh, "ordinary healing stops at the capacity");
+    VR_Test_Check(p.health == mega, "megahealth stops at the mega cap");
+    dprint(sprintf("mg3test: caps %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 float(string c) MG3_T_IsUpgrade = {
     return c == "item_upgrade_health" || c == "item_upgrade_shells" || c == "item_upgrade_nails" || c == "item_upgrade_rockets"
@@ -75,18 +70,18 @@ void() MG3_T_Collect = {
     MG3_T_Report();
     dprint(sprintf("mg3test: caps health %g shells %g nails %g rockets %g", VR_MaxHealth(p), VR_MaxAmmo(p, AID_SHELLS), VR_MaxAmmo(p, AID_NAILS), VR_MaxAmmo(p, AID_ROCKETS)));
     dprint(sprintf(" cells %g (before %g %g %g %g %g)\n", VR_MaxAmmo(p, AID_CELLS), h0, s0, n0, r0, c0));
-    MG3_test_pass = MG3_test_fail = 0;
-    MG3_Check(found > 0 && taken == found, "every upgrade is taken by its pickup");
+    VR_Test_Begin("mg3test");
+    VR_Test_Check(found > 0 && taken == found, "every upgrade is taken by its pickup");
     if(kinds & 1) {
-        MG3_Check(MG3_upgrade_health & flag, "the health mask has the map's bit");
-        MG3_Check(VR_MaxHealth(p) == h0 + (hadH ? 0 : 10) && p.max_health == VR_MaxHealth(p), "health capacity +10 once");
-        MG3_Check(hadH ? p.health == 1 : p.health == p.max_health, "health filled to the new capacity (a known upgrade: none)");
+        VR_Test_Check(MG3_upgrade_health & flag, "the health mask has the map's bit");
+        VR_Test_Check(VR_MaxHealth(p) == h0 + (hadH ? 0 : 10) && p.max_health == VR_MaxHealth(p), "health capacity +10 once");
+        VR_Test_Check(hadH ? p.health == 1 : p.health == p.max_health, "health filled to the new capacity (a known upgrade: none)");
     }
-    if(kinds & 2) MG3_Check(VR_MaxAmmo(p, AID_SHELLS) == s0 + (hadS ? 0 : 10) && p.ammo_shells == (hadS ? 0 : VR_MaxAmmo(p, AID_SHELLS)), "shells +10 once, filled");
-    if(kinds & 4) MG3_Check(VR_MaxAmmo(p, AID_NAILS) == n0 + (hadN ? 0 : 10) && p.ammo_nails == (hadN ? 0 : VR_MaxAmmo(p, AID_NAILS)), "nails +10 once, filled");
-    if(kinds & 8) MG3_Check(VR_MaxAmmo(p, AID_ROCKETS) == r0 + (hadR ? 0 : 10) && p.ammo_rockets == (hadR ? 0 : VR_MaxAmmo(p, AID_ROCKETS)), "rockets +10 once, filled");
-    if(kinds & 16) MG3_Check(VR_MaxAmmo(p, AID_CELLS) == c0 + (hadC ? 0 : 10) && p.ammo_cells == (hadC ? 0 : VR_MaxAmmo(p, AID_CELLS)), "cells +10 once, filled");
-    dprint(sprintf("mg3test: upgrades %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    if(kinds & 2) VR_Test_Check(VR_MaxAmmo(p, AID_SHELLS) == s0 + (hadS ? 0 : 10) && p.ammo_shells == (hadS ? 0 : VR_MaxAmmo(p, AID_SHELLS)), "shells +10 once, filled");
+    if(kinds & 4) VR_Test_Check(VR_MaxAmmo(p, AID_NAILS) == n0 + (hadN ? 0 : 10) && p.ammo_nails == (hadN ? 0 : VR_MaxAmmo(p, AID_NAILS)), "nails +10 once, filled");
+    if(kinds & 8) VR_Test_Check(VR_MaxAmmo(p, AID_ROCKETS) == r0 + (hadR ? 0 : 10) && p.ammo_rockets == (hadR ? 0 : VR_MaxAmmo(p, AID_ROCKETS)), "rockets +10 once, filled");
+    if(kinds & 16) VR_Test_Check(VR_MaxAmmo(p, AID_CELLS) == c0 + (hadC ? 0 : 10) && p.ammo_cells == (hadC ? 0 : VR_MaxAmmo(p, AID_CELLS)), "cells +10 once, filled");
+    dprint(sprintf("mg3test: upgrades %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 // ----------------------------------------------------------------------------
 // M3-05 map triggers (any campaign). Request 6: this map's silent teleports (each from its middle: moved by its
@@ -109,19 +104,19 @@ void(entity e) MG3_T_Touch = { entity os = self, oo = other; self = e; other = M
 void(entity e) MG3_T_Use = { entity os = self; self = e; activator = MG3_T_player; e.use(); self = os; };
 void() MG3_T_TriggersLate = {
     entity p = MG3_T_player;
-    MG3_Check(MG3_T_SinkCount("mg3tt_always") == 1, "trigger_always fired its target once after load");
-    MG3_Check(MG3_T_SinkCount("mg3tt_multi") == 2, "multitouch: first touch, then emptied");
-    MG3_Check(MG3_T_SinkCount("mg3tt_multi16") == 1, "multitouch IGNORE_FIRST_TOUCH: emptied only");
-    MG3_Check(MG3_T_SinkCount("mg3tt_multi64") == 0, "multitouch REQUIRE_ONGROUND: an airborne player does nothing");
-    MG3_Check(!find(world, classname, "mg3tt_repeater") && MG3_explosion_blasts - MG3_T_blasts0 == 3, "explosion repeater: count 3 blasts, then gone");
-    MG3_Check(p.super_damage_finished <= time, "the quad of trigger_quad ends after leaving it");
+    VR_Test_Check(MG3_T_SinkCount("mg3tt_always") == 1, "trigger_always fired its target once after load");
+    VR_Test_Check(MG3_T_SinkCount("mg3tt_multi") == 2, "multitouch: first touch, then emptied");
+    VR_Test_Check(MG3_T_SinkCount("mg3tt_multi16") == 1, "multitouch IGNORE_FIRST_TOUCH: emptied only");
+    VR_Test_Check(MG3_T_SinkCount("mg3tt_multi64") == 0, "multitouch REQUIRE_ONGROUND: an airborne player does nothing");
+    VR_Test_Check(!find(world, classname, "mg3tt_repeater") && MG3_explosion_blasts - MG3_T_blasts0 == 3, "explosion repeater: count 3 blasts, then gone");
+    VR_Test_Check(p.super_damage_finished <= time, "the quad of trigger_quad ends after leaving it");
     p.flags = p.flags - (p.flags & FL_GODMODE); p.health = MG3_T_health0;
-    dprint(sprintf("mg3test: triggers %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    dprint(sprintf("mg3test: triggers %g passed, %g failed\n", vr_test_pass, vr_test_fail));
     remove(self);
 };
 void() MG3_T_Triggers = {
     entity p = VR_Player(); if(!p) return;
-    MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
+    MG3_T_player = p; VR_Test_Begin("mg3test");
     p.flags = p.flags | FL_GODMODE; MG3_T_health0 = p.health;
     vector keep = p.origin;
     // Silent teleports.
@@ -140,7 +135,7 @@ void() MG3_T_Triggers = {
     }
     setorigin(p, keep);
     dprint(sprintf("mg3test: %g silent teleports, %g moved by their height, %g land in the open\n", n, moved, open));
-    if(n) MG3_Check(moved == n && open == n, "every silent teleport moves the player by its height into the open");
+    if(n) VR_Test_Check(moved == n && open == n, "every silent teleport moves the player by its height into the open");
     // Door relays: each target toggled by its state unless the flags say leave it.
     float rn = 0, rok = 0, toggles = 0;
     e = find(world, classname, "trigger_door_relay");
@@ -169,7 +164,7 @@ void() MG3_T_Triggers = {
         e = find(e, classname, "trigger_door_relay");
     }
     dprint(sprintf("mg3test: %g door relays, %g toggled their targets (%g doors and buttons moved)\n", rn, rok, toggles));
-    if(rn) MG3_Check(rok == rn, "every door relay toggles its doors and buttons by state");
+    if(rn) VR_Test_Check(rok == rn, "every door relay toggles its doors and buttons by state");
     // Spawned triggers.
     entity os = self;
     MG3_T_Sink("mg3tt_always");
@@ -177,7 +172,7 @@ void() MG3_T_Triggers = {
     MG3_T_Sink("mg3tt_multi"); MG3_T_Sink("mg3tt_multi16"); MG3_T_Sink("mg3tt_multi64");
     e = MG3_T_Spawn("mg3tt"); e.target = "mg3tt_multi"; self = e; trigger_multitouch(); self = os;
     MG3_T_Touch(e); MG3_T_Touch(e);
-    MG3_Check(MG3_T_SinkCount("mg3tt_multi") == 1, "multitouch fires once on the first touch");
+    VR_Test_Check(MG3_T_SinkCount("mg3tt_multi") == 1, "multitouch fires once on the first touch");
     e = MG3_T_Spawn("mg3tt"); e.target = "mg3tt_multi16"; e.spawnflags = 16; self = e; trigger_multitouch(); self = os;
     MG3_T_Touch(e);
     float pf = p.flags; p.flags = p.flags - (p.flags & FL_ONGROUND);
@@ -185,13 +180,13 @@ void() MG3_T_Triggers = {
     MG3_T_Touch(e); p.flags = pf;
     e = MG3_T_Spawn("mg3tt"); e.dmg = 5; self = e; trigger_heal(); self = os;
     p.health = 10; MG3_T_Touch(e); float h1 = p.health; MG3_T_Touch(e);
-    MG3_Check(h1 == 15 && p.health == 15, "trigger_heal heals dmg once per wait");
+    VR_Test_Check(h1 == 15 && p.health == 15, "trigger_heal heals dmg once per wait");
     e = MG3_T_Spawn("trigger_music"); e.targetname = "mg3tt_music"; e.style = (world.sounds == 7) ? 8 : 7; self = e; trigger_music(); self = os;
     MG3_T_Use(e);
-    MG3_Check(e.sounds == e.style && e.style != world.sounds, "trigger_music switches to its style");
+    VR_Test_Check(e.sounds == e.style && e.style != world.sounds, "trigger_music switches to its style");
     e = MG3_T_Spawn("mg3tt"); self = e; trigger_quad(); self = os;
     MG3_T_Touch(e);
-    MG3_Check(VR_ItemUtil_EntHasItem(p, IID_QUAD) && p.super_damage_finished > time, "trigger_quad gives quad inside");
+    VR_Test_Check(VR_ItemUtil_EntHasItem(p, IID_QUAD) && p.super_damage_finished > time, "trigger_quad gives quad inside");
     MG3_T_Sink("mg3tt_group");
     entity d1 = MG3_T_Spawn("mg3tt_door"), d2 = MG3_T_Spawn("mg3tt_door");
     d1.category = d2.category = "mg3tt_cat"; d1.state = STATE_TOP; d2.state = STATE_BOTTOM;
@@ -199,18 +194,18 @@ void() MG3_T_Triggers = {
     e = MG3_T_Spawn("mg3tt"); e.category = "mg3tt_cat"; e.target = "mg3tt_group"; self = e; trigger_doorgroup_relay(); self = os;
     MG3_T_Use(e); float g1 = MG3_T_SinkCount("mg3tt_group");
     d2.state = STATE_UP; MG3_T_Use(e);
-    MG3_Check(g1 == 0 && MG3_T_SinkCount("mg3tt_group") == 1, "doorgroup relay fires only with every door at its goal");
+    VR_Test_Check(g1 == 0 && MG3_T_SinkCount("mg3tt_group") == 1, "doorgroup relay fires only with every door at its goal");
     MG3_T_blasts0 = MG3_explosion_blasts;
     e = MG3_T_Spawn("mg3tt_repeater"); e.spawnflags = 4; e.count = 3; e.wait = 0.1; self = e; trigger_explosion_repeater(); self = os;
     MG3_T_Use(e);
-    MG3_Check(MG3_explosion_blasts - MG3_T_blasts0 == 1, "explosion repeater blasts at once without a delay");
+    VR_Test_Check(MG3_explosion_blasts - MG3_T_blasts0 == 1, "explosion repeater blasts at once without a delay");
     entity m = nextent(world);
     while(m && !((m.flags & FL_MONSTER) && m.health > 0)) m = nextent(m);
     if(m) {
         string mt = m.targetname; m.targetname = "mg3tt_victim";
         e = MG3_T_Spawn("mg3tt"); e.targetname = "mg3tt_kill"; e.target = "mg3tt_victim"; self = e; trigger_relay_killmonster(); self = os;
         MG3_T_Use(e);
-        MG3_Check(m.health <= 0, "trigger_relay_killmonster kills its target");
+        VR_Test_Check(m.health <= 0, "trigger_relay_killmonster kills its target");
         m.targetname = mt;
     }
     e = spawn(); e.think = MG3_T_TriggersLate; e.nextthink = time + 0.5;
@@ -222,11 +217,11 @@ void() MG3_T_RepeatersLate = {
     float done = MG3_T_reps - left;
     dprint(sprintf("mg3test: repeaters %g used, %g done and gone, %g still going (%g of them fired), blasts %g (counts sum %g)\n",
         MG3_T_reps, done, left, fired, MG3_explosion_blasts - MG3_T_blasts0, MG3_T_repcount));
-    MG3_test_pass = MG3_test_fail = 0;
-    MG3_Check(MG3_T_reps > 0 && done + fired == MG3_T_reps, "every repeater fired");
-    MG3_Check(MG3_T_repcount == 0 || MG3_explosion_blasts - MG3_T_blasts0 >= MG3_T_repcount, "counted repeaters blasted their counts");
+    VR_Test_Begin("mg3test");
+    VR_Test_Check(MG3_T_reps > 0 && done + fired == MG3_T_reps, "every repeater fired");
+    VR_Test_Check(MG3_T_repcount == 0 || MG3_explosion_blasts - MG3_T_blasts0 >= MG3_T_repcount, "counted repeaters blasted their counts");
     MG3_T_player.flags = MG3_T_player.flags - (MG3_T_player.flags & FL_GODMODE);
-    dprint(sprintf("mg3test: repeaters %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    dprint(sprintf("mg3test: repeaters %g passed, %g failed\n", vr_test_pass, vr_test_fail));
     remove(self);
 };
 void() MG3_T_Repeaters = {
@@ -261,17 +256,17 @@ void() MG3_T_KeysLate = {
         while(b) { if(b.MG3_T_mark && b.enemy) woken++; b = find(b, targetname, MG3_T_aggro_name); }
         float on = cvar("vr_mg3_aggro_groups");
         dprint(sprintf("mg3test: aggro %s (groups %g): %g of %g named woke\n", MG3_T_aggro_name, on, woken, MG3_T_aggro_n));
-        if(on) MG3_Check(woken == MG3_T_aggro_n && !find(world, aggro_target, MG3_T_aggro_name), "the aggro group wakes together, its key cleared");
-        else MG3_Check(woken == 0, "aggro groups off (upstream): nothing else wakes");
+        if(on) VR_Test_Check(woken == MG3_T_aggro_n && !find(world, aggro_target, MG3_T_aggro_name), "the aggro group wakes together, its key cleared");
+        else VR_Test_Check(woken == 0, "aggro groups off (upstream): nothing else wakes");
     }
-    if(MG3_T_lore) MG3_Check(p.MG3_lore_clear == 0, "the lore text is cleared after the dwell");
+    if(MG3_T_lore) VR_Test_Check(p.MG3_lore_clear == 0, "the lore text is cleared after the dwell");
     p.flags = p.flags - (p.flags & FL_GODMODE); p.health = MG3_T_health0;
-    dprint(sprintf("mg3test: keys %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    dprint(sprintf("mg3test: keys %g passed, %g failed\n", vr_test_pass, vr_test_fail));
     remove(self);
 };
 void() MG3_T_Keys = {
     entity p = VR_Player(); if(!p) return;
-    MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
+    MG3_T_player = p; VR_Test_Begin("mg3test");
     p.flags = p.flags | FL_GODMODE; MG3_T_health0 = p.health;
     // health_target
     entity m = nextent(world), r;
@@ -302,8 +297,8 @@ void() MG3_T_Keys = {
             hits++;
         }
         dprint(sprintf("mg3test: %g hits of 5%%: relays fired %g (due %g), %g hits off, %g early; health now %g\n", hits, MG3_T_SinkCount("mg3tt_health"), due, bad, early, m.health));
-        MG3_Check(bad == 0, "each relay fires on the first hit taken below its fraction (the health before the blow), not before");
-        MG3_Check(due == relays && MG3_T_SinkCount("mg3tt_health") == relays && !find(world, targetname, m.health_target), "each relay fires once, then is gone");
+        VR_Test_Check(bad == 0, "each relay fires on the first hit taken below its fraction (the health before the blow), not before");
+        VR_Test_Check(due == relays && MG3_T_SinkCount("mg3tt_health") == relays && !find(world, targetname, m.health_target), "each relay fires once, then is gone");
     }
     else dprint("mg3test: no monster with a health_target relay here\n");
     // aggro_target
@@ -322,7 +317,7 @@ void() MG3_T_Keys = {
     if(MG3_T_lore) {
         dprint(sprintf("mg3test: lore %s\n", MG3_T_lore.message));
         MG3_T_Touch(MG3_T_lore);
-        MG3_Check(p.MG3_lore_clear > time && p.MG3_lore_next > time, "touching a lore shows its text");
+        VR_Test_Check(p.MG3_lore_clear > time && p.MG3_lore_next > time, "touching a lore shows its text");
     }
     entity e = spawn(); e.think = MG3_T_KeysLate; e.nextthink = time + MG3_LORE_DWELL + 0.5;
 };
@@ -348,7 +343,7 @@ float(entity p) MG3_T_LavaHurts = {
 };
 void() MG3_T_Items = {
     entity p = VR_Player(); if(!p) return;
-    MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
+    MG3_T_player = p; VR_Test_Begin("mg3test");
     vector keep = p.origin;
     entity e;
     // Armour shards.
@@ -358,18 +353,18 @@ void() MG3_T_Items = {
         VR_ItemUtil_EntDelItem(p, IID_ARMOR1); VR_ItemUtil_EntDelItem(p, IID_ARMOR2); VR_ItemUtil_EntDelItem(p, IID_ARMOR3);
         p.armortype = 0; p.armorvalue = 0;
         if(VR_PickupObj_Enabled(e))
-            MG3_Check(e.vr_pickup_obj == QVR_PICKUPOBJ_ARMOUR && e.vr_wearable && (e.flags & FL_FORCEGRABBABLE) && e.handtouch == VR_PickupObj_Handtouch,
+            VR_Test_Check(e.vr_pickup_obj == QVR_PICKUPOBJ_ARMOUR && e.vr_wearable && (e.flags & FL_FORCEGRABBABLE) && e.handtouch == VR_PickupObj_Handtouch,
                 "a shard is an armour object (force-grabbable, worn or put in a holster or pouch)");
         MG3_T_Take(e); n++;
-        MG3_Check(p.armorvalue == 5 && p.armortype == 0.3 && VR_ItemUtil_EntHasItem(p, IID_ARMOR1) && e.model == string_null, "a shard: 5 green armour");
+        VR_Test_Check(p.armorvalue == 5 && p.armortype == 0.3 && VR_ItemUtil_EntHasItem(p, IID_ARMOR1) && e.model == string_null, "a shard: 5 green armour");
         e = find(e, classname, "item_armor_shard");
         while(e) { if(e.model == string_null) hidden++; else { MG3_T_Take(e); n++; } e = find(e, classname, "item_armor_shard"); }
         dprint(sprintf("mg3test: %g shards taken (%g hidden), armour %g type %g\n", n, hidden, p.armorvalue, p.armortype));
-        MG3_Check(p.armorvalue == min(200, 5 * n), "shards add 5 each, up to 200");
+        VR_Test_Check(p.armorvalue == min(200, 5 * n), "shards add 5 each, up to 200");
         VR_ItemUtil_EntDelItem(p, IID_ARMOR1); VR_ItemUtil_EntAddItem(p, IID_ARMOR2); p.armortype = 0.6; p.armorvalue = 150;
         e = spawn(); setorigin(e, p.origin); self = e; item_armor_shard(); self = p;
         if(e.handtouch == MG3_armor_shard_touch) { self = e; other = p; MG3_armor_shard_touch(); self = p; }
-        MG3_Check(p.armorvalue == 155 && p.armortype == 0.6 && VR_ItemUtil_EntHasItem(p, IID_ARMOR2), "a shard on yellow armour adds 5, keeps yellow");
+        VR_Test_Check(p.armorvalue == 155 && p.armortype == 0.6 && VR_ItemUtil_EntHasItem(p, IID_ARMOR2), "a shard on yellow armour adds 5, keeps yellow");
     }
     // Draughts.
     float rn = 0, rok = 0;
@@ -394,7 +389,7 @@ void() MG3_T_Items = {
         e = nextent(e);
     }
     setorigin(p, keep);
-    if(rn) MG3_Check(rn == rok, "every draught moves the player by its height or to its destination");
+    if(rn) VR_Test_Check(rn == rok, "every draught moves the player by its height or to its destination");
     // Lava suit.
     e = find(world, classname, "item_artifact_lavasuit");
     while(e && e.model == string_null) e = find(e, classname, "item_artifact_lavasuit");
@@ -406,8 +401,8 @@ void() MG3_T_Items = {
         p.lavasuit_finished = time - 1; entity os = self; self = p; CheckPowerups(); self = os;
         float after = MG3_T_LavaHurts(p);
         dprint(sprintf("mg3test: lava suit %g s; lava/slime hurt (1 lava, 2 slime) before %g, wearing %g, worn out %g; respawns %g\n", t30, before, during, after, e.wait));
-        MG3_Check(t30 == 30 && before == 3 && during == 0 && after == 3 && !p.lavasuit_finished, "the lava suit: 30 s without lava or slime damage");
-        MG3_Check(e.model == string_null && (!e.wait || e.nextthink2 > time), "taken; with a wait it comes back");
+        VR_Test_Check(t30 == 30 && before == 3 && during == 0 && after == 3 && !p.lavasuit_finished, "the lava suit: 30 s without lava or slime damage");
+        VR_Test_Check(e.model == string_null && (!e.wait || e.nextthink2 > time), "taken; with a wait it comes back");
     }
     // The hell knight's head.
     e = find(world, classname, "item_head_hellknight");
@@ -417,9 +412,9 @@ void() MG3_T_Items = {
         cvar_set("vr_mg3_bn_discovered", "0");
         MG3_T_Take(e);
         dprint(sprintf("mg3test: head taken: serverflags %g -> %g skill %g discovered %g\n", sf, serverflags, cvar("skill"), cvar("vr_mg3_bn_discovered")));
-        MG3_Check((serverflags & (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED)) == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED) && cvar("skill") == 3, "the head turns Bloody Nightmare on");
-        MG3_Check(cvar("vr_mg3_bn_discovered") == 1, "and discovers it for good (the menu)");
-        MG3_Check(kt == string_null || !find(world, targetname, kt), "its killtarget is gone");
+        VR_Test_Check((serverflags & (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED)) == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED) && cvar("skill") == 3, "the head turns Bloody Nightmare on");
+        VR_Test_Check(cvar("vr_mg3_bn_discovered") == 1, "and discovers it for good (the menu)");
+        VR_Test_Check(kt == string_null || !find(world, targetname, kt), "its killtarget is gone");
     }
     else {
         e = find(world, classname, "item_health");
@@ -433,10 +428,10 @@ void() MG3_T_Items = {
     dprint(sprintf("mg3test: %g items wait for a trigger\n", hid));
     if(first) {
         entity os2 = self; self = first; first.use(); self = os2;
-        MG3_Check(first.model != string_null && first.solid == SOLID_TRIGGER, "a trigger-brought item appears when used");
+        VR_Test_Check(first.model != string_null && first.solid == SOLID_TRIGGER, "a trigger-brought item appears when used");
     }
     p.health = 100;
-    dprint(sprintf("mg3test: items %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    dprint(sprintf("mg3test: items %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 // ----------------------------------------------------------------------------
 // M3-08 runes and hub (developer campaign). Request 10: brings out a hidden rune (map8's) and takes every rune here
@@ -445,7 +440,7 @@ void() MG3_T_Items = {
 // rune-count report (entities removed by NOT_IF_<n>_RUNES are gone: counts of monsters and items now).
 void() MG3_T_Runes = {
     entity p = VR_Player(); if(!p) return;
-    MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
+    MG3_T_player = p; VR_Test_Begin("mg3test");
     float sf = serverflags, n = 0;
     entity e = find(world, classname, "item_sigil");
     while(e) {
@@ -453,12 +448,12 @@ void() MG3_T_Runes = {
         if(e.model != string_null) {
             float bit = e.style;
             MG3_T_Take(e); n++;
-            MG3_Check(e.model == string_null && (serverflags & bit), "a rune taken sets its bit");
+            VR_Test_Check(e.model == string_null && (serverflags & bit), "a rune taken sets its bit");
         }
         e = find(e, classname, "item_sigil");
     }
     dprint(sprintf("mg3test: %g runes taken: serverflags %g -> %g (runes %g)\n", n, sf, serverflags, MG3_RuneCount()));
-    dprint(sprintf("mg3test: runes %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    dprint(sprintf("mg3test: runes %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 float(string door) MG3_T_DoorOpen = {
     float open = 0, all = 0;
@@ -468,13 +463,13 @@ float(string door) MG3_T_DoorOpen = {
     return open == all;
 };
 void() MG3_T_HubLate = {
-    MG3_test_pass = MG3_test_fail = 0;
+    VR_Test_Begin("mg3test");
     float r1 = MG3_T_DoorOpen("rune_1"), r2 = MG3_T_DoorOpen("rune_2"), r3 = MG3_T_DoorOpen("rune_3"), r4 = MG3_T_DoorOpen("rune_4");
     float ex = MG3_T_DoorOpen("exit");
     dprint(sprintf("mg3test: hub with serverflags %g (%g runes): rune doors %g %g %g %g, exit %g\n", serverflags, MG3_RuneCount(), r1, r2, r3, r4, ex));
-    MG3_Check(r1 == !!(serverflags & 1) && r2 == !!(serverflags & 2) && r3 == !!(serverflags & 4) && r4 == !!(serverflags & 8), "each rune's doors open with that rune only");
-    MG3_Check(ex == (MG3_RuneCount() == 4), "the exit opens with all four runes only");
-    dprint(sprintf("mg3test: hub %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    VR_Test_Check(r1 == !!(serverflags & 1) && r2 == !!(serverflags & 2) && r3 == !!(serverflags & 4) && r4 == !!(serverflags & 8), "each rune's doors open with that rune only");
+    VR_Test_Check(ex == (MG3_RuneCount() == 4), "the exit opens with all four runes only");
+    dprint(sprintf("mg3test: hub %g passed, %g failed\n", vr_test_pass, vr_test_fail));
     remove(self);
 };
 void() MG3_T_Hub = {
@@ -509,18 +504,18 @@ void(string msg) MG3_T_Skill = {
 };
 void() MG3_T_SkillButtons = {
     entity p = VR_Player(); if(!p) return;
-    MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
+    MG3_T_player = p; VR_Test_Begin("mg3test");
     dprint(sprintf("mg3test: hub serverflags %g: head %g bn_button %g buttons %g ng %g\n", serverflags,
         MG3_T_Named("head"), MG3_T_Named("bn_button"), MG3_T_Named("buttons"), MG3_T_Named("ng")));
     if(!find(world, classname, "trigger_relay_setskill")) { dprint("mg3test: no skill buttons here\n"); return; }
     cvar_set("vr_mg3_bn_discovered", "0");
     MG3_T_Skill("4");
-    MG3_Check((serverflags & (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED)) == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED) && cvar("skill") == 3 && cvar("vr_mg3_bn_discovered") == 1, "skill 4: Bloody Nightmare on and found, skill 3");
+    VR_Test_Check((serverflags & (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED)) == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED) && cvar("skill") == 3 && cvar("vr_mg3_bn_discovered") == 1, "skill 4: Bloody Nightmare on and found, skill 3");
     MG3_T_Skill("1");
-    MG3_Check(!(serverflags & MG3_SF_BN_ACTIVE) && (serverflags & MG3_SF_BN_DISCOVERED) && cvar("skill") == 1, "skill 1: Bloody Nightmare off, skill 1");
+    VR_Test_Check(!(serverflags & MG3_SF_BN_ACTIVE) && (serverflags & MG3_SF_BN_DISCOVERED) && cvar("skill") == 1, "skill 1: Bloody Nightmare off, skill 1");
     MG3_T_Skill("4");
-    MG3_Check((serverflags & MG3_SF_BN_ACTIVE) && cvar("skill") == 3, "skill 4 again: on");
-    dprint(sprintf("mg3test: skill %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    VR_Test_Check((serverflags & MG3_SF_BN_ACTIVE) && cvar("skill") == 3, "skill 4 again: on");
+    dprint(sprintf("mg3test: skill %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 void(entity p, float slot, float wid) MG3_T_Holster = {
     entity wi = WeaponInst_Carried(wid, 1, 0);
@@ -542,20 +537,20 @@ void() MG3_T_SeedLoadout = {
 };
 void() MG3_T_CheckLoadout = {
     entity p = VR_Player(); if(!p) return;
-    MG3_test_pass = MG3_test_fail = 0;
+    VR_Test_Begin("mg3test");
     dprint(sprintf("mg3test: loadout serverflags %g skill %g bloody %g: hands %g/%g holsters %g %g", serverflags, skill, MG3_bloody, p.weapon, p.weapon2, p.holsterweapon0, p.holsterweapon1));
     dprint(sprintf(" %g %g %g %g items %g armour %g", p.holsterweapon2, p.holsterweapon3, p.holsterweapon4, p.holsterweapon5, p.items, p.armorvalue));
     dprint(sprintf(" ammo %g %g %g %g\n", p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells)); // (sprintf: 8 arguments at most)
     if(!(serverflags & MG3_SF_BN_ACTIVE)) { dprint("mg3test: not a Bloody Nightmare game: nothing stripped\n"); return; }
     float ssg = (MG3_bloody & MG3_BLOODY_SSG) ? WID_SUPER_SHOTGUN : WID_FIST;
-    MG3_Check(p.holsterweapon0 == ssg && p.holsterweapon1 == WID_FIST && p.holsterweapon2 == WID_AXE && p.holsterweapon3 == WID_FIST
+    VR_Test_Check(p.holsterweapon0 == ssg && p.holsterweapon1 == WID_FIST && p.holsterweapon2 == WID_AXE && p.holsterweapon3 == WID_FIST
         && p.holsterweapon4 == WID_SHOTGUN && p.holsterweapon5 == WID_MJOLNIR, "holsters: guns and sword gone, the axe back in its holster, shotgun and Super Axe kept");
-    MG3_Check((p.items & IT_ARMOR2) && p.armorvalue == 120 && p.ammo_nails == 50 && p.ammo_rockets == 10, "armour and ammunition kept");
-    dprint(sprintf("mg3test: strip %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    VR_Test_Check((p.items & IT_ARMOR2) && p.armorvalue == 120 && p.ammo_nails == 50 && p.ammo_rockets == 10, "armour and ammunition kept");
+    dprint(sprintf("mg3test: strip %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 void() MG3_T_BNDamage = {
     entity p = VR_Player(); if(!p) return;
-    MG3_test_pass = MG3_test_fail = 0;
+    VR_Test_Begin("mg3test");
     entity m = nextent(world);
     while(m && !((m.flags & FL_MONSTER) && m.health > 100 && m.takedamage)) m = nextent(m);
     if(!m) { dprint("mg3test: no monster for the damage check\n"); return; }
@@ -565,8 +560,8 @@ void() MG3_T_BNDamage = {
     p.health = 100;
     float bn = !!(serverflags & MG3_SF_BN_ACTIVE);
     dprint(sprintf("mg3test: Bloody Nightmare %g: 50 on a %s deals %g; 10 from it takes %g\n", bn, m.classname, dealt, taken));
-    MG3_Check(dealt == (bn ? 40 : 50) && taken == (bn ? 12 : 10), "Bloody Nightmare: 80% dealt, 120% taken (else 100%)");
-    dprint(sprintf("mg3test: damage %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
+    VR_Test_Check(dealt == (bn ? 40 : 50) && taken == (bn ? 12 : 10), "Bloody Nightmare: 80% dealt, 120% taken (else 100%)");
+    dprint(sprintf("mg3test: damage %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 // ----------------------------------------------------------------------------
 // M3-29 full-campaign route sweep (Misc/quakevr/mg3_route_test.py writes the private step scripts mg3route<N>.cfg;

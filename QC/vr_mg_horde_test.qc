@@ -1,10 +1,5 @@
 #ifdef QVR_TESTS
 // Native Horde acceptance uses the production spawns, pickup handlers, wave and revival paths.
-float MGH_test_pass, MGH_test_fail;
-void(float ok, string label) MGH_Check = {
- if(ok) MGH_test_pass++; else MGH_test_fail++;
- dprint(sprintf("mghordetest: %s %s\n",ok ? "PASS" : "FAIL",label));
-};
 void() MGH_Report = {
  entity p=VR_Player();
  dprint(sprintf("mghordetest: map %s active %g wave %g waiting %g live %g\n",mapname,MGH_Active(),MGH_horde_ent.wave,MGH_horde_ent.wait,MGH_HordeGetMonstersAlive()));
@@ -17,66 +12,66 @@ void() MGH_Report = {
 };
 void() MGH_Unit = {
  entity caller=self, p=VR_Player(), manager=MGH_horde_ent;
- MGH_test_pass=MGH_test_fail=0;
+ VR_Test_Begin("mghordetest");
  manager.nextthink=0; manager.think=SUB_Null;
  vector pos=p.origin; float savedflags=serverflags;
  entity point=spawn(); self=point; point.classname="info_monster_start"; setorigin(point,p.origin); info_monster_start();
- MGH_Check(MGH_CheckBlockedSpawn(point),"living player blocks overlapping normal spawn");
- setorigin(point,p.origin+'0 0 1024'); MGH_Check(!MGH_CheckBlockedSpawn(point),"vertical separation permits spawn");
- point.spawnflags=2; setorigin(point,p.origin); MGH_Check(!MGH_CheckBlockedSpawn(point),"authored bypass permits occupied spawn");
- point.spawnflags=0; MGH_monster_start_use(); MGH_Check(point.spawnflags & 1,"target toggles spawn disabled"); MGH_monster_start_use(); MGH_Check(!(point.spawnflags & 1),"target toggles spawn enabled"); remove(point);
+ VR_Test_Check(MGH_CheckBlockedSpawn(point),"living player blocks overlapping normal spawn");
+ setorigin(point,p.origin+'0 0 1024'); VR_Test_Check(!MGH_CheckBlockedSpawn(point),"vertical separation permits spawn");
+ point.spawnflags=2; setorigin(point,p.origin); VR_Test_Check(!MGH_CheckBlockedSpawn(point),"authored bypass permits occupied spawn");
+ point.spawnflags=0; MGH_monster_start_use(); VR_Test_Check(point.spawnflags & 1,"target toggles spawn disabled"); MGH_monster_start_use(); VR_Test_Check(!(point.spawnflags & 1),"target toggles spawn enabled"); remove(point);
  float before=total_monsters;
  self=manager; entity m=MGH_SpawnMonster("wizard",p.origin+'256 0 160','0 0 0'); self=m; MGH_MonsterStart();
- MGH_Check(m.classname=="monster_wizard" && (m.flags & FL_FLY) && m.max_health==80,"flying squad uses native VR scrag constructor");
- MGH_Check(m.enemy==p && m.think==FoundTarget,"spawned scrag targets living player"); remove(m);
+ VR_Test_Check(m.classname=="monster_wizard" && (m.flags & FL_FLY) && m.max_health==80,"flying squad uses native VR scrag constructor");
+ VR_Test_Check(m.enemy==p && m.think==FoundTarget,"spawned scrag targets living player"); remove(m);
  self=manager; m=MGH_SpawnMonster("shambler",p.origin+'256 0 0','0 0 0'); self=m; MGH_MonsterStart();
- MGH_Check(m.classname=="monster_shambler" && m.max_health==600 && m.th_die==sham_die,"boss uses native VR shambler constructor"); remove(m);
+ VR_Test_Check(m.classname=="monster_shambler" && m.max_health==600 && m.th_die==sham_die,"boss uses native VR shambler constructor"); remove(m);
  self=manager; m=MGH_SpawnMonster("enforcer",p.origin+'256 0 0','0 0 0'); self=m; MGH_MonsterStart();
- MGH_Check(m.classname=="monster_enforcer" && m.max_health==80 && m.th_missile==enf_atk1,"ranged squad uses native VR enforcer constructor"); remove(m);
- MGH_Check(total_monsters==before+3,"native spawns count once each");
+ VR_Test_Check(m.classname=="monster_enforcer" && m.max_health==80 && m.th_missile==enf_atk1,"ranged squad uses native VR enforcer constructor"); remove(m);
+ VR_Test_Check(total_monsters==before+3,"native spawns count once each");
  // Shared currency preserves item bit representation and cannot underflow.
  MGH_keys_silver=0; MGH_keys_gold=0;
  MGH_horde_key_give(IT_KEY1); MGH_horde_key_give(IT_KEY1);
- MGH_Check(MGH_keys_silver==2 && VR_ItemUtil_EntHasItem(p,IID_KEY1),"two shared silver currency pickups");
- MGH_horde_key_spend(IT_KEY1); MGH_Check(MGH_keys_silver==1 && VR_ItemUtil_EntHasItem(p,IID_KEY1),"spending retains last available key bit");
+ VR_Test_Check(MGH_keys_silver==2 && VR_ItemUtil_EntHasItem(p,IID_KEY1),"two shared silver currency pickups");
+ MGH_horde_key_spend(IT_KEY1); VR_Test_Check(MGH_keys_silver==1 && VR_ItemUtil_EntHasItem(p,IID_KEY1),"spending retains last available key bit");
  MGH_horde_key_spend(IT_KEY1); MGH_horde_key_spend(IT_KEY1);
- MGH_Check(MGH_keys_silver==0 && !VR_ItemUtil_EntHasItem(p,IID_KEY1),"last key clears shared bit without underflow");
+ VR_Test_Check(MGH_keys_silver==0 && !VR_ItemUtil_EntHasItem(p,IID_KEY1),"last key clears shared bit without underflow");
  // Physical ammo object calls source shared-ammo pickup, does not replace either weapon.
  entity sp=spawn(); self=sp; setorigin(sp,p.origin+'64 0 0'); MGH_SpawnAmmo();
  entity item=nextent(world); while(item && item.MGH_pickup_spawn!=sp) item=nextent(item);
  float w=p.weapon,w2=p.weapon2,id=p.weaponinst.wi_uid,id2=p.weaponinst2.wi_uid;
  p.ammo_shells=p.ammo_nails=p.ammo_rockets=p.ammo_cells=0;
- MGH_Check(item && item.carry_use==MGH_horde_ammo_touch && (item.flags & FL_FORCEGRABBABLE),"spawned ammunition has physical VR box interface");
+ VR_Test_Check(item && item.carry_use==MGH_horde_ammo_touch && (item.flags & FL_FORCEGRABBABLE),"spawned ammunition has physical VR box interface");
  self=item; other=p; item.carry_use();
- MGH_Check(p.ammo_shells+p.ammo_nails+p.ammo_rockets+p.ammo_cells>0 && sp.think==MGH_SpawnAmmo && sp.nextthink==time+20,"shared ammo awards reserve and schedules source 20-second respawn");
- MGH_Check(p.weapon==w && p.weapon2==w2 && p.weaponinst.wi_uid==id && p.weaponinst2.wi_uid==id2,"shared ammo preserves both hand weapons and IDs"); remove(sp);
+ VR_Test_Check(p.ammo_shells+p.ammo_nails+p.ammo_rockets+p.ammo_cells>0 && sp.think==MGH_SpawnAmmo && sp.nextthink==time+20,"shared ammo awards reserve and schedules source 20-second respawn");
+ VR_Test_Check(p.weapon==w && p.weapon2==w2 && p.weaponinst.wi_uid==id && p.weaponinst2.wi_uid==id2,"shared ammo preserves both hand weapons and IDs"); remove(sp);
 
  // Authored health/armor rewards use their native physical interfaces.
  entity rewardspawn=spawn(); setorigin(rewardspawn,p.origin+'64 64 0');
  self=rewardspawn; MGH_SpawnItem(); entity reward=nextent(world);
  while(reward && reward.MGH_pickup_spawn!=rewardspawn) reward=nextent(reward);
- MGH_Check(reward && (reward.carry_use==MGH_horde_health_touch || reward.carry_use==MGH_horde_armor_touch || reward.handtouch==MGH_horde_armor_touch),"wave reward exposes physical health or wearable armor pickup");
+ VR_Test_Check(reward && (reward.carry_use==MGH_horde_health_touch || reward.carry_use==MGH_horde_armor_touch || reward.handtouch==MGH_horde_armor_touch),"wave reward exposes physical health or wearable armor pickup");
  p.health=10; p.armorvalue=0; self=reward; other=p;
  if(reward.carry_use) reward.carry_use(); else reward.handtouch();
- MGH_Check(!rewardspawn.wait && (p.health>10 || p.armorvalue==100),"wave reward heals or grants source armor and frees spawn"); remove(rewardspawn);
+ VR_Test_Check(!rewardspawn.wait && (p.health>10 || p.armorvalue==100),"wave reward heals or grants source armor and frees spawn"); remove(rewardspawn);
  self=manager; MGH_powerup_chance=1; MGH_horde_spawn_powerup();
  entity power=nextent(world); while(power && !power.MGH_powerup_expire) power=nextent(power);
- MGH_Check(power && power.vr_pickup_obj==QVR_PICKUPOBJ_HOLSTER && power.carry_use==MGH_powerup_touch,"chance drop exposes native physical powerup and authored lifetime");
+ VR_Test_Check(power && power.vr_pickup_obj==QVR_PICKUPOBJ_HOLSTER && power.carry_use==MGH_powerup_touch,"chance drop exposes native physical powerup and authored lifetime");
  self=power; other=p; MGH_powerup_touch();
- MGH_Check(p.super_damage_finished==time+30 || p.invincible_finished==time+30,"actual powerup grants source thirty-second effect");
+ VR_Test_Check(p.super_damage_finished==time+30 || p.invincible_finished==time+30,"actual powerup grants source thirty-second effect");
 
  entity runetest=spawn(); self=runetest; runetest.spawnflags=2;
  serverflags=savedflags-(savedflags & 2); p.MGH_hunger_time=0;
- MGH_RuneHunger(); MGH_Check(p.MGH_hunger_time==time+10,"first Hunger rune sets timer before server rune bit is recorded"); remove(runetest);
+ MGH_RuneHunger(); VR_Test_Check(p.MGH_hunger_time==time+10,"first Hunger rune sets timer before server rune bit is recorded"); remove(runetest);
  // Source Hunger initialization on rune collection and reset only on successful healing.
  serverflags=serverflags|2; p.health=40; other=p;
- MGH_ResetHunger(p); MGH_Check(p.MGH_hunger_time==time+10,"Hunger rune schedules source ten-second timer");
+ MGH_ResetHunger(p); VR_Test_Check(p.MGH_hunger_time==time+10,"Hunger rune schedules source ten-second timer");
  p.MGH_hunger_time=0; T_Heal(p,5,0);
- MGH_Check(p.MGH_hunger_time==time+10 && p.health==45,"successful healing resets Hunger timer");
+ VR_Test_Check(p.MGH_hunger_time==time+10 && p.health==45,"successful healing resets Hunger timer");
  p.health=p.max_health; p.MGH_hunger_time=123; T_Heal(p,5,0);
- MGH_Check(p.MGH_hunger_time==123,"rejected healing does not reset Hunger timer");
+ VR_Test_Check(p.MGH_hunger_time==123,"rejected healing does not reset Hunger timer");
  serverflags=savedflags; setorigin(p,pos); self=caller;
- dprint(sprintf("mghordetest: %g passed, %g failed\n",MGH_test_pass,MGH_test_fail));
+ VR_Test_Verdict();
 };
 void() MGH_KillWave = {
  entity p=VR_Player(),e=find(world,MGH_category,MGH_CATEGORY_MONSTER);
@@ -126,9 +121,9 @@ void() MGH_TestFrame = {
   if(MGH_HordeGetMonstersAlive()==0) { self.wave=1; self.wait=0; MGH_Wavecheck(); }
   else MGH_RespawnAllPlayers();
   self=p;
-  MGH_Check(p.health==p.max_health && p.deadflag==DEAD_NO,"native Horde revival restores live player");
-  MGH_Check(p.weaponinst.wi_uid==mainid && p.weaponinst2.wi_uid==offid && p.weaponinst.wi_clip==clip && p.weaponinst2.wi_clip==offclip,"revival preserves hand instance IDs and magazines");
-  MGH_Check(p.holsterweaponinst0.wi_uid==h0 && p.holsterweaponinst5.wi_uid==h5,"revival preserves independent holster instance IDs"); MGH_Report();
+  VR_Test_Check(p.health==p.max_health && p.deadflag==DEAD_NO,"native Horde revival restores live player");
+  VR_Test_Check(p.weaponinst.wi_uid==mainid && p.weaponinst2.wi_uid==offid && p.weaponinst.wi_clip==clip && p.weaponinst2.wi_clip==offclip,"revival preserves hand instance IDs and magazines");
+  VR_Test_Check(p.holsterweaponinst0.wi_uid==h0 && p.holsterweaponinst5.wi_uid==h5,"revival preserves independent holster instance IDs"); MGH_Report();
  } else if(request==8) {
   entity p=VR_Player(), button=find(world,classname,"func_button");
   while(button && !button.items) button=find(button,classname,"func_button");
@@ -136,9 +131,9 @@ void() MGH_TestFrame = {
    float keybit=button.items, expected=keybit==IT_KEY1 ? MGH_keys_silver : MGH_keys_gold;
    MGH_horde_key_give(keybit); self=button; activator=other=p;
    button_touch();
-   MGH_Check((keybit==IT_KEY1 ? MGH_keys_silver : MGH_keys_gold)==expected,"actual keyed physical button spends shared currency once");
+   VR_Test_Check((keybit==IT_KEY1 ? MGH_keys_silver : MGH_keys_gold)==expected,"actual keyed physical button spends shared currency once");
    button_touch();
-   MGH_Check((keybit==IT_KEY1 ? MGH_keys_silver : MGH_keys_gold)==expected,"held button contact does not spend again");
+   VR_Test_Check((keybit==IT_KEY1 ? MGH_keys_silver : MGH_keys_gold)==expected,"held button contact does not spend again");
   } else dprint("mghordetest: no authored keyed button in this arena\n");
  } else if(request==11) {
   entity p=VR_Player(),exit=find(world,classname,"trigger_changelevel");
@@ -149,7 +144,7 @@ void() MGH_TestFrame = {
   entity p=VR_Player(),m=nextent(world); while(m && !m.MG_deferred) m=nextent(m);
   if(m) {
    self=m; activator=p; MG_MonsterActivate(); MG_MonsterRunStart();
-   MGH_Check(m.MGH_category==MGH_CATEGORY_MONSTER && m.health>0,"authored deferred arena monster joins live wave accounting");
+   VR_Test_Check(m.MGH_category==MGH_CATEGORY_MONSTER && m.health>0,"authored deferred arena monster joins live wave accounting");
   } else dprint("mghordetest: no authored deferred monster in this arena\n");
  } else if(request==9) {
   entity p=VR_Player(); p.MGH_hunger_time=time+10; serverflags=serverflags|2; dprint("mghordetest: save Hunger timer set\n");
@@ -175,14 +170,14 @@ void() MGH_TestFrame = {
   entity p=VR_Player(), door=find(world,classname,"door");
   while(door && !(door.touch==door_touch && (door.vr_itemId==IID_KEY1 || door.vr_itemId==IID_KEY2))) door=find(door,classname,"door");
   if(door) {
-   MGH_test_pass=MGH_test_fail=0; float silver=door.vr_itemId==IID_KEY1, keybit=silver ? IT_KEY1 : IT_KEY2;
+   VR_Test_Begin("mghordetest"); float silver=door.vr_itemId==IID_KEY1, keybit=silver ? IT_KEY1 : IT_KEY2;
    MGH_keys_silver=MGH_keys_gold=0; MGH_horde_key_remove_all(IT_KEY1); MGH_horde_key_remove_all(IT_KEY2);
    self=door; other=activator=p; door.owner.attack_finished=0; door_touch();
-   MGH_Check(door.touch==door_touch && door.owner.state==STATE_BOTTOM,"keyed door stays shut without shared currency");
+   VR_Test_Check(door.touch==door_touch && door.owner.state==STATE_BOTTOM,"keyed door stays shut without shared currency");
    MGH_horde_key_give(keybit); MGH_horde_key_give(keybit); door.owner.attack_finished=0; door_touch();
-   MGH_Check((silver ? MGH_keys_silver : MGH_keys_gold)==1 && door.touch==SUB_Null && door.owner.state==STATE_UP,"keyed door spends one shared key and opens");
-   MGH_Check(VR_ItemUtil_EntHasItem(p,door.vr_itemId),"a second shared key stays available after the spend");
-   dprint(sprintf("mghordetest: %g passed, %g failed\n",MGH_test_pass,MGH_test_fail));
+   VR_Test_Check((silver ? MGH_keys_silver : MGH_keys_gold)==1 && door.touch==SUB_Null && door.owner.state==STATE_UP,"keyed door spends one shared key and opens");
+   VR_Test_Check(VR_ItemUtil_EntHasItem(p,door.vr_itemId),"a second shared key stays available after the spend");
+   VR_Test_Verdict();
   } else dprint("mghordetest: no authored keyed door in this arena\n");
  } else if(request==16) {
   // Scripts: a team wipe's "restart" is appended after the rest of the test script, so the script sets this and

@@ -16,7 +16,6 @@
 //     cast a fan: six diamonds in flight (MG3's model; batted as a monster's missile), the player hurt; killed: its
 //     death frames; another gibbed: the death knight's head
 
-float mg3mt_pass, mg3mt_fail;
 float mg3mt_step;      // the running request's step, 0: none
 float mg3mt_next;      // when its next step runs
 entity mg3mt_m1, mg3mt_m2, mg3mt_m3, mg3mt_m4;
@@ -26,17 +25,11 @@ float mg3mt_kd;        // whether the infected grunt was knocked down (a ragdoll
 float mg3mt_h;         // the player's health at a step's start
 float mg3mt_n;         // a count at a step's start (rockets fired)
 
-void(float ok, string label) MG3_MT_Check =
-{
-    if(ok) mg3mt_pass++; else mg3mt_fail++;
-    dprint(sprintf("mg3mtest: %s %s\n", ok ? "PASS" : "FAIL", label));
-};
 
 void() MG3_MT_Total =
 {
-    dprint(sprintf("mg3mtest: total %g passed, %g failed\n", mg3mt_pass, mg3mt_fail));
-    mg3mt_pass = 0;
-    mg3mt_fail = 0;
+    dprint(sprintf("mg3mtest: total %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_Begin("mg3mtest");
 };
 
 // A monster `xChoice` (func_enemy_dispenser's) `xDist` units ahead of the player, `xSide` aside, facing him.
@@ -87,7 +80,7 @@ void(entity p, entity m, float xDamage) MG3_MT_Hurt =
 
 void(entity m, string xFrom, string xClass, string xModel, float xHealth) MG3_MT_CheckTurned =
 {
-    MG3_MT_Check(m.classname == xClass && m.model == xModel && m.health == xHealth && !m.vr_mg3_infected &&
+    VR_Test_Check(m.classname == xClass && m.model == xModel && m.health == xHealth && !m.vr_mg3_infected &&
         m.solid == SOLID_SLIDEBOX && m.takedamage == DAMAGE_AIM && !m.vr_headless,
         sprintf("%s burst into a %s (%s %s health %g solid %g)", xFrom, xClass, m.classname, m.model, m.health, m.solid));
 };
@@ -125,7 +118,7 @@ void(entity m, string xFrom, float xWid, float xFlags) MG3_MT_CheckDrop =
 {
     float n = MG3_MT_Drops(m);
     entity w = mg3mt_drop;
-    MG3_MT_Check(n == 1 && w.weapon == xWid && w.weaponflags == xFlags && w.modelindex > 0 && w.touch == wpnthrow_touch &&
+    VR_Test_Check(n == 1 && w.weapon == xWid && w.weaponflags == xFlags && w.modelindex > 0 && w.touch == wpnthrow_touch &&
         w.weaponinst.wi_clip == WeaponIdToBaseClipSize(xWid) && vlen(w.origin - m.origin) < 96 &&
         (m.model == "progs/zombie.mdl" || m.model == "progs/demon.mdl"),
         sprintf("%s dropped his weapon as he turned (%g dropped: %s flags %g clip %g, %.0f away; he is %s)", xFrom, n,
@@ -143,9 +136,9 @@ void() MG3_MT_Step =
         mg3mt_m2 = MG3_MT_Spawn(p, 31, 176, 0);
         mg3mt_m3 = MG3_MT_Spawn(p, 32, 256, 0);
         mg3mt_m4 = MG3_MT_Spawn(p, 33, 336, 0);
-        MG3_MT_Check(total_monsters == mg3mt_total + 4, sprintf("four infected counted among the monsters (%g -> %g)",
+        VR_Test_Check(total_monsters == mg3mt_total + 4, sprintf("four infected counted among the monsters (%g -> %g)",
             mg3mt_total, total_monsters));
-        MG3_MT_Check(mg3mt_m1.classname == "monster_army" && mg3mt_m1.vr_mg3_infected == MG3_INFECTED_ZOMBIE &&
+        VR_Test_Check(mg3mt_m1.classname == "monster_army" && mg3mt_m1.vr_mg3_infected == MG3_INFECTED_ZOMBIE &&
             mg3mt_m2.classname == "monster_knight" && mg3mt_m3.classname == "monster_enforcer" &&
             mg3mt_m4.classname == "monster_hell_knight" && mg3mt_m4.vr_mg3_infected == MG3_INFECTED_FIEND,
             "they are a grunt, a knight, an enforcer and a death knight, infected");
@@ -170,16 +163,16 @@ void() MG3_MT_Step =
         float armed = VR_Decap_Arm(mg3mt_m2, p, mg3mt_m2.origin + '0 0 20', v_right * 400, QVR_DECAP_SWING);
         MG3_MT_Hurt(p, mg3mt_m2, mg3mt_m2.health + 5);
         VR_Decap_After(mg3mt_m2);
-        MG3_MT_Check(armed && mg3mt_m2.health > 0 && !mg3mt_m2.vr_headless && mg3mt_m2.classname == "monster_zombie",
+        VR_Test_Check(armed && mg3mt_m2.health > 0 && !mg3mt_m2.vr_headless && mg3mt_m2.classname == "monster_zombie",
             sprintf("a beheading cut bursts the knight; his zombie keeps its head (armed %g health %g headless %g)", armed,
             mg3mt_m2.health, mg3mt_m2.vr_headless));
-        MG3_MT_Check(mg3mt_m1.vr_knockdown == 0 && mg3mt_m1.solid == SOLID_SLIDEBOX && mg3mt_m1.movetype == MOVETYPE_STEP,
+        VR_Test_Check(mg3mt_m1.vr_knockdown == 0 && mg3mt_m1.solid == SOLID_SLIDEBOX && mg3mt_m1.movetype == MOVETYPE_STEP,
             sprintf("the grunt killed down (knocked down %g) gets up as a zombie (knockdown %g solid %g)", mg3mt_kd,
             mg3mt_m1.vr_knockdown, mg3mt_m1.solid));
         MG3_MT_Hurt(p, mg3mt_m3, mg3mt_m3.health + 5);
         MG3_MT_Hurt(p, mg3mt_m4, mg3mt_m4.health + 5);
-        MG3_MT_Check(vr_mg3_infected_turned == turned + 4, sprintf("four turned (%g)", vr_mg3_infected_turned - turned));
-        MG3_MT_Check(killed_monsters == mg3mt_killed, sprintf("no kill counted for the bursts (%g -> %g)", mg3mt_killed,
+        VR_Test_Check(vr_mg3_infected_turned == turned + 4, sprintf("four turned (%g)", vr_mg3_infected_turned - turned));
+        VR_Test_Check(killed_monsters == mg3mt_killed, sprintf("no kill counted for the bursts (%g -> %g)", mg3mt_killed,
             killed_monsters));
         MG3_MT_CheckTurned(mg3mt_m1, "the grunt", "monster_zombie", "progs/zombie.mdl", 60);
         MG3_MT_CheckTurned(mg3mt_m2, "the knight", "monster_zombie", "progs/zombie.mdl", 60);
@@ -189,7 +182,7 @@ void() MG3_MT_Step =
         MG3_MT_CheckDrop(mg3mt_m2, "the knight", WID_SWORD, 0);
         MG3_MT_CheckDrop(mg3mt_m3, "the enforcer", WID_ENFRIFLE, 0);
         MG3_MT_CheckDrop(mg3mt_m4, "the death knight", WID_SWORD, QVR_WPNFLAG_USE_SECONDARY_AMMO);
-        MG3_MT_Check(mg3mt_m3.maxs_x == 16 && (mg3mt_m1.maxs_x == 12 || mg3mt_m1.maxs_x == 16), sprintf("their boxes the "
+        VR_Test_Check(mg3mt_m3.maxs_x == 16 && (mg3mt_m1.maxs_x == 12 || mg3mt_m1.maxs_x == 16), sprintf("their boxes the "
             "fiend's and the zombie's, or (crowded) the old ones (%v %v)",
             mg3mt_m3.maxs, mg3mt_m1.maxs));
         mg3mt_step = 3; mg3mt_next = time + 1.5;
@@ -197,7 +190,7 @@ void() MG3_MT_Step =
     }
     if(mg3mt_step == 3)
     {
-        MG3_MT_Check(mg3mt_m1.health > 0 && mg3mt_m3.health > 0 && mg3mt_m1.th_die == zombie_die && mg3mt_m3.th_die == demon_die,
+        VR_Test_Check(mg3mt_m1.health > 0 && mg3mt_m3.health > 0 && mg3mt_m1.th_die == zombie_die && mg3mt_m3.th_die == demon_die,
             sprintf("alive a second later, a zombie's and a fiend's death (%g %g)", mg3mt_m1.health, mg3mt_m3.health));
         // Killed again, gibbed: counted now, once each; no second weapon.
         float drops = MG3_MT_AllDrops();
@@ -205,11 +198,11 @@ void() MG3_MT_Step =
         MG3_MT_Hurt(p, mg3mt_m2, 200);
         MG3_MT_Hurt(p, mg3mt_m3, 500);
         MG3_MT_Hurt(p, mg3mt_m4, 500);
-        MG3_MT_Check(MG3_MT_AllDrops() == drops, sprintf("the zombies and fiends killed drop no weapon (%g -> %g lying)",
+        VR_Test_Check(MG3_MT_AllDrops() == drops, sprintf("the zombies and fiends killed drop no weapon (%g -> %g lying)",
             drops, MG3_MT_AllDrops()));
-        MG3_MT_Check(killed_monsters == mg3mt_killed + 4, sprintf("killed again: four kills counted (%g -> %g)",
+        VR_Test_Check(killed_monsters == mg3mt_killed + 4, sprintf("killed again: four kills counted (%g -> %g)",
             mg3mt_killed, killed_monsters));
-        MG3_MT_Check(mg3mt_total + 4 == total_monsters, sprintf("the monster total unchanged by the bursts (%g)", total_monsters));
+        VR_Test_Check(mg3mt_total + 4 == total_monsters, sprintf("the monster total unchanged by the bursts (%g)", total_monsters));
         mg3mt_step = 0;
         MG3_MT_Total();
         return;
@@ -223,10 +216,10 @@ void() MG3_MT_Step =
             return;
         }
         mg3mt_m1 = MG3_MT_Spawn(p, 34, 256, 0);
-        MG3_MT_Check(mg3mt_m1.classname == "monster_ogre" && mg3mt_m1.vr_mg3_mon == MG3_MON_ROCKET_OGRE &&
+        VR_Test_Check(mg3mt_m1.classname == "monster_ogre" && mg3mt_m1.vr_mg3_mon == MG3_MON_ROCKET_OGRE &&
             mg3mt_m1.model == MG3_OGRE_ROCKET_MDL && mg3mt_m1.health == 200, sprintf("a rocket ogre (%s %s health %g)",
             mg3mt_m1.classname, mg3mt_m1.model, mg3mt_m1.health));
-        MG3_MT_Check(PositionalHead(mg3mt_m1) && xHeadUp == 33 && xHeadForward == 10, sprintf("its own head zone (%g up, %g "
+        VR_Test_Check(PositionalHead(mg3mt_m1) && xHeadUp == 33 && xHeadForward == 10, sprintf("its own head zone (%g up, %g "
             "forward, %g wide)", xHeadUp, xHeadForward, xHeadRadius));
         mg3mt_step = 21; mg3mt_next = time + 1;
         return;
@@ -248,7 +241,7 @@ void() MG3_MT_Step =
     if(mg3mt_step == 22)
     {
         entity r = find(world, classname, "ogre_missile");
-        MG3_MT_Check(r != world && VR_Deflect_IsProjectile(r) && r.owner == mg3mt_m1, sprintf("its rocket in flight, a "
+        VR_Test_Check(r != world && VR_Deflect_IsProjectile(r) && r.owner == mg3mt_m1, sprintf("its rocket in flight, a "
             "monster's missile to bat (%g)", r != world));
         mg3mt_step = 23; mg3mt_next = time + 1.5;
         return;
@@ -256,20 +249,20 @@ void() MG3_MT_Step =
     if(mg3mt_step == 23)
     {
         float fired = vr_mg3_rockets - mg3mt_n; // (one volley made, more of its own may follow: it has an enemy now)
-        MG3_MT_Check(fired >= 2 && fired == floor(fired / 2) * 2, sprintf("volleys of two rockets (%g)", fired));
-        MG3_MT_Check(p.health < mg3mt_h, sprintf("the player hurt (%g -> %g)", mg3mt_h, p.health));
+        VR_Test_Check(fired >= 2 && fired == floor(fired / 2) * 2, sprintf("volleys of two rockets (%g)", fired));
+        VR_Test_Check(p.health < mg3mt_h, sprintf("the player hurt (%g -> %g)", mg3mt_h, p.health));
         MG3_MT_Hurt(p, mg3mt_m1, mg3mt_m1.health + 5);
         mg3mt_step = 24; mg3mt_next = time + 2;
         return;
     }
     if(mg3mt_step == 24)
     {
-        MG3_MT_Check(mg3mt_m1.health <= 0 && mg3mt_m1.model == MG3_OGRE_ROCKET_MDL && mg3mt_m1.frame >= 112 &&
+        VR_Test_Check(mg3mt_m1.health <= 0 && mg3mt_m1.model == MG3_OGRE_ROCKET_MDL && mg3mt_m1.frame >= 112 &&
             mg3mt_m1.frame <= 135, sprintf("killed: a corpse in its death frames (frame %g)", mg3mt_m1.frame));
         float saws = 0;
         entity w = find(world, classname, "thrown_weapon");
         while(w) { if(w.weapon == WID_CHAINSAW) { saws = saws + 1; } w = find(w, classname, "thrown_weapon"); }
-        MG3_MT_Check(saws == 1, sprintf("its chainsaw dropped (%g)", saws));
+        VR_Test_Check(saws == 1, sprintf("its chainsaw dropped (%g)", saws));
         mg3mt_step = 0;
         MG3_MT_Total();
         return;
@@ -285,7 +278,7 @@ void() MG3_MT_Step =
         mg3mt_m1 = MG3_MT_Spawn(p, 35, 192, 0);
         mg3mt_m2 = MG3_MT_Spawn(p, 0, 192, 40); // (a grunt beside it)
         mg3mt_m2.health = 300; // (survives a grenade or two: hurt, not gone)
-        MG3_MT_Check(mg3mt_m1.classname == "monster_dog" && mg3mt_m1.vr_mg3_mon == MG3_MON_DEMODOG &&
+        VR_Test_Check(mg3mt_m1.classname == "monster_dog" && mg3mt_m1.vr_mg3_mon == MG3_MON_DEMODOG &&
             mg3mt_m1.model == MG3_DEMODOG_MDL && mg3mt_m1.health == 25, sprintf("a demo dog (%s %s health %g)",
             mg3mt_m1.classname, mg3mt_m1.model, mg3mt_m1.health));
         mg3mt_step = 31; mg3mt_next = time + 0.7;
@@ -300,19 +293,19 @@ void() MG3_MT_Step =
         vr_mg3_demo_watch = mg3mt_m2;
         vr_mg3_demo_nearest = 100000;
         MG3_MT_Hurt(p, mg3mt_m1, 30); // (a shotgun blast's worth: not a gib for a rottweiler)
-        MG3_MT_Check(vr_mg3_demo_grenades - mg3mt_n >= 3, sprintf("shot dead: its grenades spill (%g)",
+        VR_Test_Check(vr_mg3_demo_grenades - mg3mt_n >= 3, sprintf("shot dead: its grenades spill (%g)",
             vr_mg3_demo_grenades - mg3mt_n));
-        MG3_MT_Check(mg3mt_m1.model == "progs/h_dog.mdl" && killed_monsters == mg3mt_killed + 1, sprintf("it burst (%s), "
+        VR_Test_Check(mg3mt_m1.model == "progs/h_dog.mdl" && killed_monsters == mg3mt_killed + 1, sprintf("it burst (%s), "
             "counted (%g -> %g)", mg3mt_m1.model, mg3mt_killed, killed_monsters));
         mg3mt_step = 32; mg3mt_next = time + 3.2;
         return;
     }
     if(mg3mt_step == 32)
     {
-        MG3_MT_Check(vr_mg3_demo_blasts - mg3mt_total == vr_mg3_demo_grenades - mg3mt_n, sprintf("its grenades went off (%g)",
+        VR_Test_Check(vr_mg3_demo_blasts - mg3mt_total == vr_mg3_demo_grenades - mg3mt_n, sprintf("its grenades went off (%g)",
             vr_mg3_demo_blasts - mg3mt_total));
         // (Tossed about at random: the grunt is hurt when one goes off within its reach, 60 + 40 units.)
-        MG3_MT_Check(mg3mt_m2.health < mg3mt_h || vr_mg3_demo_nearest > 100, sprintf("the grunt beside it hurt by the "
+        VR_Test_Check(mg3mt_m2.health < mg3mt_h || vr_mg3_demo_nearest > 100, sprintf("the grunt beside it hurt by the "
             "nearest (%g units off): %g -> %g", vr_mg3_demo_nearest, mg3mt_h, mg3mt_m2.health));
         vr_mg3_demo_watch = world;
         if(mg3mt_m2.health > 0) { MG3_MT_Hurt(p, mg3mt_m2, mg3mt_m2.health + 50); }
@@ -341,7 +334,7 @@ void() MG3_MT_Step =
     }
     if(mg3mt_step == 34)
     {
-        MG3_MT_Check(mg3mt_m1.health <= 0 && vr_mg3_demo_grenades - mg3mt_n >= 3 && p.health < mg3mt_h,
+        VR_Test_Check(mg3mt_m1.health <= 0 && vr_mg3_demo_grenades - mg3mt_n >= 3 && p.health < mg3mt_h,
             sprintf("its leap onto the player killed it: health %g, grenades %g, the player %g -> %g", mg3mt_m1.health,
             vr_mg3_demo_grenades - mg3mt_n, mg3mt_h, p.health));
         mg3mt_h = p.health;
@@ -377,7 +370,7 @@ void() MG3_MT_Step =
         float armed = VR_Decap_Arm(mg3mt_m1, p, head, v_right * 400, QVR_DECAP_SWING);
         MG3_MT_Hurt(p, mg3mt_m1, 30);
         VR_Decap_After(mg3mt_m1);
-        MG3_MT_Check(armed && mg3mt_m1.vr_headless && mg3mt_m1.model == MG3_DEMODOG_MDL && vr_mg3_demo_grenades - mg3mt_n >= 3,
+        VR_Test_Check(armed && mg3mt_m1.vr_headless && mg3mt_m1.model == MG3_DEMODOG_MDL && vr_mg3_demo_grenades - mg3mt_n >= 3,
             sprintf("beheaded: grenades %g, it lies headless (%s headless %g)", vr_mg3_demo_grenades - mg3mt_n,
             mg3mt_m1.model, mg3mt_m1.vr_headless));
         mg3mt_step = 0;
@@ -393,10 +386,10 @@ void() MG3_MT_Step =
             return;
         }
         mg3mt_m1 = MG3_MT_Spawn(p, 36, 256, 0);
-        MG3_MT_Check(mg3mt_m1.classname == "monster_ranged_knight" && mg3mt_m1.vr_mg3_mon == MG3_MON_RANGED_KNIGHT &&
+        VR_Test_Check(mg3mt_m1.classname == "monster_ranged_knight" && mg3mt_m1.vr_mg3_mon == MG3_MON_RANGED_KNIGHT &&
             mg3mt_m1.model == MG3_RKNIGHT_MDL && mg3mt_m1.health == 250 && !mg3mt_m1.th_melee, sprintf("a ranged knight "
             "(%s %s health %g, no melee)", mg3mt_m1.classname, mg3mt_m1.model, mg3mt_m1.health));
-        MG3_MT_Check(PositionalHead(mg3mt_m1) && xHeadUp == 33 && xHeadForward == 7 && VR_Decap_HeadModel(mg3mt_m1) ==
+        VR_Test_Check(PositionalHead(mg3mt_m1) && xHeadUp == 33 && xHeadForward == 7 && VR_Decap_HeadModel(mg3mt_m1) ==
             "progs/h_hellkn.mdl", sprintf("its own head zone (%g up, %g forward, %g wide), the death knight's head",
             xHeadUp, xHeadForward, xHeadRadius));
         mg3mt_step = 41; mg3mt_next = time + 1;
@@ -419,7 +412,7 @@ void() MG3_MT_Step =
     if(mg3mt_step == 42)
     {
         entity d = find(world, classname, "knightspike");
-        MG3_MT_Check(d != world && d.model == MG3_DIAMOND_MDL && d.owner == mg3mt_m1 && VR_Deflect_IsProjectile(d),
+        VR_Test_Check(d != world && d.model == MG3_DIAMOND_MDL && d.owner == mg3mt_m1 && VR_Deflect_IsProjectile(d),
             sprintf("a diamond in flight, a monster's missile to bat (%s)", d.model));
         mg3mt_step = 43; mg3mt_next = time + 1.5;
         return;
@@ -427,8 +420,8 @@ void() MG3_MT_Step =
     if(mg3mt_step == 43)
     {
         float fan = vr_mg3_diamonds - mg3mt_n;
-        MG3_MT_Check(fan >= 6, sprintf("a fan of six diamonds (%g so far)", fan));
-        MG3_MT_Check(p.health < mg3mt_h, sprintf("the player hurt (%g -> %g)", mg3mt_h, p.health));
+        VR_Test_Check(fan >= 6, sprintf("a fan of six diamonds (%g so far)", fan));
+        VR_Test_Check(p.health < mg3mt_h, sprintf("the player hurt (%g -> %g)", mg3mt_h, p.health));
         MG3_MT_Hurt(p, mg3mt_m1, mg3mt_m1.health + 5);
         mg3mt_m2 = MG3_MT_Spawn(p, 36, 160, 48);
         mg3mt_step = 44; mg3mt_next = time + 2;
@@ -436,10 +429,10 @@ void() MG3_MT_Step =
     }
     if(mg3mt_step == 44)
     {
-        MG3_MT_Check(mg3mt_m1.health <= 0 && mg3mt_m1.model == MG3_RKNIGHT_MDL && mg3mt_m1.frame >= 42 && mg3mt_m1.frame <= 62,
+        VR_Test_Check(mg3mt_m1.health <= 0 && mg3mt_m1.model == MG3_RKNIGHT_MDL && mg3mt_m1.frame >= 42 && mg3mt_m1.frame <= 62,
             sprintf("killed: a corpse in its death frames (frame %g)", mg3mt_m1.frame));
         MG3_MT_Hurt(p, mg3mt_m2, mg3mt_m2.health + 100);
-        MG3_MT_Check(mg3mt_m2.model == "progs/h_hellkn.mdl", sprintf("another gibbed: the death knight's head (%s)",
+        VR_Test_Check(mg3mt_m2.model == "progs/h_hellkn.mdl", sprintf("another gibbed: the death knight's head (%s)",
             mg3mt_m2.model));
         mg3mt_step = 0;
         MG3_MT_Total();
@@ -455,7 +448,7 @@ void() MG3_MT_Step =
     }
     if(mg3mt_step == 11)
     {
-        MG3_MT_Check(mg3mt_m1.solid == SOLID_NOT && mg3mt_m1.frame == MG3_HKNIGHT_DEATH1 + 11 && mg3mt_m1.health > 0,
+        VR_Test_Check(mg3mt_m1.solid == SOLID_NOT && mg3mt_m1.frame == MG3_HKNIGHT_DEATH1 + 11 && mg3mt_m1.health > 0,
             sprintf("the death knight lies as a corpse (solid %g frame %g health %g)", mg3mt_m1.solid, mg3mt_m1.frame,
             mg3mt_m1.health));
         entity os = self;
@@ -468,11 +461,11 @@ void() MG3_MT_Step =
     }
     if(mg3mt_step == 12)
     {
-        MG3_MT_Check(mg3mt_m1.solid == SOLID_SLIDEBOX && mg3mt_m1.th_pain == hknight_pain && mg3mt_m1.th_run == hknight_run1 &&
+        VR_Test_Check(mg3mt_m1.solid == SOLID_SLIDEBOX && mg3mt_m1.th_pain == hknight_pain && mg3mt_m1.th_run == hknight_run1 &&
             (mg3mt_m1.frame < MG3_HKNIGHT_DEATH1 || mg3mt_m1.frame > MG3_HKNIGHT_DEATHB1 + 8),
             sprintf("woken, he rose and fights (solid %g frame %g)", mg3mt_m1.solid, mg3mt_m1.frame));
         MG3_MT_Hurt(p, mg3mt_m1, mg3mt_m1.health + 5);
-        MG3_MT_Check(mg3mt_m1.classname == "monster_demon1", "killed, he bursts into a fiend");
+        VR_Test_Check(mg3mt_m1.classname == "monster_demon1", "killed, he bursts into a fiend");
         mg3mt_step = 0;
         MG3_MT_Total();
         return;
@@ -496,7 +489,7 @@ void() MG3_MT_KillInfected =
         }
         e = nx;
     }
-    MG3_MT_Check(vr_mg3_infected_turned - turned == n && killed_monsters == killed, sprintf("the map's %g infected killed: "
+    VR_Test_Check(vr_mg3_infected_turned - turned == n && killed_monsters == killed, sprintf("the map's %g infected killed: "
         "%g turned, kills %g -> %g", n, vr_mg3_infected_turned - turned, killed, killed_monsters));
     MG3_MT_Total();
 };

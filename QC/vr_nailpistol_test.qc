@@ -18,7 +18,6 @@
 //   4 its damage: a grunt killed by nails at its head (each x1.5), another by nails in its body (x1): how many each.
 //   5 armed grunts: one with a nail pistol fires it; one with a pair fires both.
 
-float vr_npt_pass, vr_npt_fail;
 float vr_npt_step;      // 0 idle
 float vr_npt_frames;    // frames into the step
 float vr_npt_last;      // the time of the last shot seen
@@ -35,11 +34,6 @@ float vr_npt_grip;      // vr_weapon_grip_mode before (1 meanwhile: the mock's h
 entity vr_npt_player;
 entity vr_npt_g;
 
-void(float ok, string what) VR_NPT_Check =
-{
-    if(ok) vr_npt_pass++; else vr_npt_fail++;
-    dprint(sprintf("nptest: %s %s\n", ok ? "PASS" : "FAIL", what));
-};
 
 // The map's own monsters stand still meanwhile (one walking into the grunts' line of fire holds their shots).
 void(float xOn) VR_NPT_Freeze =
@@ -72,7 +66,7 @@ void() VR_NPT_End =
     cvar_set("vr_weapon_grip_mode", ftos(vr_npt_grip));
     VR_NPT_Trigger(0);
     if(!vr_npt_notarget) vr_npt_player.flags = vr_npt_player.flags - (vr_npt_player.flags & FL_NOTARGET);
-    dprint(sprintf("nptest: %g passed, %g failed\n", vr_npt_pass, vr_npt_fail));
+    VR_Test_Verdict();
     vr_npt_step = 0;
 };
 
@@ -190,7 +184,7 @@ void() VR_NPA_End =
     cvar_set("vr_nailpistol_spread", ftos(vr_npa_spread));
     cvar_set("vr_weapon_grip_mode", ftos(vr_npa_grip));
     VR_NPT_Freeze(FALSE);
-    dprint(sprintf("npaim: %g passed, %g failed\n", vr_npt_pass, vr_npt_fail));
+    dprint(sprintf("npaim: %g passed, %g failed\n", vr_test_pass, vr_test_fail));
     vr_npa_on = FALSE;
 };
 
@@ -200,7 +194,7 @@ void() VR_NPA_Frame =
     vr_npa_frames++;
     if(vr_npa_frames > 400)
     {
-        VR_NPT_Check(FALSE, sprintf("case %g timed out (step %g)", vr_npa_case, vr_npa_sub));
+        VR_Test_Check(FALSE, sprintf("case %g timed out (step %g)", vr_npa_case, vr_npa_sub));
         VR_NPA_End();
         return;
     }
@@ -255,7 +249,7 @@ void() VR_NPA_Frame =
         float hit = VR_DegreesBetween(vr_np_lasthit - vr_np_lastfrom, vr_np_lastfwd);
         string what = sprintf("case %g: flight %g deg off the shot line, impact %g deg (%g units off) at %g units (%g u/s)",
             vr_npa_case, flight, hit, d * sin(hit * 0.0174533), d, vlen(vr_np_lasthitvel));
-        VR_NPT_Check(flight <= 0.2 && hit <= 0.2, what);
+        VR_Test_Check(flight <= 0.2 && hit <= 0.2, what);
         vr_npa_case++;
         vr_npa_sub = 0;
         vr_npa_frames = 0;
@@ -289,7 +283,7 @@ void() VR_NailPistol_TestFrame =
         self.ammo_nails = max(self.ammo_nails, 48);
         self.flags = self.flags | FL_NOTARGET;
         self = os5;
-        vr_npt_pass = vr_npt_fail = 0;
+        VR_Test_Begin("nptest");
         vr_npa_spread = cvar("vr_nailpistol_spread");
         vr_npa_grip = cvar("vr_weapon_grip_mode");
         cvar_set("vr_nailpistol_spread", "0");
@@ -341,7 +335,7 @@ void() VR_NailPistol_TestFrame =
             dprint("nptest: a nail pistol in the right hip and the right upper holster\n");
             return;
         }
-        vr_npt_pass = vr_npt_fail = 0;
+        VR_Test_Begin("nptest");
         vr_npt_mode = cvar("vr_reload_mode_npistol");
         vr_npt_grip = cvar("vr_weapon_grip_mode");
         cvar_set("vr_weapon_grip_mode", "1");
@@ -365,7 +359,7 @@ void() VR_NailPistol_TestFrame =
     }
     if(vr_npt_frames > 72 * 20) // (a safety net only: a stuck step)
     {
-        VR_NPT_Check(FALSE, sprintf("step %g timed out", vr_npt_step));
+        VR_Test_Check(FALSE, sprintf("step %g timed out", vr_npt_step));
         self = os;
         VR_NPT_End();
         return;
@@ -413,8 +407,8 @@ void() VR_NailPistol_TestFrame =
         }
         if(vr_npt_frames == 50)
         {
-            VR_NPT_Check(vr_np_shots == 1, sprintf("semi-automatic: the trigger held 0.55 s fired %g (want 1)", vr_np_shots));
-            VR_NPT_Check(vr_npt_slide1 == 1 && VRGetWeaponFrame(cVR_MainHand) == 0,
+            VR_Test_Check(vr_np_shots == 1, sprintf("semi-automatic: the trigger held 0.55 s fired %g (want 1)", vr_np_shots));
+            VR_Test_Check(vr_npt_slide1 == 1 && VRGetWeaponFrame(cVR_MainHand) == 0,
                 sprintf("the slide back after the shot (frame %g) and home after (frame %g)", vr_npt_slide1,
                     VRGetWeaponFrame(cVR_MainHand)));
             VR_NPT_Next();
@@ -426,9 +420,9 @@ void() VR_NailPistol_TestFrame =
         VR_NPT_Trigger((((vr_npt_frames & 1) != 0) && (vr_np_shots < VR_NailPistol_MagSize())));
         if(vr_np_shots >= VR_NailPistol_MagSize() && !p.button0 && !vr_npt_trigger)
         {
-            VR_NPT_Check(vr_np_shots == 12 && vr_np_dry == 0, sprintf("the magazine: %g shots (want 12), %g dry", vr_np_shots,
+            VR_Test_Check(vr_np_shots == 12 && vr_np_dry == 0, sprintf("the magazine: %g shots (want 12), %g dry", vr_np_shots,
                 vr_np_dry));
-            VR_NPT_Check(vr_npt_mingap >= cvar_hget(cvarh_vr_nailpistol_cooldown) - 0.001,
+            VR_Test_Check(vr_npt_mingap >= cvar_hget(cvarh_vr_nailpistol_cooldown) - 0.001,
                 sprintf("the cooldown: the shortest gap %.3f s (vr_nailpistol_cooldown %g), pulls every %.3f s",
                     vr_npt_mingap, cvar_hget(cvarh_vr_nailpistol_cooldown), 2 * frametime));
             VR_NPT_Next();
@@ -440,10 +434,10 @@ void() VR_NailPistol_TestFrame =
         VR_NPT_Trigger(((vr_npt_frames >= 12) && (vr_npt_frames <= 14)));
         if(vr_npt_frames == 30)
         {
-            VR_NPT_Check(vr_np_shots == 12 && vr_np_dry == 1, sprintf("the 13th pull: %g shots, %g dry clicks (want 12, 1)",
+            VR_Test_Check(vr_np_shots == 12 && vr_np_dry == 1, sprintf("the 13th pull: %g shots, %g dry clicks (want 12, 1)",
                 vr_np_shots, vr_np_dry));
-            VR_NPT_Check(vr_np_hits == 12, sprintf("hits on the target: %g (want 12)", vr_np_hits));
-            VR_NPT_Check(VRGetWeaponClip(cVR_MainHand) == 0 && VRGetWeaponFrame(cVR_MainHand) == 1,
+            VR_Test_Check(vr_np_hits == 12, sprintf("hits on the target: %g (want 12)", vr_np_hits));
+            VR_Test_Check(VRGetWeaponClip(cVR_MainHand) == 0 && VRGetWeaponFrame(cVR_MainHand) == 1,
                 sprintf("empty: clip %g, its slide locked back (frame %g)", VRGetWeaponClip(cVR_MainHand),
                     VRGetWeaponFrame(cVR_MainHand)));
             vr_npt_walkjit = vr_npt_walkrun = 0;
@@ -460,7 +454,7 @@ void() VR_NailPistol_TestFrame =
         if(vr_npt_frames == 131)
         {
             p.velocity = '0 0 0';
-            VR_NPT_Check(vr_npt_walkrun > 50 && vr_npt_walkjit == 0, sprintf(
+            VR_Test_Check(vr_npt_walkrun > 50 && vr_npt_walkjit == 0, sprintf(
                 "walking empty: the slide off its locked-back frame in %g of 99 frames (want 0; %g frames of the run animation)",
                 vr_npt_walkjit, vr_npt_walkrun));
             VR_NPT_Next();
@@ -470,19 +464,19 @@ void() VR_NailPistol_TestFrame =
     {
         // The magazine cycle: out (B/Y), a new one from the pouch into the off hand, its top to the engine's well.
         entity m = VR_Reload_Eject(p, cVR_MainHand, '0 0 0', -1, "nptest");
-        VR_NPT_Check(m != world && m.vr_ammo_count == 0 && m.model == "progs/vr_mag_npistol.mdl" && !VR_Reload_MagIn(p,
+        VR_Test_Check(m != world && m.vr_ammo_count == 0 && m.model == "progs/vr_mag_npistol.mdl" && !VR_Reload_MagIn(p,
             cVR_MainHand), sprintf("ejected: an empty magazine (%s, %g) out, none in", m.model, m.vr_ammo_count));
         if(m) { remove(m); }
         if(VRGetEntWeapon(p, cVR_OffHand) != WID_FIST) { VRGiveEntWeapon(p, cVR_OffHand, WID_FIST, 0, 0); }
         float before = p.ammo_nails;
         VR_Reload_Take(cVR_OffHand);
         entity r = VR_Carry_Held(p, cVR_OffHand);
-        VR_NPT_Check(r != world && r.vr_ammo_wid == WID_NAILPISTOL && r.vr_ammo_count == 12 && p.ammo_nails == before - 12,
+        VR_Test_Check(r != world && r.vr_ammo_wid == WID_NAILPISTOL && r.vr_ammo_count == 12 && p.ammo_nails == before - 12,
             sprintf("from the pouch: a magazine of %g (want 12), nails %g -> %g", r.vr_ammo_count, before, p.ammo_nails));
         float d = vlen(p.loadportpos - VRGetEntHandPos(p, cVR_MainHand));
-        VR_NPT_Check(p.loadportpos != '0 0 0' && d < 16, sprintf("the engine's well on the grip: %.1f units from the hand", d));
+        VR_Test_Check(p.loadportpos != '0 0 0' && d < 16, sprintf("the engine's well on the grip: %.1f units from the hand", d));
         if(r) { VR_Reload_MagAtWell(cVR_OffHand, r); }
-        VR_NPT_Check(VR_Reload_MagIn(p, cVR_MainHand) && VRGetWeaponClip(cVR_MainHand) == 12 &&
+        VR_Test_Check(VR_Reload_MagIn(p, cVR_MainHand) && VRGetWeaponClip(cVR_MainHand) == 12 &&
             VR_Carry_Held(p, cVR_OffHand) == world, sprintf("slapped in: clip %g, the hand empty", VRGetWeaponClip(cVR_MainHand)));
         // Pulled off by the off hand (gripping it, holding it, the hands far further apart since): it stays in, only the
         // button lets it out (vr_nailpistol_mag_pull 0, his note 2026-10-29); with vr_nailpistol_mag_pull 1 it comes out
@@ -502,14 +496,14 @@ void() VR_NailPistol_TestFrame =
             VR_Reload_MagFrame(cVR_OffHand);
             if(!k5)
             {
-                VR_NPT_Check(VR_Reload_MagIn(p, cVR_MainHand) && (VRGetWeaponClip(cVR_MainHand) == 12),
+                VR_Test_Check(VR_Reload_MagIn(p, cVR_MainHand) && (VRGetWeaponClip(cVR_MainHand) == 12),
                     sprintf("pulled off by hand: the magazine stays in (in %g, clip %g; only its button lets it out)",
                         VR_Reload_MagIn(p, cVR_MainHand), VRGetWeaponClip(cVR_MainHand)));
             }
             else
             {
                 pulled = ((!VR_Reload_MagIn(p, cVR_MainHand)) && (VR_Carry_Held(p, cVR_OffHand) != world));
-                VR_NPT_Check(pulled, "vr_nailpistol_mag_pull 1: pulled off by hand, it comes out into the hand");
+                VR_Test_Check(pulled, "vr_nailpistol_mag_pull 1: pulled off by hand, it comes out into the hand");
             }
         }
         p.vrbits0 = vb5;
@@ -517,7 +511,7 @@ void() VR_NailPistol_TestFrame =
         self = os5;
         cvar_set("vr_nailpistol_mag_pull", ftos(pullWas));
         if(pulled) { VR_Reload_MagAtWell(cVR_OffHand, VR_Carry_Held(p, cVR_OffHand)); }
-        VR_NPT_Check(VR_Reload_MagIn(p, cVR_MainHand) && (VRGetWeaponClip(cVR_MainHand) == 12),
+        VR_Test_Check(VR_Reload_MagIn(p, cVR_MainHand) && (VRGetWeaponClip(cVR_MainHand) == 12),
             sprintf("seated again: clip %g", VRGetWeaponClip(cVR_MainHand)));
         VR_NPT_Next();
     }
@@ -526,12 +520,12 @@ void() VR_NailPistol_TestFrame =
         VR_NPT_Trigger(vr_npt_frames == 3);
         if(vr_npt_frames == 2)
         {
-            VR_NPT_Check(VRGetWeaponFrame(cVR_MainHand) == 0, sprintf("the slide home, loaded (frame %g)",
+            VR_Test_Check(VRGetWeaponFrame(cVR_MainHand) == 0, sprintf("the slide home, loaded (frame %g)",
                 VRGetWeaponFrame(cVR_MainHand)));
         }
         if(vr_npt_frames == 20)
         {
-            VR_NPT_Check(vr_np_shots == 13 && VRGetWeaponClip(cVR_MainHand) == 11,
+            VR_Test_Check(vr_np_shots == 13 && VRGetWeaponClip(cVR_MainHand) == 11,
                 sprintf("a shot from the new magazine: %g shots, clip %g", vr_np_shots, VRGetWeaponClip(cVR_MainHand)));
             remove(vr_np_target);
             vr_np_target = world;
@@ -567,13 +561,13 @@ void() VR_NailPistol_TestFrame =
         {
             if(s == 7)
             {
-                VR_NPT_Check(!alive && vr_npt_n == 2 && vr_np_lastfactor > 1.4,
+                VR_Test_Check(!alive && vr_npt_n == 2 && vr_np_lastfactor > 1.4,
                     sprintf("headshots: the grunt died to %g (want 2), the last x%.2f", vr_npt_n, vr_np_lastfactor));
                 vr_npt_g = VR_NPT_Grunt(360, -1, 0);
             }
             else
             {
-                VR_NPT_Check(!alive && (vr_npt_n == 3 || vr_npt_n == 4) && fabs(vr_np_lastfactor - 1) < 0.01,
+                VR_Test_Check(!alive && (vr_npt_n == 3 || vr_npt_n == 4) && fabs(vr_np_lastfactor - 1) < 0.01,
                     sprintf("body shots: the grunt died to %g (want 3-4), the last x%.2f", vr_npt_n, vr_np_lastfactor));
                 vr_npt_g = VR_NPT_Grunt(400, WID_NAILPISTOL, 0);
             }
@@ -597,7 +591,7 @@ void() VR_NailPistol_TestFrame =
             self = p;
             if(s == 9)
             {
-                VR_NPT_Check(a.vr_ag_prop && a.vr_ag_prop.weapon == WID_NAILPISTOL && n1 - n0 == 1,
+                VR_Test_Check(a.vr_ag_prop && a.vr_ag_prop.weapon == WID_NAILPISTOL && n1 - n0 == 1,
                     sprintf("an armed grunt's nail pistol (%s): %g nails fired", a.vr_ag_prop ? a.vr_ag_prop.netname : "none",
                         n1 - n0));
                 VR_AGT_Remove(a);
@@ -606,7 +600,7 @@ void() VR_NailPistol_TestFrame =
             }
             else
             {
-                VR_NPT_Check(a.vr_ag_prop && a.vr_ag_prop2 && a.vr_ag_prop2.weapon == WID_NAILPISTOL && n1 - n0 == 1 &&
+                VR_Test_Check(a.vr_ag_prop && a.vr_ag_prop2 && a.vr_ag_prop2.weapon == WID_NAILPISTOL && n1 - n0 == 1 &&
                     n2 - n1 == 1, sprintf("a pair of nail pistols: held %g, %g nails right, %g left", a.vr_ag_prop2 != world,
                         n1 - n0, n2 - n1));
                 VR_AGT_RemovePair(a);

@@ -14,22 +14,16 @@
 //   4 her death (god mode): immune, her children cleared, the lights out, the burst of gibs, then (a map's Shub) the
 //     final text and the credits; a free one ends nothing
 
-float mg3st_pass, mg3st_fail;
 float mg3st_step;   // the running request's step, 0: none
 float mg3st_next;   // when its next step runs
 entity mg3st_m;     // her
 float mg3st_used;   // uses of the tests' target (her waves)
 float mg3st_t, mg3st_k, mg3st_n, mg3st_n2; // monsters total and killed, counts before
 
-void(float ok, string label) MG3_ST_Check =
-{
-    if(ok) mg3st_pass++; else mg3st_fail++;
-    dprint(sprintf("mg3shubtest: %s %s\n", ok ? "PASS" : "FAIL", label));
-};
 
 void() MG3_ST_Total =
 {
-    dprint(sprintf("mg3shubtest: total %g/%g\n", mg3st_pass, mg3st_fail));
+    dprint(sprintf("mg3shubtest: total %g/%g\n", vr_test_pass, vr_test_fail));
     mg3st_step = 0;
 };
 
@@ -169,14 +163,14 @@ void() MG3_ST_PhaseStep =
     entity oldself = self;
     if(mg3st_step == 1)
     {
-        mg3st_pass = mg3st_fail = 0;
+        VR_Test_Begin("mg3shubtest");
         p.flags = p.flags | FL_GODMODE;
         mg3st_t = total_monsters;
         m = mg3st_m = MG3_ST_Shub(p);
-        MG3_ST_Check(m.classname == "monster_oldone_new" && m.model == "progs/oldone.mdl" && m.health == 12000 &&
+        VR_Test_Check(m.classname == "monster_oldone_new" && m.model == "progs/oldone.mdl" && m.health == 12000 &&
             m.max_health == 12000 && m.mg3_shub_phase == 0 && (m.flags & FL_MONSTER),
             sprintf("Shub: her model, 12000 health, the prelude (%s %s %g, free %g)", m.classname, m.model, m.health, m.mg3_shub_free));
-        MG3_ST_Check(VR_Grapple_MonsterMass(m) == 10000, sprintf("10000 kg to the grapple (%g)", VR_Grapple_MonsterMass(m)));
+        VR_Test_Check(VR_Grapple_MonsterMass(m) == 10000, sprintf("10000 kg to the grapple (%g)", VR_Grapple_MonsterMass(m)));
         entity t = find(world, targetname, "mg3st_target");
         if(!t) { t = spawn(); t.targetname = "mg3st_target"; t.use = MG3_ST_TargetUse; }
         m.wave1 = "mg3st_target";
@@ -188,16 +182,16 @@ void() MG3_ST_PhaseStep =
     }
     if(mg3st_step == 2)
     {
-        MG3_ST_Check(m.enemy == p && m.think != oldnew_idle1, "awake: facing you");
+        VR_Test_Check(m.enemy == p && m.think != oldnew_idle1, "awake: facing you");
         vector o = m.origin;
         VR_Push(m, '1 0 0', 700, 200);
-        MG3_ST_Check(m.velocity == '0 0 0' && m.origin == o, "no shove moves her");
+        VR_Test_Check(m.velocity == '0 0 0' && m.origin == o, "no shove moves her");
         mg3st_n = mg3_shub_eyes;
         T_Damage(m, p, p, 10);
-        MG3_ST_Check(m.mg3_shub_phase == 1 && m.mg3_shub_immune && m.health == 11990,
+        VR_Test_Check(m.mg3_shub_phase == 1 && m.mg3_shub_immune && m.health == 11990,
             sprintf("her first wound: phase 1, thrashing, immune (phase %g health %g)", m.mg3_shub_phase, m.health));
         T_Damage(m, p, p, 100);
-        MG3_ST_Check(m.health == 11990, sprintf("immune: no damage while she thrashes (%g)", m.health));
+        VR_Test_Check(m.health == 11990, sprintf("immune: no damage while she thrashes (%g)", m.health));
         mg3st_step = 3; mg3st_next = time + 1.7;
         return;
     }
@@ -205,13 +199,13 @@ void() MG3_ST_PhaseStep =
     {
         float want = mg3st_step - 1;
         float hp = m.health;
-        MG3_ST_Check(!m.mg3_shub_immune, "the thrash over: not immune");
+        VR_Test_Check(!m.mg3_shub_immune, "the thrash over: not immune");
         T_Damage(m, p, p, 3000);
-        MG3_ST_Check(m.mg3_shub_phase == want && m.mg3_shub_immune && m.health == hp - 3000,
+        VR_Test_Check(m.mg3_shub_phase == want && m.mg3_shub_immune && m.health == hp - 3000,
             sprintf("under %g/4 of her health: phase %g (%g, health %g)", 5 - want, want, m.mg3_shub_phase, m.health));
         if(want == 2)
-            MG3_ST_Check(mg3_shub_eyes == mg3st_n + 1 && find(world, classname, "oldnew_eye") != world, "phase 2: a seeker eye");
-        MG3_ST_Check(mg3st_used == want - 1, sprintf("her waves fired: %g (wave1 at 2, wave2 at 3 and 4)", mg3st_used));
+            VR_Test_Check(mg3_shub_eyes == mg3st_n + 1 && find(world, classname, "oldnew_eye") != world, "phase 2: a seeker eye");
+        VR_Test_Check(mg3st_used == want - 1, sprintf("her waves fired: %g (wave1 at 2, wave2 at 3 and 4)", mg3st_used));
         mg3st_step = mg3st_step + 1; mg3st_next = time + 1.7;
         return;
     }
@@ -222,22 +216,22 @@ void() MG3_ST_PhaseStep =
         self = m;
         self.mg3_shub_immune = 0;
         MG3_ST_Mark(); MG3_ST_Attacks(1, 2);
-        MG3_ST_Check(MG3_ST_Made(1, 1, 0, 0, 0), sprintf("phase 1: a spammer, a swiper (%s)", MG3_ST_MadeStr()));
+        VR_Test_Check(MG3_ST_Made(1, 1, 0, 0, 0), sprintf("phase 1: a spammer, a swiper (%s)", MG3_ST_MadeStr()));
         MG3_ST_Mark(); MG3_ST_Attacks(2, 3);
-        MG3_ST_Check(MG3_ST_Made(1, 1, 1, 0, 0), sprintf("phase 2: a vortex, a swiper, a spammer (%s)", MG3_ST_MadeStr()));
+        VR_Test_Check(MG3_ST_Made(1, 1, 1, 0, 0), sprintf("phase 2: a vortex, a swiper, a spammer (%s)", MG3_ST_MadeStr()));
         MG3_ST_Mark(); MG3_ST_Attacks(3, 4);
-        MG3_ST_Check(MG3_ST_Made(0, 3, 0, 1, 0), sprintf("phase 3: blasters, three swipers (%s)", MG3_ST_MadeStr()));
+        VR_Test_Check(MG3_ST_Made(0, 3, 0, 1, 0), sprintf("phase 3: blasters, three swipers (%s)", MG3_ST_MadeStr()));
         MG3_ST_Mark(); MG3_ST_Attacks(4, 4);
-        MG3_ST_Check(MG3_ST_Made(1, 1, 0, 1, 1), sprintf("phase 4: a spammer, a seeker, a swiper, blasters (%s)", MG3_ST_MadeStr()));
+        VR_Test_Check(MG3_ST_Made(1, 1, 0, 1, 1), sprintf("phase 4: a spammer, a seeker, a swiper, blasters (%s)", MG3_ST_MadeStr()));
         mg3st_n = MG3_ST_Count("oldnew_chunks");
         self.cnt = 1;
         oldnew_attack();
-        MG3_ST_Check(MG3_ST_Count("oldnew_chunks") == mg3st_n + 1 && self.cnt == 2, "a volley of diamonds between");
+        VR_Test_Check(MG3_ST_Count("oldnew_chunks") == mg3st_n + 1 && self.cnt == 2, "a volley of diamonds between");
         MG3_ST_Mark();
         self.mg3_shub_immune = 1;
         self.cnt = 0;
         oldnew_attack();
-        MG3_ST_Check(MG3_ST_Made(0, 0, 0, 0, 0) && self.cnt == 0, "none while immune");
+        VR_Test_Check(MG3_ST_Made(0, 0, 0, 0, 0) && self.cnt == 0, "none while immune");
         self.mg3_shub_immune = 0;
         // Her autoguns: the c-th of a run up to her phase + 2 and skill + 1, none on skill 0.
         mg3st_n = mg3_shub_autogun;
@@ -249,13 +243,13 @@ void() MG3_ST_PhaseStep =
             if(skill > 0 && c <= self.mg3_shub_phase + 2 && c <= skill + 1) expect++;
             c++;
         }
-        MG3_ST_Check(mg3_shub_autogun - mg3st_n == expect, sprintf("her autoguns at skill %g: %g of 5 (%g)", skill, expect, mg3_shub_autogun - mg3st_n));
-        MG3_ST_Check(total_monsters == mg3st_t + 5, sprintf("her eyes counted as they appear: %g (5)", total_monsters - mg3st_t));
+        VR_Test_Check(mg3_shub_autogun - mg3st_n == expect, sprintf("her autoguns at skill %g: %g of 5 (%g)", skill, expect, mg3_shub_autogun - mg3st_n));
+        VR_Test_Check(total_monsters == mg3st_t + 5, sprintf("her eyes counted as they appear: %g (5)", total_monsters - mg3st_t));
         // Those eyes killed at once (they appeared on each other: they would telefrag each other as upstream's do), and a
         // pair of blasters on their own.
         mg3st_k = killed_monsters;
         mg3st_n = MG3_ST_KillChildren(p, FALSE);
-        MG3_ST_Check(mg3st_n == 7 && killed_monsters - mg3st_k == 5,
+        VR_Test_Check(mg3st_n == 7 && killed_monsters - mg3st_k == 5,
             sprintf("killed: 5 eyes and 2 seekers (%g), the eyes counted dead (%g)", mg3st_n, killed_monsters - mg3st_k));
         self = oldself;
         mg3st_step = 9; mg3st_next = time + 0.5; // (once their telefrag triggers are gone: 0.2 s)
@@ -275,9 +269,9 @@ void() MG3_ST_PhaseStep =
         float spammers = 0, swipers = 0;
         entity e = find(world, classname, "oldnew_child");
         while(e) { if(e.think == spammer_think) spammers++; if(e.think == oldnew_swipe) swipers++; e = find(e, classname, "oldnew_child"); }
-        MG3_ST_Check(spammers == 0 && swipers == 0, sprintf("spammers and swipers done and gone (%g, %g)", spammers, swipers));
-        MG3_ST_Check(mg3_shub_spam >= 39, sprintf("the spammers' plasma: 13 each (%g)", mg3_shub_spam));
-        MG3_ST_Check(mg3_shub_blasts > mg3st_n2, sprintf("the eyes spiral spheres at you (%g)", mg3_shub_blasts - mg3st_n2));
+        VR_Test_Check(spammers == 0 && swipers == 0, sprintf("spammers and swipers done and gone (%g, %g)", spammers, swipers));
+        VR_Test_Check(mg3_shub_spam >= 39, sprintf("the spammers' plasma: 13 each (%g)", mg3_shub_spam));
+        VR_Test_Check(mg3_shub_blasts > mg3st_n2, sprintf("the eyes spiral spheres at you (%g)", mg3_shub_blasts - mg3st_n2));
         mg3st_k = killed_monsters;
         mg3st_n = MG3_ST_KillChildren(p, TRUE);
         mg3st_step = 8; mg3st_next = time + 1.5;
@@ -286,10 +280,10 @@ void() MG3_ST_PhaseStep =
     if(mg3st_step == 8)
     {
         float left = MG3_ST_Count("oldnew_child") + MG3_ST_Count("oldnew_eye");
-        MG3_ST_Check(left == 0, sprintf("every child dead: %g killed, the other eye spent its shots; %g left", mg3st_n, left));
-        MG3_ST_Check(killed_monsters - mg3st_k == 2, sprintf("the blasters counted dead: %g (2)", killed_monsters - mg3st_k));
+        VR_Test_Check(left == 0, sprintf("every child dead: %g killed, the other eye spent its shots; %g left", mg3st_n, left));
+        VR_Test_Check(killed_monsters - mg3st_k == 2, sprintf("the blasters counted dead: %g (2)", killed_monsters - mg3st_k));
         float inflight = MG3_ST_Count("spam");
-        MG3_ST_Check(mg3_shub_spamblasts + mg3_shub_spamhits + inflight == mg3_shub_spam && mg3_shub_spamblasts > 0,
+        VR_Test_Check(mg3_shub_spamblasts + mg3_shub_spamhits + inflight == mg3_shub_spam && mg3_shub_spamblasts > 0,
             sprintf("the plasma: %g fired, %g blown up where they landed, %g on something alive, %g still about",
             mg3_shub_spam, mg3_shub_spamblasts, mg3_shub_spamhits, inflight));
         m.mg3_shub_immune = 0;
@@ -306,7 +300,7 @@ void() MG3_ST_EndStep =
     entity m = mg3st_m;
     if(mg3st_step == 20)
     {
-        mg3st_pass = mg3st_fail = 0;
+        VR_Test_Begin("mg3shubtest");
         p.flags = p.flags | FL_GODMODE;
         m = mg3st_m = MG3_ST_Shub(p);
         MG3_ST_Wake(m, p);
@@ -323,16 +317,16 @@ void() MG3_ST_EndStep =
         mg3st_k = killed_monsters;
         mg3st_n = mg3_shub_gibs;
         T_Damage(m, p, p, 200);
-        MG3_ST_Check(m.takedamage == DAMAGE_NO && m.mg3_shub_immune && killed_monsters == mg3st_k + 1,
+        VR_Test_Check(m.takedamage == DAMAGE_NO && m.mg3_shub_immune && killed_monsters == mg3st_k + 1,
             sprintf("killed: counted, immune, dying (%g)", killed_monsters - mg3st_k));
-        MG3_ST_Check(find(world, classname, "oldnew_zombie_cleaner") != world, "her zombies' cleaner set");
+        VR_Test_Check(find(world, classname, "oldnew_zombie_cleaner") != world, "her zombies' cleaner set");
         mg3st_step = 21; mg3st_next = time + 1;
         return;
     }
     if(mg3st_step == 21)
     {
-        MG3_ST_Check(MG3_ST_Count("oldnew_child") == 0 && MG3_ST_Count("oldnew_eye") == 0, "her children gone");
-        MG3_ST_Check(m.classname == "monster_oldone_new" && intermission_running == 0, "still thrashing");
+        VR_Test_Check(MG3_ST_Count("oldnew_child") == 0 && MG3_ST_Count("oldnew_eye") == 0, "her children gone");
+        VR_Test_Check(m.classname == "monster_oldone_new" && intermission_running == 0, "still thrashing");
         mg3st_step = 22; mg3st_next = time + 5;
         return;
     }
@@ -340,20 +334,20 @@ void() MG3_ST_EndStep =
     {
         float up = 0, i = 0;
         while(i < 100) { vector v = MG3_Shub_SphereDir(i); if(v_z > 0) up++; i++; }
-        MG3_ST_Check(m.modelindex == 0 && !m.takedamage, "burst: gone");
-        MG3_ST_Check(mg3_shub_gibs - mg3st_n == up, sprintf("her gibs: %g (%g)", mg3_shub_gibs - mg3st_n, up));
+        VR_Test_Check(m.modelindex == 0 && !m.takedamage, "burst: gone");
+        VR_Test_Check(mg3_shub_gibs - mg3st_n == up, sprintf("her gibs: %g (%g)", mg3_shub_gibs - mg3st_n, up));
         float zs = 0;
         entity z = find(world, classname, "monster_zombie");
         while(z) { if(MG3_SZombie_Is(z)) zs++; z = find(z, classname, "monster_zombie"); }
-        MG3_ST_Check(zs == 0, sprintf("her zombies gibbed by her cleaner: %g left", zs));
+        VR_Test_Check(zs == 0, sprintf("her zombies gibbed by her cleaner: %g left", zs));
         if(m.mg3_shub_free)
         {
-            MG3_ST_Check(intermission_running == 0, "a free Shub ends nothing");
+            VR_Test_Check(intermission_running == 0, "a free Shub ends nothing");
             p.flags = p.flags - (p.flags & FL_GODMODE);
             MG3_ST_Total();
             return;
         }
-        MG3_ST_Check(intermission_running == 1 && nextmap == "start" && MG_intermissiontext == "$map_dopa_endtext_final",
+        VR_Test_Check(intermission_running == 1 && nextmap == "start" && MG_intermissiontext == "$map_dopa_endtext_final",
             sprintf("the ending: intermission %g, next map %s, text %s", intermission_running, nextmap, MG_intermissiontext));
         mg3st_step = 23; mg3st_next = time + 2.5;
         return;
@@ -366,11 +360,11 @@ void() MG3_ST_EndStep =
         self = oldself2;
         if(mg3st_step == 23)
         {
-            MG3_ST_Check(intermission_running == 2 && MG_intermissiontext == "", sprintf("a press: the final text (stage %g)", intermission_running));
+            VR_Test_Check(intermission_running == 2 && MG_intermissiontext == "", sprintf("a press: the final text (stage %g)", intermission_running));
             mg3st_step = 24; mg3st_next = time + 1.5;
             return;
         }
-        MG3_ST_Check(intermission_running == 3, sprintf("another: the credits (stage %g; disconnect, menu_credits queued)", intermission_running));
+        VR_Test_Check(intermission_running == 3, sprintf("another: the credits (stage %g; disconnect, menu_credits queued)", intermission_running));
         MG3_ST_Total();
         return;
     }
@@ -393,13 +387,13 @@ void() MG3_ST_ZombieStep =
     entity oldself = self;
     if(mg3st_step == 50)
     {
-        mg3st_pass = mg3st_fail = 0;
+        VR_Test_Begin("mg3shubtest");
         p.flags = p.flags | FL_GODMODE;
         m = mg3st_m = MG3_ST_Shub(p);
         float spawns = 0, rested = 0;
         entity e = find(world, classname, "info_szombie_spawn");
         while(e) { spawns++; if(e.wait == -1) rested++; e = find(e, classname, "info_szombie_spawn"); }
-        MG3_ST_Check(spawns == 36 && rested == 36, sprintf("boss2's 36 shub zombie spawns, unused (%g, %g)", spawns, rested));
+        VR_Test_Check(spawns == 36 && rested == 36, sprintf("boss2's 36 shub zombie spawns, unused (%g, %g)", spawns, rested));
         float pillars = 0, good = 0;
         e = find(world, classname, "func_breakable");
         while(e)
@@ -408,7 +402,7 @@ void() MG3_ST_ZombieStep =
             if(e.solid == SOLID_BSP && e.movetype == MOVETYPE_PUSH && e.health == 10000 && e.takedamage) good++;
             e = find(e, classname, "func_breakable");
         }
-        MG3_ST_Check(pillars == 8 && good == 8, sprintf("its 8 pillars, solid pushers of 10000 (%g, %g)", pillars, good));
+        VR_Test_Check(pillars == 8 && good == 8, sprintf("its 8 pillars, solid pushers of 10000 (%g, %g)", pillars, good));
         // One raised: lying at a spawn point, counted, after you.
         mg3st_t = total_monsters;
         self = m;
@@ -420,17 +414,17 @@ void() MG3_ST_ZombieStep =
         e = find(world, classname, "info_szombie_spawn");
         float at = FALSE;
         while(e) { if(e.origin == z.origin && e.wait > time) at = TRUE; e = find(e, classname, "info_szombie_spawn"); }
-        MG3_ST_Check(z && at && z.solid == SOLID_NOT && z.frame == MG3_ZOMBIE_PAINE12 + 1 && z.inpain == 2 && z.health == 60 &&
+        VR_Test_Check(z && at && z.solid == SOLID_NOT && z.frame == MG3_ZOMBIE_PAINE12 + 1 && z.inpain == 2 && z.health == 60 &&
             z.enemy == p && total_monsters == mg3st_t + 1 && z.model == "progs/zombie.mdl",
             sprintf("a shub zombie raised: lying at a spawn point (resting now), 60, counted, after you (%v)", z.origin));
-        MG3_ST_Check(VR_Decap_HeadModel(z) == "progs/h_zombie.mdl", "a zombie's head to lose");
+        VR_Test_Check(VR_Decap_HeadModel(z) == "progs/h_zombie.mdl", "a zombie's head to lose");
         // More: never past 33 alive.
         float i = 0;
         self = m;
         while(i < 40) { MG3_SZombie_Raise(); i++; }
         self = oldself;
         mg3st_n = MG3_ST_SZombies(TRUE);
-        MG3_ST_Check(mg3st_n == 33 && total_monsters == mg3st_t + 33, sprintf("at most 33 alive (%g; counted %g)", mg3st_n, total_monsters - mg3st_t));
+        VR_Test_Check(mg3st_n == 33 && total_monsters == mg3st_t + 33, sprintf("at most 33 alive (%g; counted %g)", mg3st_n, total_monsters - mg3st_t));
         // Her sphere passes it; its flesh passes her.
         entity s1 = spawn();
         s1.owner = m;
@@ -439,7 +433,7 @@ void() MG3_ST_ZombieStep =
         self = s1; other = z;
         sphere_mis_touch();
         self = oldself;
-        MG3_ST_Check(z.health == 60 && s1.nextthink == -1, "her sphere passes it (gone, no harm)"); // (freed: nextthink -1)
+        VR_Test_Check(z.health == 60 && s1.nextthink == -1, "her sphere passes it (gone, no harm)"); // (freed: nextthink -1)
         self = z;
         z.enemy = p;
         makevectors(z.angles);
@@ -451,7 +445,7 @@ void() MG3_ST_ZombieStep =
         self = g; other = m;
         g.touch();
         self = oldself;
-        MG3_ST_Check(g && m.health == hp && g.nextthink == -1, sprintf("its flesh passes her (%g)", m.health));
+        VR_Test_Check(g && m.health == hp && g.nextthink == -1, sprintf("its flesh passes her (%g)", m.health));
         mg3st_step = 51; mg3st_next = time + 8;
         return;
     }
@@ -460,36 +454,36 @@ void() MG3_ST_ZombieStep =
         float up = 0;
         entity e2 = find(world, classname, "monster_zombie");
         while(e2) { if(e2.mg3_szombie && e2.health > 0 && e2.solid == SOLID_SLIDEBOX) up++; e2 = find(e2, classname, "monster_zombie"); }
-        MG3_ST_Check(up >= 1 && mg3st_z.solid == SOLID_SLIDEBOX, sprintf("up 7 s later: %g of %g standing (the rest wait for room)", up, MG3_ST_SZombies(TRUE)));
+        VR_Test_Check(up >= 1 && mg3st_z.solid == SOLID_SLIDEBOX, sprintf("up 7 s later: %g of %g standing (the rest wait for room)", up, MG3_ST_SZombies(TRUE)));
         // A swiper's beam does a shub zombie 100.
         mg3st_k = killed_monsters;
         T_Damage(mg3st_z, m, m, 100);
-        MG3_ST_Check(mg3st_z.health <= 0 && killed_monsters == mg3st_k + 1, "a 100 kills one, counted");
+        VR_Test_Check(mg3st_z.health <= 0 && killed_monsters == mg3st_k + 1, "a 100 kills one, counted");
         // Every one killed: counted.
         float n = 0;
         e2 = find(world, classname, "monster_zombie");
         while(e2) { entity nx = find(e2, classname, "monster_zombie"); if(MG3_SZombie_Is(e2)) { T_Damage(e2, p, p, 200); n++; } e2 = nx; }
-        MG3_ST_Check(MG3_ST_SZombies(TRUE) == 0 && killed_monsters == mg3st_k + 1 + n, sprintf("all %g more killed, counted", n));
+        VR_Test_Check(MG3_ST_SZombies(TRUE) == 0 && killed_monsters == mg3st_k + 1 + n, sprintf("all %g more killed, counted", n));
         // A pillar hit: 20 down in a second, its health back.
         mg3st_b = find(world, classname, "func_breakable");
         while(mg3st_b && mg3st_b.model != "*52") mg3st_b = find(mg3st_b, classname, "func_breakable");
         mg3st_z0 = mg3st_b.origin_z;
         T_Damage(mg3st_b, p, p, 10);
-        MG3_ST_Check(mg3st_b.health == 10000 && mg3st_b.velocity_z == -20, "a pillar hit: sinking, its health back");
+        VR_Test_Check(mg3st_b.health == 10000 && mg3st_b.velocity_z == -20, "a pillar hit: sinking, its health back");
         mg3st_step = 52; mg3st_next = time + 1.5;
         return;
     }
     if(mg3st_step == 52)
     {
         float d = mg3st_z0 - mg3st_b.origin_z;
-        MG3_ST_Check(fabs(d - 20) < 1 && mg3st_b.velocity == '0 0 0', sprintf("20 down, stopped (%g)", d));
+        VR_Test_Check(fabs(d - 20) < 1 && mg3st_b.velocity == '0 0 0', sprintf("20 down, stopped (%g)", d));
         // A blast beside it (her spammer's): it sinks too.
         entity bl = spawn();
         setorigin(bl, (mg3st_b.absmin + mg3st_b.absmax) * 0.5 + '0 -100 0');
         bl.origin_z = 32;
         T_RadiusDamage(bl, bl, 100, world);
         remove(bl);
-        MG3_ST_Check(mg3st_b.velocity_z == -20, "a blast beside it sinks it");
+        VR_Test_Check(mg3st_b.velocity_z == -20, "a blast beside it sinks it");
         // You on it, taken down with it to the floor and no further.
         setorigin(p, '2840 -496 0' + '0 0 1' * (mg3st_b.absmax_z + 26));
         p.velocity = '0 0 0';
@@ -512,7 +506,7 @@ void() MG3_ST_ZombieStep =
     {
         float feet = p.origin_z + p.mins_z;
         float onground = (p.flags & FL_ONGROUND) != 0;
-        MG3_ST_Check(mg3st_b.absmax_z < mg3st_floor + 2 && feet >= mg3st_floor - 1 && pointcontents(p.origin) != CONTENT_SOLID &&
+        VR_Test_Check(mg3st_b.absmax_z < mg3st_floor + 2 && feet >= mg3st_floor - 1 && pointcontents(p.origin) != CONTENT_SOLID &&
             onground, sprintf("you rode it down %g hits, the floor took you as it sank on: its top %g, the floor %g, your feet %g, on the ground %g",
             mg3st_n, mg3st_b.absmax_z, mg3st_floor, feet, onground));
         p.flags = p.flags - (p.flags & FL_GODMODE);
@@ -529,7 +523,7 @@ void() MG3_ST_DummyStep =
     entity p = VR_Player();
     if(mg3st_step == 30 || mg3st_step == 33)
     {
-        if(mg3st_step == 30) { mg3st_pass = mg3st_fail = 0; }
+        if(mg3st_step == 30) { VR_Test_Begin("mg3shubtest"); }
         cvar_set("vr_dummy_type", mg3st_step == 30 ? "50" : "51");
         makevectors('0 1 0' * p.v_angle_y);
         entity oldself = self;
@@ -546,7 +540,7 @@ void() MG3_ST_DummyStep =
     if(mg3st_step == 31 || mg3st_step == 34)
     {
         string want = mg3st_step == 31 ? "progs/oldone.mdl" : "owned/mg3/progs/teleporter_eye.mdl";
-        MG3_ST_Check(mg3st_d.model == want && (mg3st_step != 31 || mg3st_d.mg3_shub_free),
+        VR_Test_Check(mg3st_d.model == want && (mg3st_step != 31 || mg3st_d.mg3_shub_free),
             sprintf("the dummy as %s (%s; free %g)", VR_Dummy_Name(mg3st_d), mg3st_d.model, mg3st_d.mg3_shub_free));
         cvar_set("vr_dummy_test", "1");
         mg3st_step = mg3st_step + 1; mg3st_next = time + 0.5;
@@ -561,11 +555,11 @@ void() MG3_ST_DummyStep =
     }
     if(mg3st_step == 42 || mg3st_step == 45)
     {
-        MG3_ST_Check(intermission_running == 0, "killed as its enemy, it ends nothing");
+        VR_Test_Check(intermission_running == 0, "killed as its enemy, it ends nothing");
         float stands = 0;
         entity e = nextent(world);
         while(e) { if(VR_IsDummy(e) && !e.vr_dummy_dead) stands++; e = nextent(e); }
-        MG3_ST_Check(stands == 1, sprintf("a dummy stands again (%g)", stands));
+        VR_Test_Check(stands == 1, sprintf("a dummy stands again (%g)", stands));
         if(mg3st_step == 42)
         {
             e = nextent(world);

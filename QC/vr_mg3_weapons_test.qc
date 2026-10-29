@@ -18,7 +18,6 @@
 //     shotguns (none: two spawned ahead) taken, one by one, by the empty main hand (bits, shells), 14 the Bloody
 //     Nightmare new game flag set (serverflags 256: then changelevel), 15 the bloody bits cleared
 
-float mg3wt_pass, mg3wt_fail;
 float mg3wt_step;      // the running request's step (2's), 0: none
 float mg3wt_next;      // when its next step runs
 entity mg3wt_a, mg3wt_b, mg3wt_z;
@@ -26,11 +25,6 @@ float mg3wt_h;         // a health read in a step before
 float mg3wt_lastdmg;   // the damage MG3_SuperAxe_Strike's victim lost
 float mg3wt_gripmode;  // vr_weapon_grip_mode before request 2 (held weapons stay without a grip pressed meanwhile)
 
-void(float ok, string label) MG3_WT_Check =
-{
-    if(ok) mg3wt_pass++; else mg3wt_fail++;
-    dprint(sprintf("mg3wtest: %s %s\n", ok ? "PASS" : "FAIL", label));
-};
 
 // A monster `xChoice` (func_enemy_dispenser's: 0 soldier, 1 ogre, 2 zombie) `xDist` units ahead of the player, `xSide` aside.
 entity(entity p, float xChoice, float xDist, float xSide) MG3_WT_Spawn =
@@ -93,7 +87,7 @@ void() MG3_WT_BurstStep =
     float window = cvar_hget(cvarh_vr_superaxe_burst_window);
     if(mg3wt_step == 1)
     {
-        mg3wt_pass = mg3wt_fail = 0;
+        VR_Test_Begin("mg3wtest");
         p.flags = p.flags | FL_GODMODE;
         mg3wt_gripmode = cvar("vr_weapon_grip_mode");
         cvar_set("vr_weapon_grip_mode", "1");
@@ -102,8 +96,8 @@ void() MG3_WT_BurstStep =
         mg3wt_a = MG3_WT_Spawn(p, 1, 120, -40); // two ogres (200 health) and a zombie
         mg3wt_b = MG3_WT_Spawn(p, 1, 120, 40);
         mg3wt_z = MG3_WT_Spawn(p, 2, 90, 0);
-        MG3_WT_Check(p.weapon == WID_SUPERAXE && p.weaponmodel == "owned/mg3/progs/v_hammer.mdl", "the Super Axe in the main hand, its model MG3's");
-        MG3_WT_Check(mg3wt_a.classname == "monster_ogre" && mg3wt_z.classname == "monster_zombie", "two ogres and a zombie ahead");
+        VR_Test_Check(p.weapon == WID_SUPERAXE && p.weaponmodel == "owned/mg3/progs/v_hammer.mdl", "the Super Axe in the main hand, its model MG3's");
+        VR_Test_Check(mg3wt_a.classname == "monster_ogre" && mg3wt_z.classname == "monster_zombie", "two ogres and a zombie ahead");
         mg3wt_step = 2; mg3wt_next = time + 0.5;
         return;
     }
@@ -111,9 +105,9 @@ void() MG3_WT_BurstStep =
     {
         float burst = MG3_WT_Strike(p, mg3wt_a);
         dprint(sprintf("mg3wtest: first blow: %g damage, burst %g, mark %s, model %s\n", mg3wt_lastdmg, burst, p.vr_superaxe_mark.classname, p.weaponmodel));
-        MG3_WT_Check(!burst && mg3wt_lastdmg >= 40 && p.vr_superaxe_mark == mg3wt_a, "a first blow: its damage, the ogre marked");
-        MG3_WT_Check(p.weaponmodel == "owned/mg3/progs/v_hammer_glow.mdl", "the head glows (the burst ready, 50 cells)");
-        MG3_WT_Check(fabs(p.vr_superaxe_until - (time + window)) < 0.01, sprintf("the window %g s", window));
+        VR_Test_Check(!burst && mg3wt_lastdmg >= 40 && p.vr_superaxe_mark == mg3wt_a, "a first blow: its damage, the ogre marked");
+        VR_Test_Check(p.weaponmodel == "owned/mg3/progs/v_hammer_glow.mdl", "the head glows (the burst ready, 50 cells)");
+        VR_Test_Check(fabs(p.vr_superaxe_until - (time + window)) < 0.01, sprintf("the window %g s", window));
         mg3wt_h = mg3wt_a.health;
         mg3wt_step = 3; mg3wt_next = time + min(0.8, window * 0.5);
         return;
@@ -124,17 +118,17 @@ void() MG3_WT_BurstStep =
         float bursts = vr_superaxe_bursts;
         float burst3 = MG3_WT_Strike(p, mg3wt_a);
         dprint(sprintf("mg3wtest: second blow: burst %g, cells %g -> %g, damage at once %g\n", burst3, cells, p.ammo_cells, mg3wt_lastdmg));
-        MG3_WT_Check(burst3 && vr_superaxe_bursts == bursts + 1, "a second blow on it within the window fires the burst");
-        MG3_WT_Check(p.ammo_cells == cells - 15, "the burst spends 15 cells");
-        MG3_WT_Check(mg3wt_lastdmg == 0, "the burst's blow does no damage itself (MG3: the lightning's instead)");
-        MG3_WT_Check(p.weaponmodel == "owned/mg3/progs/v_hammer.mdl" && !p.vr_superaxe_until, "the chain ends, the glow out");
+        VR_Test_Check(burst3 && vr_superaxe_bursts == bursts + 1, "a second blow on it within the window fires the burst");
+        VR_Test_Check(p.ammo_cells == cells - 15, "the burst spends 15 cells");
+        VR_Test_Check(mg3wt_lastdmg == 0, "the burst's blow does no damage itself (MG3: the lightning's instead)");
+        VR_Test_Check(p.weaponmodel == "owned/mg3/progs/v_hammer.mdl" && !p.vr_superaxe_until, "the chain ends, the glow out");
         mg3wt_step = 4; mg3wt_next = time + 0.6;
         return;
     }
     if(mg3wt_step == 4)
     {
         dprint(sprintf("mg3wtest: the lightning: the ogre %g -> %g\n", mg3wt_h, mg3wt_a.health));
-        MG3_WT_Check(mg3wt_a.health < mg3wt_h, "the lightning struck the ogre");
+        VR_Test_Check(mg3wt_a.health < mg3wt_h, "the lightning struck the ogre");
         // A first blow, then the window let pass: no burst.
         mg3wt_a.health = 200;
         MG3_WT_Strike(p, mg3wt_a);
@@ -143,38 +137,38 @@ void() MG3_WT_BurstStep =
     }
     if(mg3wt_step == 5)
     {
-        MG3_WT_Check(p.weaponmodel == "owned/mg3/progs/v_hammer.mdl" && !p.vr_superaxe_until, "the window closed: the glow out, no chain");
+        VR_Test_Check(p.weaponmodel == "owned/mg3/progs/v_hammer.mdl" && !p.vr_superaxe_until, "the window closed: the glow out, no chain");
         float late = MG3_WT_Strike(p, mg3wt_a);
-        MG3_WT_Check(!late && mg3wt_lastdmg >= 40 && p.vr_superaxe_mark == mg3wt_a, "a blow after the window: a first blow again");
+        VR_Test_Check(!late && mg3wt_lastdmg >= 40 && p.vr_superaxe_mark == mg3wt_a, "a blow after the window: a first blow again");
         // Another monster in between: its damage, the chain ended.
         float other1 = MG3_WT_Strike(p, mg3wt_b);
-        MG3_WT_Check(!other1 && mg3wt_lastdmg >= 40 && !p.vr_superaxe_until, "a blow on another monster: its damage, the chain ended");
+        VR_Test_Check(!other1 && mg3wt_lastdmg >= 40 && !p.vr_superaxe_until, "a blow on another monster: its damage, the chain ended");
         float again = MG3_WT_Strike(p, mg3wt_a);
-        MG3_WT_Check(!again && p.vr_superaxe_mark == mg3wt_a, "then the first again: a first blow");
+        VR_Test_Check(!again && p.vr_superaxe_mark == mg3wt_a, "then the first again: a first blow");
         // Under water: no burst.
         p.waterlevel = 2;
         float wet = MG3_WT_Strike(p, mg3wt_a);
         p.waterlevel = 0;
-        MG3_WT_Check(!wet && mg3wt_lastdmg >= 40, "under water: the second blow's damage, no burst");
+        VR_Test_Check(!wet && mg3wt_lastdmg >= 40, "under water: the second blow's damage, no burst");
         // Too few cells: no glow, no burst.
         p.ammo_cells = 10;
         MG3_WT_Strike(p, mg3wt_a);
-        MG3_WT_Check(p.weaponmodel == "owned/mg3/progs/v_hammer.mdl", "under 15 cells: no glow");
+        VR_Test_Check(p.weaponmodel == "owned/mg3/progs/v_hammer.mdl", "under 15 cells: no glow");
         float poor = MG3_WT_Strike(p, mg3wt_a);
-        MG3_WT_Check(!poor && p.ammo_cells == 10, "under 15 cells: no burst");
+        VR_Test_Check(!poor && p.ammo_cells == 10, "under 15 cells: no burst");
         // The zombie: three times; a killing blow on an ogre: twice.
         mg3wt_z.health = 1000;
         MG3_WT_Strike(p, mg3wt_z);
         dprint(sprintf("mg3wtest: zombie blow %g\n", mg3wt_lastdmg));
-        MG3_WT_Check(mg3wt_lastdmg >= 120, "a zombie takes three times the blow");
+        VR_Test_Check(mg3wt_lastdmg >= 120, "a zombie takes three times the blow");
         mg3wt_b.health = 30;
         float hb = mg3wt_b.health;
         MG3_WT_Strike(p, mg3wt_b);
         dprint(sprintf("mg3wtest: killing blow from %g: %g (health %g)\n", hb, mg3wt_lastdmg, mg3wt_b.health));
-        MG3_WT_Check(mg3wt_b.health <= -50 || mg3wt_lastdmg >= 80, "a killing blow does twice (it gibs)");
+        VR_Test_Check(mg3wt_b.health <= -50 || mg3wt_lastdmg >= 80, "a killing blow does twice (it gibs)");
         p.flags = p.flags - (p.flags & FL_GODMODE);
         cvar_set("vr_weapon_grip_mode", ftos(mg3wt_gripmode));
-        dprint(sprintf("mg3wtest: superaxe %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
+        dprint(sprintf("mg3wtest: superaxe %g passed, %g failed\n", vr_test_pass, vr_test_fail));
         mg3wt_step = 0;
         return;
     }
@@ -184,7 +178,7 @@ void() MG3_WT_BurstStep =
 void() MG3_WT_Pickup =
 {
     entity p = VR_Player();
-    mg3wt_pass = mg3wt_fail = 0;
+    VR_Test_Begin("mg3wtest");
     entity oldself = self, oldother = other;
     self = p;
     VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
@@ -192,7 +186,7 @@ void() MG3_WT_Pickup =
     self = oldself;
     entity it = find(world, classname, "weapon_superaxe");
     while(it && it.solid == SOLID_NOT) { it = find(it, classname, "weapon_superaxe"); }
-    MG3_WT_Check(it != world && it.weapon == WID_SUPERAXE, "a weapon_superaxe spawned");
+    VR_Test_Check(it != world && it.weapon == WID_SUPERAXE, "a weapon_superaxe spawned");
     if(!it) { return; }
     // Its target, and the silent drop by 16 units.
     entity t = spawn();
@@ -216,21 +210,21 @@ void() MG3_WT_Pickup =
     self = oldself;
     other = oldother;
     dprint(sprintf("mg3wtest: pickup: hand %g, item solid %g, dz %g, activator %s\n", p.weapon, it.solid, p.origin_z - z0, activator.classname));
-    MG3_WT_Check(p.weapon == WID_SUPERAXE && VR_WeaponUtil_EntHasWeapon(p, WID_SUPERAXE), "taken into the main hand");
-    MG3_WT_Check(it.solid == SOLID_NOT, "the pickup gone");
-    MG3_WT_Check(fabs(p.origin_z - z0 + 15) < 0.5, "spawnflag 128: dropped by its height (16, less MG3's 1)");
-    MG3_WT_Check(activator == p, "its target fired by the taker");
-    dprint(sprintf("mg3wtest: pickup %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
+    VR_Test_Check(p.weapon == WID_SUPERAXE && VR_WeaponUtil_EntHasWeapon(p, WID_SUPERAXE), "taken into the main hand");
+    VR_Test_Check(it.solid == SOLID_NOT, "the pickup gone");
+    VR_Test_Check(fabs(p.origin_z - z0 + 15) < 0.5, "spawnflag 128: dropped by its height (16, less MG3's 1)");
+    VR_Test_Check(activator == p, "its target fired by the taker");
+    dprint(sprintf("mg3wtest: pickup %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 
 // Request 4 (Dawn of the Machine's map2): the map's own Super Axe.
 void() MG3_WT_Map2 =
 {
     entity p = VR_Player();
-    mg3wt_pass = mg3wt_fail = 0;
+    VR_Test_Begin("mg3wtest");
     entity it = find(world, classname, "weapon_superaxe");
-    MG3_WT_Check(find(world, classname, "weapon_mjolnir") == world, "no weapon_mjolnir left (remapped)");
-    MG3_WT_Check(it != world && it.weapon == WID_SUPERAXE && (it.spawnflags & 128) && it.height == -2048 && it.target == "axe_secret",
+    VR_Test_Check(find(world, classname, "weapon_mjolnir") == world, "no weapon_mjolnir left (remapped)");
+    VR_Test_Check(it != world && it.weapon == WID_SUPERAXE && (it.spawnflags & 128) && it.height == -2048 && it.target == "axe_secret",
         "map2's weapon_mjolnir is a Super Axe: spawnflag 128, height -2048, target axe_secret");
     if(!it) { return; }
     entity oldself = self, oldother = other;
@@ -254,10 +248,10 @@ void() MG3_WT_Map2 =
     self = oldself;
     other = oldother;
     dprint(sprintf("mg3wtest: map2 pickup: hand %g, dz %g, secrets %g -> %g\n", p.weapon, p.origin_z - z0, secrets, found_secrets));
-    MG3_WT_Check(p.weapon == WID_SUPERAXE, "taken into the main hand");
-    MG3_WT_Check(fabs(p.origin_z - z0 + 2047) < 0.5, "dropped 2047 units (MG3's silent teleport)");
-    MG3_WT_Check(found_secrets == secrets + 1, "its secret counted (trigger_secret axe_secret)");
-    dprint(sprintf("mg3wtest: map2 %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
+    VR_Test_Check(p.weapon == WID_SUPERAXE, "taken into the main hand");
+    VR_Test_Check(fabs(p.origin_z - z0 + 2047) < 0.5, "dropped 2047 units (MG3's silent teleport)");
+    VR_Test_Check(found_secrets == secrets + 1, "its secret counted (trigger_secret axe_secret)");
+    dprint(sprintf("mg3wtest: map2 %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 
 // Request 5: a Super Axe in the main hand and the first holster.
@@ -304,7 +298,7 @@ void(entity p, entity b, float k) MG3_WT_HitButton =
 void() MG3_WT_AxeButtons =
 {
     entity p = VR_Player();
-    mg3wt_pass = mg3wt_fail = 0;
+    VR_Test_Begin("mg3wtest");
     float n = 0, shut = 0, opened = 0;
     entity b = find(world, classname, "func_axe_button");
     while(b)
@@ -316,8 +310,8 @@ void() MG3_WT_AxeButtons =
         b = find(b, classname, "func_axe_button");
     }
     dprint(sprintf("mg3wtest: %s: %g axe buttons, %g shut after a shot and a blast each\n", mapname, n, shut));
-    MG3_WT_Check(n > 0, "the map has axe buttons");
-    MG3_WT_Check(shut == n, "shots and blasts open none");
+    VR_Test_Check(n > 0, "the map has axe buttons");
+    VR_Test_Check(shut == n, "shots and blasts open none");
     float k = 0;
     b = find(world, classname, "func_axe_button");
     while(b)
@@ -329,8 +323,8 @@ void() MG3_WT_AxeButtons =
         b = find(b, classname, "func_axe_button");
     }
     dprint(sprintf("mg3wtest: %g of %g opened by blows (fist, Super Axe, thrown weapon, thrown prop, headbutt in turn)\n", opened, n));
-    MG3_WT_Check(opened == n, "every one opens to a blow");
-    dprint(sprintf("mg3wtest: axe buttons %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
+    VR_Test_Check(opened == n, "every one opens to a blow");
+    dprint(sprintf("mg3wtest: axe buttons %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 
 entity(entity p, float xClosed) MG3_WT_NearestAxeButton =
@@ -386,14 +380,14 @@ float mg3wt_bolts_bounced, mg3wt_bolts_seen; // HIP_LaserTouch's counts as the b
 void() MG3_WT_Laser =
 {
     entity p = VR_Player();
-    mg3wt_pass = mg3wt_fail = 0;
+    VR_Test_Begin("mg3wtest");
     entity oldself = self;
     self = p;
     float plain = VR_LaserBoltDamage(FALSE), lit = VR_LaserBoltDamage(TRUE);
     float want = MG3_Campaign() ? 15 : 18, wantLit = MG3_Campaign() ? 20 : 25;
     float scale = cvar_hget(cvarh_vr_dmg_laser) / 18;
     dprint(sprintf("mg3wtest: laser bolt %g, lit %g (campaign %g, Weapon Damage x%g)\n", plain, lit, cvar("vr_campaign"), scale));
-    MG3_WT_Check(fabs(plain - want * scale) < 0.01 && fabs(lit - wantLit * scale) < 0.01,
+    VR_Test_Check(fabs(plain - want * scale) < 0.01 && fabs(lit - wantLit * scale) < 0.01,
         sprintf("a bolt %g, a lit one %g", want * scale, wantLit * scale));
     // At the floor ahead, 40 degrees down, fanned (the floor: world, near, whatever the map; monsters seldom on it).
     makevectors(p.v_angle_y * '0 1 0');
@@ -430,9 +424,9 @@ void() MG3_WT_LaserStep =
     float bounces = vr_laser_bounces - mg3wt_bolts_bounced, stops = vr_laser_stops - mg3wt_bolts_seen;
     dprint(sprintf("mg3wtest: of 12 bolts: %g bounces (each keeping %g of the damage), %g stopped, %g still flying\n",
         bounces, vr_laser_bounce_ratio, stops, alive));
-    MG3_WT_Check(bounces >= 1 && vr_laser_bounce_ratio == 0.9, "bolts bounce off the floor, keeping 0.9 of their damage");
-    MG3_WT_Check(stops >= 1, "bolts stop (the one in seven, the third touch, or what they hit)");
-    dprint(sprintf("mg3wtest: laser %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
+    VR_Test_Check(bounces >= 1 && vr_laser_bounce_ratio == 0.9, "bolts bounce off the floor, keeping 0.9 of their damage");
+    VR_Test_Check(stops >= 1, "bolts stop (the one in seven, the third touch, or what they hit)");
+    dprint(sprintf("mg3wtest: laser %g passed, %g failed\n", vr_test_pass, vr_test_fail));
     mg3wt_step = 0;
 };
 
@@ -440,7 +434,7 @@ void() MG3_WT_LaserStep =
 void() MG3_WT_LaserPickup =
 {
     entity p = VR_Player();
-    mg3wt_pass = mg3wt_fail = 0;
+    VR_Test_Begin("mg3wtest");
     entity best = world;
     float bestDist = 999999;
     entity e = find(world, classname, "weapon_laser_gun");
@@ -449,7 +443,7 @@ void() MG3_WT_LaserPickup =
         if(e.model != string_null && vlen(e.origin - p.origin) < bestDist) { best = e; bestDist = vlen(e.origin - p.origin); }
         e = find(e, classname, "weapon_laser_gun");
     }
-    MG3_WT_Check(best != world, sprintf("a weapon_laser_gun in %s", mapname));
+    VR_Test_Check(best != world, sprintf("a weapon_laser_gun in %s", mapname));
     if(!best) return;
     dprint(sprintf("mg3wtest: laser pickup %s (Hipnotic %g), its model %s; v_laserg %g lasrspik %g\n", vtos(best.origin),
         VR_Pack_Hipnotic(), best.model, fileexists("progs/v_laserg.mdl"), fileexists("progs/lasrspik.mdl")));
@@ -471,8 +465,8 @@ void() MG3_WT_LaserPickup =
     self = oldself;
     other = oldother;
     dprint(sprintf("mg3wtest: hand %g model %s cells %g\n", p.weapon, p.weaponmodel, p.ammo_cells));
-    MG3_WT_Check(p.weapon == WID_LASER_CANNON && p.weaponmodel == "progs/v_laserg.mdl", "taken: the laser cannon in the main hand");
-    dprint(sprintf("mg3wtest: laser pickup %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
+    VR_Test_Check(p.weapon == WID_LASER_CANNON && p.weaponmodel == "progs/v_laserg.mdl", "taken: the laser cannon in the main hand");
+    dprint(sprintf("mg3wtest: laser pickup %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 
 // Requests 11..15: the bloody shotguns.
@@ -500,7 +494,7 @@ entity() MG3_WT_NextBloody =
 void() MG3_WT_BloodyTake =
 {
     entity p = VR_Player();
-    mg3wt_pass = mg3wt_fail = 0;
+    VR_Test_Begin("mg3wtest");
     float taken = 0;
     entity it = MG3_WT_NextBloody();
     while(it && taken < 4)
@@ -525,15 +519,15 @@ void() MG3_WT_BloodyTake =
         float clip = p.weaponclipsize;
         dprint(sprintf("mg3wtest: took %s: hand %g, bits %g -> %g, shells %g -> %g (clip %g)\n", it.netname, p.weapon, bits,
             MG3_BloodyBits(), shells, p.ammo_shells, clip));
-        MG3_WT_Check(p.weapon == wid && (MG3_BloodyBits() & bit) && it.model == string_null, sprintf("%s taken: its bit set", it.netname));
-        MG3_WT_Check(p.ammo_shells + clip >= min(shells + 30, VR_MaxAmmo(p, AID_SHELLS)) - 0.5, "30 shells (to the cap)");
+        VR_Test_Check(p.weapon == wid && (MG3_BloodyBits() & bit) && it.model == string_null, sprintf("%s taken: its bit set", it.netname));
+        VR_Test_Check(p.ammo_shells + clip >= min(shells + 30, VR_MaxAmmo(p, AID_SHELLS)) - 0.5, "30 shells (to the cap)");
         taken++;
         it = MG3_WT_NextBloody();
     }
-    MG3_WT_Check(taken > 0, sprintf("bloody shotguns taken: %g", taken));
+    VR_Test_Check(taken > 0, sprintf("bloody shotguns taken: %g", taken));
     MG3_WT_BloodyReport();
-    MG3_WT_Check(!(MG3_BloodyBits() & MG3_BLOODY_SG) || MG3_BloodyShotgunRefire(0.5) == 0.28, "the bloody shotgun refires in 0.28 s");
-    dprint(sprintf("mg3wtest: bloody %g passed, %g failed\n", mg3wt_pass, mg3wt_fail));
+    VR_Test_Check(!(MG3_BloodyBits() & MG3_BLOODY_SG) || MG3_BloodyShotgunRefire(0.5) == 0.28, "the bloody shotgun refires in 0.28 s");
+    dprint(sprintf("mg3wtest: bloody %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 
 void() MG3_WeaponsTestFrame =

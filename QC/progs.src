@@ -7,6 +7,8 @@ vr_weaponinst.qc
 // First: their inline per-hand getters must precede the callers (fteqcc inlines only what it
 // has already compiled).
 vr_util.qc
+// The QC tests' shared tally (VR_Test_Begin/Check/Verdict).
+vr_testutil.qc
 vr_handgrabutil.qc
 // The weapon a blow is credited with (Honey's FL_SPECIFICDAMAGE): stamped where the damage dealer is made, read by T_Damage.
 vr_dmgcredit.qc
