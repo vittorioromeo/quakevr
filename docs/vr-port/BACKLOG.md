@@ -571,9 +571,3 @@ The plan as designed:
 
 ## TODO
 
-- We should have per weapon recoil variables (kick and rise).
-- Setting the off-hand's behavior for a pose in the rig studio doesn't seem to work (I sometimes want to set the off-hand free or attach it to the weapon's grip).
-- It should be possible to set a basic ambient lighting level in the relighting menu.
-- Nail projectiles model size should be a bit smaller (30-40%), also ensure the hitbox is accurate and not too big.
-- Nail projectiles fired by both the player and enemies should generally be a bit faster (15-20%).
-- The in-game checklist is getting a bit overwhelming, please clean it up and make it a bit more manageable for me to go through in-game.
