@@ -1179,6 +1179,7 @@ float cvarh_vr_reload_bump_speed;
 float cvarh_vr_reload_pull_speed;
 float cvarh_vr_reload_pull_snap;
 float cvarh_vr_reload_pull_reach;
+float cvarh_vr_nailpistol_mag_pull;
 float cvarh_vr_reload_battery_sparks;
 float cvarh_vr_reload_battery_smoke_time;
 float cvarh_vr_reload_eject_button;
@@ -2404,6 +2405,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_reload_pull_speed);
     VR_CVAR_HMAKE(vr_reload_pull_snap);
     VR_CVAR_HMAKE(vr_reload_pull_reach);
+    VR_CVAR_HMAKE(vr_nailpistol_mag_pull);
     VR_CVAR_HMAKE(vr_reload_battery_sparks);
     VR_CVAR_HMAKE(vr_reload_battery_smoke_time);
     VR_CVAR_HMAKE(vr_reload_eject_button);

@@ -2229,6 +2229,7 @@ void retroAllUncheckCategories()
         slider("Fade Far Away", "vr_lootbeam_far", 0.f, 60.f, 1.f, "%.0f m").help("Beams farther than this fade out. 0: never."),
         header("Colours"),
         slider("Weapons Hue", "vr_lootbeam_hue_weapons", 0.f, 355.f, 5.f, "%.0f").help("Hue in degrees: 0 red, 40 gold, 120 green, 190 cyan, 240 blue, 285 violet."),
+        slider("Empty Weapons Hue", "vr_lootbeam_hue_weapons_empty", -5.f, 355.f, 5.f, "%.0f").help("A reloadable weapon whose magazine is empty (or out): 0 red, so you know it needs ammo before you grab it. Below 0: as the other weapons."),
         slider("Magazines Hue", "vr_lootbeam_hue_mags", 0.f, 355.f, 5.f, "%.0f"),
         slider("Ammo Boxes Hue", "vr_lootbeam_hue_ammo", 0.f, 355.f, 5.f, "%.0f"),
         slider("Health Boxes Hue", "vr_lootbeam_hue_health", 0.f, 355.f, 5.f, "%.0f"),
@@ -2639,7 +2640,7 @@ int relightToolState = -1;
         slider("Sunlight", "vr_relight_sunlight", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The sun and the sky's light, in maps that have them (outdoor maps; not id's)."),
         slider("Bounced Light", "vr_relight_bounce", 0.f, 2.f, 0.1f, "%.1f").help("Light bouncing off the walls fills the shade: brighter, flatter rooms (0 none, the relight script's moodier look). Takes longer."),
         slider("Ambient Occlusion", "vr_relight_ao", 0.f, 3.f, 0.1f, "%.1f").help("Corners and crevices darker (1.5: the relight script's; 0 none)."),
-        slider("Ambient Light Level", "vr_relight_minlight", 0.f, 64.f, 4.f, "%.0f").help("A basic ambient light: no place in the relit map darker than this (in a map's light units: 32 a dim fill, 64 a clear one; 0: the map's own minimum, mostly none). Not darkened by Ambient Occlusion. A map whose mapper set a brighter minimum keeps it. An easy way out of pitch-black corners, at some cost to contrast."),
+        slider("Ambient Light Level", "vr_relight_minlight", 0.f, 64.f, 4.f, "%.0f").help("A basic ambient light added everywhere in the relit map, on top of the map's own minimum (mostly none: then no place is darker than this; in a map's light units: 32 a dim fill, 64 a clear one; 0: the map's own). Not darkened by Ambient Occlusion. An easy way out of pitch-black corners, at some cost to contrast."),
         cycle("Shadow Quality", "vr_relight_quality", {{0.f, "Fast"}, {1.f, "Smooth"}}).help("Smooth: soft shadow edges (the relight script's). Fast: about four times quicker, harder edges."),
         seeThrough ? toggle("See-Through Liquids", "vr_relight_seethrough").help("id's maps (Quake and its two mission packs) relit with see-through water, slime and teleporters: VisPatch's visibility data put into them, so you see what is under and beyond (how clear: Transparency's alphas). Off: their liquids stay opaque. Maps made with see-through water keep it either way.")
                    : toggle("See-Through Liquids", "vr_relight_seethrough").unavailableBecause("Needs VisPatch's data files, not part of Quake VR: id1.vis, hipnotic.vis and rogue.vis (in id1_vis.tgz, hipnotic_vis.tgz and rogue_vis.tgz, sourceforge.net/projects/vispatch, \"vispatch data\" 1.0) in quakevr/tools/vispatch. Without them id's liquids stay opaque (except in maps relight_maps.py made see-through)."),

@@ -49,6 +49,9 @@ void serverWriteAll(struct sizebuf_s* msg);
 // The piece a hit at `at` on `ent` strikes (the bone of its vertex nearest, as drawn: box3d::boneAt); -1 none (no plate
 // there: a hand, a foot, the pelvis), -2 no rig.
 [[nodiscard]] int pieceAt(struct edict_s* ent, const float* at);
+// The bones of `ent`'s rig piece `piece` rides (bits by its rig's index, as box3d::limbInfo's: the helmet the head, the
+// cuirass the spine and the chest, a limb's plate its bone); 0 none (no rig). A cut taking one of them dislodges it.
+[[nodiscard]] uint32_t pieceBones(struct edict_s* ent, int piece);
 // Where piece `piece` of `ent` is now as a model of its own ("<model>#plate<piece>", derivedFile): `what` 0 its origin,
 // 1 its angles (an alias model's), as drawn (hitmodel's poses; else its rest pose where the entity stands).
 void plateWhere(struct edict_s* ent, int piece, int what, float* out);

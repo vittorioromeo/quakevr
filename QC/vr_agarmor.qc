@@ -4,8 +4,9 @@
 // a plate (its bone, as drawn: ragdollbone's QVR_ARMOR_PIECE_AT) is absorbed by the player's rule (vr_agarmor_rule 0:
 // ceil(type x damage) from the pool) or stopped whole (1) while the pool lasts; a shotgun's pellets each count on their
 // own piece; a blast or a hit with no point is shared by the pieces facing it. At 0 the plate breaks: its bit off (the
-// engine sends the mask), a clank, and it falls as debris (its own model, "<model>#plate<piece>": a physics prop you
-// can't force-grab, fading out after vr_agarmor_debris_time). Helmets halve a headshot's extra and stop head pops
+// engine sends the mask), the pickup's chime backwards (vr/derived/armor_break.wav), and it falls as debris
+// ("<model>#plate<piece>": a prop you take in a hand, never force-grab or wear, fading out after
+// vr_agarmor_debris_time, its time counted again when taken). Helmets halve a headshot's extra and stop head pops
 // (vr_agarmor_helmet_head); no limb is cut under an unbroken plate (vr_agarmor_block_cuts). Quad Damage does not pass
 // through. Corpses keep their plates; a gibbing sheds them. Nothing changes for a humanoid without armour.
 // P2 (ROUND23.md, "Armour P2"): the enforcer wears it too (the same rolls); each piece's damage marks at two thirds and a
@@ -82,6 +83,7 @@ void(entity e, float type, float mask) VR_AgArmor_Give =
     if(type > 0)
     {
         precache_sound("items/armor1.wav");
+        precache_sound("vr/derived/armor_break.wav"); // (VR_AgArmor_Break's)
     }
 };
 
@@ -235,9 +237,24 @@ string(entity e, float i) VR_AgArmor_Model =
     return "progs/vrgrunt.mdl#plate9";
 };
 
-// Its last second: fading out, then gone.
+// A plate breaking: the armour pickup's chime backwards and lower (the engine makes it from items/armor1.wav as it loads:
+// vr_audio.cpp derivedSounds), so it is never heard as armour picked up.
+string VR_AR_BREAK_SOUND = "vr/derived/armor_break.wav";
+string vr_ar_break_sound_last; // the tests: the last break's sound
+float vr_ar_debris_grabs;      // the tests: debris taken in a hand
+
+float() VR_AgArmor_DebrisTime = { return max(0.1, cvar("vr_agarmor_debris_time")); };
+
+// Its last second: fading out, then gone. Held (or taken since), it waits its whole time again (VR_AgArmor_DebrisGrabbed).
 void() VR_AgArmor_DebrisFade =
 {
+    if(self.carry_player != world)
+    {
+        self.wait = 0;
+        self.alpha = 1;
+        self.nextthink = time + VR_AgArmor_DebrisTime();
+        return;
+    }
     if(!self.wait)
     {
         self.wait = time;
@@ -252,64 +269,226 @@ void() VR_AgArmor_DebrisFade =
     self.nextthink = time + 0.05;
 };
 
-// Piece `i` of `e` falls off as debris: a physics prop of its own model where it was, not grabbable.
-entity(entity e, float i) VR_AgArmor_Debris =
+// VR_Carry_Start: debris taken in a hand: its fade put off, its time counted again from now.
+void(entity h) VR_AgArmor_DebrisGrabbed =
 {
-    if(VR_AgArmor_Model(e, i) == "")
+    if(h.classname != "vr_ar_debris")
     {
-        return world;
+        return;
     }
+    h.wait = 0;
+    h.alpha = 1;
+    h.think = VR_AgArmor_DebrisFade;
+    h.nextthink = time + VR_AgArmor_DebrisTime();
+    vr_ar_debris_grabs = vr_ar_debris_grabs + 1;
+};
+
+// Piece `i` of `e` off as debris at `at`, turned `ang`, flying `vel`: a physics prop of its own model, taken in a hand
+// to be thrown about (its fade put off), never force-grabbed, worn or put away.
+entity(entity e, float i, vector at, vector ang, vector vel) VR_AgArmor_DebrisAt =
+{
     string m = VR_AgArmor_Model(e, i);
-    precache_model(m); // (made as it loads: vr_agarmor.cpp derivedFile)
-    vector at = limbpiece(e, i, 10);
-    if(at == '0 0 0')
+    if(m == "" || at == '0 0 0')
     {
         return world; // (no rig, no shell)
     }
+    precache_model(m); // (made as it loads: vr_agarmor.cpp derivedFile)
     entity h = spawn();
     h.classname = "vr_ar_debris";
     setmodel(h, m);
     h.skin = max(0, e.vr_ar_type - 1) + 6; // (battered and scorched: make_agarmor.py's last three)
     setorigin(h, at);
-    h.angles = limbpiece(e, i, 11);
+    h.angles = ang;
     h.movetype = MOVETYPE_BOUNCE;
-    h.solid = SOLID_NOT;
     h.takedamage = DAMAGE_NO;
-    h.flags = 0; // (never FL_FORCEGRABBABLE)
-    vector out = at - (e.absmin + e.absmax) * 0.5;
-    out_z = 0;
-    h.velocity = e.velocity + normalize(out) * (60 + 40 * random()) + '0 0 120';
+    h.flags = 0; // (never FL_FORCEGRABBABLE, never an item)
+    h.velocity = vel;
+    // A hand takes it (its box the model's: the engine's hand test for a thing not force-grabbable): carried, thrown,
+    // nothing given (carry_use nothing: never armour to wear, never put away).
+    setsize(h, modelbounds(h, 0), modelbounds(h, 1));
+    h.solid = SOLID_NOT_BUT_TOUCHABLE;
+    h.handtouch = SUB_Null;
+    VR_Carry_Setup(h);
     h.vr_rigid = 1;
     h.vr_prop_mass = i == 0 ? 4 : 1.5;
     h.vr_spin = [crandom() * 4, crandom() * 4, crandom() * 4];
     h.think = VR_AgArmor_DebrisFade;
-    h.nextthink = time + max(0.1, cvar("vr_agarmor_debris_time"));
+    h.nextthink = time + VR_AgArmor_DebrisTime();
     vr_ar_debris_made = vr_ar_debris_made + 1;
     return h;
+};
+
+// Piece `i` of `e` falls off as debris where it is: out from the body and up.
+entity(entity e, float i) VR_AgArmor_Debris =
+{
+    vector at = limbpiece(e, i, 10);
+    vector out = at - (e.absmin + e.absmax) * 0.5;
+    out_z = 0;
+    return VR_AgArmor_DebrisAt(e, i, at, limbpiece(e, i, 11), e.velocity + normalize(out) * (60 + 40 * random()) + '0 0 120');
 };
 
 void(entity e, float i) VR_AgArmor_Break =
 {
     e.vr_ar_hp[i] = 0;
     e.vr_ar_mask = e.vr_ar_mask - (e.vr_ar_mask & VR_AgArmor_Bit(i));
-    sound(e, CHAN_AUTO, "items/armor1.wav", 1, ATTN_NORM);
+    precache_sound(VR_AR_BREAK_SOUND);
+    sound(e, CHAN_AUTO, VR_AR_BREAK_SOUND, 1, ATTN_NORM);
+    vr_ar_break_sound_last = VR_AR_BREAK_SOUND;
     VR_AgArmor_Debris(e, i);
     dprint(sprintf("agarmor: %s (kind %g): piece %g broke (left %g)\n", e.classname, e.vr_ag_kind, i, e.vr_ar_mask));
 };
 
-void(entity e) VR_AgArmor_Shed =
+// Gibbed (ThrowHead, VR_Corpse_Gib; self `e`, before its limbs fly): every piece left flies off with the gibs (`dm`:
+// VelocityForDamage's), none lost.
+void(entity e, float dm) VR_AgArmor_Shed =
 {
     float i;
+    float n = 0;
     for(i = 0; i < VR_AR_PIECES && e.vr_ar_type > 0; i++)
     {
         if(VR_AgArmor_On(e, i))
         {
-            VR_AgArmor_Debris(e, i);
+            vector at = limbpiece(e, i, 10);
+            vector out = normalize(at - (e.absmin + e.absmax) * 0.5);
+            vector vel = VR_Gore_Fling(VelocityForDamage(dm)) * 0.6 + out * (80 + 60 * random()) + '0 0 80';
+            n = n + (VR_AgArmor_DebrisAt(e, i, at, limbpiece(e, i, 11), vel) != world);
         }
+    }
+    if(e.vr_ar_type > 0)
+    {
+        dprint(sprintf("agarmor: %s gibbed: %g plates shed (pieces %g)\n", e.classname, n, e.vr_ar_mask));
     }
     e.vr_ar_mask = 0;
     e.vr_ar_type = 0;
     e.vr_ar_wear = 0;
+};
+
+// ----------------------------------------------------------------------------
+// Cuts: a limb or the head cut or popped off takes the plates it carries with it, dislodged as debris (VR_Limb_Cut,
+// VR_Decap_Cut). Their places are taken before the cut (after it the bones it took are gone from the body as drawn).
+entity vr_ar_cut_ent;
+float vr_ar_cut_mask;
+vector vr_ar_cut_at[10];
+vector vr_ar_cut_ang[10];
+
+// Before a cut of `e` taking the rig's bones `takes` (ragdolllimbs' bits).
+void(entity e, float takes) VR_AgArmor_CutPrepare =
+{
+    float i;
+    vr_ar_cut_ent = e;
+    vr_ar_cut_mask = 0;
+    if(e.vr_ar_type <= 0 || !e.vr_ar_mask || !takes)
+    {
+        return;
+    }
+    for(i = 0; i < VR_AR_PIECES; i++)
+    {
+        if(VR_AgArmor_On(e, i) && (ragdollbone(e, [i, 0, 0], QVR_ARMOR_PIECE_BONES) & takes))
+        {
+            vr_ar_cut_mask = vr_ar_cut_mask | VR_AgArmor_Bit(i);
+            vr_ar_cut_at[i] = limbpiece(e, i, 10);
+            vr_ar_cut_ang[i] = limbpiece(e, i, 11);
+        }
+    }
+};
+
+// The cut done (`vel` the piece's way): its plates off as debris. Not done: nothing.
+void(entity e, float done, vector vel) VR_AgArmor_CutDone =
+{
+    float i;
+    if(vr_ar_cut_ent != e || !vr_ar_cut_mask || !done)
+    {
+        vr_ar_cut_ent = world;
+        return;
+    }
+    vr_ar_cut_ent = world;
+    if(vlen(vel) > 400)
+    {
+        vel = normalize(vel) * 400;
+    }
+    float n = 0;
+    for(i = 0; i < VR_AR_PIECES; i++)
+    {
+        if(vr_ar_cut_mask & VR_AgArmor_Bit(i))
+        {
+            e.vr_ar_hp[i] = 0;
+            e.vr_ar_mask = e.vr_ar_mask - (e.vr_ar_mask & VR_AgArmor_Bit(i));
+            VR_AgArmor_Wear(e, i);
+            vector v = vel * 0.6 + [crandom() * 60, crandom() * 60, 60 + random() * 60];
+            n = n + (VR_AgArmor_DebrisAt(e, i, vr_ar_cut_at[i], vr_ar_cut_ang[i], v) != world);
+        }
+    }
+    dprint(sprintf("agarmor: %s's cut dislodged %g plates (pieces %g -> left %g)\n", e.classname, n, vr_ar_cut_mask, e.vr_ar_mask));
+    vr_ar_cut_mask = 0;
+};
+
+// A corpse's piece worn through (VR_Limb_WearInto; `joint` 0 its head, else a limb's joint): TRUE while an unbroken
+// plate on the bones it would take keeps it on (vr_agarmor_block_cuts; the head: vr_agarmor_helmet_head), or this hit
+// struck a plate still on as it landed (VR_AgArmor_Damage: the hit that breaks it pops nothing): the plate breaks first.
+entity vr_ar_plate_hit_ent; // the last hit at a point struck an unbroken plate of it (VR_AgArmor_Damage)
+float vr_ar_plate_hit_time;
+
+float(entity e, float joint) VR_AgArmor_Holds =
+{
+    float i;
+    if(vr_ar_plate_hit_ent == e && vr_ar_plate_hit_time == time && e.vr_ar_type > 0 &&
+       cvar(joint == 0 ? "vr_agarmor_helmet_head" : "vr_agarmor_block_cuts"))
+    {
+        return TRUE;
+    }
+    if(e.vr_ar_type <= 0 || !e.vr_ar_mask)
+    {
+        return FALSE;
+    }
+    if(joint == 0)
+    {
+        return cvar("vr_agarmor_helmet_head") && VR_AgArmor_On(e, VR_AR_HELMET);
+    }
+    if(!cvar("vr_agarmor_block_cuts"))
+    {
+        return FALSE;
+    }
+    float takes = ragdolllimbs(e, 4, joint);
+    for(i = 2; i < VR_AR_PIECES; i++)
+    {
+        if(VR_AgArmor_On(e, i) && (ragdollbone(e, [i, 0, 0], QVR_ARMOR_PIECE_BONES) & takes))
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+
+// ----------------------------------------------------------------------------
+// A hit's look where it struck (TraceAttack, spawn_touchblood, VR_HitBloodSplash: before its blood): on an unbroken
+// plate, sparks; the share of the blood to draw returned: 1 no plate there, 0 the plate took it all, else what it let
+// through (the rule's share of `damage`, as VR_AgArmor_Damage will take it).
+float vr_ar_fx_sparks;   // the tests: plate hits that sparked
+float vr_ar_fx_bled;     // the tests: of them, those that bled too
+entity vr_ar_fx_ent;     // sparked at this frame (VR_AgArmor_Damage's own sparks then skipped)
+float vr_ar_fx_time;
+
+float(entity targ, vector org, vector vel, float damage) VR_AgArmor_HitFx =
+{
+    if(targ.vr_ar_type <= 0 || !targ.vr_ar_mask || damage <= 0)
+    {
+        return 1;
+    }
+    float p = ragdollbone(targ, org, QVR_ARMOR_PIECE_AT);
+    if(p < 0 || p >= VR_AR_PIECES || !VR_AgArmor_On(targ, p))
+    {
+        return 1;
+    }
+    float save = cvar("vr_agarmor_rule") ? damage : ceil(VR_AgArmor_Frac(targ.vr_ar_type) * damage);
+    save = min(min(save, damage), targ.vr_ar_hp[p]);
+    float through = max(0, damage - save) / damage;
+    vector out = vel == '0 0 0' ? '0 0 1' : normalize(vel); // (the blood's way: off the surface)
+    particle2(org, (out + '0 0 0.3') * 60, QVR_PARTICLE_PRESET_SPARKS, max(6, min(16, 4 + damage)));
+    vr_ar_fx_sparks = vr_ar_fx_sparks + 1;
+    vr_ar_fx_bled = vr_ar_fx_bled + (through > 0);
+    vr_ar_fx_ent = targ;
+    vr_ar_fx_time = time;
+    return through;
 };
 
 // ----------------------------------------------------------------------------
@@ -383,6 +562,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     vector at = (targ.absmin + targ.absmax) * 0.5;
     vr_ar_last_save = 0;
     vr_ar_last_piece = -1;
+    vr_ar_plate_hit_ent = world;
     if(targ.vr_ar_type <= 0 || !targ.vr_ar_mask || damage <= 0)
     {
         return damage;
@@ -419,6 +599,17 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
             damage = damage * (1 + (head - 1) * 0.5) / head;
         }
     }
+    else if(vr_limb_wear_ent == targ && vr_limb_wear_time == time)
+    {
+        // A blow or a blade at a ragdoll's point (VR_Limb_RagdollHit, the lightning gun's bolt: VR_Limb_CorpseWear's).
+        p = ragdollbone(targ, vr_limb_wear_at, QVR_ARMOR_PIECE_AT);
+        vr_ar_last_piece = p;
+        at = vr_limb_wear_at;
+        if(p >= 0 && p < VR_AR_PIECES)
+        {
+            vr_ar_share[p] = 1;
+        }
+    }
     else
     {
         // A blast, a beam, no point: the pieces facing where it came from, each its share of the facing body.
@@ -442,6 +633,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         {
             vr_ar_share[i] = vr_ar_share[i] / max(1, facing);
         }
+    }
+    if(vr_ar_last_piece >= 0 && VR_AgArmor_On(targ, vr_ar_last_piece))
+    {
+        vr_ar_plate_hit_ent = targ; // (a corpse's piece this hit wears pops nothing: VR_AgArmor_Holds)
+        vr_ar_plate_hit_time = time;
     }
     float frac = VR_AgArmor_Frac(targ.vr_ar_type);
     float rule = cvar("vr_agarmor_rule");
@@ -469,8 +665,14 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     }
     if(saved > 0)
     {
-        // The plate rings: sparks, a ricochet.
-        particle2(at, '0 0 40', QVR_PARTICLE_PRESET_SPARKS, min(12, 3 + saved * 0.5));
+        // The plate rings: sparks (where it struck, unless its hit's look sparked there already: VR_AgArmor_HitFx), a
+        // ricochet.
+        if(vr_ar_fx_ent != targ || vr_ar_fx_time != time)
+        {
+            particle2(at, '0 0 40', QVR_PARTICLE_PRESET_SPARKS, max(6, min(16, 4 + saved)));
+            vr_ar_fx_sparks = vr_ar_fx_sparks + 1;
+            vr_ar_fx_bled = vr_ar_fx_bled + (saved < damage);
+        }
         float r = random();
         if(r < 0.33) sound(targ, CHAN_AUTO, "weapons/ric1.wav", 0.8, ATTN_NORM);
         else if(r < 0.66) sound(targ, CHAN_AUTO, "weapons/ric2.wav", 0.8, ATTN_NORM);

@@ -13,6 +13,11 @@
 // The arming is the head's (vr_decap.qc's globals): vr_decap_limb the joint (-1 the head). The public hooks
 // (VR_Decap_Blow, _Saw, ...) try the head first, then the limb struck.
 
+// A rig's bones (the engine's ragdoll::maxBones; the authored grunt/enforcer rig has 20: pelvis 0 .. thigh_r 16, shin_r
+// 17, foot_r 18, weapon 19): the per-joint arrays and the joint loops cover every one (they kept 16: the authored
+// rig's right leg wore and armed as the torso, and gibs never threw it).
+#define VR_LIMB_JOINTS 24
+
 float vr_limb_cuts;      // limbs cut off (the tests)
 float vr_limb_pops;      // limbs popped (the tests)
 entity vr_limb_last;     // the last limb thrown (the tests)
@@ -23,13 +28,13 @@ entity vr_limb_last;     // the last limb thrown (the tests)
 float vr_limb_endspurts; // the pieces' fountains' drops thrown (the tests)
 .float vr_limb_gibbed;   // when it was gibbed throwing its own limbs (VR_Limb_GibAll; ThrowGib's meat gibs not then: vr_gib_limbs 2)
 .float vr_limb_bserial;  // the blast its pellets below are of (vr_sgib_blastserial)
-.float vr_limb_bdmg[16]; // the blast's damage at each limb (by its joint)
-.float vr_limb_corpse_dmg[16]; // a corpse's damage worn into each piece, any weapon's (VR_Limb_CorpseWear: 0 the head, else the joint)
+.float vr_limb_bdmg[VR_LIMB_JOINTS]; // the blast's damage at each limb (by its joint)
+.float vr_limb_corpse_dmg[VR_LIMB_JOINTS]; // a corpse's damage worn into each piece, any weapon's (VR_Limb_CorpseWear: 0 the head, else the joint)
 .float vr_limb_btotal;   // the blast's damage on it in all
 .vector vr_limb_bat;     // the limb pellets' points summed
 .float vr_limb_bn;       // and how many
 .float vr_limb_wserial;  // a hitscan blast on a corpse: the blast its pellets below are of (vr_sgib_blastserial)
-.float vr_limb_wn[16];   // its pellets on each piece not yet worn in (0 the head, else the joint; VR_Limb_CorpseWear)
+.float vr_limb_wn[VR_LIMB_JOINTS];   // its pellets on each piece not yet worn in (0 the head, else the joint; VR_Limb_CorpseWear)
 .float vr_limb_wtotal;   // and on it in all
 
 float VR_LIMB_POP_SIZE = 1.0; // a popped limb's burst (a head's is VR_DECAP_POP_SIZE)
@@ -348,13 +353,16 @@ float(entity e, entity by, vector xVel, float xHow, float xBone, float xLive) VR
     {
         settle = max(0, cvar_hget(cvarh_vr_decap_pop_body_speed)) * 0.5 + 0.5;
     }
+    VR_AgArmor_CutPrepare(e, ragdolllimbs(e, 4, xBone)); // (the plates it carries: vr_agarmor.qc)
     if(!ragdollcutlimb(e, xBone, xVel, settle))
     {
+        VR_AgArmor_CutDone(e, FALSE, xVel);
         e.solid = oldSolid;
         dprint(sprintf("limbs: no: %s's limb %g can't be cut (Ragdolls off? cut already?)\n", e.classname, xBone));
         return FALSE;
     }
     vector mid = ragdollcut(e, 0);
+    VR_AgArmor_CutDone(e, TRUE, pop ? xVel * 0.5 : ragdollcut(e, 2)); // (dislodged, flying off with the limb's way)
     if(pop)
     {
         VR_Limb_PopEffects(e, mid, xVel);
@@ -521,7 +529,7 @@ float(entity targ, vector xAt) VR_Limb_WearPiece =
         return 0;
     }
     float bone = VR_Limb_At(targ, xAt);
-    return (bone > 0 && bone < 16) ? bone : -1;
+    return (bone > 0 && bone < VR_LIMB_JOINTS) ? bone : -1;
 };
 
 // A hitscan blast's pellet at `e` at `xAt` (VR_Decap_Pellet): counted on the piece it strikes, if `e` is a corpse.
@@ -534,7 +542,7 @@ void(entity e, vector xAt) VR_Limb_WearPellet =
     if(e.vr_limb_wserial != vr_sgib_blastserial)
     {
         e.vr_limb_wserial = vr_sgib_blastserial;
-        for(float i = 0; i < 16; i++)
+        for(float i = 0; i < VR_LIMB_JOINTS; i++)
         {
             e.vr_limb_wn[i] = 0;
         }
@@ -573,6 +581,13 @@ float(entity targ, entity attacker, float xPiece, float xDamage, vector xVel, fl
     {
         return FALSE;
     }
+    if(VR_AgArmor_Holds(targ, xPiece))
+    {
+        // An unbroken plate on it (vr_agarmor.qc): it stays on until the plate breaks; the next hit after takes it.
+        targ.vr_limb_corpse_dmg[xPiece] = xHp - 0.01;
+        dprint(sprintf("corpse limb: %s joint %g held on by its armour\n", targ.classname, xPiece));
+        return FALSE;
+    }
     if(xPiece == 0)
     {
         return VR_Decap_Cut(targ, attacker, xVel, xHow);
@@ -602,7 +617,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float kind) 
         float total = targ.vr_limb_wtotal;
         vector dir = normalize(vr_hitdir != '0 0 0' ? vr_hitdir : ((targ.absmin + targ.absmax) * 0.5 - vr_decap_src));
         float left = damage;
-        for(i = 0; i < 16; i++)
+        for(i = 0; i < VR_LIMB_JOINTS; i++)
         {
             float n = targ.vr_limb_wn[i];
             targ.vr_limb_wn[i] = 0; // (worn in: a later hit of the same blast counts its own pellets)
@@ -712,7 +727,7 @@ float(entity targ, vector xAt) VR_Limb_RagdollPiece =
         return 0;
     }
     float bone = VR_Limb_At(targ, xAt);
-    return (bone > 0 && bone < 16) ? bone : -1;
+    return (bone > 0 && bone < VR_LIMB_JOINTS) ? bone : -1;
 };
 
 // A hit of `xDamage` by a blade or a trap `by` (inflictor and attacker: the buzzsaw's, rogue_buzzsaw.qc) at point `xAt` of
@@ -782,7 +797,7 @@ void(entity e, float xDamage, vector xAt, vector xDir) VR_Limb_Pellet =
     if(e.vr_limb_bserial != vr_sgib_blastserial)
     {
         e.vr_limb_bserial = vr_sgib_blastserial;
-        for(float i = 0; i < 16; i++)
+        for(float i = 0; i < VR_LIMB_JOINTS; i++)
         {
             e.vr_limb_bdmg[i] = 0;
         }
@@ -792,7 +807,7 @@ void(entity e, float xDamage, vector xAt, vector xDir) VR_Limb_Pellet =
     }
     e.vr_limb_btotal = e.vr_limb_btotal + xDamage;
     float bone = VR_Limb_At(e, xAt);
-    if(bone >= 0 && bone < 16)
+    if(bone >= 0 && bone < VR_LIMB_JOINTS)
     {
         e.vr_limb_bdmg[bone] = e.vr_limb_bdmg[bone] + xDamage;
         e.vr_limb_bat = e.vr_limb_bat + xAt;
@@ -811,7 +826,7 @@ float(entity targ) VR_Limb_BlastArm =
     }
     float best = -1;
     float bestDmg = 0;
-    for(float i = 0; i < 16; i++)
+    for(float i = 0; i < VR_LIMB_JOINTS; i++)
     {
         if(targ.vr_limb_bdmg[i] > bestDmg)
         {
@@ -940,7 +955,7 @@ float(entity e) VR_Limb_TopJoints =
 {
     float all = ragdolllimbs(e, 0);
     float top = 0;
-    for(float b = 1; b < 16; b++)
+    for(float b = 1; b < VR_LIMB_JOINTS; b++)
     {
         float bit = VR_Limb_Bit(b);
         if((all & bit) && !(all & VR_Limb_Bit(ragdolllimbs(e, 5, b))))
@@ -966,7 +981,7 @@ float(entity e, float xLive) VR_Limb_BlastPops =
     float quad = VR_Decap_QuadPops(vr_limb_blast_by);
     float top = VR_Limb_TopJoints(e);
     float n = 0;
-    for(float b = 1; b < 16; b++)
+    for(float b = 1; b < VR_LIMB_JOINTS; b++)
     {
         if(!(top & VR_Limb_Bit(b)))
         {
@@ -1030,7 +1045,7 @@ void(float dm) VR_Limb_GibAll =
         return;
     }
     self.vr_limb_gibbed = time;
-    for(float b = 1; b < 16; b++)
+    for(float b = 1; b < VR_LIMB_JOINTS; b++)
     {
         if(!(top & VR_Limb_Bit(b)))
         {

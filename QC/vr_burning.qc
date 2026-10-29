@@ -1057,10 +1057,11 @@ float(entity xPlayer, float xHand, entity xPiece) VR_Burn_PieceStruck =
     return xPiece.burn_fire != world;
 };
 
-// A lava nail struck `other` (lavaspike_touch, superlavaspike_touch; self the nail): yours set it on fire.
+// A lava nail struck `other` (lavaspike_touch, superlavaspike_touch; self the nail): yours set it on fire, and so do a
+// monster's (an armed enemy's lava nailgun, a nail of its through a flame): you burn as they do.
 void() VR_Burn_LavaNail =
 {
-    if(cvar_hget(cvarh_vr_burn_lava_nails) && (self.owner.flags & FL_CLIENT))
+    if(cvar_hget(cvarh_vr_burn_lava_nails) && (self.owner.flags & (FL_CLIENT | FL_MONSTER)))
     {
         VR_Burn_Ignite(other, self.owner, self.origin, self.velocity, VR_BURN_NAIL);
     }

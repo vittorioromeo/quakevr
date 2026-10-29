@@ -149,6 +149,7 @@ vr_cheats.qc
 vr_smallgibs_test.qc
 vr_dropcap_test.qc
 vr_agarmor_test.qc
+vr_agarmor_fx_test.qc
 vr_crouch_test.qc
 vr_melee_sweep_test.qc
 vr_blade_test.qc
@@ -513,6 +514,7 @@ vr_armedrepl.qc
 // Survival Arena: the wave director (the waves, their ladder, their boss, their drops).
 vr_arena.qc
 vr_arena_perks.qc // Survival Arena: the boss wave's perk choice (its offers, and what each perk does)
+vr_arena_supply.qc // Survival Arena: where a wave clear's supplies land (the map's walkable places, at random)
 vr_adtankworn.qc
 vr_armedmon_ui.qc
 vr_armedgrunt_test.qc

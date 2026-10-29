@@ -333,6 +333,9 @@ za::Vector<Item> pageDebugTests()
             .help("vr_lootbeam_test 24 18 1: 24 things ahead of you in rows (weapons, nailgun magazines full and nearly "
                   "empty, ammo, health, armour, quad damage), 18 gibs among them and a toolgun nearer (its own colour, "
                   "a beam twice as high). Graphics > Loot Beams sets which glow."),
+        command("Loot Beams: Empty Every Other Weapon", "vr_lootbeam_empty_test")
+            .help("vr_lootbeam_empty_test: every other weapon lying about has its magazine emptied: their beams turn the "
+                  "empty weapons' colour (red), beside the loaded ones' gold."),
         command("Loot Beams: Report", "vr_lootbeams_report")
             .help("vr_lootbeams_report: each beam this frame (entity, category, model, fade) and the things skipped "
                   "(carried, moving, empty magazines), on the console."),
@@ -542,7 +545,11 @@ za::Vector<Item> pageDebugTests()
             .help("Three armed grunts ahead in full yellow armour: every piece whole, at two thirds and at a third of its "
                   "pool (the dented, then battered and scorched skins; vr_agarmor_test 4). vr_agarmor_wear 1 / 2 draws "
                   "every piece so."),
-        command("Enemy Weapon Drop Cap", "developer 1; vr_dropcap_test 1")
+        command("Helmets There: Grunt and Enforcer", "vr_agarmor_test 6")
+            .help("An armed grunt and an armed enforcer close ahead in full yellow armour, facing you, standing still "
+                  "(vr_agarmor_test 6): the helmets' fit up close. vr_agarmor_headcam 1-4 (the mock headset) puts the "
+                  "eyes on their heads: front, side, three-quarter, behind."),
+        command("Enemy Weapon Drop Cap","developer 1; vr_dropcap_test 1")
             .help("vr_dropcap_test 1: 60 grunts spawned ahead and killed one by one (vr_dropcap_test_n), the first one's "
                   "rifle taken into an empty hand, a chainsaw thrown up and three other weapons dropped: the burst rifles "
                   "and chainsaws lying about never pass Most Lying About (vr_enemy_weapon_drop_max), the held one, the "

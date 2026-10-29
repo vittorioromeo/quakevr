@@ -12,7 +12,7 @@
 // - the map's own lights, as bright as Map Lights says (vr_relight_maplights: "light" and the linear falloff's "wait"
 //   scaled together: as bright, as far), and its sunlight as Sunlight says (vr_relight_sunlight);
 // - the look's options: ambient occlusion (vr_relight_ao: -dirt -dirtscale), bounced light (vr_relight_bounce),
-//   an ambient light level (vr_relight_minlight: the worldspawn's minlight raised to it, undarkened), smooth or fast shadows (vr_relight_quality: -extra4 or -extra), the light
+//   an ambient light level (vr_relight_minlight: added to the worldspawn's minlight, undarkened), smooth or fast shadows (vr_relight_quality: -extra4 or -extra), the light
 //   grid and the light directions (-lightgrid -lux) and coloured light (-lit), as relight_maps.py gives them.
 //
 // light runs as a process of its own (vr_relight_process.cpp), below normal priority, on the copy in the work folder
@@ -695,11 +695,12 @@ void appendNumber(za::String& out, double v)
 }
 
 // The map's own lights `mapScale` times as bright (and their linear falloff as long: "wait" with it), its sunlight
-// `sunScale` times: the page's Map Lights and Sunlight. `minLight` (> 0) is the page's Ambient Light Level: the
-// worldspawn's minimum light ("light" / "_minlight", light's minlight) raised to it where the map's own is lower (a
-// floor: a map lit brighter by its mapper keeps its own; -minlight on light's command line would override it), and
-// not darkened by the ambient occlusion ("_minlight_dirt" 0: -dirt otherwise darkens minlight too, and the darkest
-// corners stayed dark). Each key set again at the block's end.
+// `sunScale` times: the page's Map Lights and Sunlight. `minLight` (> 0) is the page's Ambient Light Level: added to
+// the worldspawn's own minimum light ("light" / "_minlight", light's minlight; most of id's maps have none, so there
+// it is the level itself), and not darkened by the ambient occlusion ("_minlight_dirt" 0: -dirt otherwise darkens
+// minlight too, and the darkest corners stayed dark). Added, not a floor: a map whose mapper set a minimum above the
+// slider's top (vrarena's 90) looked the same at every level (the author's report, 2026-10-29). -minlight on light's
+// command line would override the map's own instead. Each key set again at the block's end.
 [[nodiscard]] za::String scaledLights(za::StringView text, double mapScale, double sunScale, double minLight)
 {
     if(mapScale == 1.0 && sunScale == 1.0 && minLight <= 0.0)
@@ -773,16 +774,13 @@ void appendNumber(za::String& out, double v)
                     own = za::max(own, x);
                 }
             }
-            if(minLight > own)
+            for(const char* name : {"light", "_minlight"}) // (both: light takes the later of the two)
             {
-                for(const char* name : {"light", "_minlight"}) // (both: light takes the later of the two)
-                {
-                    za::String value;
-                    appendNumber(value, minLight);
-                    set.pushBack(Key{za::String{name}, ZA_MOVE(value)});
-                }
-                set.pushBack(Key{za::String{"_minlight_dirt"}, za::String{"0"}});
+                za::String value;
+                appendNumber(value, za::min(255.0, own + minLight));
+                set.pushBack(Key{za::String{name}, ZA_MOVE(value)});
             }
+            set.pushBack(Key{za::String{"_minlight_dirt"}, za::String{"0"}});
         }
         if(set.empty())
         {

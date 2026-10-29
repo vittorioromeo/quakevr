@@ -8,6 +8,7 @@
 // P2: an armed enforcer too (its pieces at their places, its power pack no plate, its debris, the skill's roll dressing
 // it, its wear's word reaching the client), the damage marks' thresholds; `vr_agarmor_test 3` three enforcers in full
 // sets, `4` three grunts in yellow, whole, at two thirds and at a third (the eyeshots).
+// `vr_agarmor_test 6`: a grunt and an enforcer close ahead in full yellow (the helmets' eyeshots: vr_agarmor_headcam).
 
 entity vr_art_a, vr_art_b; // the armoured grunt, the bare one
 float vr_art_state;       // 0 idle, 1 the checks, 2 waiting for the debris to fade
@@ -185,7 +186,7 @@ void() VR_ART_Run =
     // A gibbing sheds every plate left.
     VR_AgArmor_Give(a, 2, 1023 - 1 - 16);
     made = vr_ar_debris_made;
-    VR_AgArmor_Shed(a);
+    VR_AgArmor_Shed(a, -40);
     VR_ART_Check(vr_ar_debris_made == made + 8 && a.vr_ar_mask == 0, sprintf("gibbed: %g plates shed (8)", vr_ar_debris_made - made));
 
     // The skill rolls: 200 spawns each.
@@ -288,8 +289,16 @@ void() VR_ART_RunEnforcer =
     VR_ART_Check(vr_art_cwear == 1 + 2 + 1024, sprintf("enforcer: wear on the server %g (1027: the cuirass battered, the helmet dented)", vr_art_cwear));
 };
 
+float vr_aft_busy; // `vr_agarmor_test 5` (vr_agarmor_fx_test.qc) running
+void(float start) VR_AgArmor_FxTestFrame;
+
 void() VR_AgArmor_TestFrame =
 {
+    if(vr_aft_busy)
+    {
+        VR_AgArmor_FxTestFrame(0);
+        return;
+    }
     if(vr_art_state == 0)
     {
         if(cvar("vr_agarmor_test") == 0)
@@ -301,6 +310,11 @@ void() VR_AgArmor_TestFrame =
         entity p = find(world, classname, "player");
         if(!p)
         {
+            return;
+        }
+        if(request == 5)
+        {
+            VR_AgArmor_FxTestFrame(1); // (ragdolls, cuts, debris, sparks: vr_agarmor_fx_test.qc)
             return;
         }
         if(request == 2)
@@ -322,6 +336,14 @@ void() VR_AgArmor_TestFrame =
             e3 = VR_ART_SpawnKind(p, 44, 1, 128);
             e3.angles_y = e3.angles_y + 180;
             VR_AgArmor_Give(e3, 3, 1023);
+            return;
+        }
+        if(request == 6)
+        {
+            // (the helmets' eyeshots: a grunt and an enforcer close ahead in full yellow, facing the player;
+            // vr_agarmor_headcam puts the mock eyes on their heads)
+            VR_AgArmor_Give(VR_ART_SpawnKind(p, -40, 0, 80), 2, 1023);
+            VR_AgArmor_Give(VR_ART_SpawnKind(p, 40, 1, 80), 2, 1023);
             return;
         }
         if(request == 4)

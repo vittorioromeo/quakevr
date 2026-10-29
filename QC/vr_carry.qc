@@ -428,6 +428,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
 {
     dprint("carry: taken\n");
     xBox.carry_player = xPlayer;
+    VR_AgArmor_DebrisGrabbed(xBox); // (a plate's debris: its fade put off, vr_agarmor.qc)
     xBox.vr_slam_armed = 0;
     xBox.vr_slam_thrown = 0;
     portal_carry(xBox, xPlayer, xHand, TRUE);

@@ -174,11 +174,29 @@ struct ScreenShape
 
 // The face as the CRT shader shows it without whitened text (Shade::Screen's lit(): its brightness in the phosphor's
 // colour), to draw it in its own colours under whitened text (State::trueColor) and look the same.
+[[nodiscard]] glm::vec3 screenFaceLit(const glm::vec3& f, const glm::vec3& phosphor)
+{
+    const float lit = 0.5f * za::max(f.r, za::max(f.g, f.b)) + 0.6f * glm::dot(f, glm::vec3{0.2126f, 0.7152f, 0.0722f});
+    return phosphor * lit;
+}
+
 [[nodiscard]] glm::vec3 screenFaceLit()
 {
+    return screenFaceLit(screenFace(), screenText());
+}
+
+// A tinted screen's face (an ammo warning's colour: queue's `tint`): the face's brightness and saturation in the tint's
+// colour, so that the whole screen turns the warning's colour, not only its text.
+[[nodiscard]] glm::vec3 tintedFace(const glm::vec3& tint)
+{
     const glm::vec3 f = screenFace();
-    const float lit = 0.5f * za::max(f.r, za::max(f.g, f.b)) + 0.6f * glm::dot(f, glm::vec3{0.2126f, 0.7152f, 0.0722f});
-    return screenText() * lit;
+    const glm::vec3 t = glm::max(tint, glm::vec3{0.f});
+    const float m = za::max(t.r, za::max(t.g, t.b));
+    if(m <= 0.f)
+    {
+        return f;
+    }
+    return za::max(f.r, za::max(f.g, f.b)) * glm::mix(glm::vec3{1.f}, t / m, 0.57f);
 }
 
 // Map text boards (world texts: the tutorial's, func_worldtext_banner) as CRT screens
@@ -566,8 +584,9 @@ struct ScreenLook
 [[nodiscard]] ScreenLook screenLook(const glm::vec3* tint = nullptr)
 {
     const bool trueColor = screenWhiteness() > 0.f;
-    return {trueColor ? screenFaceLit() : screenFace(),
-        tint ? tintedText(*tint) : trueColor ? screenInk() : screenText(), trueColor};
+    // (Drawn in one phosphor colour, the CRT shader lights the face in the text's colour, the tint's too.)
+    const glm::vec3 face = !trueColor ? screenFace() : tint ? screenFaceLit(tintedFace(*tint), tintedText(*tint)) : screenFaceLit();
+    return {face, tint ? tintedText(*tint) : trueColor ? screenInk() : screenText(), trueColor};
 }
 
 // The image that shows `text` so (whenever it was drawn: what it shows still holds), or -1.
@@ -683,7 +702,7 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         }
         else
         {
-            quad(bl, br, tr, tl, glm::vec4{screenFace(), 1.f});
+            quad(bl, br, tr, tl, glm::vec4{tint ? tintedFace(*tint) : screenFace(), 1.f});
         }
 
         // Its glow (vr_screen_glow), over the bezel and a little beyond, just in front of the face (dimmed: the gear lights).

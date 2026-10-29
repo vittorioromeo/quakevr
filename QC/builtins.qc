@@ -403,6 +403,7 @@ float(entity e, vector p) ragdolllimb = #0;
 // own model's ("<model>#plate<piece>") origin / angles now, as drawn.
 float QVR_ARMOR_PIECE_AT = -1000;
 float QVR_ARMOR_CLIENT = -1001; // ragdollbone(e, [what, 0, 0], ...): the client's word on e's armour (the tests): 0 type, 1 pieces, 2 wear; -1 none
+float QVR_ARMOR_PIECE_BONES = -1002; // ragdollbone(e, [piece, 0, 0], ...): the rig's bones that piece rides (bits, as ragdolllimbs'); 0 none
 float(entity e, float what, ...) ragdolllimbs = #0;
 string(entity e, float bone) limbmodel = #0;
 vector(entity e, float bone, float what) limbplace = #0;
@@ -541,6 +542,11 @@ void(vector org, string text, vector colour, float scale) floattext = #0; // a t
 // `text` floating in the middle of `player`'s view (eye level, as VR Calibration's text; not the wrist's hologram) for
 // `seconds`; without a headset, a centre print held that long (target_vr_message; vr_server.hpp). No new tip meanwhile.
 void(entity player, string text, float seconds) viewmessage = #0;
+// The places the player can walk to from `start` (his origin, standing): a walk over a lattice `grid` apart, each move
+// as he walks (his box, a step up or down of 18 at most, never off a ledge or up a slope too steep), `most` at most;
+// how many: navplace(-1, start, grid, most)_x (vr_builtins.cpp; Survival Arena's supplies, vr_arena_supply.qc).
+// navplace(i): the last walk's place i (his origin standing there; '0 0 0' past the last).
+vector(float i, ...) navplace = #0;
 
 void(float to, vector v) WriteVec3 = #0; // three WriteCoords
 

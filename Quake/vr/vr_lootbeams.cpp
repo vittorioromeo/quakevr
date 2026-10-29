@@ -13,6 +13,7 @@
 #include "vr_portals.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
+#include "vr_protocol.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -85,6 +86,7 @@ struct Beam
     int num;         // its entity (vr_lootbeams_report)
     Category category;
     bool toolgun;    // a dropped toolgun (a weapon, its own hue and length: found among many weapons)
+    bool emptyGun;   // a reloadable weapon with its magazine empty or out (vr_lootbeam_hue_weapons_empty)
 };
 
 struct LootBeamScratch
@@ -104,6 +106,7 @@ struct Counts
     int moving{0};
     int emptyMags{0};
     int spentGuns{0}; // spent single-use enemy guns (vr_enemy_weapon_depleted_loot 0)
+    int emptyGuns{0}; // of the weapons' beams, reloadable guns with an empty magazine (vr_lootbeam_hue_weapons_empty)
     int toolguns{0};  // of the weapons' beams, dropped toolguns'
 };
 
@@ -301,7 +304,13 @@ void update()
         }
         Beam b{};
         b.toolgun = c == Category::Weapons && strstr(e->model->name, toolgunModel) != nullptr;
-        const float hue = (b.toolgun ? &vr_lootbeam_hue_toolgun : categoryHue[static_cast<int>(c)])->value;
+        // A reloadable gun with its magazine empty (or out): its own hue, so it is known to need ammo before it is grabbed.
+        b.emptyGun = !b.toolgun && c == Category::Weapons && net && !net->depleted && net->clipSize > 0 &&
+                     net->clip <= 0 && cl.stats[protocol::STAT_QVR_RELOADMODE] != 0 &&
+                     vr_lootbeam_hue_weapons_empty.value >= 0.f;
+        const float hue = (b.toolgun ? &vr_lootbeam_hue_toolgun
+                           : b.emptyGun ? &vr_lootbeam_hue_weapons_empty
+                                        : categoryHue[static_cast<int>(c)])->value;
         place(*e, num, b);
         b.color = hsv(hue, saturation, 1.f);
         b.alpha = t.alpha;
@@ -311,6 +320,7 @@ void update()
         s.beams.pushBack(b);
         state.counts.drawn[static_cast<int>(c)]++;
         state.counts.toolguns += b.toolgun ? 1 : 0;
+        state.counts.emptyGuns += b.emptyGun ? 1 : 0;
     }
 
     if(vr_lootbeam_debug.value != 0.f && realtime >= state.printedAt + 1.0)
@@ -456,13 +466,18 @@ void report_f()
             Con_Printf(" toolgun: hue %.0f, length x%.2f", static_cast<double>(vr_lootbeam_hue_toolgun.value),
                 static_cast<double>(b.lengthScale));
         }
+        if(b.category == Category::Weapons && net)
+        {
+            Con_Printf(" clip %d/%d%s, colour %.2f %.2f %.2f", net->clip, net->clipSize, b.emptyGun ? " EMPTY" : "",
+                static_cast<double>(b.color.r), static_cast<double>(b.color.g), static_cast<double>(b.color.b));
+        }
         Con_Printf("\n");
     }
     const Counts& n = state.counts;
     Con_Printf("lootbeams: %d drawn (weapons %d mags %d ammo %d health %d armor %d powerups %d keys %d backpacks %d), "
-               "carried %d, moving %d, empty mags %d, spent enemy guns %d, toolguns %d\n",
+               "carried %d, moving %d, empty mags %d, spent enemy guns %d, toolguns %d, empty guns %d\n",
         static_cast<int>(s.beams.size()), n.drawn[0], n.drawn[1], n.drawn[2], n.drawn[3], n.drawn[4], n.drawn[5],
-        n.drawn[6], n.drawn[7], n.carried, n.moving, n.emptyMags, n.spentGuns, n.toolguns);
+        n.drawn[6], n.drawn[7], n.carried, n.moving, n.emptyMags, n.spentGuns, n.toolguns, n.emptyGuns);
 }
 
 // What vr_lootbeam_test lays out, in turn: weapon props, magazines (full, nearly empty), boxes, armour, a power-up.
@@ -587,12 +602,52 @@ void test_f()
         toolgunToo ? (toolgunMade ? ", a toolgun" : ", no toolgun") : "");
 }
 
+// vr_lootbeam_empty_test: every other weapon lying about (a weapon prop with a magazine, not in a hand) has its magazine
+// emptied, to see the empty weapons' beams (vr_lootbeam_hue_weapons_empty) beside the loaded ones'.
+void emptyTest_f()
+{
+    if(!sv.active || progs::fields().weaponinst < 0 || progs::fields().wi_clip < 0)
+    {
+        Con_Printf("vr_lootbeam_empty_test: no game running\n");
+        return;
+    }
+    qcvm_t* old = nullptr;
+    PR_PushQCVM(&sv.qcvm, &old);
+    int seen = 0, emptied = 0;
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* const ent = EDICT_NUM(i);
+        if(ent->free)
+        {
+            continue;
+        }
+        const int instProg = progs::fieldInt(ent, progs::fields().weaponinst);
+        if(instProg <= 0)
+        {
+            continue;
+        }
+        edict_t* const inst = PROG_TO_EDICT(instProg);
+        if(inst == qcvm->edicts || inst->free || progs::fieldFloat(inst, progs::fields().wi_clip) <= 0.f)
+        {
+            continue;
+        }
+        if(seen++ % 2 == 0)
+        {
+            progs::setFieldFloat(inst, progs::fields().wi_clip, 0.f);
+            emptied++;
+        }
+    }
+    PR_PopQCVM(old);
+    Con_Printf("lootbeam empty test: %d of %d loaded weapons emptied\n", emptied, seen);
+}
+
 } // namespace
 
 void init()
 {
     Cmd_AddCommand("vr_lootbeams_report", report_f);
     Cmd_AddCommand("vr_lootbeam_test", test_f);
+    Cmd_AddCommand("vr_lootbeam_empty_test", emptyTest_f);
 }
 
 void drawTranslucent()

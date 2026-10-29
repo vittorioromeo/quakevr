@@ -1758,7 +1758,12 @@ void(float damage) spawn_touchblood =
     {
         return;
     }
-    SpawnBlood (self.origin + vel * 0.01, vel, damage);
+    // VR: an armed humanoid's unbroken plate: sparks, blood only for what it lets through (vr_agarmor.qc).
+    float bleed = VR_AgArmor_HitFx(other, self.origin, vel, damage);
+    if(bleed > 0)
+    {
+        SpawnBlood (self.origin + vel * 0.01, vel, damage * bleed);
+    }
 };
 
 /*
@@ -2165,8 +2170,14 @@ void(float damage, vector dir) TraceAttack =
             }
             else
             {
-                SpawnBlood (org, vel*0.2, damage);
-                VR_Wound_Pellet(trace_ent, trace_endpos, dir, damage); // VR: painted on its model (vr_wounds.qc)
+                // VR: an armed humanoid's unbroken plate: sparks; blood and a wound only for what it lets through
+                // (vr_agarmor.qc).
+                float through = VR_AgArmor_HitFx(trace_ent, trace_endpos, vel, damage);
+                if(through > 0)
+                {
+                    SpawnBlood (org, vel*0.2, damage * through);
+                    VR_Wound_Pellet(trace_ent, trace_endpos, dir, damage); // VR: painted on its model (vr_wounds.qc)
+                }
                 VR_HitReact_Pellet(trace_ent, trace_endpos, dir); // VR: where its flinch is (vr_hitreact.qc)
             }
             bleed = TRUE;

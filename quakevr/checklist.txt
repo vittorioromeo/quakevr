@@ -13,9 +13,26 @@ Per-weapon recoil: at 1x it feels as before
 Relighting > Ambient Light Level 32, then Relight This Map: no pitch-black corners, the rest looks as before
 Rig Studio off-hand: a pistol grunt's Carry/Run set On the Gun cups the gun without the arm clipping the torso; Free hangs
 Rig Studio off-hand: rifle Pickup On the Gun cups the right hand
+An ammo screen's warning colour fills its background, not just the numbers.
+An enemy's lava nail sets you on fire.
+An empty reloadable weapon lying about has a red loot beam; a loaded one is gold.
+The nail pistol's magazine won't pull off by hand, only with the eject button.
+The held Widowmaker looks as dark as its pickup.
+The plasma gun makes a firing sound.
+The revolver's shot is its own heavy blast, not the super shotgun's.
 Shove an armed grunt and an enforcer into a stagger and over {test:agrunt_fall}: the weapon stays in the drawn hand through the stagger, the fall, lying and the get-up; never floats off it.
 Shoved over, its weapon never goes into its chest; its hand stays out of it (the grunt's may still dip in briefly).
 A downed armed grunt's weapon can still be grabbed off it {test:agrunt_fall}.
+Armour: a plate breaking sounds like a reversed, lower armour pickup, never like picking armour up.
+Armour: shooting a plate on a dead or knocked-down armoured grunt breaks the plate first; only later hits pop that limb.
+Armour: armour debris can be picked up and thrown; it stays longer after being held; it can't be force-grabbed, worn or put away.
+Armour: cutting off or popping an armoured limb or head, or gibbing the body, throws its plates as debris; none vanish.
+Armour: shots on plates spark; blood only shows when damage got through.
+Armour helmets (Debug > Tests > Helmets There): grunt and enforcer helmets fit close to the head, eyes visible under the brow, no side flanges, head never through in ragdolls
+Armour limb plates: a hit on a thigh plate's knee end wears the thigh plate, not the shin's; a corpse's right leg wears and pops on its own
+Survival Arena supplies: after a wave clear the medkits, armour and 1-2 shards lie at random all over the arena (floor, tower tops, wall walks), never at your feet or in a wall or crate; the clear's text names them, and again after a boss wave's perk pick.
+Survival Arena countdown: a tick each second, higher for 3-2-1, a chime as the wave starts (Countdown Sound slider).
+Relighting > Ambient Light Level on vrarena: 0 vs 64 visibly brighter in its dark corners after Relight This Map.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
