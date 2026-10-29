@@ -30,7 +30,6 @@ float fingerCurl(int hand, int finger)
 void resetCaches()
 {
     za::fill(viewModels, ViewModelEntry{});
-    clipSizes.clear();
     for(RigHand& rh : rigHands)
     {
         rh.drawn = false;
