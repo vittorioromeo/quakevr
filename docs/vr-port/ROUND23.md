@@ -363,6 +363,29 @@ The shotgun's Pickup On the Gun: cupping, 2.9 (was 27.6). `_test_offhand` 5/5 (p
 Seen in passing: Auto's cup at the Pickup's lowest depends on the pose before it (held after Run: cupped; after Carry:
 free), from the drawn-weapon feedback; not changed here.
 
+## 9b. Checklist: folding sections (branch `agent/clviewer`)
+
+His ask: the Checklist page (247 items in 9 sections) is long to scroll in VR. **Each section's header now shows its
+counts** ("1. New: ammo screens, grunt mov..  23/23": the name cut to fit 40 columns, then open/total), **and the row
+under it folds or unfolds the section** ("[-] 34 open of 35 (hide)" / "[+] 23 open of 23 (show)", tinted green when
+all passed): a plain selectable row, picked by the laser or Enter, so the menu's Header kind and the cursor anchoring are
+unchanged. Folded: the header and that row only. **Collapse All** and **Expand All** rows sit under End Test.
+Default: a section with nothing open when the list was read (the start, Reload List, the file edited) starts folded;
+ticking the last item of an unfolded one doesn't fold it under the cursor. A section folded or unfolded by hand keeps
+that, by its name, in `quakevr/checklist_sections.txt` (ignored, beside the ticks: `collapsed <name>` / `expanded
+<name>` lines; names no longer listed kept, as the ticks), read at the first refresh and written at each change.
+Ticks, Reload List and the tick-by-text scheme untouched. `vr_checklist` prints `CLSEC|s|open|total|collapsed|name` per
+section; `vr_checklist collapse|expand <s|all>`, `vr_checklist folds_default` (every fold back to its default).
+`vr_menu_dump` now prints a list row's text (it printed "" for every Checklist row).
+
+**Test.** `python Misc/quakevr/checklist_fold_check.py <agent>` (two runs, each ending on its CLFOLD_END line; puts the
+ticks and folds files back as found): per-section totals against the file and opens against CLITEM; section 1 folded:
+its header (with its count) and "[+]" row on the page, no item of it, all 9 headers, Collapse/Expand All; still folded
+after Reload List and after a restart; ticking its first item drops its count 35 -> 34 (then back); the smallest section
+(5 items) all passed + folds_default + reload: folded by default, unticked + reload: unfolded. **29 passed, 0 failed.**
+On the mock: Collapse All, Expand All and the first section's fold row add 3 rows before the first item (eight
+`vr_mock_key downarrow` now select it).
+
 ## 10. Suggested checklist lines still pending (coordinator owns `quakevr/checklist.txt`)
 
 - Survival Arena: map, wave director (readout, 5 s rest + 5 s countdown, teleport arrivals, never inside anything, guns
