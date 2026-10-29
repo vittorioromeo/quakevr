@@ -42,6 +42,7 @@
 #include "Zancle/Math/Remainder.hpp"
 #include "vr_zancle.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_arenacards.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -438,6 +439,7 @@ void drawInEye(const hands::State& s, bool headText)
             drawHud(s, sbar.rows > 0.f ? sbar.uv : noMask);
         }
         toolgun::panel::drawInEye(s); // (the toolgun's panel over the gun, and the laser at it: open in the game)
+        arenacards::drawInEye(s);     // (the Survival Arena's perk cards in front of you, and the lasers at them)
         return;
     }
     hudAnglesValid = false;
@@ -707,6 +709,7 @@ extern "C" void VR_End2D(void (*windowHud)())
     renderMenuPanels(); // (the menu panels after the first, MULTI_MENU.md)
     gadget::renderScreen(); // shown in the eyes next frame, as the canvas
     toolgun::panel::render(); // (the toolgun's panel, likewise)
+    arenacards::render();     // (the perk cards' panel, likewise)
     // The flat HUD over the window's view of the eyes (NOTES.md vrfiringrange_2026-09-30_11-20-33): the mirror's
     // (vr_window_hud_mirror, on) and the spectator camera's (vr_window_hud_spectator, off: a recording shows the
     // game as the headset does, with the wrist gadget).

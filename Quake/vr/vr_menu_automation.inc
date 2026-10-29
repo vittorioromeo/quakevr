@@ -93,6 +93,13 @@ za::Vector<Item> pageDebugAutomation()
         command("Arcane Dimensions: Spawnflags and Sight Report", "vr_ad_test 26; wait; wait; vr_ad_test 27")
             .help("Whose meaning this map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'), and where "
                   "monsters look for you (crouched: your real eyes)."),
+        header("Survival Arena (map vrarena)"),
+        command("Offer Perk Cards Now", "vr_arena_cards_offer")
+            .help("The cards the next boss wave's clear would offer, now (between two waves only): the arena waits "
+                  "until you pick one."),
+        command("Perk Card Panel Test", "god; vr_arena_perks_test 5")
+            .help("Jumps to the first boss wave, clears it, checks the arena stands still while the cards are up, "
+                  "picks the second card with the mock laser (arena_cards: N passed, M failed)."),
         header("Scripted Test Pages"),
         open("Stealth AI", pageIndex(pageStealthTests))
             .help("The stealth AI's scenes on e1m1 (Combat > Stealth AI): seeing, hearing, touch, investigating."),

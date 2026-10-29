@@ -549,6 +549,7 @@ int VR_RuntimeMenuPause (void);							// Host_ServerFrame, SV_RunClients: nonzer
 int VR_RagtoolHolds (void);								// Host_ServerFrame: nonzero while the ragdoll tool is paused (vr_ragtool.cpp; its single steps run)
 int VR_RagtoolView (float *origin, float *angles);		// V_CalcRefdef: the ragdoll tool's orbit camera set over the view (nonzero: set)
 int VR_RagtoolKey (int key, int down);					// Key_Event in the game: nonzero if the ragdoll tool took the key
+int VR_ArenaCardsKey (int key, int down);				// Key_Event in the game: nonzero if the Survival Arena's perk cards took the key (1 .. their count)
 void VR_RagtoolOverlay (void);							// V_RenderView, after R_RenderView: the debug lines over a flat view while the ragdoll tool runs
 int VR_ImGuiEvent (const void *sdlEvent);				// IN_SendKeyEvents, each SDL event first: nonzero when a flat-screen tool's ImGui took it (vr_imgui.cpp; the game skips it)
 int VR_ImGuiTextMode (void);							// Key_TextEntry in the game: -1 no tool's ImGui; else a textmode_t (SDL's text input on while a tool is open: ImGui's fields get typed chars)

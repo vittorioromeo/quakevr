@@ -2,12 +2,17 @@
 // vr_arena_perks_test.qc -- the Survival Arena's perk tests (vr_arena_perks.qc). `vr_arena_perks_test N`
 // (Debug > Automation & Self-Tests; VR_ARENA_PERKS_Test_Frame, world.qc's StartFrame), the arena running
 // (`vr_arena 1` before the map, or the map "vrarena") and the player kept alive (`god`); each ends on
-// `arena_perks: N passed, N failed` (run.sh -QuitOn "arena_perks: [0-9]+ passed").
-// - 1 the pool and its knobs: seven distinct perks, each named, described and wearing its own model; the label
-//   line; the taken perks kept on the director, never twice; how many are left to offer; the offer count clamped.
-// - 2 the offer: three pedestals after a boss wave, each another perk, each with its model and a trigger's touch
-//   box; a new offer replaces the ones standing; a taken perk is never offered again; the knobs; walking over one
-//   pedestal takes that perk and clears the other two, while a foe walking over one means nothing.
+// `arena_perks: N passed, N failed` (run.sh -QuitOn "arena_perks: [0-9]+ passed"; 4 `arena_full: ...`, 5
+// `arena_cards: ...`).
+// - 1 the pool and its knobs: eight distinct perks, each named, described, with its own model and card colour; the
+//   taken perks kept on the director, never twice; how many are left to offer; the offer count clamped.
+// - 2 the offer: three cards after a boss wave, each another perk; a new offer replaces the open one; a taken perk
+//   is never offered again; the knobs; picking a card takes that perk and closes the offer, a pick past the cards or
+//   a second pick takes nothing.
+// - 3 each perk's numbers, and the offer putting nothing in the field. 4 a real run to its first boss wave: the
+//   arena held while the cards are up, the pick, the run going on.
+// - 5 the engine's card panel end to end (vr_arenacards.cpp): the arena stands still while it shows the cards, the
+//   mock laser and trigger pick one (and a screenshot of the panel), the countdown and the next wave follow.
 
 // ---------------------------------------------------------------------------
 // The test's own state
@@ -74,6 +79,8 @@ void() VR_APK_End =
     VR_APK3_Restore(); // (test 3 borrows a live player's health, armour, guns and quad)
     VR_APK_Restore();
     if(ar_mgr) { ar_mgr.ark_taken = ark_t_taken0; } // (the run's perks are the test's, not the player's)
+    if(ar_mgr) { VR_ARK_CloseOffer(); }               // (a test's cards never left holding the arena)
+    if(ark_t_case == 5) { localcmd("vr_mock_button main trigger 0\nvr_arena_cards_mock_laser off\n"); }
     cvar_set("vr_arena_perks_test", "0");
     ark_t_case = 0;
 }
@@ -82,114 +89,87 @@ void() VR_APK_End =
 // Test 2: the offer (vrtesthall with vr_arena 1, or vrarena; god)
 // ---------------------------------------------------------------------------
 
-// The pedestals standing, collected into one bit mask (0: none).
-float() VR_APK2_PedBits =
+// The open offer's cards, collected into one bit mask (0: none open).
+float() VR_APK2_CardBits =
 {
     float bits = 0;
-    entity ped;
-    for(ped = find(world, classname, ARK_PED_NAME); ped; ped = find(ped, classname, ARK_PED_NAME))
-    {
-        bits = bits | ped.ark_perk;
-    }
+    float i;
+    for(i = 0; i < VR_ARK_CardCount(); i++) { bits = bits | VR_ARK_CardBit(i); }
     return bits;
+}
+
+// The open offer's cards that are not proper: no perk, one the run took already, no picture, or a perk twice.
+float() VR_APK_BadCard =
+{
+    float bad = 0;
+    float bits = 0;
+    float i;
+    for(i = 0; i < VR_ARK_CardCount(); i++)
+    {
+        float bit = VR_ARK_CardBit(i);
+        if(!VR_ARK_CanOffer(bit)) { bad = bad + 1; }
+        if(VR_ARK_Model(bit) == "") { bad = bad + 1; }
+        if((bits & bit) != 0) { bad = bad + 1; }
+        bits = bits | bit;
+    }
+    return bad;
 }
 
 void() VR_APK2_OfferChecks =
 {
-    VR_APK_Check(VR_ARK_CountPeds() == 3, "a boss wave's clear offers three pedestals");
-
-    entity ped;
-    float bits = 0;
-    float apart = TRUE;
-    for(ped = find(world, classname, ARK_PED_NAME); ped; ped = find(ped, classname, ARK_PED_NAME))
-    {
-        if((bits & ped.ark_perk) != 0) { apart = FALSE; }
-        bits = bits | ped.ark_perk;
-        if(!VR_ARK_CanOffer(ped.ark_perk)) { apart = FALSE; }
-        if(ped.modelindex <= 0) { apart = FALSE; }         // (its perk's shipped model really loaded)
-        if(ped.solid != SOLID_TRIGGER) { apart = FALSE; }  // (a touch box: nobody walks into a pedestal)
-    }
-    VR_APK_Check(apart, "the three stand apart: another perk each, a model each, a trigger each");
-    VR_APK_Check((bits != 0) && VR_ARK_CountTaken() == 0, "an offer standing takes nothing by itself");
+    VR_APK_Check(VR_ARK_CardCount() == 3, "a boss wave's clear offers three cards");
+    VR_APK_Check(VR_ARK_CardSerial() > 0, "and the offer is open for the panel to show");
+    VR_APK_Check(VR_APK_BadCard() == 0, "the three are apart: another perk each, a picture each, none already taken");
+    VR_APK_Check((VR_APK2_CardBits() != 0) && VR_ARK_CountTaken() == 0, "an offer standing takes nothing by itself");
     VR_APK_Check(VR_ARK_OfferTurn(5) != VR_ARK_OfferTurn(10), "a later boss turns to another three");
+    VR_APK_Check(VR_ARK_CardBit(-1) == 0 && VR_ARK_CardBit(3) == 0, "there is no card past the offer's");
 
-    // The first offer's pedestals are the next boss wave's to replace, and a perk already taken is not offered.
+    // A new offer replaces the open one, and a perk already taken is not offered.
+    float serial = VR_ARK_CardSerial();
     VR_ARK_Take(ARK_QUAD);
     VR_ARK_Offer(10);
-    float later = VR_APK2_PedBits();
-    VR_APK_Check(VR_ARK_CountPeds() == 3, "a new offer replaces the pedestals standing, it does not add to them");
+    float later = VR_APK2_CardBits();
+    VR_APK_Check(VR_ARK_CardCount() == 3, "a new offer replaces the cards open, it does not add to them");
+    VR_APK_Check(VR_ARK_CardSerial() > serial, "and it is a new offer for the panel (placed in front again)");
     VR_APK_Check((later & ARK_QUAD) == 0, "a perk this run took is not offered again");
     VR_APK_Check(later != 0, "and it still offers three");
 
-    // A knob off, and a pool used up: an offer stands nothing.
+    // A knob off, and a pool used up: an offer opens nothing.
     cvar_set("vr_arena_perks", "0");
     VR_ARK_Offer(15);
-    VR_APK_Check(VR_ARK_CountPeds() == 0, "vr_arena_perks 0: a boss wave's clear offers nothing");
+    VR_APK_Check(VR_ARK_CardCount() == 0, "vr_arena_perks 0: a boss wave's clear offers nothing");
     cvar_set("vr_arena_perks", "1");
 
     cvar_set("vr_arena_perk_count", "2");
     VR_ARK_Offer(20);
-    VR_APK_Check(VR_ARK_CountPeds() == 2, "vr_arena_perk_count says how many pedestals stand");
+    VR_APK_Check(VR_ARK_CardCount() == 2, "vr_arena_perk_count says how many cards are offered");
     cvar_set("vr_arena_perk_count", "3");
 
     float i;
     for(i = 0; i < ARK_POOL_N; i++) { VR_ARK_Take(VR_ARK_PoolBit(i)); }
     VR_ARK_Offer(25);
-    VR_APK_Check(VR_ARK_CountPeds() == 0, "a run that took every perk is offered nothing");
+    VR_APK_Check(VR_ARK_CardCount() == 0, "a run that took every perk is offered nothing");
     ar_mgr.ark_taken = 0;
-    VR_ARK_ClearPeds();
+    VR_ARK_CloseOffer();
 }
 
-void() VR_APK2_TouchChecks =
+void() VR_APK2_PickChecks =
 {
-    entity p = VR_ARENA_FindPlayer();
-    if(p == world)
-    {
-        VR_APK_Check(FALSE, "no player is up to choose (god, and the map's own player)");
-        return;
-    }
-
     VR_ARK_Offer(5);
-    entity ped = find(world, classname, ARK_PED_NAME);
-    if(!ped)
-    {
-        VR_APK_Check(FALSE, "the offer's pedestals are not in the field");
-        return;
-    }
-    float chosen = ped.ark_perk;
+    float n = VR_ARK_CardCount();
+    float chosen = VR_ARK_CardBit(1);
 
-    entity keep = self;
-    self = ped;
-    other = p;
-    VR_ARK_PedTouch();
-    self = keep;
+    VR_APK_Check(!VR_ARK_CardPick(n), "a pick past the last card takes nothing");
+    VR_APK_Check(VR_ARK_CountTaken() == 0 && VR_ARK_CardCount() == n, "and leaves the offer open");
 
-    VR_APK_Check(VR_ARK_Has(chosen), "walking over a pedestal takes its perk");
+    VR_APK_Check(VR_ARK_CardPick(1), "picking a card takes");
+    VR_APK_Check(VR_ARK_Has(chosen), "picking a card takes its perk");
     VR_APK_Check(VR_ARK_CountTaken() == 1, "and exactly one perk: the choice is one of three");
     VR_APK_Check(ar_mgr.ark_taken == chosen, "the perks not chosen stay untaken");
-    VR_APK_Check(VR_ARK_CountPeds() == 0, "the other two pedestals go away with it");
-
-    // A monster walking over a pedestal means nothing.
-    VR_ARK_Offer(5);
-    ped = find(world, classname, ARK_PED_NAME);
-    entity foe = find(world, classname, "monster_enforcer");
-    if(!foe) { foe = find(world, classname, "monster_grunt"); }
-    if(foe)
-    {
-        entity keep2 = self;
-        entity keep3 = other;
-        self = ped;
-        other = foe;
-        VR_ARK_PedTouch();
-        self = keep2;
-        other = keep3;
-        VR_APK_Check((VR_ARK_CountTaken() == 1) && (VR_ARK_CountPeds() == 3), "a foe walking over a pedestal changes nothing");
-    }
-    else
-    {
-        VR_APK_Check(TRUE, "no foe in this run to walk over a pedestal (nothing to check)");
-    }
-    VR_ARK_ClearPeds();
+    VR_APK_Check(VR_ARK_CardCount() == 0 && VR_ARK_CardSerial() == 0, "the cards go with it");
+    VR_APK_Check(!VR_ARK_CardPick(0), "and a second pick of the same offer takes nothing");
+    VR_APK_Check(VR_ARK_CountTaken() == 1, "one perk still");
+    VR_ARK_CloseOffer();
 }
 
 void() VR_APK2_Begin =
@@ -202,16 +182,16 @@ void() VR_APK2_Begin =
         VR_APK_End();
         return;
     }
-    if(VR_ARK_CountPeds()) { VR_ARK_ClearPeds(); }
+    VR_ARK_CloseOffer();
     ar_mgr.ark_taken = 0;
-    VR_ARK_Offer(5); // (the fifth boss cleared: the offer, on the map's item points, or the ring if it has none)
+    VR_ARK_Offer(5); // (the fifth boss cleared)
 }
 
 void() VR_APK2_Frame =
 {
-    if(ark_t_step == 1) { ark_t_step = 2; return; } // (a frame, so the pedestals are properly in the field)
+    if(ark_t_step == 1) { ark_t_step = 2; return; } // (a frame, as a real clear's offer has)
     if(ark_t_step == 2) { VR_APK2_OfferChecks(); ark_t_step = 3; return; }
-    if(ark_t_step == 3) { VR_APK2_TouchChecks(); VR_APK_End(); return; }
+    if(ark_t_step == 3) { VR_APK2_PickChecks(); VR_APK_End(); return; }
 }
 
 // ---------------------------------------------------------------------------
@@ -235,7 +215,7 @@ void() VR_APK1_Pool =
     VR_APK_Check(distinct, "the pool holds seven distinct perks");
     VR_APK_Check(VR_ARK_PoolBit(ARK_POOL_N) == 0, "the pool has nothing past its last rung");
 
-    // Named, described, and each pedestal wears a model of its own.
+    // Named, described, and each card shows a model of its own.
     float named = TRUE;
     for(i = 0; i < ARK_POOL_N; i++)
     {
@@ -251,17 +231,20 @@ void() VR_APK1_Pool =
     }
     VR_APK_Check(named, "every perk is named, described, and wears a model no other perk wears");
 
-    // The line a pedestal is named by: the perk's name, then what it does.
-    float labelled = TRUE;
+    // Each card wears a colour of its own, and its text fits a card (the panel wraps it on about five short lines).
+    float coloured = TRUE;
     for(i = 0; i < ARK_POOL_N; i++)
     {
         bit = VR_ARK_PoolBit(i);
-        string lab = VR_ARK_Label(bit);
-        string nm = VR_ARK_Name(bit);
-        if(strlen(lab) <= strlen(nm)) { labelled = FALSE; }
-        if(substring(lab, 0, strlen(nm)) != nm) { labelled = FALSE; }
+        if(VR_ARK_Colour(bit) == '0 0 0') { coloured = FALSE; }
+        if(strlen(VR_ARK_Name(bit)) > 14 || strlen(VR_ARK_What(bit)) > 64) { coloured = FALSE; }
+        float k;
+        for(k = i + 1; k < ARK_POOL_N; k++)
+        {
+            if(VR_ARK_Colour(bit) == VR_ARK_Colour(VR_ARK_PoolBit(k))) { coloured = FALSE; }
+        }
     }
-    VR_APK_Check(labelled, "a pedestal's line reads its name and then what it does");
+    VR_APK_Check(coloured, "every perk's card has a colour no other card has, and text that fits a card");
 
     // The knobs.
     cvar_set("vr_arena_perk_count", "9");
@@ -498,9 +481,9 @@ void() VR_APK3_Quart =
     ark_t_p.items = IT_SHOTGUN;
     VR_AmmoUtil_SetAmmoCountByAmmoId(ark_t_p, AID_SHELLS, 10);
 
-    VR_ARK_WaveDone(3); // (an ordinary wave: no boss, so no pedestals either)
+    VR_ARK_WaveDone(3); // (an ordinary wave: no boss, so no cards either)
     VR_APK_Check(VR_AmmoUtil_GetAmmoCountByAmmoId(ark_t_p, AID_SHELLS) == 25, "Quartermaster: a wave's clear is what hands it out");
-    VR_APK_Check(VR_ARK_CountPeds() == 0, "and an ordinary wave clear still offers nothing");
+    VR_APK_Check(VR_ARK_CardCount() == 0, "and an ordinary wave clear still offers nothing");
 }
 
 void() VR_APK3_Spoils =
@@ -517,117 +500,30 @@ void() VR_APK3_Spoils =
     VR_APK_Check(VR_ARK_Running(), "Spoils: and the perks only ever work inside a running arena run");
 }
 
-// A boss wave's clear drops that wave's medkits and armour AND makes the offer, and both read the map's
-// info_arena_item points. A pedestal keeps its own space (VR_ARENA_PedPlace pushes it out from the map's centre),
-// so a grabbable item is never standing inside a pedestal's trigger box.
-float ARK_PED_GAP = 64; // (in the map, ignoring height) nearer than this and they are standing on each other
-
-float(vector xA, vector xB) VR_APK_APart =
-{
-    vector d = xA - xB;
-    d.z = 0;
-    return vlen(d) > ARK_PED_GAP;
-}
-
-// How many pairs of things the arena made stand on one another: a pedestal on an item point (where a wave clear's
-// medkit or armour lands), or a pedestal on a pedestal.
-float() VR_APK_Clash =
+// A boss wave's clear drops that wave's medkits and armour AND makes the offer: the offer's cards are the engine's
+// panel's, so it puts nothing in the field and leaves the drops every item point they had.
+float() VR_APK_CountEnts =
 {
     float n = 0;
-    entity ped;
-    entity spot;
-    for(ped = find(world, classname, ARK_PED_NAME); ped; ped = find(ped, classname, ARK_PED_NAME))
-    {
-        for(spot = find(world, classname, ARK_PED_NAME); spot; spot = find(spot, classname, ARK_PED_NAME))
-        {
-            if(spot == ped) { continue; }
-            if(!VR_APK_APart(ped.origin, spot.origin)) { n = n + 1; }
-        }
-        for(spot = find(world, classname, "info_arena_item"); spot; spot = find(spot, classname, "info_arena_item"))
-        {
-            if(!VR_APK_APart(ped.origin, spot.origin)) { n = n + 1; }
-        }
-    }
+    entity e;
+    for(e = nextent(world); e; e = nextent(e)) { n = n + 1; }
     return n;
 }
 
-// Pedestals that are not proper: no model, not a trigger, or the same perk standing twice.
-float() VR_APK_BadPed =
-{
-    float bad = 0;
-    float bits = 0;
-    entity p;
-    for(p = find(world, classname, ARK_PED_NAME); p; p = find(p, classname, ARK_PED_NAME))
-    {
-        if(!p.modelindex) { bad = bad + 1; }
-        if(p.solid != SOLID_TRIGGER) { bad = bad + 1; }
-        if((bits & p.ark_perk) != 0) { bad = bad + 1; }
-        bits = bits | p.ark_perk;
-    }
-    return bad;
-}
-
-// A pedestal standing that offers `xBit` (the pool never offers a perk a run already took).
-float(float xBit) VR_APK_HasPedPerk =
-{
-    entity p;
-    for(p = find(world, classname, ARK_PED_NAME); p; p = find(p, classname, ARK_PED_NAME))
-    {
-        if(p.ark_perk == xBit) { return TRUE; }
-    }
-    return FALSE;
-}
-
-// Walking over the first pedestal standing: returns the perk it offered (0: none).
-float() VR_APK_TouchOne =
-{
-    entity p = VR_ARENA_FindPlayer();
-    if(p == world) { return 0; }
-    entity ped = find(world, classname, ARK_PED_NAME);
-    if(!ped) { return 0; }
-
-    float bit = ped.ark_perk;
-    entity save = self;
-    self = ped;
-    other = p;
-    VR_ARK_PedTouch();
-    self = save;
-    return bit;
-}
-
-void() VR_APK3_Place =
+void() VR_APK3_NoField =
 {
     ar_mgr.ark_taken = 0;
-    VR_ARK_ClearPeds();
+    VR_ARK_CloseOffer();
+    float ents0 = VR_APK_CountEnts();
+    float walk0 = ar_item_next;
     VR_ARK_Offer(5); // (wave 5 is a boss wave: this is what a real boss clear does)
 
-    float want = VR_ARK_Opt_Count();
-    VR_APK_Check(VR_ARK_CountPeds() == want, "a boss wave's clear puts up all the pedestals it offers");
+    VR_APK_Check(VR_ARK_CardCount() == VR_ARK_Opt_Count(), "a boss wave's clear offers all the cards it says");
+    VR_APK_Check(VR_APK_BadCard() == 0, "every card shows a real item's model and offers its own perk");
+    VR_APK_Check(VR_APK_CountEnts() == ents0, "the offer puts nothing in the field: its cards are the panel's");
+    VR_APK_Check(ar_item_next == walk0, "and the wave's drops keep the item points they had");
 
-    float spots = 0;
-    entity spot;
-    for(spot = find(world, classname, "info_arena_item"); spot; spot = find(spot, classname, "info_arena_item"))
-    {
-        spots = spots + 1;
-    }
-    VR_APK_Check(VR_APK_Clash() == 0, "no pedestal stands where a wave's drop lands, nor where another pedestal stands");
-    VR_APK_Check(VR_APK_BadPed() == 0, "every pedestal wears a real item's model and offers its own perk");
-
-    // and the wave's drops keep the points they had (the item cursor is put back where it was)
-    float walk0 = ar_item_next;
-    entity s0 = VR_ARENA_ItemSpot(walk0);
-    entity s1 = VR_ARENA_ItemSpot(walk0 + 1);
-    vector d0 = VR_ARENA_DropPlace(0);
-    vector d1 = VR_ARENA_DropPlace(1);
-    ar_item_next = walk0;
-    if(s0 && s1)
-    {
-        VR_APK_Check(d0 == s0.origin, "a wave clear's drop still lands on the map's own item point");
-        VR_APK_Check(d1 == s1.origin, "and the next drop on the next one, not on a pedestal");
-    }
-    VR_APK_Check(spots == 0 || spots == 3, "the map's item points are untouched by the offer");
-
-    VR_ARK_ClearPeds();
+    VR_ARK_CloseOffer();
 }
 
 void() VR_APK3_Begin =
@@ -645,7 +541,7 @@ void() VR_APK3_Begin =
         VR_APK_End();
         return;
     }
-    VR_ARK_ClearPeds();
+    VR_ARK_CloseOffer();
     ar_mgr.ark_taken = 0;
     ar_mgr.ark_feed_at = 0;
 
@@ -668,7 +564,7 @@ void() VR_APK3_Frame =
     if(ark_t_step == 4) { VR_APK3_Iron(); ark_t_step = 5; return; }
     if(ark_t_step == 5) { VR_APK3_Wind(); ark_t_step = 6; return; }
     if(ark_t_step == 6) { VR_APK3_Quart(); ark_t_step = 7; return; }
-    if(ark_t_step == 7) { VR_APK3_Place(); ark_t_step = 8; return; }
+    if(ark_t_step == 7) { VR_APK3_NoField(); ark_t_step = 8; return; }
 
     VR_APK3_Spoils();
     VR_APK3_Restore();
@@ -705,7 +601,7 @@ void() VR_APK4_Begin =
         return;
     }
     VR_APK3_Save();
-    VR_ARK_ClearPeds();
+    VR_ARK_CloseOffer();
     ar_mgr.ark_taken = 0;
     cvar_set("vr_arena_max_alive", "2");   // (small waves: the drive to the first boss wave has to fit in a test)
     cvar_set("vr_arena_wave_rest", "1");
@@ -722,23 +618,24 @@ void() VR_APK4_OfferChecks =
     VR_APK_Check(ar_wave >= boss, "the run reached its first boss wave");
     VR_APK_Check(VR_ARENA_IsBossWave(ar_mgr.ark_offer_wave), "the offer came from a boss wave's clear");
     VR_APK_Check(VR_ARK_CountTaken() == 0, "the offer itself takes no perk");
-    VR_APK_Check(VR_ARK_CountPeds() == VR_ARK_Opt_Count(), "the boss wave's clear put up every pedestal it offers");
-    VR_APK_Check(VR_APK_BadPed() == 0, "every pedestal wears a shipped item's model and offers its own perk");
-    VR_APK_Check(VR_APK_Clash() == 0, "no pedestal stands where that wave's medkit or armour landed");
+    VR_APK_Check(VR_ARK_CardCount() == VR_ARK_Opt_Count(), "the boss wave's clear offered every card it says");
+    VR_APK_Check(VR_APK_BadCard() == 0, "every card shows a shipped item's model and offers its own perk");
+    VR_APK_Check(ar_mgr.think == VR_ARK_HoldThink && VR_ARENA_Between(), "the arena waits between the waves while the cards are up");
+    VR_APK_Check(VR_ARENA_CountAlive() == 0, "with nothing of the wave left in the field");
 
-    float chosen = VR_APK_TouchOne();
-    VR_APK_Check(chosen != 0, "walking over a pedestal is the choice");
+    float chosen = VR_ARK_CardBit(0);
+    VR_APK_Check(VR_ARK_CardPick(0), "picking a card is the choice");
     VR_APK_Check(VR_ARK_Has(chosen), "the perk taken stands on the director");
-    VR_APK_Check(ar_mgr.ark_taken == chosen, "and it is exactly the one the player walked over");
-    VR_APK_Check(VR_ARK_CountTaken() == 1, "one perk, no more");
+    VR_APK_Check(ar_mgr.ark_taken == chosen, "and it is exactly the one the player picked");
     VR_APK_Check(VR_ARK_CountLeft() == ARK_POOL_N - 1, "the rest of the pool is still there to offer");
-    VR_APK_Check(VR_ARK_CountPeds() == 0, "and the pedestals not walked over are gone");
+    VR_APK_Check(VR_ARK_CardCount() == 0, "and the cards are gone");
+    VR_APK_Check(ar_mgr.think != VR_ARK_HoldThink && VR_ARENA_Between(), "the arena goes on with its rest");
 
     VR_ARK_Offer(2 * boss); // (the next boss wave's offer, asked for here rather than waited for)
-    VR_APK_Check(VR_ARK_CountPeds() == VR_ARK_Opt_Count(), "a later boss wave offers again");
-    VR_APK_Check(!VR_APK_HasPedPerk(chosen), "and never a perk this run already took");
+    VR_APK_Check(VR_ARK_CardCount() == VR_ARK_Opt_Count(), "a later boss wave offers again");
+    VR_APK_Check((VR_APK2_CardBits() & chosen) == 0, "and never a perk this run already took");
 
-    VR_ARK_ClearPeds();
+    VR_ARK_CloseOffer();
     VR_APK3_Restore();
     VR_APK_End();
 }
@@ -748,10 +645,147 @@ void() VR_APK4_Frame =
     if(ark_t_step == 1)
     {
         VR_APK4_KillOne();
-        if(VR_ARK_CountPeds() > 0) { ark_t_step = 2; }
+        if(VR_ARK_CardCount() > 0) { ark_t_step = 2; }
         return;
     }
     VR_APK4_OfferChecks();
+}
+
+// ---------------------------------------------------------------------------
+// Test 5: the card panel end to end (vrarena; god; the headless mock headset, so the engine's panel shows the cards).
+// The run is jumped to its first boss wave and its foes are brought down; when the clear's cards are up and the panel
+// shows them, the arena must stand still for ARK_T5_WAIT s (no wave, no countdown, no foe, the rest's time kept); the
+// mock laser then lights card ARK_T5_CARD (a screenshot of the panel), the mock trigger picks it, and the perk must be
+// taken and the arena go on: the countdown the rest's remainder after the pick, then the next wave.
+// ---------------------------------------------------------------------------
+
+float ARK_T5_WAIT = 3; // s the cards stay up untouched: longer than the rest and the countdown the test sets (1 + 1)
+float ARK_T5_CARD = 2; // the card the mock laser lights and the trigger picks (1 the first)
+float ARK_T5_SETTLE = 4; // frames for the laser's light to reach the panel's image (and the screenshot to be taken)
+
+float ark_t5_wave;  // the wave the cards came up after
+float ark_t5_left;  // the rest the director still had then
+float ark_t5_said;  // the countdown's lines said by then
+float ark_t5_t0;    // the time the panel first showed them
+float ark_t5_bad;   // frames the arena moved while the cards were up
+float ark_t5_bit;   // the perk on the card picked
+float ark_t5_pick;  // the time it was picked
+float ark_t5_frames;
+
+void() VR_APK5_Begin =
+{
+    if(!ar_mgr)
+    {
+        VR_APK_Check(FALSE, "the arena's director is not in this map (vrarena)");
+        VR_APK_End();
+        return;
+    }
+    if(VR_ARENA_FindPlayer() == world)
+    {
+        VR_APK_Check(FALSE, "no player is up to choose (god, and the map's own player)");
+        VR_APK_End();
+        return;
+    }
+    VR_ARK_CloseOffer();
+    ar_mgr.ark_taken = 0;
+    cvar_set("vr_arena_max_alive", "2");
+    cvar_set("vr_arena_wave_rest", "1");
+    cvar_set("vr_arena_countdown", "1");
+    VR_ARENA_FastForward(cvar("vr_arena_boss_every")); // (the first boss wave next: its clear makes the offer)
+    ark_t5_bad = 0;
+    ark_t_until = time + 120;
+    ark_t_step = 1;
+    dprint("arena_cards: jumping to the first boss wave\n");
+}
+
+// The arena standing still: the same wave, no countdown begun or said, nothing up in the field, the director held.
+float() VR_APK5_Still =
+{
+    if(ar_wave != ark_t5_wave) { return FALSE; }
+    if(ar_count_at > 0 || ar_count_said != ark_t5_said) { return FALSE; }
+    if(VR_ARENA_CountAlive() > 0) { return FALSE; }
+    if(ar_mgr.think != VR_ARK_HoldThink) { return FALSE; }
+    return ar_mgr.ark_resume_left == ark_t5_left;
+}
+
+void() VR_APK5_Frame =
+{
+    if(ark_t_step == 1) // the boss wave's foes brought down until its clear's cards are up
+    {
+        if(VR_ARK_CardCount() > 0) { ark_t_step = 2; return; }
+        VR_APK4_KillOne();
+        return;
+    }
+    if(ark_t_step == 2) // the panel showing them
+    {
+        if(ark_seen_at <= 0) { return; }
+        ark_t5_wave = ar_wave;
+        ark_t5_left = ar_mgr.ark_resume_left;
+        ark_t5_said = ar_count_said;
+        ark_t5_t0 = time;
+        VR_APK_Check(VR_ARENA_IsBossWave(ar_wave), "the cards came up after a boss wave's clear");
+        VR_APK_Check(VR_ARK_CardCount() == VR_ARK_Opt_Count(), "with every card it offers");
+        VR_APK_Check(ark_t5_left > 0, "and the rest after the clear still to run");
+        dprint(sprintf("arena_cards: %g cards shown after wave %g, %g s of rest held\n", VR_ARK_CardCount(), ar_wave,
+                       ark_t5_left));
+        ark_t_step = 3;
+        return;
+    }
+    if(ark_t_step == 3) // ARK_T5_WAIT s untouched: nothing may move
+    {
+        if(!VR_APK5_Still()) { ark_t5_bad = ark_t5_bad + 1; }
+        if(time < ark_t5_t0 + ARK_T5_WAIT) { return; }
+        VR_APK_Check(ark_t5_bad == 0, sprintf("the arena stood still while the cards were up (%g frames moved)", ark_t5_bad));
+        VR_APK_Check(ar_mgr.ark_resume_left == ark_t5_left, "the rest's time did not run down meanwhile");
+        VR_APK_Check(VR_ARK_CountTaken() == 0, "and nothing was taken by itself");
+        ark_t5_bit = VR_ARK_CardBit(ARK_T5_CARD - 1);
+        localcmd(sprintf("vr_arena_cards_mock_laser %g\n", ARK_T5_CARD));
+        ark_t5_frames = 0;
+        ark_t_step = 4;
+        return;
+    }
+    if(ark_t_step == 4) // the laser's light on the card: the screenshot
+    {
+        ark_t5_frames = ark_t5_frames + 1;
+        if(ark_t5_frames < ARK_T5_SETTLE) { return; }
+        localcmd("screenshot\n");
+        ark_t5_frames = 0;
+        ark_t_step = 5;
+        return;
+    }
+    if(ark_t_step == 5) // the trigger pulled on it
+    {
+        ark_t5_frames = ark_t5_frames + 1;
+        if(ark_t5_frames < ARK_T5_SETTLE) { return; }
+        VR_APK_Check(VR_ARK_CardCount() > 0, "the cards were still up when the trigger was pulled");
+        localcmd("vr_mock_button main trigger 1\n");
+        ark_t_step = 6;
+        return;
+    }
+    if(ark_t_step == 6) // the pick taken
+    {
+        if(VR_ARK_CardCount() > 0) { return; }
+        ark_t5_pick = time;
+        localcmd("vr_mock_button main trigger 0\nvr_arena_cards_mock_laser off\n");
+        VR_APK_Check(VR_ARK_Has(ark_t5_bit), sprintf("the trigger on card %g took its perk (%s)", ARK_T5_CARD,
+                                                     VR_ARK_Name(ark_t5_bit)));
+        VR_APK_Check(ar_mgr.ark_taken == ark_t5_bit, "and that perk alone");
+        VR_APK_Check(ar_mgr.think != VR_ARK_HoldThink, "the arena is let go");
+        VR_APK_Check(fabs(ar_mgr.nextthink - time - ark_t5_left) < 0.05, "with the rest it had left when the cards came up");
+        ark_t_step = 7;
+        return;
+    }
+    if(ark_t_step == 7) // the countdown, the rest's remainder after the pick
+    {
+        if(ar_count_at <= 0) { return; }
+        VR_APK_Check(fabs(ar_count_at - ark_t5_pick - ark_t5_left) < AR_TICK + 0.05,
+                     sprintf("the countdown began %g s after the pick (the rest held: %g s)", ar_count_at - ark_t5_pick, ark_t5_left));
+        ark_t_step = 8;
+        return;
+    }
+    if(ar_wave <= ark_t5_wave) { return; } // the next wave
+    VR_APK_Check(ar_wave == ark_t5_wave + 1, "and the next wave came after it");
+    VR_APK_End();
 }
 
 // ---------------------------------------------------------------------------
@@ -777,6 +811,7 @@ void() VR_ARENA_PERKS_Test_Frame =
         ark_t_until = time + 30;
         ark_t_prefix = "arena_perks";
         if(c == 4) { ark_t_prefix = "arena_full"; } // (the full-map check: its verdict line is `arena_full: ...`)
+        if(c == 5) { ark_t_prefix = "arena_cards"; } // (the panel's: `arena_cards: ...`)
         VR_APK_Save();
         ark_t_taken0 = 0;
         if(ar_mgr) { ark_t_taken0 = ar_mgr.ark_taken; }
@@ -804,6 +839,11 @@ void() VR_ARENA_PERKS_Test_Frame =
             VR_APK4_Begin();
             return;
         }
+        if(c == 5)
+        {
+            VR_APK5_Begin();
+            return;
+        }
 
         VR_APK_Check(FALSE, "no such arena perk test");
         VR_APK_End();
@@ -822,5 +862,6 @@ void() VR_ARENA_PERKS_Test_Frame =
     if(ark_t_case == 2) { VR_APK2_Frame(); return; }
     if(ark_t_case == 3) { VR_APK3_Frame(); return; }
     if(ark_t_case == 4) { VR_APK4_Frame(); return; }
+    if(ark_t_case == 5) { VR_APK5_Frame(); return; }
 }
 #endif

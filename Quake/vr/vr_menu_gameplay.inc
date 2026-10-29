@@ -1531,12 +1531,17 @@ void ikStretchReset()
                    "(vr_arena_score_kill)."),
         header("Perks"),
         toggle("Boss Perks", vr_arena_perks)
-            .help("1: clearing a boss wave offers your choice of perks -- pedestals standing in the field, on the places "
-                   "a wave clear's drops use; walk over one to take that perk for the rest of the run. 0: it offers "
-                   "nothing (vr_arena_perks)."),
+            .help("1: clearing a boss wave offers your choice of perks -- cards floating in front of you, the arena "
+                   "waiting (no countdown, no next wave) until you point at one and pull the trigger (or press its "
+                   "number); that perk is yours for the rest of the run. 0: it offers nothing (vr_arena_perks)."),
         slider("Perks Offered", vr_arena_perk_count, 1.f, 8.f, 1.f, "%.0f")
             .help("How many of the pool's eight a boss clear offers, at Normal -- the difficulty takes its share (3 is 2 "
                    "at Easy, 4 at Hard, 5 at Nightmare); never the same perk twice (vr_arena_perk_count)."),
+        slider("Perk Cards Distance", vr_arena_cards_distance, 16.f, 80.f, 2.f, "%.0f")
+            .help("How far in front of your head the perk cards float (units; 34 is about 1.3 m) "
+                  "(vr_arena_cards_distance)."),
+        slider("Perk Cards Width", vr_arena_cards_width, 12.f, 80.f, 2.f, "%.0f")
+            .help("How wide the perk cards' panel is (units; 32 is about 1.2 m) (vr_arena_cards_width)."),
         header("Cleanup"),
         slider("Bodies Fade After", vr_arena_corpse_fade, 0.f, 60.f, 1.f, "%.0f s")
             .help("A fallen foe's body (its head, a gibbed one's) lies this long, give or take 3 s, then fades out and "
