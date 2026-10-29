@@ -175,7 +175,8 @@ enum Stat : int
     STAT_QVR_REVOLVER2,
     STAT_QVR_REVOLVERCYL,
     STAT_QVR_REVOLVERCYL2,
-    STAT_QVR_END
+    STAT_QVR_HOLSTERCLIPSIZE0, // 6: each holster's weapon's own magazine size (QC VR_ClipSizeOf): its ammo screen's warning colour
+    STAT_QVR_END = STAT_QVR_HOLSTERCLIPSIZE0 + 6
 
 };
 

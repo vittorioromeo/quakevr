@@ -1524,7 +1524,7 @@ bool holsterLive[HolsterCount]{};
 // front button, `front` (setupFrontButton); the screen queued when `queueText` (once a frame). `clip`: its clip if known
 // (a holstered gun's), else -1.
 void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntity& button, view::ViewEntity& front, int clip,
-    bool queueText, bool total = true, const char* seenCvar = nullptr)
+    int clipSize, bool queueText, bool total = true, const char* seenCvar = nullptr)
 {
     const bool on = vr_weapon_screen_idle.value != 0.f && slot >= 0 && e.model && !isHandModel(e.model) &&
                     slot != weapons::fistSlot();
@@ -1583,8 +1583,8 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
             angles.z = -angles.z;
         }
         glm::vec3 tint{};
-        const bool warn = idleAmmoWarning(e.model, clip, tint, seenCvar); // (low or empty: vr_ammo_color_warn)
-        text3d::queue(idleWeaponText(e.model, clip, total), pos, idleAttachmentAngles(drawn, slot, mirrored, angles),
+        const bool warn = idleAmmoWarning(e.model, clip, clipSize, tint, seenCvar); // (low or empty: vr_ammo_color_warn)
+        text3d::queue(idleWeaponText(e.model, clip, clipSize, total), pos, idleAttachmentAngles(drawn, slot, mirrored, angles),
             text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale), vr_weapon_screen.value != 0.f,
             warn ? &tint : nullptr);
     }
@@ -1747,8 +1747,8 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         // Its ammo screen and button, and a lava gun's glow, as in a hand.
         const int slot = weapons::slotForModel(model);
         idleAttachments(ve.ent, mirrored, slot, entities.holsterButton[h], entities.holsterFrontButton[h], clip,
-            queueTexts && model != nullptr, true,
-            (stat == static_cast<int>(vr_ammo_color_probe.value) || (vr_ammo_color_probe.value == -2.f && occupied)) ? "vr_ammo_color_seen3" : nullptr);
+            cl.stats[STAT_QVR_HOLSTERCLIPSIZE0 + stat], queueTexts && model != nullptr, true,
+            stat == static_cast<int>(vr_ammo_color_probe.value) ? "vr_ammo_color_seen3" : nullptr);
         if(model && slot >= 0 && slot != weapons::fistSlot() && occupied && !posedHere && !previewHere &&
             vr_body_debug.value < 2.f)
         {
@@ -2605,11 +2605,11 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
         const bool numbered = &e >= cl_entities && &e < cl_entities + cl_max_edicts;
         const client::EntityVr* net = numbered ? client::entityVr(static_cast<int>(&e - cl_entities)) : nullptr;
         const int clip = net && net->weaponUid != 0 ? net->clip : -1;
-        idleAttachments(e, false, slot, button, entities.worldFrontButton[i], clip, queueTexts, clip < 0,
+        idleAttachments(e, false, slot, button, entities.worldFrontButton[i], clip, net && net->weaponUid != 0 ? net->clipSize : 0, queueTexts, clip < 0,
             i == 0 ? "vr_ammo_color_seen4" : nullptr);
         if(printScreens)
         {
-            za::String text = idleWeaponText(e.model, clip, clip < 0);
+            za::String text = idleWeaponText(e.model, clip, net && net->weaponUid != 0 ? net->clipSize : 0, clip < 0);
             for(char& c : text)
             {
                 c = c == '\n' ? '|' : c;
