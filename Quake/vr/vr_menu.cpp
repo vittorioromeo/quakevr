@@ -75,14 +75,12 @@ void restartVr()
     za::Vector<Choice> out{{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}, {4.f, "Ogre"},
         {5.f, "Fiend"}, {6.f, "Shambler"}, {7.f, "Zombie"}, {8.f, "Vore"}, {9.f, "Scrag"}, {10.f, "Rottweiler"},
         {11.f, "Spawn"}, {12.f, "Rotfish"}};
-    const cvar_t* hipnotic = Cvar_FindVar("vr_hipnotic_available");
-    const cvar_t* rogue = Cvar_FindVar("vr_rogue_available");
-    if(hipnotic && hipnotic->value != 0.f)
+    if(vr_hipnotic_available.value != 0.f)
     {
         out.pushBack({13.f, "Gremlin"});
         out.pushBack({14.f, "Centroid"});
     }
-    if(rogue && rogue->value != 0.f)
+    if(vr_rogue_available.value != 0.f)
     {
         out.pushBack({15.f, "Mummy"});
         out.pushBack({16.f, "Wrath"});

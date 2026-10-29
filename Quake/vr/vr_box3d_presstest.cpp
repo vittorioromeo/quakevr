@@ -250,8 +250,7 @@ void pressTestFrame()
     if(qcvm->time >= press.nextLine)
     {
         press.nextLine = qcvm->time + (press.touched && press.hand > press.touchedAt - 2.f ? 0.0 : 0.25);
-        const FieldOffsets& f = fields();
-        const int ofs = press.which ? f.handpos : f.offhandpos;
+        const int ofs = progs::handFields(press.which).pos;
         const float game = ofs >= 0 ? fieldVec(EDICT_NUM(1), ofs).z - press.over.z : 0.f;
         Con_Printf("presstest: t %.2f hand %+.1f over the top (the game's %+.1f); prop low %+.2f, %.2f m/s; held back %.2f\n",
             qcvm->time - press.start, press.hand, game, lowestPoint(s->body) - press.lowStart,

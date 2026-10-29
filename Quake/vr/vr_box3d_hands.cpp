@@ -1,4 +1,5 @@
 #include "vr_alloccount.h"
+#include "vr_progs.hpp"
 // vr_box3d_hands.cpp -- throws, gib contacts, what was born inside what, the hands' spheres and the reach bodies (hands
 // and weapons).
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
@@ -22,9 +23,8 @@ namespace
 // QC throws with: VRGetHandThrowVel), or the thing's tip turned by the hand's spin (a wrist snap), whichever is faster.
 [[nodiscard]] float throwSpeed(edict_t* player, int h, float reach)
 {
-    const FieldOffsets& f = fields();
-    const int velOfs = h ? f.handthrowvel : f.offhandthrowvel;
-    const int spinOfs = h ? f.handavel : f.offhandavel;
+    const int velOfs = progs::handFields(h).throwVel;
+    const int spinOfs = progs::handFields(h).avel;
     const float linear = glm::length(fieldVec(player, velOfs)); // (0 without the field: fieldVec)
     const float turn = glm::length(fieldVec(player, spinOfs)) * reach;
     return za::max(linear, turn);
@@ -403,12 +403,12 @@ void syncHands(float dt)
         for(int h = 0; h < 2; h++)
         {
             World::HandBody& hb = world->hands[static_cast<size_t>(i)][static_cast<size_t>(h)];
-            const int heldOfs = h ? f.mainhand_held : f.offhand_held;
+            const int heldOfs = progs::handFields(h).held;
             const bool holding = heldOfs >= 0 && fieldInt(player, heldOfs) > 0;
             // The fist's middle: a radius behind the hand's point (the front of the fist), along its angles.
-            const glm::vec3 tracked = fieldVec(player, h ? f.handpos : f.offhandpos);
+            const glm::vec3 tracked = fieldVec(player, progs::handFields(h).pos);
             const glm::vec3 point = tracked == glm::vec3{0.f} ? tracked : tracked + hb.press; // (notePress)
-            const glm::vec3 angles = fieldVec(player, h ? f.handrot : f.offhandrot);
+            const glm::vec3 angles = fieldVec(player, progs::handFields(h).rot);
             vec3_t in{angles.x, angles.y, angles.z}, fwd, right, up;
             AngleVectors(in, fwd, right, up);
             const za::Vector<glm::vec4>& fist = i == 1 && vr_box3d_hand_push_fist.value ? held::fist(h) : noFist;
@@ -599,7 +599,7 @@ namespace
     using Key = World::ReachKey;
     const FieldOffsets& f = fields();
     Key key;
-    const int heldOfs = h ? f.mainhand_held : f.offhand_held;
+    const int heldOfs = progs::handFields(h).held;
     if(heldOfs >= 0 && fieldInt(player, heldOfs) > 0)
     {
         return key; // (what it carries is a body of its own: Kind::Held)
@@ -642,7 +642,7 @@ namespace
         inHand = d.inHand;
         return key;
     }
-    const int muzzleOfs = h ? f.muzzlepos : f.offmuzzlepos;
+    const int muzzleOfs = progs::handFields(h).muzzle;
     const glm::vec3 muzzle = muzzleOfs >= 0 ? fieldVec(player, muzzleOfs) : point;
     if(glm::distance(muzzle, point) < 1.f)
     {
@@ -1160,14 +1160,14 @@ void syncReach(float dt)
         for(int h = 0; h < 2; h++)
         {
             World::HandBody& hb = world->hands[static_cast<size_t>(i)][static_cast<size_t>(h)];
-            const glm::vec3 tracked = live ? fieldVec(player, h ? f.handpos : f.offhandpos) : glm::vec3{0.f};
+            const glm::vec3 tracked = live ? fieldVec(player, progs::handFields(h).pos) : glm::vec3{0.f};
             if(!live)
             {
                 hb.press = glm::vec3{0.f};
                 hb.pressFull = false;
             }
             const glm::vec3 point = tracked == glm::vec3{0.f} ? tracked : tracked + hb.press; // (notePress)
-            const glm::vec3 angles = live ? fieldVec(player, h ? f.handrot : f.offhandrot) : glm::vec3{0.f};
+            const glm::vec3 angles = live ? fieldVec(player, progs::handFields(h).rot) : glm::vec3{0.f};
             glm::mat4 inHand{1.f};
             const Key key = live && point != glm::vec3{0.f} ? reachKey(player, i, h, hb.key, point, angles, inHand) : Key{};
             hb.weaponMass = key.what == Key::Weapon || key.what == Key::Capsule ? heldWeaponMass(player, h) : 0.f;
@@ -1182,7 +1182,7 @@ void syncReach(float dt)
             const glm::vec3 pos{frame[3]};
             const glm::quat rot = glm::normalize(glm::quat_cast(glm::mat3{frame}));
             // What it carries (to know what it lets go of).
-            const int heldOfs = h ? f.mainhand_held : f.offhand_held;
+            const int heldOfs = progs::handFields(h).held;
             const int held = live && heldOfs >= 0 && fieldInt(player, heldOfs) > 0
                                  ? NUM_FOR_EDICT(PROG_TO_EDICT(fieldInt(player, heldOfs)))
                                  : 0;

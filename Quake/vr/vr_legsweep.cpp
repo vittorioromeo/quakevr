@@ -362,7 +362,7 @@ struct Held
 [[nodiscard]] bool heldThing(edict_t* player, int hand, Held& out)
 {
     const auto& f = progs::fields();
-    const int ofs = hand == HAND_MAIN ? f.mainhand_held : f.offhand_held;
+    const int ofs = progs::handFields(hand == HAND_MAIN).held;
     const int num = ofs >= 0 ? progs::fieldInt(player, ofs) : 0;
     if(num > 0)
     {
@@ -408,13 +408,13 @@ struct Held
     {
         return false;
     }
-    const glm::vec3 handPos = progs::fieldVec(player, hand == HAND_MAIN ? f.handpos : f.offhandpos);
+    const glm::vec3 handPos = progs::fieldVec(player, progs::handFields(hand == HAND_MAIN).pos);
     glm::vec3 grip = handPos;
-    glm::vec3 tip = progs::fieldVec(player, hand == HAND_MAIN ? f.muzzlepos : f.offmuzzlepos);
+    glm::vec3 tip = progs::fieldVec(player, progs::handFields(hand == HAND_MAIN).muzzle);
     glm::vec3 lg, lt;
     if(twohand::carrying(hand) && view::carriedWeaponInHand(hand, lg, lt))
     {
-        const glm::vec3 rot = progs::fieldVec(player, hand == HAND_MAIN ? f.handrot : f.offhandrot);
+        const glm::vec3 rot = progs::fieldVec(player, progs::handFields(hand == HAND_MAIN).rot);
         const glm::mat3 axes = held::axesFromAngles(&rot[0], true); // (forward, left, up; the drawn frame's right: -left)
         grip = handPos + axes * glm::vec3{lg.x, -lg.y, lg.z};
         tip = handPos + axes * glm::vec3{lt.x, -lt.y, lt.z};
@@ -440,8 +440,7 @@ struct Held
 // The hand's place (.handpos, .offhandpos) as the server has it this frame.
 [[nodiscard]] glm::vec3 handPlace(edict_t* player, int hand)
 {
-    const auto& f = progs::fields();
-    return progs::fieldVec(player, hand == HAND_MAIN ? f.handpos : f.offhandpos);
+    return progs::fieldVec(player, progs::handFields(hand == HAND_MAIN).pos);
 }
 
 // A prop the hand held that broke in it (`tr`: its track; its edict freed or its model gone): where the hand's own move carries it on, for

@@ -1357,7 +1357,6 @@ void shapes_f()
     {
         return;
     }
-    const FieldOffsets& f = fields();
     edict_t* player = EDICT_NUM(1);
     for(int h = 0; h < 2; h++)
     {
@@ -1366,7 +1365,7 @@ void shapes_f()
         {
             continue;
         }
-        const glm::vec3 port = fieldVec(player, h ? f.loadportpos : f.offloadportpos);
+        const glm::vec3 port = fieldVec(player, progs::handFields(h).loadPortPos);
         glm::vec3 lo, hi;
         float depth = 0.f;
         if(!hullExtents(hb.reach, lo, hi, &port, &depth))

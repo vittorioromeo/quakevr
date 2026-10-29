@@ -118,7 +118,7 @@ void describeHand(za::String& out, edict_t* player, int hand)
     }
     out += va(", ammo %.0f (counter %.0f)\n", ammo, counter);
 
-    if(edict_t* held = entityOf(progs::fieldInt(player, main ? f.mainhand_held : f.offhand_held)))
+    if(edict_t* held = entityOf(progs::fieldInt(player, progs::handFields(main).held)))
     {
         out += va("%s held: %s (%s) #%d\n", h, modelOf(held), PR_GetString(held->v.classname), NUM_FOR_EDICT(held));
     }

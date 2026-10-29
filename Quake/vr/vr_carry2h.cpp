@@ -204,7 +204,6 @@ ankerl::unordered_dense::map<int, LetGo> letGo;
 static Frame foldedHand(edict_t* player, int hand)
 {
     using namespace progs;
-    const auto& f = fields();
     if(const auto* move = server::clientMove(player))
     {
         const glm::vec3 root{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
@@ -213,8 +212,8 @@ static Frame foldedHand(edict_t* player, int hand)
         angles.y = anglemod(angles.y + gate.yaw);
         return {gate.turn * (move->hands[hand].pos - gate.from) + gate.to, fromAngles(&angles[0], true)};
     }
-    const auto angles = fieldVec(player, hand ? f.handrot : f.offhandrot);
-    return {fieldVec(player, hand ? f.handpos : f.offhandpos), fromAngles(&angles[0], true)};
+    const auto angles = fieldVec(player, progs::handFields(hand).rot);
+    return {fieldVec(player, progs::handFields(hand).pos), fromAngles(&angles[0], true)};
 }
 
 // The grip fit (vr_gripfit.hpp) of the hand that has just taken hold of what the other holds (the other's was fitted as

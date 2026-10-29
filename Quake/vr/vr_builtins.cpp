@@ -211,8 +211,8 @@ void PF_loadportof()
 void PF_shapenearest()
 {
     edict_t* ent = G_EDICT(OFS_PARM0);
-    const glm::vec3 a{G_VECTOR(OFS_PARM1)[0], G_VECTOR(OFS_PARM1)[1], G_VECTOR(OFS_PARM1)[2]};
-    const glm::vec3 b{G_VECTOR(OFS_PARM2)[0], G_VECTOR(OFS_PARM2)[1], G_VECTOR(OFS_PARM2)[2]};
+    const glm::vec3 a = progs::vecParm(OFS_PARM1);
+    const glm::vec3 b = progs::vecParm(OFS_PARM2);
     glm::vec3 best{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
     if(!box3d::shapeNearest(NUM_FOR_EDICT(ent), a, b, best))
     {
@@ -427,9 +427,7 @@ void PF_portal_pullimage()
 {
     const float* a = G_VECTOR(OFS_PARM0), *b = G_VECTOR(OFS_PARM1);
     const glm::vec3 result = portals::pullImage({a[0], a[1], a[2]}, {b[0], b[1], b[2]});
-    G_VECTOR(OFS_RETURN)[0] = result.x;
-    G_VECTOR(OFS_RETURN)[1] = result.y;
-    G_VECTOR(OFS_RETURN)[2] = result.z;
+    progs::returnVec(result);
 }
 
 extern "C" void VR_PortalPullTarget(edict_t* ent, const float hand[3], int begin, float out[3]);
@@ -1457,7 +1455,7 @@ void PF_carryfit()
 // hand's grip (grab 1) the grips are kept and its origin returned; after, where it goes (its angles set at once).
 void PF_carrybody()
 {
-    const glm::vec3 target{G_VECTOR(OFS_PARM2)[0], G_VECTOR(OFS_PARM2)[1], G_VECTOR(OFS_PARM2)[2]};
+    const glm::vec3 target = progs::vecParm(OFS_PARM2);
     edict_t* ent = G_EDICT(OFS_PARM0);
     const glm::vec3 result = carry2h::bodyPlace(ent, G_EDICT(OFS_PARM1), target);
     const int index = static_cast<int>(ent->v.modelindex);
@@ -1701,7 +1699,7 @@ void PF_ragdollknockdown()
 // past its edge). 0: no ragdoll.
 void PF_ragdollshovetopple()
 {
-    const glm::vec3 dir{G_VECTOR(OFS_PARM1)[0], G_VECTOR(OFS_PARM1)[1], G_VECTOR(OFS_PARM1)[2]};
+    const glm::vec3 dir = progs::vecParm(OFS_PARM1);
     const bool ledge = qcvm->argc > 3 && G_FLOAT(OFS_PARM3) != 0.f;
     const float reach = qcvm->argc > 4 ? G_FLOAT(OFS_PARM4) : 0.f;
     G_FLOAT(OFS_RETURN) = foegrab::shoveTopple(G_EDICT(OFS_PARM0), dir, G_FLOAT(OFS_PARM2), ledge, reach) ? 1.f : 0.f;
@@ -2579,9 +2577,7 @@ void PF_weapondrawnpose()
     if(what == 20)
     {
         // weapondrawnpose(e, 0, 20): '<e's entity number> 0 0' (the glitch finder's subject: vr_agglitch_ent).
-        G_VECTOR(OFS_RETURN)[0] = static_cast<float>(NUM_FOR_EDICT(player));
-        G_VECTOR(OFS_RETURN)[1] = 0.f;
-        G_VECTOR(OFS_RETURN)[2] = 0.f;
+        progs::returnVec({static_cast<float>(NUM_FOR_EDICT(player)), 0.f, 0.f});
         return;
     }
     if(what == 23)
@@ -2603,9 +2599,7 @@ void PF_weapondrawnpose()
         const int arg = static_cast<int>(G_FLOAT(OFS_PARM1));
         int set = 0;
         const int h = agholds::hands(arg / 1000, arg % 1000, &set);
-        G_VECTOR(OFS_RETURN)[0] = static_cast<float>(h);
-        G_VECTOR(OFS_RETURN)[1] = static_cast<float>(set);
-        G_VECTOR(OFS_RETURN)[2] = static_cast<float>(agholds::poseClass(arg / 1000, arg % 1000, nullptr));
+        progs::returnVec({static_cast<float>(h), static_cast<float>(set), static_cast<float>(agholds::poseClass(arg / 1000, arg % 1000, nullptr))});
         return;
     }
     if(what == 28)
@@ -2613,9 +2607,7 @@ void PF_weapondrawnpose()
         // weapondrawnpose(world, kind * 100 + class, 28): '<factor> 0 0', the IK stretch of that kind and pose class
         // (agpose::stretch; 1 none), sent in the pose message's off-hand block (QC VR_AGP_Pose).
         const int arg = static_cast<int>(G_FLOAT(OFS_PARM1));
-        G_VECTOR(OFS_RETURN)[0] = agpose::stretch(arg / 100, arg % 100);
-        G_VECTOR(OFS_RETURN)[1] = 0.f;
-        G_VECTOR(OFS_RETURN)[2] = 0.f;
+        progs::returnVec({agpose::stretch(arg / 100, arg % 100), 0.f, 0.f});
         return;
     }
     if(what >= 25 && what <= 27)
@@ -2726,15 +2718,11 @@ void PF_admeleebend()
             k = admelee::bend(admelee::kindOfModel(id->string), f);
         }
         k += blade::fromAt(s, f);
-        G_VECTOR(OFS_RETURN)[0] = k.x;
-        G_VECTOR(OFS_RETURN)[1] = k.y;
-        G_VECTOR(OFS_RETURN)[2] = s.spine || blade::hasFrom(s) ? 1.f : 0.f;
+        progs::returnVec({k.x, k.y, s.spine || blade::hasFrom(s) ? 1.f : 0.f});
         return;
     }
     const glm::vec2 b = admelee::bend(static_cast<int>(G_FLOAT(OFS_PARM0)), G_FLOAT(OFS_PARM1));
-    G_VECTOR(OFS_RETURN)[0] = b.x;
-    G_VECTOR(OFS_RETURN)[1] = b.y;
-    G_VECTOR(OFS_RETURN)[2] = b != glm::vec2{0.f} ? 1.f : 0.f;
+    progs::returnVec({b.x, b.y, b != glm::vec2{0.f} ? 1.f : 0.f});
 }
 
 // vector(float kind, float which) admeleehead: AD heavy kind `kind`'s (the hammer, the mace) head's box (admelee::head,
@@ -3334,8 +3322,8 @@ void propQueriesTest_f()
     {
         const glm::vec3 from = player + glm::vec3{float((k % 8 - 4) * 32), float((k / 8 - 6) * 32), float(k % 3 * 16)};
         const glm::vec3 aim = glm::normalize(glm::vec3{float(k % 3 - 1), float(k % 5 - 2), .5f});
-        G_VECTOR(OFS_PARM0)[0] = from.x; G_VECTOR(OFS_PARM0)[1] = from.y; G_VECTOR(OFS_PARM0)[2] = from.z;
-        G_VECTOR(OFS_PARM2)[0] = aim.x; G_VECTOR(OFS_PARM2)[1] = aim.y; G_VECTOR(OFS_PARM2)[2] = aim.z;
+        progs::setVecParm(OFS_PARM0, from);
+        progs::setVecParm(OFS_PARM2, aim);
         G_FLOAT(OFS_PARM1) = k % 4 == 0 ? 0.f : k % 4 == 1 ? 1.f : k % 4 == 2 ? 200.f : 4096.f;
         G_FLOAT(OFS_PARM3) = k % 2 == 0 ? -1.f : .85f;
         PF_findportalcone();

@@ -380,8 +380,8 @@ void place_f()
     {
         // At the first player's hand, and so far along its forward, left and up.
         edict_t* player = EDICT_NUM(1);
-        const glm::vec3 angles = fieldVec(player, main ? f.handrot : f.offhandrot);
-        const glm::vec3 at = fieldVec(player, main ? f.handpos : f.offhandpos) +
+        const glm::vec3 angles = fieldVec(player, progs::handFields(main).rot);
+        const glm::vec3 at = fieldVec(player, progs::handFields(main).pos) +
                              held::axesFromAngles(&angles[0], true) * glm::vec3{arg(3), arg(4), arg(5)};
         fromGlm(at, ent->v.origin);
         if(Cmd_Argc() >= 9)

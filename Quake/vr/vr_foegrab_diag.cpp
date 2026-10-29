@@ -270,23 +270,10 @@ namespace
 [[nodiscard]] edict_t* nearestMonster()
 {
     edict_t* player = EDICT_NUM(1);
-    edict_t* best = nullptr;
-    float bestDist = 1e30f;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
-    {
-        edict_t* m = EDICT_NUM(num);
-        if(m->free || !(static_cast<int>(m->v.flags) & FL_MONSTER) || m->v.health <= 0.f)
-        {
-            continue;
-        }
-        const float d = glm::distance(vec(m->v.origin), vec(player->v.origin));
-        if(d < bestDist)
-        {
-            bestDist = d;
-            best = m;
-        }
-    }
-    return best;
+    return progs::nearestBy(svs.maxclients + 1, 1e30f, [&](const edict_t* m) {
+        const bool live = (static_cast<int>(m->v.flags) & FL_MONSTER) && m->v.health > 0.f;
+        return live ? glm::distance(vec(m->v.origin), vec(player->v.origin)) : 1e30f;
+    });
 }
 
 // vr_foegrab_necksnap_test: the live monster nearest the first player has its neck snapped as both his hands would

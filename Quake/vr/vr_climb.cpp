@@ -1147,7 +1147,7 @@ Climber climbers[MAX_SCOREBOARD];
     {
         return "a weapon";
     }
-    const edict_t* held = entityField(ent, h == 1 ? f.mainhand_held : f.offhand_held);
+    const edict_t* held = entityField(ent, progs::handFields(h == 1).held);
     if(held && !held->free)
     {
         return "a carried object";
@@ -1903,7 +1903,7 @@ void debugHands(edict_t* ent, Climber& c, const VrMove* move, double time)
     };
     for(int h = 0; h < 2; h++)
     {
-        edict_t* held = entityField(ent, h == 1 ? f.mainhand_held : f.offhand_held);
+        edict_t* held = entityField(ent, progs::handFields(h == 1).held);
         edict_t* otherHeld = entityField(ent, h == 1 ? f.offhand_held : f.mainhand_held);
         edict_t* target = entityField(ent, h == 1 ? f.mainhand_fgtarget : f.offhand_fgtarget);
         edict_t* pulled = entityField(ent, h == 1 ? f.mainhand_fgpulled : f.offhand_fgpulled);

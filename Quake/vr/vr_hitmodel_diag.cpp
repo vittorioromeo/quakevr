@@ -227,6 +227,7 @@ void bench_f()
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
     const bool wasOn = enabled();
+    const za::String preciseWas{vr_hit_precise.string};
     if(!wasOn)
     {
         Cvar_SetQuick(&vr_hit_precise, "1");
@@ -319,7 +320,7 @@ void bench_f()
     vr_debug_hits.value = saveDebug;
     if(!wasOn)
     {
-        Cvar_SetQuick(&vr_hit_precise, "0");
+        Cvar_SetQuick(&vr_hit_precise, preciseWas.cStr());
     }
     PR_PopQCVM(oldvm);
 }

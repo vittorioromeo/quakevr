@@ -706,8 +706,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     qcvm_t* oldVm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldVm);
     za::String out;
-    const auto& f = progs::fields();
-    const int ofs = hand == HAND_MAIN ? f.mainhand_held : f.offhand_held;
+    const int ofs = progs::handFields(hand == HAND_MAIN).held;
     edict_t* const player = EDICT_NUM(1);
     const int num = ofs >= 0 && !player->free ? progs::fieldInt(player, ofs) : 0;
     // (An edict reference in range and on an edict's start; one freed since is skipped below.)
@@ -1047,26 +1046,15 @@ bool armedOrRecording();
 // The nearest live monster to `from` (FL_MONSTER, the training dummy too), or null.
 [[nodiscard]] edict_t* nearestMonster(const glm::vec3& from)
 {
-    edict_t* best = nullptr;
-    float bestDist = 4096.f;
-    for(int i = 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f ||
-           static_cast<int>(e->v.solid) == SOLID_NOT)
+    return progs::nearestBy(1, 4096.f, [&](const edict_t* e) {
+        if(!(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f || static_cast<int>(e->v.solid) == SOLID_NOT)
         {
-            continue;
+            return 4096.f;
         }
         const glm::vec3 mid{e->v.origin[0] + (e->v.mins[0] + e->v.maxs[0]) * 0.5f,
             e->v.origin[1] + (e->v.mins[1] + e->v.maxs[1]) * 0.5f, e->v.origin[2] + (e->v.mins[2] + e->v.maxs[2]) * 0.5f};
-        const float d = glm::distance(mid, from);
-        if(d < bestDist)
-        {
-            bestDist = d;
-            best = e;
-        }
-    }
-    return best;
+        return glm::distance(mid, from);
+    });
 }
 
 // ----------------------------------------------------------------------------

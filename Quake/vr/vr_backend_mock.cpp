@@ -1246,27 +1246,22 @@ bool nearestMonster(glm::vec3& out)
     {
         return false;
     }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
+    const progs::ServerVm vm;
     const edict_t* player = EDICT_NUM(1);
     const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    float best = 1e30f;
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
-    {
-        const edict_t* e = EDICT_NUM(i);
-        if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f || e->v.takedamage == 0.f)
-        {
-            continue;
-        }
-        const glm::vec3 at{(e->v.absmin[0] + e->v.absmax[0]) * 0.5f, (e->v.absmin[1] + e->v.absmax[1]) * 0.5f,
+    const auto middle = [](const edict_t* e) {
+        return glm::vec3{(e->v.absmin[0] + e->v.absmax[0]) * 0.5f, (e->v.absmin[1] + e->v.absmax[1]) * 0.5f,
             (e->v.absmin[2] + e->v.absmax[2]) * 0.5f};
-        if(glm::distance(at, from) < best)
-        {
-            best = glm::distance(at, from);
-            out = at;
-        }
+    };
+    float best = 1e30f;
+    const edict_t* nearest = progs::nearestBy(svs.maxclients + 1, 1e30f, [&](const edict_t* e) {
+        const bool live = (static_cast<int>(e->v.flags) & FL_MONSTER) && e->v.health > 0.f && e->v.takedamage != 0.f;
+        return live ? glm::distance(middle(e), from) : 1e30f;
+    }, &best);
+    if(nearest)
+    {
+        out = middle(nearest);
     }
-    PR_PopQCVM(oldVm);
     return best < 1e29f;
 }
 
