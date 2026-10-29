@@ -2424,8 +2424,49 @@ bool relinkRigid(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, int
 
 [[nodiscard]] bool placeable(const rigpose::Rigid& w);
 
-// A ragdoll's weapons (an active ragdoll's: a stagger, a shove's fall, a tug) on its hands' bones as drawn now, by their
-// grip offsets: never left floating while the server's catch up.
+// A ragdoll's drawn vertices and a hand's (rest, drawn) for their fit: drawnHandFit, ragWeaponMeasure.
+struct RagWeaponScratch
+{
+    za::Vector<glm::vec3> drawn;
+    za::Vector<glm::vec3> from, to;
+};
+RagWeaponScratch ragWeaponScratch;
+
+// Ragdoll `num`'s hand `side` as drawn now: its vertices (agarms::handSkin's, the ones the posed arms hold a weapon by)
+// fitted rest (times `scale`) -> drawn (world). False: none (no skin, not drawn). Leaves ragWeaponScratch.drawn the
+// ragdoll's drawn vertices.
+bool drawnHandFit(int num, const qmodel_t* src, int side, float scale, rigpose::Rigid& out)
+{
+    const za::Vector<int>* verts = nullptr;
+    const za::Vector<glm::vec3>* rest = nullptr;
+    rigpose::Rigid grip;
+    za::Vector<glm::vec3>& drawn = ragWeaponScratch.drawn;
+    if(!agarms::handSkin(src, side, verts, rest, grip) || !ragdoll::skinnedVertices(num, drawn, nullptr, true))
+    {
+        return false;
+    }
+    za::Vector<glm::vec3>& from = ragWeaponScratch.from;
+    za::Vector<glm::vec3>& to = ragWeaponScratch.to;
+    from.clear();
+    to.clear();
+    for(const int v : *verts)
+    {
+        if(v >= 0 && v < static_cast<int>(drawn.size()) && v < static_cast<int>(rest->size()))
+        {
+            from.pushBack((*rest)[static_cast<za::SizeT>(v)] * scale);
+            to.pushBack(drawn[static_cast<za::SizeT>(v)]);
+        }
+    }
+    if(from.size() < 3)
+    {
+        return false;
+    }
+    out = fitRigid(from.data(), to.data(), static_cast<int>(from.size()));
+    return glm::dot(out.rot, out.rot) > 0.5f;
+}
+
+// A ragdoll's weapons (an active ragdoll's: a stagger, a shove's fall, a tug) on its hands as drawn now, by their grip
+// offsets: never left floating while the server's catch up.
 void ragdollProps(const ArmPose& s, const entity_t* e)
 {
     const qmodel_t* src = ragdoll::sourceModel(e);
@@ -2439,7 +2480,7 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
     // (vr_agarms: the hands' grip frames its posed arms held its weapons by, so the weapon stays as it was held. Its
     // rigid arms' model (vr_agrunt_ik_rigid) is never made for it then: without this its weapons were left to the server's
     // placing, riding the limb nearest them as the ragdoll began, off the hand.)
-    const bool skinned = agarms::enabled() && vr_agrunt_ragweapon_check.value < 5.f; // TEMP before/after
+    const bool skinned = agarms::enabled();
     const ArmModel* am = !skinned && hdr ? armModelOf(*a, src, *rig, hdr) : nullptr;
     if(!skinned && !am)
     {
@@ -2474,8 +2515,16 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
         entity_t& p = cl_entities[num];
         rigpose::Rigid w = composeRigid(gripFrame,
             gripRigid(kind, weapons::slotForModel(p.model), side == 0 ? aggrip::Main : aggrip::Off));
+        // vr_agarms: the hand as drawn (its vertices' fit, rest -> now), as the posed arms moved those vertices when it
+        // held the weapon alive. Its bone alone is not that: the authored rig blends the hand's vertices over the hand and
+        // its forearm and fingers (the grunt's weapon was drawn 0.6 units and 20 degrees off its hand by it).
+        if(rigpose::Rigid H; skinned && drawnHandFit(numberOf(e), src, side, scale, H))
+        {
+            rot = H.rot;
+            pos = H.pos;
+        }
         // (Made from its posed arms, its hand on its forearm's bone: the hand's turn on it then, the weapon where it was.)
-        if(rigpose::Rigid wrist; agarms::ragdollWrist(numberOf(e), src, side, wrist))
+        else if(rigpose::Rigid wrist; agarms::ragdollWrist(numberOf(e), src, side, wrist))
         {
             w = composeRigid(wrist, w);
         }
@@ -2519,12 +2568,6 @@ struct RagWeaponErr
     float handIn{0.f}, weaponIn{0.f};
 };
 RagWeaponErr ragWeaponErr;
-struct RagWeaponScratch
-{
-    za::Vector<glm::vec3> drawn;
-    za::Vector<glm::vec3> from, to;
-};
-RagWeaponScratch ragWeaponScratch;
 
 [[nodiscard]] glm::quat rotOfAngles(const float* angles)
 {
