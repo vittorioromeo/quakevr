@@ -14,6 +14,9 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Survival Arena: wave text in the middle of the view, a 5 s rest and a 5 s countdown before each wave (boss waves named); is 10 s too long?
+Survival Arena: every foe, medkit and pedestal arrives with the teleport flash and sound, never inside anything
+Survival Arena: guns arrive gradually (SSG wave 3, NG 5, SNG 7, GL 10, RL 13, LG 16 at Normal), first on 1 foe, then 2, then the pool; does it feel fair?
 Ammo screens: orange under a quarter of the magazine, red when empty, normal after a reload (HUD and Menus > Screens > Weapons' Ammo Screens)
 Armed grunts strafing turn their hips and feet toward the step while the chest and gun stay aimed (AI Behaviour > Manner > Strafe Turn, 28 degrees)
 Survival Arena: no stuck, non-interactable guns; if one appears, run with developer 1, note any 'dropcap:' line and how the gun got there (thrown, force-pulled, knocked out of a hand, dropped by a corpse)
