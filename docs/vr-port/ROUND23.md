@@ -262,13 +262,15 @@ error; eval.sh passes.
 
 A gun's ammo numbers go red when empty and orange under a quarter of its magazine, on by default: `vr_ammo_color_warn` 1,
 `vr_ammo_color_low` 30 and `vr_ammo_color_empty` 0 (hues in degrees, or `"r g b"`), `vr_ammo_low_frac` 0.25. Menu: HUD and
-Menus > Screens > Weapons' Ammo Screens. With reloading on: magazine rounds vs size (shotgun 8, nailgun 24, nail pistol
-12, revolver 6, Widowmaker 16, SSG 2: one shell left is not low); reserve never counts. Reloading off: the ammo it fires
-from vs a magazine's worth. Guns whose counter is their own clip with no size (enemy guns, flare gun) and the chainsaw
-go red only at 0. Applies to both held guns and holstered/lying guns (a holster's loaded count, a lying gun's stored
-clip; size known once the gun has been in a hand). The tint goes through text3d `queue(..., tint)`; the CRT image is
+Menus > Screens > Weapons' Ammo Screens. With reloading on: magazine rounds vs the gun's own magazine size (QC
+`VR_ClipSizeOf`, sent to the client: a prop's extra byte in `U_QVR_WEAPONUID`, a holster's `STAT_QVR_HOLSTERCLIPSIZE0`;
+shotgun 8, nailgun 24, nail pistol 12, revolver 6, Widowmaker 16, SSG 2: one shell left is not low); reserve never
+counts. Reloading off: the ammo it fires from vs a magazine's worth. Guns with no magazine size (flare gun) and the
+chainsaw go red only at 0. One rule, `gunWarning` (vr_view_weapon.cpp), serves held, holstered and lying guns, enemy-dropped
+and never-held guns included (no "seen in a hand" limit). The tint goes through text3d `queue(..., tint)`; the CRT image is
 keyed on it. Test: `vr_ammocolor_test 1` (Debug > Tests > Ammo Screen Colours; `vr_ammo_color_debug 1` logs) on e1m1,
-**22 passed 0 failed** (Widowmaker cases skip without AD), `-QuitOn "ammocolor: .* passed"`; `2` an eyeshot. The nail
+**22 passed 0 failed** (cases 19..24 never hold the gun; Widowmaker cases skip without AD), `-QuitOn "ammocolor: .* passed"`;
+`2` an eyeshot. The nail
 pistol and revolver have no ammo screen by default (their Ammo Screen weapon setting).
 
 ## 10. Suggested checklist lines still pending (coordinator owns `quakevr/checklist.txt`)
