@@ -442,6 +442,27 @@ a wave; a sound for the wave countdown; the Ambient Light Level made no differen
   have none, so they relight exactly as before. Menu help and cvar text updated.
 - `firstVrBuiltin` 900 -> 800 (the VR builtins had filled 900..1079; Ironwail's highest numbered is #627).
 
+Tests (headless, fast mode, developer 1): **`vr_arena_test 15`** (new, vrarena, `-QuitOn "arena: test [0-9]+ over"`):
+**130 passed, 0 failed**: 1203 places, 0 without the player's room or floor, highest floor 256 (tower tops, wall
+walks), none on a cover's top; 6 picks each for seeds 3, 11, 29: all found, apart, off the player, different per seed,
+seed 3 twice the same, some up high; live clears of waves 3 and 4: 1 and 2 shards, every supply on a walkable place,
+settled on its floor, clear of the brushes, dry; the line "Supplies around the arena: 2 medkits, green armour, 2 armour
+shards". `vr_arena_test 14`: 9/0 (6 beeps per countdown at Normal and Hard). Re-run: 1 257/0, 2 13/0, 6 8/0 (its drop
+bound now 5 a clear), 7 19/0, 9 37/0, 13 12/0. Relight (`vr_relight` in game, `vr_relight_quality 0`, AO on, ericw 2.0
+alpha11), `relight_ambient_stats.py` 0 vs 64: **vrarena p1 0 -> 77, p5 15 -> 77, median 47 -> 77, under 16 6.05% ->
+0.47%: PASS**; e1m1 min/p1/p5 0 -> 32, under 16 19.7% -> 0%: PASS (unchanged: no own minimum). The verdict no longer
+needs the single darkest luxel to rise: a few corner luxels whose samples fall inside a touching brush (vrarena's crates
+and trim, 2-6 a face) stay 0 at any level. Note: at level 0 a relit vrarena is darker than shipped (its own 90 is
+darkened by -dirt, as any map's minlight is at 0); not changed here.
+
+## 10. Suggested checklist lines still pending (coordinator owns `quakevr/checklist.txt`)
+
+- Survival Arena supplies `{test:vr_arena_test 15}`: after a wave clear the medkits, armour and 1-2 armour shards lie
+  at random all over the arena (floor, tower tops, wall walks), never at your feet, never in a wall or a crate; the
+  clear's text names them (again after a boss wave's perk pick).
+- Survival Arena countdown `{test:vr_arena_test 14}`: a tick each second, higher for 3-2-1, a chime as the wave starts
+  (Gameplay > Survival Arena > Countdown Sound).
+- Relighting > Ambient Light Level on vrarena: 0 vs 64 visibly brighter in its dark corners after Relight This Map.
 - Survival Arena: map, wave director (readout, 5 s rest + 5 s countdown, teleport arrivals, never inside anything, guns
   arriving one at a time, waves ~1.75x bigger in trickles out of sight, mid-wave boss with a warning), difficulty knob
   (Nightmare two bosses, Easy one fewer boss wave), cleanup (bodies fade ~14 s, 12 kept, items go two waves later, guns
