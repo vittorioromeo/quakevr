@@ -1,5 +1,6 @@
 // vr_weaponfx.cpp -- see vr_weaponfx.hpp.
 
+#include "vr_testkit.hpp"
 #include "vr_random.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_weaponfx.hpp"
@@ -1007,7 +1008,7 @@ void recoilTest_f()
     drawn(pos3, ang3);
     check(glm::length(pos3) == glm::length(pos0) && ang3.x == ang0.x, "values put back: the held weapon's kick as before",
         glm::length(pos3), glm::length(pos0));
-    Con_Printf("vr_recoil_test: %d passed, %d failed\n", passed, failed);
+    qvr::testkit::verdict("vr_recoil_test", passed, failed);
 }
 
 } // namespace

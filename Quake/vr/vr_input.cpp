@@ -12,6 +12,7 @@
 // only scrolls a page with a scrollbar or is DPAD UP/DOWN (never left/right: it doesn't change
 // settings); the menu button closes the menu from any page.
 
+#include "vr_testkit.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_chainsaw.hpp"
@@ -671,7 +672,7 @@ void stickTestFinish()
     {
         p->v.movetype = static_cast<float>(MOVETYPE_WALK); // (out of the noclip cases)
     }
-    Con_Printf("stick curve test: %d passed, %d failed\n", stickTest.passed, stickTest.failed);
+    qvr::testkit::verdict("stick curve test", stickTest.passed, stickTest.failed);
 }
 
 // The response's own checks and its table (the test's first part; also Debug > Tests > Stick: Curve Table).

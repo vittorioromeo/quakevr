@@ -12,6 +12,7 @@
 // The page groups are in vr_menu_pages_debug.cpp, vr_menu_pages_gameplay.cpp and vr_menu_pages_settings.cpp;
 // what they share with this file is in vr_menu_internal.hpp.
 
+#include "vr_testkit.hpp"
 #include "vr_random.hpp"
 #include "vr_menu_internal.hpp"
 
@@ -5292,7 +5293,7 @@ void menuExpectCommand(const char* text)
     }
     if(!q_strcasecmp(want, "done"))
     {
-        Con_Printf("menu expect: %d passed, %d failed\n", menuExpect.passed, menuExpect.failed);
+        qvr::testkit::verdict("menu expect", menuExpect.passed, menuExpect.failed);
         menuExpect = {};
         return;
     }
