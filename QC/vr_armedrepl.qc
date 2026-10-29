@@ -101,7 +101,7 @@ vector(entity e, float kind) VR_AGR_SeedOf =
 // This map is one the replacements play in (vr_agrunt_repl_id, _mp, _ad).
 float() VR_AGR_InScope =
 {
-    float c = cvar("vr_campaign");
+    float c = cvar_hget(cvarh_vr_campaign);
     if(AD_Rules() || c == 6)
     {
         return cvar("vr_agrunt_repl_ad") != 0;

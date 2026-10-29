@@ -228,7 +228,7 @@ float(float x, float xMod) VR_ARENA_Mod =
 // frame (world.qc:588); at world spawn the global is not set yet -- triggers.qc's own note -- so there the arena
 // takes the cvar, the difficulty the run started on. (0 is Easy's own value too, so falling back changes nothing
 // where the global is already right.)
-float() VR_ARENA_SkillLevel = { return skill > 0 ? skill : cvar("skill"); }
+float() VR_ARENA_SkillLevel = { return skill > 0 ? skill : cvar_hget(cvarh_skill); }
 
 // The skill's factor for a knob: `easy`, `hard`, `nightmare` its steps (Normal 1), by vr_arena_skill_impact -- the
 // shape of the armed humanoids' VR_AGAI_Skill (vr_armedgrunt_ai.qc), the arena's own impact knob, and nothing to do

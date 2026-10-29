@@ -78,7 +78,7 @@ float(float xDamage, float xZone) VR_Melee_CapDamage =
     float lo = max(0, cvar_hget(cvarh_vr_melee_dmg_min));
     float hi = max(lo, cvar_hget(cvarh_vr_melee_dmg_max));
     float capped = min(hi, max(lo, c));
-    if(capped != c && cvar("developer") >= 2)
+    if(capped != c && cvar_hget(cvarh_developer) >= 2)
     {
         dprint(sprintf("melee debug: strength x zone %.2f capped to %.2f (vr_melee_dmg_min/max)\n", c, capped));
     }
@@ -1101,7 +1101,7 @@ void(entity m, float xSpeed) VR_Monster_Fall =
     {
         return;
     }
-    float drop = xSpeed * xSpeed / (2 * max(1, cvar("sv_gravity")));
+    float drop = xSpeed * xSpeed / (2 * max(1, cvar_hget(cvarh_sv_gravity)));
     if(drop <= VR_SHOVE_SAFEFALL)
     {
         return;

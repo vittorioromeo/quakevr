@@ -119,7 +119,7 @@ vector(float xHand, float xBarrel) VR_FlareGun_Muzzle =
 
 void(entity f, string xWhy) VR_Flare_Log =
 {
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("flaregun: flare %s at %v (state %g, burns %.1f s more)\n", xWhy, f.origin,
             f.vr_flare_state, max(0, f.vr_flare_end - time)));
@@ -462,7 +462,7 @@ void(float xHand) W_FireFlareGun =
     {
         // A monster lobs it a little over the line to its target (its flight's drop at that range).
         float d = vlen(self.enemy.origin - from);
-        float g = max(0.01, cvar_hget(cvarh_vr_flaregun_gravity)) * cvar("sv_gravity");
+        float g = max(0.01, cvar_hget(cvarh_vr_flaregun_gravity)) * cvar_hget(cvarh_sv_gravity);
         dir_z = dir_z + min(0.2, g * d / (2 * speed * speed));
         dir = normalize(dir);
     }
@@ -503,7 +503,7 @@ void(float xHand) W_FireFlareGun =
         vr_fg_lastfwd = VRGetWeaponFireRotFwd(xHand);
         vr_fg_lastbarrel = barrel;
     }
-    if(cvar_hget(cvarh_vr_debug_shots) || cvar("developer"))
+    if(cvar_hget(cvarh_vr_debug_shots) || cvar_hget(cvarh_developer))
     {
         dprint(sprintf("flaregun: hand %g fired its %s barrel from %v at %v, %g left\n", xHand, barrel ? "bottom" : "top",
             from, f.velocity, player ? VRGetWeaponClip(xHand) : clip - 1));
@@ -528,7 +528,7 @@ void(float xHand, float xAttackFinished, float* xOutAttackFinished) VR_FlareGun_
         VRGunHaptic(xHand, 0.02, 200, 0.3);
         *xOutAttackFinished = time + cool;
         vr_fg_dry++;
-        if(cvar_hget(cvarh_vr_debug_shots) || cvar("developer"))
+        if(cvar_hget(cvarh_vr_debug_shots) || cvar_hget(cvarh_developer))
         {
             dprint(sprintf("flaregun: dry click, hand %g (spent)\n", xHand));
         }
@@ -603,7 +603,7 @@ void(entity xCrate, float i) VR_FlareGun_OnCrate =
         if(g) { remove(g); }
         return;
     }
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("flaregun: one on crate %g at %v\n", i, g.origin));
     }

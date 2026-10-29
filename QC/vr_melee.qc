@@ -451,7 +451,7 @@ float(entity targ, entity attacker) VR_Melee_RagdollPush =
     float speed = b.mh_dmgspeed > 0 ? b.mh_dmgspeed : b.mh_speed; // m/s
     float held = max(0, VR_Weight_HeldMass(attacker, vr_hithand));
     self = oldSelf;
-    float mass = held > 0 ? held + max(0, cvar("vr_box3d_weapon_arm_mass")) : max(0.1, cvar("vr_box3d_hand_mass"));
+    float mass = held > 0 ? held + max(0, cvar_hget(cvarh_vr_box3d_weapon_arm_mass)) : max(0.1, cvar_hget(cvarh_vr_box3d_hand_mass));
     float bounce = min(1, max(0, cvar_hget(cvarh_vr_melee_ragdoll_bounce)));
     float most = max(0, cvar_hget(cvarh_vr_melee_ragdoll_most));
     vector dir = normalize(vr_hitdir);
@@ -577,7 +577,7 @@ float(entity p, float xHand) VR_Melee_Thing =
         // AD support: the hunter ogres' hammer and mace strike with their heads, as an axe's (cutting nothing off, as
         // Mjolnir: vr_decap.qc VR_Decap_Blade; vr_ad_guns_defs.qc).
         // The death sergeant's flail: its head on its chain strikes (a body of its own: VR_Flail_Hit), its handle nothing.
-        if(VR_ADMelee_Flail(VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand))) && cvar("vr_ad_mounted"))
+        if(VR_ADMelee_Flail(VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand))) && cvar_hget(cvarh_vr_ad_mounted))
         {
             return VR_MTHING_NONE;
         }
@@ -1141,7 +1141,7 @@ entity(entity p, float xThing, vector xDir) VR_Corpse_StrikeAlong =
         vr_cstrike_fh = fh;
         string part = VR_Melee_PartAt(xThing, fh);
         vr_cstrike_blunt = vr_mpart_blunt;
-        if(cvar("developer") >= 2)
+        if(cvar_hget(cvarh_developer) >= 2)
         {
             dprint(sprintf("corpse strike: %s with %s (%.2f of the way from the handle to the tip)%s\n", c.classname, part, fh,
                 vr_cstrike_blunt ? ", blunt" : ""));
@@ -1381,7 +1381,7 @@ float(float xHand, entity b) VR_Melee_Slaps =
     right_y = -fwd_x;
     float across = fabs(v * right) / sp;
     float outward = (v * VR_Melee_ArmOut(xHand, b, fwd)) / sp;
-    if(cvar("developer") >= 2)
+    if(cvar_hget(cvarh_developer) >= 2)
     {
         dprint(sprintf("melee debug: hand %g open, %.1f m/s, across %.2f out %.2f\n", xHand, sp, across, outward));
     }
@@ -1617,7 +1617,7 @@ float(float xHand, entity b) VR_Melee_Track =
         b.mh_hdt[b.mh_hi] = 0; // (nothing to look back through)
     }
 
-    if(vr_mline_free && (!b.mh_free || vr_mline_tip != b.mh_free_tip) && cvar("developer"))
+    if(vr_mline_free && (!b.mh_free || vr_mline_tip != b.mh_free_tip) && cvar_hget(cvarh_developer))
     {
         dprint(sprintf("melee: hand %g holds its weapon off its handle, %.2f of the way from its near end to its tip (%.1f units long); "
             "it strikes with all of it, the far end its %s (the hand at %v, the near end %v, the far end %v)\n", xHand,
@@ -1947,7 +1947,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         // pommel: turned hilt first from close by, the author's pommel strikes come 0.36-0.54 m.
         if(b.mh_thing == VR_MTHING_GUN && meleerun(b, TRUE) < cvar_hget(cvarh_vr_melee_butt_run))
         {
-            if(cvar("developer") >= 2)
+            if(cvar_hget(cvarh_developer) >= 2)
             {
                 dprint(sprintf("melee debug: the butt came %.2f m, under vr_melee_butt_run: no butt strike\n", meleerun(b, TRUE)));
             }
@@ -1955,7 +1955,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         }
         weight = VR_Melee_PommelWeight(b.mh_thing);
     }
-    if(cvar("developer") >= 2)
+    if(cvar_hget(cvarh_developer) >= 2)
     {
         dprint(sprintf("melee debug: hand %g %s at %s (point %g, %.2f on the weapon): grip %.1f far %.1f", xHand,
             VR_Melee_KindName(kind, b.mh_thing), vr_mpt_name[xI], xI, vr_mpt_fh[xI], vgrip, vfar)); // (8 at most)
@@ -1981,7 +1981,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         {
             if(heavyArc < arcNeed)
             {
-                if(cvar("developer") >= 2)
+                if(cvar_hget(cvarh_developer) >= 2)
                 {
                     dprint(sprintf("melee debug: heavy two-handed, slow (%.2f m/s) and no deliberate arc (%.2f m of %.2f): no blow\n",
                         speed, heavyArc, arcNeed));
@@ -2006,7 +2006,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     // Not drawn back: a blade, a head or a fist going back towards the hand (after a blow, still touching).
     if((xKind == VR_MPT_EDGE || xKind == VR_MPT_FIST) && VR_Melee_PulledBack(b))
     {
-        if(cvar("developer") >= 2)
+        if(cvar_hget(cvarh_developer) >= 2)
         {
             dprint("melee debug: pulled back, no blow\n");
         }
@@ -2027,7 +2027,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     // Nor a weapon waved back and forth.
     if(!deliberate && VR_Melee_Wiggled(b))
     {
-        if(cvar("developer") >= 2)
+        if(cvar_hget(cvarh_developer) >= 2)
         {
             dprint("melee debug: wiggled, no blow\n");
         }
@@ -2036,13 +2036,13 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     // Nor a gun taken down to reload.
     if(VR_Melee_Reloading(b))
     {
-        if(cvar("developer") >= 2)
+        if(cvar_hget(cvarh_developer) >= 2)
         {
             dprint("melee debug: taken down to reload, no blow\n");
         }
         return FALSE;
     }
-    if(cvar("developer") >= 2)
+    if(cvar_hget(cvarh_developer) >= 2)
     {
         dprint(deliberate ? sprintf("melee debug: a blow (heavy two-handed, deliberate: arc %.2f m)\n", heavyArc) : "melee debug: a blow\n");
     }
@@ -2072,7 +2072,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         arcStrength = VR_MELEE_WEAKEST + (arcStrength - VR_MELEE_WEAKEST) * b.mh_heavy2h;
         b.mh_core = min(VR_MELEE_STRONGEST, max(b.mh_core, arcStrength));
     }
-    if(b.mh_heavy2h > 0 && cvar("developer") >= 2)
+    if(b.mh_heavy2h > 0 && cvar_hget(cvarh_developer) >= 2)
     {
         dprint(sprintf("melee debug: heavy two-handed strength %.2f (by its speed %.2f, its arc %.2f m)\n", b.mh_core,
             min(VR_MELEE_STRONGEST, max(VR_MELEE_WEAKEST, s)), heavyArc));
@@ -2239,7 +2239,7 @@ float(vector xP0, vector xP1, vector xNormal, vector xAt) VR_Melee_WallTaken =
     {
         taken = d * xNormal <= -VR_MELEE_WALL_INTO;
     }
-    if(cvar("developer") >= 2)
+    if(cvar_hget(cvarh_developer) >= 2)
     {
         dprint(sprintf("melee debug: going down at %.2f onto a surface facing %v (into it %.2f): %s\n", d_z, xNormal,
             -(d * xNormal), taken ? "strikes" : "passes"));
@@ -2284,7 +2284,7 @@ float(entity b, float xI, vector xP0, vector xP1, vector xNormal, vector xAt) VR
     }
     if(into < VR_MELEE_WALL_ENTRY * VR_Melee_MinSpeedOf(b))
     {
-        if(cvar("developer") >= 2)
+        if(cvar_hget(cvarh_developer) >= 2)
         {
             dprint(sprintf("melee debug: %s brushes a wall, into it at %.1f m/s\n", vr_mpt_name[xI], into));
         }
@@ -2329,7 +2329,7 @@ float(float xHand, entity b, float xI) VR_Melee_WallDecide =
         b.mh_vgrip = b.mh_wall_vgrip;
         b.mh_vfar = b.mh_wall_vfar;
     }
-    if(cvar("developer") >= 2)
+    if(cvar_hget(cvarh_developer) >= 2)
     {
         dprint(sprintf("melee debug: a wall met %.2f s ago, come in at grip %.1f m/s (now %.1f)\n",
             VR_PlayerTime() - b.mh_wall_time, vlen(b.mh_wall_vgrip), vlen(vgrip)));
@@ -2414,7 +2414,7 @@ float(entity b, vector xNormal, vector xAt) VR_Melee_WallFresh =
         fresh = FALSE;
         why = sprintf("%.1f m/s after %.1f, %.2f s ago", b.mh_speed, b.mh_wall_bspeed, VR_PlayerTime() - b.mh_wall_blow);
     }
-    if(!fresh && cvar("developer") >= 2)
+    if(!fresh && cvar_hget(cvarh_developer) >= 2)
     {
         dprint(sprintf("melee debug: the wall struck again by the same swing (%s): no blow\n", why));
     }
@@ -4491,7 +4491,7 @@ void() VR_Bash =
             VR_Melee_Event(sprintf("stance weapon, hand %g%s", h, VRGet2HAiming(self) ? ", two hands" : ""));
             VR_Motion_Event("stance", "weapon", h, 0, VRGetHandPos(h), world, VRGet2HAiming(self) ? "two hands" : "");
         }
-        if(stance && cvar("developer") >= 2 && VR_Bash_PushVel(b) * pfwd > speed * 0.5)
+        if(stance && cvar_hget(cvarh_developer) >= 2 && VR_Bash_PushVel(b) * pfwd > speed * 0.5)
         {
             dprint(sprintf("melee debug: hand %g stance %g push %v ends %v %v dist %.3f\n", h, stance,
                 VR_Bash_PushVel(b), b.mh_vnear, b.mh_vfar, b.mh_push_dist));
@@ -4731,7 +4731,7 @@ void() VR_Melee_Frame =
             b.mh_dt = 0; // (no new pose, or nothing to sweep from: no motion counted this frame)
         }
         b.mh_fresh = fresh;
-        if(fresh && cvar("developer") >= 3 && b.mh_thing != VR_MTHING_NONE)
+        if(fresh && cvar_hget(cvarh_developer) >= 3 && b.mh_thing != VR_MTHING_NONE)
         {
             dprint(sprintf("melee trace: %.3f hand %g thing %g wid %g bits %g", time, h, b.mh_thing, VRGetEntWeapon(self, h),
                 self.vrbits0));

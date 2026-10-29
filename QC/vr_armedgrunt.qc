@@ -521,7 +521,7 @@ float(float code) VR_AG_Decode =
         {
             return VR_Has("progs/sword.mdl"); // (the Phantom Swordsman's: Rogue's data, AD's or not)
         }
-        return cvar("vr_ad_mounted") != 0;
+        return cvar_hget(cvarh_vr_ad_mounted) != 0;
     }
     return VR_AG_Usable(code);
 };
@@ -1309,7 +1309,7 @@ vector(entity t, float i, vector side, vector toward) VR_AG_XPoint =
 {
     float head = t.headpos != '0 0 0' ? t.headpos_z - t.origin_z : t.view_ofs_z;
     float top = t.maxs_z;
-    if(cvar("vr_hull_hit_head"))
+    if(cvar_hget(cvarh_vr_hull_hit_head))
     {
         top = min(top, max(t.mins_z + 24, head + 5)); // (the engine's: to 5 over the headset, never under 24)
     }
@@ -1744,7 +1744,7 @@ vector(float wid, vector from, vector dir) VR_AG_BlastPoint =
     makevectors(a);
     vector vel = v_forward * 600 + v_up * 200;
     vector pos = from;
-    float g = cvar("sv_gravity");
+    float g = cvar_hget(cvarh_sv_gravity);
     float mine = (wid == WID_PROXIMITY_GUN);
     float dt = 0.05;
     float t;

@@ -350,7 +350,7 @@ void(entity pl, float xHand) VR_Guard_Hand =
 void() VR_Guard_Frame =
 {
 #ifdef QVR_TESTS
-    float want = cvar("vr_test_guard");
+    float want = cvar_hget(cvarh_vr_test_guard);
     if(want >= 1)
     {
         cvar_set("vr_test_guard", "0");

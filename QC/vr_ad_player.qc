@@ -225,7 +225,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         else ad_Resist_Lightning(targ, at);
         self = oself;
     }
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("AD resistance: %s takes %g of %g (ammo %g, resists %g)\n", targ.classname, left, damage, ammo, r));
     }
@@ -279,7 +279,7 @@ float() AD_Evil =
 // AD_WorldSpawn: this level plays the choice (vr_ad_evil), AD's own flag (scratch4) agreeing, as AD's code reads it.
 void() AD_EvilStart =
 {
-    vr_ad_evil_on = cvar("vr_ad_evil") != 0;
+    vr_ad_evil_on = cvar_hget(cvarh_vr_ad_evil) != 0;
     cvar_set("scratch4", vr_ad_evil_on ? "1" : "0");
 };
 
@@ -311,7 +311,7 @@ void() AD_LoadedGame =
 // AD_Frame: a change of the choice mid-game played now; AD's code at its skill 4 while Evil plays.
 void() AD_EvilFrame =
 {
-    float chosen = cvar("vr_ad_evil") != 0;
+    float chosen = cvar_hget(cvarh_vr_ad_evil) != 0;
     if(chosen != vr_ad_evil_on)
     {
         vr_ad_evil_on = chosen;

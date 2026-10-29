@@ -901,7 +901,7 @@ float(float choice) VR_AD_DispenserSpawn =
     {
         return FALSE;
     }
-    if(!cvar("vr_ad_mounted") || (!AD_Rules() && !cvar("vr_ad_everywhere")))
+    if(!cvar_hget(cvarh_vr_ad_mounted) || (!AD_Rules() && !cvar("vr_ad_everywhere")))
     {
         remove(self);
         return TRUE;

@@ -73,18 +73,18 @@ float(entity m, float site) VR_AimCone_Kind =
 // Against a player, and on: TRUE.
 float(entity m) VR_AimCone_On =
 {
-    return cvar("vr_enemy_aim_cone") && m && m.health > 0 && m.enemy && (m.enemy.flags & FL_CLIENT);
+    return cvar_hget(cvarh_vr_enemy_aim_cone) && m && m.health > 0 && m.enemy && (m.enemy.flags & FL_CLIENT);
 };
 
 // A kind's aim cone and fire cone (degrees each side of the facing; the fire cone at least the aim cone).
 float(float kind) VR_AimCone_Angle =
 {
-    float a = cvar("vr_enemy_aim_angle") * cvar(kind == VR_AIM_WIDE ? "vr_enemy_aim_wide" : "vr_enemy_aim_narrow");
+    float a = cvar_hget(cvarh_vr_enemy_aim_angle) * cvar(kind == VR_AIM_WIDE ? "vr_enemy_aim_wide" : "vr_enemy_aim_narrow");
     return a < 0 ? 0 : (a > 180 ? 180 : a);
 };
 float(float kind) VR_AimCone_Fire =
 {
-    float a = cvar("vr_enemy_aim_fire") * cvar(kind == VR_AIM_WIDE ? "vr_enemy_aim_wide" : "vr_enemy_aim_narrow");
+    float a = cvar_hget(cvarh_vr_enemy_aim_fire) * cvar(kind == VR_AIM_WIDE ? "vr_enemy_aim_wide" : "vr_enemy_aim_narrow");
     a = a > 180 ? 180 : a;
     float cone = VR_AimCone_Angle(kind);
     return a < cone ? cone : a;
@@ -133,7 +133,7 @@ vector(vector dir, float kind) VR_AimCone_Bend =
         dir_x = cos(yaw) * flat;
         dir_y = sin(yaw) * flat;
     }
-    if(cvar("vr_enemy_aim_debug"))
+    if(cvar_hget(cvarh_vr_enemy_aim_debug))
     {
         bprint(sprintf("aimcone: %s at %v shot %.0f deg off (aim %.0f, fire %.0f; him %.0f off): bent %.0f\n", m.classname,
             m.origin, vr_aimcone_last_off, cone, VR_AimCone_Fire(kind), VR_AimCone_Off(m), vr_aimcone_last_bent));
@@ -165,7 +165,7 @@ float(void() fn, float kind) VR_AimCone_Wait =
         return TRUE; // (a second shot in a held frame: dropped, its wait's own shot made when it ends)
     }
     entity m = VR_AimCone_Shooter();
-    float delay = cvar("vr_enemy_aim_delay");
+    float delay = cvar_hget(cvarh_vr_enemy_aim_delay);
     if(!VR_AimCone_On(m) || delay <= 0 || (self.vr_aim_ended && time < self.vr_aim_ended + 1))
     {
         return FALSE;
@@ -183,7 +183,7 @@ float(void() fn, float kind) VR_AimCone_Wait =
     self.think = VR_AimCone_HoldThink;
     self.nextthink = time + 0.1;
     vr_aimcone_waits++;
-    if(cvar("vr_enemy_aim_debug"))
+    if(cvar_hget(cvarh_vr_enemy_aim_debug))
     {
         bprint(sprintf("aimcone: %s waits: him %.0f deg off (fire %.0f)\n", m.classname, VR_AimCone_Off(m),
             VR_AimCone_Fire(kind)));
@@ -197,7 +197,7 @@ float(void() fn, float kind) VR_AimCone_Wait =
 void() VR_AimCone_HoldThink =
 {
     entity m = VR_AimCone_Shooter();
-    float go = !VR_AimCone_On(m) || time >= self.vr_aim_holding + cvar("vr_enemy_aim_delay") - 0.01;
+    float go = !VR_AimCone_On(m) || time >= self.vr_aim_holding + cvar_hget(cvarh_vr_enemy_aim_delay) - 0.01;
     if(!go)
     {
         if(m == self)
@@ -214,7 +214,7 @@ void() VR_AimCone_HoldThink =
     }
     vr_aimcone_last_wait = time - self.vr_aim_holding;
     vr_aimcone_last_waited = time;
-    if(cvar("vr_enemy_aim_debug") && m)
+    if(cvar_hget(cvarh_vr_enemy_aim_debug) && m)
     {
         bprint(sprintf("aimcone: %s waited %.2f s: him %.0f deg off\n", m.classname, vr_aimcone_last_wait,
             VR_AimCone_Off(m)));
@@ -233,11 +233,11 @@ void() VR_AimCone_HoldThink =
 float vr_aimcone_show_print; // (when it last printed)
 void() VR_AimCone_ShowFrame =
 {
-    if(!cvar("vr_enemy_aim_show"))
+    if(!cvar_hget(cvarh_vr_enemy_aim_show))
     {
         return;
     }
-    float print = cvar("vr_enemy_aim_show") >= 2 && time >= vr_aimcone_show_print + 1;
+    float print = cvar_hget(cvarh_vr_enemy_aim_show) >= 2 && time >= vr_aimcone_show_print + 1;
     if(print)
     {
         vr_aimcone_show_print = time;
@@ -253,7 +253,7 @@ void() VR_AimCone_ShowFrame =
                 float kind = VR_AimCone_Kind(m, VR_AIM_NARROW);
                 if(kind != VR_AIM_NONE)
                 {
-                    float on = cvar("vr_enemy_aim_cone");
+                    float on = cvar_hget(cvarh_vr_enemy_aim_cone);
                     m.vr_aim_cone = on ? VR_AimCone_Angle(kind) : 180;
                     m.vr_aim_fire = on ? VR_AimCone_Fire(kind) : 180;
                     m.vr_aim_shown = time;

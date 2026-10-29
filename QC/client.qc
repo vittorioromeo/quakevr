@@ -1746,7 +1746,7 @@ float(float xHand) VR_WaterClimb_HandPull =
     }
     // Lifted high enough to clear the top under the hand (Quake's 225 units/s rise reaches about 31 units: a bank's
     // top higher than the waist is not climbed so), and carried over the edge a little faster than Quake's.
-    float g = cvar("sv_gravity") * (self.gravity ? self.gravity : 1);
+    float g = cvar_hget(cvarh_sv_gravity) * (self.gravity ? self.gravity : 1);
     float rise = top - (self.origin_z + self.mins_z) + 6;
     if(rise > 0 && g > 0)
     {

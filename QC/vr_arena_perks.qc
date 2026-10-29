@@ -183,7 +183,7 @@ float(float xBit) VR_ARK_Take =
     if(!VR_ARK_Running()) { return FALSE; }
     if(VR_ARK_Has(xBit)) { return FALSE; }
     ar_mgr.ark_taken = ar_mgr.ark_taken | xBit;
-    if(cvar("developer")) dprint(sprintf("arena_perks: %s taken (%g of %g)\n", VR_ARK_Name(xBit),
+    if(cvar_hget(cvarh_developer)) dprint(sprintf("arena_perks: %s taken (%g of %g)\n", VR_ARK_Name(xBit),
                                          VR_ARK_CountTaken(), ARK_POOL_N));
     return TRUE;
 }

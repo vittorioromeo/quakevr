@@ -57,9 +57,9 @@ void(entity attacker, float damage) VR_FuelTank_WornPain =
 void() VR_FuelTank_WornThink =
 {
     entity m = self.owner;
-    if(!VR_FuelTank_WornGun(self) || m.health <= 0 || !cvar("vr_adgun_tank_worn"))
+    if(!VR_FuelTank_WornGun(self) || m.health <= 0 || !cvar_hget(cvarh_vr_adgun_tank_worn))
     {
-        if(cvar("developer"))
+        if(cvar_hget(cvarh_developer))
         {
             dprint(sprintf("adgun: %s's worn tank goes (its gun gone or spent, or it died)\n", m.classname));
         }
@@ -129,7 +129,7 @@ entity(entity p, entity m) VR_FuelTank_WornMake =
         t.th_pain = VR_FuelTank_WornPain;
     }
     vr_fueltank_worn_made++;
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("adgun: %s wears %s's tank\n", m.classname, p.netname));
     }
@@ -140,7 +140,7 @@ entity(entity p, entity m) VR_FuelTank_WornMake =
 void(entity xProp) VR_FuelTank_Wear =
 {
     entity m = xProp.owner;
-    if(!cvar("vr_adgun_tank_worn") || !VR_FuelTank_Fuelled(xProp.weapon) || (xProp.weaponflags & QVR_WPNFLAG_TANK_BURST) ||
+    if(!cvar_hget(cvarh_vr_adgun_tank_worn) || !VR_FuelTank_Fuelled(xProp.weapon) || (xProp.weaponflags & QVR_WPNFLAG_TANK_BURST) ||
        m.vr_ag_prop != xProp || m.health <= 0)
     {
         return; // (a tank it had goes by its own think)

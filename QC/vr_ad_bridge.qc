@@ -225,7 +225,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 // arrays, fall and gravity rules, the particle chain), with the world as self.
 void() AD_WorldSpawn =
 {
-    vr_ad_data = (VR_Pack_AD() && cvar("vr_ad_mounted") != 0);
+    vr_ad_data = (VR_Pack_AD() && cvar_hget(cvarh_vr_ad_mounted) != 0);
     precache_sound("vr/widowmaker_shot.wav"); // (the Widowmaker's shot: AD_FireWidowmaker; its stand-in model too)
     precache_sound("vr/derived/plasma_fire.wav"); // (the Plasma Gun's shot without AD's data: AD_PlasmaFireSound)
     if(vr_ad_data)
@@ -300,7 +300,7 @@ void() AD_Frame =
         ad_framecount = ad_framecount + 1;
     }
     AD_EvilFrame(); // (AD's Evil skill: AD's skill 4 for its code; a loaded game's choice; vr_ad_player.qc)
-    float request = cvar("vr_ad_test");
+    float request = cvar_hget(cvarh_vr_ad_test);
     if(request)
     {
         cvar_set("vr_ad_test", "0");
@@ -924,7 +924,7 @@ void(entity targ, entity attacker) AD_MonsterKilled =
 float() AD_ProjectileRules =
 {
     float mode = cvar("vr_ad_projectiles");
-    if(mode == 1 || !cvar("vr_ad_mounted"))
+    if(mode == 1 || !cvar_hget(cvarh_vr_ad_mounted))
     {
         return FALSE;
     }
@@ -1443,7 +1443,7 @@ float(float xHand, float xFlags) AD_PlasmaGun =
 // game's own as it loads (vr_audio.cpp layeredSounds; AD's was never precached: no sound at all, his note 2026-10-29).
 string() AD_PlasmaFireSound =
 {
-    return cvar("vr_ad_mounted") ? ad_SOUND_PLASMA_FIRE : "vr/derived/plasma_fire.wav";
+    return cvar_hget(cvarh_vr_ad_mounted) ? ad_SOUND_PLASMA_FIRE : "vr/derived/plasma_fire.wav";
 };
 
 // The Plasma Gun's shot (W_Attack, every 0.2 s): a plasma bolt from the muzzle, a cell; under water it misfires.

@@ -85,7 +85,7 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
         VR_SoundVaried(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
         particle2(self.vr_stick_at, '0 0 0', QVR_PARTICLE_PRESET_BULLETPUFF, 12);
     }
-    if(cvar("vr_debug_axestick"))
+    if(cvar_hget(cvarh_vr_debug_axestick))
     {
         dprint(sprintf("axestick: %s stuck in %s (kind %g) at %.0f u/s, thrown by %s\n", self.netname,
             other == world ? "the level" : other.classname, xKind, xSpeed, self.vr_stick_by.classname));
@@ -126,7 +126,7 @@ void(entity e) VR_AxeStick_PulledOut =
     {
         particle2(e.vr_stick_at, e.vr_stick_dir * -20, QVR_PARTICLE_PRESET_BULLETPUFF, 8);
     }
-    if(cvar("vr_debug_axestick"))
+    if(cvar_hget(cvarh_vr_debug_axestick))
     {
         dprint(sprintf("axestick: %s pulled out of %s\n", e.netname, e.vr_stick_ent == world ? "the level" :
             e.vr_stick_ent.classname));
@@ -137,7 +137,7 @@ void(entity e) VR_AxeStick_PulledOut =
 void(entity e) VR_AxeStick_Fall =
 {
     entity h = e.vr_stick_ent;
-    if(cvar("vr_debug_axestick"))
+    if(cvar_hget(cvarh_vr_debug_axestick))
     {
         dprint(sprintf("axestick: %s falls out of %s (its health %g)\n", e.netname, h == world ? "the level" : h.classname,
             h.health));
@@ -159,7 +159,7 @@ void(entity e, entity xPlayer, float xHand) VR_AxeStick_Tug =
     e.vr_stick_tugger = xPlayer;
     e.vr_stick_tughand = xHand;
     haptic(xHand, 0.0, max(0.05, e.vr_stick_tug - time), 40, 0.8);
-    if(cvar("vr_debug_axestick"))
+    if(cvar_hget(cvarh_vr_debug_axestick))
     {
         dprint(sprintf("axestick: %s tugged by a force grab (%.2f s)\n", e.netname, e.vr_stick_tug - time));
     }
@@ -229,7 +229,7 @@ void() VR_AxeStick_Think =
             {
                 h.th_pain = pain;
             }
-            if(cvar("vr_debug_axestick"))
+            if(cvar_hget(cvarh_vr_debug_axestick))
             {
                 dprint(sprintf("axestick: %s bleeds %s at %.2f s: health %g -> %g (%g a second, by %s)\n", self.netname,
                     h.classname, time, before, h.health, rate, by.classname));

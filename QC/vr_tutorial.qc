@@ -424,7 +424,7 @@ float(entity xRestock) VR_Restock_Near =
 void() VR_Restock_Put =
 {
     float near = VR_Restock_Near(self);
-    if(cvar("developer") >= 2)
+    if(cvar_hget(cvarh_developer) >= 2)
     {
         dprint(sprintf("restock: %g %s near %v (of %g)\n", near, self.contents, self.origin, self.count));
     }

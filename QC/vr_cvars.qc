@@ -1217,6 +1217,32 @@ float cvarh_vr_hit_react_debug;
 float cvarh_vr_ragimpact_crush_push;
 float cvarh_vr_knockdown_keep_time;
 float cvarh_vr_knockdown_keep_max;
+float cvarh_vr_enemy_melee_space;
+float cvarh_vr_enemy_melee_arc_show;
+float cvarh_vr_enemy_melee_arc;
+float cvarh_vr_ad_test;
+float cvarh_vr_adgun_tank_world;
+float cvarh_developer;
+float cvarh_vr_flail_world;
+float cvarh_vr_ad_mounted;
+float cvarh_vr_ad_evil;
+float cvarh_vr_adgun_tank_worn;
+float cvarh_vr_enemy_aim_cone;
+float cvarh_vr_enemy_aim_angle;
+float cvarh_vr_enemy_aim_fire;
+float cvarh_vr_enemy_aim_debug;
+float cvarh_vr_enemy_aim_delay;
+float cvarh_vr_enemy_aim_show;
+float cvarh_vr_debug_axestick;
+float cvarh_vr_burn_map_monsters;
+float cvarh_vr_kdtrig_test;
+float cvarh_vr_test_guard;
+float cvarh_vr_deadanim_test;
+float cvarh_vr_head_flies;
+float cvarh_vr_admelee_heavy_1h;
+float cvarh_vr_crate_piece_time;
+float cvarh_vr_carry_slam_damage;
+float cvarh_vr_adgun_stream_fire;
 
 //
 //
@@ -1231,6 +1257,32 @@ void() VR_CVars_InitAllHandles =
 
 #define VR_CVAR_HMAKE(xName) \
     cvarh_ ## xName = cvar_hmake(#xName)
+    VR_CVAR_HMAKE(vr_enemy_melee_space);
+    VR_CVAR_HMAKE(vr_enemy_melee_arc_show);
+    VR_CVAR_HMAKE(vr_enemy_melee_arc);
+    VR_CVAR_HMAKE(vr_ad_test);
+    VR_CVAR_HMAKE(vr_adgun_tank_world);
+    VR_CVAR_HMAKE(developer);
+    VR_CVAR_HMAKE(vr_flail_world);
+    VR_CVAR_HMAKE(vr_ad_mounted);
+    VR_CVAR_HMAKE(vr_ad_evil);
+    VR_CVAR_HMAKE(vr_adgun_tank_worn);
+    VR_CVAR_HMAKE(vr_enemy_aim_cone);
+    VR_CVAR_HMAKE(vr_enemy_aim_angle);
+    VR_CVAR_HMAKE(vr_enemy_aim_fire);
+    VR_CVAR_HMAKE(vr_enemy_aim_debug);
+    VR_CVAR_HMAKE(vr_enemy_aim_delay);
+    VR_CVAR_HMAKE(vr_enemy_aim_show);
+    VR_CVAR_HMAKE(vr_debug_axestick);
+    VR_CVAR_HMAKE(vr_burn_map_monsters);
+    VR_CVAR_HMAKE(vr_kdtrig_test);
+    VR_CVAR_HMAKE(vr_test_guard);
+    VR_CVAR_HMAKE(vr_deadanim_test);
+    VR_CVAR_HMAKE(vr_head_flies);
+    VR_CVAR_HMAKE(vr_admelee_heavy_1h);
+    VR_CVAR_HMAKE(vr_crate_piece_time);
+    VR_CVAR_HMAKE(vr_carry_slam_damage);
+    VR_CVAR_HMAKE(vr_adgun_stream_fire);
 
     VR_CVAR_HMAKE(deathmatch);
     VR_CVAR_HMAKE(fraglimit);

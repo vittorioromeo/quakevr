@@ -19,7 +19,7 @@ float() AD_Rules =
 // AD support: independent safe feature scope; does not change map detection or required world logic.
 float(float scope) VR_AD_FeatureScope =
 {
-    return cvar("vr_ad_mounted") && (scope == 2 || (scope == 1 && AD_Rules()));
+    return cvar_hget(cvarh_vr_ad_mounted) && (scope == 2 || (scope == 1 && AD_Rules()));
 };
 
 // AD's weapon upgrades' scope (Weapon Upgrades, vr_ad_upgrades): 1 ("With AD Content") is AD maps, and any map while

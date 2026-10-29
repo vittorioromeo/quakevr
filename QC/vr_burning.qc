@@ -1751,7 +1751,7 @@ void(entity e) VR_Burn_MapBodyLook =
 
 void() VR_Burn_MapBodiesFrame =
 {
-    if(cvar("vr_burn_map_monsters") <= 0)
+    if(cvar_hget(cvarh_vr_burn_map_monsters) <= 0)
     {
         return;
     }

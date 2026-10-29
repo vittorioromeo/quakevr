@@ -452,7 +452,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     // the handle; and the offset on top): the engine keeps them from here, and places it again when they change.
     xBox.carry_offset = carrygrip(xBox, xPlayer, xHand, !rightHand, handRot, xBox.carry_offset);
     xBox.carry_trigger = VRGetEntFireButtonPressed(xPlayer, xHand);
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("carry: %s held at %v (forward, right, up) of the hand, turned %v\n", xBox.classname,
             xBox.carry_offset, xBox.angles));
@@ -898,7 +898,7 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
             self.vr_gib_bornin = other; // (one: a player before a monster)
             self.vr_gib_bornin_t = time;
         }
-        if(cvar("developer")) dprint(sprintf("prop: %s made %.2f s ago met %s: no harm yet (vr_gib_spawn_harmless)\n", self.classname,
+        if(cvar_hget(cvarh_developer)) dprint(sprintf("prop: %s made %.2f s ago met %s: no harm yet (vr_gib_spawn_harmless)\n", self.classname,
             time - self.vr_gib_made, other.classname));
         vr_fling_gibspared++;
         return FALSE;
@@ -941,7 +941,7 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
     {
         if(time < self.vr_monster_drop + max(0, cvar_hget(cvarh_vr_prop_drop_grace)))
         {
-            if(cvar("developer")) dprint(sprintf("prop: %s a monster dropped %.2f s ago met %s: no harm yet (vr_prop_drop_grace)\n", self.classname,
+            if(cvar_hget(cvarh_developer)) dprint(sprintf("prop: %s a monster dropped %.2f s ago met %s: no harm yet (vr_prop_drop_grace)\n", self.classname,
                 time - self.vr_monster_drop, other.netname));
             vr_fling_dropspared++;
             return FALSE;
@@ -954,7 +954,7 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
         float falling = self.velocity_z < 0 && -self.velocity_z >= vlen(flat);
         if(cvar_hget(cvarh_vr_prop_drop_falls_only) && !falling && self.carry_letgo == world && holder == world)
         {
-            if(cvar("developer")) dprint(sprintf("prop: %s a monster dropped met %s at %v, not falling nor thrown: no harm (vr_prop_drop_falls_only)\n",
+            if(cvar_hget(cvarh_developer)) dprint(sprintf("prop: %s a monster dropped met %s at %v, not falling nor thrown: no harm (vr_prop_drop_falls_only)\n",
                 self.classname, other.netname, self.velocity));
             vr_fling_dropspared++;
             return FALSE;
@@ -996,10 +996,10 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
     {
         vr_fling_gibhits++;
     }
-    if(cvar("developer")) dprint(sprintf("prop: flung %s (%.1f kg, a gib made %.2f s ago) into %s at %.0f u/s (its own %.0f): %.1f damage", self.classname, mass,
+    if(cvar_hget(cvarh_developer)) dprint(sprintf("prop: flung %s (%.1f kg, a gib made %.2f s ago) into %s at %.0f u/s (its own %.0f): %.1f damage", self.classname, mass,
         self.vr_gib ? time - self.vr_gib_made : -1,
         other.classname, xSpeed, xOwnSpeed, dmg));
-    if(cvar("developer")) dprint(sprintf(" (base %.1f x%.2f, speed x%.2f, weight x%.2f), by %s\n", base, own, speedMult, weightMult,
+    if(cvar_hget(cvarh_developer)) dprint(sprintf(" (base %.1f x%.2f, speed x%.2f, weight x%.2f), by %s\n", base, own, speedMult, weightMult,
         attacker == world ? "nobody" : attacker.netname));
     VR_SoundVaried(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
     VR_Blunt_HitLayer(self, CHAN_AUTO, other);
@@ -1712,7 +1712,7 @@ void() VR_Carry_TwoHandFrame =
         vector keptFrom = box.origin;
         carry2hkeep(box, self, keep); // onto its grip in that hand (pulled off: carry2hoff has done it)
         VR_Carry_Regrip(keep, box);
-        if(cvar("developer"))
+        if(cvar_hget(cvarh_developer))
         {
             dprint(sprintf("carry: kept by hand %g, moved %.2f units by the let-go\n", keep, vlen(box.origin - keptFrom)));
         }

@@ -382,7 +382,7 @@ void(float xHand, entity b) VR_Deflect = // (b: VR_Blow(xHand))
     }
 
     float window = max(0, cvar_hget(cvarh_vr_deflect_window));
-    float logging = cvar("developer") >= 1;
+    float logging = cvar_hget(cvarh_developer) >= 1;
     if(time - b.bat_newest > window && !logging) // (bat_t[bat_i], without the array's accessor call)
     {
         return; // no batting swing lately

@@ -47,7 +47,7 @@ void(float xKind) VR_ADMelee_Ensure =
     entity e = spawn();
     setmodel(e, VR_ADMelee_Model(xKind));
     remove(e);
-    if(xKind == VR_ADMELEE_FLAIL && cvar("vr_ad_mounted"))
+    if(xKind == VR_ADMELEE_FLAIL && cvar_hget(cvarh_vr_ad_mounted))
     {
         precache_sound("gibs/gibchain.wav"); // (its chain's rattle: VR_Flail_Rattle)
         precache_model("progs/w_blueflail.mdl#flailhead"); // (its head lying about: VR_FlailHead_Attach)
@@ -187,7 +187,7 @@ string VR_FLAIL_RATTLE = "gibs/gibchain.wav"; // (AD's: its flail's gib's)
 // sound from `p`, louder the faster (`xSpeed` m/s).
 void(entity p, float xHand, float xSpeed) VR_Flail_Rattle =
 {
-    if(!cvar("vr_flail_rattle") || !cvar("vr_ad_mounted"))
+    if(!cvar("vr_flail_rattle") || !cvar_hget(cvarh_vr_ad_mounted))
     {
         return;
     }
@@ -321,13 +321,13 @@ entity(entity h) VR_FlailHead_Handle =
 void() VR_FlailHead_Think =
 {
     entity w = VR_FlailHead_Handle(self);
-    if(!w || !cvar("vr_flail_world"))
+    if(!w || !cvar_hget(cvarh_vr_flail_world))
     {
         if(w)
         {
             w.vr_fuellink = world;
         }
-        if(cvar("developer"))
+        if(cvar_hget(cvarh_developer))
         {
             dprint(sprintf("admelee: a flail's head at %v goes with its handle\n", self.origin));
         }
@@ -351,7 +351,7 @@ void() VR_FlailHead_Think =
 void(float xSpeed) VR_FlailHead_Impact =
 {
     entity w = VR_FlailHead_Handle(self);
-    if(cvar("developer") && other != world)
+    if(cvar_hget(cvarh_developer) && other != world)
     {
         dprint(sprintf("admelee: a flail's head met %s at %.1f m/s (its owner %s, grace %.2f s)\n", other.classname, xSpeed,
             self.owner.classname, self.vr_flailhead_grace ? self.vr_flailhead_grace - time : 0));
@@ -372,7 +372,7 @@ void(float xSpeed) VR_FlailHead_Impact =
 
 void(entity xGun, entity xFrom) VR_FlailHead_Attach =
 {
-    if(!VR_FlailHead_IsFlail(xGun) || !cvar("vr_flail_world") || !cvar("vr_ad_mounted") || VR_FlailHead_Of(xGun))
+    if(!VR_FlailHead_IsFlail(xGun) || !cvar_hget(cvarh_vr_flail_world) || !cvar_hget(cvarh_vr_ad_mounted) || VR_FlailHead_Of(xGun))
     {
         return; // (without AD's data there is no head to make: the handle is the knight's sword standing in)
     }
@@ -447,7 +447,7 @@ void(entity xGun, entity xFrom) VR_FlailHead_Attach =
     h.think = VR_FlailHead_Think;
     h.nextthink = time + 0.01;
     vr_flailhead_made++;
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("admelee: a flail's head made at %v, %.1f from its handle (%s)\n", at, vlen(at - xGun.origin),
             h.vr_flailhead_grace ? "the hand's" : "beside it"));
@@ -488,7 +488,7 @@ void() VR_FlailHead_Frame =
         return;
     }
     vr_flailhead_next = time + 0.5;
-    if(!cvar("vr_flail_world") || !cvar("vr_ad_mounted"))
+    if(!cvar_hget(cvarh_vr_flail_world) || !cvar_hget(cvarh_vr_ad_mounted))
     {
         return;
     }
@@ -709,7 +709,7 @@ void() VR_ADMelee_Think =
     float two = VR_ADMelee_Blow(p, cVR_MainHand, TRUE);
     if(VR_ADMelee_Heavy(k))
     {
-        float share = cvar("vr_admelee_heavy_1h");
+        float share = cvar_hget(cvarh_vr_admelee_heavy_1h);
         VR_ADMelee_Report(sprintf("one hand %.1f, two hands %.1f (one hand's share %.2f, set %.2f)", one, two,
             two > 0 ? one / two : 0, share), two > 0 && fabs(one / two - share) < 0.02);
     }
@@ -1041,7 +1041,7 @@ void(float request, entity p) VR_FlailHead_Test =
 
 void(float request, entity p) AD_MeleeTest =
 {
-    if(!cvar("vr_ad_mounted"))
+    if(!cvar_hget(cvarh_vr_ad_mounted))
     {
         bprint("admelee: Arcane Dimensions' data is not loaded\n");
         return;
@@ -1136,7 +1136,7 @@ void(float request, entity p) AD_MeleeTest =
     }
     vr_admelee_step = 0;
     vr_admelee_ok = TRUE;
-    vr_admelee_grip = cvar("vr_weapon_grip_mode");
+    vr_admelee_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
     cvar_set("vr_weapon_grip_mode", "1"); // (the weapons stay in hands not gripping; as it was again at the end)
     t.think = VR_ADMelee_Think;
     t.nextthink = time + 0.1;

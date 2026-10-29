@@ -1,6 +1,8 @@
 ../quakevr/progs.dat
 
 defs.qc
+// The cvar handles (cvarh_*, VR_CVars_InitAllHandles) right after the defs: every file can read them.
+vr_cvars.qc
 vr_packutil.qc
 // The weapons' records (each weapon's id and magazine): the hands' clip accessors below use them.
 vr_weaponinst.qc
@@ -37,7 +39,6 @@ items.qc
 subs.qc
 
 vr_ammoutil.qc
-vr_cvars.qc
 vr_gameutil.qc
 vr_itemutil.qc
 vr_macros.qc
