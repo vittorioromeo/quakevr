@@ -31,7 +31,7 @@ entity(vector org, vector dir) launch_lava_spike =
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
     setorigin(newmis, org);
 
-    newmis.velocity = dir * 1750;
+    newmis.velocity = dir * VR_NailSpeed(); // QVR: as launch_spike's (1750 until round 23)
     VR_ShotPush_Launch(newmis, QVR_SHOTPUSH_NAIL); // VR: pushes the prop it hits or flies through
 
     return newmis;

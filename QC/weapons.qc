@@ -3286,6 +3286,16 @@ launch_spike
 Used for both the player and the ogre
 ===============
 */
+// QVR: the nailguns' nails' speed (vr_nail_speed: 2065, 18% above Quake VR's 1750 of before round 23; id's 1000), the
+// player's and every monster's firing them through launch_spike or launch_lava_spike (a caller may set its own after).
+float() VR_NailSpeed =
+{
+    return max(100, cvar_hget(cvarh_vr_nail_speed));
+};
+#ifdef QVR_TESTS
+void() VR_NailTest_Frame; // vr_nail_test: the nails' speed, size and hit box (vr_nail_test.qc)
+#endif
+
 entity(vector org, vector dir) launch_spike =
 {
     entity newmis;
@@ -3306,7 +3316,7 @@ entity(vector org, vector dir) launch_spike =
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
     setorigin(newmis, org);
 
-    newmis.velocity = dir * 1750;
+    newmis.velocity = dir * VR_NailSpeed(); // QVR: 1750 until round 23 (id's 1000)
     VR_ShotPush_Launch(newmis, QVR_SHOTPUSH_NAIL); // VR: pushes the prop it hits or flies through
     VR_Stealth_GrazeMissile(newmis); // QVR: its line passing near a monster alerts it (vr_stealth.qc)
     return newmis;
