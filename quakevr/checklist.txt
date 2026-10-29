@@ -14,6 +14,10 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Per-weapon recoil: Weapon Offsets > Effects' Recoil Kick Back and Recoil Muzzle Rise change only that weapon's kick back and muzzle rise; at 1x it feels as before.
+Relighting > Ambient Light Level 32, then Relight This Map: no pitch-black corners, the rest looks as before.
+Nails: drawn ~35% smaller and 18% faster for you and enemies, still hitting what they visibly touch; enemy nails still dodgeable (look: vr_nail_test 2).
+Rig Studio off-hand: a pistol grunt's Carry/Run set On the Gun cups the gun without the arm clipping the torso; Free hangs; rifle Pickup On the Gun cups the right hand.
 An enemy-dropped gun you never held shows the right ammo screen colour (orange low, red empty) before you pick it up
 Ammo screens on holstered and dropped guns also turn orange when low and red when empty (once the gun has been in your hand)
 Survival Arena lit brighter: vrarena read too dark, so the 12 column lamps now light and each cardinal wall gets three sconces (a plate on the rail with a lamp on it); mean surface brightness 69 to 109 of 255, the fight floor 57 to 96, the stairs 51 to 60 - too bright anywhere? the walkway decks washed out?
