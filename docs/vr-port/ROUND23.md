@@ -932,8 +932,9 @@ Rows: HUD and Menus > Screens, "Weapons' Ammo Screens" (Low Ammo Colours, Low/Em
 What counts (vr_view_weapon.cpp `ammoWarning`): with reloading on, the magazine's rounds against its size (shotgun 8,
 nailgun 24, nail pistol 12, revolver 6, the Widowmaker's tube 16, super shotgun 2: one shell left is not low, only
 none); the reserve never counts. With reloading off, the ammo it fires from against a magazine's worth. Guns whose counter
-is their own clip with no size (an enemy's gun, the flare gun) and the chainsaw's fuel go red only at 0. Only the held
-guns' screens (both hands); holstered and lying guns keep the screen's colour. The text tint goes through text3d's
+is their own clip with no size (an enemy's gun, the flare gun) and the chainsaw's fuel go red only at 0. The held guns' screens (both hands) and, since agent/ammocolor2, the holstered and lying guns' too
+(`idleAmmoWarning`: a holster's own loaded count, a lying gun's stored clip, the same rule; the magazine size is known
+once the gun has been in a hand). The text tint goes through text3d's
 `queue(..., tint)`: the CRT image is keyed on it too, the face stays the screen's (with White Ammo Screen Text off, the CRT
 phosphor takes the tint, so the face is tinted as well).
 
@@ -941,6 +942,8 @@ Test: `vr_ammocolor_test 1` (Debug > Tests > Ammo Screen Colours; `vr_ammo_color
 and colour) on e1m1: 16 passed, 0 failed (shotgun, nailgun, nail pistol, revolver full / a fifth / empty, the off hand,
 the option off = the screen's colour). The Widowmaker cases skip without AD mounted (this base has no AD maps). Ends by
 `-QuitOn "ammocolor: .* passed"`. Eyeshot: the shotgun's "1/8" in orange (`vr_ammocolor_test 2`).
+ammocolor2: cases 19..24 (a holstered shotgun full / a fifth / empty; a lying one at a fifth / empty / empty with the
+option off; readouts vr_ammo_color_seen3 / _seen4): 22 passed, 0 failed.
 
 **In VR**: fire a shotgun down to its last shell (orange) and empty (red); a reload brings the screen's colour back.
 The nail pistol and revolver have no ammo screen by default (their Ammo Screen weapon setting): shown, they warn too.
