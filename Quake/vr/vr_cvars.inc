@@ -2811,7 +2811,11 @@ QVR_CVAR(vr_flare_sparks, "1", CVAR_ARCHIVE)          // their sparks and smoke 
 // The nail pistol (QC vr_nailpistol.qc; Combat > Weapon Damage > Nail Pistol): one-handed, semi-automatic (a shot a pull
 // of the trigger), a magazine in its grip fed from your nails (immersive reloading: ejected, a new one from the pouch,
 // slapped in), fast precise nails.
-QVR_CVAR(vr_nailpistol_speed, "2600", CVAR_ARCHIVE)    // its nails' speed, units a second (the nailgun's 1750), plus the hand's
+QVR_CVAR(vr_nailpistol_speed, "3070", CVAR_ARCHIVE)    // its nails' speed, units a second (the nailgun's vr_nail_speed), plus the hand's (2600 until round 23: 18% faster)
+// The nailgun's and the super nailgun's nails (QC launch_spike, launch_lava_spike), the player's and every monster's
+// that fires them (armed grunts, Scourges, Gremlins): units a second, plus the hand's. Quake's 1000; Quake VR's 1750
+// until round 23 ("15-20%" faster: 2065). Not a trap's (500) nor Arcane Dimensions' monsters' (AD's own speeds).
+QVR_CVAR(vr_nail_speed, "2065", CVAR_ARCHIVE)
 QVR_CVAR(vr_nailpistol_cooldown, "0.12", CVAR_ARCHIVE) // s at least from a shot to the next (each a new pull)
 QVR_CVAR(vr_nailpistol_spread, "0.25", CVAR_ARCHIVE)   // degrees its nails stray at most from its aim
 QVR_CVAR(vr_nailpistol_mag, "12", CVAR_ARCHIVE)        // the rounds its magazine holds (a nail each)
@@ -4912,6 +4916,11 @@ QVR_CVAR(vr_grenade_scale, "0.78", CVAR_ARCHIVE)
 // others' (the author's note vrfiringrange_2026-10-08_14-30-12: 35-40% smaller, the prop and the projectile).
 QVR_CVAR(vr_prox_scale, "0.47", CVAR_ARCHIVE)
 QVR_CVAR(vr_rocket_scale, "0.65", CVAR_ARCHIVE)
+// vr_nail_scale: the nails in flight drawn at this size (the author's backlog: "30-40%" smaller): the nailgun's and the
+// traps' progs/spike.mdl, the super nailgun's progs/s_spike.mdl, Dissolution of Eternity's lava nails
+// (progs/lspike.mdl) and, AD support, Arcane Dimensions' (progs/proj_ng.mdl, proj_ngred.mdl, proj_sng.mdl), whoever
+// fires them. Drawn only: a nail meets things as a point (QC launch_spike's setsize 0), the monster's model as drawn.
+QVR_CVAR(vr_nail_scale, "0.65", CVAR_ARCHIVE)
 // Their muzzles' load points moved (the gun's model units: +x forward, +y left, +z up) and their radius (world units: a
 // round's butt, a proximity grenade's middle, within it goes in). gl: the grenade launcher's (and the multi-grenade
 // one's); prox: the proximity launcher's; rl: the rocket launcher's (and the multi-rocket one's).
@@ -5166,6 +5175,7 @@ QVR_CVAR(vr_mg3_ctest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: C
 QVR_CVAR(vr_flare_test, "0", CVAR_NONE) // Debug > Tests > Flare Gun: 1 its self-test, 2 one in your hand, 3 in both, 4 in the right hip and upper holsters, 5 its muzzles' test, 6 the eyeshots' scene (9: in the dark), 7 the crates' flare guns planned twice (QC/vr_flaregun_test.qc; "flaretest: N passed, M failed"; not archived)
 QVR_CVAR(vr_rv_test, "0", CVAR_NONE) // Debug > Tests > Heavy Revolver: 1 its self-test (QC/vr_revolver_test.qc; "rvtest: N passed, M failed"), 2 one loaded in the main hand, 3 in both, 4 one swung out with live and spent shells, 5 an armed grunt with one (not archived)
 QVR_CVAR(vr_np_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 its self-test, 2 in your hand, 3 in both, 4 in the right hip and upper holsters (QC/vr_nailpistol_test.qc; "nptest: N passed, M failed"; not archived)
+QVR_CVAR(vr_nail_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 the nails' speed, hit box and drawn size test ("nailtest: N passed, M failed"), 2 three nails hung before your eyes for 30 s (QC/vr_nail_test.qc; not archived)
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
 QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1/MG3 route sweep driver: each new map's first frame runs mg1route<stage>.cfg (MG3: mg3route<stage>.cfg) once (0 off; the scripts raise it); not archived
 QVR_CVAR(vr_mg3_test, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Tests: 1 state report (developer campaign only; not archived)

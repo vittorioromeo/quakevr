@@ -80,13 +80,15 @@ struct NameEqual
 ankerl::unordered_dense::map<za::String, int, NameHash, NameEqual> slotCache;
 ankerl::unordered_dense::map<const qmodel_t*, int> modelSlotCache;
 
-// Which of the models drawn at their own sizes a model is (ownScale): Quake's grenades and the rocket in flight.
+// Which of the models drawn at their own sizes a model is (ownScale): Quake's grenades, the rocket and the nails in
+// flight.
 enum class Own : za::U8
 {
     None,
     Prox,
     Grenade,
     Rocket,
+    Nail,
 };
 
 // Which of them the model `name` is.
@@ -95,6 +97,12 @@ enum class Own : za::U8
     if(!name)
     {
         return Own::None;
+    }
+    // The nails in flight (vr_nail_scale): Quake's, Dissolution of Eternity's lava nails and, AD support, AD's.
+    if(!strcmp(name, "progs/spike.mdl") || !strcmp(name, "progs/s_spike.mdl") || !strcmp(name, "progs/lspike.mdl") ||
+        !strcmp(name, "progs/proj_ng.mdl") || !strcmp(name, "progs/proj_ngred.mdl") || !strcmp(name, "progs/proj_sng.mdl"))
+    {
+        return Own::Nail;
     }
     if(!strcmp(name, "progs/proxbomb.mdl"))
     {
@@ -492,6 +500,11 @@ namespace
     {
         return Own::Grenade;
     }
+    if(m.is(modelmeta::Id::Spike) || m.is(modelmeta::Id::SSpike) || m.is(modelmeta::Id::Lspike) ||
+        m.is(modelmeta::Id::AdProjNg) || m.is(modelmeta::Id::AdProjNgRed) || m.is(modelmeta::Id::AdProjSng)) // (AD support: AD's)
+    {
+        return Own::Nail;
+    }
     return m.is(modelmeta::Id::Missile) ? Own::Rocket : Own::None;
 }
 
@@ -505,6 +518,7 @@ namespace
         case Own::Prox: return za::clamp(vr_prox_scale.value, 0.2f, 2.f);
         case Own::Grenade: return za::clamp(vr_grenade_scale.value, 0.25f, 2.f);
         case Own::Rocket: return za::clamp(vr_rocket_scale.value, 0.25f, 2.f);
+        case Own::Nail: return za::clamp(vr_nail_scale.value, 0.25f, 2.f);
         default: return 1.f;
     }
 }

@@ -1427,6 +1427,9 @@ void resetHandMoves()
                   "and stuck), its hit boxes with it. 1: Quake's size; the other grenades' 0.78."),
         slider("Rocket Size in Flight", "vr_rocket_scale", 0.5f, 1.f, 0.01f, "%.2f").extend(0.25f, 2.f)
             .help("The rocket launcher's rocket in flight, nearer the size of the ammo pouch's rocket. 1: Quake's size."),
+        slider("Nail Size in Flight", "vr_nail_scale", 0.4f, 1.f, 0.01f, "%.2f").extend(0.25f, 2.f)
+            .help("Every nail in flight (the nailguns', the nail pistol's, the monsters' and the traps'), as drawn: they "
+                  "hit as a point either way. 1: Quake's size."),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), to tune the offsets live."),
         header("Grenade Launcher"),

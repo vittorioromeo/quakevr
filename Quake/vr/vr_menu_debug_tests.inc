@@ -1012,6 +1012,13 @@ za::Vector<Item> pageDebugTests()
             .help("A loaded nail pistol in the right hip and the right upper holster (replacing what was there)."),
         command("Nail Pistol Self-Test", "vr_np_test 1")
             .help("Headless checks: semi-automatic, the cooldown, 12 hits and a dry 13th, the slide, the magazine cycle, two headshots or three body shots a grunt, armed grunts firing one and a pair (\"nptest: N passed, M failed\")."),
+        command("Hang Nails Before Your Eyes", "vr_nail_test 2")
+            .help("The nailgun's, the super nailgun's and a lava nail (with Dissolution of Eternity) hung still 40 units ahead "
+                  "for 30 s, to judge their size (Nail Size in Flight)."),
+        command("Nail Speed and Size Test", "vr_nail_test 1")
+            .help("Headless: the nailguns', the nail pistol's and an armed grunt's nails' speed (15-20% above 1750 and "
+                  "2600), a nail's hit box (a point; a grunt met only within its box and the tolerance, the middle never "
+                  "missed) and the nails' drawn size (\"nailtest: N passed, M failed\")."),
         command("Nail Pistol Aim Test", "vr_np_test 5")
             .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "
                   "0.2 degrees, at several poses and distances, both hands (\"npaim: N passed, M failed\"). In the headset: "

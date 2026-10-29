@@ -1919,8 +1919,11 @@ void ikStretchReset()
         slider("Super Nailgun", vr_dmg_super_nail, 1.f, 100.f, 1.f, "%.0f a nail").extend().help("id's 18 (a head more)."),
         slider("Nail Pistol", vr_dmg_nailpistol, 1.f, 60.f, 1.f, "%.0f a nail").extend()
             .help("Quake VR's nail pistol: 12 kills a grunt (30) with two in the head (x1.5) or three in the body."),
-        slider("Nail Pistol Speed", vr_nailpistol_speed, 500.f, 6000.f, 100.f, "%.0f u/s").extend(100.f, 20000.f)
-            .help("Its nails' speed (the nailgun's 1750), plus the hand's."),
+        slider("Nail Speed", vr_nail_speed, 500.f, 6000.f, 5.f, "%.0f u/s").extend(100.f, 20000.f)
+            .help("The nailgun's and the super nailgun's nails, yours and the monsters' (Quake's 1000; 1750 until round "
+                  "23), plus the hand's."),
+        slider("Nail Pistol Speed", vr_nailpistol_speed, 500.f, 6000.f, 10.f, "%.0f u/s").extend(100.f, 20000.f)
+            .help("Its nails' speed (the nailgun's Nail Speed), plus the hand's."),
         slider("Nail Pistol Cooldown", vr_nailpistol_cooldown, 0.02f, 1.f, 0.01f, "%.2f s").extend(0.02f, 3.f)
             .help("Semi-automatic: a shot each pull of the trigger, at least this long apart."),
         slider("Nail Pistol Spread", vr_nailpistol_spread, 0.f, 5.f, 0.05f, "%.2f deg").extend(0.f, 30.f)

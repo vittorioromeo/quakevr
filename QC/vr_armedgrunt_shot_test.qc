@@ -299,7 +299,7 @@ void(float t) VR_AGS_TestFrame =
         if(vr_agst_shots >= vr_agst_count)
         {
             vr_agst_step = 3;
-            vr_agst_until = time + 0.1 + (vr_agst_kind == 2 ? vr_agst_dist / 1750 : 0); // (a nail's flight; a roll's frame)
+            vr_agst_until = time + 0.1 + (vr_agst_kind == 2 ? vr_agst_dist / VR_NailSpeed() : 0); // (a nail's flight; a roll's frame)
         }
         return;
     }

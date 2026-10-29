@@ -261,6 +261,7 @@ float cvarh_vr_dmg_super_shotgun;
 float cvarh_vr_dmg_nail;
 float cvarh_vr_dmg_nailpistol; // the nail pistol (vr_nailpistol.qc)
 float cvarh_vr_nailpistol_speed;
+float cvarh_vr_nail_speed; // the nailguns' nails (VR_NailSpeed: launch_spike, launch_lava_spike)
 float cvarh_vr_nailpistol_cooldown;
 float cvarh_vr_nailpistol_spread;
 float cvarh_vr_nailpistol_mag;
@@ -1485,6 +1486,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_dmg_nail);
     VR_CVAR_HMAKE(vr_dmg_nailpistol);
     VR_CVAR_HMAKE(vr_nailpistol_speed);
+    VR_CVAR_HMAKE(vr_nail_speed);
     VR_CVAR_HMAKE(vr_nailpistol_cooldown);
     VR_CVAR_HMAKE(vr_nailpistol_spread);
     VR_CVAR_HMAKE(vr_nailpistol_mag);

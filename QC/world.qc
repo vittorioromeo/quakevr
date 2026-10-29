@@ -619,6 +619,7 @@ void() StartFrame =
 #ifdef QVR_TESTS
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     VR_NailPistol_TestFrame(); // vr_np_test (vr_nailpistol_test.qc)
+    VR_NailTest_Frame(); // vr_nail_test (vr_nail_test.qc)
     VR_FlareGun_TestFrame(); // vr_flare_test (vr_flaregun_test.qc)
     VR_AmmoColor_TestFrame(); // vr_ammocolor_test (vr_ammocolor_test.qc)
     VR_Revolver_TestFrame(); // vr_rv_test (vr_revolver_test.qc)

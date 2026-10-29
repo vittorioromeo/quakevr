@@ -273,6 +273,35 @@ keyed on it. Test: `vr_ammocolor_test 1` (Debug > Tests > Ammo Screen Colours; `
 `2` an eyeshot. The nail
 pistol and revolver have no ammo screen by default (their Ammo Screen weapon setting).
 
+## 9b. Nails smaller and faster (`vr_props.cpp` `Own::Nail`, QC `VR_NailSpeed`, `QC/vr_nail_test.qc`)
+
+His backlog: nails "30-40%" smaller with an accurate hit box, and "15-20%" faster, the player's and the enemies'.
+
+- **Size, drawn only:** `vr_nail_scale` 0.65 (new; VR Settings, the Rocket Size in Flight page: "Nail Size in Flight"),
+  an own scale like `vr_rocket_scale` (props `drawnSize`): `progs/spike.mdl`, `s_spike.mdl`, `lspike.mdl` and, AD support,
+  AD's `proj_ng.mdl`, `proj_ngred.mdl`, `proj_sng.mdl` (new model IDs), whoever fires them (traps, Scourges, Gremlins,
+  armed grunts, MG3 and AD content). Engine-side, so AD's QC is untouched.
+- **Hit box: already accurate, unchanged.** Every nail is a point (`setsize` 0). With precise hits (default) it meets a
+  monster's drawn model grown by `vr_hit_tolerance_guns` 2; with `vr_hit_precise 0`, the monster's box grown by
+  `vr_gameplayfix_missilesize` 2 (quakevr.cfg; Quake's 15). The player's hit box for enemy nails. Nothing bigger than the
+  visible nail, so the smaller model needs no hit box change.
+- **Speed:** `vr_nail_speed` 2065 (new, Combat > Weapon Damage > "Nail Speed"; was a constant 1750, x1.18) in
+  `launch_spike` and `launch_lava_spike`: the nailgun, super nailgun and DoE lava nails, the player's and every monster's
+  that fires them that way (armed grunts' nailguns, Scourges, Gremlins). `vr_nailpistol_speed` 2600 -> 3070 (x1.18;
+  configVersion 215 moves configs still at 2600; his cfg holds 2600). Missiles have no per-axis `sv_maxvelocity` clamp
+  (only a 3464 u/s length bound), so 3070 plus the hand's is not bent.
+- **Not changed (decisions):** traps' nails (500 u/s: map timing), AD's own nail monsters (nail ogre, snowman, sentinel,
+  Freddie: AD's skill speeds, decision 9 "AD's rules stay with AD's content"), and callers that set their own speed after
+  `launch_spike` (wizard spit, hell knight bolts, Chthon, MG3 bosses: not nails).
+- **Test:** `vr_nail_test 1` (Debug > Tests > Nail Pistol > Nail Speed and Size Test; `developer 1`, vrtesthall,
+  `-QuitOn "nailtest: [0-9]+ passed"`): **7 passed, 0 failed**. Speeds flown (two frames' way): player nailgun, super
+  nailgun 2065, nail pistol 3070, armed grunt's nailgun 2065 (before: 1750, 1750, 2600, 1750: the same run with the old
+  values fails exactly those 4, x1.000). Hit box: a point; a sweep of nails at 2-unit offsets across a grunt met it
+  from -10..14 (precise) and -12..14 (boxes), the middle always, never past 18. Drawn: `vr_physics_list` "drawn x0.650"
+  (before x1.000). `vr_nail_test 2` hangs three nails 40 units before your eyes for 30 s (Debug > Tests > Nail Pistol).
+  Seen in the test: nails spawned side by side in the same frame meet each other as they leave (the sweep fires them
+  one at a time); no real weapon does that.
+
 ## 10. Suggested checklist lines still pending (coordinator owns `quakevr/checklist.txt`)
 
 - Survival Arena: map, wave director (readout, 5 s rest + 5 s countdown, teleport arrivals, never inside anything, guns
@@ -285,3 +314,5 @@ pistol and revolver have no ammo screen by default (their Ammo Screen weapon set
   bare, dents at 2/3 and scorch at 1/3, toolgun Armour/Pieces rows.
 - In VR: a walking armed grunt glides like the knights; strafing grunts turn hips and feet into the step; an ammo screen
   goes orange at the last shell and red when empty (also on holstered/lying guns).
+- Nails `{test:vr_nail_test 1}`: nails drawn ~35% smaller (Nail Size in Flight 0.65, `vr_nail_test 2` to look), 18%
+  faster for you and enemies (Nail Speed 2065, Nail Pistol Speed 3070), still hitting what they visibly touch.
