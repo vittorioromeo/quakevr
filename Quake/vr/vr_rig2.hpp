@@ -156,6 +156,10 @@ void drawInfo(); // vr_rig2_draw_info: the drawn subject's models (its .mdl, the
 // The .mdl of an entity drawn now on the authored rig (swapped to "<model>#rig2"), else nullptr: what it is shaded as
 // (its occluder, its occlusion group: vr_ao.cpp), as on the old rig.
 [[nodiscard]] const qmodel_t* sourceModel(const struct entity_s* e);
+// Entity `num` as drawn on the authored rig lately (drawLive, drawPosed): its .mdl's rest vertices (in the .mdl's order)
+// skinned with the bones it is drawn with, in its model space (units; placed as its skinned copy is). False: not drawn on it.
+// (The model collisions: vr_modelcollide.cpp, the hands held out of a live grunt as drawn.)
+bool liveVertices(int num, za::Vector<glm::vec3>& out);
 // The Rig Studio's subject posed on the authored rig lately (drawPosed this frame or the last), swapped or not: its .mdl,
 // else nullptr. (The swap is undone after each frame's drawing, so code before the next swap, VR_RelinkArmedGrunts, sees
 // the .mdl: sourceModel misses it there.)

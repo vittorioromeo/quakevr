@@ -15,6 +15,7 @@
 #include "vr_lines.hpp"
 #include "vr_profile.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_rig2.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -275,10 +276,42 @@ const Posed* posed(int num, const entity_t& e)
     // A ragdoll drawn with its skinned model (vr_ragdoll.cpp): its own .mdl's triangles, its vertices as the parts carry
     // them (in the world).
     const qmodel_t* rag = ragdoll::sourceModel(&e);
-    p.model = trianglesOf(rag ? rag : e.model);
+    // A live one drawn on the authored rig (the grunt, the enforcer: vr_rig2_game.cpp, swapped to its skinned copy while
+    // drawn): its .mdl's triangles, its rest vertices skinned with the bones it is drawn with, placed as the copy is.
+    const qmodel_t* live = rag ? nullptr : rig2::sourceModel(&e);
+    p.model = trianglesOf(rag ? rag : live ? live : e.model);
     if(!p.model)
     {
         return nullptr;
+    }
+    if(live)
+    {
+        const aliashdr_t* hdr = quakeAlias(live);
+        if(!hdr || !rig2::liveVertices(num, p.verts) || p.verts.size() != static_cast<za::SizeT>(hdr->numverts))
+        {
+            return nullptr;
+        }
+        const Lerped l = lerpOf(e, hdr); // (its place and turn only: the pose is the bones')
+        float m16[16];
+        vec3_t origin{l.origin.x, l.origin.y, l.origin.z}, angles{l.angles.x, l.angles.y, l.angles.z};
+        R_EntityMatrix(m16, origin, angles, e.scale);
+        VR_AliasPreTransform(&e, m16);
+        VR_AliasPostTransform(&e, m16); // (the copy's scale 1, its origin 0: makeSkinnedModel)
+        p.m = toMat4(m16);
+        p.vertsFrame = host_framecount;
+        p.lo = glm::vec3{1e30f};
+        p.hi = glm::vec3{-1e30f};
+        for(glm::vec3& v : p.verts)
+        {
+            v = glm::vec3{p.m * glm::vec4{v, 1.f}};
+            p.lo = glm::min(p.lo, v);
+            p.hi = glm::max(p.hi, v);
+        }
+        p.m = glm::mat4{1.f}; // (its vertices are in the world now, as a ragdoll's)
+        p.lo -= glm::vec3{0.5f};
+        p.hi += glm::vec3{0.5f};
+        p.valid = true;
+        return &p;
     }
     if(rag)
     {
