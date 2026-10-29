@@ -14,6 +14,7 @@ AD: Shadow Axe, Widowmaker, Plasma Gun pickups upgrade only that weapon (a plain
 AD interactions: laser buttons respond to hand/gun/prop; backpacks grab and holster; ladders use rungs or flat-wall fallback, no jump climbing with both hand-climb toggles on {test:ad_weapon_pickups}
 
 [new since the beta4 list: test these first]
+Ammo screens on holstered and dropped guns also turn orange when low and red when empty (once the gun has been in your hand)
 Survival Arena lit brighter: vrarena read too dark, so the 12 column lamps now light and each cardinal wall gets three sconces (a plate on the rail with a lamp on it); mean surface brightness 69 to 109 of 255, the fight floor 57 to 96, the stairs 51 to 60 - too bright anywhere? the walkway decks washed out?
 Survival Arena: wave text in the middle of the view, a 5 s rest and a 5 s countdown before each wave (boss waves named); is 10 s too long?
 Survival Arena: every foe, medkit and pedestal arrives with the teleport flash and sound, never inside anything
