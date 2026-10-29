@@ -10,6 +10,7 @@
 // names. The constants are made on the CPU: FsrEasuCon's and FsrRcasCon's formulas here, NIS_Config.h's
 // NVScalerUpdateConfig and coefficient tables as they are.
 
+#include "vr_glutil.hpp"
 #include "vr_upscale.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
@@ -258,31 +259,7 @@ void main()
         }
         return 0;
     }
-    const GLuint p = GL_CreateProgramFunc();
-    if(vs)
-    {
-        GL_AttachShaderFunc(p, vs);
-    }
-    GL_AttachShaderFunc(p, s);
-    VR_GLStep("link %s", name);
-    GL_LinkProgramFunc(p);
-    if(vs)
-    {
-        GL_DeleteShaderFunc(vs);
-    }
-    GL_DeleteShaderFunc(s);
-    GLint ok = 0;
-    GL_GetProgramivFunc(p, GL_LINK_STATUS, &ok);
-    if(!ok)
-    {
-        char log[2048];
-        GL_GetProgramInfoLogFunc(p, sizeof(log), nullptr, log);
-        Con_Warning("VR: %s shader failed to link:\n%s\n", name, log);
-        GL_DeleteProgramFunc(p);
-        return 0;
-    }
-    GL_ObjectLabelFunc(GL_PROGRAM, p, -1, name);
-    return p;
+    return gfx::linkProgram(vs, s, name);
 }
 
 template <za::SizeT N>
