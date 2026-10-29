@@ -1460,9 +1460,12 @@ void ikStretchReset()
         toggle("Arena In Any Map", vr_arena)
             .help("1: the waves run in this map too, off its info_arena_spawn and info_arena_item spots; the map vrarena "
                    "runs them without it (vr_arena)."),
-        slider("Rest Between Waves", vr_arena_wave_delay, 1.f, 60.f, 0.5f, "%.1f s")
-            .help("From a wave cleared to the next wave: this many seconds at Normal (by Difficulty Impact 6 is 8 at "
-                   "Easy, 4.8 at Hard, 4 at Nightmare) (vr_arena_wave_delay)."),
+        slider("Rest Between Waves", vr_arena_wave_rest, 1.f, 60.f, 0.5f, "%.1f s")
+            .help("From a wave cleared to the next wave's countdown: this many seconds at Normal (by Difficulty Impact "
+                   "5 is 6.7 at Easy, 4 at Hard, 3.3 at Nightmare) (vr_arena_wave_rest)."),
+        slider("Wave Countdown", vr_arena_countdown, 0.f, 10.f, 1.f, "%.0f s")
+            .help("After the rest, the next wave counts down in the middle of the view (Wave 7 in 5... 4... 3...), "
+                   "a boss wave naming its boss; the same at every difficulty. 0: no countdown (vr_arena_countdown)."),
         slider("Wave Size", vr_arena_wave_size, 0.25f, 4.f, 0.25f, "%.2fx")
             .help("A wave's crowds (its grunts, enforcers and the like) times this; its one signature foe and its boss "
                    "stay one. 1 is the ladder's own counts; at 1.75 (the default) wave 10 brings 10 foes instead of 6 "

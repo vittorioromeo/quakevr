@@ -944,3 +944,83 @@ the option off = the screen's colour). The Widowmaker cases skip without AD moun
 
 **In VR**: fire a shotgun down to its last shell (orange) and empty (red); a reload brings the screen's colour back.
 The nail pistol and revolver have no ammo screen by default (their Ammo Screen weapon setting): shown, they warn too.
+
+## Survival Arena: the polish -- the readout, the countdown, the arrivals, the weapon schedule (agent/arenapolish)
+
+Vittorio: wave text in the middle of the screen, a pause and a countdown before each wave, spawns you can see and hear,
+nothing spawning inside anything, and the guns arriving one at a time instead of all at wave 10. `QC/vr_arena.qc`:
+
+- **The readout in the view.** Every arena line (`VR_ARENA_PrintAll`, and the new `VR_ARENA_ShowAll`/`VR_ARENA_Show`)
+  is now the engine's view message (`viewmessage`: eye level in the headset, as VR Calibration's text and the
+  tutorial's; a held centre print on a flat screen), not `centerprint` (which the wrist hologram takes). Its first
+  line is highlighted: `WAVE 7` / `9 foes, 3 in armour` / `score 4150`; `WAVE 5 - BOSS WAVE`; `WAVE 6 CLEAR` / `9 foes
+  down` (held for the rest); `A BOSS IS COMING` / `an enforcer` (3 s); `YOU FELL AT WAVE 9` (9 s); `SURVIVAL ARENA` /
+  `Normal: you start unarmed` at the start. One message shows at a time, so wave start and its boss line are one
+  message now. The perks' lines go the same way (they call `VR_ARENA_PrintAll`). The console keeps a copy
+  (`ARENA> ...`, developer). The wrist gets nothing from the arena now.
+- **Rest, then a countdown.** `vr_arena_wave_delay` (6) is folded into `vr_arena_wave_rest` (5 s, the difficulty's
+  share as before: 6.7 / 5 / 4 / 3.3) and followed by `vr_arena_countdown` (5 s, the same at every difficulty; 0 none):
+  `Wave 7 in 5...` ... `in 1...`, one line a second; a boss wave says `BOSS WAVE 10 in 3...` / `an ogre` (two of them
+  at Nightmare). The run's first wave has the same rest (the opening line shows through it) and countdown, so a run
+  starts ~10 s after the map. `VR_ARENA_FastForward` (the tests' jump) skips both. Menu: Combat > Survival Arena > The
+  Waves: Rest Between Waves (now the rest) and the new Wave Countdown row (0..10).
+- **Arrivals.** Every foe, medkit, armour and perk pedestal comes in with the teleport flash (`TE_TELEPORT`) and one of
+  the five `misc/r_tele*.wav` (`play_teleport`) at its place, as it appears (`VR_ARENA_Tfog`; spawn_tfog's 0.2 s sound
+  wait dropped).
+- **No overlaps.** A place is taken if anything with a model that is not a brush stands in the foe's box there
+  (`VR_ARENA_BoxBlocker` over `findradius`: monsters of any wave, the player, items, guns lying about, props,
+  pedestals; fallen bodies are SOLID_NOT and do not count): its hull (64 wide for the ogre, fiend, death knight and
+  dog), 8 padded, and for a high place the 96 column it drops down. No free place this beat: the foe waits a beat
+  (`arena: no free place ... waiting`) rather than come in inside something. Medkits, armour and pedestals take their
+  point or a step 64 / 128 off it (8 ways) with ground under it and a clear box (`VR_ARENA_FreeNear`), walking on to the
+  next item point if needed. Every spawn is scanned once in (`VR_ARENA_ScanSpawn`, counts `ar_overlaps`), the foe's own
+  held gun excluded.
+- **The weapon schedule.** `VR_ARENA_PickGun` was three tiers gated at 10 and 18; now each gun has its own wave
+  (Normal's, moved by the difficulty like every gate: +3 Easy, -2 Hard, -4 Nightmare, never before wave 3) and comes in
+  as a trickle -- 2 waves on 1 foe, 2 waves on 2 foes, dealt over the wave's humanoids at random, newest first
+  (`VR_ARENA_PlanTrickle`) -- then joins the pool. In the pool a newcomer starts at 35% of its share and ramps to full
+  over 4 waves, holds 6, then fades 8% a wave to a 20% floor, so the shotguns and nail pistols thin out as the
+  launchers arrive. Bosses keep their own pick (`VR_ARENA_PickBossGun`, the old tiers). The mission packs' guns only
+  with their data (`VR_AG_Usable`). Kill score by rung is unchanged (the proximity gun and laser cannon count as the
+  third rung), so the super shotgun's early kills pay 200 from wave 3.
+
+| gun | eligible (Normal) | on 1 foe | on 2 foes | in the pool from |
+|---|---|---|---|---|
+| shotgun, nail pistol, axe (rare) | base | - | - | 3 (nail pistol: wave 2's own plan) |
+| super shotgun | 3 | 3-4 | 5-6 | 7 |
+| nailgun | 5 | 5-6 | 7-8 | 9 |
+| super nailgun | 7 | 7-8 | 9-10 | 11 |
+| grenade launcher | 10 | 10-11 | 12-13 | 14 |
+| proximity gun (Armagon's data only) | 12 | 12-13 | 14-15 | 16 |
+| rocket launcher | 13 | 13-14 | 15-16 | 17 |
+| lightning gun | 16 | 16-17 | 18-19 | 20 |
+| laser cannon (Armagon's data only) | 19 | 19-20 | 21-22 | 23 |
+
+  The armour schedule is unchanged and lines up: armour from 4, yellow from 12 (the super shotgun and nailgun are pool
+  guns by then, the super nailgun on its trickle), red from 22 (rockets and lightning in the pool).
+
+**Tests.** New: `vr_arena_test 12` (the schedule over 24 seeded runs x 30 waves at each skill, one run a frame: each
+gun first in hands at its table wave as the difficulty moves it, never before, every trickle wave carrying exactly 1
+then 2, bosses never dealt one, the packs' guns absent without their data, the pool weights' ramp and fade) **56/0**;
+`13` (vrarena: the box checks, then waves 8, 12, 16 live with the player standing on a spawn place and a medkit on
+every item point, every arrival scanned) **12/0**, 56 spawns scanned, 0 overlaps, every medkit found room; `14` (the
+rest and countdown timed: Normal 5.0 s + 5.0 s / 5 lines into boss wave 5, Hard 4.0 s + 5.0 s into wave 6) **7/0**.
+Changed by design: test 1's "waves 3-5 stay on the first rung" / "no second rung before 10, no third before 18" now
+check the schedule (wave 3 one super shotgun, wave 4 one again and no nailgun, wave 5 two and the first nailgun, wave
+10 the first grenade launcher, every wave on schedule); test 5's rung gates the same at each skill; test 9 reads the
+clear off `VR_ARENA_Between()` (the clear's think is the rest now); the tests pin `vr_arena_wave_rest 5` /
+`vr_arena_countdown 5`, test 6 and the perk tests run without the countdown. Results: 1 **257**, 2 **13**, 3 **9**, 4
+**7**, 5 **491**, 6 **8**, 7 **19**, 8 **3**, 9 **37**, 10 **160**, 11 **25**, perks 1-4 **19 / 15 / 45 / 14**, all 0
+failed; build 0 QC warnings. The scan first flagged the spawning foe's own held gun and a severed limb under its feet
+(the engine links boxes 1 unit wide, and the foe's check had no pad below): the scan excludes the foe's own gun and
+uses true boxes, the check pads its box 8 below too.
+
+**In VR**: the wave lines at eye level and readable (not on the wrist); the 5 s rest then the 5 s countdown -- too long
+or right?; the teleport flash and sound on each arrival, high foes included; the first super shotgun on wave 3 and how
+the guns arrive after it (does the run get harder at a fair pace, is the player's own ladder keeping up -- the trickle
+guns drop when their carrier dies); medkits beside last wave's leftovers rather than inside them.
+
+*Suggested `quakevr/checklist.txt` lines:* `+ Survival Arena: wave text in the middle of the view, a 5 s rest and a
+5 s countdown before each wave (boss waves named)`, `+ Survival Arena: every foe, medkit and pedestal arrives with the
+teleport flash and sound, never inside anything`, `+ Survival Arena: the guns arrive one at a time (super shotgun 3,
+nailgun 5, super nailgun 7, grenades 10, rockets 13, lightning 16), each first on one foe, then two, then the pool`
