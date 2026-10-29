@@ -28,6 +28,8 @@ Armour: shooting a plate on a dead or knocked-down armoured grunt breaks the pla
 Armour: armour debris can be picked up and thrown; it stays longer after being held; it can't be force-grabbed, worn or put away.
 Armour: cutting off or popping an armoured limb or head, or gibbing the body, throws its plates as debris; none vanish.
 Armour: shots on plates spark; blood only shows when damage got through.
+Armour helmets (Debug > Tests > Helmets There): grunt and enforcer helmets fit close to the head, eyes visible under the brow, no side flanges, head never through in ragdolls
+Armour limb plates: a hit on a thigh plate's knee end wears the thigh plate, not the shin's; a corpse's right leg wears and pops on its own
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
