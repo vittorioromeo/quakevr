@@ -2346,6 +2346,10 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
 
     src = self.origin + v_forward*10;
     src_z = self.absmin_z + self.size_z * 0.7;
+    if(vr_agr_native_from != '0 0 0')
+    {
+        src = vr_agr_native_from; // QVR: a dual wielder's own gun, from its muzzle (vr_armedrepl.qc VR_AGR_NativeShot)
+    }
     if(!VR_AI_ShotReady(src)) { return; }
     if(self.vr_ai_gate > 0)
         dir = normalize(VR_AI_Point(self.enemy.origin + self.enemy.view_ofs) - VR_AI_Vector(self.enemy.velocity) * 0.2 - src);

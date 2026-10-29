@@ -7,7 +7,8 @@
 // distance to you (least, mean), its time within 64 units (your melee reach), its shots and those fired walking, its
 // steps backing off: `agtest: range: <weapon> <case>: ...`. Checked (both vr_agrunt_range settings, 0 the before):
 // a gun's holder never within 64 of you standing, its mean distance at least its weapon's least (VR_AG_RangeOf) less
-// 20%; the axe's still reaches you (unchanged). `scratch1 N` (1..9): weapon N alone; with `scratch2 M`: weapons N..M.
+// 20%; you walking at it with an axe, it backs off (never within 64) or, you up close all the same, shoves you
+// (vr_agrunt_shove_close); the axe's still reaches you (unchanged). `scratch1 N` (1..9): weapon N alone; with `scratch2 M`: weapons N..M.
 
 float VR_AGRG_N = 10;
 float vr_agrg_saw_d;   // the chainsaw's first thrust: its distance then (0: none yet),
@@ -26,6 +27,7 @@ float vr_agrg_walkshots;
 float vr_agrg_lastshots;
 float vr_agrg_movedat;
 float vr_agrg_backs0;
+float vr_agrg_shoves0; // vr_ag_close_shoves at the case's start
 float vr_agrg_yaw0;
 float vr_agrg_keepw;
 float vr_agrg_keepw2;
@@ -101,6 +103,7 @@ void() VR_AGRG_Frame =
         vr_agrg_lastpos = g.origin;
         vr_agrg_movedat = -1;
         vr_agrg_backs0 = vr_ag_range_backs;
+        vr_agrg_shoves0 = vr_ag_close_shoves;
         vr_agrg_saw_d = 0;
         vr_agrg_saw_hit = 0;
         vr_agt_step = 2;
@@ -198,8 +201,12 @@ void() VR_AGRG_Frame =
     }
     else if(vr_agrg_case == 3)
     {
-        // (you walking at it with an axe: it backs off clearly, still firing now and then)
-        VR_AGT_Check(s, vr_agrg_inside == 0 && (vr_agrg_shots > 0 || VR_AG_Class(wid) == VR_AG_CLASS_EXPLOSIVE));
+        // (you walking at it with an axe: it backs off clearly, still firing now and then; you up close all the same,
+        // it steps in and shoves you: vr_agrunt_shove_close, VR_AG_ShoveCloseIn)
+        float shoves = vr_ag_close_shoves - vr_agrg_shoves0;
+        s = strcat(s, sprintf(" %g shoves:", shoves));
+        VR_AGT_Check(s, (vr_agrg_inside == 0 || shoves > 0) &&
+            (vr_agrg_shots > 0 || VR_AG_Class(wid) == VR_AG_CLASS_EXPLOSIVE));
     }
     else
     {

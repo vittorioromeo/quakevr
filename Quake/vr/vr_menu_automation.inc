@@ -233,6 +233,14 @@ za::Vector<Item> pageDebugAutomation()
                   "Shove pose): its phases' times, the push landing as its push phase ends, eyeshots as it lands and "
                   "held at its push key from its front and side (agtest: shove ... PASS). scratch2 1 first: a super "
                   "axe, a chainsaw, two crowbars, the fists, a rocket launcher instead."),
+        command("Armed Grunts: Shove Up Close", "vr_agrunt_test 89")
+            .help("vr_agrunt_test 89 (vrtesthall's start; about 30 s): a gun's holder with you in its shove's reach and "
+                  "just beyond it steps in and shoves (not backing off); a little further it backs off; far off as "
+                  "before (Combat > Enemy Shoves > Armed Shove: Step In; agtest: shove close ... PASS)."),
+        command("Armed Grunts: Dual Guns' Muzzles", "vr_agrunt_test 85")
+            .help("vr_agrunt_test 85 (vrtesthall's start; a few seconds): every dual-gun pair of a grunt and an enforcer "
+                  "(their own guns too) fires each gun in turn: each shot leaves its own gun's drawn muzzle, the left "
+                  "gun's from the left (agtest: muzzle ... PASS)."),
         command("Armed Grunts: Print Their State", "vr_agrunt_test 4"),
         command("Armed Grunts: AD's Weapons", "vr_agrunt_test 12")
             .help("vr_agrunt_test 12 (with Arcane Dimensions' data): as Every Weapon, AD's soldiers' guns, the Shadow "

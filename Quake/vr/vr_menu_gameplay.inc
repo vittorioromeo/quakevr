@@ -63,6 +63,10 @@
                   "hand pushing beside a one-handed gun, a long gun pushed across the body in both hands, the palms "
                   "out holding two weapons or the fists), with guns only (the default; melee and fist humanoids just "
                   "strike) or with every weapon and their fists; or as before (their model's shove frames, the arms held as they aim, guns only)."),
+        slider("Armed Shove: Step In", vr_agrunt_shove_close, 0.f, 64.f, 4.f, "%.0f units").extend(0.f, 160.f)
+            .help("A gun-holding armed humanoid steps in and shoves you when you are this far beyond Too Close or nearer "
+                  "(its shove ready), instead of backing off to its gun's distance; further, it backs off as before. "
+                  "0: it always backs off."),
         toggle("Vores Shove", vr_enemy_shove_vore)
             .help("Vores shove you too, swinging their arms down at you: the hardest shove of all. They reach a little "
                   "farther (they are wider)."),

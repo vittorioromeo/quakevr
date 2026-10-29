@@ -537,6 +537,8 @@ vr_arena_perks_test.qc // Survival Arena's perk tests (vr_arena_perks_test)
 vr_rigseq_test.qc
 vr_armedgrunt_posecat_test.qc
 vr_armedgrunt_shove_test.qc
+vr_armedgrunt_muzzle_test.qc
+vr_armedgrunt_shoveclose_test.qc
 vr_nailpistol_test.qc
 vr_nail_test.qc
 vr_flaregun_test.qc

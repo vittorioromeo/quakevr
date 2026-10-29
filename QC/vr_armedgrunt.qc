@@ -377,6 +377,73 @@ float(float dist) VR_AG_RangeMove =
     return TRUE;
 };
 
+// ----------------------------------------------------------------------------
+// Up close, a gun's holder shoves (vr_agrunt_shove_close; note 2026-10-29: "they prefer backpedaling")
+// ----------------------------------------------------------------------------
+// Backing off to its fighting distance, a gun's holder never let you stay in its shove's reach long enough to shove
+// you. Now: you within vr_agrunt_shove_close units beyond its reach (VR_EnemyShove_Reach) and its shove ready (its
+// cooldown over, on its feet), it holds its fire and steps in, facing you, until you are in its reach, where it waits
+// out the shove's delay and shoves (VR_EnemyShove_Check). Further off (or its shove cooling down) it backs off as
+// before (VR_AG_RangeMove); far off, as before. Melee weapons and fists: their own blows, as before.
+
+float vr_ag_close_steps; // steps it took stepping in to shove (the tests)
+float vr_ag_close_holds; // run frames it held, in its reach, waiting for its shove (the tests)
+float vr_ag_close_shoves; // shoves it started so (the tests)
+
+// `g` would step in to shove now (you up close, its shove ready).
+float(entity g) VR_AG_ShoveClose =
+{
+    float close = cvar_hget(cvarh_vr_agrunt_shove_close);
+    entity e = g.enemy;
+    if(close <= 0 || !cvar_hget(cvarh_vr_enemy_shove) || !g.vr_ag_prop || !VR_AG_RangeOf(g.vr_ag_wid) || !g.th_vrshove ||
+       g.vr_oblivious || !(e.flags & FL_CLIENT) || e.health <= 0 || (e.flags & FL_NOTARGET) || time < g.vr_eshove_next ||
+       !VR_EnemyShove_Ready(g) || g.vr_ag_tug_pl)
+    {
+        return FALSE;
+    }
+    vector to = e.origin - g.origin;
+    if(fabs(to_z) > VR_ESHOVE_HEIGHT)
+    {
+        return FALSE;
+    }
+    to_z = 0;
+    return vlen(to) <= VR_EnemyShove_Reach(g) + close && visible(e);
+};
+
+// Its run frames (VR_AG_Run, `dist` its step): stepping in to shove you up close. TRUE: it did (or shoved).
+float(float dist) VR_AG_ShoveCloseIn =
+{
+    if(!self.enemy || !VR_AG_ShoveClose(self))
+    {
+        return FALSE;
+    }
+    if(VR_EnemyShove_Check())
+    {
+        vr_ag_close_shoves = vr_ag_close_shoves + 1;
+        return TRUE; // (its shove started: its own think now)
+    }
+    vector to = self.enemy.origin - self.origin;
+    to_z = 0;
+    float d = vlen(to);
+    self.ideal_yaw = vectoyaw(to);
+    ChangeYaw(); // (facing you: its shove wants you ahead)
+    float reach = VR_EnemyShove_Reach(self);
+    float step = min(dist, d - (reach - 12)); // (into its reach, a little inside it)
+    if(step > 0.5 && walkmove(self.ideal_yaw, step))
+    {
+        vr_ag_close_steps = vr_ag_close_steps + 1;
+        self.vr_ag_rback = 0;
+        return TRUE;
+    }
+    if(d > reach)
+    {
+        return FALSE; // (blocked short of its reach: as before)
+    }
+    vr_ag_close_holds = vr_ag_close_holds + 1; // (in its reach: holding its fire for the shove's delay)
+    self.vr_ag_rback = 0;
+    return TRUE;
+};
+
 // An attack's or a reload's frame lasting `dt`: its step by its fighting distance as it fires (vr_agrunt_range_walkfire;
 // `firing` FALSE: a reload's, only away when nearer than its best). TRUE: it moved.
 float(float dt, float firing) VR_AG_WalkFire =
@@ -387,6 +454,10 @@ float(float dt, float firing) VR_AG_WalkFire =
         return FALSE; // (once a frame: an aim cone's wait calls its frame again)
     }
     self.vr_ag_rwalk_at = time;
+    if(VR_AG_ShoveClose(self))
+    {
+        return FALSE; // (you up close: not backing off, its shove next: VR_AG_ShoveCloseIn)
+    }
     float d = vlen(VR_AI_Origin(self.enemy) - self.origin);
     float yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
     float step = v * dt;
@@ -1446,6 +1517,37 @@ float(vector m, vector dir, vector at) VR_AG_MissRight =
 // (an angle's difference, -180..180)
 float(float a) VR_AG_Wrap180 = { return a - 360 * floor((a + 180) / 360); };
 
+vector vr_ag_dm_dir;   // VR_AG_DrawnMuzzle's: its `dir` turned as the gun was drawn,
+float vr_ag_dm_turn;   // ... by this many degrees (0: as the server has it)
+
+// The muzzle of `p` (a held gun, placed) its shots leave from, aimed along `dir` (vr_ag_dm_dir, vr_ag_dm_turn).
+// vr_agrunt_shot_drawn: the gun as the arms drew it, a few degrees off this line where an arm can't turn its wrist so
+// far or its hand eases into a jump: its shots leave its drawn muzzle along its drawn line, as you see it; up to 30
+// degrees, a listen server's own view.
+vector(entity p, vector dir) VR_AG_DrawnMuzzle =
+{
+    vector m = weaponmuzzle(p);
+    if(m == p.origin)
+    {
+        m = p.origin + dir * 16;
+    }
+    vr_ag_dm_dir = dir;
+    vr_ag_dm_turn = 0;
+    if(cvar_hget(cvarh_vr_agrunt_shot_drawn))
+    {
+        vector turn = weapondrawnpose(p, 0, 21);
+        float ang = vlen(turn);
+        if(ang > 0.01 && ang < 30)
+        {
+            vector ax = turn * (1 / ang);
+            vr_ag_dm_dir = normalize(VR_AG_Rotate(dir, ax, ang));
+            m = p.origin + weapondrawnpose(p, 0, 22) + VR_AG_Rotate(m - p.origin, ax, ang);
+            vr_ag_dm_turn = ang;
+        }
+    }
+    return m;
+};
+
 void(entity p, vector dir) VR_AG_SetHand =
 {
     vector dir0 = dir; // (as aimed: from its grip, its error and kick in it)
@@ -1457,29 +1559,17 @@ void(entity p, vector dir) VR_AG_SetHand =
     self.handrot = a;
     self.shotrot = '0 0 0';
     self.handvel = '0 0 0';
-    vector m = weaponmuzzle(p);
-    if(m == p.origin)
-    {
-        m = p.origin + dir * 16;
-    }
+    vector m = VR_AG_DrawnMuzzle(p, dir);
     if(cvar_hget(cvarh_vr_agrunt_shot_drawn))
     {
-        // (vr_agrunt_shot_drawn: the gun as the arms drew it, a few degrees off this line where an arm can't turn its
-        // wrist so far or its hand eases into a jump: its shots leave its drawn muzzle along its drawn line, as you see
-        // it; up to 30 degrees, a listen server's own view)
-        vector turn = weapondrawnpose(p, 0, 21);
-        float ang = vlen(turn);
-        if(ang > 0.01 && ang < 30)
+        if(vr_ag_dm_turn > 0)
         {
-            vector ax = turn * (1 / ang);
-            vector off = weapondrawnpose(p, 0, 22);
-            dir = normalize(VR_AG_Rotate(dir, ax, ang));
-            m = p.origin + off + VR_AG_Rotate(m - p.origin, ax, ang);
+            dir = vr_ag_dm_dir;
             a = VR_AG_Angles(dir);
             a_x = -a_x;
             self.handrot = a;
             vr_ag_drawn_shots = vr_ag_drawn_shots + 1;
-            vr_ag_drawn_deg = vr_ag_drawn_deg + ang;
+            vr_ag_drawn_deg = vr_ag_drawn_deg + vr_ag_dm_turn;
         }
         vr_ag_all_shots = vr_ag_all_shots + 1;
     }
@@ -1908,8 +1998,9 @@ void(entity p) VR_AG_ShootProp =
         self.muzzlepos));
     if(pen > 0)
     {
-        VR_AG_Log(sprintf("  dual: %s hand, aim %.2f deg off, kicked up %.2f (now %.2f)", p.vr_ag_left ? "left" : "right",
-            vr_ag_last_aimdev, vr_ag_last_kick, p.vr_ag_hk));
+        VR_AG_Log(sprintf("  dual: %s hand, aim %.2f deg off, kicked up %.2f (now %.2f); server muzzle %v, drawn off %v "
+            "turn %v", p.vr_ag_left ? "left" : "right", vr_ag_last_aimdev, vr_ag_last_kick, p.vr_ag_hk, weaponmuzzle(p),
+            weapondrawnpose(p, 0, 22), weapondrawnpose(p, 0, 21)));
     }
 };
 
@@ -2477,6 +2568,10 @@ void(float d) VR_AG_Run =
             walkmove(self.angles_y + 180, d * 0.5);
         }
         return;
+    }
+    if(VR_AG_ShoveCloseIn(d))
+    {
+        return; // (you up close: it steps in and shoves, not backing off: vr_agrunt_shove_close)
     }
     if(explosive && visible(self.enemy) && vlen(self.enemy.origin - self.origin) < VR_AG_MinRange(self.vr_ag_wid))
     {
