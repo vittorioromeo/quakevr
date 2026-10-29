@@ -2544,6 +2544,12 @@ void(entity g, entity p) VR_AGP_Pose =
         {
             offFl = offFl | 8;
         }
+        if(!pL && vr_agk_mode == VR_AGK_OFF_GUN)
+        {
+            // (its key's On the Gun, chosen: the off hand on the gun even with a pistol carried low, which the Weapon
+            // Holds' cup leaves free, vr_agarms_arm_clear)
+            offFl = offFl | 32;
+        }
     }
     // (the IK stretch of its kind and class, over 1: in the block too, 16 [byte: (factor - 1) x 500])
     float stretchB = rint(min(255, max(0, (vr_agk_stretch - 1) * 500)));

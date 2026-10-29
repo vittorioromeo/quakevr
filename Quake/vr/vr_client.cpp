@@ -1,6 +1,7 @@
 // vr_client.cpp -- client side of the Quake VR protocol extensions (see vr_protocol.hpp):
 // VR input commands, building the VR move from tracking, and parsing VR server data.
 
+#include "vr_agarmor.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
 #include "vr_adcrossbow.hpp"
@@ -942,6 +943,7 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
     const int clipByte = (bits & U_QVR_WEAPONUID) ? MSG_ReadByte() : -1;
     // Weapon id 0: not a weapon prop, the byte its loot beam's (a magazine's fullness, carried: vr_server.cpp lootByte).
     data.clip = data.weaponUid != 0 ? clipByte : -1;
+    data.clipSize = data.weaponUid != 0 ? MSG_ReadByte() : 0;
     data.loot = data.weaponUid == 0 ? clipByte : -1;
     data.noMag = (bits & U_QVR_NOMAG) != 0;
     data.ssgOpen = (bits & U_QVR_SSGOPEN) != 0;
@@ -996,6 +998,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_HITREACT: hitreact::parseEvent(); break;
         case QVR_SVC_ARMPOSE: hitreact::parseArmPose(); break;
         case QVR_SVC_RIGSEQ: rigseq::parseMessage(); break;
+        case QVR_SVC_ARMOR: agarmor::parseEvent(); break;
         case QVR_SVC_GORESOUND: goresound::parseEvent(); break;
         case QVR_SVC_WEAPONGONE: wounds::parseWeaponGone(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;

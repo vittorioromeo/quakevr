@@ -2096,7 +2096,7 @@ QVR_CVAR(vr_relight_maplights, "1", CVAR_ARCHIVE)    // the map's own lights (as
 QVR_CVAR(vr_relight_sunlight, "1", CVAR_ARCHIVE)     // the map's sunlight and sky light (maps that have them)
 QVR_CVAR(vr_relight_bounce, "0", CVAR_ARCHIVE)       // bounced light (light -bounce -bouncescale; 0 none, as relight_maps.py)
 QVR_CVAR(vr_relight_ao, "1.5", CVAR_ARCHIVE)         // ambient occlusion in corners (light -dirt -dirtscale; 0 none)
-QVR_CVAR(vr_relight_minlight, "0", CVAR_ARCHIVE)     // the least light anywhere (light -minlight; 0 none)
+QVR_CVAR(vr_relight_minlight, "0", CVAR_ARCHIVE)     // Ambient Light Level: light added everywhere (on top of the worldspawn's own minlight, not darkened by the AO; 0 the map's own)
 QVR_CVAR(vr_relight_quality, "1", CVAR_ARCHIVE)      // shadows' edges: 1 smooth (-extra4, relight_maps.py's), 0 fast (-extra)
 QVR_CVAR(vr_relight_seethrough, "1", CVAR_ARCHIVE)   // id's maps relit with see-through water, slime and teleporters: VisPatch's water-vised visibility put in (vr_relight_vis.cpp; needs its data files, quakevr/tools/vispatch; 0: the map's own, liquids opaque)
 QVR_CVAR(vr_relight_vispatch_dir, "", CVAR_NONE)     // testing: the only folder the VisPatch data (id1.vis, hipnotic.vis, rogue.vis) is looked for in ("": tools/vispatch in each game folder, then QUAKEVR_VISPATCH)
@@ -2811,10 +2811,15 @@ QVR_CVAR(vr_flare_sparks, "1", CVAR_ARCHIVE)          // their sparks and smoke 
 // The nail pistol (QC vr_nailpistol.qc; Combat > Weapon Damage > Nail Pistol): one-handed, semi-automatic (a shot a pull
 // of the trigger), a magazine in its grip fed from your nails (immersive reloading: ejected, a new one from the pouch,
 // slapped in), fast precise nails.
-QVR_CVAR(vr_nailpistol_speed, "2600", CVAR_ARCHIVE)    // its nails' speed, units a second (the nailgun's 1750), plus the hand's
+QVR_CVAR(vr_nailpistol_speed, "3070", CVAR_ARCHIVE)    // its nails' speed, units a second (the nailgun's vr_nail_speed), plus the hand's (2600 until round 23: 18% faster)
+// The nailgun's and the super nailgun's nails (QC launch_spike, launch_lava_spike), the player's and every monster's
+// that fires them (armed grunts, Scourges, Gremlins): units a second, plus the hand's. Quake's 1000; Quake VR's 1750
+// until round 23 ("15-20%" faster: 2065). Not a trap's (500) nor Arcane Dimensions' monsters' (AD's own speeds).
+QVR_CVAR(vr_nail_speed, "2065", CVAR_ARCHIVE)
 QVR_CVAR(vr_nailpistol_cooldown, "0.12", CVAR_ARCHIVE) // s at least from a shot to the next (each a new pull)
 QVR_CVAR(vr_nailpistol_spread, "0.25", CVAR_ARCHIVE)   // degrees its nails stray at most from its aim
 QVR_CVAR(vr_nailpistol_mag, "12", CVAR_ARCHIVE)        // the rounds its magazine holds (a nail each)
+QVR_CVAR(vr_nailpistol_mag_pull, "0", CVAR_ARCHIVE)   // 1: its magazine pulls off by hand as the other guns' (vr_reload_pull_*); 0: only its eject button lets it out (his note 2026-10-29)
 QVR_CVAR(vr_nailpistol_volume, "1", CVAR_ARCHIVE)      // its shot's volume (0..4)
 QVR_CVAR(vr_nailpistol_slide_time, "0.07", CVAR_ARCHIVE) // s its slide stays back after a shot before it runs home (empty: it locks back)
 QVR_CVAR(vr_nailpistol_smoke, "1", CVAR_ARCHIVE)       // a wisp of smoke from its muzzle after shots (0 none; more after a quick string)
@@ -3038,6 +3043,43 @@ QVR_CVAR(vr_agrunt_rearm, "1", CVAR_ARCHIVE)           // 1: disarmed, it goes f
 QVR_CVAR(vr_agrunt_rearm_range, "384", CVAR_ARCHIVE)   // how far (units) it looks for one
 QVR_CVAR(vr_agrunt_test, "0", CVAR_NONE)                       // the QC's armed grunt tests (vr_armedgrunt_test.qc): 1 every weapon, 2 ammo/death/disarm/re-arm, 3 the yank, 4 save/load
 QVR_CVAR(vr_agrunt_test_kind, "0", CVAR_NONE)                  // the armed monster the vr_agrunt_test tests spawn (QC vr_armedmon.qc: 0 grunt, 1 enforcer)
+// Survival Arena (QC/vr_arena.qc): the wave director's knobs.
+QVR_CVAR(vr_arena, "0", CVAR_NONE)                             // 1: its waves run in this map too (the map "vrarena" runs them on its own)
+QVR_CVAR(vr_arena_wave_rest, "5", CVAR_ARCHIVE)               // s of rest from a wave clear to the next wave's countdown (by the difficulty)
+QVR_CVAR(vr_arena_countdown_sound, "1", CVAR_ARCHIVE)         // the countdown's beeps' volume (Quake's own menu tick and chime, pitched; 0: silent)
+QVR_CVAR(vr_arena_scatter, "1", CVAR_ARCHIVE)                 // 1: a wave clear's medkits, armour and shards land at random walkable places all over the map, ledges too (QC vr_arena_supply.qc); 0: on the map's info_arena_item points
+QVR_CVAR(vr_arena_shards, "2", CVAR_ARCHIVE)                  // armour shards (+5 each) a wave clear drops on top: 1 to this many at random (0: none)
+QVR_CVAR(vr_arena_countdown, "5", CVAR_ARCHIVE)               // s of countdown in the middle of the view before each wave ("Wave 7 in 5..."; 0: none)
+QVR_CVAR(vr_arena_max_alive, "8", CVAR_ARCHIVE)               // the ceiling on a wave's alive pool (foes up at once), by the difficulty
+QVR_CVAR(vr_arena_wave_size, "1.75", CVAR_ARCHIVE)            // a wave's crowd groups times this (1: the ladder's own counts)
+QVR_CVAR(vr_arena_alive_max, "6", CVAR_ARCHIVE)               // a wave's alive pool at wave 1: foes up at once; the rest come in as these fall
+QVR_CVAR(vr_arena_alive_grow, "4", CVAR_ARCHIVE)              // the pool takes one more foe every this many waves (0: never), up to vr_arena_max_alive
+QVR_CVAR(vr_arena_burst, "3", CVAR_ARCHIVE)                   // a wave opens with this many foes at once, then they trickle in
+QVR_CVAR(vr_arena_spawn_gap, "1.5", CVAR_ARCHIVE)             // s from a foe's fall (a free slot) to the next one, up to twice this at random, by the difficulty
+QVR_CVAR(vr_arena_boss_every, "5", CVAR_ARCHIVE)              // a boss wave every this many waves (0: none)
+QVR_CVAR(vr_arena_boss_health, "1.25", CVAR_ARCHIVE)          // a boss's health times this
+QVR_CVAR(vr_arena_medkits_after, "2", CVAR_ARCHIVE)           // medkits a wave clear drops (0: none)
+QVR_CVAR(vr_arena_armor_every, "4", CVAR_ARCHIVE)             // an armour after every this many waves (0: none; the heavier one from wave 12)
+QVR_CVAR(vr_arena_score_kill, "100", CVAR_ARCHIVE)            // the score of a kill, times the ladder tier it held (a boss: four of those; armoured: a quarter more per armour type)
+QVR_CVAR(vr_arena_foe_armor, "1", CVAR_ARCHIVE)               // 1: the waves' grunts and enforcers may wear armour plates (the arena's roll, rising with the wave and the skill; replaces vr_agarmor_skill* there)
+QVR_CVAR(vr_arena_foe_armor_scale, "1", CVAR_ARCHIVE)         // the arena armour's chance times this (1: 10% at its first wave at Normal, 3% more a wave, cap 85%)
+QVR_CVAR(vr_arena_foe_armor_from, "4", CVAR_ARCHIVE)          // the first wave a foe may wear armour at Normal (moved by the skill as every gate: 7 / 4 / 2 / 2)
+QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' rolls: 0 a different ladder every run, else that seed's ladder
+// Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
+// this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
+QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set
+QVR_CVAR(vr_arena_test, "0", CVAR_NONE)                       // the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 no cleanup off the arena (e1m1), 9 the wave flow (alive pool, burst, gaps), 10 the foes' armour, 11 the loot the waves leave behind, 12 the weapon schedule, 13 no overlapping spawns, 14 the rest and countdown (and its beeps), 15 the scattered supplies
+// Survival Arena's cleanup (QC/vr_arena.qc, "The cleanup"): what the waves leave lying. Nothing held is ever taken.
+QVR_CVAR(vr_arena_corpse_fade, "14", CVAR_ARCHIVE)           // s a fallen foe's body lies before it fades out (give or take 3 s; 0: never by time)
+QVR_CVAR(vr_arena_corpse_max, "12", CVAR_ARCHIVE)            // fallen bodies kept at most: past it the oldest fades first (0: no limit)
+QVR_CVAR(vr_arena_item_waves, "2", CVAR_ARCHIVE)             // a wave clear's medkits and armour still lying there this many wave clears later are removed (0: never)
+QVR_CVAR(vr_arena_gun_max, "24", CVAR_ARCHIVE)               // guns the arena's foes dropped lying about at most: past it the oldest fades (0: no limit; twice this with the Spoils perk)
+// Survival Arena: the boss wave's perk choice (QC/vr_arena_perks.qc).
+QVR_CVAR(vr_arena_perks, "1", CVAR_ARCHIVE)                   // 0: a boss wave's clear offers nothing, 1: it offers the player his choice of the perks, as cards floating in front of him (the arena waits for the pick)
+QVR_CVAR(vr_arena_cards_distance, "34", CVAR_ARCHIVE)         // the perk cards' panel (vr_arenacards.cpp): how far in front of the head (units; 34 about 1.3 m)
+QVR_CVAR(vr_arena_cards_width, "32", CVAR_ARCHIVE)            // ... and how wide (units; its height five eighths of it)
+QVR_CVAR(vr_arena_perk_count, "3", CVAR_ARCHIVE)             // how many cards a boss wave's clear offers (1 to the pool's 8)
+QVR_CVAR(vr_arena_perks_test, "0", CVAR_NONE)                // the QC's arena perk tests (vr_arena_perks_test.qc): 1 the pool and its knobs, 2 the offer, 3 the perks' numbers, 4 a run to its first boss, 5 the card panel (mock laser and trigger)
 QVR_CVAR(vr_agrunt_debug, "0", CVAR_NONE)                    // 1: prints its weapon, shots, reloads, disarms and pickups
 QVR_CVAR(vr_agrunt_w_fists, "1", CVAR_ARCHIVE)         // the pool's weights (0: never): unarmed, its fists
 QVR_CVAR(vr_agrunt_w_axe, "1", CVAR_ARCHIVE)
@@ -3119,7 +3161,8 @@ QVR_CVAR(vr_agrunt_grip_z, "0", CVAR_NONE)            // ... up (units)
 QVR_CVAR(vr_agrunt_grip_pitch, "0", CVAR_NONE)        // ... pitch (degrees)
 QVR_CVAR(vr_agrunt_grip_yaw, "0", CVAR_NONE)          // ... yaw (degrees)
 QVR_CVAR(vr_agrunt_grip_roll, "0", CVAR_NONE)         // ... roll (degrees)
-QVR_CVAR(vr_agarms, "1", CVAR_NONE)                  // 1: armed humanoids' arms posed by their weapons (QC: where a player would hold each) and IK, drawn skinned (vr_agarms.cpp; read at a map load); 0: the animation's arms bent onto the weapons (vr_agrunt_ik_rigid: before)
+QVR_CVAR(vr_agrunt_ragweapon_check, "0", CVAR_NONE)  // 1: measure each frame how far an armed humanoid ragdoll's held weapon is drawn from its drawn hand's grip, and how deep its hand and weapon are in its torso (vr_agrunt_ragweapon_err prints and clears; vr_agrunt_test 88)
+QVR_CVAR(vr_agarms, "1", CVAR_NONE)                // 1: armed humanoids' arms posed by their weapons (QC: where a player would hold each) and IK, drawn skinned (vr_agarms.cpp; read at a map load); 0: the animation's arms bent onto the weapons (vr_agrunt_ik_rigid: before)
 QVR_CVAR(vr_agarms_shoulder, "0.5", CVAR_ARCHIVE)     // vr_agarms: a long gun aimed is raised from its rest pose's hold (0: as it held its own rifle, its wrists as made) to its shoulder (1: the butt in its pocket, at its cheek) by this
 QVR_CVAR(vr_agarms_second, "0.97", CVAR_NONE)        // vr_agarms: the off hand takes a two-handed weapon's second grip only while its wrist is within this share of its arm's length of its shoulder
 QVR_CVAR(vr_agarms_wrist_most, "100", CVAR_NONE)      // vr_agarms: a wrist bends at most this much (degrees); past it the hand, and its weapon, turn back towards the forearm
@@ -3725,13 +3768,33 @@ QVR_CVAR(vr_rig2_forearm_twist, "0.5", CVAR_NONE)      // the share of an armed 
 QVR_CVAR(vr_rig2_clavicle, "0.6", CVAR_NONE)            // an armed grunt's clavicle's share of its arm's lift and reach across its body (vr_agarms_clavicle's, at least: the authored rig's shoulders sit at the arms' own joints, wider than the derived rig's, its girdle reaching with them)
 QVR_CVAR(vr_rig2_arm_clear, "6", CVAR_NONE)            // an armed one whose upper arm is in its torso has its wrist turned out at most this much with a hand on a weapon (degrees; vr_agarms' 6)
 QVR_CVAR(vr_agarmor, "0", CVAR_NONE)                  // debug (P0, vr_agarmor.cpp): armour shells on every armed humanoid drawn on its authored rig (P0: the grunt): 0 none, 1 green, 2 yellow, 3 red, 4 one of each by entity number (vr_agarmor_set per entity)
-QVR_CVAR(vr_agarmor_pieces, "3", CVAR_NONE)           // vr_agarmor: the pieces worn: 1 the cuirass, 2 the helmet (a mask)
+QVR_CVAR(vr_agarmor_wear, "0", CVAR_NONE)            // debug (vr_agarmor.cpp): every armour piece drawn with this wear's damage marks: 0 the server's (each piece at two thirds and a third of its pool), 1 dented, 2 battered and scorched
+QVR_CVAR(vr_agarmor_pieces, "1023", CVAR_NONE)       // vr_agarmor: the pieces worn (a mask): 1 the cuirass, 2 the helmet, 4/8 the pauldrons (left/right), 16/32 the bracers, 64/128 the thighs, 256/512 the shins; 1023 all
 QVR_CVAR(vr_agarmor_thick, "0.6", CVAR_NONE)          // vr_agarmor: a plate's thickness (units; read when the shells are made: vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_gap, "0.25", CVAR_NONE)           // vr_agarmor: the plates' gap off the body (units; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_helmet_gap, "0.15", CVAR_NONE)    // vr_agarmor: the helmet's gap off the head (units; rigid on the head bone, so closer than the body's plates; vr_agarmor_rebuild)
+QVR_CVAR(vr_agarmor_helmet_thick, "0.45", CVAR_NONE)  // vr_agarmor: the helmet's thickness (units; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_smooth, "6", CVAR_NONE)           // vr_agarmor: the plates' smoothing passes (Taubin; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_subdiv, "1", CVAR_NONE)           // vr_agarmor: the plates' subdivisions of the body's triangles (0-2; vr_agarmor_rebuild)
 QVR_CVAR(vr_agarmor_brow_back, "0.12", CVAR_NONE)     // vr_agarmor: the helmet's lower edge at the back of the head, its nape (the head bone's length up from its pivot, below it negative; vr_agarmor_rebuild)
-QVR_CVAR(vr_agarmor_brow_front, "0.5", CVAR_NONE)     // vr_agarmor: the helmet bucket's lower edge (its brow: above the eyes; the cheek guards come down under it)
+QVR_CVAR(vr_agarmor_rule, "0", CVAR_ARCHIVE)          // armour on armed humanoids (vr_agarmor.qc; Combat > Armed Grunts > Armour): 0 the player's rule (a plate saves its type's share of a hit, 30/60/80%, from its pool), 1 a plate stops the whole hit until its pool is gone
+QVR_CVAR(vr_agarmor_helmet_head, "1", CVAR_ARCHIVE)   // armour: a helmet also halves the headshot multiplier's extra and stops head pops while it is on (0: it only absorbs)
+QVR_CVAR(vr_agarmor_block_cuts, "1", CVAR_ARCHIVE)    // armour: no limb is cut or popped under an unbroken plate
+QVR_CVAR(vr_agarmor_debris_time, "10", CVAR_ARCHIVE)  // armour: a broken plate's debris lies about this long (s), then fades out
+QVR_CVAR(vr_agarmor_skill0, "0", CVAR_ARCHIVE)        // armour: the chance an armed grunt spawns armoured on Easy
+QVR_CVAR(vr_agarmor_skill0_type, "1", CVAR_ARCHIVE)   // armour on Easy: its best type (1 green, 2 yellow, 3 red: rolled up to it)
+QVR_CVAR(vr_agarmor_skill0_pieces, "2", CVAR_ARCHIVE) // armour on Easy: how many pieces (1 the cuirass, 2 and the helmet, more: the rest picked at random; 10 all)
+QVR_CVAR(vr_agarmor_skill1, "0.15", CVAR_ARCHIVE)     // armour: the chance on Normal
+QVR_CVAR(vr_agarmor_skill1_type, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_skill1_pieces, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_skill2, "0.35", CVAR_ARCHIVE)     // armour: the chance on Hard
+QVR_CVAR(vr_agarmor_skill2_type, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_skill2_pieces, "5", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_skill3, "0.6", CVAR_ARCHIVE)      // armour: the chance on Nightmare
+QVR_CVAR(vr_agarmor_skill3_type, "3", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_skill3_pieces, "10", CVAR_ARCHIVE)
+QVR_CVAR(vr_agarmor_test, "0", CVAR_NONE)             // the QC tests armour on armed humanoids (vr_agarmor_test.qc; Debug > Tests): 1 all; ends on "agarmor test: N passed, M failed"; 2 / 3 grunts / enforcers in full green, yellow, red; 4 grunts in yellow whole, at 2/3, at 1/3 (damage marks); 5 ragdolls, cuts, debris and sparks (vr_agarmor_fx_test.qc), ends on "agarmor fx test: N passed, M failed"
+QVR_CVAR(vr_agarmor_brow_front, "0.62", CVAR_NONE)   // vr_agarmor: the helmet bucket's lower edge (its brow: above the eyes, the head bone's length up from its pivot; the cheek guards come down under it; vr_agarmor_rebuild)
 QVR_CVAR(vr_rig2_dq, "0", CVAR_NONE)                 // 1: the authored rig skinned with dual quaternions (no candy wrapper at a twist; vr_rig2_check, the Rig Studio's Shaded display); 0: linear blend
 QVR_CVAR(vr_rigseq, "1", CVAR_NONE)                  // 1: the files' override tracks and the sequences QC starts drawn on the rigged monsters (vr_rigseq.cpp); 0: never (nothing changes without the files)
 QVR_CVAR(vr_rigseq_debug, "0", CVAR_NONE)             // 1: each sequence started, stopped and each event sent to QC printed (rigseq:)
@@ -3752,8 +3815,10 @@ QVR_CVAR(vr_agrunt_ai_retreat, "1", CVAR_ARCHIVE)     // Retreat Readiness: the 
 QVR_CVAR(vr_agrunt_ai_firerate, "1", CVAR_ARCHIVE)    // Fire Rate: their pause between attacks divided by this; 1 as before
 QVR_CVAR(vr_agrunt_rearm_punch, "0", CVAR_ARCHIVE)    // units: an unarmed one with you this near fights with its fists rather than going for a weapon lying further than 64 from it; 0 off (as before)
 QVR_CVAR(vr_agrunt_strafe_lean, "5", CVAR_ARCHIVE)    // degrees: armed humanoids moving sideways tip their pelvis and legs this far toward the way they go (at 80 u/s; scaled by speed, eased), the upper body held aimed; 0 none
+QVR_CVAR(vr_agrunt_strafe_turn, "28", CVAR_ARCHIVE)   // degrees: armed humanoids moving sideways turn their pelvis and legs this far toward the way they go (at 80 u/s; scaled by sideways speed, eased; backing off: never flipped), the spine turning back so the chest and gun stay aimed; 0 none
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
-QVR_CVAR(vr_ragdoll_self_collide, "1", CVAR_ARCHIVE)  // a ragdoll's own parts meet each other (an arm stays out of the chest, a leg out of the other), all but jointed neighbours, a loose piece (his gun), parts deep in each other (until apart) and an arm reaching for a wound, a stump or a wall; 0 they pass through each other, as before (a ragdoll made from now on)
+QVR_CVAR(vr_ragdoll_weapon_collide, "1", CVAR_NONE)  // vr_ragdoll_self_collide: a living ragdoll's weapon (knocked down or staggering, welded in its hand) meets its own torso and head, so its arms can't fold it into its chest; 0 it passes through its body, as before
+QVR_CVAR(vr_ragdoll_self_collide, "1", CVAR_ARCHIVE)// a ragdoll's own parts meet each other (an arm stays out of the chest, a leg out of the other), all but jointed neighbours, a loose piece (his gun), parts deep in each other (until apart) and an arm reaching for a wound, a stump or a wall; 0 they pass through each other, as before (a ragdoll made from now on)
 QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand (an old config's 2: the same)
 QVR_CVAR(vr_ragdoll_grab_force, "4000", CVAR_ARCHIVE) // N: the most a hand pulls a held limb with (3000: a grunt lifted by his chest sags a unit; 1500: about 18)
 QVR_CVAR(vr_ragdoll_grab_reach, "2", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
@@ -4320,6 +4385,7 @@ QVR_CVAR(vr_enemy_shove_vore, "1", CVAR_ARCHIVE)         // vores shove you too 
 QVR_CVAR(vr_enemy_shove_vore_damage, "2", CVAR_ARCHIVE)  // a vore's shove's damage, times vr_enemy_shove_damage
 QVR_CVAR(vr_enemy_shove_vore_distance, "2", CVAR_ARCHIVE) // a vore's shove's push, times vr_enemy_shove_distance (harder than anyone's)
 QVR_CVAR(vr_agrunt_shove, "1", CVAR_ARCHIVE)             // armed humanoids' shove: 0 their model's shove frames (guns only, as before), 1 the Shove pose (the pose keys; guns only; the default), 2 the Shove pose with every weapon and the fists (QC vr_armedgrunt_pose.qc VR_AGP_Shove)
+QVR_CVAR(vr_agrunt_shove_close, "24", CVAR_ARCHIVE)      // a gun-holding armed humanoid, you this many units beyond its shove's reach (vr_enemy_shove_range) or nearer: it steps in and shoves (its shove ready) instead of backing off; 0 it always backs off (as before; QC vr_armedgrunt.qc VR_AG_ShoveCloseIn)
 // Holding enemies (vr_foegrab.cpp, QC vr_foegrab.qc; Combat > Holding Enemies): an empty hand that grips on a living
 // monster's model holds on to that spot, slows it and drags it, until let go or pulled too far.
 QVR_CVAR(vr_foegrab, "1", CVAR_ARCHIVE)                  // experimental: an empty hand can hold on to a living enemy
@@ -4861,6 +4927,11 @@ QVR_CVAR(vr_grenade_scale, "0.78", CVAR_ARCHIVE)
 // others' (the author's note vrfiringrange_2026-10-08_14-30-12: 35-40% smaller, the prop and the projectile).
 QVR_CVAR(vr_prox_scale, "0.47", CVAR_ARCHIVE)
 QVR_CVAR(vr_rocket_scale, "0.65", CVAR_ARCHIVE)
+// vr_nail_scale: the nails in flight drawn at this size (the author's backlog: "30-40%" smaller): the nailgun's and the
+// traps' progs/spike.mdl, the super nailgun's progs/s_spike.mdl, Dissolution of Eternity's lava nails
+// (progs/lspike.mdl) and, AD support, Arcane Dimensions' (progs/proj_ng.mdl, proj_ngred.mdl, proj_sng.mdl), whoever
+// fires them. Drawn only: a nail meets things as a point (QC launch_spike's setsize 0), the monster's model as drawn.
+QVR_CVAR(vr_nail_scale, "0.65", CVAR_ARCHIVE)
 // Their muzzles' load points moved (the gun's model units: +x forward, +y left, +z up) and their radius (world units: a
 // round's butt, a proximity grenade's middle, within it goes in). gl: the grenade launcher's (and the multi-grenade
 // one's); prox: the proximity launcher's; rl: the rocket launcher's (and the multi-rocket one's).
@@ -4973,6 +5044,22 @@ QVR_CVAR(vr_weapon_screen, "1", CVAR_ARCHIVE)          // the weapons' ammo coun
 QVR_CVAR(vr_weapon_screen_padding, "1", CVAR_ARCHIVE)  // room around the text on it
 QVR_CVAR(vr_weapon_screen_crt, "1", CVAR_ARCHIVE)      // it looks like a small CRT, as the wrist gadget's (scanlines, a flicker, faint static, now and then a glitch): strength (0 off, up to 2)
 QVR_CVAR(vr_ammo_screen_text_white, "1", CVAR_ARCHIVE) // the ammo screens' and the ammo pouch counter's text: 1 near-white (the wrist gadget's), 0 the screen's colour (between: a mix); their face and glow stay the screen's colour
+// A held gun's ammo screen warns (vr_view_weapon.cpp ammoWarning): its text turns vr_ammo_color_empty when no round is
+// loaded (the magazine, clip or chamber; with reloading off, the ammo it fires from) and vr_ammo_color_low when fewer than
+// vr_ammo_low_frac of the magazine's capacity are (with reloading off: of a magazine's worth; a gun with no magazine size,
+// as an enemy's or the flare gun, warns only when empty). The colours: a hue in degrees (0 red, 30 orange: the menu's
+// sliders), or "r g b" (0..1) typed in the console.
+QVR_CVAR(vr_ammo_color_warn, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_color_low, "30", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_color_empty, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_low_frac, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_ammo_color_debug, "0", CVAR_NONE)          // 1: print each change of a held gun's ammo screen warning (its state, the loaded rounds, the colour) and keep it in vr_ammo_color_seen / _seen2 (main / off hand: loaded * 10000 + capacity * 10 + state, state 0 normal, 1 low, 2 empty; the test vr_ammocolor_test.qc reads them)
+QVR_CVAR(vr_ammo_color_seen, "-1", CVAR_NONE)
+QVR_CVAR(vr_ammo_color_seen2, "-1", CVAR_NONE)
+QVR_CVAR(vr_ammo_color_seen3, "-1", CVAR_NONE)         // (the same, for the holster whose stat is vr_ammo_color_probe)
+QVR_CVAR(vr_ammo_color_seen4, "-1", CVAR_NONE)         // (the same, for the nearest gun lying in the world)
+QVR_CVAR(vr_ammo_color_probe, "-1", CVAR_NONE)         // (the holster stat read into vr_ammo_color_seen3; -2: any holster with a gun)
+QVR_CVAR(vr_ammocolor_test, "0", CVAR_NONE)            // 1: the ammo screens' warning colours test (vr_ammocolor_test.qc; Debug > Tests): guns in hand at full, 20% and empty magazines, the option off; ends "ammocolor: N passed, M failed"
 QVR_CVAR(vr_weapon_screen_idle, "1", CVAR_ARCHIVE)    // the weapons in the holsters and lying in the world show their ammo screen and button too (0: only held ones)
 // The weapons lying in the world that carry their attachments (ammo screen, button, magazine and well): the nearest
 // vr_weapon_world_attach_max of them (up to 48) within vr_weapon_world_attach_range units of the head (were 6 within 320;
@@ -5099,6 +5186,7 @@ QVR_CVAR(vr_mg3_ctest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: C
 QVR_CVAR(vr_flare_test, "0", CVAR_NONE) // Debug > Tests > Flare Gun: 1 its self-test, 2 one in your hand, 3 in both, 4 in the right hip and upper holsters, 5 its muzzles' test, 6 the eyeshots' scene (9: in the dark), 7 the crates' flare guns planned twice (QC/vr_flaregun_test.qc; "flaretest: N passed, M failed"; not archived)
 QVR_CVAR(vr_rv_test, "0", CVAR_NONE) // Debug > Tests > Heavy Revolver: 1 its self-test (QC/vr_revolver_test.qc; "rvtest: N passed, M failed"), 2 one loaded in the main hand, 3 in both, 4 one swung out with live and spent shells, 5 an armed grunt with one (not archived)
 QVR_CVAR(vr_np_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 its self-test, 2 in your hand, 3 in both, 4 in the right hip and upper holsters (QC/vr_nailpistol_test.qc; "nptest: N passed, M failed"; not archived)
+QVR_CVAR(vr_nail_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 the nails' speed, hit box and drawn size test ("nailtest: N passed, M failed"), 2 three nails hung before your eyes for 30 s (QC/vr_nail_test.qc; not archived)
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
 QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1/MG3 route sweep driver: each new map's first frame runs mg1route<stage>.cfg (MG3: mg3route<stage>.cfg) once (0 off; the scripts raise it); not archived
 QVR_CVAR(vr_mg3_test, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Tests: 1 state report (developer campaign only; not archived)
@@ -5206,7 +5294,9 @@ QVR_CVAR(vr_toolgun_brush_sides, "8", CVAR_ARCHIVE)     // ... a cylinder's or p
 QVR_CVAR(vr_toolgun_armed_kind, "0", CVAR_ARCHIVE)      // the spawn panel's Armed Humanoid page: its kind (QC vr_armedmon.qc's row: 0 grunt, 1 enforcer, ...)
 QVR_CVAR(vr_toolgun_armed_weapon, "0", CVAR_ARCHIVE)    // ... its right hand's weapon (the "weapon" key: 0 random from the pool, -1 unarmed, else the weapon's code)
 QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's ("weapon2": 0 none; a one-handed weapon, with a one-handed one in the right)
-QVR_CVAR(vr_toolgun_armed_tiles, "0", CVAR_ARCHIVE)     // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
+QVR_CVAR(vr_toolgun_armed_armor, "0", CVAR_ARCHIVE)     // ... its armour (vr_agarmor.qc VR_AgArmor_Toolgun): 0 none, 1 green, 2 yellow, 3 red, 4 one of them at random
+QVR_CVAR(vr_toolgun_armed_pieces, "1", CVAR_ARCHIVE)    // ... its armour's pieces: 0 the cuirass and the helmet, 1 all ten, 2 random (the cuirass, the helmet and some of the rest)
+QVR_CVAR(vr_toolgun_armed_tiles,"0", CVAR_ARCHIVE)     // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
 QVR_CVAR(vr_toolgun_brush_texlock, "1", CVAR_ARCHIVE)   // ... Rotate turns the textures with the faces (0: each face gets the world's alignment)
 
 // Runtime brushes (vr_brushes.cpp; docs/vr-port/BRUSH_TOOL.md): boxes made in the game, the map's kind of geometry.
@@ -5259,6 +5349,7 @@ QVR_CVAR(vr_lootbeam_hue_armor, "120", CVAR_ARCHIVE)    // ... armour green
 QVR_CVAR(vr_lootbeam_hue_powerups, "285", CVAR_ARCHIVE) // ... power-ups violet
 QVR_CVAR(vr_lootbeam_hue_keys, "225", CVAR_ARCHIVE)     // ... keys and runes blue
 QVR_CVAR(vr_lootbeam_hue_backpacks, "25", CVAR_ARCHIVE) // ... backpacks orange
+QVR_CVAR(vr_lootbeam_hue_weapons_empty, "0", CVAR_ARCHIVE) // a reloadable weapon lying with its magazine empty (or out; reloading on): red, so it is known as needing ammo before it is grabbed (his note 2026-10-29); below 0: the weapons' hue
 QVR_CVAR(vr_lootbeam_hue_toolgun, "305", CVAR_ARCHIVE)  // a dropped toolgun's (a weapon, but its own): magenta, found among many weapons (his note vrfiringrange_2026-10-23_21-18-02)
 QVR_CVAR(vr_lootbeam_toolgun_length, "2", CVAR_ARCHIVE) // a dropped toolgun's beam this many times vr_lootbeam_length
 QVR_CVAR(vr_lootbeam_fade_in, "0.5", CVAR_ARCHIVE)      // seconds it takes to fade in once the thing has rested vr_lootbeam_settle seconds

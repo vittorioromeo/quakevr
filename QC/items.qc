@@ -490,6 +490,9 @@ ARMOR
 ===============================================================================
 */
 
+// QVR: Survival Arena's Iron Skin perk (vr_arena_perks.qc, compiled late): the armour picked up is 25 heavier.
+void(entity p, float xValue) VR_ARK_ArmorBonus;
+
 void() armor_touch =
 {
     float type, value, itemId;
@@ -522,6 +525,7 @@ void() armor_touch =
 
     other.armortype = type;
     other.armorvalue = value;
+    VR_ARK_ArmorBonus(other, value); // QVR: Survival Arena's Iron Skin (vr_arena_perks.qc)
 
     VR_ItemUtil_EntDelItem(other, IID_ARMOR1);
     VR_ItemUtil_EntDelItem(other, IID_ARMOR2);

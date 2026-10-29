@@ -4,6 +4,7 @@
 #include "vr_rigstudio.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_axestick.hpp"
+#include "vr_agarmor.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_limbmodel.hpp"
@@ -183,6 +184,25 @@ za::Vector<unsigned char> instReferenced; // per edict, this frame's sweep: some
 [[nodiscard]] int weaponUid(edict_t* inst)
 {
     return inst ? static_cast<int>(fieldFloat(inst, fields().wi_uid)) : 0;
+}
+
+// The magazine size of weapon `wid` whose record is `inst` (QC VR_ClipSizeOf: the kind's own, the Widowmaker's tube), 0
+// when unknown: every gun's, held or not, for its ammo screen's warning colour.
+[[nodiscard]] int clipSizeOf(float wid, edict_t* inst)
+{
+    const func_t fn = bindings().ClipSizeOf;
+    if(!fn || wid <= 0.f || !sv.active)
+    {
+        return 0;
+    }
+    qcvm_t* old = nullptr;
+    PR_PushQCVM(&sv.qcvm, &old);
+    G_FLOAT(OFS_PARM0) = wid;
+    G_INT(OFS_PARM1) = inst ? EDICT_TO_PROG(inst) : 0;
+    PR_ExecuteProgram(fn);
+    const int size = static_cast<int>(G_FLOAT(OFS_RETURN));
+    PR_PopQCVM(old);
+    return za::clamp(size, 0, 255);
 }
 
 void sweepWeaponInsts()
@@ -927,6 +947,8 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
         statsi[STAT_QVR_HOLSTERWEAPONMODEL0 + i] = modelIndexOfField(ent, holsterModel[i]);
         stat(STAT_QVR_HOLSTERWEAPONFLAGS0 + i, holsterFlags[i]);
         statsf[STAT_QVR_HOLSTERWEAPONCLIP0 + i] = clip(holsterInst[i]);
+        statsi[STAT_QVR_HOLSTERCLIPSIZE0 + i] =
+            clipSizeOf(fieldFloatOr(ent, holsterWeapon[i], 0.f), inst(holsterInst[i]));
         statsi[STAT_QVR_HOLSTERWEAPONUID0 + i] = weaponUid(inst(holsterInst[i])); // (its blood drawn holstered: vr_wounds.cpp)
     }
 
@@ -1083,6 +1105,8 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
                                             (static_cast<uint32_t>(hot) << 24) | spent));
         // Its clip: the rounds in it, shown on its ammo screen as a held gun's (vr_view.cpp setupWorldWeapons).
         MSG_WriteByte(msg, CLAMP(0, static_cast<int>(inst ? fieldFloatOr(inst, f.wi_clip, 0.f) : 0.f), 255));
+        // Its magazine's size (its kind's own: the ammo screen's low and empty colours, known before it was ever held).
+        MSG_WriteByte(msg, clipSizeOf(ent->v.weapon, inst));
     }
     if(bits & U_QVR_SSGOPEN)
     {
@@ -1099,6 +1123,7 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
         worldtext::serverWriteAll(msg);
         tips::serverWriteAll(msg);
         serverrules::serverWriteAll(msg);
+        agarmor::serverWriteAll(msg); // (the armed humanoids' armour: vr_agarmor.cpp)
     }
 }
 
@@ -1139,6 +1164,7 @@ extern "C" void VR_ServerFrameEnd()
     QVR_TRACY_CALL("sv end: limb models", qvr::limbmodel::spawnFrame()); // a kind of monster first spawned now: its limbs made ahead of its first cut
     progs::loadNoticeFrame(); // a loaded save's warning (another build's), once the player is in
     QVR_TRACY_CALL("sv end: rig sequences", qvr::rigseq::serverFrame()); // QC's Rig Studio sequences: started, their events sent to QC (vr_rigseq.cpp)
+    QVR_TRACY_CALL("sv end: armour", qvr::agarmor::serverFrame()); // the armed humanoids' armour sent where it changed (vr_agarmor.cpp)
     qvr::rigstudio::serverFrame(); // the Rig Studio's scene: its subject made and held (nothing while closed)
 
     if(!vrProtocol())

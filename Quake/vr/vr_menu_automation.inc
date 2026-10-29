@@ -93,6 +93,13 @@ za::Vector<Item> pageDebugAutomation()
         command("Arcane Dimensions: Spawnflags and Sight Report", "vr_ad_test 26; wait; wait; vr_ad_test 27")
             .help("Whose meaning this map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'), and where "
                   "monsters look for you (crouched: your real eyes)."),
+        header("Survival Arena (map vrarena)"),
+        command("Offer Perk Cards Now", "vr_arena_cards_offer")
+            .help("The cards the next boss wave's clear would offer, now (between two waves only): the arena waits "
+                  "until you pick one."),
+        command("Perk Card Panel Test", "god; vr_arena_perks_test 5")
+            .help("Jumps to the first boss wave, clears it, checks the arena stands still while the cards are up, "
+                  "picks the second card with the mock laser (arena_cards: N passed, M failed)."),
         header("Scripted Test Pages"),
         open("Stealth AI", pageIndex(pageStealthTests))
             .help("The stealth AI's scenes on e1m1 (Combat > Stealth AI): seeing, hearing, touch, investigating."),
@@ -226,6 +233,14 @@ za::Vector<Item> pageDebugAutomation()
                   "Shove pose): its phases' times, the push landing as its push phase ends, eyeshots as it lands and "
                   "held at its push key from its front and side (agtest: shove ... PASS). scratch2 1 first: a super "
                   "axe, a chainsaw, two crowbars, the fists, a rocket launcher instead."),
+        command("Armed Grunts: Shove Up Close", "vr_agrunt_test 89")
+            .help("vr_agrunt_test 89 (vrtesthall's start; about 30 s): a gun's holder with you in its shove's reach and "
+                  "just beyond it steps in and shoves (not backing off); a little further it backs off; far off as "
+                  "before (Combat > Enemy Shoves > Armed Shove: Step In; agtest: shove close ... PASS)."),
+        command("Armed Grunts: Dual Guns' Muzzles", "vr_agrunt_test 85")
+            .help("vr_agrunt_test 85 (vrtesthall's start; a few seconds): every dual-gun pair of a grunt and an enforcer "
+                  "(their own guns too) fires each gun in turn: each shot leaves its own gun's drawn muzzle, the left "
+                  "gun's from the left (agtest: muzzle ... PASS)."),
         command("Armed Grunts: Print Their State", "vr_agrunt_test 4"),
         command("Armed Grunts: AD's Weapons", "vr_agrunt_test 12")
             .help("vr_agrunt_test 12 (with Arcane Dimensions' data): as Every Weapon, AD's soldiers' guns, the Shadow "
@@ -532,6 +547,8 @@ za::Vector<Item> pageDebugAutomation()
         command("Blast Beside the Nearest Ragdoll", "vr_ragdoll_blast_test").help("vr_ragdoll_blast_test [damage]: a blast's push (no damage) 24 units beside the nearest ragdoll, on your side: it is thrown away from you."),
         command("Ragdoll and Prop Drawn Motion", "vr_drawn_motion_test 90 nearest")
             .help("vr_drawn_motion_test <frames> [<entity> | nearest | held]: over the next 90 frames, how evenly the nearest ragdoll's parts, the nearest loose prop (held: the one in your hand) and your hands move frame to frame (the console: uneven near 0 is smooth; about 2 with stalls: a step shown twice). Throw or hold one first. vr_debug_ragdoll 2: each frame's blend between the steps."),
+        command("Monsters' Drawn Motion", "vr_rig2_motion_test 300")
+            .help("vr_rig2_motion_test <frames> [<model>]: over the next frames, every visible monster's mesh as drawn (its top, bottom and side vertices, and its drawn origin, in the world) frame to frame: the mean and largest step, the frames it did not move, the jerk (the step's change over the mean). A 10 Hz stair-step shows as a largest step many times the mean with most frames still. <model> (\"vrgrunt\"): its every frame's steps printed."),
         command("Drop the Nearest Prop on the Nearest Corpse", "vr_corpse_drop").help("vr_corpse_drop [height]: the loose prop nearest you put 32 units over the nearest corpse, to fall on it (Gibs and Corpses > Corpse Collision)."),
         command("Gib Props: Gib the Nearest", "vr_gibprops_test 1")
             .help("vr_gibprops_test 1: the nearest live monster gibbed; the console (developer 1) says whether its head and gibs are props (grabbable, destroyable). Then the rows below on its head."),

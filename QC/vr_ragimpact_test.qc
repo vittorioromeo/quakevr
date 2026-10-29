@@ -12,7 +12,7 @@
 // living one killed whole.
 // 63 you over its middle as 60; 64 its parts' places kept, then how far they moved (a crush's push); 65 the nearest one
 // down, alive, hit for 1 (a punch's stand-in: kept down).
-vector vr_rimp_test_parts[16];
+vector vr_rimp_test_parts[VR_LIMB_JOINTS];
 float vr_rimp_test_kept;
 void(float xMode) VR_RagImpact_Test =
 {
@@ -57,7 +57,7 @@ void(float xMode) VR_RagImpact_Test =
     if(xMode == 50)
     {
         float limbs = 0;
-        for(float i = 1; i < 16; i++)
+        for(float i = 1; i < VR_LIMB_JOINTS; i++)
         {
             limbs = max(limbs, best.vr_limb_corpse_dmg[i]);
         }
@@ -150,11 +150,11 @@ void(float xMode) VR_RagImpact_Test =
     }
     if(xMode == 64)
     {
-        // Its parts' places (the bones 0..15): the first call keeps them, each later one prints how far they are from there.
+        // Its parts' places (every bone): the first call keeps them, each later one prints how far they are from there.
         float most = 0;
         float sum = 0;
         float n = 0;
-        for(float b = 0; b < 16; b++)
+        for(float b = 0; b < VR_LIMB_JOINTS; b++)
         {
             vector at2 = ragdollpoint(best, b, '0 0 0', 1);
             if(at2 == '0 0 0')

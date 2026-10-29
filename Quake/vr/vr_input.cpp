@@ -35,6 +35,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_arenacards.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Swap.hpp"
@@ -1094,6 +1095,12 @@ void update(const InputState& tracked)
                 if(posing::button(h, posingButton(b.button), now))
                 {
                     logButton(h, b, now, b.key[h], "the weapon posing mode");
+                    continue;
+                }
+                // The Survival Arena's perk cards: a trigger with its laser on their panel picks (vr_arenacards.cpp).
+                if(arenacards::button(h, posingButton(b.button), now))
+                {
+                    logButton(h, b, now, b.key[h], "the perk cards");
                     continue;
                 }
                 // The toolgun's hand: its trigger, B/Y (its menu) and X/A (the sticks); the other trigger while its physgun

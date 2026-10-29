@@ -132,6 +132,33 @@ void() VR_Burn_TestFrame =
         VR_Burn_Ignite(p, world, hit, v_forward * -1, VR_BURN_NAIL); // (not by you: your own fire never lights you)
         return;
     }
+    if(ask == 16)
+    {
+        // A monster's lava nail at you (an armed enemy's lava nailgun): you set on fire, as yours set a monster. The
+        // nail's hit is run at once (its touch, `other` you), so the verdict is this frame's.
+        entity mo = spawn();
+        mo.classname = "vr_burn_test_shooter";
+        mo.flags = FL_MONSTER;
+        makevectors(p.angles);
+        vector from16 = p.origin + v_forward * 48 + '0 0 12';
+        float before16 = p.burn_fire != world;
+        entity os16 = self;
+        entity oo16 = other;
+        self = mo;
+        entity n16 = launch_spike(from16, normalize(p.origin + '0 0 12' - from16));
+        n16.classname = "lava_spike";
+        n16.touch = lavaspike_touch;
+        self = n16;
+        other = p;
+        lavaspike_touch();
+        self = os16;
+        other = oo16;
+        float lit16 = (p.burn_fire != world) && (p.burn_fire.classname == "vr_burn") && (p.burn_fire.enemy == p);
+        float ok16 = lit16 && !before16;
+        dprint(sprintf("burning: test 16: a monster's lava nail at you: %s (burning before %g)\n",
+                       ok16 ? "PASS you burn" : "FAIL", before16));
+        return;
+    }
     if(ask == 14)
     {
         float yourFlames = 0;

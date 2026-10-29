@@ -20,6 +20,7 @@ struct EntityVr
     bool noRotate{false}; // a rigid body: an EF_ROTATE model (the backpack) must not spin
     bool spin{false};     // spins as an EF_ROTATE pickup though its model is not one (a weapon pickup drawn as its prop)
     int weaponUid{0};     // a weapon prop's weapon id (QC vr_weaponinst.qc; 0: not a weapon): its blood (vr_wounds.cpp)
+    int clipSize{0};      // its magazine's size (0: unknown)
     int clip{-1};         // and the rounds in it (-1: not a weapon prop): its ammo screen (vr_view.cpp setupWorldWeapons)
     float hotGlow{0.f};   // and its incandescent blade's glow, 0..1 (U_QVR_WEAPONUID's bits 24-30: vr_hotblade.cpp)
     bool depleted{false}; // and a spent single-use enemy gun, never fired again (bit 31; QC .vr_depleted): no loot beam

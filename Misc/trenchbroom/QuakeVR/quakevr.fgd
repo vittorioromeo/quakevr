@@ -264,6 +264,16 @@ Used as a helpful aim target for rockets."
 	lip(integer) : "Lip" :  : "Units of the brush left showing at the end of its move."
 ]
 
+@PointClass color(0 204 128) size(-16 -16 0, 16 16 32) =
+	info_arena_item : "Where a wave clear's medkit or armour lands, round robin over the map's item points. With none in the map, the drops land in a ring 220 units off the player instead."
+[
+]
+
+@PointClass color(0 128 204) size(-16 -16 -16, 16 16 16) =
+	info_arena_spawn : "A wave's foe comes in here. 'kind': 1 (or unset) a ground point, 2 a high one: a wave's ranged and flying foes come in above the floor there. The waves use these round robin; a point used twice in a wave is stepped aside. With none in the map, its foes come in a ring 400 units off the player instead."
+[
+]
+
 @PointClass color(255 0 0) size(-16 -16 -24, 16 16 32) =
 	info_boss_teleport_boss : "Where trigger_boss_teleport (spawnflag 1) sends Dawn of the Machine's Chthon; he rises there."
 [

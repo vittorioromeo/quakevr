@@ -1,5 +1,652 @@
-# Round 23: after 1.1.0-beta4
+﻿# Round 23: after 1.1.0-beta4
 
-Notes for the work after the 1.1.0-beta4 prerelease (2026-10-27, commit c9aedff6). Round 22 (`ROUND22.md`) covers
-1.0.1 to 1.1.0-beta4; grep it for anything older. Append new sections at the end of this file, one per shipped task:
-what changed, how it was verified (numbers), settings and their defaults, what to test in VR, decisions.
+A per-feature reference (condensed from the per-worker notes; current behaviour only). Round 22 (`ROUND22.md`) covers
+1.0.1 to 1.1.0-beta4. Add new work as a section per feature (or fold it into its feature's section): what it does,
+settings and defaults, files, tests, open issues. Run tests with `bash C:/OHWorkspace/qvr-kit/run.sh <name> -Filter
+"..." -QuitOn "..."`; arena tests need `developer 1; vr_arena 1` (vrtesthall) or `map vrarena`, and `god`.
+
+Sections: 1 Survival Arena: map; 2 director and waves; 3 difficulty; 4 foe armour and perks; 5 cleanup and loot;
+6 polish (readout, countdown, arrivals, guns); 7 Armour for armed humanoids; 8 Armed-humanoid motion and strafe;
+9 Ammo-screen colours; 10 Suggested checklist lines still pending.
+
+## 1. Survival Arena: the map (`vrarena`)
+
+Reached from Play > Maps > Survival Arena (`command("Survival Arena", "map vrarena")`, `pagePlay()` in
+`Quake/vr/vr_menu.cpp`). Generator: `Misc/quakevr/maps/vrarena_gen.py` writes `quakevr/maps/vrarena.map` and (with
+`--compile --preset final --holes 400128`) its `.bsp/.lit/.lux`, all committed together. Compiled with ericw-tools
+2.0.0-alpha11 (`-bsp2 -wadpath`, vis, light `-extra4 -dirt -bounce -lit -lux -lightgrid`). `--check` reads the written
+file back (spawns, items, steps, brush interpenetration, features in the open ring) and refuses to compile if points are
+missing; `bsp_holes.py`: 0 holes.
+
+- **Shape.** Sealed octagon 1728 across (half-width `H` 864), corners cut 200, floor 0, ceiling 384 (`ZH`, 11.7 m).
+  Central dais (96 high, four 6-step flights; `info_player_start` 0 0 120); four corner towers 256 high with pinwheel
+  staircases (16 high x 16 deep treads, the climbable minimum); wall walk at 256 along the east and west wall joined to
+  tower tops by 64-wide bridges; eight covers 48 high, 96 wide at 512 out (45 degrees apart; 48 high so a standing eye
+  at 56 is not blocked); open ring 700..1000 out has no feature below 160.
+- **Points.** 12 `info_arena_spawn`: `kind 1` ground (four at +-640 +-640 0), `kind 2` high (tower tops 402 402 256,
+  walk landings 736 +-288 256); 3 `info_arena_item` (196 196 48, -196 196 48, 196 -196 48); 24 `light`; worldspawn
+  `light 90`, `_qvr_prelit 1`, `worldtype 2`, `_vr_debris 0`. 230 brushes, 60 entities (20 solid, 40 points). Spawn
+  points sit 24 above their floor.
+- **Look (id's base set).** Worldspawn lists `quakevr/wads/id_textures.wad;quakevr/wads/quakevr_dev.wad`
+  (`id_textures.wad` is git-ignored, built by `Misc/trenchbroom/make_id_wad.py` from the player's own paks; only the
+  compiled bsp ships). `--dev-textures` rebuilds with the dev grids; `main()` refuses a texture not in a listed WAD.
+  Faces are laid by `laid()` in three modes (world grid, `fitv` whole tiles down a band, `fit` whole tiles both ways) so
+  crates, lamps, flutes and trim land on whole tiles. Floor `ground1_2`, walls `tech14_1` between `tech04_1` skirting/
+  rail/cornice bands and a `metal4_4` wainscot, `tech04_3` fluted uprights (12, with `tlight01` lamp hoods), `metal1_1`
+  ceiling with eight `light3_3`/`ceil1_1` coffers, `sfloor4_2` decks, `crate0_*` covers, `plat_top1` spawn pad. Light
+  emission comes from `quakevr/relight_textures.cfg` plus fullbright pixels, not from a `qvr_light` name (nothing in
+  `Quake/` uses it). Texture fit was verified numerically (106 object faces within 0.0017 texel).
+- **Open (his eye):** whether the trim families, the upright spacing, the coffers and 96-wide covers read well;
+  `MAPPING.md`'s rule about committed bsps carrying id art is left as written (vrarena joins vrcalibration and the hubs).
+- **Tests:** `python Misc/quakevr/maps/vrarena_gen.py --check` (`arena_map: 12 spawns, 3 items, 0 bad steps`,
+  `arena_check: done`); `vr_arena_test 4` (below) 7/0.
+
+## 2. Survival Arena: the wave director (`QC/vr_arena.qc`, `vr_arena_perks.qc`)
+
+Runs only when the map is `vrarena` or `vr_arena 1` (`ar_mgr` set, `VR_ARENA_ON`); every shared-file hook returns at once
+otherwise (combat.qc `Killed`, items.qc `armor_touch`, vr_decap.qc, vr_enemyguns.qc, world.qc `VR_ARENA_WorldSpawn`).
+No engine code. Plan arrays survive save/load. Foes are spawned through their kind's own spawn function and handed the
+player by `VR_ARENA_HuntPlayer` (any other start leaves `takedamage 0`). The skill is read from the cvar at world spawn
+(`VR_ARENA_SkillLevel`; the `skill` global is not set yet).
+
+- **Plan** (`VR_ARENA_Plan`): 12 recipes for waves 1..12, then one rule (13+: same ladder, thicker). Wave 1 one or two
+  unarmed grunts; wave 2 an unarmed grunt and a nail pistol; wave 3 the first zombie. Classics at their waves (Normal):
+  zombie 2, knight 4, dog 6, ogre 8, fiend 12, death knight 16. Waves are rolled with a Levy triple from `vr_arena_seed`
+  and the wave (0: new ladder each run; N: replays). A wave's size = recipe groups x `vr_arena_wave_size`, then the
+  difficulty; signature foes and the boss stay one. `AR_PLAN_MAX` 40 (a Nightmare wave 40 plans 32).
+- **Alive pool and flow** (`VR_ARENA_Pool`): `vr_arena_alive_max` 6 up at once at wave 1, +1 every `vr_arena_alive_grow`
+  4 waves, capped at `vr_arena_max_alive` 8 (clamp `AR_FIELD_MAX` 16). A wave opens with `vr_arena_burst` 3; then a
+  freed slot is refilled `vr_arena_spawn_gap` 1.5 to 2x that at random later (a fall wakes the director; its think lands
+  on the gap's end). A wave stalled 300 s after its last arrival is called off.
+- **Where.** Floor places (`kind 1`) for walkers, high places (`kind 2`) for fiends and enforcers (dropped 96 onto the
+  ledge), each place used once per wave. A foe comes in out of the player's sight (outside ~60 degrees of view or behind
+  a wall) at least 320 units off his eyes; else far in sight; else any free place. Maps without places use a ring 400
+  around the player (same three passes). A place is skipped if a non-brush model stands in the foe's box
+  (`VR_ARENA_BoxBlocker`, hull 64 wide for ogre/fiend/death knight/dog, 8 pad, plus the 96 column for high places); no
+  free place: the foe waits a beat. Medkits/armour/pedestals use `VR_ARENA_FreeNear` (point, or 64/128 off it in 8 ways).
+  Every arrival gets the teleport flash and a `misc/r_tele*.wav` (`VR_ARENA_Tfog`); `VR_ARENA_ScanSpawn` counts
+  `ar_overlaps`.
+- **Boss.** Every `vr_arena_boss_every` 5 waves (Easy 6); an enforcer with a rolled gun until wave 10, an ogre until
+  16, a death knight after (earlier by difficulty); health x `vr_arena_boss_health` 1.25; worth 4 kills. Planned first
+  but enters halfway through its wave after the burst, announced 3 s before. Nightmare brings two (second at half bulk).
+- **Player side.** Run starts stripped (`VR_ARENA_StripPlayers`); guns come off bodies (`VR_AG_SoldierDrop`). Each clear
+  drops `vr_arena_medkits_after` 2 medkits and every `vr_arena_armor_every` 4 waves an armour (light, then heavy and light
+  by turns from the run's wave 12) on the item points (or the ring). Score: `vr_arena_score_kill` 100 x the gun's rung
+  (fists/shotgun/nail pistol 1; SSG, nailgun, super nailgun, ogre, fiend 2; RL, lightning, GL, death knight, proximity,
+  laser 3), boss x4, armoured kill x1.25/1.5/1.75 by type (`AR_ARM_PAY`), plus 250 x wave per clear. A fall ends the run
+  (`YOU FELL AT WAVE n`) and restarts after 10 s.
+- **Readout** (polish): every arena line is the engine's `viewmessage` (eye level in the headset, held centre print on
+  a flat screen; `VR_ARENA_PrintAll` / `ShowAll` / `Show`), first line highlighted: `SURVIVAL ARENA` / `Normal: you start
+  unarmed`; `WAVE 7` / `9 foes, 3 in armour` / `score ...`; `WAVE 5 - BOSS WAVE`; `WAVE 6 CLEAR`; `A BOSS IS COMING`;
+  `YOU FELL AT WAVE 9`. One message at a time; console copy `ARENA> ...`; nothing on the wrist.
+- **Rest and countdown.** `vr_arena_wave_rest` 5 s (difficulty-scaled 6.7/5/4/3.3; replaces `vr_arena_wave_delay`) then
+  `vr_arena_countdown` 5 s (`Wave 7 in 5...`; boss: `BOSS WAVE 10 in 3...` / kind). The first wave has both, so a run
+  starts ~10 s after the map. `VR_ARENA_FastForward` skips both.
+- **Weapon schedule** (`VR_ARENA_PickGun`, `PlanTrickle`): each gun has its own wave (Normal; +3 Easy, -2 Hard, -4
+  Nightmare, never before 3), first as a trickle (2 waves on 1 foe, 2 waves on 2, dealt at random over the humanoids,
+  newest first), then in the pool: a newcomer starts at 35% of its share, ramps over 4 waves, holds 6, fades 8% a wave to
+  a 20% floor. Bosses use `VR_ARENA_PickBossGun` (tiers at `AR_W_TIER2` 10 / `AR_W_TIER3` 18). Pack guns only with their
+  data (`VR_AG_Usable`).
+
+| gun | eligible | on 1 foe | on 2 foes | in pool from |
+|---|---|---|---|---|
+| shotgun, nail pistol, axe | base | - | - | 3 |
+| super shotgun | 3 | 3-4 | 5-6 | 7 |
+| nailgun | 5 | 5-6 | 7-8 | 9 |
+| super nailgun | 7 | 7-8 | 9-10 | 11 |
+| grenade launcher | 10 | 10-11 | 12-13 | 14 |
+| proximity gun (Armagon data) | 12 | 12-13 | 14-15 | 16 |
+| rocket launcher | 13 | 13-14 | 15-16 | 17 |
+| lightning gun | 16 | 16-17 | 18-19 | 20 |
+| laser cannon (Armagon data) | 19 | 19-20 | 21-22 | 23 |
+
+**Settings** (engine cvars; menu Combat > Survival Arena, with sub-pages The Waves, Armour, Cleanup):
+
+| cvar | default | meaning |
+|---|---|---|
+| `vr_arena` | 0 | run the waves in any map (vrarena needs no flag) |
+| `vr_arena_wave_size` | 1.75 | multiplier on crowd groups |
+| `vr_arena_alive_max` / `_alive_grow` / `_max_alive` | 6 / 4 / 8 | opening pool, waves per +1, ceiling (1..16) |
+| `vr_arena_burst` / `_spawn_gap` | 3 / 1.5 | opening burst; refill gap (to 2x) |
+| `vr_arena_wave_rest` / `_countdown` | 5 / 5 | s rest, s countdown (0..10; 0 none) |
+| `vr_arena_boss_every` / `_boss_health` | 5 / 1.25 | 0: no bosses |
+| `vr_arena_medkits_after` / `_armor_every` | 2 / 4 | medkits 0..4; armour gap, 0: none |
+| `vr_arena_score_kill` | 100 | base score per kill |
+| `vr_arena_seed` | 0 | 0: random ladder each run |
+| `vr_arena_test` | 0 | test selector below |
+
+**Tests** (`vr_arena_test N`, verdict `arena: test N over: P passed, F failed`; defaults pin `wave_size 1`,
+`wave_rest 5`, `countdown 5`; 6 and 9 run at 1.75, 6 and the perk tests without countdown). Latest results, all 0
+failed: 1 plans/hooks/score/supplies **257**; 2 live waves **13**; 3 boss wave **9**; 4 places (vrarena **7**, vrtesthall
+**5**); 5 difficulty **491**; 6 32-wave soak **8** (edicts plateau ~290-330, bodies ~6, guns ~25, drops 4, longest wave
+~48 s); 7 cleanup (vrarena) **19**; 8 e1m1 untouched **3**; 9 wave flow (vrarena) **37**; 10 foe armour **160**; 11 loot
+gate (vrtesthall) **25**; 12 gun schedule **56**; 13 arrivals/overlaps (vrarena) **12** (56 spawns, 0 overlaps); 14 rest and
+countdown timed **7**. Example: `run.sh <name> -Filter "arena:" -QuitOn "arena: test 5 over" -Timeout 300 -Script
+"developer 1; vr_arena 1; vr_arena_seed 7; map vrtesthall; wait15; god; vr_arena_test 5; wait6000"` (test 6 needs
+`-Timeout 1500`). Known: test 1 is 256/1 on vrarena (`a fallen monster is not alive`, harness case; 257/0 on vrtesthall).
+
+**Open:** whether the rest + countdown (10 s before wave 1) is too long; whether Quartermaster should reach a player
+holding nothing. (Whether the next wave should wait for the perk choice: it does now, "Perk cards" below.)
+
+## 3. Survival Arena: difficulty (`vr_arena_skill_impact`)
+
+`VR_ARENA_Skill(easy, hard, nightmare)` maps the game's skill to a factor: at impact 1, **0.75 Easy / 1 Normal / 1.25
+Hard / 1.5 Nightmare**; impact 0 = no effect; 2 doubles the step from 1; never below 0. It is the arena's own knob and
+touches nothing of `vr_agrunt_ai_skill` (the armed humanoids' AI). Gates move in whole waves (`VR_ARENA_WaveAdj`: +3
+Easy, -2 Hard, -4 Nightmare, x impact, never before wave 2). Opening line names the difficulty. Menu: Combat > Survival
+Arena > Difficulty Impact (0..3, extendable to 10), Skill cycle.
+
+Effects (Easy / Normal / Hard / Nightmare): wave size (wave 11: 5 / 7 / 8 / 10); alive cap 6 / 8 / 10 / 12 (12 -> 9 /
+12 / 12 / 12); rest 8 / 6 / 4.8 / 4 s (spawn gaps 2-4 / 1.5-3 / 1.2-2.4 / 1-2 s); second gun rung at wave 13 / 10 / 8 /
+6, third 21 / 18 / 16 / 14; knight 7 / 4 / 2 / 2, dog 9 / 6 / 4 / 2, ogre 11 / 8 / 6 / 4, fiend 15 / 12 / 10 / 8, death
+knight 19 / 16 / 14 / 12; unarmed share of early humanoids 0.30 / 0.20 / 0.15 / 0.10; boss every 6 / 5 / 5 / 5 with
+Nightmare's two; ogre boss from 13 / 10 / 8 / 6, death-knight boss from 19 / 16 / 14 / 12; enforcer boss health 76 / 101 /
+126 / 151; medkits 3 / 2 / 2 / 1; armour every 3 / 4 / 5 / 6 waves; kill score 75 / 100 / 125 / 150; perk pedestals 2 /
+3 / 4 / 5. Wave 13+ thickening stays anchored at 13. Clamps: group >= 1, field 1..`AR_FIELD_MAX`, wait >= 1 s, medkits
+0..4 (`AR_KIT_MAX`), armour gap 0..12 (`AR_ARMOR_MAX`), boss health >= 1, score >= 1, skill 0..3. Not touched: AI, guns
+rolled, places, the heavy armour's wave, the fall path, the 300 s call-off.
+
+**Open:** whether Easy should soften boss kinds; whether Nightmare's second boss deserves a knob; whether the impact
+should reach the pedestal count.
+
+## 4. Survival Arena: foe armour and boss-wave perks
+
+**Armoured foes** (`VR_ARENA_PlanArmour` after `PlanFoes`; spawn gives the plan's armour via `VR_AgArmor_Give` while the
+skill's own roll is held, `vr_ar_hold_roll`; `VR_ARENA_BossMidway` carries armour with its foe). Grunts and enforcers
+only. None before `vr_arena_foe_armor_from` 4 (as gates move: 7 / 4 / 2 / 2). Chance 10% at that wave + 3% a wave, x the
+difficulty factor x `vr_arena_foe_armor_scale`, cap 85%. Best type: green until `AR_W_TIER2 + 2` (wave 12), yellow
+after, red from `AR_W_TIER3 + 4` (22); a foe's type is even over 1..best. Plates: cuirass + helmet, +1 limb plate every 3
+waves (x factor). Grunt/enforcer **bosses** are always armoured from the first armour wave, a type above the wave's best,
++4 plates; a boss wave's other humanoids get +15% (the ogre and death knight bosses have no shells). Rolls use the
+wave seed's salted stream, so guns and gaps are unchanged. Normal: wave 4 10% green 2 plates; 12 34% G-Y 4; 20 58% G-Y
+7; 25 73% G-R 9; 30 85% G-R 10. Readout: `Wave 12: 9 foes, 3 in armour`. Settings (Combat > Survival Arena > Armour):
+`vr_arena_foe_armor` 1, `vr_arena_foe_armor_scale` 1 (0..4), `vr_arena_foe_armor_from` 4 (2..30). Test: `vr_arena_test
+10` (160/0: table within 3% over 400 rolls per cell, plans at each skill, live wave 5 foes and the 600-point yellow boss).
+
+**Perks** (`vr_arena_perks` 1, `vr_arena_perk_count` 3, 1..the pool of 8; scaled by difficulty 2/3/4/5). A boss wave's
+clear offers that many **perk cards** on a floating panel (below, "Perk cards"); the pick takes the perk for the run and
+no later boss offers it. (Until the perk cards pass, the offer was pedestals on the item points, walked over.) Perks (each hooks a place the game reports and returns unless taken,
+`VR_ARK_Running`): **Quad Strike** (melee kill adds 2 s Quad; only ever adds time), **Neck Snapper** (snapped neck +20
+health, decap hook), **Iron Skin** (picked-up armour +25: 125/175/225, at `armor_touch`), **Second Wind** (max health
++15), **Feeder** (+5 health per kill, at most 1/s), **Quartermaster** (each clear +15 ammo to the held gun, via
+vr_ammoutil), **Spoils** (twice `vr_arena_gun_max` fallen guns stay), **Can Opener** (plates pay twice from their pool
+for what they save, `VR_ARK_PlateCost`). Tests: `vr_arena_perks_test 1..5` on vrarena (pool 19, offer and picks 22,
+every perk through the game's calls 43, full-map drive 15 `arena_full:`, the card panel 13 `arena_cards:`); scenario
+`quakevr/scenarios/arena_intro.txt` (boss every wave, so the offer comes at once).
+
+**Perk cards** (`Quake/vr/vr_arenacards.cpp`, QC `VR_ARK_Card*` in `vr_arena_perks.qc`). Why the pedestals went: they
+stood 96 units out past the item points, often behind the player or across the room; their names were view messages
+that the WAVE CLEAR line, the countdown's once-a-second lines and the next wave's lines overwrote within a second or two;
+the rest (5 s) and countdown (5 s) ran on regardless, so the choice was made while the next wave arrived (or not at all:
+an unclaimed offer was silently replaced at the next boss); walking over one by accident (on the way to a medkit) took
+it; and the picture was a model lying on the floor (gibs, view models). Now: the clear's cards go up on a panel 320 x 200
+virtual px (1280 x 800 texels), `vr_arena_cards_width` 32 units wide, `vr_arena_cards_distance` 34 in front of the head
+at its yaw, a tenth of that below the eyes, leaning back to face them, not depth tested (Combat > Survival Arena > Perks:
+Perk Cards Distance / Width). Placed once when it comes, world-locked after; placed in front again after a menu, or when
+the view is more than 60 degrees off it (or 3x its distance away) for 1 s. A card: its perk's colour band and name
+(`VR_ARK_Colour`), its item's thumbnail (`VR_ARK_Model` via the toolgun's icons), what it does, its number. Either
+hand's laser lights a card (a haptic tick); its trigger picks it (a trigger on the panel is never the gun's); number keys
+1..n too (keys.c `VR_ArenaCardsKey`); presses in the first 0.5 s after it comes up are ignored. The view message is
+hidden while the cards are shown. The arena waits: the offer comes only from a wave's clear (nothing alive; a stalled
+wave's clear removes its foes), so no monster needs freezing; `VR_ARK_Hold` parks the director on `VR_ARK_HoldThink`
+with its rest's remaining seconds, `VR_ARENA_Between` stays true, the pick (`VR_ARK_CardPick`) resumes it with exactly
+that remainder (`ar_rest_at` moved on by the hold). An offer no panel reports seeing (`VR_ARK_CardsSeen`, said each
+frame by the engine with a headset) for 3 s is withdrawn, so a game without the panel never waits for ever. The arena's
+own tests run with `vr_arena_perks 0` (a card offer would hold their waves). Debug > Automation & Self-Tests > Survival
+Arena: Offer Perk Cards Now (`vr_arena_cards_offer`), Perk Card Panel Test (`vr_arena_perks_test 5`). Test aids:
+`vr_arena_cards_mock_laser <card>|<x y>|off`, `vr_arena_cards_pick <n>`, `vr_arena_cards_dump`. Test 5: jumps to wave 5,
+kills it, waits for the panel, 3 s untouched (wave, countdown, foes, rest remainder all unchanged), mock laser on card 2,
+screenshot, mock trigger, perk taken, countdown exactly the 1 s remainder after the pick, wave 6: 13/0.
+
+## 5. Survival Arena: cleanup and loot gate
+
+Active only while an arena runs. `VR_ARENA_MonsterDie` -> `VR_ARENA_BodyDown`; `VR_ARENA_WaveClear` ->
+`VR_ARENA_DropsExpire`; `VR_ARENA_Frame` fades and removes what is due. Never taken: a thing a hand holds
+(`carry_player`, `mainhand_held`/`offhand_held`), a force-grabbed one (`fg_state`), a body still dying/gibbing (waited
+10 s at most); let go of, it lies 3 s more. Settings (Combat > Survival Arena > Cleanup):
+
+| cvar | default | meaning |
+|---|---|---|
+| `vr_arena_corpse_fade` | 14 | s a body (or head) lies before a 1 s fade, +-3 s; 0 never by time |
+| `vr_arena_corpse_max` | 12 | bodies at most, oldest fades first; 0 no limit |
+| `vr_arena_item_waves` | 2 | clears later that uncollected medkits/armour fade; 0 never |
+| `vr_arena_gun_max` | 24 | foe-dropped guns lying at most (Spoils doubles it); 0 no limit |
+
+In an arena `VR_EnemyWeapons_MakeRoom` uses `VR_ARENA_GunMost` and counts every `.vr_monster_drop` gun (player-dropped
+guns never count). `VR_EnemyWeapons_MendFades` (vr_enemyguns.qc, run by every cap and twice a second by the cleanup)
+resumes a stalled fade and removes one long overdue; humanoids no longer go for a gun fading past the cap (answers the
+"stuck, non-interactable shotgun" report; not reproduced headless, so the cause is unconfirmed: if it shows again,
+`developer 1` and look for a `dropcap:` line and note how the gun got there). Soak result: edicts flat ~290-330 over 32
+waves (was 928).
+
+**Loot gate.** `VR_WeaponUtil_EntIsEligibleForWeapon` (fist/axe/shotgun always, else "player holds it") answers with
+`VR_Pack_WeaponAvailable(id)` while `VR_ARK_Running()`, so an ogre (`OgreDrop`, from wave 8) and ammo boxes can drop strong
+guns whatever the unarmed player holds; guns the pack lacks stay out; `vr_enemy_drops 2` / `vr_ammobox_drops 2` still
+stop drops; outside a run nothing changed. The foes' own guns never went through the gate. A blanket "eligible for
+everything" grant was rejected (owning is the hand inventory; it would undo the stripped start). Test: `vr_arena_test 11`
+(25/0). `vr_armedrepl.qc` (replacement, default off) uses the same gate; `vr_agrunt_repl_rare_map` keeps vrarena out of
+the rare tier. **Open:** an ogre can leave a grenade launcher/rocket launcher from wave 8 (a wave-tier gate would be a
+short follow-up); ammo boxes/crates in other arena maps can hold ammo for guns not yet held.
+
+## 6. Survival Arena: review fixes (kept as constraints)
+
+`VR_ARENA_ClearField` removes exactly `ar_slot == wave` (it used `findflags`, which matches shared bits) and lets go of
+held foes via `VR_Carry_Forget`; Quad Strike only adds time. e1m1 with all monsters killed (`impulse 205`) prints no
+error; eval.sh passes.
+
+## 7. Armour for armed humanoids (grunt and enforcer; `vr_agarmor.cpp`, `QC/vr_agarmor.qc`, `make_agarmor.py`)
+
+- **Pieces.** Ten, one bit each in `vr_agarmor_pieces` (1023 all): 1 cuirass, 2 helmet, 4/8 pauldrons, 16/32 bracers,
+  64/128 thighs, 256/512 shins; limb plates built from the authored rig's weights (triangles weighing > 0.5 on a bone),
+  painted with the cuirass's lames. vrgrunt 3460 triangles / 54 bone slots (`maxSlots` 128); enforcer 3408 triangles
+  from `vrenforcer.rig2.txt` (its power pack is no plate's: the cuirass stops at `Wearer::backCut` -10.5, a breastplate).
+  Checks: `vr_agarmor_check` (no model: both; 10/10, cap 4000 triangles).
+- **Server to client.** QC `.vr_ar_type`, `.vr_ar_mask`, `.vr_ar_wear` (vr_fields.inc); `agarmor::serverFrame`
+  (`VR_ServerFrameEnd`) sends changes as reliable `QVR_SVC_ARMOR`, `serverWriteAll` the whole set after a clear. Client
+  priority: `vr_agarmor_set` (debug, per entity) > `vr_agarmor` (debug, forced) > server. Builtins are full: piece at a
+  point is `ragdollbone(e, p, QVR_ARMOR_PIECE_AT)` (-1000), a piece's place `limbpiece(e, piece, 10/11)`, wear to the
+  client `ragdollbone(e, what, QVR_ARMOR_CLIENT)` (-1001); plate models `"<model>#plate<n>"`.
+- **Damage marks.** `.vr_ar_wear` bits 0-9 at <= 2/3 of a pool, 10-19 at <= 1/3 (`VR_AgArmor_Wear`); nine skins (type -
+  1 + 3 x wear); the client draws up to three armour entities per body (`maxWorn` 128); `vr_agarmor_wear` 1/2 debug.
+- **Gameplay.** Pools from Quake's totals (100/150/200) by share (cuirass 30, helmet 12, pauldrons 7, bracers 6, thighs 8,
+  shins 6, of 96), `T_DamageDeal` before the target's save (after Quad): single hit by point, shotgun pellets each by
+  piece (`AddMultiDamage`), blasts/beams by facing pieces. `vr_agarmor_rule` 0 = the player's rule (ceil(type x part))
+  from the pool, 1 = plate stops the part while its pool lasts. `vr_agarmor_helmet_head` 1 halves the headshot extra and
+  stops pops; `vr_agarmor_block_cuts` 1: no cut/pop under an unbroken limb plate (`VR_AgArmor_Guard`). Hits spark/ricochet;
+  a broken plate leaves the body with `items/armor1.wav` as debris (bounce, `vr_rigid` 1, not force-grabbable, fades over
+  1 s after `vr_agarmor_debris_time` 10 s); corpses keep plates, `ThrowHead` sheds them.
+- **Spawn roll** (`VR_AM_Spawn`, grunts and enforcers): `vr_agarmor_skill0..3` chance 0 / 0.15 / 0.35 / 0.6,
+  `_type` best 1/1/2/3 (rolled up to it), `_pieces` 2/2/5/10. Low-discrepancy sequence offset by the spawn point, not
+  `random()`. The arena overrides it (section 4).
+- **Toolgun.** Spawn > Monsters > Armed Humanoid: Armour (None/Green/Yellow/Red/Random) and Pieces (Chest+Helmet/Full/
+  Random) via `vr_toolgun_armed_armor` 0, `_pieces` 1 (`VR_AgArmor_Toolgun`; None strips the skill roll); Reset/Clear
+  restore. Menu: Combat > Armed Grunts > Armour; Debug > Tests > Armour on Armed Grunts / Damage Marks.
+- **Tests.** `vr_agarmor_test 1` **26/26** (places, rules 0/1, helmet, pellets, cuts, enforcer pack, debris, wear
+  thresholds, skill roll, client wear); `2` sheet of three grunts, `3` enforcers by facing, `4` yellow grunts at 2/3 and
+  1/3 (eyeshots); `vr_toolgun_armed_armor_test` **32/32**.
+- **Open:** a cut limb (block_cuts 0) does not shed its plate; limb plates share the cuirass atlas so marks repeat; the
+  66% look is subtle at range; default Normal 15% changes old tests that kill armed humanoids by exact damage.
+
+## 8. Armed-humanoid motion: choppy fix and strafe turn
+
+- **Choppy fix.** `rig2::restoreModels` (vr_rig2.cpp) restored every saved lerpflag including `LERP_RESETMOVE`, which
+  drawing the skinned copy spends; restored, the grunt/enforcer's move lerp reset every frame (steps up to 15 units, 10
+  times a second, with arms, guns and armour). Now the move lerp's reset flag is left as drawing left it; frame lerp flags
+  are restored as before. Test `vr_rig2_motion_test 300` (Debug > Automation > Monsters' Drawn Motion; vrtesthall,
+  `vr_agrunt_test 1`, a walking knight): fails a drawn origin stepping > 8 units/frame; 3 passed 0 failed (grunt step 15.03
+  -> 2.13, jerk 2.01 -> 0.15). Rig Studio subjects 13/14, aim 3/4, posekeys 13/14 fail identically without the fix.
+- **Strafe turn.** `vr_agrunt_strafe_turn` 28 deg (AI Behaviour > Manner > Strafe Turn, beside Strafe Lean):
+  `aglegs::lean` eases a yaw toward the sideways motion (sideways speed only, 0.18 s ease, never flipped) with the lean on
+  every bone; `agbody::upper` (`hipsTwist`) takes it out of the hips' turn its chest shares (`vr_agrunt_upper_hips` 0.3)
+  so chest, arms and gun stay aimed. `vr_agrunt_test 87` prints `aglean twist: ... PASS` (pelvis yaw 7.8 / 14.2 / 19.0 /
+  21.4 deg at 20-40 / 40-60 / 60-80 / 80+ u/s, chest <= 0.01 deg, roll 4.1 at 80+).
+
+## 9. Ammo-screen colours (`vr_view_weapon.cpp` `ammoWarning`, `idleAmmoWarning`)
+
+A gun's ammo numbers go red when empty and orange under a quarter of its magazine, on by default: `vr_ammo_color_warn` 1,
+`vr_ammo_color_low` 30 and `vr_ammo_color_empty` 0 (hues in degrees, or `"r g b"`), `vr_ammo_low_frac` 0.25. Menu: HUD and
+Menus > Screens > Weapons' Ammo Screens. With reloading on: magazine rounds vs the gun's own magazine size (QC
+`VR_ClipSizeOf`, sent to the client: a prop's extra byte in `U_QVR_WEAPONUID`, a holster's `STAT_QVR_HOLSTERCLIPSIZE0`;
+shotgun 8, nailgun 24, nail pistol 12, revolver 6, Widowmaker 16, SSG 2: one shell left is not low); reserve never
+counts. Reloading off: the ammo it fires from vs a magazine's worth. Guns with no magazine size (flare gun) and the
+chainsaw go red only at 0. One rule, `gunWarning` (vr_view_weapon.cpp), serves held, holstered and lying guns, enemy-dropped
+and never-held guns included (no "seen in a hand" limit). The tint goes through text3d `queue(..., tint)`; the CRT image is
+keyed on it. Test: `vr_ammocolor_test 1` (Debug > Tests > Ammo Screen Colours; `vr_ammo_color_debug 1` logs) on e1m1,
+**22 passed 0 failed** (cases 19..24 never hold the gun; Widowmaker cases skip without AD), `-QuitOn "ammocolor: .* passed"`;
+`2` an eyeshot. The nail
+pistol and revolver have no ammo screen by default (their Ammo Screen weapon setting).
+
+## 9b. Per-weapon recoil kick and rise (`vr_weapons.inc` `RecoilKick`, `RecoilRise`; `vr_weaponfx.cpp` `recoilAmount`)
+
+His backlog: per-weapon recoil kick and rise. Each weapon has two new multipliers, `vr_wofs_fx_recoil_kick_NN` and
+`vr_wofs_fx_recoil_rise_NN` (Weapon Offsets > Effects: Recoil Kick Back, Recoil Muzzle Rise; 0..3x, extendable to 10x),
+default 1 for every slot. A shot's drawn recoil is now: kick back = `vr_recoil_kick` cm x the weapon's Recoil Strength x
+its Recoil Kick Back; tip up (and the small sideways turn) = `vr_recoil_rise` deg x Strength x its Recoil Muzzle Rise. The
+globals stay what they were (his config holds 4.5 cm and 7.5 deg) and act as the base the per-weapon values scale;
+Recoil Strength stays as the per-weapon overall (the AD guns' fire feel, the 2.5 burst cap and old migrations use it).
+At the defaults the arithmetic is bit-identical to before, so no feel change and no migration (new cvars; no
+`settingsVersion` bump). The heavy-weapon aim kick (`vr_heavy_recoil_*`, `w_hrecoil`) is separate and untouched.
+Test: `vr_recoil_test` (Debug > Tests > Per-Weapon Recoil Test) with a weapon in the main hand: `map e1m1;
+vr_weapon_grip_mode 1; impulse 9; wait2; impulse 154; wait5; vr_recoil_test`, `-QuitOn "vr_recoil_test: [0-9]+ passed"`:
+**9 passed, 0 failed** (all 51 slots at defaults recoil as before; the held shotgun's Kick Back 2x / Rise 0.5x double its
+drawn kick back 0.45 -> 0.90 units and halve its pitch and yaw through `recoilOffset`; no other slot's recoil moves;
+another slot's 3x leaves the held one's; values restored).
+## 9b. Relighting: Ambient Light Level (`vr_relight_minlight`, backlog "a basic ambient lighting level")
+
+The Relighting page's "Minimum Light" row is now **Ambient Light Level** (same cvar, `vr_relight_minlight`, archived,
+default 0 = unchanged; slider 0..64 step 4, light units: 32 a dim fill, 64 a clear one). It used to pass light
+`-minlight N`, which (a) overrode a map's own brighter worldspawn `"light"` (command line beats map keys in ericw-tools 2)
+and (b) was darkened by `-dirt` (ericw-tools: `-dirt` implies `_minlight_dirt 1`), so the darkest corners stayed black.
+Now `scaledLights` (vr_relight.cpp) raises the worldspawn's `"light"`/`"_minlight"` to the level only where the map's own
+is lower and sets `"_minlight_dirt" "0"` (a true floor). `relight_maps.py --ambient N` (alias `--minlight`) does the same
+(`with_ambient`; the stamp unchanged at 0). Level 0 adds nothing, so the defaults' hashes and stamps are as before.
+Test (`Misc/quakevr/review/relight_ambient_stats.py a.bsp b.bsp`: style-0 luxels, BSP29/BSP2 + .lit, verdict
+`relightamb: PASS`): e1m1 relit in game (`vr_relight_quality 0`, AO 1.5 on) at 0 then 32 (`-QuitOn "relit in"`):
+min 0 -> 16, p1 0 -> 16, p5 0.3 -> 16, luxels under 16: 19.7% -> 0%, median 49 -> 47 (faces unlit before now counted);
+relight_maps.py at 0 / `--ambient 32`: the same (min 0 -> 16, p5 1 -> 16). `vr_menu_path_check "{menu:Graphics -
+Relighting>Ambient Light Level}"`: 1 found; `writeconfig` writes `vr_relight_minlight "32"`.
+## 9b. Nails smaller and faster (`vr_props.cpp` `Own::Nail`, QC `VR_NailSpeed`, `QC/vr_nail_test.qc`)
+
+His backlog: nails "30-40%" smaller with an accurate hit box, and "15-20%" faster, the player's and the enemies'.
+
+- **Size, drawn only:** `vr_nail_scale` 0.65 (new; VR Settings, the Rocket Size in Flight page: "Nail Size in Flight"),
+  an own scale like `vr_rocket_scale` (props `drawnSize`): `progs/spike.mdl`, `s_spike.mdl`, `lspike.mdl` and, AD support,
+  AD's `proj_ng.mdl`, `proj_ngred.mdl`, `proj_sng.mdl` (new model IDs), whoever fires them (traps, Scourges, Gremlins,
+  armed grunts, MG3 and AD content). Engine-side, so AD's QC is untouched.
+- **Hit box: already accurate, unchanged.** Every nail is a point (`setsize` 0). With precise hits (default) it meets a
+  monster's drawn model grown by `vr_hit_tolerance_guns` 2; with `vr_hit_precise 0`, the monster's box grown by
+  `vr_gameplayfix_missilesize` 2 (quakevr.cfg; Quake's 15). The player's hit box for enemy nails. Nothing bigger than the
+  visible nail, so the smaller model needs no hit box change.
+- **Speed:** `vr_nail_speed` 2065 (new, Combat > Weapon Damage > "Nail Speed"; was a constant 1750, x1.18) in
+  `launch_spike` and `launch_lava_spike`: the nailgun, super nailgun and DoE lava nails, the player's and every monster's
+  that fires them that way (armed grunts' nailguns, Scourges, Gremlins). `vr_nailpistol_speed` 2600 -> 3070 (x1.18;
+  configVersion 215 moves configs still at 2600; his cfg holds 2600). Missiles have no per-axis `sv_maxvelocity` clamp
+  (only a 3464 u/s length bound), so 3070 plus the hand's is not bent.
+- **Not changed (decisions):** traps' nails (500 u/s: map timing), AD's own nail monsters (nail ogre, snowman, sentinel,
+  Freddie: AD's skill speeds, decision 9 "AD's rules stay with AD's content"), and callers that set their own speed after
+  `launch_spike` (wizard spit, hell knight bolts, Chthon, MG3 bosses: not nails).
+- **Test:** `vr_nail_test 1` (Debug > Tests > Nail Pistol > Nail Speed and Size Test; `developer 1`, vrtesthall,
+  `-QuitOn "nailtest: [0-9]+ passed"`): **7 passed, 0 failed**. Speeds flown (two frames' way): player nailgun, super
+  nailgun 2065, nail pistol 3070, armed grunt's nailgun 2065 (before: 1750, 1750, 2600, 1750: the same run with the old
+  values fails exactly those 4, x1.000). Hit box: a point; a sweep of nails at 2-unit offsets across a grunt met it
+  from -10..14 (precise) and -12..14 (boxes), the middle always, never past 18. Drawn: `vr_physics_list` "drawn x0.650"
+  (before x1.000). `vr_nail_test 2` hangs three nails 40 units before your eyes for 30 s (Debug > Tests > Nail Pistol).
+  Seen in the test: nails spawned side by side in the same frame meet each other as they leave (the sweep fires them
+  one at a time); no real weapon does that.
+## 9b. Rig Studio: a pose's Off Hand On the Gun now holds (branch `agent/rigoffhand`)
+
+His words: setting the off hand's behaviour per pose "doesn't seem to work" (free, or on the weapon's grip). The combo,
+the key's storage (`vr_agrunt_poses`: 30 numbers when an off-hand part is set), its reload and QC's choice of the deciding
+key were all fine (Free works in every pose on every gun category). **Root cause: On the Gun was refused where it was
+most wanted.** (1) A pistol carried low (Carry, Run, the take's lowest: barrel down past 27 degrees) is never cupped
+(`lowCarry`, `vr_agarms_arm_clear`), and the key's On the Gun reached the client only as the Weapon Holds' Two-Handed
+flag, so it was refused as well: his own shipped pistol Run key (17020, On the Gun since 2026-10-27) never cupped (9.3
+units off the grip, not cupped). (2) A gun's second grip out of the off arm's reach (the Pickup's lowest: reach 1.21 of
+the arm after sliding 5.4 back) let go, On the Gun or not. Free looked broken where Auto is already free (a pistol carried
+low, the Pickup): nothing to change there.
+
+**Fix.** QC's off-hand block (`QVR_SVC_ARMPOSE`, VR_AGP_FREE | VR_AGP_TWO announcing it) gains bit 32: its deciding key
+chose On the Gun (`vr_armedgrunt_pose.qc`, sent with a single gun only). The client (`vr_hitreact.cpp`, `ArmPoseMsg` /
+`ArmPose::keyGun`, in `offKeyed`'s padding: the Live tape's room unchanged) cups a pistol carried low when keyed, and
+passes `Targets::keyGun` to `vr_agarms.cpp`: with the second grip out of reach (let go, not easing) the off hand cups
+the right hand instead (as the `OffGun` comment always said: "its second grip, else cupping the right hand"), its goal
+change eased as any. `Placed::cupped` says the hand is cupping (the Pose Studio's `offHandOnGun` / `offHandFree` and the
+Rig Studio tests read it). Auto and Free unchanged, and every message without an On the Gun key byte for byte as before.
+Also: `vr_rigstudio_test_offhand` was registered and ticked twice per frame (a merge's duplicate lines): once now.
+
+**Test.** New `vr_rigstudio_test_offmodes` (open the studio with a gun; ends on `rigstudio offmodes: N passed, M
+failed`): Carry, Aim, Run, Pickup, the Shove's push, each with its key's Off Hand Auto, On the Gun, Free, each settled
+(still 12 frames, or 2 s: a run sways), On the Gun on it, Free off it by 4+ units (and 4+ from On the Gun); then saved
+and reloaded (the keys' text with Carry Free, then On the Gun, taken away and read back: the mode and the hand again);
+every key and the text put back exactly. **20/20** on the shotgun (4), nail pistol (29), rocket launcher (10) and laser
+cannon (12) grunts; before the fix 18/20 shotgun (Pickup) and 13/20 pistol (Carry, Run, Pickup On the Gun). The pistol
+now: Carry On the Gun cupped 4.9 units from the grip (was 13.1, free), Run 2.5 (was 9.3), Pickup 3.9; Free 13-14 off.
+The shotgun's Pickup On the Gun: cupping, 2.9 (was 27.6). `_test_offhand` 5/5 (pistol On the Gun, shotgun Free),
+`_test_stretch` 6/6, `_test_posekeys` 13/14 (step 5, the right elbow: the known failure).
+Seen in passing: Auto's cup at the Pickup's lowest depends on the pose before it (held after Run: cupped; after Carry:
+free), from the drawn-weapon feedback; not changed here.
+
+## 9b. Checklist: folding sections (branch `agent/clviewer`)
+
+His ask: the Checklist page (247 items in 9 sections) is long to scroll in VR. **Each section's header now shows its
+counts** ("1. New: ammo screens, grunt mov..  23/23": the name cut to fit 40 columns, then open/total), **and the row
+under it folds or unfolds the section** ("[-] 34 open of 35 (hide)" / "[+] 23 open of 23 (show)", tinted green when
+all passed): a plain selectable row, picked by the laser or Enter, so the menu's Header kind and the cursor anchoring are
+unchanged. Folded: the header and that row only. **Collapse All** and **Expand All** rows sit under End Test.
+Default: a section with nothing open when the list was read (the start, Reload List, the file edited) starts folded;
+ticking the last item of an unfolded one doesn't fold it under the cursor. A section folded or unfolded by hand keeps
+that, by its name, in `quakevr/checklist_sections.txt` (ignored, beside the ticks: `collapsed <name>` / `expanded
+<name>` lines; names no longer listed kept, as the ticks), read at the first refresh and written at each change.
+Ticks, Reload List and the tick-by-text scheme untouched. `vr_checklist` prints `CLSEC|s|open|total|collapsed|name` per
+section; `vr_checklist collapse|expand <s|all>`, `vr_checklist folds_default` (every fold back to its default).
+`vr_menu_dump` now prints a list row's text (it printed "" for every Checklist row).
+
+**Test.** `python Misc/quakevr/checklist_fold_check.py <agent>` (two runs, each ending on its CLFOLD_END line; puts the
+ticks and folds files back as found): per-section totals against the file and opens against CLITEM; section 1 folded:
+its header (with its count) and "[+]" row on the page, no item of it, all 9 headers, Collapse/Expand All; still folded
+after Reload List and after a restart; ticking its first item drops its count 35 -> 34 (then back); the smallest section
+(5 items) all passed + folds_default + reload: folded by default, unticked + reload: unfolded. **29 passed, 0 failed.**
+On the mock: Collapse All, Expand All and the first section's fold row add 3 rows before the first item (eight
+`vr_mock_key downarrow` now select it).
+
+## 9c. Survival Arena: supplies anywhere, armour shards, countdown beeps; the Ambient Light Level on vrarena (branch `agent/arenaspawns`)
+
+His voice notes (2026-10-29): randomise where health, armour and other pickups spawn (ledges too, anywhere walkable)
+so the player explores instead of camping, name what spawned in the middle of the view, add one or two armour shards
+a wave; a sound for the wave countdown; the Ambient Light Level made no difference on vrarena (0 vs 64).
+
+- **Supplies anywhere** (`vr_arena_scatter` 1, new, Gameplay > Survival Arena > Wave Clears "Supplies Anywhere";
+  `QC/vr_arena_supply.qc`). At the run's first frame the engine walks the map from the player start
+  (`navplace(-1, start, grid, most)`, `vr_builtins.cpp`): a 48-unit lattice, every move between cells walked with the
+  player's box (step up/down 18, never off a ledge, floor normal >= 0.7, a narrow bridge or stair looked for 16 to
+  either side). vrarena: **1203 places, 274 high, 5.6 ms**. So a place is somewhere he can walk to: tower tops and wall
+  walks yes, the 48-high covers' tops no. A wave clear's medkits, armour and shards each take a random place: 35% of the
+  picks look up high (>= 128 over the lowest place), never within 256 of the player, 160 of another supply of the same
+  clear, in a liquid, or on anything lying/standing there (`VR_ARENA_SupplyRoom`). The rolls are their own Levy stream
+  (`vr_arena_seed` salted 2000), so the waves' plans do not move. Weapons (the foes' guns with their loot pillars) are
+  untouched, as he decided. No walk / no room: the old `info_arena_item` points, then the ring. The medkit (corner-origin
+  box) is now centred on its place in every path. The walk is held by the engine: the QC's globals are at the id
+  format's limit (a 1536-place QC array forced FTE32 progs, which the engine rejects).
+- **Armour shards** (`vr_arena_shards` 2, new, "Armour Shards" 0..4): every clear drops 1 to N at random on top
+  (+5, up to 200: `MG3_armor_shard_touch`). Dawn of the Machine's `armorshard.mdl` when there, else the green armour model
+  at the pickups' size stands for it (`VR_ARENA_PlainShard`). `ar_drop` 2 so the supplies' cleanup takes them.
+- **What came, in the view**: the clear's line gains "Supplies around the arena: 2 medkits, green armour, 2 armour
+  shards". The view text is not drawn over the perk cards (`vr_worldtext.cpp`), so after a boss clear's pick the line is
+  said again (`VR_ARENA_SupplyFrame`).
+- **Countdown beeps** (`vr_arena_countdown_sound` 1 = volume, new, "Countdown Sound" under Wave Countdown):
+  `misc/menu1.wav` each second at 100%, 120/130/140% for 3-2-1, `misc/talk.wav` at 80% as the wave comes in
+  (`sound_pitch`, ATTN_NONE; nothing new shipped).
+- **Ambient Light Level**: nothing wrong with the relight step or BSP2; vrarena's worldspawn has `"light" "90"` and the
+  level was a floor (raised only where the map's own was lower), so 0..64 all left 90. It is now **added** to the map's
+  own minimum (cap 255) with `_minlight_dirt 0` always (`scaledLights`; `relight_maps.py --ambient` the same). id maps
+  have none, so they relight exactly as before. Menu help and cvar text updated.
+- `firstVrBuiltin` 900 -> 800 (the VR builtins had filled 900..1079; Ironwail's highest numbered is #627).
+
+Tests (headless, fast mode, developer 1): **`vr_arena_test 15`** (new, vrarena, `-QuitOn "arena: test [0-9]+ over"`):
+**130 passed, 0 failed**: 1203 places, 0 without the player's room or floor, highest floor 256 (tower tops, wall
+walks), none on a cover's top; 6 picks each for seeds 3, 11, 29: all found, apart, off the player, different per seed,
+seed 3 twice the same, some up high; live clears of waves 3 and 4: 1 and 2 shards, every supply on a walkable place,
+settled on its floor, clear of the brushes, dry; the line "Supplies around the arena: 2 medkits, green armour, 2 armour
+shards". `vr_arena_test 14`: 9/0 (6 beeps per countdown at Normal and Hard). Re-run: 1 257/0, 2 13/0, 6 8/0 (its drop
+bound now 5 a clear), 7 19/0, 9 37/0, 13 12/0. Relight (`vr_relight` in game, `vr_relight_quality 0`, AO on, ericw 2.0
+alpha11), `relight_ambient_stats.py` 0 vs 64: **vrarena p1 0 -> 77, p5 15 -> 77, median 47 -> 77, under 16 6.05% ->
+0.47%: PASS**; e1m1 min/p1/p5 0 -> 32, under 16 19.7% -> 0%: PASS (unchanged: no own minimum). The verdict no longer
+needs the single darkest luxel to rise: a few corner luxels whose samples fall inside a touching brush (vrarena's crates
+and trim, 2-6 a face) stay 0 at any level. Note: at level 0 a relit vrarena is darker than shipped (its own 90 is
+darkened by -dirt, as any map's minlight is at 0); not changed here.
+## 9b. Armour: ragdolls, dislodging, debris, sparks, the break's sound (branch `agent/armorfx`)
+
+His voice notes of 2026-10-29 (five items).
+- **Break sound.** `vr/derived/armor_break.wav` is made as it loads from `items/armor1.wav` (vr_audio.cpp
+  `layeredSounds`, one layer with the new `reversed` flag; merged onto 9c's layered mechanism, so snd_mem.c is
+  unchanged): the pickup chime backwards at 0.7 rate (~6 semitones down), drive 0.1 (clean). Nothing shipped. `VR_AgArmor_Break` plays it (the ricochet on the hit stays).
+- **Ragdolls.** A corpse's hit (`VR_Corpse_Damage`) now goes through `VR_AgArmor_Damage` first (it never did: corpse
+  plates were inert, and the limb wear popped limbs under them). A wear-pop is held (`VR_AgArmor_Holds`, from
+  `VR_Limb_WearInto`) while an unbroken plate rides a bone the cut would take, or when the hit itself landed on a plate
+  that was on (so the breaking hit pops nothing; the next one does). `vr_agarmor_block_cuts` / `_helmet_head` gate it.
+  Active (knocked-down, alive) ragdolls already went through T_Damage: Guard stops the armed killing cut as the plate
+  breaks. Blows at a ragdoll point (`vr_limb_wear_at`) now count as a single-point hit for the plates.
+- **Dislodging.** `VR_Limb_Cut` / `VR_Decap_Cut` take the plates on the bones they cut (new builtin query
+  `ragdollbone(e, [piece,0,0], QVR_ARMOR_PIECE_BONES)`: agarmor::pieceBones via box3d::boneNamed) as debris, placed
+  before the cut, thrown with the limb. Gibbing sheds before the limbs fly (ThrowHead) and now also on a headless
+  corpse's gib (that path shed nothing: the plates vanished), with gib-like velocities.
+- **Debris.** Hand-grabbable (model box, SOLID_NOT_BUT_TOUCHABLE, `VR_Carry_Setup`, carry_use nothing), never
+  FL_FORCEGRABBABLE or an item; `VR_Carry_Start` resets its fade (`VR_AgArmor_DebrisGrabbed`), and a fade due while
+  held is put off.
+- **Sparks.** `VR_AgArmor_HitFx` at TraceAttack, spawn_touchblood and VR_HitBloodSplash: on an unbroken plate, sparks
+  where it struck, and the blood (and a pellet's wound) scaled by the predicted share let through (none when it all
+  stopped). `VR_AgArmor_Damage`'s own sparks remain for hits with no blood site (blasts, beams), larger.
+- **Test.** `vr_agarmor_test 5` (QC/vr_agarmor_fx_test.qc): **19 passed, 0 failed**; `vr_agarmor_test 1` still 26/26.
+- **Found, not fixed.** (1) A thigh plate's middle reads as the shin's piece (`pieceAt` by nearest vertex): hits on a
+  thigh plate's lower half count on the shin plate. (2) The authored rig has 20 bones but corpse limb wear keeps 16
+  (`vr_limb_corpse_dmg[16]`, `VR_Limb_WearPiece` `bone < 16`): rig2 joints 16-19 (shins/feet) wear as torso hits.
+  (3) The sound can't be heard headless (no sound device): check it in VR.
+
+## 9c. Weapon fixes from his voice notes of 2026-10-29 (branch `agent/weaponfixes`)
+
+1. **Ammo screen warning colour on the face too** (vr_text3d.cpp `tintedFace`, `screenLook`): a low/empty warning's tint
+   now colours the screen's face (its brightness and saturation in the tint's hue), not only the text. Eyeshot
+   (`vr_ammocolor_test 2`, hands posed first): the shotgun's face at a fifth rgb 59.5 29.9 0.1 (orange) vs 43.8 66.5 29.9
+   (green) with `vr_ammo_color_warn 0`.
+2. **Enemy lava nails set you on fire** (vr_burning.qc `VR_Burn_LavaNail`: a monster-owned nail ignites too).
+   `vr_burn_test 16` (e1m1): `burning: test 16: ... PASS you burn`.
+3. **Empty reloadable weapons' loot beam red** (vr_lootbeams.cpp; `vr_lootbeam_hue_weapons_empty` 0, below 0 off; menu
+   Graphics > Loot Beams "Empty Weapons Hue"): magazine empty or out, reloading on, not a spent enemy gun. Debug >
+   Tests "Loot Beams: Empty Every Other Weapon" (`vr_lootbeam_empty_test`); `vr_lootbeams_report` prints each weapon's
+   clip and colour: RL 0/4 EMPTY 1.00 0.25 0.25 beside nailgun 24/24 and SSG 2/2 gold 1.00 0.75 0.25.
+4. **Nail pistol magazine: eject button only** (vr_reload.qc `VR_Reload_MagFrame`, `VR_Reload_HitFrame`;
+   `vr_nailpistol_mag_pull` 0, 1 the old pull and knock-out). `vr_np_test 1` (vrtesthall): 21 passed 0 failed, incl. a
+   pull at 0 (stays in) and the control at 1 (comes out), then re-seated.
+5. **Widowmaker held art darker** (vr_envmap.cpp `weaponMetal`: AdVrWidowmaker 0.2, lod 3.5; was the default 0.7): its
+   grey painted panels mirrored the bright test hall near-white in the hand (the reflection is added in proportion: ~70%
+   less). Not measurable headless (no AD data in the kit's base: the upgrade and its model need it); for him to check.
+6. **Plasma Gun's shot sound** (vr_ad_bridge.qc `AD_PlasmaFireSound`, vr_ad_enemyguns.qc): without AD's data mounted
+   AD's `weapons/plasma_fire.wav` was never precached (his log: "not precached"): now `vr/derived/plasma_fire.wav`.
+7. **Revolver's own shot** (vr_revolver.qc): `vr/derived/revolver_shot.wav` instead of the super shotgun's.
+   Both are layered at load (vr_audio.cpp `layeredSounds`, `VR_SndLayered` from S_LoadSound): id's sounds at their own
+   rate, gain, cut and fade, summed and tanh-saturated, a 16-bit 22 kHz WAV in memory; nothing shipped or written. Plasma:
+   enforcer/enfire 0.72x + weapons/lstart 1.15x (0.22 s) + weapons/grenade 1.25x (0.3 s); revolver: weapons/shotgn2 0.8x +
+   weapons/r_exp3 1.35x (0.35 s) + weapons/guncock 0.72x, drive 1.8. `soundlist`: both load (16b, 81664 and 158764).
+
+## 9d. Armour: smaller helmets, limb plates by the plate struck, the right leg's wear (branch `agent/helmets`)
+
+His voice notes of 2026-10-29: the grunt's helmet too big (eyes hidden, a hat), the enforcer's too wide with side flanges.
+- **Helmet fit** (`helmetOf`, vr_agarmor.cpp). The enforcer's flanges were its cheek guards fitted round collar/shoulder
+  vertices blended onto the head (head weight 0.2-0.5, out to 9.3 units each side): the guards now fit only the head
+  proper (weight >= 0.5) and are never wider than the ledge over them + 0.1 head lengths. The side brackets are gone.
+  Brow higher (`vr_agarmor_brow_front` 0.5 -> 0.62: the eyes show), face opening 0.34 -> 0.4, taper 0.08 -> 0.03, ledge
+  0.04 -> 0.015, rounder chamfers (0.7 of the side, the guards 0.5), a sloped cap chamfer (0.18, fitted per point up
+  it), guards end higher (jaw row -0.07 -> 0.04). Its own gap and thickness: `vr_agarmor_helmet_gap` 0.15,
+  `vr_agarmor_helmet_thick` 0.45 (the body's plates keep 0.25 / 0.6). The helmet fit line now ends with its outside size.
+- **Size** (`vr_agarmor_check`, outside front-back x side-side x high, units): grunt 11.11 x 11.43 x 8.50 -> 10.38 x 9.39
+  x 7.47 (front area -28%, volume -32%); enforcer 14.39 x 21.73 x 8.70 -> 13.56 x 10.63 x 7.67 (front area -57%). The
+  depth is near the head's own (the enforcer's head with its baked visor is 11.5 deep). Check 10/10 passed both
+  models; over all the poses (rest, neck/head/spine/arm/leg joint-limit sweeps, random poses) the body inside the helmet
+  144 -> 133 vertices, deepest 0.40 -> 0.24 (under the 0.45 thickness: nothing through), helmet inside the body 4019 ->
+  2178. Eyeshots: `scratch/helmets_before_after.png` (left before, right after; rows front, side, three-quarter; each
+  pair grunt | enforcer), from `vr_agarmor_test 6` + `vr_agarmor_headcam 1-3 20`.
+- **Thigh plate read as the shin's** (`pieceAt`). The ragdoll rig's nearest vertex read a thigh plate's knee end as the
+  shin's (and a few bracer/pauldron ends as their neighbours'). Now a hit on a limb (or on no piece's bone) takes the
+  nearest limb plate within the plate's reach (gap + thickness + 1.5) by the plate's own triangles, each plate's frame
+  as drawn (`plateNear`); a point on/just under a limb plate takes that plate whatever bone is nearest (a ragdoll's arm
+  lying on its chest). Cuirass and helmet hits stay their bones'.
+- **Right leg's wear on corpses** (QC). The per-joint arrays (`vr_limb_corpse_dmg`, `_bdmg`, `_wn`) and the joint loops
+  kept 16 slots; the authored rig's right leg is joints 16-18 (thigh_r 17, shin_r 18 measured), so its hits wore the
+  whole body (and `VR_Limb_TopJoints` never threw it on a gib). `VR_LIMB_JOINTS` 24 (ragdoll::maxBones) everywhere.
+- **Tests.** `vr_agarmor_test 5` gains: on the dead ragdoll, the active one and a standing grunt, every limb plate's
+  outer face near both ends and at its middle (`limbpiece` 12/13/14, new) reads as its own piece: 24/24 each (the old
+  lookup: 17, 14, 16 of 24); the corpse's right thigh and shin worn as their own joints 17 and 18, body health 160 kept
+  (old: joint -1, body 160 -> 150). **23 passed, 0 failed.** `vr_agarmor_test 1` **26/26**.
+- **Debug.** Debug > Tests > Helmets There: Grunt and Enforcer (`vr_agarmor_test 6`); `vr_agarmor_headcam <1 front | 2
+  side | 3 three-quarter | 4 behind> [distance]` puts the mock eyes on the nearest grunt's (left) and enforcer's
+  (right) heads, 0 back.
+- **Found, not fixed.** `vr_limb_test 28/29` (Misc/quakevr/ragdoll/limb_wear_test.sh) fail the same with the old 16
+  slots (a blunt blow wears nothing into joint 7 of the firing range's monster_army): not this change.
+
+## 10. Suggested checklist lines still pending (coordinator owns `quakevr/checklist.txt`)
+
+- Survival Arena supplies `{test:vr_arena_test 15}`: after a wave clear the medkits, armour and 1-2 armour shards lie
+  at random all over the arena (floor, tower tops, wall walks), never at your feet, never in a wall or a crate; the
+  clear's text names them (again after a boss wave's perk pick).
+- Survival Arena countdown `{test:vr_arena_test 14}`: a tick each second, higher for 3-2-1, a chime as the wave starts
+  (Gameplay > Survival Arena > Countdown Sound).
+- Relighting > Ambient Light Level on vrarena: 0 vs 64 visibly brighter in its dark corners after Relight This Map.
+- Survival Arena: map, wave director (readout, 5 s rest + 5 s countdown, teleport arrivals, never inside anything, guns
+  arriving one at a time, waves ~1.75x bigger in trickles out of sight, mid-wave boss with a warning), difficulty knob
+  (Nightmare two bosses, Easy one fewer boss wave), cleanup (bodies fade ~14 s, 12 kept, items go two waves later, guns
+  capped 24/48 with Spoils, a held body never vanishes), loot gate `{test:vr_arena_test 11}`, armoured foes and perks
+  `{test:arena_intro}` `{test:vr_arena_test 10}`.
+- Armour P1/P2 `{test:vr_agarmor_test}`: plates on Normal/Hard/Nightmare grunts and enforcers, sparks and less damage,
+  broken plates fall and fade, helmets stop pops, blades blocked until the plate breaks, breastplate leaves the pack
+  bare, dents at 2/3 and scorch at 1/3, toolgun Armour/Pieces rows.
+- In VR: a walking armed grunt glides like the knights; strafing grunts turn hips and feet into the step; an ammo screen
+  goes orange at the last shell and red when empty (also on holstered/lying guns).
+- Per-weapon recoil `{test:vr_recoil_test}`: Weapon Offsets > Effects' Recoil Kick Back and Recoil Muzzle Rise change
+  only that weapon's kick back and muzzle tip (burst rifle, plasma gun); at 1x it feels as before.
+- Relighting > Ambient Light Level at 32, Relight This Map: no pitch-black corner left, the rest of the map as before.
+- Nails `{test:vr_nail_test 1}`: nails drawn ~35% smaller (Nail Size in Flight 0.65, `vr_nail_test 2` to look), 18%
+  faster for you and enemies (Nail Speed 2065, Nail Pistol Speed 3070), still hitting what they visibly touch.
+
+## Armed humanoids: the held weapon on an active ragdoll's hand
+
+His notes (2026-10-29): shoved into a stagger or an active ragdoll, an armed humanoid's weapon "floats in the wrong
+position", still attached to it but not to its hand; sometimes the weapon and hand get into or behind its torso.
+
+**Cause.** The client draws a ragdoll's held weapons on its hands (vr_hitreact.cpp `ragdollProps`), but only from the
+rigid arms' model (`armModelOf`, vr_agrunt_ik_rigid), which is never made with vr_agarms on (its rig checks fail for
+the authored grunt). So every ragdoll weapon was left to the server's placing (QC `VR_AG_RagProp`): riding the limb
+nearest it as the ragdoll began, at the server's pose, not the drawn hand's (the grunt's 14-16 units and ~100 degrees
+off). Using the bone alone (agarms' hand bone and grip) was still 0.6 units and 20 degrees off on the grunt: the
+authored rig blends the hand's vertices over hand, forearm and fingers.
+
+**Fix.** With vr_agarms, `ragdollProps` takes agarms' grip frame (`agarms::ragdollGrip`, as the posed arms held it alive)
+and places it on the hand as drawn: the rigid fit of the hand's own vertices (`agarms::handSkin`'s) from rest to the
+ragdoll's drawn vertices (`drawnHandFit`), every frame. Physics: `vr_ragdoll_weapon_collide` 1 (new): a living
+ragdoll's welded weapon (its loose piece) meets its own chest, pelvis, spine, neck and head (`selfMeets`; before, a loose
+piece met nothing of its own), so an arm can't fold it into the chest.
+
+**Test 88** (`vr_agrunt_test 88`, QC/vr_armedgrunt_ragweapon_test.qc; `vr_agrunt_ragweapon_check` 1 / 2 per frame,
+`vr_agrunt_ragweapon_err`): grunt and enforcer with a shotgun, a stagger and a topple (lying, getting up), every drawn
+frame: the weapon's grip against the drawn hand's fitted grip, the hand's vertices and the weapon's line inside the
+torso proxies (vr_agbody). Weapon grip off the hand, max (mean) units / degrees:
+
+| case | before | bone only | after |
+| --- | --- | --- | --- |
+| grunt stagger | 19.1 (13.8) / 96 | 0.62 (0.29) / 18.5 | 0.00 / 0.1 |
+| grunt topple | 24.2 (16.2) / 115 | 0.62 (0.52) / 22 | 0.00 / 0.1 |
+| enforcer stagger | 1.09 (0.34) / 15 | 0.15 / 1.3 | 0.00 / 0.0 |
+| enforcer topple | 1.86 (0.49) / 15 | 0.19 / 3.3 | 0.00 / 0.1 |
+
+In the torso (most, units): enforcer and grunt stagger 0 throughout; the grunt topple, before 2.0 hand / 2.0 weapon,
+after the fix (no weapon collision) 1.4 / 2.1, with it 1.8 / 0 and 2.3 / 0.8 (two runs): the weapon is mostly kept
+out, the grunt's **hand still dips up to ~2 units into its chest for ~0.5 s of its topple** (test 88: 3 passed, 1
+failed). Open: why the hand-chest contact lets it in there (selfMeets skips contacts already deep at the 0.7 core;
+selfTouches' living exceptions), and the welded loose piece is the .mdl's own gun on forearm_l (looseHolder), not the
+drawn weapon on the right hand. Test 74 (disarm by grab): PASS 18/19, stuck 0.
+
+Checklist:
+- Shove an armed grunt and an enforcer into a stagger and over `{test:agrunt_fall}`: the weapon stays in the drawn
+  hand through the stagger, the fall, lying and the get-up; never floats off it.
+- Shoved over, its weapon never goes into its chest; its hand stays out of it (the grunt's may still dip in briefly).
+- A downed armed grunt's weapon can still be grabbed off it `{test:agrunt_fall}`.
+
+## Armed humanoids shove up close; dual guns' shots from each muzzle (branch `agent/shovemuzzle`)
+
+His notes (2026-10-29): armed humanoids with guns "don't really shove the player away anymore because they prefer
+backpedaling"; really close they should walk up and shove, a bit further backpedal, otherwise as now. And dual-wielding
+enforcers with two laser rifles fire both bolts "from the same weapon's muzzle... the right weapon".
+
+**Shove up close.** Cause: a gun's holder backs off whenever you are nearer than its weapon's least distance
+(`VR_AG_RangeMove`, and `VR_AG_WalkFire` as it fires), so you never stayed in its shove's reach (50 units) for the
+shove's 0.5 s delay. Now (`vr_agrunt_shove_close`, default 24, Combat > Enemy Shoves > Armed Shove: Step In; 0 the old
+behaviour): you within its reach plus 24 units (74 for a grunt) and its shove ready (cooldown over, on its feet, not
+in a tug), it holds its fire and steps in facing you (`VR_AG_ShoveCloseIn`, from `VR_AG_Run` before the explosive
+back-off and `ai_run`), then shoves once the delay passes (`VR_EnemyShove_Check`); its walk-fire doesn't back away
+there either. Between that and its least distance it backs off as before; during the shove's cooldown too. Melee
+weapons and fists are unchanged (their own blows). Gun holders only (his standing decision).
+
+**Dual guns' muzzles.** Cause: a replacement's own gun (`vr_ag_native`: the enforcer's laser rifle, the grunt's gun)
+fires its monster's own shot from the monster's own place (`VR_AGR_NativeShot`: the enforcer's `v_right * 8.5`, the
+grunt's `EnemyFireBullets` middle), whichever hand holds it. Every other dual pair already fired from each gun's
+`muzzlepos` (measured). Now with a gun in each hand the native shot leaves that gun's drawn muzzle
+(`VR_AG_DrawnMuzzle`, split out of `VR_AG_SetHand`: the server muzzle turned onto the drawn gun under
+vr_agrunt_shot_drawn); `EnemyFireBullets` takes it through `vr_agr_native_from`. A single native gun is unchanged.
+
+**Tests.** Test 89 (`QC/vr_armedgrunt_shoveclose_test.qc`): shotgun, nail pistol, nailgun, enforcer's laser rifle;
+in reach (40 apart) and just beyond (64): 8/8 shoved in 0.6-0.9 s, 0 backing steps; the band (101-149, halfway to its
+least): 4/4 backed off, 0 shoves; far (420): 4/4 no step-ins. With `vr_agrunt_shove_close 0` the near check fails (it
+backs off). Test 85 (`QC/vr_armedgrunt_muzzle_test.qc`): every pair for grunt and enforcer (shotguns, super shotguns,
+nail guns, super nail guns, nail pistols, grenade launchers, thunderbolts, laser rifles, both natives; AD's plasma
+skipped without AD data), 3 shots a gun: every shot 0-2.4 units from its own drawn muzzle, 11-22 from the other: 15/15;
+before the fix both native pairs fail (the left gun's shots 22 units from it, nearer the right gun). Test 48 (fighting
+distance) case "walking at it, axe": now passes when it shoves you up close (it used to require never within 64).
+Tests 84 (shove) 20/20, 42 (dual guns) 20/20. Test 48 run one weapon a run (`scratch1 N`, each ending on its own
+`test 48 over` line): weapons 1-3 6/6, 4-8 2/2 each, 9-10 1/1 each (all pass; the whole test in one run outlasts a
+590 s low-impact run). Numbers 85 and 89 are `vr_agrunt_test`'s; `vr_ad_test` 85/89 (vr_ad_enemyguns_test.qc) are
+another cvar's dispatcher, no clash.
+
+Checklist:
+- Walk right up to a grunt holding a shotgun (or an enforcer with its rifle): it stops backing off, steps in and shoves
+  you; stand a little further (about two body widths) and it backs off as before.
+- Dual-wielding enforcer with two laser rifles, a grunt with two of its own guns `{test:agrunt_dual_guns}`: each bolt
+  or burst leaves its own gun, the left gun's from the left hand.

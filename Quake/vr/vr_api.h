@@ -549,6 +549,7 @@ int VR_RuntimeMenuPause (void);							// Host_ServerFrame, SV_RunClients: nonzer
 int VR_RagtoolHolds (void);								// Host_ServerFrame: nonzero while the ragdoll tool is paused (vr_ragtool.cpp; its single steps run)
 int VR_RagtoolView (float *origin, float *angles);		// V_CalcRefdef: the ragdoll tool's orbit camera set over the view (nonzero: set)
 int VR_RagtoolKey (int key, int down);					// Key_Event in the game: nonzero if the ragdoll tool took the key
+int VR_ArenaCardsKey (int key, int down);				// Key_Event in the game: nonzero if the Survival Arena's perk cards took the key (1 .. their count)
 void VR_RagtoolOverlay (void);							// V_RenderView, after R_RenderView: the debug lines over a flat view while the ragdoll tool runs
 int VR_ImGuiEvent (const void *sdlEvent);				// IN_SendKeyEvents, each SDL event first: nonzero when a flat-screen tool's ImGui took it (vr_imgui.cpp; the game skips it)
 int VR_ImGuiTextMode (void);							// Key_TextEntry in the game: -1 no tool's ImGui; else a textmode_t (SDL's text input on while a tool is open: ImGui's fields get typed chars)
@@ -597,6 +598,7 @@ void VR_SndCapture (const portable_samplepair_t *buffer, int count);	// S_PaintC
 void VR_SndShadow (int count);						// S_PaintChannels, each chunk before the music: the game-time render's share of it (vr_timescale_wav, vr_snd_capture_game)
 void VR_SndGameMix (const portable_samplepair_t *buffer, int count);	// the game-time render's samples: its limiter, vr_snd_capture_game, the WAV
 byte *VR_SndMemory (const char *name, int *size);	// S_LoadSound, no file of `name`: a WAV file made in memory (VR_HeapMalloc'd; the wrist gadget's Doom's sounds, "doom/..."), or NULL
+byte *VR_SndLayered (const char *name, int *size);	// S_LoadSound, no file of `name`: a WAV file layered in memory from Quake's own sounds (vr_audio.cpp layeredSounds; VR_HeapMalloc'd: the plasma gun's, the revolver's shots), or NULL
 short *VR_SndVoice (const char *name, const byte *pcm, int width, int samples, int rate, int loopstart, int outrate, int *outsamples, int *outloop); // S_LoadSound: one of the player's voice sounds with vr_voice 1, made feminine (vr_voice.cpp): its 16-bit samples at `outrate` (VR_HeapMalloc'd), or NULL (as it is)
 const char *VR_SndDerived (const char *name, float *rate);	// S_LoadSound, no file of `name`: the Quake sound it is made from, played at `rate` (slower: lower), or NULL
 int VR_SndFullBand (void);							// vr_snd_fullband: 0 Quake's 11 kHz lowpass on every sound, 1 not on the voices, 2 on none (Quake's channels painted from the band-limited copy)

@@ -118,6 +118,7 @@ float(entity g, entity p) VR_AG_WeaponStruck;
 float vr_am_spawning;      // VR_AM_Spawn is running its monster's own spawn function (no replacement then)
 float vr_agr_hold;         // > 0: spawns now are never replaced (the training dummies: vr_dummy_types.qc)
 float vr_agr_native_fire;  // a native gun's bullets being fired (VR_AG_DamageScale: the monster's own damage)
+vector vr_agr_native_from; // ... from this muzzle (a gun in each hand: its own; '0 0 0' the monster's own place, EnemyFireBullets)
 float vr_agr_shots_grunt;  // grunts' shots (rounds; a shotgun blast one), the native guns' among them (the tests)
 float vr_agr_shots_enf;    // enforcers' lasers, ...
 float vr_agr_pl_hits;      // monsters' hits on players (VR_AG_DamageScale: the tests)
@@ -136,3 +137,22 @@ void(float d) VR_AGR_GunAxe;                                               // VR
 .float vr_agk_live; // run live by the Pose Studio (its real loops where it stands: vr_armedgrunt_pose.qc VR_AGK_Live)
 // Held still (vr_agrunt_freeze: the Grip Editor, the Pose Studio; not the studio's Live subject): no AI, no tug, no blow.
 float(entity g) VR_AG_Still = { return cvar("vr_agrunt_freeze") && g.health > 0 && !g.vr_agk_live; };
+
+// Armour for armed humanoids (vr_agarmor.qc; ROUND23.md, "Armour for armed humanoids, P1"): the fields (the engine sends
+// .vr_ar_type and .vr_ar_mask to the clients: vr_agarmor.cpp) and the hooks combat.qc, weapons.qc and player.qc call.
+.float vr_ar_type;     // 0 none, 1 green, 2 yellow, 3 red
+.float vr_ar_mask;     // the pieces still on (bits: 1 the cuirass, 2 the helmet, 4/8 pauldrons, 16/32 bracers, 64/128 thighs, 256/512 shins)
+.float vr_ar_hp[10];   // each piece's pool left
+.float vr_ar_wear;     // the damage marks (P2; sent with the rest): bits 0-9 the pieces at two thirds of their pool or under, 10-19 at a third or under
+void(entity e, float armour, float pieces) VR_AgArmor_Toolgun; // the toolgun's Armed Humanoid page's armour on what it spawned
+float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) VR_AgArmor_Damage; // T_DamageDeal: the damage left
+void(entity targ) VR_AgArmor_Guard;      // a cut or a pop armed at a limb or the head under an unbroken plate: off
+void() VR_AgArmor_PelletsClear;          // ClearMultiDamagePellets
+void(entity hit) VR_AgArmor_PelletAdd;   // AddMultiDamage: the pellet's piece counted
+void(entity e, float dm) VR_AgArmor_Shed; // gibbed (ThrowHead, VR_Corpse_Gib): every piece left flies off as debris
+void(entity e) VR_AgArmor_Spawn;         // VR_AM_Spawn: an armed grunt's armour rolled by the skill
+float(entity targ, vector org, vector vel, float damage) VR_AgArmor_HitFx; // a hit's sparks on a plate; the blood's share returned
+void(entity e, float takes) VR_AgArmor_CutPrepare;        // VR_Limb_Cut, VR_Decap_Cut: the plates on the bones a cut takes
+void(entity e, float done, vector vel) VR_AgArmor_CutDone; // and after it: those plates dislodged as debris
+float(entity e, float joint) VR_AgArmor_Holds;            // VR_Limb_WearInto: a corpse's piece kept on by an unbroken plate
+void(entity h) VR_AgArmor_DebrisGrabbed;                  // VR_Carry_Start: a plate's debris taken, its fade put off

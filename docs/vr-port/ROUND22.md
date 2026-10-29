@@ -21734,7 +21734,9 @@ sum of 1: common (shotgun, nail pistol), uncommon (super shotgun, nailgun, super
 launchers, thunderbolt, axe, sword, crowbar, chainsaw, Mjolnir, Laser Cannon, proximity gun; AD's soldiers' guns in AD
 maps), then dual (`VR_AG_Pairs`, a second weapon from the same rolls, its own gun among them) or a gun and an axe.
 Eligibility: a weapon is eligible when any player owns it (`VR_WeaponUtil_EntIsEligibleForWeapon`, the rule the
-monsters' weapon drops use: the axe and shotgun always); rare ones also only from the episode's
+monsters' weapon drops use: the axe and shotgun always; a Survival Arena run is the one exception -- its waves are
+the map's only source of guns, so there the pack's rules stand in place of ownership, ROUND23 "what its waves leave
+behind"); rare ones also only from the episode's
 `vr_agrunt_repl_rare_map`th map (4) on, the map's number the digits after its last "<digit>m" (e1m4, hip2m3, r1m5;
 start, hubs and custom names: never; 0 lifts it). Why ownership and not a per-campaign table of where each weapon is
 first found: it holds for every campaign and custom map, it follows the player (a pistol start or a death that lost

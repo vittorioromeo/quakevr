@@ -156,6 +156,8 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	{
 		int memsize = 0;
 		data = VR_SndMemory (s->name, &memsize);
+		if (!data) // QVR: or layered from Quake's own sounds (VR_SndLayered: the plasma gun's, the revolver's shots)
+			data = VR_SndLayered (s->name, &memsize);
 		if (data)
 			com_filesize = memsize;
 	}

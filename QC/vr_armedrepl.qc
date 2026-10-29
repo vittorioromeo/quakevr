@@ -635,12 +635,21 @@ void() VR_AGR_NativeAttack =
 // (VR_AG_DamageScale passes it), never spent; drawn on the held gun (its flash, its kick).
 void(entity p) VR_AGR_NativeShot =
 {
+    vector from = '0 0 0';
+    if(self.vr_ag_prop2)
+    {
+        // A gun in each hand: each one's shot from its own muzzle (its monster's own place, the enforcer's at its right
+        // and the grunt's at its middle, had both guns' shots come out of the right one).
+        VR_AG_PlaceProp(self, p);
+        from = VR_AG_DrawnMuzzle(p, normalize(VR_AI_Origin(self.enemy) - p.origin));
+    }
     makevectors(self.angles);
     vr_agr_native_fire = 1;
+    vr_agr_native_from = from;
     if(p.weapon == WID_ENFRIFLE)
     {
         // enforcer_fire's (not its aim cone's wait: the attack's frames face the target already)
-        vector org = self.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
+        vector org = from != '0 0 0' ? from : self.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
         if(VR_AI_ShotReady(org))
         {
             // (id's line from its origin, the laser 8.5 units to its right: parallel, a miss to the right at any
@@ -677,6 +686,7 @@ void(entity p) VR_AGR_NativeShot =
         vr_fire_spread_extra = 0;
     }
     vr_agr_native_fire = 0;
+    vr_agr_native_from = '0 0 0';
     weaponfired(p, -1); // its muzzle flash on the held weapon (vr_weaponfx.cpp)
     self.effects = self.effects | EF_MUZZLEFLASH;
     p.vr_ag_kick_at = time;

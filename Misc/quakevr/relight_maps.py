@@ -175,6 +175,29 @@ def without_map_light_settings(text):
     return text[: first.start()] + block + text[first.end() :]
 
 
+def with_ambient(text, level):
+    """`level` (> 0) added to the worldspawn's minimum light ("light" / "_minlight"; most of id's maps have none),
+    not darkened by the ambient occlusion ("_minlight_dirt" 0; -dirt darkens minlight otherwise): --ambient, the
+    game's vr_relight_minlight (vr_relight.cpp's scaledLights). Added, not a floor, so a map with its own minimum
+    above the level still gets brighter (2026-10-29). Light's -minlight would override the map's own.
+    For `light` only: the relit map keeps its own entities."""
+    first = re.search(r"\{[^{}]*\}", text)
+    if level <= 0 or not first or '"worldspawn"' not in first.group(0):
+        return text
+    block = first.group(0)
+    own = 0.0
+    for key, value in re.findall(r'"([^"]*)"\s+"([^"]*)"', block):
+        if key in ("light", "_minlight"):
+            try:
+                own = max(own, float(value))
+            except ValueError:
+                pass
+    level = min(255.0, own + level)
+    block = re.sub(r'(?m)^[ \t]*"(light|_minlight|_minlight_dirt)"[ \t]+"[^"]*"[ \t]*\r?\n?', "", block) # (keys: a line each)
+    block = block[:-1].rstrip() + '\n"light" "%g"\n"_minlight" "%g"\n"_minlight_dirt" "0"\n}' % (level, level)
+    return text[: first.start()] + block + text[first.end() :]
+
+
 def texture_faces(data):
     """{miptex index: [(centre, area, normal, points) of each face using it]} (BSP29; empty for BSP2)."""
     if struct.unpack_from("<i", data, 0)[0] != 29:
@@ -1046,6 +1069,11 @@ def main():
                              "default QUAKEVR_VISPATCH, else the vispatch folder beside this script if there is one")
     parser.add_argument("--bright", action="store_true",
                         help="the look before round 10: bounced light, weaker ambient occlusion, twice the glow")
+    parser.add_argument("--ambient", "--minlight", dest="ambient", type=float, default=0.0,
+                        help="a basic ambient light level: no place darker than this (light units, as a "
+                             "worldspawn's \"light\": 32 a dim fill, 64 a clear one; 0, the default: the maps' own minimum). The worldspawn's minlight raised to it, not "
+                             "darkened by the ambient occlusion; a map lit brighter by its mapper keeps its own. "
+                             "The game's Graphics > Relighting > Ambient Light Level (vr_relight_minlight)")
     args = parser.parse_args()
     if args.light_args is None:
         args.light_args = BRIGHT_LIGHT_ARGS if args.bright else DEFAULT_LIGHT_ARGS
@@ -1098,7 +1126,8 @@ def main():
                     print(line)
                 continue
             # So are `light`'s version and options: a new `light` relights every map once.
-            stamp_value = hashlib.sha1(data + (" ".join(command[1:]) + version + lights + REVISION).encode("latin-1")).hexdigest()
+            ambient = (" ambient %g" % args.ambient) if args.ambient > 0 else "" # (none: the stamps as before)
+            stamp_value = hashlib.sha1(data + (" ".join(command[1:]) + version + lights + REVISION + ambient).encode("latin-1")).hexdigest()
             out_bsp = os.path.join(out_dir, base + ".bsp")
             out_lit = os.path.join(out_dir, base + ".lit")
             out_lux = os.path.join(out_dir, base + ".lux")
@@ -1112,7 +1141,8 @@ def main():
             with tempfile.TemporaryDirectory() as tmp:
                 work = os.path.join(tmp, base + ".bsp")
                 with open(work, "wb") as f:
-                    f.write(with_entities(data, id_light_values(without_map_light_settings(entities_text(data))) + lights))
+                    f.write(with_entities(data, with_ambient(id_light_values(without_map_light_settings(entities_text(data))),
+                                                             args.ambient) + lights))
                 print("%s/%s ..." % (game, base), end=" ", flush=True)
                 result = subprocess.run(command + [work], cwd=tmp, stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT, text=True, errors="replace")

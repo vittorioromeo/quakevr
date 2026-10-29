@@ -27,6 +27,16 @@ void refresh(bool force = false);
 // An item's section (-1: none, before the first "[Section]"), and a section's name.
 [[nodiscard]] int sectionOf(int item);
 [[nodiscard]] const char* sectionName(int section);
+[[nodiscard]] int sectionCount();
+[[nodiscard]] int sectionOpen(int section);  // its items not passed
+[[nodiscard]] int sectionTotal(int section); // its items
+
+// A section folded in the menu (its header and count shown, its items left out). Each section's own choice is kept by
+// its name in quakevr/checklist_sections.txt (not committed; a section never folded or unfolded: none, the default);
+// the default: folded if nothing in it was open when the list was read (at the start, Reload List, the file edited).
+[[nodiscard]] bool collapsed(int section);
+void setCollapsed(int section, bool on); // (saved at once; -1: every section)
+void clearCollapseChoices();             // every section back to its default (saved)
 
 // Each item's state (ROUND22.md, "Checklist: Pass, Fail and Test"): untested, passed (ticked: retired, left out with Hide
 // Ticked) or failed (kept on the list, marked, until a new line replaces it). Kept in the ticks file: a passed item's
@@ -62,9 +72,10 @@ int undo();
 [[nodiscard]] int lineCount(int item);
 [[nodiscard]] const char* line(int item, int l);
 
-// vr_checklist [reload | tick <n> | pass <n> | fail <n> | test <n> | undo]: the list (CLSUM/CLITEM lines, for tests),
-// read again, item n ticked or unticked, passed or failed (again: untested), its scenario run, or the last press undone
-// (CLUNDO: the item, the undos left).
+// vr_checklist [reload | tick <n> | pass <n> | fail <n> | test <n> | undo | collapse <s|all> | expand <s|all> |
+// folds_default]: the list (CLSUM/CLSEC/CLITEM lines, for tests), read again, item n ticked or unticked, passed or
+// failed (again: untested), its scenario run, the last press undone (CLUNDO: the item, the undos left), section s folded
+// or unfolded, or every section's fold back to its default.
 void command_f();
 
 // The item the menu's cursor is on (or picked): kept for a voice note's context (vr_notectx.cpp). lastHovered: its text

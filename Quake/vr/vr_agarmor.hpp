@@ -22,12 +22,48 @@
 namespace qvr::agarmor
 {
 
+// Each piece its own bit of a mask (vr_agarmor_pieces, QC's .vr_ar_mask): 1 the cuirass, 2 the helmet, 4/8 the
+// pauldrons (upper arms, left/right), 16/32 the bracers (forearms), 64/128 the thighs, 256/512 the shins. QC's
+// vr_agarmor.qc has the same numbers.
 enum Piece : int
 {
     Cuirass = 0,
     Helmet = 1,
-    NumPieces = 2,
+    PauldronL = 2,
+    PauldronR = 3,
+    BracerL = 4,
+    BracerR = 5,
+    ThighL = 6,
+    ThighR = 7,
+    ShinL = 8,
+    ShinR = 9,
+    NumPieces = 10,
 };
+inline constexpr int allPieces = (1 << NumPieces) - 1;
+
+// ---- The server's (P1: vr_agarmor.qc keeps each humanoid's type and pieces in .vr_ar_type and .vr_ar_mask) ----
+// VR_ServerFrameEnd: each entity's armour (its fields) sent to the clients when it changed (QVR_SVC_ARMOR, reliable).
+void serverFrame();
+// VR_WriteClientSpawnState: every armoured entity's armour (after a clear), for a client coming in (a load, a new map).
+void serverWriteAll(struct sizebuf_s* msg);
+// The piece a hit at `at` on `ent` strikes (the bone of its vertex nearest, as drawn: box3d::boneAt); -1 none (no plate
+// there: a hand, a foot, the pelvis), -2 no rig.
+[[nodiscard]] int pieceAt(struct edict_s* ent, const float* at);
+// The bones of `ent`'s rig piece `piece` rides (bits by its rig's index, as box3d::limbInfo's: the helmet the head, the
+// cuirass the spine and the chest, a limb's plate its bone); 0 none (no rig). A cut taking one of them dislodges it.
+[[nodiscard]] uint32_t pieceBones(struct edict_s* ent, int piece);
+// Where piece `piece` of `ent` is now as a model of its own ("<model>#plate<piece>", derivedFile): `what` 0 its origin,
+// 1 its angles (an alias model's), as drawn (hitmodel's poses; else its rest pose where the entity stands).
+void plateWhere(struct edict_s* ent, int piece, int what, float* out);
+// Mod_LoadModel (VR_DerivedModelFile): "<model>#plate<piece>"'s .mdl file (VR_HeapMalloc'd), or null.
+[[nodiscard]] unsigned char* derivedFile(const char* name, unsigned int* path_id);
+
+// ---- The client's ----
+// QVR_SVC_ARMOR: [short entity, -1 all cleared][byte type][short pieces][short at 2/3 or under][short at 1/3 or under].
+void parseEvent();
+// The client's word on entity `num` (the tests: ragdollbone's QVR_ARMOR_CLIENT): `what` 0 its type, 1 its pieces, 2 its
+// wear (bits 0-9 at two thirds, 10-19 at a third); -1 none heard.
+[[nodiscard]] int clientState(int num, int what);
 
 // Mod_LoadModel's "<model>#armor" (vr_ragdoll.cpp VR_SyntheticModel). False: not one (or no rig, no armour for it).
 [[nodiscard]] bool makeModel(qmodel_t* mod);

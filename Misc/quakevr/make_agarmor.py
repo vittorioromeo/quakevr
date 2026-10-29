@@ -2,7 +2,8 @@
 # make_agarmor.py -- the skins of the armed humanoids' armour shells (Quake/vr/vr_agarmor.cpp; ROUND22.md, "Armour for
 # armed humanoids, P0"): quakevr/progs/vragarmor.mdl, a placeholder box carrying three skins, 0 green, 1 yellow, 2 red,
 # in the player's armour colours (make_vrbody.py's ARMOR_RAMPS) and look (its armor_texel: five lames with rolled edges,
-# rivets and side straps on the cuirass).
+# rivets and side straps on the cuirass); P2 (ROUND23.md, "Armour P2"): six more, the damage marks (3-5 dented and
+# scratched, 6-8 battered, chipped and scorched: `damaged`), nine in all: type - 1 + 3 x wear.
 #
 # The shells themselves are not made here: the engine makes them from the monster's own mesh when it loads
 # "<model>#armor" (vr_agarmor.cpp: the rest pose's triangles of each piece's bones, clipped at their weights' 0.5 line,
@@ -174,19 +175,76 @@ PAINTERS = {"cuirass": cuirass_texel, "helmet": helmet_texel, "cap": cap_texel, 
             "bracket": bracket_texel, "rim": rim_texel, "inner": inner_texel}
 
 
-def paint(armor):
+GREY = list(range(16))  # the palette's greys, black to white: soot and bare metal
+
+
+def dent(col, row, cell, chance, seed):
+    """A dent from a grid of `cell`-texel cells (`chance` of them dented): 0 none, else (depth 0..1, its lit side):
+    a round hollow, shadowed on its upper side, its lower lip catching the light."""
+    for cx in (col // cell - 1, col // cell, col // cell + 1):
+        for cy in (row // cell - 1, row // cell, row // cell + 1):
+            if body.h01(cx, cy, seed) < 1.0 - chance:
+                continue
+            px = (cx + 0.2 + 0.6 * body.h01(cx, cy, seed + 1)) * cell
+            py = (cy + 0.2 + 0.6 * body.h01(cx, cy, seed + 2)) * cell
+            r = 1.8 + 2.4 * body.h01(cx, cy, seed + 3)
+            dx, dy = col + 0.5 - px, row + 0.5 - py
+            q = math.hypot(dx, dy) / r
+            if q < 1.0:
+                return 1.0 - q, dy / r
+    return None
+
+
+def damaged(idx, level, armor, col, row):
+    """P2's damage marks over a whole skin's texel `idx` (vr_agarmor.cpp draws a piece with them at two thirds of its
+    pool, `level` 1: scratches and dents; at a third, 2: more of both, chips to the bare metal, scorch and soot)."""
+    ramps = [body.ARMOR_RAMPS[armor], INNER, LINING]
+    ramp = next((r for r in ramps if idx in r), None)
+    if ramp is None:
+        return idx
+    shade = ramp.index(idx) / (len(ramp) - 1)
+    metal = ramp is ramps[0]
+    d = body.h01(col, row, 7)
+    s, t = col / SKIN_W, row / SKIN_H
+    if metal:
+        # scratches: thin lines at two slants (more at level 2), the metal showing
+        # (a texel steps u by about 0.045: a line a texel wide, one every 20-odd texels, in segments)
+        for k, (u, w) in enumerate(((s * 11.0 + t * 2.0, 0.6), (s * -8.0 + t * 4.5, 0.66))):
+            if (u % 1.0) < 0.05 and body.vnoise(s * 9 + k * 5, t * 9, 60 + k) > w - 0.1 * level:
+                shade += 0.4
+        # dents: hollows dark above, lit below
+        dn = dent(col, row, 12 if level == 1 else 10, 0.45 if level == 1 else 0.6, 70)
+        if dn:
+            depth, side = dn
+            shade += 0.5 * depth * side - 0.15 * depth
+    if level >= 2:
+        if metal and body.vnoise(s * 30, t * 30, 80) > 0.8 and body.h01(col // 2, row // 2, 81) > 0.5:
+            return body.pick(GREY, 0.3 + 0.2 * shade, d)            # a chip: the bare metal
+        scorch = body.vnoise(s * 7, t * 7, 90) * 0.7 + body.vnoise(s * 19, t * 19, 91) * 0.3
+        if scorch > 0.62:
+            return body.pick(GREY, 0.02 + 0.5 * shade * (0.75 - scorch) / 0.13, d)  # soot
+        if scorch > 0.5:
+            shade *= 0.45 + 0.55 * (0.62 - scorch) / 0.12             # the scorch's darkened edge
+    else:
+        shade -= 0.06 * max(0.0, body.vnoise(s * 12, t * 12, 92) - 0.5)  # a little grime
+    return body.pick(ramp, shade, d)
+
+
+def paint(armor, level=0):
     px = bytearray(SKIN_W * SKIN_H)
     for row in range(SKIN_H):
         for col in range(SKIN_W):
             name, a, b = region_of(col, row)
             d = body.h01(col, row, 1)
-            px[row * SKIN_W + col] = PAINTERS[name](a, b, armor, d, col / SKIN_W, row / SKIN_H)
+            i = PAINTERS[name](a, b, armor, d, col / SKIN_W, row / SKIN_H)
+            px[row * SKIN_W + col] = damaged(i, level, armor, col, row) if level else i
     return bytes(px)
 
 
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "..", "quakevr", "progs")
-    skins = [paint(armor) for armor in (1, 2, 3)]
+    # Nine skins: type - 1 + 3 x wear (0 whole, 1 at two thirds of its pool, 2 at a third: vr_agarmor.cpp relink).
+    skins = [paint(armor, level) for level in (0, 1, 2) for armor in (1, 2, 3)]
     mesh = mdlgen.Mesh(SKIN_W, SKIN_H, REGIONS)
     mesh.box((0.0, 0.0, 0.0), (1.0, 1.0, 1.0), "inner")  # (a placeholder: only the skins are used)
     path = os.path.join(out, "vragarmor.mdl")

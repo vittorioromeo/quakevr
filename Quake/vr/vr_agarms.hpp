@@ -68,6 +68,9 @@ struct Targets
     bool offKeyed{false};
     rigpose::Rigid gripOff;
     rigpose::Rigid freeOff;
+    // The pose key's Off Hand On the Gun (agpose::OffGun, chosen; QC's off-hand block): with the second grip out of reach
+    // (a take's lowest, a gun pushed out) the off hand cups the right hand instead of letting go.
+    bool keyGun{false};
     bool reaching{false};      // the right hand reaching for a weapon lying (QC VR_AGP_REACH): eased in as it nears (vr_agarms_reach_ease)
     glm::vec3 pole[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // an elbow's pole wanted (model space; its length the share): a strike's (agent/agstrike)
     // The Rig Studio's animations (vr_rigseq.cpp): a hand's motion (rest -> now: its forearm bone's) given, its goal's
@@ -86,6 +89,7 @@ struct Placed
     rigpose::Rigid weapon[2];
     bool held2{false}; // the off hand on the second grip (else free)
     float slid{0.f};   // ... slid back along the weapon from it, out of its reach (units)
+    bool cupped{false}; // the off hand cupping the right hand (a Cup, or the key's On the Gun past the second grip's reach)
     // The arms as solved (model space; the Pose Studio's handles): each hand's grip frame, elbow and shoulder; the chest.
     rigpose::Rigid hand[2];
     glm::vec3 elbow[2]{glm::vec3{0.f}, glm::vec3{0.f}};
@@ -165,6 +169,11 @@ bool rows(const entity_t* e, const aliashdr_t* hdr, glm::vec4* out);
 // A ragdoll's weapon on its hand (a stagger, a fall): its hand's grip frame (rest, model units) and the rig bone its hand
 // is on. False: none.
 bool ragdollGrip(const qmodel_t* model, int side, rigpose::Rigid& grip, int& bone);
+
+// vr_agrunt_ragweapon_check: hand `side`'s vertices (wholly its hand's), the model's rest places (every vertex's) and
+// the hand's grip frame at rest (model units), as the posed arms hold a weapon in it. False: none.
+bool handSkin(const qmodel_t* model, int side, const za::Vector<int>*& verts, const za::Vector<glm::vec3>*& rest,
+    rigpose::Rigid& grip);
 
 // vr_agrunt_ik_err with vr_agarms 1: the arm numbers under vr_agrunt_ik_tag.
 void clearErr();

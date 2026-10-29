@@ -38,6 +38,8 @@ float() VR_Revolver_Chambers;
 float(float xWeapon, float xDir) VR_Revolver_CycleStep;
 void(float xHand, float xAttackFinished, float* xOutAttackFinished) VR_Revolver_Attack;
 void() VR_Revolver_PlayerFrame;
+// The Survival Arena (vr_arena.qc, its perks' file after it: VR_ARK_Running is "a run is on this map now").
+float() VR_ARK_Running;
 
 float(float xWeaponId) VR_WeaponUtil_IsValidWeaponId =
 {
@@ -64,6 +66,13 @@ float(entity xEnt, float xWeaponId) VR_WeaponUtil_EntIsEligibleForWeapon =
     if(xWeaponId == WID_FIST)    { return TRUE; }
     if(xWeaponId == WID_AXE)     { return TRUE; }
     if(xWeaponId == WID_SHOTGUN) { return TRUE; }
+
+    // A Survival Arena run (VR_ARK_Running, vr_arena.qc): its waves are the map's only source of guns -- an arena map
+    // has no authored weapon pickups, and a run begins with the player stripped to the fists -- so what a foe or an
+    // ammo box carries is not filtered by what the player happens to hold. A weapon this pack does not have is out of
+    // it too (AD's soldiers' guns without AD's data, MG3's super axe without MG3's data); and the drop settings'
+    // "never" still stands -- both drop helpers return on it before they ever ask this.
+    if(VR_ARK_Running()) { return VR_Pack_WeaponAvailable(xWeaponId); }
 
     return VR_WeaponUtil_EntHasWeapon(xEnt, xWeaponId);
 }

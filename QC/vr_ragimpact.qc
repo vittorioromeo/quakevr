@@ -131,7 +131,7 @@ float(entity m, vector xAt) VR_RagImpact_Piece =
         return -1;
     }
     float bone = VR_Limb_At(m, xAt);
-    return (bone > 0 && bone < 16) ? bone : -1;
+    return (bone > 0 && bone < VR_LIMB_JOINTS) ? bone : -1;
 };
 
 // The damage of a strike with `xMass` kg behind it at `xExcess` m/s past its least speed: vr_ragimpact_damage x mass x
@@ -312,7 +312,7 @@ vector(entity m, vector xFeet) VR_RagImpact_StandingAt =
     else if(VR_Limb_Allowed(m))
     {
         float bone = VR_Limb_At(m, at);
-        vr_rimp_piece = (bone > 0 && bone < 16) ? bone : -1;
+        vr_rimp_piece = (bone > 0 && bone < VR_LIMB_JOINTS) ? bone : -1;
     }
     return at;
 };
@@ -472,7 +472,7 @@ void(entity m, entity p, vector xAt, float xSpeed) VR_RagImpact_CrushPush =
     float mass = max(1, cvar_hget(cvarh_vr_ragimpact_crush_mass));
     physicspush(m, xAt, normalize(out - '0 0 0.5') * v, mass);
     float flung = 0;
-    for(float b = 0; b < 16; b++)
+    for(float b = 0; b < VR_LIMB_JOINTS; b++)
     {
         vector at = ragdollpoint(m, b, '0 0 0', 1);
         vector away = at - xAt;

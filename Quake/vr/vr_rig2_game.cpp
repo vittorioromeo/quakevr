@@ -24,6 +24,7 @@
 #include "vr_hitreact.hpp"
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_render.hpp"
 #include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
 #include "vr_rigseq.hpp"
@@ -594,6 +595,7 @@ struct LerpNow
     float blend{0.f};
 };
 za::Vector<LerpNow> lerps;
+za::Vector<int> armedAt; // (by entity number: the frame liveArmed last drew it; vr_rig2_motion_test)
 
 // R_SetupAliasFrame's lerp, read (hitreact.cpp drawnPoses').
 void lerpOf(const entity_t* e, const aliashdr_t* hdr, int& pose1, int& pose2, float& blend)
@@ -652,6 +654,11 @@ void liveArmed(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
         F[b] = kick ? compose(kick[b], posed[b]) : posed[b];
     }
     const int num = static_cast<int>(e - cl_entities);
+    if(static_cast<int>(armedAt.size()) <= num)
+    {
+        armedAt.resize(static_cast<za::SizeT>(num + 1));
+    }
+    armedAt[static_cast<za::SizeT>(num)] = host_framecount;
     aglegs::Placed lp;
     if(aglegs::placed(num, lp))
     {
@@ -1283,6 +1290,241 @@ void animCheck_f()
     {
         animResult(false, va("no live one on the authored rig with an override of %s drawn", keepNow ? "any animation" : what));
     }
+}
+
+// ---- vr_rig2_motion_test ----
+
+namespace
+{
+// Each monster followed: three of its vertices (the top, the bottom, the side-most of its first pose) where its mesh is
+// drawn each frame, and its origin, in the world at its drawn place (its step lerp, render::drawnPlace).
+constexpr int motionPoints = 4;
+constexpr float motionOriginJump = 8.f; // (a drawn origin's step in one frame past this: a move not lerped)
+struct MotionTrack
+{
+    int num{0};
+    const qmodel_t* model{nullptr};
+    bool armed{false}, rigged{false};
+    int verts[3]{0, 0, 0};
+    int lastFrame{-1};
+    int flagsOr{0}, flagsAnd{0xff}; // (its lerpflags over the frames)
+    za::Vector<glm::vec3> pts;  // motionPoints a frame
+    za::Vector<uint8_t> joined; // a frame drawn right after the one before it
+};
+struct MotionRun
+{
+    int left{0};
+    char dump[32]{}; // (the model whose entities' every frame's steps are printed: "vrgrunt")
+    za::Vector<MotionTrack> tracks;
+};
+MotionRun motionRun;
+
+[[nodiscard]] glm::vec3 poseVert(const aliashdr_t* hdr, int pose, int v)
+{
+    const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+    const trivertx_t& t = tv[pose * hdr->numverts + v];
+    return {t.v[0] * hdr->scale[0] + hdr->scale_origin[0], t.v[1] * hdr->scale[1] + hdr->scale_origin[1],
+        t.v[2] * hdr->scale[2] + hdr->scale_origin[2]};
+}
+
+void motionReport()
+{
+    Con_Printf("vr_rig2_motion_test: %d entities followed (per drawn frame, in the world as drawn; mean and largest step, the frames "
+               "that did not move, the step's change over the mean step)\n",
+        static_cast<int>(motionRun.tracks.size()));
+    int reported = 0, failed = 0;
+    for(const MotionTrack& t : motionRun.tracks)
+    {
+        const int frames = static_cast<int>(t.joined.size());
+        if(frames < 20)
+        {
+            continue;
+        }
+        for(int f = 1; motionRun.dump[0] && strstr(t.model->name, motionRun.dump) && f < frames && f < 80; f++)
+        {
+            const auto step = [&](int p) {
+                return glm::length(t.pts[static_cast<za::SizeT>(f * motionPoints + p)] -
+                                   t.pts[static_cast<za::SizeT>((f - 1) * motionPoints + p)]);
+            };
+            Con_Printf("  dump %d f%d: top %.3f foot %.3f side %.3f orig %.3f\n", t.num, f, step(0), step(1), step(2), step(3));
+        }
+        float worstRatio = 0.f, worstFrozen = 0.f, worstJerk = 0.f, originMost = 0.f;
+        for(int p = 0; p < motionPoints; p++)
+        {
+            double sum = 0.0;
+            float most = 0.f;
+            int n = 0;
+            for(int f = 1; f < frames; f++)
+            {
+                if(!t.joined[static_cast<za::SizeT>(f)])
+                {
+                    continue;
+                }
+                const float d = glm::length(t.pts[static_cast<za::SizeT>(f * motionPoints + p)] -
+                                            t.pts[static_cast<za::SizeT>((f - 1) * motionPoints + p)]);
+                sum += static_cast<double>(d);
+                most = za::max(most, d);
+                n++;
+            }
+            const float mean = n ? static_cast<float>(sum / n) : 0.f;
+            int frozen = 0, jn = 0;
+            double jerk = 0.0;
+            float prev = -1.f;
+            for(int f = 1; f < frames; f++)
+            {
+                if(!t.joined[static_cast<za::SizeT>(f)])
+                {
+                    prev = -1.f;
+                    continue;
+                }
+                const float d = glm::length(t.pts[static_cast<za::SizeT>(f * motionPoints + p)] -
+                                            t.pts[static_cast<za::SizeT>((f - 1) * motionPoints + p)]);
+                frozen += d < 0.05f * mean ? 1 : 0;
+                if(prev >= 0.f)
+                {
+                    jerk += static_cast<double>(za::abs(d - prev));
+                    jn++;
+                }
+                prev = d;
+            }
+            const float frozenPct = n ? 100.f * static_cast<float>(frozen) / static_cast<float>(n) : 0.f;
+            const float jerkRel = jn && mean > 1e-4f ? static_cast<float>(jerk / jn) / mean : 0.f;
+            Con_Printf("  ent %d %s%s %s: %s mean %.3f max %.3f (x%.1f) still %.0f%% jerk %.2f\n", t.num, t.model->name,
+                t.armed ? " ARMED" : "", t.rigged ? "rig2" : "mdl", p == 0 ? "top " : p == 1 ? "foot" : p == 2 ? "side" : "orig",
+                mean, most, mean > 1e-4f ? most / mean : 0.f, frozenPct, jerkRel);
+            if(p < 3 && mean > 0.01f)
+            {
+                worstRatio = za::max(worstRatio, most / mean);
+                worstFrozen = za::max(worstFrozen, frozenPct);
+                worstJerk = za::max(worstJerk, jerkRel);
+            }
+            originMost = p == 3 ? most : originMost;
+        }
+        // (a step's end drawn at once: up to 15-18 units in a frame; its move lerped: a few)
+        const bool ok = originMost < motionOriginJump;
+        failed += ok ? 0 : 1;
+        Con_Printf("vr_rig2_motion_test: %s ent %d %s%s %s, %d frames: drawn origin's largest step %.2f, mesh max/mean x%.1f, "
+                   "still %.0f%%, jerk %.2f (lerpflags any %x all %x)\n",
+            ok ? "PASS" : "FAIL", t.num, t.model->name, t.armed ? " ARMED" : "", t.rigged ? "rig2" : "mdl", frames, originMost,
+            worstRatio, worstFrozen, worstJerk, t.flagsOr, t.flagsAnd);
+        reported++;
+    }
+    Con_Printf("vr_rig2_motion_test: %d passed, %d failed\n", reported - failed, failed);
+}
+} // namespace
+
+void motionSample()
+{
+    if(motionRun.left <= 0 || cls.state != ca_connected || !cl_entities)
+    {
+        return;
+    }
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        entity_t* e = cl_visedicts[i];
+        const int num = e ? static_cast<int>(e - cl_entities) : 0;
+        if(num <= 0 || num >= cl_max_edicts || num == cl.viewentity || !e->model || e->model->type != mod_alias ||
+            strchr(e->model->name, '#') || !ragdoll::rigFor(e->model) || ragdoll::published(num))
+        {
+            continue;
+        }
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
+        if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1)
+        {
+            continue;
+        }
+        MotionTrack* t = nullptr;
+        for(MotionTrack& m : motionRun.tracks)
+        {
+            t = m.num == num && m.model == e->model ? &m : t;
+        }
+        if(!t)
+        {
+            motionRun.tracks.pushBack(MotionTrack{});
+            t = &motionRun.tracks.back();
+            t->num = num;
+            t->model = e->model;
+            for(int v = 0; v < hdr->numverts; v++)
+            {
+                const glm::vec3 p = poseVert(hdr, 0, v);
+                t->verts[0] = p.z > poseVert(hdr, 0, t->verts[0]).z ? v : t->verts[0];
+                t->verts[1] = p.z < poseVert(hdr, 0, t->verts[1]).z ? v : t->verts[1];
+                t->verts[2] = za::abs(p.y) > za::abs(poseVert(hdr, 0, t->verts[2]).y) ? v : t->verts[2];
+            }
+        }
+        const ragdoll::Rig* rig = ragdoll::rigFor(e->model);
+        rigpose::Rigid F[maxBones];
+        bool skinned = drawnNow(num) && rig->authored;
+        for(int b = 0; skinned && b < rig->numBones; b++)
+        {
+            skinned = drawnBone(num, b, F[b].rot, F[b].pos);
+        }
+        glm::vec3 at[motionPoints];
+        if(skinned)
+        {
+            for(int k = 0; k < 3; k++)
+            {
+                const int v = t->verts[k];
+                at[k] = glm::vec3{0.f};
+                if(v < static_cast<int>(rig->weights.size()))
+                {
+                    const ragdoll::VertWeights& w = rig->weights[static_cast<za::SizeT>(v)];
+                    for(int j = 0; j < w.n; j++)
+                    {
+                        at[k] += w.w[j] * rigpose::apply(F[w.bone[j]], poseVert(hdr, 0, v));
+                    }
+                }
+            }
+        }
+        else
+        {
+            int pose1 = 0, pose2 = 0;
+            float blend = 0.f;
+            VR_AliasLerpNow(e, &pose1, &pose2, &blend);
+            for(int k = 0; k < 3; k++)
+            {
+                at[k] = glm::mix(poseVert(hdr, pose1, t->verts[k]), poseVert(hdr, pose2, t->verts[k]), blend);
+            }
+        }
+        // (world: where the renderer draws it, its step lerp and yaw: what is seen)
+        glm::vec3 o, ang;
+        render::drawnPlace(*e, o, ang);
+        const float yaw = ang.y * (3.14159265f / 180.f), c = za::cos(yaw), sn = za::sin(yaw);
+        const float sc = ENTSCALE_DECODE(e->scale);
+        for(int k = 0; k < 3; k++)
+        {
+            const glm::vec3 m = at[k] * sc;
+            at[k] = o + glm::vec3{c * m.x - sn * m.y, sn * m.x + c * m.y, m.z};
+        }
+        at[3] = o;
+        t->rigged = t->rigged || skinned;
+        t->armed = t->armed || (num < static_cast<int>(armedAt.size()) && armedAt[static_cast<za::SizeT>(num)] == host_framecount);
+        t->joined.pushBack(t->lastFrame == host_framecount - 1 ? 1 : 0);
+        t->lastFrame = host_framecount;
+        t->flagsOr |= e->lerpflags;
+        t->flagsAnd &= e->lerpflags;
+        for(const glm::vec3& p : at)
+        {
+            t->pts.pushBack(p);
+        }
+    }
+    if(--motionRun.left == 0)
+    {
+        motionReport();
+    }
+}
+
+void motionTest_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("usage: vr_rig2_motion_test <frames>: every monster's mesh as drawn, each frame, then how evenly it moved\n");
+        return;
+    }
+    motionRun = MotionRun{};
+    motionRun.left = za::max(atoi(Cmd_Argv(1)), 1);
+    q_strlcpy(motionRun.dump, Cmd_Argc() > 2 ? Cmd_Argv(2) : "", sizeof(motionRun.dump));
+    Con_Printf("vr_rig2_motion_test: following for %d frames\n", motionRun.left);
 }
 
 } // namespace qvr::rig2

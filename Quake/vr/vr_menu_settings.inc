@@ -989,6 +989,10 @@ za::Vector<Item> pageCombat()
         open("Armed Humanoids' AI Behaviour", pageIndex(pageArmedAI))
             .help("How armed grunts and enforcers fight: aggressiveness, accuracy, reaction time, fire rate, retreat, "
                   "weapon search, and how much the skill level changes them (Difficulty Impact)."),
+        open("Survival Arena", pageIndex(pageArena))
+            .help("The map vrarena's waves: how big they are, how many foes are up at once, their boss waves, what a "
+                  "wave clear drops and pays, the perks a boss clear offers, and how far the game's difficulty (Skill) "
+                  "moves all of it."),
         open("Enemy Melee", pageIndex(pageEnemyMelee))
             .help("Monsters' melee blows: the arc ahead of them where they land and their reach (both growing with "
                   "size), how fast they turn after you while swinging, how close they come; Show Melee Arcs."),
@@ -1059,9 +1063,11 @@ za::Vector<Item> pageWeaponEffects()
                   "Effects: the grunts' burst rifle; the others' models have their own). Looks only: the aim and the shots "
                   "stay where your controller is."),
         slider("Kick Back", vr_recoil_kick, 0.f, 5.f, 0.1f, "%.1f cm").extend(0.f, 20.f)
-            .help("How far a shot kicks the weapon back, at a weapon's Recoil Strength 1."),
+            .help("How far a shot kicks the weapon back, at a weapon's Recoil Strength and Recoil Kick Back 1 (Weapon "
+                  "Offsets > Effects: each weapon's own)."),
         slider("Muzzle Rise", vr_recoil_rise, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
-            .help("How far a shot tips the muzzle up, at a weapon's Recoil Strength 1."),
+            .help("How far a shot tips the muzzle up, at a weapon's Recoil Strength and Recoil Muzzle Rise 1 (Weapon "
+                  "Offsets > Effects: each weapon's own)."),
         header("Shotgun Auto Pump"),
         toggle("Auto Pump", vr_autopump)
             .help("After each shot the shotgun cycles itself: its fore-end is driven back along the guide rods over the "

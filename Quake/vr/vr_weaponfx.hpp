@@ -13,7 +13,8 @@
 //   weapon's multipliers and colour), depth tested in the scene's translucent pass.
 // The QC says when (weaponfired(), tracer(): QVR_SVC_FIRED, QVR_SVC_TRACER); where from comes from what the client draws.
 // Tests: vr_debug_weaponfx 1 prints each shot's effects, 2 also the recoil every frame; vr_weaponfx_test [hand] fires
-// the held weapon's effects (no shot: Debug > Tests).
+// the held weapon's effects (no shot: Debug > Tests); vr_recoil_test checks each weapon's own recoil kick and rise
+// (Weapon Offsets > Effects) move its recoil only.
 
 #pragma once
 

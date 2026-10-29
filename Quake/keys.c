@@ -1300,6 +1300,10 @@ void Key_EventWithKeycode (int key, qboolean down, int keycode)
 	if (key_dest == key_game && VR_RagtoolKey (key, down))
 		return;
 
+// QVR: the Survival Arena's perk cards: their number keys while they are shown (vr_arenacards.cpp)
+	if (key_dest == key_game && VR_ArenaCardsKey (key, down))
+		return;
+
 // demo controls
 	if (cls.demoplayback && key_dest == key_game)
 	{

@@ -111,6 +111,8 @@ vr_chainsaw.qc
 vr_decap.qc
 vr_decap_test.qc
 vr_limbs.qc
+// Armour for armed humanoids (after vr_limbs.qc, vr_decap.qc: their cut and pop globals; vr_armedgrunt_defs.qc has its fields).
+vr_agarmor.qc
 // Teeth knocked out by a punch to the face (after vr_decap.qc: its head zone and blunt hardness).
 vr_teeth.qc
 vr_limbs_test.qc
@@ -146,6 +148,8 @@ vr_dents_test.qc
 vr_cheats.qc
 vr_smallgibs_test.qc
 vr_dropcap_test.qc
+vr_agarmor_test.qc
+vr_agarmor_fx_test.qc
 vr_crouch_test.qc
 vr_melee_sweep_test.qc
 vr_blade_test.qc
@@ -507,6 +511,10 @@ vr_armedgrunt_play.qc
 vr_armedgrunt_shot.qc
 vr_armedgrunt_parry.qc
 vr_armedrepl.qc
+// Survival Arena: the wave director (the waves, their ladder, their boss, their drops).
+vr_arena.qc
+vr_arena_perks.qc // Survival Arena: the boss wave's perk choice (its offers, and what each perk does)
+vr_arena_supply.qc // Survival Arena: where a wave clear's supplies land (the map's walkable places, at random)
 vr_adtankworn.qc
 vr_armedmon_ui.qc
 vr_armedgrunt_test.qc
@@ -518,14 +526,21 @@ vr_armedgrunt_bugs_test.qc
 vr_armedgrunt_close_test.qc
 vr_armedgrunt_grab_test.qc
 vr_armedgrunt_downtug_test.qc
+vr_armedgrunt_ragweapon_test.qc
 vr_armedgrunt_range_test.qc
 vr_armedgrunt_expose_test.qc
 vr_armedgrunt_ai_test.qc
 vr_armedgrunt_ammo_test.qc
 vr_armedrepl_test.qc
+vr_arena_test.qc // Survival Arena's tests (vr_arena_test)
+vr_arena_perks_test.qc // Survival Arena's perk tests (vr_arena_perks_test)
 vr_rigseq_test.qc
 vr_armedgrunt_posecat_test.qc
 vr_armedgrunt_shove_test.qc
+vr_armedgrunt_muzzle_test.qc
+vr_armedgrunt_shoveclose_test.qc
 vr_nailpistol_test.qc
+vr_nail_test.qc
 vr_flaregun_test.qc
 vr_revolver_test.qc
+vr_ammocolor_test.qc // the ammo screens' warning colours (vr_ammocolor_test)

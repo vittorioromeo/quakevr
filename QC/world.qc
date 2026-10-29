@@ -563,13 +563,18 @@ void() worldspawn =
     footsteps = 1;
 
     AD_WorldSpawn(); // AD support: AD's world setup in an AD map (vr_ad_bridge.qc)
+
+    VR_ARENA_WorldSpawn(); // QVR: Survival Arena's wave director (vr_arena.qc; nothing runs unless the map is "vrarena" or vr_arena is set)
 };
 
 #ifdef QVR_TESTS
 void() VR_DCTest_Frame; // (vr_dmgcredit_test.qc, after the weapons it fires)
+void() VR_AmmoColor_TestFrame; // (vr_ammocolor_test.qc, after the AD bridge)
 void() VR_AGTest_Frame; // (vr_armedgrunt_test.qc, after the armed grunts)
 void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
 void() VR_PropImp_TestFrame; // (vr_propimpact_test.qc, after AD's files)
+void() VR_ARENA_Test_Frame; // (vr_arena_test.qc, after the arena's own file)
+void() VR_ARENA_PERKS_Test_Frame; // (vr_arena_perks_test.qc, after the arena's perk file)
 #endif
 void() VR_Buzzsaw_Frame; // (rogue_buzzsaw.qc: its blade cuts ragdolls)
 void() VR_DeadAnim_Frame; // (vr_deadanim.qc, after AD's files)
@@ -590,6 +595,7 @@ void() StartFrame =
     VR_Trailer_Frame(); // QVR: the trailer scene's reset and log (vrtrailer only: vr_trailer.qc)
     MG_WorldFrame();
     VR_AGR_Frame(); // QVR: armed humanoid replacements' loadouts, once a player is in (vr_armedrepl.qc)
+    VR_ARENA_Frame(); // QVR: Survival Arena: the players down to their fists, once its clients are in (vr_arena.qc)
 #ifdef QVR_TESTS
     MG_TestFrame();
     MG_TriggerTestFrame();
@@ -613,7 +619,9 @@ void() StartFrame =
 #ifdef QVR_TESTS
     MG3_WeaponsTestFrame(); // vr_mg3_wtest (vr_mg3_weapons_test.qc)
     VR_NailPistol_TestFrame(); // vr_np_test (vr_nailpistol_test.qc)
+    VR_NailTest_Frame(); // vr_nail_test (vr_nail_test.qc)
     VR_FlareGun_TestFrame(); // vr_flare_test (vr_flaregun_test.qc)
+    VR_AmmoColor_TestFrame(); // vr_ammocolor_test (vr_ammocolor_test.qc)
     VR_Revolver_TestFrame(); // vr_rv_test (vr_revolver_test.qc)
     MG3_MonstersTestFrame(); // vr_mg3_mtest (vr_mg3_monsters_test.qc)
     AD_MonstersTestFrame(); // AD support: vr_ad_mtest (vr_ad_monsters_test.qc)
@@ -644,6 +652,7 @@ void() StartFrame =
     VR_Guard_Frame(); // VR: monsters guard their heads from a hand swung at them (vr_ragdoll_active_guard, vr_hitreact.qc)
 #ifdef QVR_TESTS
     VR_DropCapTest_Frame(); // VR: the cap on dropped enemy weapons' test (vr_dropcap_test, vr_dropcap_test.qc)
+    VR_AgArmor_TestFrame(); // VR: armour on armed humanoids' test (vr_agarmor_test, vr_agarmor_test.qc)
     VR_CrouchTest_Frame(); // VR: the crouched box's shots test (vr_crouch_test, vr_crouch_test.qc)
     VR_Decap_TestFrame(); // VR: decapitation's tests (vr_decap_test, vr_decap.qc)
     VR_Melee_SweepTestFrame(); // VR: the swept blade's test (vr_melee_sweep_test, vr_melee_sweep_test.qc)
@@ -656,6 +665,8 @@ void() StartFrame =
     VR_HotBlade_TestFrame(); // VR: the incandescent blades' tests (vr_hotblade_test, vr_hotblade.qc)
     VR_Shock_TestFrame(); // VR: lightning's lasting shock's test (vr_shock_hit_test, vr_shock.qc)
     VR_DentsTest_Frame(); // VR: every hit dents, the damage paths' test (vr_dents_test, vr_dents_test.qc)
+    VR_ARENA_Test_Frame(); // VR: the Survival Arena's tests (vr_arena_test, vr_arena_test.qc)
+    VR_ARENA_PERKS_Test_Frame(); // VR: the Survival Arena's perk tests (vr_arena_perks_test, vr_arena_perks_test.qc)
 #endif
     VR_Burn_MapFrame(); // VR: visible mapper flames burn tracked hands/body (vr_burning.qc)
     VR_Burn_NailFrame(); // VR: nails through a torch's flame become lava nails (vr_burning.qc)

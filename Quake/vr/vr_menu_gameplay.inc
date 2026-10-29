@@ -1,6 +1,6 @@
 // vr_menu_gameplay.inc -- VR Settings > Gameplay: enemies (shoves, melee, holding, knockdowns, weapons), damage, sound,
-// blood feedback, parry, stamina, batting. Part of vr_menu.cpp (included where it was: the same translation unit, so
-// its anonymous namespace).
+// blood feedback, parry, stamina, batting, the Survival Arena's waves. Part of vr_menu.cpp (included where it was: the
+// same translation unit, so its anonymous namespace).
 
 [[nodiscard]] za::Vector<Item> pageGameplay()
 {
@@ -63,6 +63,10 @@
                   "hand pushing beside a one-handed gun, a long gun pushed across the body in both hands, the palms "
                   "out holding two weapons or the fists), with guns only (the default; melee and fist humanoids just "
                   "strike) or with every weapon and their fists; or as before (their model's shove frames, the arms held as they aim, guns only)."),
+        slider("Armed Shove: Step In", vr_agrunt_shove_close, 0.f, 64.f, 4.f, "%.0f units").extend(0.f, 160.f)
+            .help("A gun-holding armed humanoid steps in and shoves you when you are this far beyond Too Close or nearer "
+                  "(its shove ready), instead of backing off to its gun's distance; further, it backs off as before. "
+                  "0: it always backs off."),
         toggle("Vores Shove", vr_enemy_shove_vore)
             .help("Vores shove you too, swinging their arms down at you: the hardest shove of all. They reach a little "
                   "farther (they are wider)."),
@@ -1078,6 +1082,42 @@ void armedGripsDragMode()
     };
 }
 
+// Combat > Armed Grunts > Armour (QC vr_agarmor.qc; ROUND23.md, "Armour for armed humanoids, P1"): armed grunts' breakable
+// armour, its rules and how often they wear it.
+[[nodiscard]] za::Vector<Item> pageArmedArmour()
+{
+    const auto skillRows = [](za::Vector<Item>& out, const char* name, cvar_t& chance, cvar_t& type, cvar_t& pieces) {
+        out.pushBack(header(name));
+        out.pushBack(slider("Chance Armoured", chance, 0.f, 1.f, 0.05f, "%.2f")
+                .help("The chance an armed grunt spawns wearing armour at this skill."));
+        out.pushBack(slider("Best Armour", type, 1.f, 3.f, 1.f, "%.0f")
+                .help("Its armour is rolled up to this type: 1 green (saves 30% of a hit, 100 in all), 2 yellow (60%, "
+                      "150), 3 red (80%, 200)."));
+        out.pushBack(slider("Pieces", pieces, 1.f, 10.f, 1.f, "%.0f")
+                .help("How many pieces it wears: 1 the cuirass, 2 and the helmet, more: pauldrons, bracers, thigh and "
+                      "shin plates picked at random; 10 the full set."));
+    };
+    za::Vector<Item> items{
+        header("Rules"),
+        cycle("Absorb", "vr_agarmor_rule", {{0.f, "Player's Rule"}, {1.f, "Plate Blocks All"}})
+            .help("Player's Rule: a plate saves its type's share of a hit (green 30%, yellow 60%, red 80%) from its own "
+                  "pool, as your armour does. Plate Blocks All: a plate stops the whole hit until its pool is gone. "
+                  "A plate at 0 breaks off and falls."),
+        toggle("Helmets Stop Headshots", vr_agarmor_helmet_head)
+            .help("On: a helmet also halves a headshot's extra damage and no head pops off while it holds. Off: it only "
+                  "absorbs, as any plate."),
+        toggle("Plates Stop Cuts", vr_agarmor_block_cuts)
+            .help("No limb is cut or popped off under an unbroken plate: break it first."),
+        slider("Broken Plates Last", vr_agarmor_debris_time, 1.f, 60.f, 1.f, "%.0f s")
+            .help("A broken plate falls as debris (you can't force-grab it) and fades out after this long."),
+    };
+    skillRows(items, "Easy", vr_agarmor_skill0, vr_agarmor_skill0_type, vr_agarmor_skill0_pieces);
+    skillRows(items, "Normal", vr_agarmor_skill1, vr_agarmor_skill1_type, vr_agarmor_skill1_pieces);
+    skillRows(items, "Hard", vr_agarmor_skill2, vr_agarmor_skill2_type, vr_agarmor_skill2_pieces);
+    skillRows(items, "Nightmare", vr_agarmor_skill3, vr_agarmor_skill3_type, vr_agarmor_skill3_pieces);
+    return items;
+}
+
 // Combat > Armed Grunts > Armed Humanoid Replacements (QC vr_armedrepl.qc; ROUND22.md, "Armed humanoid replacements"):
 // a map's grunts and enforcers as armed ones. Everything off by default; a map's new loadouts at its next load.
 [[nodiscard]] za::Vector<Item> pageArmedRepl()
@@ -1386,6 +1426,157 @@ void ikStretchReset()
             .help("Moving sideways (strafing round you, side-stepping), its pelvis and legs tip toward the way it goes, "
                   "this far at a strafe's speed (less slower), eased in and out; its upper body stays aimed. 0: "
                   "none (vr_agrunt_strafe_lean)."),
+        slider("Strafe Turn", vr_agrunt_strafe_turn, 0.f, 45.f, 1.f, "%.0f deg").extend(0.f, 60.f)
+            .help("Moving sideways, its pelvis and legs turn toward the way it goes (hips and feet partly along the "
+                  "step), this far at a strafe's speed (less slower), eased in and out; the spine turns back so its "
+                  "chest and gun stay aimed at you. Backing off to a side turns the same way. 0: none "
+                  "(vr_agrunt_strafe_turn)."),
+    };
+}
+
+// Combat > Survival Arena (QC vr_arena.qc and vr_arena_perks.qc; docs/vr-port/ROUND23.md, "Survival Arena"): the wave
+// director's knobs, how far the game's difficulty (skill) moves them, and the perks a boss wave's clear offers. Which
+// foes a wave brings is the ladder in vr_arena.qc; this page is what a run is built from. The waves follow the Skill
+// below exactly as the armed humanoids' fighting follows its own Difficulty Impact above -- the two knobs are separate
+// and neither touches the other's feature.
+[[nodiscard]] za::Vector<Item> pageArena()
+{
+    return {
+        header("Difficulty"),
+        slider("Difficulty Impact", vr_arena_skill_impact, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How much the skill level (the Skill below) moves the arena's waves, Normal always as set. At 1: Easy "
+                  "0.75x, Hard 1.25x, Nightmare 1.5x of a wave's size, of how many foes are up at once, of a boss's bulk, "
+                  "of a kill's and a wave clear's score and of how many perks a boss clear offers, and the other way of "
+                  "the waits (6 s between waves is 8 at Easy, 4.8 at Hard, 4 at Nightmare) and of a wave clear's supplies "
+                  "(2 medkits is 3 at Easy, 1 at Nightmare; an armour every 4 waves is one every 3 at Easy, 6 at "
+                  "Nightmare). The ladder's gates move in whole waves: the second rung at wave 13 / 10 / 8 / 6 (Easy / "
+                  "Normal / Hard / Nightmare), a knight 7 / 4 / 2 / 2, a dog 9 / 6 / 4 / 2, an ogre 11 / 8 / 6 / 4, fiends "
+                  "15 / 12 / 10 / 8, death knights 19 / 16 / 14 / 12, and the first waves' unarmed humanoids 0.30 / 0.20 / "
+                  "0.15 / 0.10 of them; an Easy boss wave comes a wave less often, a Nightmare one carries two bosses. "
+                  "0: the skill changes nothing about the arena; 2: those steps doubled (0.5x at Easy, 2x at Nightmare); "
+                  "a count never below 1 and a score never below 1 (vr_arena_skill_impact)."),
+        cycle("Skill", "skill", {{0.f, "Easy"}, {1.f, "Normal"}, {2.f, "Hard"}, {3.f, "Nightmare"}})
+            .help("skill: the game's difficulty, which the arena's waves follow through the Difficulty Impact above (its "
+                   "own knob: the arena's scaling is nothing to do with vr_agrunt_ai_skill). The opening line names it "
+                   "(ARENA - Nightmare: unarmed, wave 1 coming). From the next map, or Restart the Map (Debug > "
+                   "Cheats)."),
+        header("The Waves"),
+        toggle("Arena In Any Map", vr_arena)
+            .help("1: the waves run in this map too, off its info_arena_spawn and info_arena_item spots; the map vrarena "
+                   "runs them without it (vr_arena)."),
+        slider("Rest Between Waves", vr_arena_wave_rest, 1.f, 60.f, 0.5f, "%.1f s")
+            .help("From a wave cleared to the next wave's countdown: this many seconds at Normal (by Difficulty Impact "
+                   "5 is 6.7 at Easy, 4 at Hard, 3.3 at Nightmare) (vr_arena_wave_rest)."),
+        slider("Wave Countdown", vr_arena_countdown, 0.f, 10.f, 1.f, "%.0f s")
+            .help("After the rest, the next wave counts down in the middle of the view (Wave 7 in 5... 4... 3...), "
+                   "a boss wave naming its boss; the same at every difficulty. 0: no countdown (vr_arena_countdown)."),
+        slider("Countdown Sound", vr_arena_countdown_sound, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The countdown's beeps: a tick each second, higher for the last three, and a chime as the wave "
+                   "comes in (Quake's own menu sounds at other pitches). Their volume; 0: silent "
+                   "(vr_arena_countdown_sound)."),
+        slider("Wave Size", vr_arena_wave_size, 0.25f, 4.f, 0.25f, "%.2fx")
+            .help("A wave's crowds (its grunts, enforcers and the like) times this; its one signature foe and its boss "
+                   "stay one. 1 is the ladder's own counts; at 1.75 (the default) wave 10 brings 10 foes instead of 6 "
+                   "and wave 20 brings 13 instead of 7. "
+                   "The difficulty then takes its share as it does of every count (vr_arena_wave_size)."),
+        slider("Alive Pool", vr_arena_alive_max, 1.f, 16.f, 1.f, "%.0f")
+            .help("How many of a wave's foes are up at once, at its start and at Normal: the rest come in one by one as "
+                   "these fall. The difficulty takes its share (6 is 4 at Easy, 7 at Hard, 9 at Nightmare), and it "
+                   "never passes Foes Up At Once (vr_arena_alive_max)."),
+        slider("Pool Grows Every", vr_arena_alive_grow, 0.f, 20.f, 1.f, "%.0f waves")
+            .help("The alive pool takes one more foe every this many waves (4: 6 at wave 1, 7 at 5, 8 at 9 ...), up to "
+                   "Foes Up At Once; 0: it never grows (vr_arena_alive_grow)."),
+        slider("Opening Burst", vr_arena_burst, 1.f, 16.f, 1.f, "%.0f")
+            .help("A wave opens with this many foes at once (never more than its pool); the rest trickle in "
+                   "(vr_arena_burst)."),
+        slider("Spawn Gap", vr_arena_spawn_gap, 0.5f, 10.f, 0.25f, "%.2f s")
+            .help("Once a foe falls, the next one comes in this long after, up to twice as long at random (1.5: 1.5 to 3 "
+                   "s), at Normal: the harder the difficulty, the shorter (2 / 1.5 / 1.2 / 1). A wave's boss comes in "
+                   "halfway through it, 3 s after its warning, instead (vr_arena_spawn_gap)."),
+        slider("Foes Up At Once", vr_arena_max_alive, 1.f, 16.f, 1.f, "%.0f")
+            .help("The ceiling on a wave's alive pool, at Normal -- the difficulty takes its share of this (8 is 6 at "
+                   "Easy, 10 at Hard, 12 at Nightmare; 16 at most). New foes come in out of your sight and not right "
+                   "next to you when the map has such a place (vr_arena_max_alive)."),
+        header("Boss Waves"),
+        slider("Boss Every", vr_arena_boss_every, 0.f, 20.f, 1.f, "%.0f")
+            .help("A wave with a marked big one in it every this many waves (0: none) -- an enforcer boss early, an ogre "
+                   "from wave 10, a death knight from wave 16 at Normal (earlier the harder the skill). At Easy the gap is "
+                   "one longer (5 is 6); Normal, Hard and Nightmare keep it, and a Nightmare boss wave carries two, the "
+                   "second the same kind at half its bulk (vr_arena_boss_every)."),
+        slider("Boss Bulk", vr_arena_boss_health, 1.f, 8.f, 0.05f, "%.2fx")
+            .help("A boss's health times this and the difficulty's factor: an enforcer boss at 1.25 stands at 76 health "
+                   "at Easy, 101 at Normal, 126 at Hard, 151 at Nightmare (a Nightmare boss wave's second at half that) "
+                   "(vr_arena_boss_health)."),
+        header("Armour"),
+        toggle("Armoured Foes", vr_arena_foe_armor)
+            .help("1: the waves' grunts and enforcers may wear armour plates (Combat > Armed Grunts > Armour's rules), "
+                   "more of them, in more plates and heavier kinds as the waves go and the harder the skill: green "
+                   "cuirass and helmet first, yellow from wave 12 at Normal, red from wave 22. A grunt or enforcer boss "
+                   "always wears a kind above its wave's. In the arena this replaces the skill's own armour roll; 0: no "
+                   "wave foe wears any (vr_arena_foe_armor)."),
+        slider("Armour Chance", vr_arena_foe_armor_scale, 0.f, 4.f, 0.05f, "%.2fx")
+            .help("The armour's chance times this: at 1 a foe at the armour's first wave has 10% at Normal, 3% more each "
+                   "wave after (34% at wave 12, 58% at wave 20), times the difficulty's factor, never past 85%. A boss "
+                   "wave's foes have 15% more. 0: none (vr_arena_foe_armor_scale)."),
+        slider("Armour From Wave", vr_arena_foe_armor_from, 2.f, 30.f, 1.f, "%.0f")
+            .help("The first wave a foe may wear armour, at Normal; the difficulty moves it as it moves every gate "
+                   "(4 is wave 7 at Easy, 4 at Normal, 2 at Hard and Nightmare). Its plates grow from there: the "
+                   "cuirass and the helmet, one limb plate more every 3 waves (vr_arena_foe_armor_from)."),
+        header("Wave Clears"),
+        slider("Medkits", vr_arena_medkits_after, 0.f, 4.f, 1.f, "%.0f")
+            .help("Medkits every wave clear drops (0: none), the difficulty dividing them: 2 is 3 at Easy, 2 at Normal "
+                   "and Hard, 1 at Nightmare (vr_arena_medkits_after)."),
+        slider("An Armour Every", vr_arena_armor_every, 0.f, 12.f, 1.f, "%.0f waves")
+            .help("A wave clear adds an armour every this many waves (0: none); the harder the skill the longer its gap: "
+                   "4 is one every 3 waves at Easy, 4 at Normal, 5 at Hard, 6 at Nightmare. From wave 12 of the run they "
+                   "alternate with the heavier kind -- what you have earned is yours, whatever the difficulty "
+                   "(vr_arena_armor_every)."),
+        slider("Armour Shards", vr_arena_shards, 0.f, 4.f, 1.f, "%.0f")
+            .help("On top of the medkits and armour, every wave clear drops 1 to this many armour shards at random "
+                   "(+5 armour each, up to 200). 0: none (vr_arena_shards)."),
+        toggle("Supplies Anywhere", vr_arena_scatter)
+            .help("1: a wave clear's medkits, armour and shards land at random places all over the arena -- the floor, "
+                   "the tower tops, the wall walks, anywhere you can walk to -- never right next to you, so you go "
+                   "looking for them; the middle of your view says what came. 0: they land on the map's own item "
+                   "points (vr_arena_scatter)."),
+        slider("Score For A Kill", vr_arena_score_kill, 1.f, 10000.f, 5.f, "%.0f")
+            .help("A kill's score, times the rung its holder was on (a boss four of that) and the difficulty: at 100 a "
+                   "first rung kill is worth 75 / 100 / 125 / 150 (Easy / Normal / Hard / Nightmare), a third rung boss "
+                   "900 / 1200 / 1500 / 1800; an armoured foe a quarter more per kind (green 1.25x, yellow 1.5x, red "
+                   "1.75x). A wave clear adds 250 times its wave, by the difficulty too (wave 3: 563 / 750 / 938 / 1125) "
+                   "(vr_arena_score_kill)."),
+        header("Perks"),
+        toggle("Boss Perks", vr_arena_perks)
+            .help("1: clearing a boss wave offers your choice of perks -- cards floating in front of you, the arena "
+                   "waiting (no countdown, no next wave) until you point at one and pull the trigger (or press its "
+                   "number); that perk is yours for the rest of the run. 0: it offers nothing (vr_arena_perks)."),
+        slider("Perks Offered", vr_arena_perk_count, 1.f, 8.f, 1.f, "%.0f")
+            .help("How many of the pool's eight a boss clear offers, at Normal -- the difficulty takes its share (3 is 2 "
+                   "at Easy, 4 at Hard, 5 at Nightmare); never the same perk twice (vr_arena_perk_count)."),
+        slider("Perk Cards Distance", vr_arena_cards_distance, 16.f, 80.f, 2.f, "%.0f")
+            .help("How far in front of your head the perk cards float (units; 34 is about 1.3 m) "
+                  "(vr_arena_cards_distance)."),
+        slider("Perk Cards Width", vr_arena_cards_width, 12.f, 80.f, 2.f, "%.0f")
+            .help("How wide the perk cards' panel is (units; 32 is about 1.2 m) (vr_arena_cards_width)."),
+        header("Cleanup"),
+        slider("Bodies Fade After", vr_arena_corpse_fade, 0.f, 60.f, 1.f, "%.0f s")
+            .help("A fallen foe's body (its head, a gibbed one's) lies this long, give or take 3 s, then fades out and "
+                   "is gone, as the Horde's do. 0: never by time. One in your hand, or still dying, waits for you: let "
+                   "go of, it lies 3 s more (vr_arena_corpse_fade)."),
+        slider("Bodies Kept", vr_arena_corpse_max, 0.f, 64.f, 1.f, "%.0f")
+            .help("At most this many fallen bodies lie at once: past it the oldest fades first (one in your hand "
+                   "stays: the next oldest goes). 0: no limit (vr_arena_corpse_max)."),
+        slider("Supplies Last", vr_arena_item_waves, 0.f, 10.f, 1.f, "%.0f waves")
+            .help("A wave clear's medkits and armour still lying there this many wave clears later fade out and are "
+                   "gone (one in your hand stays). 0: they stay for the run (vr_arena_item_waves)."),
+        slider("Dropped Guns Kept", vr_arena_gun_max, 0.f, 96.f, 1.f, "%.0f")
+            .help("At most this many of the guns the foes dropped lie about: past it the oldest fades away. Never a "
+                   "gun in your hands or holsters, one you dropped or threw, one carried, pulled by a force grab or in "
+                   "flight. The Spoils perk keeps twice as many. 0: no limit (vr_arena_gun_max)."),
+        header("This Run"),
+        slider("Wave Seed", vr_arena_seed, 0.f, 1000.f, 1.f, "%.0f")
+            .help("0: a different ladder of guns every run; a number: that seed's waves, so one difficulty's run can be "
+                   "compared against another's (vr_arena_seed). Not saved: set it every map."),
     };
 }
 
@@ -1404,6 +1595,9 @@ void ikStretchReset()
         open("Armed Humanoid Replacements", pageIndex(pageArmedRepl))
             .help("A map's grunts and enforcers as armed ones holding their own guns (their balance kept), and weapon "
                   "variety on top. All off by default."),
+        open("Armour", pageIndex(pageArmedArmour))
+            .help("Armed grunts wearing breakable armour (a cuirass, a helmet, pauldrons, bracers, thigh and shin "
+                  "plates): how it absorbs, helmets and headshots, cuts, and how often they wear it at each skill."),
         open("Weapon Holds", pageIndex(pageArmedHolds))
             .help("Per weapon, for grunts and for enforcers: held in one hand or two (Auto: the axe and the enforcer's "
                   "pistols in one hand, the rest as built in)."),
@@ -1746,8 +1940,11 @@ void ikStretchReset()
         slider("Super Nailgun", vr_dmg_super_nail, 1.f, 100.f, 1.f, "%.0f a nail").extend().help("id's 18 (a head more)."),
         slider("Nail Pistol", vr_dmg_nailpistol, 1.f, 60.f, 1.f, "%.0f a nail").extend()
             .help("Quake VR's nail pistol: 12 kills a grunt (30) with two in the head (x1.5) or three in the body."),
-        slider("Nail Pistol Speed", vr_nailpistol_speed, 500.f, 6000.f, 100.f, "%.0f u/s").extend(100.f, 20000.f)
-            .help("Its nails' speed (the nailgun's 1750), plus the hand's."),
+        slider("Nail Speed", vr_nail_speed, 500.f, 6000.f, 5.f, "%.0f u/s").extend(100.f, 20000.f)
+            .help("The nailgun's and the super nailgun's nails, yours and the monsters' (Quake's 1000; 1750 until round "
+                  "23), plus the hand's."),
+        slider("Nail Pistol Speed", vr_nailpistol_speed, 500.f, 6000.f, 10.f, "%.0f u/s").extend(100.f, 20000.f)
+            .help("Its nails' speed (the nailgun's Nail Speed), plus the hand's."),
         slider("Nail Pistol Cooldown", vr_nailpistol_cooldown, 0.02f, 1.f, 0.01f, "%.2f s").extend(0.02f, 3.f)
             .help("Semi-automatic: a shot each pull of the trigger, at least this long apart."),
         slider("Nail Pistol Spread", vr_nailpistol_spread, 0.f, 5.f, 0.05f, "%.2f deg").extend(0.f, 30.f)

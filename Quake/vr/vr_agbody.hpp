@@ -75,7 +75,10 @@ void print();
 // arms don't follow, taken out; the legs and hips still the frames'), breathing, eased in and out (`keepFrames`: the
 // frames' chest, a pickup's crouch). Once a frame for entity `ent` on `posed` (its bones as the frames draw them): the
 // turn to lay on every bone on the chest (on the left: rest -> now becomes corr * posed). False: none (off, no pelvis).
-bool upper(int ent, const ragdoll::Rig& rig, int chest, const rigpose::Rigid* posed, bool keepFrames, rigpose::Rigid& corr);
+// `hipsTwist`: a turn laid on the whole body (model space, on the left) that the chest doesn't share at all: the strafe
+// turn (vr_agrunt_strafe_turn), the spine turning back from the hips so the chest stays aimed.
+bool upper(int ent, const ragdoll::Rig& rig, int chest, const rigpose::Rigid* posed, bool keepFrames, rigpose::Rigid& corr,
+    const glm::quat& hipsTwist = glm::quat{1.f, 0.f, 0.f, 0.f});
 // ... the one laid this frame (the drawing's bone turns read it). False: none.
 bool upperNow(int ent, rigpose::Rigid& corr);
 

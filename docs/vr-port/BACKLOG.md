@@ -58,13 +58,6 @@ Each verified by an unchanged physics hash, melee eval and `vr_menu_path_check`.
 
 ## Next round (approved)
 
-### Active humanoid coverage for AD's soldiers (author, 2026-10-12)
-
-Done 2026-10-15 (branch `agent/adrigs`; ROUND22.md, "Active rigs for AD's humanoids"): AD's soldier, enforcer and
-knight variants, the death knights, guard, sergeant, fury, crossbow knight, zombie knight and mummy are driven alive and
-dying (stagger, get-up, lift flail, swim, active deaths); the zombie knight's head zone moved onto its head. Left out:
-the centurion (hover board) and the skull wizard (a robe, no legs). Awaiting his VR check.
-
 ### Active ragdolls: research a reference video (author, 2026-10-22)
 
 Research https://www.youtube.com/watch?v=r8Q1nwHPwJ0 for active ragdoll improvements (stagger, balance, get-up, the
@@ -98,20 +91,6 @@ ML at runtime. Borrow ideas only unless noted. Not started.
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 
 Research climbing by bracing a hand on each side of a pillar or pipe and moving upward hand-over-hand. Open.
-
-### Climbing leg animation (legs seek footholds) (23:10:39, 2026-10-14)
-
-Legs should seek plausible support points on walls, ledges, pillars and ladders, so looking down shows believable
-assistance during climbing. Done 2026-10-16 (branch `agent/climblegs`; ROUND22.md, "Climbing footholds"): while a hand
-holds on, each foot finds a ledge's, a rung's or the floor's top, else a spot on the face, steps between them in turn
-and hangs when there is none (VR Settings > Body: Climbing Footholds, Foothold Reach, Foothold Step Speed). Awaiting his
-VR check.
-
-### Fold vr_struggle_classes into the monster groups (author, 2026-10-19)
-
-The struggle classes list should become a per-group setting like the lift, neck snap and throw lists did
-(ROUND22.md, "Monster groups"); then retire `vr_struggle_classes`. Done 2026-10-23 (branch `agent/dec11`; ROUND22.md,
-"1.1 decisions: particle cap, shadow atlas on demand, struggle in the groups"): config 190, awaiting his VR check.
 
 ### Repository chores
 
@@ -152,9 +131,6 @@ this file; the workers' ROUND22.md sections carry them.
 - **`.rtlights` support** (round 20 discussion): load DarkPlaces' hand-authored light lists where they exist to
   drive the shadowed map lights (better placed than the map's light entities).
 - **Distance-field AO** (round 20 discussion): only if capsule/box AO leaves obvious gaps.
-- **Flashlight optional; a brighter option** (the author, 2026-10-02): left: check that nothing else assumes the
-  torch with `vr_flashlight` 0 (gadget hints, tips, tutorial), and whether one "Visibility" control raising ambient
-  light, exposure and tone mapping together is still wanted over Ambient Light alone.
 - **Menus and settings for players, not only for tuning** (the author, 2026-10-03; `docs/vr-port/archive/MENU_REVIEW.md`):
   left: gameplay-feel presets (or gameplay kept as one tuned design) and the per-slot cvars (`vr_wofs_*`,
   `vr_prop_*`) to data files.
@@ -189,20 +165,6 @@ this file; the workers' ROUND22.md sections carry them.
   sounds.
 - **Wounded monsters bleed a trail, then crawling half-bodies:** live low-health monsters drip decals; big monsters
   split in half and drag the torso with a smear (a "finish it" beat).
-
-### Droppable, usable swords: AD's Dark Prince and the Phantom Swordsman (the author, 2026-10-22) -- done
-
-Done (ROUND22.md, "Four monster swords", branch `agent/swords4`, 2026-10-23): the Phantom Swordsman falls as its very
-heavy two-handed sword (Rogue's data), the Dark Prince, the justice knight and the judicator drop theirs (AD's), as the
-other AD melee weapons (QC `vr_ad_melee.qc`, kinds 7-10; Weapon Offsets slots 47-50). Left: VR checks of the grips.
-
-### Droppable, usable mace: AD's Death Sergeant (the author, 2026-10-23): done, follow-ups
-
-Done in round 22 (ROUND22.md, "The death sergeant's flail"): it drops its flail, the head a Box3D body on a rope,
-striking by its own speed and mass (its handle placed in the hand, slow motion in the hands' time, the chain's rattle:
-"The flail after swords4"). Left: the hand's grip pose round its short handle and two-hand grips (Weapon Offsets slot
-51, his tuning); a chain of a few links that wraps round things instead of one rope; holstering it (its head hanging
-from the holster).
 
 ### Enemies' own weapons for the player (the author, 2026-10-15)
 
@@ -354,207 +316,9 @@ TODO: linux support
 Audited and the gadget's AD page added (ROUND22.md, same section). Left: the custom keys' names on it (strings, not
 stats), the jump boots' power level, coop.
 
-## Tracy review leftovers (2026-10-14)
-
-- Tracy VR code (`Quake/vr/vr_tracy.cpp` and its hooks) uses `std::` containers, mutexes and atomics: move to Zancle
-  per CODE_STYLE (Tracy build only; not a mechanical swap).
-- The bench JSON / profile CSV settings list gained 7 `vr_pbr`/`vr_parallax` entries with Tracy commit d5ba4af43
-  (harmless), and the capture metadata prefix scan still repeats those names: dedupe.
-- Run VR profiler sessions (the `Release-TracyFull` build, with call stacks) and optimize the game.
-
-## Open from round 22 (2026-10-14; credits ran out)
-
-- **Neck snap:** Hand Line kept, Velocity removed (2026-10-15, ROUND22.md "Neck snap: the Hand Line only"). Still open: a wrist-roll-only test; `ragdoll/stagger_test.sh judo` under it.
-- **AD humanoids and the neck snap / lift:** PARTLY done. Done: the centurion and fumigator are in
-  `vr_foegrab_lift_classes` (config 134, cf44e08a3) and `judo_test.py adneck` (4f18290ce; ROUND22.md, "Neck snap: strict
-  zone, diagnostic, slow motion, crack") lifted every AD humanoid, snapped 12 of 15 heads standing and measured held
-  knocked-down pyro, fumigator and death knight. Left: the zombie knight's head sits 3-5 units to the side of its head
-  zone (headfit 2.8 3.1 21.1; positional damage's zones have no sideways offset); the eliminator's and fumigator's heads
-  were not taken from the zone's sides; AD's humanoids have no driven rigs, so a lift does not flail them; the
-  centurion hovers (never knocked down nor lifted) and its snap is untested.
-- (Done 2026-10-15, fastship: walk 2500 frames) **Body Inset vs vore shoves:** `voreshove_test.sh` now gets 3-4 shoves (needs 4) at inset 4: vores stand closer and die to their own splash; restore the test's margin.
-- (Done 2026-10-15 except hotblade throw, unreproduced alone) **Flaky tests:** judo_test `hold` "held on" drag (moves 4-12 units by landing; ~1 in 3 under the 4-unit bar); hotblade_test `throw_cold`/`throw_hot` (axe sometimes arrives under 6.3 m/s after a bounce).
-- (Done 2026-10-15 except Quoth long torch flame position) **Incandescent blades leftovers:** weapons start cold after a level change; Quoth's long wall torch is no fire spot (flame position unknown); force-grab/counter/toolgun glows override the heat glow on an aimed dropped blade.
-- (Done 2026-10-15, ROUND22 "Main menu layout") **Main menu:** flat menu limited to Quake's 200 rows, clear of the corner buttons and notice box; VR menu with a Continue row checked after vertical centring (centred, no overlap). Open: the flat rows are tight (13 apart, no group gaps) on a short canvas.
-
-## Test suite speed-up leftovers (2026-10-14, branch agent/fasttests)
-
-- (Done 2026-10-15, worktree fastship: next merged in, the 28 batched suites proven again alone vs batched, 9361 s ->
-  1646 s; TESTING.md "The batched suites, proven again on next".)
-- Redo the conversions that were left uncommitted in worktree qvr-agents/fasttests (19 more release-suite scripts, 3
-  Python suites, the kit README line): lost, that worktree was reused for another branch. (Runs built from earlier
-  runs' output are batched: each runs as a batch of one, testbatch.sh.)
-- Finish the full release suite's old-way baseline (stopped at 33 of 43) and record before/after.
-- brush_test.py: not batched yet (uses saves and screenshots every run).
-- guard/decap are batched with their frames drawn and voreshove with real-time frames (17, 32 and 15 s batched):
-  frames not drawn / unpaced only if worthwhile (it changed their verdicts).
-
-## Permanent decals leftovers (2026-10-14; design and status: docs/vr-port/PERM_DECALS.md)
-
-- Phase 3: instanced brush models (b_*.bsp item boxes share one model) and props (alias models): per-entity layers
-  with a unique UV unwrap, or keep projected decals with a cap.
-- Phase 4: coop: clients bake from the replicated decal events; a mid-game joiner gets a snapshot or a fresh start.
-- (Done 2026-10-15, `agent/permdecals3`: the atlas grows by layers up to `vr_permdecal_atlas_max`; past that the
-  least recently baked page still gives its slot up. Downsampling old pages there is the remaining idea.)
-- (Done 2026-10-15, `agent/permdecals4`: baked marks read on the texture's blocks with retro textures and nearest
-  texture mode; gore's late marks on doors and lifts baked when they show; a stamp whose pages were all dropped kept.
-  Marks on brush-tool boxes stay live by decision: PERM_DECALS.md, Decisions.)
-- The layer is not pulled to Quake's palette (Retro Palette); a mark on both the world and a brush-tool box stays live
-  whole (its world part too). Small, only if he asks.
-
-## QuakeC VM overhead, short of a JIT (2026-10-14; profile first with the Tracy build's QC zones)
-
-- Generic native predicates: QC registers a filter once (string or field/op/value triples, e.g. "flags & FL_MONSTER &&
-  vr_liquid_next <= time && takedamage"), the engine compiles it; `findfilter(start, filterId)` walks edicts natively
-  (generalises findflagsdue, d05011ec3).
-- Native loops calling back into QC: `forall(filterId, func)` iterates and filters natively, entering the VM (via its
-  function index, PR_ExecuteProgram) only for matches.
-- Natively maintained entity lists (monsters, burning, ...) kept current as flags change, so loops visit members only.
-- Faster interpreter (pr_exec.c): threaded dispatch (computed goto), fused superinstructions (field load + compare),
-  fewer bounds checks in hot opcodes; typically 1.5-2x for all QC; verify with the QC regression suite.
-- Biggest step, only if QC still dominates after the above: ahead-of-time translation of our own progs.dat to C at
-  build time (VM kept as fallback for mods with their own progs); must match VM semantics, saves, debugging.
-- Check what fteqcc supports beyond plain function pointers before relying on QC "lambdas".
-
-## Playtest voice notes, 2026-10-14 (deferred by the author)
-
-The author explicitly deferred every request below; only the blood-vignette coverage adjustment is current work.
-All 21 recordings were transcribed and reviewed chronologically before triage. Times below identify source recordings.
-
-### Arcane Dimensions and expansion regressions
-
-- **AD stealth integration (22:13:00):** enemies seem to notice the player immediately rather than using the new stealth AI. Investigate native AD enemy integration; do not treat this observation as a confirmed cause.
-- **AD enemy grenade launcher (22:14:26):** dropped soldier launcher produces oversized old-model grenades that sometimes stick in its muzzle. Use the newer projectile model and player-launcher-equivalent size/physics/clearance. Recorded weapon 21, `progs/mon_soldier.mdl#gun6`, in vrfiringrange near (8, -680, 41).
-- **AD enemy weapon polish (22:16:03):** all enemy weapons need proper models, particles and general polish, beyond the launcher-specific issue above.
-- **Expansion relief coverage (23:04:41):** some Scourge of Armagon textures appear to lack relief. Audit whether authored maps are missing or whether AD generation/loading caused a regression; preserve authored relief priority.
-- **Armagon torso collision (23:16:08):** on hipend, shots hit the boss's legs but seem to pass through its torso. Investigate projectile/hit collision, recorded near (923, -676, 152).
-
-### Throwing, grabbing and living ragdolls
-
-- **Bullet-time throws (22:31:57):** small upward nudges can launch objects too far, while full throws feel wrong; available settings did not produce a good feel. Revisit velocity/time-scale handling and consistency.
-- **Mid-air trick catches (22:31:57):** add appropriate main-handle grab leniency for re-catching tossed/spinning weapons, such as an axe; current timing/handle precision is too finicky.
-- **Enemy occlusion of force grab (22:37:38):** bodies should block force-grab line of sight so physical enemy interaction does not accidentally grab an object behind the enemy.
-- **Bullet-time lift/neck-snap responsiveness (22:38:26):** both interactions feel hard and unresponsive in slow motion; investigate gesture/velocity checks versus time scaling.
-- (Partly: cvar vr_box3d_walk_nudge added; nudge does not fire yet, ROUND22 "Small fixes") **Walking nudges (r2m1, 22:48:15):** legs should gently push nearby/underfoot ragdolls without those bodies blocking the player's walking movement; avoid excessive pushes.
-- **Head/wall slams and live-ragdoll access (dm2, 22:55:25):** allow grabbing a living enemy and smashing its head into a wall to kill it. Keep lifting as one way to activate ragdoll interaction, but investigate additional natural ways to enter that state.
-
-### Neck-snap tuning and diagnostics
-
-- **Strict head/neck grab region (dm2, 22:55:25 amended 22:55:58):** unintended snaps occur with hands far from the head or on shoulders. Restrict eligibility to the actual head/neck; shoulder holds must not count.
-- **Crack sound impact (22:39:40):** even maximum volume feels weak/background. Investigate source position, attenuation/occlusion and sound treatment so a successful snap has a powerful crack.
-- **In-world diagnostic toggle (23:01:26):** add to the Neck Snap menu, matching the selected algorithm. Show head/neck bounds, hand/twist vectors, angles, speed/strength and thresholds with arrows/bars on a selected or nearest enemy. Diagnose why twist-speed/angle setting changes seem ineffective and results feel inconsistent/random.
-
-### Maps, presentation and future interactions
-
-
-### Faster QuakeC interpreter: research notes (2026-10-14, Quake/pr_exec.c)
-
-- Today: one switch over 66 opcodes in while(1); per statement ++profile with a runaway check (0x1000000) and an
-  `if (qcvm->trace)` test; OPA/OPB/OPC recompute `&qcvm->globals[st->a]` per access (likely reloaded after stores:
-  clang-cl in MSVC mode has no strict aliasing); QVR hooks: OP_ADDRESS world + fieldwatch checks, Tracy/vr_qcprofile/
-  vr_profile_fine branches on calls (keep them).
-- Steps (cheapest first): (1) cache globals/edicts in locals, separate traced loop, runaway counted on backward jumps
-  and calls with profile totals kept exact (~0.5 day, ~1.2-1.4x); (2) computed-goto dispatch (clang only; ~0.5 day,
-  ~1.2-1.3x); (3) pre-decoded statements per VM ({handler, operand pointers}) built at progs load, original statements
-  kept for errors/PR_PrintStatement/xstatement/profile (~2 days, most of a ~2x); (4) superinstructions for the hot
-  pairs profiling finds (field load + IF/IFNOT or compare, ADDRESS + STORE; ~1 day).
-- Isolation: new loop in a VR file (e.g. vr_qcexec.c) with one `// QVR` hook in PR_ExecuteProgram and a cvar to fall
-  back to the original loop. Behaviour identical: same results, runaway/error messages, profile counts; verify with
-  the QC-heavy suites (ragdoll, AD, melee eval) and a seeded e1m1 log compared against the old loop.
-- First measure QC's share of the frame on a busy map (vr_qcprofile, Tracy QC zones).
-- 2026-10-15 (worktree `qcvm`): steps 0-2 done (vr_qcexec; QC_VM.md): the interpreter is ~2% of a 90 Hz frame, so
-  steps 3-4 were left out; fewer statements (native hot functions, the filters above) would pay more.
-
-## Model vertex wobble (2026-10-14)
-
-- Cause: .mdl stores each frame's vertices as 3 bytes (0-255 per axis) times a per-model scale/offset, so positions
-  snap to 1/255 of the model's extent (~0.25 units on a ~60-unit model), independently per frame: the rippling. Linear
-  blending between frames adds limb shrinking/swimming.
-- (2) Rigged monsters: in progress 2026-10-15 (another worker).
-- (3) Higher-precision formats (MD3 16-bit, IQM/MD5 float; the 2021 rerelease ships float models): check what the
-  engine already loads before relying on it; covers only models that have replacements.
-
-## Other
-
-- His words: "I feel that enemies like knights often get too close and go through the player when they perform a melee attack, which can be disorienting and make it difficult for the player to parry or counterattack. Is this something specific to knights? Should we add some sort of minimum radius distance from the player that the enemy will be smoothly pushed back into when performing a melee attack?"
-
-## His notes, 2026-10-15
-
-- More gore: thin blood streams from bullet holes in enemies; teeth flying out when punching faces; real-time vertex
-  deformation showing flesh chunks torn away; thinner, longer-range blood splatters onto surfaces behind a shot enemy.
-  - Vertex deformation: done as flesh dents (ROUND22.md, "Flesh dents": hits push the surface in, a crater of raw
-    flesh with a bloody rim, kept on corpses and ragdolls; `vr_gore_dents*`, Gore > Wounds on Models). To check in VR.
-  - Done (ROUND22.md, "More gore: blood streams, back-splatter, teeth"): the streams from bullet holes (Gore > Blood
-    Streams), the back-splatter streaks (Gore > Back-splatter), the teeth (Gore > Knocked-out Teeth). To check in VR:
-    how the streams read up close and on ragdolls, a real punch's teeth (the threshold, Punch Hardness for Teeth).
-
-- **Ammo type follows the loaded magazine:** with pouch reloading (v1.1), the magazine/ammo you load picks the gun's ammo type (e.g. a lava-nail magazine fires lava nails), making the ammo switch button unnecessary for magazine-fed weapons (his idea via a player exchange, 2026-10-16).
-
-## Blood in water (his notes vrtesthall_2026-10-23_01-42-34, _01-43-54; designed by agent/firewater)
-
-**Built** 2026-10-23 (branch `agent/bloodwater`; ROUND22.md, "Blood in water"): (a) as planned below (`vr_water_blood`,
-`vr_water_blood_time`), and (b)'s first step, one test a burst (his choice): no per-particle test. Left for later:
-- (b)'s per-particle surface crossing: a stream or spray made above the surface carried into it (a ragdoll half in;
-  `Particle::waterCheck`, every 4th frame a particle) turning to a cloud as it goes in. The streams already end their
-  points at the surface they pour into and bloom puffs there; the particles' sprays and drops from above still fall
-  through the water.
-- Underwater blood decals of their own (pools on a pool's floor under a corpse): only the gore rays' marks are smaller
-  and later under water now.
-- The clouds drifting with the swells or a current (they stay where they were let; only their noisy edge drifts).
-
-The plan as designed:
-
-- **(a) Bloody water surface.** A client-side list of up to 16 blood clouds on liquid surfaces, each {centre xy, surface
-  z, radius, strength, born}, uploaded with the frame data as `vec4 BloodWater[16]` beside `RippleAt` (vr_glsl.h
-  QVR_FRAMEDATA_FIELDS; glquake.h gpuframedata_t) and read only by the liquid shader (LiquidFoam's neighbour: one loop of
-  16 distance tests a liquid fragment, skipped when the count is 0, about as costly as the ripples' 32). Each cloud's
-  radius grows as sqrt(age) (spreading, 8 -> 60 units over ~20 s), its strength fades to 0 over vr_water_blood_time
-  (30 s), and its edge is broken by the foam's LiquidNoise drifting with the swells; colour: a dark red mixed into the
-  refracted colour (more at the centre, `mix(c, vec3(0.35, 0.02, 0.02) * light, k * 0.6)`), not on lava, a brown on
-  slime. Sources, all client side (no protocol change): parseParticle2's Preset::Blood and the gore's EventHit/Burst/
-  Corpse (vr_gore.cpp `event`) when their origin is in water or within 24 units above a surface (CL_PointContents +
-  the WaterSurface halving search, as QC VR_Burn_WaterSurface); a bleeding body or ragdoll standing in water (the
-  wounds' bleeding, vr_wounds.cpp, already knows when a body bleeds: one cloud a second at its waterline); the player's
-  own blood (vr_wounds.cpp's self wounds, or the bloody-hands state) when wading; a bloody prop (vr_props.cpp's blood
-  coat) floating. A new cloud within a living one's radius adds to it (strength up, capped) instead of taking a slot;
-  the list full, the weakest goes. Cvars: `vr_water_blood` (0 off, strength), `vr_water_blood_time`. Cost: the CPU side
-  a handful of point-contents a hit; the GPU side the 16-cloud loop only on liquid fragments.
-- **(b) Blood slowed in water.** Each blood particle (vr_particles.cpp blood, bloodTrail, the gore's sprays, streams,
-  waterfalls and drips in vr_gore.cpp) tests, when made, whether its origin is in water (one CL_PointContents a burst,
-  not a particle) and if so gets `drag` 4-6 (stops in ~0.3 s), gravity 0.1 (sinks slowly), a bigger, fainter, longer
-  life (a cloud, 2-4 s, growing), so a spray under water puffs into a slowly sinking cloud; a stream crossing the
-  surface (a ragdoll half in) needs a per-particle test where it is advanced, at most every 4th frame per particle
-  (`Particle::waterCheck` counter), turning the same way when it enters. The decals under water (vr_decals.cpp blood
-  pools on a pool's floor) would get the same slowing as their `delay` (longer) and a smaller size.
-
-## His decisions, 2026-10-23 (agent/dec1023)
-
-- **Fuel tanks and hoses for the armed pyro and fumigator grunts.** An armed grunt holding the flamethrower or the poison
-  sprayer (QC vr_armedgrunt.qc, weapons 26 and 27) has no tank on its back and no hose to the gun. The player's
-  (vr_adtank.cpp) is built around the player's body (his torso frame, the hand's gun, his view): a monster's version
-  needs its own anchor (the grunt's back from its model's frame, as the held prop's VR_AG_PlaceProp) and a hose from the
-  tank to the prop's muzzle end, drawn per grunt (a small list of entities, not the player's one state).
-- **Close two-hand crate grips pull a hand in** (seen after agent/gripfit2's drawn-hand-on-the-surface pass, ROUND22.md
-  "Second pass: the drawn hand on the surface"): two hands on a crate close together (vr_crates.cpp, vr_twohand.cpp,
-  vr_gripfit.cpp), the second grip drags its hand towards the first instead of keeping it where it closed.
-- **The magnetic holster chain stretches on fast swings** (after agent/magchain, ROUND22.md "Magnetic holster chains
-  fixed"; vr_magholster.cpp; `Misc/quakevr/magchain_test.sh`): its worst link 78% off its length on a fast swing, and
-  the links bunch up as the hand comes back. More substeps or a stiffer distance constraint for the swing's frames, and
-  a minimum spacing between links.
-- **The judicator's sword glow.** The held/dropped judicator's sword (VR_ADMELEE_JUDGE, progs/w_judgesword.mdl#melee)
-  has no glow: it is not in the sword's skin. AD draws it apart from the model (QC/ad/ad_mon_bossjudicator.qc): an
-  attachment entity (`ad_justice_setup_attachment`, its `ad_weaponglow` progs/s_judgemagic.spr, kept at its melee
-  offset by `ad_justice_update_attachment`) with yellow imploding particles (`ad_particle_implode`, its magic attack),
-  `EF_MUZZLEFLASH` lights on its attacks and flames off its swings (`ad_PreCache_Flame`). A held sword's equivalent: that
-  sprite (or a glow) on the blade (vr_admelee.cpp's model) and a dim light.
-
-## Nail pistol in maps (2026-10-25)
+## TODO
 
 - Vittorio is unsure whether nail pistols should appear as pickups in maps (crates / replacing some weapon spawns); armed grunts carrying them may be enough. Revisit after beta4.
-- **Arena mode (armed humanoids survival)** (Vittorio, 2026-10-27): a survival arena that shows off the armed humanoids.
-  Waves get progressively harder and more frequent: first unarmed grunts, then grunts with nail pistols and shotguns,
-  and so on up the weapon ladder, with randomized weapons per wave (enforcers and AD weapons later). The player starts
-  unarmed and works up the ladder by killing enemies and taking their weapons (disarms, tug-of-war, pickups). Needs: an
-  arena map (or a mode on an existing one), a wave director (kinds, weapon pools, counts, spawn spots), a score/wave
-  readout, and a start from the Play menu.
+  - Also consider flare guns and heavy revolvers.
 - **Player armour parity** (Vittorio, 2026-10-28, from the armed humanoids' armour plan: C:\OHWorkspace\qvr-kit\scratch\research_agarmor.md, question 8): once armed humanoids wear generated per-limb plates (helmet, cuirass, pauldrons, bracers, thighs, shins), consider giving the player the same plates fitted to the player body (the generator can fit vrbody too), instead of the armour painted on the body skin; per-piece damage for the player too? Decide after the humanoids' armour ships.
+- **Ammo type follows the loaded magazine:** with pouch reloading (v1.1), the magazine/ammo you load picks the gun's ammo type (e.g. a lava-nail magazine fires lava nails), making the ammo switch button unnecessary for magazine-fed weapons (his idea via a player exchange, 2026-10-16).

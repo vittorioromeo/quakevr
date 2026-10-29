@@ -1,0 +1,5 @@
+# Quake VR animation of the authored rig (the Rig Studio: docs/vr-port/RIGSTUDIO.md, "Animating the authored
+# rig"): its poses and override tracks; each key's turn (degrees) and offset in its bone's own frame: a ball
+# joint's x Swing X, y Swing Y, z Twist; a hinge's x its bend; the root's the model's axes
+qvrrig2anim 1
+model progs/vrenforcer.mdl

@@ -1,0 +1,17 @@
+# arena_intro: the survival arena (vrarena) and what a boss wave's clear offers. Wave 1 starts a few seconds after the
+# map loads; a wave is cleared by killing it. vr_arena_boss_every is 1 here so the offer arrives with the first wave
+# instead of the fifth: three perk cards float in front of you (Quad Strike, Neck Snapper, Iron Skin, Second Wind,
+# Feeder, Quartermaster, Spoils, Can Opener: each its colour, its item's picture and what it does), and the arena waits
+# -- no countdown, no next wave -- until you point at one with either hand's laser and pull the trigger (or press its
+# number key). Turn away for a second, or open the menu and come back, and the cards come back in front of you. The
+# offer's number follows the game's difficulty: three is Normal's (2 at Easy, 4 at Hard, 5 at Nightmare). Normal play:
+# a boss every vr_arena_boss_every (5) waves, and no perk is offered twice in a run. Debug > Automation & Self-Tests >
+# Offer Perk Cards Now shows them at once between two waves.
+title The arena's first boss wave: three perk cards float in front of you, the arena waits for your pick
+map vrarena
+start 0 0 120 45
+cvar vr_arena 1
+cvar vr_arena_seed 3
+cvar vr_arena_boss_every 1
+cvar vr_arena_max_alive 4
+hint Kill the wave; three perk cards then float in front of you and the arena waits. Point at one and pull the trigger to take it for the rest of the run (a melee kill gives 2 s of Quad Strike, a snapped neck 20 health, armour you pick up is worth 25 more, a wave clear tops up the guns you hold -- whichever you chose is the one that does it). Turn away or open the menu: the cards come back in front of you.

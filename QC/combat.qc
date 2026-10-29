@@ -153,6 +153,9 @@ Killed
 */
 void(entity m) VR_Parry_Unsway;
 
+// QVR: Survival Arena's perks read a foe's fall, with its killer at hand (vr_arena_perks.qc, compiled late).
+void(entity e, entity by) VR_ARK_Kill;
+
 void(entity targ, entity attacker) Killed =
 {
     entity oself;
@@ -221,6 +224,8 @@ void(entity targ, entity attacker) Killed =
 
     self.takedamage = DAMAGE_NO;
     MGH_Kill(attacker);
+    VR_ARENA_MonsterDie(); // QVR: Survival Arena: one of its wave's monsters fell, and what that is worth (vr_arena.qc)
+    VR_ARK_Kill(self, attacker); // QVR: Survival Arena's perks: a foe's fall, by whom (vr_arena_perks.qc)
     self.touch = SUB_Null;
 
     monster_death_use();
@@ -805,6 +810,16 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     // thrown brick's hit on a ragdoll left no wound and no dent (a shotgun's pellets paint their own: VR_Wound_Pellet).
     VR_Wound_Hit(targ, inflictor, attacker, ceil(damage));
     damage = damage / VR_Corpse_PositionalFactor(targ);
+    VR_AgArmor_Guard(targ); // (no cut or pop under a corpse's unbroken plate: vr_agarmor.qc)
+    // A ragdoll's plates take their share first, as the living's (vr_agarmor.qc): a plate breaks before its limb pops.
+    if(targ.vr_ar_type > 0)
+    {
+        damage = VR_AgArmor_Damage(targ, inflictor, attacker, damage, FALSE);
+        if(damage <= 0)
+        {
+            return TRUE;
+        }
+    }
 
     // A headshot on a corpse pops its head, leaving the physical body in place.
     // Use the same weapon toggles and head-share test as a living killing blow.
@@ -911,6 +926,10 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
     else
     {
         VR_SmallGib_Gibbed(dm); // (ThrowHead's, with a head)
+        if(self.vr_ar_type > 0)
+        {
+            VR_AgArmor_Shed(self, dm); // (and its armour's plates left: vr_agarmor.qc)
+        }
         VR_Limb_GibAll(dm); // (and its own limbs: vr_gib_limbs, vr_limbs.qc)
         self.solid = SOLID_NOT;
         self.model = string_null;
@@ -1595,6 +1614,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     // VR: the motion recorder's events (vr_motion.qc): a hand's or the head's hit.
     VR_Motion_Hit(targ, attacker, damage, isVRMelee);
+
+    // VR: an armed humanoid's plates take their share first (vr_agarmor.qc; Quad's damage included)
+    if(targ.vr_ar_type > 0)
+    {
+        damage = VR_AgArmor_Damage(targ, inflictor, attacker, damage, isVRMelee);
+    }
 
 // save damage based on the target's armor level
 

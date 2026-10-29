@@ -108,6 +108,7 @@ void() VR_Revolver_Precache =
     precache_model("progs/v_revolver.mdl");
     precache_sound("weapons/shotgn2.wav");
     precache_sound("weapons/guncock.wav");
+    precache_sound("vr/derived/revolver_shot.wav"); // (its shot: layered from the game's own as it loads, vr_audio.cpp)
     precache_sound("gunclick.wav");
     precache_sound("vr/reload_ssg_open.wav");
     precache_sound("vr/reload_ssg_close.wav");
@@ -383,9 +384,9 @@ void(float xHand) W_FireRevolver =
     }
     float client = (self.flags & FL_CLIENT) != 0;
     float vol = max(0, min(4, cvar_hget(cvarh_vr_revolver_volume)));
-    // Its blast: the super shotgun's, deeper (a big bore from a short barrel), and the action's clack under it.
-    sound_pitch(self, VRGetGunChannel(xHand), "weapons/shotgn2.wav", vol, ATTN_NORM, 86 + crandom() * 3);
-    sound_pitch(self, CHAN_AUTO, "weapons/guncock.wav", vol * 0.6, ATTN_NORM, 72 + crandom() * 3);
+    // Its blast: its own (his note 2026-10-29: powerful, intense, not the super shotgun's), layered as it loads from the
+    // game's own sounds (the super shotgun's lower, an explosion's crack, the action's clack: vr_audio.cpp layeredSounds).
+    sound_pitch(self, VRGetGunChannel(xHand), "vr/derived/revolver_shot.wav", vol, ATTN_NORM, 100 + crandom() * 3);
     delAmmoOrClipAndUpdateCounter(xHand, AID_SHELLS, 1);
     entity rec = VRGetEntWeaponInst(self, xHand);
     if(client && rec)

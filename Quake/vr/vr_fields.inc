@@ -232,6 +232,9 @@ QVR_FIELD(vr_flail_taken) // ... QC: when the main hand took a flail lying about
 QVR_FIELD(vr_flail_offtaken)
 QVR_FIELD(vr_prop_mass) // a prop's own mass, kg (0: its model's, Held Object Offsets): a small gib (QC vr_smallgibs.qc; vr_box3d.cpp massSetting)
 QVR_FIELD(vr_xdebris) // an explosion's chunk (vr_explosiondebris.cpp): when it was made (its entry's check; 0: not one)
+QVR_FIELD(vr_ar_type) // an armed humanoid's armour (vr_agarmor.qc): 0 none, 1 green, 2 yellow, 3 red (vr_agarmor.cpp sends it to the clients)
+QVR_FIELD(vr_ar_mask) // its armour pieces still on (bits: vr_agarmor.hpp's Piece)
+QVR_FIELD(vr_ar_wear) // its pieces' damage marks (bits 0-9 at two thirds of their pool or under, 10-19 at a third or under; sent with the rest)
 QVR_FIELD(attack_finished) // slow motion with the player in its own time (vr_timescale.cpp: vr_sandevistan, vr_timescale_move_realtime): its timers set in its frame run in its time
 QVR_FIELD(offhand_attack_finished)
 QVR_FIELD(mainhand_melee_attack_finished)

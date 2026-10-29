@@ -1354,6 +1354,7 @@ void(float t) VR_AGBT_Frame; // (vr_armedgrunt_bugs_test.qc)
 void(float t) VR_AGCT_Frame; // (vr_armedgrunt_close_test.qc)
 void(float t) VR_AGGT_Frame; // (vr_armedgrunt_grab_test.qc)
 void(float t) VR_AGDT_Frame; // (vr_armedgrunt_downtug_test.qc)
+void() VR_AGRW_Frame; // (vr_armedgrunt_ragweapon_test.qc)
 void(float t) VR_AGRT_Frame; // (armed humanoid replacements: vr_armedrepl_test.qc)
 void() VR_AGRT_Begin;
 void() VR_RST_Frame; // (vr_rigseq_test.qc)
@@ -1361,6 +1362,8 @@ void() VR_RST_TauntFrame;
 void() VR_RST_KeysFrame;
 void() VR_AGPC_Frame;
 void() VR_AGSH_Frame; // (vr_armedgrunt_shove_test.qc)
+void() VR_AGMZ_Frame; // (vr_armedgrunt_muzzle_test.qc)
+void() VR_AGSC_Frame; // (vr_armedgrunt_shoveclose_test.qc)
 void() VR_AGAM_Frame; // (vr_armedgrunt_ammo_test.qc)
 void() VR_AGAM_Begin;
 
@@ -1433,12 +1436,15 @@ void() VR_AGTest_Frame =
     else if(t == 76) { VR_AGX_Frame(); } // (aimed at what it can hit, you behind cover: vr_armedgrunt_expose_test.qc)
     else if(t == 86) { VR_AGAIT_Frame(); } // (the AI behaviour knobs: vr_armedgrunt_ai_test.qc)
     else if(t == 87) { VR_AGLT_Frame(); } // (the strafe lean: vr_armedgrunt_ai_test.qc)
+    else if(t == 88) { VR_AGRW_Frame(); } // (the held weapon on an active ragdoll's hand: vr_armedgrunt_ragweapon_test.qc)
     else if(t >= 70 && t <= 73) { VR_AGRT_Frame(t); } // (armed humanoid replacements: vr_armedrepl_test.qc)
     else if(t == 80) { VR_RST_Frame(); } // (the Rig Studio's sequences played by QC: vr_rigseq_test.qc)
     else if(t == 81) { VR_RST_TauntFrame(); } // (the armed grunt's taunt: vr_rigseq_test.qc)
     else if(t == 82) { VR_RST_KeysFrame(); } // (the Rig Studio's keys on the authored rig, drawn: vr_rigseq_test.qc)
     else if(t == 83) { VR_AGPC_Frame(); } // (the gun pose categories: vr_armedgrunt_posecat_test.qc)
     else if(t == 84) { VR_AGSH_Frame(); } // (their posed shove: vr_armedgrunt_shove_test.qc)
+    else if(t == 85) { VR_AGMZ_Frame(); } // (dual guns: each shot from its own muzzle: vr_armedgrunt_muzzle_test.qc)
+    else if(t == 89) { VR_AGSC_Frame(); } // (a gun's holder shoves up close: vr_armedgrunt_shoveclose_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
         float base = (t - 6) * 4;

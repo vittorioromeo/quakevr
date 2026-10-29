@@ -484,6 +484,41 @@ void() VR_NailPistol_TestFrame =
         if(r) { VR_Reload_MagAtWell(cVR_OffHand, r); }
         VR_NPT_Check(VR_Reload_MagIn(p, cVR_MainHand) && VRGetWeaponClip(cVR_MainHand) == 12 &&
             VR_Carry_Held(p, cVR_OffHand) == world, sprintf("slapped in: clip %g, the hand empty", VRGetWeaponClip(cVR_MainHand)));
+        // Pulled off by the off hand (gripping it, holding it, the hands far further apart since): it stays in, only the
+        // button lets it out (vr_nailpistol_mag_pull 0, his note 2026-10-29); with vr_nailpistol_mag_pull 1 it comes out
+        // into that hand (the check's own control), and is seated again.
+        float vb5 = p.vrbits0;
+        float pullWas = cvar("vr_nailpistol_mag_pull");
+        entity os5 = self;
+        self = p;
+        float pulled = 0;
+        float k5;
+        for(k5 = 0; k5 < 2; k5++)
+        {
+            cvar_set("vr_nailpistol_mag_pull", k5 ? "1" : "0");
+            p.vrbits0 = (vb5 | QVR_VRBITS0_OFFHAND_GRABBING);
+            p.vr_mag_pull = (p.vr_mag_pull | 1);
+            p.vr_mag_pull_apart0 = -1000;
+            VR_Reload_MagFrame(cVR_OffHand);
+            if(!k5)
+            {
+                VR_NPT_Check(VR_Reload_MagIn(p, cVR_MainHand) && (VRGetWeaponClip(cVR_MainHand) == 12),
+                    sprintf("pulled off by hand: the magazine stays in (in %g, clip %g; only its button lets it out)",
+                        VR_Reload_MagIn(p, cVR_MainHand), VRGetWeaponClip(cVR_MainHand)));
+            }
+            else
+            {
+                pulled = ((!VR_Reload_MagIn(p, cVR_MainHand)) && (VR_Carry_Held(p, cVR_OffHand) != world));
+                VR_NPT_Check(pulled, "vr_nailpistol_mag_pull 1: pulled off by hand, it comes out into the hand");
+            }
+        }
+        p.vrbits0 = vb5;
+        p.vr_mag_pull = 0;
+        self = os5;
+        cvar_set("vr_nailpistol_mag_pull", ftos(pullWas));
+        if(pulled) { VR_Reload_MagAtWell(cVR_OffHand, VR_Carry_Held(p, cVR_OffHand)); }
+        VR_NPT_Check(VR_Reload_MagIn(p, cVR_MainHand) && (VRGetWeaponClip(cVR_MainHand) == 12),
+            sprintf("seated again: clip %g", VRGetWeaponClip(cVR_MainHand)));
         VR_NPT_Next();
     }
     else if(s == 6)

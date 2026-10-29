@@ -70,7 +70,8 @@ enum SvcQuakeVr : int
     QVR_SVC_HITREACT = 34,        // [short entity][coord3 at][char3 dir*127][byte part + 1 (0 unknown)][byte damage][byte share of its health * 255]: a living monster struck, its hit reaction drawn (QC hitreact; vr_hitreact.cpp)
     QVR_SVC_GORESOUND = 35,       // [byte kind][short entity][coord3 at][byte strength * 255]: a gore sound (QC goresound; vr_goresound.cpp)
     QVR_SVC_ARMPOSE = 36,         // [short grunt][short weapon][byte flags][byte wr * 255][coord3 v][short3 fw, up: body's, rifle line's * 32000][byte wo * 255][byte wl * 255][coord3 vl]...[flags 4|16 both: the off-hand block, byte b, short3 x3 each for b & 4 and b & 8 (vr_hitreact.cpp parseArmPose)]: an armed grunt's hands and held weapon this server frame (QC VR_AG_SendPose; vr_hitreact.cpp), unreliable
-    QVR_SVC_RIGSEQ = 37,          // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
+    QVR_SVC_ARMOR = 38,           // [short entity, -1 all cleared][byte type 0 none, 1 green, 2 yellow, 3 red][short pieces left, bits][short at 2/3 of their pool or under][short at 1/3 or under]: an armed humanoid's armour (QC .vr_ar_type, .vr_ar_mask, .vr_ar_wear; vr_agarmor.cpp serverFrame on a change, serverWriteAll with the spawn state), reliable
+    QVR_SVC_RIGSEQ = 37,        // [short entity][byte 1 start, 0 stop][start: string name][float server time]: a Rig Studio sequence started on a monster by QC, or stopped (vr_rigseq.cpp), reliable
 };
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)
 
@@ -174,7 +175,8 @@ enum Stat : int
     STAT_QVR_REVOLVER2,
     STAT_QVR_REVOLVERCYL,
     STAT_QVR_REVOLVERCYL2,
-    STAT_QVR_END
+    STAT_QVR_HOLSTERCLIPSIZE0, // 6: each holster's weapon's own magazine size (QC VR_ClipSizeOf): its ammo screen's warning colour
+    STAT_QVR_END = STAT_QVR_HOLSTERCLIPSIZE0 + 6
 
 };
 

@@ -848,6 +848,10 @@ void(string gibname, float dm) ThrowHead =
     dprint(sprintf("gibbed: %s (gib speed x%.2f)\n", self.classname, vr_gib_speed > 0 ? vr_gib_speed : 1));
     VR_Gore_Gibbed(); // VR: blood all round (vr_gore, vr_carry.qc)
     VR_SmallGib_Gibbed(dm); // VR: and small gibs (vr_smallgibs.qc)
+    if(self.vr_ar_type > 0)
+    {
+        VR_AgArmor_Shed(self, dm); // VR: and its armour's plates left, flying off (vr_agarmor.qc; before its limbs go)
+    }
     VR_Limb_GibAll(dm); // VR: and its own limbs (vr_gib_limbs; vr_limbs.qc)
     setmodel(self, gibname);
     self.frame = 0;

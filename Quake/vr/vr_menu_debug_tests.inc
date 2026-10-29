@@ -333,6 +333,9 @@ za::Vector<Item> pageDebugTests()
             .help("vr_lootbeam_test 24 18 1: 24 things ahead of you in rows (weapons, nailgun magazines full and nearly "
                   "empty, ammo, health, armour, quad damage), 18 gibs among them and a toolgun nearer (its own colour, "
                   "a beam twice as high). Graphics > Loot Beams sets which glow."),
+        command("Loot Beams: Empty Every Other Weapon", "vr_lootbeam_empty_test")
+            .help("vr_lootbeam_empty_test: every other weapon lying about has its magazine emptied: their beams turn the "
+                  "empty weapons' colour (red), beside the loaded ones' gold."),
         command("Loot Beams: Report", "vr_lootbeams_report")
             .help("vr_lootbeams_report: each beam this frame (entity, category, model, fade) and the things skipped "
                   "(carried, moving, empty magazines), on the console."),
@@ -535,7 +538,18 @@ za::Vector<Item> pageDebugTests()
             .extend()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
-        command("Enemy Weapon Drop Cap", "developer 1; vr_dropcap_test 1")
+        command("Armour on Armed Grunts", "developer 1; vr_agarmor_test 1"),
+        command("Armoured Enforcers There", "vr_agarmor_test 3")
+            .help("Three armed enforcers ahead in full green, yellow and red armour (vr_agarmor_test 3)."),
+        command("Armour Damage Marks There", "vr_agarmor_test 4")
+            .help("Three armed grunts ahead in full yellow armour: every piece whole, at two thirds and at a third of its "
+                  "pool (the dented, then battered and scorched skins; vr_agarmor_test 4). vr_agarmor_wear 1 / 2 draws "
+                  "every piece so."),
+        command("Helmets There: Grunt and Enforcer", "vr_agarmor_test 6")
+            .help("An armed grunt and an armed enforcer close ahead in full yellow armour, facing you, standing still "
+                  "(vr_agarmor_test 6): the helmets' fit up close. vr_agarmor_headcam 1-4 (the mock headset) puts the "
+                  "eyes on their heads: front, side, three-quarter, behind."),
+        command("Enemy Weapon Drop Cap","developer 1; vr_dropcap_test 1")
             .help("vr_dropcap_test 1: 60 grunts spawned ahead and killed one by one (vr_dropcap_test_n), the first one's "
                   "rifle taken into an empty hand, a chainsaw thrown up and three other weapons dropped: the burst rifles "
                   "and chainsaws lying about never pass Most Lying About (vr_enemy_weapon_drop_max), the held one, the "
@@ -1005,10 +1019,24 @@ za::Vector<Item> pageDebugTests()
             .help("A loaded nail pistol in the right hip and the right upper holster (replacing what was there)."),
         command("Nail Pistol Self-Test", "vr_np_test 1")
             .help("Headless checks: semi-automatic, the cooldown, 12 hits and a dry 13th, the slide, the magazine cycle, two headshots or three body shots a grunt, armed grunts firing one and a pair (\"nptest: N passed, M failed\")."),
+        command("Hang Nails Before Your Eyes", "vr_nail_test 2")
+            .help("The nailgun's, the super nailgun's and a lava nail (with Dissolution of Eternity) hung still 40 units ahead "
+                  "for 30 s, to judge their size (Nail Size in Flight)."),
+        command("Nail Speed and Size Test", "vr_nail_test 1")
+            .help("Headless: the nailguns', the nail pistol's and an armed grunt's nails' speed (15-20% above 1750 and "
+                  "2600), a nail's hit box (a point; a grunt met only within its box and the tolerance, the middle never "
+                  "missed) and the nails' drawn size (\"nailtest: N passed, M failed\")."),
         command("Nail Pistol Aim Test", "vr_np_test 5")
             .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "
                   "0.2 degrees, at several poses and distances, both hands (\"npaim: N passed, M failed\"). In the headset: "
                   "Developer Shots (vr_debug_shots 1) prints each nail's angle off the shot line and what it carried."),
+        header("Ammo Screen Colours"),
+        command("Low and Empty Guns in Hand", "vr_ammocolor_test 2")
+            .help("A shotgun with a fifth of its magazine in the main hand (its numbers orange) and an empty nailgun in the "
+                  "off hand (red): Low Ammo Colours (vr_ammo_color_warn)."),
+        command("Ammo Colours Self-Test", "vr_ammocolor_test 1")
+            .help("Headless checks: the shotgun, nailgun, nail pistol, revolver and Widowmaker full, at a fifth and empty, "
+                  "the off hand, the option off (\"ammocolor: N passed, M failed\"; vr_ammo_color_debug prints each readout)."),
         header("Flare Gun"),
         command("A Flare Gun in Your Hand", "vr_flare_test 2").help("A loaded flare gun (two flares) in the main hand."),
         command("Flare Guns in Both Hands", "vr_flare_test 3").help("A loaded flare gun in each hand."),
@@ -1060,6 +1088,9 @@ za::Vector<Item> pageDebugTests()
         command("Weapon Effects Test", "vr_weaponfx_test 1 3")
             .help("vr_weaponfx_test 1 3: the main hand's weapon kicks and flashes as if it fired (its Effects), with 3 "
                   "tracers (no shot)."),
+        command("Per-Weapon Recoil Test", "vr_recoil_test")
+            .help("vr_recoil_test: the main hand's weapon's own Recoil Kick Back and Muzzle Rise move its recoil only "
+                  "(no other weapon's); prints PASS/FAIL lines and puts every value back."),
         toggle("Print Weapon Effects", vr_debug_weaponfx)
             .help("vr_debug_weaponfx: each shot's recoil, flash and tracers (2: and the recoil each frame); the shotgun's auto "
                   "pump strokes (start, back, home) and when its shell leaves."),

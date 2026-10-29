@@ -3,3 +3,9 @@
 # joint's x Swing X, y Swing Y, z Twist; a hinge's x its bend; the root's the model's axes
 qvrrig2anim 1
 model progs/vrgrunt.mdl
+override shoot
+  track head
+    key 0 smooth 2.639 -3.942 -19.594 0 0 0
+    key 4 smooth -25.219 -13.672 -25.346 0 0 0
+  end
+end

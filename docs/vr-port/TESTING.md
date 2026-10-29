@@ -141,8 +141,11 @@ the page is `menu_vr 72` (Debug > Checklist).
 Each item has Pass, Fail and Test buttons under it (ROUND22.md, "Checklist: Pass, Fail and Test"): marks live in the
 same ticks file (a passed item's text a line, a failed one's after `[fail] `; an old file's lines read as passes);
 `vr_checklist pass|fail|test <n>`, CLITEM's mark is `x` passed, `!` failed, its last field the item's scenario. On the
-mock: `menu_vr 72`, five `vr_mock_key downarrow` select the first item, `rightarrow`/`leftarrow` pick its button,
+mock: `menu_vr 72`, eight `vr_mock_key downarrow` select the first item (its section unfolded), `rightarrow`/`leftarrow` pick its button,
 `enter` presses it; `developer 1` prints `checklist: item <n>, <button> pressed`.
+Sections fold (ROUND23.md, "Checklist: folding sections"): each header shows open/total, the row under it folds or
+unfolds it, kept by name in `quakevr/checklist_sections.txt` (ignored); `vr_checklist` prints CLSEC lines,
+`vr_checklist collapse|expand <s|all>` and `folds_default`; `python Misc/quakevr/checklist_fold_check.py <agent>` tests it.
 
 ### Test numbers
 
@@ -482,6 +485,9 @@ vertices) hidden in 21 death frames", "the laser rifle (58 vertices) hidden in 2
 prints each shot ("grunt's shotgun fired: hand 1, 9 left") and each empty click. Level mock hands for aimed shots:
 `vr_mock_hand main 0.25 1.20 -0.40 70 0 0`. The grunts' burst rifles and the rifle's lasers (ROUND21.md, "The grunts' burst rifles; the enforcer rifle's faster lasers"): `vr_debug_shots 1` prints each burst round and each rifle laser (fired: its speed; what it hit, its damage); `vr_hull_hittest <distance> <spread>` gives a spread's share of hits on you; `hullhit/hit_test.sh <worktree> 2160 "0:256" 24` a grunt's damage to you in 30 s (`vr_grunt_burst 0`: the shotgun's). `Misc/quakevr/make_enemyguns.py` makes the models (`check_mdl_holes.py`
 checks them).
+Armed grunts' drawn motion (ROUND23.md, "Armed grunts choppy"): `map vrtesthall; god; vr_agrunt_test 1;
+vr_physics_spawn monster_knight 250; wait120; vr_rig2_motion_test 300`, `-QuitOn "vr_rig2_motion_test: [0-9]+ passed"`:
+each visible monster's drawn origin never steps over 8 units in a frame (its move lerped): 3 passed, 0 failed.
 Armed humanoids' posed shove (ROUND22.md, "Armed humanoids' shove"): `map vrtesthall; developer 1; vr_agrunt_test 84`
 (`-QuitOn "test 84 over"`): five cases (shotgun, nail pistol, two nail pistols, axe; an enforcer's laser rifle; `scratch2
 1`: super axe, chainsaw, two crowbars, fists, rocket launcher), each walked up to until it shoves: the phases' times,

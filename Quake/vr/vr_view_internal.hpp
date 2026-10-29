@@ -601,8 +601,8 @@ inline twohand::HeldAs drawnAs[2]{{glm::vec3{0.f}, glm::vec3{0.f}, true}, {glm::
 [[nodiscard]] glm::vec3 idleAttachmentAngles(const glm::vec3& aliasAngles, int slot, bool mirrored, const glm::vec3& offsets);
 
 // Clip sizes seen on the guns in the hands (the stats only give the held guns'), for the holstered ones' screens.
-inline ankerl::unordered_dense::map<const qmodel_t*, int> clipSizes;
-[[nodiscard]] za::String idleWeaponText(const qmodel_t* model, int clip, bool total);
+[[nodiscard]] za::String idleWeaponText(const qmodel_t* model, int clip, int clipSize, bool total);
+[[nodiscard]] bool idleAmmoWarning(const qmodel_t* model, int clip, int clipSize, glm::vec3& tint, const char* seenCvar);
 
 // Floating ammo counter on a weapon (old engine's V_SetupWpnTextViewEnt and the weapon text
 // in R_DrawViewModels): clip/clip size over the ammo left when reloading is on, else the ammo.

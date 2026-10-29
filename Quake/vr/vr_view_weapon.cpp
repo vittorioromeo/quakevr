@@ -173,16 +173,15 @@ namespace
 // ("--" unknown).
 // `total`: the reserve under the clip (a gun in a holster: the player's); not on a gun lying about, whose screen shows its
 // clip and size alone, as the clip's line of a held gun's (the author's note vrfiringrange_2026-10-08_14-18-22).
-[[nodiscard]] za::String idleWeaponText(const qmodel_t* model, int clip, bool total)
+[[nodiscard]] za::String idleWeaponText(const qmodel_t* model, int clip, int clipSize, bool total)
 {
     const int ammo = idleAmmo(model);
     const za::String ammoText = ammo >= 0 ? za::toString(ammo) : za::String{"--"};
     const bool reloading = cl.stats[protocol::STAT_QVR_RELOADMODE] != 0; // (the server's mode as it applies)
-    const auto size = clipSizes.find(model);
-    if(reloading && clip >= 0 && size != clipSizes.end() && size->second != 0)
+    if(reloading && clip >= 0 && clipSize != 0)
     {
-        return total ? za::toString(clip) + "/" + za::toString(size->second) + "\n" + ammoText
-                     : za::toString(clip) + "/" + za::toString(size->second);
+        return total ? za::toString(clip) + "/" + za::toString(clipSize) + "\n" + ammoText
+                     : za::toString(clip) + "/" + za::toString(clipSize);
     }
     return ammoText;
 }
@@ -190,6 +189,48 @@ namespace
 namespace
 {
 double carriedPrintAt[2]{-1.0, -1.0}; // vr_debug_2h_grip 2, per hand: the next print of its weapon's drawn pose
+
+// vr_ammo_color_debug, per hand: the warning last printed ("state loaded capacity"; reprinted when it changes).
+za::Array<za::String, 2> ammoWarnPrinted;
+
+// A warning colour setting: a hue in degrees (the menu's slider), or "r g b" (0..1).
+[[nodiscard]] glm::vec3 ammoWarnColor(const cvar_t& cvar)
+{
+    float r = 0.f, g = 0.f, b = 0.f;
+    if(sscanf(cvar.string, "%f %f %f", &r, &g, &b) == 3)
+    {
+        return glm::clamp(glm::vec3{r, g, b}, glm::vec3{0.f}, glm::vec3{1.f});
+    }
+    return hsv(za::fmod(za::fmod(cvar.value, 360.f) + 360.f, 360.f), 1.f, 1.f);
+}
+
+// A gun's ammo warning (vr_ammo_color_warn), the one rule for guns held, holstered and lying: 2 no round loaded, 1 fewer
+// than vr_ammo_low_frac of its magazine, 0 none. `clipSize`: the weapon's own magazine size (the server tells it for
+// every gun); `clip` its rounds loaded (-1 unknown); `ammo` the ammo it fires from (-1 unknown). Loaded: its magazine's
+// rounds when reloading (`clip` of `clipSize`); else `ammo`, against a magazine's worth. A gun with no magazine size (an
+// enemy's, the flare gun: their counter is their clip) warns only when empty. Unknown loaded count: none. `tint` is set
+// when it warns; `seenCvar`: vr_ammo_color_debug's readout (loaded * 10000 + capacity * 10 + state).
+[[nodiscard]] int gunWarning(int clip, int clipSize, int ammo, glm::vec3& tint, int& loaded, const char* seenCvar)
+{
+    loaded = 0;
+    int warning = 0;
+    if(vr_ammo_color_warn.value != 0.f)
+    {
+        const bool useClip = cl.stats[protocol::STAT_QVR_RELOADMODE] != 0 && clip >= 0 && clipSize != 0;
+        loaded = useClip ? clip : ammo;
+        if(loaded >= 0)
+        {
+            const float frac = CLAMP(0.f, vr_ammo_low_frac.value, 1.f);
+            warning = loaded <= 0 ? 2 : clipSize > 0 && static_cast<float>(loaded) < frac * static_cast<float>(clipSize) ? 1 : 0;
+        }
+    }
+    tint = warning == 2 ? ammoWarnColor(vr_ammo_color_empty) : ammoWarnColor(vr_ammo_color_low);
+    if(seenCvar && vr_ammo_color_debug.value != 0.f)
+    {
+        Cvar_SetValue(seenCvar, static_cast<float>(za::max(loaded, 0) * 10000 + za::clamp(clipSize, 0, 999) * 10 + warning));
+    }
+    return warning;
+}
 
 void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const view::ViewEntity& ve, int slot)
 {
@@ -220,10 +261,6 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
     const int clipSize = cl.stats[main ? STAT_QVR_WEAPONCLIPSIZE : STAT_QVR_WEAPONCLIPSIZE2];
     const int ammo = cl.stats[main ? STAT_QVR_AMMOCOUNTER : STAT_QVR_AMMOCOUNTER2];
     const bool reloading = cl.stats[protocol::STAT_QVR_RELOADMODE] != 0; // (the server's mode as it applies)
-    if(clipSize != 0)
-    {
-        clipSizes[ve.ent.model] = clipSize;
-    }
 
     char buf[64];
     if(reloading && clipSize != 0)
@@ -235,14 +272,48 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
         q_snprintf(buf, sizeof(buf), "%d", ammo);
     }
 
+    // Its warning colour (vr_ammo_color_warn): low or empty (gunWarning: the rule of every gun).
+    int loaded = 0;
+    glm::vec3 tint;
+    const int warning = gunWarning(clip, clipSize, ammo, tint, loaded, main ? "vr_ammo_color_seen" : "vr_ammo_color_seen2");
+    if(vr_ammo_color_debug.value != 0.f)
+    {
+        char seen[96];
+        q_snprintf(seen, sizeof(seen), "%d %d %d %.2f %.2f %.2f", warning, loaded, clipSize, warning ? tint.x : -1.f,
+            warning ? tint.y : -1.f, warning ? tint.z : -1.f);
+        if(ammoWarnPrinted[static_cast<size_t>(hand)] != seen)
+        {
+            ammoWarnPrinted[static_cast<size_t>(hand)] = seen;
+            char text[64], rgb[48];
+            q_strlcpy(text, buf, sizeof(text));
+            for(char& c : text)
+            {
+                c = c == '\n' ? '|' : c;
+            }
+            q_snprintf(rgb, sizeof(rgb), "%.2f %.2f %.2f", tint.x, tint.y, tint.z);
+            Con_Printf("ammocolor: %s hand, %s, \"%s\": %s (loaded %d of %d), colour %s\n", main ? "main" : "off",
+                ve.ent.model ? ve.ent.model->name : "?", text, warning == 2 ? "empty" : warning == 1 ? "low" : "normal",
+                loaded, clipSize, warning ? rgb : "the screen's");
+        }
+    }
+
     text3d::queue(buf, pos, angles, text3d::Align::Centre, 0.1f * weapons::value(slot, Key::WpnTextScale),
-        vr_weapon_screen.value != 0.f);
+        vr_weapon_screen.value != 0.f, warning ? &tint : nullptr);
     if(vr_weapon_screen.value != 0.f)
     {
         emissive::weaponScreenLight(hand, pos, angles); // its faint glow (vr_weapon_screen_light)
     }
 }
 } // namespace
+
+// The warning of a gun not in a hand (a holstered one's, `clip` its own loaded count; a lying one's, its stored clip; -1 when
+// not told): gunWarning's rule, with the player's ammo for it (idleAmmo) when it is not reloading. `clipSize`: the weapon's
+// own magazine size, sent for every gun.
+[[nodiscard]] bool idleAmmoWarning(const qmodel_t* model, int clip, int clipSize, glm::vec3& tint, const char* seenCvar)
+{
+    int loaded = 0;
+    return gunWarning(clip, clipSize, idleAmmo(model), tint, loaded, seenCvar) != 0;
+}
 
 // Switching a gun's ammo (its button) swaps its model for the other ammo's (the same gun, another paint and a
 // few parts: improve_weapons_alt.py); over vr_weapon_morph_time the old model dissolves where the new one appears,

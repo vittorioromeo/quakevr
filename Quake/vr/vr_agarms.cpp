@@ -1820,19 +1820,23 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     }
     // The off hand on the right weapon's second grip (within reach, its wrist turning within reason), or under and round
     // the right hand (a Cup), else as its own goal says.
-    if(t.cup && !t.second)
-    {
-        Hm[1] = rigpose::Rigid{};
+    const auto cupHand = [&]() {
         const glm::vec3 at = rigpose::apply(arms[0].H, m->side[0].grip.pos) + C.rot * glm::vec3{0.f, 1.2f, -2.5f};
         rigpose::Rigid want;
         want.pos = at;
         want.rot = frameRot(C.rot * glm::vec3{1.f, 0.f, 0.f}, C.rot * glm::vec3{0.f, 0.f, 1.f});
-        Hm[1] = compose(want, inverse(m->side[1].grip));
+        rigpose::Rigid h = compose(want, inverse(m->side[1].grip));
         if(t.offKeyed && out.on[0])
         {
             // (the pose keys' grip offset: the cup moved in the weapon's frame; its turn laid on after the solve, below)
-            Hm[1].pos += out.weapon[0].rot * t.gripOff.pos;
+            h.pos += out.weapon[0].rot * t.gripOff.pos;
         }
+        return h;
+    };
+    bool cupping = t.cup && !t.second;
+    if(cupping)
+    {
+        Hm[1] = cupHand();
     }
     bool leftDone = false;
     bool releasing = false;
@@ -1972,13 +1976,20 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     {
         leftDone = true; // (vr_agarms_second_hold 0: held as it was)
     }
+    if(!leftDone && !held2 && t.keyGun && t.second && out.on[0])
+    {
+        // (the pose key's On the Gun, the second grip out of reach and let go: cupping the right hand instead, as a gun
+        // with no second grip is held; the change eased below as any change of the off hand's goal)
+        cupping = true;
+        Hm[1] = cupHand();
+    }
     if(!leftDone)
     {
-        const Goal gl = t.cup && !t.second ? Goal::Point : t.second ? Goal::None : t.goal[1];
+        const Goal gl = cupping ? Goal::Point : t.second ? Goal::None : t.goal[1];
         arms[1] = solveSide(1, Hm[1], gl);
         // (the pose keys' off-hand turn on a cup (the weapon's frame) or on the free hand (model space): laid on the hand
         // as solved, about its grip point, and held so: no change at none)
-        const bool cupTurn = t.offKeyed && gl == Goal::Point && t.cup && out.on[0] && za::abs(t.gripOff.rot.w) < 0.9999999f;
+        const bool cupTurn = t.offKeyed && gl == Goal::Point && cupping && out.on[0] && za::abs(t.gripOff.rot.w) < 0.9999999f;
         const bool freeTurn = t.offKeyed && gl == Goal::None && za::abs(t.freeOff.rot.w) < 0.9999999f;
         if(cupTurn || freeTurn)
         {
@@ -1989,9 +2000,10 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     }
     out.held2 = held2;
     out.slid = slid;
+    out.cupped = cupping && !leftDone;
     // The off hand's goal changing (a grip let go, taken): eased a moment.
     {
-        const int mode = held2 || releasing ? 3 : t.cup ? 4 : static_cast<int>(t.goal[1]);
+        const int mode = held2 || releasing ? 3 : cupping ? 4 : static_cast<int>(t.goal[1]);
         if(mode != st->leftMode)
         {
             st->leftMode = mode;
@@ -2205,6 +2217,22 @@ bool ragdollGrip(const qmodel_t* model, int side, rigpose::Rigid& grip, int& bon
         {
             grip = s.side[side].grip;
             bone = s.side[side].handBone;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool handSkin(const qmodel_t* model, int side, const za::Vector<int>*& verts, const za::Vector<glm::vec3>*& rest,
+    rigpose::Rigid& grip)
+{
+    for(const Skin& s : state.skins)
+    {
+        if(s.model == model && s.ok && side >= 0 && side < 2)
+        {
+            verts = &s.side[side].hand;
+            rest = &s.rest;
+            grip = s.side[side].grip;
             return true;
         }
     }
