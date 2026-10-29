@@ -1534,7 +1534,8 @@ void poseDataWindow()
                     ImGui::EndCombo();
                 }
                 helpMarker("Auto: the Weapon Holds' (its second grip, a cup, or free for a one-handed hold). On the Gun: "
-                           "held on it even when the hold is one-handed. Free: off the gun, hanging, moved by Left Place / "
+                           "held on it even when the hold is one-handed (a pistol carried low cupped too; its second grip "
+                           "out of reach, cupping the right hand). Free: off the gun, hanging, moved by Left Place / "
                            "Left Turn (the Pose Keys tool's \"left hand (free)\"). Which pose's counts: Pickup's while "
                            "taking a weapon up (if set), else Aim's while aimed, else Run's while running (if set), else "
                            "Carry's; the hand eases between (a quarter second).");

@@ -100,7 +100,8 @@ ROUND22.md, "Off hand: grip offset and Free"):
   Turn, laid on the hanging hand (zero: relaxed at its side).
 - The Pose Studio Data window's **Off Hand** combo beside the key: **Auto (the Weapon Holds)** (the default: its second
   grip, a cup, or free for a one-handed hold), **On the Gun** (on it even when the hold is one-handed; held as a
-  two-handed hold is; a pistol carried low is still never cupped), **Free** (off the gun). Which pose's setting counts:
+  two-handed hold is; a pistol carried low cupped too, which Auto never does; a second grip out of reach cupping the
+  right hand instead: ROUND23.md 9b), **Free** (off the gun). Which pose's setting counts:
   Pickup's while taking a weapon up (if set), else Aim's while aimed, else Run's while running (if set), else Carry's; so
   Run Free with Aim Auto: free running, on the gun aimed. Between the hand eases round the shoulder over a quarter second
   (`vr_agarms`' second-grip ease). `vr_rigstudio_posekey offhand <0|1|2>` sets it from the console.
@@ -356,6 +357,11 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
   subject's Run key's Off Hand set to `mode` (default 2 Free), held in Run, Aim, Run: free in Run (not held, no cup, 4
   units at least off its grip), on the gun in Aim; each change's off hand followed every frame in its chest's space (how
   long it moves, its largest step a frame: an ease, not a snap); the key put back exactly. Screenshots in each.
+- `vr_rigstudio_test_offmodes` (open the studio with a gun: `vr_rigstudio monster_vr_grunt 4` or `29`; ends on
+  `rigstudio offmodes: N passed, M failed`): Carry, Aim, Run, Pickup and the Shove's push, each key's Off Hand Auto, On
+  the Gun, Free in turn, each settled: On the Gun on it (held or cupping), Free 4+ units off the grip and off where On
+  the Gun held it; then the keys' text saved with Carry Free, then On the Gun, taken away and read back (the mode, the
+  hand off or on again); every key and the text put back exactly.
 - `vr_rigstudio_test_stretch [factor] [push]` (open the studio with a gun, the shotgun grunt: `vr_rigstudio
   monster_vr_grunt 4`; ends on `rigstudio stretch: N passed, M failed`, then `rigstudio stretch: done` after its last
   screenshot): the IK stretch of the subject's kind and class (Pose Studio Data > IK Stretch; default 1.15), the subject
