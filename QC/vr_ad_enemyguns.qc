@@ -832,7 +832,9 @@ void() VR_ADGun_PlasmaTouch =
 
 void(float xHand, float xWid) VR_ADGun_FirePlasma =
 {
-    sound(self, VRGetGunChannel(xHand), ad_SOUND_PLASMA_FIRE, 1, ATTN_NORM);
+    // (Without AD's data, ours: layered from the game's own as it loads, vr_audio.cpp; AD's was never precached then.)
+    sound(self, VRGetGunChannel(xHand), cvar("vr_ad_mounted") ? ad_SOUND_PLASMA_FIRE : "vr/derived/plasma_fire.wav", 1,
+        ATTN_NORM);
     self.punchangle_x = -1;
     float kind = ad_CT_MONARMYPLASMA;
     if(xWid == WID_ADCENTURION || xWid == WID_ADELIMINATOR) { kind = ad_CT_MONCENTURION; }

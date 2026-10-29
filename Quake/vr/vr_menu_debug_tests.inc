@@ -333,6 +333,9 @@ za::Vector<Item> pageDebugTests()
             .help("vr_lootbeam_test 24 18 1: 24 things ahead of you in rows (weapons, nailgun magazines full and nearly "
                   "empty, ammo, health, armour, quad damage), 18 gibs among them and a toolgun nearer (its own colour, "
                   "a beam twice as high). Graphics > Loot Beams sets which glow."),
+        command("Loot Beams: Empty Every Other Weapon", "vr_lootbeam_empty_test")
+            .help("vr_lootbeam_empty_test: every other weapon lying about has its magazine emptied: their beams turn the "
+                  "empty weapons' colour (red), beside the loaded ones' gold."),
         command("Loot Beams: Report", "vr_lootbeams_report")
             .help("vr_lootbeams_report: each beam this frame (entity, category, model, fade) and the things skipped "
                   "(carried, moving, empty magazines), on the console."),

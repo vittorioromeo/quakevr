@@ -227,6 +227,7 @@ void() AD_WorldSpawn =
 {
     vr_ad_data = (VR_Pack_AD() && cvar("vr_ad_mounted") != 0);
     precache_sound("vr/widowmaker_shot.wav"); // (the Widowmaker's shot: AD_FireWidowmaker; its stand-in model too)
+    precache_sound("vr/derived/plasma_fire.wav"); // (the Plasma Gun's shot without AD's data: AD_PlasmaFireSound)
     if(vr_ad_data)
     {
         precache_sound("vr/torch_light.wav"); // (AD's burning lights our fire: vr_ad_player.qc)
@@ -1438,6 +1439,13 @@ float(float xHand, float xFlags) AD_PlasmaGun =
     return AD_HandUpgraded(xHand, ad_IT_UPGRADE_LG) && !(xFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO);
 };
 
+// The Plasma Gun's shot's sound: AD's with its data mounted (precached: AD_WeaponsOnDemand), else ours, layered from the
+// game's own as it loads (vr_audio.cpp layeredSounds; AD's was never precached: no sound at all, his note 2026-10-29).
+string() AD_PlasmaFireSound =
+{
+    return cvar("vr_ad_mounted") ? ad_SOUND_PLASMA_FIRE : "vr/derived/plasma_fire.wav";
+};
+
 // The Plasma Gun's shot (W_Attack, every 0.2 s): a plasma bolt from the muzzle, a cell; under water it misfires.
 void(float xHand) AD_FirePlasma =
 {
@@ -1450,7 +1458,7 @@ void(float xHand) AD_FirePlasma =
         sound(self, VRGetGunChannel(xHand), ad_SOUND_MISFIRE, 1, ATTN_NORM);
         return;
     }
-    sound(self, VRGetGunChannel(xHand), ad_SOUND_PLASMA_FIRE, 1, ATTN_NORM);
+    sound(self, VRGetGunChannel(xHand), AD_PlasmaFireSound(), 1, ATTN_NORM);
     self.punchangle_x = -2;
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 1);
     if(ad_CheckZeroVector(world.ad_plasmagun_dmg)) // (Weapon Damage's, unless the map sets its own: AD's worldspawn key)
