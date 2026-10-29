@@ -126,7 +126,7 @@ countdown timed **7**. Example: `run.sh <name> -Filter "arena:" -QuitOn "arena: 
 `-Timeout 1500`). Known: test 1 is 256/1 on vrarena (`a fallen monster is not alive`, harness case; 257/0 on vrtesthall).
 
 **Open:** whether the rest + countdown (10 s before wave 1) is too long; whether Quartermaster should reach a player
-holding nothing; whether the next wave should wait for a pedestal choice (today it does not).
+holding nothing. (Whether the next wave should wait for the perk choice: it does now, "Perk cards" below.)
 
 ## 3. Survival Arena: difficulty (`vr_arena_skill_impact`)
 
@@ -164,16 +164,39 @@ wave seed's salted stream, so guns and gaps are unchanged. Normal: wave 4 10% gr
 10` (160/0: table within 3% over 400 rolls per cell, plans at each skill, live wave 5 foes and the 600-point yellow boss).
 
 **Perks** (`vr_arena_perks` 1, `vr_arena_perk_count` 3, 1..the pool of 8; scaled by difficulty 2/3/4/5). A boss wave's
-clear lights that many pedestals (`VR_ARENA_PedPlace`: off the item points, 96 further out; a map without item points
-uses the drop ring at 220 + 96); walking over one takes the perk for the run and no later boss offers it; unclaimed
-pedestals stand until the next boss offer. Perks (each hooks a place the game reports and returns unless taken,
+clear offers that many **perk cards** on a floating panel (below, "Perk cards"); the pick takes the perk for the run and
+no later boss offers it. (Until the perk cards pass, the offer was pedestals on the item points, walked over.) Perks (each hooks a place the game reports and returns unless taken,
 `VR_ARK_Running`): **Quad Strike** (melee kill adds 2 s Quad; only ever adds time), **Neck Snapper** (snapped neck +20
 health, decap hook), **Iron Skin** (picked-up armour +25: 125/175/225, at `armor_touch`), **Second Wind** (max health
 +15), **Feeder** (+5 health per kill, at most 1/s), **Quartermaster** (each clear +15 ammo to the held gun, via
 vr_ammoutil), **Spoils** (twice `vr_arena_gun_max` fallen guns stay), **Can Opener** (plates pay twice from their pool
-for what they save, `VR_ARK_PlateCost`). Tests: `vr_arena_perks_test 1..4` (pool and offer 19, pedestals 15, every perk
-through the game's calls 45 (43 on vrtesthall), full-map drive 14, prints `arena_full:`); scenario
+for what they save, `VR_ARK_PlateCost`). Tests: `vr_arena_perks_test 1..5` on vrarena (pool 19, offer and picks 22,
+every perk through the game's calls 43, full-map drive 15 `arena_full:`, the card panel 13 `arena_cards:`); scenario
 `quakevr/scenarios/arena_intro.txt` (boss every wave, so the offer comes at once).
+
+**Perk cards** (`Quake/vr/vr_arenacards.cpp`, QC `VR_ARK_Card*` in `vr_arena_perks.qc`). Why the pedestals went: they
+stood 96 units out past the item points, often behind the player or across the room; their names were view messages
+that the WAVE CLEAR line, the countdown's once-a-second lines and the next wave's lines overwrote within a second or two;
+the rest (5 s) and countdown (5 s) ran on regardless, so the choice was made while the next wave arrived (or not at all:
+an unclaimed offer was silently replaced at the next boss); walking over one by accident (on the way to a medkit) took
+it; and the picture was a model lying on the floor (gibs, view models). Now: the clear's cards go up on a panel 320 x 200
+virtual px (1280 x 800 texels), `vr_arena_cards_width` 32 units wide, `vr_arena_cards_distance` 34 in front of the head
+at its yaw, a tenth of that below the eyes, leaning back to face them, not depth tested (Combat > Survival Arena > Perks:
+Perk Cards Distance / Width). Placed once when it comes, world-locked after; placed in front again after a menu, or when
+the view is more than 60 degrees off it (or 3x its distance away) for 1 s. A card: its perk's colour band and name
+(`VR_ARK_Colour`), its item's thumbnail (`VR_ARK_Model` via the toolgun's icons), what it does, its number. Either
+hand's laser lights a card (a haptic tick); its trigger picks it (a trigger on the panel is never the gun's); number keys
+1..n too (keys.c `VR_ArenaCardsKey`); presses in the first 0.5 s after it comes up are ignored. The view message is
+hidden while the cards are shown. The arena waits: the offer comes only from a wave's clear (nothing alive; a stalled
+wave's clear removes its foes), so no monster needs freezing; `VR_ARK_Hold` parks the director on `VR_ARK_HoldThink`
+with its rest's remaining seconds, `VR_ARENA_Between` stays true, the pick (`VR_ARK_CardPick`) resumes it with exactly
+that remainder (`ar_rest_at` moved on by the hold). An offer no panel reports seeing (`VR_ARK_CardsSeen`, said each
+frame by the engine with a headset) for 3 s is withdrawn, so a game without the panel never waits for ever. The arena's
+own tests run with `vr_arena_perks 0` (a card offer would hold their waves). Debug > Automation & Self-Tests > Survival
+Arena: Offer Perk Cards Now (`vr_arena_cards_offer`), Perk Card Panel Test (`vr_arena_perks_test 5`). Test aids:
+`vr_arena_cards_mock_laser <card>|<x y>|off`, `vr_arena_cards_pick <n>`, `vr_arena_cards_dump`. Test 5: jumps to wave 5,
+kills it, waits for the panel, 3 s untouched (wave, countdown, foes, rest remainder all unchanged), mock laser on card 2,
+screenshot, mock trigger, perk taken, countdown exactly the 1 s remainder after the pick, wave 6: 13/0.
 
 ## 5. Survival Arena: cleanup and loot gate
 

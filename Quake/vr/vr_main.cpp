@@ -153,6 +153,7 @@
 #include "vr_rangerhead.hpp"
 #include "vr_voice.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_arenacards.hpp"
 #include "vr_brushes.hpp"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
@@ -2108,6 +2109,7 @@ extern "C" void VR_Init()
     menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
     toolgun::registerCommands();
+    arenacards::registerCommands(); // (the Survival Arena's perk cards)
     brushes::registerCommands();
     Cmd_AddCommand("vr_menu_search", menu::search_f);
     Cmd_AddCommand("vr_menu_slider_step", menu::sliderStep_f);
@@ -2418,6 +2420,7 @@ extern "C" void VR_BeginFrame()
         QVR_TRACY_SCOPE(zoneToolgunAndBrushes, "frame setup: toolgun and brushes"); // (profiling builds only)
         input::roomscaleJump(hands::current());
         toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
+        arenacards::frame(hands::current()); // the Survival Arena's perk cards: the offer, the panel, the lasers
         brushes::frame(); // the boxes made in the game: their slots written (vr_brushes.cpp)
     }
 }
