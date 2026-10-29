@@ -409,6 +409,32 @@ after Reload List and after a restart; ticking its first item drops its count 35
 On the mock: Collapse All, Expand All and the first section's fold row add 3 rows before the first item (eight
 `vr_mock_key downarrow` now select it).
 
+## 9c. Weapon fixes from his voice notes of 2026-10-29 (branch `agent/weaponfixes`)
+
+1. **Ammo screen warning colour on the face too** (vr_text3d.cpp `tintedFace`, `screenLook`): a low/empty warning's tint
+   now colours the screen's face (its brightness and saturation in the tint's hue), not only the text. Eyeshot
+   (`vr_ammocolor_test 2`, hands posed first): the shotgun's face at a fifth rgb 59.5 29.9 0.1 (orange) vs 43.8 66.5 29.9
+   (green) with `vr_ammo_color_warn 0`.
+2. **Enemy lava nails set you on fire** (vr_burning.qc `VR_Burn_LavaNail`: a monster-owned nail ignites too).
+   `vr_burn_test 16` (e1m1): `burning: test 16: ... PASS you burn`.
+3. **Empty reloadable weapons' loot beam red** (vr_lootbeams.cpp; `vr_lootbeam_hue_weapons_empty` 0, below 0 off; menu
+   Graphics > Loot Beams "Empty Weapons Hue"): magazine empty or out, reloading on, not a spent enemy gun. Debug >
+   Tests "Loot Beams: Empty Every Other Weapon" (`vr_lootbeam_empty_test`); `vr_lootbeams_report` prints each weapon's
+   clip and colour: RL 0/4 EMPTY 1.00 0.25 0.25 beside nailgun 24/24 and SSG 2/2 gold 1.00 0.75 0.25.
+4. **Nail pistol magazine: eject button only** (vr_reload.qc `VR_Reload_MagFrame`, `VR_Reload_HitFrame`;
+   `vr_nailpistol_mag_pull` 0, 1 the old pull and knock-out). `vr_np_test 1` (vrtesthall): 21 passed 0 failed, incl. a
+   pull at 0 (stays in) and the control at 1 (comes out), then re-seated.
+5. **Widowmaker held art darker** (vr_envmap.cpp `weaponMetal`: AdVrWidowmaker 0.2, lod 3.5; was the default 0.7): its
+   grey painted panels mirrored the bright test hall near-white in the hand (the reflection is added in proportion: ~70%
+   less). Not measurable headless (no AD data in the kit's base: the upgrade and its model need it); for him to check.
+6. **Plasma Gun's shot sound** (vr_ad_bridge.qc `AD_PlasmaFireSound`, vr_ad_enemyguns.qc): without AD's data mounted
+   AD's `weapons/plasma_fire.wav` was never precached (his log: "not precached"): now `vr/derived/plasma_fire.wav`.
+7. **Revolver's own shot** (vr_revolver.qc): `vr/derived/revolver_shot.wav` instead of the super shotgun's.
+   Both are layered at load (vr_audio.cpp `layeredSounds`, `VR_SndLayered` from S_LoadSound): id's sounds at their own
+   rate, gain, cut and fade, summed and tanh-saturated, a 16-bit 22 kHz WAV in memory; nothing shipped or written. Plasma:
+   enforcer/enfire 0.72x + weapons/lstart 1.15x (0.22 s) + weapons/grenade 1.25x (0.3 s); revolver: weapons/shotgn2 0.8x +
+   weapons/r_exp3 1.35x (0.35 s) + weapons/guncock 0.72x, drive 1.8. `soundlist`: both load (16b, 81664 and 158764).
+
 ## 10. Suggested checklist lines still pending (coordinator owns `quakevr/checklist.txt`)
 
 - Survival Arena: map, wave director (readout, 5 s rest + 5 s countdown, teleport arrivals, never inside anything, guns

@@ -2819,6 +2819,7 @@ QVR_CVAR(vr_nail_speed, "2065", CVAR_ARCHIVE)
 QVR_CVAR(vr_nailpistol_cooldown, "0.12", CVAR_ARCHIVE) // s at least from a shot to the next (each a new pull)
 QVR_CVAR(vr_nailpistol_spread, "0.25", CVAR_ARCHIVE)   // degrees its nails stray at most from its aim
 QVR_CVAR(vr_nailpistol_mag, "12", CVAR_ARCHIVE)        // the rounds its magazine holds (a nail each)
+QVR_CVAR(vr_nailpistol_mag_pull, "0", CVAR_ARCHIVE)   // 1: its magazine pulls off by hand as the other guns' (vr_reload_pull_*); 0: only its eject button lets it out (his note 2026-10-29)
 QVR_CVAR(vr_nailpistol_volume, "1", CVAR_ARCHIVE)      // its shot's volume (0..4)
 QVR_CVAR(vr_nailpistol_slide_time, "0.07", CVAR_ARCHIVE) // s its slide stays back after a shot before it runs home (empty: it locks back)
 QVR_CVAR(vr_nailpistol_smoke, "1", CVAR_ARCHIVE)       // a wisp of smoke from its muzzle after shots (0 none; more after a quick string)
@@ -5342,6 +5343,7 @@ QVR_CVAR(vr_lootbeam_hue_armor, "120", CVAR_ARCHIVE)    // ... armour green
 QVR_CVAR(vr_lootbeam_hue_powerups, "285", CVAR_ARCHIVE) // ... power-ups violet
 QVR_CVAR(vr_lootbeam_hue_keys, "225", CVAR_ARCHIVE)     // ... keys and runes blue
 QVR_CVAR(vr_lootbeam_hue_backpacks, "25", CVAR_ARCHIVE) // ... backpacks orange
+QVR_CVAR(vr_lootbeam_hue_weapons_empty, "0", CVAR_ARCHIVE) // a reloadable weapon lying with its magazine empty (or out; reloading on): red, so it is known as needing ammo before it is grabbed (his note 2026-10-29); below 0: the weapons' hue
 QVR_CVAR(vr_lootbeam_hue_toolgun, "305", CVAR_ARCHIVE)  // a dropped toolgun's (a weapon, but its own): magenta, found among many weapons (his note vrfiringrange_2026-10-23_21-18-02)
 QVR_CVAR(vr_lootbeam_toolgun_length, "2", CVAR_ARCHIVE) // a dropped toolgun's beam this many times vr_lootbeam_length
 QVR_CVAR(vr_lootbeam_fade_in, "0.5", CVAR_ARCHIVE)      // seconds it takes to fade in once the thing has rested vr_lootbeam_settle seconds
