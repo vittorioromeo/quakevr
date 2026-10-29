@@ -131,9 +131,6 @@ this file; the workers' ROUND22.md sections carry them.
 - **`.rtlights` support** (round 20 discussion): load DarkPlaces' hand-authored light lists where they exist to
   drive the shadowed map lights (better placed than the map's light entities).
 - **Distance-field AO** (round 20 discussion): only if capsule/box AO leaves obvious gaps.
-- **Flashlight optional; a brighter option** (the author, 2026-10-02): left: check that nothing else assumes the
-  torch with `vr_flashlight` 0 (gadget hints, tips, tutorial), and whether one "Visibility" control raising ambient
-  light, exposure and tone mapping together is still wanted over Ambient Light alone.
 - **Menus and settings for players, not only for tuning** (the author, 2026-10-03; `docs/vr-port/archive/MENU_REVIEW.md`):
   left: gameplay-feel presets (or gameplay kept as one tuned design) and the per-slot cvars (`vr_wofs_*`,
   `vr_prop_*`) to data files.
