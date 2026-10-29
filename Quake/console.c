@@ -1327,10 +1327,11 @@ void LOG_Flush (void)
 		SDL_AtomicUnlock (&log_lock);
 }
 
-// QVR: Host_Frame: the lines a second old written out (a hang or a kill loses at most a second's).
+// QVR: Host_Frame: the lines a second old written out (a hang or a kill loses at most a second's); every frame's
+// with vr_log_flush_frames (the kit's -QuitOn: a test's verdict line seen at once).
 void LOG_Tick (void)
 {
-	if (!log_len || !log_run_ready || Sys_DoubleTime () - log_flushed < 1.0)
+	if (!log_len || !log_run_ready || (Sys_DoubleTime () - log_flushed < 1.0 && !VR_LogFlushFrames ()))
 		return;
 	SDL_AtomicLock (&log_lock);
 	LOG_FlushLocked ();
