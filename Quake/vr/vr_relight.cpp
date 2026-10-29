@@ -12,7 +12,7 @@
 // - the map's own lights, as bright as Map Lights says (vr_relight_maplights: "light" and the linear falloff's "wait"
 //   scaled together: as bright, as far), and its sunlight as Sunlight says (vr_relight_sunlight);
 // - the look's options: ambient occlusion (vr_relight_ao: -dirt -dirtscale), bounced light (vr_relight_bounce),
-//   a minimum light (vr_relight_minlight), smooth or fast shadows (vr_relight_quality: -extra4 or -extra), the light
+//   an ambient light level (vr_relight_minlight: the worldspawn's minlight raised to it, undarkened), smooth or fast shadows (vr_relight_quality: -extra4 or -extra), the light
 //   grid and the light directions (-lightgrid -lux) and coloured light (-lit), as relight_maps.py gives them.
 //
 // light runs as a process of its own (vr_relight_process.cpp), below normal priority, on the copy in the work folder
@@ -695,10 +695,14 @@ void appendNumber(za::String& out, double v)
 }
 
 // The map's own lights `mapScale` times as bright (and their linear falloff as long: "wait" with it), its sunlight
-// `sunScale` times: the page's Map Lights and Sunlight. Each key set again at the block's end.
-[[nodiscard]] za::String scaledLights(za::StringView text, double mapScale, double sunScale)
+// `sunScale` times: the page's Map Lights and Sunlight. `minLight` (> 0) is the page's Ambient Light Level: the
+// worldspawn's minimum light ("light" / "_minlight", light's minlight) raised to it where the map's own is lower (a
+// floor: a map lit brighter by its mapper keeps its own; -minlight on light's command line would override it), and
+// not darkened by the ambient occlusion ("_minlight_dirt" 0: -dirt otherwise darkens minlight too, and the darkest
+// corners stayed dark). Each key set again at the block's end.
+[[nodiscard]] za::String scaledLights(za::StringView text, double mapScale, double sunScale, double minLight)
 {
-    if(mapScale == 1.0 && sunScale == 1.0)
+    if(mapScale == 1.0 && sunScale == 1.0 && minLight <= 0.0)
     {
         return za::String{text};
     }
@@ -755,6 +759,29 @@ void appendNumber(za::String& out, double v)
                     appendNumber(value, x * sunScale);
                     set.pushBack(Key{za::String{name}, ZA_MOVE(value)});
                 }
+            }
+        }
+        if(cls && *cls == za::StringView{"worldspawn"} && minLight > 0.0)
+        {
+            double own = 0.0;
+            for(const char* name : {"light", "_minlight"})
+            {
+                const za::String* v = keyValue(keys, name);
+                double x = 0.0;
+                if(v && parseFloat(*v, x))
+                {
+                    own = za::max(own, x);
+                }
+            }
+            if(minLight > own)
+            {
+                for(const char* name : {"light", "_minlight"}) // (both: light takes the later of the two)
+                {
+                    za::String value;
+                    appendNumber(value, minLight);
+                    set.pushBack(Key{za::String{name}, ZA_MOVE(value)});
+                }
+                set.pushBack(Key{za::String{"_minlight_dirt"}, za::String{"0"}});
             }
         }
         if(set.empty())
@@ -2329,11 +2356,7 @@ void lookOptions(za::Vector<za::String>& args, const Look& look)
         add("-bouncescale");
         add(va("%g", look.bounce));
     }
-    if(look.minlight > 0.f)
-    {
-        add("-minlight");
-        add(va("%g", look.minlight));
-    }
+    // (the Ambient Light Level, look.minlight, goes into the worldspawn instead: scaledLights)
     for(const za::StringView w : wordsOf(za::StringView{lightOptions}))
     {
         args.pushBack(za::String{w});
@@ -2725,7 +2748,7 @@ enum class Started
     const bool idGame = !q_strcasecmp(game, "id1") || !q_strcasecmp(game, "hipnotic") || !q_strcasecmp(game, "rogue");
     za::String entities = idLightValues(idGame ? withoutMapLightSettings(original) : original);
     entities = scaledLights(entities, za::max(0.0, static_cast<double>(batch.look.maplights)),
-        za::max(0.0, static_cast<double>(batch.look.sunlight)));
+        za::max(0.0, static_cast<double>(batch.look.sunlight)), static_cast<double>(batch.look.minlight));
     entities += lights;
 
     Slot& slot = batch.slots[slotIndex];

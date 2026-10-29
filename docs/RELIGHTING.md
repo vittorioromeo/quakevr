@@ -275,7 +275,7 @@ The settings:
 | Sunlight | `vr_relight_sunlight` (1) | The sun and sky light of maps that have them (id's maps have none). |
 | Bounced Light | `vr_relight_bounce` (0) | Light bouncing off walls: brighter, flatter rooms. Takes longer. |
 | Ambient Occlusion | `vr_relight_ao` (1.5) | Darker corners (0: none). |
-| Minimum Light | `vr_relight_minlight` (0) | No place darker than this. |
+| Ambient Light Level | `vr_relight_minlight` (0) | A basic ambient light: no place darker than this (a map's light units, as its worldspawn "light": 32 a dim fill, 64 a clear one), not darkened by the ambient occlusion. Maps lit brighter by their mapper keep their own. |
 | Shadow Quality | `vr_relight_quality` (1) | Smooth (soft edges) or Fast (about four times quicker). |
 | See-Through Liquids | `vr_relight_seethrough` (1) | id's maps (Quake and the mission packs) get VisPatch's water visibility, so their water, slime, teleporters and lava can be see-through (how much: *Transparency*'s alphas). Off: their liquids stay opaque. Needs the VisPatch files: without them the row is dimmed, and its help says where to get them. |
 
