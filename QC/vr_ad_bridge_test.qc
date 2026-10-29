@@ -102,6 +102,11 @@ void(float request) AD_Test =
             request == 3 ? "Widowmaker" : "Plasma Gun", after - before, shells, p.ammo_shells, cells, p.ammo_cells,
             VRGetEntWeaponClip(p, cVR_MainHand)));
         bprint(sprintf("adtest: AD's pellets %g, Shadow Axe x%g\n", AD_Pellets(p), AD_AxeScale(cVR_MainHand)));
+        if(request == 4)
+        {
+            bprint(sprintf("adtest: Plasma Gun's shot sound %s (AD's data mounted %g)\n", AD_PlasmaFireSound(),
+                cvar("vr_ad_mounted")));
+        }
         self = oself;
         return;
     }

@@ -997,6 +997,9 @@ using namespace qvr;
         {modelmeta::Id::VHksword, 1.f, 1.5f}, {modelmeta::Id::VHammer, 0.8f, 2.5f},
         {modelmeta::Id::VCrowbar, 0.5f, 3.f}, // (painted: its worn steel shows at the edges and the ends)
         {modelmeta::Id::Mg3SuperAxe, 0.8f, 2.5f}, {modelmeta::Id::Mg3SuperAxeGlow, 0.8f, 2.5f}, // (MG3's, as Mjolnir)
+        // (AD's Widowmaker, its hand-made art: painted, rusted panels. At the others' 0.7 its grey panels mirrored a bright
+        // room near-white in the hand, far lighter than the pickup's dark look: his note 2026-10-29.)
+        {modelmeta::Id::AdVrWidowmaker, 0.2f, 3.5f},
     };
     for(const Entry& e : table)
     {

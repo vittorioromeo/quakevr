@@ -413,8 +413,8 @@ On the mock: Collapse All, Expand All and the first section's fold row add 3 row
 
 His voice notes of 2026-10-29 (five items).
 - **Break sound.** `vr/derived/armor_break.wav` is made as it loads from `items/armor1.wav` (vr_audio.cpp
-  `derivedSounds`, new `reversed` flag; snd_mem.c turns the samples end to end, no loop): the pickup chime backwards at
-  0.7 rate (~6 semitones down). Nothing shipped. `VR_AgArmor_Break` plays it (the ricochet on the hit stays).
+  `layeredSounds`, one layer with the new `reversed` flag; merged onto 9c's layered mechanism, so snd_mem.c is
+  unchanged): the pickup chime backwards at 0.7 rate (~6 semitones down), drive 0.1 (clean). Nothing shipped. `VR_AgArmor_Break` plays it (the ricochet on the hit stays).
 - **Ragdolls.** A corpse's hit (`VR_Corpse_Damage`) now goes through `VR_AgArmor_Damage` first (it never did: corpse
   plates were inert, and the limb wear popped limbs under them). A wear-pop is held (`VR_AgArmor_Holds`, from
   `VR_Limb_WearInto`) while an unbroken plate rides a bone the cut would take, or when the hit itself landed on a plate
@@ -437,6 +437,32 @@ His voice notes of 2026-10-29 (five items).
   (`vr_limb_corpse_dmg[16]`, `VR_Limb_WearPiece` `bone < 16`): rig2 joints 16-19 (shins/feet) wear as torso hits.
   (3) The sound can't be heard headless (no sound device): check it in VR.
 
+## 9c. Weapon fixes from his voice notes of 2026-10-29 (branch `agent/weaponfixes`)
+
+1. **Ammo screen warning colour on the face too** (vr_text3d.cpp `tintedFace`, `screenLook`): a low/empty warning's tint
+   now colours the screen's face (its brightness and saturation in the tint's hue), not only the text. Eyeshot
+   (`vr_ammocolor_test 2`, hands posed first): the shotgun's face at a fifth rgb 59.5 29.9 0.1 (orange) vs 43.8 66.5 29.9
+   (green) with `vr_ammo_color_warn 0`.
+2. **Enemy lava nails set you on fire** (vr_burning.qc `VR_Burn_LavaNail`: a monster-owned nail ignites too).
+   `vr_burn_test 16` (e1m1): `burning: test 16: ... PASS you burn`.
+3. **Empty reloadable weapons' loot beam red** (vr_lootbeams.cpp; `vr_lootbeam_hue_weapons_empty` 0, below 0 off; menu
+   Graphics > Loot Beams "Empty Weapons Hue"): magazine empty or out, reloading on, not a spent enemy gun. Debug >
+   Tests "Loot Beams: Empty Every Other Weapon" (`vr_lootbeam_empty_test`); `vr_lootbeams_report` prints each weapon's
+   clip and colour: RL 0/4 EMPTY 1.00 0.25 0.25 beside nailgun 24/24 and SSG 2/2 gold 1.00 0.75 0.25.
+4. **Nail pistol magazine: eject button only** (vr_reload.qc `VR_Reload_MagFrame`, `VR_Reload_HitFrame`;
+   `vr_nailpistol_mag_pull` 0, 1 the old pull and knock-out). `vr_np_test 1` (vrtesthall): 21 passed 0 failed, incl. a
+   pull at 0 (stays in) and the control at 1 (comes out), then re-seated.
+5. **Widowmaker held art darker** (vr_envmap.cpp `weaponMetal`: AdVrWidowmaker 0.2, lod 3.5; was the default 0.7): its
+   grey painted panels mirrored the bright test hall near-white in the hand (the reflection is added in proportion: ~70%
+   less). Not measurable headless (no AD data in the kit's base: the upgrade and its model need it); for him to check.
+6. **Plasma Gun's shot sound** (vr_ad_bridge.qc `AD_PlasmaFireSound`, vr_ad_enemyguns.qc): without AD's data mounted
+   AD's `weapons/plasma_fire.wav` was never precached (his log: "not precached"): now `vr/derived/plasma_fire.wav`.
+7. **Revolver's own shot** (vr_revolver.qc): `vr/derived/revolver_shot.wav` instead of the super shotgun's.
+   Both are layered at load (vr_audio.cpp `layeredSounds`, `VR_SndLayered` from S_LoadSound): id's sounds at their own
+   rate, gain, cut and fade, summed and tanh-saturated, a 16-bit 22 kHz WAV in memory; nothing shipped or written. Plasma:
+   enforcer/enfire 0.72x + weapons/lstart 1.15x (0.22 s) + weapons/grenade 1.25x (0.3 s); revolver: weapons/shotgn2 0.8x +
+   weapons/r_exp3 1.35x (0.35 s) + weapons/guncock 0.72x, drive 1.8. `soundlist`: both load (16b, 81664 and 158764).
+
 ## 10. Suggested checklist lines still pending (coordinator owns `quakevr/checklist.txt`)
 
 - Survival Arena: map, wave director (readout, 5 s rest + 5 s countdown, teleport arrivals, never inside anything, guns
@@ -454,3 +480,46 @@ His voice notes of 2026-10-29 (five items).
 - Relighting > Ambient Light Level at 32, Relight This Map: no pitch-black corner left, the rest of the map as before.
 - Nails `{test:vr_nail_test 1}`: nails drawn ~35% smaller (Nail Size in Flight 0.65, `vr_nail_test 2` to look), 18%
   faster for you and enemies (Nail Speed 2065, Nail Pistol Speed 3070), still hitting what they visibly touch.
+
+## Armed humanoids: the held weapon on an active ragdoll's hand
+
+His notes (2026-10-29): shoved into a stagger or an active ragdoll, an armed humanoid's weapon "floats in the wrong
+position", still attached to it but not to its hand; sometimes the weapon and hand get into or behind its torso.
+
+**Cause.** The client draws a ragdoll's held weapons on its hands (vr_hitreact.cpp `ragdollProps`), but only from the
+rigid arms' model (`armModelOf`, vr_agrunt_ik_rigid), which is never made with vr_agarms on (its rig checks fail for
+the authored grunt). So every ragdoll weapon was left to the server's placing (QC `VR_AG_RagProp`): riding the limb
+nearest it as the ragdoll began, at the server's pose, not the drawn hand's (the grunt's 14-16 units and ~100 degrees
+off). Using the bone alone (agarms' hand bone and grip) was still 0.6 units and 20 degrees off on the grunt: the
+authored rig blends the hand's vertices over hand, forearm and fingers.
+
+**Fix.** With vr_agarms, `ragdollProps` takes agarms' grip frame (`agarms::ragdollGrip`, as the posed arms held it alive)
+and places it on the hand as drawn: the rigid fit of the hand's own vertices (`agarms::handSkin`'s) from rest to the
+ragdoll's drawn vertices (`drawnHandFit`), every frame. Physics: `vr_ragdoll_weapon_collide` 1 (new): a living
+ragdoll's welded weapon (its loose piece) meets its own chest, pelvis, spine, neck and head (`selfMeets`; before, a loose
+piece met nothing of its own), so an arm can't fold it into the chest.
+
+**Test 88** (`vr_agrunt_test 88`, QC/vr_armedgrunt_ragweapon_test.qc; `vr_agrunt_ragweapon_check` 1 / 2 per frame,
+`vr_agrunt_ragweapon_err`): grunt and enforcer with a shotgun, a stagger and a topple (lying, getting up), every drawn
+frame: the weapon's grip against the drawn hand's fitted grip, the hand's vertices and the weapon's line inside the
+torso proxies (vr_agbody). Weapon grip off the hand, max (mean) units / degrees:
+
+| case | before | bone only | after |
+| --- | --- | --- | --- |
+| grunt stagger | 19.1 (13.8) / 96 | 0.62 (0.29) / 18.5 | 0.00 / 0.1 |
+| grunt topple | 24.2 (16.2) / 115 | 0.62 (0.52) / 22 | 0.00 / 0.1 |
+| enforcer stagger | 1.09 (0.34) / 15 | 0.15 / 1.3 | 0.00 / 0.0 |
+| enforcer topple | 1.86 (0.49) / 15 | 0.19 / 3.3 | 0.00 / 0.1 |
+
+In the torso (most, units): enforcer and grunt stagger 0 throughout; the grunt topple, before 2.0 hand / 2.0 weapon,
+after the fix (no weapon collision) 1.4 / 2.1, with it 1.8 / 0 and 2.3 / 0.8 (two runs): the weapon is mostly kept
+out, the grunt's **hand still dips up to ~2 units into its chest for ~0.5 s of its topple** (test 88: 3 passed, 1
+failed). Open: why the hand-chest contact lets it in there (selfMeets skips contacts already deep at the 0.7 core;
+selfTouches' living exceptions), and the welded loose piece is the .mdl's own gun on forearm_l (looseHolder), not the
+drawn weapon on the right hand. Test 74 (disarm by grab): PASS 18/19, stuck 0.
+
+Checklist:
+- Shove an armed grunt and an enforcer into a stagger and over `{test:agrunt_fall}`: the weapon stays in the drawn
+  hand through the stagger, the fall, lying and the get-up; never floats off it.
+- Shoved over, its weapon never goes into its chest; its hand stays out of it (the grunt's may still dip in briefly).
+- A downed armed grunt's weapon can still be grabbed off it `{test:agrunt_fall}`.

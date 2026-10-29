@@ -598,9 +598,9 @@ void VR_SndCapture (const portable_samplepair_t *buffer, int count);	// S_PaintC
 void VR_SndShadow (int count);						// S_PaintChannels, each chunk before the music: the game-time render's share of it (vr_timescale_wav, vr_snd_capture_game)
 void VR_SndGameMix (const portable_samplepair_t *buffer, int count);	// the game-time render's samples: its limiter, vr_snd_capture_game, the WAV
 byte *VR_SndMemory (const char *name, int *size);	// S_LoadSound, no file of `name`: a WAV file made in memory (VR_HeapMalloc'd; the wrist gadget's Doom's sounds, "doom/..."), or NULL
+byte *VR_SndLayered (const char *name, int *size);	// S_LoadSound, no file of `name`: a WAV file layered in memory from Quake's own sounds (vr_audio.cpp layeredSounds; VR_HeapMalloc'd: the plasma gun's, the revolver's shots), or NULL
 short *VR_SndVoice (const char *name, const byte *pcm, int width, int samples, int rate, int loopstart, int outrate, int *outsamples, int *outloop); // S_LoadSound: one of the player's voice sounds with vr_voice 1, made feminine (vr_voice.cpp): its 16-bit samples at `outrate` (VR_HeapMalloc'd), or NULL (as it is)
 const char *VR_SndDerived (const char *name, float *rate);	// S_LoadSound, no file of `name`: the Quake sound it is made from, played at `rate` (slower: lower), or NULL
-int VR_SndDerivedReversed (const char *name);	// VR_SndDerived's sound `name` is played backwards (1) or not (0)
 int VR_SndFullBand (void);							// vr_snd_fullband: 0 Quake's 11 kHz lowpass on every sound, 1 not on the voices, 2 on none (Quake's channels painted from the band-limited copy)
 void VR_SndBypass (portable_samplepair_t *buffer, int count);	// S_PaintChannels, after Quake's lowpass: the voices held out of it (vr_snd_fullband) added, halved as VR_SndBus
 float VR_SndFullBandAt (const short *data, int length, int loopstart, double pos);	// SND_PaintChannelRate, vr_snd_fullband 2: a band-limited copy between its samples (windowed sinc)

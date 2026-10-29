@@ -1401,8 +1401,9 @@ void(float xGunHand) VR_Reload_HitFrame =
     float other = VRGetOtherHand(xGunHand);
     // Not just after a seat: the hand that pushed it in follows through, fast, by the well.
     float seated = xGunHand == cVR_MainHand ? self.vr_mag_seated1 : self.vr_mag_seated0;
+    // (Nor the nail pistol's: only its eject button lets it out, vr_nailpistol_mag_pull 0.)
     if(!VR_Reload_MagIn(self, xGunHand) || (self.vr_mag_pull & (other == cVR_MainHand ? 2 : 1)) ||
-        time < seated + 0.5)
+        time < seated + 0.5 || (VRGetEntWeapon(self, xGunHand) == WID_NAILPISTOL && !cvar_hget(cvarh_vr_nailpistol_mag_pull)))
     {
         return;
     }
@@ -1579,7 +1580,9 @@ void(float xHand) VR_Reload_MagFrame =
     float grabbing = VR_HandGrabUtil_IsHandGrabbing(self, xHand);
     float rehold = (self.vr_mag_rehold & bit) != 0;
     self.vr_mag_rehold = self.vr_mag_rehold - (self.vr_mag_rehold & bit);
-    if(!grabbing || !VR_Reload_MagIn(self, gunHand))
+    // (The nail pistol's magazine comes out only by its eject button: vr_nailpistol_mag_pull 0, his note 2026-10-29.)
+    if(!grabbing || !VR_Reload_MagIn(self, gunHand) ||
+       (VRGetEntWeapon(self, gunHand) == WID_NAILPISTOL && !cvar_hget(cvarh_vr_nailpistol_mag_pull)))
     {
         self.vr_mag_pull = self.vr_mag_pull - (self.vr_mag_pull & bit);
         return;

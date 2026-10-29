@@ -2229,6 +2229,7 @@ void retroAllUncheckCategories()
         slider("Fade Far Away", "vr_lootbeam_far", 0.f, 60.f, 1.f, "%.0f m").help("Beams farther than this fade out. 0: never."),
         header("Colours"),
         slider("Weapons Hue", "vr_lootbeam_hue_weapons", 0.f, 355.f, 5.f, "%.0f").help("Hue in degrees: 0 red, 40 gold, 120 green, 190 cyan, 240 blue, 285 violet."),
+        slider("Empty Weapons Hue", "vr_lootbeam_hue_weapons_empty", -5.f, 355.f, 5.f, "%.0f").help("A reloadable weapon whose magazine is empty (or out): 0 red, so you know it needs ammo before you grab it. Below 0: as the other weapons."),
         slider("Magazines Hue", "vr_lootbeam_hue_mags", 0.f, 355.f, 5.f, "%.0f"),
         slider("Ammo Boxes Hue", "vr_lootbeam_hue_ammo", 0.f, 355.f, 5.f, "%.0f"),
         slider("Health Boxes Hue", "vr_lootbeam_hue_health", 0.f, 355.f, 5.f, "%.0f"),
