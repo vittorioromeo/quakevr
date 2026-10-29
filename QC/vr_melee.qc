@@ -242,7 +242,8 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .vector mh_rnear;      // the same from the head, in the play space (metres)
 .vector mh_rgrip;
 .vector mh_rfar;
-.vector mh_vnear;      // and their velocities (m/s, play space)
+.vector mh_rpunch;     // a fist's way out (the hand's forward, play space, unit): VR_Melee_PulledBack's axis for a fist
+.vector mh_vnear;     // and their velocities (m/s, play space)
 .vector mh_vgrip;
 .vector mh_vfar;
 .vector mh_vnear_last; // and a pose before (VR_Melee_WallInto)
@@ -1588,6 +1589,9 @@ float(float xHand, entity b) VR_Melee_Track =
     b.mh_rnear = rnear;
     b.mh_rgrip = rgrip;
     b.mh_rfar = rfar;
+    // (A fist's blow line is its knuckles' surface as edited (vr_melee_fist_*: the author's runs down the hand, not out
+    // ahead of it): drawn back or struck is judged along the hand's own forward, the punch's way, not along that line.)
+    b.mh_rpunch = normalize(VR_Blow_ToPlaySpace(VRForwardOf(VRGetEntHandRot(self, xHand))));
     b.mh_rwrist = rwrist;
     b.mh_near = vr_mline_near;
     b.mh_pgrip = same ? b.mh_grip : vr_mline_grip;
@@ -1815,11 +1819,13 @@ float(entity b, float xHow, float xOver) VR_Melee_CameFar =
     return meleerun(b, TRUE) >= need;
 };
 
-// Whether `b`'s far end goes back along the line towards the hand (VR_MELEE_PULLBACK): drawn back, not struck with.
+// Whether `b`'s far end goes back along the line towards the hand (VR_MELEE_PULLBACK): drawn back, not struck with. A
+// fist's: back against the hand's forward (mh_rpunch), whatever way its edited blow line runs (vr_melee_fist_*).
 float(entity b) VR_Melee_PulledBack =
 {
     float vfar = vlen(b.mh_vfar);
-    return vfar > 0 && (b.mh_vfar * normalize(b.mh_rfar - b.mh_rgrip)) / vfar <= VR_MELEE_PULLBACK;
+    vector axis = b.mh_thing == VR_MTHING_FIST ? b.mh_rpunch : normalize(b.mh_rfar - b.mh_rgrip);
+    return vfar > 0 && (b.mh_vfar * axis) / vfar <= VR_MELEE_PULLBACK;
 };
 
 // The weight of a pommel (butt) strike with `xThing`.

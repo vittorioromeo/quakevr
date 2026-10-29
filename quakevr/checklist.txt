@@ -36,6 +36,8 @@ Relighting > Ambient Light Level on vrarena: 0 vs 64 visibly brighter in its dar
 Walk right up to a grunt holding a shotgun (or an enforcer with its rifle): it stops backing off, steps in and shoves you; a little further (about two body widths) it backs off as before (Combat > Enemy Shoves > Armed Shove: Step In).
 Dual-wielding enforcer with two laser rifles, a grunt with two of its own guns {test:agrunt_dual_guns}: each bolt or burst leaves its own gun, the left gun's from the left hand.
 Throw or slam a grunt so its right leg hits the floor (or a wall) hard: the dent and wound land, no stall.
+Throw straight punches, uppercuts and hooks at a grunt: each lands and whooshes; drawing the fist back first does not count as a blow.
+Push your hand or a held gun into a live grunt or enforcer: it stops at its body instead of passing through.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

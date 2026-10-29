@@ -678,3 +678,43 @@ The baseline every refactor phase is checked against (the kit's `scratch/refacto
 
 Checklist:
 - Throw or slam a grunt so its right leg hits the floor (or a wall) hard: the dent and wound land, no stall.
+
+## Mock-hand failures: two causes, both real bugs (branch `agent/mockhand`)
+
+The baseline's "the mock hand's punch registers nothing" group (phase 0 above) bisected (first-parent, on next from
+a09cc8df3) to two merges:
+
+- **c47f9ad1b (bladedefaults: his fist line as the default, config 198).** The author's fist blow line
+  (`vr_melee_fist_*`: -0.34 0.50 -1.00 to -0.41 0.77 -4.22) runs down the hand's own up axis, not out ahead of it.
+  `VR_Melee_PulledBack` judged "drawn back" along the blow line (far end minus grip): with the line pointing down the
+  hand, any motion against the hand's up read as a pull-back. On the mock (controller level, `vr_gunangle` 70: the hand
+  frame pitched 70 deg down) the line pointed back and down (cos -0.94 for a straight punch) and every forward punch was
+  dropped: no blow, no whoosh, no show_hostile. In VR the same rule would drop uppercuts and let a retracting fist
+  count. Fix (`QC/vr_melee.qc`): a fist's pull-back is judged along the hand's forward (`mh_rpunch`, play space), the
+  punch's way, as with the old line; blades, heads and guns keep their line. No tuning changed (the line, the
+  threshold -0.35 as they were). fist_alert's punch wakes at the same time as with the old line (3.880556).
+- **92c017e83 (rig2only: the authored rig the grunt's and enforcer's only rig).** Live grunts and enforcers are now
+  always drawn swapped to their skinned copy (`<model>#rig2`, bone poses), and the model collisions
+  (`vr_modelcollide.cpp posed`) skipped any bone-posed alias: the hands and held weapons went through every live
+  grunt (melee_phase: "drawn held out up to 0.00 units"). Fix: `rig2::liveVertices(num, out)` skins the .mdl's rest
+  vertices with the bones it is drawn with (the renderer's 3x4 matrices and the rig's weights), placed with the copy's
+  entity matrix; model collisions use them with the .mdl's triangles. melee_phase: drawn held out 6.10 / 3.90 / 5.45 /
+  6.09 units (6.24 / 6.21 at a09cc8df3).
+
+Verdict (rerun of the 12 cases): **3 now pass** (fist_alert 4/0, swim_sound 11/0, melee_phase 7/0); **9 still fail**,
+other causes, not followed (budget): cellcord 7/3 (the pouch shows 6 cells), weapon_catch 3/2 (lying shotgun not
+taken), secret_hits (door punch), agrunt 3 (yank), 29 (weapon blow: 0 sounds), 36 (grabs: the fist 23-24 cm off the
+weapon after `vr_mock_hand_to agweapon`, `vr_agrunt_grab_gap`), 63 (0/7, was 0/14), 65 (parry raised 0), judo 12/4.
+Release suite (43): 34 pass; changed against the baseline: the 3 above fixed, reload 111/3 and parry_pose 0/1 newly
+failing, but both fail the same on plain origin/next 2f9544e17 (reload: the rear sight's ring, the super shotgun's
+blood, the super nailgun's well; parry_pose: the dragon 0 parries), so they came with next since the baseline's tree.
+
+Kit: `run.sh`'s agent-lock loop read the lock's age with `stat` after `[ -d ]`; a lock removed in between (its run
+ended) made an empty operand in `$(( ))`. The age is read once into a variable and the loop retries at once when it
+is gone.
+
+Checklist:
+- Punch straight, uppercut and hook with an empty closed fist at a grunt: each lands and whooshes; pulling the fist
+  back towards you after a punch does not hit or whoosh again.
+- Push a hand or a held gun slowly into a live grunt or enforcer: the drawn hand stops at its body (Debug > Show Model
+  Collisions logs the push), as it does at a corpse.

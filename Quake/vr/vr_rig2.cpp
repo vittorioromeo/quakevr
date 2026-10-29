@@ -1182,6 +1182,47 @@ int bonePoses(const entity_t* e, const float** matrices)
     return 0;
 }
 
+bool liveVertices(int num, za::Vector<glm::vec3>& out)
+{
+    for(const Drawn& d : drawn)
+    {
+        if(d.num != num || d.frame < host_framecount - 2 || !d.model || d.model->type != mod_alias || d.bones <= 0)
+        {
+            continue;
+        }
+        const Rig* rig = rigFor(d.model);
+        const auto* sh = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(d.model)));
+        if(!rig || !sh || sh->poseverttype != aliashdr_t::PV_QUAKE1 || !sh->vertexes || sh->numverts <= 0)
+        {
+            return false;
+        }
+        const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(sh) + sh->vertexes); // pose 0: rest
+        const auto place = [&](int bone, const glm::vec3& r) {
+            const float* o = d.skin + za::clamp(bone, 0, d.bones - 1) * 12; // (3x4 rows, as the renderer's)
+            return glm::vec3{o[0] * r.x + o[1] * r.y + o[2] * r.z + o[3], o[4] * r.x + o[5] * r.y + o[6] * r.z + o[7],
+                o[8] * r.x + o[9] * r.y + o[10] * r.z + o[11]};
+        };
+        out.resize(static_cast<za::SizeT>(sh->numverts));
+        for(int v = 0; v < sh->numverts; v++)
+        {
+            const trivertx_t& t = tv[v];
+            const glm::vec3 r{t.v[0] * sh->scale[0] + sh->scale_origin[0], t.v[1] * sh->scale[1] + sh->scale_origin[1],
+                t.v[2] * sh->scale[2] + sh->scale_origin[2]};
+            const Weights* w = v < static_cast<int>(rig->weights.size()) ? &rig->weights[static_cast<za::SizeT>(v)] : nullptr;
+            glm::vec3 at{0.f};
+            float sum = 0.f;
+            for(int i = 0; w && i < w->n; i++)
+            {
+                at += w->w[i] * place(w->bone[i], r);
+                sum += w->w[i];
+            }
+            out[static_cast<za::SizeT>(v)] = sum > 0.f ? at / sum : place(0, r); // (unweighted: bone 0, as its copy draws it)
+        }
+        return true;
+    }
+    return false;
+}
+
 const qmodel_t* sourceModel(const entity_t* e)
 {
     if(!e || drawn.empty() || !cl_entities)
