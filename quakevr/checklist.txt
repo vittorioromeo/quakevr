@@ -30,6 +30,9 @@ Armour: cutting off or popping an armoured limb or head, or gibbing the body, th
 Armour: shots on plates spark; blood only shows when damage got through.
 Armour helmets (Debug > Tests > Helmets There): grunt and enforcer helmets fit close to the head, eyes visible under the brow, no side flanges, head never through in ragdolls
 Armour limb plates: a hit on a thigh plate's knee end wears the thigh plate, not the shin's; a corpse's right leg wears and pops on its own
+Survival Arena supplies: after a wave clear the medkits, armour and 1-2 shards lie at random all over the arena (floor, tower tops, wall walks), never at your feet or in a wall or crate; the clear's text names them, and again after a boss wave's perk pick.
+Survival Arena countdown: a tick each second, higher for 3-2-1, a chime as the wave starts (Countdown Sound slider).
+Relighting > Ambient Light Level on vrarena: 0 vs 64 visibly brighter in its dark corners after Relight This Map.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

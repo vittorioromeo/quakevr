@@ -1466,6 +1466,10 @@ void ikStretchReset()
         slider("Wave Countdown", vr_arena_countdown, 0.f, 10.f, 1.f, "%.0f s")
             .help("After the rest, the next wave counts down in the middle of the view (Wave 7 in 5... 4... 3...), "
                    "a boss wave naming its boss; the same at every difficulty. 0: no countdown (vr_arena_countdown)."),
+        slider("Countdown Sound", vr_arena_countdown_sound, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The countdown's beeps: a tick each second, higher for the last three, and a chime as the wave "
+                   "comes in (Quake's own menu sounds at other pitches). Their volume; 0: silent "
+                   "(vr_arena_countdown_sound)."),
         slider("Wave Size", vr_arena_wave_size, 0.25f, 4.f, 0.25f, "%.2fx")
             .help("A wave's crowds (its grunts, enforcers and the like) times this; its one signature foe and its boss "
                    "stay one. 1 is the ladder's own counts; at 1.75 (the default) wave 10 brings 10 foes instead of 6 "
@@ -1523,6 +1527,14 @@ void ikStretchReset()
                    "4 is one every 3 waves at Easy, 4 at Normal, 5 at Hard, 6 at Nightmare. From wave 12 of the run they "
                    "alternate with the heavier kind -- what you have earned is yours, whatever the difficulty "
                    "(vr_arena_armor_every)."),
+        slider("Armour Shards", vr_arena_shards, 0.f, 4.f, 1.f, "%.0f")
+            .help("On top of the medkits and armour, every wave clear drops 1 to this many armour shards at random "
+                   "(+5 armour each, up to 200). 0: none (vr_arena_shards)."),
+        toggle("Supplies Anywhere", vr_arena_scatter)
+            .help("1: a wave clear's medkits, armour and shards land at random places all over the arena -- the floor, "
+                   "the tower tops, the wall walks, anywhere you can walk to -- never right next to you, so you go "
+                   "looking for them; the middle of your view says what came. 0: they land on the map's own item "
+                   "points (vr_arena_scatter)."),
         slider("Score For A Kill", vr_arena_score_kill, 1.f, 10000.f, 5.f, "%.0f")
             .help("A kill's score, times the rung its holder was on (a boss four of that) and the difficulty: at 100 a "
                    "first rung kill is worth 75 / 100 / 125 / 150 (Easy / Normal / Hard / Nightmare), a third rung boss "

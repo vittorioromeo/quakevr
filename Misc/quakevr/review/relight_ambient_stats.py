@@ -64,12 +64,15 @@ def pct(v, q):
 results = []
 for path in sys.argv[1:]:
     v = luxels(path)
-    r = {"min": v[0], "p1": pct(v, 0.01), "p5": pct(v, 0.05), "p50": pct(v, 0.5)}
+    r = {"min": v[0], "p1": pct(v, 0.01), "p5": pct(v, 0.05), "p50": pct(v, 0.5),
+         "dark": 100.0 * sum(1 for x in v if x < 16) / len(v)}
     results.append(r)
     print("%s: %d luxels, min %.1f p1 %.1f p5 %.1f median %.1f, under 16: %.2f%%" % (
-        path, len(v), r["min"], r["p1"], r["p5"], r["p50"], 100.0 * sum(1 for x in v if x < 16) / len(v)))
+        path, len(v), r["min"], r["p1"], r["p5"], r["p50"], r["dark"]))
 if len(results) >= 2:
     a, b = results[-2], results[-1]
-    ok = b["min"] > a["min"] and b["p1"] > a["p1"] and b["p5"] >= a["p5"]
+    # (the darkest percentiles and the share under 16, not the very darkest luxel: a lightmap's corner luxel whose sample
+    # falls inside a brush it touches -- vrarena's crates and trim against a wall -- stays 0 at any level)
+    ok = b["p1"] > a["p1"] and b["p5"] >= a["p5"] and b["dark"] < a["dark"] and b["min"] >= a["min"]
     print("relightamb: %s (darkest: min %.1f -> %.1f, p1 %.1f -> %.1f, p5 %.1f -> %.1f)" % (
         "PASS" if ok else "FAIL", a["min"], b["min"], a["p1"], b["p1"], a["p5"], b["p5"]))

@@ -41,7 +41,11 @@
 //   waves 8, 12, 16 live with the player standing on a spawn place and medkits lying on every item point, every foe
 //   and drop scanned as it comes in (none may overlap anything) and every medkit finding room.
 // - 14 (vrarena, or vr_arena 1): the rest and the countdown before a wave, timed: 5 s + 5 s at Normal into a boss
-//   wave (its boss named), then Hard (4 s rest, the same 5 s countdown) into a plain wave.
+//   wave (its boss named), then Hard (4 s rest, the same 5 s countdown) into a plain wave; each countdown beeps 6
+//   times (a tick a second, a call as the wave comes in).
+// - 15 (vrarena): the scattered supplies (vr_arena_supply.qc): the walkable places (room, floor, the high ones), the
+//   picks over three seeds (apart, off the player, different per seed, the same for one seed), two live clears' 1 or
+//   2 shards and every supply settled on a walkable place, on its floor, clear of the brushes, dry, its line said.
 
 // ---------------------------------------------------------------------------
 // The test's own state
@@ -52,7 +56,7 @@ float vr_at_pass;
 float vr_at_fail;
 float vr_at_step;
 float vr_at_until;
-float vr_at_keep[27];    // the cvars the tests set, put back at the end
+float vr_at_keep[30];    // the cvars the tests set, put back at the end
 float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
 float vr_at_kills0;
 float vr_at_score0;
@@ -88,9 +92,12 @@ string(float i) VR_AT_CvarName =
     if(i == 24) { return "vr_arena_wave_rest"; }
     if(i == 25) { return "vr_arena_countdown"; }
     if(i == 26) { return "vr_arena_perks"; }     // (off: a boss clear's cards would hold the director for a pick)
+    if(i == 27) { return "vr_arena_countdown_sound"; } // (test 14 counts the beeps)
+    if(i == 28) { return "vr_arena_scatter"; }   // (test 15: the supplies on random places)
+    if(i == 29) { return "vr_arena_shards"; }
     return "";
 }
-float VR_AT_NCVARS = 27;
+float VR_AT_NCVARS = 30;
 
 void() VR_AT_Save =
 {
@@ -137,6 +144,9 @@ void() VR_AT_SetDefaults =
     cvar_set("vr_arena_foe_armor_from", "4");
     cvar_set("vr_arena_wave_rest", "5");
     cvar_set("vr_arena_countdown", "5");
+    cvar_set("vr_arena_countdown_sound", "1");
+    cvar_set("vr_arena_scatter", "1");
+    cvar_set("vr_arena_shards", "2");
     cvar_set("vr_arena_perks", "0"); // (the perk cards hold the arena until picked: vr_arena_perks_test drives them)
     VR_AT_SetSkill(1); // (Normal, where the skill's factor is exactly 1: every family's own numbers mean the cvars)
 }
@@ -1435,7 +1445,7 @@ float(entity xEnt) VR_AT_Live =
 float AR_T6_WAVES = 32;      // waves the soak runs through
 float AR_T6_FROM  = 16;      // the wave its edicts are counted from (the map settled)
 float AR_T6_LEAK  = 1;       // edicts a wave may leave behind on top of its own drops, on average
-float AR_T6_DROPS = 3;       // a wave clear's drops at most (two medkits, an armour, at Normal)
+float AR_T6_DROPS = 5;       // a wave clear's drops at most (two medkits, an armour and two shards, at Normal)
 float vr_at6_delay;          // vr_arena_wave_rest as the run had it
 float vr_at6_wave;           // the wave the soak last saw
 float vr_at6_e0;             // the edicts at its first counted wave, and its drops then
@@ -2698,6 +2708,7 @@ float AR_T14_EPS = 0.05; // s (the director's beats land on the 1/72 s frame)
 float vr_at14_state;
 float vr_at14_from;      // the wave being cleared
 float vr_at14_count_at;
+float vr_at14_sounds;    // the countdown's beeps before this countdown
 
 void() VR_AT14_Begin =
 {
@@ -2723,6 +2734,7 @@ void() VR_AT14_Frame =
     {
         if(ar_count_at <= 0) { return; }
         vr_at14_count_at = ar_count_at;
+        vr_at14_sounds = ar_count_sounds - 1; // (the countdown's first tick came with its start)
         float rest = ar_count_at - ar_rest_at;
         dprint(sprintf("arena: t14 skill %g wave %g clear, rest %g s (table %g)\n", skill, vr_at14_from, rest, VR_ARENA_RestTime()));
         VR_AT_Check(fabs(rest - VR_ARENA_RestTime()) < AR_T14_EPS, sprintf("skill %g: the rest is %g s", skill, VR_ARENA_RestTime()));
@@ -2736,10 +2748,223 @@ void() VR_AT14_Frame =
         dprint(sprintf("arena: t14 skill %g wave %g countdown %g s, %g lines\n", skill, ar_wave, cd, ar_count_said));
         VR_AT_Check(fabs(cd - 5) < AR_T14_EPS, sprintf("skill %g: the countdown is 5 s", skill));
         VR_AT_Check(ar_count_said == 5, sprintf("skill %g: the countdown said 5 lines", skill));
+        // (its sounds: a tick each of its 5 seconds and a call as the wave comes in)
+        dprint(sprintf("arena: t14 skill %g countdown sounds %g\n", skill, ar_count_sounds - vr_at14_sounds));
+        VR_AT_Check(ar_count_sounds - vr_at14_sounds == 6, sprintf("skill %g: the countdown beeped 6 times", skill));
         if(skill >= 2) { VR_AT_End(); return; }
         VR_AT_SetSkill(2);
         vr_at14_from = ar_wave;
         vr_at14_state = 0;
+        return;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test 15: the scattered supplies (vrarena): the map's walkable places (the player's box fits on each, floor under it,
+// some up high), the picks over three seeds (each good, apart, off the player, seed to seed different, the same seed
+// the same), then two live wave clears: 1 or 2 shards each, every supply on one of the walkable places, settled on
+// its floor clear of the brushes and out of any liquid, and its line said.
+// ---------------------------------------------------------------------------
+
+#define AR_T15_PICKS 6
+float vr_at15_state;
+float vr_at15_from;              // the wave being cleared
+float vr_at15_n;                 // wave clears looked at
+float vr_at15_high;              // picks that landed up high
+vector vr_at15_pick[18];         // three seeds' picks (AR_T15_PICKS each)
+vector vr_at15_last;             // the last clear's first supply (two clears land apart)
+
+void(float xSeed, float xRow) VR_AT15_Picks =
+{
+    cvar_set("vr_arena_seed", ftos(xSeed));
+    VR_ARENA_ScatterBegin(4);
+    entity p = VR_ARENA_FindPlayer();
+    float i;
+    for(i = 0; i < AR_T15_PICKS; i++)
+    {
+        vector f = VR_ARENA_ScatterPlace();
+        VR_AT_Check(ar_place_ok, sprintf("seed %g: pick %g found a place", xSeed, i));
+        VR_AT_Check(!p || vlen(f + '0 0 24' - p.origin) >= AR_SCATTER_NEAR, sprintf("seed %g: pick %g off the player", xSeed, i));
+        vr_at15_pick[xRow * AR_T15_PICKS + i] = f;
+        float j;
+        for(j = 0; j < i; j++)
+        {
+            VR_AT_Check(vlen(vr_at15_pick[xRow * AR_T15_PICKS + j] - f) >= AR_SCATTER_GAP,
+                        sprintf("seed %g: picks %g and %g apart", xSeed, j, i));
+        }
+    }
+    vr_at15_high = vr_at15_high + ar_sc_high;
+    dprint(sprintf("arena: t15 seed %g picks %s %s %s ... (%g up high)\n", xSeed, vtos(vr_at15_pick[xRow * AR_T15_PICKS]),
+                   vtos(vr_at15_pick[xRow * AR_T15_PICKS + 1]), vtos(vr_at15_pick[xRow * AR_T15_PICKS + 2]), ar_sc_high));
+}
+
+// f (a floor point) on one of the walkable places.
+float(vector f) VR_AT15_OnPlace =
+{
+    float k;
+    for(k = 0; k < ar_nav_n; k++)
+    {
+        vector d = (navplace(k) - '0 0 24') - f;
+        if(fabs(d_z) < 24 && vlen(d - d_z * '0 0 1') < 40) { return TRUE; }
+    }
+    return FALSE;
+}
+
+void() VR_AT15_Places =
+{
+    float k;
+    float bad = 0;
+    float top = 0;
+    for(k = 0; k < ar_nav_n; k++)
+    {
+        vector o = navplace(k);
+        tracebox(o, VEC_HULL_MIN, VEC_HULL_MAX, o, TRUE, world);
+        float inside = trace_startsolid;
+        tracebox(o, VEC_HULL_MIN, VEC_HULL_MAX, o - '0 0 4', TRUE, world); // (his box stands on it: on a stair's edge too)
+        float floored = trace_fraction < 1 && !trace_startsolid;
+        if(inside || !floored)
+        {
+            if(bad < 4) { dprint(sprintf("arena: t15 bad place %s: inside %g floor %g\n", vtos(o), inside, floored)); }
+            bad = bad + 1;
+            continue;
+        }
+        if(o_z - 24 > top) { top = o_z - 24; }
+    }
+    dprint(sprintf("arena: t15 %g walkable places (%g high), %g bad, highest floor %g\n", ar_nav_n,
+                   ar_nav_hi_n, bad, top));
+    VR_AT_Check(ar_nav_n >= 300, sprintf("the arena's walkable places found (%g)", ar_nav_n));
+    VR_AT_Check(ar_nav_n < AR_NAV_MAX, "the walk ended before its cap");
+    VR_AT_Check(bad == 0, sprintf("every walkable place has the player's room and floor under it (%g not)", bad));
+    VR_AT_Check(ar_nav_hi_n >= 20, sprintf("the high places are walked to (%g)", ar_nav_hi_n));
+    VR_AT_Check(top >= 250, sprintf("the tower tops and the wall walk are among them (highest %g)", top));
+    // (vrarena's 8 covers, 96 square and 48 high at radius 512, 45 deg apart: no step up there, so their tops are no
+    // place to land on -- a place over one is a cover's top)
+    float covers = 0;
+    for(k = 0; k < ar_nav_n; k++)
+    {
+        vector c = navplace(k);
+        float a;
+        for(a = 0; a < 8; a++)
+        {
+            vector m = '0 0 0';
+            m_x = 8 * rint(512 * cos(a * 0.785398) / 8); // (45 deg)
+            m_y = 8 * rint(512 * sin(a * 0.785398) / 8);
+            if(fabs(c_x - m_x) < 48 && fabs(c_y - m_y) < 48 && c_z - 24 > 40 && c_z - 24 < 60)
+            {
+                if(covers < 4) { dprint(sprintf("arena: t15 a place on a cover's top %s\n", vtos(c))); }
+                covers = covers + 1;
+            }
+        }
+    }
+    VR_AT_Check(covers == 0, sprintf("no place on top of a 48-high cover (%g)", covers));
+
+    vr_at15_high = 0;
+    VR_AT15_Picks(3, 0);
+    VR_AT15_Picks(11, 1);
+    VR_AT15_Picks(29, 2);
+    float same = 0;
+    for(k = 0; k < AR_T15_PICKS; k++)
+    {
+        if(vlen(vr_at15_pick[k] - vr_at15_pick[AR_T15_PICKS + k]) < 1) { same = same + 1; }
+        if(vlen(vr_at15_pick[k] - vr_at15_pick[2 * AR_T15_PICKS + k]) < 1) { same = same + 1; }
+    }
+    VR_AT_Check(same <= 2, sprintf("the picks differ seed to seed (%g of 12 the same)", same));
+    VR_AT_Check(vr_at15_high > 0, sprintf("some picks land up high (%g of 18)", vr_at15_high));
+    vector first = vr_at15_pick[0];
+    vector second = vr_at15_pick[1];
+    VR_AT15_Picks(3, 1);
+    VR_AT_Check(vlen(vr_at15_pick[AR_T15_PICKS] - first) < 1 && vlen(vr_at15_pick[AR_T15_PICKS + 1] - second) < 1,
+                "the same seed picks the same places");
+    cvar_set("vr_arena_seed", "7");
+}
+
+// A clear's supplies, settled: each on a walkable place, on its floor, clear of the brushes, out of any liquid.
+void() VR_AT15_Clear =
+{
+    float total = 0;
+    float shards = 0;
+    float kits = 0;
+    float bad = 0;
+    vector one = '0 0 0';
+    entity e = findflags(world, ar_drop, 3);
+    while(e)
+    {
+        if(e.ar_drop_wave == vr_at15_from && e.model != "")
+        {
+            total = total + 1;
+            if(e.classname == "item_armor_shard") { shards = shards + 1; }
+            if(e.ar_drop == 1) { kits = kits + 1; }
+            vector c = e.origin + 0.5 * (e.mins + e.maxs);
+            c_z = e.origin_z + e.mins_z;
+            if(total == 1) { one = c; }
+            tracebox(e.origin, e.mins, e.maxs, e.origin, TRUE, world);
+            float inside = trace_startsolid;
+            traceline(c + '0 0 4', c - '0 0 12', TRUE, world);
+            float floored = trace_fraction < 1;
+            float dry = pointcontents(c + '0 0 8') == CONTENT_EMPTY;
+            float placed = VR_AT15_OnPlace(c);
+            if(inside || !floored || !dry || !placed)
+            {
+                bad = bad + 1;
+                dprint(sprintf("arena: t15 bad supply %s at %s: inside %g floor %g dry %g on a place %g\n", e.classname,
+                               vtos(c), inside, floored, dry, placed));
+            }
+        }
+        e = findflags(e, ar_drop, 3);
+    }
+    string line = VR_ARENA_SupplyLine();
+    dprint(sprintf("arena: t15 wave %g clear: %g supplies (%g medkits, %g shards), %g on random places, %g up high, ",
+                   vr_at15_from, total, kits, shards, ar_sc_n, ar_sc_high));
+    dprint(sprintf("%g bad; the line: %s\n", bad, line));
+    VR_AT_Check(shards >= 1 && shards <= 2 && shards == ar_drop_shards, sprintf("wave %g: 1 or 2 shards (%g)", vr_at15_from, shards));
+    VR_AT_Check(kits == ar_drop_health && kits == VR_ARENA_MedkitCount(vr_at15_from), sprintf("wave %g: its medkits", vr_at15_from));
+    VR_AT_Check(total == ar_drop_health + ar_drop_armour + ar_drop_shards, sprintf("wave %g: every supply lies there", vr_at15_from));
+    VR_AT_Check(ar_sc_n == total, sprintf("wave %g: every supply on a random place", vr_at15_from));
+    VR_AT_Check(bad == 0, sprintf("wave %g: every supply on a walkable place, on its floor, clear and dry", vr_at15_from));
+    VR_AT_Check(line != "" && (VR_ARENA_Between()), sprintf("wave %g: its supplies' line said", vr_at15_from));
+    if(vr_at15_n > 0) { VR_AT_Check(vlen(one - vr_at15_last) > 1, "two clears' supplies land apart"); }
+    vr_at15_last = one;
+}
+
+void() VR_AT15_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 15 needs the arena (vrarena)"); VR_AT_End(); return; }
+    vr_at15_state = 0;
+    vr_at15_n = 0;
+    vr_at_until = time + 240;
+}
+
+void() VR_AT15_Frame =
+{
+    if(vr_at15_state == 0) // (the walk over the map: until it is done)
+    {
+        if(!VR_ARNAV_Ready()) { return; }
+        VR_AT15_Places();
+        vr_at15_from = 3;
+        VR_ARENA_FastForward(vr_at15_from);
+        vr_at15_state = 1;
+        return;
+    }
+    if(vr_at15_state == 1) // (the wave cleared by the test, a foe at a time)
+    {
+        if(ar_wave != vr_at15_from) { return; }
+        if(VR_ARENA_Between()) { vr_at15_state = 2; return; }
+        if(VR_ARENA_CountAlive() > 0) { VR_AT_KillOne(ar_wave); }
+        return;
+    }
+    if(vr_at15_state == 2) // (its supplies settled on their floors)
+    {
+        entity e = findflags(world, ar_drop, 3);
+        while(e)
+        {
+            if(e.ar_drop_wave == vr_at15_from && e.think == PlaceItem) { return; }
+            e = findflags(e, ar_drop, 3);
+        }
+        VR_AT15_Clear();
+        vr_at15_n = vr_at15_n + 1;
+        if(vr_at15_n >= 2) { VR_AT_End(); return; }
+        vr_at15_from = vr_at15_from + 1;
+        vr_at15_state = 1;
         return;
     }
 }
@@ -2786,6 +3011,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 12) { VR_AT12_Run(); return; }
         if(c == 13) { VR_AT13_Begin(); return; }
         if(c == 14) { VR_AT14_Begin(); return; }
+        if(c == 15) { VR_AT15_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -2814,5 +3040,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 12) { VR_AT12_Frame(); return; }
     if(vr_at_case == 13) { VR_AT13_Frame(); return; }
     if(vr_at_case == 14) { VR_AT14_Frame(); return; }
+    if(vr_at_case == 15) { VR_AT15_Frame(); return; }
 }
 #endif
