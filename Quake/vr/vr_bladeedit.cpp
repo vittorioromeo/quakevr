@@ -1386,7 +1386,7 @@ bool start(int hand, int returnPage)
         const cvar_t* id = weapons::cvar(slot, Key::ID);
         say(va("started on %s (slot %d)", id ? id->string : "?", slot + 1));
     }
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
     return true;
 }
 

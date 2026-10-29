@@ -4,10 +4,39 @@
 
 #pragma once
 
+#include "vr_engine.hpp"
 #include "vr_hands.hpp"
 
 namespace qvr::menuui
 {
+
+// The menu and tool UIs' sounds (one table of the paths; a click is a local, non-spatial sound).
+enum class UiSound
+{
+    Move,   // a cursor or row change, a hover
+    Select, // a press, a confirm
+    Adjust, // a value stepped, a toggle, a step done
+    Deny,   // refused
+    Talk,   // a spoken-line cue
+    Pickup, // a calibration point taken
+};
+[[nodiscard]] inline const char* uiSoundPath(const UiSound kind)
+{
+    switch(kind)
+    {
+        case UiSound::Move: return "misc/menu1.wav";
+        case UiSound::Select: return "misc/menu2.wav";
+        case UiSound::Adjust: return "misc/menu3.wav";
+        case UiSound::Deny: return "doors/basetry.wav";
+        case UiSound::Talk: return "misc/talk.wav";
+        case UiSound::Pickup: return "weapons/pkup.wav";
+    }
+    return "misc/menu1.wav";
+}
+inline void uiSound(const UiSound kind)
+{
+    S_LocalSound(uiSoundPath(kind));
+}
 
 // Where a flat screen's banner (vr_menubrand.cpp, M_DrawPlaque) was last drawn, menu x and y (x1 < x0: not drawn).
 void bannerRect(float& x0, float& x1, float& y0, float& y1);

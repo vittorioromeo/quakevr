@@ -1,6 +1,7 @@
 // vr_motion.cpp -- the motion recorder: see vr_motion.hpp and docs/vr-port/MOTIONS.md. Recording, the
 // take file, the server's samples and the QC's events; playback is vr_motion_play.cpp.
 
+#include "vr_menuui.hpp"
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
 #include "vr_motion_review.hpp"
@@ -1223,7 +1224,7 @@ void startTake(const za::String& label)
     if(!hands::current().valid)
     {
         Con_Printf("Motion recorder: not in a game with VR hands\n");
-        S_LocalSound("doors/basetry.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
         return;
     }
 
@@ -1244,7 +1245,7 @@ void startTake(const za::String& label)
     preroll.clear();
     rec = Rec::Recording;
     haptic(recordHand(), 0.06f, 0.8f);
-    S_LocalSound("misc/talk.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Talk);
     Con_Printf("Motion recorder: recording %s #%d\n", takeLabel.cStr(), takeNumber);
 }
 
@@ -1330,7 +1331,7 @@ void finishTake()
         feedbackText = va("NOT KEPT: too short (%.2f s)", held);
         feedbackUntil = realtime + 2.0;
         haptic(recordHand(), 0.25f, 0.4f);
-        S_LocalSound("doors/basetry.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
         return;
     }
 
@@ -1396,7 +1397,7 @@ void pollSaves(bool wait)
             feedbackText = "NOT SAVED! (see the console)";
             feedbackUntil = realtime + 6.0;
             haptic(recordHand(), 0.4f, 1.f);
-            S_LocalSound("doors/basetry.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
             continue;
         }
         const za::String path = written == 1 ? p.path : p.fallback;
@@ -1421,7 +1422,7 @@ void pollSaves(bool wait)
         feedbackText = va("SAVED %s #%d (%s: %d)", label.cStr(), p.info.take, category.cStr(), count);
         feedbackUntil = realtime + 2.5;
         haptic(recordHand(), 0.12f, 0.6f);
-        S_LocalSound("misc/menu2.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     }
 }
 
@@ -2364,7 +2365,7 @@ void discardLast()
     if(savedThisSession.empty())
     {
         Con_Printf("Motion recorder: no take saved in this session to delete\n");
-        S_LocalSound("doors/basetry.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
         return;
     }
     const za::String from = savedThisSession.back();
@@ -2374,7 +2375,7 @@ void discardLast()
     if(rename(from.cStr(), (dir + "/" + name).cStr()) != 0) // (<stdio.h>'s)
     {
         Con_Printf("Motion recorder: can't move %s into motions/discarded/\n", name.cStr());
-        S_LocalSound("doors/basetry.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
         return;
     }
     savedThisSession.popBack();
@@ -2384,7 +2385,7 @@ void discardLast()
     feedbackText = va("DELETED %s", name.cStr());
     feedbackUntil = realtime + 2.0;
     lastSavedName = savedThisSession.empty() ? za::String{} : za::String{files::fileName(savedThisSession.back())};
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
 }
 
 bool parseTakeName(za::StringView name, za::StringView& label, za::StringView& stamp)

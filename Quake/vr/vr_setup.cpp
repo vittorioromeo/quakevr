@@ -1,5 +1,6 @@
 // vr_setup.cpp -- see vr_setup.hpp.
 
+#include "vr_menuui.hpp"
 #include "vr_setup.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_cvars.hpp"
@@ -408,7 +409,7 @@ void stop(const char* why)
     flow.step = Step::Idle;
     if(why)
     {
-        S_LocalSound("misc/menu3.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
         Con_Printf("VR Calibration stopped (%s): the main menu's VR Calibration runs it again\n", why);
     }
 }
@@ -474,7 +475,7 @@ void askHolsterSetup()
 void finish()
 {
     enter(Step::Done);
-    S_LocalSound("misc/talk.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Talk);
     Con_Printf(!inRoom()          ? "VR Calibration: done.\n"
                : exitToTutorial() ? "VR Calibration: done. The glowing doorway behind you leads to the tutorial.\n"
                                   : "VR Calibration: done. The glowing doorway behind you leads to the VR Hub.\n");
@@ -613,7 +614,7 @@ void heightFrame(double now, za::String& text)
     }
     flow.got = true;
     flow.gotAt = now;
-    S_LocalSound("misc/menu2.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
 }
 
 void flowFrame()

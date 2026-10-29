@@ -1323,7 +1323,7 @@ void toggleSpectator(int hand)
     }
     Con_DPrintf("spectator camera switched %s (vr_window_view %g, vr_mirror %g)\n", spectatorOn() ? "on" : "off",
         vr_window_view.value, vr_mirror.value);
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
     haptic(hand, 0.02f, 0.3f);
 }
 
@@ -1891,7 +1891,7 @@ bool toolbarFocused()
 void focusToolbar(int dir)
 {
     focusTool(dir > 0 || toolbarRow() ? ToolBack : lastTool()); // (the row: its first, from either end of a page)
-    S_LocalSound("misc/menu1.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
 }
 
 void backToGame(int hand)
@@ -1931,7 +1931,7 @@ void useTool(int tool, int hand)
     if(const char* reason = toolUnavailable(tool, true))
     {
         Con_Printf("%s: %s.\n", toolLabels[tool], reason);
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     tb().focused = -1;
@@ -1966,7 +1966,7 @@ void useTool(int tool, int hand)
         case ToolLevels:
             if(m_state == m_maps)
             {
-                S_LocalSound("misc/menu1.wav");
+                qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
                 break;
             }
             VR_NavJump(m_maps); // (Back from them: here)
@@ -1996,7 +1996,7 @@ void useTool(int tool, int hand)
                 s.savedAt = -1e9;
                 Con_Printf("Save Default: press again within %.0f seconds to write your changed settings for review.\n",
                     saveDefaultsConfirm);
-                S_LocalSound("misc/menu1.wav");
+                qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
                 haptic(hand, 0.04f, 0.4f);
                 break;
             }
@@ -3047,7 +3047,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
         {
             focusTool(ToolBack);
         }
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return 1;
     }
 
@@ -3071,7 +3071,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
                 if(next >= 0 && next < toolsShown())
                 {
                     tb().focused = next;
-                    S_LocalSound("misc/menu1.wav");
+                    qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
                 }
                 return 1;
             }
@@ -3081,7 +3081,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
                 {
                     menu::selectEnd(1);
                 }
-                S_LocalSound("misc/menu1.wav");
+                qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
                 return 1;
             case K_UPARROW: return 1; // (nothing above it)
             default: break;
@@ -3111,7 +3111,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
                     menu::selectEnd(dir); // on round the page: its first setting below, its last above
                 }
             }
-            S_LocalSound("misc/menu1.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
             return 1;
         }
         case K_ENTER:
@@ -3122,7 +3122,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
         case K_MOUSE2:
         case K_MOUSE4:
             tb().focused = -1;
-            S_LocalSound("misc/menu1.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
             return 1;
         case K_LEFTARROW:
         case K_RIGHTARROW: return 1; // nothing to change here (and nothing under it changed)

@@ -11,6 +11,7 @@
 // The log over it (vr_notify_wrist) is the console's notify lines (console.c keeps the times of
 // its last 16 lines for it: Con_NotifyLine), laid out by vr_text3d facing the viewer.
 
+#include "vr_menuui.hpp"
 #include "vr_gadget.hpp"
 #include "vr_doom.hpp"
 #include "vr_gearlights.hpp"
@@ -2372,7 +2373,7 @@ bool testMessage()
     // gadget, as the message is taken: announce).
     if(!hologramOnly() || gadgetInView())
     {
-        S_LocalSound("misc/talk.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Talk);
     }
     if(!t.centre)
     {

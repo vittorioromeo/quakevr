@@ -1,6 +1,7 @@
 // vr_motion_review.cpp -- reviewing the motion takes: see vr_motion_review.hpp and docs/vr-port/MOTIONS.md
 // ("Reviewing failing takes").
 
+#include "vr_menuui.hpp"
 #include "vr_strings.hpp"
 #include "vr_motion_review.hpp"
 #include "vr_motion.hpp"
@@ -678,7 +679,7 @@ void saveReview()
     if(!writeMarks() || !writeJournal())
     {
         Con_Warning("Review Takes: can't write motions/review/reviewed.csv or undo.csv\n");
-        S_LocalSound("doors/basetry.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
     }
 }
 

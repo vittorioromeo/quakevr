@@ -2366,7 +2366,7 @@ bool start(int returnPage)
     Cvar_SetValueQuick(&vr_agrunt_freeze, 1.f);
     placePanel(hands::current());
     say("walk up to an armed grunt or enforcer; grip a box to move it");
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
     return true;
 }
 

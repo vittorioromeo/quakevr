@@ -19,6 +19,7 @@
 // The main thread never waits: poll() hands over the cvars and takes the thread's last state, under a lock held for a
 // copy.
 
+#include "vr_menuui.hpp"
 #include "vr_random.hpp"
 #include "vr_obs.hpp"
 #include "vr_cvars.hpp"
@@ -1267,7 +1268,7 @@ bool press()
         return true; // (taken: the last press is on its way)
     }
     pressedAt = realtime;
-    S_LocalSound("misc/menu2.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     if(connectedKnown())
     {
         toggles.fetchAddSeqCst(1);
