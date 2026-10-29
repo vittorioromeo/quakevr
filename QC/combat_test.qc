@@ -24,7 +24,7 @@ void() VR_TestKill_Frame =
         return;
     }
     cvar_set("vr_test_kill", "0");
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     entity best = world;
     float bestD = 100000;
     entity e = nextent(world);
@@ -96,7 +96,7 @@ void() VR_TestHurt_Frame =
         return;
     }
     cvar_set("vr_test_hurt", "0");
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     entity best = world;
     float bestD = 100000;
     entity e = nextent(world);

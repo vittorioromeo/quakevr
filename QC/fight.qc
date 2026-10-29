@@ -176,7 +176,7 @@ void(vector before) VR_MeleeSpace_Step =
     vector h, way;
     float space, keep, f, lo, hi, i;
     p = self.enemy;
-    space = cvar("vr_enemy_melee_space");
+    space = cvar_hget(cvarh_vr_enemy_melee_space);
     if(space <= 0 || !p || !(p.flags & FL_CLIENT) || self.origin == before)
         return;
     h = p.headpos;
@@ -224,7 +224,7 @@ float vr_melee_ahead; // set around an AD ogre's smash blow (ad_import.py SMASH_
 
 float() VR_MeleeArc_On =
 {
-    return cvar("vr_enemy_melee_arc") && self.enemy && (self.enemy.flags & FL_CLIENT);
+    return cvar_hget(cvarh_vr_enemy_melee_arc) && self.enemy && (self.enemy.flags & FL_CLIENT);
 };
 
 // Self's kind's multipliers ('arc reach 0'; vr_enemy_melee_kind 0: '1 1 0'). Short list, by classname: a knight's
@@ -331,17 +331,17 @@ float() VR_MeleeArc_Launch =
 float vr_meleearc_show_print; // (when it last printed)
 void() VR_MeleeArc_ShowFrame =
 {
-    if(!cvar("vr_enemy_melee_arc_show"))
+    if(!cvar_hget(cvarh_vr_enemy_melee_arc_show))
     {
         return;
     }
-    float print = cvar("vr_enemy_melee_arc_show") >= 2 && time >= vr_meleearc_show_print + 1;
+    float print = cvar_hget(cvarh_vr_enemy_melee_arc_show) >= 2 && time >= vr_meleearc_show_print + 1;
     if(print)
     {
         vr_meleearc_show_print = time;
     }
     entity oself = self;
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         entity m = findradius(p.origin, 600);
@@ -353,7 +353,7 @@ void() VR_MeleeArc_ShowFrame =
             {
                 self = m;
                 float base = self.vr_melee_reach_base ? self.vr_melee_reach_base : (self.size_x > 24 ? 100 : 60);
-                float on = cvar("vr_enemy_melee_arc");
+                float on = cvar_hget(cvarh_vr_enemy_melee_arc);
                 self.vr_melee_arc = on ? VR_MeleeArc_Angle(FALSE) : 180;
                 self.vr_melee_arc_wide = self.vr_melee_wide_seen ? (on ? VR_MeleeArc_Angle(TRUE) : 180) : 0;
                 self.vr_melee_reach = on ? VR_MeleeArc_Reach(base) : base;
@@ -368,7 +368,7 @@ void() VR_MeleeArc_ShowFrame =
             }
             m = m.chain;
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 };
 

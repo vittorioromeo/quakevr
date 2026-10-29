@@ -98,7 +98,7 @@ void(entity decoy) setup_decoy =
    decoy.th_pain = decoy_stand1_pain;
    decoy.th_die = decoy_stand1;
 
-   pl = find(world, classname, "player");
+   pl = VR_Player();
    decoy.colormap = pl.colormap;
 };
 

@@ -94,7 +94,7 @@ void(entity p, float request) VR_AimConeTest_Start =
 void() VR_AimConeTest_Frame =
 {
     float request = cvar("vr_test_aimcone");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(request)
     {
         cvar_set("vr_test_aimcone", "0");

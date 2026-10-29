@@ -180,14 +180,14 @@ void(entity who) TeamResetCarrier =
     if(teamplay >= TEAM_CTF &&
         (who.ctf_flags & (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2))) {
 
-        head = find(world, classname, "player");
+        head = VR_Player();
 
         while (head != world) {
             if(teamplay == TEAM_CTF_ONEFLAG ||
                 ((who.ctf_flags & CTF_FLAG_TEAM1) && head.steam == TEAM1) ||
                 ((who.ctf_flags & CTF_FLAG_TEAM2) && head.steam == TEAM2))
                 head.ctf_lasthurtcarrier = -10;
-            head = find(head, classname, "player");
+            head = VR_NextPlayer(head);
         }
     }
 };
@@ -431,7 +431,7 @@ void() TeamCheckTeam =
     team2count = 0;
     team3count = 0;
 
-    p = find(world, classname, "player");
+    p = VR_Player();
 
     while(p) {
         if(p != self) {
@@ -442,7 +442,7 @@ void() TeamCheckTeam =
             else if(p.steam == TEAM3)
                 team3count = team3count + 1;
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 
     // Find the team with the least players.
@@ -917,7 +917,7 @@ void(entity flg) TeamReturnFlag =
 
     RegenFlag(flg);
 
-    p = find(world, classname, "player");
+    p = VR_Player();
     while (p != world) {
         if(teamplay == TEAM_CTF_ONEFLAG) // one flag mode?
             centerprint(p, "The flag has been returned!\n");
@@ -936,7 +936,7 @@ void(entity flg) TeamReturnFlag =
                     centerprint(p, "Your flag has been returned to base!\n");
             }
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 };
 
@@ -1052,11 +1052,11 @@ void() TeamFlagTouch =
         self.solid = SOLID_NOT;
         self.owner = other;
 
-        p = find(world, classname, "player");
+        p = VR_Player();
         while (p != world) {
             if(p != other)
                 centerprint(p, "The flag has been taken!\n");
-            p = find(p, classname, "player");
+            p = VR_NextPlayer(p);
         }
         return;
     }
@@ -1086,7 +1086,7 @@ void() TeamFlagTouch =
                 other.frags = other.frags + CTF_CAPTURE_BONUS;
 
                 // Ok, let's do the player loop, hand out the bonuses
-                p = find(world, classname, "player");
+                p = VR_Player();
                 while (p != world) {
                     self = p;
                     if(self.team == other.team && self != other)
@@ -1123,7 +1123,7 @@ void() TeamFlagTouch =
                     }
                     self.ctf_flags = self.ctf_flags - (self.ctf_flags &
                         (CTF_FLAG_TEAM1 | CTF_FLAG_TEAM2));
-                    p = find(p, classname, "player");
+                    p = VR_NextPlayer(p);
                 }
                 // respawn flags
                 TeamRegenFlags();
@@ -1181,7 +1181,7 @@ void() TeamFlagTouch =
     self.owner = other;
 
     // PGM Fix - 03/06/97 Made it work right in three team.
-    p = find(world, classname, "player");
+    p = VR_Player();
     while (p != world)
     {
         if(p != other)
@@ -1211,7 +1211,7 @@ void() TeamFlagTouch =
                         centerprint(p, "���� team has the ���� flag!\n");// grey has blue
             }
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 };
 
@@ -1246,7 +1246,7 @@ void() TeamFlagBaseTouch =
             other.frags = other.frags + CTF_CAPTURE_BONUS;
 
             // Ok, let's do the player loop, hand out the bonuses
-            p = find(world, classname, "player");
+            p = VR_Player();
             while (p != world) {
                 self = p;
                 if(self.team == other.team && self != other)
@@ -1262,7 +1262,7 @@ void() TeamFlagBaseTouch =
                     }
                 }
                 self.ctf_flags = self.ctf_flags - (self.ctf_flags & CTF_FLAG_FLAG);
-                p = find(p, classname, "player");
+                p = VR_NextPlayer(p);
             }
             // respawn flags
             TeamRegenFlags();
@@ -1291,7 +1291,7 @@ void() TeamFlagBaseTouch =
         other.frags = other.frags + CTF_ALT_CAPTURE_BONUS;
 
         // Ok, let's do the player loop, hand out the bonuses
-        p = find(world, classname, "player");
+        p = VR_Player();
         while (p != world) {
             self = p;
             if(self.team == other.team && self != other)
@@ -1309,7 +1309,7 @@ void() TeamFlagBaseTouch =
                 // done to all players on the capturing team
                 centerprint(self, "Your team captured the flag!\n");
             }
-            p = find(p, classname, "player");
+            p = VR_NextPlayer(p);
         }
         // respawn flags
         if(other.ctf_flags & CTF_FLAG_TEAM1) {
@@ -1781,7 +1781,7 @@ void() TeamCheckUpdate =
     ts3 = GetCTFTeam(TEAM3);
 
     if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ALT || teamplay == TEAM_CTF_ONEFLAG) {
-        p = find(world, classname, "player");
+        p = VR_Player();
         while (p != world) {
             if(p.steam == TEAM1)
                 total1 = total1 + p.frags;
@@ -1789,7 +1789,7 @@ void() TeamCheckUpdate =
                 total2 = total2 + p.frags;
             else if(p.steam == TEAM3)
                 total3 = total3 + p.frags;
-            p = find(p, classname, "player");
+            p = VR_NextPlayer(p);
         }
 
         if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ONEFLAG) {

@@ -119,12 +119,12 @@ void() VR_Saw_SoundsLive =
     }
     vr_saw_replay_at = 0;
     VR_Saw_Debug("chainsaw: loops played again (a new map or a loaded game)\n");
-    entity e = find(world, classname, "player");
+    entity e = VR_Player();
     while(e)
     {
         e.vr_saw_loop = VR_SAW_LOOP_NONE;
         e.vr_saw_loop2 = VR_SAW_LOOP_NONE;
-        e = find(e, classname, "player");
+        e = VR_NextPlayer(e);
     }
 };
 

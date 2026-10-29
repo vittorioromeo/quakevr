@@ -244,13 +244,13 @@ void(float xMode) VR_DeadAnim_Test =
 // StartFrame: a test asked for (vr_deadanim_test).
 void() VR_DeadAnim_TestFrame =
 {
-    float ask = cvar("vr_deadanim_test");
+    float ask = cvar_hget(cvarh_vr_deadanim_test);
     if(!ask)
     {
         return;
     }
     cvar_set("vr_deadanim_test", "0");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p == world)
     {
         return;

@@ -257,3 +257,23 @@ Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appen
 | a verdict line `<name>: N passed, M failed`; a pass/fail counter | `testkit::verdict`, `testkit::Tally` | `vr_testkit.hpp` |
 | a UI click / cue sound by kind (the path table) | `menuui::uiSound(UiSound::Move/Select/Adjust/Deny/Talk/Pickup)` | `vr_menuui.hpp` |
 | linking a GL program (info log, label, shader cleanup); a bound-FBO completeness check | `gfx::linkProgram`, `gfx::boundFramebufferComplete` | `vr_glutil.hpp` |
+
+### QC (refactor A4)
+
+Use these instead of a local copy (refactor 2026-10-29, cluster A4).
+
+- `QC/vr_util.qc`, end of file: `VR_Player()` (the first player: never spell `find(world, classname, "player")`),
+  `VR_NextPlayer(p)`, `VR_PlayerAlive()` (the first living one), `clamp(v, lo, hi)`, `VR_Wrap180(a)` (-180 .. 180,
+  floor form; the base packs' one-step `if(d > 180) d -= 360` wraps are a different rule and stay), `VR_Cross(a, b)`,
+  `VR_Lerp(a, b, t)`, `VR_Smooth(x)` (clamped smoothstep), `VR_PointSegmentDistance(p, a, b)`,
+  `VR_SegmentDistance(a0, a1, b0, b1)` (closest points in `vr_seg_s`, `vr_seg_t`) and `VR_SegmentDistanceEps` (the
+  same with a site's own thresholds).
+- `QC/vr_testutil.qc` (tests only): `VR_Test_Begin("tag")`, `VR_Test_Check(ok, what)` (`<tag>: PASS|FAIL <what>`),
+  `VR_Test_Verdict()` (`<tag>: <p> passed, <f> failed`), one tally (`vr_test_pass`, `vr_test_fail`). The armed grunts'
+  harness (`VR_AGT_Check/Print/Spawn/Remove/Hunt`, vr_armedgrunt_test.qc: `agtest: <what> PASS|FAIL` by bprint) is
+  the other shared one; a new test uses one of the two, never a third copy.
+- Cvars: read with a handle, `cvar_hget(cvarh_<name>)` (declared and made in `QC/vr_cvars.qc`, compiled right after
+  defs.qc so every file sees it); `cvar("...")` only in tests and one-off code. A new handle: its global and its
+  `VR_CVAR_HMAKE` line at the end of each list (the handles' numbers follow the order).
+- Builtins: a `= #0` prototype is bound by name; `Misc/quakevr/check_builtins.py` (run by the kit's build.sh) fails the
+  build when one names no engine builtin, or a `vrBuiltins` entry has no prototype.

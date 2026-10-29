@@ -20,7 +20,7 @@
 // and classnames keep their authored names. Plan and task list: docs/vr-port/MG3.md. Source snapshot and
 // license: docs/vr-port/OFFICIAL_QC_SOURCE.md, QC/COPYING-rerelease.txt (quakec_mg3).
 // Gated: vr_gamedir.cpp keeps MG3 nativeReady false (developer path: `vr_campaign_native mg3`).
-float() MG3_Campaign = { return cvar("vr_campaign") == VR_CAMPAIGN_MG3; };
+float() MG3_Campaign = { return cvar_hget(cvarh_vr_campaign) == VR_CAMPAIGN_MG3; };
 
 // ----------------------------------------------------------------------------
 // Persistent state (MG3.md 2.1). Upstream keeps its capacity upgrades (one bit per map) in parm10..14 and its
@@ -231,7 +231,7 @@ void() MG3_BloodyNightmareLevel = {
 // and vr_mg3_bn_start before the start map loads; its first frame turns the game into a Bloody Nightmare one.
 void() MG3_Frame = {
     if(!cvar("vr_mg3_bn_start")) return;
-    if(time < 1 || !find(world, classname, "player")) return; // (once the player is in: he is told)
+    if(time < 1 || !VR_Player()) return; // (once the player is in: he is told)
     cvar_set("vr_mg3_bn_start", "0");
     if(!MG3_Campaign()) return;
     serverflags = serverflags | MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED;

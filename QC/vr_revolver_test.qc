@@ -35,7 +35,6 @@
 //     pouch for it, its live ones dropped. (Its spent casings: the client's, "shells eject ... kind 1 skin 1" with
 //     vr_debug_weaponfx 1.)
 
-float vr_rvt_pass, vr_rvt_fail;
 float vr_rvt_step;     // 0 idle
 float vr_rvt_frames;   // frames into the step
 float vr_rvt_seen;     // shots seen so far
@@ -55,11 +54,6 @@ entity vr_rvt_player;
 entity vr_rvt_target;
 entity vr_rvt_g;
 
-void(float ok, string what) VR_RVT_Check =
-{
-    if(ok) vr_rvt_pass++; else vr_rvt_fail++;
-    dprint(sprintf("rvtest: %s %s\n", ok ? "PASS" : "FAIL", what));
-};
 
 entity() VR_RVT_Rec = { return VRGetEntWeaponInst(vr_rvt_player, cVR_MainHand); };
 
@@ -78,7 +72,7 @@ float(entity rec, float xSpeed, float xHolding) VR_RVT_Swipe =
     vector vel0 = p.offhandvel;
     entity held0 = p.offhand_held;
     p.offhandpos = vr_rv_port + vr_rv_axis * (RV_CYL_LEN * 0.5 * RV_SCALE) + radial * (RV_CYL_RADIUS * RV_SCALE);
-    p.offhandvel = p.handvel + VR_RV_Cross(vr_rv_axis, radial) * xSpeed;
+    p.offhandvel = p.handvel + VR_Cross(vr_rv_axis, radial) * xSpeed;
     if(xHolding) { p.offhand_held = rec; } // (any thing: a hand that holds one is not empty)
     float spin0 = rec.wi_rv_spin;
     rec.wi_rv_spin = 0;
@@ -112,7 +106,7 @@ void() VR_RVT_End =
     VR_NPT_Trigger(0);
     localcmd("vr_mock_button main secondary 0\n");
     if(!vr_rvt_notarget) vr_rvt_player.flags = vr_rvt_player.flags - (vr_rvt_player.flags & FL_NOTARGET);
-    dprint(sprintf("rvtest: %g passed, %g failed\n", vr_rvt_pass, vr_rvt_fail));
+    VR_Test_Verdict();
     vr_rvt_step = 0;
 };
 
@@ -243,16 +237,16 @@ void() VR_RVT_Flicks =
     float k;
     // The force and the wrist flick towards the cylinder's side: 400 deg/s for 0.1 s (40 deg) swings it out.
     for(k = 0; k < 8 && !r1; k++) { r1 = VR_Revolver_FlickRate(h, 400, dt); }
-    VR_RVT_Check(r1 == 1, sprintf("a flick of 400 deg/s: out after %g frames (%.0f deg)", k, k * 400 * dt));
+    VR_Test_Check(r1 == 1, sprintf("a flick of 400 deg/s: out after %g frames (%.0f deg)", k, k * 400 * dt));
     // Too weak (300 < 350 deg/s), however far.
     h.rvh_fo = h.rvh_fop = h.rvh_fc = h.rvh_fcp = 0;
     float r2 = 0;
     for(k = 0; k < 20 && !r2; k++) { r2 = VR_Revolver_FlickRate(h, 300, dt); }
-    VR_RVT_Check(r2 == 0, sprintf("a roll of 300 deg/s for 20 frames (83 deg): nothing (%g)", r2));
+    VR_Test_Check(r2 == 0, sprintf("a roll of 300 deg/s for 20 frames (83 deg): nothing (%g)", r2));
     // Strong but short (900 deg/s for 2 frames: 25 < 30 deg), then still.
     h.rvh_fo = h.rvh_fop = h.rvh_fc = h.rvh_fcp = 0;
     float r3 = VR_Revolver_FlickRate(h, 900, dt) + VR_Revolver_FlickRate(h, 900, dt) + VR_Revolver_FlickRate(h, 0, dt);
-    VR_RVT_Check(r3 == 0, sprintf("a jerk of 900 deg/s for 25 deg: nothing (%g)", r3));
+    VR_Test_Check(r3 == 0, sprintf("a jerk of 900 deg/s for 25 deg: nothing (%g)", r3));
     // Home: -350 deg/s for 0.1 s (35 deg) swings it home; -250 (< 300) never.
     h.rvh_fo = h.rvh_fop = h.rvh_fc = h.rvh_fcp = 0;
     float r4 = 0;
@@ -260,7 +254,7 @@ void() VR_RVT_Flicks =
     h.rvh_fo = h.rvh_fop = h.rvh_fc = h.rvh_fcp = 0;
     float r5 = 0;
     for(k = 0; k < 20 && !r5; k++) { r5 = VR_Revolver_FlickRate(h, -250, dt); }
-    VR_RVT_Check(r4 == -1 && r5 == 0, sprintf("the other way: -350 deg/s home (%g), -250 deg/s nothing (%g)", r4, r5));
+    VR_Test_Check(r4 == -1 && r5 == 0, sprintf("the other way: -350 deg/s home (%g), -250 deg/s nothing (%g)", r4, r5));
     // Customized: a lighter force (200) takes 300 deg/s; a longer wrist flick (60 deg) needs more of it.
     float s0 = cvar("vr_revolver_open_flick_speed");
     float a0 = cvar("vr_revolver_open_flick_angle");
@@ -269,7 +263,7 @@ void() VR_RVT_Flicks =
     h.rvh_fo = h.rvh_fop = h.rvh_fc = h.rvh_fcp = 0;
     float r6 = 0;
     for(k = 0; k < 30 && !r6; k++) { r6 = VR_Revolver_FlickRate(h, 300, dt); }
-    VR_RVT_Check(r6 == 1 && k >= 14, sprintf("customized (200 deg/s, 60 deg): 300 deg/s out after %g frames (%.0f deg)", k,
+    VR_Test_Check(r6 == 1 && k >= 14, sprintf("customized (200 deg/s, 60 deg): 300 deg/s out after %g frames (%.0f deg)", k,
         k * 300 * dt));
     cvar_set("vr_revolver_open_flick_speed", ftos(s0));
     cvar_set("vr_revolver_open_flick_angle", ftos(a0));
@@ -286,14 +280,14 @@ void() VR_RVT_Flicks =
     h.rvh_fo = h.rvh_fop = h.rvh_fot = h.rvh_fc = h.rvh_fcp = h.rvh_fct = 0;
     float r8 = 0;
     for(k = 0; k < 60 && !r8; k++) { r8 = VR_Revolver_FlickRate(h, 50, dt); }
-    VR_RVT_Check(r7 == 0 && r8 == 1, sprintf("a slow 30 deg roll over 0.6 s: window 0.25 s nothing (%g), window 1 s out after %g frames", r7, k));
+    VR_Test_Check(r7 == 0 && r8 == 1, sprintf("a slow 30 deg roll over 0.6 s: window 0.25 s nothing (%g), window 1 s out after %g frames", r7, k));
     cvar_set("vr_revolver_open_flick_speed", ftos(s0));
     cvar_set("vr_revolver_open_flick_angle", ftos(a0));
     cvar_set("vr_revolver_open_flick_time", ftos(w0));
     h.rvh_fo = h.rvh_fop = h.rvh_fot = h.rvh_fc = h.rvh_fcp = h.rvh_fct = 0;
     float r9 = 0;
     for(k = 0; k < 60 && !r9; k++) { r9 = VR_Revolver_FlickRate(h, 350, dt); }
-    VR_RVT_Check(r9 == 1, sprintf("default flick (30 deg at 350 deg/s): out after %g frames = %.3f s (window %g s)", k, k * dt, w0));
+    VR_Test_Check(r9 == 1, sprintf("default flick (30 deg at 350 deg/s): out after %g frames = %.3f s (window %g s)", k, k * dt, w0));
     remove(h);
 };
 
@@ -303,7 +297,7 @@ void() VR_Revolver_TestFrame =
     if(req)
     {
         cvar_set("vr_rv_test", "0");
-        vr_rvt_player = find(world, classname, "player");
+        vr_rvt_player = VR_Player();
         if(!vr_rvt_player) { dprint("rvtest: no player\n"); return; }
         vr_npt_player = vr_rvt_player; // (the nail pistol's test's helpers: its grunts, its trigger)
         entity os0 = self;
@@ -343,7 +337,7 @@ void() VR_Revolver_TestFrame =
             return;
         }
         self = os0;
-        vr_rvt_pass = vr_rvt_fail = 0;
+        VR_Test_Begin("rvtest");
         vr_rvt_mode = cvar("vr_reload_mode_revolver");
         vr_rvt_grip = cvar("vr_weapon_grip_mode");
         vr_rvt_tv = cvar("vr_mock_turn_velocity");
@@ -382,7 +376,7 @@ void() VR_Revolver_TestFrame =
     }
     if(vr_rvt_frames > 72 * 20) // (a safety net only: a stuck step)
     {
-        VR_RVT_Check(FALSE, sprintf("step %g timed out", vr_rvt_step));
+        VR_Test_Check(FALSE, sprintf("step %g timed out", vr_rvt_step));
         self = os;
         VR_RVT_End();
         return;
@@ -420,7 +414,7 @@ void() VR_Revolver_TestFrame =
     }
     else if(s == 1 && vr_rvt_frames == 14)
     {
-        VR_RVT_Check(VRGetWeapon(cVR_MainHand) == WID_REVOLVER && rec && VR_Revolver_Desc(rec) == "LLLLLL" &&
+        VR_Test_Check(VRGetWeapon(cVR_MainHand) == WID_REVOLVER && rec && VR_Revolver_Desc(rec) == "LLLLLL" &&
             VRGetWeaponClip(cVR_MainHand) == 6 && VR_Reload_ManualInHand(p, cVR_MainHand) && (p.vr_rv_hud & 131072),
             sprintf("in hand: %s, chambers %s, clip %g, loaded by hand %g, drawn %g", WeaponIdToWeaponName(VRGetWeapon(cVR_MainHand)),
                 rec ? VR_Revolver_Desc(rec) : "?", VRGetWeaponClip(cVR_MainHand), VR_Reload_ManualInHand(p, cVR_MainHand),
@@ -436,14 +430,14 @@ void() VR_Revolver_TestFrame =
         if(vr_rvt_frames <= 50 && VRGetWeaponFrame(cVR_MainHand) == 2) { vr_rvt_saw2 = TRUE; }
         if(vr_rvt_frames == 60)
         {
-            VR_RVT_Check(vr_rv_shots == 1, sprintf("double action: the trigger held 0.69 s fired %g (want 1)", vr_rv_shots));
-            VR_RVT_Check(vr_rvt_saw1 && vr_rvt_saw2 && VRGetWeaponFrame(cVR_MainHand) == 0,
+            VR_Test_Check(vr_rv_shots == 1, sprintf("double action: the trigger held 0.69 s fired %g (want 1)", vr_rv_shots));
+            VR_Test_Check(vr_rvt_saw1 && vr_rvt_saw2 && VRGetWeaponFrame(cVR_MainHand) == 0,
                 sprintf("the hammer: cocked (frame 1 seen %g), down with the trigger held (2 seen %g), at rest let go (%g)",
                     vr_rvt_saw1, vr_rvt_saw2, VRGetWeaponFrame(cVR_MainHand)));
             vr_rvt_last = 0; // (the gaps: step 3's alone)
             vr_rvt_mingap = 1000;
             vr_rvt_maxgap = 0;
-            VR_RVT_Check(rec.wi_rv_at == 1 && VR_Revolver_Desc(rec) == "SLLLLL" && VRGetWeaponClip(cVR_MainHand) == 5,
+            VR_Test_Check(rec.wi_rv_at == 1 && VR_Revolver_Desc(rec) == "SLLLLL" && VRGetWeaponClip(cVR_MainHand) == 5,
                 sprintf("the cylinder turned a chamber: chamber %g under the hammer, chambers %s, clip %g", rec.wi_rv_at,
                     VR_Revolver_Desc(rec), VRGetWeaponClip(cVR_MainHand)));
             VR_RVT_Next();
@@ -456,12 +450,12 @@ void() VR_Revolver_TestFrame =
         if(vr_rv_shots >= 6 && !p.button0 && !vr_npt_trigger)
         {
             float cool = cvar_hget(cvarh_vr_revolver_cooldown);
-            VR_RVT_Check(vr_rv_shots == 6 && vr_rv_dry == 0, sprintf("six shots (%g), %g clicks", vr_rv_shots, vr_rv_dry));
-            VR_RVT_Check(vr_rvt_mingap >= cool - 0.001 && vr_rvt_maxgap <= cool + 3 * frametime + 0.001,
+            VR_Test_Check(vr_rv_shots == 6 && vr_rv_dry == 0, sprintf("six shots (%g), %g clicks", vr_rv_shots, vr_rv_dry));
+            VR_Test_Check(vr_rvt_mingap >= cool - 0.001 && vr_rvt_maxgap <= cool + 3 * frametime + 0.001,
                 sprintf("its rate: gaps %.3f .. %.3f s (vr_revolver_cooldown %g), pulls every %.3f s", vr_rvt_mingap,
                     vr_rvt_maxgap, cool, 2 * frametime));
-            VR_RVT_Check(vr_rvt_hits == 6, sprintf("on the target: %g of 6 (from the muzzle, along the aim)", vr_rvt_hits));
-            VR_RVT_Check(VR_Revolver_Desc(rec) == "SSSSSS" && VRGetWeaponClip(cVR_MainHand) == 0,
+            VR_Test_Check(vr_rvt_hits == 6, sprintf("on the target: %g of 6 (from the muzzle, along the aim)", vr_rvt_hits));
+            VR_Test_Check(VR_Revolver_Desc(rec) == "SSSSSS" && VRGetWeaponClip(cVR_MainHand) == 0,
                 sprintf("spent: %s, clip %g", VR_Revolver_Desc(rec), VRGetWeaponClip(cVR_MainHand)));
             vr_rvt_at0 = rec.wi_rv_at;
             VR_RVT_Next();
@@ -472,7 +466,7 @@ void() VR_Revolver_TestFrame =
         VR_NPT_Trigger(vr_rvt_frames >= 26 && vr_rvt_frames <= 28);
         if(vr_rvt_frames == 40)
         {
-            VR_RVT_Check(vr_rv_shots == 6 && vr_rv_dry == 1 && rec.wi_rv_at == VR_RV_Wrap(vr_rvt_at0 + 1),
+            VR_Test_Check(vr_rv_shots == 6 && vr_rv_dry == 1 && rec.wi_rv_at == VR_RV_Wrap(vr_rvt_at0 + 1),
                 sprintf("a seventh pull: a click (%g), no shot (%g), the cylinder turned (chamber %g, was %g)", vr_rv_dry,
                     vr_rv_shots, rec.wi_rv_at, vr_rvt_at0));
             remove(vr_rvt_target);
@@ -486,7 +480,7 @@ void() VR_Revolver_TestFrame =
         if(vr_rvt_frames == 4) { localcmd("vr_mock_button main secondary 0\n"); }
         if(rec.wi_rv_open || vr_rvt_frames == 30)
         {
-            VR_RVT_Check(rec.wi_rv_open && vr_rv_opened == 1 && vr_rv_lasthow == "the eject button",
+            VR_Test_Check(rec.wi_rv_open && vr_rv_opened == 1 && vr_rv_lasthow == "the eject button",
                 sprintf("B/Y: swung out (%g) by %s", rec.wi_rv_open, vr_rv_lasthow));
             VR_RVT_Next();
         }
@@ -497,7 +491,7 @@ void() VR_Revolver_TestFrame =
         if(vr_rvt_frames == 33) { localcmd("vr_mock_button main secondary 0\n"); }
         if(vr_rv_ej_spent + vr_rv_ej_live > 0 || vr_rvt_frames == 60)
         {
-            VR_RVT_Check(vr_rv_ej_spent == 6 && vr_rv_ej_live == 0 && VR_Revolver_Desc(rec) == "------" &&
+            VR_Test_Check(vr_rv_ej_spent == 6 && vr_rv_ej_live == 0 && VR_Revolver_Desc(rec) == "------" &&
                 VRGetWeaponClip(cVR_MainHand) == 0 && (p.vr_rv_hud & 8192),
                 sprintf("B/Y again: %g spent and %g live shells dropped (want 6, 0), chambers %s, the rod pushed %g",
                     vr_rv_ej_spent, vr_rv_ej_live, VR_Revolver_Desc(rec), (p.vr_rv_hud & 8192) != 0));
@@ -511,7 +505,7 @@ void() VR_Revolver_TestFrame =
         float okAll = TRUE;
         string got = "";
         float blue = 0;
-        VR_RVT_Check(p.vr_pouch_kind == 1 + 8, sprintf("the pouch with the revolver in hand: kind %g (want 9: shells, the blue slugs)",
+        VR_Test_Check(p.vr_pouch_kind == 1 + 8, sprintf("the pouch with the revolver in hand: kind %g (want 9: shells, the blue slugs)",
             p.vr_pouch_kind));
         for(float c = 0; c < 3; c++)
         {
@@ -532,11 +526,11 @@ void() VR_Revolver_TestFrame =
             got = strcat(got, sprintf(" %g", vr_rv_lastch));
             if(vr_rv_lastch != want) { okAll = FALSE; }
         }
-        VR_RVT_Check(okAll && vr_rv_loaded == 3 && VRGetWeaponClip(cVR_MainHand) == 3 && p.ammo_shells == before - 3 &&
+        VR_Test_Check(okAll && vr_rv_loaded == 3 && VRGetWeaponClip(cVR_MainHand) == 3 && p.ammo_shells == before - 3 &&
             VR_Carry_Held(p, cVR_OffHand) == world,
             sprintf("three single shells by chamber (want 3 5 0): into%s; clip %g, shells %g -> %g, chambers %s", got,
                 VRGetWeaponClip(cVR_MainHand), before, p.ammo_shells, VR_Revolver_Desc(rec)));
-        VR_RVT_Check(blue == 3, sprintf("the shells taken from the pouch for it: %g of 3 blue slugs (skin 1)", blue));
+        VR_Test_Check(blue == 3, sprintf("the shells taken from the pouch for it: %g of 3 blue slugs (skin 1)", blue));
         VR_RVT_Next();
     }
     else if(s == 8)
@@ -561,7 +555,7 @@ void() VR_Revolver_TestFrame =
         }
         if((vr_rv_loaded >= 4 && vr_rvt_frames > 8) || vr_rvt_frames == 70)
         {
-            VR_RVT_Check(vr_rv_loaded == 4 && vr_rv_lastch == vr_rvt_n && VRGetWeaponClip(cVR_MainHand) == 4,
+            VR_Test_Check(vr_rv_loaded == 4 && vr_rv_lastch == vr_rvt_n && VRGetWeaponClip(cVR_MainHand) == 4,
                 sprintf("by the hands (the off hand's shell at the load point): into chamber %g (want %g, the next to come), clip %g",
                     vr_rv_lastch, vr_rvt_n, VRGetWeaponClip(cVR_MainHand)));
             localcmd("vr_mock_button off grip 0; vr_mock_hand off -0.2 1.0 -0.3 70 0 0\n");
@@ -585,7 +579,7 @@ void() VR_Revolver_TestFrame =
             float slow = VR_RVT_Swipe(rec, spd * 0.75, FALSE);
             float fast = VR_RVT_Swipe(rec, spd + 0.7, FALSE);
             string swiped = sprintf("%g %g %g %g", afterLoad, holding, slow, fast); // (sprintf: 8 arguments at most)
-            VR_RVT_Check(!afterLoad && !holding && !slow && fast && vr_rv_refusals == r0 + 1 && since < 0.5,
+            VR_Test_Check(!afterLoad && !holding && !slow && fast && vr_rv_refusals == r0 + 1 && since < 0.5,
                 sprintf("swipes spun: %.2f s after a shell went in, holding a shell, a slow one (%.2f m/s), a deliberate one "
                         "(%.2f m/s): %s (want 0 0 0 1; %g refused for loading)", since, spd * 0.75, spd + 0.7, swiped,
                     vr_rv_refusals - r0));
@@ -603,7 +597,7 @@ void() VR_Revolver_TestFrame =
             if((rec.wi_rv_spin == 0 && rec.wi_rv_ofs == 0) || vr_rvt_frames == 400)
             {
                 float steps = rint((vr_rvt_turned - (vr_rvt_k + 60 * vr_rvt_at0)) / 60);
-                VR_RVT_Check(rec.wi_rv_spin == 0 && rec.wi_rv_ofs == 0 && vr_rvt_turned > 300 &&
+                VR_Test_Check(rec.wi_rv_spin == 0 && rec.wi_rv_ofs == 0 && vr_rvt_turned > 300 &&
                     fabs(VR_RV_AngleNorm(VR_Revolver_CylAngle(rec) - (vr_rvt_k + vr_rvt_turned))) < 0.01 &&
                     rec.wi_rv_at == VR_RV_Wrap(vr_rvt_at0 - steps),
                     sprintf("spun: turned %.1f deg over %.2f s, stopped on a chamber; under the hammer %g (was %g), chambers %s",
@@ -618,7 +612,7 @@ void() VR_Revolver_TestFrame =
         if(vr_rvt_frames == 26) { localcmd("vr_mock_hand_turn main 0 0 -150\n"); }
         if(!rec.wi_rv_open || vr_rvt_frames == 60)
         {
-            VR_RVT_Check(!rec.wi_rv_open && vr_rv_closed == 1 && substring(vr_rv_lasthow, 0, 7) == "a flick",
+            VR_Test_Check(!rec.wi_rv_open && vr_rv_closed == 1 && substring(vr_rv_lasthow, 0, 7) == "a flick",
                 sprintf("a flick away from its cylinder's side (the mock's roll -150 in a frame: the controller pitched 70 off the aim, about a third of it the aim's roll): home (%g) by %s; the wrist's roll %.0f deg/s",
                     !rec.wi_rv_open, vr_rv_lasthow, vr_rv_rollmax));
             vr_rvt_want = VR_RVT_Expect(rec, 2);
@@ -644,7 +638,7 @@ void() VR_Revolver_TestFrame =
         }
         if(vr_rv_shots - vr_rvt_shots0 >= 2 && ph == 20)
         {
-            VR_RVT_Check(vr_rvt_got == vr_rvt_want, sprintf("chamber tracking: the pulls %s (want %s, from its chambers after the spin)",
+            VR_Test_Check(vr_rvt_got == vr_rvt_want, sprintf("chamber tracking: the pulls %s (want %s, from its chambers after the spin)",
                 vr_rvt_got, vr_rvt_want));
             vr_rvt_live0 = VR_RVT_LiveRounds();
             vr_rvt_blue0 = VR_RVT_BlueRounds();
@@ -657,7 +651,7 @@ void() VR_Revolver_TestFrame =
         if(vr_rvt_frames == 26) { localcmd("vr_mock_hand_turn main 0 0 150\n"); }
         if(rec.wi_rv_open || vr_rvt_frames == 60)
         {
-            VR_RVT_Check(rec.wi_rv_open && substring(vr_rv_lasthow, 0, 7) == "a flick",
+            VR_Test_Check(rec.wi_rv_open && substring(vr_rv_lasthow, 0, 7) == "a flick",
                 sprintf("a flick towards its cylinder's side (the mock's roll +150 in a frame): out (%g) by %s; the wrist's roll %.0f deg/s",
                     rec.wi_rv_open, vr_rv_lasthow, vr_rv_rollmax));
             vr_rvt_shots0 = vr_rv_ej_spent;
@@ -673,10 +667,10 @@ void() VR_Revolver_TestFrame =
             makevectors(VRGetEntHandRot(p, cVR_MainHand));
             float sp = vr_rv_ej_spent - vr_rvt_shots0;
             float lv = vr_rv_ej_live - vr_rvt_dry0;
-            VR_RVT_Check(sp == 2 && lv == 2 && VR_Revolver_Desc(rec) == "------" && VR_RVT_LiveRounds() == vr_rvt_live0 + 2,
+            VR_Test_Check(sp == 2 && lv == 2 && VR_Revolver_Desc(rec) == "------" && VR_RVT_LiveRounds() == vr_rvt_live0 + 2,
                 sprintf("the muzzle tilted up (aim z %.2f): %g spent and %g live shells dropped (want 2, 2), %g live rounds lying (+%g), chambers %s",
                     v_forward_z, sp, lv, VR_RVT_LiveRounds(), VR_RVT_LiveRounds() - vr_rvt_live0, VR_Revolver_Desc(rec)));
-            VR_RVT_Check(VR_RVT_BlueRounds() - vr_rvt_blue0 == 2,
+            VR_Test_Check(VR_RVT_BlueRounds() - vr_rvt_blue0 == 2,
                 sprintf("its live shells dropped are blue slugs: +%g blue (skin 1) of +%g lying (want 2)",
                     VR_RVT_BlueRounds() - vr_rvt_blue0, VR_RVT_LiveRounds() - vr_rvt_live0));
             localcmd("vr_mock_hand main 0.15 1.2 -0.45 70 0 0\n");
@@ -720,7 +714,7 @@ void() VR_Revolver_TestFrame =
             vr_rvt_saw1 = 0;
             if(s == 15)
             {
-                VR_RVT_Check(!alive && vr_rvt_n == 1 && vr_rv_lastpart == 1 && (vr_decap_pops > vr_rvt_k || g.vr_headless),
+                VR_Test_Check(!alive && vr_rvt_n == 1 && vr_rv_lastpart == 1 && (vr_decap_pops > vr_rvt_k || g.vr_headless),
                     sprintf("a grunt's head: dead to %g slug (want 1), %.1f dealt (part %g), its head popped %g (headless %g)",
                         vr_rvt_n, vr_rv_lastdmg, vr_rv_lastpart, vr_decap_pops - vr_rvt_k, g.vr_headless));
                 vr_rvt_g = VR_RVT_Monster(256, 35, FALSE);
@@ -728,14 +722,14 @@ void() VR_Revolver_TestFrame =
             else if(s == 16)
             {
                 // (His damage 28 of 2026-10-27, up to vr_revolver_dmg_random 0.15 more: a slug's roll may reach 30, one.)
-                VR_RVT_Check(!alive && (vr_rvt_n == 2 || (vr_rvt_n == 1 && vr_rv_lastdmg >= 30)) && vr_rv_lastpart == 0,
+                VR_Test_Check(!alive && (vr_rvt_n == 2 || (vr_rvt_n == 1 && vr_rv_lastdmg >= 30)) && vr_rv_lastpart == 0,
                     sprintf("a grunt's body: dead to %g slugs (want 2, or 1 that rolled 30 or more), the last %.1f", vr_rvt_n,
                         vr_rv_lastdmg));
                 vr_rvt_g = VR_RVT_Monster(300, -35, TRUE); // (a big body: vr_revolver_heavy_mult)
             }
             else
             {
-                VR_RVT_Check(!alive && (vr_rvt_n == 4 || vr_rvt_n == 5) && vr_rv_lastpart != 1,
+                VR_Test_Check(!alive && (vr_rvt_n == 4 || vr_rvt_n == 5) && vr_rv_lastpart != 1,
                     sprintf("an ogre's body (%g full health): dead to %g slugs (want 4-5), the last %.1f (vr_revolver_heavy_mult %g)",
                         g.max_health, vr_rvt_n, vr_rv_lastdmg, cvar_hget(cvarh_vr_revolver_heavy_mult)));
                 // The head pop's chance by range (player lengths 2 .. 12): the revolver's against the shotguns'.
@@ -745,7 +739,7 @@ void() VR_Revolver_TestFrame =
                 float c11 = VR_Decap_PopChance(QVR_DECAP_REVOLVER, 11 * L, 1);
                 float sg8 = VR_Decap_PopChance(QVR_DECAP_SHOTGUN, 8 * L, 1);
                 float ssg8 = VR_Decap_PopChance(QVR_DECAP_SSG, 8 * L, 1);
-                VR_RVT_Check(c4 >= 1 && c8 >= 0.85 && c11 >= 0.4 && c8 > ssg8 && c8 > sg8,
+                VR_Test_Check(c4 >= 1 && c8 >= 0.85 && c11 >= 0.4 && c8 > ssg8 && c8 > sg8,
                     sprintf("its head pop chance: %.2f at 4 player lengths, %.2f at 8, %.2f at 11 (the shotgun's at 8 %.2f, the super shotgun's %.2f)",
                         c4, c8, c11, sg8, ssg8));
                 vr_rvt_g = VR_NPT_Grunt(300, WID_REVOLVER, 0);
@@ -765,7 +759,7 @@ void() VR_Revolver_TestFrame =
             float t0 = a.vr_ag_prop ? a.vr_ag_prop.vr_ag_total_shots : 0;
             if(a.vr_ag_prop) { a.vr_ag_prop.weaponinst.wi_clip = 6; VR_AG_ShootProp(a.vr_ag_prop); }
             self = p;
-            VR_RVT_Check(a.vr_ag_prop && a.vr_ag_prop.weapon == WID_REVOLVER && a.vr_ag_prop.vr_ag_total_shots == t0 + 1 &&
+            VR_Test_Check(a.vr_ag_prop && a.vr_ag_prop.weapon == WID_REVOLVER && a.vr_ag_prop.vr_ag_total_shots == t0 + 1 &&
                 a.vr_ag_prop.weaponinst.wi_clip == 5, sprintf("an armed grunt's revolver (%s): %g shots, %g left",
                     a.vr_ag_prop ? a.vr_ag_prop.netname : "none", a.vr_ag_prop ? a.vr_ag_prop.vr_ag_total_shots - t0 : 0,
                     a.vr_ag_prop ? a.vr_ag_prop.weaponinst.wi_clip : -1));
@@ -787,7 +781,7 @@ void() VR_Revolver_TestFrame =
         {
             VR_Reload_Take(cVR_OffHand);
             entity rs = VR_Carry_Held(p, cVR_OffHand);
-            VR_RVT_Check(vr_rvt_n == 1 + 8 && p.vr_pouch_kind == 1 && rs && rs.skin == 0,
+            VR_Test_Check(vr_rvt_n == 1 + 8 && p.vr_pouch_kind == 1 && rs && rs.skin == 0,
                 sprintf("the pouch's shells: kind %g with the revolver (want 9, blue), %g with the shotgun (want 1, red), its shell's skin %g (want 0)",
                     vr_rvt_n, p.vr_pouch_kind, rs ? rs.skin : -1));
             if(rs)

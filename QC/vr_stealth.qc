@@ -1736,7 +1736,7 @@ void() VR_Stealth_Frame =
     stl_was_on = on;
     entity last = world;
     stl_players = world;
-    for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
     {
         p.stl_pnext = world;
         if(last)

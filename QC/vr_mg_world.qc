@@ -85,7 +85,7 @@ void() MG_func_hurt_use = {
 void(float dt) MG_func_hurt_tick = {
     if(!self.state || self.attack_finished > time) return;
     entity oother = other;
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p) {
         if(p.ishuman && p.health > 0 && VRHandsTracked(p)) {
             traceline(p.handpos, p.handpos, FALSE, p);
@@ -96,7 +96,7 @@ void(float dt) MG_func_hurt_tick = {
             }
             if(got) { other = p; MG_func_hurt_touch(); }
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
     other = oother;
 };

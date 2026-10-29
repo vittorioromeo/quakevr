@@ -633,7 +633,7 @@ void() VR_FlareGun_TestFrame =
     if(req)
     {
         cvar_set("vr_flare_test", "0");
-        vr_flt_player = find(world, classname, "player");
+        vr_flt_player = VR_Player();
         vr_npt_player = vr_flt_player; // (the nail pistol test's helpers: VR_NPT_Grunt)
         if(!vr_flt_player) { dprint("flaretest: no player\n"); return; }
         if(req >= 2 && req <= 4)

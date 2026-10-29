@@ -327,7 +327,7 @@ void() VR_PickupTest_Frame =
         return;
     }
     cvar_set("vr_pickup_test", "0");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p == world || deathmatch || coop)
     {
         return;

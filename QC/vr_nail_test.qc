@@ -21,7 +21,6 @@
 
 float vr_nlt_step;     // 0 idle
 float vr_nlt_frames;   // frames into the step
-float vr_nlt_pass, vr_nlt_fail;
 float vr_nlt_case;     // step 1: 0 nailgun, 1 super nailgun, 2 nail pistol, 3 an armed grunt's nailgun
 float vr_nlt_precise;  // step 2: the setting before
 float vr_nlt_mode;     // step 2: 0 precise, 1 Quake's boxes
@@ -36,11 +35,6 @@ float vr_nlt_k;        // ... the next nail's side offset
 .float vr_nlt_off;     // a step 2 nail's side offset
 .float vr_nlt_mark;    // a nail that was there before the shot (step 1: the new one is the one without)
 
-void(float ok, string what) VR_NLT_Check =
-{
-    if(ok) vr_nlt_pass++; else vr_nlt_fail++;
-    dprint(sprintf("nailtest: %s %s\n", ok ? "PASS" : "FAIL", what));
-};
 
 void() VR_NLT_Next = { vr_nlt_step++; vr_nlt_frames = 0; };
 
@@ -138,7 +132,7 @@ void(float xOff) VR_NLT_SweepNail =
     n.vr_nlt_off = xOff;
     if(xOff == 0 && vr_nlt_mode == 0)
     {
-        VR_NLT_Check(n.mins == '0 0 0' && n.maxs == '0 0 0', sprintf("a nail's hit box: a point (mins %v, maxs %v)",
+        VR_Test_Check(n.mins == '0 0 0' && n.maxs == '0 0 0', sprintf("a nail's hit box: a point (mins %v, maxs %v)",
             n.mins, n.maxs));
     }
 };
@@ -165,7 +159,7 @@ void() VR_NLT_End =
     cvar_set("vr_hit_precise", ftos(vr_nlt_precise));
     if(vr_nlt_g) { VR_AGT_Remove(vr_nlt_g); vr_nlt_g = world; }
     vr_nlt_player.flags = vr_nlt_player.flags - (vr_nlt_player.flags & FL_NOTARGET);
-    dprint(sprintf("nailtest: %g passed, %g failed\n", vr_nlt_pass, vr_nlt_fail));
+    VR_Test_Verdict();
     vr_nlt_step = 0;
 };
 
@@ -175,7 +169,7 @@ void() VR_NailTest_Frame =
     if(req)
     {
         cvar_set("vr_nail_test", "0");
-        vr_nlt_player = find(world, classname, "player");
+        vr_nlt_player = VR_Player();
         if(!vr_nlt_player) { dprint("nailtest: no player\n"); return; }
         if(req == 2)
         {
@@ -187,7 +181,7 @@ void() VR_NailTest_Frame =
             dprint(sprintf("nailtest: nails hung before your eyes (vr_nail_scale %g)\n", cvar("vr_nail_scale")));
             return;
         }
-        vr_nlt_pass = vr_nlt_fail = 0;
+        VR_Test_Begin("nailtest");
         vr_nlt_precise = cvar("vr_hit_precise");
         vr_nlt_player.flags = vr_nlt_player.flags | FL_NOTARGET;
         vr_npt_player = vr_nlt_player; // (VR_NPT_Grunt's: vr_nailpistol_test.qc)
@@ -208,7 +202,7 @@ void() VR_NailTest_Frame =
     float s = vr_nlt_step;
     if(vr_nlt_frames > 1200)
     {
-        VR_NLT_Check(FALSE, sprintf("timed out (step %g)", s));
+        VR_Test_Check(FALSE, sprintf("timed out (step %g)", s));
         VR_NLT_End();
         return;
     }
@@ -220,7 +214,7 @@ void() VR_NailTest_Frame =
             VR_NLT_Fire(vr_nlt_case);
             if(!vr_nlt_nail)
             {
-                VR_NLT_Check(FALSE, sprintf("%s: no nail", VR_NLT_CaseName(vr_nlt_case)));
+                VR_Test_Check(FALSE, sprintf("%s: no nail", VR_NLT_CaseName(vr_nlt_case)));
                 vr_nlt_frames = 6;
             }
         }
@@ -235,7 +229,7 @@ void() VR_NailTest_Frame =
             float want = vr_nlt_case == 2 ? cvar("vr_nailpistol_speed") : cvar("vr_nail_speed");
             float before = vr_nlt_case == 2 ? 2600 : 1750;
             float r = flown / before;
-            VR_NLT_Check(fabs(flown - want) <= want * 0.01 && r >= 1.15 && r <= 1.2,
+            VR_Test_Check(fabs(flown - want) <= want * 0.01 && r >= 1.15 && r <= 1.2,
                 sprintf("%s: %.0f u/s flown (setting %g; before %g: x%.3f, want x1.15..1.20)", VR_NLT_CaseName(vr_nlt_case),
                     flown, want, before, r));
             remove(vr_nlt_nail);
@@ -279,7 +273,7 @@ void() VR_NailTest_Frame =
         {
             string what = vr_nlt_mode == 0 ? "precise hits (its model)" : "Quake's boxes";
             float lim = 16 + (vr_nlt_mode == 0 ? cvar("vr_hit_tolerance_guns") : max(0, cvar("vr_gameplayfix_missilesize")));
-            VR_NLT_Check(vr_nlt_hit0 && vr_nlt_hitlo >= -lim && vr_nlt_hithi <= lim,
+            VR_Test_Check(vr_nlt_hit0 && vr_nlt_hitlo >= -lim && vr_nlt_hithi <= lim,
                 sprintf("%s: the nails that met the grunt from %g to %g units off its middle (the middle %s; at most %g: its box 16 and the tolerance; Quake's 15-unit missile box would meet to 31)",
                     what, vr_nlt_hitlo, vr_nlt_hithi, vr_nlt_hit0 ? "met" : "MISSED", lim));
             vr_nlt_mode++;

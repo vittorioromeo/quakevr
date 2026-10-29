@@ -78,7 +78,7 @@ void(vector org) MG3_SZombie_Setup =
     self.noise = "zombie/z_idle.wav";
     self.wad = ZOMBIE_ONGROUND;
     MG3_Shub_CountMonster();
-    self.enemy = MG3_Shub_Player();
+    self.enemy = VR_Player();
     self.frame = MG3_ZOMBIE_PAINE12 + 1; // ($paine13: lying)
     self.think = zombie_paine11; // (5 s more, then up if there is room)
     self.nextthink = time + 2;

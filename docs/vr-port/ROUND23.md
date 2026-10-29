@@ -749,3 +749,27 @@ EDICT_NUM(1) 79 sites / 33 files, svs.clients[0].edict 27/15, manual PR_PushQCVM
 101/55, SV_PointContents 19/7, ungated or combined-condition be->haptic 12/9, G_VECTOR(OFS_*) pointer reads 173/4.
 Behaviour notes: haptics::pulse also drops a hand number outside 0..1 (some wrappers passed it on to the backend);
 hitreact's entity number of the world reads -1 (was 0; only its prints, never for the world).
+
+## Refactor phase 4, wave A4: QC canonical helpers (branch `agent/refqc`)
+
+No behaviour change intended; CODE_STYLE.md, "Canonical helpers", "QC", lists them.
+- `vr_util.qc`: `VR_Player`/`VR_NextPlayer` (inline; 195 `find(world, classname, "player")` and 74
+  `find(x, classname, "player")` spellings replaced outside QC/ad and frikbot), `VR_PlayerAlive` (was
+  VR_ARENA_FindPlayer, VR_ARK_Player), `clamp` (was honey_subs2's, VR_ARENA_Clamp, MG_Clamp), `VR_Wrap180` (was
+  VR_AG_Wrap180), `VR_Cross` (5 copies), `VR_Lerp`/`VR_Smooth` (were VR_AGP_*), `VR_PointSegmentDistance` (walltorch's,
+  melee's), `VR_SegmentDistance`/`VR_SegmentDistanceEps` (juice's; burning's passes its own `denom > 0`). Per-file player
+  getters gone: MG3_BT/CT/MT/WT_Player, MG3_Shub_Player, VR_GPT_Player.
+- `vr_testutil.qc`: `VR_Test_Begin/Check/Verdict` with one tally replace 12 per-test checks (mg3 bestiary, chthon,
+  monsters, shub, mg3test, weapons; mg horde, hub, trigger; nail, nail pistol, revolver). Their lines are unchanged.
+- Cvars: 149 `cvar("...")` reads in game code (tests kept theirs) use handles; 26 handles added for per-frame and think
+  reads (aim cone, enemy melee arcs, AD tanks and flails, kdtrig/guard/deadanim switches, `developer`...).
+  `vr_cvars.qc` is compiled right after `defs.qc` (combat.qc, fight.qc and vr_aimcone.qc came before it).
+- `Misc/quakevr/check_builtins.py` (kit build.sh): every `= #0` prototype is bound by an engine table and every VR
+  builtin has a prototype (191 prototypes, 180 VR builtins today).
+
+Left on purpose (different results): VR_AG_SegDist (eps 0.001, `den != 0`), VR_Reload_TestSegDist (0.001 floor),
+VR_RV_AngleNorm (wraps 180 to 180, not -180), hip_mon_arma/honey_subs2's one-step +-180 wraps, VR_RV_Wrap (chambers),
+VR_AGP_Nlerp/Ease (pose only). Tests: the agtest family (VR_AGT_*, VR_AGAM/AGST/AGPT2 copies print `agtest:`-style by
+bprint), VR_FLT_Check (its tag depends on the mode), VR_ART/APK/AT/Reload checks (print only failures) keep their own
+checks. Not done: VR_HandVec (the ~120 `xHand == cVR_MainHand ? p.a : p.offa` selects), one VR_TestsFrame, generating
+vr_cvars.qc's handles from vr_cvars.inc.

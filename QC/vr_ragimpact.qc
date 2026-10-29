@@ -95,7 +95,7 @@ float(entity m, float xHand, float xHold) VR_FoeGrab_Manhandle =
 // world: none.
 entity(entity m) VR_RagImpact_By =
 {
-    for(entity p = find(world, classname, "player"); p != world; p = find(p, classname, "player"))
+    for(entity p = VR_Player(); p != world; p = VR_NextPlayer(p))
     {
         if(VR_Carry_Held(p, cVR_MainHand) == m || VR_Carry_Held(p, cVR_OffHand) == m)
         {

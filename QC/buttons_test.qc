@@ -32,7 +32,7 @@ void() VR_TestDispenser_Frame =
     entity oldself = self;
     entity oldactivator = activator;
     self = e;
-    activator = find(world, classname, "player");
+    activator = VR_Player();
     func_enemy_dispenser_use();
     if(self != e)
     {

@@ -14,7 +14,7 @@ void() VR_Shock_TestFrame =
         return;
     }
     cvar_set("vr_shock_hit_test", "0");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p == world)
     {
         return;

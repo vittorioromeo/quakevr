@@ -187,7 +187,7 @@ World Types:
 void() worldspawn =
 {
     VR_Pack_Refresh(); // (what the files on disk make available: the precaches below and every spawn function read it)
-    vr_save_campaign = cvar("vr_campaign");
+    vr_save_campaign = cvar_hget(cvarh_vr_campaign);
     vr_save_packmask = 1 + VR_Pack_Hipnotic() + 2 * VR_Pack_Rogue();
     lastspawn = world;
     vr_fire_spots = 0; // QVR: the map's flames, as they spawn (vr_walltorch.qc)

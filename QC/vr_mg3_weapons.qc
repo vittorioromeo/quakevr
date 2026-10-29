@@ -106,7 +106,7 @@ float(float xHand, entity xVictim, vector xAt, float xDmg) MG3_SuperAxe_Strike =
         trace_endpos = xAt;
         HIP_SpawnMjolnirBase(xHand);
         vr_superaxe_bursts++;
-        if(cvar("developer"))
+        if(cvar_hget(cvarh_developer))
         {
             dprint(sprintf("superaxe: burst on %s (hand %g), %g cells left\n", xVictim.classname, xHand, self.ammo_cells));
         }
@@ -132,7 +132,7 @@ float(float xHand, entity xVictim, vector xAt, float xDmg) MG3_SuperAxe_Strike =
     VR_DamageCredit_SetWeapon(self, WID_SUPERAXE);
     VR_HitBlood(xVictim, xAt, v_forward, xDmg);
     T_Damage_VRMelee(xVictim, self, self, xDmg);
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("superaxe: %s blow on %s: %.1f (hand %g)\n", second ? "second" : "first", xVictim.classname, xDmg, xHand));
     }
@@ -271,11 +271,11 @@ void(entity p, float xDist) MG3_SuperAxe_SpawnAhead =
 
 void() VR_MG3_Weapons_Frame =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         MG3_SuperAxe_PlayerFrame(p);
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 };
 

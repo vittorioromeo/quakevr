@@ -901,7 +901,7 @@ float(float choice) VR_AD_DispenserSpawn =
     {
         return FALSE;
     }
-    if(!cvar("vr_ad_mounted") || (!AD_Rules() && !cvar("vr_ad_everywhere")))
+    if(!cvar_hget(cvarh_vr_ad_mounted) || (!AD_Rules() && !cvar("vr_ad_everywhere")))
     {
         remove(self);
         return TRUE;
@@ -1032,7 +1032,7 @@ void() VR_AD_DispenserBossWake =
     entity was = activator;
     if(activator.classname != "player")
     {
-        activator = find(world, classname, "player");
+        activator = VR_Player();
     }
     float t = self.ad_classtype;
     self.use();

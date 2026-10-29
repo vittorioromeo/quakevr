@@ -20,7 +20,7 @@ float(float wid) VR_IsADGun =
 // AD's).
 float() VR_ADGun_Available =
 {
-    return cvar("vr_ad_mounted") != 0;
+    return cvar_hget(cvarh_vr_ad_mounted) != 0;
 };
 
 // The gun's settings' name part (vr_adgun_<key>_*).
@@ -156,7 +156,7 @@ string(float xKind) VR_ADMelee_Model =
     {
         return VR_Has("progs/sword.mdl") ? "progs/sword.mdl#melee" : "progs/v_ksword.mdl";
     }
-    if(!cvar("vr_ad_mounted"))
+    if(!cvar_hget(cvarh_vr_ad_mounted))
     {
         return "progs/v_ksword.mdl";
     }

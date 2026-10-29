@@ -928,7 +928,7 @@ void() VR_KdTrig_Tackle =
     float speed = vlen(run);
     float k = VR_KdTrig_ChargeStrict();
     // (The least speed's shortfall from the most is a "most" one: divided by the strictness.)
-    float least = max(1, cvar("sv_maxspeed")) * clamp(1 - (1 - cvar_hget(cvarh_vr_kdtrig_tackle_speed)) / k, 0, 1);
+    float least = max(1, cvar_hget(cvarh_sv_maxspeed)) * clamp(1 - (1 - cvar_hget(cvarh_vr_kdtrig_tackle_speed)) / k, 0, 1);
     // The run-up (vr_kdtrig_tackle_runup): since when he runs at the least speed, in the air too (a jump on the way keeps
     // it); a dip under it shorter than the grace is the same run. The bounce off a charge ends it.
     if(self.health > 0 && speed >= least)
@@ -1102,7 +1102,7 @@ void(entity best, vector run, float speed, float least, string how, float dummy)
         vector head = VRGetHeadPos(self);
         vector toMid = (best.absmin + best.absmax) * 0.5 - head;
         toMid_z = 0;
-        float m2u = 26.2467 * (cvar("vr_world_scale") > 0 ? cvar("vr_world_scale") : 1);
+        float m2u = 26.2467 * (cvar_hget(cvarh_vr_world_scale) > 0 ? cvar_hget(cvarh_vr_world_scale) : 1);
         float model = -1;
         for(float i = 0; i < 2; ++i)
         {
@@ -1332,7 +1332,7 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
         }
         else if(xMode == 14) // (14: your shoulder charge connecting at full speed: its feel, knock and cry)
         {
-            float full = max(1, cvar("sv_maxspeed"));
+            float full = max(1, cvar_hget(cvarh_sv_maxspeed));
             VR_KdTrig_ChargeHit(best, dir, full, full, "a test charge", VR_IsDummy(best));
         }
         else if(canragdoll(best) && VR_Knockdown_MakeRoom(best))
@@ -1372,7 +1372,7 @@ float(entity body, entity aim, float xTest) VR_KdTrig_TestFling =
     float spd = max(10, cvar("vr_kdtrig_test_speed"));
     vector to = (aim.absmin + aim.absmax) * 0.5 - body.origin;
     float flight = vlen(to) / spd;
-    vector vel = normalize(to) * spd + '0 0 1' * (0.5 * cvar("sv_gravity") * flight);
+    vector vel = normalize(to) * spd + '0 0 1' * (0.5 * cvar_hget(cvarh_sv_gravity) * flight);
     float ok = ragdollfling(body, vel);
     dprint(sprintf("kdtrig test %g: %s flung at %s %.0f units off at %.0f u/s: %g\n", xTest, body.classname, aim.classname,
         vlen(to), spd, ok));
@@ -1387,7 +1387,7 @@ float VR_KDT_TRIAL_THROWN = 14;
 // The trials' controller: phase 0 spawn, 1 hit (its AI begun), 2 judge and clear.
 void() VR_KdTrig_TrialThink =
 {
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     if(!pl)
     {
         remove(self);
@@ -1515,7 +1515,7 @@ void() VR_KdTrig_TrialThink =
 // StartFrame: vr_kdtrig_test.
 void() VR_KdTrig_Frame =
 {
-    float want = cvar("vr_kdtrig_test");
+    float want = cvar_hget(cvarh_vr_kdtrig_test);
     if(want < 1)
     {
         return;
@@ -1525,7 +1525,7 @@ void() VR_KdTrig_Frame =
     {
         VR_KdTrig_Init();
     }
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     if(!pl)
     {
         return;

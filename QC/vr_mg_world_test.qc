@@ -27,7 +27,7 @@ void() MG_TestFrame = {
     if(!MG_WorldCampaign()) { dprint("mgworldtest: select a native developer campaign first\n"); return; }
     entity oself = self;
     entity oother = other;
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(!p) { dprint("mgworldtest: no player\n"); return; }
     entity fog = MG_GetFogInfoEntity(world);
     dprint(sprintf("mgworldtest: map %s world fog %.6f %v; player fog %.6f %v\n",

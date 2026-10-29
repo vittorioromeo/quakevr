@@ -118,7 +118,7 @@ void(entity ent) SpawnAmmoBoxWeapons =
 {
     entity entPlayer;
 
-    entPlayer = find(world, classname, "player");
+    entPlayer = VR_Player();
 
     if(entPlayer == world)
     {

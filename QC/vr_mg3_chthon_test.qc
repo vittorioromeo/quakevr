@@ -11,7 +11,6 @@
 //     waves 2 and 3, the spiral, killed: the gibs; the comfort fades; 8 s on the ending (the finale text, the credits next)
 //   4 the same in a Bloody Nightmare game (serverflags 64 + 128 set): the ending is its new game (map1)
 
-float mg3ct_pass, mg3ct_fail;
 float mg3ct_step;   // the running request's step, 0: none
 float mg3ct_next;   // when its next step runs
 float mg3ct_k;      // the fit being driven (1 first blood .. 6 at 16%)
@@ -26,21 +25,14 @@ entity mg3ct_c;
 float MG3_CT_WALK1 = 17, MG3_CT_SHOCKA1 = 80, MG3_CT_DEATH1 = 48, MG3_CT_DEATH9 = 56; // (boss.mdl's frames)
 entity(entity p, float xDist) MG3_CT_Spawn;
 
-void(float ok, string label) MG3_CT_Check =
-{
-    if(ok) mg3ct_pass++; else mg3ct_fail++;
-    dprint(sprintf("mg3ctest: %s %s\n", ok ? "PASS" : "FAIL", label));
-};
 
 void() MG3_CT_Total =
 {
-    dprint(sprintf("mg3ctest: total %g/%g\n", mg3ct_pass, mg3ct_fail));
+    dprint(sprintf("mg3ctest: total %g/%g\n", vr_test_pass, vr_test_fail));
     mg3ct_step = 0;
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p) p.flags = p.flags - (p.flags & FL_GODMODE);
 };
-
-entity() MG3_CT_Player = { return find(world, classname, "player"); };
 
 // This map's Chthon of Dawn of the Machine (the map's first, else any).
 entity() MG3_CT_Chthon =
@@ -180,7 +172,7 @@ void(entity c, entity p) MG3_CT_DriveFit =
     {
         float h = c.health;
         MG3_CT_Hit(c, p, 100, FALSE);
-        MG3_CT_Check(h - c.health == 80 * ((MG3_Campaign() && (serverflags & MG3_SF_BN_ACTIVE)) ? 0.8 : 1),
+        VR_Test_Check(h - c.health == 80 * ((MG3_Campaign() && (serverflags & MG3_SF_BN_ACTIVE)) ? 0.8 : 1),
                      sprintf("a plain blow of 100: %g (0.8)", h - c.health));
     }
     else
@@ -188,11 +180,11 @@ void(entity c, entity p) MG3_CT_DriveFit =
         c.health = c.max_health * MG3_CT_Fraction(mg3ct_k) + 1;
         MG3_CT_Hit(c, p, 4, TRUE);
     }
-    MG3_CT_Check(c.frags == mg3ct_k && c.mg3_chthon_immune && c.frame >= MG3_CT_SHOCKA1,
+    VR_Test_Check(c.frags == mg3ct_k && c.mg3_chthon_immune && c.frame >= MG3_CT_SHOCKA1,
                  sprintf("fit %g at %g of %g health: immune, his fit (frame %g)", mg3ct_k, c.health, c.max_health, c.frame));
     float h2 = c.health;
     MG3_CT_Hit(c, p, 100, TRUE);
-    MG3_CT_Check(c.health == h2, "nothing during it");
+    VR_Test_Check(c.health == h2, "nothing during it");
 };
 
 // The zone a shot from ahead of him (v_forward: his facing), level, at `at` strikes on his model as drawn (-2: missed).
@@ -208,39 +200,39 @@ float(entity c, vector at) MG3_CT_Zone =
 void(entity c, entity p) MG3_CT_AfterFit =
 {
     float k = mg3ct_k;
-    MG3_CT_Check(c.wait == k, sprintf("phase %g after fit %g", c.wait, k));
+    VR_Test_Check(c.wait == k, sprintf("phase %g after fit %g", c.wait, k));
     if(k == 1)
     {
         float h = c.health;
         MG3_CT_Hit(c, p, 100, TRUE);
         float bn = (MG3_Campaign() && (serverflags & MG3_SF_BN_ACTIVE)) ? 0.8 : 1;
-        MG3_CT_Check(h - c.health == 100 * bn, sprintf("the lightning gun's bolt of 100: %g (whole)", h - c.health));
+        VR_Test_Check(h - c.health == 100 * bn, sprintf("the lightning gun's bolt of 100: %g (whole)", h - c.health));
         entity lm = spawn();
         lm.classname = "monster_lava_man";
         h = c.health;
         T_Damage(c, lm, lm, 100);
         remove(lm);
-        MG3_CT_Check(c.health == h, "nothing from a lava man");
-        MG3_CT_Check(mg3_chthon_spheres > mg3ct_sph, sprintf("he throws fans of spheres (%g)", mg3_chthon_spheres - mg3ct_sph));
+        VR_Test_Check(c.health == h, "nothing from a lava man");
+        VR_Test_Check(mg3_chthon_spheres > mg3ct_sph, sprintf("he throws fans of spheres (%g)", mg3_chthon_spheres - mg3ct_sph));
         // His zones (positional damage; on his model as drawn, mapped to walk1 standing): shots from ahead, level.
         makevectors('0 1 0' * c.angles_y);
         PositionalHead(c);
         float zh = MG3_CT_Zone(c, c.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp);
         float zb = MG3_CT_Zone(c, c.origin + '0 0 140');
-        MG3_CT_Check(zh == 1 && zb == 0, sprintf("a shot at his head: zone %g; at his chest: %g (1 head, 0 body, 2 limbs)", zh, zb));
+        VR_Test_Check(zh == 1 && zb == 0, sprintf("a shot at his head: zone %g; at his chest: %g (1 head, 0 body, 2 limbs)", zh, zb));
     }
-    if(k == 2 && !mg3ct_map) MG3_CT_Check(mg3ct_w1 == 1 && mg3ct_w2 == 0, "phase 2: wave1 sent");
+    if(k == 2 && !mg3ct_map) VR_Test_Check(mg3ct_w1 == 1 && mg3ct_w2 == 0, "phase 2: wave1 sent");
     if(k == 3)
     {
         if(!mg3ct_map)
-            MG3_CT_Check(mg3ct_tele == 1 && c.think != SUB_Null && !c.mg3_chthon_immune,
+            VR_Test_Check(mg3ct_tele == 1 && c.think != SUB_Null && !c.mg3_chthon_immune,
                          "phase 3: his tele_target fired; no second arena here: he fights on");
     }
-    if(k == 4 && !mg3ct_map) MG3_CT_Check(mg3ct_w2 == 1, "phase 4: wave2 sent");
+    if(k == 4 && !mg3ct_map) VR_Test_Check(mg3ct_w2 == 1, "phase 4: wave2 sent");
     if(k == 5)
     {
-        if(!mg3ct_map) MG3_CT_Check(mg3ct_w3 == 1, "phase 5: wave3 sent");
-        MG3_CT_Check(find(world, classname, "chthon_spiral") != world && mg3_chthon_spirals == 1, "phase 5: the spiral");
+        if(!mg3ct_map) VR_Test_Check(mg3ct_w3 == 1, "phase 5: wave3 sent");
+        VR_Test_Check(find(world, classname, "chthon_spiral") != world && mg3_chthon_spirals == 1, "phase 5: the spiral");
     }
 };
 
@@ -250,12 +242,12 @@ void(entity p) MG3_CT_FightStep =
     entity c = mg3ct_c;
     if(mg3ct_step == 10) // waiting for him to be ready for fit mg3ct_k
     {
-        if(c.classname != "monster_boss" || c.health <= 0) { MG3_CT_Check(FALSE, "he is gone"); MG3_CT_Total(); return; }
+        if(c.classname != "monster_boss" || c.health <= 0) { VR_Test_Check(FALSE, "he is gone"); MG3_CT_Total(); return; }
         if(!MG3_CT_Ready(c))
         {
             if(time - mg3ct_waited > 40)
             {
-                MG3_CT_Check(FALSE, sprintf("he was never ready for fit %g (think frozen %g, immune %g, frame %g)", mg3ct_k,
+                VR_Test_Check(FALSE, sprintf("he was never ready for fit %g (think frozen %g, immune %g, frame %g)", mg3ct_k,
                                             c.think == SUB_Null, c.mg3_chthon_immune, c.frame));
                 MG3_CT_Total();
                 return;
@@ -282,7 +274,7 @@ void(entity p) MG3_CT_FightStep =
     if(mg3ct_step == 12) // the map's wave1: rein1's relays open its doors and its knights come (1 to 7 s on)
     {
         mg3ct_n2 = MG3_CT_CountWave("rein1");
-        MG3_CT_Check(mg3ct_n2 > mg3ct_n, sprintf("wave1: %g of rein1's doors open (%g before)", mg3ct_n2, mg3ct_n));
+        VR_Test_Check(mg3ct_n2 > mg3ct_n, sprintf("wave1: %g of rein1's doors open (%g before)", mg3ct_n2, mg3ct_n));
         mg3ct_step = 18; mg3ct_next = time;
         return;
     }
@@ -291,9 +283,9 @@ void(entity p) MG3_CT_FightStep =
         entity pt = find(world, classname, "info_boss_teleport_first");
         float near = 0;
         while(pt) { if(vlen(p.origin - pt.origin) < 64) near = 1; pt = find(pt, classname, "info_boss_teleport_first"); }
-        MG3_CT_Check(near, sprintf("phase 3: the player moved to a first point (%v)", p.origin));
-        MG3_CT_Check(c.think == SUB_Null && c.mg3_chthon_immune && c.frame == 0, "he sank and waits, immune");
-        MG3_CT_Check(mg3_chthon_fades == mg3ct_fades + 1, "the player's view faded in from black (comfort)");
+        VR_Test_Check(near, sprintf("phase 3: the player moved to a first point (%v)", p.origin));
+        VR_Test_Check(c.think == SUB_Null && c.mg3_chthon_immune && c.frame == 0, "he sank and waits, immune");
+        VR_Test_Check(mg3_chthon_fades == mg3ct_fades + 1, "the player's view faded in from black (comfort)");
         mg3ct_step = 14; mg3ct_next = time + 0.5; mg3ct_waited = time;
         return;
     }
@@ -304,19 +296,19 @@ void(entity p) MG3_CT_FightStep =
         {
             if(time - mg3ct_waited > 30)
             {
-                MG3_CT_Check(FALSE, "no trigger_boss_teleport in 30 s (the countdown)");
+                VR_Test_Check(FALSE, "no trigger_boss_teleport in 30 s (the countdown)");
                 MG3_CT_Total();
                 return;
             }
             mg3ct_next = time + 0.2;
             return;
         }
-        MG3_CT_Check(bp && vlen(c.origin - bp.origin) < 1, sprintf("%.1f s on: he rose at his point (%v)", time - mg3ct_waited, c.origin));
+        VR_Test_Check(bp && vlen(c.origin - bp.origin) < 1, sprintf("%.1f s on: he rose at his point (%v)", time - mg3ct_waited, c.origin));
         entity pt2 = find(world, classname, "info_boss_teleport_second");
         float near2 = 0;
         while(pt2) { if(vlen(p.origin - pt2.origin) < 96) near2 = 1; pt2 = find(pt2, classname, "info_boss_teleport_second"); }
-        MG3_CT_Check(near2, sprintf("the player moved to a second point (%v)", p.origin));
-        MG3_CT_Check(mg3_chthon_fades == mg3ct_fades + 2, "faded in from black again");
+        VR_Test_Check(near2, sprintf("the player moved to a second point (%v)", p.origin));
+        VR_Test_Check(mg3_chthon_fades == mg3ct_fades + 2, "faded in from black again");
         mg3ct_step = 18; mg3ct_next = time;
         return;
     }
@@ -324,7 +316,7 @@ void(entity p) MG3_CT_FightStep =
     {
         string w = (mg3ct_step == 15) ? "lavaman3" : "lavaman4";
         mg3ct_n2 = MG3_CT_CountWave(w);
-        MG3_CT_Check(mg3ct_n2 > mg3ct_n, sprintf("wave%g: %g of %s's doors open (%g before)", mg3ct_step - 13, mg3ct_n2, w, mg3ct_n));
+        VR_Test_Check(mg3ct_n2 > mg3ct_n, sprintf("wave%g: %g of %s's doors open (%g before)", mg3ct_step - 13, mg3ct_n2, w, mg3ct_n));
         mg3ct_step = 18; mg3ct_next = time;
         return;
     }
@@ -335,21 +327,21 @@ void(entity p) MG3_CT_FightStep =
         mg3_chthon_gibs = 0;
         c.health = 10;
         MG3_CT_Hit(c, p, 50, TRUE);
-        MG3_CT_Check(c.health <= 0 && killed_monsters == mg3ct_kills + 1 && c.frame >= MG3_CT_DEATH1 && c.frame <= MG3_CT_DEATH9,
+        VR_Test_Check(c.health <= 0 && killed_monsters == mg3ct_kills + 1 && c.frame >= MG3_CT_DEATH1 && c.frame <= MG3_CT_DEATH9,
                      sprintf("killed: counted once (%g/%g), sinking", killed_monsters, total_monsters));
         mg3ct_step = 20; mg3ct_next = time + 1.5;
         return;
     }
     if(mg3ct_step == 20) // sunk (death 1..9 and 10: 1 s), the first ring (1 s)
     {
-        MG3_CT_Check(MG3_CT_Chthon() == world, "gone under the lava");
-        MG3_CT_Check(mg3_chthon_gibs == 49, sprintf("a shower of %g gibs", mg3_chthon_gibs));
-        MG3_CT_Check(mg3_chthon_spheres - mg3ct_sph == 72 && MG3_CT_CountClass("chthon_circle") == 3,
+        VR_Test_Check(MG3_CT_Chthon() == world, "gone under the lava");
+        VR_Test_Check(mg3_chthon_gibs == 49, sprintf("a shower of %g gibs", mg3_chthon_gibs));
+        VR_Test_Check(mg3_chthon_spheres - mg3ct_sph == 72 && MG3_CT_CountClass("chthon_circle") == 3,
                      sprintf("a ring of %g spheres, two more to come", mg3_chthon_spheres - mg3ct_sph));
         if(!mg3ct_map) // (on the map his rings kill knights too)
-            MG3_CT_Check(killed_monsters == mg3ct_kills + 1, "counted once");
+            VR_Test_Check(killed_monsters == mg3ct_kills + 1, "counted once");
         if(!mg3ct_map)
-            MG3_CT_Check(mg3ct_used == 1, sprintf("his target used by his death alone (every fit had): %g", mg3ct_used));
+            VR_Test_Check(mg3ct_used == 1, sprintf("his target used by his death alone (every fit had): %g", mg3ct_used));
         mg3ct_step = 21; mg3ct_next = time + 8;
         return;
     }
@@ -357,7 +349,7 @@ void(entity p) MG3_CT_FightStep =
     {
         if(!mg3ct_map)
         {
-            MG3_CT_Check(!intermission_running && nextmap == mg3ct_nextmap, "the Debug spawner's: no ending");
+            VR_Test_Check(!intermission_running && nextmap == mg3ct_nextmap, "the Debug spawner's: no ending");
             // A second one killed at once: his targets used five times in all (upstream: one for each fit not had).
             mg3ct_used = 0;
             entity c2 = MG3_CT_Spawn(p, 600);
@@ -368,13 +360,13 @@ void(entity p) MG3_CT_FightStep =
         }
         // The map's: the ending (M3-10's MG3_BossEnding), 8 s after he sank: the finale text, then the credits (start), or
         // in a Bloody Nightmare game its new game (map1, the runes cleared: serverflags 448).
-        MG3_CT_Check(mg3_chthon_endings == 1 && intermission_running && MG_intermissiontext == "$mg3_qc_boss_finale",
+        VR_Test_Check(mg3_chthon_endings == 1 && intermission_running && MG_intermissiontext == "$mg3_qc_boss_finale",
                      sprintf("the ending: the finale text (intermission %g)", intermission_running));
         if(mg3ct_bn)
-            MG3_CT_Check(nextmap == "map1" && serverflags == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED | MG3_SF_BN_NEWGAME),
+            VR_Test_Check(nextmap == "map1" && serverflags == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED | MG3_SF_BN_NEWGAME),
                          sprintf("Bloody Nightmare: its new game next (%s, serverflags %g)", nextmap, serverflags));
         else
-            MG3_CT_Check(nextmap == "start", sprintf("next: %s (the credits)", nextmap));
+            VR_Test_Check(nextmap == "start", sprintf("next: %s (the credits)", nextmap));
         MG3_CT_Total();
         return;
     }
@@ -387,7 +379,7 @@ void(entity p) MG3_CT_FightStep =
     }
     if(mg3ct_step == 23)
     {
-        MG3_CT_Check(mg3ct_used == 5, sprintf("killed before any fit: his target used %g times", mg3ct_used));
+        VR_Test_Check(mg3ct_used == 5, sprintf("killed before any fit: his target used %g times", mg3ct_used));
         MG3_CT_Total();
         return;
     }
@@ -427,22 +419,22 @@ void(entity p) MG3_CT_AnywhereStep =
         c = MG3_CT_Spawn(p, 600);
         c.target = "mg3ct_used";
         mg3ct_c = c;
-        MG3_CT_Check(c.classname == "monster_boss" && c.mg3_chthon == 2 && (c.spawnflags & MG3_CHTHON_KILLABLE),
+        VR_Test_Check(c.classname == "monster_boss" && c.mg3_chthon == 2 && (c.spawnflags & MG3_CHTHON_KILLABLE),
                      "the spawner's Chthon: killable, not the map's");
-        MG3_CT_Check(total_monsters == mg3ct_t + 1, "counted");
-        MG3_CT_Check(PositionalHead(c) && xHeadUp == 240 && xHeadForward == 80 && VR_Decap_HeadModel(c) == "",
+        VR_Test_Check(total_monsters == mg3ct_t + 1, "counted");
+        VR_Test_Check(PositionalHead(c) && xHeadUp == 240 && xHeadForward == 80 && VR_Decap_HeadModel(c) == "",
                      "his head zone (80 forward, 240 up); no head to cut off");
-        MG3_CT_Check(VR_Grapple_MonsterMass(c) == 5000, "Chthon's grapple mass");
-        MG3_CT_Check(VR_Dummy_Available(40), "training dummy 40");
+        VR_Test_Check(VR_Grapple_MonsterMass(c) == 5000, "Chthon's grapple mass");
+        VR_Test_Check(VR_Dummy_Available(40), "training dummy 40");
         mg3ct_step = 2; mg3ct_next = time + 0.5;
         return;
     }
     if(mg3ct_step == 2)
     {
-        MG3_CT_Check(c.use == monster_use && c.health == 12000 && c.frame < MG3_CT_WALK1 && c.enemy == p, "woken at you: rising, 12000 health");
+        VR_Test_Check(c.use == monster_use && c.health == 12000 && c.frame < MG3_CT_WALK1 && c.enemy == p, "woken at you: rising, 12000 health");
         float h = c.health;
         MG3_CT_Hit(c, p, 100, TRUE);
-        MG3_CT_Check(c.health == h, "nothing while he rises");
+        VR_Test_Check(c.health == h, "nothing while he rises");
         mg3ct_sph = mg3_chthon_spheres;
         mg3ct_k = 1; mg3ct_step = 10; mg3ct_next = time; mg3ct_waited = time;
         return;
@@ -457,16 +449,16 @@ void(entity p) MG3_CT_MapStep =
     {
         c = MG3_CT_Chthon();
         mg3ct_c = c;
-        MG3_CT_Check(c && c.mg3_chthon == 1 && (c.spawnflags & MG3_CHTHON_KILLABLE) && c.use == boss_final_awake &&
+        VR_Test_Check(c && c.mg3_chthon == 1 && (c.spawnflags & MG3_CHTHON_KILLABLE) && c.use == boss_final_awake &&
                      c.wave1 == "rein1" && c.wave2 == "lavaman3" && c.wave3 == "lavaman4" && c.tele_target == "boss_tele1",
                      "the map's Chthon waits, killable, his waves and teleport target");
-        MG3_CT_Check(MG3_CT_CountClass("info_boss_teleport_first") == 4 && MG3_CT_CountClass("info_boss_teleport_second") == 4 &&
+        VR_Test_Check(MG3_CT_CountClass("info_boss_teleport_first") == 4 && MG3_CT_CountClass("info_boss_teleport_second") == 4 &&
                      MG3_CT_CountClass("info_boss_teleport_boss") == 1, "4 + 4 + 1 teleport points");
         entity tb = find(world, classname, "trigger_boss_teleport");
-        MG3_CT_Check(tb && (tb.spawnflags & 1) && tb.targetname == "tele", "trigger_boss_teleport (BOSS) on the countdown's end");
-        MG3_CT_Check(MG3_CT_CountClass("item_artifact_lavasuit") > 0, sprintf("%g lava suits (of the map's 21 by skill)", MG3_CT_CountClass("item_artifact_lavasuit")));
+        VR_Test_Check(tb && (tb.spawnflags & 1) && tb.targetname == "tele", "trigger_boss_teleport (BOSS) on the countdown's end");
+        VR_Test_Check(MG3_CT_CountClass("item_artifact_lavasuit") > 0, sprintf("%g lava suits (of the map's 21 by skill)", MG3_CT_CountClass("item_artifact_lavasuit")));
         entity trig = find(world, target, "chthon_count");
-        MG3_CT_Check(trig != world, "the trigger that wakes him");
+        VR_Test_Check(trig != world, "the trigger that wakes him");
         if(!c || !trig) { MG3_CT_Total(); return; }
         mg3ct_sph = mg3_chthon_spheres;
         mg3_chthon_spirals = 0;
@@ -477,9 +469,9 @@ void(entity p) MG3_CT_MapStep =
     }
     if(mg3ct_step == 31)
     {
-        MG3_CT_Check(c.use == monster_use && c.health == 12000 && c.enemy == p, "the trigger woke him at you");
+        VR_Test_Check(c.use == monster_use && c.health == 12000 && c.enemy == p, "the trigger woke him at you");
         entity m = find(world, classname, "trigger_music");
-        MG3_CT_Check(m && m.sounds == 12, sprintf("the music: track %g", m.sounds));
+        VR_Test_Check(m && m.sounds == 12, sprintf("the music: track %g", m.sounds));
         mg3ct_k = 1; mg3ct_step = 10; mg3ct_next = time; mg3ct_waited = time;
         return;
     }
@@ -491,7 +483,7 @@ void() MG3_ChthonTestFrame =
     if(mg3ct_step && time >= mg3ct_next)
     {
         entity os = self, oo = other, oa = activator;
-        entity p = MG3_CT_Player();
+        entity p = VR_Player();
         if(!p) mg3ct_step = 0;
         else if(mg3ct_step < 10) MG3_CT_AnywhereStep(p);
         else if(mg3ct_step < 30) MG3_CT_FightStep(p);
@@ -501,7 +493,7 @@ void() MG3_ChthonTestFrame =
     float request = cvar("vr_mg3_ctest");
     if(!request) return;
     cvar_set("vr_mg3_ctest", "0");
-    entity pl = MG3_CT_Player();
+    entity pl = VR_Player();
     if(!pl) return;
     entity oldself = self, oldother = other, oldact = activator;
     if(request == 1) MG3_CT_Report();
@@ -510,7 +502,7 @@ void() MG3_ChthonTestFrame =
         if(!MG3_Chthon_Available()) dprint("mg3ctest: the Dawn of the Machine data is not there (no Chthon)\n");
         else
         {
-            mg3ct_pass = mg3ct_fail = 0;
+            VR_Test_Begin("mg3ctest");
             mg3ct_map = request >= 3;
             mg3ct_bn = request == 4;
             if(mg3ct_bn) serverflags = serverflags | MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED;

@@ -28,8 +28,8 @@ float(entity e) MG_MessageAll = {
     return MG3_Campaign() ? (e.spawnflags & 8388608) : (e.spawnflags & 2097152);
 };
 void(string text) MG_PrintAll = {
-    entity p = find(world, classname, "player");
-    while(p) { centerprint(p, text); p = find(p, classname, "player"); }
+    entity p = VR_Player();
+    while(p) { centerprint(p, text); p = VR_NextPlayer(p); }
 };
 float(entity e) MG_CountTargets = {
     float count = 0;
@@ -183,7 +183,7 @@ void() MG_T_Shake =
 	hit = self.dmg * hit;
 
 	// for each player
-	t = find( world, classname, "player" );
+	t = VR_Player();
 	while (t)
 	{
         // Controller vibration conveys the quake without moving the tracked view.
@@ -196,7 +196,7 @@ void() MG_T_Shake =
             self = shaker;
         }
 
-		t = find( t, classname, "player" );
+		t = VR_NextPlayer(t);
 	}
 
 	self.nextthink = time + 0.05;

@@ -560,7 +560,7 @@ void() HIP_LaserTouch =
     }
 
     vr_laser_stops++;
-    if(cvar("developer") > 1) { dprint(sprintf("laser bolt stopped: touch %g on %s (health %g)\n", self.cnt, other.classname, other.health)); }
+    if(cvar_hget(cvarh_developer) > 1) { dprint(sprintf("laser bolt stopped: touch %g on %s (health %g)\n", self.cnt, other.classname, other.health)); }
     sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
     remove(self);
 };
@@ -1457,7 +1457,7 @@ void(float xHand) W_SwordMelee =
     else if(VR_ADMelee_Heavy(kind))
     {
         float both = VRGet2HAiming(self) && VRIsHandEmpty(self, VRGetOtherHand(xHand));
-        xdmg = xdmg * cvar("vr_admelee_heavy_damage") * (both ? 1 : cvar("vr_admelee_heavy_1h"));
+        xdmg = xdmg * cvar("vr_admelee_heavy_damage") * (both ? 1 : cvar_hget(cvarh_vr_admelee_heavy_1h));
     }
     else if(kind)
     {
@@ -5095,7 +5095,7 @@ void(float xHand, entity ent, entity entPlayer,
     // that the cut that beheads is never a carried weapon's, VR_Decap_Slash)
     float spot = (forcegrabCatching || ent.vr_grab_by_handle) ? 0 : weapongrabspot(entPlayer, xHand, ent);
 
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("weapon: %s taken into the %s hand, %g units from its handle%s\n", ent.netname,
             xHand == cVR_MainHand ? "main" : "off", vlen(VRGetEntHandPos(entPlayer, xHand) - ent.origin),
@@ -5111,7 +5111,7 @@ void(float xHand, entity ent, entity entPlayer,
     *xOutEntWeapon = ent.weapon;
     *xOutEntWeaponFlags = flags;
     VRSetEntWeaponInst(entPlayer, xHand, ent.weaponinst ? ent.weaponinst : WeaponInst_New(0)); // (its magazine, its id)
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("weapon: %s hand takes %s\n", xHand == cVR_MainHand ? "main" : "off", VRWeaponInstDesc(entPlayer, xHand)));
     }
@@ -5190,7 +5190,7 @@ void(entity entWpn) wpnthrow_handtouch_ent =
 
 void() wpnthrow_handtouch =
 {
-    if(cvar("vr_debug_axestick") >= 2 && VR_AxeStick_IsStuck(self))
+    if(cvar_hget(cvarh_vr_debug_axestick) >= 2 && VR_AxeStick_IsStuck(self))
     {
         dprint(sprintf("axestick: a hand (%g) on the stuck %s, grabbing %g\n", VRGetHandtouchHand(self), self.netname,
             VR_HandGrabUtil_StartedHandGrabbing(self.handtouch_ent, VRGetHandtouchHand(self))));
@@ -5705,7 +5705,7 @@ vector(entity xThrower, vector xOrigin, vector xVel, float xGravity) VRThrowAssi
         k = k * (cone - bestAngle) / (cone - full);
     }
 
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         particle2(bestPos, '0 0 0', QVR_PARTICLE_PRESET_GUNPICKUP, 8);
     }

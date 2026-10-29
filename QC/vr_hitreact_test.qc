@@ -17,7 +17,7 @@ void() VR_TestHit_Frame =
         return;
     }
     cvar_set("vr_test_hit", "0");
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     float all = cvar("vr_test_hit_all");
     entity best = world;
     float bestD = 100000;

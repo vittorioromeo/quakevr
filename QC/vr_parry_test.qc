@@ -14,7 +14,7 @@ void() VR_Parry_DragonObserve =
 
 void() VR_Parry_DragonTest =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(!p || !fileexists("progs/dragon.mdl"))
     {
         dprint("dragon parry test: needs the player and Dissolution of Eternity\n");
@@ -57,7 +57,7 @@ void() VR_Parry_DragonTest =
 // VR_Parry_DragonTest strikes at once, the frame it is spawned: no attack pose is ever drawn there.
 void() VR_Parry_DragonSwing =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(!p || !fileexists("progs/dragon.mdl"))
     {
         dprint("dragon parry swing: needs the player and Dissolution of Eternity\n");
@@ -82,7 +82,7 @@ void() VR_Parry_DragonSwing =
 
 void() VR_Parry_SameCallbackTest =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(!p)
         return;
     makevectors('0 1 0' * p.v_viewangle_y);

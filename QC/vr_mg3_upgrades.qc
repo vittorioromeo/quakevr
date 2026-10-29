@@ -93,7 +93,7 @@ void() MG3_UpgradeTouch = {
 // Upstream StartUpgradeItem, half a second after the spawn: by then the player is in and the level's masks known
 // (DecodeLevelParms), so one taken on an earlier visit is drawn faded.
 void() MG3_UpgradeStart = {
-    if(!find(world, classname, "player")) { self.nextthink = time + 0.1; return; }
+    if(!VR_Player()) { self.nextthink = time + 0.1; return; }
     if(MG3_UpgradeMask(self.MG3_upgrade_kind) & self.upgrade_flag) self.alpha = 0.6;
     self.handtouch = MG3_UpgradeTouch;
     StartItem();

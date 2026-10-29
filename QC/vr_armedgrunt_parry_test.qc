@@ -90,7 +90,7 @@ float(entity g) VR_AGPT2_WeaponBlow =
     vector along = g.origin - vr_agt_player.origin;
     along_z = 0;
     along = normalize(along);
-    vector side = VR_AGP_Cross(along, '0 0 1');
+    vector side = VR_Cross(along, '0 0 1');
     float miss = VR_AGPT2_Miss(g, mid - side * 14, mid + side * 14, along);
     // (Its body met at its chest; its back to you, its weapon beyond its chest: met just past the weapon, so that only its
     // facing keeps it from parrying.)

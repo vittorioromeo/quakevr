@@ -1387,7 +1387,7 @@ void() VR_AGTest_Frame =
     vr_agt_running = t;
     if(!vr_agt_player)
     {
-        vr_agt_player = find(world, classname, "player");
+        vr_agt_player = VR_Player();
         vr_agt_step = 0;
         vr_agt_index = 0;
         vr_agt_passed = 0;

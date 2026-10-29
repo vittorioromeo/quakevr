@@ -276,7 +276,7 @@ void() VR_AgArmor_FxTestEnd =
 // VR_AgArmor_TestFrame's `vr_agarmor_test 5` (start 1: the request just made).
 void(float start) VR_AgArmor_FxTestFrame =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(start)
     {
         vr_art_pass = 0;
