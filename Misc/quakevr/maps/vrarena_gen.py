@@ -20,11 +20,16 @@
 #     and one high, so the crate's own picture fits its faces instead of being cut across;
 #   - the room dressed the way id dresses a room (the author's ask, 2026-10-28): skirting, wainscot, rail and cornice
 #     bands mitred round the octagon, an upright carrying a lamp at the third and the two-thirds mark of each cardinal
-#     wall and one at the middle of each cut corner, a border moulding where the ceiling meets the walls, and a coffer
-#     over each of the 8 ceiling lights: a frame, a ring of glowing tiles under it, a lit panel in its recess;
-#   - 24 lights: 8 under the coffers, 4 over the towers, 4 over the walkways, 4 over the dais, 4 in the corners, with
-#     a soft minimum light so no corner goes black.
-# 230 brushes (light on Quest 3). Brushes are kept apart: they meet face to face, exactly coplanar, none runs into
+#     wall and one at the middle of each cut corner, a sconce -- a plate standing on the rail with a lamp on it -- at
+#     the sixth, the half and the five-sixths mark of each cardinal wall, a border moulding where the ceiling meets the
+#     walls, and a coffer over each of the 8 ceiling lights: a frame, a ring of glowing tiles under it, a lit panel in
+#     its recess;
+#   - 48 lights: 8 under the coffers, 4 over the towers, 4 over the walkways, 4 over the dais, 4 in the corners, 12 in
+#     front of the uprights' lamps and 12 in front of the walls' sconces (the arena read too dark -- the author's ask,
+#     2026-10-29 -- and a bright face is not a light source: each fixture's light sits 10 units out from its lamp and
+#     carries _dirt -1, the house rule for lamps, since -dirt would else put a lamp back out in front of its own wall),
+#     with a soft minimum light so no corner goes black.
+# 254 brushes (light on Quest 3). Brushes are kept apart: they meet face to face, exactly coplanar, none runs into
 # another, and the shell is closed (qbsp sees no leak). --check verifies the points, the stair steps, that, and that
 # the open ring of the floor (700..1000 out, below 160 high) holds nothing.
 # The textures are id's own base set -- e1m1's and the base maps around it (the author's ask) -- read from
@@ -236,6 +241,12 @@ CORN = 368                                    # ... the cornice 352..368, the ce
 PIL_W, PIL_D = 16, 8                          # the uprights: 16 wide, 8 out of the wall, from the rail to the cornice
 PIL_TOP = CORN - 16                           # ... stopping exactly where the cornice begins (they meet face to face)
 LAMP_D, LAMP_Z0, LAMP_Z1 = 8, 272, 304        # their lamps: 32 square, 8 out from the upright, at eye level on the walk
+LAMP_OUT = 10                                 # ... and each lamp's own light, 10 out from the face of it
+LAMP_LIGHT, LAMP_WAIT = "170", "0.55"
+SCONCE_W, SCONCE_Z0, SCONCE_Z1 = 20, RAIL, RAIL + 48   # the wall sconces: a 40-wide plate standing on the rail, 48
+SCONCE_LIGHT, SCONCE_WAIT = "155", "0.6"               # high, with a 32 square lamp on it, 8 out from the wall
+LAMP_KEYS = {"_dirt": "-1"}                 # every fixture's light carries this: -dirt would else put a lamp back out
+                                            # in front of the wall it stands on (MAPPING.md, ROUND21)
 COFFER_R, COFFER_DROP = 650, 32               # the ceiling's coffers: 192 frames, hung 32 below the ceiling
 LIGHT_MIN = "90"                              # the worldspawn's minimum light (soft: the room seen everywhere)
 
@@ -352,7 +363,10 @@ def geometry(mw):
     # ---- the uprights and their lamps: one at the middle of each cut corner, one at the third and one at the
     # two-thirds mark of each cardinal wall -- 16 wide, 8 out of the wall, from the rail to the cornice, each with a
     # hooded lamp (id's tlight01, one lamp exactly on its front face) at eye level for someone on the wall walk. On the
-    # east and the west wall each upright is cut in two where the walk passes, so the walk keeps its 128 width.
+    # east and the west wall each upright is cut in two where the walk passes, so the walk keeps its 128 width. Each
+    # lamp is also a light source: the arena read too dark (the author's ask, 2026-10-29), and a lamp that is only a
+    # bright face does nothing for the room around it.
+    lights = []
     for i in range(8):
         a, b = oct8[i], oct8[(i + 1) % 8]
         t = mg.norm((b[0] - a[0], b[1] - a[1], 0.0))
@@ -370,6 +384,34 @@ def geometry(mw):
             lamp = laid(pts, *TEX["lamp"], u_axis=(-t[0], -t[1], 0.0))      # one lamp, along the wall, not across it
             shell.append(mg.hull(pts, roles("recess", "frame", "recess", pts),
                                  lambda n, c, nin=nin, lamp=lamp: lamp if mg.dot(n, nin) > 0.9 else None))
+            lights.append(((c[0] + nin[0] * (PIL_D + LAMP_D + LAMP_OUT), c[1] + nin[1] * (PIL_D + LAMP_D + LAMP_OUT),
+                            (LAMP_Z0 + LAMP_Z1) / 2), LAMP_LIGHT, LAMP_WAIT, LAMP_KEYS))
+
+    # ---- the walls' own sconces, the same fixture a bit lower: a plate standing on the rail and a lamp on the plate,
+    # at the sixth, the half and the five-sixths mark of each cardinal wall (between its uprights, and clear of the wall
+    # walk above it). 12 of them, all at the same height, so the wall reads lit from floor to walk, each with its light
+    # 10 out from its lamp, as the upright lamps' are. The cut corners are left to their upright's lamp: a fixture
+    # stacked on a 45-degree wall does not pass --check, whose separating-axis test works on quantised normals and sees
+    # a unit of overlap in a contact plane that is really exact (the 4 cardinal walls meet it exactly).
+    for i in (1, 3, 5, 7):
+        a, b = oct8[i], oct8[(i + 1) % 8]
+        t = mg.norm((b[0] - a[0], b[1] - a[1], 0.0))
+        nin = (-t[1], t[0], 0.0)
+        span = mg.length((b[0] - a[0], b[1] - a[1], 0.0))
+        for frac in (1.0 / 6.0, 0.5, 5.0 / 6.0):
+            c = (a[0] + t[0] * span * frac, a[1] + t[1] * span * frac)
+            q = [at(c, t, nin, -SCONCE_W, 0), at(c, t, nin, SCONCE_W, 0),
+                 at(c, t, nin, SCONCE_W, PIL_D), at(c, t, nin, -SCONCE_W, PIL_D)]
+            shell.append(prism(q, SCONCE_Z0, SCONCE_Z1, "recess",
+                               ("pilaster", dict(u_axis=(-t[0], -t[1], 0.0)))))
+            q = [at(c, t, nin, -16, PIL_D), at(c, t, nin, 16, PIL_D),
+                 at(c, t, nin, 16, PIL_D + LAMP_D), at(c, t, nin, -16, PIL_D + LAMP_D)]
+            pts = [(x, y, z) for z in (SCONCE_Z1 - 8, SCONCE_Z0 + 8) for x, y in q]
+            lamp = laid(pts, *TEX["lamp"], u_axis=(-t[0], -t[1], 0.0))
+            shell.append(mg.hull(pts, roles("recess", "frame", "recess", pts),
+                                 lambda n, c, nin=nin, lamp=lamp: lamp if mg.dot(n, nin) > 0.9 else None))
+            lights.append(((c[0] + nin[0] * (PIL_D + LAMP_D + LAMP_OUT), c[1] + nin[1] * (PIL_D + LAMP_D + LAMP_OUT),
+                            SCONCE_Z1 - 8), SCONCE_LIGHT, SCONCE_WAIT, LAMP_KEYS))
 
     # ---- the dais, its spawn pad (a 16-high lip of id's platform plate, 2 plates across its top) and its 4
     # staircases, one onto each cardinal face
@@ -407,7 +449,6 @@ def geometry(mw):
     # 192 square with 32-wide arms of id's trim, a ring of glowing tiles under it (ceil1_1: relight_textures.cfg makes
     # it a fixture, so it gives its own light in the game) and a 16-deep recess lined with plates whose back is a lit
     # panel (light3_3), the light entity a little under the mouth of it
-    lights = []
     for i in range(8):
         a = math.radians(22.5 + 45 * i)
         x, y = (round(COFFER_R * math.cos(a) / 8) * 8, round(COFFER_R * math.sin(a) / 8) * 8)
@@ -417,11 +458,13 @@ def geometry(mw):
                               "lit"))
         lights.append(((x, y, ZH - 44), "300", "0.47"))
     for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
-        lights.append(((sx * 402, sy * 402, 320), "180", "0.6"))      # over each tower's top
-        lights.append(((sx * 736, sy * 288, 320), "160", "0.6"))      # over each walkway landing
-        lights.append(((sx * 640, sy * 640, 140), "150", "0.66"))     # in each corner of the floor
+        lights.append(((sx * 402, sy * 402, 320), "150", "0.6"))      # over each tower's top
+        lights.append(((sx * 736, sy * 288, 320), "110", "0.6"))      # over each walkway landing: the wall lamps
+                                                                      # light these decks too, and they were the
+                                                                      # brightest surfaces in the room
+        lights.append(((sx * 640, sy * 640, 140), "200", "0.66"))     # in each corner of the floor
     for sx, sy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-        lights.append(((sx * 180, sy * 180, 140), "140", "0.66"))     # over the dais, one facing each staircase
+        lights.append(((sx * 180, sy * 180, 140), "170", "0.66"))     # over the dais, one facing each staircase
 
     mw.world.extend(shell + coffers)
     mw.group("dais").extend(dais)
@@ -436,8 +479,11 @@ def geometry(mw):
     ents = [{"classname": "info_player_start", "origin": "0 0 120", "angle": "90"}]
     ents += [{"classname": "info_arena_spawn", "origin": "%d %d %d" % p[:3], "kind": str(p[3])} for p in SPAWNS]
     ents += [{"classname": "info_arena_item", "origin": "%d %d %d" % p} for p in ITEMS]
-    ents += [{"classname": "light", "origin": "%d %d %d" % pos, "light": val, "wait": atten,
-              "_color": "1 0.96 0.9"} for pos, val, atten in lights]
+    for pos, val, atten, *keys in lights:      # a fixture's light brings its own keys (_dirt -1: no ambient occlusion)
+        e = {"classname": "light", "origin": "%d %d %d" % pos, "light": val, "wait": atten, "_color": "1 0.96 0.9"}
+        for k in keys:
+            e.update(k)
+        ents.append(e)
     return ents, dais + towers + walk + covers
 
 
