@@ -20,13 +20,18 @@ float vr_act_grip;    // vr_weapon_grip_mode as it was (1 for the test: the mock
 float vr_act_npText, vr_act_rvText; // the nail pistol's and the revolver's Ammo Screen as they were (hidden by default:
                                     // shown for the test, the readout path being every gun's)
 
-float VR_ACT_CASES = 19;
+float vr_act_mode;    // the case's gun: 0 in a hand, 1 holstered, 2 lying in the world
+float vr_act_stage;   // modes 1, 2: 0 held a few frames (its magazine's size seen), 1 moved and waiting for its readout
+entity vr_act_prop;   // the lying gun
+
+float VR_ACT_CASES = 25;
 
 // Case `c`'s gun (0 shotgun, 1 nailgun, 2 nail pistol, 3 revolver, 4 the Widowmaker) and fill (0 full, 1 a fifth, 2 empty):
 // 0..14 the guns in the main hand; 15, 16 a nailgun in the off hand at a fifth and empty; 17, 18 the option off, a
 // shotgun empty and at a fifth.
 float(float c) VR_ACT_Gun =
 {
+    if(c >= 19) { return 0; }
     if(c < 15) { return floor(c / 3); }
     if(c < 17) { return 1; }
     return 0;
@@ -34,6 +39,8 @@ float(float c) VR_ACT_Gun =
 
 float(float c) VR_ACT_Fill =
 {
+    // 19..21 a holstered shotgun full / a fifth / empty; 22, 23 a lying one at a fifth and empty; 24 the same, the option off
+    if(c >= 19) { return c == 19 ? 0 : (c == 20 || c == 22) ? 1 : 2; }
     if(c < 15) { return c - 3 * floor(c / 3); }
     if(c == 15 || c == 18) { return 1; }
     return 2;
@@ -88,6 +95,8 @@ float(float xHand, float g, float xFill) VR_ACT_Give =
 void() VR_ACT_End =
 {
     dprint(sprintf("ammocolor: %g passed, %g failed\n", vr_act_pass, vr_act_fail));
+    if(vr_act_prop != world) { remove(vr_act_prop); vr_act_prop = world; }
+    cvar_set("vr_ammo_color_probe", "-1");
     cvar_set("vr_ammo_color_warn", ftos(vr_act_warn));
     cvar_set("vr_ammo_color_debug", ftos(vr_act_debug));
     cvar_set("vr_weapon_grip_mode", ftos(vr_act_grip));
@@ -101,10 +110,17 @@ void() VR_ACT_Start =
     float c = vr_act_case;
     float g = VR_ACT_Gun(c);
     float fill = VR_ACT_Fill(c);
-    float warn = c < 17;
+    float warn = c < 17 || (c >= 19 && c < 24);
     cvar_set("vr_ammo_color_warn", warn ? "1" : "0");
     vr_act_hand = (c == 15 || c == 16) ? cVR_OffHand : cVR_MainHand;
-    cvar_set(vr_act_hand == cVR_OffHand ? "vr_ammo_color_seen2" : "vr_ammo_color_seen", "-1");
+    vr_act_mode = c < 19 ? 0 : c < 22 ? 1 : 2;
+    vr_act_stage = 0;
+    if(vr_act_prop != world) { remove(vr_act_prop); vr_act_prop = world; }
+    cvar_set("vr_ammo_color_probe", "-1");
+    cvar_set("vr_ammo_color_seen", "-1");
+    cvar_set("vr_ammo_color_seen2", "-1");
+    cvar_set("vr_ammo_color_seen3", "-1");
+    cvar_set("vr_ammo_color_seen4", "-1");
     vr_act_size = VR_ACT_Give(vr_act_hand, g, fill);
     if(g == 4 && vr_act_size <= 2)
     {
@@ -162,8 +178,40 @@ void() VR_AmmoColor_TestFrame =
     {
         return;
     }
+    if(vr_act_mode != 0 && vr_act_stage == 0)
+    {
+        // Held a few frames (the engine learns its magazine's size from the hand), then holstered or thrown down.
+        vr_act_frames = vr_act_frames + 1;
+        if(vr_act_frames < 4) { return; }
+        entity p = vr_act_player;
+        if(vr_act_mode == 1)
+        {
+            entity os = self;
+            self = p;
+            setHolsterWeapon(QVR_HS_LEFT_HIP_HOLSTER, WID_FIST); // (the left hip emptied: the last case's gun, a start's axe)
+            setHolsterWeaponModel(QVR_HS_LEFT_HIP_HOLSTER, WeaponIdToModel(WID_FIST, 0));
+            setHolsterWeaponFlags(QVR_HS_LEFT_HIP_HOLSTER, 0);
+            VRSetEntHolsterWeaponInst(p, QVR_HS_LEFT_HIP_HOLSTER, world);
+            self = os;
+            self = p; // (VRPutWeaponInHolster files the record under self)
+            VRHolsterHandWeapon(p, vr_act_hand, QVR_HS_LEFT_HIP_HOLSTER);
+            self = os;
+            cvar_set("vr_ammo_color_probe", "2"); // (the left hip's stat: body::LeftHip)
+        }
+        else
+        {
+            vr_act_prop = CreateThrownWeapon(p, WID_SHOTGUN, 0, WeaponInst_New(vr_act_loaded),
+                p.origin + '0 0 30', '0 0 0', '0 0 0', '0 0 0', 0, 0, 0);
+            VRSetHandEmpty(p, vr_act_hand);
+            W_SetCurrentAmmoFor(vr_act_hand);
+        }
+        vr_act_stage = 1;
+        vr_act_frames = 0;
+        return;
+    }
     // The readout showing this case: its loaded rounds (0 with the option off) and its magazine's size.
-    float seen = cvar(vr_act_hand == cVR_OffHand ? "vr_ammo_color_seen2" : "vr_ammo_color_seen");
+    float seen = cvar(vr_act_mode == 1 ? "vr_ammo_color_seen3" : vr_act_mode == 2 ? "vr_ammo_color_seen4" :
+        vr_act_hand == cVR_OffHand ? "vr_ammo_color_seen2" : "vr_ammo_color_seen");
     float wantLoaded = cvar("vr_ammo_color_warn") ? vr_act_loaded : 0;
     float loaded = floor(seen / 10000);
     float size = floor((seen - loaded * 10000) / 10);
@@ -185,8 +233,8 @@ void() VR_AmmoColor_TestFrame =
     else
     {
         float ok = state == vr_act_expect;
-        string what = sprintf("case %g: %s, %s hand, %g of %g loaded", vr_act_case, VR_ACT_Name(VR_ACT_Gun(vr_act_case)),
-            vr_act_hand == cVR_OffHand ? "off" : "main", vr_act_loaded, vr_act_size);
+        string what = sprintf("case %g: %s, %s, %g of %g loaded", vr_act_case, VR_ACT_Name(VR_ACT_Gun(vr_act_case)),
+            vr_act_mode == 1 ? "holstered" : vr_act_mode == 2 ? "lying" : vr_act_hand == cVR_OffHand ? "off hand" : "main hand", vr_act_loaded, vr_act_size);
         dprint(sprintf("ammocolor: %s %s%s: state %g (want %g)\n", ok ? "PASS" : "FAIL", what,
             cvar("vr_ammo_color_warn") ? "" : ", the option off", state, vr_act_expect));
         if(ok) { vr_act_pass = vr_act_pass + 1; } else { vr_act_fail = vr_act_fail + 1; }

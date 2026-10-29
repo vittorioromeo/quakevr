@@ -5036,6 +5036,9 @@ QVR_CVAR(vr_ammo_low_frac, "0.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_color_debug, "0", CVAR_NONE)          // 1: print each change of a held gun's ammo screen warning (its state, the loaded rounds, the colour) and keep it in vr_ammo_color_seen / _seen2 (main / off hand: loaded * 10000 + capacity * 10 + state, state 0 normal, 1 low, 2 empty; the test vr_ammocolor_test.qc reads them)
 QVR_CVAR(vr_ammo_color_seen, "-1", CVAR_NONE)
 QVR_CVAR(vr_ammo_color_seen2, "-1", CVAR_NONE)
+QVR_CVAR(vr_ammo_color_seen3, "-1", CVAR_NONE)         // (the same, for the holster whose stat is vr_ammo_color_probe)
+QVR_CVAR(vr_ammo_color_seen4, "-1", CVAR_NONE)         // (the same, for the nearest gun lying in the world)
+QVR_CVAR(vr_ammo_color_probe, "-1", CVAR_NONE)         // (the holster stat read into vr_ammo_color_seen3; -2: any holster with a gun)
 QVR_CVAR(vr_ammocolor_test, "0", CVAR_NONE)            // 1: the ammo screens' warning colours test (vr_ammocolor_test.qc; Debug > Tests): guns in hand at full, 20% and empty magazines, the option off; ends "ammocolor: N passed, M failed"
 QVR_CVAR(vr_weapon_screen_idle, "1", CVAR_ARCHIVE)    // the weapons in the holsters and lying in the world show their ammo screen and button too (0: only held ones)
 // The weapons lying in the world that carry their attachments (ammo screen, button, magazine and well): the nearest
