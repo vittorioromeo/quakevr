@@ -24,13 +24,6 @@ vector(vector v, float m) modvec =
     return v;
 }
 
-float(float v, float min, float max) clamp =
-{
-    if(v < min) return min;
-    if(v > max) return max;
-    return v;
-}
-
 float (float from, float to, float fraction) tween_f =
 {
     return (from * (1 - fraction)) + (to * fraction);

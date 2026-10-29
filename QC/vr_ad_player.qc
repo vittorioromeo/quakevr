@@ -286,7 +286,7 @@ void() AD_EvilStart =
 // The players' health capacity after Evil came or went (AD's SetupEvilmode / ResetEvilmode): at most it.
 void() AD_EvilHealth =
 {
-    for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
     {
         p.max_health = VR_MaxHealth(p);
         if(p.health > p.max_health)
@@ -302,7 +302,7 @@ void() AD_LoadedGame =
 {
     cvar_set("vr_ad_evil", vr_ad_evil_on ? "1" : "0");
     cvar_set("scratch4", vr_ad_evil_on ? "1" : "0");
-    for(entity lp = find(world, classname, "player"); lp; lp = find(lp, classname, "player"))
+    for(entity lp = VR_Player(); lp; lp = VR_NextPlayer(lp))
     {
         AD_UpgradesToWeapons(lp);
     }

@@ -39,8 +39,6 @@ void() MG3_MT_Total =
     mg3mt_fail = 0;
 };
 
-entity() MG3_MT_Player = { return find(world, classname, "player"); };
-
 // A monster `xChoice` (func_enemy_dispenser's) `xDist` units ahead of the player, `xSide` aside, facing him.
 entity(entity p, float xChoice, float xDist, float xSide) MG3_MT_Spawn =
 {
@@ -136,7 +134,7 @@ void(entity m, string xFrom, float xWid, float xFlags) MG3_MT_CheckDrop =
 
 void() MG3_MT_Step =
 {
-    entity p = MG3_MT_Player();
+    entity p = VR_Player();
     if(!p) { mg3mt_step = 0; return; }
     if(mg3mt_step == 1)
     {
@@ -485,7 +483,7 @@ void() MG3_MT_Step =
 // Every infected on the map killed once (where they stand: asleep, lying or not): each bursts, none counted.
 void() MG3_MT_KillInfected =
 {
-    entity p = MG3_MT_Player();
+    entity p = VR_Player();
     float killed = killed_monsters, n = 0, turned = vr_mg3_infected_turned;
     entity e = nextent(world);
     while(e)
@@ -514,7 +512,7 @@ void() MG3_MonstersTestFrame =
     float request = cvar("vr_mg3_mtest");
     if(!request) return;
     cvar_set("vr_mg3_mtest", "0");
-    if(!MG3_MT_Player()) return;
+    if(!VR_Player()) return;
     entity oldself = self, oldother = other, oldact = activator;
     if(request == 1) MG3_MT_Report();
     else if(request == 2) { mg3mt_step = 1; mg3mt_next = time; }

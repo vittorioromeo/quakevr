@@ -867,15 +867,6 @@ void(entity p, float xHand, float xThing, vector xLine) VR_Melee_BendLine =
     v_up = oldU;
 };
 
-vector(vector xA, vector xB) VR_Melee_Cross =
-{
-    vector c;
-    c_x = xA_y * xB_z - xA_z * xB_y;
-    c_y = xA_z * xB_x - xA_x * xB_z;
-    c_z = xA_x * xB_y - xA_y * xB_x;
-    return c;
-};
-
 // The model's +y of what `xHand` of `p` holds along `xLine` (VR_Melee_BendLine's: the hand's left, square to the line;
 // unit), for a heavy head's frame (VR_Melee_Ribs).
 vector(entity p, float xHand, vector xLine) VR_Melee_ModelY =
@@ -1467,7 +1458,7 @@ float VR_MELEE_VEL_SPAN = 0.013889; // s (a 72 Hz tick: at 72 Hz every chord is 
 vector(vector xR0, vector xR1, float xSpan) VR_Melee_TurnVel =
 {
     vector chord = (xR1 - xR0) * (1 / xSpan);
-    vector n = VR_Melee_Cross(xR0, xR1);
+    vector n = VR_Cross(xR0, xR1);
     float sn = vlen(n);
     float th = atan2(sn, xR0 * xR1);
     if(sn < 0.000001 || th < 0.001)
@@ -1480,7 +1471,7 @@ vector(vector xR0, vector xR1, float xSpan) VR_Melee_TurnVel =
     float hw = min(th * k * 0.5, 1.5);
     float hs = th * 0.5;
     chord = chord * (sin(hw) / hw) * (hs / sin(hs));
-    return chord * cos(a) + VR_Melee_Cross(n, chord) * sin(a) + n * (n * chord) * (1 - cos(a));
+    return chord * cos(a) + VR_Cross(n, chord) * sin(a) + n * (n * chord) * (1 - cos(a));
 };
 
 float(float xHand, entity b) VR_Melee_Track =
@@ -2603,8 +2594,8 @@ void(entity b, float xR, float xSwept) VR_Melee_Ribs =
     float inset = thick / len;
     float na = VR_Melee_HeadLines(lo_x, hi_x, inset);
     float ny = VR_Melee_HeadLines(lo_y, hi_y, inset);
-    vector cn = normalize(VR_Melee_Cross(b.mh_hd_cy, b.mh_hd_cf - b.mh_hd_cg)) * len;
-    vector pn = normalize(VR_Melee_Cross(b.mh_hd_py, b.mh_hd_pf - b.mh_hd_pg)) * plen;
+    vector cn = normalize(VR_Cross(b.mh_hd_cy, b.mh_hd_cf - b.mh_hd_cg)) * len;
+    vector pn = normalize(VR_Cross(b.mh_hd_py, b.mh_hd_pf - b.mh_hd_pg)) * plen;
     float ia;
     float iy;
     for(ia = 0; ia < na; ++ia)
@@ -2619,19 +2610,6 @@ void(entity b, float xR, float xSwept) VR_Melee_Ribs =
     }
 };
 
-// The distance from `xC` to the line from `xP0` to `xP1`.
-float(vector xP0, vector xP1, vector xC) VR_Melee_SegDist =
-{
-    vector d = xP1 - xP0;
-    float l2 = d * d;
-    float t = 0;
-    if(l2 > 0)
-    {
-        t = min(1, max(0, ((xC - xP0) * d) / l2));
-    }
-    return vlen(xP0 + d * t - xC);
-};
-
 // vr_melee_swept: how squarely a line of `b` swept from `xP0` to `xP1` crosses `e` (lower is better): its nearest to the
 // thing's middle, a share of its half size; the blade proper's lines (from VR_MELEE_BLADE_FROM out: a blade cuts with
 // its outer part, a fist with its knuckles) before those nearer the hand, and a line already in it (`xIn`: it didn't
@@ -2641,7 +2619,7 @@ float(entity b, entity e, vector xP0, vector xP1, float xIn) VR_Melee_RibScore =
     vector c = (e.absmin + e.absmax) * 0.5;
     vector line = b.mh_far - b.mh_grip;
     float inner = (xP1 - b.mh_grip) * line < VR_MELEE_BLADE_FROM * (line * line);
-    return (xIn ? 2 : 0) + (inner ? 1 : 0) + VR_Melee_SegDist(xP0, xP1, c) / max(1, vlen(e.absmax - e.absmin) * 0.5);
+    return (xIn ? 2 : 0) + (inner ? 1 : 0) + VR_PointSegmentDistance(c, xP0, xP1) / max(1, vlen(e.absmax - e.absmin) * 0.5);
 };
 
 // Show Melee Blades (vr_debug_melee_blades, Debug > Views; vr_meleeshow.hpp). Fast enough: VR_Melee_Decide would land a blow of its outermost striking point now (the speed its kind needs, the arm

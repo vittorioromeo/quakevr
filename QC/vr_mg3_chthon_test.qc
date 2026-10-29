@@ -36,11 +36,9 @@ void() MG3_CT_Total =
 {
     dprint(sprintf("mg3ctest: total %g/%g\n", mg3ct_pass, mg3ct_fail));
     mg3ct_step = 0;
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p) p.flags = p.flags - (p.flags & FL_GODMODE);
 };
-
-entity() MG3_CT_Player = { return find(world, classname, "player"); };
 
 // This map's Chthon of Dawn of the Machine (the map's first, else any).
 entity() MG3_CT_Chthon =
@@ -491,7 +489,7 @@ void() MG3_ChthonTestFrame =
     if(mg3ct_step && time >= mg3ct_next)
     {
         entity os = self, oo = other, oa = activator;
-        entity p = MG3_CT_Player();
+        entity p = VR_Player();
         if(!p) mg3ct_step = 0;
         else if(mg3ct_step < 10) MG3_CT_AnywhereStep(p);
         else if(mg3ct_step < 30) MG3_CT_FightStep(p);
@@ -501,7 +499,7 @@ void() MG3_ChthonTestFrame =
     float request = cvar("vr_mg3_ctest");
     if(!request) return;
     cvar_set("vr_mg3_ctest", "0");
-    entity pl = MG3_CT_Player();
+    entity pl = VR_Player();
     if(!pl) return;
     entity oldself = self, oldother = other, oldact = activator;
     if(request == 1) MG3_CT_Report();

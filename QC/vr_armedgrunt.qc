@@ -1514,9 +1514,6 @@ float(vector m, vector dir, vector at) VR_AG_MissRight =
     return off * right;
 };
 
-// (an angle's difference, -180..180)
-float(float a) VR_AG_Wrap180 = { return a - 360 * floor((a + 180) / 360); };
-
 vector vr_ag_dm_dir;   // VR_AG_DrawnMuzzle's: its `dir` turned as the gun was drawn,
 float vr_ag_dm_turn;   // ... by this many degrees (0: as the server has it)
 
@@ -1587,8 +1584,8 @@ void(entity p, vector dir) VR_AG_SetHand =
         {
             vector e = VR_AG_Angles(dir0) - VR_AG_Angles(vr_ag_shot_straight);
             vector c = VR_AG_Angles(normalize(at - m));
-            c_x = -(c_x + VR_AG_Wrap180(e_x)); // (a view's pitch for makevectors)
-            c_y = c_y + VR_AG_Wrap180(e_y);
+            c_x = -(c_x + VR_Wrap180(e_x)); // (a view's pitch for makevectors)
+            c_y = c_y + VR_Wrap180(e_y);
             c_z = 0;
             makevectors(c);
             dir = v_forward;

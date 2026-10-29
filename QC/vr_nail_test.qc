@@ -175,7 +175,7 @@ void() VR_NailTest_Frame =
     if(req)
     {
         cvar_set("vr_nail_test", "0");
-        vr_nlt_player = find(world, classname, "player");
+        vr_nlt_player = VR_Player();
         if(!vr_nlt_player) { dprint("nailtest: no player\n"); return; }
         if(req == 2)
         {

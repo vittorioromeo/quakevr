@@ -1184,7 +1184,7 @@ void() VR_SmallGib_TestFrame =
 {
     VR_SmallGib_TraceFrame();
     float ask = cvar("vr_smallgibs_test");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p == world)
     {
         return;

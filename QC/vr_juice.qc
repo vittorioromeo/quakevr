@@ -9,63 +9,6 @@
 .float vr_heartbeat_time; // on a player: the next heartbeat
 
 
-// VR_SegmentDistance's closest points: how far along the first segment (0 its start, 1 its end), and the second.
-float vr_seg_s;
-float vr_seg_t;
-
-// The least distance between the segments `xA0` .. `xA1` and `xB0` .. `xB1` (their closest points: vr_seg_s, vr_seg_t).
-float(vector xA0, vector xA1, vector xB0, vector xB1) VR_SegmentDistance =
-{
-    vector d1 = xA1 - xA0;
-    vector d2 = xB1 - xB0;
-    vector r = xA0 - xB0;
-    float a = d1 * d1;
-    float e = d2 * d2;
-    float f = d2 * r;
-    float s = 0;
-    float t = 0;
-    vr_seg_s = 0;
-    vr_seg_t = 0;
-    if(a <= 0.0001 && e <= 0.0001)
-    {
-        return vlen(r);
-    }
-    if(a <= 0.0001)
-    {
-        t = min(1, max(0, f / e));
-    }
-    else
-    {
-        float c = d1 * r;
-        if(e <= 0.0001)
-        {
-            s = min(1, max(0, -c / a));
-        }
-        else
-        {
-            float bb = d1 * d2;
-            float denom = a * e - bb * bb;
-            if(denom > 0.0001)
-            {
-                s = min(1, max(0, (bb * f - c * e) / denom));
-            }
-            t = (bb * s + f) / e;
-            if(t < 0)
-            {
-                t = 0;
-                s = min(1, max(0, -c / a));
-            }
-            else if(t > 1)
-            {
-                t = 1;
-                s = min(1, max(0, (bb - c) / a));
-            }
-        }
-    }
-    vr_seg_s = s;
-    vr_seg_t = t;
-    return vlen((xA0 + d1 * s) - (xB0 + d2 * t));
-};
 
 // Whether `e` is a monster's projectile in flight (a knight's spike, an enforcer's laser, a
 // scrag's spit, a vore's ball, an ogre's grenade, ...). Never a gib: a small gib in its grace has the monster it came

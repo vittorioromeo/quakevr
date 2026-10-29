@@ -277,7 +277,7 @@ void() VR_NailPistol_TestFrame =
     if(req == 5)
     {
         cvar_set("vr_np_test", "0");
-        vr_npt_player = find(world, classname, "player");
+        vr_npt_player = VR_Player();
         if(!vr_npt_player) { dprint("npaim: no player\n"); return; }
         entity os5 = self;
         self = vr_npt_player;
@@ -304,7 +304,7 @@ void() VR_NailPistol_TestFrame =
     if(req)
     {
         cvar_set("vr_np_test", "0");
-        vr_npt_player = find(world, classname, "player");
+        vr_npt_player = VR_Player();
         if(!vr_npt_player) { dprint("nptest: no player\n"); return; }
         if(req == 2 || req == 3)
         {

@@ -464,13 +464,13 @@ void() trigger_bloodynightmare_relay = {
 // player back to 50 health, 25 shells and nothing else (the next level's Bloody Nightmare strip leaves him the axe and
 // shotgun; the bloody weapons stay). A dead single player completes nothing.
 void() MG3_BossEnding = {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(!coop && p && p.health <= 0) { dprint("MG3_BossEnding: the player is dead, no completion\n"); return; }
     while(p) {
         p.ammo_shells = 25; p.ammo_nails = 0; p.ammo_rockets = 0; p.ammo_cells = 0;
         p.armortype = 0; p.armorvalue = 0;
         VR_ItemUtil_EntDelItem(p, IID_ARMOR1); VR_ItemUtil_EntDelItem(p, IID_ARMOR2); VR_ItemUtil_EntDelItem(p, IID_ARMOR3);
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
     if(serverflags & MG3_SF_BN_ACTIVE) {
         if(serverflags & MG3_SF_BN_NEWGAME) nextmap = "boss2"; // (upstream: should not happen)
@@ -478,11 +478,11 @@ void() MG3_BossEnding = {
             nextmap = "map1";
             serverflags = MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED | MG3_SF_BN_NEWGAME; // the runes cleared
             MG3_upgrade_health = MG3_upgrade_shells = MG3_upgrade_nails = MG3_upgrade_rockets = MG3_upgrade_cells = 0;
-            p = find(world, classname, "player");
+            p = VR_Player();
             while(p) {
                 p.max_health = VR_MaxHealth(p);
                 p.health = p.max_health;
-                p = find(p, classname, "player");
+                p = VR_NextPlayer(p);
             }
         }
     }

@@ -297,7 +297,7 @@ void() func_vr_spawner_use =
     }
     else if(self.vr_spawn_by == world)
     {
-        self.vr_spawn_by = find(world, classname, "player");
+        self.vr_spawn_by = VR_Player();
     }
     self.vr_spawn_left = self.vr_spawn_left + self.count;
     self.vr_spawn_armed = 1;
@@ -622,7 +622,7 @@ void() target_vr_music =
 void() target_vr_message_think =
 {
     float sent = FALSE;
-    for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
     {
         if(p.flags & FL_CLIENT)
         {
@@ -693,7 +693,7 @@ void() VR_Tutorial_Frame =
     }
     vr_tut_goto_seen = n;
     entity cp = find(world, targetname, sprintf("cp%g", n));
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(cp == world || p == world)
     {
         return;

@@ -123,7 +123,7 @@ void() finale_1 =
     WriteByte(MSG_ALL, SVC_FINALE);
     WriteString (MSG_ALL, "");
 
-    pl = find(world, classname, "player");
+    pl = VR_Player();
     while(pl != world)
     {
         pl.view_ofs = '0 0 0';
@@ -136,7 +136,7 @@ void() finale_1 =
         pl.movetype = MOVETYPE_NONE;
         pl.modelindex = 0;
         setorigin(pl, pos.origin);
-        pl = find(pl, classname, "player");
+        pl = VR_NextPlayer(pl);
     }
 
     // make fake versions of all players as standins, and move the real

@@ -46,7 +46,7 @@ float(float xPrint) VR_DropCapTest_Count =
 
 void() VR_DropCapTest_Think =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     self.nextthink = time + 0.1;
 
     vr_dct_maxseen = max(vr_dct_maxseen, VR_DropCapTest_Count(FALSE));
@@ -151,7 +151,7 @@ void() VR_DropCapTest_Frame =
         return;
     }
 
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(!p || vr_dct_runner)
     {
         dprint("dctest: no player, or already running\n");

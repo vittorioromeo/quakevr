@@ -78,7 +78,7 @@ float(entity rec, float xSpeed, float xHolding) VR_RVT_Swipe =
     vector vel0 = p.offhandvel;
     entity held0 = p.offhand_held;
     p.offhandpos = vr_rv_port + vr_rv_axis * (RV_CYL_LEN * 0.5 * RV_SCALE) + radial * (RV_CYL_RADIUS * RV_SCALE);
-    p.offhandvel = p.handvel + VR_RV_Cross(vr_rv_axis, radial) * xSpeed;
+    p.offhandvel = p.handvel + VR_Cross(vr_rv_axis, radial) * xSpeed;
     if(xHolding) { p.offhand_held = rec; } // (any thing: a hand that holds one is not empty)
     float spin0 = rec.wi_rv_spin;
     rec.wi_rv_spin = 0;
@@ -303,7 +303,7 @@ void() VR_Revolver_TestFrame =
     if(req)
     {
         cvar_set("vr_rv_test", "0");
-        vr_rvt_player = find(world, classname, "player");
+        vr_rvt_player = VR_Player();
         if(!vr_rvt_player) { dprint("rvtest: no player\n"); return; }
         vr_npt_player = vr_rvt_player; // (the nail pistol's test's helpers: its grunts, its trigger)
         entity os0 = self;

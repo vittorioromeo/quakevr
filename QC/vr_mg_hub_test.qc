@@ -9,7 +9,7 @@ void(float ok, string text) MG1_H_Check = {
 };
 void() MG1_H_Sink = { self.cnt++; };
 void() MG1_H_Report = {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     float count = 0, ghosts = 0, active = 0;
     entity e = find(world, classname, "misc_rune_indicator");
     while(e) { count++; if(e.alpha == 0.2) ghosts++; else active++; e = find(e, classname, "misc_rune_indicator"); }
@@ -25,7 +25,7 @@ void() MG1_H_Report = {
 };
 void() MG1_H_Unit = {
     if(mapname != "hub") { dprint("mghubtest: unit needs Machine hub\n"); return; }
-    entity caller = self, p = find(world,classname,"player");
+    entity caller = self, p = VR_Player();
     float flags = serverflags;
     MG1_H_pass = MG1_H_fail = 0;
     float i = 1, bit = 1;
@@ -86,7 +86,7 @@ void() MG1_H_PuzzleOpen = {
 };
 void() MG1_H_Puzzle = {
     if(mapname != "mge2m2") { dprint("mghubtest: puzzle needs mge2m2\n"); return; }
-    entity caller = self, p = find(world,classname,"player");
+    entity caller = self, p = VR_Player();
     MG1_H_pass = MG1_H_fail = 0;
     entity rune = find(world,classname,"item_sigil");
     MG1_H_Check(rune.MG1_rune_locked,"rune starts locked after authored fixer delay");
@@ -137,7 +137,7 @@ entity(float alt) MG1_H_NextExit = {
 nosave float MG1_H_autoran;
 void() MG1_H_RouteAutorun = {
     float stage = cvar("vr_mg_route_stage");
-    if(!stage || MG1_H_autoran || time < 1 || !find(world, classname, "player")) return;
+    if(!stage || MG1_H_autoran || time < 1 || !VR_Player()) return;
     MG1_H_autoran = TRUE;
     localcmd(sprintf("exec %s%g.cfg\n", MG3_Campaign() ? "mg3route" : "mg1route", stage)); // (MG3: M3-29's sweep)
 };
@@ -148,7 +148,7 @@ void() MG1_H_RouteAutorun = {
 // up that press's +jump in the command buffer.
 .float MG1_H_inter, MG1_H_text;
 void() MG1_H_PresserThink = {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     self.nextthink = time;
     if(intermission_running != self.MG1_H_inter) {
         dprint(sprintf("mghubtest: intermission %g next %s map %s\n", intermission_running, nextmap, mapname));
@@ -197,7 +197,7 @@ vector(entity t, entity p) MG1_H_SpotIn = {
 };
 void() MG1_H_After = { localcmd(sprintf("exec mghub_after%g.cfg\n", cvar("vr_mg_hub_stage"))); };
 void(float request) MG1_H_Route = {
-    entity caller = self, p = find(world,classname,"player"); other = activator = p;
+    entity caller = self, p = VR_Player(); other = activator = p;
     if(request == 4) {
         entity rune = find(world,classname,"item_sigil");
         if(rune) { self = rune; MG1_sigil_touch(); dprint(sprintf("mghubtest: actual rune %g map %s flags %g locked %g\n",rune.spawnflags,mapname,serverflags,rune.MG1_rune_locked)); }

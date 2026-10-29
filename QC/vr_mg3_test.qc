@@ -7,7 +7,7 @@ void(float ok, string label) MG3_Check = {
     dprint(sprintf("mg3test: %s %s\n", ok ? "PASS" : "FAIL", label));
 };
 void() MG3_T_Report = {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     dprint(sprintf("mg3test: report map %s worldtype %g skill %g serverflags %g\n", mapname, world.worldtype, skill, serverflags));
     dprint(sprintf("mg3test: masks live %g %g %g %g %g bloody %g", MG3_upgrade_health, MG3_upgrade_shells, MG3_upgrade_nails,
                    MG3_upgrade_rockets, MG3_upgrade_cells, MG3_bloody));
@@ -20,7 +20,7 @@ void() MG3_T_Report = {
 };
 // Capacities (any campaign; destructive: overfills every ammunition, then heals from 1 health, ordinary and mega).
 void() MG3_T_Caps = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     float mh = VR_MaxHealth(p), mega = VR_MegaHealthCap(p);
     float s = VR_MaxAmmo(p, AID_SHELLS), n = VR_MaxAmmo(p, AID_NAILS), r = VR_MaxAmmo(p, AID_ROCKETS), c = VR_MaxAmmo(p, AID_CELLS);
     dprint(sprintf("mg3test: caps campaign %g skill %g dm %g health %g max_health %g mega %g", cvar("vr_campaign"), skill, deathmatch, mh, p.max_health, mega));
@@ -49,7 +49,7 @@ float(string c) MG3_T_IsUpgrade = {
 // Takes every upgrade lying on this map by the real pickup (carry_use: what a holster calls; itemTouch otherwise) and
 // checks the masks, capacities and refills against the map's bit.
 void() MG3_T_Collect = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     float flag = MG3_UpgradeFlag();
     float h0 = VR_MaxHealth(p), s0 = VR_MaxAmmo(p, AID_SHELLS), n0 = VR_MaxAmmo(p, AID_NAILS), r0 = VR_MaxAmmo(p, AID_ROCKETS), c0 = VR_MaxAmmo(p, AID_CELLS);
     float hadH = MG3_upgrade_health & flag, hadS = MG3_upgrade_shells & flag, hadN = MG3_upgrade_nails & flag;
@@ -120,7 +120,7 @@ void() MG3_T_TriggersLate = {
     remove(self);
 };
 void() MG3_T_Triggers = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
     p.flags = p.flags | FL_GODMODE; MG3_T_health0 = p.health;
     vector keep = p.origin;
@@ -230,7 +230,7 @@ void() MG3_T_RepeatersLate = {
     remove(self);
 };
 void() MG3_T_Repeaters = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     MG3_T_player = p; p.flags = p.flags | FL_GODMODE;
     MG3_T_blasts0 = MG3_explosion_blasts; MG3_T_reps = MG3_T_repcount = 0;
     entity e = find(world, classname, "trigger_explosion_repeater");
@@ -270,7 +270,7 @@ void() MG3_T_KeysLate = {
     remove(self);
 };
 void() MG3_T_Keys = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
     p.flags = p.flags | FL_GODMODE; MG3_T_health0 = p.health;
     // health_target
@@ -347,7 +347,7 @@ float(entity p) MG3_T_LavaHurts = {
     return (h < 100) + 2 * (h2 < h);
 };
 void() MG3_T_Items = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
     vector keep = p.origin;
     entity e;
@@ -444,7 +444,7 @@ void() MG3_T_Items = {
 // later checks each rune's doors (open with that rune) and the exit (open only with all four). Request 12: the
 // rune-count report (entities removed by NOT_IF_<n>_RUNES are gone: counts of monsters and items now).
 void() MG3_T_Runes = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
     float sf = serverflags, n = 0;
     entity e = find(world, classname, "item_sigil");
@@ -478,7 +478,7 @@ void() MG3_T_HubLate = {
     remove(self);
 };
 void() MG3_T_Hub = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     MG3_T_player = p;
     MG_T_Fire("runecheck", p);
     entity e = spawn(); e.think = MG3_T_HubLate; e.nextthink = time + 6;
@@ -508,7 +508,7 @@ void(string msg) MG3_T_Skill = {
     if(b) MG3_T_Use(b);
 };
 void() MG3_T_SkillButtons = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     MG3_T_player = p; MG3_test_pass = MG3_test_fail = 0;
     dprint(sprintf("mg3test: hub serverflags %g: head %g bn_button %g buttons %g ng %g\n", serverflags,
         MG3_T_Named("head"), MG3_T_Named("bn_button"), MG3_T_Named("buttons"), MG3_T_Named("ng")));
@@ -533,7 +533,7 @@ void(entity p, float slot, float wid) MG3_T_Holster = {
     if(slot == 5) { p.holsterweapon5 = wid; p.holsterweaponflags5 = 0; p.holsterweaponinst5 = wi; p.holsterweaponmodel5 = m; }
 };
 void() MG3_T_SeedLoadout = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     MG3_T_Holster(p, 0, WID_SUPER_SHOTGUN); MG3_T_Holster(p, 1, WID_LIGHTNING); MG3_T_Holster(p, 2, WID_FIST);
     MG3_T_Holster(p, 3, WID_SWORD); MG3_T_Holster(p, 4, WID_SHOTGUN); MG3_T_Holster(p, 5, WID_MJOLNIR);
     p.items = p.items | IT_ARMOR2; p.armortype = 0.6; p.armorvalue = 120;
@@ -541,7 +541,7 @@ void() MG3_T_SeedLoadout = {
     dprint("mg3test: seeded holsters 5 11 0 13 4 3 (hands empty), yellow armour 120, ammo 40 50 10 30\n");
 };
 void() MG3_T_CheckLoadout = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     MG3_test_pass = MG3_test_fail = 0;
     dprint(sprintf("mg3test: loadout serverflags %g skill %g bloody %g: hands %g/%g holsters %g %g", serverflags, skill, MG3_bloody, p.weapon, p.weapon2, p.holsterweapon0, p.holsterweapon1));
     dprint(sprintf(" %g %g %g %g items %g armour %g", p.holsterweapon2, p.holsterweapon3, p.holsterweapon4, p.holsterweapon5, p.items, p.armorvalue));
@@ -554,7 +554,7 @@ void() MG3_T_CheckLoadout = {
     dprint(sprintf("mg3test: strip %g passed, %g failed\n", MG3_test_pass, MG3_test_fail));
 };
 void() MG3_T_BNDamage = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     MG3_test_pass = MG3_test_fail = 0;
     entity m = nextent(world);
     while(m && !((m.flags & FL_MONSTER) && m.health > 100 && m.takedamage)) m = nextent(m);
@@ -577,7 +577,7 @@ void() MG3_T_BNDamage = {
 // (the Bloody Nightmare leg's shortcut); 37 the presser alone (an ending's intermission); 38 it only watching (a test
 // that leaves the intermission itself).
 void() MG3_T_RouteReport = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     dprint(sprintf("mg3route: report map %s skill %g serverflags %g runes %g intermission %g\n", mapname, skill, serverflags, MG3_RuneCount(), intermission_running));
     dprint(sprintf("mg3route: player health %g max %g armor %g shells %g nails %g rockets %g cells %g\n", p.health, p.max_health,
                    p.armorvalue, p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells));
@@ -602,7 +602,7 @@ string(float i) MG3_T_RouteMap = { // (mg3_route_test.py MAPS: no string cvars i
     return "";
 };
 void(float m, float nth) MG3_T_RouteWalk = {
-    entity p = find(world, classname, "player"); if(!p) return;
+    entity p = VR_Player(); if(!p) return;
     string dest = MG3_T_RouteMap(m);
     entity cl = find(world, classname, "trigger_changelevel");
     if(strlen(dest)) {
@@ -620,7 +620,7 @@ void(float m, float nth) MG3_T_RouteWalk = {
 };
 void() MG3_T_RouteFrame = {
     float request = cvar("vr_mg3_test");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(request >= 100 && request < 140) MG3_T_RouteWalk(floor((request - 100) / 2), (request - 100) & 1);
     else if(request == 31) MG3_T_RouteReport();
     else if(request == 32) {
@@ -651,7 +651,7 @@ void() MG3_T_RouteFrame = {
 // 200 + k: the player presses this map's k-th wall button (func_button / func_axe_button, entity order) as a hand
 // would, or shoots it when it is a shot button (health); prints what it targets. Misc/quakevr/mg3_buttons_test.sh.
 void(float k) MG3_T_PressButton = {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     entity b = nextent(world);
     float n = 0;
     while(b) {
@@ -671,7 +671,7 @@ void(float k) MG3_T_PressButton = {
 // targets. A player's report: The Sacrifice (map8) ended with "Trigger in clipping list" when its two vores were killed
 // (ROUND22.md, "The Sacrifice"); Misc/quakevr/mg3_kill_test.sh.
 void(float k) MG3_T_KillMonster = {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     entity m = nextent(world);
     float n = 0;
     while(m) {
@@ -695,7 +695,7 @@ void(float k) MG3_T_KillMonster = {
 // altar's (map8's "rune_sacrifice") used as its death would (gibbed: its targets fired, the counter counting).
 // A player's report: map8's Rune of Sacrifice came with no sacrifice made (ROUND22.md, "The Sacrifice").
 void() MG3_T_RuneState = {
-    entity e = find(world, classname, "player");
+    entity e = VR_Player();
     if(e) dprint(sprintf("mg3rune: player at %v\n", e.origin));
     e = find(world, classname, "item_sigil");
     while(e) {
@@ -764,7 +764,7 @@ void() MG3_TestFrame = {
     else if(request == 18) MG3_T_BNDamage();
     else if(request == 13) { // walk into this map's first changelevel (its route)
         entity cl = find(world, classname, "trigger_changelevel");
-        entity pl = find(world, classname, "player");
+        entity pl = VR_Player();
         if(cl && pl) { dprint(sprintf("mg3test: changelevel to %s\n", cl.map)); MG3_T_player = pl; MG3_T_Touch(cl); }
     }
     else if(request == 19) { // Bloody Nightmare's new game (upstream impulse 223 + 224): its flags and skill 3
@@ -775,7 +775,7 @@ void() MG3_TestFrame = {
     else if(request == 20) { // walk into the exit to secret2 (the hub's final one)
         entity cl2 = find(world, classname, "trigger_changelevel");
         while(cl2 && cl2.map != "secret2") cl2 = find(cl2, classname, "trigger_changelevel");
-        entity pl2 = find(world, classname, "player");
+        entity pl2 = VR_Player();
         if(cl2 && pl2) { MG3_T_player = pl2; MG3_T_Touch(cl2); dprint(sprintf("mg3test: the exit to %s leads to %s\n", cl2.map, nextmap)); }
     }
     else if(request == 21) { dprint(sprintf("mg3test: Chthon beaten, serverflags %g\n", serverflags)); MG3_BossEnding(); }
@@ -783,9 +783,9 @@ void() MG3_TestFrame = {
     else if(request >= 200 && request < 300) MG3_T_PressButton(request - 200);
     else if(request >= 300 && request < 1300) MG3_T_KillMonster(request - 300);
     else if(request == 23) MG3_T_RuneState();
-    else if(request == 24) { MG3_T_player = find(world, classname, "player"); MG3_T_Sacrifices(); }
+    else if(request == 24) { MG3_T_player = VR_Player(); MG3_T_Sacrifices(); }
     else if(request == 14) { // leave the intermission (a button press)
-        entity ip = find(world, classname, "player");
+        entity ip = VR_Player();
         dprint(sprintf("mg3test: intermission %g, next map %s\n", intermission_running, nextmap));
         if(intermission_running && ip) { self = ip; ExitIntermission(); }
     }

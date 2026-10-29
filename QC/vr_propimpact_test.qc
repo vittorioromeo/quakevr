@@ -902,7 +902,7 @@ void() VR_PropImp_TestFrame =
     entity oself;
     if(vr_propimp_ft_on)
     {
-        p = find(world, classname, "player");
+        p = VR_Player();
         if(p != world)
         {
             oself = self;
@@ -913,7 +913,7 @@ void() VR_PropImp_TestFrame =
     }
     if(vr_propimp_fh_on)
     {
-        p = find(world, classname, "player");
+        p = VR_Player();
         if(p != world)
         {
             oself = self;
@@ -924,7 +924,7 @@ void() VR_PropImp_TestFrame =
     }
     if(vr_propimp_bl_next && time >= vr_propimp_bl_next)
     {
-        p = find(world, classname, "player");
+        p = VR_Player();
         if(p != world)
         {
             oself = self;
@@ -935,7 +935,7 @@ void() VR_PropImp_TestFrame =
     }
     if(vr_propimp_lt_next && time >= vr_propimp_lt_next)
     {
-        p = find(world, classname, "player");
+        p = VR_Player();
         if(p != world)
         {
             oself = self;
@@ -950,7 +950,7 @@ void() VR_PropImp_TestFrame =
         return;
     }
     cvar_set("vr_prop_impact_test", "0");
-    p = find(world, classname, "player");
+    p = VR_Player();
     if(p == world)
     {
         return;

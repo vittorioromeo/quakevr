@@ -1387,7 +1387,7 @@ float VR_KDT_TRIAL_THROWN = 14;
 // The trials' controller: phase 0 spawn, 1 hit (its AI begun), 2 judge and clear.
 void() VR_KdTrig_TrialThink =
 {
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     if(!pl)
     {
         remove(self);
@@ -1525,7 +1525,7 @@ void() VR_KdTrig_Frame =
     {
         VR_KdTrig_Init();
     }
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     if(!pl)
     {
         return;

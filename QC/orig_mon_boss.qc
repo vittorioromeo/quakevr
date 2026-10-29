@@ -40,9 +40,9 @@ void() boss_face =
 // go for another player if multi player
     if(self.enemy.health <= 0 || random() < 0.02)
     {
-        self.enemy = find(self.enemy, classname, "player");
+        self.enemy = VR_NextPlayer(self.enemy);
         if(!self.enemy)
-            self.enemy = find(self.enemy, classname, "player");
+            self.enemy = VR_NextPlayer(self.enemy);
     }
     float selectedGate = self.vr_ai_gate;
     entity selectedTarget = self.vr_ai_target;

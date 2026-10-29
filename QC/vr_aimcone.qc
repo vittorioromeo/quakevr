@@ -242,7 +242,7 @@ void() VR_AimCone_ShowFrame =
     {
         vr_aimcone_show_print = time;
     }
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         entity m = findradius(p.origin, 1000);
@@ -270,6 +270,6 @@ void() VR_AimCone_ShowFrame =
             }
             m = m.chain;
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 };

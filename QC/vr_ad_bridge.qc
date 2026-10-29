@@ -286,7 +286,7 @@ void() AD_Frame =
     {
         return;
     }
-    if(!vr_ad_skysent && ad_trig_skybox != "" && time > 0.3 && find(world, classname, "player"))
+    if(!vr_ad_skysent && ad_trig_skybox != "" && time > 0.3 && VR_Player())
     {
         AD_SendSkybox(); // (a loaded game's: the clients have the map's own sky again)
     }

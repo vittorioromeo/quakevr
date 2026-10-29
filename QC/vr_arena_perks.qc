@@ -146,7 +146,7 @@ float() VR_ARK_Opt_On    { return cvar("vr_arena_perks") != 0; }
 // VR_ARK_Choose still skips what this run already took, so nothing is ever offered twice.
 float() VR_ARK_Opt_Count =
 {
-    return VR_ARENA_Clamp(VR_ARENA_SkillWhole(cvar("vr_arena_perk_count") * VR_ARENA_Skill(0.75, 1.25, 1.5)), 1, ARK_POOL_N);
+    return clamp(VR_ARENA_SkillWhole(cvar("vr_arena_perk_count") * VR_ARENA_Skill(0.75, 1.25, 1.5)), 1, ARK_POOL_N);
 }
 
 // The perks this file can hand out at all: an arena run, and a director to keep them on.
@@ -198,7 +198,6 @@ float(float xBit) VR_ARK_Untaken =
 float(float xBit) VR_ARK_CanOffer = { return (xBit != 0) && VR_ARK_Untaken(xBit); }
 
 // The player a perk belongs to: the one the arena is running for (its own FindPlayer; the world when none is up).
-entity() VR_ARK_Player = { return VR_ARENA_FindPlayer(); }
 
 // ---------------------------------------------------------------------------
 // The offer: cards on the engine's panel, the arena held until one is picked
@@ -361,7 +360,7 @@ float(float i) VR_ARK_CardPick =
     VR_ARK_Take(bit);
     VR_ARK_CloseOffer();
 
-    entity p = VR_ARK_Player();
+    entity p = VR_PlayerAlive();
     if(p != world)
     {
         centerprint(p, sprintf("%s\n%s\n", name, VR_ARK_What(bit)));
@@ -418,7 +417,7 @@ void(entity p, float xSecs) VR_ARK_GiveQuad =
 void() VR_ARK_SecondWind =
 {
     entity p;
-    for(p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    for(p = VR_Player(); p; p = VR_NextPlayer(p))
     {
         if(!(p.flags & FL_CLIENT)) { continue; }
         float top = VR_MaxHealth(p) + ARK_WIND_HP;
@@ -475,7 +474,7 @@ void(float xWave) VR_ARK_WaveDone =
         float gave = 0;
         float living = 0;
         entity p;
-        for(p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+        for(p = VR_Player(); p; p = VR_NextPlayer(p))
         {
             if(!(p.flags & FL_CLIENT)) { continue; }
             if(p.health <= 0) { continue; }

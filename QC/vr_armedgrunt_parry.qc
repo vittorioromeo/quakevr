@@ -359,7 +359,7 @@ float(entity g) VR_AGPar_WeaponFrame =
     {
         return FALSE;
     }
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     while(pl)
     {
         if(pl.health > 0 && vlen(pl.origin - g.origin) < 160)
@@ -395,7 +395,7 @@ float(entity g) VR_AGPar_WeaponFrame =
                 }
             }
         }
-        pl = find(pl, classname, "player");
+        pl = VR_NextPlayer(pl);
     }
     return FALSE;
 };
@@ -421,7 +421,7 @@ void(entity g) VR_AGPar_Frame =
     entity by = world;
     vector at = '0 0 0';
     float bestD = 100000;
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     while(pl)
     {
         if(pl.health > 0 && vlen(pl.origin - g.origin) < 160)
@@ -468,7 +468,7 @@ void(entity g) VR_AGPar_Frame =
                 }
             }
         }
-        pl = find(pl, classname, "player");
+        pl = VR_NextPlayer(pl);
     }
     entity m = findradius(g.origin, 170);
     while(m)
@@ -547,9 +547,9 @@ void(entity g, entity p) VR_AGPar_Pose =
     mid_z = min(chest_z + 16, max(chest_z - 16, mid_z));
     vector up = '0 0 1' - d * d_z;
     up = vlen(up) > 0.01 ? normalize(up) : '0 0 1';
-    vector across = VR_AGP_Cross('0 0 1', d); // (to its left)
+    vector across = VR_Cross('0 0 1', d); // (to its left)
     across = vlen(across) > 0.01 ? normalize(across) : '0 1 0';
-    float high = VR_AGP_Smooth((d_z - 0.15) / 0.45);
+    float high = VR_Smooth((d_z - 0.15) / 0.45);
     vector a = normalize(up * (1 - high) + across * (high + 0.3 * (1 - high)));
     float cls = VR_AG_Class(p.weapon);
     if(cls != VR_AG_CLASS_MELEE && cls != VR_AG_CLASS_FISTS)

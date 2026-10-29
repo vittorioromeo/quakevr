@@ -101,7 +101,7 @@ entity() FindEntPlayerForDrop =
         return world;
     }
 
-    return find(world, classname, "player");
+    return VR_Player();
 }
 
 float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =

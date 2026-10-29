@@ -271,11 +271,11 @@ void(entity p, float xDist) MG3_SuperAxe_SpawnAhead =
 
 void() VR_MG3_Weapons_Frame =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         MG3_SuperAxe_PlayerFrame(p);
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 };
 

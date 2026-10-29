@@ -216,13 +216,6 @@ float() VR_ARENA_On =
     return cvar("vr_arena") != 0;
 }
 
-float(float xValue, float xLow, float xHigh) VR_ARENA_Clamp =
-{
-    if(xValue < xLow)  { return xLow; }
-    if(xValue > xHigh) { return xHigh; }
-    return xValue;
-}
-
 float(float x, float xMod) VR_ARENA_Mod =
 {
     float r = x - xMod * floor(x / xMod);
@@ -260,19 +253,19 @@ string(float xSkill) VR_ARENA_SkillName =
     return xSkill < 1 ? "Easy" : xSkill < 2 ? "Normal" : xSkill < 3 ? "Hard" : "Nightmare";
 }
 
-float() VR_ARENA_Opt_MaxAlive   { return VR_ARENA_Clamp(cvar("vr_arena_max_alive"), 1, AR_FIELD_MAX); }
-float() VR_ARENA_Opt_WaveSize   { return VR_ARENA_Clamp(cvar("vr_arena_wave_size"), 0.25, 4); }
-float() VR_ARENA_Opt_AliveMax   { return VR_ARENA_Clamp(cvar("vr_arena_alive_max"), 1, AR_FIELD_MAX); }
-float() VR_ARENA_Opt_AliveGrow  { return VR_ARENA_Clamp(cvar("vr_arena_alive_grow"), 0, 20); }
-float() VR_ARENA_Opt_Burst      { return VR_ARENA_Clamp(cvar("vr_arena_burst"), 1, AR_FIELD_MAX); }
-float() VR_ARENA_Opt_Gap        { return VR_ARENA_Clamp(cvar("vr_arena_spawn_gap"), AR_TICK, 10); }
-float() VR_ARENA_Opt_Rest       { return VR_ARENA_Clamp(cvar("vr_arena_wave_rest"), 1, 60); }
-float() VR_ARENA_Opt_Countdown  { return VR_ARENA_Clamp(floor(cvar("vr_arena_countdown")), 0, 10); }
-float() VR_ARENA_Opt_BossEvery  { return VR_ARENA_Clamp(cvar("vr_arena_boss_every"), 0, 20); }
-float() VR_ARENA_Opt_BossHealth { return VR_ARENA_Clamp(cvar("vr_arena_boss_health"), 1, 8); }
-float() VR_ARENA_Opt_Medkits    { return VR_ARENA_Clamp(cvar("vr_arena_medkits_after"), 0, AR_KIT_MAX); }
-float() VR_ARENA_Opt_ArmorEvery { return VR_ARENA_Clamp(cvar("vr_arena_armor_every"), 0, AR_ARMOR_MAX); }
-float() VR_ARENA_Opt_ScoreKill  { return VR_ARENA_Clamp(cvar("vr_arena_score_kill"), 1, 10000); }
+float() VR_ARENA_Opt_MaxAlive   { return clamp(cvar("vr_arena_max_alive"), 1, AR_FIELD_MAX); }
+float() VR_ARENA_Opt_WaveSize   { return clamp(cvar("vr_arena_wave_size"), 0.25, 4); }
+float() VR_ARENA_Opt_AliveMax   { return clamp(cvar("vr_arena_alive_max"), 1, AR_FIELD_MAX); }
+float() VR_ARENA_Opt_AliveGrow  { return clamp(cvar("vr_arena_alive_grow"), 0, 20); }
+float() VR_ARENA_Opt_Burst      { return clamp(cvar("vr_arena_burst"), 1, AR_FIELD_MAX); }
+float() VR_ARENA_Opt_Gap        { return clamp(cvar("vr_arena_spawn_gap"), AR_TICK, 10); }
+float() VR_ARENA_Opt_Rest       { return clamp(cvar("vr_arena_wave_rest"), 1, 60); }
+float() VR_ARENA_Opt_Countdown  { return clamp(floor(cvar("vr_arena_countdown")), 0, 10); }
+float() VR_ARENA_Opt_BossEvery  { return clamp(cvar("vr_arena_boss_every"), 0, 20); }
+float() VR_ARENA_Opt_BossHealth { return clamp(cvar("vr_arena_boss_health"), 1, 8); }
+float() VR_ARENA_Opt_Medkits    { return clamp(cvar("vr_arena_medkits_after"), 0, AR_KIT_MAX); }
+float() VR_ARENA_Opt_ArmorEvery { return clamp(cvar("vr_arena_armor_every"), 0, AR_ARMOR_MAX); }
+float() VR_ARENA_Opt_ScoreKill  { return clamp(cvar("vr_arena_score_kill"), 1, 10000); }
 
 // A group of a wave's foes at this skill: the wave's own count times the skill's factor, whole foes (floor), and a
 // group is never emptied out -- the wave the difficulty thins still brings its zombie, its dog, its boss.
@@ -280,7 +273,7 @@ float(float xN) VR_ARENA_SkillCount = { return max(1, floor(VR_ARENA_Skill(0.75,
 
 // How many of a wave's foes may be up at once: vr_arena_max_alive (clamped to what works, above) by the skill, and
 // still never more than a wave can plan and never below one.
-float() VR_ARENA_FieldCap = { return VR_ARENA_Clamp(VR_ARENA_SkillCount(VR_ARENA_Opt_MaxAlive()), 1, AR_FIELD_MAX); }
+float() VR_ARENA_FieldCap = { return clamp(VR_ARENA_SkillCount(VR_ARENA_Opt_MaxAlive()), 1, AR_FIELD_MAX); }
 
 // A crowd group of a wave's foes: the ladder's own count times vr_arena_wave_size (whole foes, rounded), then by the
 // skill's factor as every group is (VR_ARENA_SkillCount). A wave's single signature foe and its boss are not crowds.
@@ -292,7 +285,7 @@ float(float xWave) VR_ARENA_Pool =
 {
     float grow = VR_ARENA_Opt_AliveGrow();
     float n = VR_ARENA_Opt_AliveMax() + (grow > 0 ? floor(max(0, xWave - 1) / grow) : 0);
-    return VR_ARENA_Clamp(VR_ARENA_SkillCount(n), 1, VR_ARENA_FieldCap());
+    return clamp(VR_ARENA_SkillCount(n), 1, VR_ARENA_FieldCap());
 }
 
 // The wait before the next foe comes in, once a slot in the pool is free: vr_arena_spawn_gap at this skill (the
@@ -326,7 +319,7 @@ float(float xN, float xMin, float xMax) VR_ARENA_SkillSupply =
     float f = VR_ARENA_Skill(0.75, 1.25, 1.5);
     if(xN <= 0) { return 0; }
     if(f <= 0) { return xN; }
-    return VR_ARENA_Clamp(VR_ARENA_SkillWhole(xN / f), xMin, xMax);
+    return clamp(VR_ARENA_SkillWhole(xN / f), xMin, xMax);
 }
 
 // The gap between one of a wave clear's armours and the next, at this skill: an interval divides the generosity, so
@@ -335,7 +328,7 @@ float(float xN, float xMin, float xMax) VR_ARENA_SkillSupply =
 float(float xN, float xMax) VR_ARENA_SkillGap =
 {
     if(xN <= 0) { return 0; }
-    return VR_ARENA_Clamp(VR_ARENA_SkillWhole(xN * VR_ARENA_Skill(0.75, 1.25, 1.5)), 1, xMax);
+    return clamp(VR_ARENA_SkillWhole(xN * VR_ARENA_Skill(0.75, 1.25, 1.5)), 1, xMax);
 }
 
 // What something is worth at this skill: times the factor (risk pays -- a Nightmare kill is worth half again),
@@ -363,7 +356,7 @@ float() VR_ARENA_EarlyUnarmed =
 {
     float s = VR_ARENA_SkillLevel();
     float m = s < 1 ? 0.30 : s < 2 ? 0.20 : s < 3 ? 0.15 : 0.10;
-    return VR_ARENA_Clamp(0.20 + cvar("vr_arena_skill_impact") * (m - 0.20), 0, 0.5);
+    return clamp(0.20 + cvar("vr_arena_skill_impact") * (m - 0.20), 0, 0.5);
 }
 
 // A boss wave's gap, as this difficulty counts it: at Easy the marked big ones come a wave LESS often
@@ -403,7 +396,7 @@ float(float xTier) VR_ARENA_TierOf =
 // difficulty's factor -- risk pays, so a Nightmare kill is worth half again what an Easy one is.
 float(float xTier, float xBoss) VR_ARENA_KillScore =
 {
-    float t = VR_ARENA_Clamp(xTier, 1, 3);
+    float t = clamp(xTier, 1, 3);
     float per = VR_ARENA_Opt_ScoreKill() * t;
     if(xBoss) { per = per * AR_KILL_BOSS; }
     return VR_ARENA_SkillWorth(per);
@@ -712,8 +705,8 @@ void(float xWave) VR_ARENA_ArmourSeed =
     ar_arm_seq = 0;
 }
 
-float() VR_ARENA_Opt_ArmourScale { return VR_ARENA_Clamp(cvar("vr_arena_foe_armor_scale"), 0, 4); }
-float() VR_ARENA_Opt_ArmourFrom  { return VR_ARENA_Clamp(cvar("vr_arena_foe_armor_from"), 2, 60); }
+float() VR_ARENA_Opt_ArmourScale { return clamp(cvar("vr_arena_foe_armor_scale"), 0, 4); }
+float() VR_ARENA_Opt_ArmourFrom  { return clamp(cvar("vr_arena_foe_armor_from"), 2, 60); }
 float() VR_ARENA_Opt_FoeArmour   { return cvar("vr_arena_foe_armor") != 0 && VR_ARENA_Opt_ArmourScale() > 0; }
 
 // The first wave a foe may wear armour, as this difficulty counts waves.
@@ -726,7 +719,7 @@ float(float xWave) VR_ARENA_ArmourChance =
     float from = VR_ARENA_ArmourFrom();
     if(xWave < from) { return 0; }
     float c = (AR_ARM_BASE + AR_ARM_STEP * (xWave - from)) * VR_ARENA_Skill(0.75, 1.25, 1.5) * VR_ARENA_Opt_ArmourScale();
-    return VR_ARENA_Clamp(c, 0, AR_ARM_CAP);
+    return clamp(c, 0, AR_ARM_CAP);
 }
 
 // The best type a wave's armour may be (1 green, 2 yellow, 3 red), gated on the weapon ladder's rungs.
@@ -742,7 +735,7 @@ float(float xWave) VR_ARENA_ArmourBest =
 float(float xWave) VR_ARENA_ArmourPieces =
 {
     float past = max(0, xWave - VR_ARENA_ArmourFrom());
-    return VR_ARENA_Clamp(2 + floor(past * VR_ARENA_Skill(0.75, 1.25, 1.5) / AR_ARM_PIECE_W), 2, 10);
+    return clamp(2 + floor(past * VR_ARENA_Skill(0.75, 1.25, 1.5) / AR_ARM_PIECE_W), 2, 10);
 }
 
 // One foe's roll, off the wave stream as it stands (ar_arm_type 0: bare). xBoss: one of the wave's marked big ones;
@@ -764,7 +757,7 @@ void(float xWave, float xBoss, float xBossWave) VR_ARENA_ArmourRoll =
     }
     else
     {
-        if(xBossWave) { c = VR_ARENA_Clamp(c + AR_ARM_GUARD * VR_ARENA_Opt_ArmourScale(), 0, AR_ARM_CAP); }
+        if(xBossWave) { c = clamp(c + AR_ARM_GUARD * VR_ARENA_Opt_ArmourScale(), 0, AR_ARM_CAP); }
         ar_arm_seq = ar_arm_seq + 1;
         float r = ar_arm_off + ar_arm_seq * 0.7548776662;
         float rt = ar_arm_off + ar_arm_seq * 0.5698402910;
@@ -813,7 +806,7 @@ void(float xWave) VR_ARENA_PlanArmour =
 // An armoured kill's score: AR_ARM_PAY more per type (whole points).
 float(float xScore, float xType) VR_ARENA_ArmourWorth =
 {
-    return VR_ARENA_SkillWhole(xScore * (1 + AR_ARM_PAY * VR_ARENA_Clamp(xType, 0, 3)));
+    return VR_ARENA_SkillWhole(xScore * (1 + AR_ARM_PAY * clamp(xType, 0, 3)));
 }
 
 // The wave's plan, wave 1 to the waves past the table (13 and on: the same ladder, thicker).
@@ -950,14 +943,14 @@ void(float xWave) VR_ARENA_PlanFoes =
     // or bosses take a place, as they do at Normal. Where the ladder starts thickening stays wave 13 at every skill
     // -- how thick a wave there is VR_ARENA_SkillCount's business (its own gates, the guns and the species it draws,
     // are the difficulty's: VR_ARENA_WaveAdj, inside VR_ARENA_PickGun and VR_ARENA_ClassicKind).
-    n = VR_ARENA_WaveCount(VR_ARENA_Clamp(4 + floor((xWave - 13) / 4), 1, 7));
+    n = VR_ARENA_WaveCount(clamp(4 + floor((xWave - 13) / 4), 1, 7));
     if(boss) { n = max(1, n - nb); } // (its boss or bosses take a place)
     for(i = 0; i < n; i++) { VR_ARENA_PlanAdd(AR_SP_GRUNT, VR_ARENA_PickGun(xWave), 0); }
 
-    float nenf = VR_ARENA_WaveCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
+    float nenf = VR_ARENA_WaveCount(clamp(1 + floor((xWave - 13) / 8), 1, 3));
     for(i = 0; i < nenf; i++) { VR_ARENA_PlanAdd(AR_SP_ENFORCER, VR_ARENA_PickGun(xWave), 0); }
 
-    float nclass = VR_ARENA_WaveCount(VR_ARENA_Clamp(1 + floor((xWave - 13) / 8), 1, 3));
+    float nclass = VR_ARENA_WaveCount(clamp(1 + floor((xWave - 13) / 8), 1, 3));
     for(i = 0; i < nclass; i++) { VR_ARENA_PlanAdd(VR_ARENA_ClassicKind(xWave, i), 0, 0); }
 }
 
@@ -1014,18 +1007,7 @@ void(float xWave) VR_ARENA_Plan =
 // The players, the readout, the map's spots
 // ---------------------------------------------------------------------------
 
-entity() VR_ARENA_FindPlayer =
-{
-    entity p = find(world, classname, "player");
-    while(p)
-    {
-        if(p.health > 0 && !p.deadflag) { return p; }
-        p = find(p, classname, "player");
-    }
-    return world;
-}
-
-float() VR_ARENA_AnyPlayerUp = { return VR_ARENA_FindPlayer() != world; }
+float() VR_ARENA_AnyPlayerUp = { return VR_PlayerAlive() != world; }
 
 // The arena's readout: in the middle of the view (the engine's view message: eye level in the headset, not the wrist's
 // hologram; a centre print held that long on a flat screen), its first line (up to a blank line) highlighted, for
@@ -1040,8 +1022,8 @@ void(entity xPlayer, string xText, float xSecs) VR_ARENA_Show =
 
 void(string xText, float xSecs) VR_ARENA_ShowAll =
 {
-    entity p = find(world, classname, "player");
-    while(p) { viewmessage(p, xText, xSecs); p = find(p, classname, "player"); }
+    entity p = VR_Player();
+    while(p) { viewmessage(p, xText, xSecs); p = VR_NextPlayer(p); }
     dprint(sprintf("ARENA> %s", xText));
 }
 
@@ -1226,7 +1208,7 @@ float(vector o) VR_ARENA_HasFloor =
 // near, 1 in his sight, 2 near him (AR_NEAR off his eyes). No player: 0.
 float(vector o) VR_ARENA_PlaceSeen =
 {
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     if(p == world) { return 0; }
 
     vector eye = p.origin + p.view_ofs;
@@ -1281,7 +1263,7 @@ vector(float xHigh) VR_ARENA_SpawnPlace =
     // Every high place is holding one of this wave's foes already: better its ground places than a step off a ledge.
     if(xHigh && VR_ARENA_SpotCount(1) > 0) { return VR_ARENA_SpawnPlace(0); }
 
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     vector base = ar_mgr.origin;
     if(p != world) { base = p.origin; }
     vector ring = base + AR_RING_R * VR_ARENA_RingDir(ar_spot_next);
@@ -1381,7 +1363,7 @@ vector(float i) VR_ARENA_DropPlace =
     }
     else
     {
-        entity p = VR_ARENA_FindPlayer();
+        entity p = VR_PlayerAlive();
         vector base = ar_mgr.origin;
         if(p != world) { base = p.origin; }
         o = VR_ARENA_FreeNear(base + AR_DROP_R * VR_ARENA_RingDir(i));
@@ -1452,7 +1434,7 @@ entity(float xKind, float xGun, float xTier, float xBoss, float xArmour, float x
         m.weaponflags = 0;
         m.weaponflags2 = 0;
     }
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     if(p != world) { m.angles = vectoangles(p.origin - o); }
     setorigin(m, o + '0 0 32');
 
@@ -1617,7 +1599,7 @@ void() VR_ARENA_HuntPlayer =
 {
     if(ar_wave <= 0) { return; }
 
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     if(p == world) { return; }
 
     entity e = findflags(world, ar_slot, ar_wave);
@@ -1682,11 +1664,11 @@ void(float xWave) VR_ARENA_ClearField =
 float(entity e) VR_ARENA_Held =
 {
     if(e.carry_player != world || e.fg_state != 0) { return TRUE; }
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         if(p.mainhand_held == e || p.offhand_held == e) { return TRUE; }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
     return FALSE;
 }
@@ -1967,14 +1949,14 @@ string AR_BEEP_GO   = "misc/talk.wav";
 
 void(float xLeft) VR_ARENA_CountSound =
 {
-    float vol = VR_ARENA_Clamp(cvar("vr_arena_countdown_sound"), 0, 1);
+    float vol = clamp(cvar("vr_arena_countdown_sound"), 0, 1);
     if(vol <= 0) { return; }
     string s = AR_BEEP_TICK;
     float pitch = 100;
     if(xLeft <= 0) { s = AR_BEEP_GO; pitch = 80; }
     else if(xLeft <= 3) { pitch = 150 - 10 * xLeft; } // (3 2 1: 120 130 140)
-    entity p = find(world, classname, "player");
-    while(p) { sound_pitch(p, CHAN_AUTO, s, vol, ATTN_NONE, pitch); p = find(p, classname, "player"); }
+    entity p = VR_Player();
+    while(p) { sound_pitch(p, CHAN_AUTO, s, vol, ATTN_NONE, pitch); p = VR_NextPlayer(p); }
     ar_count_sounds = ar_count_sounds + 1;
     dprint(sprintf("arena: countdown sound %s at %g%% (%g left)\n", s, pitch, xLeft));
 }
@@ -2044,7 +2026,7 @@ void() VR_ARENA_ManagerThink =
     if(!VR_ARENA_AnyPlayerUp())
     {
         ar_down = 1;
-        ar_fallen = find(world, classname, "player");
+        ar_fallen = VR_Player();
         if(ar_fallen) { VR_ARENA_Show(ar_fallen, sprintf("YOU FELL AT WAVE %g\n\nscore %g\n", ar_wave, ar_score), 9); }
         dprint(sprintf("arena: fell wave %g score %g\n", ar_wave, ar_score));
         self.think = VR_ARENA_RestartThink;
@@ -2134,7 +2116,7 @@ void() VR_ARENA_RestartThink =
 // The players put down to their fists, once a run begins (vr_trailer.qc's own strip, every rung of the ladder).
 void() VR_ARENA_StripPlayers =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         float wid;
@@ -2142,7 +2124,7 @@ void() VR_ARENA_StripPlayers =
         {
             VR_Trailer_TakeWeapon(p, wid);
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 }
 
@@ -2220,7 +2202,7 @@ void() VR_ARENA_Frame =
     if(!ar_mgr) { return; }
     if(!ar_stripped)
     {
-        entity p = find(world, classname, "player");
+        entity p = VR_Player();
         if(!p) { return; } // (its clients are not in yet)
         ar_stripped = 1;
         VR_ARENA_StripPlayers();

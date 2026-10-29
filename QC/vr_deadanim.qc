@@ -250,7 +250,7 @@ void() VR_DeadAnim_TestFrame =
         return;
     }
     cvar_set("vr_deadanim_test", "0");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p == world)
     {
         return;

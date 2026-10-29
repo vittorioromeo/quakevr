@@ -497,7 +497,7 @@ void(entity d, float xDead) VR_Dummy_ShowBoard =
     // Facing the nearest player (its own facing without one), turned a few degrees at a time.
     float yaw = d.vr_dummy_angles_y;
     float best = 100000;
-    for(entity p = find(world, classname, "player"); p != world; p = find(p, classname, "player"))
+    for(entity p = VR_Player(); p != world; p = VR_NextPlayer(p))
     {
         vector to = p.origin - d.vr_dummy_home;
         to_z = 0;
@@ -761,7 +761,7 @@ entity(entity d, float xReach) VR_Dummy_Victim =
 {
     entity best = world;
     float bestDist = xReach;
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         float dist = vlen(p.origin - d.origin);
@@ -770,7 +770,7 @@ entity(entity d, float xReach) VR_Dummy_Victim =
             best = p;
             bestDist = dist;
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
     return best;
 };

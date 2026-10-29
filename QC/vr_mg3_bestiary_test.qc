@@ -39,8 +39,6 @@ void() MG3_BT_Total =
     mg3bt_step = 0;
 };
 
-entity() MG3_BT_Player = { return find(world, classname, "player"); };
-
 // A monster `xChoice` (func_enemy_dispenser's: 40 orb ...) `xDist` units ahead of the player, `xSide` aside, `xUp` up.
 entity(entity p, float xChoice, float xDist, float xSide, float xUp) MG3_BT_Spawn =
 {
@@ -125,7 +123,7 @@ void(entity m, entity p) MG3_BT_Wake =
 
 void() MG3_BT_OrbStep =
 {
-    entity p = MG3_BT_Player();
+    entity p = VR_Player();
     entity oldself = self;
     if(mg3bt_step == 1)
     {
@@ -209,7 +207,7 @@ void() MG3_BT_OrbStep =
 
 void() MG3_BT_GhostSlimeStep =
 {
-    entity p = MG3_BT_Player();
+    entity p = VR_Player();
     entity oldself = self, oldother = other, oldact = activator;
     if(mg3bt_step == 10)
     {
@@ -348,7 +346,7 @@ void() MG3_BT_GhostSlimeStep =
 // Map8's victims, each used as its lever would: the counter counts down from 8 and fires once.
 void() MG3_BT_MapSacrifices =
 {
-    entity p = MG3_BT_Player();
+    entity p = VR_Player();
     entity oldself = self;
     mg3bt_pass = mg3bt_fail = 0;
     mg3bt_ctr = find(world, classname, "trigger_sacrifice_counter");
@@ -388,7 +386,7 @@ float(entity m) MG3_BT_LavaBalls =
 
 void() MG3_BT_LavaStep =
 {
-    entity p = MG3_BT_Player();
+    entity p = VR_Player();
     entity oldself = self, oldact = activator;
     if(mg3bt_step == 30)
     {
@@ -494,7 +492,7 @@ void() MG3_BT_LavaStep =
 // Dawn of the Machine's map2b: its two lava men wait for their trigger, rise when it fires, die when used again.
 void() MG3_BT_MapLavaStep =
 {
-    entity p = MG3_BT_Player();
+    entity p = VR_Player();
     entity oldself = self, oldact = activator;
     entity e;
     float n = 0, waiting = 0, risen = 0, dead = 0;
@@ -557,7 +555,7 @@ void() MG3_BT_MapLavaStep =
 // The super shambler: its registrations, its plasma, its lightning, blasts at half, killed: its ragdoll.
 void() MG3_BT_SuperShamblerStep =
 {
-    entity p = MG3_BT_Player();
+    entity p = VR_Player();
     entity oldself = self;
     if(mg3bt_step == 60)
     {
@@ -629,7 +627,7 @@ void() MG3_BT_SuperShamblerStep =
 // fights on with its health, then dies (its target fired, counted once).
 void(float xPart) MG3_BT_MapSuperShambler =
 {
-    entity p = MG3_BT_Player();
+    entity p = VR_Player();
     mg3bt_pass = mg3bt_fail = 0;
     entity s = find(world, classname, "monster_super_shambler");
     while(s && s.health <= 0) s = find(s, classname, "monster_super_shambler");
@@ -680,7 +678,7 @@ float(entity m, float n, float xDamage) MG3_BT_Flinches =
     {
         self.pain_finished = 0;
         self.think = SUB_Null;
-        self.th_pain(MG3_BT_Player(), xDamage);
+        self.th_pain(VR_Player(), xDamage);
         if(self.think != SUB_Null) flinched++;
         n--;
     }
@@ -693,7 +691,7 @@ float(entity m, float n, float xDamage) MG3_BT_Flinches =
 // says which it runs in: an MG3 map with skill 3 and serverflags 64 for all of them; e1m1 for none).
 void() MG3_BT_StockStep =
 {
-    entity p = MG3_BT_Player();
+    entity p = VR_Player();
     entity oldself = self;
     float mg3 = MG3_Campaign();
     float bn = MG3_BloodyNightmare();
@@ -854,7 +852,7 @@ void() MG3_BestiaryTestFrame =
     float request = cvar("vr_mg3_btest");
     if(!request) return;
     cvar_set("vr_mg3_btest", "0");
-    if(!MG3_BT_Player()) return;
+    if(!VR_Player()) return;
     entity oldself = self, oldother = other, oldact = activator;
     if(request == 1) MG3_BT_Report();
     else if(request == 2)

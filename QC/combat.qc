@@ -2940,7 +2940,7 @@ void(vector xOrigin, float xPower) VR_ExplosionRumble =
     }
     float reach = 300 + xPower * 3;
     entity oldSelf = self;
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         float d = vlen(p.origin - xOrigin);
@@ -2951,7 +2951,7 @@ void(vector xOrigin, float xPower) VR_ExplosionRumble =
             haptic(cVR_MainHand, 0.0, 0.2 + 0.3 * a, 45, a);
             haptic(cVR_OffHand, 0.0, 0.2 + 0.3 * a, 45, a);
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
     self = oldSelf;
 };

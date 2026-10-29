@@ -118,7 +118,7 @@ void() VR_Burn_TestFrame =
         return;
     }
     cvar_set("vr_burn_test", "0");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p == world)
     {
         return;

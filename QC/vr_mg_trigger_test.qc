@@ -104,7 +104,7 @@ void(entity p) MG_T_Interactions = {
 };
 void() MG_T_Start = {
     entity oldself = self; entity oldother = other; entity oldact = activator;
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     MG_T_pass = MG_T_fail = 0;
     if(!p || !MG_WorldCampaign()) { dprint("mgtriggertest: native campaign with a player required\n"); return; }
     MG_T_Interactions(p);
@@ -192,7 +192,7 @@ void() MG_T_MapSecond = {
 void() MG_T_MapStart = {
     if(mapname != "mge5m2") { dprint("mgtriggertest: authored test needs mge5m2\n"); return; }
     entity oldself = self; entity oldother = other; entity oldact = activator;
-    entity p = find(world,classname,"player"); MG_T_pass = MG_T_fail = 0; MG_T_started = time;
+    entity p = VR_Player(); MG_T_pass = MG_T_fail = 0; MG_T_started = time;
     entity manager = spawn(); manager.MG_T_actor = p; manager.think = MG_T_MapSecond; manager.nextthink = time + 3.2;
     entity teleport = find(world,targetname,"voidtele"); MG_T_Fire("pickup_rune",p);
     MG_T_Check(teleport.target == "voidsave_2", "authored rune pickup rewires safety teleport");
@@ -208,7 +208,7 @@ void() MG_T_MapStart = {
 
 void() MG_T_LightningDamage = {
     entity caller = self; entity oldother = other; entity oldact = activator;
-    entity p = find(world,classname,"player"); MG_T_pass = MG_T_fail = 0;
+    entity p = VR_Player(); MG_T_pass = MG_T_fail = 0;
     vector startpos = p.origin + '0 0 16';
     vector raydir = '1 0 0';
     traceline(startpos,startpos+raydir*128,TRUE,p);
@@ -234,7 +234,7 @@ void() MG_T_LightningDamage = {
 
 void() MG_T_RetargetGate = {
     entity caller = self; entity oldother = other; entity oldact = activator;
-    entity p = find(world,classname,"player");
+    entity p = VR_Player();
     entity gate = find(world,classname,"trigger_teleport");
     while(gate && !portal_handles(gate,p)) gate = find(gate,classname,"trigger_teleport");
     if(!gate) { dprint("mgtriggertest: retarget test needs a native visible teleporter\n"); return; }

@@ -88,7 +88,7 @@ entity() overlord_find_dest3 =
     furthestDest = world;
     bestDest = world;
     theDist=0;
-    thePlayer=find(world, classname, "player");
+    thePlayer=VR_Player();
     curDest=world;
 
     makevectors(thePlayer.angles);

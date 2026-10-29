@@ -6,7 +6,7 @@ void(float ok, string label) MGH_Check = {
  dprint(sprintf("mghordetest: %s %s\n",ok ? "PASS" : "FAIL",label));
 };
 void() MGH_Report = {
- entity p=find(world,classname,"player");
+ entity p=VR_Player();
  dprint(sprintf("mghordetest: map %s active %g wave %g waiting %g live %g\n",mapname,MGH_Active(),MGH_horde_ent.wave,MGH_horde_ent.wait,MGH_HordeGetMonstersAlive()));
  dprint(sprintf("mghordetest: squads %g/%g/%g keys %g/%g spawned %g\n",MGH_horde_ent.fodder,MGH_horde_ent.elites,MGH_horde_ent.bosses,MGH_keys_silver,MGH_keys_gold,MGH_key_spawned));
  dprint(sprintf("mghordetest: player health %g max %g hunger %g time %g shells %g armor %g\n",p.health,p.max_health,p.MGH_hunger_time,time,p.ammo_shells,p.armorvalue));
@@ -16,7 +16,7 @@ void() MGH_Report = {
 
 };
 void() MGH_Unit = {
- entity caller=self, p=find(world,classname,"player"), manager=MGH_horde_ent;
+ entity caller=self, p=VR_Player(), manager=MGH_horde_ent;
  MGH_test_pass=MGH_test_fail=0;
  manager.nextthink=0; manager.think=SUB_Null;
  vector pos=p.origin; float savedflags=serverflags;
@@ -79,7 +79,7 @@ void() MGH_Unit = {
  dprint(sprintf("mghordetest: %g passed, %g failed\n",MGH_test_pass,MGH_test_fail));
 };
 void() MGH_KillWave = {
- entity p=find(world,classname,"player"),e=find(world,MGH_category,MGH_CATEGORY_MONSTER);
+ entity p=VR_Player(),e=find(world,MGH_category,MGH_CATEGORY_MONSTER);
  float count=0; while(e) { entity next=find(e,MGH_category,MGH_CATEGORY_MONSTER); if(e.health>0 && e.classname!="monster_zombie") { e.health=0; Killed(e,p); count++; } e=next; }
  dprint(sprintf("mghordetest: actual killed %g wave %g live %g\n",count,MGH_horde_ent.wave,MGH_HordeGetMonstersAlive()));
 };
@@ -116,10 +116,10 @@ void() MGH_TestFrame = {
  else if(request==3) MGH_KillWave();
  else if(request==4) { self=MGH_horde_ent; self.wave=2; self.wait=1; self.fodder=self.elites=self.bosses=0; MGH_Countdown(); }
  else if(request==5) {
-  entity key=nextent(world),p=find(world,classname,"player"); while(key) { if(key.touch==MGH_horde_key_touch || key.carry_use==MGH_horde_key_touch) { self=key; other=p; MGH_horde_key_touch(); break; } key=nextent(key); }
+  entity key=nextent(world),p=VR_Player(); while(key) { if(key.touch==MGH_horde_key_touch || key.carry_use==MGH_horde_key_touch) { self=key; other=p; MGH_horde_key_touch(); break; } key=nextent(key); }
   dprint(sprintf("mghordetest: key collected %g silver %g gold %g\n",!!key,MGH_keys_silver,MGH_keys_gold));
  } else if(request==6) {
-  entity p=find(world,classname,"player"); self=p; float mainid=p.weaponinst.wi_uid,offid=p.weaponinst2.wi_uid,clip=p.weaponinst.wi_clip,offclip=p.weaponinst2.wi_clip;
+  entity p=VR_Player(); self=p; float mainid=p.weaponinst.wi_uid,offid=p.weaponinst2.wi_uid,clip=p.weaponinst.wi_clip,offclip=p.weaponinst2.wi_clip;
   float h0=p.holsterweaponinst0.wi_uid,h5=p.holsterweaponinst5.wi_uid;
   p.health=0; PlayerDie();
   self=MGH_horde_ent;
@@ -130,7 +130,7 @@ void() MGH_TestFrame = {
   MGH_Check(p.weaponinst.wi_uid==mainid && p.weaponinst2.wi_uid==offid && p.weaponinst.wi_clip==clip && p.weaponinst2.wi_clip==offclip,"revival preserves hand instance IDs and magazines");
   MGH_Check(p.holsterweaponinst0.wi_uid==h0 && p.holsterweaponinst5.wi_uid==h5,"revival preserves independent holster instance IDs"); MGH_Report();
  } else if(request==8) {
-  entity p=find(world,classname,"player"), button=find(world,classname,"func_button");
+  entity p=VR_Player(), button=find(world,classname,"func_button");
   while(button && !button.items) button=find(button,classname,"func_button");
   if(button) {
    float keybit=button.items, expected=keybit==IT_KEY1 ? MGH_keys_silver : MGH_keys_gold;
@@ -141,38 +141,38 @@ void() MGH_TestFrame = {
    MGH_Check((keybit==IT_KEY1 ? MGH_keys_silver : MGH_keys_gold)==expected,"held button contact does not spend again");
   } else dprint("mghordetest: no authored keyed button in this arena\n");
  } else if(request==11) {
-  entity p=find(world,classname,"player"),exit=find(world,classname,"trigger_changelevel");
+  entity p=VR_Player(),exit=find(world,classname,"trigger_changelevel");
   if(exit) { self=exit; other=activator=p; changelevel_touch(); dprint(sprintf("mghordetest: actual authored arena exit next %s\n",nextmap)); }
  } else if(request==12) {
   if(intermission_running) { ExitIntermission(); localcmd("exec mghorde_after.cfg\n"); }
  } else if(request==10) {
-  entity p=find(world,classname,"player"),m=nextent(world); while(m && !m.MG_deferred) m=nextent(m);
+  entity p=VR_Player(),m=nextent(world); while(m && !m.MG_deferred) m=nextent(m);
   if(m) {
    self=m; activator=p; MG_MonsterActivate(); MG_MonsterRunStart();
    MGH_Check(m.MGH_category==MGH_CATEGORY_MONSTER && m.health>0,"authored deferred arena monster joins live wave accounting");
   } else dprint("mghordetest: no authored deferred monster in this arena\n");
  } else if(request==9) {
-  entity p=find(world,classname,"player"); p.MGH_hunger_time=time+10; serverflags=serverflags|2; dprint("mghordetest: save Hunger timer set\n");
+  entity p=VR_Player(); p.MGH_hunger_time=time+10; serverflags=serverflags|2; dprint("mghordetest: save Hunger timer set\n");
  } else if(request==13) {
   MGH_test_monitor=TRUE; MGH_test_wave=-1; MGH_test_fodder=MGH_test_elites=MGH_test_bosses=0;
   entity seen=find(world,MGH_category,MGH_CATEGORY_MONSTER); while(seen) { seen.MGH_test_seen=TRUE; seen=find(seen,MGH_category,MGH_CATEGORY_MONSTER); }
   dprint("mghordetest: wave monitor on\n");
  } else if(request==15) {
   dprint(sprintf("mghordeplayers: wave %g waiting %g live %g alive %g coop %g keys %g/%g\n",MGH_horde_ent.wave,MGH_horde_ent.wait,MGH_HordeGetMonstersAlive(),MGH_HordeGetPlayersAlive(),coop,MGH_keys_silver,MGH_keys_gold));
-  entity pl=find(world,classname,"player");
+  entity pl=VR_Player();
   while(pl) {
    dprint(sprintf("mghordeplayer: %s client %g health %g dead %g ",pl.netname,!!(pl.flags & FL_CLIENT),pl.health,pl.deadflag));
    dprint(sprintf("silver %g gold %g frags %g ids %g/%g\n",VR_ItemUtil_EntHasItem(pl,IID_KEY1),VR_ItemUtil_EntHasItem(pl,IID_KEY2),pl.frags,pl.weaponinst.wi_uid,pl.weaponinst2.wi_uid));
-   pl=find(pl,classname,"player");
+   pl=VR_NextPlayer(pl);
   }
  } else if(request==17) {
   // Coop team wipe: every living player dies as from the kill command (official horde ClientKill).
-  entity victim=find(world,classname,"player");
-  while(victim) { if(victim.health>0 && (victim.flags & FL_CLIENT)) { self=victim; self.health=0; PlayerDie(); } victim=find(victim,classname,"player"); }
+  entity victim=VR_Player();
+  while(victim) { if(victim.health>0 && (victim.flags & FL_CLIENT)) { self=victim; self.health=0; PlayerDie(); } victim=VR_NextPlayer(victim); }
   dprint(sprintf("mghordetest: team wiped, alive %g\n",MGH_HordeGetPlayersAlive()));
  } else if(request==18) {
   // Keyed door: shared currency is spent once (official doors.qc horde_key_spend), the door opens, no key remains.
-  entity p=find(world,classname,"player"), door=find(world,classname,"door");
+  entity p=VR_Player(), door=find(world,classname,"door");
   while(door && !(door.touch==door_touch && (door.vr_itemId==IID_KEY1 || door.vr_itemId==IID_KEY2))) door=find(door,classname,"door");
   if(door) {
    MGH_test_pass=MGH_test_fail=0; float silver=door.vr_itemId==IID_KEY1, keybit=silver ? IT_KEY1 : IT_KEY2;
@@ -191,7 +191,7 @@ void() MGH_TestFrame = {
  } else if(request==14) {
   MGH_test_monitor=FALSE; dprint("mghordetest: wave monitor off\n");
  } else if(request==7) {
-  entity p=find(world,classname,"player"); self=p; MGH_powerup_chance=1; MGH_horde_spawn_powerup(); dprint("mghordetest: forced production powerup drop\n");
+  entity p=VR_Player(); self=p; MGH_powerup_chance=1; MGH_horde_spawn_powerup(); dprint("mghordetest: forced production powerup drop\n");
  }
  self=caller; other=prevother; activator=prevact;
 };

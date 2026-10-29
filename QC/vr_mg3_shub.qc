@@ -84,16 +84,6 @@ void() oldnew_finale_4;
 // A living shub zombie (raised by MG3_SZombie_Raise: vr_mg3_shub_zombie.qc).
 float(entity e) MG3_SZombie_Is = { return (e.mg3_szombie && (e.health > 0)); };
 
-// a x b
-vector(vector a, vector b) MG3_Cross =
-{
-    vector c;
-    c_x = a_y * b_z - a_z * b_y;
-    c_y = a_z * b_x - a_x * b_z;
-    c_z = a_x * b_y - a_y * b_x;
-    return c;
-};
-
 // The cosine between `a` and `b` on the level.
 float(vector a, vector b) MG3_FlatDot =
 {
@@ -103,7 +93,6 @@ float(vector a, vector b) MG3_FlatDot =
 };
 
 // The player (upstream's find: single player's).
-entity() MG3_Shub_Player = { return find(world, classname, "player"); };
 
 // A lightning bolt from `self` (beam `id`) between two points.
 void(float te, float id, vector from, vector to) MG3_Shub_Beam =
@@ -406,7 +395,7 @@ void() oldnew_finale_4 =
 
     if(!coop)
     {
-        entity p = MG3_Shub_Player();
+        entity p = VR_Player();
         if(p.health <= 0)
         {
             dprint("MG3 Shub: the player is dead, no completion\n");
@@ -712,7 +701,7 @@ void() spawn_spammer =
     if(self.enemy)
         s.enemy = self.enemy;
     else
-        s.enemy = MG3_Shub_Player();
+        s.enemy = VR_Player();
     s.nextthink = time + 0.1;
     mg3_shub_spammers = mg3_shub_spammers + 1;
 };
@@ -808,10 +797,10 @@ void() blast =
     if(MG3_Shub_Is(self.enemy))
         self.enemy = world; // (upstream: "accidentally set itself as its enemy")
     if((!self.enemy) || (self.enemy.classname != "player"))
-        self.enemy = MG3_Shub_Player();
+        self.enemy = VR_Player();
 
     vector vec = normalize(self.enemy.origin - self.origin);
-    vector cross = MG3_Cross(vec, '0 0 1');
+    vector cross = VR_Cross(vec, '0 0 1');
     vec = normalize(vec + cos(self.count * 15) * 0.5 * self.aflag * cross);
     self.angles = vectoangles(vec);
     entity m = launch_spike(self.origin + vec * 8, vec);
@@ -990,7 +979,7 @@ entity(vector org) MG3_Shub_SeekerEye =
     e.max_health = 300;
     e.th_die = eye_die;
     e.touch = eye_touch;
-    e.enemy = MG3_Shub_Player();
+    e.enemy = VR_Player();
     return e;
 };
 
@@ -1029,7 +1018,7 @@ void() sphere_mis_touch =
 void() actual_sphere =
 {
     if(!self.enemy)
-        self.enemy = MG3_Shub_Player();
+        self.enemy = VR_Player();
     makevectors(self.angles);
     vector vec = v_forward;
     float i = 0;
@@ -1068,13 +1057,13 @@ void(float max) spawn_sphere_manager =
     setorigin(m, self.origin);
     m.owner = self;
     if(!self.enemy)
-        self.enemy = MG3_Shub_Player();
+        self.enemy = VR_Player();
     vector vec = self.enemy.origin - self.origin;
     vec_z = 0;
     vec = normalize(vec);
     makevectors(self.angles);
     // (upstream turns clockwise when this cosine is over 1: never)
-    m.aflag = (MG3_FlatDot(v_right, MG3_Cross(vec, '0 0 1')) > 1);
+    m.aflag = (MG3_FlatDot(v_right, VR_Cross(vec, '0 0 1')) > 1);
     m.angles = vectoangles(vec);
     m.count = max;
     m.think = actual_sphere;
@@ -1140,7 +1129,7 @@ void(float max) spawn_sphere_chunk_manager =
     if(self.enemy)
         m.enemy = self.enemy;
     else
-        m.enemy = MG3_Shub_Player();
+        m.enemy = VR_Player();
     m.think = sphere_chunk;
     m.nextthink = time + 0.1;
 };
@@ -1151,10 +1140,10 @@ void(float max) spawn_sphere_chunk_manager =
 
 void(vector org, float a) auto_gun =
 {
-    entity p = MG3_Shub_Player();
+    entity p = VR_Player();
     vector vec = normalize(p.origin - org);
     if(a != 0)
-        vec = MG3_Cross(vec, '0 0 1') * a + vec * (1 - fabs(a));
+        vec = VR_Cross(vec, '0 0 1') * a + vec * (1 - fabs(a));
     entity m = launch_spike(org, vec);
     m.owner = self;
     m.touch = sphere_mis_touch;
@@ -1260,7 +1249,7 @@ void() monster_shub_seeker =
     e.max_health = 300;
     e.th_die = eye_die;
     e.touch = eye_touch;
-    e.enemy = MG3_Shub_Player();
+    e.enemy = VR_Player();
 };
 
 //============================================================================

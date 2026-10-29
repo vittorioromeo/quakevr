@@ -83,7 +83,7 @@ void(entity m, float xFor, string xWhat) VR_Knockdown_Keep =
 // A player's hand holds `m` (dragging it, lifting it).
 float(entity m) VR_Knockdown_Held =
 {
-    for(entity p = find(world, classname, "player"); p != world; p = find(p, classname, "player"))
+    for(entity p = VR_Player(); p != world; p = VR_NextPlayer(p))
     {
         if(VR_Carry_Held(p, cVR_MainHand) == m || VR_Carry_Held(p, cVR_OffHand) == m)
         {
@@ -134,7 +134,7 @@ void(entity e) VR_Knockdown_RemoveBody =
 float(entity e) VR_PlacedCorpse_Near =
 {
     float reach = max(0, cvar("vr_corpse_placed_wake")) * 1.5;
-    for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
     {
         if(vlen(p.origin - e.origin) < reach)
         {

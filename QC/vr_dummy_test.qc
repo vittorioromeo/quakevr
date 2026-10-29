@@ -72,7 +72,7 @@ void() VR_Dummy_TestFrame =
         return;
     }
     cvar_set("vr_dummy_test", "0");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p == world)
     {
         return;

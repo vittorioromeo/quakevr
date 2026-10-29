@@ -33,12 +33,6 @@ vector(vector a) MG_ModAngles = {
     return a;
 }
 
-float(float v, float min, float max) MG_Clamp = {
-    if(v < min) return min;
-    if(v > max) return max;
-    return v;
-}
-
 /*QUAKED info_rotate (0.4 1.0 0.6) (-8 -8 -8) (8 8 8) 
 Used to indicate center of rotation.
 */
@@ -72,7 +66,7 @@ void(float DeltaTime) MG_rotate_object_continuously_tick = {
 
 void(float DeltaTime) MG_rotate_object_tween_tick = {
     self.speed += self.distance * DeltaTime;
-    self.speed = MG_Clamp(self.speed, 0, 1);
+    self.speed = clamp(self.speed, 0, 1);
     if(self.speed == 0)
     {
         self.state = RotateStateOff;

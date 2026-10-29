@@ -6,7 +6,7 @@
 // targetname) on the player; 2 reports the cinematic system's and the player's state (one "adtest:" line).
 void(float request) AD_Test =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(request >= 10)
     {
         AD_RulesTest(request, p); // (the follow-ups' tests, any map: vr_ad_player.qc)

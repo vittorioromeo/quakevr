@@ -10,7 +10,7 @@
 void() VR_CrouchTest_Run =
 {
     float n = cvar("vr_crouch_test");
-    entity player = find(world, classname, "player");
+    entity player = VR_Player();
     if(player == world)
     {
         return;

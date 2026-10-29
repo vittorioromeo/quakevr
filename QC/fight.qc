@@ -341,7 +341,7 @@ void() VR_MeleeArc_ShowFrame =
         vr_meleearc_show_print = time;
     }
     entity oself = self;
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         entity m = findradius(p.origin, 600);
@@ -368,7 +368,7 @@ void() VR_MeleeArc_ShowFrame =
             }
             m = m.chain;
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 };
 

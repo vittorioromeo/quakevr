@@ -147,14 +147,14 @@ float(float kind) VR_AGR_NativeOf = { return kind == VR_AM_ENFORCER ? WID_ENFRIF
 // Any player may have `wid` (the weapon drops' rule: owned; the axe and the shotgun always).
 float(float wid) VR_AGR_Owned =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         if(VR_WeaponUtil_EntIsEligibleForWeapon(p, wid))
         {
             return TRUE;
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
     return FALSE;
 };
@@ -375,7 +375,7 @@ float(float kind) VR_AGR_Replace =
     self.weaponflags2 = 0;
     if(VR_AGR_Varied())
     {
-        if(find(world, classname, "player"))
+        if(VR_Player())
         {
             VR_AGR_Pick(kind, self.vr_agr_seed); // (a spawner's, a player in: rolled now)
             self.weapon = vr_agr_code;
@@ -457,7 +457,7 @@ void(entity g) VR_AGR_Resolve =
 // StartFrame: the map's replacements waiting for a player are rolled once one is in.
 void() VR_AGR_Frame =
 {
-    if(vr_agr_npending <= 0 || !find(world, classname, "player"))
+    if(vr_agr_npending <= 0 || !VR_Player())
     {
         return;
     }

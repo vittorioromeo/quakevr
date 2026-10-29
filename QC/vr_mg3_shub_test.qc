@@ -164,7 +164,7 @@ string() MG3_ST_MadeStr =
 
 void() MG3_ST_PhaseStep =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     entity m = mg3st_m;
     entity oldself = self;
     if(mg3st_step == 1)
@@ -302,7 +302,7 @@ void() MG3_ST_PhaseStep =
 // Her death (god mode): immune, her children gone, the lights out, the burst, the ending.
 void() MG3_ST_EndStep =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     entity m = mg3st_m;
     if(mg3st_step == 20)
     {
@@ -388,7 +388,7 @@ entity mg3st_z, mg3st_b;
 float mg3st_z0, mg3st_floor;
 void() MG3_ST_ZombieStep =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     entity m = mg3st_m;
     entity oldself = self;
     if(mg3st_step == 50)
@@ -526,7 +526,7 @@ void() MG3_ST_ZombieStep =
 entity mg3st_d;
 void() MG3_ST_DummyStep =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(mg3st_step == 30 || mg3st_step == 33)
     {
         if(mg3st_step == 30) { mg3st_pass = mg3st_fail = 0; }
@@ -594,7 +594,7 @@ void() MG3_ShubTestFrame =
     float request = cvar("vr_mg3_shubtest");
     if(!request) return;
     cvar_set("vr_mg3_shubtest", "0");
-    if(!find(world, classname, "player")) return;
+    if(!VR_Player()) return;
     entity oldself = self, oldother = other, oldact = activator;
     if(request == 1) MG3_ST_Report();
     else if(!MG3_Shub_Available()) dprint("mg3shubtest: the Dawn of the Machine data is not there (no Shub)\n");

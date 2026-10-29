@@ -32,8 +32,6 @@ void(float ok, string label) MG3_WT_Check =
     dprint(sprintf("mg3wtest: %s %s\n", ok ? "PASS" : "FAIL", label));
 };
 
-entity() MG3_WT_Player = { return find(world, classname, "player"); };
-
 // A monster `xChoice` (func_enemy_dispenser's: 0 soldier, 1 ogre, 2 zombie) `xDist` units ahead of the player, `xSide` aside.
 entity(entity p, float xChoice, float xDist, float xSide) MG3_WT_Spawn =
 {
@@ -66,7 +64,7 @@ float(entity p, entity v) MG3_WT_Strike =
 
 void() MG3_WT_Report =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     dprint(sprintf("mg3wtest: report map %s campaign %g superaxe data %g model %s\n", mapname, cvar("vr_campaign"),
         VR_Pack_WeaponAvailable(WID_SUPERAXE), WeaponIdToModel(WID_SUPERAXE, 0)));
     if(!p) return;
@@ -91,7 +89,7 @@ void(entity p) MG3_WT_GiveMain =
 // Request 2, one step a call (MG3_WeaponsTestFrame runs it when mg3wt_next comes).
 void() MG3_WT_BurstStep =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     float window = cvar_hget(cvarh_vr_superaxe_burst_window);
     if(mg3wt_step == 1)
     {
@@ -185,7 +183,7 @@ void() MG3_WT_BurstStep =
 // Request 3: a pickup ahead (spawned half a second before), taken by the empty main hand as a hand's grab takes it.
 void() MG3_WT_Pickup =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     mg3wt_pass = mg3wt_fail = 0;
     entity oldself = self, oldother = other;
     self = p;
@@ -228,7 +226,7 @@ void() MG3_WT_Pickup =
 // Request 4 (Dawn of the Machine's map2): the map's own Super Axe.
 void() MG3_WT_Map2 =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     mg3wt_pass = mg3wt_fail = 0;
     entity it = find(world, classname, "weapon_superaxe");
     MG3_WT_Check(find(world, classname, "weapon_mjolnir") == world, "no weapon_mjolnir left (remapped)");
@@ -265,7 +263,7 @@ void() MG3_WT_Map2 =
 // Request 5: a Super Axe in the main hand and the first holster.
 void() MG3_WT_Holster =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     MG3_WT_GiveMain(p);
     p.holsterweapon0 = WID_SUPERAXE;
     p.holsterweaponmodel0 = WeaponIdToModel(WID_SUPERAXE, 0);
@@ -305,7 +303,7 @@ void(entity p, entity b, float k) MG3_WT_HitButton =
 // Request 6: every axe button of the map.
 void() MG3_WT_AxeButtons =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     mg3wt_pass = mg3wt_fail = 0;
     float n = 0, shut = 0, opened = 0;
     entity b = find(world, classname, "func_axe_button");
@@ -357,7 +355,7 @@ entity(entity p, float xClosed) MG3_WT_NearestAxeButton =
 // from its middle (request 7), facing it, the eyes level with it.
 void() MG3_WT_FaceAxeButton =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     entity b = MG3_WT_NearestAxeButton(p, TRUE);
     if(!b) { dprint("mg3wtest: no closed axe button\n"); return; }
     vector mid = (b.absmin + b.absmax) * 0.5;
@@ -375,7 +373,7 @@ void() MG3_WT_FaceAxeButton =
 
 void() MG3_WT_AxeButtonState =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     entity b = MG3_WT_NearestAxeButton(p, FALSE);
     if(!b) return;
     dprint(sprintf("mg3wtest: nearest axe button at %s state %g (1 shut) health %g\n", vtos((b.absmin + b.absmax) * 0.5), b.state, b.health));
@@ -387,7 +385,7 @@ float mg3wt_bolts_bounced, mg3wt_bolts_seen; // HIP_LaserTouch's counts as the b
 // Request 9, at once: the damage of a bolt, then 12 bolts at the wall ahead (MG3_WT_LaserStep counts them after).
 void() MG3_WT_Laser =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     mg3wt_pass = mg3wt_fail = 0;
     entity oldself = self;
     self = p;
@@ -441,7 +439,7 @@ void() MG3_WT_LaserStep =
 // Request 10: the nearest weapon_laser_gun into the empty main hand.
 void() MG3_WT_LaserPickup =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     mg3wt_pass = mg3wt_fail = 0;
     entity best = world;
     float bestDist = 999999;
@@ -480,7 +478,7 @@ void() MG3_WT_LaserPickup =
 // Requests 11..15: the bloody shotguns.
 void() MG3_WT_BloodyReport =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     dprint(sprintf("mg3wtest: bloody bits %g (parm56 %g) serverflags %g; shotgun refire %g; shells %g; hands %g/%g\n",
         MG3_BloodyBits(), parm56, serverflags, MG3_BloodyShotgunRefire(0.5), p.ammo_shells, p.weapon, p.weapon2));
 };
@@ -501,7 +499,7 @@ entity() MG3_WT_NextBloody =
 
 void() MG3_WT_BloodyTake =
 {
-    entity p = MG3_WT_Player();
+    entity p = VR_Player();
     mg3wt_pass = mg3wt_fail = 0;
     float taken = 0;
     entity it = MG3_WT_NextBloody();
@@ -567,7 +565,7 @@ void() MG3_WeaponsTestFrame =
     float request = cvar("vr_mg3_wtest");
     if(!request) return;
     cvar_set("vr_mg3_wtest", "0");
-    if(!MG3_WT_Player()) return;
+    if(!VR_Player()) return;
     if(request != 1 && request < 6 && !VR_Pack_WeaponAvailable(WID_SUPERAXE))
     {
         dprint("mg3wtest: the Dawn of the Machine data is not there (no Super Axe)\n");
@@ -576,7 +574,7 @@ void() MG3_WeaponsTestFrame =
     entity oldself = self, oldother = other, oldact = activator;
     if(request == 1) MG3_WT_Report();
     else if(request == 2) { mg3wt_step = 1; mg3wt_next = time; }
-    else if(request == 3) { MG3_SuperAxe_SpawnAhead(MG3_WT_Player(), 48); mg3wt_step = 10; mg3wt_next = time + 0.5; }
+    else if(request == 3) { MG3_SuperAxe_SpawnAhead(VR_Player(), 48); mg3wt_step = 10; mg3wt_next = time + 0.5; }
     else if(request == 4) MG3_WT_Map2();
     else if(request == 5) MG3_WT_Holster();
     else if(request == 6) MG3_WT_AxeButtons();
@@ -590,7 +588,7 @@ void() MG3_WeaponsTestFrame =
     {
         if(!MG3_WT_NextBloody())
         {
-            entity p13 = MG3_WT_Player();
+            entity p13 = VR_Player();
             makevectors(p13.v_angle_y * '0 1 0');
             entity os13 = self;
             self = spawn(); setorigin(self, p13.origin + v_forward * 48 + v_right * 24); weapon_bloody_sg();

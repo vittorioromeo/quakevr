@@ -298,7 +298,7 @@ void() VR_APK1_Run =
 // The player the perks work on, and what of his the test touched, put back at the end (the state is at the top).
 void() VR_APK3_Save =
 {
-    ark_t_p = VR_ARENA_FindPlayer();
+    ark_t_p = VR_PlayerAlive();
     if(!ark_t_p) { return; }
     ark_t_saved = 1;
     ark_t_health0 = ark_t_p.health;
@@ -579,7 +579,7 @@ void() VR_APK3_Frame =
 // hook fires the way it does in a real fight. 1 when a blow landed.
 float() VR_APK4_KillOne =
 {
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     if(p == world) { return 0; }
 
     entity e = findflags(world, ar_slot, ar_wave);
@@ -680,7 +680,7 @@ void() VR_APK5_Begin =
         VR_APK_End();
         return;
     }
-    if(VR_ARENA_FindPlayer() == world)
+    if(VR_PlayerAlive() == world)
     {
         VR_APK_Check(FALSE, "no player is up to choose (god, and the map's own player)");
         VR_APK_End();

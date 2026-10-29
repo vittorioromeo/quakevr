@@ -1290,7 +1290,7 @@ void() VR_Burn_MapFrame =
 {
     entity p;
     float anyFire = -1; // (any fire in the map: looked up once per frame, for the first player that needs it)
-    for(p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    for(p = VR_Player(); p; p = VR_NextPlayer(p))
     {
         if(p.ishuman && p.health > 0 && p.burn_fire != world)
         {
@@ -1461,53 +1461,6 @@ entity() VR_Burn_OtherFires =
     return fires;
 };
 
-// How near segments p1..q1 and p2..q2 come (their nearest points' distance).
-float(vector p1, vector q1, vector p2, vector q2) VR_Burn_SegSegDist =
-{
-    vector d1 = q1 - p1;
-    vector d2 = q2 - p2;
-    vector r = p1 - p2;
-    float a = d1 * d1;
-    float e = d2 * d2;
-    float f = d2 * r;
-    float s = 0;
-    float t = 0;
-    if(a <= 0.0001 && e <= 0.0001)
-    {
-        return vlen(r);
-    }
-    if(a <= 0.0001)
-    {
-        t = min(1, max(0, f / e));
-    }
-    else
-    {
-        float c = d1 * r;
-        if(e <= 0.0001)
-        {
-            s = min(1, max(0, -c / a));
-        }
-        else
-        {
-            float b = d1 * d2;
-            float denom = a * e - b * b;
-            s = denom > 0 ? min(1, max(0, (b * f - c * e) / denom)) : 0;
-            t = (b * s + f) / e;
-            if(t < 0)
-            {
-                t = 0;
-                s = min(1, max(0, -c / a));
-            }
-            else if(t > 1)
-            {
-                t = 1;
-                s = min(1, max(0, (b - c) / a));
-            }
-        }
-    }
-    return vlen((p1 + d1 * s) - (p2 + d2 * t));
-};
-
 // The fire volumes nails catch in (VR_Burn_NailCheck), by the flame's kind (the fire spots' vr_fire_spot_large; the
 // toolgun's flames map to them): an upright capsule from vr_fv_lo to vr_fv_hi over the flame's origin, vr_fv_r round
 // its axis. Sized to the flame as drawn (flame2.mdl's small ball about 6 wide to 16 over its origin, the large one, a
@@ -1536,7 +1489,7 @@ float(float xKind, vector o, vector a, vector b, vector mid, float half) VR_Burn
         return FALSE;
     }
     VR_Burn_FireVolume(xKind);
-    return VR_Burn_SegSegDist(a, b, o + vr_fv_lo, o + vr_fv_hi) <= vr_fv_r;
+    return VR_SegmentDistanceEps(a, b, o + vr_fv_lo, o + vr_fv_hi, 0.0001, 0) <= vr_fv_r;
 };
 
 // Nail `n` going a..b through a fire, a lava nail: a lit torch's flame (xTorches: within vr_burn_nail_reach), the map's
@@ -1549,7 +1502,7 @@ void(entity n, entity xTorches, entity xFires, vector a, vector b) VR_Burn_NailC
     while(t)
     {
         vector fl = VR_WallTorch_Head(t) + '0 0 8';
-        if(VR_WallTorch_SegmentDist(fl, a, b) <= reach)
+        if(VR_PointSegmentDistance(fl, a, b) <= reach)
         {
             VR_Burn_NailToLava(n, fl, t);
             return;
@@ -1583,7 +1536,7 @@ void(entity n, entity xTorches, entity xFires, vector a, vector b) VR_Burn_NailC
         }
         if(t.classname == "fireball")
         {
-            if(VR_WallTorch_SegmentDist(t.origin, a, b) <= 10)
+            if(VR_PointSegmentDistance(t.origin, a, b) <= 10)
             {
                 VR_Burn_NailToLava(n, t.origin, t);
                 return;
@@ -1609,7 +1562,7 @@ void(entity n, entity xTorches, entity xFires, vector a, vector b) VR_Burn_NailC
         vector hi = c;
         lo_z = v.absmin_z + min(r, up);
         hi_z = v.absmax_z - min(r, up);
-        if(VR_Burn_SegSegDist(a, b, lo, hi) <= r)
+        if(VR_SegmentDistanceEps(a, b, lo, hi, 0.0001, 0) <= r)
         {
             VR_Burn_NailToLava(n, c, v);
             return;
@@ -1938,7 +1891,7 @@ void() VR_Burn_LavaPlayers =
     {
         return;
     }
-    for(entity p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
     {
         if(p.health <= 0 || !p.takedamage || p.waterlevel <= 0 || p.watertype != CONTENT_LAVA ||
            p.invincible_finished > time || p.radsuit_finished > time ||

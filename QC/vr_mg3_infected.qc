@@ -96,10 +96,10 @@ void(string xClass) MG3_Infected_SetEnemy =
     {
         return;
     }
-    entity f = find(world, classname, "player");
+    entity f = VR_Player();
     while(f != world && f.health <= 0)
     {
-        f = find(f, classname, "player");
+        f = VR_NextPlayer(f);
     }
     if(f != world)
     {

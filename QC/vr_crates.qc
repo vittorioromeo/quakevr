@@ -609,7 +609,7 @@ void(vector xA, vector xB) VR_Crate_MonsterShot =
     {
         return;
     }
-    for(entity p = find(world, classname, "player"); p != world; p = find(p, classname, "player"))
+    for(entity p = VR_Player(); p != world; p = VR_NextPlayer(p))
     {
         VR_Crate_ShieldShot(p.mainhand_held, xA, xB, shield);
         if(p.offhand_held != p.mainhand_held)
@@ -958,7 +958,7 @@ void(entity crate, vector mid, vector dir) VR_Crate_Contents =
         }
         return;
     }
-    entity player = find(world, classname, "player");
+    entity player = VR_Player();
     if(player != world && random() < cvar("vr_crate_ammo"))
     {
         float nails = (VR_WeaponUtil_EntIsEligibleForWeapon(player, WID_NAILGUN) ||

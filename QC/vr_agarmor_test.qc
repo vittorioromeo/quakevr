@@ -307,7 +307,7 @@ void() VR_AgArmor_TestFrame =
         }
         float request = cvar("vr_agarmor_test");
         cvar_set("vr_agarmor_test", "0");
-        entity p = find(world, classname, "player");
+        entity p = VR_Player();
         if(!p)
         {
             return;

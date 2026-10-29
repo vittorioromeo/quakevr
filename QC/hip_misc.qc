@@ -477,7 +477,7 @@ void() effect_finale_use =
       {
       if(self.spawnflags & 1)
          {
-         pl = find(world, classname, "player");
+         pl = VR_Player();
          targ = find(world, targetname, self.mdl);
          become_decoy(targ.target, pl.origin);
          }
@@ -488,7 +488,7 @@ void() effect_finale_use =
          }
       }
 
-    pl = find(world, classname, "player");
+    pl = VR_Player();
     while(pl != world)
     {
       pl.view_ofs = '0 0 0';
@@ -506,7 +506,7 @@ void() effect_finale_use =
       pl.oldorigin = pos.origin;
       UpdateCamera(pl,pl);
       UpdateCamera(pl,pl.trigger_field);
-      pl = find(pl, classname, "player");
+      pl = VR_NextPlayer(pl);
     }
 
    // wait for next sequence

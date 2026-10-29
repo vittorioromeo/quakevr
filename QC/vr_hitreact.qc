@@ -354,7 +354,7 @@ void() VR_Guard_Frame =
     if(want >= 1)
     {
         cvar_set("vr_test_guard", "0");
-        entity pl1 = find(world, classname, "player");
+        entity pl1 = VR_Player();
         entity best = world;
         float bestD = 100000;
         entity e = nextent(world);
@@ -378,7 +378,7 @@ void() VR_Guard_Frame =
         return;
     }
     entity oldSelf = self;
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     while(pl)
     {
         if(pl.health > 0 && VRHandsTracked(pl))
@@ -387,7 +387,7 @@ void() VR_Guard_Frame =
             VR_Guard_Hand(pl, cVR_MainHand);
             VR_Guard_Hand(pl, cVR_OffHand);
         }
-        pl = find(pl, classname, "player");
+        pl = VR_NextPlayer(pl);
     }
     self = oldSelf;
 };

@@ -201,7 +201,7 @@ void() OnLoadGame =
     VR_ADGun_LegacyWorld(); // AD support: an older save's eliminator's plasma guns the centurion's (vr_ad_enemyguns.qc)
     // The load's pause/loading screens often arrive with neither controller gripping. Protect only the weapons
     // restored in the hands, starting in game time (the server stays paused until the client is ready).
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         p.vr_weapon_load_until = time + max(0, cvar("vr_weapon_load_grace"));
@@ -211,7 +211,7 @@ void() OnLoadGame =
         // game; the hands' model fields name them, which the load's model rebinding doesn't cover: SV_ModelIndex fails)
         VR_ADGun_EnsureCarried(p);
         VR_ADMelee_EnsureCarried(p);
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 }
 
@@ -746,7 +746,7 @@ void() execute_changelevel =
         }
     }
 
-    other = find(world, classname, "player");
+    other = VR_Player();
     while(other != world)
     {
         other.view_ofs = '0 0 0';
@@ -766,7 +766,7 @@ void() execute_changelevel =
             fog_setOverrideConditional(other, fogsettings.view_ofs, fogsettings.ideal_yaw, 1);
         }
 
-        other = find(other, classname, "player");
+        other = VR_NextPlayer(other);
     }
 
     WriteByte(MSG_ALL, SVC_INTERMISSION);

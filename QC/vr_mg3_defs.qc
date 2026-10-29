@@ -231,7 +231,7 @@ void() MG3_BloodyNightmareLevel = {
 // and vr_mg3_bn_start before the start map loads; its first frame turns the game into a Bloody Nightmare one.
 void() MG3_Frame = {
     if(!cvar("vr_mg3_bn_start")) return;
-    if(time < 1 || !find(world, classname, "player")) return; // (once the player is in: he is told)
+    if(time < 1 || !VR_Player()) return; // (once the player is in: he is told)
     cvar_set("vr_mg3_bn_start", "0");
     if(!MG3_Campaign()) return;
     serverflags = serverflags | MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED;

@@ -514,16 +514,6 @@ void() VR_Reload_SelfTest =
     bprint(sprintf("reload: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
 };
 
-// The cross product of `xA` and `xB`.
-vector(vector xA, vector xB) VR_Reload_TestCross =
-{
-    vector c = '0 0 0';
-    c_x = xA_y * xB_z - xA_z * xB_y;
-    c_y = xA_z * xB_x - xA_x * xB_z;
-    c_z = xA_x * xB_y - xA_y * xB_x;
-    return c;
-};
-
 // Test steps 10 to 13 and 16 (loading by contact: VR_Reload_LooseFrame): a loose round for the off hand's gun (a shell;
 // the super shotgun's pair; its magazine, full or what the reserve has; a launcher's round), its ammo out of the reserve,
 // lying the way it goes in (placed by its reference point: VR_Reload_RoundRef): `xHow` 0 tossed into the gun's opening
@@ -555,14 +545,14 @@ void(float xHow) VR_Reload_TestLoosePlace =
     vector perp = '0 0 0';
     if(xHow == 1)
     {
-        perp = VR_Reload_TestCross(axis, face);
+        perp = VR_Cross(axis, face);
         if(vlen(perp) < 0.2)
         {
-            perp = VR_Reload_TestCross(axis, '0 0 1');
+            perp = VR_Cross(axis, '0 0 1');
         }
         if(vlen(perp) < 0.2)
         {
-            perp = VR_Reload_TestCross(axis, '1 0 0');
+            perp = VR_Cross(axis, '1 0 0');
         }
         axis = normalize(perp);
     }
@@ -731,10 +721,10 @@ void(float xStep) VR_Reload_TestLying =
     vector axis = g.loadportaxis;
     if(xStep == 24)
     {
-        axis = VR_Reload_TestCross(axis, g.loadportface);
+        axis = VR_Cross(axis, g.loadportface);
         if(vlen(axis) < 0.2)
         {
-            axis = VR_Reload_TestCross(g.loadportaxis, '0 0 1');
+            axis = VR_Cross(g.loadportaxis, '0 0 1');
         }
         axis = normalize(axis);
     }
@@ -1006,7 +996,7 @@ void() VR_Reload_TestMagNailsLayout =
 // point on the floor ahead, facing the player's way. The marker itself goes a frame later (the scenario counts it made).
 void() VR_Reload_MagNailsLayout =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     VR_Reload_MagNailsLayAt(self.origin + '0 0 12', p ? p.v_angle_y : self.angles_y);
     self.solid = SOLID_NOT;
     self.movetype = MOVETYPE_NONE;

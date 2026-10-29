@@ -1032,7 +1032,7 @@ void() VR_AD_DispenserBossWake =
     entity was = activator;
     if(activator.classname != "player")
     {
-        activator = find(world, classname, "player");
+        activator = VR_Player();
     }
     float t = self.ad_classtype;
     self.use();

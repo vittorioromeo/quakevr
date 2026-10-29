@@ -11,7 +11,7 @@ void() MG_ActivationTestFinish = {
 void() MG_ActivationTest = {
     entity oldself = self;
     entity oldact = activator;
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     MG_test_pass = MG_test_fail = 0;
     float total = total_monsters;
     entity e = spawn();
@@ -76,7 +76,7 @@ void() MG_ActivationTest = {
 };
 
 void(float request) MG_ProgressTest = {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     entity oldself = self;
     entity oldother = other;
     entity oldact = activator;
