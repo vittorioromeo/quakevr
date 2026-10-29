@@ -141,8 +141,11 @@ the page is `menu_vr 72` (Debug > Checklist).
 Each item has Pass, Fail and Test buttons under it (ROUND22.md, "Checklist: Pass, Fail and Test"): marks live in the
 same ticks file (a passed item's text a line, a failed one's after `[fail] `; an old file's lines read as passes);
 `vr_checklist pass|fail|test <n>`, CLITEM's mark is `x` passed, `!` failed, its last field the item's scenario. On the
-mock: `menu_vr 72`, five `vr_mock_key downarrow` select the first item, `rightarrow`/`leftarrow` pick its button,
+mock: `menu_vr 72`, eight `vr_mock_key downarrow` select the first item (its section unfolded), `rightarrow`/`leftarrow` pick its button,
 `enter` presses it; `developer 1` prints `checklist: item <n>, <button> pressed`.
+Sections fold (ROUND23.md, "Checklist: folding sections"): each header shows open/total, the row under it folds or
+unfolds it, kept by name in `quakevr/checklist_sections.txt` (ignored); `vr_checklist` prints CLSEC lines,
+`vr_checklist collapse|expand <s|all>` and `folds_default`; `python Misc/quakevr/checklist_fold_check.py <agent>` tests it.
 
 ### Checklist scenarios: how to write one
 

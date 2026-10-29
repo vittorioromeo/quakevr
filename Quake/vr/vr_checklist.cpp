@@ -1,6 +1,7 @@
 // vr_checklist.cpp -- the playtest checklist (vr_checklist.hpp): quakevr/checklist.txt read at runtime ("[Section]"
 // lines, one item a line, '#' or "//" comments, an item's trailing "{test:<id>}" its scenario), its marks in
-// quakevr/checklist_ticks.txt (a passed item's text a line, a failed one's after "[fail] ").
+// quakevr/checklist_ticks.txt (a passed item's text a line, a failed one's after "[fail] "), the sections folded or
+// unfolded by hand in quakevr/checklist_sections.txt ("collapsed <name>" / "expanded <name>").
 
 #include "vr_checklist.hpp"
 #include "vr_engine.hpp"
@@ -39,10 +40,15 @@ struct State
     ankerl::unordered_dense::set<za::String> failedTexts;   // every failed item's, likewise
     za::Vector<za::String> undoTexts;            // the presses made this session, the last at the end
     za::Vector<int> undoWasTicked;               // and each item's Mark before (what undo() restores)
+    za::Vector<int> sectionOpens;                // each section's open items, and its items
+    za::Vector<int> sectionTotals;
+    za::Vector<int> sectionDefaults;             // each section's fold by default (1: nothing open when read)
+    ankerl::unordered_dense::set<za::String> collapsedNames; // the sections folded by hand (by name), those gone too
+    ankerl::unordered_dense::set<za::String> expandedNames;  // and unfolded by hand
     auto members()
     {
         return qvr::mem::list(sections, texts, scenarios, shown, section, firstLine, lines, tickedTexts, failedTexts,
-            undoTexts, undoWasTicked);
+            undoTexts, undoWasTicked, sectionOpens, sectionTotals, sectionDefaults, collapsedNames, expandedNames);
     }
 };
 mem::Cache<State> state{"checklist", mem::Never};
@@ -68,6 +74,16 @@ char lineText[64];
 {
     return za::String{com_gamedir} + "/checklist_ticks.txt";
 }
+
+[[nodiscard]] za::String foldsPath()
+{
+    return za::String{com_gamedir} + "/checklist_sections.txt";
+}
+
+constexpr const char* collapsedPrefix = "collapsed "; // a folds file's lines: one of these, then the section's name
+constexpr size_t collapsedPrefixLength = 10;
+constexpr const char* expandedPrefix = "expanded ";
+constexpr size_t expandedPrefixLength = 9;
 
 [[nodiscard]] za::String trimmed(za::StringView s)
 {
@@ -182,11 +198,87 @@ void countOpen()
 {
     open = 0;
     failed = 0;
-    for(const za::String& t : state.texts)
+    state.sectionOpens.clear();
+    state.sectionTotals.clear();
+    state.sectionOpens.resize(state.sections.size(), 0);
+    state.sectionTotals.resize(state.sections.size(), 0);
+    for(size_t i = 0; i < state.texts.size(); i++)
     {
-        open += state.tickedTexts.count(t) ? 0 : 1;
+        const za::String& t = state.texts[i];
+        const int isOpen = state.tickedTexts.count(t) ? 0 : 1;
+        open += isOpen;
         failed += state.failedTexts.count(t) ? 1 : 0;
+        const int s = state.section[i];
+        if(s >= 0)
+        {
+            state.sectionOpens[s] += isOpen;
+            state.sectionTotals[s]++;
+        }
     }
+}
+
+void readFolds()
+{
+    state.collapsedNames.clear();
+    state.expandedNames.clear();
+    za::Vector<za::String> lines;
+    if(!readLines(foldsPath(), lines))
+    {
+        return;
+    }
+    for(const za::String& l : lines)
+    {
+        if(l.size() > collapsedPrefixLength && !strncmp(l.cStr(), collapsedPrefix, collapsedPrefixLength))
+        {
+            state.collapsedNames.insert(za::String{l.cStr() + collapsedPrefixLength});
+        }
+        else if(l.size() > expandedPrefixLength && !strncmp(l.cStr(), expandedPrefix, expandedPrefixLength))
+        {
+            state.expandedNames.insert(za::String{l.cStr() + expandedPrefixLength});
+        }
+    }
+}
+
+void writeFolds()
+{
+    const za::String path = foldsPath();
+    FILE* f = fopen(path.cStr(), "wb");
+    if(!f)
+    {
+        Con_Printf("vr_checklist: couldn't write %s\n", path.cStr());
+        return;
+    }
+    // In the list's order, then those no longer listed (as the ticks).
+    ankerl::unordered_dense::set<za::String> written;
+    for(const za::String& s : state.sections)
+    {
+        if(written.insert(s).second)
+        {
+            if(state.collapsedNames.count(s))
+            {
+                fprintf(f, "%s%s\n", collapsedPrefix, s.cStr());
+            }
+            else if(state.expandedNames.count(s))
+            {
+                fprintf(f, "%s%s\n", expandedPrefix, s.cStr());
+            }
+        }
+    }
+    for(const za::String& s : state.collapsedNames)
+    {
+        if(!written.count(s))
+        {
+            fprintf(f, "%s%s\n", collapsedPrefix, s.cStr());
+        }
+    }
+    for(const za::String& s : state.expandedNames)
+    {
+        if(!written.count(s))
+        {
+            fprintf(f, "%s%s\n", expandedPrefix, s.cStr());
+        }
+    }
+    fclose(f);
 }
 
 [[nodiscard]] int markOf(const za::String& t)
@@ -326,6 +418,11 @@ void readList()
     }
     state.firstLine.pushBack(static_cast<int>(state.lines.size())); // (the end of the last item's)
     countOpen();
+    state.sectionDefaults.clear();
+    for(size_t s = 0; s < state.sections.size(); s++)
+    {
+        state.sectionDefaults.pushBack(state.sectionTotals[s] > 0 && state.sectionOpens[s] == 0 ? 1 : 0);
+    }
     gen++;
 }
 
@@ -336,6 +433,7 @@ void refresh(bool force)
     if(!ticksRead)
     {
         readTicks();
+        readFolds();
         force = true;
     }
     if(!force && realtime - lastLook < 1.0 && realtime >= lastLook)
@@ -381,6 +479,56 @@ int sectionOf(int item)
 const char* sectionName(int section)
 {
     return section >= 0 && section < static_cast<int>(state.sections.size()) ? state.sections[section].cStr() : "";
+}
+
+int sectionCount()
+{
+    return static_cast<int>(state.sections.size());
+}
+
+int sectionOpen(int section)
+{
+    return section >= 0 && section < sectionCount() ? state.sectionOpens[section] : 0;
+}
+
+int sectionTotal(int section)
+{
+    return section >= 0 && section < sectionCount() ? state.sectionTotals[section] : 0;
+}
+
+bool collapsed(int section)
+{
+    if(section < 0 || section >= sectionCount())
+    {
+        return false;
+    }
+    const za::String& name = state.sections[section];
+    return state.collapsedNames.count(name) ? true : state.expandedNames.count(name) ? false : state.sectionDefaults[section] != 0;
+}
+
+void setCollapsed(int section, bool on)
+{
+    if(section >= sectionCount())
+    {
+        return;
+    }
+    for(int s = section < 0 ? 0 : section; s < (section < 0 ? sectionCount() : section + 1); s++)
+    {
+        const za::String& name = state.sections[s];
+        state.collapsedNames.erase(name);
+        state.expandedNames.erase(name);
+        (on ? state.collapsedNames : state.expandedNames).insert(name);
+    }
+    writeFolds();
+    gen++;
+}
+
+void clearCollapseChoices()
+{
+    state.collapsedNames.clear();
+    state.expandedNames.clear();
+    writeFolds();
+    gen++;
 }
 
 int mark(int item)
@@ -525,11 +673,22 @@ void command_f()
         const int item = undo();
         Con_Printf("CLUNDO|%d|%d left\n", item, undoCount());
     }
+    else if(Cmd_Argc() >= 3 && (!q_strcasecmp(Cmd_Argv(1), "collapse") || !q_strcasecmp(Cmd_Argv(1), "expand")))
+    {
+        refresh();
+        setCollapsed(!q_strcasecmp(Cmd_Argv(2), "all") ? -1 : Q_atoi(Cmd_Argv(2)), !q_strcasecmp(Cmd_Argv(1), "collapse"));
+    }
+    else if(Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "folds_default"))
+    {
+        refresh();
+        clearCollapseChoices();
+    }
     else if(Cmd_Argc() >= 2)
     {
-        Con_Printf("vr_checklist [reload | tick <n> | pass <n> | fail <n> | test <n> | undo]: the checklist "
-                   "(quakevr/checklist.txt), read again, item n ticked or unticked, passed or failed (again: back to "
-                   "untested), its scenario run, or the last press undone\n");
+        Con_Printf("vr_checklist [reload | tick <n> | pass <n> | fail <n> | test <n> | undo | collapse <s|all> | expand "
+                   "<s|all> | folds_default]: the checklist (quakevr/checklist.txt), read again, item n ticked or "
+                   "unticked, passed or failed (again: back to untested), its scenario run, the last press undone, "
+                   "section s folded or unfolded in the menu, or every fold back to its default\n");
         return;
     }
     else
@@ -538,6 +697,11 @@ void command_f()
     }
     Con_Printf("CLSUM|%s|%d open|%d items|%d sections|%d failed\n", fileFound ? "found" : "missing", open, itemCount(),
         static_cast<int>(state.sections.size()), failed);
+    for(int s = 0; s < sectionCount(); s++)
+    {
+        Con_Printf("CLSEC|%d|%d|%d|%s|%s\n", s, sectionOpen(s), sectionTotal(s), collapsed(s) ? "collapsed" : "expanded",
+            sectionName(s));
+    }
     for(int i = 0; i < itemCount(); i++)
     {
         const int m = mark(i);

@@ -281,6 +281,7 @@ struct MenuReadouts
     za::String motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp;
     za::String checklistUndoHelp;      // checklistUndoHelp
     za::String checklistItemHelp;      // checklistHelp
+    za::String checklistSectionHelp;   // checklistSectionHelp
     za::String weight[2];              // weightReadout, by hand
     za::String weaponWeightsDamage[2]; // weaponWeightsDamageReadout, by line
     za::String heldObjectMass;
@@ -291,13 +292,14 @@ struct MenuReadouts
     za::String weaponOffsetsStock;     // weaponOffsetsStockReadout
     char checklistSummary[48];         // checklistSummary
     char checklistTesting[48];         // checklistTesting
+    char checklistSection[48];         // checklistSectionRow
     char stamina[96];                 // staminaReadout
     char renderScaleHelp[192];         // renderScaleHelp
     char buildVersion[64];             // buildVersionLine
     auto members()
     {
         return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, serverRuleHelp, fineHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
-            weaponWeightsDrop, weaponWeightsHeavy, weaponWeightsHits, weaponOffsetsStock, checklistSummary, checklistTesting, checklistUndoHelp, checklistItemHelp, stamina, renderScaleHelp, buildVersion);
+            weaponWeightsDrop, weaponWeightsHeavy, weaponWeightsHits, weaponOffsetsStock, checklistSummary, checklistTesting, checklistSection, checklistUndoHelp, checklistItemHelp, checklistSectionHelp, stamina, renderScaleHelp, buildVersion);
     }
 };
 
