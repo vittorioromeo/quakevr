@@ -41,7 +41,7 @@
 //   vr_arena_test         0    the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss
 //                             wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 none of
 //                             it off the arena, 9 the wave flow, 10 the foes' armour, 11 the loot the waves leave
-//                             behind
+//                             behind, 12 the weapon schedule, 13 no overlapping spawns, 14 the rest and countdown
 //
 // None of the cleanup ever takes a thing a hand holds, a force grab pulls or a body still dying: it waits for it.
 //
@@ -168,6 +168,7 @@ float ar_gap_n;            // this wave's trickle gaps so far
 float ar_count;            // the countdown's seconds still to say (VR_ARENA_CountThink)
 float ar_count_at;         // the time the countdown to the next wave began (0: none; the tests read it)
 float ar_rest_at;          // the time the rest before it began (a wave clear, the run's start)
+float ar_count_said;       // the countdown's lines said so far (the tests read it)
 
 // The director's own beats (vr_arena.qc's own cycle; world.qc only calls WorldSpawn and Frame).
 void() VR_ARENA_WaveStart;
@@ -1138,7 +1139,7 @@ entity(vector xLo, vector xHi, entity xSkip) VR_ARENA_BoxBlocker =
     entity e = findradius(0.5 * (xLo + xHi), AR_CLEAR_R + 0.5 * vlen(xHi - xLo));
     while(e)
     {
-        if(e != xSkip && VR_ARENA_Blocks(e) &&
+        if(e != xSkip && (!xSkip || (e.owner != xSkip && e != xSkip.vr_ag_prop)) && VR_ARENA_Blocks(e) &&
            e.absmin_x < xHi_x && e.absmax_x > xLo_x && e.absmin_y < xHi_y && e.absmax_y > xLo_y &&
            e.absmin_z < xHi_z && e.absmax_z > xLo_z)
         {
@@ -1154,7 +1155,7 @@ entity(vector xLo, vector xHi, entity xSkip) VR_ARENA_BoxBlocker =
 float(vector o) VR_ARENA_FoeBoxClear =
 {
     vector at = o + '0 0 32';
-    vector lo = at + (ar_place_big ? '-32 -32 -24' : '-16 -16 -24') - AR_CLEAR_PAD * '1 1 0' - ar_place_drop * '0 0 1';
+    vector lo = at + (ar_place_big ? '-32 -32 -24' : '-16 -16 -24') - AR_CLEAR_PAD * '1 1 1' - ar_place_drop * '0 0 1';
     vector hi = at + (ar_place_big ? '32 32 64' : '16 16 40') + AR_CLEAR_PAD * '1 1 1';
     return VR_ARENA_BoxBlocker(lo, hi, world) == world;
 }
@@ -1164,10 +1165,13 @@ float(vector o) VR_ARENA_FoeBoxClear =
 void(entity xNew, string xWhat) VR_ARENA_ScanSpawn =
 {
     ar_spawn_scans = ar_spawn_scans + 1;
-    entity b = VR_ARENA_BoxBlocker(xNew.absmin, xNew.absmax, xNew);
+    entity b = VR_ARENA_BoxBlocker(xNew.absmin + '2 2 2', xNew.absmax - '2 2 2', xNew); // (the engine links boxes 1 wider every way: these are the true ones)
     if(b == world) { return; }
     ar_overlaps = ar_overlaps + 1;
-    dprint(sprintf("arena: overlap %s at %s with %s at %s\n", xWhat, vtos(xNew.origin), b.classname, vtos(b.origin)));
+    dprint(sprintf("arena: overlap %s at %s (%s..%s) with %s", xWhat, vtos(xNew.origin), vtos(xNew.absmin),
+                   vtos(xNew.absmax), b.classname));
+    dprint(sprintf(" at %s (%s..%s, solid %g, health %g)\n", vtos(b.origin), vtos(b.absmin), vtos(b.absmax), b.solid,
+                   b.health));
 }
 
 float(vector o) VR_ARENA_PlaceTaken =
@@ -1958,13 +1962,22 @@ void() VR_ARENA_CountThink =
     dprint(sprintf("arena: countdown wave %g %g at %g\n", w, ar_count, time - ar_count_at));
 
     ar_count = ar_count - 1;
+    ar_count_said = ar_count_said + 1;
     self.think = VR_ARENA_CountThink;
     self.nextthink = time + 1;
+}
+
+// Between two waves: the rest after a clear, the countdown, or a jump's wave about to begin.
+float() VR_ARENA_Between =
+{
+    return ar_mgr.think == VR_ARENA_CountStart || ar_mgr.think == VR_ARENA_CountThink ||
+           ar_mgr.think == VR_ARENA_WaveStart;
 }
 
 void() VR_ARENA_CountStart =
 {
     ar_count = VR_ARENA_Opt_Countdown();
+    ar_count_said = 0;
     ar_count_at = time;
     dprint(sprintf("arena: rest over wave %g after %g\n", ar_wave + 1, time - ar_rest_at));
     VR_ARENA_CountThink();

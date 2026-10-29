@@ -33,12 +33,21 @@
 //   vr_enemy_drops never hold; out of a run the gate is ownership again; and wave 20's armed humanoids hold their
 //   plan's strong guns in their hands with the player owning none of them. (vrarena's name alone keeps its run on, so
 //   its off-run half needs a map where the cvar is the only thing saying "arena".)
+// - 12 (vrtesthall with vr_arena 1, or vrarena): the weapon schedule over 24 seeded runs of 30 waves at each skill:
+//   each gun first in hands at its table wave (moved by the difficulty), never before, its trickle waves carrying
+//   exactly 1 then 2 of it, the bosses keeping their own picks, the mission packs' guns only with their data, the
+//   pool's weights (a newcomer rarer at first, an old gun fading but never gone).
+// - 13 (vrarena): no overlaps: a thing on a place takes it, a drop's place with a thing on it is stepped round; then
+//   waves 8, 12, 16 live with the player standing on a spawn place and medkits lying on every item point, every foe
+//   and drop scanned as it comes in (none may overlap anything) and every medkit finding room.
+// - 14 (vrarena, or vr_arena 1): the rest and the countdown before a wave, timed: 5 s + 5 s at Normal into a boss
+//   wave (its boss named), then Hard (4 s rest, the same 5 s countdown) into a plain wave.
 
 // ---------------------------------------------------------------------------
 // The test's own state
 // ---------------------------------------------------------------------------
 
-float vr_at_case;        // 0 idle; 1 .. 11 running
+float vr_at_case;        // 0 idle; 1 .. 14 running
 float vr_at_pass;
 float vr_at_fail;
 float vr_at_step;
@@ -190,6 +199,39 @@ float() VR_AT_BossCount =
     return n;
 }
 
+// How many of the plan's (non-boss) humanoids hold a gun.
+float(float xWid) VR_AT_GunCount =
+{
+    float n = 0;
+    float j;
+    for(j = 0; j < ar_plan_n; j++)
+    {
+        if(VR_AT_IsHumanoid(ar_plan_kind[j]) && !ar_plan_boss[j] && ar_plan_gun[j] == xWid) { n = n + 1; }
+    }
+    return n;
+}
+
+// How many of the plan's (non-boss) humanoids hold a gun the weapon schedule has not made eligible by wave xWave
+// (vr_arena.qc's table: a row's VR_ARENA_GunEligible; the nail pistol at wave 2 is that wave's own plan).
+float(float xWave) VR_AT_OffSchedule =
+{
+    float bad = 0;
+    float j;
+    float i;
+    for(j = 0; j < ar_plan_n; j++)
+    {
+        if(!VR_AT_IsHumanoid(ar_plan_kind[j]) || ar_plan_boss[j] || ar_plan_gun[j] == AR_FIST) { continue; }
+        if(xWave == 2 && ar_plan_gun[j] == WID_NAILPISTOL) { continue; }
+        float ok = FALSE;
+        for(i = 0; i < AR_GUN_N; i++)
+        {
+            if(ar_plan_gun[j] == VR_ARENA_GunWid(i) && xWave >= VR_ARENA_GunEligible(i)) { ok = TRUE; }
+        }
+        if(!ok) { bad = bad + 1; }
+    }
+    return bad;
+}
+
 float() VR_AT_GunSum =
 {
     float s = 0;
@@ -228,12 +270,15 @@ void() VR_AT_Plans =
     VR_ARENA_Plan(3);
     VR_AT_Check(VR_AT_HumanoidCount() >= 3 && VR_AT_HumanoidCount() <= 4, "wave 3 grunt count");
     VR_AT_Check(VR_AT_CountKind(AR_SP_ZOMBIE) == 1, "wave 3 brings a zombie");
-    VR_AT_Check(VR_AT_HumanoidMaxTier() == 1, "wave 3 stays on the first rung");
+    // (the weapon schedule: the super shotgun's trickle starts here, on one of them; the rest the bottom rungs)
+    VR_AT_Check(VR_AT_GunCount(WID_SUPER_SHOTGUN) == 1 && VR_AT_HumanoidMaxTier() <= 2 && VR_AT_OffSchedule(3) == 0,
+                "wave 3 brings one super shotgun, the rest the bottom rungs");
 
     VR_ARENA_Plan(4);
     VR_AT_Check(VR_AT_CountKind(AR_SP_KNIGHT) == 1, "wave 4 brings a knight");
     VR_AT_Check(VR_AT_HumanoidCount() == 4, "wave 4 grunt count");
-    VR_AT_Check(VR_AT_HumanoidMaxTier() == 1, "wave 4 stays on the first rung");
+    VR_AT_Check(VR_AT_GunCount(WID_SUPER_SHOTGUN) == 1 && VR_AT_GunCount(WID_NAILGUN) == 0 && VR_AT_OffSchedule(4) == 0,
+                "wave 4 brings one super shotgun again, no nailgun yet");
     VR_AT_Check(VR_AT_CountKind(AR_SP_OGRE) == 0 && VR_AT_CountKind(AR_SP_FIEND) == 0 &&
                 VR_AT_CountKind(AR_SP_HKNIGHT) == 0 && VR_AT_CountKind(AR_SP_DOG) == 0, "wave 4 monster mix");
 
@@ -245,11 +290,13 @@ void() VR_AT_Plans =
     // reads it); what it is worth: four of that rung.
     VR_AT_Check(ar_plan_tier[0] == 1, "wave 5's boss holds a first rung gun");
     VR_AT_Check(VR_ARENA_KillScore(ar_plan_tier[0], TRUE) == 400, "a first rung boss is scored four of its rung");
-    VR_AT_Check(VR_AT_HumanoidMaxTier() <= 1, "wave 5 stays on the first rung");
+    VR_AT_Check(VR_AT_GunCount(WID_SUPER_SHOTGUN) == 2 && VR_AT_GunCount(WID_NAILGUN) == 1 && VR_AT_HumanoidMaxTier() <= 2,
+                "wave 5: two super shotguns and the first nailgun, nothing past the second rung");
 
     VR_ARENA_Plan(10);
     VR_AT_Check(VR_AT_BossCount() == 1 && ar_plan_kind[0] == AR_SP_OGRE, "wave 10's boss is an ogre");
-    VR_AT_Check(VR_AT_HumanoidMaxTier() <= 2, "wave 10 reaches the second rung");
+    VR_AT_Check(VR_AT_GunCount(WID_GRENADE_LAUNCHER) == 1 && VR_AT_GunCount(WID_ROCKET_LAUNCHER) == 0,
+                "wave 10 brings the first grenade launcher, no rockets yet");
 
     VR_ARENA_Plan(15);
     VR_AT_Check(VR_AT_BossCount() == 1 && ar_plan_kind[0] == AR_SP_OGRE, "wave 15's boss is an ogre");
@@ -266,8 +313,8 @@ void() VR_AT_Plans =
         VR_AT_Check(VR_AT_HumanoidCount() <= 7, "a wave's grunts are capped");
         VR_AT_Check(VR_AT_CountKind(AR_SP_ENFORCER) <= 4, "a wave's enforcers are capped");
 
-        if(w < AR_W_TIER2)   { VR_AT_Check(VR_AT_HumanoidMaxTier() <= 1, "no second rung before wave 10"); }
-        if(w < AR_W_TIER3)   { VR_AT_Check(VR_AT_HumanoidMaxTier() <= 2, "no third rung before wave 18"); }
+        VR_AT_Check(VR_AT_OffSchedule(w) == 0, sprintf("wave %g: no gun before the schedule's wave for it", w));
+        if(w < AR_GUN_FIRST) { VR_AT_Check(VR_AT_HumanoidMaxTier() <= 1, "nothing past the bottom rungs before wave 3"); }
         if(w < AR_W_ZOMBIE)  { VR_AT_Check(VR_AT_CountKind(AR_SP_ZOMBIE) == 0, "no zombie before wave 2"); }
         if(w < 4)            { VR_AT_Check(VR_AT_CountKind(AR_SP_KNIGHT) == 0, "no knight before wave 4"); }
         if(w < AR_W_DOG)     { VR_AT_Check(VR_AT_CountKind(AR_SP_DOG) == 0, "no dog before wave 6"); }
@@ -871,8 +918,10 @@ void(float xSkill) VR_AT5_ObeyGates =
     for(w = 1; w <= 34; w++)
     {
         VR_ARENA_Plan(w);
-        if(w < g2) { VR_AT_Check(VR_AT_HumanoidMaxTier() <= 1, sprintf("no second rung before wave %g at skill %g", g2, xSkill)); }
-        if(w < g3) { VR_AT_Check(VR_AT_HumanoidMaxTier() <= 2, sprintf("no third rung before wave %g at skill %g", g3, xSkill)); }
+        // (the weapon schedule's gates move with the difficulty: its rows' VR_ARENA_GunEligible; test 12 the rest)
+        VR_AT_Check(VR_AT_OffSchedule(w) == 0, sprintf("wave %g: no gun before the schedule's wave for it at skill %g", w, xSkill));
+        g2 = VR_ARENA_GunEligible(3); // (the second rung's first gun, the super shotgun)
+        g3 = VR_ARENA_GunEligible(6); // (the third rung's first gun, the grenade launcher)
         if(w < gd) { VR_AT_Check(VR_AT_CountKind(AR_SP_DOG) == 0, sprintf("no dog before wave %g at skill %g", gd, xSkill)); }
         if(w < go) { VR_AT_Check(VR_AT_CountKind(AR_SP_OGRE) == 0, sprintf("no ogre before wave %g at skill %g", go, xSkill)); }
         if(w < gf) { VR_AT_Check(VR_AT_CountKind(AR_SP_FIEND) == 0, sprintf("no fiend before wave %g at skill %g", gf, xSkill)); }
@@ -1913,7 +1962,7 @@ void() VR_AT9_Frame =
     float up = VR_ARENA_CountAlive();
     if(up > vr_at9_peak) { vr_at9_peak = up; }
 
-    if(ar_mgr.think == VR_ARENA_WaveStart) // (the wave is over: its clear ran, the next one waits for its rest)
+    if(VR_ARENA_Between()) // (the wave is over: its clear ran, the next one waits for its rest)
     {
         float w = ar_wave;
         float lo = VR_ARENA_SkillTime(VR_ARENA_Opt_Gap(), AR_TICK);
@@ -2409,6 +2458,290 @@ void() VR_AT11_Frame =
     VR_AT_End();
 }
 
+// ---------------------------------------------------------------------------
+// Test 12: the weapon schedule (vr_arena.qc's table above VR_ARENA_PickGun) over seeded runs, plans only
+// ---------------------------------------------------------------------------
+
+#define AR_T12_ROWS 11 // (AR_GUN_N)
+float AR_T12_SEEDS = 24;  // seeded runs per skill
+float AR_T12_LAST  = 30;  // waves planned per run
+float vr_at12_first[AR_T12_ROWS]; // the first wave a row's gun was in a (non-boss) humanoid's hands, over the runs
+
+float vr_at12_early;     // a row's gun in hands before its wave
+float vr_at12_bad;       // a trickle wave whose count is not the table's
+float vr_at12_short;     // a trickle wave with fewer humanoids than carriers (not checked: reported)
+float vr_at12_trickled;  // the trickle waves checked
+float vr_at12_bossDealt; // a boss given a trickle gun
+float vr_at12_k;         // the skill being run (its index in VR_AT12_SkillAt)
+float vr_at12_s;         // its next seed
+
+void(float xSkill) VR_AT12_SkillBegin =
+{
+    VR_AT_SetSkill(xSkill);
+    float i;
+    for(i = 0; i < AR_T12_ROWS; i++) { vr_at12_first[i] = 0; }
+    vr_at12_early = 0;
+    vr_at12_bad = 0;
+    vr_at12_short = 0;
+    vr_at12_trickled = 0;
+    vr_at12_bossDealt = 0;
+}
+
+// One seeded run's 30 plans (one a frame: the whole sweep at once would run past the QC's instruction limit).
+void(float xSkill, float s) VR_AT12_Seed =
+{
+    float i;
+    float w;
+    float j;
+    {
+        cvar_set("vr_arena_seed", ftos(s));
+        for(w = 1; w <= AR_T12_LAST; w++)
+        {
+            VR_ARENA_Plan(w);
+            float free = 0;
+            for(j = 0; j < ar_plan_n; j++)
+            {
+                if(VR_AT_IsHumanoid(ar_plan_kind[j]) && !ar_plan_boss[j]) { free = free + 1; }
+                if(ar_plan_boss[j] && ar_plan_dealt[j]) { vr_at12_bossDealt = vr_at12_bossDealt + 1; }
+            }
+            float need = 0;
+            for(i = 0; i < AR_T12_ROWS; i++) { need = need + VR_ARENA_GunCarriers(i, w); }
+            for(i = 0; i < AR_T12_ROWS; i++)
+            {
+                float n = VR_AT_GunCount(VR_ARENA_GunWid(i));
+                if(n > 0 && (vr_at12_first[i] == 0 || w < vr_at12_first[i])) { vr_at12_first[i] = w; }
+                if(VR_ARENA_GunFrom(i) <= 0) { continue; }
+                if(w < VR_ARENA_GunEligible(i) && n > 0) { vr_at12_early = vr_at12_early + 1; }
+                float c = VR_ARENA_GunCarriers(i, w);
+                if(c <= 0) { continue; }
+                if(need > free) { vr_at12_short = vr_at12_short + 1; continue; }
+                vr_at12_trickled = vr_at12_trickled + 1;
+                if(n != c)
+                {
+                    vr_at12_bad = vr_at12_bad + 1;
+                    dprint(sprintf("arena: t12 skill %g seed %g wave %g gun %g: %g carriers, table %g\n", xSkill, s, w,
+                                   VR_ARENA_GunWid(i), n, c));
+                }
+            }
+        }
+    }
+}
+
+void(float xSkill) VR_AT12_Finish =
+{
+    float i;
+    for(i = 0; i < AR_T12_ROWS; i++)
+    {
+        float from = VR_ARENA_GunFrom(i);
+
+        dprint(sprintf("arena: t12 skill %g row %g gun %g eligible %g pool from %g first seen %g\n", xSkill, i,
+                       VR_ARENA_GunWid(i), from > 0 ? VR_ARENA_GunEligible(i) : AR_GUN_FIRST,
+                       VR_ARENA_GunPoolFrom(i), vr_at12_first[i]));
+        if(!VR_ARENA_GunOk(i))
+        {
+            VR_AT_Check(vr_at12_first[i] == 0, sprintf("skill %g: gun %g (not in this game) never comes", xSkill, VR_ARENA_GunWid(i)));
+        }
+        else if(from > 0)
+        {
+            VR_AT_Check(vr_at12_first[i] == VR_ARENA_GunEligible(i),
+                        sprintf("skill %g: gun %g first at wave %g, the table's %g", xSkill, VR_ARENA_GunWid(i),
+                                vr_at12_first[i], VR_ARENA_GunEligible(i)));
+        }
+    }
+    VR_AT_Check(vr_at12_first[1] == 2, sprintf("skill %g: the nail pistol first at wave 2 (its own plan)", xSkill));
+    VR_AT_Check(vr_at12_first[0] == AR_GUN_FIRST, sprintf("skill %g: the shotgun first at wave 3", xSkill));
+    VR_AT_Check(vr_at12_early == 0, sprintf("skill %g: no gun before its wave (%g seen)", xSkill, vr_at12_early));
+    VR_AT_Check(vr_at12_bad == 0 && vr_at12_trickled > 0, sprintf("skill %g: every trickle wave carries the table's count (%g of %g off)",
+                                                  xSkill, vr_at12_bad, vr_at12_trickled));
+    VR_AT_Check(vr_at12_bossDealt == 0, sprintf("skill %g: the bosses keep their own picks", xSkill));
+    if(xSkill == 1) { VR_AT_Check(vr_at12_short == 0, "Normal: no trickle wave is vr_at12_short of humanoids"); }
+    dprint(sprintf("arena: t12 skill %g trickle waves %g, vr_at12_short %g\n", xSkill, vr_at12_trickled, vr_at12_short));
+}
+
+float(float k) VR_AT12_SkillAt = { if(k == 0) { return 1; } if(k == 1) { return 0; } return k; }
+
+void() VR_AT12_Run =
+{
+    // The pool's weights: a newcomer rarer on joining than four waves on, an old gun fading, never to nothing.
+    float sng = 5;
+    float pf = VR_ARENA_GunPoolFrom(sng);
+    VR_AT_Check(VR_ARENA_GunWeight(sng, pf) > 0 && VR_ARENA_GunWeight(sng, pf) < VR_ARENA_GunWeight(sng, pf + 4),
+                "a gun joining the pool starts rarer than it gets");
+    VR_AT_Check(VR_ARENA_GunWeight(0, 25) < VR_ARENA_GunWeight(0, 5) && VR_ARENA_GunWeight(0, 60) > 0,
+                "the shotgun fades from the pool as the waves go, never to nothing");
+    VR_AT_Check(VR_ARENA_GunWeight(sng, pf - 1) == 0 && VR_ARENA_GunCarriers(sng, pf - 1) == 2 &&
+                VR_ARENA_GunCarriers(sng, pf) == 0, "a gun on its trickle is not in the pool, then is only the pool");
+
+    vr_at12_k = 0;
+    vr_at12_s = 1;
+    VR_AT12_SkillBegin(VR_AT12_SkillAt(0));
+    vr_at_until = time + 120;
+}
+
+void() VR_AT12_Frame =
+{
+    float sk = VR_AT12_SkillAt(vr_at12_k);
+    VR_AT12_Seed(sk, vr_at12_s);
+    vr_at12_s = vr_at12_s + 1;
+    if(vr_at12_s <= AR_T12_SEEDS) { return; }
+    VR_AT12_Finish(sk);
+    vr_at12_k = vr_at12_k + 1;
+    vr_at12_s = 1;
+    if(vr_at12_k >= 4) { VR_AT_SetSkill(1); VR_AT_End(); return; }
+    VR_AT12_SkillBegin(VR_AT12_SkillAt(vr_at12_k));
+}
+
+// ---------------------------------------------------------------------------
+// Test 13 (vrarena): spawns never overlap -- the box checks, then live waves with the player on a spawn place and
+// medkits on the item points, every spawn scanned (VR_ARENA_ScanSpawn's count must stay 0)
+// ---------------------------------------------------------------------------
+
+float AR_T13_KILL = 1;   // s between the test's kills (the field churns: places free up and fill again)
+float vr_at13_n;         // waves done
+float vr_at13_target;
+float vr_at13_kill;
+float vr_at13_planned;   // foes the waves planned, all told
+
+float(float i) VR_AT13_Wave = { if(i == 0) { return 8; } if(i == 1) { return 12; } return 16; }
+
+entity(vector xAt) VR_AT13_Blocker =
+{
+    entity b = spawn();
+    b.classname = "vr_at13_blocker";
+    setmodel(b, "progs/player.mdl");
+    b.solid = SOLID_TRIGGER;
+    setsize(b, '-16 -16 0', '16 16 56');
+    setorigin(b, xAt);
+    return b;
+}
+
+void() VR_AT13_Next =
+{
+    vr_at13_target = VR_AT13_Wave(vr_at13_n);
+    VR_ARENA_FastForward(vr_at13_target);
+    vr_at13_kill = time + AR_T13_KILL;
+    vr_at_until = time + 240;
+}
+
+void() VR_AT13_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 13 needs the arena (vrarena)"); VR_AT_End(); return; }
+    entity g = VR_ARENA_SpawnSpot(1, 0);
+    entity it = VR_ARENA_ItemSpot(0);
+    entity p = VR_ARENA_FindPlayer();
+    if(!g || !it || !p) { VR_AT_Check(FALSE, "test 13 needs vrarena's places and a player"); VR_AT_End(); return; }
+
+    // The box checks: a thing on a place takes it; a drop's place with a thing on it is stepped round.
+    entity b = VR_AT13_Blocker(g.origin + '0 0 8');
+    VR_AT_Check(VR_ARENA_PlaceTaken(g.origin), "a thing standing on a spawn place takes it");
+    remove(b);
+    VR_AT_Check(!VR_ARENA_PlaceTaken(g.origin), "the same place empty is free");
+    b = VR_AT13_Blocker(it.origin + '0 0 8');
+    vector f = VR_ARENA_FreeNear(it.origin);
+    VR_AT_Check(ar_place_ok && f != it.origin, "a drop's place with a thing on it is stepped round");
+    VR_AT_Check(VR_ARENA_BoxBlocker(f + '-16 -16 8', f + '32 32 64', world) == world, "the step's box is clear");
+    remove(b);
+
+    // The live half: the player stands on a spawn place, medkits lie on every item point.
+    setorigin(p, g.origin + '0 0 24');
+    p.velocity = '0 0 0';
+    float i;
+    float total = 0;
+    entity s = find(world, classname, "info_arena_item");
+    while(s) { total = total + 1; s = find(s, classname, "info_arena_item"); }
+    for(i = 0; i < total; i++) { VR_ARENA_SpawnDrop(1, VR_ARENA_ItemSpot(i).origin); }
+    ar_overlaps = 0;
+    ar_spawn_scans = 0;
+    vr_at13_planned = 0;
+    vr_at13_n = 0;
+    VR_AT13_Next();
+    dprint(sprintf("arena: t13 player on %s, %g medkits laid on the item points\n", vtos(g.origin), total));
+}
+
+void() VR_AT13_Frame =
+{
+    if(ar_wave != vr_at13_target) { return; }
+    if(VR_ARENA_Between()) // (its clear ran: its drops are down)
+    {
+        vr_at13_planned = vr_at13_planned + ar_plan_n;
+        dprint(sprintf("arena: t13 wave %g: %g foes in, %g felled, %g medkits %g armour dropped, scans %g overlaps %g\n",
+                       ar_wave, ar_plan_live, ar_wave_kills, ar_drop_health, ar_drop_armour, ar_spawn_scans, ar_overlaps));
+        VR_AT_Check(ar_plan_live == ar_plan_n, sprintf("wave %g put its whole plan in the field", ar_wave));
+        VR_AT_Check(ar_drop_health == VR_ARENA_MedkitCount(ar_wave),
+                    sprintf("wave %g's medkits all found room beside the ones lying there", ar_wave));
+        vr_at13_n = vr_at13_n + 1;
+        if(vr_at13_n >= 3)
+        {
+            VR_AT_Check(ar_spawn_scans >= vr_at13_planned, sprintf("every spawn was scanned (%g)", ar_spawn_scans));
+            VR_AT_Check(ar_overlaps == 0, sprintf("no spawn overlapped anything (%g did)", ar_overlaps));
+            VR_AT_End();
+            return;
+        }
+        VR_AT13_Next();
+        return;
+    }
+    if(time >= vr_at13_kill && VR_ARENA_CountAlive() > 0)
+    {
+        VR_AT_KillOne(ar_wave);
+        vr_at13_kill = time + AR_T13_KILL;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Test 14: the rest and the countdown before a wave, timed (vrarena or vr_arena 1): Normal 5 s + 5 s into a boss
+// wave, then Hard (the rest shorter, the countdown not) into a plain one
+// ---------------------------------------------------------------------------
+
+float AR_T14_EPS = 0.05; // s (the director's beats land on the 1/72 s frame)
+float vr_at14_state;
+float vr_at14_from;      // the wave being cleared
+float vr_at14_count_at;
+
+void() VR_AT14_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 14 needs the arena"); VR_AT_End(); return; }
+    VR_AT_Check(VR_ARENA_BossName(5) == "an enforcer" && VR_ARENA_BossName(6) == "", "a boss wave's countdown names its boss");
+    vr_at14_from = 4;
+    vr_at14_state = 0;
+    VR_ARENA_FastForward(vr_at14_from);
+    vr_at_until = time + 200;
+}
+
+void() VR_AT14_Frame =
+{
+    if(vr_at14_state == 0) // (the wave cleared by the test, a foe at a time)
+    {
+        if(ar_wave != vr_at14_from || VR_ARENA_Between()) { return; }
+        if(ar_plan_left == 0 && VR_ARENA_CountAlive() > 0) { VR_AT_KillOne(ar_wave); }
+        else if(VR_ARENA_CountAlive() > 0) { VR_AT_KillOne(ar_wave); }
+        if(ar_plan_left == 0 && VR_ARENA_CountAlive() == 0) { vr_at14_state = 1; }
+        return;
+    }
+    if(vr_at14_state == 1) // (the rest: until the countdown begins)
+    {
+        if(ar_count_at <= 0) { return; }
+        vr_at14_count_at = ar_count_at;
+        float rest = ar_count_at - ar_rest_at;
+        dprint(sprintf("arena: t14 skill %g wave %g clear, rest %g s (table %g)\n", skill, vr_at14_from, rest, VR_ARENA_RestTime()));
+        VR_AT_Check(fabs(rest - VR_ARENA_RestTime()) < AR_T14_EPS, sprintf("skill %g: the rest is %g s", skill, VR_ARENA_RestTime()));
+        vr_at14_state = 2;
+        return;
+    }
+    if(vr_at14_state == 2) // (the countdown: until the next wave begins)
+    {
+        if(ar_wave != vr_at14_from + 1) { return; }
+        float cd = ar_wave_at - vr_at14_count_at;
+        dprint(sprintf("arena: t14 skill %g wave %g countdown %g s, %g lines\n", skill, ar_wave, cd, ar_count_said));
+        VR_AT_Check(fabs(cd - 5) < AR_T14_EPS, sprintf("skill %g: the countdown is 5 s", skill));
+        VR_AT_Check(ar_count_said == 5, sprintf("skill %g: the countdown said 5 lines", skill));
+        if(skill >= 2) { VR_AT_End(); return; }
+        VR_AT_SetSkill(2);
+        vr_at14_from = ar_wave;
+        vr_at14_state = 0;
+        return;
+    }
+}
+
 void() VR_ARENA_Test_Frame =
 {
     float c = cvar("vr_arena_test");
@@ -2448,6 +2781,9 @@ void() VR_ARENA_Test_Frame =
         if(c == 9) { VR_AT9_Begin(); return; }
         if(c == 10) { VR_AT10_Begin(); return; }
         if(c == 11) { VR_AT11_Begin(); return; }
+        if(c == 12) { VR_AT12_Run(); return; }
+        if(c == 13) { VR_AT13_Begin(); return; }
+        if(c == 14) { VR_AT14_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -2473,5 +2809,8 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 9) { VR_AT9_Frame(); return; }
     if(vr_at_case == 10) { VR_AT10_Frame(); return; }
     if(vr_at_case == 11) { VR_AT11_Frame(); return; }
+    if(vr_at_case == 12) { VR_AT12_Frame(); return; }
+    if(vr_at_case == 13) { VR_AT13_Frame(); return; }
+    if(vr_at_case == 14) { VR_AT14_Frame(); return; }
 }
 #endif
