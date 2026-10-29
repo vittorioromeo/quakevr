@@ -90,6 +90,7 @@ bool surfacePoint(edict_s* ent, int tri, float u, float v, glm::vec3& point, glm
 // Where vertex `vert` (the .mdl's order) of `ent`'s model is as drawn now, in the world (the armed grunts' hands and
 // hidden gun: QC modelvertex). False: no such model or vertex.
 bool vertexPoint(edict_s* ent, int vert, glm::vec3& point);
+
 // nearest() for many points against one pose: pose() takes `ent`'s model as drawn now (its vertices posed once, each
 // triangle's bounds), then nearestPosed() finds a point's nearest on it, its result nearest()'s to the bit (the
 // triangles whose bounds can't be nearer passed over). A point farther than `beyond` from the posed model's bounds is not
