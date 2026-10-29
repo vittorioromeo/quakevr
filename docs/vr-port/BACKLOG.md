@@ -551,6 +551,7 @@ The plan as designed:
 ## Nail pistol in maps (2026-10-25)
 
 - Vittorio is unsure whether nail pistols should appear as pickups in maps (crates / replacing some weapon spawns); armed grunts carrying them may be enough. Revisit after beta4.
+  - This also applies to heavy revolvers and flare guns.
 - **Arena mode (armed humanoids survival)** (Vittorio, 2026-10-27; SHIPPED to `next` 2026-10-28 for his playtest: the
   map `feature/arenamap`, the wave director `feature/arenadir`, the boss-wave perks `feature/arenaperk`, the difficulty
   scaling `feature/arenaskill`; open afterwards: may a perk push armour past 100 (Iron Skin reads 125/175/225), raise
@@ -567,3 +568,12 @@ The plan as designed:
   arena map (or a mode on an existing one), a wave director (kinds, weapon pools, counts, spawn spots), a score/wave
   readout, and a start from the Play menu.
 - **Player armour parity** (Vittorio, 2026-10-28, from the armed humanoids' armour plan: C:\OHWorkspace\qvr-kit\scratch\research_agarmor.md, question 8): once armed humanoids wear generated per-limb plates (helmet, cuirass, pauldrons, bracers, thighs, shins), consider giving the player the same plates fitted to the player body (the generator can fit vrbody too), instead of the armour painted on the body skin; per-piece damage for the player too? Decide after the humanoids' armour ships.
+
+## TODO
+
+- We should have per weapon recoil variables (kick and rise).
+- Setting the off-hand's behavior for a pose in the rig studio doesn't seem to work (I sometimes want to set the off-hand free or attach it to the weapon's grip).
+- It should be possible to set a basic ambient lighting level in the relighting menu.
+- Nail projectiles model size should be a bit smaller (30-40%), also ensure the hitbox is accurate and not too big.
+- Nail projectiles fired by both the player and enemies should generally be a bit faster (15-20%).
+- The in-game checklist is getting a bit overwhelming, please clean it up and make it a bit more manageable for me to go through in-game.
