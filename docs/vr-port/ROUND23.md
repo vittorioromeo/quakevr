@@ -947,6 +947,7 @@ option off; readouts vr_ammo_color_seen3 / _seen4): 22 passed, 0 failed.
 
 **In VR**: fire a shotgun down to its last shell (orange) and empty (red); a reload brings the screen's colour back.
 The nail pistol and revolver have no ammo screen by default (their Ammo Screen weapon setting): shown, they warn too.
+ammocolor3: every gun uses its weapon's own magazine size (QC VR_ClipSizeOf, sent: a prop's extra byte in U_QVR_WEAPONUID, a holster's STAT_QVR_HOLSTERCLIPSIZE0), so enemy-dropped and never-held guns warn too. One rule, `gunWarning` (vr_view_weapon.cpp), for held, holstered and lying guns; the seen-in-a-hand map and the probe's -2 mode are gone. Test cases 19..24 never hold the gun (22 pass).
 
 ## Survival Arena: the polish -- the readout, the countdown, the arrivals, the weapon schedule (agent/arenapolish)
 

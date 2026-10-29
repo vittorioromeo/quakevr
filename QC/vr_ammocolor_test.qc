@@ -1,4 +1,4 @@
-// vr_ammocolor_test.qc -- the ammo screens' warning colours (vr_ammo_color_warn; vr_view_weapon.cpp ammoWarning).
+// vr_ammocolor_test.qc -- the ammo screens' warning colours (vr_ammo_color_warn; vr_view_weapon.cpp gunWarning).
 //
 // vr_ammocolor_test 1: guns put in your hands (the shotgun, the nailgun, the nail pistol, the revolver and AD's
 // Widowmaker), their magazine full, at a fifth and empty, the reserve full each time (the loaded rounds count, not the
@@ -7,6 +7,8 @@
 // 10000 + capacity * 10 + state) and checks its state: 0 the screen's colour, 1 low, 2 empty. Ends with
 // "ammocolor: N passed, M failed".
 // vr_ammocolor_test 2: the eyeshot's scene: a shotgun at a fifth in the main hand (low), an empty nailgun in the off hand;
+// Cases 19..24: a shotgun holstered or lying, put there without ever being in a hand (as an enemy's drop): the warning
+// uses the weapon's own magazine size.
 // 3: an empty nailgun in the main hand (the mock's off hand shows its screen edge on).
 
 entity vr_act_player;
@@ -21,7 +23,6 @@ float vr_act_npText, vr_act_rvText; // the nail pistol's and the revolver's Ammo
                                     // shown for the test, the readout path being every gun's)
 
 float vr_act_mode;    // the case's gun: 0 in a hand, 1 holstered, 2 lying in the world
-float vr_act_stage;   // modes 1, 2: 0 held a few frames (its magazine's size seen), 1 moved and waiting for its readout
 entity vr_act_prop;   // the lying gun
 
 float VR_ACT_CASES = 25;
@@ -114,14 +115,38 @@ void() VR_ACT_Start =
     cvar_set("vr_ammo_color_warn", warn ? "1" : "0");
     vr_act_hand = (c == 15 || c == 16) ? cVR_OffHand : cVR_MainHand;
     vr_act_mode = c < 19 ? 0 : c < 22 ? 1 : 2;
-    vr_act_stage = 0;
     if(vr_act_prop != world) { remove(vr_act_prop); vr_act_prop = world; }
     cvar_set("vr_ammo_color_probe", "-1");
     cvar_set("vr_ammo_color_seen", "-1");
     cvar_set("vr_ammo_color_seen2", "-1");
     cvar_set("vr_ammo_color_seen3", "-1");
     cvar_set("vr_ammo_color_seen4", "-1");
-    vr_act_size = VR_ACT_Give(vr_act_hand, g, fill);
+    entity p = vr_act_player;
+    if(vr_act_mode == 2)
+    {
+        // A gun lying about that was never held (as an enemy's drop): only its record's rounds are set.
+        vr_act_size = WeaponIdToBaseClipSize(WID_SHOTGUN);
+        vr_act_loaded = fill == 0 ? vr_act_size : fill == 1 ? max(1, floor(vr_act_size * 0.2)) : 0;
+        vr_act_prop = CreateThrownWeapon(p, WID_SHOTGUN, 0, WeaponInst_New(vr_act_loaded),
+            p.origin + '0 0 30', '0 0 0', '0 0 0', '0 0 0', 0, 0, 0);
+    }
+    else
+    {
+        vr_act_size = VR_ACT_Give(vr_act_hand, g, fill);
+    }
+    if(vr_act_mode == 1)
+    {
+        // Straight into a holster, never drawn in a hand.
+        entity os = self;
+        self = p;
+        setHolsterWeapon(QVR_HS_LEFT_HIP_HOLSTER, WID_FIST); // (the left hip emptied: the last case's gun, a start's axe)
+        setHolsterWeaponModel(QVR_HS_LEFT_HIP_HOLSTER, WeaponIdToModel(WID_FIST, 0));
+        setHolsterWeaponFlags(QVR_HS_LEFT_HIP_HOLSTER, 0);
+        VRSetEntHolsterWeaponInst(p, QVR_HS_LEFT_HIP_HOLSTER, world);
+        VRHolsterHandWeapon(p, vr_act_hand, QVR_HS_LEFT_HIP_HOLSTER); // (files the record under self)
+        self = os;
+        cvar_set("vr_ammo_color_probe", "2"); // (the left hip's stat: body::LeftHip)
+    }
     if(g == 4 && vr_act_size <= 2)
     {
         dprint("ammocolor: SKIP the Widowmaker (AD's upgrades are not on here)\n");
@@ -176,37 +201,6 @@ void() VR_AmmoColor_TestFrame =
     }
     if(vr_act_case < 0 || !vr_act_player)
     {
-        return;
-    }
-    if(vr_act_mode != 0 && vr_act_stage == 0)
-    {
-        // Held a few frames (the engine learns its magazine's size from the hand), then holstered or thrown down.
-        vr_act_frames = vr_act_frames + 1;
-        if(vr_act_frames < 4) { return; }
-        entity p = vr_act_player;
-        if(vr_act_mode == 1)
-        {
-            entity os = self;
-            self = p;
-            setHolsterWeapon(QVR_HS_LEFT_HIP_HOLSTER, WID_FIST); // (the left hip emptied: the last case's gun, a start's axe)
-            setHolsterWeaponModel(QVR_HS_LEFT_HIP_HOLSTER, WeaponIdToModel(WID_FIST, 0));
-            setHolsterWeaponFlags(QVR_HS_LEFT_HIP_HOLSTER, 0);
-            VRSetEntHolsterWeaponInst(p, QVR_HS_LEFT_HIP_HOLSTER, world);
-            self = os;
-            self = p; // (VRPutWeaponInHolster files the record under self)
-            VRHolsterHandWeapon(p, vr_act_hand, QVR_HS_LEFT_HIP_HOLSTER);
-            self = os;
-            cvar_set("vr_ammo_color_probe", "2"); // (the left hip's stat: body::LeftHip)
-        }
-        else
-        {
-            vr_act_prop = CreateThrownWeapon(p, WID_SHOTGUN, 0, WeaponInst_New(vr_act_loaded),
-                p.origin + '0 0 30', '0 0 0', '0 0 0', '0 0 0', 0, 0, 0);
-            VRSetHandEmpty(p, vr_act_hand);
-            W_SetCurrentAmmoFor(vr_act_hand);
-        }
-        vr_act_stage = 1;
-        vr_act_frames = 0;
         return;
     }
     // The readout showing this case: its loaded rounds (0 with the option off) and its magazine's size.
