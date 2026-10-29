@@ -229,6 +229,24 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
     return 1.f - x * x * (3.f - 2.f * x);
 }
 
+// The recoil of a kick `kick` (its shots' strengths at their envelopes, summed and capped) and `sideways` of slot
+// `slot`'s weapon: cm kicked back, degrees tipped up (pitch, negative) and turned (yaw): Weapon Effects' Kick Back and
+// Muzzle Rise times the weapon's own (Recoil Kick Back, Recoil Muzzle Rise: 1, as before, by default).
+struct RecoilAmount
+{
+    float backCm{0.f};
+    float pitch{0.f};
+    float yaw{0.f};
+};
+
+[[nodiscard]] RecoilAmount recoilAmount(int slot, float kick, float sideways)
+{
+    const float kickX = za::max(weapons::value(slot, Key::RecoilKick), 0.f);
+    const float riseX = za::max(weapons::value(slot, Key::RecoilRise), 0.f);
+    const float rise = vr_recoil_rise.value * riseX;
+    return {vr_recoil_kick.value * kickX * kick, -rise * kick, 0.25f * rise * sideways};
+}
+
 void forget(int hand)
 {
     HandFx& h = handFx[hand];
@@ -542,14 +560,14 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
     }
     glm::vec3 fwd, right, up;
     hands::angleVectors(handAngles, fwd, right, up);
-    const float back = vr_recoil_kick.value * kick * 0.01f * units::metresToUnits();
-    pos = -fwd * back;
-    angles.x = -vr_recoil_rise.value * kick; // tipped up (pitch down is positive)
-    angles.y = 0.25f * vr_recoil_rise.value * sideways;
+    const RecoilAmount a = recoilAmount(h.slot, kick, sideways);
+    pos = -fwd * (a.backCm * 0.01f * units::metresToUnits());
+    angles.x = a.pitch;
+    angles.y = a.yaw;
     if(vr_debug_weaponfx.value >= 2)
     {
         Con_Printf("weaponfx recoil t %.3f hand %d kick %.3f back %.3f cm pitch %.3f yaw %.3f\n", cl.time, hand, kick,
-            vr_recoil_kick.value * kick, angles.x, angles.y);
+            a.backCm, angles.x, angles.y);
     }
 }
 
@@ -865,9 +883,144 @@ void clear()
     liveTracers = 0;
 }
 
+namespace
+{
+
+// vr_recoil_test: each weapon's own recoil kick and rise (Key::RecoilKick, RecoilRise) move its recoil only. At their
+// defaults every slot's recoil is Weapon Effects' Kick Back and Muzzle Rise times its strength, as before; the held
+// weapon's (the main hand's) Kick Back 2 and Muzzle Rise 0.5 double its drawn kick back and halve its tip up and turn
+// (recoilOffset, a kick put in its hand), and no other slot's recoil moves (but a slot inheriting its values); another
+// slot's own 3 and 3 leave the held weapon's as it was. Every value it changes it puts back. Ends with
+// "vr_recoil_test: N passed, M failed".
+void recoilTest_f()
+{
+    int passed = 0, failed = 0;
+    const auto check = [&](bool ok, const char* what, float got, float want)
+    {
+        (ok ? passed : failed)++;
+        Con_Printf("vr_recoil_test: %s %s (%.4f, want %.4f)\n", ok ? "PASS" : "FAIL", what, got, want);
+    };
+    const auto approx = [](float a, float b) { return fabsf(a - b) <= 1e-4f * za::max(1.f, fabsf(b)); };
+
+    const int hand = HAND_MAIN;
+    const int held = weapons::heldSlot(hand);
+    if(held < 0 || held == weapons::fistSlot() || !vr_weapon_recoil.value)
+    {
+        Con_Printf("vr_recoil_test: FAIL no weapon held (or vr_weapon_recoil 0): load a map first\n");
+        Con_Printf("vr_recoil_test: 0 passed, 1 failed\n");
+        return;
+    }
+    // Another slot, whose values are its own (it inherits none).
+    int other = -1;
+    for(int s = 0; s < weapons::numSlots && other < 0; s++)
+    {
+        if(s != held && s != weapons::fistSlot() && weapons::ownerSlot(s, Key::RecoilKick) == s)
+        {
+            other = s;
+        }
+    }
+
+    // Every slot's recoil at a kick of 1 (sideways 1), before; the untuned ones' as before the per-weapon values.
+    RecoilAmount before[weapons::numSlots];
+    int untuned = 0, asBefore = 0;
+    for(int s = 0; s < weapons::numSlots; s++)
+    {
+        before[s] = recoilAmount(s, 1.f, 1.f);
+        if(weapons::value(s, Key::RecoilKick) != 1.f || weapons::value(s, Key::RecoilRise) != 1.f)
+        {
+            continue;
+        }
+        untuned++;
+        if(before[s].backCm == vr_recoil_kick.value && before[s].pitch == -vr_recoil_rise.value &&
+            before[s].yaw == 0.25f * vr_recoil_rise.value)
+        {
+            asBefore++;
+        }
+    }
+    check(untuned > 0 && asBefore == untuned, "every slot at its defaults recoils as before (slots)",
+        static_cast<float>(asBefore), static_cast<float>(untuned));
+
+    // A kick in the held weapon's hand, drawn (recoilOffset).
+    const auto drawn = [&](glm::vec3& pos, glm::vec3& angles)
+    {
+        forget(hand);
+        HandFx& h = handFx[hand];
+        h.slot = held;
+        h.kicks[0] = Kick{cl.time - 0.05, 1.f, 0.15f, 0.5f};
+        recoilOffset(hand, glm::vec3{0.f}, pos, angles);
+        forget(hand);
+    };
+    glm::vec3 pos0, ang0;
+    drawn(pos0, ang0);
+    check(glm::length(pos0) > 0.f && ang0.x < 0.f, "the held weapon's kick is drawn (back, units)", glm::length(pos0), 0.f);
+
+    cvar_t* kickVar = weapons::cvar(held, Key::RecoilKick);
+    cvar_t* riseVar = weapons::cvar(held, Key::RecoilRise);
+    const za::String oldKick{kickVar->string};
+    const za::String oldRise{riseVar->string};
+    Cvar_SetValueQuick(kickVar, 2.f * weapons::value(held, Key::RecoilKick));
+    Cvar_SetValueQuick(riseVar, 0.5f * weapons::value(held, Key::RecoilRise));
+
+    glm::vec3 pos1, ang1;
+    drawn(pos1, ang1);
+    check(approx(glm::length(pos1), 2.f * glm::length(pos0)), "held weapon's Kick Back 2x doubles its kick back",
+        glm::length(pos1), 2.f * glm::length(pos0));
+    check(approx(ang1.x, 0.5f * ang0.x), "its Muzzle Rise 0.5x halves its tip up", ang1.x, 0.5f * ang0.x);
+    check(approx(ang1.y, 0.5f * ang0.y), "and halves its turn", ang1.y, 0.5f * ang0.y);
+
+    int othersMoved = 0, inheritors = 0;
+    for(int s = 0; s < weapons::numSlots; s++)
+    {
+        const RecoilAmount a = recoilAmount(s, 1.f, 1.f);
+        if(s == held || weapons::ownerSlot(s, Key::RecoilKick) == held)
+        {
+            inheritors += s != held ? 1 : 0;
+            continue;
+        }
+        if(a.backCm != before[s].backCm || a.pitch != before[s].pitch || a.yaw != before[s].yaw)
+        {
+            othersMoved++;
+        }
+    }
+    check(othersMoved == 0, "no other slot's recoil moved (slots moved)", static_cast<float>(othersMoved), 0.f);
+    Con_Printf("vr_recoil_test: held slot %d, other slot %d, %d slots inheriting the held one's\n", held, other, inheritors);
+    Cvar_SetQuick(kickVar, oldKick.cStr());
+    Cvar_SetQuick(riseVar, oldRise.cStr());
+
+    if(other >= 0)
+    {
+        cvar_t* otherKick = weapons::cvar(other, Key::RecoilKick);
+        cvar_t* otherRise = weapons::cvar(other, Key::RecoilRise);
+        const za::String oldOtherKick{otherKick->string};
+        const za::String oldOtherRise{otherRise->string};
+        Cvar_SetValueQuick(otherKick, 3.f);
+        Cvar_SetValueQuick(otherRise, 3.f);
+        glm::vec3 pos2, ang2;
+        drawn(pos2, ang2);
+        check(glm::length(pos2) == glm::length(pos0) && ang2.x == ang0.x && ang2.y == ang0.y,
+            "another slot's own 3x leaves the held weapon's kick back", glm::length(pos2), glm::length(pos0));
+        check(approx(recoilAmount(other, 1.f, 1.f).backCm, 3.f * before[other].backCm), "and moves that slot's own",
+            recoilAmount(other, 1.f, 1.f).backCm, 3.f * before[other].backCm);
+        Cvar_SetQuick(otherKick, oldOtherKick.cStr());
+        Cvar_SetQuick(otherRise, oldOtherRise.cStr());
+    }
+    else
+    {
+        check(false, "another slot to tune", -1.f, 0.f);
+    }
+    glm::vec3 pos3, ang3;
+    drawn(pos3, ang3);
+    check(glm::length(pos3) == glm::length(pos0) && ang3.x == ang0.x, "values put back: the held weapon's kick as before",
+        glm::length(pos3), glm::length(pos0));
+    Con_Printf("vr_recoil_test: %d passed, %d failed\n", passed, failed);
+}
+
+} // namespace
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_weaponfx_test", test_f);
+    Cmd_AddCommand("vr_recoil_test", recoilTest_f);
 }
 
 } // namespace qvr::weaponfx

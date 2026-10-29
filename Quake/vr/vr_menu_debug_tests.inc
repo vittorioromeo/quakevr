@@ -1074,6 +1074,9 @@ za::Vector<Item> pageDebugTests()
         command("Weapon Effects Test", "vr_weaponfx_test 1 3")
             .help("vr_weaponfx_test 1 3: the main hand's weapon kicks and flashes as if it fired (its Effects), with 3 "
                   "tracers (no shot)."),
+        command("Per-Weapon Recoil Test", "vr_recoil_test")
+            .help("vr_recoil_test: the main hand's weapon's own Recoil Kick Back and Muzzle Rise move its recoil only "
+                  "(no other weapon's); prints PASS/FAIL lines and puts every value back."),
         toggle("Print Weapon Effects", vr_debug_weaponfx)
             .help("vr_debug_weaponfx: each shot's recoil, flash and tracers (2: and the recoil each frame); the shotgun's auto "
                   "pump strokes (start, back, home) and when its shell leaves."),

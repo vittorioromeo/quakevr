@@ -273,6 +273,22 @@ keyed on it. Test: `vr_ammocolor_test 1` (Debug > Tests > Ammo Screen Colours; `
 `2` an eyeshot. The nail
 pistol and revolver have no ammo screen by default (their Ammo Screen weapon setting).
 
+## 9b. Per-weapon recoil kick and rise (`vr_weapons.inc` `RecoilKick`, `RecoilRise`; `vr_weaponfx.cpp` `recoilAmount`)
+
+His backlog: per-weapon recoil kick and rise. Each weapon has two new multipliers, `vr_wofs_fx_recoil_kick_NN` and
+`vr_wofs_fx_recoil_rise_NN` (Weapon Offsets > Effects: Recoil Kick Back, Recoil Muzzle Rise; 0..3x, extendable to 10x),
+default 1 for every slot. A shot's drawn recoil is now: kick back = `vr_recoil_kick` cm x the weapon's Recoil Strength x
+its Recoil Kick Back; tip up (and the small sideways turn) = `vr_recoil_rise` deg x Strength x its Recoil Muzzle Rise. The
+globals stay what they were (his config holds 4.5 cm and 7.5 deg) and act as the base the per-weapon values scale;
+Recoil Strength stays as the per-weapon overall (the AD guns' fire feel, the 2.5 burst cap and old migrations use it).
+At the defaults the arithmetic is bit-identical to before, so no feel change and no migration (new cvars; no
+`settingsVersion` bump). The heavy-weapon aim kick (`vr_heavy_recoil_*`, `w_hrecoil`) is separate and untouched.
+Test: `vr_recoil_test` (Debug > Tests > Per-Weapon Recoil Test) with a weapon in the main hand: `map e1m1;
+vr_weapon_grip_mode 1; impulse 9; wait2; impulse 154; wait5; vr_recoil_test`, `-QuitOn "vr_recoil_test: [0-9]+ passed"`:
+**9 passed, 0 failed** (all 51 slots at defaults recoil as before; the held shotgun's Kick Back 2x / Rise 0.5x double its
+drawn kick back 0.45 -> 0.90 units and halve its pitch and yaw through `recoilOffset`; no other slot's recoil moves;
+another slot's 3x leaves the held one's; values restored).
+
 ## 10. Suggested checklist lines still pending (coordinator owns `quakevr/checklist.txt`)
 
 - Survival Arena: map, wave director (readout, 5 s rest + 5 s countdown, teleport arrivals, never inside anything, guns
@@ -285,3 +301,5 @@ pistol and revolver have no ammo screen by default (their Ammo Screen weapon set
   bare, dents at 2/3 and scorch at 1/3, toolgun Armour/Pieces rows.
 - In VR: a walking armed grunt glides like the knights; strafing grunts turn hips and feet into the step; an ammo screen
   goes orange at the last shell and red when empty (also on holstered/lying guns).
+- Per-weapon recoil `{test:vr_recoil_test}`: Weapon Offsets > Effects' Recoil Kick Back and Recoil Muzzle Rise change
+  only that weapon's kick back and muzzle tip (burst rifle, plasma gun); at 1x it feels as before.

@@ -907,6 +907,12 @@ za::Vector<Item> pageWofsEffects()
                   "a recoil animation of its own. Looks only: the aim and the shots don't move."),
         s("Recoil Strength", Key::RecoilStrength, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("Times Weapon Effects' Kick Back and Muzzle Rise."),
+        s("Recoil Kick Back", Key::RecoilKick, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("This weapon's own kick back: times its Recoil Strength and Weapon Effects' Kick Back. 0: no kick back, "
+                  "only the muzzle rise."),
+        s("Recoil Muzzle Rise", Key::RecoilRise, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("This weapon's own muzzle rise: times its Recoil Strength and Weapon Effects' Muzzle Rise. 0: the muzzle "
+                  "doesn't tip up, only the kick back."),
         s("Recoil Return Time", Key::RecoilTime, 0.03f, 0.6f, 0.01f, "%.2f s").extend(0.02f, 3.f)
             .help("How long a shot's kick takes to come back to rest."),
         cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off (the model's own)"}, {1.f, "On"}})

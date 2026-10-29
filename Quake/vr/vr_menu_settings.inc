@@ -1063,9 +1063,11 @@ za::Vector<Item> pageWeaponEffects()
                   "Effects: the grunts' burst rifle; the others' models have their own). Looks only: the aim and the shots "
                   "stay where your controller is."),
         slider("Kick Back", vr_recoil_kick, 0.f, 5.f, 0.1f, "%.1f cm").extend(0.f, 20.f)
-            .help("How far a shot kicks the weapon back, at a weapon's Recoil Strength 1."),
+            .help("How far a shot kicks the weapon back, at a weapon's Recoil Strength and Recoil Kick Back 1 (Weapon "
+                  "Offsets > Effects: each weapon's own)."),
         slider("Muzzle Rise", vr_recoil_rise, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
-            .help("How far a shot tips the muzzle up, at a weapon's Recoil Strength 1."),
+            .help("How far a shot tips the muzzle up, at a weapon's Recoil Strength and Recoil Muzzle Rise 1 (Weapon "
+                  "Offsets > Effects: each weapon's own)."),
         header("Shotgun Auto Pump"),
         toggle("Auto Pump", vr_autopump)
             .help("After each shot the shotgun cycles itself: its fore-end is driven back along the guide rods over the "
