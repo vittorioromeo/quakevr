@@ -1943,7 +1943,12 @@ His words: get rid of the baked kick and muzzle raise from every weapon that has
   kick frame cancelled, and its own kick; `fire_sheet.png`: the shotgun and rocket launcher at rest and at the peak of
   the procedural kick): the pixels that change from rest to the cancelled peak are 1.6-3.4% of the eye (the flash, the
   parts) for the shotguns, nailguns and lightning gun, 7-9% for the launchers (their upper shells), against 4-17% for
-  their own kick.
+  their own kick. Covering cases vs baseline.tsv: recoil 67/0 (was 9/0: the kick checks added), shot_shape, reload*,
+  nail_1, collectfx as before, but reload_front 33/1 ("a rocket brought to the grenade launcher's muzzle stays out":
+  `impulse 178` leaves the rocket launcher in the off hand); the same on origin/next e70960216 without this branch, so
+  not this change. A/B bench, combat_48, ABBAABBAAB, ThinLTO: frame p50 11.11 both; cpu median A 2.53 ms, B 2.60 ms
+  (spread 2.41-2.92 both); two B runs (6, 7) had p99 210-250 ms hitches while the A runs around them (5, 8) were also up
+  (12-13 ms): machine noise suspected, a recheck got no result (the author's game). Worth a rerun.
 - **Recoil settings that say the same thing** (not changed; a proposal): per slot, Recoil off = Strength 0 (nothing else
   reads the switch); Strength is a common factor of Kick Back and Muzzle Rise (only the burst cap of 2.5 strengths and
   the AD variants' feel multiply it alone); Return Time and Recovery both stretch the way back (Recovery only after the
