@@ -256,6 +256,7 @@ float cvarh_vr_gruntgun_damage;
 float cvarh_vr_grunt_burst;
 float cvarh_vr_agrunt_damage_scale;
 float cvarh_vr_agrunt_reserve;
+float cvarh_vr_agknight;
 float cvarh_vr_agrunt_aim_error;
 float cvarh_vr_agrunt_disarm;
 float cvarh_vr_agrunt_disarm_yank;
@@ -1468,6 +1469,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_grunt_burst = cvar_hmake("vr_grunt_burst");
     cvarh_vr_agrunt_damage_scale = cvar_hmake("vr_agrunt_damage_scale");
     cvarh_vr_agrunt_reserve = cvar_hmake("vr_agrunt_reserve");
+    cvarh_vr_agknight = cvar_hmake("vr_agknight");
     cvarh_vr_agrunt_aim_error = cvar_hmake("vr_agrunt_aim_error");
     cvarh_vr_agrunt_disarm = cvar_hmake("vr_agrunt_disarm");
     cvarh_vr_agrunt_disarm_yank = cvar_hmake("vr_agrunt_disarm_yank");

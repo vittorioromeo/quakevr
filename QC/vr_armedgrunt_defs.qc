@@ -142,6 +142,7 @@ float vr_agr_pl_hits;      // monsters' hits on players (VR_AG_DamageScale: the 
 float vr_agr_pl_dmg;       // ... their damage
 float vr_agr_pl_raw;       // ... their damage before vr_agrunt_damage_scale (vr_armedgrunt_ammo_test.qc)
 float(float kind) VR_AGR_Replace;                                          // monster_army, monster_enforcer: TRUE: done
+float() VR_AKN_Replace;                                                    // monster_knight: its armed version (vr_agknight): TRUE: done
 void() VR_AGR_Precache;                                                    // worldspawn: the replacements' models
 void() VR_AGR_Frame;                                                       // StartFrame: loadouts rolled once a player is in
 void(entity p) VR_AGR_NativeShot;                                          // VR_AG_ShootProp: a native gun's shot

@@ -763,6 +763,11 @@ void armedGripsDragMode()
                   "holding its own gun: the same damage, rate of fire, aim, health and loot as the one it replaces, but "
                   "you can knock or pull the gun out of its hands, win it in a tug, parry it, shoot it out, and its "
                   "ragdoll keeps hold of it. Takes effect at the next map load (vr_agrunt_repl)."),
+        toggle("Armed Knights", vr_agknight)
+            .help("Every knight a map spawns is an armed humanoid holding a sword: swung with the armed humanoids' "
+                  "melee, parried, disarmed, tugged and grabbed like theirs, dropped when it dies; its ragdoll keeps "
+                  "hold of it. A work in progress (ROUND23.md, \"Knights as armed humanoids\"). Takes effect at the "
+                  "next map load (vr_agknight)."),
         header("Weapon Variety (on top)"),
         chance("Common: Shotgun, Nail Pistol", vr_agrunt_repl_common,
             "The chance one holds a shotgun or a nail pistol instead of its own gun (vr_agrunt_repl_common)."),

@@ -3,6 +3,7 @@
 # Quake VR's own monster models without the gun they carry, one for each armed monster:
 #   progs/vrgrunt.mdl     the grunt (quakevr/progs/soldier.mdl)
 #   progs/vrenforcer.mdl  the enforcer (quakevr/progs/enforcer.mdl)
+#   progs/vrknight.mdl    the knight (quakevr/progs/knight.mdl): no sword
 #
 # Usage: python Misc/quakevr/make_vrgrunt.py [quakevr progs folder] [model name: vrgrunt, vrenforcer; default all]
 #
@@ -23,6 +24,11 @@ MODELS = {
     'vrgrunt': dict(src='soldier.mdl', counts=(555, 810), gun=list(range(463, 549)), gun_tris=116),
     'vrenforcer': dict(src='enforcer.mdl', counts=(479, 984),
                        gun=[22, 23, 100] + list(range(400, 431)) + list(range(455, 479)), gun_tris=118),
+    # the knight (vr_agknight): his sword's vertices (vr_monstermods.cpp knownSwords: the blade's small pieces, the
+    # handle and the guard) dropped; he holds the player's sword (WID_SWORD) as the armed humanoids hold their weapons
+    'vrknight': dict(src='knight.mdl', counts=(655, 697),
+                     gun=[334, 335, 336, 363, 364, 365, 524] + list(range(535, 541)) + list(range(557, 649)),
+                     gun_tris=None),
 }
 
 

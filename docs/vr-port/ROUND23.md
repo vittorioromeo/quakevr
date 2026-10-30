@@ -3019,3 +3019,62 @@ steel/silvery back end more distinct, as in the pre-slide art.
   `npslide4_rear_before_after.png` (full slide closed, before / after), `npslide4_thumbs.png`.
 - **Tests:** `vr_np_test 1` fails on origin/next with the old model the same way (0 passed, 3 failed: "the trigger held
   0.55 s fired 0"): not this change; baseline.tsv's np_1 (21 passed) is older than the test's 35 checks.
+
+
+## Knights as armed humanoids (branch `agent/agknight`)
+
+His ask: "make knights a new armed humanoid kind". The knight is the armed humanoids' third row (`VR_AM_KNIGHT` 2): it
+holds its sword as a real weapon (the player's `WID_SWORD`, the Knight's Sword), drawn in its posed, skinned hand, swung,
+parried, disarmed, tugged, grabbed and dropped by the armed layer's own code. Behind **`vr_agknight`** (default 0; Combat >
+Armed Grunts > Armed Humanoid Replacements: Armed Knights; takes effect at the next map load). Its own setting rather
+than part of `vr_agrunt_repl`'s set: the replacements' machinery is the gun holders' (native shots, ammo tiers, variety
+rolls), the knight's sword needs none of it, and he can try knights alone while the kind is new.
+
+**The plan** (each step committed and tested):
+
+1. **The model and the authored rig** (done). `progs/vrknight.mdl` (`make_vrgrunt.py` row `vrknight`: knight.mdl, Quake
+   VR's own model, without the sword's 81 triangles; its vertices kept for the line). `quakevr/rigs/vrknight.rig2.txt`
+   (`make_rig2.py knight`: `KNIGHT_SKELETON`, the 20 bones read off his mesh: mid-stride, right leg forward, the fist on
+   the grip at 12 -6.7 1.1; the helmet the head's by a rule; `max_hops` 3 and the new `weld_gun False`: the sword's weight
+   had reached the left pad and the neck, long red spikes as the arms moved). Only vrknight.rig2.txt: knight.mdl keeps
+   its derived rig, so knights are unchanged with the setting off; grunt and enforcer files byte-identical. Engine: model
+   id `VrKnight`, `monsterFiles`, its ragdoll seed row (the knight's seeds, deaths 76..96). The Rig Studio's subject:
+   with `vr_agknight 1` the Subject menu's armed kinds list Knight (the toolgun's table). Its limits are the grunt's
+   (the left upper arm's swing back to 60: he hangs it 51 back at rest). `vr_rig2_check progs/vrknight.mdl`: 12 passed,
+   23 failed (the grunt's shipped rig: 22 / 13): see-through and flips at the joints' extremes. **Left**: his Range of
+   Motion tuning, as the grunt's was.
+2. **The sword held** (done). Row `VR_AM_Row(VR_AM_KNIGHT)`: hand 106 110 114 (stillest in the sword's space over his
+   living frames, 2.3-2.9 rms), the hidden sword's pommel 568/571, tip 561/564, guard ends 537/594 (roll); frames stand
+   0..8, run 9..16 (his steps), take kneel 66..70 (a knee); melee classes only; shoulders from the rig, the grunt-made
+   poses fitted (`1 1.06 1`, `3.2 1.46 -2.2`). Engine `armedRigs` row 2 (a fifth gun range), `agpose::numKinds` 3 (his
+   own pose keys: the Pose Studio edits them, names Knight), `aggrip::numKinds` 3 (his grips: none shipped, the rest grip
+   from his own sword's place); the Weapon Holds stay two kinds (his sword holds as the grunt's: `agholds::hands`).
+   `monster_vr_knight` (default weapon the sword; any melee weapon by "weapon").
+3. **AI** (done, the layer's): `monster_knight` calls `VR_AKN_Replace` (vr_armedrepl.qc; not statues, not Honey's
+   trigger copies' maker); the layer's hunt, approach and melee (`VR_AG_Melee`, `VR_AGP_*` swings); ai.qc's and fight.qc's
+   `knight_attack` skipped for an armed one; pains, deaths, ragdolls are the knight's own. Parry: the layer's
+   (`T_Damage_VRMelee` -> `VR_Parry`, whatever agent/preparry adds there comes with it).
+4. **Disarm, tug, grab, drop** (done, the layer's): `knight_die` runs `VR_AG_Dying` first (the held sword falls, once;
+   his own `VR_DropKnightSword` only when not armed).
+5. **Tests** (done): `vr_agrunt_test 95` (QC/vr_armedknight_test.qc; Debug > Automation & Self-Tests: Armed Knights):
+   off (a plain knight), on (kind 2, vrknight.mdl, a sword 3.1 from its hand), swing (hurt you 11 in 1.5 s), disarm (its
+   sword lying by it), re-arm (took it up in 1.7 s), death (one sword lying): 7 passed, 0 failed. Test 88 with
+   `vr_agknight 1` adds the knight's stagger and topple with a sword (grip 0.00 off the hand, torso 0.63 / 0.18): 6/0.
+   `vr_agknight 1; vr_agrunt_test_kind 2; vr_agrunt_test 60` (they parry your blows): 6/0. Test 20 with kind 2: 3/0.
+   Eyeshots: qvr-kit/scratch/agknight/`knight_attacks.png` (test 14, kind 2: fists, axe, sword, crowbar at the wind-up,
+   strike, horizontal, rest; before the rig's weight fix: the red spikes), `knight_attacks2.png` (strike and rest, after).
+   Debug > Automation & Self-Tests also: "Armed Knights: Spawn One Before You" (`vr_agknight 1;
+   vr_toolgun_select_armed 2 13`; the toolgun's list is asked again when vr_agknight changes).
+- **Covering** with the setting off (vs baseline.tsv): 83 63/0, 60 5/1, 20 3/0 (as baseline); 88 4/0 and 3/1 in two runs
+  (the grunt's topple at 1.46 of the 1.5 torso limit: flaky before this). Kind loops that mean the gun holders
+  (`VR_AM_GUN_KINDS` 2: test 83's pose categories, the replacements' precaches) are unchanged; the toolgun lists the
+  knight only with the setting on.
+- **Left / next**: his rig's Range of Motion tuning (above); the knight's own pose keys and grips (none shipped: the
+  grunt-made code poses fitted); his melee frames' legs are his stand frames (his runattack and attackb frames unused);
+  trigger-spawned knights (Honey's copies) stay plain. **Hell knights** would need: hknight.mdl's sword (knownSwords:
+  42.., 332.., 525.. with the guard) in a `vrhknight` row, a rig2 skeleton (taller, pauldrons), a row 3 (his frames,
+  kneel-less: a take from painb or deathb), his magic attack kept as the native ranged attack beside the sword (the
+  layer has no "melee weapon plus spell" mode: a `vr_am_native` missile hook), `agpose::numKinds` 4.
+- Checklist: `[agknight] vr_agknight 1, a map with knights (e1m2): each holds his sword in his posed hand, swings it at
+  you, parries your blows, can be disarmed, tugged and grabbed; it falls when he dies, his ragdoll keeps it when knocked
+  down`; `[agknight] vr_agknight 0: knights as before (their own sword, attacks, drops)`.
