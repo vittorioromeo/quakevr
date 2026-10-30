@@ -686,6 +686,69 @@ void armedGripsDragMode()
     return items;
 }
 
+// Combat > Armed Grunts > Worn Backpacks (QC vr_wornpack.qc; vr_box3d_wornpack.cpp; ROUND23.md, "Worn backpacks"):
+// experimental, off by default.
+[[nodiscard]] za::Vector<Item> pageArmedPacks()
+{
+    return {
+        header("Worn Backpacks"),
+        toggle("Worn Backpacks", vr_worn_backpacks)
+            .help("Experimental. Armed grunts wear the backpack they would drop on their back, as ragdolls too (it weighs "
+                  "and collides with the body, and you can drag the body by it). It tears off with a rip on a hard pull, "
+                  "a hard landing or enough damage on the pack, or grab a living one's pack and pull; torn off a living one, "
+                  "its spare ammo goes with it. A dead one's pack is taken as an item. Grunts spawned after it is "
+                  "turned on."),
+        header("Tearing Off"),
+        slider("Pull That Tears It", vr_worn_backpack_rip_force, 500.f, 4000.f, 100.f, "%.0f N")
+            .help("A hand holding a ragdoll by its pack and yanking this hard (kept up a moment) tears the pack off into "
+                  "the hand. A slow drag pulls about 1500 N; a hold's spring gives 4000 N at most (Ragdoll Grab Force)."),
+        slider("Damage That Tears It", vr_worn_backpack_pool, 0.f, 200.f, 5.f, "%.0f")
+            .help("A living one's pack tears off once it has taken this much damage: blows, throws, shots and projectiles "
+                  "on the pack, and explosions and fire on its wearer (their shares below). Poison never. 0: never by "
+                  "damage."),
+        slider("Explosions' Share", vr_worn_backpack_pool_blast, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of an explosion's damage to its wearer that counts on the pack."),
+        slider("Fire's Share", vr_worn_backpack_pool_fire, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of fire's damage (the flamethrower, burning) that counts on the pack."),
+        slider("Extra Hit Chance", vr_worn_backpack_hit_roll, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Besides its damage, a hit on the pack tears it off at once with this chance at the Hit Damage below "
+                  "(more damage: likelier). 0: off."),
+        slider("Hit Damage", vr_worn_backpack_hit_ref, 1.f, 100.f, 1.f, "%.0f")
+            .help("The damage of a hit whose chance is the Extra Hit Chance."),
+        header("Tearing It Off a Living One"),
+        toggle("Grab the Pack", vr_worn_backpack_tug)
+            .help("A fist on a living grunt's pack takes hold of the pack (it spots you): pull and it tears off into "
+                  "your hand. Off: the hand holds its back, as any enemy."),
+        slider("Pull That Counts", vr_worn_backpack_tug_stretch, 2.f, 40.f, 1.f, "%.0f cm")
+            .help("How far your hand must pull the pack off its place for the pull to count."),
+        slider("Pull Time", vr_worn_backpack_tug_time, 0.05f, 3.f, 0.05f, "%.2f s")
+            .help("How long that pull must be kept up to tear the pack off (twice as far: half as long)."),
+        slider("Two-Hand Pull", vr_worn_backpack_two_hand_mult, 1.f, 4.f, 0.1f, "%.1fx")
+            .help("Both hands on the pack pull this many times harder together (a living one's and a ragdoll's)."),
+        toggle("Tearing Topples It", vr_worn_backpack_topple)
+            .help("A ragdoll trigger: a pack torn off a living grunt by your pull knocks it down, falling the way you "
+                  "tore."),
+        slider("Topple Push", vr_worn_backpack_topple_push, 0.1f, 2.f, 0.1f, "%.1f")
+            .help("That knockdown's push (a two-hand shove's: 1)."),
+        slider("Landing That Tears It", vr_worn_backpack_impact, 2.f, 30.f, 0.5f, "%.1f m/s")
+            .help("A ragdoll striking the level at least this fast loses its pack."),
+        slider("Spare Ammo in It", vr_worn_backpack_reserve, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of a grunt's spare rounds it carries in its pack: lost with the pack while it lives (it "
+                  "fights on with what its gun holds)."),
+        slider("Rip Volume", vr_worn_backpack_volume, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The fabric rip's loudness."),
+        header("Fit"),
+        slider("Size", vr_worn_backpack_scale, 0.3f, 1.2f, 0.05f, "%.2f").help("The pack's size on the back."),
+        slider("Forward", vr_worn_backpack_x, -8.f, 8.f, 0.25f, "%.2f").help("Moves the pack into the back (out: negative)."),
+        slider("Left", vr_worn_backpack_y, -8.f, 8.f, 0.25f, "%.2f"),
+        slider("Up", vr_worn_backpack_z, -12.f, 12.f, 0.25f, "%.2f"),
+        slider("Pitch", vr_worn_backpack_pitch, -45.f, 45.f, 1.f, "%.0f"),
+        slider("Yaw", vr_worn_backpack_yaw, -180.f, 180.f, 5.f, "%.0f"),
+        slider("Roll", vr_worn_backpack_roll, -45.f, 45.f, 1.f, "%.0f"),
+        slider("Weight", vr_worn_backpack_mass, 0.5f, 20.f, 0.5f, "%.1f kg").help("Its weight on a ragdoll's chest."),
+    };
+}
+
 // Combat > Armed Grunts > Armed Humanoid Replacements (QC vr_armedrepl.qc; ROUND22.md, "Armed humanoid replacements"):
 // a map's grunts and enforcers as armed ones. Everything off by default; a map's new loadouts at its next load.
 [[nodiscard]] za::Vector<Item> pageArmedRepl()
@@ -1124,6 +1187,8 @@ void ikStretchReset()
         open("Armour", pageIndex(pageArmedArmour))
             .help("Armed grunts wearing breakable armour (a cuirass, a helmet, pauldrons, bracers, thigh and shin "
                   "plates): how it absorbs, helmets and headshots, cuts, and how often they wear it at each skill."),
+        open("Worn Backpacks", pageIndex(pageArmedPacks))
+            .help("Experimental: armed grunts wearing their backpack, ragdolls too, torn off by pulls, landings and hits."),
         open("Weapon Holds", pageIndex(pageArmedHolds))
             .help("Per weapon, for grunts and for enforcers: held in one hand or two (Auto: the axe and the enforcer's "
                   "pistols in one hand, the rest as built in)."),
@@ -1161,6 +1226,11 @@ void ikStretchReset()
             .help("Only a deliberate blow knocks its weapon out: a closed fist or something held, swung over more than "
                   "a frame. An open hand reaching for it, or your idle hands jolted as you are pushed or walk into it, "
                   "never (vr_agrunt_disarm_deliberate)."),
+        toggle("Strikes on Its Weapon Disarm", vr_agrunt_strike_first)
+            .help("A deliberate strike (a fist, a held gun or prop, in slow motion too) that meets its weapon or gun "
+                  "hand knocks the weapon out unless its parry was raised for it; into a raised parry it may still "
+                  "(Strike Beats a Raised Parry, in the tunables). Off: such a blow is parried whenever it can be "
+                  "(vr_agrunt_strike_first)."),
         toggle("Tug-of-War", vr_agrunt_tug)
             .help("Grabbing its weapon starts a struggle: it holds on and pulls back, and may shove you, headbutt you or "
                   "fire. Pull your hand back far enough for long enough to take it. Staggered, knocked down, stunned "
@@ -1182,6 +1252,16 @@ void ikStretchReset()
                   "where it holds it, pulled away or stepped back before its grip gives; till then your hand is drawn on "
                   "the weapon. A hard yank's pull reaches about 40 cm before it tears the weapon out "
                   "(vr_agrunt_tug_let_go; 0: 2.4 m, as before)."),
+        slider("Tug: Staggering or Down", vr_agrunt_tug_downed_scale, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 1.f)
+            .help("A staggering or knocked-down one's weapon still needs a tug, this share of a standing one's (its "
+                  "pull time, its thresholds): it comes free sooner, not at once. 0: the grab takes it at once "
+                  "(vr_agrunt_tug_downed_scale)."),
+        cycle("Tug: Your Other Hand's Grab", vr_agrunt_tug_second_grab, {{0.f, "Joins the Tug"}, {1.f, "Tears It Free"}})
+            .help("Your other hand closing on its weapon during a tug: it joins (both pulls count and it gives sooner), "
+                  "or it tears the weapon free into your first hand at once (vr_agrunt_tug_second_grab)."),
+        toggle("Tug: Other Fist Strikes It Free", vr_agrunt_tug_strike)
+            .help("In a tug, your free fist striking its weapon (at 60% of the disarm swing) tears it free into your "
+                  "holding hand; so does any blow that would knock it out of its hand (vr_agrunt_tug_strike)."),
         slider("Grab: Fastest Hand", vr_agrunt_grab_speed, 0.f, 6.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
             .help("A hand moving faster than this (a punch, a swipe) doesn't grab its weapon: its speed against you or "
                   "against the weapon (going with a swing to catch it), the lesser, in real time (bullet time too). 0: "
@@ -1202,7 +1282,7 @@ void ikStretchReset()
                   "takes it back as it gets up unless you took it (vr_agrunt_fall_drop; with Hits Disarm)."),
         toggle("Keeps It in a Gentle Fall", vr_agrunt_fall_keep)
             .help("A gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, but while it lies "
-                  "there a grab takes it at once and a blow knocks it away. A violent one (below) drops it "
+                  "there a grab takes it with a short tug (Tug: Staggering or Down) and a blow knocks it away. A violent one (below) drops it "
                   "(vr_agrunt_fall_keep)."),
         slider("Fall: Drops It on Impact", vr_agrunt_fall_keep_impact, 0.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 100.f)
             .help("Lifted, judo-thrown, shoulder-charged or shoved over, it holds on to its weapon until its body meets "
@@ -1236,6 +1316,20 @@ void ikStretchReset()
             .help("A pellet or a nail whose first hit is the held weapon (not its hand) stops there: sparks and a tink, "
                   "no damage to the one holding it (each pellet on its own). Explosions and lightning hurt it as ever. "
                   "Off: it goes on into the body behind (vr_agrunt_shotdisarm_block)."),
+        toggle("Nails and Rockets Roll Each", vr_agrunt_shotdisarm_proj)
+            .help("Each nail (the nailguns', the nail pistol's, lava nails) and rocket on or near its weapon or hand rolls "
+                  "once to knock it out: the chance below for that damage, more for more damage, less the further off. "
+                  "Off: their damage adds up to a roll as the shotguns' does (vr_agrunt_shotdisarm_proj)."),
+        slider("Projectile: Chance", vr_agrunt_shotdisarm_proj_chance, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("A projectile's chance on the weapon or hand at the reference damage below: a nail 0.2, a pistol nail "
+                  "0.27, a super nail 0.4 (vr_agrunt_shotdisarm_proj_chance)."),
+        slider("Projectile: Reference Damage", vr_agrunt_shotdisarm_proj_ref, 1.f, 50.f, 1.f, "%.0f").extend(0.1f, 500.f)
+            .help("The damage that chance is for; the chance grows with the damage (vr_agrunt_shotdisarm_proj_ref)."),
+        slider("Projectile: Near Miss", vr_agrunt_shotdisarm_proj_near, 0.f, 12.f, 0.5f, "%.1f units").extend(0.f, 64.f)
+            .help("A miss this close to the weapon or hand still rolls, its chance falling to 0 at this distance "
+                  "(vr_agrunt_shotdisarm_proj_near)."),
+        slider("Projectile: Most Chance", vr_agrunt_shotdisarm_proj_max, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("One projectile's chance at most: a rocket's direct hit (vr_agrunt_shotdisarm_proj_max)."),
         header("Their Hands"),
         toggle("Hands on the Grips", vr_agrunt_ik)
             .help("Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "

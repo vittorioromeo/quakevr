@@ -86,6 +86,8 @@ void(entity p, entity g) VR_AGDT_TryEnd =
     vr_agt_step = VR_AGDT_Next() ? 0 : 9;
 };
 
+float vr_agdt_keep_scale; // vr_agrunt_tug_downed_scale before (this test's rules: a downed one's grab at once, 0)
+
 void() VR_AGDT_Down =
 {
     entity p = vr_agt_player;
@@ -95,6 +97,9 @@ void() VR_AGDT_Down =
     {
         if(vr_agdt_m == 0 && vr_agdt_ph == 0 && vr_agdt_try == 0 && vr_agdt_n + vr_agdt_nost == 0)
         {
+            // (the downed grab's own rules, at once or its old tug; the eased tug of vr_agrunt_tug_downed_scale: test 92)
+            vr_agdt_keep_scale = cvar("vr_agrunt_tug_downed_scale");
+            cvar_set("vr_agrunt_tug_downed_scale", "0");
             vr_agdt_home = p.origin;
             float a = cvar("scratch1"), b = cvar("scratch2");
             if(!((a <= 0 || a == 1) && (b <= 0 || b == 1)))
@@ -171,6 +176,7 @@ void() VR_AGDT_Down =
         vr_agdt_yank = 0;
         vr_agdt_lost = 0;
         vr_agdt_wonsum = 0;
+        cvar_set("vr_agrunt_tug_downed_scale", ftos(vr_agdt_keep_scale));
         cvar_set("vr_agrunt_test", "0");
         return;
     }

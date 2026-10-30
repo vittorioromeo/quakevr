@@ -1071,6 +1071,14 @@ void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
     {
         return; // (held still: the Grip Editor, the Pose Studio, where hands reach into its weapons)
     }
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(g.vr_ag_prop, g.vr_ag_prop.origin, VR_DV_DISARM, why); // (Show Disarm Volumes; where it struck: after)
+    }
+    if(VR_AG_TugDisarm(g, why))
+    {
+        return; // (in a tug: into your holding hand, vr_agrunt_tug_strike: vr_armedgrunt_play.qc)
+    }
     dir_z = 0;
     vector vel = normalize(dir) * (speed * (0.8 + random() * 0.4)) + '0 0 1' * (speed * 0.9);
     float wid = g.vr_ag_wid;
@@ -2715,6 +2723,13 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AG_Damage
 // T_DamageDeal: a blow on it, near its gun hand and hard enough, knocks its weapon out of it.
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
 {
+    // A thrown thing's way in met its weapon or hand before its body (vr_agrunt_strike_first): its momentum's rule, not
+    // the damage's (vr_armedgrunt_parry.qc).
+    if(targ.vr_ag && targ.vr_ag_prop && targ.health > 0 && cvar_hget(cvarh_vr_agrunt_disarm) && !vr_agpar_now &&
+       inflictor != attacker && inflictor != world && VR_AG_ThrowOnWeapon(targ, inflictor))
+    {
+        return;
+    }
     if(!targ.vr_ag || !targ.vr_ag_prop || targ.health <= 0 || !cvar_hget(cvarh_vr_agrunt_disarm) || vr_agpar_now ||
        take < VR_AG_DisarmDamage(targ) || inflictor == world || inflictor.classname == "vr_burn")
     {
@@ -2730,13 +2745,24 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
         VR_AG_Swap(targ); // (nearer its other hand's weapon: that one's the one at stake)
     }
     float near = vlen(vr_hr_at - targ.vr_ag_prop.origin);
+    if(cvar_hget(cvarh_vr_agrunt_strike_first))
+    {
+        near = min(near, VR_AG_HandLineDist(targ, targ.vr_ag_prop, vr_hr_at)); // (its gun hand and forearm, not the grip alone)
+    }
     if(cvar_hget(cvarh_vr_agrunt_debug))
     {
         VR_AG_Log(sprintf("hit %g at %.1f from its gun hand (part %g)", take, near, vr_hr_part));
     }
-    if(near <= VR_AG_DISARM_HAND || (vr_hr_part == 2 && near <= VR_AG_DISARM_HAND * 1.6))
+    entity dvp = targ.vr_ag_prop;
+    float dis = near <= VR_AG_DISARM_HAND || (vr_hr_part == 2 && near <= VR_AG_DISARM_HAND * 1.6);
+    if(dis)
     {
         VR_AG_Disarm(targ, vr_hr_dir, 150, sprintf("a blow of %g on its gun hand", take));
+    }
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(dvp, vr_hr_at, dis ? VR_DV_DISARM : VR_DV_BODY, sprintf("blow %g, %.1f from its grip (part %g)", take, near,
+            vr_hr_part));
     }
 };
 
@@ -2842,7 +2868,7 @@ float() VR_AG_SoldierDrop =
     if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells + self.ammo_lava_nails +
          self.ammo_multi_rockets + self.ammo_plasma))
     {
-        if(self.vr_agr)
+        if(self.vr_agr && !self.vr_wp_had)
         {
             return FALSE; // (a replacement with none: the loot of the monster it replaced, its chance of a weapon too)
         }
@@ -2850,6 +2876,10 @@ float() VR_AG_SoldierDrop =
         // 5 shells, an enforcer's 5 cells).
         VR_AM_Row(self.vr_ag_kind);
         VR_AmmoUtil_SetAmmoCountByAmmoId(self, vr_am_loot_aid, vr_am_loot_n);
+    }
+    if(VR_WP_DeathLoot())
+    {
+        return TRUE; // (it wears its backpack, or lost it: no other dropped; vr_wornpack.qc)
     }
     DropBackpack();
     return TRUE;
@@ -3004,6 +3034,7 @@ void(float kind) VR_AM_Spawn =
     vr_ag_arm_roll = random();
     VR_AM_ArmAll(want, flags, inst, want2, flags2);
     VR_AgArmor_Spawn(self); // (its armour by the skill: vr_agarmor.qc)
+    VR_WP_Spawn(self);      // (its backpack on its back: vr_wornpack.qc, vr_worn_backpacks)
 };
 
 // Its weapons from its keys (as VR_AM_Spawn's: "weapon" decoded to `want`, `flags`, `inst`; "weapon2" `want2`,

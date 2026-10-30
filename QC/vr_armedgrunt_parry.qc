@@ -280,8 +280,320 @@ float(entity g, entity by, float h, float damage) VR_AGPar_Parried =
             VR_AG_Swap(g); // (the weapon that took the blow)
         }
         VR_AG_Disarm(g, away * -1, 140, "parried until its strength gave out");
+        if(vr_dv_on)
+        {
+            VR_DV_Mark(g, vr_agpar_x, VR_DV_DISARM, "parried: its strength gave out");
+        }
+    }
+    else if(vr_dv_on)
+    {
+        VR_DV_Mark(g.vr_ag_prop, vr_agpar_x, VR_DV_PARRY, sprintf("parry: stamina %.2f of %g", load, count));
     }
     return damage * kept;
+};
+
+// ----------------------------------------------------------------------------
+// A deliberate strike on its weapon or its hand (vr_agrunt_strike_first; ROUND23.md, "Armed humanoid disarming, part 2")
+// ----------------------------------------------------------------------------
+// His words (2026-10-30): a well-aimed blow or throw on its weapon or hand should disarm it, not be parried or hurt it,
+// in slow motion too. One decision, VR_AG_BlowOnWeapon, for a blow that met its weapon before its body (VR_AGPar_Blow,
+// the melee's damage) and one that met only its weapon (VR_AG_StrikeFrame, its weapon's think):
+// - not a deliberate strike (VR_AG_StrikeSpeed 0: an open hand, a one-frame jolt, under vr_agrunt_disarm_swing): the
+//   parry's own rule, as before;
+// - deliberate, its parry not raised for it (it can't parry, it was caught out, its parry not up yet or its pose under
+//   vr_agrunt_strike_raised): knocked out of its hand along the blow;
+// - deliberate into a raised parry: a roll, vr_agrunt_strike_beat x vr_agrunt_strike_precise_mult (met within
+//   vr_agrunt_strike_precise of its grip or on its hand) x min(2, speed / vr_agrunt_disarm_swing): won, disarmed; lost,
+//   the parry (its stamina as before).
+// The test is swept: the blow's points (its last pose to now; a held gun's whole line) sampled every 2.5 units of their
+// way, a carried prop's middle swept with them and widened by its size, against its weapon's line and its hand and
+// forearm (VR_AGS_HandLine). Speeds are real time (VR_AG_StrikeSpeed), so slow motion strikes as fast as you swing.
+
+float VR_AG_STRIKE_R = 5;          // units: the sweep this near the weapon's line or the hand's meets it (VR_AGPAR_R)
+float VR_AG_STRIKE_PARRY = 1;      // VR_AG_BlowOnWeapon: its parry took it
+float VR_AG_STRIKE_DISARM = 2;     // ... knocked out of its hand (-1: no deliberate strike on it, the parry's own rule)
+vector vr_ag_sw_a0;                // VR_AG_StrikeMeets' sweep: the blow's line at its last pose (first point, last),
+vector vr_ag_sw_a1;
+vector vr_ag_sw_b0;                // ... and now
+vector vr_ag_sw_b1;
+float vr_ag_strike_part;           // where it met: 1 the weapon, 2 the hand or forearm
+float vr_ag_strike_near;           // ... the sweep's distance there from the grip or the hand line (units)
+vector vr_ag_strike_x;             // ... the weapon's point nearest it
+float vr_ag_strike_dis;            // strikes and throws that disarmed (the tests)
+float vr_ag_strike_where;          // ... the last one's part (1 its weapon, 2 its hand or forearm)
+string vr_ag_strike_why;           // the last strike's decision (the tests, vr_agrunt_debug)
+
+// The gap between the segment a..b, widened by `r` (`extra` of it a carried prop's size), and the weapon's line
+// (vr_ag_wa..wb) or its hand line (vr_ags_ha..hb); sets vr_ag_strike_part and _near.
+float(vector a, vector b, float r, float extra) VR_AG_StrikeGap =
+{
+    float dw = VR_AG_SegDist(a, b, vr_ag_wa, vr_ag_wb);
+    float dh = VR_AG_SegDist(a, b, vr_ags_ha, vr_ags_hb);
+    vr_ag_strike_part = dh < dw ? 2 : 1;
+    vr_ag_strike_near = max(0, dh - extra);
+    vector w = vr_ag_wb - vr_ag_wa;
+    vector m = (a + b) * 0.5;
+    float f = (w * w) > 0.01 ? min(1, max(0, ((m - vr_ag_wa) * w) / (w * w))) : 0;
+    vr_ag_strike_x = vr_ag_wa + w * f;
+    return min(dw, dh) - r;
+};
+
+// `pl`'s hand `h`'s blow this frame (or the hand and its gun's muzzle now) meets `g`'s held weapon `p` or the hand
+// holding it: the sweep's share then (0 .. 1), -1 never.
+float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets =
+{
+    VR_AG_WeaponLine(p);
+    VR_AGS_HandLine(g, p);
+    entity was = self;
+    self = pl;
+    entity b = VR_Blow(h);
+    self = was;
+    vector hp = VRGetEntHandPos(pl, h);
+    float n = b.mh_n;
+    if(n >= 1 && b.mh_thing != VR_MTHING_NONE && fabs(time - b.mh_time) <= 0.2)
+    {
+        vr_ag_sw_a0 = b.mh_pp[0];
+        vr_ag_sw_a1 = b.mh_pp[n - 1];
+        vr_ag_sw_b0 = b.mh_cp[0];
+        vr_ag_sw_b1 = b.mh_cp[n - 1];
+    }
+    else
+    {
+        vr_ag_sw_a0 = hp;
+        vr_ag_sw_a1 = hp;
+        vr_ag_sw_b0 = hp;
+        vr_ag_sw_b1 = hp;
+    }
+    // A carried prop (a crate, a gib): its middle swept with the hand, as wide as it is.
+    entity c = VR_Hand_Thing(pl, h);
+    float cr = 0;
+    vector c0 = '0 0 0';
+    vector c1 = '0 0 0';
+    if(c && !isragdoll(c) && c.size != '0 0 0')
+    {
+        cr = min(16, max(2, (c.size_x + c.size_y + c.size_z) / 6));
+        c1 = (c.absmin + c.absmax) * 0.5;
+        c0 = c1 - (vr_ag_sw_b0 - vr_ag_sw_a0);
+    }
+    float way = max(vlen(vr_ag_sw_b0 - vr_ag_sw_a0), vlen(vr_ag_sw_b1 - vr_ag_sw_a1));
+    float steps = min(16, max(4, ceil(way / 2.5)));
+    float i;
+    for(i = 0; i <= steps; i++)
+    {
+        float t = i / steps;
+        vector p0 = vr_ag_sw_a0 + (vr_ag_sw_b0 - vr_ag_sw_a0) * t;
+        vector p1 = vr_ag_sw_a1 + (vr_ag_sw_b1 - vr_ag_sw_a1) * t;
+        float gap = VR_AG_StrikeGap(p0, p1, VR_AG_STRIKE_R, 0);
+        if(gap > 0 && cr > 0)
+        {
+            vector cc = c0 + (c1 - c0) * t;
+            gap = VR_AG_StrikeGap(cc, cc, VR_AG_STRIKE_R + cr, cr);
+        }
+        if(gap <= 0)
+        {
+            return t;
+        }
+    }
+    // (The hand to its gun's muzzle now: VR_AG_HandStrike's old test.)
+    vector mz = VR_HAND_FIELD(pl, h, muzzlepos, offmuzzlepos);
+    if(VRIsHandEmpty(pl, h) || vlen(mz - hp) > 48)
+    {
+        mz = hp;
+    }
+    if(VR_AG_StrikeGap(hp, mz, VR_AG_STRIKE_R, 0) <= 0)
+    {
+        return 1;
+    }
+    return -1;
+};
+
+// `g`'s held weapon `p`'s hand line's distance from `at` (a body blow's point: VR_AG_Hit).
+float(entity g, entity p, vector at) VR_AG_HandLineDist =
+{
+    VR_AGS_HandLine(g, p);
+    return VR_AG_SegDist(at, at, vr_ags_ha, vr_ags_hb);
+};
+
+// The decision (see above) for `pl`'s hand `h`'s blow on armed `g` this frame; `bodyAt` where it met its body ('0 0 0':
+// not yet). VR_AG_STRIKE_DISARM (done: VR_AG_Disarm), VR_AG_STRIKE_PARRY (the caller parries it, vr_agpar_x set), -1 no
+// deliberate strike met its weapon or hand before its body (the parry's own rule).
+float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
+{
+    vr_ag_strike_why = "";
+    if(!cvar_hget(cvarh_vr_agrunt_strike_first) || !cvar_hget(cvarh_vr_agrunt_disarm) || !g.vr_ag_prop || g.vr_ag_tug_pl ||
+       g.health <= 0 || !(pl.flags & FL_CLIENT) || VR_AG_Still(g))
+    {
+        return -1;
+    }
+    if(VR_AG_SwingSpeed(pl, h) < min(cvar_hget(cvarh_vr_agrunt_disarm_swing), VR_AG_DOWN_SWING))
+    {
+        return -1; // (too slow for any strike: VR_AG_StrikeSpeed's least need; the swept test spared)
+    }
+    // Which of its weapons (two held: either) it met first.
+    entity p = world;
+    float t = -1;
+    float near = 0;
+    float part = 0;
+    vector x = '0 0 0';
+    entity q = g.vr_ag_prop;
+    float k;
+    for(k = 0; k < 2; k++)
+    {
+        if(q)
+        {
+            float tq = VR_AG_StrikeMeets(g, q, pl, h);
+            if(tq >= 0 && (t < 0 || tq < t))
+            {
+                t = tq;
+                p = q;
+                near = vr_ag_strike_near;
+                part = vr_ag_strike_part;
+                x = vr_ag_strike_x;
+            }
+        }
+        q = g.vr_ag_prop2;
+    }
+    if(t < 0)
+    {
+        return -1;
+    }
+    if(bodyAt != '0 0 0' && t > VR_AGPar_SweepAt(vr_ag_sw_a0, vr_ag_sw_a1, vr_ag_sw_b0, vr_ag_sw_b1, bodyAt) + 0.25)
+    {
+        vr_ag_strike_why = "its body met first";
+        return -1;
+    }
+    VR_AG_WeaponLine(p);
+    float sp = VR_AG_StrikeSpeed(g, p, pl, h, 1);
+    if(sp <= 0)
+    {
+        return -1; // (no deliberate strike: an open hand, a jolt, too slow)
+    }
+    string where = sprintf("%s, %.1f units from its grip or hand", part == 2 ? "its gun hand" : "its weapon", near);
+    float able = VR_AGPar_Able(g, pl);
+    float raised = able && cvar_hget(cvarh_vr_agrunt_parry) && g.vr_agpar_ready > 0 && time >= g.vr_agpar_ready &&
+                   g.vr_agpar_w >= cvar_hget(cvarh_vr_agrunt_strike_raised);
+    string why;
+    if(!raised)
+    {
+        if(!able)
+        {
+            why = vr_agpar_why;
+        }
+        else if(g.vr_agpar_ready <= 0)
+        {
+            why = "its parry caught out";
+        }
+        else if(time < g.vr_agpar_ready)
+        {
+            why = "its parry not up yet";
+        }
+        else
+        {
+            why = sprintf("its parry only %.2f up", g.vr_agpar_w);
+        }
+    }
+    else
+    {
+        float need = max(0.01, cvar_hget(cvarh_vr_agrunt_disarm_swing));
+        float precise = near <= cvar_hget(cvarh_vr_agrunt_strike_precise);
+        float chance = max(0, cvar_hget(cvarh_vr_agrunt_strike_beat)) *
+                       (precise ? max(0, cvar_hget(cvarh_vr_agrunt_strike_precise_mult)) : 1) * min(2, sp / need);
+        float roll = random();
+        if(roll >= chance)
+        {
+            vr_ag_strike_why = sprintf("a %.1f m/s strike on %s into its raised parry: chance %.2f, rolled %.2f", sp,
+                where, chance, roll);
+            VR_AG_Log(sprintf("strike: parried (%s)", vr_ag_strike_why));
+            vr_agpar_x = x;
+            return VR_AG_STRIKE_PARRY;
+        }
+        why = sprintf("beat its raised parry: chance %.2f, rolled %.2f", chance, roll);
+    }
+    if(h == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
+    if(p == g.vr_ag_prop2)
+    {
+        VR_AG_Swap(g); // (the weapon it struck)
+    }
+    vr_ag_strike_dis = vr_ag_strike_dis + 1;
+    vr_ag_strike_where = part;
+    vr_ag_strike_why = sprintf("a %.1f m/s strike on %s: %s", sp, where, why);
+    VR_AG_Log(sprintf("strike: disarmed (%s)", vr_ag_strike_why));
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(g.vr_ag_prop, x, VR_DV_DISARM, sprintf("strike %.1f m/s on %s", sp, where));
+    }
+    VR_AG_Disarm(g, VRGetEntHandVel(pl, h) - pl.velocity, 100 + sp * 15, vr_ag_strike_why);
+    return VR_AG_STRIKE_DISARM;
+};
+
+// VR_AG_Hit: a thrown thing (a weapon, a prop, a gib) that touched `g`'s body: its way in (its flight, or towards its body
+// if it has bounced off already), one frame back plus its size, met its weapon or hand first; then the momentum rule
+// (vr_agrunt_disarm_throw). TRUE: knocked out of its hand. (One that never touches its body: VR_AG_WeaponStruck's.)
+float(entity g, entity e) VR_AG_ThrowOnWeapon =
+{
+    if(!cvar_hget(cvarh_vr_agrunt_strike_first) || !g.vr_ag_prop || VR_AG_Still(g) || time - e.vr_ag_knock_at <= 0.5 ||
+       (e.flags & (FL_CLIENT | FL_MONSTER)) || !(e.classname == "thrown_weapon" || e.vr_gib || (e.flags & FL_FORCEGRABBABLE)))
+    {
+        return FALSE;
+    }
+    float spd = vlen(e.velocity);
+    if(spd < 100)
+    {
+        return FALSE;
+    }
+    vector c = (e.absmin + e.absmax) * 0.5;
+    vector mid = (g.absmin + g.absmax) * 0.5;
+    vector dir = normalize(e.velocity);
+    if(dir * (mid - c) <= 0)
+    {
+        dir = normalize(mid - c); // (bounced off it already: its way in was towards it)
+    }
+    float reach = VR_AG_STRIKE_R + min(12, max(4, max(e.maxs_x, e.maxs_z)));
+    vector a = c - dir * (spd * frametime + reach);
+    vector b = c + dir * 2;
+    entity hit = world;
+    float part = 0;
+    entity q = g.vr_ag_prop;
+    float k;
+    for(k = 0; k < 2 && !hit; k++)
+    {
+        if(q)
+        {
+            VR_AG_WeaponLine(q);
+            VR_AGS_HandLine(g, q);
+            if(VR_AG_StrikeGap(a, b, reach, 0) <= 0)
+            {
+                hit = q;
+                part = vr_ag_strike_part;
+            }
+        }
+        q = g.vr_ag_prop2;
+    }
+    if(!hit)
+    {
+        return FALSE;
+    }
+    e.vr_ag_knock_at = time;
+    float mom = VR_Thrown_Mass(e) * spd / VRMetersToUnits();
+    string what = sprintf("a %s thrown at its %s, %.1f kg m/s", e.classname, part == 2 ? "gun hand" : "weapon", mom);
+    if(mom < cvar_hget(cvarh_vr_agrunt_disarm_throw))
+    {
+        VR_AG_Log(sprintf("strike: kept (%s: under %g)", what, cvar_hget(cvarh_vr_agrunt_disarm_throw)));
+        return FALSE;
+    }
+    if(hit == g.vr_ag_prop2)
+    {
+        VR_AG_Swap(g);
+    }
+    vr_ag_strike_dis = vr_ag_strike_dis + 1;
+    vr_ag_strike_why = what;
+    VR_AG_Log(sprintf("strike: disarmed (%s)", what));
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(g.vr_ag_prop, c, VR_DV_DISARM, what);
+    }
+    VR_AG_Disarm(g, dir, 120, what);
+    return TRUE;
 };
 
 // T_Damage_VRMelee and T_Damage: a blow of `attacker`'s on armed `targ` (its damage `damage`): parried (cut, vr_agpar_now
@@ -311,6 +623,17 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blo
         if(targ.vr_agpar_by == attacker && targ.vr_agpar_hand == h + 1 && time - targ.vr_agpar_last < VR_AGPAR_MARK)
         {
             vr_agpar_x = vr_hitpos;
+            return VR_AGPar_Parried(targ, attacker, h, damage);
+        }
+        // A deliberate strike that met its weapon or hand first (vr_agrunt_strike_first): disarmed, the blow going on into
+        // its body as it would unparried; or into its raised parry, lost the roll: parried.
+        float strike = VR_AG_BlowOnWeapon(targ, attacker, h, vr_hitpos);
+        if(strike == VR_AG_STRIKE_DISARM)
+        {
+            return damage;
+        }
+        if(strike == VR_AG_STRIKE_PARRY)
+        {
             return VR_AGPar_Parried(targ, attacker, h, damage);
         }
         if(VR_AGPar_PlayerMeets(targ, attacker, h, vr_hitpos) < 0)
@@ -351,8 +674,40 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blo
     return VR_AGPar_Parried(targ, attacker, h, damage);
 };
 
-// VR_AG_WeaponStruck (its weapon's think, each frame): your blow on its weapon that hasn't met its body (the weapon held
-// out): parried now. TRUE: its weapon knocked away.
+// `pl`'s hand `h`'s blow this frame on `g`'s weapon that hasn't met its body (the weapon held out): parried now, if it
+// can. TRUE: parried.
+float(entity g, entity pl, float h) VR_AGPar_HandParries =
+{
+    entity was = self;
+    self = pl;
+    entity b = VR_Blow(h);
+    self = was;
+    float lenient = b.mh_lenient > 0 ? b.mh_lenient : 1;
+    if(!b.mh_fresh || b.mh_dt <= 0 || b.mh_thing == VR_MTHING_NONE || b.mh_fast < VR_Melee_MinSpeed() * lenient)
+    {
+        return FALSE;
+    }
+    if(cvar_hget(cvarh_vr_agrunt_parry_strikes_only) && !VR_AG_HandStrikes(pl, h))
+    {
+        return FALSE; // (an open hand reaching for its weapon: no blow to parry, VR_AGPar_Frame)
+    }
+    if(VR_AGPar_PlayerMeets(g, pl, h, '0 0 0') >= 0 && VR_AGPar_Able(g, pl))
+    {
+        VR_AGPar_Parried(g, pl, h, 0);
+        vr_agpar_now = FALSE;
+        return TRUE;
+    }
+    return FALSE;
+};
+
+// Whether `pl`'s hand `h` struck `g` within the last parry's mark (its later blows are that parry's).
+float(entity g, entity pl, float h) VR_AGPar_Marked =
+{
+    return g.vr_agpar_by == pl && g.vr_agpar_hand == h + 1 && time - g.vr_agpar_last < VR_AGPAR_MARK;
+};
+
+// VR_AG_WeaponStruck (its weapon's think, each frame; vr_agrunt_strike_first 0): your blow on its weapon that hasn't met
+// its body (the weapon held out): parried now. TRUE: its weapon knocked away.
 float(entity g) VR_AGPar_WeaponFrame =
 {
     if(!cvar_hget(cvarh_vr_agrunt_parry) || !g.vr_ag_prop)
@@ -367,31 +722,56 @@ float(entity g) VR_AGPar_WeaponFrame =
             float h;
             for(h = 0; h < 2; h++)
             {
-                if(g.vr_agpar_by == pl && g.vr_agpar_hand == h + 1 && time - g.vr_agpar_last < VR_AGPAR_MARK)
+                if(!VR_AGPar_Marked(g, pl, h) && VR_AGPar_HandParries(g, pl, h) && !g.vr_ag_prop)
+                {
+                    return TRUE;
+                }
+            }
+        }
+        pl = VR_NextPlayer(pl);
+    }
+    return FALSE;
+};
+
+// VR_AG_WeaponStruck (its first weapon's think, each frame; vr_agrunt_strike_first 1): your hands' deliberate strikes on
+// its weapons or hands (VR_AG_BlowOnWeapon), and the other blows on them parried as before. TRUE: its weapon knocked
+// away.
+float(entity g, entity p) VR_AG_StrikeFrame =
+{
+    if(!g.vr_ag_prop || p != g.vr_ag_prop)
+    {
+        return FALSE; // (once a frame: both its weapons are tested)
+    }
+    float parry = cvar_hget(cvarh_vr_agrunt_parry);
+    entity pl = VR_Player();
+    while(pl)
+    {
+        if(pl.health > 0 && vlen(pl.origin - g.origin) < 160)
+        {
+            float h;
+            for(h = 0; h < 2; h++)
+            {
+                if(VR_AGPar_Marked(g, pl, h))
                 {
                     continue;
                 }
-                entity was = self;
-                self = pl;
-                entity b = VR_Blow(h);
-                self = was;
-                float lenient = b.mh_lenient > 0 ? b.mh_lenient : 1;
-                if(!b.mh_fresh || b.mh_dt <= 0 || b.mh_thing == VR_MTHING_NONE || b.mh_fast < VR_Melee_MinSpeed() * lenient)
+                float r = VR_AG_BlowOnWeapon(g, pl, h, '0 0 0');
+                if(r == VR_AG_STRIKE_DISARM)
                 {
-                    continue;
+                    return TRUE;
                 }
-                if(cvar_hget(cvarh_vr_agrunt_parry_strikes_only) && !VR_AG_HandStrikes(pl, h))
-                {
-                    continue; // (an open hand reaching for its weapon: no blow to parry, VR_AGPar_Frame)
-                }
-                if(VR_AGPar_PlayerMeets(g, pl, h, '0 0 0') >= 0 && VR_AGPar_Able(g, pl))
+                if(r == VR_AG_STRIKE_PARRY)
                 {
                     VR_AGPar_Parried(g, pl, h, 0);
                     vr_agpar_now = FALSE;
-                    if(!g.vr_ag_prop)
-                    {
-                        return TRUE;
-                    }
+                }
+                else if(!parry || !VR_AGPar_HandParries(g, pl, h))
+                {
+                    continue;
+                }
+                if(!g.vr_ag_prop)
+                {
+                    return TRUE; // (its last strength spent on the parry)
                 }
             }
         }

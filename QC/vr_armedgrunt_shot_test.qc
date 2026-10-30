@@ -205,9 +205,11 @@ void() VR_AGST_Report =
         vr_agst_loss0 = loss;
         VR_AGST_Check("shotgun 2 m: 0.5..0.8, none stopped:", rate >= 0.5 && rate <= 0.8 && ab == 0);
     }
-    if(c == 4) { VR_AGST_Check("3 nails: 0.25..0.5:", rate >= 0.25 && rate <= 0.5); }
+    float proj = cvar("vr_agrunt_shotdisarm_proj"); // (each nail its own roll, 0.2 a nail: 3 of them 0.49)
+    if(c == 4) { VR_AGST_Check(proj ? "3 nails, each its roll: 0.3..0.7:" : "3 nails: 0.25..0.5:", proj ? (rate >= 0.3 && rate <= 0.7) : (rate >= 0.25 && rate <= 0.5)); }
     if(c == 7) { VR_AGST_Check("lightning 0.2 s: 0.2..0.6:", rate >= 0.2 && rate <= 0.6); }
-    if(c == 5 || c == 6) { VR_AGST_Check("a single far shot: 0.05 at most:", rate <= 0.05); }
+    if(c == 5 && proj) { VR_AGST_Check("a single far nail, its own roll: 0.1..0.35:", rate >= 0.1 && rate <= 0.35); }
+    else if(c == 5 || c == 6) { VR_AGST_Check("a single far shot: 0.05 at most:", rate <= 0.05); }
     if(c == 9) { VR_AGST_Check("hand only, the muzzle end: 0.05 at most:", rate <= 0.05); }
     if(c == 10) { VR_AGST_Check("hand only, the forearm: over 0.2:", rate > 0.2); }
     if(c == 12) { vr_agst_small = rate; }
@@ -319,6 +321,220 @@ void(float t) VR_AGS_TestFrame =
         VR_AGPT_Clear();
         vr_agst_case = vr_agst_case + 1;
         vr_agst_step = 0;
+    }
+};
+
+// ----------------------------------------------------------------------------
+// Test 93: projectiles' own rolls (vr_agrunt_shotdisarm_proj). A shotgun grunt 520 units ahead; nails, super nails, the
+// nail pistol's nails, lava nails and rockets flown at its gun, its forearm, and 3 and 6 units off the gun's surface
+// (below it, away from its arm): each projectile rolls once. Each case's mean chance must be the formula's (exact: the
+// roll's chance is deterministic) and its rate near it; the pistol's above 0, 6 units off never.
+// ----------------------------------------------------------------------------
+
+float vr_agpj_case;    // the case (kind * 4 + where)
+float vr_agpj_shot;    // ... its shots so far
+float vr_agpj_n;       // ... shots it takes
+float vr_agpj_step;    // 0 the case's set-up, 1 a grunt, 2 a shot, 3 its result
+float vr_agpj_until;
+float vr_agpj_rolls0;  // vr_ags_rolls at the shot
+float vr_agpj_dis0;    // vr_ags_disarms at the shot
+float vr_agpj_rolled;  // the case's rolls,
+float vr_agpj_dis;     // ... disarms,
+float vr_agpj_csum;    // ... chances summed
+float vr_agpj_keep_proj;
+float vr_agpj_keep_drop;
+float vr_agpj_keep_block;
+float vr_agpj_keep_parts;
+entity vr_agpj_g;
+
+string(float k) VR_AGPJ_KindName =
+{
+    return k == 0 ? "nail" : k == 1 ? "super nail" : k == 2 ? "pistol nail" : k == 3 ? "lava nail" : "rocket";
+};
+
+string(float w) VR_AGPJ_WhereName = { return w == 0 ? "on the gun" : w == 1 ? "on the forearm" : w == 2 ? "3 off" : "6 off"; };
+
+// The chance the formula gives (vr_agrunt_shotdisarm_proj_*): `dmg` damage, falloff `f`, part weight 1.
+float(float dmg, float f) VR_AGPJ_Expect =
+{
+    float c = cvar("vr_agrunt_shotdisarm_proj_chance") * dmg / max(0.01, cvar("vr_agrunt_shotdisarm_proj_ref"));
+    return min(cvar("vr_agrunt_shotdisarm_proj_max"), c) * f;
+};
+
+float(float k) VR_AGPJ_Damage =
+{
+    if(k == 1) { return VR_WpnDmg(vr_agt_player, cvarh_vr_dmg_super_nail, 18); }
+    if(k == 2) { return VR_WpnDmg(vr_agt_player, cvarh_vr_dmg_nailpistol, 9); }
+    if(k == 4) { return 110 * VR_WpnDmgScale(vr_agt_player, cvarh_vr_dmg_rocket, 100); }
+    return VR_WpnDmg(vr_agt_player, cvarh_vr_dmg_nail, 9);
+};
+
+// Where the shot goes (`w`); it comes from the player's side, 256 units back along the way (a rocket 64).
+vector(entity g, entity p, float w) VR_AGPJ_AimAt =
+{
+    if(w == 1)
+    {
+        VR_AGS_HandLine(g, p);
+        return vr_ags_ha + (vr_ags_hb - vr_ags_ha) * 0.7;
+    }
+    VR_AG_WeaponLine(p);
+    // (the muzzle's half: away from its forearm; a rocket's by the muzzle, out of its body's box: it bursts there)
+    vector at = vr_ag_wa + (vr_ag_wb - vr_ag_wa) * (vr_agpj_case >= 16 ? 0.95 : 0.75);
+    if(w >= 2)
+    {
+        vector eye = vr_agt_player.origin + vr_agt_player.view_ofs;
+        vector dir = normalize(at - eye);
+        vector off = normalize(VR_Cross(dir, vr_ag_wb - vr_ag_wa));
+        if(off_z > 0) { off = off * -1; }
+        at = at + off * (VR_AGS_W_RADIUS + (w == 2 ? 3 : 6));
+    }
+    return at;
+};
+
+void(entity g, entity p, float k, float w) VR_AGPJ_Fire =
+{
+    entity pl = vr_agt_player;
+    vector at = VR_AGPJ_AimAt(g, p, w);
+    vector dir = normalize(at - (pl.origin + pl.view_ofs));
+    vector from = at - dir * (k == 4 ? 64 : 256); // (a rocket's slow flight: from near, its target not moved meanwhile)
+    entity oldself = self;
+    self = pl;
+    entity e;
+    if(k == 4)
+    {
+        e = spawn();
+        e.owner = pl;
+        e.movetype = MOVETYPE_FLYMISSILE;
+        e.solid = SOLID_BBOX;
+        e.classname = "missile";
+        e.touch = T_MissileTouch;
+        e.angles = vectoangles(dir);
+        setmodel(e, "progs/missile.mdl");
+        setsize(e, '0 0 0', '0 0 0');
+        setorigin(e, from);
+        e.velocity = dir * 1000;
+        e.nextthink = time + 5;
+        e.think = SUB_Remove;
+    }
+    else
+    {
+        e = launch_spike(from, dir);
+        if(k == 1) { e.touch = superspike_touch; }
+        if(k == 2) { e.touch = VR_NailPistol_SpikeTouch; }
+        if(k == 3) { e.touch = lavaspike_touch; }
+    }
+    self = oldself;
+};
+
+// The case's results printed and checked.
+void() VR_AGPJ_Report =
+{
+    float k = floor(vr_agpj_case / 4);
+    float w = vr_agpj_case - k * 4;
+    float n = max(1, vr_agpj_n);
+    float f = w == 2 ? max(0, 1 - 3 / max(0.01, cvar("vr_agrunt_shotdisarm_proj_near"))) : (w == 3 ? 0 : 1);
+    f = w == 3 ? max(0, 1 - 6 / max(0.01, cvar("vr_agrunt_shotdisarm_proj_near"))) : f;
+    float want = VR_AGPJ_Expect(VR_AGPJ_Damage(k), f);
+    float mean = vr_agpj_csum / max(1, vr_agpj_rolled);
+    float rate = vr_agpj_dis / n;
+    string what = sprintf("%s %s: %g/%g disarmed (%.2f), rolls %g, chance %.3f", VR_AGPJ_KindName(k),
+        VR_AGPJ_WhereName(w), vr_agpj_dis, n, rate, vr_agpj_rolled, mean);
+    // (every shot but one rolls; their chance the formula's (near misses: within 0.03, the gun swaying); the rate within
+    // 3 standard deviations of it, at least 0.12)
+    float sd = sqrt(want * (1 - want) / n);
+    float ok = ((vr_agpj_rolled >= n - 1) && (fabs(mean - want) <= (w == 2 ? 0.03 : 0.01)) && (fabs(rate - want) <= max(0.12, 3 * sd)));
+    if(w == 3) { ok = ((vr_agpj_dis == 0) && (vr_agpj_rolled == 0)); }
+    if(k == 2 && w == 0) { ok = (ok && (rate > 0)); }
+    VR_AGST_Check(sprintf("%s, want %.3f:", what, want), ok);
+};
+
+void() VR_AGS_ProjTestFrame =
+{
+    entity pl = vr_agt_player;
+    entity g = vr_agpj_g;
+    pl.flags = pl.flags | FL_NOTARGET;
+    if(vr_agpj_step == 0)
+    {
+        if(vr_agpj_case == 0)
+        {
+            vr_agpj_keep_proj = cvar("vr_agrunt_shotdisarm_proj");
+            vr_agpj_keep_drop = cvar("vr_agrunt_fall_drop");
+            vr_agpj_keep_block = cvar("vr_agrunt_shotdisarm_block");
+            vr_agpj_keep_parts = cvar("vr_agrunt_shotdisarm_parts");
+            cvar_set("vr_agrunt_shotdisarm_proj", "1");
+            cvar_set("vr_agrunt_fall_drop", "0");
+            cvar_set("vr_agrunt_shotdisarm_block", "0"); // (each nail on into the body: its roll only)
+            cvar_set("vr_agrunt_shotdisarm_parts", "2");
+            VR_Test_Nest("agshot", VR_TEST_LOUD);
+        }
+        if(vr_agpj_case >= 20)
+        {
+            cvar_set("vr_agrunt_shotdisarm_proj", ftos(vr_agpj_keep_proj));
+            cvar_set("vr_agrunt_fall_drop", ftos(vr_agpj_keep_drop));
+            cvar_set("vr_agrunt_shotdisarm_block", ftos(vr_agpj_keep_block));
+            cvar_set("vr_agrunt_shotdisarm_parts", ftos(vr_agpj_keep_parts));
+            VR_Test_VerdictPart("projectiles done:");
+            VR_Test_Unnest();
+            pl.flags = pl.flags - (pl.flags & FL_NOTARGET);
+            VR_AGPT_Clear();
+            vr_agpj_case = 0;
+            cvar_set("vr_agrunt_test", "0");
+            return;
+        }
+        float w0 = vr_agpj_case - floor(vr_agpj_case / 4) * 4;
+        vr_agpj_n = cvar("scratch1") > 0 ? cvar("scratch1") : (w0 == 0 ? 40 : 12);
+        vr_agpj_shot = 0;
+        vr_agpj_rolled = 0;
+        vr_agpj_dis = 0;
+        vr_agpj_csum = 0;
+        vr_agpj_step = 1;
+        return;
+    }
+    float k = floor(vr_agpj_case / 4);
+    float w = vr_agpj_case - k * 4;
+    if(vr_agpj_step == 1)
+    {
+        VR_AGPT_Clear();
+        vr_agpj_g = VR_AGT_Spawn(WID_SHOTGUN, 520);
+        vr_agpj_g.health = 5000;
+        vr_agpj_step = 2;
+        vr_agpj_until = time + 0.2;
+        return;
+    }
+    if(time < vr_agpj_until)
+    {
+        return;
+    }
+    if(vr_agpj_step == 2)
+    {
+        if(!g.vr_ag_prop)
+        {
+            vr_agpj_step = 1; // (gone: a fresh one)
+            return;
+        }
+        vr_agpj_rolls0 = vr_ags_rolls;
+        vr_agpj_dis0 = vr_ags_disarms;
+        vr_ags_last_chance = 0;
+        VR_AGPJ_Fire(g, g.vr_ag_prop, k, w);
+        vr_agpj_step = 3;
+        vr_agpj_until = time + 0.2; // (its flight: a nail's 256 units, a rocket's 64 at 1000 u/s)
+        return;
+    }
+    // The shot's result: a roll, its chance, a disarm.
+    if(vr_ags_rolls > vr_agpj_rolls0)
+    {
+        vr_agpj_rolled = vr_agpj_rolled + 1;
+        vr_agpj_csum = vr_agpj_csum + vr_ags_last_chance;
+    }
+    float won = vr_ags_disarms > vr_agpj_dis0;
+    vr_agpj_dis = vr_agpj_dis + won;
+    vr_agpj_shot = vr_agpj_shot + 1;
+    vr_agpj_step = (won || k == 4 || g.health < 4000 || !g.vr_ag_prop) ? 1 : 2; // (a fresh grunt: disarmed, blasted)
+    if(vr_agpj_shot >= vr_agpj_n)
+    {
+        VR_AGPJ_Report();
+        vr_agpj_case = vr_agpj_case + 1;
+        vr_agpj_step = 0;
     }
 };
 #endif

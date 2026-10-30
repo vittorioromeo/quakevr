@@ -1741,6 +1741,8 @@ struct PlateFrame
     return glm::mat3{x, glm::cross(z, x), z};
 }
 
+[[nodiscard]] PlateFrame frameOnBone(const Shell& s, int bone, PlateFrame pf);
+
 [[nodiscard]] PlateFrame plateFrameOf(const Shell& s, int piece)
 {
     PlateFrame pf;
@@ -1764,7 +1766,13 @@ struct PlateFrame
             sum.w[i] += v.w.w[i];
         }
     }
-    const int bone = heaviest(sum);
+    return frameOnBone(s, heaviest(sum), pf);
+}
+
+// `pf` (its middle set) anchored on `bone`: three of the body's vertices weighing mostly on it, the one nearest the middle
+// first, then the farthest from it, then the farthest from their line.
+[[nodiscard]] PlateFrame frameOnBone(const Shell& s, int bone, PlateFrame pf)
+{
     const Body& b = s.body;
     int a = -1, c = -1, d = -1;
     float best = 1e9f;
@@ -2135,6 +2143,86 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
         return;
     }
     held::anglesFromAxes(now, out, false);
+}
+
+namespace
+{
+// progs/backpack.mdl's bounds (id1's; units): its front (+x) against the back, upright.
+constexpr glm::vec3 packLo{-10.01f, -8.29f, 0.f}, packHi{5.23f, 8.14f, 24.78f};
+constexpr float packChest = 0.62f; // its middle this far up the cuirass's height (its upper back)
+
+[[nodiscard]] float packScale()
+{
+    return za::clamp(vr_worn_backpack_scale.value, 0.1f, 2.f);
+}
+} // namespace
+
+void packModelBox(glm::vec3& mid, glm::vec3& half)
+{
+    mid = (packLo + packHi) * 0.5f * packScale();
+    half = (packHi - packLo) * 0.5f * packScale();
+}
+
+bool packWhere(edict_t* ent, glm::vec3& origin, glm::mat3& axes, glm::vec3& mid, glm::vec3& half)
+{
+    const char* base = baseOf(ent);
+    const Shell* s = serverShell(base);
+    if(!s)
+    {
+        return false;
+    }
+    // At rest: the cuirass's height's span and its middle across; its back the outer face's least x where the pack lies
+    // against it (within the pack's height and width there: not the small of the back below it).
+    float lo = 1e9f, hi = -1e9f, across = 0.f;
+    int n = 0;
+    for(const Vert& v : s->verts)
+    {
+        const bool on = v.piece == Cuirass && v.layer == 0;
+        lo = on ? za::min(lo, v.p.z) : lo;
+        hi = on ? za::max(hi, v.p.z) : hi;
+        across += on ? v.p.y : 0.f;
+        n += on ? 1 : 0;
+    }
+    if(n == 0)
+    {
+        return false;
+    }
+    packModelBox(mid, half);
+    const float midZ = lo + (hi - lo) * packChest + vr_worn_backpack_z.value;
+    const float midY = across / static_cast<float>(n) + vr_worn_backpack_y.value;
+    float back = 1e9f;
+    for(const Vert& v : s->verts)
+    {
+        const bool on = v.piece == Cuirass && v.layer == 0 && za::abs(v.p.z - midZ) <= half.z && za::abs(v.p.y - midY) <= half.y;
+        back = on ? za::min(back, v.p.x) : back;
+    }
+    if(back > 1e8f)
+    {
+        return false;
+    }
+    const float k = packScale();
+    const glm::vec3 restOrigin{back - packHi.x * k + vr_worn_backpack_x.value, midY, midZ - mid.z};
+    const float turnAngles[3] = {vr_worn_backpack_pitch.value, vr_worn_backpack_yaw.value, vr_worn_backpack_roll.value};
+    const glm::mat3 restAxes = held::axesFromAngles(turnAngles, false);
+    // It rides the chest bone (the upper back it lies on: the cuirass's own frame is the spine's, which leans less), its
+    // anchors the chest's vertices nearest the pack; the cuirass's if the rig has no chest.
+    const rig2::Rig* rig = rig2::rigFor(Mod_ForName(base, false));
+    const int chest = rig ? rig2::boneByName(*rig, "chest") : -1;
+    PlateFrame near;
+    near.mid = restOrigin + restAxes * mid;
+    PlateFrame pf = chest >= 0 ? frameOnBone(*s, chest, near) : PlateFrame{};
+    pf = pf.ok ? pf : plateFrameOf(*s, Cuirass);
+    if(!pf.ok)
+    {
+        return false;
+    }
+    glm::vec3 posed[3];
+    posedAnchors(ent, *s, pf, posed);
+    const glm::mat3 turn = frameFrom(posed[0], posed[1], posed[2]) * glm::transpose(pf.rest);
+    origin = posed[0] + turn * (restOrigin - at(s->body.mdlRest, pf.anchor[0]));
+    axes = turn * restAxes;
+    mid = origin + axes * mid;
+    return true;
 }
 
 unsigned char* derivedFile(const char* name, unsigned int* path_id)

@@ -539,6 +539,12 @@ za::Vector<Item> pageDebugTests()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Armour on Armed Grunts", "developer 1; vr_agarmor_test 1"),
+        command("Worn Backpacks", "developer 1; vr_wornpack_test 1")
+            .help("Armed grunts ahead wearing packs: hits, knockdowns, landings, a pull by the pack, deaths (vr_wornpack_test "
+                  "1; ends on \"wornpack: N passed, M failed\")."),
+        command("Grunts Wearing Packs There", "vr_wornpack_test 2")
+            .help("Three armed grunts ahead wearing packs (Worn Backpacks on): back on, side on and knocked down "
+                  "(vr_wornpack_test 2)."),
         command("Armoured Enforcers There", "vr_agarmor_test 3")
             .help("Three armed enforcers ahead in full green, yellow and red armour (vr_agarmor_test 3)."),
         command("Armour Damage Marks There", "vr_agarmor_test 4")
@@ -1139,15 +1145,17 @@ za::Vector<Item> pageDebugTests()
         toggle("Print Gunfire Layers and Punches", vr_debug_gunsfx)
             .help("vr_debug_gunsfx: a console line for each shot (its layers, tail, room), each punch and dry click."),
         toggle("Print Weapon Effects", vr_debug_weaponfx)
-            .help("vr_debug_weaponfx: each shot's recoil, flash and tracers (2: and the recoil each frame); the shotgun's auto "
+            .help("vr_debug_weaponfx: each shot's recoil, flash and tracers (2: and the recoil each frame; 4: the main "
+                  "hand's gun as drawn each frame, its body's place and the recoil: \"recoiltrack\"); the shotgun's auto "
                   "pump strokes (start, back, home) and when its shell leaves."),
         slider("Hold the Auto Pump", vr_autopump_hold, -0.05f, 1.f, 0.05f, "%.2f")
             .help("vr_autopump_hold: every shotgun's fore-end held at that point of its auto pump's stroke, to look at it "
                   "(0.35-0.45: at the back; below 0: off)."),
         toggle("Take Out the Models' Own Kick", vr_weapon_kick_cancel)
             .help("vr_weapon_kick_cancel: Quake's guns' firing frames kick the whole gun back and up in the model; that kick "
-                  "is taken out as they are drawn (their pumps, barrels and drums still move) and the programmatic recoil "
-                  "kicks them instead. Off: the models' own kick again, to compare."),
+                  "is taken out of their poses (the body exactly still; their pumps, barrels and drums still move; the "
+                  "grenade launchers wholly still) and the programmatic recoil kicks them instead. Off: the models' own "
+                  "kick again, to compare."),
         slider("Hold the Weapon Frame", vr_debug_weapon_frame, -1.f, 12.f, 1.f, "%.0f")
             .help("vr_debug_weapon_frame: the held weapons drawn at this frame of their models (1-6: the firing frames of "
                   "most), to look at a kick with and without the models' own (below 0: as the game steps them)."),

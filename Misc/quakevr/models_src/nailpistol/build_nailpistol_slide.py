@@ -84,6 +84,19 @@ STEEL_WEAR = 0.45
 # of the classic housing (x -4.6 .. -2.4, the side, back and top faces), then the serrations and worn edges over them.
 REAR_X = -2.4
 REAR_SAMPLE = None  # (main: the sampler, classic_sampler)
+# More distinct (his note 2026-10-30, "more distinct like in the original pre-slide art"): the classic housing is about
+# 1.5x its receiver's light (sampled: luminance 40 vs 26); the full slide's front is as light as that housing, so the
+# back end takes the sampled texel's light lifted by REAR_GAIN, its texel-to-texel swing cut to REAR_FLAT about the
+# housing's mean light (REAR_MEAN: less mottled), a cool steel hue (REAR_TONE) with REAR_HUE of the texel's own left; a
+# seam at REAR_X (SEAM wide: a dark groove in front of it, a lit bevel behind) parts it from the rusty slide crisply.
+REAR_GAIN = 1.2
+REAR_FLAT = 0.75
+REAR_MEAN = 40.0
+REAR_TONE = (0.93, 1.0, 1.1)
+REAR_HUE = 0.3
+REAR_FALLBACK = (48, 39, 29)  # the classic housing's mean texel (where no classic face is near)
+SEAM = 0.11
+SEAM_LIT = (196, 198, 204)
 RIVETS = [((6.35, SW, 4.15), 0.22), ((6.35, SW, 2.15), 0.22), ((-1.5, SW, 2.4), 0.22), ((5.9, FW, 1.35), 0.17),
           ((-3.55, FW, 1.35), 0.17)]
 
@@ -265,8 +278,9 @@ def build():
                        edges=[((xa, FW, za), (xb, FW, zb), True), ((xa, -FW, za), (xb, -FW, zb), True)])
         b.face(isl, [(xa, -FW, za), (xb, -FW, zb), (xb, FW, zb), (xa, FW, za)], False)
 
-    # The barrel: six sides, its front closed (dark: the bore's bottom seen down the nozzle); a ring closes the
-    # nozzle's open back around it.
+    # The barrel: six sides, its front closed (dark: the bore's bottom seen down the nozzle). The nozzle's back is the
+    # classic cap (shared, a closed hexagon at NOZZLE_X facing back): no ring of our own there (one on the cap's plane,
+    # facing the same way, z-fought with it once the slide was drawn: check_faces finds such pairs).
     hexa = [(BR * math.cos(math.radians(60 * k + HEX_ROT)), BR * math.sin(math.radians(60 * k + HEX_ROT)))
             for k in range(6)]
     for k in range(6):
@@ -277,12 +291,6 @@ def build():
         b.quad_x(isl, BX0, BX1, (ya, BORE_Z + za), (yb, BORE_Z + zb), False)
     cap = b.island("barrel_cap", (1, 0, 0), BORE, ao=0.5)
     b.face(cap, [(BX1, y, BORE_Z + z) for y, z in hexa], False)
-    ring = b.island("nozzle_ring", (-1, 0, 0), IRON, ao=0.7)
-    for k in range(6):
-        (ya, za), (yb, zb) = hexa[k], hexa[(k + 1) % 6]
-        (oa, pa), (ob, pb) = NOZZLE_HEX[k], NOZZLE_HEX[(k + 1) % 6]
-        b.face(ring, [(NOZZLE_X, ya, BORE_Z + za), (NOZZLE_X, yb, BORE_Z + zb), (NOZZLE_X, ob, BORE_Z + pb),
-                      (NOZZLE_X, oa, BORE_Z + pa)], False)
     return b
 
 
@@ -298,9 +306,14 @@ def paint(p, isl, speck):
     big = noise(mul(p, 0.8))
     mid = noise(add(mul(p, 2.6), (3.1, 7.7, 1.3)))
     fine = noise(add(mul(p, 7.5), (9.2, 1.4, 5.5)))
-    classic = REAR_SAMPLE(p, n) if REAR_SAMPLE and part in RUSTY and p[0] < REAR_X else None
+    rear = REAR_SAMPLE is not None and part in RUSTY and p[0] < REAR_X
+    classic = (REAR_SAMPLE(p, n) or mul(REAR_FALLBACK, 0.9 + 0.2 * fine)) if rear else None
     if classic:
-        col = classic  # (its own speckle, rust and occlusion baked in: none added below but the serrations and edges)
+        # The classic housing's texel (its own speckle, rust and occlusion baked in: none added below but the serrations
+        # and edges) as steel: lighter, flatter, cooler.
+        lum = (0.299 * classic[0] + 0.587 * classic[1] + 0.114 * classic[2])
+        lum = (REAR_MEAN + (lum - REAR_MEAN) * REAR_FLAT) * REAR_GAIN * (0.96 + 0.06 * mid)
+        col = mix(mul(REAR_TONE, lum), mul(classic, REAR_GAIN), REAR_HUE)
     elif part in RUSTY:
         rust = smooth(0.05, 0.55, 0.55 * big + 0.45 * mid + 0.25 * fine)
         col = mix(col, RUST, 0.75 * rust)
@@ -345,7 +358,9 @@ def paint(p, isl, speck):
         col = mix(col, edge_col, 0.2 + 0.35 * wear)
     for a, c, convex in isl.edges:
         dist = seg_dist(p, a, c)
-        if convex and dist < 0.075 and not isl.chamfer:
+        if classic and convex and dist < 0.13:
+            col = mix(col, SEAM_LIT, 0.4 + 0.2 * wear)  # the back end's bright bevelled rim, as the classic housing's
+        elif convex and dist < 0.075 and not isl.chamfer:
             col = mix(col, edge_col, (0.35 + 0.5 * wear) * (1.0 - dist / 0.075) + 0.15)
         elif not convex and dist < 0.16:
             col = mul(col, 0.6 + 0.4 * dist / 0.16)
@@ -370,6 +385,9 @@ def paint(p, isl, speck):
     if not classic:
         col = mul(col, 0.3 + 0.7 * ao * EXPOSED)
         col = mul(col, 0.94 + 0.1 * n[2])
+    # The back end's seam (every rusty face across REAR_X: the walls, chamfers, top, the frame's sides and edges).
+    if part in RUSTY and abs(n[0]) < 0.9 and REAR_X - SEAM <= x < REAR_X + SEAM:
+        col = mul(col, 0.4) if x >= REAR_X else mix(col, SEAM_LIT, 0.45)
     return tuple(max(0, min(255, int(round(c)))) for c in col)
 
 
@@ -466,6 +484,65 @@ def classic_sampler(P0, tris, kinds, front, st, skin, w):
 
 
 # ---------------------------------------------------------------------------------------------------------------
+def check_faces(verts, tris, nt, scale, k_max):
+    """The full-slide look's faces in frames 2, 3 and blended past 3 (up to k_max: the game extrapolates 2 -> 3): every
+    look's own triangles stay one point in the other's frames (zero area, any blend); each new triangle winds to face
+    its normal (Quake: clockwise seen from the front; back faces are culled); and no new triangle lies on another
+    drawn one's plane facing the same way and overlapping it (the two z-fight: they flicker). Returns the problems."""
+    table = mdlgen.anorms()
+    out = []
+    for f in (0, 1):
+        for k in range(nt, len(tris)):
+            if len({tuple(verts[i][0][f]) for i in tris[k]}) > 1:
+                out.append("frame %d: new triangle %d not folded" % (f, k))
+    for k in range(nt):
+        p2 = {tuple(verts[i][0][2]) for i in tris[k]}
+        p3 = {tuple(verts[i][0][3]) for i in tris[k]}
+        if (len(p2) == 1 or len(p3) == 1) and p2 != p3:
+            out.append("classic triangle %d folded in one of frames 2, 3 only (a blend would draw it)" % k)
+    for k_blend in (0.0, 1.0, 2.0, k_max):
+        P = [tuple((v[0][2][j] + k_blend * (v[0][3][j] - v[0][2][j])) * scale[j] for j in range(3)) for v in verts]
+        drawn = []
+        for k, t in enumerate(tris):
+            a, b, c = (P[i] for i in t)
+            n = cross(sub(b, a), sub(c, a))
+            area = length(n)
+            if area < 1e-6:
+                continue
+            n = mul(n, -1.0 / area)  # clockwise seen from the front
+            if k >= nt and dot(n, table[verts[t[0]][1][2]]) < 0.5:
+                out.append("blend %.1f: new triangle %d faces away from its normal" % (k_blend, k))
+            lo = [min(p[j] for p in (a, b, c)) for j in range(3)]
+            hi = [max(p[j] for p in (a, b, c)) for j in range(3)]
+            drawn.append((k, (a, b, c), n, lo, hi))
+        for i in range(len(drawn)):
+            ki, qi, ni, loi, hii = drawn[i]
+            for j in range(i + 1, len(drawn)):
+                kj, qj, nj, loj, hij = drawn[j]
+                if (ki < nt and kj < nt) or dot(ni, nj) < 0.99 or \
+                        any(hii[x] < loj[x] or hij[x] < loi[x] for x in range(3)) or \
+                        max(abs(dot(sub(p, qi[0]), ni)) for p in qj) > 0.04:
+                    continue
+                u = norm(cross(ni, (1.0, 0.0, 0.0) if abs(ni[0]) < 0.9 else (0.0, 1.0, 0.0)))
+                v = cross(ni, u)
+                A = [(dot(p, u), dot(p, v)) for p in qi]
+                B = [(dot(p, u), dot(p, v)) for p in qj]
+
+                def apart(poly):
+                    for e in range(3):
+                        (x0, y0), (x1, y1) = poly[e], poly[(e + 1) % 3]
+                        axis, el = (y0 - y1, x1 - x0), math.hypot(x1 - x0, y1 - y0)
+                        pa = [axis[0] * p[0] + axis[1] * p[1] for p in A]
+                        pb = [axis[0] * p[0] + axis[1] * p[1] for p in B]
+                        if max(pa) < min(pb) + 0.02 * el or max(pb) < min(pa) + 0.02 * el:
+                            return True
+                    return False
+                if not apart(A) and not apart(B):
+                    out.append("blend %.1f: triangles %d and %d share a plane facing the same way (z-fight)" %
+                               (k_blend, ki, kj))
+    return out
+
+
 def design(p):
     return add(p, HAND)
 
@@ -594,6 +671,14 @@ def main():
             new_tris.append((base, base + k + 1, base + k))
     low = min(v[0][3][0] for v in verts)
     assert low >= 0, "the slide's back frame past the box by %d steps" % -low
+    k_max = 3.0 / (BACK_STEPS * scale[0])  # Slide Travel's most (3 units) as a blend past frame 3
+    problems = check_faces(verts, new_tris, nt, scale, k_max)
+    for p in problems[:12]:
+        print("  " + p)
+    if problems:
+        raise SystemExit("the faces: %d problems (above)" % len(problems))
+    print("faces: frames 2, 3 and blends to %.1f: every fold degenerate, every new triangle facing out, no z-fighting "
+          "pair" % k_max)
     print("model: %d vertices (%d classic), %d triangles (%d classic); the slide's back frame %.4f units back "
           "(%d steps; %d to spare)" % (len(verts), nv, len(new_tris), nt, BACK_STEPS * scale[0], BACK_STEPS, low))
     out = bytearray(mdlgen.HEADER.pack(b"IDPO", 6, *scale, *lo, hdr[8], *hdr[9:12], 1, w, H, len(verts),

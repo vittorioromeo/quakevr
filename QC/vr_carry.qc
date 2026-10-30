@@ -624,6 +624,7 @@ string(entity e) VR_Carry_GrabSound =
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
 {
     dprint("carry: taken\n");
+    VR_WP_Taken(xBox); // (a dead one's worn backpack: off its back, vr_wornpack.qc)
     xBox.carry_player = xPlayer;
     VR_AgArmor_DebrisGrabbed(xBox); // (a plate's debris: its fade put off, vr_agarmor.qc)
     xBox.vr_slam_armed = 0;
@@ -1134,6 +1135,10 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
         return FALSE;
     }
     entity holder = VR_Grapple_PropHolder(self);
+    if(self.vr_wp_wearer && other == self.vr_wp_wearer && time < self.vr_monster_drop + 1)
+    {
+        return FALSE; // (a worn backpack just torn off its wearer, vr_wornpack.qc: not flung into it)
+    }
     if((other.flags & FL_CLIENT) && self.vr_monster_drop > 0)
     {
         if(time < self.vr_monster_drop + max(0, cvar_hget(cvarh_vr_prop_drop_grace)))
@@ -2004,6 +2009,10 @@ void() VR_Ragdoll_Handtouch =
         return;
     }
     float hand = VRGetTouchingHand(other);
+    if(VR_WP_HandOnPack(self, other, hand))
+    {
+        return; // (a dead one's worn backpack: the pack's own touch takes it, vr_wornpack.qc)
+    }
     if(VR_Carry_GripPressed(other, hand) && VR_Hand_CanTake(other, hand) && ragdollgrab(self, other, hand))
     {
         VR_Hand_Take(other, hand, self);

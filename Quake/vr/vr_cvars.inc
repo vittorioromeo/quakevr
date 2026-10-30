@@ -189,6 +189,7 @@ QVR_CVAR(vr_mock_hand_to_absolute, "0", CVAR_NONE)    // 1: vr_mock_hand_to puts
 QVR_CVAR(vr_mock_hand_glide, "0", CVAR_NONE)         // s: vr_mock_hand_to glides the hand there over this long, reporting the glide's velocity (0: a jump in one frame)
 QVR_CVAR(vr_mock_hand_lift, "0", CVAR_NONE)           // m: the main mock hand raised this much (tracking up; QC tests set it: an armed monster's weapon at its own height)
 QVR_CVAR(vr_mock_hand_pull, "0", CVAR_NONE)           // m: the main mock hand drawn back this much (tracking +z; QC tests set it: a tug's pull)
+QVR_CVAR(vr_mock_hand_pull_off, "0", CVAR_NONE)       // m: ... the off mock hand (two hands in a tug: vr_agrunt_test 92)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
@@ -1064,6 +1065,7 @@ QVR_CVAR(vr_ghost_hands_lightness, "1.6", CVAR_ARCHIVE)    // times the light on
 QVR_CVAR(vr_ghost_hands_tint, "0.6", CVAR_ARCHIVE)         // 0 the hand's own colours .. 1 a cold blue
 QVR_CVAR(vr_ghost_hands_fade_from, "6", CVAR_ARCHIVE)      // cm: no ghost while the drawn hand is within this of the real one (its grip and a point 15 cm ahead of it)
 QVR_CVAR(vr_ghost_hands_fade_range, "7", CVAR_ARCHIVE)     // cm: and it fades in over this much further
+QVR_CVAR(vr_ghost_hands_ignore_recoil, "1", CVAR_ARCHIVE)  // 1: the programmatic recoil's kick of the drawn hand (vr_weaponfx.cpp) doesn't count as held off (no ghost from a shot); 0: it does
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
@@ -1579,8 +1581,9 @@ QVR_CVAR(vr_autopump_hold, "-1", CVAR_NONE)           // test: 0..1 holds every 
 // settings are Weapon Offsets > Effects (vr_wofs_fx_*: which weapons kick and flash, their tracers' multipliers).
 QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic recoil
 QVR_CVAR(vr_recoil_amount, "1", CVAR_ARCHIVE)         // every weapon's recoil (its own Kick Back cm and Muzzle Rise degrees) times this (looks only: the aim stays; the old vr_recoil_kick and vr_recoil_rise are in each weapon's own since vr_wofs_version 74)
+QVR_CVAR(vr_recoil_two_hand, "0.6", CVAR_ARCHIVE)     // a shot of a weapon held in both hands: its recoil's kick back, muzzle rise and return time (and haptic punch) times this, times the weapon's own (vr_wofs_fx_recoil_2h_NN); 1: as one-handed (weaponfx::twoHandRecoil)
 QVR_CVAR(vr_debug_weapon_frame, "-1", CVAR_NONE)       // debug: the held weapons drawn at this frame of their models, whatever the game steps (-1: as it steps them; Debug > Weapons)
-QVR_CVAR(vr_weapon_kick_cancel, "1", CVAR_NONE)        // the kick baked into Quake's weapon models' firing frames taken out as they are drawn (vr_kickcancel.cpp; parts such as a pump still move); 0: the models' own kick, to compare (Debug > Weapons)
+QVR_CVAR(vr_weapon_kick_cancel, "1", CVAR_NONE)        // the kick baked into Quake's weapon models' firing frames taken out of their poses (vr_kickcancel.cpp; parts such as a pump still move); 0: the models' own kick, to compare (Debug > Weapons)
 QVR_CVAR(vr_muzzle_flash, "1", CVAR_ARCHIVE)           // 0: no programmatic muzzle flashes (the models' own stay)
 QVR_CVAR(vr_muzzle_flash_enemies, "1", CVAR_ARCHIVE)   // the grunts' and enforcers' guns flash at their muzzles as they fire
 QVR_CVAR(vr_muzzle_smoke_enemies, "1", CVAR_ARCHIVE)   // puffs of gun smoke out of an enforcer's rifle's and a grunt's gun's muzzle as they fire (as your guns'; 0 none; NOTES.md vrfiringrange_2026-10-02_01-21-23, grunts _15-52-01)
@@ -1621,7 +1624,7 @@ QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire
 QVR_CVAR(vr_debug_ribbon_overlap, "0", CVAR_NONE)      // 1: the muzzle wisps' ribbons blend where they overlap themselves again (the old creases on sharp turns; vr_ribbons.cpp), to compare
 QVR_CVAR(vr_debug_impacts, "0", CVAR_NONE)             // 1: every particle2 message and QC sound the server sends ("impfx p2 ...", "impfx snd ...": the impact table's output, vr_impacts.cpp)
 QVR_CVAR(vr_impact_qc_test, "0", CVAR_NONE)            // the QC runs every hit ladder on every material once (vr_impacts_test.qc; Debug > Tests)
-QVR_CVAR(vr_debug_weaponfx, "0", CVAR_NONE)            // 1: each shot's effects ("weaponfx fired/tracer"); 2: and the recoil each frame ("weaponfx recoil"); 3: as 1, and the eyes' view of the next grunt's flash (vr_eyeshot, once)
+QVR_CVAR(vr_debug_weaponfx, "0", CVAR_NONE)            // 1: each shot's effects ("weaponfx fired/tracer"); 2: and the recoil each frame ("weaponfx recoil"); 3: as 1, and the eyes' view of the next grunt's flash (vr_eyeshot, once); 4: as 1, and the main hand's gun as drawn each frame ("recoiltrack": its body, the recoil)
 QVR_CVAR(vr_body_arm_length, "1", CVAR_ARCHIVE)      // arm length, relative to the proportions of vr_height_calibration
 QVR_CVAR(vr_body_arm_stretch, "1.2", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
 // The arms and shoulders (vr_bodycal.hpp, "The arms' settings"): what Body Calibration measured (vr_bodycal_*), and
@@ -2526,6 +2529,7 @@ QVR_CVAR(vr_agrunt_aim_error, "3", CVAR_ARCHIVE)       // degrees its aim is off
 QVR_CVAR(vr_agrunt_disarm, "1", CVAR_ARCHIVE)          // 1: a hard hit on its gun hand or arm knocks the weapon out of it
 QVR_CVAR(vr_agrunt_disarm_yank, "1", CVAR_ARCHIVE)     // 1: your empty hand grabbing its weapon takes it out of its hand
 QVR_CVAR(vr_agrunt_disarm_deliberate, "1", CVAR_ARCHIVE) // 1: only a deliberate blow knocks its weapon out (a closed fist or something held, swung over more than a frame; never an open hand or a jolted idle hand); 0: any hand that fast
+QVR_CVAR(vr_agrunt_strike_first, "1", CVAR_ARCHIVE) // 1: a deliberate strike (fist, held gun or prop) meeting its weapon or gun hand disarms it unless its parry was raised for it (then a roll, vr_agrunt_strike_beat); 0: such a blow parries whenever it can (the old order)
 QVR_CVAR(vr_agrunt_tug, "1", CVAR_ARCHIVE)        // 1: your empty hand closing on its weapon starts a tug-of-war (pull to win; 0: the grab takes it at once)
 QVR_CVAR(vr_agrunt_tug_time, "1.2", CVAR_ARCHIVE) // ... how long (s) you must keep it pulled that far (a calm grunt at full health; less hurt or in pain)
 QVR_CVAR(vr_agrunt_tug_fight, "1", CVAR_ARCHIVE)  // ... how often (s, about) it fights back: shoves you, headbutts you or fires (0: never)
@@ -2540,6 +2544,9 @@ QVR_CVAR(vr_agrunt_grab_gap, "999", CVAR_NONE)         // (the tests' reading: w
 QVR_CVAR(vr_agrunt_saw_drop_running, "1", CVAR_ARCHIVE) // 1: an armed humanoid that was fighting you with a chainsaw drops it running (dead, disarmed, a tug won), as yours runs on as it lies (vr_chainsaw_drop_run): taken up meanwhile, no cord to pull; one that never saw you drops it off
 QVR_CVAR(vr_agrunt_grab_speed, "1.25", CVAR_ARCHIVE)     // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)
 QVR_CVAR(vr_agrunt_tug_let_go, "50", CVAR_ARCHIVE)      // cm: in the physical tug, your hand lets go of its weapon (lost) once its controller is this far from where it holds it (pulled away, or you stepped back) before its grip gives; till then your drawn hand stays on the weapon
+QVR_CVAR(vr_agrunt_tug_downed_scale, "0.5", CVAR_ARCHIVE) // a staggering or downed one: its weapon still needs a tug, its time this share of a standing one's (0: the grab takes it at once, as before)
+QVR_CVAR(vr_agrunt_tug_second_grab, "0", CVAR_ARCHIVE)  // your other hand grabbing its weapon in a tug: 0 joins it (both pulls count, it gives sooner), 1 tears it free at once
+QVR_CVAR(vr_agrunt_tug_strike, "1", CVAR_ARCHIVE)       // 1: in a tug, your other fist striking its weapon (vr_agrunt_tug_strike_swing of the disarm swing) tears it free into your holding hand
 QVR_CVAR(vr_agrunt_parry_disarm, "0.35", CVAR_ARCHIVE) // the chance your weapon's parry of its melee weapon knocks the weapon out of its hand (a well-timed one 1.5x)
 // Armed ones parrying melee blows with their weapon (QC vr_armedgrunt_parry.qc; ROUND22.md "Armed grunts parry").
 QVR_CVAR(vr_agrunt_parry, "1", CVAR_ARCHIVE)          // 1: an armed grunt or enforcer holding a weapon parries a melee blow (yours, a monster's) that meets its weapon first
@@ -2553,6 +2560,11 @@ QVR_CVAR(vr_agrunt_shotdisarm_size, "1", CVAR_ARCHIVE)         // the weapon's a
 QVR_CVAR(vr_agrunt_shotdisarm_chance, "0.25", CVAR_ARCHIVE)    // the roll's chance at the threshold
 QVR_CVAR(vr_agrunt_shotdisarm_chance_scale, "0.8", CVAR_ARCHIVE) // ... plus this for each threshold past it (24 on 16: +0.4; at most 0.95)
 QVR_CVAR(vr_agrunt_shotdisarm_block, "1", CVAR_ARCHIVE)        // 1: a pellet or nail whose first hit is the weapon stops there (sparks, a tink; no damage to the holder); 0: on into the body (was vr_agrunt_shotdisarm_absorb, "0")
+QVR_CVAR(vr_agrunt_shotdisarm_proj, "1", CVAR_ARCHIVE)         // 1: each nail or rocket on (or near) its weapon or hand rolls once: chance by its damage and how near (0: they add up as the shots do)
+QVR_CVAR(vr_agrunt_shotdisarm_proj_chance, "0.2", CVAR_ARCHIVE) // ... the chance of a hit of vr_agrunt_shotdisarm_proj_ref damage, on it
+QVR_CVAR(vr_agrunt_shotdisarm_proj_ref, "9", CVAR_ARCHIVE)     // ... the damage that chance is for (a nail's): more damage, more chance
+QVR_CVAR(vr_agrunt_shotdisarm_proj_near, "4", CVAR_ARCHIVE)    // ... units past the weapon or hand a miss still rolls, its chance down to 0 there
+QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE)   // ... the most one projectile's chance (a rocket's direct hit)
 QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)           // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
 QVR_CVAR(vr_agrunt_fall_keep, "1", CVAR_ARCHIVE)  // 1: a gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, yours for a grab or a blow while it's down; a violent one drops it (below)
@@ -2771,6 +2783,7 @@ QVR_CVAR(vr_grapple_test_stuck, "0", CVAR_NONE)       // Debug > Tests > Grappli
 QVR_CVAR(vr_debug_rope, "0", CVAR_NONE)                // Debug > Views > Show Grapple Rope: each grappling hook rope's drawn chain (points white, pieces green), the corners it wraps round (red) and its taut path (yellow) (vr_rope.cpp)
 QVR_CVAR(vr_debug_hitzones, "0", CVAR_NONE)          // Debug > Show Hit Zones: 1 animated positional damage surfaces, 2 legacy decapitation reference zones, 3 both; precise hits off: standing box/ray references
 QVR_CVAR(vr_debug_hitzones_xray, "0", CVAR_NONE)     // Debug > Hit Zones Through Walls: see animated region surfaces through models and walls
+QVR_CVAR(vr_debug_disarm, "0", CVAR_NONE)            // Debug > Show Disarm Volumes: each armed humanoid's (alive or an active ragdoll) held weapon and hand volumes as the disarm, grab, strike, parry and shot-disarm tests use them, your fists and blow lines, the weapon a grip would take now and the one in a tug, and the last disarm-relevant hit (QC vr_disarmviz.qc, vr_disarmviz.cpp); 2: also prints each hit and each hover change (disarmviz:)
 QVR_CVAR(vr_debug_physics_shapes, "0", CVAR_NONE)     // Debug > Views > Show Physics Shapes: Box3D's bodies drawn as wireframes (props awake green, asleep blue, held yellow, doors purple, monsters orange, players cyan, hanging pickups grey; contact points), and the hands' grab probes (as vr_debug_carry)
 QVR_CVAR(vr_debug_hand_bones, "0", CVAR_NONE)         // Debug > Views > Show Hand Bones: the jointed hands' joints and bones, the grasp's contact spheres (green touching, yellow near, red sunk in) and the palm's fit (where it was, where the grasp put it)
 QVR_CVAR(vr_carry_two_hands, "1", CVAR_ARCHIVE)       // a box, backpack, gib, head or armour carried in one hand can be gripped by the other too: held in both, it follows both hands (vr_carry2h.cpp)
@@ -2996,6 +3009,34 @@ QVR_CVAR(vr_agarmor_rule, "0", CVAR_ARCHIVE)          // armour on armed humanoi
 QVR_CVAR(vr_agarmor_helmet_head, "1", CVAR_ARCHIVE)   // armour: a helmet also halves the headshot multiplier's extra and stops head pops while it is on (0: it only absorbs)
 QVR_CVAR(vr_agarmor_block_cuts, "1", CVAR_ARCHIVE)    // armour: no limb is cut or popped under an unbroken plate
 QVR_CVAR(vr_agarmor_debris_time, "10", CVAR_ARCHIVE)  // armour: a broken plate's debris lies about this long (s), then fades out
+QVR_CVAR(vr_worn_backpacks, "0", CVAR_ARCHIVE)        // experimental (QC vr_wornpack.qc; Combat > Armed Grunts > Worn Backpacks): armed grunts wear their backpack on their back (alive and as ragdolls; torn off by pulls, hard landings and hits on it), dropping no other; 0 off (as before)
+QVR_CVAR(vr_worn_backpack_scale, "0.6", CVAR_ARCHIVE) // worn backpacks: the pack's size on the back (times the backpack model's)
+QVR_CVAR(vr_worn_backpack_x, "1.5", CVAR_ARCHIVE)      // worn backpacks: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_y, "0", CVAR_ARCHIVE)       // worn backpacks: moved left, units
+QVR_CVAR(vr_worn_backpack_z, "-3", CVAR_ARCHIVE)      // worn backpacks: moved up, units
+QVR_CVAR(vr_worn_backpack_pitch, "0", CVAR_ARCHIVE)   // worn backpacks: tipped (degrees)
+QVR_CVAR(vr_worn_backpack_yaw, "0", CVAR_ARCHIVE)     // worn backpacks: turned (degrees)
+QVR_CVAR(vr_worn_backpack_roll, "0", CVAR_ARCHIVE)    // worn backpacks: rolled (degrees)
+QVR_CVAR(vr_worn_backpack_mass, "4", CVAR_ARCHIVE)    // worn backpacks: its weight on a ragdoll's chest (kg)
+QVR_CVAR(vr_worn_backpack_rip_force, "3000", CVAR_ARCHIVE) // worn backpacks: a hand's pull on a ragdoll held by its pack that tears the pack off (N: the hold's force, or its stretch times vr_worn_backpack_rip_stiffness if more)
+QVR_CVAR(vr_worn_backpack_rip_time, "0.04", CVAR_ARCHIVE) // worn backpacks: the pull kept past vr_worn_backpack_rip_force this long (s) tears it off (a yank, not a jolt)
+QVR_CVAR(vr_worn_backpack_rip_stiffness, "150", CVAR_ARCHIVE) // worn backpacks: N a unit of the held point's lag behind the hand (the stretch's share of the pull)
+QVR_CVAR(vr_worn_backpack_impact, "9", CVAR_ARCHIVE)  // worn backpacks: a ragdoll's strike on the level at least this fast (m/s) tears it off
+QVR_CVAR(vr_worn_backpack_pool, "25", CVAR_ARCHIVE)  // worn backpacks: the damage a living one's pack takes before it tears off (hits on the pack: blows, throws, shots, projectiles; and the share below of blasts and fire anywhere on it; poison never; 0: never by damage)
+QVR_CVAR(vr_worn_backpack_pool_blast, "1", CVAR_ARCHIVE) // worn backpacks: the share of an explosion's damage to its wearer counted on the pack (0..1)
+QVR_CVAR(vr_worn_backpack_pool_fire, "1", CVAR_ARCHIVE)  // worn backpacks: the share of fire's damage (the flamethrower, burning) counted on the pack (0..1)
+QVR_CVAR(vr_worn_backpack_hit_roll, "0", CVAR_ARCHIVE) // worn backpacks: besides its damage, a hit on the pack tears it off with this chance at vr_worn_backpack_hit_ref damage (more: likelier; at most 1; 0 off: the damage alone, vr_worn_backpack_pool)
+QVR_CVAR(vr_worn_backpack_hit_ref, "20", CVAR_ARCHIVE) // worn backpacks: the damage of a hit whose chance is vr_worn_backpack_hit_roll
+QVR_CVAR(vr_worn_backpack_tug, "1", CVAR_ARCHIVE)     // worn backpacks: a fist on a living one's pack takes hold of the pack (a tug; it spots you): pulled, it tears off into the hand (0: the hand holds its back, as before)
+QVR_CVAR(vr_worn_backpack_tug_stretch, "10", CVAR_ARCHIVE) // worn backpacks: cm a hand holding a living one's pack must pull it off its place for the pull to count (two hands: their pulls added, times vr_worn_backpack_two_hand_mult)
+QVR_CVAR(vr_worn_backpack_tug_time, "0.6", CVAR_ARCHIVE) // worn backpacks: s a pull of vr_worn_backpack_tug_stretch must be kept up to tear the pack off (twice as far: half as long)
+QVR_CVAR(vr_worn_backpack_two_hand_mult, "1.5", CVAR_ARCHIVE) // worn backpacks: both hands on the pack pull this many times their pulls together (a living one's tug, a ragdoll's pull)
+QVR_CVAR(vr_worn_backpack_topple, "1", CVAR_ARCHIVE)  // worn backpacks: a pack torn off a living one by your pull knocks it down, falling the way you tore (a ragdoll trigger); 0 it stands
+QVR_CVAR(vr_worn_backpack_topple_push, "0.8", CVAR_ARCHIVE) // worn backpacks: that knockdown's push (a shove's: two hands 1)
+QVR_CVAR(vr_worn_backpack_reserve, "1", CVAR_ARCHIVE) // worn backpacks: the share of an armed grunt's spare rounds in its pack (lost with it while alive)
+QVR_CVAR(vr_worn_backpack_volume, "1", CVAR_ARCHIVE)  // worn backpacks: the fabric rip's loudness
+QVR_CVAR(vr_worn_backpack_debug, "0", CVAR_NONE)      // worn backpacks: log each pack's state, pulls and rips (developer 1)
+QVR_CVAR(vr_wornpack_test, "0", CVAR_NONE)            // the QC test of worn backpacks (vr_wornpack_test.qc; Debug > Tests): 1 all, ends on "wornpack: N passed, M failed"; 2 the eyeshot's grunts (back on, side on, knocked down)
 QVR_CVAR(vr_agarmor_skill0, "0", CVAR_ARCHIVE)        // armour: the chance an armed grunt spawns armoured on Easy
 QVR_CVAR(vr_agarmor_skill0_type, "1", CVAR_ARCHIVE)   // armour on Easy: its best type (1 green, 2 yellow, 3 red: rolled up to it)
 QVR_CVAR(vr_agarmor_skill0_pieces, "2", CVAR_ARCHIVE) // armour on Easy: how many pieces (1 the cuirass, 2 and the helmet, more: the rest picked at random; 10 all)

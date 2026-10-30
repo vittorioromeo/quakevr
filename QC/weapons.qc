@@ -3278,6 +3278,7 @@ entity(vector org, vector dir) launch_spike =
     newmis.angles = vectoangles(dir);
 
     newmis.touch = spike_touch;
+    newmis.vr_ags_kind = QVR_AGS_NAIL + 1; // VR: a nail, whatever touch it gets (vr_armedgrunt_shot.qc VR_AGS_ProjKind)
     newmis.classname = "spike";
     newmis.think = SUB_Remove;
     newmis.nextthink = time + 6;

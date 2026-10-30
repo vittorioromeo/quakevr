@@ -65,7 +65,10 @@ the second look, a full pistol slide (`vr_nailpistol_model 1`, the default; the 
 > Nail Pistol > Nail Pistol Model (Archived)), its back end painted from the classic rear housing's texels, as frames 2 `slide` and 3 `slide1`: its own frame, slide (vents, ejection port, serrations, the sights on it)
 and copper barrel, generated in the script, the skin grown to 256x512 with them painted below the classic texels. The
 classic frames stay byte for byte; each look's own triangles are folded to a point in the other's frames
-(ROUND23.md, "Nail pistol: a full-slide look"). Run on its own output it writes the same file again.
+(ROUND23.md, "Nail pistol: a full-slide look"). Run on its own output it writes the same file again. It checks its
+faces before writing (`check_faces`: folds degenerate in every blend, new triangles facing out, no two coplanar
+same-facing overlapping triangles: they z-fight) and stops on a problem. The back end is steel (lighter, flatter,
+cooler than the classic housing's texels it samples, a bright rim, a seam at x -2.4: `REAR_*`, `SEAM`).
 
 and `nailpistol_skin_pal.png` here. It uses `Misc/quakevr/mdlgen.py` (the generated models' MDL writer) and the
 palette in `Misc/quakevr/blender/addons/quakevr_models/qpal.py`. Art lint: `python Misc/quakevr/check_mdl_art.py

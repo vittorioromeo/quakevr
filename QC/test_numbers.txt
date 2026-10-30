@@ -136,6 +136,10 @@ vr_agrunt_test   85       vr_armedgrunt_muzzle_test.qc     dual guns: each shot 
 vr_agrunt_test   88       vr_armedgrunt_ragweapon_test.qc  the held weapon on an active ragdoll's hand
 vr_agrunt_test   89       vr_armedgrunt_shoveclose_test.qc a gun's holder shoves up close
 vr_agrunt_test   90       vr_armedgrunt_guard_test.qc      an unarmed enforcer's guard in game as the Pose Studio holds its Aim key
+vr_agrunt_test   92       vr_armedgrunt_twohand_test.qc    two hands in the tug; a staggering or downed one's eased tug
+vr_agrunt_test   93       vr_armedgrunt_shot_test.qc       projectiles' own rolls (vr_agrunt_shotdisarm_proj)
+vr_agrunt_test   94       vr_armedgrunt_strike_test.qc     a deliberate strike or throw on its weapon or hand disarms it (vr_agrunt_strike_first)
+vr_agrunt_test   97       vr_disarmviz_test.qc             Show Disarm Volumes in each state (eye images)
 vr_agrunt_test   100+     vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
@@ -218,6 +222,10 @@ dispatch vr_portals_ai_test QC/vr_portal_ai_test.qc VR_AI_TestFrame ask loose
 dispatch vr_prop_impact_test QC/vr_propimpact_test.qc VR_PropImp_TestFrame ask loose
 dispatch vr_smallgibs_test QC/vr_smallgibs_test.qc VR_SmallGib_TestStart xCase loose
 dispatch vr_stealth_test QC/vr_stealth_test.qc VR_Stealth_TestFrame ask loose
+dispatch vr_wornpack_test QC/vr_wornpack_test.qc VR_WornPack_TestFrame request loose
+
+vr_wornpack_test 1        vr_wornpack_test.qc              (worn backpacks: on, hits, knockdowns, landings, pulls, deaths)
+vr_wornpack_test 2        vr_wornpack_test.qc              (worn backpacks: the eyeshot)
 
 vr_agarmor_test  1*       vr_agarmor_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
 vr_agarmor_test  2        vr_agarmor_test.qc               (VR_AgArmor_Give)

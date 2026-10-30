@@ -1686,6 +1686,36 @@ speed, directionality, thickness, opacity), per-weapon multipliers, and the wisp
   of the wisps' thin strips while they show (none in combat_48 unless you fire), the particles' reverse-order pass
   clears its stencil marks every 31 draws instead of 63.
 
+### The thunderbolt's wisps and settings; wisps on guns that leave the hand (branch `agent/lgfx`)
+
+His words: the lightning gun should have a smoke wisp too and read the spark/smoke per-weapon tweaks; then the wisps
+should persist on thrown, dropped and holstered weapons.
+
+- **Thunderbolt wisps** (vr_gunfx.cpp `wispLook`): one barrel, charge 0.05 a shot (it fires every 0.1 s: 2 s of beam
+  fill them), opacity 0.2 (the shotgun's 0.32), tinted blue-grey (0.82, 0.9, 1 times the grey: `muzzlewisps::Gun::tint`,
+  taken when they start). Every wisp setting applies (vr_gunfx_wisp_*, slot 7's Muzzle Wisp Opacity `fx_gfx_wisps`).
+- **Its arcs and haze read the settings**: the energy guns' arcs (thunderbolt, laser cannon, enforcer rifle, AD plasma)
+  now take Spark Amount (count) and Spark Size (`particles::gunArcs`: Preset::ElectricSparks with a size), global times
+  the slot's; the thunderbolt's ozone haze where the beam plays (vr_impacts.cpp) takes Smoke Amount (puffs) and Smoke
+  Size (size and growth), global times slot 7's (`gunfx::boltSmoke`). The QC's GUNSMOKE puff at its muzzle each shot
+  (weapons.qc W_FireLightning, like every gun's) is not ours and untouched. Menu helps say so. `vr_debug_gunfx 1`:
+  `gunfx light .. size <spark> <smoke>` per shot, `gunfx impact .. haze N size S`.
+- **Loose guns** (vr_muzzlewisps.cpp `release`/`looseFrame`, vr_gunfx.cpp `LooseGun`): when a hand's gun changes or goes
+  (handFrame's slot change) while it still holds smoke (in the delay too), its trails, smoke and time left move to one of
+  4 loose sources (the least smoke given up); the hand starts afresh. Within 0.5 s the gun is found, the nearest to its
+  muzzle's last place within 160 units: a client entity drawn with the same weapon slot's model (QC's thrown_weapon:
+  dropped or thrown) or a holster's gun (`view::holsterGun`); then followed by entity number or holster index, its
+  muzzle found as in the hand (`muzzleOf`: the slot's Muzzle Anchor and offset on that entity, `wispGun`: the barrels).
+  Not drawn (picked up, gone): its smoke stops, what it let go fades. `vr_debug_gunfx 1`: `gunfx wisps loose hand H as
+  K`, `gunfx wisps found prop|holster N after T s D units off`; 2 also `gunfx wisps loose K at <muzzle> on <origin>`.
+  Not done: a gun taken back up keeps no smoke (the loose one stops); a hand gun invisible for one frame while held
+  would hand its smoke to a loose source that finds nothing (not seen in the tests).
+- **Tests**: gunfx_test.py `--only wisps` 8/8 (the thunderbolt's: 5 shots, 1 barrel, 0.26 s after, drawn, faded),
+  `--only slots` 10/10 (new: slot 7 at 1, 0, 2: arcs 5/0/10, sizes 1/2, haze 1/0/2 puffs, sizes 1/2; the case moved to
+  vrtesthall: a wall ahead for vr_impact_test 3), `--only loose` 4/4 (new: a shotgun dropped, a super shotgun thrown
+  (vr_mock_swing), a shotgun holstered at the right shoulder: released, found 0.00 s later 11-22 units off, followed
+  97-127 frames within 48 units of the gun's origin, the props falling 36-55 units, faded, drawn).
+
 ## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
 
 His words: a slide that moves with each shot, locks open on an empty magazine, closes by itself with a sound when a
@@ -2427,6 +2457,94 @@ test's own newer checks), flare_1, walltorch_grab, empty_melee, secret_hits and 
 changed. gunfx_test.py 29/0. Build: 0 warnings, check_canonical clean. A/B bench (LTO, exclusive, ABBA, scratch/ab_bench.sh: A = origin/next + the trace, B = the table; cpu busy ms): combat_48 A 2.64 (2.69, 2.58), B 2.44 (2.43, 2.46): -7.3%; play_gore_fight A 2.36 (2.30, 2.42), B 2.40 (2.41, 2.38): +1.4%. Both within the runs' spread (A's own runs differ 4-5%): no cost measured. (The planned ABBAABBA stopped after 4 runs: the exe was busy at the swap.)
 
 
+## Worn backpacks, experimental (branch `agent/wornpack`; `QC/vr_wornpack.qc`, `vr_box3d_wornpack.cpp`)
+
+His ask: enemies wear the backpack they drop, attached through ragdoll form, torn off by hard pulls, landings and
+direct hits with a fabric rip, takeable only once dead, no second drop, and the reserve lost with a pack torn off alive.
+Scope (his change): the armed **grunt** only (the enforcer's model already has a pack; ogres and others later).
+- **Flag.** `vr_worn_backpacks` 0 (Combat > Armed Grunts > Worn Backpacks). Off: no pack is made and every hook returns
+  at once (as before). Grunts spawned after it is turned on wear one (`VR_WP_Spawn` from `VR_AM_Spawn`; not where
+  `MG3_NoBackpack` or the dummy's no-loot rule apply).
+- **On the back.** A QC entity (`vr_wornpack`, progs/backpack.mdl, not solid) placed every frame from
+  `limbpiece(g, 0, 20/21/22)` (origin, angles, box middle). Standing: `agarmor::packWhere`, the pack's rest place behind
+  the cuirass's outer face at 62% of its height (the back measured where the pack lies, not the small of the back),
+  carried by the chest bone's frame (three chest-weighted body vertices nearest the pack, hitmodel's pose). Fit cvars:
+  `vr_worn_backpack_scale` 0.6, `_x` 1.5 (into the back), `_y` 0, `_z` -3, `_pitch/_yaw/_roll` 0 (menu: Fit). The pack
+  follows the server's pose, so the client's aim IK/lean can shift it a little against the drawn body: for him to check.
+- **Ragdoll.** `createRagdollPack` (after the parts, when `.vr_wp_worn` is 1): a box (90% of the pack) as a second shape
+  of the chest part's body, where the standing pack was (`vr_worn_backpack_mass` 4 kg): it collides, weighs and is held
+  with the body. A hand's grab within 3 units of the box marks the hold `onPack` (`beginGrab`); the drawn pack follows
+  the shape. Builtins (table full): `ragdollbone(e, [what, player, hand], QVR_WORNPACK -1003)` 0 worn, 1 tear off (shape
+  destroyed), 2 the hold's force, 3 its stretch; `QVR_WORNPACK_AT` -1004 a point's distance to the pack.
+- **Tearing off** (`VR_WP_Off`, `vr/derived/fabric_rip.wav`: demon/dhit2 1.15x + player/tornoff2 1.35x + weapons/lhit
+  1.6x 0.2 s, drive 0.6; `vr_worn_backpack_volume` 1):
+  - a pull: a hand holding the ragdoll by the pack, past `_rip_force` 3000 N for `_rip_time` 0.04 s (force, or stretch x
+    `_rip_stiffness` 150 N/unit), the hold's first 0.25 s ignored (the spring taking up the body jerks to the 4000 N
+    cap): released from the ragdoll, the pack carried in that hand. Measured: grab 4000 N for 0.15 s; slow drag (43 u/s)
+    700-1700 N, 1-3 units stretch; a 30-unit yank 4000 N, 13-34 units, for 2-3 frames;
+  - a landing: `VR_RagImpact_Hit`'s strike at `_impact` 9 m/s or more (any ragdoll, alive or dead);
+  - a hit on the pack (T_Damage, within 3 units of its box: blows, throws, shots, projectiles; not blasts, burns):
+    `min(1, _hit_chance 0.35 x damage / _hit_ref 20)`;
+  - its wearer gibbed (its model no wearer's) or gone, or a dead one's pack taken (`VR_Carry_Start`,
+    `VR_Forcegrab_Launch`; `VR_Ragdoll_Handtouch` leaves a hand on a dead one's pack to the pack).
+- **Ammo and loot.** Torn off a living grunt, the pack takes `_reserve` 1 of each weapon's reserve plus its pockets
+  (`VR_WP_Lose`): it fights on with its magazine, then drops the gun as an empty one does. Dying, `VR_AG_SoldierDrop`'s
+  loot goes into the worn pack (`VR_WP_DeathLoot`), which turns takeable (FL_ITEM, force-grabbable, carried; still placed
+  on the corpse until taken); a wearer never drops another backpack (also when its pack was lost alive). Torn off, it is
+  `DropBackpack`'s item (`Backpack_Setup`, split out of it), and is not flung into its own wearer for 1 s.
+- **Test.** `vr_wornpack_test 1` (Debug > Tests > Worn Backpacks; e1m1, `god; notarget`): **17 passed, 0 failed**:
+  on its back (14.8 units behind, 12.5 up); untakeable alive; a chest hit keeps it, a pack hit tears it (reserve 16 -> 0,
+  pack 16 shells); the ragdoll made with the box, the pack 1.3 units from where it stood; kept through a mild knockdown
+  and a 4 m/s landing, torn by 12 m/s; held by the pack, a slow drag keeps it, a yank tears it into the hand (5119 N);
+  killed: no second backpack (the flag-0 control drops one), the pack takeable, taken it comes off. `2`: the eyeshot's
+  grunts (Debug > Tests > Grunts Wearing Packs There; the kit's `scratch/wornpack/`).
+- **Baseline (flag 0)**: agarmor_1 26/0, agarmor_5 23/0, ragdoll_grab 19/0, agrunt_1/12/33, pickup_mag, mapgun_pickup,
+  flash_grab, walltorch_grab as the baseline; agrunt_31 4/1 (as the baseline) and ragdoll_stagger 51/6 (its known
+  5-6 chance failures).
+- **Not done.** A corpse's pack is not torn off by hits (only taken, pulled, gibbed or landing hard); the pack doesn't
+  shield the back from hits; its sound can't be heard headless.
+
+## Worn backpacks, round 2: no spin, grabbed off the living, toppling, damage pool (branch `agent/wornpack2`)
+
+His feedback (items 1-6) and the coordinator's follow-up (damage pool, flame/poison/explosions, gibbing).
+- **No spin.** The worn pack kept backpack.mdl's EF_ROTATE: the client overwrote its yaw every frame. The engine now
+  reads the pack's `vr_wp_state` (new QVR_FIELD) and sends U_QVR_NOROTATE while it is worn (1 living, 2 dead); torn off
+  it is the dropped item as before (a rigid body, no spin either). A dead one's pack lost Backpack_Setup's lying
+  `model_offset` (it was drawn off the back). Eyeshot (`scratch/wornpack/spin_before.png`, vr_wornpack_test 2): upright
+  on the back, behind and side on. Test: yaw 0.5 off its wearer's, pitch 0.8, roll 0.
+- **Its box.** The entity's size is now the level box round the turned model box (`limbpiece(g, 0, 23)`: 13 x 13 x 15
+  units at scale 0.6) instead of a 20-unit cube round its diagonal. Shots and projectiles (MOVE_HITMODEL) meet a living
+  wearer's pack at its model box as posed (`box3d::wornPackSegment` in VR_HitModelClip), the monster hit there; a shot
+  counts on the pack within 0.1 unit of its box (blows, throws, projectiles 3). Test: 29 lines across it from behind:
+  9 inside met it, 18 outside never did, 0 wrong.
+- **Grabbed off the living** (`vr_worn_backpack_tug` 1). A fist on a living wearer's pack takes the pack as a foegrab
+  hold (vr_foegrab.cpp `takePack`; the pack before the body): the palm is put on the pack's nearest face (its middle a
+  palm's sphere off it) and carried with the pack as the body is posed, so the drawn hand lies on the pack (item 5). It
+  doesn't drag the grunt (it stands its ground), never lets go by stretch below 4x vr_foegrab_break, and wakes it
+  (VR_FoeGrab_Taken: spotted). QC `VR_WP_Tug`: each hand's stretch (`ragdollbone` QVR_WORNPACK what 5) from
+  `vr_worn_backpack_tug_stretch` 10 cm counts, harder sooner, `vr_worn_backpack_tug_time` 0.6 s of it tears the pack
+  into the main hand (what 6 ends the holds, the grips the QC's at once). Test: 0.5 m/s, one hand 0.54 s, palm 3.5 cm
+  off the box throughout.
+- **Two hands** (`vr_worn_backpack_two_hand_mult` 1.5): their pulls added, times it; also for a ragdoll held by the
+  pack. Test: 0.22 s against one hand's 0.54 s.
+- **Topple** (`vr_worn_backpack_topple` 1, `_topple_push` 0.8; a ragdoll trigger): torn off a living one by a pull, it is
+  knocked down as a shove knocks it (VR_Knockdown_Start, ragdollshovetopple) along the hands' travel since they took
+  hold (`limbpiece(g, pnum, 24)`: not the spot's swing as it turns). Test: along the pull, dot 1.00 (one and two hands).
+- **Damage pool** (`vr_worn_backpack_pool` 25): a living one's pack tears off once it took that much: hits located on it,
+  `_pool_blast` 1 of an explosion's damage anywhere, `_pool_fire` 1 of fire's (vr_adflame, vr_burn); never poison
+  (vr_adpoison, poison puffs). A hit on it spots the attacker. The per-hit chance is kept as `vr_worn_backpack_hit_roll`
+  0 (renamed from `_hit_chance` 0.35 so his saved 0.35 doesn't stay on). Rip volume: `vr_worn_backpack_volume` (as
+  before). Gibbing tears it off (as before; now tested). Test: hit 15 (12 x the zone's factor), blast +8, poison +0,
+  fire: 33 of 30, torn ("fire").
+- **Menu** (Combat > Armed Grunts > Worn Backpacks): Damage That Tears It, Explosions' Share, Fire's Share, Extra Hit
+  Chance; Tearing It Off a Living One: Grab the Pack, Pull That Counts, Pull Time, Two-Hand Pull, Tearing Topples It,
+  Topple Push.
+- **Test** `vr_wornpack_test 1`: **39 passed, 0 failed** (was 17). Not done: the walk-cycle placement check (the posed
+  pack checked standing only), the flag-off covering cases (foegrab, hitmodel tests) not rerun.
+- **Checklist**: grab a living grunt's backpack from behind and pull back: it turns on you, the pack tears off into
+  your hand after about half a second and the grunt falls towards you; with both hands sooner. Your hand stays on the
+  pack while you pull. Shoot just beside a grunt's pack: no rip; shoot the pack a few times, or hit it with a rocket's
+  blast or the flamethrower: it rips off; the poison sprayer never. Packs on living and dead grunts don't spin.
 ## Backpacks' hit box (branch `agent/bpfix`)
 
 - **His report**: "backpacks dropped by enemies have a much larger hitbox than expected against player projectiles (e.g.
@@ -2559,6 +2677,24 @@ played; a real SNG stream 11 hits, 6 played (no two within 0.12 s and 64 units).
 np_1 (23/0, baseline 21/0: its newer checks), rv_1, flare_1, ammocolor_1, swim_sound: all PASS. Build: 0 warnings,
 checks clean. (vr_gunsfx_test 19/1: "a gun held in the main hand (slot 16)", its setup's held weapon, not this change.)
 
+## Save Default also saves the config and tunables.cfg (agent/savecfg)
+
+His words: make the "save defaults" shortcut also write the tunables and config cfgs, so a crash loses nothing. The
+menu's corner button Save Default (second press), Debug > Save My Settings as Defaults and the console's
+`vr_propose_defaults` all go through `proposedefaults::write`, which now first calls `Host_WriteConfiguration` (the
+one path quit and a game change use: the sparse ironwail.cfg, then tunables.cfg with only the changed constants;
+nothing under -noconfigwrite/-evalcopy or a config not loaded), then prints `Saved your settings to disk: ironwail.cfg
+and tunables.cfg` (a release: ironwail.cfg only), or a yellow "not saved" line. `Host_WriteConfiguration` and
+`Host_WriteConfigurationToFile` now return whether they wrote; `VR_TunablesWrite` returns 0 on a failed write.
+
+Test: `Misc/quakevr/savecfg_test.sh <agent>` changes vr_hull_width and a tunable (random values), runs
+vr_propose_defaults, reads both files back from disk in the same run (`vr_config_test hasline <file> <word>... <value>`,
+new) and is killed on the verdict, never quitting: 2/0 (in-game 4/0; a negative run without the save fails as it
+should). config_sparse_test.sh 16/0. tunables_test.sh: run 1 38/0, quit's write and tune_promote pass; its run 2
+(read at start, tune_reset removing the file) failed because run.ps1 empties tunables.cfg before every run; fixed:
+its run 2 now sets QVR_KEEP_TUNABLES=1 (run.ps1 then keeps the file), and both tests leave tunables.cfg empty at the
+end.
+
 ## The fists' guard in game as the Pose Studio shows it (branch `agent/enfguard`)
 
 His report: an unarmed enforcer's guard posed with the fists at mouth level in the pose editor, but running at him in
@@ -2595,3 +2731,247 @@ QC `vr_agk_test_hold` (the studio's hold without the studio).
 
 Checklist line: "An unarmed enforcer running at you holds its fists where the Pose Studio's Guard key shows them (mouth
 level, not crossed)."
+
+## Armed humanoid disarming, part 1: the tug's pull, two hands, a downed one's tug, projectiles (branch `agent/disarm1`)
+
+His feedback (2026-10-30): no amount of pulling disarms a standing or tugged grunt; two hands do nothing more than one;
+nails and the nail pistol never shoot the weapon out. Plan: `qvr-kit/scratch/disarm_plan.md` (items 2a, 3a/3b, 4; the
+blow/parry order, item 1, and the grab arbitration, 2b/2c/3c, wait for agent/hitrecord and agent/grabquery).
+
+- **Test 31's pull: the mock, not the physics.** `vr_mock_hand_lift` and `vr_mock_hand_pull` moved only a mock hand
+  placed with `vr_mock_hand_to`; test 31 never places one, so its "pull" never moved the hand and its tug read the still
+  hold. Bisect on today's harness: 231 N at 1c58a5435 (ROUND22's 1454 N does not reproduce), 231 at 670a9305b, 148 at
+  63ff7f6e7 (posed arms), 84 at 09c84b4df^ and 09c84b4df, 72 at a35283c8b: the still hold's noise, never a pull. Fixed in
+  `vr_backend_mock.cpp`: the lift and pull apply to the standing pose too; `vr_mock_hand_pull_off` pulls the off hand.
+- **The measure** (`vr_agrunt_tug_measure` 2, `vr_agrunt_tug_stiffness` 1500 N/m, tunables). With the hand really pulled,
+  the held limb follows it within 2 cm and a slow pull drags the whole active ragdoll (its pelvis pin gives at ~150 N),
+  so neither the joint force nor "controller from the held point" reads a steady pull. `ragdolltug` what 3 is the tug's
+  stretch: the hand's flat distance from where the grunt stands its ground (its pelvis pin's anchor), beyond the grab's.
+  The pull is the larger of the joint force and stretch x stiffness. Test 31: the still hold 222 N (under 270), the
+  0.6 m/s pull won in 0.47 s; test 92: 0.4 m/s won in 1.18 s (stretch 234 N at 0.5 s, 506 N at 1.0 s).
+- **Two hands** (`vr_agrunt_tug_second_grab` 0: joins; 1: tears it free into the first hand). The same player's other
+  hand's grab adds a second hold (engine: no re-pin, no stagger reset); its pull adds (`vr_agrunt_tug_two_hand_mult` 1),
+  thresholds x `vr_agrunt_tug_two_hand_ease` 0.75 (the old tug: its time, the larger stretch). Either hand letting go
+  keeps the tug on the other (`ragdolltug` what 4; what 2 ends both). Test 92: two hands 0.94 s vs one 1.18 s (0.80x; the
+  mock's off hand reads little stretch, so the eased thresholds win it).
+- **The free fist** (`vr_agrunt_tug_strike` 1, `vr_agrunt_tug_strike_swing` 0.6): in a tug the free fist's deliberate
+  strike at 2.7 m/s tears the weapon into the holding hand (test 92: 2 m/s kept, 3.5 m/s yours). Any `VR_AG_Disarm` during
+  a tug (a body blow by its grip) does the same instead of flinging it. `VR_AG_HandStrike` is split into
+  `VR_AG_HandStrikeSpeed` (any share of the need) and the disarm, for item 1 to reuse.
+- **His decision: a staggering or downed one still needs a tug** (`vr_agrunt_tug_downed_scale` 0.5; 0: at once, as
+  before). The grab starts the old tug (distance and time, `vr_agrunt_tug_time` x 0.5), its knockdown going on; up again
+  mid-tug it struggles as a standing one. A tug that goes down keeps going eased. Kept at once: stunned by a parry, badly
+  hurt, and the physical tug whose grunt goes down ("it went down"). Test 92: staggering 0.89 s, knocked down 1.39 s at
+  0.6 m/s; held still 0.4 s, kept.
+- **Projectiles** (`vr_agrunt_shotdisarm_proj` 1, `_proj_chance` 0.2 at `_proj_ref` 9, `_proj_near` 4, `_proj_max` 0.8;
+  rows under Disarming: Shooting It Out). `launch_spike` tags every nail (`.vr_ags_kind`), so the nail pistol's
+  (`VR_NailPistol_SpikeTouch`) and lava nails count; each projectile on or near the weapon or hand rolls once, its
+  holder's body not first. Test 93: nail 0.20, super 0.40, pistol 0.27, lava 0.20, rocket 0.80, forearm the same, 3 units
+  off a quarter, 6 off never (40 or 12 shots each, the chance exact, the rate within 3 sd). Test 50's nail cases now
+  expect the per-hit roll (3 nails 0.3-0.7, one far nail 0.1-0.35).
+- Tests: `vr_agrunt_test 92` (vr_armedgrunt_twohand_test.qc, 14 checks), `93` (in vr_armedgrunt_shot_test.qc, 20).
+
+Checklist lines:
+- Grab a standing armed grunt's gun and pull back steadily (not a yank): within about 1-2 s the gun is yours.
+- Grab it with one hand, then the other on the gun too, and pull: it gives sooner than one hand; let go with one hand:
+  the tug goes on.
+- Hold its gun with one hand, punch the gun with the other fist: the gun ends in the holding hand.
+- Shove a grunt into a stagger (or floor it) and grab its gun: it is not yours at once; a short pull takes it.
+- Shoot a grunt's gun with the nail pistol and with nails: some shots knock it out (about 1 in 4-5 on the gun).
+
+## Show Disarm Volumes: the disarm tests' shapes drawn (branch `agent/disarmviz`)
+
+His question: is there a debug view of the disarm volumes (his hands, the enemy's hands and weapon), with what is
+hovered or grabbed, alive or an active ragdoll alike? There wasn't: `vr_debug_hitzones` draws the damage regions,
+`vr_debug_carry` the grab test on carried props (not armed monsters' weapons), `vr_debug_melee_blades` the blow lines,
+`vr_agrunt_shotdisarm_debug 2` sparks along the shot volumes, `vr_debug_ragdoll` / Show Physics Shapes every body.
+
+**Debug > Show Disarm Volumes** (`vr_debug_disarm`, 0; 1 on, 2 also prints `disarmviz:` hits and hover changes). The
+QC (QC/vr_disarmviz.qc `VR_DV_Frame`, from StartFrame: before the weapons' thinks test them) sends each held weapon's
+volumes computed by the tests' own functions (builtin `debugdisarm`): its line (VR_AG_WeaponLine) with the strike and
+parry reach (5, orange), the shot volumes of the weapon and of its hand and forearm (VR_AGS_HandLine by
+`vr_agrunt_shotdisarm_parts`/`_size`, magenta and cyan; near misses faint), the grip spheres a body blow disarms within
+(VR_AG_Hit: 10, a limb hit's 16, red), on a ragdoll the limb its weapon rides (VR_AG_RagProp's bone, white: box3d
+`ragdollPartDraw`), a tug (the hand to the grip, green, and a progress bar), its state label (`debugdisarmnote`: a
+tug's share, or what a grab does now: at once and why, or a tug), and each player's strike line (hand to muzzle, white)
+and blow line (VR_Blow's, blue). The engine (Quake/vr/vr_disarmviz.cpp) measures each fist against each of those weapons
+as the grab does (`physics::armedGrabGap`: handOn's armed branch without its grip test, sweep included): the fist's
+spheres grey, yellow with the weapon when a grip would take it now (the gap and allowance in the label). The hits are
+marked 2 s where they landed (VR_DV_Mark, guarded by `vr_dv_on`: from VR_AG_Disarm, VR_AG_Hit (disarm or body blow and
+its distance from the grip), VR_AG_HandStrike, the parry (parry or disarm), VR_AGS_Add (shot) and VR_AGS_Stopped
+(blocked)). Off: one cvar read in QC, the engine returns at once; fixed arrays (no allocation per frame). Flat: the
+lines over the flat view (vr_ragtool.cpp's overlay); its labels only in the headset.
+
+Test 97 (`vr_agrunt_test 97`, QC/vr_disarmviz_test.qc): standing, hovered (`disarmviz: main hand takes weapon 256 (gap
+-0.91 cm, allowed 5.00 cm)`), tug, active ragdoll with a pellet's line through its weapon: 4 passed, 0 failed (VR and
+flat); eye images in qvr-kit/scratch/disarmviz. Test 88 with it off: unchanged (3 passed, the known grunt topple FAIL).
+Seen with it: on an active ragdoll a pellet aimed at the weapon's middle counted on its **hand** (VR_AGS_HandLine
+builds the forearm from the standing pose's shoulder, not the ragdoll's arm): a lead for the disarm work.
+
+Checklist lines:
+- Debug > Show Disarm Volumes on, walk up to an armed grunt: its gun outlined orange; put your hand on the gun: your
+  fist and the gun turn yellow; grip: green with a progress bar; shove it over: the white limb under its gun, the
+  shapes stay on it.
+## FBT regression check (agent/fbtfix)
+
+The author (2026-10-30): with full body tracking the elbows and the body are way off; FBT off is playable. Checked:
+
+- Settings tiers: no body tracking, avatar or calibration setting became a constant or an unsaved test switch while his
+  config set it (`vr_bodycal_*`, `vr_body_tweak_*`, `vr_bodytrack`, `_arms`, `_arm_fit`, `vr_body_elbow_*`,
+  `vr_height_calibration` are options and load; the constants `vr_bodytrack_torso/_legs/_confidence/_smooth/_fade/
+  _arm_fit_stretch` and `vr_torso_*` keep the old defaults). No body default changed since 2026-10-19.
+- Headless: his capture (bodytrack_dump.csv, 2026-10-17, VDXR) replayed with his whole vr_ config on a1fd90743 (before
+  the refactor waves) and on origin/next 2234fc41f (no-LTO and ThinLTO): every solved joint (pelvis, neck top, shoulders,
+  elbows, wrists, weights, elbow fit) the same within 0.14 units (3.5 mm) over 999 frames, each within 1-2 units of the
+  tracked joints. The geometry helpers A1 merged (quakeFromTracking, wrap180, smoothstep, approachExp, safeNormalize)
+  are the same functions; the B3/L splits (avatar legs/climb, view body, hands phases, OpenXR frame) are pure moves
+  (body joints still located right after the hands, `bodytrack::place` in the same order). His previous calibration
+  (vr_bodycal_undo) instead of the current one moves the joints under 1 unit.
+- So no code change in the replayable path moved the solve. Not covered by a replay: the live OpenXR joints (the
+  runtime's own body calibration), the drawn mesh's skinning, the legs and feet. Next: a `vr_bodytrack_dump 20` taken
+  while it looks wrong, replayed here on both builds.
+
+Regression test: `Misc/quakevr/bodytrack_solve_test.sh <agent> [--update]`: 300 frames of that capture
+(quakevr/scenarios/bodytrack/take.csv) replayed with his body settings, 240 dumped frames against
+quakevr/scenarios/bodytrack/solve_ref.csv (0.5 units per joint, 0.02 per weight); verdict line
+`bodytrack_solve: N passed, M failed`.
+
+## Kick cancel in the poses; two-handed recoil; no ghost hands from recoil (branch `agent/recoil2h`)
+
+His words: the starter shotgun's new recoil "seems jittery" (frames still moving it); the grenade launcher "also seems to
+have a few frames that still move the weapon, some vertices visibly move during recoil and the ammo screen intersects
+with geometry"; a global and per-weapon multiplier reducing the programmatic recoil held two-handed; an option (on) for
+the ghost hands not to appear from the programmatic recoil.
+
+- **What jittered** (measured: `vr_debug_weaponfx 4`, a "recoiltrack" line a frame: the held gun's body as drawn, where
+  its rest pose would be drawn, the recoil; shotgun fired at 72 and 90 Hz, fixed clock, and 250 Hz real time): the
+  procedural curve is smooth (cl.time steps evenly; the drawn rest-pose body moves exactly as the envelope). What moved
+  was the old cancel's leftover: one rigid motion a pose cannot undo each vertex's byte rounding (the fit's rms 0.5
+  byte step, up to 3 steps, ~1 cm at the shotgun's muzzle; the grenade launcher's body rms 1.3 steps, the model
+  squashing as it kicks), so the gun's vertices and its body's centre (up to 3 mm) shimmered, changing every 0.1 s pose.
+- **The fix: the kick out of the poses** (`vr_kickcancel.cpp` ensure): the fit as before (at map load,
+  view::prepareWorldWeapons; each frame for the held guns), then the model's poses in memory made again: the body's
+  vertices are the rest pose's own bytes (and normals) in every kicked pose, a part's are its pose's put through the
+  pose's cancel (re-rounded, its normal turned); the model uploaded again (its dequantised offsets made again). The
+  matrix cancel (`byteCancel`, `applyDrawn`, the anchors' `d.kick`) is gone: the renderer, the anchors (muzzles, ammo
+  screens, mounts, the hand on a pump) and the dequantiser read the cancelled poses. The originals are kept
+  (`vr_weapon_kick_cancel 0` puts them back, the held guns' at the next frame); a model read again is found by its
+  bytes (one pose compared a frame) and fitted again. The kick cache is never emptied (a model's entry is checked by its
+  data). Drawn now: body == rest exactly (recoiltrack: body and rest identical every frame, shotgun and launcher).
+- **The grenade launchers wholly at rest** (slots 5, 10, 13: the launcher, Armagon's proximity gun, the multi grenade
+  launcher): their upper shells only lurch on the body (177-202 vertices; no mechanism), so every vertex of a kicked
+  pose is the rest pose's: the ammo screen's anchor (on the shell) holds still; with the models' own kick it moved 49
+  byte steps. The other guns keep their parts (the nailguns' barrels, the laser cannon's sliding barrel with its screen
+  on it, the flashes). AD's grenade launcher is not a listed model (its own frames).
+- **Two-handed recoil** (`weaponfx::twoHandRecoil`): Weapon Effects > Two-Handed Recoil (`vr_recoil_two_hand`, 0.6,
+  0-1, to 2) times Weapon Offsets > Effects > Two-Handed Recoil (`vr_wofs_fx_recoil_2h_NN`, 1, 0-2, to 5), blended in
+  by the two-handed grip's transition (`twohand::support`): a shot's kick back and muzzle rise times it and its Return
+  Time times it (`shotKick`; the 35 ms kick up as before); the haptic punch's spike and tail follow (vr_gunsfx.cpp
+  Punch.share). The heavy-weapon kick (vr_weight.cpp) already had its own two-handed share: unchanged.
+- **No ghost hands from recoil** (`vr_ghost_hands_ignore_recoil`, 1; Settings > Ghost Hands: "No Ghost from Recoil"):
+  the ghost's distance is measured against the real controller kicked as the recoil kicks the drawn hand
+  (setupGhostHands; the ghost is still drawn at the real controller when something else holds the hand off).
+- **Tests**: `vr_kickcancel_test` (also in `vr_recoil_test`) plays each listed gun's firing frames at 10 Hz drawn
+  through the anchors' path at 72 and 90 Hz (the renderer's blend): every body vertex (every vertex of a launcher)
+  within 0.02 byte steps of rest, its centre's step between drawn frames within 0.02, the launchers' ammo screen anchor
+  within 0.02: 71/0 (all 0.000; with `vr_weapon_kick_cancel 0`: 35/36). `vr_recoil_test` 104/0 (was 69): the drawn kick
+  sampled at 72 and 90 Hz on its curve (0.0000 of the peak off) and rising once, falling once; two-handed at 0.6 x 0.5:
+  peak 1.680 / 5.600 deg, 1.733 / 5.775 cm, back in 0.0945 / 0.3150 s (0.300 each). `Misc/quakevr/ghost_recoil_test.sh
+  <agent>`: the shotgun at Recoil Amount 3 fired once ignoring the recoil (25 kicked frames, no ghost: 0.29 cm apart)
+  and once counting it (the ghost shows): 3/0. `vr_gunsfx_test` 24/0 (-Sound). Covering cases vs baseline.tsv (items 1
+  and 3): collectfx, shot_shape, grip_state, reload 112/3, reload_* as the baseline; recoil 99/0 (was 9/0: checks
+  added). No per-frame cost to A/B: the draw lost its matrix product, the held guns gained one pose's memcmp a frame.
+
+Checklist:
+- The shotgun, super shotgun and rocket launcher fire with the gun's body perfectly still in the hand (no shimmer of
+  its edges or lighting through the kick); only the procedural kick moves it.
+- The grenade launcher (and the proximity gun, multi grenade launcher) fires with nothing on it moving; its ammo screen
+  never goes into the gun.
+- Debug > Weapons: "Take Out the Models' Own Kick" off and on swaps the models' own kick back and forth at once.
+- Weapon Effects: Two-Handed Recoil 0.6: a two-handed shotgun shot kicks visibly less and settles sooner than one-handed,
+  the haptic punch lighter and shorter; 1: the same as one-handed. Weapon Offsets > Effects: Two-Handed Recoil per gun.
+- Ghost Hands on: firing a strong gun (the shotgun at your 17 cm) shows no ghost; "No Ghost from Recoil" off shows it
+  flash with each shot.
+
+## Armed humanoid disarming, part 2: a deliberate strike on its weapon or hand disarms (branch `agent/disarm2`)
+
+His words (2026-10-30): a well-aimed hit or throw (fist, gun or prop) on an armed grunt's weapon or hand parried or hurt
+it, never disarmed it; precise, deliberate strikes (in slow motion too) should knock the gun out. Plan item 1
+(`qvr-kit/scratch/disarm_plan.md`): the parry ran first and took every blow on the weapon whenever the grunt *could*
+parry, raised or not; the disarm test was one point per frame and ignored a carried prop's size.
+
+- **One decision, `VR_AG_BlowOnWeapon`** (vr_armedgrunt_parry.qc), from `VR_AGPar_Blow` (the melee's damage: a blow
+  that met the weapon before the body) and `VR_AG_StrikeFrame` (the weapon's think: one that met only the weapon; it
+  replaces `VR_AGPar_WeaponFrame` + the `VR_AG_HandStrike` loop under `vr_agrunt_strike_first` 1, the default; 0 is the
+  old order, kept whole). Not a deliberate strike (`VR_AG_StrikeSpeed` 0: open hand, jolt, under the disarm swing): the
+  parry's own rule as before. Deliberate and its parry not raised for it (unable, caught out, not up yet, pose under
+  `vr_agrunt_strike_raised` 0.5): disarmed along the blow (`strike: disarmed (...)` under vr_agrunt_debug). Deliberate
+  into a raised parry: roll `vr_agrunt_strike_beat` 0.4 x `_strike_precise_mult` 2 (within `_strike_precise` 4 units of
+  the grip or hand line) x min(2, speed / 4.5): won, disarmed; lost, the parry (stamina as before). A blow disarmed on
+  its way into the body still deals its body damage (as an unable grunt's always did).
+- **Swept geometry, `VR_AG_StrikeMeets`**: the blow's points (VR_Blow, last pose to now, a held gun's whole line) at 4-16
+  steps (every 2.5 units of their way), a carried prop's middle swept with the hand and widened by its size (min(16,
+  mean size / 2)), against the weapon line and the hand + forearm line (`VR_AGS_HandLine`); plus the old hand-to-muzzle
+  test. `VR_AG_HandStrikeSpeed` (the tug's free-fist strike) uses it too. Speeds are real time (unchanged), so slow
+  motion works.
+- **Throws**: `VR_AG_Hit` first asks `VR_AG_ThrowOnWeapon`: a thrown weapon, prop or gib that touched the body (its
+  velocity possibly already bounced: then its way in is towards the body), its path one frame back plus its size, met
+  the weapon or hand line: the momentum rule (`vr_agrunt_disarm_throw`), not the damage gate. The think-time throw check
+  stays for throws that never touch the body. Body blows by the hand: `VR_AG_Hit` measures to the hand line too.
+- **Ragdolls** (agent/disarmviz's lead): `VR_AGS_HandLine` on a ragdoll lays the forearm from the grip towards the middle
+  of the limb its weapon rides (`ragdollpoint(g, vr_ag_rb - 1, '0 0 0', 1)`), not the standing pose's arm.
+- Show Disarm Volumes marks the strike's and the throw's disarms (`VR_DV_Mark`, at the struck point).
+- Settings: `vr_agrunt_strike_first` (Combat > Armed Grunts > Disarming: Strikes on Its Weapon Disarm); tunables
+  `vr_agrunt_strike_beat`, `_strike_precise`, `_strike_precise_mult`, `_strike_raised` (Armed Grunts group).
+- **Test `vr_agrunt_test 94`** (vr_armedgrunt_strike_test.qc; Debug > Tests > Armed Grunts: Strikes on Its Weapon
+  Disarm), 16 cases, each a fresh shotgun grunt held still with its parry state set and the hand mocked as the tracker has
+  it: fist on the barrel unaware / caught out: disarmed; caught out with strike_first 0: parried; raised, beat 0:
+  parried, beat 1: disarmed; on the forearm (3.7 units off the weapon line): disarmed by the hand part; open hand, 2 m/s
+  push: neither; held shotgun's far end (hand 22 units off): disarmed; carried 24-unit crate, fist 13 units off (the fist
+  alone does not meet): disarmed; gun thrown across the barrel: disarmed; gun bounced off the body by its forearm (5
+  damage, under the disarming blow): disarmed; melee punch on the legs: its full 12 damage, armed; through the barrel into
+  the chest, caught out: disarmed, damage not cut; into a raised parry, beat 0: parried (5 of 20); fist at vr_timescale
+  0.3: disarmed. 16 passed, 0 failed. Ends on `agtest: test 94 over`. Test 97 gained a check: the ragdoll's pellet
+  through its weapon counts on the weapon (5/0).
+- **Covering** (run_baseline agrunt + suite, `agrunt|parry|melee_phase|judo`, 89 cases): changed 31 and 36 FAIL -> PASS,
+  65 0/6 -> 5/1; 66 PASS -> FAIL and melee_phase 7/0 -> 6/1 are flaky on next too (66 with `vr_agrunt_strike_first 0`
+  failed 3 of 4 runs: the lying grunt drops its gun "as it fell", ground impact 5-12 m/s; melee_phase per the hitrecord
+  notes passes about half the time). eval.sh --full: 163/171, as next.
+- **The uppercut take (16.7 -> 13.2)** predates disarm1: eval.sh --full gives 13.2 on b2eca62bf (next before the
+  disarm1 merge) and on origin/next alike (163/171 both; the same 9-15 rows differ from the baseline, by 0.1 noise
+  except the uppercut and two older takes). Nothing to revert in disarm1.
+
+Checklist lines:
+- Punch an armed grunt's gun (or its gun hand) hard while it isn't guarding: the gun flies out; into its raised guard
+  it is usually parried, sometimes knocked out.
+- In slow motion, punch a grunt's gun out of its hand.
+- Swing a held shotgun or a carried crate into a grunt's gun: knocked out. Throw a gun at its gun hand: knocked out.
+- Punch a grunt's legs or chest away from its gun: it is hurt, keeps its gun.
+## Nail pistol: no flicker at the muzzle's back, a distinct steel back end (branch `agent/npslide4`)
+
+His words (2026-10-30): some triangles on the back of the muzzle flicker, seen only with the slide drawn; the
+steel/silvery back end more distinct, as in the pre-slide art.
+
+- **The flicker:** the classic nozzle's back is a closed hexagonal cap (shared by both looks, x 7.19, facing back),
+  hidden in either look until the full slide draws back past it. npslide2's ring (`nozzle_ring`, iron, closing what it
+  took for an open back) lay on the same plane facing the same way: 12 triangles z-fighting with the cap's 4. The ring is
+  gone (the cap closes the nozzle; the barrel passes through it). Nothing else: no triangle wound against its normal, the
+  folds degenerate in frames 2, 3 and every blend past 3 (to 4.6, Slide Travel 3), no other same-facing coplanar pair
+  with a new triangle (the slide's bottom on the frame's top face opposite ways: back faces culled).
+- **Check in the script:** `check_faces` (build_nailpistol_slide.py) runs on every build in frames 2 and 3 and blends
+  1, 2 and the most (4.6): folds, winding (Quake clockwise vs the vertex normal) and coplanar overlapping same-facing
+  pairs (planes within 0.04 units, a 2D overlap test); it stops the build on a problem. With the old ring added back it
+  reports 84 (the ring's 12 triangles against the cap's).
+- **Steel back end** (behind x -2.4, the classic housing's place: the slide's walls, chamfers, top, end and the frame):
+  the classic housing is about 1.5x its receiver's light (sampled: luminance 40 vs 26), and the full slide's front is as
+  light as that housing (41), so the sampled texels alone did not stand out. Each texel now: its light lifted 1.2x
+  (`REAR_GAIN`), its swing about the housing's mean cut to 0.75 (`REAR_FLAT`: less mottled), a cool steel hue
+  (`REAR_TONE` 0.93 1.0 1.1, 30% of its own hue kept); the housing's bright bevelled rim on its outline (0.13 units), and
+  a seam at x -2.4 (a dark groove in front, a lit line behind). Texels with no classic face near take the housing's mean.
+  The rest of the paint, the classic frames and texels are unchanged (classic rows 0 changed, frames 0/1 identical);
+  the script stays deterministic (a rerun on its output: byte-identical).
+- **Eyeshots** (qvr-kit/scratch/npslide/): `npslide4_classic_closed_open_muzzle.png` (rows: classic closed, full slide
+  closed, locked open (travel 1.5), the muzzle's back close up at travel 3; right side left column, left side right),
+  `npslide4_rear_before_after.png` (full slide closed, before / after), `npslide4_thumbs.png`.
+- **Tests:** `vr_np_test 1` fails on origin/next with the old model the same way (0 passed, 3 failed: "the trigger held
+  0.55 s fired 0"): not this change; baseline.tsv's np_1 (21 passed) is older than the test's 35 checks.

@@ -57,6 +57,10 @@ float vr_ags_hits_h;    // ... on hands,
 float vr_ags_absorbed;  // ... pellets and nails a weapon stopped
 float vr_ags_last_acc;  // ... the last roll's damage
 float vr_ags_exact;     // VR_AGS_MeetOne: the true volumes (both parts, size 1, no near misses: VR_AGS_Blocks)
+float vr_ags_last_chance; // the last projectile roll's chance (vr_agrunt_shotdisarm_proj; the tests)
+float vr_ags_proj_won;  // VR_AGS_Projectiles: a projectile's roll won (VR_AGS_Frame disarms),
+vector vr_ags_proj_dir; // ... its way,
+float vr_ags_proj_dmg;  // ... its damage
 .float vr_ags_tink_at;  // a held weapon: its last blocked shot's tink (one a blast)
 
 void(string s) VR_AGS_Log =
@@ -139,6 +143,19 @@ void(entity g, entity p) VR_AGS_HandLine =
 {
     vector sh = '0 0 0';
     float rowed = FALSE;
+    if(p.vr_ag_rb && isragdoll(g))
+    {
+        // An active (or lying) ragdoll's: its forearm runs from the grip towards the middle of the limb its weapon rides
+        // (VR_AG_RagProp), not the standing pose's arm, which put its hand where the ragdoll's weapon was (a pellet on its
+        // weapon counted on its hand: agent/disarmviz's finding).
+        vector lm = ragdollpoint(g, p.vr_ag_rb - 1, '0 0 0', 1);
+        if(vlen(lm - p.origin) >= 3)
+        {
+            vr_ags_ha = p.origin;
+            vr_ags_hb = p.origin + normalize(lm - p.origin) * VR_AGS_FOREARM;
+            return;
+        }
+    }
     {
         // (its row's shoulder, carried by its chest's anchor as its arms are drawn from it)
         vector an = VR_AM_Anchor(g);
@@ -237,6 +254,10 @@ void(entity p, float amount, vector dir, float part, vector at, float kind) VR_A
     }
     string what = sprintf("%s on its %s%s (%s)", VR_AGS_KindName(kind), part == 1 ? "weapon" : "hand",
         (vr_ags_mf < 1 && kind != QVR_AGS_SPLASH) ? ", near" : "", p.netname);
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(p, at, VR_DV_SHOT, sprintf("%s: %.1f", what, amount));
+    }
     if(time < p.vr_ags_cool)
     {
         VR_AGS_Log(sprintf("%s: %.1f, cooling down (%.2f s)", what, amount, p.vr_ags_cool - time));
@@ -327,6 +348,10 @@ void(entity p, vector at, float kind) VR_AGS_Stopped =
             floor(random() * 3))), 1, ATTN_NORM);
     }
     VR_AGS_Log(sprintf("%s stopped on its weapon (%s): no damage to it", VR_AGS_KindName(kind), p.netname));
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(p, at, VR_DV_BLOCKED, sprintf("%s stopped on its weapon", VR_AGS_KindName(kind)));
+    }
 };
 
 float(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind) VR_AGS_Shot =
@@ -413,6 +438,10 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_AGS_Hit =
 // A player's projectile's kind (-1: not one that counts).
 float(entity e) VR_AGS_ProjKind =
 {
+    if(e.vr_ags_kind > 0)
+    {
+        return e.vr_ags_kind - 1; // (tagged at launch: the nail pistol's, lava nails, mods' nails)
+    }
     if(e.touch == spike_touch || e.touch == superspike_touch)
     {
         return QVR_AGS_NAIL;
@@ -426,7 +455,11 @@ float(entity e) VR_AGS_ProjKind =
 
 float(entity e, float kind) VR_AGS_ProjDamage =
 {
-    if(e.touch == superspike_touch)
+    if(e.touch == VR_NailPistol_SpikeTouch)
+    {
+        return VR_WpnDmg(e.owner, cvarh_vr_dmg_nailpistol, 9);
+    }
+    if(e.touch == superspike_touch || e.touch == superlavaspike_touch)
     {
         return VR_WpnDmg(e.owner, cvarh_vr_dmg_super_nail, 18);
     }
@@ -435,6 +468,73 @@ float(entity e, float kind) VR_AGS_ProjDamage =
         return VR_WpnDmg(e.owner, cvarh_vr_dmg_nail, 9);
     }
     return 110 * VR_WpnDmgScale(e.owner, cvarh_vr_dmg_rocket, 100);
+};
+
+// A projectile's own roll (vr_agrunt_shotdisarm_proj): its path a..b on (or within vr_agrunt_shotdisarm_proj_near
+// units of) the weapon `p` or its hand, not its holder's body first, rolls once:
+//   min(_proj_max, _proj_chance x damage / _proj_ref x its kind's and part's weights) x falloff,
+// the falloff 1 on the volume, down to 0 at _proj_near beyond it. Won: vr_ags_proj_won (VR_AGS_Frame disarms).
+void(entity g, entity p, entity e, float kind, vector a, vector b) VR_AGS_ProjRoll =
+{
+    if(VR_AGS_Closest(a, b, p.origin, p.origin) > 96)
+    {
+        return;
+    }
+    float parts = cvar_hget(cvarh_vr_agrunt_shotdisarm_parts);
+    float size = max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_size));
+    float near = max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_near));
+    float best = 0;
+    float part = 0;
+    float s = 0;
+    float d;
+    float f;
+    if(parts != 1)
+    {
+        VR_AG_WeaponLine(p);
+        d = VR_AGS_Closest(a, b, vr_ag_wa, vr_ag_wb) - VR_AGS_W_RADIUS * size;
+        f = d <= 0 ? 1 : (near > 0 ? max(0, 1 - d / near) : 0);
+        f = f * cvar_hget(cvarh_vr_agrunt_shotdisarm_weapon_w);
+        if(f > best) { best = f; part = 1; s = vr_ags_s; }
+    }
+    if(parts != 0)
+    {
+        VR_AGS_HandLine(g, p);
+        d = VR_AGS_Closest(a, b, vr_ags_ha, vr_ags_hb) - VR_AGS_H_RADIUS * size;
+        f = d <= 0 ? 1 : (near > 0 ? max(0, 1 - d / near) : 0);
+        f = f * cvar_hget(cvarh_vr_agrunt_shotdisarm_hand_w);
+        if(f > best) { best = f; part = 2; s = vr_ags_s; }
+    }
+    if(best <= 0)
+    {
+        return;
+    }
+    float len = vlen(b - a);
+    float body = hitmodel_segment(g, a, b, 0, HITCLASS_GUNS);
+    if(body >= 0 && body * len + 4 < s * len)
+    {
+        return; // (its body first: that it hits)
+    }
+    e.vr_ags_by = p;
+    float dmg = VR_AGS_ProjDamage(e, kind);
+    float ref = max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_ref));
+    float most = min(1, max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_max)));
+    float chance = min(most, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_chance) * dmg / ref * VR_AGS_KindWeight(kind)) * best;
+    chance = min(most, max(0, chance));
+    float r = random();
+    vr_ags_rolls = vr_ags_rolls + 1;
+    vr_ags_last_chance = chance;
+    if(part == 1) { vr_ags_hits_w = vr_ags_hits_w + 1; } else { vr_ags_hits_h = vr_ags_hits_h + 1; }
+    string what = sprintf("%s on its %s%s (%s)", VR_AGS_KindName(kind), part == 1 ? "weapon" : "hand", best < 1 ? ", near" : "",
+        p.netname);
+    if(r >= chance)
+    {
+        VR_AGS_Log(sprintf("%s: %.0f damage, chance %.2f, rolled %.2f: holds on", what, dmg, chance, r));
+        return;
+    }
+    VR_AGS_Log(sprintf("%s: %.0f damage, chance %.2f, rolled %.2f: shot out of its hand", what, dmg, chance, r));
+    vr_ags_proj_won = TRUE;
+    vr_ags_proj_dir = e.velocity;
+    vr_ags_proj_dmg = dmg;
 };
 
 // The players' nails, rockets and grenades flying through `p` or its hand this frame (a frame back, a frame ahead).
@@ -452,7 +552,11 @@ void(entity g, entity p) VR_AGS_Projectiles =
             vector b = e.origin + e.velocity * frametime;
             float len = vlen(b - a);
             float body = -1;
-            if(cvar_hget(cvarh_vr_agrunt_shotdisarm))
+            if(cvar_hget(cvarh_vr_agrunt_shotdisarm) && cvar_hget(cvarh_vr_agrunt_shotdisarm_proj))
+            {
+                VR_AGS_ProjRoll(g, p, e, kind, a, b);
+            }
+            else if(cvar_hget(cvarh_vr_agrunt_shotdisarm))
             {
                 vr_ags_mp = world;
                 vr_ags_ms = 2;
@@ -504,6 +608,15 @@ void(entity g, entity p) VR_AGS_Show =
     }
 };
 
+// Shot out of its hand (a roll won): the sparks and the ricochet, counted (the tests).
+void(entity g, entity p) VR_AGS_ShotOut =
+{
+    VR_AG_WeaponLine(p);
+    particle2((vr_ag_wa + vr_ag_wb) * 0.5, '0 0 60', QVR_PARTICLE_PRESET_SPARKS, 12);
+    sound(g, CHAN_AUTO, sprintf("weapons/ric%g.wav", 1 + min(2, floor(random() * 3))), 1, ATTN_NORM);
+    vr_ags_disarms = vr_ags_disarms + 1;
+};
+
 // VR_AG_WeaponStruck (its prop's think, every frame; `p` in its first slot): the flights through it, then its roll if one
 // is due. TRUE: shot out of its hand.
 float(entity g, entity p) VR_AGS_Frame =
@@ -518,11 +631,21 @@ float(entity g, entity p) VR_AGS_Frame =
     {
         VR_AGS_Show(g, p);
     }
+    vr_ags_proj_won = FALSE;
     VR_AGS_Projectiles(g, p); // (the nails it stops even with shot disarms off: vr_agrunt_shotdisarm_block)
     if(!cvar_hget(cvarh_vr_agrunt_shotdisarm))
     {
         p.vr_ags_pend = FALSE;
         return FALSE;
+    }
+    if(vr_ags_proj_won)
+    {
+        // (a projectile's own roll won: VR_AGS_ProjRoll)
+        vr_ags_proj_won = FALSE;
+        VR_AGS_ShotOut(g, p);
+        VR_AG_Disarm(g, vr_ags_proj_dir, 150 + min(150, vr_ags_proj_dmg * 3), sprintf("shot out of its hand by a projectile, %.0f damage",
+            vr_ags_proj_dmg));
+        return TRUE;
     }
     if(!p.vr_ags_pend)
     {
@@ -546,10 +669,7 @@ float(entity g, entity p) VR_AGS_Frame =
         return FALSE;
     }
     VR_AGS_Log(sprintf("roll on %s: %.1f damage, chance %.2f, rolled %.2f: shot out of its hand", p.netname, acc, chance, r));
-    VR_AG_WeaponLine(p);
-    particle2((vr_ag_wa + vr_ag_wb) * 0.5, '0 0 60', QVR_PARTICLE_PRESET_SPARKS, 12);
-    sound(g, CHAN_AUTO, sprintf("weapons/ric%g.wav", 1 + min(2, floor(random() * 3))), 1, ATTN_NORM);
-    vr_ags_disarms = vr_ags_disarms + 1;
+    VR_AGS_ShotOut(g, p);
     VR_AG_Disarm(g, dir, 150 + min(150, acc * 3), sprintf("shot out of its hand, %.1f damage", acc));
     return TRUE;
 };

@@ -678,7 +678,8 @@ void moveHandTo(int hand, const glm::vec3& target)
         // (From the play space's place, not the hand's last: a hand put each frame on a moving thing follows it; the
         // hand's last place lags the commands by a frame or two, and the correction from it overshot and spiralled.)
         const glm::vec3 room = hands::rotateYaw(target - st.spaceOrigin, -st.turnYaw) / units::metresToUnits();
-        const glm::vec3 lifted = hand == HAND_MAIN ? glm::vec3{0.f, vr_mock_hand_lift.value, vr_mock_hand_pull.value} : glm::vec3{0.f};
+        const glm::vec3 lifted = hand == HAND_MAIN ? glm::vec3{0.f, vr_mock_hand_lift.value, vr_mock_hand_pull.value}
+                                                     : glm::vec3{0.f, 0.f, vr_mock_hand_pull_off.value};
         to = glm::vec3{-room.y, room.z, -room.x} - hands::calibrationOffset(hand) - lifted; // (tracking from Quake's axes)
     }
     if(vr_mock_hand_glide.value > 0.f && hand < HAND_COUNT)
@@ -1782,13 +1783,11 @@ public:
                     g.start = -1.0;
                 }
             }
-            if(mockHandSet[h])
-            {
-                // (vr_mock_hand_lift: the main hand raised, a test's own: QC sets it at once, no command buffer)
-                tracking.hands[h].position =
-                    mockHandPos[h] + (h == HAND_MAIN ? glm::vec3{0.f, vr_mock_hand_lift.value, vr_mock_hand_pull.value}
-                                                     : glm::vec3{0.f});
-            }
+            // (vr_mock_hand_lift: the main hand raised, a test's own: QC sets it at once, no command buffer. On a hand never
+            // placed too (its standing pose): test 31's pull never moved the hand before, its tug read the still hold.)
+            const glm::vec3 lifted = h == HAND_MAIN ? glm::vec3{0.f, vr_mock_hand_lift.value, vr_mock_hand_pull.value}
+                                                    : glm::vec3{0.f, 0.f, vr_mock_hand_pull_off.value};
+            tracking.hands[h].position = (mockHandSet[h] ? mockHandPos[h] : tracking.hands[h].position) + lifted;
             if(mockHandRotSet[h])
             {
                 tracking.hands[h].orientation = mockHandRot[h];

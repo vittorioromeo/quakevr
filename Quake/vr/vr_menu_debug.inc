@@ -11,7 +11,8 @@
         command("Save My Settings as Defaults", "vr_propose_defaults")
             .help("vr_propose_defaults: every setting you changed from its shipped default (weapon and held object "
                   "slots too) written to quakevr/proposed_defaults/<date>_<time>.cfg for review, sorted by menu page, "
-                  "the personal and debug ones marked. Nothing changes in the game. Also the menu's corner button "
+                  "the personal and debug ones marked. Nothing changes in the game. Your config and tunables.cfg are "
+                  "saved to disk too, as at quit (kept should the game crash). Also the menu's corner button "
                   "Save Default (press twice)."),
 #ifndef QVR_RELEASE
         open("Tunables", pageIndex(pageTunables))
@@ -113,6 +114,13 @@ za::Vector<Item> pageDebugViews()
                   "slash beheads (magenta: the melee's zone, Head Size and Neck) and the head that shots, lasers and "
                   "thrown axes pop (red); Both outlines the magenta over Positional Damage's colors. Every head and limb "
                   "test maps the point struck to the standing pose, so these zones move with the model."),
+        cycle("Show Disarm Volumes", vr_debug_disarm, {{0.f, "Off"}, {1.f, "On"}, {2.f, "And Print Hits"}})
+            .help("Armed enemies, standing or an active ragdoll: their weapon's blow/parry reach (orange; yellow: your "
+                  "grip would take it now; green: in a tug, its progress bar), shot volumes (magenta weapon, cyan hand), the "
+                  "grip spheres a body blow disarms within (red; faint: a limb hit's), the ragdoll limb it rides (white). Your "
+                  "fists' grab spheres (grey; yellow touching a weapon, the gap shown), your strike lines (white) and blow "
+                  "lines (blue). The last hit is marked a moment: parry cyan, disarm red, body grey, shot magenta, blocked "
+                  "yellow."),
         toggle("Hit Zones Through Walls", vr_debug_hitzones_xray)
             .help("Draws the animated positional regions through walls and the back of the model. Off: only visible surfaces."),
         cycle("Show Gadget Button", vr_debug_gadget_button,

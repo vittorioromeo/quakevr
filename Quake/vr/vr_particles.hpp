@@ -166,6 +166,10 @@ struct GunParticle
 };
 bool gunParticle(const GunParticle& g);
 
+// An electric gun's muzzle (vr_gunfx.cpp): Preset::ElectricSparks's crackling arcs and `count` blue-white sparks along
+// `dir`, `size` times their size (the gunfire settings' Spark Size). False if none made (`count` 0, particles off).
+bool gunArcs(const glm::vec3& org, const glm::vec3& dir, int count, float size);
+
 // A casing dropping into a liquid at `org` on its surface, going `dir` (`strength` 0..1: how fast): the splash
 // preset's drops, ring and foam at a casing's size (the ripple is water::addRipple's, the caller's). Nothing with
 // vr_particles 0 or vr_water_splash 0.

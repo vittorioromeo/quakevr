@@ -85,3 +85,4 @@
 /doom/savegame/
 /doom/wads/*
 !/doom/wads/README.txt
+/bodytrack_solve_dump.csv

@@ -60,6 +60,16 @@ float() VR_AG_Dying;                                                       // ar
 void(entity attacker, entity targ) VR_AG_Parried;                          // VR_Parry: its blow parried (a chance to disarm)
 float(entity e) VR_AG_Striking;                                            // VR_Parry_MeleeMonster: its melee blow under way
 
+// Debug > Show Disarm Volumes (vr_disarmviz.qc): the disarm tests mark their hits (guarded by vr_dv_on: nothing built
+// while it is off).
+float vr_dv_on;          // vr_debug_disarm this frame (VR_DV_Frame)
+float VR_DV_PARRY = 1;   // a parry on its weapon
+float VR_DV_DISARM = 2;  // knocked out of its hand
+float VR_DV_BODY = 3;    // a blow on its body that didn't disarm
+float VR_DV_SHOT = 4;    // a shot counted on its weapon or hand
+float VR_DV_BLOCKED = 5; // a pellet or nail its weapon stopped
+void(entity e, vector at, float what, string why) VR_DV_Mark;
+
 // Parrying melee blows with its weapon (vr_armedgrunt_parry.qc; vr_agrunt_parry).
 .float vr_agpar_w;         // the parry pose's share, eased
 .vector vr_agpar_t;        // the blow coming: its point (body space, eased)
@@ -78,6 +88,11 @@ float(entity g) VR_AGPar_Guards;                                           // VR
 void(entity g) VR_AGPar_Frame;                                             // VR_AG_PropThink: a blow coming
 void(entity g, entity p) VR_AGPar_Pose;                                    // VR_AGP_Pose: the parry's pose
 float(entity g) VR_AGPar_WeaponFrame;                                      // VR_AG_WeaponStruck: a blow on its weapon
+// A deliberate strike on its weapon or hand (vr_agrunt_strike_first; vr_armedgrunt_parry.qc):
+float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets;           // VR_AG_HandStrikeSpeed: the swept test
+float(entity g, entity p) VR_AG_StrikeFrame;                               // VR_AG_WeaponStruck: strikes, then parries
+float(entity g, entity e) VR_AG_ThrowOnWeapon;                             // VR_AG_Hit: a throw that touched its body
+float(entity g, entity p, vector at) VR_AG_HandLineDist;                   // VR_AG_Hit: a body blow by its hand
 
 // The physical tug (vr_armedgrunt_play.qc; vr_knockdown.qc keeps its stagger on while it lasts), a weapon on a ragdoll's
 // limb (VR_AG_RagProp), a weapon taken up from the floor (vr_armedgrunt.qc VR_AG_TakeBegin).
@@ -97,6 +112,7 @@ float(entity g) VR_AGPar_WeaponFrame;                                      // VR
 float vr_ag_grab_fast;     // grabs of its weapon refused as too fast (vr_agrunt_grab_speed; the tests)
 void(entity g, entity p) VR_AG_RagProp;
 void(entity g, float won, string why) VR_AG_TugEnd;
+float(entity g, string why) VR_AG_TugDisarm; // VR_AG_Disarm in a tug: into the holding hand (TRUE)
 
 // Gameplay (vr_armedgrunt_play.qc: disarming, falls, reach), called from vr_armedgrunt.qc.
 float(entity g, entity p) VR_AG_TugFrame;
@@ -157,3 +173,17 @@ void(entity e, float takes) VR_AgArmor_CutPrepare;        // VR_Limb_Cut, VR_Dec
 void(entity e, float done, vector vel) VR_AgArmor_CutDone; // and after it: those plates dislodged as debris
 float(entity e, float joint) VR_AgArmor_Holds;            // VR_Limb_WearInto: a corpse's piece kept on by an unbroken plate
 void(entity h) VR_AgArmor_DebrisGrabbed;                  // VR_Carry_Start: a plate's debris taken, its fade put off
+
+// Worn backpacks (vr_wornpack.qc; ROUND23.md, "Worn backpacks"; experimental: vr_worn_backpacks): the fields and the hooks.
+.float vr_wp_worn;    // a wearer's: 1 its pack on its back (the engine reads it: its ragdoll made with the pack on its chest)
+.entity vr_wp_pack;   // a wearer's pack (on it or torn off; world: none)
+.float vr_wp_had;     // a wearer's: it was given one (it drops no backpack as it dies)
+.float vr_wp_state;   // a pack's: 1 worn by the living, 2 worn by the dead (takeable), 3 off
+.entity vr_wp_wearer; // a pack's wearer
+.float vr_wp_peak;    // a pack's: the hardest pull on it so far (N; the tests)
+void(entity e) VR_WP_Spawn;                                              // VR_AM_Spawn: an armed grunt's pack put on
+void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit; // T_Damage: a hit on the pack may tear it off
+void(entity m, vector xAt, float xSpeed) VR_WP_Impact;                    // VR_RagImpact_Hit: a hard landing tears it off
+void(entity e) VR_WP_Taken;                                              // VR_Carry_Start, VR_Forcegrab_Launch: a dead one's pack taken
+float(entity m, entity pl, float hand) VR_WP_HandOnPack;                  // VR_Ragdoll_Handtouch: the hand on a dead one's pack takes the pack
+float() VR_WP_DeathLoot;                                                 // VR_AG_SoldierDrop: its loot in its pack (TRUE: no backpack dropped)
