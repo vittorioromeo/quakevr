@@ -1482,3 +1482,17 @@ them); an armed grunt's thunderbolt is a stream (no shot event).
   [count] [material]`: on what you look at, as `material` if given; prints `gunfx impact <kind> on <material>
   (<texture>) dust .. sparks .. chips .. haze ..`). Strips: kit `scratch/gunfx/after_impact_*.png`, `after_ozone_*`
   (the tree's `scratch/impshots.py`).
+- Tests: gunfx_test.py 27/28 (player 16/16; armed grunts 9/10: the rocket launcher's grunt fired no judged shot in
+  that run, wid 10, AI spread or a real miss: rerun `--only armed`; grunt 1/1, enforcer 1/1).
+- Left for the next worker (out of budget): merge origin/next (10 commits behind) and rebuild; the covering suites
+  vs baseline.tsv (collectfx, shot_shape, reload_gunshape, console nail_1: run_baseline.py needs Misc/quakevr/qvrtest.py,
+  absent here, so run `Misc/release/run_test_suite.py gunfx --only ...` instead); the A/B bench (scripts ready:
+  the tree's `scratch/build_ab.sh` builds origin/next and this branch ThinLTO into scratch/benchA|B, then
+  `scratch/ab_bench.sh gfx ABBAABBAAB combat_48,play_gore_fight`; play_gore_fight is the super nailgun scenario);
+  his VR notes of 2026-10-30 12:06-12:22: (1) a few muzzle sparks per shot for every shell/nail gun he can see
+  (check the player's sparks reach the drawn muzzle and are not hidden by the flash model); (2) a turbulent frontal
+  cone synced with the flash for all guns (smokeCone is the start: more forward, less rise); (3) nail pistol smoke
+  from its side vents (model anchors), out and up, light; (4) rocket launcher rear exhaust, vent smoke facing the
+  player, a turbulent cone out of the back, AD's enemy launcher's tube too; (5) persistent thin ribbon wisps per
+  barrel after firing stops (shotgun 1, SSG and nailgun 2), following the muzzles for seconds, with fade, thickness
+  and persistence settings.
