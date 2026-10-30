@@ -27,6 +27,36 @@ namespace qvr
 #include "vr_cvars.inc"
 #undef QVR_CVAR
 
+#ifdef QVR_TUNING
+#define QVR_TUNABLE(name, def) cvar_t name = {#name, def, CVAR_ARCHIVE};
+#include "vr_tunables.inc"
+#undef QVR_TUNABLE
+#else
+// The tuning constants' stand-in cvars, by name (tunableFind: the QC's cvar() and cvar_hmake read them). Never
+// registered, never set; the last entry an end marker (the list can be empty).
+cvar_t tunableStandIns[] = {
+#define QVR_TUNABLE(name, def) {#name, def, CVAR_NONE, tunableValue(def)},
+#include "vr_tunables.inc"
+#undef QVR_TUNABLE
+    {nullptr, nullptr, CVAR_NONE, 0.f},
+};
+#endif
+
+const cvar_t* tunableFind(const char* name)
+{
+#ifndef QVR_TUNING
+    for(const cvar_t& var : tunableStandIns)
+    {
+        if(var.name && !q_strcasecmp(var.name, name))
+        {
+            return &var;
+        }
+    }
+#endif
+    (void)name;
+    return nullptr;
+}
+
 cvar_t vr_backend = {"vr_backend", "openxr", CVAR_NONE}; // not saved: "mock" is for testing sessions
 
 namespace
@@ -980,6 +1010,20 @@ void registerCvars()
 #define QVR_CVAR(name, def, flags) Cvar_RegisterVariable(&name);
 #include "vr_cvars.inc"
 #undef QVR_CVAR
+#ifdef QVR_TUNING
+#define QVR_TUNABLE(name, def) Cvar_RegisterVariable(&name);
+#include "vr_tunables.inc"
+#undef QVR_TUNABLE
+#else
+    // (a constant's compile-time value is the one its cvar had: Q_atof of its default; a difference is a bug here)
+    for(const cvar_t& var : tunableStandIns)
+    {
+        if(var.name && var.value != Q_atof(var.string))
+        {
+            Con_Printf("VR: tuning constant %s: %.9g, not %.9g\n", var.name, var.value, Q_atof(var.string));
+        }
+    }
+#endif
 
     Cvar_RegisterVariable(&vr_backend);
     Cmd_AddCommand("vr_migrate_config", migrateConfig_f);
@@ -1191,8 +1235,17 @@ extern "C" const char* VR_CvarAlias(const char* name)
     return nullptr;
 }
 
+extern "C" const cvar_t* VR_TunableFind(const char* name)
+{
+    return qvr::tunableFind(name);
+}
+
 extern "C" int VR_RetiredCvar(const char* name)
 {
+    if(qvr::tunableFind(name))
+    {
+        return 1; // a tuning constant now (vr_tunables.inc): an old config's line for it is ignored
+    }
     for(const char* retired : retiredCvars)
     {
         if(!q_strcasecmp(name, retired))

@@ -549,6 +549,7 @@ void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile
 void VR_ConfigWritten (const char *path);				// and after writing it
 int VR_ConfigSaves (const struct cvar_s *var);			// Cvar_WriteVariables, an archived cvar: nonzero if the config gets its line (a vr_ one only if changed from its default)
 void VR_ScenarioConfigWrite (int begin);			// around Cvar_WriteVariables: a test scene's settings written as they were before it (vr_scenario.cpp)
+const struct cvar_s *VR_TunableFind (const char *name);	// Cvar_VariableValue/String, a name not found: a tuning constant's stand-in (vr_tunables.inc), or NULL
 int VR_RetiredCvar (const char *name);					// Cmd_ExecuteString, an unknown name: nonzero if it is a removed Quake VR setting (a config's stale line, ignored quietly)
 const char *VR_CvarAlias (const char *name);			// Cvar_FindVar, a name not found: a renamed setting's new name (vr_slipgates: vr_teleporters), or NULL
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
