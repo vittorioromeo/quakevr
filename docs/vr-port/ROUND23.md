@@ -2147,7 +2147,7 @@ peak to rest), all absolute; globally the Programmatic Recoil switch and one Rec
   28/0, nail_1 7/0 as the baseline; recoil 69/0 (was 9/0: checks added); reload_front 33/1 as on this branch before
   (above: not this change). Menu paths 0 missing.
 - **A/B bench** (the rerun the kick cancel asked for; combat_48, ABBAABBAAB, ThinLTO, exclusive; A = origin/next
-  9c5866271's parent side, B = this branch with the kick cancel and these units; `scratch/ab_run.sh`, labels
+  158faf89e, B = this branch (9c5866271) with the kick cancel and these units; `scratch/ab_run.sh`, labels
   `dekick2_*`): frame p50 11.11 ms every run; cpu A 3.22, 3.33, 2.59, 2.47, 2.50 (median 2.59), B 2.41, 3.24, 2.56,
   2.87, 3.05 (median 2.87). The spread is the hitches: the runs with p99 over 13 ms (A 1, 4; B 3, 7, 10: 2.87-3.33 ms
   cpu) are the slow ones on both sides; the clean runs (p99 under 11.3 ms) are A 2.47-2.59 (mean 2.52) and B 2.41-2.56
