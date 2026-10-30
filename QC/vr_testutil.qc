@@ -86,6 +86,7 @@ void() VR_TestsFrame =
     VR_DCTest_Frame(); // VR: the weapons' damage credit test (vr_dmgcredit_test, vr_dmgcredit_test.qc)
     VR_AGTest_Frame(); // VR: the armed grunts' tests (vr_agrunt_test, vr_armedgrunt_test.qc)
     VR_Dummy_TestFrame(); // VR: the training dummy's tests (vr_dummy_test, vr_dummy.qc)
+    VR_ImpTest_Frame(); // VR: every hit ladder on every material (vr_impact_qc_test, vr_impacts_test.qc)
     VR_Burn_TestFrame(); // VR: the burning tests (vr_burn_test, vr_burning.qc)
     VR_HotBlade_TestFrame(); // VR: the incandescent blades' tests (vr_hotblade_test, vr_hotblade.qc)
     VR_Shock_TestFrame(); // VR: lightning's lasting shock's test (vr_shock_hit_test, vr_shock.qc)

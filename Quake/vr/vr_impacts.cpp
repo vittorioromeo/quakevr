@@ -403,6 +403,15 @@ extern "C" void VR_ImpactTempEntity(int what, const float* pos)
     }
 }
 
+// PF_sound: a QC sound, printed under vr_debug_impacts ("impfx snd <ent> <channel> <sample> <volume 0-255> <attn>").
+extern "C" void VR_DebugImpactSound(int ent, int channel, const char* sample, int volume, float attenuation)
+{
+    if(qvr::vr_debug_impacts.value)
+    {
+        Con_Printf("impfx snd %d %d %s %d %.2f\n", ent, channel, sample, volume, attenuation);
+    }
+}
+
 // cl_tent.c CL_ParseBeam: a beam's ends.
 extern "C" void VR_ImpactBeam(const qmodel_s* model, int ent, const float* start, const float* end)
 {

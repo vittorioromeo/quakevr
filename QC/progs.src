@@ -162,6 +162,7 @@ vr_blade_test.qc
 world.qc
 vr_dummy.qc
 vr_dummy_test.qc
+vr_impacts_test.qc
 vr_motion.qc
 vr_highlights.qc
 vr_mg_world_test.qc
