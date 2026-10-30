@@ -27,6 +27,7 @@ float vr_agst_keep_beat;  // cvars before (put back at the end)
 float vr_agst_keep_first;
 float vr_agst_keep_parry;
 float vr_agst_keep_scale;
+float vr_agst_keep_armor; // vr_agarmor_rule (pinned 0: a plate under rule 1 stops case 13's whole blow)
 entity vr_agst_crate;
 
 // The case's name.
@@ -123,6 +124,7 @@ void() VR_AGST_End =
     cvar_set("vr_agrunt_strike_first", ftos(vr_agst_keep_first));
     cvar_set("vr_agrunt_parry", ftos(vr_agst_keep_parry));
     cvar_set("vr_timescale", ftos(vr_agst_keep_scale));
+    cvar_set("vr_agarmor_rule", ftos(vr_agst_keep_armor));
     VR_AGPT_Clear();
     p.flags = p.flags - (p.flags & FL_NOTARGET);
     p.vrbits0 = p.vrbits0 - (p.vrbits0 & QVR_VRBITS0_MAINHAND_GRABBING);
@@ -259,7 +261,7 @@ void(entity g, float c) VR_AGST_Strike =
         dmg = VR_AGST_Melee(g, bodyAt, normalize(b - a));
         float kept = 20 * cvar_hget(cvarh_vr_agrunt_parry_damage);
         // (Parried: the parry's share; else not cut: on its legs the melee's own damage, through its weapon into its chest
-        // more than a parry's (its chest may be armoured: vr_agarmor).)
+        // more than a parry's (its chest may be armoured: vr_agarmor; the test pins vr_agarmor_rule 0).)
         extra = sprintf(", %g damage (unparried %g, parried %g)", dmg, vr_agpt2_expect, kept);
         if(expectParry)
         {
@@ -306,7 +308,11 @@ void() VR_AGST_Frame =
             vr_agst_keep_first = cvar("vr_agrunt_strike_first");
             vr_agst_keep_parry = cvar("vr_agrunt_parry");
             vr_agst_keep_scale = cvar("vr_timescale");
+            vr_agst_keep_armor = cvar("vr_agarmor_rule");
             cvar_set("vr_agrunt_parry", "1");
+            // (The player's armour rule: a plate saves its share, the rest gets through (case 13's damage past a parry's);
+            // rule 1, shipped 2026-10-30, stops the whole hit while its pool lasts.)
+            cvar_set("vr_agarmor_rule", "0");
             p.flags = p.flags | FL_NOTARGET;
         }
         if(vr_agst_case >= VR_AGST_CASES)
