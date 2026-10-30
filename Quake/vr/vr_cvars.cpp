@@ -128,9 +128,7 @@ const DefaultChange defaultChanges[] = {
     {133, &vr_body_bracers, "1"},                    // 0
     {133, &vr_pbr_strength, "1"},                    // 2.5
     // (134 and 157: vr_foegrab_lift_classes's, retired for the monster groups' Lift.)
-    // 135: the biosuit glow as he tuned it (ROUND22.md, "VR Settings submenus merged").
-    {135, &vr_suit_glow, "1"},                       // 2
-    {135, &vr_suit_glow_light, "1"},                 // 2
+    // (135: the biosuit glow 1 -> 2, later back to 1 with no row: its rows did nothing, dropped; 216 moves a 2 to 1.)
     // 136: the bullet-time throw is the stroke's tempo's alone (ROUND22.md, "Bullet-time throws: the stroke's tempo
     // only"): the older rules' settings are retired (retiredCvars), nothing here to change.
     // 137: the neck snap measured by the hand line only (Velocity and its Twist Speed gone), at the author's values ("I
@@ -188,7 +186,6 @@ const DefaultChange defaultChanges[] = {
     // his fall values ("direction and fall basically perfect (I tweaked some fall values)").
     {146, &vr_legsweep_min_length, "50"},           // 35
     {146, &vr_legsweep_min_slender, "4"},           // 2
-    {146, &vr_legsweep_topple, "200"},              // 180
     {146, &vr_legsweep_feet, "0.5"},                // 0.4
     // 147: the firing range's kinds' limbs made at its load, not in play (ROUND22.md, "Mid-game model loads"): ten
     // ~8 ms frames for each kind a dispenser or a dummy first makes.
@@ -205,7 +202,6 @@ const DefaultChange defaultChanges[] = {
     {148, &vr_legsweep_speed, "1.5"},        // 3.25
     {148, &vr_legsweep_topple, "180"},       // 200
     {148, &vr_mirror_hide_hud_text, "0"},    // 1
-    {148, &vr_parallax_plane, "0"},          // 1
     {148, &vr_relight_reload, "1"},          // 0
     // 149: his holster zones, positions, sizes and depths (2026-10-17: "I've tweaked all the holster positions and
     // sizes and depths. Make all the values the new defaults"), and the shoulder holsters' reach.
@@ -342,7 +338,6 @@ const DefaultChange defaultChanges[] = {
     {169, &vr_kdtrig_thrown_speed, "200"}, // 160
     {169, &vr_kdtrig_thrown_least, "0.4"}, // 0.05
     {169, &vr_kdtrig_thrown_push, "1"},    // 2
-    {169, &vr_kdtrig_tackle_on, "1"},      // 0
     {169, &vr_kdtrig_tackle_bump, "60"},   // 100
     // 170: the pouch gives taped shell pairs by default (1.1 balance: manual reloading made ogres tanky; ROUND22.md,
     // "1.1 pacing: shell pairs, big monsters' health"). A config at the old default (off) takes it.
@@ -499,7 +494,6 @@ const DefaultChange defaultChanges[] = {
     {202, &vr_flail_chain, "0.45"},                 // 0.6
     {202, &vr_water_foam_particle_life, "0.8"},     // 0.4
     {202, &vr_water_foam_particle_shore, "0"},      // -1
-    {202, &vr_water_foam_particle_spray, "1"},      // 0
     {202, &vr_adgun_tank_health, "30"},             // 15
     {202, &vr_bullettime_duration, "20"},           // 15
     {202, &vr_struggle_look, "0.9"},                // 1
@@ -532,7 +526,12 @@ const DefaultChange defaultChanges[] = {
     {209, &vr_revolver_spin_speed, "0.5"},           // 0.8
     {214, &vr_agrunt_shove, "2"},                    // 1 (guns only; it shipped with 2 for a few hours)
     {215, &vr_nailpistol_speed, "2600"},             // 3070 (nails 18% faster)
-    {216, &vr_agarms_clavicle, "0.35"},              // 0.6 (vr_rig2_clavicle's, merged: its effective value)
+    // 216: rows that did nothing (135's suit glow, 146's topple: their defaults went back without a row) dropped, and
+    // a config still at those passing values takes today's (round 23, his decision D2).
+    {216, &vr_suit_glow, "2"},                       // 1
+    {216, &vr_suit_glow_light, "2"},                 // 1
+    {216, &vr_legsweep_topple, "180"},               // 200
+    {217, &vr_agarms_clavicle, "0.35"},              // 0.6 (vr_rig2_clavicle's, merged: its effective value)
     {209, &vr_revolver_spin_friction, "720"},        // 760
     {209, &vr_revolver_spin_max, "1800"},            // 900
     {209, &vr_revolver_hand_reach, "3"},             // 0.25
@@ -598,8 +597,9 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // Pistol, Launcher, Sprayer and Laser Cannon keys): the archived keys equal to them dropped, after 211's migration)
 // 214: vr_agrunt_shove 2 -> 1 (only humanoids with guns shove by default)
 // 215: vr_nailpistol_speed 2600 -> 3070 (round 23: every nail 18% faster; the nailgun's vr_nail_speed new, 2065)
-// 216: vr_agarms_clavicle 0.35 -> 0.6 (vr_rig2_clavicle merged into it at the value both armed rigs used: refactor C1)
-constexpr int configVersion = 216;
+// 216: vr_suit_glow(_light) 2 -> 1, vr_legsweep_topple 180 -> 200 (the no-op rows 135, 146 and 169 dropped)
+// 217: vr_agarms_clavicle 0.35 -> 0.6 (vr_rig2_clavicle merged into it at the value both armed rigs used: refactor C1)
+constexpr int configVersion = 217;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -1082,6 +1082,27 @@ constexpr const char* retiredCvars[] = {
     "vr_rig2_clavicle",
     "vr_rig2_arm_clear",
     "vr_rig2_arm_limits",
+    // 2026-10-30 (round 23, his decision D1: the old sides of the A/B switches removed, his config on the new side of
+    // every one): each now always as its default was.
+    "vr_torso_mode",                  // the torso mostly the head's (0: the old engine's, towards the hands)
+    "vr_ragdoll_active_stagger_walk", // a shoved monster's backpedal walked (0: the old glide)
+    "vr_ragdoll_posed_arms",          // an armed ragdoll starts with its posed arms (0: its frame's)
+    "vr_box3d_hulls_ahead",           // the props' hulls built ahead on the pool (0: in the sync; 2: compared)
+    "vr_struggle",                    // held knockdowns struggle as their monster group says (0: none at all)
+    "vr_gore_wash_once",              // a wash takes each texel once (0: the triangles' edges two or three times)
+    "vr_decap_own_motion",            // a beheaded body keeps its own motion (0: not carried)
+    "vr_limbs_blast",                 // explosions pop limbs (vr_limbs_blast_chance 0: none)
+    "vr_water_foam_particle_spray",   // the shore's foam particles rising puffs (1: the spray, never shipped on)
+    "vr_water_foam_particle_retro",   // (the spray's retro look)
+    "vr_snd_antialias",               // the voices anti-aliased before Quake's 11 kHz lowpass (0: folded)
+    "vr_particle_halfres_dense",      // half resolution also in the densest frames (0: full there)
+    "vr_parallax_plane",              // the world at its relief's bottom (0: at its top, carved down)
+    "vr_parallax_depth_split",        // the depth write only on relief near the eye (0: everywhere)
+    "vr_magholster_chain_sim",        // the tether simulated (0: the old chain through the world)
+    "vr_2h_grip_edge",                // a two-handed grip only as the grip closes there (0: a closed fist moved on)
+    "vr_toolgun_physgun_ragdoll",     // the physgun holds a ragdoll on a spring (0: its entity dragged)
+    "vr_autopump",                    // the shotgun's auto pump (0: none, the shell after 0.22 s)
+    "vr_ad_death_precache",           // AD's death assets precached early outside AD (0: at first use)
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

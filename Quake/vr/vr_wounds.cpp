@@ -1702,7 +1702,7 @@ void washUnder(int layer, entity_t* e, float surface, float amount)
         return;
     }
     begin();
-    const bool once = vr_gore_wash_once.value != 0.f && ensureWashStencil();
+    const bool once = ensureWashStencil(); // (no stencil: as many times as drawn)
     if(once)
     {
         GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, washStencil, 0);

@@ -7,7 +7,7 @@
 //   is (holstered, held, lying about, flying back), a stub of it hanging at its holster while the weapon is away; a
 //   tether, a chain from the holster to the weapon whenever it is out of it (held too), however far (links up to
 //   vr_magholster_chain_lod along it, a plain line on from there), simulated as a chain of points lying on and wrapping
-//   round the world (vr_verlet.hpp, the grappling hook rope's steps; vr_magholster_chain_sim); or both. Their end at the
+//   round the world (vr_verlet.hpp, the grappling hook rope's steps); or both. Their end at the
 //   holster moved by vr_magholster_chain_x/y/z and each kind's.
 //   The flashlight's chain (vr_coil.cpp, rigid: iron that keeps its length), its links sized by
 //   vr_magholster_chain_size, lit and depth-tested in each eye's opaque scene, see-through below

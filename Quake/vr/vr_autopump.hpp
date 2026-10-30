@@ -5,7 +5,7 @@
 // the fore-end reaches the back (vr_shells.cpp waits for it), with a light tick in the hand and a mechanical clack at
 // each end of the stroke.
 //
-// Game time (cl.time): slowed with the world in bullet time, the same at any frame rate. vr_autopump (on), _delay (from
+// Game time (cl.time): slowed with the world in bullet time, the same at any frame rate. vr_autopump_delay (from
 // the shot to the stroke's start, 0.15 s), _time (the whole stroke, 0.3 s: back in its first 35%, a moment at the back,
 // forward), _travel (2.5 model units), _sound,
 // _haptics; Weapons > Weapon Effects. vr_autopump_hold 0..1 holds every shotgun's fore-end at that point of the stroke

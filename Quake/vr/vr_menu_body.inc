@@ -104,12 +104,10 @@ const char* bodytrackAvailability(int)
             .help("Below this confidence the tracking eases out to the guessed body."),
         slider("Smoothing", vr_bodytrack_smooth, 0.f, 0.2f, 0.01f, "%.2f s").help("How long the tracked joints are smoothed over."),
         header("Torso Direction"),
-        cycle("Torso Follows", vr_torso_mode, {{1.f, "Mostly the head"}, {0.f, "The hands (old)"}})
-            .help("Nothing tracks your torso: it is guessed. Mostly the head: it faces where your head has been facing, "
-                  "the hands pulling it a little, only those in front of you (not one behind your back or far off to a "
-                  "side); old: four fifths of the way towards the hands, wherever they are."),
         slider("Head Weight", vr_torso_head, 0.f, 5.f, 0.1f, "%.1f")
-            .help("The torso faces a weighted mean of directions. This one: where your head faces now."),
+            .help("Nothing tracks your torso: it is guessed, mostly from where your head has been facing, the hands "
+                  "pulling it a little (only those in front of you). It faces a weighted mean of directions. This one: "
+                  "where your head faces now."),
         slider("Head History Weight", vr_torso_head_history, 0.f, 5.f, 0.1f, "%.1f")
             .help("Where your head has faced lately: higher, a glance turns the torso less (and a turn follows later)."),
         slider("Head History Span", vr_torso_head_lag, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 5.f)

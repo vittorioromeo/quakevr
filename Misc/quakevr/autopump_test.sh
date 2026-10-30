@@ -5,7 +5,7 @@
 #   1. at 72 and 120 Hz (vr_fixed_frames_rate): the shell leaves in the frame the stroke reaches the back (within 15 ms of
 #      it), the stroke home on time (0.3 s), long before the shotgun can fire again (0.5 s);
 #   2. in bullet time at 0.25x: the same game times, four times as long in real time (the stroke is game time);
-#   3. Auto Pump off: no stroke, the shell 0.22 s after the shot as before;
+#   (3. Auto Pump off went with vr_autopump in round 23.)
 #   4. the off hand's shotgun (mirrored): the same;
 #   5. the delay (vr_autopump_delay 0.15; the author's note, 2026-10-08 13:58): the stroke starts 0.15 s after the shot,
 #      home by 0.45 s; Delay 0 starts it with the shot; a long stroke (0.45 s) cuts the delay to 0.03 s (home by 0.48);
@@ -51,13 +51,6 @@ echo "  bullet time: game $s -> $h, real $sr -> $hr"
 # (The start line's real time is the shot's: the delay and the stroke, 0.45 s of game time, four times that in real time.)
 check $(awk -v s="$s" -v h="$h" -v t="$shot" -v sr="$sr" -v hr="$hr" 'BEGIN { g = h - t; r = hr - sr; print (s != "" && h - s < 0.32 && r > 3.5 * g && r < 4.5 * g) ? 1 : 0 }') "bullet time 0.25x: the stroke takes 0.3 s of game time, it and the delay four times their game time in real time"
 check $(awk -v e="$e" -v bd="$bd" 'BEGIN { print (e != "" && e >= bd && e - bd < 0.015) ? 1 : 0 }') "bullet time: the shell leaves at the back"
-
-log=$(run "$SETUP;vr_autopump 0;vr_debug_weaponfx 1;+attack;wait3;-attack;wait90")
-f=$(echo "$log" | awk '/weaponfx fired/ { print $4; exit }')
-e=$(echo "$log" | awk '/shells eject/ { print $6; exit }')
-echo "  off: shot $f, shell $e"
-check $(echo "$log" | grep -q "^autopump hand" && echo 0 || echo 1) "Auto Pump off: no stroke"
-check $(awk -v f="$f" -v e="$e" 'BEGIN { d = e - f; print (f != "" && e != "" && d >= 0.2195 && d < 0.24) ? 1 : 0 }') "Auto Pump off: the shell 0.22 s after the shot, as before"
 
 log=$(run "$SETUP;vr_test_weaponinst 7;impulse 120;wait3;vr_mock_hand off -0.15 1.2 -0.45 70 0 0;vr_mock_hand main 0.3 1.0 -0.2 0 0 0;wait10;vr_debug_weaponfx 1;+offhandattack;wait3;-offhandattack;wait90")
 read s sr b br bd h hr hd e shot <<< "$(stroke "$log")"

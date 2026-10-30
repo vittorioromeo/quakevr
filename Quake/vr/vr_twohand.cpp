@@ -175,7 +175,7 @@ FreeGrip freeGrips[2];
 bool freeCandidate[2]{false, false}; // the view's (setFreeCandidate), at candidateTime
 double candidateTime[2]{-1.0, -1.0};
 bool grabWas[2]{false, false};
-bool gripArmed[2]{false, false};       // each hand's grip closed on a two-handed hotspot (applyHotspots: vr_2h_grip_edge)
+bool gripArmed[2]{false, false};       // each hand's grip closed on a two-handed hotspot (applyHotspots)
 bool gripRefusedSaid[2]{false, false}; // vr_debug_2h_grip: a closed fist on a hotspot reported
 double grabStart[2]{-1.0, -1.0}; // when each hand last started gripping
 double carryLast[2]{-1.0, -1.0}; // the last frame each hand carried a weapon
@@ -819,7 +819,7 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     const bool goodDot = cup || dotNeed <= -1.f || glm::dot(handDir, lineAxis) > dotNeed;
 
     // A grip takes hold only closed on the weapon (the author: a fist moving onto a two-handed hotspot must not attach;
-    // vr_2h_grip_edge): its rising edge with the hand there then arms it, until it opens. Held, it keeps hold as before.
+    // round 23 dropped the old way, vr_2h_grip_edge 0): its rising edge with the hand there then arms it, until it opens. Held, it keeps hold as before.
     if(!client::grabbing(helping))
     {
         gripArmed[helping] = false;
@@ -828,10 +828,10 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     {
         gripArmed[helping] = goodDistance && goodDot;
     }
-    const bool edgeOk = wasHeld || !vr_2h_grip_edge.value || gripArmed[helping];
+    const bool edgeOk = wasHeld || gripArmed[helping];
     if(vr_debug_2h_grip.value && !wasHeld && canGrab && goodDistance && goodDot && !edgeOk && !gripRefusedSaid[helping])
     {
-        Con_Printf("2h grip: %s hand on the grip already closed: no hold (vr_2h_grip_edge)\n",
+        Con_Printf("2h grip: %s hand on the grip already closed: no hold\n",
             helping == HAND_MAIN ? "main" : "off");
     }
     gripRefusedSaid[helping] = !wasHeld && canGrab && goodDistance && goodDot && !edgeOk;

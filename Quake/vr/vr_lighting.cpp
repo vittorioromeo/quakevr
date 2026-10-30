@@ -2510,18 +2510,19 @@ extern "C" void VR_PushMapLights(void)
     // bounds it in the world's depth pre-pass: glprogs.world_depth_pdo).
     // 2: and drawn as that depth (vr_parallax_debug).
     r_framedata.parallax2[3] = parallax && vr_parallax_depth_write.value != 0.f ? (vr_parallax_debug.value != 0.f ? 2.f : 1.f) : 0.f;
-    // Where the world's polygons sit in the relief (vr_parallax_plane): 0 at its top (carved down), 1 at its bottom
-    // (raised over them), so props resting on a polygon over deep relief sit in it, not over it (round 22).
-    r_framedata.parallax3[0] = parallax ? za::clamp(vr_parallax_plane.value, 0.f, 1.f) : 0.f;
+    // Where the world's polygons sit in the relief: at its bottom (raised over them; never below a texture's average
+    // height: ParallaxUV), so props resting on a polygon over deep relief sit in it, not over it (round 22; its setting,
+    // vr_parallax_plane, 0 at the top as before, retired in round 23 at its default 1).
+    r_framedata.parallax3[0] = parallax ? 1.f : 0.f;
     // The depth write's split (r_world.c: R_DrawSolidSplit): how far ahead of the eye (view depth, units) the world's
     // relief writes its depth; beyond, and on textures without relief, the plain programs, which the driver still
     // tests early against the pre-pass's depth. Its most: where the parallax ends (no reach beyond: the same depth).
-    // 0: no split (the depth write off, its debug view, or vr_parallax_depth_split 0).
+    // 0: no split (the depth write off, or its debug view).
     const float pdoReach = vr_parallax_depth_distance.value > 0.f
                                ? za::min(vr_parallax_depth_distance.value, r_framedata.parallax[1])
                                : r_framedata.parallax[1];
     r_framedata.parallax3[1] =
-        r_framedata.parallax2[3] == 1.f && vr_parallax_depth_split.value != 0.f ? za::max(pdoReach, 16.f) : 0.f;
+        r_framedata.parallax2[3] == 1.f ? za::max(pdoReach, 16.f) : 0.f;
     // Specular anti-aliasing: how much the sheen's lobe widens by the bumps under a pixel (0 off).
     r_framedata.parallax[3] = za::clamp(vr_specular_aa.value, 0.f, 4.f);
     r_framedata.shadowbias = za::max(0.f, vr_shadow_bias.value);

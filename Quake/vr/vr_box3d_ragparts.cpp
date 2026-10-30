@@ -717,7 +717,7 @@ void releaseRagdoll(edict_t* player, int hand, const glm::vec3& velocity)
             glm::length(glmv(b3Body_GetLinearVelocity(part))) * world->m2u, speed * world->m2u);
     }
 }
-// ---- The physgun's hold (vr_toolgun.cpp; vr_toolgun_physgun_ragdoll) ----
+// ---- The physgun's hold (vr_toolgun.cpp) ----
 // The toolgun's physgun drags a ragdoll as a hand holds a limb, not by its entity's origin (moved, the body would be
 // set there whole each frame it strayed 32 units from it: feedRagdoll's teleport, the jitter and jumps of his note
 // 2026-10-18): a kinematic anchor at the beam's point, driven to it each step (b3Body_SetTargetTransform: a velocity,
@@ -1439,12 +1439,11 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
     else
     {
         // (A corpse's: its own motion as it lies or falls; the frame's knocks reach it after, feedRagdoll.)
-        const bool own = vr_decap_own_motion.value != 0.f;
         for(int b = 0; b < r->count; b++)
         {
             const b3BodyId body = r->body[static_cast<za::SizeT>(b)];
-            r->ownLin[static_cast<za::SizeT>(b)] = own && !partCut(*r, b) ? glmv(b3Body_GetLinearVelocity(body)) : glm::vec3{0.f};
-            r->ownAng[static_cast<za::SizeT>(b)] = own && !partCut(*r, b) ? glmv(b3Body_GetAngularVelocity(body)) : glm::vec3{0.f};
+            r->ownLin[static_cast<za::SizeT>(b)] = !partCut(*r, b) ? glmv(b3Body_GetLinearVelocity(body)) : glm::vec3{0.f};
+            r->ownAng[static_cast<za::SizeT>(b)] = !partCut(*r, b) ? glmv(b3Body_GetAngularVelocity(body)) : glm::vec3{0.f};
         }
     }
     const int b = r ? (bone < 0 ? r->rig->head : bone) : -1;
@@ -1955,11 +1954,11 @@ bool monsterHead(const char* model)
 float headPropMass(const char* model)
 {
     // As a head cut off its ragdoll (limbPiece, then the QC's VR_Limb_SetMass): the class's mass times the head's
-    // share (every rig's head and jaw: headShare) times vr_limbs_mass_scale. Its scale 0 (cut pieces weighed by their
-    // volume): 0, estimated as well.
+    // share (every rig's head and jaw: headShare) times vr_limbs_mass_scale (at least 0.05: its 0, the pieces weighed by
+    // their volume as before, retired in round 23).
     const RagdollClass* c = headClass(model);
-    const float scale = vr_limbs_mass_scale.value;
-    if(!c || scale <= 0.f)
+    const float scale = za::max(vr_limbs_mass_scale.value, 0.05f);
+    if(!c)
     {
         return 0.f;
     }

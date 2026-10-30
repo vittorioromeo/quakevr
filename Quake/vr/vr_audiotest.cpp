@@ -1841,9 +1841,7 @@ za::Vector<float> goldenMix(const za::Vector<Loaded>& sounds, float rate, int fu
     f.rate = rate;
     f.fullBand = fullBand >= 1;
     const float savedFullBand = vr_snd_fullband.value;
-    const float savedAntiAlias = vr_snd_antialias.value;
     Cvar_SetValueQuick(&vr_snd_fullband, static_cast<float>(fullBand));
-    Cvar_SetValueQuick(&vr_snd_antialias, 1.f);
     const Listener lis = centred();
     AntiAlias aa;
     za::Vector<float> mixL(Mixer::maxSamples, 0.f), mixR(Mixer::maxSamples, 0.f);
@@ -1890,7 +1888,6 @@ za::Vector<float> goldenMix(const za::Vector<Loaded>& sounds, float rate, int fu
         }
     }
     Cvar_SetValueQuick(&vr_snd_fullband, savedFullBand);
-    Cvar_SetValueQuick(&vr_snd_antialias, savedAntiAlias);
     return out;
 }
 

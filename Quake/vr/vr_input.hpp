@@ -39,6 +39,9 @@ void roomscaleJump(const hands::State& s);
 // times how much the sticks move and turn you), for the eyes' post-process.
 [[nodiscard]] float comfortVignette();
 
+// A stick's axis past vr_deadzone (its inner %), rescaled from 0 there to 1 (the menus', turning's, the toolgun's).
+[[nodiscard]] float stickAxis(float v);
+
 // svc_quakevr QVR_SVC_HAPTIC (vr_client.cpp dispatches it).
 void parseHaptic();
 

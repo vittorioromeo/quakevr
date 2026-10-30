@@ -663,7 +663,6 @@ float cvarh_vr_limbs_zombies;
 float cvarh_vr_limbs_chance_scale;
 float cvarh_vr_decap_chance_scale;
 float cvarh_vr_limbs_body_speed;
-float cvarh_vr_limbs_blast;
 float cvarh_vr_limbs_blast_radius;
 float cvarh_vr_limbs_blast_chance;
 float cvarh_vr_gib_limbs;
@@ -1939,7 +1938,6 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_limbs_chance_scale);
     VR_CVAR_HMAKE(vr_decap_chance_scale);
     VR_CVAR_HMAKE(vr_limbs_body_speed);
-    VR_CVAR_HMAKE(vr_limbs_blast);
     VR_CVAR_HMAKE(vr_limbs_blast_radius);
     VR_CVAR_HMAKE(vr_limbs_blast_chance);
     VR_CVAR_HMAKE(vr_gib_limbs);

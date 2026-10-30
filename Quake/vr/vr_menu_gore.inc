@@ -180,10 +180,6 @@
         slider("Flying Head's Fountain", vr_limbs_end_fountain, 0.f, 4.f, 0.25f, "%.2f s").extend(0.f, 20.f)
             .help("How long the neck of a head cut off spurts a smaller fountain as it flies (and the cut end of a limb: "
                   "Limb Gore's Cut End Fountain, the same setting) (0: none) (vr_limbs_end_fountain)."),
-        toggle("Keeps Its Own Motion", vr_decap_own_motion)
-            .help("A beheaded (or popped) monster's headless body goes on as it was moving (running at you: it stumbles on "
-                  "towards you) in full; a pop slows only the shot's knock (Body's Speed After a Pop). Off: as before: its "
-                  "run not carried, a pop slowing all of it (vr_decap_own_motion)."),
         header("What Beheads"),
         toggle("Corpses", vr_decap_corpses)
             .help("A slash at a ragdoll's (or a dying body's) head cuts it off instead of hurting the corpse: it never "
@@ -319,11 +315,11 @@
                   "loads (about 5 ms each: a tenth of a second or so more), not at their first cut (a dropped frame). And the "
                   "Range's: also every kind the firing range's dispensers and dummies can make (half a second more there, "
                   "once a session). The next map load (vr_limbs_prebuild)."),
-        slider("Limb Weight", vr_limbs_mass_scale, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+        slider("Limb Weight", vr_limbs_mass_scale, 0.05f, 3.f, 0.05f, "%.2fx").extend(0.05f, 10.f)
             .help("A limb (or head) cut off weighs its share of its monster's ragdoll Mass by the kind of limb: a whole arm "
                   "6.3%, a forearm and hand 2.8%, a hand 0.8%, a whole leg 15.5%, a shin and foot 6%, the head 7% (four "
                   "legs share two legs' weight, six arms two arms'; a tail its share of the body's volume), times this; "
-                  "held and thrown as that. 0: its model's volume of flesh, as before (vr_limbs_mass_scale)."),
+                  "held and thrown as that (vr_limbs_mass_scale)."),
         slider("Cut End Fountain", vr_limbs_end_fountain, 0.f, 4.f, 0.25f, "%.2f s").extend(0.f, 20.f)
             .help("How long the cut end of a limb (or a head's neck) spurts a smaller fountain of its own as it flies, "
                   "dying away (the stump's: Decapitation > Fountain) (0: none) (vr_limbs_end_fountain)."),
@@ -331,12 +327,10 @@
             .help("An enforcer's laser bolt that kills with a head or limb hit (an enemy's into another monster, or your "
                   "enforcer's rifle) pops it at this chance (times Head or Limb Chance) (vr_decap_pop_laser)."),
         header("Explosions and Gibbing"),
-        toggle("Explosions Pop Limbs", vr_limbs_blast)
-            .help("An explosion pops the limbs near it by chance: a monster it kills falls as a ragdoll without them instead "
-                  "of bursting into gibs (if none popped: gibbed as before); corpses lose them too. Off: as before "
-                  "(vr_limbs_blast)."),
         slider("Explosion Reach", vr_limbs_blast_radius, 16.f, 256.f, 8.f, "%.0f units").extend(1.f, 1000.f)
-            .help("Limbs this near the blast may pop (vr_limbs_blast_radius)."),
+            .help("An explosion pops the limbs near it by chance: a monster it kills falls as a ragdoll without them instead "
+                  "of bursting into gibs (if none popped: gibbed as before); corpses lose them too. Limbs this near the "
+                  "blast may pop (vr_limbs_blast_radius)."),
         slider("Explosion Chance", vr_limbs_blast_chance, 0.f, 1.f, 0.05f, "%.2f")
             .help("A limb's chance at the blast itself, falling to none at the reach (times Limb Chance) "
                   "(vr_limbs_blast_chance)."),

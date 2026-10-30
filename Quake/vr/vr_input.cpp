@@ -948,6 +948,11 @@ void stickDebug(glm::vec2 raw)
 namespace qvr::input
 {
 
+float stickAxis(float v)
+{
+    return deadzone(v);
+}
+
 void init()
 {
     Cmd_AddCommand("vr_checkbindings", checkBindings_f);

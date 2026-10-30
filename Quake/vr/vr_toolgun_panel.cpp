@@ -315,16 +315,7 @@ void square(const Painter& p, float x0, float y0, float x1, float y1, float w, c
 
 [[nodiscard]] glm::vec4 toolColor(int tool)
 {
-    switch(static_cast<Tool>(tool))
-    {
-    case Tool::Spawn: return {0.3f, 0.9f, 1.f, 1.f};
-    case Tool::Remove: return {1.f, 0.3f, 0.2f, 1.f};
-    case Tool::Physgun: return {0.45f, 0.6f, 1.f, 1.f};
-    case Tool::Scale: return {1.f, 0.85f, 0.2f, 1.f};
-    case Tool::Joint: return {0.4f, 1.f, 0.4f, 1.f};
-    case Tool::Brush: return {1.f, 0.6f, 0.2f, 1.f};
-    default: return {0.9f, 0.85f, 0.75f, 1.f};
-    }
+    return qvr::toolgun::toolColor(static_cast<qvr::toolgun::Tool>(tool)); // (the beam's: one table)
 }
 
 // A tool's icon (the tools' count: More), about 14 pixels across round (cx, cy).
