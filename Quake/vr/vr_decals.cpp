@@ -225,6 +225,13 @@ long long bakedAtOnce = 0; // marks baked straight into the permanent layer (Mar
 // ---- The atlas ---------------------------------------------------------------------------------
 
 thread_local unsigned rngState = 12345u; // (the atlas is made on a worker thread, and by vr_decal_atlas)
+
+// The marks' own stream (a mark's turn, mirror and atlas cell; the main thread's): no longer the C library's rand,
+// which the engine's effects share, so how many particles a frame drew leaves the marks as they were. Its tests
+// restart it (markSeed) to make the same marks every run.
+za::U32 markState = 0x2545F491u;
+void markSeed(const za::U32 seed) { markState = seed != 0u ? seed : 1u; }
+[[nodiscard]] za::U32 markDraw() { return vrand::xorshift32(markState); }
 [[nodiscard]] float frand()
 {
     return vrand::lcg01(rngState);
@@ -1348,7 +1355,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     const glm::vec3 n = glm::normalize(normal);
     const glm::vec3 t0 = glm::normalize(glm::cross(n, za::fabs(n.z) < 0.9f ? glm::vec3{0, 0, 1} : glm::vec3{1, 0, 0}));
     const glm::vec3 t1 = glm::cross(n, t0);
-    const float ang = static_cast<float>(rand() % 6283) * 0.001f;
+    const float ang = static_cast<float>(markDraw() % 6283u) * 0.001f;
     glm::vec3 u = (t0 * za::cos(ang) + t1 * za::sin(ang));
     // Turned along `along` on the surface, if given (a spray's way, a run's down, a blade's groove).
     bool along = false;
@@ -1365,7 +1372,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
         if(const glm::vec3 lit = lightAlong(where, n); glm::dot(lit, lit) > 0.f)
         {
             v = lit;
-            u = glm::cross(v, n) * (rand() & 1 ? 1.f : -1.f);
+            u = glm::cross(v, n) * (markDraw() & 1u ? 1.f : -1.f);
         }
     }
     // Laid on the world's faces under it, cut where they end (an edge, a corner): over a wall's
@@ -1373,7 +1380,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     // its top where it is.
     const bool big = goreKind(kind);
     const float halfV = size * 0.5f, halfU = halfV * za::max(0.25f, o.aspect);
-    const int variant = o.variant >= 0 ? za::min(o.variant, cellCount[kind] - 1) : rand() % cellCount[kind];
+    const int variant = o.variant >= 0 ? za::min(o.variant, cellCount[kind] - 1) : static_cast<int>(markDraw() % static_cast<za::U32>(cellCount[kind]));
     Decal d{o.fromStart ? where + u * halfU : where, u * halfU, v * halfV, firstCell[kind] + variant, cl.time + o.delay};
     d.grow = o.grow;
     d.growFrom = za::clamp(o.growFrom, 0.f, 1.f);
@@ -1440,7 +1447,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
 
 [[nodiscard]] float random(float lo, float hi)
 {
-    return lo + (hi - lo) * static_cast<float>(rand() % 1000) * 0.001f;
+    return lo + (hi - lo) * static_cast<float>(markDraw() % 1000u) * 0.001f;
 }
 
 // ---- Carved holes and craters (vr_decal_carve) -------------------------------------------------
@@ -2514,9 +2521,9 @@ int stressMarks(int count, float size, Stress kind)
     const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
     const bool wall = kind == Stress::Wall || kind == Stress::Run;
     const bool pile = kind == Stress::Stack || kind == Stress::Cluster;
-    // The marks' turns and atlas cells (rand) the same each time: what else draws from it (as many times as frames
-    // came, or a chip somewhere) leaves them as they were
-    srand(stressSerial * 2654435761u + 1u);
+    // The marks' turns and atlas cells the same each time (their stream restarted): what else drew from it (as many
+    // times as frames came, or a chip somewhere) leaves them as they were
+    markSeed(stressSerial * 2654435761u + 1u);
     int made = 0;
     for(int i = 0; i < count; i++)
     {
@@ -2632,7 +2639,7 @@ void carveTest_f()
     carveTestCentre = centre;
     carveTestNormal = n;
     carveTestAcross = across;
-    srand(carveTestSerial * 2654435761u + 7u);
+    markSeed(carveTestSerial * 2654435761u + 7u);
     const auto at = [&](Impact kind, float a, float b) {
         const glm::vec3 p = centre + across * a + upward * b;
         glm::vec3 where, normal;
@@ -2794,13 +2801,13 @@ void at_f()
         Con_Printf("vr_decal_at: nothing there\n");
         return;
     }
-    // Its turn and cell from its arguments (rand: the same mark each run, whatever ran before it).
+    // Its turn and cell from its arguments (the marks' stream: the same mark each run, whatever ran before it).
     unsigned seed = 2166136261u;
     for(const char* c = Cmd_Args(); c && *c; c++)
     {
         seed = (seed ^ static_cast<unsigned char>(*c)) * 16777619u;
     }
-    srand(seed);
+    markSeed(seed);
     MarkOptions o;
     o.delay = Cmd_Argc() > 9 ? za::max(0.f, static_cast<float>(Q_atof(Cmd_Argv(9)))) : 0.f;
     const bool made = add(kind, where, normal, size, o);

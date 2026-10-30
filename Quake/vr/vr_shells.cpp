@@ -186,8 +186,7 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
 
 [[nodiscard]] bool inLiquid(const glm::vec3& p)
 {
-    const int c = worldtrace::liquidContents(p, true);
-    return c <= CONTENTS_WATER && c != CONTENTS_SKY;
+    return worldtrace::isLiquid(worldtrace::liquidContents(p, true));
 }
 
 [[nodiscard]] const Weapon* weaponFor(const qmodel_t* model)

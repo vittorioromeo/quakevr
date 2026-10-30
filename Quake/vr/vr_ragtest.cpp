@@ -398,8 +398,9 @@ bool fireCutHead(edict_t* t, Run&)
     return cut(t, 8.f);
 }
 
-[[nodiscard]] ragactive::Liquid liquidOf(int contents)
+[[nodiscard]] ragactive::Liquid liquidOf(int c)
 {
+    const int contents = worldtrace::liquidKind(c); // (a current: water)
     return contents == CONTENTS_WATER ? ragactive::Liquid::Water :
            contents == CONTENTS_SLIME ? ragactive::Liquid::Slime :
            contents == CONTENTS_LAVA  ? ragactive::Liquid::Lava :

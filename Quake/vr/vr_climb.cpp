@@ -1709,21 +1709,12 @@ constexpr float slipSink = 8.f; // units a second an exhausted body sinks, slipp
     return ent && vr_climb_stamina.value != 0.f && bindings().isVrProgs && f.vr_stamina_used >= 0 && f.vr_stamina_time >= 0;
 }
 
-[[nodiscard]] float staminaMax()
-{
-    return za::max(1.f, vr_parry_stamina_max.value);
-}
-
-// 0 .. staminaMax (staminaOn only).
-[[nodiscard]] float staminaLeft(edict_t* ent)
-{
-    return za::clamp(staminaMax() - fieldFloat(ent, fields().vr_stamina_used), 0.f, staminaMax());
-}
+// (The pool's size and what is left of it, 0 .. its size: the QC's, progs::staminaMax and staminaLeft.)
 
 // Too tired to start a hang: less left than a second's hang from one hand (it would let go at once).
 [[nodiscard]] bool tooTired(edict_t* ent)
 {
-    return staminaOn(ent) && staminaLeft(ent) < za::max(0.001f, vr_climb_stamina_rate.value);
+    return staminaOn(ent) && progs::staminaLeft(ent) < za::max(0.001f, vr_climb_stamina_rate.value);
 }
 
 // Tiring Warning (vr_parry_stamina_warn): the breath's volume and the buzz's strength, as the parry's.
@@ -1742,7 +1733,7 @@ void spendStamina(edict_t* ent, float amount)
 {
     const FieldOffsets& f = fields();
     float& used = fieldFloat(ent, f.vr_stamina_used);
-    used = za::min(staminaMax(), za::max(0.f, used) + za::max(0.f, amount));
+    used = za::min(progs::staminaMax(), za::max(0.f, used) + za::max(0.f, amount));
     fieldFloat(ent, f.vr_stamina_time) = static_cast<float>(qcvm->time); // (the rest counts from now: none comes back)
     if(f.vr_stamina_said >= 0)
     {
@@ -1826,7 +1817,7 @@ void hangStamina(edict_t* ent, Climber& c, double time)
     }
     const int hands = (c.grips[0].active ? 1 : 0) + (c.grips[1].active ? 1 : 0);
     const bool standing = feetSupported(ent);
-    const float before = staminaLeft(ent);
+    const float before = progs::staminaLeft(ent);
     if(!standing)
     {
         const float rate = za::max(0.f, hands > 1 ? vr_climb_stamina_rate_2h.value : vr_climb_stamina_rate.value);
@@ -1838,17 +1829,17 @@ void hangStamina(edict_t* ent, Climber& c, double time)
             staminaSound(ent, "player/gasp2.wav", 0.8f * staminaWarn()); // tiring (the QC's breath: VR_Stamina_Effort)
             if(debug())
             {
-                Con_Printf("climb: stamina low (%.1f left): the tiring breath\n", staminaLeft(ent));
+                Con_Printf("climb: stamina low (%.1f left): the tiring breath\n", progs::staminaLeft(ent));
             }
         }
         c.wasLow = low;
-        if(vr_climb_debug.value >= 2.f || (debug() && za::floor(before / 10.f) != za::floor(staminaLeft(ent) / 10.f)))
+        if(vr_climb_debug.value >= 2.f || (debug() && za::floor(before / 10.f) != za::floor(progs::staminaLeft(ent) / 10.f)))
         {
             Con_Printf("climbstamina %.4f %d hand%s: %.2f of %.0f left (-%.3f)%s\n", time, hands, hands > 1 ? "s" : "",
-                staminaLeft(ent), staminaMax(), before - staminaLeft(ent), low ? " low" : "");
+                progs::staminaLeft(ent), progs::staminaMax(), before - progs::staminaLeft(ent), low ? " low" : "");
         }
     }
-    if(standing || staminaLeft(ent) > 0.f)
+    if(standing || progs::staminaLeft(ent) > 0.f)
     {
         c.slipping = false;
         return;
@@ -2203,7 +2194,7 @@ static void climbPreThink(edict_t* ent)
             }
             if(debug())
             {
-                Con_Printf("climb: %s hand grips: too tired (%.1f stamina left)\n", handName(h), staminaLeft(ent));
+                Con_Printf("climb: %s hand grips: too tired (%.1f stamina left)\n", handName(h), progs::staminaLeft(ent));
             }
             continue;
         }

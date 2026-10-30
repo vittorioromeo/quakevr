@@ -58,6 +58,7 @@
 
 #include "vr_admelee.hpp"
 #include "vr_geom.hpp"
+#include "vr_trace.hpp"
 
 namespace box3d::detail
 {
@@ -205,12 +206,11 @@ namespace
 {
     vec3_t p{x, y, z};
     int contents = SV_HullPointContents(&sv.worldmodel->hulls[0], node, p); // (SV_PointContents' steps)
-    if(contents <= CONTENTS_CURRENT_0 && contents >= CONTENTS_CURRENT_DOWN)
+    if(worldtrace::isLiquid(contents))
     {
-        contents = CONTENTS_WATER;
+        contents = worldtrace::liquidKind(contents); // (a current: water)
     }
-    contents = VR_LiquidContents(sv.worldmodel, p, contents);
-    return contents <= CONTENTS_WATER && contents >= CONTENTS_LAVA;
+    return worldtrace::isLiquid(VR_LiquidContents(sv.worldmodel, p, contents));
 }
 } // namespace
 

@@ -21,6 +21,7 @@
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
+#include "vr_trace.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
@@ -998,13 +999,13 @@ void test_f()
             {
                 break;
             }
-            if(c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA)
+            if(worldtrace::isLiquid(c))
             {
                 for(float fine = 0.f; fine < 4.f; fine += 1.f)
                 {
                     vec3_t q{at.x, at.y, at.z - down + 4.f - fine};
                     const int cq = Mod_PointInLeaf(q, cl.worldmodel)->contents;
-                    if(cq == CONTENTS_WATER || cq == CONTENTS_SLIME || cq == CONTENTS_LAVA)
+                    if(worldtrace::isLiquid(cq))
                     {
                         at.z = q[2];
                         break;

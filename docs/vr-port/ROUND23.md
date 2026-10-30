@@ -940,3 +940,32 @@ as baseline.tsv except: ragdoll_grab "grab rag enforcer: no grab" FAIL in both r
 lanes); agrunt_86 (AI accuracy/reaction/retreat stats) 2 to 4 fails that change between runs; agrunt_11 a timeout in
 the second run only (passed in the first); agrunt_74 failed once (downtug 20/21), passed in the second. Better: 76 and
 rigstudio_aim pass, 63/71/72/ragtest one or more checks better.
+## Refactor wave C3: his rules applied (branch `agent/refrules`)
+
+- **D3, one liquid rule** (`worldtrace::liquidKind`/`isLiquid`, vr_trace.hpp; QC `VR_IsLiquid`, vr_util.qc): water,
+  slime and lava, a current is water, the sky never. Every site uses it, client leaf or server contents: blood streams
+  and gore (they counted the sky), bloodprints, shock, the water faces, view and leaves, wounds and haze (they missed
+  currents), avatar, particles, shells, knockdown, box3d, physics (its swim check counted the sky), scenario, the rope's
+  eye check, ragtest, propthink, the AD tank's probe; QC vr_grapple's swimmer (the sky was water there).
+- **D6, gameplay randomness from the server's seed**: `srvrandom::Stream` (vr_srvrandom.hpp), each stream seeded from
+  `derivedSeed` and restarted with the server's stream at every map load, so QuakeC's random() sequence is untouched.
+  The audit found one C++ gameplay draw on libc `rand()`: the legsweep's Knockdown Chance roll (`Stream::Legsweep`).
+  Cosmetic draws moved off `rand()` to local streams: decals (turn, mirror, atlas cell; their tests restart it,
+  `markSeed`), the vr_particles 0 presets' colours, the water sounds' variants and pitch, physsound's picks and jitter.
+  Explosion debris (P51) was already seeded per map (`serverReset` runs after the map's seed: `derivedSeed`;
+  `vr_particle_seed` only for tests): left. Left on purpose: appearance random, hash and noise patterns, the
+  clock-seeded effect streams, bench and diagnostic draws.
+- **D4**: AD's spider and scorpion (QC vr_ad_monsters.qc) take the scourge's corpse health and the crawler group's
+  knockdown chance (`vr_knockdown_chance_crawler`, Spiders and Crawlers; it was the Rottweilers'), as the engine's class
+  alias has it. The boil is unchanged.
+- **D8**: QC owns the stamina pool: `progs::staminaMax/staminaLeft` call `VR_Stamina_Max/_Left` (the caller's self, first
+  parameter and return kept), for climbing and fatigue (the speed scale, vr_stamina_set, the debug hold). Weapon ids:
+  `Quake/vr/vr_weapon_ids.h` (#defines, included by QC vr_defs.qc and the C++: flick, twohand, toolgun, lootbeams,
+  box3d_hands, motion_play, notectx). notectx names the nail pistol, flare gun and revolver now; motion_play's weapon
+  classes are as they were (those three still "other").
+
+Tests: build 0 warnings. Decal stress and carve test twice with fixed seeds: identical (59 marks, 28 carved). The AD
+monster test could not run here (AD's data is in neither qbase nor qrp: "no AD monster"). Baseline cases (explosion_debris, swim_sound,
+weapon_catch, parryinterrupt, stealth, np_1, rv_1, flare_1, ragdoll_stagger/ragtest/climb/liquid_active, limb_wear,
+prop_climb): 13 as the baseline; swim_sound FAIL 9/2 -> PASS 11/0 (its known failure, the under-water punch, a mock-hand
+case: next has the mock-hand fix since the baseline).

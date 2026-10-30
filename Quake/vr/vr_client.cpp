@@ -22,6 +22,7 @@
 #include "vr_fireparticles.hpp"
 #include "vr_flamewobble.hpp"
 #include "vr_brainjiggle.hpp"
+#include "vr_random.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
@@ -82,6 +83,9 @@ extern "C" kbutton_t in_attack; // cl_input.c: +attack (the main hand's trigger)
 
 namespace
 {
+
+// The old engine's particle presets' colour picks (vr_particles 0): a stream of their own, not the C library's rand().
+za::U32 puffState = 0x9E3779B9u;
 
 // QC/vr_defs.qc QVR_VRBITS0_*.
 enum VrBits0 : int
@@ -596,13 +600,13 @@ void parseParticle2()
         case Preset::BatterySmoke: break;                  // (too faint for Quake's dots)
         case Preset::AdFlame: break;                       // (AD's own flame sprites stand alone)
         case Preset::AdPoison: break;
-        case Preset::PoisonPuff: puff(56 + (rand() & 7), count * 2); break; // (the greens)
+        case Preset::PoisonPuff: puff(56 + static_cast<int>(vrand::xorshift32(puffState) & 7u), count * 2); break; // (the greens)
         case Preset::ElectricSparks: puff(244, count); break;
         case Preset::AdFlameHit: break; // (its scorch alone)
         case Preset::Steam: puff(12, count * 2); break;
-        case Preset::TankFire: puff(232 + (rand() & 3), count * 2); break; // (the fire's yellows and oranges)
+        case Preset::TankFire: puff(232 + static_cast<int>(vrand::xorshift32(puffState) & 3u), count * 2); break; // (the fire's yellows and oranges)
         case Preset::TankSmoke: break;                                     // (too faint for Quake's dots)
-        case Preset::TankCloud: puff(56 + (rand() & 7), count * 3); break; // (the greens)
+        case Preset::TankCloud: puff(56 + static_cast<int>(vrand::xorshift32(puffState) & 7u), count * 3); break; // (the greens)
         default: puff(73, count); break;
     }
 }
@@ -695,7 +699,7 @@ void particleTest_f()
             vec3_t v{p.x, p.y, p.z};
             return Mod_PointInLeaf(v, cl.worldmodel)->contents;
         };
-        const auto liquid = [](int c) { return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA || (c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN); };
+        const auto liquid = [](int c) { return worldtrace::isLiquid(c); };
         const bool startWet = liquid(contents(eye));
         glm::vec3 last = eye;
         for(float d = 4.f; d <= 2048.f; d += 4.f)

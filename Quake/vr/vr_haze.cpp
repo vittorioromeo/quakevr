@@ -10,6 +10,7 @@
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
+#include "vr_trace.hpp"
 #include "vr_water.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
@@ -733,7 +734,7 @@ extern "C" void VR_HazeExplosion(const float* pos, float size)
         return;
     }
     vec3_t p = {pos[0], pos[1], pos[2]};
-    const int contents = Mod_PointInLeaf(p, cl.worldmodel)->contents;
+    const int contents = qvr::worldtrace::liquidKind(Mod_PointInLeaf(p, cl.worldmodel)->contents); // (a current: water)
     if(contents == CONTENTS_WATER || contents == CONTENTS_SLIME)
     {
         return;

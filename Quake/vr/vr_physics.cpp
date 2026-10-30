@@ -5,6 +5,7 @@
 // Quake VR progs; the movement works with any progs (and moves a mod's shots to the gun).
 
 #include "vr_box3d.hpp"
+#include "vr_random.hpp"
 #include "vr_trace.hpp"
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
@@ -972,6 +973,8 @@ constexpr WaterSoundFiles waterSoundFiles[] = {
 static_assert(za::getArraySize(waterSoundFiles) == static_cast<za::SizeT>(WaterSound::Count));
 
 int waterSoundIndices[static_cast<int>(WaterSound::Count)][4]{}; // this server's precache indices (0: none)
+// The water sounds' variant and pitch picks (audible only): a stream of their own, not the C library's rand().
+za::U32 waterSoundState = 0x85EBCA6Bu;
 int lastVariant[static_cast<int>(WaterSound::Count)]{-1, -1, -1, -1, -1, -1, -1, -1};
 
 // One of a water sound's recordings, at random, never the one played last: its precache index (0: not precached).
@@ -980,7 +983,7 @@ int lastVariant[static_cast<int>(WaterSound::Count)]{-1, -1, -1, -1, -1, -1, -1,
     const int s = static_cast<int>(sound);
     const int count = waterSoundFiles[s].count;
     int& prev = lastVariant[s];
-    int k = count > 1 ? rand() % (prev >= 0 ? count - 1 : count) : 0;
+    int k = count > 1 ? static_cast<int>(vrand::xorshift32(waterSoundState) % static_cast<za::U32>(prev >= 0 ? count - 1 : count)) : 0;
     if(prev >= 0 && count > 1 && k >= prev)
     {
         k++;
@@ -1288,7 +1291,7 @@ void strokeFeedback(edict_t* ent, int handIndex, const glm::vec3& hand, float pe
     const float hard = CLAMP(0.f, (peak - 1.f) / 2.5f, 1.f);
     // Its pitch with its speed too: a slow sweep's water deeper, a brisk one's a little higher (and a little
     // apart each time).
-    const float pitch = 0.88f + 0.2f * hard + 0.04f * (static_cast<float>(rand() % 1001) / 1000.f - 0.5f);
+    const float pitch = 0.88f + 0.2f * hard + 0.04f * (static_cast<float>(vrand::xorshift32(waterSoundState) % 1001u) / 1000.f - 0.5f);
     glm::vec3 at;
     if(surfaceOver(hand, 10.f, at))
     {
@@ -1394,12 +1397,9 @@ void walkLeaves(LiquidWalk& w, int num, double f1, double f2)
     if(num < 0)
     {
         int c = num;
-        if(c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN)
-        {
-            c = CONTENTS_WATER; // as SV_PointContents
-        }
         if(worldtrace::isLiquid(c))
         {
+            c = worldtrace::liquidKind(c); // (a current: water, as SV_PointContents)
             const glm::vec3 point = w.from + w.delta * ((f1 + f2) * 0.5);
             c = VR_LiquidContents(sv.worldmodel, &point.x, c);
         }
@@ -1764,7 +1764,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         {
             continue;
         }
-        if(SV_PointContents(p) > CONTENTS_WATER || !(speedMs > minSpeed)) // out of the water (or slime, lava); still
+        if(!worldtrace::isLiquid(SV_PointContents(p)) || !(speedMs > minSpeed)) // out of the water (or slime, lava); still
         {
             endStroke(ent, state, h, now);
             continue;

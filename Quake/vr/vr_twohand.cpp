@@ -46,6 +46,7 @@
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
 #include "vr_geom.hpp"
+#include "vr_weapon_ids.h"
 
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -78,7 +79,7 @@ enum Vr2HMode : int
     VR_2H_VIRTUAL_STOCK = 2,
 };
 
-constexpr int widFist = 0; // QC WID_FIST
+constexpr int widFist = WID_FIST;
 constexpr int wpnFlagForegripCarried = 2; // QC QVR_WPNFLAG_FOREGRIP_CARRIED
 
 float aimTransition[2]{0.f, 0.f};   // per holding hand, 0..1

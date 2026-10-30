@@ -1392,8 +1392,7 @@ void teleportSplash(const glm::vec3& org)
 // The client's map's contents at `p`: a liquid's (currents are water), or 0 for anything else.
 [[nodiscard]] int liquidAt(const glm::vec3& p)
 {
-    const int c = worldtrace::liquidContents(p, true);
-    return worldtrace::isLiquid(c) ? c : worldtrace::isLiquid(c, true) ? CONTENTS_WATER : 0; // (a current: water)
+    return worldtrace::liquidKind(worldtrace::liquidContents(p, true));
 }
 
 // The liquid a splash on its surface is in (just under it): CONTENTS_WATER, _SLIME or _LAVA; water

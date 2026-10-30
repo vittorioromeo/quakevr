@@ -13,6 +13,7 @@
 #include "vr_progs.hpp"
 #include "vr_setup.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_trace.hpp"
 #include "vr_zancle.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
@@ -827,7 +828,7 @@ void where()
                 vec3_t q{p->v.origin[0] + dx, p->v.origin[1] + dy, p->v.origin[2] + dz};
                 const int c = SV_PointContents(q);
                 const float d = dx * dx + dy * dy + dz * dz;
-                if((c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA) && d < best)
+                if(worldtrace::isLiquid(c) && d < best)
                 {
                     best = d;
                     water = glm::vec3{q[0], q[1], q[2]};

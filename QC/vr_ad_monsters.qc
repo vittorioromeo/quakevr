@@ -235,10 +235,11 @@ void() VR_AD_MonsterSetup =
     }
     // Spiders, green and brown (progs/mon_spiderg.mdl, mon_spiderb.mdl: one mesh; death 114-133): its head the front of
     // its body (5.3 -0.1 -15.4), below its origin; never beheaded (its head is its body's bone: one of its own was unstable).
+    // Tuned as the scourge (vr_ad_monsters.cpp's class alias): its corpse health, its group's (crawler) knockdown chance.
     else if(t == ad_CT_MONSPIDER || t == ad_CT_MINIONSPIDER)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_NOHEAD, 6, -15, 6, cvarh_vr_corpse_health_dog);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_dog, 133, 114, -1, -1);
+        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_NOHEAD, 6, -15, 6, cvarh_vr_corpse_health_scourge);
+        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_crawler, 133, 114, -1, -1);
     }
     // Death guard (progs/mon_dguard.mdl: deaths A 195-206, B 207-226, C 227-240, D 241-255). Head: headfit.py mon_dguard
     // 20 0 7 (5.5 -0.2 22.6, 5.1).
@@ -313,11 +314,11 @@ void() VR_AD_MonsterSetup =
         VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_shambler, 194, 169, -1, -1);
     }
     // Scorpion (progs/mon_scorpion.mdl: death 74-94). Head: its head cluster's 14.7 1.7 -9.7, below its origin; never
-    // beheaded (its head moves with its body: no bone of its own).
+    // beheaded (its head moves with its body: no bone of its own). Tuned as the scourge, as the spider.
     else if(t == ad_CT_MONSCORPION || t == ad_CT_MINIONSCORPION)
     {
         VR_AD_Mon(VR_ADM_MELEE | VR_ADM_NOHEAD, 14, -9.5, 6, cvarh_vr_corpse_health_scourge);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_dog, 94, 74, -1, -1);
+        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_crawler, 94, 74, -1, -1);
     }
     // Stone golem (progs/mon_golem.mdl: 105 units tall; death 157-178). Head: headfit.py mon_golem 66 0 10 (7.6 0.4 74.3,
     // 10.2).

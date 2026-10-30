@@ -11,6 +11,7 @@
 #include "vr_gfx.hpp"
 #include "vr_stereo.hpp"
 #include "vr_jobs.hpp"
+#include "vr_trace.hpp"
 #include "vr_units.hpp"
 
 #include "Zancle/Algorithm/Count.hpp"
@@ -75,7 +76,7 @@ float volumeCell = 16.f;
 // A water or slime leaf, not a teleport's (the thin water brush a teleport's face is on).
 bool wetLeaf(const qmodel_t* m, const mleaf_t* leaf)
 {
-    if(leaf->contents != CONTENTS_WATER && leaf->contents != CONTENTS_SLIME)
+    if(const int kind = worldtrace::liquidKind(leaf->contents); kind != CONTENTS_WATER && kind != CONTENTS_SLIME) // (a current: water)
     {
         return false;
     }
@@ -1026,7 +1027,7 @@ void buildMesh(qmodel_t* m, float cell)
                 above[1] += p.y / static_cast<float>(f.poly.size());
             }
             const int contents = Mod_PointInLeaf(above, m)->contents;
-            f.submerged = contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA;
+            f.submerged = worldtrace::isLiquid(contents);
         }
         if(f.level)
         {
@@ -1826,8 +1827,7 @@ int bloodAdded = 0, bloodMerged = 0; // since the map began (vr_water_blood_info
 [[nodiscard]] int liquidContents(const glm::vec3& p)
 {
     vec3_t v{p.x, p.y, p.z};
-    const int c = Mod_PointInLeaf(v, cl.worldmodel)->contents;
-    return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ? c : 0;
+    return worldtrace::liquidKind(Mod_PointInLeaf(v, cl.worldmodel)->contents);
 }
 
 // Halving between a wet `wet` and a dry `dry` point (one above the other): the surface.
@@ -2231,7 +2231,7 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     const int actualContents = VR_LiquidContents(cl.worldmodel, r_refdef.vieworg, contents);
     if(actualContents != contents) { *waterwarp = false; }
     contents = actualContents;
-    const bool liquid = contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA;
+    const bool liquid = worldtrace::isLiquid(contents);
     const float underwater = za::clamp(vr_water_underwater.value, 0.f, 2.f);
     water::viewLiquid = liquid && underwater > 0.f && stereo::isRenderingEye() ? contents : 0;
     if(water::viewLiquid)
@@ -2411,12 +2411,6 @@ extern "C" void VR_WaterMeshBind(void)
     GL_VertexAttribPointerFunc(4, 1, GL_FLOAT, GL_FALSE, sizeof(MeshVert), reinterpret_cast<void*>(offsetof(MeshVert, pin)));
 }
 
-// Water, slime or lava, or one of the currents (the contents a leaf or a point is in).
-[[nodiscard]] static bool isLiquidContents(int c)
-{
-    return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ||
-           (c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN);
-}
 
 // Quake BSP has no separate teleport medium: the *teleport brush is stored as water.
 // Recognise its own leaves/faces, retaining actual pools (including mixed liquid/teleport leaves).
@@ -2438,12 +2432,12 @@ extern "C" int VR_NoLiquidEffects(qmodel_t* model, const float* point)
         for(int a = 0; a < 3; a++) { within &= point[a] >= surface.mins[a]-2.f && point[a] <= surface.maxs[a]+2.f; }
         if(within) { return 1; }
     }
-    return tele && !liquid && isLiquidContents(leaf->contents);
+    return tele && !liquid && worldtrace::isLiquid(leaf->contents);
 }
 
 extern "C" int VR_LiquidContents(qmodel_t* model, const float* point, int contents)
 {
-    if(isLiquidContents(contents))
+    if(worldtrace::isLiquid(contents))
     {
         return VR_NoLiquidEffects(model, point) ? CONTENTS_EMPTY : contents;
     }

@@ -846,6 +846,7 @@ float cvarh_vr_knockdown_chance_ogre;
 float cvarh_vr_knockdown_chance_demon;
 float cvarh_vr_knockdown_chance_shambler;
 float cvarh_vr_knockdown_chance_gremlin;
+float cvarh_vr_knockdown_chance_crawler;
 float cvarh_vr_knockdown_damage;
 float cvarh_vr_knockdown_onehand;
 float cvarh_vr_knockdown_twohand;
@@ -2121,6 +2122,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_knockdown_chance_demon);
     VR_CVAR_HMAKE(vr_knockdown_chance_shambler);
     VR_CVAR_HMAKE(vr_knockdown_chance_gremlin);
+    VR_CVAR_HMAKE(vr_knockdown_chance_crawler);
     VR_CVAR_HMAKE(vr_knockdown_damage);
     VR_CVAR_HMAKE(vr_knockdown_onehand);
     VR_CVAR_HMAKE(vr_knockdown_twohand);

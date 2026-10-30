@@ -19,6 +19,7 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
+#include "vr_trace.hpp"
 #include "vr_units.hpp"
 #include "vr_verlet.hpp"
 #include "vr_view.hpp"
@@ -192,7 +193,7 @@ void pilotFlames(int i, const view::ViewEntity* ve)
     const glm::vec3 tip = view::modelPoint(*ve, tipModel);
     const glm::vec3 ahead = view::modelPoint(*ve, tipModel + glm::vec3{1.f, 0.f, 0.f}) - tip;
     glm::vec3 probe = tip;
-    if(glm::length(ahead) < 1e-6f || Mod_PointInLeaf(&probe.x, cl.worldmodel)->contents <= CONTENTS_WATER)
+    if(glm::length(ahead) < 1e-6f || worldtrace::isLiquid(Mod_PointInLeaf(&probe.x, cl.worldmodel)->contents))
     {
         return;
     }
