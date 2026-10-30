@@ -1188,8 +1188,19 @@ No behaviour change intended; areas B (body, rigs, tools), P (ragdoll, physics) 
   declared there. vr_melee.qc (4933) -> vr_melee_params.qc (numbers, what a hand holds), vr_melee.qc (following,
   deciding a blow), vr_melee_bash.qc (swish, stamina/counter, stance/bash, each frame), listed in that order in
   progs.src: progs.dat is byte-identical.
-- **Not done**: the other splits (agarmor check, motion eval, avatar climb/legs, box3d_diag, hitreact, wounds,
-  ragactive) need their anonymous-namespace types (Shell, Body, ...) moved to internal headers first; combat.qc's
+- **Splits, second pass** (pure moves; the moved code's anonymous-namespace types go to `<file>_internal.hpp` in
+  `<ns>::detail`, the functions and state the other file uses are wrapped in `namespace detail` where they stand, so the
+  order of definitions and of static initialization in each file is unchanged; the moved state is all constant-initialized,
+  avatar's dynamic `bindPose` stays in vr_avatar.cpp behind `bind()`): vr_agarmor.cpp -> + vr_agarmor_check.cpp (the
+  vr_agarmor_check self-check); vr_motion_play.cpp -> + vr_motion_eval.cpp (vr_motion_eval, vr_motion_header_check,
+  evaluating); vr_avatar.cpp -> + vr_avatar_legs.cpp (clock, gait, water, stance, swimFoot, solveLeg) + vr_avatar_climb.cpp
+  (footTrace .. updateClimbing, logClimbing); vr_box3d_diag.cpp -> + _piles, _perf, _ragdoll, _player.cpp (commands
+  declared in vr_box3d_diag_internal.hpp); vr_wounds.cpp -> + vr_wounds_net.cpp (the event queue, queueInfo, parseEvent,
+  parseClear). Checked: 0 warnings; agarmor_1/5, ragdoll_*, prop_climb, limb_wear, selfchecks, swim_sound, slopes, judo,
+  agrunt samples, dead_gear, collectfx, melee_phase, fist_alert unchanged against baseline.tsv but for the expected passes
+  and the listed flaky ones; eval.sh full 163/171 before and after (the rows that differ, damage in the last digit, differ
+  as much between two runs of the old build).
+- **Not done**: hitreact (arms, skin) and ragactive (swim, hold, cut) splits (budget); combat.qc's
   parry block sits between T_DamageDeal and T_Damage, so a file of its own changes the compile order (no byte-identical
   check). Long functions (step 3): none split (derive, createRagdoll, skinOf and the plans have no comment-marked phases
   over a context that could be proven unchanged within this pass).
