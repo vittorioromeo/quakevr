@@ -155,6 +155,11 @@ Grab a wall torch, a pouch item, a box, guns and limbs: each taken as before (on
 Your tweaks are now the defaults: fire every gun (recoil, haptic punch, gunfire smoke/sparks/wisps as you set them), check armed grunts' poses and grips, and a relit map; everything should look and feel as in your last session.
 Armed Knights on (Combat > Armed Grunts > Armed Humanoid Replacements > Armed Knights), a map with knights (e1m2): each holds his sword in his posed hand, swings it at you, parries your blows, can be disarmed, tugged and grabbed; the sword falls when he dies; knocked down, his ragdoll keeps it.
 Armed Knights off: knights as before (their own sword, attacks, drops).
+Close to a gun grunt right after its shove: it raises its guard for about a second, drops it, then can't parry for a moment; strike then and it disarms (vr_agrunt_preparry).
+A sword grunt guards up close even with its shove ready.
+Raise your weapon overhead or to the side near a grunt: it parries after a short delay; wait it out and strike in the opening (vr_agrunt_windup_parry).
+With a sword it guards more often and sooner than with a shotgun (Tunables > Armed Grunts - Parry by What You Hold).
+Show Disarm Volumes shows preparry / windup / recovering on the grunt.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
