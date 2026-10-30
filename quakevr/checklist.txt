@@ -133,6 +133,8 @@ Hold its gun with one hand and punch the gun with the other fist: the gun ends i
 Shove a grunt into a stagger (or floor it) and grab its gun: not yours at once; a short pull takes it (Tug Downed Scale).
 Shoot a grunt's gun with the nail pistol or nailgun: about 1 hit in 4-5 knocks it out of its hands.
 Debug > Show Disarm Volumes on, walk up to an armed grunt: its gun is outlined orange; hand on the gun: the fist and gun turn yellow; grip: green with a tug progress bar; shove it over: a white limb under the gun, the shapes stay on it; the last hit shows 2 s as parry / disarm / body / shot / blocked.
+Nail pistol (Full Slide): slide drawn back or locked open, look at the back of the muzzle from both sides: nothing flickers.
+Nail pistol (Full Slide): the back end (behind the ejection port) is clearly steel with a bright rim and a crisp seam, like the old art's rear housing.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
