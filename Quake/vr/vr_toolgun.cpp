@@ -42,6 +42,7 @@
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
+#include "vr_throw.hpp"
 #include "vr_units.hpp"
 
 #include "Zancle/Container/InPlaceVector.hpp"
@@ -295,8 +296,8 @@ struct Drag
     glm::vec3 angles{0.f}; // its angles as taken
     glm::vec3 slide{0.f};  // the sticks' moves since (right, up) and the turn (pitch, yaw, roll)
     glm::vec3 turn{0.f};
-    glm::vec3 last{0.f};     // its origin last frame
-    glm::vec3 velocity{0.f}; // eased: its throw on letting go
+    glm::vec3 last{0.f}; // its origin last frame
+    double clock{0.0};   // seconds dragged (dragFrame's): its swing's samples' clock (throwing::pointSample), its throw
     // Turned by the wrist (vr_toolgun_physgun_wrist): the gun hand's axes and its own as taken (held::axesFromAngles:
     // forward, left, up), the sticks' turn since (about the world's axes), and whether its model is a brush model (its
     // pitch not inverted).

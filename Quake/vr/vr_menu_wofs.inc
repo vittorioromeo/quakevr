@@ -463,12 +463,6 @@ za::Vector<Item> pageWofsHand()
                                   "centimetres along its axes (red: along the handle, green: left, blue: up), degrees.";
         list.pushBackMultiple(
             header("Controller Preview (Show Controller)"),
-            slider("Preview X (red)", vr_show_controller_x, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
-            slider("Preview Y (green)", vr_show_controller_y, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
-            slider("Preview Z (blue)", vr_show_controller_z, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
-            slider("Preview Pitch (up)", vr_show_controller_pitch, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
-            slider("Preview Yaw (left)", vr_show_controller_yaw, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
-            slider("Preview Roll", vr_show_controller_roll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
             cycle("Off Hand Preview", vr_show_controller_off_own, {{0.f, "Mirrors the Main Hand's"}, {1.f, "Its Own"}})
                 .help("The sliders above are the main hand's; the off hand's preview mirrors them (Y, Yaw and Roll the other "
                       "way), or takes its own.")
@@ -478,10 +472,6 @@ za::Vector<Item> pageWofsHand()
         {
             list.pushBackMultiple(
                 slider("Off Hand X (red)", vr_show_controller_off_x, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
-                slider("Off Hand Y (green)", vr_show_controller_off_y, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
-                slider("Off Hand Z (blue)", vr_show_controller_off_z, -10.f, 10.f, 0.1f, "%+.1f cm").extend().help(previewHelp),
-                slider("Off Hand Pitch (up)", vr_show_controller_off_pitch, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
-                slider("Off Hand Yaw (left)", vr_show_controller_off_yaw, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp),
                 slider("Off Hand Roll", vr_show_controller_off_roll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(previewHelp)
             );
         }
@@ -614,8 +604,6 @@ za::Vector<Item> pageWofsSights()
         cycle("Dominant Eye", vr_dominant_eye, {{0.f, "Right"}, {1.f, "Left"}})
             .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
                   "it when you close the other."),
-        cycle("Captures", vr_sight_align_captures, {{3.f, "3"}, {4.f, "4"}, {5.f, "5"}})
-            .help("How many times the aim is taken: averaged, one that stands apart from the others dropped."),
         toggle("Show Sight Line", vr_show_sight_line)
             .help("Draws each held gun's sight line: its rear point (yellow), its front one (cyan), and the line through "
                   "them to the wall. Painted sights: the shotguns, the lightning gun; the others a line along the top.")
@@ -805,8 +793,6 @@ za::Vector<Item> pageWofsStock()
                   "(as on Aiming)."),
         slider("Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f")
             .help("How much the shoulder counts in the aim against the hands (as on Aiming)."),
-        slider("Stock Distance", "vr_virtual_stock_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f)
-            .help("How near the shoulder the holding hand must be (units; Virtual Stock Thresh. on Hotspots)."),
         toggle("Show Virtual Stock", "vr_show_virtual_stock").help("Marks the shoulders the stock is taken at."),
         toggle("Cup Grips Take the Stock", "vr_2h_cup_stock")
             .help("A Cup hotspot (a two-handed pistol grip, the Widowmaker's) aims from the shoulder too while the holding "
@@ -975,9 +961,6 @@ za::Vector<Item> pageWofsFlashlight()
                   "When Let Go). Off by default for the melee weapons (the axe, Mjolnir, the swords, the chainsaw, the crowbar)."),
         action("Clip the Flashlight on It", weaponOffsetsClipTorch)
             .help("Puts the flashlight (switched on) on this weapon now, to tune it in place (vr_flashlight_clip_gun)."),
-        toggle("Show the Flashlight's Place", vr_flashlight_mount_preview)
-            .help("While this page is shown: the flashlight's outline and its beam's line on this weapon (cyan) and the zone "
-                  "that clips it on (orange), wherever the flashlight is. The flashlight must be on (Flashlight)."),
         s("Flashlight Forward", Key::TorchForward, -0.2f, 0.2f, 0.005f, "%+.3f m").extend(-1.f, 1.f).help(moveHelp),
         s("Flashlight Up", Key::TorchUp, -0.2f, 0.2f, 0.005f, "%+.3f m").extend(-1.f, 1.f).help(moveHelp),
         s("Flashlight Out", Key::TorchOut, -0.2f, 0.2f, 0.005f, "%+.3f m").extend(-1.f, 1.f).help(moveHelp),

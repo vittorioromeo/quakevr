@@ -6,6 +6,7 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_impacts.hpp"
+#include "vr_muzzlewisps.hpp"
 #include "vr_particles.hpp"
 #include "vr_geom.hpp"
 #include "vr_profile.hpp"
@@ -474,6 +475,70 @@ int exhaustSmoke(const glm::vec3& where, const glm::vec3& dir, const glm::vec3& 
     return made;
 }
 
+// A rocket launcher's vents facing you (its model's own coordinates): v_rock2.mdl's two slots in the back face of its
+// head (its shoulder at x 33.3, round the tube; the slots y -4.72..-3.36 and 3.36..4.55, z 6.57..7.51), facing back.
+struct ModelVents
+{
+    const char* name;
+    glm::vec3 at[2];
+    glm::vec3 dir;
+};
+constexpr ModelVents rocketVents[] = {
+    {"progs/v_rock2.mdl", {{33.2f, -4.05f, 7.05f}, {33.2f, 3.95f, 7.05f}}, {-1.f, 0.f, 0.f}},
+};
+[[nodiscard]] const ModelVents* ventsOf(const Muzzle& m, GunFrame& f)
+{
+    const qmodel_t* model = gunModel(m);
+    if(!model || !gunFrame(m, f))
+    {
+        return nullptr;
+    }
+    const char* hash = strchr(model->name, '#');
+    const size_t len = hash ? static_cast<size_t>(hash - model->name) : strlen(model->name);
+    for(const ModelVents& v : rocketVents)
+    {
+        if(strlen(v.name) == len && strncmp(v.name, model->name, len) == 0)
+        {
+            return &v;
+        }
+    }
+    return nullptr;
+}
+
+// Light smoke out of a rocket launcher's vents (`n` puffs, either vent): back out of them, at you, and up, curling.
+int rocketVentSmoke(const GunFrame& f, const ModelVents& v, const glm::vec3& drift, int n, float strength)
+{
+    if(n <= 0 || !particles::enabled())
+    {
+        return 0;
+    }
+    const float turb = 40.f * za::clamp(vr_gunfx_turbulence.value, 0.f, 3.f);
+    const glm::vec3 back = glm::normalize(at(f, v.dir) - at(f, glm::vec3{0.f}) + glm::vec3{1e-6f});
+    const glm::vec3 side = glm::normalize(f.y + glm::vec3{1e-6f});
+    int made = 0;
+    for(int i = 0; i < n; i++)
+    {
+        const int k = rng.getI(0, 1);
+        const float out = k == 0 ? -1.f : 1.f;
+        particles::GunParticle g;
+        g.kind = particles::GunParticle::Smoke;
+        g.org = at(f, v.at[k] + glm::vec3{-0.1f, vrand::range(rng, -0.5f, 0.5f), vrand::range(rng, -0.3f, 0.3f)});
+        g.vel = back * vrand::range(rng, 5.f, 11.f) + side * (out * vrand::range(rng, 1.f, 4.f)) +
+                glm::vec3{0.f, 0.f, vrand::range(rng, 8.f, 14.f)} + drift * 0.8f;
+        const float grey = za::min(0.9f, smokeGrey() * 1.15f);
+        g.color = glm::vec4{grey, grey, grey * 0.98f, strength * vrand::range(rng, 0.24f, 0.34f)};
+        g.scale = vrand::range(rng, 0.5f, 0.8f);
+        g.grow = vrand::range(rng, 6.f, 9.f);
+        g.life = vrand::range(rng, 0.6f, 1.f);
+        g.drag = 2.f;
+        g.gravity = -0.05f;
+        g.turb = turb;
+        g.fadeIn = 0.05f;
+        made += put(g);
+    }
+    return made;
+}
+
 // The flash's light in its smoke: a warm glow filling the cone's start for a moment.
 void flashGlow(const Muzzle& m, const Look& look, Counts& c)
 {
@@ -502,6 +567,11 @@ void backblast(const Muzzle& m, const glm::vec3& right, const glm::vec3& up, flo
             out.y, out.z, onGun ? "the gun's" : "behind the muzzle", m.at.x, m.at.y, m.at.z);
     }
     smokeCone(rear, out, right, up, m.drift, scaled(16, budget), 1.5f, 240.f, 0.85f, 0.6f, 0.3f, blast, c.back);
+    GunFrame gf;
+    if(const ModelVents* v = ventsOf(m, gf))
+    {
+        c.vent += rocketVentSmoke(gf, *v, m.drift, scaled(7, budget), 1.f); // (the vents facing you; your hand's go on: afterSmoke)
+    }
     if(!own)
     {
         c.exhaust += exhaustSmoke(rear, out, m.drift, scaled(6, budget), 1.f, true);
@@ -693,12 +763,92 @@ void afterSmoke(HandState& h, const Muzzle& m, int wid, float dt)
             bool onGun = false;
             exhaustOf(m, where, dir, onGun);
             const int made = exhaustSmoke(where, dir, m.drift, n, za::min(h.exhaust * 1.5f, 1.f), false);
+            // The vents facing you smoke on too (one puff in two, lighter).
+            GunFrame f;
+            const ModelVents* v = ventsOf(m, f);
+            const int vents = v ? rocketVentSmoke(f, *v, m.drift, (n + 1) / 2, za::min(h.exhaust * 1.2f, 0.8f)) : 0;
             if(vr_debug_gunfx.value >= 2.f)
             {
-                Con_Printf("gunfx after exhaust %d at %.1f %.1f %.1f\n", made, where.x, where.y, where.z);
+                Con_Printf("gunfx after exhaust %d vents %d at %.1f %.1f %.1f\n", made, vents, where.x, where.y, where.z);
             }
         }
     }
+}
+
+// The guns that leave smoke wisps off their barrels after firing (vr_muzzlewisps.hpp): a shot's share of full smoke (the
+// shotguns' one shot fills them, a burst of the nailguns'), the smoke's opacity at full, and their barrels.
+struct WispLook
+{
+    float charge, alpha;
+    int barrels;
+};
+[[nodiscard]] WispLook wispLook(int wid)
+{
+    switch(wid)
+    {
+        case WID_SHOTGUN: return {1.f, 0.32f, 1};
+        case WID_SUPER_SHOTGUN: return {1.f, 0.32f, 2};
+        case WID_REVOLVER: return {0.7f, 0.26f, 1};
+        case WID_FLAREGUN: return {0.7f, 0.26f, 1};
+        case WID_NAILPISTOL: return {0.2f, 0.22f, 1};
+        case WID_NAILGUN: return {0.12f, 0.26f, 2};
+        case WID_SUPER_NAILGUN: return {0.08f, 0.3f, 1}; // (its barrels turn: one wisp out of their middle)
+        default: return {0.f, 0.f, 0};
+    }
+}
+
+// Where the barrels' bores end on the models with two (their own coordinates; Misc/quakevr/anchors.py's frame 0: the
+// middle of each bore's front ring). Other two-barrelled guns: either side of the muzzle.
+struct ModelBarrels
+{
+    const char* name;
+    glm::vec3 at[muzzlewisps::maxBarrels];
+};
+constexpr ModelBarrels barrelEnds[] = {
+    {"progs/v_shot2.mdl", {{28.5f, -1.53f, 6.39f}, {28.5f, 1.47f, 6.39f}}},
+    {"progs/v_nail.mdl", {{20.21f, -3.67f, 3.84f}, {20.21f, 3.77f, 3.84f}}},
+};
+
+// Your gun's barrels this frame, for their wisps (`fired`: its shot this frame).
+void barrelWisps(int hand, const Muzzle& m, int wid, bool fired)
+{
+    const WispLook look = wispLook(wid);
+    muzzlewisps::Gun g;
+    g.fwd = m.fwd;
+    g.charge = look.charge;
+    g.alpha = look.alpha;
+    g.barrels = look.barrels;
+    g.at[0] = g.at[1] = m.at;
+    if(look.barrels > 1)
+    {
+        GunFrame f;
+        const qmodel_t* model = gunModel(m);
+        const ModelBarrels* e = nullptr;
+        if(model && gunFrame(m, f))
+        {
+            const char* hash = strchr(model->name, '#');
+            const size_t len = hash ? static_cast<size_t>(hash - model->name) : strlen(model->name);
+            for(const ModelBarrels& x : barrelEnds)
+            {
+                if(strlen(x.name) == len && strncmp(x.name, model->name, len) == 0)
+                {
+                    e = &x;
+                }
+            }
+        }
+        if(e)
+        {
+            g.at[0] = at(f, e->at[0]);
+            g.at[1] = at(f, e->at[1]);
+        }
+        else
+        {
+            const glm::vec3 right = glm::normalize(glm::cross(m.fwd, m.up) + glm::vec3{1e-6f});
+            g.at[0] = m.at - right * 1.4f;
+            g.at[1] = m.at + right * 1.4f;
+        }
+    }
+    muzzlewisps::handFrame(hand, g, fired);
 }
 
 // vr_gunfx_test <wid> [count]: that weapon's shot effects `count` times (1), 48 units ahead of the view, pointing away.
@@ -782,7 +932,8 @@ void handFrame(int hand, const view::ViewEntity& w, int slot)
     }
     const bool due = h.due;
     h.due = false;
-    if(slot < 0 || !w.visible || !w.ent.model || (!due && h.heat <= 0.f && h.vent <= 0.f && h.exhaust <= 0.f))
+    if(slot < 0 || !w.visible || !w.ent.model ||
+        (!due && h.heat <= 0.f && h.vent <= 0.f && h.exhaust <= 0.f && !muzzlewisps::smoking(hand)))
     {
         return;
     }
@@ -834,6 +985,7 @@ void handFrame(int hand, const view::ViewEntity& w, int slot)
     {
         heatWisps(h, m, dt);
         afterSmoke(h, m, wid, dt);
+        barrelWisps(hand, m, wid, due);
     }
 }
 
@@ -881,6 +1033,7 @@ void clear()
         h = HandState{};
     }
     impacts::clear();
+    muzzlewisps::clear();
 }
 
 void registerCommands()

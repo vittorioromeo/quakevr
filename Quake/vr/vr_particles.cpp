@@ -22,6 +22,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_lootbeams.hpp"
+#include "vr_muzzlewisps.hpp"
 #include "vr_profile.hpp"
 #include "vr_profile_systems.hpp"
 #include "vr_retro.hpp"
@@ -1814,6 +1815,7 @@ extern "C" void VR_DrawSceneTranslucent()
     flashlight::drawTranslucent(); // the flashlight's visible beam (vr_flashlight.cpp)
     weaponfx::drawTranslucent(); // the bullet tracers (vr_weaponfx.cpp)
     lootbeams::drawTranslucent(); // the pillars of light over loot lying about (vr_lootbeams.cpp)
+    muzzlewisps::drawTranslucent(); // the smoke wisps off your guns' barrels after firing (vr_muzzlewisps.cpp)
     lines::drawInScene();          // the lightning's arcs (vr_shock.cpp), depth-tested
 
     if(!drawn)

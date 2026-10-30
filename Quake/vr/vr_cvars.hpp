@@ -20,6 +20,65 @@ namespace qvr
 #include "vr_cvars.inc"
 #undef QVR_CVAR
 
+// Tuning constants (the settings' tiers, ROUND23.md "Settings tiers"): vr_tunables.inc's QVR_TUNABLE(name, default),
+// numbers tuned once that no player sets. A release build makes each a constexpr Tunable, read as a cvar is (.value,
+// .string); a tuning build (MSBuild -p:QvrTuning=1: QVR_TUNING) makes each an archived cvar again, for the console. The
+// QC reads them by name either way (cvar(), cvar_hmake: tunableFind), and an old config's line for one is ignored.
+struct Tunable
+{
+    const char* name;
+    const char* string;
+    float value;
+};
+
+// Q_atof's value of a decimal default, at compile time (its digits, then one division by 10 a decimal; the same float).
+[[nodiscard]] constexpr float tunableValue(const char* s)
+{
+    double val = 0.0;
+    double sign = 1.0;
+    if(*s == '-')
+    {
+        sign = -1.0;
+        ++s;
+    }
+    int decimal = -1;
+    int total = 0;
+    for(;; ++s)
+    {
+        if(*s == '.')
+        {
+            decimal = total;
+            continue;
+        }
+        if(*s < '0' || *s > '9')
+        {
+            break;
+        }
+        val = val * 10 + (*s - '0');
+        ++total;
+    }
+    if(decimal != -1)
+    {
+        for(; total > decimal; --total)
+        {
+            val /= 10;
+        }
+    }
+    return static_cast<float>(val * sign);
+}
+
+#ifdef QVR_TUNING
+#define QVR_TUNABLE(name, def) extern cvar_t name;
+#else
+#define QVR_TUNABLE(name, def) inline constexpr Tunable name{#name, def, tunableValue(def)};
+#endif
+#include "vr_tunables.inc"
+#undef QVR_TUNABLE
+
+// A tuning constant's stand-in cvar by name (not registered: the console and the config never see it), for the QC's
+// cvar() and cvar_hmake; nullptr for any other name (and for all in a tuning build, where they are cvars).
+[[nodiscard]] const cvar_t* tunableFind(const char* name);
+
 extern cvar_t vr_backend;
 
 // Recording mode (vr_recording_clean, the player's; vr_recording_clean_map, the map's: the trailer scene): no tips, no

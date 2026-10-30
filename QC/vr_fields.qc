@@ -49,11 +49,21 @@ float VR_PARM50_SAW_CORD_PULLED = 524288; // that bit (2^19: the lamp's state ta
 //
 //
 // ----------------------------------------------------------------------------
-// Carrying (vr_carry.qc): the object each hand carries, here so that vr_util.qc's VRIsHandEmpty sees them
+// Carrying (vr_carry.qc): the hand slot, the thing each hand holds besides its weapon (.weapon/.weapon2): the thing
+// (.mainhand_held/.offhand_held, the engine reads them) and its kind (VR_HOLD_*). Written only by VR_Hand_Take and
+// VR_Hand_Release (vr_carry.qc); here so that vr_util.qc's VRIsHandEmpty sees them.
 // ----------------------------------------------------------------------------
 
 .entity mainhand_held;
 .entity offhand_held;
+.float vr_hold_kind_main;
+.float vr_hold_kind_off;
+float VR_HOLD_NONE = 0;
+float VR_HOLD_PROP = 1;    // a box, a gib, a head, an item to put away, a lying weapon's prop (anything carried not below)
+float VR_HOLD_RAGDOLL = 2; // a body or a limb of one (a foe grab's throw, a ragdoll grab)
+float VR_HOLD_TORCH = 3;   // a wall torch taken off its wall
+float VR_HOLD_ROUND = 4;   // a round, a magazine, a front-loaded round (vr_reload.qc)
+float VR_HOLD_GRENADE = 5; // a hand grenade (vr_grenade.qc)
 .float vr_carry_items;   // the hands carrying a thing to put away (vr_carry.qc VR_Carry_ItemsFrame: bit 0 the off hand, 1 the main; STAT_QVR_CARRYITEM)
 .float vr_carry_fullcue; // on a player: no full cue again before then (VR_Carry_FullCue)
 .float carry_autotried;  // on a box: vr_carry_autocollect tried it this carry (VR_Carry_AutoCollect)

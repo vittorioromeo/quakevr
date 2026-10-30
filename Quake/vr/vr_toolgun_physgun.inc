@@ -21,6 +21,7 @@ void dragStart(int num)
     d.offset = geom::vec(e->v.origin) - grab;
     d.angles = geom::vec(e->v.angles);
     d.last = geom::vec(e->v.origin);
+    throwing::pointReset();
     const int mi = static_cast<int>(e->v.modelindex);
     d.brush = mi > 0 && mi < MAX_MODELS && sv.models[mi] && sv.models[mi]->type == mod_brush;
     d.hand0 = held::axesFromAngles(&tg.handRot[0], true);
@@ -61,9 +62,7 @@ void dragEnd(bool freeze)
     if(d.ragdoll)
     {
         // Let go: the spring gone, the held part keeps the beam's swing (its entity was never moved).
-        glm::vec3 v = d.velocity;
-        const float speed = glm::length(v);
-        v *= speed > 1000.f ? 1000.f / speed : 1.f;
+        const glm::vec3 v = throwing::kindCap(throwing::Kind::Physgun, throwing::pointEstimate(d.clock).vel);
         box3d::physgunRagdollRelease(v);
         Con_Printf("toolgun: physgun let go of %d %s's ragdoll at %.0f u/s\n", d.num, PR_GetString(e->v.classname), glm::length(v));
         d = {};
@@ -78,12 +77,7 @@ void dragEnd(bool freeze)
     else
     {
         // Let go: it falls, with the beam's swing (a prop: its body made dynamic again with it).
-        glm::vec3 v = d.velocity;
-        const float speed = glm::length(v);
-        if(speed > 1000.f)
-        {
-            v *= 1000.f / speed;
-        }
+        const glm::vec3 v = throwing::kindCap(throwing::Kind::Physgun, throwing::pointEstimate(d.clock).vel);
         e->v.velocity[0] = v.x;
         e->v.velocity[1] = v.y;
         e->v.velocity[2] = v.z;
@@ -117,8 +111,9 @@ void dragFrame(float dt)
         Drag& d = tg.drag;
         if(dt > 0.f)
         {
-            const glm::vec3 v = (to - d.last) / dt;
-            d.velocity += (v - d.velocity) * za::min(1.f, dt * 12.f);
+            // Its swing, sampled as a hand's: the throw on letting go is smoothed as a hand's (throwing::pointEstimate).
+            d.clock += static_cast<double>(dt);
+            throwing::pointSample(d.clock, to, (to - d.last) / dt);
         }
         d.last = to;
     };

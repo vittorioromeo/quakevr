@@ -9,8 +9,10 @@
 //   it fades in with the flash, billows forward and swirls (a turbulent flow: particles::GunParticle::turb);
 // - the nail pistol's side vents: light smoke out of exactly its six slots, out and up, as heat leaving it;
 // - the rocket launchers' backblast: a swirling cone out of the exhaust (the model's back end), the exhaust smoking a
-//   moment after, and dust off the floor under it;
+//   moment after, light smoke out of the vents facing you (v_rock2.mdl's head), and dust off the floor under it; AD's
+//   rocket soldier's tube too (QC ad_army_fire_rocket: weaponfired QVR_FIRED_ROCKET);
 // - barrel heat: sustained fire (the nailguns) leaves the muzzle smoking in thin wisps until it cools;
+// - your guns' barrels trailing thin smoke wisps for a few seconds after you stop firing (vr_muzzlewisps.hpp);
 // - every spent casing's smoke trail stronger (vr_gunfx_shell_trail, vr_shells.cpp).
 // Per-shot budgets shrink at high fire rates (each shooter's time since its last shot); nothing allocated (the
 // particles' pool). Settings: Weapons > Weapon Effects > Gunfire Particles (vr_gunfx_*). Tests: vr_debug_gunfx 1 prints

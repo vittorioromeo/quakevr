@@ -464,14 +464,14 @@ void() VR_AT_HookCheck =
     foe.health = 30;
     entity holder = VR_PlayerAlive();
     entity held0 = world;
-    if(holder) { held0 = holder.mainhand_held; holder.mainhand_held = foe; foe.carry_player = holder; }
+    if(holder) { held0 = holder.mainhand_held; VR_Hand_Take(holder, cVR_MainHand, foe); foe.carry_player = holder; }
     VR_ARENA_ClearField(5);
     VR_AT_Check(VR_AT_InUse(body), "a stalled wave's clear leaves an older wave's body");
     VR_AT_Check(!VR_AT_InUse(foe), "a stalled wave's clear takes its foe still up");
     if(holder)
     {
         VR_AT_Check(holder.mainhand_held == world, "a stalled wave's foe in a hand is let go of first");
-        holder.mainhand_held = held0;
+        VR_Hand_Take(holder, cVR_MainHand, held0);
     }
     if(VR_AT_InUse(foe)) { remove(foe); }
     if(VR_AT_InUse(body)) { remove(body); }
@@ -1750,7 +1750,7 @@ void() VR_AT7_Begin =
     cvar_set("vr_arena_corpse_max", ftos(n0 + 3));
     vr_at7_held0 = p.mainhand_held;
     vr_at7_b0 = VR_AT7_Body();
-    p.mainhand_held = vr_at7_b0; // (a hand on it)
+    VR_Hand_Take(p, cVR_MainHand, vr_at7_b0); // (a hand on it)
     vr_at7_b1 = VR_AT7_Body();
     vr_at7_b2 = VR_AT7_Body();
     vr_at7_b3 = VR_AT7_Body();
@@ -1785,7 +1785,7 @@ void() VR_AT7_Frame =
     entity p = VR_PlayerAlive();
     if(vr_at_step == 1)
     {
-        if(p) { p.mainhand_held = vr_at7_b0; } // (held: taken again every beat, as a held ragdoll's limb is)
+        if(p) { VR_Hand_Take(p, cVR_MainHand, vr_at7_b0); } // (held: taken again every beat, as a held ragdoll's limb is)
         VR_ARENA_Leftovers();
         if(VR_AT_Live(vr_at7_b1) || VR_AT_Live(vr_at7_b2) || VR_AT_Live(vr_at7_b3) || VR_AT_Live(vr_at7_d1)) { return; }
         VR_AT_Check(VR_AT_Live(vr_at7_b0) && vr_at7_b0.alpha == 0, "bodies: held, it outlives its time, seen whole");
@@ -1793,7 +1793,7 @@ void() VR_AT7_Frame =
         VR_AT_Check(VR_AT_Live(vr_at7_b4), "bodies: still dying, it outlives its time");
         VR_AT_Check(VR_AT_Live(vr_at7_d4), "drops: pulled by a force grab, it outlives its time");
         VR_AT_Check(VR_AT_Live(vr_at7_d2), "drops: one clear old, it lies on");
-        if(p) { p.mainhand_held = vr_at7_held0; }
+        if(p) { VR_Hand_Take(p, cVR_MainHand, vr_at7_held0); }
         vr_at7_b5.fg_state = 0;
         vr_at7_d4.fg_state = 0;
         vr_at7_b4.vr_corpse = 2;

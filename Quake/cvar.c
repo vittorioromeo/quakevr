@@ -470,7 +470,10 @@ float	Cvar_VariableValue (const char *var_name)
 
 	var = Cvar_FindVar (var_name);
 	if (!var)
-		return 0;
+	{
+		const cvar_t *tunable = VR_TunableFind (var_name); // QVR: a tuning constant (vr_tunables.inc), read by name
+		return tunable ? Q_atof (tunable->string) : 0;
+	}
 	return Q_atof (var->string);
 }
 
@@ -486,7 +489,10 @@ const char *Cvar_VariableString (const char *var_name)
 
 	var = Cvar_FindVar (var_name);
 	if (!var)
-		return cvar_null_string;
+	{
+		const cvar_t *tunable = VR_TunableFind (var_name); // QVR: a tuning constant (vr_tunables.inc), read by name
+		return tunable ? tunable->string : cvar_null_string;
+	}
 	return var->string;
 }
 
