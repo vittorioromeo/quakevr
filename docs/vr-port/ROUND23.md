@@ -1877,7 +1877,16 @@ physgun get the shared throw smoothing; the haptic presets keep today's exact va
 - **grip_state fails on origin/next too** (off hand: swap_gripped, shotgun_pump2, shotgun_anywhere "not held by a blade",
   "the grips reset", "taken anywhere"; the same 6 lines with this branch stashed): baseline.tsv's PASS is older. Not this
   branch's.
-- **A/B bench:** not run yet (budget): scratch/grab_ab.sh interleaves scratch/benchA (origin/next, LTO) and scratch/benchB (this branch, LTO). The per-frame change: W_Frame asks the query at the torch site each frame (the torch provider stops at its grip test, as the old search did)
+- **Verified after merging origin/next (7683f75c3), the clean build:** the 36 covering cases (scratch/grabcheck_run.sh:
+  carry, held_over_props, weapon_catch, flash_grab, grip_gap, grip_state, ragdoll_grab/climb, prop_climb, judo,
+  walltorch_grab, every reload_*, the tug/disarm agrunt cases): 0 of 36 changed against baseline.tsv (ragdoll_grab 18/1,
+  its known flake; grip_state passes again on this next). Outside the baseline: foegrab/onehand_drag ALL PASS,
+  toolgun_physgun_ragdoll PASS. eval.sh: full 163/171, 9 differ from the baseline (its own spread: (a) saw 9-11), neck
+  snaps 6/6, shoulder charges 22/22, 0 false.
+- **A/B bench (scratch/grab_ab.sh, ThinLTO, A = 7683f75c3, B = this branch, ABBAABBA, run 1's warm-up gave no result):**
+  combat_48 cpu A 2.425/2.399/2.469 ms (2.431), B 2.475/2.421/2.433 (2.443, +0.5%) and one 2.834 outlier (p99 13.8: a
+  hitch); idle_e1m1 A 0.918/0.785/0.956, B 0.991/0.775/0.788: within noise. The per-frame change: W_Frame asks the
+  query at the torch site each frame (the torch provider stops at its grip test, as the old search did).
 - **Checklist:** grab a torch off its wall (near it, and closing the fist on the way), a grenade and a round from the
   pouches, a box, a gun on the floor and in the air, an armed grunt's weapon and a ragdoll's limb: each taken as before.
 ## Sparse config: only what the player changed (branch `agent/sparsecfg`; design review proposal 1)
