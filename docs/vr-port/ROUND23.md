@@ -3275,3 +3275,10 @@ grunt's guard), agrunt test 20 (`VR_AGPT_Ragdoll`: the armed grunt against a pla
 **Possible issue in the replacements (not fixed):** the Rig Studio's `monster_army` subject (and the debug spawner's
 `vr_test_spawn 0`) now comes armed: with replacements on, the studio can no longer show a plain rigged grunt. Tool
 spawns may want to skip the replacement (`vr_agr_hold`).
+
+**Verified.** Full baseline, then the changed cases on origin/next's defaults and on the new ones: 9 changed by the
+defaults, all from the replacements. Pinned: mapflameburn 16/0, agrunt_20 3/0, ragdoll_guard 8/0, teleporters_chase
+6/0; weapon_catch 3/2, animsmooth 7/2, rigstudio_subjects 13/1 back to the baseline's own fails; ghost_recoil 3/0.
+melee_phase `grunt_fast_on` (0 hits) still fails 5 runs of 5 with the pin, but passes 3 of 3 with three more cvar
+commands before `map` (the new values set explicitly too): sensitive to the run's perturbation (no `sv_random_seed`),
+not to these values; it failed in older runs too. Left as is (flaky).
