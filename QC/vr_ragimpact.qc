@@ -243,6 +243,7 @@ void(entity m, entity xBy, vector xAt, float xPiece, float xDamage, float xShare
 // wounds it there as a blunt melee blow does (VR_Wound_Slam).
 void(entity m, vector xAt, float xSpeed, float xMass, float xRaw, float xHeld, vector xInto) VR_RagImpact_Hit =
 {
+    VR_WP_Impact(m, xAt, xSpeed); // (a worn backpack torn off by a hard landing: vr_wornpack.qc)
     if(!cvar_hget(cvarh_vr_ragimpact) || !(m.flags & FL_MONSTER) || m.vr_gib || !isragdoll(m))
     {
         return;

@@ -19,6 +19,8 @@
 
 #include "vr_engine.hpp"
 
+#include <glm/fwd.hpp>
+
 namespace qvr::agarmor
 {
 
@@ -55,6 +57,13 @@ void serverWriteAll(struct sizebuf_s* msg);
 // Where piece `piece` of `ent` is now as a model of its own ("<model>#plate<piece>", derivedFile): `what` 0 its origin,
 // 1 its angles (an alias model's), as drawn (hitmodel's poses; else its rest pose where the entity stands).
 void plateWhere(struct edict_s* ent, int piece, int what, float* out);
+// The worn backpack (QC vr_wornpack.qc; box3d's wornPack): progs/backpack.mdl on `ent`'s back as its model is drawn now
+// (the cuirass's frame: hitmodel's poses, else its rest pose where it stands), behind its back's surface at its upper
+// chest, vr_worn_backpack_scale large, moved and turned by vr_worn_backpack_x/_y/_z/_pitch/_yaw/_roll. `origin` the
+// pack model's, `axes` its forward, left, up; `mid`, `half` its box (half sizes along those axes). False: not a wearer.
+[[nodiscard]] bool packWhere(struct edict_s* ent, glm::vec3& origin, glm::mat3& axes, glm::vec3& mid, glm::vec3& half);
+// The pack model's box in its own space at vr_worn_backpack_scale: its middle and half sizes (units).
+void packModelBox(glm::vec3& mid, glm::vec3& half);
 // Mod_LoadModel (VR_DerivedModelFile): "<model>#plate<piece>"'s .mdl file (VR_HeapMalloc'd), or null.
 [[nodiscard]] unsigned char* derivedFile(const char* name, unsigned int* path_id);
 

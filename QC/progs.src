@@ -520,6 +520,7 @@ vr_armedgrunt_play.qc
 vr_armedgrunt_shot.qc
 vr_armedgrunt_parry.qc
 vr_armedrepl.qc
+vr_wornpack.qc // worn backpacks (experimental: vr_worn_backpacks)
 // Survival Arena: the wave director (the waves, their ladder, their boss, their drops).
 vr_arena.qc
 vr_arena_perks.qc // Survival Arena: the boss wave's perk choice (its offers, and what each perk does)
@@ -527,6 +528,7 @@ vr_arena_supply.qc // Survival Arena: where a wave clear's supplies land (the ma
 vr_adtankworn.qc
 vr_armedmon_ui.qc
 vr_armedgrunt_test.qc
+vr_wornpack_test.qc
 vr_armedgrunt_glitch_test.qc
 vr_armedgrunt_play_test.qc
 vr_armedgrunt_shot_test.qc

@@ -1243,6 +1243,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
     createRagdollParts(w, ent, num, s, now);
     createRagdollJoints(w, ent, num);
     createRagdollWeld(w, num);
+    createRagdollPack(r, ent, num, s); // (its worn backpack on its chest: vr_box3d_wornpack.cpp)
     createRagdollOverlaps(w, num, s);
     createRagdollStart(w, ent, num, s, now);
     return true;

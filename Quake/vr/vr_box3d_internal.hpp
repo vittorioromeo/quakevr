@@ -273,6 +273,12 @@ struct RagdollBodies
     // A living monster knocked down (vr_knockdown; "Knockdowns" below): its loose pieces (a weapon) welded to the part
     // that held them, until it gets up or dies.
     bool knocked{false};
+    // Its worn backpack (vr_box3d_wornpack.cpp; QC vr_wornpack.qc): a box shape on its chest part (it weighs, collides
+    // and is held with it) until the QC tears it off; its place in that part's body, and its half sizes (units).
+    b3ShapeId pack{b3_nullShapeId};
+    int packPart{-1};
+    b3Transform packLocal{};
+    glm::vec3 packHalf{0.f};
     za::Array<glm::quat, ragdoll::maxBones> struggleRest{};
     bool struggleReady{false};
     int shockJerk{-1}; // shocked (shockRagdoll): the jerk it last bucked or not at
@@ -743,6 +749,9 @@ struct World
         float force{-1.f};
         float hertz{0.f};
         float stuck{0.f};
+        // Taken by its worn backpack (vr_box3d_wornpack.cpp): the hold's point on the pack's part (its body's, metres).
+        bool onPack{false};
+        b3Vec3 packGrip{0.f, 0.f, 0.f};
         // A tug-of-war's hold (ragdollTug: a hand on an armed monster's weapon, holding its hand's limb at the weapon's
         // lever): the QC's hand holds nothing, so that never lets it go; the QC ends it.
         bool tug{false};
@@ -1248,6 +1257,10 @@ bool cutLimb(RagdollBodies& r, edict_t* ent, int bone, const glm::vec3& blade, b
 bool cutHead(RagdollBodies& r, edict_t* ent, const glm::vec3& blade, bool launch);
 void dropGrabsOf(int num);
 [[nodiscard]] RagdollBodies* ragdollOf(int num);
+// The worn backpack (vr_box3d_wornpack.cpp): made on its chest part as the ragdoll is (createRagdoll, after its parts);
+// how far `at` (units) is from it (-1: none on).
+void createRagdollPack(RagdollBodies& r, edict_t* ent, int num, const Slot& s);
+[[nodiscard]] float packDistance(const RagdollBodies& r, const glm::vec3& at);
 [[nodiscard]] int nearestPart(const RagdollBodies& r, const glm::vec3& at, float& distance);
 void syncRagdollGrabs(float dt);
 [[nodiscard]] float grabReach(int player, int hand);

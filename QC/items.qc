@@ -2200,6 +2200,8 @@ void() backpack_think =
 DropBackpack
 ===============
 */
+void(entity item, float scaleFactor) Backpack_Setup;
+
 void() DropBackpack =
 {
     if(MG3_NoBackpack(self))
@@ -2236,12 +2238,18 @@ void() DropBackpack =
     item.angles_z = 90;
     item.angles_y = random() * 360;
 
+    Backpack_Setup(item, 0.75);
+};
+
+// A backpack item (DropBackpack's; a worn backpack torn off or its wearer dead: vr_wornpack.qc), `scaleFactor` its size:
+// grabbable, force-grabbable, carried, a physical object; its ammo and its flight are the caller's.
+void(entity item, float scaleFactor) Backpack_Setup =
+{
     item.flags = FL_ITEM;
     item.solid = SOLID_NOT_BUT_TOUCHABLE;
     item.movetype = MOVETYPE_TOSS;
     setmodel(item, "progs/backpack.mdl");
 
-    float scaleFactor = 0.75;
     vector factorVector = VR_ScaleUtil_GetUniformScaleVector(scaleFactor);
     VR_ScaleUtil_SetScale(item, factorVector);
 
