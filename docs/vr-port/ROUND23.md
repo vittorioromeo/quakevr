@@ -1889,6 +1889,54 @@ physgun get the shared throw smoothing; the haptic presets keep today's exact va
   query at the torch site each frame (the torch provider stops at its grip test, as the old search did).
 - **Checklist:** grab a torch off its wall (near it, and closing the fist on the way), a grenade and a round from the
   pouches, a box, a gun on the floor and in the air, an armed grunt's weapon and a ragdoll's limb: each taken as before.
+
+## Design review 5: the busy flags folded into the hand slot (branch `agent/grabquery`; his approved fold)
+
+- **The busy kinds (QC/vr_fields.qc):** after the carried kinds, `VR_HOLD_FOE` (an enemy held), `FLASHLIGHT`,
+  `SSGGRIP` (the second hand on a super shotgun), `MAGREHOLD` (still gripping the magazine it just seated), `TUG` (a
+  force grab's tug on a stuck axe; the axe in the new `.vr_hold_ent_main/off`). A busy hand carries nothing
+  (`.mainhand_held` stays world: the engine's carried-thing readers see nothing new). Writers (vr_carry.qc):
+  `VR_Hand_Busy(p, hand, kind, ent, why)` / `VR_Hand_Unbusy(p, hand, kind, why)` (only that kind); `VR_Hand_Release`
+  leaves a busy hand busy; `VR_Hand_Take` over a busy kind is told (`handslot: clash`, always; the foe grab's hand-over
+  takes the ragdoll over FOE, expected). The engine's two (`.vr_foegrab_hands`, `.vrbits0`'s `*_BUSY`) are read into
+  the slot at the top of PlayerPreThink (`VR_Hand_Derive`), before anything reads them; the frame's check
+  (`VR_Hand_Check`) ends a stale TUG/SSGGRIP (the axe no longer tugged by that hand, the gun no longer a super shotgun)
+  with a `handslot: stale` line.
+- **Flags gone:** `vr_mag_rehold`, `vr_ssg_held` (now kinds), `mainhand_wtgrip`/`offhand_wtgrip` with the torch's
+  `wt_gripper`/`wt_grip_*`, `VR_WallTorch_Gripped/SetGripped/Ungrip` and the pull-out branch: no writer had set the
+  grip on its wall since the immediate take (dead state); `vr_walltorch_pull` is no longer read (its tunable slider in
+  vr_tunables_rows.inc stays: removing it is his call). Readers now on the slot: `VR_FoeGrab_HandHolds`,
+  `VR_Melee_HoldsTorch` (pure moves: same answers), the force grab's flashlight test, `VR_Reload_SsgHit`, the magazine
+  pull's rehold. An old save's line for a removed field is skipped ("is not a field", developer only).
+- **Not folded:** `*_fgheldfoe` (a time: the force grab's pause after holding an enemy, not a busy state; its writer
+  reads the slot's FOE), `vr_gren_held` (on the grenade: its last tick's carry, an edge), `*_fglocked` (the force
+  grab's lock: the engine reads it, climb and the stats; VR_Hand_CanTake still asks it), the physgun (no QC state: the
+  toolgun is the hand's weapon, the drag the engine's), the C++ conjunction in vr_box3d_ragparts.cpp:498 (no C++
+  mirror of the kind yet).
+- **Callers whose answer changes:** VRIsHandEmpty (about 70 callers): none (a busy hand is still empty: it makes a fist,
+  grips a hotspot, steadies a gun; the super shotgun's own `holding` test needs that). `VR_Hand_CanTake` now refuses a
+  busy hand: the carry grab, the box's touch, a box's second hand (it already refused the flashlight), the ragdoll
+  grab: a hand holding an enemy, the flashlight, the super shotgun's fore-end, a just-seated magazine or an axe's tug
+  takes no box or limb now (before: it could). The foe grab's hand-over asks `VR_Hand_CanTakeFrom(.., VR_HOLD_FOE)`:
+  unchanged. Hand-written conjunctions now `VR_Hand_CanTake` (the point of the fold, one answer): the wall torch's grip
+  (adds the enemy, the flashlight, the fore-end, the magazine, the tug), the pouches' empty hand and the grenade catch
+  (they already refused the flashlight: adds the other four), the magazine pull (adds the flashlight, the enemy, the
+  fore-end, the tug). Kept as they were (his call): the force grab's start (empty and not the flashlight: a hand on
+  the fore-end or holding an enemy may still point one; the enemy has its fgheldfoe pause), items.qc's pickup (the
+  lock alone).
+- **Test:** `vr_pickup_test 7` (VR_SlotTest_Run in vr_axestick_test.qc, for the axe's fields): 16 passed, 0 failed (busy
+  empty but not taking, a release keeps it, unbusy by kind, stale fore-end and tug ended, the foe bit and the
+  flashlight bit through VR_Hand_Derive, the hand-over's exception, a tug start and end).
+- **Verified:** the covering cases (scratch/foldcheck_run.sh, 40: grabcheck's 36 plus fist_alert, parryinterrupt,
+  agrunt_2/33): 1 changed, reload 111/4 ("the ammo button from behind: 1 of 20 approaches", the same line in one of
+  (c)'s runs before the fold: a flake), agrunt_67 1/1 (listed flaky); no `handslot: clash/stale/mismatch` line in any
+  log. foegrab/onehand_drag ALL PASS, toolgun_physgun_ragdoll PASS. eval.sh full 163/171 as before the fold (differ
+  counts 10 and 17 on two runs of one build: event details, PASS -> PASS; necksnap 6/6, charges 22/22). No A/B: the
+  per-frame cost is two field reads and a compare a hand in PreThink and PostThink.
+- **Checklist:** hold the flashlight in one hand and grab a box, a pouch round and a wall torch with it: none taken
+  (the other hand takes them); the flashlight hand still punches. Grab a grunt, let it go, then grab a box with that
+  hand: taken. Two-hand the super shotgun, then reload it from the pouch with the fore-end hand (let go first): as
+  before. Seat a magazine and pull it straight out again without letting go (Release Seated Magazine off): as before.
 ## Sparse config: only what the player changed (branch `agent/sparsecfg`; design review proposal 1)
 
 His decision: forgotten defaults now reach players (yes).

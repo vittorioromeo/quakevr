@@ -732,7 +732,6 @@ float cvarh_vr_throw_weight_influence;
 float cvarh_vr_throw_assist_full;
 float cvarh_vr_throw_assist_range;
 float cvarh_vr_throw_assist_speed;
-float cvarh_vr_walltorch_pull;
 float cvarh_vr_teeth_speed;
 float cvarh_vr_teeth_mass;
 float cvarh_vr_flaregun_cooldown;
@@ -1926,7 +1925,6 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_throw_assist_full = cvar_hmake("vr_throw_assist_full");
     cvarh_vr_throw_assist_range = cvar_hmake("vr_throw_assist_range");
     cvarh_vr_throw_assist_speed = cvar_hmake("vr_throw_assist_speed");
-    cvarh_vr_walltorch_pull = cvar_hmake("vr_walltorch_pull");
     cvarh_vr_teeth_speed = cvar_hmake("vr_teeth_speed");
     cvarh_vr_teeth_mass = cvar_hmake("vr_teeth_mass");
     cvarh_vr_flaregun_cooldown = cvar_hmake("vr_flaregun_cooldown");

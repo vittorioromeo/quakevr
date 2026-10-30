@@ -2,8 +2,8 @@
 // Quake/vr/vr_walltorch.cpp).
 //
 // With vr_walltorch on (read as the map spawns), id's wall torch (light_torch_small_walltorch) stays an entity instead
-// of a static one, so that it can be taken: grip it (the fist on it, or within vr_walltorch_reach cm of its stick) and
-// pull it vr_walltorch_pull cm out of its holder (a wooden scrape), or force grab it (vr_walltorch_forcegrab). The same
+// of a static one, so that it can be taken: grip it (the fist on it, or within vr_walltorch_reach cm of its stick: it
+// comes out at once; vr_walltorch_pull is no longer read), or force grab it (vr_walltorch_forcegrab). The same
 // entity is then the torch in the hand (saves and the entities' numbers are kept; the map's baked light stays on the
 // wall, the flickering torch light goes with it). On its wall and taken it is our stick (progs/vrtorch.mdl, the wall
 // torch's own skin copied in as it loads) with the wall torch's flame over its head, drawn by the engine as big as its
@@ -30,12 +30,6 @@
 .float wt_last;         // when its fire was last worked out
 .float wt_out_time;     // when it went out (it smokes a while)
 .float wt_crackle;      // its crackle is playing (the engine keeps it with it)
-.entity wt_gripper;     // on its wall: the player whose hand grips it, pulling it out,
-.float wt_grip_hand;    // which hand,
-.vector wt_grip_from;   // where that hand was as it gripped it,
-.float wt_grip_buzz;    // and the next haptic tick
-.entity mainhand_wtgrip; // on a player: the torch each hand grips on its wall
-.entity offhand_wtgrip;
 
 // Torches and flames made in a live game (the toolgun's Fire tab; ROUND22.md, "Torches and fires from the toolgun"): the
 // engine sets vr_spawn_live round a spawn function it runs after the map has spawned (box3d::spawnClass). What the map
@@ -89,26 +83,6 @@ void(entity t, float xOn) VR_WallTorch_SetShootable =
 // ----------------------------------------------------------------------------
 // On its wall
 
-entity(entity xPlayer, float xHand) VR_WallTorch_Gripped =
-{
-    if(xHand == cVR_OffHand)
-    {
-        return xPlayer.offhand_wtgrip;
-    }
-    return xPlayer.mainhand_wtgrip;
-};
-
-void(entity xPlayer, float xHand, entity xTorch) VR_WallTorch_SetGripped =
-{
-    if(xHand == cVR_OffHand)
-    {
-        xPlayer.offhand_wtgrip = xTorch;
-    }
-    else
-    {
-        xPlayer.mainhand_wtgrip = xTorch;
-    }
-};
 
 // A torch's head (world): where its fire is.
 vector(entity t) VR_WallTorch_Head =
@@ -199,11 +173,6 @@ void(entity t) VR_WallTorch_Box =
 // Out of its holder: our stick with its fire (the same entity), a physics prop to carry, throw and force grab as a box.
 void(entity t) VR_WallTorch_Take =
 {
-    if(t.wt_gripper != world)
-    {
-        VR_WallTorch_SetGripped(t.wt_gripper, t.wt_grip_hand, world);
-        t.wt_gripper = world;
-    }
     t.wt_state = 1;
     t.wt_hits = 0;
     t.wt_dying = 0;
@@ -231,16 +200,6 @@ void(entity t) VR_WallTorch_Take =
     sound(t, CHAN_AUTO, "vr/torch_pull.wav", 0.9, ATTN_NORM);
     VR_WallTorch_Crackle(t, TRUE);
     setorigin(t, t.origin);
-};
-
-// A hand's grip on it lets go before it came out.
-void(entity t) VR_WallTorch_Ungrip =
-{
-    if(t.wt_gripper != world)
-    {
-        VR_WallTorch_SetGripped(t.wt_gripper, t.wt_grip_hand, world);
-    }
-    t.wt_gripper = world;
 };
 
 // Off its wall by a hit: out of its holder as it is by hand (still lit), then away from what hit it, tumbling. `by`
@@ -278,7 +237,6 @@ void(entity t, entity by, vector dir) VR_WallTorch_KnockOff =
     }
     dprint(sprintf("walltorch: knocked off its wall by %s along %v\n",
         by == world ? "a hit" : (by.classname != "" ? by.classname : by.model), away));
-    VR_WallTorch_Ungrip(t);
     VR_WallTorch_Take(t); // (still lit: wt_fire 1; its wall light goes with its frame: vr_emissive.cpp walltorch::onWall)
     float bySpeed = by == world ? 0 : vlen(by.velocity);
     t.velocity = away * VR_WALLTORCH_KNOCK_SPEED + '0 0 1' * VR_WALLTORCH_KNOCK_UP +
@@ -343,9 +301,8 @@ float(entity xPlayer, float xHand) VR_WallTorch_GripFresh =
 // Whether `xPlayer`'s hand `xHand` may take hold of torch `t` on its wall now (its grip fresh, nothing in it).
 float(entity t, entity xPlayer, float xHand) VR_WallTorch_CanGrip =
 {
-    return t.wt_state == 0 && t.wt_gripper == world && // (Item Pickup Mode Vanilla too: not a pickup)
-           VR_WallTorch_GripFresh(xPlayer, xHand) && VRIsHandEmpty(xPlayer, xHand) &&
-           !VR_Forcegrab_IsHandBusy(xPlayer, xHand) && VR_WallTorch_Gripped(xPlayer, xHand) == world;
+    return t.wt_state == 0 && // (Item Pickup Mode Vanilla too: not a pickup)
+           VR_WallTorch_GripFresh(xPlayer, xHand) && VR_Hand_CanTake(xPlayer, xHand);
 };
 
 // `xPlayer`'s hand `xHand` takes hold of torch `t` on its wall (`xHow`: the log's); pulled far enough, it comes out
@@ -426,7 +383,7 @@ entity(float xHand) VR_WallTorch_NearHand =
 // (vr_walltorch_reach), or one closed on the way to it (vr_walltorch_grab_time). The hand empty, holding none.
 float(float xHand) VR_WallTorch_GrabCandidate =
 {
-    if(self.health <= 0 || VR_WallTorch_Gripped(self, xHand) != world || !VR_WallTorch_GripFresh(self, xHand) ||
+    if(self.health <= 0 || !VR_WallTorch_GripFresh(self, xHand) ||
        !VRIsHandEmpty(self, xHand))
     {
         return FALSE;
@@ -441,49 +398,14 @@ float(float xHand) VR_WallTorch_GrabCandidate =
     return TRUE;
 };
 
-// Every player frame, for each hand (self is the player; W_Frame): a hand gripping a torch on its wall pulls it out.
+// Every player frame, for each hand (self is the player; W_Frame): a grip near a torch on its wall takes it (the grab
+// query's answer). (The grip on its wall, pulled out by vr_walltorch_pull, had no writer since the immediate take: gone
+// with the hand slot's fold; the cvar stays, unread.)
 void(float xHand) VR_WallTorch_HandFrame =
 {
-    entity t = VR_WallTorch_Gripped(self, xHand);
-    if(t == world)
+    if(VR_Grab_Answers(xHand, VR_GRAB_TORCH))
     {
-        if(VR_Grab_Answers(xHand, VR_GRAB_TORCH))
-        {
-            VR_WallTorch_Grip(vr_grab_ent, self, xHand, sprintf("near, %.1f cm; %.2f s after the press, the hand at %.1f m/s", vr_wt_near_dist, time - VR_HandGrabUtil_Impl_GetLastGrabTime(self, xHand), vlen(xHand == cVR_OffHand ? self.offhandvel : self.handvel)));
-        }
-        return;
-    }
-    if(t.wt_state != 0 || t.wt_gripper != self || t.wt_grip_hand != xHand || self.health <= 0 ||
-       !VR_HandGrabUtil_IsHandGrabbing(self, xHand) || !VRIsHandEmpty(self, xHand))
-    {
-        dprint("walltorch: let go of on its wall\n");
-        if(t.wt_gripper == self && t.wt_grip_hand == xHand)
-        {
-            VR_WallTorch_Ungrip(t);
-        }
-        else
-        {
-            VR_WallTorch_SetGripped(self, xHand, world);
-        }
-        return;
-    }
-    float pulled = vlen(VRGetHandPos(xHand) - t.wt_grip_from) * 100 / VRMetersToUnits(); // cm
-    float need = max(0, cvar_hget(cvarh_vr_walltorch_pull));
-    if(pulled >= need)
-    {
-        dprint(sprintf("walltorch: pulled out by hand %g (%.1f cm)\n", xHand, pulled));
-        VR_WallTorch_Take(t);
-        vr_carry_quiet = TRUE;
-        VR_Carry_Start(self, xHand, t);
-        vr_carry_quiet = FALSE;
-        VR_Haptic_GrabTorch(xHand);
-        return;
-    }
-    // Held in its holder: a grating buzz, stronger as it comes.
-    if(time >= t.wt_grip_buzz)
-    {
-        t.wt_grip_buzz = time + 0.05;
-        haptic(xHand, 0.0, 0.05, 45 + pulled * 3, 0.15 + 0.45 * pulled / max(1, need));
+        VR_WallTorch_Grip(vr_grab_ent, self, xHand, sprintf("near, %.1f cm; %.2f s after the press, the hand at %.1f m/s", vr_wt_near_dist, time - VR_HandGrabUtil_Impl_GetLastGrabTime(self, xHand), vlen(xHand == cVR_OffHand ? self.offhandvel : self.handvel)));
     }
 };
 
@@ -496,7 +418,7 @@ float(entity e) VR_WallTorch_ForceGrabbable =
     }
     if(e.wt_state == 0)
     {
-        return e.wt_gripper == world;
+        return TRUE;
     }
     return e.solid != SOLID_NOT && e.carry_player == world &&
            ((e.flags & FL_ONGROUND) || vlen(e.velocity) < 300);
@@ -782,7 +704,7 @@ void() VR_WallTorch_Touch =
         // slowly); a hand takes it by its handtouch, never here. What knocks it off is a thing thrown into it at the
         // speed a throw of that thing counts as a throw (VR_Thrown_HitSpeed): what has already hit something is not in
         // a throw, and what is not in one is resting against it.
-        if(other == world || other == self.wt_gripper || other.classname == "player" ||
+        if(other == world || other.classname == "player" ||
            (other.flags & FL_MONSTER))
         {
             return;

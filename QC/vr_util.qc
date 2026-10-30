@@ -328,8 +328,14 @@ void(entity xPlayer, float xHand, entity xThing) VR_Hand_Take;
 void(entity xPlayer, float xHand, string xWhy) VR_Hand_Release;
 void(entity xPlayer, entity xThing, string xWhy) VR_Hand_ReleaseThing;
 
-// Whether `xHand` is empty: no weapon, and its slot holds nothing (a box, a gib, a torch, a grenade, a round). What may
-// take something, grip a hotspot or steady the other hand's weapon.
+#define VR_Hand_BusyEnt(e, xHand) ((xHand) == cVR_OffHand ? (e).vr_hold_ent_off : (e).vr_hold_ent_main)
+#define VR_Hand_IsBusyKind(xKind) ((xKind) >= VR_HOLD_FOE)
+void(entity xPlayer, float xHand, float xKind, entity xEnt, string xWhy) VR_Hand_Busy;
+void(entity xPlayer, float xHand, float xKind, string xWhy) VR_Hand_Unbusy;
+
+// Whether `xHand` is empty: no weapon, and its slot carries nothing (a box, a gib, a torch, a grenade, a round). What may
+// grip a hotspot, steady the other hand's weapon or make a fist; a busy hand (VR_HOLD_FOE and after: an enemy, the
+// flashlight, a gun's fore-end) is empty too. Whether it may take something: VR_Hand_CanTake.
 float(entity e, float xHand) VRIsHandEmpty =
 {
     return VRIsHandWeaponless(e, xHand) && VR_Hand_Thing(e, xHand) == world;
