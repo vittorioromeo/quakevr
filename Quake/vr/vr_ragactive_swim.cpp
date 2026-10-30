@@ -212,64 +212,46 @@ void stopSwim(State& s, const Context& c, float t)
 namespace detail
 {
 
-// Each frame (after deathFrame): begins, stops, or sets the strokes' targets and reaches over the clip's.
-void swimFrame(State& s, const Parts& p, const Context& c, float t)
+namespace
 {
-    Swim& w = s.swim;
-    if(w.liquid == Liquid::None)
-    {
-        if(w.from >= 0.0 || !c.liquidAt || !liquidsOn() || !s.death.on || s.death.collapse || t > liquidWindow)
-        {
-            return;
-        }
-        const Liquid l = enteredLiquid(p, c, swimParts(p));
-        if(l == Liquid::None)
-        {
-            return;
-        }
-        startSwim(s, p, c, l, t);
-    }
-    const SwimParts sp = swimParts(p);
-    const bool air = w.liquid == Liquid::Air; // (a lifted one's flail: in it until endFlail)
-    bool in = air;
-    bool headIn = false;
-    if(!air && c.liquidAt && liquidsOn())
-    {
-        for(const int b : {0, sp.chest, sp.head})
-        {
-            const bool here = b >= 0 && c.liquidAt(centre(p, b)) != Liquid::None;
-            in = in || here;
-            headIn = headIn || (here && b == sp.head);
-        }
-    }
-    if(!in)
-    {
-        if(w.outSince < 0.0)
-        {
-            w.outSince = c.now;
-        }
-        if(c.now - w.outSince > 0.5 || !c.liquidAt || !liquidsOn())
-        {
-            stopSwim(s, c, t);
-            return;
-        }
-    }
-    else
-    {
-        w.outSince = -1.0;
-    }
-    const bool water = w.liquid == Liquid::Water;
-    const float T = w.length;
-    const float ts = static_cast<float>(c.now - w.from);
-    // Its vigour (1 .. 0): the arms' strength over what it began with. Slower strokes as it weakens.
+
+// swimFrame's working state, from phase to phase (swimFrame below: its phases in order).
+struct SwimWork
+{
+    Swim* w{nullptr};
+    SwimParts sp{};
+    bool in{};
+    bool headIn{};
+    bool water{};
+    float T{};
+    float ts{};
+    float v{};
+    float frantic{};
+    glm::quat qc{};
+    glm::quat qp{};
+    glm::vec3 x{};
+    glm::vec3 y{};
+    glm::vec3 z{};
+    float tl{};
+    float a{};
+};
+
+// Its vigour (1 .. 0): the arms' strength over what it began with. Slower strokes as it weakens.
+void swimVigour(SwimWork& wk, State& s, const Parts& p, const Context& c, float t)
+{
+    Swim& w = *wk.w;
+    SwimParts& sp = wk.sp;
+    bool& water = wk.water;
     const Fade& fa = s.fade[static_cast<za::SizeT>(Channel::Arms)];
-    const float v = za::clamp(fadeAt(fa, t) / za::max(fa.from, 1e-3f), 0.f, 1.f);
+    float& v = wk.v;
+    v = za::clamp(fadeAt(fa, t) / za::max(fa.from, 1e-3f), 0.f, 1.f);
     // A drowning one's struggle: frantic strokes at first (quicker, harder), easing to its usual.
     if(w.panic > 0.f && w.panicFrom < 0.0)
     {
         w.panicFrom = c.now;
     }
-    const float frantic = w.panic > 0.f ? w.panic * (1.f - smooth01(static_cast<float>(c.now - w.panicFrom) / panicTime)) : 0.f;
+    float& frantic = wk.frantic;
+    frantic = w.panic > 0.f ? w.panic * (1.f - smooth01(static_cast<float>(c.now - w.panicFrom) / panicTime)) : 0.f;
     const float hz = (water ? 0.6f + 0.7f * v : 2.2f + 1.6f * v) * (1.f + panicRate * frantic);
     w.phase += twoPi * hz * c.dt;
     // (Wrapped in water only: a flail's hops count its phase up, and lasts at most ~50 s, a few thousand radians.)
@@ -277,13 +259,29 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
     {
         w.phase -= 64.f * twoPi;
     }
-    const glm::quat qc = bodyRot(p, sp.chest >= 0 ? sp.chest : 0), qp = bodyRot(p, 0);
-    const glm::vec3 x{1.f, 0.f, 0.f}, y{0.f, 1.f, 0.f}, z{0.f, 0.f, 1.f};
-    // The torso and head (the limbs' bones beyond their reaches: as he stood). A flail's thrash (its rates, Hz at full
-    // vigour) slows with its strokes: its phase over the full rate's (3.8 Hz), radians per Hz.
+    wk.qc = bodyRot(p, sp.chest >= 0 ? sp.chest : 0);
+    wk.qp = bodyRot(p, 0);
+    wk.x = glm::vec3{1.f, 0.f, 0.f};
+    wk.y = glm::vec3{0.f, 1.f, 0.f};
+    wk.z = glm::vec3{0.f, 0.f, 1.f};
+}
+
+// The torso and head (the limbs' bones beyond their reaches: as he stood). A flail's thrash (its rates, Hz at full
+// vigour) slows with its strokes: its phase over the full rate's (3.8 Hz), radians per Hz.
+void swimTorso(SwimWork& wk, State& s, const Parts& p)
+{
+    Swim& w = *wk.w;
+    bool& water = wk.water;
+    float& T = wk.T;
+    float& ts = wk.ts;
+    float& v = wk.v;
+    glm::vec3& x = wk.x;
+    glm::vec3& y = wk.y;
+    glm::vec3& z = wk.z;
     const float fp = w.phase / 3.8f;
     // (A living one's as at its start: its head tipped back and held up while it lives.)
-    const float tl = w.living ? 0.f : ts;
+    float& tl = wk.tl;
+    tl = w.living ? 0.f : ts;
     const float head = water ? -0.6f * (1.f - smooth01((tl - 0.3f * T) / (0.4f * T))) : 0.f;
     for(int b = 1; b < p.count; b++)
     {
@@ -306,8 +304,21 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
         }
         s.target[static_cast<za::SizeT>(b)] = glm::normalize(q);
     }
-    // The limbs: a reach each (no strength of its own: their channels' fades lead).
-    const float a = 0.4f + 0.6f * v;
+}
+
+// The limbs: a reach each (no strength of its own: their channels' fades lead).
+void swimLimbs(SwimWork& wk, State& s, const Parts& p)
+{
+    Swim& w = *wk.w;
+    bool& water = wk.water;
+    float& v = wk.v;
+    glm::quat& qc = wk.qc;
+    glm::quat& qp = wk.qp;
+    glm::vec3& x = wk.x;
+    glm::vec3& y = wk.y;
+    glm::vec3& z = wk.z;
+    float& a = wk.a;
+    a = 0.4f + 0.6f * v;
     for(int limb = 0; limb < limbCount; limb++)
     {
         Reach& r = s.reach[static_cast<za::SizeT>(limb)];
@@ -350,7 +361,17 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
         r.weight = 1.f;
         r.strength = 0.f;
     }
-    // The head held up while it is under, for the first part of the paddle (half on the head, half on the chest).
+}
+
+// The head held up while it is under, for the first part of the paddle (half on the head, half on the chest).
+void swimHead(SwimWork& wk, State& s, const Parts& p, const Context& c)
+{
+    Swim& w = *wk.w;
+    SwimParts& sp = wk.sp;
+    bool& headIn = wk.headIn;
+    bool& water = wk.water;
+    float& T = wk.T;
+    float& tl = wk.tl;
     w.headLift = 0.f;
     if(water && headIn && sp.head >= 0)
     {
@@ -363,8 +384,22 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
             pushPart(p, sp.chest >= 0 ? sp.chest : 0, f);
         }
     }
-    // The strokes' push (water): ahead (its chest's way), or a living one's towards where it can stand, turning to face
-    // it; strongest as the hands pull back, weakening with its vigour. Half on the pelvis, half on the chest.
+}
+
+// The strokes' push (water): ahead (its chest's way), or a living one's towards where it can stand, turning to face
+// it; strongest as the hands pull back, weakening with its vigour. Half on the pelvis, half on the chest.
+void swimPush(SwimWork& wk, State& s, const Parts& p, const Context& c)
+{
+    Swim& w = *wk.w;
+    SwimParts& sp = wk.sp;
+    bool& in = wk.in;
+    bool& headIn = wk.headIn;
+    bool& water = wk.water;
+    float& v = wk.v;
+    float& frantic = wk.frantic;
+    glm::quat& qc = wk.qc;
+    glm::vec3& x = wk.x;
+    glm::vec3& z = wk.z;
     w.thrust = 0.f;
     if(water && in)
     {
@@ -409,6 +444,69 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t)
             static_cast<int>(w.liquid), v, headIn ? 1 : 0, hz2, w.headLift, limbs / static_cast<float>(za::max(n, 1)), w.thrust,
             centre(p, 0).x * p.m2u, centre(p, 0).y * p.m2u);
     }
+}
+
+} // namespace
+
+// Each frame (after deathFrame): begins, stops, or sets the strokes' targets and reaches over the clip's.
+void swimFrame(State& s, const Parts& p, const Context& c, float t)
+{
+    SwimWork wk;
+    wk.w = &s.swim;
+    Swim& w = *wk.w;
+    if(w.liquid == Liquid::None)
+    {
+        if(w.from >= 0.0 || !c.liquidAt || !liquidsOn() || !s.death.on || s.death.collapse || t > liquidWindow)
+        {
+            return;
+        }
+        const Liquid l = enteredLiquid(p, c, swimParts(p));
+        if(l == Liquid::None)
+        {
+            return;
+        }
+        startSwim(s, p, c, l, t);
+    }
+    SwimParts& sp = wk.sp;
+    sp = swimParts(p);
+    const bool air = w.liquid == Liquid::Air; // (a lifted one's flail: in it until endFlail)
+    bool& in = wk.in;
+    in = air;
+    bool& headIn = wk.headIn;
+    headIn = false;
+    if(!air && c.liquidAt && liquidsOn())
+    {
+        for(const int b : {0, sp.chest, sp.head})
+        {
+            const bool here = b >= 0 && c.liquidAt(centre(p, b)) != Liquid::None;
+            in = in || here;
+            headIn = headIn || (here && b == sp.head);
+        }
+    }
+    if(!in)
+    {
+        if(w.outSince < 0.0)
+        {
+            w.outSince = c.now;
+        }
+        if(c.now - w.outSince > 0.5 || !c.liquidAt || !liquidsOn())
+        {
+            stopSwim(s, c, t);
+            return;
+        }
+    }
+    else
+    {
+        w.outSince = -1.0;
+    }
+    wk.water = w.liquid == Liquid::Water;
+    wk.T = w.length;
+    wk.ts = static_cast<float>(c.now - w.from);
+    swimVigour(wk, s, p, c, t);
+    swimTorso(wk, s, p);
+    swimLimbs(wk, s, p);
+    swimHead(wk, s, p, c);
+    swimPush(wk, s, p, c);
 }
 
 // Its middle (centre of mass of its parts but loose ones: his gun), world metres; and its motion (m/s) into `vel`.
