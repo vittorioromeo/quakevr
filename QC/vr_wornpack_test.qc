@@ -54,10 +54,7 @@ float() VR_WPT_Loose =
 // A hit of `d` at `at` from the player.
 void(entity g, entity p, vector at, float d) VR_WPT_Hit =
 {
-    vr_hitpart_target = g;
-    vr_hitpart_time = time;
-    vr_hitpart_pos = at;
-    vr_hitpart = 0;
+    VR_Hit_SetZone(g, 0, at);
     T_Damage(g, p, p, d);
 };
 
