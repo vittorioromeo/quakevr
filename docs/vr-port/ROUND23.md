@@ -1418,4 +1418,9 @@ read every pak's directory.
 - **Checks**: eyeshots of vrtesthall, e1m3, e2m1, hip2m5 (dither and particles off), before vs after: 1522 pixels
   differ, the before build twice: 2195 (the same regions). Covering cases (`run_baseline.sh --only` limb, ragdoll,
   agrunt 1-6, animsmooth, selfchecks, stats_levelchange): 0 of 16 changed against baseline.tsv.
-LOAD5_TIMES
+- **Times** (interleaved ABBA, 5 rounds, exclusive, no-LTO, medians; cold: the session's first load, warm: the same
+  map again): vrtesthall cold 1173 -> 1147 ms (precache 164 -> 131, limbs 192 -> 148: their precaches' lookups),
+  vrstart 1536 -> 1440 (spawn 750 -> 681, limbs 213 -> 154), e1m1 916 -> 919 and hip2m5 1074 -> 1103 (within the
+  runs' +-100 ms spread; hip2m5's per-round differences -63, -11, -633, -38, +79). "Image files looked for, none found"
+  70 -> 6 ms (vrtesthall), 77 -> 6 (vrstart), 16 -> 5 (e1m1), 20 -> 6 (hip2m5). Warm loads unchanged (144-293 ms: the
+  models are kept). Scripts: scratch/load5_ab.sh, load5_abstats.py (not committed).
