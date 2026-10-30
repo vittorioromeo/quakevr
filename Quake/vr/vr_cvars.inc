@@ -2807,7 +2807,10 @@ QVR_CVAR(vr_nailpistol_spread, "0.25", CVAR_ARCHIVE)   // degrees its nails stra
 QVR_CVAR(vr_nailpistol_mag, "12", CVAR_ARCHIVE)        // the rounds its magazine holds (a nail each)
 QVR_CVAR(vr_nailpistol_mag_pull, "0", CVAR_ARCHIVE)   // 1: its magazine pulls off by hand as the other guns' (vr_reload_pull_*); 0: only its eject button lets it out (his note 2026-10-29)
 QVR_CVAR(vr_nailpistol_volume, "1", CVAR_ARCHIVE)      // its shot's volume (0..4)
-QVR_CVAR(vr_nailpistol_slide_time, "0.07", CVAR_ARCHIVE) // s its slide stays back after a shot before it runs home (empty: it locks back)
+// Its slide (vr_nailslide.cpp): back each shot and home again, locked back while the gun is empty; a magazine with
+// rounds put in closes it with a rack (vr/nailpistol_rack.wav). vr_nailpistol_slide_time (held back 0.07 s) retired.
+QVR_CVAR(vr_nailpistol_slide_travel, "1.5", CVAR_ARCHIVE) // how far it goes back, in the gun's model units (0..3: progs/v_nailpistol.mdl's frame 1 is 3 back)
+QVR_CVAR(vr_nailpistol_slide_cycle, "0.14", CVAR_ARCHIVE) // s back and home after a shot (a third back, the rest home; a re-rack closes in the home part)
 QVR_CVAR(vr_nailpistol_smoke, "1", CVAR_ARCHIVE)       // a wisp of smoke from its muzzle after shots (0 none; more after a quick string)
 QVR_CVAR(vr_dmg_revolver, "28", CVAR_ARCHIVE)        // the heavy revolver (QC vr_revolver.qc): a slug's (a grunt, 30: one in the head at x1.5, two in the body, or one when its roll reaches 30; vr_revolver_heavy_mult in a big body; his 28 of 2026-10-27, was 26)
 // The heavy revolver (QC vr_revolver.qc; Combat > Weapon Damage > Heavy Revolver; Weapons > Reloading > Heavy
@@ -5142,6 +5145,7 @@ QVR_CVAR(vr_mg3_btest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Be
 QVR_CVAR(vr_mg3_ctest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine: Chthon: 1 report, 2 a Chthon of the spawner's (any map), 3 the boss map's fight (QC/vr_mg3_chthon_test.qc; not archived)
 QVR_CVAR(vr_flare_test, "0", CVAR_NONE) // Debug > Tests > Flare Gun: 1 its self-test, 2 one in your hand, 3 in both, 4 in the right hip and upper holsters, 5 its muzzles' test, 6 the eyeshots' scene (9: in the dark), 7 the crates' flare guns planned twice (QC/vr_flaregun_test.qc; "flaretest: N passed, M failed"; not archived)
 QVR_CVAR(vr_rv_test, "0", CVAR_NONE) // Debug > Tests > Heavy Revolver: 1 its self-test (QC/vr_revolver_test.qc; "rvtest: N passed, M failed"), 2 one loaded in the main hand, 3 in both, 4 one swung out with live and spent shells, 5 an armed grunt with one (not archived)
+QVR_CVAR(vr_nailslide_debug, "0", CVAR_NONE) // Debug > Tests > Nail Pistol > Slide: Print: each frame the nail pistol's slide moves, "nailslide: hand H pos P (travel T) back B" (vr_nailslide.cpp; not archived)
 QVR_CVAR(vr_np_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 its self-test, 2 in your hand, 3 in both, 4 in the right hip and upper holsters (QC/vr_nailpistol_test.qc; "nptest: N passed, M failed"; not archived)
 QVR_CVAR(vr_nail_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 the nails' speed, hit box and drawn size test ("nailtest: N passed, M failed"), 2 three nails hung before your eyes for 30 s (QC/vr_nail_test.qc; not archived)
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)

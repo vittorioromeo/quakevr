@@ -11,15 +11,18 @@
 // grunt dies to two in the head or three in the body) from a vr_nailpistol_mag round magazine in its grip, a nail of your
 // nails a round. Immersive reloading takes it as the other magazine guns (vr_reload.qc: B/Y ejects it, the pouch gives a
 // new one, slapped up into the grip; progs/vr_mag_npistol.mdl, Misc/quakevr/make_nailpistol_mags.py); the other reload
-// modes as any gun. Its slide snaps back each shot and runs home, and stays back on an empty gun. Weapon settings slot 36
+// modes as any gun. Its slide snaps back each shot and runs home, stays back on an empty gun, and a magazine with
+// rounds closes it with a rack (vr_nailpistol_slide_travel, _cycle; drawn by Quake/vr/vr_nailslide.cpp). Weapon settings slot 36
 // (vr_weapons.inc: its grip, sights, holsters, recoil, flash). weapon_nailpistol lies ready to be picked up.
 // Armed grunts carry it as a gun one hand holds (a pair dual wielded: vr_armedgrunt.qc), firing it through
 // W_FireNailPistol.
 
 .float vr_np_rearm;     // the trigger pulled since its last shot (or dry click): it fires again only once let go
 .float vr_np_rearm2;
-.float vr_np_slide;     // until when its slide stays back after a shot
+.float vr_np_slide;     // until when its slide is sent back after a shot (an armed grunt's: on its prop)
 .float vr_np_slide2;
+.float vr_np_lock;      // its slide as last seen: 0 not yet (another weapon), 1 home (rounds in), 2 locked back (empty)
+.float vr_np_lock2;
 .float vr_np_smoke;     // when the wisp of smoke after its last shot rises (0 none)
 .float vr_np_smoke2;
 .float vr_np_heat;      // its recent shots (more smoke after a quick string): decays a shot a quarter second
@@ -29,6 +32,7 @@
 
 float vr_np_shots;      // shots fired (tests)
 float vr_np_dry;        // dry clicks (tests)
+float vr_np_racks;      // re-racks: a locked-back slide closed by a magazine with rounds (tests)
 float vr_np_hits;       // nails into vr_np_target (tests)
 float vr_np_lastfactor; // the last nail's hit part's factor (tests)
 entity vr_np_target;
@@ -45,6 +49,7 @@ void() VR_NailPistol_Precache =
     precache_model("progs/v_nailpistol.mdl");
     precache_model("progs/vr_mag_npistol.mdl");
     precache_sound("vr/nailpistol_shot.wav");
+    precache_sound("vr/nailpistol_rack.wav");
     precache_sound("weapons/spike2.wav");
     precache_sound("gunclick.wav");
 };
@@ -52,6 +57,48 @@ void() VR_NailPistol_Precache =
 float() VR_NailPistol_MagSize =
 {
     return max(1, rint(cvar_hget(cvarh_vr_nailpistol_mag)));
+};
+
+// How long a shot sends its slide back (frame 1; the engine draws it running back, then home: vr_nailslide.cpp): the
+// first third of vr_nailpistol_slide_cycle, a frame at least (the edge the client sees).
+float() VR_NailPistol_SlideBack =
+{
+    return max(0.014, max(0, cvar_hget(cvarh_vr_nailpistol_slide_cycle)) / 3);
+};
+
+// The re-rack: a slide locked back closed by a magazine with rounds (`e` the gun's holder, or an armed grunt's prop).
+void(entity e, float xHand) VR_NailPistol_Rack =
+{
+    sound(e, VRGetHandChannel(xHand), "vr/nailpistol_rack.wav", 1, ATTN_NORM);
+    vr_np_racks++;
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("nailpistol: re-racked, hand %g (%s)\n", xHand, e.classname));
+    }
+};
+
+// An armed grunt's nail pistol prop (vr_armedgrunt.qc VR_AG_ShootProp) fired: its slide back a moment.
+void(entity p) VR_NailPistol_PropShot =
+{
+    p.vr_np_slide = time + VR_NailPistol_SlideBack();
+    p.frame = 1;
+};
+
+// Its prop's slide each think (VR_AG_PropThink, self the prop): back after a shot, locked back while its clip is out of
+// rounds, closed with the rack when it is loaded again.
+void() VR_NailPistol_PropFrame =
+{
+    if(self.weapon != WID_NAILPISTOL)
+    {
+        return;
+    }
+    float empty = self.weaponinst && self.weaponinst.wi_clip < 1;
+    if(self.vr_np_lock == 2 && !empty)
+    {
+        VR_NailPistol_Rack(self, cVR_MainHand);
+    }
+    self.vr_np_lock = empty ? 2 : 1;
+    self.frame = (time < self.vr_np_slide || empty) ? 1 : 0;
 };
 
 // The weapon cycle's next weapon id from `xWeapon` (+1 or -1): the ids in order, the nail pistol between the super shotgun
@@ -164,11 +211,11 @@ void(float xHand) W_FireNailPistol =
 
     if(self.flags & FL_CLIENT)
     {
-        // The slide back (frame 1) for a moment, the wisp of smoke after the string (VR_NailPistol_PlayerFrame).
+        // The slide sent back (frame 1) for a moment, the wisp of smoke after the string (VR_NailPistol_PlayerFrame).
         float heat = VR_IMPL_SELECT(xHand, self.vr_np_heat2, self.vr_np_heat);
         float since = time - VR_IMPL_SELECT(xHand, self.vr_np_heat_at2, self.vr_np_heat_at);
         heat = max(0, heat - since * 4) + 1;
-        float until = time + max(0, cvar_hget(cvarh_vr_nailpistol_slide_time));
+        float until = time + VR_NailPistol_SlideBack();
         if(xHand == cVR_OffHand)
         {
             self.vr_np_slide2 = until;
@@ -252,16 +299,24 @@ void(float xHand) VR_NailPistol_HandFrame =
 {
     if(VRGetWeapon(xHand) != WID_NAILPISTOL)
     {
-        if(xHand == cVR_OffHand) { self.vr_np_rearm2 = FALSE; self.vr_np_smoke2 = 0; }
-        else                     { self.vr_np_rearm = FALSE; self.vr_np_smoke = 0; }
+        if(xHand == cVR_OffHand) { self.vr_np_rearm2 = FALSE; self.vr_np_smoke2 = 0; self.vr_np_lock2 = 0; }
+        else                     { self.vr_np_rearm = FALSE; self.vr_np_smoke = 0; self.vr_np_lock = 0; }
         return;
     }
     if(!VRGetFireButtonPressed(xHand))
     {
         if(xHand == cVR_OffHand) { self.vr_np_rearm2 = FALSE; } else { self.vr_np_rearm = FALSE; }
     }
-    // The slide: back a moment after a shot (the renderer runs it home between the frames), locked back while empty.
-    float back = (time < VR_IMPL_SELECT(xHand, self.vr_np_slide2, self.vr_np_slide) || VR_NailPistol_Empty(xHand));
+    // The slide: sent back a moment by a shot, locked back while empty (frame 1; the engine draws it travelling back and
+    // home: vr_nailslide.cpp, vr_nailpistol_slide_travel and _cycle). Locked back, then rounds in (a new magazine): it
+    // closes by itself, with the rack (no hand racks it).
+    float empty = VR_NailPistol_Empty(xHand);
+    if(VR_IMPL_SELECT(xHand, self.vr_np_lock2, self.vr_np_lock) == 2 && !empty)
+    {
+        VR_NailPistol_Rack(self, xHand);
+    }
+    if(xHand == cVR_OffHand) { self.vr_np_lock2 = empty ? 2 : 1; } else { self.vr_np_lock = empty ? 2 : 1; }
+    float back = (time < VR_IMPL_SELECT(xHand, self.vr_np_slide2, self.vr_np_slide) || empty);
     VRSetWeaponFrame(xHand, back ? 1 : 0);
     // The wisp of smoke: a moment after the last shot, more after a quick string.
     float at = VR_IMPL_SELECT(xHand, self.vr_np_smoke2, self.vr_np_smoke);

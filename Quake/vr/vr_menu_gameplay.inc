@@ -1941,6 +1941,12 @@ void ikStretchReset()
             .help("How far its nails stray from its aim at most."),
         slider("Nail Pistol Magazine", vr_nailpistol_mag, 1.f, 30.f, 1.f, "%.0f rounds").extend(1.f, 100.f)
             .help("The rounds its magazine holds, a nail of yours each."),
+        slider("Nail Pistol Slide Travel", vr_nailpistol_slide_travel, 0.f, 3.f, 0.1f, "%.1f units")
+            .help("How far its slide goes back each shot, and stays back while it is empty (the gun's own units: it is "
+                  "about 13 long). A magazine with rounds put in racks it closed."),
+        slider("Nail Pistol Slide Cycle", vr_nailpistol_slide_cycle, 0.03f, 0.5f, 0.01f, "%.2f s").extend(0.01f, 2.f)
+            .help("How long its slide takes back and home after a shot (a third of it back); a re-rack closes in the "
+                  "home part."),
         slider("Flare Gun", vr_dmg_flaregun, 0.f, 60.f, 1.f, "%.0f a flare").extend()
             .help("Quake VR's disposable flare gun: a flare's hit (low: what it hits is set on fire, an explosive box "
                   "goes off). Two flares, then throw it away."),

@@ -26,7 +26,11 @@ and `v_shot.mdl`. The pistol is ~13.2 units long: at a view weapon's usual in-ha
 
 - `Body`: origin at the grip's hand point (the grip's middle, two units down its axis). The MDL's origin.
 - `Slide`: origin at its rest point (its bottom middle). It snaps back along its local **-X** by its custom property
-  `travel` (1.0): the export writes that as frame 1.
+  `travel` (3.0): the export writes that as frame 1. The game draws it back by vr_nailpistol_slide_travel (0..3,
+  default 1.5) as frames 0 and 1 blended (Quake/vr/vr_nailslide.cpp measures frame 1's travel from the model).
+  The shipped MDL's frame 1 was moved from 1.0 to 3.0 back without Blender (its slide's vertices' offset scaled,
+  re-quantised as the export's writer does: ROUND23.md, "Nail pistol: moving slide"); the .blend keeps 1.0 until
+  build_nailpistol.py is run again.
 - `Trigger`: origin at its pivot (its top), so it can be rotated about Y for a pull later.
 - `Magazine`: origin at its top; it comes out along its local **-Z** (down the grip, which leans back 12 degrees). The
   export prints where it sits in the Body's frame: origin 0.468 0 2.201, rotated 12 degrees about Y.

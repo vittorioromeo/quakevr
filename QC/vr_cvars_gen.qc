@@ -317,7 +317,7 @@ float cvarh_vr_nailpistol_spread;
 float cvarh_vr_nailpistol_mag;
 float cvarh_vr_nailpistol_mag_pull;
 float cvarh_vr_nailpistol_volume;
-float cvarh_vr_nailpistol_slide_time;
+float cvarh_vr_nailpistol_slide_cycle;
 float cvarh_vr_nailpistol_smoke;
 float cvarh_vr_dmg_revolver;
 float cvarh_vr_revolver_dmg_random;
@@ -1508,7 +1508,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_nailpistol_mag = cvar_hmake("vr_nailpistol_mag");
     cvarh_vr_nailpistol_mag_pull = cvar_hmake("vr_nailpistol_mag_pull");
     cvarh_vr_nailpistol_volume = cvar_hmake("vr_nailpistol_volume");
-    cvarh_vr_nailpistol_slide_time = cvar_hmake("vr_nailpistol_slide_time");
+    cvarh_vr_nailpistol_slide_cycle = cvar_hmake("vr_nailpistol_slide_cycle");
     cvarh_vr_nailpistol_smoke = cvar_hmake("vr_nailpistol_smoke");
     cvarh_vr_dmg_revolver = cvar_hmake("vr_dmg_revolver");
     cvarh_vr_revolver_dmg_random = cvar_hmake("vr_revolver_dmg_random");
