@@ -2728,6 +2728,47 @@ void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
     });
 }
 
+bool gunParticle(const GunParticle& g)
+{
+    if(!vr_particles.value || g.life <= 0.f || !ensureAtlas() || pool.size() >= maxParticles)
+    {
+        return false;
+    }
+    make(1.f, [&](Particle& p, int) {
+        p.type = Custom;
+        p.org = g.org;
+        p.vel = g.vel;
+        p.color = g.color;
+        p.scale = g.scale;
+        p.grow = g.grow;
+        p.die = cl.time + g.life;
+        p.fade = -g.color.a / g.life;
+        p.drag = g.drag;
+        p.acc = gravity(g.gravity);
+        p.streak = g.streak;
+        switch(g.kind)
+        {
+            case GunParticle::Spark:
+                p.cell = CellSpark;
+                p.additive = true;
+                p.spin = vrand::range(rng, -8.f, 8.f);
+                p.lighting = Lighting::Emissive;
+                break;
+            case GunParticle::Glow:
+                p.cell = CellGlow;
+                p.additive = true;
+                p.lighting = Lighting::Emissive;
+                break;
+            case GunParticle::Smoke:
+                p.cell = CellSmoke;
+                p.spin = vrand::range(rng, -1.2f, 1.2f);
+                p.lighting = Lighting::Lit;
+                break;
+        }
+    }, false);
+    return true;
+}
+
 // ---- Shoreline foam particles (vr_water_foam_particles, vr_lava_foam_*, vr_slime_foam_*) ---------------------------
 // Small puffs of foam (CellFoam, facing the view) along the shore, where the shader's foam band (LiquidFoam) meets the
 // rock: they straddle the line where the liquid's plane cuts the wall, so it is not one straight edge. Each grows a

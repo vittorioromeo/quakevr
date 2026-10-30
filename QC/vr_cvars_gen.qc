@@ -1023,6 +1023,7 @@ float cvarh_vr_forcegrabbable_health_boxes;
 float cvarh_vr_forcegrabbable_box_scale;
 float cvarh_vr_forcegrabbable_return_time_deathmatch;
 float cvarh_vr_forcegrabbable_return_time_singleplayer;
+float cvarh_vr_test_give_wid;
 float cvarh_vr_reload_mode;
 float cvarh_vr_reload_mode_shot;
 float cvarh_vr_reload_mode_sshot;
@@ -2214,6 +2215,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_forcegrabbable_box_scale = cvar_hmake("vr_forcegrabbable_box_scale");
     cvarh_vr_forcegrabbable_return_time_deathmatch = cvar_hmake("vr_forcegrabbable_return_time_deathmatch");
     cvarh_vr_forcegrabbable_return_time_singleplayer = cvar_hmake("vr_forcegrabbable_return_time_singleplayer");
+    cvarh_vr_test_give_wid = cvar_hmake("vr_test_give_wid");
     cvarh_vr_reload_mode = cvar_hmake("vr_reload_mode");
     cvarh_vr_reload_mode_shot = cvar_hmake("vr_reload_mode_shot");
     cvarh_vr_reload_mode_sshot = cvar_hmake("vr_reload_mode_sshot");

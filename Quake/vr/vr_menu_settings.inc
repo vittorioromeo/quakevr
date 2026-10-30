@@ -1088,6 +1088,25 @@ za::Vector<Item> pageWeaponEffects()
         toggle("Enemies' Muzzle Flashes", vr_muzzle_flash_enemies).help("The grunts' and enforcers' guns flash at their muzzles as they fire."),
         toggle("Enemies' Muzzle Smoke", vr_muzzle_smoke_enemies).help("Puffs of gun smoke out of an enforcer's rifle's and a grunt's gun's muzzle as they fire, as out of your guns'."),
         slider("Enemies' Flash Size", vr_muzzle_flash_enemy_size, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f),
+        header("Gunfire Particles"),
+        toggle("Gunfire Particles", vr_gunfx)
+            .help("Each shot's sparks and smoke, by the weapon: yours, the armed grunts' and the grunts' and enforcers' "
+                  "guns. Not the flamethrowers, the crossbow, melee weapons, the grapple or the toolgun."),
+        slider("Gunfire Intensity", vr_gunfx_intensity, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("How many particles each shot makes, all of them (fewer at high fire rates anyway: the super nailgun)."),
+        toggle("Muzzle Sparks", vr_gunfx_sparks)
+            .help("A cone of sparks out of the muzzle (each barrel of the super shotgun; the energy guns throw electric arcs)."),
+        toggle("Muzzle Smoke", vr_gunfx_smoke)
+            .help("A quick cone of smoke out of the muzzle, drifting with the shooter, the flash's glow in it. Never the "
+                  "energy guns'."),
+        toggle("Ejection Port Smoke", vr_gunfx_port)
+            .help("A small quick puff out of a shotgun's port as the casing leaves it (the super shotgun's open breech)."),
+        toggle("Rocket Backblast", vr_gunfx_backblast)
+            .help("The rocket launchers' smoke out behind them, and dust kicked up off the floor under them."),
+        toggle("Barrel Heat", vr_gunfx_heat).help("Sustained fire (the nailguns) leaves the muzzle smoking in thin wisps until it cools."),
+        toggle("Enemies' Gunfire Particles", vr_gunfx_enemies).help("The monsters' guns make them too."),
+        slider("Casing Smoke Trails", vr_gunfx_shell_trail, 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("How strong the smoke trail every spent casing leaves as it flies (0: none; 1: the old faint one)."),
         header("Bullet Tracers"),
         toggle("Bullet Tracers", vr_tracers)
             .help("Hitscan shots (the shotguns, the burst rifle) draw streaks of light flying from the muzzle to what they "
