@@ -1538,3 +1538,5 @@ His decision: forgotten defaults now reach players (yes).
   new defaults, the changed one keeps its line. 16 passed, 0 failed with the baseline config and with a copy of his.
 - **Old loader vs new:** the base exe (origin/next) and this one each loaded the baseline config, then his (exec +
   migration), and dumped every archived setting: identical but `vr_cfg_version` 217 -> 218 (24,007 settings each).
+- **Covering cases** as baseline.tsv: selfchecks (all PASS), stats_levelchange 4/0, slider_step 3/0. Build 0
+  warnings, check_canonical no new copies. (run_baseline.py needs qvrtest.py, not on origin/next: run directly.)
