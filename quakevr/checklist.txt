@@ -80,6 +80,7 @@ Combat > Weapon Damage > Nail Pistol Model: Full Slide: the whole top reads as a
 Armed grunts and enforcers hold and fire their guns as before; ragdolls swim, grab, climb and react to cut limbs as before.
 Climbing (hang, shimmy, mantle), two-handed grips (incl. magazine and cup grips), grabbing a monster's legs (pull, lift) and the menu sticks and buttons all behave as before.
 Start the game in the headset: VR starts, the menu panel and both controllers work, and quitting closes cleanly (OpenXR backend split into files).
+Sparse config: quit once, then check ironwail.cfg is about 300 lines (starts with vr_config_defaults) and that after a restart your settings, weapon offsets and prop tweaks are all as you left them.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
