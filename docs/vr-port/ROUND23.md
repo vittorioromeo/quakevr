@@ -1238,3 +1238,55 @@ No behaviour change intended; areas B (body, rigs, tools), P (ragdoll, physics) 
   parry block sits between T_DamageDeal and T_Damage, so a file of its own changes the compile order (no byte-identical
   check). Long functions (step 3): none split (derive, createRagdoll, skinOf and the plans have no comment-marked phases
   over a context that could be proven unchanged within this pass).
+## Refactor wave B3, group G3: render/fx/audio and campaigns (branch `agent/refb3rc`)
+
+No behaviour change. Steps of the brief (refactor_plan.md, TRIAGE.md wave B):
+
+1. **Inline spellings onto the canonical helpers.** 98 `glm::vec3{p[0], p[1], p[2]}` and three-line `out[i] = v.x/y/z`
+   stores in 27 R files -> `geom::vec` / `geom::store`. 14 PR_PushQCVM/PopQCVM pairs (lootbeams, mgroups, view_diag,
+   portals, and portals' three local `PopVm` structs) -> `progs::ServerVm`; 4 `num_edicts` loops -> `progs::forEachEdict`
+   (lootbeams empty test, mgroups live list and VR_MonsterHealth_Frame, brushes' stray-entity sweep); 6 point SV_Move
+   calls -> `worldtrace::serverLine` (portals x5, brushes' floor probe). QC: MGH_RespawnAllPlayers -> VR_Player /
+   VR_NextPlayer.
+   Left as they are (guards or semantics differ): `EDICT_NUM(1)` / `svs.clients[0].edict` where the guard is only
+   `sv.active && maxclients >= 1` (localPlayer() also needs client 0 active: lootbeams test, brushes, portals x4);
+   box traces (SV_Move with mins/maxs: brushes_diag, portals x4) and portals' own trace hooks (MOVE_HITPASS with
+   const inputs); loops with an early stop or a second bound (brushes' adopt loop `&& !num`, view_diag's
+   `i < cl.num_entities`, portals' trigger_teleport scan); vr_ambient's byte lightmap read and vr_lighting's matrix
+   rows; by-name lookups with no handle yet: `ED_FindFieldOffset("mangle")` (portals; needs a vr_fields.inc row, S
+   area), `Cvar_VariableValue("skill")` (voicenotes; the engine has no extern for `skill`), one-off findFunction calls
+   in test commands and VR_AD_WorldOnDemand (once a map).
+2. **File splits.** vr_glsl.h (3698 lines) -> vr_glsl_lighting.h (shadows, AO, zfix), vr_glsl_surface.h (parallax,
+   specular AA, detail, liquids), vr_glsl_world.h, vr_glsl_alias.h; vr_glsl.h keeps its head (post-process, frame data)
+   and tail (gates, sprites, cluster spots, temporal) and includes the four in the old order. Macros only, so every
+   shader's text is unchanged. Second pass (pure moves; what more than one part uses went to an `_internal.hpp`):
+   - vr_ao.cpp -> vr_ao_cache.cpp (the disk cache: FileHeader, bakeKey, fnv64, the file's read/write, pruneOnce);
+     vr_ao_internal.hpp (namespace qvr::ao::detail) holds the bake's numbers, rayDirs (defined in vr_ao.cpp), Tri,
+     BakeJob, aoFnvStart, BAKE_VERSION/CACHE_BUDGET and the cache's declarations. The bake log's texel hash (~1822) is
+     FNV-1a **32-bit** (its `%08x` in the log): diskcache::fnv is 64-bit, so it stays (the output would change).
+   - vr_audiotest.cpp (measurements, made sounds, vr_snd_test) -> + vr_audiotest_spatial.cpp (circle, ild, clicks),
+     vr_audiotest_room.cpp (occlusion, reverb, doppler, nearfield, distance, hands), vr_audiotest_mix.cpp (bench,
+     full band, golden); shared pieces in vr_audiotest_internal.hpp (namespace qvr::audio::testkit).
+   - vr_view.cpp's body pieces (setupBody, vr_body_wrist_info, dripBlood, setupPauldrons, the weapon buttons) ->
+     vr_view_body.cpp. Into vr_view_internal.hpp: drawnBuild/drawnBare/BareLight/bareLit and ButtonState with
+     buttonStates/frontButtonStates (inline), bodyModelName, bareForearms, bareLitHand, armorWorn, showPlayerState and
+     the moved functions (out of their anonymous namespaces, as view_detail's).
+   Left (budget): particles, relight, audio, portals, brushes' file split, vr_arena_test.qc.
+3. **Long functions** (a phase a function, over a context struct; each body moved as it was, bound to the struct by
+   references):
+   - vr_water.cpp buildMesh (466 lines) over MeshBuild: readSource, gatherFaces, findRims, bucketRims, pinAt (was a
+     lambda), makeFaces, placeFaces, findLeaves, uploadMesh. The same mesh: faces/vertices/triangles/rims and the
+     developer hash identical on e1m1, e1m4, e1m7/e3m3 and e4m3 (`developer 1`, "geometric waves' mesh" line).
+   - vr_haze.cpp draw (215) over HazeView: gatherLava, gatherEllipsoids, coveredPart, copyCovered, drawLava,
+     drawEllipsoids (QVR_GPU_PROFILE("haze") still round the drawing). Eyeshots over e1m7's lava before/after differ
+     no more than two runs of one build do (1-2 % of pixels, the haze-off shot as much as the haze-on ones): the scene
+     isn't bit-reproducible run to run, so this is a weak check.
+   - vr_vram.cpp report_f (230) -> sumUp, processVram, printTotals, printLists, printDiff, remember: vr_vram_report
+     and its diff print the same on e1m1.
+   - vr_brushes.cpp build (283) over BrushBuild: buildHulls, buildEdges, buildTextures, buildSurfaces;
+     vr_brush_selftest the same (PASS, 80 checks). fromText (157 lines) left: under 200.
+   Not benched: buildMesh and build run once a map / brush; haze draw does the same work once a view, with six more
+   calls (only with a flame or lava in view).
+
+Checks: build 0 warnings and all checks; covering baseline cases (teleporters, collectfx, mapflameburn, swim_sound,
+vrtrailer, selfchecks, stats_levelchange, dead_gear, explosion_debris, arena 1/5) as in baseline.tsv.

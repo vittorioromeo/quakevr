@@ -1,6 +1,7 @@
 // vr_retro.cpp -- see vr_retro.hpp (the settings, the overrides) and vr_retro.h (the shaders' side).
 
 #include "vr_strings.hpp"
+#include "vr_geom.hpp"
 #include "vr_retro.hpp"
 #include "vr_physsound.hpp"
 #include "vr_modelmetadata.hpp"
@@ -694,8 +695,8 @@ struct Hit
         const bool yawOnly = e->angles[0] == 0.f && e->angles[2] == 0.f;
         const float* mins = yawOnly ? e->model->ymins : e->model->rmins;
         const float* maxs = yawOnly ? e->model->ymaxs : e->model->rmaxs;
-        const glm::vec3 lo = origin + glm::vec3{mins[0], mins[1], mins[2]} * scale;
-        const glm::vec3 hi = origin + glm::vec3{maxs[0], maxs[1], maxs[2]} * scale;
+        const glm::vec3 lo = origin + geom::vec(mins) * scale;
+        const glm::vec3 hi = origin + geom::vec(maxs) * scale;
         float enter = -1e30f, leave = 1e30f;
         for(int a = 0; a < 3; a++)
         {
@@ -746,7 +747,7 @@ struct Hit
     vec3_t a{angles.x, angles.y, angles.z}, fwd, right, up;
     AngleVectors(a, fwd, right, up);
     start = fromHand ? s.pos[1] : s.head;
-    dir = glm::normalize(glm::vec3{fwd[0], fwd[1], fwd[2]});
+    dir = glm::normalize(geom::vec(fwd));
     return true;
 }
 
@@ -1434,7 +1435,7 @@ void frame()
     const hands::State& s = hands::current();
     vec3_t a{0.f, s.headAngles.y, 0.f}, fwd, right, up;
     AngleVectors(a, fwd, right, up);
-    const glm::vec3 at = s.head + glm::vec3{fwd[0], fwd[1], fwd[2]} * 28.f - glm::vec3{0.f, 0.f, 8.f};
+    const glm::vec3 at = s.head + geom::vec(fwd) * 28.f - glm::vec3{0.f, 0.f, 8.f};
     char text[320];
     const int head = q_snprintf(text, sizeof(text), "Retro override: %s in %d\n", pick.fromHand ? "point" : "look",
         static_cast<int>(pick.at - realtime) + 1);

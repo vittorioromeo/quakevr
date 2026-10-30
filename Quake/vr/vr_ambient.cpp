@@ -1,6 +1,7 @@
 // vr_ambient.cpp -- see vr_ambient.hpp.
 
 #include "vr_ambient.hpp"
+#include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_evict.hpp"
@@ -564,7 +565,7 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
         Cached& c = *entry;
         QVR_PROFILE("model ambient");
         const bool view = e == &cl.viewent || VR_IsViewEntity(e);
-        const glm::vec3 anchor = view ? glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]}
+        const glm::vec3 anchor = view ? geom::vec(r_refdef.vieworg)
                                       : glm::vec3{e->origin[0], e->origin[1], e->origin[2] + 8.f};
         const glm::vec3 center = modelCenter(e, modelMatrix, static_cast<const aliashdr_t*>(aliashdr));
         if(!c.openValid || center != c.centerAsked || anchor != c.anchorAsked)

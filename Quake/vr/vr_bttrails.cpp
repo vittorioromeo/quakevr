@@ -1,6 +1,7 @@
 // vr_bttrails.cpp -- see vr_bttrails.hpp.
 
 #include "vr_random.hpp"
+#include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_bttrails.hpp"
 #include "vr_bullettime.hpp"
@@ -489,7 +490,7 @@ void drawView()
     // The ribbons: made once a frame, facing the first eye (the same in both); the spectator camera's its own.
     if(!stereo::isRenderingEye() || stereo::isSpectator() || stereo::isFirstEye())
     {
-        build(glm::vec3(r_framedata.eyepos[0], r_framedata.eyepos[1], r_framedata.eyepos[2]));
+        build(geom::vec(r_framedata.eyepos));
     }
     const za::Vector<Vertex>& vertices = scratch.vertices;
     if(vertices.empty())

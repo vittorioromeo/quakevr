@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_envmap.hpp"
+#include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
@@ -957,9 +958,7 @@ void waterFrameData(float out[4], float out2[4], bool eyeInLiquid)
 {
     const wet::Cube& f = wet::cubes[wet::front];
     const bool on = wet::active && f.valid && !eyeInLiquid;
-    out[0] = f.centre.x;
-    out[1] = f.centre.y;
-    out[2] = f.centre.z;
+    geom::store(f.centre, out);
     out[3] = on ? za::clamp(vr_water_reflections.value, 0.f, 1.f) : 0.f;
     out2[0] = f.planeZ;
     out2[1] = wet::fadeDistance;

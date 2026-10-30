@@ -1,6 +1,7 @@
 // vr_haze.cpp -- see vr_haze.hpp.
 
 #include "vr_glutil.hpp"
+#include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_haze.hpp"
 #include "vr_bttrails.hpp"
@@ -499,34 +500,34 @@ bool culled(glm::vec3 mins, glm::vec3 maxs)
     return R_CullBox(a, b);
 }
 
-void draw()
+// A view's haze (draw, a phase a function): the scene's target, the eye, and the part of the viewport the volumes cover.
+struct HazeView
 {
-    const float strength = za::clamp(vr_heat_haze.value, 0.f, 1.f);
-    if(strength <= 0.f || !cl.worldmodel || programFailed)
-    {
-        bursts.clear();
-        return;
-    }
-    GLuint color = 0, depth = 0;
-    int samples = 1, viewport[4];
-    const GLuint sceneFbo = VR_SceneTarget(&color, &depth, &samples, viewport);
-    if(!color || viewport[2] <= 0 || viewport[3] <= 0)
-    {
-        return;
-    }
-    const glm::vec3 eye(r_framedata.eyepos[0], r_framedata.eyepos[1], r_framedata.eyepos[2]);
-    const glm::mat4 viewProj = glm::make_mat4(r_framedata.viewproj);
-    const int vw = viewport[2], vh = viewport[3];
+    GLuint sceneFbo{0}, color{0}, depth{0};
+    int samples{1}, viewport[4]{};
+    glm::vec3 eye{0.f};
+    glm::mat4 viewProj{1.f};
+    int vw{0}, vh{0};
     Rect rect;
+    bool lavaInside{false}; // the eye in a lava layer (its top at lavaInsideZ)
+    float lavaInsideZ{0.f};
+    int x0{0}, y0{0}, x1{0}, y1{0}; // the part covered
+};
 
     // Lava: the layers over the tops in this view's PVS and frustum; the eye in one: that pool's, from the eye.
+void gatherLava(HazeView& v)
+{
+    const glm::vec3& eye = v.eye;
+    const glm::mat4& viewProj = v.viewProj;
+    const int vw = v.vw, vh = v.vh;
+    Rect& rect = v.rect;
+    bool& lavaInside = v.lavaInside;
+    float& lavaInsideZ = v.lavaInsideZ;
     ensureLava();
     za::Vector<GLint>& lavaFirst = scratch.lavaFirst;
     za::Vector<GLsizei>& lavaCount = scratch.lavaCount;
     lavaFirst.clear();
     lavaCount.clear();
-    bool lavaInside = false;
-    float lavaInsideZ = 0.f;
     {
         unsigned generation = 0;
         const za::Vector<water::LavaTop>& tops = water::lavaTops(generation);
@@ -549,8 +550,15 @@ void draw()
             addBox(rect, viewProj, layer.mins, layer.maxs, vw, vh);
         }
     }
+}
 
     // Explosions, then the flames near the eye.
+void gatherEllipsoids(HazeView& v)
+{
+    const glm::vec3& eye = v.eye;
+    const glm::mat4& viewProj = v.viewProj;
+    const int vw = v.vw, vh = v.vh;
+    Rect& rect = v.rect;
     za::Vector<Ellipsoid>& ellipsoids = scratch.ellipsoids;
     ellipsoids.clear();
     za::vectorEraseIf(bursts, [](const Burst& b) { return cl.time < b.start || cl.time > b.start + kBurstLife * b.size; });
@@ -593,24 +601,18 @@ void draw()
     {
         addBox(rect, viewProj, e.centre - e.radii, e.centre + e.radii, vw, vh);
     }
-    if(lavaFirst.empty() && ellipsoids.empty())
-    {
-        return;
-    }
+}
 
-    QVR_GPU_PROFILE("haze");
-    if(!program)
-    {
-        program = gfx::glProgram(vertexSource, fragmentSource, "vr heat haze");
-        programFailed = !program;
-        if(programFailed)
-        {
-            return;
-        }
-    }
-    ensureBox();
-
-    int x0 = 0, y0 = 0, x1 = vw, y1 = vh;
+// The part of the viewport the volumes cover (all of it if one reaches behind the eye), with a margin; false if none.
+bool coveredPart(HazeView& v)
+{
+    const int vw = v.vw, vh = v.vh;
+    const Rect& rect = v.rect;
+    int &x0 = v.x0, &y0 = v.y0, &x1 = v.x1, &y1 = v.y1;
+    x0 = 0;
+    y0 = 0;
+    x1 = vw;
+    y1 = vh;
     if(!rect.full)
     {
         x0 = za::max(0, static_cast<int>(za::floor(rect.x0)) - kMargin);
@@ -619,26 +621,30 @@ void draw()
         y1 = za::min(vh, static_cast<int>(za::ceil(rect.y1)) + kMargin);
         if(x1 <= x0 || y1 <= y0)
         {
-            return;
+            return false;
         }
     }
-
-    // How far the scene is (made now if the liquids did not make it this view; binds the scene's framebuffer again).
-    GLuint distances = 0;
-    {
-        QVR_GPU_PROFILE("distances");
-        distances = water::opaqueSceneDistances();
-    }
+    return true;
+}
 
     // The copy: the part covered, resolved; at half size (vr_heat_haze_half), read only between the centres of the
     // texels copied (CopyRect: half-size texels' edges at even full-size pixels).
-    const bool half = vr_heat_haze_half.value != 0.f && samples <= 1;    const GLuint copyTexture = copyPart(sceneFbo, color, samples, viewport, x0, y0, x1, y1, half);
+// 0 if it failed; else the copy's rect and size for the shader in copyRect, copySize.
+GLuint copyCovered(const HazeView& v, float copyRect[4], float copySize[2])
+{
+    const int x0 = v.x0, y0 = v.y0, x1 = v.x1, y1 = v.y1, vw = v.vw, vh = v.vh;
+    const bool half = vr_heat_haze_half.value != 0.f && v.samples <= 1;
+    const GLuint copyTexture = copyPart(v.sceneFbo, v.color, v.samples, v.viewport, x0, y0, x1, y1, half);
     if(!copyTexture)
     {
-        return;
+        return 0;
     }
-    float copyRect[4] = {static_cast<float>(x0), static_cast<float>(y0), static_cast<float>(x1), static_cast<float>(y1)};
-    float copySize[2] = {static_cast<float>(vw), static_cast<float>(vh)};
+    copyRect[0] = static_cast<float>(x0);
+    copyRect[1] = static_cast<float>(y0);
+    copyRect[2] = static_cast<float>(x1);
+    copyRect[3] = static_cast<float>(y1);
+    copySize[0] = static_cast<float>(vw);
+    copySize[1] = static_cast<float>(vh);
     if(half)
     {
         copyRect[0] = static_cast<float>(x0 / 2 * 2) + 0.5f;
@@ -648,20 +654,18 @@ void draw()
         copySize[0] = static_cast<float>((vw + 1) / 2 * 2);
         copySize[1] = static_cast<float>((vh + 1) / 2 * 2);
     }
-
-    glEnable(GL_SCISSOR_TEST);
-    glScissor(viewport[0] + x0, viewport[1] + y0, x1 - x0, y1 - y0);
-    GL_UseProgram(program);
-    GL_BindNative(GL_TEXTURE6, GL_TEXTURE_2D, copyTexture);
-    GL_BindNative(GL_TEXTURE8, GL_TEXTURE_2D, distances);
-    GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, r_framedata.viewproj);
-    GL_Uniform4fFunc(1, eye.x, eye.y, eye.z, static_cast<float>(cl.time));
-    GL_Uniform4fFunc(5, static_cast<float>(viewport[0]), static_cast<float>(viewport[1]), static_cast<float>(vw), static_cast<float>(vh));
-    GL_Uniform4fFunc(6, copyRect[0], copyRect[1], copyRect[2], copyRect[3]);
-    GL_Uniform2fFunc(7, copySize[0], copySize[1]);
-    const float hasDistances = distances ? 1.f : 0.f;
+    return copyTexture;
+}
 
     // Lava: its layers' front faces, depth tested; the eye in one: a quad over the view, the ray from the eye.
+void drawLava(const HazeView& v, float strength, float hasDistances)
+{
+    const za::Vector<GLint>& lavaFirst = scratch.lavaFirst;
+    const za::Vector<GLsizei>& lavaCount = scratch.lavaCount;
+    const glm::vec3& eye = v.eye;
+    const glm::mat4& viewProj = v.viewProj;
+    const bool lavaInside = v.lavaInside;
+    const float lavaInsideZ = v.lavaInsideZ;
     if(!lavaFirst.empty())
     {
         GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZWRITE | GLS_CULL_BACK | GLS_ATTRIBS(1));
@@ -695,9 +699,14 @@ void draw()
             glDrawArrays(GL_TRIANGLES, 0, 6);
         }
     }
+}
 
     // Ellipsoids: their boxes' front faces, depth tested; the eye in one: its back faces, not (the scene's distances
     // stop the ray).
+void drawEllipsoids(const HazeView& v, float strength, float hasDistances)
+{
+    const za::Vector<Ellipsoid>& ellipsoids = scratch.ellipsoids;
+    const glm::vec3& eye = v.eye;
     if(!ellipsoids.empty())
     {
         GL_BindBuffer(GL_ARRAY_BUFFER, boxVbo);
@@ -712,6 +721,81 @@ void draw()
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
     }
+}
+
+void draw()
+{
+    const float strength = za::clamp(vr_heat_haze.value, 0.f, 1.f);
+    if(strength <= 0.f || !cl.worldmodel || programFailed)
+    {
+        bursts.clear();
+        return;
+    }
+    HazeView v;
+    v.sceneFbo = VR_SceneTarget(&v.color, &v.depth, &v.samples, v.viewport);
+    if(!v.color || v.viewport[2] <= 0 || v.viewport[3] <= 0)
+    {
+        return;
+    }
+    v.eye = glm::vec3(r_framedata.eyepos[0], r_framedata.eyepos[1], r_framedata.eyepos[2]);
+    v.viewProj = glm::make_mat4(r_framedata.viewproj);
+    v.vw = v.viewport[2];
+    v.vh = v.viewport[3];
+
+    gatherLava(v);
+    gatherEllipsoids(v);
+    if(scratch.lavaFirst.empty() && scratch.ellipsoids.empty())
+    {
+        return;
+    }
+
+    QVR_GPU_PROFILE("haze");
+    if(!program)
+    {
+        program = gfx::glProgram(vertexSource, fragmentSource, "vr heat haze");
+        programFailed = !program;
+        if(programFailed)
+        {
+            return;
+        }
+    }
+    ensureBox();
+
+    if(!coveredPart(v))
+    {
+        return;
+    }
+
+    // How far the scene is (made now if the liquids did not make it this view; binds the scene's framebuffer again).
+    GLuint distances = 0;
+    {
+        QVR_GPU_PROFILE("distances");
+        distances = water::opaqueSceneDistances();
+    }
+
+    float copyRect[4], copySize[2];
+    const GLuint copyTexture = copyCovered(v, copyRect, copySize);
+    if(!copyTexture)
+    {
+        return;
+    }
+
+    const int* viewport = v.viewport;
+    const int x0 = v.x0, y0 = v.y0, x1 = v.x1, y1 = v.y1, vw = v.vw, vh = v.vh;
+    const glm::vec3& eye = v.eye;
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(viewport[0] + x0, viewport[1] + y0, x1 - x0, y1 - y0);
+    GL_UseProgram(program);
+    GL_BindNative(GL_TEXTURE6, GL_TEXTURE_2D, copyTexture);
+    GL_BindNative(GL_TEXTURE8, GL_TEXTURE_2D, distances);
+    GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, r_framedata.viewproj);
+    GL_Uniform4fFunc(1, eye.x, eye.y, eye.z, static_cast<float>(cl.time));
+    GL_Uniform4fFunc(5, static_cast<float>(viewport[0]), static_cast<float>(viewport[1]), static_cast<float>(vw), static_cast<float>(vh));
+    GL_Uniform4fFunc(6, copyRect[0], copyRect[1], copyRect[2], copyRect[3]);
+    GL_Uniform2fFunc(7, copySize[0], copySize[1]);
+    const float hasDistances = distances ? 1.f : 0.f;
+    drawLava(v, strength, hasDistances);
+    drawEllipsoids(v, strength, hasDistances);
     glDisable(GL_SCISSOR_TEST);
 }
 
@@ -743,7 +827,7 @@ extern "C" void VR_HazeExplosion(const float* pos, float size)
     {
         haze::bursts.erase(haze::bursts.begin());
     }
-    haze::bursts.pushBack({glm::vec3(pos[0], pos[1], pos[2]), za::clamp(size, 0.3f, 2.f), cl.time});
+    haze::bursts.pushBack({geom::vec(pos), za::clamp(size, 0.3f, 2.f), cl.time});
 }
 
 // R_RenderScene, after the translucent pass.

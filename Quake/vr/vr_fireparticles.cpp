@@ -5,6 +5,7 @@
 #include "vr_mem.hpp"
 #include "vr_particles.hpp"
 #include "vr_held.hpp"
+#include "vr_geom.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include <string.h>
@@ -85,7 +86,7 @@ void entity(int id, const entity_t& e)
     else if(info.is(modelmeta::Id::Candle)) { base = 8.f; top = 12.f; }
     else if(info.is(modelmeta::Id::Lantern)) { base = 0.f; top = 8.f; }
     const float fraction = za::clamp(vr_fire_particles_origin.value, 0.f, 1.f);
-    const glm::vec3 pos = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} +
+    const glm::vec3 pos = geom::vec(e.origin) +
         held::axesFromAngles(e.angles, false)[2] * (glm::mix(base, top, fraction) * scale);
     emit(id, e.model, pos, scale);
 }

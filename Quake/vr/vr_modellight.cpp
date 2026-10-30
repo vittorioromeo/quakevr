@@ -1,6 +1,7 @@
 // vr_modellight.cpp -- see vr_modellight.hpp.
 
 #include "vr_modellight.hpp"
+#include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_evict.hpp"
@@ -224,9 +225,7 @@ glm::vec4 modellight::direction(const entity_t* e)
 extern "C" void VR_AliasLightDir(const entity_t* e, float dir[4])
 {
     const glm::vec4 d = modellight::direction(e);
-    dir[0] = d.x;
-    dir[1] = d.y;
-    dir[2] = d.z;
+    geom::store(d, dir);
     dir[3] = d.w;
 }
 

@@ -4,7 +4,9 @@
 // flat light) and the vr_brush_* commands.
 
 #include "vr_brushes_internal.hpp"
+#include "vr_geom.hpp"
 #include "vr_progs.hpp"
+#include "vr_trace.hpp"
 
 #include "vr_box3d.hpp"
 #include "vr_brushbake.hpp"
@@ -356,45 +358,35 @@ void bevels(const za::Vector<Winding>& polys, const glm::dvec3& origin, const gl
     }
 }
 
-// Made from the brush (null: an empty model: nothing solid, nothing drawn). `quakeHulls`: the world's hull 1 and 2
-// boxes.
-} // namespace
-namespace detail
+// A face's edges and box (build: the surfaces').
+struct FaceDraw
 {
-void build(const Brush* b, Built& out)
-{
-    out = Built{};
-    out.leafs[0].contents = CONTENTS_SOLID;
-    out.leafs[1].contents = CONTENTS_EMPTY;
-    for(mleaf_t& l : out.leafs)
-    {
-        l.visframe = 0;
-        l.compressed_vis = nullptr;
-        l.firstmarksurface = nullptr;
-        l.nummarksurfaces = 0;
-    }
-    za::Vector<Winding> polys;
-    if(!b || !polygons(*b, polys))
-    {
-        return;
-    }
-    glm::dvec3 lo{1e30}, hi{-1e30};
-    for(const Winding& w : polys)
-    {
-        for(const glm::dvec3& p : w)
-        {
-            lo = glm::min(lo, p);
-            hi = glm::max(hi, p);
-        }
-    }
-    const glm::dvec3 origin = glm::floor((lo + hi) * 0.5 + 0.5);
-    out.origin = glm::vec3{origin};
-    out.mins = glm::vec3{lo - origin};
-    out.maxs = glm::vec3{hi - origin};
+    int firstedge, numedges;
+    glm::vec3 mins, maxs;
+};
 
-    // The faces with area, model space: hull 0's planes.
-    za::Vector<glm::dvec4> faces;
-    za::Vector<int> faceOf;
+// build's state from phase to phase (each phase a function below, in the order build calls them).
+struct BrushBuild
+{
+    const Brush* b{nullptr};
+    za::Vector<Winding> polys;
+    glm::dvec3 lo{1e30}, hi{-1e30};
+    glm::dvec3 origin{0.0};
+    za::Vector<glm::dvec4> faces; // the faces with area, model space: hull 0's planes
+    za::Vector<int> faceOf;       // and each one's face of the brush
+    za::Vector<FaceDraw> draws;
+};
+
+// The faces with area, model space: hull 0's planes. Hulls 1 and 2: the planes pushed out by the box (its support
+// along each normal), with the bevels a brush that is not a box needs (bevels()); the same set is the narrow box's
+// (clipBox).
+void buildHulls(BrushBuild& bb, Built& out)
+{
+    const Brush* b = bb.b;
+    const za::Vector<Winding>& polys = bb.polys;
+    const glm::dvec3 &lo = bb.lo, &hi = bb.hi, &origin = bb.origin;
+    za::Vector<glm::dvec4>& faces = bb.faces;
+    za::Vector<int>& faceOf = bb.faceOf;
     for(za::SizeT i = 0; i < b->faces.size(); i++)
     {
         if(polys[i].empty())
@@ -405,8 +397,6 @@ void build(const Brush* b, Built& out)
         faces.pushBack(glm::dvec4{f.normal, f.dist - glm::dot(f.normal, origin)});
         faceOf.pushBack(static_cast<int>(i));
     }
-    // Hulls 1 and 2: the planes pushed out by the box (its support along each normal), with the bevels a brush that is
-    // not a box needs (bevels()); the same set is the narrow box's (clipBox).
     za::Vector<glm::dvec4> grown = faces;
     bevels(polys, origin, lo, hi, grown);
     for(const glm::dvec4& p : grown)
@@ -440,9 +430,16 @@ void build(const Brush* b, Built& out)
         chain(pushed[h], out.planes, out.clipnodes[h]);
         out.hullPlanes[h] = pushed[h];
     }
+}
 
-    // Vertices (shared), edges (shared, Quake's signed surfedges), one texinfo and surface a face.
-    const int numFaces = static_cast<int>(faces.size());
+// Vertices (shared), edges (shared, Quake's signed surfedges), one texinfo and surface a face.
+void buildEdges(BrushBuild& bb, Built& out)
+{
+    const za::Vector<Winding>& polys = bb.polys;
+    const glm::dvec3& origin = bb.origin;
+    const za::Vector<int>& faceOf = bb.faceOf;
+    za::Vector<FaceDraw>& draws = bb.draws;
+    const int numFaces = static_cast<int>(bb.faces.size());
     out.edges.pushBack(medge_t{{0u, 0u}}); // (edge 0 unused: a surfedge's sign is its way)
     const auto vertexOf = [&](const glm::dvec3& p) {
         const glm::vec3 q{p - origin};
@@ -455,18 +452,10 @@ void build(const Brush* b, Built& out)
             }
         }
         mvertex_t v{};
-        v.position[0] = q.x;
-        v.position[1] = q.y;
-        v.position[2] = q.z;
+        geom::store(q, v.position);
         out.vertexes.pushBack(v);
         return static_cast<unsigned>(out.vertexes.size() - 1);
     };
-    struct FaceDraw
-    {
-        int firstedge, numedges;
-        glm::vec3 mins, maxs;
-    };
-    za::Vector<FaceDraw> draws;
     for(int k = 0; k < numFaces; k++)
     {
         const Winding& w = polys[static_cast<za::SizeT>(faceOf[k])];
@@ -494,8 +483,15 @@ void build(const Brush* b, Built& out)
         }
         draws.pushBack(fd);
     }
+}
 
-    // The textures (the world's; a name it lacks: its first usable one), the used ones by their type.
+// The textures (the world's; a name it lacks: its first usable one), the used ones by their type.
+void buildTextures(const BrushBuild& bb, Built& out)
+{
+    const Brush* b = bb.b;
+    const glm::dvec3& origin = bb.origin;
+    const za::Vector<int>& faceOf = bb.faceOf;
+    const int numFaces = static_cast<int>(bb.faces.size());
     for(int k = 0; k < numFaces; k++)
     {
         const Face& f = b->faces[static_cast<za::SizeT>(faceOf[k])];
@@ -560,8 +556,14 @@ void build(const Brush* b, Built& out)
         const int ty = out.textures[i] ? out.textures[i]->type : TEXTYPE_DEFAULT;
         out.used[static_cast<za::SizeT>(fill[ty]++)] = static_cast<int>(i);
     }
+}
 
-    // The surfaces (their plane hull 0's: the first numFaces planes) and hull 0's nodes over them.
+// The surfaces (their plane hull 0's: the first numFaces planes) and hull 0's nodes over them.
+void buildSurfaces(const BrushBuild& bb, Built& out)
+{
+    const za::Vector<int>& faceOf = bb.faceOf;
+    const za::Vector<FaceDraw>& draws = bb.draws;
+    const int numFaces = static_cast<int>(bb.faces.size());
     out.surfaces.resize(static_cast<za::SizeT>(numFaces));
     out.surfaceFace.resize(static_cast<za::SizeT>(numFaces));
     out.nodes.resize(static_cast<za::SizeT>(numFaces));
@@ -646,6 +648,51 @@ void build(const Brush* b, Built& out)
             l.minmaxs[3 + i] = out.maxs[i];
         }
     }
+}
+
+// Made from the brush (null: an empty model: nothing solid, nothing drawn). `quakeHulls`: the world's hull 1 and 2
+// boxes.
+} // namespace
+namespace detail
+{
+void build(const Brush* b, Built& out)
+{
+    out = Built{};
+    out.leafs[0].contents = CONTENTS_SOLID;
+    out.leafs[1].contents = CONTENTS_EMPTY;
+    for(mleaf_t& l : out.leafs)
+    {
+        l.visframe = 0;
+        l.compressed_vis = nullptr;
+        l.firstmarksurface = nullptr;
+        l.nummarksurfaces = 0;
+    }
+    BrushBuild bb;
+    bb.b = b;
+    za::Vector<Winding>& polys = bb.polys;
+    if(!b || !polygons(*b, polys))
+    {
+        return;
+    }
+    glm::dvec3 &lo = bb.lo, &hi = bb.hi;
+    for(const Winding& w : polys)
+    {
+        for(const glm::dvec3& p : w)
+        {
+            lo = glm::min(lo, p);
+            hi = glm::max(hi, p);
+        }
+    }
+    bb.origin = glm::floor((lo + hi) * 0.5 + 0.5);
+    const glm::dvec3& origin = bb.origin;
+    out.origin = glm::vec3{origin};
+    out.mins = glm::vec3{lo - origin};
+    out.maxs = glm::vec3{hi - origin};
+
+    buildHulls(bb, out);
+    buildEdges(bb, out);
+    buildTextures(bb, out);
+    buildSurfaces(bb, out);
 }
 } // namespace detail
 namespace
@@ -1161,7 +1208,7 @@ void upload(int slot, Entry* e)
         {
             const int se = b.surfedges[static_cast<za::SizeT>(s.firstedge + i)];
             const float* v = b.vertexes[se >= 0 ? b.edges[static_cast<za::SizeT>(se)].v[0] : b.edges[static_cast<za::SizeT>(-se)].v[1]].position;
-            centre += glm::vec3{v[0], v[1], v[2]} / static_cast<float>(s.numedges);
+            centre += geom::vec(v) / static_cast<float>(s.numedges);
         }
         const unsigned styles = static_cast<unsigned>(m.styles[0]) | (static_cast<unsigned>(m.styles[1]) << 8) |
                                 (static_cast<unsigned>(m.styles[2]) << 16) | (static_cast<unsigned>(m.styles[3]) << 24);
@@ -1188,9 +1235,7 @@ void upload(int slot, Entry* e)
             gv.lmofs = static_cast<float>(m.w) / lw;
             gv.styles = styles;
             gv.swellpin = 0.f;
-            gv.centre[0] = centre.x;
-            gv.centre[1] = centre.y;
-            gv.centre[2] = centre.z;
+            geom::store(centre, gv.centre);
             verts.pushBack(gv);
         }
     }
@@ -1422,9 +1467,8 @@ void here_f()
     const double yaw = glm::radians(static_cast<double>(player->v.angles[1]));
     const glm::dvec3 fwd{za::cos(yaw), za::sin(yaw), 0.0};
     glm::dvec3 centre = glm::dvec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]} + fwd * distance;
-    vec3_t start{static_cast<float>(centre.x), static_cast<float>(centre.y), static_cast<float>(centre.z)};
-    vec3_t end{start[0], start[1], start[2] - 512.f};
-    const trace_t tr = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, player);
+    const glm::vec3 start{centre};
+    const trace_t tr = worldtrace::serverLine(start, start - glm::vec3{0.f, 0.f, 512.f}, player);
     const double floorZ = tr.fraction < 1.f && tr.plane.normal[2] > 0.999f ? tr.plane.dist : tr.endpos[2]; // (the floor's plane: on it)
     centre.x = za::round(centre.x / 8.0) * 8.0;
     centre.y = za::round(centre.y / 8.0) * 8.0;
@@ -3258,8 +3302,8 @@ void facesIn(const glm::vec3& lo, const glm::vec3& hi,
         }
         for(const msurface_t& s : b.surfaces)
         {
-            const glm::vec3 smin = origin + glm::vec3{s.mins[0], s.mins[1], s.mins[2]};
-            const glm::vec3 smax = origin + glm::vec3{s.maxs[0], s.maxs[1], s.maxs[2]};
+            const glm::vec3 smin = origin + geom::vec(s.mins);
+            const glm::vec3 smax = origin + geom::vec(s.maxs);
             if(glm::any(glm::lessThan(smax, lo)) || glm::any(glm::greaterThan(smin, hi)))
             {
                 continue;
@@ -3269,7 +3313,7 @@ void facesIn(const glm::vec3& lo, const glm::vec3& hi,
             {
                 const int se = b.surfedges[static_cast<za::SizeT>(s.firstedge + i)];
                 const float* v = b.vertexes[se >= 0 ? b.edges[static_cast<za::SizeT>(se)].v[0] : b.edges[static_cast<za::SizeT>(-se)].v[1]].position;
-                poly.pushBack(origin + glm::vec3{v[0], v[1], v[2]});
+                poly.pushBack(origin + geom::vec(v));
             }
             glm::vec3 n{s.plane->normal[0], s.plane->normal[1], s.plane->normal[2]};
             if(s.flags & SURF_PLANEBACK)
@@ -3355,8 +3399,8 @@ bool traceLine(const glm::vec3& start, const glm::vec3& end, glm::vec3& where, g
             tr.fraction < fraction)
         {
             fraction = tr.fraction;
-            where = glm::vec3{tr.endpos[0], tr.endpos[1], tr.endpos[2]} + origin;
-            normal = glm::vec3{tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2]};
+            where = geom::vec(tr.endpos) + origin;
+            normal = geom::vec(tr.plane.normal);
             hit = true;
         }
     }
@@ -3402,15 +3446,13 @@ void frame()
         registry.sweep = false;
         const progs::ServerVm vm;
         int strays = 0;
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
-        {
-            edict_t* ed = EDICT_NUM(i);
-            if(!ed->free && !strcmp(PR_GetString(ed->v.classname), className) && !ofEntity(i))
+        progs::forEachEdict(svs.maxclients + 1, [&](edict_t* ed) {
+            if(!strcmp(PR_GetString(ed->v.classname), className) && !ofEntity(NUM_FOR_EDICT(ed)))
             {
                 ED_Free(ed);
                 strays++;
             }
-        }
+        });
         if(strays)
         {
             Con_Printf("brush: %d brush entities without their brush left out (a save of a build that didn't keep them)\n", strays);

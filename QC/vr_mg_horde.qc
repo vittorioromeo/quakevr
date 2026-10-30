@@ -1538,7 +1538,7 @@ void() MGH_Countdown =
 void() MGH_RespawnAllPlayers =
 {
 	local entity p, oself;
-	p = find (world, classname, "player");
+	p = VR_Player();
 	while (p)
 	{
 		if (p.deadflag > 0)
@@ -1550,7 +1550,7 @@ void() MGH_RespawnAllPlayers =
 			//p.think = horde_respawn_teammate;
 			//p.nextthink = time; // next frame
 		}
-		p = find (p, classname, "player");
+		p = VR_NextPlayer(p);
 	}
 };
 

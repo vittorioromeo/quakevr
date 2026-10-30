@@ -891,6 +891,56 @@ void gadgetTouches(const hands::State& s, bool posingNow);
 void quadArcs(const hands::State& s);
 void powerupInfo_f();
 void wristInfo_f();
+
+// vr_view.cpp's body pieces, shared with vr_view_body.cpp (the body, pauldrons, blood and weapon buttons).
+// The build of the body drawn this frame (0 lean, 1 athletic, 2 brawny, 3 feminine; the wrist gadget's straps fit its bracer), and
+// whether its forearms are bare (vr_body_bracers 0: straps and gadget fitted to the skin).
+inline int drawnBuild = 1;
+inline bool drawnBare = false;
+
+// The light your body was last drawn in (view::bareLight, view::bareShade): with bare forearms the hands are drawn in
+// it too (with bracers each hand samples its own light: the bracer's lip covers the wrist), so that the skin is lit alike on both sides of the wrist (each model's light, its direction and the light
+// round it are otherwise sampled at its own place: the body's round the torso, a hand's round the hand).
+struct BareLight
+{
+    int frame{-1}; // host_framecount when the body's was kept (-1: never)
+    glm::vec3 color{0.f};
+    float dir[4]{0.f, 0.f, 0.f, 0.f};
+    float ambient[6][4]{};
+    glm::vec3 hand[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each hand's own (vr_body_wrist_info)
+};
+inline BareLight bareLit;
+
+[[nodiscard]] const char* bodyModelName(int build, bool bare);
+[[nodiscard]] bool bareForearms();
+[[nodiscard]] int bareLitHand(const entity_t* e);
+[[nodiscard]] int armorWorn();
+void showPlayerState(view::ViewEntity& ve, const hands::State& s);
+
+// vr_view_body.cpp
+// Pressing a weapon's button with the other hand's fingertip toggles its secondary ammo (old
+// engine's VR_DoWpnButton, which sent keys bound to these impulses): impulse 42 (the off hand's weapon), 43 (the main
+// hand's); the grappling gun's is the detach. Its front button (near the muzzle): 44, 45, the reel-in.
+// Checked every frame (it was every 0.2 s: a fingertip coming at the button was first seen well inside its reach, often
+// past its face, and refused as from behind: the author pressed it about once in a hundred).
+struct ButtonState
+{
+    bool hover{false};     // the other fingertip within reach of it (until it is buttonLeave units further out)
+    double lastPress{-1.0}; // cl.time
+};
+constexpr float buttonReach = 2.7f;   // units from the button's middle a fingertip presses it at
+constexpr float buttonLeave = 0.5f;   // and further out than that again it leaves it (no flicker at the edge)
+constexpr double buttonRepeat = 0.2;  // seconds between two presses of a button at least
+inline ButtonState buttonStates[2];
+inline ButtonState frontButtonStates[2];
+[[nodiscard]] glm::vec3 buttonFingertip(const hands::State& s, int hand);
+[[nodiscard]] glm::vec3 buttonFace(const view::ViewEntity& button);
+void setupBody(const hands::State& s);
+void dripBlood(const hands::State& s);
+void setupPauldrons();
+void pressWeaponButtons(const hands::State& s);
+void setupButton(int hand);
+void setupFrontButton(int hand);
 } // namespace view_detail
 
 using namespace ::view_detail;
