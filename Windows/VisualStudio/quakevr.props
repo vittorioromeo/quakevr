@@ -60,6 +60,8 @@
            a header clang deprecates with a #warning. -->
       <PreprocessorDefinitions>ZA_STATIC;SDL_DISABLE_MM3DNOW_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">QVR_HAVE_OPENXR;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- /p:QvrTuning=1: a tuning build, its tuning constants (Quake/vr/vr_tunables.inc) archived cvars again. -->
+      <PreprocessorDefinitions Condition="'$(QvrTuning)'=='1'">QVR_TUNING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <!-- Debug information in the objects (/Z7; clang-cl has no /Zi or /ZI, the toolset maps them to /Z7 anyway),
            gathered into the .pdb by the linker. No Edit and Continue: clang-cl can't. -->
       <DebugInformationFormat>OldStyle</DebugInformationFormat>

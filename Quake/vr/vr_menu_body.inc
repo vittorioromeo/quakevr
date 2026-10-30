@@ -50,18 +50,8 @@ const char* bodytrackAvailability(int)
         cycle("Quad Damage Look", vr_quad_look, {{1.f, "Blue Glow"}, {0.f, "Lightning Arcs"}, {2.f, "Both"}})
             .help("Quad damage on you: a soft pulsing blue glow round your hands, arms and body, lighting the world round you "
                   "blue; or Quake's electric arcs crackling over your hands and forearms (as when lightning strikes you); or both."),
-        slider("Quad Glow", vr_quad_glow, 0.f, 2.f, 0.1f, "%.1fx").help("How strongly the blue glow shows on your hands, arms and body."),
-        slider("Quad Glow Light", vr_quad_glow_light, 0.f, 2.f, 0.1f, "%.1fx").help("How much blue light your hands and body cast on the world round you (0: none)."),
-        slider("Pentagram Glow", vr_pent_glow, 0.f, 2.f, 0.1f, "%.1fx")
-            .help("The pentagram of protection on you: a pulsing red glow on your hands, arms and body (0: Quake VR's old red tint instead). With more than one power-up, the glows take turns."),
-        slider("Pentagram Glow Light", vr_pent_glow_light, 0.f, 2.f, 0.1f, "%.1fx").help("How much red light your hands cast on the world round you (0: none)."),
-        slider("Biosuit Glow", vr_suit_glow, 0.f, 2.f, 0.1f, "%.1fx")
-            .help("The biosuit on you: a pulsing green glow on your hands, arms and body (0: Quake VR's old green tint instead). With more than one power-up, the glows take turns."),
-        slider("Biosuit Glow Light", vr_suit_glow_light, 0.f, 2.f, 0.1f, "%.1fx").help("How much green light your hands cast on the world round you (0: none)."),
         toggle("Anchors Follow Body", vr_body_anchors)
             .help("Holsters, the virtual stock and hand collisions follow the body's lean and crouch."),
-        slider("Hip Holsters Follow Legs", vr_holster_leg_follow, 0.f, 1.f, 0.05f, "%.2f")
-            .help("Full body: the hip holsters move with the walking and kicking legs (0: fixed on the body, 1: all the way)."),
         header("Body Collisions"),
         toggle("Body Collisions", vr_body_collide)
             .help("Your hands and the weapons in them stop at your other hand, your other arm, the wrist gadget and your "
@@ -81,52 +71,15 @@ const char* bodytrackAvailability(int)
             .help("Where the headset tracks your body (Quest 3 through Virtual Desktop: allow Movement Tracking), your "
                   "tracked torso, elbows and (if you like) legs are blended into the body; where it is lost or unsure, "
                   "the guessed body comes back smoothly. Your hands always stay on the controllers."),
-        slider("Torso", vr_bodytrack_torso, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much of your tracked torso: its lean, the chest's twist, the hips' facing, and telling a lean from "
-                  "a step in the room."),
         slider("Elbows", vr_bodytrack_arms, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much the elbows swing round to where your tracked elbows are."),
         slider("Elbow Fit", vr_bodytrack_arm_fit, 0.f, 1.f, 0.05f, "%.2f")
             .help("How far the elbows go onto your tracked elbows themselves, not only round to their side: the shoulders "
                   "follow your tracked shoulders and the arm's bones lengthen or shorten a little to put the elbow there. "
                   "0: the swing only (the arm keeps its own shape)."),
-        slider("Elbow Fit Stretch", vr_bodytrack_arm_fit_stretch, 1.f, 2.f, 0.05f, "%.2f")
-            .help("How far Elbow Fit may lengthen the collarbone and the arm's bones (and shorten them by as much) to put "
-                  "the shoulder and the elbow on your tracked ones: the headset's skeleton is not the body's. Lower it if "
-                  "the arms look stretched; at a limit the elbow stays short of the tracked one."),
-        slider("Legs", vr_bodytrack_legs, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much of the tracked legs (Quest 3 guesses them from your upper body: generated legs). Climbing "
-                  "and swimming feet keep theirs."),
         toggle("Walk Over Tracked Legs", vr_bodytrack_legs_walk)
             .help("With tracked legs: while you move (walking, running, in the air) the walk and run animation drives the "
                   "legs over the tracked ones; standing still, the tracked legs show. Off: the tracked legs always."),
-        slider("Min Confidence", vr_bodytrack_confidence, 0.f, 1.f, 0.05f, "%.2f")
-            .help("Below this confidence the tracking eases out to the guessed body."),
-        slider("Smoothing", vr_bodytrack_smooth, 0.f, 0.2f, 0.01f, "%.2f s").help("How long the tracked joints are smoothed over."),
-        header("Torso Direction"),
-        slider("Head Weight", vr_torso_head, 0.f, 5.f, 0.1f, "%.1f")
-            .help("Nothing tracks your torso: it is guessed, mostly from where your head has been facing, the hands "
-                  "pulling it a little (only those in front of you). It faces a weighted mean of directions. This one: "
-                  "where your head faces now."),
-        slider("Head History Weight", vr_torso_head_history, 0.f, 5.f, 0.1f, "%.1f")
-            .help("Where your head has faced lately: higher, a glance turns the torso less (and a turn follows later)."),
-        slider("Head History Span", vr_torso_head_lag, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 5.f)
-            .help("How long \"lately\" is."),
-        slider("Both Hands Weight", vr_torso_hands, 0.f, 10.f, 0.1f, "%.1f")
-            .help("The middle of your hands, when both are in front of you (holding a gun out, reaching for something)."),
-        slider("One Hand Weight", vr_torso_one_hand, 0.f, 5.f, 0.1f, "%.1f")
-            .help("One hand alone in front, the other behind your back or hanging down."),
-        slider("Hands Down Weight", vr_torso_hands_down, 0.f, 5.f, 0.1f, "%.1f")
-            .help("Both hands hanging by your sides: square to the line between them (they turn with your body, not with "
-                  "a glance)."),
-        slider("Side Reach", vr_torso_side_angle, 10.f, 90.f, 5.f, "%.0f deg")
-            .help("A hand further off to a side than this pulls less, and not at all 35 degrees further."),
-        slider("Turn Deadzone", vr_torso_deadzone, 0.f, 30.f, 1.f, "%.0f deg")
-            .help("How far off the guess must be before the torso turns (then it turns all the way)."),
-        slider("Turn Speed", vr_torso_speed, 0.f, 30.f, 1.f, "%.0f").extend(0.f, 100.f)
-            .help("How quickly it turns then (0: at once)."),
-        slider("Neck Turn", vr_torso_neck_max, 30.f, 120.f, 5.f, "%.0f deg")
-            .help("How far your head turns from the torso at most: past it the torso turns with the head."),
         header("Placement"),
         slider("Torso Offset", vr_body_torso_back, -0.2f, 0.4f, 0.01f, "%.2f m").extend(-1.f, 1.f)
             .help("How far the torso sits behind your neck (negative: in front)."),
@@ -169,19 +122,6 @@ const char* bodytrackAvailability(int)
         toggle("Immersive: Turn With the Body", vr_death_view_turn)
             .help("Immersive Death View: your view turns sideways as your body's head does, slowly (Turn Speed). Off: "
                   "only its place follows the head; you turn yourself."),
-        slider("Immersive: Turn Speed", vr_death_view_turn_speed, 10.f, 180.f, 10.f, "%.0f deg/s")
-            .help("The fastest the Immersive Death View turns with your body's head."),
-        slider("Immersive: Smoothing", vr_death_view_smooth, 0.f, 0.5f, 0.05f, "%.2f s")
-            .help("How long the Immersive Death View takes to follow your body's head: more is gentler, less is closer."),
-        slider("Immersive: Fade", vr_death_view_fade, 0.f, 2.f, 0.1f, "%.1f s")
-            .help("The view fades in from black as it goes into your body's head, and as you respawn. 0: no fade."),
-        slider("Immersive: Out for Menus", vr_death_view_menu_time, 0.f, 1.f, 0.05f, "%.2f s")
-            .help("Opening a menu (or the console) while dead in the Immersive Death View moves the view out to Third "
-                  "Person's place over this long, and back into your body's head as it closes (0: at once). The setting "
-                  "stays Immersive."),
-        slider("Your Body: Killing Blow's Push", vr_death_ragdoll_push, 0.f, 3.f, 0.25f, "%.2fx")
-            .help("Your ragdoll body: the blow that killed you throws it this much of what Quake throws the player (0: "
-                  "only the motion you had), at most about 10 m/s."),
     };
 }
 
@@ -258,40 +198,12 @@ const char* bodytrackAvailability(int)
         crouchUnits("Hips Forward", vr_hip_holster_crouch_x, "Crouched, both hip holsters further forward (negative: "
             "back), units, in the way the body faces."),
         crouchUnits("Hips Out", vr_hip_holster_crouch_y, "Crouched, each hip holster further out (negative: in), units."),
-        crouchUnits("Hips Up", vr_hip_holster_crouch_z, "Crouched, the hip holsters higher (negative: lower), units."),
-        crouchDegrees("Hips Pitch", vr_hip_holster_crouch_pitch, "Crouched, the hip holsters' top tips further from the "
-            "body (as the Hotspots' Hip Pitch)."),
-        crouchDegrees("Hips Yaw", vr_hip_holster_crouch_yaw, "Crouched, their face turns further outwards."),
         crouchDegrees("Hips Roll", vr_hip_holster_crouch_roll, "Crouched, their top tips further outwards."),
-        header("Chest Holsters (crouched)"),
-        crouchUnits("Chest Forward", vr_upper_holster_crouch_x, "Crouched, both chest holsters further forward "
-            "(negative: back), units."),
-        crouchUnits("Chest Out", vr_upper_holster_crouch_y, "Crouched, each chest holster further out (negative: in), "
-            "units."),
-        crouchUnits("Chest Up", vr_upper_holster_crouch_z, "Crouched, the chest holsters higher (negative: lower), "
-            "units."),
-        crouchDegrees("Chest Pitch", vr_upper_holster_crouch_pitch, "Crouched, their top tips further from the body."),
-        crouchDegrees("Chest Yaw", vr_upper_holster_crouch_yaw, "Crouched, their face turns further outwards."),
-        crouchDegrees("Chest Roll", vr_upper_holster_crouch_roll, "Crouched, their top tips further outwards."),
-        header("Shoulder Holsters (crouched)"),
-        crouchUnits("Back Forward", vr_shoulder_holster_crouch_x, "Crouched, both shoulder (back) holsters further "
-            "forward (negative: back), units."),
-        crouchUnits("Back Out", vr_shoulder_holster_crouch_y, "Crouched, each shoulder holster further out (negative: "
-            "in), units."),
-        crouchUnits("Back Up", vr_shoulder_holster_crouch_z, "Crouched, the shoulder holsters higher (negative: lower), "
-            "units."),
-        crouchDegrees("Back Pitch", vr_shoulder_holster_crouch_pitch, "Crouched, the guns on the back tip further."),
-        crouchDegrees("Back Yaw", vr_shoulder_holster_crouch_yaw, "Crouched, they turn further outwards."),
-        crouchDegrees("Back Roll", vr_shoulder_holster_crouch_roll, "Crouched, their top tips further outwards."),
         header("Ammo Pouch (crouched)"),
         crouchUnits("Pouch Forward", vr_ammo_pouch_crouch_x, "Crouched, the ammo pouch further forward (negative: "
             "back), units."),
-        crouchUnits("Pouch Right", vr_ammo_pouch_crouch_y, "Crouched, the ammo pouch further right (negative: left), "
-            "units."),
         crouchUnits("Pouch Up", vr_ammo_pouch_crouch_z, "Crouched, the ammo pouch higher (negative: lower), units."),
         crouchDegrees("Pouch Pitch", vr_ammo_pouch_crouch_pitch, "Crouched, its top tips further from the body."),
-        crouchDegrees("Pouch Yaw", vr_ammo_pouch_crouch_yaw, "Crouched, it turns further."),
-        crouchDegrees("Pouch Roll", vr_ammo_pouch_crouch_roll, "Crouched, its top tips further sideways."),
     };
 }
 
@@ -711,25 +623,17 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         open("On a Gun or Head", pageIndex(pageFlashlightMounts)).help("Where the torch clips on a gun or on your head, and the zones that clip it on."),
         header("Flashlight"),
         open("Chest Flashlight and Side: Body and Display", pageIndex(pageBodyDisplay)).help("The chest flashlight on or off and its side are on Body and Display."),
-        slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx").extend(),
-        slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f").extend(100.f, 6000.f),
-        slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
         cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
             .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
         cycle("Cord", vr_flashlight_cord, {{0.f, "None"}, {1.f, "Chain"}, {2.f, "Coiled"}}).help("The retracting cord from the clip on your belt to the torch while it is off the belt. Chain: a rusty low-poly iron chain (chunky links of square bar, flat-shaded: Quake's look). Coiled: a springy coiled cord like an old telephone's, its turns opening out as you pull it. Both sag and swing as your hand moves. None: no cord drawn."),
         hueSlider("Beam Hue", vr_flashlight_hue).help("The beam's colour, with Beam Saturation (at 0 it is white): its light, the beam in the air and the lens. 40 warm, 200 cold blue; Player's: the Player Effects Hue."),
-        slider("Beam Saturation", vr_flashlight_saturation, 0.f, 1.f, 0.05f, "%.2f").help("0 white (the default), 1 the Beam Hue in full."),
         header("Turning It Over"),
         toggle("Flick to Turn Over", vr_flashlight_flick)
             .help("A sharp flick of your wrist up or down turns the torch in your hand over, as B or Y does (the beam out "
                   "past your thumb or out past your little finger). Not by a gun or your head (B or Y clips it on there)."),
         slider("Flick Strength", vr_flashlight_flick_speed, 300.f, 1500.f, 50.f, "%.0f deg/s").extend(100.f, 3000.f)
             .help("How fast your wrist must turn up or down to count. Higher: only sharper flicks (fewer by accident)."),
-        slider("Flick: Hand Still Below", vr_flashlight_flick_max_move, 0.5f, 4.f, 0.1f, "%.1f m/s").extend(0.1f, 10.f)
-            .help("Your hand moving faster than this (a swing, a punch) never flicks: the wrist alone."),
-        slider("Flick Cooldown", vr_flashlight_flick_cooldown, 0.1f, 1.5f, 0.05f, "%.2f s")
-            .help("After a flick, how long before the next one counts (your wrist coming back is not a second flick)."),
         header("Taking and Clipping On"),
         slider("Grab Range", vr_flashlight_grab_range, 0.5f, 3.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
             .help("How far from the torch your hand reaches it (it lights up, a grip takes it): times 9 cm from its middle line. Higher is more lenient."),
@@ -748,9 +652,6 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Forward", vr_flashlight_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
         slider("Up", vr_flashlight_up, -0.4f, 0.4f, 0.01f, "%.2f m").extend(),
         slider("Out", vr_flashlight_out, -0.3f, 0.3f, 0.01f, "%.2f m").extend().help("Away from your middle, towards its side."),
-        header("In the Hand"),
-        slider("In Hand Forward", vr_flashlight_hand_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Where the held lamp sits in your fist."),
-        slider("In Hand Up", vr_flashlight_hand_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
     };
     return list;
 }
@@ -758,16 +659,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 // Split from Flashlight: the low grip (the one you take it in) and its fingers.
 [[nodiscard]] za::Vector<Item> pageFlashlightLowGrip()
 {
-    za::Vector<Item> list = {
-        header("In the Hand: Low Grip"),
-        slider("Low Grip Forward", vr_flashlight_low_x, -30.f, 30.f, 0.5f, "%.1f cm").extend()
-            .help("The torch's place in your fist when the beam comes out of the thumb's side (the grip you take it in), on top of In Hand Forward/Up. The other hand's is the mirror image."),
-        slider("Low Grip Towards Palm", vr_flashlight_low_y, -30.f, 30.f, 0.5f, "%.1f cm").extend(),
-        slider("Low Grip Up", vr_flashlight_low_z, -30.f, 30.f, 0.5f, "%.1f cm").extend(),
-        slider("Low Grip Pitch", vr_flashlight_low_pitch, -180.f, 180.f, 5.f, "%.0f deg").help("Tilts the beam up (positive) or down in the hand."),
-        slider("Low Grip Yaw", vr_flashlight_low_yaw, -180.f, 180.f, 5.f, "%.0f deg").help("Turns the beam towards your palm (positive) or away."),
-        slider("Low Grip Roll", vr_flashlight_low_roll, -180.f, 180.f, 5.f, "%.0f deg"),
-    };
+    za::Vector<Item> list;
     list.pushBack(header("Low Grip: Fingers on the Torch"));
     flashlightFingers(list,
         {vr_flashlight_low_fingers, vr_flashlight_low_overlap, vr_flashlight_low_curl_thumb, vr_flashlight_low_thumb_across,
@@ -781,16 +673,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 // Split from Flashlight: the overhead grip (turned over with B or Y) and its fingers.
 [[nodiscard]] za::Vector<Item> pageFlashlightOverheadGrip()
 {
-    za::Vector<Item> list = {
-        header("In the Hand: Overhead Grip"),
-        slider("Overhead Grip Forward", vr_flashlight_high_x, -30.f, 30.f, 0.5f, "%.1f cm").extend()
-            .help("The same when B or Y has turned it over (the beam out of the little finger's side)."),
-        slider("Overhead Grip Towards Palm", vr_flashlight_high_y, -30.f, 30.f, 0.5f, "%.1f cm").extend(),
-        slider("Overhead Grip Up", vr_flashlight_high_z, -30.f, 30.f, 0.5f, "%.1f cm").extend(),
-        slider("Overhead Grip Pitch", vr_flashlight_high_pitch, -180.f, 180.f, 5.f, "%.0f deg"),
-        slider("Overhead Grip Yaw", vr_flashlight_high_yaw, -180.f, 180.f, 5.f, "%.0f deg"),
-        slider("Overhead Grip Roll", vr_flashlight_high_roll, -180.f, 180.f, 5.f, "%.0f deg"),
-    };
+    za::Vector<Item> list;
     list.pushBack(header("Overhead Grip: Fingers on the Torch"));
     flashlightFingers(list,
         {vr_flashlight_high_fingers, vr_flashlight_high_overlap, vr_flashlight_high_curl_thumb, vr_flashlight_high_thumb_across,
@@ -812,25 +695,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
                   "your head: a hand there takes it off). The torch not in a hand: a capsule round it, green while a "
                   "hand's grip there takes it, and a dot where the game reads each hand near it (the hand may be drawn "
                   "elsewhere)."),
-        header("On a Gun"),
-        slider("On Gun Forward", vr_flashlight_gun_forward, -0.4f, 0.3f, 0.005f, "%.3f m").extend()
-            .help("Where the torch sits once clipped on a gun: along the barrel, under it (or beside a bulky gun). B or Y at it "
-                  "takes it off."),
-        slider("On Gun Up", vr_flashlight_gun_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
-        slider("On Gun Out", vr_flashlight_gun_out, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Away from your body."),
-        slider("Gun Zone Along", vr_flashlight_gun_zone_forward, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
-            .help("Where the torch held by the gun in your other hand lets B or Y (or letting go) clip it on: a ball round the "
-                  "middle of the torch where it would sit on that gun (On Gun, and the weapon's own place: Weapon Offsets > "
-                  "Flashlight), moved along the gun (forward), up and out. Not elsewhere along the gun (its butt)."),
-        slider("Gun Zone Up", vr_flashlight_gun_zone_up, -0.2f, 0.2f, 0.005f, "%.3f m").extend(),
-        slider("Gun Zone Out", vr_flashlight_gun_zone_out, -0.2f, 0.2f, 0.005f, "%.3f m").extend().help("Away from your body."),
-        slider("Gun Zone Radius", vr_flashlight_gun_zone_radius, 0.02f, 0.3f, 0.005f, "%.3f m").extend()
-            .help("How far from that place the held torch's middle may be (times Gun Clip Range)."),
         header("On the Head"),
-        slider("On Head Forward", vr_flashlight_head_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend()
-            .help("Where the torch sits once clipped on your head, lighting where you look."),
-        slider("On Head Up", vr_flashlight_head_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
-        slider("On Head Out", vr_flashlight_head_out, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Away from your head, to the side."),
         slider("Head Zone Forward", vr_flashlight_head_zone_forward, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
             .help("Where the torch held at your head lets B or Y clip it on, and where a hand takes it off (B or Y, or the grip): "
                   "balls at your temples and forehead, moved forward, up and out. Apart from where it then sits (On Head)."),
