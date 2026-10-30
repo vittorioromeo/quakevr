@@ -856,8 +856,19 @@ Kept, decided here: `vr_agrunt_upper` (the Rig Studio's "Upper Body Held" layer 
 (a scale, with `_shoulder`; test 45's sheet sets it to 0 for its "without the body's turn" view). Left for a later pass
 (they need their tests rewritten, which compare the old side): `vr_agrunt_aim_exposed` (test vr_armedgrunt_expose_test
 runs both sides), `_aim_converge`, `_shot_drawn`, `_swing_one_hand`, `_tug_ragdoll` (tests 21, 22 run the old tug; it
-is also the fallback when the physical tug can't begin), QC's dead `vr_agp_arms` 0 branches (vr_agp_arms is TRUE),
-B10 (the Class/Pose enums to a shared .h like `vr_melee_shared.h`).
+is also the fallback when the physical tug can't begin); also kept on purpose: `_elbow_rate`.
+
+- **QC's old pose branches gone** (second pass): `vr_agp_arms` and every 0 branch in `vr_armedgrunt_pose.qc` (the
+  fists', the melee weapons' and the left blade's old blends, the old gun pose `VR_AGP_Gun`/`VR_AGP_GunTurn` and its
+  `VR_AGP_LEFTMIRROR`, `VR_AGP_BladeTilt` and its `.vr_ag_tilt` fields, the old left carry `VR_AGP_CARRY_L`).
+- **B10:** `Quake/vr/vr_agpose_shared.h` (the pattern of `vr_melee_shared.h`: #defines both compilers read) holds the
+  weapons' attack classes `VR_AG_CLASS_*`, the pose keys' classes, poses, off-hand modes and code strides `VR_AGK_*`.
+  `agpose::Class`/`Pose`/`OffMode`/`code` and the toolgun's melee checks take them from it; QC includes it once
+  (`vr_armedgrunt_defs.qc`), its own float copies and `VR_AG_CLASS_MELEE_DEF` gone, the keys' pose numbers named.
+- **ragdoll_grab** "grab rag enforcer: no grab": flaky, not this branch. The same failure (knight 5.3 m/s, ogre 2.9,
+  enforcer none: one alternative outcome) is in arenamap's run of 2026-10-29 20:44; here the full script failed once
+  and passed twice, origin/next's passed twice, the `rag` case alone passed on both. The enforcer's ragdoll falls at
+  1.6 m/s when it is grabbed: near the grab's floor.
 
 Tests (run_baseline --only agrunt|agarmor|rigstudio|limb|ragdoll_grab|ragdoll_ragtest, 8 lanes, twice): same verdicts
 as baseline.tsv except: ragdoll_grab "grab rag enforcer: no grab" FAIL in both runs (open: not yet checked on next under
