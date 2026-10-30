@@ -2706,4 +2706,16 @@ promoted / personal / doubtful: the kit's `scratch/promote_1030.md`.
   defaults now differ from his in 81 settings, all of them the skipped ones; his 120 pose keys equal the shipped rows
   (to 0.005). config_sparse_test 16/0 (the default config and his). vr_recoil_test: the conversion checks now count
   27 slots at his values and check the conversion's curve on the converted values (not the defaults); a converted
-  slot at the shipped recoil of then must hold today's defaults; the stream check takes slot 30's 1.25 / 1.75.
+  slot at the shipped recoil of then must hold today's defaults; the stream check takes slot 30's 1.25 / 1.75:
+  69/0 (it was 65/4 before those changes). tunables_test 20/0. Full baseline (`run_baseline.sh harness --no-bench`)
+  against baseline.tsv: recoil as said; nail_1 7/0 -> 11/0 and np_1 21/0 -> 35/0 (checks added on next since the
+  baseline; nail_1 8/3 once in a loaded lane, 11/0 alone); agrunt_31, 36, 65 FAIL -> PASS (rerun: the same); reload
+  111/4 once, 112/3 on the rerun (as the baseline); agrunt_76 (Aim Behind Cover) 25/0, 24/1, 22/3, 23/2 over four
+  runs, a different gun and cover failing each time (a few shots a case: noise); the other flaky ones as the run
+  listed them.
+
+Checklist:
+- Fire every gun: recoil, smoke, sparks and wisps as you had them (shotgun 10 cm / 12 deg, revolver 14.6 / 21.9).
+- Armed grunts (Combat > Armed Grunts): poses, grips (the crossbow's and the chainsaw's second hand), armour and tug as
+  you left them, with your own vr_agrunt_poses / grips / ik_stretch cleared (they now equal the defaults).
+- Relit maps: AO 1.2 and bounced light by default.
