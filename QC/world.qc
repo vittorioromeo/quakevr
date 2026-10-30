@@ -285,6 +285,10 @@ void() worldspawn =
     vr_save_campaign = cvar_hget(cvarh_vr_campaign);
     vr_save_packmask = 1 + VR_Pack_Hipnotic() + 2 * VR_Pack_Rogue();
     lastspawn = world;
+    // QVR: the world is never flesh. A map's stray worldspawn "health" key (vrfiringrange's .ent has "health" "9")
+    // made every touch that asks `other.health` (the laser cannon's bolts, enforcer lasers, Rogue's and MG3's shots)
+    // bleed and stop on walls and floors instead of sparking and bouncing.
+    self.health = 0;
     vr_fire_spots = 0; // QVR: the map's flames, as they spawn (vr_walltorch.qc)
     cvar_set("vr_recording_clean_map", "0"); // QVR: recording mode is the map's own (info_vr_trailer sets it: vr_trailer.qc)
     if(mapname == "vrtutorial")

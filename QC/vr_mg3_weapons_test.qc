@@ -530,8 +530,92 @@ void() MG3_WT_BloodyTake =
     dprint(sprintf("mg3wtest: bloody %g passed, %g failed\n", vr_test_pass, vr_test_fail));
 };
 
+// Request 16: laser cannon bolts bleed only flesh. Run where the map's worldspawn carries a stray "health" key
+// (vrfiringrange): 12 bolts at the floor ahead and their bounces draw no blood; then one at a soldier spawned ahead
+// bleeds it. Each phase ends when its bolts are gone (stopped or out to the sky); 6 s is only the give-up.
+float mg3wt_blood0;   // vr_blood_sent when the phase's bolts were fired
+entity mg3wt_target;  // the soldier of the second phase
+
+float() MG3_WT_TestBolts =
+{
+    float n = 0;
+    entity e = find(world, classname, "hiplaser");
+    while(e)
+    {
+        if(e.mg3wt_bolt == 2) n++;
+        e = find(e, classname, "hiplaser");
+    }
+    return n;
+};
+
+void(vector xFrom, vector xDir) MG3_WT_TestBolt =
+{
+    entity p = VR_Player();
+    entity oldself = self;
+    self = p;
+    entity bolt = HIP_LaunchLaser(xFrom, xDir, '0 0 0', 0);
+    bolt.mg3wt_bolt = 2;
+    self = oldself;
+};
+
+void() MG3_WT_LaserBlood =
+{
+    entity p = VR_Player();
+    VR_Test_Begin("mg3wtest");
+    VR_Test_Check(world.health == 0, sprintf("the world has no health (%g; the map's worldspawn key ignored)", world.health));
+    makevectors(p.v_angle_y * '0 1 0');
+    vector from = p.origin + v_forward * 28 + '0 0 16';
+    makevectors(p.v_angle_y * '0 1 0' + '40 0 0');
+    mg3wt_blood0 = vr_blood_sent;
+    for(float i = 0; i < 12; i++)
+    {
+        MG3_WT_TestBolt(from, normalize(v_forward + v_right * (i - 5.5) * 0.05));
+    }
+    mg3wt_step = 40;
+    mg3wt_next = time + 6;
+};
+
+void() MG3_WT_LaserBloodStep =
+{
+    if(MG3_WT_TestBolts() > 0 && time < mg3wt_next) return;
+    entity p = VR_Player();
+    if(mg3wt_step == 40)
+    {
+        VR_Test_Check(time < mg3wt_next, "the floor's bolts done (stopped or gone)");
+        float floorBlood = vr_blood_sent - mg3wt_blood0;
+        VR_Test_Check(floorBlood == 0, sprintf("bolts on the floor and walls bleed nothing (%g blood)", floorBlood));
+        makevectors(p.v_angle_y * '0 1 0');
+        entity os = self;
+        mg3wt_target = spawn();
+        self = mg3wt_target;
+        mg3wt_target.classname = "monster_army";
+        setorigin(mg3wt_target, p.origin + v_forward * 128 + '0 0 8');
+        monster_army();
+        self = os;
+        mg3wt_target.health = 1000;
+        vector from = p.origin + v_forward * 28 + '0 0 16';
+        mg3wt_blood0 = vr_blood_sent;
+        MG3_WT_TestBolt(from, normalize(mg3wt_target.origin - from));
+        mg3wt_step = 41;
+        mg3wt_next = time + 6;
+        return;
+    }
+    VR_Test_Check(time < mg3wt_next, "the soldier's bolt done");
+    float bodyBlood = vr_blood_sent - mg3wt_blood0;
+    VR_Test_Check(bodyBlood > 0 && mg3wt_target.health < 1000,
+        sprintf("a bolt on a soldier bleeds it (%g blood, health 1000 -> %g)", bodyBlood, mg3wt_target.health));
+    remove(mg3wt_target);
+    mg3wt_step = 0;
+    dprint(sprintf("mg3wtest: laserblood %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+};
+
 void() MG3_WeaponsTestFrame =
 {
+    if(mg3wt_step == 40 || mg3wt_step == 41)
+    {
+        MG3_WT_LaserBloodStep();
+        return;
+    }
     if(mg3wt_step == 10 && time >= mg3wt_next)
     {
         entity os1 = self, oo1 = other, oa1 = activator;
@@ -594,6 +678,7 @@ void() MG3_WeaponsTestFrame =
     }
     else if(request == 14) { serverflags = serverflags | MG3_SF_BN_NEWGAME; MG3_WT_BloodyReport(); }
     else if(request == 15) { MG3_SetBloodyBits(0); MG3_WT_BloodyReport(); }
+    else if(request == 16) MG3_WT_LaserBlood();
     self = oldself; other = oldother; activator = oldact;
 };
 #endif
