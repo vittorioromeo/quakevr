@@ -1947,6 +1947,10 @@ void ikStretchReset()
         slider("Nail Pistol Slide Cycle", vr_nailpistol_slide_cycle, 0.03f, 0.5f, 0.01f, "%.2f s").extend(0.01f, 2.f)
             .help("How long its slide takes back and home after a shot (a third of it back); a re-rack closes in the "
                   "home part."),
+        cycle("Nail Pistol Model", "vr_nailpistol_model", {{0.f, "Classic"}, {1.f, "Full Slide"}})
+            .help("Its look. Classic: a copper slide on top of the receiver. Full Slide: the whole upper part is the "
+                  "slide, as a real pistol's (ejection port, cocking serrations, the sights on it), the barrel showing "
+                  "when it is back. Changes at once."),
         slider("Flare Gun", vr_dmg_flaregun, 0.f, 60.f, 1.f, "%.0f a flare").extend()
             .help("Quake VR's disposable flare gun: a flare's hit (low: what it hits is set on fire, an explosive box "
                   "goes off). Two flares, then throw it away."),
