@@ -1111,6 +1111,9 @@ za::Vector<Item> pageDebugTests()
                   "(vr_impacts_test.qc)."),
         toggle("Print Gunfire Particles", vr_debug_gunfx)
             .help("vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\")."),
+        toggle("Wisps Overlap Again", vr_debug_ribbon_overlap)
+            .help("vr_debug_ribbon_overlap: the muzzle wisps blend twice where they fold over themselves (a sharp swing), "
+                  "as before the fix: the denser creases, to compare."),
         command("Per-Weapon Recoil Test", "vr_recoil_test")
             .help("vr_recoil_test: the main hand's weapon's own Recoil Kick Back and Muzzle Rise move its recoil only "
                   "(no other weapon's), and its Recoil Recovery 2x / 0.5x takes twice / half as long back to rest; "
