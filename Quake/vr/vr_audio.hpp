@@ -307,4 +307,10 @@ void stopGameWav();
 void setDuck(float volume);
 [[nodiscard]] float duckGain();
 
+// The client's own one-shot sounds (docs/vr-port/CODE_STYLE.md, "Canonical helpers"; not the server's, which QC plays):
+// playAt: at a place in the world, on `entity` (0: the world's; -1: none) and its auto channel; playLocal: on the local
+// player (the view entity, auto channel, no place: heard in the head). `sfx` from S_PrecacheSound (null: nothing).
+void playAt(sfx_t* sfx, const glm::vec3& at, float volume, float attenuation, int entity = 0);
+void playLocal(sfx_t* sfx, float volume);
+
 } // namespace qvr::audio

@@ -4,6 +4,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_props.hpp"
 #include "vr_cvars.hpp"
+#include "vr_slottable.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 
@@ -56,13 +57,12 @@ constexpr const char* keyDefaults[numKeys] = {
 // version. A change from now on: a `{version, step}` table as vr_weapons.cpp's.
 constexpr int settingsVersion = 68;
 
-za::Array<za::String, numSlots * numKeys> names;
-za::Array<cvar_t, numSlots * numKeys> cvars{};
+SlotTable<Key, numSlots, numKeys> slots; // vr_prop_<key>_NN
 
 
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
 {
-    return cvars[slot * numKeys + static_cast<int>(key)];
+    return slots.at(slot, key);
 }
 
 // Model name -> slot (-1: none), and model -> slot, found again whenever a vr_prop_id_NN changes. By name: looked up
@@ -149,8 +149,7 @@ void onChanged(cvar_t* var)
     {
         Con_Printf("props: %s %s (generation %u, frame %d)\n", var->name, var->string, generation, host_framecount);
     }
-    const za::PtrDiffT index = var - cvars.data();
-    if(index >= 0 && index < static_cast<za::PtrDiffT>(cvars.size()) && index % numKeys == static_cast<int>(Key::ID))
+    if(slots.keyOf(var) == static_cast<int>(Key::ID))
     {
         clearSlotCaches();
     }
@@ -369,11 +368,8 @@ void registerCvars()
     {
         for(int key = 0; key < numKeys; key++)
         {
-            names[slot * numKeys + key] = za::String("vr_prop_") + keyNames[key] + (slot + 1 < 10 ? "_0" : "_") + za::toString(slot + 1);
-            cvar_t& var = cvars[slot * numKeys + key];
-            var.name = names[slot * numKeys + key].cStr();
-            var.string = keyDefaults[key];
-            var.flags = CVAR_ARCHIVE;
+            slots.define(slot, key,
+                za::String("vr_prop_") + keyNames[key] + (slot + 1 < 10 ? "_0" : "_") + za::toString(slot + 1), keyDefaults[key]);
         }
     }
 
@@ -381,7 +377,7 @@ void registerCvars()
 #include "vr_props.inc"
 #undef QVR_PROP_DEFAULT
 
-    for(cvar_t& var : cvars)
+    for(cvar_t& var : slots)
     {
         Cvar_RegisterVariable(&var);
         Cvar_SetCallback(&var, onChanged);

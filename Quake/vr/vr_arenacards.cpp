@@ -25,6 +25,7 @@
 #include "vr_renderdoc.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_toolgun_icons.hpp"
+#include "vr_toolpanel.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -52,15 +53,11 @@ constexpr float awayCos = 0.5f;      // looked away: the panel more than 60 degr
 constexpr float awayFar = 3.f;       // or further than this many times its distance (walked off)
 constexpr float dropBelowEyes = 0.1f;  // its middle below the eyes, as a share of its distance
 
-struct Rect
-{
-    float x0{0.f}, y0{0.f}, x1{0.f}, y1{0.f};
-    [[nodiscard]] bool contains(const glm::vec2& p) const { return p.x >= x0 && p.x < x1 && p.y >= y0 && p.y < y1; }
-    [[nodiscard]] float cx() const { return (x0 + x1) * 0.5f; }
-    [[nodiscard]] float cy() const { return (y0 + y1) * 0.5f; }
-    [[nodiscard]] float w() const { return x1 - x0; }
-    [[nodiscard]] float h() const { return y1 - y0; }
-};
+// The panel image's drawing (vr_toolpanel.hpp).
+using toolpanel::fill;
+using toolpanel::Rect;
+using toolpanel::text;
+using toolpanel::textFit;
 
 struct Card
 {
@@ -143,7 +140,7 @@ void poll()
     {
         const int pick = cs.pickPending;
         cs.pickPending = -1;
-        if(progs::qcFloat(progs::findFunction("VR_ARK_CardPick"), static_cast<float>(pick)) != 0.f)
+        if(progs::qcFloat(progs::bindings().arenaCards.CardPick, static_cast<float>(pick)) != 0.f)
         {
             Con_DPrintf("arena cards: card %d picked (%s)\n", pick + 1, cs.cards[pick].name);
             qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
@@ -151,7 +148,7 @@ void poll()
     }
     cs.pickPending = -1;
 
-    const int serial = static_cast<int>(progs::qcFloat(progs::findFunction("VR_ARK_CardSerial")));
+    const int serial = static_cast<int>(progs::qcFloat(progs::bindings().arenaCards.CardSerial));
     if(serial <= 0)
     {
         clearOffer();
@@ -161,25 +158,25 @@ void poll()
     {
         clearOffer();
         cs.serial = serial;
-        cs.count = za::clamp(static_cast<int>(progs::qcFloat(progs::findFunction("VR_ARK_CardCount"))), 0, maxCards);
+        cs.count = za::clamp(static_cast<int>(progs::qcFloat(progs::bindings().arenaCards.CardCount)), 0, maxCards);
         for(int i = 0; i < cs.count; i++)
         {
             Card& c = cs.cards[i];
-            c.bit = static_cast<int>(progs::qcFloat(progs::findFunction("VR_ARK_CardBit"), static_cast<float>(i)));
-            progs::qcText(c.name, sizeof(c.name), progs::findFunction("VR_ARK_Name"), static_cast<float>(c.bit));
-            progs::qcText(c.what, sizeof(c.what), progs::findFunction("VR_ARK_What"), static_cast<float>(c.bit));
-            progs::qcText(c.model, sizeof(c.model), progs::findFunction("VR_ARK_Model"), static_cast<float>(c.bit));
-            c.colour = progs::qcVec(progs::findFunction("VR_ARK_Colour"), static_cast<float>(c.bit), glm::vec3{0.5f});
+            c.bit = static_cast<int>(progs::qcFloat(progs::bindings().arenaCards.CardBit, static_cast<float>(i)));
+            progs::qcText(c.name, sizeof(c.name), progs::bindings().arenaCards.Name, static_cast<float>(c.bit));
+            progs::qcText(c.what, sizeof(c.what), progs::bindings().arenaCards.What, static_cast<float>(c.bit));
+            progs::qcText(c.model, sizeof(c.model), progs::bindings().arenaCards.Model, static_cast<float>(c.bit));
+            c.colour = progs::qcVec(progs::bindings().arenaCards.Colour, static_cast<float>(c.bit), glm::vec3{0.5f});
         }
-        progs::qcText(cs.title, sizeof(cs.title), progs::findFunction("VR_ARK_CardTitle"));
-        cs.pool = za::max(1, static_cast<int>(progs::qcFloat(progs::findFunction("VR_ARK_PoolSize"))));
+        progs::qcText(cs.title, sizeof(cs.title), progs::bindings().arenaCards.CardTitle);
+        cs.pool = za::max(1, static_cast<int>(progs::qcFloat(progs::bindings().arenaCards.PoolSize)));
         cs.shownAt = cl.time;
         Con_DPrintf("arena cards: offer %d, %d cards\n", serial, cs.count);
         qvr::menuui::uiSound(qvr::menuui::UiSound::Talk);
     }
     if(vrActive())
     {
-        cs.held = static_cast<int>(progs::qcFloat(progs::findFunction("VR_ARK_CardsSeen")));
+        cs.held = static_cast<int>(progs::qcFloat(progs::bindings().arenaCards.CardsSeen));
     }
 }
 
@@ -315,39 +312,12 @@ constexpr float cardGap = 8.f;
 // ---------------------------------------------------------------------------------------------------------------------
 // Drawing (into the panel's image, its virtual pixels).
 
-void fill(const Rect& r, const glm::vec4& c)
-{
-    const float rgb[3]{c.r, c.g, c.b};
-    Draw_FillEx(r.x0, r.y0, r.w(), r.h(), rgb, c.a);
-}
-
 void frameRect(const Rect& r, float t, const glm::vec4& c)
 {
     fill(Rect{r.x0, r.y0, r.x1, r.y0 + t}, c);
     fill(Rect{r.x0, r.y1 - t, r.x1, r.y1}, c);
     fill(Rect{r.x0, r.y0 + t, r.x0 + t, r.y1 - t}, c);
     fill(Rect{r.x1 - t, r.y0 + t, r.x1, r.y1 - t}, c);
-}
-
-// Quake's font, `dim` pixels a character, gold (the menus' labels) or white.
-void text(float x, float y, float dim, const char* s, bool gold)
-{
-    char buf[96];
-    int n = 0;
-    for(; s[n] && n < static_cast<int>(sizeof(buf)) - 1; n++)
-    {
-        buf[n] = gold ? static_cast<char>(static_cast<unsigned char>(s[n]) | 0x80) : s[n];
-    }
-    buf[n] = '\0';
-    Draw_StringEx(x, y, dim, buf);
-}
-
-// Centred on cx, as large as `dim` or smaller to fit `width`.
-void textFit(float cx, float y, float width, float dim, const char* s, bool gold)
-{
-    const float len = static_cast<float>(strlen(s));
-    const float d = len > 0.f ? za::min(dim, width / len) : dim;
-    text(cx - len * d * 0.5f, y + (dim - d) * 0.5f, d, s, gold);
 }
 
 // Words wrapped to `width`, each line centred on cx, from y down, `dim` a character, at most `maxLines`.
@@ -500,7 +470,7 @@ void offer_f()
         return;
     }
     const progs::ServerVm vm;
-    if(!progs::callQc(progs::findFunction("VR_ARK_DebugOffer")))
+    if(!progs::callQc(progs::bindings().arenaCards.DebugOffer))
     {
         Con_Printf("vr_arena_cards_offer: these progs have no Survival Arena perks\n");
     }

@@ -105,6 +105,22 @@ struct Bindings
         func_t MonsterMass{0}; // VR_Grapple_MonsterMass
         func_t LegSweepDown{0}; // VR_LegSweep_Down
     } foegrab;
+    // The arena's perk cards (QC vr_arena_perks.qc; vr_arenacards.cpp's poll and debug offer), resolved once per map.
+    struct ArenaCards
+    {
+        func_t CardPick{0};
+        func_t CardSerial{0};
+        func_t CardCount{0};
+        func_t CardBit{0};
+        func_t Name{0};
+        func_t What{0};
+        func_t Model{0};
+        func_t Colour{0};
+        func_t CardTitle{0};
+        func_t PoolSize{0};
+        func_t CardsSeen{0};
+        func_t DebugOffer{0};
+    } arenaCards;
 
     float* spawnServerFromSaveFile{nullptr};
     // vr_music_track: the CD track target_vr_music switched to (0: the map's own); sent at a connect (a loaded game)

@@ -361,7 +361,7 @@ void syncMark(const char* why)
     {
         if(sfx_t* sfx = S_PrecacheSound("vr/sync_beep.wav")) // (none without sound)
         {
-            S_StartSound(cl.viewentity, -1, sfx, vec3_origin, za::min(1.f, vr_highlights_beep.value), 1.f);
+            audio::playLocal(sfx, za::min(1.f, vr_highlights_beep.value));
         }
     }
     // The game-time mix (as at normal speed: slow motion sped up in editing) from the beep on, a file a sync mark.

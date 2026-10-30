@@ -31,6 +31,7 @@
 #include "vr_toolgun_icons.hpp"
 #include "vr_toolgun_brush.hpp"
 #include "vr_brushes.hpp"
+#include "vr_toolpanel.hpp"
 
 #include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -80,15 +81,11 @@ constexpr const char* jointHints[] = {"Shoot a prop, then another: they stay stu
 constexpr int jointHintCount = static_cast<int>(sizeof(jointHints) / sizeof(jointHints[0]));
 static_assert(jointHintCount == static_cast<int>(qvr::box3d::ToolJoint::Count) + 1, "a hint for each joint kind and Unjoin");
 
-struct Rect
-{
-    float x0{0.f}, y0{0.f}, x1{0.f}, y1{0.f};
-    [[nodiscard]] bool contains(const glm::vec2& p) const { return p.x >= x0 && p.x < x1 && p.y >= y0 && p.y < y1; }
-    [[nodiscard]] float cx() const { return (x0 + x1) * 0.5f; }
-    [[nodiscard]] float cy() const { return (y0 + y1) * 0.5f; }
-    [[nodiscard]] float w() const { return x1 - x0; }
-    [[nodiscard]] float h() const { return y1 - y0; }
-};
+// The panel image's drawing (vr_toolpanel.hpp).
+using toolpanel::fill;
+using toolpanel::Rect;
+using toolpanel::text;
+using toolpanel::textFit;
 
 // A widget laid out by the last input pass: its name and place (vr_toolgun_mock_laser <name>, vr_toolgun_panel_dump).
 struct Spot
@@ -231,33 +228,6 @@ struct Ui
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Drawing (Mode::Draw: into the panel's image, its virtual pixels).
-
-void fill(const Rect& r, const glm::vec4& c)
-{
-    const float rgb[3]{c.r, c.g, c.b};
-    Draw_FillEx(r.x0, r.y0, r.w(), r.h(), rgb, c.a);
-}
-
-// Quake's font, `dim` pixels a character, gold (the menus' labels) or white.
-void text(float x, float y, float dim, const char* s, bool gold)
-{
-    char buf[96];
-    int n = 0;
-    for(; s[n] && n < static_cast<int>(sizeof(buf)) - 1; n++)
-    {
-        buf[n] = gold ? static_cast<char>(static_cast<unsigned char>(s[n]) | 0x80) : s[n];
-    }
-    buf[n] = '\0';
-    Draw_StringEx(x, y, dim, buf);
-}
-
-// Centred on x, as large as `dim` or smaller to fit `width`.
-void textFit(float cx, float y, float width, float dim, const char* s, bool gold)
-{
-    const float len = static_cast<float>(strlen(s));
-    const float d = len > 0.f ? za::min(dim, width / len) : dim;
-    text(cx - len * d * 0.5f, y + (dim - d) * 0.5f, d, s, gold);
-}
 
 // Words wrapped to `width` from (x, y), `dim` a character, lines `dim` + 1 apart; the lines drawn.
 int paragraph(float x, float y, float width, float dim, const char* s, bool gold)

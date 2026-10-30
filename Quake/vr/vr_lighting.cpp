@@ -12,6 +12,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_mem.hpp"
 #include "vr_modellight.hpp"
 #include "vr_profile.hpp"
@@ -68,13 +69,7 @@ constexpr Face faces[6] = {
 GLuint depthProgram = 0;
 GLuint depthLayeredProgram = 0; // vr_shadow_layered's (gl_viewport_layer_able)
 
-struct DepthTarget
-{
-    GLuint tex = 0;
-    GLuint fbo = 0;
-    int width = 0;
-    int height = 0;
-};
+using DepthTarget = gfx::RenderTarget;
 
 DepthTarget atlas;        // rendered every frame: dynamic lights, and map lights' moving casters
 DepthTarget staticAtlas;  // map lights' world depth, cached
@@ -141,15 +136,7 @@ void main()
 
 void destroy(DepthTarget& t)
 {
-    if(t.fbo)
-    {
-        GL_DeleteFramebuffersFunc(1, &t.fbo);
-    }
-    if(t.tex)
-    {
-        GL_DeleteNativeTexture(t.tex); // (and out of the engine's bound-texture cache: its name comes back at once)
-    }
-    t = DepthTarget{};
+    t.destroy();
 }
 
 // A reversed-Z D32F depth texture that samples as a shadow map (hardware compare, bilinear).
@@ -159,34 +146,15 @@ bool ensure(DepthTarget& t, int width, int height, const char* name)
     {
         return true;
     }
-    destroy(t);
-    glGenTextures(1, &t.tex);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, t.tex);
-    GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_DEPTH_COMPONENT32F, width, height);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_GEQUAL); // lit where the receiver is as near or nearer
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
-    GL_ObjectLabelFunc(GL_TEXTURE, t.tex, -1, name);
-
-    GL_GenFramebuffersFunc(1, &t.fbo);
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, t.fbo);
-    GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, t.tex, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-    const bool complete = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    // (lit where the receiver is as near or nearer: GEQUAL)
+    const bool complete = t.ensure(width, height,
+        gfx::RenderTargetFormat{.internalFormat = GL_DEPTH_COMPONENT32F, .depth = true, .shadowCompare = true}, name);
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
     if(!complete)
     {
         Con_Warning("VR lighting: %s framebuffer incomplete\n", name);
-        destroy(t);
         return false;
     }
-    t.width = width;
-    t.height = height;
     return true;
 }
 

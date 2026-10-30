@@ -258,6 +258,21 @@ Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appen
 | a UI click / cue sound by kind (the path table) | `menuui::uiSound(UiSound::Move/Select/Adjust/Deny/Talk/Pickup)` | `vr_menuui.hpp` |
 | linking a GL program (info log, label, shader cleanup); a bound-FBO completeness check | `gfx::linkProgram`, `gfx::boundFramebufferComplete` | `vr_glutil.hpp` |
 
+### Kits (refactor B2)
+
+| need | helper | where |
+|---|---|---|
+| an offscreen texture + framebuffer made for a size (colour or depth, completeness checked, labelled) | `gfx::RenderTarget` (`ensure(w, h, RenderTargetFormat{...}, name)`, `destroy()`) | `vr_glutil.hpp` |
+| an in-world tool panel's push buttons: a button's middle, a hand pressing it, the button under a hand | `toolpanel::Frame`, `Grid`, `buttonCentre`, `pressedBy`, `buttonUnder` | `vr_toolpanel.hpp` |
+| a bounded undo stack (oldest dropped); a tool's feedback line (panel + console) | `toolpanel::pushUndo(stack, max, item)`, `toolpanel::say(line, until, tool, text, seconds)` | `vr_toolpanel.hpp` |
+| a panel image's 2D text and boxes (Quake's font, gold/white, shrunk to fit) | `toolpanel::Rect`, `fill`, `text`, `textFit` | `vr_toolpanel.hpp` |
+| a client one-shot sound at a place / on the local player | `audio::playAt(sfx, at, volume, attenuation, entity = 0)`, `audio::playLocal(sfx, volume)` | `vr_audio.hpp` |
+| per-slot cvars (`vr_<x>_<key>_NN`): storage, names, a cvar's key | `SlotTable<Key, Slots, Keys>` (`at`, `define`, `keyOf`, iteration) | `vr_slottable.hpp` |
+| QC functions the engine calls every frame | a `progs::Bindings` member resolved once per map (`bindings().arenaCards.CardSerial`), never `findFunction("...")` per frame | `vr_progs.hpp` |
+| work done at each map load, in order | a row of `prewarmSteps` (vr_main.cpp `VR_NewMap`) | `vr_main.cpp` |
+| a new view entity (hands, weapons, body parts) | a member of `Entities` listed in `Entities::members` at its place in the draw order (`zip(a, b)` for arrays visited per index); `forEachEntity` walks the list, a static_assert fails on a member left out | `vr_view_internal.hpp` |
+| client state reset when the client's state is cleared (a map, a loaded game) | a call in `VR_OnClientClearState`; per-map data rebuilt: compare `worldGeneration()` (with the world pointer) | `vr_client.cpp`, `vr_main.hpp` |
+
 ### QC (refactor A4)
 
 Use these instead of a local copy (refactor 2026-10-29, cluster A4).
