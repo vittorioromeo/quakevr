@@ -1142,48 +1142,25 @@ void noteIndexTip(int hand, const RigHand& rh)
     indexTips[hand] = {{glm::dot(d, fwd), glm::dot(d, right), glm::dot(d, up)}, host_framecount};
 }
 
-bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
-    const glm::mat4& motion)
+// setupRigHand's phases. What the palm's and the fingers' share of a frame read.
+struct RigFrame
 {
-    QVR_PROFILE("rig hand");
-    RigHand& rh = rigHands[hand];
-    rh.drawn = false;
-    if(!vr_hand_rig.value)
-    {
-        return false;
-    }
-    qmodel_t* const model = viewModel(handrig::modelName());
-    if(!handrig::usable(model))
-    {
-        return false;
-    }
+    int hand;
+    RigHand& rh;
+    const Held& held;
+    const glm::mat4& rigToWorld;
+    view::ViewEntity& ve;
+    const weapons::ModelTransform& t;
+    glm::vec3 ts;
+    const glm::vec3& handRot;
+    bool mirrored;
+    bool brushing;
+    float follow;
+};
 
-    const weapons::ModelTransform t = weapons::modelTransform(model);
-    const float k = t.active ? t.k : 1.f;
-    const glm::vec3 ts = t.active ? t.scale : glm::vec3{1.f};
-    rigShifts(model, hand, rh.pose);
-    rh.pose.metacarpal = glm::quat{1.f, 0.f, 0.f, 0.f};
-
-    view::ViewEntity& ve = entities.hand[hand][FingerBase];
-    const glm::mat4 rigToWorld = rigPlacement(hand, pos, handRot, mirrored, &ve);
-
-    // The fingers: the controller's curls (as the six models'), or wrapping what the hand holds, or set by hand (the
-    // weapon's or the hotspot's Fingers: Manual: no solve).
-    if(held.manual)
-    {
-        rh.grasp.valid = false;
-        rh.inRig = held.ent ? glm::inverse(rigToWorld) * heldToWorld(held) : glm::mat4{1.f};
-    }
-    else
-    {
-        updateGrasp(hand, held, rigToWorld, k * ts.x);
-    }
-    rh.held = held;
-    rh.rigToWorld = rigToWorld;
-
-    // A free hand brushing the other hand's weapon (pushOut noted it): its fingers closed onto it from open (the grasp's
-    // solve, the palm where it is), to rest on it or bend out of it (below).
-    const bool brushing = rh.brushEnt && !held.ent && !held.manual;
+// A free hand brushing the other hand's weapon: its fingers' solve on it.
+void solveBrush(int hand, RigHand& rh, bool brushing, const glm::mat4& rigToWorld, float k, const glm::vec3& ts)
+{
     if(brushing)
     {
         QVR_PROFILE("hand brush");
@@ -1232,22 +1209,19 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     {
         rh.brushValid = false;
     }
-    for(bool& stuck : rh.brushStuck)
-    {
-        stuck = false;
-    }
-    const double now = cl.time;
-    const float dt = rh.jointsTime >= 0.0 ? static_cast<float>(CLAMP(0.0, now - rh.jointsTime, 0.1)) : 1.f;
-    rh.jointsTime = now;
+}
 
-    // The palm flush on what it holds: the drawn hand eased there (and back) over about a tenth of a second.
-    // The palm turned to face the surface it holds (round its middle) and moved flush on it: the rig drawn as
-    //   rigToWorld * T(centre + move) * turn * T(-centre),
-    // as an entity: its angles R' = R * turn (mirrored as the hand is), its origin to match.
-    // Every change of the grasp (a new solve, the controller's curls) is eased in over vr_hand_fit_blend seconds
-    // (95% of the way: an exponential approach, a third of it the time constant): no jumps between poses.
-    const float blend = za::fmax(vr_hand_fit_blend.value, 0.f);
-    const float follow = blend > 0.f ? 1.f - za::exp(-dt * 3.f / blend) : 1.f;
+// The palm eased flush on what it holds.
+void placePalm(const RigFrame& rf)
+{
+    RigHand& rh = rf.rh;
+    const glm::mat4& rigToWorld = rf.rigToWorld;
+    view::ViewEntity& ve = rf.ve;
+    const weapons::ModelTransform& t = rf.t;
+    const glm::vec3& ts = rf.ts;
+    const glm::vec3& handRot = rf.handRot;
+    const bool mirrored = rf.mirrored;
+    const float follow = rf.follow;
     const glm::vec3 palmTarget = rh.grasp.valid ? rh.grasp.solution.palm : glm::vec3{0.f};
     const glm::quat turnTarget = rh.grasp.valid ? rh.grasp.solution.palmTurn : glm::quat{1.f, 0.f, 0.f, 0.f};
     rh.palm += (palmTarget - rh.palm) * follow;
@@ -1273,129 +1247,106 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         ve.ent.angles[1] = a.y;
         ve.ent.angles[2] = a.z;
     }
-    for(int f = 0; f < handrig::FingerCount; f++)
+}
+
+// A finger's curls: wrapping what the hand holds, set by hand, the controller's, brushing; out of walls; eased.
+void poseFinger(const RigFrame& rf, int f)
+{
+    const int hand = rf.hand;
+    RigHand& rh = rf.rh;
+    const Held& held = rf.held;
+    const glm::mat4& rigToWorld = rf.rigToWorld;
+    const bool brushing = rf.brushing;
+    const float follow = rf.follow;
+    const float curl = fingerFrames[hand][rigFinger[f]];
+    const float bias = fingerBias[hand][rigFinger[f]];
+    float target[handrig::jointsPerFinger];
+    // Set by hand: the finger stops at its curl, as a solved finger stops on what it holds.
+    grasp::FingerStop manualStop;
+    if(held.manual)
     {
-        const float curl = fingerFrames[hand][rigFinger[f]];
-        const float bias = fingerBias[hand][rigFinger[f]];
-        float target[handrig::jointsPerFinger];
-        // Set by hand: the finger stops at its curl, as a solved finger stops on what it holds.
-        grasp::FingerStop manualStop;
-        if(held.manual)
+        manualStop.met = true;
+        for(float& j : manualStop.stop)
         {
-            manualStop.met = true;
-            for(float& j : manualStop.stop)
+            j = 4.f * held.manualCurl[f];
+        }
+    }
+    const grasp::FingerStop* stop = held.manual ? &manualStop : rh.grasp.valid ? &rh.grasp.solution.finger[f] : nullptr;
+    if(stop)
+    {
+        grasp::curls(*stop, curl, engagement(curl), target);
+        if(f == handrig::Index && held.trigger)
+        {
+            // The trigger finger pulls as the trigger is pulled, past where it met the weapon (the trigger
+            // gives): from its stop (or the controller's curl, if less) towards a trigger pull's hook.
+            const float pull = CLAMP(0.f, curl / 5.f, 1.f);
+            for(int j = 0; j < handrig::jointsPerFinger; j++)
             {
-                j = 4.f * held.manualCurl[f];
+                target[j] = za::fmax(target[j], za::fmin(stop->stop[j], curl) + pull * triggerPull[j]);
             }
         }
-        const grasp::FingerStop* stop = held.manual ? &manualStop : rh.grasp.valid ? &rh.grasp.solution.finger[f] : nullptr;
-        if(stop)
+        for(float& t : target)
         {
-            grasp::curls(*stop, curl, engagement(curl), target);
-            if(f == handrig::Index && held.trigger)
+            t = CLAMP(0.f, t + 4.f * bias, 4.f); // the weapon's finger tweak, on top of the wrap
+        }
+    }
+    else
+    {
+        for(float& t : target)
+        {
+            t = rigCurl(hand, rigFinger[f]);
+        }
+        // Brushing the other hand's weapon: a finger closing onto it stops on its surface (it rests there, as far as
+        // the controller closes it); one in it open bends out of it, closing to where it is clear; one in it at every
+        // curl is left, and pushes the hand out instead (pushOut). Eased in and out as any change of the fingers.
+        if(brushing && rh.brushValid)
+        {
+            const grasp::FingerStop& st = rh.brush.finger[f];
+            rh.brushStuck[f] = st.startsInside;
+            if(st.startsInside && rh.brushHeld[f])
             {
-                // The trigger finger pulls as the trigger is pulled, past where it met the weapon (the trigger
-                // gives): from its stop (or the controller's curl, if less) towards a trigger pull's hook.
-                const float pull = CLAMP(0.f, curl / 5.f, 1.f);
+                // In it at every curl (the hand gone deeper): kept as it was last (not back to the controller's
+                // curl, into the weapon), while the hand is pushed out by its tip.
                 for(int j = 0; j < handrig::jointsPerFinger; j++)
                 {
-                    target[j] = za::fmax(target[j], za::fmin(stop->stop[j], curl) + pull * triggerPull[j]);
+                    target[j] = rh.brushHold[f][j];
                 }
             }
-            for(float& t : target)
+            else if(!st.startsInside && (st.met || st.fromClosed))
             {
-                t = CLAMP(0.f, t + 4.f * bias, 4.f); // the weapon's finger tweak, on top of the wrap
+                for(int j = 0; j < handrig::jointsPerFinger; j++)
+                {
+                    target[j] = st.fromClosed ? st.stop[j] : za::fmin(grasp::pathCurl(target[j]), st.stop[j]);
+                }
+            }
+            if(!st.startsInside)
+            {
+                za::copy(target, target + handrig::jointsPerFinger, rh.brushHold[f]);
+                rh.brushHeld[f] = true;
             }
         }
         else
         {
-            for(float& t : target)
-            {
-                t = rigCurl(hand, rigFinger[f]);
-            }
-            // Brushing the other hand's weapon: a finger closing onto it stops on its surface (it rests there, as far as
-            // the controller closes it); one in it open bends out of it, closing to where it is clear; one in it at every
-            // curl is left, and pushes the hand out instead (pushOut). Eased in and out as any change of the fingers.
-            if(brushing && rh.brushValid)
-            {
-                const grasp::FingerStop& st = rh.brush.finger[f];
-                rh.brushStuck[f] = st.startsInside;
-                if(st.startsInside && rh.brushHeld[f])
-                {
-                    // In it at every curl (the hand gone deeper): kept as it was last (not back to the controller's
-                    // curl, into the weapon), while the hand is pushed out by its tip.
-                    for(int j = 0; j < handrig::jointsPerFinger; j++)
-                    {
-                        target[j] = rh.brushHold[f][j];
-                    }
-                }
-                else if(!st.startsInside && (st.met || st.fromClosed))
-                {
-                    for(int j = 0; j < handrig::jointsPerFinger; j++)
-                    {
-                        target[j] = st.fromClosed ? st.stop[j] : za::fmin(grasp::pathCurl(target[j]), st.stop[j]);
-                    }
-                }
-                if(!st.startsInside)
-                {
-                    za::copy(target, target + handrig::jointsPerFinger, rh.brushHold[f]);
-                    rh.brushHeld[f] = true;
-                }
-            }
-            else
-            {
-                rh.brushHeld[f] = false;
-            }
-        }
-        // Into a wall (vr_hand_walls): bent (curled, all its joints alike) as little as keeps it out: the lines from
-        // the knuckle through its joints to its tip clear of the world's geometry.
-        if(vr_hand_walls.value)
-        {
-            bendOutOfWalls(rh, f, rigToWorld, target);
-        }
-        for(int j = 0; j < handrig::jointsPerFinger; j++)
-        {
-            float& c = rh.joints[f][j];
-            c += (target[j] - c) * follow;
-            rh.pose.curl[f][j] = c;
+            rh.brushHeld[f] = false;
         }
     }
-    // The thumb turns across the palm (opposition) as the grasp found, as far as it closes.
-    const float w = CLAMP(0.f, fingerFrames[hand][FingerThumb] / 3.f, 1.f);
-    // Set by hand: across the palm by its share of 45 degrees (the solver's widest opposition), about the same axis.
-    const glm::quat manualThumb = glm::angleAxis(glm::radians(45.f * held.manualThumbAcross), glm::vec3{-1.f, 0.f, 0.f});
-    const bool brushThumb = brushing && rh.brushValid && !rh.brush.finger[handrig::Thumb].startsInside &&
-                            (rh.brush.finger[handrig::Thumb].met || rh.brush.finger[handrig::Thumb].fromClosed);
-    const glm::quat thumbTarget = held.manual   ? glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, manualThumb, w)
-                                  : rh.grasp.valid ? glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, rh.grasp.solution.thumbTurn, w)
-                                  : brushThumb     ? rh.brush.thumbTurn
-                                                   : glm::quat{1.f, 0.f, 0.f, 0.f};
-    rh.thumb = glm::normalize(glm::slerp(rh.thumb, thumbTarget, follow));
-    rh.pose.metacarpal = rh.thumb;
-    handrig::pose(rh.pose, rh.posed);
-    handrig::skin(rh.posed, rh.skin.data());
+    // Into a wall (vr_hand_walls): bent (curled, all its joints alike) as little as keeps it out: the lines from
+    // the knuckle through its joints to its tip clear of the world's geometry.
+    if(vr_hand_walls.value)
+    {
+        bendOutOfWalls(rh, f, rigToWorld, target);
+    }
+    for(int j = 0; j < handrig::jointsPerFinger; j++)
+    {
+        float& c = rh.joints[f][j];
+        c += (target[j] - c) * follow;
+        rh.pose.curl[f][j] = c;
+    }
+}
 
-    // The weapon's firing animation moves the hand (and so the arm) with it.
-    if(motion != glm::mat4{1.f})
-    {
-        glm::vec3 o{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
-        glm::vec3 a{-ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
-        movePose(motion, o, a);
-        for(int i = 0; i < 3; i++)
-        {
-            ve.ent.origin[i] = o[i];
-        }
-        ve.ent.angles[0] = -a.x;
-        ve.ent.angles[1] = a.y;
-        ve.ent.angles[2] = a.z;
-        rh.rigToWorld = motion * rh.rigToWorld;
-    }
-    if(vr_debug_hand_bones.value)
-    {
-        float m[16];
-        render::entityMatrix(ve.ent, mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
-        rh.drawnToWorld = glm::make_mat4(m);
-    }
+// vr_debug_grasp_trace's line a frame.
+void traceGrasp(int hand, const RigHand& rh, const view::ViewEntity& ve, const glm::mat4& motion)
+{
     FILE*& trace = graspTrace;
     if(!vr_debug_grasp_trace.value && trace)
     {
@@ -1442,6 +1393,110 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
             fflush(trace);
         }
     }
+}
+
+bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
+    const glm::mat4& motion)
+{
+    QVR_PROFILE("rig hand");
+    RigHand& rh = rigHands[hand];
+    rh.drawn = false;
+    if(!vr_hand_rig.value)
+    {
+        return false;
+    }
+    qmodel_t* const model = viewModel(handrig::modelName());
+    if(!handrig::usable(model))
+    {
+        return false;
+    }
+
+    const weapons::ModelTransform t = weapons::modelTransform(model);
+    const float k = t.active ? t.k : 1.f;
+    const glm::vec3 ts = t.active ? t.scale : glm::vec3{1.f};
+    rigShifts(model, hand, rh.pose);
+    rh.pose.metacarpal = glm::quat{1.f, 0.f, 0.f, 0.f};
+
+    view::ViewEntity& ve = entities.hand[hand][FingerBase];
+    const glm::mat4 rigToWorld = rigPlacement(hand, pos, handRot, mirrored, &ve);
+
+    // The fingers: the controller's curls (as the six models'), or wrapping what the hand holds, or set by hand (the
+    // weapon's or the hotspot's Fingers: Manual: no solve).
+    if(held.manual)
+    {
+        rh.grasp.valid = false;
+        rh.inRig = held.ent ? glm::inverse(rigToWorld) * heldToWorld(held) : glm::mat4{1.f};
+    }
+    else
+    {
+        updateGrasp(hand, held, rigToWorld, k * ts.x);
+    }
+    rh.held = held;
+    rh.rigToWorld = rigToWorld;
+
+    // A free hand brushing the other hand's weapon (pushOut noted it): its fingers closed onto it from open (the grasp's
+    // solve, the palm where it is), to rest on it or bend out of it (below).
+    const bool brushing = rh.brushEnt && !held.ent && !held.manual;
+    solveBrush(hand, rh, brushing, rigToWorld, k, ts);
+    for(bool& stuck : rh.brushStuck)
+    {
+        stuck = false;
+    }
+    const double now = cl.time;
+    const float dt = rh.jointsTime >= 0.0 ? static_cast<float>(CLAMP(0.0, now - rh.jointsTime, 0.1)) : 1.f;
+    rh.jointsTime = now;
+
+    // The palm flush on what it holds: the drawn hand eased there (and back) over about a tenth of a second.
+    // The palm turned to face the surface it holds (round its middle) and moved flush on it: the rig drawn as
+    //   rigToWorld * T(centre + move) * turn * T(-centre),
+    // as an entity: its angles R' = R * turn (mirrored as the hand is), its origin to match.
+    // Every change of the grasp (a new solve, the controller's curls) is eased in over vr_hand_fit_blend seconds
+    // (95% of the way: an exponential approach, a third of it the time constant): no jumps between poses.
+    const float blend = za::fmax(vr_hand_fit_blend.value, 0.f);
+    const float follow = blend > 0.f ? 1.f - za::exp(-dt * 3.f / blend) : 1.f;
+    const RigFrame rf{hand, rh, held, rigToWorld, ve, t, ts, handRot, mirrored, brushing, follow};
+    placePalm(rf);
+    for(int f = 0; f < handrig::FingerCount; f++)
+    {
+        poseFinger(rf, f);
+    }
+    // The thumb turns across the palm (opposition) as the grasp found, as far as it closes.
+    const float w = CLAMP(0.f, fingerFrames[hand][FingerThumb] / 3.f, 1.f);
+    // Set by hand: across the palm by its share of 45 degrees (the solver's widest opposition), about the same axis.
+    const glm::quat manualThumb = glm::angleAxis(glm::radians(45.f * held.manualThumbAcross), glm::vec3{-1.f, 0.f, 0.f});
+    const bool brushThumb = brushing && rh.brushValid && !rh.brush.finger[handrig::Thumb].startsInside &&
+                            (rh.brush.finger[handrig::Thumb].met || rh.brush.finger[handrig::Thumb].fromClosed);
+    const glm::quat thumbTarget = held.manual   ? glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, manualThumb, w)
+                                  : rh.grasp.valid ? glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, rh.grasp.solution.thumbTurn, w)
+                                  : brushThumb     ? rh.brush.thumbTurn
+                                                   : glm::quat{1.f, 0.f, 0.f, 0.f};
+    rh.thumb = glm::normalize(glm::slerp(rh.thumb, thumbTarget, follow));
+    rh.pose.metacarpal = rh.thumb;
+    handrig::pose(rh.pose, rh.posed);
+    handrig::skin(rh.posed, rh.skin.data());
+
+    // The weapon's firing animation moves the hand (and so the arm) with it.
+    if(motion != glm::mat4{1.f})
+    {
+        glm::vec3 o{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
+        glm::vec3 a{-ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
+        movePose(motion, o, a);
+        for(int i = 0; i < 3; i++)
+        {
+            ve.ent.origin[i] = o[i];
+        }
+        ve.ent.angles[0] = -a.x;
+        ve.ent.angles[1] = a.y;
+        ve.ent.angles[2] = a.z;
+        rh.rigToWorld = motion * rh.rigToWorld;
+    }
+    if(vr_debug_hand_bones.value)
+    {
+        float m[16];
+        render::entityMatrix(ve.ent, mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
+        rh.drawnToWorld = glm::make_mat4(m);
+    }
+    traceGrasp(hand, rh, ve, motion);
     ve.zeroBlend = 0.f;
     // wounds painted instead (vr_wounds.cpp); the wound skins washed and a gib's blood (wounds::skinLevel)
     ve.ent.skinnum = wounds::replacesSkins() ? 0 : wounds::skinLevel(hand, damageLevel(), ve.ent.origin);
@@ -2080,29 +2135,12 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     const glm::quat turn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, e.turn, e.blend);
     angles = basisAngles(glm::mat3_cast(turn) * anglesBasis(angles));
 }
-} // namespace
-
-void setupHand(const hands::State& s, int hand)
+// setupHand's phases: the controller drawn where the hand holds a prop, a limb, the other hand's weapon, a
+// hold, an enemy; true: holding the other hand's weapon anywhere on it.
+[[nodiscard]] bool placeController(const hands::State& s, int hand, bool mirrored, int fist, glm::vec3& controllerPos,
+    glm::vec3& controllerRot)
 {
-    QVR_PROFILE("hand");
-    const view::ViewEntity& weapon = entities.weapon[hand];
-    const bool mirrored = hand == HAND_OFF;
-    const int fist = weapons::fistSlot();
-    const int slot = weapons::slotForModel(weapon.ent.model);
-
-    if(!weapon.ent.model)
-    {
-        for(view::ViewEntity& ve : entities.hand[hand])
-        {
-            ve.visible = false;
-        }
-        rigHands[hand].drawn = false;
-        rigHands[hand].held = Held{};
-        return;
-    }
-
     // A prop held in both hands (vr_held.cpp): the hand is drawn on its grip on it, as if its controller were there.
-    glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
     held::drawnHand(hand, controllerPos, controllerRot);
     // A ragdoll's limb: the hand drawn on it, where it holds it (limbDrawnHand).
     limbDrawnHand(hand, controllerPos, controllerRot);
@@ -2126,48 +2164,36 @@ void setupHand(const hands::State& s, int hand)
     {
         ve.lightShift = lightShift;
     }
+    return freeHelp;
+}
 
-    // The hand turned from the controller by the fist's angle offsets, rigidly (round 21, second pass: added as Euler
-    // angles, the hand slid round what it held as the wrist turned, and its grasp was solved again and again).
-    glm::vec3 handRot = basisAngles(anglesBasis(controllerRot) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
+// setupHand's phases. What the steadying hand's pose and what its fingers wrap read.
+struct HandPose
+{
+    const hands::State& s;
+    int hand;
+    bool mirrored;
+    int fist;
+    int slot;
+    int other;
+    float gripBlend;
+    int otherSlot;
+    const WorldHotspot* heldSpot;
+    bool freeHelp;
+    const view::ViewEntity& weapon;
+};
 
-    // The hand is where the controller is, holding a weapon or not (round 21: the weapon is placed in the hand, and the
-    // fingers wrap it; it was drawn at an anchor of the weapon, which the settings kept within 0.8 of a
-    // centimetre of the controller).
-    glm::vec3 pos = controllerPos;
-    bool hide = false;
-    glm::mat4 motion{1.f}; // the weapon's firing animation where the hand holds it (animationMotion)
-    if(slot >= 0 && slot != fist)
-    {
-        hide = weapons::value(slot, Key::HideHand) != 0.f;
-        handRot = attachedTurn(s.rot[hand], slot, mirrored, weaponAngleOffsets(fist, mirrored), hand);
-        // Round 21, third pass: the Hand Only offset (vr_wofs_hand_only_*): the drawn hand moved and turned on the
-        // weapon, in the aim frame, about its palm; the weapon, its muzzle and its aim stay, the fingers wrap it again.
-        moveDrawnHand(hand, mirrored, attachedTurn(s.rot[hand], slot, mirrored, glm::vec3{0.f}, hand),
-            weapons::vec(slot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
-            weapons::vec(slot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, pos, handRot);
-        motion = animationMotion(weapon, pos);
-    }
-
-    // Steadying the other hand's weapon in the "fixed" two-handed display mode: the hand moves
-    // onto the weapon's foregrip (blending in and out with the grip), turned like the holding
-    // hand plus the weapon's fixed-hand angles (old engine's V_SetupFixedHelpingHandViewEnt).
-    const int other = 1 - hand;
-    const float gripBlend = s.grip2HValid[other] ? twohand::transition(other) : 0.f;
-    const int otherSlot = weapons::slotForModel(entities.weapon[other].ent.model);
-    // The hotspot it holds the other hand's weapon by (the blade's, for the half-sword grip).
-    const WorldHotspot* heldSpot = nullptr;
-    if(gripBlend > 0.f && twohand::bladeGrip(other))
-    {
-        for(const WorldHotspot& w : worldHotspots[other])
-        {
-            heldSpot = w.type == weapons::HotspotType::Blade ? &w : heldSpot;
-        }
-    }
-    else if(gripBlend > 0.f && chosenGrip[other] >= 0)
-    {
-        heldSpot = &worldHotspots[other][chosenGrip[other]];
-    }
+// Steadying the other hand's weapon: the hand on its blade, its magazine or its grip, then the hotspot's offset.
+void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& hide, glm::mat4& motion)
+{
+    const hands::State& s = hp.s;
+    const int hand = hp.hand;
+    const bool mirrored = hp.mirrored;
+    const int fist = hp.fist;
+    const int other = hp.other;
+    const float gripBlend = hp.gripBlend;
+    const int otherSlot = hp.otherSlot;
+    const WorldHotspot* const heldSpot = hp.heldSpot;
     glm::vec3 bladePos = pos, bladeRot = handRot;
     if(gripBlend > 0.f && twohand::bladeGrip(other) && otherSlot >= 0 &&
         twohand::bladeGripHand(s, hand,
@@ -2247,27 +2273,22 @@ void setupHand(const hands::State& s, int hand)
         moveDrawnHand(hand, mirrored, attachedTurn(s.rot[other], otherSlot, other == HAND_OFF, glm::vec3{0.f}, other),
             heldSpot->visualPos * gripBlend, heldSpot->visualAngles * gripBlend, other == HAND_OFF, pos, handRot);
     }
+}
 
-    // A free hand pushed into the other hand's weapon stops at its surface (drawn only), held back a few centimetres at
-    // most: past that it passes into it until it is out again (vr_hand_collide).
-    pushOut(hand,
-        gripBlend <= 0.f && !freeHelp && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand) &&
-            limbEase[hand].blend <= 0.f,
-        pos, handRot, mirrored);
-
-    // The hand-off (vr_twohand.cpp): a helping hand's drawn pose is what it carries a gun by, and a
-    // hand carrying one is drawn so.
-    if(twohand::helping(hand))
-    {
-        twohand::recordHelp(s, hand, pos, handRot, drawnAs[other].pos, drawnAs[other].rot, drawnAs[other].mirrored);
-    }
-    else if(twohand::carryingHand(s, hand, pos, handRot))
-    {
-        hide = false;
-    }
-
-    // What the fingers wrap (vr_hand_fit): the gun in the hand, the other hand's gun it helps hold (its foregrip, a
-    // sword's blade), a carried box or gib, the flashlight.
+// What the fingers wrap.
+[[nodiscard]] Held heldBy(const HandPose& hp)
+{
+    const hands::State& s = hp.s;
+    const int hand = hp.hand;
+    const bool mirrored = hp.mirrored;
+    const int fist = hp.fist;
+    const int slot = hp.slot;
+    const int other = hp.other;
+    const float gripBlend = hp.gripBlend;
+    const int otherSlot = hp.otherSlot;
+    const WorldHotspot* const heldSpot = hp.heldSpot;
+    const bool freeHelp = hp.freeHelp;
+    const view::ViewEntity& weapon = hp.weapon;
     Held held;
     if(gripBlend > 0.f && entities.weapon[other].ent.model)
     {
@@ -2375,6 +2396,98 @@ void setupHand(const hands::State& s, int hand)
             }
         }
     }
+    return held;
+}
+
+} // namespace
+
+void setupHand(const hands::State& s, int hand)
+{
+    QVR_PROFILE("hand");
+    const view::ViewEntity& weapon = entities.weapon[hand];
+    const bool mirrored = hand == HAND_OFF;
+    const int fist = weapons::fistSlot();
+    const int slot = weapons::slotForModel(weapon.ent.model);
+
+    if(!weapon.ent.model)
+    {
+        for(view::ViewEntity& ve : entities.hand[hand])
+        {
+            ve.visible = false;
+        }
+        rigHands[hand].drawn = false;
+        rigHands[hand].held = Held{};
+        return;
+    }
+
+    glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
+    const bool freeHelp = placeController(s, hand, mirrored, fist, controllerPos, controllerRot);
+
+    // The hand turned from the controller by the fist's angle offsets, rigidly (round 21, second pass: added as Euler
+    // angles, the hand slid round what it held as the wrist turned, and its grasp was solved again and again).
+    glm::vec3 handRot = basisAngles(anglesBasis(controllerRot) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
+
+    // The hand is where the controller is, holding a weapon or not (round 21: the weapon is placed in the hand, and the
+    // fingers wrap it; it was drawn at an anchor of the weapon, which the settings kept within 0.8 of a
+    // centimetre of the controller).
+    glm::vec3 pos = controllerPos;
+    bool hide = false;
+    glm::mat4 motion{1.f}; // the weapon's firing animation where the hand holds it (animationMotion)
+    if(slot >= 0 && slot != fist)
+    {
+        hide = weapons::value(slot, Key::HideHand) != 0.f;
+        handRot = attachedTurn(s.rot[hand], slot, mirrored, weaponAngleOffsets(fist, mirrored), hand);
+        // Round 21, third pass: the Hand Only offset (vr_wofs_hand_only_*): the drawn hand moved and turned on the
+        // weapon, in the aim frame, about its palm; the weapon, its muzzle and its aim stay, the fingers wrap it again.
+        moveDrawnHand(hand, mirrored, attachedTurn(s.rot[hand], slot, mirrored, glm::vec3{0.f}, hand),
+            weapons::vec(slot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
+            weapons::vec(slot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, pos, handRot);
+        motion = animationMotion(weapon, pos);
+    }
+
+    // Steadying the other hand's weapon in the "fixed" two-handed display mode: the hand moves
+    // onto the weapon's foregrip (blending in and out with the grip), turned like the holding
+    // hand plus the weapon's fixed-hand angles (old engine's V_SetupFixedHelpingHandViewEnt).
+    const int other = 1 - hand;
+    const float gripBlend = s.grip2HValid[other] ? twohand::transition(other) : 0.f;
+    const int otherSlot = weapons::slotForModel(entities.weapon[other].ent.model);
+    // The hotspot it holds the other hand's weapon by (the blade's, for the half-sword grip).
+    const WorldHotspot* heldSpot = nullptr;
+    if(gripBlend > 0.f && twohand::bladeGrip(other))
+    {
+        for(const WorldHotspot& w : worldHotspots[other])
+        {
+            heldSpot = w.type == weapons::HotspotType::Blade ? &w : heldSpot;
+        }
+    }
+    else if(gripBlend > 0.f && chosenGrip[other] >= 0)
+    {
+        heldSpot = &worldHotspots[other][chosenGrip[other]];
+    }
+    const HandPose hp{s, hand, mirrored, fist, slot, other, gripBlend, otherSlot, heldSpot, freeHelp, weapon};
+    steadyOther(hp, pos, handRot, hide, motion);
+
+    // A free hand pushed into the other hand's weapon stops at its surface (drawn only), held back a few centimetres at
+    // most: past that it passes into it until it is out again (vr_hand_collide).
+    pushOut(hand,
+        gripBlend <= 0.f && !freeHelp && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand) &&
+            limbEase[hand].blend <= 0.f,
+        pos, handRot, mirrored);
+
+    // The hand-off (vr_twohand.cpp): a helping hand's drawn pose is what it carries a gun by, and a
+    // hand carrying one is drawn so.
+    if(twohand::helping(hand))
+    {
+        twohand::recordHelp(s, hand, pos, handRot, drawnAs[other].pos, drawnAs[other].rot, drawnAs[other].mirrored);
+    }
+    else if(twohand::carryingHand(s, hand, pos, handRot))
+    {
+        hide = false;
+    }
+
+    // What the fingers wrap (vr_hand_fit): the gun in the hand, the other hand's gun it helps hold (its foregrip, a
+    // sword's blade), a carried box or gib, the flashlight.
+    Held held = heldBy(hp);
     drawHand(hand, pos, handRot, mirrored, hide, held, motion);
 }
 

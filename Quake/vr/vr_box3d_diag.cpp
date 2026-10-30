@@ -61,7 +61,8 @@ void hullStats_f()
 
 // vr_physics_hash [piles]: a hash of every rigid body's origin, angles, velocity and spin, bit for bit (determinism tests:
 // two runs of the same script print the same). `piles`: only what the stress tests spawned (vr_physics_bigpile), not the
-// map's own props.
+// map's own props. `ragdolls`: every ragdoll's parts instead (their transforms, velocities and spins; refactor proofs:
+// the same script on two builds).
 void hash_f()
 {
     if(!sv.active)
@@ -72,6 +73,42 @@ void hash_f()
     const bool piles = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "piles");
     uint64_t h = 1469598103934665603ull;
     int count = 0;
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "ragdolls"))
+    {
+        const auto mix = [&h](const void* data, size_t size) {
+            const auto* bytes = static_cast<const unsigned char*>(data);
+            for(size_t i = 0; i < size; i++)
+            {
+                h = (h ^ bytes[i]) * 1099511628211ull;
+            }
+        };
+        int parts = 0;
+        for(const RagdollBodies& r : world->ragdolls)
+        {
+            if(r.num == 0)
+            {
+                continue;
+            }
+            mix(&r.num, sizeof(r.num));
+            for(int i = 0; i < r.count; i++)
+            {
+                const b3BodyId id = r.body[static_cast<za::SizeT>(i)];
+                if(!b3Body_IsValid(id))
+                {
+                    continue;
+                }
+                const b3Transform t = b3Body_GetTransform(id);
+                const b3Vec3 v[2] = {b3Body_GetLinearVelocity(id), b3Body_GetAngularVelocity(id)};
+                mix(&t, sizeof(t));
+                mix(v, sizeof(v));
+                parts++;
+            }
+            count++;
+        }
+        Con_Printf("vr_physics_hash ragdolls: %d ragdolls, %d parts, %016llx\n", count, parts,
+            static_cast<unsigned long long>(h));
+        return;
+    }
     for(edict_t* e : entitiesNamed("props"))
     {
         if(piles && !(static_cast<int>(e->v.spawnflags) & stressTagBit))

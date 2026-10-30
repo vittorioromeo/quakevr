@@ -2041,20 +2041,9 @@ void pullProps(edict_t* ent, const Climber& c)
     }
 }
 
-} // namespace
-
-// SV_Physics_Client, before PlayerPreThink: takes hold and lets go (per the grips of the latest move), and hides the
-// holding hands' grips from the QC.
-static void climbPreThink(edict_t* ent);
-
-extern "C" void VR_ClimbPreThink(edict_t* ent)
-{
-    VR_ProfileBegin("climb");
-    climbPreThink(ent);
-    VR_ProfileEnd();
-}
-
-static void climbPreThink(edict_t* ent)
+// climbPreThink's phases.
+// The QC's knock-off, read and cleared.
+[[nodiscard]] bool takeKnockOff(edict_t* ent)
 {
     // Knocked off the holds by a blast or a shove since the last frame (the QC's .vr_climb_knockoff: combat.qc
     // VR_Climb_KnockOff), read and cleared every frame, held or not.
@@ -2065,31 +2054,12 @@ static void climbPreThink(edict_t* ent)
         knockedOff = knock != 0.f;
         knock = 0.f;
     }
+    return knockedOff;
+}
 
-    Climber* cp = climberOf(ent);
-    if(!cp)
-    {
-        return;
-    }
-    Climber& c = *cp;
-    const double time = qcvm->time;
-    if(c.lastTime < 0.0 || za::abs(time - c.lastTime) > 1.0) // a new map, a loaded game
-    {
-        c = Climber{};
-    }
-    c.lastTime = time;
-    c.draining = false; // (VR_ClientClimb's hang says otherwise)
-    if(fields().vr_climb_drain >= 0)
-    {
-        fieldFloat(ent, fields().vr_climb_drain) = 0.f;
-    }
-
-    server::rebaseHands(ent);
-    const VrMove* move = server::clientMove(ent);
-    const bool tracked = move && (move->buttons & protocol::QVR_BUTTON_HANDSTRACKED);
-    const bool enabled = vr_climb.value != 0.f && tracked && static_cast<int>(ent->v.movetype) == MOVETYPE_WALK &&
-                         ent->v.health > 0.f;
-
+// Let go of everything when moved by something else, disabled, the hold gone or knocked off.
+void letGoIfForced(edict_t* ent, Climber& c, bool enabled, bool knockedOff, double time)
+{
     // Moved by something else (a teleporter, a respawn, setorigin), disabled, dead, noclipping, the
     // hold's brush model gone (freed, not solid, another model): let go, and fall as whatever moved the body has it.
     bool forced = !enabled;
@@ -2128,210 +2098,202 @@ static void climbPreThink(edict_t* ent)
         letGoAll(c);
         c.noGrabUntil = time + regrabDelay;
     }
+}
 
-    const bool wasHanging = c.hanging();
-    const bool held[2] = {c.grips[0].active, c.grips[1].active};
-    followProps(ent, c);
-    for(int h = 0; h < 2; h++)
+// A hand's grip this frame: letting go, refused, or taking hold.
+void gripHand(edict_t* ent, Climber& c, const VrMove* move, bool enabled, double time, int h)
+{
+    Grip& g = c.grips[h];
+    const bool pressed = move && (move->vrBits0 & grabBit[h]);
+    const bool pressEdge = pressed && !c.pressedLastFrame[h];
+    c.pressedLastFrame[h] = pressed;
+    // A grip pressed in the air at no hold keeps looking while it stays pressed and the player is in the air (not
+    // holding on with the other hand), for vr_climb_air_grab_time seconds: a ledge jumped at is in the hand's reach
+    // for a frame or three as it passes the lip on the way up and again on the way down (the hand's point in front of
+    // the face: the line from the chest holds it off the top); a press anywhere in the jump takes it as it comes.
+    if(!pressed || pressEdge || g.active || !midAir(ent, c.grips[1 - h].active) ||
+        time - c.missedAt[h] > static_cast<double>(vr_climb_air_grab_time.value))
     {
-        Grip& g = c.grips[h];
-        const bool pressed = move && (move->vrBits0 & grabBit[h]);
-        const bool pressEdge = pressed && !c.pressedLastFrame[h];
-        c.pressedLastFrame[h] = pressed;
-        // A grip pressed in the air at no hold keeps looking while it stays pressed and the player is in the air (not
-        // holding on with the other hand), for vr_climb_air_grab_time seconds: a ledge jumped at is in the hand's reach
-        // for a frame or three as it passes the lip on the way up and again on the way down (the hand's point in front of
-        // the face: the line from the chest holds it off the top); a press anywhere in the jump takes it as it comes.
-        if(!pressed || pressEdge || g.active || !midAir(ent, c.grips[1 - h].active) ||
-            time - c.missedAt[h] > static_cast<double>(vr_climb_air_grab_time.value))
-        {
-            c.missedAt[h] = -1.0;
-        }
-        const bool retry = c.missedAt[h] >= 0.0;
-        g.ownedLastFrame = g.owned;
-        if(!pressed)
-        {
-            g.owned = false;
-        }
+        c.missedAt[h] = -1.0;
+    }
+    const bool retry = c.missedAt[h] >= 0.0;
+    g.ownedLastFrame = g.owned;
+    if(!pressed)
+    {
+        g.owned = false;
+    }
 
-        if(g.active && (!pressed || !handEmpty(ent, move, h)))
-        {
-            g.active = false;
-            if(debug())
-            {
-                Con_Printf("climb: %s hand lets go at (%.1f %.1f %.1f)\n", handName(h), ent->v.origin[0], ent->v.origin[1],
-                    ent->v.origin[2]);
-            }
-        }
-
-        if(!enabled || !(pressEdge || retry) || g.active || c.mantling)
-        {
-            continue;
-        }
-        const bool hanging = c.grips[1 - h].active;
-        const int hotspot = move->hotspots[h];
-        const bool atHolster = holsterWins(ent, hotspot, hanging);
-        const char* busy = handBusy(ent, move, h);
-        if(time < c.noGrabUntil || atHolster || busy)
-        {
-            if(debug() && pressEdge)
-            {
-                Con_Printf("climb: %s hand grips: %s%s\n", handName(h),
-                    time < c.noGrabUntil ? "too soon" : atHolster ? "at a holster" : "not empty: ",
-                    time < c.noGrabUntil || atHolster ? "" : busy);
-            }
-            continue;
-        }
-        if(!hanging && tooTired(ent))
-        {
-            c.missedAt[h] = -1.0; // (refused: no buzz again while the grip stays pressed)
-            // Too little stamina left to hang (parries, shoves, blows, the last hang): no new hang until more comes back
-            // (a hand joining the other on a hold is let: two hands tire less). A soft buzz says why; the gadget shows it.
-            if(!(time - c.tiredAt < 0.5))
-            {
-                c.tiredAt = time;
-                server::sendHaptic(ent, h, 0.f, 0.15f, 30.f, 0.4f * staminaWarn());
-            }
-            if(debug())
-            {
-                Con_Printf("climb: %s hand grips: too tired (%.1f stamina left)\n", handName(h), progs::staminaLeft(ent));
-            }
-            continue;
-        }
-
-        const glm::vec3 hand = move->hands[h].pos;
-        const double t0 = Sys_DoubleTime();
-        LenientStats st;
-        const int traces0 = traceCount;
-        bool lenient = false, fromTracked = false;
-        const za::Optional<Ledge> ledge = gripHold(ent, *move, h, hanging, lenient, fromTracked, &st);
-        if(debug() && vr_climb_debug.value >= 3.f && (pressEdge || ledge))
-        {
-            Con_Printf("climb: hold search: %d ledges looked at, %d traces in %.4f ms\n", st.points, traceCount - traces0,
-                (Sys_DoubleTime() - t0) * 1000.0);
-        }
-        const char* how = lenient ? (fromTracked ? ", lenient, from the controller" : ", lenient")
-                          : fromTracked ? ", from the controller"
-                                        : "";
-        if(!ledge)
-        {
-            if(pressEdge)
-            {
-                c.missedAt[h] = time; // (in the air: it keeps looking)
-            }
-            if(debug() && pressEdge)
-            {
-                const glm::vec3 own = move->hands[h].tracked;
-                Con_Printf("climb: %s hand at (%.1f %.1f %.1f): no hold (the controller at %.1f %.1f %.1f)\n", handName(h), hand.x,
-                    hand.y, hand.z, own.x, own.y, own.z);
-            }
-            continue;
-        }
-
-        g.active = true;
-        g.owned = true;
-        g.serial++;
-        g.missed = false;
-        g.hold = g.lastHold = ledge->hold;
-        g.relAtGrab = g.lastRel = handRel(ent, *move, h);
-        g.grabOffset = hand - ledge->hold;
-        g.ledge = *ledge;
-        g.entNum = ledge->ent ? NUM_FOR_EDICT(ledge->ent) : 0;
-        g.entOrigin = ledge->ent ? vec(ledge->ent->v.origin) : glm::vec3{0.f};
-        g.entModel = ledge->ent ? static_cast<int>(ledge->ent->v.modelindex) : 0;
-        g.ledge.ent = nullptr; // (kept as its number: entNum)
-        g.mapGeneration = ledges::generation();
-        g.mapForgets = ledges::forgets();
-        g.mapSerial = ledge->map ? ledge->map->serial : 0u;
-        g.prop = ledge->prop;
-        g.light = false; // (set below for a prop's; a stale one would stop a later mover carrying the body)
-        g.propMap.edges.clear();
-        g.propMap.samples.clear();
-        float propMass = 0.f;
-        if(g.prop)
-        {
-            // A prop's: its ledge kept as it lies, followed from its body now (followProps).
-            box3d::ClimbBody body;
-            (void)box3d::climbBody(g.entNum, body);
-            ledges::Edge e = ledge->propEdge;
-            e.firstSample = 0;
-            g.propMap.edges.pushBack(e);
-            g.propMap.samples.pushBack(ledge->propSample);
-            g.ledge.map = nullptr;
-            g.ledge.edge = 0;
-            g.propOrigin = body.origin;
-            g.propTurn = body.turn;
-            g.light = !body.fixed && body.mass < vr_climb_prop_mass.value;
-            g.takenNormal = e.normal;
-            g.takenHold = ledge->hold;
-            g.holdVel = body.pointVelocity(ledge->hold);
-            propMass = body.mass;
-        }
-        g.allowed = za::max(armReach(), glm::distance(ledge->hold, shoulderOf(*move, h)));
-        if(!hanging)
-        {
-            c.owed = glm::vec3{0.f};
-            c.noRoom = false;
-        }
-        c.lastOrigin = vec(ent->v.origin);
-        server::sendHaptic(ent, h, 0.f, 0.06f, 80.f, 0.6f);
-        physsound::grab(ent, ledge->hold, ledge->ent); // a slap and a tap of the hold's material
+    if(g.active && (!pressed || !handEmpty(ent, move, h)))
+    {
+        g.active = false;
         if(debug())
         {
-            // (", light" on a hold not on a prop: a light prop's flag left on the hand, which would stop a model the
-            // QC moves carrying the body; prop_climb_test.sh's lift case. Early in the line: the log wraps it.)
-            Con_Printf("climb: %s hand holds at %.1f%s (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s%s%s\n",
-                handName(h), ledge->top, !g.prop && g.light ? ", light" : "", ledge->out.x, ledge->out.y, hand.x, hand.y, hand.z, ledge->hold.x, ledge->hold.y,
-                ledge->hold.z, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], hanging ? ", both hands" : "", how,
-                retry ? va(", pressed %.0f ms before, in the air", (time - c.missedAt[h]) * 1000.0) : "",
-                g.prop ? va(", prop %d (%s, %.0f kg)", g.entNum, g.light ? "light" : "heavy", propMass) : "");
-        }
-        if(vr_climb_debug.value >= 2.f)
-        {
-            Con_Printf("climbreach: %s hand's hold %.1f units from its shoulder (reach %.1f: the arm %.3f m)\n", handName(h),
-                glm::distance(ledge->hold, shoulderOf(*move, h)), armReach(), bodycal::armLengthMetres());
+            Con_Printf("climb: %s hand lets go at (%.1f %.1f %.1f)\n", handName(h), ent->v.origin[0], ent->v.origin[1],
+                ent->v.origin[2]);
         }
     }
 
-    if(!wasHanging && c.hanging() && staminaOn(ent))
+    if(!enabled || !(pressEdge || retry) || g.active || c.mantling)
     {
-        c.wasLow = staminaLow(ent); // (the breath as the hang makes it low, not for a pool low already)
+        return;
     }
-
-    // Let go of everything: fall, flung by the hands' release.
-    if(wasHanging && !c.hanging() && !c.mantling)
+    const bool hanging = c.grips[1 - h].active;
+    const int hotspot = move->hotspots[h];
+    const bool atHolster = holsterWins(ent, hotspot, hanging);
+    const char* busy = handBusy(ent, move, h);
+    if(time < c.noGrabUntil || atHolster || busy)
     {
-        c.noGrabUntil = time + regrabDelay;
-        glm::vec3 fling{0.f};
-        if(move)
+        if(debug() && pressEdge)
         {
-            const int hands = (held[0] ? 1 : 0) + (held[1] ? 1 : 0);
-            for(int h = 0; h < 2; h++)
-            {
-                if(held[h])
-                {
-                    fling -= move->hands[h].throwVel / static_cast<float>(hands);
-                }
-            }
-            fling *= units::metresToUnits() * za::max(0.f, vr_climb_fling.value);
-            fling.z = za::min(fling.z, flingMaxUp);
-            if(glm::length(fling) > flingMax)
-            {
-                fling *= flingMax / glm::length(fling);
-            }
+            Con_Printf("climb: %s hand grips: %s%s\n", handName(h),
+                time < c.noGrabUntil ? "too soon" : atHolster ? "at a holster" : "not empty: ",
+                time < c.noGrabUntil || atHolster ? "" : busy);
         }
-        setVec(ent->v.velocity, fling);
+        return;
+    }
+    if(!hanging && tooTired(ent))
+    {
+        c.missedAt[h] = -1.0; // (refused: no buzz again while the grip stays pressed)
+        // Too little stamina left to hang (parries, shoves, blows, the last hang): no new hang until more comes back
+        // (a hand joining the other on a hold is let: two hands tire less). A soft buzz says why; the gadget shows it.
+        if(!(time - c.tiredAt < 0.5))
+        {
+            c.tiredAt = time;
+            server::sendHaptic(ent, h, 0.f, 0.15f, 30.f, 0.4f * staminaWarn());
+        }
         if(debug())
         {
-            Con_Printf("climb: falls, flung at (%.0f %.0f %.0f)\n", fling.x, fling.y, fling.z);
+            Con_Printf("climb: %s hand grips: too tired (%.1f stamina left)\n", handName(h), progs::staminaLeft(ent));
         }
-    }
-    if(enabled && !c.hanging() && !c.mantling)
-    {
-        traceFrame(ent, c, move, "free", glm::vec3{0.f}, glm::vec3{0.f});
+        return;
     }
 
-    // The QC: the holding hands' grips hidden; which hands hold.
+    const glm::vec3 hand = move->hands[h].pos;
+    const double t0 = Sys_DoubleTime();
+    LenientStats st;
+    const int traces0 = traceCount;
+    bool lenient = false, fromTracked = false;
+    const za::Optional<Ledge> ledge = gripHold(ent, *move, h, hanging, lenient, fromTracked, &st);
+    if(debug() && vr_climb_debug.value >= 3.f && (pressEdge || ledge))
+    {
+        Con_Printf("climb: hold search: %d ledges looked at, %d traces in %.4f ms\n", st.points, traceCount - traces0,
+            (Sys_DoubleTime() - t0) * 1000.0);
+    }
+    const char* how = lenient ? (fromTracked ? ", lenient, from the controller" : ", lenient")
+                      : fromTracked ? ", from the controller"
+                                    : "";
+    if(!ledge)
+    {
+        if(pressEdge)
+        {
+            c.missedAt[h] = time; // (in the air: it keeps looking)
+        }
+        if(debug() && pressEdge)
+        {
+            const glm::vec3 own = move->hands[h].tracked;
+            Con_Printf("climb: %s hand at (%.1f %.1f %.1f): no hold (the controller at %.1f %.1f %.1f)\n", handName(h), hand.x,
+                hand.y, hand.z, own.x, own.y, own.z);
+        }
+        return;
+    }
+
+    g.active = true;
+    g.owned = true;
+    g.serial++;
+    g.missed = false;
+    g.hold = g.lastHold = ledge->hold;
+    g.relAtGrab = g.lastRel = handRel(ent, *move, h);
+    g.grabOffset = hand - ledge->hold;
+    g.ledge = *ledge;
+    g.entNum = ledge->ent ? NUM_FOR_EDICT(ledge->ent) : 0;
+    g.entOrigin = ledge->ent ? vec(ledge->ent->v.origin) : glm::vec3{0.f};
+    g.entModel = ledge->ent ? static_cast<int>(ledge->ent->v.modelindex) : 0;
+    g.ledge.ent = nullptr; // (kept as its number: entNum)
+    g.mapGeneration = ledges::generation();
+    g.mapForgets = ledges::forgets();
+    g.mapSerial = ledge->map ? ledge->map->serial : 0u;
+    g.prop = ledge->prop;
+    g.light = false; // (set below for a prop's; a stale one would stop a later mover carrying the body)
+    g.propMap.edges.clear();
+    g.propMap.samples.clear();
+    float propMass = 0.f;
+    if(g.prop)
+    {
+        // A prop's: its ledge kept as it lies, followed from its body now (followProps).
+        box3d::ClimbBody body;
+        (void)box3d::climbBody(g.entNum, body);
+        ledges::Edge e = ledge->propEdge;
+        e.firstSample = 0;
+        g.propMap.edges.pushBack(e);
+        g.propMap.samples.pushBack(ledge->propSample);
+        g.ledge.map = nullptr;
+        g.ledge.edge = 0;
+        g.propOrigin = body.origin;
+        g.propTurn = body.turn;
+        g.light = !body.fixed && body.mass < vr_climb_prop_mass.value;
+        g.takenNormal = e.normal;
+        g.takenHold = ledge->hold;
+        g.holdVel = body.pointVelocity(ledge->hold);
+        propMass = body.mass;
+    }
+    g.allowed = za::max(armReach(), glm::distance(ledge->hold, shoulderOf(*move, h)));
+    if(!hanging)
+    {
+        c.owed = glm::vec3{0.f};
+        c.noRoom = false;
+    }
+    c.lastOrigin = vec(ent->v.origin);
+    server::sendHaptic(ent, h, 0.f, 0.06f, 80.f, 0.6f);
+    physsound::grab(ent, ledge->hold, ledge->ent); // a slap and a tap of the hold's material
+    if(debug())
+    {
+        // (", light" on a hold not on a prop: a light prop's flag left on the hand, which would stop a model the
+        // QC moves carrying the body; prop_climb_test.sh's lift case. Early in the line: the log wraps it.)
+        Con_Printf("climb: %s hand holds at %.1f%s (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s%s%s\n",
+            handName(h), ledge->top, !g.prop && g.light ? ", light" : "", ledge->out.x, ledge->out.y, hand.x, hand.y, hand.z, ledge->hold.x, ledge->hold.y,
+            ledge->hold.z, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], hanging ? ", both hands" : "", how,
+            retry ? va(", pressed %.0f ms before, in the air", (time - c.missedAt[h]) * 1000.0) : "",
+            g.prop ? va(", prop %d (%s, %.0f kg)", g.entNum, g.light ? "light" : "heavy", propMass) : "");
+    }
+    if(vr_climb_debug.value >= 2.f)
+    {
+        Con_Printf("climbreach: %s hand's hold %.1f units from its shoulder (reach %.1f: the arm %.3f m)\n", handName(h),
+            glm::distance(ledge->hold, shoulderOf(*move, h)), armReach(), bodycal::armLengthMetres());
+    }
+}
+
+// Let go of everything: the fall, flung by the hands' release.
+void fallFlung(edict_t* ent, Climber& c, const VrMove* move, const bool (&held)[2], double time)
+{
+    c.noGrabUntil = time + regrabDelay;
+    glm::vec3 fling{0.f};
+    if(move)
+    {
+        const int hands = (held[0] ? 1 : 0) + (held[1] ? 1 : 0);
+        for(int h = 0; h < 2; h++)
+        {
+            if(held[h])
+            {
+                fling -= move->hands[h].throwVel / static_cast<float>(hands);
+            }
+        }
+        fling *= units::metresToUnits() * za::max(0.f, vr_climb_fling.value);
+        fling.z = za::min(fling.z, flingMaxUp);
+        if(glm::length(fling) > flingMax)
+        {
+            fling *= flingMax / glm::length(fling);
+        }
+    }
+    setVec(ent->v.velocity, fling);
+    if(debug())
+    {
+        Con_Printf("climb: falls, flung at (%.0f %.0f %.0f)\n", fling.x, fling.y, fling.z);
+    }
+}
+
+// The QC: the holding hands' grips hidden; which hands hold.
+void hideHeldGrips(edict_t* ent, const Climber& c)
+{
     const int vrbits = fields().vrbits0;
     if(vrbits >= 0)
     {
@@ -2352,6 +2314,76 @@ static void climbPreThink(edict_t* ent)
         }
         fieldFloat(ent, vrbits) = static_cast<float>(bits);
     }
+}
+
+} // namespace
+
+// SV_Physics_Client, before PlayerPreThink: takes hold and lets go (per the grips of the latest move), and hides the
+// holding hands' grips from the QC.
+static void climbPreThink(edict_t* ent);
+
+extern "C" void VR_ClimbPreThink(edict_t* ent)
+{
+    VR_ProfileBegin("climb");
+    climbPreThink(ent);
+    VR_ProfileEnd();
+}
+
+static void climbPreThink(edict_t* ent)
+{
+    const bool knockedOff = takeKnockOff(ent);
+
+    Climber* cp = climberOf(ent);
+    if(!cp)
+    {
+        return;
+    }
+    Climber& c = *cp;
+    const double time = qcvm->time;
+    if(c.lastTime < 0.0 || za::abs(time - c.lastTime) > 1.0) // a new map, a loaded game
+    {
+        c = Climber{};
+    }
+    c.lastTime = time;
+    c.draining = false; // (VR_ClientClimb's hang says otherwise)
+    if(fields().vr_climb_drain >= 0)
+    {
+        fieldFloat(ent, fields().vr_climb_drain) = 0.f;
+    }
+
+    server::rebaseHands(ent);
+    const VrMove* move = server::clientMove(ent);
+    const bool tracked = move && (move->buttons & protocol::QVR_BUTTON_HANDSTRACKED);
+    const bool enabled = vr_climb.value != 0.f && tracked && static_cast<int>(ent->v.movetype) == MOVETYPE_WALK &&
+                         ent->v.health > 0.f;
+
+    letGoIfForced(ent, c, enabled, knockedOff, time);
+
+    const bool wasHanging = c.hanging();
+    const bool held[2] = {c.grips[0].active, c.grips[1].active};
+    followProps(ent, c);
+    for(int h = 0; h < 2; h++)
+    {
+        gripHand(ent, c, move, enabled, time, h);
+    }
+
+    if(!wasHanging && c.hanging() && staminaOn(ent))
+    {
+        c.wasLow = staminaLow(ent); // (the breath as the hang makes it low, not for a pool low already)
+    }
+
+    // Let go of everything: fall, flung by the hands' release.
+    if(wasHanging && !c.hanging() && !c.mantling)
+    {
+        fallFlung(ent, c, move, held, time);
+    }
+    if(enabled && !c.hanging() && !c.mantling)
+    {
+        traceFrame(ent, c, move, "free", glm::vec3{0.f}, glm::vec3{0.f});
+    }
+
+    // The QC: the holding hands' grips hidden; which hands hold.
+    hideHeldGrips(ent, c);
     debugHands(ent, c, move, time);
 }
 
@@ -2378,84 +2410,92 @@ static void climbPreThink(edict_t* ent)
     return up.startsolid || up.fraction < 1.f;
 }
 
-extern "C" int VR_ClientClimb(edict_t* ent)
+namespace
 {
-    Climber* cp = climberOf(ent);
-    if(!cp || (!cp->hanging() && !cp->mantling))
-    {
-        return 0;
-    }
-    Climber& c = *cp;
-    if(!SV_RunThink(ent))
-    {
-        return -1;
-    }
-
-    const double time = qcvm->time;
-    if(c.mantling)
-    {
-        // Onto a brush model: the way moves with it (the push carries the body too: VR_ClimbCarried). Onto a prop: as it
-        // lies now (its spot on it kept).
-        edict_t* onto = c.mantleEnt > 0 && c.mantleEnt < qcvm->num_edicts ? EDICT_NUM(c.mantleEnt) : nullptr;
-        box3d::ClimbBody body;
-        if(onto && c.mantleProp && box3d::climbBody(c.mantleEnt, body))
-        {
-            c.mantleShift = body.origin + body.turn * glm::transpose(c.mantleTurn) * (c.mantleTo - c.mantleBase) - c.mantleTo;
-        }
-        else if(onto && !c.mantleProp && !onto->free && static_cast<int>(onto->v.solid) == SOLID_BSP)
-        {
-            c.mantleShift = vec(onto->v.origin) - c.mantleBase;
-        }
-        else
-        {
-            onto = nullptr;
-        }
-        const float up = glm::distance(c.mantleFrom, c.mantleMid);
-        const float over = glm::distance(c.mantleMid, c.mantleTo);
-        const float t = CLAMP(0.f, static_cast<float>((time - c.mantleStart) / mantleTime), 1.f);
-        const float along = t * (up + over);
-        const glm::vec3 pos = (along <= up && up > 0.f
-                                  ? glm::mix(c.mantleFrom, c.mantleMid, along / up)
-                                  : glm::mix(c.mantleMid, c.mantleTo, over > 0.f ? (along - up) / over : 1.f)) +
-                              c.mantleShift;
-        setVec(ent->v.origin, pos);
-        setVec(ent->v.velocity, glm::vec3{0.f});
-        ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
-        if(t >= 1.f)
-        {
-            c.mantling = false;
-            c.noGrabUntil = time + regrabDelay;
-            ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
-            if(onto)
-            {
-                ent->v.groundentity = EDICT_TO_PROG(onto); // standing on it: it carries the body from now on
-            }
-            if(debug())
-            {
-                Con_Printf("climb: mantled onto (%.1f %.1f %.1f)\n", pos.x, pos.y, pos.z);
-            }
-        }
-        c.lastOrigin = pos;
-        SV_CheckWater(ent);
-        return 1;
-    }
-
-    server::rebaseHands(ent);
-    const VrMove* move = server::clientMove(ent);
-    if(!move)
-    {
-        letGoAll(c);
-        return 0;
-    }
-
-    // The pull: what the holding hands moved relative to the body since the last frame, the other way, each weighted
-    // by how far it moved; and the holds' own motion (a moving brush model carries the body).
-    const glm::vec3 rel[2] = {handRel(ent, *move, 0), handRel(ent, *move, 1)}; // before the body moves
-    glm::vec3 pull{0.f}, carry{0.f};
+// VR_ClientClimb's hang, a phase a function over this.
+struct Hang
+{
+    edict_t* ent;
+    Climber& c;
+    const VrMove* move;
+    double time;
+    glm::vec3 rel[2]; // the hands relative to the body, before the body moves
+    glm::vec3 carry{0.f};
     float weight[2]{0.f, 0.f};
     float weights = 0.f;
     float top = -1e9f;
     int count = 0;
+    glm::vec3 wanted{0.f};
+    glm::vec3 move3{0.f};
+    glm::vec3 meant{0.f};
+    glm::vec3 origin{0.f};
+    glm::vec3 shoulder[2];
+    bool driving[2]{false, false};
+    glm::vec3 done{0.f};
+};
+
+// A mantle's step.
+void mantleStep(edict_t* ent, Climber& c, double time)
+{
+    // Onto a brush model: the way moves with it (the push carries the body too: VR_ClimbCarried). Onto a prop: as it
+    // lies now (its spot on it kept).
+    edict_t* onto = c.mantleEnt > 0 && c.mantleEnt < qcvm->num_edicts ? EDICT_NUM(c.mantleEnt) : nullptr;
+    box3d::ClimbBody body;
+    if(onto && c.mantleProp && box3d::climbBody(c.mantleEnt, body))
+    {
+        c.mantleShift = body.origin + body.turn * glm::transpose(c.mantleTurn) * (c.mantleTo - c.mantleBase) - c.mantleTo;
+    }
+    else if(onto && !c.mantleProp && !onto->free && static_cast<int>(onto->v.solid) == SOLID_BSP)
+    {
+        c.mantleShift = vec(onto->v.origin) - c.mantleBase;
+    }
+    else
+    {
+        onto = nullptr;
+    }
+    const float up = glm::distance(c.mantleFrom, c.mantleMid);
+    const float over = glm::distance(c.mantleMid, c.mantleTo);
+    const float t = CLAMP(0.f, static_cast<float>((time - c.mantleStart) / mantleTime), 1.f);
+    const float along = t * (up + over);
+    const glm::vec3 pos = (along <= up && up > 0.f
+                              ? glm::mix(c.mantleFrom, c.mantleMid, along / up)
+                              : glm::mix(c.mantleMid, c.mantleTo, over > 0.f ? (along - up) / over : 1.f)) +
+                          c.mantleShift;
+    setVec(ent->v.origin, pos);
+    setVec(ent->v.velocity, glm::vec3{0.f});
+    ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
+    if(t >= 1.f)
+    {
+        c.mantling = false;
+        c.noGrabUntil = time + regrabDelay;
+        ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
+        if(onto)
+        {
+            ent->v.groundentity = EDICT_TO_PROG(onto); // standing on it: it carries the body from now on
+        }
+        if(debug())
+        {
+            Con_Printf("climb: mantled onto (%.1f %.1f %.1f)\n", pos.x, pos.y, pos.z);
+        }
+    }
+    c.lastOrigin = pos;
+    SV_CheckWater(ent);
+}
+
+// The pull, the carry, what is owed, and what the body would do unhindered.
+void hangPull(Hang& hang)
+{
+    Climber& c = hang.c;
+    const glm::vec3 (&rel)[2] = hang.rel;
+    glm::vec3& carry = hang.carry;
+    float (&weight)[2] = hang.weight;
+    float& weights = hang.weights;
+    float& top = hang.top;
+    int& count = hang.count;
+    glm::vec3& wanted = hang.wanted;
+    glm::vec3& move3 = hang.move3;
+    glm::vec3& meant = hang.meant;
+    glm::vec3 pull{0.f};
     int carriers = 0; // the holds averaged into the carry: a light prop's doesn't count (one hand on a moving heavy prop,
                       // one on a light crate: the heavy prop's whole carry, not half; a pusher's is SV_PushMove's)
     for(int h = 0; h < 2; h++)
@@ -2486,11 +2526,11 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         carry /= static_cast<float>(carriers);
     }
     const glm::vec3 pulled = weights > 1e-6f ? -pull / weights : glm::vec3{0.f};
-    const glm::vec3 wanted = carry + pulled;
+    wanted = carry + pulled;
 
     // What the body owes (earlier pulls it couldn't make) is made up first by a pull the other way; it never moves the
     // body by itself.
-    glm::vec3 move3 = pulled;
+    move3 = pulled;
     if(const float owed = glm::length(c.owed); owed > 1e-6f)
     {
         const glm::vec3 dir = c.owed / owed;
@@ -2506,11 +2546,21 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         // No stamina left, slipping: the arms can't pull the body up; it sinks (to straight arms: the reach below).
         move3.z = za::min(move3.z, 0.f) - slipSink * static_cast<float>(host_frametime);
     }
-    const glm::vec3 meant = carry + move3; // what the body would do unhindered
+    meant = carry + move3; // what the body would do unhindered
+}
 
+// The limits, then the move.
+void hangMove(Hang& hang)
+{
+    edict_t* const ent = hang.ent;
+    const Climber& c = hang.c;
+    const glm::vec3& carry = hang.carry;
+    const glm::vec3& move3 = hang.move3;
+    const float top = hang.top;
+    glm::vec3& origin = hang.origin;
     // The limits, each stopping the body only from going further past it: the feet no higher than the highest hold
     // (the mantle does that), the body within 48 units (horizontally) of each hold.
-    const glm::vec3 origin = vec(ent->v.origin);
+    origin = vec(ent->v.origin);
     glm::vec3 target = origin + carry + move3;
     const float highest = top - ent->v.mins[2] + 2.f;
     if(target.z > highest)
@@ -2543,12 +2593,22 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         step *= maxStep / glm::length(step);
     }
     moveBody(ent, origin + step);
+}
 
+// Kept within an arm's reach of the pulling holds; under an overhang, the arms stretch.
+void keepWithinReach(Hang& hang)
+{
+    edict_t* const ent = hang.ent;
+    Climber& c = hang.c;
+    const VrMove* const move = hang.move;
+    const glm::vec3& origin = hang.origin;
+    const float weights = hang.weights;
+    const float (&weight)[2] = hang.weight;
+    glm::vec3 (&shoulder)[2] = hang.shoulder;
+    bool (&driving)[2] = hang.driving;
     // And within an arm's reach of each hold whose hand pulls (see the top of the file): where the move took the body
     // (a move into the floor or the face, blocked, moves it nowhere), moved back towards the holds, the least that
     // does (a few passes for two holds), from where it was.
-    glm::vec3 shoulder[2];
-    bool driving[2]{false, false};
     for(int h = 0; h < 2; h++)
     {
         shoulder[h] = shoulderOf(*move, h) - origin;
@@ -2603,10 +2663,20 @@ extern "C" int VR_ClientClimb(edict_t* ent)
                 c.grips[1].allowed);
         }
     }
+}
+
+// Settled: what of the pull into the face the body couldn't make is owed.
+void settleOwed(Hang& hang)
+{
+    edict_t* const ent = hang.ent;
+    Climber& c = hang.c;
+    const glm::vec3& origin = hang.origin;
+    const glm::vec3& meant = hang.meant;
+    glm::vec3& done = hang.done;
     setVec(ent->v.velocity, glm::vec3{0.f});
     ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
     c.lastOrigin = vec(ent->v.origin);
-    const glm::vec3 done = vec(ent->v.origin) - origin;
+    done = vec(ent->v.origin) - origin;
     // Owed: what of the pull into the face under the holds (towards the ledge) the body couldn't make.
     glm::vec3 into{0.f};
     for(const Grip& g : c.grips)
@@ -2625,6 +2695,20 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     {
         c.owed *= reach / owed;
     }
+}
+
+// Out of reach: hands torn off their holds; the props pulled, the water, the trace, the prints.
+void reachCheck(Hang& hang)
+{
+    edict_t* const ent = hang.ent;
+    Climber& c = hang.c;
+    const VrMove* const move = hang.move;
+    const glm::vec3 (&rel)[2] = hang.rel;
+    const glm::vec3 (&shoulder)[2] = hang.shoulder;
+    const bool (&driving)[2] = hang.driving;
+    const int count = hang.count;
+    const glm::vec3& wanted = hang.wanted;
+    const glm::vec3& done = hang.done;
     float dist[2]{0.f, 0.f};
     for(int h = 0; h < 2; h++)
     {
@@ -2678,19 +2762,17 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         const glm::vec3 so = vec(ent->v.origin) + shoulder[0], sm = vec(ent->v.origin) + shoulder[1];
         Con_Printf("climbshoulder off %.1f %.1f %.1f main %.1f %.1f %.1f\n", so.x, so.y, so.z, sm.x, sm.y, sm.z);
     }
-    if(!c.hanging())
-    {
-        // Let go of everything (out of reach): fall.
-        letGoAll(c);
-        c.noGrabUntil = time + regrabDelay;
-        if(debug())
-        {
-            Con_Printf("climb: falls, flung at (0 0 0)\n");
-        }
-        return 1;
-    }
+}
 
-    // The mantle: pulled down, the head over the ledge, and room on top.
+// The mantle: pulled down, the head over the ledge, and room on top.
+void tryMantle(Hang& hang)
+{
+    edict_t* const ent = hang.ent;
+    Climber& c = hang.c;
+    const VrMove* const move = hang.move;
+    const glm::vec3 (&rel)[2] = hang.rel;
+    const glm::vec3& origin = hang.origin;
+    const double time = hang.time;
     const float headZ = move->headPos.z;
     bool noRoom = false;
     for(int h = 0; h < 2; h++)
@@ -2788,6 +2870,60 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         }
         c.noRoom = noRoom;
     }
+}
+} // namespace
+
+extern "C" int VR_ClientClimb(edict_t* ent)
+{
+    Climber* cp = climberOf(ent);
+    if(!cp || (!cp->hanging() && !cp->mantling))
+    {
+        return 0;
+    }
+    Climber& c = *cp;
+    if(!SV_RunThink(ent))
+    {
+        return -1;
+    }
+
+    const double time = qcvm->time;
+    if(c.mantling)
+    {
+        mantleStep(ent, c, time);
+        return 1;
+    }
+
+    server::rebaseHands(ent);
+    const VrMove* move = server::clientMove(ent);
+    if(!move)
+    {
+        letGoAll(c);
+        return 0;
+    }
+
+    // The pull: what the holding hands moved relative to the body since the last frame, the other way, each weighted
+    // by how far it moved; and the holds' own motion (a moving brush model carries the body).
+    Hang hang{ent, c, move, time, {handRel(ent, *move, 0), handRel(ent, *move, 1)}};
+    hangPull(hang);
+
+    hangMove(hang);
+
+    keepWithinReach(hang);
+    settleOwed(hang);
+    reachCheck(hang);
+    if(!c.hanging())
+    {
+        // Let go of everything (out of reach): fall.
+        letGoAll(c);
+        c.noGrabUntil = time + regrabDelay;
+        if(debug())
+        {
+            Con_Printf("climb: falls, flung at (0 0 0)\n");
+        }
+        return 1;
+    }
+
+    tryMantle(hang);
 
     hangStamina(ent, c, time);
     if(c.draining && fields().vr_climb_drain >= 0)
