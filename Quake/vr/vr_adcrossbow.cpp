@@ -8,6 +8,7 @@
 #include "vr_hands.hpp"
 #include "vr_protocol.hpp"
 #include "vr_weapons.hpp"
+#include "vr_audio.hpp"
 
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -341,8 +342,7 @@ void frame(view::ViewEntity (&weapons)[2], view::ViewEntity (&bolts)[2])
             const float volume = za::clamp(vr_adgun_crossbow_bolt_sound.value, 0.f, 1.f);
             if(boltSound && volume > 0.f)
             {
-                vec3_t org{h.centre.x, h.centre.y, h.centre.z};
-                S_StartSound(0, 0, boltSound, org, volume, 2.f);
+                audio::playAt(boltSound, h.centre, volume, 2.f);
             }
             if(vr_debug_weaponfx.value)
             {

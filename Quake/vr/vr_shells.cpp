@@ -40,6 +40,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "vr_zancle.hpp"
+#include "vr_audio.hpp"
 
 #include <string.h>
 
@@ -523,8 +524,7 @@ void enterLiquid(Shell& s, glm::vec3 dry, glm::vec3 wet)
         if(sfx_t* sfx = S_PrecacheSound(plipSounds[k]))
         {
             sounds++;
-            vec3_t org{surface.x, surface.y, surface.z};
-            S_StartSound(0, 0, sfx, org, volume * (0.25f + 0.3f * strength), 2.f);
+            audio::playAt(sfx, surface, volume * (0.25f + 0.3f * strength), 2.f);
         }
     }
 
