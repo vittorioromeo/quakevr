@@ -19,6 +19,7 @@
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_timescale.hpp"
+#include "vr_progs.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -2965,8 +2966,7 @@ void reset()
 void saveState()
 {
     if(!sv.active || svs.maxclients != 1 || st.restorePending || cl.intermission) { return; }
-    qcvm_t* previous;
-    PR_PushQCVM(&sv.qcvm, &previous);
+    progs::ServerVm serverVm;
     eval_t* field = GetEdictFieldValueByName(EDICT_NUM(1), "vr_flashlight_state");
     if(field)
     {
@@ -2977,7 +2977,6 @@ void saveState()
             (unsigned(st.overhead[1]) << 10) | (unsigned(za::clamp(st.gunSlot + 1, 0, 255)) << 11);
         field->_float = static_cast<float>(packed);
     }
-    PR_PopQCVM(previous);
 }
 
 void restoreState()

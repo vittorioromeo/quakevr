@@ -531,22 +531,15 @@ void serverCounts(int& tanks, int& guns, int& paired, int& orphans, int& bare)
     {
         return;
     }
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old);
-    for(int n = svs.maxclients + 1; n < qcvm->num_edicts; n++)
-    {
-        edict_t* e = EDICT_NUM(n);
-        if(e->free)
-        {
-            continue;
-        }
+    progs::ServerVm serverVm;
+    progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
         const char* cls = PR_GetString(e->v.classname);
         const bool tank = !strcmp(cls, "vr_fueltank");
         const bool gun = !strcmp(cls, "thrown_weapon") && e->v.model && adguns::variantOf(PR_GetString(e->v.model)) >= 0 &&
                          fuelled(adguns::variantOf(PR_GetString(e->v.model)));
         if(!tank && !gun)
         {
-            continue;
+            return;
         }
         const int ofs = progs::fieldInt(e, link);
         edict_t* other = ofs ? PROG_TO_EDICT(ofs) : nullptr;
@@ -563,8 +556,7 @@ void serverCounts(int& tanks, int& guns, int& paired, int& orphans, int& bare)
             guns++;
             bare += mutual ? 0 : 1;
         }
-    }
-    PR_PopQCVM(old);
+    });
 }
 
 // vr_adgun_hose_info: the back tank, each carried gun's hose (its gun, its ends, its length and sag, how far into the
@@ -1263,11 +1255,9 @@ bool flyNow(const glm::vec3& target, glm::vec3& at, glm::vec3& axis)
     {
         return false;
     }
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old);
+    progs::ServerVm serverVm;
     edict_t* e = EDICT_NUM(num);
     const bool isCut = !e->free && progs::fieldFloat(e, cut) > 0.f;
-    PR_PopQCVM(old);
     return isCut;
 }
 
@@ -1348,8 +1338,7 @@ void setupStubs(const glm::vec3& eye)
     int count = 0;
     if(sv.active && cl.worldmodel && cut >= 0)
     {
-        qcvm_t* old = nullptr;
-        PR_PushQCVM(&sv.qcvm, &old);
+        progs::ServerVm serverVm;
         for(int n = svs.maxclients + 1; n < qcvm->num_edicts && n < cl.num_entities; n++)
         {
             edict_t* e = EDICT_NUM(n);
@@ -1378,7 +1367,6 @@ void setupStubs(const glm::vec3& eye)
                 dists[at] = d;
             }
         }
-        PR_PopQCVM(old);
     }
     const int frame = host_framecount;
     for(int k = 0; k < count; k++)
@@ -1473,8 +1461,7 @@ void relinkWorn()
     {
         return;
     }
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old);
+    progs::ServerVm serverVm;
     for(int n = svs.maxclients + 1; n < qcvm->num_edicts && wornCount < wornMax; n++)
     {
         edict_t* e = EDICT_NUM(n);
@@ -1508,7 +1495,6 @@ void relinkWorn()
         }
         worn[wornCount++] = Worn{n, gun, wearer};
     }
-    PR_PopQCVM(old);
 }
 
 void init()

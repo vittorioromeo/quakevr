@@ -523,8 +523,7 @@ void loadTest_f()
         loadScale(0.f, 0.f), loadScale(5.f, 0.5f), loadScale(65.f, 1.5f), loadScale(160.f, 1.f), loadScale(5.f, 2.f));
     if(sv.active && svs.clients[0].active)
     {
-        qcvm_t* oldvm = nullptr;
-        PR_PushQCVM(&sv.qcvm, &oldvm);
+        progs::ServerVm serverVm;
         edict_t* player = svs.clients[0].edict;
         Con_Printf("carryloadtest: current speed scale %.3f, horizontal speed %.3f\n", moveScale(player),
             glm::length(glm::vec2{player->v.velocity[0], player->v.velocity[1]}));
@@ -567,7 +566,6 @@ void loadTest_f()
         }
         Con_Printf("carryloadtest: %d solid props, torso overlap physical %.4f drawn %.4f units, same prop in both hands scale %.3f\n",
             count, physical, drawn, bothScale);
-        PR_PopQCVM(oldvm);
     }
 }
 

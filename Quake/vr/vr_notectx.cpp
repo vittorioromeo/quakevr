@@ -261,13 +261,11 @@ void describe(za::String& out)
     if(sv.active && svs.maxclients >= 1 && svs.clients && svs.clients[0].active && sv.qcvm.progs &&
         sv.qcvm.num_edicts > 1)
     {
-        qcvm_t* oldVm = nullptr;
-        PR_PushQCVM(&sv.qcvm, &oldVm);
+        progs::ServerVm serverVm;
         edict_t* player = EDICT_NUM(1);
         describeHand(out, player, HAND_MAIN);
         describeHand(out, player, HAND_OFF);
         describeNearby(out, player);
-        PR_PopQCVM(oldVm);
     }
 
     // The settings changed (the latest first).

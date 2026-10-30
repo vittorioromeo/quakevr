@@ -2962,8 +2962,7 @@ void try_f()
         Con_Printf("vr_climb_try <x> <y> <z> [off|main] [<vx> <vy> <vz>]\n");
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm serverVm;
     edict_t* ent = svs.clients[0].edict;
     const VrMove* move = server::clientMove(ent);
     const int h = Cmd_Argc() > 4 && !q_strcasecmp(Cmd_Argv(4), "off") ? 0 : 1;
@@ -2998,7 +2997,6 @@ void try_f()
     Con_Printf("; %d points, %d holds seen, turned down: %d low, %d below, %d far, %d behind, %d through a wall, %d covered, "
                "%d hidden; %.4f ms, %d traces\n",
         st.points, st.found, st.low, st.below, st.tooFar, st.behind, st.unseen, st.covered, st.hidden, ms, traceCount - traces0);
-    PR_PopQCVM(oldvm);
 }
 
 void probe_f()
@@ -3007,11 +3005,9 @@ void probe_f()
     {
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm serverVm;
     edict_t* ent = svs.clients[0].edict;
     probe(ent, Cmd_Argc() > 1 ? Q_atof(Cmd_Argv(1)) : ent->v.angles[1]);
-    PR_PopQCVM(oldvm);
 }
 
 // Client side: each hand's drawn place eased onto its hold, from one hold to the next, and off it again.

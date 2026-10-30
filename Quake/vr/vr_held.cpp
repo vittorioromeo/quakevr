@@ -1755,8 +1755,7 @@ void localBodyFrame(int num, carry2h::Frame& to)
     edict_t* ent = progs::edictAt(num);
     edict_t* player = progs::edictAt(cl.viewentity);
     if(!ent || !player) { return; }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm serverVm;
     const auto& f = progs::fields();
     const int prog = EDICT_TO_PROG(ent);
     const bool held = (f.mainhand_held >= 0 && progs::fieldInt(player, f.mainhand_held) == prog) ||
@@ -1766,7 +1765,6 @@ void localBodyFrame(int num, carry2h::Frame& to)
         const carry2h::Frame from{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}, to.rot};
         carry2h::bodyClear(ent, player, from, to);
     }
-    PR_PopQCVM(oldvm);
 }
 
 // `bodyChecked`: the pose was put through localBodyFrame already this frame (holdFrame, bothFrame): not swept again.

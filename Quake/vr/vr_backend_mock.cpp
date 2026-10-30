@@ -534,16 +534,14 @@ edict_t* nearestThrownWeapon(bool armed = false, int side = 0)
     edict_t* player = EDICT_NUM(1);
     edict_t* best = nullptr;
     float bestDist = 0.f;
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(e->free || strcmp(PR_GetString(e->v.classname), armed ? "vr_ag_weapon" : "thrown_weapon") || !e->v.modelindex)
+    progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
+        if(strcmp(PR_GetString(e->v.classname), armed ? "vr_ag_weapon" : "thrown_weapon") || !e->v.modelindex)
         {
-            continue;
+            return;
         }
         if(side != 0 && (progs::fieldFloatOr(e, progs::fields().vr_ag_left, 0.f) != 0.f) != (side == 1))
         {
-            continue;
+            return;
         }
         const float d = glm::distance(glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]},
             glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]});
@@ -552,7 +550,7 @@ edict_t* nearestThrownWeapon(bool armed = false, int side = 0)
             best = e;
             bestDist = d;
         }
-    }
+    });
     return best;
 }
 
@@ -1272,12 +1270,10 @@ bool ragdollPartTarget(int part, glm::vec3& out)
     {
         return false;
     }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
+    progs::ServerVm serverVm;
     const edict_t* player = EDICT_NUM(1);
     const bool found = box3d::ragdollPartCentre(glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]},
                            part, out) != 0;
-    PR_PopQCVM(oldVm);
     return found;
 }
 
@@ -1474,12 +1470,10 @@ void walkFrame()
         // the nearest entity of that classname (its box's middle)
         float best = 1e30f;
         PR_PushQCVM(&sv.qcvm, &oldVm);
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
-        {
-            const edict_t* e = EDICT_NUM(i);
-            if(e->free || strcmp(PR_GetString(e->v.classname), mockWalk.cls) != 0)
+        progs::forEachEdict(svs.maxclients + 1, [&](const edict_t* e) {
+            if(strcmp(PR_GetString(e->v.classname), mockWalk.cls) != 0)
             {
-                continue;
+                return;
             }
             const glm::vec2 mid{(e->v.absmin[0] + e->v.absmax[0]) * 0.5f, (e->v.absmin[1] + e->v.absmax[1]) * 0.5f};
             if(glm::distance(mid, glm::vec2{at.x, at.y}) < best)
@@ -1487,7 +1481,7 @@ void walkFrame()
                 best = glm::distance(mid, glm::vec2{at.x, at.y});
                 mockWalk.target = mid;
             }
-        }
+        });
         PR_PopQCVM(oldVm);
         if(best > 1e29f)
         {

@@ -12,6 +12,7 @@
 #include "vr_lighting.hpp"
 #include "vr_main.hpp"
 #include "vr_particles.hpp"
+#include "vr_progs.hpp"
 #include "vr_srvrandom.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
@@ -232,23 +233,15 @@ void takeCounts(int (&n)[CountCount])
     }
     if(sv.active && sv.qcvm.progs)
     {
-        qcvm_t* old = nullptr;
-        PR_PushQCVM(&sv.qcvm, &old);
-        for(int i = 1; i < qcvm->num_edicts; i++)
-        {
-            edict_t* ent = EDICT_NUM(i);
-            if(ent->free)
-            {
-                continue;
-            }
+        progs::ServerVm serverVm;
+        progs::forEachEdict(1, [&](edict_t* ent) {
             n[Edicts]++;
             if(!ZA_STRNCMP(PR_GetString(ent->v.classname), "monster_", 8) && ent->v.deadflag == 0.f &&
                 ent->v.health > 0.f)
             {
                 n[Monsters]++;
             }
-        }
-        PR_PopQCVM(old);
+        });
     }
     box3d::profileCounts(n[Bodies], n[BodiesAwake], n[Contacts]);
     box3d::AwakeKinds k;
@@ -665,8 +658,7 @@ void stateHash_f()
         Con_Printf("vr_bench_statehash: no server\n");
         return;
     }
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old);
+    progs::ServerVm serverVm;
     uint64_t h = 1469598103934665603ull;
     const auto mix = [&h](const void* data, size_t size) {
         const auto* bytes = static_cast<const unsigned char*>(data);
@@ -697,22 +689,16 @@ void stateHash_f()
         {
             const ddef_t& def = qcvm->fielddefs[f];
             uint64_t fh = 1469598103934665603ull;
-            for(int i = 0; i < qcvm->num_edicts; i++)
-            {
-                edict_t* ent = EDICT_NUM(i);
-                if(!ent->free)
+            progs::forEachEdict(0, [&](edict_t* ent) {
+                const auto* bytes = reinterpret_cast<const unsigned char*>(&ent->v) + def.ofs * 4;
+                for(int k = 0; k < 4; k++)
                 {
-                    const auto* bytes = reinterpret_cast<const unsigned char*>(&ent->v) + def.ofs * 4;
-                    for(int k = 0; k < 4; k++)
-                    {
-                        fh = (fh ^ bytes[k]) * 1099511628211ull;
-                    }
+                    fh = (fh ^ bytes[k]) * 1099511628211ull;
                 }
-            }
+            });
             Con_Printf("statefield %s %016llx\n", PR_GetString(def.s_name), static_cast<unsigned long long>(fh));
         }
     }
-    PR_PopQCVM(old);
 }
 
 } // namespace

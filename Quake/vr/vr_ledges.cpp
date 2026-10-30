@@ -34,6 +34,7 @@
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
+#include "vr_progs.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
@@ -1105,8 +1106,7 @@ void debugDraw()
     {
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm serverVm;
     const glm::vec3 eye = vec(r_refdef.vieworg);
     const float range = za::max(64.f, vr_debug_ledges.value > 1.f ? vr_debug_ledges.value : 512.f);
     const glm::vec3 lipColour{0.2f, 1.f, 0.3f}, trimColour{1.f, 0.9f, 0.1f}, moverColour{1.f, 0.45f, 0.9f};
@@ -1183,7 +1183,6 @@ void debugDraw()
             }
         }
     }
-    PR_PopQCVM(oldvm);
 }
 
 } // namespace qvr::ledges
