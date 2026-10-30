@@ -204,13 +204,10 @@ za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     latest = throwing::latestTime(h);
     if(wasGrabbing[h] && !grabbing)
     {
-        // The grip's own release time, if it is this release (not a key's, nor a stale one).
-        const double released = throwing::releaseTime(h);
-        const double at =
-            released >= 0.0 && latest - released >= -0.05 && latest - released < 0.25 ? released : latest;
+        const double at = throwing::releaseAt(h);
         if(!held::bothHandsThrow(h, at, true, thrown[h])) // a prop held in both hands: its own motion
         {
-            thrown[h] = throwing::estimateAt(h, at);
+            thrown[h] = throwing::release(1 << h, at);
         }
         thrownValid[h] = true;
 

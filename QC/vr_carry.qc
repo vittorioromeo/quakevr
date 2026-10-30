@@ -356,7 +356,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
         {
             entity pushSelf = self;
             self = xPlayer;
-            haptic(xHand, 0.0, 0.05, 60, 0.3);
+            VR_Haptic_SoftKnock(xHand);
             self = pushSelf;
         }
         return;
@@ -388,7 +388,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
     {
         entity oldSelf = self;
         self = xPlayer;
-        haptic(xHand, 0.0, 0.05, 60, 0.3);
+        VR_Haptic_SoftKnock(xHand);
         self = oldSelf;
     }
 };
@@ -492,7 +492,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
             VR_SoundVaried(self, VRGetHandChannel(xHand), "knight/sword2.wav", 0.4, ATTN_NORM);
         }
     }
-    haptic(xHand, 0.0, 0.1, 70, 0.6);
+    VR_Haptic_GrabProp(xHand);
     self = oldSelf;
 };
 
@@ -1190,7 +1190,7 @@ void(float xHand, entity xBox) VR_Carry_FullCue =
     }
     self.vr_carry_fullcue = time + 0.4;
     sound(self, VRGetHandChannel(xHand), "vr/pack_full.wav", 0.9, ATTN_NORM);
-    haptic(xHand, 0.0, 0.06, 40, 0.9);
+    VR_Haptic_PackFull(xHand);
 };
 
 // Set round VR_Carry_Take: where its put-away transition goes (QVR_HS_*, QVR_CFX_INTO_HAND; 0: the hand's hotspot).
@@ -1609,7 +1609,7 @@ void(float xHand) VR_Carry_TrySecondHand =
     box.carry_2h = TRUE;
     carry2h(box, self, TRUE); // the grips are kept
     VR_SoundVaried(self, VRGetHandChannel(xHand), "knight/sword2.wav", 0.25, ATTN_NORM);
-    haptic(xHand, 0.0, 0.1, 70, 0.6);
+    VR_Haptic_GrabProp(xHand);
 };
 
 // Let go of by both hands (self is the player): no longer held in both; the main hand's frame then
@@ -1680,8 +1680,8 @@ void() VR_Carry_TwoHandFrame =
         VR_Carry_SetHeld(self, cVR_MainHand, world);
         VR_Carry_Loose(box); // its velocity: the last frame's follow
         box.owner = world;
-        haptic(cVR_MainHand, 0.0, 0.05, 60, 0.3);
-        haptic(cVR_OffHand, 0.0, 0.05, 60, 0.3);
+        VR_Haptic_SoftKnock(cVR_MainHand);
+        VR_Haptic_SoftKnock(cVR_OffHand);
         return;
     }
     if(pulledOff == 1)
@@ -1716,7 +1716,7 @@ void() VR_Carry_TwoHandFrame =
         {
             dprint(sprintf("carry: kept by hand %g, moved %.2f units by the let-go\n", keep, vlen(box.origin - keptFrom)));
         }
-        haptic(letGo, 0.0, 0.05, 60, 0.3);
+        VR_Haptic_SoftKnock(letGo);
         return;
     }
 
@@ -1818,7 +1818,7 @@ void() VR_Ragdoll_Handtouch =
         dprint("\n");
         entity oldSelf = self;
         self = other;
-        haptic(hand, 0.0, 0.08, 60, 0.5);
+        VR_Haptic_RagdollTouch(hand);
         self = oldSelf;
     }
 };

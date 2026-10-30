@@ -10,12 +10,11 @@ void(entity entPlayer) VRItemPickupHaptic =
 
     if(VRIsTouchingHandFake(entPlayer))
     {
-        haptic(cVR_OffHand, 0.0, 0.3, 75, 1.0);
-        haptic(cVR_MainHand, 0.0, 0.3, 75, 1.0);
+        VR_Haptic_Both(VR_Haptic_Pickup);
         return;
     }
 
-    haptic(VRGetTouchingHand(entPlayer), 0.0, 0.3, 75, 1.0);
+    VR_Haptic_Pickup(VRGetTouchingHand(entPlayer));
 }
 
 void() SUB_regen =
@@ -727,8 +726,7 @@ float(float xHand, entity xArmor) VR_Armor_LetGo =
     sound(self, CHAN_ITEM, "player/land.wav", 0.6, ATTN_NORM);
     if(self.ishuman)
     {
-        haptic(xHand, 0.0, 0.06, 40, 0.8);
-        haptic(xHand, 0.12, 0.06, 40, 0.8);
+        VR_Haptic_Refuse(xHand);
     }
     return FALSE;
 };
@@ -764,8 +762,7 @@ void(float xHand, entity xItem) VR_PickupObj_Holster =
     sound(self, CHAN_ITEM, "player/land.wav", 0.6, ATTN_NORM);
     if(self.ishuman)
     {
-        haptic(xHand, 0.0, 0.06, 40, 0.8);
-        haptic(xHand, 0.12, 0.06, 40, 0.8);
+        VR_Haptic_Refuse(xHand);
     }
     VR_Carry_Loose(xItem);
     xItem.velocity = '0 0 0';
@@ -781,15 +778,11 @@ void(float xHand, entity xArmor) VR_Armor_HeldFrame =
         dprint("armour: over the torso\n");
         if(VR_Armor_IsBetter(self, xArmor))
         {
-            float t = max(0.05, cvar_hget(cvarh_vr_holster_haptic_time));
-            haptic(xHand, 0.0, t * 0.45, 80, 0.65);
-            haptic(xHand, t * 0.4, t * 0.35, 80, 0.4);
-            haptic(xHand, t * 0.7, t * 0.3, 80, 0.2);
+            VR_Haptic_HolsterHover(xHand);
         }
         else
         {
-            haptic(xHand, 0.0, 0.03, 40, 0.3);
-            haptic(xHand, 0.08, 0.03, 40, 0.3);
+            VR_Haptic_FaintTap(xHand);
         }
     }
     xArmor.vr_wear_hover = at;

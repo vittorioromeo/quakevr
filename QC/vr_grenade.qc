@@ -675,7 +675,7 @@ float(float xHand, entity g) VR_Grenade_Trap =
     g.flags = g.flags - (g.flags & FL_ONGROUND);
     VR_Grenade_TrapHold(g);
     sound(g, CHAN_VOICE, "weapons/bounce.wav", 0.35, ATTN_NORM); // (a soft slap into the palm)
-    haptic(xHand, 0.0, 0.06, 60, 0.5);
+    VR_Haptic_GrenadeTrap(xHand);
     return TRUE;
 };
 
@@ -852,11 +852,11 @@ void(float xHeld) VR_Grenade_Cue =
         self = p;
         if(p.mainhand_held == oldSelf)
         {
-            haptic(cVR_MainHand, 0.0, 0.03, 140, 0.35);
+            VR_Haptic_GrenadeTick(cVR_MainHand);
         }
         if(p.offhand_held == oldSelf)
         {
-            haptic(cVR_OffHand, 0.0, 0.03, 140, 0.35);
+            VR_Haptic_GrenadeTick(cVR_OffHand);
         }
         self = oldSelf;
     }

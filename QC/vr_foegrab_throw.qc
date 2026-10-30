@@ -82,8 +82,7 @@ float(entity m, float xYaw, float xTier) VR_FoeGrab_Throw =
     if(result < 1)
     {
         // Too strong for you: the hands feel it hold its ground.
-        haptic(cVR_OffHand, 0, 0.1, 40, 0.5);
-        haptic(cVR_MainHand, 0, 0.1, 40, 0.5);
+        VR_Haptic_Both(VR_Haptic_FoeHolds);
     }
     if(dummy)
     {
@@ -151,8 +150,7 @@ float(entity m, float xUp, float xHold) VR_FoeGrab_Lift =
     }
     if(result < 1)
     {
-        haptic(cVR_OffHand, 0, 0.1, 40, 0.5); // (it holds its ground)
-        haptic(cVR_MainHand, 0, 0.1, 40, 0.5);
+        VR_Haptic_Both(VR_Haptic_FoeHolds); // (it holds its ground)
     }
     if(dummy)
     {
@@ -180,8 +178,7 @@ float(entity m, float xDist, float xSound) VR_FoeGrab_BreakFree =
         dprint("foegrab: break free plays vr/shove.wav\n");
     }
     m.vr_kd_until = time;
-    haptic(cVR_OffHand, 0, 0.2, 60, 0.9);
-    haptic(cVR_MainHand, 0, 0.2, 60, 0.9);
+    VR_Haptic_Both(VR_Haptic_FoeBreakFree);
     return 1;
 };
 
@@ -240,8 +237,7 @@ float(entity m, float xVolume, float xRagdoll) VR_FoeGrab_NeckSnap =
     {
         VR_FoeGrab_Crack(m, xVolume);
         floattext(m.origin + '0 0 1' * (m.maxs_z + 8), "neck snapped", '0.4 1 0.4', 0.6);
-        haptic(cVR_OffHand, 0, 0.15, 50, 0.8);
-        haptic(cVR_MainHand, 0, 0.15, 50, 0.8);
+        VR_Haptic_Both(VR_Haptic_NeckSnap);
         return 2;
     }
     if(m.health <= 0 || !(m.flags & FL_MONSTER) || m.takedamage == DAMAGE_NO)
@@ -256,8 +252,7 @@ float(entity m, float xVolume, float xRagdoll) VR_FoeGrab_NeckSnap =
         float full = m.max_health > 0 ? m.max_health : m.health;
         float dmg = max(1, rint(full * max(0, cvar("vr_foegrab_necksnap_tough"))));
         VR_FoeGrab_Crack(m, xVolume * 0.6);
-        haptic(cVR_OffHand, 0, 0.2, 45, 0.9);
-        haptic(cVR_MainHand, 0, 0.2, 45, 0.9);
+        VR_Haptic_Both(VR_Haptic_NeckCrack);
         floattext(m.origin + '0 0 1' * (m.maxs_z + 8), "its neck holds", '1 0.7 0.3', 0.6);
         dprint(sprintf("necksnap: %s's neck holds (its monster group's Neck Snap Kills off): %g damage, health %g of %g\n",
             m.classname, dmg, m.health, full));
@@ -285,8 +280,7 @@ float(entity m, float xVolume, float xRagdoll) VR_FoeGrab_NeckSnap =
     }
     m.vr_death_hit = 1; // (its ragdoll, made later standing, collapses)
     VR_FoeGrab_Crack(m, xVolume);
-    haptic(cVR_OffHand, 0, 0.25, 45, 1);
-    haptic(cVR_MainHand, 0, 0.25, 45, 1);
+    VR_Haptic_Both(VR_Haptic_NeckBreak);
     dprint(sprintf("necksnap: %s's neck snapped (%s, %s), %s; killed: %g monsters\n", m.classname, was,
         xRagdoll ? "a ragdoll" : "held standing", down ? "its ragdoll held" : "no ragdoll", killed_monsters));
     return down ? 1 : 3;
