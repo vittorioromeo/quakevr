@@ -2651,3 +2651,26 @@ Checklist lines:
 - Debug > Show Disarm Volumes on, walk up to an armed grunt: its gun outlined orange; put your hand on the gun: your
   fist and the gun turn yellow; grip: green with a progress bar; shove it over: the white limb under its gun, the
   shapes stay on it.
+## FBT regression check (agent/fbtfix)
+
+The author (2026-10-30): with full body tracking the elbows and the body are way off; FBT off is playable. Checked:
+
+- Settings tiers: no body tracking, avatar or calibration setting became a constant or an unsaved test switch while his
+  config set it (`vr_bodycal_*`, `vr_body_tweak_*`, `vr_bodytrack`, `_arms`, `_arm_fit`, `vr_body_elbow_*`,
+  `vr_height_calibration` are options and load; the constants `vr_bodytrack_torso/_legs/_confidence/_smooth/_fade/
+  _arm_fit_stretch` and `vr_torso_*` keep the old defaults). No body default changed since 2026-10-19.
+- Headless: his capture (bodytrack_dump.csv, 2026-10-17, VDXR) replayed with his whole vr_ config on a1fd90743 (before
+  the refactor waves) and on origin/next 2234fc41f (no-LTO and ThinLTO): every solved joint (pelvis, neck top, shoulders,
+  elbows, wrists, weights, elbow fit) the same within 0.14 units (3.5 mm) over 999 frames, each within 1-2 units of the
+  tracked joints. The geometry helpers A1 merged (quakeFromTracking, wrap180, smoothstep, approachExp, safeNormalize)
+  are the same functions; the B3/L splits (avatar legs/climb, view body, hands phases, OpenXR frame) are pure moves
+  (body joints still located right after the hands, `bodytrack::place` in the same order). His previous calibration
+  (vr_bodycal_undo) instead of the current one moves the joints under 1 unit.
+- So no code change in the replayable path moved the solve. Not covered by a replay: the live OpenXR joints (the
+  runtime's own body calibration), the drawn mesh's skinning, the legs and feet. Next: a `vr_bodytrack_dump 20` taken
+  while it looks wrong, replayed here on both builds.
+
+Regression test: `Misc/quakevr/bodytrack_solve_test.sh <agent> [--update]`: 300 frames of that capture
+(quakevr/scenarios/bodytrack/take.csv) replayed with his body settings, 240 dumped frames against
+quakevr/scenarios/bodytrack/solve_ref.csv (0.5 units per joint, 0.02 per weight); verdict line
+`bodytrack_solve: N passed, M failed`.
