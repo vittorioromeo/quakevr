@@ -1508,7 +1508,6 @@ read every pak's directory.
   70 -> 6 ms (vrtesthall), 77 -> 6 (vrstart), 16 -> 5 (e1m1), 20 -> 6 (hip2m5). Warm loads unchanged (144-293 ms: the
   models are kept). Scripts: scratch/load5_ab.sh, load5_abstats.py (not committed).
 
-<<<<<<< HEAD
 ## One test harness, part 1: one library, one parser, one tally (branch `agent/oneharness`; design review 7)
 
 - **Library**: `Misc/quakevr/qvrtest.py` (KIT, tree, run, run_sh, lanes, `Tally`, the parser `FAIL_LINE` / `counts` /
@@ -1528,7 +1527,6 @@ read every pak's directory.
 - **Left (part 2)**: one spawner (impulse 241; 16 helpers), the scenario's settings on testbatch's snapshot, the 64
   QC hand-printed verdicts, 23 Python files' kit paths, the C++ `_diag` printers; the other workers' test files
   (held things, config) left alone.
-=======
 ## Weapon fixes of 2026-10-30: laser bolts on walls, stream shake (branch `agent/wpnfix1030`)
 
 - **Laser bolts bled on walls and floors** (vrfiringrange_2026-10-30_12-16-02). Not a recent code change: the firing
@@ -1552,4 +1550,3 @@ read every pak's directory.
   pyro's and the fumigator's guns, 1). Test: `vr_recoil_test`'s stream part (7 checks: defaults, a flame starts it, it
   shakes every frame of a second of flames and trembles, under a degree, settled after, none at 0): 24/0. Not checked
   here: a real flamethrower (the kit's bases have no AD data); the network hop is two lines.
->>>>>>> origin/next
