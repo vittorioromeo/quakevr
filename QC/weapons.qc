@@ -4411,6 +4411,38 @@ void() VR_WeaponInst_Test; // (vr_weaponinst_test.qc)
 void() VR_Reload_Test;     // (vr_reload_test.qc)
 #endif
 
+// ImpulseCommands' per-hand steps (W19).
+// Whether `xHand` may fire (and so cycle) again.
+float(float xHand) VR_Impulse_HandReady =
+{
+    return time >= (xHand == cVR_OffHand ? self.offhand_attack_finished : self.attack_finished);
+};
+
+// Cycles the weapon in `xHand` to the next one collected (`xReverse`: the one before) when cycling is allowed.
+void(float xHand, float xReverse) VR_Impulse_CycleHand =
+{
+    if(getWeaponCycleMode() != QVR_WEAPONCYCLEMODE_ALLOWED)
+    {
+        return;
+    }
+    if(xHand == cVR_OffHand)
+    {
+        if(xReverse) { CycleWeaponReverseCommand(cVR_OffHand, self.weapon2, &self.weapon2, self.weaponflags2, &self.weaponflags2); }
+        else         { CycleWeaponCommand(cVR_OffHand, self.weapon2, &self.weapon2, self.weaponflags2, &self.weaponflags2); }
+    }
+    else
+    {
+        if(xReverse) { CycleWeaponReverseCommand(cVR_MainHand, self.weapon, &self.weapon, self.weaponflags, &self.weaponflags); }
+        else         { CycleWeaponCommand(cVR_MainHand, self.weapon, &self.weapon, self.weaponflags, &self.weaponflags); }
+    }
+};
+
+// The button of the weapon in `xHand` pressed: a grappling hook's detach, else its secondary ammo.
+void(float xHand) VR_Impulse_WeaponButton =
+{
+    if(VRGetWeapon(xHand) == WID_GRAPPLE) { VR_Grapple_Detach(xHand); }
+    else                                  { ToggleSecondaryAmmo(xHand); }
+};
 void() ImpulseCommands =
 {
     // QVR: the single-player test and debug impulses (vr_impulse_test.qc): first, as each returns or falls
@@ -4463,24 +4495,11 @@ void() ImpulseCommands =
         // collected (the same cycling the controller's Y and B do); Quake's own weapon select stands for the other keys.
         if(VR_FlatPlay(self) && (self.impulse == 1 || self.impulse == 2))
         {
-            float xOffHand = self.impulse == 1;
+            float flatHand = self.impulse == 1 ? cVR_OffHand : cVR_MainHand;
             self.impulse = 0;
-            if(getWeaponCycleMode() != QVR_WEAPONCYCLEMODE_ALLOWED)
+            if(VR_Impulse_HandReady(flatHand) && !VR_Grapple_ButtonsBusy(flatHand))
             {
-                return;
-            }
-            if(xOffHand)
-            {
-                if(time >= self.offhand_attack_finished && !VR_Grapple_ButtonsBusy(cVR_OffHand))
-                {
-                    CycleWeaponCommand(cVR_OffHand, self.weapon2, &self.weapon2,
-                        self.weaponflags2, &self.weaponflags2);
-                }
-            }
-            else if(time >= self.attack_finished && !VR_Grapple_ButtonsBusy(cVR_MainHand))
-            {
-                CycleWeaponCommand(cVR_MainHand, self.weapon, &self.weapon,
-                    self.weaponflags, &self.weaponflags);
+                VR_Impulse_CycleHand(flatHand, FALSE);
             }
             return;
         }
@@ -4493,27 +4512,10 @@ void() ImpulseCommands =
 
     // A weapon's button pressed (the other hand's fingertip on it): its secondary ammo; the grappling hook's detach
     // (vr_grapple.qc). 44/45: the grappling gun's front button, the reel-in.
-    if(self.impulse == 42)
-    {
-        if(VRGetWeapon(cVR_OffHand) == WID_GRAPPLE) VR_Grapple_Detach(cVR_OffHand);
-        else                                         ToggleSecondaryAmmo(cVR_OffHand);
-    }
-
-    if(self.impulse == 43)
-    {
-        if(VRGetWeapon(cVR_MainHand) == WID_GRAPPLE) VR_Grapple_Detach(cVR_MainHand);
-        else                                          ToggleSecondaryAmmo(cVR_MainHand);
-    }
-
-    if(self.impulse == 44 && VRGetWeapon(cVR_OffHand) == WID_GRAPPLE)
-    {
-        VR_Grapple_QuickRelease(cVR_OffHand);
-    }
-
-    if(self.impulse == 45 && VRGetWeapon(cVR_MainHand) == WID_GRAPPLE)
-    {
-        VR_Grapple_QuickRelease(cVR_MainHand);
-    }
+    if(self.impulse == 42) { VR_Impulse_WeaponButton(cVR_OffHand); }
+    if(self.impulse == 43) { VR_Impulse_WeaponButton(cVR_MainHand); }
+    if(self.impulse == 44 && VRGetWeapon(cVR_OffHand) == WID_GRAPPLE) { VR_Grapple_QuickRelease(cVR_OffHand); }
+    if(self.impulse == 45 && VRGetWeapon(cVR_MainHand) == WID_GRAPPLE) { VR_Grapple_QuickRelease(cVR_MainHand); }
 
     if(self.impulse >= 225 && self.impulse <= 226)
     {
@@ -4543,47 +4545,24 @@ void() ImpulseCommands =
         CheatSpawnWeaponDrop(WID_GRAPPLE);
     }
 
-    // The hand's B/Y also reels a grappling hook in (vr_grapple.qc: its own gun's, or the other hand's when its own has
-    // none out): while it drives one, it cycles nothing.
-    if(self.impulse == 10 && time >= self.attack_finished && !VR_Grapple_ButtonsBusy(cVR_MainHand) &&
-       !VR_Reload_MagIn(self, cVR_MainHand)) // (B ejects its magazine: vr_reload.qc)
+    // B/Y (10/12) cycle the hand's weapon, 15/16 back. The hand's B/Y also reels a grappling hook in (vr_grapple.qc: its own
+    // gun's, or the other hand's when its own has none out): while it drives one, it cycles nothing; and they eject a
+    // magazine that is in (vr_reload.qc).
+    if(self.impulse == 10 || self.impulse == 12)
     {
-        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        float cycleHand = self.impulse == 12 ? cVR_OffHand : cVR_MainHand;
+        if(VR_Impulse_HandReady(cycleHand) && !VR_Grapple_ButtonsBusy(cycleHand) && !VR_Reload_MagIn(self, cycleHand))
         {
-            CycleWeaponCommand(cVR_MainHand,
-                self.weapon, &self.weapon,
-                self.weaponflags, &self.weaponflags);
+            VR_Impulse_CycleHand(cycleHand, FALSE);
         }
     }
 
-    if(self.impulse == 12 && time >= self.offhand_attack_finished && !VR_Grapple_ButtonsBusy(cVR_OffHand) &&
-       !VR_Reload_MagIn(self, cVR_OffHand)) // (Y ejects its magazine: vr_reload.qc)
+    if(self.impulse == 15 || self.impulse == 16)
     {
-        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        float backHand = self.impulse == 16 ? cVR_OffHand : cVR_MainHand;
+        if(VR_Impulse_HandReady(backHand))
         {
-            CycleWeaponCommand(cVR_OffHand,
-                self.weapon2, &self.weapon2,
-                self.weaponflags2, &self.weaponflags2);
-        }
-    }
-
-    if(self.impulse == 15 && time >= self.attack_finished)
-    {
-        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
-        {
-            CycleWeaponReverseCommand(cVR_MainHand,
-                self.weapon, &self.weapon,
-                self.weaponflags, &self.weaponflags);
-        }
-    }
-
-    if(self.impulse == 16 && time >= self.offhand_attack_finished)
-    {
-        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
-        {
-            CycleWeaponReverseCommand(cVR_OffHand,
-                self.weapon2, &self.weapon2,
-                self.weaponflags2, &self.weaponflags2);
+            VR_Impulse_CycleHand(backHand, TRUE);
         }
     }
 
