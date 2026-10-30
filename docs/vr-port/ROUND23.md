@@ -1890,3 +1890,75 @@ current one kept to fall back to.
   pyro's and the fumigator's guns, 1). Test: `vr_recoil_test`'s stream part (7 checks: defaults, a flame starts it, it
   shakes every frame of a second of flames and trembles, under a degree, settled after, none at 0): 24/0. Not checked
   here: a real flamethrower (the kit's bases have no AD data); the network hop is two lines.
+
+## Baked kick out, procedural recoil in (branch `agent/dekick`)
+
+His words: get rid of the baked kick and muzzle raise from every weapon that has it, keep the parts' own animation
+(pump, barrels), use the procedural recoil instead, then drop the code that only existed for the baked kick.
+
+- **The cancel** (`vr_kickcancel.cpp`; the id models are never changed): for each listed weapon model (slots 1-7, 9-15:
+  Quake's guns, the laser cannon and proximity gun, Rogue's lava nailguns, multi launchers and plasma gun), at load
+  (`view::prepareWorldWeapons`, cached per model in a `mem::Cache`), each pose's rigid motion back to the rest pose
+  (frame 0) is fitted over the gun's body. The body: per pose, the motion most vertices agree on within 3 byte steps,
+  vertices near the hand counting most (the grip: the slot's Offset point), among the fit over all, none, the last
+  pose's and 96 random triples' (deterministic), rolls about the gun's length over 8 degrees refused (a drum or Gatling
+  barrels turning is a part, though it may be half the model), refitted over its inliers 3 times; the body is the
+  vertices every pose keeps. Drawn: the two drawn poses' cancels blended (slerp, as R_SetupAliasFrame blends the poses)
+  and put through the model's byte space (S^-1 T(-so) C T(so) S), the alias matrix ending with it
+  (`VR_AliasPostTransform`), and `anchor::posedAnchor/posedVertex/posedVertices` putting their points through the same
+  map, so muzzles, shell ports, mounts and the hand-on-a-part motion (`animationMotion`) follow what is drawn. The grip
+  hotspots need nothing (the body they are on holds still). `anchor::drawnPoses` is the poses-as-drawn rule, shared.
+  `rigpose::fitRigid` (Horn's quaternion) moved out of vr_hitreact_arms.cpp for it. Fit cost: 13 ms for the largest
+  model tried (4720 vertices, 36 poses), at map load.
+- What the fit found (`vr_kickcancel_info <model>`: per pose cm back at the hand, degrees up, the body's residual):
+  the shotgun 11.6 cm / 9.4 deg at frame 2, back at frame 6; the super shotgun 28.7 cm / 6.3 deg; the grenade,
+  proximity and multi grenade launchers 21 cm / 24 deg (their upper shell moves on the lower body: a part); the rocket
+  launchers 15.5 cm / 8.9 deg; the super nailguns 3.4 cm back, no rise; the lightning and plasma guns 1 cm; the nailguns
+  and lava nailgun none (their barrels only); the laser cannon hardly any. Not the Widowmaker (slot 34): its own model's
+  frames (vr0-vr8 and the spin frames) turn its barrels only, no kick (measured 0), so it is not listed.
+- **Recoil defaults** (vr_weapons.inc): Recoil on for slots 1-7, 9-15; from the measured kick toned down for a gun in
+  the hand (half the way back up to 8 cm, 0.6 of the rise up to 12 degrees, the way back from the peak up to 0.4 s), at
+  Weapon Effects' 1.5 cm and 4 degrees: shotgun Kick 3.85 Rise 1.4 Time 0.35; super shotgun 5.3 / 0.95 / 0.3; grenade,
+  proximity, multi grenade 5.3 / 3 / 0.35; rocket and multi rocket 5.2 / 1.35 / 0.3; lightning and plasma 0.4 / 0.25 /
+  0.1. The nailgun and lava nailgun, the super nailgun and lava super nailgun, the laser cannon: his own values (his
+  config: Strength 0.65, Kick 0.5, Rise 0.5; 0.785, 0.76, 0.835; 0.71, 0.835, 0.735). His config is still a full one
+  (vr_cfg_version 217: every slot's line), so its old "Recoil 0" lines would have read as his choice and left those guns
+  with no kick at all: `vr_wofs_version` 73 (takeRecoil73) turns Recoil on where it is still the old 0, with Strength,
+  Kick, Rise and Time still at the old defaults taking the new; slots he turned on are left alone. (CODE_STYLE says no
+  step for a changed default; that holds for sparse configs, where this step matches nothing.)
+- **Removed**: the weapons' blend towards frame 0 (`zb`, `zb_2h`: 97 lines of vr_weapons.inc; the two-handed steadying
+  of the baked kick: 0.75-0.8 on the shotguns and launchers), retired quietly (`VR_RetiredCvar`: `vr_wofs_zb_*`);
+  the per-slot Recoil's "Off (the model's own)" is "Off"; the help texts that said only the burst rifle needs the
+  programmatic recoil. Kept: the shader's ZeroBlend (the fingers' curl and the gadget strap use it; its muzzle-flash
+  reference vertices only mattered for the weapons' blend: dead for them now, left for a later pass) and
+  `animationMotion` (a hand on a pump or slide still follows it).
+- Debug (Debug > Tests, Weapons): "Take Out the Models' Own Kick" (`vr_weapon_kick_cancel`, 1; 0 shows the models' own
+  kick, not archived), "Hold the Weapon Frame" (`vr_debug_weapon_frame`, -1: the held weapons drawn at that frame of
+  their models), "Kick Cancel Test" (`vr_kickcancel_test`).
+- Tests: `vr_kickcancel_test` (also part of `vr_recoil_test`): every listed model found draws each frame through the
+  anchors' path with every body vertex within 4 byte steps of where frame 0 draws it, and a body of at least a fifth of
+  it; 43/0 (14 models; body after the cancel within 1-3.4 steps; the parts left moving: 12-816 vertices a model).
+  `vr_recoil_test`'s stream part now measures the shake at the held gun's own Kick and Rise 1 (the shotgun's are 3.85
+  and 1.4 now). Eyeshots (`C:/OHWorkspace/qvr-kit/scratch/dekick/`: `after_sheet1/2.png`, each gun at rest, at its peak
+  kick frame cancelled, and its own kick; `fire_sheet.png`: the shotgun and rocket launcher at rest and at the peak of
+  the procedural kick): the pixels that change from rest to the cancelled peak are 1.6-3.4% of the eye (the flash, the
+  parts) for the shotguns, nailguns and lightning gun, 7-9% for the launchers (their upper shells), against 4-17% for
+  their own kick.
+- **Recoil settings that say the same thing** (not changed; a proposal): per slot, Recoil off = Strength 0 (nothing else
+  reads the switch); Strength is a common factor of Kick Back and Muzzle Rise (only the burst cap of 2.5 strengths and
+  the AD variants' feel multiply it alone); Return Time and Recovery both stretch the way back (Recovery only after the
+  rise, which is min(35 ms, 0.3 Return Time)); the global Kick Back and Muzzle Rise are a unit and a master scale for
+  every weapon's. A simpler set: per weapon Kick Back (cm) and Muzzle Rise (deg), absolute, and Return Time (s, peak to
+  rest); globally the Programmatic Recoil switch and one Recoil Amount (x1). Migration keeping every feel: cm =
+  vr_recoil_kick x Kick x Strength (0 where Recoil off), deg = vr_recoil_rise x Rise x Strength, time = (T - min(0.035,
+  0.3 T)) x Recovery; the burst cap and the stream shake expressed in the weapon's own kick (2.5 of it; the lean 0.1).
+  His: nailgun 1.46 cm / 2.44 deg, super nailgun 2.68 / 4.92, laser cannon 2.67 / 3.91, Widowmaker 11.5 / 11.4, AD
+  plasma 5.34 / 8.74, revolver 14.6 / 21.9.
+
+Checklist:
+- Each gun fires with no kick of its model's own: the body holds in the hand; the shotgun's and super shotgun's parts,
+  the nailguns' barrels and the launchers' shells still move; the procedural kick is the only one (Debug > Tests,
+  Weapons: "Take Out the Models' Own Kick" off shows the old one).
+- The muzzle flash, shells and a hand on the pump stay on the gun through a shot.
+- Recoil strengths per weapon to taste (Weapon Offsets > Effects; your global Kick Back 4.5 / Muzzle Rise 7.5 make the
+  new defaults 3x / 1.9x as strong as measured).
