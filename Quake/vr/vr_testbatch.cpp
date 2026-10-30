@@ -356,3 +356,8 @@ extern "C" void VR_TestConsolePrint(const char* text)
         }
     }
 }
+
+extern "C" int VR_LogFlushFrames(void)
+{
+    return qvr::vr_log_flush_frames.value != 0.f;
+}

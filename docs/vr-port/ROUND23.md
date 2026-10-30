@@ -790,3 +790,36 @@ gun open empty and loaded at leniency 1, and shuts it loaded at 1.15 (opens `110
 Checklist:
 - Break the super shotgun open, flick it gently without loading: it stays open; load both barrels and flick about as
   gently: it shuts (Flick Close Leniency When Loaded 1.15; at 1 both need the same flick).
+## Faster headless tests: where a case's time goes, parallel lanes (branch `agent/harness`)
+
+**Measured** (2026-10-29, 3-4 other agents' games running, CPU 70% busy before ours): a case alone is ~2.2 s of
+start + quit (`quit` only, through run.sh/PowerShell), ~2-3.5 s of map load and `wait30`, the test body, and with
+`-QuitOn` up to 2.5 s more (the log written out a second after its last write, polled every 0.5 s, then 1 s more).
+A game has 43-46 threads (`vr_jobs_threads 0`: 31 pool workers, the GL/render, audio and SDL threads) but uses about
+1.5 cores in fast mode; capping the pool (`vr_jobs_threads 3`) changed little (agrunt_20 14.7 -> 12.0 s at 8 at once).
+The "10x under load" was two things: (1) **exclusive runs drain the slots**: an `--exclusive` request stops new shared
+runs until every running one ends, so one long shared run (74 s) made 16 others wait 70-80 s for a 4 s timing run
+(slots.log, 23:11-23:13); (2) **the CPU is shared**: at 8 lanes beside the other agents a case took 1.6x (short ones)
+to 3-8x (agrunt 1: 25 s alone, 87 s) its time alone. Undrawn frames (`vr_mock_fast 2`) don't avoid (1).
+
+**Lanes** (kit): `QVR_LANE=k` makes run.sh take the lock `agentlocks/<agent>.lane<k>` and run.ps1 (also `-Lane k`)
+use the game folder `bases/<agent>/<base>.lane<k>`: id1's paks hard-linked, the other game folders junctioned, and
+its own `quakevr`: the worktree's read-only folders junctioned, the ones the game writes its own (cache, screenshots,
+eyeshots, profile, diagnostics, logs, crash, saves), loose files copied when the worktree's is newer, `ironwail.cfg`
+from the baseline and the tips from the agent's tips baseline before each run. Without QVR_LANE nothing changes.
+`run_baseline.py --jobs N` (0: 8, 2 while the author plays) runs every case as one pool, longest first; the scripts
+that read the agent's own folder (`bases/<agent>/qbase/...`, the worktree's `quakevr/`) or play copies (testbatch,
+`-Instance`, eval.sh) stay in lane 0 (31 cases, ~1100 s alone: the critical path). Console-case timeouts scale with
+the lanes (x4 at 8). Full run at 8 lanes: 39.3 min against ~52 min one at a time; 17 cases (agrunt 11, 46, 50-59,
+67, 71, 76, arena 6: 34-195 s alone) hit the old 300 s timeouts, and with the scaled ones all 16 rerun match the
+baseline (71's counts 6/4 -> 7/3), but took 337-619 s each at 8 at once: 10-15x their time alone, far more than the
+CPU share. These draw many grunts' shots: likely the shared GPU (8 drawn games); `vr_mock_fast 2` (undrawn) for the
+cases with no pixel check is the next thing to measure. The other verdict changes are next's own (reload,
+reload_gunshape, parry_pose fail; fist_alert, swim_sound now pass) and counts of known failures.
+
+**Engine**: `vr_log_flush_frames` (0): the console log written out every frame that printed; run.ps1 -QuitOn sets it
+on builds that have it, reads only the log's new lines every 0.1 s and ends the run 0.3 s after the match. agrunt
+5/20/40 alone in a lane: 5.7/6.2/4.6 s -> 3.1/3.5/3.5 s, the same verdicts.
+
+Left: the lane-0 scripts made lane-aware (their log path from the lane, testbatch's copies `qbase.lane<k>.<n>`),
+which would bring the wall time near the free cases' ~5-10 min; exclusive runs that don't drain behind long runs.

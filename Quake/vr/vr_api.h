@@ -128,6 +128,7 @@ int VR_ErrorDialogSuppressed (const char *errorMsg);	// PL_ErrorDialog: nonzero 
 void VR_TimeStart (void);	// main, after Sys_Init: the process's start
 void VR_TimeInit (void);	// VR_Init: the commands
 void VR_TestConsolePrint (const char *text);	// Con_Printf (main thread): vr_waitprint's wait for a line (vr_testbatch.cpp)
+int VR_LogFlushFrames (void);	// LOG_Tick: vr_log_flush_frames (the log out every frame; vr_testbatch.cpp)
 void VR_NoteConsolePrint (const char *text);	// Con_Printf (main thread): the voice notes' console ring (vr_notectx.cpp)
 struct cvar_s;
 void VR_NoteCvarChanging (struct cvar_s *var, const char *value);	// Cvar_SetQuick: a setting about to change (vr_notectx.cpp)
