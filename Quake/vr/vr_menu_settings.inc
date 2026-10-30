@@ -1085,8 +1085,10 @@ za::Vector<Item> pageWeaponEffects()
         toggle("Muzzle Sparks", vr_gunfx_sparks)
             .help("A cone of sparks out of the muzzle (each barrel of the super shotgun; the energy guns throw electric arcs)."),
         slider("Spark Amount", vr_gunfx_spark_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("How many sparks a shot throws (each weapon's own: Weapon Offsets > Effects). 0: none."),
-        slider("Spark Size", vr_gunfx_spark_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f).help("How big the sparks are."),
+            .help("How many sparks a shot throws, the energy guns' arcs too (each weapon's own: Weapon Offsets > Effects). "
+                  "0: none."),
+        slider("Spark Size", vr_gunfx_spark_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("How big the sparks are (the energy guns' arcs too)."),
         slider("Spark Speed", vr_gunfx_spark_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
             .help("How fast the sparks fly out of the muzzle (so how far)."),
         toggle("Muzzle Smoke", vr_gunfx_smoke)
@@ -1094,9 +1096,9 @@ za::Vector<Item> pageWeaponEffects()
                   "flash's glow in it; the nail pistol's side vents smoke lightly. Never the energy guns'."),
         slider("Smoke Amount", vr_gunfx_smoke_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
             .help("How many puffs a shot's muzzle smoke has: how thick the cloud is (each weapon's own: Weapon Offsets > "
-                  "Effects). 0: none."),
+                  "Effects); the thunderbolt's ozone haze too. 0: none."),
         slider("Smoke Size", vr_gunfx_smoke_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
-            .help("How big the muzzle smoke's puffs are and how much they grow."),
+            .help("How big the muzzle smoke's puffs are and how much they grow (the thunderbolt's ozone haze too)."),
         slider("Smoke Speed", vr_gunfx_smoke_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
             .help("How fast the muzzle smoke billows out (so how far ahead the cloud reaches)."),
         slider("Smoke Directionality", vr_gunfx_smoke_direction, 0.f, 1.f, 0.05f, "%.2f")

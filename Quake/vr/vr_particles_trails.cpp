@@ -1007,18 +1007,18 @@ void electricArcs(const glm::vec3& org, float count, float reach, float size)
 }
 
 // AD support: an electric gun's muzzle or its bolt's hit (Preset::ElectricSparks): crackling arcs and `count` quick
-// blue-white sparks thrown along `dir`.
-void electricSparks(const glm::vec3& org, const glm::vec3& dir, int count)
+// blue-white sparks thrown along `dir`, arcs and sparks `size` times their size.
+void electricSparks(const glm::vec3& org, const glm::vec3& dir, int count, float size)
 {
     const glm::vec3 d = glm::length(dir) > 0.01f ? glm::normalize(dir) : glm::vec3{0.f};
-    electricArcs(org + d * 2.f, za::max(1.f, count * 0.4f), 2.f, 2.2f);
+    electricArcs(org + d * 2.f, za::max(1.f, count * 0.4f), 2.f, 2.2f * size);
     make(static_cast<float>(count), [&](Particle& p, int) {
         p.cell = CellSpark;
         const float w = vrand::range(rng, 0.8f, 1.f);
         p.color = glm::vec4{w * vrand::range(rng, 0.6f, 0.85f), w * vrand::range(rng, 0.8f, 1.f), w, 1.f};
         const float life = vrand::range(rng, 0.12f, 0.35f);
         p.die = cl.time + life;
-        p.scale = vrand::range(rng, 0.2f, 0.4f);
+        p.scale = vrand::range(rng, 0.2f, 0.4f) * size;
         p.type = Custom;
         p.fade = -1.f / life;
         p.grow = -0.3f;
@@ -1409,6 +1409,16 @@ bool gunParticle(const GunParticle& g)
                 break;
         }
     }, false);
+    return true;
+}
+
+bool gunArcs(const glm::vec3& org, const glm::vec3& dir, int count, float size)
+{
+    if(count <= 0 || !vr_particles.value || !ensureAtlas())
+    {
+        return false;
+    }
+    electricSparks(org, dir, count, size);
     return true;
 }
 

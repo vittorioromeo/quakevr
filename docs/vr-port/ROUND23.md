@@ -1686,6 +1686,36 @@ speed, directionality, thickness, opacity), per-weapon multipliers, and the wisp
   of the wisps' thin strips while they show (none in combat_48 unless you fire), the particles' reverse-order pass
   clears its stencil marks every 31 draws instead of 63.
 
+### The thunderbolt's wisps and settings; wisps on guns that leave the hand (branch `agent/lgfx`)
+
+His words: the lightning gun should have a smoke wisp too and read the spark/smoke per-weapon tweaks; then the wisps
+should persist on thrown, dropped and holstered weapons.
+
+- **Thunderbolt wisps** (vr_gunfx.cpp `wispLook`): one barrel, charge 0.05 a shot (it fires every 0.1 s: 2 s of beam
+  fill them), opacity 0.2 (the shotgun's 0.32), tinted blue-grey (0.82, 0.9, 1 times the grey: `muzzlewisps::Gun::tint`,
+  taken when they start). Every wisp setting applies (vr_gunfx_wisp_*, slot 7's Muzzle Wisp Opacity `fx_gfx_wisps`).
+- **Its arcs and haze read the settings**: the energy guns' arcs (thunderbolt, laser cannon, enforcer rifle, AD plasma)
+  now take Spark Amount (count) and Spark Size (`particles::gunArcs`: Preset::ElectricSparks with a size), global times
+  the slot's; the thunderbolt's ozone haze where the beam plays (vr_impacts.cpp) takes Smoke Amount (puffs) and Smoke
+  Size (size and growth), global times slot 7's (`gunfx::boltSmoke`). The QC's GUNSMOKE puff at its muzzle each shot
+  (weapons.qc W_FireLightning, like every gun's) is not ours and untouched. Menu helps say so. `vr_debug_gunfx 1`:
+  `gunfx light .. size <spark> <smoke>` per shot, `gunfx impact .. haze N size S`.
+- **Loose guns** (vr_muzzlewisps.cpp `release`/`looseFrame`, vr_gunfx.cpp `LooseGun`): when a hand's gun changes or goes
+  (handFrame's slot change) while it still holds smoke (in the delay too), its trails, smoke and time left move to one of
+  4 loose sources (the least smoke given up); the hand starts afresh. Within 0.5 s the gun is found, the nearest to its
+  muzzle's last place within 160 units: a client entity drawn with the same weapon slot's model (QC's thrown_weapon:
+  dropped or thrown) or a holster's gun (`view::holsterGun`); then followed by entity number or holster index, its
+  muzzle found as in the hand (`muzzleOf`: the slot's Muzzle Anchor and offset on that entity, `wispGun`: the barrels).
+  Not drawn (picked up, gone): its smoke stops, what it let go fades. `vr_debug_gunfx 1`: `gunfx wisps loose hand H as
+  K`, `gunfx wisps found prop|holster N after T s D units off`; 2 also `gunfx wisps loose K at <muzzle> on <origin>`.
+  Not done: a gun taken back up keeps no smoke (the loose one stops); a hand gun invisible for one frame while held
+  would hand its smoke to a loose source that finds nothing (not seen in the tests).
+- **Tests**: gunfx_test.py `--only wisps` 8/8 (the thunderbolt's: 5 shots, 1 barrel, 0.26 s after, drawn, faded),
+  `--only slots` 10/10 (new: slot 7 at 1, 0, 2: arcs 5/0/10, sizes 1/2, haze 1/0/2 puffs, sizes 1/2; the case moved to
+  vrtesthall: a wall ahead for vr_impact_test 3), `--only loose` 4/4 (new: a shotgun dropped, a super shotgun thrown
+  (vr_mock_swing), a shotgun holstered at the right shoulder: released, found 0.00 s later 11-22 units off, followed
+  97-127 frames within 48 units of the gun's origin, the props falling 36-55 units, faded, drawn).
+
 ## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
 
 His words: a slide that moves with each shot, locks open on an empty magazine, closes by itself with a sound when a
@@ -2729,3 +2759,31 @@ Checklist lines:
 - In slow motion, punch a grunt's gun out of its hand.
 - Swing a held shotgun or a carried crate into a grunt's gun: knocked out. Throw a gun at its gun hand: knocked out.
 - Punch a grunt's legs or chest away from its gun: it is hurt, keeps its gun.
+## Nail pistol: no flicker at the muzzle's back, a distinct steel back end (branch `agent/npslide4`)
+
+His words (2026-10-30): some triangles on the back of the muzzle flicker, seen only with the slide drawn; the
+steel/silvery back end more distinct, as in the pre-slide art.
+
+- **The flicker:** the classic nozzle's back is a closed hexagonal cap (shared by both looks, x 7.19, facing back),
+  hidden in either look until the full slide draws back past it. npslide2's ring (`nozzle_ring`, iron, closing what it
+  took for an open back) lay on the same plane facing the same way: 12 triangles z-fighting with the cap's 4. The ring is
+  gone (the cap closes the nozzle; the barrel passes through it). Nothing else: no triangle wound against its normal, the
+  folds degenerate in frames 2, 3 and every blend past 3 (to 4.6, Slide Travel 3), no other same-facing coplanar pair
+  with a new triangle (the slide's bottom on the frame's top face opposite ways: back faces culled).
+- **Check in the script:** `check_faces` (build_nailpistol_slide.py) runs on every build in frames 2 and 3 and blends
+  1, 2 and the most (4.6): folds, winding (Quake clockwise vs the vertex normal) and coplanar overlapping same-facing
+  pairs (planes within 0.04 units, a 2D overlap test); it stops the build on a problem. With the old ring added back it
+  reports 84 (the ring's 12 triangles against the cap's).
+- **Steel back end** (behind x -2.4, the classic housing's place: the slide's walls, chamfers, top, end and the frame):
+  the classic housing is about 1.5x its receiver's light (sampled: luminance 40 vs 26), and the full slide's front is as
+  light as that housing (41), so the sampled texels alone did not stand out. Each texel now: its light lifted 1.2x
+  (`REAR_GAIN`), its swing about the housing's mean cut to 0.75 (`REAR_FLAT`: less mottled), a cool steel hue
+  (`REAR_TONE` 0.93 1.0 1.1, 30% of its own hue kept); the housing's bright bevelled rim on its outline (0.13 units), and
+  a seam at x -2.4 (a dark groove in front, a lit line behind). Texels with no classic face near take the housing's mean.
+  The rest of the paint, the classic frames and texels are unchanged (classic rows 0 changed, frames 0/1 identical);
+  the script stays deterministic (a rerun on its output: byte-identical).
+- **Eyeshots** (qvr-kit/scratch/npslide/): `npslide4_classic_closed_open_muzzle.png` (rows: classic closed, full slide
+  closed, locked open (travel 1.5), the muzzle's back close up at travel 3; right side left column, left side right),
+  `npslide4_rear_before_after.png` (full slide closed, before / after), `npslide4_thumbs.png`.
+- **Tests:** `vr_np_test 1` fails on origin/next with the old model the same way (0 passed, 3 failed: "the trigger held
+  0.55 s fired 0"): not this change; baseline.tsv's np_1 (21 passed) is older than the test's 35 checks.
