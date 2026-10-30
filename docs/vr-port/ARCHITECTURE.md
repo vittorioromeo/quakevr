@@ -139,8 +139,9 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
   `VR_OnClientClearState`. A new view entity: an `Entities` member (vr_view_internal.hpp).
 - **Game rules** in QC unless they need the headset, physics or speed; a number both sides use goes in a shared `.h`.
 - **Settings**: a `QVR_CVAR` row in vr_cvars.inc (the QC handle file is regenerated), a menu row in its
-  `vr_menu_*.inc` page (rows via the `menu_detail` builders), a `defaultChanges` row (vr_cvars.cpp) when a shipped
-  default changes. Renamed or moved menu rows: run `vr_menu_path_check maps/vrcalibration.map` and update
+  `vr_menu_*.inc` page (rows via the `menu_detail` builders). A shipped default changes: edit the default alone (the
+  config is sparse since configVersion 218, so it reaches every player who left the setting alone; `defaultChanges` is
+  frozen: CODE_STYLE.md, "Settings and the config"). Renamed or moved menu rows: run `vr_menu_path_check maps/vrcalibration.map` and update
   `Misc/quakevr/make_vrcalibration_map.py`.
 - **Debug and test aids**: in the Debug menu pages; tests in QC `*_test.qc` under `#ifdef QVR_TESTS`, or C++
   `_diag.cpp` commands; a numbered test claims its number in `QC/test_numbers.txt`.

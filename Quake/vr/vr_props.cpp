@@ -50,11 +50,12 @@ constexpr const char* keyDefaults[numKeys] = {
 #undef QVR_PROP_KEY
 };
 
-// Configs archive every slot, so a slot whose shipped defaults change keeps a config's old values: vr_props_version
-// says which changes a config has seen (as vr_wofs_version for the weapons). 68 is 1.0.0's: the changes before it were
-// dropped with the configs older than 1.0.0 (vr_cvars.cpp resetOldConfig resets those). A config still below it (a
-// first start's 50, saved before anything asked for a slot) has 1.0.0's shipped values, today's: it only takes the
-// version. A change from now on: a `{version, step}` table as vr_weapons.cpp's.
+// vr_props_version says which changes a config has seen (as vr_wofs_version for the weapons). 68 is 1.0.0's: the
+// changes before it were dropped with the configs older than 1.0.0 (vr_cvars.cpp resetOldConfig resets those). A config
+// still below it (a first start's 50, saved before anything asked for a slot) has 1.0.0's shipped values, today's: it
+// only takes the version. Configs are sparse since configVersion 218 (a slot's line only when changed from its
+// default), so a changed shipped default needs no step; one that transforms values would be a `{version, step}` table
+// as vr_weapons.cpp's (CODE_STYLE.md, "Settings and the config").
 constexpr int settingsVersion = 68;
 
 SlotTable<Key, numSlots, numKeys> slots; // vr_prop_<key>_NN

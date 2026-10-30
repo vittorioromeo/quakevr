@@ -1960,6 +1960,21 @@ QVR_CVAR(vr_tracer_r, "1", CVAR_ARCHIVE)               // their colour (a weapon
 QVR_CVAR(vr_tracer_g, "0.8", CVAR_ARCHIVE)
 QVR_CVAR(vr_tracer_b, "0.45", CVAR_ARCHIVE)
 QVR_CVAR(vr_tracer_brightness, "1", CVAR_ARCHIVE)      // times the colour (they add light onto the scene)
+// Gunfire particles (vr_gunfx.cpp; ROUND23.md, "Punchier gunfire"): per shot, by the weapon's id, yours, the armed
+// grunts' and the grunts' and enforcers' guns alike.
+QVR_CVAR(vr_gunfx, "1", CVAR_ARCHIVE)                  // 0: none of them (the effects below)
+QVR_CVAR(vr_gunfx_intensity, "1", CVAR_ARCHIVE)        // how many of them, all (0.25-3; fewer at high fire rates anyway)
+QVR_CVAR(vr_gunfx_sparks, "1", CVAR_ARCHIVE)           // a cone of sparks out of the muzzle (the energy guns: electric arcs)
+QVR_CVAR(vr_gunfx_smoke, "1", CVAR_ARCHIVE)            // a cone of smoke billowing forward out of the muzzle with the flash, the flash's glow in it (never the energy guns'); the nail pistol's vents
+QVR_CVAR(vr_gunfx_turbulence, "1", CVAR_ARCHIVE)       // how much the gunfire smoke swirls as it spreads (0 none: straight drift; 0-3)
+QVR_CVAR(vr_gunfx_port, "1", CVAR_ARCHIVE)             // a small quick puff out of a shotgun's ejection port (the super shotgun's open breech)
+QVR_CVAR(vr_gunfx_backblast, "1", CVAR_ARCHIVE)        // a rocket launcher's backblast smoke behind it, and dust off the floor under it
+QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sustained fire (the nailguns'): wisps of smoke off the muzzle, a faint glow
+QVR_CVAR(vr_gunfx_impacts, "1", CVAR_ARCHIVE)          // bullets' and nails' wall hits by the surface's material (vr_impacts.cpp): dust off stone, sparks off metal, chips off wood
+QVR_CVAR(vr_gunfx_ozone, "1", CVAR_ARCHIVE)            // a faint bluish ozone haze where the thunderbolt's beam plays on a surface
+QVR_CVAR(vr_gunfx_enemies, "1", CVAR_ARCHIVE)          // the monsters' guns too (the grunts', the enforcers', the armed grunts')
+QVR_CVAR(vr_gunfx_shell_trail, "1.6", CVAR_ARCHIVE)    // every spent casing's smoke trail, times (0 none; 1 the old faint one)
+QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire particles ("gunfx shot ...", "gunfx port ...")
 QVR_CVAR(vr_debug_weaponfx, "0", CVAR_NONE)            // 1: each shot's effects ("weaponfx fired/tracer"); 2: and the recoil each frame ("weaponfx recoil"); 3: as 1, and the eyes' view of the next grunt's flash (vr_eyeshot, once)
 QVR_CVAR(vr_body_arm_length, "1", CVAR_ARCHIVE)      // arm length, relative to the proportions of vr_height_calibration
 QVR_CVAR(vr_body_arm_stretch, "1.2", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
@@ -2757,7 +2772,7 @@ QVR_CVAR(vr_swim_wade_speed, "0.6", CVAR_ARCHIVE)     // waist deep standing on 
 QVR_CVAR(vr_swim_stick_speed, "0.25", CVAR_ARCHIVE)    // and swimming (deeper, or off the bottom)
 QVR_CVAR(vr_swim_stroke_assist, "0.5", CVAR_ARCHIVE)  // strokes push this much more towards where the stick points (and as much less against it)
 QVR_CVAR(vr_water_jump, "0", CVAR_ARCHIVE)            // Quake's jump out of water: swimming against an edge with room over it lifts you out (0: climb out with the hands; only while vr_climb is on, QC client.qc)
-QVR_CVAR(vr_cfg_version, "0", CVAR_ARCHIVE)           // the changed defaults this config has taken (vr_cvars.cpp)
+QVR_CVAR(vr_cfg_version, "0", CVAR_ARCHIVE)           // the changed defaults this config has taken (vr_cvars.cpp; 218 and later: a sparse config, written only with the vr_ settings changed from their defaults)
 QVR_CVAR(vr_swim_stroke, "10", CVAR_ARCHIVE)          // how strongly a hand pushing the water moves you (per second, at a brisk stroke: slower less)
 QVR_CVAR(vr_swim_stroke_min, "1", CVAR_ARCHIVE)     // metres/second a hand must move to push
 QVR_CVAR(vr_swim_palm, "0.8", CVAR_ARCHIVE)           // how much it matters that the palm, not the edge, meets the water
@@ -2821,7 +2836,8 @@ QVR_CVAR(vr_nailpistol_volume, "1", CVAR_ARCHIVE)      // its shot's volume (0..
 // rounds put in closes it with a rack (vr/nailpistol_rack.wav). vr_nailpistol_slide_time (held back 0.07 s) retired.
 QVR_CVAR(vr_nailpistol_slide_travel, "1.5", CVAR_ARCHIVE) // how far it goes back, in the gun's model units (0..3: progs/v_nailpistol.mdl's frame 1 is 3 back)
 QVR_CVAR(vr_nailpistol_slide_cycle, "0.14", CVAR_ARCHIVE) // s back and home after a shot (a third back, the rest home; a re-rack closes in the home part)
-QVR_CVAR(vr_nailpistol_smoke, "1", CVAR_ARCHIVE)       // a wisp of smoke from its muzzle after shots (0 none; more after a quick string)
+QVR_CVAR(vr_nailpistol_model, "0", CVAR_ARCHIVE)         // its look: 0 classic (a copper slide on top), 1 full slide (the whole upper receiver; v_nailpistol.mdl frames 2-3, build_nailpistol_slide.py); live
+QVR_CVAR(vr_nailpistol_smoke, "1", CVAR_ARCHIVE)       // light smoke out of its side vents with each shot (vr_gunfx.cpp; 0 none, up to 3x; longer after a quick string)
 QVR_CVAR(vr_dmg_revolver, "28", CVAR_ARCHIVE)        // the heavy revolver (QC vr_revolver.qc): a slug's (a grunt, 30: one in the head at x1.5, two in the body, or one when its roll reaches 30; vr_revolver_heavy_mult in a big body; his 28 of 2026-10-27, was 26)
 // The heavy revolver (QC vr_revolver.qc; Combat > Weapon Damage > Heavy Revolver; Weapons > Reloading > Heavy
 // Revolver): one-handed, double action (a pull cocks the hammer, turns the cylinder a chamber and fires), six chambers
@@ -4541,6 +4557,7 @@ QVR_CVAR(vr_debug_model_collide, "0", CVAR_NONE)      // 1: print each hand's pu
 QVR_CVAR(vr_gun_wall_slide, "1", CVAR_ARCHIVE)       // a held weapon against the level: 1 slides along what it meets (rests on a table top, held off a wall along its surface: vr_handpose.cpp); 0 the old push-back along the aim (the hand moved back until the muzzle stops at the wall)
 QVR_CVAR(vr_gun_wall_max, "40", CVAR_ARCHIVE)        // with vr_gun_wall_slide: cm, the most a held weapon and its hand are held out of the level (pushed further, they go in by the rest; the weapon keeps resting where it was held)
 QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 3: also each fast frame's strike-pass test (vr_melee_world_pass: the far part's box, the body found); 1: print each hand drawn away from where it is tracked (0.01 units or more), and by what: the walls, the weight's spring, the models, a prop in the other hand, the body; 2: every frame (tests)
+QVR_CVAR(vr_test_give_wid, "-1", CVAR_NONE)           // impulse 149 (tests): that weapon id, loaded, in the main hand (any id: impulse 150 + id reaches 19)
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...; 18 the Guardian, 19 the dragon, 20 the marksman ogre: tests only), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up, 107-109 crates, 110 the rocks and bricks (a row of each), 111/112 a barrel upright/lying, 113 the silver key, 114 a long plank, 115 a brick (the leg sweep tests), 120..124 the climbing tests' crates square to you (a large one, two large stacked, a large one on its side, a small one on a large one, a small one)
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
 QVR_CVAR(vr_test_spawn_facing, "0", CVAR_NONE)        // the test spawners' monsters (impulse 241 and 244, vr_physics_spawn): 0 as each did (241 and 244 facing you, vr_physics_spawn its own angle), 1 facing you, 2 facing away (trailer shots), 3 their own angle (a map's 0), 4 its left side to you, 5 its right side to you

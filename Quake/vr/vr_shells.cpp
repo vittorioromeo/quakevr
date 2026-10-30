@@ -21,6 +21,7 @@
 #include "vr_flick.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_hands.hpp"
+#include "vr_gunfx.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
@@ -445,6 +446,10 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         }
 
         particles::shellEject(pos, dir, w->smoke * (flick ? 1.5f : 1.f), w->sparks);
+        if(w->model != modelmeta::Id::VRevolver && i < w->ports)
+        {
+            gunfx::portSmoke(pos, dir, flick); // the port's quick puff (the revolver's cylinder: none)
+        }
     }
 }
 
@@ -610,7 +615,7 @@ void fly(Shell& s, float dt)
     const float age = static_cast<float>(cl.time - s.born);
     if(age < trailTime && !liquid)
     {
-        particles::shellTrail(from, s.pos, s.smoke * (1.f - age / trailTime));
+        particles::shellTrail(from, s.pos, s.smoke * gunfx::shellTrail() * (1.f - age / trailTime)); // (vr_gunfx_shell_trail)
     }
 }
 

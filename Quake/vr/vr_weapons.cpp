@@ -128,7 +128,9 @@ namespace
            info.is(modelmeta::Id::HandRigF);
 }
 
-// Configs archive every slot's settings, so a slot whose defaults change keeps a config's old values: vr_wofs_version
+// Configs archived every slot's settings until configVersion 218 (sparse since: a slot's line only when changed from its
+// default, so a changed default needs no step from now on; a step only transforms values: CODE_STYLE.md, "Settings and
+// the config"), so a slot whose defaults changed kept a config's old values: vr_wofs_version
 // says which of these changes a config has seen (vr_props_version is the held objects'). The changes before 1.0.0
 // (versions 1-40) were dropped with the configs older than 1.0.0 (vr_cvars.cpp resetOldConfig resets those). 41: the
 // anchors (round 22: points on the models' surfaces, not vertex indices; vr_anchor.hpp): each of the config's indices to
