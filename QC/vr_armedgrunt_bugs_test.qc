@@ -114,7 +114,7 @@ void() VR_AGBT_Pickup =
     {
         if(vr_agbt_case >= vr_agbt_count || (vr_agbt_keep > 0 && vr_agbt_case != vr_agbt_keep - 1))
         {
-            VR_AGT_Print(sprintf("pickups: %g passed, %g failed", vr_agt_passed, vr_agt_failed));
+            VR_AGT_Print(sprintf("pickups: %g passed, %g failed", vr_test_pass, vr_test_fail));
             p.flags = p.flags - (p.flags & FL_NOTARGET);
             cvar_set("vr_agrunt_test_kind", ftos(vr_agbt_val2));
             cvar_set("vr_agrunt_test", "0");
@@ -326,13 +326,13 @@ void() VR_AGBT_Friendly =
     VR_AGBT_RowRemove();
     if(vr_agbt_case == 0)
     {
-        vr_agt_failed = hits; // (the first run's hits)
+        vr_test_fail = hits; // (the first run's hits)
         vr_agbt_case = 1;
         vr_agt_step = 1;
         return;
     }
-    VR_AGT_Print(sprintf("friendly fire: %g hits careless, %g careful, %g damage to you: %s", vr_agt_failed, hits, pdmg,
-        ((hits < vr_agt_failed || vr_agt_failed == 0) && pdmg > 0) ? "PASS" : "FAIL"));
+    VR_AGT_Print(sprintf("friendly fire: %g hits careless, %g careful, %g damage to you: %s", vr_test_fail, hits, pdmg,
+        ((hits < vr_test_fail || vr_test_fail == 0) && pdmg > 0) ? "PASS" : "FAIL"));
     cvar_set("vr_agrunt_friendly_care", ftos(vr_agbt_care));
     cvar_set("vr_agrunt_test", "0");
 };

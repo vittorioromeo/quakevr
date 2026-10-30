@@ -1551,3 +1551,83 @@ physgun get the shared throw smoothing; the haptic presets keep today's exact va
 - **Checklist:** throw the flashlight (a flick and a lob): it flies as a thrown prop would, never over 3 m/s, then
   home; physgun swing a crate and let go at the end of the swing: it keeps the swing (before: an eased 83 ms average,
   slower); every grab, pickup, holster, lamp and foe-grab buzz feels as before.
+
+## Nail pistol: a full-slide look (branch `agent/npslide2`)
+
+His words (2026-10-30): the model should have a full slide on top like an actual pistol, as a testable alternative, the
+current one kept to fall back to.
+
+- **The setting:** `vr_nailpistol_model` 0 (default: Classic, the copper slide on top) / 1 (Full Slide); VR Settings >
+  Combat > Weapon Damage > Nail Pistol Model, under Slide Cycle. Live: every copy of the gun (hands, holsters, armed
+  grunts' props, items, the toolgun's) changes at once.
+- **One file, two looks:** `progs/v_nailpistol.mdl` keeps its classic frames 0 `rest` / 1 `rest1` byte for byte (same
+  vertices, triangles, box, scale_origin; the skin's first 256 rows) and gains frames 2 `slide` / 3 `slide1` and 364
+  triangles. Each look's own triangles are folded to one point inside the gun in the other look's frames (zero area,
+  nothing drawn); the grip, guard, trigger, muzzle and sights are shared. `VR_NailSlidePose` (vr_nailslide.cpp) draws
+  frames 0/1 or 2/3 by the setting, with the slide logic unchanged (the server's frame 1 = back, its share either way).
+  Why not a second .mdl: the model's scale_origin is the corner the game scales the gun about (vr_render.cpp), its
+  bounds the held boxes; a first try that grew the box moved the drawn gun in the hand (seen in eyeshots), so the box
+  is the classic one. Its frame 3 can then hold the slide only 12 x steps back (0.651 units; the box ends there):
+  the game blends past frame 3 (blend up to 3 / 0.651 = 4.6, a pure translation in whole byte steps, every vertex alike;
+  `mix` in the shader extrapolates), so Slide Travel 0..3 works the same in both looks.
+- **The model** (`Misc/quakevr/models_src/nailpistol/build_nailpistol_slide.py`, new, pure Python: run after
+  export_mdl.py; on its own output it writes the same file again): a frame (lower receiver z 1.0..1.7 in design units,
+  a dust cover in front, hiding the grip's top; dark iron), a slide (x -4.6..7.3, the seam at z 1.7, walls +-1.2 to
+  4.7, chamfered to a 1.8 wide top at 5.0: the three vents as slide cuts where they were, an ejection port on the right
+  side with the copper feed block and two nails in it, rear cocking serrations both sides, two rivets a side; the
+  sights ride on it at their classic places, so the sight-alignment table holds), a copper hexagonal barrel on the
+  bore that shows when the slide is back, a ring closing the nozzle's back. Walls and caps are gridded on every break
+  (no T-junctions). The skin grows to 256x512: the new parts painted below row 256 by the script, after
+  build_nailpistol.py's painter (rust, pitting, worn edges, rivet domes; crevices by distance instead of ray-traced
+  occlusion; tone matched to the classic receiver's texels: mean colour 62 46 31 vs 65 48 33).
+- **Vents** (agent/gunfx's vent smoke): at rest exactly where they were; in the full-slide look they ride the slide
+  during a shot's cycle (0.14 s) and while locked open (Slide Travel back).
+- **Checks:** build 0 warnings, all checks. The classic look against the old file (eyeshot, same pose, the gun's
+  crop): mean 1.3 per channel (the two runs' own noise: the sky crop 0.0), drawn in the same place; before the box was
+  kept it was 36 (the gun moved). Eyeshots in qvr-kit/scratch/npslide/: `fullslide_left.png` (left side) and
+  `fullslide_right.png` (right side, the port): classic closed, full slide closed, full slide locked open (travel 1.5),
+  classic locked open; travel 3 classic, full slide.
+- **For him to try:** VR Settings > Combat > Weapon Damage > Nail Pistol Model; fire it dry to see it lock open, put a
+  magazine in to see the re-rack; Slide Travel 3 to see the barrel. If he picks Full Slide, its default becomes 1.
+## One test harness, part 1: one library, one parser, one tally (branch `agent/oneharness`; design review 7)
+
+- **Library**: `Misc/quakevr/qvrtest.py` (KIT, tree, run, run_sh, lanes, `Tally`, the parser `FAIL_LINE` / `counts` /
+  `verdict_near`, FLAKY, mock builders `hand/button/grip/waits/motion`) and `qvrtest.sh` (`check`, `verdict`,
+  `expect_verdict`). One flaky list: `Misc/quakevr/test_flaky.txt` (the baseline's 16 plus teleporters_chase).
+- **Runners**: run_test_suite.py runs and parses through qvrtest (its FAIL_LINE also reads `<name>: FAIL`: 0 of 286
+  recent logs judged differently); the kit's run_baseline.py loads the tree's qvrtest.py (a tree without one: the kit's
+  copy `qvrtest_fallback.py` and the old flaky set).
+- **Migrated**: 25 shell suites source qvrtest.sh (their `check()` copy gone; lines now `<name>: PASS|FAIL <what>` and a
+  final `<name>: N passed, M failed`); judo, leggrab, legsweep, ragimpact, struggle and ad_active use `qvrtest.Tally`
+  (`FAILS n` / `n failed` became the verdict line). QC: `VR_Test_BeginFlags` (LOUD: bprint; QUIET: failures only);
+  the armed grunts' tests, the arena's and the perks' checks count on vr_testutil's tally (4 pass/fail global pairs
+  gone; `agtest: <what>: PASS` became `agtest: PASS <what>`, `arena: fail <what>` became `arena: FAIL <what>`).
+  Verdict lines unchanged, so the -QuitOn patterns are too.
+- **Guard**: check_canonical.py families `qc-test-tally`, `qc-test-verdict`, `cpp-test-verdict`, `py-test-copy`,
+  `sh-test-copy` (today's 121 sites allowlisted; a new copy fails the build).
+- **Left (part 2)**: one spawner (impulse 241; 16 helpers), the scenario's settings on testbatch's snapshot, the 64
+  QC hand-printed verdicts, 23 Python files' kit paths, the C++ `_diag` printers; the other workers' test files
+  (held things, config) left alone.
+## Weapon fixes of 2026-10-30: laser bolts on walls, stream shake (branch `agent/wpnfix1030`)
+
+- **Laser bolts bled on walls and floors** (vrfiringrange_2026-10-30_12-16-02). Not a recent code change: the firing
+  range's worldspawn (`quakevr/maps/vrfiringrange@3647.ent`, since the map came in) carries stray `"health" "9"` (with
+  `count` and `dmg`), so `world.health` was 9 and every touch that asks `other.health` (HIP_LaserTouch, the enforcer's
+  Laser_Touch, Rogue's and MG3's shots) read the world as flesh: blood (`spawn_touchblood`) and the bolt stopped instead of
+  sparking and bouncing. Fix at the cause: `worldspawn()` (world.qc) clears `self.health`, for any map with such a key
+  (nothing reads world.health; AD's start health is its own `ad_reset_health`/`max_health`). The .ent is left as is (it
+  keeps the test honest). Test: `vr_mg3_wtest 16` in vrfiringrange (developer 1): world health 0, 12 bolts at the floor
+  ahead bleed nothing (vr_blood_sent), then one at a soldier spawned ahead bleeds it; each phase ends when its bolts are
+  gone; verdict `mg3wtest: laserblood N passed, M failed`. Before the fix: 2 FAIL (health 9, 12 blood); after 5/0.
+- **Stream shake**: the AD flamethrower and poison sprayer tremble a little while they fire, and the hand buzzes. The QC's
+  VR_ADGun_FireFlame (the player's: `self.ishuman`) sends `weaponfired(self, hand + 2)` each flame (every 0.1 s) in
+  place of its fixed `VRGunHaptic(hand, 0.1, 40, 0.4)`; sendFired passes hands 2 and 3, the client's parseFired gives
+  them to `weaponfx::streamed`, and recoilOffset adds `streamShake`: a lean (kick 0.1) and a tremble (+-0.06, three sine
+  waves of cl.time: the same each run) and a sideways wobble, through the weapon's recoil (Kick Back, Muzzle Rise and the
+  global Weapon Effects' ones), in over 50 ms and settling over Return Time x Recovery after the last flame (+0.16 s).
+  At 1: 0..0.6 degrees up, 0.23 cm back, 0.12 degrees turned. The rumble: the same 0.4 at 40 Hz each flame (0.12 s), now
+  times the weapon's Stream Rumble. New per-weapon keys (Weapon Offsets > Effects): Stream Shake
+  (`vr_wofs_fx_stream_shake_NN`) and Stream Rumble (`vr_wofs_fx_stream_haptic_NN`), 0 for every slot but 30 and 31 (the
+  pyro's and the fumigator's guns, 1). Test: `vr_recoil_test`'s stream part (7 checks: defaults, a flame starts it, it
+  shakes every frame of a second of flames and trembles, under a degree, settled after, none at 0): 24/0. Not checked
+  here: a real flamethrower (the kit's bases have no AD data); the network hop is two lines.

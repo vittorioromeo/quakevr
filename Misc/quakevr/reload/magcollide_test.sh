@@ -17,7 +17,7 @@ export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/../qvrtest.sh"
 BASE="map e1m1;wait60;developer 1;vr_reload_debug 1;vr_weapon_grip_mode 1;impulse 9;wait2"
 OFFGUN="wait3;vr_test_weaponinst 7;impulse 120;wait3;give n 100;give c 100;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;wait10;vr_reload_bump_speed 100"
 
@@ -75,6 +75,7 @@ for c in 1 0; do
     echo "  magazine collide $c: $ms"
 done
 echo "  (the profile's box3d step and reach: their average and worst per frame)"
+verdict
 exit $fail
 }
 source "$(dirname "$0")/../testbatch/testbatch.sh"

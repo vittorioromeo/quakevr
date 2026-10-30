@@ -19,7 +19,7 @@ export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/../qvrtest.sh"
 REP="vr_reload_test 0;impulse 125;wait2"
 F="^reload: (off hand|rockets|[0-9] into|a .* (taken|the wrong|held at)|an? .*placed loose|loose |the pouch)|collect fx: .*(240|gone in)"
 POUCH="vr_mock_hand_to main ammopouch;wait5;vr_mock_hand_to main ammopouch;wait5"
@@ -123,6 +123,7 @@ done
 check $ok "every launcher round from the ammo pouch sits nose up in the hand, whatever the hand's turn ($axes)"
 log=$(tb_run_sh -Script "$(HP=0 setup 160 "140 0 0");vr_mock_hand main 0.25 1.1 -0.3 30 40 -20;wait5;$POUCH;$GRIP;$REP;vr_reload_front_hold_pitch 90;toggleconsole;quit" -Filter "^grip: from the ammo pouch" 2>&1)
 check $(hold "$log" | awk '{ print (NF == 6 && $1 > 0.99) ? 1 : 0 }') "Round In Hand Pitch 0: the rocket along the hand's forward ($(hold "$log"))"
+verdict
 exit $fail
 }
 source "$(dirname "$0")/../testbatch/testbatch.sh"

@@ -22,7 +22,7 @@ export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/../qvrtest.sh"
 REP="vr_reload_test 0;impulse 125;wait2"
 F="^reload: (off hand|mode|[0-9] into|.*from the pouch|.*pouch is empty|.*magazine in: nothing|the super shotgun open)|^MARK"
 run() { tb_run_sh -Script "$1;toggleconsole;quit" -Filter "$F" 2>&1; }
@@ -115,6 +115,7 @@ for g in "156 n 200 50_0_0" "157 n 216 0_0_-90" "161 c 200 50_0_0"; do
     check $([ "$seated" = 111111 ] && echo 1 || echo 0) "gun $1, six magazines drawn: the well on each seats one ($seated, want 111111)"
 done
 
+verdict
 exit $fail
 }
 source "$(dirname "$0")/../testbatch/testbatch.sh"

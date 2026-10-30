@@ -1,0 +1,11 @@
+# The known-flaky tests: one list for every runner (qvrtest.FLAKY). Format: <name> ...  # why
+# Names are the runners' case names: Misc/release/run_test_suite.py's tests (with --allow-flaky they only warn) and the
+# kit's refactor run_baseline.py cases (a change of counts is listed apart and does not fail its compare). Take one off
+# once it is steady again (several identical full runs).
+
+# Quake's AI is random (ROUND21.md, "Test suite pass (2026-10-09)"): a dog or fiend may miss the gate in 3 runs.
+teleporters_chase
+# Timing-, lane- or physics-sensitive counts on the same commit (the refactor baseline runs, 2026-10-30).
+agrunt_1 agrunt_47 agrunt_60 agrunt_63 agrunt_67 agrunt_71 agrunt_72 agrunt_76 agrunt_86
+ragdoll_ragtest ragdoll_grab ragdoll_guard judo
+rv_1 agarmor_5 stealth
