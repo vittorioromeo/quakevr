@@ -1870,3 +1870,71 @@ current one kept to fall back to.
   pyro's and the fumigator's guns, 1). Test: `vr_recoil_test`'s stream part (7 checks: defaults, a flame starts it, it
   shakes every frame of a second of flames and trembles, under a degree, settled after, none at 0): 24/0. Not checked
   here: a real flamethrower (the kit's bases have no AD data); the network hop is two lines.
+
+## One impact-effect table (branch `agent/impacttable`; design review 4, his "perform all")
+
+The QC's hit ladders now sit on the table gunfx started (`Quake/vr/vr_impacts.cpp`): one row per material x hit kind
+holds the world surface's extras (the client's: dust, sparks, chips, haze), the decal (a wall hit's own `TempEntity`
+mark; none on a thing: its wound is the QC's), the thing's effect (one particle2 preset, count = amount x scale clamped,
+direction = (dir x scale + add + spray) x leaf, origin along dir) and three sound slots (the hit's own, a blunt blow's
+layer, what plays over it). Keys shared with the QC: `Quake/vr/vr_impact_shared.h` (`VR_MAT_*`: none, stone, dirt,
+metal, wood, flesh, armour, torch, grenade; `VR_HIT_*`: bullet, nail, super nail, bolt, pellet, blow, blade, splash,
+saw, bash). Builtins `impact(material, kind, org, dir, amount)` (sends the row's particle2) and
+`impactsound(material, kind, slot)` (a sample of the row's set, one random() drawn as the old picks did; "" draws
+none). QC (`vr_crates.qc`): `VR_MaterialOf(e)` (torch, grenade, metal, wood, armour, else flesh) replaces the five
+ladders' own predicate chains; `VR_ImpactFx(m, kind, targ, org, dir, amount)` sends the row, a shot's metal ring once a
+frame, and keeps the tests' counters (`vr_metal_hits`, `vr_splinters_sent`, `vr_blood_sent`) and `developer` lines.
+On it: TraceAttack, spawn_touchblood, VR_HitBlood, VR_HitNonFlesh, VR_HitBloodSplash, the chainsaw's tick, a thrown
+crate's splinters, SpawnBlood and SpawnBloodSplash (so their 14 + 9 call sites, and spawn_touchblood's 18, go through
+the table), VR_Melee_HitSoundOn, VR_Blunt_HitLayer and the box/holster knocks (impactsound). Gone: VR_Metal_Hit,
+VR_Metal_Sound, VR_METAL_*, VR_Pick4, VR_Crate_Splinters, VR_GrenShot_Sparks (gameplay QC 215 lines out, 128 in).
+check_canonical: two new families freeze what is left, `qc-hit-fx` (a hand-made particle2 of blood, sparks or wood
+dust: 41 sites, none of them a material hit) and `qc-material-ladder` (VR_Hit_Metal / VR_Crate_Wooden /
+VR_Hit_Armoured calls: 16, rules not effects).
+
+Debug > Tests: Print Impact Effects (`vr_debug_impacts 1`: every particle2 and QC sound the server sends, `impfx p2
+...`, `impfx snd ...`), Every Hit Ladder on Every Material (`vr_impact_qc_test 1`; 1-7 one ladder, 9 all, verdict
+`imptest: N calls`; QC/vr_impacts_test.qc).
+
+Left on purpose: gore's own blood (9 direct particle2 sites: player gibs, decap, limbs, Chthon, vr_carry's gore
+events: their own counts), SpawnMeatSpray (spawns gibs: gore that drives entities stays QC), the particle2 events
+40-43 and decals::fromEffect, the second material enum (physsound::Material), the muzzles (proposal 3), the other
+hit sound literals (only the metal and blunt-layer sets moved: 7 sets), AD's own ladders (ad_TraceAttack,
+ad_SpawnBlood, ad_Resist_Shells: AD code; their no-flesh hits already go through VR_HitNonFlesh, the pellet row).
+
+**Disagreement list (for him; every row keeps today's output):**
+1. Armour plate: TraceAttack, spawn_touchblood and VR_HitBloodSplash ask an armed humanoid's plate
+   (VR_AgArmor_HitFx: sparks, blood only for what gets through); VR_HitBlood does not, so a melee blow (and the
+   chainsaw) on unbroken plate bleeds in full. Suggest: VR_HitBlood asks too.
+2. Knights' armour (VR_Hit_Armoured) changes only the blunt layer's sound (light metal over a duller slap); every
+   ladder's particles on them are plain blood. The Armour rows copy Flesh's.
+3. Spray strength: sparks off metal go 0.3 x the pellet's bounce (TraceAttack), 0.2 x a blow's, 1 x a nail's;
+   splinters 0.2 / 1 / 0.7 (AD pellet) / 12 (saw). TraceAttack's blood goes 0.04 x its bounce (scaled 0.2 before
+   SpawnBlood and 0.2 inside it) where a nail's goes 0.2: hitscan blood barely sprays. Suggest one scale per material.
+4. The chainsaw's own split: flesh = a monster, a player or a gib; wood = a crate; everything else sparks (4, straight
+   up). So under the saw a torch, a grenade and anything else that takes damage without being a monster, a player, a
+   gib or a crate sparks, where the other ladders go by material (a torch nothing, a non-monster body blood). Suggest: the saw uses VR_MaterialOf.
+5. Grenade sparks are a fixed 8 straight up (at a nail's own origin, not 0.01 x its velocity along like every other
+   nail row); metal's scale with damage (3-10) and go along the hit. Suggest: the metal row.
+6. A blunt blow's layer slaps flesh on a torch and on a grenade (the layer counted them as bodies); their particles
+   are nothing (torch) and sparks (grenade). Suggest: a wooden knock for the torch, the light metal for a grenade.
+7. The world: every ladder bleeds on world (spawn_touchblood, VR_HitBlood called with it: blood); callers never pass
+   it (they check takedamage first). The blunt layer calls it stone. VR_MaterialOf(world) is flesh to keep that.
+8. Order: TraceAttack and spawn_touchblood asked metal, wood, grenade, torch; the other three torch, grenade, metal,
+   wood. No thing is two of these, so VR_MaterialOf's one order changes nothing.
+9. Sounds: shots (bullet, nail, AD pellet) ring on metal once a frame (tink, ricochets, 0.8); blows and splashes on
+   metal send sparks and leave the sound to the melee (clang or knock, VR_Melee_HitSoundOn). Same as before.
+10. A thrown thing into wood: splinters along its flight (1 x velocity); into anything else: spawn_touchblood's nail
+   row (a wall bounce's direction, a ring on metal).
+
+**Verified:** `vr_impact_qc_test 9` (7 ladders x 7 targets: the world, a crate piece, an explosive box, flesh, a
+knight, a wall torch, a grenade; `sv_random_seed 7`, vrtesthall) prints the same 49 calls and the same effect lines,
+byte for byte, before (step 0's trace on origin/next's code) and after: every particle2 (preset, count, origin,
+direction) and sound (sample, volume), so the random draws kept their order. Eyeshots of ladders 1-6 x the 7 targets
+before and after (kit `scratch/impacts/before.png`, `after.png`, `before_after.png`): the same effects in the same
+places; pixel difference 0.5-2.9 mean per ladder (particle noise). The world's rows (vr_impact_test, all four kinds,
+forced materials): the old counts. Baseline cases (run_baseline.py vs baseline.tsv): collectfx 9/0, mapflameburn
+16/0, explosion_debris 13/0, shot_shape, ragdoll_* (stagger 52/5, ragtest 30/1, climb 24/4: as the baseline), limb_wear
+9/3 (as the baseline), agarmor_1 26/0, agarmor_5 23/0 (baseline 22/1, flaky), nail_1, np_1 (23/0, baseline 21/0: the
+test's own newer checks), flare_1, walltorch_grab, empty_melee, secret_hits and dead_gear (as the baseline): no case
+changed. gunfx_test.py 29/0. Build: 0 warnings, check_canonical clean. A/B bench: BENCH_PLACEHOLDER

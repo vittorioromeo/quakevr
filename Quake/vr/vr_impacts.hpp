@@ -1,14 +1,17 @@
 // vr_impacts.hpp -- what a hit throws up off a surface, by what the surface is made of and what hit it (ROUND23.md,
 // "Punchier gunfire": impacts by surface material, the lightning's ozone haze). ONE table, `material x hit kind ->
-// particles, decal, sound` (vr_impacts.cpp `table`), so the material ladders written elsewhere (QC TraceAttack,
-// spawn_touchblood, VR_HitBlood/VR_HitNonFlesh/VR_HitBloodSplash; design_review.md proposal 4) can move onto it later.
-// Today it adds, on top of each hit's own effects (cl_tent.c: Quake's puff, the decal, the tink), only what the
-// surface's material makes:
-// - stone: a puff of grey dust; dirt and natural ground: browner, more of it;
-// - metal: hot sparks glancing off it;
-// - wood: chips of wood and a little pale dust;
-// - flesh: nothing new (the gore's mist, vr_gore_mist, comes with every blood burst);
-// - the thunderbolt's beam on a surface: a faint bluish ozone haze lingering where it plays.
+// particles, decal, sound` (vr_impacts.cpp `table`; keys shared with the QC: vr_impact_shared.h). Two users:
+// - the QC's hits on things (design_review.md proposal 4; ROUND23.md "One impact-effect table"): TraceAttack,
+//   spawn_touchblood, VR_HitBlood, VR_HitNonFlesh, VR_HitBloodSplash, the chainsaw, SpawnBlood(Splash) all send their
+//   row through impact() (one particle2 message) and pick its sounds with impactsound() (QC/vr_crates.qc
+//   VR_MaterialOf, VR_ImpactFx); vr_debug_impacts 1 prints what the server sends ("impfx ...");
+// - the client's wall hits, which add, on top of each hit's own effects (cl_tent.c: Quake's puff, the decal, the
+//   tink), only what the surface's material makes:
+//   stone: a puff of grey dust; dirt and natural ground: browner, more of it;
+//   metal: hot sparks glancing off it;
+//   wood: chips of wood and a little pale dust;
+//   flesh: nothing new (the gore's mist, vr_gore_mist, comes with every blood burst);
+//   the thunderbolt's beam on a surface: a faint bluish ozone haze lingering where it plays.
 // A world hit's material: the texture of the surface nearest the hit (debris::materialOf's name table). At most
 // maxLookups surface lookups a frame (a shotgun's pellets); nothing allocated (the particles' pool). Settings:
 // vr_gunfx_impacts, vr_gunfx_ozone (Weapons > Weapon Effects > Gunfire Particles). vr_debug_gunfx 1 prints each
