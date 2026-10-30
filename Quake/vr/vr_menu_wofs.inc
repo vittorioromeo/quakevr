@@ -909,15 +909,16 @@ za::Vector<Item> pageWofsEffects()
             .help("A stream weapon: how hard the controller rumbles while it fires (1: the light buzz it always had). 0: "
                   "none."),
         s("Gunfire Spark Amount", Key::GunfxSparks, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-            .help("How many sparks this weapon's shots throw out of the muzzle: times Weapon Effects > Gunfire Particles' "
-                  "Spark Amount. 0: none."),
+            .help("How many sparks (an energy gun's arcs) this weapon's shots throw out of the muzzle: times Weapon Effects "
+                  "> Gunfire Particles' Spark Amount. 0: none."),
         s("Gunfire Spark Size", Key::GunfxSparkSize, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.1f, 10.f)
-            .help("How big this weapon's muzzle sparks are: times Gunfire Particles' Spark Size."),
+            .help("How big this weapon's muzzle sparks (an energy gun's arcs) are: times Gunfire Particles' Spark Size."),
         s("Gunfire Smoke Amount", Key::GunfxSmoke, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-            .help("How many puffs of smoke this weapon's shots billow out of the muzzle: times Gunfire Particles' Smoke "
-                  "Amount. 0: none."),
+            .help("How many puffs of smoke this weapon's shots billow out of the muzzle (the thunderbolt's: its ozone haze "
+                  "where the beam plays): times Gunfire Particles' Smoke Amount. 0: none."),
         s("Gunfire Smoke Size", Key::GunfxSmokeSize, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.1f, 10.f)
-            .help("How big this weapon's muzzle smoke is: times Gunfire Particles' Smoke Size."),
+            .help("How big this weapon's muzzle smoke (the thunderbolt's ozone haze) is: times Gunfire Particles' Smoke "
+                  "Size."),
         s("Muzzle Wisp Opacity", Key::GunfxWisps, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("How dense the thin smoke wisps off this weapon's barrels are after it stops firing: times Gunfire "
                   "Particles' Wisp Amount (Wisp Max Opacity still caps it). 0: none."),

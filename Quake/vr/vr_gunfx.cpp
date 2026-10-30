@@ -2,6 +2,7 @@
 
 #include "vr_gunfx.hpp"
 #include "vr_adguns.hpp"
+#include "vr_body.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
@@ -162,6 +163,8 @@ struct HandState
     float exhaust{0.f};  // a rocket launcher's exhaust still smoking, seconds
     float ventOwed{0.f}; // (their puffs owed, fractions carried)
     double lastFrame{-1.0};
+    int wid{-1};            // the gun's weapon id, its muzzle last placed (a gun leaving the hand smoking: LooseGun)
+    glm::vec3 muzzle{0.f};
 };
 HandState hands[2];
 
@@ -265,6 +268,7 @@ struct Counts
 {
     int sparks{0}, smoke{0}, glow{0}, arcs{0}, port{0}, back{0}, dust{0}, vent{0}, exhaust{0};
     float light{-1.f}; // the place's light at the muzzle (placeLight), -1 if not looked up
+    float sparkSize{1.f}, smokeSize{1.f}; // (the Tune's: vr_debug_gunfx prints them)
 };
 
 lightcache_t placeCache; // (placeLight's)
@@ -686,7 +690,8 @@ void report(int wid, Kind kind, int shooter, float budget, const Counts& c)
         Con_Printf("gunfx shot who %s %d wid %d kind %s budget %.2f sparks %d smoke %d glow %d arcs %d port %d back %d dust %d\n",
             shooter < 2 ? "player" : "enemy", shooter, wid, kindNames[static_cast<int>(kind)], budget, c.sparks, c.smoke, c.glow,
             c.arcs, c.port, c.back, c.dust);
-        Con_Printf("gunfx light %.2f vent %d exhaust %d\n", c.light, c.vent, c.exhaust); // (own line: long ones wrap)
+        Con_Printf("gunfx light %.2f vent %d exhaust %d size %.2f %.2f\n", c.light, c.vent, c.exhaust, c.sparkSize,
+            c.smokeSize); // (own line: long ones wrap)
     }
 }
 
@@ -697,6 +702,8 @@ Counts emit(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports, int
     const Tune tune = tuneFor(slot >= 0 ? slot : slotOf(wid, nullptr));
     const Look& look = looks[static_cast<int>(kind)];
     const float budget = rateScale(shooter) * za::clamp(vr_gunfx_intensity.value, 0.f, 3.f);
+    c.sparkSize = tune.sparkSize;
+    c.smokeSize = tune.smokeSize;
     if(kind == Kind::None || budget <= 0.f || !particles::enabled())
     {
         report(wid, kind, shooter, budget, c);
@@ -722,8 +729,9 @@ Counts emit(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports, int
         }
         if(look.arcs > 0)
         {
-            const int n = scaled(look.arcs, budget);
-            c.arcs += particles::spawn(m.at, m.fwd, particles::Preset::ElectricSparks, n) ? n : 0;
+            // (the energy guns' arcs: their sparks, the Spark Amount and Size settings and the weapon's own)
+            const int n = times(scaled(look.arcs, budget), tune.sparkAmount);
+            c.arcs += particles::gunArcs(m.at, m.fwd, n, tune.sparkSize) ? n : 0;
         }
     }
     if(on(vr_gunfx_smoke) && look.smoke > 0)
@@ -847,11 +855,13 @@ void afterSmoke(HandState& h, const Muzzle& m, int wid, float dt)
 }
 
 // The guns that leave smoke wisps off their barrels after firing (vr_muzzlewisps.hpp): a shot's share of full smoke (the
-// shotguns' one shot fills them, a burst of the nailguns'), the smoke's opacity at full, and their barrels.
+// shotguns' one shot fills them, a burst of the nailguns'), the smoke's opacity at full, their barrels and the smoke's
+// tint (times its grey).
 struct WispLook
 {
     float charge, alpha;
     int barrels;
+    glm::vec3 tint{1.f};
 };
 [[nodiscard]] WispLook wispLook(int wid)
 {
@@ -864,6 +874,9 @@ struct WispLook
         case WID_NAILPISTOL: return {0.2f, 0.22f, 1};
         case WID_NAILGUN: return {0.12f, 0.26f, 2};
         case WID_SUPER_NAILGUN: return {0.08f, 0.3f, 1}; // (its barrels turn: one wisp out of their middle)
+        // The thunderbolt (a stream: a shot each 0.1 s, 2 s of it fill them): a fainter, blue-grey wisp off its one
+        // barrel, the hot emitter's ozone (the per-weapon Muzzle Wisp Opacity and the global wisp settings apply).
+        case WID_LIGHTNING: return {0.05f, 0.2f, 1, {0.82f, 0.9f, 1.f}};
         default: return {0.f, 0.f, 0};
     }
 }
@@ -880,16 +893,17 @@ constexpr ModelBarrels barrelEnds[] = {
     {"progs/v_nail.mdl", {{20.21f, -3.67f, 3.84f}, {20.21f, 3.77f, 3.84f}}},
 };
 
-// Your gun's barrels this frame, for their wisps (`fired`: its shot this frame).
-void barrelWisps(int hand, const Muzzle& m, int wid, bool fired)
+// A gun's barrels this frame (weapon `wid` of weapon settings `slot`, drawn at `m`), for their wisps.
+[[nodiscard]] muzzlewisps::Gun wispGun(const Muzzle& m, int wid, int slot)
 {
     const WispLook look = wispLook(wid);
     muzzlewisps::Gun g;
     g.fwd = m.fwd;
     g.charge = look.charge;
-    g.alpha = look.alpha * slotValue(hands[hand].slot, Key::GunfxWisps); // (its Weapon Offsets > Effects, Muzzle Wisp Opacity)
+    g.alpha = look.alpha * slotValue(slot, Key::GunfxWisps); // (its Weapon Offsets > Effects, Muzzle Wisp Opacity)
     g.charge = g.alpha > 0.f ? look.charge : 0.f; // (0: none at all)
     g.barrels = look.barrels;
+    g.tint = look.tint;
     g.at[0] = g.at[1] = m.at;
     if(look.barrels > 1)
     {
@@ -920,7 +934,150 @@ void barrelWisps(int hand, const Muzzle& m, int wid, bool fired)
             g.at[1] = m.at + right * 1.4f;
         }
     }
-    muzzlewisps::handFrame(hand, g, fired);
+    return g;
+}
+
+// Gun `w` (drawn with weapon settings `slot`): its muzzle as drawn, the way it points and its up. False: not placed.
+[[nodiscard]] bool muzzleOf(const view::ViewEntity& w, int slot, Muzzle& m)
+{
+    m.at = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
+        weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+    const glm::vec3 o = view::modelPoint(w, glm::vec3{0.f});
+    const glm::vec3 ax = view::modelPoint(w, glm::vec3{1.f, 0.f, 0.f}) - o;
+    const glm::vec3 az = view::modelPoint(w, glm::vec3{0.f, 0.f, 1.f}) - o;
+    if(glm::length(ax) < 1e-5f || glm::length(az) < 1e-5f)
+    {
+        return false;
+    }
+    m.fwd = glm::normalize(ax);
+    m.up = glm::normalize(az);
+    m.view = &w;
+    return true;
+}
+
+// A gun that left your hand still smoking (muzzlewisps::release): found on the prop it became (QC's thrown_weapon:
+// the same weapon's model, thrown or dropped) or in a holster, the nearest to where its muzzle was, within
+// kLooseSearch seconds; then followed (by entity number, or holster) while it is there.
+struct LooseGun
+{
+    int slot{-1}; // its weapon settings (-1: none followed)
+    int wid{-1};
+    double since{-1.0};    // cl.time it left the hand
+    glm::vec3 last{0.f};   // its muzzle then, then as found last
+    int ent{0};            // the prop's client entity (0: none)
+    int holster{-1};       // ... or its holster (view::holsterGun's index)
+    view::ViewEntity prop; // (the prop as drawn: muzzleOf's)
+};
+LooseGun looseGuns[muzzlewisps::maxLoose];
+constexpr double kLooseSearch = 0.5;  // seconds a loose gun is looked for
+constexpr float kLooseReach = 160.f;  // units from its muzzle's last place it may be found (a throw's first frames)
+
+// The prop `num` drawn as weapon settings `slot`'s gun, in `out`; false if it is not.
+[[nodiscard]] bool propOf(int num, int slot, view::ViewEntity& out)
+{
+    if(num <= 0 || num >= cl.num_entities || num == cl.viewentity)
+    {
+        return false;
+    }
+    const entity_t& e = cl_entities[num];
+    if(!e.model || e.model->type != mod_alias || weapons::slotForModel(e.model) != slot)
+    {
+        return false;
+    }
+    out = view::ViewEntity{};
+    out.ent = e;
+    out.visible = true;
+    out.netEntity = num; // (its networked scale and offset: view::propGun's)
+    return true;
+}
+
+[[nodiscard]] const view::ViewEntity* holsteredOf(int index, int slot)
+{
+    const view::ViewEntity* ve = view::holsterGun(index);
+    return ve && weapons::slotForModel(ve->ent.model) == slot ? ve : nullptr;
+}
+
+// Loose gun `l` as it is now (found first if not yet), or null.
+[[nodiscard]] const view::ViewEntity* findLoose(LooseGun& l)
+{
+    if(l.ent > 0)
+    {
+        return propOf(l.ent, l.slot, l.prop) ? &l.prop : nullptr;
+    }
+    if(l.holster >= 0)
+    {
+        return holsteredOf(l.holster, l.slot);
+    }
+    if(cl.time - l.since > kLooseSearch)
+    {
+        return nullptr;
+    }
+    float best = kLooseReach * kLooseReach;
+    view::ViewEntity ve;
+    for(int i = 1; i < cl.num_entities; i++)
+    {
+        if(!propOf(i, l.slot, ve))
+        {
+            continue;
+        }
+        const glm::vec3 o{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
+        if(const float d = glm::dot(o - l.last, o - l.last); d < best)
+        {
+            best = d;
+            l.ent = i;
+            l.prop = ve;
+        }
+    }
+    for(int i = 0; i < body::HolsterCount; i++)
+    {
+        if(const view::ViewEntity* h = holsteredOf(i, l.slot))
+        {
+            const glm::vec3 o{h->ent.origin[0], h->ent.origin[1], h->ent.origin[2]};
+            if(const float d = glm::dot(o - l.last, o - l.last); d < best)
+            {
+                best = d;
+                l.ent = 0;
+                l.holster = i;
+            }
+        }
+    }
+    if(vr_debug_gunfx.value != 0.f && (l.ent > 0 || l.holster >= 0))
+    {
+        Con_Printf("gunfx wisps found %s %d after %.2f s %.1f units off\n", l.ent > 0 ? "prop" : "holster",
+            l.ent > 0 ? l.ent : l.holster, cl.time - l.since, za::sqrt(best));
+    }
+    return l.ent > 0 ? &l.prop : l.holster >= 0 ? holsteredOf(l.holster, l.slot) : nullptr;
+}
+
+// Once a frame: the loose guns' wisps where the guns are now.
+void looseFrames()
+{
+    for(int i = 0; i < muzzlewisps::maxLoose; i++)
+    {
+        LooseGun& l = looseGuns[i];
+        if(l.slot < 0)
+        {
+            continue;
+        }
+        if(!muzzlewisps::looseSmoking(i))
+        {
+            l = LooseGun{}; // (spent: what it let go fades on)
+            continue;
+        }
+        const view::ViewEntity* ve = findLoose(l);
+        Muzzle m;
+        if(!ve || !muzzleOf(*ve, l.slot, m))
+        {
+            continue; // (not found yet, or not drawn now: picked up, gone; its smoke stops, what it let go fades)
+        }
+        l.last = m.at;
+        muzzlewisps::looseFrame(i, wispGun(m, l.wid, l.slot));
+        if(vr_debug_gunfx.value >= 2.f)
+        {
+            Con_Printf("gunfx wisps loose %d at %.1f %.1f %.1f on %.1f %.1f %.1f\n", i, m.at.x, m.at.y, m.at.z,
+                ve->ent.origin[0], ve->ent.origin[1], ve->ent.origin[2]); // (the muzzle, the gun's origin)
+        }
+    }
 }
 
 // vr_gunfx_test <wid> [count]: that weapon's shot effects `count` times (1), 48 units ahead of the view, pointing away.
@@ -996,6 +1153,20 @@ void handFrame(int hand, const view::ViewEntity& w, int slot)
     h.lastFrame = cl.time;
     if(slot != h.slot)
     {
+        // The gun left the hand (thrown, dropped, holstered, another drawn) still smoking: its wisps go with it.
+        if(h.slot >= 0 && h.wid >= 0)
+        {
+            if(const int k = muzzlewisps::release(hand); k >= 0)
+            {
+                LooseGun& l = looseGuns[k];
+                l = LooseGun{};
+                l.slot = h.slot;
+                l.wid = h.wid;
+                l.since = cl.time;
+                l.last = h.muzzle;
+            }
+        }
+        h.wid = -1;
         h.heat = 0.f; // (another weapon, or none)
         h.wisps = 0.f;
         h.vent = 0.f;
@@ -1021,20 +1192,14 @@ void handFrame(int hand, const view::ViewEntity& w, int slot)
         return;
     }
     Muzzle m;
-    m.at = view::anchorPosition(w, weapons::anchor(slot, Key::MuzzleAnchor),
-        weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
-    const glm::vec3 o = view::modelPoint(w, glm::vec3{0.f});
-    const glm::vec3 ax = view::modelPoint(w, glm::vec3{1.f, 0.f, 0.f}) - o;
-    const glm::vec3 az = view::modelPoint(w, glm::vec3{0.f, 0.f, 1.f}) - o;
-    if(glm::length(ax) < 1e-5f || glm::length(az) < 1e-5f)
+    if(!muzzleOf(w, slot, m))
     {
         return;
     }
-    m.fwd = glm::normalize(ax);
-    m.up = glm::normalize(az);
     m.drift = glm::vec3{cl.velocity[0], cl.velocity[1], cl.velocity[2]};
     m.gunLength = 1.1f * units::metresToUnits();
-    m.view = &w;
+    h.wid = wid;
+    h.muzzle = m.at;
     if(due && on(vr_gunfx))
     {
         // An AD gun's own burst (vr_weaponfx.cpp adGunBurst) made its sparks and backblast already.
@@ -1057,7 +1222,15 @@ void handFrame(int hand, const view::ViewEntity& w, int slot)
     {
         heatWisps(h, m, dt);
         afterSmoke(h, m, wid, dt);
-        barrelWisps(hand, m, wid, due);
+        muzzlewisps::handFrame(hand, wispGun(m, wid, slot), due);
+    }
+}
+
+void looseFrame()
+{
+    if(on(vr_gunfx))
+    {
+        looseFrames();
     }
 }
 
@@ -1090,6 +1263,13 @@ void portSmoke(const glm::vec3& at, const glm::vec3& dir, bool hot)
     }
 }
 
+void boltSmoke(float& amount, float& size)
+{
+    const Tune t = tuneFor(slotOf(WID_LIGHTNING, nullptr));
+    amount = t.smokeAmount;
+    size = t.smokeSize;
+}
+
 float shellTrail()
 {
     return on(vr_gunfx) ? za::max(vr_gunfx_shell_trail.value, 0.f) : 1.f;
@@ -1104,6 +1284,10 @@ void clear()
     for(HandState& h : hands)
     {
         h = HandState{};
+    }
+    for(LooseGun& l : looseGuns)
+    {
+        l = LooseGun{};
     }
     impacts::clear();
     muzzlewisps::clear();

@@ -135,6 +135,8 @@ Shoot a grunt's gun with the nail pistol or nailgun: about 1 hit in 4-5 knocks i
 Debug > Show Disarm Volumes on, walk up to an armed grunt: its gun is outlined orange; hand on the gun: the fist and gun turn yellow; grip: green with a tug progress bar; shove it over: a white limb under the gun, the shapes stay on it; the last hit shows 2 s as parry / disarm / body / shot / blocked.
 Nail pistol (Full Slide): slide drawn back or locked open, look at the back of the muzzle from both sides: nothing flickers.
 Nail pistol (Full Slide): the back end (behind the ejection port) is clearly steel with a bright rim and a crisp seam, like the old art's rear housing.
+Fire the lightning gun 2 s and stop: a faint blue-grey wisp off its barrel; its slot's Muzzle Wisp Opacity / Spark / Smoke sliders change its wisp, arcs and the haze where the beam hits.
+Fire the shotgun, then drop, throw and holster it: the wisp keeps rising off the muzzle on the floor, in flight and in the holster.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
