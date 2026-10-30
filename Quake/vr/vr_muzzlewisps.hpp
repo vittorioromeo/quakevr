@@ -37,6 +37,18 @@ void handFrame(int hand, const Gun& gun, bool fired);
 // Whether `hand`'s barrels still hold smoke to let go (its gun is wanted each frame till then).
 [[nodiscard]] bool smoking(int hand);
 
+// A gun that left a hand still smoking (thrown, dropped, holstered): its wisps go on for their time, following it on the
+// prop lying about or in its holster (vr_gunfx.cpp finds it). maxLoose such guns at once (the least smoke given up).
+constexpr int maxLoose = 4;
+// `hand`'s smoke handed to a loose gun (its trails and their time go with it; the hand starts afresh): its index, -1 if
+// the hand held none.
+[[nodiscard]] int release(int hand);
+// Loose gun `index` as drawn this frame (its barrels where it is now). Not called for a frame: it is not drawn (its
+// wisps let go keep fading, none let go).
+void looseFrame(int index, const Gun& gun);
+// Whether loose gun `index` still holds smoke to let go.
+[[nodiscard]] bool looseSmoking(int index);
+
 // The scene's translucent pass (vr_particles.cpp): moved on once a frame, drawn in every view.
 void drawTranslucent();
 

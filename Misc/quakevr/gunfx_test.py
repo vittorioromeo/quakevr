@@ -188,6 +188,68 @@ def wisps_case(a):
               (w, len(shots_at), barrels, [e for e in ev if e[0] != "shot"]))
 
 
+LOOSE_REL = re.compile(r"gunfx wisps loose hand \d as (\d) charge ([\d.]+)")
+LOOSE_FOUND = re.compile(r"gunfx wisps found (prop|holster) (\d+) after ([\d.]+) s ([\d.]+) units off")
+LOOSE_AT = re.compile(r"gunfx wisps loose (\d) at ([\d.-]+) ([\d.-]+) ([\d.-]+) on ([\d.-]+) ([\d.-]+) ([\d.-]+)")
+LOOSE_FADED = re.compile(r"gunfx wisps faded hand ([2-5]) barrels (\d) after ([\d.]+) s charge [\d.]+ points (\d+) drawn (\d+)")
+# (label, weapon id, how it leaves the hand, where it should be found, its barrels)
+LOOSE_CASES = [
+    ("drop", 4, "", "prop", 1),
+    ("throw", 5, ";vr_mock_swing 0.5;wait30", "prop", 2),
+    ("holster", 4, ";vr_mock_hand_to main holster 1;wait3;vr_mock_hand_to main holster 1;wait3", "holster", 1),
+]
+
+
+def loose_case(a):
+    """Wisps on a gun that left the hand smoking (vr_gunfx.cpp LooseGun, vr_muzzlewisps.cpp release): fired, its wisps
+    started (0.42 s on), then let go of (the sticky grip pressed: vr_weapon_grip_mode 1) where the hand is (dropped),
+    swinging (thrown), at the right shoulder holster (holstered; empty: no impulse 9). Each: its smoke handed on, the
+    gun found (a prop, the holster) soon after, its muzzle followed there (debug 2's lines: near the gun's origin, a dropped or thrown one's
+    falling), then its wisps faded (ends on that line, vr_waitprint)."""
+    s = ("map e1m1;wait60;god;notarget;vr_gunfx_wisp_time 2;vr_gunfx_wisp_fade 0.4;vr_weapon_grip_mode 1;give s 100;"
+         "wait2")
+    for label, w, how, _, _ in LOOSE_CASES:
+        s += (";vr_mock_swing 0;vr_mock_hand main 0.15 1.2 -0.45 70 0 0;wait5;vr_test_give_wid %d;impulse 149;wait5;"
+              "echo gunfxloose %s;+attack;wait4;-attack;wait30;vr_debug_gunfx 2%s;vr_mock_button main grip 1;"
+              "+grabmain;wait2;vr_mock_button main grip 0;-grabmain;vr_waitprint 600 gunfx wisps faded hand 2;"
+              "vr_debug_gunfx 1" % (w, label, how))
+    lines = run(a.kit, a.agent, "vr_debug_gunfx 1;" + s + ";vr_mock_swing 0;echo gunfxloose end", "gunfxloose end", 240,
+                "^gunfx wisps|^gunfxloose")
+    check(any("gunfxloose end" in l for l in lines), "loose: the run reached its end")
+    seen = {}
+    cur = None
+    for l in lines:
+        m = re.search(r"gunfxloose (\w+)", l)
+        if m:
+            cur = m.group(1)
+            seen[cur] = {"rel": [], "found": [], "at": [], "faded": [], "start": 0}
+            continue
+        if cur is None:
+            continue
+        c = seen[cur]
+        if WISP_START.search(l):
+            c["start"] += 1
+        for key, rx in (("rel", LOOSE_REL), ("found", LOOSE_FOUND), ("at", LOOSE_AT), ("faded", LOOSE_FADED)):
+            m = rx.search(l)
+            if m:
+                c[key].append(m.groups())
+    for label, w, _, where, barrels in LOOSE_CASES:
+        c = seen.get(label)
+        if not c:
+            check(False, "loose %s: not run" % label)
+            continue
+        at = [tuple(float(x) for x in g[1:]) for g in c["at"]]
+        near = all(((p[0] - p[3]) ** 2 + (p[1] - p[4]) ** 2 + (p[2] - p[5]) ** 2) ** 0.5 < 48 for p in at)
+        moved = max((abs(p[2] - at[0][2]) for p in at), default=0)
+        ok = (c["start"] == 1 and len(c["rel"]) == 1 and len(c["found"]) == 1 and c["found"][0][0] == where and
+              float(c["found"][0][2]) < 0.3 and len(at) >= 10 and near and len(c["faded"]) == 1 and
+              int(c["faded"][0][1]) == barrels and int(c["faded"][0][3]) > 0 and int(c["faded"][0][4]) > 0)
+        if where == "prop":
+            ok = ok and moved > 4  # (falling: the wisp's muzzle with it)
+        check(ok, "loose %s wid %d: released %s, found %s, followed %d frames (near %s, fell %.1f), faded %s" %
+              (label, w, c["rel"], c["found"], len(at), near, moved, c["faded"]))
+
+
 IMPSND = re.compile(r"impsnd (\w+) on (\w+) (?:(none)|(capped) t ([\d.]+)|(\S+) vol ([\d.]+) pitch ([\d.]+) at "
                     r"([\d.-]+) ([\d.-]+) ([\d.-]+) t ([\d.]+) len (-?\d+))")
 IMPTEST = re.compile(r"vr_impact_test: (\w+) x(\d+) at ([\d.-]+) ([\d.-]+) ([\d.-]+)")
@@ -417,6 +479,8 @@ def main():
         judge_all(shots(lines), "enemy", False, [10])
     if a.only in ("", "wisps"):
         wisps_case(a)
+    if a.only in ("", "loose"):
+        loose_case(a)
     if a.only in ("", "impactsnd"):
         impsnd_case(a)
     if a.only in ("", "slots"):

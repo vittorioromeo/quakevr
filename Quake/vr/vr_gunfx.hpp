@@ -58,6 +58,9 @@ void playerFired(int hand);
 // Once a frame, each hand's drawn weapon `w` (vr_weaponfx.cpp frame; `slot` its weapon settings, -1 none): its shot due,
 // its barrel's heat.
 void handFrame(int hand, const view::ViewEntity& w, int slot);
+// Once a frame after both hands' handFrame: the guns that left a hand still smoking (thrown, dropped, holstered), their
+// wisps following them on the prop or in the holster (vr_muzzlewisps.hpp release).
+void looseFrame();
 
 // A monster's gun fired, its muzzle `m` (vr_weaponfx.cpp: a grunt's, an enforcer's, an armed grunt's held weapon of
 // model `model`, null for a monster's own gun of weapon `wid`).
