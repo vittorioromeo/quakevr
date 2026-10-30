@@ -5,6 +5,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_geom.hpp"
 
 namespace box3d::detail
 {
@@ -286,7 +287,7 @@ void unstickProps()
             VectorCopy(player->v.mins, mins);
             VectorCopy(player->v.maxs, maxs);
         }
-        const glm::vec3 lo = glm::vec3{mins[0], mins[1], mins[2]} + glm::vec3{1.f}, hi = glm::vec3{maxs[0], maxs[1], maxs[2]} - glm::vec3{1.f};
+        const glm::vec3 lo = geom::vec(mins) + glm::vec3{1.f}, hi = geom::vec(maxs) - glm::vec3{1.f};
         const glm::vec3 origin = vec(player->v.origin);
         za::Array<b3Vec3, 8> corners;
         for(int k = 0; k < 8; k++)
@@ -315,7 +316,7 @@ void unstickProps()
                 return true;
             },
             &q);
-        const glm::vec3 middle = origin + 0.5f * (glm::vec3{mins[0], mins[1], mins[2]} + glm::vec3{maxs[0], maxs[1], maxs[2]});
+        const glm::vec3 middle = origin + 0.5f * (geom::vec(mins) + geom::vec(maxs));
         for(int k = 0; k < q.count; k++)
         {
             if(vr_box3d_player_hold.value && feetInTop(player, EDICT_NUM(q.nums[static_cast<size_t>(k)])))

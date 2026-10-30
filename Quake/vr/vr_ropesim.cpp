@@ -22,6 +22,7 @@
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_profile.hpp"
+#include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 
 #include "Zancle/Algorithm/Remove.hpp"
@@ -339,17 +340,14 @@ void testAim_f()
         return;
     }
     const glm::vec3 target{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
+    progs::ServerVm vm;
     edict_t* hook = nullptr;
-    for(int i = 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(!e->free && static_cast<int>(e->v.movetype) == MOVETYPE_FLYMISSILE && !strcmp(PR_GetString(e->v.classname), "hook"))
+    progs::forEachEdict(1, [&](edict_t* e) {
+        if(static_cast<int>(e->v.movetype) == MOVETYPE_FLYMISSILE && !strcmp(PR_GetString(e->v.classname), "hook"))
         {
             hook = e;
         }
-    }
+    });
     if(hook)
     {
         const glm::vec3 from{hook->v.origin[0], hook->v.origin[1], hook->v.origin[2]};
@@ -369,7 +367,6 @@ void testAim_f()
     {
         Con_Printf("vr_grapple_test_aim: no hook flying\n");
     }
-    PR_PopQCVM(oldVm);
 }
 
 bool commandsRegistered = false; // (registerCommands: once)

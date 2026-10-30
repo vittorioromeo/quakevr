@@ -1363,7 +1363,7 @@ void wound(const Target& t, const Event& ev)
             }
             else
             {
-                nearest = za::max(0.f, glm::distance(centre, glm::vec3{t.ent->origin[0], t.ent->origin[1], t.ent->origin[2]}) - 10.f);
+                nearest = za::max(0.f, glm::distance(centre, geom::vec(t.ent->origin)) - 10.f);
             }
             const float a = za::min(static_cast<float>(ev.amount), 120.f);
             const float char_ = za::clamp(a / 120.f, 0.3f, 0.75f);
@@ -1863,7 +1863,7 @@ void logPlayerWound(const Event& ev)
     {
         playerWounds.erase(playerWounds.begin());
     }
-    playerWounds.pushBack({ev, ev.org - glm::vec3{pl.origin[0], pl.origin[1], pl.origin[2]}, rng});
+    playerWounds.pushBack({ev, ev.org - geom::vec(pl.origin), rng});
 }
 
 // Healing takes a share of the wounds off (`share` of them, the oldest first): they won't re-open.
@@ -2048,7 +2048,7 @@ namespace detail
 {
 [[nodiscard]] glm::vec3 originOf(const entity_t& e)
 {
-    return glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    return geom::vec(e.origin);
 }
 } // namespace detail
 namespace
@@ -2139,7 +2139,7 @@ namespace detail
     {
         float c[3];
         R_BModelCentre(const_cast<entity_t*>(&e), c);
-        return glm::vec3{c[0], c[1], c[2]};
+        return geom::vec(c);
     }
     return originOf(e);
 }
@@ -2363,8 +2363,8 @@ void facingBlow(const za::Vector<Splat>& splats, const entity_t& g, const glm::v
         const glm::mat3 axes = held::axesFromAngles(g.angles, g.model->type == mod_brush);
         const float k = za::max(VR_EntityScale(&g), 0.01f);
         glm::vec3 local = glm::transpose(axes) * (c - originOf(g)) / k;
-        local = glm::clamp(local, glm::vec3{g.model->mins[0], g.model->mins[1], g.model->mins[2]},
-                                 glm::vec3{g.model->maxs[0], g.model->maxs[1], g.model->maxs[2]});
+        local = glm::clamp(local, geom::vec(g.model->mins),
+                                 geom::vec(g.model->maxs));
         const glm::vec3 inside = originOf(g) + axes * local * k;
         glm::vec3 exit;
         if(leavesBox(g, inside, d, 1.f, exit))
@@ -2957,7 +2957,7 @@ void washGear(float amount)
         {
             float c[3];
             R_BModelCentre(const_cast<entity_t*>(m.ent), c);
-            at = glm::vec3{c[0], c[1], c[2]};
+            at = geom::vec(c);
         }
         float surface;
         if(waterSurface(at, 16.f, surface))
@@ -3162,7 +3162,7 @@ void drips(double now)
             {
                 continue;
             }
-            at = glm::vec3{m.ent->origin[0], m.ent->origin[1], m.ent->origin[2]} + glm::vec3{vrand::xorshiftRange(rng, -1.5f, 1.5f), vrand::xorshiftRange(rng, -1.5f, 1.5f), -1.f};
+            at = geom::vec(m.ent->origin) + glm::vec3{vrand::xorshiftRange(rng, -1.5f, 1.5f), vrand::xorshiftRange(rng, -1.5f, 1.5f), -1.f};
             floorZ = cl_entities[cl.viewentity].origin[2] - 24.f;
         }
         else
@@ -3248,8 +3248,8 @@ bool bodyFrame(int num, glm::vec3& origin, glm::mat3& axes)
     }
     vec3_t f, r, u;
     AngleVectors(angles, f, r, u);
-    axes = glm::mat3{glm::vec3{f[0], f[1], f[2]}, glm::vec3{-r[0], -r[1], -r[2]}, glm::vec3{u[0], u[1], u[2]}};
-    origin = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    axes = glm::mat3{geom::vec(f), glm::vec3{-r[0], -r[1], -r[2]}, geom::vec(u)};
+    origin = geom::vec(e.origin);
     return true;
 }
 
@@ -3495,7 +3495,7 @@ void burst(const float org[3], float size)
     // A gibbed monster (2), a gib (1 or more), a small gib's puff (0.35): farther and more for a bigger one; what lies
     // right at a big one soaked (its drops: they come a moment later, so it lingers a second).
     const float soak = size >= 1.5f ? 1.5f : size >= 1.f ? 0.75f : 0.f;
-    splashAt(glm::vec3{org[0], org[1], org[2]}, 32.f + 28.f * za::min(size, 3.f), za::min(0.3f * size, 0.9f),
+    splashAt(geom::vec(org), 32.f + 28.f * za::min(size, 3.f), za::min(0.3f * size, 0.9f),
         soak * vr_gore_gear_drops.value, 20.f + 8.f * za::min(size, 3.f), size >= 1.f ? 1.0 : 0.2);
 }
 
@@ -3842,7 +3842,7 @@ int skinLevel(int part, int level, const float* origin)
         }
         s.gibEnt = gib ? ent : 0;
     }
-    if(vr_gore_wash.value && origin && inWater(glm::vec3{origin[0], origin[1], origin[2]}))
+    if(vr_gore_wash.value && origin && inWater(geom::vec(origin)))
     {
         if(s.washed < -1e8)
         {

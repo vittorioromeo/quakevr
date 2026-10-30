@@ -740,9 +740,9 @@ struct GripReading
     const entity_t& p = cl_entities[num];
     vec3_t a{-p.angles[0], p.angles[1], p.angles[2]}, f, rt, u;
     AngleVectors(a, f, rt, u);
-    const glm::mat3 R{glm::vec3{f[0], f[1], f[2]}, -glm::vec3{rt[0], rt[1], rt[2]}, glm::vec3{u[0], u[1], u[2]}};
+    const glm::mat3 R{geom::vec(f), -geom::vec(rt), geom::vec(u)};
     const rigpose::Rigid back = rigdata::inverse(rom.woffset[side]);
-    const glm::vec3 drawn = glm::vec3{p.origin[0], p.origin[1], p.origin[2]} + R * (back.pos * za::max(ENTSCALE_DECODE(e->scale), 0.01f));
+    const glm::vec3 drawn = geom::vec(p.origin) + R * (back.pos * za::max(ENTSCALE_DECODE(e->scale), 0.01f));
     const glm::mat3 drawnRot = R * glm::mat3_cast(back.rot);
     const rigpose::Rigid want = rigdata::compose(rom.F[b], grip);
     const float y = e->angles[1] * (pi / 180.f);

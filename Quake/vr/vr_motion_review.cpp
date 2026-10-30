@@ -1507,12 +1507,10 @@ void serverFrame()
     const za::String wanted = ghost.monClass.empty() ? za::String{"vr_dummy"} : ghost.monClass;
     float best = 1e9f;
     bool found = false;
-    for(int i = 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(e->free || wanted != progs::targetClass(e))
+    progs::forEachEdict(1, [&](edict_t* e) {
+        if(wanted != progs::targetClass(e))
         {
-            continue;
+            return;
         }
         const glm::vec3 o{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
         if(const float d = glm::distance(o, from); d < best)
@@ -1521,7 +1519,7 @@ void serverFrame()
             ghost.target = o;
             found = true;
         }
-    }
+    });
     ghost.hasTarget = found;
 }
 

@@ -12,6 +12,7 @@
 // left from the one before), and checks each one's events against quakevr/motions/expect.cfg.
 
 #include "vr_strings.hpp"
+#include "vr_geom.hpp"
 #include "vr_anchor.hpp"
 #include "vr_angvel.hpp"
 #include "vr_avatar.hpp"
@@ -891,20 +892,18 @@ void (*onDone)(const Report&) = nullptr; // the evaluation's
     const auto nearestOf = [&](const za::String& className) -> edict_t* {
         edict_t* best = nullptr;
         float bestDist = 1e9f;
-        for(int i = 1; i < qcvm->num_edicts; i++)
-        {
-            edict_t* e = EDICT_NUM(i);
-            if(e->free || className != progs::targetClass(e))
+        progs::forEachEdict(1, [&](edict_t* e) {
+            if(className != progs::targetClass(e))
             {
-                continue;
+                return;
             }
-            const float d = glm::distance(glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]}, from);
+            const float d = glm::distance(geom::vec(e->v.origin), from);
             if(d < bestDist)
             {
                 bestDist = d;
                 best = e;
             }
-        }
+        });
         return best;
     };
     if(!wanted.empty())
@@ -942,7 +941,7 @@ void workOutPlacement(edict_t* player)
         }
         return;
     }
-    const glm::vec3 tOrigin = opts.atSet ? opts.at : glm::vec3{target->v.origin[0], target->v.origin[1], target->v.origin[2]};
+    const glm::vec3 tOrigin = opts.atSet ? opts.at : geom::vec(target->v.origin);
     const float tYaw = opts.atSet ? opts.atYaw : target->v.angles[1];
 
     if(!opts.atSet && f0.hasMon && f0.hasMonW && f0.hasOrg && !opts.yawSet && f0.monClass == report.targetClass)

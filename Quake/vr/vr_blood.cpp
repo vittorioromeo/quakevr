@@ -1,5 +1,6 @@
 // Blood-red peripheral feedback, shared by eye and flat-screen view passes.
 #include "vr_blood.hpp"
+#include "vr_geom.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_portals.hpp"
@@ -133,7 +134,7 @@ bool neutralSource(const float* from, const glm::vec3& delta)
     glm::vec3 centre;
     for(int i = 0; i < 3; ++i)
         centre[i] = encodedCoordinate(source->v.origin[i] + 0.5f * (source->v.mins[i] + source->v.maxs[i]));
-    if(glm::length(centre - glm::vec3{from[0], from[1], from[2]}) > 0.0001f)
+    if(glm::length(centre - geom::vec(from)) > 0.0001f)
         return false;
     return source == sv.qcvm.edicts || source == player || SAVE_PROG_TO_EDICT((&sv.qcvm), source->v.owner) == player;
 }

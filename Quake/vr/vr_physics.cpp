@@ -2025,7 +2025,7 @@ extern "C" void VR_GroundGravity(edict_t* ent, const float* before)
         return;
     }
     const glm::vec3 was{before[0], before[1], before[2]};
-    const glm::vec3 added = glm::vec3{ent->v.velocity[0], ent->v.velocity[1], ent->v.velocity[2]} - was;
+    const glm::vec3 added = geom::vec(ent->v.velocity) - was;
     const glm::vec3 now = was + g.normal * glm::dot(added, g.normal);
     for(int i = 0; i < 3; ++i)
     {
@@ -2234,10 +2234,8 @@ void grabBench()
     const glm::vec3 hand = fieldVec(player, f().handpos);
     edict_t* best = nullptr;
     float bestD = 1e30f;
-    for(int i = 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(!e->free && armedWeapon(e))
+    progs::forEachEdict(1, [&](edict_t* e) {
+        if(armedWeapon(e))
         {
             const float d = glm::distance(hand, vec(e->v.origin));
             if(d < bestD)
@@ -2246,7 +2244,7 @@ void grabBench()
                 best = e;
             }
         }
-    }
+    });
     if(!best)
     {
         Con_Printf("vr_agrunt_grab_bench: no armed monster's weapon\n");

@@ -1,6 +1,7 @@
 // vr_modelcollide.cpp -- see vr_modelcollide.hpp.
 
 #include "vr_modelcollide.hpp"
+#include "vr_geom.hpp"
 #include "vr_engine.hpp"
 #include "vr_api_render.h"
 #include "vr_backend.hpp"
@@ -113,7 +114,7 @@ const ModelTris* trianglesOf(const qmodel_t* model)
             const auto vertex = [&](int k) {
                 const int ed = model->surfedges[surf.firstedge + k];
                 const mvertex_t& v = model->vertexes[ed >= 0 ? model->edges[ed].v[0] : model->edges[-ed].v[1]];
-                return glm::vec3{v.position[0], v.position[1], v.position[2]};
+                return geom::vec(v.position);
             };
             const auto first = static_cast<za::U16>(m.brushVerts.size());
             for(int k = 0; k < surf.numedges && m.brushVerts.size() < 65535; k++)
@@ -205,8 +206,8 @@ struct Lerped
     l.pose1 = CLAMP(0, l.pose1, hdr->numposes - 1);
     l.pose2 = CLAMP(0, l.pose2, hdr->numposes - 1);
 
-    l.origin = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
-    l.angles = glm::vec3{e.angles[0], e.angles[1], e.angles[2]};
+    l.origin = geom::vec(e.origin);
+    l.angles = geom::vec(e.angles);
     if(r_lerpmove.value && (e.lerpflags & LERP_MOVESTEP) && !(e.lerpflags & LERP_RESETMOVE))
     {
         const glm::vec3 current{e.currentorigin[0], e.currentorigin[1], e.currentorigin[2]};
@@ -215,8 +216,8 @@ struct Lerped
         {
             vec3_t startOrigin, startAngles;
             R_MoveLerpStart(&e, startOrigin, startAngles); // a move starting: at its start (where the last is drawn)
-            l.origin = glm::vec3{startOrigin[0], startOrigin[1], startOrigin[2]};
-            l.angles = glm::vec3{startAngles[0], startAngles[1], startAngles[2]};
+            l.origin = geom::vec(startOrigin);
+            l.angles = geom::vec(startAngles);
         }
         else
         {
@@ -360,8 +361,8 @@ const Posed* posed(int num, const entity_t& e)
         VectorCopy(e.origin, origin);
         R_EntityMatrix(m16, origin, angles, e.scale);
         VR_BrushTransform(&e, m16);
-        blo = glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
-        bhi = glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
+        blo = geom::vec(e.model->mins);
+        bhi = geom::vec(e.model->maxs);
     }
     p.m = glm::make_mat4(m16);
     p.lo = glm::vec3{1e30f};

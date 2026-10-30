@@ -1,6 +1,7 @@
 // vr_bloodprints.cpp -- see vr_bloodprints.hpp.
 
 #include "vr_bloodprints.hpp"
+#include "vr_geom.hpp"
 #include "vr_trace.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
@@ -567,9 +568,9 @@ void test_f()
                 {
                     continue;
                 }
-                const glm::vec3 mid = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} +
-                                      (e.model->type == mod_brush ? (glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]} +
-                                                                       glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]}) * 0.5f
+                const glm::vec3 mid = geom::vec(e.origin) +
+                                      (e.model->type == mod_brush ? (geom::vec(e.model->mins) +
+                                                                       geom::vec(e.model->maxs)) * 0.5f
                                                                   : glm::vec3{0.f});
                 const glm::vec3 to{mid.x - from.x, mid.y - from.y, 0.f};
                 const float d = glm::length(to);

@@ -5,6 +5,7 @@
 // flattened".)
 
 #include "vr_engine.hpp"
+#include "vr_geom.hpp"
 #include "vr_cvars.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -37,7 +38,7 @@ ankerl::unordered_dense::map<const qmodel_t*, ModelRange> modelRanges;
         lo = glm::min(lo, p);
         hi = glm::max(hi, p);
     }
-    return (hi - lo) * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    return (hi - lo) * geom::vec(hdr->scale);
 }
 
 [[nodiscard]] const ModelRange& modelRange(const qmodel_t* model, const aliashdr_t* hdr, const trivertx_t* base)

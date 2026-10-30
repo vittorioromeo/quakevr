@@ -3,6 +3,7 @@
 #include "vr_unstick.hpp"
 #include "vr_api.h"
 #include "vr_cvars.hpp"
+#include "vr_progs.hpp"
 
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -144,8 +145,7 @@ void info_f()
     {
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm); // a console command: no VM is current
+    progs::ServerVm vm; // a console command: no VM is current
     edict_t* ent = EDICT_NUM(1);
     edict_t* in = SV_TestEntityPosition(ent);
     Con_Printf("vr_stuck_info: player at %.2f %.2f %.2f, in %s (#%d); freed %d times (last %.2f units, from %s), "
@@ -173,7 +173,6 @@ void info_f()
                 e->v.velocity[0], e->v.velocity[1], e->v.velocity[2]);
         }
     }
-    PR_PopQCVM(oldvm);
 }
 
 // vr_stuck_test <x> <y> <z>: the first player put there as if it had walked there (its last free spot too, so Quake's
@@ -185,8 +184,7 @@ void test_f()
         Con_Printf("vr_stuck_test <x> <y> <z>: puts the player there (inside something, to test vr_unstick)\n");
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm vm;
     edict_t* ent = EDICT_NUM(1);
     for(int i = 0; i < 3; ++i)
     {
@@ -197,7 +195,6 @@ void test_f()
     edict_t* in = SV_TestEntityPosition(ent);
     Con_Printf("vr_stuck_test: player at %.2f %.2f %.2f, in %s\n", ent->v.origin[0], ent->v.origin[1],
         ent->v.origin[2], nameOf(in));
-    PR_PopQCVM(oldvm);
 }
 
 void printTrace(const char* what, const trace_t& t)
@@ -218,8 +215,7 @@ void trace_f()
                    "it meets\n");
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm vm;
     const int num = Cmd_Argc() > 4 ? Q_atoi(Cmd_Argv(4)) : 1;
     if(num >= 1 && num < qcvm->num_edicts)
     {
@@ -234,7 +230,6 @@ void trace_f()
         printTrace("its move", SV_Move(start, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent));
         printTrace("Quake's hull", SV_ClipMoveToEntity(qcvm->edicts, start, ent->v.mins, ent->v.maxs, end));
     }
-    PR_PopQCVM(oldvm);
 }
 
 // A live walking body (a monster: SOLID_SLIDEBOX, MOVETYPE_STEP), not a player.
@@ -253,8 +248,7 @@ void sink_f()
         Con_Printf("vr_stuck_sink [edict] [depth]: needs a map\n");
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm vm;
     int num = Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0;
     const float depth = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 24.f;
     if(num <= svs.maxclients || num >= qcvm->num_edicts)
@@ -284,7 +278,6 @@ void sink_f()
     if(num <= svs.maxclients || num >= qcvm->num_edicts || !walker(EDICT_NUM(num)))
     {
         Con_Printf("vr_stuck_sink: no live monster\n");
-        PR_PopQCVM(oldvm);
         return;
     }
     edict_t* ent = EDICT_NUM(num);
@@ -293,7 +286,6 @@ void sink_f()
     Con_Printf("vr_stuck_sink: %s #%d sunk %.0f units, at %.2f %.2f %.2f: %s\n", nameOf(ent), num, depth,
         ent->v.origin[0], ent->v.origin[1], ent->v.origin[2],
         boxFreeAt(ent, ent->v.origin, MOVE_NOMONSTERS) ? "free (not inside anything)" : "inside the map");
-    PR_PopQCVM(oldvm);
 }
 
 } // namespace

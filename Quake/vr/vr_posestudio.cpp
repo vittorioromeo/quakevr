@@ -1626,7 +1626,7 @@ void placePanel(const hands::State& s)
     {
         glm::vec3 f, r, u;
         hands::angleVectors(glm::vec3{v[3], v[4], v[5]}, f, r, u);
-        const Rigid rel{glm::normalize(glm::quat_cast(glm::mat3{f, -r, u})), glm::vec3{v[0], v[1], v[2]} * m2u};
+        const Rigid rel{glm::normalize(glm::quat_cast(glm::mat3{f, -r, u})), geom::vec(v) * m2u};
         setPanel(compose(headFrame(s), rel));
     }
     else

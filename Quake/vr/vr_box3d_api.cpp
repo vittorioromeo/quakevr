@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
 #include "vr_progs.hpp"
+#include "vr_geom.hpp"
 // vr_box3d_api.cpp -- the API: loads, pins, tool joints, blasts, pushes, shots and rays, held boxes, ropes and level
 // checks, counts and queries.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
@@ -1053,8 +1054,8 @@ void ownBox(const Slot& s, glm::vec3& lo, glm::vec3& hi)
 {
     if(s.model && s.model->type == mod_brush)
     {
-        lo = glm::vec3{s.model->mins[0], s.model->mins[1], s.model->mins[2]};
-        hi = glm::vec3{s.model->maxs[0], s.model->maxs[1], s.model->maxs[2]};
+        lo = geom::vec(s.model->mins);
+        hi = geom::vec(s.model->maxs);
         return;
     }
     lo = s.mins;

@@ -1,6 +1,7 @@
 // vr_admelee.cpp -- see vr_admelee.hpp.
 
 #include "vr_mdlbuild.hpp"
+#include "vr_geom.hpp"
 #include "vr_bytes.hpp"
 #include "vr_admelee.hpp"
 
@@ -214,8 +215,8 @@ struct Frame
 [[nodiscard]] Frame frameOf(const Weapon& w)
 {
     Frame f;
-    f.grip = glm::vec3{w.grip[0], w.grip[1], w.grip[2]};
-    f.a = glm::normalize(glm::vec3{w.axis[0], w.axis[1], w.axis[2]});
+    f.grip = geom::vec(w.grip);
+    f.a = glm::normalize(geom::vec(w.axis));
     const glm::vec3 g{w.guard[0], w.guard[1], w.guard[2]};
     f.g = glm::normalize(g - f.a * glm::dot(g, f.a));
     f.n = glm::cross(f.a, f.g);
@@ -500,7 +501,7 @@ void blade(Mesh& m, const Sword& s)
             look.pushBack(c + across * (p[0] * half * s.skinWiden) + glm::vec3{0.f, 0.f, p[1] * thick});
         }
     };
-    const auto P = [&](int i) { return glm::vec3{s.spine[i][0], s.spine[i][1], s.spine[i][2]}; };
+    const auto P = [&](int i) { return geom::vec(s.spine[i]); };
     const auto chord = [&](int i) { return glm::length(glm::vec2{P(i + 1)} - glm::vec2{P(i)}); };
     const int n = s.points;
     const auto tangent = [&](int i, int seg) { // at point i, for segment seg (its chord's length)

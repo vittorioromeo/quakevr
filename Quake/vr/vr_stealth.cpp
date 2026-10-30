@@ -4,6 +4,7 @@
 // with its lamp's beam in its VR move (vr_move.hpp): a coop client's lamp and the light he stands in are his own.
 
 #include "vr_stealth.hpp"
+#include "vr_geom.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -126,7 +127,7 @@ ProfileScope profileScope;
     const int index = world ? 1 : static_cast<int>(hit->v.modelindex);
     const qmodel_t* m = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
     const bool brush = m && m->type == mod_brush && m->nodes && m->surfaces;
-    const glm::vec3 origin = world ? glm::vec3{0.f} : glm::vec3{hit->v.origin[0], hit->v.origin[1], hit->v.origin[2]};
+    const glm::vec3 origin = world ? glm::vec3{0.f} : geom::vec(hit->v.origin);
     const glm::vec3 local = at - origin;
     bool see = alpha > 0.f && alpha < 1.f;
     if(!see && brush)
@@ -283,7 +284,7 @@ void PF_traceseethrough()
     while(tr.fraction < 1.f && !tr.allsolid && !tr.startsolid && passed < 8)
     {
         glm::vec3 out;
-        if(!passThrough(tr.ent, glm::vec3{tr.endpos[0], tr.endpos[1], tr.endpos[2]}, dir, out))
+        if(!passThrough(tr.ent, geom::vec(tr.endpos), dir, out))
         {
             break;
         }
@@ -597,14 +598,12 @@ void debugFrame()
     const glm::vec3 head = hands::current().head;
     if(meterOfs >= 0)
     {
-        for(int i = 1; i < qcvm->num_edicts; i++)
-        {
-            edict_t* e = EDICT_NUM(i);
-            if(!e->free && (static_cast<int>(e->v.flags) & FL_MONSTER) && e->v.health > 0.f)
+        progs::forEachEdict(1, [&](edict_t* e) {
+            if((static_cast<int>(e->v.flags) & FL_MONSTER) && e->v.health > 0.f)
             {
                 meterLabel(e, stateOfs, phaseOfs, meterOfs, lostOfs, trailOfs, classOfs, head);
             }
-        }
+        });
     }
     if(old != &sv.qcvm)
     {

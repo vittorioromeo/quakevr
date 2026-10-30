@@ -320,7 +320,7 @@ using geom::segmentDistance;
 {
     const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
     const int n = base[static_cast<za::SizeT>(v)].lightnormalindex;
-    return n < NUMVERTEXNORMALS ? glm::vec3{r_avertexnormals[n][0], r_avertexnormals[n][1], r_avertexnormals[n][2]}
+    return n < NUMVERTEXNORMALS ? geom::vec(r_avertexnormals[n])
                                 : glm::vec3{0.f, 0.f, 1.f};
 }
 

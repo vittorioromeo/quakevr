@@ -1361,7 +1361,7 @@ extern "C" void VR_BeamDrawn(int index, qmodel_t* model, const float* start, con
         return;
     }
     qvr::shock::BeamSeen& b = qvr::shock::beamsSeen[index];
-    b.a = glm::vec3{start[0], start[1], start[2]};
-    b.b = glm::vec3{end[0], end[1], end[2]};
+    b.a = qvr::geom::vec(start);
+    b.b = qvr::geom::vec(end);
     b.frame = host_framecount;
 }

@@ -220,7 +220,7 @@ bool buildBody(qmodel_t* src, const aliashdr_t* sh, const rig2::Rig& rig, Body& 
             float xyz[3];
             signed char nrm[3];
             mdldequant::restVertex(sh, v, xyz, nrm);
-            at(b.mdlRest, mv) = glm::vec3{xyz[0], xyz[1], xyz[2]};
+            at(b.mdlRest, mv) = geom::vec(xyz);
             at(filled, mv) = 1;
         }
     }
@@ -1458,7 +1458,7 @@ void headcam_f()
         for(int i = 1; i < cl.num_entities; i++)
         {
             const entity_t& e = cl_entities[i];
-            const float d = glm::distance(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, me);
+            const float d = glm::distance(geom::vec(e.origin), me);
             found = e.model && !strcmp(e.model->name, wanted[k]) && d < best ? i : found;
             best = e.model && !strcmp(e.model->name, wanted[k]) && d < best ? d : best;
         }
@@ -1479,7 +1479,7 @@ void headcam_f()
         mid /= static_cast<float>(n);
         const float y = e.angles[1] * (pi / 180.f);
         const glm::vec3 fw{za::cos(y), za::sin(y), 0.f}, left{-za::sin(y), za::cos(y), 0.f};
-        const glm::vec3 head = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} + fw * mid.x + left * mid.y + glm::vec3{0.f, 0.f, mid.z};
+        const glm::vec3 head = geom::vec(e.origin) + fw * mid.x + left * mid.y + glm::vec3{0.f, 0.f, mid.z};
         const glm::vec3 dirs[4] = {fw, -left, glm::normalize(fw - left), -fw};
         const float yaws[4] = {180.f, 90.f, 135.f, 0.f};
         camAt[k] = head + dirs[view - 1] * dist;
@@ -2499,7 +2499,7 @@ namespace
 int pieceOfBone(edict_t* ent, const float* p)
 {
     const char* name = nullptr;
-    if(box3d::boneAt(ent, glm::vec3{p[0], p[1], p[2]}, &name) < 0 || !name)
+    if(box3d::boneAt(ent, geom::vec(p), &name) < 0 || !name)
     {
         return -2;
     }
@@ -2534,7 +2534,7 @@ void posedAnchors(edict_t* ent, const Shell& s, const PlateFrame& pf, glm::vec3*
         const glm::mat3 axes = held::axesFromAngles(ent->v.angles, false);
         for(int i = 0; i < 3; i++)
         {
-            posed[i] = glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} + axes * at(s.body.mdlRest, pf.anchor[i]);
+            posed[i] = geom::vec(ent->v.origin) + axes * at(s.body.mdlRest, pf.anchor[i]);
         }
     }
 }
@@ -2656,7 +2656,7 @@ int pieceAt(edict_t* ent, const float* p)
     glm::vec3 posed[3];
     posedAnchors(ent, *s, pf, posed);
     const glm::mat3 turn = frameFrom(posed[0], posed[1], posed[2]) * glm::transpose(pf.rest);
-    const glm::vec3 rest = at(s->body.mdlRest, pf.anchor[0]) + glm::transpose(turn) * (glm::vec3{p[0], p[1], p[2]} - posed[0]);
+    const glm::vec3 rest = at(s->body.mdlRest, pf.anchor[0]) + glm::transpose(turn) * (geom::vec(p) - posed[0]);
     return rest.x < cut ? -1 : piece;
 }
 

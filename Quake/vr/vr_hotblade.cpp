@@ -1,6 +1,7 @@
 // vr_hotblade.cpp -- see vr_hotblade.hpp.
 
 #include "vr_random.hpp"
+#include "vr_geom.hpp"
 #include "vr_hotblade.hpp"
 #include "vr_anchor.hpp"
 #include "vr_client.hpp"
@@ -458,7 +459,7 @@ void queue(const hands::State& s)
             {
                 continue;
             }
-            const float d = glm::distance(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, s.head);
+            const float d = glm::distance(geom::vec(e->origin), s.head);
             const int count = n - firstLying;
             if(count == maxLying && d >= dist[n - 1])
             {

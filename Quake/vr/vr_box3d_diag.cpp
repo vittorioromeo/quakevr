@@ -1,5 +1,6 @@
 #include "vr_stats.hpp"
 #include "vr_alloccount.h"
+#include "vr_geom.hpp"
 #include "vr_progs.hpp"
 // vr_box3d_diag.cpp -- the physics commands: spawning, piles, blasts, lists, hashes, benches and tests (and their
 // registration).
@@ -30,14 +31,12 @@ namespace
         }
         return out;
     }
-    for(int i = 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(!e->free && (!strcmp(which, "props") ? isRigid(e) && modelOf(e) : !strcmp(PR_GetString(e->v.classname), which)))
+    progs::forEachEdict(1, [&](edict_t* e) {
+        if((!strcmp(which, "props") ? isRigid(e) && modelOf(e) : !strcmp(PR_GetString(e->v.classname), which)))
         {
             out.pushBack(e);
         }
-    }
+    });
     return out;
 }
 
@@ -391,20 +390,14 @@ void clearPiles_f()
     }
     const progs::ServerVm vm;
     int removed = 0;
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(e->free)
-        {
-            continue;
-        }
+    progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
         const bool tagged = (static_cast<int>(e->v.spawnflags) & stressTagBit) != 0;
         if(tagged || !strcmp(PR_GetString(e->v.classname), "vr_crate_piece"))
         {
             ED_Free(e);
             removed++;
         }
-    }
+    });
     Con_Printf("vr_physics_clearpiles: %d removed\n", removed);
 }
 
@@ -1340,8 +1333,8 @@ void shapes_f()
                 }
                 box("drawn          ", dlo, dhi);
             }
-            box("Quake box      ", glm::vec3{e->v.mins[0], e->v.mins[1], e->v.mins[2]},
-                glm::vec3{e->v.maxs[0], e->v.maxs[1], e->v.maxs[2]});
+            box("Quake box      ", geom::vec(e->v.mins),
+                geom::vec(e->v.maxs));
             if(model && isGun(e))
             {
                 const Slot& slot = world->slots[num];
