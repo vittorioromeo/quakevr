@@ -1722,7 +1722,8 @@ float VR_WATERCLIMB_PULL = 0.3;
 float(float xHand) VR_WaterClimb_HandPull =
 {
     vector vel = VRGetEntHandVel(self, xHand);
-    if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand) || !VRIsHandEmpty(self, xHand) || vel_z > -VR_WATERCLIMB_PULL)
+    if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand) || !VR_Hand_Free(self, xHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED) ||
+       vel_z > -VR_WATERCLIMB_PULL)
     {
         return FALSE;
     }

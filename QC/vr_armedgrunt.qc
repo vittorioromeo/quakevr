@@ -1140,7 +1140,7 @@ void(entity p, entity pl, float h) VR_AG_HandGrab =
         VR_AG_Log(sprintf("a hand (%g) on its weapon: empty %g, grabbing %g", h, VRIsHandEmpty(pl, h),
             VR_AG_GripNow(self, pl, h)));
     }
-    if(!VRIsHandEmpty(pl, h) || !VR_AG_GripNow(self, pl, h))
+    if(!VR_Hand_Free(pl, h, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED) || !VR_AG_GripNow(self, pl, h))
     {
         self = self0;
         return;

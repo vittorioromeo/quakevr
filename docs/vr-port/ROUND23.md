@@ -724,7 +724,8 @@ The baseline every refactor phase is checked against (the kit's `scratch/refacto
   change; not the close shove (`vr_agrunt_shove_close 0`: the same). Whether a real pull in VR still wins needs him.
 - **Test 60 (parries), not fixed: geometry.** The grunt (kind 0) fails the ogre case 4 runs of 5: its parry's pose
   (up 1.00) holds the sword 9-11 units to its right of the blow's line (weapon middle 16 -10 22 body space, upright),
-  outside `VR_AGPAR_RMON` (5 units), "missed its weapon". The enforcer (kind 1) passed 4 of 5.
+  outside `VR_AGPAR_RMON` (5 units), "missed its weapon". The enforcer (kind 1) passed 4 of 5. Fixed since: "The
+  parry's guard meets the blow" below.
 
 Checklist:
 - Throw or slam a grunt so its right leg hits the floor (or a wall) hard: the dent and wound land, no stall.
@@ -3289,3 +3290,66 @@ defaults, all from the replacements. Pinned: mapflameburn 16/0, agrunt_20 3/0, r
 melee_phase `grunt_fast_on` (0 hits) still fails 5 runs of 5 with the pin, but passes 3 of 3 with three more cvar
 commands before `map` (the new values set explicitly too): sensitive to the run's perturbation (no `sv_random_seed`),
 not to these values; it failed in older runs too. Left as is (flaky).
+## One busy-hand check for every grab (branch `agent/busyhand`)
+
+His note (2026-10-30): the force grab should refuse a busy hand too, "one single code path to check that".
+
+- **The predicate (QC/vr_wpnforcegrab.qc):** `VR_Hand_Free(p, hand, xAllow)`: empty (VRIsHandEmpty: no weapon, the slot
+  carries nothing), not busy (the slot's VR_HOLD_FOE and after: an enemy, the flashlight, a gun's fore-end, a just-seated
+  magazine, a tug), not locked on to a force grab. A site's exceptions are its `xAllow` bits (QC/vr_fields.qc):
+  `VR_HANDFREE_BUSY` (any busy kind takes it: a weapon's grab), `VR_HANDFREE_FOE` (the foe grab's hand-over),
+  `VR_HANDFREE_LOCKED` (the force grab's own lock). It replaces VR_Hand_CanTake/CanTakeFrom and the hand-written mixes.
+- **The sites:** none (0): carry grab, box touch, ragdoll limb grab, wall torch (take and query candidate), grenade catch,
+  both pouches, magazine pull. FOE: the hand-over. LOCKED: the force grab's frame, flat grab (E), catch, the axe tug's
+  flight. BUSY|LOCKED (a weapon's grab, as before): weapon_touch, a thrown weapon's catch, an armed grunt's weapon
+  (tug/disarm), the holster draw (DoHandImpl), the hand-off, the grapple gun's pass, the water climb. BUSY, LOCKED only
+  on its own catch: a lying weapon's grab.
+- **Behaviour change (only):** the force grab's start (VR and flat), its catch and the tug's flight refuse a busy hand
+  (before: only the flashlight's); a hand turning busy while locked on lets go of the lock.
+- **Not folded:** the engine's climb (vr_climb.cpp handBusy: before the move, the client's flashlight bit and a pull in
+  flight; it does not see the slot) and the client's grips (held::handEmpty: no slot on the client). Folding either
+  changes answers (a hand on a fore-end or holding an enemy could no longer climb): his call.
+- **Open (his call):** a busy hand still takes a weapon (lying, thrown, a grunt's, the holster's): the flashlight hand
+  can grab a gun. Kept as it was (VR_HANDFREE_BUSY at those sites); dropping the bit there makes them refuse.
+- **check_canonical.py `qc-busy-hand`:** a new read of the force grab's lock, a slot kind compared to VR_HOLD_NONE or
+  VR_HOLD_FLASHLIGHT, VR_Hand_IsBusyKind or the gone VR_Hand_CanTake outside today's sites fails the build.
+- **Test:** `vr_pickup_test 8` (Misc/quakevr/carry/fgbusy_test.sh, e1m1): VR_Hand_Free's exceptions; the first
+  force-grabbable thing put on the off hand's aim, the trigger held: free, it locks on; busy with the flashlight, a
+  fore-end, a seated magazine or a tug, no lock-on; locked on then busy, it lets go. 11 passed, 0 failed (with
+  vr_pickup_test 7, the slot test, 16/0).
+- **Verified (run_baseline.sh --only, 34 covering cases: carry/props, weapon_catch, flash_grab, grip_*, mapgun_pickup,
+  ragdoll_grab/climb, prop_climb, judo, walltorch_grab, reload, reload_pouchgren, agrunt 2/3/21/22/31/32/33/36/39/65-69/
+  74/75/91/92):** against baseline.tsv agrunt_31/36/65 FAIL -> PASS, agrunt_66 PASS -> FAIL (its lying grunt drops its
+  weapon as the hand reaches; this branch 2 of 4 runs fail, origin/next 1 of 1 passes: a flake under load is likely, but
+  not proven), ragdoll_grab 18/1 and agrunt_67 1/1 (listed flaky); the rest as the baseline. Build 0 warnings,
+  check_canonical clean.
+- **Checklist:** hold the flashlight in one hand and point that hand at a box with the trigger: no lock-on (the other
+  hand locks on); two-hand the super shotgun and point the fore-end hand: no lock-on; let go: it locks on. Force grab,
+  weapon pickups, the holster draw and the hand-off feel as before.
+## The parry's guard meets the blow (branch `agent/guardpose`)
+
+Test 60's ogre case: the raised parry held the weapon beside the blow's way, not in it ("missed its weapon"; his call:
+fix the pose, keep `VR_AGPAR_RMON` 5). `VR_AGPar_Pose` aims the weapon's middle at a point on the blow's way, but the
+rest of the pose then moves it: the Pose Studio's keys (`vr_agk_rp`, its hold's offset), the body's turn, the reach
+clamp. Kinds 1 and 2 held the sword up to 10-13 units to its right of the way (middle `14 -13 13`, `18 -10 26`).
+
+- **The fix (`VR_AGPar_Meet`, vr_armedgrunt_parry.qc; called by `VR_AGP_Pose` after the weapon is placed and turned):**
+  the weapon's line as the game has it (`VR_AG_WeaponLine`) is measured and the weapon (and its hand's target,
+  `vr_agp_v`) moved across onto the middle the parry aimed at, by the parry's share, only across the weapon's own line
+  (where along its line the keys hold it stays), at most `VR_AGPAR_AIM_MAX` 16 units, and never further out of the
+  arm's reach than the pose already had it. The keys stay the base, the correction lies on top; every kind and weapon,
+  the reactive parry and the guard (preventive, wind-up) alike, since they share the pose.
+- **Test 60's ogre setup:** its ogre is put back face to face with the grunt before the blow (its AI's first second
+  walked it round to its side once in 10 runs: "from behind", no parry raised). A parry that is not up prints why.
+- **Numbers (10 runs each, `vr_agrunt_test_kind`):** before: grunt 7 of 8 clean, enforcer 5 of 10 (5 "missed its
+  weapon", parry up 1.00), kind 2 6 of 7; the pose fix alone: 10/10, 19/20 (the one: the ogre from behind), 10/10;
+  with the test's setup fixed: 10/10, 10/10, 10/10 (the sword's middle now 0-4.5 units off the way across it, the
+  rest along its tilt). Regression (`--only agrunt|parry|judo|melee_phase|disarm`, 93 cases): no case worse than
+  the baseline (melee_phase, agrunt_1 failed once each and passed on a rerun; agrunt_76's cover shots flaky as
+  listed; parry_pose fails as in the baseline); eval: every verdict the same (a few damage digits jitter run to run).
+
+Checklist:
+- [guardpose] Swing at an armed grunt (sword, then an enforcer) so it raises its parry: its weapon sits across your
+  blow's way, in front of its chest, not off to its right; your swing rings off it.
+- [guardpose] Raise your weapon near a grunt (the wind-up parry) or step in close (the preventive guard): its raised
+  weapon points at your hand, its hand still on the grip (not stretched off it).

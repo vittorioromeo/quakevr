@@ -274,6 +274,14 @@ void() VR_AGPar_Test =
         // Both held still, the ogre at it: its parry rises into the chainsaw's way.
         VR_AGPT2_Hold(g);
         g.enemy = vr_agpt2_ogre;
+        // (Put back where it began, face to face: its AI's first second walks it about, once round its side, so it came
+        // "from behind" and no parry rose, 1 run of 10.)
+        vector toP = p.origin - g.origin;
+        toP_z = 0;
+        setorigin(vr_agpt2_ogre, g.origin + normalize(toP) * 56 + '0 0 1' * (vr_agpt2_ogre.origin_z - g.origin_z));
+        vr_agpt2_ogre.velocity = '0 0 0';
+        vr_agpt2_ogre.angles_y = vectoyaw(g.origin - vr_agpt2_ogre.origin);
+        g.angles_y = vectoyaw(vr_agpt2_ogre.origin - g.origin);
         vr_agpt2_ogre.think = SUB_Null;
         vr_agpt2_ogre.nextthink = -1;
         vr_agpt2_ogre.enemy = g;
@@ -287,6 +295,13 @@ void() VR_AGPar_Test =
     if(vr_agt_step == 7)
     {
         entity o = vr_agpt2_ogre;
+        if(g.vr_agpar_w < 0.5)
+        {
+            // (why its parry is not up: VR_AGPar_Frame's state)
+            float able = VR_AGPar_Able(g, o);
+            VR_AGPT2_Print(sprintf("(its parry down: able %g '%s', ready in %.2f, seen %.2f ago, guard state %g)", able,
+                vr_agpar_why, g.vr_agpar_ready - time, time - g.vr_agpar_seen, g.vr_agg_state));
+        }
         vr_agpt2_n0 = vr_agpar_n;
         float h0 = g.health;
         entity oldself2 = self;

@@ -2011,6 +2011,7 @@ void(entity g, entity p) VR_AGP_Pose =
     vector handL = VR_AGP_ToLocal(hand - g.origin);
     vr_agp_flags = 0;
     vr_agp_gunpose = 0;
+    vr_agpar_mw = 0; // (VR_AGPar_Pose sets it: this pose's parry)
     vr_agp_wl = 0;
     vr_agp_vl = '0 0 0';
     vr_agp_fw = gx;
@@ -2298,6 +2299,25 @@ void(entity g, entity p) VR_AGP_Pose =
         p.vr_ag_pfw = vr_agp_fw; // (a ragdoll's weapon rides its limb from here: VR_AG_RagProp)
         p.vr_ag_pup = vr_agp_up;
         setorigin(p, g.origin + VR_AGP_ToWorld(posL));
+        // (a parry's pose: its weapon, as the whole pose placed it, moved across onto the blow's way it aimed at; its
+        // hand with it, never further out of its arm's reach than the pose had it: vr_armedgrunt_parry.qc VR_AGPar_Meet)
+        vector meet = reaching ? '0 0 0' : VR_AGPar_Meet(g, p);
+        if(meet != '0 0 0')
+        {
+            VR_AM_Row(g.vr_ag_kind);
+            vector sh = vr_am_sh_r + moved;
+            float reach = max(most, vlen(posL - sh));
+            vector met = posL + meet;
+            if(vlen(met - sh) > reach)
+            {
+                met = sh + normalize(met - sh) * reach;
+            }
+            meet = met - posL;
+            posL = met;
+            vr_agp_v = vr_agp_v + meet;
+            VR_AGP_Body(g);
+            setorigin(p, g.origin + VR_AGP_ToWorld(posL));
+        }
         if(vr_agp_flags & VR_AGP_LEFTWPN)
         {
             vector al = VR_AxeStick_Angles(vr_agp_fwl, vr_agp_upl);

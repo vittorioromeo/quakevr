@@ -209,7 +209,8 @@ void() VR_AxeStick_Think =
         float hand = self.vr_stick_tughand;
         VR_AxeStick_PulledOut(axe);
         VR_AxeStick_Free(axe, '0 0 0');
-        if(p.classname == "player" && p.health > 0 && VRIsHandEmpty(p, hand))
+        // (The tug's own busy kind ended with it, VR_AxeStick_Free: a hand busy now took something else meanwhile.)
+        if(p.classname == "player" && p.health > 0 && VR_Hand_Free(p, hand, VR_HANDFREE_LOCKED))
         {
             self = p;
             VR_Forcegrab_Launch(axe, hand);

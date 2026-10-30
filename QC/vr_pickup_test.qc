@@ -318,6 +318,76 @@ void() VR_PickupTest_Float =
     bprint("pickuptest: 6 a super shotgun pickup 40 units ahead\n");
 };
 
+// vr_pickup_test 8: one busy-hand check for every grab (his note, 2026-10-30): VR_Hand_Free's exceptions, and the force
+// grab's start asking it. The first thing on the level a force grab may take (VR_Forcegrab_IsEligible) is put 64 units
+// along the off hand's aim and the off hand's frame run with its trigger held: free, it locks on; busy (the flashlight,
+// a gun's fore-end, a just-seated magazine, a tug), it does not; locked on, a hand turning busy lets go. Then all as was.
+// The off hand must aim level and clear (the mock's: `vr_mock_hand off -0.25 1.2 -0.3 70 0 0`, its aim 70 degrees below
+// the controller's; Misc/quakevr/carry/fgbusy_test.sh).
+void(entity xThing, float xKind, string xWhat) VR_FgBusyTest_Busy =
+{
+    float h = cVR_OffHand;
+    VR_Forcegrab_Set(h, world, FALSE);
+    VR_Hand_Busy(self, h, xKind, world, "test");
+    VR_Forcegrab_HandFrame(h);
+    VR_Test_Check(!self.offhand_fglocked && self.offhand_fgtarget != xThing, sprintf("busy with %s: no lock-on", xWhat));
+    VR_Hand_Unbusy(self, h, xKind, "test");
+};
+
+void() VR_FgBusyTest_Run =
+{
+    float h = cVR_OffHand;
+    VR_Test_BeginFlags("fgbusy test", VR_TEST_LOUD);
+    // VR_Hand_Free's exceptions.
+    VR_Test_Check(VR_Hand_Free(self, h, 0), "the off hand is free to start");
+    VR_Hand_Busy(self, h, VR_HOLD_SSGGRIP, world, "test");
+    VR_Test_Check(!VR_Hand_Free(self, h, 0) && !VR_Hand_Free(self, h, VR_HANDFREE_LOCKED | VR_HANDFREE_FOE) &&
+                  VR_Hand_Free(self, h, VR_HANDFREE_BUSY), "busy: refused, but where a busy hand may (a weapon's grab)");
+    VR_Hand_Unbusy(self, h, VR_HOLD_SSGGRIP, "test");
+    VR_Hand_Busy(self, h, VR_HOLD_FOE, world, "test");
+    VR_Test_Check(!VR_Hand_Free(self, h, 0) && VR_Hand_Free(self, h, VR_HANDFREE_FOE), "holding an enemy: the hand-over only");
+    VR_Hand_Unbusy(self, h, VR_HOLD_FOE, "test");
+    self.offhand_fglocked = TRUE;
+    VR_Test_Check(!VR_Hand_Free(self, h, 0) && VR_Hand_Free(self, h, VR_HANDFREE_LOCKED), "locked on: the force grab's own");
+    self.offhand_fglocked = FALSE;
+
+    // The force grab's start.
+    entity e = nextent(world);
+    while(e != world && !VR_Forcegrab_IsEligible(e))
+    {
+        e = nextent(e);
+    }
+    if(e == world || !cvar_hget(cvarh_vr_forcegrab_mode))
+    {
+        VR_Test_Check(FALSE, "a thing to force grab on the level (and vr_forcegrab_mode 1)");
+        VR_Test_Verdict();
+        return;
+    }
+    vector was = e.origin;
+    makeforward(VRGetHandRot(h));
+    setorigin(e, VRGetHandPos(h) + v_forward * 64 - (VR_Forcegrab_Centre(e) - e.origin)); // (its middle on the aim)
+    float trig = self.button3;
+    self.button3 = 1; // (the off hand's trigger held)
+    VR_Forcegrab_Set(h, world, FALSE);
+    VR_Forcegrab_HandFrame(h);
+    VR_Test_Check(self.offhand_fglocked && self.offhand_fgtarget == e, sprintf("free: locks on to the %s", e.classname));
+    VR_Hand_Busy(self, h, VR_HOLD_SSGGRIP, world, "test");
+    VR_Forcegrab_HandFrame(h);
+    VR_Test_Check(!self.offhand_fglocked, "locked on, then busy: lets go");
+    VR_Hand_Unbusy(self, h, VR_HOLD_SSGGRIP, "test");
+    VR_FgBusyTest_Busy(e, VR_HOLD_FLASHLIGHT, "the flashlight");
+    VR_FgBusyTest_Busy(e, VR_HOLD_SSGGRIP, "a gun's fore-end");
+    VR_FgBusyTest_Busy(e, VR_HOLD_MAGREHOLD, "a seated magazine");
+    VR_FgBusyTest_Busy(e, VR_HOLD_TUG, "a tug");
+    VR_Forcegrab_Set(h, world, FALSE);
+    VR_Forcegrab_HandFrame(h);
+    VR_Test_Check(self.offhand_fglocked && self.offhand_fgtarget == e, "free again: locks on again");
+    VR_Forcegrab_Set(h, world, FALSE);
+    self.button3 = trig;
+    setorigin(e, was);
+    VR_Test_Verdict();
+};
+
 // Every server frame (StartFrame): a pickup test asked for (vr_pickup_test).
 void() VR_PickupTest_Frame =
 {
@@ -361,6 +431,10 @@ void() VR_PickupTest_Frame =
     else if(ask == 7)
     {
         VR_SlotTest_Run(); // (vr_axestick_test.qc: the hand slot's busy kinds)
+    }
+    else if(ask == 8)
+    {
+        VR_FgBusyTest_Run(); // (the force grab refuses a busy hand: VR_Hand_Free)
     }
     self = oself;
 };

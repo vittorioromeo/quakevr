@@ -65,7 +65,7 @@ float VR_HOLD_TORCH = 3;   // a wall torch taken off its wall
 float VR_HOLD_ROUND = 4;   // a round, a magazine, a front-loaded round (vr_reload.qc)
 float VR_HOLD_GRENADE = 5; // a hand grenade (vr_grenade.qc)
 // The busy kinds (VR_Hand_Busy/VR_Hand_Unbusy): the hand carries nothing (.mainhand_held world: VRIsHandEmpty still
-// true, it can make a fist or steady a gun) but is busy, so it takes nothing (VR_Hand_CanTake).
+// true, it can make a fist or steady a gun) but is busy, so it takes nothing (VR_Hand_Free).
 float VR_HOLD_FOE = 6;        // an enemy held (the engine's foe grab: .vr_foegrab_hands, read each PlayerPreThink)
 float VR_HOLD_FLASHLIGHT = 7; // the flashlight in the hand (the client's: .vrbits0's *_BUSY, read each PlayerPreThink)
 float VR_HOLD_SSGGRIP = 8;    // on the other hand's super shotgun, the two-handed hold (vr_reload.qc VR_Reload_SsgFrame)
@@ -73,6 +73,11 @@ float VR_HOLD_MAGREHOLD = 9;  // still gripping the magazine it just seated (vr_
 float VR_HOLD_TUG = 10;       // a force grab's tug on a stuck axe (vr_axestick.qc; the axe in .vr_hold_ent_*)
 .entity vr_hold_ent_main;     // a busy kind's thing (the tugged axe; else world)
 .entity vr_hold_ent_off;
+// A grab site's exceptions to "free to grab" (VR_Hand_Free's `xAllow`, vr_wpnforcegrab.qc; 0: none, the usual):
+float VR_HANDFREE_BUSY = 1;   // any busy kind takes it too: a weapon's grab (lying, thrown, a grunt's, a holster's draw,
+                              // the hand-off: two hands on your own gun), as a weapon's grab always allowed
+float VR_HANDFREE_FOE = 2;    // busy with an enemy alone takes it: the foe grab's hand-over (the enemy becomes a ragdoll)
+float VR_HANDFREE_LOCKED = 4; // the force grab's lock does not refuse: its own frame and catch, a weapon's grab
 .float vr_carry_items;   // the hands carrying a thing to put away (vr_carry.qc VR_Carry_ItemsFrame: bit 0 the off hand, 1 the main; STAT_QVR_CARRYITEM)
 .float vr_carry_fullcue; // on a player: no full cue again before then (VR_Carry_FullCue)
 .float carry_autotried;  // on a box: vr_carry_autocollect tried it this carry (VR_Carry_AutoCollect)

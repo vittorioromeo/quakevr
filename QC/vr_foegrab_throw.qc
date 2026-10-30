@@ -110,7 +110,7 @@ float(entity m, float xYaw, float xTier) VR_FoeGrab_Throw =
 // Returns 1 held, 0 the hand is busy (a weapon, something held).
 float(entity m, float xHand, float xUnused) VR_FoeGrab_HandOver =
 {
-    if(!VR_Hand_CanTakeFrom(self, xHand, VR_HOLD_FOE) || !isragdoll(m))
+    if(!VR_Hand_Free(self, xHand, VR_HANDFREE_FOE) || !isragdoll(m))
     {
         return 0;
     }

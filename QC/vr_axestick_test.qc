@@ -372,17 +372,17 @@ void() VR_SlotTest_Run =
 {
     float h = cVR_OffHand;
     VR_Test_Begin("handslot test");
-    VR_Test_Check(VR_Hand_CanTake(self, h), "the off hand may take to start");
+    VR_Test_Check(VR_Hand_Free(self, h, 0), "the off hand may take to start");
     // A busy kind: the hand empty (a fist, a hotspot) but taking nothing; a carry's release keeps it.
     VR_Hand_Busy(self, h, VR_HOLD_SSGGRIP, world, "test");
     VR_Test_Check(VRIsHandEmpty(self, h), "a busy hand is empty");
-    VR_Test_Check(!VR_Hand_CanTake(self, h), "a busy hand takes nothing");
+    VR_Test_Check(!VR_Hand_Free(self, h, 0), "a busy hand takes nothing");
     VR_Hand_Release(self, h, "test");
     VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_SSGGRIP, "a carry's release keeps the busy kind");
     VR_Hand_Unbusy(self, h, VR_HOLD_MAGREHOLD, "test");
     VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_SSGGRIP, "another kind's unbusy keeps it");
     VR_Hand_Unbusy(self, h, VR_HOLD_SSGGRIP, "test");
-    VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_NONE && VR_Hand_CanTake(self, h), "its unbusy frees it");
+    VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_NONE && VR_Hand_Free(self, h, 0), "its unbusy frees it");
     // (The main hand's gun is no super shotgun: a second hand on it is stale, ended by the frame's check.)
     if(!VR_Reload_SsgBreaks(self, cVR_MainHand))
     {
@@ -398,13 +398,13 @@ void() VR_SlotTest_Run =
     VR_Hand_Derive(self);
     VR_Test_Check(VR_FoeGrab_HandHolds(self, h) && !VR_FoeGrab_HandHolds(self, cVR_MainHand),
         "the foe grab's bit 1: the off hand holds an enemy");
-    VR_Test_Check(!VR_Hand_CanTake(self, h) && VR_Hand_CanTakeFrom(self, h, VR_HOLD_FOE),
+    VR_Test_Check(!VR_Hand_Free(self, h, 0) && VR_Hand_Free(self, h, VR_HANDFREE_FOE),
         "a hand holding an enemy takes only its hand-over");
     self.vr_foegrab_hands = 0;
     self.vrbits0 = self.vrbits0 | QVR_VRBITS0_OFFHAND_BUSY;
     VR_Hand_Derive(self);
     VR_Test_Check(VR_Melee_HoldsTorch(self, h) && !VR_FoeGrab_HandHolds(self, h), "the flashlight's bit");
-    VR_Test_Check(!VR_Hand_CanTake(self, h), "a hand holding the flashlight takes nothing");
+    VR_Test_Check(!VR_Hand_Free(self, h, 0), "a hand holding the flashlight takes nothing");
     self.vrbits0 = self.vrbits0 - (self.vrbits0 & QVR_VRBITS0_OFFHAND_BUSY);
     VR_Hand_Derive(self);
     VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_NONE, "the bits gone: free again");
