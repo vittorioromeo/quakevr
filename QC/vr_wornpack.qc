@@ -251,6 +251,7 @@ void(entity pk) VR_WP_Dead =
     vector mx = pk.maxs;
     Backpack_Setup(pk, VR_WP_Scale());
     setsize(pk, mn, mx);
+    pk.model_offset = '0 0 0'; // (drawn where it sits on the back: not a lying item's offset)
     pk.movetype = MOVETYPE_NONE; // (placed on its back each frame, not falling: VR_WP_Think)
     pk.vr_rigid = 0;
     pk.velocity = '0 0 0';

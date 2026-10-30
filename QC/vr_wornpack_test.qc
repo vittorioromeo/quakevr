@@ -291,10 +291,10 @@ void(entity p) VR_WPT_Deaths =
 void(entity p) VR_WPT_Eyeshot =
 {
     cvar_set("vr_worn_backpacks", "1");
-    entity g1 = VR_WPT_Spawn(p, WID_SHOTGUN, -45, 150, TRUE);
-    entity g2 = VR_WPT_Spawn(p, WID_SHOTGUN, 5, 175, FALSE);
+    entity g1 = VR_WPT_Spawn(p, WID_SHOTGUN, -22, 64, TRUE);
+    entity g2 = VR_WPT_Spawn(p, WID_SHOTGUN, 22, 72, FALSE);
     g2.angles_y = g2.angles_y + 90;
-    entity g3 = VR_WPT_Spawn(p, -1, 55, 150, FALSE);
+    entity g3 = VR_WPT_Spawn(p, -1, 60, 110, FALSE);
     VR_WPT_KnockDown(g3, p, 40);
     g1.netname = g2.netname = g3.netname = "eyeshot";
 };
