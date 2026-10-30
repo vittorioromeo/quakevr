@@ -168,6 +168,18 @@ def punch_motion(seconds):
     return "\n".join(lines) + "\n"
 
 
+def climb_motion(seconds):
+    """vr_mock_play keyframes: both hands on vrclimb's long ledge, four shimmy strokes left and four back (climb_plays.py
+    shimmy close, 2 cm drift, 1 cm wobble), then hanging there (its final let-go dropped) for the rest of the run."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "climb"))
+    import climb_plays
+    lines, _ = climb_plays.shimmy(True, 0.02, 0.01, hy=1.52)  # (the ledge 1.52 m up: the mock body as the bench sets it)
+    for cmd in (" cmd -graboff", " cmd -grabmain"):
+        last = max(i for i, x in enumerate(lines) if x.endswith(cmd))
+        del lines[last]
+    return "\n".join(lines) + "\n"
+
+
 def scenarios():
     s = []
     add = lambda *a, **k: s.append(Scenario(*a, **k))
@@ -232,6 +244,11 @@ def scenarios():
         "Scripted jabs (vr_mock_play, no recorded takes needed) into a ring of grunts: the melee and hit systems, "
         "knockdowns, wounds.", hostile=True, setup=[f"vr_physics_spawn monster_army 40 {(i - 3.5) * 14:g}" for i in range(8)],
         motion=punch_motion, warm=30)
+    # ---- climbing
+    add("climb_shimmy", ["climb"], "both hands hanging from a ledge, shimmying along it", "vrclimb",
+        "vrclimb's long ledge: both hands take it, shimmy four strokes each way, then hang (climb_motion): the climb's "
+        "grips and hang every frame (VR_ClimbPreThink, VR_ClientClimb).", pos="78 176 24 0 0 0",
+        setup=["vr_climb 1", "noclip"], motion=climb_motion, warm=30)
     # ---- physics
     add("props_500_active", ["physics", "core"], "500 mixed props blasted every second (Box3D awake)", RANGE,
         "vr_physics_bigpile mixed 500 with a blast every 90 frames: Box3D step, write-back, prop rendering.",
