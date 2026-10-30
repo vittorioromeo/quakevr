@@ -823,3 +823,30 @@ on builds that have it, reads only the log's new lines every 0.1 s and ends the 
 
 Left: the lane-0 scripts made lane-aware (their log path from the lane, testbatch's copies `qbase.lane<k>.<n>`),
 which would bring the wall time near the free cases' ~5-10 min; exclusive runs that don't drain behind long runs.
+
+## Faster headless tests, round 2: lane-aware scripts, undrawn cases, fair exclusive runs (branch `agent/harness2`)
+
+- **Lane-aware scripts**: the suite scripts that read the agent's game folder by its path (logs, saves, screenshots,
+  eyeshots, id1 pull files, update cache) build it with `QVR_LANE` (`qbase${QVR_LANE:+.lane$QVR_LANE}`, Python the
+  same): mapflameburn, reload, xr_runtime, teleporters/teleporter_edges, ragdoll_test, fist_alert, swim_sound,
+  grip_gap, flash_grab, parryinterrupt, secret_hits, update_notice. testbatch's copies in a lane are
+  `qbase.lane<k>.<n>` (testbatch.py, and kit run.ps1 `-Instance` under QVR_LANE) and run_batch.sh takes the lane's
+  lock. Lane 0 only now: eval.sh and the two teleporter suites (both rebuild maps/vrteleporters.bsp).
+- **Undrawn console cases**: the 16 long agrunt/arena cases at 8 lanes took 337-619 s each drawn (the shared GPU), 19-128
+  s undrawn (`vr_mock_fast 2`), 16.9 -> 2.1 min, the same verdicts. `run_baseline.py --jobs` runs every console and
+  agrunt case undrawn except Rig Studio's (flat screen; `--nodraw REGEX` to choose), at most `--drawn-jobs` (4) drawn
+  scripts at once, one testbatch suite at a time (it plays up to 8 copies), and the suites with `--exclusive` timing
+  runs (reload magcollide/gunshape, ragdoll stagger/liquid_active) first, alone.
+- **Fair exclusive runs** (kit slots.sh): an exclusive claim not drained within `EXCL_DRAIN` (20 s) is let go for
+  `EXCL_BACKOFF` (15 s) so the waiting shared runs start, then made again; after `EXCL_PATIENCE` (180 s) it is held
+  until drained, as before. A shared run behind a 45 s run and an exclusive request: waited 4 s (was ~41 s). Over a
+  full baseline the agents' shared runs waited at most 31 s (was 848 s with 8 lanes and the old claim).
+- **Full baseline** (`run_baseline.py`, now `--jobs 0` = 8 lanes by default; `--jobs 1` the old serial run): 30.0 min
+  (round 1: 39.3; serial ~52), same verdicts as baseline.tsv but for next's known changes (fist_alert, melee_phase,
+  swim_sound pass; reload 111/4, parry_pose fail) and the flaky counts (agrunt 60, 63, 71, 86, ragdoll_ragtest). Not
+  the 10 min hoped for: the critical path is single drawn scripts, 4-10x their quiet-machine time beside the other
+  agents' games (teleporter_edges 783 s, stealth 829, reload 622, flash_grab 517, eval 461, xr_runtime 466).
+- **Start and map load, profiled** (`vr_startup_times`, vrtesthall): start to the first command 0.8 s, of it the
+  window, GL context and shaders 478 ms (shaders 290), VR init 80, input 61, filesystem 60. The map load 1.31 s:
+  entities spawned 757 ms (363 alias models loaded 702 ms: their normal maps 313, skins 179, md5/md3 replacements
+  looked for 127), limb models 319, view models 163, 2304 image files looked for and not found 68 ms. Not cut yet.
