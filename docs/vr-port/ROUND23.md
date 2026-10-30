@@ -1648,6 +1648,44 @@ shotgun's and the nailgun's two), following the muzzles, lasting a few seconds, 
   `scratch/ab_wisps.sh`, `ab_out.txt`): combat_48 cpu 2.544 -> 2.525 ms, gpu 3D 3.200 -> 3.220 (means);
   play_gore_fight (super nailgun) cpu 2.576 -> 2.439, gpu 2.471 -> 2.476: within noise.
 
+### Gunfire VFX settings; the wisps' creases (branch `agent/gunfxopts`)
+
+His asks: more options for the new gunfire effects (wisps' opacity; sparks' amount, size, speed; muzzle smoke's size,
+speed, directionality, thickness, opacity), per-weapon multipliers, and the wisps' creases on a quick swing.
+
+- **Settings** (Weapons > Weapon Effects > Gunfire Particles; all 1 by default: today's look, by construction: the
+  same counts, sizes and random draws): Spark Amount `vr_gunfx_spark_amount` (0-4), Spark Size `vr_gunfx_spark_size`,
+  Spark Speed `vr_gunfx_spark_speed` (0.25-4); Smoke Amount `vr_gunfx_smoke_amount` (the muzzle cone's puffs: its
+  thickness, 0-4), Smoke Size `vr_gunfx_smoke_size` (size and growth), Smoke Speed `vr_gunfx_smoke_speed` (its reach),
+  Smoke Directionality `vr_gunfx_smoke_direction` (1 the forward cone, 0 every way: each puff's way mixed from a random
+  one towards the cone's), Smoke Opacity `vr_gunfx_smoke_alpha` (0-3); Wisp Max Opacity `vr_gunfx_wisp_opacity` (a cap,
+  0.02-1; Wisp Amount scales them). The muzzle's sparks and frontal cone only (not the ports, backblast, vents, impacts,
+  the energy guns' arcs). Read once a shot in emit (vr_gunfx.cpp `tuneFor`), nothing allocated.
+- **Per weapon** (Weapon Offsets > Effects, after Stream Rumble; vr_weapons.inc keys, 1 by default): Gunfire Spark
+  Amount `fx_gfx_sparks`, Spark Size `fx_gfx_spark_size`, Smoke Amount `fx_gfx_smoke`, Smoke Size `fx_gfx_smoke_size`,
+  Muzzle Wisp Opacity `fx_gfx_wisps` (0: no wisps at all), each times the global one. Your shots use the hand's slot; a
+  monster's the slot of its gun's model, else of its weapon id's view model (`slotOf`).
+- **Creases**: a quick swing folds the wisp's ribbon over itself (the hairpins at each turn, the legs on top of each
+  other just after), and the overlapping fragments blended twice: denser knots and lines. Now each pixel is drawn
+  once: `gfx::State::once` (vr_gfx_gl.cpp drawVertices) marks the drawn pixels in the stencil's top bit 0x80 (taken from
+  the particles' reverse-order marks: `underStencilBits` 0x7c, 31 generations) and draws Shade::SoftEdge in four bands
+  of its edge falloff, the cores first, so a pixel takes about its strongest fragment (a plain stencil let the first
+  fragment win: an old leg's faint fringe cut a gap through a new leg's core); the same vertices again (colour masked)
+  clear the marks. One upload, 5 rasterisations of the thin strips, only while wisps show. `vr_debug_ribbon_overlap 1`
+  (Debug > Tests: Wisps Overlap Again) blends them twice again, to compare. Eyeshots (kit `scratch/gunfx/`, the mock
+  hand swung +-30 degrees twice in 33 frames): `crease_swing_0s_before_after.png`, `crease_swing_0.55s_before_after.png`,
+  zooms `crease_hairpin_zoom_before_after.png` (the knot at the turn gone) and `crease_swingend_zoom_before_after.png`
+  (the doubled legs one density, their soft edges kept). Made by the tree's `scratch/swing2.sh`, `compose.sh`
+  (`crop.py`: PNG crop/diff without PIL).
+- **Defaults**: eyeshots of a shotgun's vr_gunfx_test shot and a still gun's wisp, origin/next vs this branch: mean
+  pixel difference 0.21 / 0.13, the same as two runs of one build (0.21 / 0.16: the particles' random draws differ
+  run to run); `defaults_shot_before_after.png`.
+- **Tests**: gunfx_test.py 43/43 (new `--only slots` 6/6: the shotgun's slot at 0 no sparks or smoke, at 2 twice the
+  counts (20/28 vs 10/14), the global 0.5 times the slot's 2 as at 1, your fired shotgun at 0 no sparks, smoke, wisps).
+- **Not done**: the A/B bench (his game was running: exclusive runs wait); the ribbon pass costs 4 more rasterisations
+  of the wisps' thin strips while they show (none in combat_48 unless you fire), the particles' reverse-order pass
+  clears its stencil marks every 31 draws instead of 63.
+
 ## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
 
 His words: a slide that moves with each shot, locks open on an empty magazine, closes by itself with a sound when a
@@ -2156,3 +2194,26 @@ holstered guns with the slide open look it; the automatic re-rack needs a strong
 - **Eyeshots** (low-impact runs, small eyes: not for judging the paint): qvr-kit/scratch/npslide/
   `npslide3_hand_closed_open_holster.png` (closed, closed tilted, locked open; the body and hip holsters),
   `npslide3_hand_open_full.png`.
+## Surface impact sounds (branch `agent/impsnd`; his ask: the bullet impacts' sounds, at the surface, by its type)
+
+A bullet's or a nail's hit on the world (cl_tent.c TE_GUNSHOT, TE_SPIKE, TE_SUPERSPIKE: VR_ImpactTempEntity) now also
+sounds of the surface it hit, from the surface (S_StartSoundPitch at the hit's surface point, ATTN_NORM like Quake's
+tink). The table's new world column `Row::surface` + `surfaceGain` (vr_impacts.cpp); the QC's `sound` column
+(impactsound) is untouched, so a crate's or a thing's hit keeps its output. Bullet: stone a dull thud with a stony crack
+and grit after, dirt a duller low-passed thud, metal Quake's ric1-3 over a light metal ring, wood a hollow knock and a
+splinter's crack (gain 0.6, metal 0.55). Nail (0.42) and super nail (0.55): a shorter, higher, lighter thud or knock
+under Quake's own tink, which still plays with every nail; none of ours on metal (that tink or ricochet is metal's own:
+no doubling) and none for the bolt's beam (its hum). Three takes of each, made from the game's sounds as they load
+(vr/derived/impact_*.wav: VR_SndLayered asks impacts::layered after the gunfire's; prewarm step "impact sounds"); each
+hit a take at random, pitch 0.93-1.07, volume 0.82-1 x. Cap: at most 2 a frame, and none within 64 units of one played
+less than 0.12 s before: a shotgun blast on one spot is one sound (two if its pellets land far apart), a super
+nailgun's stream every other nail. Setting: Sound > Gunfire > Surface Impacts (`vr_gunsfx_impacts` 1, volume 0-2, 0
+none; off with vr_gunsfx 0). Debug: `vr_debug_gunsfx 1` prints `impsnd <kind> on <material> <sample|none|capped> ...`;
+`vr_impact_test <kind> [count] [material] [spread]` (spread is new); Debug > Tests: Impact Sounds: Six Pellets Spread.
+
+Verified: `python Misc/quakevr/gunfx_test.py <agent> --only impactsnd` 21/0 (with -Sound: the derived sounds made, len >
+0): 4 materials x 4 kinds each its own sample (or none: metal nails, bolts) 3 units from the hit, volume and pitch in
+range; 12 pellets on one spot 1 played 11 capped; 3 pellets 70 apart 2 + 1 capped; a real shotgun blast 6 hits, 1
+played; a real SNG stream 11 hits, 6 played (no two within 0.12 s and 64 units). Baseline cases vs baseline.tsv: nail_1,
+np_1 (23/0, baseline 21/0: its newer checks), rv_1, flare_1, ammocolor_1, swim_sound: all PASS. Build: 0 warnings,
+checks clean. (vr_gunsfx_test 19/1: "a gun held in the main hand (slot 16)", its setup's held weapon, not this change.)

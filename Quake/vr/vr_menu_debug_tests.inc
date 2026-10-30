@@ -1105,8 +1105,11 @@ za::Vector<Item> pageDebugTests()
             .help("vr_gunfx_monster_test [rocket]: the nearest grunt, enforcer or AD soldier fires its own gun's effects (1: "
                   "as a rocket tube, AD's rocket soldier's: flash, smoke, backblast out of the gun's back). Nothing else happens."),
         command("Impact Where You Look: Bullet", "vr_impact_test 0 3")
-            .help("vr_impact_test <0 bullet, 1 nail, 2 super nail, 3 bolt> [count]: what that hit throws up off the surface "
-                  "you look at, by its material (vr_impacts.cpp)."),
+            .help("vr_impact_test <0 bullet, 1 nail, 2 super nail, 3 bolt> [count] [material] [spread]: what that hit throws "
+                  "up off the surface you look at, and its sound there, by its material (vr_impacts.cpp)."),
+        command("Impact Sounds: Six Pellets Spread", "vr_impact_test 0 6 stone 40")
+            .help("vr_impact_test 0 6 stone 40: six bullet hits 40 units apart in one frame on what you look at: two "
+                  "sounds, the rest capped (vr_debug_gunsfx 1 prints \"impsnd ...\" for each)."),
         command("Impact Where You Look: Bolt Haze", "vr_impact_test 3 8").help("vr_impact_test 3 8: the thunderbolt's ozone haze."),
         toggle("Print Impact Effects", vr_debug_impacts)
             .help("vr_debug_impacts: every particle2 message and QC sound the server sends (\"impfx p2 <preset> <count> "
@@ -1117,6 +1120,9 @@ za::Vector<Item> pageDebugTests()
                   "(vr_impacts_test.qc)."),
         toggle("Print Gunfire Particles", vr_debug_gunfx)
             .help("vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\")."),
+        toggle("Wisps Overlap Again", vr_debug_ribbon_overlap)
+            .help("vr_debug_ribbon_overlap: the muzzle wisps blend twice where they fold over themselves (a sharp swing), "
+                  "as before the fix: the denser creases, to compare."),
         command("Per-Weapon Recoil Test", "vr_recoil_test")
             .help("vr_recoil_test: the main hand's weapon's own Recoil Kick Back and Muzzle Rise move its recoil only "
                   "(no other weapon's), and its Recoil Recovery 2x / 0.5x takes twice / half as long back to rest; "
