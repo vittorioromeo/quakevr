@@ -3,6 +3,7 @@
 
 #include <type_traits>
 #include <string.h>
+#include "vr_mdldequant.hpp"
 #include "vr_agarms.hpp"
 #include "vr_client.hpp"
 #include "vr_agbody.hpp"
@@ -315,33 +316,12 @@ using geom::segmentDistance;
     return row.x < 0.5f ? 1.f : za::floor(row.y * 0.5f) * 0.001f;
 }
 
-[[nodiscard]] glm::vec3 restVertex(const aliashdr_t* hdr, int v)
-{
-    const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-    const trivertx_t& t = base[static_cast<za::SizeT>(v)];
-    return glm::vec3{t.v[0], t.v[1], t.v[2]} * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]} +
-           glm::vec3{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-}
-
 [[nodiscard]] glm::vec3 restNormal(const aliashdr_t* hdr, int v)
 {
     const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
     const int n = base[static_cast<za::SizeT>(v)].lightnormalindex;
     return n < NUMVERTEXNORMALS ? glm::vec3{r_avertexnormals[n][0], r_avertexnormals[n][1], r_avertexnormals[n][2]}
                                 : glm::vec3{0.f, 0.f, 1.f};
-}
-
-[[nodiscard]] glm::vec3 poseVertex(const aliashdr_t* hdr, int pose1, int pose2, float blend, int v)
-{
-    const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-    const za::SizeT nv = static_cast<za::SizeT>(hdr->numverts);
-    const trivertx_t& a = base[static_cast<za::SizeT>(pose1) * nv + static_cast<za::SizeT>(v)];
-    const trivertx_t& b = base[static_cast<za::SizeT>(pose2) * nv + static_cast<za::SizeT>(v)];
-    const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
-    const glm::vec3 origin{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-    const glm::vec3 pa = glm::vec3{a.v[0], a.v[1], a.v[2]} * scale + origin;
-    const glm::vec3 pb = glm::vec3{b.v[0], b.v[1], b.v[2]} * scale + origin;
-    return pa + (pb - pa) * blend;
 }
 
 // `model`'s skin, made once a model (null: none).
@@ -363,6 +343,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
     Skin& m = *free;
     m = Skin{};
     m.model = model;
+    mdldequant::prepare(model); // (its rest places as drawn: dequantised, whether or not it was uploaded yet)
     const int nv = hdr->numverts;
     if(rig.numVerts != nv || rig.numPoses != hdr->numposes || spec.chest < 0)
     {
@@ -379,7 +360,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
     m.row.resize(static_cast<za::SizeT>(nv), glm::vec4{0.f});
     for(int v = 0; v < nv; v++)
     {
-        m.rest[static_cast<za::SizeT>(v)] = restVertex(hdr, v);
+        m.rest[static_cast<za::SizeT>(v)] = mdldequant::modelVertex(hdr, 0, 0, 0.f, v);
     }
     const auto at0 = [&](int b, const glm::vec3& p) { return rigpose::apply(rigpose::key(rig, 0, b), p); };
     m.chest = spec.chest;
@@ -432,7 +413,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
         for(int p = 0; p < rig.numPoses; p++)
         {
             const glm::vec3 d = rigpose::apply(fromRest[static_cast<za::SizeT>(p * rig.numBones + b)], m.rest[static_cast<za::SizeT>(v)]) -
-                                poseVertex(hdr, p, p, 0.f, v);
+                                mdldequant::modelVertex(hdr, p, p, 0.f, v);
             sum += glm::dot(d, d);
         }
         return za::sqrt(sum / static_cast<float>(za::max(rig.numPoses, 1)));
@@ -1422,8 +1403,8 @@ void noteErr(const Skin& m, const Ent& st, const aliashdr_t* hdr, int pose1, int
         for(za::SizeT i = 0; i + 1 < sd.edges.size(); i += 2)
         {
             const int u = sd.edges[i], w = sd.edges[i + 1];
-            const glm::vec3 pu = skinned(m, st.bones, chest, st.clav, st.stretch,u, poseVertex(hdr, pose1, pose2, blend, u));
-            const glm::vec3 pw = skinned(m, st.bones, chest, st.clav, st.stretch,w, poseVertex(hdr, pose1, pose2, blend, w));
+            const glm::vec3 pu = skinned(m, st.bones, chest, st.clav, st.stretch,u, mdldequant::modelVertex(hdr, pose1, pose2, blend, u));
+            const glm::vec3 pw = skinned(m, st.bones, chest, st.clav, st.stretch,w, mdldequant::modelVertex(hdr, pose1, pose2, blend, w));
             const float r0 = glm::length(m.rest[static_cast<za::SizeT>(u)] - m.rest[static_cast<za::SizeT>(w)]);
             if(r0 < 0.05f)
             {
@@ -1514,7 +1495,7 @@ void noteGlitch(const Skin& m, const Ent& st, const ragdoll::Rig& rig, const rig
         a.twist = arms[s].twist;
         for(const int v : sd.upper)
         {
-            const glm::vec3 p = skinned(m, st.bones, C, st.clav, st.stretch,v, poseVertex(hdr, pose1, pose2, blend, v));
+            const glm::vec3 p = skinned(m, st.bones, C, st.clav, st.stretch,v, mdldequant::modelVertex(hdr, pose1, pose2, blend, v));
             int part = -1;
             const float d = agbody::depth(body, p, 0.f, nullptr, &part);
             if(part == agbody::Torso && d > 0.f)
@@ -1531,8 +1512,8 @@ void noteGlitch(const Skin& m, const Ent& st, const ragdoll::Rig& rig, const rig
             {
                 continue;
             }
-            const glm::vec3 pu = skinned(m, st.bones, C, st.clav, st.stretch,u, poseVertex(hdr, pose1, pose2, blend, u));
-            const glm::vec3 pw = skinned(m, st.bones, C, st.clav, st.stretch,w, poseVertex(hdr, pose1, pose2, blend, w));
+            const glm::vec3 pu = skinned(m, st.bones, C, st.clav, st.stretch,u, mdldequant::modelVertex(hdr, pose1, pose2, blend, u));
+            const glm::vec3 pw = skinned(m, st.bones, C, st.clav, st.stretch,w, mdldequant::modelVertex(hdr, pose1, pose2, blend, w));
             const float ratio = za::max(glm::length(pu - pw), 1e-3f) / r0;
             a.stretch = za::max(a.stretch, za::max(ratio, 1.f / ratio) - 1.f);
         }

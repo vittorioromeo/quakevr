@@ -1407,6 +1407,20 @@ glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex)
     return p;
 }
 
+glm::vec3 modelVertex(const void* aliashdr, int pose1, int pose2, float blend, int vertex)
+{
+    const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
+    const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    const glm::vec3 origin{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+    const glm::vec3 pa = poseVertex(aliashdr, pose1, vertex) * scale + origin;
+    if(pose2 == pose1 || blend == 0.f)
+    {
+        return pa;
+    }
+    const glm::vec3 pb = poseVertex(aliashdr, pose2, vertex) * scale + origin;
+    return pa + (pb - pa) * blend;
+}
+
 void restVertex(const void* aliashdr, int meshVertex, float xyz[3], signed char normal[3])
 {
     // (as GLMesh_LoadVertexBuffer uploads pose 0 and the alias shader moves it by PoseFrac)

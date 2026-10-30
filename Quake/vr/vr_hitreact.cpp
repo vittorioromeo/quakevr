@@ -1,5 +1,6 @@
 // vr_hitreact.cpp -- living hit reactions (vr_hitreact.hpp; ROUND22.md, "Active ragdolls: living hit reactions").
 
+#include "vr_mdldequant.hpp"
 #include "vr_testkit.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_client.hpp"
@@ -636,19 +637,6 @@ constexpr ArmedRig armedRigs[] = {
     return o + glm::vec3{c * d.x - s * d.y, s * d.x + c * d.y, d.z};
 }
 
-// Vertex `v` of the poses drawn (posed model space, units).
-[[nodiscard]] glm::vec3 poseVertex(const aliashdr_t* hdr, int pose1, int pose2, float blend, int v)
-{
-    const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-    const trivertx_t& a = base[static_cast<za::SizeT>(pose1) * static_cast<za::SizeT>(hdr->numverts) + static_cast<za::SizeT>(v)];
-    const trivertx_t& b = base[static_cast<za::SizeT>(pose2) * static_cast<za::SizeT>(hdr->numverts) + static_cast<za::SizeT>(v)];
-    const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
-    const glm::vec3 origin{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-    const glm::vec3 pa = glm::vec3{a.v[0], a.v[1], a.v[2]} * scale + origin;
-    const glm::vec3 pb = glm::vec3{b.v[0], b.v[1], b.v[2]} * scale + origin;
-    return pa + (pb - pa) * blend;
-}
-
 [[nodiscard]] int boneNamed(const ragdoll::Rig& rig, const char* name)
 {
     for(int b = 0; b < rig.numBones; b++)
@@ -886,15 +874,15 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     glm::vec3 hr{0.f};
     for(const int v : a->rightHand)
     {
-        hr += poseVertex(hdr, pose1, pose2, blend, v) / static_cast<float>(za::getArraySize(a->rightHand));
+        hr += mdldequant::modelVertex(hdr, pose1, pose2, blend, v) / static_cast<float>(za::getArraySize(a->rightHand));
     }
     // Its drawn rifle's line: the carry's turn.
-    const glm::vec3 rear = (poseVertex(hdr, pose1, pose2, blend, a->gunRear[0]) + poseVertex(hdr, pose1, pose2, blend, a->gunRear[1])) * 0.5f;
+    const glm::vec3 rear = (mdldequant::modelVertex(hdr, pose1, pose2, blend, a->gunRear[0]) + mdldequant::modelVertex(hdr, pose1, pose2, blend, a->gunRear[1])) * 0.5f;
     const glm::vec3 muzzle =
-        (poseVertex(hdr, pose1, pose2, blend, a->gunMuzzle[0]) + poseVertex(hdr, pose1, pose2, blend, a->gunMuzzle[1])) * 0.5f;
+        (mdldequant::modelVertex(hdr, pose1, pose2, blend, a->gunMuzzle[0]) + mdldequant::modelVertex(hdr, pose1, pose2, blend, a->gunMuzzle[1])) * 0.5f;
     glm::vec3 gx = muzzle - rear;
     gx = glm::length(gx) > 1e-4f ? glm::normalize(gx) : glm::vec3{1.f, 0.f, 0.f};
-    glm::vec3 gz = poseVertex(hdr, pose1, pose2, blend, a->gunTop) - poseVertex(hdr, pose1, pose2, blend, a->gunBottom);
+    glm::vec3 gz = mdldequant::modelVertex(hdr, pose1, pose2, blend, a->gunTop) - mdldequant::modelVertex(hdr, pose1, pose2, blend, a->gunBottom);
     gz -= gx * glm::dot(gz, gx);
     gz = glm::length(gz) > 1e-4f ? glm::normalize(gz) : glm::vec3{0.f, 0.f, 1.f};
     const glm::vec3 gy = glm::cross(gz, gx);
@@ -912,7 +900,7 @@ bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2
     hr = s.hand;
     // vr_agarms: placed from its chest's anchor as drawn (the server placed them from it as it had it).
     const bool anchored = (m.flags & apAnchor) && a->anchor >= 0;
-    const glm::vec3 anchorAt = anchored ? poseVertex(hdr, pose1, pose2, blend, a->anchor) : glm::vec3{0.f};
+    const glm::vec3 anchorAt = anchored ? mdldequant::modelVertex(hdr, pose1, pose2, blend, a->anchor) : glm::vec3{0.f};
     if(anchored)
     {
         hr = anchorAt;
@@ -1154,9 +1142,9 @@ bool specOf(const ArmedRig& a, const ragdoll::Rig& rig, const aliashdr_t* hdr, a
     s.fore[1] = boneNamed(rig, a.foreL);
     s.chest = boneNamed(rig, "chest");
     s.chest = s.chest >= 0 ? s.chest : chestOf(rig);
-    const glm::vec3 rear = (poseVertex(hdr, 0, 0, 0.f, a.gunRear[0]) + poseVertex(hdr, 0, 0, 0.f, a.gunRear[1])) * 0.5f;
-    const glm::vec3 muzzle = (poseVertex(hdr, 0, 0, 0.f, a.gunMuzzle[0]) + poseVertex(hdr, 0, 0, 0.f, a.gunMuzzle[1])) * 0.5f;
-    s.gunRot = frameRot(muzzle - rear, poseVertex(hdr, 0, 0, 0.f, a.gunTop) - poseVertex(hdr, 0, 0, 0.f, a.gunBottom));
+    const glm::vec3 rear = (mdldequant::modelVertex(hdr, 0, 0, 0.f, a.gunRear[0]) + mdldequant::modelVertex(hdr, 0, 0, 0.f, a.gunRear[1])) * 0.5f;
+    const glm::vec3 muzzle = (mdldequant::modelVertex(hdr, 0, 0, 0.f, a.gunMuzzle[0]) + mdldequant::modelVertex(hdr, 0, 0, 0.f, a.gunMuzzle[1])) * 0.5f;
+    s.gunRot = frameRot(muzzle - rear, mdldequant::modelVertex(hdr, 0, 0, 0.f, a.gunTop) - mdldequant::modelVertex(hdr, 0, 0, 0.f, a.gunBottom));
     s.isGun = isGunOf;
     s.row = &a;
     s.torsoSides = a.torsoSides;
