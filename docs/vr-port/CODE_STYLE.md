@@ -275,5 +275,11 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
 - Cvars: read with a handle, `cvar_hget(cvarh_<name>)` (declared and made in `QC/vr_cvars.qc`, compiled right after
   defs.qc so every file sees it); `cvar("...")` only in tests and one-off code. A new handle: its global and its
   `VR_CVAR_HMAKE` line at the end of each list (the handles' numbers follow the order).
+- Tables, not if-chains (refactor B1): a weapon's numbers, model, name, ammo and pickup classname are its row of
+  `VR_WEAPONS` (`QC/vr_weaponutil.qc`, one `vr_weapon_row` a weapon id, in id order: a new weapon is a new row; the
+  `WeaponIdTo*` functions read their column); the arena perks' name, text, card model and colour are `VR_ARK_PERKS`
+  (vr_arena_perks.qc); ClientObituary's words are `VR_OBIT_MONSTERS` / `VR_OBIT_TRAPS` / `VR_OBIT_WEAPONS` (client.qc).
+  A struct array with an initializer (`MG_poses`, these) is the form; a value a setting or a function decides stays a
+  line of code before the table read. Each table costs a global per value: QC globals are near the id format's 64k.
 - Builtins: a `= #0` prototype is bound by name; `Misc/quakevr/check_builtins.py` (run by the kit's build.sh) fails the
   build when one names no engine builtin, or a `vrBuiltins` entry has no prototype.

@@ -1004,3 +1004,34 @@ case: next has the mock-hand fix since the baseline).
   188, eval 461 -> 87; the critical path is now teleporter_edges (927 s: drawn screenshot runs) and flash_grab (760 s,
   already undrawn: its many passes beside the other games), then xr_runtime 577. Next: those three split into parallel
   parts or undrawn steps.
+
+## Refactor wave B1: QC if-chains to tables (branch `agent/reftables`)
+
+No behaviour change. Each step was checked by an A/B dump: a temporary QC function (not committed) printed every answer
+of the functions touched, from the build before and the build after, and the two logs were diffed (identical, apart from
+`random()` picks that differ run to run).
+
+- **W17** `QC/vr_weaponutil.qc`: the 15 `WeaponIdTo*` chains read one table, `VR_WEAPONS[WID_LAST + 1]` (a
+  `vr_weapon_row` a weapon id: pickup classname, item, ammo and secondary ammo, model and secondary model, name, throw
+  multiplier, damage, bounds, starting ammo, clip, flags for reload / flick / secondary ammo / stabilised throw). The AD
+  guns' model, name and clip and the clips a setting sizes (grunt gun, enforcer rifle, nail pistol, flare gun,
+  revolver) stay code before the table read. Out-of-range ids still ASSERT and return the old fallback. Dumped: all 32
+  ids with and without the secondary-ammo flag, and the 17 pickup classnames.
+- **W20** `ClientObituary` (client.qc): the monster kills (`VR_OBIT_MONSTERS`), the traps (`VR_OBIT_TRAPS`) and a
+  player's weapon kills (`VR_OBIT_WEAPONS`, with secondary-ammo words) are tables; the words that depend on more (MG3's
+  variants, the vore's shove, the gib, the water, the laser's coin toss) stay code. Dumped: 33 monster classnames x 2
+  variant states, 14 traps, the water deaths and 32 weapons x 4 flag/gib states.
+- **W21** `CheckPowerups` (client.qc): `VR_Powerup_Warn/Expire/Glow(field, clock, ...)` for the seven timed powerups
+  that share Quake's pattern; the lava suit's end, the shield and the antigrav (different rules) stay inline.
+- **W19** `ImpulseCommands` (weapons.qc): `VR_Impulse_HandReady`, `VR_Impulse_CycleHand(hand, reverse)` and
+  `VR_Impulse_WeaponButton(hand)` replace the five copies of the per-hand cycling and the two button blocks.
+- **W18** `W_AttackImpl` (weapons.qc): the firing tail is `W_AttackImpl_Fire`, a dispatch to one `W_Fire_<weapon>` a
+  weapon; the checks before it are unchanged. Melee: a pure move of the untracked swings.
+- **C14** `vr_arena_perks.qc`: the perks' pool order, name, text, card model and colour are one table, `VR_ARK_PERKS`.
+
+QC globals: 55869 before, 56505 after (+636: each table value is a global; the id format's limit is 65536); statements +982 (the compiler's array readers).
+
+Not done in this branch (left for a later round): W26 VR_HandVec, C29 one VR_TestsFrame, S01 generated cvar handles,
+C11/C12 arena + horde spawn table (the arena's grunt/enforcer spawn their armed versions while the horde's spawn id's:
+a shared table needs two spawn columns), C10 horde squads, C04/C06/C07 AD setup tables, C13 C15-C17 C24 C25 C30 C32
+C48 M53 B64.
