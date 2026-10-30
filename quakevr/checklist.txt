@@ -74,6 +74,8 @@ Load vrstart, then hip2m5, then an MG3 map with owned MG3 monsters: textures and
 Nail pistol: each shot the slide snaps back and runs home (Combat > Weapon Damage > Slide Travel and Slide Cycle change the distance and speed).
 Nail pistol: fire until empty: the slide stays locked open; eject, slap in a magazine: the slide closes by itself with a rack sound.
 An armed grunt's nail pistol kicks its slide on each shot.
+Firing range: shoot the laser cannon at the floor and walls: sparks and bounces, no blood; at a monster it still bleeds.
+AD flamethrower and poison sprayer: a subtle tremble while firing that settles when you let go, plus the same light buzz (Weapon Offsets > Effects > Stream Shake / Stream Rumble per gun).
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
