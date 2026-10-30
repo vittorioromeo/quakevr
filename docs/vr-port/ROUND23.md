@@ -2036,3 +2036,55 @@ forced materials): the old counts. Baseline cases (run_baseline.py vs baseline.t
 9/3 (as the baseline), agarmor_1 26/0, agarmor_5 23/0 (baseline 22/1, flaky), nail_1, np_1 (23/0, baseline 21/0: the
 test's own newer checks), flare_1, walltorch_grab, empty_melee, secret_hits and dead_gear (as the baseline): no case
 changed. gunfx_test.py 29/0. Build: 0 warnings, check_canonical clean. A/B bench (LTO, exclusive, ABBA, scratch/ab_bench.sh: A = origin/next + the trace, B = the table; cpu busy ms): combat_48 A 2.64 (2.69, 2.58), B 2.44 (2.43, 2.46): -7.3%; play_gore_fight A 2.36 (2.30, 2.42), B 2.40 (2.41, 2.38): +1.4%. Both within the runs' spread (A's own runs differ 4-5%): no cost measured. (The planned ABBAABBA stopped after 4 runs: the exe was busy at the swap.)
+
+## One hit record, part 1: where a hit struck (branch `agent/hitrecord`; design review 6)
+
+**What:** the "where did it strike" half of proposal 6, in the review's three steps (one commit each). A shot's or a
+blow's zone and a shotgun blast's pellets now live in one record, `hit_*` (combat.qc), with one writer each:
+`VR_Hit_SetZone` (PositionalDamage, VR_Melee_Positional), AddMultiDamage / VR_HitReact_Pellet (the blast's pellets,
+their parts, their points on its flesh) and ApplyMultiDamage (`hit_blast` set around the blast's damage only). Every
+consumer reads it through `VR_Hit_On(targ)` / `VR_Hit_Zone(targ)` (the record is for that target this frame),
+`VR_Hit_Pellets()` (0 outside a blast's damage) and `VR_Hit_PelletPart(limbs)` (the one majority rule); one location
+vocabulary, the zones positional damage always used (1 head, 2 limb, 3 legs, 0 body, -1 none). **Deleted:** 17
+globals (`vr_hitpart`, `_target`, `_time`, `_pos`; `vr_hitpellets`, `_head`, `_limb`, `_leg`; `vr_hr_pel_ent`,
+`_time`, `_count`, `_sum`, `_dir`; `multi_pellets*` x4) for the record's 10, and 5 hand-copied validity checks and
+2 pellet-majority ladders. Consumers switched: the ragdoll's death hit, the corpse's positional factor, the flinch
+(VR_HitReact_Where), the stagger's head test, the highlights' headshot, the armour's helmet share and pellet pieces,
+the dummy's report, the gore kind, decap's and limbs' Quad pops, limb wear, the wounds, the knockdown's shotgun rule,
+the debug prints. No behaviour change intended.
+
+**Step 2's check** (removed in step 3): at each of those consumers, the record against the old globals (zone,
+validity, point; pellets, their parts, their mean point and direction), "hitcheck:" lines. Over agrunt 1 and 12,
+agarmor 1 and 5, arena 1, decap_test.sh live/pop/corpse/refuse and the covering baseline run (agrunt sample, armour,
+limb_wear, ragdoll_*, melee_phase, judo, eval, shot_shape, arena_1): **0 mismatches**; 13 of the 15 consumers were
+reached (not reached: the highlights' and the Quad pops', which read the same expressions).
+
+**Disagreements between the consumers (kept as they were; his call, decision "4 and 6: the disagreement lists"):**
+1. A blast's single "part": the flinch takes the head if half the pellets, else the legs if most, else a limb if most,
+   else the body; the ragdoll's death hit the same **without the limb** (a limb blast is a body hit); the highlights
+   call a blast a headshot if **any** pellet struck the head; the corpse's positional factor weights each pellet's
+   multiplier (no single part). One rule would be `VR_Hit_PelletPart(TRUE)` everywhere.
+2. The armour's helmet share (vr_agarmor.qc) reads `hit_zone == 1` **without** checking the record is this target's
+   this frame (as `vr_hitpart` was): an earlier shot's zone can count. The fix is `VR_Hit_Zone(targ) == 1`.
+3. The stagger's head test ignores a blast's pellets (a head blast staggers as a body hit) and falls back to the top
+   fifth of the box; decap's head test (VR_Decap_OnHead: its own sphere, grown for melee) is another head again.
+4. The debug prints (T_DamageImpl's) take the zone if it is this frame's, whatever its target.
+5. (Changed by the record, not reached by any test:) the blast's mean point for the flinch is now the blast's own
+   (reset at each FireBullets); before, two blasts on one target in one frame (both hands' shotguns) were pooled.
+
+**Left for part 2 (the review's estimate: 2-3 more rounds):** `vr_hitkind`/`vr_hithand`/`vr_hitpos`/`vr_hitdir`/
+`vr_hit_nobleed` into the record behind `VR_Hit_Begin`/`VR_Hit_End` (24 VR_SetHitKind sites); the geometric deciders
+(VR_Decap_OnHead, VR_SmallGib_Where, vr_wounds' and vr_carry's inline rebuilds, the 3 ragdoll-piece lookups, the
+engine's `regionOf`) onto `hit_zone` + a bone; `VR_Hit_Class()` for the 9 kind classifiers and the 4 bleed predicates,
+and the impact table's hit kind (VR_HIT_*) from it; the two T_Damage bypasses (vr_chainsaw.qc, vr_crates.qc).
+
+**Verified:** build 0 warnings. Covering cases vs baseline.tsv after step 3: 0 of 21 changed (melee_phase passed; it
+failed once on step 2's build, grunt_fast_on, and passes on next's runs about half the time). eval.sh: 163/171 as
+next, the 3 takes that moved between step 2's run and step 3's differ in their replayed speed only (x1.28/x1.29), not
+in zone or damage rules. A/B bench (LTO, one exe, two progs.dat: A = the base f4235be41, B = the record;
+`scratch/ab_hit.sh`; cpu busy ms): only one A and one B ran before his game started (the rest: no result):
+combat_48 A 2.573, B 2.424; armed_16 A 3.086, B 3.476 (B's run had a 58 ms hitch: max 58.43). One pair is noise;
+**the ABBAABBA bench is still to run** (`bash scratch/ab_hit.sh hitrec2 ABBAABBA` with his game closed).
+
+**Test in VR:** shotgun blasts at heads, legs and arms (flinch, ragdoll fall, highlights' headshot), the armour helmet,
+the dummy's report at the firing range: all as before.
