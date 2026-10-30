@@ -1564,3 +1564,53 @@ read every pak's directory.
   runs' +-100 ms spread; hip2m5's per-round differences -63, -11, -633, -38, +79). "Image files looked for, none found"
   70 -> 6 ms (vrtesthall), 77 -> 6 (vrstart), 16 -> 5 (e1m1), 20 -> 6 (hip2m5). Warm loads unchanged (144-293 ms: the
   models are kept). Scripts: scratch/load5_ab.sh, load5_abstats.py (not committed).
+## Refactor leftovers L2: render/fx/audio file splits (branch `agent/leftsplit2`)
+
+No behaviour change intended: pure moves (each moved item's text unchanged; a moved file's anonymous namespace became
+`<ns>::detail`, declared in `<file>_internal.hpp`, its variables defined where they stood; small anonymous helpers that
+the parts share moved to the header as `inline`, internal-linkage constants as `inline constexpr`/`inline const`; a
+default argument kept on the header's declaration only). The worktree's scratch/split.py, split2.py, mk_internal.py
+did the moves (not committed).
+
+- vr_particles.cpp (4162 -> 2007 lines) + vr_particles_blood.cpp (blood/smoke/spark emitters, the gore's drips and
+  droplets, chainsaw/contact/battery/torch smoke), vr_particles_trails.cpp (trails, impacts, splashes, mist, fire, AD
+  streams, tank fire, electricity, embers, shells), vr_particles_diag.cpp (the test and report commands);
+  vr_particles_internal.hpp: Particle and its enums, pool/lastRun/rng (extern; rng's dynamic initializer stays in
+  vr_particles.cpp), rndi..onSphere and make<> inline, ShoreNear/LightStats and the report's counters.
+- vr_relight.cpp (4181 -> ~2190) + vr_relight_bsp.cpp (lumps, entity text, map lights, texture rules) and
+  vr_relight_glow.cpp (faces, things, fixtures, glow images, glowLights); the glow cache (a mem::Cache) stays in
+  vr_relight.cpp. Allowlist: startsWith's strings-copy moved to vr_relight_bsp.cpp (+ its declaration in the header).
+- vr_audio.cpp (3980 -> ~3500) + vr_audio_io.cpp (derived sounds, the band-limit tables and scratch, the full-band
+  resampler; the layered sounds and readPcm went to vr_sndlayer.cpp with agent/gunsfx, kept there at the merge). The jobs-site block is `audio::detail`; BandLimitStats in the header. The two
+  mem sets (band-limit tables/scratch) now register from vr_audio_io.cpp: their place in the mem report's list moves.
+- vr_portals.cpp (3224 -> ~2210) + vr_portals_gates.cpp (crossing for players, monsters and what flies, unstick, the
+  AI's gate images/routes, pulls, tosses, VR_PortalMonsterCross); aiRoute lost its `static` (both files call it).
+  Allowlist: player-edict 3 -> 2 + 1 in vr_portals_gates.cpp.
+- vr_brushes.cpp (3605 -> ~2180) + vr_brushes_model.cpp (polygons from planes, bevels, the brush model: hulls,
+  edges, textures, surfaces, build/apply; its anonymous namespace became `brushes::detail`) and vr_brushes_text.cpp
+  (the default alignment, box/shape/rotate/scaleTo/forEachPolygon, toText/fromText with Tokens and facePoints; its
+  own anonymous namespace kept). vr_brushes_internal.hpp gained Winding, the four epsilons/extents as
+  `inline constexpr`, and baseWinding/polygons/worldTexture/bevels' declarations.
+- vr_backend_openxr.cpp (2657 lines, one class) in two commits: first every member function's body moved out of the
+  class body below it in the same file (no other change: the declarations kept their comments and `[[nodiscard]]`/
+  `static`/`override`; the template `guarded` stays in the class; the Linux/Windows contextReady/logGlInterop pairs keep
+  their `#ifndef _WIN32` round the definitions), then by phase: the class and the fault helpers (now `inline`) in
+  vr_backend_openxr_internal.hpp, namespace `qvr::oxr` (was anonymous: a class shared by four files needs a name);
+  vr_backend_openxr.cpp (~1150: start/stop, instance, system, session, spaces, the state trail, events, the debug
+  messenger), vr_backend_openxr_frame.cpp (~700: begin/end frame, eye images, timing, hidden area, swapchains),
+  vr_backend_openxr_actions.cpp (~370: actions, bindings, profiles, input, haptics, hand poses),
+  vr_backend_openxr_panel.cpp (~70: the panel's swapchain, images and place).
+- vr_audio.cpp (~3500 -> ~2950) + vr_audio_cmds.cpp (vr_snd_info, the captures, scene_obj, the test plays with
+  playAt/playLocal, vr_snd_dump, burst, the vr_snd_bench run). The mixer's state (Follow .. BenchRun, Live) and
+  dynamicChannels (`inline constexpr`) moved to vr_audio_internal.hpp; `live`, wanted, running and writeWav16 became
+  `audio::detail` where they stand (declared in the header).
+- Checked: build 0 warnings and every check (check_canonical included); run_baseline.sh --only on collectfx,
+  mapflameburn, spentshake, vrtrailer, swim_sound, flare_1, explosion_debris, selfchecks, teleporter_edges,
+  walltorch_grab, teleporters_chase: 0 of 11 changed against baseline.tsv (0 flaky).
+  Second batch (brushes, openxr, audio commands): build 0 warnings, check_canonical unchanged (no allowlist
+  change); brush_test.py PASS (every check); run_baseline.sh --only xr_runtime, selfchecks, swim_sound: 0 of 3
+  changed (xr_runtime 101/2 as in baseline.tsv); vr_snd_info/vr_snd_dump run.
+  A/B bench (ThinLTO both, interleaved ABBAABBAAB, 5 reps each, the armor tree's copy of ab_bench.sh swapping only the
+  exe: the QC is the same), this branch (B) vs origin/next 9e559363a (A), CPU ms median: idle_e1m1 0.722 -> 0.734
+  (+1.7 %, sd 0.08), combat_48 2.311 -> 2.333 (+1.0 %, sd 0.17-0.37); means -3.2 % / +4.1 % (one B outlier at 3.26):
+  within the noise, no regression from the splits (particles, relight, audio, portals included).

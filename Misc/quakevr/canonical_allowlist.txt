@@ -36,7 +36,8 @@ strings-copy Quake/vr/vr_files.cpp 1  # a char lowering lambda for glob matching
 strings-copy Quake/vr/vr_imgcache.cpp 1  # a cache's trim(cap) member, not string trimming
 strings-copy Quake/vr/vr_mdlbuild.hpp 1  # canonical
 strings-copy Quake/vr/vr_menu_help.inc 1  # a StringView trim lambda (no allocation)
-strings-copy Quake/vr/vr_relight.cpp 1  # startsWith over za::StringView
+strings-copy Quake/vr/vr_relight_bsp.cpp 1  # startsWith over za::StringView
+strings-copy Quake/vr/vr_relight_internal.hpp 1  # startsWith over za::StringView: its declaration (vr_relight_bsp.cpp)
 strings-copy Quake/vr/vr_selfcollide.cpp 1  # not merged yet (inventory F17: rank rule may differ from vrstats::quantileSorted)
 strings-copy Quake/vr/vr_strings.cpp 4  # canonical
 strings-copy Quake/vr/vr_strings.hpp 6  # canonical
@@ -85,7 +86,8 @@ player-edict Quake/vr/vr_foegrab.cpp 1  # guard differs (ROUND23 'player edict',
 player-edict Quake/vr/vr_foegrab_diag.cpp 4  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_held.cpp 1  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_menuui.cpp 1  # guard differs (ROUND23 'player edict', Left list)
-player-edict Quake/vr/vr_portals.cpp 3  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_portals.cpp 2  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_portals_gates.cpp 1  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_progs.hpp 2  # canonical
 player-edict Quake/vr/vr_ragtest.cpp 4  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_ragtool.cpp 1  # guard differs (ROUND23 'player edict', Left list)
