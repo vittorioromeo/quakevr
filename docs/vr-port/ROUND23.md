@@ -1507,3 +1507,23 @@ read every pak's directory.
   runs' +-100 ms spread; hip2m5's per-round differences -63, -11, -633, -38, +79). "Image files looked for, none found"
   70 -> 6 ms (vrtesthall), 77 -> 6 (vrstart), 16 -> 5 (e1m1), 20 -> 6 (hip2m5). Warm loads unchanged (144-293 ms: the
   models are kept). Scripts: scratch/load5_ab.sh, load5_abstats.py (not committed).
+
+## One test harness, part 1: one library, one parser, one tally (branch `agent/oneharness`; design review 7)
+
+- **Library**: `Misc/quakevr/qvrtest.py` (KIT, tree, run, run_sh, lanes, `Tally`, the parser `FAIL_LINE` / `counts` /
+  `verdict_near`, FLAKY, mock builders `hand/button/grip/waits/motion`) and `qvrtest.sh` (`check`, `verdict`,
+  `expect_verdict`). One flaky list: `Misc/quakevr/test_flaky.txt` (the baseline's 16 plus teleporters_chase).
+- **Runners**: run_test_suite.py runs and parses through qvrtest (its FAIL_LINE also reads `<name>: FAIL`: 0 of 286
+  recent logs judged differently); the kit's run_baseline.py loads the tree's qvrtest.py (a tree without one: the kit's
+  copy `qvrtest_fallback.py` and the old flaky set).
+- **Migrated**: 25 shell suites source qvrtest.sh (their `check()` copy gone; lines now `<name>: PASS|FAIL <what>` and a
+  final `<name>: N passed, M failed`); judo, leggrab, legsweep, ragimpact, struggle and ad_active use `qvrtest.Tally`
+  (`FAILS n` / `n failed` became the verdict line). QC: `VR_Test_BeginFlags` (LOUD: bprint; QUIET: failures only);
+  the armed grunts' tests, the arena's and the perks' checks count on vr_testutil's tally (4 pass/fail global pairs
+  gone; `agtest: <what>: PASS` became `agtest: PASS <what>`, `arena: fail <what>` became `arena: FAIL <what>`).
+  Verdict lines unchanged, so the -QuitOn patterns are too.
+- **Guard**: check_canonical.py families `qc-test-tally`, `qc-test-verdict`, `cpp-test-verdict`, `py-test-copy`,
+  `sh-test-copy` (today's 121 sites allowlisted; a new copy fails the build).
+- **Left (part 2)**: one spawner (impulse 241; 16 helpers), the scenario's settings on testbatch's snapshot, the 64
+  QC hand-printed verdicts, 23 Python files' kit paths, the C++ `_diag` printers; the other workers' test files
+  (held things, config) left alone.
