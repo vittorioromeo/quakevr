@@ -1343,3 +1343,33 @@ and `VR_Carry_Cross`) gave 8 failures and exit 1; the clean copy passed.
 cases, pe_full.log; the bench row carried from phase 0), the old file kept as `baseline_phase0.tsv`.
 `run_baseline.py --compare` reports the cases that vary run to run (`FLAKY`: agrunt 1/47/60/63/67/71/72/76/86,
 ragdoll_ragtest/grab/guard, rv_1, judo, stealth, agarmor_5) apart as "FLAKY CHANGED", not counted in its exit status.
+
+## Refactor leftovers L4: load-time items (branch `agent/leftload`)
+
+Baseline (no-LTO, exclusive, warm caches, median of 3): vrtesthall map load 1173 ms, e1m1 879, vrstart 1484 (the big
+map here: AD isn't in the kit's base); of each, the alias models 659 / 418 / 674 (their normal maps 276 / 159 / 274,
+skins 178 / 102 / 182, md5/md3 lookups 126 / 123 / 123), limbs 198 / 22 / 196, view models 163 / 159 / 159, smooth rigs
+107 / 20 / 109; the start-up's shaders 294.
+
+- **Smooth rigs** (`animsmooth::rigData`'s rebuild, 75 of its ~100 ms on vrtesthall, sub-timed): `refit` loops over each
+  bone's own vertices (a list made once, in vertex order: the same sums in the same order), the places by vertex chunk
+  and the refits by pose on the pool (`jobs::Site` "anim smooth rebuild places/refits"; each item writes its own). A
+  temporary dump hashed every rigged model's rest rows, rebuilt keys and unfit masks: identical (18 models). Interleaved
+  ABBAAB on vrtesthall: smooth rigs 109 -> 47 ms, map load 1177 -> 1103.
+- **Shaders, GL_KHR_parallel_shader_compile** (or ARB's; `gl_parallel_compile_able`, gl_vidsdl.c): GL_CreateShaders
+  compiles and links without reading any status, then `GL_DeferredCheck` reads them in the order made (the same
+  errors: a shader's compile, else the link). The same run: 296.5 -> 291.6 ms, within noise: NVIDIA's own disk cache
+  already skips the compile (round 4); kept for a cold driver cache (after a driver update), not measured (that cache
+  can't be cleared here).
+- **Quit profiled** (`vr_startup_times`): `VR_TimeQuitBegin/Mark/End` from `quit` (Host_Quit_f, else Host_Shutdown)
+  through Host_Shutdown's stages; printed at the quit (the log still open) and kept in `<game>/cache/quit_times.txt`,
+  printed by the next session's `vr_startup_times`. vrtesthall: 77 ms, of it the config written 35, the video (GL
+  context, window) 36, VR shutdown 4.5.
+- **Drawing**: four screenshots (vrtesthall at 60 and 150 frames, e1m3, e2m1), before vs after: 1199 pixels differ; the
+  before build twice: 1342 (particles). Low-impact eyeshots (the author's game ran), so identity only.
+- **Not done** (measured, left): the normal-map cache's 345 reads (42 ms: the key needs the skin's texels and islands,
+  so a read-ahead would need a list of last session's keys and holds their maps in memory); the external skins' 203
+  decodes (80 ms: all 192 of the start-up list are taken from the read-ahead already; what's left is the byte compare
+  re-reading each file and the copies); limb skin uploads (limbs 193 ms) and md5 view models (104 ms: their 6 skins'
+  uploads and normal maps): main-thread GL work. e1m1/vrstart after-times not taken: the exclusive slot waited on the
+  author's game (their before-times above; smooth rigs is per model kind, so ~60 ms off vrstart, little off e1m1's 20).
