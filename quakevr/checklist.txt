@@ -54,6 +54,12 @@ The toolgun panel's Remove and Physgun colours match the beam; the physgun and s
 Water with a current (moving water) acts as water everywhere: blood drifts and splashes in it, gore and wounds treat it as water. Looking up at or near the sky never counts as being in water.
 AD spiders and scorpions get knocked down at the Spiders and Crawlers chance, and their corpses gib as a scourge's do.
 Climbing stamina and the tired walk feel the same as before.
+Holster Setup, Edit Blade Shape and Pose Studio: their buttons press and tick on hover as before, and Undo works.
+Arena perk cards show and can be picked as before.
+Climbing: your feet find holds as before; blood on held weapons and on your hands looks as before.
+Machine Horde: waves spawn the usual squads (grunts and dogs, knights, ogres, wizards, shamblers and demons).
+AD upgrade pickups (Shadow Axe, Widowmaker, Plasma Gun) show their upgraded models.
+Obituary messages for monster, trap and weapon deaths read as before; power-up warnings, glows and expiry sounds as before.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
