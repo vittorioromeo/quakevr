@@ -2162,6 +2162,30 @@ void ikStretchReset()
         slider("Near Field", vr_snd_nearfield, 0.f, 2.f, 0.1f, "%.1f")
             .help("A sound within a metre of your head: the nearer ear louder, the farther one quieter and duller, by how "
                   "near and how much to the side. 0 off."),
+        header("Gunfire"),
+        toggle("Punchier Gunfire", vr_gunsfx)
+            .help("The extras below for every gun, yours and the enemies'. Off: every shot, click and buzz as before."),
+        slider("Shot Layers", vr_gunsfx_layers, 0.f, 2.f, 0.1f, "%.1f")
+            .help("Under each shot a close mechanical layer (a hammer, a feed's tick, a launcher's clunk) and a low thump: "
+                  "how loud (0 none)."),
+        slider("Room Tail", vr_gunsfx_tail, 0.f, 2.f, 0.1f, "%.1f")
+            .help("Each shot's tail sized to where it is fired: short and tight in a small room, long in a big hall, long "
+                  "with a distant echo under the open sky. How loud (0 none)."),
+        slider("Shot Variation", vr_gunsfx_vary, 0.f, 10.f, 1.f, "%.0f%%")
+            .help("Each shot (and its layers) a little higher or lower, at random up to this much, and half as much louder "
+                  "or quieter, so a stream of shots isn't one recording again and again (0 off)."),
+        toggle("Casings by Surface", vr_gunsfx_casings)
+            .help("Spent casings ring on metal and knock on wood; stone as before, water's plips as before. Off: the one "
+                  "tink everywhere."),
+        slider("Dry Fire Click", vr_gunsfx_dryfire, 0.f, 2.f, 0.1f, "%.1f")
+            .help("An empty gun's click: how loud, with a small tick in that hand (0 silent)."),
+        toggle("Actions From the Action", vr_gunsfx_action)
+            .help("A gun's mechanical sounds (breaking open and closing, a magazine in or out, a shell in) heard from that "
+                  "part of the gun, not its muzzle."),
+        slider("Haptic Punch", vr_gunsfx_punch, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("Each shot punches the controller: a sharp spike, then a short rumble as long as the gun's recoil takes to "
+                  "come back, as hard as its recoil (each weapon's own: Weapon Offsets > Effects > Haptic Punch). 0: the "
+                  "old flat buzz."),
         header("Advanced"),
         toggle("Mix Limiter", vr_snd_limiter)
             .help("Loud sounds piling up (explosive boxes blowing up together) are brought down smoothly just under full "

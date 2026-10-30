@@ -918,6 +918,9 @@ za::Vector<Item> pageWofsEffects()
         s("Recoil Recovery", Key::RecoilRecovery, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.1f, 10.f)
             .help("Times how long this weapon takes to come back to rest from a shot's kick (its Return Time; the quick "
                   "kick up stays as it is). Above 1 slower: a weightier gun. Below 1 faster: a lighter one. 1: as before."),
+        s("Haptic Punch", Key::HapticPunch, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("How hard this weapon's shot punches the controller: a sharp spike, then a short rumble as long as its "
+                  "recoil's way back (Return Time and Recovery). Times Sound: Gunfire's Haptic Punch. 0: none."),
         cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
             .help("The shotgun's flash at this weapon's muzzle (its Muzzle settings) for a moment at each shot, following "
                   "the gun; gone when it leaves your hand."),

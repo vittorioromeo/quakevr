@@ -2,6 +2,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_holsterzones.hpp"
+#include "vr_gunsfx.hpp"
 #include "vr_holstersetup.hpp"
 #include "vr_goresound.hpp"
 #include "vr_adcrossbow.hpp"
@@ -5003,6 +5004,7 @@ extern "C" void VR_SetupViewEntities()
     {
         QVR_PROFILE("view muzzle flashes");
         weaponfx::frame(entities.weapon, entities.muzzleFlash, entities.enemyFlash);
+        gunsfx::frame(); // the shots' haptic punches' tails
     }
 
     {
