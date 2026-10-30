@@ -2,6 +2,7 @@
 class, yours and the monsters': each shot makes the effects its class should (the brief's table) and the excluded
 weapons none.
 
+    python Misc/quakevr/gunfx_test.py <agent> [--kit C:/OHWorkspace/qvr-kit] [--only player|armed|grunt|enforcer|wisps|tube|impactsnd|slots]
     python Misc/quakevr/gunfx_test.py <agent> [--kit C:/OHWorkspace/qvr-kit] [--only player|armed|grunt|enforcer|wisps|tube|slots]
 
 Runs (the kit's run.sh, fast mode, vr_debug_gunfx 1 printing each shot's "gunfx shot who ... wid ... sparks ..."):
@@ -10,6 +11,8 @@ Runs (the kit's run.sh, fast mode, vr_debug_gunfx 1 printing each shot's "gunfx 
 - armed: vr_agrunt_test 1 (an armed grunt with every weapon in turn, hunting you); ends on "agtest: every weapon";
 - grunt, enforcer: one of each (vr_test_spawn 0, 8) hunting you; ends on its first shot's line;
 - wisps: the muzzle wisps (vr_muzzlewisps.cpp) of the shotguns, nailguns, revolver, none of the rocket launcher's;
+- tube: a grunt's own gun fired as a rocket tube (vr_gunfx_monster_test 1: AD's rocket soldier's path).
+- impactsnd: the surfaces' impact sounds (vr_impacts.cpp: each material x hit kind, the cap; with -Sound).
 - tube: a grunt's own gun fired as a rocket tube (vr_gunfx_monster_test 1: AD's rocket soldier's path);
 - slots: the per-weapon Gunfire multipliers (Weapon Offsets > Effects) at 0, 1 and 2, with the global amounts; ends on
   its "gunfxslot end" echo.
@@ -64,8 +67,8 @@ def check(ok, what):
         failed += 1
 
 
-def run(kit, agent, script, quit_on, timeout):
-    cmd = [BASH, kit + "/run.sh", agent, "-Script", script + ";toggleconsole;quit", "-Filter", "^gunfx|^agtest: (every|test)",
+def run(kit, agent, script, quit_on, timeout, filt="^gunfx|^agtest: (every|test)", extra=()):
+    cmd = [BASH, kit + "/run.sh", agent] + list(extra) + ["-Script", script + ";toggleconsole;quit", "-Filter", filt,
            "-QuitOn", quit_on, "-Timeout", str(timeout)]
     r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     lines = r.stdout.splitlines()
@@ -182,6 +185,121 @@ def wisps_case(a):
               (w, len(shots_at), barrels, [e for e in ev if e[0] != "shot"]))
 
 
+IMPSND = re.compile(r"impsnd (\w+) on (\w+) (?:(none)|(capped) t ([\d.]+)|(\S+) vol ([\d.]+) pitch ([\d.]+) at "
+                    r"([\d.-]+) ([\d.-]+) ([\d.-]+) t ([\d.]+) len (-?\d+))")
+IMPTEST = re.compile(r"vr_impact_test: (\w+) x(\d+) at ([\d.-]+) ([\d.-]+) ([\d.-]+)")
+# What each world hit should sound of (vr_impacts.cpp Row::surface): None = no sound of ours (a nail's tink or ricochet
+# on metal is Quake's own; the bolt's beam its hum). The volume's range: the row's gain x 0.82..1 (vr_gunsfx_impacts 1).
+IMPSND_KINDS = ["bullet", "nail", "supernail", "bolt"]
+IMPSND_GAIN = {"bullet": 0.6, "nail": 0.42, "supernail": 0.55}
+SPOT_GAP = 0.12  # (vr_impacts.cpp spotGap, spotRadius 64, maxSoundsPerFrame 2)
+
+
+def impsnd_expect(mat, kind):
+    if kind == "bolt" or (mat == "metal" and kind != "bullet"):
+        return None
+    return "impact_%s_%s" % (mat, "bullet" if kind == "bullet" else "nail")
+
+
+def impsnd_lines(lines):
+    out = []
+    for l in lines:
+        m = IMPSND.search(l)
+        if m:
+            g = m.groups()
+            e = {"kind": g[0], "mat": g[1], "what": "none" if g[2] else ("capped" if g[3] else "played")}
+            if g[3]:
+                e["t"] = float(g[4])
+            if g[5]:
+                e.update({"sample": g[5], "vol": float(g[6]), "pitch": float(g[7]),
+                          "at": (float(g[8]), float(g[9]), float(g[10])), "t": float(g[11]), "len": int(g[12])})
+            out.append(e)
+            continue
+        m = IMPTEST.search(l)
+        if m:
+            out.append({"test": m.group(1), "count": int(m.group(2)),
+                        "at": (float(m.group(3)), float(m.group(4)), float(m.group(5)))})
+    return out
+
+
+def impsnd_cap_ok(played):
+    """At most 2 a frame; none within 64 units of one played less than SPOT_GAP before."""
+    for i, p in enumerate(played):
+        if sum(1 for q in played if q["t"] == p["t"]) > 2:
+            return False
+        for q in played[:i]:
+            d = sum((x - y) ** 2 for x, y in zip(p["at"], q["at"])) ** 0.5
+            if 0 <= p["t"] - q["t"] < SPOT_GAP - 1e-4 and d < 64:
+                return False
+    return True
+
+
+def impsnd_case(a):
+    """Surface impact sounds (vr_impacts.cpp Row::surface; vr_debug_gunsfx 1 prints "impsnd ..."), with sound on so the
+    derived sounds are made (len > 0): each material x world hit kind on vrtesthall's wall (vr_impact_test, the material
+    forced) plays its own sound at the surface, or none where Quake's own plays; a blast's pellets on one spot one sound,
+    spread over the wall two a frame; then a real shotgun blast and a super nailgun stream (hand level: they hit the
+    floor) under the cap."""
+    s = "map vrtesthall;wait60;god;notarget;vr_debug_gunsfx 1;echo impsndtest table"
+    for mat in ("stone", "dirt", "metal", "wood"):
+        for k in range(4):
+            s += ";vr_impact_test %d 1 %s" % (k, mat)
+    s += ";echo impsndtest blast;vr_impact_test 0 12 stone;vr_impact_test 0 3 wood 70"
+    s += (";vr_weapon_grip_mode 1;impulse 9;wait2;vr_mock_hand main 0.15 1.2 -0.45 0 0 0;wait5"
+          ";vr_test_give_wid 4;impulse 149;wait5;echo impsndtest shotgun;+attack;wait4;-attack;wait40"
+          ";vr_test_give_wid 7;impulse 149;wait5;echo impsndtest stream;+attack;wait72;-attack;wait40;echo impsndtest end")
+    lines = run(a.kit, a.agent, s, "impsndtest end", 180, "^impsnd|^vr_impact_test|impsndtest", ["-Sound"])
+    check(any("impsndtest end" in l for l in lines), "impsnd: the run reached its end")
+    part = {"table": [], "blast": [], "shotgun": [], "stream": []}
+    cur = ""
+    for l in lines:
+        m = re.search(r"impsndtest (\w+)", l)
+        if m:
+            cur = m.group(1)
+            continue
+        if cur in part:
+            part[cur].extend(impsnd_lines([l]))
+    # The table: each test's sound line, then its "vr_impact_test" line (the hit's point, 4 units off the wall).
+    pending = []
+    seen = {}
+    for e in part["table"]:
+        if "test" in e:
+            for p in pending:
+                seen[(p["mat"], p["kind"])] = (p, e)
+            pending = []
+        else:
+            pending.append(e)
+    for mat in ("stone", "dirt", "metal", "wood"):
+        for kind in IMPSND_KINDS:
+            want = impsnd_expect(mat, kind)
+            got = seen.get((mat, kind))
+            if not got:
+                check(False, "impsnd %s on %s: no line" % (kind, mat))
+                continue
+            p, t = got
+            if want is None:
+                check(p["what"] == "none", "impsnd %s on %s: none of ours (%s)" % (kind, mat, p["what"]))
+                continue
+            d = sum((x - y) ** 2 for x, y in zip(p.get("at", (1e9,) * 3), t["at"])) ** 0.5
+            g = 0.55 if (mat, kind) == ("metal", "bullet") else IMPSND_GAIN[kind]
+            ok = (p["what"] == "played" and want in p["sample"] and p["len"] > 0 and d <= 8 and
+                  g * 0.8 <= p["vol"] <= g * 1.01 and 0.92 <= p["pitch"] <= 1.08)
+            check(ok, "impsnd %s on %s: %s at the surface (%s, %.1f units from the hit)" % (kind, mat, want, p, d))
+    b = part["blast"]
+    one = [e for e in b if "kind" in e and e["mat"] == "stone"]
+    spread = [e for e in b if "kind" in e and e["mat"] == "wood"]
+    check(len(one) == 12 and sum(e["what"] == "played" for e in one) == 1,
+          "impsnd 12 pellets on one spot: one sound, 11 capped (%s)" % [e["what"] for e in one])
+    check(len(spread) == 3 and [e["what"] for e in spread] == ["played", "played", "capped"],
+          "impsnd 3 pellets 70 units apart: two a frame, the third capped (%s)" % [e["what"] for e in spread])
+    for name, kind, least in (("shotgun", "bullet", 1), ("stream", "supernail", 3)):
+        hits = [e for e in part[name] if "kind" in e and e["kind"] == kind]
+        played = [e for e in hits if e["what"] == "played"]
+        capped = [e for e in hits if e["what"] == "capped"]
+        frames = len({e["t"] for e in hits})
+        check(len(played) >= least and len(capped) >= 1 and impsnd_cap_ok(played),
+              "impsnd real %s: %d hits over %d frames, %d played, %d capped, under the cap" %
+              (name, len(hits), frames, len(played), len(capped)))
 def slots_case(a):
     """Gunfire multipliers (ROUND23.md, "Gunfire VFX settings"): the shotgun's slot (index 1: vr_wofs_*_02) at 0 makes no
     sparks or smoke, at 2 about twice the counts at 1 (vr_gunfx_test 4: its slot by the weapon's model); the global Spark
@@ -270,6 +388,8 @@ def main():
         judge_all(shots(lines), "enemy", False, [10])
     if a.only in ("", "wisps"):
         wisps_case(a)
+    if a.only in ("", "impactsnd"):
+        impsnd_case(a)
     if a.only in ("", "slots"):
         slots_case(a)
     if a.only in ("", "tube"):

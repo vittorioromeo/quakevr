@@ -277,7 +277,8 @@ QVR_CVAR(vr_gunsfx_layers, "1", CVAR_ARCHIVE)        // a shot's close mechanica
 QVR_CVAR(vr_gunsfx_tail, "1", CVAR_ARCHIVE)          // a shot's tail sized to the room (short indoors, long with an echo outdoors): volume (0 none)
 QVR_CVAR(vr_gunsfx_vary, "4", CVAR_ARCHIVE)          // percent: each shot (and its layers) up to this much higher or lower, and half as much louder or quieter (0 off)
 QVR_CVAR(vr_gunsfx_casings, "1", CVAR_ARCHIVE)       // spent casings sound of what they land on (stone, metal, wood; water as before); 0: the one tink everywhere
-QVR_CVAR(vr_gunsfx_dryfire, "1", CVAR_ARCHIVE)       // an empty gun's dry click: its volume and a small tick in the hand (0 silent)
+QVR_CVAR(vr_gunsfx_impacts, "1", CVAR_ARCHIVE)       // a bullet's or a nail's hit on a wall sounds of its surface (stone, dirt, metal, wood), at the surface: volume (0 none)
+QVR_CVAR(vr_gunsfx_dryfire, "1", CVAR_ARCHIVE)      // an empty gun's dry click: its volume and a small tick in the hand (0 silent)
 QVR_CVAR(vr_gunsfx_action, "1", CVAR_ARCHIVE)        // a gun's actions (breaking open, closing, a magazine in or out) heard from the action, not the muzzle
 QVR_CVAR(vr_gunsfx_punch, "1", CVAR_ARCHIVE)         // a shot's haptic punch (a spike and a tail as long as its recoil's way back, times the weapon's Haptic Punch) instead of the flat buzz (0: the flat buzz)
 QVR_CVAR(vr_debug_gunsfx, "0", CVAR_NONE)                   // console lines for each shot's layers, tail and room, each punch and dry click

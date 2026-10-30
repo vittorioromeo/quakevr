@@ -11,7 +11,12 @@
 //   metal: hot sparks glancing off it;
 //   wood: chips of wood and a little pale dust;
 //   flesh: nothing new (the gore's mist, vr_gore_mist, comes with every blood burst);
-//   the thunderbolt's beam on a surface: a faint bluish ozone haze lingering where it plays.
+//   the thunderbolt's beam on a surface: a faint bluish ozone haze lingering where it plays;
+//   and a sound at the surface (Row::surface, vr_gunsfx_impacts, Sound > Gunfire): a bullet's dull thud on stone,
+//   duller on dirt, a ricochet's ping on metal, a knock on wood; a nail's lighter thud or knock under Quake's own tink
+//   (none of ours on metal: the tink is metal's; none for the beam). Made from the game's sounds as they load
+//   (surfaceSounds, VR_SndLayered); each a little higher or lower, louder or quieter; at most 2 a frame and none within
+//   64 units of one played 0.12 s before (a shotgun's pellets, a nailgun's stream).
 // A world hit's material: the texture of the surface nearest the hit (debris::materialOf's name table). At most
 // maxLookups surface lookups a frame (a shotgun's pellets); nothing allocated (the particles' pool). Settings:
 // vr_gunfx_impacts, vr_gunfx_ozone (Weapons > Weapon Effects > Gunfire Particles). vr_debug_gunfx 1 prints each
@@ -22,6 +27,11 @@
 #include <glm/glm.hpp>
 
 struct qmodel_s;
+
+namespace qvr::sndlayer
+{
+struct LayeredSound;
+}
 
 namespace qvr::impacts
 {
@@ -72,6 +82,10 @@ void PF_impact();
 // (VR_IMPACT_SOUND, _LAYER, _OVER), picked with one of QC's random() numbers; "" when it has none (no number drawn).
 void PF_impactsound();
 
+// The surfaces' hit sounds (VR_SndLayered, after the gunfire's): the one named `name`, or null.
+[[nodiscard]] const sndlayer::LayeredSound* layered(const char* name);
+
+void prepare(); // (map start: the surfaces' hit sounds made)
 void clear();
 void registerCommands(); // vr_impact_test
 

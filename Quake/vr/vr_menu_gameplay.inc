@@ -1475,6 +1475,10 @@ void ikStretchReset()
         toggle("Casings by Surface", vr_gunsfx_casings)
             .help("Spent casings ring on metal and knock on wood; stone as before, water's plips as before. Off: the one "
                   "tink everywhere."),
+        slider("Surface Impacts", vr_gunsfx_impacts, 0.f, 2.f, 0.1f, "%.1f")
+            .help("A bullet or a nail hitting a wall sounds of what it hit, from where it hit: a dull thud on stone, "
+                  "duller on dirt, a ricochet's ping on metal, a knock on wood (a nail's lighter, under its own tink). "
+                  "A shotgun's pellets or a nailgun's stream make one or two at a time, not a dozen. How loud (0 none)."),
         slider("Dry Fire Click", vr_gunsfx_dryfire, 0.f, 2.f, 0.1f, "%.1f")
             .help("An empty gun's click: how loud, with a small tick in that hand (0 silent)."),
         toggle("Actions From the Action", vr_gunsfx_action)
