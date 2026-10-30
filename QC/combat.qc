@@ -50,6 +50,62 @@ entity vr_hitpart_target;
 float vr_hitpart_time;
 vector vr_hitpart_pos;
 
+// The hit record (design review 6; ROUND23.md, "One hit record"): where the hit being dealt struck, written once by
+// its source and read by T_DamageDeal's consumers, in one vocabulary: the part positional damage has always used
+// (PositionalRegion: 1 the head, 2 a limb, 3 the legs, 0 the body; -1 none).
+// A shot's or a blow's zone (VR_Hit_SetZone: PositionalDamage, VR_Melee_Positional): good for `hit_targ` this frame.
+entity hit_targ;     // whom it struck (world: none)
+float hit_time;      // and when
+float hit_zone;      // its part
+vector hit_at;       // and the point it was found at
+// A shotgun blast's pellets on one target (AddMultiDamage gathers them, TraceAttack their points on its flesh;
+// ApplyMultiDamage deals them, with hit_blast set around that damage only).
+float hit_blast;     // inside a blast's damage: the pellets below are its
+float hit_pellets;   // how many struck
+vector hit_pelparts; // of those, at the head (x), a limb (y), the legs (z)
+float hit_pelhits;   // the ones on its flesh (VR_HitReact_Pellet): how many,
+vector hit_pelsum;   // their points summed
+vector hit_peldir;   // and their directions summed
+
+void(entity xTarg, float xZone, vector xAt) VR_Hit_SetZone =
+{
+    hit_targ = xTarg;
+    hit_time = time;
+    hit_zone = xZone;
+    hit_at = xAt;
+};
+
+// The zone a shot or a blow found on `xTarg` this frame (-1: none).
+float(entity xTarg) VR_Hit_Zone =
+{
+    return (hit_targ == xTarg && hit_time == time) ? hit_zone : -1;
+};
+
+// The blast's pellets (0: not inside a blast's damage).
+float() VR_Hit_Pellets =
+{
+    return hit_blast ? hit_pellets : 0;
+};
+
+// The part most of a blast's pellets struck: the head if half of them, else the legs if most, else a limb if most
+// (with `xLimbs`), else the body.
+float(float xLimbs) VR_Hit_PelletPart =
+{
+    if(hit_pelparts_x * 2 >= hit_pellets)
+    {
+        return 1;
+    }
+    if(hit_pelparts_z * 2 > hit_pellets)
+    {
+        return 3;
+    }
+    if(xLimbs && hit_pelparts_y * 2 > hit_pellets)
+    {
+        return 2;
+    }
+    return 0;
+};
+
 void(float xKind, float xHand, vector xPos, vector xDir) VR_SetHitKind =
 {
     vr_hitkind = xKind;

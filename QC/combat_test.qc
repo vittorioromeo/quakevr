@@ -69,6 +69,7 @@ void() VR_TestKill_Frame =
     }
     VR_ClearHitKind();
     vr_hitpart_target = world;
+    hit_targ = world;
     if(part < 4)
     {
         VR_SetHitKind(QVR_HITKIND_SHOT, -1, at, dir);
@@ -76,6 +77,7 @@ void() VR_TestKill_Frame =
         vr_hitpart_target = best;
         vr_hitpart_time = time;
         vr_hitpart_pos = at;
+        VR_Hit_SetZone(best, part, at);
     }
     dprint(sprintf("test kill: %s at %v struck %g at %v\n", best.classname, best.origin, part, at));
     // (A shotgun blast's worth on its last point of health: its kill push a real shot's, vr_kill_push.)
@@ -83,6 +85,7 @@ void() VR_TestKill_Frame =
     T_Damage(best, pl, pl, 20);
     VR_ClearHitKind();
     vr_hitpart_target = world;
+    hit_targ = world;
 };
 
 // Test aid `vr_test_hurt <damage>` (console; earned bullet time's test, Misc/quakevr/bullettime_earn_test.sh): the live

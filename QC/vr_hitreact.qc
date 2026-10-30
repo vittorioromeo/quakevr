@@ -33,6 +33,12 @@ void(entity e, vector at, vector dir) VR_HitReact_Pellet =
     vr_hr_pel_count = vr_hr_pel_count + 1;
     vr_hr_pel_sum = vr_hr_pel_sum + at;
     vr_hr_pel_dir = vr_hr_pel_dir + dir;
+    if(e == multi_ent) // the hit record's (TraceAttack: AddMultiDamage made it the blast's target)
+    {
+        hit_pelhits = hit_pelhits + 1;
+        hit_pelsum = hit_pelsum + at;
+        hit_peldir = hit_peldir + dir;
+    }
 };
 
 // Its steps' scale now (1: not slowed).

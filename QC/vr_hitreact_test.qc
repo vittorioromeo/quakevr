@@ -85,6 +85,7 @@ void(entity pl, entity best, float part) VR_TestHit_One =
     vr_hitpart_target = best;
     vr_hitpart_time = time;
     vr_hitpart_pos = at;
+    VR_Hit_SetZone(best, part, at);
     if(cvar("vr_test_hit_watch") > 0 && !cvar("vr_test_hit_all"))
     {
         vr_hr_watch = best;
@@ -108,5 +109,6 @@ void(entity pl, entity best, float part) VR_TestHit_One =
     }
     VR_ClearHitKind();
     vr_hitpart_target = world;
+    hit_targ = world;
 };
 #endif

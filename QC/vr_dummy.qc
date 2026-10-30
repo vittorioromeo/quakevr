@@ -638,6 +638,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     // Nothing hurts it.
     targ.health = VR_DUMMY_HEALTH;
     vr_hitpart_target = world;
+    hit_targ = world;
 
     v_forward = oldForward;
     v_right = oldRight;

@@ -1274,9 +1274,13 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
         vr_kdt_test_weapon = 1 + (xMode == 2 ? WID_SUPER_SHOTGUN : WID_SHOTGUN);
         VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, chest, dir);
         vr_hitpellets = xMode == 2 ? 14 : 6;
+        hit_blast = TRUE;
+        hit_pellets = vr_hitpellets;
+        hit_pelparts = '0 0 0';
         vr_kdt_test_damage = vr_hitpellets * 4;
         T_Damage(best, pl, pl, best.health > vr_kdt_test_damage ? vr_kdt_test_damage : 1);
         vr_hitpellets = 0;
+        hit_blast = FALSE;
         vr_kdt_test_weapon = 0;
     }
     else if(xMode == 5 || xMode == 6)
