@@ -402,7 +402,7 @@ float(float kind) VR_AGR_Replace =
 // FALSE: not replaced (off, VR_AM_Spawn's own call, a statue, Honey's trigger-spawned copies' maker, a dummy).
 float() VR_AKN_Replace =
 {
-    if(vr_am_spawning || !cvar_hget(cvarh_vr_agknight) || self.classname != "monster_knight")
+    if(vr_am_spawning || vr_agr_hold > 0 || !cvar_hget(cvarh_vr_agknight) || self.classname != "monster_knight")
     {
         return FALSE;
     }

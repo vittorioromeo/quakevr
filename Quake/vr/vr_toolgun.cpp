@@ -1765,6 +1765,7 @@ void spawnTrace_f()
     const float yaw = glm::radians(player->v.angles[1]);
     const glm::vec3 at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 128.f, player->v.origin[1] + za::sin(yaw) * 128.f,
         player->v.origin[2] + player->v.mins[2] + s.lift + 1.f};
+    const progs::ToolSpawn plain; // (the toolgun's Grunt is a plain grunt; its armed ones are their own entries)
     edict_t* e = box3d::spawnClass(s.classname, at, glm::vec3{0.f, player->v.angles[1] + 180.f, 0.f},
         s.setModel ? s.model : nullptr, s.key, s.value, false, s.weaponFlags);
     if(!e)
@@ -1814,6 +1815,7 @@ void spawnTest_f()
         const float a = glm::radians(yaw + 360.f * static_cast<float>(i - first) / static_cast<float>(count));
         const glm::vec3 at = feet + glm::vec3{za::cos(a) * 160.f, za::sin(a) * 160.f, s.lift + 1.f};
         const glm::vec3 angles{0.f, glm::degrees(a) + 180.f, 0.f};
+        const progs::ToolSpawn plain;
         edict_t* e = box3d::spawnClass(s.classname, at, angles, s.setModel ? s.model : nullptr, s.key, s.value, false,
             s.weaponFlags);
         if(e)

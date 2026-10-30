@@ -154,7 +154,7 @@ float(entity g, entity p) VR_AG_WeaponStruck;
 .float vr_ag_native;       // a held weapon's prop (or its laser): the monster's own gun, fired as the monster fires it
 .float vr_ag_gunaxe;       // it holds a gun and an axe (vr_agrunt_repl_gunaxe): the gun, the axe up close
 float vr_am_spawning;      // VR_AM_Spawn is running its monster's own spawn function (no replacement then)
-float vr_agr_hold;         // > 0: spawns now are never replaced (the training dummies: vr_dummy_types.qc)
+float vr_agr_hold;         // > 0: spawns now are never replaced (the training dummies: vr_dummy_types.qc; the tools: VR_Test_Spawn, the engine's progs::ToolSpawn)
 float vr_agr_native_fire;  // a native gun's bullets being fired (VR_AG_DamageScale: the monster's own damage)
 vector vr_agr_native_from; // ... from this muzzle (a gun in each hand: its own; '0 0 0' the monster's own place, EnemyFireBullets)
 float vr_agr_shots_grunt;  // grunts' shots (rounds; a shotgun blast one), the native guns' among them (the tests)

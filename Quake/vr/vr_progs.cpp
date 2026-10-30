@@ -422,6 +422,7 @@ extern "C" void VR_OnProgsLoaded()
         b.handTimeScale = globalFloat("vr_hand_time_scale");
         b.musicTrack = globalFloat("vr_music_track");
         b.spawnLive = globalFloat("vr_spawn_live");
+        b.agrHold = globalFloat("vr_agr_hold");
         for(int i = 0; i < numExtSpawnParms; i++)
         {
             b.extSpawnParms[i] = globalFloat(va("parm%d", firstExtSpawnParm + i));

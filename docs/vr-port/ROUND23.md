@@ -3269,12 +3269,19 @@ look); RELIGHTING.md and ARMED_MONSTERS.md state the new defaults. The menus' he
 mapflameburn (the dropped torch's edict number on e1m2), melee_phase (its grunt cases), weapon_catch (e1m1),
 animsmooth (the soldier's model and edict numbers), teleporters chase (the grunt's ranged chase), ragdoll guard (the
 grunt's guard), agrunt test 20 (`VR_AGPT_Ragdoll`: the armed grunt against a plain one), and
-`vr_rigstudio_test_subjects` (step 7, `monster_army` as an unarmed rigged subject). ghost_recoil_test.sh pins
+`vr_rigstudio_test_subjects` (later fixed in the code instead, below). ghost_recoil_test.sh pins
 `vr_ghost_hands_fade_from 6` (its 17 cm kick against 6 cm). No test used the relight values.
 
-**Possible issue in the replacements (not fixed):** the Rig Studio's `monster_army` subject (and the debug spawner's
-`vr_test_spawn 0`) now comes armed: with replacements on, the studio can no longer show a plain rigged grunt. Tool
-spawns may want to skip the replacement (`vr_agr_hold`).
+**Tools spawn the plain monster.** With replacements on, the Rig Studio's `monster_army` subject and the debug
+spawner's grunt came armed. Now every tool's spawn holds QC's `vr_agr_hold` (the training dummies' existing hold), which
+both `VR_AGR_Replace` and now `VR_AKN_Replace` (the knights) read: in the engine one guard, `progs::ToolSpawn`
+(vr_progs.hpp; the Rig Studio's subject, the ragdoll tool's, the toolgun's spawn, its ghost probe and its spawn
+commands), in QC `VR_Test_Spawn` (impulse 241's `vr_test_spawn` and the tests' spawn helpers). The armed kinds stay
+their own classes (`monster_vr_grunt`/`_enforcer`/`_knight`). The scenarios' spawns (`toolgun::spawnEntryAt` from
+vr_scenario.cpp) stay a map's: replaced. The pins in `vr_rigstudio_test_subjects` and melee_phase came out again.
+Test 70 has a new check: `vr_test_spawn 0` with replacements on gives a plain grunt, the hold back to 0 (22/0).
+rigstudio_subjects 13/1 (the baseline's), melee_phase 7/0, agrunt_20 3/0; tests 71 5/5 and 72 6/1 (flaky, baseline 6/4
+and 5/2).
 
 **Verified.** Full baseline, then the changed cases on origin/next's defaults and on the new ones: 9 changed by the
 defaults, all from the replacements. Pinned: mapflameburn 16/0, agrunt_20 3/0, ragdoll_guard 8/0, teleporters_chase
