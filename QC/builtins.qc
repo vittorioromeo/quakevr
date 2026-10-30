@@ -170,7 +170,8 @@ float QVR_CASING_SLUG = 1; // the heavy revolver's: the blue slug shell (vr_shel
 float QVR_EJECT_FLICK = 1; // a flick reload: flung by the spinning weapon
 // Weapon effects (engine vr_weaponfx.cpp): `shooter` fired the weapon in its `hand` (-1: a monster's gun): its drawn
 // weapon kicks and its muzzle flashes, as that weapon's settings say (Weapon Offsets > Effects); a grunt's gun flashes
-// at its muzzle. Sent to the clients, nothing in the game changes.
+// at its muzzle. Sent to the clients, nothing in the game changes. A hand + 2 (2, 3): a stream weapon's flame from that
+// hand (the flamethrower, the poison sprayer): no kick or flash, its tremble and light buzz while the flames come.
 void(entity shooter, float hand) weaponfired = #0;
 // A hitscan pellet (or round) of `shooter`'s, from `from` (the muzzle) to `to` (what it hit, or its range's end): the
 // clients may draw a bullet tracer along it (vr_tracers, the weapon's own settings). `hand` -1: a monster's.

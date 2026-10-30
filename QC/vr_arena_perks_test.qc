@@ -19,8 +19,6 @@
 // ---------------------------------------------------------------------------
 
 float ark_t_case;        // 0 idle; 1, 2, ... running
-float ark_t_pass;
-float ark_t_fail;
 float ark_t_step;
 float ark_t_until;
 float ark_t_quad_at;     // test 3: when the quad a hand kill gave is over
@@ -66,16 +64,11 @@ void() VR_APK_SetDefaults =
     cvar_set("vr_arena_skill_impact", "0"); // (the arena these tests drive is its knobs themselves: no difficulty in the way)
 }
 
-void(float ok, string what) VR_APK_Check =
-{
-    if(ok) { ark_t_pass = ark_t_pass + 1; return; }
-    ark_t_fail = ark_t_fail + 1;
-    dprint(sprintf("arena_perks: fail %s\n", what));
-}
+void(float ok, string what) VR_APK_Check = { VR_Test_Check(ok, what); }; // (`arena_perks: FAIL <what>`)
 
 void() VR_APK_End =
 {
-    dprint(sprintf("%s: %g passed, %g failed\n", ark_t_prefix, ark_t_pass, ark_t_fail));
+    dprint(sprintf("%s: %g passed, %g failed\n", ark_t_prefix, vr_test_pass, vr_test_fail));
     VR_APK3_Restore(); // (test 3 borrows a live player's health, armour, guns and quad)
     VR_APK_Restore();
     if(ar_mgr) { ar_mgr.ark_taken = ark_t_taken0; } // (the run's perks are the test's, not the player's)
@@ -805,8 +798,7 @@ void() VR_ARENA_PERKS_Test_Frame =
     if(ark_t_case == 0)
     {
         ark_t_case = c;
-        ark_t_pass = 0;
-        ark_t_fail = 0;
+        VR_Test_BeginFlags("arena_perks", VR_TEST_QUIET);
         ark_t_step = 0;
         ark_t_until = time + 30;
         ark_t_prefix = "arena_perks";

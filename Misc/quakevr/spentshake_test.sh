@@ -8,7 +8,7 @@
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 EG="map e1m1;wait60;developer 1;vr_debug_shots 1;vr_weapon_grip_mode 1;impulse 186;wait3;vr_mock_hand off -0.15 1.25 -0.40 50 0 0;vr_mock_hand main 0.25 1.1 -0.3 50 0 0;wait10;impulse 214;wait3"
 FIRE="+offhandattack;wait3;-offhandattack;wait30"
 DUMPS="vr_dumpview;wait1;vr_dumpview;wait1;vr_dumpview"
@@ -26,4 +26,5 @@ check $(echo "$log" | grep "^bodyshock: active" | tail -1 | grep -q "active=0" &
 log=$(bash $KIT/run.sh $AGENT -Script "vr_enemygun_spent_haptics 0;vr_enemygun_spent_shake 0;$EG;$FIRE;vr_shock_info;wait2;$DUMPS;toggleconsole;quit" -Filter "$F" 2>&1)
 still=$(apart "$log")
 check $(echo "$log" | grep -q "buzzes=0" && [ "$still" = 1 ] && echo 1 || echo 0) "Spent Haptics 0, Spent Shake 0: no buzz ($(echo "$log" | grep -o 'buzzes=[0-9]*')), the gun still ($still distance)"
+verdict
 exit $fail

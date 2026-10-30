@@ -11,7 +11,7 @@ export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/../qvrtest.sh"
 # "<screens> <magazines> <farthest>" in the last second, from `$1` (a setpos, or none), with the settings `$2`.
 count() {
     local at=""
@@ -31,6 +31,7 @@ set -- $(count "0 -940 1500" "vr_weapon_world_attach_range 1000"); s=$1; f=$3
 check $([ $s = 0 ] && echo 1 || echo 0) "the range at 1000, 1500 units over the tables: $s screens"
 set -- $(count "" "vr_weapon_world_attach_range 400"); s=$1; f=$3
 check $([ $f -le 400 ] && echo 1 || echo 0) "the range at 400, from the spawn: $s screens, the farthest $f units off"
+verdict
 exit $fail
 }
 source "$(dirname "$0")/../testbatch/testbatch.sh"
