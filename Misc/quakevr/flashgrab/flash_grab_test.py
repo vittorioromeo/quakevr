@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""flash_grab_test.py <agent> [mounted|returning|timing|moving|options|gunzone|pergun|clipon|all]
+"""flash_grab_test.py <agent> [mounted|returning|timing|moving|options|gunzone|pergun|clipon|all, comma-separated;
+mounted:A-B the torso turns A..B only, timing:1+timescale0.3 those time scales only]
 
 "Highlighted implies grabbable" for the flashlight (ROUND21.md, "Flashlight: lit but not taken"): in the mock, with
 the torso turned several ways (the head's yaw, the main hand held out or across: the torso faces between the head and
@@ -67,6 +68,7 @@ def config_cmds(c):
 
 def run(agent, name, cmds):
     base = f"{KIT}/bases/{agent}/" + ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else ""))
+    os.makedirs(f"{base}/id1", exist_ok=True)  # (a lane's folder not made yet: run.ps1 makes the rest)
     with open(f"{base}/id1/{name}.cfg", "w", newline="\n") as f:
         f.write("\n".join(cmds + ["toggleconsole", "quit"]) + "\n")
     subprocess.run([BASH, f"{KIT}/run.sh", agent, "-Script", f"exec {name}.cfg", "-Filter", "^$", "-Timeout", "600"],
@@ -128,11 +130,13 @@ def grid(step=0.035, n=4):
     return [(x, y, z) for x in r for y in r for z in r]
 
 
-def mounted(agent):
+def mounted(agent, only=None):
     cen = centres(agent)
     cmds = setup()
     samples = []
     for i, c in enumerate(CONFIGS):
+        if only is not None and i not in only:
+            continue
         cx, cy, cz, _ = cen[i]
         cmds += config_cmds(c)
         for j, (dx, dy, dz) in enumerate(grid()):
@@ -209,7 +213,7 @@ def trial(tag, start, frames, press, hold=50):
         2) + ["vr_flashlight 1"] + waits(2)
 
 
-def timing(agent):
+def timing(agent, only=None):
     """"Highlighted implies grabbing works" at any timing and speed, also in slow motion: the off hand reaches the lamp
     from 33 cm out in front at several speeds, its grip pressed at several moments round its arrival (on its way, from
     20 cm out, to after it stopped), and stays there with the grip held: it must hold the lamp. Controls that must not
@@ -218,6 +222,8 @@ def timing(agent):
     cen = centres(agent)
     ok = True
     for scale, extra in SCALES.items():
+        if only is not None and scale not in only:
+            continue
         cmds = setup() + extra + waits(90) + ["vr_slowmo_probe"]
         samples = []  # (tag, should take)
         for i in (0, 3, 4):  # the head's yaw 0, 45, -45
@@ -756,30 +762,40 @@ def judge(lines, samples, hand, handIndex, cen):
 
 def main():
     agent = sys.argv[1]
-    what = sys.argv[2] if len(sys.argv) > 2 else "all"
+    # Sections, comma-separated (run_baseline.py runs the long ones as parts in parallel lanes); mounted:A-B only the
+    # torso turns A..B (CONFIGS' indices), timing:SCALE[+SCALE] only those time scales (SCALES' keys).
+    specs = {}
+    for spec in (sys.argv[2] if len(sys.argv) > 2 else "all").split(","):
+        name, _, sub = spec.partition(":")
+        specs[name] = sub
+    want = lambda n: n in specs or "all" in specs
     ok = True
-    if what in ("mounted", "all"):
-        print("== mounted (on the body)")
-        ok = mounted(agent) and ok
-    if what in ("returning", "all"):
+    if want("mounted"):
+        sub = specs.get("mounted", "")
+        lo, _, hi = sub.partition("-")
+        only = set(range(int(lo), int(hi or lo) + 1)) if sub else None
+        print("== mounted (on the body)" + (f" torso turns {sub}" if sub else ""))
+        ok = mounted(agent, only) and ok
+    if want("returning"):
         print("== returning (let go, springing home)")
         ok = returning(agent) and ok
-    if what in ("timing", "all"):
-        print("== timing (a reach, the grip pressed round the arrival; slow motion)")
-        ok = timing(agent) and ok
-    if what in ("options", "all"):
+    if want("timing"):
+        sub = specs.get("timing", "")
+        print("== timing (a reach, the grip pressed round the arrival; slow motion)" + (f" {sub}" if sub else ""))
+        ok = timing(agent, set(sub.split("+")) if sub else None) and ok
+    if want("options"):
         print("== options (grab range, head range, clipping on when let go)")
         ok = options(agent) and ok
-    if what in ("gunzone", "all"):
+    if want("gunzone"):
         print("== gunzone (the gun's clip zone round the torch's place on it)")
         ok = gunzone(agent) and ok
-    if what in ("pergun", "all"):
+    if want("pergun"):
         print("== pergun (each weapon's own place for the flashlight)")
         ok = pergun(agent) and ok
-    if what in ("clipon", "all"):
+    if want("clipon"):
         print("== clipon (easing onto a gun or the head; Flashlight Can Clip On)")
         ok = clipon(agent) and ok
-    if what in ("moving", "all"):
+    if want("moving"):
         print("== moving (thumbstick locomotion and turning)")
         ok = moving(agent) and ok
     print("PASS" if ok else "FAIL")

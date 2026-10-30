@@ -1004,3 +1004,41 @@ case: next has the mock-hand fix since the baseline).
   188, eval 461 -> 87; the critical path is now teleporter_edges (927 s: drawn screenshot runs) and flash_grab (760 s,
   already undrawn: its many passes beside the other games), then xr_runtime 577. Next: those three split into parallel
   parts or undrawn steps.
+
+## Faster headless tests and loads, round 4 (branch `agent/harness4`)
+
+- **Where the three long cases' time went** (alone, a quiet lane): flash_grab 376 s, of it `mounted` one game of
+  240,630 frames (11 torso turns x 729 off-hand spots x 30 frames, 129 s at ~0.5 ms an undrawn frame), `timing` three
+  of 12,045 frames (28 s each), `returning` 31 s, and a calibration game (`fg_cal`) before each section. The frames are
+  game frames (the command buffer is already a read cursor, no copy a line); none only pads (24 frames: the hand still
+  for the grab's speed check), so none was cut. teleporter_edges 165 s: 40 games of 2-6 s, 13 sections (head 23 s,
+  push 20, recursion 18, ragdoll 16, corpse 15); xr_runtime 120 s: 27 games of 2-6 s. Beside the other lanes and
+  agents each took 4-6x that.
+- **Sections as arguments** (scripts): `flash_grab_test.py <agent> mounted:0-2,timing:bullettime,...` (comma-separated;
+  mounted:A-B the torso turns A..B, timing:SCALE the time scales); `xr_runtime_test.sh <agent> [1|2-3|4,5|...]` (its
+  numbered sections; 2b/2c are 2's; the fake runtime built once under a lock folder, and not again when newer than its
+  sources: parts loading its DLL meanwhile); `teleporter_edges_test.sh <agent> clip,held,...` (the first entity found
+  only for clip/push/held; cross, ragdoll, corpse and monster read only the game's log and now play undrawn,
+  `vr_mock_fast 2`, TE_DRAWN=1 draws them: the same numbers within their usual run-to-run spread).
+- **Parts** (kit run_baseline.py, uncommitted): PARTS runs those three as 9, 7 and 8 parts in parallel lanes, one row
+  each when the last part ends (the parts' outputs joined in logs/<name>.log, the verdict by the case's group's rules,
+  its seconds the longest part's); `--no-parts` whole as before. The three alone in 8 lanes: 2.1 min, the same verdicts
+  (xr_runtime FAIL 101/2, flash_grab PASS 1/0, teleporter_edges PASS 0/0). The "tele" one-at-a-time key is gone from
+  teleporter_edges: neither teleporter script builds vrteleporters.bsp (`--tests` writes nothing).
+- **Lane folders made first** (coordinator's report: flash_grab 0/0 in wave C's baseline, `qbase.lane2/id1` missing):
+  run_baseline.py starts one quick game per lane before the cases (run.ps1 builds the folder), makes the lane's id1
+  before each case, and flash_grab_test.py makes its id1 before writing its .cfg.
+- **Found, not fixed**: teleporter_edges' drawn-split lines are often missing (clip's control "0 frames", push "ends at
+  y" empty, held "0 frames"; also in the phase-0 baseline's log): the script's verdict is its exit code, so it passes.
+- **Loads**: vrtesthall (no-LTO, exclusive, warm caches): start 1.98 s, of it shaders 295 ms, map load 1.15 s (spawn
+  599, view models 159, smooth rigs 110, limbs 191, md5 102). A GL program binary cache (glProgramBinary from one pack
+  file per driver, 106 programs, 15 MB) was tried: 273 ms against 296: the driver's own cache already skips the
+  compile, the cost is its program creation; set aside (git stash on the branch), not committed. Next for the shaders:
+  KHR_parallel_shader_compile (status read only at the end). The other load items are still open.
+- **Full baseline** (default, 8 lanes, wave B's agents running): 29.1 -> 19.5 min; teleporter_edges 927 -> 171 s,
+  flash_grab 760 -> 59, xr_runtime 577 -> 97. No case is the critical path now (the longest 185 s): the cases' summed
+  time was 6036 s (3881 in wave C's quieter run), 12.6 min of 8 lanes' work, so the rest is the shared machine's
+  throughput. Verdicts as baseline.tsv but next's known changes (fist_alert, melee_phase, swim_sound pass; reload
+  111/4, parry_pose fail), flaky counts (agrunt 63, 71, 72, 76, 86; ragdoll_ragtest passed), and two new: agarmor_5
+  22/1 (a corpse's right thigh plate worn: the engine here is next's, likely its limb-plate work) and ragdoll_guard
+  7/1 (guard stagger).

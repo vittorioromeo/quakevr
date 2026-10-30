@@ -1,5 +1,5 @@
 #!/bin/bash
-# teleporter_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|quake|head|recursion|ragdoll|corpse|monster|all]: headless checks of the teleporter edge cases in
+# teleporter_edges_test.sh <agent> [clip|push|held|cross|grab|cull|particles|quake|head|recursion|ragdoll|corpse|monster|all, comma-separated]: headless checks of the teleporter edge cases in
 # vrteleporters (ROUND21.md, "Teleporters: exits on their gates, props through, held objects, the force grab's beam"), with
 # the agent kit (C:/OHWorkspace/qvr-kit). Each section prints one line or a few, with what it must say.
 #   clip   a crate resting where a gate's exit used to stand (48 out of the north gallery's wall), paired exits off and
@@ -14,6 +14,8 @@
 #          grab's beam ends at the box's image (y 712), not at the box (y 1000)
 #   cull   a full-size shells box half through T's north gate, seen from U with the entrance behind the camera: the
 #          pixels its half out of U's gate makes (thousands; 0 when brush props were culled by their own place)
+#   (sections comma-separated: run_baseline.py runs it as parts in parallel lanes; cross, ragdoll, corpse and monster read
+#   only the game's own log, so they play undrawn: vr_mock_fast 2, TE_DRAWN=1 to draw them)
 #   head   facing T's west gate (the loop: it shows your back; 2048-pixel eyes): the left eye's pixels your head makes (in a box round it), drawn
 #          (vr_teleporter_self_head 1) against not (0): through the gate (hundreds), and with the views off (0: the eye's
 #          own view never draws it)
@@ -26,14 +28,18 @@ PY=python; for p in /c/Python313/python python3; do "$p" -c "import PIL" 2>/dev/
 mkdir -p "$TREE/scratch"
 run() { bash $KIT/run.sh $AGENT "$@" > /dev/null; }
 START="developer 1;map vrteleporters;wait60;god;notarget"
-want() { [ "$WHAT" = "$1" ] || [ "$WHAT" = all ]; }
+want() { [ "$WHAT" = all ] || case ",$WHAT," in *",$1,"*) true ;; *) false ;; esac; }
+# The sections that check only the game's log (no drawn split, no pixels): their runs undrawn (the same numbers).
+UNDRAWN="vr_mock_fast 2;"; [ -n "$TE_DRAWN" ] && UNDRAWN=""
 
 # The first entity a test spawns (221 before vrteleporters' crouching room, 243 with it): a crate put straddling the
 # flush player gate, the one thing drawn cut there (vr_portals_debug_split).
-run -Script "$START;setpos -256 600 24 0 90 0;wait5;noclip 0;vr_test_spawn 107;vr_test_spawn_dist 40;impulse 241;wait60;vr_portals_debug_split 1;wait10;vr_portals_debug_split 0;toggleconsole;quit"
-E=$(grep -E "^portal split: frame [0-9]+ ent [0-9]+ .*cut by the plane" "$LOG" | head -1 | awk '{print $6}')
-E=${E:-221}
-echo "(the first entity spawned: $E)"
+if want clip || want push || want held; then
+    run -Script "$START;setpos -256 600 24 0 90 0;wait5;noclip 0;vr_test_spawn 107;vr_test_spawn_dist 40;impulse 241;wait60;vr_portals_debug_split 1;wait10;vr_portals_debug_split 0;toggleconsole;quit"
+    E=$(grep -E "^portal split: frame [0-9]+ ent [0-9]+ .*cut by the plane" "$LOG" | head -1 | awk '{print $6}')
+    E=${E:-221}
+    echo "(the first entity spawned: $E)"
+fi
 
 # The last place of entity $E (the first thing spawned) in vr_portals_debug_split's lines: its middle's y.
 lastY() { grep -E "^portal split: frame [0-9]+ ent $E " "$LOG" | tail -1 | awk '{for (i = 1; i < NF; i++) if ($i == "middle") print $(i+2)}'; }
@@ -78,7 +84,7 @@ PYEOF
 fi
 
 if want cross; then
-    S="$START;setpos -256 576 24 0 90 0;wait5;noclip 0;wait5;vr_mock_stick off 0 1"
+    S="$UNDRAWN$START;setpos -256 576 24 0 90 0;wait5;noclip 0;wait5;vr_mock_stick off 0 1"
     for i in $(seq 1 30); do S="$S;wait1;viewpos"; done
     run -Script "$S;toggleconsole;quit"
     from=$(grep -o "carried edict 1 through side [0-9]*: .*" "$LOG" | head -1 | cut -d: -f2)
@@ -200,7 +206,7 @@ fi
 if want ragdoll; then
     for x in -256 0; do
         for w in 1 0; do
-            run -Script "$START;vr_ragdoll 1;vr_corpse_nogib 1;vr_limbs 0;vr_decap 0;vr_portals_walk $w;setpos $x 520 24 0 90 0;wait5;noclip 0;vr_test_spawn 0;vr_test_spawn_dist 60;vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0;wait120;vr_physics_blast $x 540 20 ${BLAST:-160};wait240;vr_ragdoll_list;toggleconsole;quit"
+            run -Script "$UNDRAWN$START;vr_ragdoll 1;vr_corpse_nogib 1;vr_limbs 0;vr_decap 0;vr_portals_walk $w;setpos $x 520 24 0 90 0;wait5;noclip 0;vr_test_spawn 0;vr_test_spawn_dist 60;vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0;wait120;vr_physics_blast $x 540 20 ${BLAST:-160};wait240;vr_ragdoll_list;toggleconsole;quit"
             y=$(grep -E "^ragdoll [0-9]+ monster_army: .* pelvis" "$LOG" | tail -1 | sed -E 's/.* pelvis [-0-9.]+ ([-0-9.]+) .*/\1/')
             echo "ragdoll: gate at x $x, walk $w: $(grep -c 'carried through a teleporter' "$LOG") crossing, its pelvis ends at y $y" \
                 "$( [ $w = 1 ] && echo '(1, > 928: through)' || echo '(0, against the wall behind the gate: under 648, 688 the large gate; a control)')"
@@ -214,7 +220,7 @@ fi
 if want corpse; then
     for x in -256 0; do
         for w in 1 0; do
-            run -Script "$START;vr_ragdoll 0;vr_corpse_collide 4;vr_corpse_nogib 1;vr_limbs 0;vr_decap 0;vr_portals_walk $w;setpos $x 520 24 0 90 0;wait5;noclip 0;vr_test_spawn 0;vr_test_spawn_dist 60;vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0;wait120;vr_physics_fling monster_army ${FLING:-300} 90 60;wait240;vr_corpse_list;toggleconsole;quit"
+            run -Script "$UNDRAWN$START;vr_ragdoll 0;vr_corpse_collide 4;vr_corpse_nogib 1;vr_limbs 0;vr_decap 0;vr_portals_walk $w;setpos $x 520 24 0 90 0;wait5;noclip 0;vr_test_spawn 0;vr_test_spawn_dist 60;vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0;wait120;vr_physics_fling monster_army ${FLING:-300} 90 60;wait240;vr_corpse_list;toggleconsole;quit"
             y=$(grep -E "^  [0-9]+ monster_army: .* at " "$LOG" | tail -1 | sed -E 's/.* at [-0-9.]+ ([-0-9.]+) .*/\1/')
             echo "corpse: gate at x $x, walk $w: $(grep -c 'corpse: [0-9]* carried through a teleporter' "$LOG") crossing, it ends at y $y" \
                 "$( [ $w = 1 ] && echo '(1, > 928: through)' || echo '(0, short of the wall behind the gate; a control)')"
@@ -231,7 +237,7 @@ fi
 # once (fixed in monsters.qc), standing till a later look, after he had gone behind the wall.
 if want monster; then
     for m in 1 0; do
-        S="developer 1;map vrteleporters;wait60;god;vr_stealth_meter 0;vr_portals_monsters $m;setpos -256 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn 7;vr_test_spawn_dist 200;impulse 241;wait40;setpos -256 1150 24 0 270 0;wait5;noclip 0"
+        S="${UNDRAWN}developer 1;map vrteleporters;wait60;god;vr_stealth_meter 0;vr_portals_monsters $m;setpos -256 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn 7;vr_test_spawn_dist 200;impulse 241;wait40;setpos -256 1150 24 0 270 0;wait5;noclip 0"
         for i in $(seq 1 200); do S="$S;wait1;echo SNAP $i;entities"; done
         run -Script "$S;toggleconsole;quit"
         awk -v m="$m" '/^SNAP/{s=$2} index($0, "progs/dog.mdl:") && s && s != seen {seen=s; split($0, a, "("); split(a[2], b, ","); y=b[2]+0
