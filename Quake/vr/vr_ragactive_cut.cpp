@@ -153,22 +153,29 @@ void breakBalance(State& s, const Context& c, float t)
 namespace detail
 {
 
-void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
+namespace
 {
-    Dismember& m = s.dismember;
-    const Death& d = s.death;
-    if(d.collapse)
-    {
-        return;
-    }
-    const ragdoll::Rig& rig = *p.rig;
-    const glm::vec3 up{0.f, 0.f, 1.f};
-    const float twoPi = 6.2831853f;
-    for(glm::vec3& w : m.spin)
-    {
-        w = glm::vec3{0.f};
-    }
-    // No legs, killed standing: he pitches forward (his whole body turned about his pelvis).
+
+// dismemberFrame's working state, from phase to phase (dismemberFrame below: its phases in order).
+struct DismemberWork
+{
+    Dismember* m{nullptr};
+    const Death* d{nullptr};
+    const ragdoll::Rig* rig{nullptr};
+    glm::vec3 up{};
+    float twoPi{};
+    bool balancing{};
+    bool crawling{};
+    float hold{};
+    float env{};
+};
+
+// No legs, killed standing: he pitches forward (his whole body turned about his pelvis).
+void dismemberPitch(DismemberWork& wk, const Parts& p)
+{
+    Dismember& m = *wk.m;
+    const ragdoll::Rig& rig = *wk.rig;
+    glm::vec3& up = wk.up;
     if(m.pitch)
     {
         m.pitch = false;
@@ -188,7 +195,16 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
             }
         }
     }
-    // On one leg, keeping his balance.
+}
+
+// On one leg, keeping his balance.
+void dismemberBalance(DismemberWork& wk, State& s, const Parts& p, const Context& c, float t)
+{
+    Dismember& m = *wk.m;
+    const Death& d = *wk.d;
+    const ragdoll::Rig& rig = *wk.rig;
+    glm::vec3& up = wk.up;
+    float& twoPi = wk.twoPi;
     if(m.balanceUntil >= 0.f && m.brokeAt < 0.f)
     {
         const int chest = chestOf(p);
@@ -296,10 +312,19 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
             }
         }
     }
-    const bool balancing = m.balanceUntil >= 0.f && m.brokeAt < 0.f;
-    const bool crawling = d.crawlFrom >= 0.0;
-    // A hand on the stump.
-    float hold = 0.f;
+    wk.balancing = m.balanceUntil >= 0.f && m.brokeAt < 0.f;
+    wk.crawling = d.crawlFrom >= 0.0;
+}
+
+// A hand on the stump.
+void dismemberHand(DismemberWork& wk, State& s, const Parts& p, const Context& c, float t)
+{
+    Dismember& m = *wk.m;
+    const ragdoll::Rig& rig = *wk.rig;
+    bool& balancing = wk.balancing;
+    bool& crawling = wk.crawling;
+    float& hold = wk.hold;
+    hold = 0.f;
     if(m.holdArm >= 0 && !balancing && !crawling)
     {
         Reach& r = s.reach[static_cast<za::SizeT>(m.holdArm)];
@@ -332,8 +357,18 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
             }
         }
     }
-    // The writhe: his torso and legs a little strength (over his death's), their targets swung slowly about it.
-    float env = 0.f;
+}
+
+// The writhe: his torso and legs a little strength (over his death's), their targets swung slowly about it.
+void dismemberWrithe(DismemberWork& wk, State& s, const Parts& p, float t)
+{
+    Dismember& m = *wk.m;
+    const ragdoll::Rig& rig = *wk.rig;
+    float& twoPi = wk.twoPi;
+    bool& balancing = wk.balancing;
+    bool& crawling = wk.crawling;
+    float& env = wk.env;
+    env = 0.f;
     if(!balancing && !crawling && m.writheFrom >= 0.f && m.writheUntil > m.writheFrom)
     {
         env = smooth01((t - m.writheFrom) / writheRamp) * (1.f - smooth01((t - (m.writheUntil - writheOut)) / writheOut));
@@ -375,8 +410,17 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
             m.spin[i] = axis * (amp * twoPi * hz * glm::cos(phase));
         }
     }
-    // The stump past his reach (the ogre's arms, a stump lying under him): his torso curls towards it, bringing the
-    // holding shoulder nearer (its turn about his pelvis shared by his torso's joints), held up enough to do it.
+}
+
+// The stump past his reach (the ogre's arms, a stump lying under him): his torso curls towards it, bringing the
+// holding shoulder nearer (its turn about his pelvis shared by his torso's joints), held up enough to do it.
+void dismemberCurl(DismemberWork& wk, State& s, const Parts& p, const Context& c, float t)
+{
+    Dismember& m = *wk.m;
+    const ragdoll::Rig& rig = *wk.rig;
+    bool& balancing = wk.balancing;
+    float& hold = wk.hold;
+    float& env = wk.env;
     m.curl = 0.f;
     if(hold > 0.f && m.holdArm >= 0)
     {
@@ -439,6 +483,33 @@ void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
             static_cast<float>(c.now - c.born), m.handGap, m.lean, balancing ? 1 : (m.brokeAt >= 0.f ? 2 : 0), m.brokeAt, hold,
             env, stir / static_cast<float>(za::max(n, 1)), m.lost, m.curl, m.face ? 1 : 0);
     }
+}
+
+} // namespace
+
+void dismemberFrame(State& s, const Parts& p, const Context& c, float t)
+{
+    DismemberWork wk;
+    wk.m = &s.dismember;
+    Dismember& m = *wk.m;
+    wk.d = &s.death;
+    const Death& d = *wk.d;
+    if(d.collapse)
+    {
+        return;
+    }
+    wk.rig = &*p.rig;
+    wk.up = glm::vec3{0.f, 0.f, 1.f};
+    wk.twoPi = 6.2831853f;
+    for(glm::vec3& w : m.spin)
+    {
+        w = glm::vec3{0.f};
+    }
+    dismemberPitch(wk, p);
+    dismemberBalance(wk, s, p, c, t);
+    dismemberHand(wk, s, p, c, t);
+    dismemberWrithe(wk, s, p, t);
+    dismemberCurl(wk, s, p, c, t);
 }
 
 } // namespace detail
