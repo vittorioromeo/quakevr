@@ -2524,3 +2524,50 @@ QC `vr_agk_test_hold` (the studio's hold without the studio).
 
 Checklist line: "An unarmed enforcer running at you holds its fists where the Pose Studio's Guard key shows them (mouth
 level, not crossed)."
+
+## Armed humanoid disarming, part 1: the tug's pull, two hands, a downed one's tug, projectiles (branch `agent/disarm1`)
+
+His feedback (2026-10-30): no amount of pulling disarms a standing or tugged grunt; two hands do nothing more than one;
+nails and the nail pistol never shoot the weapon out. Plan: `qvr-kit/scratch/disarm_plan.md` (items 2a, 3a/3b, 4; the
+blow/parry order, item 1, and the grab arbitration, 2b/2c/3c, wait for agent/hitrecord and agent/grabquery).
+
+- **Test 31's pull: the mock, not the physics.** `vr_mock_hand_lift` and `vr_mock_hand_pull` moved only a mock hand
+  placed with `vr_mock_hand_to`; test 31 never places one, so its "pull" never moved the hand and its tug read the still
+  hold. Bisect on today's harness: 231 N at 1c58a5435 (ROUND22's 1454 N does not reproduce), 231 at 670a9305b, 148 at
+  63ff7f6e7 (posed arms), 84 at 09c84b4df^ and 09c84b4df, 72 at a35283c8b: the still hold's noise, never a pull. Fixed in
+  `vr_backend_mock.cpp`: the lift and pull apply to the standing pose too; `vr_mock_hand_pull_off` pulls the off hand.
+- **The measure** (`vr_agrunt_tug_measure` 2, `vr_agrunt_tug_stiffness` 1500 N/m, tunables). With the hand really pulled,
+  the held limb follows it within 2 cm and a slow pull drags the whole active ragdoll (its pelvis pin gives at ~150 N),
+  so neither the joint force nor "controller from the held point" reads a steady pull. `ragdolltug` what 3 is the tug's
+  stretch: the hand's flat distance from where the grunt stands its ground (its pelvis pin's anchor), beyond the grab's.
+  The pull is the larger of the joint force and stretch x stiffness. Test 31: the still hold 222 N (under 270), the
+  0.6 m/s pull won in 0.47 s; test 92: 0.4 m/s won in 1.18 s (stretch 234 N at 0.5 s, 506 N at 1.0 s).
+- **Two hands** (`vr_agrunt_tug_second_grab` 0: joins; 1: tears it free into the first hand). The same player's other
+  hand's grab adds a second hold (engine: no re-pin, no stagger reset); its pull adds (`vr_agrunt_tug_two_hand_mult` 1),
+  thresholds x `vr_agrunt_tug_two_hand_ease` 0.75 (the old tug: its time, the larger stretch). Either hand letting go
+  keeps the tug on the other (`ragdolltug` what 4; what 2 ends both). Test 92: two hands 0.94 s vs one 1.18 s (0.80x; the
+  mock's off hand reads little stretch, so the eased thresholds win it).
+- **The free fist** (`vr_agrunt_tug_strike` 1, `vr_agrunt_tug_strike_swing` 0.6): in a tug the free fist's deliberate
+  strike at 2.7 m/s tears the weapon into the holding hand (test 92: 2 m/s kept, 3.5 m/s yours). Any `VR_AG_Disarm` during
+  a tug (a body blow by its grip) does the same instead of flinging it. `VR_AG_HandStrike` is split into
+  `VR_AG_HandStrikeSpeed` (any share of the need) and the disarm, for item 1 to reuse.
+- **His decision: a staggering or downed one still needs a tug** (`vr_agrunt_tug_downed_scale` 0.5; 0: at once, as
+  before). The grab starts the old tug (distance and time, `vr_agrunt_tug_time` x 0.5), its knockdown going on; up again
+  mid-tug it struggles as a standing one. A tug that goes down keeps going eased. Kept at once: stunned by a parry, badly
+  hurt, and the physical tug whose grunt goes down ("it went down"). Test 92: staggering 0.89 s, knocked down 1.39 s at
+  0.6 m/s; held still 0.4 s, kept.
+- **Projectiles** (`vr_agrunt_shotdisarm_proj` 1, `_proj_chance` 0.2 at `_proj_ref` 9, `_proj_near` 4, `_proj_max` 0.8;
+  rows under Disarming: Shooting It Out). `launch_spike` tags every nail (`.vr_ags_kind`), so the nail pistol's
+  (`VR_NailPistol_SpikeTouch`) and lava nails count; each projectile on or near the weapon or hand rolls once, its
+  holder's body not first. Test 93: nail 0.20, super 0.40, pistol 0.27, lava 0.20, rocket 0.80, forearm the same, 3 units
+  off a quarter, 6 off never (40 or 12 shots each, the chance exact, the rate within 3 sd). Test 50's nail cases now
+  expect the per-hit roll (3 nails 0.3-0.7, one far nail 0.1-0.35).
+- Tests: `vr_agrunt_test 92` (vr_armedgrunt_twohand_test.qc, 14 checks), `93` (in vr_armedgrunt_shot_test.qc, 20).
+
+Checklist lines:
+- Grab a standing armed grunt's gun and pull back steadily (not a yank): within about 1-2 s the gun is yours.
+- Grab it with one hand, then the other on the gun too, and pull: it gives sooner than one hand; let go with one hand:
+  the tug goes on.
+- Hold its gun with one hand, punch the gun with the other fist: the gun ends in the holding hand.
+- Shove a grunt into a stagger (or floor it) and grab its gun: it is not yours at once; a short pull takes it.
+- Shoot a grunt's gun with the nail pistol and with nails: some shots knock it out (about 1 in 4-5 on the gun).
