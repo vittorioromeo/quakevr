@@ -21,14 +21,13 @@ float VR_HST_BOSS = 1000;      // full health from which a monster is never unba
 float VR_HST_PAIN_TIME = 0.75; // s a monster without an active stagger is kept from attacking, times the push
 float vr_hst_test;             // in a test (VR_HitStagger_Test): each roll printed whatever vr_knockdown_debug says
 
-// Whether the blow at `xAt` struck `e`'s head: its positional zone (vr_hitpart, set this frame for it), else the top
+// Whether the blow at `xAt` struck `e`'s head: its positional zone (hit_zone, set this frame for it), else the top
 // fifth of its box.
 float(entity e, vector xAt) VR_HitStagger_Head =
 {
-    VR_Hit_CheckAt(8, "stagger head", e); // (hit record, step 2)
-    if(vr_hitpart_time == time && vr_hitpart_target == e)
+    if(VR_Hit_On(e))
     {
-        return vr_hitpart == 1;
+        return hit_zone == 1;
     }
     if(xAt == '0 0 0' || e.size_z <= 0)
     {

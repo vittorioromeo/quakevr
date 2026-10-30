@@ -38,18 +38,6 @@ vector vr_hitdir;     // and going which way
 // A melee blow's positional damage (weapons.qc, vr_melee_positional): its damage times the zone the blow landed on.
 float(entity xTarget, vector xTo, vector xDir) VR_Melee_Positional;
 
-// A shotgun blast's pellets on its target (ApplyMultiDamage), by where they struck.
-float vr_hitpellets;
-float vr_hitpellets_head;
-float vr_hitpellets_limb;
-float vr_hitpellets_leg;
-
-// PositionalDamage's last answer (1 head, 2 extremity, 3 legs, 0 body), for which target, when.
-float vr_hitpart;
-entity vr_hitpart_target;
-float vr_hitpart_time;
-vector vr_hitpart_pos;
-
 // The hit record (design review 6; ROUND23.md, "One hit record"): where the hit being dealt struck, written once by
 // its source and read by T_DamageDeal's consumers, in one vocabulary: the part positional damage has always used
 // (PositionalRegion: 1 the head, 2 a limb, 3 the legs, 0 the body; -1 none).
@@ -75,10 +63,16 @@ void(entity xTarg, float xZone, vector xAt) VR_Hit_SetZone =
     hit_at = xAt;
 };
 
+// Whether the record's zone is `xTarg`'s, this frame.
+float(entity xTarg) VR_Hit_On =
+{
+    return hit_targ == xTarg && hit_time == time;
+};
+
 // The zone a shot or a blow found on `xTarg` this frame (-1: none).
 float(entity xTarg) VR_Hit_Zone =
 {
-    return (hit_targ == xTarg && hit_time == time) ? hit_zone : -1;
+    return VR_Hit_On(xTarg) ? hit_zone : -1;
 };
 
 // The blast's pellets (0: not inside a blast's damage).
@@ -86,10 +80,6 @@ float() VR_Hit_Pellets =
 {
     return hit_blast ? hit_pellets : 0;
 };
-
-// Step 2 (temporary): the record against the old globals at a consumer `xWho` (bit `xId`) deciding for `xTarg`
-// (vr_hitreact.qc; "hitcheck:" lines).
-void(float xId, string xWho, entity xTarg) VR_Hit_CheckAt;
 
 // The part most of a blast's pellets struck: the head if half of them, else the legs if most, else a limb if most
 // (with `xLimbs`), else the body.
@@ -781,7 +771,6 @@ void(entity e) VR_Corpse_Arm =
 // low, wide box is all legs and limbs to it: the share is given back (a corpse has none).
 float(entity targ) VR_Corpse_PositionalFactor =
 {
-    VR_Hit_CheckAt(2, "corpse positional", targ); // (hit record, step 2)
     if(cvar_hget(cvarh_vr_positional_damage) == 0)
     {
         return 1;
@@ -793,23 +782,23 @@ float(entity targ) VR_Corpse_PositionalFactor =
     float f = 1;
 
     // A shotgun blast's pellets (ApplyMultiDamage).
-    if(vr_hitpellets > 0)
+    if(VR_Hit_Pellets() > 0)
     {
-        float body = vr_hitpellets - vr_hitpellets_head - vr_hitpellets_limb - vr_hitpellets_leg;
-        f = (body + vr_hitpellets_head * head + vr_hitpellets_limb * limb + vr_hitpellets_leg * leg) / vr_hitpellets;
+        float body = VR_Hit_Pellets() - hit_pelparts_x - hit_pelparts_y - hit_pelparts_z;
+        f = (body + hit_pelparts_x * head + hit_pelparts_y * limb + hit_pelparts_z * leg) / VR_Hit_Pellets();
     }
     // One shot.
-    else if(vr_hitpart_target == targ && vr_hitpart_time == time)
+    else if(VR_Hit_On(targ))
     {
-        if(vr_hitpart == 1)
+        if(hit_zone == 1)
         {
             f = head;
         }
-        else if(vr_hitpart == 2)
+        else if(hit_zone == 2)
         {
             f = limb;
         }
-        else if(vr_hitpart == 3)
+        else if(hit_zone == 3)
         {
             f = leg;
         }
@@ -1472,25 +1461,16 @@ void(entity p, string xWhy) VR_Climb_KnockOff =
 
 void(entity targ) VR_Ragdoll_NoteDeathHit =
 {
-    VR_Hit_CheckAt(1, "ragdoll death hit", targ); // (hit record, step 2)
     float part = -1;
     vector at = '0 0 0';
-    if(vr_hitpart_target == targ && vr_hitpart_time == time)
+    if(VR_Hit_On(targ))
     {
-        part = vr_hitpart;
-        at = vr_hitpart_pos;
+        part = hit_zone;
+        at = hit_at;
     }
-    if(vr_hitpellets > 0)
+    if(VR_Hit_Pellets() > 0)
     {
-        part = 0;
-        if(vr_hitpellets_head * 2 >= vr_hitpellets)
-        {
-            part = 1;
-        }
-        else if(vr_hitpellets_leg * 2 > vr_hitpellets)
-        {
-            part = 3;
-        }
+        part = VR_Hit_PelletPart(FALSE);
     }
     if(at == '0 0 0' && vr_hitpos != '0 0 0' && vlen(vr_hitpos - targ.origin) < 96)
     {
@@ -2817,7 +2797,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
     if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
     {
         dprint(sprintf("damage: %s %g by %s (part %g at %v), health %g\n", targ.classname, parried, inflictor.classname,
-            vr_hitpart_time == time ? vr_hitpart : -1, vr_hitpart_pos, targ.health));
+            hit_time == time ? hit_zone : -1, hit_at, targ.health));
     }
 
     // VR: hit reactions: a heavy hit shoves a monster (vr_hit_push), a killing blow throws the body
@@ -2968,7 +2948,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
     {
         dprint(sprintf("damage: %s %g by a melee blow (part %g x%.2f at %v), health %g\n", targ.classname, damage,
-            vr_hitpart_time == time ? vr_hitpart : -1, mult, vr_hitpos, targ.health));
+            hit_time == time ? hit_zone : -1, mult, vr_hitpos, targ.health));
     }
 
     // VR: melee blows push what they hit (vr_melee_push); a ragdoll or a corpse as two bodies meeting

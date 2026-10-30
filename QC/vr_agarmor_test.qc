@@ -59,10 +59,6 @@ entity(entity p, float side) VR_ART_Spawn = { return VR_ART_SpawnKind(p, side, 0
 float(entity g, vector p, float part, float d) VR_ART_Hit =
 {
     float h0 = g.health;
-    vr_hitpart_target = g;
-    vr_hitpart_time = time;
-    vr_hitpart_pos = p;
-    vr_hitpart = part;
     VR_Hit_SetZone(g, part, p);
     T_Damage(g, world, world, d);
     return h0 - g.health;
@@ -146,10 +142,6 @@ void() VR_ART_Run =
     ClearMultiDamage();
     for(i = 0; i < 6; i++)
     {
-        vr_hitpart_target = a;
-        vr_hitpart_time = time;
-        vr_hitpart_pos = (i < 3) ? pc : pp;
-        vr_hitpart = 0;
         VR_Hit_SetZone(a, 0, (i < 3) ? pc : pp);
         AddMultiDamage(a, 4);
     }

@@ -2953,7 +2953,6 @@ void(entity targ, entity inflictor, float take) VR_Gore_Hit =
     vector org = mid;
     vector dir = vr_hitdir;
     float kind = 0;
-    VR_Hit_CheckAt(128, "gore kind", targ); // (hit record, step 2)
     if(vr_hitkind == QVR_HITKIND_SPLASH)
     {
         kind = 2;
@@ -2966,7 +2965,7 @@ void(entity targ, entity inflictor, float take) VR_Gore_Hit =
         {
             kind = 3;
         }
-        else if(vr_hitpellets > 1)
+        else if(VR_Hit_Pellets() > 1)
         {
             kind = 1;
         }

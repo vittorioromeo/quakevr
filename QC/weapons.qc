@@ -419,10 +419,6 @@ float(entity xTarget, vector xTo, vector xDir) VR_Melee_Positional =
         return 1;
     }
 
-    vr_hitpart = region;
-    vr_hitpart_target = xTarget;
-    vr_hitpart_time = time;
-    vr_hitpart_pos = xTo;
     VR_Hit_SetZone(xTarget, region, xTo);
     return PositionalDamageFactor(region);
 }
@@ -438,10 +434,6 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
         PositionalHeadshotFeedback(xTarget);
     }
 
-    vr_hitpart = region;
-    vr_hitpart_target = xTarget;
-    vr_hitpart_time = time;
-    vr_hitpart_pos = xEndpos;
     VR_Hit_SetZone(xTarget, region, xEndpos);
     return max(0, region);
 }
@@ -1794,15 +1786,10 @@ void() ApplyMultiDamage =
     if(!multi_ent)
         return;
 
-    vr_hitpellets = hit_pellets;
-    vr_hitpellets_head = hit_pelparts_x;
-    vr_hitpellets_limb = hit_pelparts_y;
-    vr_hitpellets_leg = hit_pelparts_z;
     hit_blast = TRUE;
     entity t = multi_ent;
     float pop = VR_Decap_BlastArm(t); // VR: a headshot blast pops the head if it kills (vr_decap.qc, "Head pops")
     VR_Decap_Damage(t, self, self, multi_damage, pop);
-    vr_hitpellets = 0;
     hit_blast = FALSE;
 };
 
@@ -1821,7 +1808,6 @@ float(entity hit, float damage) AddMultiDamage =
     else
         multi_damage = multi_damage + damage;
 
-    VR_Hit_CheckAt(4096, "AddMultiDamage", hit); // (hit record, step 2)
     hit_pellets = hit_pellets + 1;
     float part = VR_Hit_Zone(hit);
     if(part == 1)      hit_pelparts_x = hit_pelparts_x + 1;
