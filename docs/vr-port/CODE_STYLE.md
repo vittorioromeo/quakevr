@@ -220,6 +220,15 @@ the config is the player's choice.
   before `host_initialized` (it becomes the default) or leave it out of `CVAR_ARCHIVE`.
 - Check: `Misc/quakevr/config_sparse_test.sh <agent> [full config]` (an old full config loaded, written sparse, read
   back to the same values from any state; a moved default reaches it; another copy's edits merged).
+- **Three tiers** (ROUND23.md, "Settings tiers"). A **player option** (comfort, look, audio, controls, a feature
+  switch, anything a test or cfg sets) is a `QVR_CVAR` in `vr_cvars.inc` with a menu row. A **tuning constant** (a
+  number tuned once that no player sets) is a `QVR_TUNABLE(name, "default")` in `vr_tunables.inc`, with no menu row:
+  constexpr in a release build (read as `name.value` / `name.string`; the QC reads it by name, `cvar()` and
+  `cvar_hmake` find its stand-in), an archived cvar in a tuning build (MSBuild `-p:QvrTuning=1`), and an old config's
+  line for it is ignored. Its default is its value: changing it changes the game. A **test knob** is a `CVAR_NONE`
+  cvar (never saved) whose row, if any, belongs on a Debug page. A new number starts as a tuning constant; it becomes a
+  setting only for a player-facing reason. A constant can't be written (`&name`, `Cvar_Set`) or looked up with
+  `Cvar_FindVar`: that one stays a cvar.
 
 ## Canonical helpers
 

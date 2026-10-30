@@ -1870,3 +1870,33 @@ current one kept to fall back to.
   pyro's and the fumigator's guns, 1). Test: `vr_recoil_test`'s stream part (7 checks: defaults, a flame starts it, it
   shakes every frame of a second of flames and trembles, under a degree, settled after, none at 0): 24/0. Not checked
   here: a real flamethrower (the kit's bases have no AD data); the network hop is two lines.
+
+## Settings tiers (branch `agent/tiers`; design review 2)
+
+Every Quake VR setting is now one of three tiers: a **player option** (a cvar with a menu row), a **tuning constant**
+(`QVR_TUNABLE` in `Quake/vr/vr_tunables.inc`: no menu row, not in the config) or a **test knob** (a cvar never saved).
+CODE_STYLE.md, "Settings and the config", has the rules. The full list, page by page, with each one's reason and the
+author's own value where he set one: the kit's `scratch/refactor/tiers.md` (made by `tiers_scan.py` beside it).
+
+- **How each was sorted** (`tiers_scan.py`, from the code and the author's config of 2026-10-30, read only): anything
+  he set off its default, anything personal (comfort, calibration, the tool gun, recording, height, seated play),
+  anything a test, tool, map or shipped cfg names, anything code writes or looks up by name (`&name`, `Cvar_Set`,
+  `Cvar_FindVar("...")`, a `##`-made table of cvar pointers, a QC `cvar_set`), every row on a Standard-level or player
+  page (graphics, HUD, audio, controls, comfort), and every toggle or choice elsewhere stays a **player option**
+  (2,699). Never-moved sliders on the gameplay pages, every row of the Developer-level tuning pages, and the archived
+  settings with no menu row become **tuning constants** (1,094). Settings already not saved are the **test** tier
+  (572). The weapons' and props' slot tables (`vr_wofs_*`, `vr_prop_*`) are design review 3's, not touched.
+- **No behaviour change:** each constant keeps its default as its value; `tunableValue` is Q_atof's arithmetic at
+  compile time, and the start-up check compares every constant with Q_atof of its default (none differ). His config
+  loads with all 22,748 of his cvar values applied, and each of his lines for a constant equals it (1,091).
+- **The QC** still reads constants by name: `Cvar_VariableValue`/`String` and `cvar_hmake` fall back to the
+  constants' unregistered stand-in cvars (`tunableFind`). An old config's line for a constant is ignored like a retired
+  setting's (`VR_RetiredCvar`).
+- **Tuning build:** `MSBuild ... -p:QvrTuning=1` (QVR_TUNING) makes every constant an archived cvar again, set from the
+  console (no menu rows: those are gone).
+- **Removed:** 1,094 cvars from vr_cvars.inc, about 1,000 menu rows with their help (menus 2,214 lines fewer), the
+  migration rows of the constants. Not done: the test tier's few rows still on player pages (Show Melee Arcs and the
+  like, 25 pages) are not yet moved to Debug pages; the "0: old side" switches he doesn't use are still options (a
+  D1-style retirement is a separate pass).
+- Checks: build; `vr_menu_path_check maps/vrcalibration.map` 0 missing; `config_sparse_test.sh` 16/0 with the
+  default config and with a copy of his; the full baseline (`run_baseline.sh harness --no-bench`).
