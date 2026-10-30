@@ -168,6 +168,7 @@ void probeLook()
         return;
     }
     look.tries++;
+    const progs::ToolSpawn plain; // (the ghost the plain monster, as spawnChoice makes it)
     edict_t* e = box3d::spawnClass(sel.classname, tg.ghostOrigin, tg.ghostAngles, sel.setModel ? sel.model : nullptr,
         sel.key[0] ? sel.key : nullptr, sel.value, true, sel.weaponFlags);
     if(!e)
@@ -215,6 +216,7 @@ void armedArmour(edict_t* e)
 
 [[nodiscard]] edict_t* spawnChoice(const Selection& sel, const glm::vec3& origin, const glm::vec3& angles)
 {
+    const progs::ToolSpawn plain; // (the toolgun's Grunt, Enforcer, Knight plain ones; its armed ones are their own entries)
     edict_t* e = box3d::spawnClass(sel.classname, origin, angles, sel.setModel ? sel.model : nullptr, sel.key[0] ? sel.key : nullptr,
         sel.value, false, sel.weaponFlags, sel.key2[0] ? sel.key2 : nullptr, sel.value2);
     if(e && sel.armed)

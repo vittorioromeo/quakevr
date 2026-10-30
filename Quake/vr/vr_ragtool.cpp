@@ -476,6 +476,7 @@ void makeSubject()
     }
     const int row = modelRow();
     movePlayer(tool.home);
+    const progs::ToolSpawn plain; // (its subject the plain monster)
     edict_t* e = toolgun::spawnEntryAt(tool.models[static_cast<za::SizeT>(row)], tool.stage, tool.stageYaw);
     if(!e)
     {

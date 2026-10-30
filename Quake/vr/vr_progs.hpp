@@ -126,12 +126,23 @@ struct Bindings
     // vr_music_track: the CD track target_vr_music switched to (0: the map's own); sent at a connect (a loaded game)
     float* musicTrack{nullptr};
     float* spawnLive{nullptr}; // vr_spawn_live: 1 round a spawn function run in a live game (box3d::spawnClass)
+    float* agrHold{nullptr};   // vr_agr_hold: > 0 while a tool spawns (no armed replacement: progs::ToolSpawn)
     float* playerTimeOffset{nullptr}; // vr_player_time_offset: the player's clock ahead of time (vr_timescale.cpp)
     float* handTimeScale{nullptr};    // vr_hand_time_scale: the hands' velocities to real time (timescale::handScale)
     float* extSpawnParms[numExtSpawnParms]{};
 };
 
 [[nodiscard]] const Bindings& bindings();
+// A tool's spawn (the toolgun, the Rig Studio, the ragdoll tool) while one stands: the plain monster it names, never its
+// armed replacement (vr_agrunt_repl, vr_agknight: QC vr_agr_hold, read by VR_AGR_Replace and VR_AKN_Replace; QC's own
+// spawner, VR_Test_Spawn, holds it too). The armed kinds are their own classes (monster_vr_grunt...).
+struct ToolSpawn
+{
+    ToolSpawn() { if(float* h = bindings().agrHold) { *h += 1.f; } }
+    ~ToolSpawn() { if(float* h = bindings().agrHold) { *h -= 1.f; } }
+    ToolSpawn(const ToolSpawn&) = delete;
+    ToolSpawn& operator=(const ToolSpawn&) = delete;
+};
 
 [[nodiscard]] inline const FieldOffsets& fields()
 {

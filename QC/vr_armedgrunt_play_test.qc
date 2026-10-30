@@ -96,6 +96,7 @@ void() VR_AGPT_Ragdoll =
     {
         VR_AGPT_Clear();
         p.flags = p.flags | FL_NOTARGET;
+        cvar_set("vr_agrunt_repl", "0"); // (its grunt a plain one, not its armed replacement)
         vr_agpt_a = VR_AGPT_Grunt(160, -50);
         makevectors(p.angles);
         p.angles_y = p.angles_y - 17;

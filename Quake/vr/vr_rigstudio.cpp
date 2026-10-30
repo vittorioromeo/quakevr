@@ -213,6 +213,7 @@ void makeSubject()
     removeSubject(); // (exactly one: a respawn asked twice before its spawn came)
     const glm::vec3 at = st.stage + glm::vec3{0.f, 0.f, 25.f};
     const glm::vec3 angles{0.f, st.stageYaw, 0.f};
+    const progs::ToolSpawn plain; // (monster_army the plain rigged grunt: the armed ones are monster_vr_*)
     edict_t* e = armedClass(st.choice.spawn)
                      ? box3d::spawnClass(st.choice.spawn, at, angles, nullptr, "weapon", static_cast<float>(st.choice.weapon),
                            false, 0.f, "weapon2", static_cast<float>(st.choice.weapon2))

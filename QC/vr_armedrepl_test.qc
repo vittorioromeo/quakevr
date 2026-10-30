@@ -332,6 +332,14 @@ void() VR_AGRT_Stats =
     VR_AGT_Check(sprintf("spawns: %g of 12 armed replacements, %g with their own gun", armed, native), armed == 12 && native > 0 && native < 12);
     VR_AGT_Check(sprintf("spawns: the same spots twice, the same loadouts (%g, %g)", sum1, sum2), sum1 == sum2);
     VR_AGT_Check("spawns: off, a grunt as it was", plain);
+    // A tool's spawn (vr_test_spawn 0, the Debug menu's spawner: VR_Test_Spawn; the engine's progs::ToolSpawn holds
+    // the same vr_agr_hold): with replacements on, the plain grunt it names, the hold let go after it.
+    cvar_set("vr_agrunt_repl", "1");
+    entity t = VR_Test_Spawn(world, 0, VR_AGRT_Ahead(200, 0), -1);
+    float tplain = t && !t.vr_ag && !t.vr_agr && t.classname == "monster_army";
+    if(t) { VR_AGRT_Remove(t); }
+    VR_AGT_Check(sprintf("spawns: vr_test_spawn 0 with replacements on, a plain grunt (%g), the hold back to %g", tplain, vr_agr_hold),
+        tplain && vr_agr_hold == 0);
     VR_AGRT_Restore();
     cvar_set("vr_agrunt_test", "0");
     }

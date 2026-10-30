@@ -72,7 +72,7 @@ if [ "$WHAT" = chase ] || [ "$WHAT" = all ]; then
     for t in "7 dog -256 flush_player" "7 dog 1180 framed_sill16" "7 dog 1360 framed_sill32" "9 demon 0 flush_large" "9 demon 1580 framed_large" "0 soldier -256 flush_player"; do
         [ -n "$ONLY" ] && [[ "$t" != *"$ONLY"* ]] && continue
         set -- $t
-        S="developer 1;vr_fixed_frames 1;sv_random_seed __SEED__;map vrteleporters;wait60;god;vr_stealth_meter 0;setpos $3 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn $1;vr_test_spawn_dist 200;impulse 241;wait40;echo MOVE;setpos $3 1150 24 0 270 0;wait5;noclip 0"
+        S="developer 1;vr_fixed_frames 1;vr_agrunt_repl 0;sv_random_seed __SEED__;map vrteleporters;wait60;god;vr_stealth_meter 0;setpos $3 600 24 0 270 0;wait5;noclip 0;wait5;vr_test_spawn $1;vr_test_spawn_dist 200;impulse 241;wait40;echo MOVE;setpos $3 1150 24 0 270 0;wait5;noclip 0"
         for i in $(seq 1 32); do S="$S;wait15;echo SNAP $i;entities"; done
         tries=${TRIES:-3}; [ $2 = soldier ] && tries=1
         for try in $(seq 1 $tries); do

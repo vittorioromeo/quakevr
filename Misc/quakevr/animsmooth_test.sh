@@ -12,7 +12,7 @@
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=${1:?worktree name}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
-S="vr_fixed_frames 1;vr_anim_smooth_tension 0;vr_anim_smooth_rig 0;vr_anim_smooth_rebuild 0;r_lerpmodels 3;map e1m1;wait30;god;notarget;vr_test_spawn 0;vr_test_spawn_dist 96;impulse 241;wait240;vr_anim_smooth_info soldier;vr_anim_smooth_info soldier 1;vr_anim_smooth_rig 1;vr_anim_smooth_rebuild 1"
+S="vr_fixed_frames 1;vr_agrunt_repl 0;vr_anim_smooth_tension 0;vr_anim_smooth_rig 0;vr_anim_smooth_rebuild 0;r_lerpmodels 3;map e1m1;wait30;god;notarget;vr_test_spawn 0;vr_test_spawn_dist 96;impulse 241;wait240;vr_anim_smooth_info soldier;vr_anim_smooth_info soldier 1;vr_anim_smooth_rig 1;vr_anim_smooth_rebuild 1"
 S="$S;vr_anim_smooth_check;vr_anim_smooth_info;vr_anim_smooth_trace 600;wait610;vr_anim_smooth_info"
 S="$S;vr_anim_smooth_pin 83 84 0.5 -1 -1 soldier;wait5;vr_anim_smooth_info;map e1m2;wait30;vr_anim_smooth_info;toggleconsole;quit"
 OUT=$(bash $KIT/run.sh $AGENT -Script "$S" -Filter "^animsmooth: (check|trace|pinned|progs/soldier|[0-9]+ splines|  6 )|median [0-9.]|ERROR|Host_Error|Sys_Error|CRASH" -Timeout 600 2>&1 |

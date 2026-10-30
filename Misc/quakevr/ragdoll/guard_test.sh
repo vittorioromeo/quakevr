@@ -14,7 +14,7 @@ KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 CASES=${*:-swing shot stagger down off}
-run() { tb_run_sh -Script "sv_random_seed ${SEED:-7};$1;toggleconsole;quit" -Filter "guard:|hittrace|recovers|rises through|gets up after|rror|CRASH" -Timeout 300 2>&1 | tr -d '\r'; }
+run() { tb_run_sh -Script "sv_random_seed ${SEED:-7};vr_agrunt_repl 0;$1;toggleconsole;quit" -Filter "guard:|hittrace|recovers|rises through|gets up after|rror|CRASH" -Timeout 300 2>&1 | tr -d '\r'; }
 FR="map vrfiringrange;wait30;god;notarget;developer 1;vr_hit_react_debug 2;vr_knockdown_debug 1;vr_ragdoll_active_guard ${GUARD:-1}"
 verdict() { # verdict <name> <condition result 0/1> <what>
     [ "$2" = 0 ] && echo "guard $1: $3: PASS" || echo "guard $1: $3: FAIL"

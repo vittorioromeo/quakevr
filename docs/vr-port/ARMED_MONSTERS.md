@@ -169,7 +169,7 @@ ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Huma
 
 ## Replacements: a map's grunts and enforcers (ROUND22.md, "Armed humanoid replacements")
 
-- `vr_agrunt_repl` (Combat > Armed Grunts > Armed Humanoid Replacements; all off by default): `monster_army` /
+- `vr_agrunt_repl` (Combat > Armed Grunts > Armed Humanoid Replacements; on by default since 2026-10-30, the page's other switches off): `monster_army` /
   `monster_enforcer` call `VR_AGR_Replace(kind)` (`QC/vr_armedrepl.qc`) first, which runs `VR_AM_Spawn` with the row's
   own gun (`VR_AGR_NativeOf`). Its prop is native (`.vr_ag_native`): `VR_AGR_NativeShot` fires the monster's own shot,
   never spent, unscaled (`VR_AG_DamageScale` takes the inflictor); alone it attacks with its monster's chances, pauses

@@ -1069,9 +1069,9 @@ def main():
                              "default QUAKEVR_VISPATCH, else the vispatch folder beside this script if there is one")
     parser.add_argument("--bright", action="store_true",
                         help="the look before round 10: bounced light, weaker ambient occlusion, twice the glow")
-    parser.add_argument("--ambient", "--minlight", dest="ambient", type=float, default=0.0,
+    parser.add_argument("--ambient", "--minlight", dest="ambient", type=float, default=64.0,
                         help="a basic ambient light level: no place darker than this (light units, as a "
-                             "worldspawn's \"light\": 32 a dim fill, 64 a clear one; 0, the default: the maps' own minimum). The worldspawn's minlight raised to it, not "
+                             "worldspawn's \"light\": 32 a dim fill, 64 a clear one, the default (2026-10-30); 0: the maps' own minimum). The worldspawn's minlight raised to it, not "
                              "darkened by the ambient occlusion; a map lit brighter by its mapper keeps its own. "
                              "The game's Graphics > Relighting > Ambient Light Level (vr_relight_minlight)")
     args = parser.parse_args()

@@ -23,7 +23,7 @@ tb_body() {
 fail=0
 check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
 run() { # <setup> <heights>: the server's gap (cm) at each take ("taken <gap> <allowed>"), and "first <gap>" the gap seen first
-    local S="vr_fixed_frames 1;sv_random_seed $SEED;$1;developer 1;vr_debug_carry 2;vr_box3d_hand_props 0"
+    local S="vr_fixed_frames 1;vr_agrunt_repl 0;sv_random_seed $SEED;$1;developer 1;vr_debug_carry 2;vr_box3d_hand_props 0"
     for h in $2; do S="$S;vr_mock_hand_to main weapon 0.5 $h;wait6;+grabmain;vr_mock_button main grip 1;wait3;-grabmain;vr_mock_button main grip 0;wait15"; done
     tb_run_sh -Script "$S;toggleconsole;quit" -Filter "weapon: Crowbar taken|grab: main hand, thrown|rror" 2>&1 |
         awk '/the fist/{match($0, /, -?[0-9.]+ cm/); g=substr($0, RSTART+2, RLENGTH-5); match($0, /allowed [0-9.]+/); a=substr($0, RSTART+8, RLENGTH-8); if(!f){print "first " g; f=1}}
@@ -47,7 +47,7 @@ check $(echo "$log" | grep -q "error" && echo 0 || echo 1) "no error"
 #    vr_weapon_grab_slack (set to 5 here) plus vr_weapon_grab_handle_leniency (5) of it (the hand pushed it before: never taken);
 #    with the leniency 0, the allowed gap at the handle is the slack's alone.
 handle() { # <setup> <heights in units over the handle>: "taken <gap> <allowed>", "allowed <first allowed>"
-    local S="vr_weapon_grab_slack 5;sv_random_seed $SEED;map e1m1;wait60;developer 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 154;wait3;vr_test_weaponinst 7;impulse 120;wait3;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10;vr_reload_test 20;impulse 125;wait120;vr_mock_hand off -0.15 1.0 -0.40 0 0 0;wait10;vr_mock_walk_to nearest thrown_weapon 30;wait200;vr_mock_walk_to off;wait10;$1;vr_debug_carry 2"
+    local S="vr_weapon_grab_slack 5;vr_agrunt_repl 0;sv_random_seed $SEED;map e1m1;wait60;developer 1;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 154;wait3;vr_test_weaponinst 7;impulse 120;wait3;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10;vr_reload_test 20;impulse 125;wait120;vr_mock_hand off -0.15 1.0 -0.40 0 0 0;wait10;vr_mock_walk_to nearest thrown_weapon 30;wait200;vr_mock_walk_to off;wait10;$1;vr_debug_carry 2"
     for h in $2; do S="$S;vr_mock_hand_to off nearest thrown_weapon $h;wait6;+graboff;vr_mock_button off grip 1;wait3;-graboff;vr_mock_button off grip 0;wait15"; done
     tb_run_sh -Script "$S;toggleconsole;quit" -Filter "Shotgun taken into|grab: off hand, thrown|rror" 2>&1 |
         awk '/the fist/{match($0, /, -?[0-9.]+ cm/); g=substr($0, RSTART+2, RLENGTH-5); match($0, /allowed [0-9.]+/); a=substr($0, RSTART+8, RLENGTH-8); if(!f){print "allowed " a; f=1}}

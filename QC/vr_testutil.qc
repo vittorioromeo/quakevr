@@ -106,7 +106,9 @@ entity(entity player, float kind, vector at, float yaw) VR_Test_Spawn =
     }
     self = dispenser;
     activator = player;
+    vr_agr_hold = vr_agr_hold + 1; // (a tool's spawn: the plain monster, never its armed replacement: vr_armedrepl.qc)
     func_enemy_dispenser_use();
+    vr_agr_hold = vr_agr_hold - 1;
     entity made = self;
     self = oldself;
     remove(dispenser);
