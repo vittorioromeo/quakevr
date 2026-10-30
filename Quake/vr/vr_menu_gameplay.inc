@@ -1226,6 +1226,11 @@ void ikStretchReset()
             .help("Only a deliberate blow knocks its weapon out: a closed fist or something held, swung over more than "
                   "a frame. An open hand reaching for it, or your idle hands jolted as you are pushed or walk into it, "
                   "never (vr_agrunt_disarm_deliberate)."),
+        toggle("Strikes on Its Weapon Disarm", vr_agrunt_strike_first)
+            .help("A deliberate strike (a fist, a held gun or prop, in slow motion too) that meets its weapon or gun "
+                  "hand knocks the weapon out unless its parry was raised for it; into a raised parry it may still "
+                  "(Strike Beats a Raised Parry, in the tunables). Off: such a blow is parried whenever it can be "
+                  "(vr_agrunt_strike_first)."),
         toggle("Tug-of-War", vr_agrunt_tug)
             .help("Grabbing its weapon starts a struggle: it holds on and pulls back, and may shove you, headbutt you or "
                   "fire. Pull your hand back far enough for long enough to take it. Staggered, knocked down, stunned "

@@ -782,6 +782,10 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
                   "it: a turn counts too)."),
         slider("Ghost Fade-In Range", vr_ghost_hands_fade_range, 0.5f, 30.f, 0.5f, "%.1f cm")
             .help("And it fades in over this much further apart."),
+        toggle("No Ghost from Recoil", vr_ghost_hands_ignore_recoil)
+            .help("A shot's recoil kicks the drawn hand back and up off your real one (Weapon Effects' Programmatic "
+                  "Recoil): on, that kick doesn't bring the ghost out (only what else holds the hand off does); off, a "
+                  "strong kick shows it for a moment."),
     };
 }
 
@@ -1061,6 +1065,10 @@ za::Vector<Item> pageWeaponEffects()
         slider("Recoil Amount", vr_recoil_amount, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("Every weapon's recoil times this: its kick back and its muzzle rise (each weapon's own cm and degrees: "
                   "Weapon Offsets > Effects). 1: as each weapon is set; 0: none."),
+        slider("Two-Handed Recoil", vr_recoil_two_hand, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("A shot fired with the weapon held in both hands: its recoil times this, the kick back, the muzzle rise "
+                  "and the time back to rest alike (and its haptic punch with them), times the weapon's own Two-Handed "
+                  "Recoil (Weapon Offsets > Effects). 1: as held in one hand; lower: steadier with the second hand on it."),
         header("Shotgun Auto Pump"),
         slider("Auto Pump Time", vr_autopump_time, 0.15f, 0.45f, 0.01f, "%.2f s").extend(0.1f, 0.48f)
             .help("After each shot the shotgun cycles itself: its fore-end is driven back along the guide rods over the "
@@ -1085,8 +1093,10 @@ za::Vector<Item> pageWeaponEffects()
         toggle("Muzzle Sparks", vr_gunfx_sparks)
             .help("A cone of sparks out of the muzzle (each barrel of the super shotgun; the energy guns throw electric arcs)."),
         slider("Spark Amount", vr_gunfx_spark_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("How many sparks a shot throws (each weapon's own: Weapon Offsets > Effects). 0: none."),
-        slider("Spark Size", vr_gunfx_spark_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f).help("How big the sparks are."),
+            .help("How many sparks a shot throws, the energy guns' arcs too (each weapon's own: Weapon Offsets > Effects). "
+                  "0: none."),
+        slider("Spark Size", vr_gunfx_spark_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("How big the sparks are (the energy guns' arcs too)."),
         slider("Spark Speed", vr_gunfx_spark_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
             .help("How fast the sparks fly out of the muzzle (so how far)."),
         toggle("Muzzle Smoke", vr_gunfx_smoke)
@@ -1094,9 +1104,9 @@ za::Vector<Item> pageWeaponEffects()
                   "flash's glow in it; the nail pistol's side vents smoke lightly. Never the energy guns'."),
         slider("Smoke Amount", vr_gunfx_smoke_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
             .help("How many puffs a shot's muzzle smoke has: how thick the cloud is (each weapon's own: Weapon Offsets > "
-                  "Effects). 0: none."),
+                  "Effects); the thunderbolt's ozone haze too. 0: none."),
         slider("Smoke Size", vr_gunfx_smoke_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
-            .help("How big the muzzle smoke's puffs are and how much they grow."),
+            .help("How big the muzzle smoke's puffs are and how much they grow (the thunderbolt's ozone haze too)."),
         slider("Smoke Speed", vr_gunfx_smoke_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
             .help("How fast the muzzle smoke billows out (so how far ahead the cloud reaches)."),
         slider("Smoke Directionality", vr_gunfx_smoke_direction, 0.f, 1.f, 0.05f, "%.2f")

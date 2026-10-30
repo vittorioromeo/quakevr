@@ -78,10 +78,12 @@ struct HandWisps
     float sinceEmit{0.f};
     glm::vec3 lastEmitAt{0.f};
     float light{1.f};       // the place's light where they started (their grey)
+    glm::vec3 tint{1.f};    // their gun's tint as they started (Gun::tint)
     double activeSince{-1.0}; // cl.time they started (-1: none left)
     int peakPoints{0}, peakDrawn{0};
 };
-HandWisps hands[2];
+constexpr int kSources = 2 + maxLoose;
+HandWisps hands[kSources]; // your hands', then the loose guns' (2 + their index)
 
 int advancedFrame = -1;
 double lastTime = -1.0;
@@ -150,7 +152,7 @@ void advance(float dt)
     const float turb = kFlowAccel * za::clamp(vr_gunfx_turbulence.value, 0.f, 3.f);
     const float clock = static_cast<float>(fmod(cl.time, 2000.0));
     const float relax = za::min(1.f, kRelax * dt);
-    for(int hand = 0; hand < 2; hand++)
+    for(int hand = 0; hand < kSources; hand++)
     {
         HandWisps& h = hands[hand];
         // Smoking: the gun in the hand (drawn this frame), its last shot a while ago and its smoke not spent.
@@ -175,6 +177,7 @@ void advance(float dt)
                 s.restart = true;
             }
             h.light = placeLight(h.gun.at[0]);
+            h.tint = h.gun.tint;
             h.sinceEmit = kEmitInterval;
             h.lastEmitAt = h.gun.at[0];
             if(h.activeSince < 0.0)
@@ -248,7 +251,7 @@ int build(HandWisps& h, Strand& s, int barrel, const ribbons::View& view, za::Ve
     const float amount = za::clamp(vr_gunfx_wisp_amount.value, 0.f, 4.f);
     const float most = za::clamp(vr_gunfx_wisp_opacity.value, 0.02f, 1.f);
     const float grey = za::clamp(0.48f + 0.3f * h.light, 0.48f, 0.9f);
-    const glm::vec3 colour = glm::vec3{0.94f, 0.97f, 1.f} * grey;
+    const glm::vec3 colour = glm::vec3{0.94f, 0.97f, 1.f} * grey * h.tint;
     int drawn = 0;
     const auto flush = [&]() {
         if(points.size() >= 2)
@@ -314,6 +317,72 @@ bool smoking(int hand)
     return hand >= 0 && hand < 2 && hands[hand].charge > 0.f && wanted();
 }
 
+int release(int hand)
+{
+    if(!smoking(hand))
+    {
+        return -1;
+    }
+    // A free loose gun's place, else the one with the least smoke left (its wisps let go fade on with it).
+    int best = 0;
+    for(int i = 0; i < maxLoose; i++)
+    {
+        const HandWisps& l = hands[2 + i];
+        const bool free = l.charge <= 0.f && l.activeSince < 0.0;
+        if(free || l.charge < hands[2 + best].charge)
+        {
+            best = i;
+            if(free)
+            {
+                break;
+            }
+        }
+    }
+    HandWisps& h = hands[hand];
+    HandWisps& l = hands[2 + best];
+    float phases[maxBarrels];
+    for(int b = 0; b < maxBarrels; b++)
+    {
+        phases[b] = l.strands[b].phase;
+    }
+    l = h; // (its trails, its smoke and time left: the trail goes on to where the gun is found, a new one if it went far)
+    for(int b = 0; b < maxBarrels; b++)
+    {
+        const float own = h.strands[b].phase;
+        h.strands[b] = Strand{};
+        h.strands[b].phase = own;
+        l.strands[b].phase = phases[b];
+    }
+    h.gun = Gun{};
+    h.charge = 0.f;
+    h.lastShot = -1.0;
+    h.emitting = false;
+    h.activeSince = -1.0;
+    if(vr_debug_gunfx.value != 0.f)
+    {
+        Con_Printf("gunfx wisps loose hand %d as %d charge %.2f\n", hand, best, l.charge);
+    }
+    return best;
+}
+
+void looseFrame(int index, const Gun& gun)
+{
+    if(index < 0 || index >= maxLoose)
+    {
+        return;
+    }
+    HandWisps& l = hands[2 + index];
+    const int barrels = l.gun.barrels;
+    l.gun = gun;
+    l.gun.barrels = za::clamp(barrels, 0, maxBarrels); // (as many as it had in the hand)
+    l.seenFrame = host_framecount;
+}
+
+bool looseSmoking(int index)
+{
+    return index >= 0 && index < maxLoose && hands[2 + index].charge > 0.f && wanted();
+}
+
 void drawTranslucent()
 {
     if(advancedFrame != host_framecount)
@@ -362,7 +431,7 @@ void clear()
     {
         h = HandWisps{};
     }
-    for(int i = 0; i < 2; i++)
+    for(int i = 0; i < kSources; i++)
     {
         for(int b = 0; b < maxBarrels; b++)
         {

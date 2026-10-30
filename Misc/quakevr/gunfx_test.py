@@ -10,7 +10,8 @@ Runs (the kit's run.sh, fast mode, vr_debug_gunfx 1 printing each shot's "gunfx 
   its "gunfxtest end" echo;
 - armed: vr_agrunt_test 1 (an armed grunt with every weapon in turn, hunting you); ends on "agtest: every weapon";
 - grunt, enforcer: one of each (vr_test_spawn 0, 8) hunting you; ends on its first shot's line;
-- wisps: the muzzle wisps (vr_muzzlewisps.cpp) of the shotguns, nailguns, revolver, none of the rocket launcher's;
+- wisps: the muzzle wisps (vr_muzzlewisps.cpp) of the shotguns, nailguns, revolver, thunderbolt, none of the rocket
+  launcher's;
 - tube: a grunt's own gun fired as a rocket tube (vr_gunfx_monster_test 1: AD's rocket soldier's path).
 - impactsnd: the surfaces' impact sounds (vr_impacts.cpp: each material x hit kind, the cap; with -Sound).
 - tube: a grunt's own gun fired as a rocket tube (vr_gunfx_monster_test 1: AD's rocket soldier's path);
@@ -78,6 +79,8 @@ def run(kit, agent, script, quit_on, timeout, filt="^gunfx|^agtest: (every|test)
 
 
 LIGHT = re.compile(r"gunfx light ([\d.-]+) vent (\d+) exhaust (\d+)")
+SIZES = re.compile(r"gunfx light [\d.-]+ vent \d+ exhaust \d+ size ([\d.]+) ([\d.]+)")  # (the shot's spark, smoke size)
+HAZE = re.compile(r"gunfx impact bolt on .* haze (\d+) size ([\d.]+)")
 
 
 def shots(lines):
@@ -137,7 +140,7 @@ def judge_all(found, who, own_hands, expect):
 WISP_START = re.compile(r"gunfx wisps start hand \d barrels (\d) after ([\d.]+) s")
 WISP_FADED = re.compile(r"gunfx wisps faded hand \d barrels \d after [\d.]+ s charge [\d.]+ points (\d+) drawn (\d+)")
 # (weapon id, frames the trigger is held, the wisps' barrels: 0 none)
-WISP_GUNS = [(10, 4, 0), (4, 4, 1), (5, 4, 2), (6, 36, 2), (7, 36, 1), (31, 4, 1)]
+WISP_GUNS = [(10, 4, 0), (4, 4, 1), (5, 4, 2), (6, 36, 2), (7, 36, 1), (31, 4, 1), (11, 36, 1)]  # (11: the thunderbolt's beam)
 
 
 def wisps_case(a):
@@ -183,6 +186,68 @@ def wisps_case(a):
         ok = ok and len(faded) == 1 and faded[0][1] > 0 and faded[0][2] > 0
         check(ok, "wisps wid %d: %d shot(s), %d barrel(s) after the last, drawn, faded (%s)" %
               (w, len(shots_at), barrels, [e for e in ev if e[0] != "shot"]))
+
+
+LOOSE_REL = re.compile(r"gunfx wisps loose hand \d as (\d) charge ([\d.]+)")
+LOOSE_FOUND = re.compile(r"gunfx wisps found (prop|holster) (\d+) after ([\d.]+) s ([\d.]+) units off")
+LOOSE_AT = re.compile(r"gunfx wisps loose (\d) at ([\d.-]+) ([\d.-]+) ([\d.-]+) on ([\d.-]+) ([\d.-]+) ([\d.-]+)")
+LOOSE_FADED = re.compile(r"gunfx wisps faded hand ([2-5]) barrels (\d) after ([\d.]+) s charge [\d.]+ points (\d+) drawn (\d+)")
+# (label, weapon id, how it leaves the hand, where it should be found, its barrels)
+LOOSE_CASES = [
+    ("drop", 4, "", "prop", 1),
+    ("throw", 5, ";vr_mock_swing 0.5;wait30", "prop", 2),
+    ("holster", 4, ";vr_mock_hand_to main holster 1;wait3;vr_mock_hand_to main holster 1;wait3", "holster", 1),
+]
+
+
+def loose_case(a):
+    """Wisps on a gun that left the hand smoking (vr_gunfx.cpp LooseGun, vr_muzzlewisps.cpp release): fired, its wisps
+    started (0.42 s on), then let go of (the sticky grip pressed: vr_weapon_grip_mode 1) where the hand is (dropped),
+    swinging (thrown), at the right shoulder holster (holstered; empty: no impulse 9). Each: its smoke handed on, the
+    gun found (a prop, the holster) soon after, its muzzle followed there (debug 2's lines: near the gun's origin, a dropped or thrown one's
+    falling), then its wisps faded (ends on that line, vr_waitprint)."""
+    s = ("map e1m1;wait60;god;notarget;vr_gunfx_wisp_time 2;vr_gunfx_wisp_fade 0.4;vr_weapon_grip_mode 1;give s 100;"
+         "wait2")
+    for label, w, how, _, _ in LOOSE_CASES:
+        s += (";vr_mock_swing 0;vr_mock_hand main 0.15 1.2 -0.45 70 0 0;wait5;vr_test_give_wid %d;impulse 149;wait5;"
+              "echo gunfxloose %s;+attack;wait4;-attack;wait30;vr_debug_gunfx 2%s;vr_mock_button main grip 1;"
+              "+grabmain;wait2;vr_mock_button main grip 0;-grabmain;vr_waitprint 600 gunfx wisps faded hand 2;"
+              "vr_debug_gunfx 1" % (w, label, how))
+    lines = run(a.kit, a.agent, "vr_debug_gunfx 1;" + s + ";vr_mock_swing 0;echo gunfxloose end", "gunfxloose end", 240,
+                "^gunfx wisps|^gunfxloose")
+    check(any("gunfxloose end" in l for l in lines), "loose: the run reached its end")
+    seen = {}
+    cur = None
+    for l in lines:
+        m = re.search(r"gunfxloose (\w+)", l)
+        if m:
+            cur = m.group(1)
+            seen[cur] = {"rel": [], "found": [], "at": [], "faded": [], "start": 0}
+            continue
+        if cur is None:
+            continue
+        c = seen[cur]
+        if WISP_START.search(l):
+            c["start"] += 1
+        for key, rx in (("rel", LOOSE_REL), ("found", LOOSE_FOUND), ("at", LOOSE_AT), ("faded", LOOSE_FADED)):
+            m = rx.search(l)
+            if m:
+                c[key].append(m.groups())
+    for label, w, _, where, barrels in LOOSE_CASES:
+        c = seen.get(label)
+        if not c:
+            check(False, "loose %s: not run" % label)
+            continue
+        at = [tuple(float(x) for x in g[1:]) for g in c["at"]]
+        near = all(((p[0] - p[3]) ** 2 + (p[1] - p[4]) ** 2 + (p[2] - p[5]) ** 2) ** 0.5 < 48 for p in at)
+        moved = max((abs(p[2] - at[0][2]) for p in at), default=0)
+        ok = (c["start"] == 1 and len(c["rel"]) == 1 and len(c["found"]) == 1 and c["found"][0][0] == where and
+              float(c["found"][0][2]) < 0.3 and len(at) >= 10 and near and len(c["faded"]) == 1 and
+              int(c["faded"][0][1]) == barrels and int(c["faded"][0][3]) > 0 and int(c["faded"][0][4]) > 0)
+        if where == "prop":
+            ok = ok and moved > 4  # (falling: the wisp's muzzle with it)
+        check(ok, "loose %s wid %d: released %s, found %s, followed %d frames (near %s, fell %.1f), faded %s" %
+              (label, w, c["rel"], c["found"], len(at), near, moved, c["faded"]))
 
 
 IMPSND = re.compile(r"impsnd (\w+) on (\w+) (?:(none)|(capped) t ([\d.]+)|(\S+) vol ([\d.]+) pitch ([\d.]+) at "
@@ -304,20 +369,31 @@ def slots_case(a):
     """Gunfire multipliers (ROUND23.md, "Gunfire VFX settings"): the shotgun's slot (index 1: vr_wofs_*_02) at 0 makes no
     sparks or smoke, at 2 about twice the counts at 1 (vr_gunfx_test 4: its slot by the weapon's model); the global Spark
     and Smoke Amount 0.5 with the slot's 2 the counts at 1 again; your own shotgun fired with its slot at 0: no sparks, no
-    smoke, no wisps (the hand's slot). Each vr_gunfx_test 0.42 s apart (30 frames: a full budget, 0.3 s since the last)."""
+    smoke, no wisps (the hand's slot); the thunderbolt's slot (7: vr_wofs_*_08) at 1, 0, 2: its arcs' count and size,
+    its ozone haze's puffs and size. Each vr_gunfx_test 0.42 s apart (30 frames: a full budget, 0.3 s since the last)."""
     keys = ("fx_gfx_sparks", "fx_gfx_smoke", "fx_gfx_wisps")
     def slot(v):
         return ";".join("vr_wofs_%s_02 %g" % (k, v) for k in keys)
-    s = "map e1m1;wait60;god;notarget;vr_debug_gunfx 1"
+    def lg_slot(v):
+        return ";".join("vr_wofs_%s_08 %g" % (k, v) for k in ("fx_gfx_sparks", "fx_gfx_spark_size", "fx_gfx_smoke",
+                                                              "fx_gfx_smoke_size"))
+    s = "map vrtesthall;wait60;god;notarget;vr_debug_gunfx 1"  # (a wall ahead: vr_impact_test's bolt hit)
     for label, sets in (("base", slot(1)), ("zero", slot(0)), ("double", slot(2)),
                         ("half", slot(2) + ";vr_gunfx_spark_amount 0.5;vr_gunfx_smoke_amount 0.5")):
         s += ";%s;echo gunfxslot %s;vr_gunfx_test 4;wait30" % (sets, label)
-    s += (";vr_gunfx_spark_amount 1;vr_gunfx_smoke_amount 1;%s;vr_weapon_grip_mode 1;impulse 9;wait2;"
+    s += ";vr_gunfx_spark_amount 1;vr_gunfx_smoke_amount 1"
+    # The thunderbolt (slot 7: vr_wofs_*_08): its arcs (sparks amount and size) and its ozone haze where the beam plays
+    # (smoke amount and size: vr_impact_test 3, a bolt's hit on what you look at) at 1, 0 and 2.
+    for label, v in (("lgbase", 1), ("lgzero", 0), ("lgdouble", 2)):
+        s += ";%s;echo gunfxslot %s;vr_gunfx_test 11;vr_impact_test 3;wait30" % (lg_slot(v), label)
+    s += (";%s;%s;vr_weapon_grip_mode 1;impulse 9;wait2;"
           "vr_mock_hand main 0.15 1.2 -0.45 70 0 0;wait5;vr_test_give_wid 4;impulse 149;wait5;echo gunfxslot fired;"
-          "+attack;wait4;-attack;wait40;%s;echo gunfxslot end" % (slot(0), slot(1)))  # (wisps would start 0.26 s on)
+          "+attack;wait4;-attack;wait40;%s;echo gunfxslot end" % (lg_slot(1), slot(0), slot(1)))  # (wisps would start 0.26 s on)
     lines = run(a.kit, a.agent, s, "gunfxslot end", 120)
     check(any("gunfxslot end" in l for l in lines), "slots: the run reached its end")
     got = {}
+    sizes = {}
+    hazes = {}
     cur = None
     wisps = 0
     for l in lines:
@@ -327,8 +403,23 @@ def slots_case(a):
             continue
         for sh in shots([l]):
             got.setdefault(cur, sh)
+        m = SIZES.search(l)
+        if m:
+            sizes.setdefault(cur, (float(m.group(1)), float(m.group(2))))
+        m = HAZE.search(l)
+        if m:
+            hazes.setdefault(cur, (int(m.group(1)), float(m.group(2))))
         if cur == "fired" and WISP_START.search(l):
             wisps += 1
+    lb, lz, ld = (got.get(k) for k in ("lgbase", "lgzero", "lgdouble"))
+    check(bool(lb) and lb["arcs"] > 0 and sizes.get("lgbase") == (1.0, 1.0) and lb["smoke"] == 0,
+          "slots: thunderbolt at 1 arcs, no smoke, sizes 1 (%s, %s)" % (lb, sizes.get("lgbase")))
+    check(bool(lz) and lz["arcs"] == 0 and lz["sparks"] == 0, "slots: thunderbolt at 0 no arcs (%s)" % (lz,))
+    check(bool(lb and ld) and ld["arcs"] == 2 * lb["arcs"] and sizes.get("lgdouble") == (2.0, 2.0),
+          "slots: thunderbolt at 2 twice the arcs, sizes 2 (%s vs %s, %s)" % (ld, lb, sizes.get("lgdouble")))
+    hb, hz, hd = (hazes.get(k) for k in ("lgbase", "lgzero", "lgdouble"))
+    check(bool(hb and hz and hd) and hb[0] > 0 and hb[1] == 1.0 and hz[0] == 0 and abs(hd[0] - 2 * hb[0]) <= 1 and
+          hd[1] == 2.0, "slots: thunderbolt's ozone haze at 1, 0, 2: %s %s %s (puffs, size)" % (hb, hz, hd))
     b, z, d, h, f = (got.get(k) for k in ("base", "zero", "double", "half", "fired"))
     check(bool(b) and b["sparks"] >= 3 and b["smoke"] > 0, "slots: at 1 sparks and smoke (%s)" % (b,))
     check(bool(z) and z["sparks"] == 0 and z["smoke"] == 0, "slots: at 0 no sparks, no smoke (%s)" % (z,))
@@ -388,6 +479,8 @@ def main():
         judge_all(shots(lines), "enemy", False, [10])
     if a.only in ("", "wisps"):
         wisps_case(a)
+    if a.only in ("", "loose"):
+        loose_case(a)
     if a.only in ("", "impactsnd"):
         impsnd_case(a)
     if a.only in ("", "slots"):

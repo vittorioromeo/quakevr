@@ -7,7 +7,6 @@
 //   R * [mirror] * [network scale about scale_origin] * S(k) * T(offset)     (pre)
 //     * T(hdr->scale_origin) * S(hdr->scale)                                   (Ironwail)
 //     * S(model scale) * T(network model_offset)                               (post)
-//     * [a weapon's baked kick taken out: vr_kickcancel.hpp]                   (post, last)
 
 #include "vr_modelmetadata.hpp"
 #include "vr_geom.hpp"
@@ -25,7 +24,6 @@
 #include "vr_rig2.hpp"
 #include "vr_rigstudio.hpp"
 #include "vr_hitreact.hpp"
-#include "vr_kickcancel.hpp"
 #include "vr_flamewobble.hpp"
 #include "vr_brainjiggle.hpp"
 #include "vr_toolgun.hpp"
@@ -327,7 +325,6 @@ extern "C" void VR_AliasPostTransform(const entity_t* e, float matrix[16])
         return; // a ragdoll: placed where its bones are given from (vr_ragdoll.cpp)
     }
     applyPost(e, networkData(e), matrix);
-    kickcancel::applyDrawn(e, matrix); // a weapon's baked kick taken out (vr_kickcancel.cpp: its byte space's map)
     rigstudio::drawnMatrix(e, matrix); // (the Rig Studio's aim lines: its subject's weapons as drawn)
 }
 

@@ -269,7 +269,7 @@ void tankFire(const glm::vec3& org, const glm::vec3& dir, int count);
 void tankSmoke(const glm::vec3& org, const glm::vec3& dir, int count);
 void tankCloud(const glm::vec3& org, const glm::vec3& dir, int count);
 void electricArcs(const glm::vec3& org, float count, float reach, float size);
-void electricSparks(const glm::vec3& org, const glm::vec3& dir, int count);
+void electricSparks(const glm::vec3& org, const glm::vec3& dir, int count, float size = 1.f);
 void electricTrail(const glm::vec3& from, const glm::vec3& to);
 [[nodiscard]] bool adElectricBolt(const qmodel_t* m);
 
