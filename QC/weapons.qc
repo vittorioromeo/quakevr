@@ -4465,10 +4465,18 @@ void() ImpulseCommands =
 
     // Development and tests (single player): impulse 150 + a weapon id puts that weapon, loaded, in
     // the main hand; 170 + id in the off hand.
-    if(!deathmatch && self.impulse >= 150 && self.impulse < 190)
+    // Impulse 149: weapon id vr_test_give_wid (any, past 19 too: the AD guns, the nail pistol, the flare gun, the
+    // revolver) in the main hand.
+    if(!deathmatch && (self.impulse == 149 || (self.impulse >= 150 && self.impulse < 190)))
     {
         float cheatHand = cVR_MainHand;
-        float cheatWid = self.impulse - 150;
+        float cheatWid = self.impulse == 149 ? rint(cvar_hget(cvarh_vr_test_give_wid)) : self.impulse - 150;
+        if(cheatWid < 0 || (cheatWid >= WID_ADROCKET && cheatWid <= WID_ADCROSSBOW && !VR_ADGun_Available()))
+        {
+            // (none; an AD gun without AD's data: its model is never precached)
+            self.impulse = 0;
+            return;
+        }
         if(self.impulse >= 170)
         {
             cheatHand = cVR_OffHand;

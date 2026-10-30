@@ -132,6 +132,9 @@ struct Particle
     bool additive{false}; // glows: added to the scene (else alpha blended)
     bool flat{false};     // lying flat (a ripple on a liquid), not facing the view
     bool plink{false};    // a drop that leaves a little ring where it falls back into its liquid (at `floor`)
+    // Custom: pushed about by a swirling flow (swirl: turbulence), 2 x this many units a second squared (a byte: it
+    // fits the struct's padding); its own offset in the flow's time comes from `die` (puffs side by side swirl apart).
+    za::U8 turb{0};
     // The cosine and sine of `angle` as of `csAngle` (buildInstances, buildLying): worked out again only when it has
     // turned since (most particles never turn).
     glm::vec2 cs{1.f, 0.f};

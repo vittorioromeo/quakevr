@@ -318,16 +318,11 @@ void(float xHand) VR_NailPistol_HandFrame =
     if(xHand == cVR_OffHand) { self.vr_np_lock2 = empty ? 2 : 1; } else { self.vr_np_lock = empty ? 2 : 1; }
     float back = (time < VR_IMPL_SELECT(xHand, self.vr_np_slide2, self.vr_np_slide) || empty);
     VRSetWeaponFrame(xHand, back ? 1 : 0);
-    // The wisp of smoke: a moment after the last shot, more after a quick string.
+    // (Its smoke after shots comes out of its side vents now: the engine's, vr_gunfx.cpp ventSmoke, vr_nailpistol_smoke.
+    // The muzzle's random wisp that was here is gone: the author's note of 2026-10-30, "too random".)
     float at = VR_IMPL_SELECT(xHand, self.vr_np_smoke2, self.vr_np_smoke);
     if(at > 0 && time >= at)
     {
-        float n = cvar_hget(cvarh_vr_nailpistol_smoke);
-        float heat = VR_IMPL_SELECT(xHand, self.vr_np_heat2, self.vr_np_heat);
-        if(n > 0)
-        {
-            particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_SMOKE, rint(min(6, 1 + heat * 0.6) * n));
-        }
         if(xHand == cVR_OffHand) { self.vr_np_smoke2 = 0; } else { self.vr_np_smoke = 0; }
     }
 };

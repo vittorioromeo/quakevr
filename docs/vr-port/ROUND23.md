@@ -1481,6 +1481,116 @@ skins 178 / 102 / 182, md5/md3 lookups 126 / 123 / 123), limbs 198 / 22 / 196, v
   uploads and normal maps): main-thread GL work. e1m1/vrstart after-times not taken: the exclusive slot waited on the
   author's game (their before-times above; smooth rigs is per model kind, so ~60 ms off vrstart, little off e1m1's 20).
 
+## Punchier gunfire (agent/gunfx)
+
+Per-shot gunfire particles keyed off the weapon id (Quake/vr/vr_gunfx.cpp), one path for your guns (vr_weaponfx.cpp
+playerFired / frame: the drawn muzzle), the armed grunts' held weapons and the grunts' and enforcers' own guns
+(monsterFired: the prop's Muzzle anchor, monsterMuzzle). Table: shotguns (shotgun, grunts' gun, AD defender) sparks,
+smoke and a port puff; super shotgun / Widowmaker each barrel's sparks, smoke, the open breech's puff; revolver sparks,
+smoke; nailguns and nail pistol a few small sparks, a small quick puff, barrel heat (wisps once sustained fire passes
+0.35 heat, cooling 0.35/s); launchers a few sparks and a large cloud; rocket launchers also the backblast (smoke
+behind, dust off the floor under it: a worldtrace::line down 80 units); flare gun redder sparks, smoke; energy guns
+(thunderbolt, laser cannon, enforcer rifle, AD plasma, centurion) ElectricSparks arcs, no smoke. Excluded (kind
+none): flamethrowers, crossbow, melee, grapple, toolgun, Mjolnir. Existing effects kept, not duplicated: the QC's
+GUNSMOKE puffs, AD guns' adGunBurst (your AD guns skip our sparks/backblast), the shells' port puff and trails
+(vr_shells.cpp now also calls gunfx::portSmoke per casing, revolver excluded, and scales the trail by
+vr_gunfx_shell_trail 1.6). Budget: each shooter's time since its last shot scales its counts (1 at 0.3 s or
+slower, 0.35 at 0.1 s: the nailguns, SNG); particles come from the pool (particles::gunParticle, no allocation).
+Smoke is drawn emissive grey (lit-by-flash look; Lit smoke vanished in dark maps); a warm glow sits in the cone
+for 0.07 s; smoke inherits 0.8 of the shooter's velocity.
+
+Settings (Weapons > Weapon Effects > Gunfire Particles): vr_gunfx 1, vr_gunfx_intensity 1, vr_gunfx_sparks 1,
+vr_gunfx_smoke 1, vr_gunfx_port 1, vr_gunfx_backblast 1, vr_gunfx_heat 1, vr_gunfx_enemies 1,
+vr_gunfx_shell_trail 1.6. Debug > Tests: three vr_gunfx_test rows, Print Gunfire Particles (vr_debug_gunfx).
+Tests: python Misc/quakevr/gunfx_test.py <agent> (player 16/16, armed grunts 10/10, grunt 1/1, enforcer 1/1);
+impulse 149 gives weapon id vr_test_give_wid (any id; impulse 150+id reaches 19 only; AD ids need AD's data).
+
+Not done: idea 5 exists already (vr_tracers_enemies 1); AD soldiers' own attacks send no weaponfired (nothing for
+them); an armed grunt's thunderbolt is a stream (no shot event).
+
+### Second pass: visible smoke, impacts by material, ozone, barrel glow
+
+- Smoke now reads as a dense quick cone (it was a faint puff 5 frames after the shot): each shot's puffs are spread
+  along the cone (smokeCone: the first slow, wide and dense at the muzzle, the last fast and narrow at its tip, reach
+  about speed / 6 units), start 2-3x their size and grow 35-50x a second as they slow, alpha 0.5-0.6 (was 0.3), 14
+  puffs for the shotgun (was 7); gone in 0.4-0.6 s. Its grey takes the place's light once a shot (placeLight:
+  R_LightPoint at the muzzle, 0.3 + 0.3 x light): a lighter cloud in a lit room, a dim one in the dark, never black,
+  never glowing. Sparks 2x bigger, faster (420 u/s the shotgun's), streaked longer, shorter-lived. Port puffs and the
+  backblast use the same cone (bigger). Strips: kit `scratch/gunfx/{before,after}_<class>_{lit,dark}.png` (frames 0,
+  2, 5, 10, 20 after the shot; lit = e1m2's start, light 1.37; dark = e2m2's, 0.52), made by the tree's
+  `scratch/shots.py`. `vr_debug_gunfx 1` also prints `gunfx light <x>` per shot.
+- Impacts by material (idea 1): `Quake/vr/vr_impacts.cpp/.hpp`, ONE table `material x hit kind -> particles, decal,
+  sound` (design_review.md proposal 4: the QC ladders can move onto it later; its decal and sound columns are `Own`,
+  the hit's own, today). Materials: stone, dirt (debris' Natural), metal, wood, flesh; hit kinds: bullet (TE_GUNSHOT),
+  nail (TE_SPIKE), super nail (TE_SUPERSPIKE), bolt (the thunderbolt's beam). A world hit's material: the texture of
+  the surface nearest Quake's puff point (7 short traces, then physsound::surfaceOnSegment, debris::materialOf's name
+  table), at most 16 lookups a frame. Stone: grey dust; dirt: more, browner; metal: hot sparks glancing off; wood:
+  chips and pale dust; flesh: nothing new (the gore's blood mist, vr_gore_mist, already comes with every blood
+  burst). Dust and chips are drawn as their colour shaded once by the place's light (dim in the dark, never black).
+  Added on top of each hit's own puff, decal and tink (cl_tent.c: one hook call after each). New
+  `particles::GunParticle::Chip` (the spark's shape, not hot).
+- Ozone haze (idea 6): where the thunderbolt's beam (progs/bolt2.mdl, CL_ParseBeam) ends on a surface, a faint
+  bluish emissive puff every 0.06 s a beam, lingering 1-1.6 s and rising.
+- Barrel glow (idea 3/6): past heat 0.5 a dull red glow at the muzzle, made each frame (alpha 0.3 x heat over 0.5).
+  The nailguns' heat a shot 0.07 (was 0.05: at 10 shots a second it now passes 0.35, the wisps, after about 1 s of
+  fire and 0.5, the glow, after about 1.4 s).
+- Settings: vr_gunfx_impacts 1, vr_gunfx_ozone 1 (Weapons > Weapon Effects > Gunfire Particles: Impacts by Material,
+  Lightning Ozone Haze). Debug > Tests: Impact Where You Look (`vr_impact_test <0 bullet|1 nail|2 super nail|3 bolt>
+  [count] [material]`: on what you look at, as `material` if given; prints `gunfx impact <kind> on <material>
+  (<texture>) dust .. sparks .. chips .. haze ..`). Strips: kit `scratch/gunfx/after_impact_*.png`, `after_ozone_*`
+  (the tree's `scratch/impshots.py`).
+- Tests: gunfx_test.py 27/28 (player 16/16; armed grunts 9/10: the rocket launcher's grunt fired no judged shot in
+  that run, wid 10, AI spread or a real miss: rerun `--only armed`; grunt 1/1, enforcer 1/1).
+- Left for the next worker (out of budget): merge origin/next (10 commits behind) and rebuild; the covering suites
+  vs baseline.tsv (collectfx, shot_shape, reload_gunshape, console nail_1: run_baseline.py needs Misc/quakevr/qvrtest.py,
+  absent here, so run `Misc/release/run_test_suite.py gunfx --only ...` instead); the A/B bench (scripts ready:
+  the tree's `scratch/build_ab.sh` builds origin/next and this branch ThinLTO into scratch/benchA|B, then
+  `scratch/ab_bench.sh gfx ABBAABBAAB combat_48,play_gore_fight`; play_gore_fight is the super nailgun scenario);
+  his VR notes of 2026-10-30 12:06-12:22: (1) a few muzzle sparks per shot for every shell/nail gun he can see
+  (check the player's sparks reach the drawn muzzle and are not hidden by the flash model); (2) a turbulent frontal
+  cone synced with the flash for all guns (smokeCone is the start: more forward, less rise); (3) nail pistol smoke
+  from its side vents (model anchors), out and up, light; (4) rocket launcher rear exhaust, vent smoke facing the
+  player, a turbulent cone out of the back, AD's enemy launcher's tube too; (5) persistent thin ribbon wisps per
+  barrel after firing stops (shotgun 1, SSG and nailgun 2), following the muzzles for seconds, with fade, thickness
+  and persistence settings.
+
+### Third pass: his VR notes of 2026-10-30 (sparks, turbulent cone, nail pistol vents, rocket exhaust)
+
+- **Sparks** (he saw none): at least 3 a barrel for every shell and nail gun however fast it fires (the super
+  nailgun's budget made 2 tiny ones), 1.5-1.9 units (were 0.9-1.2), 0.12-0.28 s (were 0.05-0.16), whiter, and they
+  start 1.5-4 units ahead of the muzzle, clear of the flash model and the cone's dense core (the old strips' frame 0:
+  the cone's first puffs covered them). Counts a little lower ("a few": shotgun 10, SSG 8 a barrel, revolver 8).
+- **Turbulent frontal cone**: the muzzle's cone now fades in over ~0.035 s (with the flash, not a blob before it:
+  GunParticle::fadeIn, Custom's ramp), its puffs lead forward (the tip's start 4 units out), barely rise (only the
+  slowest, at the muzzle, rise as before) and ride a swirling flow: `particles::swirl`, a divergence-free (ABC-like)
+  field, ~55 units a swirl, changing over time, each puff its own phase (from its `die`), stored as one byte in
+  Particle's padding (`turb`: the struct is capped at 152 bytes). The QC's rising GUNSMOKE puffs and the ports'
+  rising puffs are kept. Setting: Smoke Turbulence (`vr_gunfx_turbulence 1`, 0-3; Weapons > Weapon Effects >
+  Gunfire Particles).
+- **Nail pistol vents**: the QC's random muzzle wisp (`QVR_PARTICLE_PRESET_SMOKE` after shots, vr_nailpistol.qc)
+  is gone; light pale smoke comes out of exactly its six side slots (v_nailpistol.mdl: x 4.91..7.57, z rows 3.08,
+  3.83, 4.59, the faces at y +-1.2), drifting out and up, swirling a little: 6 puffs a shot, then ~22 a second for
+  0.45 s a shot (a string: longer, up to 1.5 s), following the gun. `vr_nailpistol_smoke` (1) scales it.
+- **Rocket exhaust**: the backblast's cone (denser: 16 puffs, alpha 0.6) now comes out of the launcher's real back
+  end, `exhaustOf`: v_rock2.mdl's tube end (-6.3, -0.04, 4.78; found from the model: its back ring), an AD
+  launcher's own FireFeel exhaust, else behind the muzzle as before (Rogue's v_multi2). The exhaust then smokes
+  ~0.9 s, rising (your hand: each frame following the gun; an armed grunt's held launcher, `Muzzle::gun`: at the
+  shot, fading in one after another). The AD launcher in your hand gets the cone and exhaust smoke too now (its own
+  burst's flames and sparks stay). `vr_debug_gunfx 1` prints `gunfx exhaust at ...`, 2 also the after-smoke.
+- Not done: AD's own rocket soldier (monster_army_rocket, mon_soldier.mdl): its attack sends no weaponfired and its
+  tube's place on the monster model is unknown here (no AD data on this machine): needs a hook in
+  ad_army_fire_rocket and a monsterGuns entry with the tube's anchors. Persistent muzzle wisps: the next step.
+- Strips (kit `scratch/gunfx/`): `c1_<class>_lit.png` (shotgun, nailgun, rocket, nail pistol from the front),
+  `c1_<class>_side.png` (the gun held across the view: nail pistol, rocket launcher, shotgun; frames 0, 2, 5, 10,
+  20), made by the tree's `scratch/shots.py c1 side ...`.
+- Tests: gunfx_test.py 29/29 (now: sparks >= 3, the nail pistol's vents, a monster rocket's exhaust; the armed
+  rocket grunt alone in vrtesthall, `vr_agrunt_test 111`: on e1m1 the wall 360 units ahead brought it close and it
+  clubbed you, the failure of the second pass). Covering cases vs baseline.tsv (run_baseline.sh --only): collectfx,
+  reload_gunshape, shot_shape, console nail_1, np_1 all PASS (np_1 21 -> 23 passes: the merged slide tests).
+- A/B bench (ThinLTO, origin/next vs this branch, ABBAABBAAB, exclusive, medians of 5): combat_48 cpu 2.470 ->
+  2.478 ms, gpu 3.361 -> 3.362, p99 11.230 -> 11.217; play_gore_fight (super nailgun) cpu 2.375 -> 2.347, gpu
+  2.627 -> 2.622, p99 11.214 -> 11.234: within noise (scratch/ab_out3.txt, ab_stats.py).
+
 ## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
 
 His words: a slide that moves with each shot, locks open on an empty magazine, closes by itself with a sound when a

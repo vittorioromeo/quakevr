@@ -10,6 +10,8 @@
 #include "vr_autopump.hpp"
 #include "vr_bttrails.hpp"
 #include "vr_engine.hpp"
+#include "vr_gunfx.hpp"
+#include "vr_weapon_ids.h"
 #include "vr_anchor.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
@@ -294,6 +296,7 @@ void playerFired(int hand)
     adweapons::fired(hand);  // AD support: the Widowmaker's barrels (vr_adweapons.cpp: if it is one)
     weight::heavyKick(hand); // heavy handling: a heavy weapon fired in one hand kicks up (the aim with it)
     gunsfx::fired(hand);     // its haptic punch (vr_gunsfx.cpp)
+    gunfx::playerFired(hand); // its sparks and smoke at its drawn muzzle (vr_gunfx.cpp: at frame)
     HandFx& h = handFx[hand];
     if(h.slot != slot)
     {
@@ -443,6 +446,41 @@ void monsterSmoke(int ent)
     return slot == weapons::fistSlot() ? -1 : slot;
 }
 
+// A monster's gun fired: its gunfire particles (vr_gunfx.cpp) at its muzzle, a held weapon's (`propSlot`) or its own gun's.
+void monsterGunfx(int ent, int propSlot)
+{
+    if(ent <= 0 || ent >= cl.num_entities)
+    {
+        return;
+    }
+    const entity_t& e = cl_entities[ent];
+    gunfx::Muzzle m;
+    if(propSlot >= 0)
+    {
+        const char* anchor = weapons::anchor(propSlot, Key::MuzzleAnchor);
+        const glm::vec3 off = weapons::vec(propSlot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ);
+        m.at = view::anchorPosition(e, false, 1.f, anchor, off);
+        const glm::vec3 ax = view::anchorPosition(e, false, 1.f, anchor, off + glm::vec3{1.f, 0.f, 0.f}) - m.at;
+        const glm::vec3 az = view::anchorPosition(e, false, 1.f, anchor, off + glm::vec3{0.f, 0.f, 1.f}) - m.at;
+        if(glm::length(ax) < 1e-5f || glm::length(az) < 1e-5f)
+        {
+            return;
+        }
+        m.fwd = glm::normalize(ax);
+        m.up = glm::normalize(az);
+        m.gun = &e; // (its model's points: a rocket launcher's exhaust, the nail pistol's vents)
+        gunfx::enemyFired(ent, e.model, -1, m);
+        return;
+    }
+    float gunLength = 0.f;
+    if(!e.model || !monsterMuzzle(e, m.at, m.fwd, gunLength))
+    {
+        return;
+    }
+    m.gunLength = gunLength;
+    gunfx::enemyFired(ent, nullptr, modelmeta::is(e.model, modelmeta::Id::Enforcer) ? WID_ENFRIFLE : WID_GRUNTGUN, m);
+}
+
 void monsterFired(int ent)
 {
     const int propSlot = ent > 0 && ent < cl.num_entities ? heldPropSlot(cl_entities[ent]) : -1;
@@ -450,6 +488,7 @@ void monsterFired(int ent)
     {
         monsterSmoke(ent); // (a held weapon's: the QC's, at its muzzle)
     }
+    monsterGunfx(ent, propSlot);
     if(!vr_muzzle_flash.value || !vr_muzzle_flash_enemies.value || ent <= 0 || ent >= cl.num_entities ||
         (propSlot < 0 && !monsterGun(cl_entities[ent])))
     {
@@ -790,6 +829,7 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
         const view::ViewEntity& w = weapons[hand];
         const int slot = w.visible && w.ent.model ? weapons::slotForModel(w.ent.model) : -1;
         const adguns::FireFeel feel = h.variant >= 0 ? adguns::fireFeel(h.variant) : adguns::FireFeel{};
+        gunfx::handFrame(hand, w, slot); // (its shot's sparks and smoke, its barrel's heat: vr_gunfx.cpp)
         if(h.burst)
         {
             h.burst = false;
@@ -986,6 +1026,7 @@ void clear()
     }
     nextTracer = 0;
     liveTracers = 0;
+    gunfx::clear();
 }
 
 namespace
@@ -1291,6 +1332,7 @@ void registerCommands()
 {
     Cmd_AddCommand("vr_weaponfx_test", test_f);
     Cmd_AddCommand("vr_recoil_test", recoilTest_f);
+    gunfx::registerCommands();
 }
 
 } // namespace qvr::weaponfx

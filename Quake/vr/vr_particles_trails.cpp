@@ -1358,6 +1358,60 @@ void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
     });
 }
 
+bool gunParticle(const GunParticle& g)
+{
+    if(!vr_particles.value || g.life <= 0.f || !ensureAtlas() || pool.size() >= maxParticles)
+    {
+        return false;
+    }
+    make(1.f, [&](Particle& p, int) {
+        p.type = Custom;
+        p.org = g.org;
+        p.vel = g.vel;
+        p.color = g.color;
+        p.scale = g.scale;
+        p.grow = g.grow;
+        p.die = cl.time + g.life;
+        p.fade = -g.color.a / g.life;
+        p.drag = g.drag;
+        p.acc = gravity(g.gravity);
+        p.streak = g.streak;
+        p.turb = static_cast<za::U8>(za::clamp(g.turb * 0.5f + 0.5f, 0.f, 255.f));
+        if(g.fadeIn > 0.f && g.fadeIn < g.life)
+        {
+            // Fading in over its first `fadeIn` seconds (then out to nothing by its end: Custom's ramp).
+            p.ramp = g.fadeIn;
+            p.color.a = 1e-3f; // (not 0: that is a particle gone)
+            p.fade = g.color.a / g.fadeIn;
+        }
+        switch(g.kind)
+        {
+            case GunParticle::Spark:
+                p.cell = CellSpark;
+                p.additive = true;
+                p.spin = vrand::range(rng, -8.f, 8.f);
+                p.lighting = Lighting::Emissive;
+                break;
+            case GunParticle::Glow:
+                p.cell = CellGlow;
+                p.additive = true;
+                p.lighting = Lighting::Emissive;
+                break;
+            case GunParticle::Smoke:
+                p.cell = CellSmoke;
+                p.spin = vrand::range(rng, -1.2f, 1.2f);
+                p.lighting = Lighting::Emissive; // (its colour as the flash lit it: readable in the dark)
+                break;
+            case GunParticle::Chip:
+                p.cell = CellSpark;
+                p.spin = vrand::range(rng, -8.f, 8.f);
+                p.lighting = Lighting::Emissive; // (shaded by the caller)
+                break;
+        }
+    }, false);
+    return true;
+}
+
 // QVR round 21: a casing dropping into a liquid. The splash preset's parts at a casing's size: a few small drops
 // thrown up a few centimetres (half of them leaving a little ring where they fall back), one ring riding the ripple's
 // crest, a wisp of foam; in lava an ember or two. vr_water_splash scales how many, _size how big, _ring_size the ring.
