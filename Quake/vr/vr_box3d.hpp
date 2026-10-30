@@ -164,6 +164,9 @@ void blast(const glm::vec3& at, float damage);
 void debugDraw();
 // vr_ragdoll_active_debug: the active ragdolls' targets (vr_ragactive.hpp debugDraw): drawn with or without the shapes.
 void activeRagdollDraw();
+// vr_debug_disarm (vr_disarmviz.cpp): part `bone` of edict `num`'s ragdoll, its shapes as wireframes (this frame's lines).
+// False: no such ragdoll or part (or it was cut off).
+bool ragdollPartDraw(int num, int bone, const glm::vec4& colour, float width);
 // vr_struggle_debug: a panel over each struggling enemy (vr_box3d_struggle.cpp), turned to `eye` (world units).
 void struggleDraw(const glm::vec3& eye);
 // A voice note's context (vr_notectx.cpp): the limb edict `player`'s `hand` (0 the off hand, 1 the main) holds, a line

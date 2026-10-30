@@ -241,6 +241,10 @@ void(entity p, float amount, vector dir, float part, vector at, float kind) VR_A
     }
     string what = sprintf("%s on its %s%s (%s)", VR_AGS_KindName(kind), part == 1 ? "weapon" : "hand",
         (vr_ags_mf < 1 && kind != QVR_AGS_SPLASH) ? ", near" : "", p.netname);
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(p, at, VR_DV_SHOT, sprintf("%s: %.1f", what, amount));
+    }
     if(time < p.vr_ags_cool)
     {
         VR_AGS_Log(sprintf("%s: %.1f, cooling down (%.2f s)", what, amount, p.vr_ags_cool - time));
@@ -331,6 +335,10 @@ void(entity p, vector at, float kind) VR_AGS_Stopped =
             floor(random() * 3))), 1, ATTN_NORM);
     }
     VR_AGS_Log(sprintf("%s stopped on its weapon (%s): no damage to it", VR_AGS_KindName(kind), p.netname));
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(p, at, VR_DV_BLOCKED, sprintf("%s stopped on its weapon", VR_AGS_KindName(kind)));
+    }
 };
 
 float(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKind) VR_AGS_Shot =
