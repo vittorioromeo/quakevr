@@ -2674,3 +2674,31 @@ Regression test: `Misc/quakevr/bodytrack_solve_test.sh <agent> [--update]`: 300 
 (quakevr/scenarios/bodytrack/take.csv) replayed with his body settings, 240 dumped frames against
 quakevr/scenarios/bodytrack/solve_ref.csv (0.5 units per joint, 0.02 per weight); verdict line
 `bodytrack_solve: N passed, M failed`.
+## Nail pistol: no flicker at the muzzle's back, a distinct steel back end (branch `agent/npslide4`)
+
+His words (2026-10-30): some triangles on the back of the muzzle flicker, seen only with the slide drawn; the
+steel/silvery back end more distinct, as in the pre-slide art.
+
+- **The flicker:** the classic nozzle's back is a closed hexagonal cap (shared by both looks, x 7.19, facing back),
+  hidden in either look until the full slide draws back past it. npslide2's ring (`nozzle_ring`, iron, closing what it
+  took for an open back) lay on the same plane facing the same way: 12 triangles z-fighting with the cap's 4. The ring is
+  gone (the cap closes the nozzle; the barrel passes through it). Nothing else: no triangle wound against its normal, the
+  folds degenerate in frames 2, 3 and every blend past 3 (to 4.6, Slide Travel 3), no other same-facing coplanar pair
+  with a new triangle (the slide's bottom on the frame's top face opposite ways: back faces culled).
+- **Check in the script:** `check_faces` (build_nailpistol_slide.py) runs on every build in frames 2 and 3 and blends
+  1, 2 and the most (4.6): folds, winding (Quake clockwise vs the vertex normal) and coplanar overlapping same-facing
+  pairs (planes within 0.04 units, a 2D overlap test); it stops the build on a problem. With the old ring added back it
+  reports 84 (the ring's 12 triangles against the cap's).
+- **Steel back end** (behind x -2.4, the classic housing's place: the slide's walls, chamfers, top, end and the frame):
+  the classic housing is about 1.5x its receiver's light (sampled: luminance 40 vs 26), and the full slide's front is as
+  light as that housing (41), so the sampled texels alone did not stand out. Each texel now: its light lifted 1.2x
+  (`REAR_GAIN`), its swing about the housing's mean cut to 0.75 (`REAR_FLAT`: less mottled), a cool steel hue
+  (`REAR_TONE` 0.93 1.0 1.1, 30% of its own hue kept); the housing's bright bevelled rim on its outline (0.13 units), and
+  a seam at x -2.4 (a dark groove in front, a lit line behind). Texels with no classic face near take the housing's mean.
+  The rest of the paint, the classic frames and texels are unchanged (classic rows 0 changed, frames 0/1 identical);
+  the script stays deterministic (a rerun on its output: byte-identical).
+- **Eyeshots** (qvr-kit/scratch/npslide/): `npslide4_classic_closed_open_muzzle.png` (rows: classic closed, full slide
+  closed, locked open (travel 1.5), the muzzle's back close up at travel 3; right side left column, left side right),
+  `npslide4_rear_before_after.png` (full slide closed, before / after), `npslide4_thumbs.png`.
+- **Tests:** `vr_np_test 1` fails on origin/next with the old model the same way (0 passed, 3 failed: "the trigger held
+  0.55 s fired 0"): not this change; baseline.tsv's np_1 (21 passed) is older than the test's 35 checks.
