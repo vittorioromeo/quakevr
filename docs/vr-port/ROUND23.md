@@ -1031,7 +1031,41 @@ of the functions touched, from the build before and the build after, and the two
 
 QC globals: 55869 before, 56505 after (+636: each table value is a global; the id format's limit is 65536); statements +982 (the compiler's array readers).
 
-Not done in this branch (left for a later round): W26 VR_HandVec, C29 one VR_TestsFrame, S01 generated cvar handles,
-C11/C12 arena + horde spawn table (the arena's grunt/enforcer spawn their armed versions while the horde's spawn id's:
-a shared table needs two spawn columns), C10 horde squads, C04/C06/C07 AD setup tables, C13 C15-C17 C24 C25 C30 C32
-C48 M53 B64.
+### Part 2
+
+- **C10** `vr_mg_horde.qc`: `MGH_SpawnSquad2` reads `MGH_SQUADS` (a row a monster in MG1's spawn order: squad, skills
+  0 / 1+ / 0 only, monster, place); the double demon's roll stays code. `MGH_SpawnWave2`'s ladders are `MGH_WAVES`
+  (army or not, category, the roll's bound, squad, spawn point type) read by `MGH_WaveRow(army, cat, random())`: one
+  `random()` at the same place, the category's last bound its range (4, 2, 3), its last row the else.
+- **C11/C12** `VR_WAVE_KINDS` (vr_arena.qc): a row an arena kind (`AR_SP_*` is the row) then the horde's others; horde
+  name, classname, the horde's spawn (id's monster) and the arena's (the armed grunt and enforcer).
+  `MGH_SpawnMonster`, `VR_ARENA_ClassName` and `VR_ARENA_CallSpawn` read it.
+- **C13** `MGH_horde_key_set_all(key, give)`; **C15** `AD_KEY_BITS` / `AD_KEY_WIDS`; **C16** `AD_UPGRADES` {weapon, AD bit,
+  VR model "#vr" (vr_adweapons.cpp keeps its own list of the three), pickup model, classname, name} read by
+  `AD_UpgradeFor`, `AD_VRModelName`, `AD_EnsureVRModel` (the made-bit is the row's) and `AD_UpgradeItem(row)`; **C17**
+  `AD_UpgradeGate()` for the pickups and the toolgun's props.
+- **C25** `AR_RING_DIRS` / `AR_ASIDE_DIRS`; **C32** `VR_AT_CVARS` {name, test value} feeds Save, Restore and SetDefaults;
+  **M53** `VR_SGIB_INFLICTORS` (+ kinds), `VR_SGIB_NAMES`, `VR_SGIB_CDMG`; **B64** `VR_AG_SAFE_DIST(_MINE)`.
+- **C04** `VR_AD_MonsterSetup`: each row one call (`VR_AD_MonKd`: VR_AD_Mon + VR_Knockdown_SetupReverse), the hell
+  knight's row shared with the death lord and Quoth's death guard. Not a QC table: ~40 rows x 11 values would cost
+  ~450-640 globals (this part's whole budget). **C06/C07** vr_monstermods.cpp `knownSwords`: vertex ranges
+  `{first, count}` (no static-init allocations) and the dropped name in the row; `knownOnly` and `droppedName` read the
+  table (the 20-term chain and the 16-case switch are gone).
+- **W26** `VR_HAND_FIELD(e, hand, mainField, offField)` (vr_util.qc, a macro: inline functions with a branch do not
+  inline in fteqcc) for the 48 `hand == cVR_MainHand ? e.a : e.offa` selects: progs.dat byte-identical. The 32
+  `hand == cVR_OffHand ? e.off : e.main` selects stay (they differ for a hand that is neither).
+- **C29** `VR_TestsFrame()` (vr_testutil.qc): the 42 QVR_TESTS frames, in their order, StartFrame's last step (they ran
+  between production frames before; production is unchanged: the test frames do nothing without their request).
+- **C30** `VR_World_Precache()`: worldspawn's Quake VR precaches, same order. No numbered-sound helper: precache_sound
+  keeps the string's pointer (pr_cmds.c) and the QC has no strzone, so names built at run time are unsafe.
+- **S01** `Misc/quakevr/gen_vr_cvars_qc.py` writes `QC/vr_cvars_gen.qc`: a handle for each literal `QVR_CVAR` of
+  vr_cvars.inc the QC uses (1188); vr_cvars.qc keeps the 46 of the engine's cvars and the macro-made ones. `--check`
+  fails a stale file: the kit's build.sh should run it.
+
+Checked: an A/B dump of every squad at skills 0, 1, 3 (identical), `MGH_WaveRow` over 65 rolls a group against a model
+of MG1's ladders (325, 0 mismatches), a seeded horde1 run with the wave monitor before and after (identical, 3 waves),
+AD upgrade readers for every weapon id, small gib kinds x 12 hit kinds x 16 inflictors, ring/aside, the knownSwords
+log on vrarena (identical). QC globals 56505 -> 56929 (+424); no AD data in the agent base (no AD run).
+
+Not done: C24 (AD death precache as name arrays: ~85 globals), C48 (the test ladders have inline bodies: a {number,
+function} table needs each its own function and two globals a row).
