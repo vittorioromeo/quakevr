@@ -1343,3 +1343,34 @@ and `VR_Carry_Cross`) gave 8 failures and exit 1; the clean copy passed.
 cases, pe_full.log; the bench row carried from phase 0), the old file kept as `baseline_phase0.tsv`.
 `run_baseline.py --compare` reports the cases that vary run to run (`FLAKY`: agrunt 1/47/60/63/67/71/72/76/86,
 ragdoll_ragtest/grab/guard, rv_1, judo, stealth, agarmor_5) apart as "FLAKY CHANGED", not counted in its exit status.
+
+## Refactor leftovers L2: render/fx/audio file splits (branch `agent/leftsplit2`)
+
+No behaviour change intended: pure moves (each moved item's text unchanged; a moved file's anonymous namespace became
+`<ns>::detail`, declared in `<file>_internal.hpp`, its variables defined where they stood; small anonymous helpers that
+the parts share moved to the header as `inline`, internal-linkage constants as `inline constexpr`/`inline const`; a
+default argument kept on the header's declaration only). The worktree's scratch/split.py, split2.py, mk_internal.py
+did the moves (not committed).
+
+- vr_particles.cpp (4162 -> 2007 lines) + vr_particles_blood.cpp (blood/smoke/spark emitters, the gore's drips and
+  droplets, chainsaw/contact/battery/torch smoke), vr_particles_trails.cpp (trails, impacts, splashes, mist, fire, AD
+  streams, tank fire, electricity, embers, shells), vr_particles_diag.cpp (the test and report commands);
+  vr_particles_internal.hpp: Particle and its enums, pool/lastRun/rng (extern; rng's dynamic initializer stays in
+  vr_particles.cpp), rndi..onSphere and make<> inline, ShoreNear/LightStats and the report's counters.
+- vr_relight.cpp (4181 -> ~2190) + vr_relight_bsp.cpp (lumps, entity text, map lights, texture rules) and
+  vr_relight_glow.cpp (faces, things, fixtures, glow images, glowLights); the glow cache (a mem::Cache) stays in
+  vr_relight.cpp. Allowlist: startsWith's strings-copy moved to vr_relight_bsp.cpp (+ its declaration in the header).
+- vr_audio.cpp (3980 -> ~3500) + vr_audio_io.cpp (derived and layered sounds, readPcm, the band-limit tables and
+  scratch, the full-band resampler). The jobs-site block is `audio::detail`; BandLimitStats in the header. The two
+  mem sets (band-limit tables/scratch) now register from vr_audio_io.cpp: their place in the mem report's list moves.
+- vr_portals.cpp (3224 -> ~2210) + vr_portals_gates.cpp (crossing for players, monsters and what flies, unstick, the
+  AI's gate images/routes, pulls, tosses, VR_PortalMonsterCross); aiRoute lost its `static` (both files call it).
+  Allowlist: player-edict 3 -> 2 + 1 in vr_portals_gates.cpp.
+- **Not done (budget)**: vr_audio's dump/bench commands (they read `live`, the mixer's state: a Live type in the
+  header first), vr_brushes.cpp, vr_backend_openxr.cpp by phase (one class: members out of the body first).
+- Checked: build 0 warnings and every check (check_canonical included); run_baseline.sh --only on collectfx,
+  mapflameburn, spentshake, vrtrailer, swim_sound, flare_1, explosion_debris, selfchecks, teleporter_edges,
+  walltorch_grab, teleporters_chase: 0 of 11 changed against baseline.tsv (0 flaky).
+  No A/B bench run (budget): the particle emitters (called from spawn() and the trail hooks) and the band-limit code
+  now sit in their own TUs (ThinLTO can still inline across them; the quick build cannot), so an ABBA pair on
+  idle_e1m1/combat_48 against origin/next is still owed before this merges.
