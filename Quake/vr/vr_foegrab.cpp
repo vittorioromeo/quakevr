@@ -1778,6 +1778,156 @@ void legTry(int c, edict_t* m, const char* what, const char* last, float speed, 
     }
 }
 
+// legCheck's phases: its first-frame log line.
+void legLog(Holder& hd, edict_t* m, int mask, bool both, const LegPart (&parts)[2], const char* const (&bones)[2], float weight)
+{
+    if(debug() && !hd.legLogged && !both)
+    {
+        hd.legLogged = true;
+        const int h = mask == 1 ? 0 : 1;
+        Con_Printf("foegrab: the %s hand alone on %s (%d)'s leg, on %s (%s): grip %.2f, one-hand pull x%.2f\n", handName(h),
+            PR_GetString(m->v.classname), NUM_FOR_EDICT(m), bones[h][0] ? bones[h] : "-",
+            legPartName(static_cast<int>(parts[h])), weight, vr_foegrab_legpull_onehand.value);
+    }
+    if(debug() && !hd.legLogged)
+    {
+        hd.legLogged = true;
+        const float tall = za::max(m->v.absmax[2] - m->v.absmin[2], 1.f);
+        const glm::vec3 s0 = spotOf(hd.holds[0]), s1 = spotOf(hd.holds[1]);
+        Con_Printf("foegrab: both hands on %s (%d)'s body: the off hand %.1f units over its feet (%.2f of its height) on %s "
+                   "(%s), the main %.1f (%.2f) on %s (%s): grip %.2f\n",
+            PR_GetString(m->v.classname), NUM_FOR_EDICT(m), s0.z - m->v.absmin[2], (s0.z - m->v.absmin[2]) / tall,
+            bones[0][0] ? bones[0] : "-", legPartName(static_cast<int>(parts[0])), s1.z - m->v.absmin[2],
+            (s1.z - m->v.absmin[2]) / tall, bones[1][0] ? bones[1] : "-", legPartName(static_cast<int>(parts[1])), weight);
+    }
+}
+
+// legCheck's pull or lift, tried: what they need from it.
+struct LegTry
+{
+    int c;
+    edict_t* player;
+    edict_t* m;
+    Holder& hd;
+    int mask;
+    glm::vec3 you;
+    glm::vec3 vmLevel;
+    float level;
+    float up;
+    float toward;
+    float pullNeed;
+    float liftNeed;
+    double time;
+    const char* name;
+};
+
+// The leg pull: knocked down, its feet towards you.
+void legPull(const LegTry& lt)
+{
+    const int c = lt.c;
+    edict_t* const player = lt.player;
+    edict_t* const m = lt.m;
+    Holder& hd = lt.hd;
+    const int mask = lt.mask;
+    const glm::vec3& you = lt.you;
+    const glm::vec3& vmLevel = lt.vmLevel;
+    const float level = lt.level;
+    const float toward = lt.toward;
+    const float pullNeed = lt.pullNeed;
+    const char* const name = lt.name;
+    // Its feet come the hands' way (towards you, within 60 degrees of it), its body falls the other.
+    const glm::vec3 way = level > 1e-3f && glm::dot(vmLevel / level, you) >= 0.5f ? vmLevel / level : you;
+    const float yaw0 = glm::radians(m->v.angles[1]); // (its facing as it stood: the trace's)
+    const float result = qvr::foegrab::sweepDown(player, m, way, glm::radians(za::clamp(vr_foegrab_legpull_topple.value, 0.f, 2000.f)),
+        za::clamp(vr_foegrab_legpull_feet.value, 0.f, 500.f), 0.f);
+    legNote(c, result >= 1.f ? "pulled down" : "can't knock it down now");
+    legTry(c, m, "pull",
+        result >= 2.f ? "dummy: would pull down" : result >= 1.f ? "PULLED DOWN" : "no: can't knock it down", toward,
+        pullNeed);
+    if(result != 1.f)
+    {
+        return;
+    }
+    (void)climb::grunt(player, vr_foegrab_throw_grunt_sound.value, vr_foegrab_throw_grunt.value);
+    if((debug() || legDiagOn()) && startTrace(m, alignToFacing(m, way), "legpull"))
+    {
+        throwTrace.facing = glm::vec3{za::cos(yaw0), za::sin(yaw0), 0.f};
+        Con_Printf("legpull trace: its yaw %.0f as it stood, %.0f now\n", glm::degrees(yaw0), m->v.angles[1]);
+        Con_Printf("legpull trace: %s (%d) pulled down by the legs towards yaw %.0f (its feet to you)\n", name,
+            throwTrace.ent, glm::degrees(za::atan2(way.y, way.x)));
+    }
+    // (Held on softer than a throw's: its shins pinned in the hands, it pivoted on them and fell the wrong way.)
+    if(vr_foegrab_throw_hold.value == 0.f ||
+        handOver(player, m, hd, vr_foegrab_legpull_hold_strength.value, vr_foegrab_throw_hold_hertz.value, Why::Thrown) == 0)
+    {
+        for(int h = 0; h < 2; h++)
+        {
+            if(mask & (1 << h))
+            {
+                release(player, h, Why::Thrown, "pulled down by the legs");
+            }
+        }
+    }
+    else
+    {
+        hd.legDragFrom = qcvm->time; // (soft while it falls; firmed up to drag it once it lies: legDragStep)
+        hd.legDragFull = false;
+    }
+}
+
+// The leg lift: lifted by the legs, head down, held on.
+void legLift(const LegTry& lt)
+{
+    const int c = lt.c;
+    edict_t* const player = lt.player;
+    edict_t* const m = lt.m;
+    Holder& hd = lt.hd;
+    const glm::vec3& you = lt.you;
+    const float up = lt.up;
+    const float liftNeed = lt.liftNeed;
+    const double time = lt.time;
+    const char* const name = lt.name;
+    const float off = glm::length(glm::vec2{vec(m->v.origin) - vec(player->v.origin)});
+    if(off > liftReach())
+    {
+        legNote(c, "too far: step closer");
+        legTry(c, m, "lift", "no: too far", up, liftNeed);
+        return;
+    }
+    const float hold = za::clamp(vr_foegrab_lift_time.value, 0.1f, 60.f);
+    const float result = callQc(bindings().foegrab.Lift, player, m, 0.f, hold + 1.f, 0.f); // (no hop: the hands lift its legs)
+    legNote(c, result >= 1.f ? "lifted by the legs" : "can't knock it down now");
+    legTry(c, m, "lift", result >= 2.f ? "dummy: would lift" : result >= 1.f ? "LIFTED BY THE LEGS" : "no: can't knock it down",
+        up, liftNeed);
+    if(result != 1.f)
+    {
+        return;
+    }
+    (void)climb::grunt(player, vr_foegrab_throw_grunt_sound.value, vr_foegrab_throw_grunt.value);
+    // Its body swings over away from you about its feet as the hands take its legs up: it hangs head down.
+    const float topple = glm::radians(za::clamp(vr_foegrab_leglift_topple.value, 0.f, 2000.f));
+    if(topple > 0.f)
+    {
+        (void)box3d::ragdollTopple(m, -you, topple, 0.f, 0.f, 0.f);
+    }
+    const int hands = handOver(player, m, hd, vr_foegrab_lift_strength.value, liftHertz, Why::Lifted);
+    if(hands == 0)
+    {
+        for(int h = 0; h < 2; h++)
+        {
+            release(player, h, Why::Lifted, "lifted by the legs, nothing to hold on to");
+        }
+        return;
+    }
+    hd.breakAt = time + hold;
+    hd.flailing = box3d::ragdollFlail(m, true);
+    if((debug() || legDiagOn()) && startTrace(m, -you, "leglift"))
+    {
+        Con_Printf("leglift trace: %s (%d) lifted by the legs, held by %d hand%s, %s, breaks free in %.1f s\n", name,
+            throwTrace.ent, hands, hands == 1 ? "" : "s", hd.flailing ? "flailing" : "not flailing", hold);
+    }
+}
+
 // The leg grabs (vr_foegrab_leggrab): both hands of player `c` holding a humanoid (the lift's classes) by its legs, one
 // leg with both or one each, below the knees (its rig's shin and foot bones; a thigh counts vr_foegrab_leggrab_thigh,
 // the speeds needed over that). Its needs grow with its mass (legMassFactor).
@@ -1850,25 +2000,7 @@ bool legCheck(int c, edict_t* player, edict_t* m, const VrMove& move, int mask)
     {
         m->v.angles[1] = hd.legYaw;
     }
-    if(debug() && !hd.legLogged && !both)
-    {
-        hd.legLogged = true;
-        const int h = mask == 1 ? 0 : 1;
-        Con_Printf("foegrab: the %s hand alone on %s (%d)'s leg, on %s (%s): grip %.2f, one-hand pull x%.2f\n", handName(h),
-            PR_GetString(m->v.classname), NUM_FOR_EDICT(m), bones[h][0] ? bones[h] : "-",
-            legPartName(static_cast<int>(parts[h])), weight, vr_foegrab_legpull_onehand.value);
-    }
-    if(debug() && !hd.legLogged)
-    {
-        hd.legLogged = true;
-        const float tall = za::max(m->v.absmax[2] - m->v.absmin[2], 1.f);
-        const glm::vec3 s0 = spotOf(hd.holds[0]), s1 = spotOf(hd.holds[1]);
-        Con_Printf("foegrab: both hands on %s (%d)'s body: the off hand %.1f units over its feet (%.2f of its height) on %s "
-                   "(%s), the main %.1f (%.2f) on %s (%s): grip %.2f\n",
-            PR_GetString(m->v.classname), NUM_FOR_EDICT(m), s0.z - m->v.absmin[2], (s0.z - m->v.absmin[2]) / tall,
-            bones[0][0] ? bones[0] : "-", legPartName(static_cast<int>(parts[0])), s1.z - m->v.absmin[2],
-            (s1.z - m->v.absmin[2]) / tall, bones[1][0] ? bones[1] : "-", legPartName(static_cast<int>(parts[1])), weight);
-    }
+    legLog(hd, m, mask, both, parts, bones, weight);
     const float mass = qvr::foegrab::monsterMass(player, m);
     const float factor = legMassFactor(mass);
     glm::vec3 you = vec(player->v.origin) - vec(m->v.origin);
@@ -1938,87 +2070,13 @@ bool legCheck(int c, edict_t* player, edict_t* m, const VrMove& move, int mask)
     hd.throwAgain = time + gameSeconds(throwRetry);
     const bool dummy = isTrainingDummy(m);
     const char* name = dummy ? "the training dummy" : PR_GetString(m->v.classname);
+    const LegTry lt{c, player, m, hd, mask, you, vmLevel, level, up, toward, pullNeed, liftNeed, time, name};
     if(pulling)
     {
-        // Its feet come the hands' way (towards you, within 60 degrees of it), its body falls the other.
-        const glm::vec3 way = level > 1e-3f && glm::dot(vmLevel / level, you) >= 0.5f ? vmLevel / level : you;
-        const float yaw0 = glm::radians(m->v.angles[1]); // (its facing as it stood: the trace's)
-        const float result = qvr::foegrab::sweepDown(player, m, way, glm::radians(za::clamp(vr_foegrab_legpull_topple.value, 0.f, 2000.f)),
-            za::clamp(vr_foegrab_legpull_feet.value, 0.f, 500.f), 0.f);
-        legNote(c, result >= 1.f ? "pulled down" : "can't knock it down now");
-        legTry(c, m, "pull",
-            result >= 2.f ? "dummy: would pull down" : result >= 1.f ? "PULLED DOWN" : "no: can't knock it down", toward,
-            pullNeed);
-        if(result != 1.f)
-        {
-            return true;
-        }
-        (void)climb::grunt(player, vr_foegrab_throw_grunt_sound.value, vr_foegrab_throw_grunt.value);
-        if((debug() || legDiagOn()) && startTrace(m, alignToFacing(m, way), "legpull"))
-        {
-            throwTrace.facing = glm::vec3{za::cos(yaw0), za::sin(yaw0), 0.f};
-            Con_Printf("legpull trace: its yaw %.0f as it stood, %.0f now\n", glm::degrees(yaw0), m->v.angles[1]);
-            Con_Printf("legpull trace: %s (%d) pulled down by the legs towards yaw %.0f (its feet to you)\n", name,
-                throwTrace.ent, glm::degrees(za::atan2(way.y, way.x)));
-        }
-        // (Held on softer than a throw's: its shins pinned in the hands, it pivoted on them and fell the wrong way.)
-        if(vr_foegrab_throw_hold.value == 0.f ||
-            handOver(player, m, hd, vr_foegrab_legpull_hold_strength.value, vr_foegrab_throw_hold_hertz.value, Why::Thrown) == 0)
-        {
-            for(int h = 0; h < 2; h++)
-            {
-                if(mask & (1 << h))
-                {
-                    release(player, h, Why::Thrown, "pulled down by the legs");
-                }
-            }
-        }
-        else
-        {
-            hd.legDragFrom = qcvm->time; // (soft while it falls; firmed up to drag it once it lies: legDragStep)
-            hd.legDragFull = false;
-        }
+        legPull(lt);
         return true;
     }
-    const float off = glm::length(glm::vec2{vec(m->v.origin) - vec(player->v.origin)});
-    if(off > liftReach())
-    {
-        legNote(c, "too far: step closer");
-        legTry(c, m, "lift", "no: too far", up, liftNeed);
-        return true;
-    }
-    const float hold = za::clamp(vr_foegrab_lift_time.value, 0.1f, 60.f);
-    const float result = callQc(bindings().foegrab.Lift, player, m, 0.f, hold + 1.f, 0.f); // (no hop: the hands lift its legs)
-    legNote(c, result >= 1.f ? "lifted by the legs" : "can't knock it down now");
-    legTry(c, m, "lift", result >= 2.f ? "dummy: would lift" : result >= 1.f ? "LIFTED BY THE LEGS" : "no: can't knock it down",
-        up, liftNeed);
-    if(result != 1.f)
-    {
-        return true;
-    }
-    (void)climb::grunt(player, vr_foegrab_throw_grunt_sound.value, vr_foegrab_throw_grunt.value);
-    // Its body swings over away from you about its feet as the hands take its legs up: it hangs head down.
-    const float topple = glm::radians(za::clamp(vr_foegrab_leglift_topple.value, 0.f, 2000.f));
-    if(topple > 0.f)
-    {
-        (void)box3d::ragdollTopple(m, -you, topple, 0.f, 0.f, 0.f);
-    }
-    const int hands = handOver(player, m, hd, vr_foegrab_lift_strength.value, liftHertz, Why::Lifted);
-    if(hands == 0)
-    {
-        for(int h = 0; h < 2; h++)
-        {
-            release(player, h, Why::Lifted, "lifted by the legs, nothing to hold on to");
-        }
-        return true;
-    }
-    hd.breakAt = time + hold;
-    hd.flailing = box3d::ragdollFlail(m, true);
-    if((debug() || legDiagOn()) && startTrace(m, -you, "leglift"))
-    {
-        Con_Printf("leglift trace: %s (%d) lifted by the legs, held by %d hand%s, %s, breaks free in %.1f s\n", name,
-            throwTrace.ent, hands, hands == 1 ? "" : "s", hd.flailing ? "flailing" : "not flailing", hold);
-    }
+    legLift(lt);
     return true;
 }
 } // namespace
@@ -2381,19 +2439,13 @@ void qvr::foegrab::preThink(edict_t* ent)
     }
 }
 
-void qvr::foegrab::serverFrame()
+namespace foegrab::detail
 {
-    if(!sv.active)
-    {
-        return;
-    }
-    VR_ProfileBegin("foegrab");
-    const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
-    walkTestStep(dt);
-    throwTraceStep();
-
-    const int players = za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD));
-    // Holds that can't go on: the monster dead, knocked down, gone; one that broke free (the QC's .vr_foegrab_letgo).
+namespace
+{
+// serverFrame's phases: holds that can't go on let go.
+void releaseBroken(int players)
+{
     for(int c = 0; c < players; c++)
     {
         edict_t* player = EDICT_NUM(c + 1);
@@ -2415,6 +2467,169 @@ void qvr::foegrab::serverFrame()
             }
         }
     }
+}
+
+// A held foe carried along by its holder's slide from a shove.
+void shoveCarry(const Foe& foe, int players, float hold, float follow, glm::vec3& target)
+{
+    glm::vec3 carry{0.f};
+    int carriers = 0;
+    for(int c = 0; c < players; c++)
+    {
+        edict_t* p = EDICT_NUM(c + 1);
+        if(!holders[c].originKnown || fieldFloatOr(p, fields().vr_eshove_speed, 0.f) <= 0.f)
+        {
+            continue;
+        }
+        for(int h = 0; h < 2; h++)
+        {
+            if(holders[c].holds[h].active && holders[c].holds[h].ent == foe.ent)
+            {
+                carry += vec(p->v.origin) - holders[c].lastOrigin;
+                carriers++;
+                break;
+            }
+        }
+    }
+    if(carriers > 0)
+    {
+        carry.z = 0.f;
+        target += carry / static_cast<float>(carriers) * hold * (1.f - follow); // (the hands' follow below carries the rest)
+    }
+}
+
+// The hands that drag it, each printed as that changes.
+void markDragging(const Foe& foe, edict_t* m, int players, bool (&dragging)[MAX_SCOREBOARD][2])
+{
+    for(int c = 0; c < players; c++)
+    {
+        for(int h = 0; h < 2; h++)
+        {
+            Hold& g = holders[c].holds[h];
+            if(!g.active || g.ent != foe.ent)
+            {
+                continue;
+            }
+            const char* where = "";
+            dragging[c][h] = oneHandDrags(c, h, m, &where);
+            const int whereNow = dragging[c][h] ? 1 : 0;
+            if(debug() && whereNow != g.dragWhere)
+            {
+                Con_Printf("foegrab: the %s hand holds %s (%d) by %s: %s\n", handName(h), PR_GetString(m->v.classname),
+                    foe.ent, where, dragging[c][h] ? "drags it" : "doesn't drag it");
+            }
+            g.dragWhere = whereNow;
+        }
+    }
+}
+
+// It follows its dragging hands' own move.
+void followHands(const Foe& foe, int players, float hold, float follow, float dt, const bool (&dragging)[MAX_SCOREBOARD][2],
+    glm::vec3& target)
+{
+    glm::vec3 handMove{0.f};
+    int moving = 0;
+    for(int c = 0; c < players && follow > 0.f; c++)
+    {
+        const VrMove* move = server::clientMove(EDICT_NUM(c + 1));
+        for(int h = 0; h < 2 && move; h++)
+        {
+            const Hold& g = holders[c].holds[h];
+            if(!g.active || g.ent != foe.ent || qcvm->time - g.since < 1e-6 || !dragging[c][h])
+            {
+                continue;
+            }
+            glm::vec3 d = palmOf(EDICT_NUM(c + 1), *move, h) - g.lastPalm;
+            d.z = 0.f;
+            if(glm::length(d) < teleportStep)
+            {
+                handMove += d;
+                moving++;
+            }
+        }
+    }
+    if(moving > 0)
+    {
+        glm::vec3 step = handMove / static_cast<float>(moving) * (follow * hold);
+        const float most = followMaxSpeed * gestureQuick() * dt;
+        if(glm::length(step) > most)
+        {
+            step *= most / glm::length(step);
+        }
+        target += step;
+    }
+}
+
+// The hands pull their spots to them.
+void pullToHands(const Foe& foe, int players, float hold, float dt, const glm::vec3& cur,
+    const bool (&dragging)[MAX_SCOREBOARD][2], glm::vec3& target, glm::vec3& pull)
+{
+    int pulling = 0;
+    for(int c = 0; c < players; c++)
+    {
+        const VrMove* move = server::clientMove(EDICT_NUM(c + 1));
+        for(int h = 0; h < 2 && move; h++)
+        {
+            const Hold& g = holders[c].holds[h];
+            glm::vec3 at{0.f};
+            if(!g.active || g.ent != foe.ent || !dragging[c][h] || !spotNow(holders[c].holds[h], 0.f, at))
+            {
+                continue;
+            }
+            at += target - cur; // (where the slowing puts it)
+            pull += palmOf(EDICT_NUM(c + 1), *move, h) - at;
+            pulling++;
+        }
+    }
+    if(pulling > 0)
+    {
+        pull /= static_cast<float>(pulling);
+        pull.z = 0.f;
+        glm::vec3 step = pull * (1.f - za::exp(-za::max(0.f, vr_foegrab_drag.value) * hold * gestureQuick() * dt));
+        const float most = za::max(0.f, vr_foegrab_drag_speed.value) * gestureQuick() * dt;
+        if(glm::length(step) > most)
+        {
+            step *= most / glm::length(step);
+        }
+        target += step;
+    }
+}
+
+// The holders' places and palms remembered for the next frame.
+void rememberPalms(int players)
+{
+    for(int c = 0; c < players; c++)
+    {
+        edict_t* player = EDICT_NUM(c + 1);
+        holders[c].lastOrigin = vec(player->v.origin);
+        holders[c].originKnown = true;
+        const VrMove* move = server::clientMove(player);
+        for(int h = 0; h < 2 && move; h++)
+        {
+            if(holders[c].holds[h].active)
+            {
+                holders[c].holds[h].lastPalm = palmOf(player, *move, h);
+            }
+        }
+    }
+}
+} // namespace
+} // namespace foegrab::detail
+
+void qvr::foegrab::serverFrame()
+{
+    if(!sv.active)
+    {
+        return;
+    }
+    VR_ProfileBegin("foegrab");
+    const float dt = static_cast<float>(za::clamp(host_frametime, 0.0, 0.1));
+    walkTestStep(dt);
+    throwTraceStep();
+
+    const int players = za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD));
+    // Holds that can't go on: the monster dead, knocked down, gone; one that broke free (the QC's .vr_foegrab_letgo).
+    releaseBroken(players);
 
     for(int c = 0; c < players; c++)
     {
@@ -2495,117 +2710,17 @@ void qvr::foegrab::serverFrame()
         glm::vec3 target = last + glm::vec3{moved.x * keep, moved.y * keep, moved.z};
         // A player sliding from an enemy's shove (QC .vr_eshove_speed, a resisted one: vr_foegrab_shove 0) carries what he
         // holds along by the hold (the shove drags it with him rather than tearing it from his hand).
-        glm::vec3 carry{0.f};
-        int carriers = 0;
-        for(int c = 0; c < players; c++)
-        {
-            edict_t* p = EDICT_NUM(c + 1);
-            if(!holders[c].originKnown || fieldFloatOr(p, fields().vr_eshove_speed, 0.f) <= 0.f)
-            {
-                continue;
-            }
-            for(int h = 0; h < 2; h++)
-            {
-                if(holders[c].holds[h].active && holders[c].holds[h].ent == foe.ent)
-                {
-                    carry += vec(p->v.origin) - holders[c].lastOrigin;
-                    carriers++;
-                    break;
-                }
-            }
-        }
         const float follow = za::clamp(vr_foegrab_follow.value, 0.f, 1.f);
-        if(carriers > 0)
-        {
-            carry.z = 0.f;
-            target += carry / static_cast<float>(carriers) * hold * (1.f - follow); // (the hands' follow below carries the rest)
-        }
+        shoveCarry(foe, players, hold, follow, target);
         // The hands that drag it (oneHandDrags: one alone by its torso or shoulders only), each printed as that changes.
         bool dragging[MAX_SCOREBOARD][2]{};
-        for(int c = 0; c < players; c++)
-        {
-            for(int h = 0; h < 2; h++)
-            {
-                Hold& g = holders[c].holds[h];
-                if(!g.active || g.ent != foe.ent)
-                {
-                    continue;
-                }
-                const char* where = "";
-                dragging[c][h] = oneHandDrags(c, h, m, &where);
-                const int whereNow = dragging[c][h] ? 1 : 0;
-                if(debug() && whereNow != g.dragWhere)
-                {
-                    Con_Printf("foegrab: the %s hand holds %s (%d) by %s: %s\n", handName(h), PR_GetString(m->v.classname),
-                        foe.ent, where, dragging[c][h] ? "drags it" : "doesn't drag it");
-                }
-                g.dragWhere = whereNow;
-            }
-        }
+        markDragging(foe, m, players, dragging);
         // It follows its hands' own move since the last frame (flat; a step, a pull, the player walking off with it), by
         // vr_foegrab_follow times its hold: a grunt comes along, an ogre a little, a shambler hardly.
-        glm::vec3 handMove{0.f};
-        int moving = 0;
-        for(int c = 0; c < players && follow > 0.f; c++)
-        {
-            const VrMove* move = server::clientMove(EDICT_NUM(c + 1));
-            for(int h = 0; h < 2 && move; h++)
-            {
-                const Hold& g = holders[c].holds[h];
-                if(!g.active || g.ent != foe.ent || qcvm->time - g.since < 1e-6 || !dragging[c][h])
-                {
-                    continue;
-                }
-                glm::vec3 d = palmOf(EDICT_NUM(c + 1), *move, h) - g.lastPalm;
-                d.z = 0.f;
-                if(glm::length(d) < teleportStep)
-                {
-                    handMove += d;
-                    moving++;
-                }
-            }
-        }
-        if(moving > 0)
-        {
-            glm::vec3 step = handMove / static_cast<float>(moving) * (follow * hold);
-            const float most = followMaxSpeed * gestureQuick() * dt;
-            if(glm::length(step) > most)
-            {
-                step *= most / glm::length(step);
-            }
-            target += step;
-        }
+        followHands(foe, players, hold, follow, dt, dragging, target);
         // The hands pull their spots to them (flat): the mean of their stretches, eased by the hold.
         glm::vec3 pull{0.f};
-        int pulling = 0;
-        for(int c = 0; c < players; c++)
-        {
-            const VrMove* move = server::clientMove(EDICT_NUM(c + 1));
-            for(int h = 0; h < 2 && move; h++)
-            {
-                const Hold& g = holders[c].holds[h];
-                glm::vec3 at{0.f};
-                if(!g.active || g.ent != foe.ent || !dragging[c][h] || !spotNow(holders[c].holds[h], 0.f, at))
-                {
-                    continue;
-                }
-                at += target - cur; // (where the slowing puts it)
-                pull += palmOf(EDICT_NUM(c + 1), *move, h) - at;
-                pulling++;
-            }
-        }
-        if(pulling > 0)
-        {
-            pull /= static_cast<float>(pulling);
-            pull.z = 0.f;
-            glm::vec3 step = pull * (1.f - za::exp(-za::max(0.f, vr_foegrab_drag.value) * hold * gestureQuick() * dt));
-            const float most = za::max(0.f, vr_foegrab_drag_speed.value) * gestureQuick() * dt;
-            if(glm::length(step) > most)
-            {
-                step *= most / glm::length(step);
-            }
-            target += step;
-        }
+        pullToHands(foe, players, hold, dt, cur, dragging, target, pull);
         if(glm::length(glm::vec2{target - cur}) > 0.01f)
         {
             (void)moveFlat(m, target);
@@ -2627,20 +2742,7 @@ void qvr::foegrab::serverFrame()
         foe.lastYaw = m->v.angles[1];
         i++;
     }
-    for(int c = 0; c < players; c++)
-    {
-        edict_t* player = EDICT_NUM(c + 1);
-        holders[c].lastOrigin = vec(player->v.origin);
-        holders[c].originKnown = true;
-        const VrMove* move = server::clientMove(player);
-        for(int h = 0; h < 2 && move; h++)
-        {
-            if(holders[c].holds[h].active)
-            {
-                holders[c].holds[h].lastPalm = palmOf(player, *move, h);
-            }
-        }
-    }
+    rememberPalms(players);
     VR_ProfileEnd();
 }
 
