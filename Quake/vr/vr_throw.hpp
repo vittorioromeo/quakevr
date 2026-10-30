@@ -64,6 +64,33 @@ void sample(int hand, double time, const Motion& handMotion, const Motion& contr
 // between them, and the line's turn.
 [[nodiscard]] Estimate estimateBothAt(double releaseTime, const glm::vec3& centre);
 
+// The one throw: the estimate for the hands of `handMask` (bit h: hand h; HAND_OFF 0, HAND_MAIN 1) letting go at `at`.
+// Both hands: estimateBothAt (`centre`: the object's from the middle of the hands, metres); one: estimateAt.
+[[nodiscard]] Estimate release(int handMask, double at, const glm::vec3& centre = glm::vec3{0.f});
+
+// When `hand` let go, for its throw: the grip's own release time (releaseTime) if it is this release (not a key's, nor a
+// stale one: within 50 ms after to 250 ms before the newest sample), else the newest sample's.
+[[nodiscard]] double releaseAt(int hand);
+
+// What is thrown: each kind's limit on its velocity (kindCap). A hand-held prop or weapon has none here (its weight's,
+// weight::throwVelocity, and the QC's).
+enum class Kind
+{
+    Hand,       // a prop or a weapon let go
+    Flashlight, // the lamp let go: it flies home from where it goes (3 m/s at most)
+    Physgun,    // the toolgun's beam letting go (1000 u/s at most)
+};
+
+// `vel` (world units per second) limited to `kind`'s top speed.
+[[nodiscard]] glm::vec3 kindCap(Kind kind, const glm::vec3& vel);
+
+// The physgun's held point (one at a time): its samples (world units, units per second, on the drag's own clock) and its
+// throw, smoothed as a hand's (the peak in vr_throw_window, fitted over vr_throw_peak_span; not pitched, no flick).
+// pointReset when a drag starts.
+void pointReset();
+void pointSample(double time, const glm::vec3& pos, const glm::vec3& vel);
+[[nodiscard]] Estimate pointEstimate(double releaseTime);
+
 // Time of the newest sample (0 without any).
 [[nodiscard]] double latestTime(int hand);
 

@@ -11,7 +11,9 @@ ONLY = sys.argv[2:]
 def selected(section):
     return not ONLY or section in ONLY
 TREE = Path("C:/OHWorkspace/qvr-agents") / NAME
-KIT = Path("C:/OHWorkspace/qvr-kit")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = Path(qvrtest.KIT)
 BASH = "C:/Program Files/Git/bin/bash.exe"
 CFG = TREE / "quakevr/test_parryinterrupt.cfg"
 LOG = KIT / "bases" / NAME / ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else "")) / "qconsole.log"

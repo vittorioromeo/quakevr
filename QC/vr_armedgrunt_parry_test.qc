@@ -118,7 +118,10 @@ void() VR_AGPT2_End =
         remove(vr_agpt2_ogre);
         vr_agpt2_ogre = world;
     }
-    VR_AGPT2_Print(sprintf("%g passed, %g failed", vr_test_pass, vr_test_fail));
+    string tag = vr_test_tag;
+    vr_test_tag = "agparry"; // (its checks' prefix: VR_AGPT2_Check; agtest's again for its "test N over")
+    VR_Test_Verdict();
+    vr_test_tag = tag;
     p.flags = p.flags - (p.flags & FL_NOTARGET);
     cvar_set("vr_agrunt_test", "0");
 };

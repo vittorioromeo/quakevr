@@ -435,6 +435,12 @@ void PF_meleegripago()
 // particle2(origin, direction, preset, count): unreliable, like vanilla particle().
 void particle2Message(const float* org, const float* dir, int preset, int count)
 {
+    if(vr_debug_impacts.value)
+    {
+        Con_Printf("impfx p2 %d %d (%.1f %.1f %.1f) (%d %d %d)\n", preset, count, org[0], org[1], org[2],
+            CLAMP(-128, static_cast<int>(dir[0] * 16.f), 127), CLAMP(-128, static_cast<int>(dir[1] * 16.f), 127),
+            CLAMP(-128, static_cast<int>(dir[2] * 16.f), 127));
+    }
     if(sv.datagram.cursize > MAX_DATAGRAM - 24)
     {
         return;

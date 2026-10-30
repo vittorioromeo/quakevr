@@ -117,67 +117,17 @@ float(entity e) VR_Hit_Metal =
            e.classname == "trigger_multiple" || e.classname == "trigger_once" || e.classname == "trigger_secret";
 };
 
-// What a hit on metal sounds like (VR_Metal_Hit, VR_Melee_HitSoundOn): a shot's tink or ricochet, a blade's clang (the
-// axe's on a wall), a blunt blow's or a thrown thing's heavy metal knock (the physics sounds' metal_h, a 40 kg box's).
-float VR_METAL_SHOT = 0;
-float VR_METAL_BLADE = 1;
-float VR_METAL_BLUNT = 2;
+// ----------------------------------------------------------------------------
+// Hits: what a thing is made of, and the impact table's effects and sounds (Quake/vr/vr_impacts.cpp: one row a
+// material hit one way, keys in vr_impact_shared.h; design_review.md proposal 4, ROUND23.md "One impact-effect table").
+
 float vr_metal_soundtime; // a shot's ring once a frame (a shotgun's pellets, a nailgun's stream)
 float vr_metal_hits;      // metal hits' sparks sent, wood hits' splinters, AD's blood (ad_spawn_touchblood): tests count them
 float vr_splinters_sent;
+float vr_blood_sent;      // blood particles spawned (the small gibs' tests count them)
 float vr_ad_blood_sent;
 entity vr_ad_blood_watch; // a test's target: AD's blood on it counted in vr_ad_blood_watched
 float vr_ad_blood_watched;
-string(float xHow) VR_Metal_Sound =
-{
-    float r = random();
-    if(xHow == VR_METAL_SHOT)
-    {
-        return r < 0.7 ? "weapons/tink1.wav" : (r < 0.8 ? "weapons/ric1.wav" : (r < 0.9 ? "weapons/ric2.wav" : "weapons/ric3.wav"));
-    }
-    if(xHow == VR_METAL_BLADE)
-    {
-        return "player/axhit2.wav";
-    }
-    return r < 0.25 ? "vr/phys/metal_h1.wav" : (r < 0.5 ? "vr/phys/metal_h2.wav" : (r < 0.75 ? "vr/phys/metal_h3.wav" : "vr/phys/metal_h4.wav"));
-};
-
-// Sparks where a shot or a blow hits metal (`damage`: how much; `dir` their way), and, a shot's (VR_METAL_SHOT), its
-// ring at what it hit (`targ`); a blow's sound is the blow's own (VR_Melee_HitSoundOn). `developer` logs both.
-void(entity targ, vector org, vector dir, float damage, float xHow) VR_Metal_Hit =
-{
-    vr_metal_hits++;
-    particle2(org, dir, QVR_PARTICLE_PRESET_SPARKS, max(3, min(10, damage * 0.5)));
-    string s = "";
-    if(xHow == VR_METAL_SHOT && time > vr_metal_soundtime)
-    {
-        vr_metal_soundtime = time;
-        s = VR_Metal_Sound(xHow);
-        sound(targ, CHAN_AUTO, s, 0.8, ATTN_NORM);
-    }
-    dprint(sprintf("hit: %s is metal: sparks at %v%s%s\n", targ.classname, org, s != "" ? ", sound " : "", s));
-};
-
-// VR_Melee_HitSound (vr_melee.qc) for a blow on `xTarg`: on metal (an explosive box), a blade's (`xBlade`) clang or a
-// blunt blow's (a pommel, a gun's butt, a fist, a club) metal knock; else the blow's own `xSound`.
-string(entity xTarg, string xSound, float xBlade) VR_Melee_HitSoundOn =
-{
-    if(VR_Hit_Metal(xTarg))
-    {
-        float blade = xBlade && !vr_melee_blunt;
-        string s = VR_Metal_Sound(blade ? VR_METAL_BLADE : VR_METAL_BLUNT);
-        dprint(sprintf("melee sound: %s on metal (%s)\n", s, xTarg.classname));
-        return s;
-    }
-    return VR_Melee_HitSound(xSound);
-};
-
-// One of four recordings, at random (the physics sounds' sets: vr/phys/<material>_<weight>1..4).
-string(string a, string b, string c, string d) VR_Pick4 =
-{
-    float r = random();
-    return r < 0.25 ? a : (r < 0.5 ? b : (r < 0.75 ? c : d));
-};
 
 // Armour under a blow (a knight's mail, a death knight's plate, an enforcer's suit; their corpses keep it).
 float(entity e) VR_Hit_Armoured =
@@ -187,14 +137,80 @@ float(entity e) VR_Hit_Armoured =
            (e.vr_ad_mon & VR_ADM_ARMOUR); // AD support: AD's monsters in plate (vr_ad_monsters.qc)
 };
 
+// What `e` is made of, for its hits (VR_MAT_*): a wall torch, a grenade shots set off, metal (VR_Hit_Metal), wood
+// (VR_Crate_Wooden), flesh in armour (VR_Hit_Armoured), flesh: whatever else, the world too (the ladders bled on it;
+// their callers hand it none). (The five ladders asked in two orders; no thing is two of these.)
+float(entity e) VR_MaterialOf =
+{
+    if(VR_WallTorch_IsTorch(e)) { return VR_MAT_TORCH; } // (the identity survives being knocked off by the hit)
+    if(e.vr_shootnade) { return VR_MAT_GRENADE; }
+    if(VR_Hit_Metal(e)) { return VR_MAT_METAL; }
+    if(VR_Crate_Wooden(e)) { return VR_MAT_WOOD; }
+    if(VR_Hit_Armoured(e)) { return VR_MAT_ARMOUR; }
+    return VR_MAT_FLESH;
+};
+
+// Whether material `m` bleeds (flesh, armoured or not).
+float(float m) VR_Material_Fleshy =
+{
+    return m == VR_MAT_FLESH || m == VR_MAT_ARMOUR;
+};
+
+// A `xKind` (VR_HIT_*) hit's effect on `xTarg`, made of `m`, at `org`, going `dir`, `amount` hard: the table's row
+// (impact(): sparks off metal, splinters off wood, blood off flesh, a grenade's sparks, nothing off a torch), and a
+// shot's sound (a tink, now and then a ricochet, on metal), at most once a frame. Tests count what was sent
+// (vr_metal_hits, vr_splinters_sent, vr_blood_sent); `developer` logs metal and wood.
+void(float m, float xKind, entity xTarg, vector org, vector dir, float amount) VR_ImpactFx =
+{
+    impact(m, xKind, org, dir, amount);
+    string s = "";
+    if(time > vr_metal_soundtime)
+    {
+        s = impactsound(m, xKind, VR_IMPACT_SOUND);
+        if(s != "")
+        {
+            vr_metal_soundtime = time;
+            sound(xTarg, CHAN_AUTO, s, 0.8, ATTN_NORM);
+        }
+    }
+    if(m == VR_MAT_METAL && xKind != VR_HIT_SAW)
+    {
+        vr_metal_hits++;
+        dprint(sprintf("hit: %s is metal: sparks at %v%s%s\n", xTarg.classname, org, s != "" ? ", sound " : "", s));
+    }
+    else if(m == VR_MAT_WOOD)
+    {
+        vr_splinters_sent++;
+        dprint(sprintf("hit: %s is wood: splinters at %v\n", xTarg.classname, org));
+    }
+    else if(VR_Material_Fleshy(m))
+    {
+        vr_blood_sent++;
+    }
+};
+
+// VR_Melee_HitSound (vr_melee.qc) for a blow on `xTarg`: on metal (an explosive box), a blade's (`xBlade`) clang or a
+// blunt blow's (a pommel, a gun's butt, a fist, a club) metal knock; else the blow's own `xSound`.
+string(entity xTarg, string xSound, float xBlade) VR_Melee_HitSoundOn =
+{
+    if(VR_Hit_Metal(xTarg))
+    {
+        float blade = xBlade && !vr_melee_blunt;
+        string s = impactsound(VR_MAT_METAL, blade ? VR_HIT_BLADE : VR_HIT_BASH, VR_IMPACT_SOUND);
+        dprint(sprintf("melee sound: %s on metal (%s)\n", s, xTarg.classname));
+        return s;
+    }
+    return VR_Melee_HitSound(xSound);
+};
+
 // The second layer of a blunt blow (a fist, a gun's butt, a headbutt, a gib, a prop or a weapon struck or thrown into
-// something; the thud itself is fisthit.wav or a pommel's knock): of what the blow landed on, so that the thud sounds
-// of it and is never twice the same, played from `xFrom` on `xChan` (a hand's own channel: at the hand): a body (a
-// monster, a player, a corpse, a gib) a slap of flesh (vr/phys/flesh_m1..4), an armoured one (VR_Hit_Armoured) a light
-// metal knock (metal_l1..4) over a duller slap, wood (a crate, its pieces) a wooden knock (wood_m1..4), a wall or the
-// floor the hand's own knock (soft_m1..4). Metal (an explosive box, a door, a lift) has its own knock instead of the
-// thud already (VR_Melee_HitSoundOn): none. Each a little higher or lower (VR_SoundVaried); vr_snd_hit_layer loud (0
-// none). `developer` prints which.
+// something; the thud itself is fisthit.wav or a pommel's knock): of what the blow landed on (the table's layer for a
+// blow), so that the thud sounds of it and is never twice the same, played from `xFrom` on `xChan` (a hand's own
+// channel: at the hand): the world or what takes no damage the hand's own knock (soft_m1..4), wood a wooden knock
+// (wood_m1..4), a body (a monster, a player, a corpse, a gib; a torch, a grenade) a slap of flesh (flesh_m1..4), an
+// armoured one also a light metal knock over a duller slap. Metal (an explosive box, a door, a lift) has its own knock
+// instead of the thud already (VR_Melee_HitSoundOn): none. Each a little higher or lower (VR_SoundVaried);
+// vr_snd_hit_layer loud (0 none). `developer` prints which.
 void(entity xFrom, float xChan, entity xTarg) VR_Blunt_HitLayer =
 {
     float vol = min(1, cvar_hget(cvarh_vr_snd_hit_layer));
@@ -202,27 +218,10 @@ void(entity xFrom, float xChan, entity xTarg) VR_Blunt_HitLayer =
     {
         return;
     }
-    string s;
-    string s2 = "";
-    if(xTarg == world || (!xTarg.takedamage && !xTarg.vr_gib))
-    {
-        s = VR_Pick4("vr/phys/soft_m1.wav", "vr/phys/soft_m2.wav", "vr/phys/soft_m3.wav", "vr/phys/soft_m4.wav");
-        vol = vol * 0.6;
-    }
-    else if(VR_Crate_Wooden(xTarg))
-    {
-        s = VR_Pick4("vr/phys/wood_m1.wav", "vr/phys/wood_m2.wav", "vr/phys/wood_m3.wav", "vr/phys/wood_m4.wav");
-        vol = vol * 0.8;
-    }
-    else
-    {
-        s = VR_Pick4("vr/phys/flesh_m1.wav", "vr/phys/flesh_m2.wav", "vr/phys/flesh_m3.wav", "vr/phys/flesh_m4.wav");
-        vol = vol * 0.8;
-        if(VR_Hit_Armoured(xTarg))
-        {
-            s2 = VR_Pick4("vr/phys/metal_l1.wav", "vr/phys/metal_l2.wav", "vr/phys/metal_l3.wav", "vr/phys/metal_l4.wav");
-        }
-    }
+    float m = (xTarg == world || (!xTarg.takedamage && !xTarg.vr_gib)) ? VR_MAT_STONE : VR_MaterialOf(xTarg);
+    string s = impactsound(m, VR_HIT_BLOW, VR_IMPACT_LAYER);
+    string s2 = impactsound(m, VR_HIT_BLOW, VR_IMPACT_OVER);
+    vol = vol * (m == VR_MAT_STONE ? 0.6 : 0.8);
     if(s2 != "")
     {
         VR_SoundVaried(xFrom, xChan, s2, vol, ATTN_NORM);
@@ -232,44 +231,16 @@ void(entity xFrom, float xChan, entity xTarg) VR_Blunt_HitLayer =
     dprint(sprintf("blunt hit layer: %s%s%s on %s\n", s, s2 != "" ? " + " : "", s2, xTarg.classname));
 };
 
-// Splinters and a puff of dust where a shot or a blow hits wood (`damage`: how much).
-void(vector org, vector dir, float damage) VR_Crate_Splinters =
-{
-    vr_splinters_sent++;
-    particle2(org, dir, QVR_PARTICLE_PRESET_WOODDUST, max(2, min(8, damage * 0.5)));
-};
-
-void(vector org, vector vel, float damage) SpawnBlood;
-void(vector org, float damage) SpawnBloodSplash;
-
-// Where a blow or a shot hits `targ`: blood (SpawnBlood, `vel` its spray), or splinters if it is wood. Every melee path
-// goes through these (fists, held weapons and things, the crowbar, a torch, a bash, a headbutt, the chainsaw, the
+// The hit ladders, each now one material and one row (VR_ImpactFx). Every melee path goes through VR_HitBlood or
+// VR_HitBloodSplash (fists, held weapons and things, the crowbar, a torch, a bash, a headbutt, the chainsaw, the
 // grapple, the lightning gun), so a crate never bleeds (NOTES.md e1m1_2026-10-01_12-10-47). It may come after T_Damage:
 // a crate the blow broke is still wood (VR_Crate_Wooden).
-// A grenade shots set off (vr_grenade.qc): sparks, not blood.
-float(entity g) VR_GrenShot_Is;
-void(vector xAt) VR_GrenShot_Sparks;
 
+// Where a blow or a shot hits `targ`: blood (`vel` its spray: SpawnBlood's), splinters off wood, sparks off metal or a
+// grenade, nothing off a wall torch. (No armour's pass-through here: the other ladders' VR_AgArmor_HitFx.)
 void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
 {
-    if(VR_WallTorch_IsTorch(targ)) { return; }
-    if(targ.vr_shootnade)
-    {
-        VR_GrenShot_Sparks(org);
-        return;
-    }
-    if(VR_Hit_Metal(targ))
-    {
-        VR_Metal_Hit(targ, org, vel * 0.2, damage, VR_METAL_BLUNT);
-        return;
-    }
-    if(VR_Crate_Wooden(targ))
-    {
-        dprint(sprintf("hit: %s is wood: splinters at %v\n", targ.classname, org));
-        VR_Crate_Splinters(org, vel * 0.2, damage);
-        return;
-    }
-    SpawnBlood(org, vel, damage);
+    VR_ImpactFx(VR_MaterialOf(targ), VR_HIT_BLOW, targ, org, vel, damage);
 };
 
 // A shot's hit on `targ` (a projectile's: AD's projectile pellets, ad_Touch_Bullet) when it is no flesh: the effect the
@@ -278,51 +249,34 @@ void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
 // sparks; a wall torch: nothing. `dir`: the way the shot flew. (His beta4 pass, 2026-10-26: AD's pellets bled tanks.)
 float(entity targ, vector org, vector dir, float damage) VR_HitNonFlesh =
 {
-    if(VR_WallTorch_IsTorch(targ)) { return TRUE; }
-    if(targ.vr_shootnade)
+    float m = VR_MaterialOf(targ);
+    if(m == VR_MAT_TORCH || m == VR_MAT_GRENADE)
     {
-        VR_GrenShot_Sparks(org);
+        VR_ImpactFx(m, VR_HIT_PELLET, targ, org, dir, damage);
         return TRUE;
     }
     vector back = normalize(-dir) * 60 + [crandom() * 20, crandom() * 20, random() * 20];
-    if(VR_Hit_Metal(targ))
+    if(VR_Material_Fleshy(m))
     {
-        VR_Metal_Hit(targ, org, back, damage, VR_METAL_SHOT);
-        return TRUE;
+        return FALSE;
     }
-    if(VR_Crate_Wooden(targ))
-    {
-        VR_Crate_Splinters(org, back * 0.7, damage);
-        return TRUE;
-    }
-    return FALSE;
+    VR_ImpactFx(m, VR_HIT_PELLET, targ, org, back, damage);
+    return TRUE;
 };
 
-// The same, sprayed every way (SpawnBloodSplash).
+// The same, sprayed every way (SpawnBloodSplash). An armed humanoid's unbroken plate there: sparks, and blood only for
+// what it lets through (vr_agarmor.qc).
 void(entity targ, vector org, float damage) VR_HitBloodSplash =
 {
-    if(VR_WallTorch_IsTorch(targ)) { return; }
-    if(targ.vr_shootnade)
+    float m = VR_MaterialOf(targ);
+    float bleed = 1;
+    if(VR_Material_Fleshy(m))
     {
-        VR_GrenShot_Sparks(org);
-        return;
+        bleed = VR_AgArmor_HitFx(targ, org, '0 0 0', damage);
     }
-    if(VR_Hit_Metal(targ))
-    {
-        VR_Metal_Hit(targ, org, [crandom() * 60, crandom() * 60, random() * 40 + 30], damage, VR_METAL_BLUNT);
-        return;
-    }
-    if(VR_Crate_Wooden(targ))
-    {
-        dprint(sprintf("hit: %s is wood: splinters at %v\n", targ.classname, org));
-        VR_Crate_Splinters(org, [crandom() * 48, crandom() * 48, random() * 24 + 20], damage);
-        return;
-    }
-    // An armed humanoid's unbroken plate there: sparks, and blood only for what it lets through (vr_agarmor.qc).
-    float bleed = VR_AgArmor_HitFx(targ, org, '0 0 0', damage);
     if(bleed > 0)
     {
-        SpawnBloodSplash(org, damage * bleed);
+        VR_ImpactFx(m, VR_HIT_SPLASH, targ, org, '0 0 0', damage * bleed);
     }
 };
 
@@ -401,14 +355,14 @@ void(float xSpeed) VR_SolidProp_Impact =
                 other.classname, speed, xSpeed, dmg, self.vr_throw_2h ? 2 : 1, VR_Thrown_2hMult(self)));
             // (An explosive box thrown, or one struck: a metal knock.)
             float metal = VR_Prop_Metal(self) || VR_Prop_Metal(other);
-            VR_SoundVaried(self, CHAN_AUTO, metal ? VR_Metal_Sound(VR_METAL_BLUNT) : "fisthit.wav", 1, ATTN_NORM);
+            VR_SoundVaried(self, CHAN_AUTO, metal ? impactsound(VR_MAT_METAL, VR_HIT_BASH, VR_IMPACT_SOUND) : "fisthit.wav", 1, ATTN_NORM);
             if(!metal)
             {
                 VR_Blunt_HitLayer(self, CHAN_AUTO, other);
             }
             if(VR_Crate_Wooden(other))
             {
-                VR_Crate_Splinters(self.origin, self.velocity, dmg);
+                VR_ImpactFx(VR_MAT_WOOD, VR_HIT_BASH, other, self.origin, self.velocity, dmg); // (along its flight)
             }
             else
             {
@@ -484,7 +438,7 @@ void(entity xBox) VR_Crate_SlamFrame =
     }
     dprint(sprintf("slam: %s swung down at %.1f m/s onto %s: %.1f damage to it, broken\n", xBox.model, speed,
         struck == world ? "the level" : struck.classname, dmg));
-    VR_SoundVaried(xBox, CHAN_AUTO, VR_Prop_Metal(struck) ? VR_Metal_Sound(VR_METAL_BLUNT) : "fisthit.wav", 1, ATTN_NORM);
+    VR_SoundVaried(xBox, CHAN_AUTO, VR_Prop_Metal(struck) ? impactsound(VR_MAT_METAL, VR_HIT_BASH, VR_IMPACT_SOUND) : "fisthit.wav", 1, ATTN_NORM);
     entity crate = xBox;
     if(dmg > 0)
     {

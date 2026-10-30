@@ -28,7 +28,9 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from obs_mock_server import MockObs  # noqa: E402
 
-KIT = "C:/OHWorkspace/qvr-kit"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = qvrtest.KIT
 BASH = "C:/Program Files/Git/bin/bash.exe" if os.path.isfile("C:/Program Files/Git/bin/bash.exe") else "bash"
 PRESS = ["vr_mock_button main trigger 1", "wait3", "vr_mock_button main trigger 0", "wait3"]
 

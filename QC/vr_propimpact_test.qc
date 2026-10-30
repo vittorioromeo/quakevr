@@ -457,8 +457,6 @@ float vr_propimp_ft_phase;  // 0 make, 1 settle, 2 in flight
 float vr_propimp_ft_frames;
 float vr_propimp_ft_h0;     // the monster's health before the throw
 float vr_propimp_ft_bursts; // tanks burst before the throw
-float vr_propimp_ft_pass;
-float vr_propimp_ft_fail;
 float vr_propimp_ft_tankdmg; // this pair's tank damage (-1: no hit)
 float vr_propimp_ft_tankok;  // and whether it stayed whole
 entity vr_propimp_ft_mon;
@@ -598,7 +596,7 @@ void() VR_PropImp_FtStep =
             float ok = vr_propimp_ft_tankdmg > 0 && vr_propimp_ft_tankok && (dmg <= 0 || (ratio >= 0.3 && ratio <= 3));
             bprint(sprintf("fueltankhit: %s at %g m/s: tank %.1f, crate %.1f (x%.2f%s): %s\n", ogre ? "ogre" : "grunt", speed,
                 vr_propimp_ft_tankdmg, dmg, ratio, dmg > 0 ? "" : ", the crate missed", ok ? "passed" : "FAILED"));
-            if(ok) { vr_propimp_ft_pass++; } else { vr_propimp_ft_fail++; }
+            VR_Test_Count(ok);
         }
         vr_propimp_ft_phase = 3;
     }
@@ -610,7 +608,7 @@ void() VR_PropImp_FtStep =
     {
         vr_propimp_ft_on = FALSE;
         cvar_set("vr_adgun_tank_rope", ftos(vr_propimp_ft_rope));
-        bprint(sprintf("fueltankhit: %g passed, %g failed\n", vr_propimp_ft_pass, vr_propimp_ft_fail));
+        VR_Test_Verdict();
     }
 };
 
@@ -640,8 +638,6 @@ float vr_propimp_fh_first;    // the frame of the first (-1: none yet)
 float vr_propimp_fh_spared0;  // vr_flailhead_spared before the case
 float vr_propimp_fh_headdmg;  // this speed's head damage and hits (cases 0-5)
 float vr_propimp_fh_headhits;
-float vr_propimp_fh_pass;
-float vr_propimp_fh_fail;
 float vr_propimp_fh_chain;    // vr_flail_chain before
 float vr_propimp_fh_health;   // your health before
 entity vr_propimp_fh_mon;
@@ -754,7 +750,7 @@ void() VR_PropImp_FhStep =
         if(!crate && (w == world || t == world))
         {
             bprint(sprintf("flailhead_hit: case %g: no flail or head made (AD mounted?)\n", c));
-            vr_propimp_fh_fail++;
+            vr_test_fail++;
             vr_propimp_fh_phase = 3;
             return;
         }
@@ -792,7 +788,7 @@ void() VR_PropImp_FhStep =
         if(t == world)
         {
             bprint(sprintf("flailhead_hit: case %g: no head made again\n", c));
-            vr_propimp_fh_fail++;
+            vr_test_fail++;
             vr_propimp_fh_phase = 3;
             return;
         }
@@ -875,7 +871,7 @@ void() VR_PropImp_FhStep =
             {
                 bprint(sprintf("flailhead_hit: case %g: %s\n", c, ok ? "passed" : "FAILED"));
             }
-            if(ok) { vr_propimp_fh_pass++; } else { vr_propimp_fh_fail++; }
+            VR_Test_Count(ok);
         }
         vr_propimp_fh_phase = 3;
     }
@@ -891,7 +887,7 @@ void() VR_PropImp_FhStep =
     {
         vr_propimp_fh_on = FALSE;
         cvar_set("vr_flail_chain", ftos(vr_propimp_fh_chain));
-        bprint(sprintf("flailhead_hit: %g passed, %g failed\n", vr_propimp_fh_pass, vr_propimp_fh_fail));
+        VR_Test_Verdict();
     }
 };
 
@@ -970,8 +966,7 @@ void() VR_PropImp_TestFrame =
         vr_propimp_ft_on = TRUE;
         vr_propimp_ft_case = 0;
         vr_propimp_ft_phase = 0;
-        vr_propimp_ft_pass = 0;
-        vr_propimp_ft_fail = 0;
+        VR_Test_BeginFlags("fueltankhit", VR_TEST_LOUD);
         if(!vr_propimp_ft_at)
         {
             vr_propimp_ft_at = spawn();
@@ -988,8 +983,7 @@ void() VR_PropImp_TestFrame =
         vr_propimp_fh_on = TRUE;
         vr_propimp_fh_case = 0;
         vr_propimp_fh_phase = 0;
-        vr_propimp_fh_pass = 0;
-        vr_propimp_fh_fail = 0;
+        VR_Test_BeginFlags("flailhead_hit", VR_TEST_LOUD);
         if(!vr_propimp_fh_at)
         {
             vr_propimp_fh_at = spawn();

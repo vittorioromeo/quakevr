@@ -1095,10 +1095,20 @@ za::Vector<Item> pageDebugTests()
             .help("vr_gunfx_test <weapon id> [count]: a shot's gunfire particles 48 units ahead of you (4 the shotgun)."),
         command("Gunfire Particles: Rocket", "vr_gunfx_test 10").help("vr_gunfx_test 10: the rocket launcher's, with its backblast."),
         command("Gunfire Particles: Thunderbolt", "vr_gunfx_test 11").help("vr_gunfx_test 11: the energy guns' arcs (no smoke)."),
+        command("Nearest Monster Fires a Rocket Tube", "vr_gunfx_monster_test 1")
+            .help("vr_gunfx_monster_test [rocket]: the nearest grunt, enforcer or AD soldier fires its own gun's effects (1: "
+                  "as a rocket tube, AD's rocket soldier's: flash, smoke, backblast out of the gun's back). Nothing else happens."),
         command("Impact Where You Look: Bullet", "vr_impact_test 0 3")
             .help("vr_impact_test <0 bullet, 1 nail, 2 super nail, 3 bolt> [count]: what that hit throws up off the surface "
                   "you look at, by its material (vr_impacts.cpp)."),
         command("Impact Where You Look: Bolt Haze", "vr_impact_test 3 8").help("vr_impact_test 3 8: the thunderbolt's ozone haze."),
+        toggle("Print Impact Effects", vr_debug_impacts)
+            .help("vr_debug_impacts: every particle2 message and QC sound the server sends (\"impfx p2 <preset> <count> "
+                  "...\", \"impfx snd ...\"): the hit ladders' output (vr_impacts.cpp)."),
+        command("Every Hit Ladder on Every Material", "vr_impact_qc_test 1")
+            .help("vr_impact_qc_test 1: a bullet, a nail, a blow, a projectile pellet, a splash and a blunt blow's sounds "
+                  "on the world, wood, metal, flesh, armour, a torch and a grenade, in a row ahead of you, each printed "
+                  "(vr_impacts_test.qc)."),
         toggle("Print Gunfire Particles", vr_debug_gunfx)
             .help("vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\")."),
         command("Per-Weapon Recoil Test", "vr_recoil_test")

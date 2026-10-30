@@ -37,6 +37,7 @@
 #include "vr_collectfx.hpp"
 #include "vr_server.hpp"
 #include "vr_shock.hpp"
+#include "vr_impacts.hpp"
 #include "vr_stealth.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_twohand.hpp"
@@ -958,6 +959,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"meleegripago", PF_meleegripago},
     {"meleearc", PF_meleearc},
     {"weaponheft", PF_weaponheft},
+    {"impact", impacts::PF_impact},
+    {"impactsound", impacts::PF_impactsound},
 };
 
 static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200,

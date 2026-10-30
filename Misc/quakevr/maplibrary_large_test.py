@@ -29,7 +29,9 @@ import threading
 import time
 import zipfile
 
-KIT = "C:/OHWorkspace/qvr-kit"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = qvrtest.KIT
 PORT = 8766
 INDEX_URL = "https://www.quaddicted.com/api/v1/"  # the default vr_maps_index_url: the cache is read, nothing fetched
 MB = 1024 * 1024

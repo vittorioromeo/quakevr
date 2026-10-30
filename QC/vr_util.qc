@@ -318,15 +318,21 @@ inline float(entity e, float xHand) VRIsHandWeaponless =
     return VR_IMPL_SELECT(xHand, e.weapon2, e.weapon) == WID_FIST;
 }
 
-// Whether `xHand` is empty: no weapon, and carrying nothing (a box, a gib, a torch, a grenade: .mainhand_held,
-// .offhand_held). What may take something, grip a hotspot or steady the other hand's weapon.
+// The hand slot (vr_fields.qc): the thing `xHand` holds besides its weapon (world: none), and its kind (VR_HOLD_*).
+// (Macros: a select, no call.)
+#define VR_Hand_Thing(e, xHand) ((xHand) == cVR_OffHand ? (e).offhand_held : (e).mainhand_held)
+#define VR_Hand_Kind(e, xHand) ((xHand) == cVR_OffHand ? (e).vr_hold_kind_off : (e).vr_hold_kind_main)
+
+// The slot's only writers (vr_carry.qc).
+void(entity xPlayer, float xHand, entity xThing) VR_Hand_Take;
+void(entity xPlayer, float xHand, string xWhy) VR_Hand_Release;
+void(entity xPlayer, entity xThing, string xWhy) VR_Hand_ReleaseThing;
+
+// Whether `xHand` is empty: no weapon, and its slot holds nothing (a box, a gib, a torch, a grenade, a round). What may
+// take something, grip a hotspot or steady the other hand's weapon.
 float(entity e, float xHand) VRIsHandEmpty =
 {
-    if(VR_IMPL_SELECT(xHand, e.weapon2, e.weapon) != WID_FIST)
-    {
-        return FALSE;
-    }
-    return (xHand == cVR_OffHand ? e.offhand_held : e.mainhand_held) == world;
+    return VRIsHandWeaponless(e, xHand) && VR_Hand_Thing(e, xHand) == world;
 }
 
 // Whether `xHand` carries a gun by its foregrip (the hand-off).

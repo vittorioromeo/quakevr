@@ -193,7 +193,7 @@ void() forcegrabbable_touch =
         // hit something that bleeds
         if(GetThrownWeaponDealDamage(self) && other.takedamage)
         {
-            VR_SoundVaried(self, CHAN_AUTO, VR_Hit_Metal(other) ? VR_Metal_Sound(VR_METAL_BLADE) : "fisthit.wav", 1, ATTN_NORM); // (an explosive box: a clang)
+            VR_SoundVaried(self, CHAN_AUTO, VR_Hit_Metal(other) ? impactsound(VR_MAT_METAL, VR_HIT_BLADE, VR_IMPACT_SOUND) : "fisthit.wav", 1, ATTN_NORM); // (an explosive box: a clang)
             VR_Blunt_HitLayer(self, CHAN_AUTO, other);
 
             // Where it struck, and going which way (not the trace globals, stale in a touch).
@@ -492,9 +492,7 @@ void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHaptic =
         // replaces the one playing), so it is felt as one buzz dying away. (It was a faint 0.2
         // amplitude, hard to tell.)
         float t = max(0.05, cvar_hget(cvarh_vr_holster_haptic_time));
-        haptic(xHand, 0.0, t * 0.45, 80, 0.65);
-        haptic(xHand, t * 0.4, t * 0.35, 80, 0.4);
-        haptic(xHand, t * 0.7, t * 0.3, 80, 0.2);
+        VR_Haptic_HolsterHover(xHand);
         dprint("holster haptic: hand "); dprint(ftos(xHand)); dprint(", holster "); dprint(ftos(xHolster));
         dprint(", "); dprint(ftos(rint(t * 1000))); dprint(" ms\n");
     }

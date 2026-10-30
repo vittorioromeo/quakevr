@@ -35,7 +35,7 @@ void() MG3_T_Caps = {
     dprint(sprintf("mg3test: healed %g mega %g\n", healed, p.health));
     VR_Test_Check(healed == mh, "ordinary healing stops at the capacity");
     VR_Test_Check(p.health == mega, "megahealth stops at the mega cap");
-    dprint(sprintf("mg3test: caps %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("caps");
 };
 float(string c) MG3_T_IsUpgrade = {
     return c == "item_upgrade_health" || c == "item_upgrade_shells" || c == "item_upgrade_nails" || c == "item_upgrade_rockets"
@@ -81,7 +81,7 @@ void() MG3_T_Collect = {
     if(kinds & 4) VR_Test_Check(VR_MaxAmmo(p, AID_NAILS) == n0 + (hadN ? 0 : 10) && p.ammo_nails == (hadN ? 0 : VR_MaxAmmo(p, AID_NAILS)), "nails +10 once, filled");
     if(kinds & 8) VR_Test_Check(VR_MaxAmmo(p, AID_ROCKETS) == r0 + (hadR ? 0 : 10) && p.ammo_rockets == (hadR ? 0 : VR_MaxAmmo(p, AID_ROCKETS)), "rockets +10 once, filled");
     if(kinds & 16) VR_Test_Check(VR_MaxAmmo(p, AID_CELLS) == c0 + (hadC ? 0 : 10) && p.ammo_cells == (hadC ? 0 : VR_MaxAmmo(p, AID_CELLS)), "cells +10 once, filled");
-    dprint(sprintf("mg3test: upgrades %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("upgrades");
 };
 // ----------------------------------------------------------------------------
 // M3-05 map triggers (any campaign). Request 6: this map's silent teleports (each from its middle: moved by its
@@ -111,7 +111,7 @@ void() MG3_T_TriggersLate = {
     VR_Test_Check(!find(world, classname, "mg3tt_repeater") && MG3_explosion_blasts - MG3_T_blasts0 == 3, "explosion repeater: count 3 blasts, then gone");
     VR_Test_Check(p.super_damage_finished <= time, "the quad of trigger_quad ends after leaving it");
     p.flags = p.flags - (p.flags & FL_GODMODE); p.health = MG3_T_health0;
-    dprint(sprintf("mg3test: triggers %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("triggers");
     remove(self);
 };
 void() MG3_T_Triggers = {
@@ -221,7 +221,7 @@ void() MG3_T_RepeatersLate = {
     VR_Test_Check(MG3_T_reps > 0 && done + fired == MG3_T_reps, "every repeater fired");
     VR_Test_Check(MG3_T_repcount == 0 || MG3_explosion_blasts - MG3_T_blasts0 >= MG3_T_repcount, "counted repeaters blasted their counts");
     MG3_T_player.flags = MG3_T_player.flags - (MG3_T_player.flags & FL_GODMODE);
-    dprint(sprintf("mg3test: repeaters %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("repeaters");
     remove(self);
 };
 void() MG3_T_Repeaters = {
@@ -261,7 +261,7 @@ void() MG3_T_KeysLate = {
     }
     if(MG3_T_lore) VR_Test_Check(p.MG3_lore_clear == 0, "the lore text is cleared after the dwell");
     p.flags = p.flags - (p.flags & FL_GODMODE); p.health = MG3_T_health0;
-    dprint(sprintf("mg3test: keys %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("keys");
     remove(self);
 };
 void() MG3_T_Keys = {
@@ -431,7 +431,7 @@ void() MG3_T_Items = {
         VR_Test_Check(first.model != string_null && first.solid == SOLID_TRIGGER, "a trigger-brought item appears when used");
     }
     p.health = 100;
-    dprint(sprintf("mg3test: items %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("items");
 };
 // ----------------------------------------------------------------------------
 // M3-08 runes and hub (developer campaign). Request 10: brings out a hidden rune (map8's) and takes every rune here
@@ -453,7 +453,7 @@ void() MG3_T_Runes = {
         e = find(e, classname, "item_sigil");
     }
     dprint(sprintf("mg3test: %g runes taken: serverflags %g -> %g (runes %g)\n", n, sf, serverflags, MG3_RuneCount()));
-    dprint(sprintf("mg3test: runes %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("runes");
 };
 float(string door) MG3_T_DoorOpen = {
     float open = 0, all = 0;
@@ -469,7 +469,7 @@ void() MG3_T_HubLate = {
     dprint(sprintf("mg3test: hub with serverflags %g (%g runes): rune doors %g %g %g %g, exit %g\n", serverflags, MG3_RuneCount(), r1, r2, r3, r4, ex));
     VR_Test_Check(r1 == !!(serverflags & 1) && r2 == !!(serverflags & 2) && r3 == !!(serverflags & 4) && r4 == !!(serverflags & 8), "each rune's doors open with that rune only");
     VR_Test_Check(ex == (MG3_RuneCount() == 4), "the exit opens with all four runes only");
-    dprint(sprintf("mg3test: hub %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("hub");
     remove(self);
 };
 void() MG3_T_Hub = {
@@ -515,7 +515,7 @@ void() MG3_T_SkillButtons = {
     VR_Test_Check(!(serverflags & MG3_SF_BN_ACTIVE) && (serverflags & MG3_SF_BN_DISCOVERED) && cvar("skill") == 1, "skill 1: Bloody Nightmare off, skill 1");
     MG3_T_Skill("4");
     VR_Test_Check((serverflags & MG3_SF_BN_ACTIVE) && cvar("skill") == 3, "skill 4 again: on");
-    dprint(sprintf("mg3test: skill %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("skill");
 };
 void(entity p, float slot, float wid) MG3_T_Holster = {
     entity wi = WeaponInst_Carried(wid, 1, 0);
@@ -546,7 +546,7 @@ void() MG3_T_CheckLoadout = {
     VR_Test_Check(p.holsterweapon0 == ssg && p.holsterweapon1 == WID_FIST && p.holsterweapon2 == WID_AXE && p.holsterweapon3 == WID_FIST
         && p.holsterweapon4 == WID_SHOTGUN && p.holsterweapon5 == WID_MJOLNIR, "holsters: guns and sword gone, the axe back in its holster, shotgun and Super Axe kept");
     VR_Test_Check((p.items & IT_ARMOR2) && p.armorvalue == 120 && p.ammo_nails == 50 && p.ammo_rockets == 10, "armour and ammunition kept");
-    dprint(sprintf("mg3test: strip %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("strip");
 };
 void() MG3_T_BNDamage = {
     entity p = VR_Player(); if(!p) return;
@@ -561,7 +561,7 @@ void() MG3_T_BNDamage = {
     float bn = !!(serverflags & MG3_SF_BN_ACTIVE);
     dprint(sprintf("mg3test: Bloody Nightmare %g: 50 on a %s deals %g; 10 from it takes %g\n", bn, m.classname, dealt, taken));
     VR_Test_Check(dealt == (bn ? 40 : 50) && taken == (bn ? 12 : 10), "Bloody Nightmare: 80% dealt, 120% taken (else 100%)");
-    dprint(sprintf("mg3test: damage %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("damage");
 };
 // ----------------------------------------------------------------------------
 // M3-29 full-campaign route sweep (Misc/quakevr/mg3_route_test.py writes the private step scripts mg3route<N>.cfg;

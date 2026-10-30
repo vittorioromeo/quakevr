@@ -62,17 +62,8 @@ void() VR_STT2_End =
 // A monster of the dispenser's kind at `at` facing `yaw` (world: not installed).
 entity(vector at, float yaw, float xKind) VR_STT2_Spawn =
 {
-    entity os = self;
-    entity disp = spawn();
-    disp.weapon = xKind;
-    setorigin(disp, at);
-    self = disp;
-    activator = world;
-    func_enemy_dispenser_use();
-    entity e = self;
-    self = os;
-    remove(disp);
-    if(e == disp)
+    entity e = VR_Test_Spawn(world, xKind, at, -1);
+    if(!e)
     {
         return world;
     }

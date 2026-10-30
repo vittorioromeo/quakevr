@@ -1592,10 +1592,22 @@ QVR_CVAR(vr_gunfx_smoke, "1", CVAR_ARCHIVE)            // a cone of smoke billow
 QVR_CVAR(vr_gunfx_port, "1", CVAR_ARCHIVE)             // a small quick puff out of a shotgun's ejection port (the super shotgun's open breech)
 QVR_CVAR(vr_gunfx_backblast, "1", CVAR_ARCHIVE)        // a rocket launcher's backblast smoke behind it, and dust off the floor under it
 QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sustained fire (the nailguns'): wisps of smoke off the muzzle, a faint glow
+// Muzzle wisps (vr_muzzlewisps.cpp): thin soft lines of smoke trailing off your guns' barrels after you stop firing.
+QVR_CVAR(vr_gunfx_wisps, "1", CVAR_ARCHIVE)            // 0: none
+QVR_CVAR(vr_gunfx_wisp_delay, "0.25", CVAR_ARCHIVE)    // seconds after the last shot they start (0-3)
+QVR_CVAR(vr_gunfx_wisp_time, "4", CVAR_ARCHIVE)        // seconds a barrel keeps smoking after that, full (fewer shots: down to 0.4 of it; 0-30)
+QVR_CVAR(vr_gunfx_wisp_fade, "2.2", CVAR_ARCHIVE)      // seconds the smoke let go lasts, rising and fading (0.2-4: the trail's length)
+QVR_CVAR(vr_gunfx_wisp_width, "0.6", CVAR_ARCHIVE)     // cm thick at the muzzle (0.05-20)
+QVR_CVAR(vr_gunfx_wisp_spread, "3", CVAR_ARCHIVE)      // times thicker (and fainter) when it fades (1-10)
+QVR_CVAR(vr_gunfx_wisp_amount, "1", CVAR_ARCHIVE)      // their opacity, times (0-4)
+QVR_CVAR(vr_gunfx_wisp_rise, "22", CVAR_ARCHIVE)       // cm a second the smoke rises (0-200; vr_gunfx_turbulence curls it)
+QVR_CVAR(vr_gunfx_wisp_pixels, "1.5", CVAR_ARCHIVE)    // the thinnest they are drawn, in pixels (fainter instead: no shimmer far off; 0.5-8)
 QVR_CVAR(vr_gunfx_impacts, "1", CVAR_ARCHIVE)          // bullets' and nails' wall hits by the surface's material (vr_impacts.cpp): dust off stone, sparks off metal, chips off wood
 QVR_CVAR(vr_gunfx_ozone, "1", CVAR_ARCHIVE)            // a faint bluish ozone haze where the thunderbolt's beam plays on a surface
 QVR_CVAR(vr_gunfx_enemies, "1", CVAR_ARCHIVE)          // the monsters' guns too (the grunts', the enforcers', the armed grunts')
 QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire particles ("gunfx shot ...", "gunfx port ...")
+QVR_CVAR(vr_debug_impacts, "0", CVAR_NONE)             // 1: every particle2 message and QC sound the server sends ("impfx p2 ...", "impfx snd ...": the impact table's output, vr_impacts.cpp)
+QVR_CVAR(vr_impact_qc_test, "0", CVAR_NONE)            // the QC runs every hit ladder on every material once (vr_impacts_test.qc; Debug > Tests)
 QVR_CVAR(vr_debug_weaponfx, "0", CVAR_NONE)            // 1: each shot's effects ("weaponfx fired/tracer"); 2: and the recoil each frame ("weaponfx recoil"); 3: as 1, and the eyes' view of the next grunt's flash (vr_eyeshot, once)
 QVR_CVAR(vr_body_arm_length, "1", CVAR_ARCHIVE)      // arm length, relative to the proportions of vr_height_calibration
 QVR_CVAR(vr_body_arm_stretch, "1.2", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
