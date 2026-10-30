@@ -1648,6 +1648,44 @@ shotgun's and the nailgun's two), following the muzzles, lasting a few seconds, 
   `scratch/ab_wisps.sh`, `ab_out.txt`): combat_48 cpu 2.544 -> 2.525 ms, gpu 3D 3.200 -> 3.220 (means);
   play_gore_fight (super nailgun) cpu 2.576 -> 2.439, gpu 2.471 -> 2.476: within noise.
 
+### Gunfire VFX settings; the wisps' creases (branch `agent/gunfxopts`)
+
+His asks: more options for the new gunfire effects (wisps' opacity; sparks' amount, size, speed; muzzle smoke's size,
+speed, directionality, thickness, opacity), per-weapon multipliers, and the wisps' creases on a quick swing.
+
+- **Settings** (Weapons > Weapon Effects > Gunfire Particles; all 1 by default: today's look, by construction: the
+  same counts, sizes and random draws): Spark Amount `vr_gunfx_spark_amount` (0-4), Spark Size `vr_gunfx_spark_size`,
+  Spark Speed `vr_gunfx_spark_speed` (0.25-4); Smoke Amount `vr_gunfx_smoke_amount` (the muzzle cone's puffs: its
+  thickness, 0-4), Smoke Size `vr_gunfx_smoke_size` (size and growth), Smoke Speed `vr_gunfx_smoke_speed` (its reach),
+  Smoke Directionality `vr_gunfx_smoke_direction` (1 the forward cone, 0 every way: each puff's way mixed from a random
+  one towards the cone's), Smoke Opacity `vr_gunfx_smoke_alpha` (0-3); Wisp Max Opacity `vr_gunfx_wisp_opacity` (a cap,
+  0.02-1; Wisp Amount scales them). The muzzle's sparks and frontal cone only (not the ports, backblast, vents, impacts,
+  the energy guns' arcs). Read once a shot in emit (vr_gunfx.cpp `tuneFor`), nothing allocated.
+- **Per weapon** (Weapon Offsets > Effects, after Stream Rumble; vr_weapons.inc keys, 1 by default): Gunfire Spark
+  Amount `fx_gfx_sparks`, Spark Size `fx_gfx_spark_size`, Smoke Amount `fx_gfx_smoke`, Smoke Size `fx_gfx_smoke_size`,
+  Muzzle Wisp Opacity `fx_gfx_wisps` (0: no wisps at all), each times the global one. Your shots use the hand's slot; a
+  monster's the slot of its gun's model, else of its weapon id's view model (`slotOf`).
+- **Creases**: a quick swing folds the wisp's ribbon over itself (the hairpins at each turn, the legs on top of each
+  other just after), and the overlapping fragments blended twice: denser knots and lines. Now each pixel is drawn
+  once: `gfx::State::once` (vr_gfx_gl.cpp drawVertices) marks the drawn pixels in the stencil's top bit 0x80 (taken from
+  the particles' reverse-order marks: `underStencilBits` 0x7c, 31 generations) and draws Shade::SoftEdge in four bands
+  of its edge falloff, the cores first, so a pixel takes about its strongest fragment (a plain stencil let the first
+  fragment win: an old leg's faint fringe cut a gap through a new leg's core); the same vertices again (colour masked)
+  clear the marks. One upload, 5 rasterisations of the thin strips, only while wisps show. `vr_debug_ribbon_overlap 1`
+  (Debug > Tests: Wisps Overlap Again) blends them twice again, to compare. Eyeshots (kit `scratch/gunfx/`, the mock
+  hand swung +-30 degrees twice in 33 frames): `crease_swing_0s_before_after.png`, `crease_swing_0.55s_before_after.png`,
+  zooms `crease_hairpin_zoom_before_after.png` (the knot at the turn gone) and `crease_swingend_zoom_before_after.png`
+  (the doubled legs one density, their soft edges kept). Made by the tree's `scratch/swing2.sh`, `compose.sh`
+  (`crop.py`: PNG crop/diff without PIL).
+- **Defaults**: eyeshots of a shotgun's vr_gunfx_test shot and a still gun's wisp, origin/next vs this branch: mean
+  pixel difference 0.21 / 0.13, the same as two runs of one build (0.21 / 0.16: the particles' random draws differ
+  run to run); `defaults_shot_before_after.png`.
+- **Tests**: gunfx_test.py 43/43 (new `--only slots` 6/6: the shotgun's slot at 0 no sparks or smoke, at 2 twice the
+  counts (20/28 vs 10/14), the global 0.5 times the slot's 2 as at 1, your fired shotgun at 0 no sparks, smoke, wisps).
+- **Not done**: the A/B bench (his game was running: exclusive runs wait); the ribbon pass costs 4 more rasterisations
+  of the wisps' thin strips while they show (none in combat_48 unless you fire), the particles' reverse-order pass
+  clears its stencil marks every 31 draws instead of 63.
+
 ## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
 
 His words: a slide that moves with each shot, locks open on an empty magazine, closes by itself with a sound when a

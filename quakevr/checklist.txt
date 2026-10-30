@@ -97,6 +97,9 @@ Fire the shotgun, then the super shotgun, then a nailgun burst, and stop: thin f
 Rocket launcher: after a shot, light smoke comes out of the vents in the back of its head, toward you.
 AD: a rocket soldier's shot flashes and smokes, with backblast out of the back of its gun.
 Settings tiers: the Combat, Weapons and Carrying menus are much slimmer (about 1,000 tuning rows became fixed constants); every value you had changed is unchanged (review list: qvr-kit scratch/refactor/tiers.md).
+Swing a fired shotgun or nailgun quickly left-right: the wisps show no brighter knots or lines at the turns or where they cross (compare: Debug > Tests > Wisps Overlap Again).
+Weapon Effects > Gunfire Particles: each new spark and smoke slider visibly changes a shotgun shot; Smoke Directionality 0 bursts every way; Wisp Max Opacity 0.1 thins the wisps.
+Weapon Offsets > Effects on the shotgun: Gunfire Spark/Smoke Amount 0 gives no sparks or smoke, 2 about twice as many; Muzzle Wisp Opacity 0 gives no wisps; other weapons unchanged.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
