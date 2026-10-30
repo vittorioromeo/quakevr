@@ -1112,30 +1112,16 @@ entity(float xWant, float xIndex) VR_ARENA_SpawnSpot =
 }
 
 // A ring around the player, for a map with no info_arena_spawn / info_arena_item of its own.
-vector(float i) VR_ARENA_RingDir =
-{
-    float k = VR_ARENA_Mod(i, AR_RING_MAX);
-    if(k == 0) { return '1 0 0'; }
-    if(k == 1) { return '-0.5 0.87 0'; }
-    if(k == 2) { return '-1 0 0'; }
-    if(k == 3) { return '-0.5 -0.87 0'; }
-    if(k == 4) { return '0.5 -0.87 0'; }
-    if(k == 5) { return '0.5 0.87 0'; }
-    if(k == 6) { return '0.7 0.7 0'; }
-    return '-0.7 -0.7 0';
-}
+vector AR_RING_DIRS[8] = { '1 0 0', '-0.5 0.87 0', '-1 0 0', '-0.5 -0.87 0', '0.5 -0.87 0', '0.5 0.87 0', '0.7 0.7 0',
+                           '-0.7 -0.7 0' };
+
+vector(float i) VR_ARENA_RingDir = { return AR_RING_DIRS[VR_ARENA_Mod(i, AR_RING_MAX)]; }
 
 // A spot used twice in one wave is stepped aside, so two foes never spawn inside one another. The first is the
 // place as the map drew it; then the four diagonals a little over a monster's box (its own box is 32 wide) off it.
-vector(float i) VR_ARENA_Aside =
-{
-    float k = VR_ARENA_Mod(i, AR_ASIDE_MAX);
-    if(k == 0) { return '0 0 0'; }
-    if(k == 1) { return AR_ASIDE_STEP * '1 1 0'; }
-    if(k == 2) { return AR_ASIDE_STEP * '-1 1 0'; }
-    if(k == 3) { return AR_ASIDE_STEP * '1 -1 0'; }
-    return AR_ASIDE_STEP * '-1 -1 0';
-}
+vector AR_ASIDE_DIRS[5] = { '0 0 0', '1 1 0', '-1 1 0', '1 -1 0', '-1 -1 0' };
+
+vector(float i) VR_ARENA_Aside = { return AR_ASIDE_STEP * AR_ASIDE_DIRS[VR_ARENA_Mod(i, AR_ASIDE_MAX)]; }
 
 // A place already holding one of this wave's foes is stepped aside. The step is small on purpose (a monster's own
 // box is 32 wide): from a tower top, a wall walk or the octagon's cut corner it stays on the ground it belongs to.
