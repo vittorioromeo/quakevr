@@ -1507,3 +1507,34 @@ read every pak's directory.
   runs' +-100 ms spread; hip2m5's per-round differences -63, -11, -633, -38, +79). "Image files looked for, none found"
   70 -> 6 ms (vrtesthall), 77 -> 6 (vrstart), 16 -> 5 (e1m1), 20 -> 6 (hip2m5). Warm loads unchanged (144-293 ms: the
   models are kept). Scripts: scratch/load5_ab.sh, load5_abstats.py (not committed).
+
+## Sparse config: only what the player changed (branch `agent/sparsecfg`; design review proposal 1)
+
+His decision: forgotten defaults now reach players (yes).
+
+- **Before:** `Cvar_WriteVariables` wrote all ~24,000 archived cvars (19k of them weapon/prop slots): a config pinned
+  its player to the defaults of the day it was written, so every changed default needed a `defaultChanges` row and a
+  `configVersion` bump (362 rows; D2 found two forgotten).
+- **Now (cvar.c, behind `// QVR`; vr_cvars.cpp):** the config starts its settings with `vr_config_defaults` (every
+  `vr_*` setting back to its default, ROM/locked ones left), then writes every Ironwail setting as before and a `vr_*`
+  one (slots included) only when `VR_ConfigSaves`: its value differs from its default (as numbers when both are, the
+  file's `sameValue`), or it is a version marker (`vr_cfg_version`, `vr_wofs_version`, `vr_props_version`,
+  `vr_bindings_version`: a missing one would read as its default). The reset line keeps a config executed again, or
+  after a `game` switch, giving what a full one gave (no previous folder's values left over). The two-copies merge
+  (`readConfigSettings`) reads a vr_ setting with no line as its default, so another copy's "back to the default" is
+  merged too.
+- **configVersion 218**, the last: the rows apply to configs written before it, then the tables (`defaultChanges`,
+  `namedDefaultChanges`) are frozen. A changed default is now an edit of the default alone; a row only to override a
+  player's own choice on purpose. The slot tables' steps likewise only for transforms. CODE_STYLE.md "Settings and the
+  config", ARCHITECTURE.md "Where to put new code" updated.
+- **Sizes:** the run baseline config (14.5k lines, version 141) writes 466 lines (299 vr_, 282 of them slots); his
+  config (24k lines, version 215) 291 lines (124 vr_: his choices, 40 slot values; all else equals today's defaults).
+- **Test:** `Misc/quakevr/config_sparse_test.sh <agent> [full config]` (`vr_config_test`, vr_config_diag.cpp; ends on
+  `config_test: N passed, M failed`): the full config loaded with its migration; the game folder's config written,
+  edited as another copy would (a changed line removed, a line added) and written again: both merged; snap; written
+  sparse: every vr_ line changed, every changed one written, values as snapped, the reset line first; 4,854 plain vr_
+  settings scrambled, the sparse config executed: all 24,007 archived settings as snapped (0 differ; his: 2 the same
+  number in other text); three defaults moved (one unchanged, one slot, one changed), executed again: the two take the
+  new defaults, the changed one keeps its line. 16 passed, 0 failed with the baseline config and with a copy of his.
+- **Old loader vs new:** the base exe (origin/next) and this one each loaded the baseline config, then his (exec +
+  migration), and dumped every archived setting: identical but `vr_cfg_version` 217 -> 218 (24,007 settings each).
