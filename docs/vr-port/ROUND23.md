@@ -2122,3 +2122,37 @@ forced materials): the old counts. Baseline cases (run_baseline.py vs baseline.t
 9/3 (as the baseline), agarmor_1 26/0, agarmor_5 23/0 (baseline 22/1, flaky), nail_1, np_1 (23/0, baseline 21/0: the
 test's own newer checks), flare_1, walltorch_grab, empty_melee, secret_hits and dead_gear (as the baseline): no case
 changed. gunfx_test.py 29/0. Build: 0 warnings, check_canonical clean. A/B bench (LTO, exclusive, ABBA, scratch/ab_bench.sh: A = origin/next + the trace, B = the table; cpu busy ms): combat_48 A 2.64 (2.69, 2.58), B 2.44 (2.43, 2.46): -7.3%; play_gore_fight A 2.36 (2.30, 2.42), B 2.40 (2.41, 2.38): +1.4%. Both within the runs' spread (A's own runs differ 4-5%): no cost measured. (The planned ABBAABBA stopped after 4 runs: the exe was busy at the swap.)
+
+## Nail pistol: Full Slide the default, steel back end, screen on the slide, open when empty, a louder rack (branch `agent/npslide3`)
+
+His words (2026-10-30): the moving-slide model is the default, the old one archived; bring back the old model's
+silvery/steel back end, its colour less uniform; the ammo screen moves with the slide (an option, on); dropped and
+holstered guns with the slide open look it; the automatic re-rack needs a strong click or clack.
+
+- **Default:** `vr_nailpistol_model` 1 (Full Slide; a default edit, no migration). Classic archived: its row moved from
+  Combat > Weapon Damage to Debug > Tests > Nail Pistol > Nail Pistol Model (Archived); the cvar still selects it.
+- **Paint** (`build_nailpistol_slide.py`, rerun on the shipped file, deterministic: two runs byte-identical): the slide's
+  and frame's texels behind x -2.4 (the classic rear housing's place) take the classic skin's texel at the same point of
+  the housing (`classic_sampler`: its nearest face facing the same way, barycentric st), the serrations and worn edges
+  drawn over them. The rest: wider mottle (`MOTTLE` 0.76/0.36/0.18, was 0.88/0.16/0.12), patches of bare steel where the
+  rust is thin (`STEEL`, `STEEL_WEAR` 0.45), `SPECK` 0.75 (was 0.6). The new rows' luminance spread 25.2 -> 28.5 (the
+  classic skin's 32.5); mean colour 61 42 29 (was 63 44 29).
+- **Ammo screen rides the slide:** `vr_nailpistol_screen_ride` 1 (Combat > Weapon Damage > Nail Pistol Screen Rides
+  Slide, under Slide Travel). The screen's anchor (-1.4 1.3 4.6) binds to the classic receiver (fixed); in the full-slide
+  look (its left wall) it now moves by the slide's drawn travel each frame (`nailslide::screenShift`: the hand's slide
+  place, else locked/frame 1; `view::screenPosition` for the held, holstered and lying guns' screens). Classic: fixed.
+- **Open when empty, out of the hand** (vr_nailslide.cpp): holstered (`holsterLocked`: reloading on, its clip 0 or its
+  magazine out; off, your nails spent) drawn as frame 1; lying about (`propLocked`: a weapon prop's networked clip 0 or
+  no magazine) drawn locked back whatever its frame. Armed grunts' props as before (their server frame).
+- **Rack:** `vr/nailpistol_rack.wav` remade (`make_nailpistol_sounds.py rack`): the auto pump's recorded click and slam
+  (CC0, CREDITS.md) over the first synthesised slam, 44.1 kHz, its slam at 93 ms (the drawn slide home; 40 ms after the
+  magazine-in sound's peak, so the two are heard apart); loudest 20 ms 0.70 RMS (was 0.31; reload_mag_in 0.57). Played
+  on CHAN_AUTO (it was on the hand's channel, which the next sound there cut). The debug line names the reload mode.
+- **Tests:** `vr_np_test 1` 35 passed, 0 failed (was 23): the screen 1.500 units back locked (travel 1.5) and 0 home
+  after; holstered and lying (empty and loaded): 101 each (`vr_np_probe` makes the engine write `vr_np_seen_*`); the
+  rack once in each of reload modes 0-3. New `vr_np_test 6` (Debug > Tests > Nail Pistol > Empty Nail Pistols:
+  Holstered and Lying). Not verified: the rack at the mixer (headless `snd_show` lists no channels, the capture command
+  printed nothing in the mock run).
+- **Eyeshots** (low-impact runs, small eyes: not for judging the paint): qvr-kit/scratch/npslide/
+  `npslide3_hand_closed_open_holster.png` (closed, closed tilted, locked open; the body and hip holsters),
+  `npslide3_hand_open_full.png`.
