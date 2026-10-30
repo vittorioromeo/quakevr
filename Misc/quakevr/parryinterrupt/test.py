@@ -1,4 +1,5 @@
 """Focused mock checks for parry interruption; run with a qvr-kit worktree name."""
+import os
 import re
 import subprocess
 import sys
@@ -13,7 +14,7 @@ TREE = Path("C:/OHWorkspace/qvr-agents") / NAME
 KIT = Path("C:/OHWorkspace/qvr-kit")
 BASH = "C:/Program Files/Git/bin/bash.exe"
 CFG = TREE / "quakevr/test_parryinterrupt.cfg"
-LOG = KIT / "bases" / NAME / "qbase/qconsole.log"
+LOG = KIT / "bases" / NAME / ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else "")) / "qconsole.log"
 GUARD = "vr_mock_hand main 0.15 1.25 -0.4 70 90 0"
 LOWER = "vr_mock_hand main 0.15 0.2 0.1 70 0 0"
 CROWBAR_GUARD = "vr_mock_hand main 0.15 1.25 -0.4 0 90 0"  # a melee weapon level across (the gun's GUARD holds it upright)

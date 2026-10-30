@@ -18,7 +18,7 @@ AGENT=${1:?agent}; WHAT=${2:-all}; ONLY=$3  # ONLY: a chase's name (framed_large
 KIT=C:/OHWorkspace/qvr-kit
 HERE=$(cd "$(dirname "$0")" && pwd)
 TREE=$(cd "$HERE/../../.." && pwd -W)
-LOG=$KIT/bases/$AGENT/qbase/qconsole.log
+LOG=$KIT/bases/$AGENT/qbase${QVR_LANE:+.lane$QVR_LANE}/qconsole.log
 mkdir -p "$TREE/scratch"
 TESTS=$(python "$HERE/make_vrteleporters_map.py" --tests)
 run() { bash $KIT/run.sh $AGENT "$@" > /dev/null; }

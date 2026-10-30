@@ -118,7 +118,7 @@ check $L "migration: 1 kept" "MIGRATED1" "\"vr_xr_runtime\" is \"1\""
 # SteamVR's xrCreateInstance failing, the other one simulated. Each loaded and unloaded in turn in one process.
 LOG="$OUT/fakexr.log"; : > "$LOG"
 export FAKEXR_LOG="$(cygpath -w "$LOG")" FAKEXR_FAIL_INSTANCE=fakexr_steam FAKEXR_D3D11=fakexr_vd
-XRLOG="$TREE/quakevr/qvr_openxr.txt"
+XRLOG="$KIT/bases/$NAME/qbase${QVR_LANE:+.lane$QVR_LANE}/quakevr/qvr_openxr.txt"
 S="vr_xr_test 1;vr_xr_runtime 4;vr_xr_test_runtimes \"$ALL\";vr_xr_test_active \"$ST\";vr_xr_test_processes \"VirtualDesktop.Streamer.exe,vrserver.exe\";vr_xr_test_fail other;vr_backend openxr;wait20;echo MENULINE;vr_xr_runtime_explain;wait5;toggleconsole;quit"
 bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "OpenXR|VR:|last start|MENULINE|graphics DLLs" > "$OUT/fallback.log"
 L="$OUT/fallback.log"
@@ -305,7 +305,7 @@ if grep -q "NO GL CONTEXT" "$LOG"; then echo "FAIL: the fake runtime saw no GL c
 # message of the game's own first), the OpenXR debug messenger's messages (the fake runtime's with FAKEXR_DEBUG_UTILS,
 # and the loader's), what is said to a debugger, the crash report, the logs copied; off by default: no folder.
 export FAKEXR_LOG="$(cygpath -w "$OUT/diag_fake.log")" FAKEXR_HEADSET=fakexr_steam FAKEXR_DEBUG_UTILS=fakexr_steam
-DIAGS="C:/OHWorkspace/qvr-kit/bases/$NAME/qbase/quakevr/diagnostics"
+DIAGS="C:/OHWorkspace/qvr-kit/bases/$NAME/qbase${QVR_LANE:+.lane$QVR_LANE}/quakevr/diagnostics"
 before=$(ls "$DIAGS" 2>/dev/null | wc -l)
 S="vr_xr_test 1;vr_xr_runtime 2;vr_xr_test_runtimes \"$ST\";vr_xr_test_active \"$ST\";vr_xr_test_processes vrserver.exe;vr_backend openxr;map start;wait60;vr_diagnostics_status;vr_crash_test av"
 bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -ExtraArgs "-diagnostics" -Filter "iagnostics|ENGINE CRASH" > "$OUT/diag.log"
@@ -325,7 +325,7 @@ check "$DIAG/openxr_debug.log" "diagnostics: the core validation layer on" "core
 check "$DIAG/openxr_validation.log" "diagnostics: openxr_validation.log" "Known false positive" "Core Validation Layer is initialized"
 if grep -q -i "xr_layers.XrApiLayer_core_validation.dll" "$DIAG"/crash/*.txt; then echo "PASS: diagnostics: the validation layer's DLL in the crash report's modules"
 else echo "FAIL: diagnostics: no XrApiLayer_core_validation.dll in $DIAG/crash"; fails=$((fails + 1)); fi
-CRASHES="$TREE/quakevr/crash"
+CRASHES="$KIT/bases/$NAME/qbase${QVR_LANE:+.lane$QVR_LANE}/quakevr/crash"
 export FAKEXR_HEADSET=fakexr_steam
 bash "$KIT/run.sh" "$NAME" -Script "$S" -Full -Filter "ENGINE CRASH" > "$OUT/diag_normal.log"
 unset FAKEXR_HEADSET

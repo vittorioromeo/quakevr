@@ -66,7 +66,7 @@ def config_cmds(c):
 
 
 def run(agent, name, cmds):
-    base = f"{KIT}/bases/{agent}/qbase"
+    base = f"{KIT}/bases/{agent}/" + ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else ""))
     with open(f"{base}/id1/{name}.cfg", "w", newline="\n") as f:
         f.write("\n".join(cmds + ["toggleconsole", "quit"]) + "\n")
     subprocess.run([BASH, f"{KIT}/run.sh", agent, "-Script", f"exec {name}.cfg", "-Filter", "^$", "-Timeout", "600"],
@@ -252,7 +252,7 @@ def timing(agent):
             cmds += trial(tag, start, path(start, c, 0.4), 0)
         lines = run(agent, "fg_timing", cmds)
         got = parse(lines)
-        with open(f"{KIT}/bases/{agent}/qbase/qconsole.log", encoding="latin-1") as f:
+        with open(f"{KIT}/bases/{agent}/" + ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else "")) + "/qconsole.log", encoding="latin-1") as f:
             probe = [l.split()[2] for l in f if l.startswith("probe scale")]
         bad = []
         taken = 0

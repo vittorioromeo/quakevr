@@ -76,7 +76,7 @@ for c in $CASES; do
             S="map vrfiringrange;$PRE;vr_bullettime_fx 0;vr_test_spawn_dist 100;vr_timescale 0.1;wait5;$DEAD;wait130"
             for i in $(seq 30); do S="$S;wait2;screenshot"; done
             tb_run_sh -Clean -Script "$S;toggleconsole;quit" -Filter "first drawn" -Timeout 300 2>&1 | tr -d '\n' | grep -o "poses.*"; echo
-            ${PY:-py -3.13} - "$KIT/bases/$AGENT/qbase/quakevr/screenshots" "$KIT/scratch/ragdoll_slowmo.png" <<'PY'
+            ${PY:-py -3.13} - "$KIT/bases/$AGENT/qbase${QVR_LANE:+.lane$QVR_LANE}/quakevr/screenshots" "$KIT/scratch/ragdoll_slowmo.png" <<'PY'
 import glob, os, sys
 from PIL import Image, ImageChops, ImageStat
 files = sorted(glob.glob(sys.argv[1] + '/*.png'), key=os.path.getmtime)
@@ -96,7 +96,7 @@ PY
     twohand)
         run "map e1m1;$PRE;$LOW;developer 1;vr_test_spawn_dist 28;$DEAD;wait300;$(TAKE off left);wait5;$(TAKE main right);wait10;vr_ragdoll_list 1;vr_mock_hand_to off by 0 0 25;vr_mock_hand_to main by 0 0 25;wait30;vr_ragdoll_list 1;-grableft;vr_mock_button off grip 0;-grabright;vr_mock_button main grip 0;wait100;vr_ragdoll_list 1;toggleconsole;quit" | grep -v -E "^  [ 0-9][0-9] [a-z]" ;;
     pull)
-        G=$KIT/bases/$AGENT/qbase/id1/ragdoll_pull.txt
+        G=$KIT/bases/$AGENT/qbase${QVR_LANE:+.lane$QVR_LANE}/id1/ragdoll_pull.txt
         printf "%s\n" "0.000 off -0.350 1.100 -0.200 70 0 0" "0.000 main 0.100 1.300 -0.450 56 0 0" "0.500 cmd +attack" \
             "1.000 main 0.100 1.300 -0.450 56 0 0" "1.100 main 0.100 1.600 -0.450 56 0 0" "1.150 cmd +grabright" \
             "1.150 button main grip 1" "1.200 cmd -attack" "1.300 cmd vr_ragdoll_list 1" "2.000 cmd vr_ragdoll_list 1" \

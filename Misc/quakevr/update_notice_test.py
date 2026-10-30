@@ -84,7 +84,7 @@ def main():
         with open(os.path.join(serve, file), "w", newline="\n") as fh:
             json.dump(f, fh)
 
-    cache = f"{KIT}/bases/{name}/qbase/cache/update_check.txt"
+    cache = f"{KIT}/bases/{name}/" + ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else "")) + "/cache/update_check.txt"
     backup = os.path.join(tree, "scratch", "update_check.txt.saved")
     had_cache = os.path.isfile(cache)
     if had_cache:
