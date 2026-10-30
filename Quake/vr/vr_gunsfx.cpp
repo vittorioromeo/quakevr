@@ -445,22 +445,21 @@ int dryClick(int entnum, int entchannel, float* fvol, float* pitch)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The punch: a spike as hard as the weapon's recoil (its strength times the mean of its kick back and rise, square
-// rooted: a strong gun is felt stronger, not twice as strong), then a tail from half that down to nothing (quadratic)
-// over the weapon's recoil's way back (Recoil Return Time times Recoil Recovery).
+// The punch: a spike as hard as the weapon's recoil (the mean of its kick back and rise in the units of the old strength
+// 1, 1.5 cm and 4 degrees: weapons::recoilFeel; square rooted: a strong gun is felt stronger, not twice as strong), then
+// a tail from half that down to nothing (quadratic) over the weapon's kick (its kick up and Recoil Return Time: the old
+// Return Time times Recovery's length, vr_wofs_version 74).
 
 [[nodiscard]] float peakOf(int slot)
 {
-    const float recoil = za::max(weapons::value(slot, Key::RecoilStrength), 0.f) *
-                         0.5f * (za::max(weapons::value(slot, Key::RecoilKick), 0.f) + za::max(weapons::value(slot, Key::RecoilRise), 0.f));
+    const float recoil = weapons::recoilFeel(weapons::value(slot, Key::RecoilKick), weapons::value(slot, Key::RecoilRise));
     const float punch = za::clamp(vr_gunsfx_punch.value, 0.f, 2.f) * za::max(weapons::value(slot, Key::HapticPunch), 0.f);
     return za::clamp(0.85f * punch * za::sqrt(recoil), 0.f, 1.f);
 }
 
 [[nodiscard]] float tailOf(int slot)
 {
-    const float recovery = za::max(weapons::value(slot, Key::RecoilRecovery), 0.05f);
-    return za::clamp(weapons::value(slot, Key::RecoilTime) * recovery, 0.03f, 1.5f);
+    return za::clamp(weapons::recoilKickSeconds(za::max(weapons::value(slot, Key::RecoilReturn), 0.f)), 0.03f, 1.5f);
 }
 
 // The punch `t` s after the shot: its amplitude, frequency and the pulse's length (null amplitude: over).
