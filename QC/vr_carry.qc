@@ -1004,7 +1004,7 @@ float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
         return FALSE;
     }
     entity holder = VR_Grapple_PropHolder(self);
-    if(other == self.vr_wp_wearer && time < self.vr_monster_drop + 1)
+    if(self.vr_wp_wearer && other == self.vr_wp_wearer && time < self.vr_monster_drop + 1)
     {
         return FALSE; // (a worn backpack just torn off its wearer, vr_wornpack.qc: not flung into it)
     }

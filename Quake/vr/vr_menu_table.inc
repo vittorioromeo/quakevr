@@ -94,6 +94,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageArmedGrunts();
 [[nodiscard]] za::Vector<Item> pageArmedRepl();
 [[nodiscard]] za::Vector<Item> pageArmedArmour();
+[[nodiscard]] za::Vector<Item> pageArmedPacks();
 [[nodiscard]] za::Vector<Item> pageArmedGrips();
 [[nodiscard]] za::Vector<Item> pageArmedHolds();
 [[nodiscard]] za::Vector<Item> pageArmedStretch();
@@ -436,6 +437,7 @@ inline constexpr Page pages[] = {
     {"Armed Grunts - Grip Editor", pageArmedGrips, pageArmedGrunts}, // (vr_menu_gameplay.inc; vr_aggrip.cpp)
     {"Armed Humanoid Replacements", pageArmedRepl, pageArmedGrunts}, // (vr_menu_gameplay.inc; QC vr_armedrepl.qc)
     {"Armour", pageArmedArmour, pageArmedGrunts}, // (vr_menu_gameplay.inc; QC vr_agarmor.qc)
+    {"Worn Backpacks", pageArmedPacks, pageArmedGrunts}, // (vr_menu_gameplay.inc; QC vr_wornpack.qc)
     {"Armed Grunts - Weapon Holds", pageArmedHolds, pageArmedGrunts}, // (vr_menu_gameplay.inc; vr_agholds.inc)
     {"Armed Grunts - IK Stretch", pageArmedStretch, pageArmedGrunts}, // (vr_menu_gameplay.inc; agpose::stretch)
     {"Armed Grunts - AI Behaviour", pageArmedAI, pageArmedGrunts}, // (vr_menu_gameplay.inc; QC vr_armedgrunt_ai.qc)

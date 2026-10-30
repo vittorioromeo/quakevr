@@ -2982,9 +2982,9 @@ QVR_CVAR(vr_agarmor_block_cuts, "1", CVAR_ARCHIVE)    // armour: no limb is cut 
 QVR_CVAR(vr_agarmor_debris_time, "10", CVAR_ARCHIVE)  // armour: a broken plate's debris lies about this long (s), then fades out
 QVR_CVAR(vr_worn_backpacks, "0", CVAR_ARCHIVE)        // experimental (QC vr_wornpack.qc; Combat > Armed Grunts > Worn Backpacks): armed grunts wear their backpack on their back (alive and as ragdolls; torn off by pulls, hard landings and hits on it), dropping no other; 0 off (as before)
 QVR_CVAR(vr_worn_backpack_scale, "0.6", CVAR_ARCHIVE) // worn backpacks: the pack's size on the back (times the backpack model's)
-QVR_CVAR(vr_worn_backpack_x, "0", CVAR_ARCHIVE)       // worn backpacks: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_x, "1.5", CVAR_ARCHIVE)      // worn backpacks: moved forward (into the back; out: negative), units
 QVR_CVAR(vr_worn_backpack_y, "0", CVAR_ARCHIVE)       // worn backpacks: moved left, units
-QVR_CVAR(vr_worn_backpack_z, "0", CVAR_ARCHIVE)       // worn backpacks: moved up, units
+QVR_CVAR(vr_worn_backpack_z, "-3", CVAR_ARCHIVE)      // worn backpacks: moved up, units
 QVR_CVAR(vr_worn_backpack_pitch, "0", CVAR_ARCHIVE)   // worn backpacks: tipped (degrees)
 QVR_CVAR(vr_worn_backpack_yaw, "0", CVAR_ARCHIVE)     // worn backpacks: turned (degrees)
 QVR_CVAR(vr_worn_backpack_roll, "0", CVAR_ARCHIVE)    // worn backpacks: rolled (degrees)

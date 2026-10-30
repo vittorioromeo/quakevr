@@ -177,7 +177,7 @@ void(entity p) VR_WPT_Down =
     vr_wpt_hand = limbpiece(b, 0, 22);
     vector out = p.origin - vr_wpt_hand;
     out_z = 0;
-    vector at = vr_wpt_hand + normalize(out) * 28;
+    vector at = vr_wpt_hand + normalize(out) * 20;
     at_z = p.origin_z;
     setorigin(p, at);
     p.velocity = '0 0 0';
@@ -195,14 +195,32 @@ void(entity p) VR_WPT_Pull =
     vr_wpt_frames = vr_wpt_frames + 1;
     if(vr_wpt_state == 4)
     {
-        if(vr_wpt_frames == 6)
+        // (The hand kept on the pack's middle as the body settles; the grip pressed once it is there.)
+        float gap = ragdollbone(b, p.handpos, QVR_WORNPACK_AT);
+        if(!vr_wpt_until)
         {
+            vr_wpt_hand = limbpiece(b, 0, 22);
+            localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", vr_wpt_hand_x, vr_wpt_hand_y, vr_wpt_hand_z));
+            if(gap < 0 || gap > 2)
+            {
+                if(vr_wpt_frames < 90)
+                {
+                    return;
+                }
+                VR_Test_Check(FALSE, sprintf("the hand gets onto B's pack (%.1f units off, the pack %.1f units over your feet)", gap,
+                    vr_wpt_hand_z - p.origin_z + 24));
+                VR_WPT_End();
+                return;
+            }
             localcmd("+grabmain\n");
+            vr_wpt_until = vr_wpt_frames;
+            return;
         }
-        if(vr_wpt_frames < 12)
+        if(vr_wpt_frames < vr_wpt_until + 6)
         {
             return;
         }
+        vr_wpt_until = 0;
         float f = ragdollbone(b, [2, 1, cVR_MainHand], QVR_WORNPACK);
         VR_Test_Check(p.mainhand_held == b && f >= 0, sprintf("the hand holds B by its pack (holds %s, pull %.0f N; hand %.1f units from the pack)",
             p.mainhand_held.classname, f, ragdollbone(b, p.handpos, QVR_WORNPACK_AT)));
@@ -276,10 +294,10 @@ void(entity p) VR_WPT_Deaths =
 void(entity p) VR_WPT_Eyeshot =
 {
     cvar_set("vr_worn_backpacks", "1");
-    entity g1 = VR_WPT_Spawn(p, WID_SHOTGUN, -50, 110, TRUE);
-    entity g2 = VR_WPT_Spawn(p, WID_SHOTGUN, 0, 130, FALSE);
+    entity g1 = VR_WPT_Spawn(p, WID_SHOTGUN, -45, 150, TRUE);
+    entity g2 = VR_WPT_Spawn(p, WID_SHOTGUN, 5, 175, FALSE);
     g2.angles_y = g2.angles_y + 90;
-    entity g3 = VR_WPT_Spawn(p, -1, 55, 110, FALSE);
+    entity g3 = VR_WPT_Spawn(p, -1, 55, 150, FALSE);
     VR_WPT_KnockDown(g3, p, 40);
     g1.netname = g2.netname = g3.netname = "eyeshot";
 };
