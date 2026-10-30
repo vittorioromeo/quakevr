@@ -1711,10 +1711,13 @@ vector(float wid, vector from, vector dir) VR_AG_BlastPoint =
 
 // The least distance from itself its round of `wid` may burst at: a blast reaches 160 units (T_RadiusDamage's 120 + 40),
 // and a margin (a mine's more: it blows at anything within 140 of it, the grunt too when it comes back by).
+float VR_AG_SAFE_DIST = 180;      // a blast's 160 and a margin
+float VR_AG_SAFE_DIST_MINE = 230; // a mine's: it blows at anything within 140 of it
+
 float(float wid) VR_AG_SafeDist =
 {
-    if(wid == WID_PROXIMITY_GUN) { return 230; }
-    return 180;
+    if(wid == WID_PROXIMITY_GUN) { return VR_AG_SAFE_DIST_MINE; }
+    return VR_AG_SAFE_DIST;
 };
 
 // Whether its launcher's round fired along `dir` from the held weapon `p` would burst far enough from it (TRUE for any

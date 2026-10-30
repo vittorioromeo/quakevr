@@ -156,123 +156,95 @@ float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmo
     return FALSE;
 }
 
+// The weapon table: one row per weapon id, WID_FIST .. WID_LAST in order (Quake/vr/vr_weapon_ids.h; a new weapon is a
+// new row here). What each WeaponIdTo* below answers is its column. The AD guns' rows (WID_ADROCKET .. WID_ADCROSSBOW)
+// hold what all of them share; their model, name and clip are vr_ad_guns_defs.qc's. A clip a setting or a function sizes
+// is answered before the table (WeaponIdToBaseClipSize: its column is 0 there).
+#define VR_WROW_SECONDARY 1 // takes QVR_WPNFLAG_USE_SECONDARY_AMMO (WeaponSupportsSecondaryAmmoFlag)
+#define VR_WROW_RELOAD    2 // WeaponIdToSupportsReload
+#define VR_WROW_FLICK     4 // WeaponIdToSupportsReloadFlicking
+#define VR_WROW_STABILIZE 8 // WeaponIdToThrowStabilizeDim 2 (spun about its length as it flies), else 0
+#define VR_WROW_OK(wid) ((wid) >= WID_FIST && (wid) <= WID_LAST)
+
+typedef struct
+{
+    string classname;  // its map pickup (WeaponClassNameToWeaponId; "" none)
+    float item;        // WeaponIdToItemId
+    float ammo;        // WeaponIdToAmmoId
+    float ammo2;       // the same with QVR_WPNFLAG_USE_SECONDARY_AMMO (its own when it has no second)
+    string model;      // WeaponIdToModel
+    string model2;     // the same with QVR_WPNFLAG_USE_SECONDARY_AMMO
+    string name;       // WeaponIdToWeaponName
+    float throwMult;   // WeaponIdToThrowMult (the throw's velocity; the engine's weight has its own numbers)
+    float throwDamage; // WeaponIdToThrowDamage
+    float throwBounds; // WeaponIdToThrowBounds
+    float initialAmmo; // WeaponIdToInitialAmmoCount
+    float clip;        // WeaponIdToBaseClipSize
+    float flags;       // VR_WROW_*
+} vr_weapon_row;
+
+vr_weapon_row VR_WEAPONS[WID_LAST + 1] =
+{
+    // classname, item, ammo, ammo2, model, model2, name, throw mult, throw damage, throw bounds, initial ammo, clip, flags
+    { "", IID_FIST, AID_NONE, AID_NONE, "progs/hand.mdl", "progs/hand.mdl", "Fist", 1, 20, 1, 0, 0, 0 },
+    { "weapon_grapple", IID_GRAPPLE, AID_NONE, AID_NONE, "progs/v_grpple.mdl", "progs/v_grpple.mdl", "Grapple", 0.9, 20, 1, 0, 0, 0 },
+    { "weapon_axe", IID_AXE, AID_NONE, AID_NONE, "progs/v_axe.mdl", "progs/v_axe.mdl", "Axe", 0.9, 35, 1, 0, 0, VR_WROW_STABILIZE },
+    { "weapon_mjolnir", IID_MJOLNIR, AID_CELLS, AID_CELLS, "progs/v_hammer.mdl", "progs/v_hammer.mdl", "Mjolnir", 0.7, 30, 1.1, 30, 0, VR_WROW_STABILIZE },
+    { "weapon_shotgun", IID_SHOTGUN, AID_SHELLS, AID_SHELLS, "progs/v_shot.mdl", "progs/v_shot.mdl", "Shotgun", 0.8, 20, 1.25, 5, 8, VR_WROW_RELOAD },
+    { "weapon_supershotgun", IID_SUPER_SHOTGUN, AID_SHELLS, AID_SHELLS, "progs/v_shot2.mdl", "progs/v_shot2.mdl", "Double-barrelled Shotgun", 0.8, 20, 1.25, 5, 2, VR_WROW_RELOAD | VR_WROW_FLICK },
+    { "weapon_nailgun", IID_NAILGUN, AID_NAILS, AID_LAVA_NAILS, "progs/v_nail.mdl", "progs/v_lava.mdl", "Nailgun", 0.8, 20, 1.25, 30, 24, VR_WROW_RELOAD | VR_WROW_SECONDARY },
+    { "weapon_supernailgun", IID_SUPER_NAILGUN, AID_NAILS, AID_LAVA_NAILS, "progs/v_nail2.mdl", "progs/v_lava2.mdl", "Super Nailgun", 0.6, 25, 1.5, 30, 36, VR_WROW_RELOAD | VR_WROW_SECONDARY },
+    { "weapon_grenadelauncher", IID_GRENADE_LAUNCHER, AID_ROCKETS, AID_MULTI_ROCKETS, "progs/v_rock.mdl", "progs/v_multi.mdl", "Grenade Launcher", 0.6, 30, 1.5, 5, 4, VR_WROW_RELOAD | VR_WROW_SECONDARY },
+    { "weapon_proximity_gun", IID_PROXIMITY_GUN, AID_ROCKETS, AID_ROCKETS, "progs/v_prox.mdl", "progs/v_prox.mdl", "Proximity Gun", 0.6, 30, 1.5, 6, 4, VR_WROW_RELOAD },
+    { "weapon_rocketlauncher", IID_ROCKET_LAUNCHER, AID_ROCKETS, AID_MULTI_ROCKETS, "progs/v_rock2.mdl", "progs/v_multi2.mdl", "Rocket Launcher", 0.6, 30, 1.7, 5, 4, VR_WROW_RELOAD | VR_WROW_SECONDARY },
+    { "weapon_lightning", IID_LIGHTNING, AID_CELLS, AID_PLASMA, "progs/v_light.mdl", "progs/v_plasma.mdl", "Thunderbolt", 0.6, 25, 1.5, 15, 36, VR_WROW_RELOAD | VR_WROW_SECONDARY },
+    { "weapon_laser_gun", IID_LASER_CANNON, AID_CELLS, AID_CELLS, "progs/v_laserg.mdl", "progs/v_laserg.mdl", "Laser Cannon", 0.4, 45, 2.4, 30, 0, 0 },
+    // (the sword: AD's melee monsters' weapons have their own model and name, VR_ADMelee_*)
+    { "", IID_SWORD, AID_NONE, AID_NONE, "progs/v_ksword.mdl", "progs/v_hksword.mdl", "Knight's Sword", 0.8, 60, 2.4, 0, 0, 0 },
+    { "", IID_CHAINSAW, AID_NONE, AID_NONE, "progs/v_chainsaw.mdl", "progs/v_chainsaw.mdl", "Ogre's Chainsaw", 0.4, 50, 2.4, 0, VR_CHAINSAW_TANK, 0 },
+    // (our edited grunt's gun: a 3-round burst; its clip VR_GruntGun_ClipSize, a multiple of 3, vr_enemyguns.qc)
+    { "", IID_GRUNTGUN, AID_NONE, AID_NONE, "progs/v_gruntgun.mdl", "progs/v_gruntgun.mdl", "Grunt Burst Rifle", 0.7, 20, 1.6, 0, 0, 0 },
+    { "", IID_ENFRIFLE, AID_NONE, AID_NONE, "progs/v_enfrifle.mdl", "progs/v_enfrifle.mdl", "Enforcer's Laser Rifle", 0.6, 25, 1.8, 0, 0, 0 },
+    { "", IID_CROWBAR, AID_NONE, AID_NONE, "progs/v_crowbar.mdl", "progs/v_crowbar.mdl", "Crowbar", 0.8, 40, 1.6, 0, 0, 0 },
+    { "weapon_superaxe", IID_SUPERAXE, AID_CELLS, AID_CELLS, "owned/mg3/progs/v_hammer.mdl", "owned/mg3/progs/v_hammer.mdl", "Super Axe", 0.75, 50, 1.4, 0, 0, VR_WROW_STABILIZE },
+    { "weapon_toolgun", IID_TOOLGUN, AID_NONE, AID_NONE, "progs/v_toolgun.mdl", "progs/v_toolgun.mdl", "Toolgun", 0.8, 10, 1.2, 0, 0, 0 },
+    // AD support (vr_ad_guns_defs.qc: VR_ADGun_Model, VR_ADGun_Name, VR_ADGun_ClipSize)
+    { "", IID_ADROCKET, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
+    { "", IID_ADGRENADE, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
+    { "", IID_ADPLASMA, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
+    { "", IID_ADDEFENDER, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
+    { "", IID_ADELIMINATOR, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
+    { "", IID_ADCENTURION, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
+    { "", IID_ADPYRO, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
+    { "", IID_ADFUMIGATOR, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
+    { "", IID_ADCROSSBOW, AID_NONE, AID_NONE, "", "", "", 0.6, 25, 1.8, 0, 0, 0 },
+    { "weapon_nailpistol", IID_NAILPISTOL, AID_NAILS, AID_NAILS, "progs/v_nailpistol.mdl", "progs/v_nailpistol.mdl", "Nail Pistol", 0.9, 12, 1.0, 24, 0, VR_WROW_RELOAD },
+    { "weapon_flaregun", IID_FLAREGUN, AID_NONE, AID_NONE, "progs/v_flaregun.mdl", "progs/v_flaregun.mdl", "Flare Gun", 0.9, 10, 1.0, 0, 0, 0 },
+    { "weapon_revolver", IID_REVOLVER, AID_SHELLS, AID_SHELLS, "progs/v_revolver.mdl", "progs/v_revolver.mdl", "Heavy Revolver", 0.85, 15, 1.0, 12, 0, VR_WROW_RELOAD }
+};
+
 float(float wid) WeaponIdToItemId =
 {
-    if(wid == WID_FIST)             { return IID_FIST; }
-    if(wid == WID_GRAPPLE)          { return IID_GRAPPLE; }
-    if(wid == WID_AXE)              { return IID_AXE; }
-    if(wid == WID_MJOLNIR)          { return IID_MJOLNIR; }
-    if(wid == WID_SHOTGUN)          { return IID_SHOTGUN; }
-    if(wid == WID_SUPER_SHOTGUN)    { return IID_SUPER_SHOTGUN; }
-    if(wid == WID_NAILGUN)          { return IID_NAILGUN; }
-    if(wid == WID_SUPER_NAILGUN)    { return IID_SUPER_NAILGUN; }
-    if(wid == WID_GRENADE_LAUNCHER) { return IID_GRENADE_LAUNCHER; }
-    if(wid == WID_PROXIMITY_GUN)    { return IID_PROXIMITY_GUN; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return IID_ROCKET_LAUNCHER; }
-    if(wid == WID_LIGHTNING)        { return IID_LIGHTNING; }
-    if(wid == WID_LASER_CANNON)     { return IID_LASER_CANNON; }
-    if(wid == WID_SWORD)            { return IID_SWORD; }
-    if(wid == WID_CHAINSAW)         { return IID_CHAINSAW; }
-    if(wid == WID_GRUNTGUN)         { return IID_GRUNTGUN; }
-    if(wid == WID_ENFRIFLE)         { return IID_ENFRIFLE; }
-    if(wid == WID_CROWBAR)          { return IID_CROWBAR; }
-    if(wid == WID_SUPERAXE)         { return IID_SUPERAXE; }
-    if(wid == WID_TOOLGUN)          { return IID_TOOLGUN; }
-    if(wid == WID_NAILPISTOL)       { return IID_NAILPISTOL; }
-    if(wid == WID_FLAREGUN)       { return IID_FLAREGUN; }
-    if(wid == WID_REVOLVER)         { return IID_REVOLVER; }
-
-    if(VR_IsADGun(wid))             { return IID_ADROCKET + (wid - WID_ADROCKET); } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return -1;
-}
-
-string(float xWeaponFlags, string xPrimaryModel, string xSecondaryModel) SelectModelByFlags =
-{
-    if(VRHasBit(xWeaponFlags, QVR_WPNFLAG_USE_SECONDARY_AMMO))
-    {
-        return xSecondaryModel;
-    }
-
-    return xPrimaryModel;
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return -1; }
+    return VR_WEAPONS[wid].item;
 }
 
 string(float wid, float xWeaponFlags) WeaponIdToModel =
 {
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return ""; }
     xWeaponFlags = VR_Pack_WeaponFlags(wid, xWeaponFlags);
-    if(wid == WID_FIST)             { return "progs/hand.mdl"; }
-    if(wid == WID_GRAPPLE)          { return "progs/v_grpple.mdl"; }
-    if(wid == WID_AXE)              { return "progs/v_axe.mdl"; }
-    if(wid == WID_MJOLNIR)          { return "progs/v_hammer.mdl"; }
-    if(wid == WID_SHOTGUN)          { return "progs/v_shot.mdl"; }
-    if(wid == WID_SUPER_SHOTGUN)    { return "progs/v_shot2.mdl"; }
-    if(wid == WID_NAILGUN)          { return SelectModelByFlags(xWeaponFlags, "progs/v_nail.mdl", "progs/v_lava.mdl"); }
-    if(wid == WID_SUPER_NAILGUN)    { return SelectModelByFlags(xWeaponFlags, "progs/v_nail2.mdl", "progs/v_lava2.mdl"); }
-    if(wid == WID_GRENADE_LAUNCHER) { return SelectModelByFlags(xWeaponFlags, "progs/v_rock.mdl", "progs/v_multi.mdl"); }
-    if(wid == WID_PROXIMITY_GUN)    { return "progs/v_prox.mdl"; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return SelectModelByFlags(xWeaponFlags, "progs/v_rock2.mdl", "progs/v_multi2.mdl"); }
-    if(wid == WID_LIGHTNING)        { return SelectModelByFlags(xWeaponFlags, "progs/v_light.mdl", "progs/v_plasma.mdl"); }
-    if(wid == WID_LASER_CANNON)     { return "progs/v_laserg.mdl"; }
     if(wid == WID_SWORD && VR_ADMelee_Kind(xWeaponFlags)) { return VR_ADMelee_Model(VR_ADMelee_Kind(xWeaponFlags)); } // AD
-    if(wid == WID_SWORD)            { return SelectModelByFlags(xWeaponFlags, "progs/v_ksword.mdl", "progs/v_hksword.mdl"); }
-    if(wid == WID_CHAINSAW)         { return "progs/v_chainsaw.mdl"; }
-    if(wid == WID_GRUNTGUN)         { return "progs/v_gruntgun.mdl"; }
-    if(wid == WID_ENFRIFLE)         { return "progs/v_enfrifle.mdl"; }
-    if(wid == WID_CROWBAR)          { return "progs/v_crowbar.mdl"; }
-    if(wid == WID_SUPERAXE)         { return "owned/mg3/progs/v_hammer.mdl"; }
-    if(wid == WID_TOOLGUN)          { return "progs/v_toolgun.mdl"; }
-    if(wid == WID_NAILPISTOL)       { return "progs/v_nailpistol.mdl"; }
-    if(wid == WID_FLAREGUN)       { return "progs/v_flaregun.mdl"; }
-    if(wid == WID_REVOLVER)         { return "progs/v_revolver.mdl"; }
-
-    if(VR_IsADGun(wid))             { return VR_ADGun_Model(wid); } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return "";
-}
-
-float(float xWeaponFlags, float xPrimaryAid, float xSecondaryAid) SelectAmmoByFlags =
-{
-    if(VRHasBit(xWeaponFlags, QVR_WPNFLAG_USE_SECONDARY_AMMO))
-    {
-        return xSecondaryAid;
-    }
-
-    return xPrimaryAid;
+    if(VR_IsADGun(wid)) { return VR_ADGun_Model(wid); } // AD support (vr_ad_guns_defs.qc)
+    if(VRHasBit(xWeaponFlags, QVR_WPNFLAG_USE_SECONDARY_AMMO)) { return VR_WEAPONS[wid].model2; }
+    return VR_WEAPONS[wid].model;
 }
 
 float(float wid, float xWeaponFlags) WeaponIdToAmmoId =
 {
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return AID_NONE; }
     xWeaponFlags = VR_Pack_WeaponFlags(wid, xWeaponFlags);
-    if(wid == WID_FIST)             { return AID_NONE; }
-    if(wid == WID_GRAPPLE)          { return AID_NONE; }
-    if(wid == WID_AXE)              { return AID_NONE; }
-    if(wid == WID_MJOLNIR)          { return AID_CELLS; }
-    if(wid == WID_SHOTGUN)          { return AID_SHELLS; }
-    if(wid == WID_SUPER_SHOTGUN)    { return AID_SHELLS; }
-    if(wid == WID_NAILGUN)          { return SelectAmmoByFlags(xWeaponFlags, AID_NAILS, AID_LAVA_NAILS); }
-    if(wid == WID_SUPER_NAILGUN)    { return SelectAmmoByFlags(xWeaponFlags, AID_NAILS, AID_LAVA_NAILS); }
-    if(wid == WID_GRENADE_LAUNCHER) { return SelectAmmoByFlags(xWeaponFlags, AID_ROCKETS, AID_MULTI_ROCKETS); }
-    if(wid == WID_PROXIMITY_GUN)    { return AID_ROCKETS; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return SelectAmmoByFlags(xWeaponFlags, AID_ROCKETS, AID_MULTI_ROCKETS); }
-    if(wid == WID_LIGHTNING)        { return SelectAmmoByFlags(xWeaponFlags, AID_CELLS, AID_PLASMA); }
-    if(wid == WID_LASER_CANNON)     { return AID_CELLS; }
-    if(wid == WID_SWORD)            { return AID_NONE; }
-    if(wid == WID_CHAINSAW)         { return AID_NONE; }
-    if(wid == WID_GRUNTGUN)         { return AID_NONE; }
-    if(wid == WID_ENFRIFLE)         { return AID_NONE; }
-    if(wid == WID_CROWBAR)          { return AID_NONE; }
-    if(wid == WID_SUPERAXE)         { return AID_CELLS; }
-    if(wid == WID_TOOLGUN)          { return AID_NONE; }
-    if(wid == WID_NAILPISTOL)       { return AID_NAILS; }
-    if(wid == WID_FLAREGUN)       { return AID_NONE; }
-    if(wid == WID_REVOLVER)         { return AID_SHELLS; }
-
-    if(VR_IsADGun(wid))             { return AID_NONE; } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return AID_NONE;
+    if(VRHasBit(xWeaponFlags, QVR_WPNFLAG_USE_SECONDARY_AMMO)) { return VR_WEAPONS[wid].ammo2; }
+    return VR_WEAPONS[wid].ammo;
 }
 
 float(entity xPlayer, float wid, float xWeaponFlags) PlayerHasAmmoForWeapon =
@@ -290,153 +262,37 @@ float(entity xPlayer, float wid, float xWeaponFlags) PlayerHasAmmoForWeapon =
 
 float(float wid) WeaponIdToThrowMult =
 {
-    // (Used for the throw's velocity; the engine's weight has its own numbers.)
-
-    if(wid == WID_FIST)             { return 1; }
-    if(wid == WID_GRAPPLE)          { return 0.9; }
-    if(wid == WID_AXE)              { return 0.9; }
-    if(wid == WID_MJOLNIR)          { return 0.7; }
-    if(wid == WID_SHOTGUN)          { return 0.8; }
-    if(wid == WID_SUPER_SHOTGUN)    { return 0.8; }
-    if(wid == WID_NAILGUN)          { return 0.8; }
-    if(wid == WID_SUPER_NAILGUN)    { return 0.6; }
-    if(wid == WID_GRENADE_LAUNCHER) { return 0.6; }
-    if(wid == WID_PROXIMITY_GUN)    { return 0.6; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return 0.6; }
-    if(wid == WID_LIGHTNING)        { return 0.6; }
-    if(wid == WID_LASER_CANNON)     { return 0.4; }
-    if(wid == WID_SWORD)            { return 0.8; }
-    if(wid == WID_CHAINSAW)         { return 0.4; }
-    if(wid == WID_GRUNTGUN)         { return 0.7; }
-    if(wid == WID_ENFRIFLE)         { return 0.6; }
-    if(wid == WID_CROWBAR)          { return 0.8; }
-    if(wid == WID_SUPERAXE)         { return 0.75; }
-    if(wid == WID_TOOLGUN)          { return 0.8; }
-    if(wid == WID_NAILPISTOL)       { return 0.9; }
-    if(wid == WID_FLAREGUN)       { return 0.9; }
-    if(wid == WID_REVOLVER)         { return 0.85; }
-
-    if(VR_IsADGun(wid))             { return 0.6; } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return 1;
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return 1; }
+    return VR_WEAPONS[wid].throwMult;
 }
 
 float(float wid) WeaponIdToThrowStabilizeDim =
 {
-    if(wid == WID_FIST)             { return 0; }
-    if(wid == WID_GRAPPLE)          { return 0; }
-    if(wid == WID_AXE)              { return 2; }
-    if(wid == WID_MJOLNIR)          { return 2; }
-    if(wid == WID_SHOTGUN)          { return 0; }
-    if(wid == WID_SUPER_SHOTGUN)    { return 0; }
-    if(wid == WID_NAILGUN)          { return 0; }
-    if(wid == WID_SUPER_NAILGUN)    { return 0; }
-    if(wid == WID_GRENADE_LAUNCHER) { return 0; }
-    if(wid == WID_PROXIMITY_GUN)    { return 0; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return 0; }
-    if(wid == WID_LIGHTNING)        { return 0; }
-    if(wid == WID_LASER_CANNON)     { return 0; }
-    if(wid == WID_SWORD)            { return 0; }
-    if(wid == WID_CHAINSAW)         { return 0; }
-    if(wid == WID_GRUNTGUN)         { return 0; }
-    if(wid == WID_ENFRIFLE)         { return 0; }
-    if(wid == WID_CROWBAR)          { return 0; }
-    if(wid == WID_SUPERAXE)         { return 2; }
-    if(wid == WID_TOOLGUN)          { return 0; }
-    if(wid == WID_NAILPISTOL)       { return 0; }
-    if(wid == WID_FLAREGUN)       { return 0; }
-    if(wid == WID_REVOLVER)         { return 0; }
-
-    if(VR_IsADGun(wid))             { return 0; } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return 0;
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return 0; }
+    return (VR_WEAPONS[wid].flags & VR_WROW_STABILIZE) ? 2 : 0;
 }
 
 float(float wid) WeaponIdToThrowDamage =
 {
-    if(wid == WID_FIST)             { return 20; }
-    if(wid == WID_GRAPPLE)          { return 20; }
-    if(wid == WID_AXE)              { return 35; }
-    if(wid == WID_MJOLNIR)          { return 30; }
-    if(wid == WID_SHOTGUN)          { return 20; }
-    if(wid == WID_SUPER_SHOTGUN)    { return 20; }
-    if(wid == WID_NAILGUN)          { return 20; }
-    if(wid == WID_SUPER_NAILGUN)    { return 25; }
-    if(wid == WID_GRENADE_LAUNCHER) { return 30; }
-    if(wid == WID_PROXIMITY_GUN)    { return 30; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return 30; }
-    if(wid == WID_LIGHTNING)        { return 25; }
-    if(wid == WID_LASER_CANNON)     { return 45; }
-    if(wid == WID_SWORD)            { return 60; }
-    if(wid == WID_CHAINSAW)         { return 50; }
-    if(wid == WID_GRUNTGUN)         { return 20; }
-    if(wid == WID_ENFRIFLE)         { return 25; }
-    if(wid == WID_CROWBAR)          { return 40; }
-    if(wid == WID_SUPERAXE)         { return 50; }
-    if(wid == WID_TOOLGUN)          { return 10; }
-    if(wid == WID_NAILPISTOL)       { return 12; }
-    if(wid == WID_FLAREGUN)       { return 10; }
-    if(wid == WID_REVOLVER)         { return 15; }
-
-    if(VR_IsADGun(wid))             { return 25; } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return 0;
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return 0; }
+    return VR_WEAPONS[wid].throwDamage;
 }
 
 float(float wid) WeaponIdToThrowBounds =
 {
-    if(wid == WID_FIST)             { return 1; }
-    if(wid == WID_GRAPPLE)          { return 1; }
-    if(wid == WID_AXE)              { return 1; }
-    if(wid == WID_MJOLNIR)          { return 1.1; }
-    if(wid == WID_SHOTGUN)          { return 1.25; }
-    if(wid == WID_SUPER_SHOTGUN)    { return 1.25; }
-    if(wid == WID_NAILGUN)          { return 1.25; }
-    if(wid == WID_SUPER_NAILGUN)    { return 1.5; }
-    if(wid == WID_GRENADE_LAUNCHER) { return 1.5; }
-    if(wid == WID_PROXIMITY_GUN)    { return 1.5; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return 1.7; }
-    if(wid == WID_LIGHTNING)        { return 1.5; }
-    if(wid == WID_LASER_CANNON)     { return 2.4; }
-    if(wid == WID_SWORD)            { return 2.4; }
-    if(wid == WID_CHAINSAW)         { return 2.4; }
-    if(wid == WID_GRUNTGUN)         { return 1.6; }
-    if(wid == WID_ENFRIFLE)         { return 1.8; }
-    if(wid == WID_CROWBAR)          { return 1.6; }
-    if(wid == WID_SUPERAXE)         { return 1.4; }
-    if(wid == WID_TOOLGUN)          { return 1.2; }
-    if(wid == WID_NAILPISTOL)       { return 1.0; }
-    if(wid == WID_FLAREGUN)       { return 1.0; }
-    if(wid == WID_REVOLVER)         { return 1.0; }
-
-    if(VR_IsADGun(wid))             { return 1.8; } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return 0;
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return 0; }
+    return VR_WEAPONS[wid].throwBounds;
 }
 
 float(string wpnClassname) WeaponClassNameToWeaponId =
 {
-    if(wpnClassname == "weapon_grapple")         { return WID_GRAPPLE; }
-    if(wpnClassname == "weapon_axe")             { return WID_AXE; }
-    if(wpnClassname == "weapon_mjolnir")         { return WID_MJOLNIR; }
-    if(wpnClassname == "weapon_superaxe")        { return WID_SUPERAXE; }
-    if(wpnClassname == "weapon_toolgun")         { return WID_TOOLGUN; }
-    if(wpnClassname == "weapon_nailpistol")      { return WID_NAILPISTOL; }
-    if(wpnClassname == "weapon_flaregun")       { return WID_FLAREGUN; }
-    if(wpnClassname == "weapon_revolver")        { return WID_REVOLVER; }
-    if(wpnClassname == "weapon_shotgun")         { return WID_SHOTGUN; }
-    if(wpnClassname == "weapon_supershotgun")    { return WID_SUPER_SHOTGUN; }
-    if(wpnClassname == "weapon_nailgun")         { return WID_NAILGUN; }
-    if(wpnClassname == "weapon_supernailgun")    { return WID_SUPER_NAILGUN; }
-    if(wpnClassname == "weapon_grenadelauncher") { return WID_GRENADE_LAUNCHER; }
-    if(wpnClassname == "weapon_proximity_gun")   { return WID_PROXIMITY_GUN; }
-    if(wpnClassname == "weapon_rocketlauncher")  { return WID_ROCKET_LAUNCHER; }
-    if(wpnClassname == "weapon_lightning")       { return WID_LIGHTNING; }
-    if(wpnClassname == "weapon_laser_gun")       { return WID_LASER_CANNON; }
+    if(wpnClassname != "")
+    {
+        for(float wid = WID_FIST; wid <= WID_LAST; wid++)
+        {
+            if(VR_WEAPONS[wid].classname == wpnClassname) { return wid; }
+        }
+    }
 
     ASSERT(FALSE);
     return WID_FIST;
@@ -444,34 +300,8 @@ float(string wpnClassname) WeaponClassNameToWeaponId =
 
 float(float wid) WeaponIdToInitialAmmoCount =
 {
-    if(wid == WID_FIST)             { return 0; }
-    if(wid == WID_GRAPPLE)          { return 0; }
-    if(wid == WID_AXE)              { return 0; }
-    if(wid == WID_MJOLNIR)          { return 30; }
-    if(wid == WID_SHOTGUN)          { return 5; }
-    if(wid == WID_SUPER_SHOTGUN)    { return 5; }
-    if(wid == WID_NAILGUN)          { return 30; }
-    if(wid == WID_SUPER_NAILGUN)    { return 30; }
-    if(wid == WID_GRENADE_LAUNCHER) { return 5; }
-    if(wid == WID_PROXIMITY_GUN)    { return 6; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return 5; }
-    if(wid == WID_LIGHTNING)        { return 15; }
-    if(wid == WID_LASER_CANNON)     { return 30; }
-    if(wid == WID_SWORD)            { return 0; }
-    if(wid == WID_CHAINSAW)         { return 0; }
-    if(wid == WID_GRUNTGUN)         { return 0; }
-    if(wid == WID_ENFRIFLE)         { return 0; }
-    if(wid == WID_CROWBAR)          { return 0; }
-    if(wid == WID_SUPERAXE)         { return 0; }
-    if(wid == WID_TOOLGUN)          { return 0; }
-    if(wid == WID_NAILPISTOL)       { return 24; }
-    if(wid == WID_FLAREGUN)       { return 0; }
-    if(wid == WID_REVOLVER)         { return 12; }
-
-    if(VR_IsADGun(wid))             { return 0; } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return -1;
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return -1; }
+    return VR_WEAPONS[wid].initialAmmo;
 }
 
 string(float wid) WeaponIdToWeaponName;
@@ -493,77 +323,20 @@ string(float wid, float xWeaponFlags) WeaponNameOf =
 
 string(float wid) WeaponIdToWeaponName =
 {
-    if(wid == WID_FIST)             { return "Fist"; }
-    if(wid == WID_GRAPPLE)          { return "Grapple"; }
-    if(wid == WID_AXE)              { return "Axe"; }
-    if(wid == WID_MJOLNIR)          { return "Mjolnir"; }
-    if(wid == WID_SHOTGUN)          { return "Shotgun"; }
-    if(wid == WID_SUPER_SHOTGUN)    { return "Double-barrelled Shotgun"; }
-    if(wid == WID_NAILGUN)          { return "Nailgun"; }
-    if(wid == WID_SUPER_NAILGUN)    { return "Super Nailgun"; }
-    if(wid == WID_GRENADE_LAUNCHER) { return "Grenade Launcher"; }
-    if(wid == WID_PROXIMITY_GUN)    { return "Proximity Gun"; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return "Rocket Launcher"; }
-    if(wid == WID_LIGHTNING)        { return "Thunderbolt"; }
-    if(wid == WID_LASER_CANNON)     { return "Laser Cannon"; }
-    if(wid == WID_SWORD)            { return "Knight's Sword"; }
-    if(wid == WID_CHAINSAW)         { return "Ogre's Chainsaw"; }
-    if(wid == WID_GRUNTGUN)         { return "Grunt Burst Rifle"; } // (our edited grunt's gun: a 3-round burst)
-    if(wid == WID_ENFRIFLE)         { return "Enforcer's Laser Rifle"; }
-    if(wid == WID_CROWBAR)          { return "Crowbar"; }
-    if(wid == WID_SUPERAXE)         { return "Super Axe"; }
-    if(wid == WID_TOOLGUN)          { return "Toolgun"; }
-    if(wid == WID_NAILPISTOL)       { return "Nail Pistol"; }
-    if(wid == WID_FLAREGUN)       { return "Flare Gun"; }
-    if(wid == WID_REVOLVER)         { return "Heavy Revolver"; }
-
-    if(VR_IsADGun(wid))             { return VR_ADGun_Name(wid); } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return "";
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return ""; }
+    if(VR_IsADGun(wid)) { return VR_ADGun_Name(wid); } // AD support (vr_ad_guns_defs.qc)
+    return VR_WEAPONS[wid].name;
 }
 
 float(float wid) WeaponSupportsSecondaryAmmoFlag =
 {
-    if(wid == WID_NAILGUN)          { return TRUE; }
-    if(wid == WID_SUPER_NAILGUN)    { return TRUE; }
-    if(wid == WID_GRENADE_LAUNCHER) { return TRUE; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return TRUE; }
-    if(wid == WID_LIGHTNING)        { return TRUE; }
-
-    return FALSE;
+    return VR_WROW_OK(wid) && (VR_WEAPONS[wid].flags & VR_WROW_SECONDARY);
 }
 
 float(float wid) WeaponIdToSupportsReload =
 {
-    if(wid == WID_FIST)             { return FALSE; }
-    if(wid == WID_GRAPPLE)          { return FALSE; }
-    if(wid == WID_AXE)              { return FALSE; }
-    if(wid == WID_MJOLNIR)          { return FALSE; }
-    if(wid == WID_SHOTGUN)          { return TRUE; }
-    if(wid == WID_SUPER_SHOTGUN)    { return TRUE; }
-    if(wid == WID_NAILGUN)          { return TRUE; }
-    if(wid == WID_SUPER_NAILGUN)    { return TRUE; }
-    if(wid == WID_GRENADE_LAUNCHER) { return TRUE; }
-    if(wid == WID_PROXIMITY_GUN)    { return TRUE; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return TRUE; }
-    if(wid == WID_LIGHTNING)        { return TRUE; }
-    if(wid == WID_LASER_CANNON)     { return FALSE; }
-    if(wid == WID_SWORD)            { return FALSE; }
-    if(wid == WID_CHAINSAW)         { return FALSE; }
-    if(wid == WID_GRUNTGUN)         { return FALSE; }
-    if(wid == WID_ENFRIFLE)         { return FALSE; }
-    if(wid == WID_CROWBAR)          { return FALSE; }
-    if(wid == WID_SUPERAXE)         { return FALSE; }
-    if(wid == WID_TOOLGUN)          { return FALSE; }
-    if(wid == WID_NAILPISTOL)       { return TRUE; }
-    if(wid == WID_FLAREGUN)       { return FALSE; }
-    if(wid == WID_REVOLVER)         { return TRUE; }
-
-    if(VR_IsADGun(wid))             { return FALSE; } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return -1;
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return -1; }
+    return (VR_WEAPONS[wid].flags & VR_WROW_RELOAD) ? TRUE : FALSE;
 }
 
 // The reloading mode of the weapon `wid` (QVR_RELOADMODE_*): its own vr_reload_mode_<gun> (the Per-Weapon Reload
@@ -618,66 +391,21 @@ float() VR_Reload_BestMode =
 
 float(float wid) WeaponIdToSupportsReloadFlicking =
 {
-    if(wid == WID_FIST)             { return FALSE; }
-    if(wid == WID_GRAPPLE)          { return FALSE; }
-    if(wid == WID_AXE)              { return FALSE; }
-    if(wid == WID_MJOLNIR)          { return FALSE; }
-    if(wid == WID_SHOTGUN)          { return FALSE; }
-    if(wid == WID_SUPER_SHOTGUN)    { return TRUE; }
-    if(wid == WID_NAILGUN)          { return FALSE; }
-    if(wid == WID_SUPER_NAILGUN)    { return FALSE; }
-    if(wid == WID_GRENADE_LAUNCHER) { return FALSE; }
-    if(wid == WID_PROXIMITY_GUN)    { return FALSE; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return FALSE; }
-    if(wid == WID_LIGHTNING)        { return FALSE; }
-    if(wid == WID_LASER_CANNON)     { return FALSE; }
-    if(wid == WID_SWORD)            { return FALSE; }
-    if(wid == WID_CHAINSAW)         { return FALSE; }
-    if(wid == WID_GRUNTGUN)         { return FALSE; }
-    if(wid == WID_ENFRIFLE)         { return FALSE; }
-    if(wid == WID_CROWBAR)          { return FALSE; }
-    if(wid == WID_SUPERAXE)         { return FALSE; }
-    if(wid == WID_TOOLGUN)          { return FALSE; }
-    if(wid == WID_NAILPISTOL)       { return FALSE; }
-    if(wid == WID_FLAREGUN)       { return FALSE; }
-    if(wid == WID_REVOLVER)         { return FALSE; }
-
-    if(VR_IsADGun(wid))             { return FALSE; } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return -1;
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return -1; }
+    return (VR_WEAPONS[wid].flags & VR_WROW_FLICK) ? TRUE : FALSE;
 }
 
 float(float wid) WeaponIdToBaseClipSize =
 {
-    if(wid == WID_FIST)             { return 0; }
-    if(wid == WID_GRAPPLE)          { return 0; }
-    if(wid == WID_AXE)              { return 0; }
-    if(wid == WID_MJOLNIR)          { return 0; }
-    if(wid == WID_SHOTGUN)          { return 8; }
-    if(wid == WID_SUPER_SHOTGUN)    { return 2; }
-    if(wid == WID_NAILGUN)          { return 24; }
-    if(wid == WID_SUPER_NAILGUN)    { return 36; }
-    if(wid == WID_GRENADE_LAUNCHER) { return 4; }
-    if(wid == WID_PROXIMITY_GUN)    { return 4; }
-    if(wid == WID_ROCKET_LAUNCHER)  { return 4; }
-    if(wid == WID_LIGHTNING)        { return 36; }
-    if(wid == WID_LASER_CANNON)     { return 0; }
-    if(wid == WID_SWORD)            { return 0; }
-    if(wid == WID_CHAINSAW)         { return VR_CHAINSAW_TANK; }
-    if(wid == WID_GRUNTGUN)         { return VR_GruntGun_ClipSize(); } // a multiple of 3 (vr_enemyguns.qc)
-    if(wid == WID_ENFRIFLE)         { return cvar_hget(cvarh_vr_enfrifle_ammo); }
-    if(wid == WID_CROWBAR)          { return 0; }
-    if(wid == WID_SUPERAXE)         { return 0; }
-    if(wid == WID_TOOLGUN)          { return 0; }
-    if(wid == WID_NAILPISTOL)       { return VR_NailPistol_MagSize(); }
-    if(wid == WID_FLAREGUN)       { return VR_FlareGun_Barrels(); }
-    if(wid == WID_REVOLVER)         { return VR_Revolver_Chambers(); }
-
-    if(VR_IsADGun(wid))             { return VR_ADGun_ClipSize(wid); } // AD support (vr_ad_guns_defs.qc)
-
-    ASSERT(FALSE);
-    return -1;
+    if(!VR_WROW_OK(wid)) { ASSERT(FALSE); return -1; }
+    // The clips a setting or a function sizes (their column is 0).
+    if(wid == WID_GRUNTGUN)   { return VR_GruntGun_ClipSize(); } // a multiple of 3 (vr_enemyguns.qc)
+    if(wid == WID_ENFRIFLE)   { return cvar_hget(cvarh_vr_enfrifle_ammo); }
+    if(wid == WID_NAILPISTOL) { return VR_NailPistol_MagSize(); }
+    if(wid == WID_FLAREGUN)   { return VR_FlareGun_Barrels(); }
+    if(wid == WID_REVOLVER)   { return VR_Revolver_Chambers(); }
+    if(VR_IsADGun(wid))       { return VR_ADGun_ClipSize(wid); } // AD support (vr_ad_guns_defs.qc)
+    return VR_WEAPONS[wid].clip;
 }
 
 // The magazine size of the weapon `wid` whose record is `inst` (world: not known, a plain one): AD support: the
@@ -708,3 +436,4 @@ float(float wid, float xFlags) WeaponIdToHolsterable =
     }
     return TRUE;
 };
+

@@ -86,6 +86,42 @@ float AR_SP_OGRE     = 5; // monster_ogre
 float AR_SP_FIEND    = 6; // monster_demon1: a fiend
 float AR_SP_HKNIGHT  = 7; // monster_hell_knight: a death knight
 
+// The waves' monster kinds, the arena's and the horde's (vr_mg_horde.qc MGH_SpawnMonster): a row an arena kind (AR_SP_*,
+// its row), then the horde's others. Its horde name, its classname, its spawn as the horde brings it (id's monster) and
+// as the arena does (the grunt and the enforcer holding one of the player's weapons: vr_armedgrunt.qc; the armed
+// enforcer puts its own classname on, VR_AM_Spawn).
+typedef struct
+{
+    string name, classname;
+    void() spawn, arenaSpawn;
+} vr_wave_kind;
+
+vr_wave_kind VR_WAVE_KINDS[] =
+{
+    { "grunt", "monster_army", monster_army, monster_vr_grunt },
+    { "enforcer", "monster_enforcer", monster_enforcer, monster_vr_enforcer },
+    { "zombie", "monster_zombie", monster_zombie, monster_zombie },
+    { "dog", "monster_dog", monster_dog, monster_dog },
+    { "knight", "monster_knight", monster_knight, monster_knight },
+    { "ogre", "monster_ogre", monster_ogre, monster_ogre },
+    { "demon", "monster_demon1", monster_demon1, monster_demon1 },
+    { "hellknight", "monster_hell_knight", monster_hell_knight, monster_hell_knight },
+    { "shambler", "monster_shambler", monster_shambler, monster_shambler },
+    { "shalrath", "monster_shalrath", monster_shalrath, monster_shalrath },
+    { "wizard", "monster_wizard", monster_wizard, monster_wizard }
+};
+#define VR_WAVE_KINDS_N 11
+
+// A horde name's row, or -1.
+float(string xName) VR_WaveKind_ByName =
+{
+    for(float i = 0; i < VR_WAVE_KINDS_N; i++)
+    {
+        if(VR_WAVE_KINDS[i].name == xName) { return i; }
+    }
+    return -1;
+}
+
 // The ladder's rungs a wave may draw from, and the waves Quake's own monsters join at. These are the Normal
 // skill's waves: VR_ARENA_WaveAdj moves every one of them by the difficulty (earlier at Hard and Nightmare,
 // later at Easy).
@@ -1076,30 +1112,16 @@ entity(float xWant, float xIndex) VR_ARENA_SpawnSpot =
 }
 
 // A ring around the player, for a map with no info_arena_spawn / info_arena_item of its own.
-vector(float i) VR_ARENA_RingDir =
-{
-    float k = VR_ARENA_Mod(i, AR_RING_MAX);
-    if(k == 0) { return '1 0 0'; }
-    if(k == 1) { return '-0.5 0.87 0'; }
-    if(k == 2) { return '-1 0 0'; }
-    if(k == 3) { return '-0.5 -0.87 0'; }
-    if(k == 4) { return '0.5 -0.87 0'; }
-    if(k == 5) { return '0.5 0.87 0'; }
-    if(k == 6) { return '0.7 0.7 0'; }
-    return '-0.7 -0.7 0';
-}
+vector AR_RING_DIRS[8] = { '1 0 0', '-0.5 0.87 0', '-1 0 0', '-0.5 -0.87 0', '0.5 -0.87 0', '0.5 0.87 0', '0.7 0.7 0',
+                           '-0.7 -0.7 0' };
+
+vector(float i) VR_ARENA_RingDir = { return AR_RING_DIRS[VR_ARENA_Mod(i, AR_RING_MAX)]; }
 
 // A spot used twice in one wave is stepped aside, so two foes never spawn inside one another. The first is the
 // place as the map drew it; then the four diagonals a little over a monster's box (its own box is 32 wide) off it.
-vector(float i) VR_ARENA_Aside =
-{
-    float k = VR_ARENA_Mod(i, AR_ASIDE_MAX);
-    if(k == 0) { return '0 0 0'; }
-    if(k == 1) { return AR_ASIDE_STEP * '1 1 0'; }
-    if(k == 2) { return AR_ASIDE_STEP * '-1 1 0'; }
-    if(k == 3) { return AR_ASIDE_STEP * '1 -1 0'; }
-    return AR_ASIDE_STEP * '-1 -1 0';
-}
+vector AR_ASIDE_DIRS[5] = { '0 0 0', '1 1 0', '-1 1 0', '1 -1 0', '-1 -1 0' };
+
+vector(float i) VR_ARENA_Aside = { return AR_ASIDE_STEP * AR_ASIDE_DIRS[VR_ARENA_Mod(i, AR_ASIDE_MAX)]; }
 
 // A place already holding one of this wave's foes is stepped aside. The step is small on purpose (a monster's own
 // box is 32 wide): from a tower top, a wall walk or the octagon's cut corner it stays on the ground it belongs to.
@@ -1377,28 +1399,12 @@ vector(float i) VR_ARENA_DropPlace =
 // A wave's monster: its place, its gun, its kind's own spawn
 // ---------------------------------------------------------------------------
 
-string(float xKind) VR_ARENA_ClassName =
-{
-    if(xKind == AR_SP_ZOMBIE)   { return "monster_zombie"; }
-    if(xKind == AR_SP_DOG)      { return "monster_dog"; }
-    if(xKind == AR_SP_KNIGHT)   { return "monster_knight"; }
-    if(xKind == AR_SP_OGRE)     { return "monster_ogre"; }
-    if(xKind == AR_SP_FIEND)    { return "monster_demon1"; }
-    if(xKind == AR_SP_HKNIGHT)  { return "monster_hell_knight"; }
-    if(xKind == AR_SP_ENFORCER) { return "monster_enforcer"; } // (its armed version puts its own classname on: VR_AM_Spawn)
-    return "monster_army";
-}
+string(float xKind) VR_ARENA_ClassName = { return VR_WAVE_KINDS[xKind].classname; }
 
 void(float xKind) VR_ARENA_CallSpawn =
 {
-    if(xKind == AR_SP_GRUNT)    { monster_vr_grunt(); return; }    // (vr_armedgrunt.qc: a grunt holding one of the player's weapons)
-    if(xKind == AR_SP_ENFORCER) { monster_vr_enforcer(); return; }
-    if(xKind == AR_SP_ZOMBIE)   { monster_zombie(); return; }
-    if(xKind == AR_SP_DOG)      { monster_dog(); return; }
-    if(xKind == AR_SP_KNIGHT)   { monster_knight(); return; }
-    if(xKind == AR_SP_OGRE)     { monster_ogre(); return; }
-    if(xKind == AR_SP_FIEND)    { monster_demon1(); return; }
-    monster_hell_knight();
+    void() kindSpawn = VR_WAVE_KINDS[xKind].arenaSpawn;
+    kindSpawn();
 }
 
 float(float xKind) VR_ARENA_ArmsHumanoid = { return xKind == AR_SP_GRUNT || xKind == AR_SP_ENFORCER; }

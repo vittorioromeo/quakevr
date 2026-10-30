@@ -3597,6 +3597,162 @@ float(float xHand) W_CheckNoAmmo =
     return FALSE;
 };
 
+// W_AttackImpl's firing, one function a weapon (W18; W_AttackImpl_Fire dispatches): the hand, the weapon's flags and
+// where its next attack time goes (left as it was where the weapon sets none).
+
+// The axe, the swords, the crowbar and the Super Axe: swung by the tracked hands themselves; untracked, a swing.
+void(float xHand, float* xOutAttackFinished) W_Fire_Melee =
+{
+    if(!VRHandsTracked(self) ||
+       !self.ishuman)
+    {
+        VR_SoundVaried(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
+        float r = random();
+        if(r < 0.25)
+            player_axe1(xHand);
+        else if(r<0.5)
+            player_axeb1(xHand);
+        else if(r<0.75)
+            player_axec1(xHand);
+        else
+            player_axed1(xHand);
+        *xOutAttackFinished = time + RuneApplyHell(0.5, self);
+    }
+};
+
+void(float xHand, float* xOutAttackFinished) W_Fire_Shotgun =
+{
+    SuperDamageSound();
+    player_shot1(xHand);
+    W_FireShotgun(xHand);
+    *xOutAttackFinished = time + RuneApplyHell(MG3_BloodyShotgunRefire(0.5), self); // (Dawn of the Machine's bloody one: 0.28)
+};
+
+void(float xHand, float* xOutAttackFinished) W_Fire_SuperShotgun =
+{
+    float widow = AD_WidowmakerIn(self, xHand);
+    SuperDamageSound();
+    player_shot1(xHand);
+    if(widow)
+    {
+        // AD support: the Widowmaker, an auto shotgun: a shell a shot, again while the trigger is held (vr_ad_bridge.qc).
+        AD_FireWidowmaker(xHand);
+        *xOutAttackFinished = time + RuneApplyHell(max(0.02, cvar_hget(cvarh_vr_ad_widowmaker_refire)), self);
+        return;
+    }
+    W_FireSuperShotgun(xHand);
+    *xOutAttackFinished = time + RuneApplyHell(0.7, self);
+};
+
+// The nailgun and the super nailgun (their frames fire: player_nail1).
+void(float xHand, float xWeaponFlags) W_Fire_Nailgun =
+{
+    if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+    {
+        VRSetLavaGunFired(xHand, 1);
+        player_lava_nail1(xHand);
+    }
+    else
+    {
+        player_nail1(xHand);
+    }
+};
+
+void(float xHand, float xWeaponFlags, float* xOutAttackFinished) W_Fire_GrenadeLauncher =
+{
+    SuperDamageSound();
+    player_rocket1(xHand);
+    if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO) { W_FireMultiGrenade(xHand); }
+    else                                              { W_FireGrenade(xHand); }
+    *xOutAttackFinished = time + RuneApplyHell(0.6, self);
+};
+
+void(float xHand, float xWeaponFlags, float* xOutAttackFinished) W_Fire_RocketLauncher =
+{
+    SuperDamageSound();
+    player_rocket1(xHand);
+    if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO) { W_FireMultiRocket(xHand); }
+    else                                              { W_FireRocket(xHand); }
+    *xOutAttackFinished = time + RuneApplyHell(0.8, self);
+};
+
+void(float xHand, float xWeaponFlags, float* xOutAttackFinished) W_Fire_Lightning =
+{
+    if(AD_PlasmaGun(xHand, xWeaponFlags)) // AD support: the Plasma Gun (vr_ad_bridge.qc)
+    {
+        AD_FirePlasma(xHand);
+        *xOutAttackFinished = time + 0.2;
+        return;
+    }
+
+    player_light1(xHand);
+    if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+    {
+        *xOutAttackFinished = time + RuneApplyHell(1.0, self);
+    }
+    else
+    {
+        *xOutAttackFinished = time + 0.1;
+    }
+    sound(self, VRGetHandChannel(xHand), "weapons/lstart.wav", 1, ATTN_NORM);
+};
+
+// HIPNOTIC (MED): Mjolnir, swung by the tracked hands; untracked, a swing (its lightning with 30 cells or more).
+void(float xHand, float* xOutAttackFinished) W_Fire_Mjolnir =
+{
+    if(!VRHandsTracked(self) ||
+       !self.ishuman)
+    {
+        if(self.ammo_cells < 30)
+        {
+            player_hammer1(xHand);
+        }
+        else
+        {
+            player_mjolnir1(xHand);
+        }
+
+        *xOutAttackFinished = time + 0.8;
+    }
+};
+
+void(float xHand, float* xOutAttackFinished) W_Fire_ProximityGun =
+{
+    SuperDamageSound();
+    player_rocket1(xHand);
+    W_FireProximityGrenade(xHand);
+    *xOutAttackFinished = time + 0.6;
+};
+
+void(float xHand, float* xOutAttackFinished) W_Fire_Grapple =
+{
+    // A hook that came off by itself (what it bit died or went) fires again only on a new pull (vr_grapple.qc).
+    if(!getHookOut(xHand) && VR_Grapple_MustRelease(xHand))
+        return;
+    if(!getHookOut(xHand))
+        player_grapple1(xHand);
+    else
+        player_grapple3(xHand);
+
+    *xOutAttackFinished = time + 0.1;
+};
+
+// The weapon `xWeapon` fires (W_AttackImpl, once its ammo and its other checks passed).
+void(float xHand, float xWeapon, float xWeaponFlags, float* xOutAttackFinished) W_AttackImpl_Fire =
+{
+    if(xWeapon == WID_AXE || xWeapon == WID_SWORD || xWeapon == WID_CROWBAR || xWeapon == WID_SUPERAXE)
+                                           { W_Fire_Melee(xHand, xOutAttackFinished); }
+    else if(xWeapon == WID_SHOTGUN)          { W_Fire_Shotgun(xHand, xOutAttackFinished); }
+    else if(xWeapon == WID_SUPER_SHOTGUN)    { W_Fire_SuperShotgun(xHand, xOutAttackFinished); }
+    else if(xWeapon == WID_NAILGUN || xWeapon == WID_SUPER_NAILGUN) { W_Fire_Nailgun(xHand, xWeaponFlags); }
+    else if(xWeapon == WID_GRENADE_LAUNCHER) { W_Fire_GrenadeLauncher(xHand, xWeaponFlags, xOutAttackFinished); }
+    else if(xWeapon == WID_ROCKET_LAUNCHER)  { W_Fire_RocketLauncher(xHand, xWeaponFlags, xOutAttackFinished); }
+    else if(xWeapon == WID_LIGHTNING)        { W_Fire_Lightning(xHand, xWeaponFlags, xOutAttackFinished); }
+    else if(xWeapon == WID_LASER_CANNON)     { player_laser1(xHand); } // HIPNOTIC (MED)
+    else if(xWeapon == WID_MJOLNIR)          { W_Fire_Mjolnir(xHand, xOutAttackFinished); }
+    else if(xWeapon == WID_PROXIMITY_GUN)    { W_Fire_ProximityGun(xHand, xOutAttackFinished); }
+    else if(xWeapon == WID_GRAPPLE)          { W_Fire_Grapple(xHand, xOutAttackFinished); }
+};
 /*
 ============
 W_Attack
@@ -3705,154 +3861,7 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     RuneApplyBlackNoise(self); // make rune noise
     //--ZOID
 
-    if(xWeapon == WID_AXE || xWeapon == WID_SWORD || xWeapon == WID_CROWBAR || xWeapon == WID_SUPERAXE)
-    {
-        if(!VRHandsTracked(self) ||
-           !self.ishuman)
-        {
-            VR_SoundVaried(self, VRGetGunChannel(xHand), "weapons/ax1.wav", 1, ATTN_NORM);
-            float r = random();
-            if(r < 0.25)
-                player_axe1(xHand);
-            else if(r<0.5)
-                player_axeb1(xHand);
-            else if(r<0.75)
-                player_axec1(xHand);
-            else
-                player_axed1(xHand);
-            *xOutAttackFinished = time + RuneApplyHell(0.5, self);
-        }
-    }
-    else if(xWeapon == WID_SHOTGUN)
-    {
-        SuperDamageSound();
-        player_shot1(xHand);
-        W_FireShotgun(xHand);
-        *xOutAttackFinished = time + RuneApplyHell(MG3_BloodyShotgunRefire(0.5), self); // (Dawn of the Machine's bloody one: 0.28)
-    }
-    else if(xWeapon == WID_SUPER_SHOTGUN && AD_WidowmakerIn(self, xHand))
-    {
-        // AD support: the Widowmaker, an auto shotgun: a shell a shot, again while the trigger is held (vr_ad_bridge.qc).
-        SuperDamageSound();
-        player_shot1(xHand);
-        AD_FireWidowmaker(xHand);
-        *xOutAttackFinished = time + RuneApplyHell(max(0.02, cvar_hget(cvarh_vr_ad_widowmaker_refire)), self);
-    }
-    else if(xWeapon == WID_SUPER_SHOTGUN)
-    {
-        SuperDamageSound();
-        player_shot1(xHand);
-        W_FireSuperShotgun(xHand);
-        *xOutAttackFinished = time + RuneApplyHell(0.7, self);
-    }
-    else if(xWeapon == WID_NAILGUN || xWeapon == WID_SUPER_NAILGUN)
-    {
-        if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
-        {
-            VRSetLavaGunFired(xHand, 1);
-            player_lava_nail1(xHand);
-        }
-        else
-        {
-            player_nail1(xHand);
-        }
-    }
-    else if(xWeapon == WID_GRENADE_LAUNCHER)
-    {
-        SuperDamageSound();
-        player_rocket1(xHand);
-
-        if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
-        {
-            W_FireMultiGrenade(xHand);
-        }
-        else
-        {
-            W_FireGrenade(xHand);
-        }
-
-        *xOutAttackFinished = time + RuneApplyHell(0.6, self);
-    }
-    else if(xWeapon == WID_ROCKET_LAUNCHER)
-    {
-        SuperDamageSound();
-        player_rocket1(xHand);
-
-        if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
-        {
-            W_FireMultiRocket(xHand);
-        }
-        else
-        {
-            W_FireRocket(xHand);
-        }
-
-        *xOutAttackFinished = time + RuneApplyHell(0.8, self);
-    }
-    else if(xWeapon == WID_LIGHTNING && AD_PlasmaGun(xHand, xWeaponFlags)) // AD support: the Plasma Gun (vr_ad_bridge.qc)
-    {
-        AD_FirePlasma(xHand);
-        *xOutAttackFinished = time + 0.2;
-    }
-    else if(xWeapon == WID_LIGHTNING)
-    {
-        player_light1(xHand);
-
-        if(xWeaponFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
-        {
-            *xOutAttackFinished = time + RuneApplyHell(1.0, self);
-        }
-        else
-        {
-            *xOutAttackFinished = time + 0.1;
-        }
-
-        sound(self, VRGetHandChannel(xHand), "weapons/lstart.wav", 1, ATTN_NORM);
-    }
-    // HYPNOTIC
-//MED
-    else if(xWeapon == WID_LASER_CANNON)
-    {
-        player_laser1(xHand);
-    }
-//MED
-   else if(xWeapon == WID_MJOLNIR)
-   {
-        if(!VRHandsTracked(self) ||
-           !self.ishuman)
-        {
-            if(self.ammo_cells < 30)
-            {
-                player_hammer1(xHand);
-            }
-            else
-            {
-                player_mjolnir1(xHand);
-            }
-
-            *xOutAttackFinished = time + 0.8;
-        }
-   }
-//MED
-    else if(xWeapon == WID_PROXIMITY_GUN)
-    {
-        SuperDamageSound();
-        player_rocket1(xHand);
-        W_FireProximityGrenade(xHand);
-        *xOutAttackFinished = time + 0.6;
-    }
-    else if(xWeapon == WID_GRAPPLE)
-    {
-        // A hook that came off by itself (what it bit died or went) fires again only on a new pull (vr_grapple.qc).
-        if(!getHookOut(xHand) && VR_Grapple_MustRelease(xHand))
-            return;
-        if(!getHookOut(xHand))
-            player_grapple1(xHand);
-        else
-            player_grapple3(xHand);
-
-        *xOutAttackFinished = time + 0.1;
-    }
+    W_AttackImpl_Fire(xHand, xWeapon, xWeaponFlags, xOutAttackFinished);
 };
 
 void() W_Attack =
@@ -4411,6 +4420,38 @@ void() VR_WeaponInst_Test; // (vr_weaponinst_test.qc)
 void() VR_Reload_Test;     // (vr_reload_test.qc)
 #endif
 
+// ImpulseCommands' per-hand steps (W19).
+// Whether `xHand` may fire (and so cycle) again.
+float(float xHand) VR_Impulse_HandReady =
+{
+    return time >= (xHand == cVR_OffHand ? self.offhand_attack_finished : self.attack_finished);
+};
+
+// Cycles the weapon in `xHand` to the next one collected (`xReverse`: the one before) when cycling is allowed.
+void(float xHand, float xReverse) VR_Impulse_CycleHand =
+{
+    if(getWeaponCycleMode() != QVR_WEAPONCYCLEMODE_ALLOWED)
+    {
+        return;
+    }
+    if(xHand == cVR_OffHand)
+    {
+        if(xReverse) { CycleWeaponReverseCommand(cVR_OffHand, self.weapon2, &self.weapon2, self.weaponflags2, &self.weaponflags2); }
+        else         { CycleWeaponCommand(cVR_OffHand, self.weapon2, &self.weapon2, self.weaponflags2, &self.weaponflags2); }
+    }
+    else
+    {
+        if(xReverse) { CycleWeaponReverseCommand(cVR_MainHand, self.weapon, &self.weapon, self.weaponflags, &self.weaponflags); }
+        else         { CycleWeaponCommand(cVR_MainHand, self.weapon, &self.weapon, self.weaponflags, &self.weaponflags); }
+    }
+};
+
+// The button of the weapon in `xHand` pressed: a grappling hook's detach, else its secondary ammo.
+void(float xHand) VR_Impulse_WeaponButton =
+{
+    if(VRGetWeapon(xHand) == WID_GRAPPLE) { VR_Grapple_Detach(xHand); }
+    else                                  { ToggleSecondaryAmmo(xHand); }
+};
 void() ImpulseCommands =
 {
     // QVR: the single-player test and debug impulses (vr_impulse_test.qc): first, as each returns or falls
@@ -4463,24 +4504,11 @@ void() ImpulseCommands =
         // collected (the same cycling the controller's Y and B do); Quake's own weapon select stands for the other keys.
         if(VR_FlatPlay(self) && (self.impulse == 1 || self.impulse == 2))
         {
-            float xOffHand = self.impulse == 1;
+            float flatHand = self.impulse == 1 ? cVR_OffHand : cVR_MainHand;
             self.impulse = 0;
-            if(getWeaponCycleMode() != QVR_WEAPONCYCLEMODE_ALLOWED)
+            if(VR_Impulse_HandReady(flatHand) && !VR_Grapple_ButtonsBusy(flatHand))
             {
-                return;
-            }
-            if(xOffHand)
-            {
-                if(time >= self.offhand_attack_finished && !VR_Grapple_ButtonsBusy(cVR_OffHand))
-                {
-                    CycleWeaponCommand(cVR_OffHand, self.weapon2, &self.weapon2,
-                        self.weaponflags2, &self.weaponflags2);
-                }
-            }
-            else if(time >= self.attack_finished && !VR_Grapple_ButtonsBusy(cVR_MainHand))
-            {
-                CycleWeaponCommand(cVR_MainHand, self.weapon, &self.weapon,
-                    self.weaponflags, &self.weaponflags);
+                VR_Impulse_CycleHand(flatHand, FALSE);
             }
             return;
         }
@@ -4493,27 +4521,10 @@ void() ImpulseCommands =
 
     // A weapon's button pressed (the other hand's fingertip on it): its secondary ammo; the grappling hook's detach
     // (vr_grapple.qc). 44/45: the grappling gun's front button, the reel-in.
-    if(self.impulse == 42)
-    {
-        if(VRGetWeapon(cVR_OffHand) == WID_GRAPPLE) VR_Grapple_Detach(cVR_OffHand);
-        else                                         ToggleSecondaryAmmo(cVR_OffHand);
-    }
-
-    if(self.impulse == 43)
-    {
-        if(VRGetWeapon(cVR_MainHand) == WID_GRAPPLE) VR_Grapple_Detach(cVR_MainHand);
-        else                                          ToggleSecondaryAmmo(cVR_MainHand);
-    }
-
-    if(self.impulse == 44 && VRGetWeapon(cVR_OffHand) == WID_GRAPPLE)
-    {
-        VR_Grapple_QuickRelease(cVR_OffHand);
-    }
-
-    if(self.impulse == 45 && VRGetWeapon(cVR_MainHand) == WID_GRAPPLE)
-    {
-        VR_Grapple_QuickRelease(cVR_MainHand);
-    }
+    if(self.impulse == 42) { VR_Impulse_WeaponButton(cVR_OffHand); }
+    if(self.impulse == 43) { VR_Impulse_WeaponButton(cVR_MainHand); }
+    if(self.impulse == 44 && VRGetWeapon(cVR_OffHand) == WID_GRAPPLE) { VR_Grapple_QuickRelease(cVR_OffHand); }
+    if(self.impulse == 45 && VRGetWeapon(cVR_MainHand) == WID_GRAPPLE) { VR_Grapple_QuickRelease(cVR_MainHand); }
 
     if(self.impulse >= 225 && self.impulse <= 226)
     {
@@ -4543,47 +4554,24 @@ void() ImpulseCommands =
         CheatSpawnWeaponDrop(WID_GRAPPLE);
     }
 
-    // The hand's B/Y also reels a grappling hook in (vr_grapple.qc: its own gun's, or the other hand's when its own has
-    // none out): while it drives one, it cycles nothing.
-    if(self.impulse == 10 && time >= self.attack_finished && !VR_Grapple_ButtonsBusy(cVR_MainHand) &&
-       !VR_Reload_MagIn(self, cVR_MainHand)) // (B ejects its magazine: vr_reload.qc)
+    // B/Y (10/12) cycle the hand's weapon, 15/16 back. The hand's B/Y also reels a grappling hook in (vr_grapple.qc: its own
+    // gun's, or the other hand's when its own has none out): while it drives one, it cycles nothing; and they eject a
+    // magazine that is in (vr_reload.qc).
+    if(self.impulse == 10 || self.impulse == 12)
     {
-        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        float cycleHand = self.impulse == 12 ? cVR_OffHand : cVR_MainHand;
+        if(VR_Impulse_HandReady(cycleHand) && !VR_Grapple_ButtonsBusy(cycleHand) && !VR_Reload_MagIn(self, cycleHand))
         {
-            CycleWeaponCommand(cVR_MainHand,
-                self.weapon, &self.weapon,
-                self.weaponflags, &self.weaponflags);
+            VR_Impulse_CycleHand(cycleHand, FALSE);
         }
     }
 
-    if(self.impulse == 12 && time >= self.offhand_attack_finished && !VR_Grapple_ButtonsBusy(cVR_OffHand) &&
-       !VR_Reload_MagIn(self, cVR_OffHand)) // (Y ejects its magazine: vr_reload.qc)
+    if(self.impulse == 15 || self.impulse == 16)
     {
-        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
+        float backHand = self.impulse == 16 ? cVR_OffHand : cVR_MainHand;
+        if(VR_Impulse_HandReady(backHand))
         {
-            CycleWeaponCommand(cVR_OffHand,
-                self.weapon2, &self.weapon2,
-                self.weaponflags2, &self.weaponflags2);
-        }
-    }
-
-    if(self.impulse == 15 && time >= self.attack_finished)
-    {
-        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
-        {
-            CycleWeaponReverseCommand(cVR_MainHand,
-                self.weapon, &self.weapon,
-                self.weaponflags, &self.weaponflags);
-        }
-    }
-
-    if(self.impulse == 16 && time >= self.offhand_attack_finished)
-    {
-        if(getWeaponCycleMode() == QVR_WEAPONCYCLEMODE_ALLOWED)
-        {
-            CycleWeaponReverseCommand(cVR_OffHand,
-                self.weapon2, &self.weapon2,
-                self.weaponflags2, &self.weaponflags2);
+            VR_Impulse_CycleHand(backHand, TRUE);
         }
     }
 
@@ -5953,7 +5941,7 @@ VRTryUnloadWeapon =
 // The save's original weapon instance stays in this hand briefly after loading (both release checks agree).
 float(entity ent, float xHand) VRWeaponLoadProtected =
 {
-    entity restored = xHand == cVR_MainHand ? ent.vr_weapon_load_main : ent.vr_weapon_load_off;
+    entity restored = VR_HAND_FIELD(ent, xHand, vr_weapon_load_main, vr_weapon_load_off);
     return time < ent.vr_weapon_load_until && restored != world && restored == VRGetEntWeaponInst(ent, xHand);
 }
 
@@ -5962,7 +5950,7 @@ float(entity ent, float xHand) VRWeaponLoadProtected =
 // as usual (let go on release). Sticky mode needs nothing: it waits for a squeeze and a release already.
 float(entity ent, float xHand) VRWeaponGivenHeld =
 {
-    entity given = xHand == cVR_MainHand ? ent.vr_weapon_given_main : ent.vr_weapon_given_off;
+    entity given = VR_HAND_FIELD(ent, xHand, vr_weapon_given_main, vr_weapon_given_off);
     if(given == world)
     {
         return FALSE;
@@ -6075,7 +6063,7 @@ float(entity ent, float xHand) VRWeaponLeavingHand =
     if(cvar_hget(cvarh_vr_weapon_grip_mode) == 1)
     {
         float bit = xHand == cVR_MainHand ? 2 : 1;
-        float lastWeapon = xHand == cVR_MainHand ? ent.stickyweaponmain : ent.stickyweaponoff;
+        float lastWeapon = VR_HAND_FIELD(ent, xHand, stickyweaponmain, stickyweaponoff);
         float armedNow = VR_HandGrabUtil_IsHandPrevGrabbing(ent, xHand) && (ent.stickyarmed & bit) &&
                          VRGetEntWeapon(ent, xHand) == lastWeapon;
         if(!(ent.stickypending & bit) && !armedNow)
@@ -6084,7 +6072,7 @@ float(entity ent, float xHand) VRWeaponLeavingHand =
         }
     }
 
-    float hotspot = xHand == cVR_MainHand ? ent.mainhand_hotspot : ent.offhand_hotspot;
+    float hotspot = VR_HAND_FIELD(ent, xHand, mainhand_hotspot, offhand_hotspot);
     return VRLetGoDropsAt(hotspot) ||
            (isHolsterHotspot(hotspot) && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE &&
             getHolsterWeapon(hotspot) == WID_FIST);

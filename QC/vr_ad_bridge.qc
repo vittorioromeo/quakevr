@@ -645,27 +645,11 @@ void(float i, float xWid) AD_ParmSet =
     parm64 = parm64 - code * k;
 };
 
-// AD's weapon item bits (the same as Quake's IT_ bits) and Quake VR's weapon ids, in order.
-float(float n) AD_KeyBit =
-{
-    if(n == 0) return ad_IT_SHOTGUN;
-    if(n == 1) return ad_IT_SUPER_SHOTGUN;
-    if(n == 2) return ad_IT_NAILGUN;
-    if(n == 3) return ad_IT_SUPER_NAILGUN;
-    if(n == 4) return ad_IT_GRENADE_LAUNCHER;
-    if(n == 5) return ad_IT_ROCKET_LAUNCHER;
-    return ad_IT_LIGHTNING;
-};
-float(float n) AD_KeyWid =
-{
-    if(n == 0) return WID_SHOTGUN;
-    if(n == 1) return WID_SUPER_SHOTGUN;
-    if(n == 2) return WID_NAILGUN;
-    if(n == 3) return WID_SUPER_NAILGUN;
-    if(n == 4) return WID_GRENADE_LAUNCHER;
-    if(n == 5) return WID_ROCKET_LAUNCHER;
-    return WID_LIGHTNING;
-};
+// AD's weapon item bits (the same as Quake's IT_ bits) and Quake VR's weapon ids, in order (the worldspawn weapon keys).
+float AD_KEY_BITS[7] = { ad_IT_SHOTGUN, ad_IT_SUPER_SHOTGUN, ad_IT_NAILGUN, ad_IT_SUPER_NAILGUN, ad_IT_GRENADE_LAUNCHER,
+                         ad_IT_ROCKET_LAUNCHER, ad_IT_LIGHTNING };
+float AD_KEY_WIDS[7] = { WID_SHOTGUN, WID_SUPER_SHOTGUN, WID_NAILGUN, WID_SUPER_NAILGUN, WID_GRENADE_LAUNCHER,
+                         WID_ROCKET_LAUNCHER, WID_LIGHTNING };
 
 // AD_DecodeLevelParms: the map's worldspawn weapon keys on the parms (`xGive`, `xTake`: AD's item bits; `xNone`:
 // no_axestart).
@@ -686,8 +670,9 @@ void(float xGive, float xTake, float xNone) AD_WorldWeaponKeysWith =
     }
     for(n = 0; n < 7; n++)
     {
-        float wid = AD_KeyWid(n);
-        if(xTake & AD_KeyBit(n))
+        float wid = AD_KEY_WIDS[n];
+        float bit = AD_KEY_BITS[n];
+        if(xTake & bit)
         {
             for(i = 0; i < 8; i++)
             {
@@ -696,17 +681,17 @@ void(float xGive, float xTake, float xNone) AD_WorldWeaponKeysWith =
                     AD_ParmSet(i, WID_FIST);
                 }
             }
-            parm1 = parm1 - (parm1 & AD_KeyBit(n));
+            parm1 = parm1 - (parm1 & bit);
             dprint(sprintf("VR: AD's take_weapons: the %s taken\n", WeaponIdToWeaponName(wid)));
         }
-        if(xGive & AD_KeyBit(n))
+        if(xGive & bit)
         {
             float carried = FALSE;
             for(i = 0; i < 8; i++)
             {
                 carried = (carried || AD_ParmWid(i) == wid);
             }
-            parm1 = parm1 | AD_KeyBit(n);
+            parm1 = parm1 | bit;
             if(carried)
             {
                 continue;
@@ -1039,13 +1024,38 @@ float(entity xPlayer, entity xInst, float xBit) AD_WeaponUpgraded =
     return xInst != world && (xInst.wi_adup & xBit) && VR_AD_FeatureScope(AD_UpgradeScope());
 };
 
+// AD's three weapon upgrades, a row each (its row's bit, 1 2 4, is its VR model's in ad_vrmodels_made): the weapon it
+// upgrades, AD's item bit for it, its VR model (the engine's, vr_adweapons.cpp, by this name: AD_VRModelName below), its
+// pickup's model, classname (weapon_touch reads the weapon from it) and name.
+typedef struct
+{
+    float wid, upgrade;
+    string vrmodel, pickup, classname, name;
+} ad_upgrade_row;
+
+ad_upgrade_row AD_UPGRADES[] =
+{
+    { WID_AXE, ad_IT_UPGRADE_AXE, "progs/v_shadaxe3.mdl#vr", ad_MODEL_GWEAP_UPAXE, "weapon_axe", "Shadow Axe" },
+    { WID_SUPER_SHOTGUN, ad_IT_UPGRADE_SSG, "progs/v_shot3.mdl#vr", ad_MODEL_GWEAP_UPSSG, "weapon_supershotgun", "Widowmaker" },
+    { WID_LIGHTNING, ad_IT_UPGRADE_LG, "progs/v_plasma.mdl#vr", ad_MODEL_GWEAP_UPLG, "weapon_lightning", "Plasma Gun" }
+};
+#define AD_UPGRADES_N 3
+
+// The upgrade row of a weapon of kind `xWid`, or -1.
+float(float xWid) AD_UpgradeRow =
+{
+    for(float i = 0; i < AD_UPGRADES_N; i++)
+    {
+        if(AD_UPGRADES[i].wid == xWid) return i;
+    }
+    return -1;
+};
+
 // The upgrade a weapon of kind `xWid` can have (0: none).
 float(float xWid) AD_UpgradeFor =
 {
-    if(xWid == WID_AXE) return ad_IT_UPGRADE_AXE;
-    if(xWid == WID_SUPER_SHOTGUN) return ad_IT_UPGRADE_SSG;
-    if(xWid == WID_LIGHTNING) return ad_IT_UPGRADE_LG;
-    return 0;
+    float i = AD_UpgradeRow(xWid);
+    return i < 0 ? 0 : AD_UPGRADES[i].upgrade;
 };
 
 // AD's upgraded weapons drawn as themselves: their VR models, made from the player's own AD view models as they load
@@ -1055,10 +1065,8 @@ float(float xWid) AD_UpgradeFor =
 // gun (the lightning gun's secondary ammo) keeps its own. Without AD's model the engine makes Quake VR's weapon instead.
 string(float xWid) AD_VRModelName =
 {
-    if(xWid == WID_AXE) return "progs/v_shadaxe3.mdl#vr";
-    if(xWid == WID_SUPER_SHOTGUN) return "progs/v_shot3.mdl#vr";
-    if(xWid == WID_LIGHTNING) return "progs/v_plasma.mdl#vr";
-    return "";
+    float i = AD_UpgradeRow(xWid);
+    return i < 0 ? "" : AD_UPGRADES[i].vrmodel;
 };
 
 nosave float ad_vrmodels_made; // the models precached this server (bits 1 2 4; setmodel precaches: a hand's or a
@@ -1067,9 +1075,10 @@ nosave float ad_vrmodels_made; // the models precached this server (bits 1 2 4; 
 void(string xModel) AD_EnsureVRModel =
 {
     float bit = 0;
-    if(xModel == "progs/v_shadaxe3.mdl#vr") bit = 1;
-    if(xModel == "progs/v_shot3.mdl#vr") bit = 2;
-    if(xModel == "progs/v_plasma.mdl#vr") bit = 4;
+    for(float i = 0; i < AD_UPGRADES_N; i++)
+    {
+        if(xModel == AD_UPGRADES[i].vrmodel) bit = pow(2, i);
+    }
     if(!bit || (ad_vrmodels_made & bit))
     {
         return;
@@ -1488,26 +1497,39 @@ float() VR_AD_WeaponTouch =
     return FALSE;
 };
 
-// AD's weapon upgrade pickups as Quake VR's weapon pickups (the base weapon, AD's pickup model), where the upgrades play
-// (AD_UpgradeScope: by default AD maps, and any map while Additional Content is Everywhere).
-void(string xModel, string xClassname, float xWeaponId, float xUpgrade, string xName) AD_UpgradeItem =
+// Where the upgrades play (AD_UpgradeScope: by default AD maps, and any map while Additional Content is Everywhere) an
+// upgrade's pickup or prop (self) stays, with AD's weapons' assets (outside AD's world setup: the Plasma Gun's sounds);
+// elsewhere it is removed (FALSE).
+float() AD_UpgradeGate =
 {
     if(!VR_AD_FeatureScope(AD_UpgradeScope()))
     {
         remove(self);
-        return;
+        return FALSE;
     }
     if(!AD_Rules())
     {
-        AD_WeaponsOnDemand(); // (outside AD's world setup: the Plasma Gun's sounds)
+        AD_WeaponsOnDemand();
     }
-    self.classname = xClassname; // (weapon_touch reads the weapon from it)
-    impl_weapon_item(xModel, xWeaponId);
-    self.vr_ad_upgrade = xUpgrade;
-    self.netname = xName;
+    return TRUE;
+};
+
+// AD's weapon upgrade pickups as Quake VR's weapon pickups (the base weapon, AD's pickup model; its AD_UPGRADES row
+// `xRow`), where the upgrades play.
+void(float xRow) AD_UpgradeItem =
+{
+    if(!AD_UpgradeGate())
+    {
+        return;
+    }
+    float wid = AD_UPGRADES[xRow].wid;
+    self.classname = AD_UPGRADES[xRow].classname; // (weapon_touch reads the weapon from it)
+    impl_weapon_item(AD_UPGRADES[xRow].pickup, wid);
+    self.vr_ad_upgrade = AD_UPGRADES[xRow].upgrade;
+    self.netname = AD_UPGRADES[xRow].name;
     if(self.vr_pickup_spin && vr_ad_data) // (drawn as the weapon: vr_pickup_prop_models) the upgraded weapon's own model
     {
-        setmodel(self, AD_VRModelName(xWeaponId));
+        setmodel(self, AD_UPGRADES[xRow].vrmodel);
         VR_WeaponPickup_Centre();
     }
 };
@@ -1518,7 +1540,7 @@ Arcane Dimensions' Shadow Axe, in its maps (vr_ad_bridge.qc): the axe, and every
 */
 void() weapon_upgrade_axe =
 {
-    AD_UpgradeItem(ad_MODEL_GWEAP_UPAXE, "weapon_axe", WID_AXE, ad_IT_UPGRADE_AXE, "Shadow Axe");
+    AD_UpgradeItem(AD_UpgradeRow(WID_AXE));
     if(!self.vr_pickup_spin)
     {
         self.skin = 4; // (AD's Shadow Axe skin, of its pickup model)
@@ -1539,7 +1561,7 @@ Arcane Dimensions' Widowmaker, in its maps (vr_ad_bridge.qc): the super shotgun,
 */
 void() weapon_upgrade_ssg =
 {
-    AD_UpgradeItem(ad_MODEL_GWEAP_UPSSG, "weapon_supershotgun", WID_SUPER_SHOTGUN, ad_IT_UPGRADE_SSG, "Widowmaker");
+    AD_UpgradeItem(AD_UpgradeRow(WID_SUPER_SHOTGUN));
 };
 
 /*QUAKED weapon_upgrade_lg (0 .5 .8) (-16 -16 0) (16 16 56)
@@ -1548,7 +1570,7 @@ plasma bolts.
 */
 void() weapon_upgrade_lg =
 {
-    AD_UpgradeItem(ad_MODEL_GWEAP_UPLG, "weapon_lightning", WID_LIGHTNING, ad_IT_UPGRADE_LG, "Plasma Gun");
+    AD_UpgradeItem(AD_UpgradeRow(WID_LIGHTNING));
 };
 
 /*QUAKED weapon_plasmagun (0 .5 .8) (-16 -16 0) (16 16 56)
@@ -1563,14 +1585,9 @@ void() weapon_plasmagun =
 // with its upgrade on its record, not the floating pickup. Where the upgrades play only (as AD_UpgradeItem).
 void(float xWid) AD_UpgradeProp =
 {
-    if(!VR_AD_FeatureScope(AD_UpgradeScope()))
+    if(!AD_UpgradeGate())
     {
-        remove(self);
         return;
-    }
-    if(!AD_Rules())
-    {
-        AD_WeaponsOnDemand();
     }
     self.classname = "func_weapon_grabbable";
     self.weapon = xWid;

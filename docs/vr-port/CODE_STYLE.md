@@ -272,8 +272,21 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
   `VR_Test_Verdict()` (`<tag>: <p> passed, <f> failed`), one tally (`vr_test_pass`, `vr_test_fail`). The armed grunts'
   harness (`VR_AGT_Check/Print/Spawn/Remove/Hunt`, vr_armedgrunt_test.qc: `agtest: <what> PASS|FAIL` by bprint) is
   the other shared one; a new test uses one of the two, never a third copy.
-- Cvars: read with a handle, `cvar_hget(cvarh_<name>)` (declared and made in `QC/vr_cvars.qc`, compiled right after
-  defs.qc so every file sees it); `cvar("...")` only in tests and one-off code. A new handle: its global and its
-  `VR_CVAR_HMAKE` line at the end of each list (the handles' numbers follow the order).
+- Cvars: read with a handle, `cvar_hget(cvarh_<name>)` (`QC/vr_cvars.qc`, compiled right after defs.qc so every file
+  sees it); `cvar("...")` only in tests and one-off code. A vr_cvars.inc cvar's handle is generated: use
+  `cvarh_<name>` and run `python Misc/quakevr/gen_vr_cvars_qc.py` (it writes `QC/vr_cvars_gen.qc`, a handle for every
+  one the QC uses and no other: each costs a global; `--check` fails a stale file). Only the engine's own cvars and the
+  ones vr_cvars.inc makes through its macros are hand-written in vr_cvars.qc (a global and a `VR_CVAR_HMAKE` line).
+  Handles are made again at every load (their numbers are the session's).
+- A per-hand field of a pair: `VR_HAND_FIELD(e, xHand, loadportpos, offloadportpos)` (vr_util.qc), not a hand-written
+  `xHand == cVR_MainHand ? e.loadportpos : e.offloadportpos`.
+- Tables, not if-chains (refactor B1): a weapon's numbers, model, name, ammo and pickup classname are its row of
+  `VR_WEAPONS` (`QC/vr_weaponutil.qc`, one `vr_weapon_row` a weapon id, in id order: a new weapon is a new row; the
+  `WeaponIdTo*` functions read their column); the arena perks' name, text, card model and colour are `VR_ARK_PERKS`
+  (vr_arena_perks.qc); ClientObituary's words are `VR_OBIT_MONSTERS` / `VR_OBIT_TRAPS` / `VR_OBIT_WEAPONS` (client.qc);
+  the waves' monster kinds (arena and horde) `VR_WAVE_KINDS` (vr_arena.qc); the horde's squads and wave picks
+  `MGH_SQUADS` / `MGH_WAVES` (vr_mg_horde.qc); AD's weapon upgrades `AD_UPGRADES` (vr_ad_bridge.qc).
+  A struct array with an initializer (`MG_poses`, these) is the form; a value a setting or a function decides stays a
+  line of code before the table read. Each table costs a global per value: QC globals are near the id format's 64k.
 - Builtins: a `= #0` prototype is bound by name; `Misc/quakevr/check_builtins.py` (run by the kit's build.sh) fails the
   build when one names no engine builtin, or a `vrBuiltins` entry has no prototype.

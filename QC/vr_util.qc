@@ -16,6 +16,10 @@ nosave float vr_spawn_live;
 // other (as the old if/else did). Both fields are read; they are finite, so `a * 1 + b * 0` is `a`.
 #define VR_IMPL_SELECT(xHand, xOff, xMain) ((xMain) * (xHand != cVR_OffHand) + (xOff) * (xHand == cVR_OffHand))
 
+// A hand's own field of a pair, `xMain`'s for the main hand, else `xOff`'s (VR_HAND_FIELD(self, xHand, loadportpos,
+// offloadportpos)): the one select for a per-hand field of any type (a macro: no call, as the select it stands for).
+#define VR_HAND_FIELD(e, xHand, xMain, xOff) ((xHand) == cVR_MainHand ? (e).xMain : (e).xOff)
+
 #define VR_IMPL_MAKE_VECTOR_GETTER(xFnName, xOff, xMain) \
     inline vector(float xHand) xFnName = \
     { \

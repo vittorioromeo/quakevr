@@ -63,52 +63,59 @@ float vr_at_score0;
 float vr_at_a[AR_PLAN_MAX];
 float vr_at_b[AR_PLAN_MAX];
 
-string(float i) VR_AT_CvarName =
+// The cvars the tests set: VR_AT_Save keeps the run's own and VR_AT_Restore puts them back; VR_AT_SetDefaults sets each
+// to its value here (the arena's own defaults, so a check says what the plan says and not what a config said; "": left
+// for the tests that set it).
+typedef struct
 {
-    if(i == 0) { return "vr_arena_seed"; }
-    if(i == 1) { return "vr_arena_boss_every"; }
-    if(i == 2) { return "vr_arena_boss_health"; }
-    if(i == 3) { return "vr_arena_medkits_after"; }
-    if(i == 4) { return "vr_arena_armor_every"; }
-    if(i == 5) { return "vr_arena_score_kill"; }
-    if(i == 6) { return "vr_arena_max_alive"; }
-    if(i == 7) { return "vr_arena_skill_impact"; }
-    if(i == 8) { return "vr_arena_corpse_fade"; }
-    if(i == 9) { return "vr_arena_corpse_max"; }
-    if(i == 10) { return "vr_arena_item_waves"; }
-    if(i == 11) { return "vr_arena_gun_max"; }
-    if(i == 12) { return "vr_arena_wave_size"; }
-    if(i == 13) { return "vr_arena_alive_max"; }
-    if(i == 14) { return "vr_arena_alive_grow"; }
-    if(i == 15) { return "vr_arena_burst"; }
-    if(i == 16) { return "vr_arena_spawn_gap"; }
-    if(i == 17) { return "vr_arena_foe_armor"; }
-    if(i == 18) { return "vr_arena_foe_armor_scale"; }
-    if(i == 19) { return "vr_arena_foe_armor_from"; }
-    if(i == 20) { return "vr_agarmor_skill1"; } // (test 10 sets the skill's own roll to certain, to see it held)
-    if(i == 21) { return "vr_arena"; }         // (test 11 looks at a run and at the same map with the run off)
-    if(i == 22) { return "vr_enemy_drops"; }   // (test 11: what a foe may leave behind, and its "never")
-    if(i == 23) { return "vr_ammobox_drops"; } // (... the same for what an ammo box may carry)
-    if(i == 24) { return "vr_arena_wave_rest"; }
-    if(i == 25) { return "vr_arena_countdown"; }
-    if(i == 26) { return "vr_arena_perks"; }     // (off: a boss clear's cards would hold the director for a pick)
-    if(i == 27) { return "vr_arena_countdown_sound"; } // (test 14 counts the beeps)
-    if(i == 28) { return "vr_arena_scatter"; }   // (test 15: the supplies on random places)
-    if(i == 29) { return "vr_arena_shards"; }
-    return "";
-}
+    string name, value;
+} vr_at_cvar;
+
+vr_at_cvar VR_AT_CVARS[] =
+{
+    { "vr_arena_seed", "7" },
+    { "vr_arena_boss_every", "5" },
+    { "vr_arena_boss_health", "1.25" },
+    { "vr_arena_medkits_after", "2" },
+    { "vr_arena_armor_every", "4" },
+    { "vr_arena_score_kill", "100" },
+    { "vr_arena_max_alive", "8" },
+    { "vr_arena_skill_impact", "1" },
+    { "vr_arena_corpse_fade", "14" },
+    { "vr_arena_corpse_max", "12" },
+    { "vr_arena_item_waves", "2" },
+    { "vr_arena_gun_max", "24" },
+    { "vr_arena_wave_size", "1" }, // (the ladder's own counts: tests 1 to 5 check them; 6 and 9 the default 1.75)
+    { "vr_arena_alive_max", "6" },
+    { "vr_arena_alive_grow", "4" },
+    { "vr_arena_burst", "3" },
+    { "vr_arena_spawn_gap", "1.5" },
+    { "vr_arena_foe_armor", "1" },
+    { "vr_arena_foe_armor_scale", "1" },
+    { "vr_arena_foe_armor_from", "4" },
+    { "vr_agarmor_skill1", "" },  // (test 10 sets the skill's own roll to certain, to see it held)
+    { "vr_arena", "" },           // (test 11 looks at a run and at the same map with the run off)
+    { "vr_enemy_drops", "" },     // (test 11: what a foe may leave behind, and its "never")
+    { "vr_ammobox_drops", "" },   // (... the same for what an ammo box may carry)
+    { "vr_arena_wave_rest", "5" },
+    { "vr_arena_countdown", "5" },
+    { "vr_arena_perks", "0" },    // (the perk cards hold the arena until picked: vr_arena_perks_test drives them)
+    { "vr_arena_countdown_sound", "1" }, // (test 14 counts the beeps)
+    { "vr_arena_scatter", "1" },  // (test 15: the supplies on random places)
+    { "vr_arena_shards", "2" }
+};
 float VR_AT_NCVARS = 30;
 
 void() VR_AT_Save =
 {
     float i;
-    for(i = 0; i < VR_AT_NCVARS; i++) { vr_at_keep[i] = cvar(VR_AT_CvarName(i)); }
+    for(i = 0; i < VR_AT_NCVARS; i++) { vr_at_keep[i] = cvar(VR_AT_CVARS[i].name); }
 }
 
 void() VR_AT_Restore =
 {
     float i;
-    for(i = 0; i < VR_AT_NCVARS; i++) { cvar_set(VR_AT_CvarName(i), ftos(vr_at_keep[i])); }
+    for(i = 0; i < VR_AT_NCVARS; i++) { cvar_set(VR_AT_CVARS[i].name, ftos(vr_at_keep[i])); }
 }
 
 // The tests' own difficulty, both halves of it: the cvar (world.qc reads it into the `skill` global every frame)
@@ -119,35 +126,14 @@ void(float xSkill) VR_AT_SetSkill =
     skill = xSkill;
 }
 
-// The tests' settings: the arena's own defaults, so a check says what the plan says and not what a config said.
+// The tests' settings (VR_AT_CVARS' values) and the skill.
 void() VR_AT_SetDefaults =
 {
-    cvar_set("vr_arena_seed", "7");
-    cvar_set("vr_arena_boss_every", "5");
-    cvar_set("vr_arena_boss_health", "1.25");
-    cvar_set("vr_arena_medkits_after", "2");
-    cvar_set("vr_arena_armor_every", "4");
-    cvar_set("vr_arena_score_kill", "100");
-    cvar_set("vr_arena_max_alive", "8");
-    cvar_set("vr_arena_skill_impact", "1");
-    cvar_set("vr_arena_corpse_fade", "14");
-    cvar_set("vr_arena_corpse_max", "12");
-    cvar_set("vr_arena_item_waves", "2");
-    cvar_set("vr_arena_gun_max", "24");
-    cvar_set("vr_arena_wave_size", "1"); // (the ladder's own counts: tests 1 to 5 check them; 6 and 9 the default 1.75)
-    cvar_set("vr_arena_alive_max", "6");
-    cvar_set("vr_arena_alive_grow", "4");
-    cvar_set("vr_arena_burst", "3");
-    cvar_set("vr_arena_spawn_gap", "1.5");
-    cvar_set("vr_arena_foe_armor", "1");
-    cvar_set("vr_arena_foe_armor_scale", "1");
-    cvar_set("vr_arena_foe_armor_from", "4");
-    cvar_set("vr_arena_wave_rest", "5");
-    cvar_set("vr_arena_countdown", "5");
-    cvar_set("vr_arena_countdown_sound", "1");
-    cvar_set("vr_arena_scatter", "1");
-    cvar_set("vr_arena_shards", "2");
-    cvar_set("vr_arena_perks", "0"); // (the perk cards hold the arena until picked: vr_arena_perks_test drives them)
+    float i;
+    for(i = 0; i < VR_AT_NCVARS; i++)
+    {
+        if(VR_AT_CVARS[i].value != "") { cvar_set(VR_AT_CVARS[i].name, VR_AT_CVARS[i].value); }
+    }
     VR_AT_SetSkill(1); // (Normal, where the skill's factor is exactly 1: every family's own numbers mean the cvars)
 }
 

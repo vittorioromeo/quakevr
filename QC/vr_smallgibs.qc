@@ -607,6 +607,20 @@ void(entity xFrom, entity g) VR_SmallGib_CarryMults =
     g.vr_sgib_multset = TRUE;
 };
 
+// The projectiles whose classname tells the kind of their hit: the blasts' and the nails'.
+string VR_SGIB_INFLICTORS[] =
+{
+    "missile", "grenade", "MultiRocket", "MiniGrenade", "MultiGrenade", "proximity_grenade", "plasma",
+    "spike", "lava_spike", "laser", "hiplaser", "knightspike", "wizspike"
+};
+float VR_SGIB_INFLICTOR_KINDS[] =
+{
+    QVR_SGIB_EXPLOSIONS, QVR_SGIB_EXPLOSIONS, QVR_SGIB_EXPLOSIONS, QVR_SGIB_EXPLOSIONS, QVR_SGIB_EXPLOSIONS,
+    QVR_SGIB_EXPLOSIONS, QVR_SGIB_EXPLOSIONS,
+    QVR_SGIB_NAILS, QVR_SGIB_NAILS, QVR_SGIB_NAILS, QVR_SGIB_NAILS, QVR_SGIB_NAILS, QVR_SGIB_NAILS
+};
+#define VR_SGIB_INFLICTORS_N 13
+
 // The kind of the hit (vr_hitkind and the inflictor, as VR_GibKind; a hand's blow by the weapon and its part).
 float(entity inflictor, entity attacker) VR_SmallGib_Kind =
 {
@@ -662,14 +676,9 @@ float(entity inflictor, entity attacker) VR_SmallGib_Kind =
         return QVR_SGIB_OTHER; // a monster's own blow, a kick, a stuck axe's bleeding
     }
     string c = inflictor.classname;
-    if(c == "missile" || c == "grenade" || c == "MultiRocket" || c == "MiniGrenade" || c == "MultiGrenade" ||
-       c == "proximity_grenade" || c == "plasma")
+    for(float i = 0; i < VR_SGIB_INFLICTORS_N; i++)
     {
-        return QVR_SGIB_EXPLOSIONS;
-    }
-    if(c == "spike" || c == "lava_spike" || c == "laser" || c == "hiplaser" || c == "knightspike" || c == "wizspike")
-    {
-        return QVR_SGIB_NAILS;
+        if(c == VR_SGIB_INFLICTORS[i]) { return VR_SGIB_INFLICTOR_KINDS[i]; }
     }
     if(c == "thrown_weapon")
     {
@@ -684,16 +693,16 @@ float(entity inflictor, entity attacker) VR_SmallGib_Kind =
     return QVR_SGIB_OTHER;
 };
 
+// A kind's name (QVR_SGIB_*, 1-8: its row) and the corpses' damage kind it is (VR_Corpse_DamageKind: the blunt one's and
+// the other's rules come first there).
+string VR_SGIB_NAMES[9] = { "other", "shots", "nails", "blades", "blunt", "props", "explosions", "other", "chainsaw" };
+float VR_SGIB_CDMG[9] = { QVR_CDMG_OTHER, QVR_CDMG_SHOTS, QVR_CDMG_NAILS, QVR_CDMG_BLADES, QVR_CDMG_BLUNT, QVR_CDMG_PROPS,
+                          QVR_CDMG_EXPLOSIONS, QVR_CDMG_OTHER, QVR_CDMG_CHAINSAW };
+
 string(float xKind) VR_SmallGib_KindName =
 {
-    if(xKind == QVR_SGIB_SHOTS) { return "shots"; }
-    if(xKind == QVR_SGIB_NAILS) { return "nails"; }
-    if(xKind == QVR_SGIB_BLADES) { return "blades"; }
-    if(xKind == QVR_SGIB_BLUNT) { return "blunt"; }
-    if(xKind == QVR_SGIB_PROPS) { return "props"; }
-    if(xKind == QVR_SGIB_EXPLOSIONS) { return "explosions"; }
-    if(xKind == QVR_SGIB_SAW) { return "chainsaw"; }
-    return "other";
+    if(xKind < QVR_SGIB_SHOTS || xKind > QVR_SGIB_SAW) { return "other"; }
+    return VR_SGIB_NAMES[xKind];
 };
 
 float(float xKind) VR_SmallGib_KindMult =
@@ -733,12 +742,7 @@ float(entity inflictor, entity attacker) VR_Corpse_DamageKind =
         return QVR_CDMG_FIRE; // (vr_burning.qc)
     }
     float s = VR_SmallGib_Kind(inflictor, attacker);
-    if(s == QVR_SGIB_SHOTS) { return QVR_CDMG_SHOTS; }
-    if(s == QVR_SGIB_NAILS) { return QVR_CDMG_NAILS; }
-    if(s == QVR_SGIB_EXPLOSIONS) { return QVR_CDMG_EXPLOSIONS; }
-    if(s == QVR_SGIB_BLADES) { return QVR_CDMG_BLADES; }
-    if(s == QVR_SGIB_SAW) { return QVR_CDMG_CHAINSAW; }
-    if(s == QVR_SGIB_PROPS) { return QVR_CDMG_PROPS; }
+    if(s != QVR_SGIB_BLUNT && s != QVR_SGIB_OTHER) { return VR_SGIB_CDMG[s]; }
     if(s == QVR_SGIB_BLUNT)
     {
         // An empty fist (a punch), not a gun, the crowbar or Mjolnir swung, nor a pommel.
