@@ -28,6 +28,7 @@
 #include "vr_protocol.hpp"
 #include "vr_view.hpp"
 
+#include "vr_geom.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -279,7 +280,7 @@ void parse()
     held::modelBox(model, it.hasNet ? it.net.scale : zero, it.hasNet ? it.net.scaleOrigin : zero,
         it.hasNet ? it.net.offset : zero, lo, hi);
     it.centreLocal = (lo + hi) * 0.5f * (it.ent.scale ? ENTSCALE_DECODE(it.ent.scale) : 1.f);
-    it.from = glm::vec3{it.ent.origin[0], it.ent.origin[1], it.ent.origin[2]} + it.axes * it.centreLocal;
+    it.from = geom::vec(it.ent.origin) + it.axes * it.centreLocal;
     it.hand = hand;
     it.hotspot = hotspot;
     it.entNum = ent;

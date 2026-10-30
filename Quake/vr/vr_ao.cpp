@@ -55,6 +55,7 @@
 #include <string.h>
 #include "vr_tracy.h"
 
+#include "vr_geom.hpp"
 extern "C" {
 extern cvar_t r_lerpmove; // gl_rmain.c
 #ifdef _WIN32
@@ -589,8 +590,8 @@ void addBrush(const entity_t* e, float strength)
     R_EntityMatrix(m, origin, angles, e->scale);
     VR_BrushTransform(e, m);
     Occluder o;
-    shapeFromBox(m, glm::vec3{model->mins[0], model->mins[1], model->mins[2]},
-        glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]}, glm::vec3{1.f}, o);
+    shapeFromBox(m, geom::vec(model->mins),
+        geom::vec(model->maxs), glm::vec3{1.f}, o);
     o.box = true;
     o.strength = strength * 0.75f; // big boxes close by fill much of a wall's hemisphere: a little lighter than the ellipsoids
     o.reach = za::clamp(za::max(o.size.x, o.size.y, o.size.z) * 0.6f, 16.f, 64.f);

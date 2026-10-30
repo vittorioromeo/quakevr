@@ -39,6 +39,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 
+#include "vr_geom.hpp"
 #include <string.h>
 
 using namespace qvr;
@@ -401,7 +402,7 @@ bool touches(const entity_t* e, const glm::vec3& light, float radius)
     const glm::vec3 lo{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
     const glm::vec3 hi{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
     const float r = za::max(glm::length(lo), glm::length(hi)) * VR_EntityScale(e);
-    return glm::distance(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, light) < radius + r;
+    return glm::distance(geom::vec(e->origin), light) < radius + r;
 }
 
 // Doors, lifts and platforms near the light.
@@ -485,7 +486,7 @@ void collectAliases(const glm::vec3& light, float radius, int ownEntity, bool se
             }
             const bool body = modelmeta::has(e->model, modelmeta::Trait::ContainsBody);
             if(selfCasters <= 0 || (selfCasters == 1 && !body) ||
-                glm::distance(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, light) > radius + viewEntityReach(e))
+                glm::distance(geom::vec(e->origin), light) > radius + viewEntityReach(e))
             {
                 continue;
             }
@@ -1229,7 +1230,7 @@ void selectDlights(const glm::vec3& eye, float dt)
         const dlight_t& l = cl_dlights[i];
         const bool spot = spotOf(i) != nullptr && spotSpread(*spotOf(i)) < 2.f;
         const float tileMax = spot ? za::min(2.f * maxSize, 2048.f) : maxSize;
-        const float dist = glm::distance(glm::vec3{l.origin[0], l.origin[1], l.origin[2]}, eye);
+        const float dist = glm::distance(geom::vec(l.origin), eye);
         const float want = l.radius * vr_shadow_precision.value / za::sqrt(za::max(1.f, dist / l.radius)) * (spot ? 2.f : 1.f);
         float size = za::clamp(pow2Floor(want), 64.f, tileMax);
         if(slot.selected && slot.spot == spot && slot.size > 0.f && want > slot.size * 0.7f && want < slot.size * 2.8f)
@@ -1584,7 +1585,7 @@ void selectPortalLights(const glm::vec3& eye)
             bool visible = true;
             for(const mplane_t& p : frustum)
             {
-                if(glm::dot(glm::vec3{p.normal[0],p.normal[1],p.normal[2]}, virtualPos) - p.dist + l.radius < 0.f)
+                if(glm::dot(geom::vec(p.normal), virtualPos) - p.dist + l.radius < 0.f)
                     { visible = false; break; }
             }
             if(!visible) { continue; }
@@ -2317,7 +2318,7 @@ extern "C" void VR_PushPortalLights(void)
         out->minlight = source.minlight;
         for(int c = 0; c < 3; c++) { out->pos[c] = l.pos[c]; out->color[c] = source.color[c]; }
         if(vr_dlight_falloff.value != 0.f) { darkplacesLight(l.index, out); }
-        const glm::vec3 spot = l.gate.turn * glm::vec3{out->spot[0],out->spot[1],out->spot[2]};
+        const glm::vec3 spot = l.gate.turn * geom::vec(out->spot);
         for(int c = 0; c < 3; c++) { out->spot[c] = spot[c]; }
         out->shadow[0] = l.exitTile.x; out->shadow[1] = l.exitTile.y; out->shadow[2] = l.size;
         memset(out->shadow2, 0, sizeof(out->shadow2)); // cube maps even for a spotlight
@@ -2534,9 +2535,7 @@ extern "C" void VR_PushMapLights(void)
             continue;
         }
         gpulight_t* out = &r_lightbuffer.lights[r_framedata.numlights++];
-        out->pos[0] = l.pos.x;
-        out->pos[1] = l.pos.y;
-        out->pos[2] = l.pos.z;
+        geom::store(l.pos, out->pos);
         out->radius = reach;
         out->color[0] = strength * s.fade * s.distFade;
         out->color[1] = 0.f;
@@ -2707,7 +2706,7 @@ void lightTest_f()
     if(Cmd_Argc() > 4)
     {
         const float cone = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(4))), 1.f, 85.f);
-        lighting::dlightSpot(dl, glm::vec3{fwd[0], fwd[1], fwd[2]}, cone * 0.8f, cone);
+        lighting::dlightSpot(dl, geom::vec(fwd), cone * 0.8f, cone);
     }
 }
 

@@ -46,6 +46,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
+#include "vr_geom.hpp"
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
 #else
@@ -827,9 +828,7 @@ struct Affine
     MeshVert at(const glm::vec3& p, float pin) const
     {
         MeshVert v{};
-        v.pos[0] = p.x;
-        v.pos[1] = p.y;
-        v.pos[2] = p.z;
+        geom::store(p, v.pos);
         float a = 0.f, b = 0.f;
         if(det > 1e-6f)
         {
@@ -1701,9 +1700,7 @@ void fillRipples()
                 continue;
             }
             float* at = r_framedata.rippleat[n];
-            at[0] = e.at.x;
-            at[1] = e.at.y;
-            at[2] = e.at.z;
+            geom::store(e.at, at);
             at[3] = age;
             r_framedata.rippleamp[n >> 2][n & 3] = h;
             n++;

@@ -17,6 +17,7 @@
 #include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
 
+#include "vr_geom.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
@@ -455,9 +456,7 @@ void build(const Brush* b, Built& out)
             }
         }
         mvertex_t v{};
-        v.position[0] = q.x;
-        v.position[1] = q.y;
-        v.position[2] = q.z;
+        geom::store(q, v.position);
         out.vertexes.pushBack(v);
         return static_cast<unsigned>(out.vertexes.size() - 1);
     };
@@ -1161,7 +1160,7 @@ void upload(int slot, Entry* e)
         {
             const int se = b.surfedges[static_cast<za::SizeT>(s.firstedge + i)];
             const float* v = b.vertexes[se >= 0 ? b.edges[static_cast<za::SizeT>(se)].v[0] : b.edges[static_cast<za::SizeT>(-se)].v[1]].position;
-            centre += glm::vec3{v[0], v[1], v[2]} / static_cast<float>(s.numedges);
+            centre += geom::vec(v) / static_cast<float>(s.numedges);
         }
         const unsigned styles = static_cast<unsigned>(m.styles[0]) | (static_cast<unsigned>(m.styles[1]) << 8) |
                                 (static_cast<unsigned>(m.styles[2]) << 16) | (static_cast<unsigned>(m.styles[3]) << 24);
@@ -1188,9 +1187,7 @@ void upload(int slot, Entry* e)
             gv.lmofs = static_cast<float>(m.w) / lw;
             gv.styles = styles;
             gv.swellpin = 0.f;
-            gv.centre[0] = centre.x;
-            gv.centre[1] = centre.y;
-            gv.centre[2] = centre.z;
+            geom::store(centre, gv.centre);
             verts.pushBack(gv);
         }
     }
@@ -3258,8 +3255,8 @@ void facesIn(const glm::vec3& lo, const glm::vec3& hi,
         }
         for(const msurface_t& s : b.surfaces)
         {
-            const glm::vec3 smin = origin + glm::vec3{s.mins[0], s.mins[1], s.mins[2]};
-            const glm::vec3 smax = origin + glm::vec3{s.maxs[0], s.maxs[1], s.maxs[2]};
+            const glm::vec3 smin = origin + geom::vec(s.mins);
+            const glm::vec3 smax = origin + geom::vec(s.maxs);
             if(glm::any(glm::lessThan(smax, lo)) || glm::any(glm::greaterThan(smin, hi)))
             {
                 continue;
@@ -3269,7 +3266,7 @@ void facesIn(const glm::vec3& lo, const glm::vec3& hi,
             {
                 const int se = b.surfedges[static_cast<za::SizeT>(s.firstedge + i)];
                 const float* v = b.vertexes[se >= 0 ? b.edges[static_cast<za::SizeT>(se)].v[0] : b.edges[static_cast<za::SizeT>(-se)].v[1]].position;
-                poly.pushBack(origin + glm::vec3{v[0], v[1], v[2]});
+                poly.pushBack(origin + geom::vec(v));
             }
             glm::vec3 n{s.plane->normal[0], s.plane->normal[1], s.plane->normal[2]};
             if(s.flags & SURF_PLANEBACK)
@@ -3355,8 +3352,8 @@ bool traceLine(const glm::vec3& start, const glm::vec3& end, glm::vec3& where, g
             tr.fraction < fraction)
         {
             fraction = tr.fraction;
-            where = glm::vec3{tr.endpos[0], tr.endpos[1], tr.endpos[2]} + origin;
-            normal = glm::vec3{tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2]};
+            where = geom::vec(tr.endpos) + origin;
+            normal = geom::vec(tr.plane.normal);
             hit = true;
         }
     }

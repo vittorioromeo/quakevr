@@ -6,6 +6,7 @@
 #include "vr_admelee.hpp"
 #include "vr_progs.hpp"
 
+#include "vr_geom.hpp"
 namespace qvr::view
 {
 void setGhost(int hand, qmodel_t* model, const glm::vec3& pos, const glm::vec3& rot, float alpha)
@@ -1071,7 +1072,7 @@ void anchorWhere_f()
         {
             if(part->visible && part->ent.model)
             {
-                print(part->ent.model->name, glm::vec3{part->ent.origin[0], part->ent.origin[1], part->ent.origin[2]});
+                print(part->ent.model->name, geom::vec(part->ent.origin));
             }
         }
     }

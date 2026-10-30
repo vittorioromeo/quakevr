@@ -19,6 +19,7 @@
 #include "vr_view.hpp"
 #include "vr_weapon_ids.h"
 
+#include "vr_geom.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -196,7 +197,7 @@ State state;
 // rises from where the thing lies. Without a drawn box (a sprite): the origin.
 void place(const entity_t& e, int num, Beam& b)
 {
-    b.origin = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    b.origin = geom::vec(e.origin);
     glm::vec3 lo, hi;
     if(!held::drawnBox(num, lo, hi))
     {
@@ -577,9 +578,7 @@ void test_f()
                 const glm::vec3 at = feet + fwd * (96.f + spacing * static_cast<float>(row)) +
                                      side * (spacing * (static_cast<float>(g % perRow) - (perRow - 1) * 0.5f + 0.5f)) +
                                      glm::vec3{0.f, 0.f, 16.f};
-                from->v.origin[0] = at.x;
-                from->v.origin[1] = at.y;
-                from->v.origin[2] = at.z;
+                geom::store(at, from->v.origin);
                 pr_global_struct->time = qcvm->time;
                 pr_global_struct->self = EDICT_TO_PROG(from);
                 G_INT(OFS_PARM0) = PR_SetEngineString(gibModels[g % 3]);

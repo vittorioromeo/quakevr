@@ -1112,9 +1112,7 @@ extern "C" void VR_PortalPVSOrigin(float origin[3])
     const mleaf_t* dest = Mod_PointInLeaf(q, cl.worldmodel);
     if(dest && dest->contents != CONTENTS_SOLID)
     {
-        origin[0] = p.x;
-        origin[1] = p.y;
-        origin[2] = p.z;
+        geom::store(p, origin);
     }
 }
 
@@ -1548,9 +1546,7 @@ ClientState& crossingState(edict_t* ent)
 
 void setVec(float* out, const glm::vec3& v)
 {
-    out[0] = v.x;
-    out[1] = v.y;
-    out[2] = v.z;
+    geom::store(v, out);
 }
 
 // Keep the exact transform; the split body trace checks exit clearance without a forward or sideways snap.

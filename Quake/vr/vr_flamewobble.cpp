@@ -9,6 +9,7 @@
 #include "vr_particles.hpp"
 #include "vr_units.hpp"
 
+#include "vr_geom.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Exp.hpp"
@@ -422,7 +423,7 @@ void leanModel(const entity_t* e, float matrix[16])
     // upside-down flame's the other way, so that it still leans the way the air went).
     const float scale = ENTSCALE_DECODE(e->scale);
     const glm::vec3 up = held::axesFromAngles(e->angles, false)[2];
-    const glm::vec3 foot = glm::vec3{e->origin[0], e->origin[1], e->origin[2]} + up * (base * scale);
+    const glm::vec3 foot = geom::vec(e->origin) + up * (base * scale);
     const glm::vec2 lean = it->second.lean * (up.z < 0.f ? -1.f : 1.f);
     glm::mat4 shear{1.f};
     shear[2][0] = lean.x;

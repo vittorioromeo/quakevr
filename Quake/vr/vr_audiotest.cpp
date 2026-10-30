@@ -45,6 +45,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
+#include "vr_geom.hpp"
 #include <stdio.h>
 
 extern "C" int VR_SndSpatialize(channel_t* ch);
@@ -1171,10 +1172,10 @@ void testDistance(Result& res)
     appendBrushModel(cl.worldmodel, mesh, upm);
     sim.buildSceneNow(ZA_MOVE(mesh));
     Listener lis;
-    lis.pos = glm::vec3{listener_origin[0], listener_origin[1], listener_origin[2]};
-    lis.fwd = glm::vec3{listener_forward[0], listener_forward[1], listener_forward[2]};
-    lis.right = glm::vec3{listener_right[0], listener_right[1], listener_right[2]};
-    lis.up = glm::vec3{listener_up[0], listener_up[1], listener_up[2]};
+    lis.pos = geom::vec(listener_origin);
+    lis.fwd = geom::vec(listener_forward);
+    lis.right = geom::vec(listener_right);
+    lis.up = geom::vec(listener_up);
     const IPLCoordinateSpace3 lc = coordinates(lis.pos, lis.fwd, lis.right, lis.up, upm);
     SimSettings ss;
     ss.occlusion = f.occlusion > 0.f;

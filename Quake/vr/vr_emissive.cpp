@@ -33,6 +33,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 
+#include "vr_geom.hpp"
 #include <string.h>
 
 extern "C" int* cl_efrags; // gl_refrag.c: each static entity's leaves (a count, then the leaves)
@@ -407,9 +408,7 @@ void flareLight(int ent, const entity_t& e)
     const float flicker = 0.78f + 0.12f * za::sin(t * 7.3f + static_cast<float>(ent) * 1.9f) + 0.18f * sputter;
     dlight_t* dl = CL_AllocDlight(ent);
     const glm::vec3 at = cap + out * (kind == 2 ? -6.f : 4.f); // (off the wall it is stuck in; a drifting one's under it)
-    dl->origin[0] = at.x;
-    dl->origin[1] = at.y;
-    dl->origin[2] = at.z;
+    geom::store(at, dl->origin);
     dl->die = static_cast<float>(cl.time + 0.01);
     setGlow(dl, flareRed * (flicker * alpha), flareRadius[kind] * scale * (0.92f + 0.08f * flicker) * (0.4f + 0.6f * alpha), 0.f,
         kind == 2);
@@ -859,9 +858,7 @@ extern "C" void VR_FlameLights(void)
         // A roaring jet's flicker: faster than a torch's.
         const float flicker = torchFlicker(cl.time * 1.6, 0xF1A3u + static_cast<unsigned>(k) * 7u);
         dlight_t* dl = CL_AllocDlight(flameLightKey - k);
-        dl->origin[0] = l.pos.x;
-        dl->origin[1] = l.pos.y;
-        dl->origin[2] = l.pos.z;
+        geom::store(l.pos, dl->origin);
         dl->die = static_cast<float>(cl.time + 0.1);
         const float level = za::clamp(l.level * (1.f + 0.2f * flicker), 0.f, 1.5f);
         setGlow(dl, streamFlame.color * level, l.radius * scale * (0.55f + 0.45f * za::min(level, 1.f)) * (1.f + 0.05f * flicker), 0.f);
@@ -897,7 +894,7 @@ extern "C" void VR_ProjectileLight(int ent)
         // A flamethrower's flame: gathered for its stream's lights (VR_FlameLights), a young one weighing more.
         if(flamePuffCount < maxFlamePuffs && vr_flame_lights.value > 0.f)
         {
-            flamePuffs[flamePuffCount++] = FlamePuff{glm::vec3{e.origin[0], e.origin[1], e.origin[2]},
+            flamePuffs[flamePuffCount++] = FlamePuff{geom::vec(e.origin),
                 za::clamp(1.f - static_cast<float>(e.frame) * 0.12f, 0.25f, 1.f)};
         }
         return;
@@ -992,9 +989,7 @@ extern "C" void VR_BeamLights(int index, qmodel_t* model, const float* start, co
         const float radius = last ? glow.radius : za::clamp(step * 2.f, 110.f, glow.radius);
 
         dlight_t* dl = CL_AllocDlight(beamLightKey - index * 16 - k);
-        dl->origin[0] = p.x;
-        dl->origin[1] = p.y;
-        dl->origin[2] = p.z;
+        geom::store(p, dl->origin);
         dl->die = static_cast<float>(cl.time + 0.05);
         setGlow(dl, glow.color * flicker, radius * (0.9f + 0.1f * flicker), 0.f);
     }
@@ -1104,7 +1099,7 @@ extern "C" void VR_TorchLights(void)
                 bool seen = false;
                 for(int j = 0; j < count && !seen; j++)
                 {
-                    seen = portals::lightDistance(glm::vec3{e.origin[0],e.origin[1],e.origin[2]},efrags[j]) < torchLightDistance;
+                    seen = portals::lightDistance(geom::vec(e.origin),efrags[j]) < torchLightDistance;
                 }
                 if(seen)
                 {
@@ -1136,7 +1131,7 @@ extern "C" void VR_TorchLights(void)
             {
                 vec3_t o{e.origin[0], e.origin[1], e.origin[2]};
                 const za::PtrDiffT leaf = Mod_PointInLeaf(o, cl.worldmodel) - cl.worldmodel->leafs - 1;
-                if(leaf < 0 || portals::lightDistance(glm::vec3{o[0],o[1],o[2]},static_cast<int>(leaf)) < torchLightDistance)
+                if(leaf < 0 || portals::lightDistance(geom::vec(o),static_cast<int>(leaf)) < torchLightDistance)
                 {
                     consider(torchDynamicId + i, e, kind, taken ? &takenFire : nullptr, takenLevel);
                 }
@@ -1235,9 +1230,7 @@ extern "C" void VR_TorchLights(void)
         const glm::vec3 p = st.pos + jitter * st.scale;
 
         dlight_t* dl = CL_AllocDlight(torchLightKey - id);
-        dl->origin[0] = p.x;
-        dl->origin[1] = p.y;
-        dl->origin[2] = p.z;
+        geom::store(p, dl->origin);
         dl->die = static_cast<float>(cl.time + 0.1);
         // A taken torch's dying fire: dimmer and a little shorter.
         float radius = st.kind->radius * st.scale * (1.f + 0.05f * n) * (0.75f + 0.25f * st.weight) * (0.6f + 0.4f * st.level);
@@ -1265,7 +1258,7 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
 
     vec3_t a{angles.x, angles.y, angles.z}, f, r, u;
     AngleVectors(a, f, r, u);
-    const glm::vec3 n = glm::normalize(glm::cross(glm::vec3{r[0], r[1], r[2]}, glm::vec3{u[0], u[1], u[2]}));
+    const glm::vec3 n = glm::normalize(glm::cross(geom::vec(r), geom::vec(u)));
 
     // A small, bright spot light on the screen, the way it faces: what is in front of the screen
     // (the hand holding the gun, the arm, a wall close by) is lit in its text's colour, and
@@ -1273,9 +1266,7 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
     // its reach). DarkPlaces' falloff is full to about 40% of the radius.
     dlight_t* dl = CL_AllocDlight(screenLightKey - hand);
     const glm::vec3 p = pos + n * screenLightOut;
-    dl->origin[0] = p.x;
-    dl->origin[1] = p.y;
-    dl->origin[2] = p.z;
+    geom::store(p, dl->origin);
     dl->die = static_cast<float>(cl.time + 0.05);
     dl->radius = screenLightRadius;
     const bool darkplaces = vr_dlight_falloff.value != 0.f;
@@ -1304,9 +1295,7 @@ void emissive::hotBladeLight(int index, const glm::vec3& pos, const glm::vec3& c
         return;
     }
     dlight_t* dl = CL_AllocDlight(hotBladeLightKey - index);
-    dl->origin[0] = pos.x;
-    dl->origin[1] = pos.y;
-    dl->origin[2] = pos.z;
+    geom::store(pos, dl->origin);
     dl->die = static_cast<float>(cl.time + 0.05);
     const float k = za::clamp(strength, 0.f, 2.f);
     const float reach = za::clamp(radius, 8.f, 400.f);
@@ -1332,9 +1321,7 @@ void emissive::powerupLight(int index, const glm::vec3& pos, float strength, flo
         return;
     }
     dlight_t* dl = CL_AllocDlight(powerupLightKey - index);
-    dl->origin[0] = pos.x;
-    dl->origin[1] = pos.y;
-    dl->origin[2] = pos.z;
+    geom::store(pos, dl->origin);
     dl->die = static_cast<float>(cl.time + 0.05);
     const float k = za::clamp(strength, 0.f, 2.f);
     const float reach = za::clamp(radius, 8.f, 400.f);
@@ -1376,9 +1363,7 @@ void emissive::lavaGunLight(int index, const glm::vec3& pos, float strength)
     const float flicker = 1.f + za::clamp(vr_lavagun_light_flicker.value, 0.f, 1.f) * 0.6f * n;
 
     dlight_t* dl = CL_AllocDlight(lavaGunLightKey - index);
-    dl->origin[0] = pos.x;
-    dl->origin[1] = pos.y;
-    dl->origin[2] = pos.z;
+    geom::store(pos, dl->origin);
     dl->die = static_cast<float>(cl.time + 0.05);
     const float radius = za::clamp(vr_lavagun_light_radius.value, 8.f, 400.f) * (0.92f + 0.08f * flicker);
     // The lava nails' molten orange, a little deeper; dimmer than a nail's (it is under the hand, always on).

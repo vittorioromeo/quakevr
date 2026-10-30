@@ -13,6 +13,7 @@
 #include "vr_trace.hpp"
 #include "vr_water.hpp"
 
+#include "vr_geom.hpp"
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
@@ -743,7 +744,7 @@ extern "C" void VR_HazeExplosion(const float* pos, float size)
     {
         haze::bursts.erase(haze::bursts.begin());
     }
-    haze::bursts.pushBack({glm::vec3(pos[0], pos[1], pos[2]), za::clamp(size, 0.3f, 2.f), cl.time});
+    haze::bursts.pushBack({geom::vec(pos), za::clamp(size, 0.3f, 2.f), cl.time});
 }
 
 // R_RenderScene, after the translucent pass.

@@ -15,6 +15,7 @@
 #include "vr_units.hpp"
 #include "vr_water.hpp"
 
+#include "vr_geom.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -489,7 +490,7 @@ void drawView()
     // The ribbons: made once a frame, facing the first eye (the same in both); the spectator camera's its own.
     if(!stereo::isRenderingEye() || stereo::isSpectator() || stereo::isFirstEye())
     {
-        build(glm::vec3(r_framedata.eyepos[0], r_framedata.eyepos[1], r_framedata.eyepos[2]));
+        build(geom::vec(r_framedata.eyepos));
     }
     const za::Vector<Vertex>& vertices = scratch.vertices;
     if(vertices.empty())

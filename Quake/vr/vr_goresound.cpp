@@ -19,6 +19,7 @@
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "vr_zancle.hpp"
 
+#include "vr_geom.hpp"
 #include <stdlib.h>
 
 using namespace qvr;
@@ -256,7 +257,7 @@ void log(int k, const char* what, int ent, const glm::vec3& at, float dist, floa
 // Where you hear from: the view (the sound system's listener is not kept without a sound device).
 [[nodiscard]] glm::vec3 listener()
 {
-    return glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    return geom::vec(r_refdef.vieworg);
 }
 
 void start(int k, int ent, int channel, const glm::vec3& at, float vol, float pitch, int v)
@@ -369,7 +370,7 @@ void handFrame()
         if(ent != st.held[hand] && ent > 0 && isGib(ent) && cl.stats[STAT_HEALTH] > 0)
         {
             const entity_t& e = cl_entities[ent];
-            play(Kind::Squelch, ent, glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, 1.f);
+            play(Kind::Squelch, ent, geom::vec(e.origin), 1.f);
         }
         st.held[hand] = ent;
     }

@@ -12,6 +12,7 @@
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_geom.hpp"
 #include <glm/gtc/type_ptr.hpp>
 
 namespace view_detail
@@ -445,7 +446,7 @@ view::ViewEntity& addClone(const view::ViewEntity& ve, const glm::mat4& mirror)
     vec3_t zero{0.f, 0.f, 0.f}, angles{ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
     R_EntityMatrix(r, zero, angles, ENTSCALE_DEFAULT);
     // R_EntityMatrix's columns: forward (cy cp, sy cp, sp), left (.., .., cp sr), up (.., .., cr cp).
-    const glm::vec3 f = h * glm::vec3{r[0], r[1], r[2]};
+    const glm::vec3 f = h * geom::vec(r);
     const glm::vec3 l = -(h * glm::vec3{r[4], r[5], r[6]});
     const glm::vec3 u = h * glm::vec3{r[8], r[9], r[10]};
     const glm::vec3 a{glm::degrees(za::asin(za::clamp(f.z, -1.f, 1.f))), glm::degrees(za::atan2(f.y, f.x)),
@@ -1509,7 +1510,7 @@ bool holsterLive[HolsterCount]{};
     for(const beam_t& b : cl_beams)
     {
         out = out || (b.model && b.starttime <= cl.time && b.endtime >= cl.time && (b.entity & 0xFFFF) != cl.viewentity &&
-                         glm::distance(glm::vec3{b.start[0], b.start[1], b.start[2]}, at) < 24.f);
+                         glm::distance(geom::vec(b.start), at) < 24.f);
     }
     bool& was = grappleDebug.holsteredOut;
     if(out != was && vr_grapple_debug.value && developer.value)
@@ -1556,7 +1557,7 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
             weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ) +
                 glm::vec3{vr_grapple_front_button_x.value, vr_grapple_front_button_y.value, vr_grapple_front_button_z.value});
         place(front, viewModel("progs/wpnbutton.mdl"), pos,
-            glm::vec3{button.ent.angles[0], button.ent.angles[1], button.ent.angles[2]}, 0, mirrored);
+            geom::vec(button.ent.angles), 0, mirrored);
         front.ent.alpha = e.alpha;
         double& logAt = grappleDebug.idleLogAt;
         if(vr_grapple_debug.value >= 3 && developer.value && vr_gametime >= logAt)
@@ -2541,7 +2542,7 @@ void setupSawHandle()
     ve.lightMultiply = saw->lightMultiply;
     ve.lightMod = saw->lightMod;
     // Lit as the chainsaw (sampled where its light is): no change of shade as it leaves its seat.
-    ve.lightShift = glm::vec3{saw->ent.origin[0], saw->ent.origin[1], saw->ent.origin[2]} + saw->lightShift - origin;
+    ve.lightShift = geom::vec(saw->ent.origin) + saw->lightShift - origin;
 }
 
 // The weapons lying in the world (map pickups are the guns themselves in Quake VR: thrown weapons,
@@ -2568,7 +2569,7 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
         {
             continue;
         }
-        const float d = glm::distance(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, s.head);
+        const float d = glm::distance(geom::vec(e->origin), s.head);
         if(most == 0 || d > reach || (count == most && d >= nearest[most - 1].dist))
         {
             continue;
@@ -2889,7 +2890,7 @@ void gadgetTouches(const hands::State& s, bool posingNow)
             hands::angleVectors(glm::vec3{-ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]}, fwd, right, up);
             gadget::screenRect(corner, size);
             const glm::vec3 mid = glm::vec3{corner.x + size.x * 0.5f, corner.y + size.y * 0.5f, corner.z} * ve.scale;
-            const glm::vec3 drawn = glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]} + fwd * mid.x -
+            const glm::vec3 drawn = geom::vec(ve.ent.origin) + fwd * mid.x -
                                     right * mid.y + up * mid.z;
             const int tapper = 1 - hands::gadgetHand();
             const float cm = 0.01f * units::metresToUnits();
@@ -3056,7 +3057,7 @@ void powerupGlow(const hands::State& s)
     // A slow breath (about 0.8 Hz) and a slower swell under it: 0.64 .. 1.
     const float pulse = 0.82f + 0.12f * static_cast<float>(za::sin(t * 5.0)) + 0.06f * static_cast<float>(za::sin(t * 1.9 + 1.3));
     const auto mixed = [&](const float(&ca)[3], const float(&cb)[3]) {
-        return glm::mix(glm::vec3{ca[0], ca[1], ca[2]}, glm::vec3{cb[0], cb[1], cb[2]}, w);
+        return glm::mix(geom::vec(ca), geom::vec(cb), w);
     };
     const glm::vec3 shade = mixed(powerupGlowLooks[a].shade, powerupGlowLooks[b].shade);
     const glm::vec3 lightColor = mixed(powerupGlowLooks[a].light, powerupGlowLooks[b].light);
@@ -3419,7 +3420,7 @@ void setupFrontButton(int hand)
         weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ) +
             glm::vec3{vr_grapple_front_button_x.value, vr_grapple_front_button_y.value, vr_grapple_front_button_z.value});
     const view::ViewEntity& back = entities.button[hand];
-    place(ve, viewModel("progs/wpnbutton.mdl"), pos, glm::vec3{back.ent.angles[0], back.ent.angles[1], back.ent.angles[2]}, 0,
+    place(ve, viewModel("progs/wpnbutton.mdl"), pos, geom::vec(back.ent.angles), 0,
         mirrored);
     double& logAt = grappleDebug.frontLogAt;
     if(vr_grapple_debug.value >= 3 && developer.value && vr_gametime >= logAt)
@@ -3772,9 +3773,7 @@ void bareLight(const entity_t* e, float lightcolor[3])
     }
     if(bareLitHand(e) >= 0)
     {
-        lightcolor[0] = bareLit.color.x;
-        lightcolor[1] = bareLit.color.y;
-        lightcolor[2] = bareLit.color.z;
+        geom::store(bareLit.color, lightcolor);
     }
 }
 
@@ -3883,9 +3882,7 @@ int skinTone(const entity_t* e, float tone[4])
     const float amount = CLAMP(-1.f, vr_skin_tone.value, 1.f);
     const glm::vec3 colour = amount < 0.f ? glm::mix(glm::vec3{1.f}, glm::vec3{0.22f, 0.15f, 0.12f}, -amount) :
         glm::mix(glm::vec3{1.f}, glm::vec3{1.4f, 1.35f, 1.3f}, amount);
-    tone[0] = colour.x;
-    tone[1] = colour.y;
-    tone[2] = colour.z;
+    geom::store(colour, tone);
     tone[3] = kind && amount != 0.f ? 1.f : 0.f;
     return kind;
 }
@@ -3919,9 +3916,7 @@ int gloveLook(const entity_t* e, float glove[4], float cuff[4])
     }
     const glm::vec3 colour = hslToRgb(vr_glove_hue.value, CLAMP(0.f, vr_glove_saturation.value, 1.f),
         CLAMP(0.f, vr_glove_lightness.value, 1.f));
-    glove[0] = colour.x;
-    glove[1] = colour.y;
-    glove[2] = colour.z;
+    geom::store(colour, glove);
     glove[3] = static_cast<float>(mode); // the skin mask's channel: G fingerless, B full (make_skin_masks.py)
     if(kind == 2)
     {
@@ -3964,9 +3959,7 @@ bool nailLook(const entity_t* e, float nails[4])
     }
     const glm::vec3 colour = hslToRgb(vr_nail_hue.value, CLAMP(0.f, vr_nail_saturation.value, 1.f),
         CLAMP(0.f, vr_nail_lightness.value, 1.f));
-    nails[0] = colour.x;
-    nails[1] = colour.y;
-    nails[2] = colour.z;
+    geom::store(colour, nails);
     nails[3] = 1.f + CLAMP(0.f, vr_nail_gloss.value, 1.f);
     return true;
 }
@@ -3986,7 +3979,7 @@ bool heldRoundRef(int hand, glm::vec3& out, float* radius)
         return false;
     }
     const entity_t& e = cl_entities[num];
-    out = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    out = geom::vec(e.origin);
     if(radius)
     {
         *radius = -1.f; // (a shell: its middle, no radius of its own)

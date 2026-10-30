@@ -18,6 +18,7 @@
 #include "vr_cvars.hpp"
 #include "vr_view.hpp"
 
+#include "vr_geom.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -301,7 +302,7 @@ void parseCatch()
     Catch& c = catches[hand];
     const bool drawn = ent > 0 && ent < cl.num_entities && cl_entities[ent].model &&
                        glm::distance(glm::vec3{cl_entities[ent].origin[0], cl_entities[ent].origin[1], cl_entities[ent].origin[2]},
-                           glm::vec3{origin[0], origin[1], origin[2]}) < 48.f;
+                           geom::vec(origin)) < 48.f;
     c.from = drawn ? poseOf(cl_entities[ent]) : poseOf(origin, angles);
     c.at = vr_gametime;
     c.on = true;

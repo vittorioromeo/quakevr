@@ -15,6 +15,7 @@
 #include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
 
+#include "vr_geom.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
@@ -210,7 +211,7 @@ void selftest_f()
         glm::vec3 mid{0.f};
         for(const mvertex_t& v : built.vertexes)
         {
-            mid += glm::vec3{v.position[0], v.position[1], v.position[2]} / static_cast<float>(built.vertexes.size());
+            mid += geom::vec(v.position) / static_cast<float>(built.vertexes.size());
         }
         check(hullContents(&m, 0, mid) == CONTENTS_SOLID, va("sample %d: hull 0 empty at its middle", static_cast<int>(i)));
         bool flatTop = false;

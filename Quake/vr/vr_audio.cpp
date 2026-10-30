@@ -68,6 +68,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
+#include "vr_geom.hpp"
 #include <emmintrin.h> // (SSE2: x64's baseline)
 #include <stdio.h>
 
@@ -1693,7 +1694,7 @@ VoiceInput channelInput(int c, int v, const Features& f, float volume)
     Live& L = *live;
     const channel_t* ch = &snd_channels[c];
     VoiceInput in;
-    in.pos = glm::vec3{ch->origin[0], ch->origin[1], ch->origin[2]};
+    in.pos = geom::vec(ch->origin);
     const float falloff =
         za::max(0.f, 1.f - glm::length(in.pos - L.listener.pos) * ch->dist_mult * falloffScale());
     in.gain = static_cast<float>(ch->master_vol) * falloff * volume;
@@ -2363,9 +2364,9 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
         L.lastTime = realtime;
     }
     L.listener.pos = pos;
-    L.listener.fwd = glm::vec3{forward[0], forward[1], forward[2]};
-    L.listener.right = glm::vec3{right[0], right[1], right[2]};
-    L.listener.up = glm::vec3{up[0], up[1], up[2]};
+    L.listener.fwd = geom::vec(forward);
+    L.listener.right = geom::vec(right);
+    L.listener.up = geom::vec(up);
 
     if(!wanted())
     {
@@ -2423,10 +2424,10 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
                 if(e > 0 && e < cl.num_entities && cl_entities[e].model && cl_entities[e].model->type == mod_brush)
                 {
                     const entity_t* ent = &cl_entities[e];
-                    const glm::vec3 mins = glm::vec3{ent->origin[0], ent->origin[1], ent->origin[2]} +
-                                           glm::vec3{ent->model->mins[0], ent->model->mins[1], ent->model->mins[2]};
-                    const glm::vec3 maxs = glm::vec3{ent->origin[0], ent->origin[1], ent->origin[2]} +
-                                           glm::vec3{ent->model->maxs[0], ent->model->maxs[1], ent->model->maxs[2]};
+                    const glm::vec3 mins = geom::vec(ent->origin) +
+                                           geom::vec(ent->model->mins);
+                    const glm::vec3 maxs = geom::vec(ent->origin) +
+                                           geom::vec(ent->model->maxs);
                     const glm::vec3 d = L.listener.pos - at;
                     float leave = 0.f; // how far along d the box is left
                     bool inside = true;
@@ -2503,9 +2504,7 @@ extern "C" int VR_SndHandOf(const channel_t* ch, float* hand)
     if(h >= 0)
     {
         const glm::vec3 p = handSoundAt(ch, h);
-        hand[0] = p.x;
-        hand[1] = p.y;
-        hand[2] = p.z;
+        geom::store(p, hand);
     }
     return h < 0 ? -1 : h == HAND_MAIN ? 0 : 1;
 }
@@ -2522,9 +2521,7 @@ extern "C" int VR_SndSpatialize(channel_t* ch)
     {
         // The hand's muzzle (or the hand), panned as Quake would a sound there.
         const glm::vec3 p = handSoundAt(ch, hand);
-        ch->origin[0] = p.x;
-        ch->origin[1] = p.y;
-        ch->origin[2] = p.z;
+        geom::store(p, ch->origin);
         vec3_t d;
         VectorSubtract(ch->origin, listener_origin, d);
         const float dist = VectorNormalize(d) * ch->dist_mult * falloffScale();
@@ -2546,7 +2543,7 @@ extern "C" int VR_SndSpatialize(channel_t* ch)
             }
             else
             {
-                const glm::vec3 at = glm::vec3{e->origin[0], e->origin[1], e->origin[2]} + f.offset;
+                const glm::vec3 at = geom::vec(e->origin) + f.offset;
                 const double dt = realtime - f.time;
                 if(glm::length(at - f.last) > 256.f)
                 {
@@ -2561,9 +2558,7 @@ extern "C" int VR_SndSpatialize(channel_t* ch)
                         f.time = realtime;
                         f.last = at;
                     }
-                    ch->origin[0] = at.x;
-                    ch->origin[1] = at.y;
-                    ch->origin[2] = at.z;
+                    geom::store(at, ch->origin);
                 }
             }
             if(!f.active)
@@ -2627,7 +2622,7 @@ extern "C" void VR_SndStarted(channel_t* ch)
         return;
     }
     const glm::vec3 at{ch->origin[0], ch->origin[1], ch->origin[2]};
-    const glm::vec3 offset = at - glm::vec3{e->origin[0], e->origin[1], e->origin[2]};
+    const glm::vec3 offset = at - geom::vec(e->origin);
     if(glm::length(offset) > 256.f)
     {
         return; // (not the entity's own place)
