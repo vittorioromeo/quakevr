@@ -56,7 +56,7 @@ void(string xWho, string xWhat, vector xOwn, vector xRec) VR_Hit_CheckV =
     if(xOwn != xRec)
     {
         hit_check_bad = hit_check_bad + 1;
-        bprint(sprintf("hitcheck: MISMATCH %s %s own %v record %v (%g of %g)\n", xWho, xWhat, xOwn, xRec,
+        bprint(sprintf("hitcheck: MISMATCH FAIL %s %s own %v record %v (%g of %g)\n", xWho, xWhat, xOwn, xRec,
                        hit_check_bad, hit_check_n));
     }
 };
