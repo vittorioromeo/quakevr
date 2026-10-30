@@ -1377,8 +1377,29 @@ No behaviour change.
   alone with 36 and 86: PASS, 0 changed) and the flaky 63/71/72/ragtest. A/B (ThinLTO exes, ABBAABBAAB, 5 reps,
   cpu_busy median): armed_16 A 3.129 / B 3.161 ms (+1.0%, sd 0.11-0.17), ragdolls_32_active A 3.207 / B 3.188 ms
   (-0.6%; B's mean +4.5% from one 3.81 outlier): within noise.
-- **Not done** (budget): box3d createRagdoll, agarms skinOf/solve, avatar solveArm and the ragactive frame functions
-  (the hot ones each need their own A/B pair).
+- **Second pass: createRagdoll and the ragactive frame functions**, each split at its comment-marked phases over a
+  context struct (`CreateWork`, `DeathWork`, `StaggerWork`, `EnvWork`, `DriveWork`, `SwimWork`, `DismemberWork`, in an
+  anonymous namespace above the function), made by one script (kit worktree arenatex `scratch/phasesplit.py`, the
+  specs `split_create.py`, `split_drive.py`, `split_frames.py`): a local used by a later phase becomes a member, its
+  declaration an assignment under a reference alias of the same name (a reference local: a pointer member); each
+  phase's text otherwise unchanged. Only by hand: createRagdoll's `drawnBone` lambda (used by two phases) is made by
+  `drawnBoneOf` (its body the same but for `w.`), mass/friction's one declaration split in two, staggerOutcome's one
+  bare `return;` (the stagger's frame over) a `return false;` that the caller acts on. createRagdoll 418 -> 82 lines
+  (6 phases), deathFrame 221 -> 9 (3), staggerFrame 286 -> 23 (5), envFrame 313 -> 55 (4), drive 322 -> 45 (6),
+  swimFrame 197 -> 59 (5), dismemberFrame 287 -> 24 (5).
+- **Proof**: `vr_physics_hash ragdolls` (new: every ragdoll part's transform, velocity and spin, FNV-1a) every 30
+  frames over seven scenes (`scratch/hashrun.py`: 32 grunts blasted, staggers/knockdown/get-up, a judo throw, four
+  drowned in vrtesthall's pool, a climb, four limb cuts (arm, leg, head, forearm), a grunt killed and landing; 193
+  checkpoints, 145 with live ragdolls): the old exe twice gives the same 193 hashes (bit for bit: the ragdolls are
+  deterministic here; `vr_bench_statehash` is not, run to run), and the split one gives them again (a no-LTO build
+  against the ThinLTO baseline: the same bits). Committed one function at a time, re-made by the same scripts; the
+  last commit's files compared equal to the tested ones.
+- **Checked**: 0 warnings, all build checks; run_baseline `agrunt_|ragdoll_|limb_wear|swim_sound|agarmor` (91 cases): 0
+  changed against baseline.tsv (flaky apart: agrunt_63, agarmor_5, ragdoll_grab).
+- **A/B** (ThinLTO exes, ABBAABBAAB, 5 reps each, cpu_busy median): ragdolls_32_active A 3.628 / B 3.568 ms (-1.6%),
+  armed_16 A 3.286 / B 3.150 ms (-4.1%; A had one 4.52 outlier): within noise.
+- **Skipped**: climbFrame (one comment-marked block of 171 lines: nothing to split on), agarms skinOf/solve and avatar
+  solveArm (budget; they need their own proof: an arm pose dump over a grunt pose sweep, and the avatar's arms).
 
 ## Refactor leftovers L4: load-time items (branch `agent/leftload`)
 
