@@ -25,6 +25,7 @@
 #include "vr_render.hpp"
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
+#include "vr_twohand.hpp"
 #include "vr_weight.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
@@ -261,10 +262,30 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
     return 1.f - x * x * (3.f - 2.f * x);
 }
 
-// Slot `slot`'s weapon's kick, s in all: its Return Time (kept off 0) and the kick up before it.
-[[nodiscard]] float kickSeconds(int slot)
+// Slot `slot`'s weapon's kick, s in all: its Return Time (kept off 0; times `share`: twoHandRecoil) and the kick up
+// before it.
+[[nodiscard]] float kickSeconds(int slot, float share = 1.f)
 {
-    return weapons::recoilKickSeconds(za::max(weapons::value(slot, Key::RecoilReturn), 0.014f));
+    return weapons::recoilKickSeconds(za::max(weapons::value(slot, Key::RecoilReturn) * share, 0.014f));
+}
+
+// twoHandRecoil's, held `support` (0..1) two-handed.
+[[nodiscard]] float twoHandShare(int slot, float support)
+{
+    const float both = za::max(vr_recoil_two_hand.value, 0.f) * za::max(weapons::value(slot, Key::RecoilTwoHand), 0.f);
+    return 1.f + (both - 1.f) * za::clamp(support, 0.f, 1.f);
+}
+
+// A shot's kick now from slot `slot`'s weapon (its AD variant's `feel`), `share` (twoHandRecoil) as hard and as long
+// back.
+[[nodiscard]] Kick shotKick(int slot, const adguns::FireFeel& feel, float share)
+{
+    Kick k;
+    k.time = cl.time;
+    k.strength = za::max(feel.recoil, 0.f) * share;
+    k.duration = za::max(kickSeconds(slot, share) * feel.recoilTime, 0.02f);
+    k.sideways = vrand::lcg01(seed) * 2.f - 1.f;
+    return k;
 }
 
 // The recoil of a kick `kick` (its shots' strengths at their envelopes, summed and capped) and `sideways` of slot
@@ -320,14 +341,11 @@ void playerFired(int hand)
     h.burst = h.variant >= 0 && feel.burst != adguns::FireFeel::None;
     const bool recoil = vr_weapon_recoil.value != 0.f &&
                         (weapons::value(slot, Key::RecoilKick) > 0.f || weapons::value(slot, Key::RecoilRise) > 0.f);
+    const float share = twoHandRecoil(hand, slot); // (held in both hands: less, and back sooner)
     if(recoil)
     {
-        Kick& k = h.kicks[h.nextKick];
+        h.kicks[h.nextKick] = shotKick(slot, feel, share);
         h.nextKick = (h.nextKick + 1) % maxKicks;
-        k.time = cl.time;
-        k.strength = za::max(feel.recoil, 0.f);
-        k.duration = za::max(kickSeconds(slot) * feel.recoilTime, 0.02f);
-        k.sideways = vrand::lcg01(seed) * 2.f - 1.f;
     }
     const bool flash = vr_muzzle_flash.value != 0.f && weapons::value(slot, Key::Flash) != 0.f && feel.flash > 0.f;
     if(flash)
@@ -338,10 +356,11 @@ void playerFired(int hand)
     }
     if(vr_debug_weaponfx.value)
     {
-        Con_Printf("weaponfx fired t %.3f hand %d slot %d recoil %d (%.2f cm, %.2f deg, %.3f s) flash %d (%.2f, %.3f s) "
-                   "adgun %d burst %d\n",
-            cl.time, hand, slot, recoil ? 1 : 0, weapons::value(slot, Key::RecoilKick) * feel.recoil,
-            weapons::value(slot, Key::RecoilRise) * feel.recoil, kickSeconds(slot) * feel.recoilTime, flash ? 1 : 0,
+        Con_Printf("weaponfx fired t %.3f hand %d slot %d recoil %d (%.2f cm, %.2f deg, %.3f s; two-handed %.2f) flash %d "
+                   "(%.2f, %.3f s) adgun %d burst %d\n",
+            cl.time, hand, slot, recoil ? 1 : 0, weapons::value(slot, Key::RecoilKick) * feel.recoil * share,
+            weapons::value(slot, Key::RecoilRise) * feel.recoil * share, kickSeconds(slot, share) * feel.recoilTime, share,
+            flash ? 1 : 0,
             weapons::value(slot, Key::FlashSize) * feel.flash,
             weapons::value(slot, Key::FlashTime) * feel.flashTime, h.variant, static_cast<int>(feel.burst));
     }
@@ -531,7 +550,7 @@ void monsterFired(int ent, bool rocket)
     {
         Con_Printf("weaponfx monster fired t %.3f ent %d (%s) slot %d\n", cl.time, ent, cl_entities[ent].model->name, propSlot);
     }
-    if(vr_debug_weaponfx.value >= 3)
+    if(vr_debug_weaponfx.value == 3.f)
     {
         // Tests (Misc/quakevr/weaponfx/shots_test.sh): the eyes' view of this flash (the next frame's), once.
         Cvar_SetQuick(&vr_eyeshot, "1");
@@ -676,6 +695,11 @@ void parseTracer()
     }
 }
 
+float twoHandRecoil(int hand, int slot)
+{
+    return slot < 0 ? 1.f : twoHandShare(slot, twohand::support(hand));
+}
+
 void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::vec3& angles)
 {
     pos = glm::vec3{0.f};
@@ -727,6 +751,35 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
             a.backCm, angles.x, angles.y);
     }
 }
+
+namespace
+{
+// vr_debug_weaponfx 4: the main hand's weapon `w` as drawn this frame, one line: its frame and drawn poses, its body's
+// centre in the world (as drawn, and where its rest pose would be drawn: the kick cancel's residual between them, cm),
+// the programmatic recoil now, and the entity's place.
+void trackDrawn(const view::ViewEntity& w)
+{
+    glm::vec3 now, rest;
+    float worst = 0.f;
+    if(!w.visible || !w.ent.model || !kickcancel::drawnBody(w.ent, now, rest, worst))
+    {
+        return;
+    }
+    const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(w.ent.model));
+    const anchor::DrawnPoses d = anchor::drawnPoses(w.ent, hdr);
+    const view::ModelSpace space{w};
+    const glm::vec3 at = space.point(now), atRest = space.point(rest);
+    glm::vec3 pos, angles;
+    recoilOffset(HAND_MAIN, glm::vec3{0.f}, pos, angles);
+    const float cm = 100.f / units::metresToUnits();
+    Con_Printf("recoiltrack gt %.5f t %.5f frame %d poses %d %d %.3f body %.3f %.3f %.3f rest %.3f %.3f %.3f resid %.3f cm worst %.3f "
+               "u recoil %.3f cm %.3f deg org %.3f %.3f %.3f ang %.3f %.3f %.3f\n",
+        vr_gametime, cl.time, w.ent.frame, d.a, d.b, d.blend, at.x, at.y, at.z, atRest.x, atRest.y, atRest.z,
+        glm::distance(at, atRest) * cm, worst,
+        glm::length(pos) * cm, angles.x, w.ent.origin[0], w.ent.origin[1], w.ent.origin[2], w.ent.angles[0],
+        w.ent.angles[1], w.ent.angles[2]);
+}
+} // namespace
 
 // An AD gun variant's shot leaving `w` (drawn; its slot `slot`): sparks and smoke out of its muzzle as it fires (a
 // launcher's a cloud and a shower, the shotgun's burning powder, the plasma guns' sparks in their colour), the rocket's
@@ -799,6 +852,19 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
     }
     lastFrame = host_framecount;
     QVR_PROFILE("weapon fx");
+
+    // The held guns' poses with their models' own kick out (or put back: vr_weapon_kick_cancel; a model read again).
+    for(const view::ViewEntity& w : weapons)
+    {
+        if(w.visible && w.ent.model)
+        {
+            kickcancel::prepare(w.ent.model);
+        }
+    }
+    if(vr_debug_weaponfx.value == 4.f)
+    {
+        trackDrawn(weapons[HAND_MAIN]);
+    }
 
     qmodel_t* model = view::viewModel(flashModelName);
     const auto place = [&](view::ViewEntity& ve, const glm::vec3& origin, const glm::vec3& fwd, const glm::vec3& upIn,
@@ -1219,6 +1285,115 @@ void returnTest(const Check& check)
         weapons::value(held, Key::RecoilReturn), back0);
 }
 
+// vr_recoil_test's part on the drawn kick's smoothness: the held weapon's kick (recoilOffset) drawn at 72 and 90 frames a
+// second rises to its peak and comes back without a step back or forth (each drawn frame on its curve: the envelope at
+// that frame's time, within 1e-4 of the peak; up, then down, never the other way).
+template <typename Check>
+void smoothTest(const Check& check)
+{
+    const int hand = HAND_MAIN;
+    const int held = weapons::heldSlot(hand);
+    const float duration = kickSeconds(held);
+    const RecoilAmount full = recoilAmount(held, 1.f, 0.f);
+    float off = 0.f;
+    int reversals = 0, frames = 0;
+    for(const float rate : {72.f, 90.f})
+    {
+        float previous = 0.f;
+        bool falling = false;
+        for(int k = 0; static_cast<float>(k) / rate <= duration + 2.f / rate; k++)
+        {
+            const float t = static_cast<float>(k) / rate;
+            forget(hand);
+            HandFx& h = handFx[hand];
+            h.slot = held;
+            h.kicks[0] = Kick{cl.time - static_cast<double>(t), 1.f, duration, 0.f};
+            glm::vec3 pos, angles;
+            recoilOffset(hand, glm::vec3{0.f}, pos, angles);
+            forget(hand);
+            const float tip = -angles.x;
+            off = za::max(off, fabsf(tip + full.pitch * envelope(t, duration)) / za::max(-full.pitch, 1e-6f));
+            if(tip < previous)
+            {
+                falling = true;
+            }
+            else if(tip > previous && falling)
+            {
+                reversals++;
+            }
+            previous = tip;
+            frames++;
+        }
+    }
+    check(off <= 1e-4f, "the drawn kick at 72 and 90 Hz is on its smooth curve (worst share of the peak off it)", off, 0.f);
+    check(reversals == 0, "and rises once, then comes back once (reversals)", static_cast<float>(reversals), 0.f);
+    Con_Printf("vr_recoil_test: smooth kick: %d frames drawn at 72 and 90 Hz over %.3f s\n", frames, duration);
+}
+
+// vr_recoil_test's part on the two-handed recoil (vr_recoil_two_hand, Key::RecoilTwoHand; twoHandRecoil): the held
+// weapon's shot as playerFired makes it (shotKick) held in both hands peaks at the share of the one-handed peak (its
+// kick back and tip up) and is back at rest in the share of the one-handed time; the share is the global times the
+// weapon's own, 1 in one hand, between them halfway into the grip. Puts the values back.
+template <typename Check>
+void twoHandTest(const Check& check)
+{
+    const int hand = HAND_MAIN;
+    const int held = weapons::heldSlot(hand);
+    // The kick drawn `t` s after a shot held `support` two-handed: degrees tipped up (`back`: cm kicked back).
+    const auto drawnAt = [&](float support, float t, float& back)
+    {
+        forget(hand);
+        HandFx& h = handFx[hand];
+        h.slot = held;
+        h.kicks[0] = shotKick(held, adguns::FireFeel{}, twoHandShare(held, support));
+        h.kicks[0].time = cl.time - static_cast<double>(t);
+        h.kicks[0].sideways = 0.f;
+        glm::vec3 pos, angles;
+        recoilOffset(hand, glm::vec3{0.f}, pos, angles);
+        forget(hand);
+        back = glm::length(pos) * 100.f / units::metresToUnits();
+        return -angles.x;
+    };
+    // Its kick up (s), held `support` two-handed.
+    const auto riseOf = [&](float support) { return za::min(0.035f, 0.3f * kickSeconds(held, twoHandShare(held, support))); };
+    // From the peak back to rest (0.5 ms steps).
+    const auto backTime = [&](float support)
+    {
+        const float rise = riseOf(support);
+        float cm = 0.f;
+        for(int i = 1; i < 8000; i++)
+        {
+            const float t = rise + static_cast<float>(i) * 0.0005f;
+            if(drawnAt(support, t, cm) <= 0.f)
+            {
+                return t - rise;
+            }
+        }
+        return -1.f;
+    };
+    cvar_t* ownVar = weapons::cvar(held, Key::RecoilTwoHand);
+    const za::String oldOwn{ownVar->string};
+    const float oldGlobal = vr_recoil_two_hand.value;
+    Cvar_SetValueQuick(&vr_recoil_two_hand, 0.6f);
+    Cvar_SetValueQuick(ownVar, 0.5f);
+    const float share = twoHandShare(held, 1.f);
+    check(fabsf(share - 0.3f) < 1e-5f, "two hands: the global 0.6 times the weapon's own 0.5", share, 0.3f);
+    check(twoHandShare(held, 0.f) == 1.f && fabsf(twoHandShare(held, 0.5f) - 0.65f) < 1e-5f,
+        "one hand: 1; halfway into the two-handed grip: halfway", twoHandShare(held, 0.5f), 0.65f);
+    float back1 = 0.f, back2 = 0.f;
+    const float tip1 = drawnAt(0.f, riseOf(0.f), back1), tip2 = drawnAt(1.f, riseOf(1.f), back2);
+    check(fabsf(tip2 / tip1 - share) < 1e-3f, "two-handed: its muzzle rise at the peak is the share of one-handed's (ratio)",
+        tip2 / tip1, share);
+    check(fabsf(back2 / back1 - share) < 1e-3f, "and its kick back (ratio)", back2 / back1, share);
+    const float time1 = backTime(0.f), time2 = backTime(1.f);
+    check(fabsf(time2 / time1 - share) < 0.02f, "and back to rest from the peak in the share of the time (ratio)",
+        time2 / time1, share);
+    Con_Printf("vr_recoil_test: two-handed share %.2f: peak %.3f / %.3f deg, %.3f / %.3f cm, back in %.4f / %.4f s\n",
+        share, tip2, tip1, back2, back1, time2, time1);
+    Cvar_SetValueQuick(&vr_recoil_two_hand, oldGlobal);
+    Cvar_SetQuick(ownVar, oldOwn.cStr());
+}
+
 // vr_recoil_test's part on the stream shake (Key::StreamShake, StreamHaptic; streamed, streamShake): only the AD
 // flamethrower's and poison sprayer's slots (30, 31) have it by default; the held weapon at Stream Shake 1, a flame just
 // come (streamed), trembles each frame of a second of flames (the clock stepped as frames do), subtly (under a degree
@@ -1423,6 +1598,8 @@ void recoilTest_f()
         "Recoil Amount 2x doubles the held weapon's kick back and tip up", glm::length(pos4), 2.f * glm::length(pos0));
     Cvar_SetValueQuick(&vr_recoil_amount, amount);
     returnTest(check);
+    smoothTest(check);
+    twoHandTest(check);
     streamTest(check);
     conversionTest(check);
     // The models' own kick taken out (vr_kickcancel.cpp): every kicking gun's body at rest on each of its frames.

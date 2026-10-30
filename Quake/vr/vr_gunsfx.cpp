@@ -10,6 +10,7 @@
 #include "vr_random.hpp"
 #include "vr_testkit.hpp"
 #include "vr_trace.hpp"
+#include "vr_weaponfx.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
@@ -225,6 +226,7 @@ struct Punch
 {
     double start{-1.0};
     int slot{-1};
+    float share{1.f}; // the recoil's share (weaponfx::twoHandRecoil: less held in both hands)
 };
 
 struct GunSfxState
@@ -448,33 +450,36 @@ int dryClick(int entnum, int entchannel, float* fvol, float* pitch)
 // The punch: a spike as hard as the weapon's recoil (the mean of its kick back and rise in the units of the old strength
 // 1, 1.5 cm and 4 degrees: weapons::recoilFeel; square rooted: a strong gun is felt stronger, not twice as strong), then
 // a tail from half that down to nothing (quadratic) over the weapon's kick (its kick up and Recoil Return Time: the old
-// Return Time times Recovery's length, vr_wofs_version 74).
+// Return Time times Recovery's length, vr_wofs_version 74); `share` of each, as the shot's recoil (a weapon held in
+// both hands: weaponfx::twoHandRecoil).
 
-[[nodiscard]] float peakOf(int slot)
+[[nodiscard]] float peakOf(int slot, float share = 1.f)
 {
-    const float recoil = weapons::recoilFeel(weapons::value(slot, Key::RecoilKick), weapons::value(slot, Key::RecoilRise));
+    const float recoil = weapons::recoilFeel(weapons::value(slot, Key::RecoilKick) * share,
+        weapons::value(slot, Key::RecoilRise) * share);
     const float punch = za::clamp(vr_gunsfx_punch.value, 0.f, 2.f) * za::max(weapons::value(slot, Key::HapticPunch), 0.f);
     return za::clamp(0.85f * punch * za::sqrt(recoil), 0.f, 1.f);
 }
 
-[[nodiscard]] float tailOf(int slot)
+[[nodiscard]] float tailOf(int slot, float share = 1.f)
 {
-    return za::clamp(weapons::recoilKickSeconds(za::max(weapons::value(slot, Key::RecoilReturn), 0.f)), 0.03f, 1.5f);
+    return za::clamp(weapons::recoilKickSeconds(za::max(weapons::value(slot, Key::RecoilReturn) * share, 0.f)), 0.03f,
+        1.5f);
 }
 
 // The punch `t` s after the shot: its amplitude, frequency and the pulse's length (null amplitude: over).
-[[nodiscard]] Pulse punchAt(int slot, float t)
+[[nodiscard]] Pulse punchAt(int slot, float t, float share = 1.f)
 {
     if(t < 0.f || slot < 0)
     {
         return {};
     }
-    const float peak = peakOf(slot);
+    const float peak = peakOf(slot, share);
     if(t < spikeTime)
     {
         return {spikeTime - t, peak, spikeHz};
     }
-    const float u = (t - spikeTime) / tailOf(slot);
+    const float u = (t - spikeTime) / tailOf(slot, share);
     if(u >= 1.f || peak <= 0.f)
     {
         return {};
@@ -489,7 +494,7 @@ void sendPunch(int hand)
     {
         return;
     }
-    const Pulse s = punchAt(p.slot, static_cast<float>(cl.time - p.start));
+    const Pulse s = punchAt(p.slot, static_cast<float>(cl.time - p.start), p.share);
     if(s.amplitude <= 0.f)
     {
         p = Punch{};
@@ -560,11 +565,13 @@ void fired(int hand)
     {
         return;
     }
-    state.punches[hand] = Punch{cl.time, slot};
+    const float share = weaponfx::twoHandRecoil(hand, slot);
+    state.punches[hand] = Punch{cl.time, slot, share};
     sendPunch(hand); // (the spike on the shot's own frame)
     if(vr_debug_gunsfx.value)
     {
-        Con_Printf("gunsfx punch hand %d slot %d peak %.2f tail %.3f s\n", hand, slot, peakOf(slot), tailOf(slot));
+        Con_Printf("gunsfx punch hand %d slot %d peak %.2f tail %.3f s (two-handed %.2f)\n", hand, slot,
+            peakOf(slot, share), tailOf(slot, share), share);
     }
 }
 

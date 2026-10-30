@@ -4,6 +4,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_progs.hpp"
+#include "vr_testkit.hpp"
 #include <glm/gtc/type_ptr.hpp>
 
 namespace view_detail
@@ -969,6 +970,47 @@ namespace
 bool gripFrameCommandRegistered = false; // (vr_grip_frame, vr_gear_status, vr_body_wrist_info: registered on the first call)
 void gearStatus_f();
 
+// vr_ghost_recoil_test's: the frames setupGhostHands saw a hand kicked by a shot's recoil since the last start, the ghost
+// they would draw at most (its opacity) and the hand's distance from its measure (cm).
+struct GhostRecoil
+{
+    int frames{0};
+    float maxAlpha{0.f};
+    float maxApart{0.f};
+};
+GhostRecoil ghostRecoil;
+GhostRecoil ghostRecoilIgnored; // (the "ignored" phase's, kept for the verdict)
+
+// vr_ghost_recoil_test start | ignored | end: a shot's recoil brings no ghost hand out with vr_ghost_hands_ignore_recoil
+// 1 (the frames since "start", kept by "ignored": the most opaque ghost under 0.02, drawn none) and does with it 0 (the
+// frames since then, at "end": over 0.02, so the shot is strong enough to show one); "end" prints the verdict
+// "vr_ghost_recoil_test: N passed, M failed". The script fires between (Misc/quakevr/ghost_recoil_test.sh).
+void ghostRecoilTest_f()
+{
+    const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!strcmp(step, "start"))
+    {
+        ghostRecoil = GhostRecoil{};
+        return;
+    }
+    if(!strcmp(step, "ignored"))
+    {
+        ghostRecoilIgnored = ghostRecoil;
+        ghostRecoil = GhostRecoil{};
+        return;
+    }
+    testkit::Tally t;
+    constexpr const char* name = "vr_ghost_recoil_test";
+    const GhostRecoil& a = ghostRecoilIgnored;
+    const GhostRecoil& b = ghostRecoil;
+    Con_Printf("%s: recoil ignored: %d kicked frames, ghost %.3f at most (%.2f cm apart); counted: %d frames, ghost %.3f "
+               "(%.2f cm)\n", name, a.frames, a.maxAlpha, a.maxApart, b.frames, b.maxAlpha, b.maxApart);
+    t.check(a.frames > 0 && b.frames > 0, name, "a kicked hand seen in both phases");
+    t.check(a.maxAlpha < 0.02f, name, va("recoil ignored: no ghost (opacity %.3f, want < 0.02)", a.maxAlpha));
+    t.check(b.maxAlpha >= 0.02f, name, va("recoil counted: the same kick shows the ghost (opacity %.3f)", b.maxAlpha));
+    t.verdict(name);
+}
+
 // Held props' grips (grip::setHandFrame): where the empty hand's palm and grip channel are in its frame (the move's place
 // and angles), every frame; not measured without the jointed hand (the default hand's are used).
 void gripFrame_f();
@@ -983,6 +1025,7 @@ void updateGripFrame(const hands::State& s, int hand)
         Cmd_AddCommand("vr_gear_status", gearStatus_f);
         Cmd_AddCommand("vr_body_wrist_info", wristInfo_f);
         Cmd_AddCommand("vr_powerup_info", powerupInfo_f);
+        Cmd_AddCommand("vr_ghost_recoil_test", ghostRecoilTest_f);
     }
     grip::HandFrame f;
     qmodel_t* const model = viewModel(handrig::modelName());
@@ -2542,25 +2585,47 @@ void setupGhostHands(const hands::State& s)
         const bool mirrored = hand == HAND_OFF;
         const int fist = weapons::fistSlot();
         const int slot = weapons::slotForModel(entities.weapon[hand].ent.model);
-        const glm::vec3 rot = s.unresolvedRot[hand];
-        glm::vec3 pos = s.unresolvedPos[hand];
-        pos += anglesBasis(rot)[1] * (vr_ghost_hands_test_offset.value / 100.f * m2u);
-        glm::vec3 handRot = basisAngles(anglesBasis(rot) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
-        if(slot >= 0 && slot != fist)
+        // The hand placed for controller pose `at`, `turn`: its place (returned) and its angles (`handRot`).
+        const auto placeAt = [&](const glm::vec3& at, const glm::vec3& turn, glm::vec3& handRot)
         {
-            handRot = attachedTurn(rot, slot, mirrored, weaponAngleOffsets(fist, mirrored), hand);
-            moveDrawnHand(hand, mirrored, attachedTurn(rot, slot, mirrored, glm::vec3{0.f}, hand),
-                weapons::vec(slot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
-                weapons::vec(slot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, pos, handRot);
-        }
+            glm::vec3 p = at + anglesBasis(turn)[1] * (vr_ghost_hands_test_offset.value / 100.f * m2u);
+            handRot = basisAngles(anglesBasis(turn) * anglesBasis(weaponAngleOffsets(fist, mirrored)));
+            if(slot >= 0 && slot != fist)
+            {
+                handRot = attachedTurn(turn, slot, mirrored, weaponAngleOffsets(fist, mirrored), hand);
+                moveDrawnHand(hand, mirrored, attachedTurn(turn, slot, mirrored, glm::vec3{0.f}, hand),
+                    weapons::vec(slot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
+                    weapons::vec(slot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, p, handRot);
+            }
+            return p;
+        };
+        const glm::vec3 rot = s.unresolvedRot[hand];
+        glm::vec3 handRot;
+        const glm::vec3 pos = placeAt(s.unresolvedPos[hand], rot, handRot);
+        // What it is measured against: the real controller, kicked as a shot's recoil kicks the drawn hand (the view's
+        // shakes, vr_view.cpp) unless that should bring no ghost out (vr_ghost_hands_ignore_recoil).
+        glm::vec3 recoilPos, recoilAngles;
+        weaponfx::recoilOffset(hand, s.unresolvedRot[hand], recoilPos, recoilAngles);
+        const bool kicked = glm::length(recoilPos) > 0.f || glm::length(recoilAngles) > 0.f;
+        glm::vec3 measuredRot = handRot;
+        const glm::vec3 measured = kicked && vr_ghost_hands_ignore_recoil.value != 0.f
+                                       ? placeAt(s.unresolvedPos[hand] + recoilPos, rot + recoilAngles, measuredRot)
+                                       : pos;
         // Faded in as the drawn hand leaves it: the further apart of its grip and a point 15 cm ahead of it (a heavy
         // weapon's lag turns the hand about its grip).
         const float ahead = 0.15f * m2u;
-        const float apart = za::max(glm::distance(pos, drawn.pos),
-                                glm::distance(pos + hands::forward(handRot) * ahead, drawn.pos + hands::forward(drawn.rot) * ahead)) *
+        const float apart = za::max(glm::distance(measured, drawn.pos),
+                                glm::distance(measured + hands::forward(measuredRot) * ahead,
+                                    drawn.pos + hands::forward(drawn.rot) * ahead)) *
                             100.f / m2u;
         const float from = za::max(vr_ghost_hands_fade_from.value, 0.f), range = za::max(vr_ghost_hands_fade_range.value, 0.01f);
         const float alpha = za::clamp(vr_ghost_hands_alpha.value, 0.f, 1.f) * za::clamp((apart - from) / range, 0.f, 1.f);
+        if(kicked)
+        {
+            ghostRecoil.frames++;
+            ghostRecoil.maxAlpha = za::max(ghostRecoil.maxAlpha, alpha);
+            ghostRecoil.maxApart = za::max(ghostRecoil.maxApart, apart);
+        }
         if(alpha < 0.02f)
         {
             continue;

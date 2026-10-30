@@ -3,7 +3,6 @@
 
 #include "vr_anchor.hpp"
 #include "vr_engine.hpp"
-#include "vr_kickcancel.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
 
@@ -483,25 +482,19 @@ mem::Cache<AnchorCache> anchorCache{"anchors", mem::GameDirChange | mem::ModelRe
     return glm::mix(poseVertex(hdr, d.a, vertex), poseVertex(hdr, d.b, vertex), d.blend);
 }
 
-// What the entity's vertices are put through as drawn: its poses, and the baked kick taken out (vr_kickcancel.hpp:
-// the alias matrix ends with the same map).
+// What the entity's vertices are put through as drawn: its poses (a weapon's baked kick is already out of them:
+// vr_kickcancel.hpp).
 struct Drawn
 {
     DrawnPoses poses;
-    bool cancel{false};
-    glm::mat4 kick{1.f};
 };
 
 [[nodiscard]] Drawn drawnOf(const entity_t& e, const aliashdr_t* hdr)
 {
-    Drawn d;
-    d.poses = drawnPoses(e, hdr);
-    d.cancel = kickcancel::byteCancel(e, hdr, d.kick);
-    return d;
+    return Drawn{drawnPoses(e, hdr)};
 }
 
-// A vertex as drawn, blended towards the zero pose by `zeroBlend` (then the kick taken out, as the alias shader blends
-// before the matrix).
+// A vertex as drawn, blended towards the zero pose by `zeroBlend`.
 [[nodiscard]] glm::vec3 blendedVertex(const entity_t& e, const aliashdr_t* hdr, const Drawn& d, int vertex, float zeroBlend)
 {
     glm::vec3 posed = drawnVertex(e, hdr, d.poses, vertex);
@@ -509,7 +502,7 @@ struct Drawn
     {
         posed = glm::mix(posed, poseVertex(hdr, zeroPose(hdr), vertex), zeroBlend);
     }
-    return d.cancel ? glm::vec3{d.kick * glm::vec4{posed, 1.f}} : posed;
+    return posed;
 }
 
 [[nodiscard]] const aliashdr_t* quakeHeader(const entity_t& ent)
@@ -634,10 +627,6 @@ bool posedVertices(const entity_t& ent, float zeroBlend, za::Vector<glm::vec3>& 
     {
         rest[v] = storedVertex(hdr, zero, v); // (the binding, kept: the stored bytes whatever vr_mdl_dequant)
         now[v] = glm::mix(drawnVertex(ent, hdr, d.poses, v), rest[v], CLAMP(0.f, zeroBlend, 1.f));
-        if(d.cancel)
-        {
-            now[v] = glm::vec3{d.kick * glm::vec4{now[v], 1.f}};
-        }
     }
     return true;
 }

@@ -2705,6 +2705,63 @@ Regression test: `Misc/quakevr/bodytrack_solve_test.sh <agent> [--update]`: 300 
 quakevr/scenarios/bodytrack/solve_ref.csv (0.5 units per joint, 0.02 per weight); verdict line
 `bodytrack_solve: N passed, M failed`.
 
+## Kick cancel in the poses; two-handed recoil; no ghost hands from recoil (branch `agent/recoil2h`)
+
+His words: the starter shotgun's new recoil "seems jittery" (frames still moving it); the grenade launcher "also seems to
+have a few frames that still move the weapon, some vertices visibly move during recoil and the ammo screen intersects
+with geometry"; a global and per-weapon multiplier reducing the programmatic recoil held two-handed; an option (on) for
+the ghost hands not to appear from the programmatic recoil.
+
+- **What jittered** (measured: `vr_debug_weaponfx 4`, a "recoiltrack" line a frame: the held gun's body as drawn, where
+  its rest pose would be drawn, the recoil; shotgun fired at 72 and 90 Hz, fixed clock, and 250 Hz real time): the
+  procedural curve is smooth (cl.time steps evenly; the drawn rest-pose body moves exactly as the envelope). What moved
+  was the old cancel's leftover: one rigid motion a pose cannot undo each vertex's byte rounding (the fit's rms 0.5
+  byte step, up to 3 steps, ~1 cm at the shotgun's muzzle; the grenade launcher's body rms 1.3 steps, the model
+  squashing as it kicks), so the gun's vertices and its body's centre (up to 3 mm) shimmered, changing every 0.1 s pose.
+- **The fix: the kick out of the poses** (`vr_kickcancel.cpp` ensure): the fit as before (at map load,
+  view::prepareWorldWeapons; each frame for the held guns), then the model's poses in memory made again: the body's
+  vertices are the rest pose's own bytes (and normals) in every kicked pose, a part's are its pose's put through the
+  pose's cancel (re-rounded, its normal turned); the model uploaded again (its dequantised offsets made again). The
+  matrix cancel (`byteCancel`, `applyDrawn`, the anchors' `d.kick`) is gone: the renderer, the anchors (muzzles, ammo
+  screens, mounts, the hand on a pump) and the dequantiser read the cancelled poses. The originals are kept
+  (`vr_weapon_kick_cancel 0` puts them back, the held guns' at the next frame); a model read again is found by its
+  bytes (one pose compared a frame) and fitted again. The kick cache is never emptied (a model's entry is checked by its
+  data). Drawn now: body == rest exactly (recoiltrack: body and rest identical every frame, shotgun and launcher).
+- **The grenade launchers wholly at rest** (slots 5, 10, 13: the launcher, Armagon's proximity gun, the multi grenade
+  launcher): their upper shells only lurch on the body (177-202 vertices; no mechanism), so every vertex of a kicked
+  pose is the rest pose's: the ammo screen's anchor (on the shell) holds still; with the models' own kick it moved 49
+  byte steps. The other guns keep their parts (the nailguns' barrels, the laser cannon's sliding barrel with its screen
+  on it, the flashes). AD's grenade launcher is not a listed model (its own frames).
+- **Two-handed recoil** (`weaponfx::twoHandRecoil`): Weapon Effects > Two-Handed Recoil (`vr_recoil_two_hand`, 0.6,
+  0-1, to 2) times Weapon Offsets > Effects > Two-Handed Recoil (`vr_wofs_fx_recoil_2h_NN`, 1, 0-2, to 5), blended in
+  by the two-handed grip's transition (`twohand::support`): a shot's kick back and muzzle rise times it and its Return
+  Time times it (`shotKick`; the 35 ms kick up as before); the haptic punch's spike and tail follow (vr_gunsfx.cpp
+  Punch.share). The heavy-weapon kick (vr_weight.cpp) already had its own two-handed share: unchanged.
+- **No ghost hands from recoil** (`vr_ghost_hands_ignore_recoil`, 1; Settings > Ghost Hands: "No Ghost from Recoil"):
+  the ghost's distance is measured against the real controller kicked as the recoil kicks the drawn hand
+  (setupGhostHands; the ghost is still drawn at the real controller when something else holds the hand off).
+- **Tests**: `vr_kickcancel_test` (also in `vr_recoil_test`) plays each listed gun's firing frames at 10 Hz drawn
+  through the anchors' path at 72 and 90 Hz (the renderer's blend): every body vertex (every vertex of a launcher)
+  within 0.02 byte steps of rest, its centre's step between drawn frames within 0.02, the launchers' ammo screen anchor
+  within 0.02: 71/0 (all 0.000; with `vr_weapon_kick_cancel 0`: 35/36). `vr_recoil_test` 104/0 (was 69): the drawn kick
+  sampled at 72 and 90 Hz on its curve (0.0000 of the peak off) and rising once, falling once; two-handed at 0.6 x 0.5:
+  peak 1.680 / 5.600 deg, 1.733 / 5.775 cm, back in 0.0945 / 0.3150 s (0.300 each). `Misc/quakevr/ghost_recoil_test.sh
+  <agent>`: the shotgun at Recoil Amount 3 fired once ignoring the recoil (25 kicked frames, no ghost: 0.29 cm apart)
+  and once counting it (the ghost shows): 3/0. `vr_gunsfx_test` 24/0 (-Sound). Covering cases vs baseline.tsv (items 1
+  and 3): collectfx, shot_shape, grip_state, reload 112/3, reload_* as the baseline; recoil 99/0 (was 9/0: checks
+  added). No per-frame cost to A/B: the draw lost its matrix product, the held guns gained one pose's memcmp a frame.
+
+Checklist:
+- The shotgun, super shotgun and rocket launcher fire with the gun's body perfectly still in the hand (no shimmer of
+  its edges or lighting through the kick); only the procedural kick moves it.
+- The grenade launcher (and the proximity gun, multi grenade launcher) fires with nothing on it moving; its ammo screen
+  never goes into the gun.
+- Debug > Weapons: "Take Out the Models' Own Kick" off and on swaps the models' own kick back and forth at once.
+- Weapon Effects: Two-Handed Recoil 0.6: a two-handed shotgun shot kicks visibly less and settles sooner than one-handed,
+  the haptic punch lighter and shorter; 1: the same as one-handed. Weapon Offsets > Effects: Two-Handed Recoil per gun.
+- Ghost Hands on: firing a strong gun (the shotgun at your 17 cm) shows no ghost; "No Ghost from Recoil" off shows it
+  flash with each shot.
+
 ## Armed humanoid disarming, part 2: a deliberate strike on its weapon or hand disarms (branch `agent/disarm2`)
 
 His words (2026-10-30): a well-aimed hit or throw (fist, gun or prop) on an armed grunt's weapon or hand parried or hurt

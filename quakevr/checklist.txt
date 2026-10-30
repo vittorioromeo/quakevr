@@ -141,6 +141,10 @@ Punch an armed grunt's gun (or its gun hand) hard while it isn't guarding: the g
 In slow motion, punch a grunt's gun out of its hand.
 Swing a held shotgun or a carried crate into a grunt's gun: knocked out; throw a gun at its gun hand: knocked out.
 Punch a grunt's legs or chest away from its gun: it is hurt and keeps its gun.
+Shotgun, super shotgun and rocket launcher fire with the gun's body perfectly still in the hand (no shimmer); only the procedural kick moves it.
+Grenade launcher, proximity gun and multi grenade launcher: nothing on them moves when firing; the ammo screen never goes into the gun.
+Two-Handed Recoil 0.6 (Weapon Effects; per gun in Weapon Offsets > Effects): a two-handed shot kicks less, settles sooner and punches lighter; at 1 it matches one-handed.
+Ghost Hands on: shooting shows no ghost ("No Ghost from Recoil" off shows it flash with each shot).
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

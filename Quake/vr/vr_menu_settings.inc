@@ -782,6 +782,10 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
                   "it: a turn counts too)."),
         slider("Ghost Fade-In Range", vr_ghost_hands_fade_range, 0.5f, 30.f, 0.5f, "%.1f cm")
             .help("And it fades in over this much further apart."),
+        toggle("No Ghost from Recoil", vr_ghost_hands_ignore_recoil)
+            .help("A shot's recoil kicks the drawn hand back and up off your real one (Weapon Effects' Programmatic "
+                  "Recoil): on, that kick doesn't bring the ghost out (only what else holds the hand off does); off, a "
+                  "strong kick shows it for a moment."),
     };
 }
 
@@ -1061,6 +1065,10 @@ za::Vector<Item> pageWeaponEffects()
         slider("Recoil Amount", vr_recoil_amount, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("Every weapon's recoil times this: its kick back and its muzzle rise (each weapon's own cm and degrees: "
                   "Weapon Offsets > Effects). 1: as each weapon is set; 0: none."),
+        slider("Two-Handed Recoil", vr_recoil_two_hand, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("A shot fired with the weapon held in both hands: its recoil times this, the kick back, the muzzle rise "
+                  "and the time back to rest alike (and its haptic punch with them), times the weapon's own Two-Handed "
+                  "Recoil (Weapon Offsets > Effects). 1: as held in one hand; lower: steadier with the second hand on it."),
         header("Shotgun Auto Pump"),
         slider("Auto Pump Time", vr_autopump_time, 0.15f, 0.45f, 0.01f, "%.2f s").extend(0.1f, 0.48f)
             .help("After each shot the shotgun cycles itself: its fore-end is driven back along the guide rods over the "
