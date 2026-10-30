@@ -21,6 +21,7 @@
 
 #include "vr_testbatch.hpp"
 #include "vr_backend.hpp"
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -356,4 +357,9 @@ extern "C" void VR_TestConsolePrint(const char* text)
             }
         }
     }
+}
+
+extern "C" int VR_LogFlushFrames(void)
+{
+    return qvr::vr_log_flush_frames.value != 0.f;
 }
