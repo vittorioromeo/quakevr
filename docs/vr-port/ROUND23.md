@@ -1343,3 +1343,37 @@ and `VR_Carry_Cross`) gave 8 failures and exit 1; the clean copy passed.
 cases, pe_full.log; the bench row carried from phase 0), the old file kept as `baseline_phase0.tsv`.
 `run_baseline.py --compare` reports the cases that vary run to run (`FLAKY`: agrunt 1/47/60/63/67/71/72/76/86,
 ragdoll_ragtest/grab/guard, rv_1, judo, stealth, agarmor_5) apart as "FLAKY CHANGED", not counted in its exit status.
+
+## Refactor leftovers L3: the hot hands/weapons/locomotion functions split (branch `agent/lefthot`)
+
+Each split at its comment-marked phases; each body moved as it was (a tool cut the line ranges against the original
+numbering, kit-less: `scratch/splice.py` in the worktree), the shared locals bound to a context struct by reference
+where several phases share many of them, plain parameters where few. A checker (`scratch/movecheck.py`) compared every
+file's stripped lines with next's: the only lines gone are a loop body's `continue;` (now `return;`, the body being the
+whole iteration) and the declarations that became struct members; every other added line is a signature, a binding,
+a call or a brace.
+- vr_hands.cpp update (220 -> ~90 lines): easeStairs, placeTracked, placeFlat, logBodyDrift.
+- vr_client.cpp buildMove (206 -> ~60): handMove, setVrBits, setButtons, poseMove.
+- vr_input.cpp update (307 -> ~75): buttonChanged (the button's dispatch chain), routeSticks.
+- vr_climb.cpp climbPreThink (299 -> ~70): takeKnockOff, letGoIfForced, gripHand, fallFlung, hideHeldGrips;
+  VR_ClientClimb (417 -> ~75): mantleStep, then over `Hang`: hangPull, hangMove, keepWithinReach, settleOwed,
+  reachCheck, tryMantle.
+- vr_foegrab.cpp serverFrame (261 -> ~120): releaseBroken, shoveCarry, markDragging, followHands, pullToHands,
+  rememberPalms (Follow's cvar read moved before the shove's carry: a pure read); legCheck (227 -> ~140): legLog,
+  and over `LegTry` legPull, legLift.
+- vr_view_hands.cpp setupRigHand (the brief's "drawRigHand", 311 -> ~150): solveBrush, traceGrasp, over `RigFrame`
+  placePalm, poseFinger; setupHand (294 -> ~95): placeController, over `HandPose` steadyOther, heldBy.
+- vr_view_weapon.cpp setupWeapon (315 -> ~110) over `WeaponFrame`: placeLoadPort, placeHotspots, magazineSpot,
+  printGrips, placeCarried, chooseGrip, placeMorph.
+- vr_twohand.cpp applyHotspots (215 -> ~165): over `GripCheck` printGripState, reportWhyLetGo; aimCup. The two-handed
+  aim's last 16 lines left in place (they call the `aimFor` lambda: moving them changes code, not just its place).
+- Bench: new scenario `climb_shimmy` (group climb): vrclimb's long ledge, both hands take it, four shimmy strokes each
+  way, then hanging (climb_plays.py shimmy at 1.52 m: at its 1.638 m the mock's hands passed 4 units over the ledge,
+  "no hold"; checked: 15 holds taken, every stroke).
+- Tests: build 0 warnings, all checks. 42 covering cases (climb, grab, grip, reload*, mapgun, pickup, weapon_catch,
+  held_over_props, throw_spin, slider, melee, parry, recoil, judo, walltorch, selfchecks, turned_box, shot_shape, swim,
+  slopes, rigstudio_aim, autopump, fist_alert, collectfx, stats_levelchange, eval, limb_wear, teleporters_chase,
+  stealth) as baseline.tsv; reload_gunshape timed out once waiting for an exclusive run (no output), alone: PASS 24/0.
+  progs.dat unchanged.
+- A/B (LTO, ABBAABBAAB, 5 reps each, cpu_busy_ms median, A = next 2d76cbe00): climb_shimmy 0.614 -> 0.600,
+  armed_16_melee 2.549 -> 2.490, play_e1m1_fight 1.569 -> 1.527 (within noise; one A melee run at 4.5 ms).
