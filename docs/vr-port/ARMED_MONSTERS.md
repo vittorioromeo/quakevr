@@ -46,12 +46,13 @@ name; the settings keep their cvars): read "AG" as "armed".
 The engine's row (`armedRigs` in `vr_hitreact.cpp`): its model id, vertex count, the right hand's and the gun's
 vertices (ranges: never a hand's), the gun's line, its arm bones' names (the ragdoll rig's), its chest anchor vertex.
 
-Its arms (`vr_agarms`, ROUND22.md "Armed humanoids' arms: posed and skinned"): `vr_am_anchor` / `_anchor_at` (a chest
+Its arms (posed and skinned, ROUND22.md "Armed humanoids' arms: posed and skinned"; the only arms since the
+refactor's wave C1, ROUND23.md: the old rigid-piece arms, `vr_agarms 0`, are gone): `vr_am_anchor` / `_anchor_at` (a chest
 vertex its poses are placed from; the engine row has the same index), `vr_am_sh_r` / `_sh_l` (its shoulders at rest),
 `vr_am_arm` (shoulder to wrist), `vr_am_grip_r` / `_grip_l` and `vr_am_gun_fw` (its hands on its own gun at rest, the
 gun's way): `vr_agarms_info` prints all of these for a loaded model (and its skin: arm vertices, hands, joints).
 
-## Arms: posed by the weapon, IK, skinned (vr_agarms)
+## Arms: posed by the weapon, IK, skinned
 
 | Part | Where |
 | --- | --- |
@@ -61,7 +62,9 @@ gun's way): `vr_agarms_info` prints all of these for a loaded model (and its ski
 | The skin (weights per vertex, once a model) | `vr_agarms.cpp` `skinOf`; the alias shader's `RigArm` (`vr_glsl.h`), rows from `kickInstance` |
 | Grips: one per kind and hand for every weapon, a weapon's own on top | `vr_aggrip.cpp` (`global`, `offset`); VR Settings > Armed Grunts > Grip Editor (Edits: Every Weapon / This Weapon Only) |
 | Grips set by hand: the Pose Studio (Grip Editor > Drag Mode, `vr_posestudio`) | `vr_posestudio.cpp` (the boxes, the drag, the panel); `relinkSkinned` calls `posestudio::adjust` before the solve (a dragged weapon at the controller) and `note` after it (`agarms::Placed`'s hands, elbows, shoulders, chest); `aggrip::setPreview` / `set` |
-| Poses set by hand (Pose Studio stages 2-4): pose keys per kind, weapon class, pose and strike phase | `vr_agpose.cpp` (the keys: `vr_agrunt_poses`, the shipped table, copy between kinds, the dump); QC `vr_armedgrunt_pose.qc` `VR_AGK_*` (read through `weapondrawnpose(world, code, 11..18)`, blended by the pose's weights, laid on the targets after the torso's turn; the blow's line moved with them in `VR_AGP_Strike`; the studio's hold `VR_AGK_Hold` through `weapondrawnpose(g, kind*100+class, 19)`); a pole past 0.8 weighed up in `solveArm`; frozen monsters can't be disarmed, tugged or struck |
+| Poses set by hand (Pose Studio stages 2-4): pose keys per kind, weapon class, pose and strike phase | `vr_agpose.cpp` (the keys: `vr_agrunt_poses`, the shipped table, copy between kinds, the dump); QC `vr_armedgrunt_pose.qc` `VR_AGK_*` (the classes, poses and off-hand modes, and the code's strides, are the
+engine's `agpose::Class`/`Pose`/`OffMode` from one header both include, `Quake/vr/vr_agpose_shared.h`, with the
+weapons' attack classes `VR_AG_CLASS_*`; read through `weapondrawnpose(world, code, 11..18)`, blended by the pose's weights, laid on the targets after the torso's turn; the blow's line moved with them in `VR_AGP_Strike`; the studio's hold `VR_AGK_Hold` through `weapondrawnpose(g, kind*100+class, 19)`); a pole past 0.8 weighed up in `solveArm`; frozen monsters can't be disarmed, tugged or struck |
 | The off hand per pose key (a single gun): its grip offset on the gun and its hold (Auto / On the Gun / Free) | `agpose::GripPos`, `GripTurn`, `OffHand` (parts 8-10, missing from older text: zero, Auto), read by QC through `weapondrawnpose(world, code, 25..27)`; QC `VR_AGK_Keys` blends the offset and picks the deciding key's hold (Pickup's if set, else Aim's while aimed, else Run's if set while running, else Carry's), the gun branch of `VR_AGP_Pose` turns it into `VR_AGP_FREE` / `VR_AGP_TWO`, and the pose message's off-hand block (both flags set: `parseArmPose`) carries the offset and the free hand's LPos/LTurn; `agarms::Targets::gripOff` / `freeOff` laid on the second grip, the cup, the hanging hand (`vr_agarms.cpp`) |
 | Numbers, the contact sheet | `vr_agrunt_ik_err` (agarms, agt, agprop lines), `vr_agrunt_test 45` |
 | A take's one-knee kneel: legs posed (IK) and skinned, the body above on the pelvis, its reach bend (`vr_aglegs`) | `vr_aglegs.cpp` (`solve`, `carry`, `rows`; `vr_aglegs_info`); the alias shader's `RigLeg`; the take's weight sent by QC `VR_AGP_Pose` (flag 1's byte); keys `agpose::legCode` (the Pose Studio's Pickup: pelvis, feet, knees boxes); test 45's take sheet (`scratch1 -1`) |
@@ -85,8 +88,8 @@ weapon left alone is passed to the right hand (`VR_AG_Settle`, after every drop)
 melee weapons (`VR_AG_OneHanded`: swords but AD's hammer and mace, the crowbar, the axe), or two guns not too big
 (`VR_AG_DualGun`; the per-weapon flag `VR_AG_Big`: the hammers, the rocket launchers, the Laser Cannon, the chainsaw, the
 two-handed melee weapons, the flamethrowers); never a blade and a gun. Dual guns (ROUND22.md, "Armed monsters: dual-wielded
-guns"): each in one hand along the rifle line's pitch straight ahead, the left at the right hand mirrored
-(`VR_AGP_Gun`); the second fires a frame behind the first (`VR_AG_AtkFrame`: shots and rounds in turn, streams together);
+guns"): each in one hand along the rifle line's pitch straight ahead, the left posed as the right is
+(`VR_AGP_ArmsGun`); the second fires a frame behind the first (`VR_AG_AtkFrame`: shots and rounds in turn, streams together);
 `VR_AG_ShootProp` adds the penalties (`vr_agrunt_dual_penalty`: spread and aim error times 1 / `vr_2h_spread_reduction`,
 a heavy gun's kick up `weaponheft(model, 1)` x 0.1 s, coming back over `vr_heavy_recoil_time`); both reload together
 (`vr_ag_reserve2`), a spent one with no reserve is thrown away. `vr_agrunt_dual_pickup`: one holding a weapon that pairs
@@ -206,14 +209,16 @@ ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Huma
   up over 45 degrees, its muzzle over its head, its parry raised, disarms; `temp1 1`: that loop alone). Run it before
   and after any change to the poses, keys or the solve.
 - **The solve each frame** (`vr_agarms.cpp`): body proxies (`vr_agbody.cpp`: torso, pelvis, head) the hands are pushed out
-  of and the elbow kept out of (`vr_agarms_body`); the elbow's swing rate-limited the way round outside the body
-  (`vr_agarms_elbow_rate`); the second grip's hysteresis and ease (`vr_agarms_second_hold`); a pickup's reach eased in by
-  distance (`vr_agarms_reach_ease`); goal jumps eased (`vr_agarms_jump_ease`).
-- **The shoulders** (ROUND22.md, "Armed humanoids' shoulders"): the skin from the real joint (`vr_agarms_shoulder_skin`:
+  of and the elbow kept out of; the elbow's swing rate-limited the way round outside the body
+  (`vr_agarms_elbow_rate`); the second grip's hysteresis and ease; a pickup's reach eased in by distance; goal jumps
+  eased (their switches retired in wave C1: always on).
+- **The shoulders** (ROUND22.md, "Armed humanoids' shoulders"): the skin from the real joint (always, since wave C1:
   the deltoid or pauldron on the arm, no forearm turn on the upper arm's top half, the blend about the joint), a
-  clavicle per side (`vr_agarms_clavicle`, `_most`: the joint shrugs and comes forward with the arm, the shoulder's top
-  with it; rows 22..25 of `RigArm`), the shoulder's cone and twist in the IK (`vr_agarms_limits`, `_shoulder_cone`,
-  `_shoulder_twist`), the upper arm's skin kept out of the torso (`vr_agarms_arm_clear`), the enforcer's pistols
+  clavicle per side (`vr_agarms_clavicle`, default 0.6, the one setting for the authored rigs too since wave C1;
+  `_most`: the joint shrugs and comes forward with the arm, the shoulder's top
+  with it; rows 22..25 of `RigArm`), the shoulder's cone and twist in the IK (`vr_agarms_shoulder_cone`, 0 turns them off,
+  `_shoulder_twist`), the upper arm's skin kept out of the torso (always; the held wrist's clearance one constant,
+  `armClearHeldMost`), the enforcer's pistols
   one-handed (`vr_agrunt_enforcer_one_hand`), its stand frames as it fires (`vr_agrunt_atk_stand`, the row's
   `vr_am_atk_stand`), armed ragdolls drawn with the arm skin's blend (`vr_ragdoll_arm_skin`). The finder's metrics
   armpen, swing, twist, stretch measure them; `vr_agarms_cost` the solve's time.
@@ -221,8 +226,9 @@ ghost; the arms are the model's (no IK on a ghost). Debug > Toolgun: "Armed Huma
   pains and runs taken out; a pickup's crouch, falls and deaths keep the frames'), breathing; QC's gun torso turns (aim
   twist `vr_agrunt_aim_twist`, kick lean, reload turn) as the body block, the Pose Studio's torso keys on top.
 - **Round 2** (ROUND22.md, "Armed humanoids in motion, round 2"): a held weapon's turn is never eased, only its hand's
-  place (`vr_agarms_aim_line`), and a gun's shots leave its drawn muzzle along its drawn line (`vr_agrunt_shot_drawn`,
+  place (always since wave C1), and a gun's shots leave its drawn muzzle along its drawn line (`vr_agrunt_shot_drawn`,
   QC asks `weapondrawnpose(p, 0, 21/22)`: the turn and shift of the drawn weapon off the server's, a listen server's own
   view); a two-handed melee weapon (not the chainsaw) is swung one-handed, the off hand let go and taken again round the
-  shoulder (`vr_agrunt_swing_one_hand`, `vr_agarms_second_release`); punches eased into the blow (`vr_agrunt_punch_ease`); a chainsaw's thrust keeps both handles within reach (`vr_agrunt_saw_reach`); a
-  weapon taken up turns from how it lay the short way (`vr_agrunt_lift_turn`). Each 1 by default, 0 before.
+  shoulder (`vr_agrunt_swing_one_hand`; the second grip's release always); punches eased into the blow (`vr_agrunt_punch_ease`); a chainsaw's thrust keeps both handles within reach (`vr_agrunt_saw_reach`); a
+  weapon taken up turns from how it lay the short way (`vr_agrunt_lift_turn`). Each 1 by default, 0 before (the
+  vr_agarms_* switches among them retired in wave C1).
