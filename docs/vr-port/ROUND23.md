@@ -1497,6 +1497,39 @@ them); an armed grunt's thunderbolt is a stream (no shot event).
   barrel after firing stops (shotgun 1, SSG and nailgun 2), following the muzzles for seconds, with fade, thickness
   and persistence settings.
 
+### Third pass: his VR notes of 2026-10-30 (sparks, turbulent cone, nail pistol vents, rocket exhaust)
+
+- **Sparks** (he saw none): at least 3 a barrel for every shell and nail gun however fast it fires (the super
+  nailgun's budget made 2 tiny ones), 1.5-1.9 units (were 0.9-1.2), 0.12-0.28 s (were 0.05-0.16), whiter, and they
+  start 1.5-4 units ahead of the muzzle, clear of the flash model and the cone's dense core (the old strips' frame 0:
+  the cone's first puffs covered them). Counts a little lower ("a few": shotgun 10, SSG 8 a barrel, revolver 8).
+- **Turbulent frontal cone**: the muzzle's cone now fades in over ~0.035 s (with the flash, not a blob before it:
+  GunParticle::fadeIn, Custom's ramp), its puffs lead forward (the tip's start 4 units out), barely rise (only the
+  slowest, at the muzzle, rise as before) and ride a swirling flow: `particles::swirl`, a divergence-free (ABC-like)
+  field, ~55 units a swirl, changing over time, each puff its own phase (from its `die`), stored as one byte in
+  Particle's padding (`turb`: the struct is capped at 152 bytes). The QC's rising GUNSMOKE puffs and the ports'
+  rising puffs are kept. Setting: Smoke Turbulence (`vr_gunfx_turbulence 1`, 0-3; Weapons > Weapon Effects >
+  Gunfire Particles).
+- **Nail pistol vents**: the QC's random muzzle wisp (`QVR_PARTICLE_PRESET_SMOKE` after shots, vr_nailpistol.qc)
+  is gone; light pale smoke comes out of exactly its six side slots (v_nailpistol.mdl: x 4.91..7.57, z rows 3.08,
+  3.83, 4.59, the faces at y +-1.2), drifting out and up, swirling a little: 6 puffs a shot, then ~22 a second for
+  0.45 s a shot (a string: longer, up to 1.5 s), following the gun. `vr_nailpistol_smoke` (1) scales it.
+- **Rocket exhaust**: the backblast's cone (denser: 16 puffs, alpha 0.6) now comes out of the launcher's real back
+  end, `exhaustOf`: v_rock2.mdl's tube end (-6.3, -0.04, 4.78; found from the model: its back ring), an AD
+  launcher's own FireFeel exhaust, else behind the muzzle as before (Rogue's v_multi2). The exhaust then smokes
+  ~0.9 s, rising (your hand: each frame following the gun; an armed grunt's held launcher, `Muzzle::gun`: at the
+  shot, fading in one after another). The AD launcher in your hand gets the cone and exhaust smoke too now (its own
+  burst's flames and sparks stay). `vr_debug_gunfx 1` prints `gunfx exhaust at ...`, 2 also the after-smoke.
+- Not done: AD's own rocket soldier (monster_army_rocket, mon_soldier.mdl): its attack sends no weaponfired and its
+  tube's place on the monster model is unknown here (no AD data on this machine): needs a hook in
+  ad_army_fire_rocket and a monsterGuns entry with the tube's anchors. Persistent muzzle wisps: the next step.
+- Strips (kit `scratch/gunfx/`): `c1_<class>_lit.png` (shotgun, nailgun, rocket, nail pistol from the front),
+  `c1_<class>_side.png` (the gun held across the view: nail pistol, rocket launcher, shotgun; frames 0, 2, 5, 10,
+  20), made by the tree's `scratch/shots.py c1 side ...`.
+- Tests: gunfx_test.py 29/29 (now: sparks >= 3, the nail pistol's vents, a monster rocket's exhaust; the armed
+  rocket grunt alone in vrtesthall, `vr_agrunt_test 111`: on e1m1 the wall 360 units ahead brought it close and it
+  clubbed you, the failure of the second pass).
+
 ## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
 
 His words: a slide that moves with each shot, locks open on an empty magazine, closes by itself with a sound when a
