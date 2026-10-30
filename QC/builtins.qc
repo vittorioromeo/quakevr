@@ -590,6 +590,13 @@ float(entity b, float xFloor) meleearc = #0;
 void(float xHand, float xWhat, vector xA, vector xB, float xV) meleeshow = #0;
 // weaponheft's `kick` 1: its heavy recoil in one hand instead (deg/s up a shot: vr_heavy_recoil_kick x heft x its own).
 float(string model, optional float kick) weaponheft = #0;
+// The impact table (Quake/vr/vr_impacts.cpp; its keys VR_MAT_*, VR_HIT_*: vr_impact_shared.h). impact: the effect of a
+// `kind` hit on a thing of `material` at `org` (one particle2 message: its preset, count from `amount`, its direction
+// from `dir`), the preset sent (0: none). impactsound: a sample of that row's sound set in `slot` (VR_IMPACT_SOUND,
+// _LAYER, _OVER), picked with one random() number; "" when the row has none (no number drawn).
+#include "../Quake/vr/vr_impact_shared.h"
+float(float material, float kind, vector org, vector dir, float amount) impact = #0;
+string(float material, float kind, float slot) impactsound = #0;
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
 float(string folder, float track) campaignmusic = #0; // a campaign's own CD track's number (target_vr_music), 0 if not there
 

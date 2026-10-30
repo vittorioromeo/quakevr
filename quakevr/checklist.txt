@@ -92,6 +92,7 @@ Pick up a box, a gib, a round, a grenade and a wall torch in either hand, swap a
 Throw the flashlight with a flick and with a lob: it flies like a thrown prop, never over 3 m/s, then returns home.
 Swing a crate with the physgun and let go at the end of the swing: it keeps the swing (it used to come out slower).
 Every grab, pickup, holster, lamp and foe-grab buzz feels as before.
+Shoot, nail and punch a crate, an explosive box, a knight, a wall torch and a grenade: same sparks, splinters, blood and sounds as before (one impact table now).
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

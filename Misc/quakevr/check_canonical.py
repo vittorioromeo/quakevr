@@ -72,6 +72,12 @@ FAMILIES = {
     "py-test-copy": ("py", [r"(?m)^def verdict\(", r"\"C:/OHWorkspace/qvr-kit\""],
                      "qvrtest.Tally / qvrtest.KIT (Misc/quakevr/qvrtest.py)"),
     "sh-test-copy": ("sh", [r"(?m)^[ \t]*check\s*\(\s*\)\s*\{"], "source qvrtest.sh: check / verdict (Misc/quakevr/qvrtest.sh)"),
+    # The impact table (design review 4; ROUND23, "One impact-effect table"): a hit's blood, sparks or splinters and what
+    # the thing is made of come from one row, not a new hand-built ladder.
+    "qc-hit-fx": ("qc", [r"\bparticle2\s*\([^;\n]*QVR_PARTICLE_PRESET_(?:BLOOD|SPARKS|WOODDUST)\b"],
+                  "VR_ImpactFx / SpawnBlood / VR_HitBlood (QC/vr_crates.qc; the rows: Quake/vr/vr_impacts.cpp)"),
+    "qc-material-ladder": ("qc", [r"\b(?:VR_Hit_Metal|VR_Crate_Wooden|VR_Hit_Armoured)\s*\("],
+                           "VR_MaterialOf (QC/vr_crates.qc) and the impact table's row"),
     "qc-test-spawn": ("qc", [r"(?m)^[ \t]*func_enemy_dispenser_use\s*\(\s*\)\s*;"],
                       "VR_Test_Spawn (QC/vr_testutil.qc): the tests' one spawner, impulse 241's"),
 }
@@ -99,6 +105,8 @@ NEEDLES = {
     "cpp-test-verdict": r"passed",
     "py-test-copy": r"def verdict\(|qvr-kit",
     "sh-test-copy": r"check",
+    "qc-hit-fx": r"particle2",
+    "qc-material-ladder": r"VR_Hit_Metal|VR_Crate_Wooden|VR_Hit_Armoured",
     "qc-test-spawn": r"func_enemy_dispenser_use",
 }
 
