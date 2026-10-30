@@ -72,7 +72,7 @@ void() VR_ADGun_TestThink =
     string model = WeaponIdToModel(wid, 0);
     bprint(sprintf("adgun test: %s (%s): rounds %g -> %g, dealt %g (hits %g): %s\n", VR_ADGun_Name(wid), model,
         vr_adgun_test_clip, clip, dealt, vr_adgun_hits, ok ? "PASS" : "FAIL"));
-    if(ok) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+    VR_Test_Count(ok);
     vr_adgun_test_index = vr_adgun_test_index + 1;
     if(WID_ADROCKET + vr_adgun_test_index == WID_ADELIMINATOR)
     {
@@ -81,7 +81,7 @@ void() VR_ADGun_TestThink =
     vr_adgun_test_step = 0;
     if(vr_adgun_test_index > WID_ADCROSSBOW - WID_ADROCKET)
     {
-        bprint(sprintf("adgun test: %g passed, %g failed\n", vr_adgun_test_pass, vr_adgun_test_fail));
+        VR_Test_Verdict();
         cvar_set("vr_weapon_grip_mode", ftos(vr_adgun_test_grip));
         remove(vr_adgun_test_target);
         vr_adgun_test_target = world;
@@ -137,7 +137,7 @@ void() VR_ADGun_FxTestThink =
     if(m == world || m.health <= 0)
     {
         bprint("adgun fx: the monster is gone: FAIL\n");
-        vr_adgun_test_fail++;
+        vr_test_fail++;
         remove(self);
         return;
     }
@@ -207,12 +207,12 @@ void() VR_ADGun_FxTestThink =
         ok = (ok && (ph == 0 ? burning : poisoned));
         bprint(sprintf("adgun fly: %s on %s: dealt %g, burning %g, poisoned %g: %s\n", VR_ADGun_Name(wid), m.classname, dealt,
             burning, poisoned, ok ? "PASS" : "FAIL"));
-        if(ok) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+        VR_Test_Count(ok);
         vr_adgun_test_step = 0;
         vr_adgun_t73_phase = ph + 1;
         if(vr_adgun_t73_phase > 1)
         {
-            bprint(sprintf("adgun fly: %g passed, %g failed\n", vr_adgun_test_pass, vr_adgun_test_fail));
+            VR_Test_Verdict();
             cvar_set("vr_weapon_grip_mode", ftos(vr_adgun_test_grip));
             remove(self);
             return;
@@ -231,12 +231,12 @@ void() VR_ADGun_FxTestThink =
     bprint(sprintf("adgun fx: %s on %s: dealt %g, gore %g, wounds %g, blood %g, ", ph < 2 ? VR_ADGun_Name(wid) : "a shot (control)",
         m.classname, dealt, gore, wound, blood));
     bprint(sprintf("burning %g, poisoned %g: %s\n", burning, poisoned, ok ? "PASS" : "FAIL"));
-    if(ok) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+    VR_Test_Count(ok);
     vr_adgun_test_step = 0;
     vr_adgun_t73_phase = ph + 1;
     if(vr_adgun_t73_phase > 2)
     {
-        bprint(sprintf("adgun fx: %g passed, %g failed\n", vr_adgun_test_pass, vr_adgun_test_fail));
+        VR_Test_Verdict();
         cvar_set("vr_weapon_grip_mode", ftos(vr_adgun_test_grip));
         remove(self);
         return;
@@ -301,7 +301,7 @@ void() VR_ADGun_ShotsTestThink =
         if(s == world)
         {
             bprint(sprintf("adgun shots: %g: nothing fired: FAIL\n", ph));
-            vr_adgun_test_fail++;
+            vr_test_fail++;
             vr_adgun_test_step = 20;
         }
         else
@@ -332,14 +332,14 @@ void() VR_ADGun_ShotsTestThink =
                              fabs(fuse - vr_adgun_t90_gfuse) < 0.06 && fabs(spd - vr_adgun_t90_gspeed) < 0.05 * spd;
                 bprint(sprintf("adgun shots: the grenade soldier's grenade is the grenade launcher's: %s\n",
                     same ? "PASS" : "FAIL"));
-                if(same) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+                VR_Test_Count(same);
             }
             else if(ph != 4)
             {
                 float own = funcs && (ph == 3 || s.model == "progs/missile.mdl");
                 bprint(sprintf("adgun shots: %g: its projectile %s: %s\n", ph, ph == 2 ? "our rocket" : "AD's bolt, our hit",
                     own ? "PASS" : "FAIL"));
-                if(own) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+                VR_Test_Count(own);
             }
         }
     }
@@ -356,7 +356,7 @@ void() VR_ADGun_ShotsTestThink =
             ph == 4 ? "(before, not counted)" : (ok ? "PASS" : "FAIL")));
         if(ph != 4)
         {
-            if(ok) { vr_adgun_test_pass++; } else { vr_adgun_test_fail++; }
+            VR_Test_Count(ok);
         }
     }
     if(vr_adgun_test_step < 20)
@@ -368,7 +368,7 @@ void() VR_ADGun_ShotsTestThink =
     vr_adgun_t90_phase = ph + 1;
     if(vr_adgun_t90_phase > 4)
     {
-        bprint(sprintf("adgun shots: %g passed, %g failed\n", vr_adgun_test_pass, vr_adgun_test_fail));
+        VR_Test_Verdict();
         cvar_set("vr_weapon_grip_mode", ftos(vr_adgun_test_grip));
         remove(self);
         return;
@@ -1317,7 +1317,7 @@ void(float request, entity p) AD_GunTest =
         cvar_set("vr_weapon_grip_mode", "1"); // (a weapon stays in a hand not gripping)
         p.ammo_shells = max(p.ammo_shells, 50);
         p.ammo_cells = max(p.ammo_cells, 50);
-        float pass = 0, fail = 0;
+        VR_Test_BeginFlags("adweapons", VR_TEST_LOUD);
         for(float c = 309; c <= 319; c++)
         {
             entity w = VR_ADWeapons_Make(p, c, request == 81 ? 64 : 112 + (c - 309) * 24);
@@ -1325,7 +1325,7 @@ void(float request, entity p) AD_GunTest =
             {
                 bprint(sprintf("adweapons: %g not made (its scope: vr_ad_upgrades %g, vr_ad_everywhere %g, vr_ad_rules %g): FAIL\n",
                     c, cvar("vr_ad_upgrades"), cvar("vr_ad_everywhere"), cvar("vr_ad_rules")));
-                fail++;
+                vr_test_fail++;
                 continue;
             }
             if(request == 82)
@@ -1334,7 +1334,7 @@ void(float request, entity p) AD_GunTest =
             }
             string what = sprintf("%g %s", c, w.netname);
             VR_ADWeapons_Take(p, w);
-            if(VR_ADWeapons_Fire(p, what)) { pass++; } else { fail++; }
+            VR_Test_Count(VR_ADWeapons_Fire(p, what));
             VRGiveEntWeapon(p, cVR_MainHand, WID_FIST, 0, 0);
         }
         if(request == 82)
@@ -1348,7 +1348,7 @@ void(float request, entity p) AD_GunTest =
         }
         else
         {
-            bprint(sprintf("adweapons: %g passed, %g failed\n", pass, fail));
+            VR_Test_Verdict();
         }
         cvar_set("vr_weapon_grip_mode", ftos(grip));
         return;
@@ -1486,7 +1486,7 @@ void(float request, entity p) AD_GunTest =
         e90.owner = p;
         vr_adgun_t90_phase = 0;
         vr_adgun_test_step = 0;
-        vr_adgun_test_pass = vr_adgun_test_fail = 0;
+        VR_Test_BeginFlags("adgun shots", VR_TEST_LOUD);
         vr_adgun_test_grip = cvar("vr_weapon_grip_mode");
         cvar_set("vr_weapon_grip_mode", "1");
         e90.think = VR_ADGun_ShotsTestThink;
@@ -1507,7 +1507,7 @@ void(float request, entity p) AD_GunTest =
         e.owner = p;
         vr_adgun_test_index = 0;
         vr_adgun_test_step = 0;
-        vr_adgun_test_pass = vr_adgun_test_fail = 0;
+        VR_Test_BeginFlags("adgun test", VR_TEST_LOUD);
         vr_adgun_test_grip = cvar("vr_weapon_grip_mode");
         cvar_set("vr_weapon_grip_mode", "1"); // (as it was again at the end)
         e.think = VR_ADGun_TestThink;
@@ -1518,7 +1518,7 @@ void(float request, entity p) AD_GunTest =
     if(request == 71)
     {
         // Each gun dropped from a soldier's place ahead (VR_DropEnemyGun as VR_ADGun_Drop calls it): its model and clip.
-        float pass = 0, fail = 0;
+        VR_Test_BeginFlags("adgun drop", VR_TEST_LOUD);
         makevectors(p.angles);
         entity s = spawn();
         setorigin(s, p.origin + v_forward * 96);
@@ -1546,7 +1546,7 @@ void(float request, entity p) AD_GunTest =
             bprint(sprintf("adgun drop: %s (%g): %s, %g rounds: %s\n", VR_IsADGun(wid) ? VR_ADGun_Name(wid) :
                 WeaponIdToWeaponName(wid), wid, w != world ? w.model : "none",
                 w != world ? w.weaponinst.wi_clip : 0, ok ? "PASS" : "FAIL"));
-            if(ok) { pass++; } else { fail++; }
+            VR_Test_Count(ok);
         }
         remove(s);
         // An older save's eliminator's plasma gun lying about (weapon 24, its old model): the centurion's on load.
@@ -1563,10 +1563,10 @@ void(float request, entity p) AD_GunTest =
                           VR_ADGun_ForClass(ad_CT_MONELIMATOR) == WID_ADCENTURION;
             bprint(sprintf("adgun drop: an older save's eliminator's gun: weapon %g, %s, %g changed: %s\n", old.weapon, old.model,
                 changed, okOld ? "PASS" : "FAIL"));
-            if(okOld) { pass++; } else { fail++; }
+            VR_Test_Count(okOld);
             remove(old);
         }
-        bprint(sprintf("adgun drop: %g passed, %g failed\n", pass, fail));
+        VR_Test_Verdict();
         return;
     }
     if(request >= 73 && request <= 80)
@@ -1657,7 +1657,7 @@ void(float request, entity p) AD_GunTest =
         vr_adgun_t73_mon = m73;
         vr_adgun_t73_phase = 0;
         vr_adgun_test_step = 0;
-        vr_adgun_test_pass = vr_adgun_test_fail = 0;
+        VR_Test_BeginFlags(vr_adgun_t73_fly ? "adgun fly" : "adgun fx", VR_TEST_LOUD);
         vr_adgun_test_grip = cvar("vr_weapon_grip_mode");
         cvar_set("vr_weapon_grip_mode", "1");
         t73.think = VR_ADGun_FxTestThink;

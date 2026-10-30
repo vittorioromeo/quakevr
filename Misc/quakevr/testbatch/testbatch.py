@@ -38,7 +38,9 @@ import sys
 import threading
 import time
 
-KIT = os.environ.get("KIT", "C:/OHWorkspace/qvr-kit")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = qvrtest.KIT
 HERE = os.path.dirname(os.path.abspath(__file__))
 NOISE = re.compile(r"^(FindFile: can't find|W_GetLump|Couldn't find a cdrip|\s+[0-9]+\.[0-9] ms  )")
 HEADER = re.compile(r"^(exit=|TIMEOUT after|ENGINE ERROR|ENGINE CRASH|run\.ps1:)")

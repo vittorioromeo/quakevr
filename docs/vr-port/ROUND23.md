@@ -1847,6 +1847,26 @@ current one kept to fall back to.
 - **Left (part 2)**: one spawner (impulse 241; 16 helpers), the scenario's settings on testbatch's snapshot, the 64
   QC hand-printed verdicts, 23 Python files' kit paths, the C++ `_diag` printers; the other workers' test files
   (held things, config) left alone.
+
+## One test harness, part 2: one spawner, one snapshot, the QC verdicts (branch `agent/oneharness2`; design review 7)
+
+- **QC verdicts**: 62 of the 63 hand-printed `%g passed, %g failed` lines (the 64th site is VR_Test_Verdict) now print
+  through vr_testutil (`VR_Test_Verdict`, `VR_Test_VerdictPart("caps")` for a test of parts); 14 own pass/fail
+  global pairs and 2 local ones are gone
+  (`VR_Test_Count(ok)`: a check whose line keeps the test's own format; `VR_Test_Nest/Unnest`: agtest's inner
+  tests agammo, agshot and weaponshot keep their tallies apart from agtest's "test N over", as before). Every line is
+  byte-identical (only `mgworldtest: ...; barrel test needs e5m1` became the verdict plus a line of its own), so no
+  -QuitOn or run_baseline pattern changed. `npaim`'s checks now carry its own tag (`npaim: PASS`, as its comment says).
+  Left: rigseq's `rig2anim` check (it quotes the engine's totals).
+- **One spawner**: `VR_Test_Spawn(player, kind, at, yaw)` (vr_testutil.qc) is impulse 241's dispenser spawn; the
+  MG3 tests' four `*_Spawn`, the Shub test's, `VR_STT2_Spawn`, the crate-cover and crouch tests' grunts and the small
+  gibs' crowd call it (same entity order: dispenser, then monster). New family `qc-test-spawn`. Left as they are:
+  `VR_AGT_Spawn`/`VR_ART_SpawnKind` (armed monsters, `VR_AM_Spawn`: not the dispenser's), impulse 244's grunt, the
+  C++ spawners (`vr_physics_spawn`, `vr_toolgun_spawn_test`, `grabDiagPlace`).
+- **One snapshot**: `testbatch::CvarSnapshot` (take, takeAll, restore) is vr_test_snapshot/reset's and the scenario's
+  (its settings put back, and swapped out of a config write). Checked: a scenario's setting 0 -> 1 -> 0.
+- **Python**: 17 tests read the kit from `qvrtest.KIT`. Left (the held-thing worker's): carry/grip_gap, twohand,
+  flashgrab, foegrab/gripcrowd, menu_grab, toolgun_physgun_ragdoll. Allowlist tightened after each step.
 ## Weapon fixes of 2026-10-30: laser bolts on walls, stream shake (branch `agent/wpnfix1030`)
 
 - **Laser bolts bled on walls and floors** (vrfiringrange_2026-10-30_12-16-02). Not a recent code change: the firing

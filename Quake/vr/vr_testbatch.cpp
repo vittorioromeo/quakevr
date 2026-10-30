@@ -42,62 +42,85 @@ namespace qvr::testbatch
 namespace
 {
 
-struct SavedCvar
-{
-    cvar_t* var;
-    za::String value;
-};
-
-// vr_test_snapshot's cvars (vr_test_reset puts them back), and the cvars' set for a lookup.
-struct Snapshot
-{
-    bool taken{false};
-    za::Vector<SavedCvar> cvars;
-    ankerl::unordered_dense::set<const cvar_t*> known;
-};
-Snapshot snapshot;
-
-void snapshot_f()
-{
-    snapshot.cvars.clear();
-    snapshot.known.clear();
-    cvars::forEach([](cvar_t* var) {
-        snapshot.cvars.pushBack(SavedCvar{var, za::String{var->string}});
-        snapshot.known.insert(var);
-    });
-    snapshot.taken = true;
-}
-
 [[nodiscard]] bool settable(const cvar_t* var)
 {
     return !(var->flags & (CVAR_ROM | CVAR_LOCKED));
 }
 
-void restoreCvars()
+} // namespace
+
+void CvarSnapshot::clear()
 {
-    // The cvars made since the snapshot first (to their defaults: as a game that never made them), gathered before any
-    // is set (a callback can make another and sort the list again).
-    za::Vector<cvar_t*> made;
-    cvars::forEach([&made](cvar_t* var) {
-        if(!snapshot.known.contains(var))
-        {
-            made.pushBack(var);
-        }
-    });
-    for(cvar_t* var : made)
+    saved_.clear();
+    known_.clear();
+    all_ = false;
+}
+
+void CvarSnapshot::take(cvar_t* var)
+{
+    if(var && known_.insert(var).second)
     {
-        if(settable(var) && var->default_string && strcmp(var->string, var->default_string) != 0)
+        saved_.pushBack(Saved{var, za::String{var->string}});
+    }
+}
+
+void CvarSnapshot::takeAll()
+{
+    clear();
+    cvars::forEach([this](cvar_t* var) { take(var); });
+    all_ = true;
+}
+
+void CvarSnapshot::restore() const
+{
+    if(all_)
+    {
+        // The cvars made since the snapshot first (to their defaults: as a game that never made them), gathered before
+        // any is set (a callback can make another and sort the list again).
+        za::Vector<cvar_t*> made;
+        cvars::forEach([this, &made](cvar_t* var) {
+            if(!known_.contains(var))
+            {
+                made.pushBack(var);
+            }
+        });
+        for(cvar_t* var : made)
         {
-            Cvar_SetQuick(var, var->default_string);
+            if(settable(var) && var->default_string && strcmp(var->string, var->default_string) != 0)
+            {
+                Cvar_SetQuick(var, var->default_string);
+            }
         }
     }
-    for(const SavedCvar& s : snapshot.cvars)
+    for(const Saved& s : saved_)
     {
         if(settable(s.var) && strcmp(s.var->string, s.value.cStr()) != 0)
         {
             Cvar_SetQuick(s.var, s.value.cStr());
         }
     }
+}
+
+namespace
+{
+
+// vr_test_snapshot's cvars (vr_test_reset puts them back).
+struct Snapshot
+{
+    bool taken{false};
+    CvarSnapshot cvars;
+};
+Snapshot snapshot;
+
+void snapshot_f()
+{
+    snapshot.cvars.takeAll();
+    snapshot.taken = true;
+}
+
+void restoreCvars()
+{
+    snapshot.cvars.restore();
 }
 
 void releaseButtons()

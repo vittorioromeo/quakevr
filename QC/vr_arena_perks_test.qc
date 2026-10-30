@@ -68,7 +68,8 @@ void(float ok, string what) VR_APK_Check = { VR_Test_Check(ok, what); }; // (`ar
 
 void() VR_APK_End =
 {
-    dprint(sprintf("%s: %g passed, %g failed\n", ark_t_prefix, vr_test_pass, vr_test_fail));
+    vr_test_tag = ark_t_prefix; // (arena_full, arena_cards: their verdict lines' own prefix)
+    VR_Test_Verdict();
     VR_APK3_Restore(); // (test 3 borrows a live player's health, armour, guns and quad)
     VR_APK_Restore();
     if(ar_mgr) { ar_mgr.ark_taken = ark_t_taken0; } // (the run's perks are the test's, not the player's)

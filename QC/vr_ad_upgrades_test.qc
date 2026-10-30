@@ -12,20 +12,17 @@
 // "adshadowaxe:" line per check (PASS or FAIL), then the count.
 
 entity vr_adsa_z1, vr_adsa_z2, vr_adsa_z3, vr_adsa_k;
-float vr_adsa_pass, vr_adsa_fail;
 
 void(string xWhat, float xOk, string xGot) AD_ShadowAxeCheck =
 {
     bprint(sprintf("adshadowaxe: %s: %s (%s)\n", xWhat, xOk ? "PASS" : "FAIL", xGot));
-    if(xOk) { vr_adsa_pass = vr_adsa_pass + 1; }
-    else { vr_adsa_fail = vr_adsa_fail + 1; }
+    VR_Test_Count(xOk);
 };
 
 void(string xWhat, float xOk, string xGot) AD_PlasmaCheck =
 {
     bprint(sprintf("adplasma: %s: %s (%s)\n", xWhat, xOk ? "PASS" : "FAIL", xGot));
-    if(xOk) { vr_adsa_pass = vr_adsa_pass + 1; }
-    else { vr_adsa_fail = vr_adsa_fail + 1; }
+    VR_Test_Count(xOk);
 };
 
 // The axe in p's main hand, with AD's upgrade (the Shadow Axe) or without.
@@ -78,8 +75,7 @@ void() AD_ShadowAxeTestRun =
 {
     entity p = self.owner;
     entity os = self;
-    vr_adsa_pass = 0;
-    vr_adsa_fail = 0;
+    VR_Test_BeginFlags("adshadowaxe", VR_TEST_LOUD);
 
     // Its blow: AD's 35 for the axe's 20.
     self = p;
@@ -170,7 +166,7 @@ void() AD_ShadowAxeTestRun =
     AD_ShadowAxeCheck("a trigger's upgrade_axe key: the Shadow Axe carried", carried && !notCarried,
         sprintf("carried %g, without it %g", carried, notCarried));
 
-    bprint(sprintf("adshadowaxe: %g passed, %g failed\n", vr_adsa_pass, vr_adsa_fail));
+    VR_Test_Verdict();
     AD_ShadowAxeGive(p, TRUE);
     if(vr_adsa_k != world) { remove(vr_adsa_k); } // (the second zombie stays: to try the Shadow Axe on)
     remove(self);
@@ -186,8 +182,7 @@ void() AD_PlasmaCellTestRun =
     entity os = self;
     self = p;
     float h = cVR_OffHand;
-    vr_adsa_pass = 0;
-    vr_adsa_fail = 0;
+    VR_Test_BeginFlags("adplasma", VR_TEST_LOUD);
     float found = p.offloadportpos != '0 0 0' && VR_Reload_HasMagBox(p, h);
     AD_PlasmaCheck("its cell's well is found", found && p.weaponmodel2 == "progs/v_plasma.mdl#vr",
         sprintf("load point %v, box %g, model %s", p.offloadportpos, VR_Reload_HasMagBox(p, h), p.weaponmodel2));
@@ -214,7 +209,7 @@ void() AD_PlasmaCellTestRun =
     }
     AD_PlasmaCheck("a cell brought to its load point goes in", r != world && VR_Reload_MagIn(p, h),
         sprintf("taken %g", r != world));
-    bprint(sprintf("adplasma: %g passed, %g failed\n", vr_adsa_pass, vr_adsa_fail));
+    VR_Test_Verdict();
     self = os;
     remove(self);
 };
@@ -228,8 +223,7 @@ float vr_adwm_tube, vr_adwm_end, vr_adwm_reserve;
 void(string xWhat, float xOk, string xGot) AD_WidowCheck =
 {
     bprint(sprintf("adwidow: %s: %s (%s)\n", xWhat, xOk ? "PASS" : "FAIL", xGot));
-    if(xOk) { vr_adsa_pass = vr_adsa_pass + 1; }
-    else { vr_adsa_fail = vr_adsa_fail + 1; }
+    VR_Test_Count(xOk);
 };
 
 float vr_adwm_t0, vr_adwm_first, vr_adwm_phase, vr_adwm_clip, vr_adwm_rest;
@@ -328,7 +322,7 @@ void() AD_WidowFireRun =
     float got = AD_WidowmakerIn(p, cVR_MainHand) ? VRGetEntWeaponClip(p, cVR_MainHand) : -1;
     AD_WidowCheck("a pickup comes with its tube full", got == tube,
         sprintf("%g in its tube of %g (-1: no Widowmaker in hand); the reserve 20 -> %g", got, tube, p.ammo_shells));
-    bprint(sprintf("adwidow: %g passed, %g failed\n", vr_adsa_pass, vr_adsa_fail));
+    VR_Test_Verdict();
     vr_ad_wspin_test = FALSE;
     remove(self);
 };
@@ -339,8 +333,7 @@ void() AD_WidowTubeTestRun =
     entity os = self;
     self = p;
     float h = cVR_OffHand;
-    vr_adsa_pass = 0;
-    vr_adsa_fail = 0;
+    VR_Test_BeginFlags("adwidow", VR_TEST_LOUD);
     AD_WidowCheck("its shell port is found", p.offloadportpos != '0 0 0' && p.weaponmodel2 == "progs/v_shot3.mdl#vr",
         sprintf("load point %v, model %s", p.offloadportpos, p.weaponmodel2));
     AD_WidowCheck("it loads by hand (never broken open)", VR_Reload_ManualInHand(p, h) && !VR_Reload_SsgBreaks(p, h),

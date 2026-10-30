@@ -205,16 +205,8 @@ float() VR_TestImpulse =
         {
             // An ogre's head lying on the floor (gib destroying tests): an ogre gibbed, its head (the ogre itself) put
             // there.
-            entity ogreDispenser = spawn();
-            ogreDispenser.weapon = 1;
-            setorigin(ogreDispenser, spawnAt);
-            self = ogreDispenser;
-            activator = spawnPlayer;
-            func_enemy_dispenser_use();
-            spawned = self;
-            self = spawnPlayer;
-            remove(ogreDispenser);
-            if(spawned != ogreDispenser)
+            spawned = VR_Test_Spawn(spawnPlayer, 1, spawnAt, -1);
+            if(spawned)
             {
                 spawned.takedamage = DAMAGE_AIM;
                 T_Damage(spawned, world, world, spawned.health + 200);
@@ -356,21 +348,11 @@ float() VR_TestImpulse =
         else
         {
             // The firing range's dispenser, as if its button were pressed (the same numbers).
-            entity dispenser = spawn();
-            dispenser.weapon = spawnKind;
-            setorigin(dispenser, spawnAt);
             float spawnFacing = cvar("vr_test_spawn_facing");
-            float spawnFaceYaw = VR_TestSpawn_FacingYaw(spawnPlayer);
-            if(spawnFaceYaw >= 0)
+            float spawnFaceYaw = VR_TestSpawn_FacingYaw(spawnPlayer); // (given before its spawn function: its ideal_yaw too)
+            spawned = VR_Test_Spawn(spawnPlayer, spawnKind, spawnAt, spawnFaceYaw);
+            if(spawned)
             {
-                dispenser.angles_y = spawnFaceYaw; // (before its spawn function: its ideal_yaw too)
-            }
-            self = dispenser;
-            activator = spawnPlayer;
-            func_enemy_dispenser_use();
-            if(self != dispenser)
-            {
-                spawned = self;
                 if(spawnFaceYaw >= 0)
                 {
                     spawned.angles_y = spawnFaceYaw;
@@ -380,7 +362,6 @@ float() VR_TestImpulse =
                     spawned.angles_y = spawnPlayer.v_viewangle_y + 180;
                 }
             }
-            remove(dispenser);
         }
         self = spawnPlayer;
         if(spawned != world && spawnKind < 100 && cvar("vr_test_spawn_dead"))

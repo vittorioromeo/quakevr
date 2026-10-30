@@ -139,7 +139,7 @@ void(float ok, string what) VR_AT_Check = { VR_Test_Check(ok, what); }; // (`are
 
 void() VR_AT_End =
 {
-    dprint(sprintf("arena: test %g over: %g passed, %g failed\n", vr_at_case, vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart(sprintf("test %g over:", vr_at_case));
     VR_AT_Restore();
     VR_AT_SetSkill(vr_at_skill0);
     cvar_set("vr_arena_test", "0");
