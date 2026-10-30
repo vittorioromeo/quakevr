@@ -326,6 +326,41 @@ Recovery 1 by default; at 1 the envelope equals the old one at 1203 samples (Ret
 drawn kick of a 0.15 s Return Time is back at rest 0.115 s after its peak at 1x, 0.230 s at 2x, 0.0575 s at 0.5x
 (ratios 2.00 and 0.50), the peak 4.0 deg each time; value put back. Baseline (recoil, collectfx, selfchecks,
 slider_step, update_notice, autopump, reload): only `recoil` changed (9 -> 17 checks).
+
+## 9d. Punchier gunfire: sound and haptics (branch `agent/gunsfx`; `vr_gunsfx.cpp`, `vr_sndlayer.cpp`)
+
+His approved ideas 7-12. Audit first: every gun's report is one recording (QC `sound` on CHAN_WEAPON/CHAN_WEAPON2),
+the layered sounds made at load (`VR_SndLayered`) existed for three sounds, the casings had one tink set (stone) and a
+water plip, the dry click (`gunclick.wav`) existed with no tick in the hand, the actions' sounds (break-open, magazine)
+played from the muzzle, the room reverb is Steam Audio's on the listener (nothing per shot), and each shot's haptic was
+the QC's one flat buzz (`VRGunHaptic`). What's new (Sound > **Gunfire**, every part off with `vr_gunsfx 0`):
+- The layered sounds moved out of `vr_audio.cpp` into `vr_sndlayer.cpp` (a pure move) and grew effects: a two-pole
+  low-pass (thumps), a Schroeder room tail (four damped combs scaled with the decay, two all-passes, a predelay), a
+  distant echo (twice, dulled) and a peak normalisation. All from the game's own and our shipped sounds, nothing new.
+- A shot (a listed report on a weapon channel, anyone's: the player's, grunts', enforcers', ogres', the armed humanoids')
+  goes through `VR_SndShot` at the start of `S_StartSoundPitch`: varied (`vr_gunsfx_vary` 4: pitch up to 4 %, volume
+  2 %), plus its close mechanical layer (super shotgun and grunts' a hammer, nailguns a feed tick, launchers a clunk;
+  none where the shot has its own action or the shotgun's auto pump clacks) and a low thump (`vr_gunsfx_layers` 1), and a
+  tail by room (`vr_gunsfx_tail` 1): 13 rays round the shooter (cached 0.75 s / 48 units an entity), outdoors when two
+  of the five upward ones reach the sky, else small under a 320-unit mean reach, else large. Tails: small ~0.5-0.65 s,
+  large ~1.5-1.7 s, outdoors ~1.8-2 s with the echo at 0.42 s; at most one every 0.25 s for the light guns' streams.
+  The player's layers play from the firing hand (CHAN_HAND/HAND2). Not the lightning gun (a beam).
+- Casings (`vr_gunsfx_casings` 1): metal's ring (tink brighter plus `phys/metal_h`), wood's knock (tink lower plus
+  `phys/wood_h`), by the texture under the landing (`debris::materialOf`); stone/other the tinks as before.
+- Dry click (`vr_gunsfx_dryfire` 1): its volume, varied, a 12 ms tick (0.35) in the clicking hand; 0 silent.
+- Actions (`vr_gunsfx_action` 1): break-open/close at 0.4 of the way hand-to-muzzle, magazine in/out 0.15, shell in 0.3
+  (`vr_audio.cpp handSoundAt`). The ejects on CHAN_AUTO stay where they were.
+- Haptic punch (`vr_gunsfx_punch` 1, per weapon `vr_wofs_fx_punch_NN` 1, Weapon Offsets > Effects > **Haptic Punch**):
+  a 12 ms 200 Hz spike at 0.85 * punch * sqrt(strength * mean(kick, rise)), then a 70 Hz tail from half that to nothing
+  (quadratic) over Return Time * Recovery, re-sent each frame; the QC's flat buzz for that shot is dropped (`punchOwns`,
+  60 ms). At 0: the flat buzz as before.
+Decisions: every group is a 0-off slider or a toggle (the codebase's pattern) under one master toggle; sounds derived
+at runtime (his 2026-10-29 decision); the punch replaces the flat buzz rather than adding to it (one feel, set by the
+recoil). Test: `vr_gunsfx_test` needs sound (`run.sh -Sound`, `map e1m1;...;impulse 9;wait2;impulse 154;wait5;
+vr_gunsfx_test`): **24 passed, 0 failed** (21 layers made, 12 shots' layers and tails started, variation 4 % / none at 0,
+tails small < large < outdoor for each kind, e1m1's start room small and (-160 608) outdoors with different tails, the
+floor's metal casing, the dry click's tick and silence, every weapon slot's punch curve, Recovery 2x doubles the tail, Haptic
+Punch 0 none, the spike sent on the shot, action place, all off). `vr_recoil_test` 17 passed as before.
 ## 9b. Relighting: Ambient Light Level (`vr_relight_minlight`, backlog "a basic ambient lighting level")
 
 The Relighting page's "Minimum Light" row is now **Ambient Light Level** (same cvar, `vr_relight_minlight`, archived,

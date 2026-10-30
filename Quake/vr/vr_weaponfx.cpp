@@ -16,6 +16,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
+#include "vr_gunsfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_mem.hpp"
 #include "vr_particles.hpp"
@@ -279,6 +280,7 @@ void playerFired(int hand)
     adcrossbow::fired(hand); // AD support: the crossbow's string and bolt (vr_adcrossbow.cpp: if it is one)
     adweapons::fired(hand);  // AD support: the Widowmaker's barrels (vr_adweapons.cpp: if it is one)
     weight::heavyKick(hand); // heavy handling: a heavy weapon fired in one hand kicks up (the aim with it)
+    gunsfx::fired(hand);     // its haptic punch (vr_gunsfx.cpp)
     gunfx::playerFired(hand); // its sparks and smoke at its drawn muzzle (vr_gunfx.cpp: at frame)
     HandFx& h = handFx[hand];
     if(h.slot != slot)

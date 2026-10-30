@@ -591,6 +591,7 @@ void VR_SndListener (float *origin, float *forward, float *right, float *up);	//
 int VR_SndSpatialize (channel_t *ch);				// start of SND_Spatialize: nonzero if it set the volumes (a hand's sound); moves a sound following its entity
 int VR_SndHandOf (const channel_t *ch, float *hand);	// snd_show 2: the hand (0 main, 1 off; -1 not a hand's) a channel plays from, `hand` its place
 void VR_SndStarted (channel_t *ch);					// end of S_StartSound: a new sound on the channel
+int VR_SndShot (int entnum, int entchannel, sfx_t *sfx, const float *origin, float *fvol, float attenuation, float *pitch); // start of S_StartSound: a gun's shot varied and its layers started, an empty gun's click (vr_gunsfx.cpp); 0: not played
 void VR_SndStopAll (void);							// S_StopAllSounds, the channels cleared: every voice let go (none left on a cleared channel)
 int VR_SndKeepStatics (void);						// S_Update: nonzero: the static sounds of one sample not combined (each has its place)
 int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's end, rounded down to whole frames of the voices

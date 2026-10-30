@@ -64,6 +64,12 @@ Swim and wade with your hands moving: splashes, water slosh and stroke sounds ar
 Wrist gadget hologram messages and the FPS counter (both modes) show as before; the menu's Search and Checklist pages and the toolgun's physgun and scale work as before.
 Load a map with many monsters: it loads a little faster, and monsters' limbs still bend smoothly as before (smooth rigs now built in parallel). vr_startup_times also shows the last quit's times.
 Weapon Offsets > Effects > Recoil Recovery: set a gun to 2x and fire: it comes back to rest visibly slower (weightier) with the same kick; 0.5x snaps back faster; 1x feels as before.
+Gunfire: fire each gun indoors (small room), in a big hall and outdoors: each shot has a close mechanical click/clunk and a low thump, and a tail that is short indoors, long in the hall, long with an echo outside; nailgun streams don't smear (tune in Sound > Gunfire).
+Grunts', enforcers' and ogres' shots get the same layers and room tails, from where they stand.
+Spent shells ring on metal floors and knock on wood; on stone as before.
+An empty gun's dry click gives a small tick in that hand.
+Super shotgun and revolver break-open/close and magazine in/out sound from the hinge or magazine well, not the muzzle.
+Haptic punch: a sharp spike plus a short rumble per shot, longer on guns with a longer Recoil Return Time x Recovery (Weapon Offsets > Effects > Haptic Punch per weapon; Sound > Gunfire > Haptic Punch 0 brings back the old buzz).
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

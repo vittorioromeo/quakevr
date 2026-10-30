@@ -19,6 +19,7 @@
 #include "vr_magholster.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_gunsfx.hpp"
 #include "vr_input.hpp"
 #include "vr_doom.hpp"
 #include "vr_main.hpp"
@@ -506,7 +507,10 @@ void runHaptics()
     {
         if(realtime >= it->time)
         {
-            haptics::pulse(it->hand, it->seconds, it->amplitude, it->frequency);
+            if(!gunsfx::punchOwns(it->hand)) // (a shot's own punch over its flat buzz: vr_gunsfx.cpp)
+            {
+                haptics::pulse(it->hand, it->seconds, it->amplitude, it->frequency);
+            }
             it = pendingHaptics.erase(it);
         }
         else
