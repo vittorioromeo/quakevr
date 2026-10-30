@@ -1113,7 +1113,8 @@ za::Vector<Item> pageDebugTests()
             .help("vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\")."),
         command("Per-Weapon Recoil Test", "vr_recoil_test")
             .help("vr_recoil_test: the main hand's weapon's own Recoil Kick Back and Muzzle Rise move its recoil only "
-                  "(no other weapon's), and its Recoil Recovery 2x / 0.5x takes twice / half as long back to rest; "
+                  "(no other weapon's), Recoil Amount scales it, its Return Time 2x / 0.5x takes twice / half as long "
+                  "back to rest, and the old multipliers converted (this start's config too) draw the same kick; "
                   "prints PASS/FAIL lines and puts every value back."),
         command("Gunfire Sound and Punch Test", "vr_gunsfx_test")
             .help("vr_gunsfx_test: every shot's layers and room tail, the variation, the casings by surface, the dry "

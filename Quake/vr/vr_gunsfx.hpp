@@ -13,7 +13,7 @@
 // - Spent casings sound of what they land on: stone (the tinks as before), metal, wood (vr_gunsfx_casings; water's
 //   plips as before: vr_shells.cpp).
 // - A shot's haptic punch (vr_gunsfx_punch): a sharp spike, then a short tail as long as the weapon's recoil takes to
-//   come back (Recoil Return Time times Recoil Recovery), as hard as its recoil (strength, kick back and rise) times
+//   come back (its kick up and Recoil Return Time), as hard as its recoil (kick back and rise: weapons::recoilFeel) times
 //   its Haptic Punch (Weapon Offsets > Effects); it replaces the QC's flat buzz for that shot.
 // vr_gunsfx_test: the checks (layers, variation, room tails, casings, dry click, the punch's curve per weapon).
 

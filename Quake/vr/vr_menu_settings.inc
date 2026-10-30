@@ -1055,15 +1055,12 @@ za::Vector<Item> pageWeaponEffects()
     return {
         header("Recoil"),
         toggle("Programmatic Recoil", vr_weapon_recoil)
-            .help("Each shot kicks the drawn weapon back and tips it up, for the weapons whose Recoil is on (Weapon Offsets > "
-                  "Effects: every gun by default; the kick in Quake's gun models is taken out). Looks only: the aim and the "
-                  "shots stay where your controller is."),
-        slider("Kick Back", vr_recoil_kick, 0.f, 5.f, 0.1f, "%.1f cm").extend(0.f, 20.f)
-            .help("How far a shot kicks the weapon back, at a weapon's Recoil Strength and Recoil Kick Back 1 (Weapon "
-                  "Offsets > Effects: each weapon's own)."),
-        slider("Muzzle Rise", vr_recoil_rise, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
-            .help("How far a shot tips the muzzle up, at a weapon's Recoil Strength and Recoil Muzzle Rise 1 (Weapon "
-                  "Offsets > Effects: each weapon's own)."),
+            .help("Each shot kicks the drawn weapon back and tips it up, as far as the weapon's own Recoil Kick Back and "
+                  "Muzzle Rise (Weapon Offsets > Effects: every gun has its own; the kick in Quake's gun models is taken "
+                  "out). Looks only: the aim and the shots stay where your controller is."),
+        slider("Recoil Amount", vr_recoil_amount, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("Every weapon's recoil times this: its kick back and its muzzle rise (each weapon's own cm and degrees: "
+                  "Weapon Offsets > Effects). 1: as each weapon is set; 0: none."),
         header("Shotgun Auto Pump"),
         slider("Auto Pump Time", vr_autopump_time, 0.15f, 0.45f, 0.01f, "%.2f s").extend(0.1f, 0.48f)
             .help("After each shot the shotgun cycles itself: its fore-end is driven back along the guide rods over the "

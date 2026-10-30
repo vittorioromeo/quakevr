@@ -1161,6 +1161,12 @@ extern "C" int VR_RetiredCvar(const char* name)
     {
         return 1; // a tuning constant now (vr_tunables.inc): an old config's line for it is ignored
     }
+    // 2026-10-30: the recoil multipliers (vr_wofs_fx_recoil*_NN, vr_recoil_kick, vr_recoil_rise): an old config's values
+    // kept for vr_wofs_version 74's conversion to cm, degrees and seconds (vr_weapons.cpp takeRecoilUnits74).
+    if(qvr::weapons::retiredRecoilLine(name, Cmd_Argc() > 1 ? Cmd_Argv(1) : nullptr))
+    {
+        return 1;
+    }
     for(const char* retired : retiredCvars)
     {
         if(!q_strcasecmp(name, retired))
