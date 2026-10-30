@@ -358,45 +358,35 @@ void bevels(const za::Vector<Winding>& polys, const glm::dvec3& origin, const gl
     }
 }
 
-// Made from the brush (null: an empty model: nothing solid, nothing drawn). `quakeHulls`: the world's hull 1 and 2
-// boxes.
-} // namespace
-namespace detail
+// A face's edges and box (build: the surfaces').
+struct FaceDraw
 {
-void build(const Brush* b, Built& out)
-{
-    out = Built{};
-    out.leafs[0].contents = CONTENTS_SOLID;
-    out.leafs[1].contents = CONTENTS_EMPTY;
-    for(mleaf_t& l : out.leafs)
-    {
-        l.visframe = 0;
-        l.compressed_vis = nullptr;
-        l.firstmarksurface = nullptr;
-        l.nummarksurfaces = 0;
-    }
-    za::Vector<Winding> polys;
-    if(!b || !polygons(*b, polys))
-    {
-        return;
-    }
-    glm::dvec3 lo{1e30}, hi{-1e30};
-    for(const Winding& w : polys)
-    {
-        for(const glm::dvec3& p : w)
-        {
-            lo = glm::min(lo, p);
-            hi = glm::max(hi, p);
-        }
-    }
-    const glm::dvec3 origin = glm::floor((lo + hi) * 0.5 + 0.5);
-    out.origin = glm::vec3{origin};
-    out.mins = glm::vec3{lo - origin};
-    out.maxs = glm::vec3{hi - origin};
+    int firstedge, numedges;
+    glm::vec3 mins, maxs;
+};
 
-    // The faces with area, model space: hull 0's planes.
-    za::Vector<glm::dvec4> faces;
-    za::Vector<int> faceOf;
+// build's state from phase to phase (each phase a function below, in the order build calls them).
+struct BrushBuild
+{
+    const Brush* b{nullptr};
+    za::Vector<Winding> polys;
+    glm::dvec3 lo{1e30}, hi{-1e30};
+    glm::dvec3 origin{0.0};
+    za::Vector<glm::dvec4> faces; // the faces with area, model space: hull 0's planes
+    za::Vector<int> faceOf;       // and each one's face of the brush
+    za::Vector<FaceDraw> draws;
+};
+
+// The faces with area, model space: hull 0's planes. Hulls 1 and 2: the planes pushed out by the box (its support
+// along each normal), with the bevels a brush that is not a box needs (bevels()); the same set is the narrow box's
+// (clipBox).
+void buildHulls(BrushBuild& bb, Built& out)
+{
+    const Brush* b = bb.b;
+    const za::Vector<Winding>& polys = bb.polys;
+    const glm::dvec3 &lo = bb.lo, &hi = bb.hi, &origin = bb.origin;
+    za::Vector<glm::dvec4>& faces = bb.faces;
+    za::Vector<int>& faceOf = bb.faceOf;
     for(za::SizeT i = 0; i < b->faces.size(); i++)
     {
         if(polys[i].empty())
@@ -407,8 +397,6 @@ void build(const Brush* b, Built& out)
         faces.pushBack(glm::dvec4{f.normal, f.dist - glm::dot(f.normal, origin)});
         faceOf.pushBack(static_cast<int>(i));
     }
-    // Hulls 1 and 2: the planes pushed out by the box (its support along each normal), with the bevels a brush that is
-    // not a box needs (bevels()); the same set is the narrow box's (clipBox).
     za::Vector<glm::dvec4> grown = faces;
     bevels(polys, origin, lo, hi, grown);
     for(const glm::dvec4& p : grown)
@@ -442,9 +430,16 @@ void build(const Brush* b, Built& out)
         chain(pushed[h], out.planes, out.clipnodes[h]);
         out.hullPlanes[h] = pushed[h];
     }
+}
 
-    // Vertices (shared), edges (shared, Quake's signed surfedges), one texinfo and surface a face.
-    const int numFaces = static_cast<int>(faces.size());
+// Vertices (shared), edges (shared, Quake's signed surfedges), one texinfo and surface a face.
+void buildEdges(BrushBuild& bb, Built& out)
+{
+    const za::Vector<Winding>& polys = bb.polys;
+    const glm::dvec3& origin = bb.origin;
+    const za::Vector<int>& faceOf = bb.faceOf;
+    za::Vector<FaceDraw>& draws = bb.draws;
+    const int numFaces = static_cast<int>(bb.faces.size());
     out.edges.pushBack(medge_t{{0u, 0u}}); // (edge 0 unused: a surfedge's sign is its way)
     const auto vertexOf = [&](const glm::dvec3& p) {
         const glm::vec3 q{p - origin};
@@ -461,12 +456,6 @@ void build(const Brush* b, Built& out)
         out.vertexes.pushBack(v);
         return static_cast<unsigned>(out.vertexes.size() - 1);
     };
-    struct FaceDraw
-    {
-        int firstedge, numedges;
-        glm::vec3 mins, maxs;
-    };
-    za::Vector<FaceDraw> draws;
     for(int k = 0; k < numFaces; k++)
     {
         const Winding& w = polys[static_cast<za::SizeT>(faceOf[k])];
@@ -494,8 +483,15 @@ void build(const Brush* b, Built& out)
         }
         draws.pushBack(fd);
     }
+}
 
-    // The textures (the world's; a name it lacks: its first usable one), the used ones by their type.
+// The textures (the world's; a name it lacks: its first usable one), the used ones by their type.
+void buildTextures(const BrushBuild& bb, Built& out)
+{
+    const Brush* b = bb.b;
+    const glm::dvec3& origin = bb.origin;
+    const za::Vector<int>& faceOf = bb.faceOf;
+    const int numFaces = static_cast<int>(bb.faces.size());
     for(int k = 0; k < numFaces; k++)
     {
         const Face& f = b->faces[static_cast<za::SizeT>(faceOf[k])];
@@ -560,8 +556,14 @@ void build(const Brush* b, Built& out)
         const int ty = out.textures[i] ? out.textures[i]->type : TEXTYPE_DEFAULT;
         out.used[static_cast<za::SizeT>(fill[ty]++)] = static_cast<int>(i);
     }
+}
 
-    // The surfaces (their plane hull 0's: the first numFaces planes) and hull 0's nodes over them.
+// The surfaces (their plane hull 0's: the first numFaces planes) and hull 0's nodes over them.
+void buildSurfaces(const BrushBuild& bb, Built& out)
+{
+    const za::Vector<int>& faceOf = bb.faceOf;
+    const za::Vector<FaceDraw>& draws = bb.draws;
+    const int numFaces = static_cast<int>(bb.faces.size());
     out.surfaces.resize(static_cast<za::SizeT>(numFaces));
     out.surfaceFace.resize(static_cast<za::SizeT>(numFaces));
     out.nodes.resize(static_cast<za::SizeT>(numFaces));
@@ -646,6 +648,51 @@ void build(const Brush* b, Built& out)
             l.minmaxs[3 + i] = out.maxs[i];
         }
     }
+}
+
+// Made from the brush (null: an empty model: nothing solid, nothing drawn). `quakeHulls`: the world's hull 1 and 2
+// boxes.
+} // namespace
+namespace detail
+{
+void build(const Brush* b, Built& out)
+{
+    out = Built{};
+    out.leafs[0].contents = CONTENTS_SOLID;
+    out.leafs[1].contents = CONTENTS_EMPTY;
+    for(mleaf_t& l : out.leafs)
+    {
+        l.visframe = 0;
+        l.compressed_vis = nullptr;
+        l.firstmarksurface = nullptr;
+        l.nummarksurfaces = 0;
+    }
+    BrushBuild bb;
+    bb.b = b;
+    za::Vector<Winding>& polys = bb.polys;
+    if(!b || !polygons(*b, polys))
+    {
+        return;
+    }
+    glm::dvec3 &lo = bb.lo, &hi = bb.hi;
+    for(const Winding& w : polys)
+    {
+        for(const glm::dvec3& p : w)
+        {
+            lo = glm::min(lo, p);
+            hi = glm::max(hi, p);
+        }
+    }
+    bb.origin = glm::floor((lo + hi) * 0.5 + 0.5);
+    const glm::dvec3& origin = bb.origin;
+    out.origin = glm::vec3{origin};
+    out.mins = glm::vec3{lo - origin};
+    out.maxs = glm::vec3{hi - origin};
+
+    buildHulls(bb, out);
+    buildEdges(bb, out);
+    buildTextures(bb, out);
+    buildSurfaces(bb, out);
 }
 } // namespace detail
 namespace
