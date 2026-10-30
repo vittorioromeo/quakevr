@@ -125,8 +125,13 @@ void() VR_DVT_Frame =
             vector mid = (vr_ag_wa + vr_ag_wb) * 0.5;
             vector from = p.origin + p.view_ofs;
             float n = vr_ags_hits_w + vr_ags_hits_h;
+            float nw = vr_ags_hits_w;
             VR_AGS_Shot(p, from, mid + normalize(mid - from) * 16, normalize(mid - from), 1, QVR_AGS_PELLET);
             VR_AGT_Check("disarmviz: a pellet through its weapon counted", vr_ags_hits_w + vr_ags_hits_h > n);
+            // (On its weapon, not its hand: the ragdoll's forearm laid along its limb, VR_AGS_HandLine.)
+            VR_AGS_HandLine(g, g.vr_ag_prop);
+            VR_AGT_Check(sprintf("disarmviz: ... on its weapon (%g), the forearm %.1f units from its weapon's middle",
+                vr_ags_hits_w - nw, VR_AG_SegDist(mid, mid, vr_ags_ha, vr_ags_hb)), vr_ags_hits_w > nw);
         }
         VR_DVT_Shot("ragdoll");
         vr_agt_step = 8;

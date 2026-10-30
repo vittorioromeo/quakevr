@@ -137,6 +137,10 @@ Nail pistol (Full Slide): slide drawn back or locked open, look at the back of t
 Nail pistol (Full Slide): the back end (behind the ejection port) is clearly steel with a bright rim and a crisp seam, like the old art's rear housing.
 Fire the lightning gun 2 s and stop: a faint blue-grey wisp off its barrel; its slot's Muzzle Wisp Opacity / Spark / Smoke sliders change its wisp, arcs and the haze where the beam hits.
 Fire the shotgun, then drop, throw and holster it: the wisp keeps rising off the muzzle on the floor, in flight and in the holster.
+Punch an armed grunt's gun (or its gun hand) hard while it isn't guarding: the gun flies out; into its raised guard it is usually parried, sometimes knocked out.
+In slow motion, punch a grunt's gun out of its hand.
+Swing a held shotgun or a carried crate into a grunt's gun: knocked out; throw a gun at its gun hand: knocked out.
+Punch a grunt's legs or chest away from its gun: it is hurt and keeps its gun.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
