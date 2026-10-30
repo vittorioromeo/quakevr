@@ -379,155 +379,99 @@ struct Entities
     view::ViewEntity muzzleFlash[2]; // the weapons' programmatic muzzle flashes (vr_weaponfx.cpp)
     view::ViewEntity enemyFlash[weaponfx::maxEnemyFlashes]; // and the grunts' guns'
     view::ViewEntity adBolt[2]; // AD support: the bolts in the hands' crossbows' grooves (vr_adcrossbow.cpp)
+
+    // Every member, in the order forEachEntity visits them: the order they are added to cl_visedicts (keep it: draws at
+    // the same depth). A zip visits its arrays per index (cap and lames, frame and barrels, ...). Every member listed:
+    // checked by their sizes adding up to Entities' (below).
+    template <typename F>
+    decltype(auto) members(F&& f);
 };
+
+// Arrays visited per index: zip(a, b) visits a[0], b[0], a[1], b[1], ...
+template <typename Visit, typename... A>
+struct EntityZip
+{
+    Visit visit; // visit(f): f(a, b, ...)
+};
+
+template <typename... A>
+[[nodiscard]] auto zip(A&... a)
+{
+    const auto visit = [&a...](auto&& f) { f(a...); };
+    return EntityZip<decltype(visit), A...>{visit};
+}
+
+template <typename M>
+constexpr za::SizeT entityBytes = sizeof(M);
+template <typename Visit, typename... A>
+constexpr za::SizeT entityBytes<EntityZip<Visit, A...>> = (sizeof(A) + ... + 0);
+
+template <za::SizeT N>
+struct EntityBytes
+{
+    static constexpr za::SizeT value = N;
+};
+
+struct CountEntityBytes
+{
+    template <typename... M>
+    auto operator()(const M&...) const -> EntityBytes<(entityBytes<M> + ... + 0)>
+    {
+        return {};
+    }
+};
+
+template <typename F>
+decltype(auto) Entities::members(F&& f)
+{
+    return f(weapon, weaponMorph, hand, holster, holsterSlot, body, zip(pauldron, pauldronArm), gadget, gadgetStrap,
+        flashlight, pouch, ammoPouch, ammoPouchItem, mag, holsterMag, worldMag, well, holsterWell, worldWell, pumpBody, pump,
+        zip(ssgFrame, ssgBarrels), zip(holsterSsgFrame, holsterSsgBarrels), zip(worldSsgFrame, worldSsgBarrels),
+        zip(rvFrame, rvCrane, rvCyl, rvShell), sawHandle, button, frontButton, holsterButton, worldButton,
+        holsterFrontButton, worldFrontButton, ghost, ghostHand, muzzleFlash, enemyFlash, adBolt);
+}
+
+static_assert(decltype(za::declVal<Entities&>().members(CountEntityBytes{}))::value == sizeof(Entities),
+    "Entities::members lists every member");
 
 inline Entities entities;
 
 template <typename F>
-void forEachEntity(F&& f)
+void visitEntity(F& f, view::ViewEntity& ve)
 {
-    for(view::ViewEntity& ve : entities.weapon)
+    f(ve);
+}
+
+template <typename F, typename T, za::SizeT N>
+void visitEntity(F& f, T (&a)[N])
+{
+    for(T& m : a)
     {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.weaponMorph)
-    {
-        f(ve);
-    }
-    for(auto& hand : entities.hand)
-    {
-        for(view::ViewEntity& ve : hand)
-        {
-            f(ve);
-        }
-    }
-    for(view::ViewEntity& ve : entities.holster)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.holsterSlot)
-    {
-        f(ve);
-    }
-    f(entities.body);
-    for(int side = 0; side < 2; side++)
-    {
-        f(entities.pauldron[side]);
-        f(entities.pauldronArm[side]);
-    }
-    f(entities.gadget);
-    f(entities.gadgetStrap[0]);
-    f(entities.gadgetStrap[1]);
-    f(entities.flashlight);
-    f(entities.pouch);
-    f(entities.ammoPouch);
-    for(view::ViewEntity& ve : entities.ammoPouchItem)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.mag)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.holsterMag)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.worldMag)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.well)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.holsterWell)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.worldWell)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.pumpBody)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.pump)
-    {
-        f(ve);
-    }
-    for(int i = 0; i < 2; i++)
-    {
-        f(entities.ssgFrame[i]);
-        f(entities.ssgBarrels[i]);
-    }
-    for(int h = 0; h < HolsterCount; h++)
-    {
-        f(entities.holsterSsgFrame[h]);
-        f(entities.holsterSsgBarrels[h]);
-    }
-    for(int i = 0; i < maxWorldSsgs; i++)
-    {
-        f(entities.worldSsgFrame[i]);
-        f(entities.worldSsgBarrels[i]);
-    }
-    for(int i = 0; i < 2; i++)
-    {
-        f(entities.rvFrame[i]);
-        f(entities.rvCrane[i]);
-        f(entities.rvCyl[i]);
-        for(view::ViewEntity& ve : entities.rvShell[i])
-        {
-            f(ve);
-        }
-    }
-    f(entities.sawHandle);
-    for(view::ViewEntity& ve : entities.button)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.frontButton)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.holsterButton)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.worldButton)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.holsterFrontButton)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.worldFrontButton)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.ghost)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.ghostHand)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.muzzleFlash)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.enemyFlash)
-    {
-        f(ve);
-    }
-    for(view::ViewEntity& ve : entities.adBolt)
-    {
-        f(ve);
+        visitEntity(f, m);
     }
 }
+
+template <typename F, typename Visit, typename... A>
+void visitEntity(F& f, const EntityZip<Visit, A...>& z)
+{
+    z.visit([&f](auto& first, auto&... rest) {
+        constexpr za::SizeT n = sizeof(first) / sizeof(first[0]);
+        static_assert(((sizeof(rest) / sizeof(rest[0]) == n) && ...), "zipped arrays of one length");
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            visitEntity(f, first[i]);
+            (visitEntity(f, rest[i]), ...);
+        }
+    });
+}
+
+// f(ve) for every view entity, in Entities::members' order.
+template <typename F>
+void forEachEntity(F&& f)
+{
+    entities.members([&f](auto&&... m) { (visitEntity(f, m), ...); });
+}
+
 [[nodiscard]] bool isHandModel(const qmodel_t* model);
 [[nodiscard]] qmodel_t* precachedModel(int index);
 

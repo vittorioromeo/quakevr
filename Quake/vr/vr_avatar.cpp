@@ -1627,11 +1627,8 @@ struct FootHit
         return h;
     }
     climbing.traces++;
-    vec3_t va{a.x, a.y, a.z};
-    vec3_t vz{z.x, z.y, z.z};
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old); // (drawing: the client's VM, or none, is in)
-    const trace_t tr = SV_Move(va, vec3_origin, vec3_origin, vz, MOVE_NOMONSTERS, svs.clients[0].edict);
+    const progs::ServerVm vm; // (drawing: the client's VM, or none, is in)
+    const trace_t tr = worldtrace::serverLine(a, z, svs.clients[0].edict);
     h.solid = tr.startsolid || tr.allsolid;
     h.hit = !h.solid && tr.fraction < 1.f;
     h.frac = tr.fraction;
@@ -1656,7 +1653,6 @@ struct FootHit
             h.normal = p.normal;
         }
     }
-    PR_PopQCVM(old);
     return h;
 }
 
