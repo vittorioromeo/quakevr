@@ -2275,16 +2275,11 @@ void qvr::foegrab::reset()
     // A game saved while hands held: its monsters held and players holding no more.
     if(sv.active && qcvm == &sv.qcvm && bindings().isVrProgs)
     {
-        for(int num = 1; num < qcvm->num_edicts; num++)
-        {
-            edict_t* e = EDICT_NUM(num);
-            if(!e->free)
-            {
-                setFieldFloat(e, fields().vr_foegrab_hold, 0.f);
-                setFieldFloat(e, fields().vr_foegrab_letgo, 0.f);
-                setFieldFloat(e, fields().vr_foegrab_hands, 0.f);
-            }
-        }
+        qvr::progs::forEachEdict(1, [&](edict_t* e) {
+            setFieldFloat(e, fields().vr_foegrab_hold, 0.f);
+            setFieldFloat(e, fields().vr_foegrab_letgo, 0.f);
+            setFieldFloat(e, fields().vr_foegrab_hands, 0.f);
+        });
     }
 }
 

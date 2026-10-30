@@ -5,6 +5,7 @@
 #include "vr_adguns.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_modelmetadata.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -364,7 +365,7 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
     const glm::vec3 pack = glm::max((boxHi - boxLo) / 255.f, glm::vec3{1e-4f});
     out.lo = boxLo;
     out.hi = boxHi;
-    out.cornerKept = boxLo == glm::vec3{gun->corner[0], gun->corner[1], gun->corner[2]};
+    out.cornerKept = boxLo == geom::vec(gun->corner);
     out.muzzle = glm::vec3{0.f};
     int tip = 0;
     for(const glm::vec3& l : local)
@@ -431,7 +432,7 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
         }
         // Its normal turned with it.
         const byte n = src[poseAt + static_cast<size_t>(verts[i]) * 4 + 3];
-        const glm::vec3 nv = n < NUMVERTEXNORMALS ? glm::vec3{r_avertexnormals[n][0], r_avertexnormals[n][1], r_avertexnormals[n][2]}
+        const glm::vec3 nv = n < NUMVERTEXNORMALS ? geom::vec(r_avertexnormals[n])
                                                   : glm::vec3{0.f, 0.f, 1.f};
         b[3] = qvr::mdlbuild::nearestNormal(glm::vec3{glm::dot(nv, axis), glm::dot(nv, left), glm::dot(nv, up)});
         packed.emplaceBackRange(b, 4);

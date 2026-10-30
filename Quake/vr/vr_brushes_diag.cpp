@@ -2,6 +2,7 @@
 // Split from vr_brushes.cpp (a pure move); what they share is in vr_brushes_internal.hpp.
 
 #include "vr_brushes_internal.hpp"
+#include "vr_geom.hpp"
 #include "vr_progs.hpp"
 
 #include "vr_box3d.hpp"
@@ -210,7 +211,7 @@ void selftest_f()
         glm::vec3 mid{0.f};
         for(const mvertex_t& v : built.vertexes)
         {
-            mid += glm::vec3{v.position[0], v.position[1], v.position[2]} / static_cast<float>(built.vertexes.size());
+            mid += geom::vec(v.position) / static_cast<float>(built.vertexes.size());
         }
         check(hullContents(&m, 0, mid) == CONTENTS_SOLID, va("sample %d: hull 0 empty at its middle", static_cast<int>(i)));
         bool flatTop = false;

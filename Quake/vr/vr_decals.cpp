@@ -1011,7 +1011,7 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
                 continue;
             }
             const float flip = (s->flags & SURF_PLANEBACK) ? -1.f : 1.f;
-            const glm::vec3 sn = glm::vec3{s->plane->normal[0], s->plane->normal[1], s->plane->normal[2]} * flip;
+            const glm::vec3 sn = geom::vec(s->plane->normal) * flip;
             const float off = glm::dot(d.centre, sn) - s->plane->dist * flip; // the centre in front of it (> 0)
             if(glm::dot(sn, n) < 0.5f || za::fabs(off) > depth)
             {
@@ -1109,7 +1109,7 @@ void clipToModel(const Decal& d, const qmodel_t* m, za::Vector<Corner>& tris)
             continue;
         }
         const float flip = (s->flags & SURF_PLANEBACK) ? -1.f : 1.f;
-        const glm::vec3 sn = glm::vec3{s->plane->normal[0], s->plane->normal[1], s->plane->normal[2]} * flip;
+        const glm::vec3 sn = geom::vec(s->plane->normal) * flip;
         if(glm::dot(sn, d.normal) < 0.5f || za::fabs(glm::dot(d.centre, sn) - s->plane->dist * flip) > d.depth)
         {
             continue;
@@ -1594,7 +1594,7 @@ bool meleeMark(MeleeMark kind, const glm::vec3& where, const glm::vec3& normal, 
     {
         const entity_t& e = cl_entities[i];
         if(e.model && e.msgtime >= cl.mtime[1] - 0.001 && !q_strcasecmp(e.model->name, "progs/lspike.mdl") &&
-            glm::distance(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, pos) < 160.f)
+            glm::distance(geom::vec(e.origin), pos) < 160.f)
         {
             return true;
         }
@@ -2620,7 +2620,7 @@ void carveTest_f()
         const float yaw = za::atan2(d.y, d.x) * (180.f / 3.14159265f);
         const float pitch = -za::atan2(d.z, glm::length(glm::vec2{d.x, d.y})) * (180.f / 3.14159265f);
         const auto& e = cl_entities[cl.viewentity];
-        const glm::vec3 o = to - (eye - glm::vec3{e.origin[0], e.origin[1], e.origin[2]}); // (the eye's height over it)
+        const glm::vec3 o = to - (eye - geom::vec(e.origin)); // (the eye's height over it)
         Cbuf_InsertText(va("vr_mock_look %.2f 0; setpos %.2f %.2f %.2f 0 %.2f 0\n", pitch, o.x, o.y, o.z, yaw));
         return;
     }

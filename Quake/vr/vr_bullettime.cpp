@@ -444,13 +444,11 @@ constexpr float calmTime = 0.3f; // s
         bool held[2] = {foegrab::holding(0), foegrab::holding(1)};
         if(vr_bullettime_tap_both_held.value != 0.f && (!held[0] || !held[1]) && sv.qcvm.edicts)
         {
-            qcvm_t* oldVm = nullptr;
-            PR_PushQCVM(&sv.qcvm, &oldVm);
+            progs::ServerVm serverVm;
             for(int h = 0; h < 2; h++)
             {
                 held[h] = held[h] || box3d::ragdollHeld(player, h) > 0;
             }
-            PR_PopQCVM(oldVm);
         }
         const bool both = vr_bullettime_tap_both_held.value != 0.f && held[0] && held[1];
         if(both != state.bothHeld && vr_debug_bullettime.value)

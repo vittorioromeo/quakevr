@@ -13,6 +13,7 @@
 #include "vr_units.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_worldtext.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/LowerBound.hpp"
 #include "Zancle/Base/Macros.hpp"
@@ -302,11 +303,11 @@ void markSeen(const char* key)
     {
         return origin;
     }
-    const glm::vec3 c = (glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]} +
-                            glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]}) *
+    const glm::vec3 c = (geom::vec(e.model->mins) +
+                            geom::vec(e.model->maxs)) *
                         0.5f;
     glm::vec3 f, r, u;
-    hands::angleVectors(glm::vec3{e.angles[0], e.angles[1], e.angles[2]}, f, r, u);
+    hands::angleVectors(geom::vec(e.angles), f, r, u);
     return origin + f * c.x - r * c.y + u * c.z; // (a model's y is its left)
 }
 

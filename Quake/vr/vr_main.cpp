@@ -825,17 +825,10 @@ EdictCounts countEdicts()
     {
         return e;
     }
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old);
+    progs::ServerVm serverVm;
     e.inUse = 0;
     e.highest = qcvm->num_edicts;
-    for(int i = 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* ent = EDICT_NUM(i);
-        if(ent->free)
-        {
-            continue;
-        }
+    progs::forEachEdict(1, [&](edict_t* ent) {
         e.inUse++;
         const char* classname = PR_GetString(ent->v.classname);
         const int modelindex = static_cast<int>(ent->v.modelindex);
@@ -862,8 +855,7 @@ EdictCounts countEdicts()
         {
             e.missiles++;
         }
-    }
-    PR_PopQCVM(old);
+    });
     return e;
 }
 

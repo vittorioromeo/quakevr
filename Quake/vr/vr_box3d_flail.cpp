@@ -19,6 +19,7 @@
 // The view draws the head and its chain (vr_flail.cpp) where the step left them (flailHead).
 
 #include "vr_box3d_internal.hpp"
+#include "vr_geom.hpp"
 #include "vr_progs.hpp"
 
 #include "vr_admelee.hpp"
@@ -552,7 +553,7 @@ void stepped(Head& head, int i, int h)
         if(back.fraction < 1.f && !back.startsolid && !back.allsolid)
         {
             const glm::vec3 n{back.plane.normal[0], back.plane.normal[1], back.plane.normal[2]};
-            const glm::vec3 at = glm::vec3{back.endpos[0], back.endpos[1], back.endpos[2]} + n * (headRadius + 0.5f);
+            const glm::vec3 at = geom::vec(back.endpos) + n * (headRadius + 0.5f);
             glm::vec3 v = glmv(b3Body_GetLinearVelocity(head.head));
             v -= n * za::min(0.f, glm::dot(v, n));
             b3Body_SetTransform(head.head, world->toM(at), b3Body_GetRotation(head.head));
@@ -685,22 +686,15 @@ void flailInfo_f()
     {
         return;
     }
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old);
+    progs::ServerVm vm;
     int handles = 0, heads = 0, paired = 0, orphans = 0, bare = 0;
-    for(int n = svs.maxclients + 1; n < qcvm->num_edicts; n++)
-    {
-        edict_t* e = EDICT_NUM(n);
-        if(e->free)
-        {
-            continue;
-        }
+    progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
         const char* cls = PR_GetString(e->v.classname);
         const bool head = !strcmp(cls, "vr_flailhead");
         const bool handle = !strcmp(cls, "thrown_weapon") && !strcmp(PR_GetString(e->v.model), qvr::admelee::flailModel);
         if(!head && !handle)
         {
-            continue;
+            return;
         }
         const int ofs = fieldInt(e, link);
         edict_t* other = ofs ? PROG_TO_EDICT(ofs) : nullptr;
@@ -711,7 +705,7 @@ void flailInfo_f()
         paired += head && mutual ? 1 : 0;
         orphans += head && !mutual ? 1 : 0;
         bare += handle && !mutual ? 1 : 0;
-    }
+    });
     int ropes = 0, joined = 0;
     forEachFlailRope([&](int, int, float, bool j, float) {
         ropes++;
@@ -724,7 +718,6 @@ void flailInfo_f()
         Con_Printf("flail world rope: handle %d, head %d, %s, most %.2f units, the tip and the ring %.2f apart (%s)\n", handle,
             head, j ? "joined" : "not joined", length, apart, apart <= length + 1.f ? "within" : "PAST");
     });
-    PR_PopQCVM(old);
 }
 
 bool flailHead(int client, int hand, glm::vec3& pos, glm::quat& rot, glm::vec3& anchor)

@@ -782,10 +782,8 @@ void stickTestSetCase()
         p->v.movetype = static_cast<float>(c.where == 2 ? MOVETYPE_NOCLIP : MOVETYPE_WALK);
         VectorCopy(at, p->v.origin);
         VectorCopy(vec3_origin, p->v.velocity);
-        qcvm_t* old = nullptr;
-        PR_PushQCVM(&sv.qcvm, &old); // (the input's frame: the client's VM, or none, is in)
+        progs::ServerVm serverVm; // (the input's frame: the client's VM, or none, is in)
         SV_LinkEdict(p, false);
-        PR_PopQCVM(old);
     }
 }
 

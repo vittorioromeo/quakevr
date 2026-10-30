@@ -38,6 +38,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
 
@@ -527,7 +528,7 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const bool onCam = !chase_active.value && glm::length(cam - s.head) < camNear;
     const glm::vec3 from = s.head;
     const glm::vec3 to = onCam ? cam : s.head;
-    const glm::vec3 camAngles = onCam ? glm::vec3{r_refdef.viewangles[0], r_refdef.viewangles[1], r_refdef.viewangles[2]}
+    const glm::vec3 camAngles = onCam ? geom::vec(r_refdef.viewangles)
                                       : aim;
 
     // The turn's lag, shown (softly capped).
@@ -569,7 +570,7 @@ void printMove(const hands::State& s)
     const int slot = heldIn(HAND_MAIN);
     const glm::vec3 shot = slot >= 0 ? weapons::shotAngles(s.rot[HAND_MAIN], slot, false) : s.rot[HAND_MAIN];
     const glm::vec3 f = hands::forward(shot);
-    const glm::vec3 v = hands::forward(glm::vec3{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]});
+    const glm::vec3 v = hands::forward(geom::vec(cl.viewangles));
     Con_Printf("flatmove: t %.4f weapon %d shot off the view %.4f deg (view %.2f %.2f)\n", vr_gametime, slot,
         glm::degrees(za::acos(za::clamp(glm::dot(f, v), -1.f, 1.f))), cl.viewangles[0], cl.viewangles[1]);
 }
@@ -581,7 +582,7 @@ void printDrawn(const float* origin, const float* angles)
     const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     const glm::vec3 camAngles{r_refdef.viewangles[0], r_refdef.viewangles[1], r_refdef.viewangles[2]};
     hands::angleVectors(camAngles, f, r, u);
-    const glm::vec3 d = glm::vec3{origin[0], origin[1], origin[2]} - cam;
+    const glm::vec3 d = geom::vec(origin) - cam;
     const float dyaw = za::remainder(angles[1] - camAngles.y, 360.f);
     Con_Printf("flatview: t %.4f local %.3f %.3f %.3f yaw %.3f pitch %.3f view %.2f %.2f speed %.0f bob %.2f ground %d "
                "lag %.2f\n",

@@ -1,6 +1,7 @@
 // vr_chainsaw.cpp -- see vr_chainsaw.hpp.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_geom.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
@@ -12,6 +13,7 @@
 #include "vr_mem.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
+#include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -413,13 +415,11 @@ void setPulled(bool pulled)
     pulledHere = pulled;
     if(sv.active && svs.maxclients == 1)
     {
-        qcvm_t* previous;
-        PR_PushQCVM(&sv.qcvm, &previous);
+        progs::ServerVm vm;
         if(eval_t* field = pulledField())
         {
             field->_float = pulled ? 1.f : 0.f;
         }
-        PR_PopQCVM(previous);
     }
 }
 
@@ -879,11 +879,11 @@ bool handleEntity(const view::ViewEntity*& saw, glm::vec3& origin, glm::vec3& an
     vec3_t zero{0.f, 0.f, 0.f}, a;
     VectorCopy(e.angles, a);
     R_EntityMatrix(m, zero, a, ENTSCALE_DEFAULT);
-    const glm::mat3 rot{glm::vec3{m[0], m[1], m[2]}, glm::vec3{m[4], m[5], m[6]}, glm::vec3{m[8], m[9], m[10]}};
+    const glm::mat3 rot{geom::vec(m), glm::vec3{m[4], m[5], m[6]}, glm::vec3{m[8], m[9], m[10]}};
     const glm::mat3 r = st.handleTurn * rot;
     const glm::vec3 fa = hands::anglesFromVectors(glm::normalize(r[0]), glm::normalize(r[2]));
     angles = glm::vec3{-fa.x, fa.y, fa.z}; // (an alias model's pitch: view's aliasAngles)
-    origin = st.handlePos - st.handleTurn * (st.seatWorld[sawHand] - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
+    origin = st.handlePos - st.handleTurn * (st.seatWorld[sawHand] - geom::vec(e.origin));
     frame = soloFrame;
     if(vr_debug_chainsaw.value >= 2.f)
     {

@@ -46,7 +46,9 @@ vr_scaleutil.qc
 vr_weaponutil.qc
 vr_wpnforcegrab.qc
 vr_carry.qc
+vr_melee_params.qc
 vr_melee.qc
+vr_melee_bash.qc
 vr_juice.qc
 vr_grenade.qc
 vr_reload.qc
@@ -106,6 +108,7 @@ vr_tutorial.qc
 vr_mg3_triggers.qc
 vr_mg3_items.qc
 weapons.qc
+vr_wpnholster.qc
 // The single-player test and debug impulses (ImpulseCommands calls VR_TestImpulse first).
 vr_impulse_test.qc
 weapons_test.qc

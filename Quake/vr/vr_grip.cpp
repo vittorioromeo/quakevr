@@ -6,6 +6,7 @@
 #include "vr_held.hpp"
 #include "vr_physics.hpp"
 #include "vr_props.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Swap.hpp"
@@ -451,8 +452,8 @@ glm::vec3 serverTake(edict_t* e, edict_t* player, int hand, bool left, const flo
     else
     {
         h.prop.vertices.clear();
-        h.prop.lo = glm::vec3{e->v.mins[0], e->v.mins[1], e->v.mins[2]};
-        h.prop.hi = glm::vec3{e->v.maxs[0], e->v.maxs[1], e->v.maxs[2]};
+        h.prop.lo = geom::vec(e->v.mins);
+        h.prop.hi = geom::vec(e->v.maxs);
     }
     const glm::mat3 handAxes = held::axesFromAngles(handAngles, true);
     h.taken.pos = {offset.x, -offset.y, offset.z};

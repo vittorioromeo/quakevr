@@ -7,6 +7,7 @@
 #include "vr_props.hpp"
 #include "vr_protocol.hpp"
 #include "vr_view.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -309,8 +310,8 @@ int layoutMags(int kind, bool variant, int left, Item (&out)[most])
         it.height = magTop - sh.floor;
         it.gain = 0.8f + 0.2f * frac(static_cast<float>(j) * 0.618f + 0.3f);
         it.box = true;
-        it.lo = glm::vec3{model->mins[0], model->mins[1], model->mins[2]};
-        it.hi = glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]};
+        it.lo = geom::vec(model->mins);
+        it.hi = geom::vec(model->maxs);
     }
     return n;
 }

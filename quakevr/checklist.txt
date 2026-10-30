@@ -60,6 +60,8 @@ Climbing: your feet find holds as before; blood on held weapons and on your hand
 Machine Horde: waves spawn the usual squads (grunts and dogs, knights, ogres, wizards, shamblers and demons).
 AD upgrade pickups (Shadow Axe, Widowmaker, Plasma Gun) show their upgraded models.
 Obituary messages for monster, trap and weapon deaths read as before; power-up warnings, glows and expiry sounds as before.
+Swim and wade with your hands moving: splashes, water slosh and stroke sounds are as before.
+Wrist gadget hologram messages and the FPS counter (both modes) show as before; the menu's Search and Checklist pages and the toolgun's physgun and scale work as before.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

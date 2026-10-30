@@ -9,6 +9,7 @@
 //     * S(model scale) * T(network model_offset)                               (post)
 
 #include "vr_modelmetadata.hpp"
+#include "vr_geom.hpp"
 #include "vr_render.hpp"
 #include "vr_engine.hpp"
 #include "vr_agarmor.hpp"
@@ -172,8 +173,8 @@ void entityMatrixWith(const entity_t& e, bool mirrored, int scale, const glm::ve
 
 void drawnPlace(const entity_t& e, glm::vec3& origin, glm::vec3& angles)
 {
-    origin = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
-    angles = glm::vec3{e.angles[0], e.angles[1], e.angles[2]};
+    origin = geom::vec(e.origin);
+    angles = geom::vec(e.angles);
     if(!r_lerpmove.value || !(e.lerpflags & LERP_MOVESTEP) || (e.lerpflags & LERP_RESETMOVE))
     {
         return;
@@ -184,8 +185,8 @@ void drawnPlace(const entity_t& e, glm::vec3& origin, glm::vec3& angles)
     {
         vec3_t startOrigin, startAngles;
         R_MoveLerpStart(&e, startOrigin, startAngles); // a move starting this frame: at its start (where the last is drawn)
-        origin = glm::vec3{startOrigin[0], startOrigin[1], startOrigin[2]};
-        angles = glm::vec3{startAngles[0], startAngles[1], startAngles[2]};
+        origin = geom::vec(startOrigin);
+        angles = geom::vec(startAngles);
         return;
     }
     const float blend = R_MoveLerpBlend(&e);

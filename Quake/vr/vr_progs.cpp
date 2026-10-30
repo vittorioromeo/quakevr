@@ -614,8 +614,7 @@ void qvr::progs::testRemove_f()
         return;
     }
     const int num = Q_atoi(Cmd_Argv(1));
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm serverVm;
     if(num > svs.maxclients && num < qcvm->num_edicts && !EDICT_NUM(num)->free)
     {
         Con_Printf("vr_test_remove: entity %d (%s) removed\n", num, PR_GetString(EDICT_NUM(num)->v.classname));
@@ -625,7 +624,6 @@ void qvr::progs::testRemove_f()
     {
         Con_Printf("vr_test_remove: no entity %d to remove\n", num);
     }
-    PR_PopQCVM(oldvm);
 }
 
 void qvr::progs::modelCheck_f()
@@ -637,8 +635,7 @@ void qvr::progs::modelCheck_f()
         return;
     }
     const bool verbose = Cmd_Argc() > 1 && Q_atoi(Cmd_Argv(1)) != 0;
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm serverVm;
     int models = 0;
     uint32_t hash = 2166136261u; // FNV-1a of the list, in order (two sessions' lists compared)
     for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++, models++)
@@ -692,7 +689,6 @@ void qvr::progs::modelCheck_f()
     }
     Con_Printf("vr_model_check: %d models (list %08x), %d entities: %d wrong; client: %d wrong\n", models, hash, checked,
         wrong, clientWrong);
-    PR_PopQCVM(oldvm);
 }
 
 extern "C" void VR_OnSpawnServerAfterLoad()

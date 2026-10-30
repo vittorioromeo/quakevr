@@ -1,6 +1,7 @@
 // vr_water.cpp -- see vr_water.hpp.
 
 #include "vr_water.hpp"
+#include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
 #include "vr_haze.hpp"
@@ -827,9 +828,7 @@ struct Affine
     MeshVert at(const glm::vec3& p, float pin) const
     {
         MeshVert v{};
-        v.pos[0] = p.x;
-        v.pos[1] = p.y;
-        v.pos[2] = p.z;
+        geom::store(p, v.pos);
         float a = 0.f, b = 0.f;
         if(det > 1e-6f)
         {
@@ -951,33 +950,78 @@ void freeMesh()
 using GetBufferSubDataFn = void(APIENTRY*)(GLenum, GLintptr, GLsizeiptr, void*);
 GetBufferSubDataFn getBufferSubData = nullptr; // (buildMesh: looked up on its first use)
 
-void buildMesh(qmodel_t* m, float cell)
+// A rim's piece (buildMesh): a level face's edge no other face of its group continues past.
+struct Segment
 {
-    freeMesh();
-    mesh.model = m;
-    q_strlcpy(mesh.name, m->name, sizeof(mesh.name));
-    mesh.cell = cell;
-    mesh.built = true;
+    glm::vec2 a, b;
+};
 
+// A rim's piece with its group (buildMesh's pins).
+struct GroupSegment
+{
+    int group;
+    Segment s;
+};
+
+// A face's vertices and triangles (buildMesh), numbered from 0.
+struct FaceMade
+{
+    za::Vector<MeshVert> verts;
+    za::Vector<unsigned> flat, full;
+};
+
+// buildMesh's state from phase to phase (each phase a function below, in the order buildMesh calls them).
+struct MeshBuild
+{
+    qmodel_t* m{nullptr};
+    float cell{0.f}; // (grown for big water: gatherFaces)
+    za::Vector<glvert_t> src;         // Ironwail's vertices of the brush models
+    za::Vector<SrcFace> faces;        // the world's liquid faces
+    za::Vector<int> faceOfSurface;    // each surface's face (-1 none)
+    za::Vector<za::Vector<int>> groups; // the level faces in groups: a kind, a side, a height
+    za::Vector<za::Array<int, 3>> groupKeys;
+    double area{0.};
+    za::Vector<za::Vector<Segment>> rims;     // each group's rim
+    za::Vector<za::Vector<Segment>> faceRims; // the same, by the face whose edge it is on
+    za::Vector<GroupSegment> allRims;
+    XYBuckets rimBuckets;
+    za::Vector<int> order; // the faces, by texture
+    za::Vector<FaceMade> made;
+    za::Vector<int> meshFaceOf;
+    za::Vector<MeshVert> verts;
+    za::Vector<unsigned> fullIdx;
+    unsigned flatBase{0};
+};
+
+// Ironwail's vertices of the brush models (once a map: a wait for the GPU is fine); false if they can't be read.
+bool readSource(MeshBuild& b)
+{
     if(!getBufferSubData)
     {
         getBufferSubData = reinterpret_cast<GetBufferSubDataFn>(SDL_GL_GetProcAddress("glGetBufferSubData"));
     }
     if(!getBufferSubData || !gl_bmodel_vbo || gl_bmodel_vbo_size < sizeof(glvert_t))
     {
-        return;
+        return false;
     }
-    // Ironwail's vertices of the brush models (once a map: a wait for the GPU is fine)
-    za::Vector<glvert_t> src(gl_bmodel_vbo_size / sizeof(glvert_t));
+    za::Vector<glvert_t>& src = b.src;
+    src.resize(gl_bmodel_vbo_size / sizeof(glvert_t));
     GL_BindBuffer(GL_ARRAY_BUFFER, gl_bmodel_vbo);
     getBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(src.size() * sizeof(glvert_t)), src.data());
+    return true;
+}
 
-    // The world's liquid faces; the level ones (not teleports') in groups: a kind, a side, a height.
-    za::Vector<SrcFace> faces;
-    za::Vector<int> faceOfSurface(static_cast<za::SizeT>(m->numsurfaces), -1);
-    za::Vector<za::Vector<int>> groups;
-    za::Vector<za::Array<int, 3>> groupKeys;
-    double area = 0.;
+// The world's liquid faces; the level ones (not teleports') in groups: a kind, a side, a height.
+void gatherFaces(MeshBuild& b)
+{
+    qmodel_t* m = b.m;
+    const za::Vector<glvert_t>& src = b.src;
+    za::Vector<SrcFace>& faces = b.faces;
+    za::Vector<int>& faceOfSurface = b.faceOfSurface;
+    faceOfSurface = za::Vector<int>(static_cast<za::SizeT>(m->numsurfaces), -1);
+    za::Vector<za::Vector<int>>& groups = b.groups;
+    za::Vector<za::Array<int, 3>>& groupKeys = b.groupKeys;
+    double& area = b.area;
     for(int i = m->firstmodelsurface; i < m->firstmodelsurface + m->nummodelsurfaces; i++)
     {
         const msurface_t& s = m->surfaces[i];
@@ -1050,23 +1094,17 @@ void buildMesh(qmodel_t* m, float cell)
         faceOfSurface[static_cast<za::SizeT>(i)] = static_cast<int>(faces.size());
         faces.pushBack(ZA_MOVE(f));
     }
-    if(faces.empty())
-    {
-        return;
-    }
-    while(area / (static_cast<double>(cell) * cell) > kMaxCells)
-    {
-        cell *= 1.5f;
-    }
+}
 
-    // Each group's rim: the parts of its faces' edges that no other face of the group continues past (sampled every
-    // 2 units, half a unit out).
-    struct Segment
-    {
-        glm::vec2 a, b;
-    };
-    za::Vector<za::Vector<Segment>> rims(groups.size());
-    za::Vector<za::Vector<Segment>> faceRims(faces.size()); // the same, by the face whose edge it is on
+// Each group's rim: the parts of its faces' edges that no other face of the group continues past (sampled every
+// 2 units, half a unit out).
+void findRims(MeshBuild& b)
+{
+    const za::Vector<SrcFace>& faces = b.faces;
+    za::Vector<za::Vector<Segment>>& rims = b.rims;
+    za::Vector<za::Vector<Segment>>& faceRims = b.faceRims;
+    rims.resize(b.groups.size());
+    faceRims.resize(faces.size());
     XYBuckets faceBuckets; // the level faces (insideXY's slack included)
     faceBuckets.build(static_cast<int>(faces.size()), [&](int i, glm::vec2& lo, glm::vec2& hi) {
         const SrcFace& f = faces[static_cast<za::SizeT>(i)];
@@ -1137,13 +1175,13 @@ void buildMesh(qmodel_t* m, float cell)
             }
         }
     }
-    // the rims' segments (with their groups), bucketed by their boxes grown by the pin's reach
-    struct GroupSegment
-    {
-        int group;
-        Segment s;
-    };
-    za::Vector<GroupSegment> allRims;
+}
+
+// The rims' segments (with their groups), bucketed by their boxes grown by the pin's reach.
+void bucketRims(MeshBuild& b)
+{
+    za::Vector<GroupSegment>& allRims = b.allRims;
+    const za::Vector<za::Vector<Segment>>& rims = b.rims;
     for(za::SizeT g = 0; g < rims.size(); ++g)
     {
         for(const Segment& r : rims[g])
@@ -1151,32 +1189,46 @@ void buildMesh(qmodel_t* m, float cell)
             allRims.pushBack(GroupSegment{static_cast<int>(g), r});
         }
     }
-    XYBuckets rimBuckets;
+    XYBuckets& rimBuckets = b.rimBuckets;
     rimBuckets.build(static_cast<int>(allRims.size()), [&](int i, glm::vec2& lo, glm::vec2& hi) {
         const Segment& r = allRims[static_cast<za::SizeT>(i)].s;
         lo = glm::min(r.a, r.b) - kPinDistance;
         hi = glm::max(r.a, r.b) + kPinDistance;
         return true;
     });
-    const auto pinAt = [&](int group, const glm::vec3& p) {
-        const glm::vec2 q(p);
-        float d = kPinDistance; // (the nearest segment's distance: the same whatever order they are looked at in)
-        rimBuckets.at(q, [&](int i) {
-            const GroupSegment& gs = allRims[static_cast<za::SizeT>(i)];
-            const Segment& s = gs.s;
-            if(gs.group != group || q.x < za::min(s.a.x, s.b.x) - d || q.x > za::max(s.a.x, s.b.x) + d ||
-                q.y < za::min(s.a.y, s.b.y) - d || q.y > za::max(s.a.y, s.b.y) + d)
-            {
-                return true;
-            }
-            d = za::min(d, segmentDistance(q, s.a, s.b));
-            return true;
-        });
-        return 1.f + d; // the shaders' pin: smoothstep(1, 1 + kPinDistance); the foam's distance to the shore
-    };
+}
 
-    // The faces, by texture: their vertices, their triangles (cut, or the polygon's fan) and their fans.
-    za::Vector<int> order(faces.size());
+// A vertex's pin (the shaders' smoothstep(1, 1 + kPinDistance); the foam's distance to the shore): 1 + its distance to
+// its group's rim, kPinDistance at most.
+float pinAt(const MeshBuild& b, int group, const glm::vec3& p)
+{
+    const za::Vector<GroupSegment>& allRims = b.allRims;
+    const XYBuckets& rimBuckets = b.rimBuckets;
+    const glm::vec2 q(p);
+    float d = kPinDistance; // (the nearest segment's distance: the same whatever order they are looked at in)
+    rimBuckets.at(q, [&](int i) {
+        const GroupSegment& gs = allRims[static_cast<za::SizeT>(i)];
+        const Segment& s = gs.s;
+        if(gs.group != group || q.x < za::min(s.a.x, s.b.x) - d || q.x > za::max(s.a.x, s.b.x) + d ||
+            q.y < za::min(s.a.y, s.b.y) - d || q.y > za::max(s.a.y, s.b.y) + d)
+        {
+            return true;
+        }
+        d = za::min(d, segmentDistance(q, s.a, s.b));
+        return true;
+    });
+    return 1.f + d; // the shaders' pin: smoothstep(1, 1 + kPinDistance); the foam's distance to the shore
+}
+
+// The faces, by texture: their vertices, their triangles (cut, or the polygon's fan) and their fans.
+// Each face's vertices (shared within the face only) and triangles made on the pool, numbered from 0.
+void makeFaces(MeshBuild& b)
+{
+    const za::Vector<SrcFace>& faces = b.faces;
+    const qmodel_t* m = b.m;
+    const float cell = b.cell;
+    za::Vector<int>& order = b.order;
+    order.resize(faces.size());
     for(za::SizeT i = 0; i < order.size(); i++)
     {
         order[i] = static_cast<int>(i);
@@ -1185,17 +1237,9 @@ void buildMesh(qmodel_t* m, float cell)
         return m->surfaces[faces[static_cast<za::SizeT>(a)].surf].texinfo->texnum <
                m->surfaces[faces[static_cast<za::SizeT>(b)].surf].texinfo->texnum;
     });
-    za::Vector<MeshVert> verts;
-    za::Vector<unsigned> fullIdx;
-    za::Vector<int> meshFaceOf(faces.size());
-    // Each face's vertices (shared within the face only) and triangles made on the pool, numbered from 0; then put
-    // after the faces before it, in order: the same vertices and indices as one face after another.
-    struct FaceMade
-    {
-        za::Vector<MeshVert> verts;
-        za::Vector<unsigned> flat, full;
-    };
-    za::Vector<FaceMade> made(order.size());
+    b.meshFaceOf.resize(faces.size());
+    za::Vector<FaceMade>& made = b.made;
+    made.resize(order.size());
     jobs::parallelFor(meshSite, order.size(), 16, [&](za::SizeT orderBegin, za::SizeT orderEnd) {
         ankerl::unordered_dense::map<za::U64, unsigned> index;
         za::Vector<Poly> strips, pieces;
@@ -1215,7 +1259,7 @@ void buildMesh(qmodel_t* m, float cell)
                     return it->second;
                 }
                 const unsigned v = static_cast<unsigned>(fm.verts.size());
-                fm.verts.pushBack(affine.at(p, !f.level ? 0.f : f.submerged ? -1.f : pinAt(f.group, p)));
+                fm.verts.pushBack(affine.at(p, !f.level ? 0.f : f.submerged ? -1.f : pinAt(b, f.group, p)));
                 index.emplace(key, v);
                 return v;
             };
@@ -1246,8 +1290,21 @@ void buildMesh(qmodel_t* m, float cell)
             }
         }
     });
-    // Where each face's vertices and indices go (the faces in order: the full section, then the level faces' fans),
-    // then everything copied there on the pool.
+}
+
+// Where each face's vertices and indices go (the faces in order: the full section, then the level faces' fans),
+// then everything copied there on the pool: the same vertices and indices as one face after another. The
+// mesh's faces, lava tops and shore made on the way.
+void placeFaces(MeshBuild& b)
+{
+    const qmodel_t* m = b.m;
+    const za::Vector<SrcFace>& faces = b.faces;
+    const za::Vector<int>& order = b.order;
+    const za::Vector<FaceMade>& made = b.made;
+    const za::Vector<za::Vector<Segment>>& faceRims = b.faceRims;
+    za::Vector<int>& meshFaceOf = b.meshFaceOf;
+    za::Vector<MeshVert>& verts = b.verts;
+    za::Vector<unsigned>& fullIdx = b.fullIdx;
     za::Vector<unsigned> vertAt(order.size()), fullAt(order.size()), flatAt(order.size());
     unsigned vertTotal = 0, fullTotal = 0, flatTotal = 0;
     for(za::SizeT k = 0; k < order.size(); k++)
@@ -1320,6 +1377,7 @@ void buildMesh(qmodel_t* m, float cell)
         meshFaceOf[static_cast<za::SizeT>(fi)] = static_cast<int>(mesh.faces.size());
         mesh.faces.pushBack(out);
     }
+    b.flatBase = fullTotal;
     const unsigned flatBase = fullTotal;
     verts.resize(vertTotal);
     fullIdx.resize(static_cast<za::SizeT>(fullTotal) + flatTotal);
@@ -1358,8 +1416,14 @@ void buildMesh(qmodel_t* m, float cell)
             face.flat += flatBase;
         }
     }
+}
 
-    // The leaves each face is in, for the PVS.
+// The leaves each face is in, for the PVS.
+void findLeaves(const MeshBuild& b)
+{
+    const qmodel_t* m = b.m;
+    const za::Vector<int>& faceOfSurface = b.faceOfSurface;
+    const za::Vector<int>& meshFaceOf = b.meshFaceOf;
     za::Vector<za::Vector<int>> faceLeaves(mesh.faces.size());
     for(int i = 1; i <= m->numleafs; i++)
     {
@@ -1380,7 +1444,16 @@ void buildMesh(qmodel_t* m, float cell)
         mesh.faces[i].numLeaves = static_cast<int>(faceLeaves[i].size());
         mesh.leaves.emplaceBackRange(faceLeaves[i].data(), faceLeaves[i].size());
     }
+}
 
+// The mesh's buffers (and, developer 1, its numbers and hash).
+void uploadMesh(const MeshBuild& b)
+{
+    const za::Vector<MeshVert>& verts = b.verts;
+    const za::Vector<unsigned>& fullIdx = b.fullIdx;
+    const za::Vector<za::Vector<Segment>>& rims = b.rims;
+    const unsigned flatBase = b.flatBase;
+    const float cell = b.cell;
     mesh.vbo = GL_CreateBuffer(GL_ARRAY_BUFFER, GL_STATIC_DRAW, "vr liquid mesh verts", verts.size() * sizeof(MeshVert), verts.data());
     mesh.ibo = GL_CreateBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_STATIC_DRAW, "vr liquid mesh indices", fullIdx.size() * sizeof(unsigned),
         fullIdx.data());
@@ -1416,7 +1489,39 @@ void buildMesh(qmodel_t* m, float cell)
             static_cast<int>(mesh.faces.size()), static_cast<int>(verts.size()), static_cast<int>(flatBase / 3), cell,
             static_cast<int>(rimCount), hash);
     }
-    recordPins(verts, cell); // the surface's height on the CPU (surfaceRise)
+}
+
+void buildMesh(qmodel_t* m, float cell)
+{
+    freeMesh();
+    mesh.model = m;
+    q_strlcpy(mesh.name, m->name, sizeof(mesh.name));
+    mesh.cell = cell;
+    mesh.built = true;
+
+    MeshBuild b;
+    b.m = m;
+    b.cell = cell;
+    if(!readSource(b))
+    {
+        return;
+    }
+    gatherFaces(b);
+    if(b.faces.empty())
+    {
+        return;
+    }
+    while(b.area / (static_cast<double>(b.cell) * b.cell) > kMaxCells)
+    {
+        b.cell *= 1.5f;
+    }
+    findRims(b);
+    bucketRims(b);
+    makeFaces(b);
+    placeFaces(b);
+    findLeaves(b);
+    uploadMesh(b);
+    recordPins(b.verts, b.cell); // the surface's height on the CPU (surfaceRise)
 }
 
 // The mesh for this map and cell size, built if need be; false if the waves are off or it has nothing.
@@ -1701,9 +1806,7 @@ void fillRipples()
                 continue;
             }
             float* at = r_framedata.rippleat[n];
-            at[0] = e.at.x;
-            at[1] = e.at.y;
-            at[2] = e.at.z;
+            geom::store(e.at, at);
             at[3] = age;
             r_framedata.rippleamp[n >> 2][n & 3] = h;
             n++;

@@ -878,12 +878,10 @@ void serverFrame()
         return;
     }
     QVR_PROFILE("axe stick");
-    for(int num = 1; num < qcvm->num_edicts; num++)
-    {
-        edict_t* ent = EDICT_NUM(num);
-        if(ent->free || fieldFloat(ent, f.vr_stick_kind) <= 0.f || static_cast<int>(ent->v.movetype) != MOVETYPE_NONE)
+    progs::forEachEdict(1, [&](edict_t* ent) {
+        if(fieldFloat(ent, f.vr_stick_kind) <= 0.f || static_cast<int>(ent->v.movetype) != MOVETYPE_NONE)
         {
-            continue;
+            return;
         }
         const Blade* blade = bladeOf(ent);
         edict_t* host = PROG_TO_EDICT(fieldInt(ent, f.vr_stick_ent));
@@ -891,12 +889,12 @@ void serverFrame()
         glm::mat3 axes;
         if(!blade || !frameOf(host, static_cast<int>(fieldFloat(ent, f.vr_stick_kind)), fieldVec(ent, f.vr_stick_anchor), point, axes))
         {
-            continue; // (gone, or its model can't say: QC drops it)
+            return; // (gone, or its model can't say: QC drops it)
         }
         const glm::vec3 ang = fieldVec(ent, f.vr_stick_ang);
         const float a[3]{ang.x, ang.y, ang.z};
         place(ent, *blade, point + axes * fieldVec(ent, f.vr_stick_ofs), axes * held::axesFromAngles(a, true));
-    }
+    });
 }
 
 } // namespace qvr::axestick

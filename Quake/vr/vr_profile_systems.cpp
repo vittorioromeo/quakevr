@@ -15,6 +15,7 @@
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
+#include "vr_progs.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 
@@ -420,13 +421,11 @@ void readQuakeC(Second& s)
     constexpr za::SizeT keep = 8;
     const za::SizeT n = za::min(keep, ran.size());
     za::quickSort(ran.begin(), ran.end(), [](const Ran& a, const Ran& b) { return a.instructions > b.instructions; });
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old);
+    progs::ServerVm serverVm;
     for(za::SizeT k = 0; k < n; k++)
     {
         s.qcTop.pushBack({PR_GetString(sv.qcvm.functions[ran[k].function].s_name), static_cast<double>(ran[k].instructions)});
     }
-    PR_PopQCVM(old);
 }
 
 // ---- The CSV capture (vr_profile_csv) ----

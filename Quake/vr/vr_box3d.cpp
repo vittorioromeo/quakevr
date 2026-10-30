@@ -112,8 +112,8 @@ void localBox(edict_t* ent, qmodel_t* model, glm::vec3& lo, glm::vec3& hi)
 {
     if(model && model->type == mod_brush && isSolidProp(ent))
     {
-        lo = glm::vec3{model->mins[0], model->mins[1], model->mins[2]}; // (its Quake box follows its turn: solidBox)
-        hi = glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]};
+        lo = geom::vec(model->mins); // (its Quake box follows its turn: solidBox)
+        hi = geom::vec(model->maxs);
         const float size = props::drawnSize(model); // its Size (Held Object Offsets; the alias models': modelBox)
         lo *= size;
         hi *= size;

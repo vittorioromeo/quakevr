@@ -435,17 +435,14 @@ void status_f()
         Con_Printf("vr_body_contact_status: no game\n");
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm); // a console command: no VM is current
+    progs::ServerVm vm; // a console command: no VM is current
     edict_t* p = EDICT_NUM(1);
     edict_t* best = nullptr;
     float bestDist = ZA_FLOAT_INFINITY;
-    for(int e = svs.maxclients + 1; e < qcvm->num_edicts; ++e)
-    {
-        edict_t* m = EDICT_NUM(e);
-        if(m->free || !isMonster(m) || m->v.health <= 0.f)
+    progs::forEachEdict(svs.maxclients + 1, [&](edict_t* m) {
+        if(!isMonster(m) || m->v.health <= 0.f)
         {
-            continue;
+            return;
         }
         glm::vec3 d = vec(m->v.origin) - vec(p->v.origin);
         d.z = 0.f;
@@ -455,7 +452,7 @@ void status_f()
             bestDist = dist;
             best = m;
         }
-    }
+    });
     if(!best)
     {
         Con_Printf("body contact: no live monster (inset %.1f, step in %d)\n", static_cast<double>(insetSetting()),
@@ -473,7 +470,6 @@ void status_f()
             static_cast<double>(insetSetting()), stepInOn() ? 1 : 0, static_cast<double>(stepInDepth()),
             foegrab::holds(p, best) ? 1 : 0);
     }
-    PR_PopQCVM(oldvm);
 }
 
 // Show Melee Arcs (vr_enemy_melee_arc_show): the melee monsters QC's VR_MeleeArc_ShowFrame set this frame (fight.qc),
@@ -740,20 +736,18 @@ void qvr::bodycontact::serverFrame()
             continue;
         }
         const glm::vec3 head = headOf(p);
-        for(int e = svs.maxclients + 1; e < qcvm->num_edicts; ++e)
-        {
-            edict_t* m = EDICT_NUM(e);
-            if(m->free || !isMonster(m) || m->v.health <= 0.f)
+        progs::forEachEdict(svs.maxclients + 1, [&](edict_t* m) {
+            if(!isMonster(m) || m->v.health <= 0.f)
             {
-                continue;
+                return;
             }
             meleeSpace(p, m, head, dt);
             if(!anyOn() || !within(p, m, nearReach) || steppedIn(p, m))
             {
-                continue;
+                return;
             }
             (void)pushApart(p, m, dt);
-        }
+        });
     }
 }
 

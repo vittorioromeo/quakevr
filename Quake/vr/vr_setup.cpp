@@ -15,6 +15,7 @@
 #include "vr_still.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -206,11 +207,11 @@ void drawOptionScreens()
         const eval_t* const p = pos1Field >= 0 ? GetEdictFieldValue(e, pos1Field) : nullptr;
         if(p && !strcmp(PR_GetString(e->v.classname), "func_button"))
         {
-            moved = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]} -
-                    glm::vec3{p->vector[0], p->vector[1], p->vector[2]};
+            moved = geom::vec(e->v.origin) -
+                    geom::vec(p->vector);
         }
-        lo = glm::vec3{e->v.absmin[0], e->v.absmin[1], e->v.absmin[2]} - moved;
-        hi = glm::vec3{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]} - moved;
+        lo = geom::vec(e->v.absmin) - moved;
+        hi = geom::vec(e->v.absmax) - moved;
     };
     listOptionScreens();
     for(const int i : optionScreens.nums)

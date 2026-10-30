@@ -4,6 +4,7 @@
 // the view direction, as the old geometry shader built them.
 
 #include "vr_random.hpp"
+#include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_trace.hpp"
 #include "vr_particles.hpp"
@@ -667,7 +668,7 @@ void run()
         // A drop falling to its liquid: the surface where it is, raised or sunk by the waves and ripples (close to it).
         if(p.liquid && !p.flat && p.vel.z < 0.f && p.org.z < p.floor + 48.f)
         {
-            p.rise = water::surfaceRise({p.org.x, p.org.y, p.floor + 0.5f}, p.liquid, glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]});
+            p.rise = water::surfaceRise({p.org.x, p.org.y, p.floor + 0.5f}, p.liquid, geom::vec(r_refdef.vieworg));
         }
         // A drop going back into its liquid: a little ring where it went in (added after the loop).
         if(p.plink && p.org.z < p.floor + p.rise && p.vel.z < 0.f && p.die >= cl.time && plinks.size() < 48)
@@ -2164,7 +2165,7 @@ void mistTest_f()
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     const float dist = Cmd_Argc() > 1 ? static_cast<float>(atof(Cmd_Argv(1))) : 64.f;
     const int before = liveCount();
-    bloodMist(eye + glm::vec3{fwd[0], fwd[1], fwd[2]} * dist, glm::vec3{right[0], right[1], right[2]}, 20);
+    bloodMist(eye + geom::vec(fwd) * dist, geom::vec(right), 20);
     Con_Printf("vr_gore_mist_test: %d clouds %.0f units ahead\n", liveCount() - before, static_cast<double>(dist));
 }
 
@@ -2175,9 +2176,9 @@ void bloodSprayTest_f()
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     const float dist = Cmd_Argc() > 1 ? static_cast<float>(atof(Cmd_Argv(1))) : 64.f;
     const int count = Cmd_Argc() > 2 ? atoi(Cmd_Argv(2)) : 30;
-    const glm::vec3 at = eye + glm::vec3{fwd[0], fwd[1], fwd[2]} * dist;
+    const glm::vec3 at = eye + geom::vec(fwd) * dist;
     const int before = liveCount();
-    (void)spawn(at, glm::vec3{right[0], right[1], right[2]}, Preset::Blood, count);
+    (void)spawn(at, geom::vec(right), Preset::Blood, count);
     Con_Printf("vr_water_blood_spray: %d particles %.0f units ahead, %s\n", liveCount() - before, static_cast<double>(dist),
         water::bloodInLiquid(at) ? "in a liquid" : "in the air");
 }
@@ -3247,7 +3248,7 @@ void lightmapOf(Particle& p, za::SizeT index, LightStats& st)
         p.lightKnown = true;
         return;
     }
-    const glm::vec3 d = glm::abs(p.org - glm::vec3{p.lightCache.pos[0], p.lightCache.pos[1], p.lightCache.pos[2]});
+    const glm::vec3 d = glm::abs(p.org - geom::vec(p.lightCache.pos));
     if(p.lightKnown && za::max(d.x, d.y) < retraceDistance && d.z < retraceRise)
     {
         // The light styles' flicker: the cached place's texels read again (no trace), a quarter of them each frame,

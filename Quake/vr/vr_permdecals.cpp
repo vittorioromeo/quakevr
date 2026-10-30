@@ -1,6 +1,7 @@
 // vr_permdecals.cpp -- see vr_permdecals.hpp.
 
 #include "vr_permdecals.hpp"
+#include "vr_geom.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
 #include "vr_engine.hpp"
@@ -465,7 +466,7 @@ bool bakeFace(const qmodel_t* m, int index, const Stamp& s, const Frame& f, bool
         return false;
     }
     const float flip = (surf.flags & SURF_PLANEBACK) ? -1.f : 1.f;
-    const glm::vec3 sn = glm::vec3{surf.plane->normal[0], surf.plane->normal[1], surf.plane->normal[2]} * flip;
+    const glm::vec3 sn = geom::vec(surf.plane->normal) * flip;
     const float off = glm::dot(s.centre, sn) - surf.plane->dist * flip;
     if(glm::dot(sn, s.normal) < 0.5f || za::fabs(off) > s.depth)
     {
@@ -858,9 +859,9 @@ int bakeEntities(const Stamp& s, double due)
             continue;
         }
         // Far from it (its box's middle where drawn, roughly: its origin's offset), not looked at further.
-        const glm::vec3 middle = glm::vec3{e->origin[0], e->origin[1], e->origin[2]} +
-                                 (glm::vec3{m->mins[0], m->mins[1], m->mins[2]} + glm::vec3{m->maxs[0], m->maxs[1], m->maxs[2]}) * 0.5f;
-        const float half = glm::length(glm::vec3{m->maxs[0], m->maxs[1], m->maxs[2]} - glm::vec3{m->mins[0], m->mins[1], m->mins[2]}) * 0.5f;
+        const glm::vec3 middle = geom::vec(e->origin) +
+                                 (geom::vec(m->mins) + geom::vec(m->maxs)) * 0.5f;
+        const float half = glm::length(geom::vec(m->maxs) - geom::vec(m->mins)) * 0.5f;
         if(glm::distance(middle, s.centre) > half * za::max(1.f, e->scale > 0 ? static_cast<float>(e->scale) / 16.f : 1.f) +
                                                  glm::length(s.u) + glm::length(s.v) + s.depth + 64.f)
         {
@@ -1417,7 +1418,7 @@ extern "C" void VR_PermDecalsLayout(void)
         }
         const glm::vec3 n{s.plane->normal[0], s.plane->normal[1], s.plane->normal[2]};
         const float* sv = s.texinfo->vecs[0];
-        glm::vec3 t = glm::vec3{sv[0], sv[1], sv[2]};
+        glm::vec3 t = geom::vec(sv);
         t -= n * glm::dot(t, n);
         if(glm::length(t) < 1e-4f)
         {

@@ -1923,7 +1923,7 @@ void buildGeometry()
     {
         const trivertx_t& t = base[v];
         st.restVerts[static_cast<za::SizeT>(v)] = glm::vec3{t.v[0], t.v[1], t.v[2]} * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]} +
-                                                  glm::vec3{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+                                                  geom::vec(hdr->scale_origin);
     }
     st.tris.clear();
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
@@ -2235,7 +2235,7 @@ void viewport()
                     glm::vec3 local = target;
                     if(e)
                     {
-                        local = toModelDir(target - glm::vec3{e->origin[0], e->origin[1], e->origin[2]});
+                        local = toModelDir(target - geom::vec(e->origin));
                     }
                     solveIk(st.ikChain, local);
                 }

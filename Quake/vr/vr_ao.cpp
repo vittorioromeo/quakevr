@@ -1,8 +1,10 @@
 // vr_ao.cpp -- dynamic ambient occlusion: see vr_ao.hpp.
 
 #include "vr_diskcache.hpp"
+#include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_ao.hpp"
+#include "vr_ao_internal.hpp"
 #include "vr_portals.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_render.hpp"
@@ -66,6 +68,7 @@ __declspec(dllimport) int __stdcall GetThreadPriority(void* thread);
 }
 
 using namespace qvr;
+using namespace qvr::ao::detail;
 
 namespace
 {
@@ -589,8 +592,8 @@ void addBrush(const entity_t* e, float strength)
     R_EntityMatrix(m, origin, angles, e->scale);
     VR_BrushTransform(e, m);
     Occluder o;
-    shapeFromBox(m, glm::vec3{model->mins[0], model->mins[1], model->mins[2]},
-        glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]}, glm::vec3{1.f}, o);
+    shapeFromBox(m, geom::vec(model->mins),
+        geom::vec(model->maxs), glm::vec3{1.f}, o);
     o.box = true;
     o.strength = strength * 0.75f; // big boxes close by fill much of a wall's hemisphere: a little lighter than the ellipsoids
     o.reach = za::clamp(za::max(o.size.x, o.size.y, o.size.z) * 0.6f, 16.f, 64.f);
@@ -802,14 +805,6 @@ void binTiles(const float* m)
 // ----------------------------------------------------------------------------
 // Per-vertex occlusion baked into Quake models.
 
-constexpr int RAYS = 24;
-// The bake's other numbers (all of them: the disk cache's key holds them and the rays, so a change here bakes again).
-constexpr float REACH_SHARE = 0.125f; // reach: this share of the first pose's diagonal ...
-constexpr float REACH_MIN = 1.f;      // ... within these units
-constexpr float REACH_MAX = 16.f;
-constexpr float NEAREST_SHARE = 0.02f; // hits nearer than this share of the reach are left out
-constexpr float LIFT_SHARE = 0.03f;    // the rays start this share of the reach off the surface, along its normal
-
 struct Baked
 {
     za::U64 hash{0};
@@ -861,13 +856,16 @@ za::Array<glm::vec3, RAYS> rayDirections()
     }
     return d;
 }
+} // namespace
+
+namespace qvr::ao::detail
+{
 // Made before main and never changed: read by the bake's pose threads at once.
 const za::Array<glm::vec3, RAYS> rayDirs = rayDirections();
+} // namespace qvr::ao::detail
 
-struct Tri
+namespace
 {
-    za::U16 v[3];
-};
 
 struct PoseJob
 {
@@ -1391,27 +1389,6 @@ namespace
 // its vertex buffer is built again (integrateBakes, each frame).
 constexpr int BAKE_THREADS = 4;
 
-struct BakeJob
-{
-    za::String name;
-    qmodel_t* model{nullptr};
-    za::U64 hash{0};
-    int numverts{0};
-    int numposes{0};
-    za::Vector<trivertx_t> verts;
-    za::Vector<Tri> tris;
-    glm::vec3 scale{1.f}, origin{0.f};
-    za::Vector<unsigned char> vis;
-    double seconds{0.0};
-    // The disk cache (vr_ao_cache, read when it was queued): its folder, and what the bake task did with it.
-    int cacheMode{0};
-    bool fromDisk{false}; // read, not baked
-    bool rejected{false}; // a file was there, but not a whole one of this model's (baked again, and written over)
-    bool written{false};
-    int checked{0};       // vr_ao_cache 2: baked anyway and compared with the file: 1 the same, -1 different
-    bool aborted{false};  // the game stopped part way
-};
-
 struct BakeQueue
 {
     za::AtomicMutex mutex;
@@ -1431,10 +1408,6 @@ BakeQueue& bakeQueue()
     return *theBakeQueue;
 }
 
-// The AO's FNV-1a start: FNV's offset basis a digit short (14695981039346656037 without its last 7). Kept: the files'
-// payload hashes (FileHeader::payloadHash) are made with it.
-constexpr za::U64 aoFnvStart = 1469598103934665603ull;
-
 // FNV-1a of a model's poses, triangles and scale: the same name from another game folder is another model.
 za::U64 modelHash(const aliashdr_t* hdr)
 {
@@ -1443,141 +1416,6 @@ za::U64 modelHash(const aliashdr_t* hdr)
         static_cast<size_t>(hdr->numposes) * hdr->numverts * sizeof(trivertx_t));
     h = diskcache::fnv(h, reinterpret_cast<const byte*>(hdr) + hdr->indexes, static_cast<size_t>(hdr->numindexes) * sizeof(unsigned short));
     return diskcache::fnv(h, hdr->scale, sizeof(hdr->scale));
-}
-
-// ----------------------------------------------------------------------------
-// The bakes kept on disk (vr_ao_cache): `<cache root>/ao/v<BAKE_VERSION>/<key>.ao` (vr_diskcache.hpp), beside the normal
-// maps' and the hulls' caches. <key> is the SHA-256 of everything a bake reads: its numbers (RAYS, the shares,
-// the rays' directions), Quake's vertex normals, and the model's poses (with their normal indices), triangles, scale
-// and origin; so a changed model, or changed numbers, never reads an old file. A file is read and checked (magic,
-// version, sizes, the whole key, its bytes' FNV-1a) on the bake task's thread, never the main thread; anything amiss
-// is baked again and written over. Written beside its place and renamed (another copy of the game never reads half a
-// file). The bake task's first write in each game directory removes the other versions' folders, and the oldest files
-// past CACHE_BUDGET.
-
-// Bump it when the bake's bytes or the file's layout change (not for a faster bake of the same bytes: the grid and the
-// SIMD rays of 2026-10-06 kept version 1, checked against the reference and the files).
-constexpr za::U32 BAKE_VERSION = 1;
-constexpr za::U64 CACHE_BUDGET = 64ull << 20; // bytes in the version's folder (a game's full set is a few MB)
-constexpr char FILE_MAGIC[4] = {'Q', 'V', 'R', 'A'};
-
-struct FileHeader
-{
-    char magic[4];
-    za::U32 version;
-    za::U32 numverts;
-    za::U32 numposes;
-    za::U8 key[32];
-    za::U64 payloadBytes;
-    za::U64 payloadHash; // FNV-1a (64-bit) of the payload: numposes x numverts bytes, the poses in turn
-};
-static_assert(sizeof(FileHeader) == 64);
-
-[[nodiscard]] za::U64 fnv64(const unsigned char* b, size_t n)
-{
-    return diskcache::fnv(aoFnvStart, b, n);
-}
-
-[[nodiscard]] sha256::Digest bakeKey(const BakeJob& job)
-{
-    za::Vector<unsigned char> bytes;
-    const auto put = [&bytes](const void* data, size_t n) {
-        const size_t at = bytes.size();
-        bytes.resize(at + n);
-        memcpy(bytes.data() + at, data, n);
-    };
-    const char tag[8] = {'q', 'v', 'r', 'a', 'o', 'k', 'e', 'y'};
-    put(tag, sizeof(tag));
-    const za::U32 counts[5] = {BAKE_VERSION, static_cast<za::U32>(RAYS), static_cast<za::U32>(job.numverts),
-        static_cast<za::U32>(job.numposes), static_cast<za::U32>(job.tris.size())};
-    put(counts, sizeof(counts));
-    const float numbers[5] = {REACH_SHARE, REACH_MIN, REACH_MAX, NEAREST_SHARE, LIFT_SHARE};
-    put(numbers, sizeof(numbers));
-    put(rayDirs.data(), sizeof(glm::vec3) * RAYS);
-    put(r_avertexnormals, sizeof(r_avertexnormals));
-    put(&job.scale, sizeof(job.scale));
-    put(&job.origin, sizeof(job.origin));
-    put(job.verts.data(), job.verts.size() * sizeof(trivertx_t));
-    put(job.tris.data(), job.tris.size() * sizeof(Tri));
-    return sha256::of(bytes.data(), bytes.size());
-}
-
-// The version's folder (vr_diskcache.cpp's root, shared by every game folder).
-[[nodiscard]] za::String buildName()
-{
-    char keep[16];
-    snprintf(keep, sizeof(keep), "v%u", BAKE_VERSION);
-    return keep;
-}
-
-[[nodiscard]] za::String versionDir()
-{
-    return diskcache::folderOf(diskcache::Product::AO, buildName().cStr());
-}
-
-[[nodiscard]] za::String fileFor(const sha256::Digest& key)
-{
-    char hex[65];
-    sha256::toHex(key, hex);
-    hex[32] = '\0'; // (128 bits name it; the whole key is checked in the file)
-    return versionDir() + "/" + hex + ".ao";
-}
-
-enum class FileRead
-{
-    Missing,
-    Rejected,
-    Read
-};
-
-// The model's file, checked whole: its bytes into `vis` (numposes x numverts).
-[[nodiscard]] FileRead readBake(const za::String& path, const BakeJob& job, const sha256::Digest& key, za::Vector<unsigned char>& vis)
-{
-    FILE* in = Sys_fopen(path.cStr(), "rb");
-    if(!in)
-    {
-        return FileRead::Missing;
-    }
-    const size_t count = static_cast<size_t>(job.numposes) * job.numverts;
-    FileHeader h;
-    bool ok = fread(&h, 1, sizeof(h), in) == sizeof(h) && memcmp(h.magic, FILE_MAGIC, 4) == 0 && h.version == BAKE_VERSION &&
-              h.numverts == static_cast<za::U32>(job.numverts) && h.numposes == static_cast<za::U32>(job.numposes) &&
-              memcmp(h.key, key.bytes, sizeof(h.key)) == 0 && h.payloadBytes == count;
-    if(ok)
-    {
-        vis.resize(count);
-        char extra;
-        ok = fread(vis.data(), 1, count, in) == count && fread(&extra, 1, 1, in) == 0 && fnv64(vis.data(), count) == h.payloadHash;
-    }
-    fclose(in);
-    return ok ? FileRead::Read : FileRead::Rejected;
-}
-
-[[nodiscard]] bool writeBake(const za::String& path, const BakeJob& job, const sha256::Digest& key)
-{
-    FileHeader h{};
-    memcpy(h.magic, FILE_MAGIC, 4);
-    h.version = BAKE_VERSION;
-    h.numverts = static_cast<za::U32>(job.numverts);
-    h.numposes = static_cast<za::U32>(job.numposes);
-    memcpy(h.key, key.bytes, sizeof(h.key));
-    h.payloadBytes = job.vis.size();
-    h.payloadHash = fnv64(job.vis.data(), job.vis.size());
-    const diskcache::Part parts[] = {{&h, sizeof(h)}, {job.vis.data(), job.vis.size()}};
-    if(!diskcache::writeAtomic(path, parts, 2))
-    {
-        return false;
-    }
-    diskcache::noteWrite(diskcache::Product::AO, sizeof(h) + job.vis.size());
-    return true;
-}
-
-// The version's folder made ready (once a session: the other versions' folders removed, then the oldest files past
-// its budget, CACHE_BUDGET; vr_diskcache.cpp).
-void pruneOnce()
-{
-    static_assert(CACHE_BUDGET == 64ull << 20, "vr_diskcache.cpp's products table keeps the AO's budget");
-    (void)diskcache::prepare(diskcache::Product::AO, buildName().cStr());
 }
 
 // The bakes run below the game's threads, so that one finishing after a map has loaded never takes a frame's time: the

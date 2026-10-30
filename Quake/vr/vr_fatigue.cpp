@@ -178,8 +178,7 @@ void serverFrame()
     {
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm serverVm;
     if(edict_t* ent = player())
     {
         if(heldAt < 0.f)
@@ -188,7 +187,6 @@ void serverFrame()
         }
         setStamina(ent, heldAt);
     }
-    PR_PopQCVM(oldvm);
 }
 
 void registerCommands()

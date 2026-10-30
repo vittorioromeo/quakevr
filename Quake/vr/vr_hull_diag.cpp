@@ -3,6 +3,7 @@
 // Split from vr_hull.cpp (a pure move); what they share is in vr_hull_internal.hpp.
 
 #include "vr_random.hpp"
+#include "vr_geom.hpp"
 #include "vr_hull_internal.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_brushes.hpp"
@@ -448,8 +449,8 @@ void bench_f()
             {
                 // Hull 0's points in the box half a unit into the face hull 1 stopped at: none, and hull 1 has solid that
                 // hull 0 has not (a clip brush).
-                const glm::vec3 past = glm::vec3{stock[i].endpos[0], stock[i].endpos[1], stock[i].endpos[2]} +
-                                       glm::vec3{stock[i].plane.normal[0], stock[i].plane.normal[1], stock[i].plane.normal[2]} * -0.5f;
+                const glm::vec3 past = geom::vec(stock[i].endpos) +
+                                       geom::vec(stock[i].plane.normal) * -0.5f;
                 int key = -1;
                 for(int num = hull1->firstclipnode; num >= 0;)
                 {
@@ -927,7 +928,7 @@ void monsterWalk_f()
         MonsterWalk::Mon m;
         m.num = i;
         m.cls = cls;
-        m.last = m.windowStart = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+        m.last = m.windowStart = geom::vec(e->v.origin);
         m.windowUntil = sv.qcvm.time + 2.0;
         m.lastGoal = e->v.goalentity;
         m.patrols = e->v.goalentity && !strcmp(PR_GetString(PROG_TO_EDICT(e->v.goalentity)->v.classname), "path_corner");
@@ -1026,7 +1027,7 @@ void leafDebug_f()
     const glm::dvec3 c = glm::dvec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} +
                          (glm::dvec3{lo[0], lo[1], lo[2]} + glm::dvec3{hi[0], hi[1], hi[2]}) * 0.5;
     Tree t;
-    t.ext = (glm::vec3{hi[0], hi[1], hi[2]} - glm::vec3{lo[0], lo[1], lo[2]}) * 0.5f;
+    t.ext = (geom::vec(hi) - geom::vec(lo)) * 0.5f;
     t.heads.clear();
     t.heads.resize(b->subs.size(), -1);
     buildTree(t, *b, 0, &c);
@@ -1106,8 +1107,7 @@ void hitTest_f()
         Con_Printf("vr_hull_hittest [distance] [spread]: needs a map\n");
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm vm;
     const float dist = Cmd_Argc() > 1 ? static_cast<float>(Q_atof(Cmd_Argv(1))) : 300.f;
     const float spread = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 0.1f;
     edict_t* player = EDICT_NUM(1);
@@ -1140,7 +1140,6 @@ void hitTest_f()
     const float w = hitWidthSetting();
     Con_Printf("hullhit: width %g, distance %g, spread %g: %d of %d shots hit (%d directions)\n",
         w > 0.f ? w : 32.f, dist, spread, hits, shots, dirs);
-    PR_PopQCVM(oldvm);
 }
 
 void approachRun();
@@ -1151,10 +1150,8 @@ void approach_f()
     {
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm); // a console command: no VM is current
+    progs::ServerVm vm; // a console command: no VM is current
     approachRun();
-    PR_PopQCVM(oldvm);
 }
 
 void approachRun()
@@ -1290,18 +1287,14 @@ void walkTest_f()
     // at its camera spot (in a ceiling, often) and frozen there.
     if(sv.active)
     {
-        qcvm_t* oldvm = nullptr;
-        PR_PushQCVM(&sv.qcvm, &oldvm);
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)
-        {
-            edict_t* e = EDICT_NUM(i);
-            if(!e->free && !strcmp(PR_GetString(e->v.classname), "trigger_changelevel"))
+        progs::ServerVm vm;
+        progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
+            if(!strcmp(PR_GetString(e->v.classname), "trigger_changelevel"))
             {
                 e->v.solid = SOLID_NOT;
                 SV_LinkEdict(e, false);
             }
-        }
-        PR_PopQCVM(oldvm);
+        });
     }
 }
 
@@ -1324,10 +1317,8 @@ void preloadTest_f()
     const auto random = [&seed] { seed = seed * 1664525u + 1013904223u; return static_cast<float>(seed >> 8) / 8388608.f - 1.f; };
     za::Vector<za::SizeT> wantedSubs; // (the prepared ones: those that can collide)
     {
-        qcvm_t* oldVm = nullptr;
-        PR_PushQCVM(&sv.qcvm, &oldVm);
+        progs::ServerVm vm;
         collidingSubs(wantedSubs);
-        PR_PopQCVM(oldVm);
     }
     for(const Tree* cached : sizes)
     {

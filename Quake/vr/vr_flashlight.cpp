@@ -19,6 +19,7 @@
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_timescale.hpp"
+#include "vr_progs.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -778,7 +779,7 @@ ankerl::unordered_dense::map<za::String, GunSpot> gunSpots;
         const view::ViewEntity* ve = view::find(cl_visedicts[i]);
         if(ve && ve->ent.model == m.model && ve->mirrored == m.mirrored)
         {
-            const float d = glm::distance(glm::vec3{ve->ent.origin[0], ve->ent.origin[1], ve->ent.origin[2]}, m.pos);
+            const float d = glm::distance(geom::vec(ve->ent.origin), m.pos);
             if(d < nearest)
             {
                 nearest = d;
@@ -2965,8 +2966,7 @@ void reset()
 void saveState()
 {
     if(!sv.active || svs.maxclients != 1 || st.restorePending || cl.intermission) { return; }
-    qcvm_t* previous;
-    PR_PushQCVM(&sv.qcvm, &previous);
+    progs::ServerVm serverVm;
     eval_t* field = GetEdictFieldValueByName(EDICT_NUM(1), "vr_flashlight_state");
     if(field)
     {
@@ -2977,7 +2977,6 @@ void saveState()
             (unsigned(st.overhead[1]) << 10) | (unsigned(za::clamp(st.gunSlot + 1, 0, 255)) << 11);
         field->_float = static_cast<float>(packed);
     }
-    PR_PopQCVM(previous);
 }
 
 void restoreState()

@@ -4,6 +4,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_audiosim.hpp"
 #include "vr_brushes.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Erase.hpp"
@@ -172,7 +173,7 @@ void appendBrushModel(const qmodel_t* model, Mesh& out, float unitsPerMetre)
             const int edge = model->surfedges[surf->firstedge + e];
             const float* v = edge >= 0 ? model->vertexes[model->edges[edge].v[0]].position
                                        : model->vertexes[model->edges[-edge].v[1]].position;
-            points[e] = glm::vec3{v[0], v[1], v[2]};
+            points[e] = geom::vec(v);
         }
         glm::vec3 normal{surf->plane->normal[0], surf->plane->normal[1], surf->plane->normal[2]};
         if(surf->flags & SURF_PLANEBACK)
@@ -911,7 +912,7 @@ int trackBrushEntities(Simulation& sim, float unitsPerMetre)
                 t.elements[row][c] = sg[row] * col[qa[c]][qa[row]] * sg[c];
             }
         }
-        const IPLVector3 o = toSteam(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, unitsPerMetre);
+        const IPLVector3 o = toSteam(geom::vec(e->origin), unitsPerMetre);
         t.elements[0][3] = o.x;
         t.elements[1][3] = o.y;
         t.elements[2][3] = o.z;

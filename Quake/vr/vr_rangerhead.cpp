@@ -1,6 +1,7 @@
 // vr_rangerhead.cpp -- the body's head made of the Quake ranger's: see vr_rangerhead.hpp.
 
 #include "vr_rangerhead.hpp"
+#include "vr_geom.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
@@ -724,7 +725,7 @@ void writeHead(const Placed& p, const Pose& q, iqmvert_t* v, bool normals)
         return;
     }
     iqmvert_t* h = v + p.first;
-    const auto at = [&](size_t i) { return glm::vec3{h[i].xyz[0], h[i].xyz[1], h[i].xyz[2]}; };
+    const auto at = [&](size_t i) { return geom::vec(h[i].xyz); };
     za::Vector<unsigned short> weld;
     weld.resize(n);
     for(size_t i = 0; i < n; i++)
@@ -943,7 +944,7 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, const char* shade
     const auto volume = [](const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& o) {
         return glm::dot(a - o, glm::cross(b - o, c - o));
     };
-    const auto at = [&](int i) { return glm::vec3{out[i].xyz[0], out[i].xyz[1], out[i].xyz[2]}; };
+    const auto at = [&](int i) { return geom::vec(out[i].xyz); };
     float placeholderVolume = 0.f;
     int kept = 0;
     for(int t = 0; t + 2 < ni; t += 3)
@@ -1027,7 +1028,7 @@ extern "C" int VR_RangerHeadMesh(void* mod, const char* model, const char* shade
         {
             ringZ = p->ring.empty() ? out[i].xyz[2] : za::min(ringZ, out[i].xyz[2]);
             p->ring.pushBack(static_cast<unsigned short>(i));
-            p->ringBase.pushBack(glm::vec3{out[i].xyz[0], out[i].xyz[1], out[i].xyz[2]});
+            p->ringBase.pushBack(geom::vec(out[i].xyz));
         }
     }
     p->ringDropMax = neckCount ? za::max(0.f, ringZ - neckMaxs.z - ringClearance) : 0.f;

@@ -6,6 +6,7 @@
 // over), each from a random point of its triangles as drawn now (vr_modelcollide.cpp), most from the parts facing up.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_geom.hpp"
 #include "vr_smoulder.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_shock.hpp"
@@ -233,7 +234,7 @@ void test_f()
     {
         const entity_t& ent = cl_entities[num];
         if(!ent.model || ent.model->type != mod_alias || ent.msgtime < cl.mtime[0] - 0.001 ||
-           glm::distance(glm::vec3{ent.origin[0], ent.origin[1], ent.origin[2]}, eye) > 1000.f)
+           glm::distance(geom::vec(ent.origin), eye) > 1000.f)
         {
             continue;
         }

@@ -14,6 +14,7 @@
 #include "vr_server.hpp"
 #include "vr_move.hpp"
 #include "vr_view.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -192,8 +193,8 @@ ankerl::unordered_dense::map<int, LetGo> letGo;
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
     const bool brush = model && model->type == mod_brush;
-    const glm::vec3 lo = brush ? glm::vec3{model->mins[0], model->mins[1], model->mins[2]} : glm::vec3{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
-    const glm::vec3 hi = brush ? glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]} : glm::vec3{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+    const glm::vec3 lo = brush ? geom::vec(model->mins) : geom::vec(ent->v.mins);
+    const glm::vec3 hi = brush ? geom::vec(model->maxs) : geom::vec(ent->v.maxs);
     const glm::vec3 local = glm::inverse(object.rot) * (at - object.pos);
     return glm::all(glm::greaterThanEqual(local, lo - glm::vec3{grow})) && glm::all(glm::lessThanEqual(local, hi + glm::vec3{grow}));
 }
@@ -314,7 +315,7 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
     {
         w.blocked = qcvm->time;
     }
-    w.placedBody = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    w.placedBody = geom::vec(player->v.origin);
     w.placed = true;
     return object.pos;
 }
@@ -473,7 +474,7 @@ glm::vec3 bodyPlace(edict_t* ent, edict_t* player, const glm::vec3& target)
 {
     const glm::quat rot = fromAngles(ent->v.angles, brushModel(ent));
     Frame to{target, rot};
-    const Frame from{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}, rot};
+    const Frame from{geom::vec(ent->v.origin), rot};
     bodyClear(ent, player, from, to);
     return to.pos;
 }
@@ -521,11 +522,9 @@ void loadTest_f()
     Con_Printf("carryloadtest: torso %s cross %.3f overlap %.3f overhead %s; scales empty %.3f 5kg %.3f 65kg/1.5m %.3f 160kg %.3f bulk2m %.3f\n",
         ok ? "PASS" : "FAIL", across.pos.y, freed.pos.y, blockedAbove ? "blocked" : "clear",
         loadScale(0.f, 0.f), loadScale(5.f, 0.5f), loadScale(65.f, 1.5f), loadScale(160.f, 1.f), loadScale(5.f, 2.f));
-    if(sv.active && svs.clients[0].active)
+    if(edict_t* player = progs::localPlayer())
     {
-        qcvm_t* oldvm = nullptr;
-        PR_PushQCVM(&sv.qcvm, &oldvm);
-        edict_t* player = svs.clients[0].edict;
+        progs::ServerVm serverVm;
         Con_Printf("carryloadtest: current speed scale %.3f, horizontal speed %.3f\n", moveScale(player),
             glm::length(glm::vec2{player->v.velocity[0], player->v.velocity[1]}));
         const auto& f = progs::fields();
@@ -548,13 +547,13 @@ void loadTest_f()
             if(index <= 0 || index >= MAX_MODELS || !sv.models[index]) { continue; }
             held::modelBox(sv.models[index], progs::fieldVec(ent, f.model_scale), progs::fieldVec(ent, f.model_scale_origin),
                 progs::fieldVec(ent, f.model_offset), boxLo, boxHi);
-            const Frame object{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]},
+            const Frame object{geom::vec(ent->v.origin),
                 fromAngles(ent->v.angles, brushModel(ent))};
             physical = za::max(physical, glm::length(separation(boxLo, boxHi, object, bodyLo, bodyHi)));
             if(num < cl.num_entities && cl_entities[num].model == sv.models[index])
             {
                 const entity_t& e = cl_entities[num];
-                const Frame local{glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, fromAngles(e.angles, brushModel(ent))};
+                const Frame local{geom::vec(e.origin), fromAngles(e.angles, brushModel(ent))};
                 drawn = za::max(drawn, glm::length(separation(boxLo, boxHi, local, bodyLo, bodyHi)));
             }
         }
@@ -567,7 +566,6 @@ void loadTest_f()
         }
         Con_Printf("carryloadtest: %d solid props, torso overlap physical %.4f drawn %.4f units, same prop in both hands scale %.3f\n",
             count, physical, drawn, bothScale);
-        PR_PopQCVM(oldvm);
     }
 }
 
@@ -586,7 +584,7 @@ bool reaches(edict_t* ent, edict_t* player, int hand)
     {
         return false;
     }
-    const Frame object{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}, fromAngles(ent->v.angles, brushModel(ent))};
+    const Frame object{geom::vec(ent->v.origin), fromAngles(ent->v.angles, brushModel(ent))};
     const float off = glm::distance(foldedHand(player, hand).pos, object.pos + object.rot * it->second.grip[hand]);
     if(vr_debug_carry.value >= 2.f)
     {
@@ -617,7 +615,7 @@ int detached(edict_t* ent, edict_t* player)
     const float limit = qcvm->time - w.blocked < wallTime ? most + wallSlack * m2u : most;
     // (Moved with the body since it was placed: see Watch.)
     const glm::vec3 carried = w.placed ? body - w.placedBody : glm::vec3{0.f};
-    const Frame object{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} + carried, fromAngles(ent->v.angles, brush)};
+    const Frame object{geom::vec(ent->v.origin) + carried, fromAngles(ent->v.angles, brush)};
     glm::vec3 hand[2];
     bool left[2];
     float moved[2];
