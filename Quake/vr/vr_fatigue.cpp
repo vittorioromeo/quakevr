@@ -68,16 +68,11 @@ float heldAt = -1.f; // vr_debug_stamina_hold: the share the game's stamina is k
     return f.vr_stamina_used >= 0 && f.vr_stamina_time >= 0 ? p : nullptr;
 }
 
-[[nodiscard]] float staminaMax()
-{
-    return za::max(1.f, vr_parry_stamina_max.value);
-}
-
 // The game's stamina to `share` (0..1), none coming back for vr_parry_stamina_delay. On the server's VM.
 void setStamina(edict_t* ent, float share)
 {
     const FieldOffsets& f = fields();
-    fieldFloat(ent, f.vr_stamina_used) = staminaMax() * (1.f - za::clamp(share, 0.f, 1.f));
+    fieldFloat(ent, f.vr_stamina_used) = progs::staminaMax() * (1.f - za::clamp(share, 0.f, 1.f));
     fieldFloat(ent, f.vr_stamina_time) = static_cast<float>(qcvm->time);
 }
 
@@ -93,7 +88,7 @@ void set_f()
     PR_PushQCVM(&sv.qcvm, &oldvm);
     if(edict_t* ent = player())
     {
-        const float before = za::clamp(1.f - fieldFloat(ent, fields().vr_stamina_used) / staminaMax(), 0.f, 1.f);
+        const float before = progs::staminaLeft(ent) / progs::staminaMax();
         if(Cmd_Argc() < 2)
         {
             Con_Printf("vr_stamina_set <0..1>: the stamina now %.2f\n", before);
@@ -189,7 +184,7 @@ void serverFrame()
     {
         if(heldAt < 0.f)
         {
-            heldAt = za::clamp(1.f - fieldFloat(ent, fields().vr_stamina_used) / staminaMax(), 0.f, 1.f);
+            heldAt = progs::staminaLeft(ent) / progs::staminaMax();
         }
         setStamina(ent, heldAt);
     }
@@ -228,8 +223,7 @@ extern "C" float VR_StaminaSpeedScale(edict_t* ent)
     }
     const FieldOffsets& f = fields();
     const bool on = (static_cast<int>(fieldFloatOr(ent, f.vr_melee_hud, 0.f)) & 128) != 0;
-    const float most = za::max(1.f, vr_parry_stamina_max.value);
-    const float left = on ? za::clamp(1.f - fieldFloatOr(ent, f.vr_stamina_used, 0.f) / most, 0.f, 1.f) : 1.f;
+    const float left = on ? staminaLeft(ent) / staminaMax() : 1.f; // (the QC's pool: progs::staminaMax)
     const float scale = fatigue::speedScaleFor(left);
     return scale;
 }

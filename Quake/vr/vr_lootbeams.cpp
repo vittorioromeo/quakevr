@@ -17,6 +17,7 @@
 #include "vr_toolgun.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
+#include "vr_weapon_ids.h"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -550,7 +551,7 @@ void test_f()
         {
             pr_global_struct->time = qcvm->time;
             pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
-            G_FLOAT(OFS_PARM0) = 6.f; // WID_NAILGUN
+            G_FLOAT(OFS_PARM0) = static_cast<float>(WID_NAILGUN);
             G_FLOAT(OFS_PARM1) = 2.f; // AID_NAILS
             G_FLOAT(OFS_PARM2) = thing.value;
             progs::setVecParm(OFS_PARM3, at);

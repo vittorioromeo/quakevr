@@ -1248,7 +1248,7 @@ Water water;
     {
         vec3_t v{p.x, p.y, b.floorZ + h * b.m2w};
         const int c = Mod_PointInLeaf(v, cl.worldmodel)->contents;
-        if(worldtrace::isLiquid(c, true))
+        if(worldtrace::isLiquid(c))
         {
             wet = true;
             surface = h + STEP * 0.5f;

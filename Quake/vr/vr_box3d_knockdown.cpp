@@ -184,8 +184,7 @@ namespace
     };
     const auto wetAt = [](const glm::vec3& p) {
         vec3_t v{p.x, p.y, p.z};
-        const int c = VR_LiquidContents(sv.worldmodel, v, SV_PointContents(v));
-        return c <= CONTENTS_WATER && c >= CONTENTS_LAVA;
+        return worldtrace::isLiquid(VR_LiquidContents(sv.worldmodel, v, SV_PointContents(v)));
     };
     const auto boxClear = [&](const glm::vec3& c) {
         vec3_t o{c.x, c.y, c.z};

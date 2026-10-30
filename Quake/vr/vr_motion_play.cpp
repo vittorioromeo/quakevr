@@ -52,6 +52,7 @@
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 #include "vr_srvrandom.hpp"
+#include "vr_weapon_ids.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -2006,17 +2007,18 @@ void loadExpectations()
 {
     switch(wid)
     {
-        case 0: return "fist";
-        case 1: return "grapple";
-        case 2: return "axe";
-        case 3: return "mjolnir";
-        case 13: return "sword";
-        case 14: return "chainsaw"; // a melee weapon (QC VR_MTHING_SAW)
-        case 15:                    // a grunt's shotgun, an enforcer's laser rifle (QC vr_enemyguns.qc)
-        case 16: return "gun";
-        case 17: return "crowbar"; // a melee weapon (QC VR_MTHING_CROWBAR)
-        case 18: return "superaxe"; // Dawn of the Machine's Super Axe (QC vr_mg3_weapons.qc; VR_MTHING_AXE)
-        default: return (wid >= 4 && wid <= 12) || (wid >= 20 && wid <= 28) ? "gun" : "other"; // (20-28: AD's soldiers' guns, the crossbow knight's)
+        case WID_FIST: return "fist";
+        case WID_GRAPPLE: return "grapple";
+        case WID_AXE: return "axe";
+        case WID_MJOLNIR: return "mjolnir";
+        case WID_SWORD: return "sword";
+        case WID_CHAINSAW: return "chainsaw"; // a melee weapon (QC VR_MTHING_SAW)
+        case WID_GRUNTGUN:                    // a grunt's shotgun, an enforcer's laser rifle (QC vr_enemyguns.qc)
+        case WID_ENFRIFLE: return "gun";
+        case WID_CROWBAR: return "crowbar"; // a melee weapon (QC VR_MTHING_CROWBAR)
+        case WID_SUPERAXE: return "superaxe"; // Dawn of the Machine's Super Axe (QC vr_mg3_weapons.qc; VR_MTHING_AXE)
+        default: // (AD's soldiers' guns, the crossbow knight's; the toolgun, nail pistol, flare gun, revolver: "other", as before)
+            return (wid >= WID_SHOTGUN && wid <= WID_LASER_CANNON) || (wid >= WID_ADROCKET && wid <= WID_ADCROSSBOW) ? "gun" : "other";
     }
 }
 

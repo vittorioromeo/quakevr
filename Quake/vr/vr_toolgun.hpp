@@ -11,13 +11,14 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_posing.hpp"
+#include "vr_weapon_ids.h"
 
 #include "Zancle/Container/Vector.hpp"
 
 namespace qvr::toolgun
 {
 
-constexpr int weaponId = 19; // QC WID_TOOLGUN
+constexpr int weaponId = WID_TOOLGUN;
 
 // The tools (vr_toolgun_tool).
 enum class Tool : int

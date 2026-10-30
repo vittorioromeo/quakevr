@@ -86,6 +86,8 @@ struct Bindings
     func_t Flail_Rattle{0}; // ... its chain rattling, the head swung fast
     func_t Monster_Fall{0};
     func_t Knockdown_MakeRoom{0};
+    func_t Stamina_Max{0};  // the stamina pool's size and what a player has left (QC vr_melee.qc: staminaMax, staminaLeft)
+    func_t Stamina_Left{0};
     // The monster grab's QC (vr_foegrab.cpp's callQc and head zone), resolved here, not by name per call.
     struct FoeGrab
     {
@@ -281,6 +283,12 @@ inline bool callQc(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
 {
     return callQc(fn, a, b, c) ? G_FLOAT(OFS_RETURN) : 0.f;
 }
+
+// The players' stamina pool (parries, shoves, blows and a climb's hang spend it), as QC owns it (vr_melee.qc
+// VR_Stamina_Max, VR_Stamina_Left; his decision D8): its size (at least 1) and what `p` has left (0 .. staminaMax). On
+// the server's VM; the caller's self, parameters and return are kept (a builtin's code may ask).
+[[nodiscard]] float staminaMax();
+[[nodiscard]] float staminaLeft(edict_t* p);
 
 inline void qcText(char* dst, size_t size, func_t fn, float a = 0.f)
 {

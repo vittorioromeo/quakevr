@@ -3,6 +3,7 @@
 
 #include "vr_notectx.hpp"
 
+#include "vr_weapon_ids.h"
 #include "vr_box3d.hpp"
 #include "vr_checklist.hpp"
 #include "vr_cvars.hpp"
@@ -33,7 +34,8 @@ constexpr const char* weaponNames[] = {"fists", "grapple", "axe", "Mjolnir", "sh
     "super nailgun", "grenade launcher", "proximity gun", "rocket launcher", "lightning gun", "laser cannon", "sword",
     "chainsaw", "grunt's shotgun", "enforcer's rifle", "crowbar", "super axe", "toolgun", "AD rocket launcher",
     "AD grenade launcher", "AD plasma rifle", "AD defender's shotgun", "AD eliminator", "AD centurion's plasma gun",
-    "AD flamethrower", "AD fumigator", "AD crossbow"};
+    "AD flamethrower", "AD fumigator", "AD crossbow", "nail pistol", "flare gun", "revolver"};
+static_assert(za::getArraySize(weaponNames) == WID_LAST + 1, "a name for each weapon id (vr_weapon_ids.h)");
 
 [[nodiscard]] const char* weaponName(int wid)
 {

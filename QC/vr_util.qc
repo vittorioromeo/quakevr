@@ -567,6 +567,13 @@ entity() VR_PlayerAlive =
     return world;
 };
 
+// The one rule of what is liquid (pointcontents' answer; his decision D3, as the engine's worldtrace::isLiquid): water,
+// slime or lava (a current reads as water); never the sky.
+float(float c) VR_IsLiquid =
+{
+    return c <= CONTENT_WATER && c >= CONTENT_LAVA;
+};
+
 // `v` held to xLow .. xHigh.
 float(float v, float xLow, float xHigh) clamp =
 {

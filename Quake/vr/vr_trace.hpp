@@ -48,8 +48,8 @@ namespace qvr::worldtrace
 // Point contents. `contents`: the local server's (SV_PointContents: a current reads as water; the caller is hosting).
 // `clientContents`: the client's map's leaf at p (currents and sky as they are; CONTENTS_EMPTY without a map).
 // `liquidContents`: either one's (`client`) with the liquid brush entities' too (VR_LiquidContents: a func_water's).
-// Each site keeps its own rule of what counts as liquid (ROUND notes D3): isLiquid is water, slime or lava, and with
-// `currents` the CONTENTS_CURRENT_* too.
+// The one rule of what is liquid, for every site, server or client (his decision D3): water, slime and lava, and a
+// current (CONTENTS_CURRENT_*) is water; the sky is never a liquid (isLiquid, liquidKind).
 [[nodiscard]] inline int contents(const glm::vec3& p)
 {
     vec3_t v{p.x, p.y, p.z};
@@ -77,10 +77,15 @@ namespace qvr::worldtrace
     return VR_LiquidContents(sv.worldmodel, v, SV_PointContents(v));
 }
 
-[[nodiscard]] constexpr bool isLiquid(int c, bool currents = false)
+// The liquid contents `c` is: CONTENTS_WATER (a current too), _SLIME or _LAVA; 0 for anything else (the sky, a solid).
+[[nodiscard]] constexpr int liquidKind(int c)
 {
-    return (c <= CONTENTS_WATER && c >= CONTENTS_LAVA) || (currents && c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN);
+    return c <= CONTENTS_WATER && c >= CONTENTS_LAVA                 ? c
+           : c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN ? CONTENTS_WATER
+                                                                     : 0;
 }
+
+[[nodiscard]] constexpr bool isLiquid(int c) { return liquidKind(c) != 0; }
 
 // Whether the player's box (Quake's hull 1) moves from `start` to `end` through the world's
 // geometry unblocked, from the client's own data.

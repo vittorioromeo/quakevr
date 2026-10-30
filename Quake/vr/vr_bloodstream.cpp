@@ -201,7 +201,7 @@ za::Vector<glm::vec3> scratchRest, scratchNow, scratchTris;
 
 [[nodiscard]] bool inLiquid(const glm::vec3& p)
 {
-    return worldtrace::clientContents(p) < CONTENTS_SOLID; // (water, slime, lava, sky, currents)
+    return worldtrace::isLiquid(worldtrace::clientContents(p)); // (water, slime, lava, currents: not the sky)
 }
 
 [[nodiscard]] glm::vec3 bytePoint(const float m[16], const glm::vec3& v)
