@@ -451,33 +451,24 @@ Totals lastTotals()
     return last.totals;
 }
 
-void report_f()
+namespace
 {
-    bool diff = false, csv = false, all = false;
-    for(int i = 1; i < Cmd_Argc(); i++)
-    {
-        const char* a = Cmd_Argv(i);
-        diff |= !q_strcasecmp(a, "diff");
-        csv |= !q_strcasecmp(a, "csv");
-        all |= !q_strcasecmp(a, "all");
-    }
-    lookUp();
-    if(!gl.textureLevelParameter || !gl.textureParameter)
-    {
-        Con_Printf("vr_vram_report: needs OpenGL 4.5's direct-state queries (glGetTextureLevelParameteriv)\n");
-        return;
-    }
 
-    const double start = Sys_DoubleTime();
-    za::Vector<Object> objects;
-    scanKind(glIsTexture, describeTexture, objects);
-    scanKind(gl.isRenderbuffer, describeRenderbuffer, objects);
-    scanKind(gl.isBuffer, describeBuffer, objects);
-    const double scanMs = (Sys_DoubleTime() - start) * 1000.0;
-
-    // Categories, groups.
+// The objects' sums (report_f): by category, by group, by kind, all of them, the render targets.
+struct Sums
+{
     ankerl::unordered_dense::map<za::String, Sum> byCategory, byGroup;
     Sum textures, renderbuffers, buffers, total, targets;
+};
+
+// Categories, groups.
+Sums sumUp(const za::Vector<Object>& objects)
+{
+    Sums sums;
+    ankerl::unordered_dense::map<za::String, Sum>& byCategory = sums.byCategory;
+    ankerl::unordered_dense::map<za::String, Sum>& byGroup = sums.byGroup;
+    Sum &textures = sums.textures, &renderbuffers = sums.renderbuffers, &buffers = sums.buffers, &total = sums.total,
+        &targets = sums.targets;
     for(const Object& o : objects)
     {
         const char* cat = categoryOf(o);
@@ -498,11 +489,23 @@ void report_f()
             targets.count++;
         }
     }
+    return sums;
+}
 
-    // Windows' count, ours and the others'.
-    const za::Vector<gpustats::ProgramVram> programs = gpustats::programVram();
+// Windows' count (gpustats): ours and the others'.
+struct ProcessVram
+{
+    za::Vector<gpustats::ProgramVram> programs;
     double selfMb = -1.0, selfShared = 0.0, othersMb = 0.0;
-    for(const gpustats::ProgramVram& p : programs)
+    gpustats::Vram device;
+};
+
+ProcessVram processVram()
+{
+    ProcessVram pv;
+    pv.programs = gpustats::programVram();
+    double &selfMb = pv.selfMb, &selfShared = pv.selfShared, &othersMb = pv.othersMb;
+    for(const gpustats::ProgramVram& p : pv.programs)
     {
         if(p.self)
         {
@@ -514,8 +517,17 @@ void report_f()
             othersMb += p.dedicatedMb;
         }
     }
-    const gpustats::Vram device = gpustats::latestVram();
+    pv.device = gpustats::latestVram();
+    return pv;
+}
 
+// The report's head: Windows' count, the render targets, the GL objects by kind.
+void printTotals(const Sums& sums, const ProcessVram& pv, double scanMs)
+{
+    const double selfMb = pv.selfMb, selfShared = pv.selfShared, othersMb = pv.othersMb;
+    const gpustats::Vram& device = pv.device;
+    const Sum &textures = sums.textures, &renderbuffers = sums.renderbuffers, &buffers = sums.buffers, &total = sums.total,
+              &targets = sums.targets;
     Con_Printf("vr_vram_report, map \"%s\" (scan %.0f ms)\n", cl.worldmodel ? cl.worldmodel->name : "", scanMs);
     if(selfMb >= 0.0)
     {
@@ -537,7 +549,13 @@ void report_f()
     {
         Con_Printf("  not in GL's objects (driver, shaders, the runtime's own): %.0f MB\n", selfMb - mb(total.bytes));
     }
+}
 
+// By category, by group (the largest 24, or `all`), the largest objects, the programs on the GPU.
+void printLists(const Sums& sums, const za::Vector<Object>& objects, const za::Vector<gpustats::ProgramVram>& programs, bool all)
+{
+    const ankerl::unordered_dense::map<za::String, Sum>& byCategory = sums.byCategory;
+    const ankerl::unordered_dense::map<za::String, Sum>& byGroup = sums.byGroup;
     const auto sorted = [](const ankerl::unordered_dense::map<za::String, Sum>& m) {
         za::Vector<const ankerl::unordered_dense::map<za::String, Sum>::value_type*> v;
         for(const auto& e : m)
@@ -590,80 +608,85 @@ void report_f()
         }
         Con_Printf("\n");
     }
+}
 
     // What came and went since the last report.
-    if(diff && last.scanned)
+void printDiff(const za::Vector<Object>& objects)
+{
+    ankerl::unordered_dense::map<za::String, Sum> made, freed;
+    ankerl::unordered_dense::map<za::U64, bool> seen;
+    for(const Object& o : objects)
     {
-        ankerl::unordered_dense::map<za::String, Sum> made, freed;
-        ankerl::unordered_dense::map<za::U64, bool> seen;
-        for(const Object& o : objects)
+        const za::U64 key = keyOf(o);
+        seen[key] = true;
+        const auto it = last.groups.find(key);
+        const za::String group = groupOf(o);
+        if(it == last.groups.end() || it->second != group || last.bytes[key] != o.bytes)
         {
-            const za::U64 key = keyOf(o);
-            seen[key] = true;
-            const auto it = last.groups.find(key);
-            const za::String group = groupOf(o);
-            if(it == last.groups.end() || it->second != group || last.bytes[key] != o.bytes)
+            Sum& s = made[group];
+            s.bytes += o.bytes;
+            s.count++;
+            if(it != last.groups.end())
             {
-                Sum& s = made[group];
-                s.bytes += o.bytes;
-                s.count++;
-                if(it != last.groups.end())
-                {
-                    Sum& f = freed[it->second];
-                    f.bytes += last.bytes[key];
-                    f.count++;
-                }
-            }
-        }
-        for(const auto& [key, group] : last.groups)
-        {
-            if(!seen.contains(key))
-            {
-                Sum& f = freed[group];
+                Sum& f = freed[it->second];
                 f.bytes += last.bytes[key];
                 f.count++;
             }
         }
-        Sum madeAll, freedAll;
-        for(const auto& [g, s] : made)
+    }
+    for(const auto& [key, group] : last.groups)
+    {
+        if(!seen.contains(key))
         {
-            madeAll.bytes += s.bytes;
-            madeAll.count += s.count;
-        }
-        for(const auto& [g, s] : freed)
-        {
-            freedAll.bytes += s.bytes;
-            freedAll.count += s.count;
-        }
-        Con_Printf("  since the last report: %.1f MB made (%d), %.1f MB freed (%d); by group, the largest net first:\n",
-            mb(madeAll.bytes), madeAll.count, mb(freedAll.bytes), freedAll.count);
-        ankerl::unordered_dense::map<za::String, Sum> net;
-        for(const auto& [g, s] : made)
-        {
-            net[g].bytes += s.bytes;
-            net[g].count += s.count;
-        }
-        for(const auto& [g, s] : freed)
-        {
-            net[g].bytes -= s.bytes;
-            net[g].count -= s.count;
-        }
-        za::Vector<const decltype(net)::value_type*> v;
-        for(const auto& e : net)
-        {
-            v.pushBack(&e);
-        }
-        za::quickSort(v.begin(), v.end(), [](const auto* a, const auto* b) { return fabs(a->second.bytes) > fabs(b->second.bytes); });
-        for(za::SizeT i = 0; i < v.size() && i < 16; i++)
-        {
-            const auto& [g, s] = *v[i];
-            const Sum m = made.contains(g) ? made[g] : Sum{};
-            const Sum f = freed.contains(g) ? freed[g] : Sum{};
-            Con_Printf("    %+8.1f MB (%+d): made %d (%.1f MB), freed %d (%.1f MB)  %s\n", mb(s.bytes), s.count, m.count, mb(m.bytes),
-                f.count, mb(f.bytes), g.cStr());
+            Sum& f = freed[group];
+            f.bytes += last.bytes[key];
+            f.count++;
         }
     }
+    Sum madeAll, freedAll;
+    for(const auto& [g, s] : made)
+    {
+        madeAll.bytes += s.bytes;
+        madeAll.count += s.count;
+    }
+    for(const auto& [g, s] : freed)
+    {
+        freedAll.bytes += s.bytes;
+        freedAll.count += s.count;
+    }
+    Con_Printf("  since the last report: %.1f MB made (%d), %.1f MB freed (%d); by group, the largest net first:\n",
+        mb(madeAll.bytes), madeAll.count, mb(freedAll.bytes), freedAll.count);
+    ankerl::unordered_dense::map<za::String, Sum> net;
+    for(const auto& [g, s] : made)
+    {
+        net[g].bytes += s.bytes;
+        net[g].count += s.count;
+    }
+    for(const auto& [g, s] : freed)
+    {
+        net[g].bytes -= s.bytes;
+        net[g].count -= s.count;
+    }
+    za::Vector<const decltype(net)::value_type*> v;
+    for(const auto& e : net)
+    {
+        v.pushBack(&e);
+    }
+    za::quickSort(v.begin(), v.end(), [](const auto* a, const auto* b) { return fabs(a->second.bytes) > fabs(b->second.bytes); });
+    for(za::SizeT i = 0; i < v.size() && i < 16; i++)
+    {
+        const auto& [g, s] = *v[i];
+        const Sum m = made.contains(g) ? made[g] : Sum{};
+        const Sum f = freed.contains(g) ? freed[g] : Sum{};
+        Con_Printf("    %+8.1f MB (%+d): made %d (%.1f MB), freed %d (%.1f MB)  %s\n", mb(s.bytes), s.count, m.count, mb(m.bytes),
+            f.count, mb(f.bytes), g.cStr());
+    }
+}
 
+// This report kept for the next (diff) and lastTotals.
+void remember(const za::Vector<Object>& objects, const Sums& sums, double selfMb)
+{
+    const Sum &textures = sums.textures, &total = sums.total, &targets = sums.targets;
     last.groups.clear();
     last.bytes.clear();
     for(const Object& o : objects)
@@ -677,6 +700,43 @@ void report_f()
     last.totals.targetsMb = mb(targets.bytes);
     last.totals.processMb = selfMb;
     last.totals.objects = total.count;
+}
+
+} // namespace
+
+void report_f()
+{
+    bool diff = false, csv = false, all = false;
+    for(int i = 1; i < Cmd_Argc(); i++)
+    {
+        const char* a = Cmd_Argv(i);
+        diff |= !q_strcasecmp(a, "diff");
+        csv |= !q_strcasecmp(a, "csv");
+        all |= !q_strcasecmp(a, "all");
+    }
+    lookUp();
+    if(!gl.textureLevelParameter || !gl.textureParameter)
+    {
+        Con_Printf("vr_vram_report: needs OpenGL 4.5's direct-state queries (glGetTextureLevelParameteriv)\n");
+        return;
+    }
+
+    const double start = Sys_DoubleTime();
+    za::Vector<Object> objects;
+    scanKind(glIsTexture, describeTexture, objects);
+    scanKind(gl.isRenderbuffer, describeRenderbuffer, objects);
+    scanKind(gl.isBuffer, describeBuffer, objects);
+    const double scanMs = (Sys_DoubleTime() - start) * 1000.0;
+
+    const Sums sums = sumUp(objects);
+    const ProcessVram pv = processVram();
+    printTotals(sums, pv, scanMs);
+    printLists(sums, objects, pv.programs, all);
+    if(diff && last.scanned)
+    {
+        printDiff(objects);
+    }
+    remember(objects, sums, pv.selfMb);
     if(csv)
     {
         writeCsv(objects);
