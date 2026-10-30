@@ -1970,6 +1970,48 @@ CheckPowerups
 Check for turning off powerups
 ================
 */
+// CheckPowerups' steps for a timed powerup whose end is `xFinished` and whose warning clock is `xTime` (1: not warned yet).
+// Its last 3 seconds: the message, a flash and the sound once, then a flash a second.
+void(.float xFinished, .float xTime, string xMsg, string xSound) VR_Powerup_Warn =
+{
+    if(self.xFinished < time + 3)
+    {
+        if(self.xTime == 1)
+        {
+            sprint(self, xMsg);
+            stuffcmd(self, "bf\n");
+            sound(self, CHAN_AUTO, xSound, 1, ATTN_NORM);
+            self.xTime = time + 1;
+        }
+
+        if(self.xTime < time)
+        {
+            self.xTime = time + 1;
+            stuffcmd(self, "bf\n");
+        }
+    }
+};
+
+// Its end: the item `xItem` gone, both clocks cleared.
+void(.float xFinished, .float xTime, float xItem) VR_Powerup_Expire =
+{
+    if(self.xFinished < time)
+    {    // just stopped
+        VR_ItemUtil_EntDelItem(self, xItem);
+        self.xFinished = 0;
+        self.xTime = 0;
+    }
+};
+
+// The glow of the ones that glow, while they last.
+void(.float xFinished) VR_Powerup_Glow =
+{
+    if(self.xFinished > time)
+        self.effects = self.effects | EF_DIMLIGHT;
+    else
+        self.effects = self.effects - (self.effects & EF_DIMLIGHT);
+};
+
 void() CheckPowerups =
 {
     if(self.health <= 0)
@@ -1985,30 +2027,8 @@ void() CheckPowerups =
             self.invisible_sound = time + ((random() * 3) + 1);
         }
 
-
-        if(self.invisible_finished < time + 3)
-        {
-            if(self.invisible_time == 1)
-            {
-                sprint(self, "Ring of Shadows magic is fading\n");
-                stuffcmd(self, "bf\n");
-                sound(self, CHAN_AUTO, "items/inv2.wav", 1, ATTN_NORM);
-                self.invisible_time = time + 1;
-            }
-
-            if(self.invisible_time < time)
-            {
-                self.invisible_time = time + 1;
-                stuffcmd(self, "bf\n");
-            }
-        }
-
-        if(self.invisible_finished < time)
-        {    // just stopped
-            VR_ItemUtil_EntDelItem(self, IID_INVISIBILITY);
-            self.invisible_finished = 0;
-            self.invisible_time = 0;
-        }
+        VR_Powerup_Warn(invisible_finished, invisible_time, "Ring of Shadows magic is fading\n", "items/inv2.wav");
+        VR_Powerup_Expire(invisible_finished, invisible_time, IID_INVISIBILITY);
 
     // use the eyes
         self.frame = 0;
@@ -2023,123 +2043,34 @@ void() CheckPowerups =
 // invincibility
     if(self.invincible_finished)
     {
-// sound and screen flash when items starts to run out
-        if(self.invincible_finished < time + 3)
-        {
-            if(self.invincible_time == 1)
-            {
-                sprint(self, "Protection is almost burned out\n");
-                stuffcmd(self, "bf\n");
-                sound(self, CHAN_AUTO, "items/protect2.wav", 1, ATTN_NORM);
-                self.invincible_time = time + 1;
-            }
-
-            if(self.invincible_time < time)
-            {
-                self.invincible_time = time + 1;
-                stuffcmd(self, "bf\n");
-            }
-        }
-
-        if(self.invincible_finished < time)
-        {    // just stopped
-            VR_ItemUtil_EntDelItem(self, IID_INVULNERABILITY);
-            self.invincible_time = 0;
-            self.invincible_finished = 0;
-        }
-        if(self.invincible_finished > time)
-            self.effects = self.effects | EF_DIMLIGHT;
-        else
-            self.effects = self.effects - (self.effects & EF_DIMLIGHT);
+        VR_Powerup_Warn(invincible_finished, invincible_time, "Protection is almost burned out\n", "items/protect2.wav");
+        VR_Powerup_Expire(invincible_finished, invincible_time, IID_INVULNERABILITY);
+        VR_Powerup_Glow(invincible_finished);
     }
 
 // super damage
     if(self.super_damage_finished)
     {
-
-// sound and screen flash when items starts to run out
-
-        if(self.super_damage_finished < time + 3)
-        {
-            if(self.super_time == 1)
-            {
-                sprint(self, "Quad Damage is wearing off\n");
-                stuffcmd(self, "bf\n");
-                sound(self, CHAN_AUTO, "items/damage2.wav", 1, ATTN_NORM);
-                self.super_time = time + 1;
-            }
-
-            if(self.super_time < time)
-            {
-                self.super_time = time + 1;
-                stuffcmd(self, "bf\n");
-            }
-        }
-
-        if(self.super_damage_finished < time)
-        {    // just stopped
-            VR_ItemUtil_EntDelItem(self, IID_QUAD);
-            self.super_damage_finished = 0;
-            self.super_time = 0;
-        }
-        if(self.super_damage_finished > time)
-            self.effects = self.effects | EF_DIMLIGHT;
-        else
-            self.effects = self.effects - (self.effects & EF_DIMLIGHT);
+        VR_Powerup_Warn(super_damage_finished, super_time, "Quad Damage is wearing off\n", "items/damage2.wav");
+        VR_Powerup_Expire(super_damage_finished, super_time, IID_QUAD);
+        VR_Powerup_Glow(super_damage_finished);
     }
 
 // suit
     if(self.radsuit_finished)
     {
         self.air_finished = time + VR_AirSupply();        // don't drown
-
-// sound and screen flash when items starts to run out
-        if(self.radsuit_finished < time + 3)
-        {
-            if(self.rad_time == 1)
-            {
-                sprint(self, "Air supply in Biosuit expiring\n");
-                stuffcmd(self, "bf\n");
-                sound(self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
-                self.rad_time = time + 1;
-            }
-
-            if(self.rad_time < time)
-            {
-                self.rad_time = time + 1;
-                stuffcmd(self, "bf\n");
-            }
-        }
-
-        if(self.radsuit_finished < time)
-        {    // just stopped
-            VR_ItemUtil_EntDelItem(self, IID_SUIT);
-            self.rad_time = 0;
-            self.radsuit_finished = 0;
-        }
+        VR_Powerup_Warn(radsuit_finished, rad_time, "Air supply in Biosuit expiring\n", "items/suit2.wav");
+        VR_Powerup_Expire(radsuit_finished, rad_time, IID_SUIT);
     }
 
 // lava suit (Dawn of the Machine, vr_mg3_items.qc)
     if(self.lavasuit_finished)
     {
         self.air_finished = time + VR_AirSupply();        // don't drown
-        if(self.lavasuit_finished < time + 3)
-        {
-            if(self.lavasuit_time == 1)
-            {
-                sprint(self, "$mg3_qc_lavasuit_wearing_out");
-                stuffcmd(self, "bf\n");
-                sound(self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
-                self.lavasuit_time = time + 1;
-            }
-            if(self.lavasuit_time < time)
-            {
-                self.lavasuit_time = time + 1;
-                stuffcmd(self, "bf\n");
-            }
-        }
+        VR_Powerup_Warn(lavasuit_finished, lavasuit_time, "$mg3_qc_lavasuit_wearing_out", "items/suit2.wav");
         if(self.lavasuit_finished < time)
-        {    // just stopped
+        {    // just stopped (the biosuit's item stays while a biosuit lasts)
             if(self.radsuit_finished < time) VR_ItemUtil_EntDelItem(self, IID_SUIT);
             self.lavasuit_time = 0;
             self.lavasuit_finished = 0;
@@ -2150,68 +2081,19 @@ void() CheckPowerups =
 // wetsuit
     if(self.wetsuit_finished)
     {
-    self.air_finished = time + VR_AirSupply();        // don't drown
-
-    // sound and screen flash when items starts to run out
-    if(self.wetsuit_finished < time + 3)
-        {
-            if(self.wetsuit_time == 1)
-            {
-                sprint(self, "Air supply in Wetsuit is running out\n");
-                stuffcmd(self, "bf\n");
-                sound(self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
-                self.wetsuit_time = time + 1;
-            }
-
-            if(self.wetsuit_time < time)
-            {
-                self.wetsuit_time = time + 1;
-                stuffcmd(self, "bf\n");
-            }
-        }
-
-        if(self.wetsuit_finished < time)
-        {    // just stopped
-            VR_ItemUtil_EntDelItem(self, IID_WETSUIT);
-            self.wetsuit_time = 0;
-            self.wetsuit_finished = 0;
-        }
+        self.air_finished = time + VR_AirSupply();        // don't drown
+        VR_Powerup_Warn(wetsuit_finished, wetsuit_time, "Air supply in Wetsuit is running out\n", "items/suit2.wav");
+        VR_Powerup_Expire(wetsuit_finished, wetsuit_time, IID_WETSUIT);
     }
 
 //MED
 // empathy shields
-   if(self.empathy_finished)
+    if(self.empathy_finished)
     {
-      // sound and screen flash when items starts to run out
-      if(self.empathy_finished < time + 3)
-        {
-         if(self.empathy_time == 1)
-            {
-            sprint(self, "Empathy Shields are running out\n");
-                stuffcmd(self, "bf\n");
-                sound(self, CHAN_AUTO, "items/suit2.wav", 1, ATTN_NORM);
-            self.empathy_time = time + 1;
-            }
-
-         if(self.empathy_time < time)
-            {
-            self.empathy_time = time + 1;
-                stuffcmd(self, "bf\n");
-            }
-        }
-
-      if(self.empathy_finished < time)
-        {    // just stopped
-         VR_ItemUtil_EntDelItem(self, IID_EMPATHY_SHIELDS);
-         self.empathy_time = 0;
-         self.empathy_finished = 0;
-        }
-//MED
-      if(self.empathy_finished > time)
-            self.effects = self.effects | EF_DIMLIGHT;
-        else
-            self.effects = self.effects - (self.effects & EF_DIMLIGHT);
-   }
+        VR_Powerup_Warn(empathy_finished, empathy_time, "Empathy Shields are running out\n", "items/suit2.wav");
+        VR_Powerup_Expire(empathy_finished, empathy_time, IID_EMPATHY_SHIELDS);
+        VR_Powerup_Glow(empathy_finished);
+    }
 
     if(self.shield_finished)
     {
