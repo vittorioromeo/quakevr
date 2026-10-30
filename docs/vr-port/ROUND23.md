@@ -311,6 +311,21 @@ vr_weapon_grip_mode 1; impulse 9; wait2; impulse 154; wait5; vr_recoil_test`, `-
 **9 passed, 0 failed** (all 51 slots at defaults recoil as before; the held shotgun's Kick Back 2x / Rise 0.5x double its
 drawn kick back 0.45 -> 0.90 units and halve its pitch and yaw through `recoilOffset`; no other slot's recoil moves;
 another slot's 3x leaves the held one's; values restored).
+
+## 9c. Per-weapon recoil recovery (`vr_weapons.inc` `RecoilRecovery`; `vr_weaponfx.cpp` `envelope`, `recoveryOf`)
+
+His words: "a per-weapon recoil time recovery multiplier so that I can make some weapons feel weightier/lighter when
+firing". The drawn recoil's kick comes up in at most 35 ms, then eases back to rest by the weapon's Recoil Return Time
+(`vr_wofs_fx_recoil_time_NN`). New per-weapon `vr_wofs_fx_recoil_rec_NN` (Weapon Offsets > Effects: **Recoil
+Recovery**, 0.25..4x step 0.05, extendable 0.1..10x; default 1 for every slot) scales only the way back from the peak:
+above 1 slower (weightier), below 1 faster (lighter); the kick up and its peak stay. It is stored per kick when fired,
+so a change applies from the next shot. At 1 the envelope is bit-identical to before (new cvars: no migration, no
+`settingsVersion` bump). The heavy-weapon aim kick (`vr_heavy_recoil_*`) is separate and untouched.
+Test: `vr_recoil_test` (same command line as 9b) now **17 passed, 0 failed**: the 9 before, plus every slot's Recoil
+Recovery 1 by default; at 1 the envelope equals the old one at 1203 samples (Return Times 0.06, 0.15, 0.325 s); the
+drawn kick of a 0.15 s Return Time is back at rest 0.115 s after its peak at 1x, 0.230 s at 2x, 0.0575 s at 0.5x
+(ratios 2.00 and 0.50), the peak 4.0 deg each time; value put back. Baseline (recoil, collectfx, selfchecks,
+slider_step, update_notice, autopump, reload): only `recoil` changed (9 -> 17 checks).
 ## 9b. Relighting: Ambient Light Level (`vr_relight_minlight`, backlog "a basic ambient lighting level")
 
 The Relighting page's "Minimum Light" row is now **Ambient Light Level** (same cvar, `vr_relight_minlight`, archived,

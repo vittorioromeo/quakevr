@@ -44,13 +44,15 @@ using weapons::Key;
 constexpr const char* flashModelName = "progs/vr_muzzleflash.mdl"; // (one pointer: view::viewModel's key)
 constexpr float flashModelLength = 7.6f; // the flash's length in its model (make_muzzleflash.py's bounds)
 
-// A shot's kick: when, how hard (the weapon's Recoil Strength), how long it takes to come back, and a little sideways.
+// A shot's kick: when, how hard (the weapon's Recoil Strength), how long it takes to come back, a little sideways, and
+// the weapon's Recoil Recovery (times the time back from its peak).
 struct Kick
 {
     double time{-1.0};
     float strength{0.f};
     float duration{0.f};
     float sideways{0.f};
+    float recovery{1.f};
 };
 
 constexpr int maxKicks = 8; // a burst's rounds overlapping
@@ -208,10 +210,11 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
     return true;
 }
 
-// A kick's share now: up quickly (at most 35 ms), then smoothly back to 0 at `duration`.
-[[nodiscard]] float envelope(float t, float duration)
+// A kick's share now: up quickly (at most 35 ms), then smoothly back to 0 at `duration` (its way back from the peak
+// `recovery` times as long: 1, as before, ends at `duration`).
+[[nodiscard]] float envelope(float t, float duration, float recovery)
 {
-    if(t < 0.f || t >= duration)
+    if(t < 0.f)
     {
         return 0.f;
     }
@@ -221,8 +224,18 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
         const float x = 1.f - t / rise;
         return 1.f - x * x;
     }
-    const float x = (t - rise) / (duration - rise);
+    const float x = (t - rise) / ((duration - rise) * recovery);
+    if(x >= 1.f)
+    {
+        return 0.f;
+    }
     return 1.f - x * x * (3.f - 2.f * x);
+}
+
+// Slot `slot`'s weapon's Recoil Recovery (1 by default), kept off 0.
+[[nodiscard]] float recoveryOf(int slot)
+{
+    return za::max(weapons::value(slot, Key::RecoilRecovery), 0.05f);
 }
 
 // The recoil of a kick `kick` (its shots' strengths at their envelopes, summed and capped) and `sideways` of slot
@@ -283,6 +296,7 @@ void playerFired(int hand)
         k.strength = za::max(weapons::value(slot, Key::RecoilStrength), 0.f) * feel.recoil;
         k.duration = za::max(weapons::value(slot, Key::RecoilTime) * feel.recoilTime, 0.02f);
         k.sideways = vrand::lcg01(seed) * 2.f - 1.f;
+        k.recovery = recoveryOf(slot);
     }
     const bool flash = vr_muzzle_flash.value != 0.f && weapons::value(slot, Key::Flash) != 0.f && feel.flash > 0.f;
     if(flash)
@@ -293,9 +307,10 @@ void playerFired(int hand)
     }
     if(vr_debug_weaponfx.value)
     {
-        Con_Printf("weaponfx fired t %.3f hand %d slot %d recoil %d (%.2f, %.3f s) flash %d (%.2f, %.3f s) adgun %d burst %d\n",
+        Con_Printf("weaponfx fired t %.3f hand %d slot %d recoil %d (%.2f, %.3f s, back %.2fx) flash %d (%.2f, %.3f s) adgun %d "
+                   "burst %d\n",
             cl.time, hand, slot, recoil ? 1 : 0, weapons::value(slot, Key::RecoilStrength) * feel.recoil,
-            weapons::value(slot, Key::RecoilTime) * feel.recoilTime, flash ? 1 : 0, weapons::value(slot, Key::FlashSize) * feel.flash,
+            weapons::value(slot, Key::RecoilTime) * feel.recoilTime, recoveryOf(slot), flash ? 1 : 0, weapons::value(slot, Key::FlashSize) * feel.flash,
             weapons::value(slot, Key::FlashTime) * feel.flashTime, h.variant, static_cast<int>(feel.burst));
     }
 }
@@ -539,7 +554,7 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
     {
         if(k.time >= 0.0)
         {
-            const float e = envelope(static_cast<float>(cl.time - k.time), k.duration) * k.strength;
+            const float e = envelope(static_cast<float>(cl.time - k.time), k.duration, k.recovery) * k.strength;
             kick += e;
             sideways += e * k.sideways;
         }
@@ -882,11 +897,104 @@ void clear()
 namespace
 {
 
+// vr_recoil_test's part on the held weapon's (the main hand's) Recoil Recovery (Key::RecoilRecovery): every slot's is 1
+// by default and at 1 the kick's curve is the one before (the envelope before it, sampled at three Return Times); at 2
+// the drawn kick (recoilOffset) takes twice as long back to rest from its peak, at 0.5 half as long, its peak the same.
+// Puts the value back.
+template <typename Check>
+void recoveryTest(const Check& check)
+{
+    const auto envelopeBefore = [](float t, float duration)
+    {
+        if(t < 0.f || t >= duration)
+        {
+            return 0.f;
+        }
+        const float rise = za::min(0.035f, 0.3f * duration);
+        if(t < rise)
+        {
+            const float x = 1.f - t / rise;
+            return 1.f - x * x;
+        }
+        const float x = (t - rise) / (duration - rise);
+        return 1.f - x * x * (3.f - 2.f * x);
+    };
+    int ones = 0;
+    for(int s = 0; s < weapons::numSlots; s++)
+    {
+        ones += recoveryOf(s) == 1.f ? 1 : 0;
+    }
+    check(ones == weapons::numSlots, "every slot's Recoil Recovery is 1 by default (slots)", static_cast<float>(ones),
+        static_cast<float>(weapons::numSlots));
+    int samples = 0, same = 0;
+    for(const float duration : {0.06f, 0.15f, 0.325f})
+    {
+        for(int i = 0; i <= 400; i++)
+        {
+            const float t = static_cast<float>(i) * 0.001f;
+            samples++;
+            same += envelope(t, duration, 1.f) == envelopeBefore(t, duration) ? 1 : 0;
+        }
+    }
+    check(same == samples, "at 1 the kick's curve is the one before (samples)", static_cast<float>(same),
+        static_cast<float>(samples));
+
+    const int hand = HAND_MAIN;
+    const int held = weapons::heldSlot(hand);
+    constexpr float duration = 0.15f;
+    const float rise = za::min(0.035f, 0.3f * duration);
+    // Degrees the held weapon is tipped up `t` s after a kick (its Recoil Recovery read as playerFired reads it).
+    const auto tipAt = [&](float t)
+    {
+        forget(hand);
+        HandFx& h = handFx[hand];
+        h.slot = held;
+        h.kicks[0] = Kick{cl.time - static_cast<double>(t), 1.f, duration, 0.5f, recoveryOf(held)};
+        glm::vec3 pos, angles;
+        recoilOffset(hand, glm::vec3{0.f}, pos, angles);
+        forget(hand);
+        return -angles.x;
+    };
+    // Seconds from the kick's peak until it is back at rest (in 0.5 ms steps).
+    const auto backTime = [&]()
+    {
+        for(int i = 1; i < 8000; i++)
+        {
+            const float t = rise + static_cast<float>(i) * 0.0005f;
+            if(tipAt(t) <= 0.f)
+            {
+                return t - rise;
+            }
+        }
+        return -1.f;
+    };
+    cvar_t* recVar = weapons::cvar(held, Key::RecoilRecovery);
+    const za::String oldRec{recVar->string};
+    const float peak1 = tipAt(rise), back1 = backTime();
+    check(fabsf(back1 - (duration - rise)) <= 0.001f, "at 1 the kick is back at rest at its Return Time (s from peak)",
+        back1, duration - rise);
+    Cvar_SetValueQuick(recVar, 2.f);
+    const float peak2 = tipAt(rise), back2 = backTime();
+    check(fabsf(back2 / back1 - 2.f) <= 0.02f, "Recoil Recovery 2x: twice as long back to rest (ratio)", back2 / back1, 2.f);
+    check(peak2 == peak1, "and the same peak (deg)", peak2, peak1);
+    Cvar_SetValueQuick(recVar, 0.5f);
+    const float peakHalf = tipAt(rise), backHalf = backTime();
+    check(fabsf(backHalf / back1 - 0.5f) <= 0.02f, "Recoil Recovery 0.5x: half as long back to rest (ratio)", backHalf / back1,
+        0.5f);
+    check(peakHalf == peak1, "and the same peak (deg)", peakHalf, peak1);
+    Con_Printf("vr_recoil_test: back to rest from the peak %.4f s at 1x, %.4f s at 2x, %.4f s at 0.5x\n", back1, back2,
+        backHalf);
+    Cvar_SetQuick(recVar, oldRec.cStr());
+    check(tipAt(rise) == peak1 && fabsf(backTime() - back1) == 0.f, "value put back: the held weapon's recovery as before",
+        recoveryOf(held), 1.f);
+}
+
 // vr_recoil_test: each weapon's own recoil kick and rise (Key::RecoilKick, RecoilRise) move its recoil only. At their
 // defaults every slot's recoil is Weapon Effects' Kick Back and Muzzle Rise times its strength, as before; the held
 // weapon's (the main hand's) Kick Back 2 and Muzzle Rise 0.5 double its drawn kick back and halve its tip up and turn
 // (recoilOffset, a kick put in its hand), and no other slot's recoil moves (but a slot inheriting its values); another
-// slot's own 3 and 3 leave the held weapon's as it was. Every value it changes it puts back. Ends with
+// slot's own 3 and 3 leave the held weapon's as it was; then its Recoil Recovery (recoveryTest). Every value it changes
+// it puts back. Ends with
 // "vr_recoil_test: N passed, M failed".
 void recoilTest_f()
 {
@@ -1008,6 +1116,7 @@ void recoilTest_f()
     drawn(pos3, ang3);
     check(glm::length(pos3) == glm::length(pos0) && ang3.x == ang0.x, "values put back: the held weapon's kick as before",
         glm::length(pos3), glm::length(pos0));
+    recoveryTest(check);
     qvr::testkit::verdict("vr_recoil_test", passed, failed);
 }
 

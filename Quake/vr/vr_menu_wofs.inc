@@ -915,6 +915,9 @@ za::Vector<Item> pageWofsEffects()
                   "doesn't tip up, only the kick back."),
         s("Recoil Return Time", Key::RecoilTime, 0.03f, 0.6f, 0.01f, "%.2f s").extend(0.02f, 3.f)
             .help("How long a shot's kick takes to come back to rest."),
+        s("Recoil Recovery", Key::RecoilRecovery, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.1f, 10.f)
+            .help("Times how long this weapon takes to come back to rest from a shot's kick (its Return Time; the quick "
+                  "kick up stays as it is). Above 1 slower: a weightier gun. Below 1 faster: a lighter one. 1: as before."),
         cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
             .help("The shotgun's flash at this weapon's muzzle (its Muzzle settings) for a moment at each shot, following "
                   "the gun; gone when it leaves your hand."),
