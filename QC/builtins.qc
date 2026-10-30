@@ -310,8 +310,10 @@ float(entity e, entity player, float hand, optional float tug, optional vector g
       optional float force) ragdollgrab = #0;
 // The armed monsters' tug-of-war (vr_armedgrunt_play.qc): what 0, e staggering (standing its ground), the hand holds e's
 // limb nearest the weapon's `grip` by a spring of at most `force` N where the hand is (the weapon's lever), e's arm
-// pulling it in at `strength` (0..3): 1 if it does; 1 the hold's pull now (N; -1 none: let go of, torn off); 2 over
-// (let go of; its stagger up again `strength` s on).
+// pulling it in at `strength` (0..3): 1 if it does (a second hand of the same player: one more hold); 1 the hold's pull
+// now (N; -1 none: let go of, torn off); 2 over (both hands let go of; its stagger up again `strength` s on); 3 the
+// tug's stretch (m: the hand's flat distance from where it stands its ground, beyond the grab's; -1 none); 4 this hand
+// lets go, the tug going on.
 float(entity e, entity player, float hand, float what, optional vector grip, optional float strength,
       optional float force) ragdolltug =
 {

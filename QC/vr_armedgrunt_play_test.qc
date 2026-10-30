@@ -306,6 +306,7 @@ float vr_agpt_m0;   // test 34's: the most the weapon moved before its hand clos
 float vr_agpt_n0;   // test 35's: weapon index,
 float vr_agpt_grip0;   // ... your vr_weapon_grip_mode before it (as it was again at the end),
 float vr_agpt_gripset; // ... 1 while it holds vr_weapon_grip_mode at 1
+float vr_agpt_keep_scale; // test 38's: vr_agrunt_tug_downed_scale before (0 during: the down grab at once)
 float vr_agpt_th;      // tests 31 with scratch4 (the drawn hand on the weapon): before the grab, its stage
 
 void(entity g) VR_AGPT_Watch =
@@ -369,8 +370,9 @@ void() VR_AGPT_RagTug =
     }
     if(g.vr_ag_tug_pl && cvar("developer") && floor(time * 4) != floor((time - frametime) * 4))
     {
-        VR_AGT_Print(sprintf("ragtug %.2f s: %.0f N, impulse %.0f, its hand %.1f from yours, standing %g", time - g.vr_ag_tug_since,
-            vr_ag_tug_force, g.vr_ag_tug_imp, ragdollreach(p, cVR_MainHand), g.vr_kd_stagger));
+        VR_AGT_Print(sprintf("ragtug %.2f s: %.0f N (joint %.0f, stretch %.0f), impulse %.0f, its hand %.1f from yours, standing %g",
+            time - g.vr_ag_tug_since, vr_ag_tug_force, vr_ag_tug_fjoint, vr_ag_tug_fstretch, g.vr_ag_tug_imp,
+            ragdollreach(p, cVR_MainHand), g.vr_kd_stagger));
         if(g.vr_ag_prop) { VR_AGT_Print(sprintf("  weapon minus hand %v, grunt minus you %v", g.vr_ag_prop.origin - p.handpos, g.origin - p.origin)); }
     }
     // (scratch4 1 or more: the drawn hand on the weapon every 0.1 s: vr_ragdoll_hand_probe's tug line.)
@@ -1685,6 +1687,8 @@ void() VR_AGPT_FallKeep =
         p.flags = p.flags | FL_NOTARGET;
         VR_AGPT_EmptyHand(p);
         cvar_set("vr_agrunt_disarm_yank", "0");
+        vr_agpt_keep_scale = cvar("vr_agrunt_tug_downed_scale");
+        cvar_set("vr_agrunt_tug_downed_scale", "0"); // (the down grab at once; the eased tug: test 92)
         VR_AGPT_Clear();
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 120);
         vr_agt_step = 1;
@@ -1732,6 +1736,7 @@ void() VR_AGPT_FallKeep =
     {
         vr_agpt_case = 0;
         cvar_set("vr_agrunt_disarm_yank", "1");
+        cvar_set("vr_agrunt_tug_downed_scale", ftos(vr_agpt_keep_scale));
         p.flags = p.flags - (p.flags & FL_NOTARGET);
         cvar_set("vr_agrunt_test", "0");
     }

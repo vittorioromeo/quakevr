@@ -189,6 +189,7 @@ QVR_CVAR(vr_mock_hand_to_absolute, "0", CVAR_NONE)    // 1: vr_mock_hand_to puts
 QVR_CVAR(vr_mock_hand_glide, "0", CVAR_NONE)         // s: vr_mock_hand_to glides the hand there over this long, reporting the glide's velocity (0: a jump in one frame)
 QVR_CVAR(vr_mock_hand_lift, "0", CVAR_NONE)           // m: the main mock hand raised this much (tracking up; QC tests set it: an armed monster's weapon at its own height)
 QVR_CVAR(vr_mock_hand_pull, "0", CVAR_NONE)           // m: the main mock hand drawn back this much (tracking +z; QC tests set it: a tug's pull)
+QVR_CVAR(vr_mock_hand_pull_off, "0", CVAR_NONE)       // m: ... the off mock hand (two hands in a tug: vr_agrunt_test 92)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
@@ -2540,6 +2541,9 @@ QVR_CVAR(vr_agrunt_grab_gap, "999", CVAR_NONE)         // (the tests' reading: w
 QVR_CVAR(vr_agrunt_saw_drop_running, "1", CVAR_ARCHIVE) // 1: an armed humanoid that was fighting you with a chainsaw drops it running (dead, disarmed, a tug won), as yours runs on as it lies (vr_chainsaw_drop_run): taken up meanwhile, no cord to pull; one that never saw you drops it off
 QVR_CVAR(vr_agrunt_grab_speed, "1.25", CVAR_ARCHIVE)     // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)
 QVR_CVAR(vr_agrunt_tug_let_go, "50", CVAR_ARCHIVE)      // cm: in the physical tug, your hand lets go of its weapon (lost) once its controller is this far from where it holds it (pulled away, or you stepped back) before its grip gives; till then your drawn hand stays on the weapon
+QVR_CVAR(vr_agrunt_tug_downed_scale, "0.5", CVAR_ARCHIVE) // a staggering or downed one: its weapon still needs a tug, its time this share of a standing one's (0: the grab takes it at once, as before)
+QVR_CVAR(vr_agrunt_tug_second_grab, "0", CVAR_ARCHIVE)  // your other hand grabbing its weapon in a tug: 0 joins it (both pulls count, it gives sooner), 1 tears it free at once
+QVR_CVAR(vr_agrunt_tug_strike, "1", CVAR_ARCHIVE)       // 1: in a tug, your other fist striking its weapon (vr_agrunt_tug_strike_swing of the disarm swing) tears it free into your holding hand
 QVR_CVAR(vr_agrunt_parry_disarm, "0.35", CVAR_ARCHIVE) // the chance your weapon's parry of its melee weapon knocks the weapon out of its hand (a well-timed one 1.5x)
 // Armed ones parrying melee blows with their weapon (QC vr_armedgrunt_parry.qc; ROUND22.md "Armed grunts parry").
 QVR_CVAR(vr_agrunt_parry, "1", CVAR_ARCHIVE)          // 1: an armed grunt or enforcer holding a weapon parries a melee blow (yours, a monster's) that meets its weapon first
@@ -2553,6 +2557,11 @@ QVR_CVAR(vr_agrunt_shotdisarm_size, "1", CVAR_ARCHIVE)         // the weapon's a
 QVR_CVAR(vr_agrunt_shotdisarm_chance, "0.25", CVAR_ARCHIVE)    // the roll's chance at the threshold
 QVR_CVAR(vr_agrunt_shotdisarm_chance_scale, "0.8", CVAR_ARCHIVE) // ... plus this for each threshold past it (24 on 16: +0.4; at most 0.95)
 QVR_CVAR(vr_agrunt_shotdisarm_block, "1", CVAR_ARCHIVE)        // 1: a pellet or nail whose first hit is the weapon stops there (sparks, a tink; no damage to the holder); 0: on into the body (was vr_agrunt_shotdisarm_absorb, "0")
+QVR_CVAR(vr_agrunt_shotdisarm_proj, "1", CVAR_ARCHIVE)         // 1: each nail or rocket on (or near) its weapon or hand rolls once: chance by its damage and how near (0: they add up as the shots do)
+QVR_CVAR(vr_agrunt_shotdisarm_proj_chance, "0.2", CVAR_ARCHIVE) // ... the chance of a hit of vr_agrunt_shotdisarm_proj_ref damage, on it
+QVR_CVAR(vr_agrunt_shotdisarm_proj_ref, "9", CVAR_ARCHIVE)     // ... the damage that chance is for (a nail's): more damage, more chance
+QVR_CVAR(vr_agrunt_shotdisarm_proj_near, "4", CVAR_ARCHIVE)    // ... units past the weapon or hand a miss still rolls, its chance down to 0 there
+QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE)   // ... the most one projectile's chance (a rocket's direct hit)
 QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)           // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
 QVR_CVAR(vr_agrunt_fall_keep, "1", CVAR_ARCHIVE)  // 1: a gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, yours for a grab or a blow while it's down; a violent one drops it (below)

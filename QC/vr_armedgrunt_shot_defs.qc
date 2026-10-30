@@ -11,6 +11,8 @@ float QVR_AGS_NAIL = 1;      // a nail (its flight: VR_AGS_Frame)
 float QVR_AGS_LIGHTNING = 2; // a lightning bolt (LightningDamage)
 float QVR_AGS_BLAST = 3;     // a rocket's or a grenade's flight through it (its direct hit)
 float QVR_AGS_SPLASH = 4;    // an explosion's damage to the grunt
+.float vr_ags_kind;         // a projectile: its kind + 1, tagged at launch (launch_spike: every nail, the nail pistol's,
+                            // lava nails, mods' own; 0: by its touch, VR_AGS_ProjKind)
 
 // A player's (`xFrom`) hitscan path xA..xB (where it stopped), going `xDir`, of `xDamage`: what it passed through of a held
 // weapon or its hand adds up. TRUE: it stopped on the weapon (vr_agrunt_shotdisarm_block: no damage beyond).

@@ -1071,6 +1071,10 @@ void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
     {
         return; // (held still: the Grip Editor, the Pose Studio, where hands reach into its weapons)
     }
+    if(VR_AG_TugDisarm(g, why))
+    {
+        return; // (in a tug: into your holding hand, vr_agrunt_tug_strike: vr_armedgrunt_play.qc)
+    }
     dir_z = 0;
     vector vel = normalize(dir) * (speed * (0.8 + random() * 0.4)) + '0 0 1' * (speed * 0.9);
     float wid = g.vr_ag_wid;

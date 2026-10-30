@@ -755,6 +755,7 @@ struct World
         // A tug-of-war's hold (ragdollTug: a hand on an armed monster's weapon, holding its hand's limb at the weapon's
         // lever): the QC's hand holds nothing, so that never lets it go; the QC ends it.
         bool tug{false};
+        float tugReach{0.f}; // ... the hand's distance from its root body as it took hold (m: ragdollTug what 3's stretch)
         // The toolgun's physgun's hold (player 0, no hand: vr_box3d_ragparts.cpp, "The physgun's hold"): where its
         // anchor is driven to (units).
         glm::vec3 target{0.f};
