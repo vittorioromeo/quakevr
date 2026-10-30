@@ -2470,6 +2470,24 @@ played; a real SNG stream 11 hits, 6 played (no two within 0.12 s and 64 units).
 np_1 (23/0, baseline 21/0: its newer checks), rv_1, flare_1, ammocolor_1, swim_sound: all PASS. Build: 0 warnings,
 checks clean. (vr_gunsfx_test 19/1: "a gun held in the main hand (slot 16)", its setup's held weapon, not this change.)
 
+## Save Default also saves the config and tunables.cfg (agent/savecfg)
+
+His words: make the "save defaults" shortcut also write the tunables and config cfgs, so a crash loses nothing. The
+menu's corner button Save Default (second press), Debug > Save My Settings as Defaults and the console's
+`vr_propose_defaults` all go through `proposedefaults::write`, which now first calls `Host_WriteConfiguration` (the
+one path quit and a game change use: the sparse ironwail.cfg, then tunables.cfg with only the changed constants;
+nothing under -noconfigwrite/-evalcopy or a config not loaded), then prints `Saved your settings to disk: ironwail.cfg
+and tunables.cfg` (a release: ironwail.cfg only), or a yellow "not saved" line. `Host_WriteConfiguration` and
+`Host_WriteConfigurationToFile` now return whether they wrote; `VR_TunablesWrite` returns 0 on a failed write.
+
+Test: `Misc/quakevr/savecfg_test.sh <agent>` changes vr_hull_width and a tunable (random values), runs
+vr_propose_defaults, reads both files back from disk in the same run (`vr_config_test hasline <file> <word>... <value>`,
+new) and is killed on the verdict, never quitting: 2/0 (in-game 4/0; a negative run without the save fails as it
+should). config_sparse_test.sh 16/0. tunables_test.sh: run 1 38/0, quit's write and tune_promote pass; its run 2
+(read at start, tune_reset removing the file) failed because run.ps1 empties tunables.cfg before every run; fixed:
+its run 2 now sets QVR_KEEP_TUNABLES=1 (run.ps1 then keeps the file), and both tests leave tunables.cfg empty at the
+end.
+
 ## The fists' guard in game as the Pose Studio shows it (branch `agent/enfguard`)
 
 His report: an unarmed enforcer's guard posed with the fists at mouth level in the pose editor, but running at him in

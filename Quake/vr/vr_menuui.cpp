@@ -1986,7 +1986,8 @@ void useTool(int tool, int hand)
             {
                 s.armedAt = realtime;
                 s.savedAt = -1e9;
-                Con_Printf("Save Default: press again within %.0f seconds to write your changed settings for review.\n",
+                Con_Printf("Save Default: press again within %.0f seconds to save your settings to disk and write the "
+                           "changed ones for review.\n",
                     saveDefaultsConfirm);
                 qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
                 haptics::pulse(hand, 0.04f, 0.4f, 200.f);
