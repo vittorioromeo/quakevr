@@ -114,7 +114,7 @@ void() VR_AGBT_Pickup =
     {
         if(vr_agbt_case >= vr_agbt_count || (vr_agbt_keep > 0 && vr_agbt_case != vr_agbt_keep - 1))
         {
-            VR_AGT_Print(sprintf("pickups: %g passed, %g failed", vr_test_pass, vr_test_fail));
+            VR_Test_VerdictPart("pickups:");
             p.flags = p.flags - (p.flags & FL_NOTARGET);
             cvar_set("vr_agrunt_test_kind", ftos(vr_agbt_val2));
             cvar_set("vr_agrunt_test", "0");

@@ -168,7 +168,7 @@ void() MG_T_MapFinish = {
     VR_Test_Check(!find(world,targetname,"spookydoor_open_kill"), "authored quake sequence removes blocking geometry after nine seconds");
     entity rep = find(world,targetname,"spookydoor_lightning_repeater");
     VR_Test_Check(!rep, "authored quake sequence stops lightning repeater");
-    dprint(sprintf("mgtriggertest: mge5m2 %g passed, %g failed\n",vr_test_pass,vr_test_fail));
+    VR_Test_VerdictPart("mge5m2");
     remove(manager);
 };
 void() MG_T_MapSecond = {
@@ -223,7 +223,7 @@ void() MG_T_LightningDamage = {
     VR_Test_Check(dummy.health == 80,"lightning respects native wetsuit protection");
     remove(dummy); remove(endpoint); remove(bolt);
     self = caller; other = oldother; activator = oldact;
-    dprint(sprintf("mgtriggertest: damage %g passed, %g failed\n",vr_test_pass,vr_test_fail));
+    VR_Test_VerdictPart("damage");
 };
 
 void() MG_T_RetargetGate = {

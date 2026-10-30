@@ -10,6 +10,7 @@ float vr_test_fail;  // and failed
 float vr_test_flags; // VR_TEST_LOUD, VR_TEST_QUIET (VR_Test_BeginFlags)
 float VR_TEST_LOUD = 1;  // lines broadcast (bprint: seen with developer 0, as the armed grunts' tests print)
 float VR_TEST_QUIET = 2; // a pass prints no line (tests with very many checks: only the failures and the verdict)
+float vr_test_nested;    // an inner test counting (VR_Test_Nest): VR_Test_Unnest puts the outer one back
 
 // A test (or one of its parts) starts: its tag, the tally cleared.
 void(string tag) VR_Test_Begin =
@@ -18,6 +19,7 @@ void(string tag) VR_Test_Begin =
     vr_test_pass = 0;
     vr_test_fail = 0;
     vr_test_flags = 0;
+    vr_test_nested = FALSE; // (a test inside another given up: forgotten)
 };
 
 // The same with print modes (VR_TEST_LOUD | VR_TEST_QUIET).
@@ -41,10 +43,74 @@ void(float ok, string what) VR_Test_Check =
         VR_Test_Print(sprintf("%s: %s %s\n", vr_test_tag, ok ? "PASS" : "FAIL", what));
 };
 
+// One check counted, its line the test's own (an older test's line format, kept for the scripts that read it).
+void(float ok) VR_Test_Count =
+{
+    if(ok) vr_test_pass++; else vr_test_fail++;
+};
+
 // The test's verdict line.
 void() VR_Test_Verdict =
 {
     VR_Test_Print(sprintf("%s: %g passed, %g failed\n", vr_test_tag, vr_test_pass, vr_test_fail));
+};
+
+// A part's verdict line, for a test of several parts: `<tag>: <part> <p> passed, <f> failed` ("mg3test: caps 3 passed,
+// 0 failed"; part "every weapon:" gives "agtest: every weapon: 3 passed, 0 failed").
+void(string part) VR_Test_VerdictPart =
+{
+    VR_Test_Print(sprintf("%s: %s %g passed, %g failed\n", vr_test_tag, part, vr_test_pass, vr_test_fail));
+};
+
+// A test run inside another (the armed grunts' harness, `agtest`, runs `agshot`): the outer test's tag, print modes
+// and tally kept aside while the inner one counts (one level), and put back by VR_Test_Unnest.
+string vr_test_outer_tag;
+float vr_test_outer_pass, vr_test_outer_fail, vr_test_outer_flags;
+void(string tag, float flags) VR_Test_Nest =
+{
+    vr_test_outer_tag = vr_test_tag;
+    vr_test_outer_pass = vr_test_pass;
+    vr_test_outer_fail = vr_test_fail;
+    vr_test_outer_flags = vr_test_flags;
+    VR_Test_BeginFlags(tag, flags);
+    vr_test_nested = TRUE;
+};
+
+void() VR_Test_Unnest =
+{
+    if(!vr_test_nested)
+    {
+        return;
+    }
+    vr_test_nested = FALSE;
+    vr_test_tag = vr_test_outer_tag;
+    vr_test_pass = vr_test_outer_pass;
+    vr_test_fail = vr_test_outer_fail;
+    vr_test_flags = vr_test_outer_flags;
+};
+
+// The tests' one monster spawner (design review 7): what the firing range's dispenser makes of `kind` (its numbers:
+// 0 a grunt, 50 Chthon, 200.. AD's monsters; buttons.qc, func_enemy_dispenser) at `at`, for `player` (its activator;
+// world: none). `yaw` >= 0: the dispenser turned so before it spawns (its ideal_yaw too); -1: its own way. world:
+// nothing made. Impulse 241 (vr_test_spawn: the Debug menu's spawner) and the tests' spawn helpers call it.
+void() func_enemy_dispenser_use;
+entity(entity player, float kind, vector at, float yaw) VR_Test_Spawn =
+{
+    entity oldself = self;
+    entity dispenser = spawn();
+    dispenser.weapon = kind;
+    setorigin(dispenser, at);
+    if(yaw >= 0)
+    {
+        dispenser.angles_y = yaw;
+    }
+    self = dispenser;
+    activator = player;
+    func_enemy_dispenser_use();
+    entity made = self;
+    self = oldself;
+    remove(dispenser);
+    return made == dispenser ? world : made;
 };
 // The tests' frames (StartFrame's last step, in this order): each reads its request cvar and runs or checks its case.
 // (Tests always built: VR_DeadAnim_TestFrame, VR_KdTrig_Frame, stay in StartFrame.)

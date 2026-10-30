@@ -223,7 +223,6 @@ void(float request, entity p) AD_ShotsTest =
 // never bleed, the grunt bleeds. Ends with `adpellets: N passed, M failed`.
 entity(entity p) VR_FuelTank_TestWorn;
 entity(entity p, float xWid, float xDist) VR_FuelTank_TestWearer;
-float adpellets_pass, adpellets_fail;
 entity adpellets_crate, adpellets_grunt;
 float adpellets_metal, adpellets_wood, adpellets_blood;
 void() AD_PelletMat_Step =
@@ -239,14 +238,14 @@ void() AD_PelletMat_Step =
         vr_ad_blood_watch = world;
         string what = k == 0 ? "worn tank" : (k == 1 ? "wooden crate" : "grunt");
         float ok = k == 0 ? (metal > 0 && blood == 0) : (k == 1 ? (wood > 0 && blood == 0) : (blood > 0 && metal == 0));
-        if(ok) adpellets_pass++; else adpellets_fail++;
+        VR_Test_Count(ok);
         bprint(sprintf("adpellets: %s: sparks %g, splinters %g, blood on it %g (elsewhere %g): %s\n", what, metal, wood,
             blood, elsewhere, ok ? "PASS" : "FAIL"));
         self.cnt = 0;
         self.count = k + 1;
         if(self.count > 2)
         {
-            bprint(sprintf("adpellets: %g passed, %g failed\n", adpellets_pass, adpellets_fail));
+            VR_Test_Verdict();
             remove(self);
             return;
         }
@@ -256,8 +255,9 @@ void() AD_PelletMat_Step =
     entity t = k == 0 ? VR_FuelTank_TestWorn(p) : (k == 1 ? adpellets_crate : adpellets_grunt);
     if(!t)
     {
-        bprint(sprintf("adpellets: target %g missing: FAIL\nadpellets: %g passed, %g failed\n", k, adpellets_pass,
-            adpellets_fail + 1));
+        bprint(sprintf("adpellets: target %g missing: FAIL\n", k));
+        VR_Test_Count(FALSE);
+        VR_Test_Verdict();
         remove(self);
         return;
     }
@@ -284,7 +284,7 @@ void() AD_PelletMat_Step =
 };
 void(entity p) AD_PelletMatTest =
 {
-    adpellets_pass = adpellets_fail = 0;
+    VR_Test_BeginFlags("adpellets", VR_TEST_LOUD);
     makevectors('0 1 0' * p.angles_y);
     vector fw = v_forward, rt = v_right;
     VR_FuelTank_TestWearer(p, WID_ADPYRO, 160);

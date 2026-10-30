@@ -168,7 +168,7 @@ void() MG3_WT_BurstStep =
         VR_Test_Check(mg3wt_b.health <= -50 || mg3wt_lastdmg >= 80, "a killing blow does twice (it gibs)");
         p.flags = p.flags - (p.flags & FL_GODMODE);
         cvar_set("vr_weapon_grip_mode", ftos(mg3wt_gripmode));
-        dprint(sprintf("mg3wtest: superaxe %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+        VR_Test_VerdictPart("superaxe");
         mg3wt_step = 0;
         return;
     }
@@ -214,7 +214,7 @@ void() MG3_WT_Pickup =
     VR_Test_Check(it.solid == SOLID_NOT, "the pickup gone");
     VR_Test_Check(fabs(p.origin_z - z0 + 15) < 0.5, "spawnflag 128: dropped by its height (16, less MG3's 1)");
     VR_Test_Check(activator == p, "its target fired by the taker");
-    dprint(sprintf("mg3wtest: pickup %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("pickup");
 };
 
 // Request 4 (Dawn of the Machine's map2): the map's own Super Axe.
@@ -251,7 +251,7 @@ void() MG3_WT_Map2 =
     VR_Test_Check(p.weapon == WID_SUPERAXE, "taken into the main hand");
     VR_Test_Check(fabs(p.origin_z - z0 + 2047) < 0.5, "dropped 2047 units (MG3's silent teleport)");
     VR_Test_Check(found_secrets == secrets + 1, "its secret counted (trigger_secret axe_secret)");
-    dprint(sprintf("mg3wtest: map2 %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("map2");
 };
 
 // Request 5: a Super Axe in the main hand and the first holster.
@@ -324,7 +324,7 @@ void() MG3_WT_AxeButtons =
     }
     dprint(sprintf("mg3wtest: %g of %g opened by blows (fist, Super Axe, thrown weapon, thrown prop, headbutt in turn)\n", opened, n));
     VR_Test_Check(opened == n, "every one opens to a blow");
-    dprint(sprintf("mg3wtest: axe buttons %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("axe buttons");
 };
 
 entity(entity p, float xClosed) MG3_WT_NearestAxeButton =
@@ -426,7 +426,7 @@ void() MG3_WT_LaserStep =
         bounces, vr_laser_bounce_ratio, stops, alive));
     VR_Test_Check(bounces >= 1 && vr_laser_bounce_ratio == 0.9, "bolts bounce off the floor, keeping 0.9 of their damage");
     VR_Test_Check(stops >= 1, "bolts stop (the one in seven, the third touch, or what they hit)");
-    dprint(sprintf("mg3wtest: laser %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("laser");
     mg3wt_step = 0;
 };
 
@@ -466,7 +466,7 @@ void() MG3_WT_LaserPickup =
     other = oldother;
     dprint(sprintf("mg3wtest: hand %g model %s cells %g\n", p.weapon, p.weaponmodel, p.ammo_cells));
     VR_Test_Check(p.weapon == WID_LASER_CANNON && p.weaponmodel == "progs/v_laserg.mdl", "taken: the laser cannon in the main hand");
-    dprint(sprintf("mg3wtest: laser pickup %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("laser pickup");
 };
 
 // Requests 11..15: the bloody shotguns.
@@ -527,7 +527,7 @@ void() MG3_WT_BloodyTake =
     VR_Test_Check(taken > 0, sprintf("bloody shotguns taken: %g", taken));
     MG3_WT_BloodyReport();
     VR_Test_Check(!(MG3_BloodyBits() & MG3_BLOODY_SG) || MG3_BloodyShotgunRefire(0.5) == 0.28, "the bloody shotgun refires in 0.28 s");
-    dprint(sprintf("mg3wtest: bloody %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("bloody");
 };
 
 // Request 16: laser cannon bolts bleed only flesh. Run where the map's worldspawn carries a stray "health" key
@@ -606,7 +606,7 @@ void() MG3_WT_LaserBloodStep =
         sprintf("a bolt on a soldier bleeds it (%g blood, health 1000 -> %g)", bodyBlood, mg3wt_target.health));
     remove(mg3wt_target);
     mg3wt_step = 0;
-    dprint(sprintf("mg3wtest: laserblood %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("laserblood");
 };
 
 void() MG3_WeaponsTestFrame =

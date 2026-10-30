@@ -90,7 +90,7 @@ void() VR_RST_Frame =
     VR_AGT_Check(sprintf("rigseq: its end at %.3f s (1)", vr_rst_end), vr_rst_end >= 0.999 && vr_rst_end <= 1.021 && !vr_rst_stopped);
     VR_AGT_Check(sprintf("rigseq: its frame climbed through %g values, -1 after its end (%g)", vr_rst_frames, g.vr_rigseq_frame),
         vr_rst_frames >= 8 && g.vr_rigseq_frame == -1);
-    VR_AGT_Print(sprintf("rigseq: %g passed, %g failed", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("rigseq:");
     localcmd("vr_rig2anim_check fixture off\n");
     VR_AGT_Remove(g);
     vr_agt_grunt = world;
@@ -175,7 +175,7 @@ void() VR_RST_TauntFrame =
         g.vr_ag_taunted == 1 && g.enemy == vr_agt_player);
     VR_AGT_Check(sprintf("taunt: its shout at %.3f s (frame 6: 0.6), its end at %.3f s (1.6)", vr_rst_shout, vr_rst_tend),
         vr_rst_shout >= 0.599 && vr_rst_shout <= 0.621 && vr_rst_tend >= 1.599 && vr_rst_tend <= 1.621);
-    VR_AGT_Print(sprintf("taunt: %g passed, %g failed", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("taunt:");
     VR_AGT_Remove(g);
     vr_agt_grunt = world;
     cvar_set("vr_agrunt_taunt", ftos(vr_rst_taunt));

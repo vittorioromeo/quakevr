@@ -14,7 +14,6 @@
 entity vr_act_player;
 float vr_act_case;    // the case under way (-1: none)
 float vr_act_frames;  // frames it has waited for the readout
-float vr_act_pass, vr_act_fail;
 float vr_act_hand, vr_act_loaded, vr_act_size, vr_act_expect;
 float vr_act_warn;    // vr_ammo_color_warn as it was
 float vr_act_debug;   // vr_ammo_color_debug as it was
@@ -95,7 +94,7 @@ float(float xHand, float g, float xFill) VR_ACT_Give =
 
 void() VR_ACT_End =
 {
-    dprint(sprintf("ammocolor: %g passed, %g failed\n", vr_act_pass, vr_act_fail));
+    VR_Test_Verdict();
     if(vr_act_prop != world) { remove(vr_act_prop); vr_act_prop = world; }
     cvar_set("vr_ammo_color_probe", "-1");
     cvar_set("vr_ammo_color_warn", ftos(vr_act_warn));
@@ -185,7 +184,7 @@ void() VR_AmmoColor_TestFrame =
             dprint("ammocolor: scene: an empty nailgun in the main hand\n");
             return;
         }
-        vr_act_pass = vr_act_fail = 0;
+        VR_Test_Begin("ammocolor");
         vr_act_warn = cvar("vr_ammo_color_warn");
         vr_act_debug = cvar("vr_ammo_color_debug");
         vr_act_grip = cvar("vr_weapon_grip_mode");
@@ -217,7 +216,7 @@ void() VR_AmmoColor_TestFrame =
         {
             dprint(sprintf("ammocolor: FAIL case %g (%s): timed out, the readout at %g\n", vr_act_case,
                 VR_ACT_Name(VR_ACT_Gun(vr_act_case)), seen));
-            vr_act_fail = vr_act_fail + 1;
+            vr_test_fail = vr_test_fail + 1;
         }
         else
         {
@@ -231,7 +230,7 @@ void() VR_AmmoColor_TestFrame =
             vr_act_mode == 1 ? "holstered" : vr_act_mode == 2 ? "lying" : vr_act_hand == cVR_OffHand ? "off hand" : "main hand", vr_act_loaded, vr_act_size);
         dprint(sprintf("ammocolor: %s %s%s: state %g (want %g)\n", ok ? "PASS" : "FAIL", what,
             cvar("vr_ammo_color_warn") ? "" : ", the option off", state, vr_act_expect));
-        if(ok) { vr_act_pass = vr_act_pass + 1; } else { vr_act_fail = vr_act_fail + 1; }
+        VR_Test_Count(ok);
     }
     vr_act_case = vr_act_case + 1;
     if(vr_act_case >= VR_ACT_CASES)

@@ -28,7 +28,7 @@ float mg3mt_n;         // a count at a step's start (rockets fired)
 
 void() MG3_MT_Total =
 {
-    dprint(sprintf("mg3mtest: total %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("total");
     VR_Test_Begin("mg3mtest");
 };
 

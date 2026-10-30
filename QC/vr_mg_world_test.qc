@@ -1,14 +1,12 @@
 #ifdef QVR_TESTS
 // Native environment acceptance aid (Debug > Tests). Reload the map after the destructive barrel test.
-float MG_test_pass;
-float MG_test_fail;
 float MG_test_targets;
 entity MG_test_barrel;
 float MG_test_blood;
 .float MG_test_tag;
 entity MG_test_actor;
 void(float ok, string label) MG_TestCheck = {
-    if(ok) MG_test_pass++; else MG_test_fail++;
+    VR_Test_Count(ok);
     dprint(sprintf("mgworldtest: %s %s\n", ok ? "PASS" : "FAIL", label));
 };
 void() MG_TestTarget = { MG_test_targets++; MG_test_actor = activator; };
@@ -17,7 +15,7 @@ void() MG_TestFinish = {
     MG_TestCheck(!MG_test_barrel.MG_test_tag || MG_test_barrel.solid == SOLID_NOT,
                  "barrel ceases blocking after its delayed explosion");
     MG_TestCheck(MG_test_actor.classname == "player", "target retains the attacking player as activator");
-    dprint(sprintf("mgworldtest: %g passed, %g failed\n", MG_test_pass, MG_test_fail));
+    VR_Test_Verdict();
     remove(self);
 };
 void() MG_TestFrame = {
@@ -35,7 +33,8 @@ void() MG_TestFrame = {
     if(request == 1) return;
     if(request == 3) { MG_ActivationTest(); return; }
     if(request >= 4) { MG_ProgressTest(request); return; }
-    MG_test_pass = MG_test_fail = MG_test_targets = 0;
+    VR_Test_Begin("mgworldtest");
+    MG_test_targets = 0;
     entity e = spawn();
     self = e;
     e.dest = '0 0 64';
@@ -72,7 +71,8 @@ void() MG_TestFrame = {
     remove(e);
     MG_test_barrel = find(world, classname, "func_explode");
     if(!MG_test_barrel) {
-        dprint(sprintf("mgworldtest: %g passed, %g failed; barrel test needs e5m1\n", MG_test_pass, MG_test_fail));
+        VR_Test_Verdict();
+        dprint("mgworldtest: barrel test needs e5m1\n");
     } else {
         // Reuse the authored brush hull in place, avoiding a bounding-box approximation for hand hazards.
         entity barrel = MG_test_barrel;

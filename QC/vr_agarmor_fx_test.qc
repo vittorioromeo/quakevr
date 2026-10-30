@@ -270,7 +270,7 @@ void() VR_AgArmor_FxTestEnd =
     cvar_set("vr_agarmor_block_cuts", ftos(vr_aft_cuts));
     cvar_set("vr_agarmor_debris_time", ftos(vr_aft_dtime));
     vr_aft_busy = 0;
-    dprint(sprintf("agarmor fx test: %g passed, %g failed\n", vr_art_pass, vr_art_fail));
+    VR_Test_Verdict();
 };
 
 // VR_AgArmor_TestFrame's `vr_agarmor_test 5` (start 1: the request just made).
@@ -279,8 +279,7 @@ void(float start) VR_AgArmor_FxTestFrame =
     entity p = VR_Player();
     if(start)
     {
-        vr_art_pass = 0;
-        vr_art_fail = 0;
+        VR_Test_Begin("agarmor fx test");
         vr_aft_rule = cvar("vr_agarmor_rule");
         vr_aft_helm = cvar("vr_agarmor_helmet_head");
         vr_aft_cuts = cvar("vr_agarmor_block_cuts");

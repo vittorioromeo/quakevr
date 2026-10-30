@@ -27,8 +27,7 @@ float vr_agam_dmg0;     // ... vr_agr_pl_dmg
 float vr_agam_reload;   // a reload expected
 float vr_agam_disarmed; // the disarm case: its reserve when knocked out of its hand (its ammo kind's)
 float vr_agam_disarm_aid;
-float vr_agam_passed;
-float vr_agam_failed;
+float vr_agam_nested; // (its tally begun: VR_Test_Nest inside agtest's)
 string vr_agam_name;
 entity vr_agam_g;
 float VR_AGAM_COUNT = 36;
@@ -41,7 +40,7 @@ void(string s) VR_AGAM_Print = { bprint(sprintf("agammo: %s\n", s)); };
 void(string what, float ok) VR_AGAM_Check =
 {
     VR_AGAM_Print(sprintf("%s %s", what, ok ? "PASS" : "FAIL"));
-    if(ok) { vr_agam_passed = vr_agam_passed + 1; } else { vr_agam_failed = vr_agam_failed + 1; }
+    VR_Test_Count(ok);
 };
 
 // Case `i`'s weapon ("weapon" key; -1 its fists; 0: skipped, Arcane Dimensions' without its data), its left hand's
@@ -166,8 +165,7 @@ void() VR_AGAM_Begin =
     vr_agam_i = max(0, rint(cvar("scratch2")) - 1); // (scratch2 n: from case n-1; scratch3 k: k cases, 1 that one alone)
     vr_agam_last = cvar("scratch3") > 0 ? min(VR_AGAM_COUNT, vr_agam_i + rint(cvar("scratch3"))) : VR_AGAM_COUNT;
     vr_agam_step = 0;
-    vr_agam_passed = 0;
-    vr_agam_failed = 0;
+    vr_agam_nested = FALSE;
     vr_agam_org_set = FALSE;
 };
 
@@ -190,7 +188,12 @@ void() VR_AGAM_Frame =
     }
     if(vr_agam_step == 0)
     {
-        if(vr_agam_passed + vr_agam_failed == 0)
+        if(!vr_agam_nested)
+        {
+            VR_Test_Nest("agammo", VR_TEST_LOUD);
+            vr_agam_nested = TRUE;
+        }
+        if(vr_test_pass + vr_test_fail == 0)
         {
             cvar_set("vr_debug_sound_log", "2");
             // (The hall's shootable buttons: a stray pellet on one restarted the map.)
@@ -206,9 +209,11 @@ void() VR_AGAM_Frame =
         if(vr_agam_i >= vr_agam_last)
         {
             cvar_set("vr_debug_sound_log", "0");
-            VR_AGAM_Print(sprintf("done: %g passed, %g failed", vr_agam_passed, vr_agam_failed));
-            vr_test_pass = vr_agam_passed;
-            vr_test_fail = vr_agam_failed;
+            VR_Test_VerdictPart("done:");
+            float agamPass = vr_test_pass, agamFail = vr_test_fail;
+            VR_Test_Unnest();
+            vr_test_pass = agamPass; // (agtest's "test N over" counts these)
+            vr_test_fail = agamFail;
             cvar_set("vr_agrunt_test", "0");
             return;
         }

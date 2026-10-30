@@ -19,8 +19,6 @@ float vr_dctest_ticks;   // the pass's ticks (0.1 s) so far
 float vr_dctest_hit;     // the target took damage in this pass
 float vr_dctest_ownhit;  // ... in pass 0
 string vr_dctest_by;     // what struck it last
-float vr_dctest_passed;
-float vr_dctest_failed;
 float vr_dctest_godmode; // the player's FL_GODMODE as it was
 float vr_dctest_grip;    // vr_weapon_grip_mode as it was (1 for the test: a weapon stays in a hand not gripping)
 float vr_dctest_end;     // the test after the last to run
@@ -259,7 +257,7 @@ void() VR_DCTest_Think =
     bprint(sprintf("dmgcredit: %s: own %g %s, last %g %s", VR_DCTest_Name(i), own, VR_DCTest_Hit(vr_dctest_ownhit), last,
         VR_DCTest_Hit(vr_dctest_hit)));
     bprint(sprintf(" (by %s): credited %g: %s\n", vr_dctest_by, credited, ok ? "PASS" : "FAIL"));
-    if(ok) { vr_dctest_passed++; } else { vr_dctest_failed++; }
+    VR_Test_Count(ok);
     vr_dctest_pass = 0;
     vr_dctest_index = vr_dctest_index + 1;
     while(vr_dctest_index < vr_dctest_end && !VR_DCTest_Available(vr_dctest_index))
@@ -269,7 +267,7 @@ void() VR_DCTest_Think =
     }
     if(vr_dctest_index >= vr_dctest_end)
     {
-        bprint(sprintf("dmgcredit: %g passed, %g failed\n", vr_dctest_passed, vr_dctest_failed));
+        VR_Test_Verdict();
         VR_DCTest_ClearShots(p);
         p.flags = p.flags - (p.flags & FL_GODMODE) + vr_dctest_godmode;
         cvar_set("vr_weapon_grip_mode", ftos(vr_dctest_grip));
@@ -294,7 +292,8 @@ void() VR_DCTest_Frame =
         return;
     }
     vr_dctest_player = p;
-    vr_dctest_pass = vr_dctest_ticks = vr_dctest_passed = vr_dctest_failed = 0;
+    vr_dctest_pass = vr_dctest_ticks = 0;
+    VR_Test_BeginFlags("dmgcredit", VR_TEST_LOUD);
     vr_dctest_index = 0;
     vr_dctest_end = VR_DCTEST_COUNT;
     if(ask >= 100 && ask < 100 + VR_DCTEST_COUNT) // (one weapon's)
