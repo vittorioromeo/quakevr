@@ -7,19 +7,9 @@
     return {
         slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend()
             .help("How fast what you throw flies, times your hand's speed."),
-        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}})
-            .help("How thrown things fall: Real, as on Earth; Quake, as Quake's own gravity."),
         slider("Two-Hand Throw Speed", vr_2h_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
         slider("Two-Hand Throw Damage", vr_throw_2h_damage, 0.5f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("A weapon or prop thrown with both hands: its hits' damage times this (one hand: 1x). 1.25 as shipped."),
-        slider("Velocity Window", vr_throw_window, 0.04f, 0.3f, 0.01f, "%.2f s").extend()
-            .help("Around the release, where the hand's fastest moment sets the throw."),
-        slider("Direction Lookback", vr_throw_dir_lookback, 0.f, 0.1f, 0.005f, "%.3f s").extend()
-            .help("How far back from that moment the throw's direction is averaged."),
-        slider("Lever Arm", vr_throw_lever_arm, 0.f, 0.3f, 0.01f, "%.2f m").extend()
-            .help("From the palm to the held object's centre: wrist flicks add speed through it."),
-        slider("Release Pitch", vr_throw_pitch, -15.f, 15.f, 0.5f, "%+.1f deg").extend()
-            .help("Tilts every throw up (or down, below 0). 0: as throws were tuned; the hand calibration doesn't change them."),
         toggle("Analog Release", vr_throw_release)
             .help("A throw lets go as the grip starts to open, not only once it is released."),
         slider("Slow Motion: Full Stroke Tempo", vr_throw_slowmo_stroke_time, 0.04f, 0.2f, 0.005f, "%.3f s").extend()
@@ -28,8 +18,6 @@
                   "a real-speed one of its length, the more it is raised. This is a full arm throw's stroke at real "
                   "speed (its path over its peak speed). Lower: slowed throws reach full strength sooner, real-speed "
                   "throws in bullet time are raised a little more."),
-        slider("Slow Motion: Most Raised Speed", vr_throw_slowmo_max_speed, 0.f, 40.f, 1.f, "%.0f m/s").extend()
-            .help("The fastest a slowed throw is raised to (never below how fast you moved). 0: no cap."),
         toggle("Slow Motion: Throws As In Real Time", vr_throw_slowmo_real_strength)
             .help("In slow motion, every throw is as strong as the same motion at full speed: never raised. A throw "
                   "you make slowly with the slowed world then goes as slowly as you made it. Off: raised by the "
@@ -43,108 +31,16 @@
             .help("Which frame the runtime's controller angular velocity is in (melee, flick reload, throws). Auto: "
                   "Virtual Desktop's controller frame, else the tracking space, checked against how the controllers "
                   "turn. Tracking Space: as before. From Turn: ignore it, use the controller's turn."),
-        slider("Max Speed Gain", vr_throw_gain_max, 1.f, 3.f, 0.05f, "%.2fx").extend()
-            .help("Extra speed for fast throws, which feel weak at true speed."),
         header("Throws by Weight"),
-        slider("Light Things' Top Speed", vr_throw_max_speed, 10.f, 40.f, 1.f, "%.0f m/s").extend(5.f, 100.f)
-            .help("The fastest anything leaves your hand: a grenade, the axe (28: about 80 m at 45 degrees)."),
-        slider("Light Up To", vr_throw_mass_light, 0.5f, 5.f, 0.1f, "%.1f kg").extend(0.1f, 50.f)
-            .help("Things up to this heavy can reach the top speed (a grenade: 1.2 kg; the axe, 2 kg, a little less); "
-                  "heavier, less."),
-        slider("Heavy Falloff", vr_throw_mass_exp, 0.f, 1.5f, 0.05f, "%.2f")
-            .help("How fast the limit falls with mass beyond it: (light / mass) to this power. 0.5: the same energy, 1: "
-                  "the same impulse. 0.9 (with Light Up To 1.5): the super nailgun (7 kg) at most 7 m/s, the laser "
-                  "cannon (15 kg) 3.5."),
-        slider("Soft Limit From", vr_throw_mass_knee, 0.f, 1.f, 0.05f, "%.2f")
-            .help("Below this share of a thing's limit a throw is as fast as your hand's; above, it eases towards the "
-                  "limit (1: a hard cap)."),
-        slider("Two-Hand Strength", vr_throw_2h_strength, 1.f, 4.f, 0.1f, "%.1fx").extend(0.1f, 10.f)
-            .help("Thrown with both hands, a thing is as if it weighed this many times less: heavy things go farther, "
-                  "light ones no faster (1: no help)."),
-        slider("Two-Hand Heave", vr_throw_2h_heave, 0.f, 600.f, 10.f, "%.0f J").extend(0.f, 3000.f)
-            .help("Thrown with both hands, a heavy thing may leave as fast as this much energy gives its weight, when that "
-                  "beats the weight's limit: a 40 kg crate at 3.5 m/s, the big explosive box at 2.5 (250). 0: the "
-                  "weight's limit alone."),
-        slider("Full Wrist Flick Up To", vr_throw_flick_mass, 0.5f, 10.f, 0.1f, "%.1f kg").extend(0.01f, 100.f)
-            .help("A wrist flick throws things up to this heavy at its whole speed; a heavier one keeps only (this / "
-                  "mass) of the speed the flick gives (the super nailgun a third)."),
         slider("Wrist to Controller", vr_throw_wrist_dist, 0.f, 0.15f, 0.005f, "%.3f m")
             .help("From the wrist to the controller's point: the turn of the hand about the wrist gives the controller "
                   "this lever's speed, the part of a throw a heavy thing keeps less of."),
-        slider("Heavy Spin Falloff", vr_throw_spin_mass_exp, 0.f, 2.f, 0.05f, "%.2f")
-            .help("A heavy thing can't be made to spin fast either: past Full Wrist Flick Up To, its spin is held under "
-                  "Max Spin times (that / mass) to this power (two hands: as if Two-Hand Strength times lighter). 1: the "
-                  "explosive box (40 kg) at most about 1.3 rad/s one-handed, 2.5 with both; the super nailgun 7. 0: off."),
-        toggle("Aim Assist", vr_throw_assist)
-            .help("Throws close to an enemy's direction bend towards it."),
-        slider("Assist Cone", vr_throw_assist_cone, 2.f, 30.f, 1.f, "%.0f deg").extend(),
-        slider("Assist Strength", vr_throw_assist_strength, 0.f, 1.f, 0.05f, "%.2f"),
         header("Physics"),
-        slider("Bounciness", vr_throw_restitution, 0.f, 0.8f, 0.05f, "%.2f").extend(),
-        slider("Friction", vr_throw_friction, 0.f, 1.5f, 0.05f, "%.2f").extend(),
-        slider("Max Spin", vr_throw_spin_max, 0.f, 40.f, 1.f, "%.0f rad/s").extend(),
         slider("Spin Drag", vr_throw_spin_drag, 0.f, 2.f, 0.05f, "%.2f").extend(),
-        slider("Spin Alignment", vr_throw_spin_align, 0.f, 20.f, 0.5f, "%.1f").extend(0.f, 100.f)
-            .help("How fast a thrown thing's tumble settles into a clean spin end over end about its steadiest axis (an "
-                  "axe: in its blade's plane), as long, flat things do in the air. Most for long flat things (an axe, a "
-                  "sword), a tenth for long round ones (a gib), none for a box. Until it first touches anything. Each "
-                  "weapon's and prop's own Spin in the Air (Weapon Weights, Held Object Weights) multiplies it. 0: off."),
-        slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").extend().help("Half-size of a thrown weapon's box against monsters."),
-        slider("Hit Min Speed", vr_throw_hit_min_speed, 0.f, 600.f, 25.f, "%.0f").extend()
-            .help("Units/s a thrown weapon, box or gib must go at to hurt a monster; slower (at rest against it, pushed into it) it does nothing."),
-        slider("Heavy Hits Scale Below", vr_throw_hit_top, 0.f, 30.f, 0.5f, "%.1f m/s").extend(0.f, 100.f)
-            .help("A thing that can't be thrown this fast one-handed (Throws by Weight: its mass) hurts at lower speeds, "
-                  "in proportion: its Hit Min Speed and the speed its damage is measured against both times its top "
-                  "speed over this, so a hard throw of a heavy thing hurts as a hard throw of a light one. 0: only "
-                  "Aiming: Heavy Leniency, as before."),
-        slider("Damage Eases In Over", vr_throw_hit_ramp, 0.f, 2.f, 0.05f, "%.2fx")
-            .help("Just over its Hit Min Speed a throw does less: all its damage only this share of that speed above "
-                  "it (0: all of it at once, as before)."),
-        slider("Damage at Hit Min Speed", vr_throw_hit_ramp_floor, 0.f, 1.f, 0.05f, "%.2fx")
-            .help("The share of its damage a throw does at its Hit Min Speed, rising to all of it over the speed above."),
-        slider("Two-Handed Throws: No Blows", vr_throw_2h_nomelee, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
-            .help("After a throw with both hands, neither hand strikes for this long (the hand that let go first, from "
-                  "its letting go): the follow-through is not a punch. 0: off."),
-        slider("Two-Handed Throws: Spared", vr_throw_2h_melee_immune, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
-            .help("What you throw with both hands can't be struck by your hands for this long (a gib burst by your own "
-                  "follow-through). 0: off."),
-        slider("Gibs Let Go: Other Hand Spares", vr_gib_letgo_spare, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
-            .help("A gib you let go of with one hand can't be burst by your other hand's touch for this long (the hand "
-                  "alongside the throw); the hand that let go of it: 0.4 s. Toss it up and punch it after. 0: off."),
-        toggle("Thrown Gibs Burst on You", vr_gib_burst_on_thrower)
-            .help("A gib you throw that meets your own body or hands (and no wall) bursts as on a wall. Off: it bounces "
-                  "off you whole."),
-        slider("Your Throws Spare You For", vr_throw_self_grace, 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 5.f)
-            .help("What you throw passes through you and can't hurt you for this long after it leaves your hand; after "
-                  "it, it hurts you as it would a monster (a backpack thrown high falling back on you)."),
         header("Thrown Axes"),
         toggle("Axes Stick", vr_axestick)
             .help("A thrown axe that strikes blade first sticks in walls, doors, props and monsters (it moves with them). "
                   "Grip it, or force grab it (it tugs, then comes free), to pull it out. Off: it bounces off."),
-        toggle("Axes Stick in Explosive Boxes", vr_axestick_metal)
-            .help("A thrown axe sticks in an explosive box too. Off: it rings off it, as the boxes are metal drums."),
-        slider("Bleeding", vr_axestick_bleed, 0.f, 20.f, 0.5f, "%.1f health/s").extend(0.f, 100.f)
-            .help("Health a second a monster loses while an axe is stuck in it (your damage). It falls out when the "
-                  "monster dies."),
-        slider("Blade Leniency", vr_axestick_leniency, 0.f, 2.f, 0.1f, "%.1f")
-            .help("Whichever part of the axe goes in first decides: its blade sticks, anything else bounces. This is how "
-                  "much of the blade counts. 0: the edge and its two corners. 1: the blade 45% of its width back from "
-                  "the edge (its top and bottom edges in from the corners), met a little before the body meets the "
-                  "wall, a little more glancing allowed (Stick Incidence + 10), and turned up to 25 degrees to keep the "
-                  "handle out of the wall. 2: 80% of the blade, twice the rest. The handle, its end and the head's "
-                  "middle never stick; a flat throw, the blade's side first, bounces."),
-        slider("Stick Speed", vr_axestick_speed, 1.f, 12.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
-            .help("How fast the blade's edge must go into what it strikes; slower, it bounces off."),
-        slider("Stick Angle", vr_axestick_angle, 10.f, 90.f, 5.f, "%.0f deg")
-            .help("How far out of its own plane the blade may go in: more, and flat throws (the blade's side first) "
-                  "stick too."),
-        slider("Stick Incidence", vr_axestick_incidence, 10.f, 90.f, 5.f, "%.0f deg")
-            .help("How far from straight into the surface the blade may go in: more, and glancing blows stick too. An "
-                  "axe that hardly turns skids 20 degrees sooner."),
-        slider("Stick Depth", vr_axestick_depth, 0.f, 12.f, 0.5f, "%.1f cm").extend()
-            .help("How deep the edge goes in at a hard throw (half as deep at the Stick Speed)."),
-        slider("Force Grab Tug", vr_axestick_tug, 0.f, 1.f, 0.05f, "%.2f s")
-            .help("How long a force grab tugs a stuck axe before it comes free and flies to your hand."),
         header("Flung Props"),
         toggle("Flung Props Hurt", vr_prop_impact_damage)
             .help("A prop you didn't throw (swung on the grapple's rope, batted, knocked flying) hurts the monster it flies "
@@ -184,31 +80,9 @@
         slider("Shot Push", vr_shot_push, 0.f, 3.f, 0.1f, "%.1fx").extend(0.f, 10.f)
             .help("Pellets, nails and the lightning beam push the boxes, gibs and weapons they hit or pass through (monsters' "
                   "shots too): times every push below. 0: off. Explosions push things anyway."),
-        slider("Pellet Push", vr_shot_push_pellet, 0.f, 20.f, 0.5f, "%.1f N s").extend(0.f, 100.f)
-            .help("Each shotgun and double shotgun pellet (6 and 14 a shot). A heavy box takes about the whole push: 40 kg "
-                  "pushed 10 N s moves at a quarter metre a second."),
-        slider("Nail Push", vr_shot_push_nail, 0.f, 40.f, 1.f, "%.0f N s").extend(0.f, 200.f)
-            .help("Each nail of the nailgun (and scrags', knights' and enforcers' shots)."),
-        slider("Super Nail Push", vr_shot_push_supernail, 0.f, 60.f, 1.f, "%.0f N s").extend(0.f, 200.f)
-            .help("Each nail of the super nailgun."),
-        slider("Lightning Push", vr_shot_push_lightning, 0.f, 20.f, 0.5f, "%.1f N s").extend(0.f, 100.f)
-            .help("Each bolt of the lightning beam, 10 a second (a shambler's by its damage)."),
-        slider("Shot Push Top Speed", vr_shot_push_speed, 1.f, 40.f, 1.f, "%.0f m/s").extend(0.1f, 100.f)
-            .help("The fastest a shot makes what it hits go: light things (a gib, a small gun) fly off at most this fast, "
-                  "heavy ones take the push."),
         header("Wall Buttons"),
-        slider("Weapon Press Reach", vr_button_weapon_reach, 0.f, 15.f, 0.5f, "%.1f cm")
-            .help("How far round the weapon's middle line a button is touched: its thickness, and some slack."),
-        toggle("Held Props Press Buttons", vr_button_prop)
-            .help("A prop in your hand (a health or ammo box, a crate, a rock, a gib) presses a wall button it touches, as "
-                  "a weapon does: its shape as you hold it."),
-        slider("Prop Press Reach", vr_button_prop_reach, 0.f, 15.f, 0.5f, "%.1f cm")
-            .help("How far round the held prop's shape a button is touched: a held prop is kept a few centimetres off "
-                  "walls and buttons (it can't go into them), so it needs some slack to reach one."),
         toggle("Thrown Things Press Buttons", vr_button_throw)
             .help("A weapon, rock, box or gib thrown at a wall button presses it. Buttons you must shoot are still shot."),
-        slider("Thrown Press Min Speed", vr_button_throw_speed, 0.f, 600.f, 25.f, "%.0f u/s").extend()
-            .help("How fast a thrown thing must hit a button to press it (slower, it only bumps it)."),
     };
 }
 
@@ -235,10 +109,6 @@
             .help("How long it takes to go in (slowed in bullet time)."),
         slider("Put-Away End Size", vr_collect_fx_size, 0.05f, 1.f, 0.05f, "%.2fx")
             .help("How small it is as it goes in: its size then, of its own."),
-        slider("Grab Distance Bias", vr_carry_grab_bias, -3.f, 5.f, 0.5f, "%+.1f cm")
-            .extend(-10.f, 20.f)
-            .help("A hand takes a box, gib, backpack or armour when its fist (the palm and the curled fingers) touches it. "
-                  "Positive: from this far off it too. Negative: only pressed this far into it."),
         toggle("Weapons by the Fist", vr_weapon_grab_drawn)
             .help("A weapon lying on the floor is taken where the fist touches it: a crowbar by its bar, a sword by its "
                   "blade. Off: only with the hand at its handle."),
@@ -253,19 +123,9 @@
         slider("Mid-Air Catch Leniency", vr_weapon_catch_handle_leniency, 0.f, 15.f, 0.5f, "%.1f cm")
             .help("A weapon in the air (tossed up to re-grip it, flipped, spinning) is caught by its handle with your fist "
                   "this much off it. Not a force grab's pull. 0: only by your fist on it."),
-        slider("Mid-Air Catch Window", vr_weapon_catch_window, 0.f, 0.5f, 0.05f, "%.2f s")
-            .help("A weapon in the air is caught by a grip closed up to this long before it reaches your fist, and the "
-                  "hand that tossed it may close again at once: it catches it as it comes back down. 0: as a weapon lying "
-                  "about (0.125 s, and not within 0.125 s of letting go)."),
         toggle("Floating Pickup Grace", vr_pickup_float_grace)
             .help("A weapon, key or armour hanging in the air (spinning) isn't knocked down by your empty hand reaching into "
                   "it slowly for a moment: close your grip and it is taken where it hangs. Off: a touch knocks it loose."),
-        slider("Floating Grace Time", vr_pickup_float_grace_time, 0.f, 1.f, 0.05f, "%.2f s")
-            .extend(0.f, 3.f)
-            .help("How long from your hand reaching it; after that a hand still pushing into it knocks it loose."),
-        slider("Floating Grace Swat Speed", vr_pickup_float_grace_swat, 0.5f, 5.f, 0.25f, "%.2f m/s")
-            .extend(0.f, 10.f)
-            .help("A hand faster than this knocks it at once (a swat)."),
         toggle("Weapons by Their Hotspots", vr_weapon_grab_hotspots)
             .help("Grip a weapon on the floor nearer one of its other grips than its handle (a chainsaw's front handle, "
                   "a crowbar's bar, a sword's blade, a gun's pump) and you carry it by that grip, as when your other hand "
@@ -289,15 +149,6 @@
         toggle("Two-Handed Carrying", vr_carry_two_hands)
             .help("Grip what your other hand carries to hold it in both: it moves and turns with both hands, and letting go "
                   "of both together throws it. Let go with one and the other keeps it (to pass it from hand to hand)."),
-        slider("Two-Handed Grab Reach", vr_carry_two_hands_reach, 0.f, 5.f, 0.5f, "%.1f cm")
-            .help("How far past Grab Distance Bias your hand may be off what your other hand holds and still grip it "
-                  "(to hold it in both, then let go with the first and grip it again as you want). Every prop can be held "
-                  "in both hands unless its Two Hands (Held Object Offsets) is off."),
-        slider("Two-Handed Hand Drift", vr_carry_two_hands_drift, 0.f, 20.f, 1.f, "%.0f cm")
-            .extend(0.f, 50.f)
-            .help("How far your drawn hands may be off your real ones to stay on their grips as you pull them apart or push "
-                  "them together. 0: they stay on your real hands. Pulled 3 cm further off (vr_carry_two_hands_detach), "
-                  "with the hand no longer touching it, that hand lets go; both, and it drops."),
         toggle("Two-Handed Stops at Walls", vr_carry_two_hands_solid)
             .help("What you hold in both hands stops at walls, floors and doors however hard you push, and slides along "
                   "them; it keeps its turn where a new one would put it in. Off: it goes where your hands put it."),
@@ -311,35 +162,15 @@
             .help("Minimum fraction of stick walking speed under load; 1 disables the slowdown."),
         toggle("Fit to the Hand", vr_held_surface_fit)
             .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
-        slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm").extend()
-            .help("Space left between your fingers and what they hold (negative: sunk in). Per model: vr_held_fit_gaps in the console."),
         toggle("Keep Fingers Out of Props", vr_grip_fit)
             .help("Once, as you grip a prop (or take it with your other hand too): if your drawn hand (palm, back, wrist, "
                   "fingers as they will grip) would sink into it, it is moved out of your hand the least way that leaves the "
                   "hand resting on its surface, and kept there while you hold it. Not for weapons, nor props with a Fixed or "
                   "Along the Handle grip."),
-        slider("Fingers Out: Finger Contact", vr_grip_fit_finger_depth, 0.f, 3.f, 0.1f, "%.1f cm")
-            .help("How deep your fingers may press into what they grip (a snug contact) before it is moved."),
-        slider("Fingers Out: Palm Contact", vr_grip_fit_palm_depth, 0.f, 3.f, 0.1f, "%.1f cm")
-            .help("How deep your palm, the back of your hand and your wrist may press into it before it is moved."),
-        slider("Fingers Out: Most Move", vr_grip_fit_reach, 0.1f, 2.f, 0.05f, "%.2f hands")
-            .help("How far it is moved at most, in hand lengths; if your hand still can't rest on it, the place where it "
-                  "sinks in least within that is kept."),
         toggle("Held Things Collide", vr_held_collide)
             .help("Things you hold one in each hand, or a thing in one hand and a weapon in the other, bump into each other "
                   "instead of passing through: each hand is drawn moved back with what it holds, a short buzz as they meet. "
                   "Your real hands are never held back."),
-        slider("Collide Give", vr_held_collide_max, 0.f, 15.f, 0.5f, "%.1f cm")
-            .extend(0.f, 40.f)
-            .help("How far each hand is drawn moved back at most as you press them together. Pressed further, they overlap by "
-                  "the rest."),
-        slider("Empty Hand Against Held Things", vr_hand_collide, 0.f, 10.f, 0.5f, "%.1f cm").extend(0.f, 30.f)
-            .help("An empty hand bumps into what the other hand holds, a weapon or a thing, the same way, as two held things "
-                  "do: at its surface the hand and it are each drawn moved back by half, as far as this, a short buzz as "
-                  "they meet; pressed further, the hand sinks in by the rest. Drawn only. 0: it always passes through."),
-        slider("Empty Hand Stops Off It", vr_hand_collide_props_margin, 0.f, 3.f, 0.25f, "%.2f cm")
-            .help("How far off the surface of what the other hand holds the empty hand's palm and knuckles stop: about 1 cm "
-                  "keeps the skin at the surface."),
         toggle("Empty Hand Stays Out of Held Props", vr_hand_collide_props_keep_out)
             .help("With Empty Hand Against Held Things: an empty hand pushed into a prop your other hand holds is drawn "
                   "resting on its surface however deep you push, and gripping it there takes it in both hands from the "
@@ -352,17 +183,9 @@
             .help("A weapon you hold into a wall, a floor or a table slides along it: lowered onto a table it rests on the top, "
                   "pushed into a wall it is held off along the wall. Off: the old push-back, the hand moved back along the aim "
                   "until the muzzle stops at the wall."),
-        slider("Weapon Wall Give", vr_gun_wall_max, 0.f, 80.f, 5.f, "%.0f cm")
-            .extend(0.f, 200.f)
-            .help("How far a weapon and your hand are held out of a wall or a table at most as you push into it. Pushed "
-                  "further, they go in by the rest."),
         toggle("Held Things Stop at Walls", vr_held_collide_walls)
             .help("A thing you hold in one hand stops at walls, floors and doors: it and your hand are drawn held out of them, "
                   "a short buzz as it touches. Looks only: your real hand is never held back."),
-        slider("Wall Give", vr_held_collide_wall_max, 0.f, 80.f, 5.f, "%.0f cm")
-            .extend(0.f, 200.f)
-            .help("How far it and your hand are drawn held back at most as you push it into a wall. Pushed further, it goes "
-                  "in by the rest; pushed about a metre past, it drops."),
         toggle("Things Rest on Hands", vr_model_collide_rest)
             .help("A thing lying on your open palm, fist or gun (let go of there, or balanced) never pushes the drawn hand away: "
                   "the hand stays under it. Off: it pushes the hand out of it as other things do."),
@@ -383,56 +206,21 @@
             .help("The guns' solid shape, held and lying about: in convex pieces that follow the drawn gun (a shell drops "
                   "into the shotgun's port, a magazine into its well, nothing rests on the air between its parts), or one "
                   "hull round each (which fills them). For guns made from then on (picked up, dropped)."),
-        slider("Heaviest Thing Held Up", vr_box3d_hand_hold_mass, 0.f, 50.f, 1.f, "%.0f kg")
-            .extend()
-            .help("An open hand or a weapon holds up nothing heavier: a heavier thing slips through (it is still pushed). 0: no "
-                  "limit."),
         slider("Throw Grace", vr_box3d_throw_grace, 0.f, 0.5f, 0.05f, "%.2f s")
             .extend(0.f, 2.f)
             .help("How long a thing you throw passes through your hands (and the weapon you hold) as it leaves them: it keeps "
                   "the direction and spin you threw it with instead of being knocked by the hand still moving. 0: off."),
-        slider("Throw Grace From", vr_box3d_throw_grace_speed, 0.f, 3.f, 0.25f, "%.2f m/s")
-            .extend(0.f, 10.f)
-            .help("How fast a throw (or a wrist snap) must be for Throw Grace. Slower, opening your hand held still, the thing "
-                  "stays on your palm."),
         toggle("Throw Grace for the Body", vr_box3d_throw_grace_body)
             .help("During Throw Grace the thing also passes through your body (an overhead wrist snap throwing it down "
                   "across you)."),
-        slider("Hand Push Mass", vr_box3d_hand_mass, 0.f, 20.f, 0.5f, "%.1f kg")
-            .extend(0.f, 100.f)
-            .help("How heavy your hand is to what it knocks: a thing keeps hand / (hand + its weight) of the hand's speed, so "
-                  "a flick barely moves a heavy box and still bats a grenade. Also each hand holding a prop, added to the "
-                  "prop's own weight. 0: no limit (a hand knocks anything as if it weighed nothing)."),
-        slider("Arm Behind Weapon", vr_box3d_weapon_arm_mass, 0.f, 20.f, 0.5f, "%.1f kg")
-            .extend(0.f, 100.f)
-            .help("As Hand Push Mass, for a weapon in your hand swung into things: it knocks with its own weight (Weapon "
-                  "Weights: Mass) and this much of your arm, so a rocket launcher or the hammer bats harder than the axe "
-                  "or the shotgun."),
-        slider("Push Force", vr_box3d_push_force, 0.f, 1000.f, 25.f, "%.0f N")
-            .extend(0.f, 5000.f)
-            .help("After a hand or weapon has hit a thing, pushing on into it shoves it with no more than this force: a heavy "
-                  "box moves as far as you push it and stops, a light one is carried along. 0: no limit."),
         toggle("Pressing Props: Hand Gives", vr_box3d_press_back)
             .help("A hand, a weapon or a held thing pressed into a crate that has nowhere to go (on the floor, against a wall) "
                   "stops on its surface, drawn there too, instead of pushing the crate into the floor (where it was squeezed "
                   "out and flew off or broke)."),
-        slider("Pressing Props: Most Held Back", vr_box3d_press_max, 5.f, 60.f, 5.f, "%.0f cm")
-            .help("With Hand Gives: how far the hand is held back at most; pressed deeper, it passes into the crate."),
-        slider("Push Strength", vr_carry_nudge, 0.f, 2.f, 0.1f, "%.1fx").extend()
-            .help("How hard a touch knocks a thing loose, or pushes what the hands' and weapons' bodies don't (both off)."),
-        slider("Box Throw Speed", vr_carry_throw_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
         slider("Throws Keep Your Motion", vr_throw_inherit, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much of your own velocity a thing or weapon you throw takes with it (1: all: a brick thrown running "
                   "forward flies further, running back shorter). 0: none."),
         slider("Box Punch Damage", vr_carry_melee_mult, 1.f, 3.f, 0.1f, "%.1fx").extend().help("Punching with a box in hand."),
-        slider("Thrown Box Damage", vr_carry_throw_damage, 0.f, 50.f, 1.f, "%.0f").extend().help("Damage of a box thrown at about 6 m/s; more the faster."),
-        slider("Heavy Throws From", vr_throw_heavy_from, 0.f, 40.f, 1.f, "%.0f kg").extend(0.f, 200.f)
-            .help("Props heavier than this (a crate, a barrel) hurt more thrown: by their mass over it (Heavy Throw Curve), "
-                  "up to Heavy Throw Most. A barrel thrown with both hands hurt for about 14 before. 0: off. Never weapons."),
-        slider("Heavy Throw Curve", vr_throw_heavy_exp, 0.f, 2.f, 0.05f, "%.2f")
-            .help("1: a prop twice as heavy as Heavy Throws From hurts twice as much thrown; 0: no more."),
-        slider("Heavy Throw Most", vr_throw_heavy_max, 1.f, 10.f, 0.25f, "x%.2f")
-            .help("The most a heavy prop's throw is multiplied by."),
         open("Flung Props (Throwing and Physics)", pageIndex(pageThrowing))
             .help("Whether props batted, knocked flying or swung on the grapple hurt monsters (and players), and how much."),
         open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets))
@@ -444,30 +232,6 @@
             .help("Volume of what things say as physics moves them: knocks as they land, bounce and hit each other, "
                   "scrapes as they slide, a climbing hand taking a hold (0 off; over 1 louder than recorded, up to 2). By what they are made of: wood (crates, "
                   "torches), metal (weapons, ammo, armour), stone, brick, flesh (gibs, heads), a backpack's thud."),
-        slider("Knocks", vr_physsound_impact, 0.f, 1.f, 0.1f, "%.1f")
-            .help("Things hitting the floor, walls, doors and each other: louder the harder and the heavier, a heavy "
-                  "thing's deeper (0 off)."),
-        slider("Quietest Knock", vr_physsound_min_speed, 1.f, 5.f, 0.25f, "%.2f m/s").extend(1.f, 20.f)
-            .help("A hit slower than this is silent (1.5 m/s: a drop of 4 cm). Raise it if things resting on each other "
-                  "tick."),
-        slider("Loudest Knock From", vr_physsound_full_speed, 3.f, 20.f, 0.5f, "%.1f m/s").extend(1.f, 50.f)
-            .help("A hit this hard or harder is at full volume (a drop of 1 m hits at 7.8 m/s)."),
-        slider("Knock Spacing", vr_physsound_interval, 0.f, 0.5f, 0.02f, "%.2f s").extend(0.f, 2.f)
-            .help("A thing knocks at most this often (a hit twice as loud sooner): a box rattling to rest or a stack "
-                  "settling doesn't chatter."),
-        slider("Bodies", vr_physsound_bodies, 0.f, 1.f, 0.1f, "%.1f").extend(0.f, 2.f)
-            .help("Ragdolls and corpses knocking as they fall, tumble, are thrown or hit by things: a heavy thud for the "
-                  "torso, softer for a limb, a squish for a small part; each body at most every two Knock Spacings (0 off)."),
-        slider("Quietest Body Knock", vr_physsound_body_min_speed, 1.f, 5.f, 0.25f, "%.2f m/s").extend(1.f, 20.f)
-            .help("A body's hit slower than this is silent (2 m/s: a drop of 20 cm). Raise it if a pile of bodies "
-                  "settling thumps."),
-        slider("Scrapes", vr_physsound_scrape, 0.f, 1.f, 0.1f, "%.1f")
-            .help("Things sliding along the floor or each other (shoved, dragged, skidding after a throw): louder the "
-                  "faster and the heavier; they stop as the thing stops (0 off)."),
-        slider("Quietest Scrape", vr_physsound_scrape_min, 0.1f, 2.f, 0.1f, "%.1f m/s").extend(0.f, 5.f)
-            .help("A slide slower than this is silent."),
-        slider("Loudest Scrape From", vr_physsound_scrape_full, 1.f, 8.f, 0.5f, "%.1f m/s").extend(0.5f, 20.f)
-            .help("A slide this fast or faster scrapes at full volume."),
         open("Climbing Grab Sound: Climbing", pageIndex(pageClimbing)).help("The climbing grab sound is on Movement > Climbing."),
         header("Explosive Boxes"),
         toggle("Physics Explosive Boxes", vr_explobox_physics)
@@ -480,7 +244,6 @@
         cycle("Armour", vr_armor_wear, {{0.f, "Touch takes it"}, {1.f, "Wear by hand"}})
             .help("Wear by hand: grip the armour to carry it and let go of it over your chest to put it on (only if it is better "
                   "than yours). Walking over it no longer takes it. Next map."),
-        slider("Armour Size", vr_armor_scale, 0.3f, 1.f, 0.05f, "%.2fx").extend().help("The carried armour's size (1: Quake's, a metre tall). Next map."),
         cycle("Weapons and Keys", vr_item_objects, {{0.f, "Touch takes them"}, {1.f, "Objects"}})
             .help("Objects: the map's weapons, keys, runes and suits hang spinning until you grab, knock or force-grab them, "
                   "then they are physics objects. A weapon you grip is yours at once; keys, runes and suits you carry to a "
@@ -502,22 +265,14 @@
             .help("Grip a wall torch to take it immediately (or force grab it): it is a burning club, lighting the "
                   "room round you as the wall torch did. Held, it burns for ever; dropped, thrown or used up by blows, "
                   "its fire dies. Grip and fingers: Held Object Offsets, holding it. Off: fixed, as in id's Quake. Next map."),
-        slider("Grab Reach", vr_walltorch_reach, 0.f, 30.f, 1.f, "%.0f cm").extend(0.f, 60.f)
-            .help("A grip this near a torch on its wall (its stick's middle, from its butt to its flame; your hand or "
-                  "your fist's middle, whichever is nearer) takes hold of it, though your fist isn't quite on it. 0: only "
-                  "a fist on it."),
         slider("Grab Window", vr_walltorch_grab_time, 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 3.f)
             .help("A grip closed on the way to a torch on its wall, still held, takes it as your hand gets there, up to "
                   "this long after you closed it (not a punch: a fast fist goes through). 0: only a grip closed there."),
         toggle("Force Grab Torches", vr_walltorch_forcegrab)
             .help("Torches come off their walls, and from where they lie, to a force grab."),
-        slider("Blows Before It Dies", vr_walltorch_hits, 0.f, 20.f, 1.f, "%.0f").extend(0.f, 100.f)
-            .help("A torch's fire starts dying after this many blows, even in your hand. 0: blows never use it up."),
         slider("Dying Time", vr_walltorch_die_time, 1.f, 30.f, 0.5f, "%.1f s").extend(0.f, 120.f)
             .help("How long a dying torch's fire takes to go out: dropped, thrown or out of blows. Picked up again before "
                   "it is out, a dropped torch burns up again; one out of blows goes on dying."),
-        slider("Blow Damage", vr_walltorch_damage, 0.f, 40.f, 1.f, "%.0f").extend(0.f, 200.f)
-            .help("A torch's blow, times the blow's strength (a gun's is 12, the axe's 20)."),
         open("Burning", pageIndex(pageBurning))
             .help("A lit torch's blow sets what it hits on fire: Combat > Burning (its damage, time and flames)."),
         toggle("Light Again", vr_walltorch_relight)
@@ -527,8 +282,6 @@
             .help("A wall torch hit by anything you shoot (a shotgun's pellets, a nail, a rocket, a grenade, a laser) or "
                   "by a thing you throw into it hard comes off its wall: it falls lit, and its light on the wall is gone. "
                   "Your hand and a punch take it as before. Off: shots go through it, as in id's Quake. Next map."),
-        slider("Flame Size", vr_walltorch_flame, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("A taken torch's flame (1: the wall torch's)."),
         toggle("Taken Torch Casts Shadows", vr_walltorch_shadows)
             .help("A taken torch's light casts shadows (your hands and body, what is round you), whatever Graphics' Torch "
                   "Light Shadows says. Its brightness is the wall torch's: Graphics' Torch Light Brightness."),
@@ -744,25 +497,7 @@
                   "places at every load. Single player. Next map."),
         toggle("Rocks", vr_debris_rocks).help("Rocks on grass, dirt and rock, and by rock and stone walls. Next map."),
         toggle("Bricks", vr_debris_bricks).help("Bricks at the foot of brick walls. Next map."),
-        slider("Chance", vr_debris_chance, 0.f, 1.f, 0.01f, "%.2f").extend()
-            .help("How likely a place at a wall's foot (one every 16 units along it) gets a piece or a few, before the "
-                  "limits below. Next map."),
-        slider("In Corners", vr_debris_corner, 1.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
-            .help("Times the chance in a corner. Next map."),
-        slider("In the Dark", vr_debris_dark, 0.f, 1.f, 0.05f, "%.2fx")
-            .help("Times the chance where the floor is dark (where you would not see them). Next map."),
-        slider("Most Together", vr_debris_cluster, 1.f, 6.f, 1.f, "%.0f").help("Most pieces lying together at one place. Next map."),
-        slider("Most in a Map", vr_debris_max, 0.f, 400.f, 10.f, "%.0f").extend(0.f, 2000.f)
-            .help("Fewer if the map has few entities to spare (vr_debris_edicts_left). Next map."),
         debrisMultiplayerSlider(),
-        slider("Most in an Area", vr_debris_area_max, 1.f, 30.f, 1.f, "%.0f").extend(1.f, 200.f)
-            .help("Most pieces in a square of vr_debris_area_size units (384: about 12 m). Next map."),
-        slider("Spacing", vr_debris_spacing, 0.f, 256.f, 8.f, "%.0f units").extend(0.f, 2048.f)
-            .help("Between places with pieces (32 units is about a metre). Next map."),
-        slider("Size Variation", vr_debris_size, 0.f, 0.4f, 0.01f, "+-%.2f")
-            .help("How much bigger or smaller a piece may be (bricks 40% of it). Next map."),
-        slider("Layout", vr_debris_seed, 0.f, 50.f, 1.f, "%.0f").extend(0.f, 100000.f)
-            .help("Another number, another layout: each is the same at every load. Next map."),
     };
 }
 
@@ -774,38 +509,10 @@
         toggle("Crates", vr_crates)
             .help("Wooden crates, small and large, stand by the walls and in corners, some stacked two high: push them, "
                   "carry them, stand on them, break them. The same places at every load. Single player. Next map."),
-        slider("Density", vr_crates_chance, 0.f, 0.3f, 0.005f, "%.3f").extend(0.f, 1.f)
-            .help("How likely a place by a wall (one every 24 units along it) gets a crate, before the limits below. Next map."),
-        slider("In Corners", vr_crates_corner, 1.f, 10.f, 0.5f, "%.1fx").extend(0.f, 50.f)
-            .help("Times the chance in a corner. Next map."),
-        slider("Most in a Map", vr_crates_max, 0.f, 60.f, 1.f, "%.0f").extend(0.f, 400.f)
-            .help("A stack counts two. Next map."),
-        slider("Spacing", vr_crates_spacing, 32.f, 1024.f, 16.f, "%.0f units").extend(0.f, 4096.f)
-            .help("Between crates (a stack's two aside; 32 units is about a metre). Next map."),
-        slider("Stacked", vr_crates_stack, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The chance a crate has another on it, turned and off its middle a little. Next map."),
-        slider("Large Ones", vr_crates_large, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The share of large crates (40 x 40 x 48 units; the small ones 32 units a side). Next map."),
-        slider("Barrels", vr_crates_barrels, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The share of barrels among them (upright, 22 units across and 32 high), and of the tops of stacks: a "
-                  "barrel on a crate or a barrel, a small crate on a barrel. Next map."),
-        slider("Barrels Lying", vr_crates_barrel_lying, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The share of barrels standing alone that lie on their side along the wall (they roll when pushed). "
-                  "Next map."),
-        slider("Room in Front", vr_crates_clearance, 32.f, 256.f, 8.f, "%.0f units").extend(0.f, 1024.f)
-            .help("Open floor kept in front of a crate, so that it never blocks a passage or a doorway. Next map."),
-        slider("Away From Things", vr_crates_margin, 24.f, 256.f, 8.f, "%.0f units").extend(0.f, 1024.f)
-            .help("How far from other things (items, monsters, lights; doors, lifts and teleporters further, the start "
-                  "furthest). Next map."),
-        slider("Layout", vr_crates_seed, 0.f, 50.f, 1.f, "%.0f").extend(0.f, 100000.f)
-            .help("Another number, another layout: each is the same at every load. Next map."),
         header("Breaking"),
         slider("Health", vr_crate_health, 0.f, 100.f, 5.f, "%.0f").extend(0.f, 1000.f)
             .help("A small crate's (a large one's 1.6 times): shots, blows, explosions and hard hits wear it down. A shotgun "
                   "blast does up to 24, the axe about 20. 0: they never break."),
-        slider("Breaks On Impact", vr_crate_impact, 0.f, 30.f, 1.f, "%.0f m/s").extend(0.f, 100.f)
-            .help("A crate hitting something this hard breaks (dropped from about 85 units); from 70% of it, it is damaged. "
-                  "Things thrown at it damage it as they do monsters. 0: impacts never break them."),
         slider("Break Speed", vr_prop_break_speed, 2.f, 20.f, 0.25f, "%.2f m/s").extend(0.1f, 60.f)
             .help("A hand's or weapon's blow on a small crate, or one held and smashed into a wall, the floor or a monster, "
                   "this fast breaks it at once (no real blow is: two strong ones do); from Blows Wear From of it it is "
@@ -831,45 +538,11 @@
         slider("Break Speed: Pieces", vr_prop_break_piece, 1.f, 12.f, 0.25f, "%.2f m/s").extend(0.1f, 40.f)
             .help("A hand's hit on a crate's piece, or one held and smashed into something, this fast bursts it into dust; "
                   "from half as fast it is worn (two such hits burst it)."),
-        slider("Thrown Pieces Burst", vr_crate_piece_impact, 0.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 60.f)
-            .help("A crate's piece you throw that hits something this hard bursts; from half, it is worn. 0: never."),
         toggle("Overhead Slam", vr_carry_slam)
             .help("A crate or barrel held in both hands over your head and swung down onto a monster, a prop or a wall breaks "
                   "at once (what it hits takes a heavy blow); thrown down from there, it takes heavy damage (two such "
                   "throws break it)."),
-        slider("Slam: Over the Head", vr_carry_slam_height, -20.f, 40.f, 1.f, "%.0f cm").extend(-100.f, 100.f)
-            .help("How far over your eyes your hands must be for it to count as over your head."),
-        slider("Slam: Swing Speed", vr_carry_slam_speed, 1.f, 8.f, 0.25f, "%.2f m/s")
-            .help("How fast your hands must swing it down for it to break on what it meets."),
-        slider("Slam: Time to Swing", vr_carry_slam_window, 0.2f, 3.f, 0.1f, "%.1f s")
-            .help("How long after it was over your head a swing down still counts."),
-        slider("Slam: Damage", vr_carry_slam_damage, 0.f, 5.f, 0.1f, "x%.1f")
-            .help("What it is slammed onto takes this times a punch with it in hand (more the faster, up to twice)."),
-        slider("Thrown Down: Damage", vr_crate_slam_throw_damage, 0.f, 1.f, 0.05f, "%.2f")
-            .help("Let go of from over your head, its first hard landing takes this share of its full health (0.55: two "
-                  "such throws break it)."),
-        slider("Thrown Down: Landing Speed", vr_crate_slam_throw_speed, 0.f, 10.f, 0.5f, "%.1f m/s")
-            .help("... a landing at least this fast."),
-        slider("Pieces", vr_crate_pieces, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 40.f)
-            .help("How many boards and splinters a small crate breaks into (a large one more). Light: they barely get in "
-                  "your way, and turn to dust when hit."),
-        slider("Most Pieces", vr_crate_piece_max, 0.f, 128.f, 4.f, "%.0f").extend(0.f, 512.f)
-            .help("Most pieces lying about at once: past it, the oldest turn to dust."),
-        slider("Pieces Last", vr_crate_piece_time, 0.f, 120.f, 5.f, "%.0f s").extend(0.f, 3600.f)
-            .help("How long a piece lies about before it fades away (0: for ever). One in your hand stays."),
         header("What They Hold"),
-        slider("Ammo", vr_crate_ammo, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The chance a crate holds a small box of ammunition, for a weapon you have (or the shotgun)."),
-        slider("Health Box", vr_crate_health_box, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The chance a crate holds a small health box (15)."),
-        slider("Pop Out", vr_crate_item_pop, 0.f, 8.f, 0.5f, "%.1f m/s").extend(0.f, 20.f)
-            .help("How hard what a crate held pops out when it breaks: up, and a little outwards (along the blow). 0: it "
-                  "is left lying where the crate stood."),
-        slider("Crowbar on Crates", vr_crate_crowbar, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The chance a crate placed about the map (the top one of a stack) has a crowbar lying on it; the same "
-                  "crates each load. Next map."),
-        slider("Most Crowbars", vr_crate_crowbar_max, 0.f, 4.f, 1.f, "%.0f").extend(0.f, 64.f)
-            .help("Most crowbars lying on crates in a map. Next map."),
         slider("Flare Gun on Crates", vr_crate_flaregun, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance a crate placed about the map (the top one of a stack, no crowbar on it) has a loaded "
                   "flare gun lying on it; the same crates each load. Experimental: off (0) by default. Next map."),
@@ -909,30 +582,10 @@
     return {
         cycle("Gibs and Heads", vr_grab_gibs, {{0.f, "Left alone"}, {1.f, "Grab by hand"}, {2.f, "Hand and force grab"}})
             .help("Pick up and throw gibs and heads, by reaching for them (or force-grabbing them too)."),
-        slider("Thrown Gib Damage", vr_gib_throw_damage, 0.f, 50.f, 1.f, "%.0f").extend().help("Damage of a gib or head thrown at about 6 m/s; more the faster."),
         toggle("Destroy Gibs", vr_gib_destroy)
             .help("Gibs and heads burst in a mist of blood when shot, blown up, struck, or thrown hard at a wall or a monster."),
-        slider("Gib Health", vr_gib_health, 1.f, 60.f, 1.f, "%.0f").extend().help("The damage that destroys a gib; a head takes half as much again."),
-        slider("Gib Splat Speed", vr_gib_splat_speed, 100.f, 600.f, 25.f, "%.0f").extend()
-            .help("Units/s a thrown gib or head must hit a wall or a monster at to burst."),
-        slider("Hard Throw Bursts", vr_gib_splat_throw, 0.f, 12.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
-            .help("A gib or head thrown with the hand this fast or faster bursts on a wall instead of sticking, however "
-                  "heavy (a heavy one leaves the hand slowly). Softer throws stick (Thrown Gibs Stick). 0: off."),
-        slider("Gib Burst Speed", vr_gib_burst_speed, 1.f, 12.f, 0.25f, "%.2f m/s").extend(0.1f, 40.f)
-            .help("A hand's or weapon's hit on a gib, or one held and smashed into a wall, the floor or a monster, this fast "
-                  "bursts it. From half as fast it is worn (two such hits burst it); a hand's hit short of bursting bounces "
-                  "it off the hand, like a volleyball."),
-        slider("Head Burst Speed", vr_gib_burst_head, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
-            .help("Times Gib Burst Speed for a head."),
-        slider("Small Gib Burst Speed", vr_gib_burst_small, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.01f, 10.f)
-            .help("Times Gib Burst Speed for a small gib or a brain chunk."),
-        slider("Gib Bounce", vr_gib_bounce, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much a gib a hand hits short of bursting bounces off it: 0 dead, 1 elastic."),
         toggle("Gib Corpses", vr_corpse_gib)
             .help("Corpses burst into gibs when shot, blown up or struck enough: shotguns, nails, lightning, rockets, fists, melee weapons."),
-        slider("Corpse Health", vr_corpse_health_mult, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.05f, 20.f)
-            .help("Times every monster's corpse health: the damage that gibs a corpse or a ragdoll (each monster's own: Corpse "
-                  "Damage and Health) (vr_corpse_health_mult)."),
         cycle("Never Gib Corpses", vr_corpse_nogib, {{0.f, "Off"}, {1.f, "Corpses and Ragdolls"}, {2.f, "And Dying Monsters"}})
             .help("For testing: corpses and ragdolls take hits (blood, pushes, blasts) but never burst into gibs, even blown "
                   "up. And Dying Monsters: a monster killed by a rocket dies whole too, so it becomes a ragdoll "
@@ -944,10 +597,6 @@
             .help("Corpses in the physics: props, thrown things and held things meet them. Fixed: they never move. Pushable: "
                   "heavy, they slide when pushed (hands, held weapons, props, walking into them). Box: a low box round the "
                   "body; Pose: its shape as it lies (vr_corpse_collide)."),
-        slider("Pushable Corpse Mass", vr_corpse_collide_mass, 20.f, 500.f, 10.f, "%.0f kg").extend()
-            .help("Heavier: harder to push. Walking into one shoves it only under about 60 kg (vr_corpse_collide_mass)."),
-        slider("Pushable Corpse Friction", vr_corpse_collide_friction, 0.1f, 2.f, 0.1f, "%.1f").extend()
-            .help("How hard a pushable corpse drags on the floor (vr_corpse_collide_friction)."),
         toggle("Props Meet Corpses", vr_corpse_collide_props)
             .help("Boxes, weapons, gibs and heads lying or falling rest on corpses and stop at them (vr_corpse_collide_props)."),
         toggle("Thrown Things Meet Corpses", vr_corpse_collide_thrown)
@@ -977,66 +626,6 @@
 {
     return {
         open("Corpse Health, Never Gib: Gibs and Corpses", pageIndex(pageGibs)).help("Corpse Health and Never Gib Corpses are on Gibs and Corpses."),
-        header("Damage to Corpses, by Weapon"),
-        slider("Shotguns and Guns", vr_corpse_dmg_shots, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("The shotguns' pellets and the grunts' guns. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_shots)."),
-        slider("Nails", vr_corpse_dmg_nails, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("Nails, an enforcer's laser, knights' and scrags' spikes. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_nails)."),
-        slider("Explosions", vr_corpse_dmg_explosions, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("Rockets, grenades, plasma and every blast (a ragdoll is still thrown by them: Ragdoll Settings' Blast Throw). Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_explosions)."),
-        slider("Lightning", vr_corpse_dmg_lightning, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("The lightning gun, Mjolnir's lightning, a discharge under water. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_lightning)."),
-        slider("Blunt Melee", vr_corpse_dmg_blunt, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("A crowbar, a gun or Mjolnir swung, a pommel or a hilt. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_blunt)."),
-        slider("Fists", vr_corpse_dmg_fists, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("An empty fist's punch. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_fists)."),
-        slider("Bladed Melee", vr_corpse_dmg_blades, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("The axe's and a sword's edge or point, swung or thrown; a thrown axe stuck in it, bleeding it. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_blades)."),
-        slider("Chainsaw", vr_corpse_dmg_chainsaw, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("The chainsaw's teeth. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_chainsaw)."),
-        slider("Thrown Props", vr_corpse_dmg_props, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("Thrown or flung boxes, gibs, heads and weapons (not blades), deflected shots, a rock or a brick in the fist. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_props)."),
-        slider("Fire", vr_corpse_dmg_fire, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("Burning (after Burning's Corpse Damage, vr_burn_corpse_damage). Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_fire)."),
-        slider("Bashes and Shoves", vr_corpse_dmg_bash, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("A weapon's guard driven forward, both hands' shove, a headbutt. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_bash)."),
-        slider("Other", vr_corpse_dmg_other, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-            .help("Anything else: monsters' blows, a kick, a crusher, lava. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_other)."),
-        header("Corpse Health, by Monster"),
-        slider("Grunt", vr_corpse_health_grunt, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_grunt; default 80)."),
-        slider("Enforcer", vr_corpse_health_enforcer, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_enforcer; default 80)."),
-        slider("Rottweiler", vr_corpse_health_dog, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_dog; default 80)."),
-        slider("Fiend", vr_corpse_health_fiend, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_fiend; default 180)."),
-        slider("Ogre", vr_corpse_health_ogre, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_ogre; default 140)."),
-        slider("Knight", vr_corpse_health_knight, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_knight; default 80)."),
-        slider("Hell Knight", vr_corpse_health_hellknight, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_hellknight; default 160)."),
-        slider("Vore", vr_corpse_health_vore, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_vore; default 220)."),
-        slider("Shambler", vr_corpse_health_shambler, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_shambler; default 280)."),
-        slider("Scrag", vr_corpse_health_scrag, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_scrag; default 80)."),
-        slider("Rotfish", vr_corpse_health_fish, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_fish; default 80)."),
-        slider("Gremlin (Hipnotic)", vr_corpse_health_gremlin, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_gremlin; default 100)."),
-        slider("Centroid (Rogue)", vr_corpse_health_scourge, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_scourge; default 180)."),
-        slider("Eel (Rogue)", vr_corpse_health_eel, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_eel; default 80)."),
-        slider("Zombie (Beheaded)", vr_corpse_health_zombie, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("A zombie dies whole only beheaded (Gore > Decapitation): the damage that gibs its ragdoll then, times "
-                  "Corpse Health (vr_corpse_health_zombie; default 60)."),
-        slider("Mummy (Rogue, Beheaded)", vr_corpse_health_mummy, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
-            .help("A mummy dies whole only beheaded (its death gibs it otherwise): the damage that gibs its ragdoll then, "
-                  "times Corpse Health (vr_corpse_health_mummy; default 120)."),
     };
 }
 
@@ -1084,8 +673,6 @@
                   "kept); 0 none (vr_ragdoll_active_pin)."),
         slider("Thrown For", vr_ragdoll_active_pin_time, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
             .help("And that pull fading out over this (vr_ragdoll_active_pin_time)."),
-        slider("Headshot Strength", vr_ragdoll_active_headshot, 0.f, 0.5f, 0.01f, "%.2f")
-            .help("The strength a headshot or a beheading leaves: near 0 a pure collapse (vr_ragdoll_active_headshot)."),
         slider("Stumble From", vr_ragdoll_active_stumble, 0.f, 300.f, 10.f, "%.0f u/s").extend(0.f, 1000.f)
             .help("Dying on the move at least this fast, he stumbles on: carried a moment, a leg stepping ahead. 0: "
                   "never (vr_ragdoll_active_stumble; a run is about 200-300, a walk 50-100)."),
@@ -1107,27 +694,6 @@
         toggle("Use What Is Round Him", vr_ragdoll_active_env)
             .help("A dying monster senses the walls, floors, ledges and crates round him and uses his hands on them (the "
                   "three below). Off: his death ignores them (vr_ragdoll_active_env)."),
-        toggle("Catch the Fall", vr_ragdoll_active_env_brace)
-            .help("Falling onto a floor, a wall or a crate within reach, his arms go out to it and take the landing, "
-                  "giving; tumbling with nothing near, he curls up (vr_ragdoll_active_env_brace)."),
-        toggle("Lean on Walls", vr_ragdoll_active_env_lean)
-            .help("Dying with a wall behind or beside him, he braces a hand on it and slumps down it, his knees giving; "
-                  "a crate he braces on, never holds (vr_ragdoll_active_env_lean)."),
-        slider("Wall Slide", vr_ragdoll_active_env_slide, 0.f, 1.5f, 0.1f, "%.1f").extend(0.f, 5.f)
-            .help("Leaning on a wall as he dies, how much of his weight the wall takes at most (body weights), fading "
-                  "over two seconds: his back slides down it slowly instead of dropping. 0 off "
-                  "(vr_ragdoll_active_env_slide)."),
-        slider("Arms' Strength", vr_ragdoll_active_env_arms, 0.f, 2.f, 0.1f, "%.1fx")
-            .help("How strongly his arms reach for what is round him (a catch, a lean, a ledge's hold, a brace), times the "
-                  "default; 0 they don't (vr_ragdoll_active_env_arms)."),
-        toggle("Grab Ledges", vr_ragdoll_active_env_ledge)
-            .help("Falling past a ledge's lip near a hand, he grabs it and hangs a moment before dropping; shooting the "
-                  "hand makes him let go (vr_ragdoll_active_env_ledge)."),
-        slider("Grip", vr_ragdoll_active_env_grip, 0.2f, 3.f, 0.1f, "%.1f").extend(0.f, 10.f)
-            .help("Body weights a hand on a ledge holds at most (a hand leaning on a wall a third of it; a heavy monster "
-                  "less): past it he slips off (vr_ragdoll_active_env_grip)."),
-        slider("Hang Time", vr_ragdoll_active_env_hang, 0.5f, 5.f, 0.1f, "%.1f s").extend(0.1f, 30.f)
-            .help("About how long he hangs from a ledge (each 0.45 to 1.65 times it) (vr_ragdoll_active_env_hang)."),
         slider("Crawl Away", vr_ragdoll_active_crawl, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance a humanoid lying after his death rolls onto his front and crawls a few seconds before going "
                   "limp (vr_ragdoll_active_crawl)."),
@@ -1220,8 +786,6 @@
         toggle("Placed Corpses Are Bodies", vr_corpse_placed)
             .help("The corpses a map places (Dimension and Dawn of the Machine) are dead monsters' bodies: shot, gibbed and "
                   "burnt, and ragdolls you take and cut once you come near. Off: scenery. The next map load (vr_corpse_placed)."),
-        slider("Placed Corpses Wake At", vr_corpse_placed_wake, 64.f, 512.f, 16.f, "%.0f units")
-            .help("How near you come before a placed corpse becomes a ragdoll (vr_corpse_placed_wake)."),
         slider("Get-Up Lift", vr_ragdoll_active_getup_pin, 0.5f, 5.f, 0.25f, "%.2f").extend(0.f, 10.f)
             .help("Body weights pulling its pelvis through its get-up, at most: less, it struggles and may slump "
                   "(vr_ragdoll_active_getup_pin)."),
@@ -1254,21 +818,6 @@
             .help("How far explosions throw a ragdoll, times what they give a prop of its weight (vr_ragdoll_blast)."),
         slider("Death Motion Kept", vr_ragdoll_inherit, 0.f, 2.f, 0.1f, "%.1fx")
             .help("How much of his death animation's motion the parts keep as he goes limp (vr_ragdoll_inherit)."),
-        header("In Water, Slime and Lava"),
-        slider("Float in Water", vr_ragdoll_float_water, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("A body's lift under water, times its weight: above 1 it floats (face down: the torso floats more than "
-                  "the limbs), below it sinks; armoured knights a little less. 0: none (vr_ragdoll_float_water)."),
-        slider("Float in Slime", vr_ragdoll_float_slime, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("The same in slime (vr_ragdoll_float_slime)."),
-        slider("Float in Lava", vr_ragdoll_float_lava, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("The same in lava, where it burns (Combat > Burning, Bodies Burn in Lava) (vr_ragdoll_float_lava)."),
-        slider("Water Drag", vr_ragdoll_drag_water, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 30.f)
-            .help("How fast water slows a body and its spin, more the faster it goes: a fall into it is braked as it goes "
-                  "in, a sink is slow. 0: none (vr_ragdoll_drag_water)."),
-        slider("Slime Drag", vr_ragdoll_drag_slime, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 30.f)
-            .help("The same in slime, thicker (vr_ragdoll_drag_slime)."),
-        slider("Lava Drag", vr_ragdoll_drag_lava, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 30.f)
-            .help("The same in lava, thickest (vr_ragdoll_drag_lava)."),
         header("Each Monster's Own"),
         open("Grunt", pageIndex(pageRagdollGrunt)),
         open("Knight", pageIndex(pageRagdollKnight)),
@@ -1285,37 +834,8 @@
         open("Zombie", pageIndex(pageRagdollZombie)).help("A zombie's ragdoll: only when its head is cut off (Gore > Decapitation)."),
         open("Mummy", pageIndex(pageRagdollMummy)).help("A mummy's ragdoll (Dissolution of Eternity): only when its head is cut off (Gore > Decapitation)."),
         header("Taking Them"),
-        cycle("Grab Ragdolls", vr_ragdoll_grab, {{0.f, "Never"}, {1.f, "By Hand"}})
-            .help("Grip on a limb to take it: it follows your hand, the body hanging from it; let go to drop or throw it. "
-                  "Bodies can only be taken by hand; force grabs do not target them."),
-        slider("Grip Strength", vr_ragdoll_grab_force, 200.f, 4000.f, 100.f, "%.0f N").extend()
-            .help("The most your hand pulls a held limb with: 3000 lifts a grunt by his chest (a unit's sag); 1500 he sags "
-                  "about 18 units, less and you drag him rather than lift him (vr_ragdoll_grab_force)."),
         slider("Grip Reach", vr_ragdoll_grab_reach, 1.f, 16.f, 1.f, "%.0f units").extend()
             .help("How near a limb your hand must be to take it (vr_ragdoll_grab_reach)."),
-        toggle("Hand on the Limb", vr_ragdoll_grab_fit)
-            .help("A limb you take is brought onto your palm (or against your fingers), as a carried box is, and your "
-                  "fingers close round it; off, it is held where your hand's middle was (vr_ragdoll_grab_fit)."),
-        slider("Hand Follows Limb", vr_ragdoll_hand_stick, 0.f, 30.f, 1.f, "%.0f cm").extend()
-            .help("How far your hand is drawn off your controller to stay on the limb it holds as the limb lags and "
-                  "sags; 0: on the controller (vr_ragdoll_hand_stick)."),
-        slider("Hand Turns with Limb", vr_ragdoll_hand_turn, 0.f, 90.f, 5.f, "%.0f deg").extend()
-            .help("How far your hand is drawn turned with the limb as it twists in your hand (vr_ragdoll_hand_turn)."),
-        slider("Palm Rests on Limb", vr_ragdoll_hand_rest, 0.f, 6.f, 0.5f, "%.1f cm").extend()
-            .help("Your hand drawn on a limb it holds slid at most this far for its palm to rest on the limb's skin, not "
-                  "off it nor sunk in it; 0: where the hold has it (vr_ragdoll_hand_rest)."),
-        slider("Throw", vr_ragdoll_throw, 0.f, 2.f, 0.1f, "%.1fx").extend()
-            .help("How much of your hand's throw a limb keeps when let go of (vr_ragdoll_throw)."),
-        header("Blood"),
-        toggle("Blood Trails", vr_ragdoll_blood)
-            .help("A ragdoll's limbs flung fast leave blood trails and drops, as gibs do (vr_ragdoll_blood)."),
-        header("Drawing"),
-        toggle("Smooth Motion", vr_ragdoll_smooth)
-            .help("Drawn between the server's last two steps, as props are: smooth in every frame. Off: the latest step, "
-                  "which a 90 Hz headset shows every other frame (the server runs at 45 Hz there: choppy) (vr_ragdoll_smooth)."),
-        toggle("Held Limbs Follow the Hand", vr_ragdoll_held_local)
-            .help("A ragdoll you hold moves with your hand every frame, as a held prop does, rather than a step behind it "
-                  "(vr_ragdoll_held_local)."),
     };
 }
 

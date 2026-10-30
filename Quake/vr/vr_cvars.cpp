@@ -149,9 +149,6 @@ const DefaultChange defaultChanges[] = {
     {133, &vr_foegrab_throw_spin, "0.55"},           // 0.5
     {133, &vr_foegrab_throw_topple, "200"},          // 180
     {133, &vr_foegrab_throw_twist, "140"},           // 130
-    {133, &vr_ragdoll_grab_force, "3000"},           // 4000
-    {133, &vr_ragdoll_hand_stick, "2"},              // 4
-    {133, &vr_ragdoll_hand_turn, "60"},              // 70
     {133, &vr_reload_port_sshot_radius, "3"},        // 3.15
     {133, &vr_reload_reinsert_clearance, "4"},       // 1.5
     {133, &vr_decal_max, "768"},                     // 512
@@ -173,7 +170,6 @@ const DefaultChange defaultChanges[] = {
     // 139: the author's gore values (2026-10-16: "I've tweaked many values for the gore features. Please make those the
     // new defaults"; ROUND22.md, "Blood streams diverge; his gore values"): sturdier corpses, deeper dents, more and
     // wider but slower streams, fewer teeth, ragdoll impacts softer per hit but capped and crushing harder.
-    {139, &vr_corpse_health_mult, "1"},              // 2
     {139, &vr_gore_dents_depth, "1"},                // 3
     {139, &vr_gore_dents_max, "8"},                  // 12
     {139, &vr_gore_dents_size, "1"},                 // 1.25
@@ -197,7 +193,6 @@ const DefaultChange defaultChanges[] = {
     {140, &vr_knockdown_time_min, "2.5"},           // 1.75
     {140, &vr_knockdown_time_max, "4.5"},           // 3.5
     // 141: his ragdoll hand-follow value (2026-10-16: "I like if the hand follows the ragdoll more accurately").
-    {141, &vr_ragdoll_hand_stick, "4"},             // 30
     // 142: one throw for props and weapons (2026-10-16, R2 review #13; ROUND22.md, "One throw for props and weapons"):
     // one two-handed window (vr_carry_two_hands_window was the props', 0.1; the weapons' a hard-coded 0.3) and one share
     // of the thrower's velocity (vr_carry_throw_inherit was the props', 1; the weapons' all of it). The old names set

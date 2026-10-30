@@ -1040,8 +1040,6 @@ za::Vector<Item> pageCarryingHub()
         open("Throwing and Physics", pageIndex(pageThrowing)),
         slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend()
             .help("How fast what you throw flies, times your hand's speed."),
-        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}})
-            .help("How thrown things fall: Real, as on Earth; Quake, as Quake's own gravity."),
         open("Force Grab", pageIndex(pageForceGrab)),
         open("Wall Torches", pageIndex(pageWallTorches)),
         open("Rocks and Bricks", pageIndex(pageRocksBricks)),
