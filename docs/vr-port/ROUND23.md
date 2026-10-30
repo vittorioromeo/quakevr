@@ -2055,6 +2055,44 @@ author's own value where he set one: the kit's `scratch/refactor/tiers.md` (made
   D1-style retirement is a separate pass).
 - Checks: build; `vr_menu_path_check maps/vrcalibration.map` 0 missing; `config_sparse_test.sh` 16/0 with the
   default config and with a copy of his; the full baseline (`run_baseline.sh harness --no-bench`).
+
+## Live tuning of the tuning constants (branch `agent/livetune`; his "Yes, build it")
+
+His workflow stays: find a number in the menu, tune it in the headset, keep it across sessions, and it becomes the
+shipped default. One accessor, two builds (CODE_STYLE.md, "Settings and the config"):
+
+- **Development builds** (every build but a release; the agents' and his): each `QVR_TUNABLE` name is a `constexpr`
+  reference into `tunables[]` (indexed by `TunableId`), so `name.value` stays one load from a fixed address, no lookup.
+  `tune <name> <value>` sets it (a text or vector too: the rest of the line), `tune <name>` prints its value, default,
+  range, page and help, `tune <part>` lists the names holding it, `tune` lists the changed ones; `tune_reset [name]`
+  (all without one); tab completes names. The QC's readers (`cvar()`: Cvar_VariableValue/String; `cvar_hmake`/`hget`)
+  read the stand-in cvars, kept equal on every set, so progs.dat is the same in both builds.
+- **Debug > Tunables:** every constant (1,094) as the row it had before the tiers pass (963 recovered from the tiers
+  commits' removed rows: label, range, step, format, extend, help; the 124 that never had a row get a range from their
+  default; 7 texts/vectors are console-only lines), grouped under the page they came from. Show (All / Changed Only)
+  and Page (one page's) filter it; Reset All to Defaults. The menu's **Search** finds them (one box for settings and
+  tunables): its index takes the page's every row whatever the filter, and opening a result clears the filter and puts
+  the cursor on that setting (matched by cvar, as labels like "Stiffness" repeat). The rows are data:
+  `Quake/vr/vr_tunables_rows.inc` (one `QVR_TUNABLE_SLIDER`/`_CYCLE`/`_TEXT` per constant, `QVR_TUNABLE_GROUP` per page;
+  a static_assert checks one row per constant in vr_tunables.inc's order) -- the start of design review 9's single
+  settings schema. A row sets its stand-in; Cvar_SetQuick of an unregistered cvar hands it to `VR_TunableSetVar`.
+- **tunables.cfg** (the game folder, git-ignored): `tune <name> "<value>"` for each constant off its default, written at
+  quit with the config (not by a copy that never writes its config; removed when none is changed), read once after the
+  config (`vr_migrate_config`); a console notice says how many it set ("N tuning constants set off their default").
+- **Promotion:** `python Misc/quakevr/tune_promote.py <tunables.cfg> [--inc ...] [--check]` writes the file's values
+  into vr_tunables.inc as defaults, on a worker's tree with his file read only (the game never writes a source). Then
+  his lines equal the defaults and his game drops them at the next quit.
+- **Releases** (`QVR_RELEASE`: make_release.ps1's `/p:QvrReleaseVersion`, or `/p:QvrRelease=1` to build the release
+  code as a check): `inline constexpr Tunable name{...}`, defaults folded in; no `tune`, no page, no file, no table
+  (the stand-ins stay, constant, for the QC). make_release.ps1 refuses an exe holding `tune_reset` or `tunables.cfg`.
+  The old tuning build (`-p:QvrTuning=1`, QVR_TUNING) is removed: this covers it.
+- `vr_menu_search -open <text>` opens Search's best result (scripts).
+- Checks: build 0 warnings; the release code built once (`/p:QvrRelease=1`: 0 warnings, no `tune_reset` in the exe;
+  e1m1 loads, `tune` unknown); `Misc/quakevr/tunables_test.sh <agent>`: set by tune, by a page row and a text, every
+  reader (C++, cvar(), the stand-in) sees each, set-to-default-another-way is unchanged, tunables.cfg holds exactly the
+  changed ones, read back, quit writes it, `tune_promote.py --check` would promote the 3, a new start reads them,
+  tune_reset clears them and quit removes the file (38 + 20 checks, 5 stages).
+
 ## One impact-effect table (branch `agent/impacttable`; design review 4, his "perform all")
 
 The QC's hit ladders now sit on the table gunfx started (`Quake/vr/vr_impacts.cpp`): one row per material x hit kind
