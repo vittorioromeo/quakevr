@@ -320,6 +320,7 @@ float vr_ag_strike_part;           // where it met: 1 the weapon, 2 the hand or 
 float vr_ag_strike_near;           // ... the sweep's distance there from the grip or the hand line (units)
 vector vr_ag_strike_x;             // ... the weapon's point nearest it
 float vr_ag_strike_dis;            // strikes and throws that disarmed (the tests)
+float vr_ag_strike_where;          // ... the last one's part (1 its weapon, 2 its hand or forearm)
 string vr_ag_strike_why;           // the last strike's decision (the tests, vr_agrunt_debug)
 
 // The gap between the segment a..b, widened by `r` (`extra` of it a carried prop's size), and the weapon's line
@@ -424,6 +425,10 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
     {
         return -1;
     }
+    if(VR_AG_SwingSpeed(pl, h) < min(cvar_hget(cvarh_vr_agrunt_disarm_swing), VR_AG_DOWN_SWING))
+    {
+        return -1; // (too slow for any strike: VR_AG_StrikeSpeed's least need; the swept test spared)
+    }
     // Which of its weapons (two held: either) it met first.
     entity p = world;
     float t = -1;
@@ -510,6 +515,7 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
         VR_AG_Swap(g); // (the weapon it struck)
     }
     vr_ag_strike_dis = vr_ag_strike_dis + 1;
+    vr_ag_strike_where = part;
     vr_ag_strike_why = sprintf("a %.1f m/s strike on %s: %s", sp, where, why);
     VR_AG_Log(sprintf("strike: disarmed (%s)", vr_ag_strike_why));
     if(vr_dv_on)

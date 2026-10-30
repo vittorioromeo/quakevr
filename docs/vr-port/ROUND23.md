@@ -2674,3 +2674,53 @@ Regression test: `Misc/quakevr/bodytrack_solve_test.sh <agent> [--update]`: 300 
 (quakevr/scenarios/bodytrack/take.csv) replayed with his body settings, 240 dumped frames against
 quakevr/scenarios/bodytrack/solve_ref.csv (0.5 units per joint, 0.02 per weight); verdict line
 `bodytrack_solve: N passed, M failed`.
+
+## Armed humanoid disarming, part 2: a deliberate strike on its weapon or hand disarms (branch `agent/disarm2`)
+
+His words (2026-10-30): a well-aimed hit or throw (fist, gun or prop) on an armed grunt's weapon or hand parried or hurt
+it, never disarmed it; precise, deliberate strikes (in slow motion too) should knock the gun out. Plan item 1
+(`qvr-kit/scratch/disarm_plan.md`): the parry ran first and took every blow on the weapon whenever the grunt *could*
+parry, raised or not; the disarm test was one point per frame and ignored a carried prop's size.
+
+- **One decision, `VR_AG_BlowOnWeapon`** (vr_armedgrunt_parry.qc), from `VR_AGPar_Blow` (the melee's damage: a blow
+  that met the weapon before the body) and `VR_AG_StrikeFrame` (the weapon's think: one that met only the weapon; it
+  replaces `VR_AGPar_WeaponFrame` + the `VR_AG_HandStrike` loop under `vr_agrunt_strike_first` 1, the default; 0 is the
+  old order, kept whole). Not a deliberate strike (`VR_AG_StrikeSpeed` 0: open hand, jolt, under the disarm swing): the
+  parry's own rule as before. Deliberate and its parry not raised for it (unable, caught out, not up yet, pose under
+  `vr_agrunt_strike_raised` 0.5): disarmed along the blow (`strike: disarmed (...)` under vr_agrunt_debug). Deliberate
+  into a raised parry: roll `vr_agrunt_strike_beat` 0.4 x `_strike_precise_mult` 2 (within `_strike_precise` 4 units of
+  the grip or hand line) x min(2, speed / 4.5): won, disarmed; lost, the parry (stamina as before). A blow disarmed on
+  its way into the body still deals its body damage (as an unable grunt's always did).
+- **Swept geometry, `VR_AG_StrikeMeets`**: the blow's points (VR_Blow, last pose to now, a held gun's whole line) at 4-16
+  steps (every 2.5 units of their way), a carried prop's middle swept with the hand and widened by its size (min(16,
+  mean size / 2)), against the weapon line and the hand + forearm line (`VR_AGS_HandLine`); plus the old hand-to-muzzle
+  test. `VR_AG_HandStrikeSpeed` (the tug's free-fist strike) uses it too. Speeds are real time (unchanged), so slow
+  motion works.
+- **Throws**: `VR_AG_Hit` first asks `VR_AG_ThrowOnWeapon`: a thrown weapon, prop or gib that touched the body (its
+  velocity possibly already bounced: then its way in is towards the body), its path one frame back plus its size, met
+  the weapon or hand line: the momentum rule (`vr_agrunt_disarm_throw`), not the damage gate. The think-time throw check
+  stays for throws that never touch the body. Body blows by the hand: `VR_AG_Hit` measures to the hand line too.
+- **Ragdolls** (agent/disarmviz's lead): `VR_AGS_HandLine` on a ragdoll lays the forearm from the grip towards the middle
+  of the limb its weapon rides (`ragdollpoint(g, vr_ag_rb - 1, '0 0 0', 1)`), not the standing pose's arm.
+- Show Disarm Volumes marks the strike's and the throw's disarms (`VR_DV_Mark`, at the struck point).
+- Settings: `vr_agrunt_strike_first` (Combat > Armed Grunts > Disarming: Strikes on Its Weapon Disarm); tunables
+  `vr_agrunt_strike_beat`, `_strike_precise`, `_strike_precise_mult`, `_strike_raised` (Armed Grunts group).
+- **Test `vr_agrunt_test 94`** (vr_armedgrunt_strike_test.qc; Debug > Tests > Armed Grunts: Strikes on Its Weapon
+  Disarm), 16 cases, each a fresh shotgun grunt held still with its parry state set and the hand mocked as the tracker has
+  it: fist on the barrel unaware / caught out: disarmed; caught out with strike_first 0: parried; raised, beat 0:
+  parried, beat 1: disarmed; on the forearm (3.7 units off the weapon line): disarmed by the hand part; open hand, 2 m/s
+  push: neither; held shotgun's far end (hand 22 units off): disarmed; carried 24-unit crate, fist 13 units off (the fist
+  alone does not meet): disarmed; gun thrown across the barrel: disarmed; gun bounced off the body by its forearm (5
+  damage, under the disarming blow): disarmed; melee punch on the legs: its full 12 damage, armed; through the barrel into
+  the chest, caught out: disarmed, damage not cut; into a raised parry, beat 0: parried (5 of 20); fist at vr_timescale
+  0.3: disarmed. 16 passed, 0 failed. Ends on `agtest: test 94 over`.
+- **The uppercut take (16.7 -> 13.2)** predates disarm1: eval.sh --full gives 13.2 on b2eca62bf (next before the
+  disarm1 merge) and on origin/next alike (163/171 both; the same 9-15 rows differ from the baseline, by 0.1 noise
+  except the uppercut and two older takes). Nothing to revert in disarm1.
+
+Checklist lines:
+- Punch an armed grunt's gun (or its gun hand) hard while it isn't guarding: the gun flies out; into its raised guard
+  it is usually parried, sometimes knocked out.
+- In slow motion, punch a grunt's gun out of its hand.
+- Swing a held shotgun or a carried crate into a grunt's gun: knocked out. Throw a gun at its gun hand: knocked out.
+- Punch a grunt's legs or chest away from its gun: it is hurt, keeps its gun.

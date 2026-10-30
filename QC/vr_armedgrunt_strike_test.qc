@@ -119,7 +119,7 @@ float(entity g, vector at, vector dir) VR_AGST_Melee =
 void() VR_AGST_End =
 {
     entity p = vr_agt_player;
-    cvar_set("vr_agrunt_strike_beat", ftos(vr_agst_keep_beat));
+    localcmd(sprintf("tune vr_agrunt_strike_beat %g\n", vr_agst_keep_beat)); // (a tunable: set by `tune`)
     cvar_set("vr_agrunt_strike_first", ftos(vr_agst_keep_first));
     cvar_set("vr_agrunt_parry", ftos(vr_agst_keep_parry));
     cvar_set("vr_timescale", ftos(vr_agst_keep_scale));
@@ -151,21 +151,13 @@ void(entity g, float c) VR_AGST_Strike =
     if(c == 0 || c == 7 || c == 10 || c == 11) { state = 0; }
     if(c == 3 || c == 4 || c == 14) { state = 2; }
     VR_AGST_Hold(g, state);
-    string beat = ftos(vr_agst_keep_beat);
-    if(c == 4)
-    {
-        beat = "1";
-    }
-    else if(c == 3 || c == 14)
-    {
-        beat = "0";
-    }
-    cvar_set("vr_agrunt_strike_beat", beat);
     cvar_set("vr_agrunt_strike_first", c == 2 ? "0" : "1");
     float expectDis = TRUE;
     float expectParry = FALSE;
     float dmg = -1;
     string extra = "";
+    float okExtra = TRUE;
+    vr_ag_strike_where = 0;
     p.weapon = WID_FIST;
     if((c <= 7) || (c == 15))
     {
@@ -266,23 +258,32 @@ void(entity g, float c) VR_AGST_Strike =
         VR_AGST_Blow(a, '0 0 0', b, '0 0 0', 1, normalize(b - a), sp, TRUE, VR_MTHING_FIST);
         dmg = VR_AGST_Melee(g, bodyAt, normalize(b - a));
         float kept = 20 * cvar_hget(cvarh_vr_agrunt_parry_damage);
+        // (Parried: the parry's share; else not cut: on its legs the melee's own damage, through its weapon into its chest
+        // more than a parry's (its chest may be armoured: vr_agarmor).)
         extra = sprintf(", %g damage (unparried %g, parried %g)", dmg, vr_agpt2_expect, kept);
         if(expectParry)
         {
-            extra = strcat(extra, fabs(dmg - kept) < 0.01 ? "" : " WRONG");
+            okExtra = fabs(dmg - kept) < 0.01;
         }
-        else if(fabs(dmg - vr_agpt2_expect) >= 0.01 || dmg <= 0)
+        else if(c == 12)
         {
-            extra = strcat(extra, " WRONG");
+            okExtra = (fabs(dmg - vr_agpt2_expect) < 0.01 && dmg > 0);
+        }
+        else
+        {
+            okExtra = dmg > kept + 0.01;
         }
     }
     float disarmed = !g.vr_ag_prop;
     float parried = vr_agpar_n - n0;
-    float ok = disarmed == expectDis && (parried > 0) == expectParry && strstrofs(extra, "WRONG", 0) < 0;
-    if(c == 5 && strstrofs(vr_ag_strike_why, "its gun hand", 0) < 0)
+    float okDis = disarmed == expectDis;
+    float okParry = (parried > 0) == expectParry;
+    if(c == 5)
     {
-        ok = FALSE; // (its forearm, not its weapon, met)
+        okExtra = vr_ag_strike_where == 2; // (its forearm, not its weapon, met)
     }
+    float ok = okDis && okParry && okExtra;
+    extra = sprintf("%s [%g%g%g]", extra, okDis, okParry, okExtra);
     string want = expectParry ? "parried" : "neither";
     if(expectDis)
     {
@@ -316,6 +317,17 @@ void() VR_AGST_Frame =
         VR_AGPT_Clear();
         VR_AGPT_EmptyHand(p);
         cvar_set("vr_timescale", vr_agst_case == 15 ? "0.3" : "1");
+        // (Into a raised parry: beat 0, then 1; a tunable, set by `tune` (run before the strike: the grunt's start).)
+        float beat = vr_agst_keep_beat;
+        if(vr_agst_case == 4)
+        {
+            beat = 1;
+        }
+        else if(vr_agst_case == 3 || vr_agst_case == 14)
+        {
+            beat = 0;
+        }
+        localcmd(sprintf("tune vr_agrunt_strike_beat %g\n", beat));
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 60);
         vr_agst_until = time + 5;
         vr_agt_step = 1;
