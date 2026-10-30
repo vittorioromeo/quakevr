@@ -510,11 +510,22 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
 // The worn backpack (vr_box3d_wornpack.cpp; QC vr_wornpack.qc, ragdollbone's QVR_WORNPACK): `what` 0 whether e's ragdoll
 // wears it (1; 0 not, -1 no ragdoll); 1 torn off its ragdoll (1 if it was on); 2 the pull (N) of player `a`'s hand `b`'s
 // hold if it is on e's pack (-1 none); 3 that hold's stretch (units: the hand from the pack's point it took); 4 how far
-// point `p` is from its box (units; -1 none worn: not a wearer).
+// point `p` is from its box (units; -1 none worn: not a wearer); 5 the stretch (units) of player `a`'s hand `b`'s hold on
+// e's pack while e stands (foegrab's pack hold: the tracked palm from its spot on the pack; -1 none); 6 every standing
+// hold on e's pack let go of, the grips the QC's again (the pack torn off into a hand): how many; 7 how far (cm) that
+// hold's drawn palm is off the pack's box (-1 none).
 [[nodiscard]] float wornPack(edict_t* ent, int what, int a, int b, const glm::vec3& p);
 // Where e's worn backpack is drawn (its ragdoll's chest part, else as its model is posed: agarmor::packWhere): `what` 0 its
-// model's origin, 1 its angles (an alias model's), 2 its box's middle.
+// model's origin, 1 its angles (an alias model's), 2 its box's middle, 3 the half size of the level box round it as it
+// is turned (its entity's size).
 [[nodiscard]] glm::vec3 wornPackWhere(edict_t* ent, int what);
+// e's worn backpack's box as it is now (the model's bounds: its ragdoll's shape, else on its posed model): its middle,
+// its axes and its half size (units). False: none worn (vr_wp_worn not 1).
+[[nodiscard]] bool wornPackBox(edict_t* ent, glm::vec3& mid, glm::mat3& axes, glm::vec3& half);
+// Where the segment a..b (a box of half size `grow` swept along it) first meets e's worn backpack box (0..1; -1 not, or
+// none worn), its point and its face's normal there.
+[[nodiscard]] float wornPackSegment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, float grow, glm::vec3& point,
+    glm::vec3& normal);
 // 1 if `at` (units) is on the head of edict `num`'s ragdoll (its part nearest, or within a few units of the neck: `neck`
 // units if more, the melee's vr_decap_neck), 0 not (or no head), -1 not a ragdoll.
 [[nodiscard]] int ragdollHeadAt(int num, const glm::vec3& at, float neck = 0.f);

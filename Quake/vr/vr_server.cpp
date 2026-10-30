@@ -1031,9 +1031,10 @@ extern "C" int VR_EntityUpdateBits(edict_t* ent)
     {
         bits |= U_QVR_OFFSET;
     }
-    if(fieldFloatOr(ent, f.vr_rigid, 0.f) != 0.f)
+    const float packState = fieldFloatOr(ent, f.vr_wp_state, 0.f);
+    if(fieldFloatOr(ent, f.vr_rigid, 0.f) != 0.f || packState == 1.f || packState == 2.f)
     {
-        bits |= U_QVR_NOROTATE;
+        bits |= U_QVR_NOROTATE; // (a rigid body; a worn backpack, placed on its wearer's back: QC vr_wornpack.qc)
     }
     else if(fieldFloatOr(ent, f.vr_pickup_spin, 0.f) != 0.f)
     {

@@ -3021,8 +3021,17 @@ QVR_CVAR(vr_worn_backpack_rip_force, "3000", CVAR_ARCHIVE) // worn backpacks: a 
 QVR_CVAR(vr_worn_backpack_rip_time, "0.04", CVAR_ARCHIVE) // worn backpacks: the pull kept past vr_worn_backpack_rip_force this long (s) tears it off (a yank, not a jolt)
 QVR_CVAR(vr_worn_backpack_rip_stiffness, "150", CVAR_ARCHIVE) // worn backpacks: N a unit of the held point's lag behind the hand (the stretch's share of the pull)
 QVR_CVAR(vr_worn_backpack_impact, "9", CVAR_ARCHIVE)  // worn backpacks: a ragdoll's strike on the level at least this fast (m/s) tears it off
-QVR_CVAR(vr_worn_backpack_hit_chance, "0.35", CVAR_ARCHIVE) // worn backpacks: a hit on the pack (a blow, a throw, a shot, a projectile) tears it off with this chance at vr_worn_backpack_hit_ref damage (more: likelier; at most 1)
-QVR_CVAR(vr_worn_backpack_hit_ref, "20", CVAR_ARCHIVE) // worn backpacks: the damage of a hit whose chance is vr_worn_backpack_hit_chance
+QVR_CVAR(vr_worn_backpack_pool, "25", CVAR_ARCHIVE)  // worn backpacks: the damage a living one's pack takes before it tears off (hits on the pack: blows, throws, shots, projectiles; and the share below of blasts and fire anywhere on it; poison never; 0: never by damage)
+QVR_CVAR(vr_worn_backpack_pool_blast, "1", CVAR_ARCHIVE) // worn backpacks: the share of an explosion's damage to its wearer counted on the pack (0..1)
+QVR_CVAR(vr_worn_backpack_pool_fire, "1", CVAR_ARCHIVE)  // worn backpacks: the share of fire's damage (the flamethrower, burning) counted on the pack (0..1)
+QVR_CVAR(vr_worn_backpack_hit_roll, "0", CVAR_ARCHIVE) // worn backpacks: besides its damage, a hit on the pack tears it off with this chance at vr_worn_backpack_hit_ref damage (more: likelier; at most 1; 0 off: the damage alone, vr_worn_backpack_pool)
+QVR_CVAR(vr_worn_backpack_hit_ref, "20", CVAR_ARCHIVE) // worn backpacks: the damage of a hit whose chance is vr_worn_backpack_hit_roll
+QVR_CVAR(vr_worn_backpack_tug, "1", CVAR_ARCHIVE)     // worn backpacks: a fist on a living one's pack takes hold of the pack (a tug; it spots you): pulled, it tears off into the hand (0: the hand holds its back, as before)
+QVR_CVAR(vr_worn_backpack_tug_stretch, "10", CVAR_ARCHIVE) // worn backpacks: cm a hand holding a living one's pack must pull it off its place for the pull to count (two hands: their pulls added, times vr_worn_backpack_two_hand_mult)
+QVR_CVAR(vr_worn_backpack_tug_time, "0.6", CVAR_ARCHIVE) // worn backpacks: s a pull of vr_worn_backpack_tug_stretch must be kept up to tear the pack off (twice as far: half as long)
+QVR_CVAR(vr_worn_backpack_two_hand_mult, "1.5", CVAR_ARCHIVE) // worn backpacks: both hands on the pack pull this many times their pulls together (a living one's tug, a ragdoll's pull)
+QVR_CVAR(vr_worn_backpack_topple, "1", CVAR_ARCHIVE)  // worn backpacks: a pack torn off a living one by your pull knocks it down, falling the way you tore (a ragdoll trigger); 0 it stands
+QVR_CVAR(vr_worn_backpack_topple_push, "0.8", CVAR_ARCHIVE) // worn backpacks: that knockdown's push (a shove's: two hands 1)
 QVR_CVAR(vr_worn_backpack_reserve, "1", CVAR_ARCHIVE) // worn backpacks: the share of an armed grunt's spare rounds in its pack (lost with it while alive)
 QVR_CVAR(vr_worn_backpack_volume, "1", CVAR_ARCHIVE)  // worn backpacks: the fabric rip's loudness
 QVR_CVAR(vr_worn_backpack_debug, "0", CVAR_NONE)      // worn backpacks: log each pack's state, pulls and rips (developer 1)
