@@ -160,6 +160,10 @@ A sword grunt guards up close even with its shove ready.
 Raise your weapon overhead or to the side near a grunt: it parries after a short delay; wait it out and strike in the opening (vr_agrunt_windup_parry).
 With a sword it guards more often and sooner than with a shotgun (Tunables > Armed Grunts - Parry by What You Hold).
 Show Disarm Volumes shows preparry / windup / recovering on the grunt.
+Shove an armed grunt into a stagger, or topple it, and grab its gun (on the gun, or a few cm off it): a tug, not its arm; pull back steadily: within about 1-2 s the gun is yours.
+The same, grabbing the hand or forearm holding its gun: a tug on the gun (the arm is not held); pull: yours.
+Topple it, grab its gun with one hand and its gun forearm with the other: both pull; yours.
+Grab a downed armed grunt's other arm, or its leg: that limb is held as before.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
