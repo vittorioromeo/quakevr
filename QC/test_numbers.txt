@@ -168,6 +168,7 @@ vr_pickup_test   4        vr_pickup_test.qc                (VR_PickupTest_EnemyG
 vr_pickup_test   5        vr_pickup_test.qc                (VR_PickupTest_Lying)
 vr_pickup_test   6        vr_pickup_test.qc                (VR_PickupTest_Float)
 vr_pickup_test   7        vr_pickup_test.qc                the hand slot's busy kinds (VR_SlotTest_Run, vr_axestick_test.qc)
+vr_pickup_test   8        vr_pickup_test.qc                one busy-hand check: the force grab refuses a busy hand (VR_FgBusyTest_Run)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)

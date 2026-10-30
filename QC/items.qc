@@ -794,9 +794,9 @@ void(float xHand, entity xArmor) VR_Armor_HeldFrame =
 void() VR_PickupObj_WeaponTouch =
 {
     float hand = VRGetTouchingHand(other);
-    if((forcegrabCatching || ((VR_Carry_GripPressed(other, hand) || VR_Carry_FloatGraceGrip(other, hand, self)) &&
-                               !VR_Forcegrab_IsHandBusy(other, hand))) &&
-       VRIsHandEmpty(other, hand))
+    // (Free to take a weapon: a busy hand too; locked on to a force grab only for that grab's own catch.)
+    if((forcegrabCatching || VR_Carry_GripPressed(other, hand) || VR_Carry_FloatGraceGrip(other, hand, self)) &&
+       VR_Hand_Free(other, hand, VR_HANDFREE_BUSY | (forcegrabCatching ? VR_HANDFREE_LOCKED : 0)))
     {
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.carry_use();
@@ -1050,7 +1050,7 @@ void() weapon_touch =
     if(other.ishuman && !touchinghandIsBody)
     {
         if(!VR_HandGrabUtil_IsHandGrabbing(other, VRGetTouchingHand(other)) ||
-            !VRIsHandEmpty(other, VRGetTouchingHand(other)))
+            !VR_Hand_Free(other, VRGetTouchingHand(other), VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED))
         {
             return;
         }
@@ -1059,8 +1059,8 @@ void() weapon_touch =
     // Do not pick up the weapon if body interactions is enabled and no hands
     // are free.
     if(other.ishuman && touchinghandIsBody &&
-        !VRIsHandEmpty(other, cVR_MainHand) &&
-        !VRIsHandEmpty(other, cVR_OffHand))
+        !VR_Hand_Free(other, cVR_MainHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED) &&
+        !VR_Hand_Free(other, cVR_OffHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED))
     {
         return; // (a hand must be free: what the body touches isn't put in a holster or dropped for it)
     }
@@ -1126,13 +1126,13 @@ void() weapon_touch =
     {
         if(other.ishuman)
         {
-            if(VRIsHandEmpty(other, cVR_MainHand))
+            if(VR_Hand_Free(other, cVR_MainHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED))
             {
                 VRGiveEntWeapon(other, cVR_MainHand, weaponId, 0, clip);
                 AD_UpgradeGiven(stemp, other, cVR_MainHand); // AD support: an upgrade's on the weapon it gives
                 W_SetCurrentAmmoFor(cVR_MainHand);
             }
-            else if(VRIsHandEmpty(other, cVR_OffHand))
+            else if(VR_Hand_Free(other, cVR_OffHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED))
             {
                 VRGiveEntWeapon(other, cVR_OffHand, weaponId, 0, clip);
                 AD_UpgradeGiven(stemp, other, cVR_OffHand); // AD support
