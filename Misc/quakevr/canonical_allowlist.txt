@@ -124,14 +124,14 @@ qc-test-check QC/vr_reload_test.qc 1  # a per-test Check copy from before vr_tes
 qc-test-check QC/vr_testutil.qc 1  # canonical
 
 # --- qc-test-tally: use VR_Test_Begin(Flags)/Check/Verdict's tally (QC/vr_testutil.qc)
-qc-test-tally QC/vr_dmgcredit_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-tally QC/vr_dmgcredit_test.qc 1  # vr_dctest_pass: a frame counter, not a tally
 qc-test-tally QC/vr_melee_sweep_test.qc 1  # not migrated yet (design review 7: one test harness)
 qc-test-tally QC/vr_stealth_test.qc 1  # not migrated yet (design review 7: one test harness)
 qc-test-tally QC/vr_stealth_test2.qc 1  # not migrated yet (design review 7: one test harness)
 qc-test-tally QC/vr_testutil.qc 2  # canonical
 
 # --- qc-test-verdict: use VR_Test_Verdict (QC/vr_testutil.qc)
-qc-test-verdict QC/vr_rigseq_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_rigseq_test.qc 1  # rig2anim: a check that quotes the engine's own totals (vr_rig2anim_check), not a verdict
 qc-test-verdict QC/vr_testutil.qc 2  # canonical (VR_Test_Verdict, VR_Test_VerdictPart)
 
 # --- cpp-test-verdict: use testkit::Tally / testkit::verdict (vr_testkit.hpp)

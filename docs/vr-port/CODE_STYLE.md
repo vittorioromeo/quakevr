@@ -296,7 +296,10 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
   same with a site's own thresholds).
 - `QC/vr_testutil.qc` (tests only): `VR_Test_Begin("tag")`, `VR_Test_Check(ok, what)` (`<tag>: PASS|FAIL <what>`),
   `VR_Test_Verdict()` (`<tag>: <p> passed, <f> failed`), one tally (`vr_test_pass`, `vr_test_fail`);
-  `VR_Test_BeginFlags(tag, VR_TEST_LOUD | VR_TEST_QUIET)`: lines broadcast (bprint), passes unprinted. The armed
+  `VR_Test_BeginFlags(tag, VR_TEST_LOUD | VR_TEST_QUIET)`: lines broadcast (bprint), passes unprinted;
+  `VR_Test_VerdictPart("part")` (`<tag>: <part> <p> passed, <f> failed`), `VR_Test_Count(ok)` (an older test's own
+  check line, counted), `VR_Test_Nest(tag, flags)` / `VR_Test_Unnest()` (a test run inside another: agtest's agshot).
+  One spawner: `VR_Test_Spawn(player, kind, at, yaw)` (the dispenser's numbers; impulse 241's). The armed
   grunts' harness (`VR_AGT_Check/Print/Spawn/Remove/Hunt`, vr_armedgrunt_test.qc) and the arena's `VR_AT_Check` count
   on that tally. A new test never keeps its own pass/fail globals or verdict line (check_canonical.py's test-*
   families). Scripts: `Misc/quakevr/qvrtest.py` / `qvrtest.sh` (TESTING.md, "Writing a test").
