@@ -206,9 +206,9 @@ string(entity xTarg, string xSound, float xBlade) VR_Melee_HitSoundOn =
 // The second layer of a blunt blow (a fist, a gun's butt, a headbutt, a gib, a prop or a weapon struck or thrown into
 // something; the thud itself is fisthit.wav or a pommel's knock): of what the blow landed on (the table's layer for a
 // blow), so that the thud sounds of it and is never twice the same, played from `xFrom` on `xChan` (a hand's own
-// channel: at the hand): the world or what takes no damage the hand's own knock (soft_m1..4), wood a wooden knock
-// (wood_m1..4), a body (a monster, a player, a corpse, a gib; a torch, a grenade) a slap of flesh (flesh_m1..4), an
-// armoured one also a light metal knock over a duller slap. Metal (an explosive box, a door, a lift) has its own knock
+// channel: at the hand): the world or what takes no damage the hand's own knock (soft_m1..4), wood and a wall torch a
+// wooden knock (wood_m1..4), a grenade a light metal knock (metal_l1..4), a body (a monster, a player, a corpse, a gib)
+// a slap of flesh (flesh_m1..4), an armoured one also a light metal knock over a duller slap. Metal (an explosive box, a door, a lift) has its own knock
 // instead of the thud already (VR_Melee_HitSoundOn): none. Each a little higher or lower (VR_SoundVaried);
 // vr_snd_hit_layer loud (0 none). `developer` prints which.
 void(entity xFrom, float xChan, entity xTarg) VR_Blunt_HitLayer =
@@ -237,23 +237,34 @@ void(entity xFrom, float xChan, entity xTarg) VR_Blunt_HitLayer =
 // a crate the blow broke is still wood (VR_Crate_Wooden).
 
 // Where a blow or a shot hits `targ`: blood (`vel` its spray: SpawnBlood's), splinters off wood, sparks off metal or a
-// grenade, nothing off a wall torch. (No armour's pass-through here: the other ladders' VR_AgArmor_HitFx.)
+// grenade, nothing off a wall torch; an armed humanoid's unbroken plate sparks, and blood only for what it lets
+// through (vr_agarmor.qc; as the shots' ladders: his call, 2026-10-30). Before the blow's T_Damage (the plate as it
+// was struck).
 void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
 {
-    VR_ImpactFx(VR_MaterialOf(targ), VR_HIT_BLOW, targ, org, vel, damage);
+    float m = VR_MaterialOf(targ);
+    float bleed = 1;
+    if(VR_Material_Fleshy(m))
+    {
+        bleed = VR_AgArmor_HitFx(targ, org, vel, damage);
+    }
+    if(bleed > 0)
+    {
+        VR_ImpactFx(m, VR_HIT_BLOW, targ, org, vel, damage * bleed);
+    }
 };
 
 // A shot's hit on `targ` (a projectile's: AD's projectile pellets, ad_Touch_Bullet) when it is no flesh: the effect the
 // hitscan pellets and the nails give it (TraceAttack, spawn_touchblood) sent, TRUE; flesh: nothing sent, FALSE (its
 // blood is the caller's). A fuel tank, an explosive box or a door: sparks and a tink; a crate: splinters; a grenade:
-// sparks; a wall torch: nothing. `dir`: the way the shot flew. (His beta4 pass, 2026-10-26: AD's pellets bled tanks.)
+// sparks (as metal's, off it); a wall torch: nothing. `dir`: the way the shot flew. (His beta4 pass, 2026-10-26: AD's
+// pellets bled tanks.)
 float(entity targ, vector org, vector dir, float damage) VR_HitNonFlesh =
 {
     float m = VR_MaterialOf(targ);
-    if(m == VR_MAT_TORCH || m == VR_MAT_GRENADE)
+    if(m == VR_MAT_TORCH)
     {
-        VR_ImpactFx(m, VR_HIT_PELLET, targ, org, dir, damage);
-        return TRUE;
+        return TRUE; // (its row: nothing)
     }
     vector back = normalize(-dir) * 60 + [crandom() * 20, crandom() * 20, random() * 20];
     if(VR_Material_Fleshy(m))

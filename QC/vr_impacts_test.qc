@@ -4,9 +4,9 @@
 // sounds) on every material (the world, wood, metal, flesh, armour, a wall torch, a grenade), each a target in a row 96
 // units ahead of the player, with vr_debug_impacts on: each effect the server sends is printed ("impfx p2 ...",
 // "impfx snd ..."), so that two builds' logs compare line by line (the impact table's move, design_review.md proposal
-// 4; ROUND23.md "One impact-effect table"). 1-7: that ladder alone (the eyeshots: 1 bullet, 2 nail, 3 blow, 4 pellet,
-// 5 splash, 6 blunt layer, 7 melee hit sounds); 9: all of them, then "imptest: N calls" (the verdict line). Seed
-// sv_random_seed before the map for a log that repeats.
+// 4; ROUND23.md "One impact-effect table"). 1-8: that ladder alone (the eyeshots: 1 bullet, 2 nail, 3 blow, 4 pellet,
+// 5 splash, 6 blunt layer, 7 melee hit sounds, 8 the chainsaw's tick: VR_Saw_HitFx); 9: all of them, then
+// "imptest: N calls" (the verdict line: 56). Seed sv_random_seed before the map for a log that repeats.
 
 float VR_IMPTEST_TARGETS = 7;
 
@@ -83,6 +83,10 @@ void(float k, entity t, vector at, entity xFrom) VR_ImpTest_One =
         bprint(sprintf("imptest: melee sound blade %s, blunt %s\n", VR_Melee_HitSoundOn(t, "player/axhit1.wav", TRUE),
             VR_Melee_HitSoundOn(t, "fisthit.wav", FALSE)));
     }
+    else if(k == 8)
+    {
+        VR_Saw_HitFx(t, VR_MaterialOf(t), at, 4, 1);
+    }
 };
 
 // Every server frame (StartFrame): the test asked for (vr_impact_qc_test).
@@ -113,7 +117,7 @@ void() VR_ImpTest_Frame =
         targets[i] = VR_ImpTest_Target(i, spots[i]);
     }
     vr_imptest_calls = 0;
-    for(k = 1; k <= 7; k++)
+    for(k = 1; k <= 8; k++)
     {
         if(ask == 9 || ask == k)
         {

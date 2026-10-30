@@ -254,6 +254,13 @@ void(entity p) VR_AFT_Run =
     self = oldself;
     VR_ART_Check(vr_ar_fx_sparks == s0 + 1 && vr_ar_fx_bled == b0 && d.health == hd,
         sprintf("a pellet of 4 on a red cuirass: sparks (%g), no blood (%g), no damage (%g)", vr_ar_fx_sparks - s0, vr_ar_fx_bled - b0, hd - d.health));
+    // A blow's blood (VR_HitBlood: the melee's, the chainsaw's own call the same) asks the plate too (his call,
+    // 2026-10-30).
+    s0 = vr_ar_fx_sparks;
+    b0 = vr_blood_sent;
+    VR_HitBlood(d, at, dir * -200, 4);
+    VR_ART_Check(vr_ar_fx_sparks == s0 + 1 && vr_blood_sent == b0,
+        sprintf("a blow of 4 on a red cuirass: sparks (%g), no blood (%g)", vr_ar_fx_sparks - s0, vr_blood_sent - b0));
     d.vr_ar_type = 0;
     d.vr_ar_mask = 0;
     s0 = vr_ar_fx_sparks;

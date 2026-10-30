@@ -184,7 +184,6 @@ qc-hit-fx QC/weapons.qc 7  # left: not a hit's material effect (a button's, a mu
 # --- qc-material-ladder: the impact table (QC/vr_crates.qc VR_ImpactFx, VR_MaterialOf; Quake/vr/vr_impacts.cpp)
 qc-material-ladder QC/vr_ad_enemyguns_test.qc 1  # left: a predicate for a rule, not an effect (a melee sound's choice, a bash's target, a test)
 qc-material-ladder QC/vr_carry.qc 1  # left: a predicate for a rule, not an effect (a melee sound's choice, a bash's target, a test)
-qc-material-ladder QC/vr_chainsaw.qc 1  # left: a predicate for a rule, not an effect (a melee sound's choice, a bash's target, a test)
 qc-material-ladder QC/vr_crates.qc 7  # the predicates themselves and VR_MaterialOf; the blunt layer's metal exit; a thrown crate's splinters
 qc-material-ladder QC/vr_melee_bash.qc 1  # left: a predicate for a rule, not an effect (a melee sound's choice, a bash's target, a test)
 qc-material-ladder QC/vr_mg_world_test.qc 1  # left: a predicate for a rule, not an effect (a melee sound's choice, a bash's target, a test)

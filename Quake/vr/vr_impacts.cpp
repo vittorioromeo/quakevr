@@ -196,7 +196,8 @@ using Table = std::array<std::array<Row, kinds>, materials>;
 
 // The things' effects, as the five QC ladders sent them (TraceAttack, spawn_touchblood, VR_HitBlood, VR_HitNonFlesh,
 // VR_HitBloodSplash; and the chainsaw's, a thrown thing's). Where they disagreed, each ladder's own row keeps its
-// output (ROUND23.md, "One impact-effect table": the disagreement list).
+// output (ROUND23.md, "One impact-effect table": the disagreement list), except where he unified them ("Impact
+// disagreements unified": shots' blood, a grenade's sparks, the torch's and grenade's blunt layer).
 constexpr Fx sparks(float dirScale)
 {
     return {presetSparks, 0.5f, 3.f, 10.f, dirScale};
@@ -208,10 +209,6 @@ constexpr Fx splinters(float dirScale)
 constexpr Fx blood(float dirScale)
 {
     return {presetBlood, 1.f, -1e9f, 1e9f, dirScale, 0.2f}; // (SpawnBlood's own 0.2 last)
-}
-constexpr Fx grenadeSparks()
-{
-    return {presetSparks, 0.f, 8.f, 8.f, 0.f, 1.f, {0.f, 0.f, 40.f}}; // (VR_GrenShot_Sparks)
 }
 constexpr Fx sprayed(Fx f, glm::vec3 spray, float lift)
 {
@@ -266,11 +263,14 @@ constexpr Table makeTable()
         t[m][static_cast<int>(K::SuperNail)].surfaceGain = 0.55f;
     }
     // (Flesh's wall hits: nothing new, the gore's mist comes with the blood: particles.cpp mist, vr_gore_mist.)
+    // A shot's `dir`: its bounce off the thing (TraceAttack's, spawn_touchblood's wall_velocity: 200 x (way + 2 x
+    // normal)). Hitscan and nails bleed alike (his call, 2026-10-30): the bullet's row, 0.04 x the bounce, count the
+    // damage (the nail's row had the same once its caller's 0.2 was counted, and its blood 1.2 units out along it).
     for(const M fleshy : {M::Flesh, M::Armour})
     {
         row(fleshy, K::Bullet).thing = blood(0.2f);              // TraceAttack: SpawnBlood(org, vel x 0.2)
-        row(fleshy, K::Nail).thing = along(blood(1.f), 0.01f);   // spawn_touchblood: at origin + vel x 0.01
-        row(fleshy, K::SuperNail).thing = row(fleshy, K::Nail).thing;
+        row(fleshy, K::Nail).thing = row(fleshy, K::Bullet).thing; // spawn_touchblood
+        row(fleshy, K::SuperNail).thing = row(fleshy, K::Bullet).thing;
         row(fleshy, K::Blow).thing = blood(1.f);                 // VR_HitBlood, SpawnBlood
         row(fleshy, K::Splash).thing = sprayed(blood(1.f), {240.f, 240.f, 120.f}, 100.f); // SpawnBloodSplash
         row(fleshy, K::Saw).thing = blood(60.f);                 // the chainsaw: its (crandom right + up) x 60
@@ -279,7 +279,7 @@ constexpr Table makeTable()
     }
     row(M::Armour, K::Blow).over = Sound::MetalLight;
     row(M::Metal, K::Bullet).thing = sparks(0.3f);
-    row(M::Metal, K::Nail).thing = along(sparks(1.f), 0.01f);
+    row(M::Metal, K::Nail).thing = along(sparks(0.2f), 0.002f); // (at origin + bounce x 0.002)
     row(M::Metal, K::SuperNail).thing = row(M::Metal, K::Nail).thing;
     row(M::Metal, K::Pellet).thing = sparks(1.f);
     row(M::Metal, K::Blow).thing = sparks(0.2f);
@@ -293,7 +293,7 @@ constexpr Table makeTable()
     row(M::Metal, K::Bash).sound = Sound::MetalBlunt;
     row(M::Metal, K::Blade).sound = Sound::MetalBlade;
     row(M::Wood, K::Bullet).thing = splinters(0.2f);
-    row(M::Wood, K::Nail).thing = along(splinters(1.f), 0.01f);
+    row(M::Wood, K::Nail).thing = along(splinters(0.2f), 0.002f);
     row(M::Wood, K::SuperNail).thing = row(M::Wood, K::Nail).thing;
     row(M::Wood, K::Pellet).thing = splinters(0.7f);
     row(M::Wood, K::Blow).thing = splinters(0.2f);
@@ -302,14 +302,17 @@ constexpr Table makeTable()
     row(M::Wood, K::Bash).thing = splinters(1.f);
     row(M::Wood, K::Blow).layer = Sound::WoodLayer;
     row(M::Stone, K::Blow).layer = Sound::SoftLayer;
-    for(const K k : {K::Bullet, K::Nail, K::SuperNail, K::Pellet, K::Blow, K::Splash})
+    // A grenade shots set off sparks as metal does, spread along the hit and as many as its damage (his call,
+    // 2026-10-30; it was a fixed 8 straight up). No ring: its sound is its blast's. (Torch: nothing; its hit is
+    // VR_WallTorch_KnockOff's embers.)
+    for(int k = 0; k < kinds; k++)
     {
-        row(M::Grenade, k).thing = grenadeSparks(); // (a nail's at its origin: no orgAlong)
-        // (Torch: nothing; its hit is VR_WallTorch_KnockOff's embers.)
+        t[static_cast<int>(M::Grenade)][k].thing = t[static_cast<int>(M::Metal)][k].thing;
     }
-    // A blunt blow's layer on a torch or a grenade: as on a body (VR_Blunt_HitLayer took them for one).
-    row(M::Torch, K::Blow).layer = Sound::FleshLayer;
-    row(M::Grenade, K::Blow).layer = Sound::FleshLayer;
+    // A blunt blow's layer on a torch: a wooden knock (its handle); on a grenade: the light metal knock (his call: no
+    // longer a body's slap).
+    row(M::Torch, K::Blow).layer = Sound::WoodLayer;
+    row(M::Grenade, K::Blow).layer = Sound::MetalLight;
     return t;
 }
 

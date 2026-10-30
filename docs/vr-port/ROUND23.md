@@ -3201,3 +3201,51 @@ rolls), the knight's sword needs none of it, and he can try knights alone while 
 - Checklist: `[agknight] vr_agknight 1, a map with knights (e1m2): each holds his sword in his posed hand, swings it at
   you, parries your blows, can be disarmed, tugged and grabbed; it falls when he dies, his ragdoll keeps it when knocked
   down`; `[agknight] vr_agknight 0: knights as before (their own sword, attacks, drops)`.
+
+## Impact disagreements unified (branch `agent/impactunify`; his decisions on "One impact-effect table"'s list)
+
+His five, as table rows and table use (no new ladders):
+1. **Plate stops melee blood** (list item 1): `VR_HitBlood` asks `VR_AgArmor_HitFx` as the shots and the splash do
+   (sparks; blood only for what gets through), and so does the chainsaw's tick (before its T_DamageImpl, sparks up:
+   the plate as struck; VR_AgArmor_Damage's own sparks then skipped as for shots).
+2. **Hitscan and nails bleed alike** (item 3): both use the **bullet's row** (blood(0.2): 0.04 x the bounce, count
+   the damage, at the hit). Traced, the two already sprayed the same (spawn_touchblood scaled its bounce by 0.2
+   before the row's 1 x 0.2; TraceAttack's row 0.2 x 0.2): the list's "hitscan barely sprays" missed the caller's
+   0.2. Now spawn_touchblood passes the raw bounce (wall_velocity, as TraceAttack's) and the rows scale it: the nail's
+   metal and wood rows `along(sparks/splinters(0.2), 0.002)` (the same output as before); its blood loses the
+   1.2-unit offset along the bounce (the bullet's row has none). VR_AgArmor_HitFx normalizes its vel: unchanged.
+3. **The chainsaw by material** (item 4): `VR_Saw_HitFx(e, m, at, dmg, bleed)` (vr_chainsaw.qc), m =
+   `VR_MaterialOf(e)` before the damage, the table's saw rows. Changed: a wall torch nothing (was 4 sparks up), any
+   other damageable non-monster, non-crate thing (a shootable button, a breakable) blood (was sparks), the spray's
+   crandom() now drawn on metal too (its row ignores it). Monsters, players, gibs (flesh, armour), crates (wood),
+   explosive boxes (metal), grenades (metal's saw row, as before: 4 up) unchanged.
+4. **Grenade sparks spread** (item 5): the Grenade rows are Metal's `.thing` for every kind (count 0.5 x damage, 3-10,
+   along the hit; the pellet's `back` spray in VR_HitNonFlesh like metal's), no ring. `grenadeSparks()` removed.
+5. **No flesh slap on a torch or a grenade** (item 6): the blunt layer's rows: torch WoodLayer (wood_m), grenade
+   MetalLight (metal_l).
+
+Kept (his "the other 5: keep"): item 2 (knights' armour only changes the blunt layer's sound; the Armour rows copy
+Flesh's particles), 7 (the world bleeds / is stone for the blunt layer), 8 (VR_MaterialOf's one order), 9 (shots ring
+on metal once a frame, blows leave the sound to the melee), 10 (a thrown thing: splinters along its flight into wood,
+else spawn_touchblood's nail row).
+
+**Test.** `vr_impact_qc_test` gains ladder 8 (the chainsaw's tick, VR_Saw_HitFx) : `vr_impact_qc_test 9` now ends
+`imptest: 56 calls` (was 49). Trace (sv_random_seed 7, vrtesthall) before / after: kit `scratch/impacts/
+unify_trace_before.txt`, `unify_trace_after.txt`: the changed lines are the grenade's (ladder 1: 6 sparks spread, was
+8 up; 2: 4; 3: 10; 4: 7), the nails' blood origins (-57.7 -> -57.9 etc., same directions), the blunt layer's torch
+(wood_m1) and grenade (metal_l1), ladder 8's 7 calls (blood 8, splinters 4, sparks 4 up, blood 8, 8, torch nothing,
+grenade 4 up); the splash's and the layer's other samples moved with the random draws (VR_HitNonFlesh's grenade now
+draws its spray). `vr_agarmor_test 5` (agarmor_5): new check "a blow of 4 on a red cuirass: sparks (1), no blood (0)":
+24/0. Eyeshots (low-impact) of ladders 1-5 (+ 8 after): kit `scratch/impacts/unify_before.png`, `unify_after.png`.
+check_canonical: `qc-material-ladder` vr_chainsaw.qc 1 -> 0 (allowlist line removed).
+
+**Verified.** Build 0 warnings, check_canonical clean. Covering cases vs baseline.tsv (18): collectfx 9/0,
+explosion_debris 13/0, mapflameburn 16/0, empty_melee, melee_phase, walltorch_grab, arena_1 257/0, agarmor_1 26/0,
+agrunt_12, agrunt_33, limb_wear 9/3, judo 12/4, secret_hits, dead_gear as the baseline; agarmor_5 PASS (baseline
+22/1, flaky); agrunt_1 15/2 once (grenade and rocket launcher shots, flaky), 17/0 on the rerun; nail_1 11/0 and np_1
+35/0 (the newer tests' own checks). gunfx_test.py 63/10: the same 10 fail on origin/next's build (wisps 6, slots 4:
+the muzzle wisps' and the thunderbolt's newer changes, not impacts).
+- Checklist: `[impactunify] hit an armoured armed grunt's plate with a melee weapon or the chainsaw: sparks, no blood
+  until it breaks`; `[impactunify] shoot a grenade in flight (shotgun, nails): sparks fly out along the hit, not a
+  fountain straight up`; `[impactunify] punch or club a wall torch: a wooden knock; a grenade: a light metal clink
+  (not a flesh slap)`; `[impactunify] chainsaw a wall torch: no sparks`.
