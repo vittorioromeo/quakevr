@@ -518,7 +518,10 @@ void Cvar_SetQuick (cvar_t *var, const char *value)
 	if (var->flags & (CVAR_ROM|CVAR_LOCKED))
 		return;
 	if (!(var->flags & CVAR_REGISTERED))
+	{
+		VR_TunableSetVar (var, value); // QVR: a tuning constant's stand-in (the Tunables page) sets the constant
 		return;
+	}
 
 	if (!var->string)
 		var->string = Z_Strdup (value);

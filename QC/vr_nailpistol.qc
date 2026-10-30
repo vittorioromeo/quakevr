@@ -67,13 +67,17 @@ float() VR_NailPistol_SlideBack =
 };
 
 // The re-rack: a slide locked back closed by a magazine with rounds (`e` the gun's holder, or an armed grunt's prop).
+// Its sound on a channel of its own (CHAN_AUTO): on the hand's it was cut off by the next sound there and lost under the
+// magazine's seating (his note 2026-10-30, "an audible sound feedback"); the file is the auto pump's recorded click and
+// slam (make_nailpistol_sounds.py), its slam landing as the drawn slide arrives home.
 void(entity e, float xHand) VR_NailPistol_Rack =
 {
-    sound(e, VRGetHandChannel(xHand), "vr/nailpistol_rack.wav", 1, ATTN_NORM);
+    sound(e, CHAN_AUTO, "vr/nailpistol_rack.wav", 1, ATTN_NORM);
     vr_np_racks++;
     if(cvar_hget(cvarh_vr_debug_shots))
     {
-        dprint(sprintf("nailpistol: re-racked, hand %g (%s)\n", xHand, e.classname));
+        dprint(sprintf("nailpistol: re-racked, hand %g (%s), reload mode %g\n", xHand, e.classname,
+            VR_Reload_ModeOf(WID_NAILPISTOL)));
     }
 };
 

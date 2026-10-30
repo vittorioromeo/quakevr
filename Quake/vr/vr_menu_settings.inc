@@ -1055,15 +1055,12 @@ za::Vector<Item> pageWeaponEffects()
     return {
         header("Recoil"),
         toggle("Programmatic Recoil", vr_weapon_recoil)
-            .help("Each shot kicks the drawn weapon back and tips it up, for the weapons whose Recoil is on (Weapon Offsets > "
-                  "Effects: the grunts' burst rifle; the others' models have their own). Looks only: the aim and the shots "
-                  "stay where your controller is."),
-        slider("Kick Back", vr_recoil_kick, 0.f, 5.f, 0.1f, "%.1f cm").extend(0.f, 20.f)
-            .help("How far a shot kicks the weapon back, at a weapon's Recoil Strength and Recoil Kick Back 1 (Weapon "
-                  "Offsets > Effects: each weapon's own)."),
-        slider("Muzzle Rise", vr_recoil_rise, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
-            .help("How far a shot tips the muzzle up, at a weapon's Recoil Strength and Recoil Muzzle Rise 1 (Weapon "
-                  "Offsets > Effects: each weapon's own)."),
+            .help("Each shot kicks the drawn weapon back and tips it up, as far as the weapon's own Recoil Kick Back and "
+                  "Muzzle Rise (Weapon Offsets > Effects: every gun has its own; the kick in Quake's gun models is taken "
+                  "out). Looks only: the aim and the shots stay where your controller is."),
+        slider("Recoil Amount", vr_recoil_amount, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("Every weapon's recoil times this: its kick back and its muzzle rise (each weapon's own cm and degrees: "
+                  "Weapon Offsets > Effects). 1: as each weapon is set; 0: none."),
         header("Shotgun Auto Pump"),
         slider("Auto Pump Time", vr_autopump_time, 0.15f, 0.45f, 0.01f, "%.2f s").extend(0.1f, 0.48f)
             .help("After each shot the shotgun cycles itself: its fore-end is driven back along the guide rods over the "
@@ -1087,9 +1084,26 @@ za::Vector<Item> pageWeaponEffects()
                   "guns. Not the flamethrowers, the crossbow, melee weapons, the grapple or the toolgun."),
         toggle("Muzzle Sparks", vr_gunfx_sparks)
             .help("A cone of sparks out of the muzzle (each barrel of the super shotgun; the energy guns throw electric arcs)."),
+        slider("Spark Amount", vr_gunfx_spark_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("How many sparks a shot throws (each weapon's own: Weapon Offsets > Effects). 0: none."),
+        slider("Spark Size", vr_gunfx_spark_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f).help("How big the sparks are."),
+        slider("Spark Speed", vr_gunfx_spark_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("How fast the sparks fly out of the muzzle (so how far)."),
         toggle("Muzzle Smoke", vr_gunfx_smoke)
             .help("A cone of smoke billowing forward out of the muzzle with the flash, swirling as it spreads and fades, the "
                   "flash's glow in it; the nail pistol's side vents smoke lightly. Never the energy guns'."),
+        slider("Smoke Amount", vr_gunfx_smoke_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("How many puffs a shot's muzzle smoke has: how thick the cloud is (each weapon's own: Weapon Offsets > "
+                  "Effects). 0: none."),
+        slider("Smoke Size", vr_gunfx_smoke_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("How big the muzzle smoke's puffs are and how much they grow."),
+        slider("Smoke Speed", vr_gunfx_smoke_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("How fast the muzzle smoke billows out (so how far ahead the cloud reaches)."),
+        slider("Smoke Directionality", vr_gunfx_smoke_direction, 0.f, 1.f, 0.05f, "%.2f")
+            .help("1: the smoke billows forward in a cone out of the muzzle. 0: it bursts out every way. In between: more "
+                  "or less forward."),
+        slider("Smoke Opacity", vr_gunfx_smoke_alpha, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("How opaque the muzzle smoke is as it comes out (it fades from there)."),
         toggle("Ejection Port Smoke", vr_gunfx_port)
             .help("A small quick puff out of a shotgun's port as the casing leaves it (the super shotgun's open breech)."),
         toggle("Rocket Backblast", vr_gunfx_backblast)
@@ -1111,7 +1125,10 @@ za::Vector<Item> pageWeaponEffects()
         slider("Wisp Spread", vr_gunfx_wisp_spread, 1.f, 8.f, 0.25f, "%.2fx").extend(1.f, 10.f)
             .help("How much thicker (and fainter) a wisp gets as it fades."),
         slider("Wisp Amount", vr_gunfx_wisp_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("How dense the wisps are (their opacity)."),
+            .help("How dense the wisps are (their opacity; each weapon's own: Weapon Offsets > Effects)."),
+        slider("Wisp Max Opacity", vr_gunfx_wisp_opacity, 0.02f, 1.f, 0.02f, "%.2f")
+            .help("The most opaque a wisp gets, wherever it is (its start at the muzzle is its densest): a cap on Wisp "
+                  "Amount. 1: no cap."),
         slider("Wisp Rise", vr_gunfx_wisp_rise, 0.f, 60.f, 1.f, "%.0f cm/s").extend(0.f, 200.f)
             .help("How fast the smoke rises off the barrel (Smoke Turbulence curls it)."),
         toggle("Impacts by Material", vr_gunfx_impacts)

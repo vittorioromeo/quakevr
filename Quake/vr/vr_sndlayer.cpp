@@ -5,6 +5,7 @@
 #include "vr_alloccount.hpp"
 #include "vr_engine.hpp"
 #include "vr_gunsfx.hpp"
+#include "vr_impacts.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -199,6 +200,10 @@ extern "C" byte* VR_SndLayered(const char* name, int* size)
     if(!sound)
     {
         sound = qvr::gunsfx::layered(name); // (the gunfire's layers, room tails and casings)
+    }
+    if(!sound)
+    {
+        sound = qvr::impacts::layered(name); // (the surfaces' hit sounds)
     }
     if(!sound)
     {

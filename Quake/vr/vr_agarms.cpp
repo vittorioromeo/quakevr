@@ -164,6 +164,9 @@ struct Ent
     // vr_agarms_jump_ease: each hand's goal's wrist on the chest (the last two), its drawn hand on the chest, its ease
     rigpose::Rigid drawnRel[2];
     bool haveDrawn[2]{false, false};
+    // drawnHandFromHead: each drawn hand less its head's middle (model space), the frame it was drawn in (-1 none)
+    glm::vec3 handHead[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    int handHeadFrame{-1};
     glm::vec3 relW[2][2]{{glm::vec3{0.f}, glm::vec3{0.f}}, {glm::vec3{0.f}, glm::vec3{0.f}}};
     int relN[2]{0, 0};
     rigpose::Rigid easeFrom[2];
@@ -2002,6 +2005,16 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         st->drawnRel[s] = compose(inverse(C), arms[s].H);
         st->haveDrawn[s] = true;
     }
+    if(posed && rig.head >= 0)
+    {
+        const ragdoll::Bone& hb = rig.bones[rig.head];
+        const glm::vec3 head = rigpose::apply(posed[rig.head], (hb.pivot + hb.end) * 0.5f);
+        for(int s = 0; s < 2; s++)
+        {
+            st->handHead[s] = rigpose::apply(arms[s].H, m->side[s].grip.pos) - head; // (the hand's middle, pose 0 -> now)
+        }
+        st->handHeadFrame = host_framecount;
+    }
     // vr_agarms_cost: the solves' time (each armed humanoid's arms a frame; not the measures below)
     state.costUs += (Sys_DoubleTime() - solveStart) * 1e6;
     state.costN++;
@@ -2022,6 +2035,18 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
             noteErr(*m, *st, hdr, pose1, pose2, blend, arms, C, second, slid, t.second, held2);
         }
     }
+    return true;
+}
+
+bool drawnHandFromHead(int num, int side, glm::vec3& out, int& frame)
+{
+    const Ent* st = num > 0 ? entOf(num, false) : nullptr;
+    if(!st || st->handHeadFrame < 0 || side < 0 || side > 1)
+    {
+        return false;
+    }
+    out = st->handHead[side];
+    frame = st->handHeadFrame;
     return true;
 }
 

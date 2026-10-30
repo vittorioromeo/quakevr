@@ -888,33 +888,40 @@ za::Vector<Item> pageWofsEffects()
     list.pushBackMultiple(
         // The programmatic weapon effects (vr_weaponfx.cpp; their global settings: Weapon Effects).
         header("Effects"),
-        cycle("Recoil", weapons::cvar(slot, Key::Recoil), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
-            .help("Each shot kicks the drawn weapon back and tips it up, then it comes back to rest: for a model without "
-                  "a recoil animation of its own. Looks only: the aim and the shots don't move."),
-        s("Recoil Strength", Key::RecoilStrength, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-            .help("Times Weapon Effects' Kick Back and Muzzle Rise."),
-        s("Recoil Kick Back", Key::RecoilKick, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-            .help("This weapon's own kick back: times its Recoil Strength and Weapon Effects' Kick Back. 0: no kick back, "
-                  "only the muzzle rise."),
-        s("Recoil Muzzle Rise", Key::RecoilRise, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-            .help("This weapon's own muzzle rise: times its Recoil Strength and Weapon Effects' Muzzle Rise. 0: the muzzle "
-                  "doesn't tip up, only the kick back."),
-        s("Recoil Return Time", Key::RecoilTime, 0.03f, 0.6f, 0.01f, "%.2f s").extend(0.02f, 3.f)
-            .help("How long a shot's kick takes to come back to rest."),
-        s("Recoil Recovery", Key::RecoilRecovery, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.1f, 10.f)
-            .help("Times how long this weapon takes to come back to rest from a shot's kick (its Return Time; the quick "
-                  "kick up stays as it is). Above 1 slower: a weightier gun. Below 1 faster: a lighter one. 1: as before."),
+        s("Recoil Kick Back", Key::RecoilKick, 0.f, 10.f, 0.05f, "%.2f cm").extend(0.f, 40.f)
+            .help("How far each shot kicks the drawn weapon back (Quake's guns' own kick in their models is taken out: "
+                  "this is theirs now), times Weapon Effects' Recoil Amount. Looks only: the aim and the shots don't move. "
+                  "0 and Muzzle Rise 0: no recoil."),
+        s("Recoil Muzzle Rise", Key::RecoilRise, 0.f, 15.f, 0.05f, "%.2f deg").extend(0.f, 45.f)
+            .help("How far each shot tips the muzzle up (and a quarter of that sideways, at random), times Weapon Effects' "
+                  "Recoil Amount. Looks only. 0: the muzzle doesn't tip up, only the kick back."),
+        s("Recoil Return Time", Key::RecoilReturn, 0.02f, 0.6f, 0.005f, "%.3f s").extend(0.014f, 3.f)
+            .help("How long the weapon takes from the kick's peak back to rest (the quick kick up before it takes 35 ms, "
+                  "less for a very short Return Time). Longer: a weightier gun; shorter: a lighter one."),
         s("Haptic Punch", Key::HapticPunch, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
-            .help("How hard this weapon's shot punches the controller: a sharp spike, then a short rumble as long as its "
-                  "recoil's way back (Return Time and Recovery). Times Sound: Gunfire's Haptic Punch. 0: none."),
+            .help("How hard this weapon's shot punches the controller: a sharp spike as hard as its recoil, then a short "
+                  "rumble as long as its kick (to the end of its Return Time). Times Sound: Gunfire's Haptic Punch. 0: none."),
         s("Stream Shake", Key::StreamShake, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("A stream weapon (the flamethrower, the poison sprayer): how much the drawn weapon trembles while it "
-                  "fires, times its Recoil Kick Back and Muzzle Rise; it settles over its Return Time and Recovery as you "
-                  "let go. Looks only. 0: none."),
+                  "fires, a share of its Recoil Kick Back and Muzzle Rise; it settles over a kick's time as you let go. "
+                  "Looks only. 0: none."),
         s("Stream Rumble", Key::StreamHaptic, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("A stream weapon: how hard the controller rumbles while it fires (1: the light buzz it always had). 0: "
                   "none."),
-        cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
+        s("Gunfire Spark Amount", Key::GunfxSparks, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("How many sparks this weapon's shots throw out of the muzzle: times Weapon Effects > Gunfire Particles' "
+                  "Spark Amount. 0: none."),
+        s("Gunfire Spark Size", Key::GunfxSparkSize, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.1f, 10.f)
+            .help("How big this weapon's muzzle sparks are: times Gunfire Particles' Spark Size."),
+        s("Gunfire Smoke Amount", Key::GunfxSmoke, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("How many puffs of smoke this weapon's shots billow out of the muzzle: times Gunfire Particles' Smoke "
+                  "Amount. 0: none."),
+        s("Gunfire Smoke Size", Key::GunfxSmokeSize, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.1f, 10.f)
+            .help("How big this weapon's muzzle smoke is: times Gunfire Particles' Smoke Size."),
+        s("Muzzle Wisp Opacity", Key::GunfxWisps, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("How dense the thin smoke wisps off this weapon's barrels are after it stops firing: times Gunfire "
+                  "Particles' Wisp Amount (Wisp Max Opacity still caps it). 0: none."),
+        cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off"}, {1.f, "On"}})
             .help("The shotgun's flash at this weapon's muzzle (its Muzzle settings) for a moment at each shot, following "
                   "the gun; gone when it leaves your hand."),
         s("Flash Size", Key::FlashSize, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Times the shotgun's flash."),

@@ -127,7 +127,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     }
 
     // A shotgun blast's pellets were each sent as they struck (VR_Wound_Pellet).
-    if(vr_hitpellets > 0)
+    if(VR_Hit_Pellets() > 0)
     {
         return;
     }

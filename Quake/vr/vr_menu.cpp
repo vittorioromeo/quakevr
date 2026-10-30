@@ -2366,6 +2366,12 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         done[page] = false; // Body Calibration: its phase, its result or its poses changed
     }
+#ifndef QVR_RELEASE
+    if(page == pageIndex(pageTunables) && tunablesPageKey != tunablesPageKeyNow())
+    {
+        done[page] = false; // Show or Page changed, or Search's index (every row)
+    }
+#endif
     if(page == pageIndex(pageChecklist))
     {
         checklist::refresh(); // (the file looked at once a second)

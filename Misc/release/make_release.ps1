@@ -833,6 +833,10 @@ $exeText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))
 if ($buildVerText -notmatch '#define QVR_BUILD_INFO "([^"]*)"' -or -not $exeText.Contains($Matches[1])) { throw "$exe does not hold this build's info ($buildVer): left over from another build? (use -Rebuild)" }
 if ($exeText.Contains(" no-LTO")) { throw "$exe is a no-LTO build (QvrNoLto): a release must be ThinLTO" }
 Say "ThinLTO build: yes"
+# A release's code (QVR_RELEASE, from /p:QvrReleaseVersion; quakevr.props): the tuning constants folded in, no live
+# tuning. A development exe holds its console commands (vr_tunables.cpp): one left by an incremental build is refused.
+if ($exeText.Contains("tune_reset") -or $exeText.Contains("tunables.cfg")) { throw "$exe has live tuning (tune_reset, tunables.cfg): not built with QVR_RELEASE (use -Rebuild)" }
+Say "release code (QVR_RELEASE, tuning constants folded in): yes"
 if ($built.LastWriteTime -lt (Get-Date).AddDays(-30)) { Warn "ironwail.exe is from $($built.LastWriteTime): an incremental build left it (use -Rebuild if in doubt)" }
 $warnCount = @(Select-String -Path (Join-Path $logs "msbuild.log") -Pattern "warning C\d+" -ErrorAction SilentlyContinue).Count
 Say "built $exe ($warnCount compiler warning lines)"

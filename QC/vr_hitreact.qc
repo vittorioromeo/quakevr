@@ -13,26 +13,21 @@
 .float vr_hr_slow;   // its steps' scale at the start (easing back to 1 at vr_hr_until)
 .vector vr_hr_hitch; // a leg hit's hitch: a step this way (units), taken at its next ai_run or ai_walk ('0 0 0': none)
 
-// A shotgun blast's pellets on one target this frame (TraceAttack): their points, summed, and their directions.
-entity vr_hr_pel_ent;
-float vr_hr_pel_time;
-float vr_hr_pel_count;
-vector vr_hr_pel_sum;
-vector vr_hr_pel_dir;
-
+// A shotgun blast's pellet on `e`'s flesh (TraceAttack): its point and direction, into the hit record's sums (combat.qc).
 void(entity e, vector at, vector dir) VR_HitReact_Pellet =
 {
-    if(vr_hr_pel_ent != e || vr_hr_pel_time != time)
+    if(e == multi_ent) // (AddMultiDamage made it the blast's target)
     {
-        vr_hr_pel_ent = e;
-        vr_hr_pel_time = time;
-        vr_hr_pel_count = 0;
-        vr_hr_pel_sum = '0 0 0';
-        vr_hr_pel_dir = '0 0 0';
+        hit_pelhits = hit_pelhits + 1;
+        hit_pelsum = hit_pelsum + at;
+        hit_peldir = hit_peldir + dir;
     }
-    vr_hr_pel_count = vr_hr_pel_count + 1;
-    vr_hr_pel_sum = vr_hr_pel_sum + at;
-    vr_hr_pel_dir = vr_hr_pel_dir + dir;
+};
+
+// The blast's pellets' mean point and summed direction on `xTarg` ('0 0 0': none on its flesh, or not inside a blast).
+vector(entity xTarg) VR_Hit_PelletAt =
+{
+    return (hit_blast && hit_pelhits > 0 && multi_ent == xTarg) ? hit_pelsum * (1 / hit_pelhits) : '0 0 0';
 };
 
 // Its steps' scale now (1: not slowed).
@@ -158,30 +153,19 @@ void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
     vector at = '0 0 0';
     vector dir = vr_hitdir;
     float part = -1;
-    if(vr_hitpart_target == targ && vr_hitpart_time == time)
+    if(VR_Hit_On(targ))
     {
-        part = vr_hitpart;
-        at = vr_hitpart_pos;
+        part = hit_zone;
+        at = hit_at;
     }
-    if(vr_hitpellets > 0)
+    if(VR_Hit_Pellets() > 0)
     {
-        part = 0;
-        if(vr_hitpellets_head * 2 >= vr_hitpellets)
+        part = VR_Hit_PelletPart(TRUE);
+        vector pelAt = VR_Hit_PelletAt(targ);
+        if(pelAt != '0 0 0')
         {
-            part = 1;
-        }
-        else if(vr_hitpellets_leg * 2 > vr_hitpellets)
-        {
-            part = 3;
-        }
-        else if(vr_hitpellets_limb * 2 > vr_hitpellets)
-        {
-            part = 2;
-        }
-        if(vr_hr_pel_ent == targ && vr_hr_pel_time == time && vr_hr_pel_count > 0)
-        {
-            at = vr_hr_pel_sum * (1 / vr_hr_pel_count);
-            dir = vr_hr_pel_dir;
+            at = pelAt;
+            dir = hit_peldir;
         }
     }
     if(vr_hitkind == QVR_HITKIND_SPLASH)

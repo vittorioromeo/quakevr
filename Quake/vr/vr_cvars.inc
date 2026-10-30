@@ -277,7 +277,8 @@ QVR_CVAR(vr_gunsfx_layers, "1", CVAR_ARCHIVE)        // a shot's close mechanica
 QVR_CVAR(vr_gunsfx_tail, "1", CVAR_ARCHIVE)          // a shot's tail sized to the room (short indoors, long with an echo outdoors): volume (0 none)
 QVR_CVAR(vr_gunsfx_vary, "4", CVAR_ARCHIVE)          // percent: each shot (and its layers) up to this much higher or lower, and half as much louder or quieter (0 off)
 QVR_CVAR(vr_gunsfx_casings, "1", CVAR_ARCHIVE)       // spent casings sound of what they land on (stone, metal, wood; water as before); 0: the one tink everywhere
-QVR_CVAR(vr_gunsfx_dryfire, "1", CVAR_ARCHIVE)       // an empty gun's dry click: its volume and a small tick in the hand (0 silent)
+QVR_CVAR(vr_gunsfx_impacts, "1", CVAR_ARCHIVE)       // a bullet's or a nail's hit on a wall sounds of its surface (stone, dirt, metal, wood), at the surface: volume (0 none)
+QVR_CVAR(vr_gunsfx_dryfire, "1", CVAR_ARCHIVE)      // an empty gun's dry click: its volume and a small tick in the hand (0 silent)
 QVR_CVAR(vr_gunsfx_action, "1", CVAR_ARCHIVE)        // a gun's actions (breaking open, closing, a magazine in or out) heard from the action, not the muzzle
 QVR_CVAR(vr_gunsfx_punch, "1", CVAR_ARCHIVE)         // a shot's haptic punch (a spike and a tail as long as its recoil's way back, times the weapon's Haptic Punch) instead of the flat buzz (0: the flat buzz)
 QVR_CVAR(vr_debug_gunsfx, "0", CVAR_NONE)                   // console lines for each shot's layers, tail and room, each punch and dry click
@@ -1576,9 +1577,10 @@ QVR_CVAR(vr_autopump_haptics, "1", CVAR_ARCHIVE)      // strength of the light t
 QVR_CVAR(vr_autopump_hold, "-1", CVAR_NONE)           // test: 0..1 holds every shotgun's fore-end at that point of the stroke (0.35-0.45 the back; -1 off)
 // Weapon effects (vr_weaponfx.cpp; ROUND21.md, "Weapon effects: recoil, muzzle flash, tracers"): each weapon's own
 // settings are Weapon Offsets > Effects (vr_wofs_fx_*: which weapons kick and flash, their tracers' multipliers).
-QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic recoil (the models' own recoil animations stay)
-QVR_CVAR(vr_recoil_kick, "1.5", CVAR_ARCHIVE)          // cm the drawn weapon is kicked back at a weapon's Recoil Strength 1 (looks only)
-QVR_CVAR(vr_recoil_rise, "4", CVAR_ARCHIVE)            // degrees its muzzle tips up at Strength 1 (looks only: the aim stays)
+QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic recoil
+QVR_CVAR(vr_recoil_amount, "1", CVAR_ARCHIVE)         // every weapon's recoil (its own Kick Back cm and Muzzle Rise degrees) times this (looks only: the aim stays; the old vr_recoil_kick and vr_recoil_rise are in each weapon's own since vr_wofs_version 74)
+QVR_CVAR(vr_debug_weapon_frame, "-1", CVAR_NONE)       // debug: the held weapons drawn at this frame of their models, whatever the game steps (-1: as it steps them; Debug > Weapons)
+QVR_CVAR(vr_weapon_kick_cancel, "1", CVAR_NONE)        // the kick baked into Quake's weapon models' firing frames taken out as they are drawn (vr_kickcancel.cpp; parts such as a pump still move); 0: the models' own kick, to compare (Debug > Weapons)
 QVR_CVAR(vr_muzzle_flash, "1", CVAR_ARCHIVE)           // 0: no programmatic muzzle flashes (the models' own stay)
 QVR_CVAR(vr_muzzle_flash_enemies, "1", CVAR_ARCHIVE)   // the grunts' and enforcers' guns flash at their muzzles as they fire
 QVR_CVAR(vr_muzzle_smoke_enemies, "1", CVAR_ARCHIVE)   // puffs of gun smoke out of an enforcer's rifle's and a grunt's gun's muzzle as they fire (as your guns'; 0 none; NOTES.md vrfiringrange_2026-10-02_01-21-23, grunts _15-52-01)
@@ -1588,7 +1590,16 @@ QVR_CVAR(vr_tracers_enemies, "1", CVAR_ARCHIVE)        // the monsters' hitscan 
 // grunts' and the grunts' and enforcers' guns alike.
 QVR_CVAR(vr_gunfx, "1", CVAR_ARCHIVE)                  // 0: none of them (the effects below)
 QVR_CVAR(vr_gunfx_sparks, "1", CVAR_ARCHIVE)           // a cone of sparks out of the muzzle (the energy guns: electric arcs)
+// The muzzle's sparks and frontal smoke cone, times (1: as tuned; each weapon's own Weapon Offsets > Effects multipliers on top)
+QVR_CVAR(vr_gunfx_spark_amount, "1", CVAR_ARCHIVE)     // how many sparks a shot (0-4)
+QVR_CVAR(vr_gunfx_spark_size, "1", CVAR_ARCHIVE)       // how big (0.25-4)
+QVR_CVAR(vr_gunfx_spark_speed, "1", CVAR_ARCHIVE)      // how fast they fly (0.25-4: how far)
 QVR_CVAR(vr_gunfx_smoke, "1", CVAR_ARCHIVE)            // a cone of smoke billowing forward out of the muzzle with the flash, the flash's glow in it (never the energy guns'); the nail pistol's vents
+QVR_CVAR(vr_gunfx_smoke_amount, "1", CVAR_ARCHIVE)     // the muzzle cone's puffs a shot (0-4: its thickness)
+QVR_CVAR(vr_gunfx_smoke_size, "1", CVAR_ARCHIVE)       // its puffs' size and growth (0.25-4)
+QVR_CVAR(vr_gunfx_smoke_speed, "1", CVAR_ARCHIVE)      // how fast it billows out (0.25-4: the cone's reach)
+QVR_CVAR(vr_gunfx_smoke_direction, "1", CVAR_ARCHIVE)  // 1: the forward cone; 0: every way out of the muzzle (0-1)
+QVR_CVAR(vr_gunfx_smoke_alpha, "1", CVAR_ARCHIVE)      // its opacity at the start (0-3)
 QVR_CVAR(vr_gunfx_port, "1", CVAR_ARCHIVE)             // a small quick puff out of a shotgun's ejection port (the super shotgun's open breech)
 QVR_CVAR(vr_gunfx_backblast, "1", CVAR_ARCHIVE)        // a rocket launcher's backblast smoke behind it, and dust off the floor under it
 QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sustained fire (the nailguns'): wisps of smoke off the muzzle, a faint glow
@@ -1600,12 +1611,14 @@ QVR_CVAR(vr_gunfx_wisp_fade, "2.2", CVAR_ARCHIVE)      // seconds the smoke let 
 QVR_CVAR(vr_gunfx_wisp_width, "0.6", CVAR_ARCHIVE)     // cm thick at the muzzle (0.05-20)
 QVR_CVAR(vr_gunfx_wisp_spread, "3", CVAR_ARCHIVE)      // times thicker (and fainter) when it fades (1-10)
 QVR_CVAR(vr_gunfx_wisp_amount, "1", CVAR_ARCHIVE)      // their opacity, times (0-4)
+QVR_CVAR(vr_gunfx_wisp_opacity, "1", CVAR_ARCHIVE)     // the most opaque they get (0.02-1: a cap on Wisp Amount's opacity)
 QVR_CVAR(vr_gunfx_wisp_rise, "22", CVAR_ARCHIVE)       // cm a second the smoke rises (0-200; vr_gunfx_turbulence curls it)
 QVR_CVAR(vr_gunfx_wisp_pixels, "1.5", CVAR_ARCHIVE)    // the thinnest they are drawn, in pixels (fainter instead: no shimmer far off; 0.5-8)
 QVR_CVAR(vr_gunfx_impacts, "1", CVAR_ARCHIVE)          // bullets' and nails' wall hits by the surface's material (vr_impacts.cpp): dust off stone, sparks off metal, chips off wood
 QVR_CVAR(vr_gunfx_ozone, "1", CVAR_ARCHIVE)            // a faint bluish ozone haze where the thunderbolt's beam plays on a surface
 QVR_CVAR(vr_gunfx_enemies, "1", CVAR_ARCHIVE)          // the monsters' guns too (the grunts', the enforcers', the armed grunts')
 QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire particles ("gunfx shot ...", "gunfx port ...")
+QVR_CVAR(vr_debug_ribbon_overlap, "0", CVAR_NONE)      // 1: the muzzle wisps' ribbons blend where they overlap themselves again (the old creases on sharp turns; vr_ribbons.cpp), to compare
 QVR_CVAR(vr_debug_impacts, "0", CVAR_NONE)             // 1: every particle2 message and QC sound the server sends ("impfx p2 ...", "impfx snd ...": the impact table's output, vr_impacts.cpp)
 QVR_CVAR(vr_impact_qc_test, "0", CVAR_NONE)            // the QC runs every hit ladder on every material once (vr_impacts_test.qc; Debug > Tests)
 QVR_CVAR(vr_debug_weaponfx, "0", CVAR_NONE)            // 1: each shot's effects ("weaponfx fired/tracer"); 2: and the recoil each frame ("weaponfx recoil"); 3: as 1, and the eyes' view of the next grunt's flash (vr_eyeshot, once)
@@ -2434,7 +2447,8 @@ QVR_CVAR(vr_nailpistol_mag_pull, "0", CVAR_ARCHIVE)   // 1: its magazine pulls o
 // Its slide (vr_nailslide.cpp): back each shot and home again, locked back while the gun is empty; a magazine with
 // rounds put in closes it with a rack (vr/nailpistol_rack.wav). vr_nailpistol_slide_time (held back 0.07 s) retired.
 QVR_CVAR(vr_nailpistol_slide_travel, "1.5", CVAR_ARCHIVE) // how far it goes back, in the gun's model units (0..3: progs/v_nailpistol.mdl's frame 1 is 3 back)
-QVR_CVAR(vr_nailpistol_model, "0", CVAR_ARCHIVE)         // its look: 0 classic (a copper slide on top), 1 full slide (the whole upper receiver; v_nailpistol.mdl frames 2-3, build_nailpistol_slide.py); live
+QVR_CVAR(vr_nailpistol_model, "1", CVAR_ARCHIVE)         // its look: 1 full slide (the default since his note of 2026-10-30: the whole upper receiver; v_nailpistol.mdl frames 2-3, build_nailpistol_slide.py), 0 classic (archived: a copper slide on top; Debug > Tests > Nail Pistol); live
+QVR_CVAR(vr_nailpistol_screen_ride, "1", CVAR_ARCHIVE)   // 1: its ammo screen (on the full slide's left wall) rides back and home with the slide; 0: fixed on the gun
 // The heavy revolver (QC vr_revolver.qc; Combat > Weapon Damage > Heavy Revolver; Weapons > Reloading > Heavy
 // Revolver): one-handed, double action (a pull cocks the hammer, turns the cylinder a chamber and fires), six chambers
 // of your shells fired as slugs; immersive reloading: its cylinder swung out (a flick, B/Y), the shells dropped (the
@@ -2657,6 +2671,7 @@ QVR_CVAR(vr_agrunt_upper_hips, "0.3", CVAR_NONE)    // ... their chests turned w
 QVR_CVAR(vr_agrunt_upper_breath, "0.8", CVAR_NONE)   // ... their breathing then: the chest's lean either way (degrees)
 QVR_CVAR(vr_agrunt_swing_one_hand, "1", CVAR_NONE)   // armed humanoids: 1 a two-handed melee weapon (an axe, Mjolnir, a heavy blade; not the chainsaw) is swung in the right hand alone, the off hand off its second grip in the swing and back on it after (the swings' arcs are one hand's: the off hand chased a grip it could not keep); 0 the off hand kept on it (before)
 QVR_CVAR(vr_agrunt_punch_ease, "1", CVAR_NONE)       // armed humanoids: 1 a punch's fist eases out of its wind-up and into its blow (no stop dead at the blow), its keys' shares eased in and out; the blow's frame the same; 0 before
+QVR_CVAR(vr_agrunt_run_key_stance, "1", CVAR_NONE) // armed humanoids: 1 a Run pose key is laid on with the carried stance's share only (as the Pose Studio shows it: Run previewed carried, Aim/Guard standing), so running aimed or in a guard shows the Aim key alone (an unarmed enforcer's fists no longer raised to its brow); 0 before: on top of the aimed stance too
 QVR_CVAR(vr_agrunt_saw_reach, "1", CVAR_NONE)       // armed humanoids: 1 a chainsaw's thrust and hold keep its rear handle within the right arm's reach and its front handle within the left's (both, a few rounds); 0 the front handle's only (before: half its thrust frames out of reach)
 QVR_CVAR(vr_agrunt_shot_drawn, "1", CVAR_NONE)      // armed humanoids: 1 a gun's shots leave its muzzle as the arms drew it, along its drawn line (a few degrees off the AI's where an arm can't turn its wrist so far; a listen server's own view, up to 30 degrees): what you see is where they go; 0 the AI's line (before)
 QVR_CVAR(vr_agrunt_lift_turn, "1", CVAR_NONE)        // armed humanoids: 1 a weapon taken up from the floor turns from how it lay to its hold the short way (its line swung, then rolled, each the shorter way round); 0 its axes blended apart (before: up to 160 degrees of spin)
@@ -4119,6 +4134,10 @@ QVR_CVAR(vr_flare_test, "0", CVAR_NONE) // Debug > Tests > Flare Gun: 1 its self
 QVR_CVAR(vr_rv_test, "0", CVAR_NONE) // Debug > Tests > Heavy Revolver: 1 its self-test (QC/vr_revolver_test.qc; "rvtest: N passed, M failed"), 2 one loaded in the main hand, 3 in both, 4 one swung out with live and spent shells, 5 an armed grunt with one (not archived)
 QVR_CVAR(vr_nailslide_debug, "0", CVAR_NONE) // Debug > Tests > Nail Pistol > Slide: Print: each frame the nail pistol's slide moves, "nailslide: hand H pos P (travel T) back B" (vr_nailslide.cpp; not archived)
 QVR_CVAR(vr_np_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 its self-test, 2 in your hand, 3 in both, 4 in the right hip and upper holsters (QC/vr_nailpistol_test.qc; "nptest: N passed, M failed"; not archived)
+QVR_CVAR(vr_np_probe, "0", CVAR_NONE)        // (its self-test sets it: 1, the engine writes what it draws into vr_np_seen_*: vr_nailslide.cpp probe)
+QVR_CVAR(vr_np_seen_screen, "0", CVAR_NONE)  // (written while vr_np_probe: the main hand's ammo screen moved by its slide, model units; vr_nailslide.cpp probe)
+QVR_CVAR(vr_np_seen_holster, "0", CVAR_NONE) // (and the holstered nail pistols drawn locked back + 100 x closed)
+QVR_CVAR(vr_np_seen_prop, "0", CVAR_NONE)    // (and those lying about, the same)
 QVR_CVAR(vr_nail_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 the nails' speed, hit box and drawn size test, and a dropped backpack's (its last step, which 3 runs alone) ("nailtest: N passed, M failed"), 2 three nails hung before your eyes for 30 s (QC/vr_nail_test.qc; not archived)
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
 QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1/MG3 route sweep driver: each new map's first frame runs mg1route<stage>.cfg (MG3: mg3route<stage>.cfg) once (0 off; the scripts raise it); not archived

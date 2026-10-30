@@ -2,6 +2,7 @@
 
 #include "vr_rigpose.hpp"
 
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Sin.hpp"
@@ -134,6 +135,97 @@ void along(const ragdoll::Rig& rig, const Rigid* keys, const int poses[4], const
 void alongSlots(const ragdoll::Rig& rig, const Rigid (*keys)[ragdoll::maxBones], const Spline& s, uint32_t alone, Rigid* out)
 {
     alongBy(rig, [&](int i, int b) { return keys[i][b]; }, s, alone, out);
+}
+
+Rigid fitRigid(const glm::vec3* a, const glm::vec3* b, int n)
+{
+    Rigid r;
+    if(n <= 0)
+    {
+        return r;
+    }
+    glm::dvec3 ca{0.0}, cb{0.0};
+    for(int i = 0; i < n; i++)
+    {
+        ca += glm::dvec3{a[i]};
+        cb += glm::dvec3{b[i]};
+    }
+    ca /= static_cast<double>(n);
+    cb /= static_cast<double>(n);
+    double S[3][3] = {};
+    for(int i = 0; i < n; i++)
+    {
+        const glm::dvec3 da = glm::dvec3{a[i]} - ca, db = glm::dvec3{b[i]} - cb;
+        for(int x = 0; x < 3; x++)
+        {
+            for(int y = 0; y < 3; y++)
+            {
+                S[x][y] += da[x] * db[y];
+            }
+        }
+    }
+    double N[4][4] = {
+        {S[0][0] + S[1][1] + S[2][2], S[1][2] - S[2][1], S[2][0] - S[0][2], S[0][1] - S[1][0]},
+        {S[1][2] - S[2][1], S[0][0] - S[1][1] - S[2][2], S[0][1] + S[1][0], S[2][0] + S[0][2]},
+        {S[2][0] - S[0][2], S[0][1] + S[1][0], -S[0][0] + S[1][1] - S[2][2], S[1][2] + S[2][1]},
+        {S[0][1] - S[1][0], S[2][0] + S[0][2], S[1][2] + S[2][1], -S[0][0] - S[1][1] + S[2][2]}};
+    double V[4][4] = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
+    for(int sweep = 0; sweep < 30; sweep++)
+    {
+        double off = 0.0;
+        for(int p = 0; p < 4; p++)
+        {
+            for(int q = p + 1; q < 4; q++)
+            {
+                off += N[p][q] * N[p][q];
+            }
+        }
+        if(off < 1e-20)
+        {
+            break;
+        }
+        for(int p = 0; p < 4; p++)
+        {
+            for(int q = p + 1; q < 4; q++)
+            {
+                if(za::abs(N[p][q]) < 1e-18)
+                {
+                    continue;
+                }
+                const double th = (N[q][q] - N[p][p]) / (2.0 * N[p][q]);
+                const double t = (th >= 0.0 ? 1.0 : -1.0) / (za::abs(th) + za::sqrt(th * th + 1.0));
+                const double c = 1.0 / za::sqrt(t * t + 1.0), s = t * c;
+                for(int k = 0; k < 4; k++)
+                {
+                    const double kp = N[k][p], kq = N[k][q];
+                    N[k][p] = c * kp - s * kq;
+                    N[k][q] = s * kp + c * kq;
+                }
+                for(int k = 0; k < 4; k++)
+                {
+                    const double pk = N[p][k], qk = N[q][k];
+                    N[p][k] = c * pk - s * qk;
+                    N[q][k] = s * pk + c * qk;
+                }
+                for(int k = 0; k < 4; k++)
+                {
+                    const double kp = V[k][p], kq = V[k][q];
+                    V[k][p] = c * kp - s * kq;
+                    V[k][q] = s * kp + c * kq;
+                }
+            }
+        }
+    }
+    int best = 0;
+    for(int i = 1; i < 4; i++)
+    {
+        best = N[i][i] > N[best][best] ? i : best;
+    }
+    const glm::quat q{static_cast<float>(V[0][best]), static_cast<float>(V[1][best]), static_cast<float>(V[2][best]),
+        static_cast<float>(V[3][best])};
+    r.rot = glm::normalize(q);
+    r.pos = glm::vec3{cb} - r.rot * glm::vec3{ca};
+    return r;
 }
 
 } // namespace qvr::rigpose

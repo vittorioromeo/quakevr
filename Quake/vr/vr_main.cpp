@@ -27,6 +27,7 @@
 #include "vr_modelkeep.hpp"
 #include "vr_imgprefetch.hpp"
 #include "vr_anchor.hpp"
+#include "vr_kickcancel.hpp"
 #include "vr_adtank.hpp"
 #include "vr_cellcord.hpp"
 #include "vr_pouchitems.hpp"
@@ -143,6 +144,7 @@
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
 #include "vr_gunsfx.hpp"
+#include "vr_impacts.hpp"
 #include "vr_autopump.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_weaponfx.hpp"
@@ -1924,6 +1926,7 @@ constexpr PrewarmStep prewarmSteps[] = {
     {"torch", flashlight::prepare, false},
     {"casings", shells::prepare, false},
     {"gunfire layers", gunsfx::prepare, false}, // (the shots' thumps, tails, casings: made as they load)
+    {"impact sounds", impacts::prepare, false}, // (the surfaces' hit sounds: made as they load)
     {"gore sounds", goresound::prepare, false},
     {"auto pump", autopump::prepare, false},
     {"AD crossbow", adcrossbow::prepare, false}, // AD support: its next bolt's sound
@@ -2231,6 +2234,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_test_dialog", testDialog_f);
     Cmd_AddCommand("vr_test_confirm", testConfirm_f);
     anchor::registerCommands();
+    kickcancel::registerCommands(); // vr_kickcancel_info, vr_kickcancel_test
     portals::registerCommands(); // vr_portals_info
     ragtest::registerCommands(); // vr_ragdoll_act
     Cmd_AddCommand("vr_torso_report", torso::report_f);

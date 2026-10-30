@@ -13,6 +13,11 @@
                   "slots too) written to quakevr/proposed_defaults/<date>_<time>.cfg for review, sorted by menu page, "
                   "the personal and debug ones marked. Nothing changes in the game. Also the menu's corner button "
                   "Save Default (press twice)."),
+#ifndef QVR_RELEASE
+        open("Tunables", pageIndex(pageTunables))
+            .help("Every tuning constant as a slider, by the page it came from: set live, kept in tunables.cfg at quit "
+                  "(the console: tune <name> [value], tune_reset). Search finds them too. Not in a release."),
+#endif
         toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
         open("Cheats and Recording", pageIndex(pageDebugCheats))
             .help("God, noclip, the weapons and powerups; a scene set up for footage: saved and loaded, cleaned of gibs, "

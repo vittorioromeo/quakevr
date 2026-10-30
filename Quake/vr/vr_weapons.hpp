@@ -51,6 +51,52 @@ void registerCvars();
 // A first start (no saved config): its settings are the defaults, of this version (no migration to run on them).
 void markCurrent();
 
+// The recoil settings before vr_wofs_version 74 (multipliers; ROUND23.md, "Recoil in cm, degrees and seconds"): a slot's
+// switch, Strength, Kick Back and Muzzle Rise (times the global vr_recoil_kick cm and vr_recoil_rise degrees), Return
+// Time (s, the whole kick) and Recovery (times its way back from the peak).
+struct OldRecoil
+{
+    float on{0.f};
+    float strength{1.f};
+    float kick{1.f};
+    float rise{1.f};
+    float time{0.15f};
+    float recovery{1.f};
+};
+struct OldRecoilGlobals
+{
+    float kickCm{1.5f};
+    float riseDeg{4.f};
+};
+// The same recoil in today's units: cm back, degrees up, seconds from the peak back to rest (takeRecoilUnits74).
+struct NewRecoil
+{
+    float kickCm{0.f};
+    float riseDeg{0.f};
+    float returnTime{0.115f};
+};
+[[nodiscard]] NewRecoil convertRecoil(const OldRecoil& old, const OldRecoilGlobals& globals);
+// A shot's kick (vr_weaponfx.cpp envelope): up in min(35 ms, 3/7 of its Return Time), then back to rest over its Return
+// Time. Its seconds in all.
+[[nodiscard]] inline float recoilKickSeconds(float returnTime)
+{
+    const float up = returnTime * (3.f / 7.f);
+    return returnTime + (up < 0.035f ? up : 0.035f);
+}
+// How hard a recoil feels in the hand (vr_gunsfx.cpp's haptic punch): the mean of its kick back and rise in the units of
+// a recoil's "strength 1" before vr_wofs_version 74 (1.5 cm, 4 degrees).
+[[nodiscard]] inline float recoilFeel(float kickCm, float riseDeg)
+{
+    return 0.5f * ((kickCm > 0.f ? kickCm : 0.f) / 1.5f + (riseDeg > 0.f ? riseDeg : 0.f) / 4.f);
+}
+[[nodiscard]] OldRecoil oldRecoilDefault(int slot); // a slot's shipped values before 74
+// The old values this start's config held (its lines over the old defaults) and whether this start converted them (a
+// config from before 74): for vr_recoil_test.
+[[nodiscard]] bool recoilMigrated(int slot, OldRecoil& old, OldRecoilGlobals& globals);
+// An old config's line for a retired recoil cvar (vr_wofs_fx_recoil*_NN, vr_recoil_kick, vr_recoil_rise; VR_RetiredCvar):
+// its value kept for the conversion. False: not one of them.
+[[nodiscard]] bool retiredRecoilLine(const char* name, const char* value);
+
 // For the Weapon Offsets and Weapon Weights menu pages: a slot's cvar for a key, its settings back to their defaults,
 // and its settings printed as vr_weapons.inc lines (to make them the shipped defaults). Each page resets and prints its
 // own (Part): Weapon Weights the weight's keys (weightKey), Weapon Offsets the others.
