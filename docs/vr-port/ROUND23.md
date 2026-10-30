@@ -3042,6 +3042,21 @@ allowed 8.00 cm)` for the 6 cm case. Before the fix (the same test, first runs):
 held", 0/5 won. (The test steps back rather than `vr_mock_hand_pull`: the mock's pull is along the head's back, which
 after stepping in beside a lying grunt's gun ran across the tug's own way: stretch -26 units, never a pull.)
 
+**Verified:** the covering cases against baseline.tsv (run_baseline.py: the agrunt group, ragdoll_grab, flash_grab,
+walltorch_grab, carry, weapon_catch, grip_gap, judo; 93 cases): 3 changed, all FAIL -> PASS (agrunt_31 5/0, 36 4/0, 65
+6/0), the new 90-97 pass; flaky-listed 63/72/76/86 and ragdoll_grab 18/1 ("grab rag enforcer", its known flake: 19/0 on
+the rerun). eval.sh: canary 36/44, full 163/171 (the uppercut's 13.2, older than this branch, as part 2 notes). After
+merging origin/next (preparry, agknight): 31, 36, 65, 67-69, 74, 91, 92, 94, 95, 96, 98 all PASS.
+
+Checklist lines:
+- Shove an armed grunt into a stagger, or topple it, and grab its gun (on the gun, or a few cm off it): a tug, not its
+  arm; pull back steadily: within about 1-2 s the gun is yours.
+- The same, grabbing the hand or forearm holding its gun: a tug on the gun (the arm is not held); pull: yours.
+- Topple it, grab its gun with one hand and its gun forearm with the other: both pull; yours.
+- Debug > Show Disarm Volumes on, hover a fist a few cm over a downed grunt's gun: yellow (takes) up to 8 cm.
+- Grab a downed armed grunt's other arm, or its leg: that limb is held as before.
+
+
 ## Nail pistol: no flicker at the muzzle's back, a distinct steel back end (branch `agent/npslide4`)
 
 His words (2026-10-30): some triangles on the back of the muzzle flicker, seen only with the slide drawn; the
