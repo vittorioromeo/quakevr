@@ -138,8 +138,6 @@ enum Limit : int
     LimitJoint,    // vr_agarms_limits: its shoulder's cone and twist
 };
 
-[[nodiscard]] bool enabled(); // vr_agarms (read at a map load for the models' rest data)
-
 // The rest data's fourth row for vertex `v` (vr_animsmooth.cpp, SmoothRest): x its chain (0 none; 1 + side * 4 + bone +
 // its blend to the next bone), y its share of the body as animated, z its rest normal (packed), w its arm rows' offset
 // from the bones' first. False: no arm skin on this model (all zero).

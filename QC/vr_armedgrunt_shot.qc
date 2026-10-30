@@ -139,9 +139,8 @@ void(entity g, entity p) VR_AGS_HandLine =
 {
     vector sh = '0 0 0';
     float rowed = FALSE;
-    if(cvar_hget(cvarh_vr_agarms))
     {
-        // (vr_agarms: its row's shoulder, carried by its chest's anchor as its arms are drawn from it)
+        // (its row's shoulder, carried by its chest's anchor as its arms are drawn from it)
         vector an = VR_AM_Anchor(g);
         if(trace_fraction != 0)
         {

@@ -1016,9 +1016,8 @@ void(entity g, entity p, float left, float a, vector tl) VR_AGP_ArmsOne =
     vector sh2 = sh - '0 0 3' * (vr_am_arm / 16.7); // (the gun's sights at its eyes' line, the hand below them)
     vector hold = sh2 + normalize(tl - sh2) * (0.85 * reach);
     vector low = sh + normalize('0.35 0 -0.94' + side * 0.15) * (0.9 * reach);
-    if(cvar_hget(cvarh_vr_agarms_arm_clear))
     {
-        // (vr_agarms_arm_clear: carried out from its side as the rest pose's arms hang, 19 degrees, and within its
+        // (carried out from its side as the rest pose's arms hang, 19 degrees, and within its
         // reach: its upper arm clear of its torso with the gun in its hand, not pulled straight against it)
         low = sh + normalize('0.35 0 -0.94' + side * 0.35) * (0.8 * reach);
     }
@@ -2125,7 +2124,7 @@ void(entity g, entity p) VR_AGP_Pose =
     {
         VR_AGK_LiveEnd(g);
     }
-    vr_agp_arms = cvar_hget(cvarh_vr_agarms) != 0;
+    vr_agp_arms = TRUE; // (the posed arms always: vr_agarms retired; the old poses' branches go in a later pass)
     vector hand = VR_AM_Hand(g); // (its row's vertices: vr_armedmon.qc)
     if(trace_fraction == 0)
     {

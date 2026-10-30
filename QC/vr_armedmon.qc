@@ -220,7 +220,7 @@ void(float a, float i, void() next) VR_AM_Anim =
     else if(a == VR_AM_A_ATK)
     {
         f = vr_am_f_atk + i;
-        if(vr_am_atk_stand && cvar_hget(cvarh_vr_agrunt_atk_stand) && cvar_hget(cvarh_vr_agarms))
+        if(vr_am_atk_stand && cvar_hget(cvarh_vr_agrunt_atk_stand))
         {
             f = VR_AM_StandFrame(self, i); // (vr_agrunt_atk_stand: its legs and hips stand, its posed arms aim and fire)
         }

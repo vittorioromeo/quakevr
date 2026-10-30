@@ -2274,20 +2274,6 @@ QVR_PERMDECAL_FUNCTIONS \
 "	vec4 p = vec4(r.xyz, 1.0);\n" \
 "	return vec3(dot(SmoothSwing[i], p), dot(SmoothSwing[i + 1u], p), dot(SmoothSwing[i + 2u], p));\n" \
 "}\n" \
-"// QVR: an armed monster's rigid arm piece (vr/vr_hitreact.cpp, vr_agrunt_ik_rigid): its rest place moved whole by its\n" \
-"// piece's rows (after the bones' kicks; the rest's third row's w: their offset plus one), whatever its frames; any other\n" \
-"// vertex `pos` plus its bone's kick.\n" \
-"vec3 RigKickOrPiece(uint base, vec3 pos)\n" \
-"{\n" \
-"	float at = SmoothRest[4u * uint(gl_VertexID) + 2u].w;\n" \
-"	if (at > 0.5)\n" \
-"	{\n" \
-"		vec4 p = vec4(SmoothRest[4u * uint(gl_VertexID)].xyz, 1.0);\n" \
-"		uint i = base + uint(at - 0.5);\n" \
-"		return vec3(dot(SmoothSwing[i], p), dot(SmoothSwing[i + 1u], p), dot(SmoothSwing[i + 2u], p));\n" \
-"	}\n" \
-"	return pos + RigKick(base);\n" \
-"}\n" \
 "// QVR: an armed humanoid's arms (vr/vr_agarms.cpp, vr_agarms): its vertex weighed between its arm's bones (the rest\n" \
 "// row's fourth: x 1 + side * 4 + its bone and its blend to the next, y its share of the body as animated, z its rest\n" \
 "// normal packed, w its arm rows' offset from `base`), each bone a turn and a move of the rest place (model units; the\n" \
@@ -2509,7 +2495,7 @@ QVR_PERMDECAL_FUNCTIONS \
 "			lerpedPos = RigRebuild(uint(-inst.Smooth.z - 1), lerpedPos, smoothnor);\n" \
 "		if (inst.Smooth.w > 1)\n" \
 "		{\n" \
-"			lerpedPos = RigKickOrPiece(uint(inst.Smooth.w - 2), lerpedPos);\n" \
+"			lerpedPos += RigKick(uint(inst.Smooth.w - 2));\n" \
 "			lerpedPos = RigArm(uint(inst.Smooth.w - 2), lerpedPos, smoothnor);\n" \
 "			lerpedPos = RigLeg(uint(inst.Smooth.w - 2), lerpedPos, smoothnor);\n" \
 "		}\n" \

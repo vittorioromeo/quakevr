@@ -22,29 +22,10 @@ using namespace qvr;
 namespace
 {
 
-// The shipped grip offsets (vr_agrunt_grip_dump prints rows to paste here): kind (-1 both), the weapon's Weapon Offsets
-// ID, the hand, x y z (units), pitch yaw roll (degrees). A weapon with no row: none (its origin in the hand's middle,
-// held as the rest pose's gun).
-struct Row
-{
-    int kind;
-    const char* id;
-    int hand;
-    float x, y, z, pitch, yaw, roll;
-};
-constexpr Row defaults[] = {
-    // (Seeded by vr_agrunt_grip_fit on a grunt's idle: its wrist unturned as the server readies each melee weapon; the
-    // guns are held as the grunt held its own.)
-    {-1, "progs/v_axe.mdl", aggrip::Main, 0.f, 0.f, 0.f, -34.f, 121.f, -27.5f},
-    {-1, "progs/v_ksword.mdl", aggrip::Main, -1.6f, 4.6f, 0.95f, -11.f, 109.5f, -23.f}, // (its guard above the fist)
-    {-1, "progs/v_crowbar.mdl", aggrip::Main, 0.f, 0.f, 0.f, -7.f, 108.f, -22.5f},
-    {-1, "progs/v_chainsaw.mdl", aggrip::Main, 0.f, 0.f, 0.f, -32.f, -94.f, -172.5f},
-    {-1, "progs/v_hammer.mdl", aggrip::Main, 0.f, 0.f, 0.f, -28.5f, 118.f, -25.5f},
-};
-
-// vr_agarms: each kind's hands' grip frames for every weapon (the weapon's entity frame is the hand's, as your
-// controller's is: its Weapon Offsets draw it off that), on top of each hand's rest grip frame (its middle, turned as
-// the rest pose's gun). The Grip Editor's "All Weapons" entries; a weapon's own (above) go on top of these.
+// The shipped grip offsets (vr_agrunt_grip_dump prints rows to paste here): each kind's hands' grip frames for every
+// weapon (the weapon's entity frame is the hand's, as your controller's is: its Weapon Offsets draw it off that), on top
+// of each hand's rest grip frame (its middle, turned as the rest pose's gun). The Grip Editor's "All Weapons" entries; a
+// weapon's own (vr_agrunt_grips' rows) go on top of these.
 struct GlobalRow
 {
     int kind;
@@ -179,27 +160,8 @@ void write()
                 return true;
             }
         }
-        return false;
     }
-    if(vr_agarms.value != 0.f)
-    {
-        return false; // (the seeds above fitted the old poses' weapon frames: vr_agarms' hands hold them as you do)
-    }
-    const Row* found = nullptr;
-    for(const Row& r : defaults)
-    {
-        if(r.hand == hand && (r.kind == kind || (r.kind < 0 && !found)) && weapons::slotForName(r.id) == slot)
-        {
-            found = &r;
-        }
-    }
-    if(!found)
-    {
-        return false;
-    }
-    out.pos = {found->x, found->y, found->z};
-    out.angles = {found->pitch, found->yaw, found->roll};
-    return true;
+    return false; // (a weapon's own: none shipped, its kind's global one alone)
 }
 
 [[nodiscard]] const char* handName(int hand)
@@ -225,9 +187,9 @@ void dumpInto(za::String& out, bool all)
     }
     if(all)
     {
-        for(const Row& r : defaults)
+        for(const GlobalRow& r : globalDefaults)
         {
-            out += va("    {%d, \"%s\", aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff}, // (default)\n", r.kind, r.id,
+            out += va("    {%d, aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff}, // (default: every weapon)\n", r.kind,
                 handName(r.hand), r.x, r.y, r.z, r.pitch, r.yaw, r.roll);
         }
     }

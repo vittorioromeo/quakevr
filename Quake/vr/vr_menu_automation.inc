@@ -369,9 +369,6 @@ za::Vector<Item> pageDebugAutomation()
         command("Armed Humanoids: Glitch Report", "vr_agglitch_report")
             .help("Prints and writes the glitch finder's numbers so far (vr_agglitch_report): the worst moments and each "
                   "subject's worst and 95th percentile per metric."),
-        toggle("Armed Grunts: Posed Arms", vr_agarms)
-            .help("On: their arms posed by their weapons, held as you hold them, IK and skinned arms (vr_agarms). Off: "
-                  "the animation's arms bent onto the weapons (before). Takes effect at the next map."),
         command("Armed Grunts: Arms' Numbers", "vr_agrunt_ik_err")
             .help("Prints the arms' numbers counted since the last time (vr_agrunt_ik_err): joints' gaps, the hands' shape, "
                   "edges' stretch, the arms in the torso, the hands short of their weapons, the wrists' bend; and how far "

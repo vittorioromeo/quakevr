@@ -48,7 +48,6 @@ struct SmoothModel
     // B: the rig, if it has one (and it fits the model).
     bool rigTried{false};
     const ragdoll::Rig* rig{nullptr};
-    za::Vector<int> vboOfVert;       // per vertex: a VBO vertex drawing it (-1 none; an armed monster's hands: kickInstance)
     float rigError{-1.f};             // the vr_anim_smooth_rig_error the data below was made with
     za::Vector<uint32_t> unfit;       // per pose: the bones (bits) fitted worse than rigError, or folded away, in it
     // per VBO vertex, restStride vec4s: its rest place (units), its bone + half its share of the swing; its rebuild place
