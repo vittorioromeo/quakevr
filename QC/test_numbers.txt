@@ -150,6 +150,7 @@ vr_np_test       2        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAdd
 vr_np_test       3        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
 vr_np_test       4        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
 vr_np_test       5        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
+vr_np_test       6        vr_nailpistol_test.qc            (VR_NPT_EmptyShow: empty and loaded guns holstered and lying)
 
 vr_pickup_test   1        vr_pickup_test.qc                (VR_PickupTest_Row)
 vr_pickup_test   2        vr_pickup_test.qc                (VR_PickupTest_Take)

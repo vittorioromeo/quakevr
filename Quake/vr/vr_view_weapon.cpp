@@ -244,7 +244,7 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
     }
     queuedFrame[hand] = host_framecount;
 
-    const glm::vec3 pos = view::anchorPosition(ve, weapons::anchor(slot, Key::WpnTextAnchor),
+    const glm::vec3 pos = view::screenPosition(ve, weapons::anchor(slot, Key::WpnTextAnchor),
         weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
 
     glm::vec3 angles = weapons::vec(slot, Key::WpnTextPitch, Key::WpnTextYaw, Key::WpnTextRoll);

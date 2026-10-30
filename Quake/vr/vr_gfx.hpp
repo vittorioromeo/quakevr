@@ -76,6 +76,11 @@ struct State
     // Shade::Texture in the scene (decals, particles): retro textures' set (vr_retro.hpp categorySet; 0 none), read in
     // world units: blocks fixed to the texture, palette and dither on the colour (premultiplied).
     int retro{0};
+    // No pixel drawn twice by this draw (a ribbon folding over itself on a sharp turn, two crossing): each pixel takes
+    // one of its fragments, about its strongest (Shade::SoftEdge: drawn in bands of its edge falloff, the cores first;
+    // others: the first drawn). The stencil's top bit (vr_gfx_gl.cpp onceStencilBit), left clear; then the same
+    // vertices again, unmarking. Triangle lists through draw() only.
+    bool once{false};
 };
 
 // Triangles (three vertices each), transformed by `mvp` to clip space. No culling. They are copied into the frame's

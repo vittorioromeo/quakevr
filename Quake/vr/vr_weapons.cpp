@@ -1109,7 +1109,8 @@ void registerCvars()
     for(int slot = 0; slot < numSlots; slot++)
     {
         for(const Key key : {Key::HapticPunch, Key::FlashSize, Key::TracerSpeed, Key::TracerLength, Key::TracerWidth,
-                Key::TracerChance, Key::TracerRed})
+                Key::TracerChance, Key::TracerRed, Key::GunfxSparks, Key::GunfxSparkSize, Key::GunfxSmoke, Key::GunfxSmokeSize,
+                Key::GunfxWisps})
         {
             cvarAt(slot, key).string = "1";
         }

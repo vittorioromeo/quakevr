@@ -97,6 +97,18 @@ Fire the shotgun, then the super shotgun, then a nailgun burst, and stop: thin f
 Rocket launcher: after a shot, light smoke comes out of the vents in the back of its head, toward you.
 AD: a rocket soldier's shot flashes and smokes, with backblast out of the back of its gun.
 Settings tiers: the Combat, Weapons and Carrying menus are much slimmer (about 1,000 tuning rows became fixed constants); every value you had changed is unchanged (review list: qvr-kit scratch/refactor/tiers.md).
+Swing a fired shotgun or nailgun quickly left-right: the wisps show no brighter knots or lines at the turns or where they cross (compare: Debug > Tests > Wisps Overlap Again).
+Weapon Effects > Gunfire Particles: each new spark and smoke slider visibly changes a shotgun shot; Smoke Directionality 0 bursts every way; Wisp Max Opacity 0.1 thins the wisps.
+Weapon Offsets > Effects on the shotgun: Gunfire Spark/Smoke Amount 0 gives no sparks or smoke, 2 about twice as many; Muzzle Wisp Opacity 0 gives no wisps; other weapons unchanged.
+Shoot stone, dirt/ground, metal and wood walls with the shotgun: each sounds of its surface, from the wall (stone thud, dirt duller, metal ping, wood knock); a blast is one or two sounds, not a pile.
+Super nailgun on a stone or wood wall: a light thud or knock under the tink, not every nail; on metal only Quake's tink or ricochet.
+Sound > Gunfire > Surface Impacts 0: wall hits silent as before; 2: louder.
+Nail pistol: Full Slide is the default; the back end is steel like the old model's; the paint is less uniform.
+Nail pistol: the ammo screen moves back and home with the slide (Combat > Weapon Damage > Nail Pistol Screen Rides Slide).
+Nail pistol: an empty one holstered or dropped shows its slide locked open (Debug > Tests > Nail Pistol > Empty Nail Pistols: Holstered and Lying).
+Nail pistol: the re-rack after a magazine goes in is a loud, clear clack.
+Debug > Tunables: moving a slider changes the game at once; the Show (All / Changed Only) and Page filters work; menu Search finds a tunable (e.g. "palm fit") and opens its row.
+Tuned values survive a restart (tunables.cfg; the console says "N tuning constants set off their default"); tune_reset clears them.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

@@ -1084,9 +1084,26 @@ za::Vector<Item> pageWeaponEffects()
                   "guns. Not the flamethrowers, the crossbow, melee weapons, the grapple or the toolgun."),
         toggle("Muzzle Sparks", vr_gunfx_sparks)
             .help("A cone of sparks out of the muzzle (each barrel of the super shotgun; the energy guns throw electric arcs)."),
+        slider("Spark Amount", vr_gunfx_spark_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("How many sparks a shot throws (each weapon's own: Weapon Offsets > Effects). 0: none."),
+        slider("Spark Size", vr_gunfx_spark_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f).help("How big the sparks are."),
+        slider("Spark Speed", vr_gunfx_spark_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("How fast the sparks fly out of the muzzle (so how far)."),
         toggle("Muzzle Smoke", vr_gunfx_smoke)
             .help("A cone of smoke billowing forward out of the muzzle with the flash, swirling as it spreads and fades, the "
                   "flash's glow in it; the nail pistol's side vents smoke lightly. Never the energy guns'."),
+        slider("Smoke Amount", vr_gunfx_smoke_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("How many puffs a shot's muzzle smoke has: how thick the cloud is (each weapon's own: Weapon Offsets > "
+                  "Effects). 0: none."),
+        slider("Smoke Size", vr_gunfx_smoke_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("How big the muzzle smoke's puffs are and how much they grow."),
+        slider("Smoke Speed", vr_gunfx_smoke_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("How fast the muzzle smoke billows out (so how far ahead the cloud reaches)."),
+        slider("Smoke Directionality", vr_gunfx_smoke_direction, 0.f, 1.f, 0.05f, "%.2f")
+            .help("1: the smoke billows forward in a cone out of the muzzle. 0: it bursts out every way. In between: more "
+                  "or less forward."),
+        slider("Smoke Opacity", vr_gunfx_smoke_alpha, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("How opaque the muzzle smoke is as it comes out (it fades from there)."),
         toggle("Ejection Port Smoke", vr_gunfx_port)
             .help("A small quick puff out of a shotgun's port as the casing leaves it (the super shotgun's open breech)."),
         toggle("Rocket Backblast", vr_gunfx_backblast)
@@ -1108,7 +1125,10 @@ za::Vector<Item> pageWeaponEffects()
         slider("Wisp Spread", vr_gunfx_wisp_spread, 1.f, 8.f, 0.25f, "%.2fx").extend(1.f, 10.f)
             .help("How much thicker (and fainter) a wisp gets as it fades."),
         slider("Wisp Amount", vr_gunfx_wisp_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("How dense the wisps are (their opacity)."),
+            .help("How dense the wisps are (their opacity; each weapon's own: Weapon Offsets > Effects)."),
+        slider("Wisp Max Opacity", vr_gunfx_wisp_opacity, 0.02f, 1.f, 0.02f, "%.2f")
+            .help("The most opaque a wisp gets, wherever it is (its start at the muzzle is its densest): a cap on Wisp "
+                  "Amount. 1: no cap."),
         slider("Wisp Rise", vr_gunfx_wisp_rise, 0.f, 60.f, 1.f, "%.0f cm/s").extend(0.f, 200.f)
             .help("How fast the smoke rises off the barrel (Smoke Turbulence curls it)."),
         toggle("Impacts by Material", vr_gunfx_impacts)
