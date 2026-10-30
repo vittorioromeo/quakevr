@@ -1937,4 +1937,4 @@ forced materials): the old counts. Baseline cases (run_baseline.py vs baseline.t
 16/0, explosion_debris 13/0, shot_shape, ragdoll_* (stagger 52/5, ragtest 30/1, climb 24/4: as the baseline), limb_wear
 9/3 (as the baseline), agarmor_1 26/0, agarmor_5 23/0 (baseline 22/1, flaky), nail_1, np_1 (23/0, baseline 21/0: the
 test's own newer checks), flare_1, walltorch_grab, empty_melee, secret_hits and dead_gear (as the baseline): no case
-changed. gunfx_test.py 29/0. Build: 0 warnings, check_canonical clean. A/B bench: BENCH_PLACEHOLDER
+changed. gunfx_test.py 29/0. Build: 0 warnings, check_canonical clean. A/B bench (LTO, exclusive, ABBA, scratch/ab_bench.sh: A = origin/next + the trace, B = the table; cpu busy ms): combat_48 A 2.64 (2.69, 2.58), B 2.44 (2.43, 2.46): -7.3%; play_gore_fight A 2.36 (2.30, 2.42), B 2.40 (2.41, 2.38): +1.4%. Both within the runs' spread (A's own runs differ 4-5%): no cost measured. (The planned ABBAABBA stopped after 4 runs: the exe was busy at the swap.)
