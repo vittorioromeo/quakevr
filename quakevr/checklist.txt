@@ -148,6 +148,10 @@ Ghost Hands on: shooting shows no ghost ("No Ghost from Recoil" off shows it fla
 Worn Backpacks on: grab a living grunt's backpack from behind and pull back: it turns on you, the pack tears into your hand in about half a second and the grunt falls towards you; with both hands it's sooner; your hand stays on the pack while you pull.
 Worn Backpacks on: shoot just beside a grunt's pack: it stays on; shoot the pack a few times, or catch it in a rocket blast or the flamethrower: it rips off; the poison sprayer never rips it.
 Worn Backpacks on: packs on living and dead grunts don't spin.
+Hold the flashlight in one hand and try a box, a pouch round and a wall torch with it: none is taken (the other hand takes them); the flashlight hand still punches.
+Grab a grunt, let go, then grab a box with that hand: taken; ragdoll hand-over from a foe-grab throw as before.
+Two-hand the SSG, let go with the fore-end hand, reload it from the pouch: as before; seat a magazine and pull it straight back out without letting go (Release Seated Magazine off): as before.
+Grab a wall torch, a pouch item, a box, guns and limbs: each taken as before (one grab query now); no "handslot:" line in the console.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
