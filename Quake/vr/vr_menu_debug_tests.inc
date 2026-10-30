@@ -539,6 +539,12 @@ za::Vector<Item> pageDebugTests()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Armour on Armed Grunts", "developer 1; vr_agarmor_test 1"),
+        command("Worn Backpacks", "developer 1; vr_wornpack_test 1")
+            .help("Armed grunts ahead wearing packs: hits, knockdowns, landings, a pull by the pack, deaths (vr_wornpack_test "
+                  "1; ends on \"wornpack: N passed, M failed\")."),
+        command("Grunts Wearing Packs There", "vr_wornpack_test 2")
+            .help("Three armed grunts ahead wearing packs (Worn Backpacks on): back on, side on and knocked down "
+                  "(vr_wornpack_test 2)."),
         command("Armoured Enforcers There", "vr_agarmor_test 3")
             .help("Three armed enforcers ahead in full green, yellow and red armour (vr_agarmor_test 3)."),
         command("Armour Damage Marks There", "vr_agarmor_test 4")

@@ -2338,6 +2338,52 @@ test's own newer checks), flare_1, walltorch_grab, empty_melee, secret_hits and 
 changed. gunfx_test.py 29/0. Build: 0 warnings, check_canonical clean. A/B bench (LTO, exclusive, ABBA, scratch/ab_bench.sh: A = origin/next + the trace, B = the table; cpu busy ms): combat_48 A 2.64 (2.69, 2.58), B 2.44 (2.43, 2.46): -7.3%; play_gore_fight A 2.36 (2.30, 2.42), B 2.40 (2.41, 2.38): +1.4%. Both within the runs' spread (A's own runs differ 4-5%): no cost measured. (The planned ABBAABBA stopped after 4 runs: the exe was busy at the swap.)
 
 
+## Worn backpacks, experimental (branch `agent/wornpack`; `QC/vr_wornpack.qc`, `vr_box3d_wornpack.cpp`)
+
+His ask: enemies wear the backpack they drop, attached through ragdoll form, torn off by hard pulls, landings and
+direct hits with a fabric rip, takeable only once dead, no second drop, and the reserve lost with a pack torn off alive.
+Scope (his change): the armed **grunt** only (the enforcer's model already has a pack; ogres and others later).
+- **Flag.** `vr_worn_backpacks` 0 (Combat > Armed Grunts > Worn Backpacks). Off: no pack is made and every hook returns
+  at once (as before). Grunts spawned after it is turned on wear one (`VR_WP_Spawn` from `VR_AM_Spawn`; not where
+  `MG3_NoBackpack` or the dummy's no-loot rule apply).
+- **On the back.** A QC entity (`vr_wornpack`, progs/backpack.mdl, not solid) placed every frame from
+  `limbpiece(g, 0, 20/21/22)` (origin, angles, box middle). Standing: `agarmor::packWhere`, the pack's rest place behind
+  the cuirass's outer face at 62% of its height (the back measured where the pack lies, not the small of the back),
+  carried by the chest bone's frame (three chest-weighted body vertices nearest the pack, hitmodel's pose). Fit cvars:
+  `vr_worn_backpack_scale` 0.6, `_x` 1.5 (into the back), `_y` 0, `_z` -3, `_pitch/_yaw/_roll` 0 (menu: Fit). The pack
+  follows the server's pose, so the client's aim IK/lean can shift it a little against the drawn body: for him to check.
+- **Ragdoll.** `createRagdollPack` (after the parts, when `.vr_wp_worn` is 1): a box (90% of the pack) as a second shape
+  of the chest part's body, where the standing pack was (`vr_worn_backpack_mass` 4 kg): it collides, weighs and is held
+  with the body. A hand's grab within 3 units of the box marks the hold `onPack` (`beginGrab`); the drawn pack follows
+  the shape. Builtins (table full): `ragdollbone(e, [what, player, hand], QVR_WORNPACK -1003)` 0 worn, 1 tear off (shape
+  destroyed), 2 the hold's force, 3 its stretch; `QVR_WORNPACK_AT` -1004 a point's distance to the pack.
+- **Tearing off** (`VR_WP_Off`, `vr/derived/fabric_rip.wav`: demon/dhit2 1.15x + player/tornoff2 1.35x + weapons/lhit
+  1.6x 0.2 s, drive 0.6; `vr_worn_backpack_volume` 1):
+  - a pull: a hand holding the ragdoll by the pack, past `_rip_force` 3000 N for `_rip_time` 0.04 s (force, or stretch x
+    `_rip_stiffness` 150 N/unit), the hold's first 0.25 s ignored (the spring taking up the body jerks to the 4000 N
+    cap): released from the ragdoll, the pack carried in that hand. Measured: grab 4000 N for 0.15 s; slow drag (43 u/s)
+    700-1700 N, 1-3 units stretch; a 30-unit yank 4000 N, 13-34 units, for 2-3 frames;
+  - a landing: `VR_RagImpact_Hit`'s strike at `_impact` 9 m/s or more (any ragdoll, alive or dead);
+  - a hit on the pack (T_Damage, within 3 units of its box: blows, throws, shots, projectiles; not blasts, burns):
+    `min(1, _hit_chance 0.35 x damage / _hit_ref 20)`;
+  - its wearer gibbed (its model no wearer's) or gone, or a dead one's pack taken (`VR_Carry_Start`,
+    `VR_Forcegrab_Launch`; `VR_Ragdoll_Handtouch` leaves a hand on a dead one's pack to the pack).
+- **Ammo and loot.** Torn off a living grunt, the pack takes `_reserve` 1 of each weapon's reserve plus its pockets
+  (`VR_WP_Lose`): it fights on with its magazine, then drops the gun as an empty one does. Dying, `VR_AG_SoldierDrop`'s
+  loot goes into the worn pack (`VR_WP_DeathLoot`), which turns takeable (FL_ITEM, force-grabbable, carried; still placed
+  on the corpse until taken); a wearer never drops another backpack (also when its pack was lost alive). Torn off, it is
+  `DropBackpack`'s item (`Backpack_Setup`, split out of it), and is not flung into its own wearer for 1 s.
+- **Test.** `vr_wornpack_test 1` (Debug > Tests > Worn Backpacks; e1m1, `god; notarget`): **17 passed, 0 failed**:
+  on its back (14.8 units behind, 12.5 up); untakeable alive; a chest hit keeps it, a pack hit tears it (reserve 16 -> 0,
+  pack 16 shells); the ragdoll made with the box, the pack 1.3 units from where it stood; kept through a mild knockdown
+  and a 4 m/s landing, torn by 12 m/s; held by the pack, a slow drag keeps it, a yank tears it into the hand (5119 N);
+  killed: no second backpack (the flag-0 control drops one), the pack takeable, taken it comes off. `2`: the eyeshot's
+  grunts (Debug > Tests > Grunts Wearing Packs There; the kit's `scratch/wornpack/`).
+- **Baseline (flag 0)**: agarmor_1 26/0, agarmor_5 23/0, ragdoll_grab 19/0, agrunt_1/12/33, pickup_mag, mapgun_pickup,
+  flash_grab, walltorch_grab as the baseline; agrunt_31 4/1 (as the baseline) and ragdoll_stagger 51/6 (its known
+  5-6 chance failures).
+- **Not done.** A corpse's pack is not torn off by hits (only taken, pulled, gibbed or landing hard); the pack doesn't
+  shield the back from hits; its sound can't be heard headless.
 ## Backpacks' hit box (branch `agent/bpfix`)
 
 - **His report**: "backpacks dropped by enemies have a much larger hitbox than expected against player projectiles (e.g.

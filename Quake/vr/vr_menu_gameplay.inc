@@ -686,6 +686,45 @@ void armedGripsDragMode()
     return items;
 }
 
+// Combat > Armed Grunts > Worn Backpacks (QC vr_wornpack.qc; vr_box3d_wornpack.cpp; ROUND23.md, "Worn backpacks"):
+// experimental, off by default.
+[[nodiscard]] za::Vector<Item> pageArmedPacks()
+{
+    return {
+        header("Worn Backpacks"),
+        toggle("Worn Backpacks", vr_worn_backpacks)
+            .help("Experimental. Armed grunts wear the backpack they would drop on their back, as ragdolls too (it weighs "
+                  "and collides with the body, and you can drag the body by it). It tears off with a rip on a hard pull, "
+                  "a hard landing or a hit on the pack; torn off a living one, its spare ammo goes with it. Only a dead "
+                  "one's pack can be taken. Grunts spawned after it is turned on."),
+        header("Tearing Off"),
+        slider("Pull That Tears It", vr_worn_backpack_rip_force, 500.f, 4000.f, 100.f, "%.0f N")
+            .help("A hand holding a ragdoll by its pack and yanking this hard (kept up a moment) tears the pack off into "
+                  "the hand. A slow drag pulls about 1500 N; a hold's spring gives 4000 N at most (Ragdoll Grab Force)."),
+        slider("Hit Chance", vr_worn_backpack_hit_chance, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A blow, a throw, a shot or a projectile on the pack tears it off with this chance at the Hit Damage "
+                  "below (more damage: likelier)."),
+        slider("Hit Damage", vr_worn_backpack_hit_ref, 1.f, 100.f, 1.f, "%.0f")
+            .help("The damage of a hit whose chance is the Hit Chance."),
+        slider("Landing That Tears It", vr_worn_backpack_impact, 2.f, 30.f, 0.5f, "%.1f m/s")
+            .help("A ragdoll striking the level at least this fast loses its pack."),
+        slider("Spare Ammo in It", vr_worn_backpack_reserve, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of a grunt's spare rounds it carries in its pack: lost with the pack while it lives (it "
+                  "fights on with what its gun holds)."),
+        slider("Rip Volume", vr_worn_backpack_volume, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The fabric rip's loudness."),
+        header("Fit"),
+        slider("Size", vr_worn_backpack_scale, 0.3f, 1.2f, 0.05f, "%.2f").help("The pack's size on the back."),
+        slider("Forward", vr_worn_backpack_x, -8.f, 8.f, 0.25f, "%.2f").help("Moves the pack into the back (out: negative)."),
+        slider("Left", vr_worn_backpack_y, -8.f, 8.f, 0.25f, "%.2f"),
+        slider("Up", vr_worn_backpack_z, -12.f, 12.f, 0.25f, "%.2f"),
+        slider("Pitch", vr_worn_backpack_pitch, -45.f, 45.f, 1.f, "%.0f"),
+        slider("Yaw", vr_worn_backpack_yaw, -180.f, 180.f, 5.f, "%.0f"),
+        slider("Roll", vr_worn_backpack_roll, -45.f, 45.f, 1.f, "%.0f"),
+        slider("Weight", vr_worn_backpack_mass, 0.5f, 20.f, 0.5f, "%.1f kg").help("Its weight on a ragdoll's chest."),
+    };
+}
+
 // Combat > Armed Grunts > Armed Humanoid Replacements (QC vr_armedrepl.qc; ROUND22.md, "Armed humanoid replacements"):
 // a map's grunts and enforcers as armed ones. Everything off by default; a map's new loadouts at its next load.
 [[nodiscard]] za::Vector<Item> pageArmedRepl()
@@ -1124,6 +1163,8 @@ void ikStretchReset()
         open("Armour", pageIndex(pageArmedArmour))
             .help("Armed grunts wearing breakable armour (a cuirass, a helmet, pauldrons, bracers, thigh and shin "
                   "plates): how it absorbs, helmets and headshots, cuts, and how often they wear it at each skill."),
+        open("Worn Backpacks", pageIndex(pageArmedPacks))
+            .help("Experimental: armed grunts wearing their backpack, ragdolls too, torn off by pulls, landings and hits."),
         open("Weapon Holds", pageIndex(pageArmedHolds))
             .help("Per weapon, for grunts and for enforcers: held in one hand or two (Auto: the axe and the enforcer's "
                   "pistols in one hand, the rest as built in)."),
