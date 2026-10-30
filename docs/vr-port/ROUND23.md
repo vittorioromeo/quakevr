@@ -2122,3 +2122,27 @@ forced materials): the old counts. Baseline cases (run_baseline.py vs baseline.t
 9/3 (as the baseline), agarmor_1 26/0, agarmor_5 23/0 (baseline 22/1, flaky), nail_1, np_1 (23/0, baseline 21/0: the
 test's own newer checks), flare_1, walltorch_grab, empty_melee, secret_hits and dead_gear (as the baseline): no case
 changed. gunfx_test.py 29/0. Build: 0 warnings, check_canonical clean. A/B bench (LTO, exclusive, ABBA, scratch/ab_bench.sh: A = origin/next + the trace, B = the table; cpu busy ms): combat_48 A 2.64 (2.69, 2.58), B 2.44 (2.43, 2.46): -7.3%; play_gore_fight A 2.36 (2.30, 2.42), B 2.40 (2.41, 2.38): +1.4%. Both within the runs' spread (A's own runs differ 4-5%): no cost measured. (The planned ABBAABBA stopped after 4 runs: the exe was busy at the swap.)
+
+## Surface impact sounds (branch `agent/impsnd`; his ask: the bullet impacts' sounds, at the surface, by its type)
+
+A bullet's or a nail's hit on the world (cl_tent.c TE_GUNSHOT, TE_SPIKE, TE_SUPERSPIKE: VR_ImpactTempEntity) now also
+sounds of the surface it hit, from the surface (S_StartSoundPitch at the hit's surface point, ATTN_NORM like Quake's
+tink). The table's new world column `Row::surface` + `surfaceGain` (vr_impacts.cpp); the QC's `sound` column
+(impactsound) is untouched, so a crate's or a thing's hit keeps its output. Bullet: stone a dull thud with a stony crack
+and grit after, dirt a duller low-passed thud, metal Quake's ric1-3 over a light metal ring, wood a hollow knock and a
+splinter's crack (gain 0.6, metal 0.55). Nail (0.42) and super nail (0.55): a shorter, higher, lighter thud or knock
+under Quake's own tink, which still plays with every nail; none of ours on metal (that tink or ricochet is metal's own:
+no doubling) and none for the bolt's beam (its hum). Three takes of each, made from the game's sounds as they load
+(vr/derived/impact_*.wav: VR_SndLayered asks impacts::layered after the gunfire's; prewarm step "impact sounds"); each
+hit a take at random, pitch 0.93-1.07, volume 0.82-1 x. Cap: at most 2 a frame, and none within 64 units of one played
+less than 0.12 s before: a shotgun blast on one spot is one sound (two if its pellets land far apart), a super
+nailgun's stream every other nail. Setting: Sound > Gunfire > Surface Impacts (`vr_gunsfx_impacts` 1, volume 0-2, 0
+none; off with vr_gunsfx 0). Debug: `vr_debug_gunsfx 1` prints `impsnd <kind> on <material> <sample|none|capped> ...`;
+`vr_impact_test <kind> [count] [material] [spread]` (spread is new); Debug > Tests: Impact Sounds: Six Pellets Spread.
+
+Verified: `python Misc/quakevr/gunfx_test.py <agent> --only impactsnd` 21/0 (with -Sound: the derived sounds made, len >
+0): 4 materials x 4 kinds each its own sample (or none: metal nails, bolts) 3 units from the hit, volume and pitch in
+range; 12 pellets on one spot 1 played 11 capped; 3 pellets 70 apart 2 + 1 capped; a real shotgun blast 6 hits, 1
+played; a real SNG stream 11 hits, 6 played (no two within 0.12 s and 64 units). Baseline cases vs baseline.tsv: nail_1,
+np_1 (23/0, baseline 21/0: its newer checks), rv_1, flare_1, ammocolor_1, swim_sound: all PASS. Build: 0 warnings,
+checks clean. (vr_gunsfx_test 19/1: "a gun held in the main hand (slot 16)", its setup's held weapon, not this change.)
