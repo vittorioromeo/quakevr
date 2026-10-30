@@ -819,7 +819,7 @@ float(entity pl, float h) VR_AG_HandStrikes =
 float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
 {
     vector hp = VRGetEntHandPos(pl, h);
-    vector mz = h == cVR_MainHand ? pl.muzzlepos : pl.offmuzzlepos;
+    vector mz = VR_HAND_FIELD(pl, h, muzzlepos, offmuzzlepos);
     if(VRIsHandEmpty(pl, h) || vlen(mz - hp) > 48)
     {
         mz = hp;
@@ -828,7 +828,7 @@ float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
     {
         return FALSE;
     }
-    float last = h == cVR_MainHand ? pl.vr_ag_knock_at : pl.vr_ag_knock_off;
+    float last = VR_HAND_FIELD(pl, h, vr_ag_knock_at, vr_ag_knock_off);
     if(time - last < 0.3)
     {
         return FALSE;

@@ -2323,7 +2323,7 @@ float(entity p, float hand, float xCrossed) VR_Parry_Strength =
         tool = light + (max(0, cvar_hget(cvarh_vr_parry_tool_heavy)) - light) * heft;
         twoHands = vr_parry_test_force ? f == 3 : VRGet2HAiming(p);
     }
-    float since = xCrossed ? p.vr_guard_up_x : hand == cVR_MainHand ? p.vr_guard_up_m : p.vr_guard_up_o;
+    float since = xCrossed ? p.vr_guard_up_x : VR_HAND_FIELD(p, hand, vr_guard_up_m, vr_guard_up_o);
     vr_parry_welltimed = vr_parry_test_force ? vr_parry_test_force >= 10 :
                          since > 0 && time - since <= max(0, cvar_hget(cvarh_vr_parry_timed_window));
     return tool * (twoHands ? max(0, cvar_hget(cvarh_vr_parry_grip_2h)) : 1) *

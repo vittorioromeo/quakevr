@@ -3785,8 +3785,8 @@ float(float xCost, string xWhat) VR_Stamina_Effort =
 // (VR_HeavyMelee_Frame).
 float(entity p, float xHand) VR_ADMelee_VeryHeavy =
 {
-    float wid = xHand == cVR_MainHand ? p.weapon : p.weapon2;
-    float flags = xHand == cVR_MainHand ? p.weaponflags : p.weaponflags2;
+    float wid = VR_HAND_FIELD(p, xHand, weapon, weapon2);
+    float flags = VR_HAND_FIELD(p, xHand, weaponflags, weaponflags2);
     return wid == WID_SWORD && VR_ADMelee_Heavy(VR_ADMelee_Kind(flags));
 };
 

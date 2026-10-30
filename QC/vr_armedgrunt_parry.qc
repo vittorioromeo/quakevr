@@ -434,7 +434,7 @@ void(entity g) VR_AGPar_Frame =
                     continue;
                 }
                 vector hp = VRGetEntHandPos(pl, h);
-                vector tip = h == cVR_MainHand ? pl.muzzlepos : pl.offmuzzlepos;
+                vector tip = VR_HAND_FIELD(pl, h, muzzlepos, offmuzzlepos);
                 if(VRIsHandEmpty(pl, h) || vlen(tip - hp) > 48)
                 {
                     tip = hp;
