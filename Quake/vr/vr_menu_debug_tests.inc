@@ -1095,6 +1095,11 @@ za::Vector<Item> pageDebugTests()
             .help("vr_recoil_test: the main hand's weapon's own Recoil Kick Back and Muzzle Rise move its recoil only "
                   "(no other weapon's), and its Recoil Recovery 2x / 0.5x takes twice / half as long back to rest; "
                   "prints PASS/FAIL lines and puts every value back."),
+        command("Gunfire Sound and Punch Test", "vr_gunsfx_test")
+            .help("vr_gunsfx_test: every shot's layers and room tail, the variation, the casings by surface, the dry "
+                  "click, every weapon's haptic punch curve; prints FAIL lines and a verdict, puts every setting back."),
+        toggle("Print Gunfire Layers and Punches", vr_debug_gunsfx)
+            .help("vr_debug_gunsfx: a console line for each shot (its layers, tail, room), each punch and dry click."),
         toggle("Print Weapon Effects", vr_debug_weaponfx)
             .help("vr_debug_weaponfx: each shot's recoil, flash and tracers (2: and the recoil each frame); the shotgun's auto "
                   "pump strokes (start, back, home) and when its shell leaves."),

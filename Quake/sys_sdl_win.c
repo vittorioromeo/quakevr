@@ -1041,7 +1041,6 @@ void Sys_Init (void)
 
 void Sys_mkdir (const char *path)
 {
-	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	wchar_t wpath[MAX_PATH];
 	BOOL result;
 	DWORD err;
@@ -1049,7 +1048,12 @@ void Sys_mkdir (const char *path)
 	UTF8ToWideString (path, wpath, countof (wpath));
 	result = CreateDirectoryW (wpath, NULL);
 	if (result)
+	{
+		// QVR: the loading's listed directories (vr_fscache.cpp), when one was made: not for one that was there (every
+		// file written asks for its folders; it forgot them all, six times in a vrtesthall load, 2026-10-30)
+		VR_FileCacheForget ();
 		return;
+	}
 
 	err = GetLastError ();
 	if (err != ERROR_ALREADY_EXISTS)

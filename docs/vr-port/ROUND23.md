@@ -326,6 +326,41 @@ Recovery 1 by default; at 1 the envelope equals the old one at 1203 samples (Ret
 drawn kick of a 0.15 s Return Time is back at rest 0.115 s after its peak at 1x, 0.230 s at 2x, 0.0575 s at 0.5x
 (ratios 2.00 and 0.50), the peak 4.0 deg each time; value put back. Baseline (recoil, collectfx, selfchecks,
 slider_step, update_notice, autopump, reload): only `recoil` changed (9 -> 17 checks).
+
+## 9d. Punchier gunfire: sound and haptics (branch `agent/gunsfx`; `vr_gunsfx.cpp`, `vr_sndlayer.cpp`)
+
+His approved ideas 7-12. Audit first: every gun's report is one recording (QC `sound` on CHAN_WEAPON/CHAN_WEAPON2),
+the layered sounds made at load (`VR_SndLayered`) existed for three sounds, the casings had one tink set (stone) and a
+water plip, the dry click (`gunclick.wav`) existed with no tick in the hand, the actions' sounds (break-open, magazine)
+played from the muzzle, the room reverb is Steam Audio's on the listener (nothing per shot), and each shot's haptic was
+the QC's one flat buzz (`VRGunHaptic`). What's new (Sound > **Gunfire**, every part off with `vr_gunsfx 0`):
+- The layered sounds moved out of `vr_audio.cpp` into `vr_sndlayer.cpp` (a pure move) and grew effects: a two-pole
+  low-pass (thumps), a Schroeder room tail (four damped combs scaled with the decay, two all-passes, a predelay), a
+  distant echo (twice, dulled) and a peak normalisation. All from the game's own and our shipped sounds, nothing new.
+- A shot (a listed report on a weapon channel, anyone's: the player's, grunts', enforcers', ogres', the armed humanoids')
+  goes through `VR_SndShot` at the start of `S_StartSoundPitch`: varied (`vr_gunsfx_vary` 4: pitch up to 4 %, volume
+  2 %), plus its close mechanical layer (super shotgun and grunts' a hammer, nailguns a feed tick, launchers a clunk;
+  none where the shot has its own action or the shotgun's auto pump clacks) and a low thump (`vr_gunsfx_layers` 1), and a
+  tail by room (`vr_gunsfx_tail` 1): 13 rays round the shooter (cached 0.75 s / 48 units an entity), outdoors when two
+  of the five upward ones reach the sky, else small under a 320-unit mean reach, else large. Tails: small ~0.5-0.65 s,
+  large ~1.5-1.7 s, outdoors ~1.8-2 s with the echo at 0.42 s; at most one every 0.25 s for the light guns' streams.
+  The player's layers play from the firing hand (CHAN_HAND/HAND2). Not the lightning gun (a beam).
+- Casings (`vr_gunsfx_casings` 1): metal's ring (tink brighter plus `phys/metal_h`), wood's knock (tink lower plus
+  `phys/wood_h`), by the texture under the landing (`debris::materialOf`); stone/other the tinks as before.
+- Dry click (`vr_gunsfx_dryfire` 1): its volume, varied, a 12 ms tick (0.35) in the clicking hand; 0 silent.
+- Actions (`vr_gunsfx_action` 1): break-open/close at 0.4 of the way hand-to-muzzle, magazine in/out 0.15, shell in 0.3
+  (`vr_audio.cpp handSoundAt`). The ejects on CHAN_AUTO stay where they were.
+- Haptic punch (`vr_gunsfx_punch` 1, per weapon `vr_wofs_fx_punch_NN` 1, Weapon Offsets > Effects > **Haptic Punch**):
+  a 12 ms 200 Hz spike at 0.85 * punch * sqrt(strength * mean(kick, rise)), then a 70 Hz tail from half that to nothing
+  (quadratic) over Return Time * Recovery, re-sent each frame; the QC's flat buzz for that shot is dropped (`punchOwns`,
+  60 ms). At 0: the flat buzz as before.
+Decisions: every group is a 0-off slider or a toggle (the codebase's pattern) under one master toggle; sounds derived
+at runtime (his 2026-10-29 decision); the punch replaces the flat buzz rather than adding to it (one feel, set by the
+recoil). Test: `vr_gunsfx_test` needs sound (`run.sh -Sound`, `map e1m1;...;impulse 9;wait2;impulse 154;wait5;
+vr_gunsfx_test`): **24 passed, 0 failed** (21 layers made, 12 shots' layers and tails started, variation 4 % / none at 0,
+tails small < large < outdoor for each kind, e1m1's start room small and (-160 608) outdoors with different tails, the
+floor's metal casing, the dry click's tick and silence, every weapon slot's punch curve, Recovery 2x doubles the tail, Haptic
+Punch 0 none, the spike sent on the shot, action place, all off). `vr_recoil_test` 17 passed as before.
 ## 9b. Relighting: Ambient Light Level (`vr_relight_minlight`, backlog "a basic ambient lighting level")
 
 The Relighting page's "Minimum Light" row is now **Ambient Light Level** (same cvar, `vr_relight_minlight`, archived,
@@ -1422,3 +1457,53 @@ loaded magazine goes in (no manual racking), travel and time configurable.
   0 -> 1 in 4 frames (0.298 a frame), home in 7 (0.149 a frame); locked through the 99 walking frames at 1.000; the
   re-rack line, then home in 7 frames. Eyeshots (qvr-kit/scratch/npslide/): `viewthing_closed_open_travel3.png` closed,
   locked at 1.5, at 3.0; `closed_open_L.png` in hand.
+## Faster map loads, round 5: the file lookups that find nothing (branch `agent/load5`)
+
+Profile (no-LTO, warm caches, `vr_startup_times`; hip2m5 is the kit base's map with the most monster kinds, 11):
+vrtesthall 1123 ms (spawn 619, alias models 662 of 363: normal maps 278, skins 178, md5/md3 lookups 126 of which md5
+hands/body loaded 123, so the failed md5/md3 lookups ~3; limbs 196, view models 164, smooth rigs 48, image lookups that
+found nothing 68 ms / 2304); e1m1 881 (misses 16 / 2036, limbs 22, rigs 8); vrstart 1427 (misses 72, limbs 193, rigs
+45); hip2m5 1096 (misses 19 / 2460, limbs 84, rigs 26). Sub-timed (temporary timers): of vrtesthall's load, 12,900
+names were looked up in every search path and found nowhere (~3 us each), and 810 lookups of an owned pack's files
+(owned/mg3/progs/rknight.mdl_0.png, its _norm, _bump...) cost ~0.1 ms each, 80 ms: each listed the folder's paks and
+read every pak's directory.
+
+- **Owned packs' files** (vr_gamedir.cpp, VR_OwnedFile): the folder's paks read once a load window into a name index
+  (`ownedIndexes`, mem::Cache, GameDirChange), on the main thread inside the file system cache's windows
+  (VR_FileCacheWindow, new at each enable and each full forget: a pak added meanwhile is seen at the next load); the
+  loose files by the window's listings (VR_FileCacheHas). Other threads and lookups outside the windows as before. A
+  temporary check ran both ways on every lookup of a vrtesthall load: 641 compared, 0 differed. COM_FindFile notes an
+  owned name not found as a miss too.
+- **An image's five lookups at once** (COM_StemNowhere, image.c): Image_LoadImage asks png, tga, jpg, pcx and lmp in
+  every search path; now, inside the windows, a name that no pak has with any extension (a stem table beside each pak's
+  name hash, COM_PackIndex) and no listed loose folder has (Listing::stems) makes none of them (model-keep's recorded
+  lookups still noted). Checked by running the five lookups anyway each time it said "nowhere": vrtesthall 2077, e1m1
+  1874, hip2m5 2284, none found a file.
+- **Misses kept when an unrelated file is written** (vr_fscache.cpp): a file written forgot every miss known; now only
+  the names its path ends with (`forgetMisses`, after folding the path: case, separators, "." levels; a name spelt
+  oddly is forgotten anyway). Sys_mkdir forgot every listing on each call, a folder made or not (every file written
+  asks for its folders: six times in a vrtesthall load, the server's 7700 misses looked up again by the client); now
+  only when it made one. `vr_fscache_test`: 22 passed (new: misses kept and forgotten by name, on another thread too).
+- **Limb models and smooth rigs, built only for what the map uses** (brief item 4): already so. Limbs are made for the
+  kinds the map's monsters are and those its triggers (probe pass 1) and, with vr_limbs_prebuild 2, its dispensers can
+  make (vrtesthall and vrstart place no monsters: their 16 kinds are the dispensers'/spawners'), and a kind first seen
+  later is built on the pool and precached one a frame (spawnFrame); smooth rigs are made for the precached alias
+  models with a rig (the same 16-18 kinds and the player). Nothing to cut without moving the author's chosen load-time
+  work (vr_limbs_prebuild 2) into play.
+- **Not done** (measured, left): a disk cache of the limb models and smooth rigs (brief item 3): the limbs' files are
+  built on the pool while the rigs warm (22 ms of vrtesthall's 137 ms limbs, sub-timed; the other 115 their 170
+  precaches on the main thread: skins, normal maps, draw lists, which a cached .mdl doesn't save), and the smooth rigs
+  are ~2-5 ms a kind (18 kinds, 42 ms): a cache would save at most ~60 ms of vrtesthall/vrstart, ~30 of hip2m5, ~10
+  of e1m1; with rigData's outputs (unfit masks, rebuilt keys, rest rows, fit statistics) and its inputs (the model's
+  poses, the derived ragdoll rig, three settings) it wasn't in this round's budget. Running each kind's rigData on the
+  pool at once (as the limbs' builds) is the cheaper next step. Item 5 (uploads off the main thread) skipped. The
+  normal maps of authored maps with heights need islands made each load (76 on vrtesthall, 24 ms).
+- **Checks**: eyeshots of vrtesthall, e1m3, e2m1, hip2m5 (dither and particles off), before vs after: 1522 pixels
+  differ, the before build twice: 2195 (the same regions). Covering cases (`run_baseline.sh --only` limb, ragdoll,
+  agrunt 1-6, animsmooth, selfchecks, stats_levelchange): 0 of 16 changed against baseline.tsv.
+- **Times** (interleaved ABBA, 5 rounds, exclusive, no-LTO, medians; cold: the session's first load, warm: the same
+  map again): vrtesthall cold 1173 -> 1147 ms (precache 164 -> 131, limbs 192 -> 148: their precaches' lookups),
+  vrstart 1536 -> 1440 (spawn 750 -> 681, limbs 213 -> 154), e1m1 916 -> 919 and hip2m5 1074 -> 1103 (within the
+  runs' +-100 ms spread; hip2m5's per-round differences -63, -11, -633, -38, +79). "Image files looked for, none found"
+  70 -> 6 ms (vrtesthall), 77 -> 6 (vrstart), 16 -> 5 (e1m1), 20 -> 6 (hip2m5). Warm loads unchanged (144-293 ms: the
+  models are kept). Scripts: scratch/load5_ab.sh, load5_abstats.py (not committed).

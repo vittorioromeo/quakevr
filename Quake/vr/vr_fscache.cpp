@@ -80,6 +80,7 @@ struct DirId
 struct Listing
 {
     Names files;
+    Names stems; // the files' names without their extensions (before the last '.'; VR_FileCacheHasStem)
     DirId id;
     bool known{false};
 };
@@ -87,10 +88,12 @@ ankerl::unordered_dense::map<za::String, Listing, NameHash, NameEqual> dirs; // 
 
 // The names COM_FindFile found in no search path while loading (as asked: a pak's names are case-sensitive), not
 // looked for again until the window ends (PROFILE_20261016 B4: a warm AD load asks 4800 names 28000 times, most of
-// them misses). Forgotten with any listing (a file written anywhere: a cache's too, on any thread), and when the search
-// paths or the folders a lookup skips change (VR_FileCacheSearchChanged).
+// them misses). A file written (anywhere, on any thread: a cache's too) forgets the names it may be found as
+// (forgetMisses); every listing forgotten forgets them all, and so do the search paths or the folders a lookup skips
+// changing (VR_FileCacheSearchChanged).
 Names misses;
 za::Atomic<bool> missesForgetAsked{false}; // VR_FileCacheSearchChanged from another thread
+za::U64 window = 1;       // VR_FileCacheWindow: new at each enable and each time every listing goes (main thread)
 za::U64 missesEpoch = 0;  // bumped as they are forgotten: a miss looked up before is not noted after (VR_FileCacheMissNote)
 za::U64 lookupEpoch = 0;  // ... the epoch the lookup being made started in (VR_FileCacheMissKnown)
 
@@ -100,11 +103,13 @@ void clearMisses()
     missesEpoch++;
 }
 
-// The directories other threads wrote in (VR_FileCacheForgetFile), for the main thread's next lookup to forget.
+// The directories other threads wrote in (VR_FileCacheForgetFile), for the main thread's next lookup to forget, and the
+// files' paths (folded: forgetMisses).
 struct Pending
 {
     za::AtomicMutex lock;
     za::Vector<DirId> ids;
+    za::Vector<za::String> paths;
 };
 Pending pending;
 
@@ -202,11 +207,84 @@ void fold(za::String& s)
     return true;
 }
 
-// Forgets the listings of the directory `id`, and those of directories that weren't there (it may be one of them now).
-void forget(const DirId& id)
+// `path` (UTF-8) folded, with its "." levels and doubled separators dropped, for forgetMisses; false if it can't be
+// told which names it may be (a ".." level, too long).
+[[nodiscard]] bool missPath(const char* path, za::String& out)
+{
+    out = path;
+    fold(out);
+    if(!caseInsensitive)
+    {
+        for(char& c : out)
+        {
+            c = c == '\\' ? '/' : c;
+        }
+    }
+    za::String clean;
+    za::SizeT start = 0;
+    while(start <= out.size())
+    {
+        za::SizeT end = start;
+        while(end < out.size() && out[end] != '/')
+        {
+            end++;
+        }
+        const za::StringView level = za::StringView{out}.substrByPosLen(start, end - start);
+        if(level == "..")
+        {
+            return false;
+        }
+        if(start == 0 || (!level.empty() && level != "."))
+        {
+            if(start != 0)
+            {
+                clean += '/';
+            }
+            clean += level;
+        }
+        start = end + 1;
+    }
+    out = ZA_MOVE(clean);
+    return out.size() < MAX_OSPATH;
+}
+
+// Forgets the misses the file written at `path` (missPath's; empty: unknown) may be found as now: the names it ends
+// with ("progs/x.mdl_0.png" for <a search path>/progs/x.mdl_0.png, in any case where the file system ignores it).
+// The other misses stay misses: a file written makes only its own name findable. (Until 2026-10-30 every write
+// forgot them all: the config written while the first map loads had the client's precaching look up again the
+// thousands of names its server had missed.)
+void forgetMisses(za::StringView path)
+{
+    missesEpoch++; // (a lookup made meanwhile is not noted: it may have missed the file)
+    if(path.empty())
+    {
+        misses.clear();
+        return;
+    }
+    char name[MAX_OSPATH];
+    erase_if(misses, [&](const za::String& miss) {
+        const za::StringView m{miss};
+        if(m.empty() || m.contains("./") || m.contains("//") || m.contains('\\') || m.startsWith('/') || m.endsWith('.'))
+        {
+            return true; // (a name spelt another way than missPath's: forgotten, whatever was written)
+        }
+        if(miss.size() > path.size())
+        {
+            return false;
+        }
+        memcpy(name, miss.data(), miss.size());
+        fold(name, miss.size());
+        const za::SizeT at = path.size() - miss.size();
+        return (at == 0 || path[at - 1] == '/') && path.substrByPosLen(at) == za::StringView{name, miss.size()};
+    });
+}
+
+// Forgets the listings of the directory `id`, and those of directories that weren't there (it may be one of them now),
+// and the misses the file `path` may be (forgetMisses).
+void forget(const DirId& id, za::StringView path)
 {
     erase_if(dirs, [&](const auto& entry) { return !entry.second.known || entry.second.id == id; });
-    clearMisses();
+    forgetMisses(path);
 }
 
 // What other threads asked (the main thread's, before a lookup).
@@ -220,8 +298,10 @@ void takePending()
     {
         dirs.clear();
         clearMisses();
+        window++;
     }
     za::Vector<DirId> ids;
+    za::Vector<za::String> paths;
     {
         za::LockGuard guard{pending.lock};
         if(pending.ids.empty())
@@ -229,19 +309,20 @@ void takePending()
             return;
         }
         ids.swap(pending.ids);
+        paths.swap(pending.paths);
     }
-    for(const DirId& id : ids)
+    for(za::SizeT i = 0; i < ids.size(); i++)
     {
-        forget(id);
+        forget(ids[i], i < paths.size() ? za::StringView{paths[i]} : za::StringView{});
     }
 }
 
-const Names& listing(za::StringView dir)
+const Listing& listing(za::StringView dir)
 {
     const auto it = dirs.find(dir);
     if(it != dirs.end())
     {
-        return it->second.files;
+        return it->second;
     }
     const za::String key{dir};
     Listing& l = dirs[key];
@@ -253,10 +334,15 @@ const Names& listing(za::StringView dir)
         {
             za::String name = f->name;
             fold(name);
+            const za::SizeT dot = za::StringView{name}.findLastOf('.');
+            if(dot != za::StringView::nPos)
+            {
+                l.stems.insert(za::String{za::StringView{name}.substrByPosLen(0, dot)});
+            }
             l.files.insert(ZA_MOVE(name));
         }
     }
-    return l.files;
+    return l;
 }
 
 } // namespace
@@ -271,6 +357,17 @@ extern "C" void VR_FileCacheEnable(int on)
     takePending(); // (all listed afresh from now on: what was asked before is in the new listings)
     dirs.clear();
     clearMisses();
+    window++;
+}
+
+extern "C" unsigned long long VR_FileCacheWindow()
+{
+    if(!enabled.loadSeqCst() || za::ThisThread::getId() != owner)
+    {
+        return 0;
+    }
+    takePending(); // (another thread's VR_FileCacheForget: a new window)
+    return window;
 }
 
 extern "C" int VR_FileCacheEnabled()
@@ -287,6 +384,7 @@ extern "C" void VR_FileCacheForget()
     }
     dirs.clear();
     clearMisses();
+    window++;
 }
 
 extern "C" void VR_FileCacheSearchChanged()
@@ -336,13 +434,19 @@ extern "C" void VR_FileCacheForgetFile(const char* path)
         VR_FileCacheForget();
         return;
     }
+    za::String folded;
+    if(!missPath(path, folded))
+    {
+        folded.clear(); // (every miss forgotten)
+    }
     if(za::ThisThread::getId() != owner)
     {
         za::LockGuard guard{pending.lock};
         pending.ids.pushBack(id);
+        pending.paths.pushBack(ZA_MOVE(folded));
         return;
     }
-    forget(id);
+    forget(id, folded);
 }
 
 extern "C" void VR_FileCacheForgetMoved(const char* from, const char* to)
@@ -362,7 +466,11 @@ extern "C" void VR_FileCacheForgetMoved(const char* from, const char* to)
     VR_FileCacheForgetFile(to);
 }
 
-extern "C" int VR_FileCacheHas(const char* path)
+namespace
+{
+
+// VR_FileCacheHas (`stem` false) and VR_FileCacheHasStem (true).
+[[nodiscard]] int hasName(const char* path, bool stem)
 {
     if(!enabled.loadSeqCst() || za::ThisThread::getId() != owner)
     {
@@ -392,8 +500,21 @@ extern "C" int VR_FileCacheHas(const char* path)
     {
         return -1;
     }
-    const Names& files = listing(view.substrByPosLen(0, slash));
-    return files.find(view.substrByPosLen(slash + 1)) != files.end() ? 1 : 0;
+    const Listing& l = listing(view.substrByPosLen(0, slash));
+    const Names& names = stem ? l.stems : l.files;
+    return names.find(view.substrByPosLen(slash + 1)) != names.end() ? 1 : 0;
+}
+
+} // namespace
+
+extern "C" int VR_FileCacheHas(const char* path)
+{
+    return hasName(path, false);
+}
+
+extern "C" int VR_FileCacheHasStem(const char* path)
+{
+    return hasName(path, true);
 }
 
 namespace
@@ -452,6 +573,17 @@ void testCommand()
     check(listed(other), "another directory's listing kept");
     check(Sys_remove((root + "/a.tmp").cStr()) == 0 && has(root + "/a.tmp") == 0, "a removed file gone");
 
+    // misses (COM_FindFile's, by the game directory's search path): a file written forgets its own name only
+    const auto miss = [](const char* name) { return misses.find(za::StringView{name, strlen(name)}) != misses.end(); };
+    check(!COM_FileExists("fscache_test/m.tmp", nullptr) && !COM_FileExists("fscache_test/n.tmp", nullptr) &&
+              miss("fscache_test/m.tmp") && miss("fscache_test/n.tmp"),
+        "misses noted");
+    check(write(respelt(root, "m.tmp")) && COM_FileExists("fscache_test/m.tmp", nullptr), "a miss written by another spelling found");
+    check(miss("fscache_test/n.tmp"), "another miss kept");
+    check(write(other + "/n.tmp") && miss("fscache_test/n.tmp") && !COM_FileExists("fscache_test/n.tmp", nullptr),
+        "a miss kept when a file of its name is written in another directory");
+    check(!COM_FileExists("fscache_test/d.tmp", nullptr), "a miss of a file another thread writes");
+
     check(write(root + "/c.tmp") && has(root + "/c.tmp") == 1 && has(other + "/c.tmp") == 0, "a file to move");
     check(Sys_ReplaceFile((root + "/c.tmp").cStr(), (other + "/c.tmp").cStr()) == 0, "moved");
     check(has(root + "/c.tmp") == 0 && has(other + "/c.tmp") == 1, "a moved file in its new directory only");
@@ -475,6 +607,7 @@ void testCommand()
         job.get();
     }
     check(!offMain.loadSeqCst() || has(root + "/d.tmp") == 1, "a file written on another thread found");
+    check(COM_FileExists("fscache_test/d.tmp", nullptr), "a miss written on another thread found");
     if(!offMain.loadSeqCst())
     {
         Con_Printf("fscache test: the job ran on the main thread (no worker took it): not a test of another thread's\n");

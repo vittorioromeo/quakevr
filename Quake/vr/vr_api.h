@@ -154,8 +154,10 @@ void VR_TimeFrameEnd (int signedon, int idle);	// end of _Host_Frame: the first 
 
 // The loose files' presence while the game starts and a map loads (vr_fscache.cpp; COM_FindFile, Sys_fopen).
 int VR_FileCacheHas (const char *path);	// 1 a file, 0 none, -1 not known (ask the file system)
+int VR_FileCacheHasStem (const char *path);	// ... a file named `path` + "." + an extension (COM_StemNowhere)
 void VR_FileCacheEnable (int on);	// VR_TimeStart, VR_TimeLoadBegin on; the first frame drawn off
 void VR_FileCacheForget (void);	// every listing (a directory made, moved or removed; bulk work)
+unsigned long long VR_FileCacheWindow (void);	// the main thread's listings' window (a number, new at each enable and VR_FileCacheForget), 0 if not in one: what's read in it stays true until the next
 void VR_FileCacheForgetFile (const char *path);	// a file made, written or removed (after it): its directory's listing
 void VR_FileCacheRegisterCommands (void);	// vr_fscache_test
 int VR_FileCacheMissKnown (const char *name);	// COM_FindFile: `name` found nowhere earlier in this load (main thread, while loading)
@@ -591,6 +593,7 @@ void VR_SndListener (float *origin, float *forward, float *right, float *up);	//
 int VR_SndSpatialize (channel_t *ch);				// start of SND_Spatialize: nonzero if it set the volumes (a hand's sound); moves a sound following its entity
 int VR_SndHandOf (const channel_t *ch, float *hand);	// snd_show 2: the hand (0 main, 1 off; -1 not a hand's) a channel plays from, `hand` its place
 void VR_SndStarted (channel_t *ch);					// end of S_StartSound: a new sound on the channel
+int VR_SndShot (int entnum, int entchannel, sfx_t *sfx, const float *origin, float *fvol, float attenuation, float *pitch); // start of S_StartSound: a gun's shot varied and its layers started, an empty gun's click (vr_gunsfx.cpp); 0: not played
 void VR_SndStopAll (void);							// S_StopAllSounds, the channels cleared: every voice let go (none left on a cleared channel)
 int VR_SndKeepStatics (void);						// S_Update: nonzero: the static sounds of one sample not combined (each has its place)
 int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's end, rounded down to whole frames of the voices
