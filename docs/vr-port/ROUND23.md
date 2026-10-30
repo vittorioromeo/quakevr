@@ -2047,8 +2047,8 @@ author's own value where he set one: the kit's `scratch/refactor/tiers.md` (made
 - **The QC** still reads constants by name: `Cvar_VariableValue`/`String` and `cvar_hmake` fall back to the
   constants' unregistered stand-in cvars (`tunableFind`). An old config's line for a constant is ignored like a retired
   setting's (`VR_RetiredCvar`).
-- **Tuning build:** `MSBuild ... -p:QvrTuning=1` (QVR_TUNING) makes every constant an archived cvar again, set from the
-  console (no menu rows: those are gone).
+- **Tuning build:** gone (`-p:QvrTuning=1`, QVR_TUNING): every development build tunes them live now ("Live tuning of
+  the tuning constants", below).
 - **Removed:** 1,094 cvars from vr_cvars.inc, about 1,000 menu rows with their help (menus 2,214 lines fewer), the
   migration rows of the constants. Not done: the test tier's few rows still on player pages (Show Melee Arcs and the
   like, 25 pages) are not yet moved to Debug pages; the "0: old side" switches he doesn't use are still options (a
