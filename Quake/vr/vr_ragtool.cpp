@@ -7,6 +7,7 @@
 #include "vr_ragtool.hpp"
 
 #include "vr_box3d.hpp"
+#include "vr_disarmviz.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
@@ -1133,7 +1134,7 @@ extern "C" int VR_RagtoolView(float* origin, float* angles)
 // a headset's eye draws them in its UI pass (vr_stereo.cpp drawUi).
 extern "C" void VR_RagtoolOverlay(void)
 {
-    if(!tool.on || vrActive())
+    if((!tool.on && !disarmviz::on()) || vrActive()) // (Show Disarm Volumes' lines too)
     {
         return;
     }

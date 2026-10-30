@@ -1089,6 +1089,10 @@ float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
     }
     if(h == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
     VR_AG_Disarm(g, VRGetEntHandVel(pl, h) - pl.velocity, 100 + sp * 15, sprintf("a blow of %.1f m/s on its weapon", sp));
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(p, VRGetEntHandPos(pl, h), VR_DV_DISARM, sprintf("strike %.1f m/s on its weapon", sp));
+    }
     return TRUE;
 };
 

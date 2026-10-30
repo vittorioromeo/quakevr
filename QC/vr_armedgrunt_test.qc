@@ -1354,6 +1354,7 @@ void(float t) VR_AGCT_Frame; // (vr_armedgrunt_close_test.qc)
 void(float t) VR_AGGT_Frame; // (vr_armedgrunt_grab_test.qc)
 void(float t) VR_AGDT_Frame; // (vr_armedgrunt_downtug_test.qc)
 void() VR_AGRW_Frame; // (vr_armedgrunt_ragweapon_test.qc)
+void() VR_DVT_Frame; // (vr_disarmviz_test.qc)
 void(float t) VR_AGRT_Frame; // (armed humanoid replacements: vr_armedrepl_test.qc)
 void() VR_AGRT_Begin;
 void() VR_RST_Frame; // (vr_rigseq_test.qc)
@@ -1451,6 +1452,7 @@ void() VR_AGTest_Frame =
     else if(t == 90) { VR_AGGD_Frame(); } // (the fists' guard in game as the studio shows it: vr_armedgrunt_guard_test.qc)
     else if(t == 93) { VR_AGS_ProjTestFrame(); } // (projectiles' own rolls: vr_armedgrunt_shot_test.qc)
     else if(t == 94) { VR_AGST_Frame(); } // (a deliberate strike or throw on its weapon or hand: vr_armedgrunt_strike_test.qc)
+    else if(t == 97) { VR_DVT_Frame(); } // (Show Disarm Volumes in each state, its eye images: vr_disarmviz_test.qc)
     else if(t == 92) { VR_AG2_Frame(); } // (two hands in the tug, a staggering or downed one's eased tug: vr_armedgrunt_twohand_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {

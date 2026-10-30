@@ -60,6 +60,16 @@ float() VR_AG_Dying;                                                       // ar
 void(entity attacker, entity targ) VR_AG_Parried;                          // VR_Parry: its blow parried (a chance to disarm)
 float(entity e) VR_AG_Striking;                                            // VR_Parry_MeleeMonster: its melee blow under way
 
+// Debug > Show Disarm Volumes (vr_disarmviz.qc): the disarm tests mark their hits (guarded by vr_dv_on: nothing built
+// while it is off).
+float vr_dv_on;          // vr_debug_disarm this frame (VR_DV_Frame)
+float VR_DV_PARRY = 1;   // a parry on its weapon
+float VR_DV_DISARM = 2;  // knocked out of its hand
+float VR_DV_BODY = 3;    // a blow on its body that didn't disarm
+float VR_DV_SHOT = 4;    // a shot counted on its weapon or hand
+float VR_DV_BLOCKED = 5; // a pellet or nail its weapon stopped
+void(entity e, vector at, float what, string why) VR_DV_Mark;
+
 // Parrying melee blows with its weapon (vr_armedgrunt_parry.qc; vr_agrunt_parry).
 .float vr_agpar_w;         // the parry pose's share, eased
 .vector vr_agpar_t;        // the blow coming: its point (body space, eased)

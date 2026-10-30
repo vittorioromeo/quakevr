@@ -280,6 +280,14 @@ float(entity g, entity by, float h, float damage) VR_AGPar_Parried =
             VR_AG_Swap(g); // (the weapon that took the blow)
         }
         VR_AG_Disarm(g, away * -1, 140, "parried until its strength gave out");
+        if(vr_dv_on)
+        {
+            VR_DV_Mark(g, vr_agpar_x, VR_DV_DISARM, "parried: its strength gave out");
+        }
+    }
+    else if(vr_dv_on)
+    {
+        VR_DV_Mark(g.vr_ag_prop, vr_agpar_x, VR_DV_PARRY, sprintf("parry: stamina %.2f of %g", load, count));
     }
     return damage * kept;
 };
@@ -504,6 +512,10 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
     vr_ag_strike_dis = vr_ag_strike_dis + 1;
     vr_ag_strike_why = sprintf("a %.1f m/s strike on %s: %s", sp, where, why);
     VR_AG_Log(sprintf("strike: disarmed (%s)", vr_ag_strike_why));
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(g.vr_ag_prop, x, VR_DV_DISARM, sprintf("strike %.1f m/s on %s", sp, where));
+    }
     VR_AG_Disarm(g, VRGetEntHandVel(pl, h) - pl.velocity, 100 + sp * 15, vr_ag_strike_why);
     return VR_AG_STRIKE_DISARM;
 };
@@ -570,6 +582,10 @@ float(entity g, entity e) VR_AG_ThrowOnWeapon =
     vr_ag_strike_dis = vr_ag_strike_dis + 1;
     vr_ag_strike_why = what;
     VR_AG_Log(sprintf("strike: disarmed (%s)", what));
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(g.vr_ag_prop, c, VR_DV_DISARM, what);
+    }
     VR_AG_Disarm(g, dir, 120, what);
     return TRUE;
 };
