@@ -1779,7 +1779,8 @@ void legTry(int c, edict_t* m, const char* what, const char* last, float speed, 
 }
 
 // legCheck's phases: its first-frame log line.
-void legLog(Holder& hd, edict_t* m, int mask, bool both, const LegPart (&parts)[2], const char* const (&bones)[2], float weight)
+void legLog(Holder& hd, edict_t* m, int mask, bool both, const LegPart (&parts)[2], const char* const (&bones)[2],
+    float weight)
 {
     if(debug() && !hd.legLogged && !both)
     {
