@@ -1528,7 +1528,11 @@ them); an armed grunt's thunderbolt is a stream (no shot event).
   20), made by the tree's `scratch/shots.py c1 side ...`.
 - Tests: gunfx_test.py 29/29 (now: sparks >= 3, the nail pistol's vents, a monster rocket's exhaust; the armed
   rocket grunt alone in vrtesthall, `vr_agrunt_test 111`: on e1m1 the wall 360 units ahead brought it close and it
-  clubbed you, the failure of the second pass).
+  clubbed you, the failure of the second pass). Covering cases vs baseline.tsv (run_baseline.sh --only): collectfx,
+  reload_gunshape, shot_shape, console nail_1, np_1 all PASS (np_1 21 -> 23 passes: the merged slide tests).
+- A/B bench (ThinLTO, origin/next vs this branch, ABBAABBAAB, exclusive, medians of 5): combat_48 cpu 2.470 ->
+  2.478 ms, gpu 3.361 -> 3.362, p99 11.230 -> 11.217; play_gore_fight (super nailgun) cpu 2.375 -> 2.347, gpu
+  2.627 -> 2.622, p99 11.214 -> 11.234: within noise (scratch/ab_out3.txt, ab_stats.py).
 
 ## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
 
