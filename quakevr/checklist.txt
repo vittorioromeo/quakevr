@@ -172,6 +172,11 @@ Raise your weapon near a grunt (the wind-up parry) or step in close (the prevent
 Hold the flashlight in one hand, point that hand at a box and pull the trigger: no force grab lock-on (the other hand locks on).
 Two-hand the super shotgun, point the fore-end hand at a pickup with the trigger: no lock-on; let go of the fore-end: it locks on and pulls.
 Force grab, weapon pickups (floor, thrown, a grunt's), the holster draw and the hand-off feel as before.
+Start any map with grunts or enforcers (e1m1, e1m2): every one is armed, holding its own gun.
+Relight a map (Graphics > Relighting > Relight This Map): it is slightly brighter in dark corners than before (Ambient Light Level 64).
+Relight the map you are in: it reloads at once where you stand, without restarting the map.
+With Ghost Hands on, the ghost appears only once the drawn hand is about 9 cm from your real one (was 6).
+With replacements on, a Grunt from the toolgun, the Debug menu spawner or the Rig Studio is a plain unarmed grunt; the Armed Grunt entries are still armed.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
