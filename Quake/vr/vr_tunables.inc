@@ -1,8 +1,10 @@
 // vr_tunables.inc -- Quake VR's tuning constants: QVR_TUNABLE(name, default) (vr_cvars.hpp, "Tuning constants").
-// Numbers tuned once that no player sets: no menu row, not in the config. Constexpr in a release build (read as
-// name.value, name.string, or by name from the QC); an archived cvar in a tuning build (MSBuild -p:QvrTuning=1). A player
-// setting is a QVR_CVAR in vr_cvars.inc; to make one of these a setting again, move its line back there and give it a
-// menu row. The list per page and why: ROUND23.md, "Settings tiers".
+// Numbers tuned once that no player sets: no menu row of their own, not in the config. Read as name.value, name.string
+// (or by name from the QC). Tuned live in a development build (tune <name> <value>, Debug > Tunables, tunables.cfg;
+// vr_tunables.cpp), constexpr in a release (QVR_RELEASE). Each has its Tunables page row in vr_tunables_rows.inc (same
+// order; the build checks). Misc/quakevr/tune_promote.py writes a tunables.cfg's values here as the new defaults. A
+// player setting is a QVR_CVAR in vr_cvars.inc; to make one of these a setting again, move its line back there and give
+// it a menu row. The list per page and why: ROUND23.md, "Settings tiers".
 
 // (no menu row) > (no menu row)
 QVR_TUNABLE(vr_compat_muzzle, "1") // with another mod's progs, its shots start at the gun, not the player's head

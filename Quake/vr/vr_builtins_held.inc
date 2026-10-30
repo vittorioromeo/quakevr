@@ -142,6 +142,21 @@ void PF_weapondrawnpose()
         }
         return;
     }
+    if(what == 29)
+    {
+        // weapondrawnpose(e, side, 29): armed humanoid `e`'s drawn hand `side` (0 right) less its head's middle (model
+        // space: x forward, y left, z up), as this listen server's own view drew it this frame or the last; '0 0 0' not
+        // drawn lately (agarms::drawnHandFromHead; QC test 90, the fists' guard as the Pose Studio shows it).
+        glm::vec3 rel{0.f};
+        int frame = -1;
+        const bool local = sv.active && cls.state == ca_connected;
+        if(!local || !agarms::drawnHandFromHead(NUM_FOR_EDICT(player), hand, rel, frame) || host_framecount - frame > 2)
+        {
+            rel = glm::vec3{0.f};
+        }
+        progs::returnVec(rel);
+        return;
+    }
     if(what == 20)
     {
         // weapondrawnpose(e, 0, 20): '<e's entity number> 0 0' (the glitch finder's subject: vr_agglitch_ent).

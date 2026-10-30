@@ -151,6 +151,11 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
 // Whether `e` is drawn with posed arms now (solved this frame, or easing back to its animation's).
 [[nodiscard]] bool active(const entity_t* e);
 
+// Entity `num`'s drawn hand `side` (0 right; its middle) less its head's middle, as last solved (model space: x
+// forward, y left, z up), and the host frame it was solved in. False: never solved, or its rig has no head (QC test 90:
+// weapondrawnpose(e, side, 29)).
+bool drawnHandFromHead(int num, int side, glm::vec3& out, int& frame);
+
 // A ragdoll made of `num` (vr_box3d_ragdoll.cpp createRagdoll): rig bone `bone`'s frame (as ragdoll::bonePose's: `rot`,
 // `pos` given its frame's, model units) moved to where its posed arms were last drawn (an upper arm, a forearm, a hand:
 // on its weapons, not the animation's), eased as they were. False (left as given): not one of them, or not posed lately.

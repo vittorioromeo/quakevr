@@ -246,6 +246,7 @@ int build(HandWisps& h, Strand& s, int barrel, const ribbons::View& view, za::Ve
     const float spread = za::clamp(vr_gunfx_wisp_spread.value, 1.f, 10.f) - 1.f;
     const float halfWidth = 0.5f * za::clamp(vr_gunfx_wisp_width.value, 0.05f, 20.f) * 0.01f * units::metresToUnits();
     const float amount = za::clamp(vr_gunfx_wisp_amount.value, 0.f, 4.f);
+    const float most = za::clamp(vr_gunfx_wisp_opacity.value, 0.02f, 1.f);
     const float grey = za::clamp(0.48f + 0.3f * h.light, 0.48f, 0.9f);
     const glm::vec3 colour = glm::vec3{0.94f, 0.97f, 1.f} * grey;
     int drawn = 0;
@@ -260,7 +261,7 @@ int build(HandWisps& h, Strand& s, int barrel, const ribbons::View& view, za::Ve
         const float a = za::clamp(age / fade, 0.f, 1.f);
         const float widen = 1.f + spread * a;
         const float alpha = amount * strength * glm::smoothstep(0.f, kEmerge, age) * za::pow(1.f - a, 1.5f) / (0.4f + 0.6f * widen);
-        points.pushBack(ribbons::Point{pos, halfWidth * widen, glm::vec4{colour, za::min(alpha, 1.f)}});
+        points.pushBack(ribbons::Point{pos, halfWidth * widen, glm::vec4{colour, za::min(alpha, most)}});
     };
     points.clear();
     for(int i = 0; i < s.count; i++)

@@ -41,7 +41,8 @@ struct View
 // Catmull-Rom curve, appended to `out` as triangles. Returns the vertices added.
 int append(za::Vector<gfx::Vertex>& out, const View& view, za::Span<const Point> points, int smoothing);
 
-// All the ribbons appended, in one draw: depth tested, not written, alpha blended (or added: `additive`).
+// All the ribbons appended, in one draw: depth tested, not written, alpha blended (or added: `additive`), each pixel
+// once (gfx::State::once: a ribbon folding over itself on a sharp turn, or two crossing, no denser there).
 void draw(za::Span<const gfx::Vertex> triangles, bool additive);
 
 } // namespace qvr::ribbons

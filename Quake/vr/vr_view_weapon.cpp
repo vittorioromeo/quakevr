@@ -244,7 +244,7 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
     }
     queuedFrame[hand] = host_framecount;
 
-    const glm::vec3 pos = view::anchorPosition(ve, weapons::anchor(slot, Key::WpnTextAnchor),
+    const glm::vec3 pos = view::screenPosition(ve, weapons::anchor(slot, Key::WpnTextAnchor),
         weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
 
     glm::vec3 angles = weapons::vec(slot, Key::WpnTextPitch, Key::WpnTextYaw, Key::WpnTextRoll);
@@ -517,8 +517,9 @@ namespace
 // The firing animation's move of a drawn weapon at the world point `at`: the rigid motion (least squares: Kabsch, by
 // a polar decomposition) of the model's vertices round `at`, weighted by their distance beyond the nearest one's
 // (over 7 cm), from its rest pose (frame 0) to the pose drawn this frame, as a world transform. A hand holding the
-// weapon there (its arm, a hand steadying it) moves with it: the shotgun's kick takes the arm back with it, as the
-// hand drawn at a vertex of the weapon did before round 21. The identity where the model doesn't move.
+// weapon there (its arm, a hand steadying it) moves with it: a hand on a part the animation moves (a pump, a slide)
+// goes with that part, as the hand drawn at a vertex of the weapon did before round 21 (the vertices as drawn: the
+// models' own kick taken out, vr_kickcancel.cpp, so the body holds still). The identity where the model doesn't move.
 [[nodiscard]] glm::mat4 animationMotion(const view::ViewEntity& ve, const glm::vec3& at)
 {
     za::Vector<glm::vec3>& rest = scratch.restVerts;
@@ -1070,8 +1071,7 @@ void placeMorph(const WeaponFrame& wf, int frame)
         const glm::vec3 ot = carried ? weaponTurn(rot, oldSlot, mirrored) : heldWeaponTurn(rot, hand, oldSlot, mirrored);
         place(old, m.from, held.pos, {-ot.x, ot.y, ot.z},
             za::clamp(frame, 0, za::max(m.from->numframes - 1, 0)), mirrored);
-        const bool oldFixed2H = hasGripHotspot(oldSlot);
-        old.zeroBlend = weapons::value(oldSlot, oldFixed2H && twohand::helping(1 - hand) && !twohand::freeHelping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
+        old.zeroBlend = 0.f;
         ve.morph = morphValue(t, m.kind, true);
         old.morph = morphValue(t, m.kind, false);
     }
@@ -1098,6 +1098,10 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
 {
     view::ViewEntity& ve = entities.weapon[hand];
     const int slot = weapons::slotForModel(model);
+    if(vr_debug_weapon_frame.value >= 0.f && model && !floating)
+    {
+        frame = za::clamp(static_cast<int>(vr_debug_weapon_frame.value), 0, za::max(model->numframes - 1, 0)); // (Debug > Weapons)
+    }
 
     // A gun hanging from its foregrip (the hand-off, vr_twohand.cpp): drawn as the hand that let it go
     // held it, carried by this hand.
@@ -1138,11 +1142,10 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     }
     drawnFrame[hand] = model && modelmeta::is(model, modelmeta::Id::VGrpple) ? frame : -1;
 
-    // Steadied in the "fixed" two-handed display mode (a grip hotspot: the helping hand drawn on it): the weapon's
-    // own blend towards frame 0 for that grip (old engine's V_SetupHandViewEnts).
-    // Not held anywhere: a hotspot's own setting (NOTES.md vrfiringrange_2026-10-01_17-13-04).
+    // No blend towards frame 0 (that steadied the models' own kick, two-handed: the kick is taken out now,
+    // vr_kickcancel.cpp, and the programmatic recoil kicks them; a blend would only damp their parts).
     const bool fixed2H = model && slot >= 0 && hasGripHotspot(slot);
-    ve.zeroBlend = weapons::value(slot, fixed2H && twohand::helping(1 - hand) && !twohand::freeHelping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
+    ve.zeroBlend = 0.f;
 
     // The super shotgun broken open: how far its barrels are drawn down now (its parts: setupSsgParts).
     const float ssgOpen = ssgStep(ssgHands[hand], floating ? nullptr : model,

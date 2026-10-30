@@ -1017,6 +1017,9 @@ za::Vector<Item> pageDebugTests()
         command("Nail Pistols in Both Hands", "vr_np_test 3").help("A loaded nail pistol in each hand."),
         command("Nail Pistols in the Holsters", "vr_np_test 4")
             .help("A loaded nail pistol in the right hip and the right upper holster (replacing what was there)."),
+        command("Empty Nail Pistols: Holstered and Lying", "vr_np_test 6")
+            .help("An empty nail pistol in the right hip holster and a loaded one in the right upper; an empty and a "
+                  "loaded one lying ahead of you: the empty ones' slides drawn locked back, as in a hand."),
         command("Nail Pistol Self-Test", "vr_np_test 1")
             .help("Headless checks: semi-automatic, the cooldown, 12 hits and a dry 13th, the slide, the magazine cycle, two headshots or three body shots a grunt, armed grunts firing one and a pair (\"nptest: N passed, M failed\")."),
         command("Hang Nails Before Your Eyes", "vr_nail_test 2")
@@ -1025,10 +1028,18 @@ za::Vector<Item> pageDebugTests()
         command("Nail Speed and Size Test", "vr_nail_test 1")
             .help("Headless: the nailguns', the nail pistol's and an armed grunt's nails' speed (15-20% above 1750 and "
                   "2600), a nail's hit box (a point; a grunt met only within its box and the tolerance, the middle never "
-                  "missed) and the nails' drawn size (\"nailtest: N passed, M failed\")."),
+                  "missed), the nails' drawn size and a dropped backpack lying ahead met only where it is drawn "
+                  "(\"nailtest: N passed, M failed\")."),
+        command("Nails at a Dropped Backpack", "vr_nail_test 3")
+            .help("Headless: a backpack dropped as a monster drops it, settled; nails across and over it meet it only at "
+                  "its drawn box as it lies, none beyond it (not the pickup box 15 units wider), none flying through it "
+                  "(\"nailtest: N passed, M failed\")."),
         toggle("Slide: Print", vr_nailslide_debug)
             .help("vr_nailslide_debug: the slide's place in each hand every frame it moves (0 home .. 1 back by Slide "
                   "Travel) and its edges: a shot, the lock, the re-rack (\"nailslide: ...\")."),
+        cycle("Nail Pistol Model (Archived)", "vr_nailpistol_model", {{0.f, "Classic"}, {1.f, "Full Slide"}})
+            .help("vr_nailpistol_model: its look. Full Slide (the default): the whole upper part is the slide, as a real "
+                  "pistol's. Classic (archived, kept to compare): a copper slide on top of the receiver. Changes at once."),
         command("Nail Pistol Aim Test", "vr_np_test 5")
             .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "
                   "0.2 degrees, at several poses and distances, both hands (\"npaim: N passed, M failed\"). In the headset: "
@@ -1099,8 +1110,11 @@ za::Vector<Item> pageDebugTests()
             .help("vr_gunfx_monster_test [rocket]: the nearest grunt, enforcer or AD soldier fires its own gun's effects (1: "
                   "as a rocket tube, AD's rocket soldier's: flash, smoke, backblast out of the gun's back). Nothing else happens."),
         command("Impact Where You Look: Bullet", "vr_impact_test 0 3")
-            .help("vr_impact_test <0 bullet, 1 nail, 2 super nail, 3 bolt> [count]: what that hit throws up off the surface "
-                  "you look at, by its material (vr_impacts.cpp)."),
+            .help("vr_impact_test <0 bullet, 1 nail, 2 super nail, 3 bolt> [count] [material] [spread]: what that hit throws "
+                  "up off the surface you look at, and its sound there, by its material (vr_impacts.cpp)."),
+        command("Impact Sounds: Six Pellets Spread", "vr_impact_test 0 6 stone 40")
+            .help("vr_impact_test 0 6 stone 40: six bullet hits 40 units apart in one frame on what you look at: two "
+                  "sounds, the rest capped (vr_debug_gunsfx 1 prints \"impsnd ...\" for each)."),
         command("Impact Where You Look: Bolt Haze", "vr_impact_test 3 8").help("vr_impact_test 3 8: the thunderbolt's ozone haze."),
         toggle("Print Impact Effects", vr_debug_impacts)
             .help("vr_debug_impacts: every particle2 message and QC sound the server sends (\"impfx p2 <preset> <count> "
@@ -1111,9 +1125,13 @@ za::Vector<Item> pageDebugTests()
                   "(vr_impacts_test.qc)."),
         toggle("Print Gunfire Particles", vr_debug_gunfx)
             .help("vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\")."),
+        toggle("Wisps Overlap Again", vr_debug_ribbon_overlap)
+            .help("vr_debug_ribbon_overlap: the muzzle wisps blend twice where they fold over themselves (a sharp swing), "
+                  "as before the fix: the denser creases, to compare."),
         command("Per-Weapon Recoil Test", "vr_recoil_test")
             .help("vr_recoil_test: the main hand's weapon's own Recoil Kick Back and Muzzle Rise move its recoil only "
-                  "(no other weapon's), and its Recoil Recovery 2x / 0.5x takes twice / half as long back to rest; "
+                  "(no other weapon's), Recoil Amount scales it, its Return Time 2x / 0.5x takes twice / half as long "
+                  "back to rest, and the old multipliers converted (this start's config too) draw the same kick; "
                   "prints PASS/FAIL lines and puts every value back."),
         command("Gunfire Sound and Punch Test", "vr_gunsfx_test")
             .help("vr_gunsfx_test: every shot's layers and room tail, the variation, the casings by surface, the dry "
@@ -1126,6 +1144,16 @@ za::Vector<Item> pageDebugTests()
         slider("Hold the Auto Pump", vr_autopump_hold, -0.05f, 1.f, 0.05f, "%.2f")
             .help("vr_autopump_hold: every shotgun's fore-end held at that point of its auto pump's stroke, to look at it "
                   "(0.35-0.45: at the back; below 0: off)."),
+        toggle("Take Out the Models' Own Kick", vr_weapon_kick_cancel)
+            .help("vr_weapon_kick_cancel: Quake's guns' firing frames kick the whole gun back and up in the model; that kick "
+                  "is taken out as they are drawn (their pumps, barrels and drums still move) and the programmatic recoil "
+                  "kicks them instead. Off: the models' own kick again, to compare."),
+        slider("Hold the Weapon Frame", vr_debug_weapon_frame, -1.f, 12.f, 1.f, "%.0f")
+            .help("vr_debug_weapon_frame: the held weapons drawn at this frame of their models (1-6: the firing frames of "
+                  "most), to look at a kick with and without the models' own (below 0: as the game steps them)."),
+        command("Kick Cancel Test", "vr_kickcancel_test")
+            .help("vr_kickcancel_test: every kicking gun's model drawn at each of its frames keeps its body where its rest "
+                  "frame draws it (its parts may move); prints each model's body, parts and kicked frames, and a verdict."),
         header("Flung Props"),
         slider("Fling Speed", vr_test_fling_speed, 1.f, 40.f, 1.f, "%.0f m/s").extend(),
         cycle("Fling At", vr_test_fling_at, {{0.f, "Nearest Monster"}, {1.f, "You"}}),

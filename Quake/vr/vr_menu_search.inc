@@ -396,6 +396,9 @@ void buildSearchIndex()
     search.index.clear();
     const int was = levelOverride;
     levelOverride = LevelDeveloper;
+#ifndef QVR_RELEASE
+    tunablesPageUnfiltered = true; // the Tunables page's every row, whatever it shows (vr_menu_tunables.inc)
+#endif
     int from[pageCount];
     const char* link[pageCount]{};
     int needs[pageCount]{};
@@ -478,6 +481,9 @@ void buildSearchIndex()
         }
     }
     levelOverride = was;
+#ifndef QVR_RELEASE
+    tunablesPageUnfiltered = false;
+#endif
     if(!search.recentLoaded)
     {
         searchLoadRecent();
@@ -577,6 +583,13 @@ void openEntry(int entry)
     const int target = e.page;
     const za::String label = e.label;
     const bool isPage = e.isPage;
+    const cvar_t* const cvar = e.cvar;
+#ifndef QVR_RELEASE
+    if(target == pageIndex(pageTunables))
+    {
+        tunablesShowAll(); // (a row the filter hides is shown)
+    }
+#endif
     // Back from the result's page goes up its place in the tree (its natural parent), not to Search: Search left off
     // the stack, the pages above the result put on it (the VR Settings too for one of theirs; not above the Advanced
     // VR Options), then whatever Search was opened from.
@@ -602,8 +615,21 @@ void openEntry(int entry)
     if(!isPage)
     {
         const auto& list = items(target);
+        int at = -1;
+        for(int i = 0; i < static_cast<int>(list.size()) && cvar; i++)
+        {
+            if(list[i].cvar == cvar && selectable(list[i]))
+            {
+                at = i; // its setting's row (a label can be on a page twice: the Tunables page's "Stiffness")
+                break;
+            }
+        }
         for(int i = 0; i < static_cast<int>(list.size()); i++)
         {
+            if(at >= 0 && i != at)
+            {
+                continue;
+            }
             if(list[i].label && selectable(list[i]) && label == list[i].label)
             {
                 ui().cursors[target] = i;

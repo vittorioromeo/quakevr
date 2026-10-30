@@ -326,6 +326,7 @@ float cvarh_vr_agrunt_upper;
 float cvarh_vr_agrunt_aim_twist;
 float cvarh_vr_agrunt_swing_one_hand;
 float cvarh_vr_agrunt_punch_ease;
+float cvarh_vr_agrunt_run_key_stance;
 float cvarh_vr_agrunt_saw_reach;
 float cvarh_vr_agrunt_shot_drawn;
 float cvarh_vr_agrunt_lift_turn;
@@ -1531,6 +1532,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agrunt_aim_twist = cvar_hmake("vr_agrunt_aim_twist");
     cvarh_vr_agrunt_swing_one_hand = cvar_hmake("vr_agrunt_swing_one_hand");
     cvarh_vr_agrunt_punch_ease = cvar_hmake("vr_agrunt_punch_ease");
+    cvarh_vr_agrunt_run_key_stance = cvar_hmake("vr_agrunt_run_key_stance");
     cvarh_vr_agrunt_saw_reach = cvar_hmake("vr_agrunt_saw_reach");
     cvarh_vr_agrunt_shot_drawn = cvar_hmake("vr_agrunt_shot_drawn");
     cvarh_vr_agrunt_lift_turn = cvar_hmake("vr_agrunt_lift_turn");

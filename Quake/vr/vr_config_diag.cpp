@@ -337,6 +337,27 @@ void dumpFull(const char* name)
     Con_Printf("%s: dumpfull: %d settings to %s\n", testName, count, name);
 }
 
+// hasline <file> <word>... <value>: the game folder's file, as on disk now, has the line `<word>... "<value>"`
+// (savecfg_test.sh: the menu's Save Default wrote the config and tunables.cfg before any quit).
+void hasLine()
+{
+    za::String text;
+    const char* name = Cmd_Argv(2);
+    if(!configTest.tally.check(files::readText(va("%s/%s", com_gamedir, name), text), testName, va("%s not read", name)))
+    {
+        return;
+    }
+    za::String want = "\n";
+    for(int i = 3; i < Cmd_Argc() - 1; i++)
+    {
+        want += Cmd_Argv(i);
+        want += " ";
+    }
+    want += va("\"%s\"", Cmd_Argv(Cmd_Argc() - 1)); // (then \n or \r\n: the closing quote ends the value)
+    const za::String all = za::String{"\n"} + text;
+    configTest.tally.check(strstr(all.cStr(), want.cStr()) != nullptr, testName, va("%s has no line %s", name, want.cStr() + 1));
+}
+
 void test_f()
 {
     const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
@@ -344,6 +365,10 @@ void test_f()
     if(!strcmp(step, "snap"))
     {
         snap();
+    }
+    else if(!strcmp(step, "hasline") && Cmd_Argc() >= 5)
+    {
+        hasLine();
     }
     else if(!strcmp(step, "checkfile") && *arg)
     {
@@ -385,7 +410,7 @@ void test_f()
     else
     {
         Con_Printf("vr_config_test snap | checkfile <name.cfg> | scramble | compare | newdefault | checkdefault | "
-                   "othercopy | checkmerge | dumpfull <name> | done\n");
+                   "othercopy | checkmerge | dumpfull <name> | hasline <file> <word>... <value> | done\n");
     }
 }
 
