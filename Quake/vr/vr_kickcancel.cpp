@@ -394,7 +394,7 @@ void fit(const qmodel_t* model, const aliashdr_t* hdr, ModelKick& m)
 // on their bodies as they kick (no mechanism of theirs works there: drawn moving, they went through the ammo screen).
 [[nodiscard]] bool wholeAtRest(int slot)
 {
-    return slot < 0; // (none yet)
+    return slot == 5 || slot == 10 || slot == 13;
 }
 
 // `m.cancelled` from `m.original` (the model's own poses): each kicked pose with its kick taken out. The body's
