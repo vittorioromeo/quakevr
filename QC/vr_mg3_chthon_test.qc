@@ -389,16 +389,11 @@ void(entity p) MG3_CT_FightStep =
 entity(entity p, float xDist) MG3_CT_Spawn =
 {
     makevectors('0 1 0' * p.v_angle_y);
-    entity d = spawn();
-    d.weapon = 50;
-    setorigin(d, p.origin + v_forward * xDist);
-    entity oldself = self;
-    self = d;
-    activator = p;
-    func_enemy_dispenser_use();
-    entity m = self;
-    self = oldself;
-    remove(d);
+    entity m = VR_Test_Spawn(p, 50, p.origin + v_forward * xDist, -1);
+    if(!m)
+    {
+        return m;
+    }
     m.wave1 = "mg3ct_w1"; m.wave2 = "mg3ct_w2"; m.wave3 = "mg3ct_w3"; m.tele_target = "mg3ct_tele";
     return m;
 };

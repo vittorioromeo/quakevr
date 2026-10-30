@@ -173,3 +173,7 @@ sh-test-copy Misc/quakevr/pickup_mag_test.sh 1  # not migrated yet (design revie
 sh-test-copy Misc/quakevr/reload/voice_20261012_test.sh 1  # not migrated yet (design review 7: one test harness)
 sh-test-copy Misc/quakevr/weapon_catch_test.sh 1  # not migrated yet (design review 7: one test harness)
 sh-test-copy Misc/quakevr/xr_runtime_test.sh 1  # not migrated yet (design review 7: one test harness)
+
+# --- qc-test-spawn: use VR_Test_Spawn (QC/vr_testutil.qc)
+qc-test-spawn QC/vr_testutil.qc 1  # canonical
+qc-test-spawn QC/buttons_test.qc 1  # presses one of the map's own dispensers (its button's), not a test spawn
