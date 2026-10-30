@@ -532,6 +532,7 @@ const DefaultChange defaultChanges[] = {
     {209, &vr_revolver_spin_speed, "0.5"},           // 0.8
     {214, &vr_agrunt_shove, "2"},                    // 1 (guns only; it shipped with 2 for a few hours)
     {215, &vr_nailpistol_speed, "2600"},             // 3070 (nails 18% faster)
+    {216, &vr_agarms_clavicle, "0.35"},              // 0.6 (vr_rig2_clavicle's, merged: its effective value)
     {209, &vr_revolver_spin_friction, "720"},        // 760
     {209, &vr_revolver_spin_max, "1800"},            // 900
     {209, &vr_revolver_hand_reach, "3"},             // 0.25
@@ -597,7 +598,8 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // Pistol, Launcher, Sprayer and Laser Cannon keys): the archived keys equal to them dropped, after 211's migration)
 // 214: vr_agrunt_shove 2 -> 1 (only humanoids with guns shove by default)
 // 215: vr_nailpistol_speed 2600 -> 3070 (round 23: every nail 18% faster; the nailgun's vr_nail_speed new, 2065)
-constexpr int configVersion = 215;
+// 216: vr_agarms_clavicle 0.35 -> 0.6 (vr_rig2_clavicle merged into it at the value both armed rigs used: refactor C1)
+constexpr int configVersion = 216;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -1054,6 +1056,32 @@ constexpr const char* retiredCvars[] = {
     "vr_rig2_game",
     "vr_rig2_look",
     "vr_ragdoll_arm_skin",
+    // 2026-10-30 (refactor wave C1, his D1): the armed humanoids' old arms (vr_agarms 0: the animation's arms bent onto
+    // the weapons, the rigid pieces) and the posed arms' old sides; vr_rig2_clavicle into vr_agarms_clavicle, the held
+    // wrist's clearance one constant (vr_agarms.cpp armClearHeldMost).
+    "vr_agarms",
+    "vr_agrunt_ik_rigid",
+    "vr_agrunt_ik_hands",
+    "vr_agrunt_ik_wrist",
+    "vr_agrunt_ik_twist",
+    "vr_agrunt_ik_elbow",
+    "vr_agrunt_ik_second",
+    "vr_agrunt_ik_drawn",
+    "vr_agrunt_ik_misfit",
+    "vr_agrunt_ik_reach",
+    "vr_agarms_body",
+    "vr_agarms_second_hold",
+    "vr_agarms_reach_ease",
+    "vr_agarms_jump_ease",
+    "vr_agarms_aim_line",
+    "vr_agarms_second_release",
+    "vr_agarms_shoulder_skin",
+    "vr_agarms_limits",
+    "vr_agarms_arm_clear",
+    "vr_agarms_cup_handle",
+    "vr_rig2_clavicle",
+    "vr_rig2_arm_clear",
+    "vr_rig2_arm_limits",
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

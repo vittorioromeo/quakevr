@@ -19,6 +19,7 @@
 
 #include "vr_toolgun.hpp"
 
+#include "vr_agpose_shared.h"
 #include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
@@ -1076,7 +1077,7 @@ void armedPage(Ui& ui)
             toolgun::armed::choose();
         }
         const bool pairs = code > 0 && toolgun::armed::oneHanded(kind, code);
-        const bool melee = (toolgun::armed::fits(kind, code) >> 2) == 1; // (QC VR_AG_CLASS_MELEE)
+        const bool melee = (toolgun::armed::fits(kind, code) >> 2) == VR_AG_CLASS_MELEE;
         const int lc = dropdown(ui, Rect{x0, 98.f, x1, 111.f}, "Left Hand", l.left.data(), static_cast<int>(l.left.size()),
             pairs ? za::max(0, indexOfCode(l.leftCode, code2)) : 0, pairs);
         if(lc >= 0)

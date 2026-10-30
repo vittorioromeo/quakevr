@@ -1062,7 +1062,7 @@ void armedGripsDragMode()
         cycle("Edits", vr_agrunt_grip_scope, {{0.f, "Every Weapon (This Kind)"}, {1.f, "This Weapon Only"}})
             .help("Every Weapon: the hand's grip for every weapon this kind of monster holds (grunts, enforcers: each "
                   "its own), as you hold them; tune this first. This Weapon Only: one weapon's own nudge on top of it. "
-                  "(vr_agrunt_grip_scope; with Posed Arms on, vr_agarms)"),
+                  "(vr_agrunt_grip_scope)"),
         header("The Weapon in the Hand"),
         pos("Forward", vr_agrunt_grip_x, "Moves the weapon forward (back: negative) in the hand: units, along the hand's "
                                           "grip (the way its own gun pointed). Second Grip: the hand along the weapon."),
@@ -1071,9 +1071,6 @@ void armedGripsDragMode()
         ang("Pitch", vr_agrunt_grip_pitch, "Tips the weapon down (up: negative) in the hand."),
         ang("Yaw", vr_agrunt_grip_yaw, "Turns the weapon left (right: negative) in the hand."),
         ang("Roll", vr_agrunt_grip_roll, "Rolls the weapon about its length in the hand."),
-        command("Fit Angles to Its Pose", "vr_agrunt_grip_fit")
-            .help("Sets the angles so its hand holds the weapon as its pose now has the weapon turned, the wrist "
-                  "unturned (a starting point; freeze it first)."),
         header("Keep Them"),
         command("Print as Defaults", "vr_agrunt_grip_dump")
             .help("Prints the changed grips as code for the shipped defaults (the console; vr_agrunt_grip_dump). They are "

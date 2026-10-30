@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Zancle/String/String.hpp"
+#include "vr_agpose_shared.h"
 
 #include <glm/glm.hpp>
 
@@ -22,25 +23,25 @@ inline constexpr int numKinds = 2;
 [[nodiscard]] const char* kindsName(int kind); // "grunts", "enforcers"
 [[nodiscard]] const char* kindTitle(int kind); // "Grunt", "Enforcer"
 
-// The weapon classes (QC VR_AGK_*: the same numbers). A single gun's class is its pose category (the Weapon Holds'
+// The weapon classes (QC VR_AGK_*: both from vr_agpose_shared.h). A single gun's class is its pose category (the Weapon Holds'
 // Pose Category per kind and weapon, Auto its table's: vr_agholds.inc; agholds::poseClass): Gun the rifle (a long gun
 // shouldered: every gun's class before the categories, his tuned keys), the others from 17. 7..9 unused; 10..16 never a
 // class: a code whose class digits are 10..16 is an old-format enforcer key (codeFromOld).
 enum Class : int
 {
-    Fists = 0,
-    Gun = 1,       // a rifle: one long gun (the shotguns, the nailguns, the laser rifle, the plasma guns ...)
-    Melee = 2,     // a one-handed melee weapon
-    Melee2 = 3,    // a two-handed one (the left hand on its second grip)
-    Saw = 4,       // a chainsaw
-    TwoMelee = 5,  // a melee weapon in each hand
-    TwoGuns = 6,   // a gun in each hand
-    Pistol = 17,   // a pistol (the nail pistol, the revolver, the flare gun: the off hand free or cupping, the Weapon Holds')
-    Launcher = 18, // a shoulder launcher (the rocket launchers)
-    Sprayer = 19,  // a sprayer (the flamethrower, the poison sprayer)
-    LaserCannon = 20, // the laser cannon (its own)
-    Widowmaker = 21,  // the Widowmaker (its own)
-    NumClasses = 22   // (the numbers' bound: isClass says which are classes)
+    Fists = VR_AGK_FISTS,
+    Gun = VR_AGK_GUN,       // a rifle: one long gun (the shotguns, the nailguns, the laser rifle, the plasma guns ...)
+    Melee = VR_AGK_MELEE,     // a one-handed melee weapon
+    Melee2 = VR_AGK_MELEE2,    // a two-handed one (the left hand on its second grip)
+    Saw = VR_AGK_SAW,       // a chainsaw
+    TwoMelee = VR_AGK_TWOMELEE,  // a melee weapon in each hand
+    TwoGuns = VR_AGK_TWOGUNS,   // a gun in each hand
+    Pistol = VR_AGK_PISTOL,   // a pistol (the nail pistol, the revolver, the flare gun: the off hand free or cupping, the Weapon Holds')
+    Launcher = VR_AGK_LAUNCHER, // a shoulder launcher (the rocket launchers)
+    Sprayer = VR_AGK_SPRAYER,  // a sprayer (the flamethrower, the poison sprayer)
+    LaserCannon = VR_AGK_LASERCANNON, // the laser cannon (its own)
+    Widowmaker = VR_AGK_WIDOWMAKER,  // the Widowmaker (its own)
+    NumClasses = VR_AGK_NUM_CLASSES   // (the numbers' bound: isClass says which are classes)
 };
 [[nodiscard]] constexpr bool isClass(int cls)
 {
@@ -64,28 +65,28 @@ inline constexpr int classOrder[] = {Gun, Pistol, Launcher, Sprayer, LaserCannon
     Saw, TwoMelee, Fists};
 inline constexpr int numClassOrder = 12;
 
-// The poses (QC: the same numbers); a strike's keys are its phases, a stance's phase 0 only.
+// The poses (QC VR_AGK_*: both from vr_agpose_shared.h); a strike's keys are its phases, a stance's phase 0 only.
 enum Pose : int
 {
-    Carry = 0, // idle: carried (a two-handed melee weapon at port arms; the fists hanging)
-    Aim = 1,   // an enemy ahead: a gun aimed, a melee weapon ready, the fists' guard
-    Run = 2,   // on top of the stance, running (mid-stride)
-    Pickup = 3, // taking a weapon up from the floor (its lowest frame)
-    Jab = 10,
-    Cross = 11,
-    Hook = 12, // (the right's; a left hook mirrors it)
-    Uppercut = 13,
-    Overhead = 14,
-    Diagonal = 15,
-    Horizontal = 16,
-    Backhand = 17, // (two held: a left hand's swing mirrors the right's key)
-    SawThrust = 18,
-    Dual = 19,     // two held, both at once (the scissor)
+    Carry = VR_AGK_CARRY, // idle: carried (a two-handed melee weapon at port arms; the fists hanging)
+    Aim = VR_AGK_AIM,   // an enemy ahead: a gun aimed, a melee weapon ready, the fists' guard
+    Run = VR_AGK_RUN,   // on top of the stance, running (mid-stride)
+    Pickup = VR_AGK_PICKUP, // taking a weapon up from the floor (its lowest frame)
+    Jab = VR_AGK_JAB,
+    Cross = VR_AGK_CROSS,
+    Hook = VR_AGK_HOOK, // (the right's; a left hook mirrors it)
+    Uppercut = VR_AGK_UPPERCUT,
+    Overhead = VR_AGK_OVERHEAD,
+    Diagonal = VR_AGK_DIAGONAL,
+    Horizontal = VR_AGK_HORIZONTAL,
+    Backhand = VR_AGK_BACKHAND, // (two held: a left hand's swing mirrors the right's key)
+    SawThrust = VR_AGK_SAWTHRUST,
+    Dual = VR_AGK_DUAL,     // two held, both at once (the scissor)
     // The shove (2026-10-28, agent/agshove; ROUND22.md, "Armed humanoids' shove"): every class's push of the player up
     // close (QC vr_enemyshove.qc, VR_AGP_SHOVE): its phases the wind-up, the push (the contact: the push lands as it
     // ends) and the recovery.
-    Shove = 20,
-    NumPoses = 21
+    Shove = VR_AGK_SHOVE,
+    NumPoses = VR_AGK_NUM_POSES
 };
 
 inline constexpr int numPhases = 3; // a strike's: 0 the wind-up, 1 the blow, 2 the follow-through (the shove's: push, recover)
@@ -113,10 +114,10 @@ inline constexpr int numOldParts = 7; // (the parts before 2026-10-27: every tex
 // Pickup's when set, else Aim's while aimed, else Run's when set while running, else Carry's).
 enum OffMode : int
 {
-    OffAuto = 0, // the Weapon Holds' (its second grip, a cup, or free for a one-handed hold)
-    OffGun = 1,  // on the gun (its second grip, else cupping the right hand) even when the hold is one-handed
-    OffFree = 2, // off the gun, hanging free (moved by LPos/LTurn)
-    NumOffModes
+    OffAuto = VR_AGK_OFF_AUTO, // the Weapon Holds' (its second grip, a cup, or free for a one-handed hold)
+    OffGun = VR_AGK_OFF_GUN,  // on the gun (its second grip, else cupping the right hand) even when the hold is one-handed
+    OffFree = VR_AGK_OFF_FREE, // off the gun, hanging free (moved by LPos/LTurn)
+    NumOffModes = VR_AGK_NUM_OFF_MODES
 };
 [[nodiscard]] const char* offModeName(int mode); // "Auto (the Weapon Holds)", "On the Gun", "Free"
 [[nodiscard]] inline int offModeOf(const glm::vec3& part)
@@ -132,10 +133,10 @@ struct Key
 
 // A key's code: kind * 100000 + class * 1000 + pose * 10 + phase (the class two digits; before 2026-10-27 kind * 10000,
 // one digit: the grunt's codes the same, an enforcer's 1xxxx now 10xxxx: codeFromOld).
-inline constexpr int kindStride = 100000;
+inline constexpr int kindStride = VR_AGK_KIND;
 [[nodiscard]] constexpr int code(int kind, int cls, int pose, int phase)
 {
-    return kind * kindStride + cls * 1000 + pose * 10 + phase;
+    return kind * kindStride + cls * VR_AGK_CLASS + pose * VR_AGK_POSE + phase;
 }
 [[nodiscard]] constexpr int kindOf(int c)
 {

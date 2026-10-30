@@ -3,6 +3,7 @@
 
 #include <type_traits>
 #include <string.h>
+#include "vr_mdldequant.hpp"
 #include "vr_aglegs.hpp"
 #include "vr_client.hpp"
 #include "vr_agpose.hpp"
@@ -200,14 +201,6 @@ State state;
     return a * 4096.f + b;
 }
 
-[[nodiscard]] glm::vec3 restVertex(const aliashdr_t* hdr, int v)
-{
-    const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-    const trivertx_t& t = base[static_cast<za::SizeT>(v)];
-    return glm::vec3{t.v[0], t.v[1], t.v[2]} * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]} +
-           glm::vec3{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-}
-
 [[nodiscard]] glm::vec3 restNormal(const aliashdr_t* hdr, int v)
 {
     const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
@@ -287,6 +280,7 @@ const Model* modelOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll
     Model& m = *slot;
     m = Model{};
     m.model = model;
+    mdldequant::prepare(model); // (its rest places as drawn: dequantised, whether or not it was uploaded yet)
     m.pelvis = boneNamed(rig, "pelvis");
     const char* thighs[2] = {"thigh_r", "thigh_l"};
     const char* shins[2] = {"shin_r", "shin_l"};
@@ -294,7 +288,7 @@ const Model* modelOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll
     m.rest.resize(nv);
     for(za::SizeT v = 0; v < nv; v++)
     {
-        m.rest[v] = restVertex(hdr, static_cast<int>(v));
+        m.rest[v] = mdldequant::modelVertex(hdr, 0, 0, 0.f, static_cast<int>(v));
     }
     bool ok = m.pelvis >= 0 && rig.bones[m.pelvis].parent < 0;
     float hips = 0.f;

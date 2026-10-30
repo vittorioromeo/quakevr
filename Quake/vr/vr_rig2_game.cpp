@@ -215,7 +215,6 @@ void resetGame()
     agarms::resetModels();
     aglegs::resetModels();
     agbody::resetModels();
-    hitreact::resetModels();
     mem::on(mem::ModelReload); // (the animation smoothing's per-model data: vr_animsmooth.cpp)
     rigdata::newMap();         // (the Rig Studio's animations: each rig's own files, read again)
 }
@@ -251,13 +250,13 @@ void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, ri
         const glm::vec3 cp = rigpose::apply(Fch, C.pivot);
         const glm::vec3 cr = Fch.rot * (U.pivot - C.pivot);
         float hp[4]{};
-        const bool clampArms = vr_rig2_arm_limits.value != 0.f; // (else the solve's turns: its own limits)
-        F[d.clav] = limited(a, d.clav, Fch, glm::normalize(between(cr, placed.shoulder[s] - cp) * Fch.rot), &hp[0], clampArms);
+        // (the solve's turns, not clamped to the authored limits: the arms' IK keeps its own)
+        F[d.clav] = limited(a, d.clav, Fch, glm::normalize(between(cr, placed.shoulder[s] - cp) * Fch.rot), &hp[0], false);
         // The upper arm: the solve's turn (its twist: the elbow's plane) re-aimed from the shoulder as now at its elbow.
         const glm::vec3 S = rigpose::apply(F[d.clav], U.pivot);
         const glm::quat uRot = placed.upperM[s].rot;
         const glm::vec3 uDir = uRot * (Fo.pivot - U.pivot);
-        F[d.upper] = limited(a, d.upper, F[d.clav], glm::normalize(between(uDir, placed.elbow[s] - S) * uRot), &hp[1], clampArms);
+        F[d.upper] = limited(a, d.upper, F[d.clav], glm::normalize(between(uDir, placed.elbow[s] - S) * uRot), &hp[1], false);
         // The IK stretch (Placed::stretch): the upper arm and the forearm lengthened alike along their axes, the forearm at
         // the upper arm's stretched end, the hand at the forearm's (their skin scaled so: drawLive).
         const float by = placed.stretch[s];
@@ -287,7 +286,7 @@ void armsOnRig(const Rig& a, const agarms::Placed& placed, rigpose::Rigid* F, ri
         }
         F[d.fore].pos += shiftU;
         // The hand to its grip frame's turn.
-        F[d.hand] = limited(a, d.hand, F[d.fore], placed.handM[s].rot, &hp[3], clampArms);
+        F[d.hand] = limited(a, d.hand, F[d.fore], placed.handM[s].rot, &hp[3], false);
         if(by != 1.f)
         {
             F[d.hand].pos += F[d.fore].rot * ((by - 1.f) * fAxis);
