@@ -32,10 +32,13 @@ cvar_t vr_backend = {"vr_backend", "openxr", CVAR_NONE}; // not saved: "mock" is
 namespace
 {
 
-// Defaults changed after configs had saved the old ones (configs save every archived cvar, so a
-// new default would never reach an existing player). A config still holding a setting's old default
-// takes the new one, once: vr_cfg_version records the changes a config has seen. A setting the
-// player changed is left alone.
+// Defaults changed while configs saved every archived cvar (configVersion 217 and before: a new default never reached
+// an existing player). A config still holding a setting's old default takes the new one, once: vr_cfg_version records
+// the changes a config has seen. A setting the player changed is left alone.
+// FROZEN at 218: configs are sparse since (VR_ConfigSaves: a vr_ setting's line only when it differs from its default),
+// so a changed default reaches every player who left the setting alone with no row. These rows stay for the configs
+// written before 218; a new row only to override a player's own choice on purpose (CODE_STYLE.md, "Settings and the
+// config").
 struct DefaultChange
 {
     int version;
@@ -539,6 +542,7 @@ const DefaultChange defaultChanges[] = {
     {209, &vr_reload_port_npistol_radius, "1.5"},    // 1
 };
 // Default changes of settings with no cvar of their own to point at (the held objects' slots, vr_props.cpp): by name.
+// Frozen at 218 as defaultChanges is (sparse configs).
 struct NamedDefaultChange
 {
     int version;
@@ -599,7 +603,9 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // 215: vr_nailpistol_speed 2600 -> 3070 (round 23: every nail 18% faster; the nailgun's vr_nail_speed new, 2065)
 // 216: vr_suit_glow(_light) 2 -> 1, vr_legsweep_topple 180 -> 200 (the no-op rows 135, 146 and 169 dropped)
 // 217: vr_agarms_clavicle 0.35 -> 0.6 (vr_rig2_clavicle merged into it at the value both armed rigs used: refactor C1)
-constexpr int configVersion = 217;
+// 218: sparse configs (Cvar_WriteVariables writes "vr_config_defaults", then only the vr_ settings changed from their
+// defaults: VR_ConfigSaves). The last version: the rows above are frozen, a changed default needs none from now on.
+constexpr int configVersion = 218;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -637,7 +643,38 @@ struct ConfigTrack
 };
 ConfigTrack configTrack;
 
-// The archived settings a config file sets (`name "value"` lines, as Cvar_WriteVariables writes them).
+// Sparse configs (configVersion 218): the Quake VR settings (vr_*, the weapons' and props' slot tables too) are written
+// only when changed from their defaults, after a "vr_config_defaults" line that sets the others to theirs. A line in the
+// config is the player's choice, and a changed default reaches everyone else with no defaultChanges row. Ironwail's own
+// settings (r_*, gl_*, ...) are all written, as before.
+[[nodiscard]] bool inSparseConfig(const cvar_t* var)
+{
+    return !ZA_STRNCMP(var->name, "vr_", 3);
+}
+
+// The version markers (always written): a missing one would read as its default, which a later version can pass.
+[[nodiscard]] bool alwaysSaved(const cvar_t* var)
+{
+    return var == &vr_cfg_version || var == &vr_wofs_version || var == &vr_props_version || var == &vr_bindings_version;
+}
+
+// "vr_config_defaults" (a sparse config's first settings line): every Quake VR setting back to its default, so the lines
+// after it give the config's settings as a full config did (a game switch, a config executed again: none of the
+// previous values left over).
+void configDefaults_f()
+{
+    for(cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
+    {
+        if(inSparseConfig(var) && var->default_string && !(var->flags & (CVAR_ROM | CVAR_LOCKED)) &&
+           !sameValue(var->string, var->default_string))
+        {
+            Cvar_SetQuick(var, var->default_string);
+        }
+    }
+}
+
+// The archived settings a config file sets (`name "value"` lines, as Cvar_WriteVariables writes them; a sparse config's
+// vr_ settings without a line: their defaults).
 [[nodiscard]] ankerl::unordered_dense::map<za::String, za::String> readConfigSettings(const char* path)
 {
     ankerl::unordered_dense::map<za::String, za::String> settings;
@@ -670,6 +707,14 @@ ConfigTrack configTrack;
         line.clear();
     }
     fclose(f);
+    // A sparse config (218) has no line for a vr_ setting at its default: it sets that default (vr_config_defaults).
+    for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
+    {
+        if(inSparseConfig(var))
+        {
+            settings.try_emplace(za::String{var->name}, var->default_string ? var->default_string : "");
+        }
+    }
     return settings;
 }
 
@@ -925,6 +970,11 @@ void saveDefaults_f()
 
 } // namespace
 
+bool sameSettingValue(const char* a, const char* b)
+{
+    return sameValue(a, b);
+}
+
 void registerCvars()
 {
 #define QVR_CVAR(name, def, flags) Cvar_RegisterVariable(&name);
@@ -936,6 +986,8 @@ void registerCvars()
     Cmd_AddCommand("vr_menu_body_clone_info", bodyclone::info_f);
     Cmd_AddCommand("vr_default", default_f);
     Cmd_AddCommand("vr_savedefaults", saveDefaults_f);
+    Cmd_AddCommand("vr_config_defaults", configDefaults_f);
+    registerConfigDiag(); // vr_config_test (vr_config_diag.cpp)
 }
 
 } // namespace qvr
@@ -1194,6 +1246,13 @@ extern "C" void VR_ConfigWritten(const char* path)
     {
         trackConfig(path);
     }
+}
+
+// Cvar_WriteVariables: a sparse config's line for an archived setting (inSparseConfig).
+extern "C" int VR_ConfigSaves(const cvar_s* var)
+{
+    using namespace qvr;
+    return !inSparseConfig(var) || alwaysSaved(var) || !var->default_string || !sameValue(var->string, var->default_string);
 }
 
 namespace qvr
