@@ -318,6 +318,21 @@ void() VR_DropOgreChainsaw =
         WeaponIdToThrowDamage(WID_CHAINSAW));
 };
 
+// The chain's look on `e`, made of `m` (VR_MaterialOf, before the tick's damage: a gib may be gone after it), at `at`,
+// a tick of `dmg`, `bleed` the blood's share an armed humanoid's plate let through (VR_AgArmor_HitFx, before the
+// damage): the impact table's saw row, by material as every other hit (his call, 2026-10-30; it had its own split:
+// flesh, wood, sparks off everything else): blood across the bar (v_right, v_up: the caller's makevectors), splinters
+// off wood, sparks off metal and a grenade, nothing off a wall torch.
+void(entity e, float m, vector at, float dmg, float bleed) VR_Saw_HitFx =
+{
+    if(bleed <= 0)
+    {
+        return;
+    }
+    vector spray = crandom() * v_right + v_up; // (metal's row ignores it)
+    VR_ImpactFx(m, VR_HIT_SAW, e, at, spray, dmg * 2 * bleed);
+};
+
 // The chainsaw in `xHand` cuts (its chain running): what its bar is in takes a tick's damage. Whether it met anything.
 float(float xHand) VR_Chainsaw_Cut =
 {
@@ -416,8 +431,7 @@ float(float xHand) VR_Chainsaw_Cut =
         VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
         VR_DamageCredit_SetWeapon(self, WID_CHAINSAW);
         float alive = e.health > 0;
-        float flesh = (e.flags & FL_MONSTER) || (e.flags & FL_CLIENT) || e.vr_gib; // (a gib may be gone after it)
-        float wood = VR_Crate_Wooden(e); // (a crate: splinters, not sparks)
+        float m = VR_MaterialOf(e); // (before the damage: a gib may be gone after it)
         float hurt = dmg;
         if(e.vr_gib)
         {
@@ -436,6 +450,11 @@ float(float xHand) VR_Chainsaw_Cut =
         {
             hurt = VR_Parry(e, self, self, hurt);
         }
+        float bleed = 1; // (an armed humanoid's unbroken plate: sparks, blood only for what it lets through)
+        if(VR_Material_Fleshy(m) && decap != 2)
+        {
+            bleed = VR_AgArmor_HitFx(e, at, '0 0 0', hurt);
+        }
         vr_grenshot_saw = TRUE; // (a grenade: the running chain always sets it off, VR_GrenShot_BlowSetsOff)
         float cut = decap == 2 ? TRUE : hurt > 0 ? T_DamageImpl(e, self, self, hurt, 1) : FALSE;
         vr_grenshot_saw = FALSE;
@@ -452,14 +471,7 @@ float(float xHand) VR_Chainsaw_Cut =
             VR_HotBlade_Struck(self, xHand, e, alive, at, dir); // an incandescent bar sets it on fire (vr_hotblade.qc)
         }
         VR_ClearHitKind();
-        // Its own material (the impact table's saw row): blood off flesh, splinters off wood, sparks off the rest.
-        float m = flesh ? VR_MAT_FLESH : (wood ? VR_MAT_WOOD : VR_MAT_METAL);
-        vector spray = '0 0 0';
-        if(m != VR_MAT_METAL)
-        {
-            spray = crandom() * v_right + v_up;
-        }
-        VR_ImpactFx(m, VR_HIT_SAW, e, at, spray, dmg * 2);
+        VR_Saw_HitFx(e, m, at, dmg, bleed);
         if(cvar_hget(cvarh_vr_debug_chainsaw))
         {
             dprint(sprintf("chainsaw: %s hand cuts %s: %g damage, health %g\n", VR_Saw_HandName(xHand), e.classname, hurt,

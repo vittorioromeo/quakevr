@@ -1723,10 +1723,11 @@ void(float damage) spawn_touchblood =
 {
     vector    vel;
 
-    vel = wall_velocity () * 0.2;
-    // VR: by what it touched (VR_MaterialOf; the impact table): metal sparks and a tink, wood splinters, a grenade
-    // sparks, a wall torch nothing; flesh blood, an armed humanoid's unbroken plate sparks and blood only for what it
-    // lets through (vr_agarmor.qc). At its origin + vel x 0.01 (a grenade's sparks at its origin).
+    vel = wall_velocity ();
+    // VR: by what it touched (VR_MaterialOf; the impact table): metal and a grenade sparks (metal a tink), wood
+    // splinters, a wall torch nothing; flesh blood (the bullet's row: as TraceAttack's), an armed humanoid's unbroken
+    // plate sparks and blood only for what it lets through (vr_agarmor.qc). `vel`: the bounce, as TraceAttack's (the
+    // rows scale it).
     float m = VR_MaterialOf(other);
     float bleed = 1;
     if(VR_Material_Fleshy(m))
