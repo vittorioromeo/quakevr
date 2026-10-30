@@ -3249,3 +3249,40 @@ the muzzle wisps' and the thunderbolt's newer changes, not impacts).
   until it breaks`; `[impactunify] shoot a grenade in flight (shotgun, nails): sparks fly out along the hit, not a
   fountain straight up`; `[impactunify] punch or club a wall torch: a wooden knock; a grenade: a light metal clink
   (not a flesh slap)`; `[impactunify] chainsaw a wall torch: no sparks`.
+
+## One busy-hand check for every grab (branch `agent/busyhand`)
+
+His note (2026-10-30): the force grab should refuse a busy hand too, "one single code path to check that".
+
+- **The predicate (QC/vr_wpnforcegrab.qc):** `VR_Hand_Free(p, hand, xAllow)`: empty (VRIsHandEmpty: no weapon, the slot
+  carries nothing), not busy (the slot's VR_HOLD_FOE and after: an enemy, the flashlight, a gun's fore-end, a just-seated
+  magazine, a tug), not locked on to a force grab. A site's exceptions are its `xAllow` bits (QC/vr_fields.qc):
+  `VR_HANDFREE_BUSY` (any busy kind takes it: a weapon's grab), `VR_HANDFREE_FOE` (the foe grab's hand-over),
+  `VR_HANDFREE_LOCKED` (the force grab's own lock). It replaces VR_Hand_CanTake/CanTakeFrom and the hand-written mixes.
+- **The sites:** none (0): carry grab, box touch, ragdoll limb grab, wall torch (take and query candidate), grenade catch,
+  both pouches, magazine pull. FOE: the hand-over. LOCKED: the force grab's frame, flat grab (E), catch, the axe tug's
+  flight. BUSY|LOCKED (a weapon's grab, as before): weapon_touch, a thrown weapon's catch, an armed grunt's weapon
+  (tug/disarm), the holster draw (DoHandImpl), the hand-off, the grapple gun's pass, the water climb. BUSY, LOCKED only
+  on its own catch: a lying weapon's grab.
+- **Behaviour change (only):** the force grab's start (VR and flat), its catch and the tug's flight refuse a busy hand
+  (before: only the flashlight's); a hand turning busy while locked on lets go of the lock.
+- **Not folded:** the engine's climb (vr_climb.cpp handBusy: before the move, the client's flashlight bit and a pull in
+  flight; it does not see the slot) and the client's grips (held::handEmpty: no slot on the client). Folding either
+  changes answers (a hand on a fore-end or holding an enemy could no longer climb): his call.
+- **Open (his call):** a busy hand still takes a weapon (lying, thrown, a grunt's, the holster's): the flashlight hand
+  can grab a gun. Kept as it was (VR_HANDFREE_BUSY at those sites); dropping the bit there makes them refuse.
+- **check_canonical.py `qc-busy-hand`:** a new read of the force grab's lock, a slot kind compared to VR_HOLD_NONE or
+  VR_HOLD_FLASHLIGHT, VR_Hand_IsBusyKind or the gone VR_Hand_CanTake outside today's sites fails the build.
+- **Test:** `vr_pickup_test 8` (Misc/quakevr/carry/fgbusy_test.sh, e1m1): VR_Hand_Free's exceptions; the first
+  force-grabbable thing put on the off hand's aim, the trigger held: free, it locks on; busy with the flashlight, a
+  fore-end, a seated magazine or a tug, no lock-on; locked on then busy, it lets go. 11 passed, 0 failed (with
+  vr_pickup_test 7, the slot test, 16/0).
+- **Verified (run_baseline.sh --only, 34 covering cases: carry/props, weapon_catch, flash_grab, grip_*, mapgun_pickup,
+  ragdoll_grab/climb, prop_climb, judo, walltorch_grab, reload, reload_pouchgren, agrunt 2/3/21/22/31/32/33/36/39/65-69/
+  74/75/91/92):** against baseline.tsv agrunt_31/36/65 FAIL -> PASS, agrunt_66 PASS -> FAIL (its lying grunt drops its
+  weapon as the hand reaches; this branch 2 of 4 runs fail, origin/next 1 of 1 passes: a flake under load is likely, but
+  not proven), ragdoll_grab 18/1 and agrunt_67 1/1 (listed flaky); the rest as the baseline. Build 0 warnings,
+  check_canonical clean.
+- **Checklist:** hold the flashlight in one hand and point that hand at a box with the trigger: no lock-on (the other
+  hand locks on); two-hand the super shotgun and point the fore-end hand: no lock-on; let go: it locks on. Force grab,
+  weapon pickups, the holster draw and the hand-off feel as before.
