@@ -2146,6 +2146,19 @@ peak to rest), all absolute; globally the Programmatic Recoil switch and one Rec
   24/0 (-Sound). Covering cases vs baseline.tsv: collectfx 9/0, mapflameburn 16/0, reload 112/3, shot_shape, reload_eject
   28/0, nail_1 7/0 as the baseline; recoil 69/0 (was 9/0: checks added); reload_front 33/1 as on this branch before
   (above: not this change). Menu paths 0 missing.
+- **A/B bench** (the rerun the kick cancel asked for; combat_48, ABBAABBAAB, ThinLTO, exclusive; A = origin/next
+  9c5866271's parent side, B = this branch with the kick cancel and these units; `scratch/ab_run.sh`, labels
+  `dekick2_*`): frame p50 11.11 ms every run; cpu A 3.22, 3.33, 2.59, 2.47, 2.50 (median 2.59), B 2.41, 3.24, 2.56,
+  2.87, 3.05 (median 2.87). The spread is the hitches: the runs with p99 over 13 ms (A 1, 4; B 3, 7, 10: 2.87-3.33 ms
+  cpu) are the slow ones on both sides; the clean runs (p99 under 11.3 ms) are A 2.47-2.59 (mean 2.52) and B 2.41-2.56
+  (mean 2.49). No cost measured; machine hitches as before (B drew one more of them).
+
+Checklist:
+- Weapon Offsets > Effects: Recoil Kick Back (cm), Recoil Muzzle Rise (deg), Recoil Return Time (s) per gun; your
+  guns feel as before (your global 4.5 / 7.5 are now in each gun's values: the shotgun reads 17.3 cm / 10.5 deg).
+- Weapon Effects: Recoil Amount 0 / 1 / 2 scales every gun's kick; Programmatic Recoil off stops it.
+- The haptic punch of each gun feels as before (nailguns, lightning gun, laser cannon: their Haptic Punch now about
+  0.64x, which keeps the same spike).
 
 ## Settings tiers (branch `agent/tiers`; design review 2)
 
