@@ -792,6 +792,66 @@ QVR_TUNABLE(vr_agrunt_aim_exposed_hold, "0.5") // seconds it keeps aiming at the
 QVR_TUNABLE(vr_agrunt_range_scale, "1") // armed humanoids' fighting distances (vr_agrunt_range) times this
 QVR_TUNABLE(vr_agrunt_range_walkfire, "50") // units/s: with vr_agrunt_range, an armed humanoid walks while it fires (on, back or round you, by its fighting distance); 0: it stands to fire, as before
 
+// Combat > Armed Grunts - Preventive Parry
+QVR_TUNABLE(vr_agrunt_preparry_range, "64") // units (its middle to yours, level): you this near, it may raise its guard (times the category's range)
+QVR_TUNABLE(vr_agrunt_preparry_chance, "0.5") // the chance a check raises its guard (by skill as the parry's; by what you hold: odds)
+QVR_TUNABLE(vr_agrunt_preparry_interval, "0.5") // s between its checks (you near, its guard down)
+QVR_TUNABLE(vr_agrunt_preparry_delay_min, "0.1") // s from a won check to its guard up: the least (times the category's delay, by skill as the parry's reaction)
+QVR_TUNABLE(vr_agrunt_preparry_delay_max, "0.35") // ... the most (random between)
+QVR_TUNABLE(vr_agrunt_preparry_guard_min, "0.8") // s its guard stays up: the least (times the category's guard)
+QVR_TUNABLE(vr_agrunt_preparry_guard_max, "1.6") // ... the most (random between)
+QVR_TUNABLE(vr_agrunt_preparry_recover_min, "0.6") // s after its guard drops it can't parry at all (the opening): the least
+QVR_TUNABLE(vr_agrunt_preparry_recover_max, "1.2") // ... the most (random between)
+QVR_TUNABLE(vr_agrunt_preparry_shove, "1") // 1: its shove cooling down (or off) lets it guard preventively
+QVR_TUNABLE(vr_agrunt_preparry_melee, "1") // 1: a melee weapon in its hand lets it guard preventively (its shove ready or not)
+QVR_TUNABLE(vr_agrunt_guard_holdfire, "1") // 1: its guard up (or rising) it holds its attack
+
+// Combat > Armed Grunts - Wind-up Parry
+QVR_TUNABLE(vr_agrunt_windup_range, "110") // units (its middle to yours, level): your raise read this near (times the category's range)
+QVR_TUNABLE(vr_agrunt_windup_high, "0.2") // m: your hand this far over your shoulders (20 cm under your eyes) is raised overhead (times the category's wind-up)
+QVR_TUNABLE(vr_agrunt_windup_side, "0.4") // m: your hand this far out to your side (across the way to it) is cocked to the side (times the category's wind-up)
+QVR_TUNABLE(vr_agrunt_windup_ahead, "0.15") // m: ... and no further ahead of your head than this (not reaching out)
+QVR_TUNABLE(vr_agrunt_windup_back, "0.15") // m: your hand this far behind your head is drawn back (times the category's wind-up)
+QVR_TUNABLE(vr_agrunt_windup_low, "0.6") // m: a hand further under your eyes than this is at rest (never cocked to the side or drawn back)
+QVR_TUNABLE(vr_agrunt_windup_read, "0.08") // s your raise must be held before it reads it (times the category's wind-up)
+QVR_TUNABLE(vr_agrunt_windup_chance, "0.6") // the chance a raise read raises its guard (one roll per raise; by skill; by what you hold: odds)
+QVR_TUNABLE(vr_agrunt_windup_delay_min, "0.08") // s from the read to its guard up: the least (times the category's delay, by skill)
+QVR_TUNABLE(vr_agrunt_windup_delay_max, "0.3") // ... the most (random between)
+QVR_TUNABLE(vr_agrunt_windup_guard_min, "0.6") // s its guard stays up: the least (times the category's guard)
+QVR_TUNABLE(vr_agrunt_windup_guard_max, "1.2") // ... the most (random between)
+QVR_TUNABLE(vr_agrunt_windup_recover_min, "0.5") // s after its guard drops it can't parry at all (the opening): the least
+QVR_TUNABLE(vr_agrunt_windup_recover_max, "1.0") // ... the most (random between)
+QVR_TUNABLE(vr_agrunt_windup_rearm, "1") // 1: a raise held is read once (lower it to be read again: bait it, wait it out, strike); 0 read again after each recovery
+
+// Combat > Armed Grunts - Reactive Parry
+QVR_TUNABLE(vr_agrunt_parry_react_rand, "0") // s: the reactive parry's reaction (vr_agrunt_parry_react) plus a random 0 to this
+
+// Combat > Armed Grunts - Parry by What You Hold
+QVR_TUNABLE(vr_agrunt_pcat_melee_chance, "1.5") // you holding a melee weapon: its parries' chances times this, as odds: 1 - (1 - c)^m (never and always kept)
+QVR_TUNABLE(vr_agrunt_pcat_melee_delay, "0.7") // you holding a melee weapon: its parries' delays (the reactive parry's reaction too) times this
+QVR_TUNABLE(vr_agrunt_pcat_melee_guard, "1.25") // you holding a melee weapon: its guard's time times this
+QVR_TUNABLE(vr_agrunt_pcat_melee_range, "1.25") // you holding a melee weapon: the preventive and wind-up ranges times this
+QVR_TUNABLE(vr_agrunt_pcat_melee_windup, "0.85") // you holding a melee weapon: the wind-up's thresholds (height, side, back, read time) times this: above 1 a plainer raise
+QVR_TUNABLE(vr_agrunt_pcat_melee_pre, "1") // you holding a melee weapon: the preventive parry's chance besides (odds): under 1 it waits for your wind-up
+QVR_TUNABLE(vr_agrunt_pcat_gun_chance, "0.6") // you holding a gun: its parries' chances times this, as odds: 1 - (1 - c)^m (never and always kept)
+QVR_TUNABLE(vr_agrunt_pcat_gun_delay, "1.5") // you holding a gun: its parries' delays (the reactive parry's reaction too) times this
+QVR_TUNABLE(vr_agrunt_pcat_gun_guard, "0.8") // you holding a gun: its guard's time times this
+QVR_TUNABLE(vr_agrunt_pcat_gun_range, "0.85") // you holding a gun: the preventive and wind-up ranges times this
+QVR_TUNABLE(vr_agrunt_pcat_gun_windup, "1.3") // you holding a gun: the wind-up's thresholds (height, side, back, read time) times this: above 1 a plainer raise
+QVR_TUNABLE(vr_agrunt_pcat_gun_pre, "0.25") // you holding a gun: the preventive parry's chance besides (odds): under 1 it waits for your wind-up
+QVR_TUNABLE(vr_agrunt_pcat_prop_chance, "0.75") // you holding a prop: its parries' chances times this, as odds: 1 - (1 - c)^m (never and always kept)
+QVR_TUNABLE(vr_agrunt_pcat_prop_delay, "1.3") // you holding a prop: its parries' delays (the reactive parry's reaction too) times this
+QVR_TUNABLE(vr_agrunt_pcat_prop_guard, "0.9") // you holding a prop: its guard's time times this
+QVR_TUNABLE(vr_agrunt_pcat_prop_range, "0.9") // you holding a prop: the preventive and wind-up ranges times this
+QVR_TUNABLE(vr_agrunt_pcat_prop_windup, "1.15") // you holding a prop: the wind-up's thresholds (height, side, back, read time) times this: above 1 a plainer raise
+QVR_TUNABLE(vr_agrunt_pcat_prop_pre, "0.5") // you holding a prop: the preventive parry's chance besides (odds): under 1 it waits for your wind-up
+QVR_TUNABLE(vr_agrunt_pcat_fist_chance, "0.9") // you holding fists: its parries' chances times this, as odds: 1 - (1 - c)^m (never and always kept)
+QVR_TUNABLE(vr_agrunt_pcat_fist_delay, "1.15") // you holding fists: its parries' delays (the reactive parry's reaction too) times this
+QVR_TUNABLE(vr_agrunt_pcat_fist_guard, "1") // you holding fists: its guard's time times this
+QVR_TUNABLE(vr_agrunt_pcat_fist_range, "0.9") // you holding fists: the preventive and wind-up ranges times this
+QVR_TUNABLE(vr_agrunt_pcat_fist_windup, "1.1") // you holding fists: the wind-up's thresholds (height, side, back, read time) times this: above 1 a plainer raise
+QVR_TUNABLE(vr_agrunt_pcat_fist_pre, "0.6") // you holding fists: the preventive parry's chance besides (odds): under 1 it waits for your wind-up
+
 // Combat > Armed Humanoid Replacements
 QVR_TUNABLE(vr_agrunt_repl_skill0, "0.5") // the chances above times this on Easy
 QVR_TUNABLE(vr_agrunt_repl_skill1, "1") // ... on Normal

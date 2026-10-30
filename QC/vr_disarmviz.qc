@@ -101,6 +101,11 @@ void(entity g, entity p, entity pl) VR_DV_Weapon =
         string why = pl ? VR_AG_TugEasy(g, pl) : "";
         s = why != "" ? sprintf("grab: at once (%s)", why) : "grab: a tug";
     }
+    string gs = VR_AGG_Label(g); // (its guard: preparry, windup, recovering; vr_armedgrunt_guard.qc)
+    if(gs != "")
+    {
+        s = sprintf("%s; %s", s, gs);
+    }
     debugdisarmnote(p, 0, p.origin + '0 0 16', rag ? strcat(s, "; ragdoll") : s);
 };
 

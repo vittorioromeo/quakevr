@@ -293,6 +293,16 @@ za::Vector<Item> pageDebugAutomation()
                   "fist, a held shotgun, a carried crate and a thrown gun, unaware, caught out or its parry raised, and "
                   "in slow motion: disarmed unless its parry was raised (parried); an open hand or a push neither; a "
                   "punch on its legs its full damage (vr_agrunt_strike_first; agtest: strike ... PASS)."),
+        command("Armed Grunts: Preventive Parry", "vr_agrunt_test 95")
+            .help("vr_agrunt_test 95 (vrtesthall; a few seconds): a grunt up close, its shove cooling down or a sword in "
+                  "its hand, raises its guard after the delay, holds it, drops it: a strike in it parried, one in the "
+                  "recovery disarms; far off, chance 0 or its shove ready: none; random times within their ranges "
+                  "(vr_agrunt_preparry; agtest: guard 95.N ... PASS)."),
+        command("Armed Grunts: Wind-up Parry", "vr_agrunt_test 96")
+            .help("vr_agrunt_test 96 (vrtesthall; a few seconds): your fist raised overhead or to the side baits its "
+                  "guard (read, delay, guard, recovery: a strike then disarms); a raise held is read once; at rest or "
+                  "chance 0 none; an axe raised is parried more often and sooner than a shotgun "
+                  "(vr_agrunt_windup_parry; agtest: guard 96.N ... PASS)."),
         command("Armed Grunts: Parry Their Blows", "vr_mock_hand main 0.15 1.35 -0.35 0 90 0; vr_agrunt_test 35")
             .help("vr_agrunt_test 35 (vrtesthall; about 40 s; Tests Spawn Enforcers picks the enforcer): one "
                   "after another, an armed one with an axe, a sword, a crowbar, the chainsaw, Mjolnir and fists strikes "

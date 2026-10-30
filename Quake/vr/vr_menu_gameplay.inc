@@ -988,6 +988,20 @@ void ikStretchReset()
             .help("The chance it sees a blow coming in time, at Normal skill (Easy 0.6x, Hard 1.15x, Nightmare 1.3x); "
                   "caught out, its weapon stays where it was: a blow still meeting it there is parried "
                   "(vr_agrunt_parry_chance)."),
+        toggle("Reactive Parry", vr_agrunt_react_parry)
+            .help("It raises its parry for a blow it sees coming (Parry: Reaction Time and Chance; by what you hold: "
+                  "Debug > Tunables, Armed Grunts - Parry by What You Hold). Off: only its guard below raises it "
+                  "(vr_agrunt_react_parry)."),
+        toggle("Preventive Parry", vr_agrunt_preparry)
+            .help("You up close and its shove cooling down, or a melee weapon in its hand: now and then it raises its "
+                  "guard for a while, then drops it, unable to parry for a moment: wait it out or bait it, then strike. "
+                  "Its chance, delays, guard and recovery times: Debug > Tunables, Armed Grunts - Preventive Parry "
+                  "(vr_agrunt_preparry)."),
+        toggle("Wind-up Parry", vr_agrunt_windup_parry)
+            .help("You raising a weapon, a gun, a prop or a fist overhead, out to your side or drawn back near it: it "
+                  "may raise its guard after a moment, hold it, then drop it: raise to bait it, wait it out, strike. "
+                  "Its thresholds, chance and times: Debug > Tunables, Armed Grunts - Wind-up Parry "
+                  "(vr_agrunt_windup_parry)."),
         header("Manner"),
         toggle("Taunt on First Sight", vr_agrunt_taunt)
             .help("An armed grunt seeing you for the first time plays its taunt before it comes for you "

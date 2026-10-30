@@ -139,7 +139,9 @@ vr_agrunt_test   90       vr_armedgrunt_guard_test.qc      an unarmed enforcer's
 vr_agrunt_test   92       vr_armedgrunt_twohand_test.qc    two hands in the tug; a staggering or downed one's eased tug
 vr_agrunt_test   93       vr_armedgrunt_shot_test.qc       projectiles' own rolls (vr_agrunt_shotdisarm_proj)
 vr_agrunt_test   94       vr_armedgrunt_strike_test.qc     a deliberate strike or throw on its weapon or hand disarms it (vr_agrunt_strike_first)
-vr_agrunt_test   97       vr_disarmviz_test.qc             Show Disarm Volumes in each state (eye images)
+vr_agrunt_test   95       vr_armedgrunt_preparry_test.qc   the preventive parry: its guard up close, held, dropped (vr_agrunt_preparry)
+vr_agrunt_test   96       vr_armedgrunt_preparry_test.qc   the wind-up parry: your raise baits its guard; by what you hold (vr_agrunt_windup_parry)
+vr_agrunt_test   97       vr_disarmviz_test.qc            Show Disarm Volumes in each state (eye images)
 vr_agrunt_test   100+     vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))

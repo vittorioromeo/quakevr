@@ -2553,6 +2553,9 @@ QVR_CVAR(vr_agrunt_parry, "1", CVAR_ARCHIVE)          // 1: an armed grunt or en
 QVR_CVAR(vr_agrunt_parry_strikes_only, "1", CVAR_ARCHIVE) // 1: it raises its parry only for a real strike (a weapon swung at it, a closed fist punching past vr_melee_speed), never for hands near it or reaching; 0: any hand within 30 units
 QVR_CVAR(vr_agrunt_parry_react, "0.15", CVAR_ARCHIVE) // s from seeing a blow coming to raising its parry (normal skill; easy 1.4x, hard 0.85x, nightmare 0.7x)
 QVR_CVAR(vr_agrunt_parry_chance, "0.7", CVAR_ARCHIVE) // the chance it sees a blow coming in time (normal skill; easy 0.6x, hard 1.15x, nightmare 1.3x)
+QVR_CVAR(vr_agrunt_react_parry, "1", CVAR_ARCHIVE) // 1: it raises its parry for a blow it sees coming (the reactive parry: vr_agrunt_parry_chance, _react); 0 only its guard (below) raises it
+QVR_CVAR(vr_agrunt_preparry, "1", CVAR_ARCHIVE) // 1: you up close and its shove cooling down (or a melee weapon in its hand), it may raise its guard for a while, then drop it (the opening; QC vr_armedgrunt_guard.qc, tunables vr_agrunt_preparry_*)
+QVR_CVAR(vr_agrunt_windup_parry, "1", CVAR_ARCHIVE) // 1: you raising a weapon (a gun, a prop, a fist) overhead, to your side or drawn back near it, it may raise its guard for a while, then drop it (tunables vr_agrunt_windup_*)
 // Shooting its weapon out of its hand (QC vr_armedgrunt_shot.qc; ROUND22.md "Armed grunts: shooting the weapon out").
 QVR_CVAR(vr_agrunt_shotdisarm, "1", CVAR_ARCHIVE)              // 1: your shots on its weapon or its weapon hand add up; past the threshold, a roll knocks it out
 QVR_CVAR(vr_agrunt_shotdisarm_parts, "2", CVAR_ARCHIVE)        // what counts: 0 the weapon only, 1 the hand (and forearm) only, 2 either
