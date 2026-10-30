@@ -1,6 +1,7 @@
 // vr_server.cpp -- server side of the Quake VR protocol extensions (see vr_protocol.hpp).
 
 #include "vr_rigseq.hpp"
+#include "vr_disarmviz.hpp"
 #include "vr_rigstudio.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_axestick.hpp"
@@ -1158,6 +1159,7 @@ extern "C" void VR_ServerFrameEnd()
     QVR_TRACY_CALL("sv end: foe grab", qvr::foegrab::serverFrame()); // held enemies slowed and dragged (before their poses are kept)
     QVR_TRACY_CALL("sv end: body contact", qvr::bodycontact::serverFrame()); // a player and a monster overlapping (a hold let go of) pushed apart
     QVR_TRACY_CALL("sv end: hit model poses", qvr::hitmodel::serverFrame()); // precise hits: the client's lerp of the monsters' poses and steps, kept
+    qvr::disarmviz::serverFrame(); // Show Disarm Volumes: the fists measured against the armed humanoids' weapons (off: nothing)
     QVR_TRACY_CALL("sv end: axe stick", qvr::axestick::serverFrame()); // thrown axes stuck in things go with them (after the poses above)
     QVR_TRACY_CALL("sv end: foe grab spots", qvr::foegrab::afterPoses()); // the held spots placed (after the poses above); a hand pulled too far lets go
     QVR_TRACY_CALL("sv end: explosion debris", qvr::explosiondebris::serverFrame()); // the explosions' chunks: new ones launched, the ended gone, the fades

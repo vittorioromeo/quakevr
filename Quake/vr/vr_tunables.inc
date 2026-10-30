@@ -740,6 +740,10 @@ QVR_TUNABLE(vr_agrunt_disarm_damage, "10") // a blow's least damage there to dis
 QVR_TUNABLE(vr_agrunt_disarm_swing, "4.5") // m/s a blow (your hand or what it holds) landing on its held weapon must reach to knock it out
 QVR_TUNABLE(vr_agrunt_disarm_throw, "20") // kg m/s a thrown weapon, prop or gib landing on its held weapon must carry (mass x speed) to knock it out
 QVR_TUNABLE(vr_agrunt_down_swing, "3.2") // m/s: lying with its weapon in its hand, a deliberate blow this fast knocks it away (with vr_agrunt_disarm_deliberate; else 0.8)
+QVR_TUNABLE(vr_agrunt_strike_beat, "0.4") // a deliberate strike on its weapon or hand into its raised parry: the chance it beats the parry and disarms it (times the two below)
+QVR_TUNABLE(vr_agrunt_strike_precise, "4") // units: a strike that met its weapon this near its grip or its hand and forearm is a precise one
+QVR_TUNABLE(vr_agrunt_strike_precise_mult, "2") // ... its chance against a raised parry times this
+QVR_TUNABLE(vr_agrunt_strike_raised, "0.5") // the share of its parry pose that counts as raised (under it, or not yet up, a deliberate strike disarms it)
 QVR_TUNABLE(vr_agrunt_tug_pull, "10") // the tug: how far (units) you must pull your hand back from where you grabbed, away from it, to be winning
 QVR_TUNABLE(vr_agrunt_tug_hurt, "0.35") // a grab takes the weapon at once from a grunt down to this share of its health (or staggered, down, stunned)
 QVR_TUNABLE(vr_agrunt_tug_hold_max, "6") // s the tug lasts at most: then it wrenches its weapon free (0: no limit)

@@ -987,20 +987,10 @@ float(entity pl, float h) VR_AG_HandStrikes =
     return !VRIsHandEmpty(pl, h) || VR_HandGrabUtil_IsHandGrabbing(pl, h);
 };
 
-// A player's hand (or what it holds) striking the held weapon (vr_ag_wa..vr_ag_wb: VR_AG_WeaponLine) at `scale` times
-// vr_agrunt_disarm_swing or more, deliberately: its speed (m/s; 0 none).
-float(entity g, entity p, entity pl, float h, float scale) VR_AG_HandStrikeSpeed =
+// A player's hand (or what it holds), met with the held weapon `p` (VR_AG_HandStrikeSpeed's or VR_AG_StrikeMeets' test),
+// going at `scale` times vr_agrunt_disarm_swing or more, deliberately: its speed (m/s; 0 none).
+float(entity g, entity p, entity pl, float h, float scale) VR_AG_StrikeSpeed =
 {
-    vector hp = VRGetEntHandPos(pl, h);
-    vector mz = VR_HAND_FIELD(pl, h, muzzlepos, offmuzzlepos);
-    if(VRIsHandEmpty(pl, h) || vlen(mz - hp) > 48)
-    {
-        mz = hp;
-    }
-    if(VR_AG_SegDist(hp, mz, vr_ag_wa, vr_ag_wb) > 5)
-    {
-        return FALSE;
-    }
     float last = VR_HAND_FIELD(pl, h, vr_ag_knock_at, vr_ag_knock_off);
     if(time - last < 0.3)
     {
@@ -1061,6 +1051,34 @@ float(entity g, entity p, entity pl, float h, float scale) VR_AG_HandStrikeSpeed
     return max(0.01, sp);
 };
 
+// A player's hand (or what it holds) striking the held weapon `p` (vr_ag_wa..vr_ag_wb: VR_AG_WeaponLine) at `scale`
+// times vr_agrunt_disarm_swing or more, deliberately: its speed (m/s; 0 none). Met: with vr_agrunt_strike_first its
+// swept points and a carried prop's size against its weapon and its hand (VR_AG_StrikeMeets); else the hand's point to
+// its weapon's muzzle now.
+float(entity g, entity p, entity pl, float h, float scale) VR_AG_HandStrikeSpeed =
+{
+    if(cvar_hget(cvarh_vr_agrunt_strike_first))
+    {
+        if(VR_AG_StrikeMeets(g, p, pl, h) < 0)
+        {
+            return FALSE;
+        }
+        VR_AG_WeaponLine(p);
+        return VR_AG_StrikeSpeed(g, p, pl, h, scale);
+    }
+    vector hp = VRGetEntHandPos(pl, h);
+    vector mz = VR_HAND_FIELD(pl, h, muzzlepos, offmuzzlepos);
+    if(VRIsHandEmpty(pl, h) || vlen(mz - hp) > 48)
+    {
+        mz = hp;
+    }
+    if(VR_AG_SegDist(hp, mz, vr_ag_wa, vr_ag_wb) > 5)
+    {
+        return FALSE;
+    }
+    return VR_AG_StrikeSpeed(g, p, pl, h, scale);
+};
+
 // A player's hand (or what it holds) striking the held weapon hard enough: knocked out along the blow. TRUE: disarmed.
 float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
 {
@@ -1071,6 +1089,10 @@ float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
     }
     if(h == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
     VR_AG_Disarm(g, VRGetEntHandVel(pl, h) - pl.velocity, 100 + sp * 15, sprintf("a blow of %.1f m/s on its weapon", sp));
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(p, VRGetEntHandPos(pl, h), VR_DV_DISARM, sprintf("strike %.1f m/s on its weapon", sp));
+    }
     return TRUE;
 };
 
@@ -1123,7 +1145,15 @@ float(entity g, entity p) VR_AG_WeaponStruck =
     {
         return VR_AG_TugStrike(g, p); // (the other fist's strike: vr_agrunt_tug_strike)
     }
-    if(g.vr_ag_prop == p && VR_AGPar_WeaponFrame(g)) // (your blow parried, its last strength spent: vr_armedgrunt_parry.qc)
+    float first = cvar_hget(cvarh_vr_agrunt_strike_first);
+    if(first)
+    {
+        if(VR_AG_StrikeFrame(g, p)) // (a deliberate strike on its weapon or hand, else the parry: vr_armedgrunt_parry.qc)
+        {
+            return TRUE;
+        }
+    }
+    else if(g.vr_ag_prop == p && VR_AGPar_WeaponFrame(g)) // (your blow parried, its last strength spent: vr_armedgrunt_parry.qc)
     {
         return TRUE;
     }
@@ -1133,7 +1163,7 @@ float(entity g, entity p) VR_AG_WeaponStruck =
     }
     VR_AG_WeaponLine(p);
     vector mid = (vr_ag_wa + vr_ag_wb) * 0.5;
-    entity pl = VR_Player();
+    entity pl = first ? world : VR_Player();
     while(pl)
     {
         if(pl.health > 0 && vlen(pl.origin - mid) < 128 &&

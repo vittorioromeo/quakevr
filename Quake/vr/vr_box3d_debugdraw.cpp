@@ -87,6 +87,29 @@ void activeRagdollDraw()
     }
 }
 
+bool ragdollPartDraw(int num, int bone, const glm::vec4& colour, float width)
+{
+    const RagdollBodies* r = world && sv.active ? ragdollOf(num) : nullptr;
+    if(!r || bone < 0 || bone >= r->count || partCut(*r, bone) || !b3Body_IsValid(r->body[static_cast<za::SizeT>(bone)]))
+    {
+        return false;
+    }
+    const b3BodyId body = r->body[static_cast<za::SizeT>(bone)];
+    za::Array<b3ShapeId, 8> shapes;
+    const b3WorldTransform xf = b3Body_GetTransform(body);
+    const int count = b3Body_GetShapes(body, shapes.data(), static_cast<int>(shapes.size()));
+    for(int i = 0; i < count; i++)
+    {
+        switch(b3Shape_GetType(shapes[i]))
+        {
+        case b3_hullShape: drawHull(b3Shape_GetHull(shapes[i]), xf, colour, width); break;
+        case b3_capsuleShape: drawCapsule(b3Shape_GetCapsule(shapes[i]), xf, colour, width); break;
+        default: break;
+        }
+    }
+    return count > 0;
+}
+
 void debugDraw()
 {
     if(!world || !sv.active)

@@ -1202,4 +1202,33 @@ bool fistOnArmedWeapon(edict_t* player, int hand)
     Hunk_FreeToLowMark(mark);
     return on;
 }
+
+float armedGrabGap(edict_t* weapon, edict_t* player, int hand, float& allowed, bool& swept)
+{
+    // (handOn's armed weapon branch, keep in step: its allowance, the fist against the drawn surface, then its sweep.)
+    allowed = 0.f;
+    swept = false;
+    if(!weapon || !player || weapon->free || hand < 0 || hand > 1 || held::fist(hand).empty() || !armedWeapon(weapon))
+    {
+        return ZA_FLOAT_MAX;
+    }
+    const float m2u = units::metresToUnits();
+    const float slack = (vr_agrunt_grab_slack.value + za::max(vr_agrunt_grab_leniency.value, 0.f)) * 0.01f * m2u;
+    allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
+    held::fistInWorld(hand, fieldVec(player, hand == 0 ? f().offhandpos : f().handpos),
+        fieldVec(player, hand == 0 ? f().offhandrot : f().handrot), armedFist);
+    bool surface = true;
+    float gap = held::fistGap(weapon, armedFist, za::max(allowed, 0.25f * m2u), surface);
+    if(!surface)
+    {
+        return ZA_FLOAT_MAX;
+    }
+    if(gap > allowed)
+    {
+        const float s = sweptFistGap(weapon, allowed);
+        swept = s <= allowed;
+        gap = za::min(gap, s);
+    }
+    return gap;
+}
 }

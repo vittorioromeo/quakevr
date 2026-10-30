@@ -951,6 +951,7 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
         place(fve, muzzle, ax / perUnit, az, h.flashRoll,
             perUnit / weaponScale * za::max(weapons::value(slot, Key::FlashSize), 0.f) * feel.flash * h.flashJitter);
     }
+    gunfx::looseFrame(); // (guns that left a hand smoking: their wisps on the prop or in the holster)
     model = view::viewModel(flashModelName);
 
     // The grunts'.
