@@ -172,7 +172,10 @@ float QVR_EJECT_FLICK = 1; // a flick reload: flung by the spinning weapon
 // weapon kicks and its muzzle flashes, as that weapon's settings say (Weapon Offsets > Effects); a grunt's gun flashes
 // at its muzzle. Sent to the clients, nothing in the game changes. A hand + 2 (2, 3): a stream weapon's flame from that
 // hand (the flamethrower, the poison sprayer): no kick or flash, its tremble and light buzz while the flames come.
+// QVR_FIRED_ROCKET (4): a monster's own rocket tube (AD's rocket soldier): its flash, smoke and backblast out of the
+// tube's back (vr_gunfx.cpp).
 void(entity shooter, float hand) weaponfired = #0;
+float QVR_FIRED_ROCKET = 4;
 // A hitscan pellet (or round) of `shooter`'s, from `from` (the muzzle) to `to` (what it hit, or its range's end): the
 // clients may draw a bullet tracer along it (vr_tracers, the weapon's own settings). `hand` -1: a monster's.
 void(entity shooter, float hand, vector from, vector to) tracer = #0;

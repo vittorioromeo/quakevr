@@ -475,6 +475,70 @@ int exhaustSmoke(const glm::vec3& where, const glm::vec3& dir, const glm::vec3& 
     return made;
 }
 
+// A rocket launcher's vents facing you (its model's own coordinates): v_rock2.mdl's two slots in the back face of its
+// head (its shoulder at x 33.3, round the tube; the slots y -4.72..-3.36 and 3.36..4.55, z 6.57..7.51), facing back.
+struct ModelVents
+{
+    const char* name;
+    glm::vec3 at[2];
+    glm::vec3 dir;
+};
+constexpr ModelVents rocketVents[] = {
+    {"progs/v_rock2.mdl", {{33.2f, -4.05f, 7.05f}, {33.2f, 3.95f, 7.05f}}, {-1.f, 0.f, 0.f}},
+};
+[[nodiscard]] const ModelVents* ventsOf(const Muzzle& m, GunFrame& f)
+{
+    const qmodel_t* model = gunModel(m);
+    if(!model || !gunFrame(m, f))
+    {
+        return nullptr;
+    }
+    const char* hash = strchr(model->name, '#');
+    const size_t len = hash ? static_cast<size_t>(hash - model->name) : strlen(model->name);
+    for(const ModelVents& v : rocketVents)
+    {
+        if(strlen(v.name) == len && strncmp(v.name, model->name, len) == 0)
+        {
+            return &v;
+        }
+    }
+    return nullptr;
+}
+
+// Light smoke out of a rocket launcher's vents (`n` puffs, either vent): back out of them, at you, and up, curling.
+int rocketVentSmoke(const GunFrame& f, const ModelVents& v, const glm::vec3& drift, int n, float strength)
+{
+    if(n <= 0 || !particles::enabled())
+    {
+        return 0;
+    }
+    const float turb = 40.f * za::clamp(vr_gunfx_turbulence.value, 0.f, 3.f);
+    const glm::vec3 back = glm::normalize(at(f, v.dir) - at(f, glm::vec3{0.f}) + glm::vec3{1e-6f});
+    const glm::vec3 side = glm::normalize(f.y + glm::vec3{1e-6f});
+    int made = 0;
+    for(int i = 0; i < n; i++)
+    {
+        const int k = rng.getI(0, 1);
+        const float out = k == 0 ? -1.f : 1.f;
+        particles::GunParticle g;
+        g.kind = particles::GunParticle::Smoke;
+        g.org = at(f, v.at[k] + glm::vec3{-0.1f, vrand::range(rng, -0.5f, 0.5f), vrand::range(rng, -0.3f, 0.3f)});
+        g.vel = back * vrand::range(rng, 5.f, 11.f) + side * (out * vrand::range(rng, 1.f, 4.f)) +
+                glm::vec3{0.f, 0.f, vrand::range(rng, 8.f, 14.f)} + drift * 0.8f;
+        const float grey = za::min(0.9f, smokeGrey() * 1.15f);
+        g.color = glm::vec4{grey, grey, grey * 0.98f, strength * vrand::range(rng, 0.24f, 0.34f)};
+        g.scale = vrand::range(rng, 0.5f, 0.8f);
+        g.grow = vrand::range(rng, 6.f, 9.f);
+        g.life = vrand::range(rng, 0.6f, 1.f);
+        g.drag = 2.f;
+        g.gravity = -0.05f;
+        g.turb = turb;
+        g.fadeIn = 0.05f;
+        made += put(g);
+    }
+    return made;
+}
+
 // The flash's light in its smoke: a warm glow filling the cone's start for a moment.
 void flashGlow(const Muzzle& m, const Look& look, Counts& c)
 {
@@ -503,6 +567,11 @@ void backblast(const Muzzle& m, const glm::vec3& right, const glm::vec3& up, flo
             out.y, out.z, onGun ? "the gun's" : "behind the muzzle", m.at.x, m.at.y, m.at.z);
     }
     smokeCone(rear, out, right, up, m.drift, scaled(16, budget), 1.5f, 240.f, 0.85f, 0.6f, 0.3f, blast, c.back);
+    GunFrame gf;
+    if(const ModelVents* v = ventsOf(m, gf))
+    {
+        c.vent += rocketVentSmoke(gf, *v, m.drift, scaled(7, budget), 1.f); // (the vents facing you; your hand's go on: afterSmoke)
+    }
     if(!own)
     {
         c.exhaust += exhaustSmoke(rear, out, m.drift, scaled(6, budget), 1.f, true);
@@ -694,9 +763,13 @@ void afterSmoke(HandState& h, const Muzzle& m, int wid, float dt)
             bool onGun = false;
             exhaustOf(m, where, dir, onGun);
             const int made = exhaustSmoke(where, dir, m.drift, n, za::min(h.exhaust * 1.5f, 1.f), false);
+            // The vents facing you smoke on too (one puff in two, lighter).
+            GunFrame f;
+            const ModelVents* v = ventsOf(m, f);
+            const int vents = v ? rocketVentSmoke(f, *v, m.drift, (n + 1) / 2, za::min(h.exhaust * 1.2f, 0.8f)) : 0;
             if(vr_debug_gunfx.value >= 2.f)
             {
-                Con_Printf("gunfx after exhaust %d at %.1f %.1f %.1f\n", made, where.x, where.y, where.z);
+                Con_Printf("gunfx after exhaust %d vents %d at %.1f %.1f %.1f\n", made, vents, where.x, where.y, where.z);
             }
         }
     }
