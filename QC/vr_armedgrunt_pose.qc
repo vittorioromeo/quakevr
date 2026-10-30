@@ -105,8 +105,6 @@ vector vr_agk_gr;
 float vr_agk_mode;
 float vr_agk_gun;          // (a single gun held: its pose category's keys; the off-hand block only then)
 float vr_agk_stretch;      // its kind and class's IK stretch (agpose::stretch, weapondrawnpose(world, kind * 100 + class, 28); 1 none): sent in the off-hand block when over 1
-float VR_AGK_OFF_GUN = 1;  // (agpose::OffGun: on the gun even when the hold is one-handed)
-float VR_AGK_OFF_FREE = 2; // (agpose::OffFree: off the gun, hanging free)
 
 void(entity g) VR_AGP_Body = { makevectors([0, g.angles_y, 0]); vr_agp_f = v_forward; vr_agp_r = v_right; };
 vector(vector l) VR_AGP_ToWorld = { return vr_agp_f * l_x - vr_agp_r * l_y + '0 0 1' * l_z; };
@@ -1295,21 +1293,12 @@ vector(entity g, vector posL, vector handL) VR_AGP_TurnPose =
 
 // ----------------------------------------------------------------------------
 // The Pose Studio's keys (Quake/vr/vr_agpose.hpp; ROUND22.md, "Pose Studio"): changes laid on the poses above by hand,
-// one key per kind, weapon class, pose and phase (its code: kind * 10000 + class * 1000 + pose * 10 + phase), read
+// one key per kind, weapon class, pose and phase (its code: kind * VR_AGK_KIND + class * VR_AGK_CLASS + pose *
+// VR_AGK_POSE + phase; the classes and poses: Quake/vr/vr_agpose_shared.h), read
 // through weapondrawnpose(world, code, 11..18) and blended by this pose's weights: the stance (carried or aimed/ready),
 // the run, the pickup, a strike's wind-up, blow and follow-through. And the studio's hold: its subject shown in the pose
 // picked on its panel (weapondrawnpose(g, kind * 100 + class, 19)).
 // ----------------------------------------------------------------------------
-float VR_AGK_FISTS = 0;     // the classes (agpose::Class)
-float VR_AGK_GUN = 1;       // a rifle (a single gun's pose category, VR_AGK_PISTOL.. the others)
-float VR_AGK_MELEE = 2;
-float VR_AGK_MELEE2 = 3;
-float VR_AGK_SAW = 4;
-float VR_AGK_TWOMELEE = 5;
-float VR_AGK_TWOGUNS = 6;
-float VR_AGK_PISTOL = 17;
-float VR_AGK_WIDOWMAKER = 21; // (the last category: 18 a shoulder launcher, 19 a sprayer, 20 the laser cannon)
-float VR_AGK_KIND = 100000; // a key's code: kind * this + class * 1000 + pose * 10 + phase (agpose::code)
 float vr_agk_ww;            // a strike's phases' shares now (VR_AGK_Phases): its wind-up, its blow, its follow-through
 float vr_agk_wb;
 float vr_agk_wf;
@@ -1499,7 +1488,7 @@ void(entity g, entity p) VR_AGK_Keys =
     vr_agk_rep = g.vr_agk_live;
     vr_agk_repent = g;
     float cls = VR_AGK_Class(g, p);
-    float base = g.vr_ag_kind * VR_AGK_KIND + cls * 1000;
+    float base = g.vr_ag_kind * VR_AGK_KIND + cls * VR_AGK_CLASS;
     vector st = weapondrawnpose(world, g.vr_ag_kind * 100 + cls, 28);
     vr_agk_stretch = st_x;
     float wp = 0; // (the pickup's: its bend's)
@@ -1528,9 +1517,9 @@ void(entity g, entity p) VR_AGK_Keys =
         wa = VR_Smooth(g.vr_agp_rdy);
     }
     VR_AGK_Add(base, (1 - wp) * (1 - wa), FALSE);
-    VR_AGK_Add(base + 10, (1 - wp) * wa, FALSE);
-    VR_AGK_Add(base + 20, (1 - wp) * g.vr_agp_runw, FALSE);
-    VR_AGK_Add(base + 30, wp, FALSE);
+    VR_AGK_Add(base + VR_AGK_AIM * VR_AGK_POSE, (1 - wp) * wa, FALSE);
+    VR_AGK_Add(base + VR_AGK_RUN * VR_AGK_POSE, (1 - wp) * g.vr_agp_runw, FALSE);
+    VR_AGK_Add(base + VR_AGK_PICKUP * VR_AGK_POSE, wp, FALSE);
     // The off hand's hold (a single gun's: agpose::OffMode): the Pickup's while taking a weapon up, if set; else Aim's
     // while aimed (Auto: the Weapon Holds'); else Run's while running, if set; else Carry's. (So Run's Free with Aim's
     // Auto: free running, on the gun aimed, running or not; the client eases the hand between, vr_agarms secondEase.)
@@ -1541,15 +1530,15 @@ void(entity g, entity p) VR_AGK_Keys =
     }
     if(vr_agk_gun)
     {
-        float mp = VR_AGK_Mode(base + 30);
-        float mr = VR_AGK_Mode(base + 20);
+        float mp = VR_AGK_Mode(base + VR_AGK_PICKUP * VR_AGK_POSE);
+        float mr = VR_AGK_Mode(base + VR_AGK_RUN * VR_AGK_POSE);
         if(wp >= 0.5 && mp)
         {
             vr_agk_mode = mp;
         }
         else if((1 - wp) * wa >= 0.5)
         {
-            vr_agk_mode = VR_AGK_Mode(base + 10);
+            vr_agk_mode = VR_AGK_Mode(base + VR_AGK_AIM * VR_AGK_POSE);
         }
         else if((1 - wp) * g.vr_agp_runw >= 0.5 && mr)
         {
@@ -1564,19 +1553,19 @@ void(entity g, entity p) VR_AGK_Keys =
     if(act == VR_AGP_PUNCH || act == VR_AGP_SWING || act == VR_AGP_SAW)
     {
         float k = g.vr_ag_act_kind;
-        float pose = 18;
+        float pose = VR_AGK_SAWTHRUST;
         float mir = FALSE;
         if(act == VR_AGP_PUNCH)
         {
-            pose = k == 0 ? 10 : k == 1 ? 11 : k == 4 ? 13 : 12;
+            pose = k == 0 ? VR_AGK_JAB : k == 1 ? VR_AGK_CROSS : k == 4 ? VR_AGK_UPPERCUT : VR_AGK_HOOK;
             mir = k == 2; // (a left hook: the right's mirrored)
         }
         else if(act == VR_AGP_SWING)
         {
-            pose = 14 + min(3, k);
+            pose = VR_AGK_OVERHEAD + min(3, k);
             if(g.vr_ag_prop2 && g.vr_ag_act_hand == 2)
             {
-                pose = 19;
+                pose = VR_AGK_DUAL;
             }
             else if(g.vr_ag_prop2)
             {
@@ -1584,9 +1573,9 @@ void(entity g, entity p) VR_AGK_Keys =
             }
         }
         VR_AGK_Phases(g);
-        VR_AGK_Add(base + pose * 10, vr_agk_ww, mir);
-        VR_AGK_Add(base + pose * 10 + 1, vr_agk_wb, mir);
-        VR_AGK_Add(base + pose * 10 + 2, vr_agk_wf, mir);
+        VR_AGK_Add(base + pose * VR_AGK_POSE, vr_agk_ww, mir);
+        VR_AGK_Add(base + pose * VR_AGK_POSE + 1, vr_agk_wb, mir);
+        VR_AGK_Add(base + pose * VR_AGK_POSE + 2, vr_agk_wf, mir);
     }
     else if(act == VR_AGP_SHOVE)
     {
@@ -1595,17 +1584,18 @@ void(entity g, entity p) VR_AGK_Keys =
         float sb = base;
         if(vr_agk_gun && cls != VR_AGK_PISTOL && VR_AGH_Hands(g, p) == 1)
         {
-            sb = g.vr_ag_kind * VR_AGK_KIND + VR_AGK_PISTOL * 1000;
+            sb = g.vr_ag_kind * VR_AGK_KIND + VR_AGK_PISTOL * VR_AGK_CLASS;
         }
         VR_AGK_Phases(g);
-        VR_AGK_Add(sb + 200, vr_agk_ww, FALSE);
-        VR_AGK_Add(sb + 201, vr_agk_wb, FALSE);
-        VR_AGK_Add(sb + 202, vr_agk_wf, FALSE);
+        sb = sb + VR_AGK_SHOVE * VR_AGK_POSE;
+        VR_AGK_Add(sb, vr_agk_ww, FALSE);
+        VR_AGK_Add(sb + 1, vr_agk_wb, FALSE);
+        VR_AGK_Add(sb + 2, vr_agk_wf, FALSE);
         if(vr_agk_gun && vr_agk_ww + vr_agk_wb + vr_agk_wf >= 0.5)
         {
             // (its off hand: the leading phase's key's, when set: Free to push with it, On the Gun to push the gun)
             float ph = ((vr_agk_wb >= vr_agk_ww) && (vr_agk_wb >= vr_agk_wf)) ? 1 : ((vr_agk_ww >= vr_agk_wf) ? 0 : 2);
-            float ms = VR_AGK_Mode(sb + 200 + ph);
+            float ms = VR_AGK_Mode(sb + ph);
             if(ms)
             {
                 vr_agk_mode = ms;

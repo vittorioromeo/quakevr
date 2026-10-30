@@ -46,7 +46,8 @@ float vr_fire_dev_sum;
 float vr_fire_dev_n;
 
 float(float wid) VR_AG_Class;                                              // vr_enemyshove.qc: fists and melee never shove
-float VR_AG_CLASS_MELEE_DEF = 1;                                           // (vr_armedgrunt.qc VR_AG_CLASS_MELEE; fists 0)
+// The weapon classes and pose numbers (VR_AG_CLASS_*, VR_AGK_*), shared with the engine:
+#include "../Quake/vr/vr_agpose_shared.h"
 float() VR_AG_CheckAttack;                                                 // ai.qc CheckAnyAttack: an armed grunt's
 void() VR_AGAI_React;                                                      // ai.qc HuntTarget: its reaction time (vr_armedgrunt_ai.qc)
 float vr_agai_reacts;                                                      // ... the times it ran (the tests)

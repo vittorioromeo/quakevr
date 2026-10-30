@@ -104,7 +104,7 @@ void() VR_EnemyShove_Play =
 float() VR_EnemyShove_Check =
 {
     vr_eshove_holdfire = FALSE;
-    if(self.vr_ag && (self.vr_ag_wid < 0 || VR_AG_Class(self.vr_ag_wid) <= VR_AG_CLASS_MELEE_DEF) &&
+    if(self.vr_ag && (self.vr_ag_wid < 0 || VR_AG_Class(self.vr_ag_wid) <= VR_AG_CLASS_MELEE) &&
        cvar_hget(cvarh_vr_agrunt_shove) < 2)
     {
         return FALSE; // (an armed grunt's fists or melee weapon: its own blows, vr_armedgrunt_pose.qc; vr_agrunt_shove 2 also the shove)

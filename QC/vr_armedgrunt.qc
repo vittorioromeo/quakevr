@@ -37,13 +37,7 @@
 //   vr_agrunt_rearm_range when its target is not nearer to that weapon than it is (one at its feet, within 64 units:
 //   always), then fights with that one.
 
-float VR_AG_CLASS_FISTS = 0;     // its fists
-float VR_AG_CLASS_MELEE = 1;     // a melee weapon
-float VR_AG_CLASS_GUN = 2;       // one shot an attack (the shotguns, the laser rifle)
-float VR_AG_CLASS_EXPLOSIVE = 3; // one round an attack, kept away from its target (the launchers)
-float VR_AG_CLASS_AUTO = 4;      // one a frame (the nail guns, the thunderbolt, the laser cannon)
-float VR_AG_CLASS_BURST = 5;     // the grunts' burst rifle: three rounds
-
+// (its weapon classes, VR_AG_CLASS_*: Quake/vr/vr_agpose_shared.h, included by vr_armedgrunt_defs.qc)
 float VR_AG_GRIP_REACH = 52;     // a melee attack starts this near (the boxes' middles)
 float VR_AG_PICKUP_REACH = 40;   // it takes a weapon this near
 float VR_AG_DISARM_HAND = 10;    // a blow this near its gun hand (units) disarms it

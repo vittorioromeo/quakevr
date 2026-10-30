@@ -23,6 +23,7 @@
 // (X/A held: the one before). B/Y opens and closes its panel over the gun (vr_toolgun_panel.cpp). Single player: the
 // listen server's edicts, changed between its frames (as a console command does).
 
+#include "vr_agpose_shared.h"
 #include "vr_testkit.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_toolgun_brush.hpp"
@@ -627,9 +628,8 @@ void armedRefresh()
 // The two held one in each hand (QC VR_AM_UiPairs, VR_AG_Pairs): both pair, both melee or both guns.
 [[nodiscard]] bool armedPairs(int kind, int code, int code2)
 {
-    constexpr int classMelee = 1; // (QC VR_AG_CLASS_MELEE: the fits' class, 4 x)
     const int f1 = armedFits(kind, code), f2 = armedFits(kind, code2);
-    return code > 0 && code2 > 0 && (f1 & 2) && (f2 & 2) && ((f1 >> 2) == classMelee) == ((f2 >> 2) == classMelee);
+    return code > 0 && code2 > 0 && (f1 & 2) && (f2 & 2) && ((f1 >> 2) == VR_AG_CLASS_MELEE) == ((f2 >> 2) == VR_AG_CLASS_MELEE);
 }
 
 [[nodiscard]] const char* armedCodeName(int code)
