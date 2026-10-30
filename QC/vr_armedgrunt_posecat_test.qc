@@ -106,7 +106,7 @@ void() VR_AGPC_Frame =
         vr_agpc_p.owner = vr_agpc_g;
         // 1. the table
         float n = 0;
-        for(k = 0; k < VR_AM_COUNT; k++)
+        for(k = 0; k < VR_AM_GUN_KINDS; k++)
         {
             for(i = 0; i < VR_AGPC_N; i++)
             {
@@ -121,7 +121,7 @@ void() VR_AGPC_Frame =
         VR_AGT_Print(sprintf("agcat: %g weapons x kinds", n));
         // 2. a Pistol Aim key 5 forward (the console's turn: set next frame)
         vr_agpc_want = weapondrawnpose(world, VR_AGPC_PistolAim(0), 11) + '5 0 0';
-        for(k = 0; k < VR_AM_COUNT; k++)
+        for(k = 0; k < VR_AM_GUN_KINDS; k++)
         {
             localcmd(VR_AGPC_KeyCmd(VR_AGPC_PistolAim(k), '5 0 0'));
         }
@@ -142,7 +142,7 @@ void() VR_AGPC_Frame =
         }
         float moved = 0;
         float wrong = 0;
-        for(k = 0; k < VR_AM_COUNT; k++)
+        for(k = 0; k < VR_AM_GUN_KINDS; k++)
         {
             for(i = 0; i < VR_AGPC_N; i++)
             {
@@ -160,8 +160,8 @@ void() VR_AGPC_Frame =
             }
         }
         VR_AGT_Check(sprintf("agcat key: the Pistol Aim key 5 forward: %g holders moved (want %g, the pistols), %g wrong",
-            moved, 3 * VR_AM_COUNT, wrong), moved == 3 * VR_AM_COUNT && !wrong);
-        for(k = 0; k < VR_AM_COUNT; k++)
+            moved, 3 * VR_AM_GUN_KINDS, wrong), moved == 3 * VR_AM_GUN_KINDS && !wrong);
+        for(k = 0; k < VR_AM_GUN_KINDS; k++)
         {
             localcmd(sprintf("vr_agrunt_pose_key %g reset\n", VR_AGPC_PistolAim(k)));
         }

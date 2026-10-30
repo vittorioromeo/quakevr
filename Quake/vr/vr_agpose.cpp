@@ -388,7 +388,8 @@ constexpr ShippedRow shipped[] = {
 
 // QC's grunt-made fit of each kind (vr_armedmon.qc VR_AM_Row: vr_am_fit_scale): a place on the grunt times this is the
 // enforcer's.
-constexpr glm::vec3 fitScale[agpose::numKinds] = {glm::vec3{1.f, 1.f, 1.f}, glm::vec3{1.f, 1.35f, 1.1f}};
+constexpr glm::vec3 fitScale[agpose::numKinds] = {glm::vec3{1.f, 1.f, 1.f}, glm::vec3{1.f, 1.35f, 1.1f},
+    glm::vec3{1.f, 1.06f, 1.f}};
 
 struct Entry
 {
@@ -1142,17 +1143,17 @@ void dumpText(za::String& out)
 
 const char* kindName(int kind)
 {
-    return kind == 0 ? "grunt" : kind == 1 ? "enforcer" : "?";
+    return kind == 0 ? "grunt" : kind == 1 ? "enforcer" : kind == 2 ? "knight" : "?";
 }
 
 const char* kindsName(int kind)
 {
-    return kind == 0 ? "grunts" : kind == 1 ? "enforcers" : "?";
+    return kind == 0 ? "grunts" : kind == 1 ? "enforcers" : kind == 2 ? "knights" : "?";
 }
 
 const char* kindTitle(int kind)
 {
-    return kind == 0 ? "Grunt" : kind == 1 ? "Enforcer" : "?";
+    return kind == 0 ? "Grunt" : kind == 1 ? "Enforcer" : kind == 2 ? "Knight" : "?";
 }
 
 const char* offModeName(int mode)

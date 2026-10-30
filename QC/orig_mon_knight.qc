@@ -225,8 +225,9 @@ void()    knight_dieb11 = [    $deathb11,    knight_dieb11] {monster_check_remov
 
 void() knight_die =
 {
-    // VR: its sword falls from its hand (its death frames are drawn without it), gibbed or not.
-    if(!(!VR_OtherFlags() && (self.spawnflags & 2)))
+    // VR: its sword falls from its hand (its death frames are drawn without it), gibbed or not; an armed one's weapons
+    // fall (vr_agknight).
+    if(!VR_AG_Dying() && !(!VR_OtherFlags() && (self.spawnflags & 2)))
     {
         VR_DropKnightSword(FALSE);
     }
@@ -303,6 +304,7 @@ frame: frame to be frozen in. (default 44)
 */
 void() monster_knight =
 {
+    if(VR_AKN_Replace()) return; // VR: its armed version, a sword in its hand (vr_agknight: vr_armedrepl.qc)
     if(MG_MonsterInhibited()) return;
     VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_knight, $painb9, knight_painb9); // VR: knocked down (vr_knockdown.qc): low: painb9 on rises
     if(deathmatch)

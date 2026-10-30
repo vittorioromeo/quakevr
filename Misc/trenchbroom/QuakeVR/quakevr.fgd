@@ -1510,6 +1510,17 @@ delay - seconds after first sighting before it attacks (default 10)"
 	]
 ]
 
+@PointClass color(255 0 0) size(-16 -16 -24, 16 16 40) =
+	monster_vr_knight : "An armed knight (experimental): a knight holding a melee weapon as the armed humanoids hold theirs (his own sword's place).
+'weapon': its weapon (13 the sword, the default; 2 the axe, 17 the crowbar, 14 the chainsaw, AD's swords...; -1 its fists; only melee weapons). 'weapon2': a second one-handed melee weapon in its left hand."
+[
+	spawnflags(flags) =
+	[
+		1 : "Ambush" : 0
+	]
+	weapon(integer) : "Weapon / kind" :  : "A number: see the help for this entity."
+]
+
 @PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/wizard.mdl" }) =
 	monster_wizard : "Scrag (wizard)
 

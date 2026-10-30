@@ -343,7 +343,7 @@ const char* subjectLine()
         q_snprintf(state.line, sizeof(state.line), "No armed grunt near (spawn one)");
         return state.line;
     }
-    q_snprintf(state.line, sizeof(state.line), "%s: %s, %s", k.kind == 0 ? "Grunts" : "Enforcers",
+    q_snprintf(state.line, sizeof(state.line), "%s: %s, %s", agpose::kindTitle(k.kind),
         k.slot == allWeapons ? "every weapon" : slotId(k.slot),
         k.hand == Main ? "main hand" : k.hand == Off ? "off hand (dual)" : "off hand on its second grip");
     return state.line;
@@ -572,7 +572,8 @@ const HoldRow holdRows[] = {
 };
 #undef QVR_AGGUN
 #undef QVR_AGHOLD
-static_assert(agholds::numKinds == agpose::numKinds, "the Weapon Holds' kinds are the pose keys'");
+// (the knight, the pose keys' kind 2, has no Weapon Holds of its own: its one-handed sword holds as the grunt's)
+static_assert(agholds::numKinds <= agpose::numKinds, "the Weapon Holds' kinds are the pose keys' first");
 
 // Category setting `s` (0 Auto, 1.. agpose::gunCategories) as a class; Auto: `autoClass`.
 [[nodiscard]] int categoryClass(int s, int autoClass)
@@ -648,10 +649,11 @@ int hands(int kind, int code, int* settingOut)
     {
         *settingOut = 0;
     }
-    if(kind < 0 || kind >= numKinds)
+    if(kind < 0 || kind >= agpose::numKinds)
     {
         return 0;
     }
+    kind = kind < numKinds ? kind : 0; // (a kind with no holds of its own, the knight: the grunt's)
     for(const HoldRow& w : holdRows)
     {
         if(w.code == code)
