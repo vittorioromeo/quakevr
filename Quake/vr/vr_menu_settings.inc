@@ -1097,12 +1097,15 @@ za::Vector<Item> pageWeaponEffects()
         toggle("Muzzle Sparks", vr_gunfx_sparks)
             .help("A cone of sparks out of the muzzle (each barrel of the super shotgun; the energy guns throw electric arcs)."),
         toggle("Muzzle Smoke", vr_gunfx_smoke)
-            .help("A quick cone of smoke out of the muzzle, drifting with the shooter, the flash's glow in it. Never the "
-                  "energy guns'."),
+            .help("A cone of smoke billowing forward out of the muzzle with the flash, swirling as it spreads and fades, the "
+                  "flash's glow in it; the nail pistol's side vents smoke lightly. Never the energy guns'."),
+        slider("Smoke Turbulence", vr_gunfx_turbulence, 0.f, 3.f, 0.1f, "%.1fx")
+            .help("How much the gunfire smoke swirls as it spreads (0: it drifts straight)."),
         toggle("Ejection Port Smoke", vr_gunfx_port)
             .help("A small quick puff out of a shotgun's port as the casing leaves it (the super shotgun's open breech)."),
         toggle("Rocket Backblast", vr_gunfx_backblast)
-            .help("The rocket launchers' smoke out behind them, and dust kicked up off the floor under them."),
+            .help("A swirling cone of smoke out of the rocket launchers' exhaust, the exhaust smoking a moment after, and "
+                  "dust kicked up off the floor under it."),
         toggle("Barrel Heat", vr_gunfx_heat)
             .help("Sustained fire (the nailguns) leaves the muzzle smoking in thin wisps and glowing faintly until it cools."),
         toggle("Impacts by Material", vr_gunfx_impacts)

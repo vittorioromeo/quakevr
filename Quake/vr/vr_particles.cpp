@@ -146,6 +146,9 @@ struct Particle
     bool additive{false}; // glows: added to the scene (else alpha blended)
     bool flat{false};     // lying flat (a ripple on a liquid), not facing the view
     bool plink{false};    // a drop that leaves a little ring where it falls back into its liquid (at `floor`)
+    // Custom: pushed about by a swirling flow (swirl: turbulence), 2 x this many units a second squared (a byte: it
+    // fits the struct's padding); its own offset in the flow's time comes from `die` (puffs side by side swirl apart).
+    za::U8 turb{0};
     // The cosine and sine of `angle` as of `csAngle` (buildInstances, buildLying): worked out again only when it has
     // turned since (most particles never turn).
     glm::vec2 cs{1.f, 0.f};
@@ -163,6 +166,16 @@ za::Vector<Particle> pool; // reserved to maxParticles at startup (init): it nev
 double lastRun = -1.0;
 
 za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // a new sequence every run (vr_particle_seed: a fixed one)
+
+// A swirling flow at `o` (each axis between -1 and 1), changing over time (`phase`: a particle's own offset in it):
+// each component a wave across the other two axes, so the flow neither gathers nor spreads (no divergence) but curls,
+// about 55 units from one swirl to the next. Gunfire smoke (GunParticle::turb) rides it: turbulent, not random jitter.
+[[nodiscard]] glm::vec3 swirl(const glm::vec3& o, float phase)
+{
+    const float t = static_cast<float>(fmod(cl.time, 2000.0)) * 4.f + phase;
+    const glm::vec3 q = o * 0.115f;
+    return {za::sin(q.y * 1.3f + q.z + t), za::sin(q.z * 1.1f + q.x * 0.9f + t * 1.17f), za::sin(q.x * 1.2f + q.y * 0.8f + t * 0.83f)};
+}
 
 [[nodiscard]] int rndi(int lo, int hiExclusive)
 {
@@ -660,6 +673,11 @@ void run()
                 }
                 p.color.a += p.fade * dt;
                 p.scale += p.grow * dt;
+                if(p.turb > 0)
+                {
+                    const float phase = static_cast<float>(fmod(p.die * 7.31, 6.2831853));
+                    p.vel += swirl(p.org, phase) * (2.f * static_cast<float>(p.turb) * dt);
+                }
                 p.vel *= za::max(0.f, 1.f - p.drag * dt);
                 p.angle += p.spin * dt;
                 break;
@@ -2746,6 +2764,14 @@ bool gunParticle(const GunParticle& g)
         p.drag = g.drag;
         p.acc = gravity(g.gravity);
         p.streak = g.streak;
+        p.turb = static_cast<za::U8>(za::clamp(g.turb * 0.5f + 0.5f, 0.f, 255.f));
+        if(g.fadeIn > 0.f && g.fadeIn < g.life)
+        {
+            // Fading in over its first `fadeIn` seconds (then out to nothing by its end: Custom's ramp).
+            p.ramp = g.fadeIn;
+            p.color.a = 1e-3f; // (not 0: that is a particle gone)
+            p.fade = g.color.a / g.fadeIn;
+        }
         switch(g.kind)
         {
             case GunParticle::Spark:

@@ -1965,7 +1965,8 @@ QVR_CVAR(vr_tracer_brightness, "1", CVAR_ARCHIVE)      // times the colour (they
 QVR_CVAR(vr_gunfx, "1", CVAR_ARCHIVE)                  // 0: none of them (the effects below)
 QVR_CVAR(vr_gunfx_intensity, "1", CVAR_ARCHIVE)        // how many of them, all (0.25-3; fewer at high fire rates anyway)
 QVR_CVAR(vr_gunfx_sparks, "1", CVAR_ARCHIVE)           // a cone of sparks out of the muzzle (the energy guns: electric arcs)
-QVR_CVAR(vr_gunfx_smoke, "1", CVAR_ARCHIVE)            // a quick cone of smoke out of the muzzle, the flash's glow in it (never the energy guns')
+QVR_CVAR(vr_gunfx_smoke, "1", CVAR_ARCHIVE)            // a cone of smoke billowing forward out of the muzzle with the flash, the flash's glow in it (never the energy guns'); the nail pistol's vents
+QVR_CVAR(vr_gunfx_turbulence, "1", CVAR_ARCHIVE)       // how much the gunfire smoke swirls as it spreads (0 none: straight drift; 0-3)
 QVR_CVAR(vr_gunfx_port, "1", CVAR_ARCHIVE)             // a small quick puff out of a shotgun's ejection port (the super shotgun's open breech)
 QVR_CVAR(vr_gunfx_backblast, "1", CVAR_ARCHIVE)        // a rocket launcher's backblast smoke behind it, and dust off the floor under it
 QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sustained fire (the nailguns'): wisps of smoke off the muzzle, a faint glow
@@ -2835,7 +2836,7 @@ QVR_CVAR(vr_nailpistol_volume, "1", CVAR_ARCHIVE)      // its shot's volume (0..
 // rounds put in closes it with a rack (vr/nailpistol_rack.wav). vr_nailpistol_slide_time (held back 0.07 s) retired.
 QVR_CVAR(vr_nailpistol_slide_travel, "1.5", CVAR_ARCHIVE) // how far it goes back, in the gun's model units (0..3: progs/v_nailpistol.mdl's frame 1 is 3 back)
 QVR_CVAR(vr_nailpistol_slide_cycle, "0.14", CVAR_ARCHIVE) // s back and home after a shot (a third back, the rest home; a re-rack closes in the home part)
-QVR_CVAR(vr_nailpistol_smoke, "1", CVAR_ARCHIVE)       // a wisp of smoke from its muzzle after shots (0 none; more after a quick string)
+QVR_CVAR(vr_nailpistol_smoke, "1", CVAR_ARCHIVE)       // light smoke out of its side vents with each shot (vr_gunfx.cpp; 0 none, up to 3x; longer after a quick string)
 QVR_CVAR(vr_dmg_revolver, "28", CVAR_ARCHIVE)        // the heavy revolver (QC vr_revolver.qc): a slug's (a grunt, 30: one in the head at x1.5, two in the body, or one when its roll reaches 30; vr_revolver_heavy_mult in a big body; his 28 of 2026-10-27, was 26)
 // The heavy revolver (QC vr_revolver.qc; Combat > Weapon Damage > Heavy Revolver; Weapons > Reloading > Heavy
 // Revolver): one-handed, double action (a pull cocks the hammer, turns the cylinder a chamber and fires), six chambers

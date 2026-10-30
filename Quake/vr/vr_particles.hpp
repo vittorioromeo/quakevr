@@ -161,6 +161,8 @@ struct GunParticle
     float drag{0.f};    // the part of its speed lost a second
     float gravity{0.f}; // times Quake's (negative: it rises)
     float streak{0.f};  // seconds of its motion it is drawn stretched along (sparks)
+    float turb{0.f};    // carried about by a swirling flow this strongly (units a second squared: smoke's turbulence)
+    float fadeIn{0.f};  // seconds it fades in over first (0: at full from the start)
 };
 bool gunParticle(const GunParticle& g);
 

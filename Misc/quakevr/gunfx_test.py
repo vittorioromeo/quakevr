@@ -58,13 +58,16 @@ def check(ok, what):
 
 
 def run(kit, agent, script, quit_on, timeout):
-    cmd = [BASH, kit + "/run.sh", agent, "-Script", script + ";toggleconsole;quit", "-Filter", "^gunfx|^agtest: every",
+    cmd = [BASH, kit + "/run.sh", agent, "-Script", script + ";toggleconsole;quit", "-Filter", "^gunfx|^agtest: (every|test)",
            "-QuitOn", quit_on, "-Timeout", str(timeout)]
     r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     lines = r.stdout.splitlines()
     if not any(re.search(quit_on, l) for l in lines):
         print("(run ended without %r: its output's end)\n%s\n%s" % (quit_on, "\n".join(lines[-8:]), r.stderr[-800:]))
     return lines
+
+
+LIGHT = re.compile(r"gunfx light ([\d.-]+) vent (\d+) exhaust (\d+)")
 
 
 def shots(lines):
@@ -74,7 +77,12 @@ def shots(lines):
         if m:
             g = m.groups()
             out.append({"who": g[0], "wid": int(g[2]), "kind": g[3], "sparks": int(g[5]), "smoke": int(g[6]),
-                        "glow": int(g[7]), "arcs": int(g[8]), "port": int(g[9]), "back": int(g[10]), "dust": int(g[11])})
+                        "glow": int(g[7]), "arcs": int(g[8]), "port": int(g[9]), "back": int(g[10]), "dust": int(g[11]),
+                        "vent": -1, "exhaust": -1})
+        m = LIGHT.search(l)
+        if m and out:  # (the shot's second line: the nail pistol's vents' puffs, a monster's rocket exhaust's)
+            out[-1]["vent"] = int(m.group(2))
+            out[-1]["exhaust"] = int(m.group(3))
     return out
 
 
@@ -87,9 +95,14 @@ def judge(s, who, own_hands):
     ad_own = own_hands and w in AD  # (their sparks, arcs and backblast: adGunBurst's)
     if w in ENERGY:
         return s["smoke"] == 0 and s["sparks"] == 0 and (ad_own or s["arcs"] > 0), "arcs, no smoke"
-    ok = s["smoke"] > 0 and s["glow"] > 0 and (ad_own or s["sparks"] > 0)
-    if w in ROCKETS and not ad_own:
-        ok = ok and s["back"] > 0
+    # (a few sparks at least, every shell and nail gun, however fast it fires: the author's 2026-10-30 note)
+    ok = s["smoke"] > 0 and s["glow"] > 0 and (ad_own or s["sparks"] >= 3)
+    if w in ROCKETS:
+        ok = ok and s["back"] > 0  # (the AD launcher too now: its exhaust's cone)
+        if not own_hands:
+            ok = ok and s["exhaust"] > 0  # (a monster's exhaust smokes at the shot; yours each frame after)
+    if w == 29:
+        ok = ok and s["vent"] > 0  # the nail pistol's side vents
     if w in SHOTGUNS and w != 4 or (w == 4 and not own_hands):
         ok = ok and s["port"] > 0  # (your shotgun's puff comes with its casing: a "gunfx port" line)
     if w in SUPER and not own_hands:
@@ -136,6 +149,10 @@ def main():
                 continue
             if "gunfx port" in l and cur >= 0:
                 ports.add(cur)
+            m = LIGHT.search(l)
+            if m and found:  # (the last shot's second line)
+                found[-1]["vent"] = int(m.group(2))
+                found[-1]["exhaust"] = int(m.group(3))
             for sh in shots([l]):
                 if sh["wid"] != cur:
                     check(False, "player wid %d: a shot of weapon %d" % (cur, sh["wid"]))
@@ -146,7 +163,13 @@ def main():
         # (wait: a safety net only, the run ends on its quit line)
         lines = run(a.kit, a.agent, setup + ";vr_agrunt_test 1;wait30000", "agtest: every weapon", 400)
         check(any("agtest: every weapon" in l for l in lines), "armed: vr_agrunt_test 1 reached its end")
-        judge_all(shots(lines), "enemy", False, ARMED_WIDS)
+        judge_all(shots(lines), "enemy", False, [w for w in ARMED_WIDS if w != 10])
+        # The rocket launcher's grunt alone, where it has room (e1m1's start: 360 units ahead is a wall, it closes in
+        # and clubs you): vr_agrunt_test 111 (weapon 11 alone) in vrtesthall; ends on its verdict line.
+        lines = run(a.kit, a.agent, "map vrtesthall;wait60;god;vr_debug_gunfx 1;vr_agrunt_test 111;wait30000",
+                    "agtest: test 111 over", 200)
+        check(any("agtest: test 111 over" in l for l in lines), "armed rocket: vr_agrunt_test 111 reached its end")
+        judge_all(shots(lines), "enemy", False, [10])
     for name, spawn, wid in (("grunt", 0, 15), ("enforcer", 8, 16)):
         if a.only not in ("", name):
             continue

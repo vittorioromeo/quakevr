@@ -384,6 +384,7 @@ void monsterGunfx(int ent, int propSlot)
         }
         m.fwd = glm::normalize(ax);
         m.up = glm::normalize(az);
+        m.gun = &e; // (its model's points: a rocket launcher's exhaust, the nail pistol's vents)
         gunfx::enemyFired(ent, e.model, -1, m);
         return;
     }

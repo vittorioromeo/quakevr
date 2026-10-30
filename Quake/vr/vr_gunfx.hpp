@@ -6,7 +6,10 @@
 //   the flash's warm glow in it for a moment (the smoke drawn emissive grey: lit by the flash); never the energy guns';
 // - a smaller quick puff out of a shotgun's ejection port: as each casing leaves it (vr_shells.cpp: the shotgun's pump,
 //   the super shotgun's open breech, the Widowmaker's slot), at the shot for the guns that throw none (the grunts');
-// - the rocket launchers' backblast: smoke behind the launcher and dust off the floor under it;
+//   it fades in with the flash, billows forward and swirls (a turbulent flow: particles::GunParticle::turb);
+// - the nail pistol's side vents: light smoke out of exactly its six slots, out and up, as heat leaving it;
+// - the rocket launchers' backblast: a swirling cone out of the exhaust (the model's back end), the exhaust smoking a
+//   moment after, and dust off the floor under it;
 // - barrel heat: sustained fire (the nailguns) leaves the muzzle smoking in thin wisps until it cools;
 // - every spent casing's smoke trail stronger (vr_gunfx_shell_trail, vr_shells.cpp).
 // Per-shot budgets shrink at high fire rates (each shooter's time since its last shot); nothing allocated (the
@@ -33,6 +36,10 @@ struct Muzzle
     glm::vec3 up{0.f, 0.f, 1.f};
     glm::vec3 drift{0.f};
     float gunLength{0.f};
+    // The gun as drawn, for points of its model (the nail pistol's vents, a rocket launcher's exhaust): your hand's
+    // view entity, else an armed grunt's held weapon's entity; neither for a monster's own gun.
+    const view::ViewEntity* view{nullptr};
+    const entity_t* gun{nullptr};
 };
 
 // The weapon id a gun model is drawn with (our weapons' models by name, an AD gun variant's), else -1.
