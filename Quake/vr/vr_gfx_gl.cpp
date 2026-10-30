@@ -693,13 +693,9 @@ bool particleWasteCounted = false; // drawn into since the last readParticleWast
 
 // drawParticlesHalf's: its target (two, for the eyes' size and the spectator camera's), and the pass blending it into
 // the scene.
-struct HalfTarget
-{
-    GLuint texture = 0;
-    GLuint fbo = 0;
-    int width = 0, height = 0;
-};
+using HalfTarget = gfx::RenderTarget;
 HalfTarget halfTargets[2];
+bool halfTargetFailed = false; // its framebuffer was incomplete: drawn full size from then on
 int halfTargetNext = 0;
 int halfTargetsMadeCount = 0; // (vr_frame_log: made again each frame, they would thrash)
 GLuint halfCompositeProgram = 0;
@@ -1753,7 +1749,7 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
         halfCompositeProgram = glProgram(halfCompositeVs, halfCompositeFs, "vr particles (half size, blended in)");
         halfCompositeFailed = !halfCompositeProgram;
     }
-    if(!program || !halfCompositeProgram)
+    if(!program || !halfCompositeProgram || halfTargetFailed)
     {
         return false;
     }
@@ -1762,7 +1758,7 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
     HalfTarget* target = nullptr;
     for(HalfTarget& t : halfTargets)
     {
-        if(t.texture && t.width == width && t.height == height)
+        if(t.tex && t.width == width && t.height == height)
         {
             target = &t;
         }
@@ -1772,26 +1768,14 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
         target = &halfTargets[halfTargetNext];
         halfTargetNext ^= 1;
         ++halfTargetsMadeCount;
-        if(target->texture)
+        target->destroy(); // (another size: made again)
+        if(!target->ensure(width, height, gfx::RenderTargetFormat{.internalFormat = GL_RGBA16F, .maxLevel0 = true},
+               "vr particles (half size)")) // (vr_vram_report)
         {
-            GL_DeleteFramebuffersFunc(1, &target->fbo);
-            GL_DeleteNativeTexture(target->texture);
+            Con_DPrintf("VR: half-size particles: the target's framebuffer is incomplete, drawn full size\n");
+            halfTargetFailed = true;
+            return false;
         }
-        glGenTextures(1, &target->texture);
-        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, target->texture);
-        GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA16F, width, height);
-        GL_ObjectLabelFunc(GL_TEXTURE, target->texture, -1, "particle half-res target"); // (vr_vram_report)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-        GL_ObjectLabelFunc(GL_TEXTURE, target->texture, -1, "vr particles (half size)");
-        GL_GenFramebuffersFunc(1, &target->fbo);
-        GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->fbo);
-        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target->texture, 0);
-        target->width = width;
-        target->height = height;
     }
 
     // The large ones into it, over nothing.
@@ -1815,7 +1799,7 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
     GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_SAMPLE_SHADING);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, target->texture);
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, target->tex);
     if(depthAware)
     {
         GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, distances);

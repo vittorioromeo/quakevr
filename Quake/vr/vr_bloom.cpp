@@ -4,6 +4,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 
@@ -17,13 +18,7 @@ namespace qvr::bloom
 namespace
 {
 
-struct Target
-{
-    GLuint tex{0};
-    GLuint fbo{0};
-    int width{0};
-    int height{0};
-};
+using Target = gfx::RenderTarget;
 
 // The chain: down[0] the bright pass at a quarter of the scene, down[1..3] an eighth, a sixteenth,
 // a thirty-second; up[2..0] back up to a quarter, each the level below it spread out plus its own
@@ -185,47 +180,17 @@ void main()
 
 void destroy(Target& t)
 {
-    if(t.fbo)
-    {
-        GL_DeleteFramebuffersFunc(1, &t.fbo);
-    }
-    if(t.tex)
-    {
-        GL_DeleteNativeTexture(t.tex); // (and out of the engine's bound-texture cache: its name comes back at once)
-    }
-    t = Target{};
+    t.destroy();
 }
 
 [[nodiscard]] bool ensure(Target& t, int width, int height, const char* name)
 {
-    if(t.tex && t.width == width && t.height == height)
-    {
-        return true;
-    }
-    destroy(t);
-    glGenTextures(1, &t.tex);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, t.tex);
-    GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_R11F_G11F_B10F, width, height);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
-    GL_ObjectLabelFunc(GL_TEXTURE, t.tex, -1, name);
-
-    GL_GenFramebuffersFunc(1, &t.fbo);
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, t.fbo);
-    GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, t.tex, 0);
-    const bool ok = GL_CheckFramebufferStatusFunc(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
-    if(!ok)
+    if(!t.ensure(width, height, gfx::RenderTargetFormat{.internalFormat = GL_R11F_G11F_B10F}, name))
     {
         Con_Warning("VR bloom: framebuffer incomplete\n");
-        destroy(t);
         failed = true;
         return false;
     }
-    t.width = width;
-    t.height = height;
     return true;
 }
 
