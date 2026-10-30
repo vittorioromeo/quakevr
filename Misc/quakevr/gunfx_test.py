@@ -2,7 +2,8 @@
 class, yours and the monsters': each shot makes the effects its class should (the brief's table) and the excluded
 weapons none.
 
-    python Misc/quakevr/gunfx_test.py <agent> [--kit C:/OHWorkspace/qvr-kit] [--only player|armed|grunt|enforcer|wisps|tube|impactsnd]
+    python Misc/quakevr/gunfx_test.py <agent> [--kit C:/OHWorkspace/qvr-kit] [--only player|armed|grunt|enforcer|wisps|tube|impactsnd|slots]
+    python Misc/quakevr/gunfx_test.py <agent> [--kit C:/OHWorkspace/qvr-kit] [--only player|armed|grunt|enforcer|wisps|tube|slots]
 
 Runs (the kit's run.sh, fast mode, vr_debug_gunfx 1 printing each shot's "gunfx shot who ... wid ... sparks ..."):
 - player: every weapon id in turn into the main hand (impulse 149, vr_test_give_wid), a trigger pull each; ends on
@@ -12,6 +13,9 @@ Runs (the kit's run.sh, fast mode, vr_debug_gunfx 1 printing each shot's "gunfx 
 - wisps: the muzzle wisps (vr_muzzlewisps.cpp) of the shotguns, nailguns, revolver, none of the rocket launcher's;
 - tube: a grunt's own gun fired as a rocket tube (vr_gunfx_monster_test 1: AD's rocket soldier's path).
 - impactsnd: the surfaces' impact sounds (vr_impacts.cpp: each material x hit kind, the cap; with -Sound).
+- tube: a grunt's own gun fired as a rocket tube (vr_gunfx_monster_test 1: AD's rocket soldier's path);
+- slots: the per-weapon Gunfire multipliers (Weapon Offsets > Effects) at 0, 1 and 2, with the global amounts; ends on
+  its "gunfxslot end" echo.
 Prints "PASS/FAIL <what>" lines and "gunfx_test: N passed, M failed".
 """
 
@@ -296,6 +300,44 @@ def impsnd_case(a):
         check(len(played) >= least and len(capped) >= 1 and impsnd_cap_ok(played),
               "impsnd real %s: %d hits over %d frames, %d played, %d capped, under the cap" %
               (name, len(hits), frames, len(played), len(capped)))
+def slots_case(a):
+    """Gunfire multipliers (ROUND23.md, "Gunfire VFX settings"): the shotgun's slot (index 1: vr_wofs_*_02) at 0 makes no
+    sparks or smoke, at 2 about twice the counts at 1 (vr_gunfx_test 4: its slot by the weapon's model); the global Spark
+    and Smoke Amount 0.5 with the slot's 2 the counts at 1 again; your own shotgun fired with its slot at 0: no sparks, no
+    smoke, no wisps (the hand's slot). Each vr_gunfx_test 0.42 s apart (30 frames: a full budget, 0.3 s since the last)."""
+    keys = ("fx_gfx_sparks", "fx_gfx_smoke", "fx_gfx_wisps")
+    def slot(v):
+        return ";".join("vr_wofs_%s_02 %g" % (k, v) for k in keys)
+    s = "map e1m1;wait60;god;notarget;vr_debug_gunfx 1"
+    for label, sets in (("base", slot(1)), ("zero", slot(0)), ("double", slot(2)),
+                        ("half", slot(2) + ";vr_gunfx_spark_amount 0.5;vr_gunfx_smoke_amount 0.5")):
+        s += ";%s;echo gunfxslot %s;vr_gunfx_test 4;wait30" % (sets, label)
+    s += (";vr_gunfx_spark_amount 1;vr_gunfx_smoke_amount 1;%s;vr_weapon_grip_mode 1;impulse 9;wait2;"
+          "vr_mock_hand main 0.15 1.2 -0.45 70 0 0;wait5;vr_test_give_wid 4;impulse 149;wait5;echo gunfxslot fired;"
+          "+attack;wait4;-attack;wait40;%s;echo gunfxslot end" % (slot(0), slot(1)))  # (wisps would start 0.26 s on)
+    lines = run(a.kit, a.agent, s, "gunfxslot end", 120)
+    check(any("gunfxslot end" in l for l in lines), "slots: the run reached its end")
+    got = {}
+    cur = None
+    wisps = 0
+    for l in lines:
+        m = re.search(r"gunfxslot (\w+)", l)
+        if m:
+            cur = m.group(1)
+            continue
+        for sh in shots([l]):
+            got.setdefault(cur, sh)
+        if cur == "fired" and WISP_START.search(l):
+            wisps += 1
+    b, z, d, h, f = (got.get(k) for k in ("base", "zero", "double", "half", "fired"))
+    check(bool(b) and b["sparks"] >= 3 and b["smoke"] > 0, "slots: at 1 sparks and smoke (%s)" % (b,))
+    check(bool(z) and z["sparks"] == 0 and z["smoke"] == 0, "slots: at 0 no sparks, no smoke (%s)" % (z,))
+    check(bool(b and d) and abs(d["sparks"] - 2 * b["sparks"]) <= 1 and abs(d["smoke"] - 2 * b["smoke"]) <= 1,
+          "slots: at 2 twice the sparks and smoke (%s vs %s)" % (d, b))
+    check(bool(b and h) and h["sparks"] == b["sparks"] and h["smoke"] == b["smoke"],
+          "slots: global 0.5 times the slot's 2: as at 1 (%s)" % (h,))
+    check(bool(f) and f["who"] == "player" and f["sparks"] == 0 and f["smoke"] == 0 and wisps == 0,
+          "slots: your shotgun with its slot at 0: no sparks, smoke or wisps (%s, wisps %d)" % (f, wisps))
 
 
 def main():
@@ -348,6 +390,8 @@ def main():
         wisps_case(a)
     if a.only in ("", "impactsnd"):
         impsnd_case(a)
+    if a.only in ("", "slots"):
+        slots_case(a)
     if a.only in ("", "tube"):
         # A monster's own gun as a rocket tube (AD's rocket soldier: QC weaponfired QVR_FIRED_ROCKET), a grunt's gun
         # standing in for it (AD's soldier is its mesh): the backblast out of the gun's back, the exhaust smoking.
