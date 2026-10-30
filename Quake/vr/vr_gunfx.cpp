@@ -6,6 +6,7 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_impacts.hpp"
+#include "vr_muzzlewisps.hpp"
 #include "vr_particles.hpp"
 #include "vr_geom.hpp"
 #include "vr_profile.hpp"
@@ -701,6 +702,82 @@ void afterSmoke(HandState& h, const Muzzle& m, int wid, float dt)
     }
 }
 
+// The guns that leave smoke wisps off their barrels after firing (vr_muzzlewisps.hpp): a shot's share of full smoke (the
+// shotguns' one shot fills them, a burst of the nailguns'), the smoke's opacity at full, and their barrels.
+struct WispLook
+{
+    float charge, alpha;
+    int barrels;
+};
+[[nodiscard]] WispLook wispLook(int wid)
+{
+    switch(wid)
+    {
+        case WID_SHOTGUN: return {1.f, 0.32f, 1};
+        case WID_SUPER_SHOTGUN: return {1.f, 0.32f, 2};
+        case WID_REVOLVER: return {0.7f, 0.26f, 1};
+        case WID_FLAREGUN: return {0.7f, 0.26f, 1};
+        case WID_NAILPISTOL: return {0.2f, 0.22f, 1};
+        case WID_NAILGUN: return {0.12f, 0.26f, 2};
+        case WID_SUPER_NAILGUN: return {0.08f, 0.3f, 1}; // (its barrels turn: one wisp out of their middle)
+        default: return {0.f, 0.f, 0};
+    }
+}
+
+// Where the barrels' bores end on the models with two (their own coordinates; Misc/quakevr/anchors.py's frame 0: the
+// middle of each bore's front ring). Other two-barrelled guns: either side of the muzzle.
+struct ModelBarrels
+{
+    const char* name;
+    glm::vec3 at[muzzlewisps::maxBarrels];
+};
+constexpr ModelBarrels barrelEnds[] = {
+    {"progs/v_shot2.mdl", {{28.5f, -1.53f, 6.39f}, {28.5f, 1.47f, 6.39f}}},
+    {"progs/v_nail.mdl", {{20.21f, -3.67f, 3.84f}, {20.21f, 3.77f, 3.84f}}},
+};
+
+// Your gun's barrels this frame, for their wisps (`fired`: its shot this frame).
+void barrelWisps(int hand, const Muzzle& m, int wid, bool fired)
+{
+    const WispLook look = wispLook(wid);
+    muzzlewisps::Gun g;
+    g.fwd = m.fwd;
+    g.charge = look.charge;
+    g.alpha = look.alpha;
+    g.barrels = look.barrels;
+    g.at[0] = g.at[1] = m.at;
+    if(look.barrels > 1)
+    {
+        GunFrame f;
+        const qmodel_t* model = gunModel(m);
+        const ModelBarrels* e = nullptr;
+        if(model && gunFrame(m, f))
+        {
+            const char* hash = strchr(model->name, '#');
+            const size_t len = hash ? static_cast<size_t>(hash - model->name) : strlen(model->name);
+            for(const ModelBarrels& x : barrelEnds)
+            {
+                if(strlen(x.name) == len && strncmp(x.name, model->name, len) == 0)
+                {
+                    e = &x;
+                }
+            }
+        }
+        if(e)
+        {
+            g.at[0] = at(f, e->at[0]);
+            g.at[1] = at(f, e->at[1]);
+        }
+        else
+        {
+            const glm::vec3 right = glm::normalize(glm::cross(m.fwd, m.up) + glm::vec3{1e-6f});
+            g.at[0] = m.at - right * 1.4f;
+            g.at[1] = m.at + right * 1.4f;
+        }
+    }
+    muzzlewisps::handFrame(hand, g, fired);
+}
+
 // vr_gunfx_test <wid> [count]: that weapon's shot effects `count` times (1), 48 units ahead of the view, pointing away.
 void test_f()
 {
@@ -782,7 +859,8 @@ void handFrame(int hand, const view::ViewEntity& w, int slot)
     }
     const bool due = h.due;
     h.due = false;
-    if(slot < 0 || !w.visible || !w.ent.model || (!due && h.heat <= 0.f && h.vent <= 0.f && h.exhaust <= 0.f))
+    if(slot < 0 || !w.visible || !w.ent.model ||
+        (!due && h.heat <= 0.f && h.vent <= 0.f && h.exhaust <= 0.f && !muzzlewisps::smoking(hand)))
     {
         return;
     }
@@ -834,6 +912,7 @@ void handFrame(int hand, const view::ViewEntity& w, int slot)
     {
         heatWisps(h, m, dt);
         afterSmoke(h, m, wid, dt);
+        barrelWisps(hand, m, wid, due);
     }
 }
 
@@ -881,6 +960,7 @@ void clear()
         h = HandState{};
     }
     impacts::clear();
+    muzzlewisps::clear();
 }
 
 void registerCommands()

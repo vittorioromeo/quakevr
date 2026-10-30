@@ -1108,6 +1108,23 @@ za::Vector<Item> pageWeaponEffects()
                   "dust kicked up off the floor under it."),
         toggle("Barrel Heat", vr_gunfx_heat)
             .help("Sustained fire (the nailguns) leaves the muzzle smoking in thin wisps and glowing faintly until it cools."),
+        toggle("Muzzle Wisps", vr_gunfx_wisps)
+            .help("After you stop firing, a very thin, faint line of smoke trails off each barrel for a few seconds (the "
+                  "shotgun's one, the super shotgun's and the nailgun's two), following the muzzle as you move the gun."),
+        slider("Wisp Delay", vr_gunfx_wisp_delay, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("How long after the last shot the wisps start."),
+        slider("Wisp Persistence", vr_gunfx_wisp_time, 0.5f, 10.f, 0.25f, "%.2f s").extend(0.f, 30.f)
+            .help("How long a barrel keeps smoking (after a burst; a single shot of the nailguns: less)."),
+        slider("Wisp Fade Time", vr_gunfx_wisp_fade, 0.2f, 4.f, 0.1f, "%.1f s")
+            .help("How long the smoke let go lasts, rising and fading: the trail's length."),
+        slider("Wisp Thickness", vr_gunfx_wisp_width, 0.1f, 3.f, 0.05f, "%.2f cm").extend(0.05f, 20.f)
+            .help("How thick a wisp is at the muzzle."),
+        slider("Wisp Spread", vr_gunfx_wisp_spread, 1.f, 8.f, 0.25f, "%.2fx").extend(1.f, 10.f)
+            .help("How much thicker (and fainter) a wisp gets as it fades."),
+        slider("Wisp Amount", vr_gunfx_wisp_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("How dense the wisps are (their opacity)."),
+        slider("Wisp Rise", vr_gunfx_wisp_rise, 0.f, 60.f, 1.f, "%.0f cm/s").extend(0.f, 200.f)
+            .help("How fast the smoke rises off the barrel (Smoke Turbulence curls it)."),
         toggle("Impacts by Material", vr_gunfx_impacts)
             .help("Bullets and nails hitting walls throw up what the surface is made of: dust off stone and ground, sparks "
                   "off metal, chips off wood (flesh has the gore's blood mist)."),
