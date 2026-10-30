@@ -616,33 +616,27 @@ void(entity temp_player) MGH_horde_set_keys =
 };
 
 
-void(float key_item) MGH_horde_key_give_all =
+// QVR: every player's key of key_item's kind given (xGive) or taken (one loop for both: MGH_horde_key_give_all and
+// MGH_horde_key_remove_all).
+void(float key_item, float xGive) MGH_horde_key_set_all =
 {
 	local entity temp_player;
 	temp_player = VR_Player();
 
 	while (temp_player)
 	{
-		VR_ItemUtil_EntAddItem(temp_player, key_item == IT_KEY1 ? IID_KEY1 : IID_KEY2);
+		if (xGive)
+			VR_ItemUtil_EntAddItem(temp_player, key_item == IT_KEY1 ? IID_KEY1 : IID_KEY2);
+		else
+			VR_ItemUtil_EntDelItem(temp_player, key_item == IT_KEY1 ? IID_KEY1 : IID_KEY2);
 		temp_player = VR_NextPlayer(temp_player);
 	}
 
 	MGH_horde_print_keys();
 };
 
-void(float key_item) MGH_horde_key_remove_all =
-{
-	local entity temp_player;
-	temp_player = VR_Player();
-
-	while (temp_player)
-	{
-		VR_ItemUtil_EntDelItem(temp_player, key_item == IT_KEY1 ? IID_KEY1 : IID_KEY2);
-		temp_player = VR_NextPlayer(temp_player);
-	}
-
-	MGH_horde_print_keys();
-};
+void(float key_item) MGH_horde_key_give_all = { MGH_horde_key_set_all(key_item, TRUE); };
+void(float key_item) MGH_horde_key_remove_all = { MGH_horde_key_set_all(key_item, FALSE); };
 
 void(float key_item)MGH_horde_key_give =
 {
