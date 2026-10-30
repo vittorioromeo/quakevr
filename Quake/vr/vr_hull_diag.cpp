@@ -1110,7 +1110,7 @@ void hitTest_f()
     progs::ServerVm vm;
     const float dist = Cmd_Argc() > 1 ? static_cast<float>(Q_atof(Cmd_Argv(1))) : 300.f;
     const float spread = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 0.1f;
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     const glm::vec3 target{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     za::U32 seed = 12345u;
     int shots = 0, hits = 0, dirs = 0;
@@ -1161,7 +1161,7 @@ void approachRun()
         Con_Printf("vr_hull_approach [classname [n]]: needs a map\n");
         return;
     }
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     const glm::vec3 origin{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     if(Cmd_Argc() < 2)
     {

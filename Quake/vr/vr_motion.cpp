@@ -704,7 +704,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     PR_PushQCVM(&sv.qcvm, &oldVm);
     za::String out;
     const int ofs = progs::handFields(hand == HAND_MAIN).held;
-    edict_t* const player = EDICT_NUM(1);
+    edict_t* const player = progs::localPlayer();
     const int num = ofs >= 0 && !player->free ? progs::fieldInt(player, ofs) : 0;
     // (An edict reference in range and on an edict's start; one freed since is skipped below.)
     if(num > 0 && num % qcvm->edict_size == 0 && num / qcvm->edict_size < qcvm->num_edicts)
@@ -2075,7 +2075,7 @@ void serverFrame()
     }
 
     const double sampleStart = Sys_DoubleTime();
-    edict_t* player = svs.clients[0].edict;
+    edict_t* player = progs::localPlayer();
     ServerSample s;
     s.time = qcvm->time;
     s.player = true;

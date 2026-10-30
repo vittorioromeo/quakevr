@@ -384,7 +384,7 @@ void throwTest_f()
         return;
     }
     const progs::ServerVm vm;
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     // (A third argument: that edict instead of the nearest, if it is a live monster: vr_ragdoll_act's.)
     const int only = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : 0;
     edict_t* m = only > svs.maxclients && only < qcvm->num_edicts ? EDICT_NUM(only) : nearestMonster();

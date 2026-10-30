@@ -13,6 +13,7 @@
 #include "vr_lines.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
+#include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_render.hpp"
 #include "vr_trace.hpp"
@@ -721,7 +722,7 @@ void traceArc(Stream& s, const glm::vec3& v0)
     s.landsOnThing = false;
     s.landTime = arcStep * arcSteps;
     // (The things in its way through the local server: monsters, props, doors; never its own body nor you.)
-    const edict_t* you = sv.active && svs.maxclients >= 1 ? svs.clients[0].edict : nullptr;
+    const edict_t* you = progs::playerEdict();
     for(int i = 1; i <= arcSteps; i++)
     {
         const float t = arcStep * static_cast<float>(i);

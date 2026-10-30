@@ -227,6 +227,7 @@ constants, and then its body calls the canonical one).
 |---|---|---|
 | the server's VM current for a scope | `progs::ServerVm vm;` (RAII) | vr_progs.hpp |
 | the local player | `progs::localPlayer()` (null when not hosting / client 0 not in game) | vr_progs.hpp |
+| the first player slot (edict 1) | `progs::playerEdict()` (null only when not hosting; client 0 may not be in yet) | vr_progs.hpp |
 | a server edict by number | `progs::edictAt(num)` (null: out of range, free, not hosting) | vr_progs.hpp |
 | edict loops, nearest one | `progs::forEachEdict(first, fn)`, `progs::nearestBy(first, limit, distance, &best)` | vr_progs.hpp |
 | calling QC | `progs::callQc(fn, a, b, c)`, `qcFloat`, `qcText(dst, size, fn, a)`, `qcVec(fn, a, fallback)`; by name with `progs::findFunction` (or bind it in `Bindings`) | vr_progs.hpp |
@@ -241,6 +242,13 @@ constants, and then its body calls the canonical one).
 | every cvar | `cvars::forEach(fn)` | vr_cvars.hpp |
 | a VR cvar's value | `vr_x.value` directly, never `Cvar_VariableValue("vr_x")` (by name only for names typed or made at run time) | vr_cvars.hpp |
 | a client entity's number | `client::entityNumber(e, limit)` (-1: null, the world, not one of cl_entities) | vr_client.hpp |
+
+The player's edict: never `EDICT_NUM(1)` or `svs.clients[0].edict`. `localPlayer()` when the code needs client 0
+in the game (its guard: `sv.active && svs.clients[0].active`): HUD, motion, climbing, traces from the hands.
+`playerEdict()` when the server running is enough (its guard: `sv.active`; svs.maxclients is always at least 1):
+console commands, tests and diagnostics, server-frame code, QC calls with the player as `self`. Single player only:
+`svs.maxclients == 1 ? progs::playerEdict() : nullptr`. Neither depends on the current VM. Sites guarded by something
+else (a test's state, `svs.maxclients` alone, nothing: the caller's) were left as they were (ROUND23, "player edict").
 
 ### Small libraries (refactor A3)
 

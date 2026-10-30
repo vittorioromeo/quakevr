@@ -1463,7 +1463,7 @@ void here_f()
     const double height = Cmd_Argc() > 2 ? za::max(Q_atof(Cmd_Argv(2)), 1.0f) : size;
     const double distance = Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : size * 0.5 + 48.0;
     const progs::ServerVm vm;
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     const double yaw = glm::radians(static_cast<double>(player->v.angles[1]));
     const glm::dvec3 fwd{za::cos(yaw), za::sin(yaw), 0.0};
     glm::dvec3 centre = glm::dvec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]} + fwd * distance;

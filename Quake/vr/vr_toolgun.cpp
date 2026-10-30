@@ -1758,7 +1758,7 @@ void spawnTrace_f()
     {
         removeTarget(spawnTrace.num, true);
     }
-    const edict_t* player = EDICT_NUM(1);
+    const edict_t* player = progs::playerEdict();
     const float yaw = glm::radians(player->v.angles[1]);
     const glm::vec3 at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 128.f, player->v.origin[1] + za::sin(yaw) * 128.f,
         player->v.origin[2] + player->v.mins[2] + s.lift + 1.f};
@@ -1792,7 +1792,7 @@ void spawnTest_f()
     float yaw = 0.f;
     {
         const progs::ServerVm vm;
-        const edict_t* player = EDICT_NUM(1);
+        const edict_t* player = progs::playerEdict();
         feet = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2] + player->v.mins[2]};
         yaw = player->v.angles[1];
     }
@@ -2022,7 +2022,7 @@ void armedArmourTest_f()
     glm::vec3 at{0.f}, angles{0.f};
     {
         const progs::ServerVm vm;
-        const edict_t* player = EDICT_NUM(1);
+        const edict_t* player = progs::playerEdict();
         const float yaw = glm::radians(player->v.angles[1]);
         at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 128.f, player->v.origin[1] + za::sin(yaw) * 128.f, player->v.origin[2] + 1.f};
         angles = glm::vec3{0.f, player->v.angles[1] + 180.f, 0.f};

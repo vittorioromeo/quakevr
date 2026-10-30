@@ -100,7 +100,7 @@ void pressTest_f()
         return;
     }
     const progs::ServerVm vm;
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     const glm::vec3 eye = vec(player->v.origin);
     int best = 0;
     float bestDist = 1e30f;

@@ -1284,7 +1284,7 @@ int nearestProp()
         return 0;
     }
     const progs::ServerVm vm;
-    const edict_t* player = EDICT_NUM(1);
+    const edict_t* player = progs::playerEdict();
     float best = 1e9f;
     int found = 0;
     for(int i = 1; i < qcvm->num_edicts && i < static_cast<int>(world->slots.size()); i++)

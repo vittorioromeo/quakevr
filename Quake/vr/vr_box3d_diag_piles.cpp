@@ -262,7 +262,7 @@ void bigPile_f()
         Con_Printf("vr_physics_bigpile: no vr_debris_piece or vr_crate in the progs\n");
         return;
     }
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     vec3_t yaw{0.f, player->v.angles[1], 0.f};
     vec3_t forward, right, up;
     AngleVectors(yaw, forward, right, up);

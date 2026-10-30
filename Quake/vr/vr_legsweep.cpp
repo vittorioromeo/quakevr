@@ -834,7 +834,7 @@ void qvr::legsweep::serverFrame()
     }
     state.lastTime = now;
     traceStep();
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     const bool on = vr_legsweep.value != 0.f && !player->free && player->v.health > 0.f;
     for(int hand = 0; hand < 2; hand++)
     {

@@ -262,7 +262,7 @@ void describe(za::String& out)
         sv.qcvm.num_edicts > 1)
     {
         progs::ServerVm serverVm;
-        edict_t* player = EDICT_NUM(1);
+        edict_t* player = progs::localPlayer();
         describeHand(out, player, HAND_MAIN);
         describeHand(out, player, HAND_OFF);
         describeNearby(out, player);

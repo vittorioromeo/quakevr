@@ -1502,7 +1502,7 @@ void serverFrame()
     {
         return;
     }
-    edict_t* player = svs.clients[0].edict;
+    edict_t* player = progs::localPlayer();
     const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     const za::String wanted = ghost.monClass.empty() ? za::String{"vr_dummy"} : ghost.monClass;
     float best = 1e9f;

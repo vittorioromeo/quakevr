@@ -196,9 +196,8 @@ const char* stateLine()
     }
     int flags = 0;
     int movetype = MOVETYPE_WALK;
-    if(sv.active && svs.maxclients >= 1 && svs.clients[0].edict)
+    if(const edict_t* p = progs::playerEdict())
     {
-        const edict_t* p = svs.clients[0].edict;
         flags = static_cast<int>(p->v.flags);
         movetype = static_cast<int>(p->v.movetype);
     }

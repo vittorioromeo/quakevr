@@ -1034,7 +1034,7 @@ void handToRagdollOrBy(int hand, bool by)
         PR_PushQCVM(&sv.qcvm, &oldVm);
         // (Part "near": the one nearest the hand; "head": its rig's head; "neck": its head's joint; a name (its
         // beginning, e.g. "shin_r"): the first part so named; else its number.)
-        const edict_t* player = EDICT_NUM(1);
+        const edict_t* player = progs::playerEdict();
         const char* which = Cmd_Argv(3);
         const bool nearest = !q_strcasecmp(which, "near");
         const bool named = !nearest && q_strcasecmp(which, "head") && q_strcasecmp(which, "neck") &&
@@ -1302,7 +1302,7 @@ bool nearestMonster(glm::vec3& out)
         return false;
     }
     const progs::ServerVm vm;
-    const edict_t* player = EDICT_NUM(1);
+    const edict_t* player = progs::playerEdict();
     const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     const auto middle = [](const edict_t* e) {
         return glm::vec3{(e->v.absmin[0] + e->v.absmax[0]) * 0.5f, (e->v.absmin[1] + e->v.absmax[1]) * 0.5f,
@@ -1328,7 +1328,7 @@ bool ragdollPartTarget(int part, glm::vec3& out)
         return false;
     }
     progs::ServerVm serverVm;
-    const edict_t* player = EDICT_NUM(1);
+    const edict_t* player = progs::playerEdict();
     const bool found = box3d::ragdollPartCentre(geom::vec(player->v.origin),
                            part, out) != 0;
     return found;
@@ -1510,7 +1510,7 @@ void walkFrame()
     }
     qcvm_t* oldVm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldVm);
-    const edict_t* player = EDICT_NUM(1);
+    const edict_t* player = progs::playerEdict();
     const glm::vec3 at{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     PR_PopQCVM(oldVm);
     if(glm::vec3 m; mockWalk.monster)

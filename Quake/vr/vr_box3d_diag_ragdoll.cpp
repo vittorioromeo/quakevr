@@ -277,7 +277,7 @@ void ragdollBlastTest_f()
         return;
     }
     const progs::ServerVm vm;
-    const glm::vec3 player = vec(svs.clients[0].edict->v.origin);
+    const glm::vec3 player = vec(progs::playerEdict()->v.origin);
     RagdollBodies* best = nullptr;
     float bestD = 1e30f;
     for(RagdollBodies& r : world->ragdolls)
@@ -416,7 +416,7 @@ void corpseDrop_f()
         return;
     }
     const progs::ServerVm vm;
-    const glm::vec3 eye = vec(EDICT_NUM(1)->v.origin);
+    const glm::vec3 eye = vec(progs::playerEdict()->v.origin);
     int corpse = 0, prop = 0;
     float corpseD = 1e9f, propD = 1e9f;
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)

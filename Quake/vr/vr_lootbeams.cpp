@@ -520,7 +520,7 @@ void test_f()
     float yaw = 0.f;
     {
         progs::ServerVm vm;
-        edict_t* player = EDICT_NUM(1);
+        edict_t* player = progs::playerEdict();
         feet = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2] + player->v.mins[2]};
         yaw = player->v.angles[1];
     }
@@ -549,7 +549,7 @@ void test_f()
         if(fn > 0)
         {
             pr_global_struct->time = qcvm->time;
-            pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
+            pr_global_struct->self = EDICT_TO_PROG(progs::playerEdict());
             G_FLOAT(OFS_PARM0) = static_cast<float>(WID_NAILGUN);
             G_FLOAT(OFS_PARM1) = 2.f; // AID_NAILS
             G_FLOAT(OFS_PARM2) = thing.value;

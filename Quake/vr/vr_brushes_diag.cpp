@@ -60,7 +60,7 @@ void trace_f()
     vec3_t start{static_cast<float>(a.x), static_cast<float>(a.y), static_cast<float>(a.z)};
     vec3_t end{static_cast<float>(c.x), static_cast<float>(c.y), static_cast<float>(c.z)};
     vec3_t mins{-half, -half, half > 0.f ? -24.f : 0.f}, maxs{half, half, half > 0.f ? 32.f : 0.f};
-    const trace_t tr = SV_Move(start, mins, maxs, end, MOVE_NOMONSTERS, EDICT_NUM(1)); // (not the world: what it owns, all, would be passed by)
+    const trace_t tr = SV_Move(start, mins, maxs, end, MOVE_NOMONSTERS, progs::playerEdict()); // (not the world: what it owns, all, would be passed by)
     const int num = tr.ent ? NUM_FOR_EDICT(tr.ent) : -1;
     Con_Printf("brush trace: fraction %.3f, end %.1f %.1f %.1f, normal %.2f %.2f %.2f, entity %d%s%s%s\n", tr.fraction,
         tr.endpos[0], tr.endpos[1], tr.endpos[2], tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2], num,

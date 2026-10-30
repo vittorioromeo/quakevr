@@ -2967,7 +2967,7 @@ void saveState()
 {
     if(!sv.active || svs.maxclients != 1 || st.restorePending || cl.intermission) { return; }
     progs::ServerVm serverVm;
-    eval_t* field = GetEdictFieldValueByName(EDICT_NUM(1), "vr_flashlight_state");
+    eval_t* field = GetEdictFieldValueByName(progs::playerEdict(), "vr_flashlight_state");
     if(field)
     {
         const Mode mode = st.mode == Mode::Returning ? Mode::Mounted : st.mode;
@@ -2984,7 +2984,7 @@ void restoreState()
     if(!sv.active || svs.maxclients != 1) { return; }
     qcvm_t* previous;
     PR_PushQCVM(&sv.qcvm, &previous);
-    const eval_t* field = GetEdictFieldValueByName(EDICT_NUM(1), "vr_flashlight_state");
+    const eval_t* field = GetEdictFieldValueByName(progs::playerEdict(), "vr_flashlight_state");
     const unsigned packed = field ? static_cast<unsigned>(za::clamp(field->_float, 0.f, 524287.f)) : 0;
     PR_PopQCVM(previous);
     const unsigned mode = (packed >> 1) & 7;

@@ -197,7 +197,7 @@ void removeSubject()
     if(e && fn && st.subject > svs.maxclients)
     {
         pr_global_struct->time = qcvm->time;
-        pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
+        pr_global_struct->self = EDICT_TO_PROG(progs::playerEdict());
         G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
         PR_ExecuteProgram(fn);
         Con_Printf("rigstudio: subject %d removed\n", st.subject);
@@ -2788,7 +2788,7 @@ void close()
     {
         removeSubject(); // (the studio's stand-in: never left in the map, unkillable, its AI let go)
         const progs::ServerVm vm;
-        edict_t* p = EDICT_NUM(1);
+        edict_t* p = progs::playerEdict();
         p->v.flags = static_cast<float>(static_cast<int>(p->v.flags) & ~(FL_GODMODE | FL_NOTARGET));
     }
     st.subject = 0;
@@ -3576,7 +3576,7 @@ void serverFrame()
     }
     st.wantMap = false;
     const progs::ServerVm vm;
-    edict_t* p = EDICT_NUM(1);
+    edict_t* p = progs::playerEdict();
     p->v.flags = static_cast<float>(static_cast<int>(p->v.flags) | FL_GODMODE | FL_NOTARGET);
     if(!st.staged)
     {

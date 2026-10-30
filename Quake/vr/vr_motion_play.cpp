@@ -1678,7 +1678,7 @@ void playServerFrame()
     {
         return;
     }
-    edict_t* player = svs.clients[0].edict;
+    edict_t* player = progs::localPlayer();
     if(!placed)
     {
         workOutPlacement(player);

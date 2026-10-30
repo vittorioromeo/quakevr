@@ -67,7 +67,7 @@ void strikeTest_f()
         return;
     }
     const progs::ServerVm vm;
-    const glm::vec3 eye = vec(EDICT_NUM(1)->v.origin);
+    const glm::vec3 eye = vec(progs::playerEdict()->v.origin);
     int best = 0;
     float bestDist = 1e30f;
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)

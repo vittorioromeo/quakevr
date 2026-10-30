@@ -1290,3 +1290,32 @@ No behaviour change. Steps of the brief (refactor_plan.md, TRIAGE.md wave B):
 
 Checks: build 0 warnings and all checks; covering baseline cases (teleporters, collectfx, mapflameburn, swim_sound,
 vrtrailer, selfchecks, stats_levelchange, dead_gear, explosion_debris, arena 1/5) as in baseline.tsv.
+
+## Refactor follow-up: the player edict (branch `agent/playeredict`)
+
+No behaviour change. Waves A-B3 left ~100 `EDICT_NUM(1)` / `svs.clients[0].edict` reads: `progs::localPlayer()`
+also needs client 0 active, and most of these sites guard only on the server running. New
+`progs::playerEdict()` (vr_progs.hpp) = `sv.active && svs.maxclients >= 1 ? svs.clients[0].edict : nullptr`; CODE_STYLE
+"Engine access" says when to use which. With the server's VM current and `sv.active` true, `EDICT_NUM(1)` and
+`svs.clients[0].edict` are the same pointer (SV_SpawnServer sets it; the edicts are never reallocated in a map) and
+svs.maxclients is never under 1, so an `if(!sv.active) return;` guard followed by `EDICT_NUM(1)` is exactly
+`playerEdict()`.
+
+- **playerEdict() (55 uses, 32 files):** every site behind `sv.active` (console commands, tests, server-frame code,
+  QC calls with the player as self), the inline `sv.active && svs.maxclients >= 1 ? ... : nullptr` copies
+  (bloodstream, bullettime calm, physics grabBench, cheats, vr_input shoveSlide, the toolgun menu, portal stuck), and
+  bullettime's single-player `meterPlayer` (`svs.maxclients == 1 ? playerEdict() : nullptr`).
+- **localPlayer() (11 sites):** the reads behind `localPlayer()` or `sv.active && svs.clients[0].active` (avatar climb
+  foot trace, climb try/probe, vr_trace's pass edict, motion heldProp / serverFrame, motion play / review, note
+  context, the quicksave tool's dead check).
+- **Left (35 reads; guard differs):** no `sv.active` in the function, the caller's guard or a test's state instead:
+  backend_mock nearestThrownWeapon / handToNearest / turnFrame; box3d presstest frame, striketest frame (4),
+  box3d_ragdoll heldLoadout and struggle holdsOf (`svs.maxclients` only); foegrab startTrace, foegrab_diag walk test /
+  nearestMonster / neck and grab diag frames; held carryCheck; ragtest callQc / turnAway / fireGrab / nearestTarget;
+  ragtool player(); rigseq entityArg; rigstudio findStage; timescale VR_PhysicsEntityBegin (per entity, hot);
+  toolgun heldByPlayer, updateAim, removeTarget. Other guards: chainsaw pulledField (the current VM's num_edicts),
+  continue VR_SaveContext (`svs.clients` only), menuui monsterHunting (none), portals crossPlayer (a comparison under
+  `cls.state`), portals infoBody (no `sv.active`), menu.c (C).
+
+Checks: build 0 warnings and all checks; covering baseline cases (agrunt 1/2/12, ragdoll_*, selfchecks, reload,
+arena_1, stats_levelchange, prop_climb, teleporters, agarmor_1, rigstudio subjects/aim) vs baseline.tsv.
